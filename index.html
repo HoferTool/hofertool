@@ -4139,6 +4139,45 @@ input[type="month"], input[type="week"] {
 .kamera-bild__zeichen { font-size: 2.2rem; }
 .kamera-bild__text { font-size: 1rem; font-weight: 700; }
 .kamera-bild__klein { font-size: .78rem; color: #8fa6c6; max-width: 34ch; line-height: 1.35; }
+/* Dokumentenpool */
+.pool-kopf { display: flex; align-items: center; justify-content: space-between;
+             gap: 12px; margin: 6px 0 10px; flex-wrap: wrap; }
+.pool-zeile--offen { background: rgba(127, 151, 181, .12); color: var(--gedaempft); }
+.tabelle code { font-size: .85em; background: rgba(127,151,181,.16);
+                padding: 1px 6px; border-radius: 5px; }
+/* Kurzer Verlauf unter den Tagesbalken */
+.pad-verlauf { margin-top: 10px; }
+.pad-verlauf svg { width: 100%; height: 62px; display: block; overflow: visible; }
+.pad-verlauf__flaeche { fill: url(#padFuell); stroke: none; }
+.pad-verlauf__linie { fill: none; stroke: #bfe0ff; stroke-width: 2;
+                      vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.pad-verlauf__ziel { stroke: rgba(255,255,255,.35); stroke-width: 1;
+                     stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.pad-verlauf__achse { display: flex; justify-content: space-between; margin-top: 2px;
+                      font-size: .62rem; letter-spacing: .1em; text-transform: uppercase;
+                      color: #9fb8d8; }
+
+/* Abstand zwischen Fortschrittsbalken und Knöpfen */
+.pad-knoepfe { margin-top: 14px !important; }
+.pad__balken { margin-top: 12px; }
+
+/* Logo oben links grösser */
+.pad__logo2 { height: 46px !important; }
+@media (max-width: 760px) { .pad__logo2 { height: 32px !important; } }
+/* Eigenes Infofeld im Pad Mode */
+.pad-info { margin-top: 10px; background: rgba(127,192,255,.08);
+            border: 1px dashed rgba(127,192,255,.35); border-radius: 13px;
+            padding: 9px 11px; cursor: pointer; }
+.pad-info p { margin: 4px 0 0; font-size: .88rem; line-height: 1.35; color: #dce8f8; }
+.pad-info:active { background: rgba(127,192,255,.16); }
+/* Die drei Kacheln links wachsen gemeinsam: jede nimmt, was ihr
+   Inhalt braucht, der Rest wird verteilt. So bleibt keine Kachel
+   halb leer, während eine andere gedrängt ist. */
+.pad-spalte:first-child .pad-karte2 { flex: 1 1 auto; }
+.pad-karte2--hoco { flex-grow: 3 !important; }
+.pad-karte2--abend { flex-grow: 1 !important; }
+.pad-karte2--verzug { flex-grow: 1 !important; }
+.pad-karte2--abend, .pad-karte2--verzug { justify-content: center; }
 </style>
 </head>
 <body>
@@ -4187,7 +4226,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "98.1.0";
+const APP_VERSION = "99.1.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5145,6 +5184,43 @@ async function padTagesleistung(maschineId) {
   return tage;
 }
 
+// Kurzer Verlauf unter den Tagesbalken: wie sich die Stückzahl
+// entwickelt hat, dazu die Linie, die der Plan vorgibt.
+function padVerlauf(tage, auftrag) {
+  const punkte = (tage || [])
+    .map((t, i) => ({ i: i, stand: t.eintrag ? t.eintrag.stand : null }))
+    .filter((x) => x.stand !== null);
+  if (punkte.length < 2 || !auftrag) return "";
+
+  const B = 600, H = 70;
+  const ziel = Number(auftrag.target_quantity) || 0;
+  const gross = Math.max(ziel || 1, ...punkte.map((x) => x.stand));
+  const letzte = Math.max(1, (tage || []).length - 1);
+
+  const x = (i) => (i / letzte) * B;
+  const y = (w) => H - (w / gross) * (H - 6) - 3;
+
+  const linie = punkte.map((pk, k) => (k ? "L" : "M")
+    + x(pk.i).toFixed(1) + " " + y(pk.stand).toFixed(1)).join(" ");
+  const flaeche = linie + " L" + x(punkte[punkte.length - 1].i).toFixed(1)
+    + " " + H + " L" + x(punkte[0].i).toFixed(1) + " " + H + " Z";
+
+  return '<div class="pad-verlauf">'
+    + '<svg viewBox="0 0 ' + B + ' ' + H + '" preserveAspectRatio="none">'
+    + '<defs><linearGradient id="padFuell" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0%" stop-color="#9fd0ff" stop-opacity=".45"/>'
+    + '<stop offset="100%" stop-color="#9fd0ff" stop-opacity="0"/>'
+    + '</linearGradient></defs>'
+    + (ziel ? '<line x1="0" y1="' + y(ziel).toFixed(1) + '" x2="' + B
+        + '" y2="' + y(ziel).toFixed(1) + '" class="pad-verlauf__ziel"/>' : "")
+    + '<path d="' + flaeche + '" class="pad-verlauf__flaeche"/>'
+    + '<path d="' + linie + '" class="pad-verlauf__linie"/>'
+    + '</svg>'
+    + '<div class="pad-verlauf__achse"><span>Verlauf der Stückzahl</span>'
+    + (ziel ? '<span>Ziel ' + zahlText(ziel) + '</span>' : "") + '</div>'
+    + '</div>';
+}
+
 // Was danach auf dieser Maschine eingeplant ist
 async function padNaechsteAuftraege(maschineId, ausserId) {
   try {
@@ -5156,6 +5232,219 @@ async function padNaechsteAuftraege(maschineId, ausserId) {
       .order("planned_from").limit(6);
     return ((r && r.data) || []).filter((x) => x.id !== ausserId).slice(0, 4);
   } catch (f) { return []; }
+}
+
+// =================================================================
+//  DOKUMENTE
+//  Dateien hängen entweder an einer HOCO Nr. oder an einem
+//  Maschinentyp. Welche Art es ist, erkennt die App am Dateinamen.
+//  Der Ordnerabgleich liest einen Ordner, ordnet alles zu und lädt
+//  es hoch — ohne dass jemand Dateien einzeln auswählen muss.
+// =================================================================
+
+const DOK_ARTEN = {
+  zeichnung:     { name: "Zeichnung",     zeichen: "📐" },
+  wbg:           { name: "WBG",           zeichen: "📋" },
+  einrichtblatt: { name: "Einrichtblatt", zeichen: "🔧" },
+  sonstiges:     { name: "Weiteres",      zeichen: "📄" },
+};
+
+// Aus dem Dateinamen lesen, wohin die Datei gehört.
+// Erkannt werden zum Beispiel:
+//   10844-0049.pdf              → Zeichnung der HOCO Nr.
+//   10844-0049_WBG.pdf          → WBG der HOCO Nr.
+//   10844-0049_EB.pdf           → Einrichtblatt der HOCO Nr.
+//   10844-0049_EB_SW-20.pdf     → Einrichtblatt der Nummer auf dem Typ
+//   EB_SW-20.pdf                → Einrichtblatt-Vorlage des Typs
+//   10844-0049_Messbericht.pdf  → Weiteres zur HOCO Nr.
+function dokErkennen(dateiname, typen) {
+  const roh = String(dateiname || "");
+  const ohneEndung = roh.replace(/\.[^.]+$/, "");
+  const teile = ohneEndung.split(/[_\s]+/).filter(Boolean);
+
+  // HOCO Nr.: fünf Ziffern, Strich, vier Ziffern
+  const hoco = (ohneEndung.match(/\b(\d{4,6}-\d{3,5})\b/) || [])[1] || null;
+
+  const rest = teile.filter((t) => t !== hoco).join(" ");
+  const klein = rest.toLowerCase();
+
+  let art = hoco ? "zeichnung" : "sonstiges";
+  if (/\bwbg\b/i.test(klein)) art = "wbg";
+  else if (/\b(eb|einrichtblatt|einrichteblatt|setup)\b/i.test(klein)) art = "einrichtblatt";
+  else if (rest.trim()) art = hoco ? "sonstiges" : "sonstiges";
+
+  // Typ: kommt ein Typname im Rest vor?
+  let typ = null;
+  (typen || []).forEach((t) => {
+    const kurz = String(t.name || "").replace(/\s+/g, "").toLowerCase();
+    if (!kurz) return;
+    if (rest.replace(/\s+/g, "").toLowerCase().includes(kurz)) typ = t;
+  });
+
+  return {
+    dateiname: roh,
+    hoco: hoco,
+    typ: typ,
+    art: art,
+    titel: rest.trim() || (hoco || ohneEndung),
+    passt: !!(hoco || typ),
+  };
+}
+
+// Eine Datei hochladen und den Eintrag schreiben
+async function dokHochladen(datei, zuordnung) {
+  const endung = (datei.name.split(".").pop() || "pdf").toLowerCase();
+  const name = "dok/" + Date.now() + "-"
+    + Math.random().toString(36).slice(2, 8) + "." + endung;
+
+  const hoch = await db.storage.from("zeichnungen")
+    .upload(name, datei, { upsert: true, contentType: datei.type || undefined });
+  if (hoch.error) throw hoch.error;
+  const adresse = db.storage.from("zeichnungen").getPublicUrl(name).data.publicUrl;
+
+  const satz = {
+    art: zuordnung.art || "sonstiges",
+    hoco_nr: zuordnung.hoco || null,
+    type_id: zuordnung.typ ? zuordnung.typ.id : null,
+    titel: zuordnung.titel || datei.name,
+    dateiname: datei.name,
+    datei_url: adresse,
+    groesse: datei.size || null,
+  };
+
+  const r = await db.from("dokumente").upsert(satz,
+    { onConflict: "hoco_nr,type_id,art,dateiname" });
+  if (r.error) {
+    // Ohne den eindeutigen Schlüssel: einfach einfügen
+    const e = await db.from("dokumente").insert(satz);
+    if (e.error) throw e.error;
+  }
+
+  // Zeichnung und Einrichtblatt zusätzlich dort eintragen, wo die
+  // App sie erwartet — so wirkt die Datei sofort im Alltag.
+  try {
+    if (zuordnung.art === "zeichnung" && zuordnung.hoco) {
+      await db.from("hoco_parts").update({ zeichnung_url: adresse })
+        .eq("hoco_nr", zuordnung.hoco);
+    }
+    if (zuordnung.art === "einrichtblatt" && zuordnung.typ && !zuordnung.hoco) {
+      await db.from("machine_types").update({ blatt_url: adresse })
+        .eq("id", zuordnung.typ.id);
+    }
+    if (zuordnung.art === "einrichtblatt" && zuordnung.typ && zuordnung.hoco) {
+      await db.from("hoco_type_data").upsert(
+        { hoco_nr: zuordnung.hoco, type_id: zuordnung.typ.id, blatt_url: adresse },
+        { onConflict: "hoco_nr,type_id" });
+    }
+  } catch (f) { /* Hauptsache, der Eintrag steht */ }
+
+  return adresse;
+}
+
+// Abschnitt "Weitere Dokumente" — gleich aufgebaut bei der HOCO Nr.
+// und beim Maschinentyp. Zeigt die Liste, lädt neue Dateien hoch und
+// nimmt Einträge wieder heraus.
+function dokAbschnittMarkup(liste, darf, was) {
+  return '<section class="karte"><div class="karte__kopf">'
+    + '<h2>Weitere Dokumente</h2>'
+    + '<span class="klein">' + esc(was) + '</span>'
+    + (darf ? '<div class="karte__aktionen">'
+        + '<button class="knopf knopf--klein" data-dok-neu>Datei hinzufügen</button>'
+        + '</div>' : "")
+    + '</div>'
+    + (liste.length
+        ? '<table class="tabelle"><thead><tr><th>Titel</th><th>Art</th>'
+          + '<th>Datei</th><th></th></tr></thead><tbody>'
+          + liste.map((d) => '<tr>'
+              + '<td><strong>' + esc(d.titel || d.dateiname || "") + '</strong></td>'
+              + '<td class="klein">' + esc((DOK_ARTEN[d.art] || {}).name || d.art || "") + '</td>'
+              + '<td class="klein">' + esc(d.dateiname || "") + '</td>'
+              + '<td class="rechts nowrap">'
+              + '<button class="knopf knopf--klein" data-dok-auf="' + esc(d.datei_url) + '"'
+              + ' data-dok-titel="' + esc(d.titel || d.dateiname || "Dokument") + '">'
+              + 'Ansehen</button>'
+              + (darf ? ' <button class="linkknopf linkknopf--gefahr" data-dok-weg="'
+                  + esc(d.id) + '">Entfernen</button>' : "")
+              + '</td></tr>').join("")
+          + '</tbody></table>'
+        : '<p class="hinweis">Noch nichts hinterlegt. Zeichnung, WBG und '
+          + 'Einrichtblatt stehen weiter oben — hier kommt alles Übrige hin, '
+          + 'etwa Messberichte, Skizzen oder Kundenunterlagen.</p>')
+    + '</section>';
+}
+
+// Die Knöpfe des Abschnitts verbinden
+function dokAbschnittBinden(wurzel, zuordnung, nachher) {
+  wurzel.querySelectorAll("[data-dok-auf]").forEach((el) => {
+    el.onclick = () => betrachter(el.dataset.dokAuf,
+      el.dataset.dokTitel || "Dokument", true);
+  });
+
+  wurzel.querySelectorAll("[data-dok-weg]").forEach((el) => {
+    el.onclick = async () => {
+      const ja = await nachfragen({ titel: "Dokument entfernen?",
+        text: "Der Eintrag verschwindet aus der Liste. "
+          + "Die Datei selbst bleibt in der Ablage.",
+        bestaetigen: "Entfernen", gefahr: true });
+      if (!ja) return;
+      try { await dokLoeschen(el.dataset.dokWeg); meldung("Entfernt."); nachher(); }
+      catch (f) { meldung(fehlertext(f), "fehler"); }
+    };
+  });
+
+  const neu = wurzel.querySelector("[data-dok-neu]");
+  if (neu) neu.onclick = async () => {
+    const dateien = await dokWaehlen(true);
+    if (!dateien.length) return;
+    try {
+      meldung(dateien.length === 1 ? "Wird hochgeladen …"
+        : dateien.length + " Dateien werden hochgeladen …");
+      for (const datei of dateien) {
+        // Art aus dem Namen, Zuordnung aber fest: wir sind ja schon
+        // bei dieser Nummer oder diesem Typ.
+        const gedeutet = dokErkennen(datei.name, prod.typen || []);
+        await dokHochladen(datei, {
+          art: gedeutet.passt && gedeutet.art !== "zeichnung"
+            ? gedeutet.art : "sonstiges",
+          hoco: zuordnung.hoco || null,
+          typ: zuordnung.typId ? { id: zuordnung.typId } : null,
+          titel: gedeutet.titel || datei.name.replace(/\.[^.]+$/, ""),
+        });
+      }
+      meldung(dateien.length === 1 ? "Dokument hinterlegt."
+        : dateien.length + " Dokumente hinterlegt.");
+      nachher();
+    } catch (f) { meldung(fehlertext(f), "fehler"); }
+  };
+}
+
+// Dokumente zu einer HOCO Nr. oder einem Typ holen
+async function dokListe({ hoco, typId }) {
+  try {
+    let a = db.from("dokumente").select("*").order("erstellt_am", { ascending: false });
+    if (hoco) a = a.eq("hoco_nr", hoco);
+    if (typId) a = a.eq("type_id", typId);
+    const r = await a;
+    if (r.error) throw r.error;
+    return r.data || [];
+  } catch (f) { return []; }
+}
+
+async function dokLoeschen(id) {
+  const r = await db.from("dokumente").delete().eq("id", id);
+  if (r.error) throw r.error;
+}
+
+// Dateien auswählen und hochladen — für einzelne Nachträge
+function dokWaehlen(mehrere) {
+  return new Promise((fertig) => {
+    const feld = document.createElement("input");
+    feld.type = "file";
+    feld.accept = "application/pdf,image/*";
+    if (mehrere) feld.multiple = true;
+    feld.onchange = () => fertig([...(feld.files || [])]);
+    feld.click();
+  });
 }
 
 // Kameras: Name und Adresse stehen in den Einstellungen, je Zeile
@@ -5185,6 +5474,219 @@ async function ladeKameras() {
 function kameraEinbettbar(adresse) {
   if (location.protocol !== "https:") return true;
   return /^https:/i.test(adresse);
+}
+
+// Der Dokumentenpool: einen Ordner auswählen, die App ordnet alles
+// zu und lädt es hoch. Im Browser gibt es keinen Zugriff auf einen
+// Netzwerkpfad — der Ordner wird einmal ausgewählt, danach merkt sich
+// der Browser die Freigabe für dieses Gerät.
+const pool = { eintraege: [], ordner: "", laeuft: false };
+
+async function seiteDokumente(b) {
+  const darf = darfSchreiben();
+  const kannOrdner = typeof window.showDirectoryPicker === "function";
+
+  b.innerHTML = '<h1 class="seitentitel">Dokumente</h1>'
+
+    + '<section class="karte">'
+    + '<div class="karte__kopf"><h2>Ordner abgleichen</h2>'
+    + (darf && kannOrdner
+        ? '<button class="knopf knopf--klein" id="pool-ordner">Ordner wählen</button>'
+        : "") + '</div>'
+    + (kannOrdner
+        ? '<p class="hinweis">Wähle den Ordner mit den Dateien. Die App liest ihn, '
+          + 'ordnet jede Datei anhand ihres Namens zu und zeigt dir die Zuordnung, '
+          + 'bevor etwas hochgeladen wird. Der Ordner darf im Netzlaufwerk liegen.</p>'
+        : '<p class="hinweis">Das Auswählen eines ganzen Ordners geht nur in Chrome '
+          + 'oder Edge am Rechner. Am Tablet und am Handy lädst du Dateien einzeln '
+          + 'hoch — bei der HOCO Nr. oder beim Maschinentyp.</p>')
+    + '<div id="pool-liste"></div>'
+    + '</section>'
+
+    + '<section class="karte">'
+    + '<div class="karte__kopf"><h2>So werden Dateien benannt</h2></div>'
+    + '<table class="tabelle"><thead><tr><th>Dateiname</th><th>Wird zugeordnet als</th>'
+    + '</tr></thead><tbody>'
+    + [["10844-0049.pdf", "Zeichnung der HOCO Nr. 10844-0049"],
+       ["10844-0049_WBG.pdf", "WBG der HOCO Nr."],
+       ["10844-0049_EB.pdf", "Einrichtblatt der HOCO Nr."],
+       ["10844-0049_EB_SW-20.pdf", "Einrichtblatt dieser Nummer auf dem Typ SW-20"],
+       ["EB_SW-20.pdf", "Einrichtblatt-Vorlage des Typs SW-20"],
+       ["10844-0049_Messbericht.pdf", "Weiteres zur HOCO Nr."]]
+      .map(([a, c]) => '<tr><td><code>' + esc(a) + '</code></td><td>' + esc(c) + '</td></tr>')
+      .join("")
+    + '</tbody></table>'
+    + '<p class="hinweis">Gross- und Kleinschreibung spielt keine Rolle. '
+    + 'Statt <code>EB</code> erkennt die App auch <code>Einrichtblatt</code>. '
+    + 'Kommt kein Typname vor, gilt das Blatt für die Nummer allgemein.</p>'
+    + '</section>'
+
+    + '<section class="karte">'
+    + '<div class="karte__kopf"><h2>Zuletzt abgelegt</h2>'
+    + '<button class="knopf knopf--klein" id="dok-neu">Dateien hochladen</button></div>'
+    + '<div id="dok-letzte"><div class="laedt">Wird geladen …</div></div>'
+    + '</section>';
+
+  letzteDokumenteZeichnen();
+
+  const ordnerKnopf = document.getElementById("pool-ordner");
+  if (ordnerKnopf) ordnerKnopf.onclick = () => poolOrdnerLesen();
+
+  const neuKnopf = document.getElementById("dok-neu");
+  if (neuKnopf) neuKnopf.onclick = async () => {
+    const dateien = await dokWaehlen(true);
+    if (!dateien.length) return;
+    await poolZeigen(dateien.map((d) => ({ datei: d })));
+  };
+}
+
+// Ordner einlesen und die Zuordnung vorbereiten
+async function poolOrdnerLesen() {
+  let ordner;
+  try {
+    ordner = await window.showDirectoryPicker({ mode: "read" });
+  } catch (f) { return; }            // abgebrochen
+
+  pool.ordner = ordner.name || "";
+  const dateien = [];
+  try {
+    for await (const eintrag of ordner.values()) {
+      if (eintrag.kind !== "file") continue;
+      if (!/\.(pdf|png|jpe?g|webp|tif?f)$/i.test(eintrag.name)) continue;
+      dateien.push(await eintrag.getFile());
+      if (dateien.length >= 500) break;
+    }
+  } catch (f) {
+    meldung(fehlertext(f), "fehler");
+    return;
+  }
+  if (!dateien.length) { meldung("Im Ordner liegen keine Dateien.", "warn"); return; }
+  await poolZeigen(dateien.map((d) => ({ datei: d })));
+}
+
+// Zuordnung anzeigen, bevor etwas hochgeladen wird
+async function poolZeigen(liste) {
+  const ziel = document.getElementById("pool-liste");
+  if (!ziel) return;
+  ziel.innerHTML = '<div class="laedt">Wird geprüft …</div>';
+
+  let typen = [];
+  try { typen = await ladeTypen(); } catch (f) { typen = []; }
+
+  pool.eintraege = liste.map((e) => {
+    const z = dokErkennen(e.datei.name, typen);
+    return { datei: e.datei, zuordnung: z, nehmen: z.passt };
+  });
+
+  const passend = pool.eintraege.filter((e) => e.nehmen).length;
+
+  ziel.innerHTML = '<div class="pool-kopf">'
+    + '<span><b>' + pool.eintraege.length + '</b> Dateien gelesen · '
+    + '<b>' + passend + '</b> zugeordnet</span>'
+    + '<button class="knopf knopf--klein knopf--haupt" id="pool-los"'
+    + (passend ? "" : " disabled") + '>' + passend + ' hochladen</button>'
+    + '</div>'
+    + '<table class="tabelle"><thead><tr><th></th><th>Datei</th><th>Art</th>'
+    + '<th>HOCO Nr.</th><th>Typ</th></tr></thead><tbody>'
+    + pool.eintraege.map((e, i) => '<tr class="' + (e.nehmen ? "" : "pool-zeile--offen") + '">'
+        + '<td><input type="checkbox" data-pool="' + i + '"'
+        + (e.nehmen ? " checked" : "") + '></td>'
+        + '<td>' + esc(e.datei.name) + '</td>'
+        + '<td>' + (DOK_ARTEN[e.zuordnung.art] || DOK_ARTEN.sonstiges).zeichen + ' '
+        + esc((DOK_ARTEN[e.zuordnung.art] || DOK_ARTEN.sonstiges).name) + '</td>'
+        + '<td>' + esc(e.zuordnung.hoco || "—") + '</td>'
+        + '<td>' + esc(e.zuordnung.typ ? e.zuordnung.typ.name : "—") + '</td>'
+        + '</tr>').join("")
+    + '</tbody></table>'
+    + '<p class="hinweis">Grau hinterlegte Zeilen konnte die App keiner Nummer und '
+    + 'keinem Typ zuordnen. Benenne die Datei um oder lade sie direkt bei der '
+    + 'HOCO Nr. hoch.</p>';
+
+  ziel.querySelectorAll("[data-pool]").forEach((el) => {
+    el.onchange = () => { pool.eintraege[Number(el.dataset.pool)].nehmen = el.checked; };
+  });
+
+  const los = document.getElementById("pool-los");
+  if (los) los.onclick = () => poolHochladen();
+}
+
+async function poolHochladen() {
+  if (pool.laeuft) return;
+  const nehmen = pool.eintraege.filter((e) => e.nehmen);
+  if (!nehmen.length) return;
+
+  pool.laeuft = true;
+  const knopf = document.getElementById("pool-los");
+  let fertig = 0, schiefgelaufen = 0;
+
+  for (const e of nehmen) {
+    if (knopf) knopf.textContent = "lädt " + (fertig + 1) + " von " + nehmen.length + " …";
+    try {
+      await dokHochladen(e.datei, e.zuordnung);
+      fertig++;
+    } catch (f) {
+      schiefgelaufen++;
+      meldung(e.datei.name + ": " + fehlertext(f), "fehler");
+    }
+  }
+
+  pool.laeuft = false;
+  meldung(fertig + " Dateien abgelegt"
+    + (schiefgelaufen ? ", " + schiefgelaufen + " fehlgeschlagen" : "."),
+    schiefgelaufen ? "warn" : "gut");
+  const ziel = document.getElementById("pool-liste");
+  if (ziel) ziel.innerHTML = "";
+  letzteDokumenteZeichnen();
+}
+
+async function letzteDokumenteZeichnen() {
+  const ziel = document.getElementById("dok-letzte");
+  if (!ziel) return;
+  let liste = [];
+  try {
+    const r = await db.from("dokumente").select("*")
+      .order("erstellt_am", { ascending: false }).limit(25);
+    if (r.error) throw r.error;
+    liste = r.data || [];
+  } catch (f) {
+    ziel.innerHTML = '<p class="hinweis">Dafür fehlt noch dokumente.sql in der '
+      + 'Datenbank.</p>';
+    return;
+  }
+
+  if (!liste.length) {
+    ziel.innerHTML = '<p class="hinweis">Noch nichts abgelegt.</p>';
+    return;
+  }
+
+  ziel.innerHTML = '<table class="tabelle"><thead><tr><th>Art</th><th>Datei</th>'
+    + '<th>Gehört zu</th><th>Abgelegt</th><th></th></tr></thead><tbody>'
+    + liste.map((d) => '<tr>'
+        + '<td>' + (DOK_ARTEN[d.art] || DOK_ARTEN.sonstiges).zeichen + ' '
+        + esc((DOK_ARTEN[d.art] || DOK_ARTEN.sonstiges).name) + '</td>'
+        + '<td>' + esc(d.dateiname || d.titel || "") + '</td>'
+        + '<td>' + esc(d.hoco_nr || "") + '</td>'
+        + '<td class="klein">' + esc(kurzDatum(d.erstellt_am || "")) + '</td>'
+        + '<td class="rechts nowrap">'
+        + '<button class="linkknopf" data-dokauf="' + esc(d.datei_url) + '">Ansehen</button> '
+        + '<button class="linkknopf linkknopf--gefahr" data-dokweg="' + esc(d.id)
+        + '">Löschen</button></td>'
+        + '</tr>').join("")
+    + '</tbody></table>';
+
+  ziel.querySelectorAll("[data-dokauf]").forEach((el) => {
+    el.onclick = () => betrachter(el.dataset.dokauf, "Dokument", true);
+  });
+  ziel.querySelectorAll("[data-dokweg]").forEach((el) => {
+    el.onclick = async () => {
+      const ok = await nachfragen({ titel: "Dokument löschen",
+        text: "Soll dieses Dokument gelöscht werden?",
+        bestaetigen: "Löschen", gefahr: true });
+      if (!ok) return;
+      try { await dokLoeschen(el.dataset.dokweg); meldung("Gelöscht."); letzteDokumenteZeichnen(); }
+      catch (f) { meldung(fehlertext(f), "fehler"); }
+    };
+  });
 }
 
 async function seiteKameras(b) {
@@ -11249,9 +11751,21 @@ async function ansichtTypen(ziel, b) {
 
         + (darf ? '<button class="knopf knopf--klein" data-platz-neu="' + esc(p.id)
             + '">+ Werkzeugplatz</button>' : "")
-        + '</section>').join("");
+        + '</section>').join("")
+    // Platz für die weiteren Dokumente dieses Typs
+    + '<div id="typ-dokumente"></div>';
 
   document.getElementById("typ-zurueck").onclick = () => { prod.typOffen = null; neuLaden(); };
+
+  // Weitere Dokumente am Typ — auch ohne Schreibrecht sichtbar
+  (async () => {
+    const platz = document.getElementById("typ-dokumente");
+    if (!platz) return;
+    const liste = await dokListe({ typId: typ.id });
+    platz.innerHTML = dokAbschnittMarkup(liste, darf, "zu " + (typ.name || "diesem Typ"));
+    dokAbschnittBinden(platz, { typId: typ.id }, neuLaden);
+  })();
+
   if (!darf) return;
 
   document.getElementById("path-neu").onclick = async () => {
@@ -11871,6 +12385,7 @@ async function padMaschine(h) {
   // Stückzahl samt Tagesdiagramm, rechts Tag, Wetter und was danach
   // auf dieser Maschine kommt. Die Kacheln wachsen mit ihrem Inhalt.
   const notizGeteilt = notizTrennen(j ? j.plan_note : "");
+  const padInfo = (blattDaten && blattDaten.pad_info) || "";
 
   const zeile = (k, v) => (v
     ? '<b>' + k + '</b><span>' + esc(v) + '</span>' : "");
@@ -11937,6 +12452,17 @@ async function padMaschine(h) {
               ? '<p class="pad-notiz--material">📦 ' + esc(notizGeteilt.ort) + '</p>' : "")
           + '</div>'
         : "")
+
+    // Eigenes Feld nur fürs Pad: hängt an HOCO Nr. und Typ, steht
+    // also wieder da, wenn dasselbe Teil hier erneut läuft.
+    + (j && m.type_id
+        ? '<div class="pad-info" data-padfeld="info">'
+          + '<span class="pad-name">Info an der Maschine · antippen</span>'
+          + (padInfo
+              ? '<p>' + esc(padInfo).replace(/\n/g, "<br>") + '</p>'
+              : '<p class="pad-leer">antippen und eintragen</p>')
+          + '</div>'
+        : "")
     + '</div>'
 
     + '<div class="pad-karte2 pad-karte2--abend" data-padfeld="'
@@ -11983,6 +12509,7 @@ async function padMaschine(h) {
     + '<span>heute ' + zahlText(heuteMenge) + ' Stk</span>'
     + '</div></div>'
     + '<div class="pad-tage">' + balkenTage + '</div>'
+    + padVerlauf(tage, j)
     + '<div class="pad-stk-fuss">'
     + '<span>Schnitt ' + zahlText(schnitt) + ' pro Tag</span>'
     + '<span>' + esc(prognose) + '</span>'
@@ -12171,6 +12698,30 @@ async function padMaschine(h) {
     a.href = datei; a.download = (pad.reiter === "wbg" ? "WBG" : "Zeichnung") + ".pdf";
     a.target = "_blank"; a.rel = "noopener";
     document.body.appendChild(a); a.click(); a.remove();
+  };
+
+  // Info an der Maschine: freier Text je HOCO Nr. und Typ
+  const infoFeld = h.querySelector('[data-padfeld="info"]');
+  if (infoFeld && j && j.job_number && m.type_id) infoFeld.onclick = async () => {
+    const w = await dialogFelder({ titel: "Info an der Maschine",
+      hinweis: "Steht nur hier im Pad Mode. Läuft dieselbe HOCO Nr. später "
+        + "wieder auf diesem Typ, steht der Text wieder da.",
+      felder: [{ name: "text", label: "Text", typ: "textarea",
+                 wert: (blattDaten && blattDaten.pad_info) || "" }],
+      bestaetigen: "Speichern" });
+    if (!w) return;
+    const wert = (w.text || "").trim() || null;
+    const { error } = await db.from("hoco_type_data").upsert(
+      { hoco_nr: j.job_number, type_id: m.type_id, pad_info: wert },
+      { onConflict: "hoco_nr,type_id" });
+    if (error) {
+      meldung(/pad_info/.test(error.message || "")
+        ? "Dafür fehlt noch blattpdf.sql in der Datenbank."
+        : fehlertext(error), "fehler");
+      return;
+    }
+    meldung(wert ? "Gespeichert." : "Eintrag entfernt.");
+    padZeichnen();
   };
 
   const abendFeld = h.querySelector('[data-padfeld="abend"]');
@@ -12930,6 +13481,10 @@ async function ansichtHoco(ziel, b) {
         .sort((a, c) => String(a.name).localeCompare(String(c.name)));
     } catch (f) { /* dann eben ohne */ }
 
+    // Weitere Dokumente zu dieser Nummer
+    let dokumente = [];
+    try { dokumente = await dokListe({ hoco: t.hoco_nr }); } catch (f) { /* ohne */ }
+
     ziel.innerHTML = '<button class="linkknopf" id="hoco-zurueck">‹ alle HOCO Nr.</button>'
       + '<section class="karte"><div class="karte__kopf">'
       + '<h2>' + esc(t.hoco_nr) + '</h2>'
@@ -12989,6 +13544,8 @@ async function ansichtHoco(ziel, b) {
           + 'Ein Einrichtblatt hinterlegst du je Maschinentyp — entweder als Vorlage '
           + 'beim Typ oder hier für genau dieses Teil.</p>')
       + '</section>'
+
+      + dokAbschnittMarkup(dokumente, darf, "zu " + t.hoco_nr)
 
       + '<section class="karte"><div class="karte__kopf">'
       + '<h2>Gelaufen auf</h2>'
@@ -13133,6 +13690,8 @@ async function ansichtHoco(ziel, b) {
     const zeichnungKnopf = ziel.querySelector("[data-zeichnung]");
     if (zeichnungKnopf) zeichnungKnopf.onclick = () =>
       betrachter(zeichnungKnopf.dataset.zeichnung, "Zeichnung " + t.hoco_nr, true);
+
+    dokAbschnittBinden(ziel, { hoco: t.hoco_nr }, neuLaden);
 
     // Einrichtblatt je Maschinentyp: ansehen, hinterlegen, entfernen
     ziel.querySelectorAll("[data-blatt-typ]").forEach((el) => {
@@ -18724,6 +19283,10 @@ SYM.start = svg('<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/>'
   + '<rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/>'
   + '<rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>');
 
+// Dokumente: Blatt mit Eselsohr und Zeilen
+SYM.dokumente = svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>'
+  + '<path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/>');
+
 // Kamera: Gehäuse mit Linse
 SYM.kamera = svg('<rect x="2.5" y="6.5" width="14" height="11" rx="2.5"/>'
   + '<path d="M16.5 10.5 21.5 8v8l-5-2.5z"/>'
@@ -20330,6 +20893,7 @@ const SEITEN = [
   { pfad: "produktion",   titel: "Produktion",   zeichen: SYM.produktion, zeige: seiteProduktion },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: seiteEinkauf },
+  { pfad: "dokumente",    titel: "Dokumente",    zeichen: SYM.dokumente, zeige: seiteDokumente },
   { pfad: "kameras",      titel: "Kameras",      zeichen: SYM.kamera, zeige: seiteKameras },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: seiteRechner },
 ];
