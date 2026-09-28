@@ -4214,6 +4214,38 @@ input[type="month"], input[type="week"] {
   .pw-eckknoepfe .pw-eck span { display: none; }
   .pw-eckknoepfe .pw-eck { padding: 0 10px !important; }
 }
+/* ---------- Ferien: ruhige Farbe, grössere Schrift ----------
+   Die gelben Streifen mit brauner Schrift waren bei kleiner Höhe
+   nicht zu lesen. Jetzt ein flächiges Grün mit weisser, fetter
+   Schrift, die nicht unter 12 Pixel fällt. */
+.pw-ferien { background: #1f8a70 !important; color: #fff !important;
+             font-size: 12.5px !important; line-height: 1;
+             font-weight: 700 !important; letter-spacing: .01em;
+             border: 1px solid rgba(0, 0, 0, .18); border-radius: 4px !important;
+             /* feste Höhe, unabhängig vom Höhenregler */
+             height: 22px !important; margin: 2px 0 !important;
+             padding: 0 8px !important; box-sizing: border-box;
+             text-shadow: 0 1px 1px rgba(0, 0, 0, .25); }
+.pw-ferien__name { font-weight: 700; }
+/* Noch nicht genehmigt: gestreift, aber im selben Grün */
+.pw-ferien--anfrage { background: repeating-linear-gradient(45deg,
+  #1f8a70, #1f8a70 7px, #167a62 7px, #167a62 14px) !important; }
+body.dunkel .pw-ferien, body.dunkel .pw-ferien * { color: #fff !important; }
+/* Die Ferienzeilen bekommen dafür etwas mehr Höhe */
+/* Die Ferienzeilen sind immer gleich hoch, egal wie die Maschinenzeilen
+   gerade eingestellt sind */
+.pw-spuren--fein, .pw-zeile--fein .pw-spuren--fein,
+.pw-tafel--flach .pw-spuren--fein, .pw-tafel--sehrflach .pw-spuren--fein {
+  min-height: 26px !important; height: 26px !important; }
+/* ---------- Ferien als ein Block ---------- */
+.pw-zeile--ferienblock .pw-spuren--ferienblock {
+  height: calc(var(--bahnen, 5) * 26px + 6px) !important;
+  min-height: calc(var(--bahnen, 5) * 26px + 6px) !important; }
+.pw-zelle--ferienblock { height: 100%; }
+.pw-balken-schicht--ferien { inset: 3px 0 !important;
+  grid-template-rows: repeat(var(--bahnen, 5), 26px); align-items: center; }
+.pw-zeile--ferienblock .pw-ferien { grid-row: var(--bahn, 1); margin: 0 !important; }
+.pw-zeile--ferienblock .pw-name--fein { display: flex; align-items: flex-start; padding-top: 6px; }
 </style>
 </head>
 <body>
@@ -4262,7 +4294,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "102.1.0";
+const APP_VERSION = "103.0.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9665,40 +9697,40 @@ function zeichnePlanwand(b) {
   });
   const ferienAnzahl = Math.max(FERIEN_ZEILEN,
     ...ferienSichtbar.map((f) => Number(f.zeile) || 1));
+  // Ein einziger Block für alle Ferien: die Einträge liegen als
+  // Bahnen übereinander, ohne Zeilenlinien dazwischen. Der Block ist
+  // so hoch, wie es die Bahnen brauchen.
+  const ferienBahnen = ferienAnzahl;
+  const ferienZellen = tage.map((t) => '<div class="pw-zelle pw-zelle--fein pw-zelle--ferienblock'
+    + (t === heute ? " pw-zelle--heute" : "") + '" data-fzelle="0|' + t + '"></div>').join("");
+
+  const ferienBalken = (plan.ferien || []).map((f2) => {
+    const belegt = arbeitstage(f2.von, f2.tage || 1);
+    const sichtbar = belegt.filter((t) => tage.indexOf(t) !== -1);
+    if (!sichtbar.length) return "";
+    const von = tage.indexOf(sichtbar[0]);
+    const feAngeschnitten = belegt[0] !== sichtbar[0];
+    const bahn = Math.max(1, Number(f2.zeile) || 1);
+    return '<div class="pw-ferien'
+      + (f2.genehmigt === false ? " pw-ferien--anfrage" : "") + '"'
+      + ' data-ferien="' + esc(f2.id) + '"'
+      + ' data-von="' + von + '" data-dauer="' + sichtbar.length + '"'
+      + ' style="--von:' + von + ';--dauer:' + sichtbar.length + ';--bahn:' + bahn + '">'
+      + '<span class="pw-ferien__name">'
+      + (f2.genehmigt === false ? "? " : "") + esc(f2.person) + '</span>'
+      + (darfPlanen() && !feAngeschnitten
+          ? '<span class="pw-griff pw-griff--links" data-fgriff="links"></span>' : "")
+      + (darfPlanen()
+          ? '<span class="pw-griff pw-griff--rechts" data-fgriff="rechts"></span>' : "")
+      + '</div>';
+  }).join("");
+
   const ferienZeilen = '<div class="pw-zeile pw-zeile--park pw-zeile--ferienkopf"><div class="pw-name pw-park pw-park--ferien">Ferien</div><div class="pw-parkflaeche pw-parkflaeche--ferien"></div></div>'
-    + Array.from({ length: ferienAnzahl }, (unused, i2) => {
-        const zeile = i2 + 1;
-        const zellen = tage.map((t) => '<div class="pw-zelle pw-zelle--fein'
-          + (t === heute ? " pw-zelle--heute" : "") + '" data-fzelle="' + zeile + '|' + t
-          + '"></div>').join("");
+    + '<div class="pw-zeile pw-zeile--fein pw-zeile--ferienblock" style="--bahnen:' + ferienBahnen + '">'
+    + '<div class="pw-name pw-name--fein">Wer ist weg</div>'
+    + '<div class="pw-spuren pw-spuren--fein pw-spuren--ferienblock">' + ferienZellen
+    + '<div class="pw-balken-schicht pw-balken-schicht--ferien">' + ferienBalken + '</div></div></div>';
 
-        const balken = (plan.ferien || [])
-          .filter((f2) => f2.zeile === zeile)
-          .map((f2) => {
-            const belegt = arbeitstage(f2.von, f2.tage || 1);
-            const sichtbar = belegt.filter((t) => tage.indexOf(t) !== -1);
-            if (!sichtbar.length) return "";
-            const von = tage.indexOf(sichtbar[0]);
-            const feAngeschnitten = belegt[0] !== sichtbar[0];
-            return '<div class="pw-ferien'
-              + (f2.genehmigt === false ? " pw-ferien--anfrage" : "") + '"'
-              + ' data-ferien="' + esc(f2.id) + '"'
-              + ' data-von="' + von + '" data-dauer="' + sichtbar.length + '"'
-              + ' style="--von:' + von + ';--dauer:' + sichtbar.length + '">'
-              + '<span class="pw-ferien__name">'
-              + (f2.genehmigt === false ? "? " : "") + esc(f2.person) + '</span>'
-              + (darfPlanen() && !feAngeschnitten
-                  ? '<span class="pw-griff pw-griff--links" data-fgriff="links"></span>' : "")
-              + (darfPlanen()
-                  ? '<span class="pw-griff pw-griff--rechts" data-fgriff="rechts"></span>' : "")
-              + '</div>';
-          }).join("");
-
-        return '<div class="pw-zeile pw-zeile--fein">'
-          + '<div class="pw-name pw-name--fein">' + (i2 === 0 ? "Wer ist weg" : "") + '</div>'
-          + '<div class="pw-spuren pw-spuren--fein">' + zellen
-          + '<div class="pw-balken-schicht">' + balken + '</div></div></div>';
-      }).join("");
 
   // Fällt heute auf ein Wochenende, steht es nicht in der Tafel.
   // Dann sitzt die Linie am linken Rand des nächsten Arbeitstags,
@@ -9894,12 +9926,14 @@ function ferienVerhalten(b) {
   tafel.querySelectorAll("[data-fzelle]").forEach((zelle) => {
     zelle.onclick = async () => {
       const teile = zelle.dataset.fzelle.split("|");
-      await ferienDialog(null, Number(teile[0]), teile[1], b);
+      // 0 heisst: die App sucht selbst eine freie Bahn
+      await ferienDialog(null, Number(teile[0]) || null, teile[1], b);
     };
   });
 
   tafel.querySelectorAll("[data-ferien]").forEach((el) => {
     let halten = null, zieht = false, gestartet = false, schatten = null;
+    let startX = 0, startY = 0;
 
     const aufraeumen = () => {
       clearTimeout(halten);
@@ -9983,8 +10017,11 @@ function ferienVerhalten(b) {
 
       const teile = ziel.split("|");
       const altZ = f2.zeile, altVon = f2.von;
+      // Im Ferienblock gibt es keine Zeilen zum Zielen mehr: Beim
+      // Verschieben sucht die App selbst eine freie Bahn am neuen Datum.
+      const neueBahn = Number(teile[0]) || freieFerienZeile(teile[1], f2.tage || 1, f2.id);
       const { error } = await db.from("vacations")
-        .update({ zeile: Number(teile[0]), von: teile[1] }).eq("id", f2.id);
+        .update({ zeile: neueBahn, von: teile[1] }).eq("id", f2.id);
       if (error) meldung(fehlertext(error), "fehler");
       else {
         merkeSchritt("Ferien von " + f2.person, async () => {
