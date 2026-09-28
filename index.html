@@ -4396,7 +4396,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "109.1.0";
+const APP_VERSION = "109.2.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10684,11 +10684,26 @@ function zeichnePlanwand(b) {
     const seine = arbeitstage(f.von, f.tage || 1);
     return seine.some((t) => tage.indexOf(t) !== -1);
   });
-  const ferienAnzahl = Math.max(FERIEN_ZEILEN,
-    ...ferienSichtbar.map((f) => Number(f.zeile) || 1));
-  // Ein einziger Block für alle Ferien: die Einträge liegen als
-  // Bahnen übereinander, ohne Zeilenlinien dazwischen. Der Block ist
-  // so hoch, wie es die Bahnen brauchen.
+  // Die Bahnen werden beim Zeichnen neu verteilt, nur für den
+  // sichtbaren Zeitraum: jeder Eintrag kommt in die oberste Bahn, in
+  // der er niemanden überdeckt. So liegt nie etwas übereinander, und
+  // der Block ist genau so hoch, wie er sein muss — plus eine freie
+  // Bahn unten zum Eintragen.
+  const bahnVon = {};
+  const belegteBahnen = [];
+  ferienSichtbar
+    .map((f) => ({ f: f, t: arbeitstage(f.von, f.tage || 1).filter((d) => tage.indexOf(d) !== -1) }))
+    .sort((a, c) => String(a.t[0]).localeCompare(String(c.t[0]))
+      || c.t.length - a.t.length || String(a.f.person).localeCompare(String(c.f.person)))
+    .forEach((x) => {
+      let bahn = 0;
+      while (belegteBahnen[bahn] && x.t.some((d) => belegteBahnen[bahn].has(d))) bahn++;
+      (belegteBahnen[bahn] = belegteBahnen[bahn] || new Set());
+      x.t.forEach((d) => belegteBahnen[bahn].add(d));
+      bahnVon[x.f.id] = bahn + 1;
+    });
+  const ferienAnzahl = Math.max(FERIEN_ZEILEN, belegteBahnen.length + 1);
+  // Ein einziger Block für alle Ferien, ohne Zeilenlinien dazwischen
   const ferienBahnen = ferienAnzahl;
   const ferienZellen = tage.map((t) => '<div class="pw-zelle pw-zelle--fein pw-zelle--ferienblock'
     + (t === heute ? " pw-zelle--heute" : "") + '" data-fzelle="0|' + t + '"></div>').join("");
@@ -10699,7 +10714,7 @@ function zeichnePlanwand(b) {
     if (!sichtbar.length) return "";
     const von = tage.indexOf(sichtbar[0]);
     const feAngeschnitten = belegt[0] !== sichtbar[0];
-    const bahn = Math.max(1, Number(f2.zeile) || 1);
+    const bahn = bahnVon[f2.id] || Math.max(1, Number(f2.zeile) || 1);
     return '<div class="pw-ferien'
       + (f2.genehmigt === false ? " pw-ferien--anfrage" : "") + '"'
       + ' data-ferien="' + esc(f2.id) + '"'
