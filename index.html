@@ -4178,6 +4178,29 @@ input[type="month"], input[type="week"] {
 .pad-karte2--abend { flex-grow: 1 !important; }
 .pad-karte2--verzug { flex-grow: 1 !important; }
 .pad-karte2--abend, .pad-karte2--verzug { justify-content: center; }
+/* Wird nachgeladen: der alte Inhalt bleibt stehen und verblasst nur
+   leicht, statt durch "Wird geladen …" ersetzt zu werden. */
+.laedt--laeuft { position: relative; }
+.laedt--laeuft > * { opacity: .55; transition: opacity .15s ease; }
+.laedt--laeuft::after { content: ""; position: absolute; left: 0; right: 0; top: 0;
+                        height: 2px; border-radius: 2px;
+                        background: linear-gradient(90deg, transparent, var(--marke), transparent);
+                        animation: ladebalken 1.1s linear infinite; }
+@keyframes ladebalken { 0% { opacity: .3 } 50% { opacity: 1 } 100% { opacity: .3 } }
+/* Strom in der Säule des Pad Mode */
+.pad-strom { display: flex; gap: 8px; }
+.pad-strom__wert { flex: 1; background: rgba(255,255,255,.05); border-radius: 11px;
+                   padding: 7px 8px; display: flex; flex-direction: column; gap: 1px; }
+.pad-strom__wert b { font-size: .95rem; font-weight: 800; }
+.pad-strom__wert span { font-size: .56rem; letter-spacing: .12em;
+                        text-transform: uppercase; color: #8fa6c6; }
+.pad-strom__wert--sonne b { color: #ffd463; }
+.pad-strom__wert--speisung b { color: #6ee7a8; }
+.pad-strom__wert--bezug b { color: #ff8e83; }
+.pad-solarverlauf svg { width: 100%; height: 34px; display: block; margin-top: 4px; }
+.pad-sv__flaeche { fill: rgba(255,201,64,.18); stroke: none; }
+.pad-sv__linie { fill: none; stroke: #ffc940; stroke-width: 1.6;
+                 vector-effect: non-scaling-stroke; }
 </style>
 </head>
 <body>
@@ -4226,7 +4249,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "99.1.0";
+const APP_VERSION = "101.1.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5221,6 +5244,28 @@ function padVerlauf(tage, auftrag) {
     + '</div>';
 }
 
+// Kleiner Tagesverlauf der Erzeugung für die Säule im Pad Mode
+function padSolarVerlauf(reihe) {
+  const punkte = (reihe || []).filter((x) => x && x.gemessen);
+  if (punkte.length < 3) return "";
+
+  const B = 300, H = 40;
+  const zeit = (x) => new Date(x.gemessen).getTime();
+  const t0 = zeit(punkte[0]), t1 = zeit(punkte[punkte.length - 1]);
+  const spanne = Math.max(1, t1 - t0);
+  const gross = Math.max(1000, ...punkte.map((x) => Number(x.produktion_w) || 0));
+
+  const linie = punkte.map((pk, k) => (k ? "L" : "M")
+    + (((zeit(pk) - t0) / spanne) * B).toFixed(1) + " "
+    + (H - ((Number(pk.produktion_w) || 0) / gross) * (H - 4) - 2).toFixed(1)).join(" ");
+
+  return '<div class="pad-solarverlauf">'
+    + '<svg viewBox="0 0 ' + B + ' ' + H + '" preserveAspectRatio="none">'
+    + '<path d="' + linie + ' L' + B + ' ' + H + ' L0 ' + H + ' Z" class="pad-sv__flaeche"/>'
+    + '<path d="' + linie + '" class="pad-sv__linie"/>'
+    + '</svg></div>';
+}
+
 // Was danach auf dieser Maschine eingeplant ist
 async function padNaechsteAuftraege(maschineId, ausserId) {
   try {
@@ -5486,7 +5531,7 @@ async function seiteDokumente(b) {
   const darf = darfSchreiben();
   const kannOrdner = typeof window.showDirectoryPicker === "function";
 
-  b.innerHTML = '<h1 class="seitentitel">Dokumente</h1>'
+  b.innerHTML = ''
 
     + '<section class="karte">'
     + '<div class="karte__kopf"><h2>Ordner abgleichen</h2>'
@@ -5568,6 +5613,7 @@ async function poolOrdnerLesen() {
 async function poolZeigen(liste) {
   const ziel = document.getElementById("pool-liste");
   if (!ziel) return;
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="laedt">Wird geprüft …</div>';
 
   let typen = [];
@@ -5580,6 +5626,7 @@ async function poolZeigen(liste) {
 
   const passend = pool.eintraege.filter((e) => e.nehmen).length;
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="pool-kopf">'
     + '<span><b>' + pool.eintraege.length + '</b> Dateien gelesen · '
     + '<b>' + passend + '</b> zugeordnet</span>'
@@ -5659,6 +5706,7 @@ async function letzteDokumenteZeichnen() {
     return;
   }
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<table class="tabelle"><thead><tr><th>Art</th><th>Datei</th>'
     + '<th>Gehört zu</th><th>Abgelegt</th><th></th></tr></thead><tbody>'
     + liste.map((d) => '<tr>'
@@ -5690,7 +5738,7 @@ async function letzteDokumenteZeichnen() {
 }
 
 async function seiteKameras(b) {
-  b.innerHTML = '<h1 class="seitentitel">Kameras</h1>'
+  b.innerHTML = ''
     + '<div id="kamera-inhalt"><div class="laedt">Wird geladen …</div></div>';
 
   const liste = await ladeKameras();
@@ -5705,6 +5753,7 @@ async function seiteKameras(b) {
     return;
   }
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="kamera-gitter">'
     + liste.map((k) => '<section class="karte kamera-karte">'
         + '<div class="karte__kopf"><h2>' + esc(k.name) + '</h2>'
@@ -5945,6 +5994,7 @@ async function solarKachel(ziel) {
     + '<span class="sol-zahl__name">' + name + '</span>'
     + '<span class="sol-zahl__wert">' + solarKw(wert) + '</span></div>';
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<section class="karte solar solar--schmal">'
     + '<div class="sol-kopf">'
     + '<span class="sol-kopf__titel">Solaranlage</span>'
@@ -6162,6 +6212,7 @@ async function zeichneProbleme(b) {
 
   if (!liste.length) { ziel.innerHTML = ""; return; }
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<section class="karte karte--warnung">'
     + '<h2>⚠ Gemeldete Probleme <span class="marke">' + liste.length + '</span></h2>'
     + liste.map((j) => '<div class="problemzeile">'
@@ -6214,6 +6265,7 @@ async function zeichneVorbereitung(b) {
 
   // Kein Sprung mehr beim Klick auf die Kachel — der Weg zum Auftrag
   // führt über "Ansehen" und die Liste darin.
+  ladeFertig(ziel);
   ziel.innerHTML = '<section class="karte">'
     + '<h2>Vorbereitung</h2>'
     + '<div class="statusliste">'
@@ -6293,6 +6345,7 @@ async function zeichneEinkaufKurz(b) {
     liste = data || [];
   } catch (f) { console.warn("Einkauf:", f.message); return; }
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<section class="karte" data-zu="einkauf">'
     + '<h2>Einkaufsliste'
     + (liste.length ? ' <span class="marke">' + liste.length + '</span>' : "") + '</h2>'
@@ -6375,6 +6428,7 @@ async function zeichneGeburtstage() {
   let liste = alle.filter((m) => m.tage <= 30).slice(0, 5);
   if (liste.length < 5) liste = alle.slice(0, 5);
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<section class="karte"><h2>Geburtstage</h2>'
     + liste.map((m) => '<div class="gebzeile">'
         + (m.bild
@@ -6406,6 +6460,7 @@ async function zeichneNotizen() {
 
   const heute = isoDatum(new Date());
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<section class="karte">'
     + '<div class="karte__kopf"><h2>Notizen</h2>'
     + (darfSchreiben() ? '<button class="linkknopf" id="notiz-neu">+ Neue Notiz</button>' : "")
@@ -7274,6 +7329,7 @@ async function ansichtErfassen(ziel, b) {
   const von = istWoche ? wochenStart(prod.tag) : prod.tag;
   const bis = istWoche ? plusTage(von, tageProWoche - 1) : prod.tag;
 
+  ladeFertig(ziel);
   ziel.innerHTML = parkAuswahl()
     + '<div class="steuerung">'
     + '<button class="knopf knopf--klein" id="zurueck">‹</button>'
@@ -8084,12 +8140,23 @@ async function ladeFerien() {
 }
 
 async function ladePlanAuftraege() {
-  const { data, error } = await zeitlimit(
-    db.from("planwand").select("*")
-      .order("planned_from", { nullsFirst: false }).order("id"),
-    12000, "Planwand");
-  if (error) throw error;
-  const liste = data || [];
+  // Supabase gibt höchstens 1000 Zeilen je Abfrage zurück. Mit den
+  // übernommenen Aufträgen aus infoBoard sind es mehr — deshalb wird
+  // in Blöcken geholt, bis nichts mehr kommt. Sonst blieben nur die
+  // ältesten tausend übrig, und die Wand wäre leer.
+  const liste = [];
+  const stufe = 1000;
+  for (let von = 0; von < 50000; von += stufe) {
+    const { data, error } = await zeitlimit(
+      db.from("planwand").select("*")
+        .order("planned_from", { nullsFirst: false }).order("id")
+        .range(von, von + stufe - 1),
+      12000, "Planwand");
+    if (error) throw error;
+    const teil = data || [];
+    liste.push(...teil);
+    if (teil.length < stufe) break;
+  }
   await standsNachtragen(liste.filter((j) => !j.ended_at));
   return liste;
 }
@@ -8282,6 +8349,7 @@ async function seitePlanwand(b) {
 async function ansichtPlanwand(ziel, b) {
   if (!plan.start) plan.start = naechsterArbeitstag(wochenStart(isoDatum(new Date())));
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="pw-kopfleiste">'
     + '<div class="pw-regler-reihe">'
     + (isMobil() ? ""
@@ -11285,6 +11353,7 @@ async function ansichtUebersicht(ziel, b) {
   const von = wochenStart(prod.tag);
   const bis = plusTage(von, tageProWoche - 1);
 
+  ladeFertig(ziel);
   ziel.innerHTML = parkAuswahl()
     + '<div class="steuerung">'
     + '<div class="steuerung__mitte"><div class="steuerung__titel">Woche '
@@ -11600,7 +11669,7 @@ function artikelWaehlen(vorgabe) {
 
 async function ansichtTypen(ziel, b) {
   const darf = darfSchreiben();
-  ziel.innerHTML = '<div class="laedt">Wird geladen …</div>';
+  ladeZeigen(ziel);
 
   let typen, arten;
   try {
@@ -11701,6 +11770,7 @@ async function ansichtTypen(ziel, b) {
   }
 
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<button class="linkknopf" id="typ-zurueck">‹ alle Typen</button>'
     + '<section class="karte"><div class="karte__kopf"><h2>' + esc(typ.name) + '</h2>'
     + (darf ? '<div class="karte__aktionen">'
@@ -11929,6 +11999,16 @@ async function ansichtTypen(ziel, b) {
 // =================================================================
 
 async function ladeHoco(suche) {
+  // Einmal alle holen und merken, dann im Gerät filtern. So löst das
+  // Tippen im Suchfeld keine neue Abfrage aus.
+  const alle = await stammGemerkt("hoco:alle", () => ladeHocoFrisch(""));
+  const t = (suche || "").trim().toLowerCase();
+  if (!t) return alle;
+  return alle.filter((x) => [x.hoco_nr, x.bezeichnung, x.material]
+    .some((f) => String(f || "").toLowerCase().includes(t)));
+}
+
+async function ladeHocoFrisch(suche) {
   let abfrage = db.from("hoco_parts").select("*");
   const t = (suche || "").trim();
   if (t) {
@@ -11954,6 +12034,10 @@ async function ladeHoco(suche) {
 // Alle HOCO Nummern, die auf der Planwand vorkommen. Daraus wird
 // gezeigt, wofür noch keine Stammdaten hinterlegt sind.
 async function ladeHocoAusAuftraegen() {
+  return stammGemerkt("hocoausauftraegen", ladeHocoAusAuftraegenFrisch);
+}
+
+async function ladeHocoAusAuftraegenFrisch() {
   const { data, error } = await zeitlimit(
     db.from("jobs")
       .select("job_number, material_bez, drawing_url, plan_status, ended_at")
@@ -12335,11 +12419,13 @@ async function padMaschine(h) {
   const wbg = (j && j.wbg_url) || "";
 
   // Für das Dashboard: Tagesleistung, was danach kommt, und das Wetter
-  const [tage, danach, wetter] = await Promise.all([
+  const [tage, danach, wetter, solarReihe] = await Promise.all([
     padTagesleistung(m.id),
     padNaechsteAuftraege(m.id, j ? j.id : null),
     holeWetterStunden().catch(() => null),
+    solarLaden().catch(() => []),
   ]);
+  const solarJetzt = (solarReihe || [])[(solarReihe || []).length - 1] || null;
 
   if (!pad.reiter) pad.reiter = "uebersicht";
   const datei = pad.reiter === "zeichnung" ? zeichnung
@@ -12544,6 +12630,26 @@ async function padMaschine(h) {
           + (wetter.untergang
               ? '<span class="pad-klein">Sonnenuntergang ' + esc(wetter.untergang) + '</span>'
               : "")
+        : "")
+
+    // Strom: was die Anlage gerade erzeugt und was der Betrieb zieht
+    + (solarJetzt
+        ? '<div class="pad-linie"></div>'
+          + '<span class="pad-name">Strom</span>'
+          + '<div class="pad-strom">'
+          + '<div class="pad-strom__wert pad-strom__wert--sonne">'
+          + '<b>' + esc(solarKw(solarJetzt.produktion_w)) + '</b>'
+          + '<span>Erzeugung</span></div>'
+          + '<div class="pad-strom__wert">'
+          + '<b>' + esc(solarKw(solarJetzt.verbrauch_w)) + '</b>'
+          + '<span>Verbrauch</span></div>'
+          + '<div class="pad-strom__wert pad-strom__wert--'
+          + ((Number(solarJetzt.netz_w) || 0) > 0 ? "bezug" : "speisung") + '">'
+          + '<b>' + esc(solarKw(Math.abs(Number(solarJetzt.netz_w) || 0))) + '</b>'
+          + '<span>' + ((Number(solarJetzt.netz_w) || 0) > 0 ? "Netzbezug" : "Einspeisung")
+          + '</span></div>'
+          + '</div>'
+          + (padSolarVerlauf(solarReihe) || "")
         : "")
 
     + '<div class="pad-linie"></div>'
@@ -13341,7 +13447,7 @@ async function werkzeugWaehlen(z) {
 
 async function ansichtHoco(ziel, b) {
   const darf = darfSchreiben();
-  ziel.innerHTML = '<div class="laedt">Wird geladen …</div>';
+  ladeZeigen(ziel);
 
   let teile, typen, ausPlan = {};
   try {
@@ -13361,7 +13467,9 @@ async function ansichtHoco(ziel, b) {
         }));
         const r = await db.from("hoco_parts")
           .upsert(neuZeilen, { onConflict: "hoco_nr", ignoreDuplicates: true });
-        if (!r.error) teile = await ladeHoco(prod.hocoSuche);
+        // Gedächtnis verwerfen, sonst fehlen dieselben Nummern beim
+        // nächsten Zeichnen wieder und werden erneut nachgetragen.
+        if (!r.error) { stammVergessen(); teile = await ladeHoco(prod.hocoSuche); }
       }
     } catch (f) { /* geht auch ohne */ }
   } catch (f) {
@@ -13485,7 +13593,9 @@ async function ansichtHoco(ziel, b) {
     let dokumente = [];
     try { dokumente = await dokListe({ hoco: t.hoco_nr }); } catch (f) { /* ohne */ }
 
-    ziel.innerHTML = '<button class="linkknopf" id="hoco-zurueck">‹ alle HOCO Nr.</button>'
+    ladeFertig(ziel);
+  ladeFertig(ziel);
+  ziel.innerHTML = '<button class="linkknopf" id="hoco-zurueck">‹ alle HOCO Nr.</button>'
       + '<section class="karte"><div class="karte__kopf">'
       + '<h2>' + esc(t.hoco_nr) + '</h2>'
       + (darf ? '<div class="karte__aktionen">'
@@ -13727,7 +13837,7 @@ async function ansichtHoco(ziel, b) {
     const bearb = document.getElementById("hoco-bearb");
     if (bearb) bearb.onclick = async () => {
       const w = await hocoDialog(t);
-      if (w) neuLaden();
+      if (w) { stammVergessen(); neuLaden(); }
     };
     return;
   }
@@ -13952,7 +14062,7 @@ async function ansichtHoco(ziel, b) {
     el.onclick = async () => {
       const t = teile.find((x) => x.hoco_nr === el.dataset.hocoUm);
       const w = await hocoDialog(t);
-      if (w) neuLaden();
+      if (w) { stammVergessen(); neuLaden(); }
     };
   });
 
@@ -14056,6 +14166,7 @@ async function ansichtMaschinen(ziel, b, nurPark) {
     ? prod.parks.filter((p) => p.id === nurPark)
     : prod.parks;
 
+  ladeFertig(ziel);
   ziel.innerHTML = zeigeParks.map((p) => {
     const maschinen = prod.maschinen.filter((m) => m.park_id === p.id);
     return '<section class="karte' + (p.is_active ? "" : " karte--inaktiv") + '">'
@@ -14470,6 +14581,7 @@ async function seiteEinkauf(b) {
   const gruppen = {};
   liste.forEach((z) => { (gruppen[z.prio] = gruppen[z.prio] || []).push(z); });
 
+  ladeFertig(ziel);
   ziel.innerHTML = (liste.length
       ? Object.keys(gruppen).sort().map((prio) => {
           const p = PRIO[prio] || PRIO[3];
@@ -14645,6 +14757,7 @@ function rechnerDrehzahl(ziel, b) {
   const fz = Number(rech.fz);
   const vf = (n && z > 0 && fz > 0) ? n * z * fz : null;
 
+  ladeFertig(ziel);
   ziel.innerHTML = ''
     + '<section class="karte"><h2>Werkstoff</h2>'
     + '<div class="wahlgitter">'
@@ -15159,6 +15272,7 @@ function rechnerCachse(ziel) {
         ? zahl("torxA", "A über die Spitzen") + zahl("torxB", "B über die Täler")
         : zahl("sw", "Schlüsselweite SW"));
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="karte">'
     + '<div class="moduswahl" id="cax-formen">'
     + [["vierkant", "Vierkant"], ["sechskant", "Sechskant"],
@@ -15701,6 +15815,7 @@ function rechnerGravur(ziel) {
 
   const mantel = gravur.flaeche === "mantel";
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="karte">'
     + '<label class="feld"><span>Text</span>'
     + '<input type="text" data-grav="text" value="' + esc(gravur.text) + '"></label>'
@@ -16127,6 +16242,7 @@ function rechnerDxf(ziel) {
     + '<input type="number" data-dxf="' + name + '" step="' + (schritt || "0.1")
     + '" value="' + dxf[name] + '"></label>';
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="karte">'
     + '<div class="dxf-kopf">'
     + '<label class="knopf knopf--klein bildknopf">DXF wählen'
@@ -16526,6 +16642,7 @@ function rechnerGcode(ziel) {
     ? "Alle Punkte ausgerechnet — läuft auf jeder Steuerung"
     : "Mit A- und R-Programmierung — kurz, braucht eine Steuerung, die das kennt";
 
+  ladeFertig(ziel);
   ziel.innerHTML = ''
     + '<section class="karte"><h2>Was soll gedreht werden?</h2>'
     + bildGcode(gcode)
@@ -16713,6 +16830,7 @@ function rechnerWinkel(ziel) {
   const fdAussen = (!isNaN(fd) && !isNaN(fb)) ? fd + 2 * fb : NaN;
   const fs = (!isNaN(fb) && !isNaN(ft)) ? Math.sqrt(fb * fb + ft * ft) : NaN;
 
+  ladeFertig(ziel);
   ziel.innerHTML = ''
     // ---------- Dreieck ----------
     + '<section class="karte"><h2>Rechtwinkliges Dreieck</h2>'
@@ -16838,6 +16956,14 @@ const BESTELLSTATUS = {
 const OFFENE_STATUS = ["offen", "bestellt", "teilweise_geliefert"];
 
 async function ladeBestellungen(offen) {
+  // Beim Suchen und Blättern wird nicht neu geholt. Nach jeder
+  // Änderung (Bestellen, Liefern, Löschen) wird das Gedächtnis
+  // verworfen, siehe seiteBestellungen.
+  return stammGemerkt("bestellungen" + (offen ? "-offen" : ""),
+    () => ladeBestellungenFrisch(offen));
+}
+
+async function ladeBestellungenFrisch(offen) {
   let a = db.from("order_items")
     .select("*, articles(article_number, name, unit, supplier_id, description, suppliers(name, website, email, adresse, bestellweg)), suppliers(name, website, email, adresse, bestellweg), profiles!order_items_created_by_fkey(full_name, email)")
     .order("needed_by", { ascending: true, nullsFirst: false })
@@ -16852,6 +16978,8 @@ async function ladeBestellungen(offen) {
 }
 
 async function seiteBestellungen(b) {
+  // Die Seite wird nach jeder Aktion neu aufgebaut — dann frisch holen
+  stammVergessen();
   b.innerHTML = '<h1 class="seitentitel">Bestellungen</h1>'
     + '<div class="reiter">'
     + [["offen", "Offen"], ["bestellt", "Bestellt"], ["historie", "Historie"],
@@ -16944,6 +17072,7 @@ async function bestOffen(ziel, b, bereich) {
     return text.includes(sucht);
   });
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="suchleiste">'
     + '<input type="search" id="bo-suche" placeholder="Suchen"'
     + ' value="' + esc(best.offenSuche) + '" autocomplete="off"></div>'
@@ -17609,8 +17738,11 @@ async function bestHistorie(ziel, b) {
     return;
   }
 
-  // Nur abgeschlossene Positionen, offene stehen im Reiter Offen
-  let fertige = (liste || []).filter((z) => z.status === "geliefert");
+  // Nur abgeschlossene Positionen, offene stehen im Reiter Offen —
+  // die zuletzt gelieferte zuoberst
+  const lieferzeit = (z) => String(z.delivered_at || z.completed_at || z.created_at || "");
+  let fertige = (liste || []).filter((z) => z.status === "geliefert")
+    .sort((a, c) => lieferzeit(c).localeCompare(lieferzeit(a)));
 
   const suchtHist = (best.historieSuche || "").trim().toLowerCase();
   if (suchtHist) {
@@ -17623,6 +17755,7 @@ async function bestHistorie(ziel, b) {
     });
   }
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="suchleiste">'
     + '<input type="search" id="bh-suche" placeholder="Suchen"'
     + ' value="' + esc(best.historieSuche) + '" autocomplete="off"></div>'
@@ -17672,6 +17805,7 @@ async function bestHistorie(ziel, b) {
 // ---------- Artikel ----------
 
 async function bestArtikel(ziel, b) {
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="suchleiste">'
     + '<input type="search" id="ar-suche" placeholder="Suchen"'
     + ' value="' + esc(best.artikelSuche || "") + '" autocomplete="off">'
@@ -17959,6 +18093,7 @@ async function artikelBearbeiten(artikel, b) {
 // ---------- Bezeichnungen ----------
 
 async function bestBezeichnungen(ziel, b) {
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="suchleiste">'
     + '<input type="search" id="bz-suche" placeholder="Suchen"'
     + ' value="' + esc(best.bezSuche) + '" autocomplete="off"></div>'
@@ -18069,6 +18204,7 @@ async function bestLieferanten(ziel, b) {
   const gefiltertLf = !suchtLf ? liste
     : liste.filter((l) => l.name.toLowerCase().includes(suchtLf));
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="suchleiste">'
     + '<input type="search" id="lf-suche" placeholder="Suchen"'
     + ' value="' + esc(best.liefSuche) + '" autocomplete="off"></div>'
@@ -18610,7 +18746,8 @@ async function seiteEinstellungen(b) {
   // Nur Reiter, für die man die Rechte hat. War zuletzt einer offen,
   // den diese Person nicht sehen darf — etwa weil vorher ein Admin
   // am selben Gerät angemeldet war —, geht es auf den ersten zurück.
-  const erlaubt = ["allgemein"].concat(bin ? ["farben", "nutzer"] : []);
+  const erlaubt = ["allgemein", "dokumente", "kameras"]
+    .concat(bin ? ["farben", "nutzer"] : []);
   if (erlaubt.indexOf(einst.reiter) === -1) einst.reiter = erlaubt[0];
 
   // Die Seite wird sofort aufgebaut. Die Benutzerliste kommt danach,
@@ -18725,7 +18862,7 @@ async function seiteEinstellungen(b) {
     + '</div>'
 
     + '<div class="reiter">'
-    + [["allgemein", "Allgemein"]]
+    + [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["kameras", "Kameras"]]
         .concat(bin ? [["farben", "Farben und Material"], ["nutzer", "Nutzer"]] : [])
         .map(([w, tt]) => '<button class="reiter__knopf'
           + (einst.reiter === w ? " aktiv" : "") + '" data-einst="' + w + '">'
@@ -18735,6 +18872,8 @@ async function seiteEinstellungen(b) {
     + '<div id="einst-inhalt">'
     + (einst.reiter === "farben" ? teilFarben()
         : einst.reiter === "nutzer" ? teilNutzer()
+        : einst.reiter === "dokumente" ? '<div class="laedt">Wird geladen …</div>'
+        : einst.reiter === "kameras" ? '<div class="laedt">Wird geladen …</div>'
         : teilAllgemein())
     + '</div>';
 
@@ -18766,6 +18905,17 @@ async function seiteEinstellungen(b) {
 
   // Ab hier gehören alle Bedienelemente zum Reiter Allgemein.
   // Auf den anderen Reitern gibt es sie nicht — dann ist hier Schluss.
+  // Dokumente und Kameras sind eigene Bereiche, aber keine eigenen
+  // Reiter in der Seitenleiste — sie gehören zu den Einstellungen.
+  if (einst.reiter === "dokumente") {
+    await seiteDokumente(document.getElementById("einst-inhalt"));
+    return;
+  }
+  if (einst.reiter === "kameras") {
+    await seiteKameras(document.getElementById("einst-inhalt"));
+    return;
+  }
+
   if (einst.reiter === "farben") { farbListeZeichnen(); return; }
   if (einst.reiter === "nutzer") {
     benutzerlisteLaden(b, bin);
@@ -18961,6 +19111,7 @@ async function personenlisteLaden(b) {
     return;
   }
 
+  ladeFertig(ziel);
   ziel.innerHTML = leute.length
     ? '<table class="tabelle"><tbody>' + leute.map((m) =>
         '<tr><td><div class="bl-person">'
@@ -19084,6 +19235,7 @@ async function benutzerlisteLaden(b, bin) {
     if (!r.error) parks = r.data || [];
   } catch (f) { /* ohne Parks geht es auch */ }
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="tabellenrolle">'
     + '<table class="tabelle tabelle--benutzer"><thead><tr>'
     + '<th>Name</th><th>Rolle</th><th class="mitte">Bearbeiten</th>'
@@ -20656,6 +20808,7 @@ async function bestenlisteZeigen() {
   const ziel = document.getElementById("sp-bestenliste");
   if (!ziel || !spass.aktuell) return;
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="laedt">Bestenliste …</div>';
   try {
     const { data, error } = await zeitlimit(
@@ -20769,7 +20922,7 @@ function fortschrittRechnen(j) {
 }
 
 async function ansichtFortschritt(b) {
-  b.innerHTML = '<div class="laedt">Wird geladen …</div>';
+  ladeZeigen(b);
 
   let auftraege = [], parks = [];
   try {
@@ -20893,8 +21046,6 @@ const SEITEN = [
   { pfad: "produktion",   titel: "Produktion",   zeichen: SYM.produktion, zeige: seiteProduktion },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: seiteEinkauf },
-  { pfad: "dokumente",    titel: "Dokumente",    zeichen: SYM.dokumente, zeige: seiteDokumente },
-  { pfad: "kameras",      titel: "Kameras",      zeichen: SYM.kamera, zeige: seiteKameras },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: seiteRechner },
 ];
 
@@ -21227,7 +21378,7 @@ function eierAbbuchenZeigen() {
 async function eierHistorieZeigen() {
   const koerper = document.getElementById("eier-koerper");
   if (!koerper) return;
-  koerper.innerHTML = '<div class="laedt">Wird geladen …</div>';
+  ladeZeigen(koerper);
 
   let liste = [];
   try {
@@ -21497,6 +21648,7 @@ async function fahrzeugAnsichtBuchen(ziel) {
 
   const staende = await Promise.all(fahrzeuge.map((f) => fahrzeugStatus(f.id)));
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<div class="fz-liste">'
     + fahrzeuge.map((f, i) => '<div class="fz-karte">'
         + '<div class="fz-karte__kopf"><strong>' + esc(f.name) + '</strong>'
@@ -21611,6 +21763,7 @@ async function fahrzeugAnsichtHistorie(ziel) {
 
   if (!liste.length) { ziel.innerHTML = '<p class="hinweis">Noch keine Buchungen.</p>'; return; }
 
+  ladeFertig(ziel);
   ziel.innerHTML = liste.map((b2) => '<div class="fz-eigene">'
     + '<strong>' + esc(b2.fahrzeuge ? b2.fahrzeuge.name : "") + '</strong> · '
     + esc(personName(b2.profiles, "")) + '<br>'
@@ -21644,6 +21797,7 @@ async function fahrzeugAnsichtVerwaltung(ziel) {
     return;
   }
 
+  ladeFertig(ziel);
   ziel.innerHTML = '<h3 class="fz-unterschrift">Offene Anfragen'
     + (anfragen.length ? ' <span class="marke">' + anfragen.length + '</span>' : "") + '</h3>'
     + (anfragen.length ? anfragen.map((a) => '<div class="fz-eigene">'
@@ -22128,6 +22282,74 @@ function auswahlMehrfach(titel, optionen) {
 // Merkt sich, wie weit gerollt war, und stellt es nach dem Neuzeichnen
 // wieder her. Ohne das springt die Seite bei jeder Kleinigkeit nach
 // oben — auf dem Handy besonders lästig.
+// Zeigt an, dass geladen wird, ohne den bisherigen Inhalt
+// wegzunehmen. Steht noch nichts da, kommt der gewohnte Hinweis.
+function ladeZeigen(el) {
+  if (!el) return;
+  if (!String(el.innerHTML || "").trim()) {
+    ladeZeigen(el);
+    return;
+  }
+  el.classList.add("laedt--laeuft");
+}
+
+function ladeFertig(el) {
+  if (el) el.classList.remove("laedt--laeuft");
+}
+
+// =================================================================
+//  Fokus beim Neuzeichnen halten
+//  Viele Suchfelder zeichnen beim Tippen ihre Liste neu, und dabei
+//  wird das Feld selbst ersetzt — der Cursor war weg, jeder Buchstabe
+//  ein Kampf. Hier wird gemerkt, wo gerade getippt wird, und nach
+//  dem Neuzeichnen landet der Cursor wieder an derselben Stelle.
+// =================================================================
+const tippstelle = { id: null, start: 0, ende: 0, wert: "" };
+
+document.addEventListener("input", (e) => {
+  const el = e.target;
+  if (!el || !el.id) return;
+  if (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA") return;
+  tippstelle.id = el.id;
+  tippstelle.wert = el.value;
+  try { tippstelle.start = el.selectionStart; tippstelle.ende = el.selectionEnd; }
+  catch (f) { tippstelle.start = tippstelle.ende = el.value.length; }
+}, true);
+
+document.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (el && el.id && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) {
+    tippstelle.id = el.id;
+  }
+}, true);
+
+(function fokusHalten() {
+  let geplant = false;
+  const wiederherstellen = () => {
+    geplant = false;
+    if (!tippstelle.id) return;
+    const aktiv = document.activeElement;
+    if (aktiv && aktiv.id === tippstelle.id) return;       // sitzt noch
+    if (aktiv && aktiv !== document.body
+        && (aktiv.tagName === "INPUT" || aktiv.tagName === "TEXTAREA"
+            || aktiv.tagName === "SELECT" || aktiv.tagName === "BUTTON")) return;
+    const el = document.getElementById(tippstelle.id);
+    if (!el || !document.body.contains(el)) return;
+    if (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA") return;
+    // Nur wenn das neue Feld denselben Text trägt — sonst war es
+    // ein anderes Feld mit gleichem Namen, das nichts damit zu tun hat
+    if (el.value !== tippstelle.wert) return;
+    el.focus({ preventScroll: true });
+    try { el.setSelectionRange(tippstelle.start, tippstelle.ende); } catch (f) { /* Zahlfeld */ }
+  };
+  const beobachter = new MutationObserver(() => {
+    if (geplant) return;
+    geplant = true;
+    requestAnimationFrame(wiederherstellen);
+  });
+  beobachter.observe(document.body, { childList: true, subtree: true });
+})();
+
 function rollenMerken() {
   const y = window.scrollY || 0;
   // Der Inhalt kommt nachgeladen. Deshalb nicht einmal springen,
