@@ -4338,6 +4338,16 @@ body.dunkel .pw-ferien, body.dunkel .pw-ferien * { color: #fff !important; }
 body.dunkel .ws-offen td { background: rgba(255, 201, 64, .08); }
 .ws-tabelle select { min-width: 160px; }
 .pl-werkstoff { margin-top: 4px; font-size: .8rem; display: flex; align-items: center; gap: 6px; }
+/* Umschalter in der Stückzahl-Kachel */
+.pad-stk-leiste { display: flex; justify-content: flex-end; margin-top: 8px; }
+.pad-stk-wahl { display: inline-flex; gap: 2px;
+                padding: 3px; border-radius: 999px; background: rgba(255,255,255,.1); }
+.pad-stk-wahl__knopf { border: 0; background: none; color: #cfe0f5; cursor: pointer;
+                       font: inherit; font-size: .74rem; font-weight: 700; padding: 7px 14px;
+                       border-radius: 999px; touch-action: manipulation; }
+.pad-stk-wahl__knopf.aktiv { background: rgba(255,255,255,.9); color: #0c2749; }
+.pad-tag small { white-space: nowrap; font-size: .54rem !important; }
+.pad-stk-neben span { white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -4386,7 +4396,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "108.0.0";
+const APP_VERSION = "109.0.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5571,49 +5581,174 @@ function wetterZeichen(code) {
 // Was an den letzten sieben Tagen gefertigt wurde, samt Uhrzeit der
 // Erfassung. Gezählt wird die Zunahme gegenüber dem Vortag, weil in
 // den Zählerständen der Stand und nicht die Tagesmenge steht.
-async function padTagesleistung(maschineId) {
-  const bis = new Date();
-  const von = new Date(bis.getTime() - 9 * 86400000);
+// Tagesmengen einer Maschine über ein halbes Jahr. Gezählt wird die
+// Zunahme des Zählerstands gegenüber dem letzten Stand desselben
+// Auftrags. Der erste Stand eines Auftrags zählt nur dann ganz, wenn
+// er kurz nach dessen Beginn liegt — sonst wäre er der ganze Zähler
+// seit Wochen und kein Tagewerk.
+async function padTagesmengen(maschineId) {
+  const heute = new Date();
+  const von = new Date(heute.getTime() - 200 * 86400000);
   let zeilen = [];
   try {
-    const r = await db.from("production_records")
-      .select("record_date, quantity, job_id, updated_at, created_at")
-      .eq("machine_id", maschineId)
-      .gte("record_date", isoDatum(von))
-      .order("record_date");
-    zeilen = (r && r.data) || [];
-  } catch (f) { return []; }
+    for (let ab = 0; ab < 5000; ab += 1000) {
+      const r = await db.from("production_records")
+        .select("record_date, quantity, job_id, updated_at, created_at")
+        .eq("machine_id", maschineId)
+        .gte("record_date", isoDatum(von))
+        .order("record_date").range(ab, ab + 999);
+      const teil = (r && r.data) || [];
+      zeilen.push(...teil);
+      if (teil.length < 1000) break;
+    }
+  } catch (f) { return {}; }
 
-  // je Tag der jüngste Stand
-  const jeTag = {};
+  // Beginn der beteiligten Aufträge
+  const jobIds = [...new Set(zeilen.map((z) => z.job_id).filter(Boolean))];
+  const beginn = {};
+  if (jobIds.length) {
+    try {
+      const r = await db.from("jobs").select("id, started_at, planned_from").in("id", jobIds);
+      ((r && r.data) || []).forEach((j) => {
+        beginn[j.id] = String(j.started_at || j.planned_from || "").slice(0, 10);
+      });
+    } catch (f) { /* ohne Beginn zählt der erste Stand nicht */ }
+  }
+
+  // Je Auftrag und Tag der jüngste Stand
+  const jeAuftrag = {};
   zeilen.forEach((z) => {
-    const alt = jeTag[z.record_date];
+    const k = z.job_id || "ohne";
     const zeit = z.updated_at || z.created_at || "";
+    const liste = jeAuftrag[k] || (jeAuftrag[k] = {});
+    const alt = liste[z.record_date];
     if (!alt || String(zeit) > String(alt.zeit)) {
-      jeTag[z.record_date] = { stand: Number(z.quantity) || 0, zeit: zeit, job: z.job_id };
+      liste[z.record_date] = { stand: Number(z.quantity) || 0, zeit: zeit };
     }
   });
 
-  const tage = [];
+  // Zunahmen je Tag, über alle Aufträge zusammen
+  const jeTag = {};
+  Object.keys(jeAuftrag).forEach((k) => {
+    const daten = Object.keys(jeAuftrag[k]).sort();
+    let vorher = null;
+    daten.forEach((d) => {
+      const e = jeAuftrag[k][d];
+      let menge = null;
+      if (vorher) menge = Math.max(0, e.stand - vorher.stand);
+      else {
+        const b = beginn[k];
+        const nah = b && (new Date(d) - new Date(b)) / 86400000 <= 3;
+        menge = nah ? e.stand : null;
+      }
+      const t = jeTag[d] || (jeTag[d] = { menge: null, zeit: "", stand: 0, job: k });
+      if (menge !== null) t.menge = (t.menge || 0) + menge;
+      if (String(e.zeit) > String(t.zeit)) { t.zeit = e.zeit; t.stand = e.stand; t.job = k; }
+      vorher = e;
+    });
+  });
+  return jeTag;
+}
+
+// Die letzten sieben Tage — wie bisher, aber aus den Tagesmengen
+function padTageAus(jeTag) {
+  const heute = new Date();
+  const raus = [];
   for (let k = 6; k >= 0; k--) {
-    const d = new Date(bis.getTime() - k * 86400000);
+    const d = new Date(heute.getTime() - k * 86400000);
     const tag = isoDatum(d);
     const e = jeTag[tag] || null;
-    tage.push({ datum: tag, wochentag: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()],
-                nummer: d.getDate(), eintrag: e, heute: k === 0 });
+    raus.push({ datum: tag, wochentag: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()],
+                nummer: d.getDate(), heute: k === 0,
+                eintrag: e ? { stand: e.stand, zeit: e.zeit, job: e.job } : null,
+                menge: e ? e.menge : null,
+                uhr: e ? String(e.zeit || "").slice(11, 16) : "" });
   }
+  return raus;
+}
 
-  // Zunahme gegenüber dem letzten Tag mit Stand desselben Auftrags
-  let vorher = null;
-  tage.forEach((t) => {
-    if (!t.eintrag) { t.menge = null; return; }
-    t.menge = (vorher && vorher.job === t.eintrag.job)
-      ? Math.max(0, t.eintrag.stand - vorher.stand)
-      : t.eintrag.stand;
-    t.uhr = (t.eintrag.zeit || "").slice(11, 16);
-    vorher = t.eintrag;
+// Schnitt pro Produktionstag, je Woche oder je Monat. Gezählt werden
+// nur Tage, an denen etwas erfasst wurde — ein Wochenende oder eine
+// Pause drückt den Schnitt nicht.
+function padSchnitte(jeTag, art) {
+  const heute = new Date();
+  const gruppen = [];
+  if (art === "woche") {
+    const montag = ausIso(wochenStart(isoDatum(heute)));
+    for (let k = 7; k >= 0; k--) {
+      const start = new Date(montag.getTime() - k * 7 * 86400000);
+      gruppen.push({ von: isoDatum(start), bis: isoDatum(new Date(start.getTime() + 6 * 86400000)),
+                     titel: "KW " + kalenderwoche(isoDatum(start)), jetzt: k === 0 });
+    }
+  } else {
+    for (let k = 5; k >= 0; k--) {
+      const d = new Date(heute.getFullYear(), heute.getMonth() - k, 1);
+      const ende = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      gruppen.push({ von: isoDatum(d), bis: isoDatum(ende),
+                     titel: ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug",
+                             "Sep", "Okt", "Nov", "Dez"][d.getMonth()] + " " + String(d.getFullYear()).slice(2),
+                     jetzt: k === 0 });
+    }
+  }
+  gruppen.forEach((g) => {
+    let summe = 0, tage = 0;
+    Object.keys(jeTag).forEach((d) => {
+      if (d < g.von || d > g.bis) return;
+      const m = jeTag[d].menge;
+      if (m === null || m === undefined || m <= 0) return;
+      summe += m; tage++;
+    });
+    g.summe = summe; g.tage = tage;
+    g.schnitt = tage ? Math.round(summe / tage) : null;
   });
-  return tage;
+  return gruppen;
+}
+
+// Die Balken der Stückzahl-Kachel für die gewählte Ansicht
+function padStkBalken(jeTag, art) {
+  if (art === "woche" || art === "monat") {
+    const g = padSchnitte(jeTag, art);
+    const hoechste = Math.max(1, ...g.map((x) => x.schnitt || 0));
+    const mitWert = g.filter((x) => x.tage);
+    const alleSumme = mitWert.reduce((n, x) => n + x.summe, 0);
+    const alleTage = mitWert.reduce((n, x) => n + x.tage, 0);
+    return {
+      balken: g.map((x) => '<div class="pad-tag' + (x.jetzt ? " pad-tag--heute" : "") + '">'
+        + '<b>' + (x.schnitt === null ? "–" : zahlText(x.schnitt)) + '</b>'
+        + '<i style="height:' + (x.schnitt ? Math.max(3, Math.round(x.schnitt / hoechste * 100)) : 2) + '%"></i>'
+        + '<u>' + esc(x.titel) + '</u>'
+        + '<small>' + (x.tage ? zahlText(x.summe) + " · " + x.tage + " T" : "—") + '</small>'
+        + '</div>').join(""),
+      fuss: '<span>Ø ' + (alleTage ? zahlText(Math.round(alleSumme / alleTage)) : "–")
+        + ' pro Produktionstag</span>'
+        + '<span>' + (art === "woche" ? "letzte 8 Wochen" : "letzte 6 Monate")
+        + ' · Zahl oben = Ø pro Tag</span>',
+      tage: null,
+    };
+  }
+  const tage = padTageAus(jeTag);
+  const hoechste = Math.max(1, ...tage.map((t) => t.menge || 0));
+  const mitWert = tage.filter((t) => t.menge !== null && t.menge !== undefined);
+  const schnitt = mitWert.length
+    ? Math.round(mitWert.reduce((n, t) => n + (t.menge || 0), 0) / mitWert.length) : 0;
+  return {
+    balken: tage.map((t) => '<div class="pad-tag' + (t.heute ? " pad-tag--heute" : "") + '">'
+      + '<b>' + (t.menge === null || t.menge === undefined ? "–" : zahlText(t.menge)) + '</b>'
+      + '<i style="height:' + (t.menge ? Math.max(3, Math.round(t.menge / hoechste * 100)) : 2) + '%"></i>'
+      + '<u>' + (t.heute ? "Heute" : esc(t.wochentag + " " + t.nummer + ".")) + '</u>'
+      + '<small>' + (t.uhr ? esc(t.uhr) : "—") + '</small>'
+      + '</div>').join(""),
+    fuss: null,
+    tage: tage,
+    schnitt: schnitt,
+  };
+}
+
+// Schnitt der letzten 20 Produktionstage — Grundlage der Prognose
+function padSchnittLang(jeTag) {
+  const werte = Object.keys(jeTag).sort().reverse()
+    .map((d) => jeTag[d].menge).filter((m) => m && m > 0).slice(0, 20);
+  return werte.length ? Math.round(werte.reduce((n, m) => n + m, 0) / werte.length) : 0;
 }
 
 // Kurzer Verlauf unter den Tagesbalken: wie sich die Stückzahl
@@ -13503,8 +13638,8 @@ async function padMaschine(h) {
   const wbg = (j && j.wbg_url) || "";
 
   // Für das Dashboard: Tagesleistung, was danach kommt, und das Wetter
-  const [tage, danach, wetter] = await Promise.all([
-    padTagesleistung(m.id),
+  const [jeTag, danach, wetter] = await Promise.all([
+    padTagesmengen(m.id),
     padNaechsteAuftraege(m.id, j ? j.id : null),
     holeWetterStunden().catch(() => null),
   ]);
@@ -13560,17 +13695,23 @@ async function padMaschine(h) {
   const zeile = (k, v) => (v
     ? '<b>' + k + '</b><span>' + esc(v) + '</span>' : "");
 
-  const hoechste = Math.max(1, ...tage.map((t) => t.menge || 0));
+  // Ansicht der Stückzahl-Kachel: Tage, Wochen oder Monate
+  if (!pad.stkAnsicht) pad.stkAnsicht = "tag";
+  const tageDaten = padStkBalken(jeTag, "tag");
+  const tage = tageDaten.tage;
   const heuteMenge = (tage.find((t) => t.heute) || {}).menge || 0;
-  const mitWert = tage.filter((t) => t.menge !== null && t.menge !== undefined);
-  const schnitt = mitWert.length
-    ? Math.round(mitWert.reduce((n, t) => n + (t.menge || 0), 0) / mitWert.length) : 0;
+  const schnitt = tageDaten.schnitt;
+  // Für die Prognose zählt der längere Schnitt — ein einzelner
+  // schwacher Tag soll das Enddatum nicht wegschieben
+  const schnittLang = padSchnittLang(jeTag) || schnitt;
+  const ansicht = padStkBalken(jeTag, pad.stkAnsicht);
+  pad.jeTag = jeTag;
 
   // Hochrechnung: was fehlt, geteilt durch die Tagesleistung
   let prognose = "";
-  if (j && j.target_quantity && schnitt > 0) {
+  if (j && j.target_quantity && schnittLang > 0) {
     const offen = Math.max(0, j.target_quantity - (j.stand || 0));
-    const tageNoch = Math.ceil(offen / schnitt);
+    const tageNoch = Math.ceil(offen / schnittLang);
     const d = new Date();
     let zaehler = 0;
     while (zaehler < tageNoch) {
@@ -13581,14 +13722,10 @@ async function padMaschine(h) {
     prognose = "fertig etwa " + kurzDatum(isoDatum(d));
   }
 
-  const balkenTage = tage.map((t) => '<div class="pad-tag'
-    + (t.heute ? " pad-tag--heute" : "") + '">'
-    + '<b>' + (t.menge === null || t.menge === undefined ? "–" : zahlText(t.menge)) + '</b>'
-    + '<i style="height:' + (t.menge ? Math.max(3, Math.round(t.menge / hoechste * 100)) : 2)
-    + '%"></i>'
-    + '<u>' + (t.heute ? "Heute" : esc(t.wochentag + " " + t.nummer + ".")) + '</u>'
-    + '<small>' + (t.uhr ? esc(t.uhr) : "—") + '</small>'
-    + '</div>').join("");
+  const balkenTage = ansicht.balken;
+  const fussTage = '<span>Schnitt ' + zahlText(schnitt) + ' pro Tag</span>'
+    + '<span>' + esc(prognose) + '</span>';
+  pad.fussTage = fussTage;
 
   const zustandKnopf = j
     ? '<button class="pad-knopf pad-knopf--zustand pad-zustand--'
@@ -13683,12 +13820,20 @@ async function padMaschine(h) {
           + Math.min(100, Math.round((j.stand || 0) / j.target_quantity * 100)) + ' %</span>'
         : "")
     + '<span>heute ' + zahlText(heuteMenge) + ' Stk</span>'
+    + '</div>'
+    + '</div>'
+    // Umschalter in eigener Zeile: Tage zeigt die Menge je Tag, Wochen
+    // und Monate den Schnitt pro Produktionstag
+    + '<div class="pad-stk-leiste"><div class="pad-stk-wahl">'
+    + [["tag", "Tage"], ["woche", "Wochen"], ["monat", "Monate"]].map(([w, t]) =>
+        '<button type="button" class="pad-stk-wahl__knopf' + (pad.stkAnsicht === w ? " aktiv" : "")
+        + '" data-stkansicht="' + w + '">' + t + '</button>').join("")
     + '</div></div>'
-    + '<div class="pad-tage">' + balkenTage + '</div>'
-    + padVerlauf(tage, j)
-    + '<div class="pad-stk-fuss">'
-    + '<span>Schnitt ' + zahlText(schnitt) + ' pro Tag</span>'
-    + '<span>' + esc(prognose) + '</span>'
+    + '<div class="pad-tage" id="pad-stk-balken">' + balkenTage + '</div>'
+    + '<div id="pad-stk-verlauf"' + (pad.stkAnsicht === "tag" ? "" : " hidden") + '>'
+    + padVerlauf(tage, j) + '</div>'
+    + '<div class="pad-stk-fuss" id="pad-stk-fuss">'
+    + (ansicht.fuss || fussTage)
     + '</div>'
     + '</div>'
     + '</div>'
@@ -13940,6 +14085,23 @@ async function padMaschine(h) {
     meldung(wert ? "Gespeichert." : "Eintrag entfernt.");
     padZeichnen();
   };
+
+  // Tage · Wochen · Monate: nur Balken und Fuss werden getauscht
+  h.querySelectorAll("[data-stkansicht]").forEach((el) => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      pad.stkAnsicht = el.dataset.stkansicht;
+      h.querySelectorAll("[data-stkansicht]").forEach((x) =>
+        x.classList.toggle("aktiv", x.dataset.stkansicht === pad.stkAnsicht));
+      const a = padStkBalken(pad.jeTag || {}, pad.stkAnsicht);
+      const balken = h.querySelector("#pad-stk-balken");
+      const fuss = h.querySelector("#pad-stk-fuss");
+      const verlauf = h.querySelector("#pad-stk-verlauf");
+      if (balken) balken.innerHTML = a.balken;
+      if (fuss) fuss.innerHTML = a.fuss || pad.fussTage || "";
+      if (verlauf) verlauf.hidden = pad.stkAnsicht !== "tag";
+    };
+  });
 
   const standFeld = h.querySelector('[data-padfeld="stand"]');
   if (standFeld) standFeld.onclick = async () => {
