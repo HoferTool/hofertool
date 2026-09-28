@@ -4396,7 +4396,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "109.0.0";
+const APP_VERSION = "109.1.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -18402,6 +18402,9 @@ async function bestOffen(ziel, b, bereich) {
     return text.includes(sucht);
   });
 
+  // Was in jeder Karte steht — genau das kommt später aufs PDF
+  const angezeigt = {};
+
   ladeFertig(ziel);
   ziel.innerHTML = '<div class="suchleiste">'
     + '<input type="search" id="bo-suche" placeholder="Suchen"'
@@ -18431,6 +18434,12 @@ async function bestOffen(ziel, b, bereich) {
           (gruppen[name] = gruppen[name] || []).push(z);
         });
 
+        // Genau diese Positionen stehen in der Karte — nur sie kommen aufs PDF
+        Object.keys(gruppen).forEach((name) => {
+          angezeigt[bl.status + "|" + name] = { posten: gruppen[name],
+                                                lieferant: perMail[name] || null };
+        });
+
         return '<h2 class="blocktitel">' + esc(bl.titel)
           + ' <span class="marke">' + eigene.length + '</span></h2>'
           + Object.keys(gruppen).sort().map((name) =>
@@ -18442,7 +18451,7 @@ async function bestOffen(ziel, b, bereich) {
               + '<div class="karte__kopfrechts">' 
               + (perMail[name]
                   ? '<button class="knopf knopf--klein" data-bestellpdf="' + esc(name)
-                    + '">PDF</button>' : "")
+                    + '" data-block="' + esc(bl.status) + '">PDF</button>' : "")
               // Alle Positionen dieses Lieferanten auf einmal umstellen
               + (darfSchreiben()
                   ? '<button class="knopf knopf--klein" data-sammelstatus="' + esc(name)
@@ -18507,12 +18516,15 @@ async function bestOffen(ziel, b, bereich) {
 
   ziel.querySelectorAll("[data-bestellpdf]").forEach((el) => {
     el.onclick = () => {
-      const name = el.dataset.bestellpdf;
-      const lieferant = (gefiltert.find((z) => z.suppliers
-        && z.suppliers.name === name) || {}).suppliers;
-      const posten = gefiltert.filter((z) => (z.suppliers && z.suppliers.name) === name
-        && z.status !== "geliefert");
-      bestellungDrucken(lieferant, posten);
+      // Aufs PDF kommt genau, was in dieser Karte steht — nicht alles,
+      // was beim Lieferanten noch offen ist, und nichts, was die Suche
+      // gerade ausblendet
+      const karte = angezeigt[el.dataset.block + "|" + el.dataset.bestellpdf];
+      if (!karte || !karte.posten.length) {
+        meldung("In dieser Karte steht nichts zum Bestellen.", "warn");
+        return;
+      }
+      bestellungDrucken(karte.lieferant, karte.posten);
     };
   });
 
