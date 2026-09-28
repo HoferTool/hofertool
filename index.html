@@ -4331,6 +4331,13 @@ body.dunkel .pw-ferien, body.dunkel .pw-ferien * { color: #fff !important; }
                    background: #1f7a4d; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
 .offline-hinweis--weg { background: #8a4a12; }
 .offline-hinweis__zahl { padding-left: 12px; border-left: 1px solid rgba(255,255,255,.35); }
+/* Werkstofferkennung */
+.ws-farbe { display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+            margin-right: 7px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.18); }
+.ws-offen td { background: #fdf6e7; }
+body.dunkel .ws-offen td { background: rgba(255, 201, 64, .08); }
+.ws-tabelle select { min-width: 160px; }
+.pl-werkstoff { margin-top: 4px; font-size: .8rem; display: flex; align-items: center; gap: 6px; }
 </style>
 </head>
 <body>
@@ -4379,7 +4386,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "106.0.0";
+const APP_VERSION = "108.0.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8568,6 +8575,181 @@ function meineInitialen() {
   return ich ? (ich.initialen || "").trim() : "";
 }
 
+// =================================================================
+//  WERKSTOFFE
+//  Aus der Materialbezeichnung die Gruppe erkennen — und damit die
+//  Farbe auf der Planwand und wie die Späne entsorgt werden. Grundlage
+//  sind eure Werkstofftabellen. Erkannt wird in dieser Reihenfolge:
+//
+//    1. was jemand in den Einstellungen von Hand zugeordnet hat
+//    2. die Werkstoffnummern und Bezeichnungen aus den Tabellen
+//    3. Regeln für alles, was einer Norm folgt (X…CrNi…, CuZn, AW-…)
+//
+//  Was nicht erkannt wird, bleibt ohne Gruppe und lässt sich in den
+//  Einstellungen einmal zuordnen; die App merkt es sich.
+// =================================================================
+
+const WERKSTOFFGRUPPEN = {
+  stahl:      { name: "Automatenstahl", farbe: "blau",   zusatz: "magnetisch" },
+  v2a:        { name: "V2A",            farbe: "rot",    zusatz: "rostfrei" },
+  v4a:        { name: "V4A",            farbe: "grau",   zusatz: "rostfrei, mit Molybdän" },
+  chrom:      { name: "Chromstahl",     farbe: "rosa",   zusatz: "rostfrei, magnetisch" },
+  alu:        { name: "Aluminium",      farbe: "weiss",  zusatz: "" },
+  neusilber:  { name: "Neusilber",      farbe: "orange", zusatz: "",
+                spaene: "1608 Neusilber Späne Pb", schrott: "1606 Neusilber Schrott Pb" },
+  messing:    { name: "Messing",        farbe: "gelb",   zusatz: "",
+                spaene: "1427 MS 58 Späne", schrott: "1414 MS 58 Schrott" },
+  messing_ohne_pb: { name: "Messing ohne Blei", farbe: "senf",
+                zusatz: "unbedingt separat halten",
+                spaene: "1499 MS ohne Pb", schrott: "1499 MS ohne Pb" },
+  titan:      { name: "Titan",          farbe: "violett", zusatz: "" },
+  kunststoff: { name: "Kunststoff",     farbe: "tuerkis", zusatz: "" },
+};
+
+// Aus euren Tabellen, Werkstoffnummer und Bezeichnung
+const WERKSTOFF_LISTE = {
+  v2a: ["1.4301", "1.4307", "1.4310", "1.4305", "1.4541", "1.4550",
+        "X5CrNi18-10", "X2CrNi18-9", "X10CrNi18-8", "X8CrNiS18-9",
+        "X6CrNiTi18-10", "X6CrNiNb18-10", "AISI 304", "AISI 304L", "AISI 301",
+        "AISI 303", "AISI 321", "AISI 347"],
+  v4a: ["1.4401", "1.4404", "1.4435", "1.4436", "1.4439", "1.4571", "1.4539",
+        "X5CrNiMo17-12-2", "X2CrNiMo17-12-2", "X2CrNiMo18-14-3", "X3CrNiMo17-13-3",
+        "X2CrNiMoN17-13-5", "X6CrNiMoTi17-12-2", "X1NiCrMoCu25-20-5",
+        "AISI 316", "AISI 316L", "AISI 316Ti", "AISI 904L"],
+  chrom: ["1.4000", "1.4003", "1.4016", "1.4021", "1.4028", "1.4104", "1.4113",
+          "1.4125", "1.4135", "1.4150", "1.4160", "1.4191", "1.4201", "1.4211",
+          "1.4292", "1.4044", "1.4057", "1.4197", "1.4108", "1.4105", "1.4112",
+          "1.4034", "1.4124",
+          "X5CrNi12", "X6Cr17", "X20Cr13", "X30Cr13", "X2CrNi12", "X6CrNi17-1",
+          "X6CrNiMo17-1", "X20CrNi12", "X14CrNi12", "X4CrNi12", "X25CrMo17",
+          "X35CrMo17", "X2CrNi17", "X2CrNi17-1", "X17CrNi16-2", "X20CrNiMoS13-1",
+          "X30CrMoN15-1", "X6CrMoS17", "X90CrMoV18", "X46Cr13", "X14CrMoS17",
+          "X105CrMo17"],
+  stahl: ["1.0737", "1.7131", "1.5752", "1.7139", "1.7142", "1.1191", "1.6587",
+          "1.8519", "1.7227", "1.7225",
+          "46MnSi4", "16MnCr5", "14NiCr14", "20MnCr5", "21MnCr5", "C45",
+          "18CrNiMo7-6", "31CrMoV9", "42CrMo4", "42CrMoS4"],
+  alu: ["AW-1050", "AW-2011", "AW-6026", "AW-6060", "AW-6061", "AW-6082",
+        "AW-6012", "AW-6023", "Al99,5", "AlCuBiPb", "AlMgSiPb", "AlMgSi",
+        "AlMg1SiCu", "AlSi1MgMn"],
+  neusilber: ["CW400J", "2.0730"],
+  messing: ["CW713R", "2.0371", "2.0401"],
+  messing_ohne_pb: ["SW1"],
+};
+
+// Von Hand zugeordnete Bezeichnungen, aus app_config
+let WERKSTOFF_GELERNT = {};
+
+// Der Teil, der den Werkstoff nennt — ohne Durchmesser, Toleranz, Form
+function werkstoffKern(bez) {
+  return String(bez || "")
+    .split(/\s(?:rd|Ø|ø|sw|6kt|4kt|vk|fl|rohr)\b|\s\d+(?:[.,]\d+)?\s?mm\b/i)[0]
+    .trim();
+}
+
+function werkstoffSchluessel(bez) {
+  return werkstoffKern(bez).toLowerCase().replace(/\s+/g, " ");
+}
+
+function werkstoffErkennen(bez) {
+  const roh = String(bez || "").trim();
+  if (!roh) return null;
+  const kern = werkstoffKern(roh);
+  const klein = kern.toLowerCase();
+  const ganz = roh.toLowerCase();
+  const mit = (key) => Object.assign({ key: key, kern: kern }, WERKSTOFFGRUPPEN[key]);
+
+  // 1. Von Hand zugeordnet
+  const gelernt = WERKSTOFF_GELERNT[werkstoffSchluessel(roh)];
+  if (gelernt && WERKSTOFFGRUPPEN[gelernt]) return Object.assign(mit(gelernt), { gelernt: true });
+
+  // 2. Aus den Tabellen — ganzes Wort, damit 1.4301 nicht in 1.43015 steckt
+  const woerter = ganz.replace(/[()]/g, " ");
+  for (const key of Object.keys(WERKSTOFF_LISTE)) {
+    for (const w of WERKSTOFF_LISTE[key]) {
+      const muster = new RegExp("(^|[\\s/;,])" + w.toLowerCase()
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|[\\s/;,])");
+      if (muster.test(woerter)) return mit(key);
+    }
+  }
+
+  // 3. Regeln
+  if (/ecobrass|cuzn21si3p|\bsw1\b/.test(ganz)) return mit("messing_ohne_pb");
+  if (/neusilber|cuni\d*zn|cw4\d\dj|2\.07\d\d/.test(ganz)) return mit("neusilber");
+  if (/messing|\bms\s?58|cuzn|cw[5-7]\d\d[a-z]|2\.0[34]\d\d/.test(ganz)) return mit("messing");
+  if (/\ben\s?aw|\baw-?\d{4}|\bal(mg|cu|si|zn|99)|3\.[0-3]\d{3}|aluminium/.test(ganz)) return mit("alu");
+  if (/titan|\bti(al|\s|-|\d)|3\.7\d{3}|grade\s?[1-5]\b/.test(ganz)) return mit("titan");
+  if (/\b(peek|pom|pa6|pa66|ptfe|pvdf|pe-?hd|pp|pet|pvc|pom-c)\b/.test(ganz)) return mit("kunststoff");
+
+  // Rostfreie nach Norm: X…Cr…Ni…Mo… mit den Gehalten dahinter
+  const x = kern.match(/^x\d+([a-z]+)(\d+(?:-\d+)*)/i);
+  if (x) {
+    const elemente = x[1].toLowerCase();
+    const zahlen = x[2].split("-").map(Number);
+    const hatNi = elemente.includes("ni");
+    // Nickel: bei X5CrNi18-10 die zweite Zahl, bei X1NiCr… die erste
+    const niGehalt = elemente.startsWith("ni") ? zahlen[0] : (zahlen[1] || 0);
+    if (hatNi && niGehalt >= 8) return mit(elemente.includes("mo") ? "v4a" : "v2a");
+    if (elemente.includes("cr")) return mit("chrom");
+  }
+  // Werkstoffnummern 1.4xxx grob nach Bereich
+  const nr = ganz.match(/\b1\.4(\d)(\d{2})\b/);
+  if (nr) {
+    if (nr[1] === "0" || nr[1] === "1" || nr[1] === "2") return mit("chrom");
+    if (nr[1] === "4") return mit("v4a");
+    if (nr[1] === "3") return mit("v2a");
+  }
+  // Stähle: Automatenstähle, Werkstoffnummern 1.0–1.8, gängige Namen
+  if (/\d+s(mn|mnpb|pb)\d*|\betg\s?\d+|automatenstahl|steeltec|\b1\.[0-35-8]\d{3}\b|\bc\d{2}\b|\b\d{2,3}(mncr|crmo|nicr|crnimo|mnsi|cr\d)/.test(ganz)
+      || /\bs235|\bs355|\b11smn|\b9smn/.test(ganz)) return mit("stahl");
+
+  return null;
+}
+
+async function werkstoffeGelerntLaden() {
+  try {
+    const r = await zeitlimit(db.from("app_config").select("wert")
+      .eq("schluessel", "werkstoff_zuordnung").maybeSingle(), 6000, "Werkstoffe");
+    WERKSTOFF_GELERNT = (!r.error && r.data && r.data.wert) ? JSON.parse(r.data.wert) : {};
+  } catch (f) { WERKSTOFF_GELERNT = {}; }
+}
+
+async function werkstoffZuordnen(bez, gruppe) {
+  const s = werkstoffSchluessel(bez);
+  if (!s) return;
+  if (gruppe) WERKSTOFF_GELERNT[s] = gruppe;
+  else delete WERKSTOFF_GELERNT[s];
+  const { error } = await db.from("app_config").upsert(
+    { schluessel: "werkstoff_zuordnung", wert: JSON.stringify(WERKSTOFF_GELERNT) });
+  if (error) throw error;
+}
+
+// Kurzer Text für Anzeigen: "V2A · rostfrei"
+function werkstoffText(g) {
+  if (!g) return "";
+  return g.name + (g.zusatz ? " · " + g.zusatz : "");
+}
+
+// Der kurze Text in der Bestellmail. In den Einstellungen änderbar;
+// {datum}, {name} und {lieferant} werden beim Erstellen ersetzt.
+const BESTELLMAIL_VORGABE = "Guten Tag\n\n"
+  + "Im Anhang erhalten Sie unsere Bestellung vom {datum}.\n"
+  + "Wir bitten um eine kurze Bestätigung mit dem voraussichtlichen Liefertermin.\n\n"
+  + "Freundliche Grüsse\n\n"
+  + "{name}\n"
+  + "Hofer + Co. Präzisionsdrehteile\n"
+  + "Alte Bernstrasse 24, CH-4573 Lohn-Ammannsegg\n"
+  + "Tel. 032 677 55 77";
+let BESTELLMAIL_TEXT = BESTELLMAIL_VORGABE;
+
+async function bestellmailTextLaden() {
+  try {
+    const r = await zeitlimit(db.from("app_config").select("wert")
+      .eq("schluessel", "bestellmail_text").maybeSingle(), 6000, "Mailtext");
+    BESTELLMAIL_TEXT = (!r.error && r.data && r.data.wert) ? r.data.wert : BESTELLMAIL_VORGABE;
+  } catch (f) { BESTELLMAIL_TEXT = BESTELLMAIL_VORGABE; }
+}
+
 async function farbzuteilungLaden() {
   try {
     const { data, error } = await db.from("farb_material").select("*").order("sortierung");
@@ -8575,6 +8757,8 @@ async function farbzuteilungLaden() {
     FARBZUTEILUNG = {};
     (data || []).forEach((z) => { FARBZUTEILUNG[z.farbe] = z; });
   } catch (f) { /* ohne Zuteilung bleibt die ganze Palette nutzbar */ }
+  await werkstoffeGelerntLaden();
+  await bestellmailTextLaden();
 }
 
 // Auf der Planwand darf jeder alles sehen. Geändert wird erst,
@@ -9414,6 +9598,12 @@ function balkenInfoVerhalten() {
             ? zahlText(j.stand || 0) + ' / ' + zahlText(j.target_quantity) + ' Stück'
             : "Keine Stückzahl hinterlegt") + '</div>'
         + '<div class="pw-info__zeile">' + esc(material.join(" · ")) + '</div>'
+        + (() => {
+            const g = werkstoffErkennen(j.material_bez);
+            return g ? '<div class="pw-info__zeile pw-info__zeile--klein">'
+              + '<span class="ws-farbe" style="background:' + farbeVon(g.farbe).hex + '"></span>'
+              + esc(werkstoffText(g)) + (g.spaene ? " · Späne " + esc(g.spaene) : "") + '</div>' : "";
+          })()
         // Der Hinweis zum Material gehört direkt hinter den Termin
         + (notizTrennen(j.plan_note).ort
             ? '<div class="pw-info__zeile">📦 ' + esc(notizTrennen(j.plan_note).ort) + '</div>'
@@ -11539,7 +11729,7 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
     + '<input id="pl-mat-bez" type="text" list="pl-matliste" autocomplete="off"'
     + ' placeholder="z. B. X10CrNiS18-9 rd 011 mm h8" value="'
     + esc(auftrag ? (auftrag.material_bez || "") : (v ? (v.material_bez || "") : ""))
-    + '"></label>'
+    + '"><span class="pl-werkstoff" id="pl-werkstoff"></span></label>'
     + '<div class="auf-zweier">'
     + '<label class="feld"><span>Menge vorhanden oder bestellt</span>'
     + '<input id="pl-menge-mat" type="text" value="'
@@ -11768,6 +11958,7 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
       if (bezFeld && !bezFeld.value && teil.material) {
         bezFeld.value = teil.material;
         uebernommen.push("Material");
+        bezFeld.dispatchEvent(new Event("change"));
       }
 
       // Die Farbe ergibt sich aus dem Material, falls sie dafür
@@ -11843,8 +12034,47 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
   };
   farbHinweisSetzen();
 
+  // Werkstoff erkennen: Gruppe unter dem Feld, Farbe dazu — ausser
+  // die Farbe wurde in diesem Fenster von Hand gewählt
+  let farbeVonHand = false;
+  const werkstoffZeigen = (farbeSetzen) => {
+    const feld = $("pl-mat-bez");
+    const platz = $("pl-werkstoff");
+    if (!feld || !platz) return;
+    const g = werkstoffErkennen(feld.value);
+    if (!feld.value.trim()) { platz.innerHTML = ""; return; }
+    if (!g) {
+      platz.innerHTML = '<span class="gedaempft">Werkstoff nicht erkannt — in den Einstellungen '
+        + 'unter Farben und Material zuordnen</span>';
+      return;
+    }
+    const f = farbeVon(g.farbe);
+    platz.innerHTML = '<span class="ws-farbe" style="background:' + f.hex + '"></span>'
+      + esc(werkstoffText(g)) + (g.spaene ? ' · Späne ' + esc(g.spaene) : "");
+    if (farbeSetzen && !farbeVonHand && planFarbe !== g.farbe) {
+      planFarbe = g.farbe;
+      huelle.querySelectorAll("[data-plfarbe]").forEach((x) =>
+        x.classList.toggle("aktiv", x.dataset.plfarbe === planFarbe));
+      const frei = huelle.querySelector(".farbknopf--frei");
+      if (frei) frei.classList.remove("aktiv");
+      farbHinweisSetzen();
+    }
+  };
+  const matFeld = $("pl-mat-bez");
+  if (matFeld) {
+    let takt = null;
+    matFeld.addEventListener("input", () => {
+      clearTimeout(takt);
+      takt = setTimeout(() => werkstoffZeigen(true), 250);
+    });
+    matFeld.addEventListener("change", () => werkstoffZeigen(true));
+  }
+  // Beim Öffnen nur anzeigen; bei einem neuen Auftrag auch die Farbe
+  werkstoffZeigen(!auftrag);
+
   huelle.querySelectorAll("[data-plfarbe]").forEach((el) => {
     el.onclick = () => {
+      farbeVonHand = true;
       planFarbe = el.dataset.plfarbe;
       huelle.querySelectorAll("[data-plfarbe]").forEach((x) =>
         x.classList.toggle("aktiv", x.dataset.plfarbe === planFarbe));
@@ -11856,6 +12086,7 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
 
   const farbFrei = $("pl-farbfrei");
   if (farbFrei) farbFrei.oninput = () => {
+    farbeVonHand = true;
     planFarbe = farbFrei.value;
     huelle.querySelectorAll("[data-plfarbe]").forEach((x) => x.classList.remove("aktiv"));
     const frei = huelle.querySelector(".farbknopf--frei");
@@ -13382,6 +13613,12 @@ async function padMaschine(h) {
     + zeile("FA Nr.", j && j.fa_nr)
     + zeile("Programm", programm)
     + zeile("Material", (j && j.material_bez) || (teil && teil.material))
+    + (() => {
+        const g = werkstoffErkennen((j && j.material_bez) || (teil && teil.material));
+        if (!g) return "";
+        return zeile("Werkstoff", werkstoffText(g))
+          + (g.spaene ? zeile("Späne", g.spaene) : "");
+      })()
     + '</div>'
     + (notizGeteilt.notiz || notizGeteilt.ort
         ? '<div class="pad-notiz">'
@@ -19376,12 +19613,15 @@ function bestellungDrucken(lieferant, posten) {
   // kein Netz, Firewall --, erscheint der Name als Text in einer
   // Ersatzschreibschrift. Fehlen darf er nie.
   const schreiber = [
-    "(async () => {",
+    "window.signaturFertig = (async () => {",
     "  const name = " + JSON.stringify(kurz) + ";",
     "  const ziel = document.getElementById('signatur');",
     "  const px = 190;",
     "  const schrift = px + 'px \"Alex Brush\"';",
     "  let geladen = false;",
+    "  await new Promise((r) => { const l = document.getElementById('schriftlink');",
+    "    if (!l || l.media === 'all') return r();",
+    "    l.addEventListener('load', r); l.addEventListener('error', r); setTimeout(r, 4000); });",
     "  try {",
     "    if (document.fonts && document.fonts.load) {",
     "      await Promise.race([",
@@ -19419,6 +19659,103 @@ function bestellungDrucken(lieferant, posten) {
     "})();",
   ].join("\n");
 
+  // ---------- Per Mail mit PDF ----------
+  // Läuft im Bestellblatt selbst: macht aus dem Blatt ein PDF und
+  // baut daraus eine fertige Mail.
+  //  · Am Computer entsteht eine .eml-Datei mit Empfänger, Betreff,
+  //    Text und PDF im Anhang. Outlook öffnet sie als Entwurf — nur
+  //    noch Senden drücken.
+  //  · Auf Tablet und Handy geht das Teilen-Menü auf, mit PDF und
+  //    Text. Die Adresse liegt dann in der Zwischenablage.
+  const mailText = String(BESTELLMAIL_TEXT || BESTELLMAIL_VORGABE)
+    .replace(/\{datum\}/g, heuteText)
+    .replace(/\{name\}/g, vollerName || wer)
+    .replace(/\{lieferant\}/g, (lieferant && lieferant.name) || "");
+  const mailBetreff = "Bestellung " + heuteText + " – Hofer + Co.";
+  const mailAn = (lieferant && lieferant.email) || "";
+
+  const mailer = [
+    "window.MAIL = " + JSON.stringify({ an: mailAn, betreff: mailBetreff,
+                                         text: mailText, datei: dateiname }) + ";",
+    "function laden(src) { return new Promise(function (ok, nein) {",
+    "  var s = document.createElement('script'); s.src = src; s.onload = ok;",
+    "  s.onerror = function () { nein(new Error('Konnte ' + src.split('/').pop() + ' nicht laden')); };",
+    "  document.head.appendChild(s); }); }",
+    "function b64(txt) { return btoa(unescape(encodeURIComponent(txt))); }",
+    "function zeilen76(s) { return s.replace(/(.{76})/g, '$1\\r\\n'); }",
+    "function bufB64(buf) { var b = new Uint8Array(buf), s = '', i;",
+    "  for (i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));",
+    "  return btoa(s); }",
+    "async function pdfMachen() {",
+    "  if (!window.html2canvas) await laden('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');",
+    "  if (!window.jspdf) await laden('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');",
+    "  try { await window.signaturFertig; } catch (e) {}",
+    "  var blatt = document.querySelector('.blatt');",
+    "  var bild = await html2canvas(blatt, { scale: 2, backgroundColor: '#ffffff' });",
+    "  var pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', compress: true });",
+    "  var h = bild.height * 210 / bild.width;",
+    "  pdf.addImage(bild.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 210, Math.min(h, 297));",
+    "  return pdf.output('blob');",
+    "}",
+    "function emlBauen(pdfB64) {",
+    "  var g = '----=_Hofer_' + Date.now();",
+    "  var name = MAIL.datei + '.pdf';",
+    "  return [",
+    "    'To: ' + MAIL.an,",
+    "    'Subject: =?UTF-8?B?' + b64(MAIL.betreff) + '?=',",
+    "    'X-Unsent: 1',",
+    "    'MIME-Version: 1.0',",
+    "    'Content-Type: multipart/mixed; boundary=\"' + g + '\"',",
+    "    '',",
+    "    '--' + g,",
+    "    'Content-Type: text/plain; charset=\"utf-8\"',",
+    "    'Content-Transfer-Encoding: base64',",
+    "    '',",
+    "    zeilen76(b64(MAIL.text.replace(/\\r?\\n/g, '\\r\\n'))),",
+    "    '',",
+    "    '--' + g,",
+    "    'Content-Type: application/pdf; name=\"' + name + '\"',",
+    "    'Content-Disposition: attachment; filename=\"' + name + '\"',",
+    "    'Content-Transfer-Encoding: base64',",
+    "    '',",
+    "    zeilen76(pdfB64),",
+    "    '',",
+    "    '--' + g + '--',",
+    "    ''",
+    "  ].join('\\r\\n');",
+    "}",
+    "function herunterladen(blob, name) {",
+    "  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;",
+    "  document.body.appendChild(a); a.click(); a.remove();",
+    "  setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000); }",
+    "function hinweis(text) { var h = document.getElementById('mailhinweis'); if (h) h.textContent = text; }",
+    "async function perMail() {",
+    "  var k = document.getElementById('mailknopf'); var alt = k.textContent;",
+    "  k.disabled = true; k.textContent = 'PDF wird erstellt …';",
+    "  try {",
+    "    var pdf = await pdfMachen();",
+    "    var mobil = /iPad|iPhone|Android/.test(navigator.userAgent)",
+    "      || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));",
+    "    var datei = new File([pdf], MAIL.datei + '.pdf', { type: 'application/pdf' });",
+    "    if (mobil && navigator.canShare && navigator.canShare({ files: [datei] })) {",
+    "      try { if (MAIL.an && navigator.clipboard) await navigator.clipboard.writeText(MAIL.an); } catch (e) {}",
+    "      await navigator.share({ files: [datei], title: MAIL.betreff, text: MAIL.text });",
+    "      hinweis(MAIL.an ? 'Die Adresse ' + MAIL.an + ' liegt in der Zwischenablage — im Mail bei An einfügen.' : '');",
+    "    } else {",
+    "      var eml = emlBauen(bufB64(await pdf.arrayBuffer()));",
+    "      herunterladen(new Blob([eml], { type: 'message/rfc822' }), MAIL.datei + '.eml');",
+    "      hinweis('Die Mail liegt als ' + MAIL.datei + '.eml bei den Downloads. Öffnen — Outlook zeigt sie '",
+    "        + 'als Entwurf mit Empfänger, Text und PDF. Nur noch Senden drücken.');",
+    "    }",
+    "  } catch (e) {",
+    "    if (e && e.name === 'AbortError') { k.disabled = false; k.textContent = alt; return; }",
+    "    alert('Das PDF liess sich nicht erstellen: ' + (e && e.message ? e.message : e)",
+    "      + '\\n\\nAls Ersatz: Als PDF speichern und von Hand anhängen.');",
+    "  }",
+    "  k.disabled = false; k.textContent = alt;",
+    "}",
+  ].join("\n");
+
   const anschrift = (lieferant && lieferant.adresse)
     ? esc(lieferant.adresse).split("\n").filter((x) => x.trim())
     : [];
@@ -19428,17 +19765,16 @@ function bestellungDrucken(lieferant, posten) {
     + '<title>' + esc(dateiname) + '</title>'
     + '<link rel="preconnect" href="https://fonts.googleapis.com">'
     + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-    + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
-    + 'family=Alex+Brush&display=swap">'
+    // Die Schrift blockiert die Seite nicht mehr: sie lädt nebenher,
+    // und nur die Unterschrift wartet auf sie (höchstens vier Sekunden)
+    + '<link rel="stylesheet" id="schriftlink" media="print" onload="this.media=&quot;all&quot;"'
+    + ' href="https://fonts.googleapis.com/css2?family=Alex+Brush&display=swap">'
     + '<style>' + stil + '</style></head><body>'
 
     + '<div class="leiste">'
     + '<button onclick="window.print()">Drucken</button>'
     + '<button onclick="window.print()">Als PDF speichern</button>'
-    + (lieferant && lieferant.email
-        ? '<button onclick="location.href=' + esc(JSON.stringify(mailAdresse))
-          + '">Per Mail</button>'
-        : "")
+    + '<button id="mailknopf" onclick="perMail()">Per Mail mit PDF</button>' 
     // Läuft die App im Vollbild, gibt es keine Leiste zum Schliessen.
     // Klappt window.close() nicht, kommt ein Hinweis statt nichts.
     + '<button onclick="window.close();setTimeout(function(){'
@@ -19447,10 +19783,13 @@ function bestellungDrucken(lieferant, posten) {
     + 'Bitte über den Tab schliessen.</p>\';},400)">Schliessen</button>'
     + '</div>'
 
+    + '<p class="mailhinweis" id="mailhinweis">'
     + (lieferant && lieferant.email
-        ? '<p class="mailhinweis">Per Mail öffnet Outlook mit Empfänger und Betreff. '
-          + 'Text und Signatur kommen aus dem Schnellbaustein, die Bestellung vorher '
-          + 'als PDF speichern und anhängen.</p>' : "")
+        ? 'Per Mail mit PDF: Die fertige Mail an ' + esc(lieferant.email)
+          + ' kommt mit Text und der Bestellung als PDF im Anhang.'
+        : 'Für diesen Lieferanten ist keine Mailadresse hinterlegt — die Mail kommt '
+          + 'ohne Empfänger, den trägst du in Outlook ein.')
+    + '</p>' 
     + '<div class="blatt">'
 
     + '<div class="balken">'
@@ -19500,6 +19839,7 @@ function bestellungDrucken(lieferant, posten) {
 
     + '</div></div>'
     + '<script>' + schreiber + '<\/script>'
+    + '<script>' + mailer + '<\/script>'
     + '</body></html>');
   fenster.document.close();
 }
@@ -19639,6 +19979,72 @@ async function planerListeZeichnen() {
   kasten.querySelectorAll("[data-plan-kuerzel]").forEach((el) => {
     el.onchange = () => speichern(el.dataset.planKuerzel,
       { initialen: (el.value || "").trim().toUpperCase() || null });
+  });
+}
+
+async function werkstoffListeZeichnen() {
+  const ziel = document.getElementById("werkstoffliste");
+  if (!ziel) return;
+  let bez = [];
+  try {
+    const alle = [];
+    for (let von = 0; von < 20000; von += 1000) {
+      const r = await zeitlimit(db.from("jobs").select("material_bez")
+        .not("material_bez", "is", null).range(von, von + 999), 10000, "Werkstoffe");
+      if (r.error) throw r.error;
+      alle.push(...(r.data || []));
+      if (!r.data || r.data.length < 1000) break;
+    }
+    bez = alle.map((x) => x.material_bez);
+  } catch (f) { ziel.innerHTML = '<p class="hinweis">' + esc(fehlertext(f)) + '</p>'; return; }
+
+  // Je Werkstoff einmal, mit Anzahl
+  const jeKern = new Map();
+  bez.forEach((b) => {
+    const k = werkstoffKern(b);
+    if (!k || k.length < 2) return;
+    const s = werkstoffSchluessel(b);
+    const e = jeKern.get(s) || { kern: k, beispiel: b, n: 0 };
+    e.n++; jeKern.set(s, e);
+  });
+  const zeilen = [...jeKern.values()].map((e) => Object.assign(e, { g: werkstoffErkennen(e.beispiel) }))
+    .sort((a, b) => (a.g ? 1 : 0) - (b.g ? 1 : 0) || b.n - a.n);
+
+  const offen = zeilen.filter((z) => !z.g).length;
+  const auswahl = (z) => '<select data-werkstoff="' + esc(z.beispiel) + '">'
+    + '<option value="">' + (z.g && !z.g.gelernt ? "automatisch" : "— nicht zugeordnet —") + '</option>'
+    + Object.keys(WERKSTOFFGRUPPEN).map((k) => '<option value="' + k + '"'
+        + (z.g && z.g.gelernt && z.g.key === k ? " selected" : "") + '>'
+        + esc(WERKSTOFFGRUPPEN[k].name) + '</option>').join("")
+    + '</select>';
+
+  ziel.innerHTML = '<p class="klein">' + zeilen.length + ' Werkstoffe · '
+    + (offen ? '<b>' + offen + ' nicht erkannt</b>' : "alle erkannt") + '</p>'
+    + '<div class="tabellenrolle"><table class="tabelle ws-tabelle"><thead><tr>'
+    + '<th>Werkstoff</th><th class="rechts">Aufträge</th><th>Gruppe</th><th>Von Hand</th>'
+    + '</tr></thead><tbody>'
+    + zeilen.map((z) => {
+        const f = z.g ? farbeVon(z.g.farbe) : null;
+        return '<tr' + (z.g ? "" : ' class="ws-offen"') + '>'
+          + '<td><strong>' + esc(z.kern) + '</strong></td>'
+          + '<td class="rechts">' + z.n + '</td>'
+          + '<td>' + (z.g
+              ? '<span class="ws-farbe" style="background:' + f.hex + '"></span>'
+                + esc(werkstoffText(z.g))
+                + (z.g.spaene ? '<div class="klein gedaempft">Späne ' + esc(z.g.spaene) + '</div>' : "")
+              : '<span class="gedaempft">nicht erkannt</span>') + '</td>'
+          + '<td>' + auswahl(z) + '</td></tr>';
+      }).join("")
+    + '</tbody></table></div>';
+
+  ziel.querySelectorAll("[data-werkstoff]").forEach((el) => {
+    el.onchange = async () => {
+      try {
+        await werkstoffZuordnen(el.dataset.werkstoff, el.value || null);
+        meldung(el.value ? "Zugeordnet." : "Zuordnung entfernt.");
+        werkstoffListeZeichnen();
+      } catch (f) { meldung(fehlertext(f), "fehler"); }
+    };
   });
 }
 
@@ -19802,6 +20208,13 @@ async function seiteEinstellungen(b) {
         + 'Adresse. Die Knöpfe erscheinen auf der Startseite und öffnen die Kamera '
         + 'in einem neuen Tab.</span></label>'
         + '<button class="knopf knopf--klein" id="kamera-speichern">Kameras speichern</button>'
+        // Text der Bestellmail
+        + '<label class="feld"><span>Text für Bestellmails</span>'
+        + '<textarea id="bestellmail-feld" rows="9"></textarea>'
+        + '<span class="feldhinweis">Steht in jeder Bestellmail über dem PDF. '
+        + '{datum}, {name} und {lieferant} werden ersetzt.</span></label>'
+        + '<div class="knopfreihe"><button class="knopf knopf--klein" id="bestellmail-speichern">Text speichern</button>'
+        + '<button class="linkknopf" id="bestellmail-vorgabe">Vorgabe wiederherstellen</button></div>'
         + '<button class="knopf" id="pin-speichern">Pin speichern</button></section>'
       : "")
     + '<section class="karte"><h2>Über die App</h2>'
@@ -19815,6 +20228,14 @@ async function seiteEinstellungen(b) {
     + 'Auftragsfenster. Das Kürzel steht auf dem Balken — mehrere Angaben '
     + 'mit Schrägstrich, zum Beispiel E/N.</p>'
     + '<div id="farbliste"><div class="laedt">Wird geladen …</div></div>'
+    + '</section>'
+    + '<section class="karte"><div class="karte__kopf"><h2>Werkstofferkennung</h2>'
+    + '<span class="klein">nach euren Werkstofftabellen</span></div>'
+    + '<p class="hinweis">Jede Materialbezeichnung aus den Aufträgen mit der erkannten '
+    + 'Gruppe. Was nicht erkannt wird, steht oben — einmal zuordnen, die App merkt '
+    + 'es sich. Neue Aufträge bekommen die Farbe der Gruppe, solange niemand von Hand '
+    + 'eine andere wählt.</p>'
+    + '<div id="werkstoffliste"><div class="laedt">Wird geladen …</div></div>'
     + '</section>';
 
   const teilNutzer = () =>
@@ -19916,7 +20337,7 @@ async function seiteEinstellungen(b) {
     return;
   }
 
-  if (einst.reiter === "farben") { farbListeZeichnen(); return; }
+  if (einst.reiter === "farben") { farbListeZeichnen(); werkstoffListeZeichnen(); return; }
   if (einst.reiter === "nutzer") {
     benutzerlisteLaden(b, bin);
     personenlisteLaden(b);
@@ -20065,6 +20486,21 @@ async function seiteEinstellungen(b) {
       if (error) meldung(fehlertext(error), "fehler");
       else meldung("Pin gespeichert.");
     };
+  }
+
+  // ---------- Text der Bestellmail ----------
+  const bmFeld = document.getElementById("bestellmail-feld");
+  if (bmFeld) {
+    bmFeld.value = BESTELLMAIL_TEXT || BESTELLMAIL_VORGABE;
+    document.getElementById("bestellmail-speichern").onclick = async () => {
+      const wert = (bmFeld.value || "").trim();
+      const { error } = await db.from("app_config")
+        .upsert({ schluessel: "bestellmail_text", wert: wert || BESTELLMAIL_VORGABE });
+      if (error) { meldung(fehlertext(error), "fehler"); return; }
+      BESTELLMAIL_TEXT = wert || BESTELLMAIL_VORGABE;
+      meldung("Text gespeichert.");
+    };
+    document.getElementById("bestellmail-vorgabe").onclick = () => { bmFeld.value = BESTELLMAIL_VORGABE; };
   }
 
   // ---------- Kameras ----------
