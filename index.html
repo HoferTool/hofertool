@@ -4253,6 +4253,84 @@ body.dunkel .pw-ferien, body.dunkel .pw-ferien * { color: #fff !important; }
                          height: 100%; cursor: pointer; }
 .farbknopf--frei span { pointer-events: none; font-weight: 700; color: #10161d;
                         mix-blend-mode: difference; filter: invert(1); }
+/* Kurz aufleuchten, wenn man aus einer Meldung zum Balken springt */
+.pw-balken--gezeigt { outline: 3px solid #ffc940; outline-offset: 2px;
+                      animation: gezeigt 1.2s ease-in-out 3; z-index: 5; }
+@keyframes gezeigt { 50% { outline-color: rgba(255, 201, 64, .15); } }
+.bz-teil { font-weight: 600; color: var(--marke); white-space: nowrap; }
+.fp-tabelle td { vertical-align: top; }
+.marke--warn { background: #fdecd3; color: #8a4a12; }
+/* ---------- Zifferblock ---------- */
+.zifferblock { width: min(420px, 94vw) !important; }
+.zb-anzeige { font-size: 2.6rem; font-weight: 800; text-align: right;
+              padding: 10px 16px; border-radius: 14px; margin: 10px 0 12px;
+              background: var(--grund); border: 2px solid var(--linie);
+              font-variant-numeric: tabular-nums; min-height: 64px; }
+.zb-anzeige--leer { color: var(--gedaempft); }
+.zb-schritte { display: flex; gap: 8px; margin-bottom: 10px; }
+.zb-schritte button { flex: 1; height: 44px; border-radius: 12px; font-weight: 700;
+                      font-size: .95rem; border: 1px solid var(--linie);
+                      background: var(--flaeche); color: var(--tinte); cursor: pointer; }
+.zb-tasten { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.zb-tasten button { height: 64px; border-radius: 14px; font-size: 1.6rem; font-weight: 700;
+                    border: 1px solid var(--linie); background: var(--flaeche);
+                    color: var(--tinte); cursor: pointer; touch-action: manipulation; }
+.zb-tasten button:active, .zb-schritte button:active { background: var(--linie); }
+.zb-tasten .zb-taste--neben { font-size: 1.2rem; color: var(--gedaempft); }
+.zb-knoepfe { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 12px; }
+.zb-knoepfe .knopf { height: 56px; font-size: 1.05rem; }
+/* Umschalter Tag · Woche · Monat im Solarverlauf */
+.sol-spanne { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px;
+              background: rgba(255,255,255,.08); }
+.sol-spanne__knopf { border: 0; background: none; color: #9fb3ce; cursor: pointer;
+                     font: inherit; font-size: .62rem; letter-spacing: .1em;
+                     text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
+.sol-spanne__knopf.aktiv { background: rgba(255,201,64,.22); color: #ffd463; }
+.sol-laedt { opacity: .45; transition: opacity .2s; }
+/* ---------- Suche über alles ---------- */
+.kopf__suche { display: inline-flex; align-items: center; gap: 8px; height: 38px;
+               padding: 0 12px; margin-right: 10px; border-radius: 10px; cursor: pointer;
+               border: 1px solid var(--linie); background: var(--flaeche); color: var(--gedaempft);
+               font: inherit; font-size: .9rem; min-width: 190px; }
+.kopf__suche svg { width: 17px; height: 17px; flex: none; }
+.kopf__suche span { flex: 1; text-align: left; }
+.kopf__suche kbd, .suche-alles kbd { font: inherit; font-size: .68rem; padding: 2px 6px;
+               border-radius: 5px; border: 1px solid var(--linie); color: var(--gedaempft); }
+.kopf__suche:hover { border-color: var(--marke); color: var(--tinte); }
+@media (max-width: 760px) {
+  .kopf__suche { min-width: 0; padding: 0 10px; }
+  .kopf__suche span, .kopf__suche kbd { display: none; }
+}
+.suche-huelle { align-items: flex-start !important; padding-top: 10vh; }
+.suche-alles { width: min(680px, 94vw) !important; padding: 0 !important; overflow: hidden; }
+.suche-alles__feld { display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+                     border-bottom: 1px solid var(--linie); }
+.suche-alles__lupe { font-size: 1.4rem; color: var(--gedaempft); }
+.suche-alles__feld input { flex: 1; border: 0 !important; outline: 0; font-size: 1.1rem;
+                           background: transparent; box-shadow: none !important; padding: 6px 0; }
+.suche-alles__liste { max-height: 60vh; overflow-y: auto; padding: 6px 8px 10px; }
+.suche-alles__liste .hinweis { padding: 12px 10px; margin: 0; }
+.suche-alles__gruppe { font-size: .64rem; letter-spacing: .14em; text-transform: uppercase;
+                       color: var(--gedaempft); padding: 10px 10px 4px; }
+.suche-alles__treffer { display: flex; align-items: center; gap: 12px; width: 100%;
+                        padding: 8px 10px; border: 0; background: none; border-radius: 10px;
+                        text-align: left; cursor: pointer; color: var(--tinte); font: inherit; }
+.suche-alles__treffer.aktiv, .suche-alles__treffer:hover { background: var(--grund); }
+.suche-alles__zeichen { width: 28px; height: 28px; border-radius: 8px; flex: none;
+                        display: grid; place-items: center; background: var(--grund);
+                        color: var(--marke); font-size: .95rem; }
+.suche-alles__text { display: flex; flex-direction: column; min-width: 0; }
+.suche-alles__text span { font-size: .8rem; color: var(--gedaempft); white-space: nowrap;
+                          overflow: hidden; text-overflow: ellipsis; }
+.pw-zeile--gezeigt { outline: 3px solid #ffc940; outline-offset: -2px; }
+/* ---------- Hinweis offline ---------- */
+.offline-hinweis { position: fixed; left: 50%; transform: translateX(-50%);
+                   top: calc(env(safe-area-inset-top, 0px) + 8px); z-index: 900;
+                   display: flex; align-items: center; gap: 12px; padding: 7px 16px;
+                   border-radius: 999px; font-size: .84rem; color: #fff;
+                   background: #1f7a4d; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.offline-hinweis--weg { background: #8a4a12; }
+.offline-hinweis__zahl { padding-left: 12px; border-left: 1px solid rgba(255,255,255,.35); }
 </style>
 </head>
 <body>
@@ -4301,7 +4379,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "104.0.0";
+const APP_VERSION = "106.0.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4654,7 +4732,279 @@ function stempelAuffrischen() {
   seitenStempel(sync.pfad).then((w) => { sync.stempel = w; });
 }
 
+// =================================================================
+//  OFFLINE
+//  Eine Schicht zwischen App und Supabase, die jede Anfrage sieht:
+//
+//   · Lesen: jede erfolgreiche Antwort wird auf dem Gerät gemerkt.
+//     Ohne Netz liefert die App den letzten bekannten Stand.
+//   · Schreiben: ohne Netz landen Änderungen in einer Warteschlange
+//     und gehen raus, sobald wieder Verbindung da ist — in derselben
+//     Reihenfolge, in der sie gemacht wurden.
+//   · Oben erscheint ein Hinweis mit dem Stand und der Zahl der
+//     wartenden Änderungen.
+//
+//  Dateien (Zeichnungen, Bilder) lassen sich offline nicht hochladen;
+//  das meldet die App wie bisher als Fehler.
+// =================================================================
+
+const OFFLINE = {
+  cache: "hofer-daten-v1",
+  schlange: "hofer.warteschlange",
+  standZeit: "hofer.offline.stand",
+  offline: false,
+  auth: null,          // letzte gültige Anmeldung, für das Nachsenden
+  apikey: null,
+  sendet: false,
+};
+
+function offlineSchlange() {
+  try { return JSON.parse(localStorage.getItem(OFFLINE.schlange) || "[]"); }
+  catch (f) { return []; }
+}
+function offlineSchlangeSetzen(liste) {
+  try { localStorage.setItem(OFFLINE.schlange, JSON.stringify(liste)); } catch (f) { /* voll */ }
+  offlineHinweis();
+}
+
+function istDatenAnfrage(url) {
+  return /\/rest\/v1\//.test(url);
+}
+
+(function fetchUmlegen() {
+  if (window.__offlineAktiv) return;
+  window.__offlineAktiv = true;
+  const echt = window.fetch.bind(window);
+
+  window.fetch = async function (eingabe, optionen) {
+    const url = typeof eingabe === "string" ? eingabe : (eingabe && eingabe.url) || "";
+    if (!istDatenAnfrage(url)) return echt(eingabe, optionen);
+
+    const methode = String((optionen && optionen.method)
+      || (eingabe && eingabe.method) || "GET").toUpperCase();
+    const kopf = new Headers((optionen && optionen.headers) || (eingabe && eingabe.headers) || {});
+    if (kopf.get("authorization")) OFFLINE.auth = kopf.get("authorization");
+    if (kopf.get("apikey")) OFFLINE.apikey = kopf.get("apikey");
+
+    // ---------- Lesen ----------
+    if (methode === "GET" || methode === "HEAD") {
+      try {
+        const antwort = await echt(eingabe, optionen);
+        if (antwort.ok && methode === "GET") {
+          try {
+            const c = await caches.open(OFFLINE.cache);
+            await c.put(url, antwort.clone());
+            localStorage.setItem(OFFLINE.standZeit, new Date().toISOString());
+          } catch (f) { /* Speicher voll oder nicht erlaubt */ }
+        }
+        offlineStatus(false);
+        return antwort;
+      } catch (netzfehler) {
+        offlineStatus(true);
+        try {
+          const c = await caches.open(OFFLINE.cache);
+          const gemerkt = await c.match(url);
+          if (gemerkt) return gemerkt;
+        } catch (f) { /* nichts gemerkt */ }
+        throw netzfehler;
+      }
+    }
+
+    // ---------- Schreiben ----------
+    let koerper = optionen && optionen.body;
+    if (koerper && typeof koerper !== "string") {
+      try { koerper = await new Response(koerper).text(); } catch (f) { koerper = null; }
+    }
+
+    const inSchlange = () => {
+      const liste = offlineSchlange();
+      liste.push({ zeit: new Date().toISOString(), methode: methode, url: url,
+                   koerper: koerper || null,
+                   prefer: kopf.get("prefer") || null,
+                   typ: kopf.get("content-type") || "application/json" });
+      offlineSchlangeSetzen(liste);
+      // Eine Antwort, mit der die App weiterarbeiten kann: das, was
+      // geschrieben werden sollte, als hätte der Server es bestätigt
+      let echo = "[]";
+      try {
+        const d = koerper ? JSON.parse(koerper) : null;
+        echo = JSON.stringify(Array.isArray(d) ? d : (d ? [d] : []));
+      } catch (f) { /* bleibt leer */ }
+      return new Response(methode === "DELETE" ? "" : echo, {
+        status: methode === "DELETE" ? 204 : 201,
+        headers: { "content-type": "application/json", "x-offline": "1" } });
+    };
+
+    // Warten schon Änderungen, kommt diese dahinter — sonst stimmt
+    // die Reihenfolge nicht mehr
+    if (OFFLINE.offline || offlineSchlange().length) return inSchlange();
+
+    try {
+      const antwort = await echt(eingabe, optionen);
+      offlineStatus(false);
+      return antwort;
+    } catch (netzfehler) {
+      offlineStatus(true);
+      return inSchlange();
+    }
+  };
+  OFFLINE.echt = echt;
+})();
+
+// Die Warteschlange abarbeiten, sobald wieder Netz da ist
+async function offlineNachsenden() {
+  if (OFFLINE.sendet) return;
+  let liste = offlineSchlange();
+  if (!liste.length) return;
+  OFFLINE.sendet = true;
+  offlineHinweis();
+  let gesendet = 0;
+  try {
+    while (liste.length) {
+      const e = liste[0];
+      const kopf = { "content-type": e.typ || "application/json" };
+      if (OFFLINE.auth) kopf.authorization = OFFLINE.auth;
+      if (OFFLINE.apikey) kopf.apikey = OFFLINE.apikey;
+      if (e.prefer) kopf.prefer = e.prefer;
+      let antwort;
+      try {
+        antwort = await OFFLINE.echt(e.url, { method: e.methode, headers: kopf,
+                                              body: e.koerper || undefined });
+      } catch (netzfehler) { offlineStatus(true); break; }       // wieder weg
+      if (!antwort.ok) {
+        // Der Server lehnt ab — nicht endlos wiederholen, sondern
+        // festhalten und weiter mit dem Rest
+        let text = "";
+        try { text = await antwort.text(); } catch (f) { /* egal */ }
+        fehlerMerken("Offline nachgesendet, abgelehnt",
+          e.methode + " " + e.url.split("/rest/v1/")[1], text.slice(0, 300));
+      } else {
+        gesendet++;
+      }
+      liste.shift();
+      offlineSchlangeSetzen(liste);
+    }
+  } finally {
+    OFFLINE.sendet = false;
+    offlineHinweis();
+  }
+  if (gesendet) {
+    meldung(gesendet === 1 ? "1 Änderung nachgesendet." : gesendet + " Änderungen nachgesendet.");
+    stammVergessen();
+    if (typeof zeichneSeite === "function") zeichneSeite();
+  }
+}
+
+function offlineStatus(weg) {
+  if (OFFLINE.offline === weg) return;
+  OFFLINE.offline = weg;
+  offlineHinweis();
+  if (!weg) offlineNachsenden();
+}
+
+window.addEventListener("online", () => { offlineStatus(false); offlineNachsenden(); });
+window.addEventListener("offline", () => offlineStatus(true));
+// Auch ohne Ereignis regelmässig prüfen — manche Tablets melden es nicht
+setInterval(() => {
+  if (offlineSchlange().length && navigator.onLine) offlineNachsenden();
+}, 30000);
+
+// Der Hinweis oben: offline, Stand, wartende Änderungen
+function offlineHinweis() {
+  let el = document.getElementById("offline-hinweis");
+  const warten = offlineSchlange().length;
+  const zeigen = OFFLINE.offline || warten || OFFLINE.sendet;
+  if (!zeigen) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "offline-hinweis";
+    document.body.appendChild(el);
+  }
+  const stand = localStorage.getItem(OFFLINE.standZeit);
+  el.className = "offline-hinweis" + (OFFLINE.offline ? " offline-hinweis--weg" : "");
+  el.innerHTML = OFFLINE.sendet
+    ? '<span>⟳ Änderungen werden übertragen …</span>'
+    : (OFFLINE.offline
+        ? '<b>Offline</b><span>Stand ' + (stand ? esc(datumZeitKurz(stand)) : "unbekannt") + '</span>'
+        : '<b>Wieder online</b>')
+      + (warten ? '<span class="offline-hinweis__zahl">' + warten
+          + (warten === 1 ? " Änderung wartet" : " Änderungen warten") + '</span>' : "");
+}
+
+// Beim Start: noch wartende Änderungen vom letzten Mal?
+setTimeout(() => { offlineHinweis(); if (navigator.onLine) offlineNachsenden(); }, 1500);
+
+// Die App selbst auf dem Gerät halten, damit sie ohne Netz startet
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("./sw.js").catch(() => { /* ohne geht es auch */ });
+}
+
+// =================================================================
+//  FEHLERPROTOKOLL
+//  Jede Fehlermeldung, die jemand zu sehen bekommt, und jeder Fehler
+//  im Hintergrund landet hier: mit Zeit, Person, Seite und Wortlaut.
+//  Die letzten 200 bleiben auf dem Gerät. In den Einstellungen lässt
+//  sich die Liste ansehen und als Datei herunterladen.
+// =================================================================
+
+const FEHLER_SCHLUESSEL = "hofer.fehlerprotokoll";
+const FEHLER_HOECHSTENS = 200;
+
+function fehlerLesen() {
+  try { return JSON.parse(localStorage.getItem(FEHLER_SCHLUESSEL) || "[]"); }
+  catch (f) { return []; }
+}
+
+function fehlerMerken(art, text, zusatz) {
+  try {
+    const liste = fehlerLesen();
+    const eintrag = {
+      zeit: new Date().toISOString(),
+      art: art,
+      text: String(text || "").slice(0, 600),
+      seite: (location.hash || "#start").replace(/^#\/?/, "") || "start",
+      person: (typeof profil !== "undefined" && profil)
+        ? (profil.full_name || profil.email || "") : "",
+      version: typeof APP_VERSION !== "undefined" ? APP_VERSION : "",
+      geraet: (navigator.userAgent.match(/iPad|iPhone|Android|Windows|Macintosh/) || ["?"])[0],
+    };
+    if (zusatz) eintrag.zusatz = String(zusatz).slice(0, 800);
+    // Gleiche Meldung kurz hintereinander nur einmal
+    const letzte = liste[liste.length - 1];
+    if (letzte && letzte.text === eintrag.text
+        && Date.now() - new Date(letzte.zeit).getTime() < 3000) return;
+    liste.push(eintrag);
+    while (liste.length > FEHLER_HOECHSTENS) liste.shift();
+    localStorage.setItem(FEHLER_SCHLUESSEL, JSON.stringify(liste));
+  } catch (f) { /* Protokoll darf nie selbst stören */ }
+}
+
+window.addEventListener("error", (e) => {
+  fehlerMerken("Programmfehler", e.message,
+    (e.filename ? e.filename.split("/").pop() : "") + (e.lineno ? ":" + e.lineno : ""));
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const g = e.reason;
+  fehlerMerken("Programmfehler", (g && (g.message || g.error_description)) || String(g),
+    g && g.stack ? String(g.stack).split("\n").slice(0, 3).join(" | ") : "");
+});
+
+function fehlerAlsDatei() {
+  const liste = fehlerLesen();
+  const zeilen = ["Zeit;Art;Seite;Person;Version;Gerät;Meldung;Zusatz"].concat(
+    liste.map((e) => [e.zeit, e.art, e.seite, e.person, e.version, e.geraet,
+                      e.text, e.zusatz || ""]
+      .map((v) => '"' + String(v || "").replace(/"/g, '""') + '"').join(";")));
+  const blob = new Blob(["\ufeff" + zeilen.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "Fehlerprotokoll_" + isoDatum(new Date()) + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
 function meldung(text, art) {
+  if (art === "fehler") fehlerMerken("Meldung", text);
   stempelAuffrischen();
   let box = document.querySelector(".toast-bereich");
   if (!box) {
@@ -5848,6 +6198,41 @@ let solarTakt = null;
 //  der Tabelle solar_werte, gefüllt von aussen.
 // =================================================================
 
+// Welche Spanne der Verlauf zeigt: Tag, Woche oder Monat
+let solarSpanne = "tag";
+
+// Längere Spannen: alle Messwerte holen, blockweise, und zu Stunden-
+// oder Tagesmitteln verdichten — sonst wird die Kurve unlesbar und
+// die Seite langsam.
+async function solarVerlaufLaden(spanne) {
+  const tage = spanne === "monat" ? 30 : 7;
+  const seit = new Date(Date.now() - tage * 24 * 3600 * 1000).toISOString();
+  const alle = [];
+  for (let von = 0; von < 60000; von += 1000) {
+    const { data, error } = await zeitlimit(
+      db.from("solar_werte").select("gemessen, produktion_w, verbrauch_w")
+        .gte("gemessen", seit).order("gemessen", { ascending: true })
+        .range(von, von + 999),
+      12000, "Solarverlauf");
+    if (error) throw error;
+    alle.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  const schritt = spanne === "monat" ? 24 * 3600 * 1000 : 3600 * 1000;
+  const eimer = new Map();
+  alle.forEach((x) => {
+    const t = new Date(x.gemessen).getTime();
+    const k = Math.floor(t / schritt) * schritt;
+    const e = eimer.get(k) || { n: 0, p: 0, v: 0 };
+    e.n += 1; e.p += Number(x.produktion_w) || 0; e.v += Number(x.verbrauch_w) || 0;
+    eimer.set(k, e);
+  });
+  return [...eimer.entries()].sort((a, b) => a[0] - b[0]).map(([k, e]) => ({
+    gemessen: new Date(k + schritt / 2).toISOString(),
+    produktion_w: e.p / e.n, verbrauch_w: e.v / e.n,
+  }));
+}
+
 async function solarLaden() {
   const seit = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { data, error } = await zeitlimit(
@@ -5976,8 +6361,12 @@ function solarVerlauf(reihe) {
       + '" class="sol-gitter"/>');
   }
 
-  const vonU = uhrzeit(punkte[0].gemessen);
-  const bisU = uhrzeit(punkte[punkte.length - 1].gemessen);
+  // Beschriftung passend zur Spanne: Uhrzeit am Tag, Datum sonst
+  const langeSpanne = spanne > 30 * 3600 * 1000;
+  const vonU = langeSpanne ? kurzDatum(isoDatum(new Date(punkte[0].gemessen)))
+    : uhrzeit(punkte[0].gemessen);
+  const bisU = langeSpanne ? kurzDatum(isoDatum(new Date(punkte[punkte.length - 1].gemessen)))
+    : uhrzeit(punkte[punkte.length - 1].gemessen);
 
   return '<div class="sol-verlauf">'
     + '<svg viewBox="0 0 ' + B + ' ' + H + '" preserveAspectRatio="none">'
@@ -5991,7 +6380,13 @@ function solarVerlauf(reihe) {
     + '<path d="' + linie("verbrauch_w") + '" class="sol-kurve sol-kurve--verb"/>'
     + '</svg>'
     + '<div class="sol-verlauf__achse"><span>' + esc(vonU) + '</span>'
-    + '<span class="sol-verlauf__mitte">Erzeugung · Verbrauch</span>'
+    + '<span class="sol-verlauf__mitte">'
+    + '<span class="sol-spanne">'
+    + [["tag", "Tag"], ["woche", "Woche"], ["monat", "Monat"]].map(([w, t]) =>
+        '<button type="button" class="sol-spanne__knopf'
+        + ((solarSpanne || "tag") === w ? " aktiv" : "") + '" data-solspanne="' + w + '">'
+        + t + '</button>').join("")
+    + '</span></span>'
     + '<span>' + esc(bisU) + '</span></div>'
     + '</div>';
 }
@@ -6070,7 +6465,7 @@ async function solarKachel(ziel) {
     + '</div>'
     + '</div>'
 
-    + solarVerlauf(reihe)
+    + '<div id="sol-verlauf-platz">' + solarVerlauf(reihe) + '</div>'
 
     + '<div class="solar-tag">'
     + (j.ertrag_tag_kwh !== null && j.ertrag_tag_kwh !== undefined
@@ -6084,6 +6479,29 @@ async function solarKachel(ziel) {
           + Number(j.bezug_tag_kwh).toFixed(1).replace(".", ",") + ' kWh</div>' : "")
     + '</div>'
     + '</section>';
+
+  solarSpanneBinden(ziel, reihe);
+}
+
+// Umschalten zwischen Tag, Woche und Monat — nur der Verlauf wird
+// neu gezeichnet, nicht die ganze Kachel
+function solarSpanneBinden(ziel, reiheTag) {
+  ziel.querySelectorAll("[data-solspanne]").forEach((el) => {
+    el.onclick = async () => {
+      solarSpanne = el.dataset.solspanne;
+      const platz = ziel.querySelector("#sol-verlauf-platz");
+      if (!platz) return;
+      let reihe = reiheTag;
+      if (solarSpanne !== "tag") {
+        platz.classList.add("sol-laedt");
+        try { reihe = await solarVerlaufLaden(solarSpanne); }
+        catch (f) { meldung(fehlertext(f), "fehler"); platz.classList.remove("sol-laedt"); return; }
+      }
+      platz.innerHTML = solarVerlauf(reihe);
+      platz.classList.remove("sol-laedt");
+      solarSpanneBinden(ziel, reiheTag);
+    };
+  });
 }
 
 async function seiteDashboard(b) {
@@ -6271,7 +6689,10 @@ async function zeichneProbleme(b) {
         + '<span class="problemzeile__zeichen">⚠</span>'
         + '<div class="problemzeile__inhalt">'
         + '<button class="problemzeile__nr problemzeile__nr--klick" data-zeigen="'
-        + esc(j.job_number) + '">' + esc(j.job_number) + '</button>'
+        + esc(j.id) + '">' + esc(j.job_number)
+        + (j.fa_nr ? ' <span class="klein">FA ' + esc(j.fa_nr) + '</span>' : "")
+        + (j.maschine ? ' <span class="klein">· ' + esc(j.maschine) + '</span>' : "")
+        + '</button>'
         + '<div>' + esc(j.problem) + '</div>'
         + '<div class="klein">' + esc(j.problem_von || "")
         + (j.problem_at ? " · " + esc(datumZeitKurz(j.problem_at)) : "") + '</div>'
@@ -6282,8 +6703,10 @@ async function zeichneProbleme(b) {
         + '</div>').join("")
     + '</section>';
 
+  // Führt genau zu diesem Balken — nicht über die Nummer, die bei
+  // mehreren Aufträgen gleich sein kann, sondern über den Auftrag selbst
   ziel.querySelectorAll("[data-zeigen]").forEach((el) => {
-    el.onclick = () => aufPlanwandZeigen(el.dataset.zeigen);
+    el.onclick = () => balkenZeigen(el.dataset.zeigen);
   });
 
   ziel.querySelectorAll("[data-probweg]").forEach((el) => {
@@ -9150,6 +9573,226 @@ function sucheImZeitraum(j) {
 // Von der Startseite aus einen Auftrag auf der Planwand zeigen.
 // Es wird zur Planwand gewechselt und dort dieselbe Suche
 // ausgelöst, die auch der Suchknopf benutzt.
+// =================================================================
+//  SUCHE ÜBER ALLES
+//  Ein Feld für alles: Aufträge (HOCO Nr., FA Nr., Material, Notiz),
+//  HOCO Stammdaten, Artikel, Lieferanten und Maschinen. Öffnet sich
+//  über die Lupe in der Kopfzeile oder mit Strg + K. Die Daten werden
+//  beim ersten Öffnen geholt und gemerkt, das Tippen fragt nichts mehr
+//  beim Server nach.
+// =================================================================
+
+const sucheAlles = { daten: null, zeit: 0 };
+
+async function sucheAllesDaten() {
+  if (sucheAlles.daten && Date.now() - sucheAlles.zeit < 60000) return sucheAlles.daten;
+  const [auftraege, hoco, maschinen, artikel, lieferanten] = await Promise.all([
+    (plan.auftraege && plan.auftraege.length ? Promise.resolve(plan.auftraege)
+      : ladePlanAuftraege()).catch(() => []),
+    ladeHoco("").catch(() => []),
+    ladeMaschinen(true).catch(() => []),
+    zeitlimit(db.from("articles").select("id, article_number, name, supplier_id")
+      .limit(3000), 8000, "Artikel").then((r) => r.data || []).catch(() => []),
+    zeitlimit(db.from("suppliers").select("id, name").limit(1000), 8000, "Lieferanten")
+      .then((r) => r.data || []).catch(() => []),
+  ]);
+  sucheAlles.daten = { auftraege, hoco, maschinen, artikel, lieferanten };
+  sucheAlles.zeit = Date.now();
+  return sucheAlles.daten;
+}
+
+function sucheTreffer(d, text) {
+  const t = text.trim().toLowerCase();
+  if (t.length < 2) return [];
+  const passt = (...felder) => felder.some((f) => String(f || "").toLowerCase().includes(t));
+  const raus = [];
+
+  // Aufträge: die laufenden und künftigen zuerst, dann die neueren
+  const heute = isoDatum(new Date());
+  (d.auftraege || [])
+    .filter((j) => passt(j.job_number, j.fa_nr, j.material_bez, j.plan_note, j.maschine))
+    .sort((a, b) => {
+      const aa = a.ended_at ? 1 : 0, bb = b.ended_at ? 1 : 0;
+      if (aa !== bb) return aa - bb;
+      return String(b.planned_from || "").localeCompare(String(a.planned_from || ""));
+    })
+    .slice(0, 12)
+    .forEach((j) => raus.push({ art: "auftrag", titel: j.job_number,
+      zeile: [j.maschine, j.planned_from ? "ab " + kurzDatum(j.planned_from) : "",
+              (PLANSTATUS[j.plan_status] || {}).name, j.fa_nr ? "FA " + j.fa_nr : ""]
+        .filter(Boolean).join(" · "),
+      daten: j, spaeter: (j.planned_from || "") >= heute }));
+
+  (d.hoco || []).filter((h) => passt(h.hoco_nr, h.bezeichnung, h.material, h.zeichnungs_nr))
+    .slice(0, 8)
+    .forEach((h) => raus.push({ art: "hoco", titel: h.hoco_nr,
+      zeile: [h.bezeichnung, h.material].filter(Boolean).join(" · "), daten: h }));
+
+  (d.maschinen || []).filter((m) => passt(m.name, m.machine_number)).slice(0, 6)
+    .forEach((m) => raus.push({ art: "maschine",
+      titel: (m.machine_number ? m.machine_number + " " : "") + m.name, zeile: "", daten: m }));
+
+  (d.artikel || []).filter((a) => passt(a.article_number, a.name)).slice(0, 8)
+    .forEach((a) => raus.push({ art: "artikel", titel: a.article_number || a.name,
+      zeile: a.article_number ? a.name : "", daten: a }));
+
+  (d.lieferanten || []).filter((l) => passt(l.name)).slice(0, 6)
+    .forEach((l) => raus.push({ art: "lieferant", titel: l.name, zeile: "", daten: l }));
+
+  return raus;
+}
+
+const SUCHE_ARTEN = {
+  auftrag:   { name: "Aufträge",    zeichen: "▤" },
+  hoco:      { name: "HOCO Nr.",    zeichen: "▣" },
+  maschine:  { name: "Maschinen",   zeichen: "⚙" },
+  artikel:   { name: "Artikel",     zeichen: "◧" },
+  lieferant: { name: "Lieferanten", zeichen: "◈" },
+};
+
+function sucheOeffnen() {
+  if (document.querySelector(".suche-alles")) return;
+  const huelle = document.createElement("div");
+  huelle.className = "dialog-huelle suche-huelle";
+  huelle.innerHTML = '<div class="dialog suche-alles">'
+    + '<div class="suche-alles__feld">'
+    + '<span class="suche-alles__lupe">⌕</span>'
+    + '<input type="search" id="suche-alles-feld" autocomplete="off"'
+    + ' placeholder="HOCO Nr., FA Nr., Material, Werkzeug, Lieferant, Maschine …">'
+    + '<kbd>Esc</kbd></div>'
+    + '<div class="suche-alles__liste" id="suche-alles-liste">'
+    + '<p class="hinweis">Mindestens zwei Zeichen eingeben.</p></div>'
+    + '</div>';
+  document.body.appendChild(huelle);
+
+  const feld = huelle.querySelector("#suche-alles-feld");
+  const liste = huelle.querySelector("#suche-alles-liste");
+  const zu = () => huelle.remove();
+  huelle.onclick = (e) => { if (e.target === huelle) zu(); };
+  feld.focus();
+
+  let daten = null;
+  let treffer = [];
+  let markiert = 0;
+  sucheAllesDaten().then((d) => { daten = d; zeichnen(); });
+
+  const zeichnen = () => {
+    if (!daten) { liste.innerHTML = '<div class="laedt">Wird geladen …</div>'; return; }
+    treffer = sucheTreffer(daten, feld.value);
+    if (feld.value.trim().length < 2) {
+      liste.innerHTML = '<p class="hinweis">Mindestens zwei Zeichen eingeben.</p>'; return;
+    }
+    if (!treffer.length) {
+      liste.innerHTML = '<p class="hinweis">Nichts gefunden zu „' + esc(feld.value.trim()) + '".</p>';
+      return;
+    }
+    markiert = Math.min(markiert, treffer.length - 1);
+    let art = "";
+    liste.innerHTML = treffer.map((x, i) => {
+      let kopf = "";
+      if (x.art !== art) {
+        art = x.art;
+        kopf = '<div class="suche-alles__gruppe">' + SUCHE_ARTEN[art].name + '</div>';
+      }
+      return kopf + '<button type="button" class="suche-alles__treffer'
+        + (i === markiert ? " aktiv" : "") + '" data-treffer="' + i + '">'
+        + '<span class="suche-alles__zeichen">' + SUCHE_ARTEN[x.art].zeichen + '</span>'
+        + '<span class="suche-alles__text"><b>' + esc(x.titel) + '</b>'
+        + (x.zeile ? '<span>' + esc(x.zeile) + '</span>' : "") + '</span></button>';
+    }).join("");
+    liste.querySelectorAll("[data-treffer]").forEach((el) => {
+      el.onclick = () => { zu(); sucheSpringen(treffer[Number(el.dataset.treffer)]); };
+    });
+  };
+
+  feld.addEventListener("input", () => { markiert = 0; zeichnen(); });
+  feld.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); markiert = Math.min(treffer.length - 1, markiert + 1); zeichnen(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); markiert = Math.max(0, markiert - 1); zeichnen(); }
+    else if (e.key === "Enter" && treffer[markiert]) { e.preventDefault(); zu(); sucheSpringen(treffer[markiert]); }
+  });
+}
+
+// Wohin ein Treffer führt
+function sucheSpringen(x) {
+  if (!x) return;
+  const b = document.getElementById("inhalt");
+  if (x.art === "auftrag") { balkenZeigen(x.daten.id); return; }
+  if (x.art === "hoco") {
+    prod.hocoOffen = x.daten.hoco_nr;
+    if (location.hash.replace(/^#\/?/, "") !== "planwand") location.hash = "#/planwand";
+    setTimeout(() => hocoFenster(document.getElementById("inhalt")), 700);
+    return;
+  }
+  if (x.art === "maschine") {
+    location.hash = "#/planwand";
+    setTimeout(() => {
+      const zeile = [...document.querySelectorAll(".pw-name")]
+        .find((n) => n.textContent.includes(x.daten.name));
+      if (zeile) {
+        zeile.scrollIntoView({ block: "center", behavior: "smooth" });
+        const z = zeile.closest(".pw-zeile");
+        if (z) { z.classList.add("pw-zeile--gezeigt"); setTimeout(() => z.classList.remove("pw-zeile--gezeigt"), 3000); }
+      }
+    }, 900);
+    return;
+  }
+  if (x.art === "artikel") {
+    best.ansicht = "artikel";
+    best.artikelSuche = x.daten.article_number || x.daten.name;
+    if (location.hash.replace(/^#\/?/, "") === "bestellungen") seiteBestellungen(b);
+    else location.hash = "#/bestellungen";
+    return;
+  }
+  if (x.art === "lieferant") {
+    best.ansicht = "lieferanten";
+    best.liefSuche = x.daten.name;
+    if (location.hash.replace(/^#\/?/, "") === "bestellungen") seiteBestellungen(b);
+    else location.hash = "#/bestellungen";
+  }
+}
+
+// Strg + K öffnet die Suche überall
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    if (typeof profil === "undefined" || !profil) return;
+    e.preventDefault();
+    sucheOeffnen();
+  }
+});
+
+// Zu genau einem Auftrag springen: Planwand öffnen, den Zeitraum so
+// legen, dass der Balken sichtbar ist, ihn hervorheben und das
+// Auftragsfenster öffnen.
+function balkenZeigen(auftragId) {
+  if (!auftragId) return;
+  plan.zeigeAuftrag = auftragId;
+  if (location.hash.replace(/^#\/?/, "") === "planwand") zeichneSeite();
+  else location.hash = "#/planwand";
+}
+
+async function balkenZeigenAusfuehren(b) {
+  const id = plan.zeigeAuftrag;
+  plan.zeigeAuftrag = null;
+  if (!id) return;
+  const j = (plan.auftraege || []).find((x) => x.id === id);
+  if (!j) { meldung("Dieser Auftrag steht nicht mehr auf der Planwand.", "warn"); return; }
+
+  // Liegt der Balken ausserhalb des Zeitraums, dorthin blättern
+  let el = document.querySelector('.pw-balken[data-auftrag="' + CSS.escape(id) + '"]');
+  if (!el && j.planned_from) {
+    plan.start = arbeitstagePlus(j.planned_from, -2);
+    await planAktualisieren(b);
+    el = document.querySelector('.pw-balken[data-auftrag="' + CSS.escape(id) + '"]');
+  }
+  if (el) {
+    el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+    el.classList.add("pw-balken--gezeigt");
+    setTimeout(() => el.classList.remove("pw-balken--gezeigt"), 3600);
+  }
+  planAuftragDialog(j, b);
+}
+
 function aufPlanwandZeigen(nummer) {
   if (!nummer) return;
   plan.sucheZeit = { art: "alle", datum: null, richtung: "vor" };
@@ -9816,6 +10459,10 @@ function zeichnePlanwand(b) {
   zeitWischen(b);
 
   // Kam der Aufruf von der Startseite, gleich danach suchen
+  if (plan.zeigeAuftrag) {
+    setTimeout(() => balkenZeigenAusfuehren(b), 60);
+  }
+
   if (plan.offeneSuche) {
     const was = plan.offeneSuche;
     plan.offeneSuche = null;
@@ -9878,15 +10525,16 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
   let zeileZwei = "";
   if (laufendOderFertig) {
     if (j.target_quantity) {
-      zeileZwei = zahlText(j.target_quantity) + " / " + zahlText(j.stand || 0);
+      // Erst der Stand, dann das Soll: 540 / 1'200
+      zeileZwei = zahlText(j.stand || 0) + " / " + zahlText(j.target_quantity);
     } else if (j.stand) {
       zeileZwei = zahlText(j.stand) + " Stk";
     }
   } else {
-    const teile2 = [];
-    if (j.target_quantity) teile2.push(zahlText(j.target_quantity) + " Stk");
-
-    zeileZwei = teile2.join("   ");
+    // Auch vor dem Start: erst das Ist, dann das Soll — 0 / 1'200
+    if (j.target_quantity) {
+      zeileZwei = zahlText(j.stand || 0) + " / " + zahlText(j.target_quantity);
+    }
   }
 
   const mengeDa = String(j.material_menge || "").trim();
@@ -12624,13 +13272,13 @@ async function padMaschine(h) {
   const wbg = (j && j.wbg_url) || "";
 
   // Für das Dashboard: Tagesleistung, was danach kommt, und das Wetter
-  const [tage, danach, wetter, solarReihe] = await Promise.all([
+  const [tage, danach, wetter] = await Promise.all([
     padTagesleistung(m.id),
     padNaechsteAuftraege(m.id, j ? j.id : null),
     holeWetterStunden().catch(() => null),
-    solarLaden().catch(() => []),
   ]);
-  const solarJetzt = (solarReihe || [])[(solarReihe || []).length - 1] || null;
+  // Solar gehört nicht an die Maschine — der Block bleibt leer
+  const solarJetzt = null, solarReihe = [];
 
   if (!pad.reiter) pad.reiter = "uebersicht";
   const datei = pad.reiter === "zeichnung" ? zeichnung
@@ -13037,12 +13685,12 @@ async function padMaschine(h) {
 
   const abendFeld = h.querySelector('[data-padfeld="abend"]');
   if (abendFeld && j && j.job_number && m.type_id) abendFeld.onclick = async () => {
-    const w = await dialogFelder({ titel: "Stück am Abend",
-      felder: [{ name: "stk", label: "Wie viele Stück sind am Abend einzutragen?",
-                 typ: "number", wert: (blattDaten && blattDaten.abend_stk) || "" }],
-      bestaetigen: "Speichern" });
-    if (!w) return;
-    const wert = w.stk === "" || w.stk === undefined ? null : Math.round(Number(w.stk));
+    const zahl = await zifferblock({ titel: "Stück am Abend",
+      hinweis: "Wie viele Stück sind am Abend einzutragen?",
+      wert: (blattDaten && blattDaten.abend_stk) || "",
+      schritte: [50, 100, 500] });
+    if (zahl === null) return;
+    const wert = zahl ? Math.round(zahl) : null;
     const { error } = await db.from("hoco_type_data").upsert(
       { hoco_nr: j.job_number, type_id: m.type_id, abend_stk: wert },
       { onConflict: "hoco_nr,type_id" });
@@ -13059,16 +13707,14 @@ async function padMaschine(h) {
   const standFeld = h.querySelector('[data-padfeld="stand"]');
   if (standFeld) standFeld.onclick = async () => {
     if (!j) return;
-    const w = await dialogFelder({ titel: "Stückzahl eintragen",
-      felder: [{ name: "stk", label: "Zählerstand, gesamt seit Auftragsbeginn",
-                 typ: "number", pflicht: true, wert: j.stand || 0,
-                 hinweis: j.target_quantity
-                   ? "Ziel " + zahlText(j.target_quantity) + " Stück" : "" }],
-      bestaetigen: "Eintragen" });
-    if (!w) return;
+    const zahl = await zifferblock({ titel: "Stückzahl eintragen",
+      hinweis: "Zählerstand, gesamt seit Auftragsbeginn"
+        + (j.target_quantity ? " · Ziel " + zahlText(j.target_quantity) : ""),
+      wert: j.stand || 0 });
+    if (zahl === null) return;
     try {
       await speichereStand(m.id, isoDatum(new Date()),
-        Math.max(0, Math.round(Number(w.stk) || 0)), j.id);
+        Math.max(0, Math.round(zahl)), j.id);
       // Dieselbe Ablage wie in der Produktion — was hier eingetragen
       // wird, steht dort und auf der Planwand, und umgekehrt.
       try { prod.auftraege = await ladeLaufendeAuftraege(); } catch (g) { /* egal */ }
@@ -13077,6 +13723,82 @@ async function padMaschine(h) {
     } catch (f) { meldung(fehlertext(f), "fehler"); }
   };
 
+}
+
+// =================================================================
+//  ZIFFERBLOCK
+//  Grosse Tasten statt Handytastatur — an der Maschine wird mit
+//  Handschuhen oder öligen Fingern getippt. Liefert die Zahl oder null.
+// =================================================================
+
+function zifferblock({ titel, hinweis, wert, schritte }) {
+  return new Promise((fertig) => {
+    let eingabe = String(wert == null ? "" : wert).replace(/\D/g, "");
+    const huelle = document.createElement("div");
+    huelle.className = "dialog-huelle";
+    huelle.innerHTML = '<div class="dialog zifferblock">'
+      + '<h2>' + esc(titel) + '</h2>'
+      + (hinweis ? '<p class="klein">' + esc(hinweis) + '</p>' : "")
+      + '<div class="zb-anzeige" id="zb-anzeige"></div>'
+      + (schritte && schritte.length
+          ? '<div class="zb-schritte">' + schritte.map((n) =>
+              '<button type="button" data-zbplus="' + n + '">+' + zahlText(n) + '</button>').join("")
+            + '</div>' : "")
+      + '<div class="zb-tasten">'
+      + ["7", "8", "9", "4", "5", "6", "1", "2", "3", "C", "0", "⌫"].map((t) =>
+          '<button type="button" data-zb="' + t + '"'
+          + (t === "C" || t === "⌫" ? ' class="zb-taste--neben"' : "") + '>' + t + '</button>').join("")
+      + '</div>'
+      + '<div class="zb-knoepfe">'
+      + '<button type="button" class="knopf knopf--still" data-zbnein>Abbrechen</button>'
+      + '<button type="button" class="knopf knopf--haupt" data-zbja>Eintragen</button>'
+      + '</div></div>';
+    document.body.appendChild(huelle);
+
+    const anzeige = huelle.querySelector("#zb-anzeige");
+    const zeigen = () => {
+      anzeige.textContent = eingabe ? zahlText(Number(eingabe)) : "0";
+      anzeige.classList.toggle("zb-anzeige--leer", !eingabe);
+    };
+    zeigen();
+
+    const zu = (ergebnis) => {
+      document.removeEventListener("keydown", tasten, true);
+      huelle.remove();
+      fertig(ergebnis);
+    };
+    huelle.querySelectorAll("[data-zb]").forEach((el) => {
+      el.onclick = () => {
+        const t = el.dataset.zb;
+        if (t === "C") eingabe = "";
+        else if (t === "⌫") eingabe = eingabe.slice(0, -1);
+        else if (eingabe.length < 9) eingabe = (eingabe === "0" ? "" : eingabe) + t;
+        zeigen();
+      };
+    });
+    huelle.querySelectorAll("[data-zbplus]").forEach((el) => {
+      el.onclick = () => {
+        eingabe = String((Number(eingabe) || 0) + Number(el.dataset.zbplus));
+        zeigen();
+      };
+    });
+    huelle.querySelector("[data-zbnein]").onclick = () => zu(null);
+    huelle.querySelector("[data-zbja]").onclick = () => zu(eingabe === "" ? null : Number(eingabe));
+    huelle.onclick = (e) => { if (e.target === huelle) zu(null); };
+
+    // Mit einer echten Tastatur geht es auch
+    function tasten(e) {
+      if (!document.body.contains(huelle)) return;
+      if (/^\d$/.test(e.key)) { if (eingabe.length < 9) eingabe = (eingabe === "0" ? "" : eingabe) + e.key; }
+      else if (e.key === "Backspace") eingabe = eingabe.slice(0, -1);
+      else if (e.key === "Enter") { e.preventDefault(); zu(eingabe === "" ? null : Number(eingabe)); return; }
+      else if (e.key === "Escape") { zu(null); return; }
+      else return;
+      e.preventDefault();
+      zeigen();
+    }
+    document.addEventListener("keydown", tasten, true);
+  });
 }
 
 // ---------- Werkzeugwechsel ----------
@@ -17256,7 +17978,11 @@ async function bestOffen(ziel, b, bereich) {
       + (z.note ? ' · ' + esc(z.note) : "")
       + ' · von ' + esc(personName(z.profiles))
       + '</div></td>'
-      + '<td class="bz-menge stark">' + zahlText(z.quantity) + '</td>'
+      + '<td class="bz-menge stark">' + zahlText(z.quantity)
+      + (z.status === "teilweise_geliefert" && z.geliefert_menge
+          ? '<div class="klein bz-teil">' + zahlText(z.geliefert_menge) + ' da · '
+            + zahlText(Math.max(0, z.quantity - z.geliefert_menge)) + ' offen</div>' : "")
+      + '</td>'
       + (darfSchreiben()
           ? '<td class="bz-aktionen">'
             + '<button class="linkknopf" data-bearb-best="' + esc(z.id) + '">Bearbeiten</button>'
@@ -17523,23 +18249,49 @@ async function bestOffen(ziel, b, bereich) {
       huelle.querySelectorAll("[data-neu]").forEach((k) => {
         k.onclick = async () => {
           const neuStatus = k.dataset.neu;
-
-          const ok = await nachfragen({ titel: "Status ändern",
-            text: 'Wirklich auf "' + BESTELLSTATUS[neuStatus] + '" setzen?',
-            bestaetigen: "Ja, ändern" });
-          if (!ok) return;
-
           const daten = { status: neuStatus };
+
+          if (neuStatus === "teilweise_geliefert") {
+            // Bei einer Teillieferung zählt, wie viel schon da ist
+            const w = await dialogFelder({ titel: "Teilweise geliefert",
+              hinweis: "Bestellt: " + zahlText(z.quantity) + " Stück",
+              felder: [{ name: "menge", label: "Wie viel ist geliefert?", typ: "number",
+                         wert: z.geliefert_menge || "", pflicht: true }],
+              bestaetigen: "Speichern" });
+            if (!w) return;
+            const menge = Number(w.menge);
+            if (!(menge > 0)) { meldung("Bitte eine Menge eingeben.", "warn"); return; }
+            if (menge >= Number(z.quantity || 0)) {
+              const ganz = await nachfragen({ titel: "Alles da?",
+                text: "Das ist die ganze bestellte Menge. Als geliefert abschliessen?",
+                bestaetigen: "Ja, geliefert", abbrechen: "Nein, teilweise lassen" });
+              if (ganz) {
+                daten.status = "geliefert";
+                daten.delivered_at = new Date().toISOString();
+                daten.completed_at = daten.delivered_at;
+              }
+            }
+            daten.geliefert_menge = menge;
+          } else {
+            const ok = await nachfragen({ titel: "Status ändern",
+              text: 'Wirklich auf "' + BESTELLSTATUS[neuStatus] + '" setzen?',
+              bestaetigen: "Ja, ändern" });
+            if (!ok) return;
+          }
           if (neuStatus === "bestellt") daten.ordered_at = new Date().toISOString();
           if (neuStatus === "geliefert") {
             daten.delivered_at = new Date().toISOString();
             daten.completed_at = daten.delivered_at;
           }
 
-          const { error } = await db.from("order_items").update(daten).eq("id", z.id);
           huelle.remove();
-          if (error) meldung(fehlertext(error), "fehler");
-          else { meldung("Status geändert."); seiteBestellungen(b); }
+          try {
+            const r = await aendernOhneUnbekannte("order_items", daten, "id", z.id);
+            meldung(r.weggelassen && r.weggelassen.indexOf("geliefert_menge") !== -1
+              ? "Status geändert. Die Menge braucht noch teillieferung.sql in der Datenbank."
+              : "Status geändert.");
+            seiteBestellungen(b);
+          } catch (f) { meldung(fehlertext(f), "fehler"); }
         };
       });
     };
@@ -18944,6 +19696,33 @@ async function farbListeZeichnen() {
 // Welcher Reiter in den Einstellungen offen ist
 const einst = { reiter: "allgemein" };
 
+function teilFehlerprotokoll() {
+  const liste = fehlerLesen().slice().reverse();
+  return '<section class="karte"><div class="karte__kopf">'
+    + '<h2>Fehlerprotokoll</h2>'
+    + '<span class="klein">' + liste.length + ' Einträge auf diesem Gerät</span>'
+    + '<div class="karte__aktionen">'
+    + (liste.length ? '<button class="knopf knopf--klein" id="fp-datei">Als Datei herunterladen</button>'
+        + '<button class="linkknopf linkknopf--gefahr" id="fp-leeren">Leeren</button>' : "")
+    + '</div></div>'
+    + (liste.length
+        ? '<p class="hinweis">Die Datei kannst du mir schicken, statt Screenshots zu machen. '
+          + 'Jedes Gerät führt sein eigenes Protokoll.</p>'
+          + '<div class="tabellenrolle"><table class="tabelle fp-tabelle"><thead><tr>'
+          + '<th>Zeit</th><th>Seite</th><th>Person</th><th>Meldung</th></tr></thead><tbody>'
+          + liste.map((e) => '<tr>'
+              + '<td class="klein nowrap">' + esc(datumZeitKurz(e.zeit)) + '</td>'
+              + '<td class="klein">' + esc(e.seite || "") + '</td>'
+              + '<td class="klein">' + esc(e.person || "") + '</td>'
+              + '<td>' + (e.art === "Programmfehler" ? '<span class="marke marke--warn">intern</span> ' : "")
+              + esc(e.text || "")
+              + (e.zusatz ? '<div class="klein gedaempft">' + esc(e.zusatz) + '</div>' : "")
+              + '</td></tr>').join("")
+          + '</tbody></table></div>'
+        : '<p class="hinweis">Keine Fehler aufgezeichnet. So soll es sein.</p>')
+    + '</section>';
+}
+
 async function seiteEinstellungen(b) {
   const ich = profil || {};
   const bin = istAdmin();
@@ -18951,7 +19730,7 @@ async function seiteEinstellungen(b) {
   // Nur Reiter, für die man die Rechte hat. War zuletzt einer offen,
   // den diese Person nicht sehen darf — etwa weil vorher ein Admin
   // am selben Gerät angemeldet war —, geht es auf den ersten zurück.
-  const erlaubt = ["allgemein", "dokumente", "kameras"]
+  const erlaubt = ["allgemein", "dokumente", "kameras", "fehler"]
     .concat(bin ? ["farben", "nutzer"] : []);
   if (erlaubt.indexOf(einst.reiter) === -1) einst.reiter = erlaubt[0];
 
@@ -19067,7 +19846,8 @@ async function seiteEinstellungen(b) {
     + '</div>'
 
     + '<div class="reiter">'
-    + [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["kameras", "Kameras"]]
+    + [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["kameras", "Kameras"],
+       ["fehler", "Fehlerprotokoll"]]
         .concat(bin ? [["farben", "Farben und Material"], ["nutzer", "Nutzer"]] : [])
         .map(([w, tt]) => '<button class="reiter__knopf'
           + (einst.reiter === w ? " aktiv" : "") + '" data-einst="' + w + '">'
@@ -19079,6 +19859,7 @@ async function seiteEinstellungen(b) {
         : einst.reiter === "nutzer" ? teilNutzer()
         : einst.reiter === "dokumente" ? '<div class="laedt">Wird geladen …</div>'
         : einst.reiter === "kameras" ? '<div class="laedt">Wird geladen …</div>'
+        : einst.reiter === "fehler" ? teilFehlerprotokoll()
         : teilAllgemein())
     + '</div>';
 
@@ -19118,6 +19899,20 @@ async function seiteEinstellungen(b) {
   }
   if (einst.reiter === "kameras") {
     await seiteKameras(document.getElementById("einst-inhalt"));
+    return;
+  }
+  if (einst.reiter === "fehler") {
+    const dl = document.getElementById("fp-datei");
+    if (dl) dl.onclick = fehlerAlsDatei;
+    const weg = document.getElementById("fp-leeren");
+    if (weg) weg.onclick = async () => {
+      const ja = await nachfragen({ titel: "Protokoll leeren?",
+        text: "Alle Einträge auf diesem Gerät werden gelöscht.",
+        bestaetigen: "Leeren", gefahr: true });
+      if (!ja) return;
+      localStorage.removeItem(FEHLER_SCHLUESSEL);
+      seiteEinstellungen(b);
+    };
     return;
   }
 
@@ -22638,6 +23433,10 @@ function zeichneGeruest() {
     + '<button class="kopf__rueck" id="rueck-knopf" hidden'
     + ' title="Rückgängig">↶</button>'
     + '<span class="kopf__luecke"></span>'
+    + '<button class="kopf__suche" id="kopf-suche" title="Suchen (Strg + K)">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
+    + ' stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>'
+    + '<span>Suchen</span><kbd>Strg K</kbd></button>'
     // Das Bild ganz rechts führt in die Einstellungen — der eigene
     // Knopf dafür ist weg.
     + '<span class="kopf__benutzer" data-benutzername>' + esc(anzeige) + '</span>'
@@ -22710,6 +23509,9 @@ function zeichneGeruest() {
 
   const neuladen = document.getElementById("kopf-neuladen");
   if (neuladen) neuladen.onclick = () => location.reload();
+
+  const sucheKnopf = document.getElementById("kopf-suche");
+  if (sucheKnopf) sucheKnopf.onclick = sucheOeffnen;
 
   const einstKnopf = document.getElementById("kopf-einstellungen");
   if (einstKnopf) einstKnopf.onclick = () => einstellungenOeffnen();
