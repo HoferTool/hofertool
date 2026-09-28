@@ -4201,6 +4201,19 @@ input[type="month"], input[type="week"] {
 .pad-sv__flaeche { fill: rgba(255,201,64,.18); stroke: none; }
 .pad-sv__linie { fill: none; stroke: #ffc940; stroke-width: 1.6;
                  vector-effect: non-scaling-stroke; }
+/* Drei Eckknöpfe: kompakter, damit die Leiste einzeilig bleibt */
+@media (min-width: 900px) {
+  .pw-eckknoepfe .pw-eck { padding: 0 12px !important; }
+  .pw-eckknoepfe { gap: 6px !important; }
+  .pw-regler-reihe .pw-zeitregler { flex: 2 1 180px !important; min-width: 140px !important; }
+  .pw-regler-reihe .pw-zoom { flex: 1 1 100px !important; min-width: 96px; }
+  #pw-zoomwert { width: 58px; }
+}
+/* Unter 1150 Pixel nur die Symbole, die Beschriftung fällt weg */
+@media (min-width: 900px) and (max-width: 1150px) {
+  .pw-eckknoepfe .pw-eck span { display: none; }
+  .pw-eckknoepfe .pw-eck { padding: 0 10px !important; }
+}
 </style>
 </head>
 <body>
@@ -4249,7 +4262,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "101.1.0";
+const APP_VERSION = "102.0.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8139,6 +8152,96 @@ async function ladeFerien() {
   return data || [];
 }
 
+// =================================================================
+//  Planwand als Excel
+//  Alle Aufträge mit Maschine, Zeitraum, Menge, Stand, Zustand und
+//  Notiz in einer Tabelle. Die Bibliothek dafür wird erst beim Klick
+//  geladen, damit sie die App sonst nicht belastet.
+// =================================================================
+
+function excelBibliothek() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((fertig, scheitern) => {
+    const el = document.createElement("script");
+    el.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    el.onload = () => fertig(window.XLSX);
+    el.onerror = () => scheitern(new Error("Excel-Bibliothek liess sich nicht laden"));
+    document.head.appendChild(el);
+  });
+}
+
+async function planwandExcel() {
+  meldung("Excel wird erstellt …");
+  let XLSX;
+  try { XLSX = await excelBibliothek(); }
+  catch (f) { meldung(fehlertext(f), "fehler"); return; }
+
+  let liste = [];
+  try { liste = await ladePlanAuftraege(); }
+  catch (f) { meldung(fehlertext(f), "fehler"); return; }
+
+  const zustandName = (k) => (PLANSTATUS[k] || PLANSTATUS.geplant).name;
+  const datum = (t) => (t ? new Date(String(t).slice(0, 10) + "T00:00:00") : null);
+
+  const zeilen = liste
+    .slice()
+    .sort((a, b) => String(a.park || "").localeCompare(String(b.park || ""))
+      || (a.maschine_reihenfolge || 0) - (b.maschine_reihenfolge || 0)
+      || String(a.planned_from || "").localeCompare(String(b.planned_from || "")))
+    .map((j) => {
+      const notiz = notizTrennen(j.plan_note);
+      return {
+        "Park": j.park || "",
+        "Maschine": (j.maschine_nr ? j.maschine_nr + " " : "") + (j.maschine || ""),
+        "HOCO Nr.": j.job_number || "",
+        "FA Nr.": j.fa_nr || "",
+        "Von": datum(j.planned_from),
+        "Bis": datum(planEnde(j.planned_from, j.planned_days || 1)),
+        "Arbeitstage": j.planned_days || 1,
+        "Zustand": zustandName(j.plan_status),
+        "Stückzahl Ziel": j.target_quantity || null,
+        "Stand": j.stand || 0,
+        "Material": j.material_bez || "",
+        "Menge": j.material_menge || "",
+        "Liefertermin": datum(j.material_liefertermin),
+        "FA erstellt": j.fa_erstellt ? "ja" : "nein",
+        "Material da": j.material_ok ? "ja" : "nein",
+        "Materialhinweis": notiz.ort || "",
+        "Notiz": notiz.notiz || "",
+        "Problem": j.problem || "",
+        "Farbe": j.color || "",
+        "Begonnen": j.started_at ? new Date(j.started_at) : null,
+        "Beendet": j.ended_at ? new Date(j.ended_at) : null,
+      };
+    });
+
+  const blatt = XLSX.utils.json_to_sheet(zeilen, { cellDates: true });
+  // Spaltenbreiten und Filter, damit es in Excel gleich lesbar ist
+  const breiten = [14, 22, 12, 12, 11, 11, 11, 10, 13, 10, 30, 12, 12, 10, 11, 26, 40, 26, 10, 18, 18];
+  blatt["!cols"] = breiten.map((b) => ({ wch: b }));
+  blatt["!autofilter"] = { ref: XLSX.utils.encode_range({
+    s: { r: 0, c: 0 }, e: { r: zeilen.length, c: breiten.length - 1 } }) };
+
+  const mappe = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(mappe, blatt, "Planwand");
+
+  // Zweites Blatt: die Maschinen
+  let maschinen = [];
+  try { maschinen = await ladeMaschinen(true); } catch (f) { maschinen = []; }
+  const mZeilen = (maschinen || []).map((m) => ({
+    "Nummer": m.machine_number || "", "Name": m.name || "",
+    "Aktiv": m.is_active === false ? "nein" : "ja" }));
+  if (mZeilen.length) {
+    const b2 = XLSX.utils.json_to_sheet(mZeilen);
+    b2["!cols"] = [{ wch: 10 }, { wch: 26 }, { wch: 8 }];
+    XLSX.utils.book_append_sheet(mappe, b2, "Maschinen");
+  }
+
+  const name = "Planwand_" + isoDatum(new Date()) + ".xlsx";
+  XLSX.writeFile(mappe, name, { cellDates: true });
+  meldung(zeilen.length + " Aufträge als " + name + " gespeichert.");
+}
+
 async function ladePlanAuftraege() {
   // Supabase gibt höchstens 1000 Zeilen je Abfrage zurück. Mit den
   // übernommenen Aufträgen aus infoBoard sind es mehr — deshalb wird
@@ -8389,6 +8492,12 @@ async function ansichtPlanwand(ziel, b) {
     + ' stroke-width="1.9" stroke-linejoin="round">'
     + '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>'
     + '</svg><span>HOCO Nr.</span></button>'
+    // Die ganze Wand als Excel — zum Ansehen, Weitergeben, Aufheben
+    + '<button class="knopf knopf--klein pw-eck" id="pw-excel" title="Als Excel herunterladen">'
+    + '<svg viewBox="0 0 24 24" class="pw-ecksym" fill="none" stroke="currentColor"'
+    + ' stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M12 4v11m0 0l-4-4m4 4l4-4M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2"/>'
+    + '</svg><span>Excel</span></button>'
     + '</div>'
     + '</div>'
     + (darfPlanen() ? "" : (isMobil()
@@ -8400,6 +8509,9 @@ async function ansichtPlanwand(ziel, b) {
   // Auf einen leeren Kalendertag klicken legt einen neuen Auftrag an,
   // auf eine leere Ferienzeile klicken trägt Ferien ein — ein eigener
   // Knopf dafür ist deshalb nicht mehr nötig.
+
+  const excelKnopf = document.getElementById("pw-excel");
+  if (excelKnopf) excelKnopf.onclick = () => planwandExcel();
 
   const hocoKnopf = document.getElementById("pw-hoco");
   if (hocoKnopf) hocoKnopf.onclick = () => hocoFenster(b);
