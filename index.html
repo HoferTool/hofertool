@@ -4262,7 +4262,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "102.0.0";
+const APP_VERSION = "102.1.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9370,7 +9370,10 @@ function arbeitstageZwischen(von, bis) {
 
 // Erste Ferienzeile, in der ab diesem Tag noch Platz ist
 function freieFerienZeile(von, tage, ausser) {
-  for (let z = 1; z <= FERIEN_ZEILEN; z++) {
+  // Erst die Standardzeilen, dann so weit nach unten wie nötig
+  const hoechste = Math.max(FERIEN_ZEILEN,
+    ...(plan.ferien || []).map((f) => Number(f.zeile) || 1));
+  for (let z = 1; z <= hoechste + 1; z++) {
     const belegt = arbeitstage(von, tage);
     const kollision = (plan.ferien || []).some((f2) => {
       if (f2.zeile !== z) return false;
@@ -9380,7 +9383,7 @@ function freieFerienZeile(von, tage, ausser) {
     });
     if (!kollision) return z;
   }
-  return FERIEN_ZEILEN;
+  return hoechste + 1;
 }
 
 async function ferienDialog(eintrag, zeile, datum, b) {
@@ -9653,9 +9656,17 @@ function zeichnePlanwand(b) {
         }).join("");
   }).join("");
 
-  // Sieben schmale Zeilen für die Ferien
+  // Schmale Zeilen für die Ferien — mindestens fünf, sonst so viele,
+  // wie im gezeigten Zeitraum gebraucht werden. In den Sommerferien
+  // sind es deutlich mehr als fünf.
+  const ferienSichtbar = (plan.ferien || []).filter((f) => {
+    const seine = arbeitstage(f.von, f.tage || 1);
+    return seine.some((t) => tage.indexOf(t) !== -1);
+  });
+  const ferienAnzahl = Math.max(FERIEN_ZEILEN,
+    ...ferienSichtbar.map((f) => Number(f.zeile) || 1));
   const ferienZeilen = '<div class="pw-zeile pw-zeile--park pw-zeile--ferienkopf"><div class="pw-name pw-park pw-park--ferien">Ferien</div><div class="pw-parkflaeche pw-parkflaeche--ferien"></div></div>'
-    + Array.from({ length: FERIEN_ZEILEN }, (unused, i2) => {
+    + Array.from({ length: ferienAnzahl }, (unused, i2) => {
         const zeile = i2 + 1;
         const zellen = tage.map((t) => '<div class="pw-zelle pw-zelle--fein'
           + (t === heute ? " pw-zelle--heute" : "") + '" data-fzelle="' + zeile + '|' + t
