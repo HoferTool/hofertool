@@ -4435,6 +4435,11 @@ body.rolle-extern .pw-zeile--ferienblock,
 body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !important; }
 .linkzeile { display: flex; gap: 8px; align-items: center; }
 .linkzeile input { flex: 1; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85rem; }
+/* Wer zuletzt geändert hat — klein und zurückhaltend auf dem Balken */
+.pw-balken__wer { flex: none; font-size: max(9px, calc(0.62rem * var(--pw-s, 1)));
+                  font-weight: 700; opacity: .7; white-space: nowrap; letter-spacing: .01em;
+                  padding: 0 3px; border-radius: 4px; background: rgba(0,0,0,.08); }
+.pw-tafel--sehrflach .pw-balken__wer { display: none; }
 </style>
 </head>
 <body>
@@ -4483,7 +4488,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "110.1.0";
+const APP_VERSION = "110.2.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8905,6 +8910,39 @@ async function planerLaden() {
   }
 }
 
+// Alle Personen mit Name und Kürzel — für "zuletzt geändert von".
+// Einmal geholt, fünf Minuten gemerkt.
+let PERSONEN = {};
+let personenZeit = 0;
+
+async function personenLaden() {
+  if (Date.now() - personenZeit < 300000 && Object.keys(PERSONEN).length) return;
+  try {
+    const r = await zeitlimit(db.from("profiles").select("id, full_name, email, initialen"),
+      8000, "Personen");
+    if (r.error) throw r.error;
+    PERSONEN = {};
+    (r.data || []).forEach((u) => { PERSONEN[u.id] = u; });
+    personenZeit = Date.now();
+  } catch (f) { /* ohne Namen zeigt der Balken eben kein Kürzel */ }
+}
+
+// Kürzel einer Person: die hinterlegten Initialen, sonst aus dem Namen
+function personKuerzel(id) {
+  const u = PERSONEN[id];
+  if (!u) return "";
+  if ((u.initialen || "").trim()) return u.initialen.trim();
+  const name = (u.full_name || u.email || "").split("@")[0];
+  const teile = name.split(/[\s._-]+/).filter(Boolean);
+  return teile.length > 1 ? (teile[0][0] + teile[teile.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+}
+
+function personVoll(id) {
+  const u = PERSONEN[id];
+  return u ? (u.full_name || u.email || "") : "";
+}
+
 // Kürzel der angemeldeten Person, falls sie selbst plant
 function meineInitialen() {
   const ich = PLANER.find((u) => u.id === (profil && profil.id));
@@ -9239,6 +9277,7 @@ async function planwandExcel() {
 }
 
 async function ladePlanAuftraege() {
+  await personenLaden();
   // Supabase gibt höchstens 1000 Zeilen je Abfrage zurück. Mit den
   // übernommenen Aufträgen aus infoBoard sind es mehr — deshalb wird
   // in Blöcken geholt, bis nichts mehr kommt. Sonst blieben nur die
@@ -9978,6 +10017,10 @@ function balkenInfoVerhalten() {
         + (j.geplant_von
             ? '<div class="pw-info__zeile pw-info__zeile--klein">Eingeplant von '
               + esc(j.geplant_von) + '</div>' : "")
+        + (j.geaendert_von && personVoll(j.geaendert_von)
+            ? '<div class="pw-info__zeile pw-info__zeile--klein">Zuletzt geändert von '
+              + esc(personVoll(j.geaendert_von))
+              + (j.geaendert_am ? " · " + esc(datumZeitKurz(j.geaendert_am)) : "") + '</div>' : "")
         + '<div class="pw-info__zeile pw-info__zeile--klein">'
         + (j.fa_erstellt ? "FA erstellt" : "FA fehlt")
         + " · " + (j.material_ok ? "Material vorhanden" : "Material fehlt") + '</div>';
@@ -11172,6 +11215,12 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
     + (j.plan_note ? '<span class="pw-balken__zeichen" title="Notiz">✎</span>' : "")
     + (j.drawing_url ? '<span class="pw-balken__zeichen">PDF</span>' : "")
     + (j.wbg_url ? '<span class="pw-balken__zeichen">WBG</span>' : "")
+    // Wer zuletzt geändert hat, klein mit Pfeil — im Infofenster mit Zeit
+    + (j.geaendert_von && personKuerzel(j.geaendert_von)
+        ? '<span class="pw-balken__wer" title="Zuletzt geändert von '
+          + esc(personVoll(j.geaendert_von))
+          + (j.geaendert_am ? ", " + esc(datumZeitKurz(j.geaendert_am)) : "") + '">↻'
+          + esc(personKuerzel(j.geaendert_von)) + '</span>' : "")
     + '</div>'
     + '<div class="pw-zeile2">' + esc(zeileZwei) + '</div>'
     + '</div>'
