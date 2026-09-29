@@ -3894,11 +3894,13 @@ body.dunkel .login__kachel:hover .login__kachel-buchstabe { background: #fff; }
 body.dunkel .login__bild { box-shadow: 0 6px 18px rgba(0, 0, 0, .45); }
 body.dunkel .login input, body.dunkel .login select {
   background: #10161e; border-color: #303945; color: #e8eef7; }
-/* Rückgängig gibt es nur am Handy. Am Rechner erledigt das Strg+Z,
-   und der Knopf nimmt in der Kopfzeile nur Platz weg. */
-@media (min-width: 900px) {
-  .kopf__rueck { display: none !important; }
-}
+/* Rückgängig: am Computer mit Beschriftung, am Handy nur das Zeichen */
+.kopf__rueck { display: inline-flex !important; align-items: center; gap: 6px;
+               height: 38px; padding: 0 12px; margin-right: 8px; border-radius: 10px;
+               font: inherit; font-size: .9rem; cursor: pointer; color: var(--tinte); }
+.kopf__rueck span { font-size: 1.1rem; line-height: 1; }
+.kopf__rueck:disabled { opacity: .4; cursor: default; }
+@media (max-width: 760px) { .kopf__rueck b { display: none; } .kopf__rueck { padding: 0 10px; } }
 /* ---------- Solaranlage: flach, klar, mit Tagesverlauf ----------
    Die Anzeige nimmt deutlich weniger Höhe ein: Werte und
    Eigenverbrauch stehen in einer Zeile, darunter der Verlauf. */
@@ -4471,7 +4473,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "109.8.0";
+const APP_VERSION = "109.9.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4759,7 +4761,8 @@ function merkeSchritt(text, zuruecknehmen) {
 function knopfRueckgaengigZeigen() {
   const k = document.getElementById("rueck-knopf");
   if (!k) return;
-  k.hidden = rueckgaengigListe.length === 0;
+  k.hidden = false;
+  k.disabled = rueckgaengigListe.length === 0;
   k.title = rueckgaengigListe.length
     ? "Rückgängig: " + rueckgaengigListe[rueckgaengigListe.length - 1].text
     : "";
@@ -4778,14 +4781,26 @@ async function schrittZurueck() {
   }
 }
 
+// In einem Textfeld nimmt Strg+Z den getippten Text zurück — das soll
+// so bleiben. Schieberegler, Haken und Knöpfe zählen aber nicht als
+// Textfeld: Nach dem Ziehen am Zeitraum blieb der Fokus dort hängen,
+// und Strg+Z tat nichts mehr.
+function istTextfeld(el) {
+  if (!el) return false;
+  if (el.isContentEditable || el.tagName === "TEXTAREA") return true;
+  if (el.tagName !== "INPUT") return false;
+  const typ = String(el.type || "text").toLowerCase();
+  return ["range", "checkbox", "radio", "button", "submit", "reset", "color", "file", "image"]
+    .indexOf(typ) === -1;
+}
+
 document.addEventListener("keydown", (e) => {
-  const inFeld = e.target && (e.target.tagName === "INPUT"
-    || e.target.tagName === "TEXTAREA" || e.target.isContentEditable);
-  if (inFeld) return;
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
-    e.preventDefault();
-    schrittZurueck();
-  }
+  if (!((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z")) return;
+  if (istTextfeld(e.target)) return;
+  // Offenes Fenster: dort gibt es nichts zurückzunehmen
+  if (document.querySelector(".dialog-huelle")) return;
+  e.preventDefault();
+  schrittZurueck();
 });
 
 // Grosser Ziffernblock für ein Zahlenfeld. Nützlich am Tablet
@@ -12587,6 +12602,22 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
     let fehler;
     let festId = null;
 
+    // Für Rückgängig: wie es vorher war — der Auftrag selbst und alle
+    // Aufträge auf den betroffenen Maschinen, die nachrücken könnten
+    const maschinenBetroffen = [daten.machine_id, auftrag && auftrag.machine_id].filter(Boolean);
+    const vorherAndere = (plan.auftraege || [])
+      .filter((x) => maschinenBetroffen.indexOf(x.machine_id) !== -1 && (!auftrag || x.id !== auftrag.id))
+      .map((x) => ({ id: x.id, planned_from: x.planned_from, planned_days: x.planned_days,
+                     machine_id: x.machine_id }));
+    let vorherSelbst = null;
+    if (auftrag) {
+      try {
+        const r0 = await db.from("jobs").select("*").eq("id", auftrag.id).maybeSingle();
+        // Als echte Kopie — sonst ändert sich der "alte" Stand mit
+        vorherSelbst = (r0 && r0.data) ? JSON.parse(JSON.stringify(r0.data)) : null;
+      } catch (f) { vorherSelbst = null; }
+    }
+
     if (auftrag) {
       // Den Zustand nicht mit den übrigen Feldern schreiben, sondern
       // über dieselbe Stelle wie Produktion und Pad Mode — nur so
@@ -12703,6 +12734,35 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
     // hinten, damit die Reihe wieder sauber aneinander steht.
     const verschoben = festId
       ? await planKonflikteLoesen(daten.machine_id, festId) : [];
+
+    // Rückgängig: neuer Auftrag wird wieder entfernt, ein geänderter
+    // bekommt seine alten Werte, und was nachgerückt ist, kehrt zurück
+    if (festId) {
+      const nrText = daten.job_number || (auftrag && auftrag.job_number) || "Auftrag";
+      const neuAngelegt = !auftrag;
+      const alteWerte = vorherSelbst ? (() => {
+        const w = {};
+        Object.keys(daten).concat(["plan_status", "started_at", "ended_at", "job_number"])
+          .forEach((k) => { if (k in vorherSelbst) w[k] = vorherSelbst[k]; });
+        return w;
+      })() : null;
+      merkeSchritt((neuAngelegt ? "Anlegen von " : "Ändern von ") + nrText, async () => {
+        if (neuAngelegt) {
+          const r1 = await db.from("jobs").delete().eq("id", festId);
+          if (r1.error) throw r1.error;
+        } else if (alteWerte) {
+          await aendernOhneUnbekannte("jobs", alteWerte, "id", festId);
+        }
+        for (const x of vorherAndere) {
+          const jetzt = (plan.auftraege || []).find((y) => y.id === x.id);
+          if (jetzt && jetzt.planned_from === x.planned_from && jetzt.planned_days === x.planned_days
+              && jetzt.machine_id === x.machine_id) continue;
+          await db.from("jobs").update({ planned_from: x.planned_from,
+            planned_days: x.planned_days, machine_id: x.machine_id }).eq("id", x.id);
+        }
+        planAktualisieren(b);
+      });
+    }
 
     zu();
     meldung(verschoben.length
@@ -24174,7 +24234,7 @@ const tippstelle = { id: null, start: 0, ende: 0, wert: "" };
 document.addEventListener("input", (e) => {
   const el = e.target;
   if (!el || !el.id) return;
-  if (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA") return;
+  if (!istTextfeld(el)) return;
   tippstelle.id = el.id;
   tippstelle.wert = el.value;
   try { tippstelle.start = el.selectionStart; tippstelle.ende = el.selectionEnd; }
@@ -24183,9 +24243,8 @@ document.addEventListener("input", (e) => {
 
 document.addEventListener("focusin", (e) => {
   const el = e.target;
-  if (el && el.id && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) {
-    tippstelle.id = el.id;
-  }
+  if (el && el.id && istTextfeld(el)) tippstelle.id = el.id;
+  else if (el && el.tagName === "INPUT") tippstelle.id = null;   // Regler: nicht festhalten
 }, true);
 
 (function fokusHalten() {
@@ -24295,8 +24354,8 @@ function zeichneGeruest() {
         ? '<button class="kopf__admin' + (plan.pinOk ? " aktiv" : "") + '" id="kopf-admin"'
           + ' title="Bearbeiten freischalten">Bearbeiten</button>'
         : "")
-    + '<button class="kopf__rueck" id="rueck-knopf" hidden'
-    + ' title="Rückgängig">↶</button>'
+    + '<button class="kopf__rueck" id="rueck-knopf" disabled'
+    + ' title="Rückgängig (Strg + Z)"><span>↶</span><b>Rückgängig</b></button>'
     + '<span class="kopf__luecke"></span>'
     + '<button class="kopf__suche" id="kopf-suche" title="Suchen (Strg + K)">'
     + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
