@@ -4488,7 +4488,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "110.2.0";
+const APP_VERSION = "110.2.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -11215,12 +11215,6 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
     + (j.plan_note ? '<span class="pw-balken__zeichen" title="Notiz">✎</span>' : "")
     + (j.drawing_url ? '<span class="pw-balken__zeichen">PDF</span>' : "")
     + (j.wbg_url ? '<span class="pw-balken__zeichen">WBG</span>' : "")
-    // Wer zuletzt geändert hat, klein mit Pfeil — im Infofenster mit Zeit
-    + (j.geaendert_von && personKuerzel(j.geaendert_von)
-        ? '<span class="pw-balken__wer" title="Zuletzt geändert von '
-          + esc(personVoll(j.geaendert_von))
-          + (j.geaendert_am ? ", " + esc(datumZeitKurz(j.geaendert_am)) : "") + '">↻'
-          + esc(personKuerzel(j.geaendert_von)) + '</span>' : "")
     + '</div>'
     + '<div class="pw-zeile2">' + esc(zeileZwei) + '</div>'
     + '</div>'
@@ -12130,6 +12124,11 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
           + (auftrag.stand ? ' · ' + zahlText(auftrag.stand) : "")
           + (auftrag.target_quantity ? ' / ' + zahlText(auftrag.target_quantity) : "")
           + '</span>'
+          + (auftrag.geaendert_von && personVoll(auftrag.geaendert_von)
+              ? '<span class="auf-kopf__unter">Zuletzt geändert von '
+                + esc(personVoll(auftrag.geaendert_von))
+                + (auftrag.geaendert_am ? ' · ' + esc(datumZeitKurz(auftrag.geaendert_am)) : "")
+                + '</span>' : "")
         : '<h2>' + (vorlage ? "Kopie anlegen" : "Auftrag einplanen") + '</h2>'
           + (vorlage ? '<span class="auf-kopf__unter">von ' + esc(vorlage.job_number)
               + ' — Nummer, Maschine, Stückzahl und Zeichnung neu setzen</span>' : ""))
