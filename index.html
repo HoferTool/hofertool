@@ -4396,7 +4396,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "109.2.0";
+const APP_VERSION = "109.3.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7607,7 +7607,11 @@ async function ladeParksFrisch(auchInaktive) {
   if (error) throw error;
   // Alle Parks merken, damit der Namensvergleich funktioniert
   plan.parksAlle = data || [];
-  return (data || []).filter((p) => parkErlaubt(p.id));
+  // Eigene Parks nach Name, externe Maschinen immer zuletzt
+  const extern = (p) => /extern|lohn|fremd/i.test(String(p.name || "")) ? 1 : 0;
+  return (data || []).filter((p) => parkErlaubt(p.id))
+    .sort((a, b) => extern(a) - extern(b)
+      || String(a.name || "").localeCompare(String(b.name || ""), "de"));
 }
 
 async function ladeMaschinenFrisch(auchInaktive) {
@@ -9756,14 +9760,31 @@ function balkenInfoVerhalten() {
         + " · " + (j.material_ok ? "Material vorhanden" : "Material fehlt") + '</div>';
 
       document.body.appendChild(fenster);
-      const r = el.getBoundingClientRect();
-      const oben = r.top > 180;
-      fenster.style.left = Math.max(8, Math.min(window.innerWidth - 280, r.left)) + "px";
-      fenster.style.top = oben ? (r.top - fenster.offsetHeight - 8) + "px" : (r.bottom + 8) + "px";
+      platzieren();
     };
 
-    // Am Computer beim Darüberfahren
-    el.addEventListener("mouseenter", zeigen);
+    // Das Fenster sitzt genau über dem Mauszeiger — passt es oben nicht
+    // hin, darunter. Waagrecht mittig zum Zeiger, am Rand eingefangen.
+    let mausX = null, mausY = null;
+    const platzieren = () => {
+      if (!fenster) return;
+      const r = el.getBoundingClientRect();
+      const x = mausX !== null ? mausX : r.left + Math.min(r.width, 200) / 2;
+      const y = mausY !== null ? mausY : r.top + r.height / 2;
+      const b = fenster.offsetWidth, h = fenster.offsetHeight;
+      const abstand = 14;
+      const oben = y - abstand - h >= 8;
+      fenster.style.left = Math.max(8, Math.min(window.innerWidth - b - 8, x - b / 2)) + "px";
+      fenster.style.top = (oben ? y - abstand - h
+        : Math.min(window.innerHeight - h - 8, y + abstand + 6)) + "px";
+    };
+
+    // Am Computer beim Darüberfahren — und es folgt dem Zeiger
+    el.addEventListener("mouseenter", (e) => { mausX = e.clientX; mausY = e.clientY; zeigen(); });
+    el.addEventListener("mousemove", (e) => {
+      mausX = e.clientX; mausY = e.clientY;
+      if (fenster) requestAnimationFrame(platzieren);
+    });
     el.addEventListener("mouseleave", weg);
     el.addEventListener("mousedown", weg);
 
