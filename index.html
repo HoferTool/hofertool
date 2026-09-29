@@ -4488,7 +4488,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "110.2.1";
+const APP_VERSION = "110.3.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8808,9 +8808,35 @@ function freierStart(maschineId, wunsch, tage, ausserId) {
 // wo er ist, alle anderen weichen ihm aus und rücken so weit nach
 // hinten, wie nötig. Die Reihenfolge nach Datum bleibt erhalten.
 // Gibt die alten Daten zurück, damit sich alles zurücknehmen lässt.
-async function planKonflikteLoesen(maschineId, festId) {
+// Viele kleine Änderungen auf einmal abschicken, statt eine nach der
+// anderen abzuwarten. Höchstens acht gleichzeitig, damit der Server
+// nicht überrannt wird. Vorher dauerte ein Verschieben mit 25
+// nachrückenden Aufträgen über drei Sekunden, jetzt ein paar Zehntel.
+async function parallelSenden(aufgaben, gleichzeitig) {
+  const liste = aufgaben.slice();
+  let fehler = null;
+  const arbeiter = Array.from({ length: Math.min(gleichzeitig || 8, liste.length) }, async () => {
+    while (liste.length) {
+      const a = liste.shift();
+      try {
+        const r = await a();
+        if (r && r.error && !fehler) fehler = r.error;
+      } catch (f) { if (!fehler) fehler = f; }
+    }
+  });
+  await Promise.all(arbeiter);
+  if (fehler) throw fehler;
+}
+
+// Rechnet aus, was einem fest gesetzten Auftrag ausweichen muss, und
+// setzt es sofort in der Anzeige — ohne auf den Server zu warten.
+// Gibt die Änderungen zurück; abgeschickt werden sie danach am Stück.
+function planKonflikteRechnen(maschineId, festId) {
   const alle = (plan.auftraege || [])
-    .filter((x) => x.machine_id === maschineId && x.planned_from)
+    .filter((x) => x.machine_id === maschineId && x.planned_from
+      // Abgeschlossene Aufträge bleiben, wo sie waren — die Geschichte
+      // wird beim Verschieben nicht umgeschrieben
+      && (x.id === festId || x.plan_status !== "fertig"))
     .sort((a, c) => a.planned_from < c.planned_from ? -1
       : (a.planned_from > c.planned_from ? 1 : String(a.id).localeCompare(String(c.id))));
 
@@ -8839,12 +8865,18 @@ async function planKonflikteLoesen(maschineId, festId) {
     }
 
     if (von !== x.planned_from) {
-      vorher.push({ id: x.id, von: x.planned_from });
-      await db.from("jobs").update({ planned_from: von }).eq("id", x.id);
+      vorher.push({ id: x.id, von: x.planned_from, nach: von });
       x.planned_from = von;
     }
     gesetzt.push(x);
   }
+  return vorher;
+}
+
+async function planKonflikteLoesen(maschineId, festId) {
+  const vorher = planKonflikteRechnen(maschineId, festId);
+  await parallelSenden(vorher.map((v) => () =>
+    db.from("jobs").update({ planned_from: v.nach }).eq("id", v.id)));
   return vorher;
 }
 
@@ -8866,12 +8898,13 @@ async function planAufruecken(maschineId, abDatum, ausserId) {
     // Nie über einen Auftrag drüber, der nicht mitwandert
     zeiger = freierStart(maschineId, zeiger, x.planned_days || 1, x.id);
     if (zeiger !== x.planned_from) {
-      vorher.push({ id: x.id, von: x.planned_from });
-      await db.from("jobs").update({ planned_from: zeiger }).eq("id", x.id);
+      vorher.push({ id: x.id, von: x.planned_from, nach: zeiger });
       x.planned_from = zeiger;
     }
     zeiger = naechsterArbeitstag(arbeitstagePlus(zeiger, x.planned_days || 1));
   }
+  await parallelSenden(vorher.map((v) => () =>
+    db.from("jobs").update({ planned_from: v.nach }).eq("id", v.id)));
   return vorher;
 }
 
@@ -9282,18 +9315,33 @@ async function ladePlanAuftraege() {
   // übernommenen Aufträgen aus infoBoard sind es mehr — deshalb wird
   // in Blöcken geholt, bis nichts mehr kommt. Sonst blieben nur die
   // ältesten tausend übrig, und die Wand wäre leer.
-  const liste = [];
+  // Das erste Paket sagt, wie viele es insgesamt sind; die übrigen
+  // Pakete werden dann gleichzeitig geholt statt nacheinander.
   const stufe = 1000;
-  for (let von = 0; von < 50000; von += stufe) {
-    const { data, error } = await zeitlimit(
-      db.from("planwand").select("*")
-        .order("planned_from", { nullsFirst: false }).order("id")
-        .range(von, von + stufe - 1),
-      12000, "Planwand");
-    if (error) throw error;
-    const teil = data || [];
-    liste.push(...teil);
-    if (teil.length < stufe) break;
+  const paket = (von, zaehlen) => zeitlimit(
+    db.from("planwand").select("*", zaehlen ? { count: "exact" } : undefined)
+      .order("planned_from", { nullsFirst: false }).order("id")
+      .range(von, von + stufe - 1),
+    15000, "Planwand");
+  const erstes = await paket(0, true);
+  if (erstes.error) throw erstes.error;
+  const liste = (erstes.data || []).slice();
+  let gesamt = typeof erstes.count === "number" ? erstes.count : null;
+  if (liste.length === stufe) {
+    if (gesamt === null) {
+      // Ohne Anzahl: wie früher, Paket für Paket
+      for (let von = stufe; von < 50000; von += stufe) {
+        const r = await paket(von);
+        if (r.error) throw r.error;
+        liste.push(...(r.data || []));
+        if (!r.data || r.data.length < stufe) break;
+      }
+    } else {
+      const weitere = [];
+      for (let von = stufe; von < gesamt; von += stufe) weitere.push(paket(von));
+      const antworten = await Promise.all(weitere);
+      antworten.forEach((r) => { if (r.error) throw r.error; liste.push(...(r.data || [])); });
+    }
   }
   await standsNachtragen(liste.filter((j) => !j.ended_at));
   return liste;
@@ -11869,20 +11917,24 @@ function balkenVerhalten(b) {
 
       const vorherM = auftrag.machine_id, vorherD = auftrag.planned_from;
 
-      const { error } = await db.from("jobs")
-        .update({ machine_id: maschineId, planned_from: datum })
-        .eq("id", auftrag.id);
-
-      if (error) { meldung(fehlertext(error), "fehler"); return; }
-
-      // Örtlich gleich nachziehen, sonst rechnen die nächsten
-      // Schritte noch mit dem alten Platz.
+      // Erst in der Anzeige: der Auftrag liegt sofort am neuen Platz, was
+      // ihm im Weg liegt, weicht sofort aus. Gespeichert wird danach am
+      // Stück — man sieht das Ergebnis, ohne auf den Server zu warten.
       auftrag.machine_id = maschineId;
       auftrag.planned_from = datum;
+      const ausgewichen = planKonflikteRechnen(maschineId, auftrag.id);
+      zeichnePlanwand(b);
 
-      // Der Auftrag bleibt liegen, wo er abgelegt wurde. Was ihm im
-      // Weg liegt, weicht nach hinten aus.
-      const ausgewichen = await planKonflikteLoesen(maschineId, auftrag.id);
+      try {
+        await parallelSenden([() => db.from("jobs")
+            .update({ machine_id: maschineId, planned_from: datum }).eq("id", auftrag.id)]
+          .concat(ausgewichen.map((v) => () =>
+            db.from("jobs").update({ planned_from: v.nach }).eq("id", v.id))));
+      } catch (f) {
+        meldung(fehlertext(f), "fehler");
+        planAktualisieren(b);   // den echten Stand wieder holen
+        return;
+      }
 
       // Bleibt dort, wo er herkam, eine Lücke? Dann fragen wir nach.
       const dahinter = (plan.auftraege || []).filter((x) =>
@@ -11904,9 +11956,8 @@ function balkenVerhalten(b) {
 
       const zurueck = ausgewichen.concat(aufgeschlossen);
       merkeSchritt("Verschieben von " + auftrag.job_number, async () => {
-        for (const v of zurueck) {
-          await db.from("jobs").update({ planned_from: v.von }).eq("id", v.id);
-        }
+        await parallelSenden(zurueck.map((v) => () =>
+          db.from("jobs").update({ planned_from: v.von }).eq("id", v.id)));
         await db.from("jobs")
           .update({ machine_id: vorherM, planned_from: vorherD })
           .eq("id", auftrag.id);
