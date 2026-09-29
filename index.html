@@ -4348,6 +4348,33 @@ body.dunkel .ws-offen td { background: rgba(255, 201, 64, .08); }
 .pad-stk-wahl__knopf.aktiv { background: rgba(255,255,255,.9); color: #0c2749; }
 .pad-tag small { white-space: nowrap; font-size: .54rem !important; }
 .pad-stk-neben span { white-space: nowrap; }
+/* ---------- Zeitregler unter der Datumszeile ---------- */
+.pw-zeile--zeitregler { display: grid;
+  grid-template-columns: var(--pw-name, 108px) 1fr; align-items: center;
+  border-bottom: 1px solid var(--linie); background: var(--flaeche); }
+.pw-name--zeit { font-size: .62rem !important; letter-spacing: .12em; text-transform: uppercase;
+                 color: var(--gedaempft) !important; }
+.pw-zeitplatz { padding: 2px 6px 2px 4px; min-width: 0; }
+.pw-zeitplatz .pw-zeitregler { margin: 0 !important; padding: 0 !important;
+  flex: none !important; min-width: 0 !important; width: 100%; display: flex;
+  align-items: center; gap: 10px; }
+.pw-zeitplatz .pw-zeitregler input[type="range"] { flex: 1; height: 18px; margin: 0; }
+.pw-zeitplatz .pw-zeitinfo { position: static !important; display: flex; gap: 8px;
+  flex: none; font-size: .68rem; color: var(--gedaempft); white-space: nowrap; }
+.pw-zeitplatz .pw-zeitinfo .klein { display: none; }
+/* Die Marke bleibt in der Reglerzeile: kurzer Strich, ohne Beschriftung
+   darüber, sonst ragt sie in die Tage hinein. Der Titel verrät es. */
+.pw-zeitplatz .pw-zeitregler { position: relative; }
+.pw-zeitplatz .pw-zeitmarke { top: 1px !important; height: 16px !important; border-radius: 1px; }
+.pw-zeitplatz .pw-zeitmarke::after { display: none !important; }
+.pw-zeitplatz .pw-zeitinfo span + span::before { content: "– "; }
+/* Nur der Balken: keine Beschriftung, keine Datumsangaben, schmal */
+.pw-zeitplatz .pw-zeitinfo { display: none !important; }
+.pw-zeile--zeitregler { min-height: 0 !important; }
+.pw-zeile--zeitregler .pw-name--zeit { padding: 0 !important; min-height: 0 !important; }
+.pw-zeitplatz { padding: 1px 6px 1px 4px !important; }
+.pw-zeitplatz .pw-zeitregler input[type="range"] { height: 14px !important; }
+.pw-zeitplatz .pw-zeitmarke { top: 0 !important; height: 14px !important; }
 </style>
 </head>
 <body>
@@ -4396,7 +4423,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "109.3.0";
+const APP_VERSION = "109.4.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9250,6 +9277,7 @@ async function seitePlanwand(b) {
 
 async function ansichtPlanwand(ziel, b) {
   if (!plan.start) plan.start = naechsterArbeitstag(wochenStart(isoDatum(new Date())));
+  plan.zeitreglerEl = null;
 
   ladeFertig(ziel);
   ziel.innerHTML = '<div class="pw-kopfleiste">'
@@ -10777,12 +10805,24 @@ function zeichnePlanwand(b) {
     + ';--pw-v:' + (plan.vskala || 1).toFixed(2)
     + ';--pw-spalte:' + (plan.spalte || 40) + 'px'
     + ';--pw-name:' + (plan.namensbreite || 108) + 'px">'
-    + '<div class="pw-kopfblock">' + monatZeile + kwZeile + kopf + '</div>'
+    + '<div class="pw-kopfblock">' + monatZeile + kwZeile + kopf
+    // Der Zeitregler sitzt direkt unter den Tagen, über den Spalten
+    + (isMobil() ? "" : '<div class="pw-zeile pw-zeile--zeitregler">'
+        + '<div class="pw-name pw-name--kopf pw-name--zeit"></div>'
+        + '<div class="pw-zeitplatz" id="pw-zeitplatz"></div></div>')
+    + '</div>'
     + zeilen + ferienZeilen
     + (heuteSpalte >= 0
         ? '<div class="pw-heutelinie' + (heuteAmRand ? " pw-heutelinie--rand" : "")
           + '" style="--heute:' + heuteSpalte + '"></div>' : "")
     + '</div></div>';
+
+  const zeitPlatz = document.getElementById("pw-zeitplatz");
+  const zeitEl = plan.zeitreglerEl || document.querySelector(".pw-zeitregler");
+  if (zeitPlatz && zeitEl) {
+    plan.zeitreglerEl = zeitEl;
+    zeitPlatz.appendChild(zeitEl);
+  }
 
   // Wie viel Platz über der Tafel weggeht — Kopfzeile, Regler,
   // Reiter. Daraus ergibt sich die Höhe bis zum Fensterrand.
