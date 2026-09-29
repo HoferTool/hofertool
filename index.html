@@ -4425,6 +4425,14 @@ body.einfuegemodus .pw-balken { cursor: copy; }
   background: #1f7aff; box-shadow: 0 0 0 2px #fff, 0 0 10px rgba(31,122,255,.6); z-index: 5; }
 .pw-balken--davor::before { left: -4px; }
 .pw-balken--danach::before { right: -4px; }
+/* ---------- Rolle Extern: nur Planwand und Stückzahlen ---------- */
+body.rolle-extern #kopf-suche,
+body.rolle-extern #pad-knopf,
+body.rolle-extern #pw-hoco,
+body.rolle-extern #pw-excel,
+body.rolle-extern .pw-zeile--ferienkopf,
+body.rolle-extern .pw-zeile--ferienblock,
+body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !important; }
 </style>
 </head>
 <body>
@@ -4473,7 +4481,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "109.9.0";
+const APP_VERSION = "110.0.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7391,8 +7399,18 @@ function meineParks() {
   return (profil && Array.isArray(profil.parks)) ? profil.parks : [];
 }
 
+// Externe Partner sehen nur Parks, die ihnen zugewiesen sind — ohne
+// Zuweisung die Parks mit "extern", "Lohn" oder "fremd" im Namen
+function istExtern() { return meineRolle() === "extern"; }
+
 function parkErlaubt(parkId) {
   if (istAdmin() || meineRolle() === "planwand") return true;
+  if (istExtern()) {
+    const zu = meineParks();
+    if (zu.length) return zu.indexOf(parkId) !== -1;
+    const park = (prod.parks || []).concat(plan.parksAlle || []).find((p) => p.id === parkId);
+    return /extern|lohn|fremd/i.test(String((park && park.name) || ""));
+  }
 
   // Ausdrücklich zugewiesene Parks haben Vorrang
   const zugewiesen = meineParks();
@@ -7427,7 +7445,15 @@ const ROLLEN = {
   langdreher: "Langdreher",
   kurzdreher: "Kurzdreher",
   mitarbeiter: "Mitarbeiter",
+  extern: "Extern",
 };
+
+// Welche Hauptseiten eine Rolle sieht. Externe nur die Planwand und die
+// Produktion, dort nur das Erfassen der Stückzahlen.
+function seiteSichtbar(pfad) {
+  if (!istExtern()) return true;
+  return pfad === "planwand" || pfad === "produktion";
+}
 
 // Hinweisbalken, wenn jemand einen Bereich nur ansehen darf
 function nurLesenHinweis(text) {
@@ -7870,6 +7896,7 @@ async function seiteProduktion(b) {
   // Ganz zuerst merken: gleich wird die Seite geleert, danach steht
   // die Rollposition ohnehin auf null.
   const zurueckRollen = rollenMerken();
+  if (istExtern()) prod.ansicht = "erfassen";
   if (!prod.tag) prod.tag = isoDatum(new Date());
   if (!prod.modus) prod.modus = einstellung("wochestart") ? "woche"
     : (window.innerWidth < 780 ? "tag" : "woche");
@@ -7889,10 +7916,11 @@ async function seiteProduktion(b) {
     // eine Maschine gilt, hängt am Typ — das gehört auf eine Seite.
     + [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"],
        ["maschinen", "Maschinen und Typen"]]
+        .filter(([w]) => !istExtern() || w === "erfassen")
         .map(([w, t]) => '<button class="reiter__knopf' + (prod.ansicht === w ? " aktiv" : "")
           + '" data-ansicht="' + w + '">' + t + '</button>').join("")
     + '</div>'
-    + (darfSchreiben() ? "" : nurLesenHinweis("Du kannst hier alles ansehen, aber nichts ändern."))
+    + (darfSchreiben() || istExtern() ? "" : nurLesenHinweis("Du kannst hier alles ansehen, aber nichts ändern."))
     + '<div id="prod-inhalt"><div class="laedt">Wird geladen …</div></div>';
 
   b.querySelectorAll("[data-ansicht]").forEach((el) => {
@@ -8204,7 +8232,8 @@ function standFeld(maschine, datum, eintrag) {
   return '<input class="menge" type="number" inputmode="numeric" min="0" step="1"'
     + ' data-maschine="' + esc(maschine.id) + '" data-datum="' + datum + '"'
     + ' data-auftrag="' + esc(auftragId) + '"'
-    + (darfSchreiben() ? "" : " disabled")
+    // Externe dürfen sonst nichts ändern, aber ihre Stückzahlen melden
+    + (darfSchreiben() || istExtern() ? "" : " disabled")
     + ' value="' + (eintrag ? eintrag.quantity : "") + '">';
 }
 
@@ -10246,6 +10275,7 @@ function sucheSpringen(x) {
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
     if (typeof profil === "undefined" || !profil) return;
+    if (istExtern()) return;
     e.preventDefault();
     sucheOeffnen();
   }
@@ -24312,7 +24342,12 @@ function zeichneSeite() {
     return;
   }
 
-  const pfad = SEITEN.some((s) => s.pfad === roh) ? roh : "dashboard";
+  let pfad = SEITEN.some((s) => s.pfad === roh) ? roh : "dashboard";
+  if (!seiteSichtbar(pfad)) {
+    // Auch die Adresse richtigstellen, ohne einen Verlaufsschritt
+    pfad = "planwand";
+    try { history.replaceState(history.state, "", "#/planwand"); } catch (f) { /* egal */ }
+  }
   const seite = SEITEN.find((s) => s.pfad === pfad);
   document.querySelectorAll("[data-nav]").forEach((el) => {
     el.classList.toggle("aktiv", el.dataset.nav === pfad);
@@ -24373,7 +24408,7 @@ function zeichneGeruest() {
     + '</button>'
     + '</header>'
     + '<div class="rahmen"><nav class="nav" aria-label="Hauptnavigation">'
-    + SEITEN.map((s) => '<a class="nav__punkt" data-nav="' + s.pfad + '" href="#/' + s.pfad + '">'
+    + SEITEN.filter((s) => seiteSichtbar(s.pfad)).map((s) => '<a class="nav__punkt" data-nav="' + s.pfad + '" href="#/' + s.pfad + '">'
         + '<span class="nav__zeichen" aria-hidden="true">' + s.zeichen + '</span>'
         + '<span class="nav__text">' + esc(s.titel) + '</span></a>').join("")
     + '</nav><main class="inhalt" id="inhalt"></main></div>';
@@ -24412,6 +24447,8 @@ function zeichneGeruest() {
     meldung("Bearbeiten freigeschaltet.");
     zeichneSeite();
   };
+
+  document.body.classList.toggle("rolle-extern", istExtern());
 
   const rueck = document.getElementById("rueck-knopf");
   if (rueck) rueck.onclick = schrittZurueck;
