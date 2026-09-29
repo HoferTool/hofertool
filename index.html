@@ -4433,6 +4433,8 @@ body.rolle-extern #pw-excel,
 body.rolle-extern .pw-zeile--ferienkopf,
 body.rolle-extern .pw-zeile--ferienblock,
 body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !important; }
+.linkzeile { display: flex; gap: 8px; align-items: center; }
+.linkzeile input { flex: 1; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85rem; }
 </style>
 </head>
 <body>
@@ -4481,7 +4483,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "110.0.0";
+const APP_VERSION = "110.1.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5083,6 +5085,45 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
 }
 
 // =================================================================
+//  EXTERNE GERÄTE
+//  Partner wie Zurbrügg öffnen die App über einen eigenen Link mit
+//  "#/extern". Das Gerät merkt sich das. Dort zeigt die Anmeldung keine
+//  Kacheln eurer Leute, sondern nur die Konten, die sich auf genau
+//  diesem Gerät schon angemeldet haben — beim ersten Mal also nur
+//  E-Mail und Passwort, danach die eigene Kachel.
+// =================================================================
+
+const GERAET_SCHLUESSEL = "hofer.geraet";
+const GERAET_KONTEN = "hofer.geraet.konten";
+
+(function geraetMarkieren() {
+  try {
+    if (/^#\/?extern\b/i.test(location.hash) || /[?&]geraet=extern\b/i.test(location.search)) {
+      localStorage.setItem(GERAET_SCHLUESSEL, "extern");
+      history.replaceState(null, "", location.pathname);
+    }
+  } catch (f) { /* ohne Speicher bleibt es ein normales Gerät */ }
+})();
+
+function istExternGeraet() {
+  try { return localStorage.getItem(GERAET_SCHLUESSEL) === "extern"; } catch (f) { return false; }
+}
+
+function geraetKontoMerken(email) {
+  try {
+    const e = String(email || "").trim().toLowerCase();
+    if (!e) return;
+    const liste = JSON.parse(localStorage.getItem(GERAET_KONTEN) || "[]");
+    if (liste.indexOf(e) === -1) liste.push(e);
+    localStorage.setItem(GERAET_KONTEN, JSON.stringify(liste));
+  } catch (f) { /* egal */ }
+}
+
+function geraetKonten() {
+  try { return JSON.parse(localStorage.getItem(GERAET_KONTEN) || "[]"); } catch (f) { return []; }
+}
+
+// =================================================================
 //  FEHLERPROTOKOLL
 //  Jede Fehlermeldung, die jemand zu sehen bekommt, und jeder Fehler
 //  im Hintergrund landet hier: mit Zeit, Person, Seite und Wortlaut.
@@ -5401,6 +5442,7 @@ function zeigeLogin() {
         db.auth.signInWithPassword({ email: konto.email, password: OFFENES_PASSWORT }),
         15000, "Anmeldung");
       if (error) throw error;
+      geraetKontoMerken(konto.email);
       await profilLaden();
       zeichneGeruest();
     } catch (f) {
@@ -5470,6 +5512,7 @@ function zeigeLogin() {
         const { error } = await zeitlimit(
           db.auth.signInWithPassword({ email: email, password: pw }), 15000, "Anmeldung");
         if (error) throw error;
+        geraetKontoMerken(email);
         await profilLaden();
         zeichneGeruest();
       } catch (f) {
@@ -5497,8 +5540,15 @@ function zeigeLogin() {
 
   (async () => {
     try {
-      const { data, error } = await db.from("login_kacheln").select("*");
-      if (error || !data || !data.length) throw error || new Error("leer");
+      const antwort = await db.from("login_kacheln").select("*");
+      if (antwort.error || !antwort.data) throw antwort.error || new Error("leer");
+      // Externes Gerät: nur Konten, die sich hier schon angemeldet haben.
+      // Eigenes Gerät: Externe erscheinen nicht auf eurer Kachelwand.
+      const bekannt = geraetKonten();
+      const data = istExternGeraet()
+        ? antwort.data.filter((u) => bekannt.indexOf(String(u.email || "").toLowerCase()) !== -1)
+        : antwort.data.filter((u) => u.role !== "extern");
+      if (!data.length) throw new Error("leer");
 
       // Reihen ausgleichen: lieber 3 + 3 als 5 + 1. Die Spaltenzahl
       // ergibt sich aus der Anzahl, der Rest steht mittig darunter.
@@ -20768,11 +20818,21 @@ async function seiteEinstellungen(b) {
     + 'ihren Park, in Produktion und Planwand.</div>'
     + '<div><strong>Mitarbeiter</strong> darf überall zusehen und den '
     + 'Einkauf nutzen, sonst nichts ändern.</div>'
+    + '<div><strong>Extern</strong> ist für Partner wie Zurbrügg: nur die Planwand '
+    + 'der eigenen Maschinen ansehen und dort Stückzahlen melden, sonst nichts.</div>'
     + '<div class="klein">Das Häkchen bei <strong>Plant</strong> heisst: Diese Person '
     + 'erscheint im Auftragsfenster unter „Eingeplant von". Das Kürzel daneben '
     + 'steht danach gross auf dem Balken.</div>'
     + '</div></section>'
 
+    + '<section class="karte"><div class="karte__kopf"><h2>Link für externe Partner</h2></div>'
+    + '<p class="hinweis">Diesen Link bekommt Zurbrügg. Wer die App einmal darüber öffnet, sieht '
+    + 'auf diesem Gerät keine Kacheln eurer Leute — beim ersten Mal nur E-Mail und Passwort, '
+    + 'danach die eigene Kachel.</p>'
+    + '<div class="linkzeile"><input type="text" id="extern-link" readonly value="'
+    + esc(location.origin + location.pathname + "#/extern") + '">'
+    + '<button class="knopf knopf--klein" id="extern-link-kopieren">Kopieren</button></div>'
+    + '</section>'
     + '<section class="karte"><div class="karte__kopf"><h2>Personen ohne Login</h2>'
     + '<button class="linkknopf" id="pe-neu">+ Person</button></div>'
     + '<p class="hinweis">Für Kollegen, die die App nicht benutzen, deren '
@@ -21006,6 +21066,13 @@ async function seiteEinstellungen(b) {
       else meldung("Pin gespeichert.");
     };
   }
+
+  const linkKnopf = document.getElementById("extern-link-kopieren");
+  if (linkKnopf) linkKnopf.onclick = async () => {
+    const feld = document.getElementById("extern-link");
+    try { await navigator.clipboard.writeText(feld.value); meldung("Link kopiert."); }
+    catch (f) { feld.select(); document.execCommand("copy"); meldung("Link kopiert."); }
+  };
 
   // ---------- Text der Bestellmail ----------
   const bmFeld = document.getElementById("bestellmail-feld");
