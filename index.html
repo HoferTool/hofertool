@@ -4386,6 +4386,16 @@ body.dunkel .ws-offen td { background: rgba(255, 201, 64, .08); }
 .pw-zeitschicht .pw-zeitmarke { top: 0 !important; height: 14px !important; }
 .pw-zeitschicht .pw-zeitmarke::after { display: none !important; }
 .pw-zeitplatz { height: 16px; }
+/* ---------- Kopieren und Einfügen ---------- */
+.einfuege-leiste { position: fixed; left: 50%; transform: translateX(-50%);
+                   bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); z-index: 850;
+                   display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px;
+                   border-radius: 14px; background: #0b2f63; color: #fff;
+                   box-shadow: 0 10px 30px rgba(0,0,0,.3); font-size: .92rem; max-width: 94vw; }
+.einfuege-leiste__zeichen { font-size: 1.3rem; }
+.einfuege-leiste .knopf { background: #fff; color: #0b2f63; border: 0; }
+body.einfuegemodus .pw-zelle:not(.pw-zelle--fein):hover { background: rgba(79,155,255,.22) !important;
+  cursor: copy; outline: 2px dashed #4f9bff; outline-offset: -2px; }
 </style>
 </head>
 <body>
@@ -4434,7 +4444,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "109.4.3";
+const APP_VERSION = "109.5.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4482,9 +4492,16 @@ function escapeZurueck() {
 // =================================================================
 
 const fensterStapel = [];
-// Räumt die App selbst einen Verlaufseintrag ab, darf der folgende
-// Rücksprung kein weiteres Fenster schliessen.
-let zurueckIntern = false;
+// Die App führt Buch, statt zu raten: wie viele Verlaufseinträge zu
+// offenen Fenstern gehören, wie viele Rücksprünge sie selbst ausgelöst
+// hat und wie viele Einträge der Nutzer mit Zurück schon verbraucht hat.
+// Wird ein Fenster im selben Augenblick durch ein anderes ersetzt —
+// etwa beim Kopieren —, ändert sich am Verlauf nichts. Vorher ging die
+// App dabei einen Schritt zu weit zurück, bis auf die Startseite.
+let fensterEintraege = 0;
+let eigeneZurueck = 0;
+let schonZurueck = 0;
+let zurueckIntern = false;   // bleibt für ältere Stellen, die danach fragen
 
 function fensterZumachen(el) {
   if (el.id === "pad") {
@@ -4511,32 +4528,53 @@ function oberstesFensterSchliessen() {
 
 (function fensterUeberwachen() {
   const beobachter = new MutationObserver((meldungen) => {
+    let dazu = 0, weg = 0;
     meldungen.forEach((m) => {
       m.addedNodes.forEach((n) => {
         if (n.nodeType !== 1 || !n.classList) return;
         if (!n.classList.contains("dialog-huelle") && n.id !== "pad") return;
         fensterStapel.push(n);
-        // Ein Eintrag im Verlauf, damit "Zurück" dieses Fenster trifft
-        try { history.pushState({ fenster: true }, ""); } catch (f) { /* egal */ }
+        dazu++;
       });
       m.removedNodes.forEach((n) => {
         const i = fensterStapel.indexOf(n);
         if (i === -1) return;
         fensterStapel.splice(i, 1);
-        // Den Verlaufseintrag wieder abräumen, sonst braucht es zweimal
-        // Zurück, um die Seite zu wechseln
-        if (history.state && history.state.fenster) {
-          zurueckIntern = true;
-          try { history.back(); } catch (f) { zurueckIntern = false; }
-        }
+        weg++;
       });
     });
+    // Was der Nutzer mit Zurück schon abgeräumt hat, zählt nicht noch einmal
+    const verbraucht = Math.min(weg, schonZurueck);
+    schonZurueck -= verbraucht;
+    weg -= verbraucht;
+
+    const netto = dazu - weg;
+    if (netto > 0) {
+      // Je neues Fenster ein Eintrag, damit Zurück es trifft
+      for (let k = 0; k < netto; k++) {
+        try { history.pushState({ fenster: true }, ""); fensterEintraege++; } catch (f) { /* egal */ }
+      }
+    } else if (netto < 0) {
+      // Die eigenen Einträge wieder abräumen, in einem Schritt
+      const n = Math.min(-netto, fensterEintraege);
+      if (n > 0 && history.state && history.state.fenster) {
+        fensterEintraege -= n;
+        eigeneZurueck++;
+        try { history.go(-n); } catch (f) { eigeneZurueck--; }
+      }
+    }
   });
   beobachter.observe(document.body, { childList: true });
 
   window.addEventListener("popstate", () => {
-    if (zurueckIntern) { zurueckIntern = false; return; }
-    oberstesFensterSchliessen();
+    if (eigeneZurueck > 0) { eigeneZurueck--; return; }
+    // Zurück vom Nutzer: dessen Eintrag ist verbraucht, das oberste
+    // Fenster geht zu — ohne dass die App deshalb nochmals zurückgeht
+    if (fensterEintraege > 0) {
+      fensterEintraege--;
+      schonZurueck++;
+      if (!oberstesFensterSchliessen()) schonZurueck = Math.max(0, schonZurueck - 1);
+    }
   });
 
   // Escape zuerst hier: Fenster mit eigener Behandlung merken danach,
@@ -10381,6 +10419,11 @@ function zellenVerhalten(b) {
   tafel.querySelectorAll("[data-zelle]").forEach((zelle) => {
     zelle.onclick = () => {
       const teile = zelle.dataset.zelle.split("|");
+      // Liegt ein kopierter Auftrag bereit, wird er hier eingefügt
+      if (plan.zwischenablage) {
+        planAuftragDialog(null, b, teile[0], teile[1], plan.zwischenablage);
+        return;
+      }
       planAuftragDialog(null, b, teile[0], teile[1]);
     };
   });
@@ -11620,7 +11663,7 @@ function balkenVerhalten(b) {
       if (!warZiehen) {
         if (plan.kopierModus) {
           kopierModusBeenden(b);
-          planAuftragDialog(null, b, null, null, auftrag);
+          zwischenablageSetzen(auftrag, b);
           return;
         }
         // Ein Klick beendet eine laufende Suche
@@ -11715,6 +11758,46 @@ function auftragKopieren(b) {
   meldung("Auftrag antippen, der kopiert werden soll. Nochmal auf Kopieren beendet es.");
   zeichnePlanwand(b);
 }
+
+// Ein kopierter Auftrag wartet, bis man auf eine freie Stelle der Tafel
+// klickt. Er bleibt in der Zwischenablage, bis man abbricht — so lässt
+// er sich auch mehrmals einfügen.
+function zwischenablageSetzen(auftrag, b) {
+  plan.zwischenablage = auftrag;
+  document.body.classList.add("einfuegemodus");
+  zwischenablageLeiste(b);
+}
+
+function zwischenablageLeeren() {
+  plan.zwischenablage = null;
+  document.body.classList.remove("einfuegemodus");
+  const l = document.getElementById("einfuege-leiste");
+  if (l) l.remove();
+}
+
+function zwischenablageLeiste(b) {
+  let l = document.getElementById("einfuege-leiste");
+  if (!l) {
+    l = document.createElement("div");
+    l.id = "einfuege-leiste";
+    l.className = "einfuege-leiste";
+    document.body.appendChild(l);
+  }
+  const j = plan.zwischenablage;
+  if (!j) { l.remove(); return; }
+  l.innerHTML = '<span class="einfuege-leiste__zeichen">⧉</span>'
+    + '<span><b>' + esc(j.job_number || "Auftrag") + '</b> kopiert — auf eine Maschine '
+    + 'und einen Tag klicken, um ihn dort einzufügen</span>'
+    + '<button type="button" class="knopf knopf--klein" id="einfuege-ende">Fertig</button>';
+  l.querySelector("#einfuege-ende").onclick = () => zwischenablageLeeren();
+}
+
+// Escape beendet das Einfügen, sofern gerade kein Fenster offen ist
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !plan.zwischenablage) return;
+  if (document.querySelector(".dialog-huelle")) return;
+  zwischenablageLeeren();
+});
 
 function kopierModusBeenden(b) {
   plan.kopierModus = false;
@@ -12239,9 +12322,9 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
   const kopierenEigen = huelle.querySelector("#pl-kopieren-eigen");
   if (kopierenEigen) kopierenEigen.onclick = () => {
     zu();
-    // Dieselbe Maschine ist voreingestellt, ebenso alles andere aus
-    // der Vorlage. Was nicht passt, lässt sich im Fenster ändern.
-    planAuftragDialog(null, b, auftrag.machine_id, null, auftrag);
+    // In die Zwischenablage — eingefügt wird dort, wo man danach auf
+    // die Tafel klickt
+    zwischenablageSetzen(auftrag, b);
   };
 
   const pdfKnopf = huelle.querySelector("[data-pdfzeigen]");
