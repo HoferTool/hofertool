@@ -4396,6 +4396,33 @@ body.dunkel .ws-offen td { background: rgba(255, 201, 64, .08); }
 .einfuege-leiste .knopf { background: #fff; color: #0b2f63; border: 0; }
 body.einfuegemodus .pw-zelle:not(.pw-zelle--fein):hover { background: rgba(79,155,255,.22) !important;
   cursor: copy; outline: 2px dashed #4f9bff; outline-offset: -2px; }
+/* ---------- Pad: Kachel für Material und Werkstoff ---------- */
+.pad-karte2--material { flex: none; position: relative; padding-left: 20px !important;
+  background: linear-gradient(140deg, #14283f, #0e1c2e); }
+.pad-karte2--material::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 7px; background: var(--wf, #4f6a8c); }
+.pad-mat-zeile { display: flex; align-items: baseline; justify-content: space-between;
+                 gap: 12px; margin-top: 3px; flex-wrap: wrap; }
+.pad-mat-bez { font-size: 1.25rem; font-weight: 800; line-height: 1.15; }
+.pad-mat-gruppe { display: inline-flex; align-items: center; gap: 7px; font-size: .95rem;
+                  font-weight: 700; white-space: nowrap; }
+.pad-mat-gruppe i { width: 12px; height: 12px; border-radius: 3px; background: var(--wf, #4f6a8c);
+                    border: 1px solid rgba(255,255,255,.35); }
+.pad-mat-gruppe small { font-weight: 500; color: #9fb3ce; font-size: .78rem; }
+.pad-mat-unten { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px;
+                 font-size: .8rem; color: #9fb3ce; }
+.pad-mat-unten b { color: #dce8f8; font-weight: 700; }
+/* Die Stückzahl gibt dafür etwas Höhe ab */
+.pad-karte2--stk { flex: 1 1 0 !important; min-height: 0; }
+.pad-karte2--stk .pad-stk-zahl { font-size: 2.7rem; }
+/* Einfügen zwischen zwei Aufträgen: dicke Linie an der Kante */
+body.einfuegemodus .pw-balken { cursor: copy; }
+.pw-balken--davor, .pw-balken--danach { z-index: 4; }
+.pw-balken--davor::before, .pw-balken--danach::before {
+  content: ""; position: absolute; top: -3px; bottom: -3px; width: 5px; border-radius: 3px;
+  background: #1f7aff; box-shadow: 0 0 0 2px #fff, 0 0 10px rgba(31,122,255,.6); z-index: 5; }
+.pw-balken--davor::before { left: -4px; }
+.pw-balken--danach::before { right: -4px; }
 </style>
 </head>
 <body>
@@ -4444,7 +4471,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "109.5.0";
+const APP_VERSION = "109.8.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9369,7 +9396,7 @@ async function ansichtPlanwand(ziel, b) {
     // Bildschirm passen, entscheidet dieser Regler.
     + '<div class="pw-zoom pw-zoom--hoehe">'
     + '<span class="klein">Höhe</span>'
-    + '<input type="range" id="pw-hoehe" min="35" max="180" step="5" value="'
+    + '<input type="range" id="pw-hoehe" min="35" max="180" step="1" value="'
     + Math.round((plan.vskala || 1) * 100) + '">'
     + '<span class="klein" id="pw-hoehewert">'
     + Math.round((plan.vskala || 1) * 100) + ' %</span>'
@@ -9502,7 +9529,7 @@ async function ansichtPlanwand(ziel, b) {
       plan.breiteFest = false;
       const tafel = document.querySelector(".pw-tafel");
       if (tafel) {
-        tafel.style.setProperty("--pw-v", w.toFixed(2));
+        tafel.style.setProperty("--pw-v", w.toFixed(3));
         // Unter 80 Prozent bleibt nur Platz für eine Textzeile
         tafel.classList.toggle("pw-tafel--flach", w < 0.8);
         // Unter 55 % bleibt nur die Auftragsnummer stehen — so wird die
@@ -10881,7 +10908,7 @@ function zeichnePlanwand(b) {
     + ((plan.vskala || 1) < 0.55 ? " pw-tafel--sehrflach" : "")
     + '" style="--pw-tage:' + tage.length
     + ';--pw-s:' + (plan.skala || 1)
-    + ';--pw-v:' + (plan.vskala || 1).toFixed(2)
+    + ';--pw-v:' + (plan.vskala || 1).toFixed(3)
     + ';--pw-spalte:' + (plan.spalte || 40) + 'px'
     + ';--pw-name:' + (plan.namensbreite || 108) + 'px">'
     + '<div class="pw-kopfblock">' + monatZeile + kwZeile + kopf
@@ -11651,6 +11678,18 @@ function balkenVerhalten(b) {
       }
     });
 
+    // Einfügemodus: Markierung an der Kante, an der eingefügt würde
+    el.addEventListener("mousemove", (e) => {
+      if (!plan.zwischenablage) return;
+      const r = el.getBoundingClientRect();
+      const davor = e.clientX < r.left + r.width / 2;
+      el.classList.toggle("pw-balken--davor", davor);
+      el.classList.toggle("pw-balken--danach", !davor);
+    });
+    el.addEventListener("mouseleave", () => {
+      el.classList.remove("pw-balken--davor", "pw-balken--danach");
+    });
+
     el.addEventListener("pointerup", async (e) => {
       if (!gestartet) return;
       const warZiehen = zieht;
@@ -11664,6 +11703,18 @@ function balkenVerhalten(b) {
         if (plan.kopierModus) {
           kopierModusBeenden(b);
           zwischenablageSetzen(auftrag, b);
+          return;
+        }
+        // Liegt ein kopierter Auftrag bereit: linke Hälfte des Balkens
+        // fügt davor ein, rechte Hälfte danach. Was folgt, rückt nach.
+        if (plan.zwischenablage) {
+          const r = el.getBoundingClientRect();
+          const davor = e.clientX < r.left + r.width / 2;
+          const datum = davor
+            ? auftrag.planned_from
+            : arbeitstagePlus(planEnde(auftrag.planned_from, auftrag.planned_days || 1), 1);
+          el.classList.remove("pw-balken--davor", "pw-balken--danach");
+          planAuftragDialog(null, b, auftrag.machine_id, datum, plan.zwischenablage);
           return;
         }
         // Ein Klick beendet eine laufende Suche
@@ -11786,8 +11837,8 @@ function zwischenablageLeiste(b) {
   const j = plan.zwischenablage;
   if (!j) { l.remove(); return; }
   l.innerHTML = '<span class="einfuege-leiste__zeichen">⧉</span>'
-    + '<span><b>' + esc(j.job_number || "Auftrag") + '</b> kopiert — auf eine Maschine '
-    + 'und einen Tag klicken, um ihn dort einzufügen</span>'
+    + '<span><b>' + esc(j.job_number || "Auftrag") + '</b> kopiert — auf einen freien Tag '
+    + 'klicken, oder auf einen Auftrag: linke Hälfte fügt davor ein, rechte danach</span>'
     + '<button type="button" class="knopf knopf--klein" id="einfuege-ende">Fertig</button>';
   l.querySelector("#einfuege-ende").onclick = () => zwischenablageLeeren();
 }
@@ -11942,7 +11993,6 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
     + (auftrag
         ? '<div class="auf-kopf__knoepfe">'
           + '<button type="button" class="knopf knopf--klein knopf--warnung" id="pl-problem-eigen">Problem</button>'
-          + '<button type="button" class="knopf knopf--klein" id="pl-kopieren-eigen">Kopieren</button>'
           + '</div>'
         : "")
     + '</div>'
@@ -12148,6 +12198,10 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
     + '<div class="dialog__knoepfe">'
     + (auftrag && darf
         ? '<button class="knopf knopf--gefahr" id="pl-loeschen">Löschen</button>' : "")
+    // Kopieren: der Auftrag kommt in die Zwischenablage, eingefügt wird
+    // mit einem Klick auf die Tafel
+    + (auftrag
+        ? '<button type="button" class="knopf" id="pl-kopieren-eigen">Kopieren</button>' : "")
     + '<button class="knopf knopf--still" id="pl-nein">Schliessen</button>'
     + '<button class="knopf knopf--haupt" id="pl-ja">Speichern</button>'
     + '</div></div>';
@@ -13939,21 +13993,9 @@ async function padMaschine(h) {
     + zeile("Zeichnung", teil && teil.zeichnungs_nr)
     + zeile("FA Nr.", j && j.fa_nr)
     + zeile("Programm", programm)
-    + zeile("Material", (j && j.material_bez) || (teil && teil.material))
-    + (() => {
-        const g = werkstoffErkennen((j && j.material_bez) || (teil && teil.material));
-        if (!g) return "";
-        return zeile("Werkstoff", werkstoffText(g))
-          + (g.spaene ? zeile("Späne", g.spaene) : "");
-      })()
     + '</div>'
-    + (notizGeteilt.notiz || notizGeteilt.ort
-        ? '<div class="pad-notiz">'
-          + (notizGeteilt.notiz
-              ? '<p>✎ ' + esc(notizGeteilt.notiz) + '</p>' : "")
-          + (notizGeteilt.ort
-              ? '<p class="pad-notiz--material">📦 ' + esc(notizGeteilt.ort) + '</p>' : "")
-          + '</div>'
+    + (notizGeteilt.notiz
+        ? '<div class="pad-notiz"><p>✎ ' + esc(notizGeteilt.notiz) + '</p></div>'
         : "")
 
     // Eigenes Feld nur fürs Pad: hängt an HOCO Nr. und Typ, steht
@@ -14026,6 +14068,29 @@ async function padMaschine(h) {
     + (ansicht.fuss || fussTage)
     + '</div>'
     + '</div>'
+
+    // Material und Werkstoff: eigene Kachel, Farbe der Werkstoffgruppe
+    + (() => {
+        const bez = (j && j.material_bez) || (teil && teil.material) || "";
+        const g = werkstoffErkennen(bez);
+        const f = g ? farbeVon(g.farbe) : null;
+        const menge = j && j.material_menge ? String(j.material_menge) : "";
+        return '<div class="pad-karte2 pad-karte2--material"'
+          + (f ? ' style="--wf:' + f.hex + '"' : "") + '>'
+          + '<span class="pad-name">Material</span>'
+          + '<div class="pad-mat-zeile">'
+          + '<span class="pad-mat-bez">' + (bez ? esc(bez) : '<span class="pad-leer">nicht erfasst</span>') + '</span>'
+          + (g ? '<span class="pad-mat-gruppe"><i></i>' + esc(g.name)
+              + (g.zusatz ? ' <small>' + esc(g.zusatz) + '</small>' : "") + '</span>' : "")
+          + '</div>'
+          + '<div class="pad-mat-unten">'
+          + (menge ? '<span>Menge <b>' + esc(menge) + '</b></span>' : "")
+          + (g && g.spaene ? '<span>Späne <b>' + esc(g.spaene) + '</b></span>' : "")
+          + (g && g.schrott && g.schrott !== g.spaene ? '<span>Schrott <b>' + esc(g.schrott) + '</b></span>' : "")
+          + (notizGeteilt.ort ? '<span>📦 ' + esc(notizGeteilt.ort) + '</span>' : "")
+          + '</div>'
+          + '</div>';
+      })()
     + '</div>'
 
     // ----- rechte Säule -----
