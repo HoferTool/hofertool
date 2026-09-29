@@ -4440,6 +4440,13 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
                   font-weight: 700; opacity: .7; white-space: nowrap; letter-spacing: .01em;
                   padding: 0 3px; border-radius: 4px; background: rgba(0,0,0,.08); }
 .pw-tafel--sehrflach .pw-balken__wer { display: none; }
+/* Regeln für Dateinamen */
+.dokregeln { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 16px; }
+.dokprobe { min-height: 24px; padding: 8px 0 4px; }
+.dokpfad-stand { margin-top: 10px; font-size: .9rem; line-height: 1.5; }
+.dokpfad-punkt { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
+.dokpfad-punkt--gut { background: #1f8a4c; }
+.dokpfad-punkt--alt { background: #c2650f; }
 </style>
 </head>
 <body>
@@ -4488,7 +4495,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "110.3.0";
+const APP_VERSION = "110.6.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5552,7 +5559,7 @@ function zeigeLogin() {
       const bekannt = geraetKonten();
       const data = istExternGeraet()
         ? antwort.data.filter((u) => bekannt.indexOf(String(u.email || "").toLowerCase()) !== -1)
-        : antwort.data.filter((u) => u.role !== "extern");
+        : antwort.data.filter((u) => u.role !== "extern" && u.role !== "dienst");
       if (!data.length) throw new Error("leer");
 
       // Reihen ausgleichen: lieber 3 + 3 als 5 + 1. Die Spaltenzahl
@@ -6016,53 +6023,189 @@ const DOK_ARTEN = {
   zeichnung:     { name: "Zeichnung",     zeichen: "📐" },
   wbg:           { name: "WBG",           zeichen: "📋" },
   einrichtblatt: { name: "Einrichtblatt", zeichen: "🔧" },
-  sonstiges:     { name: "Weiteres",      zeichen: "📄" },
+  sonstiges:     { name: "Allgemein",     zeichen: "📄" },
 };
 
-// Aus dem Dateinamen lesen, wohin die Datei gehört.
-// Erkannt werden zum Beispiel:
-//   10844-0049.pdf              → Zeichnung der HOCO Nr.
-//   10844-0049_WBG.pdf          → WBG der HOCO Nr.
-//   10844-0049_EB.pdf           → Einrichtblatt der HOCO Nr.
-//   10844-0049_EB_SW-20.pdf     → Einrichtblatt der Nummer auf dem Typ
-//   EB_SW-20.pdf                → Einrichtblatt-Vorlage des Typs
-//   10844-0049_Messbericht.pdf  → Weiteres zur HOCO Nr.
+// =================================================================
+//  REGELN FÜR DATEINAMEN
+//  Welche Stichwörter im Dateinamen wohin führen, legt ihr selbst in
+//  den Einstellungen fest. Die Erkennung ist tolerant: Gross und klein
+//  egal, Striche und Leerzeichen egal, ein Tippfehler bei längeren
+//  Wörtern wird verziehen.
+// =================================================================
+
+const DOK_REGELN_VORGABE = {
+  zeichnung: ["zeichnung", "zng", "drawing", "zchn"],
+  wbg: ["wbg", "werkbegleitschein", "begleitschein"],
+  einrichtblatt: ["eb", "einrichtblatt", "einrichteblatt", "einrichten", "setup"],
+  allgemein: [],
+  nurNummer: "zeichnung",          // was eine Datei ist, in der nur die HOCO Nr. steht
+};
+let DOK_REGELN = JSON.parse(JSON.stringify(DOK_REGELN_VORGABE));
+
+async function dokRegelnLaden() {
+  try {
+    const r = await zeitlimit(db.from("app_config").select("wert")
+      .eq("schluessel", "dok_regeln").maybeSingle(), 6000, "Dokumentregeln");
+    const gelesen = (!r.error && r.data && r.data.wert) ? JSON.parse(r.data.wert) : null;
+    DOK_REGELN = Object.assign(JSON.parse(JSON.stringify(DOK_REGELN_VORGABE)), gelesen || {});
+  } catch (f) { DOK_REGELN = JSON.parse(JSON.stringify(DOK_REGELN_VORGABE)); }
+}
+
+// Nur Buchstaben und Ziffern, klein — "SW-20", "sw 20" und "SW20" sind gleich
+function dokGlatt(t) { return String(t || "").toLowerCase().replace(/[^a-z0-9äöü]/g, ""); }
+
+// Unterschied zweier Wörter in Buchstaben (höchstens bis 2 gezählt)
+function dokAbstand(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 3;
+  const d = Array.from({ length: a.length + 1 }, (u, i) => [i].concat(Array(b.length).fill(0)));
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1,
+        d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+  }
+  return d[a.length][b.length];
+}
+
+// Kommt ein Stichwort im Namen vor? Kurze Stichwörter (bis 3 Zeichen,
+// etwa "EB") müssen als eigenes Wort dastehen, längere dürfen irgendwo
+// stecken und einen Buchstaben Unterschied haben.
+function dokStichwortPasst(woerter, glattGanz, stichwort) {
+  const s = dokGlatt(stichwort);
+  if (!s) return false;
+  if (s.length <= 3) return woerter.indexOf(s) !== -1;
+  if (glattGanz.indexOf(s) !== -1) return true;
+  return woerter.some((w) => w.length >= 4 && dokAbstand(w, s) <= 1);
+}
+
+// Aus dem Dateinamen lesen, wohin die Datei gehört
 function dokErkennen(dateiname, typen) {
   const roh = String(dateiname || "");
   const ohneEndung = roh.replace(/\.[^.]+$/, "");
-  const teile = ohneEndung.split(/[_\s]+/).filter(Boolean);
 
-  // HOCO Nr.: fünf Ziffern, Strich, vier Ziffern
-  const hoco = (ohneEndung.match(/\b(\d{4,6}-\d{3,5})\b/) || [])[1] || null;
+  // HOCO Nr.: fünf Ziffern, Strich, vier Ziffern (auch mit Leerzeichen am Strich)
+  const treffer = ohneEndung.match(/(\d{4,6})\s?-\s?(\d{3,5})/);
+  const hoco = treffer ? treffer[1] + "-" + treffer[2] : null;
 
-  const rest = teile.filter((t) => t !== hoco).join(" ");
-  const klein = rest.toLowerCase();
+  const rest = (treffer ? ohneEndung.replace(treffer[0], " ") : ohneEndung);
+  const woerter = rest.split(/[^A-Za-z0-9ÄÖÜäöü]+/).map(dokGlatt).filter(Boolean);
+  const glattGanz = dokGlatt(rest);
 
-  let art = hoco ? "zeichnung" : "sonstiges";
-  if (/\bwbg\b/i.test(klein)) art = "wbg";
-  else if (/\b(eb|einrichtblatt|einrichteblatt|setup)\b/i.test(klein)) art = "einrichtblatt";
-  else if (rest.trim()) art = hoco ? "sonstiges" : "sonstiges";
-
-  // Typ: kommt ein Typname im Rest vor?
+  // Typ: der längste Typname, der im Rest vorkommt
   let typ = null;
   (typen || []).forEach((t) => {
-    const kurz = String(t.name || "").replace(/\s+/g, "").toLowerCase();
-    if (!kurz) return;
-    if (rest.replace(/\s+/g, "").toLowerCase().includes(kurz)) typ = t;
+    const n = dokGlatt(t.name);
+    if (n.length >= 3 && glattGanz.indexOf(n) !== -1
+        && (!typ || n.length > dokGlatt(typ.name).length)) typ = t;
   });
+  // Den Typnamen aus den Wörtern nehmen, damit er kein Stichwort vortäuscht
+  const ohneTyp = typ ? glattGanz.replace(dokGlatt(typ.name), "") : glattGanz;
 
+  const regeln = DOK_REGELN || DOK_REGELN_VORGABE;
+  let art = null, grund = "";
+  for (const k of ["wbg", "einrichtblatt", "zeichnung", "allgemein"]) {
+    const sw = (regeln[k] || []).find((s) => dokStichwortPasst(woerter, ohneTyp, s));
+    if (sw) { art = k === "allgemein" ? "sonstiges" : k; grund = "Stichwort „" + sw + "“"; break; }
+  }
+  // Übrig gebliebene Wörter ohne den Typ — ist sonst nichts im Namen?
+  const sonstNichts = !ohneTyp.replace(/\d/g, "");
+  if (!art) {
+    if (hoco && sonstNichts) {
+      art = regeln.nurNummer === "allgemein" ? "sonstiges" : (regeln.nurNummer || "zeichnung");
+      grund = "nur die Nummer im Namen";
+    } else {
+      art = "sonstiges";
+      grund = "kein Stichwort, deshalb allgemein";
+    }
+  }
+
+  const titel = rest.replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
   return {
     dateiname: roh,
     hoco: hoco,
     typ: typ,
     art: art,
-    titel: rest.trim() || (hoco || ohneEndung),
+    grund: grund,
+    titel: titel || (hoco || ohneEndung),
     passt: !!(hoco || typ),
   };
 }
 
-// Eine Datei hochladen und den Eintrag schreiben
-async function dokHochladen(datei, zuordnung) {
+// Wohin eine Datei geht, in Worten — für die Probe und den Verlauf
+function dokZielText(z) {
+  const name = (DOK_ARTEN[z.art] || DOK_ARTEN.sonstiges).name;
+  if (!z.passt) return "keine HOCO Nr. und kein Typ erkannt";
+  if (z.art === "einrichtblatt" && z.typ && !z.hoco) return "Einrichtblatt-Vorlage des Typs " + z.typ.name;
+  return name + (z.hoco ? " der HOCO Nr. " + z.hoco : "")
+    + (z.typ ? " auf dem Typ " + z.typ.name : "");
+}
+
+// Pfad in der Ablage aus der öffentlichen Adresse
+function ablagePfad(adresse) {
+  const m = String(adresse || "").match(/\/object\/public\/zeichnungen\/(.+)$/);
+  return m ? decodeURIComponent(m[1].split("?")[0]) : null;
+}
+
+// Wird eine Datei noch irgendwo gebraucht? Dann bleibt sie liegen.
+async function dateiNochVerwendet(adresse) {
+  const pruef = [
+    db.from("jobs").select("id").eq("drawing_url", adresse).limit(1),
+    db.from("jobs").select("id").eq("wbg_url", adresse).limit(1),
+    db.from("hoco_parts").select("hoco_nr").eq("zeichnung_url", adresse).limit(1),
+    db.from("dokumente").select("id").eq("datei_url", adresse).limit(1),
+    db.from("machine_types").select("id").eq("blatt_url", adresse).limit(1),
+    db.from("hoco_type_data").select("hoco_nr").eq("blatt_url", adresse).limit(1),
+  ];
+  try {
+    const r = await Promise.all(pruef);
+    return r.some((x) => x && !x.error && x.data && x.data.length);
+  } catch (f) { return true; }      // im Zweifel nicht löschen
+}
+
+// Alte Dateien aus der Ablage löschen — nur solche, die uns gehören und
+// die nirgends mehr gebraucht werden
+async function ablageLoeschen(adressen) {
+  const frei = [];
+  for (const u of [...new Set((adressen || []).filter(Boolean))]) {
+    if (!ablagePfad(u)) continue;
+    if (await dateiNochVerwendet(u)) continue;
+    frei.push(ablagePfad(u));
+  }
+  if (!frei.length) return;
+  try { await db.storage.from("zeichnungen").remove(frei); } catch (f) { /* bleibt eben liegen */ }
+}
+
+// Neue Zeichnung am Auftrag: gilt ab jetzt für die ganze HOCO Nr.,
+// die alte Datei verschwindet
+async function zeichnungErsetzen(hocoNr, neu, alt) {
+  const alte = [alt];
+  try {
+    const t = await db.from("hoco_parts").select("zeichnung_url").eq("hoco_nr", hocoNr).maybeSingle();
+    if (t && t.data) {
+      alte.push(t.data.zeichnung_url);
+      await db.from("hoco_parts").update({ zeichnung_url: neu }).eq("hoco_nr", hocoNr);
+    }
+    await db.from("jobs").update({ drawing_url: neu }).eq("job_number", hocoNr);
+    await db.from("dokumente").delete().eq("art", "zeichnung").eq("hoco_nr", hocoNr).is("type_id", null);
+  } catch (f) { /* Hauptsache, der Auftrag hat die neue */ }
+  await ablageLoeschen(alte.filter((u) => u && u !== neu));
+}
+
+// Ein Eintrag im Verlauf: welche Datei wohin ging
+async function dokVerlauf(eintrag) {
+  try {
+    await db.from("dokumente_verlauf").insert([Object.assign({
+      dateiname: null, art: null, hoco_nr: null, type_id: null, ziel: null,
+      quelle: "hand", ersetzt: false }, eintrag)]);
+  } catch (f) { /* ohne Verlauf geht es auch */ }
+}
+
+// Eine Datei hochladen und dort ablegen, wo sie hingehört. Was an
+// derselben Stelle schon lag, wird ersetzt: der alte Eintrag und die
+// alte Datei verschwinden.
+async function dokHochladen(datei, zuordnung, quelle) {
   const endung = (datei.name.split(".").pop() || "pdf").toLowerCase();
   const name = "dok/" + Date.now() + "-"
     + Math.random().toString(36).slice(2, 8) + "." + endung;
@@ -6072,43 +6215,125 @@ async function dokHochladen(datei, zuordnung) {
   if (hoch.error) throw hoch.error;
   const adresse = db.storage.from("zeichnungen").getPublicUrl(name).data.publicUrl;
 
-  const satz = {
-    art: zuordnung.art || "sonstiges",
-    hoco_nr: zuordnung.hoco || null,
-    type_id: zuordnung.typ ? zuordnung.typ.id : null,
-    titel: zuordnung.titel || datei.name,
-    dateiname: datei.name,
-    datei_url: adresse,
-    groesse: datei.size || null,
-  };
+  const art = zuordnung.art || "sonstiges";
+  const hocoNr = zuordnung.hoco || null;
+  const typId = zuordnung.typ ? zuordnung.typ.id : null;
+  const titel = zuordnung.titel || datei.name.replace(/\.[^.]+$/, "");
 
-  const r = await db.from("dokumente").upsert(satz,
-    { onConflict: "hoco_nr,type_id,art,dateiname" });
-  if (r.error) {
-    // Ohne den eindeutigen Schlüssel: einfach einfügen
-    const e = await db.from("dokumente").insert(satz);
-    if (e.error) throw e.error;
-  }
-
-  // Zeichnung und Einrichtblatt zusätzlich dort eintragen, wo die
-  // App sie erwartet — so wirkt die Datei sofort im Alltag.
+  // Was an derselben Stelle liegt: gleiche Nummer, gleicher Typ, gleiche
+  // Art — bei allgemeinen Dokumenten zusätzlich derselbe Titel
+  const alte = [];
   try {
-    if (zuordnung.art === "zeichnung" && zuordnung.hoco) {
-      await db.from("hoco_parts").update({ zeichnung_url: adresse })
-        .eq("hoco_nr", zuordnung.hoco);
+    let a = db.from("dokumente").select("id, datei_url, titel").eq("art", art);
+    a = hocoNr ? a.eq("hoco_nr", hocoNr) : a.is("hoco_nr", null);
+    a = typId ? a.eq("type_id", typId) : a.is("type_id", null);
+    const r = await a;
+    ((r && r.data) || []).forEach((d) => {
+      if (art !== "sonstiges" || dokGlatt(d.titel) === dokGlatt(titel)) alte.push(d);
+    });
+  } catch (f) { /* dann eben ohne Ersetzen */ }
+
+  const satz = { art: art, hoco_nr: hocoNr, type_id: typId, titel: titel,
+                 dateiname: datei.name, datei_url: adresse, groesse: datei.size || null };
+  if (alte.length) {
+    await db.from("dokumente").delete().in("id", alte.map((d) => d.id));
+  }
+  const ein = await db.from("dokumente").insert(satz);
+  if (ein.error) throw ein.error;
+
+  // Dort eintragen, wo die App sie im Alltag erwartet — und die alte
+  // Datei an derselben Stelle ersetzen
+  const alteAdressen = alte.map((d) => d.datei_url);
+  try {
+    if (art === "zeichnung" && hocoNr) {
+      const t = await db.from("hoco_parts").select("zeichnung_url").eq("hoco_nr", hocoNr).maybeSingle();
+      if (t && t.data && t.data.zeichnung_url) alteAdressen.push(t.data.zeichnung_url);
+      await db.from("hoco_parts").update({ zeichnung_url: adresse }).eq("hoco_nr", hocoNr);
+      // Alle Aufträge dieser Nummer zeigen ab jetzt die neue Zeichnung
+      await db.from("jobs").update({ drawing_url: adresse }).eq("job_number", hocoNr);
     }
-    if (zuordnung.art === "einrichtblatt" && zuordnung.typ && !zuordnung.hoco) {
-      await db.from("machine_types").update({ blatt_url: adresse })
-        .eq("id", zuordnung.typ.id);
+    if (art === "einrichtblatt" && typId && !hocoNr) {
+      const t = await db.from("machine_types").select("blatt_url").eq("id", typId).maybeSingle();
+      if (t && t.data && t.data.blatt_url) alteAdressen.push(t.data.blatt_url);
+      await db.from("machine_types").update({ blatt_url: adresse }).eq("id", typId);
     }
-    if (zuordnung.art === "einrichtblatt" && zuordnung.typ && zuordnung.hoco) {
+    if (art === "einrichtblatt" && typId && hocoNr) {
+      const t = await db.from("hoco_type_data").select("blatt_url")
+        .eq("hoco_nr", hocoNr).eq("type_id", typId).maybeSingle();
+      if (t && t.data && t.data.blatt_url) alteAdressen.push(t.data.blatt_url);
       await db.from("hoco_type_data").upsert(
-        { hoco_nr: zuordnung.hoco, type_id: zuordnung.typ.id, blatt_url: adresse },
-        { onConflict: "hoco_nr,type_id" });
+        { hoco_nr: hocoNr, type_id: typId, blatt_url: adresse }, { onConflict: "hoco_nr,type_id" });
+    }
+    if (art === "wbg" && hocoNr) {
+      // Die WBG gehört zu den offenen Aufträgen dieser Nummer
+      const o = await db.from("jobs").select("id, wbg_url").eq("job_number", hocoNr).is("ended_at", null);
+      ((o && o.data) || []).forEach((j) => { if (j.wbg_url) alteAdressen.push(j.wbg_url); });
+      await db.from("jobs").update({ wbg_url: adresse }).eq("job_number", hocoNr).is("ended_at", null);
     }
   } catch (f) { /* Hauptsache, der Eintrag steht */ }
 
+  // Alte Dateien wegräumen — aber nie die, die gerade hochgeladen wurde
+  await ablageLoeschen(alteAdressen.filter((u) => u && u !== adresse));
+
+  await dokVerlauf({ dateiname: datei.name, art: art, hoco_nr: hocoNr, type_id: typId,
+                     ziel: dokZielText(zuordnung), quelle: quelle || "hand",
+                     ersetzt: alteAdressen.length > 0 });
   return adresse;
+}
+
+// =================================================================
+//  WBG AUFRÄUMEN
+//  Eine WBG bleibt, solange ihr Auftrag läuft, und noch fünf Tage
+//  danach. Dann verschwinden Datei und Eintrag. Läuft einmal am Tag,
+//  sobald jemand mit Schreibrecht die App öffnet.
+// =================================================================
+
+async function wbgAufraeumen(sofort) {
+  if (!profil || !(istAdmin() || darfSchreiben())) return 0;
+  const heute = isoDatum(new Date());
+  try {
+    if (!sofort && localStorage.getItem("hofer.wbgaufgeraeumt") === heute) return 0;
+    localStorage.setItem("hofer.wbgaufgeraeumt", heute);
+  } catch (f) { /* dann eben jedes Mal */ }
+
+  const grenze = new Date(Date.now() - 5 * 86400000).toISOString();
+  let weg = 0;
+  try {
+    // 1. WBG an Aufträgen, die seit mehr als fünf Tagen beendet sind
+    const r = await db.from("jobs").select("id, job_number, wbg_url")
+      .not("wbg_url", "is", null).lt("ended_at", grenze).limit(500);
+    const alt = (r && r.data) || [];
+    if (alt.length) {
+      // Dieselbe Datei hängt vielleicht noch an einem offenen Auftrag
+      const noch = await db.from("jobs").select("wbg_url").is("ended_at", null).not("wbg_url", "is", null);
+      const inBenutzung = new Set(((noch && noch.data) || []).map((j) => j.wbg_url));
+      // Adressen vorher festhalten, danach stehen sie nicht mehr am Auftrag
+      const adressen = alt.map((j) => j.wbg_url).filter((u) => !inBenutzung.has(u));
+      await db.from("jobs").update({ wbg_url: null }).in("id", alt.map((j) => j.id));
+      await ablageLoeschen(adressen);
+      weg += alt.length;
+    }
+    // 2. WBG in den Dokumenten, zu denen kein offener Auftrag mehr läuft
+    const d = await db.from("dokumente").select("id, hoco_nr, datei_url, erstellt_am").eq("art", "wbg");
+    const liste = (d && d.data) || [];
+    for (const w of liste) {
+      if (!w.hoco_nr) continue;
+      const offen = await db.from("jobs").select("id").eq("job_number", w.hoco_nr).is("ended_at", null).limit(1);
+      if (offen && offen.data && offen.data.length) continue;
+      const zuletzt = await db.from("jobs").select("ended_at").eq("job_number", w.hoco_nr)
+        .not("ended_at", "is", null).order("ended_at", { ascending: false }).limit(1);
+      const ende = zuletzt && zuletzt.data && zuletzt.data[0] ? zuletzt.data[0].ended_at : w.erstellt_am;
+      if (ende && ende < grenze) {
+        await db.from("dokumente").delete().eq("id", w.id);
+        await ablageLoeschen([w.datei_url]);
+        await dokVerlauf({ dateiname: null, art: "wbg", hoco_nr: w.hoco_nr,
+                           ziel: "WBG entfernt — Auftrag seit über fünf Tagen beendet",
+                           quelle: "aufräumen" });
+        weg++;
+      }
+    }
+  } catch (f) { fehlerMerken("WBG aufräumen", fehlertext(f)); }
+  return weg;
 }
 
 // Abschnitt "Weitere Dokumente" — gleich aufgebaut bei der HOCO Nr.
@@ -6116,7 +6341,7 @@ async function dokHochladen(datei, zuordnung) {
 // nimmt Einträge wieder heraus.
 function dokAbschnittMarkup(liste, darf, was) {
   return '<section class="karte"><div class="karte__kopf">'
-    + '<h2>Weitere Dokumente</h2>'
+    + '<h2>Allgemeine Dokumente</h2>'
     + '<span class="klein">' + esc(was) + '</span>'
     + (darf ? '<div class="karte__aktionen">'
         + '<button class="knopf knopf--klein" data-dok-neu>Datei hinzufügen</button>'
@@ -6252,6 +6477,142 @@ function kameraEinbettbar(adresse) {
 // der Browser die Freigabe für dieses Gerät.
 const pool = { eintraege: [], ordner: "", laeuft: false };
 
+// Regeln bearbeiten, ausprobieren, Beispiele zeigen
+function dokRegelnAusFeldern() {
+  const r = { nurNummer: (document.getElementById("dokregel-nur") || {}).value || "zeichnung" };
+  document.querySelectorAll("[data-dokregel]").forEach((el) => {
+    r[el.dataset.dokregel] = el.value.split(/[,;]+/).map((x) => x.trim()).filter(Boolean);
+  });
+  return r;
+}
+
+async function dokRegelnBinden() {
+  const probe = document.getElementById("dokprobe");
+  const ergebnis = document.getElementById("dokprobe-ergebnis");
+  const beispiele = document.getElementById("dokbeispiele");
+  if (!probe) return;
+  let typen = prod.typen || [];
+  if (!typen.length) { try { typen = await ladeTypen(); } catch (f) { typen = []; } }
+
+  const mitRegeln = (regeln, fn) => {
+    const alt = DOK_REGELN;
+    DOK_REGELN = regeln;
+    try { return fn(); } finally { DOK_REGELN = alt; }
+  };
+  const zeigen = () => {
+    const regeln = dokRegelnAusFeldern();
+    const t = probe.value.trim();
+    ergebnis.innerHTML = !t ? "" : mitRegeln(regeln, () => {
+      const z = dokErkennen(t, typen);
+      return '<b>' + esc(dokZielText(z)) + '</b><span class="klein"> — ' + esc(z.grund || "") + '</span>';
+    });
+    const typName = (typen[0] && typen[0].name) || "SW-20";
+    beispiele.innerHTML = '<table class="tabelle"><thead><tr><th>Dateiname</th><th>Wird zugeordnet als</th></tr></thead><tbody>'
+      + ["10844-0049.pdf", "10844-0049_WBG.pdf", "10844-0049_EB.pdf",
+         "10844-0049_EB_" + typName + ".pdf", "EB_" + typName + ".pdf",
+         "10844-0049_Messbericht.pdf", "10844-0049 Zeichnung Rev B.pdf"]
+        .map((n) => '<tr><td><code>' + esc(n) + '</code></td><td>'
+          + esc(mitRegeln(regeln, () => dokZielText(dokErkennen(n, typen)))) + '</td></tr>').join("")
+      + '</tbody></table>';
+  };
+  probe.addEventListener("input", zeigen);
+  document.querySelectorAll("[data-dokregel], #dokregel-nur").forEach((el) =>
+    el.addEventListener("input", zeigen));
+  zeigen();
+
+  document.getElementById("dokregel-speichern").onclick = async () => {
+    const regeln = dokRegelnAusFeldern();
+    const { error } = await db.from("app_config")
+      .upsert({ schluessel: "dok_regeln", wert: JSON.stringify(regeln) });
+    if (error) { meldung(fehlertext(error), "fehler"); return; }
+    DOK_REGELN = Object.assign(JSON.parse(JSON.stringify(DOK_REGELN_VORGABE)), regeln);
+    meldung("Regeln gespeichert.");
+  };
+  document.getElementById("dokregel-vorgabe").onclick = () => {
+    Object.keys(DOK_REGELN_VORGABE).forEach((k) => {
+      const el = document.querySelector('[data-dokregel="' + k + '"]');
+      if (el) el.value = DOK_REGELN_VORGABE[k].join(", ");
+    });
+    const nur = document.getElementById("dokregel-nur");
+    if (nur) nur.value = DOK_REGELN_VORGABE.nurNummer;
+    zeigen();
+  };
+  const aufr = document.getElementById("wbg-aufraeumen");
+  if (aufr) aufr.onclick = async () => {
+    const n = await wbgAufraeumen(true);
+    meldung(n ? n + " alte WBG entfernt." : "Nichts aufzuräumen.");
+    dokVerlaufZeichnen();
+  };
+}
+
+// Pfad fürs Hilfsprogramm: speichern und den letzten Abgleich zeigen
+async function dokPfadBinden() {
+  const feld = document.getElementById("dokpfad");
+  const unter = document.getElementById("dokpfad-unter");
+  const stand = document.getElementById("dokpfad-stand");
+  if (!feld) return;
+  let werte = {};
+  try {
+    const r = await zeitlimit(db.from("app_config").select("schluessel, wert")
+      .in("schluessel", ["dok_pfad", "dok_pfad_unterordner", "dok_pfad_status"]), 6000, "Pfad");
+    ((r && r.data) || []).forEach((x) => { werte[x.schluessel] = x.wert; });
+  } catch (f) { /* leer lassen */ }
+  feld.value = werte.dok_pfad || "";
+  unter.checked = werte.dok_pfad_unterordner === "ja";
+
+  let st = null;
+  try { st = werte.dok_pfad_status ? JSON.parse(werte.dok_pfad_status) : null; } catch (f) { st = null; }
+  if (!st) {
+    stand.innerHTML = '<span class="gedaempft">Das Hilfsprogramm hat sich noch nicht gemeldet.</span>';
+  } else {
+    const alt = (Date.now() - new Date(st.zeit).getTime()) / 60000;
+    stand.innerHTML = '<span class="dokpfad-punkt ' + (alt < 5 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt") + '"></span>'
+      + 'Letzter Abgleich ' + esc(datumZeitKurz(st.zeit)) + (st.rechner ? " auf " + esc(st.rechner) : "")
+      + ' · ' + (st.dateien || 0) + ' Dateien im Ordner · ' + (st.neu || 0) + ' neu abgelegt'
+      + (alt >= 5 ? ' <b>— seit ' + Math.round(alt) + ' Minuten keine Meldung</b>' : "")
+      + (st.fehler ? '<div class="klein" style="color:var(--gefahr)">' + esc(st.fehler) + '</div>' : "")
+      + (st.ohne && st.ohne.length ? '<div class="klein gedaempft">Nicht zugeordnet: '
+          + st.ohne.slice(0, 12).map(esc).join(", ") + (st.ohne.length > 12 ? " …" : "") + '</div>' : "");
+  }
+
+  document.getElementById("dokpfad-speichern").onclick = async () => {
+    const r = await db.from("app_config").upsert([
+      { schluessel: "dok_pfad", wert: feld.value.trim() },
+      { schluessel: "dok_pfad_unterordner", wert: unter.checked ? "ja" : "nein" }]);
+    if (r.error) meldung(fehlertext(r.error), "fehler");
+    else meldung("Pfad gespeichert. Das Hilfsprogramm nimmt ihn beim nächsten Durchlauf.");
+  };
+}
+
+async function dokVerlaufZeichnen() {
+  const ziel = document.getElementById("dokverlauf");
+  if (!ziel) return;
+  let liste = [];
+  try {
+    const r = await zeitlimit(db.from("dokumente_verlauf").select("*")
+      .order("zeit", { ascending: false }).limit(100), 8000, "Verlauf");
+    if (r.error) throw r.error;
+    liste = r.data || [];
+  } catch (f) {
+    ziel.innerHTML = '<p class="hinweis">Der Verlauf braucht noch <code>dokumente-verlauf.sql</code> '
+      + 'in der Datenbank.</p>';
+    return;
+  }
+  await personenLaden();
+  if (!liste.length) { ziel.innerHTML = '<p class="hinweis">Noch nichts abgelegt.</p>'; return; }
+  const quelle = { hand: "von Hand", ordner: "Ordner", pfad: "Netzlaufwerk", "aufräumen": "aufgeräumt" };
+  ziel.innerHTML = '<div class="tabellenrolle"><table class="tabelle"><thead><tr>'
+    + '<th>Zeit</th><th>Datei</th><th>Ging nach</th><th>Wie</th><th>Wer</th></tr></thead><tbody>'
+    + liste.map((v) => '<tr>'
+        + '<td class="klein nowrap">' + esc(datumZeitKurz(v.zeit)) + '</td>'
+        + '<td>' + esc(v.dateiname || "—") + '</td>'
+        + '<td>' + esc(v.ziel || "") + (v.ersetzt ? ' <span class="marke">ersetzt</span>' : "") + '</td>'
+        + '<td class="klein">' + esc(quelle[v.quelle] || v.quelle || "") + '</td>'
+        + '<td class="klein">' + esc(personVoll(v.von) || "") + '</td>'
+        + '</tr>').join("")
+    + '</tbody></table></div>';
+}
+
 async function seiteDokumente(b) {
   const darf = darfSchreiben();
   const kannOrdner = typeof window.showDirectoryPicker === "function";
@@ -6274,21 +6635,54 @@ async function seiteDokumente(b) {
     + '</section>'
 
     + '<section class="karte">'
-    + '<div class="karte__kopf"><h2>So werden Dateien benannt</h2></div>'
-    + '<table class="tabelle"><thead><tr><th>Dateiname</th><th>Wird zugeordnet als</th>'
-    + '</tr></thead><tbody>'
-    + [["10844-0049.pdf", "Zeichnung der HOCO Nr. 10844-0049"],
-       ["10844-0049_WBG.pdf", "WBG der HOCO Nr."],
-       ["10844-0049_EB.pdf", "Einrichtblatt der HOCO Nr."],
-       ["10844-0049_EB_SW-20.pdf", "Einrichtblatt dieser Nummer auf dem Typ SW-20"],
-       ["EB_SW-20.pdf", "Einrichtblatt-Vorlage des Typs SW-20"],
-       ["10844-0049_Messbericht.pdf", "Weiteres zur HOCO Nr."]]
-      .map(([a, c]) => '<tr><td><code>' + esc(a) + '</code></td><td>' + esc(c) + '</td></tr>')
-      .join("")
-    + '</tbody></table>'
-    + '<p class="hinweis">Gross- und Kleinschreibung spielt keine Rolle. '
-    + 'Statt <code>EB</code> erkennt die App auch <code>Einrichtblatt</code>. '
-    + 'Kommt kein Typname vor, gilt das Blatt für die Nummer allgemein.</p>'
+    + '<div class="karte__kopf"><h2>So erkennt die App die Dateien</h2></div>'
+    + '<p class="hinweis">Steht im Dateinamen eines dieser Stichwörter, kommt die Datei dorthin. '
+    + 'Mehrere Stichwörter mit Komma trennen. Gross und klein, Striche und Leerzeichen spielen '
+    + 'keine Rolle, bei längeren Wörtern wird ein Tippfehler verziehen. Die HOCO Nr. und der '
+    + 'Maschinentyp werden immer von selbst erkannt.</p>'
+    + '<div class="dokregeln">'
+    + [["zeichnung", "Zeichnung"], ["wbg", "WBG"], ["einrichtblatt", "Einrichtblatt"],
+       ["allgemein", "Allgemein"]].map(([k, t]) =>
+        '<label class="feld"><span>' + t + '</span>'
+        + '<input type="text" data-dokregel="' + k + '" value="'
+        + esc(((DOK_REGELN || DOK_REGELN_VORGABE)[k] || []).join(", ")) + '"'
+        + (k === "allgemein" ? ' placeholder="z. B. messbericht, prüfprotokoll, foto"' : "") + '></label>').join("")
+    + '<label class="feld"><span>Steht nur die HOCO Nr. im Namen, ist es</span>'
+    + '<select id="dokregel-nur">'
+    + [["zeichnung", "eine Zeichnung"], ["allgemein", "ein allgemeines Dokument"]].map(([w, t]) =>
+        '<option value="' + w + '"' + (((DOK_REGELN || {}).nurNummer || "zeichnung") === w ? " selected" : "")
+        + '>' + t + '</option>').join("")
+    + '</select></label>'
+    + '</div>'
+    + '<div class="knopfreihe"><button class="knopf knopf--klein knopf--haupt" id="dokregel-speichern">Regeln speichern</button>'
+    + '<button class="linkknopf" id="dokregel-vorgabe">Vorgabe wiederherstellen</button></div>'
+
+    + '<h3 class="untertitel">Ausprobieren</h3>'
+    + '<label class="feld"><span>Dateiname eingeben — die App zeigt, wohin er ginge</span>'
+    + '<input type="text" id="dokprobe" placeholder="z. B. 10844-0049 EB SW20.pdf"></label>'
+    + '<div id="dokprobe-ergebnis" class="dokprobe"></div>'
+
+    + '<h3 class="untertitel">Beispiele mit den jetzigen Regeln</h3>'
+    + '<div id="dokbeispiele"></div>'
+    + '</section>'
+
+    + '<section class="karte">'
+    + '<div class="karte__kopf"><h2>Ordner auf dem Netzlaufwerk</h2></div>'
+    + '<p class="hinweis">Diesen Ordner prüft das Hilfsprogramm auf dem Server jede Minute. '
+    + 'Neue und geänderte Dateien lädt es hoch und legt sie nach den Regeln oben ab — '
+    + 'was an derselben Stelle lag, wird ersetzt. Die Dateien im Ordner bleiben liegen.</p>'
+    + '<label class="feld"><span>Pfad</span>'
+    + '<input type="text" id="dokpfad" placeholder="\\\\FS01\\Daten\\Zeichnungen"></label>'
+    + '<label class="schalter"><input type="checkbox" id="dokpfad-unter"><span>Unterordner einbeziehen</span></label>'
+    + '<div class="knopfreihe"><button class="knopf knopf--klein knopf--haupt" id="dokpfad-speichern">Pfad speichern</button></div>'
+    + '<div id="dokpfad-stand" class="dokpfad-stand"></div>'
+    + '</section>'
+
+    + '<section class="karte">'
+    + '<div class="karte__kopf"><h2>Verlauf</h2>'
+    + '<span class="klein">welche Datei wohin ging</span>'
+    + '<div class="karte__aktionen"><button class="linkknopf" id="wbg-aufraeumen">Alte WBG jetzt aufräumen</button></div></div>'
+    + '<div id="dokverlauf"><div class="laedt">Wird geladen …</div></div>'
     + '</section>'
 
     + '<section class="karte">'
@@ -6298,6 +6692,9 @@ async function seiteDokumente(b) {
     + '</section>';
 
   letzteDokumenteZeichnen();
+  dokRegelnBinden();
+  dokVerlaufZeichnen();
+  dokPfadBinden();
 
   const ordnerKnopf = document.getElementById("pool-ordner");
   if (ordnerKnopf) ordnerKnopf.onclick = () => poolOrdnerLesen();
@@ -6394,7 +6791,7 @@ async function poolHochladen() {
   for (const e of nehmen) {
     if (knopf) knopf.textContent = "lädt " + (fertig + 1) + " von " + nehmen.length + " …";
     try {
-      await dokHochladen(e.datei, e.zuordnung);
+      await dokHochladen(e.datei, e.zuordnung, "ordner");
       fertig++;
     } catch (f) {
       schiefgelaufen++;
@@ -6409,6 +6806,7 @@ async function poolHochladen() {
   const ziel = document.getElementById("pool-liste");
   if (ziel) ziel.innerHTML = "";
   letzteDokumenteZeichnen();
+  dokVerlaufZeichnen();
 }
 
 async function letzteDokumenteZeichnen() {
@@ -7501,6 +7899,7 @@ const ROLLEN = {
   kurzdreher: "Kurzdreher",
   mitarbeiter: "Mitarbeiter",
   extern: "Extern",
+  dienst: "Dienstkonto",
 };
 
 // Welche Hauptseiten eine Rolle sieht. Externe nur die Planwand und die
@@ -9166,6 +9565,9 @@ async function farbzuteilungLaden() {
   } catch (f) { /* ohne Zuteilung bleibt die ganze Palette nutzbar */ }
   await werkstoffeGelerntLaden();
   await bestellmailTextLaden();
+  await dokRegelnLaden();
+  // Alte WBG wegräumen, einmal am Tag, im Hintergrund
+  setTimeout(() => { wbgAufraeumen().catch(() => {}); }, 4000);
 }
 
 // Auf der Planwand darf jeder alles sehen. Geändert wird erst,
@@ -9244,7 +9646,7 @@ async function planwandExcel() {
   catch (f) { meldung(fehlertext(f), "fehler"); return; }
 
   let liste = [];
-  try { liste = await ladePlanAuftraege(); }
+  try { liste = await ladePlanAuftraege(true); }
   catch (f) { meldung(fehlertext(f), "fehler"); return; }
 
   const zustandName = (k) => (PLANSTATUS[k] || PLANSTATUS.geplant).name;
@@ -9309,7 +9711,7 @@ async function planwandExcel() {
   meldung(zeilen.length + " Aufträge als " + name + " gespeichert.");
 }
 
-async function ladePlanAuftraege() {
+async function ladePlanAuftraege(alle) {
   await personenLaden();
   // Supabase gibt höchstens 1000 Zeilen je Abfrage zurück. Mit den
   // übernommenen Aufträgen aus infoBoard sind es mehr — deshalb wird
@@ -9318,11 +9720,22 @@ async function ladePlanAuftraege() {
   // Das erste Paket sagt, wie viele es insgesamt sind; die übrigen
   // Pakete werden dann gleichzeitig geholt statt nacheinander.
   const stufe = 1000;
-  const paket = (von, zaehlen) => zeitlimit(
-    db.from("planwand").select("*", zaehlen ? { count: "exact" } : undefined)
-      .order("planned_from", { nullsFirst: false }).order("id")
-      .range(von, von + stufe - 1),
-    15000, "Planwand");
+  // Nur, was man sehen kann: alle offenen Aufträge, dazu die übrigen ab
+  // gut einem Monat vor dem gezeigten Beginn — nicht die ganze Geschichte
+  // seit 2022. Wer mit dem Zeitregler zurückfährt, bekommt beim nächsten
+  // Laden entsprechend mehr. Excel und Suche holen weiterhin alles.
+  let grenze = null;
+  if (!alle) {
+    const vorVier = isoDatum(new Date(Date.now() - 120 * 86400000));
+    const vorStart = plan.start ? plusTage(plan.start, -45) : vorVier;
+    grenze = vorStart < vorVier ? vorStart : vorVier;
+  }
+  const paket = (von, zaehlen) => {
+    let a = db.from("planwand").select("*", zaehlen ? { count: "exact" } : undefined);
+    if (grenze) a = a.or("ended_at.is.null,planned_from.is.null,planned_from.gte." + grenze);
+    return zeitlimit(a.order("planned_from", { nullsFirst: false }).order("id")
+      .range(von, von + stufe - 1), 15000, "Planwand");
+  };
   const erstes = await paket(0, true);
   if (erstes.error) throw erstes.error;
   const liste = (erstes.data || []).slice();
@@ -9377,11 +9790,17 @@ async function standsNachtragen(auftraege) {
 // Holt im Hintergrund neue Daten und zeichnet nur dann neu,
 // wenn sich wirklich etwas geändert hat. Der Zeitraum und die
 // Scrollstellung bleiben dabei erhalten.
-async function planAbgleich(b) {
+async function planAbgleich(b, ereignis) {
   if (!document.getElementById("pw-inhalt")) { planSyncStoppen(); return; }
   if (plan.imDialog) return;
 
   try {
+    // Beim regelmässigen Nachsehen erst fragen, ob sich überhaupt etwas
+    // geändert hat — das kostet die Datenbank einen Wimpernschlag
+    const stempel = await serverStempel(["jobs", "vacations", "production_records"]);
+    if (stempel && !ereignis && stempel === plan.stempel) return;
+    if (stempel) plan.stempel = stempel;
+
     const neueAuftraege = await ladePlanAuftraege();
     let neueFerien = [];
     try {
@@ -9412,11 +9831,11 @@ function planSyncStarten(b) {
     const kanal = db.channel("plansync-" + Date.now())
       .on("postgres_changes", { event: "*", schema: "public", table: "jobs" }, () => {
         clearTimeout(entpreller);
-        entpreller = setTimeout(() => planAbgleich(b), 500);
+        entpreller = setTimeout(() => planAbgleich(b, true), 800);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "vacations" }, () => {
         clearTimeout(entpreller);
-        entpreller = setTimeout(() => planAbgleich(b), 500);
+        entpreller = setTimeout(() => planAbgleich(b, true), 800);
       })
       .subscribe();
     plan.syncKanal = kanal;
@@ -9753,7 +10172,10 @@ async function ansichtPlanwand(ziel, b) {
 
   // Aufträge und Ferien laden, danach zeichnen
   try {
-    plan.auftraege = await ladePlanAuftraege();
+    const [stErst, listeErst] = await Promise.all([
+      serverStempel(["jobs", "vacations", "production_records"]), ladePlanAuftraege()]);
+    if (stErst) plan.stempel = stErst;
+    plan.auftraege = listeErst;
     // Aufträge, die nur mit einer HOCO Nr. angelegt wurden, holen
     // sich hier Material, Grösse und Zeichnung aus den Stammdaten.
     try {
@@ -10245,10 +10667,28 @@ function sucheImZeitraum(j) {
 const sucheAlles = { daten: null, zeit: 0 };
 
 async function sucheAllesDaten() {
-  if (sucheAlles.daten && Date.now() - sucheAlles.zeit < 60000) return sucheAlles.daten;
+  // Was schon da ist, gilt sofort; ist es älter als fünf Minuten, wird
+  // im Hintergrund frisch geholt. So öffnet die Suche ohne Wartezeit.
+  if (sucheAlles.daten) {
+    if (Date.now() - sucheAlles.zeit > 300000 && !sucheAlles.holt) {
+      sucheAlles.holt = true;
+      sucheAllesHolen().finally(() => { sucheAlles.holt = false; });
+    }
+    return sucheAlles.daten;
+  }
+  if (sucheAlles.laeuft) return sucheAlles.laeuft;
+  return sucheAllesHolen();
+}
+
+async function sucheAllesHolen() {
+  if (sucheAlles.laeuft) return sucheAlles.laeuft;
+  sucheAlles.laeuft = sucheAllesHolenJetzt().finally(() => { sucheAlles.laeuft = null; });
+  return sucheAlles.laeuft;
+}
+
+async function sucheAllesHolenJetzt() {
   const [auftraege, hoco, maschinen, artikel, lieferanten] = await Promise.all([
-    (plan.auftraege && plan.auftraege.length ? Promise.resolve(plan.auftraege)
-      : ladePlanAuftraege()).catch(() => []),
+    ladePlanAuftraege(true).catch(() => plan.auftraege || []),
     ladeHoco("").catch(() => []),
     ladeMaschinen(true).catch(() => []),
     zeitlimit(db.from("articles").select("id, article_number, name, supplier_id")
@@ -10436,7 +10876,14 @@ async function balkenZeigenAusfuehren(b) {
   const id = plan.zeigeAuftrag;
   plan.zeigeAuftrag = null;
   if (!id) return;
-  const j = (plan.auftraege || []).find((x) => x.id === id);
+  let j = (plan.auftraege || []).find((x) => x.id === id);
+  if (!j) {
+    // Ein älterer Auftrag ausserhalb des geladenen Zeitraums: einzeln holen
+    try {
+      const r = await db.from("planwand").select("*").eq("id", id).maybeSingle();
+      if (r && r.data) { j = r.data; plan.auftraege.push(j); }
+    } catch (f) { /* dann eben nicht */ }
+  }
   if (!j) { meldung("Dieser Auftrag steht nicht mehr auf der Planwand.", "warn"); return; }
 
   // Liegt der Balken ausserhalb des Zeitraums, dorthin blättern
@@ -10871,7 +11318,10 @@ async function planAktualisieren(b) {
   const y = rolle ? rolle.scrollTop : 0;
 
   try {
-    plan.auftraege = await ladePlanAuftraege();
+    const [st, liste] = await Promise.all([
+      serverStempel(["jobs", "vacations", "production_records"]), ladePlanAuftraege()]);
+    if (st) plan.stempel = st;
+    plan.auftraege = liste;
   } catch (f) {
     meldung(fehlertext(f), "fehler");
     return;
@@ -12913,6 +13363,18 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
     // hinten, damit die Reihe wieder sauber aneinander steht.
     const verschoben = festId
       ? await planKonflikteLoesen(daten.machine_id, festId) : [];
+
+    // Neue Zeichnung ersetzt die alte für die ganze Nummer, eine neue WBG
+    // die alte — was nicht mehr gebraucht wird, verschwindet aus der Ablage
+    if (festId) {
+      const hocoHier = daten.job_number || (auftrag && auftrag.job_number);
+      const altZ = auftrag && auftrag.drawing_url, neuZ = daten.drawing_url;
+      const altW = auftrag && auftrag.wbg_url, neuW = daten.wbg_url;
+      try {
+        if (neuZ && neuZ !== altZ && hocoHier) await zeichnungErsetzen(hocoHier, neuZ, altZ);
+        if (altW && altW !== neuW) await ablageLoeschen([altW]);
+      } catch (f) { /* nicht schlimm, die Datei bleibt eben liegen */ }
+    }
 
     // Rückgängig: neuer Auftrag wird wieder entfernt, ein geänderter
     // bekommt seine alten Werte, und was nachgerückt ist, kehrt zurück
@@ -14983,6 +15445,7 @@ async function stammdatenAufPlanwand() {
   teile.forEach((t) => { karte[t.hoco_nr] = t; });
 
   let geaendert = 0;
+  const aufgaben = [];
   for (const j of offen) {
     const t = karte[j.job_number];
     if (!t) continue;
@@ -14992,9 +15455,14 @@ async function stammdatenAufPlanwand() {
     if (!j.drawing_url && t.zeichnung_url) neu.drawing_url = t.zeichnung_url;
     if (!Object.keys(neu).length) continue;
 
-    const u = await db.from("jobs").update(neu).eq("id", j.id);
-    if (!u.error) { Object.assign(j, neu); geaendert++; }
+    // Gleichzeitig statt einer nach dem anderen
+    aufgaben.push(async () => {
+      const u = await db.from("jobs").update(neu).eq("id", j.id);
+      if (!u.error) { Object.assign(j, neu); geaendert++; }
+      return u;
+    });
   }
+  try { await parallelSenden(aufgaben); } catch (f) { /* beim nächsten Öffnen wieder */ }
   return geaendert;
 }
 
@@ -23187,7 +23655,30 @@ function syncStoppen() {
 
 // Kurzer Fingerabdruck der Daten, die eine Seite anzeigt.
 // Nur wenn er sich ändert, wird neu gezeichnet.
+// Ob sich auf einer Seite etwas geändert hat, rechnet die Datenbank
+// selbst aus und schickt nur einen kurzen Fingerabdruck zurück. Vorher
+// lud jede offene App alle 45 Sekunden ganze Tabellen herunter — in der
+// Produktion alle Zählerstände seit Beginn, und die werden jeden Tag
+// mehr. Das machte die App mit der Zeit immer träger.
+let serverStempelFehlt = false;
+
+async function serverStempel(tabellen) {
+  if (serverStempelFehlt || !tabellen || !tabellen.length) return null;
+  try {
+    const r = await zeitlimit(db.rpc("stempel", { tabellen: tabellen }), 8000, "Stempel");
+    if (r.error || typeof r.data !== "string" || !r.data) throw r.error || new Error("leer");
+    return r.data;
+  } catch (f) {
+    serverStempelFehlt = true;   // dann wie bisher, bis zum nächsten Laden der Seite
+    return null;
+  }
+}
+
 async function seitenStempel(pfad) {
+  // Zuerst der schnelle Weg über die Datenbank
+  const schnell = await serverStempel(syncTabellen(pfad));
+  if (schnell) return schnell;
+
   const teile = [];
   const hole = async (tabelle, felder) => {
     try {
@@ -24638,7 +25129,14 @@ function zeichneGeruest() {
   if (neuladen) neuladen.onclick = () => location.reload();
 
   const sucheKnopf = document.getElementById("kopf-suche");
-  if (sucheKnopf) sucheKnopf.onclick = sucheOeffnen;
+  if (sucheKnopf) {
+    sucheKnopf.onclick = sucheOeffnen;
+    // Schon beim Darüberfahren laden — bis zum Klick ist es meist da
+    const vorladen = () => { if (!sucheAlles.daten && !sucheAlles.holt) {
+      sucheAlles.holt = true; sucheAllesHolen().catch(() => {}).finally(() => { sucheAlles.holt = false; }); } };
+    sucheKnopf.addEventListener("mouseenter", vorladen);
+    sucheKnopf.addEventListener("focus", vorladen);
+  }
 
   const einstKnopf = document.getElementById("kopf-einstellungen");
   if (einstKnopf) einstKnopf.onclick = () => einstellungenOeffnen();
