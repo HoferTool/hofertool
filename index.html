@@ -4375,6 +4375,17 @@ body.dunkel .ws-offen td { background: rgba(255, 201, 64, .08); }
 .pw-zeitplatz { padding: 1px 6px 1px 4px !important; }
 .pw-zeitplatz .pw-zeitregler input[type="range"] { height: 14px !important; }
 .pw-zeitplatz .pw-zeitmarke { top: 0 !important; height: 14px !important; }
+/* Bühne der Planwand: Tafel und darüber die Schicht mit dem Regler */
+.pw-buehne { position: relative; display: flex; flex-direction: column; min-height: 0; }
+.pw-zeitschicht { position: absolute; z-index: 8; display: flex; align-items: center;
+                  padding: 0 6px 0 4px; box-sizing: border-box; }
+.pw-zeitschicht .pw-zeitregler { margin: 0 !important; padding: 0 !important; flex: 1 !important;
+  min-width: 0 !important; width: 100%; position: relative; display: flex; align-items: center; }
+.pw-zeitschicht .pw-zeitregler input[type="range"] { flex: 1; height: 14px !important; margin: 0; }
+.pw-zeitschicht .pw-zeitinfo { display: none !important; }
+.pw-zeitschicht .pw-zeitmarke { top: 0 !important; height: 14px !important; }
+.pw-zeitschicht .pw-zeitmarke::after { display: none !important; }
+.pw-zeitplatz { height: 16px; }
 </style>
 </head>
 <body>
@@ -4423,7 +4434,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "109.4.2";
+const APP_VERSION = "109.4.3";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9275,6 +9286,25 @@ async function seitePlanwand(b) {
   }
 }
 
+// Die Schicht mit dem Zeitregler auf den Platzhalter unter der
+// Datumszeile legen. Der Regler selbst wird nur einmal verschoben.
+function zeitschichtLegen() {
+  const schicht = document.getElementById("pw-zeitschicht");
+  const platz = document.getElementById("pw-zeitplatz");
+  if (!schicht) return;
+  const regler = document.querySelector(".pw-kopfleiste .pw-zeitregler");
+  if (regler) schicht.appendChild(regler);
+  if (!platz) { schicht.hidden = true; return; }
+  const buehne = schicht.parentElement.getBoundingClientRect();
+  const r = platz.getBoundingClientRect();
+  schicht.hidden = false;
+  schicht.style.left = (r.left - buehne.left) + "px";
+  schicht.style.top = (r.top - buehne.top) + "px";
+  schicht.style.width = r.width + "px";
+  schicht.style.height = r.height + "px";
+}
+window.addEventListener("resize", () => requestAnimationFrame(zeitschichtLegen));
+
 async function ansichtPlanwand(ziel, b) {
   if (!plan.start) plan.start = naechsterArbeitstag(wochenStart(isoDatum(new Date())));
   plan.zeitreglerEl = null;
@@ -9331,7 +9361,13 @@ async function ansichtPlanwand(ziel, b) {
         ? nurLesenHinweis("Bearbeitbar nur am Desktop, nicht auf dem Handy.")
         : nurLesenHinweis("Du kannst die Planung ansehen. Ändern dürfen Planer und Administratoren.")))
     + '</div>'
-    + '<div id="pw-inhalt"><div class="laedt">Planung wird geladen …</div></div>';
+    + '<div class="pw-buehne">'
+    + '<div id="pw-inhalt"><div class="laedt">Planung wird geladen …</div></div>'
+    // Der Zeitregler lebt hier, ausserhalb der Tafel: die Tafel wird beim
+    // Schieben laufend neu gezeichnet, der Regler darf dabei nicht mit
+    // ersetzt werden, sonst bricht der Browser das Ziehen ab.
+    + '<div class="pw-zeitschicht" id="pw-zeitschicht"></div>'
+    + '</div>';
 
   // Auf einen leeren Kalendertag klicken legt einen neuen Auftrag an,
   // auf eine leere Ferienzeile klicken trägt Ferien ein — ein eigener
@@ -10817,12 +10853,7 @@ function zeichnePlanwand(b) {
           + '" style="--heute:' + heuteSpalte + '"></div>' : "")
     + '</div></div>';
 
-  const zeitPlatz = document.getElementById("pw-zeitplatz");
-  const zeitEl = plan.zeitreglerEl || document.querySelector(".pw-zeitregler");
-  if (zeitPlatz && zeitEl) {
-    plan.zeitreglerEl = zeitEl;
-    zeitPlatz.appendChild(zeitEl);
-  }
+  zeitschichtLegen();
 
   // Wie viel Platz über der Tafel weggeht — Kopfzeile, Regler,
   // Reiter. Daraus ergibt sich die Höhe bis zum Fensterrand.
