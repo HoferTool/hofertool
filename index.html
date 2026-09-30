@@ -735,34 +735,6 @@ a:focus-visible {
 .suchleiste { display: flex; gap: 8px; margin-bottom: 14px; }
 .suchleiste input { flex: 1; }
 
-/* ---------- Kamera ---------- */
-.scanner { position: relative; width: 100%; max-width: 520px; background: #12161b;
-           border-radius: var(--radius); overflow: hidden; }
-.scanner__modus { display: flex; background: #1d2430; }
-.scanner__tab { flex: 1; background: none; border: none; border-bottom: 3px solid transparent;
-                padding: 11px 0; font: inherit; font-weight: 600; font-size: .9rem;
-                color: #9aa5b1; cursor: pointer; }
-.scanner__tab.aktiv { color: #fff; border-bottom-color: var(--signalgelb); }
-.scanner__buehne { position: relative; background: #000; }
-.scanner video, .scanner canvas { width: 100%; display: block; max-height: 62vh;
-                                  object-fit: contain; }
-.scanner canvas { cursor: crosshair; touch-action: none; }
-.scanner__rahmen { position: absolute; inset: 26% 12%; border: 2px solid var(--signalgelb);
-                   border-radius: 6px; pointer-events: none; }
-.scanner__auswahl { position: absolute; border: 2px solid var(--signalgelb);
-                    background: rgba(240,180,41,.16); pointer-events: none; }
-.scanner__vorschlaege { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px;
-                        background: #1d2430; }
-.vorschlag { background: #fff; border: none; border-radius: var(--radius);
-             padding: 10px 14px; font: inherit; font-weight: 650; letter-spacing: .03em;
-             cursor: pointer; }
-.vorschlag--hand { background: transparent; border: 1px solid #47505c; color: #dde3e9;
-                   font-weight: 400; }
-.scanner__leiste { display: flex; align-items: center; justify-content: space-between;
-                   gap: 12px; padding: 12px 14px; background: #1d2430; color: #fff;
-                   font-size: .85rem; }
-.scanner__knoepfe { display: flex; gap: 8px; flex: none; }
-.scanner__leiste .knopf--still { background: transparent; border-color: #47505c; color: #fff; }
 
 /* ---------- Bestellungen ---------- */
 .statuschip { display: inline-block; padding: 1px 8px; border-radius: 999px;
@@ -792,11 +764,6 @@ a:focus-visible {
 
 /* ---------- Vorschläge der Texterkennung ---------- */
 .vorschlagreihe { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-.uebernehmen { display: flex; gap: 8px; }
-.uebernehmen input { flex: 1; min-height: 46px; padding: 10px 12px; font: inherit;
-                     font-weight: 650; letter-spacing: .04em; border-radius: var(--radius);
-                     border: 1px solid #47505c; background: #fff; }
-.scanner__vorschlaege { display: block; }
 
 /* ---------- Auftragsstand im Raster ---------- */
 .fest__stand { display: block; font-size: .72rem; font-weight: 600; color: var(--gedaempft);
@@ -821,35 +788,10 @@ a:focus-visible {
                       margin-bottom: 10px; }
 .dialog { max-height: 88vh; overflow-y: auto; }
 
-/* ---------- Kamera: Knöpfe auf eigener Zeile ---------- */
-.scanner__leiste { flex-direction: column; align-items: stretch; gap: 10px; }
-.scanner__knoepfe { display: flex; gap: 8px; }
-.scanner__knoepfe .knopf { flex: 1; }
-#scan-text { text-align: center; line-height: 1.35; }
 
 .platzchip--klein { padding: 2px 7px; font-size: .76rem; font-weight: 500;
                     display: inline-block; margin: 1px 0; }
 .platzchip--klein b { font-weight: 700; }
-/* ---------- Großer Foto-Knopf als Overlay ---------- */
-.scan-gross {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 56, 132, 0.9);
-  color: #fff;
-  border: 2px solid rgba(255,255,255,.4);
-  border-radius: 40px;
-  padding: 14px 28px;
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 650;
-  cursor: pointer;
-  white-space: nowrap;
-  z-index: 10;
-  -webkit-tap-highlight-color: transparent;
-}
-.scan-gross:active { background: var(--marke); }
 
 .chipweg--bearb { color: var(--marke); }
 
@@ -4122,25 +4064,6 @@ input[type="month"], input[type="week"] {
 .wz-kopf { display: flex; align-items: center; justify-content: space-between;
            gap: 12px; margin-bottom: 4px; }
 .wz-kopf h2 { margin: 0; }
-/* Kameras auf der Startseite */
-.kamera-reihe { display: flex; flex-wrap: wrap; gap: 10px; }
-.kamera-knopf { display: inline-flex; align-items: center; gap: 8px;
-                text-decoration: none; }
-.kamera-knopf__zeichen { font-size: 1.1rem; }
-/* Kameraseite */
-.kamera-gitter { display: grid; gap: 14px;
-                 grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
-.kamera-karte { display: flex; flex-direction: column; }
-.kamera-bild { position: relative; aspect-ratio: 16 / 9; border-radius: 12px;
-               overflow: hidden; background: #0d1622; display: flex;
-               align-items: center; justify-content: center; }
-.kamera-bild iframe { width: 100%; height: 100%; border: 0; display: block; }
-.kamera-bild--zu { flex-direction: column; gap: 6px; text-decoration: none;
-                   color: #cfe0f5; padding: 18px; text-align: center; cursor: pointer; }
-.kamera-bild--zu:hover { background: #142033; }
-.kamera-bild__zeichen { font-size: 2.2rem; }
-.kamera-bild__text { font-size: 1rem; font-weight: 700; }
-.kamera-bild__klein { font-size: .78rem; color: #8fa6c6; max-width: 34ch; line-height: 1.35; }
 /* Dokumentenpool */
 .pool-kopf { display: flex; align-items: center; justify-content: space-between;
              gap: 12px; margin: 6px 0 10px; flex-wrap: wrap; }
@@ -4495,7 +4418,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "110.6.1";
+const APP_VERSION = "110.8.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6448,35 +6371,6 @@ function dokWaehlen(mehrere) {
   });
 }
 
-// Kameras: Name und Adresse stehen in den Einstellungen, je Zeile
-// eine, getrennt durch einen senkrechten Strich. Die App öffnet sie
-// in einem neuen Tab — eingebettet ginge es nur mit eigenem Server.
-async function ladeKameras() {
-  try {
-    const r = await zeitlimit(db.from("app_config").select("wert")
-      .eq("schluessel", "kameras").maybeSingle(), 6000, "Kameras");
-    if (r.error || !r.data) return [];
-    return String(r.data.wert || "").split("\n")
-      .map((z) => z.trim()).filter(Boolean)
-      .map((z) => {
-        const teile = z.split("|");
-        const name = (teile[0] || "").trim();
-        const adresse = (teile[1] || teile[0] || "").trim();
-        return { name: name || "Kamera", adresse: adresse };
-      })
-      .filter((k) => /^https?:\/\//i.test(k.adresse));
-  } catch (f) { return []; }
-}
-
-// Eine eigene Seite für die Kameras. Läuft die App verschlüsselt und
-// der Stream nicht, verweigert der Browser das Einbetten — dann steht
-// dort eine Kachel, die das Bild in einem neuen Tab öffnet. Auf dem
-// eigenen Server mit Zertifikat erscheint das Bild direkt.
-function kameraEinbettbar(adresse) {
-  if (location.protocol !== "https:") return true;
-  return /^https:/i.test(adresse);
-}
-
 // Der Dokumentenpool: einen Ordner auswählen, die App ordnet alles
 // zu und lädt es hoch. Im Browser gibt es keinen Zugriff auf einen
 // Netzwerkpfad — der Ordner wird einmal ausgewählt, danach merkt sich
@@ -6864,41 +6758,6 @@ async function letzteDokumenteZeichnen() {
       catch (f) { meldung(fehlertext(f), "fehler"); }
     };
   });
-}
-
-async function seiteKameras(b) {
-  b.innerHTML = ''
-    + '<div id="kamera-inhalt"><div class="laedt">Wird geladen …</div></div>';
-
-  const liste = await ladeKameras();
-  const ziel = document.getElementById("kamera-inhalt");
-  if (!ziel) return;
-
-  if (!liste.length) {
-    ziel.innerHTML = '<section class="karte"><p class="hinweis">'
-      + 'Noch keine Kamera eingetragen. Unter Einstellungen → Allgemein → Kameras '
-      + 'trägst du je Zeile einen Namen, einen senkrechten Strich und die Adresse ein.'
-      + '</p></section>';
-    return;
-  }
-
-  ladeFertig(ziel);
-  ziel.innerHTML = '<div class="kamera-gitter">'
-    + liste.map((k) => '<section class="karte kamera-karte">'
-        + '<div class="karte__kopf"><h2>' + esc(k.name) + '</h2>'
-        + '<a class="linkknopf" href="' + esc(k.adresse) + '" target="_blank"'
-        + ' rel="noopener">Gross öffnen</a></div>'
-        + (kameraEinbettbar(k.adresse)
-            ? '<div class="kamera-bild"><iframe src="' + esc(k.adresse)
-              + '" title="' + esc(k.name) + '" allow="autoplay; fullscreen"></iframe></div>'
-            : '<a class="kamera-bild kamera-bild--zu" href="' + esc(k.adresse)
-              + '" target="_blank" rel="noopener">'
-              + '<span class="kamera-bild__zeichen">📹</span>'
-              + '<span class="kamera-bild__text">Antippen und in neuem Tab öffnen</span>'
-              + '<span class="kamera-bild__klein">Das Bild lässt sich hier erst zeigen, '
-              + 'wenn die App und die Kamera beide verschlüsselt laufen.</span></a>')
-        + '</section>').join("")
-    + '</div>';
 }
 
 // ---------- Notizen ----------
@@ -21278,7 +21137,7 @@ async function seiteEinstellungen(b) {
   // Nur Reiter, für die man die Rechte hat. War zuletzt einer offen,
   // den diese Person nicht sehen darf — etwa weil vorher ein Admin
   // am selben Gerät angemeldet war —, geht es auf den ersten zurück.
-  const erlaubt = ["allgemein", "dokumente", "kameras", "fehler"]
+  const erlaubt = ["allgemein", "dokumente", "fehler"]
     .concat(bin ? ["farben", "nutzer"] : []);
   if (erlaubt.indexOf(einst.reiter) === -1) einst.reiter = erlaubt[0];
 
@@ -21342,14 +21201,6 @@ async function seiteEinstellungen(b) {
         + 'Bearbeiten frei. Gilt für alle.</p>'
         + '<label class="feld"><span>Pin</span>'
         + '<input type="text" id="pin-feld" inputmode="numeric"></label>'
-        // Kameras: je Zeile Name und Adresse, getrennt durch einen Strich
-        + '<label class="feld"><span>Kameras</span>'
-        + '<textarea id="kamera-feld" rows="3"'
-        + ' placeholder="Halle 1 | http://192.168.100.20:1984/stream.html?src=halle1"></textarea>'
-        + '<span class="feldhinweis">Je Zeile eine Kamera: Name, senkrechter Strich, '
-        + 'Adresse. Die Knöpfe erscheinen auf der Startseite und öffnen die Kamera '
-        + 'in einem neuen Tab.</span></label>'
-        + '<button class="knopf knopf--klein" id="kamera-speichern">Kameras speichern</button>'
         // Text der Bestellmail
         + '<label class="feld"><span>Text für Bestellmails</span>'
         + '<textarea id="bestellmail-feld" rows="9"></textarea>'
@@ -21419,7 +21270,7 @@ async function seiteEinstellungen(b) {
     + '</div>'
 
     + '<div class="reiter">'
-    + [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["kameras", "Kameras"],
+    + [["allgemein", "Allgemein"], ["dokumente", "Dokumente"],
        ["fehler", "Fehlerprotokoll"]]
         .concat(bin ? [["farben", "Farben und Material"], ["nutzer", "Nutzer"]] : [])
         .map(([w, tt]) => '<button class="reiter__knopf'
@@ -21431,7 +21282,6 @@ async function seiteEinstellungen(b) {
     + (einst.reiter === "farben" ? teilFarben()
         : einst.reiter === "nutzer" ? teilNutzer()
         : einst.reiter === "dokumente" ? '<div class="laedt">Wird geladen …</div>'
-        : einst.reiter === "kameras" ? '<div class="laedt">Wird geladen …</div>'
         : einst.reiter === "fehler" ? teilFehlerprotokoll()
         : teilAllgemein())
     + '</div>';
@@ -21464,14 +21314,10 @@ async function seiteEinstellungen(b) {
 
   // Ab hier gehören alle Bedienelemente zum Reiter Allgemein.
   // Auf den anderen Reitern gibt es sie nicht — dann ist hier Schluss.
-  // Dokumente und Kameras sind eigene Bereiche, aber keine eigenen
+  // Dokumente ist ein eigener Bereich, aber keine eigene
   // Reiter in der Seitenleiste — sie gehören zu den Einstellungen.
   if (einst.reiter === "dokumente") {
     await seiteDokumente(document.getElementById("einst-inhalt"));
-    return;
-  }
-  if (einst.reiter === "kameras") {
-    await seiteKameras(document.getElementById("einst-inhalt"));
     return;
   }
   if (einst.reiter === "fehler") {
@@ -21660,25 +21506,6 @@ async function seiteEinstellungen(b) {
       meldung("Text gespeichert.");
     };
     document.getElementById("bestellmail-vorgabe").onclick = () => { bmFeld.value = BESTELLMAIL_VORGABE; };
-  }
-
-  // ---------- Kameras ----------
-  const kamFeld = document.getElementById("kamera-feld");
-  if (kamFeld) {
-    (async () => {
-      try {
-        const r = await zeitlimit(db.from("app_config").select("wert")
-          .eq("schluessel", "kameras").maybeSingle(), 8000, "Kameras");
-        if (!r.error && r.data) kamFeld.value = r.data.wert || "";
-      } catch (f) { /* gibt es vielleicht noch nicht */ }
-    })();
-
-    document.getElementById("kamera-speichern").onclick = async () => {
-      const { error } = await db.from("app_config")
-        .upsert({ schluessel: "kameras", wert: (kamFeld.value || "").trim() });
-      if (error) meldung(fehlertext(error), "fehler");
-      else meldung("Kameras gespeichert.");
-    };
   }
 
   // ---------- Benutzerliste, nachgeladen ----------
@@ -22033,11 +21860,6 @@ SYM.start = svg('<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/>'
 // Dokumente: Blatt mit Eselsohr und Zeilen
 SYM.dokumente = svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>'
   + '<path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/>');
-
-// Kamera: Gehäuse mit Linse
-SYM.kamera = svg('<rect x="2.5" y="6.5" width="14" height="11" rx="2.5"/>'
-  + '<path d="M16.5 10.5 21.5 8v8l-5-2.5z"/>'
-  + '<circle cx="9.5" cy="12" r="2.6"/>');
 
 // Fortschritt: Zeitstrahl mit Abweichung nach oben und unten
 SYM.fortschritt = svg('<path d="M3 12h18"/>'
