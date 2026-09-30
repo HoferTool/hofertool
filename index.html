@@ -4495,7 +4495,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "110.6.0";
+const APP_VERSION = "110.6.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5112,6 +5112,12 @@ const GERAET_KONTEN = "hofer.geraet.konten";
   try {
     if (/^#\/?extern\b/i.test(location.hash) || /[?&]geraet=extern\b/i.test(location.search)) {
       localStorage.setItem(GERAET_SCHLUESSEL, "extern");
+      history.replaceState(null, "", location.pathname);
+    }
+    // Umgekehrt: "#/intern" macht ein versehentlich markiertes Gerät
+    // wieder zu einem eigenen
+    if (/^#\/?intern\b/i.test(location.hash) || /[?&]geraet=intern\b/i.test(location.search)) {
+      localStorage.removeItem(GERAET_SCHLUESSEL);
       history.replaceState(null, "", location.pathname);
     }
   } catch (f) { /* ohne Speicher bleibt es ein normales Gerät */ }
@@ -25106,6 +25112,11 @@ function zeichneGeruest() {
   };
 
   document.body.classList.toggle("rolle-extern", istExtern());
+  // Wer von euch sich an einem als extern markierten Gerät anmeldet,
+  // macht es damit wieder zum eigenen — etwa nach einem Test des Links
+  if (istExternGeraet() && !istExtern() && meineRolle() !== "dienst") {
+    try { localStorage.removeItem(GERAET_SCHLUESSEL); } catch (f) { /* egal */ }
+  }
 
   const rueck = document.getElementById("rueck-knopf");
   if (rueck) rueck.onclick = schrittZurueck;
