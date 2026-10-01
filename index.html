@@ -4372,6 +4372,20 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 .dokpfad-punkt--alt { background: #c2650f; }
 /* Während ältere Aufträge nachkommen: kurz etwas blasser */
 .pw-tafel--laedt .pw-spuren { opacity: .55; transition: opacity .2s; }
+/* Woche in der Produktion: die ganze Auftragszeile in der linken Spalte */
+.raster th.fest--voll { min-width: 250px; max-width: 320px; white-space: normal; vertical-align: top; }
+.fest__zeile .auftrag { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+                        margin: 6px 0 2px; padding: 0; background: none; border: 0; font-weight: 400; }
+.fest__zeile .auftrag__nr { font-weight: 700; }
+.fest__zeile .auftrag__seit { font-size: .78rem; color: var(--gedaempft); }
+.fest__zeile .linkknopf { font-size: .8rem; }
+/* Fenster: Material nach dem Verschieben */
+.dialog--material { width: min(460px, 94vw); }
+.mat-bez { font-weight: 700; font-size: 1.05rem; margin: 8px 0 10px; }
+.mat-felder { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mat-warnung { margin-top: 10px; padding: 9px 12px; border-radius: 10px; font-size: .9rem;
+               background: #fdecd3; color: #8a4a12; }
+body.dunkel .mat-warnung { background: rgba(255, 170, 60, .15); color: #ffc98a; }
 </style>
 </head>
 <body>
@@ -4420,7 +4434,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "111.0.2";
+const APP_VERSION = "111.1.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5171,27 +5185,35 @@ function nachfragen(o) {
 // Einstellungen hängen am Konto, nicht am Gerät. Der Zwischenspeicher
 // im Browser bleibt trotzdem gefüllt, damit die App beim Start sofort
 // richtig aussieht, bevor das Profil geladen ist.
-function einstellung(name) {
-  if (profil && profil.einstellungen && profil.einstellungen[name] !== undefined) {
-    return profil.einstellungen[name] === true || profil.einstellungen[name] === "1";
-  }
-  try { return localStorage.getItem("hudson." + name) === "1"; }
-  catch (e) { return false; }
+// Einstellungen gehören zur Person, nicht zum Gerät. Am Konto
+// gespeichert gelten sie überall; auf dem Gerät wird je Person ein
+// eigener Zwischenspeicher geführt. So bekommt an einem geteilten PC
+// niemand mehr die Höhe oder die Tage seines Vorgängers.
+function einstellungSchluessel(name) {
+  return "hudson." + (profil && profil.id ? profil.id + "." : "") + name;
 }
 
-function einstellungWert(name, standard) {
+function einstellungRoh(name) {
   if (profil && profil.einstellungen && profil.einstellungen[name] !== undefined) {
     return String(profil.einstellungen[name]);
   }
-  try {
-    const w = localStorage.getItem("hudson." + name);
-    return w === null ? standard : w;
-  } catch (e) { return standard; }
+  try { return localStorage.getItem(einstellungSchluessel(name)); }
+  catch (e) { return null; }
 }
 
-// Schreibt in den Zwischenspeicher und ans Konto
+function einstellung(name) {
+  const w = einstellungRoh(name);
+  return w === "true" || w === "1";
+}
+
+function einstellungWert(name, standard) {
+  const w = einstellungRoh(name);
+  return w === null || w === undefined ? standard : w;
+}
+
+// Schreibt in den Zwischenspeicher dieser Person und ans Konto
 function einstellungAblegen(name, wert) {
-  try { localStorage.setItem("hudson." + name, String(wert)); }
+  try { localStorage.setItem(einstellungSchluessel(name), String(wert)); }
   catch (e) { /* im privaten Modus nicht verfügbar */ }
 
   if (!profil || !profil.id || !db) return;
@@ -5200,7 +5222,19 @@ function einstellungAblegen(name, wert) {
 
   db.from("profiles").update({ einstellungen: profil.einstellungen })
     .eq("id", profil.id)
-    .then((r) => { if (r && r.error) console.warn("Einstellung:", r.error.message); });
+    .then((r) => {
+      // Sichtbar im Fehlerprotokoll, nicht nur in der Entwicklerkonsole
+      if (r && r.error) fehlerMerken("Einstellung nicht am Konto gespeichert", name + ": " + r.error.message);
+    });
+}
+
+// Nach dem An- oder Abmelden gelten die Werte der neuen Person
+function einstellungenNeuLesen() {
+  try {
+    plan.tageWunsch = null;
+    plan.vskala = null;
+    plan.breiteFest = false;
+  } catch (f) { /* beim allerersten Start gibt es die Planwand noch nicht */ }
 }
 
 // Gewählte Themenfarbe, gemerkt wie die übrigen Einstellungen
@@ -5336,6 +5370,10 @@ async function profilLaden() {
 // -----------------------------------------------------------------
 
 function zeigeLogin() {
+  // Immer im gewohnten Blau, egal was die letzte Person eingestellt hatte
+  document.body.classList.remove("dunkel", "nav--schmal", "rolle-extern");
+  document.body.removeAttribute("data-thema");
+  einstellungenNeuLesen();
   WURZEL.innerHTML = ''
     + '<div class="login"><div class="login__karte">'
     + '<div class="login__marke" id="lg-marke">'
@@ -8597,9 +8635,11 @@ function wochenRaster(maschinen, von, anzahl, staende) {
         + standFeld(m, t, e) + '</td>';
     }).join("");
 
-    return '<tr><th class="fest">' + esc(m.name)
+    // Wie in der Tagesansicht: Zustand zum Antippen, Ziel, Einrichtblatt,
+    // Menge, Beenden — oder "Auftrag wählen", wenn keiner läuft
+    return '<tr><th class="fest fest--voll">' + esc(m.name)
       + (m.machine_number ? ' <span class="fest__nr">' + esc(m.machine_number) + '</span>' : "")
-      + '<span class="fest__auftrag">' + (j ? esc(j.job_number) : "kein Auftrag") + '</span>'
+      + '<div class="fest__zeile">' + auftragsZeile(m) + '</div>'
       + (j ? '<span class="fest__stand">Stand ' + zahlText(aktuellerStand(m.id, staende))
              + '</span>' : "")
       + '</th>' + zellen + '</tr>';
@@ -12343,12 +12383,90 @@ function balkenVerhalten(b) {
       meldung("Verschoben."
         + (ausgewichen.length ? "  " + ausgewichen.length + " ausgewichen." : "")
         + (aufgeschlossen.length ? "  " + aufgeschlossen.length + " aufgeschlossen." : ""));
-      planAktualisieren(b);
+      await planAktualisieren(b);
+
+      // Neuer Beginn: Passt das Material noch? Gleich anpassen können.
+      if (datum !== vorherD && auftrag.plan_status !== "fertig") {
+        materialNachVerschieben(auftrag, vorherD, b);
+      }
     });
 
     el.addEventListener("pointercancel", aufraeumen);
     el.addEventListener("lostpointercapture", () => { if (!zieht) aufraeumen(); });
   });
+}
+
+// ---------- Material nach dem Verschieben ----------
+// Nach jedem Verschieben auf der Planwand: Material, Menge,
+// Liefertermin und Hinweis des Auftrags zum Anpassen. Kommt das
+// Material erst nach dem neuen Beginn, steht eine Warnung dabei.
+function materialNachVerschieben(auftrag, vorherD, b) {
+  const j = (plan.auftraege || []).find((x) => x.id === auftrag.id) || auftrag;
+  const notiz = notizTrennen(j.plan_note);
+  const start = j.planned_from;
+
+  const huelle = document.createElement("div");
+  huelle.className = "dialog-huelle";
+  huelle.innerHTML = '<div class="dialog dialog--material">'
+    + '<h2>Material für ' + esc(j.job_number || "") + '</h2>'
+    + '<p class="klein">Neuer Beginn <b>' + esc(wochentagName(start) + ", " + kurzDatum(start)) + '</b>'
+    + (vorherD ? ' · vorher ' + esc(kurzDatum(vorherD)) : "")
+    + (j.maschine ? ' · ' + esc(j.maschine) : "") + '</p>'
+    + '<div class="mat-bez">' + (j.material_bez ? esc(j.material_bez)
+        : '<span class="gedaempft">Kein Material eingetragen</span>') + '</div>'
+    + '<div class="mat-felder">'
+    + '<label class="feld"><span>Menge</span><input type="text" id="mn-menge" value="'
+    + esc(j.material_menge || "") + '" placeholder="z. B. 60 kg"></label>'
+    + '<label class="feld"><span>Liefertermin</span><input type="date" id="mn-termin" value="'
+    + esc(j.material_liefertermin || "") + '"></label>'
+    + '</div>'
+    + '<label class="schalter"><input type="checkbox" id="mn-da"' + (j.material_ok ? " checked" : "")
+    + '><span>Material ist da</span></label>'
+    + '<label class="feld"><span>Hinweis zum Material</span><input type="text" id="mn-ort" value="'
+    + esc(notiz.ort || "") + '" placeholder="z. B. liegt im Lager B, Gestell 3"></label>'
+    + '<div class="mat-warnung" id="mn-warnung"></div>'
+    + '<div class="dialog__knoepfe">'
+    + '<button class="knopf knopf--still" id="mn-nein">Passt so</button>'
+    + '<button class="knopf knopf--haupt" id="mn-ja">Speichern</button>'
+    + '</div></div>';
+  document.body.appendChild(huelle);
+
+  const $ = (id) => huelle.querySelector("#" + id);
+  const warnen = () => {
+    const termin = $("mn-termin").value, da = $("mn-da").checked;
+    let t = "";
+    if (!da && termin && termin > start) {
+      t = "⚠ Das Material kommt erst am " + kurzDatum(termin) + " — der Auftrag beginnt schon am "
+        + kurzDatum(start);
+    } else if (!da && !termin && j.material_bez) {
+      t = "Noch kein Liefertermin eingetragen.";
+    } else if (!da && termin && termin === start) {
+      t = "Das Material kommt am selben Tag, an dem der Auftrag beginnt.";
+    }
+    $("mn-warnung").textContent = t;
+    $("mn-warnung").hidden = !t;
+  };
+  ["mn-termin", "mn-da"].forEach((id) => $(id).addEventListener("input", warnen));
+  $("mn-da").addEventListener("change", warnen);
+  warnen();
+
+  const zu = () => huelle.remove();
+  $("mn-nein").onclick = zu;
+  huelle.onclick = (e) => { if (e.target === huelle) zu(); };
+  $("mn-ja").onclick = async () => {
+    const daten = {
+      material_menge: $("mn-menge").value.trim() || null,
+      material_liefertermin: $("mn-termin").value || null,
+      material_ok: $("mn-da").checked,
+      plan_note: notizZusammen(notiz.notiz, $("mn-ort").value.trim()) || null,
+    };
+    const { error } = await db.from("jobs").update(daten).eq("id", j.id);
+    if (error) { meldung(fehlertext(error), "fehler"); return; }
+    Object.assign(j, daten);
+    zu();
+    meldung("Material angepasst.");
+    planAktualisieren(b);
+  };
 }
 
 // ---------- Probleme an Aufträgen ----------
@@ -24937,7 +25055,9 @@ function zeichneSeite() {
 function zeichneGeruest() {
   // Die Einstellungen kommen vom Konto. Erst jetzt, nach dem
   // Anmelden, stehen sie fest — also hier noch einmal anwenden.
+  einstellungenNeuLesen();
   document.body.classList.toggle("dunkel", einstellung("dunkel"));
+  document.body.classList.toggle("nav--schmal", einstellungWert("navschmal", "0") === "1");
   themaAnwenden();
   // Administratoren sehen den Pad-Knopf auf jedem Gerät
   document.body.classList.toggle("ist-admin", istAdmin());
@@ -25121,10 +25241,9 @@ window.addEventListener("hashchange", () => {
 //  Start
 // -----------------------------------------------------------------
 
-// Gespeicherte Darstellung sofort anwenden, noch vor dem Anmelden
-if (einstellung("dunkel")) document.body.classList.add("dunkel");
-themaAnwenden();
-if (einstellungWert("navschmal", "0") === "1") document.body.classList.add("nav--schmal");
+// Die Anmeldeseite bleibt immer blau. Dunkler Modus, Themenfarbe und
+// schmale Leiste kommen erst nach dem Anmelden — und zwar die der
+// Person, die sich anmeldet, nicht die des Vorgängers am Gerät.
 
 try {
   stand("Verbindung wird aufgebaut …");
