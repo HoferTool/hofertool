@@ -4370,6 +4370,8 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 .dokpfad-punkt { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
 .dokpfad-punkt--gut { background: #1f8a4c; }
 .dokpfad-punkt--alt { background: #c2650f; }
+/* Während ältere Aufträge nachkommen: kurz etwas blasser */
+.pw-tafel--laedt .pw-spuren { opacity: .55; transition: opacity .2s; }
 </style>
 </head>
 <body>
@@ -4418,7 +4420,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "111.0.0";
+const APP_VERSION = "111.0.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9630,6 +9632,7 @@ async function ladePlanAuftraege(alle) {
     const vorStart = plan.start ? plusTage(plan.start, -45) : vorVier;
     grenze = vorStart < vorVier ? vorStart : vorVier;
   }
+  if (!alle) plan.geladenAb = grenze;   // ab diesem Tag ist alles da
   const paket = (von, zaehlen) => {
     let a = db.from("planwand").select("*", zaehlen ? { count: "exact" } : undefined);
     if (grenze) a = a.or("ended_at.is.null,planned_from.is.null,planned_from.gte." + grenze);
@@ -11249,6 +11252,26 @@ function neuZeichnen(b) {
 
   const neu = document.querySelector(".pw-rolle");
   if (neu) { neu.scrollLeft = x; neu.scrollTop = y; }
+
+  aeltereNachladen(b);
+}
+
+// Fährt man mit dem Zeitregler oder den Pfeilen vor den geladenen
+// Zeitraum zurück, kommen die älteren Aufträge nach. Kurz gewartet,
+// damit beim Ziehen nicht bei jedem Zwischenschritt geladen wird.
+let nachladeTakt = null;
+function aeltereNachladen(b) {
+  if (!plan.geladenAb || !plan.start) return;
+  if (plan.start >= plusTage(plan.geladenAb, 7)) return;
+  clearTimeout(nachladeTakt);
+  nachladeTakt = setTimeout(async () => {
+    if (!plan.geladenAb || plan.start >= plusTage(plan.geladenAb, 7)) return;
+    const tafel = document.querySelector(".pw-tafel");
+    if (tafel) tafel.classList.add("pw-tafel--laedt");
+    await planAktualisieren(b);
+    const neu = document.querySelector(".pw-tafel");
+    if (neu) neu.classList.remove("pw-tafel--laedt");
+  }, 350);
 }
 
 function zeichnePlanwand(b) {
