@@ -4418,7 +4418,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "110.8.1";
+const APP_VERSION = "110.9.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9412,6 +9412,41 @@ const BESTELLMAIL_VORGABE = "Guten Tag\n\n"
   + "Alte Bernstrasse 24, CH-4573 Lohn-Ammannsegg\n"
   + "Tel. 032 677 55 77";
 let BESTELLMAIL_TEXT = BESTELLMAIL_VORGABE;
+
+// Die zwei Logos unten in jeder Bestellmail, je mit Link. Die Bilder
+// stecken in der Mail selbst — Outlook zeigt sie sofort, ohne
+// "Bilder herunterladen". Doppelt so gross gespeichert wie angezeigt,
+// damit sie auf scharfen Bildschirmen nicht verschwimmen.
+const MAIL_LOGOS = [
+  { id: "hofer-logo@hoferco.ch", datei: "hofer-co.png", alt: "Hofer + Co.",
+    link: "https://www.hoferco.ch/", breite: 102, hoehe: 38,
+    bild: "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" },
+  { id: "salt-pepper-logo@hoferco.ch", datei: "salt-pepper.png", alt: "salt-pepper.ch",
+    link: "https://www.salt-pepper.ch/", breite: 68, hoehe: 52,
+    bild: "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" },
+];
+
+// Der Text als schlichte, saubere HTML-Mail: Absätze, dann eine feine
+// Linie und darunter die Logos nebeneinander, getrennt durch einen
+// senkrechten Strich
+function bestellmailHtml(text) {
+  const absaetze = String(text || "").replace(/\r/g, "").split(/\n{2,}/)
+    .map((a) => '<p style="margin:0 0 12px 0;">' + esc(a).replace(/\n/g, "<br>") + '</p>').join("");
+  const logo = (l) => '<a href="' + l.link + '" style="text-decoration:none;">'
+    + '<img src="cid:' + l.id + '" width="' + l.breite + '" height="' + l.hoehe + '" alt="' + esc(l.alt) + '"'
+    + ' style="display:block;border:0;outline:none;"></a>';
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;">'
+    + '<div style="font-family:Calibri,Arial,Helvetica,sans-serif;font-size:11pt;line-height:1.45;color:#1f2937;">'
+    + absaetze
+    + '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">'
+    + '<tr><td colspan="3" style="border-top:1px solid #d8dde4;font-size:0;line-height:0;height:16px;">&nbsp;</td></tr>'
+    + '<tr>'
+    + '<td style="vertical-align:middle;padding:0 20px 0 0;">' + logo(MAIL_LOGOS[0]) + '</td>'
+    + '<td width="1" style="background:#d8dde4;width:1px;font-size:0;line-height:0;">&nbsp;</td>'
+    + '<td style="vertical-align:middle;padding:0 0 0 20px;">' + logo(MAIL_LOGOS[1]) + '</td>'
+    + '</tr></table>'
+    + '</div></body></html>';
+}
 
 async function bestellmailTextLaden() {
   try {
@@ -20677,7 +20712,10 @@ function bestellungDrucken(lieferant, posten) {
 
   const mailer = [
     "window.MAIL = " + JSON.stringify({ an: mailAn, betreff: mailBetreff,
-                                         text: mailText, datei: dateiname }) + ";",
+      text: mailText + "\n\n" + MAIL_LOGOS.map((l) => l.alt + ": " + l.link).join("\n"),
+      html: bestellmailHtml(mailText),
+      logos: MAIL_LOGOS.map((l) => ({ id: l.id, datei: l.datei, bild: l.bild })),
+      datei: dateiname }) + ";",
     "function laden(src) { return new Promise(function (ok, nein) {",
     "  var s = document.createElement('script'); s.src = src; s.onload = ok;",
     "  s.onerror = function () { nein(new Error('Konnte ' + src.split('/').pop() + ' nicht laden')); };",
@@ -20699,31 +20737,52 @@ function bestellungDrucken(lieferant, posten) {
     "  return pdf.output('blob');",
     "}",
     "function emlBauen(pdfB64) {",
-    "  var g = '----=_Hofer_' + Date.now();",
+    "  var t = Date.now(), gM = '----=_Hofer_M' + t, gR = '----=_Hofer_R' + t, gA = '----=_Hofer_A' + t;",
     "  var name = MAIL.datei + '.pdf';",
-    "  return [",
+    "  var teile = [",
     "    'To: ' + MAIL.an,",
     "    'Subject: =?UTF-8?B?' + b64(MAIL.betreff) + '?=',",
     "    'X-Unsent: 1',",
     "    'MIME-Version: 1.0',",
-    "    'Content-Type: multipart/mixed; boundary=\"' + g + '\"',",
+    "    'Content-Type: multipart/mixed; boundary=\"' + gM + '\"',",
     "    '',",
-    "    '--' + g,",
+    "    '--' + gM,",
+    "    'Content-Type: multipart/related; type=\"multipart/alternative\"; boundary=\"' + gR + '\"',",
+    "    '',",
+    "    '--' + gR,",
+    "    'Content-Type: multipart/alternative; boundary=\"' + gA + '\"',",
+    "    '',",
+    "    '--' + gA,",
     "    'Content-Type: text/plain; charset=\"utf-8\"',",
     "    'Content-Transfer-Encoding: base64',",
     "    '',",
     "    zeilen76(b64(MAIL.text.replace(/\\r?\\n/g, '\\r\\n'))),",
     "    '',",
-    "    '--' + g,",
+    "    '--' + gA,",
+    "    'Content-Type: text/html; charset=\"utf-8\"',",
+    "    'Content-Transfer-Encoding: base64',",
+    "    '',",
+    "    zeilen76(b64(MAIL.html)),",
+    "    '',",
+    "    '--' + gA + '--',",
+    "    ''",
+    "  ];",
+    "  (MAIL.logos || []).forEach(function (l) {",
+    "    teile.push('--' + gR, 'Content-Type: image/png; name=\"' + l.datei + '\"',",
+    "      'Content-Transfer-Encoding: base64', 'Content-ID: <' + l.id + '>',",
+    "      'Content-Disposition: inline; filename=\"' + l.datei + '\"', '', zeilen76(l.bild), '');",
+    "  });",
+    "  teile.push('--' + gR + '--', '',",
+    "    '--' + gM,",
     "    'Content-Type: application/pdf; name=\"' + name + '\"',",
     "    'Content-Disposition: attachment; filename=\"' + name + '\"',",
     "    'Content-Transfer-Encoding: base64',",
     "    '',",
     "    zeilen76(pdfB64),",
     "    '',",
-    "    '--' + g + '--',",
-    "    ''",
-    "  ].join('\\r\\n');",
+    "    '--' + gM + '--',",
+    "    '');",
+    "  return teile.join('\\r\\n');",
     "}",
     "function herunterladen(blob, name) {",
     "  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;",
