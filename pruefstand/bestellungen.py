@@ -38,6 +38,31 @@ with sync_playwright() as p:
     pg.click("[data-best='bestellt']"); pg.wait_for_timeout(500)
     if "MTEC-452410" not in pg.inner_text("#best-inhalt"): fehler.append("Nicht in Bestellt")
 
+    # Suche filtert sofort und behält den Fokus
+    pg.fill("#bo-suche", "gibtsnicht"); pg.wait_for_timeout(200)
+    if "Nichts gefunden" not in pg.inner_text("#best-inhalt"): fehler.append("Suche filtert nicht")
+    if pg.evaluate("document.activeElement.id") != "bo-suche": fehler.append("Suchfeld verliert Fokus")
+    pg.fill("#bo-suche", "mtec"); pg.wait_for_timeout(200)
+    if "MTEC-452410" not in pg.inner_text("#best-inhalt"): fehler.append("Suche findet nichts")
+    pg.fill("#bo-suche", "")
+    if not pg.locator("[data-bestellpdf]").count(): fehler.append("PDF-Knopf fehlt")
+
+    # Status für alle: zurück auf offen
+    pg.click("[data-sammelstatus]"); pg.click(".dialog-huelle [data-w='offen']")
+    pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(800)
+    if "MTEC-452410" in pg.inner_text("#best-inhalt"): fehler.append("Status für alle wirkt nicht")
+    pg.click("[data-best='offen']"); pg.wait_for_timeout(500)
+
+    # Löschen mit doppelter Rückfrage, dann Rückgängig
+    pg.click("[data-bweg='o1']")
+    for _ in range(2):
+        pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.locator(".dialog-huelle [data-ja]").last.click()
+        pg.wait_for_timeout(300)
+    pg.wait_for_timeout(600)
+    if pg.locator("[data-bweg='o1']").count(): fehler.append("Löschen wirkt nicht")
+    pg.click("#rueck-knopf"); pg.wait_for_timeout(800)
+    if not pg.locator("[data-bweg='o1']").count(): fehler.append("Rückgängig nach Löschen wirkt nicht")
+
     # Escape: vom Unterreiter auf Offen
     pg.click("[data-best='lieferanten']"); pg.wait_for_timeout(400)
     pg.locator("h1").click(); pg.keyboard.press("Escape"); pg.wait_for_timeout(600)
