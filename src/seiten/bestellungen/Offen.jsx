@@ -4,8 +4,7 @@
 //  Offenes; was bestellt oder teilweise geliefert ist, steht in
 //  „Bestellt“. Die Suche filtert sofort, ohne neu zu laden.
 // =================================================================
-import { useState } from "react";
-import { alt, useDaten } from "../../bruecke.jsx";
+import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 
 const BLOECKE = {
   bestellt: [{ status: "bestellt", titel: "Bestellt" },
@@ -22,7 +21,7 @@ const mehrzahl = (n) => n + (n === 1 ? " Position" : " Positionen");
 
 export default function Offen({ bereich, auffrischen, behaelter }) {
   const best = alt.best;
-  const [suche, setSuche] = useState(best.offenSuche || "");
+  const [suche, setSuche] = useSpeicherWert(best, "offenSuche", auffrischen);
   const { daten: liste, fehler, neu } = useDaten(() => {
     // Nach jeder Änderung frisch holen, nicht aus dem Gedächtnis
     alt.stammVergessen();
@@ -48,7 +47,7 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
       <div className="suchleiste">
         <input type="search" id="bo-suche" placeholder="Suchen" value={suche}
           autoComplete="off" autoFocus={!!suche}
-          onChange={(e) => { setSuche(e.target.value); best.offenSuche = e.target.value; }} />
+          onChange={(e) => { setSuche(e.target.value); }} />
       </div>
       {/* Neue Positionen entstehen im Reiter Offen. In Bestellt und
           Teilweise geliefert wäre der Knopf nur verwirrend. */}

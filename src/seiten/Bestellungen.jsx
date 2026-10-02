@@ -1,17 +1,21 @@
 // =================================================================
 //  BESTELLUNGEN
-//  Hülle (Titel, Reiter, Hinweis) und die Reiter Offen und Bestellt
-//  sind in React. Die übrigen Reiter laufen noch im alten Programm
-//  und werden nach und nach umgebaut.
+//  Ganz in React. Die Reiter liegen in src/seiten/bestellungen/.
+//  Einige Fenster (Status, neue Position, Artikel und Lieferant
+//  bearbeiten) und die Bestellmail sind noch im alten Programm.
 //
 //  Das alte Programm ruft nach jeder Änderung seiteBestellungen(b)
-//  auf. Das kommt hier als „auffrischen“ an und zeichnet den Reiter
-//  neu, ohne die Hülle neu aufzubauen.
+//  auf. Das kommt hier als „auffrischen“ an und lädt den Reiter
+//  still neu, ohne die Seite neu aufzubauen.
 // =================================================================
 import { useReducer } from "react";
-import { alt, AltTeil } from "../bruecke.jsx";
+import { alt } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Offen from "./bestellungen/Offen.jsx";
+import Historie from "./bestellungen/Historie.jsx";
+import Artikel from "./bestellungen/Artikel.jsx";
+import Bezeichnungen from "./bestellungen/Bezeichnungen.jsx";
+import Lieferanten from "./bestellungen/Lieferanten.jsx";
 
 const REITER = [
   ["offen", "Offen"], ["bestellt", "Bestellt"], ["historie", "Historie"],
@@ -32,16 +36,18 @@ export default function Bestellungen({ auffrischen, behaelter }) {
       {!alt.darfSchreiben() &&
         <div className="nurlesen">Du kannst hier alles ansehen, aber nichts ändern.</div>}
       <Uebergang key={best.ansicht}>
-        {best.ansicht === "offen" || best.ansicht === "bestellt"
-          ? <div id="best-inhalt">
-              <Offen bereich={best.ansicht} auffrischen={auffrischen} behaelter={behaelter} />
-            </div>
-          : <AltTeil key={auffrischen} id="best-inhalt"
-              zeichne={(el) => {
-                el.innerHTML = '<div class="laedt">Wird geladen …</div>';
-                alt.bestReiterZeichnen(el, behaelter);
-              }} />}
+        <div id="best-inhalt">
+          <Inhalt ansicht={best.ansicht} auffrischen={auffrischen} behaelter={behaelter} />
+        </div>
       </Uebergang>
     </>
   );
+}
+
+function Inhalt({ ansicht, ...weiter }) {
+  if (ansicht === "historie") return <Historie {...weiter} />;
+  if (ansicht === "artikel") return <Artikel {...weiter} />;
+  if (ansicht === "bezeichnungen") return <Bezeichnungen {...weiter} />;
+  if (ansicht === "lieferanten") return <Lieferanten {...weiter} />;
+  return <Offen bereich={ansicht === "bestellt" ? "bestellt" : "offen"} {...weiter} />;
 }

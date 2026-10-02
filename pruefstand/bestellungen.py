@@ -63,6 +63,34 @@ with sync_playwright() as p:
     pg.click("#rueck-knopf"); pg.wait_for_timeout(800)
     if not pg.locator("[data-bweg='o1']").count(): fehler.append("Rückgängig nach Löschen wirkt nicht")
 
+    # Geliefert setzen: steht dann in der Historie
+    pg.click("[data-bstatus='o1']"); pg.click(".dialog-huelle [data-neu='geliefert']")
+    pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(800)
+    pg.click("[data-best='historie']"); pg.wait_for_timeout(600)
+    if not pg.locator("[data-hstatus='o1']").count(): fehler.append("Nicht in der Historie")
+    pg.fill("#bh-suche", "zzz"); pg.wait_for_timeout(200)
+    if "Nichts gefunden" not in pg.inner_text("#best-inhalt"): fehler.append("Historie-Suche")
+    pg.fill("#bh-suche", "")
+
+    # Artikel: Suche mit Verzögerung, Filter nach Bezeichnung
+    pg.click("[data-best='artikel']"); pg.wait_for_timeout(600)
+    if not pg.locator("[data-arbearb='a1']").count(): fehler.append("Artikel fehlt")
+    pg.fill("#ar-suche", "MTEC"); pg.wait_for_timeout(700)
+    if not pg.locator("[data-arbearb='a1']").count(): fehler.append("Artikelsuche findet nichts")
+
+    # Lieferanten filtern
+    pg.click("[data-best='lieferanten']"); pg.wait_for_timeout(500)
+    if pg.locator("[data-lf]").count() != 2: fehler.append("Lieferanten: %d" % pg.locator("[data-lf]").count())
+    pg.fill("#lf-suche", "brütsch"); pg.wait_for_timeout(200)
+    if pg.locator("[data-lf]").count() != 1: fehler.append("Lieferantensuche")
+    pg.fill("#lf-suche", "")
+
+    # Bezeichnung anlegen
+    pg.click("[data-best='bezeichnungen']"); pg.wait_for_timeout(500)
+    pg.click("#bz-neu"); pg.wait_for_selector(".dialog-huelle input")
+    pg.fill(".dialog-huelle input", "Bohrer"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(600)
+    if "Bohrer" not in pg.inner_text("#bz-liste"): fehler.append("Bezeichnung nicht angelegt")
+
     # Escape: vom Unterreiter auf Offen
     pg.click("[data-best='lieferanten']"); pg.wait_for_timeout(400)
     pg.locator("h1").click(); pg.keyboard.press("Escape"); pg.wait_for_timeout(600)

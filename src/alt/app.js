@@ -15026,19 +15026,9 @@ async function ladeBestellungenFrisch(offen) {
   return data || [];
 }
 
-// Die Hülle der Seite ist in src/seiten/Bestellungen.jsx. Wer hier
+// Die Seite ist in src/seiten/Bestellungen.jsx. Wer hier
 // seiteBestellungen(b) aufruft, frischt sie auf.
 const seiteBestellungen = reactSeite(Bestellungen);
-
-// Zeichnet den gewählten Reiter. Wird von der React-Hülle aufgerufen.
-async function bestReiterZeichnen(ziel, b) {
-  // Die Seite wird nach jeder Aktion neu aufgebaut — dann frisch holen
-  stammVergessen();
-  if (best.ansicht === "artikel") await bestArtikel(ziel, b);
-  else if (best.ansicht === "bezeichnungen") await bestBezeichnungen(ziel, b);
-  else if (best.ansicht === "lieferanten") await bestLieferanten(ziel, b);
-  else if (best.ansicht === "historie") await bestHistorie(ziel, b);
-}
 
 // Reiter Offen und Bestellt: src/seiten/bestellungen/Offen.jsx
 
@@ -15430,210 +15420,11 @@ async function positionDialog(b) {
 
 // ---------- Historie ----------
 
-async function bestHistorie(ziel, b) {
-  let liste;
-  try { liste = await ladeBestellungen(false); }
-  catch (f) {
-    ziel.innerHTML = '<div class="karte karte--fehler"><p>' + esc(fehlertext(f)) + '</p></div>';
-    return;
-  }
-
-  // Nur abgeschlossene Positionen, offene stehen im Reiter Offen —
-  // die zuletzt gelieferte zuoberst
-  const lieferzeit = (z) => String(z.delivered_at || z.completed_at || z.created_at || "");
-  let fertige = (liste || []).filter((z) => z.status === "geliefert")
-    .sort((a, c) => lieferzeit(c).localeCompare(lieferzeit(a)));
-
-  const suchtHist = (best.historieSuche || "").trim().toLowerCase();
-  if (suchtHist) {
-    fertige = fertige.filter((z) => {
-      const a = z.articles || {};
-      const text = [a.article_number, a.name, (z.suppliers && z.suppliers.name),
-        personName(z.profiles, ""), z.ziel_text]
-        .map((x) => String(x || "").toLowerCase()).join(" ");
-      return text.includes(suchtHist);
-    });
-  }
-
-  ladeFertig(ziel);
-  ziel.innerHTML = '<div class="suchleiste">'
-    + '<input type="search" id="bh-suche" placeholder="Suchen"'
-    + ' value="' + esc(best.historieSuche) + '" autocomplete="off"></div>'
-    + '<section class="karte">'
-    + '<h2>Abgeschlossene Bestellungen'
-    + (fertige.length ? ' <span class="marke">' + fertige.length + '</span>' : "") + '</h2>'
-    + (fertige.length
-      ? '<table class="tabelle"><thead><tr><th>Geliefert</th><th>Artikel</th>'
-        + '<th class="mitte">Menge</th><th>Wer</th>' + (darfSchreiben() ? '<th></th>' : "")
-        + '</tr></thead><tbody>'
-        + fertige.map((z) => {
-            const a = z.articles || {};
-            const wann = statusZeit(z);
-            return '<tr><td class="klein nowrap">' + (wann ? esc(langDatum(wann.slice(0, 10)))
-                + '<div class="gedaempft">' + esc(datumZeitKurz(wann).split(" ")[1] || "") + ' Uhr</div>' : "–") + '</td>'
-              + '<td><strong>' + esc(a.article_number || "?") + '</strong> ' + esc(a.name || "")
-              + '<div class="klein">' + esc((z.suppliers && z.suppliers.name) || "") + '</div></td>'
-              + '<td class="mitte stark">' + zahlText(z.quantity) + '</td>'
-              + '<td class="klein">'
-              + esc(personName(z.profiles, "–"))
-              + (z.ziel_text
-                  ? '<div>' + zielZeichen(z.ziel_art) + ' ' + esc(z.ziel_text) + '</div>'
-                  : "")
-              + '</td>'
-              // Aus Versehen auf geliefert gesetzt? Hier zurück.
-              + (darfSchreiben() ? '<td class="bz-aktionen"><button class="linkknopf" data-hstatus="'
-                  + esc(z.id) + '">Status</button></td>' : "")
-              + '</tr>';
-          }).join("")
-        + '</tbody></table>'
-      : '<p class="hinweis">'
-        + (suchtHist ? 'Nichts gefunden zu "' + esc(best.historieSuche) + '".'
-                    : "Noch nichts abgeschlossen.")
-        + '</p>')
-    + '</section>';
-
-  ziel.querySelectorAll("[data-hstatus]").forEach((el) => {
-    el.onclick = () => {
-      const z = fertige.find((x) => x.id === el.dataset.hstatus);
-      if (z) bestStatusDialog(z, b);
-    };
-  });
-
-  const suchfeldHist = document.getElementById("bh-suche");
-  if (suchfeldHist) {
-    let taste = null;
-    suchfeldHist.oninput = () => {
-      clearTimeout(taste);
-      taste = setTimeout(() => {
-        best.historieSuche = suchfeldHist.value; bestHistorie(ziel, b);
-      }, 300);
-    };
-    if (best.historieSuche) {
-      suchfeldHist.focus();
-      suchfeldHist.setSelectionRange(suchfeldHist.value.length, suchfeldHist.value.length);
-    }
-  }
-}
+// Reiter Historie: src/seiten/bestellungen/Historie.jsx
 
 // ---------- Artikel ----------
 
-async function bestArtikel(ziel, b) {
-  ladeFertig(ziel);
-  ziel.innerHTML = '<div class="suchleiste">'
-    + '<input type="search" id="ar-suche" placeholder="Suchen"'
-    + ' value="' + esc(best.artikelSuche || "") + '" autocomplete="off">'
-    + '<select id="ar-bez" class="auswahl"><option value="">Alle Bezeichnungen</option>'
-    + '</select></div>'
-    + (darfSchreiben()
-        ? '<button class="knopf knopf--haupt knopf--breit" id="ar-neu">+ Neuer Artikel</button>'
-        : "")
-    + '<div id="ar-liste"><div class="laedt">Wird geladen …</div></div>';
-
-  const feld = document.getElementById("ar-suche");
-  let taste = null;
-  feld.oninput = () => {
-    best.artikelSuche = feld.value;
-    clearTimeout(taste);
-    taste = setTimeout(() => artikelListe(b), 300);
-  };
-
-  // Bezeichnungen für den Filter nachladen
-  (async () => {
-    try {
-      const liste = await ladeBezeichnungen();
-      const feldB = document.getElementById("ar-bez");
-      if (!feldB) return;
-      feldB.innerHTML = '<option value="">Alle Bezeichnungen</option>'
-        + liste.map((z) => '<option value="' + esc(z.name) + '"'
-            + (best.artikelBez === z.name ? " selected" : "") + '>'
-            + esc(z.name) + '</option>').join("");
-      feldB.onchange = () => { best.artikelBez = feldB.value; artikelListe(b); };
-    } catch (f) { /* Filter ist Beiwerk */ }
-  })();
-
-  const neu = document.getElementById("ar-neu");
-  if (neu) neu.onclick = async () => {
-    const a = await artikelSchnellAnlegen("");
-    if (a) seiteBestellungen(b);
-  };
-
-  artikelListe(b);
-}
-
-async function artikelListe(b) {
-  const kasten = document.getElementById("ar-liste");
-  if (!kasten) return;
-
-  let liste;
-  try {
-    liste = await sucheArtikel(best.artikelSuche || "");
-    if (best.artikelBez) liste = liste.filter((a) => a.name === best.artikelBez);
-  }
-  catch (f) {
-    kasten.innerHTML = '<div class="karte karte--fehler"><p>' + esc(fehlertext(f)) + '</p></div>';
-    return;
-  }
-
-  kasten.innerHTML = '<section class="karte">'
-    + '<h2>Artikel <span class="marke">' + liste.length + '</span></h2>'
-    + (liste.length
-      ? '<table class="tabelle"><thead><tr><th>Nummer</th><th>Bezeichnung</th>'
-        + '<th>Lieferant</th>' + (darfSchreiben() ? '<th></th>' : "")
-        + '</tr></thead><tbody>'
-        + liste.map((a) => '<tr' + (a.is_active === false ? ' class="zeile--inaktiv"' : "") + '>'
-            + '<td class="stark">' + esc(a.article_number)
-            + (a.is_active === false ? ' <span class="klein">ausgeblendet</span>' : "")
-            + (a.description ? '<div class="klein artikel__beschreibung">'
-                + esc(a.description) + '</div>' : "")
-            + '</td>'
-            + '<td>' + esc(a.name)
-            + (a.unit && a.unit !== "Stück" ? '<div class="klein">' + esc(a.unit) + '</div>' : "")
-            + '</td>'
-            + '<td class="klein">' + (a.supplier_name
-                ? (a.supplier_website
-                    ? '<a class="lieferantlink" href="' + esc(a.supplier_website)
-                      + '" target="_blank" rel="noopener">' + esc(a.supplier_name) + ' ↗</a>'
-                    : esc(a.supplier_name))
-                : "–") + '</td>'
-            + (darfSchreiben()
-                ? '<td class="rechts nowrap">'
-                  + '<button class="linkknopf" data-arbearb="' + esc(a.id) + '">Bearbeiten</button>'
-                  + '<button class="linkknopf linkknopf--gefahr" data-arweg="' + esc(a.id)
-                  + '" data-nr="' + esc(a.article_number) + '">Löschen</button></td>'
-                : "")
-            + '</tr>').join("")
-        + '</tbody></table>'
-      : '<p class="hinweis">'
-        + (best.artikelSuche ? "Kein Artikel gefunden." : "Noch keine Artikel angelegt.")
-        + '</p>')
-    + '</section>';
-
-  kasten.querySelectorAll("[data-arbearb]").forEach((el) => {
-    el.onclick = () => artikelBearbeiten(liste.find((x) => x.id === el.dataset.arbearb), b);
-  });
-
-  kasten.querySelectorAll("[data-arweg]").forEach((el) => {
-    el.onclick = async () => {
-      const ok = await nachfragen({
-        titel: "Artikel löschen",
-        text: '"' + el.dataset.nr + '" wird gelöscht. Bestellpositionen, die '
-            + "daran hängen, verschwinden mit.",
-        bestaetigen: "Löschen", gefahr: true });
-      if (!ok) return;
-
-      // Erst die Abhängigkeiten, dann den Artikel. So klappt es immer.
-      await db.from("order_items").delete().eq("article_id", el.dataset.arweg);
-      const r = await db.from("articles").delete().eq("id", el.dataset.arweg).select();
-
-      if (r.error) meldung(fehlertext(r.error), "fehler");
-      else if ((r.data || []).length === 0)
-        meldung("Nichts gelöscht. Vermutlich fehlen die Rechte in der Datenbank.", "fehler");
-      else meldung("Artikel gelöscht.");
-
-      seiteBestellungen(b);
-    };
-  });
-}
+// Reiter Artikel: src/seiten/bestellungen/Artikel.jsx
 
 async function artikelBearbeiten(artikel, b) {
   if (!artikel) return;
@@ -15805,188 +15596,12 @@ async function artikelBearbeiten(artikel, b) {
 
 // ---------- Bezeichnungen ----------
 
-async function bestBezeichnungen(ziel, b) {
-  ladeFertig(ziel);
-  ziel.innerHTML = '<div class="suchleiste">'
-    + '<input type="search" id="bz-suche" placeholder="Suchen"'
-    + ' value="' + esc(best.bezSuche) + '" autocomplete="off"></div>'
-    + (darfSchreiben()
-      ? '<button class="knopf knopf--haupt knopf--breit" id="bz-neu">'
-        + '+ Neue Bezeichnung</button>' : "")
-    + '<div id="bz-liste"><div class="laedt">Wird geladen …</div></div>';
-
-  const neu = document.getElementById("bz-neu");
-  if (neu) neu.onclick = () => bezeichnungDialog(null, b);
-
-  const suchfeldBz = document.getElementById("bz-suche");
-  let tasteBz = null;
-  suchfeldBz.oninput = () => {
-    clearTimeout(tasteBz);
-    tasteBz = setTimeout(() => { best.bezSuche = suchfeldBz.value; bezeichnungsListe(b); }, 300);
-  };
-  if (best.bezSuche) {
-    suchfeldBz.focus();
-    suchfeldBz.setSelectionRange(suchfeldBz.value.length, suchfeldBz.value.length);
-  }
-
-  bezeichnungsListe(b);
-}
-
-async function bezeichnungsListe(b) {
-  const kasten = document.getElementById("bz-liste");
-  if (!kasten) return;
-
-  let liste;
-  try { liste = await ladeBezeichnungen(); }
-  catch (f) {
-    kasten.innerHTML = '<div class="karte karte--fehler"><p>'
-      + esc(fehlertext(f)) + '</p></div>';
-    return;
-  }
-
-  const suchtBz = (best.bezSuche || "").trim().toLowerCase();
-  if (suchtBz) liste = liste.filter((z) => z.name.toLowerCase().includes(suchtBz));
-
-  kasten.innerHTML = '<section class="karte">'
-    + '<h2>Bezeichnungen <span class="marke">' + liste.length + '</span></h2>'
-    + '<p class="hinweis">Diese Liste erscheint beim Anlegen und Bearbeiten '
-    + 'von Artikeln. So heisst dasselbe Werkzeug überall gleich.</p>'
-    + (liste.length
-      ? '<table class="tabelle"><tbody>' + liste.map((z) =>
-          '<tr><td class="stark">' + esc(z.name) + '</td>'
-          + (darfSchreiben()
-            ? '<td class="rechts nowrap">'
-              + '<button class="linkknopf" data-bzb="' + esc(z.id) + '">Bearbeiten</button>'
-              + '<button class="linkknopf linkknopf--gefahr" data-bzw="' + esc(z.id)
-              + '" data-name="' + esc(z.name) + '">Löschen</button></td>'
-            : "")
-          + '</tr>').join("") + '</tbody></table>'
-      : '<p class="hinweis">'
-        + (suchtBz ? 'Nichts gefunden zu "' + esc(best.bezSuche) + '".'
-                  : "Noch keine Bezeichnung angelegt.")
-        + '</p>')
-    + '</section>';
-
-  kasten.querySelectorAll("[data-bzb]").forEach((el) => {
-    el.onclick = () => bezeichnungDialog(liste.find((x) => x.id === el.dataset.bzb), b);
-  });
-
-  kasten.querySelectorAll("[data-bzw]").forEach((el) => {
-    el.onclick = async () => {
-      const ok = await nachfragen({ titel: "Bezeichnung löschen",
-        text: '"' + el.dataset.name + '" wird aus der Liste entfernt. '
-            + "Artikel, die sie tragen, behalten ihren Namen.",
-        bestaetigen: "Löschen", gefahr: true });
-      if (!ok) return;
-      const { error } = await db.from("designations").delete().eq("id", el.dataset.bzw);
-      if (error) meldung(fehlertext(error), "fehler");
-      else { meldung("Gelöscht."); bezeichnungsListe(b); }
-    };
-  });
-}
-
-async function bezeichnungDialog(eintrag, b) {
-  const w = await dialogFelder({
-    titel: eintrag ? "Bezeichnung ändern" : "Neue Bezeichnung",
-    felder: [{ name: "name", label: "Bezeichnung", pflicht: true,
-               wert: eintrag ? eintrag.name : "" }],
-    bestaetigen: "Speichern",
-  });
-  if (!w) return;
-
-  const { error } = eintrag
-    ? await db.from("designations").update({ name: w.name }).eq("id", eintrag.id)
-    : await db.from("designations").insert({ name: w.name });
-
-  if (error) meldung(fehlertext(error), "fehler");
-  else { meldung("Gespeichert."); bezeichnungsListe(b); }
-}
+// Reiter Bezeichnungen: src/seiten/bestellungen/Bezeichnungen.jsx
 
 // ---------- Lieferanten ----------
 
 
-async function bestLieferanten(ziel, b) {
-  let liste;
-  try { liste = await ladeLieferanten(); }
-  catch (f) {
-    ziel.innerHTML = '<div class="karte karte--fehler"><p>' + esc(fehlertext(f)) + '</p></div>';
-    return;
-  }
-
-  const suchtLf = (best.liefSuche || "").trim().toLowerCase();
-  const gefiltertLf = !suchtLf ? liste
-    : liste.filter((l) => l.name.toLowerCase().includes(suchtLf));
-
-  ladeFertig(ziel);
-  ziel.innerHTML = '<div class="suchleiste">'
-    + '<input type="search" id="lf-suche" placeholder="Suchen"'
-    + ' value="' + esc(best.liefSuche) + '" autocomplete="off"></div>'
-    + (darfSchreiben()
-      ? '<button class="knopf knopf--haupt knopf--breit" id="lf-neu">+ Neuer Lieferant</button>' : "")
-    + '<section class="karte"><h2>Lieferanten <span class="marke">' + gefiltertLf.length + '</span></h2>'
-    + (gefiltertLf.length
-      ? '<table class="tabelle"><tbody>' + gefiltertLf.map((l) =>
-          '<tr><td class="stark">'
-          + (l.website
-              ? '<a class="lieferantlink" href="' + esc(l.website) + '"'
-                + ' target="_blank" rel="noopener">' + esc(l.name) + ' ↗</a>'
-              : esc(l.name)) + '</td>'
-          + (darfSchreiben() ? '<td class="rechts nowrap">'
-              + '<button class="linkknopf" data-lf="' + esc(l.id) + '">Anpassen</button> '
-              + '<button class="linkknopf linkknopf--gefahr" data-lfweg="' + esc(l.id)
-              + '" data-name="' + esc(l.name) + '">Löschen</button></td>' : "")
-          + '</tr>').join("") + '</tbody></table>'
-      : '<p class="hinweis">'
-        + (suchtLf ? 'Nichts gefunden zu "' + esc(best.liefSuche) + '".'
-                  : "Noch keine Lieferanten angelegt.")
-        + '</p>')
-    + '</section>';
-
-  const suchfeldLf = document.getElementById("lf-suche");
-  if (suchfeldLf) {
-    let tasteLf = null;
-    suchfeldLf.oninput = () => {
-      clearTimeout(tasteLf);
-      tasteLf = setTimeout(() => { best.liefSuche = suchfeldLf.value; bestLieferanten(ziel, b); }, 300);
-    };
-    if (best.liefSuche) {
-      suchfeldLf.focus();
-      suchfeldLf.setSelectionRange(suchfeldLf.value.length, suchfeldLf.value.length);
-    }
-  }
-
-  const neu = document.getElementById("lf-neu");
-  if (neu) neu.onclick = () => lieferantDialog(null, b);
-
-  ziel.querySelectorAll("[data-lf]").forEach((el) => {
-    el.onclick = () => lieferantDialog(gefiltertLf.find((x) => x.id === el.dataset.lf), b);
-  });
-
-  ziel.querySelectorAll("[data-lfweg]").forEach((el) => {
-    el.onclick = async () => {
-      const ok = await nachfragen({
-        titel: "Lieferant löschen",
-        text: '"' + el.dataset.name + '" wird gelöscht. Artikel und Bestellungen '
-            + "bleiben, sie haben danach keinen Lieferanten mehr.",
-        bestaetigen: "Löschen", gefahr: true });
-      if (!ok) return;
-
-      // Verweise lösen, damit das Löschen nicht scheitert
-      await db.from("articles").update({ supplier_id: null })
-        .eq("supplier_id", el.dataset.lfweg);
-      await db.from("order_items").update({ supplier_id: null })
-        .eq("supplier_id", el.dataset.lfweg);
-
-      const r = await db.from("suppliers").delete().eq("id", el.dataset.lfweg).select();
-      if (r.error) meldung(fehlertext(r.error), "fehler");
-      else if ((r.data || []).length === 0)
-        meldung("Nichts gelöscht. Vermutlich fehlen die Rechte in der Datenbank.", "fehler");
-      else meldung("Lieferant gelöscht.");
-
-      seiteBestellungen(b);
-    };
-  });
-}
+// Reiter Lieferanten: src/seiten/bestellungen/Lieferanten.jsx
 
 // Das Firmenlogo für den Briefkopf: eng beschnitten und weiss,
 // mit durchsichtigem Hintergrund. Es steckt fest in dieser Datei,
@@ -19058,7 +18673,8 @@ Object.assign(alt, {
   zeitlimit, meldung, nachfragen, fehlertext, dialogFelder, auswahlDialog,
   merkeSchritt, personName, darfSchreiben,
   reiterUebergang,
-  best, bestReiterZeichnen, seiteBestellungen, BESTELLSTATUS,
+  best, seiteBestellungen, sucheArtikel, ladeBezeichnungen, ladeLieferanten,
+  artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz, BESTELLSTATUS,
   ladeBestellungen, stammVergessen, statusDaten, statusZeit, statusZeitText,
   bestStatusDialog, bestellungDrucken, positionDialog, artikelBearbeiten,
   ladeAlleMaschinen, maschineZielText, doppeltNachfragen, parallelSenden,

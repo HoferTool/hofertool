@@ -101,3 +101,26 @@ export function useDaten(laden, abhaengig) {
   const neu = useCallback(() => setZaehler((z) => z + 1), []);
   return { ...stand, neu };
 }
+
+// Gibt den Wert erst weiter, wenn er sich eine Weile nicht mehr
+// geändert hat. Für Suchfelder, die bei der Datenbank nachfragen:
+// nicht bei jedem Buchstaben eine Anfrage.
+export function useVerzoegert(wert, ms) {
+  const [ruhig, setRuhig] = useState(wert);
+  useEffect(() => {
+    const t = setTimeout(() => setRuhig(wert), ms);
+    return () => clearTimeout(t);
+  }, [wert, ms]);
+  return ruhig;
+}
+
+// Ein Wert, der im Speicher des alten Programms liegt (etwa
+// best.artikelSuche), weil auch andere Stellen ihn setzen: die Suche
+// über alles springt etwa mit einem Suchbegriff in die Artikel. Beim
+// Auffrischen wird er von dort neu gelesen.
+export function useSpeicherWert(speicher, feld, auffrischen) {
+  const [wert, setWert] = useState(speicher[feld] || "");
+  useEffect(() => { setWert(speicher[feld] || ""); }, [speicher, feld, auffrischen]);
+  const setzen = useCallback((neu) => { speicher[feld] = neu; setWert(neu); }, [speicher, feld]);
+  return [wert, setzen];
+}
