@@ -6,7 +6,7 @@ CH = os.environ.get("CHROME_PFAD") or None
 # Geprüft wird die gebaute Fassung in dist/, genau das, was auch auf
 # GitHub Pages liegt. Vorher also „npm run build" laufen lassen.
 HIER = os.path.dirname(os.path.abspath(__file__))
-WURZEL = os.path.join(os.path.dirname(HIER), "dist")
+WURZEL = os.environ.get("PRUEFSTAND_WURZEL") or os.path.join(os.path.dirname(HIER), "dist")
 PORT = int(os.environ.get("PRUEFSTAND_PORT", "8899"))
 
 def server_starten():

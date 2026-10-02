@@ -10,6 +10,8 @@
 import { alt, reactSeite, reactAufraeumen } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import Rechner from "../seiten/Rechner.jsx";
+import Einkauf from "../seiten/Einkauf.jsx";
+import { PRIO } from "../daten/einkauf.js";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -12777,149 +12779,8 @@ async function sucheArtikel(text) {
 //  Für alles, was man beim nächsten Ladenbesuch mitnehmen soll.
 // =================================================================
 
-const PRIO = {
-  1: { text: "Sofort", kurz: "!", farbe: "prio1", hilfe: "Brauche ich jetzt gerade" },
-  2: { text: "Heute", kurz: "H", farbe: "prio2", hilfe: "Sollte heute noch kommen" },
-  3: { text: "Diese Woche", kurz: "W", farbe: "prio3", hilfe: "Hat ein paar Tage Zeit" },
-  4: { text: "Irgendwann", kurz: "~", farbe: "prio4", hilfe: "Wäre schön, eilt aber nicht" },
-};
-
-const einkauf = { zeigeErledigte: false };
-
-async function seiteEinkauf(b) {
-  b.innerHTML = '<h1 class="seitentitel">Einkaufsliste</h1>'
-    + '<button class="knopf knopf--haupt knopf--breit" id="ek-neu">+ Auf die Liste setzen</button>'
-    + '<div id="ek-inhalt"><div class="laedt">Wird geladen …</div></div>';
-
-  document.getElementById("ek-neu").onclick = () => einkaufDialog(null, b);
-
-  const ziel = document.getElementById("ek-inhalt");
-  let liste = [];
-  try {
-    const { data, error } = await zeitlimit(
-      db.from("shopping_items").select("*, profiles!shopping_items_created_by_fkey(full_name, email)")
-        .eq("is_done", einkauf.zeigeErledigte)
-        .order("prio").order("created_at"), 10000, "Einkaufsliste");
-    if (error) throw error;
-    liste = data || [];
-  } catch (f) {
-    ziel.innerHTML = '<div class="karte karte--fehler"><p>' + esc(fehlertext(f)) + '</p></div>';
-    return;
-  }
-
-  // Nach Dringlichkeit gruppieren
-  const gruppen = {};
-  liste.forEach((z) => { (gruppen[z.prio] = gruppen[z.prio] || []).push(z); });
-
-  ladeFertig(ziel);
-  ziel.innerHTML = (liste.length
-      ? Object.keys(gruppen).sort().map((prio) => {
-          const p = PRIO[prio] || PRIO[3];
-          return '<section class="karte"><div class="karte__kopf">'
-            + '<h2><span class="priopunkt ' + p.farbe + '"></span>' + esc(p.text) + '</h2>'
-            + '<span class="klein">' + gruppen[prio].length + '</span></div>'
-            + '<div class="notizen">'
-            + gruppen[prio].map((z) => '<label class="notiz">'
-                + (einkauf.zeigeErledigte
-                    ? '<span class="hakenfertig">✓</span>'
-                    : '<input type="checkbox" data-ekfertig="' + esc(z.id) + '">')
-                + '<span class="notiz__text">' + esc(z.text)
-                + (z.menge ? ' <span class="klein">' + esc(z.menge) + '</span>' : "")
-                + '<div class="klein">'
-                + (z.laden ? "bei " + esc(z.laden) + " · " : "")
-                + "von " + esc(personName(z.profiles)) + '</div>' 
-                + '</span>'
-                + '<button class="chipweg chipweg--bearb" data-ekbearb="' + esc(z.id)
-                + '" title="bearbeiten">✎</button>'
-                + '<button class="chipweg" data-ekweg="' + esc(z.id) + '" title="löschen">×</button>'
-                + '</label>').join("")
-            + '</div></section>';
-        }).join("")
-      : '<div class="karte karte--hinweis"><p>'
-        + (einkauf.zeigeErledigte ? "Noch nichts abgehakt." : "Die Liste ist leer. Sehr gut.")
-        + '</p></div>')
-
-    + '<button class="linkknopf" id="ek-wechsel">'
-    + (einkauf.zeigeErledigte ? "Offene Punkte anzeigen" : "Bereits Erledigtes anzeigen")
-    + '</button>';
-
-  document.getElementById("ek-wechsel").onclick = () => {
-    einkauf.zeigeErledigte = !einkauf.zeigeErledigte;
-    seiteEinkauf(b);
-  };
-
-  ziel.querySelectorAll("[data-ekfertig]").forEach((el) => {
-    el.onchange = async () => {
-      el.checked = false;
-      const ok = await nachfragen({ titel: "Eingekauft?",
-        text: "Hast du das wirklich schon geholt?", bestaetigen: "Ja, habe ich" });
-      if (!ok) return;
-      const id = el.dataset.ekfertig;
-      const { error } = await db.from("shopping_items").update({
-        is_done: true, done_at: new Date().toISOString(), done_by: profil.id
-      }).eq("id", id);
-      if (error) meldung(fehlertext(error), "fehler");
-      else {
-        merkeSchritt("Einkauf abhaken", async () => {
-          await db.from("shopping_items")
-            .update({ is_done: false, done_at: null, done_by: null }).eq("id", id);
-          seiteEinkauf(b);
-        });
-        meldung("Abgehakt."); seiteEinkauf(b);
-      }
-    };
-  });
-
-  ziel.querySelectorAll("[data-ekbearb]").forEach((el) => {
-    el.onclick = (e) => {
-      e.preventDefault();
-      einkaufDialog(liste.find((x) => x.id === el.dataset.ekbearb), b);
-    };
-  });
-
-  ziel.querySelectorAll("[data-ekweg]").forEach((el) => {
-    el.onclick = async (e) => {
-      e.preventDefault();
-      const ok = await nachfragen({ titel: "Von der Liste nehmen",
-        text: "Soll dieser Punkt gelöscht werden?",
-        bestaetigen: "Löschen", gefahr: true });
-      if (!ok) return;
-      const { error } = await db.from("shopping_items").delete().eq("id", el.dataset.ekweg);
-      if (error) meldung(fehlertext(error), "fehler");
-      else { meldung("Gelöscht."); seiteEinkauf(b); }
-    };
-  });
-}
-
-async function einkaufDialog(eintrag, b) {
-  const w = await dialogFelder({
-    titel: eintrag ? "Eintrag bearbeiten" : "Was brauchst du?",
-    felder: [
-      { name: "text", label: "Was", pflicht: true, wert: eintrag ? eintrag.text : "",
-        platzhalter: "Kaffee, Handschuhe, Putzlappen, Klebeband …" },
-      { name: "menge", label: "Wie viel", wert: eintrag ? (eintrag.menge || "") : "",
-        platzhalter: "2 Packungen, 1 Kiste …" },
-      { name: "laden", label: "Wo", wert: eintrag ? (eintrag.laden || "") : "",
-        platzhalter: "Migros, Bauhaus … kann leer bleiben" },
-    ],
-    bestaetigen: "Weiter",
-  });
-  if (!w) return;
-
-  const prio = await auswahlDialog("Wie dringend?",
-    Object.keys(PRIO).map((k) => ({ wert: k, text: PRIO[k].text + " – " + PRIO[k].hilfe })));
-  if (prio === null) return;
-
-  const daten = { text: w.text, menge: w.menge || null, laden: w.laden || null,
-                  prio: Number(prio) };
-
-  const { error } = eintrag
-    ? await db.from("shopping_items").update(daten).eq("id", eintrag.id)
-    : await db.from("shopping_items").insert(daten);
-
-  if (error) meldung(fehlertext(error), "fehler");
-  else { meldung(eintrag ? "Gespeichert." : "Steht auf der Liste."); seiteEinkauf(b); }
-}
+// Die Seite ist nach src/seiten/Einkauf.jsx umgezogen, PRIO nach
+// src/daten/einkauf.js.
 
 // =================================================================
 //  RECHNER FÜR DIE WERKSTATT
@@ -19516,15 +19377,20 @@ const SEITEN = [
   { pfad: "planwand",     titel: "Planwand",     zeichen: SYM.planwand, zeige: seitePlanwand },
   { pfad: "produktion",   titel: "Produktion",   zeichen: SYM.produktion, zeige: seiteProduktion },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
-  { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: seiteEinkauf },
+  { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: reactSeite(Einkauf) },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
 ];
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
+  zeitlimit, meldung, nachfragen, fehlertext, dialogFelder, auswahlDialog,
+  merkeSchritt, personName,
   reiterUebergang,
   rechnerWinkel, rechnerGcode, rechnerCachse, rechnerGravur, rechnerDxf,
 });
+// Datenbank und angemeldete Person ändern sich zur Laufzeit
+Object.defineProperty(alt, "db", { get: () => db });
+Object.defineProperty(alt, "profil", { get: () => profil });
 
 // =================================================================
 //  LAUFENDER ABGLEICH
