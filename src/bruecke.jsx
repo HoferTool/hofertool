@@ -47,25 +47,27 @@ export function reactSeite(Komponente) {
     const da = wurzeln.get(behaelter);
     if (da && da.komponente === Komponente && behaelter.firstChild) {
       da.auffrischen++;
-      flushSync(() => da.wurzel.render(<Komponente auffrischen={da.auffrischen} />));
+      flushSync(() => da.wurzel.render(<Komponente auffrischen={da.auffrischen} behaelter={behaelter} />));
       return;
     }
     reactAufraeumen(behaelter);
     behaelter.innerHTML = "";
     const wurzel = createRoot(behaelter);
     wurzeln.set(behaelter, { wurzel, komponente: Komponente, auffrischen: 0 });
-    flushSync(() => wurzel.render(<Komponente auffrischen={0} />));
+    flushSync(() => wurzel.render(<Komponente auffrischen={0} behaelter={behaelter} />));
   };
 }
 
 // Bettet einen noch alten Teil in eine React-Seite ein. zeichne(el)
 // ist die alte Funktion, die in el zeichnet. React fasst den Inhalt
-// danach nicht mehr an.
+// danach nicht mehr an. Gezeichnet wird einmal beim Einhängen; neu
+// zeichnen heisst: mit einem anderen key neu einhängen.
 export function AltTeil({ zeichne, id, className }) {
   const ref = useRef(null);
   useLayoutEffect(() => {
     zeichne(ref.current);
-  }, [zeichne]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return <div ref={ref} id={id} className={className} />;
 }
 

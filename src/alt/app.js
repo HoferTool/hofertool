@@ -11,6 +11,7 @@ import { alt, reactSeite, reactAufraeumen } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Einkauf from "../seiten/Einkauf.jsx";
+import Bestellungen from "../seiten/Bestellungen.jsx";
 import { PRIO } from "../daten/einkauf.js";
 
 const BOOT = document.getElementById("boot");
@@ -15025,32 +15026,20 @@ async function ladeBestellungenFrisch(offen) {
   return data || [];
 }
 
-async function seiteBestellungen(b) {
+// Die Hülle der Seite ist in src/seiten/Bestellungen.jsx. Wer hier
+// seiteBestellungen(b) aufruft, frischt sie auf.
+const seiteBestellungen = reactSeite(Bestellungen);
+
+// Zeichnet den gewählten Reiter. Wird von der React-Hülle aufgerufen.
+async function bestReiterZeichnen(ziel, b) {
   // Die Seite wird nach jeder Aktion neu aufgebaut — dann frisch holen
   stammVergessen();
-  b.innerHTML = '<h1 class="seitentitel">Bestellungen</h1>'
-    + '<div class="reiter">'
-    + [["offen", "Offen"], ["bestellt", "Bestellt"], ["historie", "Historie"],
-       ["artikel", "Artikel"], ["bezeichnungen", "Bezeichnungen"],
-       ["lieferanten", "Lieferanten"]]
-      .map(([w, t]) => '<button class="reiter__knopf' + (best.ansicht === w ? " aktiv" : "")
-        + '" data-best="' + w + '">' + t + '</button>').join("")
-    + '</div>'
-    + (darfSchreiben() ? "" : nurLesenHinweis("Du kannst hier alles ansehen, aber nichts ändern."))
-    + '<div id="best-inhalt"><div class="laedt">Wird geladen …</div></div>';
-
-  b.querySelectorAll("[data-best]").forEach((el) => {
-    el.onclick = () => { best.ansicht = el.dataset.best; seiteBestellungen(b); };
-  });
-
-  const ziel = document.getElementById("best-inhalt");
   if (best.ansicht === "artikel") await bestArtikel(ziel, b);
   else if (best.ansicht === "bezeichnungen") await bestBezeichnungen(ziel, b);
   else if (best.ansicht === "lieferanten") await bestLieferanten(ziel, b);
   else if (best.ansicht === "historie") await bestHistorie(ziel, b);
   else if (best.ansicht === "bestellt") await bestOffen(ziel, b, "bestellt");
   else await bestOffen(ziel, b, "offen");
-  reiterUebergang(ziel);
 }
 
 // ---------- Offene Positionen, nach Lieferant gruppiert ----------
@@ -19384,8 +19373,9 @@ const SEITEN = [
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
   zeitlimit, meldung, nachfragen, fehlertext, dialogFelder, auswahlDialog,
-  merkeSchritt, personName,
+  merkeSchritt, personName, darfSchreiben,
   reiterUebergang,
+  best, bestReiterZeichnen,
   rechnerWinkel, rechnerGcode, rechnerCachse, rechnerGravur, rechnerDxf,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit

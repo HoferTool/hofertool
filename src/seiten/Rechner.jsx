@@ -4,9 +4,10 @@
 //  Drehzahl. Winkel, G-Code, C-Achse, Gravur und DXF laufen noch
 //  im alten Programm und hängen über <AltTeil> darin.
 // =================================================================
-import { useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { alt, AltTeil, useGemerkt } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
+import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 
 const REITER = [
   ["drehzahl", "Drehzahl"], ["winkel", "Winkel und Fase"], ["gcode", "G-Code"],
@@ -44,12 +45,7 @@ export default function Rechner() {
   return (
     <>
       <h1 className="seitentitel">Rechner</h1>
-      <div className="reiter">
-        {REITER.map(([wert, text]) => (
-          <button key={wert} className={"reiter__knopf" + (ansicht === wert ? " aktiv" : "")}
-            data-rech={wert} onClick={() => setAnsicht(wert)}>{text}</button>
-        ))}
-      </div>
+      <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" />
       <Uebergang key={ansicht}>
         {alteZeichner[ansicht]
           ? <AltTeil id="rech-inhalt" zeichne={alteZeichner[ansicht]} />
@@ -57,13 +53,6 @@ export default function Rechner() {
       </Uebergang>
     </>
   );
-}
-
-// Derselbe sanfte Eintritt wie bei den alten Reitern
-function Uebergang({ children }) {
-  const ref = useRef(null);
-  useLayoutEffect(() => { alt.reiterUebergang(ref.current); }, []);
-  return <div ref={ref}>{children}</div>;
 }
 
 function Drehzahl() {
