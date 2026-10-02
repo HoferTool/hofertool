@@ -5,7 +5,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`, Ordner `/`).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.10.0 (Konstante `APP_VERSION` in `index.html`).
+- **Stand:** Version 111.11.0 (Konstante `APP_VERSION` in `index.html`).
 
 ## Mit wem du arbeitest
 
