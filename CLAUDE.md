@@ -5,7 +5,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`, Ordner `/`).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.9.2 (Konstante `APP_VERSION` in `index.html`).
+- **Stand:** Version 111.10.0 (Konstante `APP_VERSION` in `index.html`).
 
 ## Mit wem du arbeitest
 
@@ -18,7 +18,7 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
 
 ## Aufbau der App
 
-- **Eine einzige Datei: `index.html`** — HTML, CSS und JavaScript, etwa 25'600 Zeilen. Kein Build, keine Frameworks, kein npm.
+- **Eine einzige Datei: `index.html`** — HTML, CSS und JavaScript, etwa 25'700 Zeilen. Kein Build, keine Frameworks, kein npm.
 - Das Skript ist ein **ES-Modul**. Funktionen sind **nicht global** und im Browser-Terminal nicht aufrufbar.
 - Supabase kommt über `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm`. Adresse und **Publishable Key** stehen oben in `SUPABASE_URL` und `SUPABASE_KEY`. Der Key ist öffentlich und darf dort stehen.
 - `sw.js` ist der Service Worker für den Offline-Betrieb. Er liegt neben `index.html`.
@@ -50,6 +50,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 | Abgleich | `syncPruefen()`, `serverStempel(tabellen)`, `dashboardTeile(b, still)`, `stillNeuZeichnen(id, fn)` |
 | Dokumente | `dokErkennen(name, typen)`, `dokHochladen(datei, zuordnung, quelle)`, `DOK_REGELN` |
 | Logo | `LOGO_WEISS` (eingebettetes PNG) |
+| Bewegung | `planFliessenAnmelden(id)` vor dem Neuzeichnen der Planwand lässt verschobene Balken gleiten; `bewegungFenster`, `bewegungPad`, `wenigBewegung()` |
 
 ### Rollen
 

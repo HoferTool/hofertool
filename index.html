@@ -4456,6 +4456,32 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 @media (max-width: 640px) { #pad .pad__kacheln--maschinen .pad-kachel { width: calc(50% - 9px); } }
 #pad .pad__kacheln--maschinen .pad-kachel__nr { font-size: 1rem; }
 #pad .pad__kacheln--maschinen .pad-kachel__auftrag { font-size: 1.1rem; }
+/* ---------- Bewegung ----------
+   Kurz und billig: nur transform und opacity, damit nichts langsamer
+   wird. Fenster und Pad bekommen ihren Eintritt im Skript (bewegung…),
+   hier stehen Meldungen und die weichen Wechsel beim Darüberfahren. */
+.knopf, .kopf__abmelden, .nav__punkt, .kachel, .parkwahl__knopf, .reiter__knopf {
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease, transform .12s ease; }
+.toast { animation: toastEin .26s cubic-bezier(.16,1,.3,1);
+         transition: opacity .3s ease, transform .3s ease; }
+.toast--weg { transform: translateY(6px); }
+@keyframes toastEin { from { opacity: 0; transform: translateY(10px) scale(.98); }
+                      to { opacity: 1; transform: none; } }
+@media (min-width: 780px) {
+  .toast { animation-name: toastEinSeite; }
+  .toast--weg { transform: translateX(12px); }
+}
+@keyframes toastEinSeite { from { opacity: 0; transform: translateX(18px); }
+                           to { opacity: 1; transform: none; } }
+/* Während das Pad dieselbe Ansicht frisch lädt, bleibt sie stehen,
+   statt kurz "Wird geladen" zu zeigen, nur leicht gedämpft. */
+#pad.pad--frischt > :not(.pad__kopf) { opacity: .72; pointer-events: none;
+                                        transition: opacity .15s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: toastEinRuhig .2s ease; }
+  .toast--weg { transform: none; }
+}
+@keyframes toastEinRuhig { from { opacity: 0; } to { opacity: 1; } }
 </style>
 </head>
 <body>
@@ -4512,7 +4538,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
 function pinPasswort(pin) { return "pin-" + String(pin) + "-hoferco"; }
-const APP_VERSION = "111.9.2";
+const APP_VERSION = "111.10.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4601,6 +4627,7 @@ function oberstesFensterSchliessen() {
       m.addedNodes.forEach((n) => {
         if (n.nodeType !== 1 || !n.classList) return;
         if (!n.classList.contains("dialog-huelle") && n.id !== "pad") return;
+        if (n.classList.contains("dialog-huelle")) bewegungFenster(n);
         fensterStapel.push(n);
         dazu++;
       });
@@ -4817,6 +4844,8 @@ async function schrittZurueck() {
   if (!letzter) { meldung("Nichts zum Zurücknehmen.", "warn"); return; }
 
   try {
+    // Auf der Planwand gleiten die Balken an ihren alten Platz zurück
+    planFliessenAnmelden();
     await letzter.tun();
     meldung("Zurückgenommen: " + letzter.text);
   } catch (f) {
@@ -9341,6 +9370,7 @@ async function parallelSenden(aufgaben, gleichzeitig) {
 // setzt es sofort in der Anzeige — ohne auf den Server zu warten.
 // Gibt die Änderungen zurück; abgeschickt werden sie danach am Stück.
 function planKonflikteRechnen(maschineId, festId) {
+  planFliessenAnmelden();   // was ausweicht, gleitet statt zu springen
   const alle = (plan.auftraege || [])
     .filter((x) => x.machine_id === maschineId && x.planned_from
       // Abgeschlossene Aufträge bleiben, wo sie waren — die Geschichte
@@ -9393,6 +9423,7 @@ async function planKonflikteLoesen(maschineId, festId) {
 // hintereinander. Gibt die vorherigen Daten zurück, damit sich der
 // Schritt zurücknehmen lässt.
 async function planAufruecken(maschineId, abDatum, ausserId) {
+  planFliessenAnmelden();
   const reihe = (plan.auftraege || [])
     .filter((x) => x.machine_id === maschineId && x.planned_from
       && x.id !== ausserId && x.planned_from >= abDatum
@@ -11547,6 +11578,68 @@ function zuHeute(b) {
   neuZeichnen(b);
 }
 
+// ---------- Fliessende Planwand ----------
+// Nach dem Verschieben gleiten die Balken, die ausweichen oder
+// aufschliessen, an ihren neuen Platz, statt hinzuspringen. So sieht man
+// auf einen Blick, was das Verschieben bewirkt hat. Nur über transform,
+// das rechnet die Grafikkarte — die Planwand bleibt so schnell wie vorher.
+// Beim Blättern in der Zeit oder beim Zoomen gleitet nichts.
+function planFliessenAnmelden(gelandet) {
+  plan.fliessenBis = Date.now() + 4000;
+  if (gelandet !== undefined) plan.fliessenGelandet = gelandet;
+}
+
+function planLage() {
+  return [plan.start, plan.tage, plan.spalte, plan.skala, plan.vskala, plan.puffer].join("|");
+}
+
+function planBalkenMerken() {
+  if (!plan.fliessenBis || Date.now() > plan.fliessenBis) return null;
+  const tafel = document.querySelector(".pw-tafel");
+  if (!tafel) return null;
+  const o = tafel.getBoundingClientRect();
+  const lagen = new Map();
+  tafel.querySelectorAll(".pw-balken[data-auftrag]").forEach((el) => {
+    const r = el.getBoundingClientRect();
+    lagen.set(el.dataset.auftrag, { x: r.left - o.left, y: r.top - o.top });
+  });
+  return { lage: planLage(), lagen: lagen };
+}
+
+function planBalkenGleiten(vorher) {
+  if (!vorher) return;
+  const gelandet = plan.fliessenGelandet;
+  plan.fliessenGelandet = null;
+  const tafel = document.querySelector(".pw-tafel");
+  if (!tafel || vorher.lage !== planLage() || typeof Element.prototype.animate !== "function") return;
+  const wenig = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const o = tafel.getBoundingClientRect();
+  const breite = window.innerWidth, hoehe = window.innerHeight;
+  const draussen = (x, y, w, h) => x + w < 0 || x > breite || y + h < 0 || y > hoehe;
+  let anzahl = 0;
+  tafel.querySelectorAll(".pw-balken[data-auftrag]").forEach((el) => {
+    const id = el.dataset.auftrag;
+    if (id === gelandet) {
+      // Der abgelegte Balken setzt sich an seinem Platz
+      el.animate(wenig
+        ? [{ opacity: 0.4 }, { opacity: 1 }]
+        : [{ opacity: 0.4, transform: "scale(.96)" }, { opacity: 1, transform: "none" }],
+        { duration: 240, easing: "cubic-bezier(.16,1,.3,1)" });
+      return;
+    }
+    const alt = vorher.lagen.get(id);
+    if (!alt || wenig || anzahl >= 80) return;
+    const r = el.getBoundingClientRect();
+    const dx = alt.x - (r.left - o.left), dy = alt.y - (r.top - o.top);
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    if (draussen(r.left, r.top, r.width, r.height)
+        && draussen(o.left + alt.x, o.top + alt.y, r.width, r.height)) return;
+    anzahl++;
+    el.animate([{ transform: "translate(" + dx + "px," + dy + "px)" }, { transform: "none" }],
+      { duration: 360, easing: "cubic-bezier(.16,1,.3,1)" });
+  });
+}
+
 function neuZeichnen(b) {
   const rolle = document.querySelector(".pw-rolle");
   const x = rolle ? rolle.scrollLeft : 0;
@@ -11582,6 +11675,8 @@ function aeltereNachladen(b) {
 }
 
 function zeichnePlanwand(b) {
+  // Nach einem Verschieben: Lage der Balken vor dem Neuzeichnen merken
+  const vorherLagen = planBalkenMerken();
   // Die Spaltenbreite hängt an den Maschinennamen. Beim ersten Lauf
   // sind die noch nicht geladen, deshalb hier noch einmal rechnen.
   if (prod.maschinen && prod.maschinen.length && !plan.breiteFest) {
@@ -11853,6 +11948,7 @@ function zeichnePlanwand(b) {
     if (rolle) rolle.scrollLeft = plan.puffer * (plan.spalte || 40);
   }
 
+  planBalkenGleiten(vorherLagen);
   balkenVerhalten(b);
   zeilenVerschieben(b);
   griffVerhalten(b);
@@ -12469,6 +12565,7 @@ function zeilenVerschieben(b) {
             (x.sort_order || 0) - (y.sort_order || 0));
         }
         meldung("Reihenfolge geändert.");
+        planFliessenAnmelden();   // die Zeilen gleiten an ihren neuen Platz
         planAktualisieren(b);
       } catch (f) { meldung(fehlertext(f), "fehler"); }
     });
@@ -12639,6 +12736,7 @@ function balkenVerhalten(b) {
       auftrag.machine_id = maschineId;
       auftrag.planned_from = datum;
       const ausgewichen = planKonflikteRechnen(maschineId, auftrag.id);
+      planFliessenAnmelden(auftrag.id);
       zeichnePlanwand(b);
 
       try {
@@ -12669,6 +12767,8 @@ function balkenVerhalten(b) {
           abbrechen: "Nein, aufschliessen" });
         if (!luecke) aufgeschlossen = await planAufruecken(vorherM, vorherD, auftrag.id);
       }
+      // Was aufschliesst, gleitet beim nächsten Zeichnen nach vorne
+      planFliessenAnmelden();
 
       const zurueck = ausgewichen.concat(aufgeschlossen);
       merkeSchritt("Verschieben von " + auftrag.job_number, async () => {
@@ -14583,6 +14683,13 @@ function padOeffnen() {
   h.className = "pad" + (einstellung("dunkel") ? " pad--dunkel" : "");
   document.body.appendChild(h);
   document.body.classList.add("pad-offen");
+  // Das Pad legt sich über die Seite, statt hart umzuschalten
+  if (typeof h.animate === "function") {
+    h.animate(wenigBewegung()
+      ? [{ opacity: 0 }, { opacity: 1 }]
+      : [{ opacity: 0, transform: "scale(1.015)" }, { opacity: 1, transform: "none" }],
+      { duration: 280, easing: "cubic-bezier(.16,1,.3,1)" });
+  }
   // Die Seite darunter leeren, solange das Pad offen ist: Zeigt das Pad
   // dieselbe Seite, gäbe es sonst jedes Feld doppelt
   const inhalt = document.getElementById("inhalt");
@@ -14615,7 +14722,14 @@ function padKopf(titel, zurueck) {
 async function padZeichnen() {
   const h = document.getElementById("pad");
   if (!h) return;
-  h.innerHTML = '<div class="pad__laedt">Wird geladen …</div>';
+  // Bleibt man in derselben Ansicht (etwa nach dem Speichern), steht der
+  // alte Inhalt weiter da, bis der neue fertig ist: kein Aufblitzen von
+  // "Wird geladen". Nur eine neue Ansicht kommt mit Bewegung herein.
+  const sicht = [pad.wo, pad.parkId, pad.typId, pad.maschineId,
+                 pad.wo === "maschine" ? pad.reiter : ""].join("|");
+  const neueSicht = sicht !== pad.letzteSicht || !h.firstElementChild;
+  if (neueSicht) h.innerHTML = '<div class="pad__laedt">Wird geladen …</div>';
+  else h.classList.add("pad--frischt");
 
   try {
     if (pad.wo === "start") await padStart(h);
@@ -14630,6 +14744,9 @@ async function padZeichnen() {
       + '<div class="pad__fehler">' + esc(fehlertext(f)) + '</div>';
     meldung(fehlertext(f), "fehler");
   }
+  h.classList.remove("pad--frischt");
+  pad.letzteSicht = sicht;
+  if (neueSicht) bewegungPad(h);
 
   h.querySelectorAll("[data-padzu]").forEach((el) => { el.onclick = padSchliessen; });
   h.querySelectorAll("[data-padzurueck]").forEach((el) => {
@@ -24434,6 +24551,48 @@ async function eierHistorieZeigen() {
 
 // Kurzer Eintritts-Effekt beim Reiterwechsel — auf jeden Container
 // anwendbar, der gerade neu befuellt wurde.
+// ---------- Bewegung ----------
+// Fenster und Pad erscheinen, statt aufzuploppen. Über die Web Animations
+// API, damit nichts an Klassen hängen bleibt und ein Neuzeichnen im
+// offenen Fenster den Eintritt nicht wiederholt.
+function wenigBewegung() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function bewegungFenster(huelle) {
+  if (typeof huelle.animate !== "function") return;
+  if (document.body.classList.contains("nur-blatt-drucken")) return;
+  huelle.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: "ease-out" });
+  const fenster = huelle.querySelector(":scope > .dialog") || huelle.firstElementChild;
+  if (!fenster || wenigBewegung()) return;
+  // Auf dem Handy kommt das Fenster als Blatt von unten
+  const handy = window.matchMedia("(max-width: 620px)").matches;
+  fenster.animate([
+    { opacity: 0, transform: handy ? "translateY(28px)" : "translateY(8px) scale(.985)" },
+    { opacity: 1, transform: "none" }],
+    { duration: handy ? 300 : 230, easing: "cubic-bezier(.16,1,.3,1)" });
+}
+
+// Neue Ansicht im Pad: der Inhalt kommt herein, Kacheln kurz nacheinander
+function bewegungPad(h) {
+  if (typeof h.animate !== "function") return;
+  const ruhig = wenigBewegung();
+  Array.from(h.children).forEach((el) => {
+    if (el.classList.contains("pad__kopf")) return;
+    el.animate(ruhig
+      ? [{ opacity: 0 }, { opacity: 1 }]
+      : [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }],
+      { duration: 260, easing: "cubic-bezier(.16,1,.3,1)" });
+  });
+  if (ruhig) return;
+  h.querySelectorAll(".pad-kachel, .pad-karte").forEach((el, i) => {
+    if (i > 7) return;
+    el.animate([{ opacity: 0, transform: "translateY(14px) scale(.98)" },
+                { opacity: 1, transform: "none" }],
+      { duration: 340, delay: i * 35, easing: "cubic-bezier(.16,1,.3,1)", fill: "backwards" });
+  });
+}
+
 function reiterUebergang(el) {
   if (!el) return;
   el.classList.remove("reiter-eintritt");

@@ -297,6 +297,9 @@ Dunkle Glaskarte (22px) mit Verlauf, Lichtkante und Schimmer oben links. Darin e
 ### Meldung
 Unten rechts (ab 780px 340px breit, auf dem Handy über der Navigation): Tinte-Hintergrund, weisse Schrift, 4px-Streifen links in Gut, Warnung oder Gefahr. Sie blendet in 350 ms aus.
 
+### Bewegung
+Der eine bewusste Moment ist das **Gleiten auf der Planwand**: Nach dem Verschieben, Aufschliessen, Umsortieren oder Rückgängig gleiten die betroffenen Balken in 360 ms an ihren neuen Platz, der abgelegte setzt sich in 240 ms. Beim Blättern in der Zeit oder beim Zoomen gleitet nichts. Höchstens 80 Balken, ausserhalb des Bildschirms keine. Sonst nur Rückmeldung: Fenster blenden ein (160 ms Schleier, 230 ms Fenster), das Pad legt sich in 280 ms darüber, Pad-Kacheln kommen nacheinander (35 ms Abstand, höchstens 8), Meldungen fahren herein. Einheitliche Kurve `cubic-bezier(.16,1,.3,1)`. Bei „weniger Bewegung" bleibt nur das Einblenden.
+
 ### Dialog
 Schleier mit 60 % Dunkel, Karte bis 400px breit, 20px Innenabstand. Die Knopfzeile klebt unten und darf umbrechen. Auf dem Handy kommt der Dialog als Blatt von unten (bis 92 % Höhe). Escape schliesst.
 
