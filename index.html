@@ -4386,6 +4386,9 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 .mat-warnung { margin-top: 10px; padding: 9px 12px; border-radius: 10px; font-size: .9rem;
                background: #fdecd3; color: #8a4a12; }
 body.dunkel .mat-warnung { background: rgba(255, 170, 60, .15); color: #ffc98a; }
+/* Tastenkürzel im Knopf "Heute", wie beim Suchen */
+.pw-taste { margin-left: 6px; padding: 1px 6px; border: 1px solid var(--linie); border-radius: 5px;
+            font: 600 .7rem/1.4 inherit; color: var(--gedaempft); background: var(--flaeche); }
 </style>
 </head>
 <body>
@@ -4434,7 +4437,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "111.2.0";
+const APP_VERSION = "111.3.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9992,11 +9995,12 @@ async function ansichtPlanwand(ziel, b) {
     + '</div>'
     + '<div class="pw-eckknoepfe">'
     // Zu heute springen — mit zwei Wochen Rückblick
-    + '<button class="knopf knopf--klein pw-eck" id="pw-heute" title="Zu heute, mit zwei Wochen Rückblick">'
+    + '<button class="knopf knopf--klein pw-eck" id="pw-heute" title="Zu heute, mit zwei Wochen Rückblick — Taste H">'
     + '<svg viewBox="0 0 24 24" class="pw-ecksym" fill="none" stroke="currentColor"'
     + ' stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'
     + '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>'
-    + '<circle cx="12" cy="14.5" r="1.8" fill="currentColor"/></svg><span>Heute</span></button>'
+    + '<circle cx="12" cy="14.5" r="1.8" fill="currentColor"/></svg><span>Heute</span>'
+    + '<kbd class="pw-taste">H</kbd></button>'
     + '<button class="knopf knopf--klein pw-eck" id="pw-suche-los" title="Suchen">'
     + '<svg viewBox="0 0 24 24" class="pw-ecksym" fill="none" stroke="currentColor"'
     + ' stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/>'
@@ -11346,6 +11350,20 @@ async function planAktualisieren(b) {
   const neu = document.querySelector(".pw-rolle");
   if (neu) { neu.scrollLeft = x; neu.scrollTop = y; }
 }
+
+// Taste H auf der Planwand: zu heute — nur wenn man nicht gerade in
+// einem Feld schreibt und kein Fenster offen ist
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "h" && e.key !== "H") return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const a = document.activeElement;
+  if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;
+  if (document.querySelector(".dialog-huelle, #pad")) return;
+  const knopf = document.getElementById("pw-heute");
+  if (!knopf) return;
+  e.preventDefault();
+  knopf.click();
+});
 
 // Zu heute springen, so dass noch zwei Wochen Vergangenheit zu sehen
 // sind: Beginn ist der Montag vor zwei Wochen
@@ -25145,6 +25163,9 @@ function rollenMerken() {
 
 function zeichneSeite() {
   const roh = location.hash.replace(/^#\/?/, "").split("/")[0];
+  // Das kleine Infofenster eines Planwand-Balkens hängt am Seitenende —
+  // beim Wechsel auf eine andere Seite darf es nicht stehen bleiben
+  document.querySelectorAll(".pw-info").forEach((x) => x.remove());
 
   // Alte Verweise auf #/einstellungen öffnen jetzt das Fenster
   // Wer noch einen Verweis auf die alte Seite hat, landet im Reiter
