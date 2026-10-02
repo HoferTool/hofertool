@@ -5,15 +5,16 @@ server_starten(); time.sleep(0.4)
 K = """daten.login_kacheln = [
   { id: 'u4', email: 'zoe@hoferco.ch', full_name: 'Zoe Weber', role: 'mitarbeiter' },
   { id: 'u1', email: 'marco@hoferco.ch', full_name: 'Marco Steiner', role: 'langdreher' },
-  { id: 'u3', email: 'andrea@hoferco.ch', full_name: 'Andrea Meier', role: 'kurzdreher' },
+  { id: 'u3', email: 'andrea@hoferco.ch', full_name: 'Andrea Meier', role: 'kurzdreher', ohne_passwort: true },
   { id: 'u9', email: 'ramona@hoferco.ch', full_name: 'ramona Keller', role: 'planwand' }];
 daten.jobs.forEach(j => { j.drawing_url = 'https://x.supabase.co/storage/v1/object/public/zeichnungen/z.pdf'; }); daten.hoco_parts.forEach(h => { h.zeichnung_url = 'https://x.supabase.co/storage/v1/object/public/zeichnungen/z.pdf'; });
 window._anmeldungen = [];
+TEST.funktionen['pin-anmelden'] = (b) => { window._anmeldungen.push('PIN ' + b.pin); return b.pin === '4711' ? { status: 'ok', token_hash: 'x' } : { status: 'falsch', rest: 4 }; };
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
-# Anmeldung nachbilden: nur das PIN-Passwort ist richtig
+# Anmeldung nachbilden: Passwörter sind alle falsch, nur die PIN 4711 stimmt
 F = F.replace("signInWithPassword: () => Promise.resolve({ data: {}, error: null }),",
-  "signInWithPassword: (a) => { window._anmeldungen.push(a.password); return Promise.resolve(a.password === 'pin-4711-hoferco' ? { data: {}, error: null } : { data: null, error: { message: 'Invalid login credentials' } }); },")
+  "signInWithPassword: (a) => { window._anmeldungen.push(a.password); return Promise.resolve({ data: null, error: { message: 'Invalid login credentials' } }); },")
 F = F.replace("updateUser: () => Promise.resolve({ data: {}, error: null }),",
   "updateUser: (a) => { window._neuesPw = a.password; return Promise.resolve({ data: {}, error: null }); },")
 def seite(br, sitzung, w=1440, h=900):
@@ -31,7 +32,7 @@ with sync_playwright() as p:
     # Kacheln und PIN-Anmeldung
     pg, f = seite(br, False)
     print("Kacheln:", pg.evaluate("[...document.querySelectorAll('.login__kachel-name')].map(k => k.textContent)"))
-    pg.locator(".login__kachel").nth(2).click(); pg.wait_for_timeout(500)
+    pg.locator(".login__kachel").nth(0).click(); pg.wait_for_timeout(500)
     pg.fill("#lp", "4711"); pg.locator("#lk").click(); pg.wait_for_timeout(1500)
     print("PIN-Anmeldung, versucht:", pg.evaluate("window._anmeldungen"))
     fehler += f; pg.close()
@@ -40,7 +41,8 @@ with sync_playwright() as p:
     print("Logo auf der Startseite:", pg.evaluate("!!document.querySelector('.kopfkarte .kopfkarte__logo')"))
     pg.evaluate("document.getElementById('kopf-einstellungen').click()"); pg.wait_for_timeout(1300)
     pg.fill("#mk-pin", "4711"); pg.fill("#mk-pin2", "4711"); pg.locator("#mk-pinknopf").click(); pg.wait_for_timeout(800)
-    print("PIN in den Einstellungen → neues Passwort:", pg.evaluate("window._neuesPw"))
+    print("PIN in den Einstellungen → gespeichert:", pg.evaluate("TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'pin_setzen').map(x => x.args.p_pin)"),
+          "| Passwort unverändert:", pg.evaluate("window._neuesPw === undefined"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     # Woche
     pg.evaluate("location.hash='#produktion'"); pg.wait_for_timeout(1500)

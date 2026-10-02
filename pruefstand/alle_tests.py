@@ -1,6 +1,6 @@
 # Alle Prüfungen nacheinander. Aufruf im Ordner pruefstand:  python alle_tests.py
 import subprocess, sys
-TESTS = ['final', 'rechner', 'einkauf', 'bestellungen', 'ziehen3', 'kopieren', 'rueckgaengig', 'extern', 'paddash', 'escape', 'heute_backup', 'taste_h', 'bestzeit', 'acht', 'startruhe', 'padtext', 'padstart', 'padweg', 'suche_reihe', 'woche_breit', 'sieben', 'vorb', 'zurueck2022', 'mailbilder', 'geraetzurueck', 'vier2', 'ohnekamera']
+TESTS = ['final', 'rechner', 'einkauf', 'bestellungen', 'ziehen3', 'kopieren', 'rueckgaengig', 'extern', 'paddash', 'escape', 'heute_backup', 'taste_h', 'bestzeit', 'acht', 'startruhe', 'padtext', 'padstart', 'padweg', 'suche_reihe', 'woche_breit', 'sieben', 'vorb', 'zurueck2022', 'mailbilder', 'geraetzurueck', 'vier2', 'ohnekamera', 'pin']
 gut = 0
 for t in TESTS:
     r = subprocess.run([sys.executable, t + ".py"], capture_output=True, text=True, timeout=400)

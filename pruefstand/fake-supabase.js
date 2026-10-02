@@ -257,6 +257,8 @@ daten.solar_werte = (() => {
 })();
 
 daten.login_kacheln = [];
+TEST.rpc = {};
+TEST.funktionen = {};
 TEST.daten = daten;
 if (typeof window !== "undefined") window.TEST = TEST;
 TEST.protokoll = [];
@@ -503,7 +505,18 @@ function bauer(tabelle) {
 export function createClient() {
   return {
     from: (t) => bauer(t),
-    rpc: () => Promise.resolve({ data: null, error: null }),
+    // Tests können Antworten je Funktion vorgeben: TEST.rpc.name = (args) => data
+    rpc: (name, args) => {
+      TEST.protokoll.push({ art: "rpc", name, args });
+      const f = TEST.rpc && TEST.rpc[name];
+      return Promise.resolve({ data: f ? f(args) : null, error: null });
+    },
+    functions: { invoke: (name, opt) => {
+      TEST.protokoll.push({ art: "funktion", name, body: opt && opt.body });
+      const f = TEST.funktionen && TEST.funktionen[name];
+      return Promise.resolve(f ? { data: f(opt && opt.body), error: null }
+        : { data: null, error: { message: "nicht eingerichtet" } });
+    } },
     channel: () => ({ on() { return this; }, subscribe() { return this; } }),
     removeChannel: () => {},
     storage: { from: () => ({
@@ -522,6 +535,11 @@ export function createClient() {
         data: { user: { id: "u1", email: "saheesan.hudson@hoferco.ch" } }, error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
       signInWithPassword: () => Promise.resolve({ data: {}, error: null }),
+      verifyOtp: (a) => {
+        TEST.protokoll.push({ art: "verifyOtp", a });
+        window.OHNE_SITZUNG = false;
+        return Promise.resolve({ data: {}, error: null });
+      },
       signOut: () => Promise.resolve({ error: null }),
       updateUser: () => Promise.resolve({ data: {}, error: null }),
     },

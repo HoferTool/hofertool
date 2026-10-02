@@ -5,7 +5,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`). Der Ablauf `.github/workflows/ausliefern.yml` baut die App bei jedem Push auf `main` und stellt den Ordner `dist/` auf Pages (Pages-Quelle: „GitHub Actions“).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.11.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.12.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -18,10 +18,11 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
 
 ## Aufbau der App
 
+- **Einzige feste Bedingung: Die App bleibt webbasiert.**
 - **Vite + React, im Umbau.** Bis Oktober 2026 war alles eine einzige `index.html`. Jetzt baut Vite aus `src/` die fertige Website in `dist/`.
   - `index.html` ist nur noch das Gerüst, das `src/main.jsx` lädt.
   - `src/alt/app.js` und `src/alt/stil.css` sind das bisherige Programm und die bisherige Gestaltung, fast unverändert. Es zeichnet weiter die Hülle (Kopfzeile, Navigation, Fenster, Pad Mode).
-  - `src/seiten/` enthält die Bereiche, die schon in React neu gebaut sind (bisher: Rechner, Reiter Drehzahl). `src/daten/` gemeinsame Daten.
+  - `src/seiten/` enthält die Bereiche, die schon in React neu gebaut sind (bisher: Startseite, Bestellungen, Einkauf, Rechner-Reiter Drehzahl). `src/daten/` gemeinsame Daten.
   - `src/bruecke.jsx` verbindet beides: `reactSeite(Komponente)` hängt eine React-Seite in `SEITEN`, `<AltTeil zeichne={…}>` bettet einen noch alten Teil in eine React-Seite, und `alt` ist der Werkzeugkasten, den das alte Programm für React-Seiten füllt (`Object.assign(alt, {...})` nach `SEITEN`).
   - Umbau Bereich für Bereich; die App muss nach jedem Schritt vollständig laufen.
 - Das Skript ist ein **ES-Modul**. Funktionen sind **nicht global** und im Browser-Terminal nicht aufrufbar.
@@ -56,6 +57,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 | Dokumente | `dokErkennen(name, typen)`, `dokHochladen(datei, zuordnung, quelle)`, `DOK_REGELN` |
 | Logo | `LOGO_WEISS` (eingebettetes PNG) |
 | Bewegung | `planFliessenAnmelden(id)` vor dem Neuzeichnen der Planwand lässt verschobene Balken gleiten; `bewegungFenster`, `bewegungPad`, `wenigBewegung()` |
+| Anmeldung mit PIN | `pinAnmelden(email, pin)` ruft die Server-Funktion `pin-anmelden` (Quelle in `supabase/functions/`), `pinMeldung(e)` macht den Text daraus. In der Datenbank: `pin_setzen`, `pin_entfernen`, `pin_vorhanden`, `pin_pruefen` (nur Server). Dialogfelder mit `ziffern: true` zeigen die Zifferntastatur. |
 
 ### Rollen
 
@@ -96,7 +98,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 - **Notizen:** Jeder darf jede Notiz bearbeiten. Ein Vorschlagsverfahren war gewünscht und wurde wieder entfernt.
 - **Pad Mode:** Die Startseite zeigt nur „Maschinen". Zeichnung, WBG und Einrichtblatt öffnen im gemeinsamen Betrachter, PDFs auf volle Breite. „Zurück" geht genau einen Schritt. Die Materialkachel ist in der Werkstofffarbe gefüllt. Der Text der Auftragskachel passt seine Grösse an die Menge an.
 - **Produktion, Woche:** drei Spalten (Nr. · Einrichtblatt, Menge, Beenden · Ziel, Stand, Zustand). Die Tabelle ist nur so breit wie nötig.
-- **Anmeldung:** immer blau, Kacheln alphabetisch. Eine PIN geht als Passwort: Die App macht intern `pin-<PIN>-hoferco` daraus.
+- **Anmeldung:** immer blau, Kacheln alphabetisch. Konten mit PIN (Punkt auf der Kachel) melden sich mit ihrer persönlichen PIN an. Der Server prüft sie: nach **5 falschen Versuchen 5 Minuten Sperre**, danach wieder 5 Versuche, immer so weiter. Wer eine PIN hat, hat ein zufälliges Passwort. Admins setzen PINs unter Einstellungen → Nutzer. Ein gemeinsames Passwort im Code gibt es nicht mehr.
 - **Bestellmail:** eine `.eml`-Datei mit PDF im Anhang, Aptos 12, zwei Logos mit Link (hoferco.ch, salt-pepper.ch).
 - **Bestellungen:** Den Status kann man auch in der Historie zurücksetzen. Jede Position zeigt `status_am`.
 
@@ -121,7 +123,7 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer` — d
 3. Sicherung (`sicherung.ps1`) und Dokumente-Abgleich auf das neue Projekt umstellen.
 4. Supabase Pro für tägliche Sicherungen. Altes Projekt pausieren. `C:\Hofer\Umzug` löschen.
 5. Offline am Tablet einmal testen.
-6. Anmeldung ohne Passwort absichern: Das gemeinsame Passwort `OFFENES_PASSWORT` steht im öffentlichen Code.
+6. PIN-Anmeldung in Betrieb nehmen: `sql/pin-anmeldung.sql` ausführen, PINs setzen, dann `sql/offenes-passwort-weg.sql`. Die E-Mail-Adressen sind über `login_kacheln` weiterhin öffentlich lesbar.
 7. Standzeiten der Werkzeuge aus `tool_changes.gehalten_stk` auswerten.
 8. Offene Entscheide: infoBoard-Echtstart, ob der Park „Extern" für interne Rollen sichtbar ist, Lieferantenferien im Ferienblock, doppelte Namen in den Ferien.
 9. Kameras später neu überlegen. Das alte Modul ist entfernt.
