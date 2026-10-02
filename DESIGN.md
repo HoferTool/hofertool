@@ -147,8 +147,6 @@ components:
     height: "78px"
 ---
 
-<!-- Leitbild vorläufig „Der Leitstand" (Empfehlung). Wird angepasst, falls im Thread ein anderes gewählt wird. -->
-
 # Design System: Hofer Tool
 
 ## Overview
