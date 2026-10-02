@@ -4385,9 +4385,12 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 /* Seit wann eine Bestellposition ihren Status hat */
 .bz-zeit { color: var(--gedaempft); margin-top: 2px; }
 /* Woche in der Produktion: jeder Tag bekommt Platz, notfalls seitwärts schieben */
-.raster--woche { width: max-content; min-width: 100%; }
-.raster--woche td:not(.fest), .raster--woche thead th:not(.fest) { min-width: 108px; }
-.raster--woche .menge { width: 100%; max-width: 130px; }
+/* Nur so breit wie nötig — auf grossen Bildschirmen zieht sich die
+   Woche nicht über die ganze Breite */
+.raster--woche { width: auto; min-width: 0; }
+.raster--woche td:not(.fest), .raster--woche thead th:not(.fest) { width: 124px; min-width: 108px; max-width: 140px; }
+.raster--woche .menge { width: 100%; max-width: 116px; }
+.karte--raster:has(.raster--woche) { width: fit-content; max-width: 100%; }
 
 /* Pad: Materialkachel ganz in der Werkstofffarbe */
 .pad-karte2--gefuellt { background: var(--wf) !important; color: var(--wfs) !important; padding-left: 18px !important; }
@@ -4423,6 +4426,36 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 /* Pad: Bereiche in der Kachelwand und als Seite */
 .pad-kachel__sym svg { width: 34px; height: 34px; }
 .pad__seite { background: var(--hg); color: var(--text); padding: 14px; }
+/* Pad-Start: nur die Maschinen, mittig unter dem Logo */
+.pad__kacheln--einzeln { display: flex; justify-content: center; }
+.pad__kacheln--einzeln .pad-kachel { width: min(460px, 90%); }
+/* Pad: Textteil der Auftragskachel passt seine Schrift der Menge an */
+.pad-karte2--hoco { min-height: 0; }
+.pad-hocotext { flex: 1 1 auto; min-height: 0; overflow: hidden; font-size: calc(1rem * var(--pad-tg, 1)); }
+.pad-hocotext--rollen { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pad-hocotext .pad-zeilen { font-size: .84em; }
+.pad-hocotext .pad-notiz p { font-size: .9em; }
+.pad-hocotext .pad-info p { font-size: .92em; }
+.pad-hocotext .pad-info .pad-name { font-size: max(.6rem, .52em); }
+/* Pad bis zur Maschine: Knöpfe gross und mittig, Logo scharf darüber.
+   Bei vielen Maschinen bricht das Raster um und lässt sich schieben,
+   statt oben abgeschnitten zu werden. */
+#pad .pad__start, #pad .pad__wahl { flex: 1 1 auto; min-height: 0; overflow: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: safe center;
+  gap: 34px; padding: 28px 24px 36px; }
+#pad .pad__wahllogo { display: block; width: auto; height: clamp(64px, 11vh, 120px); margin: 0;
+  background: none !important; box-shadow: none !important; filter: none !important; padding: 0 !important; border: 0 !important; }
+#pad .pad__start .pad__kacheln, #pad .pad__wahl .pad__kacheln { flex: 0 0 auto; padding: 0;
+  width: min(1180px, 100%); display: grid; gap: 18px; }
+#pad .pad__start .pad__kacheln--einzeln { display: flex; justify-content: center; }
+#pad .pad__kacheln--einzeln .pad-kachel { width: min(520px, 100%); min-height: 200px; font-size: 1.9rem; }
+#pad .pad__kacheln--parks { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); max-width: 1000px; }
+#pad .pad__kacheln--parks .pad-kachel { min-height: 190px; font-size: 1.8rem; font-weight: 700; }
+#pad .pad__wahl .pad__kacheln--maschinen { display: flex; flex-wrap: wrap; justify-content: center; }
+#pad .pad__kacheln--maschinen .pad-kachel { width: 260px; min-height: 170px; gap: 8px; font-size: 1.5rem; font-weight: 700; }
+@media (max-width: 640px) { #pad .pad__kacheln--maschinen .pad-kachel { width: calc(50% - 9px); } }
+#pad .pad__kacheln--maschinen .pad-kachel__nr { font-size: 1rem; }
+#pad .pad__kacheln--maschinen .pad-kachel__auftrag { font-size: 1.1rem; }
 </style>
 </head>
 <body>
@@ -4479,7 +4512,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
 function pinPasswort(pin) { return "pin-" + String(pin) + "-hoferco"; }
-const APP_VERSION = "111.7.0";
+const APP_VERSION = "111.9.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7460,7 +7493,13 @@ async function zeichneVorbereitung(b) {
       db.from("planwand").select("*").is("ended_at", null)
         .not("planned_from", "is", null).order("planned_from"), 10000, "Vorbereitung");
     if (error) throw error;
-    liste = (data || []).filter((j) => j.plan_status !== "fertig");
+    // Nur, was wirklich ansteht: noch geplant (läuft nicht schon, wird
+    // nicht schon gerüstet) und Beginn in den nächsten zwei Wochen.
+    // Ohne diese Grenze zählte die Karte jeden offenen Auftrag bis weit
+    // in die Zukunft — 170 "ohne FA" sagen niemandem etwas.
+    const grenze = arbeitstagePlus(isoDatum(new Date()), 10);
+    liste = (data || []).filter((j) => (j.plan_status || "geplant") === "geplant"
+      && j.planned_from <= grenze);
   } catch (f) { console.warn("Vorbereitung:", f.message); return; }
 
   // FA da = FA Nr. eingetragen, Material da = Menge eingetragen
@@ -7475,9 +7514,9 @@ async function zeichneVorbereitung(b) {
   ziel.innerHTML = '<section class="karte">'
     + '<h2>Vorbereitung</h2>'
     + '<div class="statusliste">'
-    + statuszeile(ohneFa.length, "Aufträge ohne FA",
+    + statuszeile(ohneFa.length, "ohne FA in den nächsten 2 Wochen",
         ohneFa.length ? "warn" : "gut", ohneFa.length ? "fa" : "")
-    + statuszeile(ohneMaterial.length, "Aufträge ohne Material",
+    + statuszeile(ohneMaterial.length, "ohne Material in den nächsten 2 Wochen",
         ohneMaterial.length ? "warn" : "gut", ohneMaterial.length ? "material" : "")
     + '</div>'
     + (ohneFa.length || ohneMaterial.length ? ""
@@ -10718,10 +10757,16 @@ async function sucheDialog(b) {
     + '</div>'
     + '<div class="su-datumsteil" id="su-datumsteil" hidden>'
     + '<input type="date" id="su-datum">'
-    + '<div class="moduswahl" id="su-richtung">'
-    + '<button type="button" class="moduswahl__knopf aktiv" data-surichtung="vor">vorwärts</button>'
-    + '<button type="button" class="moduswahl__knopf" data-surichtung="zurueck">rückwärts</button>'
-    + '</div></div></div>'
+    + '</div></div>'
+
+    // In welcher Reihenfolge die Treffer kommen — weiter und zurück
+    // geht es danach in der Leiste unten
+    + '<div class="feld"><span class="feldlabel">Reihenfolge</span>'
+    + '<div class="moduswahl" id="su-reihe">'
+    + [["neu", "Neuester Auftrag zuerst"], ["alt", "Ältester Auftrag zuerst"]].map(([w, t]) =>
+        '<button type="button" class="moduswahl__knopf' + ((plan.sucheReihe || "neu") === w ? " aktiv" : "")
+        + '" data-sureihe="' + w + '">' + t + '</button>').join("")
+    + '</div></div>'
 
     + '<div class="dialog__knoepfe">'
     + '<button class="knopf knopf--still" id="su-nein">Abbrechen</button>'
@@ -10730,9 +10775,8 @@ async function sucheDialog(b) {
   document.body.appendChild(huelle);
 
   let zeitwahl = "alle";
-  let richtung = "vor";
+  let reihe = plan.sucheReihe || "neu";
   const datumFeld = huelle.querySelector("#su-datum");
-  const richtungFeld = huelle.querySelector("#su-richtung");
 
   huelle.querySelectorAll("[data-suzeit]").forEach((k) => {
     k.onclick = () => {
@@ -10744,10 +10788,10 @@ async function sucheDialog(b) {
     };
   });
 
-  huelle.querySelectorAll("[data-surichtung]").forEach((k) => {
+  huelle.querySelectorAll("[data-sureihe]").forEach((k) => {
     k.onclick = () => {
-      richtung = k.dataset.surichtung;
-      huelle.querySelectorAll("[data-surichtung]").forEach((x) =>
+      reihe = k.dataset.sureihe;
+      huelle.querySelectorAll("[data-sureihe]").forEach((x) =>
         x.classList.toggle("aktiv", x === k));
     };
   });
@@ -10764,7 +10808,8 @@ async function sucheDialog(b) {
     const text = (textFeld.value || "").trim();
     if (!text) { meldung("Bitte einen Suchbegriff eingeben.", "warn"); return; }
     zu();
-    plan.sucheZeit = { art: zeitwahl, datum: datumFeld.value || null, richtung: richtung };
+    plan.sucheZeit = { art: zeitwahl, datum: datumFeld.value || null };
+    plan.sucheReihe = reihe;
     plan.trefferNr = 0;
     await sucheStarten(text, b);
   };
@@ -10780,9 +10825,7 @@ function sucheImZeitraum(j) {
 
   if (z.art === "abheute") return ende >= heute;
   if (z.art === "vorher") return j.planned_from < heute;
-  if (z.art === "datum" && z.datum) {
-    return z.richtung === "zurueck" ? j.planned_from <= z.datum : ende >= z.datum;
-  }
+  if (z.art === "datum" && z.datum) return ende >= z.datum;
   return true;
 }
 
@@ -11037,7 +11080,7 @@ async function balkenZeigenAusfuehren(b) {
 
 function aufPlanwandZeigen(nummer) {
   if (!nummer) return;
-  plan.sucheZeit = { art: "alle", datum: null, richtung: "vor" };
+  plan.sucheZeit = { art: "alle", datum: null };
   plan.trefferNr = 0;
   plan.offeneSuche = nummer;          // wird nach dem Aufbau ausgeführt
   location.hash = "#/planwand";
@@ -11049,7 +11092,12 @@ async function sucheStarten(text, b) {
 
   const treffer = (plan.auftraege || [])
     .filter((j) => auftragText(j).includes(t) && sucheImZeitraum(j))
-    .sort((a, c) => String(a.planned_from || "").localeCompare(String(c.planned_from || "")));
+    // Neuester oder ältester Auftrag zuerst; ohne Datum ganz hinten
+    .sort((a, c) => {
+      if (!a.planned_from || !c.planned_from) return a.planned_from ? -1 : (c.planned_from ? 1 : 0);
+      const r = String(a.planned_from).localeCompare(String(c.planned_from));
+      return (plan.sucheReihe || "neu") === "neu" ? -r : r;
+    });
 
   plan.letzteSuche = text.trim();
   plan.trefferAnzahl = treffer.length;
@@ -11128,11 +11176,12 @@ function sucheLeisteZeigen(b, ziel) {
 
   const anzahl = (plan.trefferListe || []).length;
   leiste.innerHTML = '<span class="su-leiste__text">'
-    + esc(plan.letzteSuche) + ' · Treffer ' + (plan.trefferNr + 1) + ' von ' + anzahl
+    + esc(plan.letzteSuche) + ' · ' + ((plan.sucheReihe || "neu") === "neu" ? "neuester zuerst" : "ältester zuerst")
+    + ' · Treffer ' + (plan.trefferNr + 1) + ' von ' + anzahl
     + ' · ' + esc(ziel.job_number) + '</span>'
     + (anzahl > 1
-        ? '<button type="button" class="knopf knopf--klein" id="su-zurueck">‹</button>'
-          + '<button type="button" class="knopf knopf--klein" id="su-weiter">›</button>'
+        ? '<button type="button" class="knopf knopf--klein" id="su-zurueck" title="Umschalt + Enter">‹ Zurück</button>'
+          + '<button type="button" class="knopf knopf--klein" id="su-weiter" title="Enter">Weiter ›</button>'
         : "")
     + '<button type="button" class="knopf knopf--klein" id="su-ende">Suche beenden</button>';
 
@@ -14574,7 +14623,7 @@ async function padZeichnen() {
     else if (pad.wo === "parks") await padParks(h);
     else if (pad.wo === "typen") await padTypen(h);
     else if (pad.wo === "maschinen") await padMaschinen(h);
-    else if (pad.wo === "maschine") await padMaschine(h);
+    else if (pad.wo === "maschine") { await padMaschine(h); padTextEinpassen(); }
     else if (String(pad.wo).indexOf("seite:") === 0) await padSeite(h, pad.wo.slice(6));
   } catch (f) {
     h.innerHTML = padKopf("Fehler", pad.wo !== "start")
@@ -14597,21 +14646,38 @@ async function padZeichnen() {
   });
 }
 
+// Wenig Text: gross. Viel Text: kleiner. Sehr viel: kleinste Schrift
+// und nur dieser Teil wird scrollbar. Die Grösse wird ausprobiert, bis
+// alles in die Kachel passt.
+function padTextEinpassen() {
+  const text = document.querySelector("#pad .pad-hocotext");
+  if (!text) return;
+  text.classList.remove("pad-hocotext--rollen");
+  const passt = () => text.scrollHeight <= text.clientHeight + 1;
+  let stufe = 1.9;
+  text.style.setProperty("--pad-tg", stufe);
+  while (!passt() && stufe > 0.95) {
+    stufe = Math.round((stufe - 0.05) * 100) / 100;
+    text.style.setProperty("--pad-tg", stufe);
+  }
+  if (!passt()) text.classList.add("pad-hocotext--rollen");
+}
+let padEinpassenTakt = null;
+window.addEventListener("resize", () => {
+  clearTimeout(padEinpassenTakt);
+  padEinpassenTakt = setTimeout(padTextEinpassen, 150);
+});
+
 // ---------- Start ----------
 
 async function padStart(h) {
   h.innerHTML = padKopf("", false)
     + '<div class="pad__start">'
-    + '<img class="pad__logo" src="./login.png" alt="Hofer + Co.">'
-    + '<div class="pad__kacheln">'
-    + '<button class="pad-kachel pad-kachel--gross" data-padwo="planwand">'
-    + '<span class="pad-kachel__zeichen">▦</span><span>Planwand</span></button>'
+    + '<img class="pad__logo pad__wahllogo" src="' + LOGO_WEISS + '" alt="Hofer + Co.">'
+    // Im Pad gibt es nur die Maschinen
+    + '<div class="pad__kacheln pad__kacheln--einzeln">'
     + '<button class="pad-kachel pad-kachel--gross" data-padwo="parks">'
     + '<span class="pad-kachel__zeichen">⚙</span><span>Maschinen</span></button>'
-    // Alle übrigen Bereiche wie im Menü — so weit die eigene Rolle sie sieht
-    + SEITEN.filter((x) => x.pfad !== "planwand" && seiteSichtbar(x.pfad))
-        .map((x) => '<button class="pad-kachel" data-padwo="seite:' + x.pfad + '">'
-          + '<span class="pad-kachel__sym">' + x.zeichen + '</span><span>' + esc(x.titel) + '</span></button>').join("")
     + '</div></div>';
 
   h.querySelectorAll("[data-padwo]").forEach((el) => {
@@ -14648,13 +14714,14 @@ async function padSeite(h, pfad) {
 async function padParks(h) {
   const parks = await ladeParks(false);
   h.innerHTML = padKopf("Maschinenparks", true)
-    + '<img class="pad__bildoben" src="./login.png" alt="Hofer + Co.">'
-    + '<div class="pad__kacheln">'
+    + '<div class="pad__wahl">'
+    + '<img class="pad__wahllogo" src="' + LOGO_WEISS + '" alt="Hofer + Co.">'
+    + '<div class="pad__kacheln pad__kacheln--parks">'
     + (parks.length
       ? parks.map((p) => '<button class="pad-kachel" data-park="' + esc(p.id) + '">'
           + '<span>' + esc(p.name) + '</span></button>').join("")
       : '<p class="pad__leer">Keine Parks angelegt.</p>')
-    + '</div>';
+    + '</div></div>';
 
   h.querySelectorAll("[data-park]").forEach((el) => {
     el.onclick = () => {
@@ -14723,7 +14790,8 @@ async function padMaschinen(h) {
       || (pad.typId === "__ohne" ? !m.type_id : m.type_id === pad.typId));
 
   h.innerHTML = padKopf("Maschinen", true)
-    + '<div class="pad__kacheln">'
+    + '<div class="pad__wahl">'
+    + '<div class="pad__kacheln pad__kacheln--maschinen">'
     + (eigene.length
       ? eigene.map((m) => {
           const j = laufend[m.id];
@@ -14736,7 +14804,7 @@ async function padMaschinen(h) {
             + '</button>';
         }).join("")
       : '<p class="pad__leer">Keine Maschinen in diesem Park.</p>')
-    + '</div>';
+    + '</div></div>';
 
   h.querySelectorAll("[data-maschine]").forEach((el) => {
     el.onclick = () => {
@@ -14909,6 +14977,8 @@ async function padMaschine(h) {
     + '<span class="pad-name">HOCO Nr.</span>'
     + '<span class="pad-wert pad-wert--gross">'
     + (j ? esc(j.job_number) : "kein Auftrag") + '</span>'
+    // Der Textteil richtet seine Schrift nach der Menge (padTextEinpassen)
+    + '<div class="pad-hocotext">'
     + '<div class="pad-zeilen">'
     + zeile("Bezeichnung", teil && teil.bezeichnung)
     + zeile("Zeichnung", teil && teil.zeichnungs_nr)
@@ -14929,6 +14999,7 @@ async function padMaschine(h) {
               : '<p class="pad-leer">antippen und eintragen</p>')
           + '</div>'
         : "")
+    + '</div>'
     + '</div>'
 
     + '<div class="pad-karte2 pad-karte2--abend" data-padfeld="'
