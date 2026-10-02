@@ -1,0 +1,6 @@
+{
+  "supabase_url": "https://DEIN-PROJEKT.supabase.co",
+  "anon_key": "HIER DEN ANON KEY EINSETZEN",
+  "email": "abgleich@hoferco.ch",
+  "passwort": "HIER DAS PASSWORT DES DIENSTKONTOS"
+}
