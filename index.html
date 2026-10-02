@@ -4389,6 +4389,8 @@ body.dunkel .mat-warnung { background: rgba(255, 170, 60, .15); color: #ffc98a; 
 /* Tastenkürzel im Knopf "Heute", wie beim Suchen */
 .pw-taste { margin-left: 6px; padding: 1px 6px; border: 1px solid var(--linie); border-radius: 5px;
             font: 600 .7rem/1.4 inherit; color: var(--gedaempft); background: var(--flaeche); }
+/* Seit wann eine Bestellposition ihren Status hat */
+.bz-zeit { color: var(--gedaempft); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -4437,7 +4439,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "111.3.0";
+const APP_VERSION = "111.4.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -19415,6 +19417,95 @@ const BESTELLSTATUS = {
 // Reihenfolge der Abschnitte in der Übersicht
 const OFFENE_STATUS = ["offen", "bestellt", "teilweise_geliefert"];
 
+// Seit wann eine Position ihren jetzigen Status hat. Genau, wenn die
+// Datenbank das Feld status_am kennt; sonst aus den bisherigen Zeiten.
+function statusZeit(z) {
+  if (z.status_am) return z.status_am;
+  if (z.status === "geliefert") return z.delivered_at || z.completed_at || z.created_at || "";
+  if (z.status === "bestellt" || z.status === "teilweise_geliefert") return z.ordered_at || z.created_at || "";
+  return z.created_at || "";
+}
+function statusZeitText(z) {
+  const t = statusZeit(z);
+  return t ? (BESTELLSTATUS[z.status] || z.status) + " am " + datumZeitKurz(t) : "";
+}
+
+// Was zu einem Statuswechsel gehört: der Zeitpunkt, und beim Weg
+// zurück aus "geliefert" fallen die Lieferzeiten wieder weg
+function statusDaten(neuStatus, alterStatus) {
+  const jetzt = new Date().toISOString();
+  const daten = { status: neuStatus, status_am: jetzt };
+  // Das Bestelldatum gilt ab dem ersten Bestellen — ein Zurücksetzen
+  // aus "geliefert" lässt es stehen, der Wechsel steht in status_am
+  if (neuStatus === "bestellt" && (!alterStatus || alterStatus === "offen")) daten.ordered_at = jetzt;
+  if (neuStatus === "geliefert") { daten.delivered_at = jetzt; daten.completed_at = jetzt; }
+  if (neuStatus !== "geliefert" && alterStatus === "geliefert") {
+    daten.delivered_at = null; daten.completed_at = null;
+  }
+  return daten;
+}
+
+// Status einer Position ändern — derselbe Weg aus Offen, Bestellt und
+// Historie, damit sich ein Versehen überall rückgängig machen lässt
+function bestStatusDialog(z, b) {
+  const huelle = document.createElement("div");
+  huelle.className = "dialog-huelle";
+  huelle.innerHTML = '<div class="dialog"><h2>Status ändern</h2>'
+    + (statusZeit(z) ? '<p class="klein">Jetzt: ' + esc(statusZeitText(z)) + '</p>' : "")
+    + '<div class="statuswahl">'
+    + Object.keys(BESTELLSTATUS).map((st) => '<button class="knopf'
+          + (z.status === st ? " knopf--haupt" : "") + '" data-neu="' + st + '">'
+          + BESTELLSTATUS[st] + '</button>').join("")
+    + '</div><div class="dialog__knoepfe">'
+    + '<button class="knopf knopf--still" data-nein>Abbrechen</button></div></div>';
+  document.body.appendChild(huelle);
+
+  huelle.querySelector("[data-nein]").onclick = () => huelle.remove();
+  huelle.onclick = (e) => { if (e.target === huelle) huelle.remove(); };
+
+  huelle.querySelectorAll("[data-neu]").forEach((k) => {
+    k.onclick = async () => {
+      const neuStatus = k.dataset.neu;
+      if (neuStatus === z.status && neuStatus !== "teilweise_geliefert") { huelle.remove(); return; }
+      let daten = statusDaten(neuStatus, z.status);
+
+      if (neuStatus === "teilweise_geliefert") {
+        // Bei einer Teillieferung zählt, wie viel schon da ist
+        const w = await dialogFelder({ titel: "Teilweise geliefert",
+          hinweis: "Bestellt: " + zahlText(z.quantity) + " Stück",
+          felder: [{ name: "menge", label: "Wie viel ist geliefert?", typ: "number",
+                     wert: z.geliefert_menge || "", pflicht: true }],
+          bestaetigen: "Speichern" });
+        if (!w) return;
+        const menge = Number(w.menge);
+        if (!(menge > 0)) { meldung("Bitte eine Menge eingeben.", "warn"); return; }
+        if (menge >= Number(z.quantity || 0)) {
+          const ganz = await nachfragen({ titel: "Alles da?",
+            text: "Das ist die ganze bestellte Menge. Als geliefert abschliessen?",
+            bestaetigen: "Ja, geliefert", abbrechen: "Nein, teilweise lassen" });
+          if (ganz) daten = statusDaten("geliefert", z.status);
+        }
+        daten.geliefert_menge = menge;
+      } else {
+        const ok = await nachfragen({ titel: "Status ändern",
+          text: 'Wirklich auf "' + BESTELLSTATUS[neuStatus] + '" setzen?',
+          bestaetigen: "Ja, ändern" });
+        if (!ok) return;
+      }
+
+      huelle.remove();
+      try {
+        const r = await aendernOhneUnbekannte("order_items", daten, "id", z.id);
+        meldung(r.weggelassen && r.weggelassen.indexOf("geliefert_menge") !== -1
+          ? "Status geändert. Die Menge braucht noch teillieferung.sql in der Datenbank."
+          : "Status geändert.");
+        stammVergessen("bestellungen");
+        seiteBestellungen(b);
+      } catch (f) { meldung(fehlertext(f), "fehler"); }
+    };
+  });
+}
+
 async function ladeBestellungen(offen) {
   // Beim Suchen und Blättern wird nicht neu geholt. Nach jeder
   // Änderung (Bestellen, Liefern, Löschen) wird das Gedächtnis
@@ -19510,7 +19601,9 @@ async function bestOffen(ziel, b, bereich) {
           + kurzDatum(z.needed_by) + (spaet ? " · überfällig" : "") + '</span>' : "")
       + (z.note ? ' · ' + esc(z.note) : "")
       + ' · von ' + esc(personName(z.profiles))
-      + '</div></td>'
+      + '</div>'
+      + (statusZeit(z) ? '<div class="klein bz-zeit">' + esc(statusZeitText(z)) + '</div>' : "")
+      + '</td>'
       + '<td class="bz-menge stark">' + zahlText(z.quantity)
       + (z.status === "teilweise_geliefert" && z.geliefert_menge
           ? '<div class="klein bz-teil">' + zahlText(z.geliefert_menge) + ' da · '
@@ -19630,14 +19723,12 @@ async function bestOffen(ziel, b, bereich) {
         bestaetigen: "Ja, alle ändern" });
       if (!ok) return;
 
-      const jetzt = new Date().toISOString();
-      const daten = { status: wahl };
-      if (wahl === "bestellt") daten.ordered_at = jetzt;
-      if (wahl === "geliefert") { daten.delivered_at = jetzt; daten.completed_at = jetzt; }
-
-      const { error } = await db.from("order_items")
-        .update(daten)
-        .in("id", posten.map((z) => z.id));
+      let error = null;
+      try {
+        await parallelSenden(posten.map((z) => () =>
+          aendernOhneUnbekannte("order_items", statusDaten(wahl, z.status), "id", z.id)));
+      } catch (f) { error = f; }
+      stammVergessen("bestellungen");
 
       if (error) meldung(fehlertext(error), "fehler");
       else {
@@ -19775,70 +19866,9 @@ async function bestOffen(ziel, b, bereich) {
   });
 
   ziel.querySelectorAll("[data-bstatus]").forEach((el) => {
-    el.onclick = async () => {
+    el.onclick = () => {
       const z = liste.find((x) => x.id === el.dataset.bstatus);
-      const huelle = document.createElement("div");
-      huelle.className = "dialog-huelle";
-      huelle.innerHTML = '<div class="dialog"><h2>Status ändern</h2>'
-        + '<div class="statuswahl">'
-        + Object.keys(BESTELLSTATUS).map((st) => '<button class="knopf'
-              + (z.status === st ? " knopf--haupt" : "") + '" data-neu="' + st + '">'
-              + BESTELLSTATUS[st] + '</button>').join("") 
-        + '</div><div class="dialog__knoepfe">'
-        + '<button class="knopf knopf--still" data-nein>Abbrechen</button></div></div>';
-      document.body.appendChild(huelle);
-
-      huelle.querySelector("[data-nein]").onclick = () => huelle.remove();
-      huelle.onclick = (e) => { if (e.target === huelle) huelle.remove(); };
-
-      huelle.querySelectorAll("[data-neu]").forEach((k) => {
-        k.onclick = async () => {
-          const neuStatus = k.dataset.neu;
-          const daten = { status: neuStatus };
-
-          if (neuStatus === "teilweise_geliefert") {
-            // Bei einer Teillieferung zählt, wie viel schon da ist
-            const w = await dialogFelder({ titel: "Teilweise geliefert",
-              hinweis: "Bestellt: " + zahlText(z.quantity) + " Stück",
-              felder: [{ name: "menge", label: "Wie viel ist geliefert?", typ: "number",
-                         wert: z.geliefert_menge || "", pflicht: true }],
-              bestaetigen: "Speichern" });
-            if (!w) return;
-            const menge = Number(w.menge);
-            if (!(menge > 0)) { meldung("Bitte eine Menge eingeben.", "warn"); return; }
-            if (menge >= Number(z.quantity || 0)) {
-              const ganz = await nachfragen({ titel: "Alles da?",
-                text: "Das ist die ganze bestellte Menge. Als geliefert abschliessen?",
-                bestaetigen: "Ja, geliefert", abbrechen: "Nein, teilweise lassen" });
-              if (ganz) {
-                daten.status = "geliefert";
-                daten.delivered_at = new Date().toISOString();
-                daten.completed_at = daten.delivered_at;
-              }
-            }
-            daten.geliefert_menge = menge;
-          } else {
-            const ok = await nachfragen({ titel: "Status ändern",
-              text: 'Wirklich auf "' + BESTELLSTATUS[neuStatus] + '" setzen?',
-              bestaetigen: "Ja, ändern" });
-            if (!ok) return;
-          }
-          if (neuStatus === "bestellt") daten.ordered_at = new Date().toISOString();
-          if (neuStatus === "geliefert") {
-            daten.delivered_at = new Date().toISOString();
-            daten.completed_at = daten.delivered_at;
-          }
-
-          huelle.remove();
-          try {
-            const r = await aendernOhneUnbekannte("order_items", daten, "id", z.id);
-            meldung(r.weggelassen && r.weggelassen.indexOf("geliefert_menge") !== -1
-              ? "Status geändert. Die Menge braucht noch teillieferung.sql in der Datenbank."
-              : "Status geändert.");
-            seiteBestellungen(b);
-          } catch (f) { meldung(fehlertext(f), "fehler"); }
-        };
-      });
+      if (z) bestStatusDialog(z, b);
     };
   });
 }
@@ -19855,11 +19885,10 @@ async function lieferungEinlagern(z, b) {
     bestaetigen: "Ja, geliefert" });
   if (!ok) return;
 
-  const { error } = await db.from("order_items").update({
-    status: "geliefert",
-    delivered_at: new Date().toISOString(),
-    completed_at: new Date().toISOString(),
-  }).eq("id", z.id);
+  let error = null;
+  try { await aendernOhneUnbekannte("order_items", statusDaten("geliefert", z.status), "id", z.id); }
+  catch (f) { error = f; }
+  stammVergessen("bestellungen");
 
   if (error) meldung(fehlertext(error), "fehler");
   else { meldung("Als geliefert gebucht."); seiteBestellungen(b); }
@@ -20266,11 +20295,13 @@ async function bestHistorie(ziel, b) {
     + (fertige.length ? ' <span class="marke">' + fertige.length + '</span>' : "") + '</h2>'
     + (fertige.length
       ? '<table class="tabelle"><thead><tr><th>Geliefert</th><th>Artikel</th>'
-        + '<th class="mitte">Menge</th><th>Wer</th></tr></thead><tbody>'
+        + '<th class="mitte">Menge</th><th>Wer</th>' + (darfSchreiben() ? '<th></th>' : "")
+        + '</tr></thead><tbody>'
         + fertige.map((z) => {
             const a = z.articles || {};
-            const wann = (z.delivered_at || z.completed_at || z.created_at || "").slice(0, 10);
-            return '<tr><td class="klein">' + esc(langDatum(wann)) + '</td>'
+            const wann = statusZeit(z);
+            return '<tr><td class="klein nowrap">' + (wann ? esc(langDatum(wann.slice(0, 10)))
+                + '<div class="gedaempft">' + esc(datumZeitKurz(wann).split(" ")[1] || "") + ' Uhr</div>' : "–") + '</td>'
               + '<td><strong>' + esc(a.article_number || "?") + '</strong> ' + esc(a.name || "")
               + '<div class="klein">' + esc((z.suppliers && z.suppliers.name) || "") + '</div></td>'
               + '<td class="mitte stark">' + zahlText(z.quantity) + '</td>'
@@ -20279,7 +20310,11 @@ async function bestHistorie(ziel, b) {
               + (z.ziel_text
                   ? '<div>' + zielZeichen(z.ziel_art) + ' ' + esc(z.ziel_text) + '</div>'
                   : "")
-              + '</td></tr>';
+              + '</td>'
+              // Aus Versehen auf geliefert gesetzt? Hier zurück.
+              + (darfSchreiben() ? '<td class="bz-aktionen"><button class="linkknopf" data-hstatus="'
+                  + esc(z.id) + '">Status</button></td>' : "")
+              + '</tr>';
           }).join("")
         + '</tbody></table>'
       : '<p class="hinweis">'
@@ -20287,6 +20322,13 @@ async function bestHistorie(ziel, b) {
                     : "Noch nichts abgeschlossen.")
         + '</p>')
     + '</section>';
+
+  ziel.querySelectorAll("[data-hstatus]").forEach((el) => {
+    el.onclick = () => {
+      const z = fertige.find((x) => x.id === el.dataset.hstatus);
+      if (z) bestStatusDialog(z, b);
+    };
+  });
 
   const suchfeldHist = document.getElementById("bh-suche");
   if (suchfeldHist) {
