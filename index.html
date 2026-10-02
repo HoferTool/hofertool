@@ -4373,7 +4373,7 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 /* Während ältere Aufträge nachkommen: kurz etwas blasser */
 .pw-tafel--laedt .pw-spuren { opacity: .55; transition: opacity .2s; }
 /* Woche in der Produktion: die ganze Auftragszeile in der linken Spalte */
-.raster th.fest--voll { min-width: 250px; max-width: 320px; white-space: normal; vertical-align: top; }
+.raster th.fest--voll { min-width: 220px; max-width: 250px; white-space: normal; vertical-align: top; }
 .fest__zeile .auftrag { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
                         margin: 6px 0 2px; padding: 0; background: none; border: 0; font-weight: 400; }
 .fest__zeile .auftrag__nr { font-weight: 700; }
@@ -4391,6 +4391,28 @@ body.dunkel .mat-warnung { background: rgba(255, 170, 60, .15); color: #ffc98a; 
             font: 600 .7rem/1.4 inherit; color: var(--gedaempft); background: var(--flaeche); }
 /* Seit wann eine Bestellposition ihren Status hat */
 .bz-zeit { color: var(--gedaempft); margin-top: 2px; }
+/* Woche in der Produktion: jeder Tag bekommt Platz, notfalls seitwärts schieben */
+.raster--woche { width: max-content; min-width: 100%; }
+.raster--woche td:not(.fest), .raster--woche thead th:not(.fest) { min-width: 108px; }
+.raster--woche .menge { width: 100%; max-width: 130px; }
+
+/* Pad: Materialkachel ganz in der Werkstofffarbe */
+.pad-karte2--gefuellt { background: var(--wf) !important; color: var(--wfs) !important; padding-left: 18px !important; }
+.pad-karte2--gefuellt::before { display: none; }
+.pad-karte2--gefuellt .pad-name, .pad-karte2--gefuellt .pad-mat-unten,
+.pad-karte2--gefuellt .pad-mat-gruppe small { color: var(--wfs) !important; opacity: .8; }
+.pad-karte2--gefuellt .pad-mat-unten b { color: var(--wfs) !important; }
+.pad-karte2--gefuellt .pad-mat-gruppe i { border-color: currentColor; }
+
+/* PDF: Fläche voll ausnützen */
+.betrachter__buehne { padding: 4px; }
+.betrachter__buehne iframe { flex: 1; min-height: 0; border-radius: 2px; }
+
+/* Startseite: Logo oben in der Mitte des blauen Bands */
+.kopfkarte { position: relative; }
+.kopfkarte__logo { position: absolute; left: 50%; top: 18px; transform: translateX(-50%);
+                   height: 54px; width: auto; pointer-events: none; }
+@media (max-width: 760px) { .kopfkarte__logo { display: none; } }
 </style>
 </head>
 <body>
@@ -4439,7 +4461,11 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "111.4.0";
+
+// Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
+// mindestens sechs Zeichen, eine PIN hat oft nur vier.
+function pinPasswort(pin) { return "pin-" + String(pin) + "-hoferco"; }
+const APP_VERSION = "111.5.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5499,8 +5525,13 @@ function zeigeLogin() {
       knopf.disabled = true;
       knopf.textContent = "Anmelden …";
       try {
-        const { error } = await zeitlimit(
+        let { error } = await zeitlimit(
           db.auth.signInWithPassword({ email: email, password: pw }), 15000, "Anmeldung");
+        // Nur Ziffern? Dann als PIN versuchen
+        if (error && /^\d{4,8}$/.test(pw)) {
+          ({ error } = await zeitlimit(
+            db.auth.signInWithPassword({ email: email, password: pinPasswort(pw) }), 15000, "Anmeldung"));
+        }
         if (error) throw error;
         geraetKontoMerken(email);
         await profilLaden();
@@ -5521,7 +5552,7 @@ function zeigeLogin() {
       + '<label class="feld"><span>Benutzername</span>'
       + '<input type="text" id="le" autocomplete="username" autocapitalize="none"'
       + ' spellcheck="false" required></label>'
-      + '<label class="feld"><span>Passwort</span>'
+      + '<label class="feld"><span>Passwort oder PIN</span>'
       + '<input type="password" id="lp" autocomplete="current-password" required></label>'
       + '<button type="submit" class="knopf knopf--haupt knopf--breit" id="lk">Anmelden</button>'
       + '</form>';
@@ -5539,6 +5570,9 @@ function zeigeLogin() {
         ? antwort.data.filter((u) => bekannt.indexOf(String(u.email || "").toLowerCase()) !== -1)
         : antwort.data.filter((u) => u.role !== "extern" && u.role !== "dienst");
       if (!data.length) throw new Error("leer");
+      // Immer in derselben Reihenfolge: nach Namen, wie im Telefonbuch
+      data.sort((x, y) => String(x.full_name || x.email || "").localeCompare(
+        String(y.full_name || y.email || ""), "de", { sensitivity: "base" }));
 
       // Reihen ausgleichen: lieber 3 + 3 als 5 + 1. Die Spaltenzahl
       // ergibt sich aus der Anzahl, der Rest steht mittig darunter.
@@ -5714,7 +5748,7 @@ async function holeWetterStunden() {
     const t = new Date(zeit);
     if (t <= jetzt || stunden.length >= 5) return;
     stunden.push({
-      stunde: String(t.getHours()).padStart(2, "0"),
+      stunde: String(t.getHours()).padStart(2, "0") + ".00",
       grad: Math.round(d.hourly.temperature_2m[i]),
       code: d.hourly.weather_code[i],
     });
@@ -7146,6 +7180,7 @@ async function seiteDashboard(b) {
     + '<section class="kopfkarte">'
     + '<div class="kopfkarte__zeit"><div class="uhr" id="uhr">--:--</div>'
     + '<div class="kopfkarte__datum" id="datum"></div></div>'
+    + '<img class="kopfkarte__logo" src="./login.png" alt="Hofer + Co.">'
     + '<div class="kopfkarte__wetter" id="wetter"><span class="klein">Wetter wird geladen …</span></div>'
     + '</section>'
     + '<div id="db-solar" class="kopfkarte__solar"></div>'
@@ -8654,7 +8689,7 @@ function wochenRaster(maschinen, von, anzahl, staende) {
       + '</th>' + zellen + '</tr>';
   }).join("");
 
-  return '<div class="karte karte--raster"><div class="rasterrolle"><table class="raster">'
+  return '<div class="karte karte--raster"><div class="rasterrolle"><table class="raster raster--woche">'
     + '<thead>' + kopf + '</thead><tbody>' + zeilen + '</tbody></table></div></div>'
     + '<p class="hinweis">Die große Zahl ist der Zählerstand seit Auftragsbeginn. '
     + 'Darunter steht die daraus errechnete Tagesleistung. '
@@ -14557,7 +14592,10 @@ async function padZeichnen() {
   h.querySelectorAll("[data-padzu]").forEach((el) => { el.onclick = padSchliessen; });
   h.querySelectorAll("[data-padzurueck]").forEach((el) => {
     el.onclick = () => {
-      if (pad.wo === "maschine") pad.wo = "maschinen";
+      // In der Zeichnung oder WBG einer Maschine: einen Schritt zurück auf
+      // ihre Übersicht, nicht gleich zur Liste aller Maschinen
+      if (pad.wo === "maschine" && pad.reiter && pad.reiter !== "uebersicht") pad.reiter = "uebersicht";
+      else if (pad.wo === "maschine") pad.wo = "maschinen";
       else if (pad.wo === "maschinen") pad.wo = pad.typUebersprungen ? "parks" : "typen";
       else if (pad.wo === "typen") pad.wo = "parks";
       else pad.wo = "start";
@@ -14950,8 +14988,8 @@ async function padMaschine(h) {
         const g = werkstoffErkennen(bez);
         const f = g ? farbeVon(g.farbe) : null;
         const menge = j && j.material_menge ? String(j.material_menge) : "";
-        return '<div class="pad-karte2 pad-karte2--material"'
-          + (f ? ' style="--wf:' + f.hex + '"' : "") + '>'
+        return '<div class="pad-karte2 pad-karte2--material' + (f ? " pad-karte2--gefuellt" : "") + '"'
+          + (f ? ' style="--wf:' + f.hex + ';--wfs:' + schriftZu(f.hex) + '"' : "") + '>'
           + '<span class="pad-name">Material</span>'
           + '<div class="pad-mat-zeile">'
           + '<span class="pad-mat-bez">' + (bez ? esc(bez) : '<span class="pad-leer">nicht erfasst</span>') + '</span>'
@@ -15055,7 +15093,7 @@ async function padMaschine(h) {
 
   h.innerHTML = kopf
     + (datei
-      ? '<div class="pad__datei"><iframe id="pad-datei" src="' + esc(datei)
+      ? '<div class="pad__datei"><iframe id="pad-datei" src="' + esc(pdfGanz(datei, true))
         + '" title="Ansicht"></iframe></div>'
       : (j ? "" : '<p class="pad__hinweis">Auf dieser Maschine läuft gerade kein '
           + 'Auftrag.</p>') + uebersicht);
@@ -16867,6 +16905,13 @@ function datumZeitKurz(iso) {
   return p(d.getDate()) + "." + p(d.getMonth() + 1) + ". " + p(d.getHours()) + ":" + p(d.getMinutes());
 }
 
+// PDF so gross wie möglich: ganze Seite eingepasst, ohne Seitenleiste.
+// Im Pad ohne Werkzeugleiste — Drucken und Speichern hat das Pad selbst.
+function pdfGanz(adresse, ohneLeiste) {
+  if (!adresse || String(adresse).indexOf("#") !== -1) return adresse;
+  return adresse + "#navpanes=0&view=Fit" + (ohneLeiste ? "&toolbar=0" : "");
+}
+
 // Zeigt ein PDF oder ein Bild in der App an, ohne Herunterladen.
 function betrachter(adresse, titel, istPdf) {
   const huelle = document.createElement("div");
@@ -16883,9 +16928,9 @@ function betrachter(adresse, titel, istPdf) {
     + '</div></div>'
     + '<div class="betrachter__buehne">'
     + (istPdf
-        ? '<iframe src="' + esc(adresse) + '" title="Zeichnung"></iframe>'
-          + '<p class="betrachter__hinweis">Wird nichts angezeigt, öffne die Datei über '
-          + '"Neuer Tab". Manche Handys zeigen PDFs nicht direkt in der App an.</p>'
+        ? '<iframe src="' + esc(pdfGanz(adresse)) + '" title="Zeichnung"></iframe>'
+          + (isMobil() ? '<p class="betrachter__hinweis">Wird nichts angezeigt, öffne die Datei über '
+          + '"Neuer Tab". Manche Handys zeigen PDFs nicht direkt in der App an.</p>' : "")
         : '<img src="' + esc(adresse) + '" alt="Foto">')
     + '</div></div>';
   document.body.appendChild(huelle);
@@ -21552,6 +21597,15 @@ async function seiteEinstellungen(b) {
     + '<input type="password" id="np" autocomplete="new-password"'
     + '></label>'
     + '<button class="knopf" id="ps">Passwort ändern</button>'
+    + '<label class="feld feld--abstand"><span>PIN statt Passwort</span>'
+    + '<input type="password" id="mk-pin" inputmode="numeric" pattern="[0-9]*" maxlength="8"'
+    + ' autocomplete="new-password" placeholder="4 bis 8 Ziffern"></label>'
+    + '<label class="feld"><span>PIN wiederholen</span>'
+    + '<input type="password" id="mk-pin2" inputmode="numeric" pattern="[0-9]*" maxlength="8"'
+    + ' autocomplete="new-password"></label>'
+    + '<button class="knopf" id="mk-pinknopf">PIN speichern</button>'
+    + '<p class="hinweis">Danach meldest du dich mit der PIN an, das bisherige Passwort gilt '
+    + 'nicht mehr. Eine PIN ist kürzer und leichter zu erraten als ein Passwort.</p>'
     + '<label class="schalter feld--abstand"><input type="checkbox" id="mk-ohnepw"'
     + (ich.ohne_passwort ? " checked" : "") + '>'
     + '<span>Ohne Passwort anmelden</span></label>'
@@ -21767,6 +21821,22 @@ async function seiteEinstellungen(b) {
     const anz = document.querySelector("[data-benutzername]");
     if (anz) anz.textContent = name || ich.email;
     meldung("Name gespeichert.");
+  };
+
+  document.getElementById("mk-pinknopf").onclick = async () => {
+    const pin = document.getElementById("mk-pin").value.trim();
+    const pin2 = document.getElementById("mk-pin2").value.trim();
+    if (!/^\d{4,8}$/.test(pin)) return meldung("Die PIN braucht 4 bis 8 Ziffern.", "warn");
+    if (pin !== pin2) return meldung("Die beiden PINs sind nicht gleich.", "warn");
+    const { error } = await db.auth.updateUser({ password: pinPasswort(pin) });
+    if (error) return meldung(fehlertext(error), "fehler");
+    document.getElementById("mk-pin").value = "";
+    document.getElementById("mk-pin2").value = "";
+    await db.from("profiles").update({ ohne_passwort: false }).eq("id", ich.id);
+    ich.ohne_passwort = false;
+    const haken = document.getElementById("mk-ohnepw");
+    if (haken) haken.checked = false;
+    meldung("PIN gespeichert. Ab jetzt meldest du dich damit an.");
   };
 
   document.getElementById("ps").onclick = async () => {
