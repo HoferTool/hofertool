@@ -4434,7 +4434,7 @@ const LOGIN_ENDUNG = "@hoferco.ch";
 // Es steht offen im Code — das ist der Preis für die Bequemlichkeit
 // und gilt nur für Konten, die das selbst eingeschaltet haben.
 const OFFENES_PASSWORT = "hofer-offen-2026";
-const APP_VERSION = "111.1.0";
+const APP_VERSION = "111.2.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4571,7 +4571,11 @@ function oberstesFensterSchliessen() {
   // dass sie schon zu sind, und tun nichts mehr.
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    if (oberstesFensterSchliessen()) e.preventDefault();
+    if (oberstesFensterSchliessen()) { e.preventDefault(); return; }
+    // Kein richtiges Fenster offen: dann das kleine Infofenster der
+    // Planwand, das beim Antippen eines Balkens stehen bleibt
+    const infos = document.querySelectorAll(".pw-info");
+    if (infos.length) { infos.forEach((x) => x.remove()); e.preventDefault(); }
   }, true);
 })();
 
@@ -8932,26 +8936,61 @@ function naechsterArbeitstag(datum) {
 }
 
 // Zählt n Arbeitstage weiter, Wochenenden übersprungen.
+// Gleiches Ergebnis wie Tag für Tag zu zählen, aber in einem Sprung:
+// fünf Arbeitstage sind immer eine volle Woche. Der Zeitregler fragt bei
+// jedem Schritt bis zu 1'800 Arbeitstage weit — vorher wurde jeder Tag
+// einzeln gerechnet. Ergebnisse werden zusätzlich gemerkt.
+const arbeitstagePlusGemerkt = new Map();
 function arbeitstagePlus(datum, n) {
+  const schluessel = datum + "|" + n;
+  const gemerkt = arbeitstagePlusGemerkt.get(schluessel);
+  if (gemerkt) return gemerkt;
   let d = naechsterArbeitstag(datum);
   if (n >= 0) {
-    for (let i = 0; i < n; i++) { d = naechsterArbeitstag(plusTage(d, 1)); }
-    return d;
+    // ganze Wochen auf einmal, den Rest Tag für Tag
+    const wochen = Math.floor(n / 5);
+    if (wochen > 0) d = plusTage(d, wochen * 7);
+    for (let i = 0; i < n - wochen * 5; i++) { d = naechsterArbeitstag(plusTage(d, 1)); }
+  } else {
+    // Negative Werte gehen rückwärts, Wochenenden werden übersprungen
+    const m = -n;
+    const wochen = Math.floor(m / 5);
+    if (wochen > 0) d = plusTage(d, -wochen * 7);
+    for (let i = 0; i < m - wochen * 5; i++) {
+      d = plusTage(d, -1);
+      while ([0, 6].indexOf(ausIso(d).getDay()) !== -1) d = plusTage(d, -1);
+    }
   }
-  // Negative Werte gehen rückwärts, Wochenenden werden übersprungen
-  for (let i = 0; i < -n; i++) {
-    d = plusTage(d, -1);
-    while ([0, 6].indexOf(ausIso(d).getDay()) !== -1) d = plusTage(d, -1);
-  }
+  if (arbeitstagePlusGemerkt.size > 20000) arbeitstagePlusGemerkt.clear();
+  arbeitstagePlusGemerkt.set(schluessel, d);
   return d;
 }
 
 // Liste von n Arbeitstagen ab einem Datum
+// Dieselben Arbeitstage werden beim Zeichnen sehr oft gebraucht — einmal
+// gerechnet, gemerkt. Zurück kommt immer eine eigene Kopie, damit niemand
+// die gemerkte Liste versehentlich verändert.
+const arbeitstageGemerkt = new Map();
 function arbeitstage(ab, anzahl) {
-  const liste = [];
-  let d = naechsterArbeitstag(ab);
-  for (let i = 0; i < anzahl; i++) { liste.push(d); d = naechsterArbeitstag(plusTage(d, 1)); }
-  return liste;
+  const schluessel = ab + "|" + anzahl;
+  let liste = arbeitstageGemerkt.get(schluessel);
+  if (!liste) {
+    liste = [];
+    let d = naechsterArbeitstag(ab);
+    for (let i = 0; i < anzahl; i++) { liste.push(d); d = naechsterArbeitstag(plusTage(d, 1)); }
+    if (arbeitstageGemerkt.size > 30000) arbeitstageGemerkt.clear();
+    arbeitstageGemerkt.set(schluessel, liste);
+  }
+  return liste.slice();
+}
+
+// Grob vorab: Kann ein Eintrag überhaupt im gezeigten Zeitraum liegen?
+// Fünf Arbeitstage sind höchstens neun Kalendertage, dazu ein Wochenende
+// Luft. So muss nicht für jeden alten Auftrag gerechnet werden.
+function koennteSichtbar(von, dauer, sichtVon, sichtBis) {
+  if (!von || von > sichtBis) return false;
+  const kalendertage = Math.ceil((Number(dauer) || 1) * 7 / 5) + 4;
+  return plusTage(von, kalendertage) >= sichtVon;
 }
 
 // Erster freier Tag auf einer Maschine: hinter dem letzten geplanten Auftrag.
@@ -9671,9 +9710,12 @@ async function ladePlanAuftraege(alle) {
   // Laden entsprechend mehr. Excel und Suche holen weiterhin alles.
   let grenze = null;
   if (!alle) {
-    const vorVier = isoDatum(new Date(Date.now() - 120 * 86400000));
-    const vorStart = plan.start ? plusTage(plan.start, -45) : vorVier;
-    grenze = vorStart < vorVier ? vorStart : vorVier;
+    // Fest ein Jahr zurück, dazu alles Offene und alles in der Zukunft:
+    // In diesem Bereich läuft der Zeitregler ohne Nachladen. Wer weiter
+    // zurückfährt, wartet kurz, bis die älteren Aufträge da sind.
+    const vorJahr = isoDatum(new Date(Date.now() - 365 * 86400000));
+    const vorStart = plan.start ? plusTage(plan.start, -45) : vorJahr;
+    grenze = vorStart < vorJahr ? vorStart : vorJahr;
   }
   if (!alle) plan.geladenAb = grenze;   // ab diesem Tag ist alles da
   const paket = (von, zaehlen) => {
@@ -9949,6 +9991,12 @@ async function ansichtPlanwand(ziel, b) {
     + '</div>'
     + '</div>'
     + '<div class="pw-eckknoepfe">'
+    // Zu heute springen — mit zwei Wochen Rückblick
+    + '<button class="knopf knopf--klein pw-eck" id="pw-heute" title="Zu heute, mit zwei Wochen Rückblick">'
+    + '<svg viewBox="0 0 24 24" class="pw-ecksym" fill="none" stroke="currentColor"'
+    + ' stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'
+    + '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>'
+    + '<circle cx="12" cy="14.5" r="1.8" fill="currentColor"/></svg><span>Heute</span></button>'
     + '<button class="knopf knopf--klein pw-eck" id="pw-suche-los" title="Suchen">'
     + '<svg viewBox="0 0 24 24" class="pw-ecksym" fill="none" stroke="currentColor"'
     + ' stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/>'
@@ -9960,12 +10008,6 @@ async function ansichtPlanwand(ziel, b) {
     + ' stroke-width="1.9" stroke-linejoin="round">'
     + '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>'
     + '</svg><span>HOCO Nr.</span></button>'
-    // Die ganze Wand als Excel — zum Ansehen, Weitergeben, Aufheben
-    + '<button class="knopf knopf--klein pw-eck" id="pw-excel" title="Als Excel herunterladen">'
-    + '<svg viewBox="0 0 24 24" class="pw-ecksym" fill="none" stroke="currentColor"'
-    + ' stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'
-    + '<path d="M12 4v11m0 0l-4-4m4 4l4-4M4 17v2a1 1 0 001 1h14a1 1 0 001-1v-2"/>'
-    + '</svg><span>Excel</span></button>'
     + '</div>'
     + '</div>'
     + (darfPlanen() ? "" : (isMobil()
@@ -9984,8 +10026,8 @@ async function ansichtPlanwand(ziel, b) {
   // auf eine leere Ferienzeile klicken trägt Ferien ein — ein eigener
   // Knopf dafür ist deshalb nicht mehr nötig.
 
-  const excelKnopf = document.getElementById("pw-excel");
-  if (excelKnopf) excelKnopf.onclick = () => planwandExcel();
+  const heuteKnopf = document.getElementById("pw-heute");
+  if (heuteKnopf) heuteKnopf.onclick = () => zuHeute(b);
 
   const hocoKnopf = document.getElementById("pw-hoco");
   if (hocoKnopf) hocoKnopf.onclick = () => hocoFenster(b);
@@ -10044,6 +10086,16 @@ async function ansichtPlanwand(ziel, b) {
     }
     zeitregler.value = stelle;
 
+    // Für den Knopf "Heute": den Regler an den neuen Beginn setzen
+    plan.reglerNachfuehren = () => {
+      let st = zurueck;
+      for (let i = 0; i <= spanne; i++) {
+        if (arbeitstagePlus(nullpunkt, i) >= plan.start) { st = i; break; }
+      }
+      zeitregler.value = st;
+      beschriften();
+    };
+
     const marke = document.getElementById("pw-zeitmarke");
     if (marke) marke.style.left = (zurueck / spanne * 100) + "%";
 
@@ -10059,10 +10111,19 @@ async function ansichtPlanwand(ziel, b) {
 
     // Live mitzeichnen: die Aufträge sind schon geladen, es braucht
     // keinen neuen Zugriff auf die Datenbank.
+    // Beim Ziehen kommen mehr Schritte, als der Bildschirm zeigen kann.
+    // Gezeichnet wird höchstens einmal je Bild, mit dem neusten Stand.
+    let bildAngefordert = false;
     zeitregler.oninput = () => {
       beschriften();
       plan.start = arbeitstagePlus(nullpunkt, Number(zeitregler.value));
-      neuZeichnen(b);
+      if (bildAngefordert) return;
+      bildAngefordert = true;
+      requestAnimationFrame(() => {
+        bildAngefordert = false;
+        plan.nurZeitGeschoben = true;
+        neuZeichnen(b);
+      });
     };
   }
 
@@ -11286,6 +11347,16 @@ async function planAktualisieren(b) {
   if (neu) { neu.scrollLeft = x; neu.scrollTop = y; }
 }
 
+// Zu heute springen, so dass noch zwei Wochen Vergangenheit zu sehen
+// sind: Beginn ist der Montag vor zwei Wochen
+function zuHeute(b) {
+  const heute = isoDatum(new Date());
+  plan.start = naechsterArbeitstag(plusTage(wochenStart(heute), -14));
+  if (typeof plan.reglerNachfuehren === "function") plan.reglerNachfuehren();
+  plan.nurZeitGeschoben = true;
+  neuZeichnen(b);
+}
+
 function neuZeichnen(b) {
   const rolle = document.querySelector(".pw-rolle");
   const x = rolle ? rolle.scrollLeft : 0;
@@ -11293,8 +11364,11 @@ function neuZeichnen(b) {
 
   zeichnePlanwand(b);
 
-  const neu = document.querySelector(".pw-rolle");
-  if (neu) { neu.scrollLeft = x; neu.scrollTop = y; }
+  // Ist der Rahmen stehen geblieben, stimmt die Position schon
+  if (plan.rahmenNeu) {
+    const neu = document.querySelector(".pw-rolle");
+    if (neu) { neu.scrollLeft = x; neu.scrollTop = y; }
+  }
 
   aeltereNachladen(b);
 }
@@ -11332,6 +11406,17 @@ function zeichnePlanwand(b) {
     ? arbeitstagePlus(plan.start, -plan.puffer) : plan.start;
 
   const tage = arbeitstage(zeichenStart, plan.tage + plan.puffer * 2);
+  // Für schnelles Nachschlagen: welcher Tag an welcher Stelle steht
+  const tagIndex = new Map(tage.map((t, i) => [t, i]));
+  const sichtVon = tage[0], sichtBis = tage[tage.length - 1];
+  const auftraegeJeMaschine = new Map();
+  (plan.auftraege || []).forEach((j) => {
+    if (!j.planned_from || !koennteSichtbar(j.planned_from, j.planned_days, sichtVon, sichtBis)) return;
+    if (!auftraegeJeMaschine.has(j.machine_id)) auftraegeJeMaschine.set(j.machine_id, []);
+    auftraegeJeMaschine.get(j.machine_id).push(j);
+  });
+  const ferienKandidaten = (plan.ferien || []).filter((f) =>
+    koennteSichtbar(f.von, f.tage, sichtVon, sichtBis));
   plan.sichtbareTage = tage;
   const heute = isoDatum(new Date());
 
@@ -11406,13 +11491,12 @@ function zeichnePlanwand(b) {
             + (t === heute ? " pw-zelle--heute" : "") + '" data-zelle="'
             + esc(m.id) + '|' + t + '"></div>').join("");
 
-          const balken = (plan.auftraege || [])
-            .filter((j) => j.machine_id === m.id && j.planned_from)
+          const balken = (auftraegeJeMaschine.get(m.id) || [])
             .map((j) => {
               const belegt = arbeitstage(j.planned_from, j.planned_days || 1);
-              const sichtbar = belegt.filter((t) => tage.indexOf(t) !== -1);
+              const sichtbar = belegt.filter((t) => tagIndex.has(t));
               if (!sichtbar.length) return "";
-              const von = tage.indexOf(sichtbar[0]);
+              const von = tagIndex.get(sichtbar[0]);
               const angeschnitten = belegt[0] !== sichtbar[0];
               const vorlauf = belegt.indexOf(sichtbar[0]);
               return planBalken(j, von, sichtbar.length, angeschnitten, vorlauf, belegt.length);
@@ -11437,9 +11521,9 @@ function zeichnePlanwand(b) {
   // Schmale Zeilen für die Ferien — mindestens fünf, sonst so viele,
   // wie im gezeigten Zeitraum gebraucht werden. In den Sommerferien
   // sind es deutlich mehr als fünf.
-  const ferienSichtbar = (plan.ferien || []).filter((f) => {
+  const ferienSichtbar = ferienKandidaten.filter((f) => {
     const seine = arbeitstage(f.von, f.tage || 1);
-    return seine.some((t) => tage.indexOf(t) !== -1);
+    return seine.some((t) => tagIndex.has(t));
   });
   // Die Bahnen werden beim Zeichnen neu verteilt, nur für den
   // sichtbaren Zeitraum: jeder Eintrag kommt in die oberste Bahn, in
@@ -11449,7 +11533,7 @@ function zeichnePlanwand(b) {
   const bahnVon = {};
   const belegteBahnen = [];
   ferienSichtbar
-    .map((f) => ({ f: f, t: arbeitstage(f.von, f.tage || 1).filter((d) => tage.indexOf(d) !== -1) }))
+    .map((f) => ({ f: f, t: arbeitstage(f.von, f.tage || 1).filter((d) => tagIndex.has(d)) }))
     .sort((a, c) => String(a.t[0]).localeCompare(String(c.t[0]))
       || c.t.length - a.t.length || String(a.f.person).localeCompare(String(c.f.person)))
     .forEach((x) => {
@@ -11465,11 +11549,11 @@ function zeichnePlanwand(b) {
   const ferienZellen = tage.map((t) => '<div class="pw-zelle pw-zelle--fein pw-zelle--ferienblock'
     + (t === heute ? " pw-zelle--heute" : "") + '" data-fzelle="0|' + t + '"></div>').join("");
 
-  const ferienBalken = (plan.ferien || []).map((f2) => {
+  const ferienBalken = ferienSichtbar.map((f2) => {
     const belegt = arbeitstage(f2.von, f2.tage || 1);
-    const sichtbar = belegt.filter((t) => tage.indexOf(t) !== -1);
+    const sichtbar = belegt.filter((t) => tagIndex.has(t));
     if (!sichtbar.length) return "";
-    const von = tage.indexOf(sichtbar[0]);
+    const von = tagIndex.get(sichtbar[0]);
     const feAngeschnitten = belegt[0] !== sichtbar[0];
     const bahn = bahnVon[f2.id] || Math.max(1, Number(f2.zeile) || 1);
     return '<div class="pw-ferien'
@@ -11503,8 +11587,20 @@ function zeichnePlanwand(b) {
     if (naechster >= 0) { heuteSpalte = naechster; heuteAmRand = true; }
   }
 
-  document.getElementById("pw-inhalt").innerHTML =
-    '<div class="pw-rolle"><div class="pw-tafel'
+  // Der Rahmen, in dem gescrollt wird, bleibt stehen — nur die Tafel darin
+  // wechselt. So behält er seine Scroll-Position von selbst, und der
+  // Browser muss die Tafel nicht sofort ein zweites Mal anordnen.
+  const inhaltEl = document.getElementById("pw-inhalt");
+  let rolleEl = inhaltEl.querySelector(":scope > .pw-rolle");
+  if (!rolleEl) {
+    inhaltEl.innerHTML = '<div class="pw-rolle"></div>';
+    rolleEl = inhaltEl.firstElementChild;
+    plan.rahmenNeu = true;
+  } else {
+    plan.rahmenNeu = false;
+  }
+  rolleEl.innerHTML =
+    '<div class="pw-tafel'
     // Unter 80 Prozent Zeilenhöhe passt nur noch eine Textzeile
     + ((plan.vskala || 1) < 0.8 ? " pw-tafel--flach" : "")
     + ((plan.vskala || 1) < 0.55 ? " pw-tafel--sehrflach" : "")
@@ -11523,20 +11619,34 @@ function zeichnePlanwand(b) {
     + (heuteSpalte >= 0
         ? '<div class="pw-heutelinie' + (heuteAmRand ? " pw-heutelinie--rand" : "")
           + '" style="--heute:' + heuteSpalte + '"></div>' : "")
-    + '</div></div>';
+    + '</div>';
 
-  zeitschichtLegen();
+  // Beim Hin- und Herschieben in der Zeit ändert sich am Aufbau der Seite
+  // nichts — Kopfzeile, Platz des Zeitreglers und Höhe bleiben gleich.
+  // Dann wird nicht neu ausgemessen; das kostete bei jedem Schritt eine
+  // komplette Neuanordnung der Tafel.
+  const nurZeit = plan.nurZeitGeschoben && plan.pwOben;
+  plan.nurZeitGeschoben = false;
+  if (nurZeit) {
+    const rolle = document.querySelector(".pw-rolle");
+    if (rolle) rolle.style.setProperty("--pw-oben", plan.pwOben + "px");
+  } else {
+    zeitschichtLegen();
+  }
 
   // Wie viel Platz über der Tafel weggeht — Kopfzeile, Regler,
   // Reiter. Daraus ergibt sich die Höhe bis zum Fensterrand.
   const messen = () => {
     const rolle = document.querySelector(".pw-rolle");
     if (!rolle) return;
-    const oben = rolle.getBoundingClientRect().top;
-    rolle.style.setProperty("--pw-oben", Math.round(oben) + "px");
+    const oben = Math.round(rolle.getBoundingClientRect().top);
+    plan.pwOben = oben;
+    rolle.style.setProperty("--pw-oben", oben + "px");
   };
-  messen();
-  requestAnimationFrame(messen);
+  if (!nurZeit) {
+    messen();
+    requestAnimationFrame(messen);
+  }
   if (!window._pwMessen) {
     window._pwMessen = true;
     window.addEventListener("resize", () => {
@@ -21306,6 +21416,20 @@ async function farbListeZeichnen() {
 // Welcher Reiter in den Einstellungen offen ist
 const einst = { reiter: "allgemein" };
 
+function teilBackup() {
+  return '<section class="karte"><div class="karte__kopf"><h2>Planwand als Excel</h2></div>'
+    + '<p class="hinweis">Alle Aufträge der Planwand mit Maschine, Zeitraum, Zustand, '
+    + 'Stückzahl, Material und Notiz als Tabelle — zum Ansehen, Weitergeben oder Aufheben. '
+    + 'Ein zweites Blatt enthält die Maschinen.</p>'
+    + '<button class="knopf knopf--haupt" id="bk-excel">Excel herunterladen</button>'
+    + '</section>'
+    + '<section class="karte"><div class="karte__kopf"><h2>Sicherung der Datenbank</h2></div>'
+    + '<p class="hinweis">Die vollständige Sicherung macht Supabase mit dem Pro-Plan jeden Tag '
+    + 'selbst, dazu kommt die Sicherung auf eurem Server mit <code>sicherung.ps1</code>. '
+    + 'Die Excel-Datei oben ersetzt sie nicht, sie ist ein Stand zum Lesen.</p>'
+    + '</section>';
+}
+
 function teilFehlerprotokoll() {
   const liste = fehlerLesen().slice().reverse();
   return '<section class="karte"><div class="karte__kopf">'
@@ -21340,7 +21464,7 @@ async function seiteEinstellungen(b) {
   // Nur Reiter, für die man die Rechte hat. War zuletzt einer offen,
   // den diese Person nicht sehen darf — etwa weil vorher ein Admin
   // am selben Gerät angemeldet war —, geht es auf den ersten zurück.
-  const erlaubt = ["allgemein", "dokumente", "fehler"]
+  const erlaubt = ["allgemein", "dokumente", "backup", "fehler"]
     .concat(bin ? ["farben", "nutzer"] : []);
   if (erlaubt.indexOf(einst.reiter) === -1) einst.reiter = erlaubt[0];
 
@@ -21473,7 +21597,7 @@ async function seiteEinstellungen(b) {
     + '</div>'
 
     + '<div class="reiter">'
-    + [["allgemein", "Allgemein"], ["dokumente", "Dokumente"],
+    + [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["backup", "Backup"],
        ["fehler", "Fehlerprotokoll"]]
         .concat(bin ? [["farben", "Farben und Material"], ["nutzer", "Nutzer"]] : [])
         .map(([w, tt]) => '<button class="reiter__knopf'
@@ -21486,6 +21610,7 @@ async function seiteEinstellungen(b) {
         : einst.reiter === "nutzer" ? teilNutzer()
         : einst.reiter === "dokumente" ? '<div class="laedt">Wird geladen …</div>'
         : einst.reiter === "fehler" ? teilFehlerprotokoll()
+        : einst.reiter === "backup" ? teilBackup()
         : teilAllgemein())
     + '</div>';
 
@@ -21521,6 +21646,11 @@ async function seiteEinstellungen(b) {
   // Reiter in der Seitenleiste — sie gehören zu den Einstellungen.
   if (einst.reiter === "dokumente") {
     await seiteDokumente(document.getElementById("einst-inhalt"));
+    return;
+  }
+  if (einst.reiter === "backup") {
+    const k = document.getElementById("bk-excel");
+    if (k) k.onclick = () => planwandExcel();
     return;
   }
   if (einst.reiter === "fehler") {
