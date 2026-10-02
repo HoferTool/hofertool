@@ -31,7 +31,7 @@ teilen() {   # $1 = Stand, $2 = Zielname
 
 # Liegt am Ausgangspunkt schon die neue index.html (nach dem Umbau
 # auf main), gibt es nichts zu übertragen: dann normal mergen.
-if ! git show "$BASIS:index.html" | grep -q '<script type="module">$'; then
+if ! git show "$BASIS:index.html" | grep '<script type="module">$' > /dev/null; then
   echo "Auf main ist der Umbau schon angekommen. Einfach: git merge origin/main"
   exit 0
 fi
