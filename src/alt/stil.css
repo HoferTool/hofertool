@@ -4485,3 +4485,7 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 }
 /* Das Wetter steht auf der blauen Kopfkarte: grau war dort kaum lesbar */
 #wetter .klein { color: inherit; opacity: .8; }
+
+/* Hülle, in die React eine Seite zeichnet (src/bruecke.jsx). Ohne
+   eigenen Kasten, damit Abstände und Raster wie vorher wirken. */
+.react-seite { display: contents; }

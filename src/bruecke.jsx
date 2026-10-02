@@ -22,11 +22,11 @@ export const alt = {};
 const wurzeln = new Map();
 
 // Räumt die React-Wurzel in einem Behälter weg, bevor das alte
-// Programm ihn mit eigenem Inhalt überschreibt. Ohne Behälter: alle,
-// deren Behälter nicht mehr in der Seite hängt, plus die genannten.
+// Programm ihn mit eigenem Inhalt überschreibt. Dazu alle, deren
+// Hülle nicht mehr in der Seite hängt.
 export function reactAufraeumen(behaelter) {
   for (const [el, w] of wurzeln) {
-    if (el === behaelter || !document.body.contains(el)) {
+    if (el === behaelter || !document.body.contains(w.huelle)) {
       w.wurzel.unmount();
       wurzeln.delete(el);
     }
@@ -42,18 +42,27 @@ export function reactAufraeumen(behaelter) {
 // geändert haben, steht dieselbe Seite schon im Behälter. Dann wird
 // sie nicht neu aufgebaut, sondern bekommt nur „auffrischen“ hoch-
 // gezählt: Sie lädt still nach, Eingaben und Scrollstand bleiben.
+//
+// React zeichnet nicht direkt in den Behälter, sondern in eine eigene
+// Hülle darin (display: contents, also ohne Einfluss aufs Aussehen).
+// Leert das alte Programm den Behälter einmal selbst, etwa beim Öffnen
+// des Pad Mode, bleibt Reacts Inhalt in der Hülle beisammen und lässt
+// sich später sauber abbauen.
 export function reactSeite(Komponente) {
   return (behaelter) => {
     const da = wurzeln.get(behaelter);
-    if (da && da.komponente === Komponente && behaelter.firstChild) {
+    if (da && da.komponente === Komponente && behaelter.contains(da.huelle)) {
       da.auffrischen++;
       flushSync(() => da.wurzel.render(<Komponente auffrischen={da.auffrischen} behaelter={behaelter} />));
       return;
     }
     reactAufraeumen(behaelter);
     behaelter.innerHTML = "";
-    const wurzel = createRoot(behaelter);
-    wurzeln.set(behaelter, { wurzel, komponente: Komponente, auffrischen: 0 });
+    const huelle = document.createElement("div");
+    huelle.className = "react-seite";
+    behaelter.appendChild(huelle);
+    const wurzel = createRoot(huelle);
+    wurzeln.set(behaelter, { wurzel, huelle, komponente: Komponente, auffrischen: 0 });
     flushSync(() => wurzel.render(<Komponente auffrischen={0} behaelter={behaelter} />));
   };
 }
