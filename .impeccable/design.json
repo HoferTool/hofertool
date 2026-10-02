@@ -1,0 +1,709 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-02T22:43:56.554311Z",
+  "title": "Design System: Hofer Tool",
+  "extensions": {
+    "colorMeta": {
+      "firmenblau": {
+        "role": "primary",
+        "displayName": "Firmenblau",
+        "canonical": "#003884",
+        "tonalRamp": [
+          "#00204c",
+          "#003680",
+          "#004cb2",
+          "#0061e6",
+          "#2984ff",
+          "#66a7ff",
+          "#add0ff",
+          "#e5f0ff"
+        ]
+      },
+      "firmenblau-tief": {
+        "role": "primary",
+        "displayName": "Firmenblau Tief",
+        "canonical": "#002b66",
+        "tonalRamp": [
+          "#00204c",
+          "#003680",
+          "#004bb2",
+          "#0061e6",
+          "#2983ff",
+          "#66a6ff",
+          "#add0ff",
+          "#e5f0ff"
+        ]
+      },
+      "firmenblau-hauch": {
+        "role": "primary",
+        "displayName": "Firmenblau Hauch",
+        "canonical": "#e8eef7",
+        "tonalRamp": [
+          "#142339",
+          "#213a5f",
+          "#2e5184",
+          "#3b68aa",
+          "#608ac8",
+          "#8dabd8",
+          "#c2d2ea",
+          "#ecf1f8"
+        ]
+      },
+      "grund": {
+        "role": "neutral",
+        "displayName": "Werkstattgrau",
+        "canonical": "#f3f5f8",
+        "tonalRamp": [
+          "#1c2430",
+          "#2f3c51",
+          "#425571",
+          "#556d91",
+          "#788eb0",
+          "#9eaec7",
+          "#cbd4e1",
+          "#eff2f6"
+        ]
+      },
+      "flaeche": {
+        "role": "neutral",
+        "displayName": "Blattweiss",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#949494",
+          "#b2b2b2",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "tinte": {
+        "role": "neutral",
+        "displayName": "Tinte",
+        "canonical": "#1d2430",
+        "tonalRamp": [
+          "#1d2430",
+          "#303c4f",
+          "#43536f",
+          "#566b8f",
+          "#798dae",
+          "#a0aec5",
+          "#ccd4e0",
+          "#eff1f5"
+        ]
+      },
+      "gedaempft": {
+        "role": "neutral",
+        "displayName": "Gedämpft",
+        "canonical": "#5c6675",
+        "tonalRamp": [
+          "#22252b",
+          "#383e47",
+          "#4f5764",
+          "#657080",
+          "#8791a1",
+          "#a9b1bc",
+          "#d1d5db",
+          "#f1f2f4"
+        ]
+      },
+      "linie": {
+        "role": "neutral",
+        "displayName": "Haarlinie",
+        "canonical": "#d6dbe3",
+        "tonalRamp": [
+          "#1f252d",
+          "#343d4c",
+          "#48556a",
+          "#5d6e88",
+          "#808fa8",
+          "#a4afc1",
+          "#cfd4de",
+          "#f0f2f5"
+        ]
+      },
+      "linie-stark": {
+        "role": "neutral",
+        "displayName": "Kante",
+        "canonical": "#aeb7c4",
+        "tonalRamp": [
+          "#20252c",
+          "#363e4a",
+          "#4b5767",
+          "#616f85",
+          "#8391a5",
+          "#a6b0bf",
+          "#d0d5dd",
+          "#f0f2f4"
+        ]
+      },
+      "gut": {
+        "role": "status",
+        "displayName": "Gut",
+        "canonical": "#1f7a4d",
+        "tonalRamp": [
+          "#0f3d27",
+          "#1a6640",
+          "#248e5a",
+          "#2eb774",
+          "#54d495",
+          "#85e0b3",
+          "#beeed6",
+          "#ebfaf2"
+        ]
+      },
+      "warnung": {
+        "role": "status",
+        "displayName": "Warnung",
+        "canonical": "#b5761a",
+        "tonalRamp": [
+          "#432c0a",
+          "#6f4910",
+          "#9c6616",
+          "#c9831d",
+          "#e4a344",
+          "#ecbd79",
+          "#f5dcb8",
+          "#fcf4e9"
+        ]
+      },
+      "gefahr": {
+        "role": "status",
+        "displayName": "Gefahr",
+        "canonical": "#b3261e",
+        "tonalRamp": [
+          "#420e0b",
+          "#6d1712",
+          "#99201a",
+          "#c52a21",
+          "#e05048",
+          "#e9827c",
+          "#f3bcb9",
+          "#fbeae9"
+        ]
+      },
+      "nacht-grund": {
+        "role": "neutral",
+        "displayName": "Nachtgrund",
+        "canonical": "#14181d",
+        "tonalRamp": [
+          "#1f252d",
+          "#343e4b",
+          "#49576a",
+          "#5e7088",
+          "#8092a8",
+          "#a4b1c1",
+          "#cfd5de",
+          "#f0f2f5"
+        ]
+      },
+      "nacht-flaeche": {
+        "role": "neutral",
+        "displayName": "Nachtfläche",
+        "canonical": "#1c2229",
+        "tonalRamp": [
+          "#1f262d",
+          "#343f4c",
+          "#48586a",
+          "#5d7188",
+          "#8092a8",
+          "#a4b1c1",
+          "#cfd6de",
+          "#f0f2f5"
+        ]
+      },
+      "nacht-marke": {
+        "role": "primary",
+        "displayName": "Nachtblau-Hell",
+        "canonical": "#6ba4ff",
+        "tonalRamp": [
+          "#001d4c",
+          "#003180",
+          "#0045b2",
+          "#0058e6",
+          "#297bff",
+          "#66a1ff",
+          "#adcdff",
+          "#e5efff"
+        ]
+      },
+      "pad-tiefe": {
+        "role": "neutral",
+        "displayName": "Hallennacht",
+        "canonical": "#0a1220",
+        "tonalRamp": [
+          "#12213a",
+          "#1e3761",
+          "#2b4c88",
+          "#3762af",
+          "#5c85cc",
+          "#8aa8db",
+          "#c1d0ec",
+          "#ecf0f9"
+        ]
+      },
+      "pad-karte": {
+        "role": "neutral",
+        "displayName": "Kachelblau",
+        "canonical": "#111d31",
+        "tonalRamp": [
+          "#142239",
+          "#21385f",
+          "#2e4e85",
+          "#3b65aa",
+          "#6087c8",
+          "#8da9d8",
+          "#c2d1ea",
+          "#ecf1f8"
+        ]
+      },
+      "pad-karte-tief": {
+        "role": "neutral",
+        "displayName": "Kachelblau Tief",
+        "canonical": "#0d1726",
+        "tonalRamp": [
+          "#132239",
+          "#20395f",
+          "#2d5085",
+          "#3a67ab",
+          "#5f89c8",
+          "#8dabd8",
+          "#c2d2ea",
+          "#ecf1f9"
+        ]
+      },
+      "pad-text": {
+        "role": "neutral",
+        "displayName": "Anzeigeweiss",
+        "canonical": "#eaf1fb",
+        "tonalRamp": [
+          "#0c2240",
+          "#14386b",
+          "#1d4f96",
+          "#2565c1",
+          "#4b87dd",
+          "#7ea9e7",
+          "#bad1f2",
+          "#eaf1fb"
+        ]
+      },
+      "pad-gedaempft": {
+        "role": "neutral",
+        "displayName": "Anzeigegrau",
+        "canonical": "#8b9db8",
+        "tonalRamp": [
+          "#1d242f",
+          "#303d4f",
+          "#44556f",
+          "#576d8e",
+          "#7a8fae",
+          "#a0afc5",
+          "#ccd4e0",
+          "#eff2f5"
+        ]
+      },
+      "pad-blau": {
+        "role": "secondary",
+        "displayName": "Signalblau",
+        "canonical": "#1f6fe0",
+        "tonalRamp": [
+          "#092143",
+          "#103770",
+          "#164e9d",
+          "#1c64ca",
+          "#4386e5",
+          "#79a9ec",
+          "#b7d1f5",
+          "#e9f1fc"
+        ]
+      },
+      "werkstoff-stahl": {
+        "role": "tertiary",
+        "displayName": "Werkstoff Stahl",
+        "canonical": "#003884",
+        "tonalRamp": [
+          "#00204c",
+          "#003680",
+          "#004cb2",
+          "#0061e6",
+          "#2984ff",
+          "#66a7ff",
+          "#add0ff",
+          "#e5f0ff"
+        ]
+      },
+      "werkstoff-v2a": {
+        "role": "tertiary",
+        "displayName": "Werkstoff V2A",
+        "canonical": "#b3261e",
+        "tonalRamp": [
+          "#420e0b",
+          "#6d1712",
+          "#99201a",
+          "#c52a21",
+          "#e05048",
+          "#e9827c",
+          "#f3bcb9",
+          "#fbeae9"
+        ]
+      },
+      "werkstoff-v4a": {
+        "role": "tertiary",
+        "displayName": "Werkstoff V4A",
+        "canonical": "#7a838d",
+        "tonalRamp": [
+          "#232629",
+          "#3b3f45",
+          "#525960",
+          "#6a727c",
+          "#8c939c",
+          "#adb2b8",
+          "#d3d6d9",
+          "#f1f2f3"
+        ]
+      },
+      "werkstoff-chromstahl": {
+        "role": "tertiary",
+        "displayName": "Werkstoff Chromstahl",
+        "canonical": "#d4638f",
+        "tonalRamp": [
+          "#3c1121",
+          "#641c38",
+          "#8c274e",
+          "#b43264",
+          "#d15786",
+          "#de87a9",
+          "#edbfd1",
+          "#f9ebf1"
+        ]
+      },
+      "werkstoff-alu": {
+        "role": "tertiary",
+        "displayName": "Werkstoff Alu",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#949494",
+          "#b2b2b2",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "werkstoff-messing": {
+        "role": "tertiary",
+        "displayName": "Werkstoff Messing",
+        "canonical": "#f0b429",
+        "tonalRamp": [
+          "#473305",
+          "#775608",
+          "#a7780c",
+          "#d69a0f",
+          "#f1b937",
+          "#f5cd70",
+          "#fae4b3",
+          "#fdf7e7"
+        ]
+      },
+      "werkstoff-messing-ohne-blei": {
+        "role": "tertiary",
+        "displayName": "Werkstoff Messing Ohne Blei",
+        "canonical": "#c9922a",
+        "tonalRamp": [
+          "#3f2e0d",
+          "#694d16",
+          "#946b1f",
+          "#be8a28",
+          "#daa94e",
+          "#e5c280",
+          "#f1debc",
+          "#fbf5ea"
+        ]
+      },
+      "werkstoff-neusilber": {
+        "role": "tertiary",
+        "displayName": "Werkstoff Neusilber",
+        "canonical": "#c2650f",
+        "tonalRamp": [
+          "#472505",
+          "#763e09",
+          "#a6560d",
+          "#d56f10",
+          "#f09038",
+          "#f4b071",
+          "#f9d5b3",
+          "#fdf2e7"
+        ]
+      },
+      "werkstoff-titan": {
+        "role": "tertiary",
+        "displayName": "Werkstoff Titan",
+        "canonical": "#5b3a9e",
+        "tonalRamp": [
+          "#201538",
+          "#36225d",
+          "#4b3083",
+          "#613ea8",
+          "#8362c5",
+          "#a68fd6",
+          "#d0c3e9",
+          "#f0ecf8"
+        ]
+      },
+      "werkstoff-kunststoff": {
+        "role": "tertiary",
+        "displayName": "Werkstoff Kunststoff",
+        "canonical": "#0d7d8c",
+        "tonalRamp": [
+          "#073e46",
+          "#0b6875",
+          "#0f92a3",
+          "#14bbd2",
+          "#3bd8ed",
+          "#73e3f2",
+          "#b4f0f8",
+          "#e8fafd"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Seitentitel",
+        "purpose": "Titel jeder Seite, 1.4rem auf dem Handy, 1.6rem ab 780px."
+      },
+      "title": {
+        "displayName": "Kartenkopf",
+        "purpose": "Köpfe von Karten und Dialogen."
+      },
+      "body": {
+        "displayName": "Text",
+        "purpose": "Fliesstext, Eingaben, Knöpfe."
+      },
+      "table": {
+        "displayName": "Tabelle",
+        "purpose": "Tabellenzellen."
+      },
+      "label": {
+        "displayName": "Beschriftung",
+        "purpose": "Feldbeschriftungen."
+      },
+      "pad-overline": {
+        "displayName": "Pad-Überzeile",
+        "purpose": "Kleine Überschrift über Pad-Werten, in Grossbuchstaben."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Pfade, Links, Rohtext."
+      }
+    },
+    "shadows": [
+      {
+        "name": "pad-schwebe",
+        "value": "0 22px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.08)",
+        "purpose": "Karten und Kacheln im Pad Mode."
+      },
+      {
+        "name": "pad-gedrueckt",
+        "value": "0 8px 20px rgba(0,0,0,.4)",
+        "purpose": "Gedrückte Pad-Kachel."
+      },
+      {
+        "name": "leiste",
+        "value": "0 2px 8px rgba(0,0,0,.25)",
+        "purpose": "Schwebende Werkzeugleisten."
+      },
+      {
+        "name": "innen-markierung",
+        "value": "inset 0 0 0 2px var(--marke)",
+        "purpose": "Ausgewählte Zelle oder Kachel im Büro."
+      }
+    ],
+    "motion": [
+      {
+        "name": "weg",
+        "value": "cubic-bezier(.2,.8,.2,1)",
+        "purpose": "Bewegte Elemente, z. B. verschobene Balken (.35–.38s)."
+      },
+      {
+        "name": "druck",
+        "value": "transform .12s",
+        "purpose": "Antippen von Knöpfen und Kacheln."
+      },
+      {
+        "name": "ausblenden",
+        "value": "opacity .15s ease",
+        "purpose": "Ein- und Ausblenden."
+      },
+      {
+        "name": "meldung",
+        "value": "opacity .35s",
+        "purpose": "Meldung verschwindet."
+      },
+      {
+        "name": "reiter-eintritt",
+        "value": "scale(.97) translateY(4px) → none",
+        "purpose": "Neuer Reiter erscheint."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "handy-schmal",
+        "value": "620px"
+      },
+      {
+        "name": "handy",
+        "value": "720px"
+      },
+      {
+        "name": "tablet",
+        "value": "780px"
+      },
+      {
+        "name": "breit",
+        "value": "900px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Hauptknopf",
+      "kind": "button",
+      "refersTo": "knopf-haupt",
+      "description": "Wichtigste Aktion in Formularen und Dialogen.",
+      "html": "<button class=\"ds-knopf ds-knopf--haupt\">Speichern</button>",
+      "css": ".ds-knopf{min-height:46px;padding:11px 18px;font:inherit;font-weight:600;color:var(--tinte,#1d2430);background:var(--flaeche,#fff);border:1px solid var(--linie-stark,#aeb7c4);border-radius:4px;cursor:pointer;transition:transform .12s,background .12s}.ds-knopf:active{transform:translateY(1px)}.ds-knopf:focus-visible{outline:3px solid #003884;outline-offset:1px}.ds-knopf--haupt{background:#003884;border-color:#003884;color:#fff}.ds-knopf--haupt:hover{background:#002b66}"
+    },
+    {
+      "name": "Standardknopf",
+      "kind": "button",
+      "refersTo": "knopf",
+      "description": "Neben- und Abbrechen-Aktionen.",
+      "html": "<button class=\"ds-knopf2\">Abbrechen</button>",
+      "css": ".ds-knopf2{min-height:46px;padding:11px 18px;font:inherit;font-weight:600;color:#1d2430;background:#fff;border:1px solid #aeb7c4;border-radius:4px;cursor:pointer}.ds-knopf2:hover{background:#e8eef7}.ds-knopf2:active{transform:translateY(1px)}.ds-knopf2:focus-visible{outline:3px solid #003884;outline-offset:1px}"
+    },
+    {
+      "name": "Gefahrknopf",
+      "kind": "button",
+      "refersTo": "knopf-gefahr",
+      "description": "Löschen und Entfernen.",
+      "html": "<button class=\"ds-knopf-gefahr\">Löschen</button>",
+      "css": ".ds-knopf-gefahr{min-height:46px;padding:11px 18px;font:inherit;font-weight:600;color:#fff;background:#b3261e;border:1px solid #b3261e;border-radius:4px;cursor:pointer}.ds-knopf-gefahr:hover{filter:brightness(.92)}.ds-knopf-gefahr:focus-visible{outline:3px solid #003884;outline-offset:1px}"
+    },
+    {
+      "name": "Eingabefeld",
+      "kind": "input",
+      "refersTo": "eingabe",
+      "description": "Feld mit Beschriftung darüber.",
+      "html": "<label class=\"ds-feld\"><span>FA Nr.</span><input value=\"2026-0303\"></label>",
+      "css": ".ds-feld{display:block}.ds-feld span{display:block;margin-bottom:5px;font-size:.85rem;font-weight:600;color:#5c6675}.ds-feld input{width:100%;min-height:46px;padding:10px 12px;font:inherit;font-variant-numeric:tabular-nums;color:#1d2430;background:#fff;border:1px solid #aeb7c4;border-radius:4px}.ds-feld input:focus-visible{outline:3px solid #003884;outline-offset:1px}"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "nav-punkt-aktiv",
+      "description": "Seitenleiste ab 780px.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav__p\">Start</a><a class=\"ds-nav__p aktiv\">Planwand</a><a class=\"ds-nav__p\">Produktion</a></nav>",
+      "css": ".ds-nav{width:208px;background:#fff;border-right:1px solid #aeb7c4;padding:10px 0}.ds-nav__p{display:flex;align-items:center;height:48px;padding:0 16px;font-size:.95rem;color:#5c6675;border-left:3px solid transparent;cursor:pointer}.ds-nav__p:hover{background:#e8eef7}.ds-nav__p.aktiv{color:#003884;font-weight:600;background:#e8eef7;border-left-color:#003884}"
+    },
+    {
+      "name": "Park-Pille",
+      "kind": "chip",
+      "refersTo": "park-pille",
+      "description": "Auswahl des Maschinenparks.",
+      "html": "<div class=\"ds-parks\"><button class=\"ds-pille aktiv\">Langdreher</button><button class=\"ds-pille\">Kurzdreher</button></div>",
+      "css": ".ds-parks{display:flex;gap:8px}.ds-pille{background:#fff;border:1px solid #aeb7c4;border-radius:999px;padding:8px 16px;font:inherit;font-size:.9rem;cursor:pointer}.ds-pille:hover{background:#e8eef7}.ds-pille.aktiv{background:#003884;border-color:#003884;color:#fff;font-weight:600}"
+    },
+    {
+      "name": "Karte",
+      "kind": "card",
+      "refersTo": "karte",
+      "description": "Flache Inhaltskarte im Büro, Variante Hinweis mit Streifen.",
+      "html": "<div class=\"ds-karte ds-karte--hinweis\"><h2>Vorbereitung</h2><p>12 Aufträge in den nächsten zwei Wochen</p></div>",
+      "css": ".ds-karte{background:#fff;border:1px solid #d6dbe3;border-radius:4px;padding:16px;color:#1d2430}.ds-karte h2{margin:0 0 10px;font-size:1rem;font-weight:650}.ds-karte p{margin:0;color:#5c6675;font-size:.92rem}.ds-karte--hinweis{border-left:4px solid #003884}"
+    },
+    {
+      "name": "Planwand-Balken",
+      "kind": "custom",
+      "refersTo": "planwand-balken",
+      "description": "Auftrag als Balken in der Werkstofffarbe mit Zustandszeichen.",
+      "html": "<div class=\"ds-balken\"><span class=\"ds-balken__z\">▶</span><span><b>10000-0303</b><br>540 / 1'200</span></div>",
+      "css": ".ds-balken{display:flex;align-items:center;gap:6px;width:240px;background:#b3261e;color:#fff;border-radius:3px;padding:5px 7px;font-size:.76rem;font-weight:650;font-variant-numeric:tabular-nums;cursor:grab}.ds-balken__z{font-size:.65rem;opacity:.85}.ds-balken:hover{filter:brightness(1.08)}"
+    },
+    {
+      "name": "Pad-Kachel",
+      "kind": "custom",
+      "refersTo": "pad-karte",
+      "description": "Dunkle Glaskarte im Pad Mode.",
+      "html": "<div class=\"ds-pad\"><div class=\"ds-pad__k\"><small>STÜCKZAHL · ANTIPPEN</small><strong>1'200</strong><span>von 1'200 · 100 %</span></div></div>",
+      "css": ".ds-pad{background:#0a1220;padding:24px}.ds-pad__k{position:relative;overflow:hidden;background:linear-gradient(160deg,#111d31,#0d1726);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:20px 24px;color:#eaf1fb;display:flex;flex-direction:column;gap:6px;box-shadow:0 22px 50px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .12s,box-shadow .12s;cursor:pointer}.ds-pad__k:active{transform:translateY(2px);box-shadow:0 8px 20px rgba(0,0,0,.4)}.ds-pad__k small{font-size:.7rem;font-weight:600;letter-spacing:.12em;color:#8b9db8}.ds-pad__k strong{font-size:2.6rem;font-weight:700;font-variant-numeric:tabular-nums}.ds-pad__k span{color:#8b9db8;font-size:.9rem}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Der Leitstand",
+    "overview": "Das Hofer Tool ist die Schaltzentrale eines Drehteile-Betriebs mit rund 20 Leuten. Es hat zwei Räume, die bewusst verschieden aussehen. Im **Büro** ist es ein heller, ruhiger Arbeitstisch: graublauer Grund, weisse Karten, feine Linien, kantige 4px-Ecken und ein einziges kräftiges Firmenblau. Hier wird geplant, gelesen und verglichen, die Dichte ist hoch, und die Farbe gehört den Daten. In der **Halle** wird daraus der Pad Mode, eine dunkle Anzeige direkt an der Maschine: tiefes Nachtblau, Glasflächen mit weichem Schimmer, grosse runde Kacheln und Zahlen, die man aus einem Meter Abstand liest.\n\nBeide Räume teilen dieselbe Grammatik. Eine Systemschrift mit Ziffern in gleicher Breite, damit Spalten fluchten. Werkstofffarben und Zustandszeichen bedeuten überall dasselbe. Das Firmenblau führt, und alles andere tritt zurück. Das Büro bleibt flach und kommt ohne Schatten aus. Tiefe gibt es nur im Pad, wo sie zeigt, was man antippen kann.\n\nDer Auftraggeber will es moderner, dynamischer und flüssiger, aber nie langsamer. Bewegung ist deshalb Rückmeldung und kein Schmuck: kurz (120–380 ms), nur mit `transform` und `opacity`, und sie fällt bei „weniger Bewegung\" ganz weg.",
+    "keyCharacteristics": [
+      "Zwei Räume: helles, flaches Büro und dunkler, tiefer Pad Mode.",
+      "Ein Firmenblau (#003884) als einzige Markenfarbe; Personen können ein anderes Thema wählen.",
+      "Werkstofffarben sind Daten, nicht Dekor.",
+      "Ziffern immer in gleicher Breite (`tabular-nums`), Zahlen mit Apostroph (1'200).",
+      "Grosse Tippziele: 46px im Büro, 78px im Pad.",
+      "Bewegung kurz und günstig, nur `transform` und `opacity`."
+    ],
+    "rules": [
+      {
+        "name": "The One Blue Rule",
+        "body": "Das Firmenblau ist die einzige Markenfarbe. Kein zweites Akzentblau im Büro. Wer ein anderes Thema wählt (rot, grün, gelb, rosa, violett, orange), tauscht nur `--marke` und `--aktion`.",
+        "section": "colors"
+      },
+      {
+        "name": "The Material Is Meaning Rule",
+        "body": "Werkstofffarben werden nie als Dekor eingesetzt und nie umgedeutet. Rot auf einem Balken heisst V2A, nicht Fehler.",
+        "section": "colors"
+      },
+      {
+        "name": "The Theme Swap Rule",
+        "body": "Farbe immer über die Variablen (`--marke`, `--flaeche`, `--tinte` …). Fest eingetragene Werte brechen die dunkle Ansicht und die Themen.",
+        "section": "colors"
+      },
+      {
+        "name": "The Aligned Digits Rule",
+        "body": "`font-variant-numeric: tabular-nums` gilt überall. Zahlen mit Apostroph (1'200) über `zahlText()`.",
+        "section": "typography"
+      },
+      {
+        "name": "The Readable From The Machine Rule",
+        "body": "Im Pad steht der wichtigste Wert jeder Kachel in mindestens 1.6rem und 700.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Office Rule",
+        "body": "Im Büro gibt es keine Schatten nach aussen. Auswahl zeigt sich durch eine Innenlinie oder Firmenblau-Hauch.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Glass Only At The Machine Rule",
+        "body": "Verläufe, Unschärfe (`backdrop-filter`) und Schimmer gibt es nur im Pad Mode.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** Farben immer über die Variablen setzen, damit die dunkle Ansicht und die Themen funktionieren.",
+      "**Do** Bewegung nur über `transform` und `opacity`, 120–380 ms, mit `cubic-bezier(.2,.8,.2,1)` für Wege und Ease für Ein- und Ausblenden.",
+      "**Do** jede neue Bewegung unter `prefers-reduced-motion: reduce` abschalten (die Regel steht schon global).",
+      "**Do** Tippziele mindestens 46px im Büro, im Pad wie die bestehenden Knöpfe (78px).",
+      "**Do** Zahlen mit `tabular-nums` und Apostroph.",
+      "**Do** im Pad den Hauptwert gross und hell, die Überzeile klein und gedämpft."
+    ],
+    "donts": [
+      "**Don't** Schatten, Verläufe oder Glas ins Büro tragen; das bleibt dem Pad Mode vorbehalten.",
+      "**Don't** Werkstofffarben für Zustände, Warnungen oder Schmuck verwenden.",
+      "**Don't** die Anmeldeseite in einer anderen Farbe als Blau zeigen.",
+      "**Don't** Effekte auf der Planwand, die bei jedem Bild neu rechnen (`filter`, `box-shadow`-Animation, `backdrop-filter`): Die Planwand zeichnet höchstens einmal pro Bild und muss mit einem Jahr Daten flüssig bleiben.",
+      "**Don't** fremde Schriften laden: Die Systemschrift ist sofort da, auch offline."
+    ]
+  }
+}
