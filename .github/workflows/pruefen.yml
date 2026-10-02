@@ -1,0 +1,28 @@
+# Baut die App und lässt den ganzen Prüfstand darüber laufen, bei
+# jedem Pull Request und jedem Push auf einen Arbeitszweig.
+name: Prüfen
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+
+jobs:
+  pruefstand:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: npm run build
+      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - name: Prüfstand
+        working-directory: pruefstand
+        run: python alle_tests.py | tee ergebnis.txt && grep -q "^\([0-9]*\) von \1 Prüfungen ohne Fehler" ergebnis.txt

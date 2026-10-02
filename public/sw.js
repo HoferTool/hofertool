@@ -1,21 +1,27 @@
 // =================================================================
 //  sw.js — hält die App auf dem Gerät, damit sie ohne Netz startet
 //
-//  Gehört neben die index.html auf GitHub. Holt die Seite immer
-//  zuerst frisch aus dem Netz (damit neue Versionen sofort kommen)
-//  und fällt nur ohne Verbindung auf die gemerkte Fassung zurück.
-//  Die Bibliotheken aus dem Netz werden einmal geholt und behalten.
+//  Liegt in public/ und wird beim Bauen neben die index.html kopiert.
+//  Beim Bauen trägt vite.config.js die Liste aller Dateien der App
+//  ein (DATEIEN). Die werden beim Einrichten auf einmal geholt, damit
+//  das Tablet schon nach dem ersten Besuch ohne Netz startet.
+//
+//  Die Seite selbst kommt immer zuerst frisch aus dem Netz (damit
+//  neue Versionen sofort kommen) und nur ohne Verbindung aus der
+//  Ablage. Die Programmdateien unter assets/ tragen eine Prüfsumme im
+//  Namen und ändern sich darum nie: einmal geholt, immer gültig.
 //
 //  Die Daten selbst merkt sich die App in einem eigenen Speicher,
 //  darum kümmert sich dieses Skript nicht.
 // =================================================================
 
-const HUELLE = "hofer-huelle-v1";
+const DATEIEN = self.__DATEIEN__;
+const HUELLE = "hofer-huelle-__FASSUNG__";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
   e.waitUntil(caches.open(HUELLE).then((c) =>
-    c.addAll(["./", "./index.html"]).catch(() => { /* beim ersten Mal egal */ })));
+    c.addAll(["./", ...DATEIEN]).catch(() => { /* beim ersten Mal egal */ })));
 });
 
 self.addEventListener("activate", (e) => {
@@ -53,9 +59,11 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Bibliotheken, Schriften, Logo: einmal holen, dann behalten
-  if (/cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com/.test(url.hostname)
-      || /\.(png|svg|webmanifest|woff2?)$/.test(url.pathname)) {
+  // Programmdateien, Bibliotheken, Schriften, Bilder: einmal holen,
+  // dann behalten
+  if (/cdn\.jsdelivr\.net|esm\.sh|cdnjs\.cloudflare\.com|fonts\.(googleapis|gstatic)\.com/.test(url.hostname)
+      || /\/assets\//.test(url.pathname)
+      || /\.(png|svg|webmanifest|woff2?|js|css)$/.test(url.pathname)) {
     e.respondWith((async () => {
       const c = await caches.open(HUELLE);
       const gemerkt = await c.match(anfrage);
