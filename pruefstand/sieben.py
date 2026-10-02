@@ -50,9 +50,11 @@ with sync_playwright() as p:
     pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_timeout(1300)
     print("Pad-Kacheln:", pg.evaluate("[...document.querySelectorAll('#pad .pad-kachel')].map(k => k.innerText.trim())"),
           "| Seite darunter leer:", pg.evaluate("document.getElementById('inhalt').innerHTML === ''"))
-    pg.locator("#pad [data-padwo='seite:bestellungen']").click(); pg.wait_for_timeout(1800)
-    print("Bestellungen im Pad:", pg.evaluate("(document.querySelector('#pad .pad__titel')||{}).textContent"),
-          "| Inhalt:", pg.evaluate("(document.getElementById('pad-seite').innerText || '').slice(0, 40).replace(/\\n/g, ' ')"))
+    # Seit 111.8.2 zeigt die Pad-Startseite nur noch "Maschinen":
+    # hinein zu den Parks und einen Schritt zurück
+    pg.locator("#pad [data-padwo='parks']").click(); pg.wait_for_timeout(1500)
+    print("Parks im Pad:", pg.evaluate("(document.querySelector('#pad .pad__titel')||{}).textContent"),
+          "|", pg.evaluate("document.querySelectorAll('#pad [data-park]').length"), "Parks")
     pg.locator("#pad [data-padzurueck]").click(); pg.wait_for_timeout(900)
     print("Zurück:", pg.evaluate("document.querySelectorAll('#pad .pad-kachel').length"), "Kacheln")
     pg.locator("#pad [data-padzu]").click(); pg.wait_for_timeout(1500)

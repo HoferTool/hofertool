@@ -3112,10 +3112,12 @@ body.dunkel .pw-balken .pw-zeile1,
 body.dunkel .pw-balken .pw-zeile2,
 body.dunkel .pw-balken .pw-balken__nr,
 body.dunkel .pw-balken .pw-balken__statusgross,
-body.dunkel .pw-balken .pw-balken__planer { color: #10151c !important; }
+body.dunkel .pw-balken .pw-balken__planer,
+body.dunkel .pw-balken .pw-balken__zeichen { color: #10151c !important; }
 body.dunkel .pw-balken--fertig,
 body.dunkel .pw-balken--fertig .pw-zeile1,
-body.dunkel .pw-balken--fertig .pw-zeile2 { color: #3b4350 !important; }
+body.dunkel .pw-balken--fertig .pw-zeile2,
+body.dunkel .pw-balken--fertig .pw-balken__zeichen { color: #3b4350 !important; }
 
 html:has(body.dunkel) { background: #14181d; }
 
@@ -4461,6 +4463,7 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
                            to { opacity: 1; transform: none; } }
 /* Während das Pad dieselbe Ansicht frisch lädt, bleibt sie stehen,
    statt kurz "Wird geladen" zu zeigen, nur leicht gedämpft. */
+.pad-stk-zahl { transform-origin: left center; }
 #pad.pad--frischt > :not(.pad__kopf) { opacity: .72; pointer-events: none;
                                         transition: opacity .15s ease; }
 @media (prefers-reduced-motion: reduce) {
@@ -4468,3 +4471,17 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
   .toast--weg { transform: none; }
 }
 @keyframes toastEinRuhig { from { opacity: 0; } to { opacity: 1; } }
+/* ---------- Tippflächen am Tablet ----------
+   Kleine Knöpfe bekommen auf Touch-Geräten eine unsichtbar grössere
+   Fläche (mindestens 44 px), ohne dass sich das Aussehen ändert. */
+@media (pointer: coarse) {
+  .kopf__klapp, .kopf__ich, .kopf__rueck, .sol-spanne__knopf, .auftrag__status,
+  .pad-stk-wahl__knopf, .kopiersymbol, .auftrag .linkknopf { position: relative; }
+  .kopf__klapp::after, .kopf__ich::after, .kopf__rueck::after, .auftrag__status::after,
+  .pad-stk-wahl__knopf::after, .auftrag .linkknopf::after {
+    content: ""; position: absolute; inset: -6px; }
+  .sol-spanne__knopf::after, .kopiersymbol::after {
+    content: ""; position: absolute; inset: -12px -4px; }
+}
+/* Das Wetter steht auf der blauen Kopfkarte: grau war dort kaum lesbar */
+#wetter .klein { color: inherit; opacity: .8; }

@@ -54,7 +54,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
 function pinPasswort(pin) { return "pin-" + String(pin) + "-hoferco"; }
-const APP_VERSION = "111.10.0";
+const APP_VERSION = "111.11.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4304,6 +4304,8 @@ function standFeld(maschine, datum, eintrag) {
 
   const auftragId = laeuftJetzt ? j.id : eintrag.job_id;
   return '<input class="menge" type="number" inputmode="numeric" min="0" step="1"'
+    // Ohne sichtbare Beschriftung braucht das Feld einen Namen für Vorleser
+    + ' aria-label="Stückzahl ' + esc(maschine.name || "") + ' ' + kurzDatum(datum) + '"'
     + ' data-maschine="' + esc(maschine.id) + '" data-datum="' + datum + '"'
     + ' data-auftrag="' + esc(auftragId) + '"'
     // Externe dürfen sonst nichts ändern, aber ihre Stückzahlen melden
@@ -7088,10 +7090,27 @@ document.addEventListener("keydown", (e) => {
 // sind: Beginn ist der Montag vor zwei Wochen
 function zuHeute(b) {
   const heute = isoDatum(new Date());
+  const vorher = plan.start;
   plan.start = naechsterArbeitstag(plusTage(wochenStart(heute), -14));
   if (typeof plan.reglerNachfuehren === "function") plan.reglerNachfuehren();
   plan.nurZeitGeschoben = true;
   neuZeichnen(b);
+  if (vorher && vorher !== plan.start) planZeitSchwung(plan.start > vorher ? 1 : -1);
+}
+
+// Der Sprung auf "Heute" kommt als kurzer Schwung aus der Richtung, in
+// die es geht. Nur die Tage und Balken bewegen sich, die Maschinennamen
+// bleiben stehen. Ein Transform je Zeile, das bleibt billig.
+function planZeitSchwung(richtung) {
+  if (typeof Element.prototype.animate !== "function") return;
+  const ruhig = wenigBewegung();
+  document.querySelectorAll(".pw-tafel .pw-zeile > :not(.pw-name)").forEach((el) => {
+    el.animate(ruhig
+      ? [{ opacity: 0.4 }, { opacity: 1 }]
+      : [{ opacity: 0.35, transform: "translateX(" + (richtung * 56) + "px)" },
+         { opacity: 1, transform: "none" }],
+      { duration: 280, easing: "cubic-bezier(.16,1,.3,1)" });
+  });
 }
 
 // ---------- Fliessende Planwand ----------
@@ -10265,6 +10284,7 @@ async function padZeichnen() {
   h.classList.remove("pad--frischt");
   pad.letzteSicht = sicht;
   if (neueSicht) bewegungPad(h);
+  padZahlZaehlen(h);
 
   h.querySelectorAll("[data-padzu]").forEach((el) => { el.onclick = padSchliessen; });
   h.querySelectorAll("[data-padzurueck]").forEach((el) => {
@@ -11003,6 +11023,8 @@ async function padMaschine(h) {
         + (j.target_quantity ? " · Ziel " + zahlText(j.target_quantity) : ""),
       wert: j.stand || 0 });
     if (zahl === null) return;
+    // Vor dem Speichern merken: danach steht der neue Wert schon im Auftrag
+    const standVorher = j.stand || 0;
     try {
       await speichereStand(m.id, isoDatum(new Date()),
         Math.max(0, Math.round(zahl)), j.id);
@@ -11010,6 +11032,8 @@ async function padMaschine(h) {
       // wird, steht dort und auf der Planwand, und umgekehrt.
       try { prod.auftraege = await ladeLaufendeAuftraege(); } catch (g) { /* egal */ }
       meldung("Stückzahl eingetragen.");
+      // Die neue Zahl zählt nach dem Neuzeichnen sichtbar hoch
+      pad.zaehlen = { von: standVorher, auf: Math.max(0, Math.round(zahl)) };
       padZeichnen();
     } catch (f) { meldung(fehlertext(f), "fehler"); }
   };
@@ -19119,6 +19143,30 @@ function bewegungFenster(huelle) {
     { opacity: 0, transform: handy ? "translateY(28px)" : "translateY(8px) scale(.985)" },
     { opacity: 1, transform: "none" }],
     { duration: handy ? 300 : 230, easing: "cubic-bezier(.16,1,.3,1)" });
+}
+
+// Nach dem Eintragen läuft die Stückzahl vom alten zum neuen Stand,
+// damit man an der Maschine sieht, dass die Eingabe angekommen ist.
+function padZahlZaehlen(h) {
+  const z = pad.zaehlen;
+  pad.zaehlen = null;
+  const el = z && h.querySelector(".pad-stk-zahl");
+  if (!el || z.von === z.auf) return;
+  if (typeof el.animate === "function") {
+    el.animate([{ transform: "scale(1.08)", color: "#7fb4ff" }, { transform: "none" }],
+      { duration: 700, easing: "cubic-bezier(.16,1,.3,1)" });
+  }
+  if (wenigBewegung()) return;
+  el.textContent = zahlText(z.von);
+  const dauer = 650, start = performance.now();
+  const schritt = (jetzt) => {
+    if (!el.isConnected) return;
+    const t = Math.min(1, (jetzt - start) / dauer);
+    const weich = 1 - Math.pow(1 - t, 3);
+    el.textContent = zahlText(Math.round(z.von + (z.auf - z.von) * weich));
+    if (t < 1) requestAnimationFrame(schritt);
+  };
+  requestAnimationFrame(schritt);
 }
 
 // Neue Ansicht im Pad: der Inhalt kommt herein, Kacheln kurz nacheinander
