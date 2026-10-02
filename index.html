@@ -4543,10 +4543,43 @@ const APP_UNTERTITEL = "HOFER TOOL";
 // Aus "saheesan.hudson" wird also saheesan.hudson@hoferco.ch.
 const LOGIN_ENDUNG = "@hoferco.ch";
 
-// Festes Passwort für Konten, die ohne Passwort anmelden dürfen.
-// Es steht offen im Code — das ist der Preis für die Bequemlichkeit
-// und gilt nur für Konten, die das selbst eingeschaltet haben.
-const OFFENES_PASSWORT = "hofer-offen-2026";
+// Anmeldung an der Kachel: mit der eigenen PIN. Die PIN wird auf dem
+// Server geprüft (Funktion "pin-anmelden", SQL pin-anmeldung.sql), nach
+// 5 falschen Versuchen ist das Konto 5 Minuten gesperrt. Früher stand
+// hier ein gemeinsames Passwort offen im Code, das ist abgeschafft.
+async function pinAnmelden(email, pin) {
+  let antwort;
+  try {
+    antwort = await zeitlimit(db.functions.invoke("pin-anmelden",
+      { body: { email: email, pin: String(pin) } }), 15000, "Anmeldung");
+  } catch (f) {
+    return { status: "fehler", text: fehlertext(f) };
+  }
+  const d = antwort && antwort.data;
+  if (!d || antwort.error) return { status: "fehler", text: "nicht eingerichtet" };
+  if (d.status !== "ok") return d;
+  // Den einmaligen Schlüssel gegen eine Sitzung tauschen
+  let r = await db.auth.verifyOtp({ token_hash: d.token_hash, type: "email" });
+  if (r.error) r = await db.auth.verifyOtp({ token_hash: d.token_hash, type: "magiclink" });
+  if (r.error) return { status: "fehler", text: fehlertext(r.error) };
+  return { status: "ok" };
+}
+
+// Was die Person nach einem PIN-Versuch zu lesen bekommt
+function pinMeldung(e) {
+  if (e.status === "falsch") {
+    return e.rest === 1 ? "PIN falsch. Noch 1 Versuch, dann 5 Minuten Pause."
+      : "PIN falsch. Noch " + e.rest + " Versuche.";
+  }
+  if (e.status === "gesperrt") {
+    const min = Math.max(1, Math.ceil((e.sekunden || 300) / 60));
+    return "Zu viele falsche Versuche. Bitte in " + min
+      + (min === 1 ? " Minute" : " Minuten") + " wieder versuchen.";
+  }
+  if (e.status === "keine_pin") return "Für dich ist noch keine PIN hinterlegt. Bitte beim Admin melden.";
+  if (e.status === "falsch_eingabe") return "Die PIN hat 4 bis 8 Ziffern.";
+  return "PIN-Anmeldung geht gerade nicht. Bitte Passwort eingeben.";
+}
 
 // Das Hofer-Logo in Weiss, doppelt so fein wie angezeigt — für die
 // Startseite. Im Programm selbst, damit es nirgends unscharf nachlädt.
@@ -4554,8 +4587,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-function pinPasswort(pin) { return "pin-" + String(pin) + "-hoferco"; }
-const APP_VERSION = "111.11.0";
+const APP_VERSION = "111.12.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5521,7 +5553,7 @@ function zeigeLogin() {
   let letzteKachel = null;
 
   // Baut die Anmeldemaske auf, ohne sie schon zu zeigen
-  const anmeldungAufbauen = (konto) => {
+  const anmeldungAufbauen = (konto, mitPin) => {
     anmeldung.innerHTML = ''
       + (konto.bild_url
           ? '<img class="login__gross" src="' + esc(konto.bild_url) + '" alt="">'
@@ -5529,8 +5561,11 @@ function zeigeLogin() {
             + esc((konto.full_name || konto.email).charAt(0).toUpperCase()) + '</span>')
       + '<div class="login__name">' + esc(konto.full_name || konto.email) + '</div>'
       + '<form id="lf" novalidate>'
-      + '<input type="password" id="lp" class="login__pw" placeholder="Passwort"'
-      + ' autocomplete="current-password" required>'
+      + (mitPin
+          ? '<input type="password" id="lp" class="login__pw login__pw--pin" placeholder="PIN"'
+            + ' inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" required>'
+          : '<input type="password" id="lp" class="login__pw" placeholder="Passwort"'
+            + ' autocomplete="current-password" required>')
       + '<button type="submit" class="knopf knopf--haupt knopf--breit" id="lk">Anmelden</button>'
       + '</form>'
       + '<button type="button" class="linkknopf login__anderekonto" id="lg-anderes">'
@@ -5543,29 +5578,12 @@ function zeigeLogin() {
   // zwischen Messen und Losfliegen minimal verschiebt. Ein sauberes
   // Aus- und Einblenden wirkt ruhiger und ist nicht zu schlagen.
 
-  // Direkt anmelden, ohne Passwortfeld
-  const sofortAnmelden = async (konto) => {
-    meldung("Anmelden …");
-    try {
-      const { error } = await zeitlimit(
-        db.auth.signInWithPassword({ email: konto.email, password: OFFENES_PASSWORT }),
-        15000, "Anmeldung");
-      if (error) throw error;
-      geraetKontoMerken(konto.email);
-      await profilLaden();
-      zeichneGeruest();
-    } catch (f) {
-      meldung("Das klappt nicht mehr ohne Passwort. Bitte Passwort eingeben.", "warn");
-      anmeldenZeigen(konto, null, true);
-    }
-  };
-
   const anmeldenZeigen = (konto, bildEl, erzwingePasswort) => {
-    // Wer kein Passwort braucht, kommt gleich hinein
-    if (konto.ohne_passwort && !erzwingePasswort) { sofortAnmelden(konto); return; }
+    // Konten mit PIN: Kachel antippen, PIN eingeben
+    const mitPin = !!konto.ohne_passwort && !erzwingePasswort;
 
     letzteKachel = bildEl || null;
-    anmeldungAufbauen(konto);
+    anmeldungAufbauen(konto, mitPin);
 
     auswahl.classList.add("login__wechsel--raus");
     setTimeout(() => {
@@ -5575,7 +5593,8 @@ function zeigeLogin() {
       anmeldung.hidden = false;
       anmeldung.className = "login__wechsel--rein";
       document.getElementById("lg-anderes").onclick = zurueckZurAuswahl;
-      anmeldenBinden(konto.email);
+      anmeldenBinden(konto.email, mitPin
+        ? () => anmeldenZeigen(konto, bildEl, true) : null);
       document.getElementById("lp").focus();
     }, 160);
   };
@@ -5603,7 +5622,9 @@ function zeigeLogin() {
 
   // ---------- Das eigentliche Anmelden ----------
 
-  function anmeldenBinden(vorgabeMail) {
+  // nurPin: Das Feld nimmt die PIN. Klappt die PIN-Anmeldung grundsätzlich
+  // nicht (nicht eingerichtet), ruft es nurPin() auf und zeigt das Passwortfeld.
+  function anmeldenBinden(vorgabeMail, nurPin) {
     const knopf = document.getElementById("lk");
     document.getElementById("lf").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -5617,15 +5638,33 @@ function zeigeLogin() {
 
       knopf.disabled = true;
       knopf.textContent = "Anmelden …";
+      const nochmal = (text, art) => {
+        meldung(text, art || "fehler");
+        knopf.disabled = false;
+        knopf.textContent = "Anmelden";
+        const feld = document.getElementById("lp");
+        if (feld) { feld.value = ""; feld.focus(); }
+      };
       try {
-        let { error } = await zeitlimit(
-          db.auth.signInWithPassword({ email: email, password: pw }), 15000, "Anmeldung");
-        // Nur Ziffern? Dann als PIN versuchen
-        if (error && /^\d{4,8}$/.test(pw)) {
-          ({ error } = await zeitlimit(
-            db.auth.signInWithPassword({ email: email, password: pinPasswort(pw) }), 15000, "Anmeldung"));
+        if (nurPin) {
+          const e2 = await pinAnmelden(email, pw);
+          if (e2.status === "fehler" || e2.status === "keine_pin") {
+            meldung(pinMeldung(e2), "warn");
+            nurPin();
+            return;
+          }
+          if (e2.status !== "ok") return nochmal(pinMeldung(e2), e2.status === "gesperrt" ? "warn" : "fehler");
+        } else {
+          let { error } = await zeitlimit(
+            db.auth.signInWithPassword({ email: email, password: pw }), 15000, "Anmeldung");
+          // Nur Ziffern und kein passendes Passwort? Dann als PIN versuchen
+          if (error && /^\d{4,8}$/.test(pw)) {
+            const e2 = await pinAnmelden(email, pw);
+            if (e2.status === "ok") error = null;
+            else if (e2.status === "falsch" || e2.status === "gesperrt") return nochmal(pinMeldung(e2));
+          }
+          if (error) throw error;
         }
-        if (error) throw error;
         geraetKontoMerken(email);
         await profilLaden();
         zeichneGeruest();
@@ -5684,7 +5723,7 @@ function zeigeLogin() {
             : '<span class="login__kachel-buchstabe">'
               + esc((u.full_name || u.email).charAt(0).toUpperCase()) + '</span>')
         + '<span class="login__kachel-name">' + esc(personName(u)) + '</span>'
-        + (u.ohne_passwort ? '<span class="login__offen" title="Ohne Passwort">•</span>' : "")
+        + (u.ohne_passwort ? '<span class="login__offen" title="Anmeldung mit PIN">•</span>' : "")
         + '</button>';
 
       let zeiger = 0;
@@ -8048,6 +8087,7 @@ function dialogFelder(o) {
       return '<label class="feld"><span>' + esc(f.label) + '</span>'
         + '<input id="' + id + '" type="' + (f.typ || "text") + '"'
         + (f.typ === "number" ? ' inputmode="numeric" min="0" step="1"' : "")
+        + (f.ziffern ? ' inputmode="numeric" pattern="[0-9]*" autocomplete="off"' : "")
         + ' value="' + esc(f.wert === null || f.wert === undefined ? "" : f.wert) + '"'
         + ' placeholder="' + esc(f.platzhalter || "") + '">'
         + (f.hinweis ? '<span class="feldhinweis">' + esc(f.hinweis) + '</span>' : "")
@@ -21853,13 +21893,13 @@ async function seiteEinstellungen(b) {
     + '<input type="password" id="mk-pin2" inputmode="numeric" pattern="[0-9]*" maxlength="8"'
     + ' autocomplete="new-password"></label>'
     + '<button class="knopf" id="mk-pinknopf">PIN speichern</button>'
-    + '<p class="hinweis">Danach meldest du dich mit der PIN an, das bisherige Passwort gilt '
-    + 'nicht mehr. Eine PIN ist kürzer und leichter zu erraten als ein Passwort.</p>'
-    + '<label class="schalter feld--abstand"><input type="checkbox" id="mk-ohnepw"'
-    + (ich.ohne_passwort ? " checked" : "") + '>'
-    + '<span>Ohne Passwort anmelden</span></label>'
-    + '<p class="hinweis">Mit Haken genügt ein Klick auf die eigene Kachel. '
-    + 'Bequem, aber jeder am Gerät kommt damit in dein Konto.</p></section>'
+    + '<p class="hinweis">Danach tippst du auf deine Kachel und gibst die PIN ein. Das '
+    + 'bisherige Passwort gilt nicht mehr. Nach 5 falschen Versuchen ist das Konto '
+    + '5 Minuten gesperrt. 6 Ziffern sind deutlich sicherer als 4.</p>'
+    + (ich.ohne_passwort
+        ? '<button class="linkknopf" id="mk-pinweg">PIN entfernen und wieder mit Passwort anmelden</button>'
+        : "")
+    + '</section>'
     + '<section class="karte"><h2>Darstellung</h2>'
     + '<p class="hinweis">Die Themenfarbe gilt überall — Menü, Knöpfe, '
     + 'Planwand und Pad Mode.</p>'
@@ -22077,15 +22117,15 @@ async function seiteEinstellungen(b) {
     const pin2 = document.getElementById("mk-pin2").value.trim();
     if (!/^\d{4,8}$/.test(pin)) return meldung("Die PIN braucht 4 bis 8 Ziffern.", "warn");
     if (pin !== pin2) return meldung("Die beiden PINs sind nicht gleich.", "warn");
-    const { error } = await db.auth.updateUser({ password: pinPasswort(pin) });
-    if (error) return meldung(fehlertext(error), "fehler");
+    const { error } = await db.rpc("pin_setzen", { p_pin: pin });
+    if (error) {
+      return meldung(/pin_setzen/.test(error.message || "")
+        ? "Dafür fehlt noch pin-anmeldung.sql in der Datenbank." : fehlertext(error), "fehler");
+    }
     document.getElementById("mk-pin").value = "";
     document.getElementById("mk-pin2").value = "";
-    await db.from("profiles").update({ ohne_passwort: false }).eq("id", ich.id);
-    ich.ohne_passwort = false;
-    const haken = document.getElementById("mk-ohnepw");
-    if (haken) haken.checked = false;
-    meldung("PIN gespeichert. Ab jetzt meldest du dich damit an.");
+    ich.ohne_passwort = true;
+    meldung("PIN gespeichert. Ab jetzt: Kachel antippen und PIN eingeben.");
   };
 
   document.getElementById("ps").onclick = async () => {
@@ -22097,57 +22137,33 @@ async function seiteEinstellungen(b) {
     if (error) meldung(fehlertext(error), "fehler");
     else {
       document.getElementById("np").value = "";
-      // Ein eigenes Passwort hebt die passwortlose Anmeldung auf
-      await db.from("profiles").update({ ohne_passwort: false }).eq("id", ich.id);
+      // Ein eigenes Passwort ersetzt die PIN
+      if (ich.ohne_passwort) {
+        const r = await db.rpc("pin_entfernen");
+        if (r.error) await db.from("profiles").update({ ohne_passwort: false }).eq("id", ich.id);
+      }
       ich.ohne_passwort = false;
-      const haken = document.getElementById("mk-ohnepw");
-      if (haken) haken.checked = false;
-      meldung("Passwort geändert.");
+      meldung("Passwort geändert. Du meldest dich jetzt mit dem Passwort an.");
     }
   };
 
-  // Ohne Passwort anmelden: dafür wird ein festes, in der App
-  // hinterlegtes Passwort gesetzt, das die Anmeldeseite kennt.
-  const ohnePwFeld = document.getElementById("mk-ohnepw");
-  if (ohnePwFeld) ohnePwFeld.onchange = async () => {
-    if (ohnePwFeld.checked) {
-      const ok = await nachfragen({
-        titel: "Ohne Passwort anmelden",
-        text: "Ab dann genügt ein Klick auf deine Kachel. Jeder, der an dieses "
-            + "Gerät kommt, kann sich damit als du anmelden. Dein bisheriges "
-            + "Passwort wird dabei ersetzt.",
-        bestaetigen: "Einschalten", gefahr: true });
-      if (!ok) { ohnePwFeld.checked = false; return; }
-
-      const r = await db.auth.updateUser({ password: OFFENES_PASSWORT });
-      if (r.error) { ohnePwFeld.checked = false; return meldung(fehlertext(r.error), "fehler"); }
-
-      const { error } = await db.from("profiles")
-        .update({ ohne_passwort: true }).eq("id", ich.id);
-      if (error) { ohnePwFeld.checked = false; return meldung(fehlertext(error), "fehler"); }
-      ich.ohne_passwort = true;
-      meldung("Du kommst jetzt ohne Passwort hinein.");
-    } else {
-      const w = await dialogFelder({
-        titel: "Passwort setzen",
-        text: "Damit dein Konto wieder geschützt ist, braucht es ein Passwort.",
-        felder: [{ name: "pw", label: "Neues Passwort", typ: "password", pflicht: true }],
-        bestaetigen: "Speichern",
-      });
-      if (!w || !(w.pw || "")) {
-        ohnePwFeld.checked = true;
-        return meldung("Kein Passwort eingegeben. Nichts geändert.", "warn");
-      }
-
-      const r = await db.auth.updateUser({ password: w.pw });
-      if (r.error) { ohnePwFeld.checked = true; return meldung(fehlertext(r.error), "fehler"); }
-
-      const { error } = await db.from("profiles")
-        .update({ ohne_passwort: false }).eq("id", ich.id);
-      if (error) { ohnePwFeld.checked = true; return meldung(fehlertext(error), "fehler"); }
-      ich.ohne_passwort = false;
-      meldung("Passwort gesetzt.");
-    }
+  // PIN entfernen: erst ein neues Passwort, sonst wäre das Konto ohne Schutz
+  const pinWeg = document.getElementById("mk-pinweg");
+  if (pinWeg) pinWeg.onclick = async () => {
+    const w = await dialogFelder({
+      titel: "PIN entfernen",
+      text: "Damit dein Konto geschützt bleibt, braucht es dafür ein Passwort.",
+      felder: [{ name: "pw", label: "Neues Passwort", typ: "password", pflicht: true }],
+      bestaetigen: "Speichern",
+    });
+    if (!w || !(w.pw || "")) return meldung("Kein Passwort eingegeben. Nichts geändert.", "warn");
+    const r = await db.auth.updateUser({ password: w.pw });
+    if (r.error) return meldung(fehlertext(r.error), "fehler");
+    const r2 = await db.rpc("pin_entfernen");
+    if (r2.error) await db.from("profiles").update({ ohne_passwort: false }).eq("id", ich.id);
+    ich.ohne_passwort = false;
+    pinWeg.remove();
+    meldung("PIN entfernt. Du meldest dich jetzt mit dem Passwort an.");
   };
 
   const gebFeld = document.getElementById("mk-geburtstag");
@@ -22369,12 +22385,22 @@ async function benutzerlisteLaden(b, bin) {
     if (!r.error) parks = r.data || [];
   } catch (f) { /* ohne Parks geht es auch */ }
 
+  // Wer schon eine PIN hat (nur ja/nein, nie die PIN selbst)
+  let mitPin = null;
+  if (bin) {
+    try {
+      const r = await zeitlimit(db.rpc("pin_vorhanden"), 8000, "PIN");
+      if (!r.error && Array.isArray(r.data)) mitPin = new Set(r.data.map((x) => x.user_id));
+    } catch (f) { /* ohne SQL gibt es noch keine PINs */ }
+  }
+
   ladeFertig(ziel);
   ziel.innerHTML = '<div class="tabellenrolle">'
     + '<table class="tabelle tabelle--benutzer"><thead><tr>'
     + '<th>Name</th><th>Rolle</th><th class="mitte">Bearbeiten</th>'
     + '<th class="mitte">Plant</th><th class="mitte">Kürzel</th>'
-    + '<th>Geburtstag</th><th class="rechts">Status</th>'
+    + '<th>Geburtstag</th>' + (bin ? '<th>Anmeldung</th>' : "")
+    + '<th class="rechts">Status</th>'
     + '</tr></thead><tbody>'
     + leute.map((u) => {
         const selbst = u.id === (profil && profil.id);
@@ -22413,6 +22439,13 @@ async function benutzerlisteLaden(b, bin) {
               ? '<input type="date" class="gebfeld" data-geb="' + esc(u.id) + '" value="'
                 + esc(u.geburtstag || "") + '">'
               : (u.geburtstag ? esc(langDatum(u.geburtstag)) : "–")) + '</td>'
+          + (bin
+              ? '<td class="bu-pin"><button class="linkknopf" data-pinsetzen="' + esc(u.id) + '">'
+                + (mitPin && mitPin.has(u.id) ? "PIN ändern" : "PIN setzen") + '</button>'
+                + (mitPin && !mitPin.has(u.id) && u.ohne_passwort
+                    ? ' <span class="bz-spaet" title="Kommt erst mit PIN wieder hinein">fehlt</span>' : "")
+                + '</td>'
+              : "")
           + '<td class="bu-status rechts">' + (bin && !selbst
               ? '<button class="linkknopf" data-aktiv="' + esc(u.id) + '" data-wert="'
                 + (u.is_active ? "0" : "1") + '">'
@@ -22519,6 +22552,29 @@ async function benutzerlisteLaden(b, bin) {
         .update({ darf_bearbeiten: el.checked }).eq("id", el.dataset.bearb);
       if (error) { meldung(fehlertext(error), "fehler"); el.checked = !el.checked; }
       else meldung(el.checked ? "Darf jetzt bearbeiten." : "Bearbeiten entzogen.");
+    };
+  });
+
+  ziel.querySelectorAll("[data-pinsetzen]").forEach((el) => {
+    el.onclick = async () => {
+      const u = leute.find((x) => x.id === el.dataset.pinsetzen);
+      const w = await dialogFelder({
+        titel: "PIN für " + ((u && (u.full_name || u.email)) || "Person"),
+        text: "Die Person tippt danach auf ihre Kachel und gibt diese PIN ein. Ihr "
+            + "bisheriges Passwort gilt nicht mehr. Sag ihr die PIN persönlich.",
+        felder: [{ name: "pin", label: "PIN (4 bis 8 Ziffern, besser 6)", typ: "password", ziffern: true, pflicht: true }],
+        bestaetigen: "PIN setzen",
+      });
+      if (!w) return;
+      const pin = String(w.pin || "").trim();
+      if (!/^\d{4,8}$/.test(pin)) return meldung("Die PIN braucht 4 bis 8 Ziffern.", "warn");
+      const { error } = await db.rpc("pin_setzen", { p_pin: pin, p_ziel: el.dataset.pinsetzen });
+      if (error) {
+        return meldung(/pin_setzen/.test(error.message || "")
+          ? "Dafür fehlt noch pin-anmeldung.sql in der Datenbank." : fehlertext(error), "fehler");
+      }
+      meldung("PIN gesetzt.");
+      benutzerlisteLaden(b, bin);
     };
   });
 

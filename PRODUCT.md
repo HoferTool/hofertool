@@ -32,7 +32,7 @@ Massgeschneidert für genau diesen Betrieb: Werkstofferkennung aus den eigenen M
 
 ## Capabilities and Constraints
 
-- Eine einzige Datei `index.html` (HTML, CSS, JS als ES-Modul), kein Build, keine Frameworks, kein npm. Ausgeliefert über GitHub Pages. Daten in Supabase.
+- Einzige feste Bedingung an die Technik: Die App bleibt **webbasiert**, also im Browser nutzbar. Heute ist sie eine einzige Datei `index.html` (HTML, CSS, JS als ES-Modul) ohne Build und ohne Frameworks. Das darf sich ändern, wenn es sich lohnt, etwa mit einem Build-Schritt oder einem Framework. Ausgeliefert über GitHub Pages. Daten in Supabase.
 - Sprache: Deutsch in Schweizer Schreibweise („ss", Zahlen mit Apostroph wie 1'200).
 - Die App muss schnell bleiben: Die Planwand lädt ein Jahr zurück und zeichnet höchstens einmal pro Bild. Nichts darf sie spürbar langsamer machen.
 - Fachwörter: Auftrag, FA Nr., Park, Maschine, rüsten, QS, Einrichtblatt, WBG, Werkstoff.
