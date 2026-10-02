@@ -4379,13 +4379,6 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 .fest__zeile .auftrag__nr { font-weight: 700; }
 .fest__zeile .auftrag__seit { font-size: .78rem; color: var(--gedaempft); }
 .fest__zeile .linkknopf { font-size: .8rem; }
-/* Fenster: Material nach dem Verschieben */
-.dialog--material { width: min(460px, 94vw); }
-.mat-bez { font-weight: 700; font-size: 1.05rem; margin: 8px 0 10px; }
-.mat-felder { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.mat-warnung { margin-top: 10px; padding: 9px 12px; border-radius: 10px; font-size: .9rem;
-               background: #fdecd3; color: #8a4a12; }
-body.dunkel .mat-warnung { background: rgba(255, 170, 60, .15); color: #ffc98a; }
 /* Tastenkürzel im Knopf "Heute", wie beim Suchen */
 .pw-taste { margin-left: 6px; padding: 1px 6px; border: 1px solid var(--linie); border-radius: 5px;
             font: 600 .7rem/1.4 inherit; color: var(--gedaempft); background: var(--flaeche); }
@@ -4417,14 +4410,19 @@ body.dunkel .mat-warnung { background: rgba(255, 170, 60, .15); color: #ffc98a; 
 @media (max-width: 1350px) { .kopfkarte__logo { height: 92px; } .kopfkarte:has(.kopfkarte__logo) { min-height: 126px; } }
 @media (max-width: 1100px) { .kopfkarte__logo { height: 66px; } .kopfkarte:has(.kopfkarte__logo) { min-height: 100px; } }
 @media (max-width: 900px) { .kopfkarte__logo { display: none; } .kopfkarte:has(.kopfkarte__logo) { min-height: 0; } }
-/* Woche in der Produktion: links Nr., Zustand, Ziel — rechts Einrichtblatt,
-   Menge, Beenden, jeweils untereinander */
-.fest__zeile .auftrag:not(.auftrag--leer) { display: grid; grid-auto-flow: column;
-  grid-template-rows: repeat(3, auto); grid-template-columns: auto auto;
-  justify-content: start; align-items: center; gap: 4px 18px; }
-.fest__zeile .auftrag:not(.auftrag--leer) .auftrag__status { justify-self: start; }
-.fest__zeile .auftrag:not(.auftrag--leer) .linkknopf { justify-self: start; padding: 2px 0;
-  margin: 0 !important; text-align: left; }
+/* Planwand: Regler für Tage und Höhe füllen die Leiste */
+.pw-zoom:has(#pw-regler), .pw-zoom--hoehe { flex: 1 1 260px; max-width: 560px; }
+.pw-zoom:has(#pw-regler) input[type="range"], .pw-zoom--hoehe input[type="range"] {
+  flex: 1 1 auto !important; width: auto !important; min-width: 140px; max-width: none !important; }
+/* Woche: drei Spalten — Nummer · Einrichtblatt, Menge, Beenden · Ziel, Stand, Zustand */
+.fest__zeile .auftrag--woche { display: flex; align-items: flex-start; gap: 16px; }
+.auftrag--woche .aw-spalte { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.auftrag--woche .linkknopf { margin: 0 !important; padding: 1px 0; text-align: left; }
+.auftrag--woche .fest__stand { display: block; margin: 0; }
+.raster th.fest--voll { max-width: 360px; }
+/* Pad: Bereiche in der Kachelwand und als Seite */
+.pad-kachel__sym svg { width: 34px; height: 34px; }
+.pad__seite { background: var(--hg); color: var(--text); padding: 14px; }
 </style>
 </head>
 <body>
@@ -4481,7 +4479,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
 function pinPasswort(pin) { return "pin-" + String(pin) + "-hoferco"; }
-const APP_VERSION = "111.6.0";
+const APP_VERSION = "111.7.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7465,12 +7463,11 @@ async function zeichneVorbereitung(b) {
     liste = (data || []).filter((j) => j.plan_status !== "fertig");
   } catch (f) { console.warn("Vorbereitung:", f.message); return; }
 
-  const ohneFa = liste.filter((j) => !j.fa_erstellt);
-  const ohneMaterial = liste.filter((j) => !j.material_ok);
-
-  const grenze = arbeitstagePlus(isoDatum(new Date()), 7);
-  const bald = liste.filter((j) => (!j.fa_erstellt || !j.material_ok)
-    && j.planned_from <= grenze);
+  // FA da = FA Nr. eingetragen, Material da = Menge eingetragen
+  const hatFa = (j) => !!String(j.fa_nr || "").trim();
+  const hatMaterial = (j) => !!String(j.material_menge || "").trim();
+  const ohneFa = liste.filter((j) => !hatFa(j));
+  const ohneMaterial = liste.filter((j) => !hatMaterial(j));
 
   // Kein Sprung mehr beim Klick auf die Kachel — der Weg zum Auftrag
   // führt über "Ansehen" und die Liste darin.
@@ -8683,6 +8680,32 @@ function auftragsZeile(maschine) {
     + '</div>';
 }
 
+// Für die Woche in drei Spalten: Nummer — Einrichtblatt, Menge, Beenden
+// — Ziel, Stand, Zustand. Dieselben Knöpfe wie in der Tagesansicht.
+function auftragsZeileWoche(maschine, stand) {
+  const j = prod.auftraege[maschine.id];
+  if (!j) return auftragsZeile(maschine);
+  const zustand = PLANSTATUS[j.plan_status || "geplant"] || PLANSTATUS.geplant;
+  return '<div class="auftrag auftrag--woche">'
+    + '<div class="aw-spalte"><span class="auftrag__nr">' + esc(j.job_number) + '</span></div>'
+    + '<div class="aw-spalte">'
+    + '<button class="linkknopf" data-blatt="' + esc(j.id) + '" data-maschine="' + esc(maschine.id) + '">Einrichtblatt</button>'
+    + (darfSchreiben()
+        ? '<button class="linkknopf" data-auftrag-menge="' + esc(j.id) + '">Menge</button>'
+          + '<button class="linkknopf" data-auftrag-ende="' + esc(j.id)
+          + '" data-maschine="' + esc(maschine.id) + '">Beenden</button>'
+        : "")
+    + '</div>'
+    + '<div class="aw-spalte">'
+    + '<span class="auftrag__seit">' + (j.target_quantity ? "Ziel " + zahlText(j.target_quantity) + " Stück"
+        : "seit " + kurzDatum(isoDatum(new Date(j.started_at)))) + '</span>'
+    + (stand !== null && stand !== undefined ? '<span class="fest__stand">Stand ' + zahlText(stand) + '</span>' : "")
+    + '<button class="auftrag__status" data-auftrag-status="' + esc(j.id) + '" title="Zustand ändern">'
+    + zustand.zeichen + ' ' + esc(zustand.name) + '</button>'
+    + '</div>'
+    + '</div>';
+}
+
 function standFeld(maschine, datum, eintrag) {
   const j = prod.auftraege[maschine.id];
   // Zahlen erfassen geht nur, solange der Auftrag wirklich läuft —
@@ -8747,9 +8770,7 @@ function wochenRaster(maschinen, von, anzahl, staende) {
     // Menge, Beenden — oder "Auftrag wählen", wenn keiner läuft
     return '<tr><th class="fest fest--voll">' + esc(m.name)
       + (m.machine_number ? ' <span class="fest__nr">' + esc(m.machine_number) + '</span>' : "")
-      + '<div class="fest__zeile">' + auftragsZeile(m) + '</div>'
-      + (j ? '<span class="fest__stand">Stand ' + zahlText(aktuellerStand(m.id, staende))
-             + '</span>' : "")
+      + '<div class="fest__zeile">' + auftragsZeileWoche(m, j ? aktuellerStand(m.id, staende) : null) + '</div>'
       + '</th>' + zellen + '</tr>';
   }).join("");
 
@@ -9761,7 +9782,7 @@ async function planwandExcel() {
         "Material": j.material_bez || "",
         "Menge": j.material_menge || "",
         "Liefertermin": datum(j.material_liefertermin),
-        "FA erstellt": j.fa_erstellt ? "ja" : "nein",
+        "FA erstellt": j.fa_nr ? "ja" : "nein",
         "Material da": j.material_ok ? "ja" : "nein",
         "Materialhinweis": notiz.ort || "",
         "Notiz": notiz.notiz || "",
@@ -10604,8 +10625,9 @@ function balkenInfoVerhalten() {
               + esc(personVoll(j.geaendert_von))
               + (j.geaendert_am ? " · " + esc(datumZeitKurz(j.geaendert_am)) : "") + '</div>' : "")
         + '<div class="pw-info__zeile pw-info__zeile--klein">'
-        + (j.fa_erstellt ? "FA erstellt" : "FA fehlt")
-        + " · " + (j.material_ok ? "Material vorhanden" : "Material fehlt") + '</div>';
+        + (String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden")
+        + " · " + (String(j.material_menge || "").trim() ? "Material " + esc(j.material_menge)
+                   : "Keine Materialmenge") + '</div>';
 
       document.body.appendChild(fenster);
       platzieren();
@@ -10672,8 +10694,8 @@ function auftragText(j) {
     (PLANSTATUS[j.plan_status || "geplant"] || {}).name,
     j.material_bez, j.material_menge, j.material_liefertermin,
     j.target_quantity, j.stand, j.planned_from,
-    j.fa_erstellt ? "FA erstellt" : "FA fehlt",
-    j.material_ok ? "Material vorhanden" : "Material fehlt",
+    j.fa_nr ? "FA vorhanden" : "Kein FA vorhanden",
+    j.material_menge ? "Material vorhanden" : "Keine Materialmenge",
   ].map((x) => String(x === null || x === undefined ? "" : x).toLowerCase()).join(" ");
 }
 
@@ -12612,90 +12634,12 @@ function balkenVerhalten(b) {
       meldung("Verschoben."
         + (ausgewichen.length ? "  " + ausgewichen.length + " ausgewichen." : "")
         + (aufgeschlossen.length ? "  " + aufgeschlossen.length + " aufgeschlossen." : ""));
-      await planAktualisieren(b);
-
-      // Neuer Beginn: Passt das Material noch? Gleich anpassen können.
-      if (datum !== vorherD && auftrag.plan_status !== "fertig") {
-        materialNachVerschieben(auftrag, vorherD, b);
-      }
+      planAktualisieren(b);
     });
 
     el.addEventListener("pointercancel", aufraeumen);
     el.addEventListener("lostpointercapture", () => { if (!zieht) aufraeumen(); });
   });
-}
-
-// ---------- Material nach dem Verschieben ----------
-// Nach jedem Verschieben auf der Planwand: Material, Menge,
-// Liefertermin und Hinweis des Auftrags zum Anpassen. Kommt das
-// Material erst nach dem neuen Beginn, steht eine Warnung dabei.
-function materialNachVerschieben(auftrag, vorherD, b) {
-  const j = (plan.auftraege || []).find((x) => x.id === auftrag.id) || auftrag;
-  const notiz = notizTrennen(j.plan_note);
-  const start = j.planned_from;
-
-  const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle";
-  huelle.innerHTML = '<div class="dialog dialog--material">'
-    + '<h2>Material für ' + esc(j.job_number || "") + '</h2>'
-    + '<p class="klein">Neuer Beginn <b>' + esc(wochentagName(start) + ", " + kurzDatum(start)) + '</b>'
-    + (vorherD ? ' · vorher ' + esc(kurzDatum(vorherD)) : "")
-    + (j.maschine ? ' · ' + esc(j.maschine) : "") + '</p>'
-    + '<div class="mat-bez">' + (j.material_bez ? esc(j.material_bez)
-        : '<span class="gedaempft">Kein Material eingetragen</span>') + '</div>'
-    + '<div class="mat-felder">'
-    + '<label class="feld"><span>Menge</span><input type="text" id="mn-menge" value="'
-    + esc(j.material_menge || "") + '" placeholder="z. B. 60 kg"></label>'
-    + '<label class="feld"><span>Liefertermin</span><input type="date" id="mn-termin" value="'
-    + esc(j.material_liefertermin || "") + '"></label>'
-    + '</div>'
-    + '<label class="schalter"><input type="checkbox" id="mn-da"' + (j.material_ok ? " checked" : "")
-    + '><span>Material ist da</span></label>'
-    + '<label class="feld"><span>Hinweis zum Material</span><input type="text" id="mn-ort" value="'
-    + esc(notiz.ort || "") + '" placeholder="z. B. liegt im Lager B, Gestell 3"></label>'
-    + '<div class="mat-warnung" id="mn-warnung"></div>'
-    + '<div class="dialog__knoepfe">'
-    + '<button class="knopf knopf--still" id="mn-nein">Passt so</button>'
-    + '<button class="knopf knopf--haupt" id="mn-ja">Speichern</button>'
-    + '</div></div>';
-  document.body.appendChild(huelle);
-
-  const $ = (id) => huelle.querySelector("#" + id);
-  const warnen = () => {
-    const termin = $("mn-termin").value, da = $("mn-da").checked;
-    let t = "";
-    if (!da && termin && termin > start) {
-      t = "⚠ Das Material kommt erst am " + kurzDatum(termin) + " — der Auftrag beginnt schon am "
-        + kurzDatum(start);
-    } else if (!da && !termin && j.material_bez) {
-      t = "Noch kein Liefertermin eingetragen.";
-    } else if (!da && termin && termin === start) {
-      t = "Das Material kommt am selben Tag, an dem der Auftrag beginnt.";
-    }
-    $("mn-warnung").textContent = t;
-    $("mn-warnung").hidden = !t;
-  };
-  ["mn-termin", "mn-da"].forEach((id) => $(id).addEventListener("input", warnen));
-  $("mn-da").addEventListener("change", warnen);
-  warnen();
-
-  const zu = () => huelle.remove();
-  $("mn-nein").onclick = zu;
-  huelle.onclick = (e) => { if (e.target === huelle) zu(); };
-  $("mn-ja").onclick = async () => {
-    const daten = {
-      material_menge: $("mn-menge").value.trim() || null,
-      material_liefertermin: $("mn-termin").value || null,
-      material_ok: $("mn-da").checked,
-      plan_note: notizZusammen(notiz.notiz, $("mn-ort").value.trim()) || null,
-    };
-    const { error } = await db.from("jobs").update(daten).eq("id", j.id);
-    if (error) { meldung(fehlertext(error), "fehler"); return; }
-    Object.assign(j, daten);
-    zu();
-    meldung("Material angepasst.");
-    planAktualisieren(b);
-  };
 }
 
 // ---------- Probleme an Aufträgen ----------
@@ -12974,16 +12918,7 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
         : (v && v.target_quantity !== null && v.target_quantity !== undefined
             ? v.target_quantity : "")) + '"></label>'
 
-    + '<div class="feld"><span class="feldlabel">Vorbereitung</span>'
-    + '<label class="schalter schalter--eng"><input type="checkbox" id="pl-fa"'
-    + ((auftrag && auftrag.fa_erstellt) || (!auftrag && v && v.fa_erstellt) ? " checked" : "")
-    + (darf ? "" : " disabled") + '><span>FA erstellt</span></label>'
-    + '<label class="schalter schalter--eng"><input type="checkbox" id="pl-material"'
-    + ((auftrag && auftrag.material_ok) || (!auftrag && v && v.material_ok) ? " checked" : "")
-    + (darf ? "" : " disabled") + '><span>Material da</span></label>'
-    + '</div>'
-
-    // Wo das Material liegt — erscheint erst, wenn der Haken sitzt
+    // Wo das Material liegt
     + '<label class="feld" id="pl-ortfeld"><span>Hinweis zum Material</span>'
     + '<input type="text" id="pl-matort" maxlength="120"'
     + ' placeholder="z. B. Regal 4 oben, Palette bei der Säge"'
@@ -13129,15 +13064,6 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
   const zu = () => { plan.imDialog = false; huelle.remove(); };
   $("pl-nein").onclick = zu;
 
-  // Das Ortsfeld gehört zum Haken "Material da"
-  const ortZeigen = () => {
-    const feld = huelle.querySelector("#pl-ortfeld");
-    const haken = huelle.querySelector("#pl-material");
-    if (feld && haken) feld.hidden = !haken.checked;
-  };
-  ortZeigen();
-  const hakenMat = huelle.querySelector("#pl-material");
-  if (hakenMat) hakenMat.addEventListener("change", ortZeigen);
 
   // Zeichnung als Vorschau zeigen. PDFs stellt der Browser selbst dar,
   // Bilder werden direkt eingebettet. Ein Klick öffnet sie gross.
@@ -13473,8 +13399,10 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
       plan_status: planZustand,
       color: planFarbe,
       geplant_von: gewaehltePlaner.length ? gewaehltePlaner.join("/") : null,
-      fa_erstellt: $("pl-fa").checked,
-      material_ok: $("pl-material").checked,
+      // Statt Häkchen: FA gilt als erstellt, sobald eine FA Nr. dasteht,
+      // Material als da, sobald eine Menge eingetragen ist
+      fa_erstellt: !!(($("pl-fa-nr") || {}).value || "").trim(),
+      material_ok: !!($("pl-menge-mat").value || "").trim(),
       material_bez: (($("pl-mat-bez") || {}).value || "").trim() || null,
       material_menge: ($("pl-menge-mat").value || "").trim() || null,
       material_liefertermin: $("pl-liefer").value || null,
@@ -13688,15 +13616,8 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
 
   const loeschen = $("pl-loeschen");
   if (loeschen) loeschen.onclick = async () => {
-    const sicher = await doppeltNachfragen(
-      { titel: "Auftrag löschen",
-        text: "Soll " + auftrag.job_number + " wirklich gelöscht werden? "
-            + "Erfasste Stückzahlen gehen dabei verloren.",
-        bestaetigen: "Weiter zum Löschen", gefahr: true },
-      { titel: "Wirklich endgültig löschen?",
-        text: "Letzte Rückfrage. Danach ist der Auftrag weg.",
-        bestaetigen: "Endgültig löschen", gefahr: true });
-    if (!sicher) return;
+    // Keine Rückfrage mehr — die Frage nach der Lücke kommt ohnehin, und
+    // ein Versehen lässt sich mit Rückgängig zurücknehmen
 
     // Entsteht eine Lücke, dürfen die nachfolgenden Aufträge
     // bündig nachrücken.
@@ -14613,6 +14534,11 @@ function padOeffnen() {
   h.className = "pad" + (einstellung("dunkel") ? " pad--dunkel" : "");
   document.body.appendChild(h);
   document.body.classList.add("pad-offen");
+  // Die Seite darunter leeren, solange das Pad offen ist: Zeigt das Pad
+  // dieselbe Seite, gäbe es sonst jedes Feld doppelt
+  const inhalt = document.getElementById("inhalt");
+  if (inhalt) inhalt.innerHTML = "";
+  if (typeof syncStoppen === "function") syncStoppen();
   pad.wo = "start";
   padZeichnen();
 }
@@ -14621,6 +14547,8 @@ function padSchliessen() {
   const h = document.getElementById("pad");
   if (h) h.remove();
   document.body.classList.remove("pad-offen");
+  // Die Seite darunter wieder aufbauen
+  if (document.getElementById("inhalt")) zeichneSeite();
 }
 
 function padKopf(titel, zurueck) {
@@ -14647,6 +14575,7 @@ async function padZeichnen() {
     else if (pad.wo === "typen") await padTypen(h);
     else if (pad.wo === "maschinen") await padMaschinen(h);
     else if (pad.wo === "maschine") await padMaschine(h);
+    else if (String(pad.wo).indexOf("seite:") === 0) await padSeite(h, pad.wo.slice(6));
   } catch (f) {
     h.innerHTML = padKopf("Fehler", pad.wo !== "start")
       + '<div class="pad__fehler">' + esc(fehlertext(f)) + '</div>';
@@ -14679,6 +14608,10 @@ async function padStart(h) {
     + '<span class="pad-kachel__zeichen">▦</span><span>Planwand</span></button>'
     + '<button class="pad-kachel pad-kachel--gross" data-padwo="parks">'
     + '<span class="pad-kachel__zeichen">⚙</span><span>Maschinen</span></button>'
+    // Alle übrigen Bereiche wie im Menü — so weit die eigene Rolle sie sieht
+    + SEITEN.filter((x) => x.pfad !== "planwand" && seiteSichtbar(x.pfad))
+        .map((x) => '<button class="pad-kachel" data-padwo="seite:' + x.pfad + '">'
+          + '<span class="pad-kachel__sym">' + x.zeichen + '</span><span>' + esc(x.titel) + '</span></button>').join("")
     + '</div></div>';
 
   h.querySelectorAll("[data-padwo]").forEach((el) => {
@@ -14697,6 +14630,17 @@ async function padPlanwand(h) {
   // dafür sorgt die Klasse, die touch-action freigibt.
   ziel.classList.add("pad--wischen");
   await seitePlanwand(ziel);
+}
+
+// ---------- Übrige Bereiche: dieselbe Seite wie sonst, im Pad-Rahmen ----------
+async function padSeite(h, pfad) {
+  const seite = SEITEN.find((x) => x.pfad === pfad);
+  if (!seite || !seiteSichtbar(pfad)) { pad.wo = "start"; return padStart(h); }
+  h.innerHTML = padKopf(seite.titel, true)
+    + '<div class="pad__rolle pad__seite" id="pad-seite"></div>';
+  const ziel = document.getElementById("pad-seite");
+  ziel.classList.add("pad--wischen");
+  await seite.zeige(ziel);
 }
 
 // ---------- Parks ----------
@@ -25584,6 +25528,14 @@ function zeichneGeruest() {
 }
 
 window.addEventListener("hashchange", () => {
+  // Im Pad: ein Verweis auf einen Bereich öffnet ihn im Pad
+  if (document.getElementById("pad")) {
+    const roh = location.hash.replace(/^#\/?/, "").split("/")[0];
+    if (roh === "planwand") pad.wo = "planwand";
+    else if (SEITEN.some((x) => x.pfad === roh)) pad.wo = "seite:" + roh;
+    padZeichnen();
+    return;
+  }
   if (document.getElementById("inhalt")) zeichneSeite();
 });
 
