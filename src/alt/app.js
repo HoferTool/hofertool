@@ -13,6 +13,7 @@ import Rechner from "../seiten/Rechner.jsx";
 import Einkauf from "../seiten/Einkauf.jsx";
 import Bestellungen from "../seiten/Bestellungen.jsx";
 import Start from "../seiten/Start.jsx";
+import Produktion from "../seiten/Produktion.jsx";
 import { PRIO } from "../daten/einkauf.js";
 
 const BOOT = document.getElementById("boot");
@@ -3438,628 +3439,61 @@ async function speichereStand(maschineId, datum, stand, auftragId) {
 
 // ---------- Einstieg ----------
 
-async function seiteProduktion(b) {
-  // Ganz zuerst merken: gleich wird die Seite geleert, danach steht
-  // die Rollposition ohnehin auf null.
+// Die Hülle der Produktion und der Reiter Erfassen sind in React:
+// src/seiten/Produktion.jsx. Wer seiteProduktion(b) aufruft, frischt
+// sie auf.
+const seiteProduktion = reactSeite(Produktion);
+
+// Die Reiter, die noch alt sind. Die Grunddaten in prod.* hat die
+// React-Hülle schon geladen.
+async function produktionAlteAnsicht(ziel, b) {
   const zurueckRollen = rollenMerken();
-  if (istExtern()) prod.ansicht = "erfassen";
-  if (!prod.tag) prod.tag = isoDatum(new Date());
-  if (!prod.modus) prod.modus = einstellung("wochestart") ? "woche"
-    : (window.innerWidth < 780 ? "tag" : "woche");
-  if (!prod.vonDatum) {
-    const h = new Date();
-    prod.bisDatum = isoDatum(h);
-    prod.vonDatum = isoDatum(new Date(h.getFullYear(), h.getMonth(), 1));
-  }
-
-  b.innerHTML = '<h1 class="seitentitel">Produktion</h1>'
-    + '<div class="reiter">'
-    // Alle Reiter auch am Handy. Die Listen sind schmal genug, und
-    // wer unterwegs etwas nachschauen will, kommt sonst nicht hin.
-    // HOCO Nr. steht nicht mehr hier, sondern als Fenster auf der
-    // Planwand — dort wird am häufigsten nachgeschaut.
-    // Maschinen und Typen stehen zusammen in einem Reiter: Was für
-    // eine Maschine gilt, hängt am Typ — das gehört auf eine Seite.
-    + [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"],
-       ["maschinen", "Maschinen und Typen"]]
-        .filter(([w]) => !istExtern() || w === "erfassen")
-        .map(([w, t]) => '<button class="reiter__knopf' + (prod.ansicht === w ? " aktiv" : "")
-          + '" data-ansicht="' + w + '">' + t + '</button>').join("")
-    + '</div>'
-    + (darfSchreiben() || istExtern() ? "" : nurLesenHinweis("Du kannst hier alles ansehen, aber nichts ändern."))
-    + '<div id="prod-inhalt"><div class="laedt">Wird geladen …</div></div>';
-
-  b.querySelectorAll("[data-ansicht]").forEach((el) => {
-    el.onclick = () => { prod.ansicht = el.dataset.ansicht; seiteProduktion(b); };
-  });
-
-  const ziel = document.getElementById("prod-inhalt");
-  try {
-    prod.parks = await ladeParks(prod.ansicht === "maschinen");
-    prod.maschinen = await ladeMaschinen(prod.ansicht === "maschinen");
-    prod.auftraege = await ladeLaufendeAuftraege();
-    try { plan.auftraege = await ladePlanAuftraege(); } catch (f) { plan.auftraege = []; }
-  } catch (f) {
-    ziel.innerHTML = '<div class="karte karte--fehler"><p>' + esc(fehlertext(f)) + '</p></div>';
-    return;
-  }
-
   if (prod.ansicht === "fortschritt") {
     await ansichtFortschritt(ziel);
-    reiterUebergang(ziel);
     zurueckRollen();
     return;
   }
   if (prod.ansicht === "hoco") {
-    await ansichtHoco(ziel, b); reiterUebergang(ziel); zurueckRollen(); return;
+    await ansichtHoco(ziel, b); zurueckRollen(); return;
   }
-  // Alter Verweis auf den eigenen Typen-Reiter
-  if (prod.ansicht === "typen") prod.ansicht = "maschinen";
 
-  if (prod.ansicht === "maschinen") {
-    // Ist ein Typ geöffnet, zählt nur er.
-    if (prod.typOffen) {
-      await ansichtTypen(ziel, b);
-      reiterUebergang(ziel);
-      return;
-    }
-
-    // Unterreiter: je Maschinenpark einer, dazu die Typen. So bleibt
-    // die Seite kurz, statt alle Parks untereinander zu stapeln.
-    const parks = prod.parks || [];
-    const moeglich = parks.map((p) => p.id).concat(["typen"]);
-    if (moeglich.indexOf(prod.parkReiter) === -1) {
-      prod.parkReiter = parks.length ? parks[0].id : "typen";
-    }
-
-    ziel.innerHTML = '<div class="reiter reiter--fein" id="park-reiter">'
-      + parks.map((p) => '<button class="reiter__knopf'
-          + (prod.parkReiter === p.id ? " aktiv" : "") + '" data-parkreiter="' + esc(p.id) + '">'
-          + esc(p.name) + '</button>').join("")
-      + '<button class="reiter__knopf' + (prod.parkReiter === "typen" ? " aktiv" : "")
-      + '" data-parkreiter="typen">Typen</button>'
-      + '</div>'
-      + '<div id="park-inhalt"><div class="laedt">Wird geladen …</div></div>';
-
-    ziel.querySelectorAll("[data-parkreiter]").forEach((el) => {
-      el.onclick = () => { prod.parkReiter = el.dataset.parkreiter; seiteProduktion(b); };
-    });
-
-    const unten = document.getElementById("park-inhalt");
-    if (prod.parkReiter === "typen") await ansichtTypen(unten, b);
-    else await ansichtMaschinen(unten, b, prod.parkReiter);
-
-    reiterUebergang(ziel);
-    zurueckRollen();
-    return;
-  }
-  // Übersicht gibt es nicht mehr; alter Verweis fällt auf Erfassen zurück
-  if (prod.ansicht === "uebersicht") prod.ansicht = "erfassen";
-
-  if (!prod.parks.length) {
-    ziel.innerHTML = '<div class="karte karte--hinweis"><h2>Noch keine Maschinen</h2>'
-      + '<p>Lege zuerst einen Maschinenpark und Maschinen an.</p>'
-      + (darfSchreiben() ? '<button class="knopf knopf--haupt" id="zu-maschinen">Maschinen einrichten</button>' : "")
-      + '</div>';
-    const k = document.getElementById("zu-maschinen");
-    if (k) k.onclick = () => { prod.ansicht = "maschinen"; seiteProduktion(b); };
+  // Maschinen und Typen. Ist ein Typ geöffnet, zählt nur er.
+  if (prod.typOffen) {
+    await ansichtTypen(ziel, b);
     return;
   }
 
-  if (!prod.parkId || !prod.parks.some((p) => p.id === prod.parkId)) prod.parkId = prod.parks[0].id;
+  // Unterreiter: je Maschinenpark einer, dazu die Typen. So bleibt
+  // die Seite kurz, statt alle Parks untereinander zu stapeln.
+  const parks = prod.parks || [];
+  const moeglich = parks.map((p) => p.id).concat(["typen"]);
+  if (moeglich.indexOf(prod.parkReiter) === -1) {
+    prod.parkReiter = parks.length ? parks[0].id : "typen";
+  }
 
-  await ansichtErfassen(ziel, b);
+  ziel.innerHTML = '<div class="reiter reiter--fein" id="park-reiter">'
+    + parks.map((p) => '<button class="reiter__knopf'
+        + (prod.parkReiter === p.id ? " aktiv" : "") + '" data-parkreiter="' + esc(p.id) + '">'
+        + esc(p.name) + '</button>').join("")
+    + '<button class="reiter__knopf' + (prod.parkReiter === "typen" ? " aktiv" : "")
+    + '" data-parkreiter="typen">Typen</button>'
+    + '</div>'
+    + '<div id="park-inhalt"><div class="laedt">Wird geladen …</div></div>';
+
+  ziel.querySelectorAll("[data-parkreiter]").forEach((el) => {
+    el.onclick = () => { prod.parkReiter = el.dataset.parkreiter; seiteProduktion(b); };
+  });
+
+  const unten = document.getElementById("park-inhalt");
+  if (prod.parkReiter === "typen") await ansichtTypen(unten, b);
+  else await ansichtMaschinen(unten, b, prod.parkReiter);
+
   reiterUebergang(ziel);
+  zurueckRollen();
 }
 
-function parkAuswahl() {
-  if (prod.parks.length < 2) return "";
-  return '<div class="parkwahl">'
-    + prod.parks.map((p) => '<button class="parkwahl__knopf' + (p.id === prod.parkId ? " aktiv" : "")
-        + '" data-park="' + esc(p.id) + '">' + esc(p.name) + '</button>').join("")
-    + '</div>';
-}
-
-function parkAuswahlBinden(b) {
-  document.querySelectorAll("[data-park]").forEach((el) => {
-    el.onclick = () => {
-      prod.parkId = el.dataset.park;
-      // Nur den Inhalt neu zeichnen — die Maschinen sind alle geladen.
-      const ziel = document.getElementById("prod-inhalt");
-      if (ziel) ansichtErfassen(ziel, b);
-      else seiteProduktion(b);
-    };
-  });
-}
-
-// =================================================================
-//  ERFASSEN
-// =================================================================
-
-// Suchfeld anmelden. Muss nach dem Aufbau der Seite passieren,
-// sonst gibt es das Feld noch gar nicht.
-function sucheBinden(b) {
-  const feld = document.getElementById("p-suche");
-  if (!feld) return;
-
-  let taste = null;
-  feld.oninput = () => {
-    clearTimeout(taste);
-    taste = setTimeout(() => {
-      prod.suche = feld.value;
-      // Nur die Maschinenliste und das Raster neu zeichnen. Steuerung
-      // und Suchfeld bleiben stehen, kein Neuaufbau der Seite und
-      // kein zusätzlicher Datenbankzugriff auf Parks oder Maschinen.
-      if (prod._neuFiltern) {
-        prod._neuFiltern();
-      } else {
-        const ziel = document.getElementById("prod-inhalt");
-        if (ziel) ansichtErfassen(ziel, b);
-      }
-    }, 300);
-  };
-
-  if (prod.suche) {
-    feld.focus();
-    feld.setSelectionRange(feld.value.length, feld.value.length);
-  }
-}
-
-// Filtert die Maschinen nach Park und Suchtext
-function maschinenGefiltert() {
-  const suchtext = (prod.suche || "").trim().toLowerCase();
-  return prod.maschinen.filter((m) => {
-    if (!suchtext) return m.park_id === prod.parkId;
-    const auftrag = prod.auftraege ? prod.auftraege[m.id] : null;
-    return (m.name || "").toLowerCase().includes(suchtext)
-      || (m.machine_number || "").toLowerCase().includes(suchtext)
-      || (auftrag && (auftrag.job_number || "").toLowerCase().includes(suchtext));
-  });
-}
-
-async function ansichtErfassen(ziel, b) {
-  const suchtext = (prod.suche || "").trim().toLowerCase();
-  let maschinen = maschinenGefiltert();
-
-  if (!maschinen.length) {
-    ziel.innerHTML = parkAuswahl()
-      + '<div class="suchleiste"><input type="search" id="p-suche"'
-      + ' placeholder="Suchen" value="'
-      + esc(prod.suche || "") + '" autocomplete="off"></div>'
-      + '<div class="karte karte--hinweis"><p>'
-      + (suchtext
-          ? 'Nichts gefunden zu "' + esc(prod.suche) + '". Gesucht wird in '
-            + 'Maschinenname, Maschinennummer und HOCO Nr.'
-          : 'In diesem Maschinenpark ist noch keine Maschine angelegt.')
-      + '</p></div>';
-    parkAuswahlBinden(b);
-    sucheBinden(b);
-    return;
-  }
-
-  const istWoche = prod.modus === "woche";
-  const tageProWoche = einstellung("wochenende") ? 7 : 5;
-  const von = istWoche ? wochenStart(prod.tag) : prod.tag;
-  const bis = istWoche ? plusTage(von, tageProWoche - 1) : prod.tag;
-
-  ladeFertig(ziel);
-  ziel.innerHTML = parkAuswahl()
-    + '<div class="steuerung">'
-    + '<button class="knopf knopf--klein" id="zurueck">‹</button>'
-    + '<div class="steuerung__mitte"><div class="steuerung__titel" id="zeitraum"></div>'
-    + '<button class="linkknopf" id="heute">Heute</button></div>'
-    + '<button class="knopf knopf--klein" id="vor">›</button></div>'
-    + '<div class="moduswahl">'
-    + '<button class="moduswahl__knopf' + (!istWoche ? " aktiv" : "") + '" data-modus="tag">Tag</button>'
-    + '<button class="moduswahl__knopf' + (istWoche ? " aktiv" : "") + '" data-modus="woche">Woche</button>'
-    + '</div>'
-    + '<div class="suchleiste"><input type="search" id="p-suche"'
-    + ' placeholder="Suchen" value="' + esc(prod.suche || "") + '"'
-    + ' autocomplete="off"></div>'
-    + '<div id="raster"><div class="laedt">Zahlen werden geladen …</div></div>';
-
-  parkAuswahlBinden(b);
-  sucheBinden(b);
-
-  document.getElementById("zeitraum").textContent = istWoche
-    ? "Woche " + kurzDatum(von) + " – " + kurzDatum(bis)
-    : wochentagName(prod.tag) + ", " + kurzDatum(prod.tag) + ausIso(prod.tag).getFullYear();
-
-  // Datum und Tag/Woche ändern nur den angezeigten Ausschnitt.
-  // Parks, Maschinen und Aufträge sind schon geladen — es reicht,
-  // den Inhalt neu zu zeichnen, statt die Seite neu aufzubauen.
-  const inhaltNeu = () => ansichtErfassen(ziel, b);
-
-  document.getElementById("zurueck").onclick = () => {
-    prod.tag = plusTage(prod.tag, istWoche ? -7 : -1); inhaltNeu(); };
-  document.getElementById("vor").onclick = () => {
-    prod.tag = plusTage(prod.tag, istWoche ? 7 : 1); inhaltNeu(); };
-  document.getElementById("heute").onclick = () => {
-    prod.tag = isoDatum(new Date()); inhaltNeu(); };
-  document.querySelectorAll("[data-modus]").forEach((el) => {
-    el.onclick = () => { prod.modus = el.dataset.modus; inhaltNeu(); };
-  });
-
-  // Nach jeder gespeicherten Zahl wird nur das Raster neu geladen,
-  // nicht die ganze Seite. Steuerung und Suchfeld bleiben stehen,
-  // die Bildlaufposition geht nicht verloren.
-  const rasterKasten = document.getElementById("raster");
-
-  const rasterLaden = async () => {
-    let staende;
-    try {
-      staende = await ladeZaehlerstaende(von, bis, maschinen.map((m) => m.id));
-    } catch (f) {
-      rasterKasten.innerHTML =
-        '<div class="karte karte--fehler"><p>' + esc(fehlertext(f)) + '</p></div>';
-      return;
-    }
-
-    const rolle = rasterKasten.querySelector(".rasterrolle");
-    const x = rolle ? rolle.scrollLeft : 0;
-    const y = rolle ? rolle.scrollTop : 0;
-
-    rasterKasten.innerHTML = istWoche
-      ? wochenRaster(maschinen, von, tageProWoche, staende)
-      : tagesRaster(maschinen, prod.tag, staende);
-
-    const neu = rasterKasten.querySelector(".rasterrolle");
-    if (neu) { neu.scrollLeft = x; neu.scrollTop = y; }
-
-    eingabenBinden(rasterKasten, staende, b, rasterLaden);
-    auftragsKnoepfeBinden(rasterKasten, b);
-  };
-
-  // Bei einer Suche wird nur die Maschinenliste neu gefiltert und
-  // das Raster neu gezeichnet — Steuerung und Suchfeld bleiben
-  // unangetastet stehen, kein Neuaufbau der ganzen Seite.
-  prod._neuFiltern = () => {
-    maschinen = maschinenGefiltert();
-    if (!maschinen.length) {
-      rasterKasten.innerHTML = '<div class="karte karte--hinweis"><p>'
-        + (prod.suche
-            ? 'Nichts gefunden zu "' + esc(prod.suche) + '". Gesucht wird in '
-              + 'Maschinenname, Maschinennummer und HOCO Nr.'
-            : 'In diesem Maschinenpark ist noch keine Maschine angelegt.')
-        + '</p></div>';
-      return;
-    }
-    rasterLaden();
-  };
-
-  await rasterLaden();
-}
-
-function auftragsZeile(maschine) {
-  const j = prod.auftraege[maschine.id];
-  if (!j) {
-    return '<div class="auftrag auftrag--leer">'
-      + '<span class="auftrag__nr auftrag__nr--fehlt">Auftrag fehlt</span>'
-      + (darfSchreiben() ? '<button class="linkknopf" data-auftrag-start="' + esc(maschine.id)
-          + '">Auftrag wählen</button>' : "")
-      + '</div>';
-  }
-  const zustand = PLANSTATUS[j.plan_status || "geplant"] || PLANSTATUS.geplant;
-
-  return '<div class="auftrag">'
-    + '<span class="auftrag__nr">' + esc(j.job_number) + '</span>'
-    // Den Zustand darf jeder ändern, auch ohne Schreibrecht.
-    + '<button class="auftrag__status" data-auftrag-status="' + esc(j.id) + '"'
-    + ' title="Zustand ändern">' + zustand.zeichen + ' '
-    + esc(zustand.name) + '</button>'
-    + '<span class="auftrag__seit">'
-    + (j.target_quantity ? "Ziel " + zahlText(j.target_quantity) + " Stück"
-        : "seit " + kurzDatum(isoDatum(new Date(j.started_at)))) + '</span>'
-    // Die HOCO Nr. steht am Auftrag — damit lässt sich das
-    // Einrichtblatt für diese Maschine direkt öffnen.
-    + '<button class="linkknopf" data-blatt="' + esc(j.id)
-    + '" data-maschine="' + esc(maschine.id) + '">Einrichtblatt</button>'
-    + (darfSchreiben()
-        ? '<button class="linkknopf" data-auftrag-menge="' + esc(j.id) + '">Menge</button>'
-          + '<button class="linkknopf" data-auftrag-ende="' + esc(j.id)
-          + '" data-maschine="' + esc(maschine.id) + '">Beenden</button>'
-        : "")
-    + '</div>';
-}
-
-// Für die Woche in drei Spalten: Nummer — Einrichtblatt, Menge, Beenden
-// — Ziel, Stand, Zustand. Dieselben Knöpfe wie in der Tagesansicht.
-function auftragsZeileWoche(maschine, stand) {
-  const j = prod.auftraege[maschine.id];
-  if (!j) return auftragsZeile(maschine);
-  const zustand = PLANSTATUS[j.plan_status || "geplant"] || PLANSTATUS.geplant;
-  return '<div class="auftrag auftrag--woche">'
-    + '<div class="aw-spalte"><span class="auftrag__nr">' + esc(j.job_number) + '</span></div>'
-    + '<div class="aw-spalte">'
-    + '<button class="linkknopf" data-blatt="' + esc(j.id) + '" data-maschine="' + esc(maschine.id) + '">Einrichtblatt</button>'
-    + (darfSchreiben()
-        ? '<button class="linkknopf" data-auftrag-menge="' + esc(j.id) + '">Menge</button>'
-          + '<button class="linkknopf" data-auftrag-ende="' + esc(j.id)
-          + '" data-maschine="' + esc(maschine.id) + '">Beenden</button>'
-        : "")
-    + '</div>'
-    + '<div class="aw-spalte">'
-    + '<span class="auftrag__seit">' + (j.target_quantity ? "Ziel " + zahlText(j.target_quantity) + " Stück"
-        : "seit " + kurzDatum(isoDatum(new Date(j.started_at)))) + '</span>'
-    + (stand !== null && stand !== undefined ? '<span class="fest__stand">Stand ' + zahlText(stand) + '</span>' : "")
-    + '<button class="auftrag__status" data-auftrag-status="' + esc(j.id) + '" title="Zustand ändern">'
-    + zustand.zeichen + ' ' + esc(zustand.name) + '</button>'
-    + '</div>'
-    + '</div>';
-}
-
-function standFeld(maschine, datum, eintrag) {
-  const j = prod.auftraege[maschine.id];
-  // Zahlen erfassen geht nur, solange der Auftrag wirklich läuft —
-  // nicht schon bei Geplant, Rüsten oder QS Check.
-  const laeuftJetzt = j && j.plan_status === "laeuft";
-  const heute = isoDatum(new Date());
-  const istVergangenheit = datum < heute;
-
-  // Ohne laufenden Auftrag lässt sich nur ein bereits vorhandener
-  // Eintrag aus der Vergangenheit noch korrigieren.
-  if (!laeuftJetzt && !(istVergangenheit && eintrag)) return '<div class="kein-feld">–</div>';
-
-  const auftragId = laeuftJetzt ? j.id : eintrag.job_id;
-  return '<input class="menge" type="number" inputmode="numeric" min="0" step="1"'
-    // Ohne sichtbare Beschriftung braucht das Feld einen Namen für Vorleser
-    + ' aria-label="Stückzahl ' + esc(maschine.name || "") + ' ' + kurzDatum(datum) + '"'
-    + ' data-maschine="' + esc(maschine.id) + '" data-datum="' + datum + '"'
-    + ' data-auftrag="' + esc(auftragId) + '"'
-    // Externe dürfen sonst nichts ändern, aber ihre Stückzahlen melden
-    + (darfSchreiben() || istExtern() ? "" : " disabled")
-    + ' value="' + (eintrag ? eintrag.quantity : "") + '">';
-}
-
-function tagesRaster(maschinen, datum, staende) {
-  const zeilen = maschinen.map((m) => {
-    const e = staende.proSchluessel[m.id + "|" + datum];
-    return '<div class="mkarte">'
-      + '<div class="mkarte__kopf"><div class="mkarte__name">' + esc(m.name)
-      + (m.machine_number ? ' <span class="mkarte__nrneben">'
-          + esc(m.machine_number) + '</span>' : "")
-      + (m.machine_number ? '<span class="mkarte__nr">' + esc(m.machine_number) + '</span>' : "")
-      + '</div></div>'
-      + auftragsZeile(m)
-      + '<div class="mkarte__eingabe">'
-      + '<div class="mkarte__label">Zählerstand<span>gesamt seit Auftragsbeginn</span></div>'
-      + standFeld(m, datum, e)
-      + '</div>'
-      + '</div>';
-  }).join("");
-
-  return '<div class="mkarten">' + zeilen + '</div>';
-}
-
-function wochenRaster(maschinen, von, anzahl, staende) {
-  const tage = [];
-  for (let i = 0; i < anzahl; i++) tage.push(plusTage(von, i));
-  const heute = isoDatum(new Date());
-
-  const kopf = '<tr><th class="fest">Maschine</th>'
-    + tage.map((t, i) => '<th class="' + (t === heute ? "heute" : "") + '">' + WT_KURZ[i]
-        + '<span class="th__datum">' + kurzDatum(t) + '</span></th>').join("")
-    + '</tr>';
-
-  const zeilen = maschinen.map((m) => {
-    const j = prod.auftraege[m.id];
-
-    const zellen = tage.map((t) => {
-      const e = staende.proSchluessel[m.id + "|" + t];
-      return '<td class="' + (t === heute ? "heute" : "") + '">'
-        + standFeld(m, t, e) + '</td>';
-    }).join("");
-
-    // Wie in der Tagesansicht: Zustand zum Antippen, Ziel, Einrichtblatt,
-    // Menge, Beenden — oder "Auftrag wählen", wenn keiner läuft
-    return '<tr><th class="fest fest--voll">' + esc(m.name)
-      + (m.machine_number ? ' <span class="fest__nr">' + esc(m.machine_number) + '</span>' : "")
-      + '<div class="fest__zeile">' + auftragsZeileWoche(m, j ? aktuellerStand(m.id, staende) : null) + '</div>'
-      + '</th>' + zellen + '</tr>';
-  }).join("");
-
-  return '<div class="karte karte--raster"><div class="rasterrolle"><table class="raster raster--woche">'
-    + '<thead>' + kopf + '</thead><tbody>' + zeilen + '</tbody></table></div></div>'
-    + '<p class="hinweis">Die große Zahl ist der Zählerstand seit Auftragsbeginn. '
-    + 'Darunter steht die daraus errechnete Tagesleistung. '
-    + 'Links steht der aktuelle Stand des laufenden Auftrags.</p>';
-}
-
-// Letzter erfasster Zählerstand des laufenden Auftrags
-function aktuellerStand(maschineId, staende) {
-  const j = prod.auftraege[maschineId];
-  if (!j) return 0;
-  const liste = (staende.proMaschine && staende.proMaschine[maschineId]) || [];
-  for (let i = liste.length - 1; i >= 0; i--) {
-    if (liste[i].job_id === j.id) return liste[i].quantity;
-  }
-  return 0;
-}
-
-function eingabenBinden(raster, staende, b, neuLaden) {
-  raster.querySelectorAll(".menge").forEach((el) => {
-    el.addEventListener("focus", () => el.select());
-    el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); el.blur(); } });
-
-    el.addEventListener("change", async () => {
-      const roh = el.value.trim();
-      if (roh === "") return;
-
-      const stand = Math.max(0, Math.round(Number(roh)));
-      if (!Number.isFinite(stand)) { meldung("Bitte eine Zahl eingeben.", "warn"); return; }
-
-      const schluessel = el.dataset.maschine + "|" + el.dataset.datum;
-      const alt = staende.proSchluessel[schluessel];
-      if (alt && alt.quantity === stand) return;
-
-      el.classList.add("menge--speichert");
-      try {
-        await speichereStand(el.dataset.maschine, el.dataset.datum, stand, el.dataset.auftrag);
-        const vorherWert = alt ? alt.quantity : null;
-        const mId = el.dataset.maschine, dat = el.dataset.datum, aId = el.dataset.auftrag;
-        merkeSchritt("Zählerstand vom " + kurzDatum(dat), async () => {
-          if (vorherWert === null) {
-            await db.from("production_records").delete()
-              .eq("machine_id", mId).eq("record_date", dat);
-          } else {
-            await speichereStand(mId, dat, vorherWert, aId);
-          }
-          if (neuLaden) neuLaden(); else seiteProduktion(b);
-        });
-        el.classList.remove("menge--speichert");
-        el.classList.add("menge--gespeichert");
-        setTimeout(() => el.classList.remove("menge--gespeichert"), 900);
-        // Nur das Raster neu berechnen, damit die Leistungen stimmen —
-        // nicht die ganze Seite, das kostet die Bildlaufposition.
-        if (neuLaden) await neuLaden(); else seiteProduktion(b);
-      } catch (f) {
-        el.classList.remove("menge--speichert");
-        el.classList.add("menge--fehler");
-        el.value = alt ? alt.quantity : "";
-        meldung(fehlertext(f), "fehler");
-      }
-    });
-  });
-}
-
-// Nach Start/Beenden/Mengenänderung nur die Aufträge neu laden und
-// das Raster neu zeichnen — nicht die ganze Seite mit Parks, Reitern
-// und Maschinen erneut aufbauen.
-async function prodAuftraegeAktualisieren(b) {
-  try { prod.auftraege = await ladeLaufendeAuftraege(); } catch (f) { /* egal, alte Daten bleiben */ }
-  if (prod._neuFiltern) prod._neuFiltern();
-  else seiteProduktion(b);
-}
-
-function auftragsKnoepfeBinden(raster, b) {
-  // Einrichtblatt zu diesem Auftrag. Die HOCO Nr. kommt vom Auftrag,
-  // der Typ von der Maschine.
-  raster.querySelectorAll("[data-blatt]").forEach((el) => {
-    el.onclick = async () => {
-      const j = Object.values(prod.auftraege || {}).find((x) => x.id === el.dataset.blatt);
-      if (!j) return;
-      const m = (prod.maschinen || []).find((x) => x.id === el.dataset.maschine);
-      await einrichtblattPdfOeffnen(j.job_number, m && m.type_id, j.job_number);
-    };
-  });
-
-  // Zustand ändern — bewusst für alle, auch ohne Schreibrecht
-  raster.querySelectorAll("[data-auftrag-status]").forEach((el) => {
-    el.onclick = async () => {
-      const id = el.dataset.auftragStatus;
-      const j = Object.values(prod.auftraege || {}).find((x) => x.id === id);
-      if (!j) return;
-
-      const wahl = await auswahlDialog("Zustand ändern — " + j.job_number,
-        Object.keys(PLANSTATUS).map((k) => ({
-          wert: k, text: PLANSTATUS[k].zeichen + "  " + PLANSTATUS[k].name,
-        })));
-      if (!wahl || wahl === j.plan_status) return;
-
-      try {
-        const r = await zustandSetzen(j, wahl);
-        meldung("Zustand geändert." + (r.hinweis ? " " + r.hinweis : ""));
-        await prodAuftraegeAktualisieren(b);
-      } catch (f) { meldung(fehlertext(f), "fehler"); }
-    };
-  });
-
-  raster.querySelectorAll("[data-auftrag-start]").forEach((el) => {
-    el.onclick = async () => {
-      const maschineId = el.dataset.auftragStart;
-      const maschine = prod.maschinen.find((m) => m.id === maschineId);
-
-      // Nur was auf der Planwand für diese Maschine eingeplant ist,
-      // in der geplanten Reihenfolge.
-      let geplant = [];
-      try {
-        const { data, error } = await zeitlimit(
-          db.from("jobs").select("*").eq("machine_id", maschineId)
-            .is("ended_at", null).not("planned_from", "is", null)
-            .order("planned_from"), 10000, "Planung");
-        if (error) throw error;
-        geplant = (data || []).filter((j) => j.plan_status !== "fertig");
-      } catch (f) {
-        meldung(fehlertext(f), "fehler");
-        return;
-      }
-
-      if (!geplant.length) {
-        await nachfragen({
-          titel: "Nichts eingeplant",
-          text: "Für " + (maschine ? maschine.name : "diese Maschine") + " steht auf der "
-              + "Planwand kein Auftrag. Aufträge werden dort angelegt und eingeplant.",
-          bestaetigen: "Verstanden" });
-        return;
-      }
-
-      const wahl = await auswahlDialog(
-        "Auftrag auf " + (maschine ? maschine.name : "dieser Maschine"),
-        geplant.map((j) => ({
-          wert: j.id,
-          text: j.job_number + "   ab " + kurzDatum(j.planned_from)
-            + (j.target_quantity ? "  ·  " + zahlText(j.target_quantity) + " Stück" : ""),
-        })));
-      if (!wahl) return;
-
-      const auftrag = geplant.find((j) => j.id === wahl);
-      try {
-        const r = await zustandSetzen(auftrag, "laeuft");
-        meldung("Auftrag " + auftrag.job_number + " gestartet."
-          + (r.hinweis ? " " + r.hinweis : ""));
-        await prodAuftraegeAktualisieren(b);
-      } catch (f) { meldung(fehlertext(f), "fehler"); }
-    };
-  });
-
-  raster.querySelectorAll("[data-auftrag-menge]").forEach((el) => {
-    el.onclick = async () => {
-      const j = Object.values(prod.auftraege).find((x) => x.id === el.dataset.auftragMenge);
-      if (!j) return;
-      const w = await dialogFelder({ titel: "Fertigungsmenge",
-        text: "Auftrag " + j.job_number,
-        felder: [{ name: "menge", label: "Wie viele Stück", typ: "number",
-                   wert: j.target_quantity === null || j.target_quantity === undefined
-                     ? "" : j.target_quantity }],
-        bestaetigen: "Speichern" });
-      if (!w) return;
-      const { error } = await db.from("jobs")
-        .update({ target_quantity: w.menge === 0 && String(w.menge) === "0"
-          ? 0 : (w.menge ? Math.max(0, Math.round(w.menge)) : null) })
-        .eq("id", j.id);
-      if (error) meldung(fehlertext(error), "fehler");
-      else { meldung("Gespeichert."); await prodAuftraegeAktualisieren(b); }
-    };
-  });
-
-  raster.querySelectorAll("[data-auftrag-ende]").forEach((el) => {
-    el.onclick = async () => {
-      const j = prod.auftraege[el.dataset.maschine];
-      const ok = await nachfragen({
-        titel: "Auftrag beenden",
-        text: "Auftrag " + (j ? j.job_number : "") + " wird abgeschlossen. "
-            + "Der Zähler beginnt beim nächsten Auftrag wieder bei null. "
-            + "Die erfassten Zahlen bleiben erhalten.",
-        bestaetigen: "Auftrag beenden",
-      });
-      if (!ok) return;
-
-      // Vor dem Abschliessen den Stand des Einrichtblatts als Daten
-      // festhalten. Danach zeigt dieser Auftrag immer, womit damals
-      // gearbeitet wurde — auch wenn der Typ später umgerüstet wird.
-      const maschineHier = (prod.maschinen || [])
-        .find((x) => x.id === el.dataset.maschine);
-      /* Einrichtblätter sind jetzt PDFs — nichts mehr zu sichern */
-
-      try {
-        const r = await zustandSetzen(j || { id: el.dataset.auftragEnde,
-          machine_id: el.dataset.maschine }, "fertig");
-        meldung("Auftrag beendet." + (r.hinweis ? " " + r.hinweis : ""));
-        await prodAuftraegeAktualisieren(b);
-      } catch (f) { meldung(fehlertext(f), "fehler"); }
-    };
-  });
-}
+// Erfassen (Park, Datum, Tag/Woche, Zählerstände, Knöpfe am Auftrag)
+// ist in src/seiten/produktion/Erfassen.jsx.
 
 // =================================================================
 //  PLANWAND
@@ -8881,109 +8315,6 @@ async function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorl
       planAktualisieren(b);
     }
   };
-}
-
-// =================================================================
-//  ÜBERSICHT
-//  Alle Maschinenparks untereinander, je Maschine die ganze Woche.
-// =================================================================
-
-async function ansichtUebersicht(ziel, b) {
-  const tageProWoche = einstellung("wochenende") ? 7 : 5;
-  const von = wochenStart(prod.tag);
-  const bis = plusTage(von, tageProWoche - 1);
-
-  ladeFertig(ziel);
-  ziel.innerHTML = parkAuswahl()
-    + '<div class="steuerung">'
-    + '<div class="steuerung__mitte"><div class="steuerung__titel">Woche '
-    + kurzDatum(von) + ' – ' + kurzDatum(bis) + '</div>'
-    + '<button class="linkknopf" id="u-heute">Heute</button></div>'
-    + '</div>'
-    + '<div class="suchleiste"><input type="search" id="u-suche"'
-    + ' placeholder="Suchen" value="'
-    + esc(prod.uebersichtSuche) + '" autocomplete="off"></div>'
-    + '<div id="u-inhalt"><div class="laedt">Zahlen werden geladen …</div></div>';
-
-  parkAuswahlBinden(b);
-
-  document.getElementById("u-heute").onclick = () => {
-    prod.tag = isoDatum(new Date()); seiteProduktion(b); };
-
-  const suchfeldU = document.getElementById("u-suche");
-  let tasteU = null;
-  suchfeldU.oninput = () => {
-    clearTimeout(tasteU);
-    tasteU = setTimeout(() => {
-      prod.uebersichtSuche = suchfeldU.value; seiteProduktion(b);
-    }, 300);
-  };
-  if (prod.uebersichtSuche) {
-    suchfeldU.focus();
-    suchfeldU.setSelectionRange(suchfeldU.value.length, suchfeldU.value.length);
-  }
-
-  let staende;
-  try {
-    staende = await ladeZaehlerstaende(von, bis, prod.maschinen.map((m) => m.id));
-  } catch (f) {
-    document.getElementById("u-inhalt").innerHTML =
-      '<div class="karte karte--fehler"><p>' + esc(fehlertext(f)) + '</p></div>';
-    return;
-  }
-
-  const tage = [];
-  for (let i = 0; i < tageProWoche; i++) tage.push(plusTage(von, i));
-  const heute = isoDatum(new Date());
-
-  const suchtU = (prod.uebersichtSuche || "").trim().toLowerCase();
-  const passtU = (m) => {
-    if (!suchtU) return true;
-    const auftrag = prod.auftraege[m.id];
-    return (m.name || "").toLowerCase().includes(suchtU)
-      || (m.machine_number || "").toLowerCase().includes(suchtU)
-      || (auftrag && (auftrag.job_number || "").toLowerCase().includes(suchtU));
-  };
-
-  // Ohne Suche nur der gewählte Park, bei einer Suche alle
-  const parksU = suchtU ? prod.parks : prod.parks.filter((p) => p.id === prod.parkId);
-
-  const inhaltU = parksU.map((park) => {
-    const maschinen = prod.maschinen.filter((m) => m.park_id === park.id && passtU(m));
-    if (!maschinen.length) return "";
-
-    const kopf = '<tr><th class="fest">Maschine</th>'
-      + tage.map((t, i) => '<th class="' + (t === heute ? "heute" : "") + '">' + WT_KURZ[i]
-          + '<span class="th__datum">' + kurzDatum(t) + '</span></th>').join("")
-      + '</tr>';
-
-    const zeilen = maschinen.map((m) => {
-      const j = prod.auftraege[m.id];
-      const zellen = tage.map((t) => {
-        const e = staende.proSchluessel[m.id + "|" + t];
-        return '<td class="' + (t === heute ? "heute" : "") + '">'
-          + '<span class="uzelle__stand">' + (e ? zahlText(e.quantity) : "–") + '</span></td>';
-      }).join("");
-
-      return '<tr><th class="fest">' + esc(m.name)
-        + (m.machine_number ? '<span class="fest__nr">' + esc(m.machine_number) + '</span>' : "")
-        + '<span class="fest__auftrag">' + (j ? esc(j.job_number) : "kein Auftrag") + '</span>'
-        + (j ? '<span class="fest__stand">Stand ' + zahlText(aktuellerStand(m.id, staende))
-               + '</span>' : "")
-        + '</th>' + zellen + '</tr>';
-    }).join("");
-
-    return '<section class="karte karte--raster">'
-      + '<h2 class="raster__titel">' + esc(park.name) + '</h2>'
-      + '<div class="rasterrolle"><table class="raster">'
-      + '<thead>' + kopf + '</thead><tbody>' + zeilen + '</tbody></table></div></section>';
-  }).join("");
-
-  document.getElementById("u-inhalt").innerHTML = inhaltU.trim()
-    ? inhaltU + '<p class="hinweis">Die Zahlen sind die Zählerstände seit Auftragsbeginn.</p>'
-    : '<div class="karte karte--hinweis"><p>'
-      + (suchtU ? 'Nichts gefunden zu "' + esc(prod.uebersichtSuche) + '".' : "Keine Maschinen.")
-      + '</p></div>';
 }
 
 // =================================================================
@@ -18215,7 +17546,11 @@ Object.assign(alt, {
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, esc,
   darfPlanen, istAdmin, balkenZeigen, problemQuittieren, vorbereitungFenster,
-  arbeitstagePlus, ausIso, ladeTodos, loeschen, BESTELLSTATUS,
+  arbeitstagePlus, ausIso, ladeTodos, loeschen,
+  prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, ladePlanAuftraege,
+  istExtern, einstellung, rollenMerken, produktionAlteAnsicht, seiteProduktion,
+  ladeZaehlerstaende, speichereStand, wochenStart, plusTage, wochentagName, WT_KURZ,
+  PLANSTATUS, zustandSetzen, einrichtblattPdfOeffnen, BESTELLSTATUS,
   ladeBestellungen, stammVergessen, statusDaten, statusZeit, statusZeitText,
   bestStatusDialog, bestellungDrucken, positionDialog, artikelBearbeiten,
   ladeAlleMaschinen, maschineZielText, doppeltNachfragen, parallelSenden,
@@ -18337,16 +17672,8 @@ async function syncPruefen() {
   if (jetzt === sync.stempel) return;
   sync.stempel = jetzt;
 
-  // Produktion hat, wie die Planwand, einen eigenen leichten Weg:
-  // nur Aufträge und Zahlen neu laden, nicht die ganze Seite mit
-  // Reitern und Maschinen neu aufbauen.
-  if (sync.pfad === "produktion" && document.getElementById("prod-inhalt")) {
-    await prodAuftraegeAktualisieren(bereich);
-    return;
-  }
-
-  // Die Startseite ist eine React-Seite: Sie frischt sich über
-  // seite.zeige still auf, React tauscht nur Geändertes aus.
+  // Produktion und Startseite sind React-Seiten: Sie frischen sich
+  // über seite.zeige still auf, ohne Reiter und Felder neu aufzubauen.
 
   const seite = SEITEN.find((x) => x.pfad === sync.pfad);
   if (!seite) return;
