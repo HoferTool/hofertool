@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.18.2";
+const APP_VERSION = "111.18.3";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1104,6 +1104,7 @@ let profil = null;
 // Schlüssel wertlos. Dafür wird die Verbindung frisch aufgebaut, ohne
 // Sitzung im Speicher.
 async function abmelden() {
+  stammVergessen();
   const s = await sitzung();
   if (!s || !sitzungGemerkt(s.user && s.user.email)) {
     try { await db.auth.signOut(); } catch (f) { /* lokal ist trotzdem weg */ }
@@ -1132,6 +1133,8 @@ async function sitzung() {
 }
 
 async function profilLaden() {
+  // Gemerkte Parks, Maschinen und Typen gehören zur vorherigen Sitzung
+  stammVergessen();
   const s = await sitzung();
   if (!s) { profil = null; return null; }
 
@@ -2415,7 +2418,7 @@ function leistungText(n) {
 //  Zeit. Sie werden deshalb kurz gemerkt und beim Ändern verworfen.
 // =================================================================
 
-const stammGedaechtnis = { werte: {}, zeit: {} };
+const stammGedaechtnis = { werte: {}, zeit: {}, runde: 0 };
 const STAMM_MS = 30000;
 
 async function stammGemerkt(schluessel, holen) {
@@ -2424,9 +2427,16 @@ async function stammGemerkt(schluessel, holen) {
       && jetzt - (stammGedaechtnis.zeit[schluessel] || 0) < STAMM_MS) {
     return stammGedaechtnis.werte[schluessel];
   }
+  // Wurde während des Ladens vergessen (Abmelden, andere Person), ist
+  // das Ergebnis veraltet und kommt nicht ins Gedächtnis. Sonst blieb
+  // eine Antwort ohne Anmeldung (leer) hängen, und die nächste Person
+  // sah keine Maschinen mehr.
+  const runde = stammGedaechtnis.runde;
   const wert = await holen();
-  stammGedaechtnis.werte[schluessel] = wert;
-  stammGedaechtnis.zeit[schluessel] = jetzt;
+  if (runde === stammGedaechtnis.runde) {
+    stammGedaechtnis.werte[schluessel] = wert;
+    stammGedaechtnis.zeit[schluessel] = jetzt;
+  }
   return wert;
 }
 
@@ -2434,6 +2444,7 @@ async function stammGemerkt(schluessel, holen) {
 function stammVergessen() {
   stammGedaechtnis.werte = {};
   stammGedaechtnis.zeit = {};
+  stammGedaechtnis.runde++;
 }
 
 async function ladeParks(auchInaktive) {

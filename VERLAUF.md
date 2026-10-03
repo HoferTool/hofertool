@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 111.x — nach dem Umzug (1.–2. Oktober 2026)
 
+- **111.18.3** Nach Abmelden und neuer Anmeldung fehlten überall die Maschinen. Ein Abgleich, der genau beim Abmelden lief, bekam ohne Anmeldung eine leere Liste, und das Gedächtnis für Parks, Maschinen und Typen (`stammGemerkt`, 30 Sekunden) gab sie der nächsten Person weiter. Jetzt vergisst `profilLaden` und `abmelden` dieses Gedächtnis, und eine Antwort, die nach dem Vergessen ankommt, wird nicht gemerkt.
 - **111.18.2** Das wandernde Licht im Band der Startseite hat die Themenfarbe (Variable `--licht` je Thema).
 - **111.18.1** Die Leiste oben am installierten App-Fenster nimmt die gewählte Themenfarbe an (`fensterleisteFaerben`, setzt `<meta name="theme-color">`). Auf der Anmeldung bleibt sie blau.
 - **111.18.0** Produktion, Woche: nutzt die ganze Breite. Links je Maschine ein Block mit Zustand oben rechts, gross die Nummer, ein Balken für Stand und Ziel mit Prozent und die Knöpfe Einrichtblatt, Menge, Beenden in einer Reihe (`AuftragsBlockWoche` in `Erfassen.jsx`). Unter jedem Tag steht die Tagesleistung, ganz rechts die Summe der Woche. Prüfstand `woche_platz.py` statt `woche_breit.py`.
