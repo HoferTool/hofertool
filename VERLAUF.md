@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 111.x — nach dem Umzug (1.–2. Oktober 2026)
 
+- **111.19.0** Betrachter für PDFs (Zeichnung, WBG, Einrichtblatt): Das PDF wird jetzt von der App selbst gezeichnet (pdf.js, `teile/PdfAnsicht.jsx`) und füllt die ganze Fläche, die ganze Seite bleibt sichtbar. Vorher zeigte Safari auf dem iPad das eingebettete PDF in Originalgrösse mit viel weissem Rand und ignorierte `#view=FitH`. Vergrössern mit zwei Fingern, Strg + Mausrad, Doppeltipp oder den Knöpfen − / % / + unten rechts. Geht das Laden nicht, kommt wie bisher die Anzeige des Browsers. Drucken nimmt die schon geladene Datei. Am Handy bricht die Kopfleiste um. Prüfstand `betrachter_pdf.py`.
 - **111.18.3** Nach Abmelden und neuer Anmeldung fehlten überall die Maschinen. Ein Abgleich, der genau beim Abmelden lief, bekam ohne Anmeldung eine leere Liste, und das Gedächtnis für Parks, Maschinen und Typen (`stammGemerkt`, 30 Sekunden) gab sie der nächsten Person weiter. Jetzt vergisst `profilLaden` und `abmelden` dieses Gedächtnis, und eine Antwort, die nach dem Vergessen ankommt, wird nicht gemerkt.
 - **111.18.2** Das wandernde Licht im Band der Startseite hat die Themenfarbe (Variable `--licht` je Thema).
 - **111.18.1** Die Leiste oben am installierten App-Fenster nimmt die gewählte Themenfarbe an (`fensterleisteFaerben`, setzt `<meta name="theme-color">`). Auf der Anmeldung bleibt sie blau.

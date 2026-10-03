@@ -1,12 +1,15 @@
 // =================================================================
 //  BETRACHTER
 //  Zeigt ein PDF oder ein Bild in der App an, ohne Herunterladen:
-//  Zeichnung, WBG, Einrichtblatt, Fotos. PDFs füllen die Breite.
+//  Zeichnung, WBG, Einrichtblatt, Fotos. PDFs zeichnet PdfAnsicht
+//  selbst und passt sie in die ganze Fläche ein; nur wenn das nicht
+//  geht, kommt die Anzeige des Browsers.
 //  Drucken, Speichern, in neuem Tab öffnen, Schliessen.
 // =================================================================
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
+import { PdfAnsicht } from "./PdfAnsicht.jsx";
 
 export function betrachter(adresse, titel, istPdf) {
   fensterOeffnen((zu) => <Betrachter adresse={adresse} titel={titel} istPdf={istPdf} zu={zu} />, null, "betrachter-huelle");
@@ -14,12 +17,40 @@ export function betrachter(adresse, titel, istPdf) {
 
 function Betrachter({ adresse, titel, istPdf, zu }) {
   const rahmen = useRef(null);
+  // PDF: einmal holen. „bereit“ = selbst zeichnen, „browser“ = die
+  // Anzeige des Browsers als Rückfall.
+  const [pdf, setPdf] = useState({ art: "laden" });
+  useEffect(() => {
+    if (!istPdf) return;
+    let weg = false;
+    fetch(adresse)
+      .then((a) => { if (!a.ok) throw new Error("nicht erreichbar"); return a.blob(); })
+      .then(async (blob) => {
+        const daten = new Uint8Array(await blob.arrayBuffer());
+        if (!weg) setPdf({ art: "bereit", blob, daten });
+      })
+      .catch(() => { if (!weg) setPdf({ art: "browser" }); });
+    return () => { weg = true; };
+  }, [adresse, istPdf]);
 
-  // Drucken: bei einem PDF über das eingebettete Fenster. Liegt die
-  // Datei auf einem anderen Server, verweigert der Browser den Zugriff
-  // darauf; dann bleibt der neue Tab als Weg.
+  // Drucken: bei einem PDF über ein unsichtbares Fenster mit der schon
+  // geladenen Datei (gleiche Herkunft, also erlaubt). Sonst über das
+  // eingebettete Fenster, und geht beides nicht, bleibt der neue Tab.
   const drucken = () => {
     if (istPdf) {
+      if (pdf.blob) {
+        const url = URL.createObjectURL(pdf.blob);
+        const f = document.createElement("iframe");
+        f.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;border:0;left:-10px;top:-10px";
+        f.src = url;
+        f.onload = () => {
+          try { f.contentWindow.focus(); f.contentWindow.print(); }
+          catch (e) { window.open(url, "_blank"); }
+          setTimeout(() => { f.remove(); URL.revokeObjectURL(url); }, 60000);
+        };
+        document.body.appendChild(f);
+        return;
+      }
       try {
         rahmen.current.contentWindow.focus();
         rahmen.current.contentWindow.print();
@@ -52,9 +83,13 @@ function Betrachter({ adresse, titel, istPdf, zu }) {
       document.body.appendChild(a); a.click(); a.remove();
     };
     try {
-      const antwort = await fetch(adresse);
-      if (!antwort.ok) throw new Error("nicht erreichbar");
-      const url = URL.createObjectURL(await antwort.blob());
+      let blob = pdf.blob;
+      if (!blob) {
+        const antwort = await fetch(adresse);
+        if (!antwort.ok) throw new Error("nicht erreichbar");
+        blob = await antwort.blob();
+      }
+      const url = URL.createObjectURL(blob);
       laden(url);
       setTimeout(() => URL.revokeObjectURL(url), 4000);
     } catch (f) {
@@ -73,9 +108,12 @@ function Betrachter({ adresse, titel, istPdf, zu }) {
           <button className="knopf knopf--klein" data-zu="" onClick={zu}>Schliessen</button>
         </div>
       </div>
-      <div className="betrachter__buehne">
+      <div className={"betrachter__buehne" + (istPdf && pdf.art !== "browser" ? " betrachter__buehne--pdf" : "")}>
+        {istPdf && pdf.art === "laden" && <div className="pdfansicht__laden">PDF wird geladen …</div>}
+        {istPdf && pdf.art === "bereit" &&
+          <PdfAnsicht daten={pdf.daten} beiFehler={() => setPdf({ art: "browser" })} />}
         {istPdf
-          ? <>
+          ? pdf.art === "browser" && <>
               <iframe ref={rahmen} src={alt.pdfGanz(adresse)} title="Zeichnung" />
               {alt.isMobil() && <p className="betrachter__hinweis">Wird nichts angezeigt, öffne die Datei über
                 "Neuer Tab". Manche Handys zeigen PDFs nicht direkt in der App an.</p>}
