@@ -6,3 +6,6 @@
 // src/bruecke.jsx in die alte Hülle eingehängt.
 import "./alt/stil.css";
 import "./alt/app.js";
+// Mehr Bewegung: gleitende Markierungen, Licht, Welle, Seitenwechsel
+import "./effekte/effekte.css";
+import "./effekte/effekte.js";

@@ -1,0 +1,417 @@
+/* =================================================================
+   EFFEKTE
+   Mehr Bewegung in der Oberfläche, ohne die App langsamer zu machen.
+
+   Leitidee „Leitstand fährt hoch“: Nach dem Anmelden zieht die blaue
+   Linie unter der Kopfzeile von links nach rechts durch, die Punkte
+   der Navigation kommen nacheinander herein. Danach zeigt Bewegung
+   nur noch, was passiert: Die Markierung in der Navigation und unter
+   den Reitern gleitet zum gewählten Punkt, ein Lichtstreifen fährt bei
+   jedem Seitenwechsel über die Linie, Knöpfe antworten mit einer
+   Welle an der Stelle, wo man getippt hat, und unter der Maus folgt
+   ein weiches Licht auf Karten und Knöpfen.
+
+   Regeln, damit nichts bremst:
+   - Bewegt wird nur mit transform und opacity. Unschärfe gibt es nur
+     auf der Kopfzeile, und dort nicht auf der Planwand.
+   - Die Planwand-Tafel bekommt nur einen pulsierenden Punkt an der
+     Heute-Linie und einen Rand beim Darüberfahren, beides ohne
+     Neurechnen pro Bild.
+   - Wer am Gerät „weniger Bewegung“ eingestellt hat, bekommt nur
+     Farbwechsel und Einblenden.
+   Das Skript dazu steht in effekte.js.
+   ================================================================= */
+
+:root {
+  --fx-kurve: cubic-bezier(.16, 1, .3, 1);
+  --fx-weg: cubic-bezier(.2, .8, .2, 1);
+  --fx-licht: rgba(255, 255, 255, .55);
+}
+
+/* ---------- Was der Browser sonst selbst zeichnet ---------- */
+/* Keine eigene Textmarkierung (::selection): Sie kostet auf der
+   Planwand bei jedem Neuzeichnen spürbar Zeit. */
+input, textarea { caret-color: var(--marke); }
+html { scrollbar-color: color-mix(in srgb, var(--marke) 35%, var(--linie)) transparent; }
+@supports not (scrollbar-color: red blue) {
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--marke) 30%, var(--linie));
+                              border-radius: 999px; border: 2px solid transparent;
+                              background-clip: padding-box; }
+}
+
+/* ---------- Kopfzeile: Glas und Lichtlinie ---------- */
+.kopf { border-bottom-color: transparent; isolation: isolate; }
+.kopf::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px;
+  background: var(--marke); transform-origin: left center; pointer-events: none;
+}
+/* Der Lichtstreifen, der bei jedem Seitenwechsel über die Linie fährt */
+.kopf::before {
+  content: ""; position: absolute; left: 0; bottom: -2px; height: 2px; width: 22%;
+  background: linear-gradient(90deg, transparent, rgba(150, 200, 255, .95), #fff, rgba(150, 200, 255, .95), transparent);
+  opacity: 0; pointer-events: none; z-index: 1; transform: translateX(-100%);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  body:not(.pw-seite) .kopf {
+    background: color-mix(in srgb, var(--flaeche) 78%, transparent);
+    backdrop-filter: saturate(1.6) blur(14px); -webkit-backdrop-filter: saturate(1.6) blur(14px);
+  }
+}
+
+/* Suchfeld in der Kopfzeile: Rand und Taste leuchten auf */
+.kopf__suche { transition: border-color .18s ease, box-shadow .18s ease, color .18s ease; }
+.kopf__suche:hover { border-color: var(--marke); color: var(--tinte);
+                     box-shadow: 0 0 0 3px color-mix(in srgb, var(--marke) 14%, transparent); }
+.kopf__suche kbd { transition: transform .18s var(--fx-kurve), background-color .18s; }
+.kopf__suche:hover kbd { transform: translateY(-1px); background: var(--marke-hell); }
+.kopf__suche svg { transition: transform .25s var(--fx-kurve); }
+.kopf__suche:hover svg { transform: rotate(-12deg) scale(1.1); }
+
+/* Das eigene Bild oben rechts */
+.kopf__ich { transition: transform .2s var(--fx-kurve); }
+.kopf__ich:hover { transform: scale(1.08); }
+
+/* ---------- Pad-Mode-Knopf: ein Hauch Halle im Büro ---------- */
+.pad-start { position: relative; overflow: hidden; isolation: isolate;
+             transition: transform .18s var(--fx-kurve), box-shadow .25s ease; }
+.pad-start::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: linear-gradient(160deg, #13284d 0%, #0a1220 70%);
+  opacity: 0; transition: opacity .25s ease; }
+.pad-start:hover { filter: none; transform: translateY(-1px);
+                   box-shadow: 0 6px 18px color-mix(in srgb, var(--marke) 40%, transparent); }
+.pad-start:hover::after { opacity: 1; }
+.pad-start:active { transform: scale(.96); }
+
+/* ---------- Gleitende Markierung (Navigation und Reiter) ----------
+   Das Skript setzt --fx-x, --fx-y, --fx-b, --fx-h auf den Behälter.
+   Ohne Skript bleibt die bisherige Markierung am Punkt selbst. */
+.fx-gleit:not(.nav) { position: relative; }
+.fx-gleit::before {
+  content: ""; position: absolute; left: 0; top: 0; pointer-events: none;
+  width: var(--fx-b, 0); height: var(--fx-h, 0);
+  transform: translate(var(--fx-x, 0), var(--fx-y, 0));
+  opacity: var(--fx-sicht, 0);
+}
+.fx-gleit--bereit::before {
+  transition: transform .42s var(--fx-kurve), width .42s var(--fx-kurve),
+              height .42s var(--fx-kurve), opacity .2s ease;
+}
+
+/* Navigation: hellblaues Feld mit kräftiger Kante, gleitet mit */
+.nav.fx-gleit::before {
+  background: var(--marke-hell);
+  box-shadow: inset 0 3px 0 var(--marke);
+}
+.nav.fx-gleit .nav__punkt { position: relative; z-index: 1; }
+.nav.fx-gleit .nav__punkt.aktiv { background: transparent; border-color: transparent; }
+@media (min-width: 780px) {
+  .nav.fx-gleit::before { box-shadow: inset 3px 0 0 var(--marke); }
+}
+
+/* Reiter: Unterstrich und zarter Grund gleiten zum gewählten Reiter */
+.reiter.fx-gleit::before {
+  background: linear-gradient(to top, var(--marke) 0 3px, color-mix(in srgb, var(--marke-hell) 80%, transparent) 3px);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.reiter.fx-gleit .reiter__knopf { position: relative; z-index: 1; }
+.reiter.fx-gleit .reiter__knopf.aktiv { border-bottom-color: transparent; box-shadow: none; background: none; }
+
+/* ---------- Welle beim Antippen ---------- */
+.fx-welle { position: absolute; inset: 0; overflow: hidden; border-radius: inherit;
+            pointer-events: none; z-index: 0; }
+.fx-welle > i { position: absolute; border-radius: 50%; display: block;
+                background: currentColor; opacity: 0; transform: scale(0); }
+
+/* ---------- Licht unter der Maus ----------
+   Das Skript setzt --fx-mx/--fx-my nur auf dem Element unter der
+   Maus. Das Licht liegt als zweites Hintergrundbild über der Farbe. */
+@media (hover: hover) {
+  .knopf, .karte--klickbar, .parkwahl__knopf, .moduswahl__knopf, .pad-kachel, .pad-knopf {
+    --fx-schein: 0;
+  }
+  .knopf:hover, .parkwahl__knopf:hover, .moduswahl__knopf:hover {
+    background-image: radial-gradient(120px circle at var(--fx-mx, 50%) var(--fx-my, 50%),
+      color-mix(in srgb, var(--marke) 12%, transparent), transparent 70%);
+  }
+  .knopf--haupt:hover, .knopf--gefahr:hover, .parkwahl__knopf.aktiv:hover, .moduswahl__knopf.aktiv:hover {
+    background-image: radial-gradient(140px circle at var(--fx-mx, 50%) var(--fx-my, 50%),
+      rgba(255, 255, 255, .22), transparent 70%);
+  }
+  .karte--klickbar:hover {
+    background-image: radial-gradient(420px circle at var(--fx-mx, 50%) var(--fx-my, 50%),
+      color-mix(in srgb, var(--marke) 7%, transparent), transparent 65%);
+  }
+}
+
+/* ---------- Karten, Zeilen, Verweise ---------- */
+.karte { transition: border-color .2s ease, box-shadow .25s ease, transform .25s var(--fx-kurve); }
+.karte--klickbar:hover { border-color: color-mix(in srgb, var(--marke) 35%, var(--linie)); }
+
+.tabelle tbody tr { transition: background-color .15s ease; }
+.tabelle tbody tr:hover { background-color: color-mix(in srgb, var(--marke-hell) 55%, transparent); }
+
+.linkknopf, .inhalt a:not(.knopf):not(.nav__punkt) {
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 3px;
+  transition: text-decoration-color .18s ease, text-underline-offset .18s var(--fx-kurve), color .15s ease;
+}
+.linkknopf:hover, .inhalt a:not(.knopf):not(.nav__punkt):hover {
+  text-decoration-color: currentColor; text-underline-offset: 5px;
+}
+
+/* Eingaben: der Rand wird beim Fokus blau, sanft statt schlagartig */
+input, select, textarea { transition: border-color .18s ease, box-shadow .18s ease; }
+
+/* Fenster bekommen Tiefe, der Schleier etwas mehr Unschärfe */
+.dialog { box-shadow: 0 30px 80px rgba(5, 20, 45, .35), 0 2px 6px rgba(5, 20, 45, .12); }
+
+/* Meldungen schweben */
+.toast { box-shadow: 0 14px 34px rgba(5, 20, 45, .3); }
+
+/* ---------- Uhr: Ziffern rollen herein ---------- */
+.fx-ziffer { display: inline-block; }
+
+/* ---------- Pad Mode ---------- */
+.pad-kachel, .pad-knopf { position: relative; }
+@media (hover: hover) {
+  .pad-kachel:hover {
+    background-image: radial-gradient(360px circle at var(--fx-mx, 50%) var(--fx-my, 50%),
+      rgba(107, 164, 255, .18), transparent 65%), linear-gradient(160deg, #142441, #0e1a2e);
+    border-color: rgba(107, 164, 255, .45);
+  }
+}
+/* Läuft die Maschine, atmet der Zustandsknopf ganz leicht */
+.pad-knopf--zustand.pad-zustand--laeuft { isolation: isolate; }
+.pad-knopf--zustand.pad-zustand--laeuft::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 2px rgba(110, 235, 160, .7), 0 0 22px rgba(80, 220, 140, .45);
+  opacity: 0; z-index: -1;
+}
+
+/* ---------- Vorschau-Schild ---------- */
+.fx-schild { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
+  z-index: 99999; pointer-events: none; padding: 4px 12px; border-radius: 999px;
+  background: #b45309; color: #fff; font: 700 12px/1.4 system-ui, sans-serif;
+  letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+@media (max-width: 779px) { .fx-schild { bottom: calc(var(--navhoehe, 62px) + 8px); } }
+
+/* =================================================================
+   Alles, was sich wirklich bewegt — nur ohne „weniger Bewegung“
+   ================================================================= */
+@media (prefers-reduced-motion: no-preference) {
+
+  /* Hochfahren nach dem Anmelden: Linie zieht durch, Navigation kommt */
+  .kopf::after { animation: fx-linie .9s var(--fx-kurve) .05s backwards; }
+  .nav__punkt { animation: fx-nav-herein .5s var(--fx-kurve) backwards; }
+  .nav__punkt:nth-child(1) { animation-delay: .12s; }
+  .nav__punkt:nth-child(2) { animation-delay: .16s; }
+  .nav__punkt:nth-child(3) { animation-delay: .20s; }
+  .nav__punkt:nth-child(4) { animation-delay: .24s; }
+  .nav__punkt:nth-child(5) { animation-delay: .28s; }
+  .nav__punkt:nth-child(6) { animation-delay: .32s; }
+  .nav__punkt:nth-child(n+7) { animation-delay: .36s; }
+  .kopf > * { animation: fx-kopf-herein .45s var(--fx-kurve) backwards; }
+  .kopf > :nth-child(2) { animation-delay: .04s; }
+  .kopf > :nth-child(3) { animation-delay: .08s; }
+  .kopf > :nth-child(n+4) { animation-delay: .12s; }
+
+  /* Lichtstreifen bei jedem Seitenwechsel */
+  .kopf.fx-glanz::before { animation: fx-glanz .85s cubic-bezier(.45, 0, .2, 1) both; }
+
+  /* Seitenwechsel: die Teile der Seite kommen kurz nacheinander.
+     Nicht auf der Planwand, die soll sofort dastehen. */
+  body:not(.pw-seite) #inhalt.reiter-eintritt { animation: none; }
+  /* Die Startseite hatte ihren eigenen Eintritt; der hier ersetzt ihn,
+     sonst liefe er beim Wegnehmen von fx-seite ein zweites Mal */
+  .react-seite:has(> .kopfkarte) > * { animation: none; }
+  body:not(.pw-seite) #inhalt.fx-seite > .react-seite > *,
+  body:not(.pw-seite) #inhalt.fx-seite > :not(.react-seite) {
+    animation: fx-teil-herein .48s var(--fx-kurve) backwards; }
+  body:not(.pw-seite) #inhalt.fx-seite > .react-seite > :nth-child(2) { animation-delay: .04s; }
+  body:not(.pw-seite) #inhalt.fx-seite > .react-seite > :nth-child(3) { animation-delay: .08s; }
+  body:not(.pw-seite) #inhalt.fx-seite > .react-seite > :nth-child(4) { animation-delay: .12s; }
+  body:not(.pw-seite) #inhalt.fx-seite > .react-seite > :nth-child(5) { animation-delay: .16s; }
+  body:not(.pw-seite) #inhalt.fx-seite > .react-seite > :nth-child(n+6) { animation-delay: .2s; }
+
+  /* Reiterinhalt: leicht von der Seite, in die man gewechselt hat */
+  .reiter-eintritt:not(#inhalt) { animation: fx-reiter-herein .32s var(--fx-kurve); }
+
+  /* Knöpfe: heben sich, geben beim Drücken nach */
+  .knopf { transition: transform .16s var(--fx-kurve), background-color .15s, color .15s,
+                       border-color .15s, box-shadow .2s ease; }
+  .knopf:hover:not(:disabled) { transform: translateY(-1px); }
+  .knopf--haupt:hover:not(:disabled) { box-shadow: 0 6px 16px color-mix(in srgb, var(--marke) 32%, transparent); }
+  .knopf:active:not(:disabled) { transform: scale(.96); box-shadow: none; transition-duration: .08s; }
+
+  /* Navigation: Zeichen hüpft kurz, Text rückt nach */
+  .nav__punkt .nav__text { transition: transform .25s var(--fx-kurve); display: inline-block; }
+  @media (min-width: 780px) {
+    .nav__punkt:hover .nav__text { transform: translateX(3px); }
+  }
+  .nav__punkt.aktiv .nav__zeichen { animation: fx-zeichen .5s var(--fx-kurve); }
+
+  /* Reiter: der Text hebt sich unter der Maus */
+  .reiter__knopf { transition: color .15s ease, transform .2s var(--fx-kurve); }
+  .reiter__knopf:hover { color: var(--tinte); }
+  .reiter__knopf:active { transform: scale(.97); }
+
+  /* Park-Pillen und Umschalter */
+  .parkwahl__knopf, .moduswahl__knopf { transition: transform .18s var(--fx-kurve), background-color .15s,
+                                                    color .15s, border-color .15s, box-shadow .2s; }
+  .parkwahl__knopf:hover { transform: translateY(-1px); border-color: var(--marke); }
+  .parkwahl__knopf:active, .moduswahl__knopf:active { transform: scale(.95); }
+
+  /* Karten mit Ziel heben sich etwas mehr */
+  .karte--klickbar:hover { transform: translateY(-3px);
+    box-shadow: 0 14px 34px color-mix(in srgb, var(--marke) 16%, transparent), 0 2px 6px rgba(0, 0, 0, .05); }
+  .karte--klickbar:active { transform: translateY(-1px) scale(.995); transition-duration: .1s; }
+
+  /* Uhr: neue Ziffer rollt von oben herein */
+  .fx-ziffer { animation: fx-ziffer .55s var(--fx-kurve) backwards; }
+
+  /* Planwand: der Punkt oben an der Heute-Linie pulsiert */
+  .pw-heutelinie::after {
+    content: ""; position: absolute; top: -4px; left: -7px; width: 16px; height: 16px;
+    border-radius: 50%; border: 2px solid var(--gefahr); pointer-events: none;
+    animation: fx-puls 2.4s ease-out infinite; }
+
+  /* Pad Mode: weiches Licht wandert langsam durch die Halle */
+  .pad { isolation: isolate; }
+  .pad::before {
+    content: ""; position: fixed; inset: -20%; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(40% 35% at 30% 30%, rgba(31, 111, 224, .22), transparent 70%),
+      radial-gradient(35% 30% at 70% 75%, rgba(114, 57, 192, .16), transparent 70%);
+    animation: fx-halle 28s ease-in-out infinite alternate; }
+  .pad-kachel { transition: transform .22s var(--fx-kurve), box-shadow .22s ease, border-color .2s ease; }
+  @media (hover: hover) {
+    /* Schatten nicht grösser als sonst: Die Kachelfläche rollt und
+       schneidet alles ab, was darüber hinausragt */
+    .pad-kachel:hover { transform: translateY(-3px);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, .45), 0 0 0 1px rgba(107, 164, 255, .3),
+                  inset 0 1px 0 rgba(255, 255, 255, .1); }
+  }
+  .pad-kachel:active { transform: translateY(2px) scale(.985); transition-duration: .08s; }
+  .pad-knopf { transition: transform .16s var(--fx-kurve), filter .2s ease; }
+  .pad-knopf:active { transform: scale(.96); transition-duration: .08s; }
+  .pad-knopf--zustand.pad-zustand--laeuft::after { animation: fx-atmen 2.6s ease-in-out infinite; }
+  .pad__balken__fuellung { transition: width .8s var(--fx-kurve); }
+
+  /* Meldungen: kurz anstossen */
+  .toast { animation: fx-meldung .5s var(--fx-kurve) backwards; }
+}
+
+@keyframes fx-linie { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes fx-glanz {
+  0% { opacity: 0; transform: translateX(-100%); }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(460%); } }
+@keyframes fx-nav-herein { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+@keyframes fx-kopf-herein { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes fx-teil-herein { from { opacity: 0; transform: translateY(14px) scale(.995); } to { opacity: 1; transform: none; } }
+@keyframes fx-reiter-herein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fx-zeichen { 0% { transform: scale(1); } 40% { transform: scale(1.25) rotate(-8deg); } 100% { transform: none; } }
+@keyframes fx-ziffer { from { opacity: 0; transform: translateY(-45%); } to { opacity: 1; transform: none; } }
+@keyframes fx-puls { 0% { opacity: .9; transform: scale(.5); } 70%, 100% { opacity: 0; transform: scale(2.2); } }
+@keyframes fx-halle { from { transform: translate(-6%, -4%) rotate(0deg); } to { transform: translate(6%, 5%) rotate(8deg); } }
+@keyframes fx-atmen { 0%, 100% { opacity: .15; } 50% { opacity: .9; } }
+@keyframes fx-meldung { 0% { opacity: 0; transform: translateY(16px) scale(.96); }
+                        60% { opacity: 1; transform: translateY(-3px) scale(1.01); }
+                        100% { transform: none; } }
+
+/* „Weniger Bewegung“: Ziffern und Seiten blenden nur ein */
+@media (prefers-reduced-motion: reduce) {
+  .fx-gleit--bereit::before { transition: opacity .15s ease; }
+  .fx-ziffer { animation: fx-ruhig .3s ease both; }
+}
+@keyframes fx-ruhig { from { opacity: 0; } to { opacity: 1; } }
+
+/* =================================================================
+   PAD MODE: Anordnung, kein Scrollbalken, nichts abgeschnitten
+   ================================================================= */
+/* Die Kachelfläche selbst rollt nicht mehr, das macht die Fläche darum
+   herum. So schneidet sie beim Anheben oben und unten nichts ab, und
+   beim Hereinkommen der Kacheln blitzt kein Scrollbalken auf. */
+#pad .pad__start .pad__kacheln, #pad .pad__wahl .pad__kacheln { overflow: visible; }
+#pad .pad__start, #pad .pad__wahl, #pad .pad__kacheln { scrollbar-width: none; overflow-x: hidden; }
+#pad .pad__start::-webkit-scrollbar, #pad .pad__wahl::-webkit-scrollbar,
+#pad .pad__kacheln::-webkit-scrollbar { display: none; }
+
+/* Gleich volle Reihen, Spaltenzahl kommt aus Pad.jsx (--pad-spalten) */
+#pad .pad__wahl .pad__kacheln--maschinen {
+  display: grid; justify-content: center; gap: 22px;
+  grid-template-columns: repeat(var(--pad-spalten, 3), minmax(0, 270px)); }
+#pad .pad__kacheln--maschinen .pad-kachel { width: auto; min-height: 180px; }
+#pad .pad__kacheln--parks { justify-content: center;
+  grid-template-columns: repeat(var(--pad-spalten, 2), minmax(0, 360px)); }
+@media (max-width: 640px) {
+  #pad .pad__wahl .pad__kacheln--maschinen, #pad .pad__kacheln--parks {
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+}
+
+/* Maschinenkachel: oben eine Signallinie, grün wenn ein Auftrag läuft */
+#pad .pad-kachel--maschine { overflow: hidden; }
+#pad .pad-kachel--maschine::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(107, 164, 255, .9), transparent);
+  opacity: .55; }
+
+/* Lichtkante, die beim Antippen schräg über Kachel und Knopf fährt */
+#pad .pad-kachel, #pad .pad-knopf:not(.pad-knopf--zustand), #pad .pad-karte2[data-padfeld="stand"] {
+  isolation: isolate; }
+#pad .pad-kachel, #pad .pad-knopf:not(.pad-knopf--zustand) { overflow: hidden; }
+#pad .pad-kachel::after, #pad .pad-knopf:not(.pad-knopf--zustand)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .24) 50%, transparent 70%);
+  transform: translateX(-110%); opacity: 0; }
+
+/* Welle im Pad heller, damit man sie auf dunklem Grund sieht */
+#pad .fx-welle > i { background: #9cc8ff; }
+
+/* Stückzahl-Umschalter: die weisse Pille gleitet */
+.pad-stk-wahl.fx-gleit::before { background: rgba(255, 255, 255, .9); border-radius: 999px; }
+.pad-stk-wahl.fx-gleit .pad-stk-wahl__knopf { position: relative; z-index: 1; transition: color .25s ease; }
+.pad-stk-wahl.fx-gleit .pad-stk-wahl__knopf.aktiv { background: none; }
+
+/* Fortschrittsbalken unten: Licht läuft durch die Füllung */
+.pad__balken__fuellung { overflow: hidden; }
+
+@media (prefers-reduced-motion: no-preference) {
+  #pad .pad-kachel.fx-tipp::after, #pad .pad-knopf.fx-tipp::after {
+    animation: fx-kante .6s cubic-bezier(.2, .8, .2, 1); }
+  @media (hover: hover) {
+    #pad .pad-kachel:hover::after { animation: fx-kante .9s cubic-bezier(.2, .8, .2, 1); }
+  }
+  #pad .pad-kachel--maschine::before { animation: fx-signal 3.2s ease-in-out infinite; }
+
+  /* Stückzahl-Kachel gibt beim Antippen nach */
+  #pad .pad-karte2[data-padfeld="stand"] { transition: transform .18s cubic-bezier(.16, 1, .3, 1); }
+  #pad .pad-karte2[data-padfeld="stand"]:active { transform: scale(.985); transition-duration: .08s; }
+
+  /* Säulen der Stückzahl wachsen von unten herein, eine nach der anderen */
+  .pad-tag i { transform-origin: bottom; animation: fx-wachsen .7s cubic-bezier(.16, 1, .3, 1) backwards; }
+  .pad-tag:nth-child(2) i { animation-delay: .04s; }
+  .pad-tag:nth-child(3) i { animation-delay: .08s; }
+  .pad-tag:nth-child(4) i { animation-delay: .12s; }
+  .pad-tag:nth-child(5) i { animation-delay: .16s; }
+  .pad-tag:nth-child(6) i { animation-delay: .2s; }
+  .pad-tag:nth-child(n+7) i { animation-delay: .24s; }
+  .pad-tag b { animation: fx-ruhig .5s ease .3s backwards; }
+  .pad-tag--heute i { animation-name: fx-wachsen-heute; }
+
+  .pad__balken__fuellung::after {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .28), transparent);
+    transform: translateX(-100%); animation: fx-lauflicht 2.8s ease-in-out infinite; }
+
+  /* Pad-Planwand: angetippter Balken gibt kurz nach */
+  .pad .pw-balken:active { filter: brightness(1.15); }
+}
+@keyframes fx-kante { 0% { opacity: 1; transform: translateX(-110%); } 100% { opacity: 1; transform: translateX(110%); } }
+@keyframes fx-signal { 0%, 100% { opacity: .25; } 50% { opacity: .85; } }
+@keyframes fx-wachsen { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes fx-wachsen-heute { 0% { transform: scaleY(0); } 70% { transform: scaleY(1.06); } 100% { transform: none; } }
+@keyframes fx-lauflicht { from { transform: translateX(-100%); } to { transform: translateX(260%); } }

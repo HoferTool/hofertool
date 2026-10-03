@@ -237,7 +237,7 @@ function Parks({ parks }) {
       <PadKopf titel="Maschinenparks" zurueck />
       <div className="pad__wahl">
         <img className="pad__wahllogo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
-        <div className="pad__kacheln pad__kacheln--parks">
+        <div className="pad__kacheln pad__kacheln--parks" style={{ "--pad-spalten": spalten(parks.length, 3) }}>
           {parks.length
             ? parks.map((park) => (
                 <button key={park.id} className="pad-kachel" data-park={park.id}
@@ -276,12 +276,19 @@ function Typen({ gruppen, alle }) {
 
 // ---------- Maschinen eines Parks ----------
 
+// Gleich volle Reihen statt einer halbleeren letzten: 6 Kacheln werden
+// 3 + 3 statt 4 + 2, 7 werden 4 + 3, 10 werden 4 + 3 + 3 …
+function spalten(n, hoechstens = 4) {
+  if (n <= hoechstens) return Math.max(n, 1);
+  return Math.ceil(n / Math.ceil(n / hoechstens));
+}
+
 function Maschinen({ eigene, laufend }) {
   return (
     <>
       <PadKopf titel="Maschinen" zurueck />
       <div className="pad__wahl">
-        <div className="pad__kacheln pad__kacheln--maschinen">
+        <div className="pad__kacheln pad__kacheln--maschinen" style={{ "--pad-spalten": spalten(eigene.length) }}>
           {eigene.length
             ? eigene.map((m) => {
                 const j = laufend[m.id];

@@ -12,6 +12,7 @@ import { Probleme, Vorbereitung, EinkaufKurz, Bestellstand, Geburtstage,
   geburtstageLaden, geburtstageAufbereiten } from "./start/Karten.jsx";
 import { GeburtstagMitte, Konfetti } from "./start/Geburtstag.jsx";
 import Notizen from "./start/Notizen.jsx";
+import { Ziffern } from "../effekte/Ziffern.jsx";
 
 export default function Start({ auffrischen }) {
   const profil = alt.profil;
@@ -51,7 +52,7 @@ function Uhr() {
   const p = (n) => String(n).padStart(2, "0");
   return (
     <div className="kopfkarte__zeit">
-      <div className="uhr" id="uhr">{p(jetzt.getHours())}:{p(jetzt.getMinutes())}</div>
+      <div className="uhr" id="uhr"><Ziffern text={p(jetzt.getHours()) + ":" + p(jetzt.getMinutes())} /></div>
       <div className="kopfkarte__datum" id="datum">{jetzt.toLocaleDateString("de-CH",
         { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
     </div>
