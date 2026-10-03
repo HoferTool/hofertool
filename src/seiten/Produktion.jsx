@@ -1,9 +1,9 @@
 // =================================================================
 //  PRODUKTION
 //  Hülle mit den Reitern Erfassen, Fortschritt sowie Maschinen und
-//  Typen. Erfassen ist in React (src/seiten/produktion/Erfassen.jsx),
-//  Fortschritt, Maschinen, Typen und HOCO laufen noch im alten
-//  Programm und hängen über AltTeil darin.
+//  Typen. Erfassen, Fortschritt und die Maschinenparks sind in React
+//  (src/seiten/produktion/). Die Maschinentypen und HOCO laufen noch
+//  im alten Programm und hängen über AltTeil darin.
 //
 //  Die Grunddaten (Parks, Maschinen, laufende Aufträge) liegen wie
 //  bisher in prod.* im alten Programm, weil viele alte Stellen sie
@@ -14,6 +14,8 @@ import { useReducer } from "react";
 import { alt, AltTeil, useDaten } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Erfassen from "./produktion/Erfassen.jsx";
+import Fortschritt from "./produktion/Fortschritt.jsx";
+import Maschinen from "./produktion/Maschinen.jsx";
 
 const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"],
                 ["maschinen", "Maschinen und Typen"]];
@@ -73,14 +75,18 @@ export default function Produktion({ auffrischen, behaelter }) {
                   <Erfassen geladen={geladen} neuLaden={neu} behaelter={behaelter}
                     zuMaschinen={() => waehlen("maschinen")} />
                 </div>
-              : <AltTeil key={prod.ansicht + geladen.nr} id="prod-inhalt"
-                  zeichne={(el) => alteAnsicht(el, behaelter)} />}
+              : prod.ansicht === "fortschritt"
+                ? <div id="prod-inhalt"><Fortschritt key={geladen.nr} neuLaden={neu} /></div>
+                : prod.ansicht === "maschinen"
+                  ? <div id="prod-inhalt"><Maschinen geladen={geladen} behaelter={behaelter} /></div>
+                  : <AltTeil key={prod.ansicht + geladen.nr} id="prod-inhalt"
+                    zeichne={(el) => alteAnsicht(el, behaelter)} />}
       </Uebergang>
     </>
   );
 }
 
-// Fortschritt, HOCO, Maschinen und Typen: noch das alte Programm.
+// HOCO: noch das alte Programm.
 function alteAnsicht(ziel, b) {
   ziel.innerHTML = '<div class="laedt">Wird geladen …</div>';
   alt.produktionAlteAnsicht(ziel, b);

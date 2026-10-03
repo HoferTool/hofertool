@@ -4489,3 +4489,9 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 /* Hülle, in die React eine Seite zeichnet (src/bruecke.jsx). Ohne
    eigenen Kasten, damit Abstände und Raster wie vorher wirken. */
 .react-seite { display: contents; }
+
+/* Schild der Vorschau-Fassung unter .../vorschau/ */
+.vorschau-schild { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%);
+  z-index: 99999; pointer-events: none; padding: 4px 12px; border-radius: 999px;
+  background: #b45309; color: #fff; font: 700 12px/1.4 system-ui, sans-serif;
+  letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 2px 8px rgba(0,0,0,.25); }

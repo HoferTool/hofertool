@@ -16,7 +16,15 @@
 // =================================================================
 
 const DATEIEN = self.__DATEIEN__;
-const HUELLE = "hofer-huelle-__FASSUNG__";
+// Die Ablage trägt den Pfad im Namen. So kommen sich die Live-App und
+// die Vorschau unter .../vorschau/ auf demselben Gerät nicht in die
+// Quere: Jede räumt nur ihre eigenen alten Fassungen weg.
+const BEREICH = new URL(self.registration.scope).pathname;
+const VORSILBE = "hofer-app-" + BEREICH + "-";
+const HUELLE = VORSILBE + "__FASSUNG__";
+// Die Ablage der früheren Einzeldatei-App (hofer-huelle-…) räumt nur
+// die Live-App weg, sobald sie selbst diese Fassung ist.
+const IST_VORSCHAU = /\/vorschau\/$/.test(BEREICH);
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -28,7 +36,8 @@ self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
     const namen = await caches.keys();
     await Promise.all(namen
-      .filter((n) => n.startsWith("hofer-huelle-") && n !== HUELLE)
+      .filter((n) => (n.startsWith(VORSILBE) && n !== HUELLE)
+        || (!IST_VORSCHAU && n.startsWith("hofer-huelle-")))
       .map((n) => caches.delete(n)));
     await self.clients.claim();
   })());
