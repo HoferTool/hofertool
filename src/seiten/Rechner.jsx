@@ -1,13 +1,15 @@
 // =================================================================
 //  RECHNER FÜR DIE WERKSTATT
-//  Erster Bereich, der in React neu gebaut ist: die Reiter und die
-//  Drehzahl. Winkel, G-Code, C-Achse, Gravur und DXF laufen noch
-//  im alten Programm und hängen über <AltTeil> darin.
+//  Die Reiter, Drehzahl, Winkel und Fase sowie G-Code sind in React
+//  (src/seiten/rechner/). C-Achse, Gravur und DXF laufen noch im
+//  alten Programm und hängen über <AltTeil> darin.
 // =================================================================
 import { useState } from "react";
 import { alt, AltTeil, useGemerkt } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
+import Winkel from "./rechner/Winkel.jsx";
+import GCode from "./rechner/GCode.jsx";
 
 const REITER = [
   ["drehzahl", "Drehzahl"], ["winkel", "Winkel und Fase"], ["gcode", "G-Code"],
@@ -35,8 +37,6 @@ export default function Rechner() {
   // Die alten Reiter zeichnen in ein Feld mit dieser Kennung und
   // suchen es teils selbst wieder (DXF nach dem Einlesen).
   const alteZeichner = {
-    winkel: alt.rechnerWinkel,
-    gcode: alt.rechnerGcode,
     cachse: alt.rechnerCachse,
     gravur: alt.rechnerGravur,
     dxf: alt.rechnerDxf,
@@ -49,7 +49,7 @@ export default function Rechner() {
       <Uebergang key={ansicht}>
         {alteZeichner[ansicht]
           ? <AltTeil id="rech-inhalt" zeichne={alteZeichner[ansicht]} />
-          : <div id="rech-inhalt"><Drehzahl /></div>}
+          : <div id="rech-inhalt">{ansicht === "winkel" ? <Winkel /> : ansicht === "gcode" ? <GCode /> : <Drehzahl />}</div>}
       </Uebergang>
     </>
   );
