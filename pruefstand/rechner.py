@@ -1,6 +1,6 @@
-# Rechner: erster Bereich in React. Prüft Drehzahl (rechnet beim
-# Tippen), behält Eingaben beim Seitenwechsel, und die alten Reiter
-# (C-Achse, Gravur, DXF) laufen weiter darin. Winkel und G-Code rechnen richtig.
+# Rechner: Prüft Drehzahl (rechnet beim Tippen), behält Eingaben beim
+# Seitenwechsel, alle Reiter zeigen Inhalt, Winkel und G-Code rechnen
+# richtig. C-Achse, Gravur und DXF haben eigene Tests.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -30,7 +30,7 @@ with sync_playwright() as p:
     if pg.locator(".ergebnis").count() != 2: fehler.append("Vorschub fehlt")
     pg.screenshot(path="rechner.png")
 
-    # Alte Reiter laufen in der React-Seite
+    # Jeder Reiter zeigt etwas
     for reiter, merkmal in [("winkel", "input"), ("gcode", "textarea, input"), ("cachse", "svg, canvas, input"),
                             ("gravur", "input, canvas"), ("dxf", "input, button")]:
         pg.click(f"[data-rech='{reiter}']"); pg.wait_for_timeout(250)

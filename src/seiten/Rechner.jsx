@@ -1,17 +1,17 @@
 // =================================================================
 //  RECHNER FÜR DIE WERKSTATT
-//  Die Reiter Drehzahl, Winkel und Fase, G-Code, C-Achse und Gravur
-//  sind in React (src/seiten/rechner/). DXF läuft noch im alten
-//  Programm und hängt über <AltTeil> darin.
+//  Reiter: Drehzahl (hier), Winkel und Fase, G-Code, C-Achse, Gravur
+//  und DXF (je eine Datei in src/seiten/rechner/).
 // =================================================================
 import { useState } from "react";
-import { alt, AltTeil, useGemerkt } from "../bruecke.jsx";
+import { useGemerkt } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Winkel from "./rechner/Winkel.jsx";
 import GCode from "./rechner/GCode.jsx";
 import CAchse from "./rechner/CAchse.jsx";
 import Gravur from "./rechner/Gravur.jsx";
+import Dxf from "./rechner/Dxf.jsx";
 
 const REITER = [
   ["drehzahl", "Drehzahl"], ["winkel", "Winkel und Fase"], ["gcode", "G-Code"],
@@ -30,26 +30,21 @@ const gemerkt = {
   fz: "",
 };
 
+const INHALT = { winkel: Winkel, gcode: GCode, cachse: CAchse, gravur: Gravur, dxf: Dxf };
+
 const zahl = (n) => Math.round(n).toLocaleString("de-CH");
 
 export default function Rechner() {
   const [ansicht, setAnsicht] = useState(gemerkt.ansicht);
   useGemerkt(gemerkt, { ansicht });
 
-  // Die alten Reiter zeichnen in ein Feld mit dieser Kennung und
-  // suchen es teils selbst wieder (DXF nach dem Einlesen).
-  const alteZeichner = {
-    dxf: alt.rechnerDxf,
-  };
-
+  const Inhalt = INHALT[ansicht] || Drehzahl;
   return (
     <>
       <h1 className="seitentitel">Rechner</h1>
       <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" />
       <Uebergang key={ansicht}>
-        {alteZeichner[ansicht]
-          ? <AltTeil id="rech-inhalt" zeichne={alteZeichner[ansicht]} />
-          : <div id="rech-inhalt">{ansicht === "winkel" ? <Winkel /> : ansicht === "gcode" ? <GCode /> : ansicht === "cachse" ? <CAchse /> : ansicht === "gravur" ? <Gravur /> : <Drehzahl />}</div>}
+        <div id="rech-inhalt"><Inhalt /></div>
       </Uebergang>
     </>
   );
