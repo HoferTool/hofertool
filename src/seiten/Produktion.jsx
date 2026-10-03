@@ -28,6 +28,8 @@ async function grunddatenLaden(auchInaktive) {
   prod.parks = await alt.ladeParks(auchInaktive);
   prod.maschinen = await alt.ladeMaschinen(auchInaktive);
   prod.auftraege = await alt.ladeLaufendeAuftraege();
+  // Für die Typknöpfe beim Erfassen; ohne Typen geht es auch
+  try { prod.typen = await alt.ladeTypen(); } catch (f) { prod.typen = prod.typen || []; }
   try { alt.plan.auftraege = await alt.ladePlanAuftraege(); } catch (f) { alt.plan.auftraege = []; }
   return { nr: ++ladeNr };
 }

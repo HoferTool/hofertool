@@ -145,44 +145,52 @@ const aktion = {
 function ParkKarte({ park: p, darf, neuLaden }) {
   const maschinen = alt.prod.maschinen.filter((m) => m.park_id === p.id);
   return (
-    <section className={"karte" + (p.is_active ? "" : " karte--inaktiv")}>
+    <section className={"karte mpark" + (p.is_active ? "" : " karte--inaktiv")}>
       <div className="karte__kopf">
-        <h2>{p.name}{!p.is_active && <> <span className="marke">inaktiv</span></>}</h2>
-        {darf && <div className="karte__aktionen">
-          <button className="linkknopf" data-park-um={p.id}
+        <h2>{p.name} <span className="mliste__anzahl">{maschinen.length} Maschinen</span>
+          {!p.is_active && <> <span className="marke">inaktiv</span></>}</h2>
+        {darf && <div className="karte__aktionen mliste__knoepfe">
+          <button className="knopf knopf--klein" data-park-um={p.id}
             onClick={() => aktion.parkUmbenennen(p, neuLaden)}>Umbenennen</button>
-          <button className="linkknopf" data-park-aktiv={p.id}
+          <button className="knopf knopf--klein" data-park-aktiv={p.id}
             onClick={() => aktion.parkAktiv(p, neuLaden)}>{p.is_active ? "Deaktivieren" : "Aktivieren"}</button>
-          <button className="linkknopf linkknopf--gefahr" data-park-weg={p.id}
+          <button className="knopf knopf--klein knopf--gefahr-leise" data-park-weg={p.id}
             onClick={() => aktion.parkLoeschen(p, maschinen.length, neuLaden)}>Löschen</button>
         </div>}
       </div>
 
       {maschinen.length
-        ? <table className="tabelle"><tbody>
-            {maschinen.map((m, i) => (
-              <tr key={m.id} className={m.is_active ? "" : "zeile--inaktiv"}>
-                {darf && <td className="sortspalte">
-                  <button className="sortknopf" data-hoch={m.id} disabled={i === 0} title="nach oben"
-                    onClick={() => aktion.verschieben(maschinen, i, -1, neuLaden)}>↑</button>
-                  <button className="sortknopf" data-runter={m.id} disabled={i === maschinen.length - 1}
-                    title="nach unten" onClick={() => aktion.verschieben(maschinen, i, 1, neuLaden)}>↓</button>
-                </td>}
-                <td>{m.name}
-                  {m.machine_number && <> <span className="klein">{m.machine_number}</span></>}</td>
-                {darf
-                  ? <td className="rechts nowrap">
-                      <button className="linkknopf" data-masch-um={m.id}
-                        onClick={() => aktion.maschineBearbeiten(m, neuLaden)}>Bearbeiten</button>{" "}
-                      <button className="linkknopf" data-masch-aktiv={m.id}
-                        onClick={() => aktion.maschineAktiv(m, neuLaden)}>{m.is_active ? "Aus" : "Ein"}</button>{" "}
-                      <button className="linkknopf linkknopf--gefahr" data-masch-weg={m.id}
-                        onClick={() => aktion.maschineLoeschen(m, neuLaden)}>Löschen</button>
-                    </td>
-                  : <td className="rechts klein">{m.is_active ? "aktiv" : "inaktiv"}</td>}
-              </tr>
-            ))}
-          </tbody></table>
+        ? <ul className="mliste">
+            {maschinen.map((m, i) => {
+              const typ = (alt.prod.typen || []).find((t) => t.id === m.type_id);
+              return (
+                <li key={m.id} className={"mliste__zeile" + (m.is_active ? "" : " zeile--inaktiv")}>
+                  {darf && <div className="mliste__sort">
+                    <button className="sortknopf" data-hoch={m.id} disabled={i === 0} title="nach oben"
+                      aria-label="nach oben" onClick={() => aktion.verschieben(maschinen, i, -1, neuLaden)}>↑</button>
+                    <button className="sortknopf" data-runter={m.id} disabled={i === maschinen.length - 1}
+                      title="nach unten" aria-label="nach unten"
+                      onClick={() => aktion.verschieben(maschinen, i, 1, neuLaden)}>↓</button>
+                  </div>}
+                  <div className="mliste__name">
+                    <strong>{m.name}</strong>
+                    {m.machine_number && <span className="mliste__nr">{m.machine_number}</span>}
+                  </div>
+                  <span className={"mliste__typ" + (typ ? "" : " mliste__typ--leer")}>{typ ? typ.name : "kein Typ"}</span>
+                  <span className={"mliste__zustand" + (m.is_active ? " mliste__zustand--an" : "")}>
+                    {m.is_active ? "aktiv" : "aus"}</span>
+                  {darf && <div className="mliste__knoepfe">
+                    <button className="knopf knopf--klein" data-masch-um={m.id}
+                      onClick={() => aktion.maschineBearbeiten(m, neuLaden)}>Bearbeiten</button>
+                    <button className="knopf knopf--klein" data-masch-aktiv={m.id}
+                      onClick={() => aktion.maschineAktiv(m, neuLaden)}>{m.is_active ? "Aus" : "Ein"}</button>
+                    <button className="knopf knopf--klein knopf--gefahr-leise" data-masch-weg={m.id}
+                      onClick={() => aktion.maschineLoeschen(m, neuLaden)}>Löschen</button>
+                  </div>}
+                </li>
+              );
+            })}
+          </ul>
         : <p className="hinweis">Noch keine Maschine in diesem Park.</p>}
 
       {darf && <button className="knopf knopf--klein" data-masch-neu={p.id}

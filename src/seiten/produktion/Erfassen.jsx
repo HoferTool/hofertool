@@ -1,33 +1,33 @@
 // =================================================================
 //  PRODUKTION · Erfassen
 //  Zählerstände je Maschine, als Tag (Karten) oder Woche (Tabelle).
-//  Datum, Tag/Woche, Park und Suche ändern nur den Ausschnitt, ohne
+//  Datum, Tag/Woche, Park und Typ ändern nur den Ausschnitt, ohne
 //  Parks und Maschinen neu zu laden. Nach jeder gespeicherten Zahl
 //  werden nur die Zahlen neu geholt; Bildlauf und Fokus bleiben.
 // =================================================================
-import { useReducer, useState } from "react";
+import { useReducer } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 
-const NICHTS_GEFUNDEN = (suche) => 'Nichts gefunden zu "' + suche + '". Gesucht wird in '
-  + "Maschinenname, Maschinennummer und HOCO Nr.";
+// Statt einer Suche filtern Knöpfe nach Maschinentyp (Wunsch 3. Oktober
+// 2026): Am Tablet tippt man lieber einen Knopf, als zu schreiben.
+// "ohne" steht für Maschinen, denen noch kein Typ zugeordnet ist.
+const OHNE = "ohne";
+const typVon = (m) => m.type_id || OHNE;
 
-// Filtert die Maschinen nach Park und Suchtext
-function gefiltert(prod, suche) {
-  const s = suche.trim().toLowerCase();
-  return prod.maschinen.filter((m) => {
-    if (!s) return m.park_id === prod.parkId;
-    const auftrag = prod.auftraege ? prod.auftraege[m.id] : null;
-    return (m.name || "").toLowerCase().includes(s)
-      || (m.machine_number || "").toLowerCase().includes(s)
-      || (auftrag && (auftrag.job_number || "").toLowerCase().includes(s));
-  });
+// Die Typen, die im gewählten Park vorkommen, in der Reihenfolge der
+// Typenliste (alphabetisch), "Ohne Typ" am Schluss
+function typenImPark(prod, imPark) {
+  const da = new Set(imPark.map(typVon));
+  const liste = (prod.typen || []).filter((t) => da.has(t.id)).map((t) => [t.id, t.name]);
+  if (da.has(OHNE)) liste.push([OHNE, "Ohne Typ"]);
+  // Typen, die die Liste (noch) nicht kennt, nicht verschlucken
+  for (const id of da) if (!liste.some(([w]) => w === id)) liste.push([id, "Typ"]);
+  return liste;
 }
 
 export default function Erfassen({ geladen, neuLaden, behaelter, zuMaschinen }) {
   const prod = alt.prod;
   const [, zeichnen] = useReducer((x) => x + 1, 0);
-  const [suche, setSucheRoh] = useState(prod.suche || "");
-  const setSuche = (w) => { prod.suche = w; setSucheRoh(w); };
 
   if (!prod.parks.length) {
     return (
@@ -40,7 +40,11 @@ export default function Erfassen({ geladen, neuLaden, behaelter, zuMaschinen }) 
   }
   if (!prod.parkId || !prod.parks.some((p) => p.id === prod.parkId)) prod.parkId = prod.parks[0].id;
 
-  const maschinen = gefiltert(prod, suche);
+  const imPark = prod.maschinen.filter((m) => m.park_id === prod.parkId);
+  const typen = typenImPark(prod, imPark);
+  // Ein gewählter Typ, den es in diesem Park nicht gibt, gilt als „Alle“
+  const typ = typen.some(([w]) => w === prod.typFilter) ? prod.typFilter : null;
+  const maschinen = typ ? imPark.filter((m) => typVon(m) === typ) : imPark;
   const istWoche = prod.modus === "woche";
   const tageProWoche = alt.einstellung("wochenende") ? 7 : 5;
   const von = istWoche ? alt.wochenStart(prod.tag) : prod.tag;
@@ -55,19 +59,25 @@ export default function Erfassen({ geladen, neuLaden, behaelter, zuMaschinen }) 
       ))}
     </div>
   );
-  const suchfeld = (
-    <div className="suchleiste">
-      <input type="search" id="p-suche" placeholder="Suchen" value={suche} autoComplete="off"
-        autoFocus={!!suche} onChange={(e) => setSuche(e.target.value)} />
+  // Erst ab zwei Typen im Park gibt es etwas zu filtern
+  const typwahl = typen.length >= 2 && (
+    <div className="typwahl" id="typwahl" role="group" aria-label="Nach Maschinentyp filtern">
+      <button className={"typwahl__knopf" + (!typ ? " aktiv" : "")} data-typfilter=""
+        aria-pressed={!typ} onClick={() => setzen({ typFilter: null })}>Alle
+        <span className="typwahl__zahl">{imPark.length}</span></button>
+      {typen.map(([w, name]) => (
+        <button key={w} className={"typwahl__knopf" + (typ === w ? " aktiv" : "")} data-typfilter={w}
+          aria-pressed={typ === w} onClick={() => setzen({ typFilter: w })}>{name}
+          <span className="typwahl__zahl">{imPark.filter((m) => typVon(m) === w).length}</span></button>
+      ))}
     </div>
   );
   const leer = (
-    <div className="karte karte--hinweis"><p>{suche.trim()
-      ? NICHTS_GEFUNDEN(suche) : "In diesem Maschinenpark ist noch keine Maschine angelegt."}</p></div>
+    <div className="karte karte--hinweis"><p>In diesem Maschinenpark ist noch keine Maschine angelegt.</p></div>
   );
 
-  // Ohne Maschine nur Park, Suche und Hinweis, wie bisher
-  if (!maschinen.length && !suche.trim()) return <>{parkwahl}{suchfeld}{leer}</>;
+  // Ohne Maschine nur Park und Hinweis
+  if (!maschinen.length) return <>{parkwahl}{leer}</>;
 
   return (
     <>
@@ -85,18 +95,18 @@ export default function Erfassen({ geladen, neuLaden, behaelter, zuMaschinen }) 
         <button className="knopf knopf--klein" id="vor"
           onClick={() => setzen({ tag: alt.plusTage(prod.tag, istWoche ? 7 : 1) })}>›</button>
       </div>
+      <div className="erfassen-leiste">
       <div className="moduswahl">
         <button className={"moduswahl__knopf" + (!istWoche ? " aktiv" : "")} data-modus="tag"
           onClick={() => setzen({ modus: "tag" })}>Tag</button>
         <button className={"moduswahl__knopf" + (istWoche ? " aktiv" : "")} data-modus="woche"
           onClick={() => setzen({ modus: "woche" })}>Woche</button>
       </div>
-      {suchfeld}
+      {typwahl}
+      </div>
       <div id="raster">
-        {maschinen.length
-          ? <Raster maschinen={maschinen} von={von} bis={bis} istWoche={istWoche}
-              tageProWoche={tageProWoche} geladen={geladen} neuLaden={neuLaden} behaelter={behaelter} />
-          : leer}
+        <Raster maschinen={maschinen} von={von} bis={bis} istWoche={istWoche}
+          tageProWoche={tageProWoche} geladen={geladen} neuLaden={neuLaden} behaelter={behaelter} />
       </div>
     </>
   );

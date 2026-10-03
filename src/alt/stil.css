@@ -4587,3 +4587,91 @@ body.dunkel input[type="checkbox"]:checked { accent-color: var(--marke); }
 .pad-sv__flaeche { fill: rgba(198, 241, 53, .18); }
 .pad-sv__linie { stroke: var(--sol-erz); }
 .solar::after { background: radial-gradient(circle, rgba(198, 241, 53, .16), transparent 70%); }
+
+/* Erfassen: Tag/Woche und die Typknöpfe in einer Leiste. Die Typknöpfe
+   ersetzen die Suche; die Zahl zeigt, wie viele Maschinen es sind. */
+.erfassen-leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+                   margin-bottom: 14px; }
+.erfassen-leiste .moduswahl { margin-bottom: 0; }
+.typwahl { display: flex; flex-wrap: wrap; gap: 8px; }
+.typwahl__knopf { display: inline-flex; align-items: center; gap: 8px; min-height: 40px;
+  padding: 6px 8px 6px 14px; border: 1px solid var(--linie-stark); border-radius: 999px;
+  background: var(--flaeche); color: var(--tinte); font: inherit; font-size: .9rem;
+  font-weight: 600; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; }
+.typwahl__knopf:hover { border-color: var(--marke); }
+.typwahl__knopf.aktiv { background: var(--marke); border-color: var(--marke); color: #fff; }
+.typwahl__zahl { min-width: 24px; padding: 1px 7px; border-radius: 999px; text-align: center;
+  font-size: .75rem; font-variant-numeric: tabular-nums;
+  background: var(--marke-hell); color: var(--marke); }
+.typwahl__knopf.aktiv .typwahl__zahl { background: rgba(255, 255, 255, .22); color: #fff; }
+/* Dunkel ist alle Schrift weiss; der gewählte Knopf darum wie die
+   Park- und Tag/Woche-Umschalter: getönt mit Rahmen in Themenfarbe */
+body.dunkel .typwahl__knopf.aktiv { background: var(--marke-hell);
+  box-shadow: inset 0 0 0 1px var(--marke); }
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  body.dunkel .typwahl__knopf.aktiv { background: color-mix(in srgb, var(--marke) 30%, var(--flaeche)); }
+}
+body.dunkel .typwahl__knopf.aktiv .typwahl__zahl { background: var(--marke); }
+.typwahl__knopf:focus-visible { outline: 2px solid var(--marke); outline-offset: 2px; }
+
+/* Maschinen und Typen, überarbeitet (3. Oktober 2026): Maschinen als
+   ruhige Zeilen mit Typ und Zustand als Schild, Knöpfe statt Links.
+   Typen als Karten mit der Zahl der Maschinen, die ihn nutzen. */
+.mliste__anzahl { margin-left: 8px; font-size: .8rem; font-weight: 500; color: var(--gedaempft); }
+.mliste { list-style: none; margin: 4px 0 14px; padding: 0; border-top: 1px solid var(--linie); }
+.mliste__zeile { display: grid; align-items: center; gap: 8px 14px; padding: 10px 4px;
+  grid-template-columns: auto minmax(160px, 1fr) auto auto auto;
+  border-bottom: 1px solid var(--linie); transition: background-color .15s; }
+.mliste__zeile:not(:has(.mliste__sort)) { grid-template-columns: minmax(160px, 1fr) auto auto; }
+.mliste__zeile:hover { background: var(--marke-hell); }
+.mliste__sort { display: flex; gap: 3px; }
+.mliste__sort .sortknopf { width: 32px; height: 32px; margin: 0; }
+.mliste__name { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.mliste__name strong { font-size: 1rem; }
+.mliste__nr { font-size: .82rem; color: var(--gedaempft); font-variant-numeric: tabular-nums; }
+.mliste__typ { padding: 3px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600;
+  background: var(--marke-hell); color: var(--marke); white-space: nowrap; }
+.mliste__typ--leer { background: transparent; color: var(--gedaempft); border: 1px dashed var(--linie-stark); }
+.mliste__zustand { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem;
+  color: var(--gedaempft); white-space: nowrap; }
+.mliste__zustand::before { content: ""; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--linie-stark); }
+.mliste__zustand--an { color: var(--gut); }
+.mliste__zustand--an::before { background: var(--gut); }
+.mliste__knoepfe { display: flex; gap: 6px; justify-content: flex-end; }
+.mliste__knoepfe .knopf, .tkarte__knoepfe .knopf { min-height: 36px; padding: 6px 12px; }
+.knopf--gefahr-leise { color: var(--gefahr); }
+.knopf--gefahr-leise:hover { border-color: var(--gefahr); }
+@media (max-width: 900px) {
+  .mliste__zeile { grid-template-columns: auto 1fr auto; }
+  .mliste__zeile:not(:has(.mliste__sort)) { grid-template-columns: 1fr auto; }
+  .mliste__typ { justify-self: start; }
+  .mliste__knoepfe { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+.tkarten { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+           gap: 12px; margin: 4px 0 14px; }
+.tkarte { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px;
+  border: 1px solid var(--linie); border-left: 3px solid var(--marke);
+  border-radius: var(--radius); background: var(--flaeche); transition: border-color .15s; }
+.tkarte:hover { border-color: var(--marke); }
+.tkarte__kopf { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tkarte__name { font-size: 1.05rem; }
+.tkarte__zahl { font-size: .8rem; color: var(--gedaempft); white-space: nowrap;
+                font-variant-numeric: tabular-nums; }
+.tkarte__text { margin: 0; font-size: .85rem; color: var(--gedaempft); }
+.tkarte__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
+
+/* Rechner: Das Ergebnisfeld war im dunklen Modus fest blau (#23405f).
+   Jetzt ein dunkler Ton der Themenfarbe, wie die Umschalter. */
+body.dunkel .karte--ergebnis { background: var(--marke-hell); border-color: var(--marke); }
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  body.dunkel .karte--ergebnis { background: color-mix(in srgb, var(--marke) 24%, var(--flaeche));
+    border-color: color-mix(in srgb, var(--marke) 60%, var(--flaeche)); }
+}
+/* Schieberegler (z. B. „Ablauf zeigen“ in C-Achse und Gravur) waren
+   in der Grundfarbe des Browsers blau, jetzt in der Themenfarbe */
+input[type="range"] { accent-color: var(--marke); }
+/* Dunkel ist alle Schrift weiss (!important), Löschen zeigt sich dort am roten Rahmen */
+body.dunkel .knopf.knopf--gefahr-leise { border-color: var(--gefahr); }
+.mpark .karte__kopf { align-items: center; }

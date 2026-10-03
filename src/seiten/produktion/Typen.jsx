@@ -78,19 +78,27 @@ export default function Typen({ geladen, neuLaden: aussen }) {
     <section className="karte">
       <div className="karte__kopf"><h2>Maschinentypen</h2></div>
       {typen.length
-        ? <table className="tabelle"><tbody>{typen.map((t) => (
-            <tr key={t.id}>
-              <td><strong>{t.name}</strong>{t.beschreibung && <div className="klein">{t.beschreibung}</div>}</td>
-              <td className="rechts nowrap">
-                <button className="linkknopf" data-typ-auf={t.id} onClick={() => oeffnen(t.id)}>Aufbau</button>{" "}
-                {darf && <>
-                  <button className="linkknopf" data-typ-um={t.id} onClick={() => bearbeiten(t)}>Bearbeiten</button>{" "}
-                  <button className="linkknopf linkknopf--gefahr" data-typ-weg={t.id} data-name={t.name}
-                    onClick={() => loeschen(t)}>Löschen</button>
-                </>}
-              </td>
-            </tr>
-          ))}</tbody></table>
+        ? <div className="tkarten">{typen.map((t) => {
+            const anzahl = (prod.maschinen || []).filter((m) => m.type_id === t.id).length;
+            return (
+              <article key={t.id} className="tkarte">
+                <div className="tkarte__kopf">
+                  <strong className="tkarte__name">{t.name}</strong>
+                  <span className="tkarte__zahl">{anzahl === 1 ? "1 Maschine" : anzahl + " Maschinen"}</span>
+                </div>
+                <p className="tkarte__text">{t.beschreibung || "\u00a0"}</p>
+                <div className="tkarte__knoepfe">
+                  <button className="knopf knopf--klein knopf--haupt" data-typ-auf={t.id}
+                    onClick={() => oeffnen(t.id)}>Aufbau</button>
+                  {darf && <>
+                    <button className="knopf knopf--klein" data-typ-um={t.id} onClick={() => bearbeiten(t)}>Bearbeiten</button>
+                    <button className="knopf knopf--klein knopf--gefahr-leise" data-typ-weg={t.id} data-name={t.name}
+                      onClick={() => loeschen(t)}>Löschen</button>
+                  </>}
+                </div>
+              </article>
+            );
+          })}</div>
         : <p className="hinweis">Noch kein Typ angelegt.</p>}
       {darf && <button className="knopf knopf--klein" id="typ-neu" onClick={neu}>+ Maschinentyp</button>}
     </section>

@@ -1,5 +1,5 @@
 # Produktion in React: Tag und Woche, Datum blättern, Zählerstand
-# speichern und zurücknehmen, Zustand ändern, Suche, und die noch
+# speichern und zurücknehmen, Zustand ändern, und die noch
 # alten Reiter (Fortschritt, Maschinen und Typen) laufen darin.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -42,12 +42,10 @@ with sync_playwright() as p:
         fehler.append("Rückgängig wirkt nicht")
     if pg.locator(f".menge[data-maschine='{mid}']").input_value() == "777": fehler.append("Feld nach Rückgängig alt")
 
-    # Suche nach Maschine, auch parkübergreifend
-    pg.fill("#p-suche", "zzz"); pg.wait_for_timeout(200)
-    if "Nichts gefunden" not in pg.inner_text("#raster"): fehler.append("Suche ohne Treffer zeigt keinen Hinweis")
-    pg.fill("#p-suche", "Tornos"); pg.wait_for_timeout(500)
-    if not pg.locator(".mkarte").count(): fehler.append("Suche findet Tornos nicht")
-    pg.fill("#p-suche", ""); pg.wait_for_timeout(300)
+    # Keine Suche mehr (ersetzt durch Typknöpfe, Test typfilter.py);
+    # mit nur einem Typ im Park gibt es auch keine Knöpfe
+    if pg.locator("#p-suche").count(): fehler.append("Suchfeld noch da")
+    if pg.locator("#typwahl").count(): fehler.append("Typknöpfe bei nur einem Typ")
 
     # Zustand ändern
     knopf = pg.locator("[data-auftrag-status]").first
