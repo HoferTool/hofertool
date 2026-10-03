@@ -10,7 +10,8 @@
 //  Änderung wird das Stammdaten-Gedächtnis verworfen und neu geladen.
 // =================================================================
 import { useEffect, useReducer } from "react";
-import { alt, AltTeil } from "../../bruecke.jsx";
+import { alt } from "../../bruecke.jsx";
+import Typen from "./Typen.jsx";
 import { Uebergang } from "../../teile/Reiter.jsx";
 
 // Was die Datenbank meldet, kommt als Meldung unten rechts
@@ -203,11 +204,11 @@ export default function Maschinen({ geladen, behaelter }) {
     if (!prod.typen) alt.ladeTypen().then((t) => { prod.typen = t; }, () => { prod.typen = []; });
   }, [prod]);
 
-  // Typen und ein geöffneter Typ: noch das alte Programm
+  // Typen und ein geöffneter Typ
   const typenTeil = (
-    <AltTeil key={"typen" + (prod.typOffen || "") + geladen.nr}
-      id={prod.typOffen ? undefined : "park-inhalt"}
-      zeichne={(el) => alt.produktionAlteAnsicht(el, behaelter)} />
+    <div id={prod.typOffen ? undefined : "park-inhalt"}>
+      <Typen geladen={geladen} neuLaden={neuLaden} />
+    </div>
   );
 
   // Ist ein Typ geöffnet, zählt nur er
