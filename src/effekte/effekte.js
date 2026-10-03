@@ -50,6 +50,8 @@ function gleiten(behaelter, aktiv) {
 function markierungenSetzen() {
   const nav = document.querySelector(".nav");
   if (nav) gleiten(nav, nav.querySelector(".nav__punkt.aktiv"));
+  document.querySelectorAll(".pad-stk-wahl").forEach((r) =>
+    gleiten(r, r.querySelector(":scope > .pad-stk-wahl__knopf.aktiv")));
   if (document.body.classList.contains("pw-seite")) return;
   document.querySelectorAll(".reiter").forEach((r) => {
     if (r.closest("#pad")) return;
@@ -85,11 +87,25 @@ function mausBewegt(e) {
 
 // ---------- Welle beim Antippen ----------
 const WELLE = ".knopf, .pad-kachel, .pad-knopf, .pad-start, .nav__punkt, .reiter__knopf, "
-  + ".parkwahl__knopf, .moduswahl__knopf, .pad-sprung, .kachel, .kopf__suche";
+  + ".parkwahl__knopf, .moduswahl__knopf, .pad-sprung, .kachel, .kopf__suche, "
+  + ".pad-stk-wahl__knopf, .pad-karte2[data-padfeld='stand'], .pad__zurueck, .pad__zu, .pad .pw-balken";
+// Lichtkante über Kachel und Knopf im Pad (Animation in effekte.css)
+function kante(el) {
+  if (!el.matches("#pad .pad-kachel, #pad .pad-knopf")) return;
+  el.classList.remove("fx-tipp");
+  void el.offsetWidth;
+  el.classList.add("fx-tipp");
+  clearTimeout(el.__fxTipp);
+  el.__fxTipp = setTimeout(() => el.classList.remove("fx-tipp"), 700);
+}
 function welle(e) {
   if (e.button !== 0 || ruhig()) return;
   const el = e.target.closest ? e.target.closest(WELLE) : null;
-  if (!el || el.disabled || el.closest(".pw-tafel")) return;
+  // Auf der Planwand im Büro keine Welle: Dort wird gezogen. Im Pad
+  // antwortet ein angetippter Balken.
+  if (!el || el.disabled) return;
+  if (el.closest(".pw-tafel") && !el.matches(".pad .pw-balken")) return;
+  kante(el);
   const r = el.getBoundingClientRect();
   if (!r.width || !r.height) return;
   // Nur wo die Welle Platz hat, ohne die Lage des Knopfs zu ändern

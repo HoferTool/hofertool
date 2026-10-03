@@ -328,3 +328,90 @@ input, select, textarea { transition: border-color .18s ease, box-shadow .18s ea
   .fx-ziffer { animation: fx-ruhig .3s ease both; }
 }
 @keyframes fx-ruhig { from { opacity: 0; } to { opacity: 1; } }
+
+/* =================================================================
+   PAD MODE: Anordnung, kein Scrollbalken, nichts abgeschnitten
+   ================================================================= */
+/* Die Kachelfläche selbst rollt nicht mehr, das macht die Fläche darum
+   herum. So schneidet sie beim Anheben oben und unten nichts ab, und
+   beim Hereinkommen der Kacheln blitzt kein Scrollbalken auf. */
+#pad .pad__start .pad__kacheln, #pad .pad__wahl .pad__kacheln { overflow: visible; }
+#pad .pad__start, #pad .pad__wahl, #pad .pad__kacheln { scrollbar-width: none; overflow-x: hidden; }
+#pad .pad__start::-webkit-scrollbar, #pad .pad__wahl::-webkit-scrollbar,
+#pad .pad__kacheln::-webkit-scrollbar { display: none; }
+
+/* Gleich volle Reihen, Spaltenzahl kommt aus Pad.jsx (--pad-spalten) */
+#pad .pad__wahl .pad__kacheln--maschinen {
+  display: grid; justify-content: center; gap: 22px;
+  grid-template-columns: repeat(var(--pad-spalten, 3), minmax(0, 270px)); }
+#pad .pad__kacheln--maschinen .pad-kachel { width: auto; min-height: 180px; }
+#pad .pad__kacheln--parks { justify-content: center;
+  grid-template-columns: repeat(var(--pad-spalten, 2), minmax(0, 360px)); }
+@media (max-width: 640px) {
+  #pad .pad__wahl .pad__kacheln--maschinen, #pad .pad__kacheln--parks {
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+}
+
+/* Maschinenkachel: oben eine Signallinie, grün wenn ein Auftrag läuft */
+#pad .pad-kachel--maschine { overflow: hidden; }
+#pad .pad-kachel--maschine::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(107, 164, 255, .9), transparent);
+  opacity: .55; }
+
+/* Lichtkante, die beim Antippen schräg über Kachel und Knopf fährt */
+#pad .pad-kachel, #pad .pad-knopf:not(.pad-knopf--zustand), #pad .pad-karte2[data-padfeld="stand"] {
+  isolation: isolate; }
+#pad .pad-kachel, #pad .pad-knopf:not(.pad-knopf--zustand) { overflow: hidden; }
+#pad .pad-kachel::after, #pad .pad-knopf:not(.pad-knopf--zustand)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .24) 50%, transparent 70%);
+  transform: translateX(-110%); opacity: 0; }
+
+/* Welle im Pad heller, damit man sie auf dunklem Grund sieht */
+#pad .fx-welle > i { background: #9cc8ff; }
+
+/* Stückzahl-Umschalter: die weisse Pille gleitet */
+.pad-stk-wahl.fx-gleit::before { background: rgba(255, 255, 255, .9); border-radius: 999px; }
+.pad-stk-wahl.fx-gleit .pad-stk-wahl__knopf { position: relative; z-index: 1; transition: color .25s ease; }
+.pad-stk-wahl.fx-gleit .pad-stk-wahl__knopf.aktiv { background: none; }
+
+/* Fortschrittsbalken unten: Licht läuft durch die Füllung */
+.pad__balken__fuellung { overflow: hidden; }
+
+@media (prefers-reduced-motion: no-preference) {
+  #pad .pad-kachel.fx-tipp::after, #pad .pad-knopf.fx-tipp::after {
+    animation: fx-kante .6s cubic-bezier(.2, .8, .2, 1); }
+  @media (hover: hover) {
+    #pad .pad-kachel:hover::after { animation: fx-kante .9s cubic-bezier(.2, .8, .2, 1); }
+  }
+  #pad .pad-kachel--maschine::before { animation: fx-signal 3.2s ease-in-out infinite; }
+
+  /* Stückzahl-Kachel gibt beim Antippen nach */
+  #pad .pad-karte2[data-padfeld="stand"] { transition: transform .18s cubic-bezier(.16, 1, .3, 1); }
+  #pad .pad-karte2[data-padfeld="stand"]:active { transform: scale(.985); transition-duration: .08s; }
+
+  /* Säulen der Stückzahl wachsen von unten herein, eine nach der anderen */
+  .pad-tag i { transform-origin: bottom; animation: fx-wachsen .7s cubic-bezier(.16, 1, .3, 1) backwards; }
+  .pad-tag:nth-child(2) i { animation-delay: .04s; }
+  .pad-tag:nth-child(3) i { animation-delay: .08s; }
+  .pad-tag:nth-child(4) i { animation-delay: .12s; }
+  .pad-tag:nth-child(5) i { animation-delay: .16s; }
+  .pad-tag:nth-child(6) i { animation-delay: .2s; }
+  .pad-tag:nth-child(n+7) i { animation-delay: .24s; }
+  .pad-tag b { animation: fx-ruhig .5s ease .3s backwards; }
+  .pad-tag--heute i { animation-name: fx-wachsen-heute; }
+
+  .pad__balken__fuellung::after {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .28), transparent);
+    transform: translateX(-100%); animation: fx-lauflicht 2.8s ease-in-out infinite; }
+
+  /* Pad-Planwand: angetippter Balken gibt kurz nach */
+  .pad .pw-balken:active { filter: brightness(1.15); }
+}
+@keyframes fx-kante { 0% { opacity: 1; transform: translateX(-110%); } 100% { opacity: 1; transform: translateX(110%); } }
+@keyframes fx-signal { 0%, 100% { opacity: .25; } 50% { opacity: .85; } }
+@keyframes fx-wachsen { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes fx-wachsen-heute { 0% { transform: scaleY(0); } 70% { transform: scaleY(1.06); } 100% { transform: none; } }
+@keyframes fx-lauflicht { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
