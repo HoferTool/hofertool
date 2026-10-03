@@ -5,7 +5,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`). Der Ablauf `.github/workflows/ausliefern.yml` baut die App bei jedem Push auf `main` und stellt den Ordner `dist/` auf Pages (Pages-Quelle: „GitHub Actions“).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.16.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.17.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -105,7 +105,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 - **Notizen:** Jeder darf jede Notiz bearbeiten. Ein Vorschlagsverfahren war gewünscht und wurde wieder entfernt.
 - **Pad Mode:** Die Startseite zeigt nur „Maschinen". Zeichnung, WBG und Einrichtblatt öffnen im gemeinsamen Betrachter, PDFs auf volle Breite. „Zurück" geht genau einen Schritt. Die Materialkachel ist in der Werkstofffarbe gefüllt. Der Text der Auftragskachel passt seine Grösse an die Menge an.
 - **Produktion, Woche:** drei Spalten (Nr. · Einrichtblatt, Menge, Beenden · Ziel, Stand, Zustand). Die Tabelle ist nur so breit wie nötig.
-- **Anmeldung:** immer blau, Kacheln alphabetisch. Konten mit PIN (Punkt auf der Kachel) melden sich mit ihrer persönlichen PIN an. Der Server prüft sie: nach **5 falschen Versuchen 5 Minuten Sperre**, danach wieder 5 Versuche, immer so weiter. Wer eine PIN hat, hat ein zufälliges Passwort. Admins setzen PINs unter Einstellungen → Nutzer. Ein gemeinsames Passwort im Code gibt es nicht mehr. **Gerät merken** (Entscheid 3. Oktober 2026): Mit dem Häkchen „Auf diesem Gerät merken“ hebt das Gerät je Person den Erneuerungsschlüssel der Sitzung auf (`hofer.geraet.sitzungen`, `gemerktAnmelden`). Danach genügt dort ein Tipp auf die Kachel. „Abmelden“ meldet auf so einem Gerät nur lokal ab (`abmelden()`), damit der Schlüssel gültig bleibt.
+- **Anmeldung:** immer blau, Kacheln alphabetisch. Punkt auf der Kachel = `ohne_passwort`. Solche Konten ohne PIN kommen mit einem Tipp hinein (Server-Funktion `pin-anmelden` mit `offen: true`, `offenAnmelden`, Entscheid 3. Oktober 2026), mit PIN wird nach der PIN gefragt, mit Ziffernblock. Alle anderen geben ihr Passwort ein. Der Server prüft sie: nach **5 falschen Versuchen 5 Minuten Sperre**, danach wieder 5 Versuche, immer so weiter. Wer eine PIN hat, hat ein zufälliges Passwort. Admins setzen PINs unter Einstellungen → Nutzer. Ein gemeinsames Passwort im Code gibt es nicht mehr. **Gerät merken** (Entscheid 3. Oktober 2026): Mit dem Häkchen „Auf diesem Gerät merken“ hebt das Gerät je Person den Erneuerungsschlüssel der Sitzung auf (`hofer.geraet.sitzungen`, `gemerktAnmelden`). Danach genügt dort ein Tipp auf die Kachel. „Abmelden“ meldet auf so einem Gerät nur lokal ab (`abmelden()`), damit der Schlüssel gültig bleibt.
 - **Bestellmail:** eine `.eml`-Datei mit PDF im Anhang, Aptos 12, zwei Logos mit Link (hoferco.ch, salt-pepper.ch).
 - **Bestellungen:** Den Status kann man auch in der Historie zurücksetzen. Jede Position zeigt `status_am`.
 

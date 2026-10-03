@@ -9,6 +9,7 @@ K = """daten.login_kacheln = [
 // Server nachbilden: PIN 123456 stimmt, nach 5 Fehlern 5 Minuten Sperre
 window._fehler = 0;
 TEST.funktionen['pin-anmelden'] = (b) => {
+  if (b.offen) return window._keineFunktion ? null : { status: 'pin' };
   if (window._keineFunktion) return null;
   if (window._fehler >= 5) return { status: 'gesperrt', sekunden: 290 };
   if (b.pin === '123456') { window._fehler = 0; return { status: 'ok', token_hash: 'abc' }; }
@@ -45,7 +46,7 @@ with sync_playwright() as p:
     pg.locator(".login__kachel").nth(0).click(); pg.wait_for_timeout(500)
     feld = pg.evaluate("(() => { const e = document.getElementById('lp'); return [e.placeholder, e.inputMode]; })()")
     print("PIN-Feld:", feld)
-    if feld != ["PIN", "numeric"]: fehler.append("PIN-Feld falsch")
+    if feld != ["PIN", "none"]: fehler.append("PIN-Feld falsch")
     # 2. Falsche PIN: Restversuche
     m = versuch(pg, "1111"); print("1. falsch:", m)
     if "Noch 4 Versuche" not in m: fehler.append("Restversuche fehlen")

@@ -96,21 +96,31 @@ function Anmeldung() {
   }, []);
 
   // Tipp auf eine Kachel: Kennt das Gerät die Person schon, geht es
-  // direkt hinein, sonst kommt das Feld für Passwort oder PIN.
+  // direkt hinein. Konten ohne Passwort fragen den Server: Ist das Konto
+  // noch offen (keine PIN), geht es ebenfalls direkt hinein, wie vor
+  // 111.12.0. Sonst kommt das Feld für PIN oder Passwort.
   const kontoWaehlen = async (konto) => {
+    const hinein = async () => {
+      alt.geraetKontoMerken(konto.email);
+      await alt.profilLaden();
+      alt.zeichneGeruest();
+    };
     if (alt.sitzungGemerkt(konto.email)) {
       alt.meldung("Anmelden …");
-      if (await alt.gemerktAnmelden(konto.email)) {
-        alt.geraetKontoMerken(konto.email);
-        await alt.profilLaden();
-        alt.zeichneGeruest();
-        return;
-      }
+      if (await alt.gemerktAnmelden(konto.email)) return hinein();
+    }
+    let mitPin = !!konto.ohne_passwort;
+    if (mitPin) {
+      alt.meldung("Anmelden …");
+      const e = await alt.offenAnmelden(konto.email);
+      if (e.status === "ok") return hinein();
+      // "pin", oder der Server ist nicht erreichbar: PIN-Feld wie bisher
+      if (e.status === "passwort") mitPin = false;
     }
     setAuswahlKlasse("login__wechsel--raus");
     spaeter(() => {
       setAuswahlKlasse("");
-      setWahl({ konto, mitPin: !!konto.ohne_passwort });
+      setWahl({ konto, mitPin });
       setAnmeldungKlasse("login__wechsel--rein");
     }, RAUS);
   };
@@ -160,7 +170,7 @@ function Anmeldung() {
                   ? <img src={u.bild_url} alt="" />
                   : <span className="login__kachel-buchstabe">{(u.full_name || u.email).charAt(0).toUpperCase()}</span>}
                 <span className="login__kachel-name">{alt.personName(u)}</span>
-                {u.ohne_passwort && <span className="login__offen" title="Anmeldung mit PIN">•</span>}
+                {u.ohne_passwort && <span className="login__offen" title="Ohne Passwort oder mit PIN">•</span>}
               </button>
             ))}
           </div>
@@ -269,13 +279,37 @@ function KontoAnmeldung({ konto, mitPin, aufPasswort }) {
       <div className="login__name">{name}</div>
       <form id="lf" noValidate onSubmit={absenden}>
         {mitPin
-          ? <input type="password" id="lp" className="login__pw login__pw--pin" placeholder="PIN" ref={pwRef}
-              inputMode="numeric" pattern="[0-9]*" maxLength={8} autoComplete="off" required />
+          // inputMode none: Am Tablet soll nicht die Handytastatur den
+          // Ziffernblock verdecken. Eine echte Tastatur geht trotzdem.
+          ? <><input type="password" id="lp" className="login__pw login__pw--pin" placeholder="PIN" ref={pwRef}
+              inputMode="none" pattern="[0-9]*" maxLength={8} autoComplete="off" required />
+            <PinTasten feld={pwRef} /></>
           : <input type="password" id="lp" className="login__pw" placeholder="Passwort" ref={pwRef}
               autoComplete="current-password" required />}
         {knopf}
       </form>
     </>
+  );
+}
+
+// Ziffernblock unter dem PIN-Feld. Schreibt direkt ins Feld, damit
+// Tasten und echte Tastatur zusammen funktionieren.
+function PinTasten({ feld }) {
+  const tippen = (t) => {
+    const el = feld.current;
+    if (!el) return;
+    if (t === "C") el.value = "";
+    else if (t === "⌫") el.value = el.value.slice(0, -1);
+    else if (el.value.length < 8) el.value += t;
+    el.focus();
+  };
+  return (
+    <div className="zb-tasten login__ziffern">
+      {["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "⌫"].map((t) => (
+        <button type="button" key={t} data-lz={t} onClick={() => tippen(t)}
+          className={t === "C" || t === "⌫" ? "zb-taste--neben" : undefined}>{t}</button>
+      ))}
+    </div>
   );
 }
 

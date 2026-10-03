@@ -9,7 +9,7 @@ K = """daten.login_kacheln = [
   { id: 'u9', email: 'ramona@hoferco.ch', full_name: 'ramona Keller', role: 'planwand' }];
 daten.jobs.forEach(j => { j.drawing_url = 'https://x.supabase.co/storage/v1/object/public/zeichnungen/z.pdf'; }); daten.hoco_parts.forEach(h => { h.zeichnung_url = 'https://x.supabase.co/storage/v1/object/public/zeichnungen/z.pdf'; });
 window._anmeldungen = [];
-TEST.funktionen['pin-anmelden'] = (b) => { window._anmeldungen.push('PIN ' + b.pin); return b.pin === '4711' ? { status: 'ok', token_hash: 'x' } : { status: 'falsch', rest: 4 }; };
+TEST.funktionen['pin-anmelden'] = (b) => { if (b.offen) return { status: 'pin' }; window._anmeldungen.push('PIN ' + b.pin); return b.pin === '4711' ? { status: 'ok', token_hash: 'x' } : { status: 'falsch', rest: 4 }; };
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 # Anmeldung nachbilden: Passwörter sind alle falsch, nur die PIN 4711 stimmt

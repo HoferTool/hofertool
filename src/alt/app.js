@@ -82,6 +82,27 @@ async function pinAnmelden(email, pin) {
   return { status: "ok" };
 }
 
+// Konten ohne Passwort und ohne PIN (Entscheid 3. Oktober 2026): Ein
+// Tipp auf die Kachel genügt, wie vor 111.12.0. Ob das Konto noch offen
+// ist, entscheidet der Server, nicht der Code hier. Antwort "ok" heisst
+// angemeldet, "pin" oder "passwort" heisst: danach fragen.
+async function offenAnmelden(email) {
+  let antwort;
+  try {
+    antwort = await zeitlimit(db.functions.invoke("pin-anmelden",
+      { body: { email: email, offen: true } }), 15000, "Anmeldung");
+  } catch (f) {
+    return { status: "fehler", text: fehlertext(f) };
+  }
+  const d = antwort && antwort.data;
+  if (!d || antwort.error) return { status: "fehler", text: "nicht eingerichtet" };
+  if (d.status !== "ok") return d;
+  let r = await db.auth.verifyOtp({ token_hash: d.token_hash, type: "email" });
+  if (r.error) r = await db.auth.verifyOtp({ token_hash: d.token_hash, type: "magiclink" });
+  if (r.error) return { status: "fehler", text: fehlertext(r.error) };
+  return { status: "ok" };
+}
+
 // Was die Person nach einem PIN-Versuch zu lesen bekommt
 function pinMeldung(e) {
   if (e.status === "falsch") {
@@ -104,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.16.0";
+const APP_VERSION = "111.17.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7945,7 +7966,7 @@ Object.assign(alt, {
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
   FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen, bildZuschneiden,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE,
-  APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
+  APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, offenAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
   sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung,
   istExternGeraet, profilLaden, zeichneGeruest,
 });
