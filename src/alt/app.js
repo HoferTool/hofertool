@@ -18,6 +18,7 @@ import { PRIO } from "../daten/einkauf.js";
 import { padZeichnen, padAbbauen } from "../pad/Pad.jsx";
 import { planAuftragDialog } from "../planwand/AuftragFenster.jsx";
 import { nachfragen, dialogFelder, auswahlDialog } from "../teile/Dialoge.jsx";
+import { geruestZeichnen, geruestAbbauen, navAktiv } from "../huelle/Geruest.jsx";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -1016,6 +1017,7 @@ async function profilLaden() {
 // -----------------------------------------------------------------
 
 function zeigeLogin() {
+  geruestAbbauen();
   // Immer im gewohnten Blau, egal was die letzte Person eingestellt hatte
   document.body.classList.remove("dunkel", "nav--schmal", "rolle-extern");
   document.body.removeAttribute("data-thema");
@@ -4990,6 +4992,13 @@ const SUCHE_ARTEN = {
   artikel:   { name: "Artikel",     zeichen: "◧" },
   lieferant: { name: "Lieferanten", zeichen: "◈" },
 };
+
+// Schon laden, bevor jemand auf Suchen klickt (Kopfzeile, beim Darüberfahren)
+function sucheVorladen() {
+  if (sucheAlles.daten || sucheAlles.holt) return;
+  sucheAlles.holt = true;
+  sucheAllesHolen().catch(() => {}).finally(() => { sucheAlles.holt = false; });
+}
 
 function sucheOeffnen() {
   if (document.querySelector(".suche-alles")) return;
@@ -15109,6 +15118,8 @@ Object.assign(alt, {
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, ablageLoeschen,
+  sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert,
+  meineRolle, zeichneSeite,
   rechnerWinkel, rechnerGcode, rechnerCachse, rechnerGravur, rechnerDxf,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit
@@ -16554,9 +16565,7 @@ function zeichneSeite() {
     try { history.replaceState(history.state, "", "#/planwand"); } catch (f) { /* egal */ }
   }
   const seite = SEITEN.find((s) => s.pfad === pfad);
-  document.querySelectorAll("[data-nav]").forEach((el) => {
-    el.classList.toggle("aktiv", el.dataset.nav === pfad);
-  });
+  navAktiv(pfad);
   window.scrollTo(0, 0);
   const bereich = document.getElementById("inhalt");
   if (pfad !== "planwand" && typeof planSyncStoppen === "function") planSyncStoppen();
@@ -16585,78 +16594,8 @@ function zeichneGeruest() {
   document.body.classList.toggle("tippgeraet", istTippgeraet());
   if (einstellung("navschmal")) document.body.classList.add("nav--schmal");
 
-  const anzeige = (profil && (profil.full_name || profil.email)) || "";
-  WURZEL.innerHTML = ''
-    + '<header class="kopf">'
-    + '<button class="kopf__klapp" id="nav-klapp" title="Menü ein- oder ausklappen">☰</button>'
-    + '<button class="kopf__logolink" id="kopf-neuladen" title="Seite neu laden">'
-    // Das Logo wird als Maske gezeichnet und mit der Themenfarbe
-    // gefüllt — so trifft es die gewählte Farbe genau, auch im dunklen
-    // Modus, statt sie über eine Farbdrehung nur anzunähern.
-    + '<span class="kopf__logo kopf__logo--maske" role="img" aria-label="Hofer + Co."></span>'
-    + '</button>' 
-    + (meineRolle() === "planwand"
-        ? '<button class="kopf__admin' + (plan.pinOk ? " aktiv" : "") + '" id="kopf-admin"'
-          + ' title="Bearbeiten freischalten">Bearbeiten</button>'
-        : "")
-    + '<button class="kopf__rueck" id="rueck-knopf" disabled'
-    + ' title="Rückgängig (Strg + Z)"><span>↶</span><b>Rückgängig</b></button>'
-    + '<span class="kopf__luecke"></span>'
-    + '<button class="kopf__suche" id="kopf-suche" title="Suchen (Strg + K)">'
-    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"'
-    + ' stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>'
-    + '<span>Suchen</span><kbd>Strg K</kbd></button>'
-    // Das Bild ganz rechts führt in die Einstellungen — der eigene
-    // Knopf dafür ist weg.
-    + '<span class="kopf__benutzer" data-benutzername>' + esc(anzeige) + '</span>'
-    + '<button class="kopf__ich" id="kopf-einstellungen" title="Einstellungen">'
-    + (profil && profil.bild_url
-        ? '<img class="kopf__bild" src="' + esc(profil.bild_url) + '" alt="">'
-        : '<span class="kopf__bild kopf__bild--leer">'
-          + esc(((profil && (profil.full_name || profil.email)) || "?").charAt(0).toUpperCase())
-          + '</span>')
-    + '</button>'
-    + '</header>'
-    + '<div class="rahmen"><nav class="nav" aria-label="Hauptnavigation">'
-    + SEITEN.filter((s) => seiteSichtbar(s.pfad)).map((s) => '<a class="nav__punkt" data-nav="' + s.pfad + '" href="#/' + s.pfad + '">'
-        + '<span class="nav__zeichen" aria-hidden="true">' + s.zeichen + '</span>'
-        + '<span class="nav__text">' + esc(s.titel) + '</span></a>').join("")
-    + '</nav><main class="inhalt" id="inhalt"></main></div>';
-
-  const adminKnopf = document.getElementById("kopf-admin");
-  if (adminKnopf) adminKnopf.onclick = async () => {
-    if (plan.pinOk) {
-      plan.pinOk = false;
-      adminKnopf.classList.remove("aktiv");
-      meldung("Bearbeiten gesperrt.");
-      zeichneSeite();
-      return;
-    }
-
-    const w = await dialogFelder({
-      titel: "Bearbeiten freischalten",
-      text: "Bitte den Pin eingeben.",
-      felder: [{ name: "pin", label: "Pin", typ: "password", pflicht: true }],
-      bestaetigen: "Freischalten" });
-    if (!w) return;
-
-    let richtig = "0000";
-    try {
-      const r = await zeitlimit(db.from("app_config").select("wert")
-        .eq("schluessel", "planwand_pin").maybeSingle(), 8000, "Pin");
-      if (!r.error && r.data && r.data.wert) richtig = r.data.wert;
-    } catch (f) { /* dann gilt der Standardpin */ }
-
-    if (String(w.pin).trim() !== String(richtig).trim()) {
-      meldung("Falscher Pin.", "fehler");
-      return;
-    }
-
-    plan.pinOk = true;
-    adminKnopf.classList.add("aktiv");
-    meldung("Bearbeiten freigeschaltet.");
-    zeichneSeite();
-  };
+  // Kopfzeile, Navigation und #inhalt: src/huelle/Geruest.jsx
+  geruestZeichnen(WURZEL);
 
   document.body.classList.toggle("rolle-extern", istExtern());
   // Wer von euch sich an einem als extern markierten Gerät anmeldet,
@@ -16665,46 +16604,8 @@ function zeichneGeruest() {
     try { localStorage.removeItem(GERAET_SCHLUESSEL); } catch (f) { /* egal */ }
   }
 
-  const rueck = document.getElementById("rueck-knopf");
-  if (rueck) rueck.onclick = schrittZurueck;
   knopfRueckgaengigZeigen();
 
-  // Das Logo lädt die Seite neu. Im Vollbild gibt es sonst keinen Weg,
-  // eine hängende Ansicht aufzufrischen.
-  // Breite des Logos aus dem Seitenverhältnis des Bildes
-  const logoMaske = document.querySelector(".kopf__logo--maske");
-  if (logoMaske) {
-    const bild = new Image();
-    bild.onload = () => {
-      if (bild.naturalHeight) {
-        logoMaske.style.width = Math.round(30 * bild.naturalWidth / bild.naturalHeight) + "px";
-      }
-    };
-    bild.src = "./logo.png";
-  }
-
-  const neuladen = document.getElementById("kopf-neuladen");
-  if (neuladen) neuladen.onclick = () => location.reload();
-
-  const sucheKnopf = document.getElementById("kopf-suche");
-  if (sucheKnopf) {
-    sucheKnopf.onclick = sucheOeffnen;
-    // Schon beim Darüberfahren laden — bis zum Klick ist es meist da
-    const vorladen = () => { if (!sucheAlles.daten && !sucheAlles.holt) {
-      sucheAlles.holt = true; sucheAllesHolen().catch(() => {}).finally(() => { sucheAlles.holt = false; }); } };
-    sucheKnopf.addEventListener("mouseenter", vorladen);
-    sucheKnopf.addEventListener("focus", vorladen);
-  }
-
-  const einstKnopf = document.getElementById("kopf-einstellungen");
-  if (einstKnopf) einstKnopf.onclick = () => einstellungenOeffnen();
-
-  const klapp = document.getElementById("nav-klapp");
-  if (klapp) klapp.onclick = () => {
-    const schmal = !document.body.classList.contains("nav--schmal");
-    document.body.classList.toggle("nav--schmal", schmal);
-    einstellungSetzenWert("navschmal", schmal ? "1" : "0");
-  };
   if (einstellungWert("navschmal", "0") === "1") document.body.classList.add("nav--schmal");
 
   // Nach fünf Minuten ohne Eingabe wird abgemeldet. 20 Sekunden vorher
