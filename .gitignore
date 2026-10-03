@@ -3,3 +3,6 @@ pruefstand/*.png
 pruefstand/__pycache__/
 # Lokale Einstellungen der Skripte — enthalten Schlüssel
 skripte/*-lokal.json
+# Vite: Pakete und gebaute Fassung
+node_modules/
+dist/

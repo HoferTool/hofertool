@@ -1,12 +1,11 @@
 # Hofer Tool
 
-Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Darin stecken: Planwand der Aufträge, Stückzahlen in der Produktion, Pad Mode für Tablets an den Maschinen, Bestellungen, Einkaufsliste, Werkstatt-Rechner, Notizen, Chat, Fahrzeuge, Dokumente und Einstellungen.
+Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Darin stecken: Planwand der Aufträge, Stückzahlen in der Produktion, Pad Mode für Tablets an den Maschinen, Bestellungen, Einkaufsliste, Werkstatt-Rechner, Notizen, Dokumente und Einstellungen. Chat, Eierzähler, Fahrzeuge und Spassecke hatten schon vor dem Umbau keinen Knopf mehr und sind seit Oktober 2026 aus dem Code entfernt (im Git-Verlauf noch vorhanden). Ihre Tabellen in der Datenbank sind unverändert.
 
-- **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`).
-- **Vorschau des React-Umbaus:** https://hofertool.github.io/hofertool/vorschau/ — `.github/workflows/vorschau.yml` stellt die Seite zusammen: die Live-App unverändert von `main`, darunter in `vorschau/` die gebaute Fassung aus dem Zweig `claude/react-umbau-4p3juj`. Läuft bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. Pages-Quelle muss dafür „GitHub Actions“ sein. Die Vorschau arbeitet mit **denselben echten Daten** wie die Live-App. `sw.js` lässt alles unter `/vorschau/` in Ruhe.
+- **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`). Der Ablauf `.github/workflows/ausliefern.yml` baut die App bei jedem Push auf `main` und stellt den Ordner `dist/` auf Pages (Pages-Quelle: „GitHub Actions“).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.14.0 (Konstante `APP_VERSION` in `index.html`).
+- **Stand:** Version 111.16.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -19,15 +18,28 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
 
 ## Aufbau der App
 
-- **Einzige feste Bedingung: Die App bleibt webbasiert.** Heute ist sie eine einzige Datei `index.html` mit HTML, CSS und JavaScript, etwa 25'700 Zeilen, ohne Build, Frameworks und npm. Das darf sich ändern, etwa mit Build-Schritt, Aufteilung in Module oder einem Framework, wenn es sich lohnt. Ein solcher Umbau wird vorher mit dem Auftraggeber abgesprochen und nicht nebenbei begonnen.
+- **Einzige feste Bedingung: Die App bleibt webbasiert.**
+- **Vite + React, im Umbau (seit 3. Oktober 2026 live).** Bis Oktober 2026 war alles eine einzige `index.html`. Jetzt baut Vite aus `src/` die fertige Website in `dist/`.
+  - `index.html` ist nur noch das Gerüst, das `src/main.jsx` lädt.
+  - `src/alt/app.js` und `src/alt/stil.css` sind das bisherige Programm und die bisherige Gestaltung. Darin stecken noch die Planwand-Tafel (`zeichnePlanwand` mit Ziehen, Griffen und Wischen; sie bleibt bewusst das bewährte Zeichenprogramm), die Erkennung und das Hochladen von Dokumenten, Druckblätter und viele Helfer.
+  - In React neu gebaut:
+    - `src/seiten/`: Startseite (am Geburtstag Person mit Kuchen und Konfetti im blauen Band, `start/Geburtstag.jsx`), Bestellungen (mit Fenster „Neue Position“), Einkauf, Rechner-Reiter Drehzahl, Winkel, G-Code, C-Achse, Gravur und DXF (Vor- und Nachspann gemeinsam in `rechner/kopf.jsx`, Linienzüge in `rechner/geometrie.js`), Produktion (Erfassen, Fortschritt, Maschinenparks, Maschinentypen), Planwand-Seite mit Kopfleiste.
+    - `src/huelle/`: Anmeldung, Kopfzeile und Navigation, Suche über alles.
+    - `src/planwand/`: Auftragsfenster, Suche auf der Planwand, Ferienfenster, HOCO-Fenster.
+    - `src/hoco/`: HOCO Nummern (Ordner, Suche, einzelnes Teil).
+    - `src/einstellungen/`: Einstellungsfenster mit allen Reitern (Dokumente, Farben und Material, Nutzer).
+    - `src/pad/`: Pad Mode mit Zifferblock und Werkzeugwechsel.
+    - `src/teile/`: Fenster (`fensterOeffnen`), Dialoge (`nachfragen`, `dialogFelder`, `auswahlDialog`), Betrachter, Reiter. `src/daten/`: gemeinsame Daten.
+  - `src/bruecke.jsx` verbindet beides: `reactSeite(Komponente)` hängt eine React-Seite in `SEITEN`, `<AltTeil zeichne={…}>` bettet einen noch alten Teil in eine React-Seite, und `alt` ist der Werkzeugkasten, den das alte Programm für React-Seiten füllt (`Object.assign(alt, {...})` nach `SEITEN`).
+  - Umbau Bereich für Bereich; die App muss nach jedem Schritt vollständig laufen.
 - Das Skript ist ein **ES-Modul**. Funktionen sind **nicht global** und im Browser-Terminal nicht aufrufbar.
 - Supabase kommt über `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm`. Adresse und **Publishable Key** stehen oben in `SUPABASE_URL` und `SUPABASE_KEY`. Der Key ist öffentlich und darf dort stehen.
-- `sw.js` ist der Service Worker für den Offline-Betrieb. Er liegt neben `index.html`.
-- Weitere Dateien im Repository: `app.webmanifest`, Symbole (`icon-192.png`, `icon-512*.png`, `favicon.ico`), `login.png` und `logo.png`.
+- `public/sw.js` ist der Service Worker für den Offline-Betrieb. Beim Bauen trägt `vite.config.js` die Liste aller Dateien ein, damit das Tablet schon nach dem ersten Besuch offline startet.
+- In `public/` (wird unverändert neben die index.html kopiert): `app.webmanifest`, Symbole (`icon-192.png`, `icon-512*.png`, `favicon.ico`, `hofer-tool.ico`), `login.png` und `logo.png`.
 
 ### Gliederung von index.html (Abschnittsüberschriften `//  NAME`)
 
-RÜCKGÄNGIG · OFFLINE · EXTERNE GERÄTE · FEHLERPROTOKOLL · STARTSEITE · DOKUMENTE · REGELN FÜR DATEINAMEN · WBG AUFRÄUMEN · SOLARANLAGE · DATENSICHERUNG · RECHTE · DIALOGE · PRODUKTION · ERFASSEN · PLANWAND · WERKSTOFFE · SUCHE ÜBER ALLES · ÜBERSICHT · MASCHINEN VERWALTEN · MASCHINENTYPEN · PAD MODE · ZIFFERBLOCK · EINRICHTBLATT · EINRICHTBLATT ALS PDF · ARTIKEL UND LIEFERANTEN · BESTELLUNGEN · EINKAUFSLISTE · RECHNER FÜR DIE WERKSTATT · GRAVUR · SPASSECKE · FORTSCHRITT · LAUFENDER ABGLEICH · FAHRZEUGE
+RÜCKGÄNGIG · OFFLINE · EXTERNE GERÄTE · FEHLERPROTOKOLL · STARTSEITE · DOKUMENTE · REGELN FÜR DATEINAMEN · WBG AUFRÄUMEN · SOLARANLAGE · DATENSICHERUNG · RECHTE · DIALOGE · PRODUKTION · ERFASSEN · PLANWAND · WERKSTOFFE · SUCHE ÜBER ALLES · ÜBERSICHT · MASCHINEN VERWALTEN · MASCHINENTYPEN · PAD MODE · ZIFFERBLOCK · EINRICHTBLATT · EINRICHTBLATT ALS PDF · ARTIKEL UND LIEFERANTEN · BESTELLUNGEN · EINKAUFSLISTE · RECHNER FÜR DIE WERKSTATT · GRAVUR · FORTSCHRITT · LAUFENDER ABGLEICH
 
 Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellungen`, `einkauf`, `rechner`), Navigation über den Hash, etwa `#/planwand`, mit `zeichneSeite()`. Einstellungen sind ein Fenster mit Reitern: Allgemein, Dokumente, Backup, Fehlerprotokoll, Farben und Material, Nutzer.
 
@@ -60,9 +72,9 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 
 ## So arbeitest du an der App
 
-1. **Ändern** in `index.html`. Neue CSS-Regeln ans Ende des ersten `<style>`-Blocks, also vor das erste `</style>`. Die Kommentare im Code sind deutsch und erklären das **Warum**.
+1. **Ändern** in `src/`. Neues baut man als React-Komponente in `src/seiten/`; Korrekturen an noch alten Bereichen in `src/alt/app.js`. Neue CSS-Regeln ans Ende von `src/alt/stil.css`. Die Kommentare im Code sind deutsch und erklären das **Warum**. Einmalig `npm install`.
 2. **`APP_VERSION` hochzählen**: Neue Funktion → Minor, zum Beispiel 111.9.2 → 111.10.0. Korrektur → Patch.
-3. **Syntax prüfen**: den Inhalt des ersten `<script>` herausziehen und `node --check` darauf laufen lassen.
+3. **Bauen**: `npm run build`. Fehler im Code bricht hier ab. `npm run dev` startet eine Vorschau mit sofortigem Neuladen.
 4. **Prüfen** mit dem Prüfstand (siehe unten). Für Neues einen eigenen kleinen Test schreiben, und Bildschirmfotos anschauen, wenn es ums Aussehen geht.
 5. **Ausliefern**: committen und pushen. GitHub Pages ist nach ein bis zwei Minuten aktuell. Danach Strg + F5, weil der Service Worker sonst die alte Fassung zeigen kann.
 
@@ -79,6 +91,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 - `fake-supabase.js` bildet Supabase im Browser nach, mit Beispieldaten in `TEST.daten` und jeder Anfrage in `TEST.protokoll`. Er filtert vereinfacht: `or()` und `not()` wirken nicht, und Abfragen liefern dieselben Objekte zurück, statt Kopien.
 - `pruefstand.py` startet einen kleinen Webserver auf dem Repository und lädt `index.html`. Die Tests setzen den Nachbau mit Playwright anstelle der Supabase-Bibliothek ein.
 - Einrichten: `pip install playwright` und `python -m playwright install chromium`.
+- Der Prüfstand prüft die gebaute Fassung in `dist/`, also vorher `npm run build`. `npm run pruefen` macht beides. Eigener Chrome über `CHROME_PFAD`, anderer Anschluss über `PRUEFSTAND_PORT`. Bei jedem Pull Request läuft er auch auf GitHub (`.github/workflows/pruefen.yml`).
 - Alle Tests: `cd pruefstand` und `python alle_tests.py`. Einzeln zum Beispiel `python final.py`. Am Ende jedes Tests steht `Fehler: keine`.
 - `profil_planwand.py` misst, wie schnell der Zeitregler ist.
 

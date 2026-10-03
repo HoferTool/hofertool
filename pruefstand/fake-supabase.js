@@ -347,6 +347,11 @@ function bauer(tabelle) {
                      z.park_id = m.park_id; z.maschine_reihenfolge = m.sort_order;
                      z.park = m.park_id === P1 ? "Langdreher" : "Kurzdreher"; }
             z.stand = z.stand || 0;
+            // Vorgaben der Datenbank (default) für neue Zeilen
+            if (tabelle === "shopping_items" || tabelle === "todos") {
+              if (z.is_done === undefined) z.is_done = false;
+              if (!z.created_at) z.created_at = new Date().toISOString();
+            }
             tab.push(z);
             if (tabelle === "jobs" && daten.planwand !== tab) daten.planwand.push(z);
           });

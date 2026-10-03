@@ -1,0 +1,383 @@
+// =================================================================
+//  EINSTELLUNGEN → DOKUMENTE
+//  Ordner abgleichen (die App liest einen Ordner, ordnet jede Datei
+//  am Namen zu und lädt erst nach einem Blick auf die Zuordnung hoch),
+//  die Regeln für Dateinamen mit Probe und Beispielen, der Pfad fürs
+//  Hilfsprogramm auf dem Netzlaufwerk, der Verlauf und was zuletzt
+//  abgelegt wurde.
+//
+//  Die Erkennung selbst (dokErkennen) und das Hochladen (dokHochladen)
+//  sind noch im alten Programm: Sie werden auch beim Planen und von
+//  der HOCO Nr. gebraucht.
+// =================================================================
+import { useState } from "react";
+import { alt, useDaten } from "../bruecke.jsx";
+
+const kannOrdner = typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
+const artVon = (a) => alt.DOK_ARTEN[a] || alt.DOK_ARTEN.sonstiges;
+
+async function typenHolen() {
+  if (alt.prod.typen && alt.prod.typen.length) return alt.prod.typen;
+  try { return await alt.ladeTypen(); } catch (f) { return []; }
+}
+
+export default function Dokumente() {
+  const darf = alt.darfSchreiben();
+  // Zählt hoch, wenn etwas abgelegt oder aufgeräumt wurde: Verlauf und
+  // „Zuletzt abgelegt“ laden dann frisch
+  const [stand, setStand] = useState(0);
+  const frisch = () => setStand((x) => x + 1);
+  // Dateien, deren Zuordnung gerade angezeigt wird (null = keine)
+  const [pool, setPool] = useState(null);
+
+  const pruefen = async (dateien) => {
+    setPool({ laedt: true });
+    const typen = await typenHolen();
+    setPool({ eintraege: dateien.map((datei) => {
+      const zuordnung = alt.dokErkennen(datei.name, typen);
+      return { datei, zuordnung, nehmen: zuordnung.passt };
+    }) });
+  };
+
+  const ordnerLesen = async () => {
+    let ordner;
+    try { ordner = await window.showDirectoryPicker({ mode: "read" }); } catch (f) { return; } // abgebrochen
+    const dateien = [];
+    try {
+      for await (const eintrag of ordner.values()) {
+        if (eintrag.kind !== "file") continue;
+        if (!/\.(pdf|png|jpe?g|webp|tif?f)$/i.test(eintrag.name)) continue;
+        dateien.push(await eintrag.getFile());
+        if (dateien.length >= 500) break;
+      }
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
+    if (!dateien.length) { alt.meldung("Im Ordner liegen keine Dateien.", "warn"); return; }
+    pruefen(dateien);
+  };
+
+  const hochladenWaehlen = async () => {
+    const dateien = await alt.dokWaehlen(true);
+    if (dateien.length) pruefen(dateien);
+  };
+
+  return (
+    <>
+      <section className="karte">
+        <div className="karte__kopf"><h2>Ordner abgleichen</h2>
+          {darf && kannOrdner && <button className="knopf knopf--klein" id="pool-ordner" onClick={ordnerLesen}>Ordner wählen</button>}
+        </div>
+        {kannOrdner
+          ? <p className="hinweis">Wähle den Ordner mit den Dateien. Die App liest ihn, ordnet jede Datei
+              anhand ihres Namens zu und zeigt dir die Zuordnung, bevor etwas hochgeladen wird. Der Ordner
+              darf im Netzlaufwerk liegen.</p>
+          : <p className="hinweis">Das Auswählen eines ganzen Ordners geht nur in Chrome oder Edge am
+              Rechner. Am Tablet und am Handy lädst du Dateien einzeln hoch — bei der HOCO Nr. oder beim
+              Maschinentyp.</p>}
+        <div id="pool-liste">
+          {pool && (pool.laedt
+            ? <div className="laedt">Wird geprüft …</div>
+            : <Zuordnung eintraege={pool.eintraege} fertig={() => { setPool(null); frisch(); }} />)}
+        </div>
+      </section>
+      <Regeln />
+      <Netzlaufwerk />
+      <Verlauf stand={stand} frisch={frisch} />
+      <Letzte stand={stand} hochladen={hochladenWaehlen} />
+    </>
+  );
+}
+
+// ---------- Zuordnung prüfen, dann hochladen ----------
+
+function Zuordnung({ eintraege, fertig }) {
+  const [nehmen, setNehmen] = useState(() => eintraege.map((e) => e.nehmen));
+  const [laeuft, setLaeuft] = useState(null);
+  const anzahl = nehmen.filter(Boolean).length;
+
+  const los = async () => {
+    if (laeuft || !anzahl) return;
+    const liste = eintraege.filter((e, i) => nehmen[i]);
+    let gut = 0, schief = 0;
+    for (const e of liste) {
+      setLaeuft("lädt " + (gut + schief + 1) + " von " + liste.length + " …");
+      try { await alt.dokHochladen(e.datei, e.zuordnung, "ordner"); gut++; }
+      catch (f) { schief++; alt.meldung(e.datei.name + ": " + alt.fehlertext(f), "fehler"); }
+    }
+    alt.meldung(gut + " Dateien abgelegt" + (schief ? ", " + schief + " fehlgeschlagen" : "."), schief ? "warn" : "gut");
+    fertig();
+  };
+
+  return (
+    <>
+      <div className="pool-kopf">
+        <span><b>{eintraege.length}</b> Dateien gelesen · <b>{anzahl}</b> zugeordnet</span>
+        <button className="knopf knopf--klein knopf--haupt" id="pool-los"
+          disabled={!anzahl} onClick={los}>{laeuft || anzahl + " hochladen"}</button>
+      </div>
+      <table className="tabelle"><thead><tr><th /><th>Datei</th><th>Art</th><th>HOCO Nr.</th><th>Typ</th></tr></thead>
+        <tbody>{eintraege.map((e, i) => (
+          <tr key={i} className={nehmen[i] ? "" : "pool-zeile--offen"}>
+            <td><input type="checkbox" data-pool={i} checked={nehmen[i]}
+              onChange={(ev) => setNehmen((n) => n.map((x, j) => (j === i ? ev.target.checked : x)))} /></td>
+            <td>{e.datei.name}</td>
+            <td>{artVon(e.zuordnung.art).zeichen} {artVon(e.zuordnung.art).name}</td>
+            <td>{e.zuordnung.hoco || "—"}</td>
+            <td>{e.zuordnung.typ ? e.zuordnung.typ.name : "—"}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+      <p className="hinweis">Grau hinterlegte Zeilen konnte die App keiner Nummer und keinem Typ zuordnen.
+        Benenne die Datei um oder lade sie direkt bei der HOCO Nr. hoch.</p>
+    </>
+  );
+}
+
+// ---------- Regeln für Dateinamen ----------
+
+const FELDER = [["zeichnung", "Zeichnung"], ["wbg", "WBG"], ["einrichtblatt", "Einrichtblatt"], ["allgemein", "Allgemein"]];
+
+function felderAus(regeln) {
+  const f = { nurNummer: regeln.nurNummer || "zeichnung" };
+  FELDER.forEach(([k]) => { f[k] = (regeln[k] || []).join(", "); });
+  return f;
+}
+
+function Regeln() {
+  const [felder, setFelder] = useState(() => felderAus(alt.DOK_REGELN || alt.DOK_REGELN_VORGABE));
+  const [probe, setProbe] = useState("");
+  const { daten: typen } = useDaten(typenHolen, []);
+  const setze = (k, w) => setFelder((f) => ({ ...f, [k]: w }));
+
+  const regeln = { nurNummer: felder.nurNummer };
+  FELDER.forEach(([k]) => { regeln[k] = felder[k].split(/[,;]+/).map((x) => x.trim()).filter(Boolean); });
+  // Probe und Beispiele mit den Regeln, wie sie gerade in den Feldern stehen
+  const erkennen = (name) => alt.dokMitRegeln(regeln, () => alt.dokErkennen(name, typen || []));
+
+  const speichern = async () => {
+    const { error } = await alt.db.from("app_config").upsert({ schluessel: "dok_regeln", wert: JSON.stringify(regeln) });
+    if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+    alt.dokRegelnUebernehmen(regeln);
+    alt.meldung("Regeln gespeichert.");
+  };
+
+  const p = probe.trim() ? erkennen(probe.trim()) : null;
+  const typName = (typen && typen[0] && typen[0].name) || "SW-20";
+  const beispiele = ["10844-0049.pdf", "10844-0049_WBG.pdf", "10844-0049_EB.pdf",
+    "10844-0049_EB_" + typName + ".pdf", "EB_" + typName + ".pdf",
+    "10844-0049_Messbericht.pdf", "10844-0049 Zeichnung Rev B.pdf"];
+
+  return (
+    <section className="karte">
+      <div className="karte__kopf"><h2>So erkennt die App die Dateien</h2></div>
+      <p className="hinweis">Steht im Dateinamen eines dieser Stichwörter, kommt die Datei dorthin. Mehrere
+        Stichwörter mit Komma trennen. Gross und klein, Striche und Leerzeichen spielen keine Rolle, bei
+        längeren Wörtern wird ein Tippfehler verziehen. Die HOCO Nr. und der Maschinentyp werden immer von
+        selbst erkannt.</p>
+      <div className="dokregeln">
+        {FELDER.map(([k, t]) => (
+          <label className="feld" key={k}><span>{t}</span>
+            <input type="text" data-dokregel={k} value={felder[k]} onChange={(e) => setze(k, e.target.value)}
+              placeholder={k === "allgemein" ? "z. B. messbericht, prüfprotokoll, foto" : undefined} /></label>
+        ))}
+        <label className="feld"><span>Steht nur die HOCO Nr. im Namen, ist es</span>
+          <select id="dokregel-nur" value={felder.nurNummer} onChange={(e) => setze("nurNummer", e.target.value)}>
+            <option value="zeichnung">eine Zeichnung</option>
+            <option value="allgemein">ein allgemeines Dokument</option>
+          </select></label>
+      </div>
+      <div className="knopfreihe">
+        <button className="knopf knopf--klein knopf--haupt" id="dokregel-speichern" onClick={speichern}>Regeln speichern</button>
+        <button className="linkknopf" id="dokregel-vorgabe"
+          onClick={() => setFelder(felderAus(alt.DOK_REGELN_VORGABE))}>Vorgabe wiederherstellen</button>
+      </div>
+
+      <h3 className="untertitel">Ausprobieren</h3>
+      <label className="feld"><span>Dateiname eingeben — die App zeigt, wohin er ginge</span>
+        <input type="text" id="dokprobe" placeholder="z. B. 10844-0049 EB SW20.pdf" value={probe}
+          onChange={(e) => setProbe(e.target.value)} /></label>
+      <div id="dokprobe-ergebnis" className="dokprobe">
+        {p && <><b>{alt.dokZielText(p)}</b><span className="klein"> — {p.grund || ""}</span></>}
+      </div>
+
+      <h3 className="untertitel">Beispiele mit den jetzigen Regeln</h3>
+      <div id="dokbeispiele">
+        <table className="tabelle"><thead><tr><th>Dateiname</th><th>Wird zugeordnet als</th></tr></thead>
+          <tbody>{beispiele.map((n) => (
+            <tr key={n}><td><code>{n}</code></td><td>{alt.dokZielText(erkennen(n))}</td></tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Ordner auf dem Netzlaufwerk ----------
+
+async function pfadLaden() {
+  const werte = {};
+  try {
+    const r = await alt.zeitlimit(alt.db.from("app_config").select("schluessel, wert")
+      .in("schluessel", ["dok_pfad", "dok_pfad_unterordner", "dok_pfad_status"]), 6000, "Pfad");
+    ((r && r.data) || []).forEach((x) => { werte[x.schluessel] = x.wert; });
+  } catch (f) { /* leer lassen */ }
+  return werte;
+}
+
+function Netzlaufwerk() {
+  const { daten } = useDaten(pfadLaden, []);
+  return (
+    <section className="karte">
+      <div className="karte__kopf"><h2>Ordner auf dem Netzlaufwerk</h2></div>
+      <p className="hinweis">Diesen Ordner prüft das Hilfsprogramm auf dem Server jede Minute. Neue und
+        geänderte Dateien lädt es hoch und legt sie nach den Regeln oben ab — was an derselben Stelle lag,
+        wird ersetzt. Die Dateien im Ordner bleiben liegen.</p>
+      {/* Erst nach dem Laden zeigen, damit die Felder mit dem
+          gespeicherten Pfad beginnen */}
+      {daten ? <PfadFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
+    </section>
+  );
+}
+
+function PfadFormular({ werte }) {
+  const [pfad, setPfad] = useState(werte.dok_pfad || "");
+  const [unter, setUnter] = useState(werte.dok_pfad_unterordner === "ja");
+  let st = null;
+  try { st = werte.dok_pfad_status ? JSON.parse(werte.dok_pfad_status) : null; } catch (f) { st = null; }
+
+  const speichern = async () => {
+    const r = await alt.db.from("app_config").upsert([
+      { schluessel: "dok_pfad", wert: pfad.trim() },
+      { schluessel: "dok_pfad_unterordner", wert: unter ? "ja" : "nein" }]);
+    if (r.error) alt.meldung(alt.fehlertext(r.error), "fehler");
+    else alt.meldung("Pfad gespeichert. Das Hilfsprogramm nimmt ihn beim nächsten Durchlauf.");
+  };
+
+  let stand;
+  if (!st) stand = <span className="gedaempft">Das Hilfsprogramm hat sich noch nicht gemeldet.</span>;
+  else {
+    const minuten = (Date.now() - new Date(st.zeit).getTime()) / 60000;
+    stand = <>
+      <span className={"dokpfad-punkt " + (minuten < 5 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
+      {"Letzter Abgleich " + alt.datumZeitKurz(st.zeit) + (st.rechner ? " auf " + st.rechner : "")
+        + " · " + (st.dateien || 0) + " Dateien im Ordner · " + (st.neu || 0) + " neu abgelegt"}
+      {minuten >= 5 && <> <b>— seit {Math.round(minuten)} Minuten keine Meldung</b></>}
+      {st.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{st.fehler}</div>}
+      {st.ohne && st.ohne.length > 0 && <div className="klein gedaempft">Nicht zugeordnet: {
+        st.ohne.slice(0, 12).join(", ") + (st.ohne.length > 12 ? " …" : "")}</div>}
+    </>;
+  }
+
+  return (
+    <>
+      <label className="feld"><span>Pfad</span>
+        <input type="text" id="dokpfad" placeholder={"\\\\FS01\\Daten\\Zeichnungen"} value={pfad}
+          onChange={(e) => setPfad(e.target.value)} /></label>
+      <label className="schalter"><input type="checkbox" id="dokpfad-unter" checked={unter}
+        onChange={(e) => setUnter(e.target.checked)} /><span>Unterordner einbeziehen</span></label>
+      <div className="knopfreihe"><button className="knopf knopf--klein knopf--haupt" id="dokpfad-speichern"
+        onClick={speichern}>Pfad speichern</button></div>
+      <div id="dokpfad-stand" className="dokpfad-stand">{stand}</div>
+    </>
+  );
+}
+
+// ---------- Verlauf ----------
+
+const QUELLE = { hand: "von Hand", ordner: "Ordner", pfad: "Netzlaufwerk", "aufräumen": "aufgeräumt" };
+
+async function verlaufLaden() {
+  const r = await alt.zeitlimit(alt.db.from("dokumente_verlauf").select("*")
+    .order("zeit", { ascending: false }).limit(100), 8000, "Verlauf");
+  if (r.error) throw r.error;
+  // Die Namen der Personen braucht „Wer“
+  await alt.personenLaden();
+  return r.data || [];
+}
+
+function Verlauf({ stand, frisch }) {
+  const { daten: liste, fehler } = useDaten(verlaufLaden, [stand]);
+  const aufraeumen = async () => {
+    const n = await alt.wbgAufraeumen(true);
+    alt.meldung(n ? n + " alte WBG entfernt." : "Nichts aufzuräumen.");
+    frisch();
+  };
+  let inhalt;
+  if (fehler && !liste) {
+    inhalt = <p className="hinweis">Der Verlauf braucht noch <code>dokumente-verlauf.sql</code> in der Datenbank.</p>;
+  } else if (!liste) inhalt = <div className="laedt">Wird geladen …</div>;
+  else if (!liste.length) inhalt = <p className="hinweis">Noch nichts abgelegt.</p>;
+  else {
+    inhalt = (
+      <div className="tabellenrolle"><table className="tabelle">
+        <thead><tr><th>Zeit</th><th>Datei</th><th>Ging nach</th><th>Wie</th><th>Wer</th></tr></thead>
+        <tbody>{liste.map((v, i) => (
+          <tr key={v.id || i}>
+            <td className="klein nowrap">{alt.datumZeitKurz(v.zeit)}</td>
+            <td>{v.dateiname || "—"}</td>
+            <td>{v.ziel || ""}{v.ersetzt && <> <span className="marke">ersetzt</span></>}</td>
+            <td className="klein">{QUELLE[v.quelle] || v.quelle || ""}</td>
+            <td className="klein">{alt.personVoll(v.von) || ""}</td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+    );
+  }
+  return (
+    <section className="karte">
+      <div className="karte__kopf"><h2>Verlauf</h2><span className="klein">welche Datei wohin ging</span>
+        <div className="karte__aktionen"><button className="linkknopf" id="wbg-aufraeumen" onClick={aufraeumen}>Alte WBG jetzt aufräumen</button></div>
+      </div>
+      <div id="dokverlauf">{inhalt}</div>
+    </section>
+  );
+}
+
+// ---------- Zuletzt abgelegt ----------
+
+async function letzteLaden() {
+  const r = await alt.db.from("dokumente").select("*").order("erstellt_am", { ascending: false }).limit(25);
+  if (r.error) throw r.error;
+  return r.data || [];
+}
+
+function Letzte({ stand, hochladen }) {
+  const { daten: liste, fehler, neu } = useDaten(letzteLaden, [stand]);
+  const loeschen = async (id) => {
+    const ok = await alt.nachfragen({ titel: "Dokument löschen", text: "Soll dieses Dokument gelöscht werden?",
+      bestaetigen: "Löschen", gefahr: true });
+    if (!ok) return;
+    try { await alt.dokLoeschen(id); alt.meldung("Gelöscht."); neu(); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
+  let inhalt;
+  if (fehler && !liste) inhalt = <p className="hinweis">Dafür fehlt noch dokumente.sql in der Datenbank.</p>;
+  else if (!liste) inhalt = <div className="laedt">Wird geladen …</div>;
+  else if (!liste.length) inhalt = <p className="hinweis">Noch nichts abgelegt.</p>;
+  else {
+    inhalt = (
+      <table className="tabelle">
+        <thead><tr><th>Art</th><th>Datei</th><th>Gehört zu</th><th>Abgelegt</th><th /></tr></thead>
+        <tbody>{liste.map((d) => (
+          <tr key={d.id}>
+            <td>{artVon(d.art).zeichen} {artVon(d.art).name}</td>
+            <td>{d.dateiname || d.titel || ""}</td>
+            <td>{d.hoco_nr || ""}</td>
+            <td className="klein">{alt.kurzDatum(d.erstellt_am || "")}</td>
+            <td className="rechts nowrap">
+              <button className="linkknopf" data-dokauf={d.datei_url}
+                onClick={() => alt.betrachter(d.datei_url, "Dokument", true)}>Ansehen</button>{" "}
+              <button className="linkknopf linkknopf--gefahr" data-dokweg={d.id} onClick={() => loeschen(d.id)}>Löschen</button>
+            </td>
+          </tr>
+        ))}</tbody>
+      </table>
+    );
+  }
+  return (
+    <section className="karte">
+      <div className="karte__kopf"><h2>Zuletzt abgelegt</h2>
+        <button className="knopf knopf--klein" id="dok-neu" onClick={hochladen}>Dateien hochladen</button></div>
+      <div id="dok-letzte">{inhalt}</div>
+    </section>
+  );
+}
