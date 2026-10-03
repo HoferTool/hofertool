@@ -4370,3 +4370,16 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 @keyframes lebendig-herein { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes lebendig-licht { from { transform: translateX(-25%); } to { transform: translateX(105%); } }
 @keyframes lebendig-logo { from { opacity: 0; transform: translateX(-50%) scale(.92); } to { opacity: 1; transform: translateX(-50%); } }
+
+/* Geburtstag: Bild eckig und ohne Rand, und das Band endet unten in
+   derselben Farbe wie sonst, damit zur Solaranlage keine Kante entsteht
+   (Wunsch 3. Oktober 2026) */
+.kopfkarte--geburtstag { background: radial-gradient(120% 100% at 50% 0%, #1d5cbd 0%, var(--marke) 72%) var(--marke); }
+.geb-bild { border: 0; border-radius: 14px; background: transparent;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, .35); }
+.geb-bild--leer { background: #ffd166; }
+/* Der Schatten unter dem Bild darf unten nicht abgeschnitten werden */
+.kopfkarte--geburtstag { min-height: 290px; padding-bottom: 34px; }
+.geb-bild { box-shadow: 0 8px 22px rgba(0, 0, 0, .28); }
+@media (max-width: 1100px) { .kopfkarte--geburtstag { min-height: 230px; } }
+@media (max-width: 900px) { .kopfkarte--geburtstag { min-height: 0; } }

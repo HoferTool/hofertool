@@ -22,13 +22,20 @@ export function GeburtstagMitte({ kinder }) {
               <span className="geb-alter">{m.alter}</span>
               <Kuchen />
             </div>
-            <div className="geb-name">{m.name}</div>
+            <div className="geb-name">{vorname(m.name)}</div>
             <div className="geb-datum">{alt.langDatum(m.geboren)}</div>
           </div>
         </div>
       ))}
     </div>
   );
+}
+
+// Nur der Vorname. Steht statt eines Namens nur die Mailadresse da
+// (etwa „vorname.nachname“), gilt der Teil vor dem Punkt.
+function vorname(name) {
+  const erster = String(name || "").trim().split(/[\s.@]+/)[0] || "";
+  return erster.charAt(0).toUpperCase() + erster.slice(1);
 }
 
 // Ein kleiner Kuchen mit Kerze. Bewusst schlicht: Lesbar soll vor
