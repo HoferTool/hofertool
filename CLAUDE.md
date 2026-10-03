@@ -3,6 +3,7 @@
 Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Darin stecken: Planwand der Aufträge, Stückzahlen in der Produktion, Pad Mode für Tablets an den Maschinen, Bestellungen, Einkaufsliste, Werkstatt-Rechner, Notizen, Dokumente und Einstellungen. Chat, Eierzähler, Fahrzeuge und Spassecke hatten schon vor dem Umbau keinen Knopf mehr und sind seit Oktober 2026 aus dem Code entfernt (im Git-Verlauf noch vorhanden). Ihre Tabellen in der Datenbank sind unverändert.
 
 - **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`). Der Ablauf `.github/workflows/ausliefern.yml` baut die App bei jedem Push auf `main` und stellt den Ordner `dist/` auf Pages (Pages-Quelle: „GitHub Actions“).
+- **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
 - **Stand:** Version 111.18.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
