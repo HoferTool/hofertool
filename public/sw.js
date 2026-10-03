@@ -51,6 +51,11 @@ self.addEventListener("fetch", (e) => {
   // Daten von Supabase: nicht hier, das macht die App selbst
   if (/supabase\.co$/.test(url.hostname)) return;
 
+  // Die Vorschau der neuen Fassung unter .../vorschau/ hat ihren eigenen
+  // Helfer. Ohne diese Zeile würde ihre Seite hier als gemerkte Fassung
+  // der Live-App abgelegt und ohne Netz statt der Live-App erscheinen.
+  if (url.pathname.includes("/vorschau/")) return;
+
   // Die Seite: erst das Netz, sonst die gemerkte Fassung
   if (anfrage.mode === "navigate" || url.pathname.endsWith("/index.html")
       || url.pathname.endsWith("/")) {
