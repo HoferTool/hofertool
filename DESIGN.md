@@ -247,9 +247,9 @@ Der Pad Mode ist **gehoben**: Kacheln schweben mit grossen, weichen Schatten üb
 - **Innere Markierung** (`box-shadow: inset 0 0 0 2px var(--marke)`): ausgewählte Zelle oder Kachel, statt Schatten nach aussen.
 
 ### Named Rules
-**The Flat Office Rule.** Im Büro gibt es keine Schatten nach aussen. Auswahl zeigt sich durch eine Innenlinie oder Firmenblau-Hauch.
+**The Flat Office Rule.** Im Büro gibt es im Ruhezustand keine Schatten nach aussen. Auswahl zeigt sich durch eine Innenlinie oder Firmenblau-Hauch. Ausnahme (Effekte, 3. Oktober 2026): Was unter der Maus liegt und irgendwohin führt, hebt sich mit einem weichen, blau getönten Schatten an; Fenster und Meldungen schweben.
 
-**The Glass Only At The Machine Rule.** Verläufe, Unschärfe (`backdrop-filter`) und Schimmer gibt es nur im Pad Mode.
+**The Glass Only At The Machine Rule.** Verläufe, Unschärfe (`backdrop-filter`) und Schimmer gibt es nur im Pad Mode. Ausnahme: die Kopfzeile ist Glas, ausser auf der Planwand.
 
 ## Shapes
 
@@ -299,6 +299,8 @@ Unten rechts (ab 780px 340px breit, auf dem Handy über der Navigation): Tinte-H
 
 ### Bewegung
 Der eine bewusste Moment ist das **Gleiten auf der Planwand**: Nach dem Verschieben, Aufschliessen, Umsortieren oder Rückgängig gleiten die betroffenen Balken in 360 ms an ihren neuen Platz, der abgelegte setzt sich in 240 ms. Beim Blättern in der Zeit oder beim Zoomen gleitet nichts. Höchstens 80 Balken, ausserhalb des Bildschirms keine. Sonst nur Rückmeldung: Fenster blenden ein (160 ms Schleier, 230 ms Fenster), das Pad legt sich in 280 ms darüber, Pad-Kacheln kommen nacheinander (35 ms Abstand, höchstens 8), Meldungen fahren herein. Einheitliche Kurve `cubic-bezier(.16,1,.3,1)`. Bei „weniger Bewegung" bleibt nur das Einblenden.
+
+**Effekte (src/effekte/).** Leitidee „Leitstand fährt hoch“: Nach dem Anmelden zieht die blaue Linie unter der Kopfzeile in 900 ms von links nach rechts durch, Kopfzeile und Navigation kommen nacheinander herein. Danach ist Bewegung Rückmeldung: Die Markierung in der Navigation und unter den Reitern gleitet in 420 ms zum gewählten Punkt; bei jedem Seitenwechsel fährt ein Lichtstreifen über die Linie, und die Teile der Seite kommen in 40-ms-Abständen. Knöpfe, Kacheln und Reiter antworten mit einer Welle von der Stelle des Fingers aus. Unter der Maus folgt ein weiches Licht auf Karten und Knöpfen. Die Ziffern der Uhr rollen einzeln herein. Auf der Planwand nur ein pulsierender Punkt an der Heute-Linie. Im Pad wandert ein weiches Licht durch die Halle, und der Zustandsknopf „Läuft“ atmet. Keine eigene Textmarkierung (`::selection`), weil sie die Planwand messbar bremst.
 
 ### Dialog
 Schleier mit 60 % Dunkel, Karte bis 400px breit, 20px Innenabstand. Die Knopfzeile klebt unten und darf umbrechen. Auf dem Handy kommt der Dialog als Blatt von unten (bis 92 % Höhe). Escape schliesst.

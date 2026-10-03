@@ -6,6 +6,9 @@
 // src/bruecke.jsx in die alte Hülle eingehängt.
 import "./alt/stil.css";
 import "./alt/app.js";
+// Mehr Bewegung: gleitende Markierungen, Licht, Welle, Seitenwechsel
+import "./effekte/effekte.css";
+import "./effekte/effekte.js";
 
 // Unter .../vorschau/ läuft die Fassung aus dem Umbau, mit echten
 // Daten. Ein Schild oben links, damit niemand sie mit der Live-App

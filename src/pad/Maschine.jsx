@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck } from "./Pad.jsx";
+import { Ziffern } from "../effekte/Ziffern.jsx";
 import {
   holeWetterStunden, wetterZeichen, tagesmengen, letzteTage, schnitte,
   schnittTage, schnittLang, naechsteAuftraege, prognose,
@@ -346,7 +347,7 @@ function Saeule({ wetter, danach }) {
     <div className="pad-karte2 pad-karte2--saeule">
       <div className="pad-uhrblock">
         <div><span className="pad-wtag">{alt.WOCHENTAGE[(jetzt.getDay() + 6) % 7]}</span>
-          <div className="pad-uhr" id="pad-uhr">{zweistellig(jetzt.getHours())}:{zweistellig(jetzt.getMinutes())}</div>
+          <div className="pad-uhr" id="pad-uhr"><Ziffern text={zweistellig(jetzt.getHours()) + ":" + zweistellig(jetzt.getMinutes())} /></div>
           <span className="pad-wdatum">{alt.kurzDatum(heute)} · KW {alt.kalenderwoche(heute)}</span></div>
         {wetter
           ? <div className="pad-wetterblock">
