@@ -95,7 +95,18 @@ function Anmeldung() {
     return () => { weg = true; uhr.current.forEach(clearTimeout); };
   }, []);
 
-  const kontoWaehlen = (konto) => {
+  // Tipp auf eine Kachel: Kennt das Gerät die Person schon, geht es
+  // direkt hinein, sonst kommt das Feld für Passwort oder PIN.
+  const kontoWaehlen = async (konto) => {
+    if (alt.sitzungGemerkt(konto.email)) {
+      alt.meldung("Anmelden …");
+      if (await alt.gemerktAnmelden(konto.email)) {
+        alt.geraetKontoMerken(konto.email);
+        await alt.profilLaden();
+        alt.zeichneGeruest();
+        return;
+      }
+    }
     setAuswahlKlasse("login__wechsel--raus");
     spaeter(() => {
       setAuswahlKlasse("");
@@ -187,6 +198,7 @@ function useAnmelden(vorgabeMail, aufPasswort) {
   const [laeuft, setLaeuft] = useState(false);
   const nameRef = useRef(null);
   const pwRef = useRef(null);
+  const merkRef = useRef(null);
 
   const nochmal = (text, art) => {
     alt.meldung(text, art || "fehler");
@@ -224,6 +236,9 @@ function useAnmelden(vorgabeMail, aufPasswort) {
         if (error) throw error;
       }
       alt.geraetKontoMerken(email);
+      // Häkchen „Auf diesem Gerät merken“: Schlüssel der Sitzung aufheben
+      const s = await alt.sitzung();
+      alt.sitzungMerken(email, merkRef.current && merkRef.current.checked && s ? s.refresh_token : null);
       await alt.profilLaden();
       alt.zeichneGeruest();
     } catch (f) {
@@ -232,10 +247,12 @@ function useAnmelden(vorgabeMail, aufPasswort) {
     }
   };
 
-  const knopf = (
+  const knopf = (<>
+    <label className="schalter login__merken"><input type="checkbox" id="lmerk" defaultChecked ref={merkRef} />
+      <span>Auf diesem Gerät merken</span></label>
     <button type="submit" className="knopf knopf--haupt knopf--breit" id="lk" disabled={laeuft}>
       {laeuft ? "Anmelden …" : "Anmelden"}</button>
-  );
+  </>);
   return { absenden, nameRef, pwRef, knopf };
 }
 

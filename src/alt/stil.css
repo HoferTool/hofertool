@@ -4383,3 +4383,6 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 .geb-bild { box-shadow: 0 8px 22px rgba(0, 0, 0, .28); }
 @media (max-width: 1100px) { .kopfkarte--geburtstag { min-height: 230px; } }
 @media (max-width: 900px) { .kopfkarte--geburtstag { min-height: 0; } }
+
+/* Häkchen "Auf diesem Gerät merken" in der Anmeldung */
+.login__merken { justify-content: center; margin: 10px 0 12px; font-size: 14px; }
