@@ -6,6 +6,7 @@
 //  oberste Fenster) und findet so gleich den Schliessknopf.
 //
 //  fensterOeffnen((zu) => <Inhalt zu={zu} />) gibt zu() zurück.
+//  klasse hängt weitere Klassen an die Hülle (etwa „suche-huelle“).
 //  Ein Element mit data-fokus bekommt nach dem Öffnen den Fokus
 //  (autoFocus wirkt nicht, solange die Hülle noch nicht im Dokument ist).
 // =================================================================
@@ -13,9 +14,9 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 
-export function fensterOeffnen(zeichne, beimSchliessen) {
+export function fensterOeffnen(zeichne, beimSchliessen, klasse) {
   const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle";
+  huelle.className = "dialog-huelle" + (klasse ? " " + klasse : "");
   const wurzel = createRoot(huelle);
   let offen = true;
   const zu = () => {

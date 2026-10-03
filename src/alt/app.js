@@ -20,6 +20,8 @@ import { padZeichnen, padAbbauen } from "../pad/Pad.jsx";
 import { planAuftragDialog } from "../planwand/AuftragFenster.jsx";
 import { nachfragen, dialogFelder, auswahlDialog } from "../teile/Dialoge.jsx";
 import { geruestZeichnen, geruestAbbauen, navAktiv } from "../huelle/Geruest.jsx";
+import { sucheOeffnen } from "../huelle/SucheAlles.jsx";
+import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -4508,82 +4510,7 @@ function auftragText(j) {
   ].map((x) => String(x === null || x === undefined ? "" : x).toLowerCase()).join(" ");
 }
 
-async function sucheDialog(b) {
-  const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle";
-  huelle.innerHTML = '<div class="dialog"><h2>Auf der Planwand suchen</h2>'
-    + '<p class="klein">Gesucht wird in allem: Nummer, Maschine, Notiz, Material, '
-    + 'Menge, Farbe, Zustand, Problem, FA und Material vorhanden.</p>'
-    + '<label class="feld"><span>Suchbegriff</span>'
-    + '<input type="text" id="su-text" value="' + esc(plan.letzteSuche || "")
-    + '"></label>'
-
-    + '<div class="feld"><span class="feldlabel">Zeitraum</span>'
-    + '<div class="su-zeitgitter" id="su-zeitwahl">'
-    + [["alle", "Ganze Planung"], ["abheute", "Ab heute"],
-       ["vorher", "Vor heute"], ["datum", "Ab Datum"]]
-        .map(([w, t]) => '<button type="button" class="wahlknopf'
-          + (w === "alle" ? " aktiv" : "") + '" data-suzeit="' + w + '">' + t + '</button>').join("")
-    + '</div>'
-    + '<div class="su-datumsteil" id="su-datumsteil" hidden>'
-    + '<input type="date" id="su-datum">'
-    + '</div></div>'
-
-    // In welcher Reihenfolge die Treffer kommen — weiter und zurück
-    // geht es danach in der Leiste unten
-    + '<div class="feld"><span class="feldlabel">Reihenfolge</span>'
-    + '<div class="moduswahl" id="su-reihe">'
-    + [["neu", "Neuester Auftrag zuerst"], ["alt", "Ältester Auftrag zuerst"]].map(([w, t]) =>
-        '<button type="button" class="moduswahl__knopf' + ((plan.sucheReihe || "neu") === w ? " aktiv" : "")
-        + '" data-sureihe="' + w + '">' + t + '</button>').join("")
-    + '</div></div>'
-
-    + '<div class="dialog__knoepfe">'
-    + '<button class="knopf knopf--still" id="su-nein">Abbrechen</button>'
-    + '<button class="knopf knopf--haupt" id="su-ja">Suchen</button>'
-    + '</div></div>';
-  document.body.appendChild(huelle);
-
-  let zeitwahl = "alle";
-  let reihe = plan.sucheReihe || "neu";
-  const datumFeld = huelle.querySelector("#su-datum");
-
-  huelle.querySelectorAll("[data-suzeit]").forEach((k) => {
-    k.onclick = () => {
-      zeitwahl = k.dataset.suzeit;
-      huelle.querySelectorAll("[data-suzeit]").forEach((x) =>
-        x.classList.toggle("aktiv", x === k));
-      huelle.querySelector("#su-datumsteil").hidden = zeitwahl !== "datum";
-      if (zeitwahl === "datum" && !datumFeld.value) datumFeld.value = isoDatum(new Date());
-    };
-  });
-
-  huelle.querySelectorAll("[data-sureihe]").forEach((k) => {
-    k.onclick = () => {
-      reihe = k.dataset.sureihe;
-      huelle.querySelectorAll("[data-sureihe]").forEach((x) =>
-        x.classList.toggle("aktiv", x === k));
-    };
-  });
-
-  const zu = () => huelle.remove();
-  huelle.querySelector("#su-nein").onclick = zu;
-  dialogSchliessen(huelle, zu);
-
-  const textFeld = huelle.querySelector("#su-text");
-  textFeld.focus();
-  textFeld.onkeydown = (e) => { if (e.key === "Enter") huelle.querySelector("#su-ja").click(); };
-
-  huelle.querySelector("#su-ja").onclick = async () => {
-    const text = (textFeld.value || "").trim();
-    if (!text) { meldung("Bitte einen Suchbegriff eingeben.", "warn"); return; }
-    zu();
-    plan.sucheZeit = { art: zeitwahl, datum: datumFeld.value || null };
-    plan.sucheReihe = reihe;
-    plan.trefferNr = 0;
-    await sucheStarten(text, b);
-  };
-}
+// Das Suchfenster und die Leiste unten: src/planwand/Suche.jsx
 
 // Passt ein Auftrag in den gewählten Zeitraum?
 function sucheImZeitraum(j) {
@@ -4689,14 +4616,6 @@ function sucheTreffer(d, text) {
   return raus;
 }
 
-const SUCHE_ARTEN = {
-  auftrag:   { name: "Aufträge",    zeichen: "▤" },
-  hoco:      { name: "HOCO Nr.",    zeichen: "▣" },
-  maschine:  { name: "Maschinen",   zeichen: "⚙" },
-  artikel:   { name: "Artikel",     zeichen: "◧" },
-  lieferant: { name: "Lieferanten", zeichen: "◈" },
-};
-
 // Schon laden, bevor jemand auf Suchen klickt (Kopfzeile, beim Darüberfahren)
 function sucheVorladen() {
   if (sucheAlles.daten || sucheAlles.holt) return;
@@ -4704,68 +4623,7 @@ function sucheVorladen() {
   sucheAllesHolen().catch(() => {}).finally(() => { sucheAlles.holt = false; });
 }
 
-function sucheOeffnen() {
-  if (document.querySelector(".suche-alles")) return;
-  const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle suche-huelle";
-  huelle.innerHTML = '<div class="dialog suche-alles">'
-    + '<div class="suche-alles__feld">'
-    + '<span class="suche-alles__lupe">⌕</span>'
-    + '<input type="search" id="suche-alles-feld" autocomplete="off"'
-    + ' placeholder="HOCO Nr., FA Nr., Material, Werkzeug, Lieferant, Maschine …">'
-    + '<kbd>Esc</kbd></div>'
-    + '<div class="suche-alles__liste" id="suche-alles-liste">'
-    + '<p class="hinweis">Mindestens zwei Zeichen eingeben.</p></div>'
-    + '</div>';
-  document.body.appendChild(huelle);
-
-  const feld = huelle.querySelector("#suche-alles-feld");
-  const liste = huelle.querySelector("#suche-alles-liste");
-  const zu = () => huelle.remove();
-  huelle.onclick = (e) => { if (e.target === huelle) zu(); };
-  feld.focus();
-
-  let daten = null;
-  let treffer = [];
-  let markiert = 0;
-  sucheAllesDaten().then((d) => { daten = d; zeichnen(); });
-
-  const zeichnen = () => {
-    if (!daten) { liste.innerHTML = '<div class="laedt">Wird geladen …</div>'; return; }
-    treffer = sucheTreffer(daten, feld.value);
-    if (feld.value.trim().length < 2) {
-      liste.innerHTML = '<p class="hinweis">Mindestens zwei Zeichen eingeben.</p>'; return;
-    }
-    if (!treffer.length) {
-      liste.innerHTML = '<p class="hinweis">Nichts gefunden zu „' + esc(feld.value.trim()) + '".</p>';
-      return;
-    }
-    markiert = Math.min(markiert, treffer.length - 1);
-    let art = "";
-    liste.innerHTML = treffer.map((x, i) => {
-      let kopf = "";
-      if (x.art !== art) {
-        art = x.art;
-        kopf = '<div class="suche-alles__gruppe">' + SUCHE_ARTEN[art].name + '</div>';
-      }
-      return kopf + '<button type="button" class="suche-alles__treffer'
-        + (i === markiert ? " aktiv" : "") + '" data-treffer="' + i + '">'
-        + '<span class="suche-alles__zeichen">' + SUCHE_ARTEN[x.art].zeichen + '</span>'
-        + '<span class="suche-alles__text"><b>' + esc(x.titel) + '</b>'
-        + (x.zeile ? '<span>' + esc(x.zeile) + '</span>' : "") + '</span></button>';
-    }).join("");
-    liste.querySelectorAll("[data-treffer]").forEach((el) => {
-      el.onclick = () => { zu(); sucheSpringen(treffer[Number(el.dataset.treffer)]); };
-    });
-  };
-
-  feld.addEventListener("input", () => { markiert = 0; zeichnen(); });
-  feld.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); markiert = Math.min(treffer.length - 1, markiert + 1); zeichnen(); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); markiert = Math.max(0, markiert - 1); zeichnen(); }
-    else if (e.key === "Enter" && treffer[markiert]) { e.preventDefault(); zu(); sucheSpringen(treffer[markiert]); }
-  });
-}
+// Das Fenster der Suche über alles: src/huelle/SucheAlles.jsx
 
 // Wohin ein Treffer führt
 function sucheSpringen(x) {
@@ -4936,51 +4794,8 @@ function sucheBeenden() {
   plan.sucheAktiv = false;
   plan.trefferListe = [];
   plan.letzteSuche = "";
-  const leiste = document.getElementById("su-leiste");
-  if (leiste) leiste.remove();
+  sucheLeisteWeg();
   sucheHervorheben();
-}
-
-// Kleine Leiste mit Weiter-Knopf, solange eine Suche läuft
-function sucheLeisteZeigen(b, ziel) {
-  let leiste = document.getElementById("su-leiste");
-  if (!leiste) {
-    leiste = document.createElement("div");
-    leiste.id = "su-leiste";
-    leiste.className = "su-leiste";
-    document.body.appendChild(leiste);
-  }
-
-  const anzahl = (plan.trefferListe || []).length;
-  leiste.innerHTML = '<span class="su-leiste__text">'
-    + esc(plan.letzteSuche) + ' · ' + ((plan.sucheReihe || "neu") === "neu" ? "neuester zuerst" : "ältester zuerst")
-    + ' · Treffer ' + (plan.trefferNr + 1) + ' von ' + anzahl
-    + ' · ' + esc(ziel.job_number) + '</span>'
-    + (anzahl > 1
-        ? '<button type="button" class="knopf knopf--klein" id="su-zurueck" title="Umschalt + Enter">‹ Zurück</button>'
-          + '<button type="button" class="knopf knopf--klein" id="su-weiter" title="Enter">Weiter ›</button>'
-        : "")
-    + '<button type="button" class="knopf knopf--klein" id="su-ende">Suche beenden</button>';
-
-  const weiter = document.getElementById("su-weiter");
-  if (weiter) weiter.onclick = () => sucheZumTreffer(plan.trefferNr + 1, b);
-
-  // Enter springt zum nächsten Treffer, Umschalt+Enter zurück.
-  // Gilt, solange die Suche läuft und kein Fenster offen ist.
-  if (!document._suTaste) {
-    document._suTaste = true;
-    document.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" || !plan.sucheAktiv) return;
-      if (document.querySelector(".dialog-huelle")) return;
-      const a = document.activeElement;
-      if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
-      e.preventDefault();
-      sucheZumTreffer(plan.trefferNr + (e.shiftKey ? -1 : 1), plan.behaelter);
-    });
-  }
-  const zurueck = document.getElementById("su-zurueck");
-  if (zurueck) zurueck.onclick = () => sucheZumTreffer(plan.trefferNr - 1, b);
-  document.getElementById("su-ende").onclick = () => sucheBeenden();
 }
 
 // Ohne Bearbeitungsrecht öffnet ein Klick auf einen Auftrag direkt
@@ -14827,6 +14642,7 @@ Object.assign(alt, {
   masseBerechnen, isMobil, zuHeute, hocoFenster, sucheDialog, serverStempel,
   stammdatenAufPlanwand, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,
   naechsterArbeitstag, APP_VERSION,
+  sucheStarten, sucheZumTreffer, sucheBeenden, sucheAllesDaten, sucheTreffer, sucheSpringen,
   rechnerWinkel, rechnerGcode, rechnerCachse, rechnerGravur, rechnerDxf,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit
