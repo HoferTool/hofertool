@@ -3,12 +3,15 @@ from playwright.sync_api import sync_playwright
 
 # Eigener Chrome nur, wenn CHROME_PFAD gesetzt ist — sonst der von Playwright
 CH = os.environ.get("CHROME_PFAD") or None
-# Das Repository: ein Ordner über pruefstand/
+# Geprüft wird die gebaute Fassung in dist/, genau das, was auch auf
+# GitHub Pages liegt. Vorher also „npm run build" laufen lassen.
 HIER = os.path.dirname(os.path.abspath(__file__))
-WURZEL = os.path.dirname(HIER)
-PORT = 8899
+WURZEL = os.environ.get("PRUEFSTAND_WURZEL") or os.path.join(os.path.dirname(HIER), "dist")
+PORT = int(os.environ.get("PRUEFSTAND_PORT", "8899"))
 
 def server_starten():
+    if not os.path.exists(os.path.join(WURZEL, "index.html")):
+        sys.exit("dist/index.html fehlt. Zuerst im Hauptordner „npm run build“ ausführen.")
     h = functools.partial(http.server.SimpleHTTPRequestHandler, directory=WURZEL)
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), h)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
