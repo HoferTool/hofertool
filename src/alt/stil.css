@@ -4336,7 +4336,7 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
   .kopfkarte:not(.kopfkarte--geburtstag) { overflow: hidden; isolation: isolate; }
   .kopfkarte:not(.kopfkarte--geburtstag)::before {
     content: ""; position: absolute; inset: -60% -20%; z-index: -1; pointer-events: none;
-    background: radial-gradient(closest-side, rgba(120, 175, 255, .32), transparent 70%) 0 0 / 45% 100% no-repeat;
+    background: radial-gradient(closest-side, var(--licht, rgba(120, 175, 255, .32)), transparent 70%) 0 0 / 45% 100% no-repeat;
     animation: lebendig-licht 16s ease-in-out infinite alternate; }
   .kopfkarte__logo { animation: lebendig-logo .9s cubic-bezier(.16, 1, .3, 1) both; }
 
@@ -4478,3 +4478,12 @@ body.dunkel .marke { background: var(--marke); }
   .aw-knopf { padding: 5px 9px; }
 }
 body.dunkel .raster--woche td.aw-summe b { color: var(--gut); }
+
+/* Das wandernde Licht im Band der Startseite nimmt die Themenfarbe an.
+   Je Thema ein heller Ton derselben Farbe; Blau ist der Standard oben. */
+body[data-thema="rot"]     { --licht: rgba(255, 140, 128, .34); }
+body[data-thema="gruen"]   { --licht: rgba(110, 225, 160, .32); }
+body[data-thema="gelb"]    { --licht: rgba(255, 215, 105, .34); }
+body[data-thema="rosa"]    { --licht: rgba(255, 140, 205, .34); }
+body[data-thema="violett"] { --licht: rgba(190, 150, 255, .34); }
+body[data-thema="orange"]  { --licht: rgba(255, 175, 105, .34); }

@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.18.0";
+const APP_VERSION = "111.18.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -994,6 +994,26 @@ function themaAnwenden() {
   const w = themaJetzt();
   if (w === "blau") document.body.removeAttribute("data-thema");
   else document.body.setAttribute("data-thema", w);
+  fensterleisteFaerben(w);
+}
+
+// Die Leiste oben am installierten App-Fenster (Windows, Tablet) nimmt
+// ihre Farbe aus <meta name="theme-color">. Ohne das bliebe sie immer
+// blau, egal welche Themenfarbe gewählt ist. Bewusst die kräftige
+// Farbe des hellen Modus: Die hellen Töne des dunklen Modus wären mit
+// der weissen Schrift in der Leiste kaum lesbar.
+const LEISTENFARBE = {
+  blau: "#003884", rot: "#a4231c", gruen: "#1c6b42", gelb: "#8a6608",
+  rosa: "#a4256e", violett: "#5b2a9e", orange: "#9c4a0c",
+};
+function fensterleisteFaerben(thema) {
+  let m = document.querySelector('meta[name="theme-color"]');
+  if (!m) {
+    m = document.createElement("meta");
+    m.name = "theme-color";
+    document.head.appendChild(m);
+  }
+  m.setAttribute("content", LEISTENFARBE[thema] || LEISTENFARBE.blau);
 }
 
 function einstellungSetzenWert(name, wert) {
@@ -1140,6 +1160,7 @@ function zeigeLogin() {
   // Immer im gewohnten Blau, egal was die letzte Person eingestellt hatte
   document.body.classList.remove("dunkel", "nav--schmal", "rolle-extern");
   document.body.removeAttribute("data-thema");
+  fensterleisteFaerben("blau");
   einstellungenNeuLesen();
   anmeldungZeigen(WURZEL);
 }

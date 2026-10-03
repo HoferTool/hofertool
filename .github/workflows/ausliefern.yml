@@ -1,12 +1,26 @@
 # Baut die App und stellt sie auf GitHub Pages, sobald etwas auf main
 # kommt. Voraussetzung: In den Einstellungen des Repositorys unter
 # Pages steht bei „Source" der Eintrag „GitHub Actions".
+#
+# Daneben liegt unter .../hofertool/vorschau/ die Fassung aus dem
+# Zweig VORSCHAU (unten), zum Ausprobieren mit echten Daten, bevor
+# etwas live geht. Sie wird neu gebaut bei jedem Push auf main und
+# jedes Mal, wenn der Prüfstand auf diesem Zweig grün geworden ist.
+# Gibt es den Zweig nicht oder schlägt das Bauen fehl, kommt die
+# Live-App trotzdem raus, nur ohne Vorschau.
 name: Ausliefern
 
 on:
   push:
     branches: [main]
+  workflow_run:
+    workflows: ["Prüfen"]
+    types: [completed]
+    branches: [claude/project-thread-eoqlna]
   workflow_dispatch:
+
+env:
+  VORSCHAU: claude/project-thread-eoqlna
 
 permissions:
   contents: read
@@ -20,15 +34,37 @@ concurrency:
 
 jobs:
   bauen:
+    # Nach dem Prüfstand nur, wenn er grün war
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
+      # Immer main, auch wenn der Prüfstand des Vorschau-Zweigs auslöst
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build
+
+      - name: Vorschau-Zweig holen
+        id: vorschau
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || env.VORSCHAU }}
+          path: _vorschau
+      - name: Vorschau bauen
+        if: steps.vorschau.outcome == 'success'
+        continue-on-error: true
+        working-directory: _vorschau
+        run: |
+          npm ci
+          npm run build
+          mkdir -p ../dist/vorschau
+          cp -r dist/. ../dist/vorschau/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
