@@ -1,17 +1,18 @@
 // =================================================================
 //  EINSTELLUNGEN
 //  Fenster mit Reitern. Allgemein, Backup und Fehlerprotokoll sind
-//  hier in React. Dokumente, Farben und Material sowie Nutzer sind
-//  noch alt und hängen über AltTeil darin.
+//  hier, Dokumente, Farben und Material sowie Nutzer in eigenen
+//  Dateien daneben.
 //
 //  Welcher Reiter zuletzt offen war, merkt sich einst.reiter im alten
 //  Programm, damit das Fenster beim nächsten Öffnen dort weitermacht.
 // =================================================================
 import { useEffect, useState } from "react";
-import { alt, AltTeil } from "../bruecke.jsx";
+import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import Dokumente from "./Dokumente.jsx";
 import Farben from "./Farben.jsx";
+import Nutzer from "./Nutzer.jsx";
 
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["backup", "Backup"],
                 ["fehler", "Fehlerprotokoll"], ["farben", "Farben und Material", true],
@@ -42,7 +43,7 @@ function Einstellungen({ zu }) {
   else if (offen === "fehler") inhalt = <Fehlerprotokoll />;
   else if (offen === "dokumente") inhalt = <Dokumente />;
   else if (offen === "farben") inhalt = <Farben />;
-  else inhalt = <AltTeil zeichne={alt.einstNutzerZeichnen} />;
+  else inhalt = <Nutzer />;
 
   return (
     <div className="dialog dialog--breit dialog--einstellungen">
