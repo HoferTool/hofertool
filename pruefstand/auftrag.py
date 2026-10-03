@@ -24,7 +24,7 @@ with sync_playwright() as p:
     # Einen offenen Auftrag öffnen
     balken = pg.locator(".pw-balken[data-auftrag]").first
     jid = balken.get_attribute("data-auftrag")
-    balken.click(); pg.wait_for_selector(".dialog--auftrag")
+    balken.dblclick(); pg.wait_for_selector(".dialog--auftrag")
     pg.fill("#pl-von", "2026-10-05"); pg.fill("#pl-tage", "3"); pg.wait_for_timeout(100)
     if pg.input_value("#pl-bis") != "2026-10-07": fehler.append("Bis folgt Tage nicht: " + pg.input_value("#pl-bis"))
     pg.fill("#pl-bis", "2026-10-09"); pg.wait_for_timeout(100)
@@ -46,7 +46,7 @@ with sync_playwright() as p:
     if pg.locator(".dialog--auftrag").count(): fehler.append("Fenster bleibt nach Speichern offen")
 
     # Doppelte FA Nr.: Meldung, Fenster bleibt offen
-    pg.locator(f".pw-balken[data-auftrag='{jid}']").first.click(); pg.wait_for_selector(".dialog--auftrag")
+    pg.locator(f".pw-balken[data-auftrag='{jid}']").first.dblclick(); pg.wait_for_selector(".dialog--auftrag")
     pg.fill("#pl-fa-nr", "2026-9999"); pg.click("#pl-ja"); pg.wait_for_timeout(1000)
     if not pg.locator(".dialog--auftrag").count(): fehler.append("Doppelte FA Nr. schliesst das Fenster")
     if "schon bei" not in pg.evaluate("[...document.querySelectorAll('.toast')].map(t=>t.textContent).join(' ')"):
@@ -71,7 +71,7 @@ with sync_playwright() as p:
 
     # Löschen und zurücknehmen
     pg.wait_for_timeout(500)
-    pg.locator(f".pw-balken[data-auftrag='{neu['id']}']").first.click(); pg.wait_for_selector("#pl-loeschen")
+    pg.locator(f".pw-balken[data-auftrag='{neu['id']}']").first.dblclick(); pg.wait_for_selector("#pl-loeschen")
     pg.click("#pl-loeschen"); pg.wait_for_timeout(800)
     if pg.locator(".dialog-huelle [data-nein]").count():   # Lücke schliessen?
         pg.locator(".dialog-huelle [data-nein]").last.click(); pg.wait_for_timeout(800)

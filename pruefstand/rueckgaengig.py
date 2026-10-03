@@ -19,7 +19,7 @@ with sync_playwright() as p:
     # 1. Neuer Auftrag über Kopieren und Einfügen, dann Strg+Z nach Reglerbenutzung
     vorher = pg.evaluate("TEST.daten.jobs.length")
     staende = pg.evaluate("Object.fromEntries(TEST.daten.jobs.filter(j=>j.machine_id==='m-k2').map(j=>[j.id, j.planned_from]))")
-    pg.locator(".pw-balken").first.click(); pg.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(400)
+    pg.locator(".pw-balken").first.dblclick(); pg.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(400)
     pg.locator("#pl-kopieren-eigen").click(); pg.wait_for_timeout(700)
     ziel = pg.evaluate("""() => { for (const z of document.querySelectorAll('[data-zelle^="m-k2|"]')) {
         const r = z.getBoundingClientRect(); const x = r.x + r.width/2, y = r.y + r.height/2;
@@ -44,7 +44,7 @@ with sync_playwright() as p:
 
     # 2. Ändern, dann Rückgängig per Knopf
     alt = pg.evaluate("TEST.daten.jobs[0].material_bez")
-    pg.locator(".pw-balken").first.click(); pg.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(400)
+    pg.locator(".pw-balken").first.dblclick(); pg.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(400)
     jid = pg.evaluate("document.querySelector('.dialog--auftrag') && (plan => null)()")
     pg.fill("#pl-mat-bez", "CW614N rd 20"); pg.locator("#pl-ja").click(); pg.wait_for_timeout(1000)
     for _ in range(3):

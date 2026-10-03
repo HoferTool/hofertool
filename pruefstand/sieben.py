@@ -31,7 +31,7 @@ with sync_playwright() as p:
     if pg.locator(".dialog-huelle [data-nein]").count(): pg.locator(".dialog-huelle [data-nein]").last.click(); pg.wait_for_timeout(1200)
     print("Materialfenster nach dem Verschieben:", pg.locator(".dialog--material").count())
     # Auftragsfenster: keine Vorbereitung, Materialhinweis sichtbar
-    pg.locator(".pw-balken").nth(4).click(); pg.wait_for_timeout(900)
+    pg.locator(".pw-balken").nth(4).dblclick(); pg.wait_for_timeout(900)
     print("Fenster — Vorbereitung:", pg.evaluate("document.querySelector('.dialog').innerText.includes('Vorbereitung')"),
           "| Materialhinweis sichtbar:", pg.evaluate("!document.getElementById('pl-ortfeld').hidden"))
     # Löschen: höchstens die Frage nach der Lücke

@@ -17,7 +17,7 @@ with sync_playwright() as p:
     vorher = pg.evaluate("TEST.daten.jobs.length")
 
     # 1. Auftrag öffnen und kopieren
-    pg.locator(".pw-balken").first.click(); pg.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(500)
+    pg.locator(".pw-balken").first.dblclick(); pg.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(500)
     quelle = pg.evaluate("document.getElementById('pl-mat-bez') && document.getElementById('pl-mat-bez').value")
     print("Knopfreihe unten:", pg.evaluate("[...document.querySelectorAll('.dialog--auftrag .dialog__knoepfe button')].map(b=>b.textContent)"),
           "| oben noch Kopieren:", pg.evaluate("!!document.querySelector('.auf-kopf__knoepfe #pl-kopieren-eigen')"))
@@ -53,7 +53,7 @@ with sync_playwright() as p:
     print("nach Fertig:", pg.evaluate("!!document.getElementById('einfuege-leiste')"))
 
     # 4. Zurück-Taste: Fenster zu, Seite bleibt; zweites Zurück wechselt die Seite
-    pg.locator(".pw-balken").first.click(); pg.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(400)
+    pg.locator(".pw-balken").first.dblclick(); pg.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(400)
     pg.go_back(); pg.wait_for_timeout(900)
     print("Zurück bei offenem Fenster:", pg.evaluate("location.hash"), "| Fenster:", pg.evaluate("document.querySelectorAll('.dialog-huelle').length"))
     pg.go_back(); pg.wait_for_timeout(900)

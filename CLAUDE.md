@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.21.1 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.22.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -98,7 +98,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 
 ## Wichtige Entscheidungen — nicht ohne Rückfrage ändern
 
-- **Planwand:** lädt alles Offene, alles Zukünftige und fest ein Jahr zurück. Älteres kommt nach, wenn man mit dem Zeitregler zurückfährt. Taste **H** und Knopf **Heute** springen auf den Montag vor zwei Wochen. Escape schliesst Fenster. Beim Verschieben weichen andere Aufträge aus, abgeschlossene werden nie verschoben. Danach kommt die Frage „Lücke lassen?". Löschen fragt nicht nach.
+- **Planwand:** lädt alles Offene, alles Zukünftige und fest ein Jahr zurück. Älteres kommt nach, wenn man mit dem Zeitregler zurückfährt. Taste **H** und Knopf **Heute** springen auf den Montag vor zwei Wochen. Escape schliesst Fenster. Ein Klick auf einen Balken zeigt die Zeichnung, Doppelklick (Doppeltipp) öffnet das Auftragsfenster (Wunsch 3. Oktober 2026). Beim Verschieben weichen andere Aufträge aus, abgeschlossene werden nie verschoben. Danach kommt die Frage „Lücke lassen?". Löschen fragt nicht nach.
 - **Balken:** Farbe = Werkstoff. Das Zeichen vorne zeigt den Zustand: ○ geplant, 🔧 rüsten, 🔍 QS, ▶ läuft, ✔ fertig. Ein roter Punkt ● bei „geplant" heisst: keine Materialmenge eingetragen.
 - **Auftragsfenster:** keine Häkchen „FA erstellt" oder „Material da" mehr. In der Vorschau steht die FA Nr. oder „Kein FA vorhanden".
 - **Suche auf der Planwand:** Reihenfolge „Neuester / Ältester Auftrag zuerst", Weiter und Zurück in der Leiste unten.

@@ -24,7 +24,7 @@ with sync_playwright() as p:
         # aufräumen, falls offen geblieben
         for _ in range(3):
             if pg.evaluate(zaehlen): pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
-    probe("Auftrag", lambda: pg.locator(".pw-balken").first.click())
+    probe("Auftrag", lambda: pg.locator(".pw-balken").first.dblclick())
     probe("HOCO Nr.", lambda: pg.locator("#pw-hoco").click())
     probe("Suchen (Planwand)", lambda: pg.locator("#pw-suchen, [id*=suche]").first.click() if pg.locator("#pw-suchen").count() else None)
     probe("Suche über alles", lambda: pg.keyboard.press("Control+k"))

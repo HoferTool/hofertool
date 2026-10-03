@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.21.1";
+const APP_VERSION = "111.22.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4357,10 +4357,41 @@ function balkenAnsehenVerhalten() {
       const j = (plan.auftraege || []).find((x) => x.id === el.dataset.auftrag);
       if (!j) return;
       if (plan.sucheAktiv) sucheBeenden();
-      if (j.drawing_url) betrachter(j.drawing_url, "Zeichnung " + j.job_number, true);
-      else meldung("Zu " + j.job_number + " ist keine Zeichnung hinterlegt.", "warn");
+      balkenZeichnung(j);
     };
   });
+}
+
+function balkenZeichnung(j) {
+  if (j.drawing_url) betrachter(j.drawing_url, "Zeichnung " + j.job_number, true);
+  else meldung("Zu " + j.job_number + " ist keine Zeichnung hinterlegt.", "warn");
+}
+
+// Wer planen darf: Ein Klick auf den Balken zeigt die Zeichnung, wie
+// für alle anderen. Ein Doppelklick, am Tablet Doppeltipp, öffnet das
+// Auftragsfenster (Wunsch 3. Oktober 2026). Darum wartet der einzelne
+// Klick kurz, ob noch ein zweiter kommt — sonst läge der Betrachter
+// schon über dem Balken. Gemerkt wird in plan statt am Balken, weil
+// der stille Abgleich den Balken zwischen zwei Klicks neu zeichnen kann.
+const DOPPELKLICK_MS = 320;
+function balkenKlick(auftrag, b) {
+  const w = plan.klickWarten;
+  if (w) clearTimeout(w.zeit);
+  plan.klickWarten = null;
+  if (w && w.id === auftrag.id) {
+    // Der Doppelklick markiert sonst Text auf dem Balken
+    const auswahl = window.getSelection && window.getSelection();
+    if (auswahl) auswahl.removeAllRanges();
+    planAuftragDialog(auftrag, b);
+    return;
+  }
+  plan.klickWarten = { id: auftrag.id, zeit: setTimeout(() => {
+    plan.klickWarten = null;
+    // Inzwischen ist vielleicht ein Fenster offen (Taste, Suche) —
+    // dann nicht noch den Betrachter darüberlegen
+    if (document.querySelector(".dialog-huelle")) return;
+    balkenZeichnung((plan.auftraege || []).find((x) => x.id === auftrag.id) || auftrag);
+  }, DOPPELKLICK_MS) };
 }
 
 // Den Zustand (Geplant/Rüsten/QS Check/Läuft/Fertig) darf jeder
@@ -5719,7 +5750,7 @@ function balkenVerhalten(b) {
         }
         // Ein Klick beendet eine laufende Suche
         if (plan.sucheAktiv) sucheBeenden();
-        planAuftragDialog(auftrag, b);
+        balkenKlick(auftrag, b);
         return;
       }
       if (!ziel) { meldung("Kein Ziel getroffen. Nichts geändert.", "warn"); return; }
