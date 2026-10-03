@@ -104,7 +104,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.13.0";
+const APP_VERSION = "111.14.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7075,199 +7075,7 @@ function auswahlSuchen(titel, optionen, mindestens) {
   });
 }
 
-async function positionDialog(b) {
-  const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle";
-  huelle.innerHTML = '<div class="dialog"><h2>Neue Bestellposition</h2>'
-    + '<div class="suchleiste">'
-    + '<input type="text" id="pd-such" placeholder="Suchen" autocomplete="off">'
-    + '</div>'
-    + '<div id="pd-treffer" class="pd-treffer"></div>'
-    + '<div id="pd-rest" hidden>'
-    + '<div class="pd-gewaehlt" id="pd-gewaehlt"></div>'
-    + '<div class="zeitraumwahl">'
-    + '<label class="feld"><span>Menge</span>'
-    + '<input id="pd-menge" type="number" min="1" step="1" value="1"></label>'
-    + '<label class="feld"><span>Bis wann</span><input id="pd-frist" type="date"></label>'
-    + '</div>'
-    + '<div class="feld"><span class="feldlabel">Wohin nach dem Eintreffen</span>'
-    + '<div class="moduswahl" id="pd-zielwahl">'
-    // Lager ist der Normalfall und deshalb vorgewählt. Es wird nicht
-    // verbucht, sondern steht wie jedes andere Ziel in der Historie.
-    + '<button type="button" class="moduswahl__knopf aktiv" data-ziel="lager">Lager</button>'
-    + '<button type="button" class="moduswahl__knopf" data-ziel="maschine">Maschine</button>'
-    + '<button type="button" class="moduswahl__knopf" data-ziel="person">Person</button>'
-    + '<button type="button" class="moduswahl__knopf" data-ziel="andere">Anderes</button>'
-    + '</div>'
-    + '<select id="pd-zielauswahl" class="auswahl" hidden></select>'
-    + '<input type="text" id="pd-zielfrei" hidden>'
-    + '</div>'
-
-    + '<label class="feld"><span>Notiz</span>'
-    + '<textarea id="pd-notiz" rows="2"></textarea></label>'
-    + '</div>'
-    + '<div class="dialog__knoepfe">'
-    + '<button class="knopf knopf--still" id="pd-nein">Abbrechen</button>'
-    + '<button class="knopf knopf--haupt" id="pd-ja" disabled>Hinzufügen</button>'
-    + '</div></div>';
-  document.body.appendChild(huelle);
-
-  const $ = (kennung) => huelle.querySelector("#" + kennung);
-
-  // Ziel der Lieferung
-  let zielArt = "lager";
-  const zielAuswahl = $("pd-zielauswahl");
-  const zielFrei = $("pd-zielfrei");
-
-  const zielFuellen = async () => {
-    zielAuswahl.hidden = true;
-    zielFrei.hidden = true;
-    if (zielArt === "lager") return;      // Lager braucht keine weitere Angabe
-
-    if (zielArt === "maschine") {
-      zielAuswahl.hidden = false;
-      const liste = best.alleMaschinen || [];
-      zielAuswahl.innerHTML = '<option value="">'
-        + (liste.length ? "Maschine wählen" : "Wird geladen …") + '</option>'
-        + liste.map((m) => '<option value="' + esc(maschineZielText(m)) + '">'
-            + esc(m.name) + (m.machine_number ? " · " + esc(m.machine_number) : "")
-            + '</option>').join("");
-
-      if (!liste.length) {
-        try {
-          best.alleMaschinen = await ladeAlleMaschinen();
-          zielFuellen();
-        } catch (f) { meldung(fehlertext(f), "fehler"); }
-      }
-      return;
-    }
-
-    if (zielArt === "person") {
-      zielAuswahl.hidden = false;
-      zielAuswahl.innerHTML = '<option value="">Wird geladen …</option>';
-      try {
-        const a = await db.from("profiles").select("full_name, email")
-          .eq("is_active", true).order("full_name");
-        const namen = (a.data || []).map((u) => u.full_name || u.email);
-        try {
-          const c = await db.from("people").select("name").order("name");
-          (c.data || []).forEach((m) => namen.push(m.name));
-        } catch (f) { /* Tabelle gibt es vielleicht nicht */ }
-
-        zielAuswahl.innerHTML = '<option value="">Person wählen</option>'
-          + namen.sort().map((n) => '<option value="' + esc(n) + '">'
-              + esc(n) + '</option>').join("");
-      } catch (f) {
-        zielAuswahl.innerHTML = '<option value="">Konnte nicht geladen werden</option>';
-      }
-      return;
-    }
-
-    if (zielArt === "andere") { zielFrei.hidden = false; zielFrei.focus(); }
-  };
-
-  huelle.querySelectorAll("[data-ziel]").forEach((k) => {
-    k.onclick = () => {
-      zielArt = k.dataset.ziel;
-      huelle.querySelectorAll("[data-ziel]").forEach((x) =>
-        x.classList.toggle("aktiv", x === k));
-      zielFuellen();
-    };
-  });
-  // Ohne Lager ist Maschine der Ausgangspunkt — die Auswahl gleich zeigen
-  zielFuellen();
-
-  let gewaehlt = null;
-  const zu = () => huelle.remove();
-  $("pd-nein").onclick = zu;
-  dialogSchliessen(huelle, zu);
-
-  const feld = $("pd-such");
-  const trefferBox = $("pd-treffer");
-  feld.focus();
-
-  const suchen = async () => {
-    const t = feld.value.trim();
-    if (t.length < 1) { trefferBox.innerHTML = ""; return; }
-    trefferBox.innerHTML = '<div class="laedt">Wird gesucht …</div>';
-    try {
-      const liste = await sucheArtikel(t);
-      trefferBox.innerHTML = (liste.length
-        ? liste.slice(0, 8).map((a) => '<button class="pd-zeile" data-w="' + esc(a.id) + '">'
-            + '<strong>' + esc(a.article_number) + '</strong> ' + esc(a.name)
-            + '<span class="klein"> ' + esc(a.supplier_name || "ohne Lieferant") + '</span>'
-            + '</button>').join("")
-        : '<p class="hinweis">Kein Artikel gefunden.</p>')
-        + (darfSchreiben()
-            ? '<button class="pd-zeile pd-zeile--neu" data-neuartikel>'
-              + '+ Artikel "' + esc(t) + '" neu anlegen</button>' : "");
-
-      const neuArt = trefferBox.querySelector("[data-neuartikel]");
-      if (neuArt) neuArt.onclick = async () => {
-        const a = await artikelSchnellAnlegen(feld.value.trim());
-        if (!a) return;
-        gewaehlt = a;
-        trefferBox.innerHTML = "";
-        feld.value = "";
-        $("pd-rest").hidden = false;
-        $("pd-gewaehlt").innerHTML =
-          '<strong>' + esc(a.article_number) + '</strong> ' + esc(a.name)
-          + '<div class="klein">Lieferant: ' + esc(a.supplier_name || "keiner hinterlegt") + '</div>';
-        $("pd-ja").disabled = false;
-        $("pd-menge").focus();
-      };
-
-      trefferBox.querySelectorAll("[data-w]").forEach((el) => {
-        el.onclick = () => {
-          gewaehlt = liste.find((x) => x.id === el.dataset.w);
-          trefferBox.innerHTML = "";
-          feld.value = "";
-          $("pd-rest").hidden = false;
-          $("pd-gewaehlt").innerHTML =
-            '<strong>' + esc(gewaehlt.article_number) + '</strong> ' + esc(gewaehlt.name)
-            + '<div class="klein">Lieferant: ' + esc(gewaehlt.supplier_name || "keiner hinterlegt")
-            + ' · Bestand ' + zahlText(gewaehlt.gesamtbestand) + '</div>';
-          $("pd-ja").disabled = false;
-          $("pd-menge").focus();
-        };
-      });
-    } catch (f) { trefferBox.innerHTML = '<p class="hinweis">' + esc(fehlertext(f)) + '</p>'; }
-  };
-
-  let taste = null;
-  feld.oninput = () => { clearTimeout(taste); taste = setTimeout(suchen, 300); };
-  feld.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(taste); suchen(); } };
-
-  $("pd-ja").onclick = async () => {
-    if (!gewaehlt) return;
-    const menge = Math.round(Number($("pd-menge").value));
-    if (!Number.isFinite(menge) || menge < 1) { meldung("Menge muss mindestens 1 sein.", "warn"); return; }
-
-    // Ziel zusammensetzen
-    let zielText = "";
-    if (zielArt === "lager") zielText = "Lager";
-    else if (zielArt === "andere") zielText = (zielFrei.value || "").trim();
-    else zielText = zielAuswahl.value || "";
-
-    if (!zielText) {
-      meldung("Bitte noch angeben, wohin die Lieferung soll.", "warn");
-      return;
-    }
-
-    const { error } = await db.from("order_items").insert({
-      article_id: gewaehlt.id,
-      supplier_id: gewaehlt.supplier_id || null,
-      quantity: menge,
-      needed_by: $("pd-frist").value || null,
-      note: ($("pd-notiz").value || "").trim() || null,
-      ziel_art: zielArt,
-      ziel_text: zielText,
-    });
-
-    if (error) meldung(fehlertext(error), "fehler");
-    else { zu(); meldung("Position hinzugefügt."); seiteBestellungen(b); }
-  };
-}
+// Das Fenster „Neue Bestellposition“ ist src/seiten/bestellungen/PositionFenster.jsx.
 
 // ---------- Historie ----------
 
@@ -7540,7 +7348,9 @@ function bestellungDrucken(lieferant, posten) {
     "* { box-sizing: border-box; }",
     "body { margin: 0; font-family: Calibri, 'Segoe UI', system-ui, Arial, sans-serif;",
     "       color: #1a1a1a; font-size: 12pt; line-height: 1.45; background: #e8eaed;",
-    "       -webkit-print-color-adjust: exact; print-color-adjust: exact; }",
+    "       -webkit-print-color-adjust: exact; print-color-adjust: exact;",
+    // Das iPhone vergrössert sonst Fliesstext in breiten Blöcken von selbst
+    "       -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }",
     ".blatt { width: 210mm; min-height: 297mm; margin: 8mm auto; background: #fff;",
     "         padding-bottom: 20mm; box-shadow: 0 2px 12px rgba(0,0,0,.15); overflow: hidden; }",
 
@@ -7571,9 +7381,10 @@ function bestellungDrucken(lieferant, posten) {
     "th.m, td.m { text-align: right; width: 32mm; }",
     "td { font-size: 10.5pt; padding: 2.2mm 1mm; border-bottom: .4pt solid #e3e7ec; }",
 
-    ".bitte { font-size: 13pt; margin-bottom: 12mm; line-height: 1.6; }",
+    // Gleich gross wie die Angaben oben (Wunsch 3. Oktober 2026)
+    ".bitte { font-size: 12pt; margin-bottom: 12mm; line-height: 1.6; }",
 
-    ".gruss { font-size: 13pt; line-height: 1.6; }",
+    ".gruss { font-size: 12pt; line-height: 1.6; }",
     ".signatur { min-height: 18mm; margin: 4mm 0 1mm; display: flex; align-items: flex-end; }",
     ".signatur img { height: 16mm; width: auto; display: block; }",
     ".signatur .ersatz { font-family: 'Alex Brush', 'Segoe Script', 'Snell Roundhand', cursive;",
@@ -8025,7 +7836,7 @@ Object.assign(alt, {
   ladeZaehlerstaende, speichereStand, wochenStart, plusTage, wochentagName, WT_KURZ,
   PLANSTATUS, zustandSetzen, einrichtblattPdfOeffnen, BESTELLSTATUS,
   ladeBestellungen, stammVergessen, statusDaten, statusZeit, statusZeitText,
-  bestStatusDialog, bestellungDrucken, positionDialog, artikelBearbeiten,
+  bestStatusDialog, bestellungDrucken, artikelBearbeiten,
   ladeAlleMaschinen, maschineZielText, doppeltNachfragen, parallelSenden,
   aendernOhneUnbekannte, zielZeichen, kurzDatum, zahlText, isoDatum,
   fortschrittRechnen, planAuftragDialog, dreiNachfragen, ladeTypen,

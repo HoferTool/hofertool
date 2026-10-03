@@ -5,6 +5,7 @@
 //  „Bestellt“. Die Suche filtert sofort, ohne neu zu laden.
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
+import { positionOeffnen } from "./PositionFenster.jsx";
 
 const BLOECKE = {
   bestellt: [{ status: "bestellt", titel: "Bestellt" },
@@ -53,7 +54,7 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
           Teilweise geliefert wäre der Knopf nur verwirrend. */}
       {schreiben && bereich === "offen" &&
         <button className="knopf knopf--haupt knopf--breit" id="b-neu"
-          onClick={() => alt.positionDialog(behaelter)}>+ Neue Position</button>}
+          onClick={() => positionOeffnen(neu)}>+ Neue Position</button>}
 
       {BLOECKE[bereich].map((bl) => (
         <Block key={bl.status} block={bl} posten={gefiltert.filter((z) => z.status === bl.status)}

@@ -23,7 +23,7 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
   - `index.html` ist nur noch das Gerüst, das `src/main.jsx` lädt.
   - `src/alt/app.js` und `src/alt/stil.css` sind das bisherige Programm und die bisherige Gestaltung. Darin stecken noch die Planwand-Tafel (`zeichnePlanwand` mit Ziehen, Griffen und Wischen; sie bleibt bewusst das bewährte Zeichenprogramm), die Erkennung und das Hochladen von Dokumenten, Druckblätter und viele Helfer.
   - In React neu gebaut:
-    - `src/seiten/`: Startseite, Bestellungen, Einkauf, Rechner-Reiter Drehzahl, Winkel, G-Code, C-Achse, Gravur und DXF (Vor- und Nachspann gemeinsam in `rechner/kopf.jsx`, Linienzüge in `rechner/geometrie.js`), Produktion (Erfassen, Fortschritt, Maschinenparks, Maschinentypen), Planwand-Seite mit Kopfleiste.
+    - `src/seiten/`: Startseite, Bestellungen (mit Fenster „Neue Position“), Einkauf, Rechner-Reiter Drehzahl, Winkel, G-Code, C-Achse, Gravur und DXF (Vor- und Nachspann gemeinsam in `rechner/kopf.jsx`, Linienzüge in `rechner/geometrie.js`), Produktion (Erfassen, Fortschritt, Maschinenparks, Maschinentypen), Planwand-Seite mit Kopfleiste.
     - `src/huelle/`: Anmeldung, Kopfzeile und Navigation, Suche über alles.
     - `src/planwand/`: Auftragsfenster, Suche auf der Planwand, Ferienfenster, HOCO-Fenster.
     - `src/hoco/`: HOCO Nummern (Ordner, Suche, einzelnes Teil).

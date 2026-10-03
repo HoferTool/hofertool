@@ -4273,3 +4273,8 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
   z-index: 99999; pointer-events: none; padding: 4px 12px; border-radius: 999px;
   background: #b45309; color: #fff; font: 700 12px/1.4 system-ui, sans-serif;
   letter-spacing: .06em; text-transform: uppercase; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+
+/* Die Heute-Linie läuft beim seitlichen Schieben (Handy) unter den
+   Maschinennamen durch, nicht darüber. Die Namen stehen fest am Rand
+   und müssen lesbar bleiben. */
+.pw-tafel > .pw-zeile > .pw-name { z-index: 5; }
