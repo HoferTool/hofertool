@@ -4499,6 +4499,11 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 }
 /* Das Wetter steht auf der blauen Kopfkarte: grau war dort kaum lesbar */
 #wetter .klein { color: inherit; opacity: .8; }
+
+/* Die Heute-Linie läuft beim seitlichen Schieben (Handy) unter den
+   Maschinennamen durch, nicht darüber. Die Namen stehen fest am Rand
+   und müssen lesbar bleiben. */
+.pw-tafel > .pw-zeile > .pw-name { z-index: 5; }
 </style>
 </head>
 <body>
@@ -4587,7 +4592,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.13.1";
+const APP_VERSION = "111.13.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -21239,7 +21244,9 @@ function bestellungDrucken(lieferant, posten) {
     "* { box-sizing: border-box; }",
     "body { margin: 0; font-family: Calibri, 'Segoe UI', system-ui, Arial, sans-serif;",
     "       color: #1a1a1a; font-size: 12pt; line-height: 1.45; background: #e8eaed;",
-    "       -webkit-print-color-adjust: exact; print-color-adjust: exact; }",
+    "       -webkit-print-color-adjust: exact; print-color-adjust: exact;",
+    // Das iPhone vergrössert sonst Fliesstext in breiten Blöcken von selbst
+    "       -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }",
     ".blatt { width: 210mm; min-height: 297mm; margin: 8mm auto; background: #fff;",
     "         padding-bottom: 20mm; box-shadow: 0 2px 12px rgba(0,0,0,.15); overflow: hidden; }",
 
@@ -21270,9 +21277,10 @@ function bestellungDrucken(lieferant, posten) {
     "th.m, td.m { text-align: right; width: 32mm; }",
     "td { font-size: 10.5pt; padding: 2.2mm 1mm; border-bottom: .4pt solid #e3e7ec; }",
 
-    ".bitte { font-size: 13pt; margin-bottom: 12mm; line-height: 1.6; }",
+    // Gleich gross wie die Angaben oben (Wunsch 3. Oktober 2026)
+    ".bitte { font-size: 12pt; margin-bottom: 12mm; line-height: 1.6; }",
 
-    ".gruss { font-size: 13pt; line-height: 1.6; }",
+    ".gruss { font-size: 12pt; line-height: 1.6; }",
     ".signatur { min-height: 18mm; margin: 4mm 0 1mm; display: flex; align-items: flex-end; }",
     ".signatur img { height: 16mm; width: auto; display: block; }",
     ".signatur .ersatz { font-family: 'Alex Brush', 'Segoe Script', 'Snell Roundhand', cursive;",
