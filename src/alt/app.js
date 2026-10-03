@@ -24,6 +24,7 @@ import { sucheOeffnen } from "../huelle/SucheAlles.jsx";
 import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
 import { ferienDialog } from "../planwand/FerienFenster.jsx";
 import { hocoFenster } from "../planwand/HocoFenster.jsx";
+import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -261,6 +262,10 @@ function dialogSchliessen(huelle, zu) {
       document.removeEventListener("keydown", taste);
       return;
     }
+    // Die zentrale Behandlung oben hat schon das oberste Fenster
+    // geschlossen. Liegt dieses darunter, bleibt es offen — sonst
+    // schloss Escape in einem Unterfenster gleich beide.
+    if (e.defaultPrevented) return;
     e.preventDefault();
     document.removeEventListener("keydown", taste);
     zu();
@@ -3724,6 +3729,9 @@ const BESTELLMAIL_VORGABE = "Guten Tag\n\n"
   + "Alte Bernstrasse 24, CH-4573 Lohn-Ammannsegg\n"
   + "Tel. 032 677 55 77";
 let BESTELLMAIL_TEXT = BESTELLMAIL_VORGABE;
+// Für das Einstellungsfenster in React
+function bestellmailText() { return BESTELLMAIL_TEXT || BESTELLMAIL_VORGABE; }
+function bestellmailSetzen(wert) { BESTELLMAIL_TEXT = wert || BESTELLMAIL_VORGABE; }
 
 // Die zwei Logos unten in jeder Bestellmail, je mit Link. Die Bilder
 // stecken in der Mail selbst — Outlook zeigt sie sofort, ohne
@@ -11965,32 +11973,7 @@ async function lieferantDialog(lieferant, b) {
 
 // Öffnet die Einstellungen als Fenster, ohne die Seite dahinter zu
 // verlassen. Egal auf welchem Reiter man gerade ist.
-function einstellungenOeffnen() {
-  if (document.querySelector(".dialog--einstellungen")) return;
-
-  const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle";
-  huelle.innerHTML = '<div class="dialog dialog--breit dialog--einstellungen">'
-    + '<div id="es-inhalt"></div></div>';
-  document.body.appendChild(huelle);
-  plan.imDialog = true;
-
-  const zu = () => { plan.imDialog = false; huelle.remove(); };
-  dialogSchliessen(huelle, zu);
-
-  seiteEinstellungen(huelle.querySelector("#es-inhalt"));
-
-  // X neben den Abmelden-Knopf setzen, statt schwebend darüber
-  const kopfzeile = huelle.querySelector(".einstellungenkopf");
-  if (kopfzeile) {
-    const x = document.createElement("button");
-    x.className = "dialog__schliessen-inline";
-    x.title = "Schliessen";
-    x.textContent = "✕";
-    x.onclick = zu;
-    kopfzeile.appendChild(x);
-  }
-}
+// Das Einstellungsfenster ist in src/einstellungen/Einstellungen.jsx.
 
 // Farben den Materialien zuordnen. Jede Farbe der Palette bekommt
 // ein Feld für das Material und eines für das Kürzel. Leeres
@@ -12180,142 +12163,10 @@ async function farbListeZeichnen() {
 // Welcher Reiter in den Einstellungen offen ist
 const einst = { reiter: "allgemein" };
 
-function teilBackup() {
-  return '<section class="karte"><div class="karte__kopf"><h2>Planwand als Excel</h2></div>'
-    + '<p class="hinweis">Alle Aufträge der Planwand mit Maschine, Zeitraum, Zustand, '
-    + 'Stückzahl, Material und Notiz als Tabelle — zum Ansehen, Weitergeben oder Aufheben. '
-    + 'Ein zweites Blatt enthält die Maschinen.</p>'
-    + '<button class="knopf knopf--haupt" id="bk-excel">Excel herunterladen</button>'
-    + '</section>'
-    + '<section class="karte"><div class="karte__kopf"><h2>Sicherung der Datenbank</h2></div>'
-    + '<p class="hinweis">Die vollständige Sicherung macht Supabase mit dem Pro-Plan jeden Tag '
-    + 'selbst, dazu kommt die Sicherung auf eurem Server mit <code>sicherung.ps1</code>. '
-    + 'Die Excel-Datei oben ersetzt sie nicht, sie ist ein Stand zum Lesen.</p>'
-    + '</section>';
-}
-
-function teilFehlerprotokoll() {
-  const liste = fehlerLesen().slice().reverse();
-  return '<section class="karte"><div class="karte__kopf">'
-    + '<h2>Fehlerprotokoll</h2>'
-    + '<span class="klein">' + liste.length + ' Einträge auf diesem Gerät</span>'
-    + '<div class="karte__aktionen">'
-    + (liste.length ? '<button class="knopf knopf--klein" id="fp-datei">Als Datei herunterladen</button>'
-        + '<button class="linkknopf linkknopf--gefahr" id="fp-leeren">Leeren</button>' : "")
-    + '</div></div>'
-    + (liste.length
-        ? '<p class="hinweis">Die Datei kannst du mir schicken, statt Screenshots zu machen. '
-          + 'Jedes Gerät führt sein eigenes Protokoll.</p>'
-          + '<div class="tabellenrolle"><table class="tabelle fp-tabelle"><thead><tr>'
-          + '<th>Zeit</th><th>Seite</th><th>Person</th><th>Meldung</th></tr></thead><tbody>'
-          + liste.map((e) => '<tr>'
-              + '<td class="klein nowrap">' + esc(datumZeitKurz(e.zeit)) + '</td>'
-              + '<td class="klein">' + esc(e.seite || "") + '</td>'
-              + '<td class="klein">' + esc(e.person || "") + '</td>'
-              + '<td>' + (e.art === "Programmfehler" ? '<span class="marke marke--warn">intern</span> ' : "")
-              + esc(e.text || "")
-              + (e.zusatz ? '<div class="klein gedaempft">' + esc(e.zusatz) + '</div>' : "")
-              + '</td></tr>').join("")
-          + '</tbody></table></div>'
-        : '<p class="hinweis">Keine Fehler aufgezeichnet. So soll es sein.</p>')
-    + '</section>';
-}
-
-async function seiteEinstellungen(b) {
-  const ich = profil || {};
-  const bin = istAdmin();
-
-  // Nur Reiter, für die man die Rechte hat. War zuletzt einer offen,
-  // den diese Person nicht sehen darf — etwa weil vorher ein Admin
-  // am selben Gerät angemeldet war —, geht es auf den ersten zurück.
-  const erlaubt = ["allgemein", "dokumente", "backup", "fehler"]
-    .concat(bin ? ["farben", "nutzer"] : []);
-  if (erlaubt.indexOf(einst.reiter) === -1) einst.reiter = erlaubt[0];
-
-  // Die Seite wird sofort aufgebaut. Die Benutzerliste kommt danach,
-  // damit hier nie mehr etwas hängen bleibt.
-  // Jeder Reiter baut sein Markup in einer eigenen Funktion auf,
-  // damit die einzelnen Blöcke unverändert und in sich gültig bleiben.
-  const teilAllgemein = () =>     '<section class="karte"><h2>Mein Konto</h2>'
-    + '<div class="kontokopf">'
-    + (ich.bild_url
-        ? '<img class="profilbild-gross" src="' + esc(ich.bild_url) + '" alt="">'
-        : '<span class="profilbild-gross kopf__bild--leer">'
-          + esc(((ich.full_name || ich.email) || "?").charAt(0).toUpperCase()) + '</span>')
-    + '<label class="knopf bildknopf">Bild wählen'
-    + '<input type="file" id="mk-datei" accept="image/*" hidden></label>'
-    + '</div>'
-    + '<label class="feld"><span>Anzeigename</span>'
-    + '<input type="text" id="mn" value="' + esc(ich.full_name || "") + '"></label>'
-    + '<button class="knopf" id="ns">Name speichern</button>'
-    + '<label class="feld feld--abstand"><span>Geburtstag</span>'
-    + '<input type="date" id="mk-geburtstag" value="' + esc(ich.geburtstag || "") + '">'
-    + '<span class="feldhinweis">Erscheint auf der Startseite, wenn er in den '
-    + 'nächsten zwei Wochen ansteht.</span></label>'
-    + '<label class="feld feld--abstand"><span>Neues Passwort</span>'
-    + '<input type="password" id="np" autocomplete="new-password"'
-    + '></label>'
-    + '<button class="knopf" id="ps">Passwort ändern</button>'
-    + '<label class="feld feld--abstand"><span>PIN statt Passwort</span>'
-    + '<input type="password" id="mk-pin" inputmode="numeric" pattern="[0-9]*" maxlength="8"'
-    + ' autocomplete="new-password" placeholder="4 bis 8 Ziffern"></label>'
-    + '<label class="feld"><span>PIN wiederholen</span>'
-    + '<input type="password" id="mk-pin2" inputmode="numeric" pattern="[0-9]*" maxlength="8"'
-    + ' autocomplete="new-password"></label>'
-    + '<button class="knopf" id="mk-pinknopf">PIN speichern</button>'
-    + '<p class="hinweis">Danach tippst du auf deine Kachel und gibst die PIN ein. Das '
-    + 'bisherige Passwort gilt nicht mehr. Nach 5 falschen Versuchen ist das Konto '
-    + '5 Minuten gesperrt. 6 Ziffern sind deutlich sicherer als 4.</p>'
-    + (ich.ohne_passwort
-        ? '<button class="linkknopf" id="mk-pinweg">PIN entfernen und wieder mit Passwort anmelden</button>'
-        : "")
-    + '</section>'
-    + '<section class="karte"><h2>Darstellung</h2>'
-    + '<p class="hinweis">Die Themenfarbe gilt überall — Menü, Knöpfe, '
-    + 'Planwand und Pad Mode.</p>'
-    + '<div class="themawahl">'
-    + [["blau", "Blau"], ["rot", "Rot"], ["gruen", "Grün"], ["gelb", "Gelb"],
-       ["rosa", "Rosa"], ["violett", "Violett"], ["orange", "Orange"]]
-      .map(([w, tt]) => '<button type="button" class="themaknopf themaknopf--' + w
-        + (themaJetzt() === w ? " aktiv" : "") + '" data-thema="' + w + '">'
-        + '<span class="themaknopf__punkt"></span>' + tt + '</button>').join("")
-    + '</div>'
-    + '<label class="schalter"><input type="checkbox" id="e-dunkel"'
-    + (einstellung("dunkel") ? " checked" : "") + '>'
-    + '<span>Dunkler Modus</span></label>'
-    + '<label class="schalter"><input type="checkbox" id="e-wochenende"'
-    + (einstellung("wochenende") ? " checked" : "") + '>'
-    + '<span>Samstag und Sonntag in der Wochenansicht zeigen</span></label>'
-    + '<label class="schalter"><input type="checkbox" id="e-wochestart"'
-    + (einstellung("wochestart") ? " checked" : "") + '>'
-    + '<span>Erfassung immer mit der Wochenansicht öffnen</span></label>'
-    + '<label class="schalter"><input type="checkbox" id="e-angemeldet"'
-    + (einstellung("angemeldetbleiben") ? " checked" : "") + '>'
-    + '<span>Angemeldet bleiben — nicht nach fünf Minuten abmelden</span></label>'
-    + '<p class="hinweis">Gilt überall, wo du dich anmeldest. Ohne Haken meldet sich die '
-    + 'App nach fünf Minuten ohne Bedienung selbst ab.</p></section>'
-
-    + (bin
-      ? '<section class="karte"><h2>Pin für die Planwand</h2>'
-        + '<p class="hinweis">Wer die Rolle Planwand hat, schaltet damit das '
-        + 'Bearbeiten frei. Gilt für alle.</p>'
-        + '<label class="feld"><span>Pin</span>'
-        + '<input type="text" id="pin-feld" inputmode="numeric"></label>'
-        // Text der Bestellmail
-        + '<label class="feld"><span>Text für Bestellmails</span>'
-        + '<textarea id="bestellmail-feld" rows="9"></textarea>'
-        + '<span class="feldhinweis">Steht in jeder Bestellmail über dem PDF. '
-        + '{datum}, {name} und {lieferant} werden ersetzt.</span></label>'
-        + '<div class="knopfreihe"><button class="knopf knopf--klein" id="bestellmail-speichern">Text speichern</button>'
-        + '<button class="linkknopf" id="bestellmail-vorgabe">Vorgabe wiederherstellen</button></div>'
-        + '<button class="knopf" id="pin-speichern">Pin speichern</button></section>'
-      : "")
-    + '<section class="karte"><h2>Über die App</h2>'
-    + '<p class="klein">Version ' + esc(APP_VERSION) + ' · angemeldet als '
-    + esc(ich.email || "")
-    + ' · <span id="dateistand">Dateistand wird geprüft …</span></p></section>';
-
-  const teilFarben = () =>
+// Die Reiter „Farben und Material“ und „Nutzer“ sind noch alt und
+// hängen über AltTeil im Einstellungsfenster (src/einstellungen/).
+function einstFarbenZeichnen(ziel) {
+  ziel.innerHTML =
     '<section class="karte"><h2>Farben und Material</h2>'
     + '<p class="hinweis">Nur Farben mit einem Material erscheinen im '
     + 'Auftragsfenster. Das Kürzel steht auf dem Balken — mehrere Angaben '
@@ -12330,8 +12181,12 @@ async function seiteEinstellungen(b) {
     + 'eine andere wählt.</p>'
     + '<div id="werkstoffliste"><div class="laedt">Wird geladen …</div></div>'
     + '</section>';
+  farbListeZeichnen();
+  werkstoffListeZeichnen();
+}
 
-  const teilNutzer = () =>
+function einstNutzerZeichnen(ziel) {
+  ziel.innerHTML =
     '<section class="karte"><h2>Benutzer mit Login</h2>'
     + '<div id="benutzerliste"><div class="laedt">Wird geladen …</div></div>'
     + '<div class="rollenhilfe">'
@@ -12363,256 +12218,17 @@ async function seiteEinstellungen(b) {
     + 'Geburtstag aber auf der Startseite erscheinen soll.</p>'
     + '<div id="personenliste"><div class="laedt">Wird geladen …</div></div>'
     + '</section>';
-
-  b.innerHTML = '<div class="einstellungenkopf">'
-    + '<h1 class="seitentitel">Einstellungen</h1>'
-    + '<button class="knopf knopf--gefahr" id="ab">Abmelden</button>'
-    + '</div>'
-
-    + '<div class="reiter">'
-    + [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["backup", "Backup"],
-       ["fehler", "Fehlerprotokoll"]]
-        .concat(bin ? [["farben", "Farben und Material"], ["nutzer", "Nutzer"]] : [])
-        .map(([w, tt]) => '<button class="reiter__knopf'
-          + (einst.reiter === w ? " aktiv" : "") + '" data-einst="' + w + '">'
-          + tt + '</button>').join("")
-    + '</div>'
-
-    + '<div id="einst-inhalt">'
-    + (einst.reiter === "farben" ? teilFarben()
-        : einst.reiter === "nutzer" ? teilNutzer()
-        : einst.reiter === "dokumente" ? '<div class="laedt">Wird geladen …</div>'
-        : einst.reiter === "fehler" ? teilFehlerprotokoll()
-        : einst.reiter === "backup" ? teilBackup()
-        : teilAllgemein())
-    + '</div>';
-
-  // Zeigt, welche Datei der Server gerade ausliefert. Damit lässt
-  // sich unterscheiden, ob ein Upload nicht angekommen ist oder ob
-  // der Browser eine alte Fassung festhält.
-  const standFeld = b.querySelector("#dateistand");
-  if (standFeld) {
-    (async () => {
-      try {
-        const r = await fetch("./index.html?stand=" + Date.now(),
-          { method: "HEAD", cache: "no-store" });
-        const wann = r.headers.get("last-modified");
-        standFeld.textContent = wann
-          ? "Datei vom " + new Date(wann).toLocaleString("de-CH")
-          : "Dateistand unbekannt";
-      } catch (f) {
-        standFeld.textContent = "Dateistand nicht abrufbar";
-      }
-    })();
-  }
-
-  // Reiter wechseln
-  b.querySelectorAll("[data-einst]").forEach((el) => {
-    el.onclick = () => { einst.reiter = el.dataset.einst; seiteEinstellungen(b); };
-  });
-
-  if (window.abmeldenBinden) window.abmeldenBinden();
-
-  // Ab hier gehören alle Bedienelemente zum Reiter Allgemein.
-  // Auf den anderen Reitern gibt es sie nicht — dann ist hier Schluss.
-  // Dokumente ist ein eigener Bereich, aber keine eigene
-  // Reiter in der Seitenleiste — sie gehören zu den Einstellungen.
-  if (einst.reiter === "dokumente") {
-    await seiteDokumente(document.getElementById("einst-inhalt"));
-    return;
-  }
-  if (einst.reiter === "backup") {
-    const k = document.getElementById("bk-excel");
-    if (k) k.onclick = () => planwandExcel();
-    return;
-  }
-  if (einst.reiter === "fehler") {
-    const dl = document.getElementById("fp-datei");
-    if (dl) dl.onclick = fehlerAlsDatei;
-    const weg = document.getElementById("fp-leeren");
-    if (weg) weg.onclick = async () => {
-      const ja = await nachfragen({ titel: "Protokoll leeren?",
-        text: "Alle Einträge auf diesem Gerät werden gelöscht.",
-        bestaetigen: "Leeren", gefahr: true });
-      if (!ja) return;
-      localStorage.removeItem(FEHLER_SCHLUESSEL);
-      seiteEinstellungen(b);
-    };
-    return;
-  }
-
-  if (einst.reiter === "farben") { farbListeZeichnen(); werkstoffListeZeichnen(); return; }
-  if (einst.reiter === "nutzer") {
-    benutzerlisteLaden(b, bin);
-    personenlisteLaden(b);
-    // Ohne diese Zeile hing der Knopf "+ Person" ins Leere: Die
-    // Verbindung stand weiter unten, hinter diesem Abbruch.
-    const pneu = document.getElementById("pe-neu");
-    if (pneu) pneu.onclick = () => personDialog(null, b);
-    return;
-  }
-
-  // ---------- Darstellung ----------
-  b.querySelectorAll("[data-thema]").forEach((el) => {
-    el.onclick = () => { themaSetzen(el.dataset.thema); seiteEinstellungen(b); };
-  });
-
-  document.getElementById("e-dunkel").onchange = (e) => {
-    einstellungSetzen("dunkel", e.target.checked);
-    document.body.classList.toggle("dunkel", e.target.checked);
-  };
-  document.getElementById("e-wochenende").onchange = (e) =>
-    einstellungSetzen("wochenende", e.target.checked);
-  document.getElementById("e-wochestart").onchange = (e) =>
-    einstellungSetzen("wochestart", e.target.checked);
-  document.getElementById("e-angemeldet").onchange = (e) => {
-    einstellungSetzen("angemeldetbleiben", e.target.checked);
-    // Sofort wirksam, nicht erst nach dem nächsten Anmelden
-    if (window.untaetigNeuStarten) window.untaetigNeuStarten();
-  };
-
-  // ---------- Eigenes Konto ----------
-  document.getElementById("ns").onclick = async () => {
-    const name = document.getElementById("mn").value.trim();
-    const { error } = await db.from("profiles").update({ full_name: name }).eq("id", ich.id);
-    if (error) return meldung(fehlertext(error), "fehler");
-    profil.full_name = name;
-    const anz = document.querySelector("[data-benutzername]");
-    if (anz) anz.textContent = name || ich.email;
-    meldung("Name gespeichert.");
-  };
-
-  document.getElementById("mk-pinknopf").onclick = async () => {
-    const pin = document.getElementById("mk-pin").value.trim();
-    const pin2 = document.getElementById("mk-pin2").value.trim();
-    if (!/^\d{4,8}$/.test(pin)) return meldung("Die PIN braucht 4 bis 8 Ziffern.", "warn");
-    if (pin !== pin2) return meldung("Die beiden PINs sind nicht gleich.", "warn");
-    const { error } = await db.rpc("pin_setzen", { p_pin: pin });
-    if (error) {
-      return meldung(/pin_setzen/.test(error.message || "")
-        ? "Dafür fehlt noch pin-anmeldung.sql in der Datenbank." : fehlertext(error), "fehler");
-    }
-    document.getElementById("mk-pin").value = "";
-    document.getElementById("mk-pin2").value = "";
-    ich.ohne_passwort = true;
-    meldung("PIN gespeichert. Ab jetzt: Kachel antippen und PIN eingeben.");
-  };
-
-  document.getElementById("ps").onclick = async () => {
-    const pw = document.getElementById("np").value;
-    // Keine Längenvorgabe mehr — ein einzelnes Zeichen genügt.
-    // Leer bleibt trotzdem unzulässig, sonst hätte das Konto gar keines.
-    if (!pw) return meldung("Bitte ein Passwort eingeben.", "warn");
-    const { error } = await db.auth.updateUser({ password: pw });
-    if (error) meldung(fehlertext(error), "fehler");
-    else {
-      document.getElementById("np").value = "";
-      // Ein eigenes Passwort ersetzt die PIN
-      if (ich.ohne_passwort) {
-        const r = await db.rpc("pin_entfernen");
-        if (r.error) await db.from("profiles").update({ ohne_passwort: false }).eq("id", ich.id);
-      }
-      ich.ohne_passwort = false;
-      meldung("Passwort geändert. Du meldest dich jetzt mit dem Passwort an.");
-    }
-  };
-
-  // PIN entfernen: erst ein neues Passwort, sonst wäre das Konto ohne Schutz
-  const pinWeg = document.getElementById("mk-pinweg");
-  if (pinWeg) pinWeg.onclick = async () => {
-    const w = await dialogFelder({
-      titel: "PIN entfernen",
-      text: "Damit dein Konto geschützt bleibt, braucht es dafür ein Passwort.",
-      felder: [{ name: "pw", label: "Neues Passwort", typ: "password", pflicht: true }],
-      bestaetigen: "Speichern",
-    });
-    if (!w || !(w.pw || "")) return meldung("Kein Passwort eingegeben. Nichts geändert.", "warn");
-    const r = await db.auth.updateUser({ password: w.pw });
-    if (r.error) return meldung(fehlertext(r.error), "fehler");
-    const r2 = await db.rpc("pin_entfernen");
-    if (r2.error) await db.from("profiles").update({ ohne_passwort: false }).eq("id", ich.id);
-    ich.ohne_passwort = false;
-    pinWeg.remove();
-    meldung("PIN entfernt. Du meldest dich jetzt mit dem Passwort an.");
-  };
-
-  const gebFeld = document.getElementById("mk-geburtstag");
-  gebFeld.onchange = async () => {
-    const { error } = await db.from("profiles")
-      .update({ geburtstag: gebFeld.value || null }).eq("id", ich.id);
-    if (error) meldung(fehlertext(error), "fehler");
-    else { profil.geburtstag = gebFeld.value || null; meldung("Gespeichert."); }
-  };
-
-  document.getElementById("mk-datei").onchange = async (e) => {
-    const f = (e.target.files || [])[0];
-    if (!f) return;
-    try {
-      const klein = await bildZuschneiden(f, 400);
-      if (!klein) return;
-      const name = "profil/" + ich.id + "-" + Date.now() + ".jpg";
-      const r = await db.storage.from("profilbilder").upload(name, klein,
-        { contentType: "image/jpeg" });
-      if (r.error) throw r.error;
-      const url = db.storage.from("profilbilder").getPublicUrl(name).data.publicUrl;
-      const u = await db.from("profiles").update({ bild_url: url }).eq("id", ich.id);
-      if (u.error) throw u.error;
-      profil.bild_url = url;
-      meldung("Bild gespeichert.");
-      seiteEinstellungen(b);
-    } catch (f2) { meldung(fehlertext(f2), "fehler"); }
-  };
-
-  // ---------- Pin ----------
-  const pinFeld = document.getElementById("pin-feld");
-  if (pinFeld) {
-    (async () => {
-      try {
-        const r = await zeitlimit(db.from("app_config").select("wert")
-          .eq("schluessel", "planwand_pin").maybeSingle(), 8000, "Pin");
-        if (!r.error && r.data) pinFeld.value = r.data.wert || "";
-      } catch (f) { /* Tabelle gibt es vielleicht noch nicht */ }
-    })();
-
-    document.getElementById("pin-speichern").onclick = async () => {
-      const wert = (pinFeld.value || "").trim();
-      if (!wert) { meldung("Bitte einen Pin eingeben.", "warn"); return; }
-      const { error } = await db.from("app_config")
-        .upsert({ schluessel: "planwand_pin", wert: wert });
-      if (error) meldung(fehlertext(error), "fehler");
-      else meldung("Pin gespeichert.");
-    };
-  }
-
+  benutzerlisteLaden(ziel, istAdmin());
+  personenlisteLaden(ziel);
+  const pneu = document.getElementById("pe-neu");
+  if (pneu) pneu.onclick = () => personDialog(null, ziel);
+  // Hing früher nur auf dem Reiter Allgemein und blieb hier darum ohne Wirkung
   const linkKnopf = document.getElementById("extern-link-kopieren");
   if (linkKnopf) linkKnopf.onclick = async () => {
     const feld = document.getElementById("extern-link");
     try { await navigator.clipboard.writeText(feld.value); meldung("Link kopiert."); }
     catch (f) { feld.select(); document.execCommand("copy"); meldung("Link kopiert."); }
   };
-
-  // ---------- Text der Bestellmail ----------
-  const bmFeld = document.getElementById("bestellmail-feld");
-  if (bmFeld) {
-    bmFeld.value = BESTELLMAIL_TEXT || BESTELLMAIL_VORGABE;
-    document.getElementById("bestellmail-speichern").onclick = async () => {
-      const wert = (bmFeld.value || "").trim();
-      const { error } = await db.from("app_config")
-        .upsert({ schluessel: "bestellmail_text", wert: wert || BESTELLMAIL_VORGABE });
-      if (error) { meldung(fehlertext(error), "fehler"); return; }
-      BESTELLMAIL_TEXT = wert || BESTELLMAIL_VORGABE;
-      meldung("Text gespeichert.");
-    };
-    document.getElementById("bestellmail-vorgabe").onclick = () => { bmFeld.value = BESTELLMAIL_VORGABE; };
-  }
-
-  // ---------- Benutzerliste, nachgeladen ----------
-  if (bin) benutzerlisteLaden(b, bin);
-  if (bin) {
-    personenlisteLaden(b);
-    const pneu = document.getElementById("pe-neu");
-    if (pneu) pneu.onclick = () => personDialog(null, b);
-  }
 }
 
 // Personen ohne Login: nur Name, Bild und Geburtstag
@@ -14519,6 +14135,9 @@ Object.assign(alt, {
   naechsterArbeitstag, APP_VERSION,
   sucheStarten, sucheZumTreffer, sucheBeenden, sucheAllesDaten, sucheTreffer, sucheSpringen,
   freieFerienZeile, ansichtHoco,
+  einst, einstFarbenZeichnen, einstNutzerZeichnen, seiteDokumente, fehlerLesen, fehlerAlsDatei,
+  FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen, bildZuschneiden,
+  bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE,
   rechnerWinkel, rechnerGcode, rechnerCachse, rechnerGravur, rechnerDxf,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit
@@ -16029,18 +15648,15 @@ function zeichneGeruest() {
     zeigeLogin();
   }
 
-  // Der Abmelden-Knopf sitzt jetzt in den Einstellungen, nicht mehr
-  // in der Kopfzeile. Diese Funktion bindet ihn, wo immer er auftaucht.
-  window.abmeldenBinden = () => {
-    const knopf = document.getElementById("ab");
-    if (!knopf) return;
-    knopf.onclick = async () => {
-      const ok = await nachfragen({ titel: "Abmelden",
-        text: "Du musst dich danach neu anmelden.", bestaetigen: "Abmelden" });
-      if (!ok) return;
-      await jetztAbmelden();
-    };
+  // Der Abmelden-Knopf sitzt in den Einstellungen, nicht in der Kopfzeile.
+  // Das Einstellungsfenster (React) ruft abmeldenFragen direkt auf.
+  window.abmeldenFragen = async () => {
+    const ok = await nachfragen({ titel: "Abmelden",
+      text: "Du musst dich danach neu anmelden.", bestaetigen: "Abmelden" });
+    if (!ok) return;
+    await jetztAbmelden();
   };
+
 
   // Das automatische Abmelden erledigt der Leerlaufwächter weiter
   // oben. Er zählt dieselben fünf Minuten, warnt aber vorher mit
