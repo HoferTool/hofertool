@@ -1,6 +1,6 @@
 # Hofer Tool
 
-Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Darin stecken: Planwand der Aufträge, Stückzahlen in der Produktion, Pad Mode für Tablets an den Maschinen, Bestellungen, Einkaufsliste, Werkstatt-Rechner, Notizen, Chat, Fahrzeuge, Dokumente und Einstellungen.
+Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Darin stecken: Planwand der Aufträge, Stückzahlen in der Produktion, Pad Mode für Tablets an den Maschinen, Bestellungen, Einkaufsliste, Werkstatt-Rechner, Notizen, Dokumente und Einstellungen. Chat, Eierzähler, Fahrzeuge und Spassecke hatten schon vor dem Umbau keinen Knopf mehr und sind seit Oktober 2026 aus dem Code entfernt (im Git-Verlauf noch vorhanden). Ihre Tabellen in der Datenbank sind unverändert.
 
 - **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`). Der Ablauf `.github/workflows/ausliefern.yml` baut die App bei jedem Push auf `main` und stellt den Ordner `dist/` auf Pages (Pages-Quelle: „GitHub Actions“).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
@@ -21,9 +21,9 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
 - **Einzige feste Bedingung: Die App bleibt webbasiert.**
 - **Vite + React, im Umbau.** Bis Oktober 2026 war alles eine einzige `index.html`. Jetzt baut Vite aus `src/` die fertige Website in `dist/`.
   - `index.html` ist nur noch das Gerüst, das `src/main.jsx` lädt.
-  - `src/alt/app.js` und `src/alt/stil.css` sind das bisherige Programm und die bisherige Gestaltung. Darin stecken noch die Planwand-Tafel (`zeichnePlanwand` mit Ziehen, Griffen und Wischen; sie bleibt bewusst das bewährte Zeichenprogramm), die Erkennung und das Hochladen von Dokumenten, Druckblätter, Spassecke und viele Helfer.
+  - `src/alt/app.js` und `src/alt/stil.css` sind das bisherige Programm und die bisherige Gestaltung. Darin stecken noch die Planwand-Tafel (`zeichnePlanwand` mit Ziehen, Griffen und Wischen; sie bleibt bewusst das bewährte Zeichenprogramm), die Erkennung und das Hochladen von Dokumenten, Druckblätter und viele Helfer.
   - In React neu gebaut:
-    - `src/seiten/`: Startseite, Bestellungen, Einkauf, Rechner-Reiter Drehzahl, Winkel und G-Code, Produktion (Erfassen, Fortschritt, Maschinenparks, Maschinentypen), Planwand-Seite mit Kopfleiste.
+    - `src/seiten/`: Startseite, Bestellungen, Einkauf, Rechner-Reiter Drehzahl, Winkel, G-Code und C-Achse (Vor- und Nachspann gemeinsam in `rechner/kopf.jsx`), Produktion (Erfassen, Fortschritt, Maschinenparks, Maschinentypen), Planwand-Seite mit Kopfleiste.
     - `src/huelle/`: Anmeldung, Kopfzeile und Navigation, Suche über alles.
     - `src/planwand/`: Auftragsfenster, Suche auf der Planwand, Ferienfenster, HOCO-Fenster.
     - `src/hoco/`: HOCO Nummern (Ordner, Suche, einzelnes Teil).
@@ -39,7 +39,7 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
 
 ### Gliederung von index.html (Abschnittsüberschriften `//  NAME`)
 
-RÜCKGÄNGIG · OFFLINE · EXTERNE GERÄTE · FEHLERPROTOKOLL · STARTSEITE · DOKUMENTE · REGELN FÜR DATEINAMEN · WBG AUFRÄUMEN · SOLARANLAGE · DATENSICHERUNG · RECHTE · DIALOGE · PRODUKTION · ERFASSEN · PLANWAND · WERKSTOFFE · SUCHE ÜBER ALLES · ÜBERSICHT · MASCHINEN VERWALTEN · MASCHINENTYPEN · PAD MODE · ZIFFERBLOCK · EINRICHTBLATT · EINRICHTBLATT ALS PDF · ARTIKEL UND LIEFERANTEN · BESTELLUNGEN · EINKAUFSLISTE · RECHNER FÜR DIE WERKSTATT · GRAVUR · SPASSECKE · FORTSCHRITT · LAUFENDER ABGLEICH · FAHRZEUGE
+RÜCKGÄNGIG · OFFLINE · EXTERNE GERÄTE · FEHLERPROTOKOLL · STARTSEITE · DOKUMENTE · REGELN FÜR DATEINAMEN · WBG AUFRÄUMEN · SOLARANLAGE · DATENSICHERUNG · RECHTE · DIALOGE · PRODUKTION · ERFASSEN · PLANWAND · WERKSTOFFE · SUCHE ÜBER ALLES · ÜBERSICHT · MASCHINEN VERWALTEN · MASCHINENTYPEN · PAD MODE · ZIFFERBLOCK · EINRICHTBLATT · EINRICHTBLATT ALS PDF · ARTIKEL UND LIEFERANTEN · BESTELLUNGEN · EINKAUFSLISTE · RECHNER FÜR DIE WERKSTATT · GRAVUR · FORTSCHRITT · LAUFENDER ABGLEICH
 
 Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellungen`, `einkauf`, `rechner`), Navigation über den Hash, etwa `#/planwand`, mit `zeichneSeite()`. Einstellungen sind ein Fenster mit Reitern: Allgemein, Dokumente, Backup, Fehlerprotokoll, Farben und Material, Nutzer.
 

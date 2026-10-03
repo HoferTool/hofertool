@@ -721,7 +721,6 @@ a:focus-visible {
 .suchleiste { display: flex; gap: 8px; margin-bottom: 14px; }
 .suchleiste input { flex: 1; }
 
-
 /* ---------- Bestellungen ---------- */
 .statuschip { display: inline-block; padding: 1px 8px; border-radius: 999px;
               font-size: .72rem; font-weight: 600; background: var(--grund);
@@ -773,7 +772,6 @@ a:focus-visible {
 .dialog__blocktitel { font-size: .85rem; font-weight: 650; color: var(--gedaempft);
                       margin-bottom: 10px; }
 .dialog { max-height: 88vh; overflow-y: auto; }
-
 
 .platzchip--klein { padding: 2px 7px; font-size: .76rem; font-weight: 500;
                     display: inline-block; margin: 1px 0; }
@@ -1085,27 +1083,6 @@ a:focus-visible {
 .fehltchip { display: inline-block; padding: 1px 7px; border-radius: 999px;
              background: #fdf4e3; color: #8a5c10; font-size: .7rem; font-weight: 650; }
 
-/* ---------- Spassecke ---------- */
-.spass-anzeige { margin-top: 16px; }
-.spass-werte { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-               margin-bottom: 16px; }
-.spass-werte > div { background: var(--grund); border-radius: var(--radius);
-                     padding: 10px 12px; }
-.spass-label { display: block; font-size: .72rem; color: var(--gedaempft); }
-.spass-zahl { font-size: 1.5rem; font-weight: 650; font-variant-numeric: tabular-nums; }
-.spass-bahn { position: relative; height: 54px; background: var(--stahl);
-              border-radius: var(--radius); overflow: hidden; margin-bottom: 12px;
-              transition: box-shadow .15s; }
-.spass-bahn--gut { box-shadow: inset 0 0 0 3px var(--gut); }
-.spass-bahn--schlecht { box-shadow: inset 0 0 0 3px var(--gefahr); }
-.spass-ziel { position: absolute; top: 0; bottom: 0; background: rgba(31,122,77,.55);
-              border-left: 2px solid #2ea36a; border-right: 2px solid #2ea36a; }
-.spass-support { position: absolute; top: 6px; bottom: 6px; width: 6px;
-                 margin-left: -3px; background: var(--signalgelb); border-radius: 3px; }
-.spass-text { text-align: center; margin-bottom: 12px; font-weight: 600;
-              min-height: 1.4em; }
-.spass-weisheit { font-size: 1.05rem; font-style: italic; margin: 0 0 10px; }
-
 /* ---------- Planwand kompakter ---------- */
 .pw-spuren { min-height: 30px; }
 .pw-name { padding: 5px 8px; font-size: .78rem; }
@@ -1133,53 +1110,6 @@ a:focus-visible {
 .pw-zoom { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .pw-zoom .knopf { min-height: 34px; padding: 4px 14px; font-size: 1.05rem; }
 #pw-zoomwert { min-width: 62px; text-align: center; }
-
-/* ---------- Spassecke: Maschinenhalle ---------- */
-.spass-halle { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-               margin: 16px 0; }
-.spass-maschine { position: relative; aspect-ratio: 1.4; background: var(--stahl);
-                  border: 2px solid #2a323b; border-radius: var(--radius);
-                  cursor: pointer; display: grid; place-items: center; gap: 6px;
-                  transition: background .08s; padding: 6px; }
-.spass-maschine__nr { color: #7d8792; font-size: .8rem; font-weight: 650; }
-.spass-maschine__lampe { width: 16px; height: 16px; border-radius: 50%;
-                         background: #39424c; }
-.spass-maschine--stoerung { background: #7d1a15; border-color: var(--gefahr); }
-.spass-maschine--stoerung .spass-maschine__lampe { background: #ff5a4d;
-                         box-shadow: 0 0 12px #ff5a4d; }
-.spass-maschine--stoerung .spass-maschine__nr { color: #ffd9d6; }
-
-/* ---------- Spassecke ---------- */
-.spass-halle--vier { grid-template-columns: repeat(2, 1fr); max-width: 320px; margin: 16px auto; }
-.spass-wiese { position: relative; height: 260px; background: #e6f0e2;
-               border-radius: var(--radius); overflow: hidden; margin: 16px 0;
-               border: 1px solid var(--linie); }
-.spass-wiese--dunkel { background: #23282e; }
-.spass-huhn { position: absolute; background: none; border: none; font-size: 1.9rem;
-              cursor: pointer; padding: 0; line-height: 1;
-              transition: left .35s, top .35s; }
-.spass-huhn--still { transition: none; pointer-events: none; }
-.spass-huhn--gefahr { font-size: 1.6rem; }
-.spass-feld { position: relative; height: 300px; background: #eef2f7;
-              border: 1px solid var(--linie); border-radius: var(--radius);
-              overflow: hidden; margin: 16px 0; touch-action: none; }
-.spass-ei { position: absolute; font-size: 1.6rem; transform: translateX(-50%); }
-.spass-korb { position: absolute; bottom: 6px; font-size: 2.2rem;
-              transform: translateX(-50%); }
-.spass-memory { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
-                margin: 16px 0; }
-.spass-karte { aspect-ratio: 1; background: var(--marke); border: none;
-               border-radius: var(--radius); font-size: 1.7rem; cursor: pointer; }
-.spass-karte--offen { background: var(--flaeche); border: 2px solid var(--marke); }
-.spass-karte--paar { background: #eaf6ef; border-color: var(--gut); cursor: default; }
-.spass-zahlen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
-                margin: 16px 0; }
-.spass-zahl-feld { aspect-ratio: 1.4; background: var(--flaeche);
-                   border: 1px solid var(--linie-stark); border-radius: var(--radius);
-                   font: inherit; font-size: 1.3rem; font-weight: 650; cursor: pointer; }
-.spass-zahl-feld--weg { visibility: hidden; }
-.spass-frage { text-align: center; font-size: 1.15rem; margin: 18px 0; }
-.spass-antworten { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
 
 /* ---------- Planwand: Zoom wirkt nur waagrecht ----------
    --pw-s  skaliert, was in den Tagesspalten steht
@@ -1245,22 +1175,6 @@ a:focus-visible {
 .pw-tag { line-height: 1.25; }
 
 /* ---------- Timeout Area, weitere Spiele ---------- */
-.spass-ampel { height: 180px; display: grid; place-items: center; border-radius: var(--radius);
-               background: var(--stahl); color: #fff; font-size: 1.4rem; font-weight: 650;
-               cursor: pointer; margin: 16px 0; user-select: none; }
-.spass-ampel--rot { background: #7d1a15; }
-.spass-ampel--gruen { background: #1f7a4d; }
-.spass-handrad { display: block; margin: 20px auto; width: 150px; height: 150px;
-                 border-radius: 50%; border: 4px solid var(--marke); background: var(--flaeche);
-                 font-size: 3.4rem; cursor: pointer; transition: transform .06s; }
-.spass-huhn--gross { transition: none; }
-.spass-stapel { position: relative; height: 300px; background: #eef2f7;
-                border: 1px solid var(--linie); border-radius: var(--radius);
-                overflow: hidden; margin: 16px 0; }
-.spass-stapel__wagen { position: absolute; top: 6px; font-size: 1.8rem; }
-.spass-stapel__turm { position: absolute; inset: 0; }
-.spass-stapel__ei { position: absolute; font-size: 1.5rem; }
-.spass-salat { font-size: 1.6rem; font-weight: 700; letter-spacing: .2em; }
 
 /* ---------- Seitenleiste einklappen, nur am PC ---------- */
 .kopf__klapp { display: none; background: none; border: 1px solid var(--linie-stark);
@@ -1273,7 +1187,6 @@ a:focus-visible {
   body.nav--schmal .nav__punkt { justify-content: center; padding: 0; }
   body.nav--schmal .nav__zeichen { font-size: 1.25rem; }
 }
-
 
 /* ---------- Planwand: nichts läuft mehr seitlich hinaus ---------- */
 .pw-rolle { overflow-x: hidden; }
@@ -1300,7 +1213,6 @@ a:focus-visible {
                       outline: 1px dashed var(--gedaempft); }
 
 body.kopiermodus .pw-balken { cursor: copy; outline: 1px dashed var(--signalgelb); }
-
 
 /* ---------- Kopfzeile: Schalter und Profilbild ---------- */
 .kopf__dunkel { background: none; border: 1px solid var(--linie-stark);
@@ -1339,7 +1251,6 @@ body.kopiermodus .pw-balken { cursor: copy; outline: 1px dashed var(--signalgelb
          font-size: .92rem; line-height: 1.55; overflow-x: auto; margin: 0 0 12px;
          white-space: pre; user-select: text; }
 
-
 /* ---------- Bild zuschneiden ---------- */
 .zuschnitt { position: relative; display: inline-block; max-width: 100%;
              margin: 8px 0 14px; line-height: 0; touch-action: none; }
@@ -1353,7 +1264,6 @@ body.kopiermodus .pw-balken { cursor: copy; outline: 1px dashed var(--signalgelb
 .zuschnitt__vorschau { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .zuschnitt__vorschau canvas { border-radius: 8px; border: 2px solid var(--linie-stark);
                               width: 84px; height: 84px; }
-
 
 /* ---------- Kopfzeile: Anordnung ---------- */
 .kopf { gap: 10px; }
@@ -1382,7 +1292,6 @@ body.dunkel .statuszeile--gefahr *, body.dunkel .statuszeile--gut,
 body.dunkel .statuszeile--gut *, body.dunkel .parkwahl__knopf.aktiv,
 body.dunkel .moduswahl__knopf.aktiv, body.dunkel .wahlknopf.aktiv,
 body.dunkel .kopf__admin.aktiv, body.dunkel .vorschlag,
-body.dunkel .spass-karte,
 body.dunkel .pw-ferien, body.dunkel .pw-ferien *,
 body.dunkel .toast, body.dunkel .toast * { color: #10161d; }
 
@@ -1392,7 +1301,7 @@ body.dunkel .kopf__bild--leer { color: #fff; }
 /* Gedämpfte Nebentexte etwas zurückgenommen, aber lesbar */
 body.dunkel .klein, body.dunkel .hinweis, body.dunkel .feldhinweis,
 body.dunkel .untertitel, body.dunkel .tabelle th,
-body.dunkel .kennzahl__titel, body.dunkel .spass-label,
+body.dunkel .kennzahl__titel,
 body.dunkel .versionsecke { color: var(--gedaempft); }
 
 /* Auswahl und Fokus als blauer Rahmen */
@@ -1432,7 +1341,7 @@ body.dunkel .mkarte, body.dunkel .treffer, body.dunkel .kachel,
 body.dunkel .pw-rolle, body.dunkel .pw-tafel, body.dunkel .pw-name,
 body.dunkel .pw-kopfblock, body.dunkel .pw-zeile--kopf, body.dunkel .pw-zeile--kw,
 body.dunkel .karte--raster, body.dunkel .raster .fest, body.dunkel .kennzahl,
-body.dunkel .pd-zeile, body.dunkel .spass-karte, body.dunkel .spass-zahl-feld,
+body.dunkel .pd-zeile,
 body.dunkel .wahlknopf, body.dunkel .parkwahl__knopf, body.dunkel .moduswahl__knopf,
 body.dunkel .reiter__knopf, body.dunkel .unterreiter__knopf,
 body.dunkel .knopf { background: var(--flaeche); }
@@ -1442,7 +1351,7 @@ body.dunkel .knopf { background: var(--flaeche); }
 body.dunkel .login__karte { background: var(--marke); }
 
 body.dunkel .statuszeile, body.dunkel .meldungsnotiz, body.dunkel .raster .summe,
-body.dunkel .parkzeile, body.dunkel .spass-werte > div, body.dunkel .kontokopf,
+body.dunkel .parkzeile, body.dunkel .kontokopf,
 body.dunkel input, body.dunkel select, body.dunkel textarea,
 body.dunkel option { background: #232a32; }
 body.dunkel input[type="date"]::-webkit-calendar-picker-indicator,
@@ -1464,7 +1373,6 @@ body.dunkel .kopf__admin.aktiv { background: var(--gefahr); border-color: var(--
                      color: #fff; }
 body.dunkel .pw-kw, body.dunkel .pw-park { background: #22303f; }
 body.dunkel .pw-tag--heute { background: #24344a; }
-body.dunkel .spass-maschine { background: #10161d; }
 body.dunkel .zbeschriftung { fill: #ffffff; }
 body.dunkel .gcode { background: #0f1317; }
 
@@ -1815,7 +1723,6 @@ pre, .gcode { max-width: 100%; overflow-x: auto; }
                              flex: none; line-height: 1; }
 .dialog__schliessen-inline:hover { background: var(--marke-hell); color: var(--marke); }
 
-
 .pdfreihe { display: flex; flex-wrap: wrap; gap: 10px; }
 .dialog--breit .dialogspalte > .feld,
 .dialog--breit .dialogspalte > .dialog__block { margin-bottom: 18px; }
@@ -1830,69 +1737,11 @@ pre, .gcode { max-width: 100%; overflow-x: auto; }
 .werkzeugleiste {
   position: fixed; z-index: 40; left: 50%; transform: translateX(-50%);
   top: 8px; display: flex; align-items: center; gap: 10px; }
-.fahrzeug-knopf, .eier-knopf, .chat-knopf {
-  /* relativ, damit das Abzeichen für ungelesene Nachrichten
-     an der Ecke des Knopfes klebt */
-  position: relative; width: 38px; height: 38px; flex: none;
-  border-radius: 10px; border: 1px solid var(--linie-stark);
-  background: var(--flaeche); color: var(--tinte);
-  display: grid; place-items: center; cursor: pointer; font-size: 1.15rem;
-  line-height: 1; padding: 0; }
-.fahrzeug-knopf:hover, .eier-knopf:hover, .chat-knopf:hover { background: var(--marke-hell); }
 @media (max-width: 780px) {
   .werkzeugleiste { top: 10px; gap: 8px; }
-  .fahrzeug-knopf, .eier-knopf, .chat-knopf { width: 34px; height: 34px; font-size: 1rem; }
 }
-.chat-abzeichen { position: absolute; top: -6px; right: -6px; min-width: 20px;
-                  height: 20px; padding: 0 5px; border-radius: 10px; background: var(--gefahr);
-                  color: #fff; font-size: .68rem; font-weight: 700; display: grid; place-items: center; }
 /* display: grid würde sonst das hidden aus dem Code überstimmen,
    und die Null stünde dauerhaft am Knopf */
-.chat-abzeichen[hidden] { display: none; }
-
-.chat-panel { position: fixed; z-index: 41; width: 340px; max-width: calc(100vw - 32px);
-              height: 480px; max-height: calc(100dvh - 120px); background: var(--flaeche);
-              border-radius: var(--radius); box-shadow: 0 12px 32px rgba(0,0,0,.3);
-              display: flex; flex-direction: column; overflow: hidden;
-              right: 18px; bottom: 82px; border: 1px solid var(--linie); }
-@media (max-width: 780px) {
-  .chat-panel { bottom: calc(var(--navhoehe) + 70px); }
-}
-.chat-kopf { display: flex; align-items: center; justify-content: space-between;
-             gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--linie);
-             font-weight: 650; flex: none; }
-.chat-kopf__knoepfe { display: flex; align-items: center; gap: 10px; }
-.chat-x { background: none; border: none; font-size: 1.3rem; line-height: 1;
-          color: var(--gedaempft); cursor: pointer; padding: 0 2px; }
-.chat-liste { flex: 1; overflow-y: auto; padding: 6px; }
-.chat-eintrag { display: flex; align-items: center; gap: 10px; width: 100%;
-                text-align: left; background: none; border: none; cursor: pointer;
-                padding: 9px 8px; border-radius: var(--radius); }
-.chat-eintrag:hover { background: var(--marke-hell); }
-.chat-eintrag--ungelesen .chat-eintrag__name { font-weight: 700; }
-.chat-eintrag__symbol { width: 32px; height: 32px; border-radius: 50%; background: var(--marke);
-                        color: #fff; display: grid; place-items: center; font-weight: 700;
-                        flex: none; font-size: .85rem; }
-.chat-eintrag__inhalt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.chat-eintrag__name { font-size: .88rem; }
-.chat-eintrag__vorschau { font-size: .76rem; color: var(--gedaempft); overflow: hidden;
-                          text-overflow: ellipsis; white-space: nowrap; }
-.chat-punkt { width: 9px; height: 9px; border-radius: 50%; background: var(--gefahr); flex: none; }
-
-.chat-nachrichten { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex;
-                    flex-direction: column; gap: 8px; }
-.chat-blase { max-width: 82%; background: var(--grund); border-radius: 12px;
-              padding: 7px 11px; align-self: flex-start; }
-.chat-blase--ich { align-self: flex-end; background: var(--marke); color: #fff; }
-.chat-blase__wer { font-size: .68rem; font-weight: 700; color: var(--marke); margin-bottom: 2px; }
-.chat-blase--ich .chat-blase__wer { color: rgba(255,255,255,.85); }
-.chat-blase__text { font-size: .88rem; white-space: pre-wrap; word-break: break-word; }
-.chat-blase__zeit { font-size: .64rem; opacity: .7; margin-top: 3px; text-align: right; }
-.chat-eingabe { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--linie); flex: none; }
-.chat-eingabe input { flex: 1; min-height: 40px; padding: 8px 12px; }
-
-.mehrfachliste { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column;
-                 gap: 4px; margin: 10px 0; }
 
 /* ---------- Planwand: Kopfleiste mit beiden Reglern ---------- */
 .pw-kopfleiste { position: sticky; top: var(--kopfhoehe); z-index: 25;
@@ -1939,15 +1788,6 @@ pre, .gcode { max-width: 100%; overflow-x: auto; }
   .dialog__kopfzeile { padding-right: 0; }
   .dialog__kopfknoepfe { position: static; margin-top: 10px; flex-wrap: wrap; }
 }
-
-.chat-anhang { display: grid; place-items: center; width: 40px; height: 40px;
-               border: 1px solid var(--linie-stark); border-radius: var(--radius);
-               cursor: pointer; flex: none; font-size: 1.1rem; }
-.chat-anhang:hover { background: var(--marke-hell); }
-.chat-blase__bild { max-width: 100%; border-radius: 8px; display: block;
-                    margin-bottom: 4px; cursor: pointer; }
-.chat-blase__datei { display: inline-block; margin-bottom: 4px; color: inherit;
-                     text-decoration: underline; font-size: .85rem; }
 
 /* ---------- Ränder der Auftragsbalken: dick genug, um sie zu sehen ---------- */
 .pw-balken--laeuft { border: 2px solid #111417; }
@@ -2018,25 +1858,6 @@ body.dunkel .pw-balken--laeuft { border: 2px solid #ffffff; }
 .login__block--ein { animation: loginEinblenden .3s ease; }
 @keyframes loginEinblenden { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-/* ---------- Fahrzeuge ---------- */
-.fahrzeug-panel { top: calc(var(--kopfhoehe) + 6px); bottom: auto;
-                 left: 50%; right: auto; transform: translateX(-50%); }
-@media (max-width: 780px) {
-  .fahrzeug-panel { top: calc(var(--kopfhoehe) + 4px); height: 70dvh; }
-}
-.fahrzeug-reiter { padding: 0 10px; margin: 0; flex: none; }
-.fahrzeug-inhalt { flex: 1; overflow-y: auto; padding: 10px 12px; }
-.fz-karte { border: 1px solid var(--linie); border-radius: var(--radius);
-           padding: 9px 11px; margin-bottom: 8px; }
-.fz-karte__kopf { display: flex; align-items: center; justify-content: space-between;
-                  gap: 8px; font-size: .88rem; }
-.fz-ampel { font-size: .72rem; color: var(--gefahr); font-weight: 650; text-align: right; }
-.fz-ampel--frei { color: #1f7a4d; }
-.fz-karte__knoepfe { display: flex; gap: 12px; margin-top: 6px; }
-.fz-unterschrift { font-size: .78rem; font-weight: 700; color: var(--gedaempft);
-                   margin: 14px 0 6px; }
-.fz-eigene { font-size: .82rem; border-bottom: 1px solid var(--linie); padding: 8px 0; }
-
 /* ---------- Allgemeiner Übergang beim Reiterwechsel ---------- */
 @keyframes reiterEintritt { from { opacity: 0; transform: scale(.97) translateY(4px); }
                             to { opacity: 1; transform: none; } }
@@ -2060,25 +1881,6 @@ body.pw-seite .pw-rolle { max-height: calc(100dvh - var(--kopfhoehe) - 150px);
   body.pw-seite .pw-rolle { max-height: calc(100dvh - var(--kopfhoehe)
                             - var(--navhoehe) - 190px); min-height: 300px; }
 }
-
-/* ---------- Eierzähler ---------- */
-.eier-zahl { font-size: .58rem; font-weight: 700; margin-top: -3px; }
-.eier-dialog { max-width: 340px; text-align: center; }
-.eier-kopf { display: flex; align-items: center; justify-content: space-between;
-            gap: 10px; margin-bottom: 10px; }
-.eier-kopf h2 { margin: 0; font-size: 1.1rem; }
-.eier-kopfknoepfe { display: flex; align-items: center; gap: 8px; }
-.eier-gross { display: block; width: 100%; background: var(--grund); border: none;
-             border-radius: var(--radius); padding: 18px 0 22px; cursor: pointer;
-             position: relative; margin-bottom: 14px; }
-.eier-gross:active { background: var(--marke-hell); }
-.eier-gross__bild { display: block; }
-.eier-gross__zahl { display: block; font-size: 2rem; font-weight: 700;
-                   margin-top: 6px; font-variant-numeric: tabular-nums; }
-.eier-knoepfe { display: flex; gap: 8px; }
-.eier-knoepfe .knopf { flex: 1; }
-.eier-zeile { text-align: left; font-size: .85rem; padding: 8px 0;
-             border-bottom: 1px solid var(--linie); }
 
 /* ---------- Suche auf der Planwand ---------- */
 .pw-balken--blass { opacity: .16; filter: grayscale(.7); }
@@ -2129,20 +1931,6 @@ body.tippgeraet .pw-balken, body.tippgeraet .pw-griff, body.tippgeraet .pw-ferie
 
 .pw-kw__jahr { opacity: .6; margin-left: 3px; font-weight: 500; }
 
-/* ---------- Eierschachtel ---------- */
-.eier-schachtel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
-                 background: #c8a878; border-radius: 4px; padding: 3px; }
-.eier-mulde { background: #a88858; border-radius: 50%; aspect-ratio: 1; }
-.eier-mulde--voll { background: #fffaf0; box-shadow: inset 0 -1px 2px rgba(0,0,0,.2); }
-.eier-schachtel--klein { width: 26px; gap: 1.5px; padding: 2px; }
-.eier-schachtel--gross { width: 150px; gap: 6px; padding: 9px; margin: 0 auto 10px;
-                        border-radius: 8px; }
-.eier-schachtel--gross .eier-mulde { box-shadow: inset 0 2px 5px rgba(0,0,0,.25); }
-.eier-schachtel--gross .eier-mulde--voll { box-shadow: inset 0 -2px 4px rgba(0,0,0,.18); }
-.eier-knopf .eier-zahl { font-size: .5rem; margin-top: 1px; letter-spacing: -.02em; }
-.eier-gross__zahl { font-size: 1rem; font-weight: 500; }
-.eier-gross__zahl strong { font-size: 1.6rem; }
-
 /* ---------- Logo im Dunkelmodus weiss ---------- */
 body.dunkel .kopf__logo { filter: brightness(0) invert(1); }
 
@@ -2172,13 +1960,6 @@ body.dunkel .kopf__logo { filter: brightness(0) invert(1); }
   .dialog--breit .farbknopf { width: 28px; height: 28px; font-size: .64rem; }
   .dialog--breit .wahlgitter { gap: 6px; }
   .dialog--breit .wahlknopf { padding: 7px 8px; min-height: 38px; font-size: .85rem; }
-}
-
-/* ---------- Eierknopf mittig und Fenster wie beim Fahrzeug ---------- */
-
-.eier-dialog { max-height: 88dvh; overflow-y: auto; }
-@media (max-width: 780px) {
-  .eier-dialog { max-height: 80dvh; }
 }
 
 /* ---------- Anmeldung: ruhiger Wechsel statt fliegendem Bild ---------- */
@@ -2432,9 +2213,6 @@ body.dunkel .pw-parkflaeche { background: #22303f; }
 .platz__aktionen { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
 .platz .tabelle { margin-top: 6px; }
 /* ---------- Nachricht bearbeiten und löschen ---------- */
-.chat-blase__knopf { background: none; border: 0; color: inherit; cursor: pointer;
-                     font: inherit; font-size: .72rem; opacity: .55; padding: 0 2px; }
-.chat-blase__knopf:hover { opacity: 1; }
 /* ---------- Einrichtblatt ---------- */
 .dialog--breit { max-width: 1100px; width: 96vw; }
 .blatt__kopf { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
