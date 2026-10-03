@@ -4150,13 +4150,6 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
             font: 600 .7rem/1.4 inherit; color: var(--gedaempft); background: var(--flaeche); }
 /* Seit wann eine Bestellposition ihren Status hat */
 .bz-zeit { color: var(--gedaempft); margin-top: 2px; }
-/* Woche in der Produktion: jeder Tag bekommt Platz, notfalls seitwärts schieben */
-/* Nur so breit wie nötig — auf grossen Bildschirmen zieht sich die
-   Woche nicht über die ganze Breite */
-.raster--woche { width: auto; min-width: 0; }
-.raster--woche td:not(.fest), .raster--woche thead th:not(.fest) { width: 124px; min-width: 108px; max-width: 140px; }
-.raster--woche .menge { width: 100%; max-width: 116px; }
-.karte--raster:has(.raster--woche) { width: fit-content; max-width: 100%; }
 
 /* Pad: Materialkachel ganz in der Werkstofffarbe */
 .pad-karte2--gefuellt { background: var(--wf) !important; color: var(--wfs) !important; padding-left: 18px !important; }
@@ -4183,12 +4176,6 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 .pw-zoom:has(#pw-regler), .pw-zoom--hoehe { flex: 1 1 260px; max-width: 560px; }
 .pw-zoom:has(#pw-regler) input[type="range"], .pw-zoom--hoehe input[type="range"] {
   flex: 1 1 auto !important; width: auto !important; min-width: 140px; max-width: none !important; }
-/* Woche: drei Spalten — Nummer · Einrichtblatt, Menge, Beenden · Ziel, Stand, Zustand */
-.fest__zeile .auftrag--woche { display: flex; align-items: flex-start; gap: 16px; }
-.auftrag--woche .aw-spalte { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-.auftrag--woche .linkknopf { margin: 0 !important; padding: 1px 0; text-align: left; }
-.auftrag--woche .fest__stand { display: block; margin: 0; }
-.raster th.fest--voll { max-width: 360px; }
 /* Pad: Bereiche in der Kachelwand und als Seite */
 .pad-kachel__sym svg { width: 34px; height: 34px; }
 .pad__seite { background: var(--hg); color: var(--text); padding: 14px; }
@@ -4438,3 +4425,56 @@ body.dunkel .marke { background: var(--marke); }
                         border: 1px solid rgba(255,255,255,.22); }
 .login__ziffern button:active { background: rgba(255,255,255,.28); }
 .login__ziffern .zb-taste--neben { color: rgba(255,255,255,.75); }
+
+/* Woche in der Produktion: nutzt die ganze Breite. Links ein Block je
+   Maschine mit Zustand, Nummer, Balken für Stand und Ziel und den
+   Knöpfen in einer Reihe; die Tage teilen sich den Rest, ganz rechts
+   die Summe der Woche. Auf schmalen Geräten seitwärts schieben. */
+.raster--woche { width: 100%; table-layout: auto; }
+.raster--woche thead th { padding: 10px 8px; }
+.raster--woche td { padding: 14px 10px; vertical-align: middle; }
+.raster th.fest--woche { width: 30%; min-width: 320px; max-width: none; padding: 14px 18px 14px 16px;
+                         vertical-align: top; white-space: normal; font-weight: 400; }
+.raster--woche td:not(.fest), .raster--woche thead th:not(.fest) { min-width: 104px; }
+.raster--woche .menge { width: 100%; max-width: 190px; min-height: 48px; font-size: 1.05rem; }
+.raster--woche .zelle__leistung { min-height: 1.2em; font-size: .78rem; margin-top: 5px; font-variant-numeric: tabular-nums; }
+.raster--woche td .kein-feld { min-height: 48px; display: flex; align-items: center; justify-content: center; }
+.raster--woche thead th.fest { padding-left: 16px; }
+.raster--woche td.aw-summe, .raster--woche th.aw-summe { width: 1%; min-width: 92px; padding-left: 14px; padding-right: 16px;
+                                                         border-left: 1px solid var(--linie); }
+.raster--woche td.aw-summe b { font-size: 1.05rem; font-variant-numeric: tabular-nums; color: var(--gut); }
+.aw-kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.aw-name { font-weight: 650; font-size: .95rem; }
+.aw-mnr { margin-left: 4px; white-space: nowrap; font-weight: 400; font-size: .82rem; color: var(--gedaempft); }
+.aw-nr { margin: 6px 0 10px; font-size: 1.25rem; font-weight: 700; letter-spacing: .02em;
+         font-variant-numeric: tabular-nums; }
+.aw-status--laeuft { border-color: var(--gut); color: var(--gut); }
+.aw-status--ruesten, .aw-status--qs { border-color: var(--warnung); color: var(--warnung); }
+.aw-fortschritt { height: 8px; border-radius: 4px; background: var(--linie); overflow: hidden; }
+.aw-fortschritt i { display: block; height: 100%; border-radius: inherit; background: var(--marke); }
+.aw-fortschritt--laeuft i, .aw-fortschritt--voll i { background: var(--gut); }
+.aw-zahlen { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px;
+             font-size: .82rem; color: var(--gedaempft); font-variant-numeric: tabular-nums; }
+.aw-zahlen b { color: var(--tinte); font-weight: 650; }
+.aw-prozent { font-weight: 650; }
+.aw-knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.aw-knopf { min-height: 34px; padding: 5px 12px; font: inherit; font-size: .82rem; font-weight: 600;
+            color: var(--tinte); background: transparent; border: 1px solid var(--linie-stark);
+            border-radius: var(--radius); cursor: pointer; }
+.aw-knopf:hover { border-color: var(--aktion); color: var(--aktion); }
+.aw-knopf:active { transform: translateY(1px); }
+.aw-knopf--ende:hover { border-color: var(--gefahr); color: var(--gefahr); }
+.fest--woche .fest__zeile .auftrag { margin-top: 10px; }
+@media (max-width: 1300px) {
+  .raster th.fest--woche { width: 30%; min-width: 312px; padding-right: 12px; }
+  .aw-knopf { padding: 5px 9px; font-size: .78rem; }
+  .raster--woche td:not(.fest), .raster--woche thead th:not(.fest) { min-width: 80px; }
+  .raster--woche td { padding: 12px 6px; }
+}
+@media (max-width: 700px) {
+  .raster th.fest--woche { width: auto; min-width: 210px; padding: 12px; }
+  .aw-kopf { flex-wrap: wrap; }
+  .aw-nr { font-size: 1.1rem; }
+  .aw-knopf { padding: 5px 9px; }
+}
+body.dunkel .raster--woche td.aw-summe b { color: var(--gut); }
