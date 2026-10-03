@@ -34,9 +34,9 @@ with sync_playwright() as p:
     pg.mouse.click(ziel["x"], ziel["y"]); pg.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(600)
     print("Einfügen an:", ziel["zelle"], "| Material übernommen:",
           pg.evaluate("document.getElementById('pl-mat-bez').value") == quelle)
-    nr = pg.locator("#pl-nummer, #pl-nr, input[id^='pl-'][id*='nr']").first
-    pg.evaluate("""() => { const f = document.querySelector('#pl-nummer') || document.querySelector('#pl-nr');
-      if (f) { f.value = '10999-0001'; f.dispatchEvent(new Event('input', {bubbles:true})); } }""")
+    # Wie von Hand getippt; das Fenster ist in React und liest das Feld
+    # über seine Eingabe, nicht über value
+    pg.locator("#pl-nr").fill("10999-0001")
     pg.locator("#pl-ja").click(); pg.wait_for_timeout(1200)
     for _ in range(3):
         if pg.locator(".dialog-huelle [data-nein]").count():
