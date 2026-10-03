@@ -5,7 +5,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`). Der Ablauf `.github/workflows/ausliefern.yml` baut die App bei jedem Push auf `main` und stellt den Ordner `dist/` auf Pages (Pages-Quelle: „GitHub Actions“).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.12.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.13.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -57,7 +57,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 | Dokumente | `dokErkennen(name, typen)`, `dokHochladen(datei, zuordnung, quelle)`, `DOK_REGELN` |
 | Logo | `LOGO_WEISS` (eingebettetes PNG) |
 | Bewegung | `planFliessenAnmelden(id)` vor dem Neuzeichnen der Planwand lässt verschobene Balken gleiten; `bewegungFenster`, `bewegungPad`, `wenigBewegung()` |
-| Anmeldung mit PIN | `pinAnmelden(email, pin)` ruft die Server-Funktion `pin-anmelden` (Quelle in `supabase/functions/`), `pinMeldung(e)` macht den Text daraus. In der Datenbank: `pin_setzen`, `pin_entfernen`, `pin_vorhanden`, `pin_pruefen` (nur Server). Dialogfelder mit `ziffern: true` zeigen die Zifferntastatur. |
+| Anmeldung mit PIN | `pinAnmelden(email, pin)` ruft die Server-Funktion `pin-anmelden` (Quelle in `supabase/functions/`), `pinMeldung(e)` macht den Text daraus. In der Datenbank: `pin_setzen`, `passwort_setzen` (Admin setzt anderen ein Passwort, ohne das alte zu kennen), `pin_entfernen`, `pin_vorhanden`, `pin_pruefen` (nur Server). Dialogfelder mit `ziffern: true` zeigen die Zifferntastatur. |
 
 ### Rollen
 
@@ -123,7 +123,7 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer` — d
 3. Sicherung (`sicherung.ps1`) und Dokumente-Abgleich auf das neue Projekt umstellen.
 4. Supabase Pro für tägliche Sicherungen. Altes Projekt pausieren. `C:\Hofer\Umzug` löschen.
 5. Offline am Tablet einmal testen.
-6. PIN-Anmeldung in Betrieb nehmen: `sql/pin-anmeldung.sql` ausführen, PINs setzen, dann `sql/offenes-passwort-weg.sql`. Die E-Mail-Adressen sind über `login_kacheln` weiterhin öffentlich lesbar.
+6. PIN-Anmeldung in Betrieb nehmen: `sql/pin-anmeldung.sql` ausführen und allen eine PIN oder ein Passwort setzen. `sql/offenes-passwort-weg.sql` **nie ausführen** (Entscheid 3. Oktober 2026), die Datei bleibt nur als Möglichkeit liegen. Die E-Mail-Adressen sind über `login_kacheln` weiterhin öffentlich lesbar.
 7. Standzeiten der Werkzeuge aus `tool_changes.gehalten_stk` auswerten.
 8. Offene Entscheide: infoBoard-Echtstart, ob der Park „Extern" für interne Rollen sichtbar ist, Lieferantenferien im Ferienblock, doppelte Namen in den Ferien.
 9. Kameras später neu überlegen. Das alte Modul ist entfernt.

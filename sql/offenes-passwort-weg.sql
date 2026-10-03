@@ -1,6 +1,9 @@
 -- =================================================================
 --  ALTES GEMEINSAMES PASSWORT SPERREN (Schritt 2 von 2)
 --
+--  ACHTUNG: Entscheid vom 3. Oktober 2026: NICHT ausführen. Die Datei
+--  bleibt als Möglichkeit liegen. Nur nach ausdrücklichem Auftrag.
+--
 --  Erst ausführen, wenn
 --    1. pin-anmeldung.sql gelaufen ist und
 --    2. du dir in der App selbst eine PIN gesetzt hast

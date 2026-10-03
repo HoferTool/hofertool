@@ -1,5 +1,5 @@
 -- =================================================================
---  ANMELDUNG MIT PIN (Schritt 1 von 2)
+--  ANMELDUNG MIT PIN
 --
 --  Bisher kam man mit "ohne Passwort" über ein gemeinsames Passwort
 --  hinein, das im öffentlichen Code stand. Damit konnte sich jeder im
@@ -13,8 +13,9 @@
 --  Wer eine PIN setzt, bekommt dabei ein zufälliges, unbekanntes
 --  Passwort. Damit funktioniert für dieses Konto nur noch die PIN.
 --
---  Dieses Skript ändert an bestehenden Anmeldungen noch nichts. Erst
---  Schritt 2 (offenes-passwort-weg.sql) sperrt das alte Passwort.
+--  Dieses Skript ändert an bestehenden Anmeldungen nichts. Passwörter
+--  bleiben gültig, bis jemand eine PIN oder ein neues Passwort bekommt.
+--  offenes-passwort-weg.sql wird NIE ausgeführt (Entscheid 3.10.2026).
 --
 --  Läuft gefahrlos mehrfach.
 -- =================================================================
@@ -92,6 +93,42 @@ $$;
 revoke all on function public.pin_entfernen() from public, anon;
 grant execute on function public.pin_entfernen() to authenticated;
 
+-- ---------- Passwort setzen ----------
+-- Ein Admin setzt einer Person ein neues Passwort, etwa wenn sie es
+-- vergessen hat. Das alte muss niemand kennen. Eine PIN fällt dabei weg,
+-- die Person meldet sich danach mit dem Passwort an.
+create or replace function public.passwort_setzen(p_passwort text, p_ziel uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Nicht angemeldet';
+  end if;
+  if not bin_admin() then
+    raise exception 'Nur ein Admin darf Passwörter von anderen setzen';
+  end if;
+  if p_passwort is null or length(p_passwort) < 8 then
+    raise exception 'Das Passwort braucht mindestens 8 Zeichen';
+  end if;
+
+  update auth.users
+     set encrypted_password = crypt(p_passwort, gen_salt('bf'))
+   where id = p_ziel;
+  if not found then
+    raise exception 'Person nicht gefunden';
+  end if;
+
+  delete from public.pin_schutz where user_id = p_ziel;
+  update public.profiles set ohne_passwort = false where id = p_ziel;
+end;
+$$;
+
+revoke all on function public.passwort_setzen(text, uuid) from public, anon;
+grant execute on function public.passwort_setzen(text, uuid) to authenticated;
+
 -- ---------- Wer hat schon eine PIN ----------
 -- Für die Nutzerliste der Admins. Liefert nur ja/nein, nie die PIN.
 create or replace function public.pin_vorhanden()
@@ -163,6 +200,9 @@ select 'Tabelle pin_schutz' as punkt,
 union all
 select 'Funktion pin_setzen',
        case when to_regprocedure('public.pin_setzen(text,uuid)') is not null then 'ok' else 'FEHLT' end
+union all
+select 'Funktion passwort_setzen',
+       case when to_regprocedure('public.passwort_setzen(text,uuid)') is not null then 'ok' else 'FEHLT' end
 union all
 select 'Funktion pin_pruefen',
        case when to_regprocedure('public.pin_pruefen(text,text)') is not null then 'ok' else 'FEHLT' end

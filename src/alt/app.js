@@ -98,7 +98,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.12.0";
+const APP_VERSION = "111.13.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -12428,8 +12428,9 @@ async function benutzerlisteLaden(b, bin) {
           + (bin
               ? '<td class="bu-pin"><button class="linkknopf" data-pinsetzen="' + esc(u.id) + '">'
                 + (mitPin && mitPin.has(u.id) ? "PIN ändern" : "PIN setzen") + '</button>'
+                + (selbst ? "" : ' · <button class="linkknopf" data-pwsetzen="' + esc(u.id) + '">Passwort setzen</button>')
                 + (mitPin && !mitPin.has(u.id) && u.ohne_passwort
-                    ? ' <span class="bz-spaet" title="Kommt erst mit PIN wieder hinein">fehlt</span>' : "")
+                    ? ' <span class="bz-spaet" title="Kommt erst mit PIN oder Passwort vom Admin wieder hinein">fehlt</span>' : "")
                 + '</td>'
               : "")
           + '<td class="bu-status rechts">' + (bin && !selbst
@@ -12560,6 +12561,34 @@ async function benutzerlisteLaden(b, bin) {
           ? "Dafür fehlt noch pin-anmeldung.sql in der Datenbank." : fehlertext(error), "fehler");
       }
       meldung("PIN gesetzt.");
+      benutzerlisteLaden(b, bin);
+    };
+  });
+
+  // Passwort vergessen: Der Admin setzt ein neues, ohne das alte zu kennen.
+  // Eine PIN fällt dabei weg, die Person meldet sich mit dem Passwort an.
+  ziel.querySelectorAll("[data-pwsetzen]").forEach((el) => {
+    el.onclick = async () => {
+      const u = leute.find((x) => x.id === el.dataset.pwsetzen);
+      const w = await dialogFelder({
+        titel: "Passwort für " + ((u && (u.full_name || u.email)) || "Person"),
+        text: "Die Person meldet sich danach mit diesem Passwort an. Eine PIN gilt "
+            + "dann nicht mehr. Sag ihr das Passwort persönlich.",
+        felder: [
+          { name: "pw", label: "Neues Passwort (mindestens 8 Zeichen)", typ: "password", pflicht: true },
+          { name: "pw2", label: "Nochmals eingeben", typ: "password", pflicht: true },
+        ],
+        bestaetigen: "Passwort setzen",
+      });
+      if (!w) return;
+      if (String(w.pw || "").length < 8) return meldung("Das Passwort braucht mindestens 8 Zeichen.", "warn");
+      if (w.pw !== w.pw2) return meldung("Die beiden Passwörter sind nicht gleich.", "warn");
+      const { error } = await db.rpc("passwort_setzen", { p_passwort: w.pw, p_ziel: el.dataset.pwsetzen });
+      if (error) {
+        return meldung(/passwort_setzen/.test(error.message || "")
+          ? "Dafür fehlt noch pin-anmeldung.sql in der Datenbank." : fehlertext(error), "fehler");
+      }
+      meldung("Passwort gesetzt.");
       benutzerlisteLaden(b, bin);
     };
   });
