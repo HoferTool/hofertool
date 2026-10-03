@@ -4564,3 +4564,26 @@ body[data-thema="orange"]  { --sol-verb: #ffa45c; --sol-verb-hell: #ffbe8a; }
 /* Häkchen (z. B. in den Einstellungen) im dunklen Modus: Sie waren fest
    blau (#6ba4ff). Jetzt in der Themenfarbe wie die Auswahlknöpfe. */
 body.dunkel input[type="checkbox"]:checked { accent-color: var(--marke); }
+
+/* Solaranzeige: Erzeugung und Netz haben feste Farben, die keine der
+   sieben Themenfarben sind (Blau, Rot, Grün, Gelb, Rosa, Violett,
+   Orange). So hebt sich der Verbrauch in der Themenfarbe immer ab.
+   Erzeugung gelbgrün (Limette), Netz (Bezug wie Einspeisung) türkis. */
+:root { --sol-erz: #c6f135; --sol-erz-hell: #d9f77a; --sol-netz: #22d3ee; --sol-netz-hell: #7ee6f5; }
+.sol-kachel--sonne .sol-sym, .sol-linie--sonne { stroke: var(--sol-erz); }
+.sol-kachel--sonne { box-shadow: inset 0 0 0 1px rgba(198, 241, 53, .25); }
+.sol-kachel--bezug .sol-sym, .sol-kachel--speisung .sol-sym,
+.sol-linie--bezug, .sol-linie--speisung { stroke: var(--sol-netz); }
+.sol-ring__voll { stroke: var(--sol-erz); filter: drop-shadow(0 0 6px rgba(198, 241, 53, .5)); }
+.sol-ring--klein .sol-ring__voll { filter: drop-shadow(0 0 5px rgba(198, 241, 53, .55)); }
+.sol-zahl--prod { border-left-color: var(--sol-erz); }
+.sol-zahl--prod .sol-zahl__wert { color: var(--sol-erz-hell); text-shadow: 0 0 18px rgba(198, 241, 53, .3); }
+.sol-zahl--bezug, .sol-zahl--speisung { border-left-color: var(--sol-netz); }
+.sol-zahl--bezug .sol-zahl__wert, .sol-zahl--speisung .sol-zahl__wert { color: var(--sol-netz-hell); }
+.sol-kurve--prod { stroke: var(--sol-erz); filter: drop-shadow(0 0 4px rgba(198, 241, 53, .45)); }
+.sol-spanne__knopf.aktiv { background: rgba(198, 241, 53, .2); color: var(--sol-erz-hell); }
+.pad-strom__wert--sonne b { color: var(--sol-erz-hell); }
+.pad-strom__wert--speisung b, .pad-strom__wert--bezug b { color: var(--sol-netz-hell); }
+.pad-sv__flaeche { fill: rgba(198, 241, 53, .18); }
+.pad-sv__linie { stroke: var(--sol-erz); }
+.solar::after { background: radial-gradient(circle, rgba(198, 241, 53, .16), transparent 70%); }

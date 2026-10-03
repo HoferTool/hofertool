@@ -1,5 +1,5 @@
 # Verbrauch auf der Solaranzeige und Häkchen folgen der Themenfarbe,
-# hell und dunkel, in jedem Thema
+# hell und dunkel, in jedem Thema. Erzeugung und Netz bleiben fest.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -31,12 +31,14 @@ with sync_playwright() as p:
             w = pg.evaluate("""() => ({
               kurve: getComputedStyle(document.querySelector('.sol-kurve--verb')).stroke,
               strich: getComputedStyle(document.querySelector('#probe .sol-zahl--verb')).borderLeftColor,
+              erz: getComputedStyle(document.querySelector('.sol-kurve--prod')).stroke,
               haken: getComputedStyle(document.getElementById('pk')).accentColor,
               marke: getComputedStyle(document.body).getPropertyValue('--marke').trim() })""")
             n = ("dunkel " if dunkel else "hell ") + t
             pruefe(n + ": Verbrauch-Kurve", w["kurve"] == rgb(farbe))
             pruefe(n + ": Verbrauch-Strich", w["strich"] == rgb(farbe))
             pruefe(n + ": Häkchen = Themenfarbe", w["haken"] == rgb(w["marke"]))
+            pruefe(n + ": Erzeugung fest", w["erz"] == rgb("#c6f135"))
     pg.evaluate("document.getElementById('probe').remove(); document.body.classList.add('dunkel'); document.body.setAttribute('data-thema','gruen')")
     pg.locator(".solar").first.screenshot(path="/tmp/claude-0/solar-gruen.png")
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(800)

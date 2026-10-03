@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.22.0";
+const APP_VERSION = "111.22.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1912,8 +1912,8 @@ function solarVerlauf(reihe) {
   return '<div class="sol-verlauf">'
     + '<svg viewBox="0 0 ' + B + ' ' + H + '" preserveAspectRatio="none">'
     + '<defs><linearGradient id="solFuellung" x1="0" y1="0" x2="0" y2="1">'
-    + '<stop offset="0%" stop-color="#ffc940" stop-opacity=".55"/>'
-    + '<stop offset="100%" stop-color="#ffc940" stop-opacity="0"/>'
+    + '<stop offset="0%" stop-color="#c6f135" stop-opacity=".55"/>'
+    + '<stop offset="100%" stop-color="#c6f135" stop-opacity="0"/>'
     + '</linearGradient></defs>'
     + striche.join("")
     + '<path d="' + flaeche + '" class="sol-flaeche"/>'

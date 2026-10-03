@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 111.x — nach dem Umzug (1.–2. Oktober 2026)
 
+- **111.22.1** Solaranzeige: Erzeugung (gelbgrün) und Netzbezug/Einspeisung (türkis) haben feste Farben, die keine Themenfarbe sind, damit sich der Verbrauch in der Themenfarbe immer abhebt. Auch im Pad Mode.
 - **111.22.0** Planwand für alle mit Planrecht: Ein Klick auf einen Balken zeigt die Zeichnung, wie schon bei allen anderen. Doppelklick, am Tablet Doppeltipp, öffnet das Auftragsfenster (Wunsch 3. Oktober 2026, `balkenKlick` und `balkenZeichnung`). Der einzelne Klick wartet dafür 0,32 Sekunden, ob ein zweiter kommt. Kopieren und Einfügen bleiben beim einfachen Klick. Prüfstand `doppelklick.py`; die übrigen Tests öffnen das Fenster jetzt mit Doppelklick.
 - **111.21.1** Solaranzeige: „Verbrauch“ (Strich, Zahl, Haus-Symbol, gestrichelte Kurve) nimmt die Themenfarbe an (`--sol-verb` je Thema, heller Ton, weil die Karte immer dunkel ist). Häkchen im dunklen Modus waren fest blau, jetzt Themenfarbe. Prüfstand `themenfarbe_solar.py`.
 - **111.21.0** Produktion, Tag: Karten im Stil der Woche, so viele Spalten wie Platz ist (3 auf dem Büro-Bildschirm, 2 am Tablet, 1 am Handy). Oben Zustand, gross die Nummer und der Balken für Stand und Ziel, in der Mitte das grosse Feld für den Zählerstand mit „+… heute“, unten die Knöpfe. Die Maschinennummer steht nicht mehr doppelt. Prüfstand `tag_platz.py`.
