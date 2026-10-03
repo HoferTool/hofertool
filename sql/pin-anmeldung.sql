@@ -1,5 +1,5 @@
 -- =================================================================
---  ANMELDUNG MIT PIN (Schritt 1 von 2)
+--  ANMELDUNG MIT PIN
 --
 --  Bisher kam man mit "ohne Passwort" über ein gemeinsames Passwort
 --  hinein, das im öffentlichen Code stand. Damit konnte sich jeder im
@@ -13,8 +13,9 @@
 --  Wer eine PIN setzt, bekommt dabei ein zufälliges, unbekanntes
 --  Passwort. Damit funktioniert für dieses Konto nur noch die PIN.
 --
---  Dieses Skript ändert an bestehenden Anmeldungen noch nichts. Erst
---  Schritt 2 (offenes-passwort-weg.sql) sperrt das alte Passwort.
+--  Dieses Skript ändert an bestehenden Anmeldungen nichts. Passwörter
+--  bleiben gültig, bis jemand eine PIN oder ein neues Passwort bekommt.
+--  offenes-passwort-weg.sql wird NIE ausgeführt (Entscheid 3.10.2026).
 --
 --  Läuft gefahrlos mehrfach.
 -- =================================================================
