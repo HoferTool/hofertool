@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 111.x — nach dem Umzug (1.–2. Oktober 2026)
 
+- **111.16.2** Dunkler Modus folgt der Themenfarbe: Rahmen der angewählten Reiter und Umschalter, Fokus und Eingabefelder waren fest blau. Die Zahl neben Titeln (z. B. bei HOCO Nr.) ist jetzt lesbar. Leere HOCO-Bereiche sind nicht mehr halb durchsichtig, sondern weiss mit gestricheltem Rahmen.
 - **111.16.1** Pad: Die Kacheln HOCO Nr. und Fortschritt wirkten neben den farbigen Kacheln wie ausgeblendet. HOCO Nr. ist jetzt kräftig blau, Fortschritt grün im Plan oder Vorsprung, rot bei Verzug, grau ohne Auftrag.
 - **111.16.0** Live-Schaltung der neuen Fassung (Vite + React, 3. Oktober 2026). Die Vorschau unter `/vorschau/` ist weg, `ausliefern.yml` baut bei jedem Push auf `main`. „Gerät merken“ aus 111.14.0 ist in die React-Anmeldung und die Einstellungen übernommen.
 - **111.15.x** Startseite: Hat jemand Geburtstag, steht statt des Logos die Person mit grossem Profilbild (eckig, ohne Rand), Kuchen mit Alter, Vorname und Geburtsdatum im höheren blauen Band, dahinter Konfetti und Feuerwerk (`start/Geburtstag.jsx`). Mehr Bewegung: Karten der Startseite kommen nacheinander herein, Licht im Band, Knöpfe geben nach. Prüfstand `geburtstag.py`.
