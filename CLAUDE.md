@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau des React-Umbaus:** https://hofertool.github.io/hofertool/vorschau/ — `.github/workflows/vorschau.yml` stellt die Seite zusammen: die Live-App unverändert von `main`, darunter in `vorschau/` die gebaute Fassung aus dem Zweig `claude/react-umbau-4p3juj`. Läuft bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. Pages-Quelle muss dafür „GitHub Actions“ sein. Die Vorschau arbeitet mit **denselben echten Daten** wie die Live-App. `sw.js` lässt alles unter `/vorschau/` in Ruhe.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.13.1 (Konstante `APP_VERSION` in `index.html`).
+- **Stand:** Version 111.14.0 (Konstante `APP_VERSION` in `index.html`).
 
 ## Mit wem du arbeitest
 
@@ -92,7 +92,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 - **Notizen:** Jeder darf jede Notiz bearbeiten. Ein Vorschlagsverfahren war gewünscht und wurde wieder entfernt.
 - **Pad Mode:** Die Startseite zeigt nur „Maschinen". Zeichnung, WBG und Einrichtblatt öffnen im gemeinsamen Betrachter, PDFs auf volle Breite. „Zurück" geht genau einen Schritt. Die Materialkachel ist in der Werkstofffarbe gefüllt. Der Text der Auftragskachel passt seine Grösse an die Menge an.
 - **Produktion, Woche:** drei Spalten (Nr. · Einrichtblatt, Menge, Beenden · Ziel, Stand, Zustand). Die Tabelle ist nur so breit wie nötig.
-- **Anmeldung:** immer blau, Kacheln alphabetisch. Konten mit PIN (Punkt auf der Kachel) melden sich mit ihrer persönlichen PIN an. Der Server prüft sie: nach **5 falschen Versuchen 5 Minuten Sperre**, danach wieder 5 Versuche, immer so weiter. Wer eine PIN hat, hat ein zufälliges Passwort. Admins setzen PINs unter Einstellungen → Nutzer. Ein gemeinsames Passwort im Code gibt es nicht mehr.
+- **Anmeldung:** immer blau, Kacheln alphabetisch. Konten mit PIN (Punkt auf der Kachel) melden sich mit ihrer persönlichen PIN an. Der Server prüft sie: nach **5 falschen Versuchen 5 Minuten Sperre**, danach wieder 5 Versuche, immer so weiter. Wer eine PIN hat, hat ein zufälliges Passwort. Admins setzen PINs unter Einstellungen → Nutzer. Ein gemeinsames Passwort im Code gibt es nicht mehr. **Gerät merken** (Entscheid 3. Oktober 2026): Mit dem Häkchen „Auf diesem Gerät merken“ hebt das Gerät je Person den Erneuerungsschlüssel der Sitzung auf (`hofer.geraet.sitzungen`, `gemerktAnmelden`). Danach genügt dort ein Tipp auf die Kachel. „Abmelden“ meldet auf so einem Gerät nur lokal ab (`abmelden()`), damit der Schlüssel gültig bleibt.
 - **Bestellmail:** eine `.eml`-Datei mit PDF im Anhang, Aptos 12, zwei Logos mit Link (hoferco.ch, salt-pepper.ch).
 - **Bestellungen:** Den Status kann man auch in der Historie zurücksetzen. Jede Position zeigt `status_am`.
 
