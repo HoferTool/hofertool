@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { alt, AltTeil } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import Dokumente from "./Dokumente.jsx";
+import Farben from "./Farben.jsx";
 
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["backup", "Backup"],
                 ["fehler", "Fehlerprotokoll"], ["farben", "Farben und Material", true],
@@ -40,7 +41,7 @@ function Einstellungen({ zu }) {
   else if (offen === "backup") inhalt = <Backup />;
   else if (offen === "fehler") inhalt = <Fehlerprotokoll />;
   else if (offen === "dokumente") inhalt = <Dokumente />;
-  else if (offen === "farben") inhalt = <AltTeil zeichne={alt.einstFarbenZeichnen} />;
+  else if (offen === "farben") inhalt = <Farben />;
   else inhalt = <AltTeil zeichne={alt.einstNutzerZeichnen} />;
 
   return (

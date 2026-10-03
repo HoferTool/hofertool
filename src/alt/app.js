@@ -10386,148 +10386,12 @@ async function planerListeZeichnen() {
   });
 }
 
-async function werkstoffListeZeichnen() {
-  const ziel = document.getElementById("werkstoffliste");
-  if (!ziel) return;
-  let bez = [];
-  try {
-    const alle = [];
-    for (let von = 0; von < 20000; von += 1000) {
-      const r = await zeitlimit(db.from("jobs").select("material_bez")
-        .not("material_bez", "is", null).range(von, von + 999), 10000, "Werkstoffe");
-      if (r.error) throw r.error;
-      alle.push(...(r.data || []));
-      if (!r.data || r.data.length < 1000) break;
-    }
-    bez = alle.map((x) => x.material_bez);
-  } catch (f) { ziel.innerHTML = '<p class="hinweis">' + esc(fehlertext(f)) + '</p>'; return; }
-
-  // Je Werkstoff einmal, mit Anzahl
-  const jeKern = new Map();
-  bez.forEach((b) => {
-    const k = werkstoffKern(b);
-    if (!k || k.length < 2) return;
-    const s = werkstoffSchluessel(b);
-    const e = jeKern.get(s) || { kern: k, beispiel: b, n: 0 };
-    e.n++; jeKern.set(s, e);
-  });
-  const zeilen = [...jeKern.values()].map((e) => Object.assign(e, { g: werkstoffErkennen(e.beispiel) }))
-    .sort((a, b) => (a.g ? 1 : 0) - (b.g ? 1 : 0) || b.n - a.n);
-
-  const offen = zeilen.filter((z) => !z.g).length;
-  const auswahl = (z) => '<select data-werkstoff="' + esc(z.beispiel) + '">'
-    + '<option value="">' + (z.g && !z.g.gelernt ? "automatisch" : "— nicht zugeordnet —") + '</option>'
-    + Object.keys(WERKSTOFFGRUPPEN).map((k) => '<option value="' + k + '"'
-        + (z.g && z.g.gelernt && z.g.key === k ? " selected" : "") + '>'
-        + esc(WERKSTOFFGRUPPEN[k].name) + '</option>').join("")
-    + '</select>';
-
-  ziel.innerHTML = '<p class="klein">' + zeilen.length + ' Werkstoffe · '
-    + (offen ? '<b>' + offen + ' nicht erkannt</b>' : "alle erkannt") + '</p>'
-    + '<div class="tabellenrolle"><table class="tabelle ws-tabelle"><thead><tr>'
-    + '<th>Werkstoff</th><th class="rechts">Aufträge</th><th>Gruppe</th><th>Von Hand</th>'
-    + '</tr></thead><tbody>'
-    + zeilen.map((z) => {
-        const f = z.g ? farbeVon(z.g.farbe) : null;
-        return '<tr' + (z.g ? "" : ' class="ws-offen"') + '>'
-          + '<td><strong>' + esc(z.kern) + '</strong></td>'
-          + '<td class="rechts">' + z.n + '</td>'
-          + '<td>' + (z.g
-              ? '<span class="ws-farbe" style="background:' + f.hex + '"></span>'
-                + esc(werkstoffText(z.g))
-                + (z.g.spaene ? '<div class="klein gedaempft">Späne ' + esc(z.g.spaene) + '</div>' : "")
-              : '<span class="gedaempft">nicht erkannt</span>') + '</td>'
-          + '<td>' + auswahl(z) + '</td></tr>';
-      }).join("")
-    + '</tbody></table></div>';
-
-  ziel.querySelectorAll("[data-werkstoff]").forEach((el) => {
-    el.onchange = async () => {
-      try {
-        await werkstoffZuordnen(el.dataset.werkstoff, el.value || null);
-        meldung(el.value ? "Zugeordnet." : "Zuordnung entfernt.");
-        werkstoffListeZeichnen();
-      } catch (f) { meldung(fehlertext(f), "fehler"); }
-    };
-  });
-}
-
-async function farbListeZeichnen() {
-  const kasten = document.getElementById("farbliste");
-  if (!kasten) return;
-
-  await farbzuteilungLaden();
-
-  kasten.innerHTML = '<div class="farbzeilen">'
-    + PLANFARBEN.map((f) => {
-        const zu = FARBZUTEILUNG[f.wert] || {};
-        return '<div class="farbzeile">'
-          + '<span class="farbzeile__punkt" style="background:' + f.hex
-          + ';color:' + f.schrift + '">' + esc(zu.buchstabe || "") + '</span>'
-          + '<span class="farbzeile__name">' + esc(f.name) + '</span>'
-          + '<input type="text" class="farbzeile__material" data-fmat="' + f.wert
-          + '" value="' + esc(zu.material || "") + '" placeholder="Material">'
-          + '<input type="text" class="farbzeile__kuerzel" data-fkuerzel="' + f.wert
-          + '" value="' + esc(zu.buchstabe || "") + '" placeholder="Kürzel">'
-          + '</div>';
-      }).join("")
-    + '</div>';
-
-  const speichern = async (farbe) => {
-    const matFeld = kasten.querySelector('[data-fmat="' + farbe + '"]');
-    const kueFeld = kasten.querySelector('[data-fkuerzel="' + farbe + '"]');
-    const material = (matFeld.value || "").trim();
-    const kuerzel = (kueFeld.value || "").trim();
-
-    if (!material) {
-      // Ohne Material verschwindet die Farbe aus der Auswahl
-      await db.from("farb_material").delete().eq("farbe", farbe);
-      meldung("Farbe wird nicht mehr angeboten.");
-    } else {
-      const nr = PLANFARBEN.findIndex((x) => x.wert === farbe);
-      const { error } = await db.from("farb_material").upsert({
-        farbe: farbe, material: material, buchstabe: kuerzel || null, sortierung: nr,
-      });
-      if (error) { meldung(fehlertext(error), "fehler"); return; }
-      meldung("Gespeichert.");
-    }
-    await farbzuteilungLaden();
-    farbListeZeichnen();
-  };
-
-  kasten.querySelectorAll("[data-fmat]").forEach((el) => {
-    el.onchange = () => speichern(el.dataset.fmat);
-  });
-  kasten.querySelectorAll("[data-fkuerzel]").forEach((el) => {
-    el.onchange = () => speichern(el.dataset.fkuerzel);
-  });
-}
-
 // Welcher Reiter in den Einstellungen offen ist
 const einst = { reiter: "allgemein" };
 
-// Die Reiter „Farben und Material“ und „Nutzer“ sind noch alt und
-// hängen über AltTeil im Einstellungsfenster (src/einstellungen/).
-function einstFarbenZeichnen(ziel) {
-  ziel.innerHTML =
-    '<section class="karte"><h2>Farben und Material</h2>'
-    + '<p class="hinweis">Nur Farben mit einem Material erscheinen im '
-    + 'Auftragsfenster. Das Kürzel steht auf dem Balken — mehrere Angaben '
-    + 'mit Schrägstrich, zum Beispiel E/N.</p>'
-    + '<div id="farbliste"><div class="laedt">Wird geladen …</div></div>'
-    + '</section>'
-    + '<section class="karte"><div class="karte__kopf"><h2>Werkstofferkennung</h2>'
-    + '<span class="klein">nach euren Werkstofftabellen</span></div>'
-    + '<p class="hinweis">Jede Materialbezeichnung aus den Aufträgen mit der erkannten '
-    + 'Gruppe. Was nicht erkannt wird, steht oben — einmal zuordnen, die App merkt '
-    + 'es sich. Neue Aufträge bekommen die Farbe der Gruppe, solange niemand von Hand '
-    + 'eine andere wählt.</p>'
-    + '<div id="werkstoffliste"><div class="laedt">Wird geladen …</div></div>'
-    + '</section>';
-  farbListeZeichnen();
-  werkstoffListeZeichnen();
-}
-
+// Der Reiter „Nutzer“ ist noch alt und hängt über AltTeil im
+// Einstellungsfenster (src/einstellungen/). „Farben und Material“ ist
+// src/einstellungen/Farben.jsx.
 function einstNutzerZeichnen(ziel) {
   ziel.innerHTML =
     '<section class="karte"><h2>Benutzer mit Login</h2>'
@@ -12510,7 +12374,8 @@ Object.assign(alt, {
   ladeHoco, ladeHocoAusAuftraegen, groesseAusAuftrag, dokListe, dokAbschnittMarkup,
   dokAbschnittBinden, hocoDialog, blattPdfWaehlen, blattPdfAnHoco,
   ladeTypAufbau, platzVerschieben, platzEinreihen, toolVergleich, pathFarbe, blattPdfAmTyp,
-  einst, einstFarbenZeichnen, einstNutzerZeichnen, fehlerLesen,
+  einst, einstNutzerZeichnen, fehlerLesen,
+  farbzuteilungLaden, werkstoffKern, werkstoffSchluessel, werkstoffZuordnen, WERKSTOFFGRUPPEN,
   DOK_ARTEN, DOK_REGELN_VORGABE, dokErkennen, dokZielText, dokMitRegeln, dokRegelnUebernehmen,
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
   FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen, bildZuschneiden,
