@@ -2,10 +2,11 @@
 
 Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Darin stecken: Planwand der Aufträge, Stückzahlen in der Produktion, Pad Mode für Tablets an den Maschinen, Bestellungen, Einkaufsliste, Werkstatt-Rechner, Notizen, Chat, Fahrzeuge, Dokumente und Einstellungen.
 
-- **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`, Ordner `/`).
+- **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`).
+- **Vorschau des React-Umbaus:** https://hofertool.github.io/hofertool/vorschau/ — `.github/workflows/vorschau.yml` stellt die Seite zusammen: die Live-App unverändert von `main`, darunter in `vorschau/` die gebaute Fassung aus dem Zweig `claude/react-umbau-4p3juj`. Läuft bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. Pages-Quelle muss dafür „GitHub Actions“ sein. Die Vorschau arbeitet mit **denselben echten Daten** wie die Live-App. `sw.js` lässt alles unter `/vorschau/` in Ruhe.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.13.0 (Konstante `APP_VERSION` in `index.html`).
+- **Stand:** Version 111.13.1 (Konstante `APP_VERSION` in `index.html`).
 
 ## Mit wem du arbeitest
 
