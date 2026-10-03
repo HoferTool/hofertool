@@ -7,18 +7,27 @@
 //  anlage bleiben dabei stehen. Die Seite flackert nicht.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
-import { alt } from "../bruecke.jsx";
-import { Probleme, Vorbereitung, EinkaufKurz, Bestellstand, Geburtstage } from "./start/Karten.jsx";
+import { alt, useDaten } from "../bruecke.jsx";
+import { Probleme, Vorbereitung, EinkaufKurz, Bestellstand, Geburtstage,
+  geburtstageLaden, geburtstageAufbereiten } from "./start/Karten.jsx";
+import { GeburtstagMitte, Konfetti } from "./start/Geburtstag.jsx";
 import Notizen from "./start/Notizen.jsx";
 
 export default function Start({ auffrischen }) {
   const profil = alt.profil;
   const name = (profil && (profil.full_name || profil.email.split("@")[0])) || "";
+  // Einmal laden, für die Karte unten und für das Band oben
+  const geb = useDaten(geburtstageLaden, [auffrischen]);
+  const kinder = geburtstageAufbereiten(geb.daten).filter((m) => m.tage === 0);
+  const fest = kinder.length > 0;
   return (
     <>
-      <section className="kopfkarte">
+      <section className={"kopfkarte" + (fest ? " kopfkarte--geburtstag" : "")}>
+        {fest && <Konfetti />}
         <Uhr />
-        <img className="kopfkarte__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
+        {fest
+          ? <GeburtstagMitte kinder={kinder} />
+          : <img className="kopfkarte__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />}
         <Wetter />
       </section>
       <Solaranlage />
@@ -28,7 +37,7 @@ export default function Start({ auffrischen }) {
       <EinkaufKurz auffrischen={auffrischen} />
       <Notizen auffrischen={auffrischen} />
       <Bestellstand auffrischen={auffrischen} />
-      <Geburtstage auffrischen={auffrischen} />
+      <Geburtstage leute={geb.daten} fehler={geb.fehler} />
     </>
   );
 }

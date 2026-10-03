@@ -174,7 +174,9 @@ export function Bestellstand({ auffrischen }) {
 
 // ---------- Geburtstage ----------
 
-async function geburtstageLaden() {
+// Die Startseite lädt einmal und gibt die Liste an die Karte und an das
+// blaue Band oben weiter (dort erscheint am Geburtstag die Person).
+export async function geburtstageLaden() {
   const leute = await abfrage(alt.db.from("profiles").select("full_name, email, geburtstag, bild_url")
     .not("geburtstag", "is", null).eq("is_active", true), 8000, "Geburtstage");
   // Personen ohne Login zählen genauso
@@ -189,8 +191,32 @@ async function geburtstageLaden() {
   return leute;
 }
 
-export function Geburtstage({ auffrischen }) {
-  const { daten: leute, fehler } = useDaten(geburtstageLaden, [auffrischen]);
+// Nächster Geburtstag, Tage bis dahin und das neue Alter je Person,
+// sortiert nach dem nächsten. Zeilen ohne gültiges Datum fallen weg,
+// statt dass die ganze Liste abbricht.
+export function geburtstageAufbereiten(leute) {
+  const heute = new Date();
+  const heuteNur = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate());
+  return (leute || []).filter((m) => {
+    if (!m.geburtstag) return false;
+    const d = alt.ausIso(m.geburtstag);
+    return d && !isNaN(d.getTime());
+  }).map((m) => {
+    const g = alt.ausIso(m.geburtstag);
+    let naechster = new Date(heute.getFullYear(), g.getMonth(), g.getDate());
+    if (naechster < heuteNur) naechster = new Date(heute.getFullYear() + 1, g.getMonth(), g.getDate());
+    return {
+      name: m.full_name || m.email,
+      bild: m.bild_url,
+      geboren: m.geburtstag,
+      datum: alt.isoDatum(naechster),
+      tage: Math.round((naechster - heuteNur) / 86400000),
+      alter: naechster.getFullYear() - g.getFullYear(),
+    };
+  }).sort((a, c) => a.tage - c.tage);
+}
+
+export function Geburtstage({ leute, fehler }) {
 
   // Fehlt die Spalte in der Datenbank, sagen wir das offen, statt den
   // Bereich still verschwinden zu lassen.
@@ -209,26 +235,7 @@ export function Geburtstage({ auffrischen }) {
     );
   }
 
-  const heute = new Date();
-  const heuteNur = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate());
-  const alle = leute.filter((m) => {
-    // Ohne gültiges Datum wird die Zeile übersprungen, statt dass die
-    // ganze Liste abbricht.
-    if (!m.geburtstag) return false;
-    const d = alt.ausIso(m.geburtstag);
-    return d && !isNaN(d.getTime());
-  }).map((m) => {
-    const g = alt.ausIso(m.geburtstag);
-    let naechster = new Date(heute.getFullYear(), g.getMonth(), g.getDate());
-    if (naechster < heuteNur) naechster = new Date(heute.getFullYear() + 1, g.getMonth(), g.getDate());
-    return {
-      name: m.full_name || m.email,
-      bild: m.bild_url,
-      datum: alt.isoDatum(naechster),
-      tage: Math.round((naechster - heuteNur) / 86400000),
-      alter: naechster.getFullYear() - g.getFullYear(),
-    };
-  }).sort((a, c) => a.tage - c.tage);
+  const alle = geburtstageAufbereiten(leute);
 
   // Alle innerhalb von 30 Tagen, höchstens fünf. Sind es weniger als
   // fünf, wird mit den nächstfolgenden aufgefüllt.

@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau des React-Umbaus:** https://hofertool.github.io/hofertool/vorschau/ — `.github/workflows/vorschau.yml` stellt die Seite zusammen: die Live-App unverändert von `main`, darunter in `vorschau/` die gebaute Fassung aus dem Zweig `claude/react-umbau-4p3juj`. Läuft bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. Pages-Quelle muss dafür „GitHub Actions“ sein. Die Vorschau arbeitet mit **denselben echten Daten** wie die Live-App. `sw.js` lässt alles unter `/vorschau/` in Ruhe.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.14.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.15.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -24,7 +24,7 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
   - `index.html` ist nur noch das Gerüst, das `src/main.jsx` lädt.
   - `src/alt/app.js` und `src/alt/stil.css` sind das bisherige Programm und die bisherige Gestaltung. Darin stecken noch die Planwand-Tafel (`zeichnePlanwand` mit Ziehen, Griffen und Wischen; sie bleibt bewusst das bewährte Zeichenprogramm), die Erkennung und das Hochladen von Dokumenten, Druckblätter und viele Helfer.
   - In React neu gebaut:
-    - `src/seiten/`: Startseite, Bestellungen (mit Fenster „Neue Position“), Einkauf, Rechner-Reiter Drehzahl, Winkel, G-Code, C-Achse, Gravur und DXF (Vor- und Nachspann gemeinsam in `rechner/kopf.jsx`, Linienzüge in `rechner/geometrie.js`), Produktion (Erfassen, Fortschritt, Maschinenparks, Maschinentypen), Planwand-Seite mit Kopfleiste.
+    - `src/seiten/`: Startseite (am Geburtstag Person mit Kuchen und Konfetti im blauen Band, `start/Geburtstag.jsx`), Bestellungen (mit Fenster „Neue Position“), Einkauf, Rechner-Reiter Drehzahl, Winkel, G-Code, C-Achse, Gravur und DXF (Vor- und Nachspann gemeinsam in `rechner/kopf.jsx`, Linienzüge in `rechner/geometrie.js`), Produktion (Erfassen, Fortschritt, Maschinenparks, Maschinentypen), Planwand-Seite mit Kopfleiste.
     - `src/huelle/`: Anmeldung, Kopfzeile und Navigation, Suche über alles.
     - `src/planwand/`: Auftragsfenster, Suche auf der Planwand, Ferienfenster, HOCO-Fenster.
     - `src/hoco/`: HOCO Nummern (Ordner, Suche, einzelnes Teil).
