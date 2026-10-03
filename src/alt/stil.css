@@ -4521,3 +4521,26 @@ body[data-thema="orange"]  { --licht: rgba(255, 175, 105, .34); }
   .betrachter__knoepfe { flex: 1 1 100%; flex-wrap: wrap; gap: 6px; }
   .betrachter__knoepfe .knopf { flex: 1 1 0; justify-content: center; white-space: nowrap; padding-left: 6px; padding-right: 6px; }
 }
+
+/* Tag in der Produktion: Karten im Stil der Woche. So viele Spalten,
+   wie hineinpassen, damit auch breite Bildschirme gefüllt sind. Oben
+   Zustand, Nummer und Balken, in der Mitte gross das Feld für den
+   Zählerstand, unten die Knöpfe. */
+.mkarten--tag { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important; gap: 14px; }
+.mkarte--tag { display: flex; flex-direction: column; padding: 16px 18px; }
+.mkarte--tag .aw-nr { font-size: 1.4rem; }
+.mkarte--tag .fest__zeile .auftrag, .mkarte--tag > .auftrag { margin: 10px 0 0; }
+.mk-eingabe { display: flex; align-items: center; justify-content: space-between; gap: 14px;
+              margin: 14px -18px 0; padding: 12px 18px; border-top: 1px solid var(--linie);
+              border-bottom: 1px solid var(--linie); background: var(--grund); }
+.mk-feld { display: flex; flex-direction: column; align-items: flex-end; }
+.mk-feld .menge { width: 150px; text-align: right; font-size: 1.35rem; min-height: 54px; }
+.mk-feld .kein-feld { min-height: 54px; display: flex; align-items: center; padding-right: 8px; }
+.mk-feld .zelle__leistung { min-height: 1.2em; margin-top: 4px; font-size: .78rem;
+                            font-variant-numeric: tabular-nums; color: var(--gedaempft); }
+/* Die Knöpfe sitzen unten, auch wenn eine Karte der Reihe höher ist */
+.mkarte--tag .aw-knoepfe { margin-top: auto; padding-top: 12px; }
+@media (max-width: 420px) {
+  .mkarten--tag { grid-template-columns: 1fr !important; }
+  .mk-feld .menge { width: 130px; }
+}

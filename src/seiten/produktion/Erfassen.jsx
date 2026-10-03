@@ -118,22 +118,32 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
     <StandFeld maschine={m} datum={datum} staende={staende} neu={neu} behaelter={behaelter} />
   );
 
+  // Tag: je Maschine eine Karte im Stil der Woche. Oben Zustand, Nummer
+  // und Balken, in der Mitte gross das Feld für den Zählerstand mit der
+  // Tagesleistung, unten die Knöpfe.
   if (!istWoche) {
     return (
-      <div className="mkarten">
-        {maschinen.map((m) => (
-          <div className="mkarte" key={m.id}>
-            <div className="mkarte__kopf"><div className="mkarte__name">{m.name}
-              {m.machine_number && <> <span className="mkarte__nrneben">{m.machine_number}</span></>}
-              {m.machine_number && <span className="mkarte__nr">{m.machine_number}</span>}
-            </div></div>
-            <AuftragsZeile maschine={m} aktionen={aktionen} />
-            <div className="mkarte__eingabe">
+      <div className="mkarten mkarten--tag">
+        {maschinen.map((m) => {
+          const j = prod.auftraege[m.id];
+          const e = staende.proSchluessel[m.id + "|" + prod.tag];
+          const eingabe = (
+            <div className="mk-eingabe">
               <div className="mkarte__label">Zählerstand<span>gesamt seit Auftragsbeginn</span></div>
-              {feld(m, prod.tag)}
+              <div className="mk-feld">
+                {feld(m, prod.tag)}
+                <span className="zelle__leistung">
+                  {e && Number.isFinite(e.leistung) ? leistungText(e.leistung) + " heute" : ""}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+          return (
+            <div className="mkarte mkarte--tag" key={m.id}>
+              <AuftragsBlock maschine={m} aktionen={aktionen} mitte={eingabe}
+                stand={j ? aktuellerStand(m.id, staende) : null} />
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -164,7 +174,7 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
               return (
                 <tr key={m.id}>
                   <th className="fest fest--voll fest--woche">
-                    <AuftragsBlockWoche maschine={m} aktionen={aktionen}
+                    <AuftragsBlock maschine={m} aktionen={aktionen}
                       stand={j ? aktuellerStand(m.id, staende) : null} />
                   </th>
                   {tage.map((t, i) => {
@@ -275,59 +285,24 @@ function StandFeld({ maschine, datum, staende, neu }) {
   );
 }
 
-// ---------- Die Zeile mit dem laufenden Auftrag ----------
+// ---------- Maschine ohne laufenden Auftrag ----------
 
-function AuftragsZeile({ maschine, aktionen }) {
-  const j = alt.prod.auftraege[maschine.id];
-  const schreiben = alt.darfSchreiben();
-  if (!j) {
-    return (
-      <div className="auftrag auftrag--leer">
-        <span className="auftrag__nr auftrag__nr--fehlt">Auftrag fehlt</span>
-        {schreiben && <button className="linkknopf" data-auftrag-start={maschine.id}
-          onClick={() => aktionen.starten(maschine)}>Auftrag wählen</button>}
-      </div>
-    );
-  }
-  const zustand = alt.PLANSTATUS[j.plan_status || "geplant"] || alt.PLANSTATUS.geplant;
-  const seit = j.target_quantity ? "Ziel " + alt.zahlText(j.target_quantity) + " Stück"
-    : "seit " + alt.kurzDatum(alt.isoDatum(new Date(j.started_at)));
-
-  // Den Zustand darf jeder ändern, auch ohne Schreibrecht
-  const zustandKnopf = (
-    <button className="auftrag__status" data-auftrag-status={j.id} title="Zustand ändern"
-      onClick={() => aktionen.zustand(j)}>{zustand.zeichen} {zustand.name}</button>
-  );
-  // Die HOCO Nr. steht am Auftrag — damit lässt sich das Einrichtblatt
-  // für diese Maschine direkt öffnen
-  const knoepfe = (
-    <>
-      <button className="linkknopf" data-blatt={j.id} data-maschine={maschine.id}
-        onClick={() => aktionen.einrichtblatt(j, maschine)}>Einrichtblatt</button>
-      {schreiben && <>
-        <button className="linkknopf" data-auftrag-menge={j.id} onClick={() => aktionen.menge(j)}>Menge</button>
-        <button className="linkknopf" data-auftrag-ende={j.id} data-maschine={maschine.id}
-          onClick={() => aktionen.beenden(j)}>Beenden</button>
-      </>}
-    </>
-  );
-
+function AuftragFehlt({ maschine, aktionen }) {
   return (
-    <div className="auftrag">
-      <span className="auftrag__nr">{j.job_number}</span>
-      {zustandKnopf}
-      <span className="auftrag__seit">{seit}</span>
-      {knoepfe}
+    <div className="auftrag auftrag--leer">
+      <span className="auftrag__nr auftrag__nr--fehlt">Auftrag fehlt</span>
+      {alt.darfSchreiben() && <button className="linkknopf" data-auftrag-start={maschine.id}
+        onClick={() => aktionen.starten(maschine)}>Auftrag wählen</button>}
     </div>
   );
 }
 
-// ---------- Woche: links alles zum Auftrag in einem Block ----------
+// ---------- Alles zum Auftrag in einem Block (Woche und Tag) ----------
 
 // Oben Maschine und Zustand, darunter gross die Nummer, ein Balken für
-// Stand und Ziel und die Knöpfe in einer Reihe. Dieselben Knöpfe wie in
-// der Tagesansicht.
-function AuftragsBlockWoche({ maschine, aktionen, stand }) {
+// Stand und Ziel und die Knöpfe in einer Reihe. Die Tagesansicht setzt
+// ihr Eingabefeld als „mitte“ vor die Knöpfe.
+function AuftragsBlock({ maschine, aktionen, stand, mitte }) {
   const j = alt.prod.auftraege[maschine.id];
   const schreiben = alt.darfSchreiben();
   const kopf = (
@@ -339,7 +314,8 @@ function AuftragsBlockWoche({ maschine, aktionen, stand }) {
     return (
       <>
         <div className="aw-kopf">{kopf}</div>
-        <div className="fest__zeile"><AuftragsZeile maschine={maschine} aktionen={aktionen} /></div>
+        <div className="fest__zeile"><AuftragFehlt maschine={maschine} aktionen={aktionen} /></div>
+        {mitte}
       </>
     );
   }
@@ -373,6 +349,7 @@ function AuftragsBlockWoche({ maschine, aktionen, stand }) {
           <span>seit {alt.kurzDatum(alt.isoDatum(new Date(j.started_at)))}</span>
         </div>
       )}
+      {mitte}
       <div className="aw-knoepfe">
         {/* Die HOCO Nr. steht am Auftrag, damit öffnet sich das
             Einrichtblatt für diese Maschine direkt */}
