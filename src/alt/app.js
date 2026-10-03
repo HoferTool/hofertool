@@ -17,6 +17,7 @@ import Produktion from "../seiten/Produktion.jsx";
 import { PRIO } from "../daten/einkauf.js";
 import { padZeichnen, padAbbauen } from "../pad/Pad.jsx";
 import { planAuftragDialog } from "../planwand/AuftragFenster.jsx";
+import { nachfragen, dialogFelder, auswahlDialog } from "../teile/Dialoge.jsx";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -824,25 +825,7 @@ function meldung(text, art) {
   setTimeout(() => t.remove(), 3600);
 }
 
-function nachfragen(o) {
-  return new Promise((fertig) => {
-    const h = document.createElement("div");
-    h.className = "dialog-huelle";
-    h.innerHTML = '<div class="dialog" role="dialog" aria-modal="true">'
-      + '<h2>' + esc(o.titel) + '</h2><p>' + esc(o.text) + '</p>'
-      + '<div class="dialog__knoepfe">'
-      + '<button class="knopf knopf--still" data-nein>'
-      + esc(o.abbrechen || "Abbrechen") + '</button>'
-      + '<button class="knopf ' + (o.gefahr ? "knopf--gefahr" : "knopf--haupt") + '" data-ja>'
-      + esc(o.bestaetigen || "Ja, ausführen") + '</button></div></div>';
-    document.body.appendChild(h);
-    const zu = (a) => { h.remove(); fertig(a); };
-    h.querySelector("[data-ja]").onclick = () => zu(true);
-    h.querySelector("[data-nein]").onclick = () => zu(false);
-    h.onclick = (e) => { if (e.target === h) zu(false); };
-    h.querySelector("[data-ja]").focus();
-  });
-}
+// nachfragen, dialogFelder und auswahlDialog sind in src/teile/Dialoge.jsx.
 
 // Einstellungen, die nur dieses Gerät betreffen
 // Einstellungen hängen am Konto, nicht am Gerät. Der Zwischenspeicher
@@ -2721,88 +2704,12 @@ function nurLesenHinweis(text) {
 
 // =================================================================
 //  DIALOGE
-//  Ersetzt die Browser-Abfragen durch eigene Fenster.
+//  Ersetzt die Browser-Abfragen durch eigene Fenster. Die einfachen
+//  (nachfragen, dialogFelder, auswahlDialog) sind in src/teile/Dialoge.jsx.
 // =================================================================
 
-//  felder: [{ name, label, typ, wert, platzhalter, pflicht, hinweis }]
-//  Gibt ein Objekt mit den Werten zurück, oder null bei Abbruch.
+// Nummer für eigene Kennungen in Fenstern, die noch hier gebaut werden
 let dialogZaehler = 0;
-
-function dialogFelder(o) {
-  return new Promise((fertig) => {
-    // Eigene Nummer je Dialog, damit sich zwei offene Fenster
-    // niemals dieselben Kennungen teilen.
-    const nr = "d" + (++dialogZaehler) + "-";
-    const huelle = document.createElement("div");
-    huelle.className = "dialog-huelle";
-
-    const felder = (o.felder || []).map((f) => {
-      const id = nr + f.name;
-      if (f.auswahl) {
-        return '<label class="feld"><span>' + esc(f.label) + '</span>'
-          + '<select id="' + id + '">'
-          + f.auswahl.map(([wert, text]) => '<option value="' + esc(wert) + '"'
-              + (String(f.wert) === String(wert) ? " selected" : "") + '>'
-              + esc(text) + '</option>').join("")
-          + '</select>'
-          + (f.hinweis ? '<span class="feldhinweis">' + esc(f.hinweis) + '</span>' : "")
-          + '</label>';
-      }
-      if (f.typ === "textarea") {
-        return '<label class="feld"><span>' + esc(f.label) + '</span>'
-          + '<textarea id="' + id + '" rows="3" placeholder="' + esc(f.platzhalter || "") + '">'
-          + esc(f.wert || "") + '</textarea>'
-          + (f.hinweis ? '<span class="feldhinweis">' + esc(f.hinweis) + '</span>' : "")
-          + '</label>';
-      }
-      return '<label class="feld"><span>' + esc(f.label) + '</span>'
-        + '<input id="' + id + '" type="' + (f.typ || "text") + '"'
-        + (f.typ === "number" ? ' inputmode="numeric" min="0" step="1"' : "")
-        + (f.ziffern ? ' inputmode="numeric" pattern="[0-9]*" autocomplete="off"' : "")
-        + ' value="' + esc(f.wert === null || f.wert === undefined ? "" : f.wert) + '"'
-        + ' placeholder="' + esc(f.platzhalter || "") + '">'
-        + (f.hinweis ? '<span class="feldhinweis">' + esc(f.hinweis) + '</span>' : "")
-        + '</label>';
-    }).join("");
-
-    huelle.innerHTML = '<div class="dialog" role="dialog" aria-modal="true">'
-      + '<h2>' + esc(o.titel) + '</h2>'
-      + (o.text ? '<p>' + esc(o.text) + '</p>' : "")
-      + '<form>' + felder + '</form>'
-      + '<div class="dialog__knoepfe">'
-      + '<button class="knopf knopf--still" data-nein>Abbrechen</button>'
-      + '<button class="knopf ' + (o.gefahr ? "knopf--gefahr" : "knopf--haupt") + '" data-ja>'
-      + esc(o.bestaetigen || "Speichern") + '</button></div></div>';
-
-    document.body.appendChild(huelle);
-
-    const schliessen = (wert) => { huelle.remove(); fertig(wert); };
-
-    const absenden = () => {
-      const ergebnis = {};
-      for (const f of (o.felder || [])) {
-        const el = huelle.querySelector("#" + nr + f.name);
-        const wert = (el.value || "").trim();
-        if (f.pflicht && !wert) {
-          el.focus();
-          el.classList.add("menge--fehler");
-          meldung(f.label + " wird benötigt.", "warn");
-          return;
-        }
-        ergebnis[f.name] = f.typ === "number" ? (wert === "" ? 0 : Number(wert)) : wert;
-      }
-      schliessen(ergebnis);
-    };
-
-    huelle.querySelector("[data-ja]").onclick = absenden;
-    huelle.querySelector("[data-nein]").onclick = () => schliessen(null);
-    dialogSchliessen(huelle, () => schliessen(null));
-    huelle.querySelector("form").onsubmit = (e) => { e.preventDefault(); absenden(); };
-
-    const erstes = huelle.querySelector("input, textarea");
-    if (erstes) erstes.focus();
-  });
-}
 
 // Löschen mit zwei Rückfragen. Gibt true zurück, wenn gelöscht wurde.
 async function loeschen(o) {
@@ -11831,24 +11738,6 @@ function auswahlSuchen(titel, optionen, mindestens) {
     feld.oninput = zeichnen;
     zeichnen();
     feld.focus();
-  });
-}
-
-function auswahlDialog(titel, optionen) {
-  return new Promise((fertig) => {
-    const h = document.createElement("div");
-    h.className = "dialog-huelle";
-    h.innerHTML = '<div class="dialog"><h2>' + esc(titel) + '</h2>'
-      + '<div class="statuswahl">'
-      + optionen.map((o) => '<button class="knopf" data-w="' + esc(o.wert) + '">'
-          + esc(o.text) + '</button>').join("")
-      + '</div><div class="dialog__knoepfe">'
-      + '<button class="knopf knopf--still" data-nein>Abbrechen</button></div></div>';
-    document.body.appendChild(h);
-    const zu = (v) => { h.remove(); fertig(v); };
-    h.querySelector("[data-nein]").onclick = () => zu(null);
-    dialogSchliessen(h, () => zu(null));
-    h.querySelectorAll("[data-w]").forEach((el) => { el.onclick = () => zu(el.dataset.w); });
   });
 }
 

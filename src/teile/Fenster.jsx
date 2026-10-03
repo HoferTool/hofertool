@@ -6,6 +6,8 @@
 //  oberste Fenster) und findet so gleich den Schliessknopf.
 //
 //  fensterOeffnen((zu) => <Inhalt zu={zu} />) gibt zu() zurück.
+//  Ein Element mit data-fokus bekommt nach dem Öffnen den Fokus
+//  (autoFocus wirkt nicht, solange die Hülle noch nicht im Dokument ist).
 // =================================================================
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -27,5 +29,7 @@ export function fensterOeffnen(zeichne, beimSchliessen) {
   flushSync(() => wurzel.render(zeichne(zu)));
   document.body.appendChild(huelle);
   alt.dialogSchliessen(huelle, zu);
+  const fokus = huelle.querySelector("[data-fokus]");
+  if (fokus) fokus.focus();
   return zu;
 }
