@@ -21,8 +21,15 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
 - **Einzige feste Bedingung: Die App bleibt webbasiert.**
 - **Vite + React, im Umbau.** Bis Oktober 2026 war alles eine einzige `index.html`. Jetzt baut Vite aus `src/` die fertige Website in `dist/`.
   - `index.html` ist nur noch das Gerüst, das `src/main.jsx` lädt.
-  - `src/alt/app.js` und `src/alt/stil.css` sind das bisherige Programm und die bisherige Gestaltung, fast unverändert. Es zeichnet weiter die Hülle (Kopfzeile, Navigation, Fenster, Pad Mode).
-  - `src/seiten/` enthält die Bereiche, die schon in React neu gebaut sind (bisher: Startseite, Bestellungen, Einkauf, Rechner-Reiter Drehzahl, Produktion mit Erfassen, Fortschritt und Maschinenparks, die Planwand-Seite mit Kopfleiste; die Tafel zeichnet noch `zeichnePlanwand`). `src/pad/` ist der Pad Mode (Navigation und Dashboard der Maschine; Zifferblock, Werkzeugwechsel und Betrachter sind noch alt). `src/daten/` gemeinsame Daten.
+  - `src/alt/app.js` und `src/alt/stil.css` sind das bisherige Programm und die bisherige Gestaltung. Darin stecken noch die Planwand-Tafel (`zeichnePlanwand`), die Maschinentypen, die Dokumente, die Nutzerliste, Farben und Werkstoffe, Spassecke und viele Helfer.
+  - In React neu gebaut:
+    - `src/seiten/`: Startseite, Bestellungen, Einkauf, Rechner-Reiter Drehzahl, Produktion (Erfassen, Fortschritt, Maschinenparks), Planwand-Seite mit Kopfleiste.
+    - `src/huelle/`: Anmeldung, Kopfzeile und Navigation, Suche über alles.
+    - `src/planwand/`: Auftragsfenster, Suche auf der Planwand, Ferienfenster, HOCO-Fenster.
+    - `src/hoco/`: HOCO Nummern (Ordner, Suche, einzelnes Teil).
+    - `src/einstellungen/`: Einstellungsfenster (Dokumente, Farben und Nutzer hängen noch alt darin).
+    - `src/pad/`: Pad Mode (Zifferblock, Werkzeugwechsel und Betrachter sind noch alt).
+    - `src/teile/`: Fenster (`fensterOeffnen`), Dialoge (`nachfragen`, `dialogFelder`, `auswahlDialog`), Reiter. `src/daten/`: gemeinsame Daten.
   - `src/bruecke.jsx` verbindet beides: `reactSeite(Komponente)` hängt eine React-Seite in `SEITEN`, `<AltTeil zeichne={…}>` bettet einen noch alten Teil in eine React-Seite, und `alt` ist der Werkzeugkasten, den das alte Programm für React-Seiten füllt (`Object.assign(alt, {...})` nach `SEITEN`).
   - Umbau Bereich für Bereich; die App muss nach jedem Schritt vollständig laufen.
 - Das Skript ist ein **ES-Modul**. Funktionen sind **nicht global** und im Browser-Terminal nicht aufrufbar.
