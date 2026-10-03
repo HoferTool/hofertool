@@ -23,6 +23,9 @@ import { geruestZeichnen, geruestAbbauen, navAktiv } from "../huelle/Geruest.jsx
 import { sucheOeffnen } from "../huelle/SucheAlles.jsx";
 import { anmeldungZeigen } from "../huelle/Anmeldung.jsx";
 import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
+import { zifferblock } from "../pad/Zifferblock.jsx";
+import { betrachter } from "../teile/Betrachter.jsx";
+import { werkzeugWechselDialog } from "../pad/Werkzeugwechsel.jsx";
 import { ferienDialog } from "../planwand/FerienFenster.jsx";
 import { hocoFenster } from "../planwand/HocoFenster.jsx";
 import Hoco from "../hoco/Hoco.jsx";
@@ -2118,9 +2121,6 @@ function seiteSichtbar(pfad) {
 //  Ersetzt die Browser-Abfragen durch eigene Fenster. Die einfachen
 //  (nachfragen, dialogFelder, auswahlDialog) sind in src/teile/Dialoge.jsx.
 // =================================================================
-
-// Nummer für eigene Kennungen in Fenstern, die noch hier gebaut werden
-let dialogZaehler = 0;
 
 // Löschen mit zwei Rückfragen. Gibt true zurück, wenn gelöscht wurde.
 async function loeschen(o) {
@@ -6184,263 +6184,11 @@ window.addEventListener("resize", () => {
 });
 
 // =================================================================
-//  ZIFFERBLOCK
-//  Grosse Tasten statt Handytastatur — an der Maschine wird mit
-//  Handschuhen oder öligen Fingern getippt. Liefert die Zahl oder null.
+//  ZIFFERBLOCK UND WERKZEUGWECHSEL
+//  sind in src/pad/Zifferblock.jsx und src/pad/Werkzeugwechsel.jsx.
+//  Hier bleibt nur das Blatt der Historie zum Drucken und Ablegen.
 // =================================================================
 
-function zifferblock({ titel, hinweis, wert, schritte }) {
-  return new Promise((fertig) => {
-    let eingabe = String(wert == null ? "" : wert).replace(/\D/g, "");
-    const huelle = document.createElement("div");
-    huelle.className = "dialog-huelle";
-    huelle.innerHTML = '<div class="dialog zifferblock">'
-      + '<h2>' + esc(titel) + '</h2>'
-      + (hinweis ? '<p class="klein">' + esc(hinweis) + '</p>' : "")
-      + '<div class="zb-anzeige" id="zb-anzeige"></div>'
-      + (schritte && schritte.length
-          ? '<div class="zb-schritte">' + schritte.map((n) =>
-              '<button type="button" data-zbplus="' + n + '">+' + zahlText(n) + '</button>').join("")
-            + '</div>' : "")
-      + '<div class="zb-tasten">'
-      + ["7", "8", "9", "4", "5", "6", "1", "2", "3", "C", "0", "⌫"].map((t) =>
-          '<button type="button" data-zb="' + t + '"'
-          + (t === "C" || t === "⌫" ? ' class="zb-taste--neben"' : "") + '>' + t + '</button>').join("")
-      + '</div>'
-      + '<div class="zb-knoepfe">'
-      + '<button type="button" class="knopf knopf--still" data-zbnein>Abbrechen</button>'
-      + '<button type="button" class="knopf knopf--haupt" data-zbja>Eintragen</button>'
-      + '</div></div>';
-    document.body.appendChild(huelle);
-
-    const anzeige = huelle.querySelector("#zb-anzeige");
-    const zeigen = () => {
-      anzeige.textContent = eingabe ? zahlText(Number(eingabe)) : "0";
-      anzeige.classList.toggle("zb-anzeige--leer", !eingabe);
-    };
-    zeigen();
-
-    const zu = (ergebnis) => {
-      document.removeEventListener("keydown", tasten, true);
-      huelle.remove();
-      fertig(ergebnis);
-    };
-    huelle.querySelectorAll("[data-zb]").forEach((el) => {
-      el.onclick = () => {
-        const t = el.dataset.zb;
-        if (t === "C") eingabe = "";
-        else if (t === "⌫") eingabe = eingabe.slice(0, -1);
-        else if (eingabe.length < 9) eingabe = (eingabe === "0" ? "" : eingabe) + t;
-        zeigen();
-      };
-    });
-    huelle.querySelectorAll("[data-zbplus]").forEach((el) => {
-      el.onclick = () => {
-        eingabe = String((Number(eingabe) || 0) + Number(el.dataset.zbplus));
-        zeigen();
-      };
-    });
-    huelle.querySelector("[data-zbnein]").onclick = () => zu(null);
-    huelle.querySelector("[data-zbja]").onclick = () => zu(eingabe === "" ? null : Number(eingabe));
-    huelle.onclick = (e) => { if (e.target === huelle) zu(null); };
-
-    // Mit einer echten Tastatur geht es auch
-    function tasten(e) {
-      if (!document.body.contains(huelle)) return;
-      if (/^\d$/.test(e.key)) { if (eingabe.length < 9) eingabe = (eingabe === "0" ? "" : eingabe) + e.key; }
-      else if (e.key === "Backspace") eingabe = eingabe.slice(0, -1);
-      else if (e.key === "Enter") { e.preventDefault(); zu(eingabe === "" ? null : Number(eingabe)); return; }
-      else if (e.key === "Escape") { zu(null); return; }
-      else return;
-      e.preventDefault();
-      zeigen();
-    }
-    document.addEventListener("keydown", tasten, true);
-  });
-}
-
-// ---------- Werkzeugwechsel ----------
-
-async function werkzeugWechselDialog(maschine, auftrag) {
-  // Alle Werkzeugplätze des Typs, nach Path sortiert. Angetippt
-  // werden alle, die in dieser Runde gewechselt wurden.
-  let paths = [];
-  try { paths = await ladeTypAufbau(maschine.type_id); }
-  catch (f) { meldung(fehlertext(f), "fehler"); return; }
-
-  const reihen = paths
-    .sort((x, y) => (x.nummer === 2 ? 99 : x.nummer) - (y.nummer === 2 ? 99 : y.nummer))
-    .map((p) => ({ name: p.name, plaetze: (p.type_slots || []).filter((s) => s.tool_nr) }))
-    .filter((p) => p.plaetze.length);
-
-  if (!reihen.length) {
-    meldung("Für diesen Maschinentyp sind noch keine Werkzeugplätze angelegt.", "warn");
-    return;
-  }
-
-  const gewaehlt = new Set();
-  const nr = "ww" + (++dialogZaehler) + "-";
-  const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle";
-  huelle.innerHTML = '<div class="dialog dialog--breit">'
-    + '<div class="wz-kopf"><h2>Werkzeugwechsel</h2>'
-    // Die Historie hat keinen eigenen Knopf mehr am Dashboard, sie
-    // sitzt dort, wo man sie braucht: neben dem Wechsel.
-    + '<button class="knopf knopf--klein" data-wzhistorie>Historie</button></div>'
-    + '<p class="klein">Alle Werkzeuge antippen, die gewechselt wurden.</p>'
-    + reihen.map((p) => '<div class="wz-path">'
-        + '<div class="wz-path__name">' + esc(p.name) + '</div>'
-        + '<div class="wz-gitter">'
-        + p.plaetze.map((sl) => '<button type="button" class="wz-platz"'
-            + ' data-tool="' + esc(sl.tool_nr) + '">'
-            + '<span class="wz-platz__nr">' + esc(sl.tool_nr) + '</span>'
-            + '<span class="wz-platz__art">' + esc(sl.bezeichnung || "") + '</span>'
-            + '</button>').join("")
-        + '</div></div>').join("")
-    + '<div class="dialog__knoepfe">'
-    + '<button class="knopf knopf--still" data-nein>Abbrechen</button>'
-    + '<button class="knopf knopf--haupt" id="' + nr + 'weiter" disabled>Weiter</button>'
-    + '</div></div>';
-  document.body.appendChild(huelle);
-
-  const zu = () => huelle.remove();
-  huelle.querySelector("[data-nein]").onclick = zu;
-  dialogSchliessen(huelle, zu);
-
-  const weiter = huelle.querySelector("#" + nr + "weiter");
-  const histKnopf = huelle.querySelector("[data-wzhistorie]");
-  if (histKnopf) histKnopf.onclick = () => { huelle.remove(); wechselHistorie(maschine, auftrag); };
-
-  huelle.querySelectorAll("[data-tool]").forEach((el) => {
-    el.onclick = () => {
-      const t = el.dataset.tool;
-      if (gewaehlt.has(t)) gewaehlt.delete(t); else gewaehlt.add(t);
-      el.classList.toggle("wz-platz--an", gewaehlt.has(t));
-      weiter.disabled = gewaehlt.size === 0;
-      weiter.textContent = gewaehlt.size
-        ? "Weiter · " + gewaehlt.size : "Weiter";
-    };
-  });
-
-  weiter.onclick = async () => {
-    const liste = [...gewaehlt];
-    zu();
-
-    const w = await dialogFelder({ titel: "Stückzahl beim Wechsel",
-      felder: [
-        { name: "stk", label: "Jetzige Stückzahl", typ: "number", pflicht: true,
-          wert: auftrag ? (auftrag.stand || 0) : "",
-          hinweis: liste.length + (liste.length === 1 ? " Werkzeug" : " Werkzeuge") },
-        { name: "notiz", label: "Notiz", wert: "" },
-      ], bestaetigen: "Wechsel eintragen" });
-    if (!w) return;
-
-    const stand = Math.max(0, Math.round(Number(w.stk) || 0));
-
-    // Wie viele Stück das Werkzeug gehalten hat: Abstand zur
-    // Stückzahl beim letzten Wechsel desselben Platzes.
-    const vorher = {};
-    try {
-      const r = await db.from("tool_changes")
-        .select("tool_nr, stueckzahl, gewechselt_am")
-        .eq("machine_id", maschine.id).in("tool_nr", liste)
-        .order("gewechselt_am", { ascending: false }).limit(200);
-      (r.data || []).forEach((z) => {
-        if (vorher[z.tool_nr] === undefined) vorher[z.tool_nr] = z.stueckzahl;
-      });
-    } catch (f) { /* dann bleibt die Spalte leer */ }
-
-    // Alle Zeilen einer Runde bekommen denselben Zeitpunkt
-    const zeitpunkt = new Date().toISOString();
-    const zeilen = liste.map((t) => ({
-      machine_id: maschine.id,
-      job_id: auftrag ? auftrag.id : null,
-      hoco_nr: auftrag ? auftrag.job_number : null,
-      tool_nr: t,
-      stueckzahl: stand,
-      gehalten_stk: (vorher[t] === undefined || vorher[t] === null)
-        ? null : Math.max(0, stand - vorher[t]),
-      notiz: w.notiz || null,
-      gewechselt_am: zeitpunkt,
-    }));
-
-    // Über den Einfüger, der Spalten weglässt, die es in der Tabelle
-    // nicht gibt — sonst scheitert der ganze Eintrag an einem Feld.
-    try {
-      await einfuegenOhneUnbekannte("tool_changes", zeilen);
-    } catch (f) { meldung(fehlertext(f), "fehler"); return; }
-    meldung(liste.length + (liste.length === 1 ? " Werkzeug" : " Werkzeuge")
-      + " bei " + zahlText(stand) + " Stück eingetragen.");
-  };
-}
-
-async function wechselHistorie(maschine, auftrag) {
-  let liste = [];
-  try {
-    const r = await zeitlimit(db.from("werkzeugwechsel").select("*")
-      .eq("machine_id", maschine.id)
-      .order("gewechselt_am", { ascending: false }).limit(300),
-      12000, "Werkzeugwechsel");
-    if (r.error) throw r.error;
-    liste = r.data || [];
-  } catch (f) { meldung(fehlertext(f), "fehler"); return; }
-
-  // Nach Runden gruppieren: alle Zeilen einer Runde teilen sich
-  // Zeitpunkt und Stückzahl.
-  const runden = [];
-  liste.forEach((z) => {
-    const schluessel = z.gewechselt_am + "|" + (z.stueckzahl === null ? "" : z.stueckzahl);
-    let r = runden.find((x) => x.schluessel === schluessel);
-    if (!r) {
-      r = { schluessel: schluessel, wann: z.gewechselt_am, stk: z.stueckzahl,
-            person: z.person, auftrag: z.auftrag_nr, notiz: z.notiz, zeilen: [] };
-      runden.push(r);
-    }
-    r.zeilen.push(z);
-  });
-
-  const tabelle = runden.length
-    ? '<table class="tabelle"><thead><tr><th>Stückzahl</th><th>Gewechselt</th>'
-      + '<th>Auftrag</th><th>Wann</th><th>Wer</th></tr></thead><tbody>'
-      + runden.map((r) => '<tr>'
-          + '<td class="nowrap"><strong>'
-          + (r.stk === null || r.stk === undefined ? "—" : zahlText(r.stk))
-          + '</strong></td>'
-          + '<td>' + r.zeilen.map((z) => '<span class="wz-marke">' + esc(z.tool_nr)
-              + (z.gehalten_stk !== null && z.gehalten_stk !== undefined
-                  ? ' <i>' + zahlText(z.gehalten_stk) + ' Stk</i>' : "")
-              + '</span>').join(" ")
-          + (r.notiz ? '<div class="klein">' + esc(r.notiz) + '</div>' : "")
-          + '</td>'
-          + '<td class="klein">' + esc(r.auftrag || "") + '</td>'
-          + '<td class="klein nowrap">' + esc(datumZeitKurz(r.wann)) + '</td>'
-          + '<td class="klein">' + esc(r.person || "") + '</td>'
-          + '</tr>').join("") + '</tbody></table>'
-    : '<p class="hinweis">Noch kein Wechsel eingetragen.</p>';
-
-  const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle";
-  huelle.innerHTML = '<div class="dialog dialog--breit">'
-    + '<div class="blatt__kopf"><h2>Werkzeugwechsel · ' + esc(maschine.name) + '</h2>'
-    + (runden.length
-        ? '<button class="knopf knopf--klein" data-wzpdf>Als PDF ablegen</button>' : "")
-    + '<button class="knopf knopf--still" data-zu>Schliessen</button></div>'
-    + tabelle
-    + '<p class="klein">Die Zahl hinter einem Werkzeug sagt, wie viele Stück es seit '
-    + 'dem letzten Wechsel gehalten hat. Die Standzeit im Einrichtblatt bleibt davon '
-    + 'unberührt und wird dort von Hand gepflegt.</p>'
-    + '</div>';
-  document.body.appendChild(huelle);
-  const zu = () => huelle.remove();
-  huelle.querySelector("[data-zu]").onclick = zu;
-  dialogSchliessen(huelle, zu);
-
-  const pdfKnopf = huelle.querySelector("[data-wzpdf]");
-  if (pdfKnopf) pdfKnopf.onclick = () => historieAblegen(maschine, auftrag, runden);
-}
-
-// Die Historie als PDF in dieselbe Ablage wie die Warenbegleit-
-// blätter, und am Auftrag vermerkt — dort steht sie neben der WBG.
 async function historieAblegen(maschine, auftrag, runden) {
   const fenster = window.open("", "_blank");
   if (!fenster) { meldung("Das Fenster wurde blockiert.", "warn"); return; }
@@ -6927,82 +6675,7 @@ function pdfGanz(adresse, ohneLeiste) {
   return adresse + "#navpanes=0&view=FitH" + (ohneLeiste ? "&toolbar=0" : "");
 }
 
-// Zeigt ein PDF oder ein Bild in der App an, ohne Herunterladen.
-function betrachter(adresse, titel, istPdf) {
-  const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle betrachter-huelle";
-  huelle.innerHTML = '<div class="betrachter">'
-    + '<div class="betrachter__kopf">'
-    + '<span class="betrachter__titel">' + esc(titel || "") + '</span>'
-    + '<div class="betrachter__knoepfe">'
-    + '<button class="knopf knopf--klein" data-drucken>Drucken</button>'
-    + '<button class="knopf knopf--klein" data-speichern>Speichern</button>'
-    + '<a class="knopf knopf--klein" href="' + esc(adresse) + '" target="_blank"'
-    + ' rel="noopener">Neuer Tab</a>'
-    + '<button class="knopf knopf--klein" data-zu>Schliessen</button>'
-    + '</div></div>'
-    + '<div class="betrachter__buehne">'
-    + (istPdf
-        ? '<iframe src="' + esc(pdfGanz(adresse)) + '" title="Zeichnung"></iframe>'
-          + (isMobil() ? '<p class="betrachter__hinweis">Wird nichts angezeigt, öffne die Datei über '
-          + '"Neuer Tab". Manche Handys zeigen PDFs nicht direkt in der App an.</p>' : "")
-        : '<img src="' + esc(adresse) + '" alt="Foto">')
-    + '</div></div>';
-  document.body.appendChild(huelle);
-
-  const zu = () => huelle.remove();
-  huelle.querySelector("[data-zu]").onclick = zu;
-  dialogSchliessen(huelle, zu);
-
-  // Drucken: bei einem PDF über das eingebettete Fenster. Liegt die
-  // Datei auf einem anderen Server, verweigert der Browser den
-  // Zugriff darauf — dann bleibt der neue Tab als Weg.
-  huelle.querySelector("[data-drucken]").onclick = () => {
-    if (istPdf) {
-      const rahmen = huelle.querySelector("iframe");
-      try {
-        rahmen.contentWindow.focus();
-        rahmen.contentWindow.print();
-        return;
-      } catch (f) { /* andere Herkunft, also über den Umweg */ }
-      const w = window.open(adresse, "_blank");
-      if (!w) meldung("Zum Drucken bitte über \"Neuer Tab\" öffnen.", "warn");
-      return;
-    }
-    // Bild: in einem eigenen Fenster, sonst würde die ganze App
-    // mitgedruckt werden
-    const w = window.open("", "_blank");
-    if (!w) { meldung("Das Fenster wurde blockiert.", "warn"); return; }
-    w.document.write('<!doctype html><html><head><meta charset="utf-8">'
-      + '<title>' + esc(titel || "Bild") + '</title>'
-      + '<style>@page{margin:10mm}body{margin:0}'
-      + 'img{max-width:100%;height:auto;display:block}</style></head><body>'
-      + '<img src="' + esc(adresse) + '" onload="window.print()"></body></html>');
-    w.document.close();
-  };
-
-  // Speichern: erst versuchen, die Datei wirklich herunterzuladen.
-  // Klappt das wegen der Herkunft nicht, öffnet sie sich stattdessen.
-  huelle.querySelector("[data-speichern]").onclick = async () => {
-    const name = (titel || "Datei").replace(/[^A-Za-z0-9._-]+/g, "_")
-      + (istPdf ? ".pdf" : ".jpg");
-    try {
-      const antwort = await fetch(adresse);
-      if (!antwort.ok) throw new Error("nicht erreichbar");
-      const brocken = await antwort.blob();
-      const url = URL.createObjectURL(brocken);
-      const a = document.createElement("a");
-      a.href = url; a.download = name;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-    } catch (f) {
-      const a = document.createElement("a");
-      a.href = adresse; a.download = name; a.target = "_blank";
-      a.rel = "noopener";
-      document.body.appendChild(a); a.click(); a.remove();
-    }
-  };
-}
+// Der Betrachter für PDFs und Bilder ist src/teile/Betrachter.jsx.
 
 // =================================================================
 //  ARTIKEL UND LIEFERANTEN
@@ -11867,7 +11540,7 @@ Object.assign(alt, {
   ladeHoco, ladeHocoAusAuftraegen, groesseAusAuftrag, dokListe, dokAbschnittMarkup,
   dokAbschnittBinden, hocoDialog, blattPdfWaehlen, blattPdfAnHoco,
   ladeTypAufbau, platzVerschieben, platzEinreihen, toolVergleich, pathFarbe, blattPdfAmTyp,
-  einst, fehlerLesen, ROLLEN, planerLaden, langDatum,
+  einst, fehlerLesen, ROLLEN, planerLaden, langDatum, historieAblegen, einfuegenOhneUnbekannte,
   farbzuteilungLaden, werkstoffKern, werkstoffSchluessel, werkstoffZuordnen, WERKSTOFFGRUPPEN,
   DOK_ARTEN, DOK_REGELN_VORGABE, dokErkennen, dokZielText, dokMitRegeln, dokRegelnUebernehmen,
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
