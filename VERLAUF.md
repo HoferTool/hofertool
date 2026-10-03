@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 111.x — nach dem Umzug (1.–2. Oktober 2026)
 
+- **111.16.1** Pad: Die Kacheln HOCO Nr. und Fortschritt wirkten neben den farbigen Kacheln wie ausgeblendet. HOCO Nr. ist jetzt kräftig blau, Fortschritt grün im Plan oder Vorsprung, rot bei Verzug, grau ohne Auftrag.
 - **111.16.0** Live-Schaltung der neuen Fassung (Vite + React, 3. Oktober 2026). Die Vorschau unter `/vorschau/` ist weg, `ausliefern.yml` baut bei jedem Push auf `main`. „Gerät merken“ aus 111.14.0 ist in die React-Anmeldung und die Einstellungen übernommen.
 - **111.15.x** Startseite: Hat jemand Geburtstag, steht statt des Logos die Person mit grossem Profilbild (eckig, ohne Rand), Kuchen mit Alter, Vorname und Geburtsdatum im höheren blauen Band, dahinter Konfetti und Feuerwerk (`start/Geburtstag.jsx`). Mehr Bewegung: Karten der Startseite kommen nacheinander herein, Licht im Band, Knöpfe geben nach. Prüfstand `geburtstag.py`.
 - **111.14.0** Gerät merken: Wer sich auf einem Gerät einmal mit Passwort oder PIN anmeldet, kommt dort danach mit einem Tipp auf die Kachel hinein, ohne Passwort und ohne PIN. Ein gemeinsames Passwort im Code wurde dafür nicht zurückgeholt. Prüfstand `merken.py`. Im Umbau-Zweig zur selben Zeit: Rechner C-Achse, Gravur, DXF und Fenster „Neue Position“ in React, Chat, Eierzähler, Fahrzeuge und Spassecke entfernt.

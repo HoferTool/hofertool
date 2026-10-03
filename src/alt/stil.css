@@ -4386,3 +4386,21 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 
 /* Häkchen "Auf diesem Gerät merken" in der Anmeldung */
 .login__merken { justify-content: center; margin: 10px 0 12px; font-size: 14px; }
+
+/* Pad Mode: Die Kacheln HOCO Nr. und Fortschritt waren fast schwarz-grau,
+   während alle anderen Kacheln Farbe tragen. Neben ihnen wirkten sie wie
+   ausgeblendet. Jetzt bekommen sie eigene Farbe: HOCO Nr. ein kräftiges
+   Blau, Fortschritt grün im Plan oder Vorsprung, rot bei Verzug. */
+.pad-karte2--hoco { background: linear-gradient(150deg, #1d4f8c, #0f2a4d) !important;
+                    border-color: rgba(120,170,235,.22) !important; }
+.pad-karte2--hoco .pad-name, .pad-karte2--verzug .pad-name { color: #c4d5ec; }
+.pad-karte2--hoco .pad-zeilen b { color: #b3c8e4; }
+.pad-karte2--verzug { background: linear-gradient(140deg, #1c6a45, #0d3322) !important;
+                      border-color: rgba(120,220,165,.22) !important; }
+.pad-karte2--verzug .pad-wert small { color: #bfe3cf; }
+.pad-karte2--verzug:has(.pad-wert--rot) { background: linear-gradient(140deg, #8a2a24, #461411) !important;
+                                         border-color: rgba(255,150,140,.25) !important; }
+.pad-karte2--verzug:has(.pad-wert--rot) .pad-wert--rot { color: #fff; }
+.pad-karte2--verzug:has(.pad-wert--rot) .pad-wert small { color: #f4c9c4; }
+.pad-karte2--verzug:has(.pad-leer) { background: linear-gradient(140deg, #24364f, #142236) !important;
+                                     border-color: rgba(255,255,255,.1) !important; }
