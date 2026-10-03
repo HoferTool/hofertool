@@ -82,6 +82,27 @@ async function pinAnmelden(email, pin) {
   return { status: "ok" };
 }
 
+// Konten ohne Passwort und ohne PIN (Entscheid 3. Oktober 2026): Ein
+// Tipp auf die Kachel genügt, wie vor 111.12.0. Ob das Konto noch offen
+// ist, entscheidet der Server, nicht der Code hier. Antwort "ok" heisst
+// angemeldet, "pin" oder "passwort" heisst: danach fragen.
+async function offenAnmelden(email) {
+  let antwort;
+  try {
+    antwort = await zeitlimit(db.functions.invoke("pin-anmelden",
+      { body: { email: email, offen: true } }), 15000, "Anmeldung");
+  } catch (f) {
+    return { status: "fehler", text: fehlertext(f) };
+  }
+  const d = antwort && antwort.data;
+  if (!d || antwort.error) return { status: "fehler", text: "nicht eingerichtet" };
+  if (d.status !== "ok") return d;
+  let r = await db.auth.verifyOtp({ token_hash: d.token_hash, type: "email" });
+  if (r.error) r = await db.auth.verifyOtp({ token_hash: d.token_hash, type: "magiclink" });
+  if (r.error) return { status: "fehler", text: fehlertext(r.error) };
+  return { status: "ok" };
+}
+
 // Was die Person nach einem PIN-Versuch zu lesen bekommt
 function pinMeldung(e) {
   if (e.status === "falsch") {
@@ -104,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.15.1";
+const APP_VERSION = "111.17.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -761,6 +782,65 @@ function geraetKonten() {
   try { return JSON.parse(localStorage.getItem(GERAET_KONTEN) || "[]"); } catch (f) { return []; }
 }
 
+// ---------- Gerät merkt sich die Anmeldung ----------
+// Wer sich auf einem Gerät einmal mit Passwort oder PIN angemeldet hat,
+// kommt dort danach mit einem Tipp auf die Kachel hinein (Entscheid
+// 3.10.2026). Das Gerät hebt dafür den Erneuerungsschlüssel der Sitzung
+// auf, je Person einen. Kein gemeinsames Passwort, nichts im Code: ein
+// fremder Computer kommt so nicht hinein, nur dieses Gerät.
+// Damit der Schlüssel gültig bleibt, meldet "Abmelden" auf so einem Gerät
+// nur hier ab und beendet die Sitzung auf dem Server nicht.
+const GERAET_SITZUNGEN = "hofer.geraet.sitzungen";
+
+function gemerkteSitzungen() {
+  try { return JSON.parse(localStorage.getItem(GERAET_SITZUNGEN) || "{}") || {}; } catch (f) { return {}; }
+}
+
+function sitzungGemerkt(email) {
+  return !!gemerkteSitzungen()[String(email || "").toLowerCase()];
+}
+
+function sitzungMerken(email, schluessel) {
+  try {
+    const e = String(email || "").trim().toLowerCase();
+    if (!e) return;
+    const alle = gemerkteSitzungen();
+    if (schluessel) alle[e] = schluessel; else delete alle[e];
+    localStorage.setItem(GERAET_SITZUNGEN, JSON.stringify(alle));
+  } catch (f) { /* ohne Speicher eben jedes Mal anmelden */ }
+}
+
+// Supabase tauscht den Schlüssel beim Erneuern aus; der alte gilt danach
+// nicht mehr. Darum hier jedes Mal den neuen ablegen, aber nur für
+// Personen, die sich auf diesem Gerät merken lassen.
+function sitzungenVerfolgen(client) {
+  try {
+    client.auth.onAuthStateChange((_art, s) => {
+      if (s && s.user && s.refresh_token && sitzungGemerkt(s.user.email)) {
+        sitzungMerken(s.user.email, s.refresh_token);
+      }
+    });
+  } catch (f) { /* ohne geht es auch, dann eben jedes Mal anmelden */ }
+}
+
+// Mit dem aufgehobenen Schlüssel hinein. Gilt er nicht mehr, wird er
+// vergessen, und es geht mit Passwort oder PIN weiter.
+async function gemerktAnmelden(email) {
+  const schluessel = gemerkteSitzungen()[String(email || "").toLowerCase()];
+  if (!schluessel) return false;
+  try {
+    const { data, error } = await zeitlimit(
+      db.auth.refreshSession({ refresh_token: schluessel }), 15000, "Anmeldung");
+    if (error || !data || !data.session) throw error || new Error("keine Sitzung");
+    sitzungMerken(email, data.session.refresh_token);
+    return true;
+  } catch (f) {
+    // Nur vergessen, wenn der Server den Schlüssel ablehnt, nicht ohne Netz
+    if (!/fetch|netz|network|zeit/i.test(String((f && f.message) || f))) sitzungMerken(email, null);
+    return false;
+  }
+}
+
 // =================================================================
 //  FEHLERPROTOKOLL
 //  Jede Fehlermeldung, die jemand zu sehen bekommt, und jeder Fehler
@@ -998,6 +1078,28 @@ async function verbinden() {
 // -----------------------------------------------------------------
 
 let profil = null;
+
+// Abmelden. Merkt sich das Gerät die Person, wird nur hier abgemeldet:
+// Die Sitzung auf dem Server bleibt bestehen, sonst wäre der aufgehobene
+// Schlüssel wertlos. Dafür wird die Verbindung frisch aufgebaut, ohne
+// Sitzung im Speicher.
+async function abmelden() {
+  const s = await sitzung();
+  if (!s || !sitzungGemerkt(s.user && s.user.email)) {
+    try { await db.auth.signOut(); } catch (f) { /* lokal ist trotzdem weg */ }
+    return;
+  }
+  sitzungMerken(s.user.email, s.refresh_token);
+  try { db.auth.stopAutoRefresh(); } catch (f) { /* egal */ }
+  try { db.removeAllChannels(); } catch (f) { /* egal */ }
+  try {
+    Object.keys(localStorage)
+      .filter((k) => /^sb-.*-auth-token/.test(k))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch (f) { /* egal */ }
+  db = await verbinden();
+  sitzungenVerfolgen(db);
+}
 
 async function sitzung() {
   try {
@@ -7864,7 +7966,8 @@ Object.assign(alt, {
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
   FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen, bildZuschneiden,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE,
-  APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
+  APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, offenAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
+  sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung,
   istExternGeraet, profilLaden, zeichneGeruest,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit
@@ -8297,7 +8400,7 @@ function zeichneGeruest() {
   async function jetztAbmelden() {
     leerlaufStoppen();
     if (typeof padSchliessen === "function") padSchliessen();
-    await db.auth.signOut();
+    await abmelden();
     profil = null;
     document.querySelectorAll(".dialog-huelle").forEach((el) => el.remove());
     ["werkzeugleiste"].forEach((id) => {
@@ -8312,7 +8415,9 @@ function zeichneGeruest() {
   // Das Einstellungsfenster (React) ruft abmeldenFragen direkt auf.
   window.abmeldenFragen = async () => {
     const ok = await nachfragen({ titel: "Abmelden",
-      text: "Du musst dich danach neu anmelden.", bestaetigen: "Abmelden" });
+      text: profil && sitzungGemerkt(profil.email)
+        ? "Auf diesem Gerät genügt danach ein Tipp auf deine Kachel."
+        : "Du musst dich danach neu anmelden.", bestaetigen: "Abmelden" });
     if (!ok) return;
     await jetztAbmelden();
   };
@@ -8352,6 +8457,7 @@ window.addEventListener("hashchange", () => {
 try {
   stand("Verbindung wird aufgebaut …");
   db = await verbinden();
+  sitzungenVerfolgen(db);
 
   stand("Anmeldung wird geprüft …");
   const p = await profilLaden();

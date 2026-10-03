@@ -519,6 +519,7 @@ export function createClient() {
     } },
     channel: () => ({ on() { return this; }, subscribe() { return this; } }),
     removeChannel: () => {},
+    removeAllChannels: () => {},
     storage: { from: () => ({
       upload: (pfad) => Promise.resolve({ data: { path: pfad }, error: null }),
       getPublicUrl: (pfad) => ({ data: { publicUrl:
@@ -529,7 +530,8 @@ export function createClient() {
     auth: {
       getSession: () => Promise.resolve({
         data: { session: (window.OHNE_SITZUNG ? null
-          : { user: { id: "u1", email: "saheesan.hudson@hoferco.ch" } }) },
+          : { refresh_token: "r-" + (window.SCHLUESSEL_NR || 1),
+              user: { id: "u1", email: window.SITZUNG_MAIL || "saheesan.hudson@hoferco.ch" } }) },
         error: null }),
       getUser: () => Promise.resolve({
         data: { user: { id: "u1", email: "saheesan.hudson@hoferco.ch" } }, error: null }),
@@ -540,7 +542,19 @@ export function createClient() {
         window.OHNE_SITZUNG = false;
         return Promise.resolve({ data: {}, error: null });
       },
-      signOut: () => Promise.resolve({ error: null }),
+      signOut: () => { TEST.protokoll.push({ art: "signOut" }); return Promise.resolve({ error: null }); },
+      // Gemerkte Anmeldung: gültig sind nur Schlüssel in TEST.schluessel
+      refreshSession: (a) => {
+        TEST.protokoll.push({ art: "refreshSession", a });
+        if (!(TEST.schluessel || []).includes(a.refresh_token)) {
+          return Promise.resolve({ data: { session: null }, error: { message: "Invalid Refresh Token" } });
+        }
+        window.SCHLUESSEL_NR = (window.SCHLUESSEL_NR || 1) + 1;
+        window.OHNE_SITZUNG = false;
+        return Promise.resolve({ data: { session: { refresh_token: "r-" + window.SCHLUESSEL_NR,
+          user: { id: "u1", email: window.SITZUNG_MAIL || "saheesan.hudson@hoferco.ch" } } }, error: null });
+      },
+      stopAutoRefresh: () => {},
       updateUser: () => Promise.resolve({ data: {}, error: null }),
     },
   };

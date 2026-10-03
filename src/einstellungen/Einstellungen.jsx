@@ -87,6 +87,7 @@ function MeinKonto() {
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
   const [mitPin, setMitPin] = useState(!!profil.ohne_passwort);
+  const [merken, setMerken] = useState(() => alt.sitzungGemerkt(profil.email));
   const db = alt.db;
   const { meldung, fehlertext } = alt;
 
@@ -124,6 +125,16 @@ function MeinKonto() {
     const { error } = await db.from("profiles").update({ geburtstag: wert || null }).eq("id", profil.id);
     if (error) meldung(fehlertext(error), "fehler");
     else { profil.geburtstag = wert || null; meldung("Gespeichert."); }
+  };
+
+  // Gerät merken: der Schlüssel der laufenden Sitzung wird aufgehoben
+  const merkenAendern = async (e) => {
+    const an = e.target.checked;
+    setMerken(an);
+    const s = await alt.sitzung();
+    alt.sitzungMerken(profil.email, an && s ? s.refresh_token : null);
+    meldung(an ? "Dieses Gerät merkt sich deine Anmeldung."
+      : "Dieses Gerät fragt ab jetzt wieder nach Passwort oder PIN.");
   };
 
   // Ein eigenes Passwort ersetzt die PIN
@@ -212,6 +223,11 @@ function MeinKonto() {
         5 Minuten gesperrt. 6 Ziffern sind deutlich sicherer als 4.</p>
       {mitPin && <button className="linkknopf" id="mk-pinweg" onClick={pinWeg}>
         PIN entfernen und wieder mit Passwort anmelden</button>}
+      <label className="schalter feld--abstand"><input type="checkbox" id="mk-merken"
+        checked={merken} onChange={merkenAendern} />
+        <span>Auf diesem Gerät merken</span></label>
+      <p className="hinweis">Mit Haken genügt auf diesem Gerät ein Tipp auf deine Kachel,
+        auch nach dem Abmelden. Ohne Haken fragt es jedes Mal nach Passwort oder PIN.</p>
     </section>
   );
 }

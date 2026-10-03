@@ -3,10 +3,9 @@
 Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Darin stecken: Planwand der Aufträge, Stückzahlen in der Produktion, Pad Mode für Tablets an den Maschinen, Bestellungen, Einkaufsliste, Werkstatt-Rechner, Notizen, Dokumente und Einstellungen. Chat, Eierzähler, Fahrzeuge und Spassecke hatten schon vor dem Umbau keinen Knopf mehr und sind seit Oktober 2026 aus dem Code entfernt (im Git-Verlauf noch vorhanden). Ihre Tabellen in der Datenbank sind unverändert.
 
 - **Live:** https://hofertool.github.io/hofertool/ — GitHub Pages aus diesem Repository (`HoferTool/hofertool`, Branch `main`). Der Ablauf `.github/workflows/ausliefern.yml` baut die App bei jedem Push auf `main` und stellt den Ordner `dist/` auf Pages (Pages-Quelle: „GitHub Actions“).
-- **Vorschau des React-Umbaus:** https://hofertool.github.io/hofertool/vorschau/ — `.github/workflows/vorschau.yml` stellt die Seite zusammen: die Live-App unverändert von `main`, darunter in `vorschau/` die gebaute Fassung aus dem Zweig `claude/react-umbau-4p3juj`. Läuft bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. Pages-Quelle muss dafür „GitHub Actions“ sein. Die Vorschau arbeitet mit **denselben echten Daten** wie die Live-App. `sw.js` lässt alles unter `/vorschau/` in Ruhe.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.15.1 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.17.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -20,7 +19,7 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
 ## Aufbau der App
 
 - **Einzige feste Bedingung: Die App bleibt webbasiert.**
-- **Vite + React, im Umbau.** Bis Oktober 2026 war alles eine einzige `index.html`. Jetzt baut Vite aus `src/` die fertige Website in `dist/`.
+- **Vite + React, im Umbau (seit 3. Oktober 2026 live).** Bis Oktober 2026 war alles eine einzige `index.html`. Jetzt baut Vite aus `src/` die fertige Website in `dist/`.
   - `index.html` ist nur noch das Gerüst, das `src/main.jsx` lädt.
   - `src/alt/app.js` und `src/alt/stil.css` sind das bisherige Programm und die bisherige Gestaltung. Darin stecken noch die Planwand-Tafel (`zeichnePlanwand` mit Ziehen, Griffen und Wischen; sie bleibt bewusst das bewährte Zeichenprogramm), die Erkennung und das Hochladen von Dokumenten, Druckblätter und viele Helfer.
   - In React neu gebaut:
@@ -106,7 +105,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 - **Notizen:** Jeder darf jede Notiz bearbeiten. Ein Vorschlagsverfahren war gewünscht und wurde wieder entfernt.
 - **Pad Mode:** Die Startseite zeigt nur „Maschinen". Zeichnung, WBG und Einrichtblatt öffnen im gemeinsamen Betrachter, PDFs auf volle Breite. „Zurück" geht genau einen Schritt. Die Materialkachel ist in der Werkstofffarbe gefüllt. Der Text der Auftragskachel passt seine Grösse an die Menge an.
 - **Produktion, Woche:** drei Spalten (Nr. · Einrichtblatt, Menge, Beenden · Ziel, Stand, Zustand). Die Tabelle ist nur so breit wie nötig.
-- **Anmeldung:** immer blau, Kacheln alphabetisch. Konten mit PIN (Punkt auf der Kachel) melden sich mit ihrer persönlichen PIN an. Der Server prüft sie: nach **5 falschen Versuchen 5 Minuten Sperre**, danach wieder 5 Versuche, immer so weiter. Wer eine PIN hat, hat ein zufälliges Passwort. Admins setzen PINs unter Einstellungen → Nutzer. Ein gemeinsames Passwort im Code gibt es nicht mehr.
+- **Anmeldung:** immer blau, Kacheln alphabetisch. Punkt auf der Kachel = `ohne_passwort`. Solche Konten ohne PIN kommen mit einem Tipp hinein (Server-Funktion `pin-anmelden` mit `offen: true`, `offenAnmelden`, Entscheid 3. Oktober 2026), mit PIN wird nach der PIN gefragt, mit Ziffernblock. Alle anderen geben ihr Passwort ein. Der Server prüft sie: nach **5 falschen Versuchen 5 Minuten Sperre**, danach wieder 5 Versuche, immer so weiter. Wer eine PIN hat, hat ein zufälliges Passwort. Admins setzen PINs unter Einstellungen → Nutzer. Ein gemeinsames Passwort im Code gibt es nicht mehr. **Gerät merken** (Entscheid 3. Oktober 2026): Mit dem Häkchen „Auf diesem Gerät merken“ hebt das Gerät je Person den Erneuerungsschlüssel der Sitzung auf (`hofer.geraet.sitzungen`, `gemerktAnmelden`). Danach genügt dort ein Tipp auf die Kachel. „Abmelden“ meldet auf so einem Gerät nur lokal ab (`abmelden()`), damit der Schlüssel gültig bleibt.
 - **Bestellmail:** eine `.eml`-Datei mit PDF im Anhang, Aptos 12, zwei Logos mit Link (hoferco.ch, salt-pepper.ch).
 - **Bestellungen:** Den Status kann man auch in der Historie zurücksetzen. Jede Position zeigt `status_am`.
 

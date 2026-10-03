@@ -9,13 +9,3 @@ import "./alt/app.js";
 // Mehr Bewegung: gleitende Markierungen, Licht, Welle, Seitenwechsel
 import "./effekte/effekte.css";
 import "./effekte/effekte.js";
-
-// Unter .../vorschau/ läuft die Fassung aus dem Umbau, mit echten
-// Daten. Ein Schild oben links, damit niemand sie mit der Live-App
-// verwechselt.
-if (/\/vorschau\//.test(location.pathname)) {
-  const schild = document.createElement("div");
-  schild.className = "vorschau-schild";
-  schild.textContent = "Vorschau";
-  document.body.appendChild(schild);
-}

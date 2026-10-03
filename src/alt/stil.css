@@ -4383,3 +4383,58 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
 .geb-bild { box-shadow: 0 8px 22px rgba(0, 0, 0, .28); }
 @media (max-width: 1100px) { .kopfkarte--geburtstag { min-height: 230px; } }
 @media (max-width: 900px) { .kopfkarte--geburtstag { min-height: 0; } }
+
+/* Häkchen "Auf diesem Gerät merken" in der Anmeldung */
+.login__merken { justify-content: center; margin: 10px 0 12px; font-size: 14px; }
+
+/* Pad Mode: Die Kacheln HOCO Nr. und Fortschritt waren fast schwarz-grau,
+   während alle anderen Kacheln Farbe tragen. Neben ihnen wirkten sie wie
+   ausgeblendet. Jetzt bekommen sie eigene Farbe: HOCO Nr. ein kräftiges
+   Blau, Fortschritt grün im Plan oder Vorsprung, rot bei Verzug. */
+.pad-karte2--hoco { background: linear-gradient(150deg, #1d4f8c, #0f2a4d) !important;
+                    border-color: rgba(120,170,235,.22) !important; }
+.pad-karte2--hoco .pad-name, .pad-karte2--verzug .pad-name { color: #c4d5ec; }
+.pad-karte2--hoco .pad-zeilen b { color: #b3c8e4; }
+.pad-karte2--verzug { background: linear-gradient(140deg, #1c6a45, #0d3322) !important;
+                      border-color: rgba(120,220,165,.22) !important; }
+.pad-karte2--verzug .pad-wert small { color: #bfe3cf; }
+.pad-karte2--verzug:has(.pad-wert--rot) { background: linear-gradient(140deg, #8a2a24, #461411) !important;
+                                         border-color: rgba(255,150,140,.25) !important; }
+.pad-karte2--verzug:has(.pad-wert--rot) .pad-wert--rot { color: #fff; }
+.pad-karte2--verzug:has(.pad-wert--rot) .pad-wert small { color: #f4c9c4; }
+.pad-karte2--verzug:has(.pad-leer) { background: linear-gradient(140deg, #24364f, #142236) !important;
+                                     border-color: rgba(255,255,255,.1) !important; }
+
+/* Dunkler Modus folgt der Themenfarbe: Rahmen der angewählten Reiter,
+   Umschalter (Park, Tag/Woche) und der Fokus waren fest auf Blau
+   (#6ba4ff) gesetzt und blieben blau, auch wenn Grün oder Rot gewählt
+   war. Jetzt nehmen sie --marke, das je Thema hell genug gesetzt ist. */
+body.dunkel .moduswahl__knopf.aktiv, body.dunkel .parkwahl__knopf.aktiv,
+body.dunkel .wahlknopf.aktiv, body.dunkel .reiter__knopf.aktiv,
+body.dunkel .unterreiter__knopf.aktiv {
+  box-shadow: inset 0 0 0 2px var(--marke); border-color: var(--marke); }
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  body.dunkel .moduswahl__knopf.aktiv, body.dunkel .parkwahl__knopf.aktiv,
+  body.dunkel .wahlknopf.aktiv {
+    background: color-mix(in srgb, var(--marke) 22%, var(--flaeche)); }
+}
+body.dunkel :focus-visible { outline-color: var(--marke); }
+body.dunkel .knopf:focus-visible { border-color: var(--marke); }
+body.dunkel input:focus, body.dunkel select:focus, body.dunkel textarea:focus {
+  border-color: var(--marke); box-shadow: 0 0 0 2px var(--marke-hell); }
+body.dunkel .parkchip:focus-within { outline-color: var(--marke); }
+body.dunkel input[type="radio"]:checked { accent-color: var(--marke); }
+body.dunkel ::selection { background: var(--marke-hell); }
+/* Zahl neben einem Titel (z. B. 876 bei HOCO Nr.): dunkle Schrift auf
+   dunklem Grund war kaum zu sehen. Jetzt in der Themenfarbe. */
+body.dunkel .marke { background: var(--marke); }
+/* Leere HOCO-Bereiche nicht mehr halb durchsichtig: Die Schrift bleibt
+   weiss wie der Titel, leer zeigt nur der gestrichelte Rahmen und „leer“. */
+.ordner__feld--leer { opacity: 1; border-style: dashed; }
+
+/* Ziffernblock unter dem PIN-Feld der Anmeldung */
+.login__ziffern { margin: 0 0 14px; }
+.login__ziffern button { height: 56px; background: rgba(255,255,255,.14); color: #fff;
+                        border: 1px solid rgba(255,255,255,.22); }
+.login__ziffern button:active { background: rgba(255,255,255,.28); }
+.login__ziffern .zb-taste--neben { color: rgba(255,255,255,.75); }
