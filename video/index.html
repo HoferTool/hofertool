@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="assets/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/inter.woff2") format("woff2");
+        font-weight: 100 900;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0a1220; }
+      #root {
+        width: 100%; height: 100%; position: relative; overflow: hidden;
+        font-family: "Inter", sans-serif; color: #eaf1fb;
+        font-feature-settings: "tnum";
+      }
+      .clip { position: absolute; inset: 0; }
+
+      #bg { background: #0a1220; }
+      .glow { position: absolute; border-radius: 50%; }
+      #glow1 { width: 1400px; height: 1400px; left: -300px; top: -700px;
+        background: radial-gradient(circle, rgba(31,111,224,.55) 0%, rgba(0,56,132,.25) 40%, rgba(10,18,32,0) 70%); }
+      #glow2 { width: 1200px; height: 1200px; left: 1000px; top: 300px;
+        background: radial-gradient(circle, rgba(91,58,158,.35) 0%, rgba(10,18,32,0) 65%); }
+      #grid { position: absolute; inset: 0;
+        background-image: linear-gradient(rgba(107,164,255,.07) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(107,164,255,.07) 1px, transparent 1px);
+        background-size: 80px 80px; }
+
+      .hline, .vline { position: absolute; background: rgba(107,164,255,.45); }
+      .hline { height: 1px; left: 0; width: 1920px; transform-origin: left center; }
+      .vline { width: 1px; top: 0; height: 1080px; transform-origin: center top; }
+      #ring { position: absolute; left: 700px; top: 190px; width: 520px; height: 520px; }
+      #intro-logo-wrap { position: absolute; left: 0; right: 0; top: 330px; height: 240px;
+        display: flex; justify-content: center; overflow: hidden; }
+      #intro-logo { width: 643px; height: 240px; display: block; }
+      #intro-title { position: absolute; left: 0; right: 0; top: 735px; text-align: center;
+        font-size: 96px; font-weight: 750; letter-spacing: -0.03em; }
+      #intro-title span { display: inline-block; }
+      #intro-sub { position: absolute; left: 0; right: 0; top: 865px; text-align: center;
+        font-size: 34px; font-weight: 450; color: #8b9db8; letter-spacing: .01em; }
+
+      .kicker { font-size: 24px; font-weight: 650; letter-spacing: .22em; text-transform: uppercase; color: #6ba4ff; }
+      .head { font-size: 78px; font-weight: 750; line-height: 1.05; letter-spacing: -0.03em; margin-top: 26px; }
+      .sub { font-size: 32px; font-weight: 420; line-height: 1.35; color: #8b9db8; margin-top: 30px; }
+      .textblock { position: absolute; left: 120px; top: 300px; width: 640px; }
+      .textblock > div { display: block; }
+      .bar { width: 90px; height: 6px; border-radius: 3px; background: #1f6fe0; margin-top: 40px; transform-origin: left center; }
+
+      .browser { position: absolute; border-radius: 18px; overflow: hidden; background: #fff;
+        box-shadow: 0 50px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(107,164,255,.25); }
+      .browser .top { height: 44px; background: #1c2229; display: flex; align-items: center; padding-left: 20px; gap: 10px; }
+      .browser .dot { width: 13px; height: 13px; border-radius: 50%; background: #3a4452; }
+      .browser .addr { margin-left: 24px; height: 26px; width: 420px; border-radius: 13px; background: #14181d;
+        color: #8b9db8; font-size: 15px; line-height: 26px; padding-left: 16px; }
+      .browser .shot { position: relative; overflow: hidden; }
+      .browser .shot img { display: block; width: 100%; }
+
+      #pw-frame { left: 820px; top: 230px; width: 1020px; }
+      #pw-shot { height: 574px; }
+      #pw-zoom { position: relative; width: 1020px; height: 574px; }
+
+      #pr-frame { left: 820px; top: 230px; width: 1020px; }
+      #pr-shot { height: 574px; background: #14181d; }
+      #counter { position: absolute; left: 120px; top: 700px; }
+      #count-num { font-size: 150px; font-weight: 800; letter-spacing: -0.04em; color: #fff; line-height: 1; }
+      #count-unit { font-size: 32px; color: #8b9db8; font-weight: 500; margin-top: 10px; }
+
+      .tablet { position: absolute; border-radius: 40px; background: #05080f; padding: 22px;
+        box-shadow: 0 60px 140px rgba(0,0,0,.6), 0 0 0 2px rgba(107,164,255,.22); }
+      .tablet img { display: block; border-radius: 20px; width: 100%; }
+      #tab-back { left: 860px; top: 130px; width: 800px; }
+      #tab-front { left: 980px; top: 330px; width: 860px; }
+
+      #more-title { position: absolute; left: 0; right: 0; top: 110px; text-align: center; }
+      #more-title .head { margin-top: 18px; }
+      #chips { position: absolute; left: 160px; right: 160px; top: 360px; display: flex; flex-wrap: wrap;
+        justify-content: center; gap: 22px; }
+      .chip { display: block; padding: 20px 36px; border-radius: 16px; font-size: 32px; font-weight: 650;
+        background: linear-gradient(180deg, #13284a, #0d1726); border: 1px solid rgba(107,164,255,.3);
+        box-shadow: 0 20px 40px rgba(0,0,0,.35); }
+      .chip i { font-style: normal; display: inline-block; width: 16px; height: 16px; border-radius: 50%; margin-right: 16px; }
+      #cards { position: absolute; left: 0; right: 0; top: 640px; height: 300px; }
+      .card { position: absolute; top: 0; width: 470px; border-radius: 14px; overflow: hidden;
+        box-shadow: 0 30px 70px rgba(0,0,0,.5), 0 0 0 1px rgba(107,164,255,.25); }
+      .card img { display: block; width: 100%; }
+      #card1 { left: 230px; } #card2 { left: 725px; } #card3 { left: 1220px; }
+
+      #out-logo-wrap { position: absolute; left: 0; right: 0; top: 260px; height: 240px; display: flex; justify-content: center; }
+      #out-logo { width: 643px; height: 240px; display: block; }
+      #out-line { position: absolute; left: 660px; top: 560px; width: 600px; height: 2px; background: #6ba4ff; transform-origin: center; }
+      #out-title { position: absolute; left: 0; right: 0; top: 610px; text-align: center; font-size: 72px; font-weight: 750; letter-spacing: -0.03em; }
+      #out-sub { position: absolute; left: 0; right: 0; top: 715px; text-align: center; font-size: 30px; color: #8b9db8; letter-spacing: .02em; }
+
+      #wipes { pointer-events: none; z-index: 50; }
+      .wipe { position: absolute; top: -100px; height: 1280px; width: 2600px; left: 0; }
+      #wipeA { background: #1f6fe0; }
+      #wipeB { background: #003884; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="27.5" data-width="1920" data-height="1080">
+
+      <div id="bg" class="clip" data-start="0" data-duration="27.5" data-track-index="0">
+        <div id="glow1" class="glow"></div>
+        <div id="glow2" class="glow"></div>
+        <div id="grid"></div>
+      </div>
+
+      <div id="s1" class="clip" data-start="0" data-duration="4.6" data-track-index="1">
+        <div class="hline" id="h1" style="top: 330px"></div>
+        <div class="hline" id="h2" style="top: 570px"></div>
+        <div class="vline" id="v1" style="left: 639px"></div>
+        <div class="vline" id="v2" style="left: 1281px"></div>
+        <svg id="ring" viewBox="0 0 600 600">
+          <circle cx="300" cy="300" r="290" fill="none" stroke="rgba(107,164,255,.35)" stroke-width="2" stroke-dasharray="6 14" />
+          <circle id="ring-arc" cx="300" cy="300" r="260" fill="none" stroke="#6ba4ff" stroke-width="3" stroke-dasharray="1634" stroke-dashoffset="1634" />
+        </svg>
+        <div id="intro-logo-wrap"><img id="intro-logo" src="assets/logo-weiss.png" alt="" /></div>
+        <div id="intro-title"><span>H</span><span>o</span><span>f</span><span>e</span><span>r</span><span>&nbsp;</span><span>T</span><span>o</span><span>o</span><span>l</span></div>
+        <div id="intro-sub">Die Werkstatt-App von Hofer + Co.</div>
+      </div>
+
+      <div id="s2" class="clip" data-start="4.6" data-duration="5.6" data-track-index="1">
+        <div class="textblock">
+          <div class="kicker t2">01 · Planwand</div>
+          <div class="head t2">Alle Aufträge auf einen Blick.</div>
+          <div class="sub t2">Ziehen, verschieben, und die anderen weichen von selbst aus.</div>
+          <div class="bar" id="bar2"></div>
+        </div>
+        <div class="browser" id="pw-frame">
+          <div class="top"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="addr">hofertool / planwand</div></div>
+          <div class="shot" id="pw-shot"><div id="pw-zoom"><img id="pw-img" src="assets/planwand.png" alt="" /></div></div>
+        </div>
+      </div>
+
+      <div id="s3" class="clip" data-start="10.2" data-duration="5.2" data-track-index="1">
+        <div class="textblock" style="top: 230px">
+          <div class="kicker t3">02 · Produktion</div>
+          <div class="head t3">Stückzahlen live erfassen.</div>
+          <div class="sub t3">Jede Maschine, jeder Tag, jede Woche.</div>
+        </div>
+        <div id="counter"><div id="count-num">+0</div><div id="count-unit">Stück diese Woche</div></div>
+        <div class="browser" id="pr-frame">
+          <div class="top"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="addr">hofertool / produktion</div></div>
+          <div class="shot" id="pr-shot"><img id="pr-img" src="assets/produktion.png" alt="" /></div>
+        </div>
+      </div>
+
+      <div id="s4" class="clip" data-start="15.4" data-duration="5.4" data-track-index="1">
+        <div class="textblock">
+          <div class="kicker t4">03 · Pad Mode</div>
+          <div class="head t4">Gebaut für das Tablet an der Maschine.</div>
+          <div class="sub t4">Grosse Kacheln, Zeichnung und Einrichtblatt mit einem Tipp.</div>
+        </div>
+        <div class="tablet" id="tab-back"><img src="assets/pad2.png" alt="" /></div>
+        <div class="tablet" id="tab-front"><img src="assets/pad3.png" alt="" /></div>
+      </div>
+
+      <div id="s5" class="clip" data-start="20.8" data-duration="3.8" data-track-index="1">
+        <div id="more-title">
+          <div class="kicker t5">Und vieles mehr</div>
+          <div class="head t5">Alles an einem Ort.</div>
+        </div>
+        <div id="chips">
+          <div class="chip"><i style="background:#1f6fe0"></i>Bestellungen</div>
+          <div class="chip"><i style="background:#f0b429"></i>Einkauf</div>
+          <div class="chip"><i style="background:#0d7d8c"></i>Rechner</div>
+          <div class="chip"><i style="background:#d4638f"></i>G-Code</div>
+          <div class="chip"><i style="background:#b3261e"></i>Dokumente</div>
+          <div class="chip"><i style="background:#c2650f"></i>Notizen</div>
+          <div class="chip"><i style="background:#9bd12f"></i>Solaranlage</div>
+        </div>
+        <div id="cards">
+          <div class="card" id="card1"><img src="assets/start.png" alt="" /></div>
+          <div class="card" id="card2"><img src="assets/bestellungen.png" alt="" /></div>
+          <div class="card" id="card3"><img src="assets/rechner.png" alt="" /></div>
+        </div>
+      </div>
+
+      <div id="s6" class="clip" data-start="24.6" data-duration="2.9" data-track-index="1">
+        <div id="out-logo-wrap"><img id="out-logo" src="assets/logo-weiss.png" alt="" /></div>
+        <div id="out-line"></div>
+        <div id="out-title">Hofer Tool</div>
+        <div id="out-sub">Präzision seit 1928, jetzt auch im Büro und an der Maschine.</div>
+      </div>
+
+      <div id="wipes" class="clip" data-start="0" data-duration="27.5" data-track-index="2">
+        <div class="wipe" id="wipeB"></div>
+        <div class="wipe" id="wipeA"></div>
+      </div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const E = "power3.out", EI = "power3.inOut";
+
+      // Hintergrund atmet langsam
+      tl.fromTo("#glow1", { x: 0, y: 0 }, { x: 900, y: 300, duration: 27.5, ease: "sine.inOut" }, 0);
+      tl.fromTo("#glow2", { x: 0, y: 0 }, { x: -800, y: -250, duration: 27.5, ease: "sine.inOut" }, 0);
+      tl.fromTo("#grid", { opacity: 0.4, backgroundPositionX: 0 }, { opacity: 1, backgroundPositionX: 160, duration: 27.5, ease: "none" }, 0);
+
+      // Übergänge: zwei Balken wischen über jeden Schnitt
+      tl.set(".wipe", { x: -2700 }, 0);
+      [4.6, 10.2, 15.4, 20.8, 24.6].forEach((t) => {
+        tl.fromTo("#wipeB", { x: -2700 }, { x: 2000, duration: 0.8, ease: EI, immediateRender: false }, t - 0.42);
+        tl.fromTo("#wipeA", { x: -2700 }, { x: 2000, duration: 0.8, ease: EI, immediateRender: false }, t - 0.36);
+      });
+
+      // 1 Auftakt
+      tl.fromTo(["#h1", "#h2"], { scaleX: 0 }, { scaleX: 1, duration: 1.0, ease: EI, stagger: 0.12 }, 0.1);
+      tl.fromTo(["#v1", "#v2"], { scaleY: 0 }, { scaleY: 1, duration: 1.0, ease: EI, stagger: 0.12 }, 0.25);
+      tl.fromTo("#ring", { rotation: -90, opacity: 0, scale: 0.8 }, { rotation: 30, opacity: 1, scale: 1, duration: 4.2, ease: "power2.out" }, 0.2);
+      tl.fromTo("#ring-arc", { strokeDashoffset: 1634 }, { strokeDashoffset: 0, duration: 2.2, ease: EI }, 0.4);
+      tl.fromTo("#intro-logo", { y: 250 }, { y: 0, duration: 1.0, ease: "expo.out" }, 0.9);
+      tl.fromTo("#intro-title span", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "back.out(2)", stagger: 0.045 }, 1.6);
+      tl.fromTo("#intro-sub", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: E }, 2.3);
+      tl.to(["#h1", "#h2", "#v1", "#v2"], { opacity: 0.25, duration: 1, ease: "none" }, 2.6);
+
+      // 2 Planwand
+      tl.fromTo("#s2 .t2", { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: E, stagger: 0.12 }, 4.75);
+      tl.fromTo("#bar2", { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: E }, 5.3);
+      tl.fromTo("#pw-frame", { x: 260, y: 40, rotationY: -22, opacity: 0, transformPerspective: 1600 },
+        { x: 0, y: 0, rotationY: -6, opacity: 1, duration: 1.1, ease: "expo.out" }, 4.8);
+      tl.to("#pw-frame", { rotationY: 0, duration: 4.0, ease: "sine.inOut" }, 5.9);
+      tl.fromTo("#pw-zoom", { scale: 1.0 }, { scale: 1.12, duration: 5.0, ease: "sine.inOut", transformOrigin: "45% 35%" }, 5.0);
+
+      // 3 Produktion
+      tl.fromTo("#s3 .t3", { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: E, stagger: 0.12 }, 10.35);
+      tl.fromTo("#counter", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E }, 10.8);
+      const zahl = { n: 0 };
+      tl.fromTo(zahl, { n: 0 }, { n: 620, duration: 2.2, ease: "power2.out",
+        onUpdate: () => { document.getElementById("count-num").textContent = "+" + Math.round(zahl.n); } }, 11.0);
+      tl.fromTo("#pr-frame", { y: 520, rotationX: 18, opacity: 0, transformPerspective: 1600 },
+        { y: 0, rotationX: 0, opacity: 1, duration: 1.1, ease: "expo.out" }, 10.4);
+      tl.fromTo("#pr-img", { y: 0 }, { y: -40, duration: 4.5, ease: "sine.inOut" }, 10.8);
+
+      // 4 Pad Mode
+      tl.fromTo("#s4 .t4", { x: -60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: E, stagger: 0.12 }, 15.55);
+      tl.fromTo("#tab-back", { y: 400, rotation: -8, opacity: 0 }, { y: 0, rotation: -5, opacity: 0.55, duration: 1.1, ease: "expo.out" }, 15.6);
+      tl.fromTo("#tab-front", { y: 600, rotation: 6, opacity: 0 }, { y: 0, rotation: 2, opacity: 1, duration: 1.2, ease: "expo.out" }, 15.9);
+      tl.to("#tab-front", { y: -30, rotation: 0, duration: 3.6, ease: "sine.inOut" }, 17.1);
+      tl.to("#tab-back", { y: -15, rotation: -3, duration: 4.0, ease: "sine.inOut" }, 16.7);
+
+      // 5 Mehr
+      tl.fromTo("#s5 .t5", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E, stagger: 0.1 }, 20.95);
+      tl.fromTo("#chips .chip", { y: 50, scale: 0.8, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.5, ease: "back.out(2.2)", stagger: 0.08 }, 21.3);
+      tl.fromTo(".card", { y: 320, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: "expo.out", stagger: 0.12 }, 21.7);
+      tl.fromTo("#cards", { y: 0 }, { y: -20, duration: 2.5, ease: "sine.inOut" }, 22.1);
+
+      // 6 Schluss
+      tl.fromTo("#out-logo", { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.0, ease: "expo.out" }, 24.75);
+      tl.fromTo("#out-line", { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: EI }, 25.1);
+      tl.fromTo("#out-title", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: E }, 25.4);
+      tl.fromTo("#out-sub", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: E }, 25.7);
+      tl.to(["#out-logo-wrap", "#out-line", "#out-title", "#out-sub"], { opacity: 0, duration: 0.6, ease: "power2.in" }, 26.85);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
