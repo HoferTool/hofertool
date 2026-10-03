@@ -14,6 +14,7 @@ import Einkauf from "../seiten/Einkauf.jsx";
 import Bestellungen from "../seiten/Bestellungen.jsx";
 import Start from "../seiten/Start.jsx";
 import Produktion from "../seiten/Produktion.jsx";
+import Planwand from "../seiten/Planwand.jsx";
 import { PRIO } from "../daten/einkauf.js";
 import { padZeichnen, padAbbauen } from "../pad/Pad.jsx";
 import { planAuftragDialog } from "../planwand/AuftragFenster.jsx";
@@ -2699,10 +2700,6 @@ function seiteSichtbar(pfad) {
   return pfad === "planwand" || pfad === "produktion";
 }
 
-// Hinweisbalken, wenn jemand einen Bereich nur ansehen darf
-function nurLesenHinweis(text) {
-  return '<div class="nurlesen">' + esc(text) + '</div>';
-}
 
 // =================================================================
 //  DIALOGE
@@ -4138,36 +4135,9 @@ function masseBerechnen(b) {
   plan.sehrKnapp = plan.spalte < 18;
 }
 
-async function seitePlanwand(b) {
-  plan.behaelter = b;
-  if (plan.adminModus === false && einstellung("pwadmin")) plan.adminModus = true;
-  // Diese Seite darf die ganze Fensterbreite nutzen.
-  b.classList.add("inhalt--breit");
-
-  // So viele Arbeitstage, wie nebeneinander Platz haben.
-  masseBerechnen(b);
-
-  b.innerHTML = '<div id="pw-seite"><div class="laedt">Wird geladen …</div></div>';
-
-  try {
-    prod.parks = await ladeParks(false);
-    prod.maschinen = await ladeMaschinen(false);
-  } catch (f) {
-    document.getElementById("pw-seite").innerHTML =
-      '<div class="karte karte--fehler"><p>' + esc(fehlertext(f)) + '</p></div>';
-    return;
-  }
-  try {
-    return await ansichtPlanwand(document.getElementById("pw-seite"), b);
-  } catch (f) {
-    const ziel = document.getElementById("pw-seite");
-    if (ziel) ziel.innerHTML = '<div class="karte karte--fehler">'
-      + '<h2>Die Planwand konnte nicht aufgebaut werden</h2>'
-      + '<p>' + esc(f && f.message ? f.message : String(f)) + '</p>'
-      + '<p class="klein">Version ' + esc(APP_VERSION) + '</p></div>';
-    console.error("Planwand:", f);
-  }
-}
+// Die Seite mit Kopfleiste und Bühne ist in src/seiten/Planwand.jsx.
+// Die Tafel darauf zeichnet weiterhin zeichnePlanwand hier.
+const seitePlanwand = reactSeite(Planwand);
 
 // Die Schicht mit dem Zeitregler auf den Platzhalter unter der
 // Datumszeile legen. Der Regler selbst wird nur einmal verschoben.
@@ -4187,272 +4157,6 @@ function zeitschichtLegen() {
   schicht.style.height = r.height + "px";
 }
 window.addEventListener("resize", () => requestAnimationFrame(zeitschichtLegen));
-
-async function ansichtPlanwand(ziel, b) {
-  if (!plan.start) plan.start = naechsterArbeitstag(wochenStart(isoDatum(new Date())));
-  plan.zeitreglerEl = null;
-
-  ladeFertig(ziel);
-  ziel.innerHTML = '<div class="pw-kopfleiste">'
-    + '<div class="pw-regler-reihe">'
-    + (isMobil() ? ""
-        : '<div class="pw-zeitregler">'
-          + '<input type="range" id="pw-zeit" min="0" max="200" step="1" value="100">'
-          + '<div class="pw-zeitmarke" id="pw-zeitmarke"></div>'
-          + '<div class="pw-zeitinfo"><span id="pw-zeitvon"></span>'
-          + '<span class="klein">Zeitraum</span>'
-          + '<span id="pw-zeitbis"></span></div>'
-          + '</div>')
-    + '<div class="pw-zoom">'
-    + '<span class="klein">Tage</span>'
-    + '<input type="range" id="pw-regler" min="5" max="200" step="1" value="'
-    + (plan.tageWunsch || 15) + '">'
-    + '<input type="number" id="pw-zoomwert" min="5" max="200" value="'
-    + (plan.tageWunsch || 15) + '">'
-    + '</div>'
-    // Zeilenhöhe getrennt vom Zeitraum: wie viele Maschinen auf den
-    // Bildschirm passen, entscheidet dieser Regler.
-    + '<div class="pw-zoom pw-zoom--hoehe">'
-    + '<span class="klein">Höhe</span>'
-    + '<input type="range" id="pw-hoehe" min="35" max="180" step="1" value="'
-    + Math.round((plan.vskala || 1) * 100) + '">'
-    + '<span class="klein" id="pw-hoehewert">'
-    + Math.round((plan.vskala || 1) * 100) + ' %</span>'
-    + '</div>'
-    + '</div>'
-    + '<div class="pw-eckknoepfe">'
-    // Zu heute springen — mit zwei Wochen Rückblick
-    + '<button class="knopf knopf--klein pw-eck" id="pw-heute" title="Zu heute, mit zwei Wochen Rückblick — Taste H">'
-    + '<svg viewBox="0 0 24 24" class="pw-ecksym" fill="none" stroke="currentColor"'
-    + ' stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'
-    + '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>'
-    + '<circle cx="12" cy="14.5" r="1.8" fill="currentColor"/></svg><span>Heute</span>'
-    + '<kbd class="pw-taste">H</kbd></button>'
-    + '<button class="knopf knopf--klein pw-eck" id="pw-suche-los" title="Suchen">'
-    + '<svg viewBox="0 0 24 24" class="pw-ecksym" fill="none" stroke="currentColor"'
-    + ' stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/>'
-    + '<path d="M16.5 16.5L21 21"/></svg><span>Suchen</span></button>'
-    // Die HOCO Nummern liegen gleich daneben — von der Planwand aus
-    // schaut man am häufigsten dort nach.
-    + '<button class="knopf knopf--klein pw-eck" id="pw-hoco" title="HOCO Nr.">'
-    + '<svg viewBox="0 0 24 24" class="pw-ecksym" fill="none" stroke="currentColor"'
-    + ' stroke-width="1.9" stroke-linejoin="round">'
-    + '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>'
-    + '</svg><span>HOCO Nr.</span></button>'
-    + '</div>'
-    + '</div>'
-    + (darfPlanen() ? "" : (isMobil()
-        ? nurLesenHinweis("Bearbeitbar nur am Desktop, nicht auf dem Handy.")
-        : nurLesenHinweis("Du kannst die Planung ansehen. Ändern dürfen Planer und Administratoren.")))
-    + '</div>'
-    + '<div class="pw-buehne">'
-    + '<div id="pw-inhalt"><div class="laedt">Planung wird geladen …</div></div>'
-    // Der Zeitregler lebt hier, ausserhalb der Tafel: die Tafel wird beim
-    // Schieben laufend neu gezeichnet, der Regler darf dabei nicht mit
-    // ersetzt werden, sonst bricht der Browser das Ziehen ab.
-    + '<div class="pw-zeitschicht" id="pw-zeitschicht"></div>'
-    + '</div>';
-
-  // Auf einen leeren Kalendertag klicken legt einen neuen Auftrag an,
-  // auf eine leere Ferienzeile klicken trägt Ferien ein — ein eigener
-  // Knopf dafür ist deshalb nicht mehr nötig.
-
-  const heuteKnopf = document.getElementById("pw-heute");
-  if (heuteKnopf) heuteKnopf.onclick = () => zuHeute(b);
-
-  const hocoKnopf = document.getElementById("pw-hoco");
-  if (hocoKnopf) hocoKnopf.onclick = () => hocoFenster(b);
-
-  const sucheKnopf = document.getElementById("pw-suche-los");
-  if (sucheKnopf) sucheKnopf.onclick = () => sucheDialog(b);
-
-  // Strg+F (oder Cmd+F) öffnet die Suche, statt einen eigenen
-  // Knopf zu belegen. Nur während die Planwand offen ist.
-  if (!plan._suchTaste) {
-    plan._suchTaste = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f"
-          && document.getElementById("pw-inhalt")) {
-        e.preventDefault();
-        sucheDialog(b);
-      }
-    };
-    document.addEventListener("keydown", plan._suchTaste);
-  }
-
-  // Zeitregler: rückwärts so weit, wie Aufträge eingeplant sind,
-  // vorwärts zwei Jahre. So kommt man überall hin, ohne dass der
-  // Regler bei wenigen Aufträgen unnötig lang wird.
-  const zeitregler = document.getElementById("pw-zeit");
-  if (zeitregler) {
-    const heuteIso = isoDatum(new Date());
-    const heuteStart = wochenStart(heuteIso);
-
-    // Der Regler reicht bis zum ältesten eingeplanten Auftrag, aber
-    // mindestens bis Anfang 2022 — so lässt sich auch dann zurück-
-    // blättern, wenn aus jener Zeit nichts mehr eingeplant ist.
-    let aeltester = heuteStart;
-    (plan.auftraege || []).forEach((j) => {
-      if (j.planned_from && j.planned_from < aeltester) aeltester = j.planned_from;
-    });
-    if (aeltester > "2022-01-03") aeltester = "2022-01-03";
-
-    // Direkt gerechnet, nicht über arbeitstageZwischen — das hört
-    // bei 400 Tagen auf und käme nie bis 2022 zurück.
-    const tageRoh = Math.round(
-      (new Date(heuteStart + "T00:00:00") - new Date(wochenStart(aeltester) + "T00:00:00"))
-      / 86400000);
-    const mindestens = Math.round((tageRoh / 7) * 5) + 10;
-    const zurueck = Math.max(60, mindestens);
-    const vorwaerts = 520;   // rund zwei Jahre in Arbeitstagen
-
-    const nullpunkt = arbeitstagePlus(heuteStart, -zurueck);
-    const spanne = zurueck + vorwaerts;
-    zeitregler.min = 0;
-    zeitregler.max = spanne;
-
-    // Position des aktuellen Starts auf der Skala
-    let stelle = zurueck;
-    for (let i = 0; i <= spanne; i++) {
-      if (arbeitstagePlus(nullpunkt, i) >= plan.start) { stelle = i; break; }
-    }
-    zeitregler.value = stelle;
-
-    // Für den Knopf "Heute": den Regler an den neuen Beginn setzen
-    plan.reglerNachfuehren = () => {
-      let st = zurueck;
-      for (let i = 0; i <= spanne; i++) {
-        if (arbeitstagePlus(nullpunkt, i) >= plan.start) { st = i; break; }
-      }
-      zeitregler.value = st;
-      beschriften();
-    };
-
-    const marke = document.getElementById("pw-zeitmarke");
-    if (marke) marke.style.left = (zurueck / spanne * 100) + "%";
-
-    const beschriften = () => {
-      const von = arbeitstagePlus(nullpunkt, Number(zeitregler.value));
-      const bis = arbeitstagePlus(von, Math.max(0, plan.tage - 1));
-      const v = document.getElementById("pw-zeitvon");
-      const bi = document.getElementById("pw-zeitbis");
-      if (v) v.textContent = kurzDatum(von);
-      if (bi) bi.textContent = kurzDatum(bis);
-    };
-    beschriften();
-
-    // Live mitzeichnen: die Aufträge sind schon geladen, es braucht
-    // keinen neuen Zugriff auf die Datenbank.
-    // Beim Ziehen kommen mehr Schritte, als der Bildschirm zeigen kann.
-    // Gezeichnet wird höchstens einmal je Bild, mit dem neusten Stand.
-    let bildAngefordert = false;
-    zeitregler.oninput = () => {
-      beschriften();
-      plan.start = arbeitstagePlus(nullpunkt, Number(zeitregler.value));
-      if (bildAngefordert) return;
-      bildAngefordert = true;
-      requestAnimationFrame(() => {
-        bildAngefordert = false;
-        plan.nurZeitGeschoben = true;
-        neuZeichnen(b);
-      });
-    };
-  }
-
-  const regler = document.getElementById("pw-regler");
-  const hoehe = document.getElementById("pw-hoehe");
-  if (hoehe) {
-    const zeigen = () => {
-      const w = Number(hoehe.value) / 100;
-      plan.vskala = w;
-      plan.breiteFest = false;
-      const tafel = document.querySelector(".pw-tafel");
-      if (tafel) {
-        tafel.style.setProperty("--pw-v", w.toFixed(3));
-        // Unter 80 Prozent bleibt nur Platz für eine Textzeile
-        tafel.classList.toggle("pw-tafel--flach", w < 0.8);
-        // Unter 55 % bleibt nur die Auftragsnummer stehen — so wird die
-        // Zeile wirklich schmal, statt an zwei Textzeilen hängenzubleiben.
-        tafel.classList.toggle("pw-tafel--sehrflach", w < 0.55);
-      }
-      const anzeige = document.getElementById("pw-hoehewert");
-      if (anzeige) anzeige.textContent = hoehe.value + " %";
-    };
-    // Beim Ziehen sofort sehen, gespeichert wird erst beim Loslassen
-    hoehe.oninput = zeigen;
-    hoehe.onchange = () => {
-      zeigen();
-      einstellungSetzenWert("pwhoehe", Number(hoehe.value));
-    };
-  }
-
-  const zahlfeld = document.getElementById("pw-zoomwert");
-
-  const zoomSetzen = (wert) => {
-    const n = Math.max(5, Math.min(200, Math.round(Number(wert) || 15)));
-    plan.tageWunsch = n;
-    einstellungSetzenWert("pwtage", n);
-    masseBerechnen(b);
-    neuZeichnen(b);
-  };
-
-  if (regler) {
-    regler.oninput = () => {
-      if (zahlfeld) zahlfeld.value = regler.value;
-      zoomSetzen(regler.value);
-    };
-  }
-  if (zahlfeld) {
-    zahlfeld.onchange = () => zoomSetzen(zahlfeld.value);
-    zahlfeld.onkeydown = (e) => {
-      if (e.key === "Enter") { e.preventDefault(); zoomSetzen(zahlfeld.value); }
-    };
-  }
-
-  // Aufträge und Ferien laden, danach zeichnen
-  try {
-    const [stErst, listeErst] = await Promise.all([
-      serverStempel(["jobs", "vacations", "production_records"]), ladePlanAuftraege()]);
-    if (stErst) plan.stempel = stErst;
-    plan.auftraege = listeErst;
-    // Aufträge, die nur mit einer HOCO Nr. angelegt wurden, holen
-    // sich hier Material, Grösse und Zeichnung aus den Stammdaten.
-    try {
-      const wieViele = await stammdatenAufPlanwand();
-      if (wieViele) {
-        meldung(wieViele + (wieViele === 1 ? " Auftrag" : " Aufträge")
-          + " aus den Stammdaten ergänzt.");
-      }
-    } catch (g) { /* Beiwerk, die Wand steht auch ohne */ }
-  } catch (f) {
-    document.getElementById("pw-inhalt").innerHTML =
-      '<div class="karte karte--fehler"><p>' + esc(fehlertext(f)) + '</p>'
-      + '<p class="klein">Version ' + esc(APP_VERSION) + '</p></div>';
-    return;
-  }
-
-  try {
-    plan.ferien = (await ladeFerien()).map((f) => {
-      f.genehmigt_von_name = f.profiles ? f.profiles.full_name : null;
-      return f;
-    });
-  } catch (f) {
-    plan.ferien = [];
-    console.warn("Ferien:", f.message);
-  }
-
-  try {
-    zeichnePlanwand(b);
-    planSyncStarten(b);
-  } catch (f) {
-    document.getElementById("pw-inhalt").innerHTML =
-      '<div class="karte karte--fehler">'
-      + '<h2>Die Planwand konnte nicht gezeichnet werden</h2>'
-      + '<p>' + esc(f && f.message ? f.message : String(f)) + '</p>'
-      + '<p class="klein">Version ' + esc(APP_VERSION) + '</p></div>';
-    console.error("Planwand zeichnen:", f);
-  }
-
-}
 
 function griffVerhalten(b) {
   const tafel = document.querySelector(".pw-tafel");
@@ -15120,6 +14824,9 @@ Object.assign(alt, {
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, ablageLoeschen,
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert,
   meineRolle, zeichneSeite,
+  masseBerechnen, isMobil, zuHeute, hocoFenster, sucheDialog, serverStempel,
+  stammdatenAufPlanwand, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,
+  naechsterArbeitstag, APP_VERSION,
   rechnerWinkel, rechnerGcode, rechnerCachse, rechnerGravur, rechnerDxf,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit
