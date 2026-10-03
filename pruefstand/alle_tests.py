@@ -5,7 +5,7 @@ gut = 0
 for t in TESTS:
     r = subprocess.run([sys.executable, t + ".py"], capture_output=True, text=True, timeout=400)
     # Auch Zeilen wie "Fehler Pad: …" zählen, nicht nur "Fehler: …"
-    zeilen = [z for z in (r.stdout + r.stderr).splitlines() if re.search(r"Fehler( \w+)?:", z) or "Error" in z, 'effekte']
+    zeilen = [z for z in (r.stdout + r.stderr).splitlines() if re.search(r"Fehler( \w+)?:", z) or "Error" in z]
     ok = r.returncode == 0 and not any("Error" in z for z in zeilen) and all(re.search(r"Fehler( \w+)?: keine", z) for z in zeilen if re.search(r"Fehler( \w+)?:", z))
     gut += ok
     print(("OK    " if ok else "FEHLER") + "  " + t + ("" if ok else "  ->  " + " | ".join(zeilen[-2:])))
