@@ -4521,3 +4521,23 @@ body[data-thema="orange"]  { --licht: rgba(255, 175, 105, .34); }
   .betrachter__knoepfe { flex: 1 1 100%; flex-wrap: wrap; gap: 6px; }
   .betrachter__knoepfe .knopf { flex: 1 1 0; justify-content: center; white-space: nowrap; padding-left: 6px; padding-right: 6px; }
 }
+
+/* Verbrauch auf der Solaranzeige folgt der Themenfarbe. Die Karte ist
+   immer dunkel, darum je Thema ein heller Ton (wie --marke im dunklen
+   Modus) für Strich und Kurve und ein noch hellerer für die Zahl.
+   Blau bleibt der bisherige Standard. */
+body { --sol-verb: #7fb2ff; --sol-verb-hell: #a9c9ff; }
+body[data-thema="rot"]     { --sol-verb: #ff8a80; --sol-verb-hell: #ffaba3; }
+body[data-thema="gruen"]   { --sol-verb: #5fd699; --sol-verb-hell: #86e4b4; }
+body[data-thema="gelb"]    { --sol-verb: #f2c85a; --sol-verb-hell: #f7d888; }
+body[data-thema="rosa"]    { --sol-verb: #ff86c4; --sol-verb-hell: #ffa8d4; }
+body[data-thema="violett"] { --sol-verb: #b98cf0; --sol-verb-hell: #cdabf6; }
+body[data-thema="orange"]  { --sol-verb: #ffa45c; --sol-verb-hell: #ffbe8a; }
+.sol-zahl--verb { border-left-color: var(--sol-verb); }
+.sol-zahl--verb .sol-zahl__wert { color: var(--sol-verb-hell); }
+.sol-kurve--verb { stroke: var(--sol-verb); }
+.sol-kachel--haus .sol-sym { stroke: var(--sol-verb); }
+
+/* Häkchen (z. B. in den Einstellungen) im dunklen Modus: Sie waren fest
+   blau (#6ba4ff). Jetzt in der Themenfarbe wie die Auswahlknöpfe. */
+body.dunkel input[type="checkbox"]:checked { accent-color: var(--marke); }
