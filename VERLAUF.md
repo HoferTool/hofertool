@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 111.x — nach dem Umzug (1.–2. Oktober 2026)
 
+- **111.18.0** Produktion, Woche: nutzt die ganze Breite. Links je Maschine ein Block mit Zustand oben rechts, gross die Nummer, ein Balken für Stand und Ziel mit Prozent und die Knöpfe Einrichtblatt, Menge, Beenden in einer Reihe (`AuftragsBlockWoche` in `Erfassen.jsx`). Unter jedem Tag steht die Tagesleistung, ganz rechts die Summe der Woche. Prüfstand `woche_platz.py` statt `woche_breit.py`.
 - **111.17.0** Anmeldung wie vor 111.12.0 (Entscheid 3. Oktober 2026): Konten ohne Passwort (`ohne_passwort`) und ohne PIN kommen mit einem Tipp auf die Kachel hinein. Das entscheidet der Server: Die Funktion `pin-anmelden` nimmt `{ email, offen: true }` und gibt dann einen Anmelde-Schlüssel, `pin` oder `passwort` zurück (`offenAnmelden`). Kein gemeinsames Passwort im Code. Sobald jemand eine PIN oder ein Passwort bekommt, ist das Konto zu. Die PIN wird über einen Ziffernblock unter dem Feld eingegeben. Prüfstand `offen.py`.
 - **111.16.2** Dunkler Modus folgt der Themenfarbe: Rahmen der angewählten Reiter und Umschalter, Fokus und Eingabefelder waren fest blau. Die Zahl neben Titeln (z. B. bei HOCO Nr.) ist jetzt lesbar. Leere HOCO-Bereiche sind nicht mehr halb durchsichtig, sondern weiss mit gestricheltem Rahmen.
 - **111.16.1** Pad: Die Kacheln HOCO Nr. und Fortschritt wirkten neben den farbigen Kacheln wie ausgeblendet. HOCO Nr. ist jetzt kräftig blau, Fortschritt grün im Plan oder Vorsprung, rot bei Verzug, grau ohne Auftrag.

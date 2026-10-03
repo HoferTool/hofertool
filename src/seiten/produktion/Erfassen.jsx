@@ -146,36 +146,55 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
     <>
       <div className="karte karte--raster"><div className="rasterrolle">
         <table className="raster raster--woche">
-          <thead><tr><th className="fest">Maschine</th>
+          <thead><tr><th className="fest">Maschine und Auftrag</th>
             {tage.map((t, i) => (
               <th key={t} className={t === heute ? "heute" : ""}>{alt.WT_KURZ[i]}
                 <span className="th__datum">{alt.kurzDatum(t)}</span></th>
             ))}
+            <th className="aw-summe">Woche<span className="th__datum">Stück</span></th>
           </tr></thead>
           <tbody>
             {maschinen.map((m) => {
               const j = prod.auftraege[m.id];
+              let summe = 0, erfasst = false;
+              const eintraege = tage.map((t) => staende.proSchluessel[m.id + "|" + t]);
+              eintraege.forEach((e) => {
+                if (e && Number.isFinite(e.leistung)) { summe += e.leistung; erfasst = true; }
+              });
               return (
                 <tr key={m.id}>
-                  <th className="fest fest--voll">{m.name}
-                    {m.machine_number && <> <span className="fest__nr">{m.machine_number}</span></>}
-                    <div className="fest__zeile">
-                      <AuftragsZeile maschine={m} aktionen={aktionen} woche
-                        stand={j ? aktuellerStand(m.id, staende) : null} />
-                    </div>
+                  <th className="fest fest--voll fest--woche">
+                    <AuftragsBlockWoche maschine={m} aktionen={aktionen}
+                      stand={j ? aktuellerStand(m.id, staende) : null} />
                   </th>
-                  {tage.map((t) => <td key={t} className={t === heute ? "heute" : ""}>{feld(m, t)}</td>)}
+                  {tage.map((t, i) => {
+                    const e = eintraege[i];
+                    return (
+                      <td key={t} className={t === heute ? "heute" : ""}>{feld(m, t)}
+                        {/* Die Zeile darunter steht immer da, auch leer, damit
+                            alle Felder einer Reihe auf gleicher Höhe bleiben */}
+                        <span className="zelle__leistung">
+                          {e && Number.isFinite(e.leistung) ? leistungText(e.leistung) : ""}</span>
+                      </td>
+                    );
+                  })}
+                  <td className="aw-summe">{erfasst
+                    ? <b>{leistungText(summe)}</b> : <span className="kein-feld">–</span>}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div></div>
-      <p className="hinweis">Die große Zahl ist der Zählerstand seit Auftragsbeginn.
-        {" "}Darunter steht die daraus errechnete Tagesleistung.
-        {" "}Links steht der aktuelle Stand des laufenden Auftrags.</p>
+      <p className="hinweis">Die grosse Zahl ist der Zählerstand seit Auftragsbeginn.
+        {" "}Darunter steht die daraus errechnete Tagesleistung, ganz rechts die Summe der Woche.
+        {" "}Links stehen Stand und Ziel des laufenden Auftrags.</p>
     </>
   );
+}
+
+function leistungText(n) {
+  return (n > 0 ? "+" : "") + alt.zahlText(n);
 }
 
 // Letzter erfasster Zählerstand des laufenden Auftrags
@@ -258,7 +277,7 @@ function StandFeld({ maschine, datum, staende, neu }) {
 
 // ---------- Die Zeile mit dem laufenden Auftrag ----------
 
-function AuftragsZeile({ maschine, aktionen, woche, stand }) {
+function AuftragsZeile({ maschine, aktionen }) {
   const j = alt.prod.auftraege[maschine.id];
   const schreiben = alt.darfSchreiben();
   if (!j) {
@@ -293,22 +312,6 @@ function AuftragsZeile({ maschine, aktionen, woche, stand }) {
     </>
   );
 
-  // Woche in drei Spalten: Nummer · Einrichtblatt, Menge, Beenden ·
-  // Ziel, Stand, Zustand
-  if (woche) {
-    return (
-      <div className="auftrag auftrag--woche">
-        <div className="aw-spalte"><span className="auftrag__nr">{j.job_number}</span></div>
-        <div className="aw-spalte">{knoepfe}</div>
-        <div className="aw-spalte">
-          <span className="auftrag__seit">{seit}</span>
-          {stand !== null && stand !== undefined &&
-            <span className="fest__stand">Stand {alt.zahlText(stand)}</span>}
-          {zustandKnopf}
-        </div>
-      </div>
-    );
-  }
   return (
     <div className="auftrag">
       <span className="auftrag__nr">{j.job_number}</span>
@@ -316,6 +319,72 @@ function AuftragsZeile({ maschine, aktionen, woche, stand }) {
       <span className="auftrag__seit">{seit}</span>
       {knoepfe}
     </div>
+  );
+}
+
+// ---------- Woche: links alles zum Auftrag in einem Block ----------
+
+// Oben Maschine und Zustand, darunter gross die Nummer, ein Balken für
+// Stand und Ziel und die Knöpfe in einer Reihe. Dieselben Knöpfe wie in
+// der Tagesansicht.
+function AuftragsBlockWoche({ maschine, aktionen, stand }) {
+  const j = alt.prod.auftraege[maschine.id];
+  const schreiben = alt.darfSchreiben();
+  const kopf = (
+    <span className="aw-name">{maschine.name}
+      {maschine.machine_number && <> <span className="aw-mnr">{maschine.machine_number}</span></>}
+    </span>
+  );
+  if (!j) {
+    return (
+      <>
+        <div className="aw-kopf">{kopf}</div>
+        <div className="fest__zeile"><AuftragsZeile maschine={maschine} aktionen={aktionen} /></div>
+      </>
+    );
+  }
+
+  const schl = alt.PLANSTATUS[j.plan_status] ? j.plan_status : "geplant";
+  const zustand = alt.PLANSTATUS[schl];
+  const ziel = Number(j.target_quantity) || 0;
+  const st = Number(stand) || 0;
+  const anteil = ziel ? Math.round(st / ziel * 100) : 0;
+
+  return (
+    <>
+      <div className="aw-kopf">{kopf}
+        {/* Den Zustand darf jeder ändern, auch ohne Schreibrecht */}
+        <button className={"auftrag__status aw-status aw-status--" + schl} data-auftrag-status={j.id}
+          title="Zustand ändern" onClick={() => aktionen.zustand(j)}>{zustand.zeichen} {zustand.name}</button>
+      </div>
+      <div className="aw-nr">{j.job_number}</div>
+      {ziel ? <>
+        <div className={"aw-fortschritt aw-fortschritt--" + schl + (anteil >= 100 ? " aw-fortschritt--voll" : "")}
+          role="img" aria-label={"Stand " + alt.zahlText(st) + " von " + alt.zahlText(ziel) + " Stück"}>
+          <i style={{ width: Math.min(100, anteil) + "%" }} />
+        </div>
+        <div className="aw-zahlen">
+          <span><b>{alt.zahlText(st)}</b> von {alt.zahlText(ziel)} Stück</span>
+          <span className="aw-prozent">{anteil} %</span>
+        </div>
+      </> : (
+        <div className="aw-zahlen">
+          <span>Stand <b>{alt.zahlText(st)}</b> Stück</span>
+          <span>seit {alt.kurzDatum(alt.isoDatum(new Date(j.started_at)))}</span>
+        </div>
+      )}
+      <div className="aw-knoepfe">
+        {/* Die HOCO Nr. steht am Auftrag, damit öffnet sich das
+            Einrichtblatt für diese Maschine direkt */}
+        <button className="aw-knopf" data-blatt={j.id} data-maschine={maschine.id}
+          onClick={() => aktionen.einrichtblatt(j, maschine)}>Einrichtblatt</button>
+        {schreiben && <>
+          <button className="aw-knopf" data-auftrag-menge={j.id} onClick={() => aktionen.menge(j)}>Menge</button>
+          <button className="aw-knopf aw-knopf--ende" data-auftrag-ende={j.id} data-maschine={maschine.id}
+            onClick={() => aktionen.beenden(j)}>Beenden</button>
+        </>}
+      </div>
+    </>
   );
 }
 
