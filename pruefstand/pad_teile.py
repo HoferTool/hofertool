@@ -73,6 +73,8 @@ with sync_playwright() as p:
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(500)
     pg.locator("[data-einst='dokumente']").click(); pg.wait_for_selector("[data-dokauf]")
     pg.locator("[data-dokauf]").first.click(); pg.wait_for_selector(".betrachter-huelle")
+    # Die Datei ist hier nicht erreichbar: Rückfall auf die Anzeige des Browsers
+    pg.wait_for_selector(".betrachter iframe")
     pruefe("Betrachter mit PDF in voller Breite", "view=FitH" in pg.get_attribute(".betrachter iframe", "src"))
     pruefe("Neuer Tab zeigt auf die Datei", pg.get_attribute(".betrachter a", "href") == "https://x.invalid/probe.pdf")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)

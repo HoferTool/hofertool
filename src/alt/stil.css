@@ -4487,3 +4487,37 @@ body[data-thema="gelb"]    { --licht: rgba(255, 215, 105, .34); }
 body[data-thema="rosa"]    { --licht: rgba(255, 140, 205, .34); }
 body[data-thema="violett"] { --licht: rgba(190, 150, 255, .34); }
 body[data-thema="orange"]  { --licht: rgba(255, 175, 105, .34); }
+
+/* Betrachter: PDF selbst gezeichnet (PdfAnsicht). Die Seite füllt die
+   ganze Fläche, darum ohne Rand um die Bühne. */
+.betrachter__buehne--pdf { padding: 0; display: block; position: relative; overflow: hidden; }
+.betrachter__kopf { padding: 6px 10px; }
+.pdfansicht { position: absolute; inset: 0; }
+.pdfansicht__buehne { position: absolute; inset: 0; overflow: auto;
+                      -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
+                      overscroll-behavior: contain; }
+.pdfansicht__blatt { width: max-content; min-width: 100%; will-change: transform; }
+.pdfansicht__seite { display: flex; }
+.pdfansicht__seite + .pdfansicht__seite { border-top: 6px solid #12161b; }
+/* margin: auto statt justify-content: so bleibt beim Vergrössern auch
+   der linke Rand der Seite erreichbar */
+.pdfansicht__seite canvas { margin: auto; display: block; background: #fff; }
+.pdfansicht__laden { position: absolute; inset: 0; display: flex; align-items: center;
+                     justify-content: center; color: #9aa5b1; font-size: .9rem; }
+.pdfansicht__zoom { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px;
+                    padding: 6px; border-radius: 10px; background: rgba(29, 36, 48, .82);
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, .3); }
+.pdfansicht__zoom .knopf { background: transparent; border-color: #47505c; color: #fff;
+                           min-width: 44px; min-height: 40px; justify-content: center;
+                           font-variant-numeric: tabular-nums; }
+.pdfansicht__zoom .knopf:disabled { opacity: .4; }
+/* Handy: Die vier Knöpfe passen nicht neben den Titel. Darum bricht
+   die Kopfleiste um, statt den Betrachter breiter als den Bildschirm
+   zu machen. */
+.betrachter { min-width: 0; max-width: 100vw; }
+@media (max-width: 640px) {
+  .betrachter__kopf { flex-wrap: wrap; gap: 6px; }
+  .betrachter__titel { flex: 1 1 100%; }
+  .betrachter__knoepfe { flex: 1 1 100%; flex-wrap: wrap; gap: 6px; }
+  .betrachter__knoepfe .knopf { flex: 1 1 0; justify-content: center; white-space: nowrap; padding-left: 6px; padding-right: 6px; }
+}
