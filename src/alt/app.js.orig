@@ -21,7 +21,6 @@ import { planAuftragDialog } from "../planwand/AuftragFenster.jsx";
 import { nachfragen, dialogFelder, auswahlDialog } from "../teile/Dialoge.jsx";
 import { geruestZeichnen, geruestAbbauen, navAktiv } from "../huelle/Geruest.jsx";
 import { sucheOeffnen } from "../huelle/SucheAlles.jsx";
-import { anmeldungZeigen } from "../huelle/Anmeldung.jsx";
 import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
 import { ferienDialog } from "../planwand/FerienFenster.jsx";
 import { hocoFenster } from "../planwand/HocoFenster.jsx";
@@ -99,7 +98,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.13.0";
+const APP_VERSION = "111.12.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1027,14 +1026,238 @@ async function profilLaden() {
 //  Anmeldeseite
 // -----------------------------------------------------------------
 
-// Die Kachelwand und das Anmeldefeld sind in src/huelle/Anmeldung.jsx.
 function zeigeLogin() {
   geruestAbbauen();
   // Immer im gewohnten Blau, egal was die letzte Person eingestellt hatte
   document.body.classList.remove("dunkel", "nav--schmal", "rolle-extern");
   document.body.removeAttribute("data-thema");
   einstellungenNeuLesen();
-  anmeldungZeigen(WURZEL);
+  WURZEL.innerHTML = ''
+    + '<div class="login"><div class="login__karte">'
+    + '<div class="login__marke" id="lg-marke">'
+    + '<img class="login__bild" src="./login.png" alt="Hofer + Co. Präzisionsdrehteile">'
+    + '<div class="login__untertitel">' + esc(APP_UNTERTITEL) + '</div>'
+    + '</div>'
+    + '<div id="lg-auswahl"><div class="login__laedt">Wird geladen …</div></div>'
+    + '<div id="lg-anmeldung" hidden></div>'
+    + '</div></div>';
+
+  const auswahl = document.getElementById("lg-auswahl");
+  const anmeldung = document.getElementById("lg-anmeldung");
+
+  // ---------- Anmeldung für ein gewähltes Konto ----------
+
+  // Merkt sich, von welcher Kachel aus geflogen wurde
+  let letzteKachel = null;
+
+  // Baut die Anmeldemaske auf, ohne sie schon zu zeigen
+  const anmeldungAufbauen = (konto, mitPin) => {
+    anmeldung.innerHTML = ''
+      + (konto.bild_url
+          ? '<img class="login__gross" src="' + esc(konto.bild_url) + '" alt="">'
+          : '<span class="login__gross login__gross--buchstabe">'
+            + esc((konto.full_name || konto.email).charAt(0).toUpperCase()) + '</span>')
+      + '<div class="login__name">' + esc(konto.full_name || konto.email) + '</div>'
+      + '<form id="lf" novalidate>'
+      + (mitPin
+          ? '<input type="password" id="lp" class="login__pw login__pw--pin" placeholder="PIN"'
+            + ' inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" required>'
+          : '<input type="password" id="lp" class="login__pw" placeholder="Passwort"'
+            + ' autocomplete="current-password" required>')
+      + '<button type="submit" class="knopf knopf--haupt knopf--breit" id="lk">Anmelden</button>'
+      + '</form>'
+      + '<button type="button" class="linkknopf login__anderekonto" id="lg-anderes">'
+      + 'anderes Konto</button>';
+  };
+
+  // Lässt einen Klon von A nach B fliegen und ruft danach fertig() auf
+  // Kein fliegender Klon mehr: der machte beim Start und beim
+  // Zurückgehen jedes Mal einen kleinen Sprung, weil sich das Layout
+  // zwischen Messen und Losfliegen minimal verschiebt. Ein sauberes
+  // Aus- und Einblenden wirkt ruhiger und ist nicht zu schlagen.
+
+  const anmeldenZeigen = (konto, bildEl, erzwingePasswort) => {
+    // Konten mit PIN: Kachel antippen, PIN eingeben
+    const mitPin = !!konto.ohne_passwort && !erzwingePasswort;
+
+    letzteKachel = bildEl || null;
+    anmeldungAufbauen(konto, mitPin);
+
+    auswahl.classList.add("login__wechsel--raus");
+    setTimeout(() => {
+      auswahl.hidden = true;
+      auswahl.classList.remove("login__wechsel--raus");
+
+      anmeldung.hidden = false;
+      anmeldung.className = "login__wechsel--rein";
+      document.getElementById("lg-anderes").onclick = zurueckZurAuswahl;
+      anmeldenBinden(konto.email, mitPin
+        ? () => anmeldenZeigen(konto, bildEl, true) : null);
+      document.getElementById("lp").focus();
+    }, 160);
+  };
+
+  const zurueckZurAuswahl = () => {
+    anmeldung.className = "login__wechsel--raus";
+    setTimeout(() => {
+      anmeldung.hidden = true;
+      anmeldung.innerHTML = "";
+      anmeldung.className = "";
+
+      auswahl.hidden = false;
+      auswahl.classList.remove("login__kachelfeld--weg");
+      auswahl.classList.add("login__wechsel--rein");
+      setTimeout(() => auswahl.classList.remove("login__wechsel--rein"), 260);
+    }, 160);
+  };
+
+  // Mit Escape zurück zur Auswahl
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !anmeldung.hidden && document.getElementById("lg-auswahl")) {
+      zurueckZurAuswahl();
+    }
+  });
+
+  // ---------- Das eigentliche Anmelden ----------
+
+  // nurPin: Das Feld nimmt die PIN. Klappt die PIN-Anmeldung grundsätzlich
+  // nicht (nicht eingerichtet), ruft es nurPin() auf und zeigt das Passwortfeld.
+  function anmeldenBinden(vorgabeMail, nurPin) {
+    const knopf = document.getElementById("lk");
+    document.getElementById("lf").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const nameFeld = document.getElementById("le");
+      const eingabe = (vorgabeMail || (nameFeld ? nameFeld.value : "")).trim().toLowerCase();
+      const pw = document.getElementById("lp").value;
+      if (!eingabe || !pw) { meldung("Benutzername und Passwort eingeben.", "warn"); return; }
+
+      // Ohne @ wird daraus automatisch eine gültige Adresse.
+      const email = eingabe.includes("@") ? eingabe : eingabe + LOGIN_ENDUNG;
+
+      knopf.disabled = true;
+      knopf.textContent = "Anmelden …";
+      const nochmal = (text, art) => {
+        meldung(text, art || "fehler");
+        knopf.disabled = false;
+        knopf.textContent = "Anmelden";
+        const feld = document.getElementById("lp");
+        if (feld) { feld.value = ""; feld.focus(); }
+      };
+      try {
+        if (nurPin) {
+          const e2 = await pinAnmelden(email, pw);
+          if (e2.status === "fehler" || e2.status === "keine_pin") {
+            meldung(pinMeldung(e2), "warn");
+            nurPin();
+            return;
+          }
+          if (e2.status !== "ok") return nochmal(pinMeldung(e2), e2.status === "gesperrt" ? "warn" : "fehler");
+        } else {
+          let { error } = await zeitlimit(
+            db.auth.signInWithPassword({ email: email, password: pw }), 15000, "Anmeldung");
+          // Nur Ziffern und kein passendes Passwort? Dann als PIN versuchen
+          if (error && /^\d{4,8}$/.test(pw)) {
+            const e2 = await pinAnmelden(email, pw);
+            if (e2.status === "ok") error = null;
+            else if (e2.status === "falsch" || e2.status === "gesperrt") return nochmal(pinMeldung(e2));
+          }
+          if (error) throw error;
+        }
+        geraetKontoMerken(email);
+        await profilLaden();
+        zeichneGeruest();
+      } catch (f) {
+        meldung(fehlertext(f), "fehler");
+        knopf.disabled = false;
+        knopf.textContent = "Anmelden";
+      }
+    });
+  }
+
+  // ---------- Kachelauswahl aufbauen ----------
+
+  const formularOhneKacheln = () => {
+    auswahl.innerHTML = ''
+      + '<form id="lf" novalidate>'
+      + '<label class="feld"><span>Benutzername</span>'
+      + '<input type="text" id="le" autocomplete="username" autocapitalize="none"'
+      + ' spellcheck="false" required></label>'
+      + '<label class="feld"><span>Passwort oder PIN</span>'
+      + '<input type="password" id="lp" autocomplete="current-password" required></label>'
+      + '<button type="submit" class="knopf knopf--haupt knopf--breit" id="lk">Anmelden</button>'
+      + '</form>';
+    anmeldenBinden(null);
+  };
+
+  (async () => {
+    try {
+      const antwort = await db.from("login_kacheln").select("*");
+      if (antwort.error || !antwort.data) throw antwort.error || new Error("leer");
+      // Externes Gerät: nur Konten, die sich hier schon angemeldet haben.
+      // Eigenes Gerät: Externe erscheinen nicht auf eurer Kachelwand.
+      const bekannt = geraetKonten();
+      const data = istExternGeraet()
+        ? antwort.data.filter((u) => bekannt.indexOf(String(u.email || "").toLowerCase()) !== -1)
+        : antwort.data.filter((u) => u.role !== "extern" && u.role !== "dienst");
+      if (!data.length) throw new Error("leer");
+      // Immer in derselben Reihenfolge: nach Namen, wie im Telefonbuch
+      data.sort((x, y) => String(x.full_name || x.email || "").localeCompare(
+        String(y.full_name || y.email || ""), "de", { sensitivity: "base" }));
+
+      // Reihen ausgleichen: lieber 3 + 3 als 5 + 1. Die Spaltenzahl
+      // ergibt sich aus der Anzahl, der Rest steht mittig darunter.
+      // Höchstens drei Zeilen, waagrecht gefüllt: aus 18 Personen
+      // werden 6 · 6 · 6. Bei wenigen Personen wird nicht künstlich
+      // auf drei Zeilen aufgeteilt — mindestens drei nebeneinander,
+      // sonst stünde bei drei Personen eine senkrechte Spalte da.
+      const anzahl = data.length;
+      const reihen = Math.min(3, Math.max(1, Math.ceil(anzahl / 3)));
+      const grund = Math.floor(anzahl / reihen);
+      const mehr = anzahl % reihen;          // so viele Zeilen kriegen eine mehr
+
+      const kachel = (u, i) => '<button type="button" class="login__kachel" data-nr="' + i + '">'
+        + (u.bild_url
+            ? '<img src="' + esc(u.bild_url) + '" alt="">'
+            : '<span class="login__kachel-buchstabe">'
+              + esc((u.full_name || u.email).charAt(0).toUpperCase()) + '</span>')
+        + '<span class="login__kachel-name">' + esc(personName(u)) + '</span>'
+        + (u.ohne_passwort ? '<span class="login__offen" title="Anmeldung mit PIN">•</span>' : "")
+        + '</button>';
+
+      let zeiger = 0;
+      // Die vollste Zeile bestimmt die Kachelbreite — so sind am Handy
+      // alle Kacheln gleich gross, auch in der kürzeren letzten Zeile
+      const breiteste = grund + (mehr ? 1 : 0);
+      let html = '<div class="login__kacheln login__kacheln--reihen" style="--spalten:'
+        + Math.max(1, breiteste) + '">';
+      for (let r = 0; r < reihen; r++) {
+        const inReihe = grund + (r < mehr ? 1 : 0);
+        html += '<div class="login__reihe">';
+        for (let k = 0; k < inReihe && zeiger < anzahl; k++, zeiger++) {
+          html += kachel(data[zeiger], zeiger);
+        }
+        html += '</div>';
+      }
+      auswahl.innerHTML = html + '</div>';
+
+      // Die Karte ist von Haus aus schmal. Bei sechs Kacheln in einer
+      // Zeile lief die Reihe über den Rand hinaus und wurde
+      // abgeschnitten. Also wächst die Karte mit, höchstens aber auf
+      // die Fensterbreite.
+      const karte = auswahl.closest(".login__karte");
+      if (karte) {
+        const breit = breiteste * 112 + (breiteste - 1) * 14 + 56;
+        karte.style.maxWidth = "min(96vw, " + Math.max(380, breit) + "px)";
+      }
+
+      auswahl.querySelectorAll("[data-nr]").forEach((k) => {
+        k.onclick = () => anmeldenZeigen(data[Number(k.dataset.nr)],
+          k.querySelector("img, .login__kachel-buchstabe"));
+      });
+    } catch (f) {
+      formularOhneKacheln();
+    }
+  })();
 }
 
 // -----------------------------------------------------------------
@@ -12205,9 +12428,8 @@ async function benutzerlisteLaden(b, bin) {
           + (bin
               ? '<td class="bu-pin"><button class="linkknopf" data-pinsetzen="' + esc(u.id) + '">'
                 + (mitPin && mitPin.has(u.id) ? "PIN ändern" : "PIN setzen") + '</button>'
-                + (selbst ? "" : ' · <button class="linkknopf" data-pwsetzen="' + esc(u.id) + '">Passwort setzen</button>')
                 + (mitPin && !mitPin.has(u.id) && u.ohne_passwort
-                    ? ' <span class="bz-spaet" title="Kommt erst mit PIN oder Passwort vom Admin wieder hinein">fehlt</span>' : "")
+                    ? ' <span class="bz-spaet" title="Kommt erst mit PIN wieder hinein">fehlt</span>' : "")
                 + '</td>'
               : "")
           + '<td class="bu-status rechts">' + (bin && !selbst
@@ -12338,34 +12560,6 @@ async function benutzerlisteLaden(b, bin) {
           ? "Dafür fehlt noch pin-anmeldung.sql in der Datenbank." : fehlertext(error), "fehler");
       }
       meldung("PIN gesetzt.");
-      benutzerlisteLaden(b, bin);
-    };
-  });
-
-  // Passwort vergessen: Der Admin setzt ein neues, ohne das alte zu kennen.
-  // Eine PIN fällt dabei weg, die Person meldet sich mit dem Passwort an.
-  ziel.querySelectorAll("[data-pwsetzen]").forEach((el) => {
-    el.onclick = async () => {
-      const u = leute.find((x) => x.id === el.dataset.pwsetzen);
-      const w = await dialogFelder({
-        titel: "Passwort für " + ((u && (u.full_name || u.email)) || "Person"),
-        text: "Die Person meldet sich danach mit diesem Passwort an. Eine PIN gilt "
-            + "dann nicht mehr. Sag ihr das Passwort persönlich.",
-        felder: [
-          { name: "pw", label: "Neues Passwort (mindestens 8 Zeichen)", typ: "password", pflicht: true },
-          { name: "pw2", label: "Nochmals eingeben", typ: "password", pflicht: true },
-        ],
-        bestaetigen: "Passwort setzen",
-      });
-      if (!w) return;
-      if (String(w.pw || "").length < 8) return meldung("Das Passwort braucht mindestens 8 Zeichen.", "warn");
-      if (w.pw !== w.pw2) return meldung("Die beiden Passwörter sind nicht gleich.", "warn");
-      const { error } = await db.rpc("passwort_setzen", { p_passwort: w.pw, p_ziel: el.dataset.pwsetzen });
-      if (error) {
-        return meldung(/passwort_setzen/.test(error.message || "")
-          ? "Dafür fehlt noch pin-anmeldung.sql in der Datenbank." : fehlertext(error), "fehler");
-      }
-      meldung("Passwort gesetzt.");
       benutzerlisteLaden(b, bin);
     };
   });
@@ -13944,8 +14138,6 @@ Object.assign(alt, {
   einst, einstFarbenZeichnen, einstNutzerZeichnen, seiteDokumente, fehlerLesen, fehlerAlsDatei,
   FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen, bildZuschneiden,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE,
-  APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
-  istExternGeraet, profilLaden, zeichneGeruest,
   rechnerWinkel, rechnerGcode, rechnerCachse, rechnerGravur, rechnerDxf,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit

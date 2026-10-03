@@ -12,12 +12,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
+import { anmeldungAbbauen } from "./Anmeldung.jsx";
 
 let wurzel = null;
 let aktivSetzen = () => {};
 
 export function geruestZeichnen(ziel) {
   geruestAbbauen();
+  anmeldungAbbauen();
   ziel.innerHTML = "";
   const huelle = document.createElement("div");
   huelle.className = "react-seite";
