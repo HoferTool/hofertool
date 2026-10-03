@@ -22,6 +22,8 @@ import { nachfragen, dialogFelder, auswahlDialog } from "../teile/Dialoge.jsx";
 import { geruestZeichnen, geruestAbbauen, navAktiv } from "../huelle/Geruest.jsx";
 import { sucheOeffnen } from "../huelle/SucheAlles.jsx";
 import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
+import { ferienDialog } from "../planwand/FerienFenster.jsx";
+import { hocoFenster } from "../planwand/HocoFenster.jsx";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -4970,116 +4972,7 @@ function freieFerienZeile(von, tage, ausser) {
   return hoechste + 1;
 }
 
-async function ferienDialog(eintrag, zeile, datum, b) {
-  const start = eintrag ? eintrag.von
-    : (datum || naechsterArbeitstag(isoDatum(new Date())));
-  const bisVorgabe = eintrag
-    ? letzterArbeitstag(eintrag.von, eintrag.tage || 1) : start;
-
-  const istAnfrage = eintrag && eintrag.genehmigt === false;
-
-  const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle";
-  huelle.innerHTML = '<div class="dialog">'
-    + '<h2>' + (eintrag ? "Ferien"
-        : (darfPlanen() ? "Ferien eintragen" : "Ferien anfragen")) + '</h2>'
-
-    + (eintrag
-      ? '<div class="' + (istAnfrage ? "problemkasten" : "karte--ergebnis meldungszahl") + '">'
-        + (istAnfrage
-          ? '<div class="problemkasten__kopf">Noch nicht bestätigt</div>'
-            + '<div class="klein">Diese Ferien warten auf den Administrator.</div>'
-          : '<div class="ergebnis__titel">Bestätigt</div>'
-            + '<div>' + esc(eintrag.genehmigt_von_name || "Administrator")
-            + (eintrag.genehmigt_am ? ' · ' + esc(datumZeitKurz(eintrag.genehmigt_am)) : "")
-            + '</div>')
-        + '</div>'
-      : "")
-
-    + '<label class="feld"><span>Wer</span>'
-    + '<input id="fd-person" type="text" placeholder="Name" value="'
-    + esc(eintrag ? eintrag.person : ((profil && profil.full_name) || "")) + '"></label>'
-    + '<div class="zeitraumwahl">'
-    + '<label class="feld"><span>Erster Tag</span>'
-    + '<input id="fd-von" type="date" value="' + esc(start) + '"></label>'
-    + '<label class="feld"><span>Letzter Tag</span>'
-    + '<input id="fd-bis" type="date" value="' + esc(bisVorgabe) + '"></label>'
-    + '</div>'
-    + '<label class="feld"><span>Notiz</span>'
-    + '<input id="fd-notiz" type="text" value="'
-    + esc(eintrag ? (eintrag.note || "") : "") + '"></label>'
-
-    + '<div class="dialog__knoepfe">'
-    + (eintrag ? '<button class="knopf knopf--gefahr" id="fd-weg">Ferien löschen</button>' : "")
-    + (istAnfrage && darfPlanen()
-        ? '<button class="knopf knopf--haupt" id="fd-ok">Bestätigen</button>' : "")
-    + '<button class="knopf knopf--still" id="fd-nein">Abbrechen</button>'
-    + '<button class="knopf ' + (istAnfrage && darfPlanen() ? "knopf--still" : "knopf--haupt")
-    + '" id="fd-ja">Speichern</button>'
-    + '</div></div>';
-  document.body.appendChild(huelle);
-  plan.imDialog = true;
-
-  const $ = (k) => huelle.querySelector("#" + k);
-  const zu = () => { plan.imDialog = false; huelle.remove(); };
-  $("fd-nein").onclick = zu;
-  dialogSchliessen(huelle, zu);
-  $("fd-person").focus();
-
-  $("fd-ja").onclick = async () => {
-    const person = ($("fd-person").value || "").trim();
-    if (!person) { meldung("Bitte einen Namen eintragen.", "warn"); return; }
-
-    const von = $("fd-von").value || start;
-    const bis = $("fd-bis").value || von;
-    if (bis < von) { meldung("Der letzte Tag liegt vor dem ersten.", "warn"); return; }
-
-    const tage = arbeitstageZwischen(von, bis);
-    const daten = {
-      person: person,
-      zeile: zeile || freieFerienZeile(von, tage, eintrag ? eintrag.id : null),
-      von: von, tage: tage,
-      note: ($("fd-notiz").value || "").trim() || null,
-    };
-    if (!eintrag) daten.genehmigt = darfPlanen();
-
-    const { error } = eintrag
-      ? await db.from("vacations").update(daten).eq("id", eintrag.id)
-      : await db.from("vacations").insert(daten);
-
-    zu();
-    if (error) meldung(fehlertext(error), "fehler");
-    else {
-      meldung(!eintrag && !darfPlanen() ? "Anfrage gestellt." : "Gespeichert.");
-      planAktualisieren(b);
-    }
-  };
-
-  const ok = $("fd-ok");
-  if (ok) ok.onclick = async () => {
-    const { error } = await db.from("vacations").update({
-      genehmigt: true,
-      genehmigt_von: profil.id,
-      genehmigt_am: new Date().toISOString(),
-    }).eq("id", eintrag.id);
-    zu();
-    if (error) meldung(fehlertext(error), "fehler");
-    else { meldung("Ferien bestätigt."); planAktualisieren(b); }
-  };
-
-  const weg = $("fd-weg");
-  if (weg) weg.onclick = async () => {
-    const sicher = await nachfragen({
-      titel: "Ferien löschen",
-      text: "Soll der Eintrag für " + eintrag.person + " gelöscht werden?",
-      bestaetigen: "Löschen", gefahr: true });
-    if (!sicher) return;
-    const { error } = await db.from("vacations").delete().eq("id", eintrag.id);
-    zu();
-    if (error) meldung(fehlertext(error), "fehler");
-    else { meldung("Gelöscht."); planAktualisieren(b); }
-  };
-}
+// Das Ferienfenster ist in src/planwand/FerienFenster.jsx.
 
 // ---------- Die Planwand zeichnen ----------
 
@@ -5845,25 +5738,7 @@ function wischVerhalten(b) {
 // Maschine und gilt innerhalb des Parks.
 // Die HOCO Nummern als grosses Fenster über der Planwand. Innen
 // läuft dieselbe Ansicht wie früher im Reiter.
-function hocoFenster(b) {
-  const huelle = document.createElement("div");
-  huelle.className = "dialog-huelle";
-  huelle.innerHTML = '<div class="dialog dialog--voll">'
-    + '<div class="blatt__kopf"><h2>HOCO Nr.</h2>'
-    + '<button class="knopf knopf--still" data-zu>Schliessen</button></div>'
-    + '<div class="hoco-fenster" id="hoco-fensterinhalt">'
-    + '<div class="laedt">Wird geladen …</div></div></div>';
-
-  document.body.appendChild(huelle);
-  const zu = () => { huelle.remove(); };
-  huelle.querySelector("[data-zu]").onclick = zu;
-  dialogSchliessen(huelle, zu);
-
-  const inhalt = huelle.querySelector("#hoco-fensterinhalt");
-  ansichtHoco(inhalt, b).catch((f) => {
-    inhalt.innerHTML = '<p class="hinweis">' + esc(fehlertext(f)) + '</p>';
-  });
-}
+// Das HOCO-Fenster über der Planwand ist in src/planwand/HocoFenster.jsx.
 
 // Setzt den Zustand eines Auftrags — überall gleich, ob aus der
 // Produktion, der Planwand oder dem Pad Mode. Zwei Regeln:
@@ -14643,6 +14518,7 @@ Object.assign(alt, {
   stammdatenAufPlanwand, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,
   naechsterArbeitstag, APP_VERSION,
   sucheStarten, sucheZumTreffer, sucheBeenden, sucheAllesDaten, sucheTreffer, sucheSpringen,
+  freieFerienZeile, ansichtHoco,
   rechnerWinkel, rechnerGcode, rechnerCachse, rechnerGravur, rechnerDxf,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit
