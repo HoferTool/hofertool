@@ -3,7 +3,7 @@
 import json, math, os, re, subprocess, sys
 
 HIER = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STIMME = os.environ.get("STIMME", os.path.join(HIER, "stimme"))
+STIMME = os.environ.get("STIMME", os.path.join(HIER, "stimme_el" if os.path.exists(os.path.join(HIER, "werkzeuge", "zeitplan.json")) else "stimme"))
 os.chdir(HIER)
 # Gemeinsame Dateien (Aufnahmen, Schrift, GSAP) teilt sich das Video mit Fassung 3
 import shutil
@@ -246,21 +246,57 @@ ersatz = {
 for a, b in ersatz.items(): html = html.replace(a, b)
 html = html.replace('<div id="mat-ring"></div>', f'<div id="mat-ring" style="{ring}"></div>')
 assert "@@" not in html and not re.search(r"<!--[A-Z0-9_]+-->", html), "Platzhalter übrig"
+# ---------- Zeitplan der Stimme (ElevenLabs): alle Zeiten folgen der neuen Aufnahme ----------
+ZP = json.load(open("werkzeuge/zeitplan.json")) if os.path.exists("werkzeuge/zeitplan.json") else None
+def MAP(t):
+    if not ZP: return t
+    an = ZP["anker"]
+    if t <= an[0][0]: return t
+    for (a1, n1), (a2, n2) in zip(an, an[1:]):
+        if t <= a2: return n1 + (t - a1) * (n2 - n1) / (a2 - a1)
+    return an[-1][1] + (t - an[-1][0])
+if ZP:
+    def _clip(m):
+        s, d = float(m.group(1)), float(m.group(2)); ns = MAP(s)
+        return f'data-start="{ns:.3f}" data-duration="{MAP(s + d) - ns:.3f}"'
+    html = re.sub(r'data-start="([0-9.]+)" data-duration="([0-9.]+)"', _clip, html)
+    # Aufnahmen auf die neue Länge ihres Abschnitts strecken, damit sie nicht vorzeitig enden
+    def _video(m):
+        tag = m.group(0); src = re.search(r'src="assets/([^"]+)"', tag).group(1)
+        s = float(re.search(r'data-start="([0-9.]+)"', tag).group(1)); d = float(re.search(r'data-duration="([0-9.]+)"', tag).group(1))
+        alt = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", "assets/" + src], capture_output=True, text=True).stdout)
+        f = d / min(alt, d) if alt < d - 0.05 else 1.0
+        if f <= 1.01: return tag
+        ziel = f"z_{f:.3f}_{src}"
+        if not os.path.exists("assets/" + ziel):
+            subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-i", "assets/" + src, "-vf", f"setpts=PTS*{f:.4f},fps=30", "-an",
+                            "-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p", "assets/" + ziel], check=True)
+        return tag.replace(f'src="assets/{src}"', f'src="assets/{ziel}"')
+    html = re.sub(r"<video [^>]*>", _video, html)
+    html = re.sub(r"const ENDE = [0-9.]+;", f"const ENDE = {ZP['ende']};", html)
+    js_map = ("const ZPA = " + json.dumps(ZP["anker"]) + ";\n      const MP = (t) => { if (t <= ZPA[0][0]) return t;"
+              " for (let i = 1; i < ZPA.length; i++) if (t <= ZPA[i][0]) { const [a1, n1] = ZPA[i - 1], [a2, n2] = ZPA[i]; return n1 + (t - a1) * (n2 - n1) / (a2 - a1); }"
+              " return ZPA[ZPA.length - 1][1] + t - ZPA[ZPA.length - 1][0]; };\n")
+    alt_fo = "const F = (s, a, b, t) => Z.fromTo(s, a, b, ZT(t) + VERS);\n      const O = (s, b, t) => Z.to(s, b, ZT(t) + VERS);"
+    assert alt_fo in html
+    html = html.replace(alt_fo, js_map + "      const F = (s, a, b, t) => Z.fromTo(s, a, b, MP(ZT(t) + VERS));\n      const O = (s, b, t) => Z.to(s, b, MP(ZT(t) + VERS));")
+    assert "ZT(t) + VERS + i * 0.035" in html
+    html = html.replace("ZT(t) + VERS + i * 0.035", "MP(ZT(t) + VERS) + i * 0.035")
 open("index.html", "w", encoding="utf-8").write(html)
 print("index.html", len(html) // 1024, "KB")
 if "--nur-html" in sys.argv: sys.exit()
 
 # ---------- Musik ----------
 _s = lambda t: t + EIN if t >= 15.49 else t
-L = 83.9 + EIN
-cfg = dict(laenge=L, aus="musik.wav", t=dict(groove=7.7, probleme=27.0 + EIN, drop=37.6 + EIN, outro=78.5 + EIN),
-           schnitte=[7.7, 15.5] + [_s(t) for t in [15.5, 27.0, 29.8, 33.7, 39.9, 44.5, 49.3, 52.6, 56.9, 59.4, 71.0, 73.6]],
-           stiche=[1.45, 4.7, 17.9] + [_s(t) for t in [18.85, 19.3, 20.0, 21.4, 24.3, 28.2, 77.45]])
+L = ZP["ende"] if ZP else 83.9 + EIN
+cfg = dict(laenge=L, aus="musik.wav", t=dict(groove=MAP(7.7), probleme=MAP(27.0 + EIN), drop=MAP(37.6 + EIN), outro=MAP(78.5 + EIN)),
+           schnitte=[MAP(t) for t in [7.7, 15.5] + [_s(t) for t in [15.5, 27.0, 29.8, 33.7, 39.9, 44.5, 49.3, 52.6, 56.9, 59.4, 71.0, 73.6]]],
+           stiche=[MAP(t) for t in [1.45, 4.7, 17.9] + [_s(t) for t in [18.85, 19.3, 20.0, 21.4, 24.3, 28.2, 77.45]]])
 json.dump(cfg, open("musik.json", "w"))
 subprocess.run([sys.executable, "werkzeuge/musik.py", "musik.json"], check=True)
 
 # ---------- Stimme ----------
-START = [0.4, 3.2, 7.9, 15.7] + [t + EIN for t in [15.6, 22.5, 27.1, 29.9, 33.8, 37.7, 40.0, 44.6, 49.4, 52.7, 57.0, 59.6, 71.3, 73.7, 78.6]]
+START = ZP["start"] if ZP else [0.4, 3.2, 7.9, 15.7] + [t + EIN for t in [15.6, 22.5, 27.1, 29.9, 33.8, 37.7, 40.0, 44.6, 49.4, 52.7, 57.0, 59.6, 71.3, 73.7, 78.6]]
 ein, fc, mix = [], "", ""
 for i, t in enumerate(START):
     ein += ["-i", os.path.join(STIMME, f"s{i + 1}.wav")]; ms = int(t * 1000)

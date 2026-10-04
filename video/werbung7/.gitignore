@@ -13,3 +13,5 @@ assets/k_best.mp4
 titelbild.png
 werkzeuge/_ma.html
 werkzeuge/team_satz.json
+# ElevenLabs-Stimme nennt Namen; entsteht mit werkzeuge/schnitt_el.py aus der MP3
+stimme_el/
