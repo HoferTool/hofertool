@@ -22,6 +22,10 @@ with sync_playwright() as p:
     pg.wait_for_selector("#db-notizen .karte"); pg.wait_for_timeout(1200)
     for teil in ["uhr", "wetter", "db-solar", "db-probleme", "db-einkauf", "db-status", "db-geburtstage"]:
         if not pg.locator("#" + teil).count(): fehler.append("fehlt: " + teil)
+    # Reihenfolge (Wunsch 4. Oktober 2026): Probleme, Bestellungen, Notizen, Einkauf, Geburtstage
+    folge = pg.evaluate("""() => ['db-probleme','db-status','db-notizen','db-einkauf','db-geburtstage']
+        .map(id => document.getElementById(id)).every((el, i, a) => !i || (a[i-1].compareDocumentPosition(el) & 4))""")
+    if not folge: fehler.append("Reihenfolge der Karten falsch")
     # Die Vorbereitung gibt es nicht mehr, an ihrer Stelle stehen die Probleme
     if pg.locator("#db-vorbereitung").count(): fehler.append("Vorbereitung noch da")
     if "Material fehlt" not in pg.inner_text("#db-probleme"): fehler.append("Problem fehlt")
