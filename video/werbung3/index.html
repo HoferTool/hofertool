@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="assets/gsap.min.js"></script>
+    <script src="assets/MotionPathPlugin.min.js"></script>
+    <style>
+      @font-face { font-family: "Inter"; src: url("assets/inter.woff2") format("woff2"); font-weight: 100 900; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #070d18; }
+      #root { width: 100%; height: 100%; position: relative; overflow: hidden; font-family: "Inter", sans-serif;
+        color: #eaf1fb; font-feature-settings: "tnum"; }
+      .clip { position: absolute; inset: 0; }
+      #stage { position: absolute; inset: 0; }
+
+      #bg { background: #070d18; }
+      #bg-glow1 { position: absolute; width: 1600px; height: 1600px; left: -500px; top: -800px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(31,111,224,.55), rgba(0,56,132,.2) 40%, rgba(7,13,24,0) 70%); }
+      #bg-glow2 { position: absolute; width: 1300px; height: 1300px; left: 1100px; top: 400px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(91,58,158,.38), rgba(7,13,24,0) 65%); }
+      #bg-grid { position: absolute; inset: -80px;
+        background-image: linear-gradient(rgba(107,164,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(107,164,255,.08) 1px, transparent 1px);
+        background-size: 80px 80px; }
+      #bg-red { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(120,20,30,.15), rgba(90,10,20,.6)); opacity: 0; }
+
+      .kick { font-size: 26px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; color: #6ba4ff; }
+      .mega { font-weight: 850; letter-spacing: -0.045em; line-height: .92; }
+      .grau { color: #8b9db8; }
+      .zentriert { position: absolute; left: 0; right: 0; text-align: center; }
+      .rot { color: #ff6b81; }
+
+      /* 1 Hook */
+      #h-praez { top: 380px; font-size: 270px; }
+      #h-teil { position: absolute; left: 160px; top: 260px; width: 1600px; height: 420px; opacity: .55; }
+      #h-ring { position: absolute; left: 610px; top: 190px; width: 700px; height: 700px; }
+      #h-ort { top: 410px; font-size: 150px; }
+      #h-ort span { display: inline-block; }
+      #h-koord { top: 590px; font-size: 30px; letter-spacing: .25em; color: #6ba4ff; font-weight: 600; }
+      #h-seit { top: 660px; font-size: 64px; font-weight: 300; letter-spacing: .1em; }
+      #h-jahr { font-weight: 850; color: #fff; }
+
+      /* 2 Familie */
+      #f-logo-wrap { position: absolute; left: 0; right: 0; top: 220px; height: 300px; display: flex; justify-content: center; overflow: hidden; }
+      #f-logo { width: 804px; height: 300px; display: block; }
+      #f-line { position: absolute; left: 360px; top: 700px; width: 1200px; height: 3px; background: rgba(107,164,255,.5); transform-origin: left center; }
+      .f-punkt { position: absolute; top: 680px; width: 340px; margin-left: -170px; text-align: center; }
+      .f-punkt i { display: block; width: 22px; height: 22px; border-radius: 50%; background: #1f6fe0; margin: 10px auto 22px;
+        box-shadow: 0 0 0 6px rgba(31,111,224,.25), 0 0 30px rgba(31,111,224,.9); }
+      .f-punkt b { display: block; font-size: 60px; font-weight: 800; letter-spacing: -0.02em; }
+      .f-punkt span { display: block; font-size: 26px; color: #8b9db8; margin-top: 4px; }
+      #f-gen { position: absolute; left: 1460px; top: 640px; width: 120px; height: 120px; margin-left: -60px; border-radius: 50%; border: 4px solid #6ba4ff; opacity: 0; }
+
+      /* GL-Team */
+      .gl-karte { position: absolute; top: 300px; width: 440px; height: 560px; border-radius: 26px; overflow: hidden;
+        background: linear-gradient(180deg, #13223d, #0b1424); border: 1px solid rgba(107,164,255,.35); box-shadow: 0 50px 120px rgba(0,0,0,.6); }
+      .gl-karte .foto { position: absolute; left: 0; right: 0; top: 0; height: 380px; background: #1a2a48; display: flex; align-items: center; justify-content: center;
+        font-size: 150px; font-weight: 850; color: #6ba4ff; }
+      .gl-karte .foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .gl-karte b { position: absolute; left: 30px; right: 20px; top: 405px; font-size: 44px; font-weight: 800; letter-spacing: -0.02em; }
+      .gl-karte span { position: absolute; left: 30px; right: 20px; top: 470px; font-size: 26px; color: #6ba4ff; font-weight: 600; }
+      #gl-titel { top: 140px; font-size: 90px; }
+
+      /* 3 Maschinen */
+      #m-zahl { top: 230px; font-size: 330px; }
+      #m-zahl-sub { top: 560px; font-size: 52px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #6ba4ff; }
+      #m-grid { position: absolute; left: 330px; top: 680px; width: 1260px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+      .m-ic { display: block; width: 88px; height: 70px; border-radius: 10px; background: linear-gradient(180deg, #dfe4ea, #9aa4b1); position: relative; }
+      .m-ic::before { content: ""; position: absolute; left: 10px; top: 16px; width: 44px; height: 36px; border-radius: 5px; background: #0b1424; }
+      .m-ic::after { content: ""; position: absolute; left: 62px; top: 16px; width: 16px; height: 36px; border-radius: 3px; background: #1f6fe0; }
+      #m-von { top: 300px; font-size: 64px; font-weight: 600; color: #8b9db8; }
+      #m-star { top: 400px; font-size: 300px; }
+      .m-karte { position: absolute; inset: 0; opacity: 0; }
+      .m-svg { position: absolute; left: 70px; top: 230px; width: 900px; height: 640px; }
+      .m-text { position: absolute; left: 1030px; top: 300px; width: 820px; }
+      .m-kick { font-size: 30px; font-weight: 700; letter-spacing: .25em; text-transform: uppercase; }
+      .m-name { white-space: nowrap; font-size: 230px; font-weight: 850; letter-spacing: -0.05em; line-height: .9; margin-top: 18px; }
+      .m-sub { font-size: 46px; color: #8b9db8; font-weight: 600; margin-top: 22px; }
+      .m-chips { display: flex; gap: 16px; margin-top: 44px; }
+      .m-chip { display: flex; align-items: center; justify-content: center; width: 78px; height: 78px; border-radius: 18px; font-size: 38px; font-weight: 850;
+        background: rgba(17,29,49,.9); border: 3px solid; }
+      .m-nr { position: absolute; right: 110px; top: 110px; font-size: 30px; font-weight: 700; color: #8b9db8; letter-spacing: .2em; }
+      #m-achsen { position: absolute; left: 110px; top: 110px; font-size: 26px; font-weight: 700; letter-spacing: .3em; color: #6ba4ff; text-transform: uppercase; opacity: 0; }
+
+      /* 4 Solar */
+      #s-svg { position: absolute; left: 160px; top: 90px; width: 1600px; height: 560px; }
+      #s-band { position: absolute; left: 260px; top: 650px; width: 1400px; height: 306px; border-radius: 18px; overflow: hidden; opacity: 0;
+        box-shadow: 0 50px 120px rgba(0,0,0,.6); }
+      #s-band img { display: block; width: 100%; height: 100%; }
+      #s-text { position: absolute; left: 110px; top: 110px; }
+      #s-text h2 { font-size: 84px; font-weight: 850; letter-spacing: -0.04em; margin-top: 16px; line-height: .95; }
+
+      /* 5 Stillstand */
+      #p1-svg { position: absolute; left: 70px; top: 250px; width: 900px; height: 640px; }
+      #p1-regal { position: absolute; left: 1080px; top: 300px; width: 720px; height: 520px; }
+      #p1-stempel { position: absolute; left: 150px; top: 470px; padding: 18px 40px; border: 10px solid #ff2d55; border-radius: 16px; color: #ff2d55;
+        font-size: 120px; font-weight: 900; letter-spacing: .04em; opacity: 0; background: rgba(40,0,10,.55); }
+      #p1-titel { top: 110px; font-size: 76px; }
+      #p1-uhr { position: absolute; left: 1080px; top: 850px; font-size: 44px; font-weight: 800; color: #ff6b81; letter-spacing: .05em; }
+
+      /* 6 Zettel und Ordner */
+      .zettel { position: absolute; width: 330px; padding: 26px 28px; background: #f5e9a8; color: #3a3320; border-radius: 3px;
+        box-shadow: 0 25px 50px rgba(0,0,0,.5); font-size: 32px; font-weight: 700; line-height: 1.2; font-style: italic; }
+      .zettel small { display: block; font-size: 20px; font-weight: 500; margin-top: 10px; color: #6d6340; font-style: normal; }
+      .zettel::before { content: ""; position: absolute; left: 50%; top: -10px; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; background: #d63b3b;
+        box-shadow: 0 4px 6px rgba(0,0,0,.4); }
+      .zettel.rosa { background: #f6c6cf; } .zettel.blau { background: #cfe1fb; } .zettel.weiss { background: #f3f3ef; }
+      #p2-titel { top: 90px; font-size: 40px; font-weight: 700; letter-spacing: .25em; text-transform: uppercase; color: #ff6b81; }
+      .ordner { position: absolute; top: 380px; width: 190px; height: 520px; border-radius: 12px; background: linear-gradient(90deg, #1e3a6b, #2a4f8f 40%, #1e3a6b);
+        box-shadow: 0 40px 80px rgba(0,0,0,.6); }
+      .ordner::before { content: ""; position: absolute; left: 50%; bottom: 60px; width: 60px; height: 60px; margin-left: -30px; border-radius: 50%; background: #0b1424; border: 6px solid #8b9db8; }
+      .ordner span { position: absolute; left: 20px; right: 20px; top: 60px; height: 190px; background: #f3f3ef; border-radius: 6px; color: #1e2a3b;
+        font-size: 28px; font-weight: 800; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.1; }
+      .blatt { position: absolute; width: 170px; height: 230px; background: #fbfbf7; border-radius: 4px; box-shadow: 0 20px 40px rgba(0,0,0,.45); opacity: 0;
+        background-image: repeating-linear-gradient(180deg, transparent 0 26px, #c9d2de 26px 29px); background-position: 0 30px; }
+      #p2-lupe { position: absolute; left: 1300px; top: 420px; width: 240px; height: 240px; border-radius: 50%; border: 14px solid #eaf1fb; opacity: 0;
+        background: rgba(107,164,255,.12); box-shadow: 0 30px 60px rgba(0,0,0,.5); }
+      #p2-lupe::after { content: ""; position: absolute; left: 190px; top: 190px; width: 30px; height: 130px; background: #eaf1fb; border-radius: 15px; transform: rotate(-45deg); transform-origin: top left; }
+      #p2-wo { top: 170px; font-size: 110px; z-index: 5; text-shadow: 0 10px 40px rgba(0,0,0,.8); }
+
+      /* 7 Was läuft */
+      #p3-qs { position: absolute; left: 260px; top: 470px; width: 1400px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 22px; }
+      .p3-m { display: block; padding: 18px 0; border-radius: 14px; text-align: center; background: #121b2c; border: 2px solid rgba(255,107,129,.5); }
+      .p3-m b { display: block; font-size: 24px; } .p3-m span { display: block; font-size: 60px; font-weight: 850; color: #ff6b81; }
+      #p3-frage { top: 150px; }
+      #p3-frage .z1 { display: block; font-size: 60px; font-weight: 700; color: #8b9db8; }
+      #p3-frage .z2 { display: block; font-size: 140px; margin-top: 12px; }
+      #p3-uhr { position: absolute; left: 860px; top: 820px; width: 200px; height: 200px; }
+
+      /* 8 Auftritt */
+      .r-ring { position: absolute; left: 560px; top: 140px; width: 800px; height: 800px; border-radius: 50%; border: 6px solid #6ba4ff; opacity: 0; }
+      #r-strahlen { position: absolute; left: 960px; top: 540px; width: 0; height: 0; }
+      .r-st { position: absolute; left: 0; top: -3px; width: 900px; height: 6px; border-radius: 3px; transform-origin: left center;
+        background: linear-gradient(90deg, rgba(160,200,255,.9), rgba(107,164,255,0)); opacity: 0; }
+      #r-darum { top: 290px; font-size: 44px; font-weight: 600; color: #8b9db8; }
+      #r-titel { top: 380px; font-size: 240px; }
+      #r-titel span { display: inline-block; margin: 0 .04em; }
+      #r-sub { top: 660px; font-size: 38px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: #6ba4ff; }
+
+      /* Geräte */
+      .vwrap { position: absolute; overflow: hidden; background: #0b1424; }
+      .vwrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+      .geraet { position: absolute; opacity: 0; }
+      .browser { border-radius: 18px; box-shadow: 0 60px 140px rgba(0,0,0,.65), 0 0 0 1px rgba(107,164,255,.3); overflow: hidden; background: #1c2229; }
+      .browser .leiste { position: absolute; left: 0; right: 0; top: 0; height: 42px; display: flex; align-items: center; gap: 10px; padding-left: 20px; }
+      .browser .leiste i { display: block; width: 13px; height: 13px; border-radius: 50%; background: #3a4452; }
+      .browser .leiste span { display: block; margin-left: 22px; height: 24px; width: 380px; border-radius: 12px; background: #14181d; color: #8b9db8; font-size: 14px; line-height: 24px; padding-left: 14px; }
+      .browser .vwrap { left: 0; right: 0; top: 42px; bottom: 0; }
+      #g-plan, #g-suche { left: 560px; top: 150px; width: 1280px; height: 762px; }
+      .tablet { border-radius: 44px; background: #04070d; box-shadow: 0 60px 140px rgba(0,0,0,.65), 0 0 0 2px rgba(107,164,255,.25); }
+      .tablet .vwrap { left: 24px; right: 24px; top: 24px; bottom: 24px; border-radius: 20px; }
+      #g-pad { left: 640px; top: 150px; width: 1180px; height: 841px; }
+
+      /* iPhone */
+      #g-handy { left: 1120px; top: 60px; width: 460px; height: 960px; }
+      .ip-rahmen { position: absolute; inset: 0; border-radius: 78px; padding: 9px;
+        background: linear-gradient(135deg, #e6e9ed 0%, #8e969f 22%, #d7dbe0 45%, #6f7780 70%, #c9ced4 100%);
+        box-shadow: 0 80px 160px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.15); }
+      .ip-innen { position: absolute; inset: 9px; border-radius: 70px; background: #000; }
+      #g-handy .vwrap { left: 18px; top: 18px; width: 424px; height: 924px; border-radius: 61px; }
+      .ip-insel { position: absolute; left: 50%; top: 32px; width: 124px; height: 36px; margin-left: -62px; border-radius: 18px; background: #000; z-index: 3; }
+      .ip-insel::after { content: ""; position: absolute; right: 14px; top: 11px; width: 14px; height: 14px; border-radius: 50%; background: #10182a; box-shadow: inset 0 0 0 3px #1b2640; }
+      .ip-knopf { position: absolute; width: 5px; border-radius: 3px; background: linear-gradient(90deg, #6f7780, #c9ced4); }
+      .ip-glanz { position: absolute; left: 18px; top: 18px; width: 424px; height: 924px; border-radius: 61px; overflow: hidden; z-index: 4; pointer-events: none; }
+      .ip-glanz i { position: absolute; left: -300px; top: -200px; width: 220px; height: 1400px; transform: rotate(25deg);
+        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.16), rgba(255,255,255,0)); }
+      #ip-chip { position: absolute; left: 110px; top: 640px; padding: 18px 28px; border-radius: 18px; background: rgba(17,29,49,.9); border: 2px solid #c6e84a;
+        font-size: 34px; font-weight: 800; color: #c6e84a; opacity: 0; display: flex; align-items: center; gap: 16px; }
+      #ip-chip i { display: block; width: 18px; height: 18px; border-radius: 50%; background: #c6e84a; box-shadow: 0 0 20px #c6e84a; }
+
+      .f-text { position: absolute; left: 110px; top: 210px; width: 420px; }
+      .f-text .kick { font-size: 22px; }
+      .f-text h2 { font-size: 92px; font-weight: 850; letter-spacing: -0.04em; line-height: .95; margin-top: 20px; }
+      .schritte { margin-top: 46px; display: flex; flex-direction: column; gap: 16px; }
+      .schritt { display: flex; align-items: center; gap: 18px; font-size: 34px; font-weight: 700; padding: 14px 22px 14px 14px;
+        border-radius: 14px; background: rgba(17,29,49,.85); border: 1px solid rgba(107,164,255,.3); }
+      .schritt i { display: flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 12px; background: #1f6fe0;
+        font-style: normal; font-size: 26px; font-weight: 800; flex: none; }
+      .schritt.ok i { background: #1f7a4d; }
+      #ha-text { left: 140px; top: 240px; width: 900px; }
+      #ha-text h2 { font-size: 130px; }
+
+      .taste { display: inline-flex; align-items: center; justify-content: center; height: 110px; min-width: 110px; padding: 0 30px; border-radius: 20px;
+        background: linear-gradient(180deg, #f4f7fb, #c9d3e1); color: #0a1220; font-size: 50px; font-weight: 800;
+        box-shadow: 0 10px 0 #7d8ba0, 0 20px 40px rgba(0,0,0,.5); }
+      #e-tasten { position: absolute; left: 110px; top: 560px; display: flex; gap: 22px; align-items: center; }
+      #e-plus { font-size: 60px; font-weight: 300; color: #8b9db8; }
+      #e-tipp { position: absolute; left: 110px; top: 760px; font-size: 64px; font-weight: 800; letter-spacing: .05em; color: #6ba4ff; }
+
+      /* Material */
+      #mat-text { position: absolute; left: 110px; top: 100px; }
+      #mat-text h2 { font-size: 84px; font-weight: 850; letter-spacing: -0.04em; margin-top: 16px; }
+      #mat-plan { position: absolute; left: 110px; top: 330px; width: 1700px; height: 540px; border-radius: 18px; background: rgba(11,20,36,.9);
+        border: 1px solid rgba(107,164,255,.25); overflow: hidden; }
+      #mat-zoom { position: absolute; inset: 0; }
+      .mat-zeile { position: absolute; left: 0; right: 0; height: 74px; border-bottom: 1px solid rgba(107,164,255,.12); }
+      .mat-zeile > b { position: absolute; left: 24px; top: 22px; font-size: 26px; font-weight: 800; color: #8b9db8; }
+      .mat-balken { position: absolute; top: 12px; height: 50px; border-radius: 10px; font-size: 22px; font-weight: 800; line-height: 50px; padding-left: 16px;
+        white-space: nowrap; overflow: hidden; color: #fff; box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+      .mat-balken.hell { color: #0b1424; }
+      .mat-balken em { font-style: normal; color: #ff2d55; font-size: 26px; }
+      #mat-legende { position: absolute; left: 110px; top: 905px; display: flex; gap: 14px; }
+      .mat-chip { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-radius: 14px; background: rgba(17,29,49,.9); font-size: 26px; font-weight: 700; }
+      .mat-chip i { display: block; width: 26px; height: 26px; border-radius: 7px; }
+      #mat-hinweis { position: absolute; left: 900px; top: 610px; padding: 20px 30px; border-radius: 16px; background: #fff; color: #0b1424; font-size: 36px; font-weight: 800;
+        box-shadow: 0 30px 60px rgba(0,0,0,.5); opacity: 0; }
+      #mat-hinweis em { font-style: normal; color: #ff2d55; }
+      #mat-ring { position: absolute; width: 90px; height: 90px; border-radius: 50%; border: 6px solid #ff2d55; opacity: 0; }
+
+      /* Mehr */
+      .mehr-bild { position: absolute; left: 260px; top: 140px; width: 1400px; height: 788px; border-radius: 18px; overflow: hidden; opacity: 0;
+        box-shadow: 0 60px 140px rgba(0,0,0,.6); }
+      .mehr-bild img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+      .mehr-bild .dunkel { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(7,13,24,.92), rgba(7,13,24,.4)); }
+      .mehr-wort { position: absolute; left: 160px; top: 420px; font-size: 170px; opacity: 0; }
+      #me-alles { top: 400px; font-size: 150px; opacity: 0; }
+
+      /* Schluss */
+      #o-logo-wrap { position: absolute; left: 0; right: 0; top: 200px; height: 260px; display: flex; justify-content: center; }
+      #o-logo { width: 697px; height: 260px; display: block; }
+      #o-line { position: absolute; left: 610px; top: 520px; width: 700px; height: 3px; background: #6ba4ff; transform-origin: center; }
+      #o-titel { top: 570px; font-size: 120px; }
+      #o-sub { top: 720px; font-size: 40px; color: #8b9db8; font-weight: 500; }
+      #o-chips { position: absolute; left: 0; right: 0; top: 820px; display: flex; justify-content: center; gap: 18px; }
+      #o-chips span { display: block; padding: 12px 26px; border-radius: 30px; border: 2px solid rgba(107,164,255,.5); font-size: 26px; font-weight: 700; color: #cfe1fb; }
+
+      /* Effekte */
+      #fx { pointer-events: none; z-index: 40; }
+      #flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+      #streak { position: absolute; top: -200px; left: 0; width: 360px; height: 1480px; opacity: 0;
+        background: linear-gradient(90deg, rgba(107,164,255,0), rgba(160,200,255,.55), rgba(107,164,255,0)); }
+      #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.55)); }
+      .wipe { position: absolute; top: -100px; left: 0; width: 2800px; height: 1280px; }
+      #wA { background: #1f6fe0; } #wB { background: #003884; }
+      #korn { position: absolute; inset: 0; opacity: .06;
+        background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.5) 0 1px, transparent 1px 3px); }
+      #balken-o, #balken-u { position: absolute; left: 0; right: 0; height: 0; background: #000; }
+      #balken-o { top: 0; } #balken-u { bottom: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="74" data-width="1920" data-height="1080">
+      <audio id="ton" src="assets/ton.wav" data-start="0" data-duration="74" data-volume="1"></audio>
+
+      <div id="stage">
+        <div id="bg" class="clip" data-start="0" data-duration="74" data-track-index="0">
+          <div id="bg-glow1"></div><div id="bg-glow2"></div><div id="bg-grid"></div><div id="bg-red"></div>
+        </div>
+
+        <!-- 1 Hook -->
+        <div id="s1" class="clip" data-start="0" data-duration="5.2" data-track-index="1">
+          <svg id="h-teil" viewBox="0 0 1600 420">
+            <path class="h-k" pathLength="1" fill="none" stroke="#6ba4ff" stroke-width="3" stroke-linejoin="round"
+              d="M120 160 L140 140 L420 140 L420 90 L760 90 L780 70 L1080 70 L1080 120 L1300 120 L1300 150 L1480 150 L1500 170 L1500 250 L1480 270 L1300 270 L1300 300 L1080 300 L1080 350 L780 350 L760 330 L420 330 L420 280 L140 280 L120 260 Z" />
+            <line class="h-k" pathLength="1" x1="40" y1="210" x2="1560" y2="210" stroke="rgba(107,164,255,.6)" stroke-width="2" stroke-dasharray="30 10 6 10" />
+          </svg>
+          <div id="h-praez" class="zentriert mega">PRÄZISION</div>
+          <svg id="h-ring" viewBox="0 0 700 700">
+            <circle cx="350" cy="350" r="340" fill="none" stroke="rgba(107,164,255,.3)" stroke-width="2" stroke-dasharray="4 12" />
+            <circle id="h-arc" cx="350" cy="350" r="300" fill="none" stroke="#6ba4ff" stroke-width="3" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" />
+            <line x1="350" y1="0" x2="350" y2="90" stroke="#6ba4ff" stroke-width="3" />
+            <line x1="350" y1="610" x2="350" y2="700" stroke="#6ba4ff" stroke-width="3" />
+            <line x1="0" y1="350" x2="90" y2="350" stroke="#6ba4ff" stroke-width="3" />
+            <line x1="610" y1="350" x2="700" y2="350" stroke="#6ba4ff" stroke-width="3" />
+          </svg>
+          <div id="h-ort" class="zentriert mega"><span>L</span><span>O</span><span>H</span><span>N</span><span>-</span><span>A</span><span>M</span><span>M</span><span>A</span><span>N</span><span>N</span><span>S</span><span>E</span><span>G</span><span>G</span></div>
+          <div id="h-koord" class="zentriert">47.17° N · 7.53° O · SOLOTHURN</div>
+          <div id="h-seit" class="zentriert">SEIT <span id="h-jahr">1900</span></div>
+        </div>
+
+        <!-- 2 Familie -->
+        <div id="s2" class="clip" data-start="5.2" data-duration="4.5" data-track-index="1">
+          <div id="f-logo-wrap"><img id="f-logo" src="assets/logo-weiss.png" alt="" /></div>
+          <div id="f-line"></div>
+          <div id="f-gen"></div>
+          <div class="f-punkt" style="left: 460px"><i></i><b>1928</b><span>Gustav Hofer gründet</span></div>
+          <div class="f-punkt" style="left: 960px"><i></i><b>1997</b><span>3. Generation</span></div>
+          <div class="f-punkt" style="left: 1460px"><i></i><b>2016</b><span>4. Generation</span></div>
+        </div>
+
+
+
+        <!-- 3 Maschinen -->
+        <div id="s3" class="clip" data-start="9.7" data-duration="12.4" data-track-index="1">
+          <div id="m-zahl" class="zentriert mega">0+</div>
+          <div id="m-zahl-sub" class="zentriert">CNC-Maschinen</div>
+          <div id="m-grid"><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i><i class="m-ic"></i></div>
+          <div id="m-von" class="zentriert">Die Langdreher von</div>
+          <div id="m-star" class="zentriert mega">STAR</div>
+          <div id="m-achsen">Achsen · Werkzeugbahn</div>
+          <div class="m-karte" id="mk0">
+            <svg class="m-svg" id="mk0-svg" viewBox="0 0 900 640">
+  <defs>
+    <linearGradient id="mk0kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef1f5"/><stop offset="1" stop-color="#a3adb9"/></linearGradient>
+    <linearGradient id="mk0mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".5" stop-color="#8d96a0"/><stop offset="1" stop-color="#d5dae0"/></linearGradient>
+    <radialGradient id="mk0fg"><stop offset="0" stop-color="#ffe9a8"/><stop offset=".4" stop-color="#ffb020"/><stop offset="1" stop-color="rgba(255,120,0,0)"/></radialGradient>
+    <clipPath id="mk0fc"><rect x="90" y="200" width="480" height="290" rx="14"/></clipPath>
+  </defs>
+  <ellipse cx="420" cy="602" rx="420" ry="24" fill="rgba(0,0,0,.45)"/>
+  <rect x="80" y="560" width="70" height="34" fill="#2a323d"/><rect x="690" y="560" width="70" height="34" fill="#2a323d"/>
+  <rect x="40" y="120" width="760" height="450" rx="26" fill="url(#mk0kg)"/>
+  <rect x="40" y="120" width="760" height="58" rx="26" fill="#1f6fe0"/><rect x="40" y="150" width="760" height="28" fill="#1f6fe0"/>
+  <text x="72" y="162" font-family="Inter" font-weight="900" font-size="32" fill="#fff" letter-spacing="5">STAR</text>
+  <rect x="84" y="194" width="492" height="302" rx="18" fill="#3a4452"/>
+  <g clip-path="url(#mk0fc)">
+    <rect x="90" y="200" width="480" height="290" fill="#0b1424"/>
+    <path d="M90 250 H570 M90 300 H570 M90 350 H570 M90 400 H570 M90 450 H570 M150 200 V490 M250 200 V490 M350 200 V490 M450 200 V490 M550 200 V490" stroke="rgba(107,164,255,.08)" stroke-width="1"/>
+    <rect x="90" y="315" width="250" height="60" fill="url(#mk0mg)"/>
+    <rect x="300" y="282" width="60" height="126" rx="6" fill="#4b5563"/>
+    <path d="M360 318 L430 318 L438 323 L500 323 L500 331 L545 331 L555 339 L555 351 L545 359 L500 359 L500 367 L438 367 L430 372 L360 372 Z" fill="url(#mk0mg)"/>
+    <path class="bahn" d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" pathLength="1" fill="none" stroke="#1f6fe0" stroke-width="5" stroke-dasharray="1" stroke-dashoffset="1" stroke-linejoin="round"/>
+    <path d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-dasharray="6 8"/>
+    <g class="wz">
+      <rect x="-16" y="-130" width="32" height="112" rx="4" fill="#6b7685"/>
+      <rect x="-22" y="-30" width="44" height="16" rx="3" fill="#4b5563"/>
+      <polygon points="-14,-14 14,-14 0,0" fill="#f0b429"/>
+      <circle class="funke" cx="0" cy="0" r="14" fill="url(#mk0fg)"/>
+    </g>
+    <g class="ax"><line x1="130" y1="460" x2="250" y2="460" stroke="#6ba4ff" stroke-width="5" stroke-linecap="round"/><polygon points="250,460 235.6,467.0 235.6,453.0" fill="#6ba4ff"/><text x="258" y="470" fill="#6ba4ff" font-family="Inter" font-weight="900" font-size="30">Z</text></g><g class="ax"><line x1="130" y1="460" x2="130" y2="398" stroke="#ff6b81" stroke-width="5" stroke-linecap="round"/><polygon points="130,398 137.0,412.4 123.0,412.4" fill="#ff6b81"/><text x="142" y="405" fill="#ff6b81" font-family="Inter" font-weight="900" font-size="30">X</text></g><g class="ax"><line x1="130" y1="460" x2="88" y2="486" stroke="#4ade80" stroke-width="5" stroke-linecap="round"/><polygon points="88,486 96.6,472.5 103.9,484.3" fill="#4ade80"/><text x="62" y="482" fill="#4ade80" font-family="Inter" font-weight="900" font-size="30">Y</text></g><g class="ax"><path d="M458 296 A14 52 0 1 0 482 296" fill="none" stroke="#f0b429" stroke-width="5"/><polygon points="484,290 474,302 490,304" fill="#f0b429"/><text x="494" y="292" fill="#f0b429" font-family="Inter" font-weight="900" font-size="30">C</text></g>
+  </g>
+  <polygon points="96,206 260,206 140,484 96,484" fill="rgba(255,255,255,.05)"/>
+  <rect x="612" y="194" width="160" height="302" rx="12" fill="#1b2330"/>
+  <rect x="628" y="210" width="128" height="92" rx="6" fill="#1f6fe0" opacity=".85"/>
+  <path d="M640 232 H730 M640 252 H710 M640 272 H740" stroke="rgba(255,255,255,.6)" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#3a4452"><rect x="632" y="322" width="24" height="20" rx="4"/><rect x="664" y="322" width="24" height="20" rx="4"/><rect x="696" y="322" width="24" height="20" rx="4"/><rect x="728" y="322" width="24" height="20" rx="4"/><rect x="632" y="352" width="24" height="20" rx="4"/><rect x="664" y="352" width="24" height="20" rx="4"/><rect x="696" y="352" width="24" height="20" rx="4"/><rect x="728" y="352" width="24" height="20" rx="4"/><rect x="632" y="382" width="24" height="20" rx="4"/><rect x="664" y="382" width="24" height="20" rx="4"/><rect x="696" y="382" width="24" height="20" rx="4"/><rect x="728" y="382" width="24" height="20" rx="4"/><rect x="632" y="412" width="24" height="20" rx="4"/><rect x="664" y="412" width="24" height="20" rx="4"/><rect x="696" y="412" width="24" height="20" rx="4"/><rect x="728" y="412" width="24" height="20" rx="4"/></g>
+  <circle cx="692" cy="466" r="17" fill="#e11d48" stroke="#f0b429" stroke-width="4"/>
+  <rect x="748" y="118" width="6" height="12" fill="#5d6a7a"/>
+  <rect x="738" y="40" width="26" height="80" rx="5" fill="#1b2330"/>
+  <rect  x="741" y="44" width="20" height="22" rx="3" fill="#ff2d55" opacity=".25"/>
+  <rect x="741" y="69" width="20" height="22" rx="3" fill="#f0b429" opacity=".25"/>
+  <rect class="lampe" x="741" y="94" width="20" height="22" rx="3" fill="#4ade80" opacity=".25"/>
+</svg>
+            <div class="m-nr">01 / 06</div>
+            <div class="m-text"><div class="m-kick" style="color:#6ba4ff">Star · Langdreher</div><div class="m-name">SW-20</div><div class="m-sub">bis Ø 20 mm</div><div class="m-chips"><div class="m-chip" style="color:#ff6b81;border-color:#ff6b81">X</div><div class="m-chip" style="color:#4ade80;border-color:#4ade80">Y</div><div class="m-chip" style="color:#6ba4ff;border-color:#6ba4ff">Z</div><div class="m-chip" style="color:#f0b429;border-color:#f0b429">C</div></div></div>
+          </div>
+          <div class="m-karte" id="mk1">
+            <svg class="m-svg" id="mk1-svg" viewBox="0 0 900 640">
+  <defs>
+    <linearGradient id="mk1kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef1f5"/><stop offset="1" stop-color="#a3adb9"/></linearGradient>
+    <linearGradient id="mk1mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".5" stop-color="#8d96a0"/><stop offset="1" stop-color="#d5dae0"/></linearGradient>
+    <radialGradient id="mk1fg"><stop offset="0" stop-color="#ffe9a8"/><stop offset=".4" stop-color="#ffb020"/><stop offset="1" stop-color="rgba(255,120,0,0)"/></radialGradient>
+    <clipPath id="mk1fc"><rect x="90" y="200" width="480" height="290" rx="14"/></clipPath>
+  </defs>
+  <ellipse cx="420" cy="602" rx="420" ry="24" fill="rgba(0,0,0,.45)"/>
+  <rect x="80" y="560" width="70" height="34" fill="#2a323d"/><rect x="690" y="560" width="70" height="34" fill="#2a323d"/>
+  <rect x="40" y="120" width="760" height="450" rx="26" fill="url(#mk1kg)"/>
+  <rect x="40" y="120" width="760" height="58" rx="26" fill="#1f6fe0"/><rect x="40" y="150" width="760" height="28" fill="#1f6fe0"/>
+  <text x="72" y="162" font-family="Inter" font-weight="900" font-size="32" fill="#fff" letter-spacing="5">STAR</text>
+  <rect x="84" y="194" width="492" height="302" rx="18" fill="#3a4452"/>
+  <g clip-path="url(#mk1fc)">
+    <rect x="90" y="200" width="480" height="290" fill="#0b1424"/>
+    <path d="M90 250 H570 M90 300 H570 M90 350 H570 M90 400 H570 M90 450 H570 M150 200 V490 M250 200 V490 M350 200 V490 M450 200 V490 M550 200 V490" stroke="rgba(107,164,255,.08)" stroke-width="1"/>
+    <rect x="90" y="315" width="250" height="60" fill="url(#mk1mg)"/>
+    <rect x="300" y="282" width="60" height="126" rx="6" fill="#4b5563"/>
+    <path d="M360 318 L430 318 L438 323 L500 323 L500 331 L545 331 L555 339 L555 351 L545 359 L500 359 L500 367 L438 367 L430 372 L360 372 Z" fill="url(#mk1mg)"/>
+    <path class="bahn" d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" pathLength="1" fill="none" stroke="#1f6fe0" stroke-width="5" stroke-dasharray="1" stroke-dashoffset="1" stroke-linejoin="round"/>
+    <path d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-dasharray="6 8"/>
+    <g class="wz">
+      <rect x="-16" y="-130" width="32" height="112" rx="4" fill="#6b7685"/>
+      <rect x="-22" y="-30" width="44" height="16" rx="3" fill="#4b5563"/>
+      <polygon points="-14,-14 14,-14 0,0" fill="#f0b429"/>
+      <circle class="funke" cx="0" cy="0" r="14" fill="url(#mk1fg)"/>
+    </g>
+    <g class="ax"><line x1="130" y1="460" x2="250" y2="460" stroke="#6ba4ff" stroke-width="5" stroke-linecap="round"/><polygon points="250,460 235.6,467.0 235.6,453.0" fill="#6ba4ff"/><text x="258" y="470" fill="#6ba4ff" font-family="Inter" font-weight="900" font-size="30">Z</text></g><g class="ax"><line x1="130" y1="460" x2="130" y2="398" stroke="#ff6b81" stroke-width="5" stroke-linecap="round"/><polygon points="130,398 137.0,412.4 123.0,412.4" fill="#ff6b81"/><text x="142" y="405" fill="#ff6b81" font-family="Inter" font-weight="900" font-size="30">X</text></g><g class="ax"><line x1="130" y1="460" x2="88" y2="486" stroke="#4ade80" stroke-width="5" stroke-linecap="round"/><polygon points="88,486 96.6,472.5 103.9,484.3" fill="#4ade80"/><text x="62" y="482" fill="#4ade80" font-family="Inter" font-weight="900" font-size="30">Y</text></g><g class="ax"><path d="M458 296 A14 52 0 1 0 482 296" fill="none" stroke="#f0b429" stroke-width="5"/><polygon points="484,290 474,302 490,304" fill="#f0b429"/><text x="494" y="292" fill="#f0b429" font-family="Inter" font-weight="900" font-size="30">C</text></g>
+  </g>
+  <polygon points="96,206 260,206 140,484 96,484" fill="rgba(255,255,255,.05)"/>
+  <rect x="612" y="194" width="160" height="302" rx="12" fill="#1b2330"/>
+  <rect x="628" y="210" width="128" height="92" rx="6" fill="#1f6fe0" opacity=".85"/>
+  <path d="M640 232 H730 M640 252 H710 M640 272 H740" stroke="rgba(255,255,255,.6)" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#3a4452"><rect x="632" y="322" width="24" height="20" rx="4"/><rect x="664" y="322" width="24" height="20" rx="4"/><rect x="696" y="322" width="24" height="20" rx="4"/><rect x="728" y="322" width="24" height="20" rx="4"/><rect x="632" y="352" width="24" height="20" rx="4"/><rect x="664" y="352" width="24" height="20" rx="4"/><rect x="696" y="352" width="24" height="20" rx="4"/><rect x="728" y="352" width="24" height="20" rx="4"/><rect x="632" y="382" width="24" height="20" rx="4"/><rect x="664" y="382" width="24" height="20" rx="4"/><rect x="696" y="382" width="24" height="20" rx="4"/><rect x="728" y="382" width="24" height="20" rx="4"/><rect x="632" y="412" width="24" height="20" rx="4"/><rect x="664" y="412" width="24" height="20" rx="4"/><rect x="696" y="412" width="24" height="20" rx="4"/><rect x="728" y="412" width="24" height="20" rx="4"/></g>
+  <circle cx="692" cy="466" r="17" fill="#e11d48" stroke="#f0b429" stroke-width="4"/>
+  <rect x="748" y="118" width="6" height="12" fill="#5d6a7a"/>
+  <rect x="738" y="40" width="26" height="80" rx="5" fill="#1b2330"/>
+  <rect  x="741" y="44" width="20" height="22" rx="3" fill="#ff2d55" opacity=".25"/>
+  <rect x="741" y="69" width="20" height="22" rx="3" fill="#f0b429" opacity=".25"/>
+  <rect class="lampe" x="741" y="94" width="20" height="22" rx="3" fill="#4ade80" opacity=".25"/>
+</svg>
+            <div class="m-nr">02 / 06</div>
+            <div class="m-text"><div class="m-kick" style="color:#6ba4ff">Star · Langdreher</div><div class="m-name">SB-20</div><div class="m-sub">bis Ø 20 mm</div><div class="m-chips"><div class="m-chip" style="color:#ff6b81;border-color:#ff6b81">X</div><div class="m-chip" style="color:#4ade80;border-color:#4ade80">Y</div><div class="m-chip" style="color:#6ba4ff;border-color:#6ba4ff">Z</div><div class="m-chip" style="color:#f0b429;border-color:#f0b429">C</div></div></div>
+          </div>
+          <div class="m-karte" id="mk2">
+            <svg class="m-svg" id="mk2-svg" viewBox="0 0 900 640">
+  <defs>
+    <linearGradient id="mk2kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef1f5"/><stop offset="1" stop-color="#a3adb9"/></linearGradient>
+    <linearGradient id="mk2mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".5" stop-color="#8d96a0"/><stop offset="1" stop-color="#d5dae0"/></linearGradient>
+    <radialGradient id="mk2fg"><stop offset="0" stop-color="#ffe9a8"/><stop offset=".4" stop-color="#ffb020"/><stop offset="1" stop-color="rgba(255,120,0,0)"/></radialGradient>
+    <clipPath id="mk2fc"><rect x="90" y="200" width="480" height="290" rx="14"/></clipPath>
+  </defs>
+  <ellipse cx="420" cy="602" rx="420" ry="24" fill="rgba(0,0,0,.45)"/>
+  <rect x="80" y="560" width="70" height="34" fill="#2a323d"/><rect x="690" y="560" width="70" height="34" fill="#2a323d"/>
+  <rect x="40" y="120" width="760" height="450" rx="26" fill="url(#mk2kg)"/>
+  <rect x="40" y="120" width="760" height="58" rx="26" fill="#1f6fe0"/><rect x="40" y="150" width="760" height="28" fill="#1f6fe0"/>
+  <text x="72" y="162" font-family="Inter" font-weight="900" font-size="32" fill="#fff" letter-spacing="5">STAR</text>
+  <rect x="84" y="194" width="492" height="302" rx="18" fill="#3a4452"/>
+  <g clip-path="url(#mk2fc)">
+    <rect x="90" y="200" width="480" height="290" fill="#0b1424"/>
+    <path d="M90 250 H570 M90 300 H570 M90 350 H570 M90 400 H570 M90 450 H570 M150 200 V490 M250 200 V490 M350 200 V490 M450 200 V490 M550 200 V490" stroke="rgba(107,164,255,.08)" stroke-width="1"/>
+    <rect x="90" y="315" width="250" height="60" fill="url(#mk2mg)"/>
+    <rect x="300" y="282" width="60" height="126" rx="6" fill="#4b5563"/>
+    <path d="M360 318 L430 318 L438 323 L500 323 L500 331 L545 331 L555 339 L555 351 L545 359 L500 359 L500 367 L438 367 L430 372 L360 372 Z" fill="url(#mk2mg)"/>
+    <path class="bahn" d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" pathLength="1" fill="none" stroke="#1f6fe0" stroke-width="5" stroke-dasharray="1" stroke-dashoffset="1" stroke-linejoin="round"/>
+    <path d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-dasharray="6 8"/>
+    <g class="wz">
+      <rect x="-16" y="-130" width="32" height="112" rx="4" fill="#6b7685"/>
+      <rect x="-22" y="-30" width="44" height="16" rx="3" fill="#4b5563"/>
+      <polygon points="-14,-14 14,-14 0,0" fill="#f0b429"/>
+      <circle class="funke" cx="0" cy="0" r="14" fill="url(#mk2fg)"/>
+    </g>
+    <g class="ax"><line x1="130" y1="460" x2="250" y2="460" stroke="#6ba4ff" stroke-width="5" stroke-linecap="round"/><polygon points="250,460 235.6,467.0 235.6,453.0" fill="#6ba4ff"/><text x="258" y="470" fill="#6ba4ff" font-family="Inter" font-weight="900" font-size="30">Z</text></g><g class="ax"><line x1="130" y1="460" x2="130" y2="398" stroke="#ff6b81" stroke-width="5" stroke-linecap="round"/><polygon points="130,398 137.0,412.4 123.0,412.4" fill="#ff6b81"/><text x="142" y="405" fill="#ff6b81" font-family="Inter" font-weight="900" font-size="30">X</text></g><g class="ax"><line x1="130" y1="460" x2="88" y2="486" stroke="#4ade80" stroke-width="5" stroke-linecap="round"/><polygon points="88,486 96.6,472.5 103.9,484.3" fill="#4ade80"/><text x="62" y="482" fill="#4ade80" font-family="Inter" font-weight="900" font-size="30">Y</text></g><g class="ax"><path d="M458 296 A14 52 0 1 0 482 296" fill="none" stroke="#f0b429" stroke-width="5"/><polygon points="484,290 474,302 490,304" fill="#f0b429"/><text x="494" y="292" fill="#f0b429" font-family="Inter" font-weight="900" font-size="30">C</text></g>
+  </g>
+  <polygon points="96,206 260,206 140,484 96,484" fill="rgba(255,255,255,.05)"/>
+  <rect x="612" y="194" width="160" height="302" rx="12" fill="#1b2330"/>
+  <rect x="628" y="210" width="128" height="92" rx="6" fill="#1f6fe0" opacity=".85"/>
+  <path d="M640 232 H730 M640 252 H710 M640 272 H740" stroke="rgba(255,255,255,.6)" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#3a4452"><rect x="632" y="322" width="24" height="20" rx="4"/><rect x="664" y="322" width="24" height="20" rx="4"/><rect x="696" y="322" width="24" height="20" rx="4"/><rect x="728" y="322" width="24" height="20" rx="4"/><rect x="632" y="352" width="24" height="20" rx="4"/><rect x="664" y="352" width="24" height="20" rx="4"/><rect x="696" y="352" width="24" height="20" rx="4"/><rect x="728" y="352" width="24" height="20" rx="4"/><rect x="632" y="382" width="24" height="20" rx="4"/><rect x="664" y="382" width="24" height="20" rx="4"/><rect x="696" y="382" width="24" height="20" rx="4"/><rect x="728" y="382" width="24" height="20" rx="4"/><rect x="632" y="412" width="24" height="20" rx="4"/><rect x="664" y="412" width="24" height="20" rx="4"/><rect x="696" y="412" width="24" height="20" rx="4"/><rect x="728" y="412" width="24" height="20" rx="4"/></g>
+  <circle cx="692" cy="466" r="17" fill="#e11d48" stroke="#f0b429" stroke-width="4"/>
+  <rect x="748" y="118" width="6" height="12" fill="#5d6a7a"/>
+  <rect x="738" y="40" width="26" height="80" rx="5" fill="#1b2330"/>
+  <rect  x="741" y="44" width="20" height="22" rx="3" fill="#ff2d55" opacity=".25"/>
+  <rect x="741" y="69" width="20" height="22" rx="3" fill="#f0b429" opacity=".25"/>
+  <rect class="lampe" x="741" y="94" width="20" height="22" rx="3" fill="#4ade80" opacity=".25"/>
+</svg>
+            <div class="m-nr">03 / 06</div>
+            <div class="m-text"><div class="m-kick" style="color:#6ba4ff">Star · Langdreher</div><div class="m-name">SR-32</div><div class="m-sub">bis Ø 32 mm</div><div class="m-chips"><div class="m-chip" style="color:#ff6b81;border-color:#ff6b81">X</div><div class="m-chip" style="color:#4ade80;border-color:#4ade80">Y</div><div class="m-chip" style="color:#6ba4ff;border-color:#6ba4ff">Z</div><div class="m-chip" style="color:#f0b429;border-color:#f0b429">C</div></div></div>
+          </div>
+          <div class="m-karte" id="mk3">
+            <svg class="m-svg" id="mk3-svg" viewBox="0 0 900 640">
+  <defs>
+    <linearGradient id="mk3kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef1f5"/><stop offset="1" stop-color="#a3adb9"/></linearGradient>
+    <linearGradient id="mk3mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".5" stop-color="#8d96a0"/><stop offset="1" stop-color="#d5dae0"/></linearGradient>
+    <radialGradient id="mk3fg"><stop offset="0" stop-color="#ffe9a8"/><stop offset=".4" stop-color="#ffb020"/><stop offset="1" stop-color="rgba(255,120,0,0)"/></radialGradient>
+    <clipPath id="mk3fc"><rect x="90" y="200" width="480" height="290" rx="14"/></clipPath>
+  </defs>
+  <ellipse cx="420" cy="602" rx="420" ry="24" fill="rgba(0,0,0,.45)"/>
+  <rect x="80" y="560" width="70" height="34" fill="#2a323d"/><rect x="690" y="560" width="70" height="34" fill="#2a323d"/>
+  <rect x="40" y="120" width="760" height="450" rx="26" fill="url(#mk3kg)"/>
+  <rect x="40" y="120" width="760" height="58" rx="26" fill="#1f6fe0"/><rect x="40" y="150" width="760" height="28" fill="#1f6fe0"/>
+  <text x="72" y="162" font-family="Inter" font-weight="900" font-size="32" fill="#fff" letter-spacing="5">STAR</text>
+  <rect x="84" y="194" width="492" height="302" rx="18" fill="#3a4452"/>
+  <g clip-path="url(#mk3fc)">
+    <rect x="90" y="200" width="480" height="290" fill="#0b1424"/>
+    <path d="M90 250 H570 M90 300 H570 M90 350 H570 M90 400 H570 M90 450 H570 M150 200 V490 M250 200 V490 M350 200 V490 M450 200 V490 M550 200 V490" stroke="rgba(107,164,255,.08)" stroke-width="1"/>
+    <rect x="90" y="315" width="250" height="60" fill="url(#mk3mg)"/>
+    <rect x="300" y="282" width="60" height="126" rx="6" fill="#4b5563"/>
+    <path d="M360 318 L430 318 L438 323 L500 323 L500 331 L545 331 L555 339 L555 351 L545 359 L500 359 L500 367 L438 367 L430 372 L360 372 Z" fill="url(#mk3mg)"/>
+    <path class="bahn" d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" pathLength="1" fill="none" stroke="#1f6fe0" stroke-width="5" stroke-dasharray="1" stroke-dashoffset="1" stroke-linejoin="round"/>
+    <path d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-dasharray="6 8"/>
+    <g class="wz">
+      <rect x="-16" y="-130" width="32" height="112" rx="4" fill="#6b7685"/>
+      <rect x="-22" y="-30" width="44" height="16" rx="3" fill="#4b5563"/>
+      <polygon points="-14,-14 14,-14 0,0" fill="#f0b429"/>
+      <circle class="funke" cx="0" cy="0" r="14" fill="url(#mk3fg)"/>
+    </g>
+    <g class="ax"><line x1="130" y1="460" x2="250" y2="460" stroke="#6ba4ff" stroke-width="5" stroke-linecap="round"/><polygon points="250,460 235.6,467.0 235.6,453.0" fill="#6ba4ff"/><text x="258" y="470" fill="#6ba4ff" font-family="Inter" font-weight="900" font-size="30">Z</text></g><g class="ax"><line x1="130" y1="460" x2="130" y2="398" stroke="#ff6b81" stroke-width="5" stroke-linecap="round"/><polygon points="130,398 137.0,412.4 123.0,412.4" fill="#ff6b81"/><text x="142" y="405" fill="#ff6b81" font-family="Inter" font-weight="900" font-size="30">X</text></g><g class="ax"><line x1="130" y1="460" x2="88" y2="486" stroke="#4ade80" stroke-width="5" stroke-linecap="round"/><polygon points="88,486 96.6,472.5 103.9,484.3" fill="#4ade80"/><text x="62" y="482" fill="#4ade80" font-family="Inter" font-weight="900" font-size="30">Y</text></g><g class="ax"><path d="M458 296 A14 52 0 1 0 482 296" fill="none" stroke="#f0b429" stroke-width="5"/><polygon points="484,290 474,302 490,304" fill="#f0b429"/><text x="494" y="292" fill="#f0b429" font-family="Inter" font-weight="900" font-size="30">C</text></g>
+  </g>
+  <polygon points="96,206 260,206 140,484 96,484" fill="rgba(255,255,255,.05)"/>
+  <rect x="612" y="194" width="160" height="302" rx="12" fill="#1b2330"/>
+  <rect x="628" y="210" width="128" height="92" rx="6" fill="#1f6fe0" opacity=".85"/>
+  <path d="M640 232 H730 M640 252 H710 M640 272 H740" stroke="rgba(255,255,255,.6)" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#3a4452"><rect x="632" y="322" width="24" height="20" rx="4"/><rect x="664" y="322" width="24" height="20" rx="4"/><rect x="696" y="322" width="24" height="20" rx="4"/><rect x="728" y="322" width="24" height="20" rx="4"/><rect x="632" y="352" width="24" height="20" rx="4"/><rect x="664" y="352" width="24" height="20" rx="4"/><rect x="696" y="352" width="24" height="20" rx="4"/><rect x="728" y="352" width="24" height="20" rx="4"/><rect x="632" y="382" width="24" height="20" rx="4"/><rect x="664" y="382" width="24" height="20" rx="4"/><rect x="696" y="382" width="24" height="20" rx="4"/><rect x="728" y="382" width="24" height="20" rx="4"/><rect x="632" y="412" width="24" height="20" rx="4"/><rect x="664" y="412" width="24" height="20" rx="4"/><rect x="696" y="412" width="24" height="20" rx="4"/><rect x="728" y="412" width="24" height="20" rx="4"/></g>
+  <circle cx="692" cy="466" r="17" fill="#e11d48" stroke="#f0b429" stroke-width="4"/>
+  <rect x="748" y="118" width="6" height="12" fill="#5d6a7a"/>
+  <rect x="738" y="40" width="26" height="80" rx="5" fill="#1b2330"/>
+  <rect  x="741" y="44" width="20" height="22" rx="3" fill="#ff2d55" opacity=".25"/>
+  <rect x="741" y="69" width="20" height="22" rx="3" fill="#f0b429" opacity=".25"/>
+  <rect class="lampe" x="741" y="94" width="20" height="22" rx="3" fill="#4ade80" opacity=".25"/>
+</svg>
+            <div class="m-nr">04 / 06</div>
+            <div class="m-text"><div class="m-kick" style="color:#6ba4ff">Star · Langdreher</div><div class="m-name">SR-10</div><div class="m-sub">bis Ø 10 mm</div><div class="m-chips"><div class="m-chip" style="color:#ff6b81;border-color:#ff6b81">X</div><div class="m-chip" style="color:#4ade80;border-color:#4ade80">Y</div><div class="m-chip" style="color:#6ba4ff;border-color:#6ba4ff">Z</div><div class="m-chip" style="color:#f0b429;border-color:#f0b429">C</div></div></div>
+          </div>
+          <div class="m-karte" id="mk4">
+            <svg class="m-svg" id="mk4-svg" viewBox="0 0 900 640">
+  <defs>
+    <linearGradient id="mk4kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef1f5"/><stop offset="1" stop-color="#a3adb9"/></linearGradient>
+    <linearGradient id="mk4mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".5" stop-color="#8d96a0"/><stop offset="1" stop-color="#d5dae0"/></linearGradient>
+    <radialGradient id="mk4fg"><stop offset="0" stop-color="#ffe9a8"/><stop offset=".4" stop-color="#ffb020"/><stop offset="1" stop-color="rgba(255,120,0,0)"/></radialGradient>
+    <clipPath id="mk4fc"><rect x="90" y="200" width="480" height="290" rx="14"/></clipPath>
+  </defs>
+  <ellipse cx="420" cy="602" rx="420" ry="24" fill="rgba(0,0,0,.45)"/>
+  <rect x="80" y="560" width="70" height="34" fill="#2a323d"/><rect x="690" y="560" width="70" height="34" fill="#2a323d"/>
+  <rect x="40" y="120" width="760" height="450" rx="26" fill="url(#mk4kg)"/>
+  <rect x="40" y="120" width="760" height="58" rx="26" fill="#f37321"/><rect x="40" y="150" width="760" height="28" fill="#f37321"/>
+  <text x="72" y="162" font-family="Inter" font-weight="900" font-size="32" fill="#fff" letter-spacing="5">HANWHA</text>
+  <rect x="84" y="194" width="492" height="302" rx="18" fill="#3a4452"/>
+  <g clip-path="url(#mk4fc)">
+    <rect x="90" y="200" width="480" height="290" fill="#0b1424"/>
+    <path d="M90 250 H570 M90 300 H570 M90 350 H570 M90 400 H570 M90 450 H570 M150 200 V490 M250 200 V490 M350 200 V490 M450 200 V490 M550 200 V490" stroke="rgba(107,164,255,.08)" stroke-width="1"/>
+    <rect x="90" y="315" width="250" height="60" fill="url(#mk4mg)"/>
+    <rect x="300" y="282" width="60" height="126" rx="6" fill="#4b5563"/>
+    <path d="M360 318 L430 318 L438 323 L500 323 L500 331 L545 331 L555 339 L555 351 L545 359 L500 359 L500 367 L438 367 L430 372 L360 372 Z" fill="url(#mk4mg)"/>
+    <path class="bahn" d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" pathLength="1" fill="none" stroke="#f37321" stroke-width="5" stroke-dasharray="1" stroke-dashoffset="1" stroke-linejoin="round"/>
+    <path d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-dasharray="6 8"/>
+    <g class="wz">
+      <rect x="-16" y="-130" width="32" height="112" rx="4" fill="#6b7685"/>
+      <rect x="-22" y="-30" width="44" height="16" rx="3" fill="#4b5563"/>
+      <polygon points="-14,-14 14,-14 0,0" fill="#f0b429"/>
+      <circle class="funke" cx="0" cy="0" r="14" fill="url(#mk4fg)"/>
+    </g>
+    <g class="ax"><line x1="130" y1="460" x2="250" y2="460" stroke="#6ba4ff" stroke-width="5" stroke-linecap="round"/><polygon points="250,460 235.6,467.0 235.6,453.0" fill="#6ba4ff"/><text x="258" y="470" fill="#6ba4ff" font-family="Inter" font-weight="900" font-size="30">Z</text></g><g class="ax"><line x1="130" y1="460" x2="130" y2="398" stroke="#ff6b81" stroke-width="5" stroke-linecap="round"/><polygon points="130,398 137.0,412.4 123.0,412.4" fill="#ff6b81"/><text x="142" y="405" fill="#ff6b81" font-family="Inter" font-weight="900" font-size="30">X</text></g><g class="ax"><line x1="130" y1="460" x2="88" y2="486" stroke="#4ade80" stroke-width="5" stroke-linecap="round"/><polygon points="88,486 96.6,472.5 103.9,484.3" fill="#4ade80"/><text x="62" y="482" fill="#4ade80" font-family="Inter" font-weight="900" font-size="30">Y</text></g><g class="ax"><path d="M458 296 A14 52 0 1 0 482 296" fill="none" stroke="#f0b429" stroke-width="5"/><polygon points="484,290 474,302 490,304" fill="#f0b429"/><text x="494" y="292" fill="#f0b429" font-family="Inter" font-weight="900" font-size="30">C</text></g>
+  </g>
+  <polygon points="96,206 260,206 140,484 96,484" fill="rgba(255,255,255,.05)"/>
+  <rect x="612" y="194" width="160" height="302" rx="12" fill="#1b2330"/>
+  <rect x="628" y="210" width="128" height="92" rx="6" fill="#f37321" opacity=".85"/>
+  <path d="M640 232 H730 M640 252 H710 M640 272 H740" stroke="rgba(255,255,255,.6)" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#3a4452"><rect x="632" y="322" width="24" height="20" rx="4"/><rect x="664" y="322" width="24" height="20" rx="4"/><rect x="696" y="322" width="24" height="20" rx="4"/><rect x="728" y="322" width="24" height="20" rx="4"/><rect x="632" y="352" width="24" height="20" rx="4"/><rect x="664" y="352" width="24" height="20" rx="4"/><rect x="696" y="352" width="24" height="20" rx="4"/><rect x="728" y="352" width="24" height="20" rx="4"/><rect x="632" y="382" width="24" height="20" rx="4"/><rect x="664" y="382" width="24" height="20" rx="4"/><rect x="696" y="382" width="24" height="20" rx="4"/><rect x="728" y="382" width="24" height="20" rx="4"/><rect x="632" y="412" width="24" height="20" rx="4"/><rect x="664" y="412" width="24" height="20" rx="4"/><rect x="696" y="412" width="24" height="20" rx="4"/><rect x="728" y="412" width="24" height="20" rx="4"/></g>
+  <circle cx="692" cy="466" r="17" fill="#e11d48" stroke="#f0b429" stroke-width="4"/>
+  <rect x="748" y="118" width="6" height="12" fill="#5d6a7a"/>
+  <rect x="738" y="40" width="26" height="80" rx="5" fill="#1b2330"/>
+  <rect  x="741" y="44" width="20" height="22" rx="3" fill="#ff2d55" opacity=".25"/>
+  <rect x="741" y="69" width="20" height="22" rx="3" fill="#f0b429" opacity=".25"/>
+  <rect class="lampe" x="741" y="94" width="20" height="22" rx="3" fill="#4ade80" opacity=".25"/>
+</svg>
+            <div class="m-nr">05 / 06</div>
+            <div class="m-text"><div class="m-kick" style="color:#f37321">Langdreher</div><div class="m-name" style="font-size:200px">Hanwha</div><div class="m-sub">aus Korea</div><div class="m-chips"><div class="m-chip" style="color:#ff6b81;border-color:#ff6b81">X</div><div class="m-chip" style="color:#4ade80;border-color:#4ade80">Y</div><div class="m-chip" style="color:#6ba4ff;border-color:#6ba4ff">Z</div><div class="m-chip" style="color:#f0b429;border-color:#f0b429">C</div></div></div>
+          </div>
+          <div class="m-karte" id="mk5">
+            <svg class="m-svg" id="mk5-svg" viewBox="0 0 900 640">
+  <defs>
+    <linearGradient id="mk5kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef1f5"/><stop offset="1" stop-color="#a3adb9"/></linearGradient>
+    <linearGradient id="mk5mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".5" stop-color="#8d96a0"/><stop offset="1" stop-color="#d5dae0"/></linearGradient>
+    <radialGradient id="mk5fg"><stop offset="0" stop-color="#ffe9a8"/><stop offset=".4" stop-color="#ffb020"/><stop offset="1" stop-color="rgba(255,120,0,0)"/></radialGradient>
+    <clipPath id="mk5fc"><rect x="90" y="200" width="480" height="290" rx="14"/></clipPath>
+  </defs>
+  <ellipse cx="420" cy="602" rx="420" ry="24" fill="rgba(0,0,0,.45)"/>
+  <rect x="80" y="560" width="70" height="34" fill="#2a323d"/><rect x="690" y="560" width="70" height="34" fill="#2a323d"/>
+  <rect x="40" y="120" width="760" height="450" rx="26" fill="url(#mk5kg)"/>
+  <rect x="40" y="120" width="760" height="58" rx="26" fill="#d6002a"/><rect x="40" y="150" width="760" height="28" fill="#d6002a"/>
+  <text x="72" y="162" font-family="Inter" font-weight="900" font-size="32" fill="#fff" letter-spacing="5">INDEX</text>
+  <rect x="84" y="194" width="492" height="302" rx="18" fill="#3a4452"/>
+  <g clip-path="url(#mk5fc)">
+    <rect x="90" y="200" width="480" height="290" fill="#0b1424"/>
+    <path d="M90 250 H570 M90 300 H570 M90 350 H570 M90 400 H570 M90 450 H570 M150 200 V490 M250 200 V490 M350 200 V490 M450 200 V490 M550 200 V490" stroke="rgba(107,164,255,.08)" stroke-width="1"/>
+    <rect x="90" y="315" width="250" height="60" fill="url(#mk5mg)"/>
+    <rect x="300" y="282" width="60" height="126" rx="6" fill="#4b5563"/>
+    <path d="M360 318 L430 318 L438 323 L500 323 L500 331 L545 331 L555 339 L555 351 L545 359 L500 359 L500 367 L438 367 L430 372 L360 372 Z" fill="url(#mk5mg)"/>
+    <path class="bahn" d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" pathLength="1" fill="none" stroke="#d6002a" stroke-width="5" stroke-dasharray="1" stroke-dashoffset="1" stroke-linejoin="round"/>
+    <path d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-dasharray="6 8"/>
+    <g class="wz">
+      <rect x="-16" y="-130" width="32" height="112" rx="4" fill="#6b7685"/>
+      <rect x="-22" y="-30" width="44" height="16" rx="3" fill="#4b5563"/>
+      <polygon points="-14,-14 14,-14 0,0" fill="#f0b429"/>
+      <circle class="funke" cx="0" cy="0" r="14" fill="url(#mk5fg)"/>
+    </g>
+    <g class="ax"><line x1="130" y1="460" x2="250" y2="460" stroke="#6ba4ff" stroke-width="5" stroke-linecap="round"/><polygon points="250,460 235.6,467.0 235.6,453.0" fill="#6ba4ff"/><text x="258" y="470" fill="#6ba4ff" font-family="Inter" font-weight="900" font-size="30">Z</text></g><g class="ax"><line x1="130" y1="460" x2="130" y2="398" stroke="#ff6b81" stroke-width="5" stroke-linecap="round"/><polygon points="130,398 137.0,412.4 123.0,412.4" fill="#ff6b81"/><text x="142" y="405" fill="#ff6b81" font-family="Inter" font-weight="900" font-size="30">X</text></g><g class="ax"><line x1="130" y1="460" x2="88" y2="486" stroke="#4ade80" stroke-width="5" stroke-linecap="round"/><polygon points="88,486 96.6,472.5 103.9,484.3" fill="#4ade80"/><text x="62" y="482" fill="#4ade80" font-family="Inter" font-weight="900" font-size="30">Y</text></g><g class="ax"><path d="M458 296 A14 52 0 1 0 482 296" fill="none" stroke="#f0b429" stroke-width="5"/><polygon points="484,290 474,302 490,304" fill="#f0b429"/><text x="494" y="292" fill="#f0b429" font-family="Inter" font-weight="900" font-size="30">C</text></g>
+  </g>
+  <polygon points="96,206 260,206 140,484 96,484" fill="rgba(255,255,255,.05)"/>
+  <rect x="612" y="194" width="160" height="302" rx="12" fill="#1b2330"/>
+  <rect x="628" y="210" width="128" height="92" rx="6" fill="#d6002a" opacity=".85"/>
+  <path d="M640 232 H730 M640 252 H710 M640 272 H740" stroke="rgba(255,255,255,.6)" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#3a4452"><rect x="632" y="322" width="24" height="20" rx="4"/><rect x="664" y="322" width="24" height="20" rx="4"/><rect x="696" y="322" width="24" height="20" rx="4"/><rect x="728" y="322" width="24" height="20" rx="4"/><rect x="632" y="352" width="24" height="20" rx="4"/><rect x="664" y="352" width="24" height="20" rx="4"/><rect x="696" y="352" width="24" height="20" rx="4"/><rect x="728" y="352" width="24" height="20" rx="4"/><rect x="632" y="382" width="24" height="20" rx="4"/><rect x="664" y="382" width="24" height="20" rx="4"/><rect x="696" y="382" width="24" height="20" rx="4"/><rect x="728" y="382" width="24" height="20" rx="4"/><rect x="632" y="412" width="24" height="20" rx="4"/><rect x="664" y="412" width="24" height="20" rx="4"/><rect x="696" y="412" width="24" height="20" rx="4"/><rect x="728" y="412" width="24" height="20" rx="4"/></g>
+  <circle cx="692" cy="466" r="17" fill="#e11d48" stroke="#f0b429" stroke-width="4"/>
+  <rect x="748" y="118" width="6" height="12" fill="#5d6a7a"/>
+  <rect x="738" y="40" width="26" height="80" rx="5" fill="#1b2330"/>
+  <rect  x="741" y="44" width="20" height="22" rx="3" fill="#ff2d55" opacity=".25"/>
+  <rect x="741" y="69" width="20" height="22" rx="3" fill="#f0b429" opacity=".25"/>
+  <rect class="lampe" x="741" y="94" width="20" height="22" rx="3" fill="#4ade80" opacity=".25"/>
+</svg>
+            <div class="m-nr">06 / 06</div>
+            <div class="m-text"><div class="m-kick" style="color:#d6002a">INDEX · Drehzentrum</div><div class="m-name">C100</div><div class="m-sub">Drehen und Fräsen in einem</div><div class="m-chips"><div class="m-chip" style="color:#ff6b81;border-color:#ff6b81">X</div><div class="m-chip" style="color:#4ade80;border-color:#4ade80">Y</div><div class="m-chip" style="color:#6ba4ff;border-color:#6ba4ff">Z</div><div class="m-chip" style="color:#f0b429;border-color:#f0b429">C</div></div></div>
+          </div>
+        </div>
+
+        <!-- 4 Solar -->
+        <div id="s4" class="clip" data-start="22.1" data-duration="3.5" data-track-index="1">
+          <svg id="s-svg" viewBox="0 0 1600 560">
+            <defs>
+              <linearGradient id="s-pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b5fb8" /><stop offset="1" stop-color="#0d2550" /></linearGradient>
+            </defs>
+            <g id="s-sonne" transform="translate(1380 110)">
+              <circle r="62" fill="#ffd34d" />
+              <g id="s-strahlen" stroke="#ffd34d" stroke-width="8" stroke-linecap="round"><line x1="80.0" y1="0.0" x2="112.0" y2="0.0"/><line x1="69.3" y1="40.0" x2="97.0" y2="56.0"/><line x1="40.0" y1="69.3" x2="56.0" y2="97.0"/><line x1="0.0" y1="80.0" x2="0.0" y2="112.0"/><line x1="-40.0" y1="69.3" x2="-56.0" y2="97.0"/><line x1="-69.3" y1="40.0" x2="-97.0" y2="56.0"/><line x1="-80.0" y1="0.0" x2="-112.0" y2="0.0"/><line x1="-69.3" y1="-40.0" x2="-97.0" y2="-56.0"/><line x1="-40.0" y1="-69.3" x2="-56.0" y2="-97.0"/><line x1="-0.0" y1="-80.0" x2="-0.0" y2="-112.0"/><line x1="40.0" y1="-69.3" x2="56.0" y2="-97.0"/><line x1="69.3" y1="-40.0" x2="97.0" y2="-56.0"/></g>
+            </g>
+            <polygon points="250,300 1250,300 1150,170 350,170" fill="#26303d" />
+            <rect x="230" y="300" width="1040" height="250" fill="#3a4554" />
+            <rect x="230" y="300" width="1040" height="14" fill="#1f6fe0" />
+            <rect x="300" y="380" width="160" height="170" fill="#1b2330" /><rect x="500" y="360" width="700" height="90" rx="6" fill="#1b2330" />
+            <text x="520" y="420" fill="#eaf1fb" font-family="Inter" font-weight="800" font-size="44" letter-spacing="6">HOFER + CO</text>
+            <g id="s-panels"><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="360.8,178.0 433.3,178.0 411.7,213.0 333.9,213.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="439.3,178.0 511.7,178.0 495.6,213.0 417.7,213.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="517.7,178.0 590.1,178.0 579.4,213.0 501.6,213.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="596.1,178.0 668.6,178.0 663.2,213.0 585.4,213.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="674.6,178.0 747.0,178.0 747.0,213.0 669.2,213.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="753.0,178.0 825.4,178.0 830.8,213.0 753.0,213.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="831.4,178.0 903.9,178.0 914.6,213.0 836.8,213.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="909.9,178.0 982.3,178.0 998.4,213.0 920.6,213.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="988.3,178.0 1060.7,178.0 1082.3,213.0 1004.4,213.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="1066.7,178.0 1139.2,178.0 1166.1,213.0 1088.3,213.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="330.1,218.0 408.7,218.0 387.1,253.0 303.2,253.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="414.7,218.0 493.2,218.0 477.1,253.0 393.1,253.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="499.2,218.0 577.8,218.0 567.1,253.0 483.1,253.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="583.8,218.0 662.4,218.0 657.0,253.0 573.1,253.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="668.4,218.0 747.0,218.0 747.0,253.0 663.0,253.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="753.0,218.0 831.6,218.0 837.0,253.0 753.0,253.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="837.6,218.0 916.2,218.0 926.9,253.0 843.0,253.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="922.2,218.0 1000.8,218.0 1016.9,253.0 932.9,253.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="1006.8,218.0 1085.3,218.0 1106.9,253.0 1022.9,253.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="1091.3,218.0 1169.9,218.0 1196.8,253.0 1112.9,253.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="299.3,258.0 384.0,258.0 362.5,293.0 272.4,293.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="390.0,258.0 474.8,258.0 458.6,293.0 368.5,293.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="480.8,258.0 565.5,258.0 554.8,293.0 464.6,293.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="571.5,258.0 656.3,258.0 650.9,293.0 560.8,293.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="662.3,258.0 747.0,258.0 747.0,293.0 656.9,293.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="753.0,258.0 837.7,258.0 843.1,293.0 753.0,293.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="843.7,258.0 928.5,258.0 939.2,293.0 849.1,293.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="934.5,258.0 1019.2,258.0 1035.4,293.0 945.2,293.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="1025.2,258.0 1110.0,258.0 1131.5,293.0 1041.4,293.0"/><polygon class="s-p" fill="url(#s-pg)" stroke="#9cc3ff" stroke-width="1.5" points="1116.0,258.0 1200.7,258.0 1227.6,293.0 1137.5,293.0"/></g>
+            <path id="s-fluss" d="M760 170 C 760 60, 1000 40, 1300 110" fill="none" stroke="#c6e84a" stroke-width="6" stroke-dasharray="14 18" opacity="0" />
+          </svg>
+          <div id="s-text"><div class="kick" style="color:#c6e84a">Solaranlage</div><h2>Strom vom<br />eigenen Dach.</h2></div>
+          <div id="s-band"><img src="assets/solarband.png" alt="" /></div>
+        </div>
+
+        <!-- 5 Stillstand -->
+        <div id="s5" class="clip" data-start="25.6" data-duration="3.3" data-track-index="1">
+          <div id="p1-titel" class="zentriert mega">Fehlt das Material …</div>
+<svg class="m-svg" id="p1-svg" viewBox="0 0 900 640">
+  <defs>
+    <linearGradient id="p1kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef1f5"/><stop offset="1" stop-color="#a3adb9"/></linearGradient>
+    <linearGradient id="p1mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".5" stop-color="#8d96a0"/><stop offset="1" stop-color="#d5dae0"/></linearGradient>
+    <radialGradient id="p1fg"><stop offset="0" stop-color="#ffe9a8"/><stop offset=".4" stop-color="#ffb020"/><stop offset="1" stop-color="rgba(255,120,0,0)"/></radialGradient>
+    <clipPath id="p1fc"><rect x="90" y="200" width="480" height="290" rx="14"/></clipPath>
+  </defs>
+  <ellipse cx="420" cy="602" rx="420" ry="24" fill="rgba(0,0,0,.45)"/>
+  <rect x="80" y="560" width="70" height="34" fill="#2a323d"/><rect x="690" y="560" width="70" height="34" fill="#2a323d"/>
+  <rect x="40" y="120" width="760" height="450" rx="26" fill="url(#p1kg)"/>
+  <rect x="40" y="120" width="760" height="58" rx="26" fill="#5d6a7a"/><rect x="40" y="150" width="760" height="28" fill="#5d6a7a"/>
+  <text x="72" y="162" font-family="Inter" font-weight="900" font-size="32" fill="#fff" letter-spacing="5">CNC</text>
+  <rect x="84" y="194" width="492" height="302" rx="18" fill="#3a4452"/>
+  <g clip-path="url(#p1fc)">
+    <rect x="90" y="200" width="480" height="290" fill="#0b1424"/>
+    <path d="M90 250 H570 M90 300 H570 M90 350 H570 M90 400 H570 M90 450 H570 M150 200 V490 M250 200 V490 M350 200 V490 M450 200 V490 M550 200 V490" stroke="rgba(107,164,255,.08)" stroke-width="1"/>
+    <rect x="90" y="315" width="250" height="60" fill="url(#p1mg)"/>
+    <rect x="300" y="282" width="60" height="126" rx="6" fill="#4b5563"/>
+    <path d="M360 318 L430 318 L438 323 L500 323 L500 331 L545 331 L555 339 L555 351 L545 359 L500 359 L500 367 L438 367 L430 372 L360 372 Z" fill="url(#p1mg)"/>
+    <path class="bahn" d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" pathLength="1" fill="none" stroke="#5d6a7a" stroke-width="5" stroke-dasharray="1" stroke-dashoffset="1" stroke-linejoin="round"/>
+    <path d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-dasharray="6 8"/>
+    <g class="wz" transform="translate(432 300)">
+      <rect x="-16" y="-130" width="32" height="112" rx="4" fill="#6b7685"/>
+      <rect x="-22" y="-30" width="44" height="16" rx="3" fill="#4b5563"/>
+      <polygon points="-14,-14 14,-14 0,0" fill="#f0b429"/>
+      <circle class="funke" cx="0" cy="0" r="14" fill="url(#p1fg)"/>
+    </g>
+    <g class="ax"><line x1="130" y1="460" x2="250" y2="460" stroke="#6ba4ff" stroke-width="5" stroke-linecap="round"/><polygon points="250,460 235.6,467.0 235.6,453.0" fill="#6ba4ff"/><text x="258" y="470" fill="#6ba4ff" font-family="Inter" font-weight="900" font-size="30">Z</text></g><g class="ax"><line x1="130" y1="460" x2="130" y2="398" stroke="#ff6b81" stroke-width="5" stroke-linecap="round"/><polygon points="130,398 137.0,412.4 123.0,412.4" fill="#ff6b81"/><text x="142" y="405" fill="#ff6b81" font-family="Inter" font-weight="900" font-size="30">X</text></g><g class="ax"><line x1="130" y1="460" x2="88" y2="486" stroke="#4ade80" stroke-width="5" stroke-linecap="round"/><polygon points="88,486 96.6,472.5 103.9,484.3" fill="#4ade80"/><text x="62" y="482" fill="#4ade80" font-family="Inter" font-weight="900" font-size="30">Y</text></g><g class="ax"><path d="M458 296 A14 52 0 1 0 482 296" fill="none" stroke="#f0b429" stroke-width="5"/><polygon points="484,290 474,302 490,304" fill="#f0b429"/><text x="494" y="292" fill="#f0b429" font-family="Inter" font-weight="900" font-size="30">C</text></g>
+  </g>
+  <polygon points="96,206 260,206 140,484 96,484" fill="rgba(255,255,255,.05)"/>
+  <rect x="612" y="194" width="160" height="302" rx="12" fill="#1b2330"/>
+  <rect x="628" y="210" width="128" height="92" rx="6" fill="#5d6a7a" opacity=".85"/>
+  <path d="M640 232 H730 M640 252 H710 M640 272 H740" stroke="rgba(255,255,255,.6)" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#3a4452"><rect x="632" y="322" width="24" height="20" rx="4"/><rect x="664" y="322" width="24" height="20" rx="4"/><rect x="696" y="322" width="24" height="20" rx="4"/><rect x="728" y="322" width="24" height="20" rx="4"/><rect x="632" y="352" width="24" height="20" rx="4"/><rect x="664" y="352" width="24" height="20" rx="4"/><rect x="696" y="352" width="24" height="20" rx="4"/><rect x="728" y="352" width="24" height="20" rx="4"/><rect x="632" y="382" width="24" height="20" rx="4"/><rect x="664" y="382" width="24" height="20" rx="4"/><rect x="696" y="382" width="24" height="20" rx="4"/><rect x="728" y="382" width="24" height="20" rx="4"/><rect x="632" y="412" width="24" height="20" rx="4"/><rect x="664" y="412" width="24" height="20" rx="4"/><rect x="696" y="412" width="24" height="20" rx="4"/><rect x="728" y="412" width="24" height="20" rx="4"/></g>
+  <circle cx="692" cy="466" r="17" fill="#e11d48" stroke="#f0b429" stroke-width="4"/>
+  <rect x="748" y="118" width="6" height="12" fill="#5d6a7a"/>
+  <rect x="738" y="40" width="26" height="80" rx="5" fill="#1b2330"/>
+  <rect id="p1-lr" x="741" y="44" width="20" height="22" rx="3" fill="#ff2d55" opacity=".25"/>
+  <rect x="741" y="69" width="20" height="22" rx="3" fill="#f0b429" opacity=".25"/>
+  <rect id="p1-lg" x="741" y="94" width="20" height="22" rx="3" fill="#4ade80" opacity=".25"/>
+</svg>
+          <svg id="p1-regal" viewBox="0 0 720 520">
+            <rect x="0" y="0" width="16" height="520" fill="#5d6a7a" /><rect x="704" y="0" width="16" height="520" fill="#5d6a7a" />
+            <rect x="0" y="150" width="720" height="14" fill="#5d6a7a" /><rect x="0" y="320" width="720" height="14" fill="#5d6a7a" /><rect x="0" y="490" width="720" height="14" fill="#5d6a7a" />
+            <rect class="p1-st" x="40" y="102" width="640" height="22" rx="11" fill="#c9ced4" stroke="#8d96a0" stroke-width="2"/><rect class="p1-st" x="40" y="126" width="640" height="22" rx="11" fill="#c9ced4" stroke="#8d96a0" stroke-width="2"/><rect class="p1-st" x="40" y="272" width="640" height="22" rx="11" fill="#c9ced4" stroke="#8d96a0" stroke-width="2"/><rect class="p1-st" x="40" y="296" width="640" height="22" rx="11" fill="#c9ced4" stroke="#8d96a0" stroke-width="2"/><rect class="p1-st" x="40" y="442" width="640" height="22" rx="11" fill="#c9ced4" stroke="#8d96a0" stroke-width="2"/><rect class="p1-st" x="40" y="466" width="640" height="22" rx="11" fill="#c9ced4" stroke="#8d96a0" stroke-width="2"/>
+            <text id="p1-leer" x="360" y="270" text-anchor="middle" fill="#ff2d55" font-family="Inter" font-weight="900" font-size="90" opacity="0">LEER</text>
+          </svg>
+          <div id="p1-uhr">STILLSTAND <span id="p1-zeit">00:00:00</span></div>
+          <div id="p1-stempel">STILLSTAND</div>
+        </div>
+
+        <!-- 6 Zettel und Ordner -->
+        <div id="s6" class="clip" data-start="28.9" data-duration="4.6" data-track-index="1">
+          <div id="p2-titel" class="zentriert">Die Planung?</div>
+          <div class="zettel" id="z1" style="left: 120px; top: 190px">SR-32 ab Mo?<small>wer hat das geändert…</small></div>
+          <div class="zettel rosa" id="z2" style="left: 1440px; top: 170px">10008 Material fehlt!<small>bitte Büro anrufen</small></div>
+          <div class="zettel blau" id="z3" style="left: 250px; top: 640px">Stk. 340? 430?<small>Zettel in der Halle</small></div>
+          <div class="zettel weiss" id="z4" style="left: 1380px; top: 620px">Rüsten Di oder Mi?<small>Whiteboard</small></div>
+          <div class="zettel" id="z5" style="left: 800px; top: 330px">Hanwha frei?<small>Mi fragen</small></div>
+          <div class="zettel rosa" id="z6" style="left: 760px; top: 700px">Eilauftrag!!<small>vor 10007</small></div>
+          <div class="ordner" id="o1" style="left: 420px"><span>Zeich&shy;nungen 2019</span></div>
+          <div class="ordner" id="o2" style="left: 650px"><span>Ordner 3</span></div>
+          <div class="ordner" id="o3" style="left: 880px"><span>Ordner 4</span></div>
+          <div class="blatt" id="bl1" style="left: 520px; top: 420px"></div>
+          <div class="blatt" id="bl2" style="left: 700px; top: 420px"></div>
+          <div class="blatt" id="bl3" style="left: 900px; top: 420px"></div>
+          <div class="blatt" id="bl4" style="left: 600px; top: 420px"></div>
+          <div class="blatt" id="bl5" style="left: 820px; top: 420px"></div>
+          <div id="p2-lupe"></div>
+          <div id="p2-wo" class="zentriert mega">Wo ist die Zeichnung?</div>
+        </div>
+
+        <!-- 7 Was läuft -->
+        <div id="s7" class="clip" data-start="33.5" data-duration="4.5" data-track-index="1">
+          <div id="p3-frage" class="zentriert">
+            <span class="z1" id="p3-f1">Und keiner weiss genau:</span>
+            <span class="z2 mega" id="p3-f2">Was läuft gerade?</span>
+          </div>
+          <div id="p3-qs"><div class="p3-m"><b>SW-20</b><span>?</span></div><div class="p3-m"><b>SB-20</b><span>?</span></div><div class="p3-m"><b>SR-32</b><span>?</span></div><div class="p3-m"><b>SR-10</b><span>?</span></div><div class="p3-m"><b>Hanwha</b><span>?</span></div><div class="p3-m"><b>C100</b><span>?</span></div></div>
+          <svg id="p3-uhr" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="88" fill="#121b2c" stroke="#ff6b81" stroke-width="8" />
+            <line id="p3-gross" x1="100" y1="100" x2="100" y2="30" stroke="#eaf1fb" stroke-width="8" stroke-linecap="round" />
+            <line id="p3-klein" x1="100" y1="100" x2="145" y2="100" stroke="#ff6b81" stroke-width="10" stroke-linecap="round" />
+          </svg>
+        </div>
+
+        <!-- 8 Auftritt -->
+        <div id="s8" class="clip" data-start="38" data-duration="2.6" data-track-index="1">
+          <div class="r-ring" id="r1"></div><div class="r-ring" id="r2"></div><div class="r-ring" id="r3"></div>
+          <div id="r-strahlen"><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div><div class="r-st"></div></div>
+          <div id="r-darum" class="zentriert">Darum haben wir gebaut:</div>
+          <div id="r-titel" class="zentriert mega"><span>Hofer</span> <span>Tool</span></div>
+          <div id="r-sub" class="zentriert">Planung · Produktion · Pad Mode</div>
+        </div>
+
+        <!-- 9 Planwand -->
+        <div id="s9" class="clip" data-start="40.6" data-duration="4.6" data-track-index="1">
+          <div class="f-text">
+            <div class="kick d-t">Planwand</div>
+            <h2 class="d-t">Ziehen. Fertig.</h2>
+            <div class="schritte">
+              <div class="schritt" id="d-s1"><i>1</i>Auftrag packen</div>
+              <div class="schritt" id="d-s2"><i>2</i>Ziehen</div>
+              <div class="schritt" id="d-s3"><i>3</i>Loslassen</div>
+              <div class="schritt ok" id="d-s4"><i>✓</i>Rest rückt nach</div>
+            </div>
+          </div>
+        </div>
+        <div class="geraet browser" id="g-plan">
+          <div class="leiste"><i></i><i></i><i></i><span>hofertool / planwand</span></div>
+          <div class="vwrap" id="w-plan"><video id="v-plan" class="clip" src="assets/k_planwand.mp4" muted playsinline data-start="40.6" data-duration="4.6" data-track-index="3"></video></div>
+        </div>
+
+        <!-- 10 Material -->
+        <div id="s10" class="clip" data-start="45.2" data-duration="5.1" data-track-index="1">
+          <div id="mat-text"><div class="kick">Material-Management</div><h2>Material in Farbe.</h2></div>
+          <div id="mat-plan"><div id="mat-zoom"><div class="mat-zeile" style="top:0;height:62px"><b style="left:190px;top:18px">Mo</b><b style="left:490px;top:18px">Di</b><b style="left:790px;top:18px">Mi</b><b style="left:1090px;top:18px">Do</b><b style="left:1390px;top:18px">Fr</b></div><div class="mat-zeile" style="top:70px"><b>SW-20</b><div class="mat-balken mb-v2a" style="left:190px;width:408px;background:#b3261e">▶ 10007 · V2A</div><div class="mat-balken mb-messing hell" style="left:630px;width:368px;background:#f0b429">▶ 10012 · Messing</div><div class="mat-balken mb-stahl" style="left:1030px;width:548px;background:#003884">▶ 10019 · Stahl</div></div><div class="mat-zeile" style="top:144px"><b>SB-20</b><div class="mat-balken mb-alu hell" style="left:190px;width:288px;background:#eef1f5">▶ 10003 · Alu</div><div class="mat-balken mb-v4a" style="left:510px;width:508px;background:#7a838d">▶ 10009 · V4A</div><div class="mat-balken mb-neusilber" style="left:1050px;width:388px;background:#c2650f">▶ 10021 · Neusilber</div></div><div class="mat-zeile" style="top:218px"><b>SR-32</b><div class="mat-balken mb-chrom" style="left:190px;width:588px;background:#d4638f">▶ 10004 · Chromstahl</div><div class="mat-balken mb-v2a" style="left:810px;width:348px;background:#b3261e">▶ 10014 · V2A</div><div class="mat-balken mb-messing hell" style="left:1190px;width:408px;background:#f0b429">▶ 10022 · Messing</div></div><div class="mat-zeile" style="top:292px"><b>SR-10</b><div class="mat-balken mb-neusilber" style="left:190px;width:368px;background:#c2650f">▶ 10005 · Neusilber</div><div class="mat-balken mb-stahl" id="mat-ziel" style="left:590px;width:428px;background:#003884">○ 10011 · Stahl<em style="position:absolute;right:16px;top:0">●</em></div><div class="mat-balken mb-alu hell" style="left:1050px;width:508px;background:#eef1f5">▶ 10017 · Alu</div></div><div class="mat-zeile" style="top:366px"><b>Hanwha</b><div class="mat-balken mb-messing hell" style="left:190px;width:488px;background:#f0b429">▶ 10006 · Messing</div><div class="mat-balken mb-chrom" style="left:710px;width:408px;background:#d4638f">▶ 10013 · Chromstahl</div><div class="mat-balken mb-v4a" style="left:1150px;width:368px;background:#7a838d">▶ 10020 · V4A</div></div><div class="mat-zeile" style="top:440px"><b>C100</b><div class="mat-balken mb-stahl" style="left:190px;width:428px;background:#003884">▶ 10008 · Stahl</div><div class="mat-balken mb-v2a" style="left:650px;width:508px;background:#b3261e">▶ 10015 · V2A</div><div class="mat-balken mb-alu hell" style="left:1190px;width:408px;background:#eef1f5">▶ 10023 · Alu</div></div><div id="mat-ring" style="left:949px;top:284px"></div></div></div>
+          <div id="mat-hinweis"><em>●</em> Keine Materialmenge eingetragen</div>
+          <div id="mat-legende"><div class="mat-chip"><i style="background:#b3261e"></i>V2A</div><div class="mat-chip"><i style="background:#7a838d"></i>V4A</div><div class="mat-chip"><i style="background:#d4638f"></i>Chromstahl</div><div class="mat-chip"><i style="background:#003884"></i>Stahl</div><div class="mat-chip"><i style="background:#eef1f5"></i>Alu</div><div class="mat-chip"><i style="background:#f0b429"></i>Messing</div><div class="mat-chip"><i style="background:#c2650f"></i>Neusilber</div></div>
+        </div>
+
+        <!-- 11 Suche -->
+        <div id="s11" class="clip" data-start="50.3" data-duration="3.7" data-track-index="1">
+          <div class="f-text">
+            <div class="kick e-t">Suche über alles</div>
+            <h2 class="e-t">Jeder Auftrag. Sofort.</h2>
+          </div>
+          <div id="e-tasten"><div class="taste" id="e-k1">Strg</div><div id="e-plus">+</div><div class="taste" id="e-k2">K</div></div>
+          <div id="e-tipp">10007</div>
+        </div>
+        <div class="geraet browser" id="g-suche">
+          <div class="leiste"><i></i><i></i><i></i><span>hofertool / suche</span></div>
+          <div class="vwrap" id="w-suche"><video id="v-suche" class="clip" src="assets/k_suche.mp4" muted playsinline data-start="50.3" data-duration="3.7" data-track-index="3"></video></div>
+        </div>
+
+        <!-- 12 Pad Mode -->
+        <div id="s12" class="clip" data-start="54" data-duration="4.9" data-track-index="1">
+          <div class="f-text">
+            <div class="kick f-t">Pad Mode</div>
+            <h2 class="f-t">An der Maschine.</h2>
+            <div class="schritte">
+              <div class="schritt" id="f-s1"><i>1</i>Antippen</div>
+              <div class="schritt" id="f-s2"><i>2</i>Stückzahl eingeben</div>
+              <div class="schritt ok" id="f-s3"><i>✓</i>Fertig</div>
+            </div>
+          </div>
+        </div>
+        <div class="geraet tablet" id="g-pad">
+          <div class="vwrap"><video id="v-pad" class="clip" src="assets/k_pad.mp4" muted playsinline data-start="54" data-duration="4.9" data-track-index="3"></video></div>
+        </div>
+
+        <!-- 13 Handy -->
+        <div id="s13" class="clip" data-start="58.9" data-duration="4.7" data-track-index="1">
+          <div class="f-text" id="ha-text">
+            <div class="kick ha-t">Unterwegs</div>
+            <h2 class="ha-t">Alles auch auf dem Handy.</h2>
+          </div>
+          <div id="ip-chip"><i></i>Solaranlage live</div>
+        </div>
+        <div class="geraet" id="g-handy">
+          <div class="ip-knopf" style="left:-5px; top:190px; height:44px"></div>
+          <div class="ip-knopf" style="left:-5px; top:260px; height:80px"></div>
+          <div class="ip-knopf" style="left:-5px; top:360px; height:80px"></div>
+          <div class="ip-knopf" style="left:460px; top:280px; height:120px"></div>
+          <div class="ip-rahmen"></div>
+          <div class="ip-innen"></div>
+          <div class="vwrap" id="w-handy"><video id="v-handy" class="clip" style="width:424px;height:924px" src="assets/k_handy.mp4" muted playsinline data-start="58.9" data-duration="4.7" data-track-index="3"></video></div>
+          <div class="ip-insel"></div>
+          <div class="ip-glanz"><i id="ip-glanz"></i></div>
+        </div>
+
+        <!-- 14 Mehr -->
+        <div id="s14" class="clip" data-start="63.6" data-duration="5.0" data-track-index="1">
+          <div class="mehr-bild" id="me-b1"><img src="assets/bestellungen.png" alt="" /><div class="dunkel"></div></div>
+          <div class="mehr-bild" id="me-b2"><img src="assets/einkauf.png" alt="" /><div class="dunkel"></div></div>
+          <div class="mehr-bild" id="me-b3"><img src="assets/rechner.png" alt="" /><div class="dunkel"></div></div>
+          <div class="mehr-bild" id="me-b4"><img src="assets/start.png" alt="" /><div class="dunkel"></div></div>
+          <div class="mehr-wort mega" id="me-w1">Bestellungen</div>
+          <div class="mehr-wort mega" id="me-w2">Einkauf</div>
+          <div class="mehr-wort mega" id="me-w3">Rechner</div>
+          <div class="mehr-wort mega" id="me-w4">Dokumente</div>
+          <div id="me-alles" class="zentriert mega">Alles an einem Ort.</div>
+        </div>
+
+        <!-- 15 Schluss -->
+        <div id="s15" class="clip" data-start="68.6" data-duration="5.4" data-track-index="1">
+          <div id="o-logo-wrap"><img id="o-logo" src="assets/logo-weiss.png" alt="" /></div>
+          <div id="o-line"></div>
+          <div id="o-titel" class="zentriert mega">Hofer Tool</div>
+          <div id="o-sub" class="zentriert">Präzision, jetzt auch in der Planung.</div>
+          <div id="o-chips"><span>Planwand</span><span>Produktion</span><span>Pad Mode</span><span>Material</span><span>Solar</span><span>Handy</span></div>
+        </div>
+      </div>
+
+      <div id="fx" class="clip" data-start="0" data-duration="74" data-track-index="2">
+        <div id="vignette"></div>
+        <div id="korn"></div>
+        <div id="streak"></div>
+        <div class="wipe" id="wB"></div>
+        <div class="wipe" id="wA"></div>
+        <div id="balken-o"></div><div id="balken-u"></div>
+        <div id="flash"></div>
+      </div>
+    </div>
+
+    <script>
+      gsap.registerPlugin(MotionPathPlugin);
+      const tl = gsap.timeline({ paused: true });
+      const E = "expo.out", EI = "power4.inOut";
+      const nicht = { immediateRender: false };
+      // Das GL-Team wird nach der Familie eingeschoben; alles danach rutscht um GL Sekunden nach hinten.
+      const GL = 0, ENDE = 74;
+      const T = (x) => (x >= 9.7 - 1e-6 ? x + GL : x);
+      const F = (s, a, b, t) => tl.fromTo(s, a, b, T(t));
+      const O = (s, b, t) => tl.to(s, b, T(t));
+      const S = (s, v, t) => tl.set(s, v, T(t));
+
+      const blitz = (t, s = 0.7) => F("#flash", { opacity: s }, { opacity: 0, duration: 0.3, ease: "power2.out", ...nicht }, t);
+      const wackeln = (t, k = 14) => {
+        [[k, -k * .6], [-k * .8, k * .5], [k * .5, k * .7], [-k * .3, -k * .4], [0, 0]].forEach(([x, y], i) => tl.to("#stage", { x, y, duration: 0.035, ease: "none" }, T(t) + i * 0.035));
+      };
+      const wisch = (t) => {
+        F("#wB", { x: -2900 }, { x: 2000, duration: 0.5, ease: EI, ...nicht }, t - 0.27);
+        F("#wA", { x: -2900 }, { x: 2000, duration: 0.5, ease: EI, ...nicht }, t - 0.22);
+      };
+      const streifen = (t) => F("#streak", { x: -500, opacity: 1, rotation: 18 }, { x: 2300, opacity: 1, duration: 0.55, ease: "power2.inOut", ...nicht }, t);
+      const knall = (sel, t, d = 0.38) => F(sel,
+        { scale: 2.4, opacity: 0, filter: "blur(24px)", textShadow: "14px 0 #ff2d55, -14px 0 #00e5ff" },
+        { scale: 1, opacity: 1, filter: "blur(0px)", textShadow: "0px 0 rgba(255,45,85,0), 0px 0 rgba(0,229,255,0)", duration: d, ease: E }, t);
+      const weg = (sel, t, d = 0.25) => O(sel, { opacity: 0, scale: 0.92, filter: "blur(10px)", duration: d, ease: "power2.in" }, t);
+      const zaehlen = (id, von, bis, t, d, nach = "") => {
+        const z = { n: von };
+        F(z, { n: von }, { n: bis, duration: d, ease: "power3.out", onUpdate: () => { document.getElementById(id).textContent = Math.round(z.n) + nach; } }, t);
+      };
+      // Kurzer Kino-Balken-Ruck oben und unten bei grossen Schnitten
+      const kino = (t) => {
+        F("#balken-o, #balken-u", { height: 0 }, { height: 90, duration: 0.18, ease: "power3.out", ...nicht }, t);
+        O("#balken-o, #balken-u", { height: 0, duration: 0.3, ease: "power2.inOut" }, t + 0.5);
+      };
+
+      gsap.set(".r-st", { rotation: (i) => i * 22.5 });
+      S("#wA, #wB", { x: -2900 }, 0);
+      S("#streak", { opacity: 0 }, 0);
+      tl.fromTo("#bg-glow1", { x: 0, y: 0 }, { x: 1000, y: 350, duration: ENDE, ease: "sine.inOut" }, 0);
+      tl.fromTo("#bg-glow2", { x: 0, y: 0 }, { x: -900, y: -300, duration: ENDE, ease: "sine.inOut" }, 0);
+      tl.fromTo("#bg-grid", { x: 0, y: 0 }, { x: 160, y: 160, duration: ENDE, ease: "none" }, 0);
+
+      // ---- 1 Hook (0 – 5.2) ----
+      F("#h-teil .h-k", { strokeDasharray: 1, strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 1.0, ease: EI, stagger: 0.1 }, 0.1);
+      blitz(0.5, 0.8); wackeln(0.5, 18);
+      knall("#h-praez", 0.5, 0.35);
+      F("#h-praez", { scaleX: 1 }, { scaleX: 1.08, duration: 0.9, ease: "none" }, 0.85);
+      O("#h-praez", { scale: 3.2, opacity: 0, filter: "blur(30px)", duration: 0.32, ease: "power3.in" }, 1.3);
+      O("#h-teil", { opacity: 0, scale: 1.4, duration: 0.35, ease: "power3.in" }, 1.3);
+      F("#h-ring", { scale: 2.2, rotation: -120, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.8, ease: E }, 1.5);
+      F("#h-arc", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 1.0, ease: EI }, 1.55);
+      O("#h-ring", { rotation: 60, duration: 3.4, ease: "none" }, 2.3);
+      F("#h-ort span", { y: -140, opacity: 0, filter: "blur(16px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.35, ease: "back.out(2.4)", stagger: 0.025 }, 1.55);
+      F("#h-koord", { opacity: 0, scaleX: 1.6 }, { opacity: 1, scaleX: 1, duration: 0.5, ease: E }, 2.1);
+      F("#h-seit", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.35, ease: E }, 3.1);
+      zaehlen("h-jahr", 1900, 1928, 3.15, 0.8);
+      F("#h-jahr", { scale: 1 }, { scale: 1.25, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", ...nicht }, 3.95);
+      F("#s1", { scale: 1 }, { scale: 1.08, duration: 5.2, ease: "none" }, 0);
+      streifen(4.2);
+      weg("#h-ring, #h-ort, #h-koord, #h-seit", 4.95);
+
+      // ---- 2 Familie (5.2 – 9.7) ----
+      blitz(5.2, 0.5); wackeln(5.2, 10); kino(5.2);
+      F("#f-logo", { y: 320 }, { y: 0, duration: 0.5, ease: E }, 5.22);
+      F("#f-logo-wrap", { scale: 1.3 }, { scale: 1, duration: 3.5, ease: "power2.out" }, 5.2);
+      F("#f-line", { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: EI }, 6.1);
+      F(".f-punkt", { y: 60, opacity: 0, scale: 0.6 }, { y: 0, opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2)", stagger: 0.22 }, 6.3);
+      F("#f-gen", { scale: 0.3, opacity: 1 }, { scale: 2.4, opacity: 0, duration: 0.7, ease: "power2.out" }, 8.1);
+      F(".f-punkt:nth-of-type(3) b, #s2 .f-punkt:last-child b", { color: "#eaf1fb" }, { color: "#6ba4ff", duration: 0.3 }, 8.1);
+      weg("#f-logo-wrap, .f-punkt, #f-line", 9.45);
+
+
+
+      // ---- 3 Maschinen (9.7 – 22.1) ----
+      wisch(9.7);
+      knall("#m-zahl", 9.75, 0.35);
+      zaehlen("m-zahl", 0, 20, 9.8, 0.9, "+");
+      F("#m-zahl-sub", { opacity: 0, scaleX: 1.6 }, { opacity: 1, scaleX: 1, duration: 0.4, ease: E }, 10.0);
+      F(".m-ic", { scale: 0, opacity: 0, y: 40 }, { scale: 1, opacity: 1, y: 0, duration: 0.3, ease: "back.out(2.5)", stagger: { each: 0.025, from: "center" } }, 10.1);
+      F(".m-ic", { y: 0 }, { y: -8, duration: 0.12, yoyo: true, repeat: 1, ease: "power1.inOut", stagger: { each: 0.02, from: "start" }, ...nicht }, 11.0);
+      blitz(11.7, 0.3);
+      O(".m-ic", { x: (i) => (i % 2 ? 1 : -1) * (600 + (i % 6) * 120), y: (i) => -300 - (i % 5) * 90, rotation: (i) => (i % 2 ? 40 : -40), opacity: 0, duration: 0.45, ease: "power3.in" }, 11.8);
+      O("#m-zahl, #m-zahl-sub", { opacity: 0, scale: 1.4, filter: "blur(20px)", duration: 0.3, ease: "power2.in" }, 11.85);
+      F("#m-von", { opacity: 0, y: -40 }, { opacity: 1, y: 0, duration: 0.35, ease: E }, 12.15);
+      knall("#m-star", 12.3, 0.35);
+      F("#m-star", { scaleX: 1 }, { scaleX: 1.12, duration: 0.95, ease: "none" }, 12.6);
+      O("#m-von, #m-star", { opacity: 0, x: -600, filter: "blur(16px)", duration: 0.25, ease: "power3.in" }, 13.15);
+      F("#m-achsen", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 13.4);
+      O("#m-achsen", { opacity: 0, duration: 0.2 }, 21.8);
+
+      const KARTEN = [{"t": 13.4, "aus": 14.4, "bahn": "M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345"}, {"t": 14.4, "aus": 15.4, "bahn": "M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345"}, {"t": 15.4, "aus": 16.4, "bahn": "M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345"}, {"t": 16.4, "aus": 18.3, "bahn": "M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345"}, {"t": 18.3, "aus": 19.55, "bahn": "M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345"}, {"t": 19.55, "aus": 21.95, "bahn": "M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345"}];
+      KARTEN.forEach((k, i) => {
+        const s = "#mk" + i, t = k.t, aus = k.aus;
+        blitz(t, 0.35); wackeln(t, 9);
+        F(s, { opacity: 0 }, { opacity: 1, duration: 0.01 }, t);
+        F(s + " .m-svg", { x: 700, rotationY: -50, scale: 0.8, transformPerspective: 1800 }, { x: 0, rotationY: -6, scale: 1, duration: 0.4, ease: E }, t);
+        O(s + " .m-svg", { rotationY: 6, duration: aus - t, ease: "none" }, t + 0.4);
+        knall(s + " .m-name", t + 0.04, 0.32);
+        F(s + " .m-kick, " + s + " .m-sub", { x: 120, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: E, stagger: 0.06 }, t + 0.08);
+        F(s + " .m-chip", { scale: 0, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.28, ease: "back.out(3)", stagger: 0.05 }, t + 0.2);
+        F(s + " .m-nr", { opacity: 0 }, { opacity: 1, duration: 0.2 }, t + 0.1);
+        F(s + " .ax", { scale: 0, opacity: 0, transformOrigin: "0% 50%" }, { scale: 1, opacity: 1, duration: 0.25, ease: "back.out(2.5)", stagger: 0.05 }, t + 0.15);
+        const lauf = Math.min(0.85, aus - t - 0.35);
+        F(s + " .bahn", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: lauf, ease: "none" }, t + 0.25);
+        F(s + " .wz", { motionPath: { path: k.bahn, start: 0, end: 0 } }, { motionPath: { path: k.bahn, start: 0, end: 1 }, duration: lauf, ease: "none" }, t + 0.25);
+        F(s + " .funke", { scale: 0.6, opacity: 0.4, transformOrigin: "50% 50%" }, { scale: 1.6, opacity: 1, duration: 0.08, yoyo: true, repeat: Math.floor(lauf / 0.08), ease: "none" }, t + 0.25);
+        F(s + " .lampe", { opacity: 0.25 }, { opacity: 1, duration: 0.15, ease: "none" }, t + 0.2);
+        O(s, { opacity: 0, x: -500, filter: "blur(12px)", duration: 0.22, ease: "power3.in" }, aus - 0.22);
+      });
+
+      // ---- 4 Solar (22.1 – 25.6) ----
+      wisch(22.1);
+      F("#s-svg", { y: 200, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: E }, 22.12);
+      F("#s-sonne", { y: 260, scale: 0.4 }, { y: 0, scale: 1, duration: 0.6, ease: "back.out(1.6)" }, 22.2);
+      F("#s-strahlen", { rotation: 0, svgOrigin: "0 0" }, { rotation: 120, svgOrigin: "0 0", duration: 3.4, ease: "none" }, 22.2);
+      F(".s-p", { scaleY: 0, opacity: 0, transformOrigin: "50% 100%" }, { scaleY: 1, opacity: 1, duration: 0.25, ease: "back.out(2)", stagger: { each: 0.018, from: "start" } }, 22.45);
+      F(".s-p", { opacity: 1 }, { opacity: 0.55, duration: 0.08, yoyo: true, repeat: 1, stagger: 0.012, ...nicht }, 23.2);
+      F("#s-fluss", { opacity: 0, strokeDashoffset: 0 }, { opacity: 1, strokeDashoffset: -320, duration: 2.2, ease: "none" }, 23.3);
+      F("#s-text > *", { x: -100, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.08 }, 22.3);
+      F("#s-band", { y: 300, opacity: 0, rotationX: 40, transformPerspective: 1600 }, { y: 0, opacity: 1, rotationX: 0, duration: 0.5, ease: E }, 23.6);
+      F("#s-band img", { scale: 1.15 }, { scale: 1, duration: 1.8, ease: "power2.out" }, 23.6);
+      O("#s-svg", { y: -60, scale: 0.9, duration: 0.5, ease: E }, 23.6);
+      weg("#s-svg, #s-band, #s-text", 25.35);
+
+      // ---- 5 Stillstand (25.6 – 28.9) ----
+      F("#bg-red", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 25.6);
+      O("#bg-glow1, #bg-glow2", { opacity: 0.25, duration: 0.4 }, 25.6);
+      blitz(25.6, 0.4); wackeln(25.6, 12); kino(25.6);
+      knall("#p1-titel", 25.65, 0.35);
+      F("#p1-svg", { x: -600, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: E }, 25.65);
+      F("#p1-regal", { x: 600, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: E }, 25.7);
+      // Die letzten Stangen werden geholt, dann ist das Regal leer
+      O(".p1-st", { x: -900, opacity: 0, duration: 0.3, ease: "power3.in", stagger: 0.07 }, 26.1);
+      F("#p1-leer", { opacity: 0, scale: 2 }, { opacity: 1, scale: 1, duration: 0.3, ease: E, svgOrigin: "360 240" }, 26.75);
+      O("#p1-titel", { opacity: 0, duration: 0.15 }, 27.0);
+      F("#p1-stempel", { opacity: 0, scale: 3, rotation: -30 }, { opacity: 1, scale: 1, rotation: -12, duration: 0.22, ease: "power4.in" }, 26.95);
+      blitz(27.17, 0.5); wackeln(27.17, 22);
+      F("#p1-lg", { opacity: 1 }, { opacity: 0.12, duration: 0.1 }, 26.9);
+      F("#p1-lr", { opacity: 0.2 }, { opacity: 1, duration: 0.12, yoyo: true, repeat: 13, ease: "none" }, 26.9);
+      F("#p1-svg .wz", { y: 0 }, { y: -60, duration: 0.3, ease: "power2.out" }, 26.9);
+      F("#p1-uhr", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.3, ease: E }, 27.3);
+      const zeit = { s: 0 };
+      F(zeit, { s: 0 }, { s: 3 * 3600 + 27 * 60 + 12, duration: 1.4, ease: "power2.in", onUpdate: () => {
+        const s = Math.floor(zeit.s), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
+        document.getElementById("p1-zeit").textContent = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0") + ":" + String(x).padStart(2, "0");
+      } }, 27.3);
+      O("#p1-svg, #p1-regal, #p1-stempel, #p1-uhr", { opacity: 0, scale: 0.85, filter: "blur(12px)", duration: 0.25, ease: "power2.in" }, 28.65);
+
+      // ---- 6 Zettel und Ordner (28.9 – 33.5) ----
+      wackeln(28.9, 8);
+      knall("#p2-titel", 28.92, 0.3);
+      [["#z1", -14, -400, 29.0], ["#z2", 11, 400, 29.18], ["#z3", 8, -400, 29.36], ["#z4", -9, 400, 29.54], ["#z5", 4, 0, 29.72], ["#z6", -6, 0, 29.9]].forEach(([s, r, x, t]) => {
+        F(s, { x, y: -600, rotation: r * 4, opacity: 0 }, { x: 0, y: 0, rotation: r, opacity: 1, duration: 0.3, ease: "back.out(1.8)" }, t);
+        O(s, { rotation: r + 3, y: 10, duration: 1.0, ease: "sine.inOut" }, t + 0.3);
+        wackeln(t + 0.22, 4);
+      });
+      // Zettel fliegen weg, Ordner fallen herein, Blätter fliegen heraus
+      O("#z1, #z3", { x: -1400, rotation: -60, duration: 0.35, ease: "power3.in" }, 30.75);
+      O("#z2, #z4", { x: 1400, rotation: 60, duration: 0.35, ease: "power3.in" }, 30.75);
+      O("#z5, #z6", { y: 1200, rotation: 40, duration: 0.35, ease: "power3.in" }, 30.75);
+      O("#p2-titel", { opacity: 0, duration: 0.2 }, 30.75);
+      F(".ordner", { y: -1100, rotation: (i) => [-12, 6, 14][i] }, { y: 0, rotation: (i) => [-4, 2, 6][i], duration: 0.4, ease: "bounce.out", stagger: 0.1 }, 30.95);
+      [["#bl1", -560, -40, -40], ["#bl2", -820, 120, 25], ["#bl3", 560, -20, -20], ["#bl4", -380, 220, 50], ["#bl5", 760, 160, -45]].forEach(([s, x, y, r], i) => {
+        F(s, { x: 0, y: 0, rotation: 0, opacity: 0, scale: 0.4 }, { x, y, rotation: r, opacity: 1, scale: 1, duration: 0.55, ease: "power3.out" }, 31.35 + i * 0.07);
+        O(s, { y: y + 260, rotation: r * 1.6, duration: 1.6, ease: "sine.in" }, 31.9 + i * 0.07);
+      });
+      F("#p2-lupe", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 31.6);
+      F("#p2-lupe", { x: 0, y: 0 }, { motionPath: { path: [{ x: -200, y: -60 }, { x: 80, y: 120 }, { x: -120, y: 160 }, { x: 40, y: -40 }], curviness: 1.4 }, duration: 1.5, ease: "sine.inOut" }, 31.7);
+      knall("#p2-wo", 32.0, 0.35);
+      O("#s6 .ordner, #s6 .blatt, #p2-lupe, #p2-wo", { opacity: 0, scale: 0.85, duration: 0.22, ease: "power2.in" }, 33.25);
+
+      // ---- 7 Was läuft (33.5 – 38.0) ----
+      blitz(33.5, 0.35); wackeln(33.5, 10);
+      F("#p3-f1", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.3, ease: E }, 33.6);
+      F(".p3-m", { y: 120, opacity: 0, rotationX: -80, transformPerspective: 1200 }, { y: 0, opacity: 1, rotationX: 0, duration: 0.3, ease: "back.out(2)", stagger: { each: 0.04, from: "random" } }, 33.75);
+      F(".p3-m span", { rotation: 0 }, { rotation: 360, duration: 0.5, ease: "power2.inOut", stagger: 0.05 }, 34.4);
+      knall("#p3-f2", 35.25, 0.35); wackeln(35.25, 12);
+      F(".p3-m span", { scale: 1 }, { scale: 1.4, duration: 0.12, yoyo: true, repeat: 9, ease: "power1.inOut", ...nicht }, 35.6);
+      F(".p3-m", { borderColor: "rgba(255,107,129,.5)" }, { borderColor: "rgba(255,45,85,1)", duration: 0.12, yoyo: true, repeat: 9, ease: "none" }, 35.6);
+      F("#p3-uhr", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 34.0);
+      F("#p3-gross", { rotation: 0, svgOrigin: "100 100" }, { rotation: 2160, svgOrigin: "100 100", duration: 3.4, ease: "power1.in" }, 34.0);
+      F("#p3-klein", { rotation: 0, svgOrigin: "100 100" }, { rotation: 180, svgOrigin: "100 100", duration: 3.4, ease: "power1.in" }, 34.0);
+      O("#s7", { scale: 1.1, duration: 1.9, ease: "power1.in" }, 35.6);
+      O("#p3-frage, #p3-qs, #p3-uhr", { scale: 0, opacity: 0, rotation: 30, duration: 0.45, ease: "power4.in" }, 37.5);
+      O("#bg-red", { opacity: 0, duration: 0.3 }, 37.7);
+      O("#bg-glow1, #bg-glow2", { opacity: 1, duration: 0.3 }, 37.9);
+
+      // ---- 8 Auftritt (38.0 – 40.6) ----
+      blitz(38.0, 1.0); wackeln(38.0, 24); kino(38.0);
+      ["#r1", "#r2", "#r3"].forEach((r, i) => F(r, { scale: 0.1, opacity: 1, borderWidth: 40 }, { scale: 2.8, opacity: 0, borderWidth: 2, duration: 0.9, ease: "power2.out" }, 38.0 + i * 0.12));
+      F(".r-st", { scaleX: 0, opacity: 1 }, { scaleX: 1, opacity: 0, duration: 0.7, ease: "power3.out", stagger: 0.01 }, 38.0);
+      F("#r-titel span", { scale: 3, opacity: 0, filter: "blur(30px)", textShadow: "18px 0 #ff2d55, -18px 0 #00e5ff" },
+        { scale: 1, opacity: 1, filter: "blur(0px)", textShadow: "0px 0 rgba(255,45,85,0), 0px 0 rgba(0,229,255,0)", duration: 0.4, ease: E, stagger: 0.1 }, 38.02);
+      F("#r-darum", { opacity: 0, y: -30 }, { opacity: 1, y: 0, duration: 0.3, ease: E }, 38.25);
+      F("#r-sub", { opacity: 0, scaleX: 1.6 }, { opacity: 1, scaleX: 1, duration: 0.45, ease: E }, 38.6);
+      F("#r-titel", { scale: 1 }, { scale: 1.07, duration: 2.5, ease: "none" }, 38.1);
+      streifen(39.3);
+      weg("#r-titel, #r-darum, #r-sub", 40.35);
+
+      // ---- 9 Planwand (40.6 – 45.2) ----
+      wisch(40.6);
+      F("#g-plan", { opacity: 0, x: 500, rotationY: -35, rotationX: 8, scale: 0.85, transformPerspective: 2000 },
+        { opacity: 1, x: 0, rotationY: -8, rotationX: 2, scale: 1, duration: 0.5, ease: E }, 40.62);
+      O("#g-plan", { rotationY: 0, rotationX: 0, duration: 3.9, ease: "sine.inOut" }, 41.1);
+      F("#w-plan", { scale: 1 }, { scale: 1.55, duration: 0.7, ease: EI, transformOrigin: "72% 22%" }, 41.3);
+      O("#w-plan", { scale: 1.05, duration: 0.6, ease: EI }, 44.1);
+      F(".d-t", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.08 }, 40.65);
+      [["#d-s1", 41.4], ["#d-s2", 41.9], ["#d-s3", 42.6], ["#d-s4", 43.4]].forEach(([s, t]) => {
+        F(s, { x: -120, opacity: 0, scale: 0.8 }, { x: 0, opacity: 1, scale: 1, duration: 0.28, ease: "back.out(2)" }, t);
+        F(s + " i", { scale: 1.6 }, { scale: 1, duration: 0.28, ease: "back.out(3)" }, t + 0.04);
+      });
+      O("#g-plan", { opacity: 0, x: -300, duration: 0.25, ease: "power2.in" }, 44.95);
+
+      // ---- 10 Material (45.2 – 50.3) ----
+      wisch(45.2);
+      F("#mat-text > *", { x: -100, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.08 }, 45.25);
+      F("#mat-plan", { opacity: 0, y: 200, rotationX: 30, transformPerspective: 2000 }, { opacity: 1, y: 0, rotationX: 0, duration: 0.45, ease: E }, 45.25);
+      F(".mat-balken", { x: 1700, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: E, stagger: 0.035 }, 45.45);
+      F(".mat-chip", { y: 60, opacity: 0, scale: 0.6 }, { y: 0, opacity: 1, scale: 1, duration: 0.28, ease: "back.out(2.5)", stagger: 0.07 }, 46.2);
+      // Jede Farbe einmal kurz hervorheben, im Takt
+      F(".mb-v2a", { scale: 1, filter: "brightness(1)" }, { scale: 1.06, filter: "brightness(1.5)", duration: 0.08, yoyo: true, repeat: 1, ease: "power1.out", ...nicht }, 46.30);
+      F(".mb-v4a", { scale: 1, filter: "brightness(1)" }, { scale: 1.06, filter: "brightness(1.5)", duration: 0.08, yoyo: true, repeat: 1, ease: "power1.out", ...nicht }, 46.47);
+      F(".mb-chrom", { scale: 1, filter: "brightness(1)" }, { scale: 1.06, filter: "brightness(1.5)", duration: 0.08, yoyo: true, repeat: 1, ease: "power1.out", ...nicht }, 46.64);
+      F(".mb-stahl", { scale: 1, filter: "brightness(1)" }, { scale: 1.06, filter: "brightness(1.5)", duration: 0.08, yoyo: true, repeat: 1, ease: "power1.out", ...nicht }, 46.81);
+      F(".mb-alu", { scale: 1, filter: "brightness(1)" }, { scale: 1.06, filter: "brightness(1.5)", duration: 0.08, yoyo: true, repeat: 1, ease: "power1.out", ...nicht }, 46.98);
+      F(".mb-messing", { scale: 1, filter: "brightness(1)" }, { scale: 1.06, filter: "brightness(1.5)", duration: 0.08, yoyo: true, repeat: 1, ease: "power1.out", ...nicht }, 47.15);
+      F(".mb-neusilber", { scale: 1, filter: "brightness(1)" }, { scale: 1.06, filter: "brightness(1.5)", duration: 0.08, yoyo: true, repeat: 1, ease: "power1.out", ...nicht }, 47.32);
+      // Kamera fährt auf den Balken ohne Materialmenge
+      O(".mat-balken:not(#mat-ziel)", { opacity: 0.3, duration: 0.3 }, 47.7);
+      O("#mat-zoom", { scale: 1.9, x: -124, y: -182, duration: 0.6, ease: EI }, 47.7);
+      F("#mat-ring", { opacity: 1, scale: 0.4 }, { opacity: 0, scale: 2.2, duration: 0.6, ease: "power2.out", repeat: 3 }, 48.4);
+      F("#mat-hinweis", { opacity: 0, scale: 0.5, y: 40 }, { opacity: 1, scale: 1, y: 0, duration: 0.35, ease: "back.out(2)" }, 48.5);
+      F("#mat-ziel em", { opacity: 1 }, { opacity: 0.2, duration: 0.15, yoyo: true, repeat: 9, ease: "none" }, 48.5);
+      O("#mat-plan, #mat-hinweis, #mat-legende, #mat-text", { opacity: 0, x: -300, duration: 0.25, ease: "power2.in" }, 50.05);
+
+      // ---- 11 Suche (50.3 – 54.0) ----
+      wisch(50.3);
+      F("#g-suche", { opacity: 0, y: 400, rotationX: 30, scale: 0.85, transformPerspective: 2000 },
+        { opacity: 1, y: 0, rotationX: 0, scale: 1, duration: 0.45, ease: E }, 50.35);
+      F("#w-suche", { scale: 1.0 }, { scale: 1.3, duration: 2.6, ease: "sine.inOut", transformOrigin: "50% 30%" }, 50.6);
+      F(".e-t", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.08 }, 50.4);
+      F("#e-tasten", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.25, ease: E }, 50.45);
+      O("#e-k1", { y: 10, boxShadow: "0 0px 0 #7d8ba0, 0 8px 20px rgba(0,0,0,.5)", duration: 0.07 }, 50.65);
+      O("#e-k2", { y: 10, boxShadow: "0 0px 0 #7d8ba0, 0 8px 20px rgba(0,0,0,.5)", duration: 0.07 }, 50.8);
+      O("#e-k1, #e-k2", { y: 0, boxShadow: "0 10px 0 #7d8ba0, 0 20px 40px rgba(0,0,0,.5)", duration: 0.12 }, 51.05);
+      F("#e-tipp", { opacity: 0 }, { opacity: 1, duration: 0.1 }, 51.05);
+      const tipp = { n: 0 };
+      F(tipp, { n: 0 }, { n: 5, duration: 0.9, ease: "none",
+        onUpdate: () => { document.getElementById("e-tipp").textContent = "10007".slice(0, Math.floor(tipp.n)) + (tipp.n < 5 ? "▍" : ""); } }, 51.05);
+      F("#e-tipp", { scale: 1 }, { scale: 1.25, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", ...nicht }, 52.0);
+      O("#g-suche", { opacity: 0, x: 300, duration: 0.25, ease: "power2.in" }, 53.75);
+
+      // ---- 12 Pad Mode (54.0 – 58.9) ----
+      wisch(54.0);
+      F("#g-pad", { opacity: 0, y: 700, rotation: 12, scale: 0.8 }, { opacity: 1, y: 0, rotation: 2, scale: 1, duration: 0.5, ease: E }, 54.05);
+      O("#g-pad", { rotation: -1, y: -15, duration: 4.1, ease: "sine.inOut" }, 54.55);
+      F(".f-t", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.08 }, 54.1);
+      [["#f-s1", 56.1], ["#f-s2", 56.9], ["#f-s3", 58.05]].forEach(([s, t]) => {
+        F(s, { x: -120, opacity: 0, scale: 0.8 }, { x: 0, opacity: 1, scale: 1, duration: 0.28, ease: "back.out(2)" }, t);
+      });
+      F("#g-pad", { scale: 1 }, { scale: 1.06, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", ...nicht }, 58.1);
+      O("#g-pad", { opacity: 0, y: 500, duration: 0.25, ease: "power2.in" }, 58.65);
+
+      // ---- 13 Handy (58.9 – 63.6) ----
+      blitz(58.9, 0.4);
+      F("#g-handy", { opacity: 0, y: 1000, rotationY: -40, rotation: -8, scale: 0.8, transformPerspective: 2400 },
+        { opacity: 1, y: 0, rotationY: -12, rotation: 0, scale: 1, duration: 0.55, ease: E }, 58.92);
+      O("#g-handy", { rotationY: 10, y: -12, duration: 4.0, ease: "sine.inOut" }, 59.47);
+      F("#ip-glanz", { x: 0 }, { x: 900, duration: 1.1, ease: "power2.inOut" }, 59.2);
+      F("#ip-glanz", { x: 0 }, { x: 900, duration: 1.1, ease: "power2.inOut", ...nicht }, 61.3);
+      F(".ha-t", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.1 }, 59.0);
+      F("#ip-chip", { opacity: 0, x: -80, scale: 0.7 }, { opacity: 1, x: 0, scale: 1, duration: 0.35, ease: "back.out(2)" }, 61.3);
+      F("#ip-chip i", { scale: 1 }, { scale: 1.5, duration: 0.25, yoyo: true, repeat: 7, ease: "sine.inOut" }, 61.5);
+      O("#g-handy", { opacity: 0, x: 900, rotation: 20, duration: 0.25, ease: "power2.in" }, 63.35);
+      O("#ha-text, #ip-chip", { opacity: 0, duration: 0.2 }, 63.4);
+
+      // ---- 14 Mehr (63.6 – 68.6) ----
+      const mehr = [["#me-b1", "#me-w1", 63.95], ["#me-b2", "#me-w2", 64.6], ["#me-b3", "#me-w3", 65.2], ["#me-b4", "#me-w4", 65.8]];
+      mehr.forEach(([b, w, t], i) => {
+        blitz(t, 0.35);
+        F(b, { opacity: 0, scale: 1.3, x: i % 2 ? -140 : 140, rotation: i % 2 ? -3 : 3 }, { opacity: 1, scale: 1.05, x: 0, rotation: 0, duration: 0.3, ease: E }, t);
+        O(b, { scale: 1.0, duration: 0.5, ease: "none" }, t + 0.3);
+        knall(w, t + 0.02, 0.3);
+        tl.to([b, w], { opacity: 0, duration: 0.1 }, T(mehr[i + 1] ? mehr[i + 1][2] : 66.85) - 0.07);
+      });
+      blitz(66.85, 0.6); wackeln(66.85, 12);
+      knall("#me-alles", 66.85, 0.4);
+      O("#me-alles", { scale: 1.08, duration: 1.4, ease: "none" }, 67.25);
+      weg("#me-alles", 68.35);
+
+      // ---- 15 Schluss (68.6 – 74) ----
+      blitz(68.7, 0.9); wackeln(68.7, 16); kino(68.7);
+      F("#o-logo", { scale: 0.6, opacity: 0, filter: "blur(20px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.6, ease: E }, 68.65);
+      F("#o-line", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: EI }, 68.9);
+      knall("#o-titel", 68.9, 0.4);
+      F("#o-sub", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.45, ease: E }, 69.9);
+      F("#o-chips span", { opacity: 0, y: 30, scale: 0.7 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(2)", stagger: 0.08 }, 70.6);
+      F("#s15", { scale: 1 }, { scale: 1.05, duration: 5.4, ease: "none" }, 68.6);
+      streifen(70.2);
+      O("#o-logo-wrap, #o-line, #o-titel, #o-sub, #o-chips", { opacity: 0, duration: 0.8, ease: "power2.in" }, 73.1);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
