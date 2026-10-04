@@ -8,7 +8,7 @@
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
-import { Probleme, Vorbereitung, EinkaufKurz, Bestellstand, Geburtstage,
+import { Probleme, problemeLaden, Vorbereitung, EinkaufKurz, Bestellstand, Geburtstage,
   geburtstageLaden, geburtstageAufbereiten } from "./start/Karten.jsx";
 import { GeburtstagMitte, Konfetti } from "./start/Geburtstag.jsx";
 import Notizen from "./start/Notizen.jsx";
@@ -21,6 +21,14 @@ export default function Start({ auffrischen }) {
   const geb = useDaten(geburtstageLaden, [auffrischen]);
   const kinder = geburtstageAufbereiten(geb.daten).filter((m) => m.tage === 0);
   const fest = kinder.length > 0;
+  // Gemeldete Probleme ersetzen die Vorbereitung (Wunsch 3. Oktober 2026):
+  // Ist etwas gemeldet, steht an dieser Stelle nur die Problemkarte.
+  // Bis die Probleme geladen sind, bleibt der Platz leer, damit die
+  // Vorbereitung nicht kurz aufblitzt; scheitert die Abfrage, kommt
+  // die Vorbereitung wie bisher.
+  const prob = useDaten(problemeLaden, [auffrischen]);
+  const probleme = prob.daten && prob.daten.length ? prob.daten : null;
+  const probGeladen = prob.daten !== null || !!prob.fehler;
   return (
     <>
       <section className={"kopfkarte" + (fest ? " kopfkarte--geburtstag" : "")}>
@@ -33,8 +41,9 @@ export default function Start({ auffrischen }) {
       </section>
       <Solaranlage />
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
-      <Probleme auffrischen={auffrischen} />
-      <Vorbereitung auffrischen={auffrischen} />
+      {probleme
+        ? <Probleme liste={probleme} neu={prob.neu} />
+        : probGeladen && <Vorbereitung auffrischen={auffrischen} />}
       <EinkaufKurz auffrischen={auffrischen} />
       <Notizen auffrischen={auffrischen} />
       <Bestellstand auffrischen={auffrischen} />

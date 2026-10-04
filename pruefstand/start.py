@@ -20,8 +20,16 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#db-notizen .karte"); pg.wait_for_timeout(1200)
-    for teil in ["uhr", "wetter", "db-solar", "db-vorbereitung", "db-einkauf", "db-status", "db-geburtstage"]:
+    for teil in ["uhr", "wetter", "db-solar", "db-probleme", "db-einkauf", "db-status", "db-geburtstage"]:
         if not pg.locator("#" + teil).count(): fehler.append("fehlt: " + teil)
+    # Gemeldetes Problem ersetzt die Vorbereitung; erledigt kommt sie zurück
+    if pg.locator("#db-vorbereitung").count(): fehler.append("Vorbereitung trotz Problem sichtbar")
+    if "Material fehlt" not in pg.inner_text("#db-probleme"): fehler.append("Problem fehlt")
+    pg.screenshot(path="start_problem.png")
+    pg.locator("[data-probweg]").first.click(); pg.click(".dialog-huelle [data-ja]")
+    pg.wait_for_timeout(400); pg.click(".dialog-huelle [data-ja]")
+    pg.wait_for_selector("#db-vorbereitung .karte", timeout=5000)
+    if pg.locator("#db-probleme .karte").count(): fehler.append("Problemkarte nach Erledigt noch da")
     if ":" not in pg.inner_text("#uhr"): fehler.append("Uhr leer")
     if "nicht verfügbar" not in pg.inner_text("#wetter"): fehler.append("Wetter ohne Ersatztext")
 

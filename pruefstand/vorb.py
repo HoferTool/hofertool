@@ -3,7 +3,9 @@ from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 zusatz = """
-(() => {   // 160 Aufträge aus dem Import, weit in der Zukunft, ohne FA und Material
+(() => {   // ohne gemeldete Probleme, sonst steht die Problemkarte da
+  daten.jobs.forEach(j => { j.problem = null; });
+  // 160 Aufträge aus dem Import, weit in der Zukunft, ohne FA und Material
   for (let k = 0; k < 160; k++) daten.jobs.push({ id: 'imp' + k, job_number: '10900-' + k, machine_id: daten.machines[k % 6].id,
     planned_from: iso(new Date(Date.now() + (30 + k) * 86400000)), planned_days: 2, plan_status: 'geplant', fa_nr: null, material_menge: null });
   daten.jobs.forEach(j => { if (j.plan_status === 'laeuft') { j.fa_nr = null; j.material_menge = null; } });

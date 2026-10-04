@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.23.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.24.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -102,7 +102,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 - **Balken:** Farbe = Werkstoff. Das Zeichen vorne zeigt den Zustand: ○ geplant, 🔧 rüsten, 🔍 QS, ▶ läuft, ✔ fertig. Ein roter Punkt ● bei „geplant" heisst: keine Materialmenge eingetragen.
 - **Auftragsfenster:** keine Häkchen „FA erstellt" oder „Material da" mehr. In der Vorschau steht die FA Nr. oder „Kein FA vorhanden".
 - **Suche auf der Planwand:** Reihenfolge „Neuester / Ältester Auftrag zuerst", Weiter und Zurück in der Leiste unten.
-- **Startseite:** aktualisiert sich still, ohne sichtbares Neuladen. Die Personentabelle zählt nicht für den Abgleich. Oben in der Mitte steht das weisse Logo. „Vorbereitung" zählt nur geplante Aufträge der nächsten zwei Wochen.
+- **Startseite:** aktualisiert sich still, ohne sichtbares Neuladen. Die Personentabelle zählt nicht für den Abgleich. Oben in der Mitte steht das weisse Logo. „Vorbereitung" zählt nur geplante Aufträge der nächsten zwei Wochen. Ist ein Problem gemeldet, steht an ihrer Stelle die Problemkarte; die Vorbereitung kommt zurück, sobald alle Probleme erledigt sind (Wunsch 3. Oktober 2026).
 - **Notizen:** Jeder darf jede Notiz bearbeiten. Ein Vorschlagsverfahren war gewünscht und wurde wieder entfernt.
 - **Pad Mode:** Die Startseite zeigt nur „Maschinen". Zeichnung, WBG und Einrichtblatt öffnen im gemeinsamen Betrachter, PDFs auf volle Breite. „Zurück" geht genau einen Schritt. Die Materialkachel ist in der Werkstofffarbe gefüllt. Der Text der Auftragskachel passt seine Grösse an die Menge an.
 - **Produktion, Woche** (Wunsch 3. Oktober 2026): Die Tabelle nutzt die ganze Breite. Links je Maschine Zustand, Nummer, Balken für Stand und Ziel und die Knöpfe in einer Reihe; unter jedem Tag die Tagesleistung, rechts die Wochensumme. Der **Tag** zeigt dieselben Blöcke als Karten, so viele Spalten wie Platz ist, mit grossem Feld für den Zählerstand. Statt einer Suche filtern Knöpfe nach Maschinentyp (nur wenn im Park mindestens zwei Typen vorkommen).

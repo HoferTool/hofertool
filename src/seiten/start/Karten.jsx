@@ -15,10 +15,16 @@ async function abfrage(anfrage, ms, name) {
 
 // ---------- Gemeldete Probleme von der Planwand ----------
 
-export function Probleme({ auffrischen }) {
-  const { daten: liste, neu } = useDaten(() => abfrage(
-    alt.db.from("planwand").select("*").not("problem", "is", null)
-      .order("problem_at", { ascending: false }), 10000, "Probleme"), [auffrischen]);
+// Lädt die Startseite selbst, weil die Karte an der Stelle der
+// Vorbereitung steht, solange etwas gemeldet ist.
+// Leere Texte zählen nicht als Problem.
+export async function problemeLaden() {
+  const data = await abfrage(alt.db.from("planwand").select("*").not("problem", "is", null)
+    .order("problem_at", { ascending: false }), 10000, "Probleme");
+  return data.filter((j) => String(j.problem || "").trim());
+}
+
+export function Probleme({ liste, neu }) {
   const darf = alt.darfSchreiben() || alt.darfPlanen();
 
   return (
