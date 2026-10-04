@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="assets/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Inter"; src: url("assets/inter.woff2") format("woff2"); font-weight: 100 900; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #070d18; }
+      #root { width: 100%; height: 100%; position: relative; overflow: hidden; font-family: "Inter", sans-serif;
+        color: #eaf1fb; font-feature-settings: "tnum"; }
+      .clip { position: absolute; inset: 0; }
+      #stage { position: absolute; inset: 0; }
+      .full { position: absolute; inset: 0; }
+
+      /* Hintergrund */
+      #bg { background: #070d18; }
+      #bg-glow1 { position: absolute; width: 1600px; height: 1600px; left: -500px; top: -800px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(31,111,224,.55), rgba(0,56,132,.2) 40%, rgba(7,13,24,0) 70%); }
+      #bg-glow2 { position: absolute; width: 1300px; height: 1300px; left: 1100px; top: 400px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(91,58,158,.38), rgba(7,13,24,0) 65%); }
+      #bg-grid { position: absolute; inset: -80px;
+        background-image: linear-gradient(rgba(107,164,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(107,164,255,.08) 1px, transparent 1px);
+        background-size: 80px 80px; }
+      #bg-red { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(120,20,30,.0), rgba(90,10,20,.55)); opacity: 0; }
+
+      .kick { font-size: 26px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; color: #6ba4ff; }
+      .mega { font-weight: 850; letter-spacing: -0.045em; line-height: .92; }
+      .grau { color: #8b9db8; }
+      .zentriert { position: absolute; left: 0; right: 0; text-align: center; }
+
+      /* A1 Ort */
+      #a1-ring { position: absolute; left: 610px; top: 190px; width: 700px; height: 700px; }
+      #a1-ort { top: 410px; font-size: 150px; }
+      #a1-ort span { display: inline-block; }
+      #a1-koord { top: 590px; font-size: 30px; letter-spacing: .25em; color: #6ba4ff; font-weight: 600; }
+      #a1-seit { top: 660px; font-size: 54px; font-weight: 300; letter-spacing: .1em; }
+      #a1-jahr { font-weight: 850; color: #fff; }
+
+      /* A2 Firma */
+      #a2-logo-wrap { position: absolute; left: 0; right: 0; top: 250px; height: 300px; display: flex; justify-content: center; overflow: hidden; }
+      #a2-logo { width: 804px; height: 300px; display: block; }
+      #a2-line { position: absolute; left: 360px; top: 720px; width: 1200px; height: 3px; background: rgba(107,164,255,.5); transform-origin: left center; }
+      .a2-punkt { position: absolute; top: 700px; width: 300px; margin-left: -150px; text-align: center; }
+      .a2-punkt i { display: block; width: 22px; height: 22px; border-radius: 50%; background: #1f6fe0; margin: 10px auto 22px;
+        box-shadow: 0 0 0 6px rgba(31,111,224,.25), 0 0 30px rgba(31,111,224,.9); }
+      .a2-punkt b { display: block; font-size: 56px; font-weight: 800; letter-spacing: -0.02em; }
+      .a2-punkt span { display: block; font-size: 26px; color: #8b9db8; margin-top: 4px; }
+
+      /* A3 Fertigung */
+      #a3-teil { position: absolute; left: 160px; top: 230px; width: 1600px; height: 420px; }
+      #a3-zahlen { position: absolute; left: 160px; right: 160px; top: 720px; display: flex; justify-content: space-between; }
+      .a3-zahl { display: block; }
+      .a3-zahl b { display: block; font-size: 120px; font-weight: 850; letter-spacing: -0.04em; line-height: 1; }
+      .a3-zahl span { display: block; font-size: 28px; color: #8b9db8; margin-top: 10px; font-weight: 500; }
+      #a3-serie { position: absolute; right: 160px; top: 140px; font-size: 34px; font-weight: 700; color: #6ba4ff; letter-spacing: .12em; text-transform: uppercase; }
+
+      /* B Probleme */
+      .zettel { position: absolute; width: 330px; padding: 26px 28px; background: #f5e9a8; color: #3a3320; border-radius: 3px;
+        box-shadow: 0 25px 50px rgba(0,0,0,.5); font-size: 32px; font-weight: 700; line-height: 1.2; font-style: italic; }
+      .zettel small { display: block; font-size: 20px; font-weight: 500; margin-top: 10px; color: #6d6340; font-style: normal; }
+      .zettel.rosa { background: #f6c6cf; } .zettel.blau { background: #cfe1fb; } .zettel.weiss { background: #f3f3ef; }
+      #b-titel { top: 90px; font-size: 40px; font-weight: 700; letter-spacing: .25em; text-transform: uppercase; color: #ff6b81; }
+      #b-frage { position: absolute; left: 0; right: 0; top: 380px; text-align: center; }
+      #b-frage .z1 { display: block; font-size: 64px; font-weight: 700; color: #8b9db8; }
+      #b-frage .z2 { display: block; font-size: 120px; margin-top: 10px; }
+      #b-qs { position: absolute; left: 0; right: 0; top: 700px; display: flex; justify-content: center; gap: 26px; }
+      .b-m { display: block; width: 200px; padding: 22px 0; border-radius: 14px; text-align: center; background: #121b2c; border: 2px solid rgba(255,107,129,.5); }
+      .b-m b { display: block; font-size: 26px; } .b-m span { display: block; font-size: 52px; font-weight: 850; color: #ff6b81; }
+
+      /* C Auftritt */
+      #c-ring { position: absolute; left: 560px; top: 140px; width: 800px; height: 800px; border-radius: 50%; border: 6px solid #6ba4ff; }
+      #c-darum { top: 300px; font-size: 44px; font-weight: 600; color: #8b9db8; letter-spacing: .02em; }
+      #c-titel { top: 380px; font-size: 230px; }
+      #c-titel span { display: inline-block; margin: 0 .04em; }
+      #c-sub { top: 650px; font-size: 38px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: #6ba4ff; }
+
+      /* Funktionen: Rahmen um die Aufnahmen */
+      .vwrap { position: absolute; overflow: hidden; opacity: 0; background: #0b1424; }
+      .vwrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+      .geraet { position: absolute; opacity: 0; }
+      .browser { border-radius: 18px; box-shadow: 0 60px 140px rgba(0,0,0,.65), 0 0 0 1px rgba(107,164,255,.3); overflow: hidden; background: #1c2229; }
+      .browser .leiste { position: absolute; left: 0; right: 0; top: 0; height: 42px; display: flex; align-items: center; gap: 10px; padding-left: 20px; }
+      .browser .leiste i { display: block; width: 13px; height: 13px; border-radius: 50%; background: #3a4452; }
+      .browser .leiste span { display: block; margin-left: 22px; height: 24px; width: 380px; border-radius: 12px; background: #14181d; color: #8b9db8; font-size: 14px; line-height: 24px; padding-left: 14px; }
+      .browser .vwrap { left: 0; right: 0; top: 42px; bottom: 0; opacity: 1; }
+      #g-plan { left: 560px; top: 150px; width: 1280px; height: 762px; }
+      #g-suche { left: 560px; top: 150px; width: 1280px; height: 762px; }
+      .tablet { border-radius: 44px; background: #04070d; padding: 24px; box-shadow: 0 60px 140px rgba(0,0,0,.65), 0 0 0 2px rgba(107,164,255,.25); }
+      .tablet .vwrap { left: 24px; right: 24px; top: 24px; bottom: 24px; border-radius: 20px; opacity: 1; }
+      #g-pad { left: 640px; top: 150px; width: 1180px; height: 841px; }
+      .handy { border-radius: 64px; background: #04070d; box-shadow: 0 60px 140px rgba(0,0,0,.65), 0 0 0 2px rgba(107,164,255,.3); }
+      .handy .vwrap { left: 18px; right: 18px; top: 18px; bottom: 18px; border-radius: 48px; opacity: 1; }
+      .handy .kerbe { position: absolute; left: 50%; top: 32px; width: 120px; height: 32px; margin-left: -60px; border-radius: 16px; background: #04070d; z-index: 3; }
+      #g-handy { left: 1080px; top: 70px; width: 436px; height: 940px; }
+
+      .f-text { position: absolute; left: 110px; top: 210px; width: 420px; }
+      .f-text .kick { font-size: 22px; }
+      .f-text h2 { font-size: 92px; font-weight: 850; letter-spacing: -0.04em; line-height: .95; margin-top: 20px; }
+      .schritte { margin-top: 46px; display: flex; flex-direction: column; gap: 16px; }
+      .schritt { display: flex; align-items: center; gap: 18px; font-size: 34px; font-weight: 700; padding: 14px 22px 14px 14px;
+        border-radius: 14px; background: rgba(17,29,49,.85); border: 1px solid rgba(107,164,255,.3); }
+      .schritt i { display: flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 12px; background: #1f6fe0;
+        font-style: normal; font-size: 26px; font-weight: 800; flex: none; }
+      .schritt.ok i { background: #1f7a4d; }
+      #g-text { left: 140px; top: 260px; width: 860px; }
+      #g-text h2 { font-size: 130px; }
+
+      .taste { display: inline-flex; align-items: center; justify-content: center; height: 110px; min-width: 110px; padding: 0 30px; border-radius: 20px;
+        background: linear-gradient(180deg, #f4f7fb, #c9d3e1); color: #0a1220; font-size: 50px; font-weight: 800;
+        box-shadow: 0 10px 0 #7d8ba0, 0 20px 40px rgba(0,0,0,.5); }
+      #e-tasten { position: absolute; left: 110px; top: 560px; display: flex; gap: 22px; align-items: center; }
+      #e-plus { font-size: 60px; font-weight: 300; color: #8b9db8; }
+      #e-tipp { position: absolute; left: 110px; top: 760px; font-size: 64px; font-weight: 800; letter-spacing: .05em; color: #6ba4ff; }
+
+      /* H Mehr */
+      .mehr-bild { position: absolute; left: 260px; top: 140px; width: 1400px; height: 788px; border-radius: 18px; overflow: hidden; opacity: 0;
+        box-shadow: 0 60px 140px rgba(0,0,0,.6); }
+      .mehr-bild img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+      .mehr-bild .dunkel { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(7,13,24,.92), rgba(7,13,24,.45)); }
+      .mehr-wort { position: absolute; left: 160px; top: 420px; font-size: 170px; opacity: 0; }
+      #h-alles { top: 400px; font-size: 140px; opacity: 0; }
+
+      /* I Schluss */
+      #i-logo-wrap { position: absolute; left: 0; right: 0; top: 220px; height: 260px; display: flex; justify-content: center; }
+      #i-logo { width: 697px; height: 260px; display: block; }
+      #i-line { position: absolute; left: 610px; top: 540px; width: 700px; height: 3px; background: #6ba4ff; transform-origin: center; }
+      #i-titel { top: 590px; font-size: 110px; }
+      #i-sub { top: 730px; font-size: 38px; color: #8b9db8; font-weight: 500; }
+
+      /* Effekte */
+      #fx { pointer-events: none; z-index: 40; }
+      #flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+      #streak { position: absolute; top: -200px; left: 0; width: 360px; height: 1480px; opacity: 0;
+        background: linear-gradient(90deg, rgba(107,164,255,0), rgba(160,200,255,.55), rgba(107,164,255,0)); }
+      #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.55)); }
+      .wipe { position: absolute; top: -100px; left: 0; width: 2800px; height: 1280px; }
+      #wA { background: #1f6fe0; } #wB { background: #003884; }
+      #korn { position: absolute; inset: 0; opacity: .06;
+        background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.5) 0 1px, transparent 1px 3px); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="50" data-width="1920" data-height="1080">
+      <audio id="ton" src="assets/ton.wav" data-start="0" data-duration="50" data-volume="1"></audio>
+
+      <div id="stage">
+        <div id="bg" class="clip" data-start="0" data-duration="50" data-track-index="0">
+          <div id="bg-glow1"></div><div id="bg-glow2"></div><div id="bg-grid"></div><div id="bg-red"></div>
+        </div>
+
+        <!-- A1 Ort -->
+        <div id="a1" class="clip" data-start="0" data-duration="4.0" data-track-index="1">
+          <svg id="a1-ring" viewBox="0 0 700 700">
+            <circle cx="350" cy="350" r="340" fill="none" stroke="rgba(107,164,255,.3)" stroke-width="2" stroke-dasharray="4 12" />
+            <circle id="a1-arc" cx="350" cy="350" r="300" fill="none" stroke="#6ba4ff" stroke-width="3" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" />
+            <line x1="350" y1="0" x2="350" y2="90" stroke="#6ba4ff" stroke-width="3" />
+            <line x1="350" y1="610" x2="350" y2="700" stroke="#6ba4ff" stroke-width="3" />
+            <line x1="0" y1="350" x2="90" y2="350" stroke="#6ba4ff" stroke-width="3" />
+            <line x1="610" y1="350" x2="700" y2="350" stroke="#6ba4ff" stroke-width="3" />
+          </svg>
+          <div id="a1-ort" class="zentriert mega"><span>L</span><span>O</span><span>H</span><span>N</span><span>-</span><span>A</span><span>M</span><span>M</span><span>A</span><span>N</span><span>N</span><span>S</span><span>E</span><span>G</span><span>G</span></div>
+          <div id="a1-koord" class="zentriert">47.17° N · 7.53° O · SOLOTHURN</div>
+          <div id="a1-seit" class="zentriert">SEIT <span id="a1-jahr">1900</span></div>
+        </div>
+
+        <!-- A2 Firma -->
+        <div id="a2" class="clip" data-start="4.0" data-duration="3.8" data-track-index="1">
+          <div id="a2-logo-wrap"><img id="a2-logo" src="assets/logo-weiss.png" alt="" /></div>
+          <div id="a2-line"></div>
+          <div class="a2-punkt" style="left: 460px"><i></i><b>1928</b><span>Gustav Hofer gründet</span></div>
+          <div class="a2-punkt" style="left: 960px"><i></i><b>1997</b><span>3. Generation</span></div>
+          <div class="a2-punkt" style="left: 1460px"><i></i><b>2016</b><span>4. Generation</span></div>
+        </div>
+
+        <!-- A3 Fertigung -->
+        <div id="a3" class="clip" data-start="7.8" data-duration="6.7" data-track-index="1">
+          <div id="a3-serie">Vom Prototyp bis zur Serie</div>
+          <svg id="a3-teil" viewBox="0 0 1600 420">
+            <line class="a3-mitte" x1="40" y1="210" x2="1560" y2="210" stroke="rgba(107,164,255,.5)" stroke-width="2" stroke-dasharray="30 10 6 10" pathLength="1" />
+            <path class="a3-k" pathLength="1" fill="none" stroke="#eaf1fb" stroke-width="4" stroke-linejoin="round"
+              d="M120 160 L140 140 L420 140 L420 90 L760 90 L780 70 L1080 70 L1080 120 L1300 120 L1300 150 L1480 150 L1500 170 L1500 250 L1480 270 L1300 270 L1300 300 L1080 300 L1080 350 L780 350 L760 330 L420 330 L420 280 L140 280 L120 260 Z" />
+            <path class="a3-k" pathLength="1" fill="none" stroke="#6ba4ff" stroke-width="3"
+              d="M160 140 L180 280 M200 140 L220 280 M240 140 L260 280 M280 140 L300 280 M320 140 L340 280 M360 140 L380 280" />
+            <path class="a3-k" pathLength="1" fill="none" stroke="#6ba4ff" stroke-width="2" d="M920 40 L920 380 M1210 40 L1210 120 M1210 300 L1210 380" />
+            <path class="a3-k" pathLength="1" fill="none" stroke="#8b9db8" stroke-width="2" d="M1560 70 L1600 70 M1560 350 L1600 350 M1580 70 L1580 350" />
+            <text class="a3-t" x="1380" y="400" fill="#6ba4ff" font-size="34" font-weight="700" font-family="Inter">Ø 3 – 42 mm</text>
+            <text class="a3-t" x="560" y="60" fill="#8b9db8" font-size="26" font-weight="600" font-family="Inter">± 0,01</text>
+            <text class="a3-t" x="170" y="125" fill="#8b9db8" font-size="26" font-weight="600" font-family="Inter">M12</text>
+          </svg>
+          <div id="a3-zahlen">
+            <div class="a3-zahl"><b id="a3-n1">0+</b><span>CNC-Drehautomaten</span></div>
+            <div class="a3-zahl"><b>3 – 42</b><span>Millimeter Durchmesser</span></div>
+            <div class="a3-zahl"><b>4.</b><span>Generation Familie Hofer</span></div>
+          </div>
+        </div>
+
+        <!-- B Probleme -->
+        <div id="b" class="clip" data-start="14.5" data-duration="7.5" data-track-index="1">
+          <div id="b-titel" class="zentriert">Aber die Planung?</div>
+          <div class="zettel" id="z1" style="left: 120px; top: 190px">Tornos M3 ab Mo?<small>wer hat das geändert…</small></div>
+          <div class="zettel rosa" id="z2" style="left: 1440px; top: 170px">10008 Material fehlt!<small>bitte Büro anrufen</small></div>
+          <div class="zettel blau" id="z3" style="left: 250px; top: 640px">Stk. 340? 430?<small>Zettel in der Halle</small></div>
+          <div class="zettel weiss" id="z4" style="left: 1380px; top: 620px">Zeichnung wo??<small>Ordner 3 oder 4</small></div>
+          <div class="zettel" id="z5" style="left: 800px; top: 120px">Rüsten Di oder Mi?<small>Whiteboard</small></div>
+          <div id="b-frage">
+            <span class="z1" id="b-f1">Und immer die Frage:</span>
+            <span class="z2 mega" id="b-f2">Was läuft gerade?</span>
+          </div>
+          <div id="b-qs">
+            <div class="b-m"><b>K-2001</b><span>?</span></div>
+            <div class="b-m"><b>K-2002</b><span>?</span></div>
+            <div class="b-m"><b>L-1003</b><span>?</span></div>
+            <div class="b-m"><b>L-1005</b><span>?</span></div>
+            <div class="b-m"><b>L-1007</b><span>?</span></div>
+          </div>
+        </div>
+
+        <!-- C Auftritt -->
+        <div id="c" class="clip" data-start="22.0" data-duration="2.5" data-track-index="1">
+          <div id="c-ring"></div>
+          <div id="c-darum" class="zentriert">Darum haben wir gebaut:</div>
+          <div id="c-titel" class="zentriert mega"><span>Hofer</span> <span>Tool</span></div>
+          <div id="c-sub" class="zentriert">Planung · Produktion · Pad Mode</div>
+        </div>
+
+        <!-- D Planwand -->
+        <div id="d" class="clip" data-start="24.5" data-duration="5.5" data-track-index="1">
+          <div class="f-text">
+            <div class="kick d-t">Planwand</div>
+            <h2 class="d-t">Ziehen. Fertig.</h2>
+            <div class="schritte">
+              <div class="schritt" id="d-s1"><i>1</i>Auftrag packen</div>
+              <div class="schritt" id="d-s2"><i>2</i>Ziehen</div>
+              <div class="schritt" id="d-s3"><i>3</i>Loslassen</div>
+              <div class="schritt ok" id="d-s4"><i>✓</i>Rest rückt nach</div>
+            </div>
+          </div>
+        </div>
+        <div class="geraet browser" id="g-plan">
+          <div class="leiste"><i></i><i></i><i></i><span>hofertool / planwand</span></div>
+          <div class="vwrap" id="w-plan"><video id="v-plan" class="clip" src="assets/k_planwand.mp4" muted playsinline data-start="24.5" data-duration="5.5" data-track-index="3"></video></div>
+        </div>
+
+        <!-- E Suche -->
+        <div id="e" class="clip" data-start="30.0" data-duration="3.8" data-track-index="1">
+          <div class="f-text">
+            <div class="kick e-t">Suche über alles</div>
+            <h2 class="e-t">Jeder Auftrag. Sofort.</h2>
+          </div>
+          <div id="e-tasten"><div class="taste" id="e-k1">Strg</div><div id="e-plus">+</div><div class="taste" id="e-k2">K</div></div>
+          <div id="e-tipp">10007</div>
+        </div>
+        <div class="geraet browser" id="g-suche">
+          <div class="leiste"><i></i><i></i><i></i><span>hofertool / suche</span></div>
+          <div class="vwrap" id="w-suche"><video id="v-suche" class="clip" src="assets/k_suche.mp4" muted playsinline data-start="30.0" data-duration="3.8" data-track-index="3"></video></div>
+        </div>
+
+        <!-- F Pad Mode -->
+        <div id="f" class="clip" data-start="33.8" data-duration="5.0" data-track-index="1">
+          <div class="f-text">
+            <div class="kick f-t">Pad Mode</div>
+            <h2 class="f-t">An der Maschine.</h2>
+            <div class="schritte">
+              <div class="schritt" id="f-s1"><i>1</i>Maschine antippen</div>
+              <div class="schritt" id="f-s2"><i>2</i>Stückzahl eingeben</div>
+              <div class="schritt ok" id="f-s3"><i>✓</i>Büro sieht es sofort</div>
+            </div>
+          </div>
+        </div>
+        <div class="geraet tablet" id="g-pad">
+          <div class="vwrap"><video id="v-pad" class="clip" src="assets/k_pad.mp4" muted playsinline data-start="33.8" data-duration="5.0" data-track-index="3"></video></div>
+        </div>
+
+        <!-- G Handy -->
+        <div id="g" class="clip" data-start="38.8" data-duration="2.6" data-track-index="1">
+          <div class="f-text" id="g-text">
+            <div class="kick g-t">Unterwegs</div>
+            <h2 class="g-t">Alles auch auf dem Handy.</h2>
+          </div>
+        </div>
+        <div class="geraet handy" id="g-handy">
+          <div class="kerbe"></div>
+          <div class="vwrap"><video id="v-handy" class="clip" style="width:400px;height:904px" src="assets/k_handy.mp4" muted playsinline data-start="38.8" data-duration="2.6" data-track-index="3"></video></div>
+        </div>
+
+        <!-- H Mehr -->
+        <div id="h" class="clip" data-start="41.4" data-duration="4.2" data-track-index="1">
+          <div class="mehr-bild" id="h-b1"><img src="assets/bestellungen.png" alt="" /><div class="dunkel"></div></div>
+          <div class="mehr-bild" id="h-b2"><img src="assets/einkauf.png" alt="" /><div class="dunkel"></div></div>
+          <div class="mehr-bild" id="h-b3"><img src="assets/rechner.png" alt="" /><div class="dunkel"></div></div>
+          <div class="mehr-bild" id="h-b4"><img src="assets/start.png" alt="" /><div class="dunkel"></div></div>
+          <div class="mehr-wort mega" id="h-w1">Bestellungen</div>
+          <div class="mehr-wort mega" id="h-w2">Einkauf</div>
+          <div class="mehr-wort mega" id="h-w3">Rechner</div>
+          <div class="mehr-wort mega" id="h-w4">Dokumente</div>
+          <div id="h-alles" class="zentriert mega">Alles an einem Ort.</div>
+        </div>
+
+        <!-- I Schluss -->
+        <div id="i" class="clip" data-start="45.6" data-duration="4.4" data-track-index="1">
+          <div id="i-logo-wrap"><img id="i-logo" src="assets/logo-weiss.png" alt="" /></div>
+          <div id="i-line"></div>
+          <div id="i-titel" class="zentriert mega">Hofer Tool</div>
+          <div id="i-sub" class="zentriert">Präzision, jetzt auch in der Planung.</div>
+        </div>
+      </div>
+
+      <div id="fx" class="clip" data-start="0" data-duration="50" data-track-index="2">
+        <div id="vignette"></div>
+        <div id="korn"></div>
+        <div id="streak"></div>
+        <div class="wipe" id="wB"></div>
+        <div class="wipe" id="wA"></div>
+        <div id="flash"></div>
+      </div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const E = "expo.out", EI = "power4.inOut";
+      const nicht = { immediateRender: false };
+
+      // ---- Bausteine für Effekte ----
+      const blitz = (t, s = 0.7) => tl.fromTo("#flash", { opacity: s }, { opacity: 0, duration: 0.35, ease: "power2.out", ...nicht }, t);
+      const wackeln = (t, k = 14) => {
+        const w = [[k, -k * .6], [-k * .8, k * .5], [k * .5, k * .7], [-k * .3, -k * .4], [0, 0]];
+        w.forEach(([x, y], i) => tl.to("#stage", { x, y, duration: 0.04, ease: "none" }, t + i * 0.04));
+      };
+      const wisch = (t) => {
+        tl.fromTo("#wB", { x: -2900 }, { x: 2000, duration: 0.6, ease: EI, ...nicht }, t - 0.32);
+        tl.fromTo("#wA", { x: -2900 }, { x: 2000, duration: 0.6, ease: EI, ...nicht }, t - 0.27);
+      };
+      const streifen = (t) => tl.fromTo("#streak", { x: -500, opacity: 1, rotation: 18 }, { x: 2300, opacity: 1, duration: 0.7, ease: "power2.inOut", ...nicht }, t);
+      // Wort knallt herein: gross, unscharf, mit Farbsaum, dann scharf
+      const knall = (sel, t, d = 0.45) => tl.fromTo(sel,
+        { scale: 2.4, opacity: 0, filter: "blur(24px)", textShadow: "14px 0 #ff2d55, -14px 0 #00e5ff" },
+        { scale: 1, opacity: 1, filter: "blur(0px)", textShadow: "0px 0 rgba(255,45,85,0), 0px 0 rgba(0,229,255,0)", duration: d, ease: E }, t);
+      const weg = (sel, t, d = 0.3) => tl.to(sel, { opacity: 0, scale: 0.92, filter: "blur(10px)", duration: d, ease: "power2.in" }, t);
+
+      tl.set("#wA, #wB", { x: -2900 }, 0);
+      tl.set("#streak", { opacity: 0 }, 0);
+
+      // Hintergrund lebt
+      tl.fromTo("#bg-glow1", { x: 0, y: 0 }, { x: 1000, y: 350, duration: 50, ease: "sine.inOut" }, 0);
+      tl.fromTo("#bg-glow2", { x: 0, y: 0 }, { x: -900, y: -300, duration: 50, ease: "sine.inOut" }, 0);
+      tl.fromTo("#bg-grid", { x: 0, y: 0 }, { x: 80, y: 80, duration: 50, ease: "none" }, 0);
+
+      // ---- A1 Ort (0 – 4) ----
+      tl.fromTo("#a1-ring", { scale: 2.2, rotation: -120, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 1.6, ease: E }, 0.1);
+      tl.fromTo("#a1-arc", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 1.8, ease: EI }, 0.3);
+      tl.to("#a1-ring", { rotation: 40, duration: 2.4, ease: "none" }, 1.7);
+      tl.fromTo("#a1-ort span", { y: -140, opacity: 0, filter: "blur(16px)" }, { y: 0, opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "back.out(2.4)", stagger: 0.035 }, 0.55);
+      tl.fromTo("#a1-koord", { opacity: 0, scaleX: 1.6 }, { opacity: 1, scaleX: 1, duration: 0.9, ease: E }, 1.2);
+      tl.fromTo("#a1-seit", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 2.3);
+      const jahr = { j: 1900 };
+      tl.fromTo(jahr, { j: 1900 }, { j: 1928, duration: 1.0, ease: "power3.out",
+        onUpdate: () => { document.getElementById("a1-jahr").textContent = Math.round(jahr.j); } }, 2.4);
+      tl.to("#a1", { scale: 1.08, duration: 4, ease: "none" }, 0);
+      streifen(3.0);
+
+      // ---- A2 Firma (4 – 7.8) ----
+      blitz(4.0, 0.5); wackeln(4.0, 8);
+      tl.fromTo("#a2-logo", { y: 320 }, { y: 0, duration: 0.8, ease: E }, 4.05);
+      tl.fromTo("#a2-logo-wrap", { scale: 1.25 }, { scale: 1, duration: 3.5, ease: "power2.out" }, 4.0);
+      tl.fromTo("#a2-line", { scaleX: 0 }, { scaleX: 1, duration: 1.3, ease: EI }, 4.8);
+      tl.fromTo(".a2-punkt", { y: 60, opacity: 0, scale: 0.6 }, { y: 0, opacity: 1, scale: 1, duration: 0.55, ease: "back.out(2)", stagger: 0.32 }, 5.0);
+      weg("#a2-logo-wrap, .a2-punkt, #a2-line", 7.5, 0.3);
+
+      // ---- A3 Fertigung (7.8 – 14.5) ----
+      wisch(7.8);
+      tl.fromTo("#a3-teil .a3-k", { strokeDasharray: 1, strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 1.6, ease: EI, stagger: 0.2 }, 7.9);
+      tl.fromTo("#a3-teil .a3-mitte", { opacity: 0 }, { opacity: 1, duration: 0.5 }, 7.9);
+      tl.fromTo("#a3-teil .a3-t", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, ease: E, stagger: 0.15 }, 9.2);
+      tl.fromTo("#a3-teil", { scale: 0.9, rotationY: -25, transformPerspective: 1800 }, { scale: 1.02, rotationY: 8, duration: 6.6, ease: "sine.inOut" }, 7.8);
+      tl.fromTo(".a3-zahl", { y: 120, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E, stagger: 0.5 }, 9.6);
+      const cnc = { n: 0 };
+      tl.fromTo(cnc, { n: 0 }, { n: 20, duration: 1.0, ease: "power2.out",
+        onUpdate: () => { document.getElementById("a3-n1").textContent = Math.round(cnc.n) + "+"; } }, 9.6);
+      tl.fromTo("#a3-serie", { opacity: 0, x: 80 }, { opacity: 1, x: 0, duration: 0.6, ease: E }, 12.0);
+      streifen(12.4);
+      weg("#a3-teil, #a3-zahlen, #a3-serie", 14.2, 0.3);
+
+      // ---- B Probleme (14.5 – 22) ----
+      tl.fromTo("#bg-red", { opacity: 0 }, { opacity: 1, duration: 0.6 }, 14.5);
+      tl.to("#bg-glow1, #bg-glow2", { opacity: 0.25, duration: 0.6 }, 14.5);
+      blitz(14.5, 0.35); wackeln(14.55, 10);
+      knall("#b-titel", 14.55, 0.4);
+      const zz = [["#z1", -14, -400, 15.4], ["#z2", 11, 400, 15.8], ["#z3", 8, -400, 16.4], ["#z4", -9, 400, 17.0], ["#z5", 4, 0, 17.4]];
+      zz.forEach(([s, r, x, t]) => {
+        tl.fromTo(s, { x, y: -600, rotation: r * 4, opacity: 0 }, { x: 0, y: 0, rotation: r, opacity: 1, duration: 0.45, ease: "back.out(1.6)" }, t);
+        tl.to(s, { rotation: r + 3, y: 12, duration: 2.5, ease: "sine.inOut" }, t + 0.5);
+      });
+      [15.4, 15.8, 16.4, 17.0, 17.4].forEach((t) => wackeln(t + 0.3, 5));
+      tl.to("#z1, #z2, #z3, #z4, #z5", { filter: "blur(6px)", opacity: 0.45, duration: 0.4 }, 18.4);
+      tl.to("#b-titel", { opacity: 0, duration: 0.3 }, 18.2);
+      tl.fromTo("#b-f1", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: E }, 18.6);
+      knall("#b-f2", 19.4, 0.4);
+      tl.fromTo(".b-m", { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "back.out(2)", stagger: 0.09 }, 19.9);
+      tl.fromTo(".b-m span", { scale: 1 }, { scale: 1.35, duration: 0.15, yoyo: true, repeat: 5, ease: "power1.inOut" }, 20.5);
+      // Alles wird ins Zentrum gesaugt, dann der Knall
+      tl.to("#b-frage, #b-qs, #z1, #z2, #z3, #z4, #z5", { scale: 0, opacity: 0, rotation: 30, duration: 0.5, ease: "power4.in" }, 21.45);
+      tl.to("#bg-red", { opacity: 0, duration: 0.3 }, 21.7);
+      tl.to("#bg-glow1, #bg-glow2", { opacity: 1, duration: 0.3 }, 21.9);
+
+      // ---- C Auftritt (22 – 24.5) ----
+      blitz(22.0, 1.0); wackeln(22.0, 22);
+      tl.fromTo("#c-ring", { scale: 0.1, opacity: 1, borderWidth: 40 }, { scale: 2.6, opacity: 0, borderWidth: 2, duration: 1.1, ease: "power2.out" }, 22.0);
+      tl.fromTo("#c-titel span", { scale: 3, opacity: 0, filter: "blur(30px)", textShadow: "18px 0 #ff2d55, -18px 0 #00e5ff" },
+        { scale: 1, opacity: 1, filter: "blur(0px)", textShadow: "0px 0 rgba(255,45,85,0), 0px 0 rgba(0,229,255,0)", duration: 0.5, ease: E, stagger: 0.12 }, 22.02);
+      tl.fromTo("#c-darum", { opacity: 0, y: -30 }, { opacity: 1, y: 0, duration: 0.4, ease: E }, 22.3);
+      tl.fromTo("#c-sub", { opacity: 0, scaleX: 1.6 }, { opacity: 1, scaleX: 1, duration: 0.7, ease: E }, 22.7);
+      tl.fromTo("#c-titel", { scale: 1 }, { scale: 1.06, duration: 2.4, ease: "none" }, 22.1);
+      streifen(23.3);
+
+      // ---- D Planwand (24.5 – 30) ----
+      wisch(24.5);
+      tl.fromTo("#g-plan", { opacity: 0, x: 500, rotationY: -35, rotationX: 8, scale: 0.85, transformPerspective: 2000 },
+        { opacity: 1, x: 0, rotationY: -8, rotationX: 2, scale: 1, duration: 0.8, ease: E }, 24.55);
+      tl.to("#g-plan", { rotationY: 0, rotationX: 0, duration: 4.6, ease: "sine.inOut" }, 25.35);
+      // Kamera fährt an die Stelle, wo gezogen wird
+      tl.fromTo("#w-plan", { scale: 1 }, { scale: 1.55, duration: 1.0, ease: EI, transformOrigin: "72% 22%" }, 25.4);
+      tl.to("#w-plan", { scale: 1.05, duration: 0.9, ease: EI }, 28.4);
+      tl.fromTo(".d-t", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: E, stagger: 0.1 }, 24.6);
+      [["#d-s1", 25.7], ["#d-s2", 26.1], ["#d-s3", 26.9], ["#d-s4", 27.6]].forEach(([s, t]) => {
+        tl.fromTo(s, { x: -120, opacity: 0, scale: 0.8 }, { x: 0, opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }, t);
+        tl.fromTo(s + " i", { scale: 1.6 }, { scale: 1, duration: 0.35, ease: "back.out(3)" }, t + 0.05);
+      });
+      tl.to("#g-plan", { opacity: 0, x: -300, duration: 0.3, ease: "power2.in" }, 29.75);
+
+      // ---- E Suche (30 – 33.8) ----
+      wisch(30.0);
+      tl.fromTo("#g-suche", { opacity: 0, y: 400, rotationX: 30, scale: 0.85, transformPerspective: 2000 },
+        { opacity: 1, y: 0, rotationX: 0, scale: 1, duration: 0.7, ease: E }, 30.05);
+      tl.fromTo("#w-suche", { scale: 1.0 }, { scale: 1.3, duration: 2.6, ease: "sine.inOut", transformOrigin: "50% 30%" }, 30.4);
+      tl.fromTo(".e-t", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: E, stagger: 0.1 }, 30.1);
+      tl.fromTo("#e-tasten", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.3, ease: E }, 30.15);
+      tl.to("#e-k1", { y: 10, boxShadow: "0 0px 0 #7d8ba0, 0 8px 20px rgba(0,0,0,.5)", duration: 0.08 }, 30.35);
+      tl.to("#e-k2", { y: 10, boxShadow: "0 0px 0 #7d8ba0, 0 8px 20px rgba(0,0,0,.5)", duration: 0.08 }, 30.45);
+      tl.to("#e-k1, #e-k2", { y: 0, boxShadow: "0 10px 0 #7d8ba0, 0 20px 40px rgba(0,0,0,.5)", duration: 0.15 }, 30.7);
+      tl.fromTo("#e-tipp", { opacity: 0 }, { opacity: 1, duration: 0.1 }, 30.7);
+      const tipp = { n: 0 };
+      tl.fromTo(tipp, { n: 0 }, { n: 5, duration: 1.0, ease: "none",
+        onUpdate: () => { document.getElementById("e-tipp").textContent = "10007".slice(0, Math.floor(tipp.n)) + (tipp.n < 5 ? "▍" : ""); } }, 30.7);
+      tl.to("#g-suche", { opacity: 0, x: 300, duration: 0.3, ease: "power2.in" }, 33.55);
+
+      // ---- F Pad Mode (33.8 – 38.8) ----
+      wisch(33.8);
+      tl.fromTo("#g-pad", { opacity: 0, y: 700, rotation: 12, scale: 0.8 }, { opacity: 1, y: 0, rotation: 2, scale: 1, duration: 0.8, ease: E }, 33.85);
+      tl.to("#g-pad", { rotation: -1, y: -15, duration: 4.0, ease: "sine.inOut" }, 34.65);
+      tl.fromTo(".f-t", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: E, stagger: 0.1 }, 33.9);
+      [["#f-s1", 34.4], ["#f-s2", 36.2], ["#f-s3", 38.1]].forEach(([s, t]) => {
+        tl.fromTo(s, { x: -120, opacity: 0, scale: 0.8 }, { x: 0, opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }, t);
+      });
+      tl.fromTo("#g-pad", { scale: 1 }, { scale: 1.06, duration: 0.15, yoyo: true, repeat: 1, ease: "power2.out", ...nicht }, 38.15);
+      tl.to("#g-pad", { opacity: 0, y: 500, duration: 0.3, ease: "power2.in" }, 38.55);
+
+      // ---- G Handy (38.8 – 41.4) ----
+      blitz(38.8, 0.4);
+      tl.fromTo("#g-handy", { opacity: 0, y: 900, rotation: -25, scale: 0.7 }, { opacity: 1, y: 0, rotation: 6, scale: 1, duration: 0.7, ease: E }, 38.82);
+      tl.to("#g-handy", { rotation: -3, duration: 1.9, ease: "sine.inOut" }, 39.5);
+      tl.fromTo(".g-t", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: E, stagger: 0.12 }, 38.9);
+      tl.to("#g-handy", { opacity: 0, x: 900, rotation: 25, duration: 0.3, ease: "power2.in" }, 41.1);
+
+      // ---- H Mehr (41.4 – 45.6), schnelle Schnitte im Takt ----
+      const mehr = [["#h-b1", "#h-w1", 41.45], ["#h-b2", "#h-w2", 42.35], ["#h-b3", "#h-w3", 42.95], ["#h-b4", "#h-w4", 43.55]];
+      mehr.forEach(([b, w, t], i) => {
+        blitz(t, 0.35);
+        tl.fromTo(b, { opacity: 0, scale: 1.25, x: i % 2 ? -120 : 120 }, { opacity: 1, scale: 1.05, x: 0, duration: 0.4, ease: E }, t);
+        tl.to(b, { scale: 1.0, duration: 0.6, ease: "none" }, t + 0.4);
+        knall(w, t + 0.02, 0.35);
+        tl.to([b, w], { opacity: 0, duration: 0.12 }, (mehr[i + 1] ? mehr[i + 1][2] : 44.2) - 0.08);
+      });
+      blitz(44.2, 0.6); wackeln(44.2, 12);
+      knall("#h-alles", 44.2, 0.45);
+      tl.to("#h-alles", { scale: 1.08, duration: 1.2, ease: "none" }, 44.65);
+      weg("#h-alles", 45.35, 0.25);
+
+      // ---- I Schluss (45.6 – 50) ----
+      blitz(46.0, 0.9); wackeln(46.0, 16);
+      tl.fromTo("#i-logo", { scale: 0.6, opacity: 0, filter: "blur(20px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.8, ease: E }, 45.7);
+      tl.fromTo("#i-line", { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: EI }, 46.05);
+      knall("#i-titel", 46.05, 0.5);
+      tl.fromTo("#i-sub", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: E }, 46.8);
+      tl.fromTo("#i", { scale: 1 }, { scale: 1.05, duration: 4.4, ease: "none" }, 45.6);
+      streifen(47.4);
+      tl.to("#i-logo-wrap, #i-line, #i-titel, #i-sub", { opacity: 0, duration: 0.8, ease: "power2.in" }, 49.1);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
