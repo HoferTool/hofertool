@@ -5290,3 +5290,23 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
   .es .tabelle--benutzer .bu-geb::before { content: "Geburtstag"; }
   .es .tabelle--benutzer .bu-anmeldung { display: flex; flex-wrap: nowrap; gap: 6px; }
 }
+
+/* Bestellungen offen: Menge direkt ändern, klein mit Minus und Plus */
+.bs-mengewahl { display: inline-flex; align-items: center; border: 1px solid var(--linie);
+  border-radius: 999px; background: var(--flaeche); overflow: hidden; vertical-align: middle; }
+.bs-mengewahl__knopf { width: 26px; height: 28px; border: none; background: none; padding: 0;
+  font-size: 1rem; line-height: 1; color: var(--gedaempft); cursor: pointer; }
+.bs-mengewahl__knopf:hover:not(:disabled) { background: var(--marke-hell); color: var(--marke); }
+.bs-mengewahl__knopf:disabled { opacity: .35; cursor: default; }
+.bs-mengewahl__feld { width: 3.2em; min-height: 0; height: 28px; padding: 0 2px; border: none;
+  background: none; text-align: center; font-weight: 700; font-size: 1rem;
+  font-variant-numeric: tabular-nums; color: var(--tinte); }
+.bs-mengewahl__feld:focus { outline: none; background: var(--marke-hell); }
+.bs-mengewahl:focus-within { border-color: var(--marke); }
+.bs-pos__menge:has(.bs-mengewahl) { display: flex; align-items: center; justify-content: flex-end;
+  gap: 4px; white-space: nowrap; }
+.bs-pos__menge:has(.bs-mengewahl) > span:not(.bs-mengewahl) { margin-left: 0; }
+.bs-mengewahl__knopf { width: 22px; }
+.bs-mengewahl__feld { width: 2.8em; }
+/* Breit: Mengenspalte etwas breiter, damit Feld und Einheit in eine Zeile passen */
+@media (min-width: 1001px) { .bs-pos:not(.bs-pos--historie) { grid-template-columns: minmax(0, 1fr) 124px 160px 84px; } }

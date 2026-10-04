@@ -153,6 +153,17 @@ export async function geburtstageLaden() {
   return leute;
 }
 
+// Vor- und Nachname (Wunsch 4. Oktober 2026). Steht statt eines Namens
+// nur der Anmeldename da (etwa „vorname.nachname“ oder die Mailadresse),
+// wird daraus „Vorname Nachname“.
+export function vollerName(name) {
+  let n = String(name || "").trim();
+  if (n.includes("@")) n = n.split("@")[0];
+  if (!/\s/.test(n)) n = n.replace(/[._-]+/g, " ");
+  return n.split(/\s+/).filter(Boolean)
+    .map((w) => (w === w.toLowerCase() ? w.charAt(0).toUpperCase() + w.slice(1) : w)).join(" ");
+}
+
 // Nächster Geburtstag, Tage bis dahin und das neue Alter je Person,
 // sortiert nach dem nächsten. Zeilen ohne gültiges Datum fallen weg,
 // statt dass die ganze Liste abbricht.
@@ -168,7 +179,7 @@ export function geburtstageAufbereiten(leute) {
     let naechster = new Date(heute.getFullYear(), g.getMonth(), g.getDate());
     if (naechster < heuteNur) naechster = new Date(heute.getFullYear() + 1, g.getMonth(), g.getDate());
     return {
-      name: m.full_name || m.email,
+      name: vollerName(m.full_name || m.email),
       bild: m.bild_url,
       geboren: m.geburtstag,
       datum: alt.isoDatum(naechster),

@@ -4,6 +4,7 @@
 //  Offenes; was bestellt oder teilweise geliefert ist, steht in
 //  „Bestellt“. Die Suche filtert sofort, ohne neu zu laden.
 // =================================================================
+import { useEffect, useRef, useState } from "react";
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { positionOeffnen } from "./PositionFenster.jsx";
 import { Leiste, NeuKnopf, Karte, Logo, Status, Ziel, Zeichen, Symbolknopf,
@@ -203,7 +204,9 @@ function Zeile({ z, schreiben, behaelter, heute }) {
       </div>
 
       <div className="bs-pos__menge">
-        <b>{alt.zahlText(z.quantity)}</b><span>{einheit}</span>
+        {schreiben && z.status === "offen"
+          ? <MengeFeld z={z} />
+          : <b>{alt.zahlText(z.quantity)}</b>}<span>{einheit}</span>
         {teil && <div className="bs-teil" title={alt.zahlText(z.geliefert_menge) + " von "
             + alt.zahlText(z.quantity) + " geliefert"}>
           <div className="bs-teil__balken"><i style={{ width: anteil + "%" }} /></div>
@@ -297,4 +300,52 @@ async function loeschen(z, behaelter) {
   });
   alt.meldung("Position gelöscht.");
   alt.seiteBestellungen(behaelter);
+}
+
+// Menge direkt in der Zeile ändern, nur solange die Position offen ist
+// (Wunsch 4. Oktober 2026). Klein: Minus, Feld, Plus. Plus und Minus
+// speichern kurz nach dem letzten Tipp, damit schnelles Mehrfachtippen
+// nur eine Änderung schickt; das Feld speichert beim Verlassen.
+function MengeFeld({ z }) {
+  const [wert, setWert] = useState(String(z.quantity ?? 1));
+  const uhr = useRef(null);
+  useEffect(() => { setWert(String(z.quantity ?? 1)); }, [z.quantity]);
+  useEffect(() => () => clearTimeout(uhr.current), []);
+
+  const speichern = async (neu) => {
+    const n = Math.max(1, Math.round(Number(String(neu).replace(/[' ]/g, "").replace(",", "."))));
+    if (!isFinite(n)) { setWert(String(z.quantity)); alt.meldung("Bitte eine Zahl eintragen.", "warn"); return; }
+    setWert(String(n));
+    if (n === Number(z.quantity)) return;
+    const vorher = z.quantity;
+    z.quantity = n;
+    try {
+      await alt.aendernOhneUnbekannte("order_items", { quantity: n }, "id", z.id);
+      alt.stammVergessen("bestellungen");
+      alt.meldung("Menge gespeichert.");
+    } catch (f) {
+      z.quantity = vorher; setWert(String(vorher));
+      alt.meldung(alt.fehlertext(f), "fehler");
+    }
+  };
+  const schritt = (d) => {
+    const n = Math.max(1, (parseInt(wert, 10) || 0) + d);
+    setWert(String(n));
+    clearTimeout(uhr.current);
+    uhr.current = setTimeout(() => speichern(n), 600);
+  };
+
+  return (
+    <span className="bs-mengewahl">
+      <button type="button" className="bs-mengewahl__knopf" aria-label="Eins weniger" data-mminus={z.id}
+        onClick={() => schritt(-1)} disabled={(parseInt(wert, 10) || 0) <= 1}>−</button>
+      <input className="bs-mengewahl__feld" inputMode="numeric" aria-label="Menge" data-menge={z.id}
+        value={wert} onChange={(e) => setWert(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        onBlur={() => { clearTimeout(uhr.current); speichern(wert); }}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+      <button type="button" className="bs-mengewahl__knopf" aria-label="Eins mehr" data-mplus={z.id}
+        onClick={() => schritt(1)}>+</button>
+    </span>
+  );
 }
