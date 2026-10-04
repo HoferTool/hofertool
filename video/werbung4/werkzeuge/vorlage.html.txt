@@ -184,7 +184,7 @@
             <line class="d-k" pathLength="1" x1="10" y1="140" x2="880" y2="140" stroke="rgba(107,164,255,.6)" stroke-width="2" stroke-dasharray="24 8 5 8" />
           </svg>
           <div id="d-zahl" class="mega">bis <span id="d-n">0</span><small>mm</small></div>
-          <div id="d-sub">Stangen-Durchmesser, aus vielen Werkstoffen</div>
+          <div id="d-sub">Stangendurchmesser</div>
           <div id="d-mat"><span style="background:#b3261e"></span><span style="background:#7a838d"></span><span style="background:#d4638f"></span><span style="background:#003884"></span><span style="background:#eef1f5"></span><span style="background:#f0b429"></span><span style="background:#c2650f"></span></div>
         </div>
 
