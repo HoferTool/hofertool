@@ -356,7 +356,7 @@
           <div class="f-text">
             <div class="kick n-t">Bestellungen</div>
             <h2 class="n-t">Schnell bestellt.</h2>
-            <div id="n-bsp">Beispiel: 50 × Wendeplatte<br><small>Vischer &amp; Bolli AG</small></div>
+            <div id="n-bsp">Beispiel: 20 × Wendeplatte<br><small>Seco Tools AG</small></div>
             <div class="schritte">
               <div class="schritt" id="n-s1"><i>1</i>Position erfassen</div>
               <div class="schritt" id="n-s2"><i>2</i>Status: Bestellt</div>
@@ -372,7 +372,7 @@
 
         <div id="s14c" class="clip" data-start="59.4" data-duration="11.6" data-track-index="4">
           <div id="b-status"><span style="background:#1b2330;color:#cfe1fb">Offen</span><i>→</i><span style="background:#1f7a4d;color:#fff">Bestellt</span></div>
-          <div id="b-mail"><b>Bestellung an Vischer &amp; Bolli AG</b><small>Hofer + Co · Bestellung als E-Mail</small>
+          <div id="b-mail"><b>Bestellung an Seco Tools AG</b><small>Hofer + Co · Bestellung als E-Mail</small>
             <div class="pdf"><i>PDF</i>Bestellung.pdf</div></div>
         </div>
 

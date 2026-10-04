@@ -3,7 +3,13 @@ import sys, time, os, glob, shutil
 sys.path.insert(0, "/home/claude/hofertool/pruefstand")
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
-AUS = "/tmp/claude-0/hf/rec5"
+AUS = os.environ.get("AUS", "/tmp/claude-0/hf/rec7")
+os.makedirs(AUS, exist_ok=True)
+# Beispiel im Video: 20 Wendeplatten von Seco Tools (Testdaten nur für die Aufnahme umbenannt)
+FAKE = (FAKE.replace('name: "Vischer & Bolli AG", website: "https://vb.ch"', 'name: "Seco Tools AG", website: "https://www.secotools.com"')
+            .replace('email: "v@vb.ch", adresse: "Kanalstrasse 17"', 'email: "bestellung@seco.example", adresse: null')
+            .replace('article_number: "MTEC-452410"', 'article_number: "CNMG-120408"')
+            .replace('supplier_id: "s1", quantity: 50,', 'supplier_id: "s1", quantity: 20,'))
 ZEIGER = """
 (() => { const los = () => {
   if (document.getElementById('__z')) return;
@@ -62,9 +68,9 @@ with sync_playwright() as p:
     tipp(pg, "text=+ Neue Position", 600)
     for z in "Wende": pg.keyboard.type(z); pg.wait_for_timeout(110)
     pg.wait_for_timeout(500)
-    tipp(pg, ".dialog-huelle >> text=MTEC-452410", 600)
+    tipp(pg, ".dialog-huelle >> text=CNMG-120408", 600)
     tipp(pg, "#pd-menge", 150); pg.keyboard.press("Control+a"); 
-    for z in "50": pg.keyboard.type(z); pg.wait_for_timeout(140)
+    for z in "20": pg.keyboard.type(z); pg.wait_for_timeout(140)
     pg.wait_for_timeout(300)
     tipp(pg, "#pd-ja", 900)
     t1 = time.time()

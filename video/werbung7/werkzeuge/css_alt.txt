@@ -135,6 +135,7 @@
       #o-logo-wrap { position: absolute; left: 0; right: 0; top: 200px; height: 260px; display: flex; justify-content: center; }
       #o-logo { width: 697px; height: 260px; display: block; }
       #o-line { position: absolute; left: 610px; top: 520px; width: 700px; height: 3px; background: #6ba4ff; transform-origin: center; }
+      #o-kick { top: 466px; font-size: 30px; font-weight: 800; letter-spacing: .32em; text-transform: uppercase; color: #cfe1fb; }
       #o-titel { top: 570px; font-size: 120px; }
       #o-sub { top: 720px; font-size: 40px; color: #8b9db8; font-weight: 500; }
       #o-chips { position: absolute; left: 0; right: 0; top: 820px; display: flex; justify-content: center; gap: 18px; }
