@@ -13,7 +13,7 @@ import CAchse from "./rechner/CAchse.jsx";
 import Gravur from "./rechner/Gravur.jsx";
 import Dxf from "./rechner/Dxf.jsx";
 
-const REITER = [
+export const REITER = [
   ["drehzahl", "Drehzahl"], ["winkel", "Winkel und Fase"], ["gcode", "G-Code"],
   ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"],
 ];
@@ -30,6 +30,12 @@ const gemerkt = {
   fz: "",
 };
 
+// Für die Seitenleiste: ohne Wert lesen, mit Wert für das nächste Öffnen setzen
+export function rechnerAnsicht(wert) {
+  if (wert !== undefined) gemerkt.ansicht = wert;
+  return gemerkt.ansicht;
+}
+
 const INHALT = { winkel: Winkel, gcode: GCode, cachse: CAchse, gravur: Gravur, dxf: Dxf };
 
 const zahl = (n) => Math.round(n).toLocaleString("de-CH");
@@ -42,7 +48,7 @@ export default function Rechner() {
   return (
     <>
       <h1 className="seitentitel">Rechner</h1>
-      <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" />
+      <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" seite="rechner" />
       <Uebergang key={ansicht}>
         <div id="rech-inhalt"><Inhalt /></div>
       </Uebergang>

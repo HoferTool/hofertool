@@ -17,7 +17,7 @@ import Artikel from "./bestellungen/Artikel.jsx";
 import Bezeichnungen from "./bestellungen/Bezeichnungen.jsx";
 import Lieferanten from "./bestellungen/Lieferanten.jsx";
 
-const REITER = [
+export const REITER = [
   ["offen", "Offen"], ["bestellt", "Bestellt"], ["historie", "Historie"],
   ["artikel", "Artikel"], ["bezeichnungen", "Bezeichnungen"], ["lieferanten", "Lieferanten"],
 ];
@@ -32,7 +32,7 @@ export default function Bestellungen({ auffrischen, behaelter }) {
   return (
     <>
       <h1 className="seitentitel">Bestellungen</h1>
-      <Reiter reiter={REITER} aktiv={best.ansicht} waehlen={waehlen} merkmal="best" />
+      <Reiter reiter={REITER} aktiv={best.ansicht} waehlen={waehlen} merkmal="best" seite="bestellungen" />
       {!alt.darfSchreiben() &&
         <div className="nurlesen">Du kannst hier alles ansehen, aber nichts ändern.</div>}
       <Uebergang key={best.ansicht}>

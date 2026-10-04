@@ -17,7 +17,7 @@ import Erfassen from "./produktion/Erfassen.jsx";
 import Fortschritt from "./produktion/Fortschritt.jsx";
 import Maschinen from "./produktion/Maschinen.jsx";
 
-const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"],
+export const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"],
                 ["maschinen", "Maschinen und Typen"]];
 
 let ladeNr = 0;
@@ -64,7 +64,7 @@ export default function Produktion({ auffrischen, behaelter }) {
   return (
     <>
       <h1 className="seitentitel">Produktion</h1>
-      <Reiter reiter={reiter} aktiv={prod.ansicht} waehlen={waehlen} merkmal="ansicht" />
+      <Reiter reiter={reiter} aktiv={prod.ansicht} waehlen={waehlen} merkmal="ansicht" seite="produktion" />
       {!(alt.darfSchreiben() || alt.istExtern()) &&
         <div className="nurlesen">Du kannst hier alles ansehen, aber nichts ändern.</div>}
       <Uebergang key={prod.ansicht}>

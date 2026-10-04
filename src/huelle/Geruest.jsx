@@ -8,11 +8,12 @@
 //  Werte nur beim ersten Zeichnen und überschreibt sie danach nicht.
 //  #inhalt hat keine React-Kinder; die Seiten hängen sich selbst ein.
 // =================================================================
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
+import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen } from "./unterreiter.js";
 
 let wurzel = null;
 let aktivSetzen = () => {};
@@ -92,6 +93,25 @@ function AdminKnopf() {
     title="Bearbeiten freischalten" onClick={klick}>Bearbeiten</button>;
 }
 
+// Die Reiter der offenen Seite unter ihrem Punkt in der Seitenleiste.
+// Nur ab Tablet-Breite sichtbar (CSS); unten in der Leiste wäre kein Platz.
+function Unterreiter({ seite }) {
+  const u = UNTERREITER[seite];
+  const [, zeichnen] = useState(0);
+  useEffect(() => reiterBeobachten(() => zeichnen((x) => x + 1)), []);
+  const aktiv = reiterAktiv(seite);
+  return (
+    <div className="nav__unter" role="group">
+      {u.liste().map(([wert, text]) => (
+        <button key={wert} type="button"
+          className={"nav__unterpunkt" + (aktiv === wert ? " aktiv" : "")}
+          data-unter={seite + "/" + wert}
+          onClick={() => reiterWaehlen(seite, wert, true)}>{text}</button>
+      ))}
+    </div>
+  );
+}
+
 function Geruest() {
   const profil = alt.profil;
   const [aktiv, setAktiv] = useState(null);
@@ -144,12 +164,15 @@ function Geruest() {
       <div className="rahmen">
         <nav className="nav" aria-label="Hauptnavigation">
           {alt.SEITEN.filter((s) => alt.seiteSichtbar(s.pfad)).map((s) => (
-            <a key={s.pfad} className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}
-              data-nav={s.pfad} href={"#/" + s.pfad}>
-              {/* Die Zeichen sind fest eingebaute SVG aus dem Programm */}
-              <span className="nav__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} />
-              <span className="nav__text">{s.titel}</span>
-            </a>
+            <Fragment key={s.pfad}>
+              <a className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}
+                data-nav={s.pfad} href={"#/" + s.pfad}>
+                {/* Die Zeichen sind fest eingebaute SVG aus dem Programm */}
+                <span className="nav__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} />
+                <span className="nav__text">{s.titel}</span>
+              </a>
+              {aktiv === s.pfad && UNTERREITER[s.pfad] && <Unterreiter seite={s.pfad} />}
+            </Fragment>
           ))}
         </nav>
         <main className="inhalt" id="inhalt" />

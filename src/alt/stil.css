@@ -5137,3 +5137,26 @@ body.dunkel .bs-chip { border-color: #3a444f; }
 .dialog--auftrag input[readonly], .dialog--auftrag textarea[readonly],
 .dialog--auftrag select:disabled { background: var(--grund); cursor: default; }
 .auf-nurlesen { margin: 0 0 8px; color: var(--gedaempft); }
+
+/* ---------- Unterreiter in der Seitenleiste (Wunsch 4. Oktober 2026) ----------
+   Unter dem Punkt der offenen Seite stehen ihre Reiter, so dass man
+   direkt hinspringen kann. In der Leiste unten (Handy) und bei
+   eingeklappter Seitenleiste ist kein Platz dafür. */
+.nav__unter { display: none; }
+@media (min-width: 780px) {
+  .nav__unter { display: grid; padding: 2px 0 6px; position: relative; z-index: 1;
+                animation: nav-unter-auf .3s cubic-bezier(.16, 1, .3, 1); }
+  body.nav--schmal .nav__unter { display: none; }
+  .nav__unterpunkt { all: unset; box-sizing: border-box; display: flex; align-items: center;
+                     gap: 8px; min-height: 32px; padding: 3px 16px 3px 47px; cursor: pointer;
+                     color: var(--gedaempft); font-size: .86rem; border-left: 3px solid transparent;
+                     transition: color .15s, background-color .15s; }
+  .nav__unterpunkt::before { content: ""; width: 5px; height: 5px; border-radius: 50%;
+                             background: currentColor; opacity: .45; flex: none; }
+  .nav__unterpunkt:hover { color: var(--tinte); background: var(--marke-hell); }
+  .nav__unterpunkt:focus-visible { outline: 2px solid var(--marke); outline-offset: -2px; }
+  .nav__unterpunkt.aktiv { color: var(--marke); font-weight: 600; }
+  .nav__unterpunkt.aktiv::before { opacity: 1; }
+  @keyframes nav-unter-auf { from { opacity: 0; transform: translateY(-6px); } }
+  @media (prefers-reduced-motion: reduce) { .nav__unter { animation: none; } }
+}
