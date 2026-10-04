@@ -1,0 +1,77 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face { font-family: Inter; src: url(assets/inter.woff2); font-weight: 100 900; }
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #050b16; font-family: Inter, sans-serif; color: #eaf1fb; }
+#bg { position: absolute; inset: 0; background:
+  radial-gradient(900px 700px at 78% 40%, rgba(31,111,224,.55), transparent 70%),
+  radial-gradient(700px 600px at 10% 100%, rgba(120,60,220,.35), transparent 70%),
+  linear-gradient(160deg, #0a1730, #050b16 60%); }
+#grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(107,164,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(107,164,255,.08) 1px, transparent 1px);
+  background-size: 64px 64px; mask-image: radial-gradient(1200px 800px at 60% 50%, #000 30%, transparent 80%); }
+#strahl { position: absolute; left: -200px; top: 610px; width: 2400px; height: 6px; transform: rotate(-12deg); background: linear-gradient(90deg, transparent, #6ba4ff 40%, #fff 50%, #6ba4ff 60%, transparent);
+  box-shadow: 0 0 40px 10px rgba(107,164,255,.5); opacity: .7; }
+#links { position: absolute; left: 110px; top: 170px; width: 900px; }
+#logo { width: 560px; display: block; filter: drop-shadow(0 10px 40px rgba(0,0,0,.5)); }
+.kick { margin-top: 58px; font-size: 30px; font-weight: 800; letter-spacing: .32em; color: #6ba4ff; text-transform: uppercase; }
+h1 { margin: 10px 0 0; font-size: 190px; font-weight: 900; letter-spacing: -0.045em; line-height: .92; }
+h1 span { background: linear-gradient(90deg, #fff, #9cc3ff); -webkit-background-clip: text; color: transparent; }
+.sub { margin-top: 30px; font-size: 40px; font-weight: 700; color: #b8c7dd; }
+.chips { margin-top: 40px; display: flex; gap: 14px; }
+.chips b { padding: 12px 24px; border-radius: 30px; border: 2px solid rgba(107,164,255,.55); background: rgba(17,29,49,.85); font-size: 26px; }
+#p-ma { position: absolute; left: 1010px; top: 300px; width: 900px; height: 640px; transform: rotate(-4deg); filter: drop-shadow(0 50px 80px rgba(0,0,0,.6)); }
+#p-ma svg { width: 100%; height: 100%; }
+#play { position: absolute; left: 1390px; top: 470px; width: 150px; height: 150px; border-radius: 50%; background: rgba(255,255,255,.95);
+  box-shadow: 0 0 0 16px rgba(255,255,255,.18), 0 30px 60px rgba(0,0,0,.5); }
+#play::after { content: ""; position: absolute; left: 58px; top: 42px; border-left: 52px solid #1f6fe0; border-top: 33px solid transparent; border-bottom: 33px solid transparent; }
+#funke { position: absolute; left: 1395px; top: 580px; width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(#fff3c4, #ffb020 40%, transparent 70%); }
+</style></head><body>
+<div id="bg"></div><div id="grid"></div><div id="strahl"></div>
+<div id="p-ma"><svg id="cm-svg" viewBox="0 0 900 640">
+  <defs>
+    <linearGradient id="cmkg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef1f5"/><stop offset="1" stop-color="#a3adb9"/></linearGradient>
+    <linearGradient id="cmmg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".5" stop-color="#8d96a0"/><stop offset="1" stop-color="#d5dae0"/></linearGradient>
+    <radialGradient id="cmfg"><stop offset="0" stop-color="#ffe9a8"/><stop offset=".4" stop-color="#ffb020"/><stop offset="1" stop-color="rgba(255,120,0,0)"/></radialGradient>
+    <clipPath id="cmfc"><rect x="90" y="200" width="480" height="290" rx="14"/></clipPath>
+  </defs>
+  <ellipse cx="420" cy="602" rx="420" ry="24" fill="rgba(0,0,0,.45)"/>
+  <rect x="80" y="560" width="70" height="34" fill="#2a323d"/><rect x="690" y="560" width="70" height="34" fill="#2a323d"/>
+  <rect x="40" y="120" width="760" height="450" rx="26" fill="url(#cmkg)"/>
+  <rect x="40" y="120" width="760" height="58" rx="26" fill="#1f6fe0"/><rect x="40" y="150" width="760" height="28" fill="#1f6fe0"/>
+  <text x="72" y="162" font-family="Inter" font-weight="900" font-size="32" fill="#fff" letter-spacing="5">CNC</text>
+  <rect x="84" y="194" width="492" height="302" rx="18" fill="#3a4452"/>
+  <g clip-path="url(#cmfc)">
+    <rect x="90" y="200" width="480" height="290" fill="#0b1424"/>
+    <path d="M90 250 H570 M90 300 H570 M90 350 H570 M90 400 H570 M90 450 H570 M150 200 V490 M250 200 V490 M350 200 V490 M450 200 V490 M550 200 V490" stroke="rgba(107,164,255,.08)" stroke-width="1"/>
+    <rect x="90" y="315" width="250" height="60" fill="url(#cmmg)"/>
+    <rect x="300" y="282" width="60" height="126" rx="6" fill="#4b5563"/>
+    <path d="M360 318 L430 318 L438 323 L500 323 L500 331 L545 331 L555 339 L555 351 L545 359 L500 359 L500 367 L438 367 L430 372 L360 372 Z" fill="url(#cmmg)"/>
+    <path class="bahn" d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" pathLength="1" fill="none" stroke="#1f6fe0" stroke-width="5" stroke-dasharray="1" stroke-dashoffset="1" stroke-linejoin="round"/>
+    <path d="M352 300 L432 300 L438 307 L506 307 L506 318 L548 318 L566 334 L566 345" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-dasharray="6 8"/>
+    <g class="wz" transform="translate(432 300)">
+      <rect x="-16" y="-130" width="32" height="112" rx="4" fill="#6b7685"/>
+      <rect x="-22" y="-30" width="44" height="16" rx="3" fill="#4b5563"/>
+      <polygon points="-14,-14 14,-14 0,0" fill="#f0b429"/>
+      <circle class="funke" cx="0" cy="0" r="14" fill="url(#cmfg)"/>
+    </g>
+    <g class="ax"><line x1="130" y1="460" x2="250" y2="460" stroke="#6ba4ff" stroke-width="5" stroke-linecap="round"/><polygon points="250,460 235.6,467.0 235.6,453.0" fill="#6ba4ff"/><text x="258" y="470" fill="#6ba4ff" font-family="Inter" font-weight="900" font-size="30">Z</text></g><g class="ax"><line x1="130" y1="460" x2="130" y2="398" stroke="#ff6b81" stroke-width="5" stroke-linecap="round"/><polygon points="130,398 137.0,412.4 123.0,412.4" fill="#ff6b81"/><text x="142" y="405" fill="#ff6b81" font-family="Inter" font-weight="900" font-size="30">X</text></g><g class="ax"><line x1="130" y1="460" x2="88" y2="486" stroke="#4ade80" stroke-width="5" stroke-linecap="round"/><polygon points="88,486 96.6,472.5 103.9,484.3" fill="#4ade80"/><text x="62" y="482" fill="#4ade80" font-family="Inter" font-weight="900" font-size="30">Y</text></g><g class="ax"><path d="M458 296 A14 52 0 1 0 482 296" fill="none" stroke="#f0b429" stroke-width="5"/><polygon points="484,290 474,302 490,304" fill="#f0b429"/><text x="494" y="292" fill="#f0b429" font-family="Inter" font-weight="900" font-size="30">C</text></g>
+  </g>
+  <polygon points="96,206 260,206 140,484 96,484" fill="rgba(255,255,255,.05)"/>
+  <rect x="612" y="194" width="160" height="302" rx="12" fill="#1b2330"/>
+  <rect x="628" y="210" width="128" height="92" rx="6" fill="#1f6fe0" opacity=".85"/>
+  <path d="M640 232 H730 M640 252 H710 M640 272 H740" stroke="rgba(255,255,255,.6)" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#3a4452"><rect x="632" y="322" width="24" height="20" rx="4"/><rect x="664" y="322" width="24" height="20" rx="4"/><rect x="696" y="322" width="24" height="20" rx="4"/><rect x="728" y="322" width="24" height="20" rx="4"/><rect x="632" y="352" width="24" height="20" rx="4"/><rect x="664" y="352" width="24" height="20" rx="4"/><rect x="696" y="352" width="24" height="20" rx="4"/><rect x="728" y="352" width="24" height="20" rx="4"/><rect x="632" y="382" width="24" height="20" rx="4"/><rect x="664" y="382" width="24" height="20" rx="4"/><rect x="696" y="382" width="24" height="20" rx="4"/><rect x="728" y="382" width="24" height="20" rx="4"/><rect x="632" y="412" width="24" height="20" rx="4"/><rect x="664" y="412" width="24" height="20" rx="4"/><rect x="696" y="412" width="24" height="20" rx="4"/><rect x="728" y="412" width="24" height="20" rx="4"/></g>
+  <circle cx="692" cy="466" r="17" fill="#e11d48" stroke="#f0b429" stroke-width="4"/>
+  <rect x="748" y="118" width="6" height="12" fill="#5d6a7a"/>
+  <rect x="738" y="40" width="26" height="80" rx="5" fill="#1b2330"/>
+  <rect  x="741" y="44" width="20" height="22" rx="3" fill="#ff2d55" opacity=".25"/>
+  <rect x="741" y="69" width="20" height="22" rx="3" fill="#f0b429" opacity=".25"/>
+  <rect class="lampe" x="741" y="94" width="20" height="22" rx="3" fill="#4ade80" opacity=".25"/>
+</svg></div>
+
+<div id="links">
+  <img id="logo" src="assets/logo-weiss.png" alt="">
+  <div class="kick">Lohn-Ammannsegg · seit 1928</div>
+  <h1><span>Hofer Tool</span></h1>
+  <div class="sub">Planung, Produktion, Bestellungen.</div>
+  <div class="chips"><b>Planwand</b><b>Pad Mode</b><b>Bestellungen</b><b>Solar live</b></div>
+</div>
+</body></html>

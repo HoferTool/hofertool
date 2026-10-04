@@ -1,0 +1,154 @@
+      /* 4 Solar */
+      #s-svg { position: absolute; left: 160px; top: 90px; width: 1600px; height: 560px; }
+      #s-band { position: absolute; left: 260px; top: 650px; width: 1400px; height: 306px; border-radius: 18px; overflow: hidden; opacity: 0;
+        box-shadow: 0 50px 120px rgba(0,0,0,.6); }
+      #s-band img { display: block; width: 100%; height: 100%; }
+      #s-text { position: absolute; left: 110px; top: 110px; }
+      #s-text h2 { font-size: 84px; font-weight: 850; letter-spacing: -0.04em; margin-top: 16px; line-height: .95; }
+
+      /* 5 Stillstand */
+      #p1-svg { position: absolute; left: 70px; top: 250px; width: 900px; height: 640px; }
+      #p1-regal { position: absolute; left: 1080px; top: 300px; width: 720px; height: 520px; }
+      #p1-stempel { position: absolute; left: 150px; top: 470px; padding: 18px 40px; border: 10px solid #ff2d55; border-radius: 16px; color: #ff2d55;
+        font-size: 120px; font-weight: 900; letter-spacing: .04em; opacity: 0; background: rgba(40,0,10,.55); }
+      #p1-titel { top: 110px; font-size: 76px; }
+      #p1-uhr { position: absolute; left: 1080px; top: 850px; font-size: 44px; font-weight: 800; color: #ff6b81; letter-spacing: .05em; }
+
+      /* 6 Zettel und Ordner */
+      .zettel { position: absolute; width: 330px; padding: 26px 28px; background: #f5e9a8; color: #3a3320; border-radius: 3px;
+        box-shadow: 0 25px 50px rgba(0,0,0,.5); font-size: 32px; font-weight: 700; line-height: 1.2; font-style: italic; }
+      .zettel small { display: block; font-size: 20px; font-weight: 500; margin-top: 10px; color: #6d6340; font-style: normal; }
+      .zettel::before { content: ""; position: absolute; left: 50%; top: -10px; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; background: #d63b3b;
+        box-shadow: 0 4px 6px rgba(0,0,0,.4); }
+      .zettel.rosa { background: #f6c6cf; } .zettel.blau { background: #cfe1fb; } .zettel.weiss { background: #f3f3ef; }
+      #p2-titel { top: 90px; font-size: 40px; font-weight: 700; letter-spacing: .25em; text-transform: uppercase; color: #ff6b81; }
+      .ordner { position: absolute; top: 380px; width: 190px; height: 520px; border-radius: 12px; background: linear-gradient(90deg, #1e3a6b, #2a4f8f 40%, #1e3a6b);
+        box-shadow: 0 40px 80px rgba(0,0,0,.6); }
+      .ordner::before { content: ""; position: absolute; left: 50%; bottom: 60px; width: 60px; height: 60px; margin-left: -30px; border-radius: 50%; background: #0b1424; border: 6px solid #8b9db8; }
+      .ordner span { position: absolute; left: 20px; right: 20px; top: 60px; height: 190px; background: #f3f3ef; border-radius: 6px; color: #1e2a3b;
+        font-size: 28px; font-weight: 800; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.1; }
+      .blatt { position: absolute; width: 170px; height: 230px; background: #fbfbf7; border-radius: 4px; box-shadow: 0 20px 40px rgba(0,0,0,.45); opacity: 0;
+        background-image: repeating-linear-gradient(180deg, transparent 0 26px, #c9d2de 26px 29px); background-position: 0 30px; }
+      #p2-lupe { position: absolute; left: 1300px; top: 420px; width: 240px; height: 240px; border-radius: 50%; border: 14px solid #eaf1fb; opacity: 0;
+        background: rgba(107,164,255,.12); box-shadow: 0 30px 60px rgba(0,0,0,.5); }
+      #p2-lupe::after { content: ""; position: absolute; left: 190px; top: 190px; width: 30px; height: 130px; background: #eaf1fb; border-radius: 15px; transform: rotate(-45deg); transform-origin: top left; }
+      #p2-wo { top: 170px; font-size: 110px; z-index: 5; text-shadow: 0 10px 40px rgba(0,0,0,.8); }
+
+      /* 7 Was läuft */
+      #p3-qs { position: absolute; left: 260px; top: 470px; width: 1400px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 22px; }
+      .p3-m { display: block; padding: 18px 0; border-radius: 14px; text-align: center; background: #121b2c; border: 2px solid rgba(255,107,129,.5); }
+      .p3-m b { display: block; font-size: 24px; } .p3-m span { display: block; font-size: 60px; font-weight: 850; color: #ff6b81; }
+      #p3-frage { top: 150px; }
+      #p3-frage .z1 { display: block; font-size: 60px; font-weight: 700; color: #8b9db8; }
+      #p3-frage .z2 { display: block; font-size: 140px; margin-top: 12px; }
+      #p3-uhr { position: absolute; left: 860px; top: 820px; width: 200px; height: 200px; }
+
+      /* 8 Auftritt */
+      .r-ring { position: absolute; left: 560px; top: 140px; width: 800px; height: 800px; border-radius: 50%; border: 6px solid #6ba4ff; opacity: 0; }
+      #r-strahlen { position: absolute; left: 960px; top: 540px; width: 0; height: 0; }
+      .r-st { position: absolute; left: 0; top: -3px; width: 900px; height: 6px; border-radius: 3px; transform-origin: left center;
+        background: linear-gradient(90deg, rgba(160,200,255,.9), rgba(107,164,255,0)); opacity: 0; }
+      #r-darum { top: 290px; font-size: 44px; font-weight: 600; color: #8b9db8; }
+      #r-titel { top: 380px; font-size: 240px; }
+      #r-titel span { display: inline-block; margin: 0 .04em; }
+      #r-sub { top: 660px; font-size: 38px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: #6ba4ff; }
+
+      /* Geräte */
+      .vwrap { position: absolute; overflow: hidden; background: #0b1424; }
+      .vwrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+      .geraet { position: absolute; opacity: 0; }
+      .browser { border-radius: 18px; box-shadow: 0 60px 140px rgba(0,0,0,.65), 0 0 0 1px rgba(107,164,255,.3); overflow: hidden; background: #1c2229; }
+      .browser .leiste { position: absolute; left: 0; right: 0; top: 0; height: 42px; display: flex; align-items: center; gap: 10px; padding-left: 20px; }
+      .browser .leiste i { display: block; width: 13px; height: 13px; border-radius: 50%; background: #3a4452; }
+      .browser .leiste span { display: block; margin-left: 22px; height: 24px; width: 380px; border-radius: 12px; background: #14181d; color: #8b9db8; font-size: 14px; line-height: 24px; padding-left: 14px; }
+      .browser .vwrap { left: 0; right: 0; top: 42px; bottom: 0; }
+      #g-plan, #g-suche { left: 560px; top: 150px; width: 1280px; height: 762px; }
+      .tablet { border-radius: 44px; background: #04070d; box-shadow: 0 60px 140px rgba(0,0,0,.65), 0 0 0 2px rgba(107,164,255,.25); }
+      .tablet .vwrap { left: 24px; right: 24px; top: 24px; bottom: 24px; border-radius: 20px; }
+      #g-pad { left: 640px; top: 150px; width: 1180px; height: 841px; }
+
+      /* iPhone */
+      #g-handy { left: 1120px; top: 60px; width: 460px; height: 960px; }
+      .ip-rahmen { position: absolute; inset: 0; border-radius: 78px; padding: 9px;
+        background: linear-gradient(135deg, #e6e9ed 0%, #8e969f 22%, #d7dbe0 45%, #6f7780 70%, #c9ced4 100%);
+        box-shadow: 0 80px 160px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.15); }
+      .ip-innen { position: absolute; inset: 9px; border-radius: 70px; background: #000; }
+      #g-handy .vwrap { left: 18px; top: 18px; width: 424px; height: 924px; border-radius: 61px; }
+      .ip-insel { position: absolute; left: 50%; top: 32px; width: 124px; height: 36px; margin-left: -62px; border-radius: 18px; background: #000; z-index: 3; }
+      .ip-insel::after { content: ""; position: absolute; right: 14px; top: 11px; width: 14px; height: 14px; border-radius: 50%; background: #10182a; box-shadow: inset 0 0 0 3px #1b2640; }
+      .ip-knopf { position: absolute; width: 5px; border-radius: 3px; background: linear-gradient(90deg, #6f7780, #c9ced4); }
+      .ip-glanz { position: absolute; left: 18px; top: 18px; width: 424px; height: 924px; border-radius: 61px; overflow: hidden; z-index: 4; pointer-events: none; }
+      .ip-glanz i { position: absolute; left: -300px; top: -200px; width: 220px; height: 1400px; transform: rotate(25deg);
+        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.16), rgba(255,255,255,0)); }
+      #ip-chip { position: absolute; left: 110px; top: 640px; padding: 18px 28px; border-radius: 18px; background: rgba(17,29,49,.9); border: 2px solid #c6e84a;
+        font-size: 34px; font-weight: 800; color: #c6e84a; opacity: 0; display: flex; align-items: center; gap: 16px; }
+      #ip-chip i { display: block; width: 18px; height: 18px; border-radius: 50%; background: #c6e84a; box-shadow: 0 0 20px #c6e84a; }
+
+      .f-text { position: absolute; left: 110px; top: 210px; width: 420px; }
+      .f-text .kick { font-size: 22px; }
+      .f-text h2 { font-size: 92px; font-weight: 850; letter-spacing: -0.04em; line-height: .95; margin-top: 20px; }
+      .schritte { margin-top: 46px; display: flex; flex-direction: column; gap: 16px; }
+      .schritt { display: flex; align-items: center; gap: 18px; font-size: 34px; font-weight: 700; padding: 14px 22px 14px 14px;
+        border-radius: 14px; background: rgba(17,29,49,.85); border: 1px solid rgba(107,164,255,.3); }
+      .schritt i { display: flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 12px; background: #1f6fe0;
+        font-style: normal; font-size: 26px; font-weight: 800; flex: none; }
+      .schritt.ok i { background: #1f7a4d; }
+      #ha-text { left: 140px; top: 240px; width: 900px; }
+      #ha-text h2 { font-size: 130px; }
+
+      .taste { display: inline-flex; align-items: center; justify-content: center; height: 110px; min-width: 110px; padding: 0 30px; border-radius: 20px;
+        background: linear-gradient(180deg, #f4f7fb, #c9d3e1); color: #0a1220; font-size: 50px; font-weight: 800;
+        box-shadow: 0 10px 0 #7d8ba0, 0 20px 40px rgba(0,0,0,.5); }
+      #e-tasten { position: absolute; left: 110px; top: 560px; display: flex; gap: 22px; align-items: center; }
+      #e-plus { font-size: 60px; font-weight: 300; color: #8b9db8; }
+      #e-tipp { position: absolute; left: 110px; top: 760px; font-size: 64px; font-weight: 800; letter-spacing: .05em; color: #6ba4ff; }
+
+      /* Material */
+      #mat-text { position: absolute; left: 110px; top: 100px; }
+      #mat-text h2 { font-size: 84px; font-weight: 850; letter-spacing: -0.04em; margin-top: 16px; }
+      #mat-plan { position: absolute; left: 110px; top: 330px; width: 1700px; height: 540px; border-radius: 18px; background: rgba(11,20,36,.9);
+        border: 1px solid rgba(107,164,255,.25); overflow: hidden; }
+      #mat-zoom { position: absolute; inset: 0; }
+      .mat-zeile { position: absolute; left: 0; right: 0; height: 74px; border-bottom: 1px solid rgba(107,164,255,.12); }
+      .mat-zeile > b { position: absolute; left: 24px; top: 22px; font-size: 26px; font-weight: 800; color: #8b9db8; }
+      .mat-balken { position: absolute; top: 12px; height: 50px; border-radius: 10px; font-size: 22px; font-weight: 800; line-height: 50px; padding-left: 16px;
+        white-space: nowrap; overflow: hidden; color: #fff; box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+      .mat-balken.hell { color: #0b1424; }
+      .mat-balken em { font-style: normal; color: #ff2d55; font-size: 26px; }
+      #mat-legende { position: absolute; left: 110px; top: 905px; display: flex; gap: 14px; }
+      .mat-chip { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-radius: 14px; background: rgba(17,29,49,.9); font-size: 26px; font-weight: 700; }
+      .mat-chip i { display: block; width: 26px; height: 26px; border-radius: 7px; }
+      #mat-hinweis { position: absolute; left: 900px; top: 610px; padding: 20px 30px; border-radius: 16px; background: #fff; color: #0b1424; font-size: 36px; font-weight: 800;
+        box-shadow: 0 30px 60px rgba(0,0,0,.5); opacity: 0; }
+      #mat-hinweis em { font-style: normal; color: #ff2d55; }
+      #mat-ring { position: absolute; width: 90px; height: 90px; border-radius: 50%; border: 6px solid #ff2d55; opacity: 0; }
+
+      /* Mehr */
+      .mehr-bild { position: absolute; left: 260px; top: 140px; width: 1400px; height: 788px; border-radius: 18px; overflow: hidden; opacity: 0;
+        box-shadow: 0 60px 140px rgba(0,0,0,.6); }
+      .mehr-bild img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+      .mehr-bild .dunkel { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(7,13,24,.92), rgba(7,13,24,.4)); }
+      .mehr-wort { position: absolute; left: 160px; top: 420px; font-size: 170px; opacity: 0; }
+      #me-alles { top: 400px; font-size: 150px; opacity: 0; }
+
+      /* Schluss */
+      #o-logo-wrap { position: absolute; left: 0; right: 0; top: 200px; height: 260px; display: flex; justify-content: center; }
+      #o-logo { width: 697px; height: 260px; display: block; }
+      #o-line { position: absolute; left: 610px; top: 520px; width: 700px; height: 3px; background: #6ba4ff; transform-origin: center; }
+      #o-titel { top: 570px; font-size: 120px; }
+      #o-sub { top: 720px; font-size: 40px; color: #8b9db8; font-weight: 500; }
+      #o-chips { position: absolute; left: 0; right: 0; top: 820px; display: flex; justify-content: center; gap: 18px; }
+      #o-chips span { display: block; padding: 12px 26px; border-radius: 30px; border: 2px solid rgba(107,164,255,.5); font-size: 26px; font-weight: 700; color: #cfe1fb; }
+
+      /* Effekte */
+      #fx { pointer-events: none; z-index: 40; }
+      #flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+      #streak { position: absolute; top: -200px; left: 0; width: 360px; height: 1480px; opacity: 0;
+        background: linear-gradient(90deg, rgba(107,164,255,0), rgba(160,200,255,.55), rgba(107,164,255,0)); }
+      #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.55)); }
+      .wipe { position: absolute; top: -100px; left: 0; width: 2800px; height: 1280px; }
+      #wA { background: #1f6fe0; } #wB { background: #003884; }
+      #korn { position: absolute; inset: 0; opacity: .06;
+        background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.5) 0 1px, transparent 1px 3px); }
+      #balken-o, #balken-u { position: absolute; left: 0; right: 0; height: 0; background: #000; }
+      #balken-o { top: 0; } #balken-u { bottom: 0; }

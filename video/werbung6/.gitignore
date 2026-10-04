@@ -1,0 +1,14 @@
+# Personendaten (GL-Team) und erzeugte Dateien bleiben ausserhalb des öffentlichen Repositorys
+index.html
+assets/team/
+werkzeuge/team.json
+assets/ton.wav
+musik.wav
+musik.json
+stimme.wav
+snapshots/
+*.mp4.log
+# Bestellungen-Aufnahme zeigt eine Unterschrift mit Namen
+assets/k_best.mp4
+titelbild.png
+werkzeuge/_ma.html

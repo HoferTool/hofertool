@@ -1,0 +1,18 @@
+1|Hofer and Co. Precision turned parts.
+2|From Lohn Ammannsegg, in the canton of Solothurn. Since nineteen twenty-eight.
+3|(Satz mit Inhaber und GL-Namen, steht nur lokal und wird nicht veröffentlicht)
+4|We produce on CNC lathes with bar feeders. From Star, Hanwah, Index, and now also Willemin Macodell.
+5|We machine many different materials, up to forty-two millimeters in diameter.
+6|But without material, the machine stands still.
+7|The schedule hangs on paper notes. The drawing is somewhere in a folder.
+8|And nobody really knows: what's running right now, on which machine?
+9|That's why we built the Hofer Tool.
+10|The planning board. Drag a job. Let go. Everything else moves along.
+11|Every job shows its material in color. If the quantity is missing, a red dot lights up.
+12|Control K, type a number, and the job is right there.
+13|At the machine: Pad Mode. Tap, enter the quantity, done.
+14|And on the go: everything on your phone, too.
+15|Orders. For example: fifty inserts from Vischer and Bolli. Add them to the list. Set the status to ordered. One click, and the order is ready as a PDF, right in the email.
+16|And so much more.
+17|And the best part: even our solar plant on the roof is in the app, with live data.
+18|The Hofer Tool. Precision, now also in planning.
