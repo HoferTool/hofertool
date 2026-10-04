@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.29.0";
+const APP_VERSION = "111.30.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4345,9 +4345,10 @@ function sucheBeenden() {
   sucheHervorheben();
 }
 
-// Ohne Bearbeitungsrecht öffnet ein Klick auf einen Auftrag direkt
-// die Zeichnung, statt das (dann ohnehin leere) Bearbeitungsfenster.
-function balkenAnsehenVerhalten() {
+// Ohne Bearbeitungsrecht: Ein Klick zeigt die Zeichnung, ein Doppelklick
+// öffnet das Auftragsfenster zum Ansehen (Wunsch 4. Oktober 2026). Dort
+// lässt sich nur ändern, was vorher schon ging: Zustand und Problem.
+function balkenAnsehenVerhalten(b) {
   const tafel = document.querySelector(".pw-tafel");
   if (!tafel) return;
 
@@ -4357,7 +4358,7 @@ function balkenAnsehenVerhalten() {
       const j = (plan.auftraege || []).find((x) => x.id === el.dataset.auftrag);
       if (!j) return;
       if (plan.sucheAktiv) sucheBeenden();
-      balkenZeichnung(j);
+      balkenKlick(j, b);
     };
   });
 }
@@ -5018,7 +5019,7 @@ function zeichnePlanwand(b) {
     plan.offeneSuche = null;
     setTimeout(() => sucheStarten(was, b), 60);
   }
-  if (!darfPlanen()) balkenAnsehenVerhalten();
+  if (!darfPlanen()) balkenAnsehenVerhalten(b);
   statusSchnellVerhalten(b);
   sucheHervorheben();
 }

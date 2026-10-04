@@ -5125,3 +5125,15 @@ body.dunkel .bs-chip { border-color: #3a444f; }
 .bs-artikel__lief .lieferantlink { display: inline-flex; align-items: center; gap: 4px; }
 /* Handy: die beiden Filter der Artikel nebeneinander (111.29.0) */
 @media (max-width: 640px) { .bs-leiste .bs-filter { flex: 1 1 calc(50% - 5px); min-width: 0; } }
+
+/* Auftragsfenster ohne Planungsrecht: gesperrte Knöpfe sichtbar ruhiger,
+   gesperrte Felder ohne Schreibmarke-Einladung (111.30.0) */
+.dialog--auftrag .farbknopf:disabled,
+.dialog--auftrag .planerknopf:disabled,
+.dialog--auftrag .wahlknopf:disabled { cursor: default; opacity: .6; }
+.dialog--auftrag .farbknopf.aktiv:disabled,
+.dialog--auftrag .planerknopf.aktiv:disabled,
+.dialog--auftrag .wahlknopf.aktiv:disabled { opacity: 1; }
+.dialog--auftrag input[readonly], .dialog--auftrag textarea[readonly],
+.dialog--auftrag select:disabled { background: var(--grund); cursor: default; }
+.auf-nurlesen { margin: 0 0 8px; color: var(--gedaempft); }

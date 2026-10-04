@@ -141,6 +141,10 @@ function Anhang({ was, ordner, adresse, setzen, darf, titel, id, wegId, standId,
 
 function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v, zu }) {
   const darf = alt.darfPlanen();
+  // Ohne Planungsrecht ist das Fenster zum Nachschauen da: ändern lässt
+  // sich nur, was auch vorher schon ging, also Zustand und Problem melden
+  const nurLesen = !darf;
+  const extern = alt.istExtern();
   const maschinen = alt.prod.maschinen || [];
   const [w, setW] = useState(() => anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum));
   const setze = (feld, wert) => setW((x) => ({ ...x, [feld]: wert }));
@@ -294,7 +298,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   Stückzahl und Zeichnung neu setzen</span>}
               </>}
         </div>
-        {auftrag && <div className="auf-kopf__knoepfe">
+        {auftrag && !extern && <div className="auf-kopf__knoepfe">
           <button type="button" className="knopf knopf--klein knopf--warnung" id="pl-problem-eigen"
             onClick={() => { zu(); alt.problemMelden(b, auftrag); }}>Problem</button>
         </div>}
@@ -306,6 +310,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
         {darf && <button type="button" className="knopf knopf--klein" id="pl-problemweg"
           onClick={() => { zu(); alt.problemQuittieren(auftrag, b); }}>Erledigt</button>}
       </div>}
+
+      {nurLesen && auftrag && <p className="klein auf-nurlesen" id="pl-nurlesen">
+        Nur zum Ansehen. {extern ? "" : "Ändern lässt sich hier der Zustand, und mit „Problem“ meldest du, was fehlt oder klemmt."}</p>}
 
       {/* ---------- Drei Spalten ---------- */}
       <div className="auf-raster">
@@ -330,16 +337,16 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
 
           <div className="auf-dreier">
             <label className="feld"><span>Ab</span>
-              <input id="pl-von" type="date" value={w.von} onChange={(e) => vonAendern(e.target.value)} /></label>
+              <input id="pl-von" type="date" readOnly={nurLesen} value={w.von} onChange={(e) => vonAendern(e.target.value)} /></label>
             <label className="feld"><span>Tage</span>
-              <input id="pl-tage" inputMode="decimal" type="number" min="1" step="1" value={w.tage}
+              <input id="pl-tage" inputMode="decimal" readOnly={nurLesen} type="number" min="1" step="1" value={w.tage}
                 onChange={(e) => tageAendern(e.target.value)} /></label>
             <label className="feld"><span>Bis</span>
-              <input id="pl-bis" type="date" value={w.bis} onChange={(e) => bisAendern(e.target.value)} /></label>
+              <input id="pl-bis" type="date" readOnly={nurLesen} value={w.bis} onChange={(e) => bisAendern(e.target.value)} /></label>
           </div>
 
           <label className="feld"><span>Fertigungsmenge</span>
-            <input id="pl-menge" inputMode="decimal" type="number" min="0" step="1" value={w.menge}
+            <input id="pl-menge" inputMode="decimal" readOnly={nurLesen} type="number" min="0" step="1" value={w.menge}
               onChange={(e) => setze("menge", e.target.value)} /></label>
 
           <label className="feld" id="pl-ortfeld"><span>Hinweis zum Material</span>
@@ -356,7 +363,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                     const kuerzel = (u.initialen || "").trim();
                     return <button key={u.id || kuerzel} type="button" data-planer={kuerzel}
                       className={"planerknopf" + (w.planer.includes(kuerzel) ? " aktiv" : "")}
-                      title={u.full_name || u.email} onClick={() => planerUmschalten(kuerzel)}>{kuerzel}</button>;
+                      title={u.full_name || u.email} disabled={nurLesen} onClick={() => planerUmschalten(kuerzel)}>{kuerzel}</button>;
                   })}
                 </div>}
           </div>
@@ -367,7 +374,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           <div className="auf-blocktitel">Material</div>
           {/* Alles in einem Feld, so wie es an der Stange steht */}
           <label className="feld"><span>Material</span>
-            <input id="pl-mat-bez" type="text" list="pl-matliste" autoComplete="off"
+            <input id="pl-mat-bez" type="text" readOnly={nurLesen} list="pl-matliste" autoComplete="off"
               placeholder="z. B. X10CrNiS18-9 rd 011 mm h8" value={w.matBez}
               onChange={(e) => setze("matBez", e.target.value)} />
             <span className="pl-werkstoff" id="pl-werkstoff">
@@ -380,10 +387,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
             </span></label>
           <div className="auf-zweier">
             <label className="feld"><span>Menge vorhanden oder bestellt</span>
-              <input id="pl-menge-mat" type="text" value={w.matMenge}
+              <input id="pl-menge-mat" type="text" readOnly={nurLesen} value={w.matMenge}
                 onChange={(e) => setze("matMenge", e.target.value)} /></label>
             <label className="feld"><span>Liefertermin</span>
-              <input id="pl-liefer" type="text" value={w.liefer}
+              <input id="pl-liefer" type="text" readOnly={nurLesen} value={w.liefer}
                 onChange={(e) => setze("liefer", e.target.value)} /></label>
           </div>
           <div className="feld"><span className="feldlabel">Farbe und Material</span>
@@ -394,7 +401,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   className={"farbknopf" + (w.farbe === f.wert ? " aktiv" : "")}
                   style={{ background: f.hex, color: f.schrift }}
                   title={z ? z.material + " (" + f.name + ")" : f.name}
-                  onClick={() => farbeWaehlen(f.wert)}>{z ? (z.buchstabe || "") : ""}</button>;
+                  disabled={nurLesen} onClick={() => farbeWaehlen(f.wert)}>{z ? (z.buchstabe || "") : ""}</button>;
               })}
               {/* Beliebige Farbe: der kleine Farbwähler am Ende der Reihe */}
               <label className={"farbknopf farbknopf--frei" + (freieFarbe ? " aktiv" : "")}
@@ -418,7 +425,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
               {Object.keys(alt.PLANSTATUS).map((k) => (
                 <button key={k} type="button" data-plstatus={k}
                   className={"wahlknopf" + (w.zustand === k ? " aktiv" : "")}
-                  onClick={() => setze("zustand", k)}>
+                  disabled={extern} onClick={() => setze("zustand", k)}>
                   {alt.PLANSTATUS[k].zeichen} {alt.PLANSTATUS[k].name}</button>
               ))}
             </div></div>
@@ -445,11 +452,11 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           onClick={() => auftragLoeschen(auftrag, b, zu)}>Löschen</button>}
         {/* Kopieren: der Auftrag kommt in die Zwischenablage, eingefügt
             wird mit einem Klick auf die Tafel */}
-        {auftrag && <button type="button" className="knopf" id="pl-kopieren-eigen"
+        {auftrag && darf && <button type="button" className="knopf" id="pl-kopieren-eigen"
           onClick={() => { zu(); alt.zwischenablageSetzen(auftrag, b); }}>Kopieren</button>}
         <button className="knopf knopf--still" id="pl-nein" onClick={zu}>Schliessen</button>
-        <button className="knopf knopf--haupt" id="pl-ja" disabled={beschaeftigt}
-          onClick={speichern}>Speichern</button>
+        {!extern && <button className="knopf knopf--haupt" id="pl-ja" disabled={beschaeftigt}
+          onClick={speichern}>Speichern</button>}
       </div>
     </div>
   );
