@@ -4,7 +4,8 @@
 //  alten Programm: lieferantDialog.
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
-import { Suchfeld, passt } from "../../teile/Suchfeld.jsx";
+import { passt } from "../../teile/Suchfeld.jsx";
+import { Leiste, NeuKnopf, Karte, Kuerzel, Symbolknopf, Zeichen, Leer, Laedt, Fehler } from "./teile.jsx";
 
 export default function Lieferanten({ auffrischen, behaelter }) {
   const best = alt.best;
@@ -12,40 +13,48 @@ export default function Lieferanten({ auffrischen, behaelter }) {
   const schreiben = alt.darfSchreiben();
   const { daten: liste, fehler } = useDaten(() => alt.ladeLieferanten(), [auffrischen]);
 
-  if (fehler && !liste) {
-    return <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>;
-  }
-  if (!liste) return <div className="laedt">Wird geladen …</div>;
-  const gefiltert = liste.filter((l) => passt(suche, [l.name]));
+  const leiste = <Leiste suchId="lf-suche" suche={suche} setSuche={setSuche}
+    platzhalter="Lieferant suchen"
+    knopf={schreiben && <NeuKnopf id="lf-neu" text="Neuer Lieferant"
+      onClick={() => alt.lieferantDialog(null, behaelter)} />} />;
+  if (fehler && !liste) return <>{leiste}<Fehler fehler={fehler} /></>;
+  if (!liste) return <>{leiste}<Laedt /></>;
+  const gefiltert = liste.filter((l) => passt(suche, [l.name, l.email, l.adresse]));
 
   return (
     <>
-      <Suchfeld id="lf-suche" wert={suche} setzen={setSuche} />
-      {schreiben &&
-        <button className="knopf knopf--haupt knopf--breit" id="lf-neu"
-          onClick={() => alt.lieferantDialog(null, behaelter)}>+ Neuer Lieferant</button>}
-      <section className="karte">
-        <h2>Lieferanten <span className="marke">{gefiltert.length}</span></h2>
+      {leiste}
+      <Karte titel="Lieferanten" zahl={gefiltert.length}>
         {gefiltert.length
-          ? <table className="tabelle"><tbody>
+          ? <div className="bs-liefliste">
               {gefiltert.map((l) => (
-                <tr key={l.id}>
-                  <td className="stark">{l.website
-                    ? <a className="lieferantlink" href={l.website} target="_blank" rel="noopener">{l.name} ↗</a>
-                    : l.name}</td>
+                <div key={l.id} className="bs-lief">
+                  <Kuerzel name={l.name} />
+                  <div className="bs-lief__text">
+                    <div className="bs-lief__name">{l.website
+                      ? <a className="lieferantlink" href={l.website} target="_blank" rel="noopener">
+                          {l.name}<Zeichen name="aussen" groesse={13} /></a>
+                      : l.name}</div>
+                    <div className="bs-lief__info">
+                      {l.email && <a href={"mailto:" + l.email}><Zeichen name="mail" groesse={13} />{l.email}</a>}
+                      {l.adresse && <span>{String(l.adresse).replace(/\s*\n\s*/g, ", ")}</span>}
+                    </div>
+                  </div>
+                  <span className={"bs-chip " + (l.bestellweg === "mail" ? "bs-chip--mail" : "bs-chip--still")}>
+                    {l.bestellweg === "mail" ? "Bestellung per Mail" : "Über Website"}</span>
                   {schreiben &&
-                    <td className="rechts nowrap">
-                      <button className="linkknopf" data-lf={l.id}
-                        onClick={() => alt.lieferantDialog(l, behaelter)}>Anpassen</button>{" "}
-                      <button className="linkknopf linkknopf--gefahr" data-lfweg={l.id}
-                        data-name={l.name} onClick={() => loeschen(l, behaelter)}>Löschen</button>
-                    </td>}
-                </tr>
+                    <div className="bs-pos__aktionen">
+                      <Symbolknopf zeichen="stift" text="Anpassen" data-lf={l.id}
+                        onClick={() => alt.lieferantDialog(l, behaelter)} />
+                      <Symbolknopf zeichen="muell" text="Löschen" gefahr data-lfweg={l.id}
+                        data-name={l.name} onClick={() => loeschen(l, behaelter)} />
+                    </div>}
+                </div>
               ))}
-            </tbody></table>
-          : <p className="hinweis">{suche.trim()
-              ? 'Nichts gefunden zu "' + suche + '".' : "Noch keine Lieferanten angelegt."}</p>}
-      </section>
+            </div>
+          : <Leer text={suche.trim()
+              ? 'Nichts gefunden zu "' + suche + '".' : "Noch keine Lieferanten angelegt."} />}
+      </Karte>
     </>
   );
 }

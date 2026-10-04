@@ -4,6 +4,7 @@
 //  tippen. Der Filter nach Bezeichnung wirkt sofort.
 // =================================================================
 import { alt, useDaten, useVerzoegert, useSpeicherWert } from "../../bruecke.jsx";
+import { Leiste, NeuKnopf, Karte, Symbolknopf, Zeichen, Leer, Laedt, Fehler } from "./teile.jsx";
 
 export default function Artikel({ auffrischen, behaelter }) {
   const best = alt.best;
@@ -21,71 +22,67 @@ export default function Artikel({ auffrischen, behaelter }) {
 
   return (
     <>
-      <div className="suchleiste">
-        <input type="search" id="ar-suche" placeholder="Suchen" value={suche} autoComplete="off"
-          autoFocus={!!suche}
-          onChange={(e) => { setSuche(e.target.value); }} />
-        <select id="ar-bez" className="auswahl" value={bez}
-          onChange={(e) => { setBez(e.target.value); }}>
-          <option value="">Alle Bezeichnungen</option>
-          {(bezeichnungen || []).map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
-          {/* Gewählt, aber (noch) nicht geladen: trotzdem anzeigen */}
-          {bez && !(bezeichnungen || []).some((z) => z.name === bez) &&
-            <option value={bez}>{bez}</option>}
-        </select>
-      </div>
-      {schreiben &&
-        <button className="knopf knopf--haupt knopf--breit" id="ar-neu" onClick={async () => {
+      <Leiste suchId="ar-suche" suche={suche} setSuche={setSuche}
+        platzhalter="Nummer, Bezeichnung oder Lieferant suchen"
+        filter={
+          <select id="ar-bez" className="auswahl bs-filter" value={bez} aria-label="Bezeichnung"
+            onChange={(e) => { setBez(e.target.value); }}>
+            <option value="">Alle Bezeichnungen</option>
+            {(bezeichnungen || []).map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
+            {/* Gewählt, aber (noch) nicht geladen: trotzdem anzeigen */}
+            {bez && !(bezeichnungen || []).some((z) => z.name === bez) &&
+              <option value={bez}>{bez}</option>}
+          </select>}
+        knopf={schreiben && <NeuKnopf id="ar-neu" text="Neuer Artikel" onClick={async () => {
           const a = await alt.artikelSchnellAnlegen("");
           if (a) alt.seiteBestellungen(behaelter);
-        }}>+ Neuer Artikel</button>}
+        }} />} />
       <div id="ar-liste">
         {fehler && !liste
-          ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>
+          ? <Fehler fehler={fehler} />
           : !gefiltert
-            ? <div className="laedt">Wird geladen …</div>
-            : <Liste liste={gefiltert} sucht={!!suche} schreiben={schreiben} behaelter={behaelter} />}
+            ? <Laedt />
+            : <Liste liste={gefiltert} sucht={!!suche || !!bez} schreiben={schreiben} behaelter={behaelter} />}
       </div>
     </>
   );
 }
 
 function Liste({ liste, sucht, schreiben, behaelter }) {
+  if (!liste.length) return <Leer text={sucht ? "Kein Artikel gefunden." : "Noch keine Artikel angelegt."} />;
   return (
-    <section className="karte">
-      <h2>Artikel <span className="marke">{liste.length}</span></h2>
-      {liste.length
-        ? <table className="tabelle">
-            <thead><tr><th>Nummer</th><th>Bezeichnung</th><th>Lieferant</th>
-              {schreiben && <th></th>}</tr></thead>
-            <tbody>
-              {liste.map((a) => (
-                <tr key={a.id} className={a.is_active === false ? "zeile--inaktiv" : undefined}>
-                  <td className="stark">{a.article_number}
-                    {a.is_active === false && <> <span className="klein">ausgeblendet</span></>}
-                    {a.description && <div className="klein artikel__beschreibung">{a.description}</div>}
-                  </td>
-                  <td>{a.name}
-                    {a.unit && a.unit !== "Stück" && <div className="klein">{a.unit}</div>}</td>
-                  <td className="klein">{a.supplier_name
-                    ? (a.supplier_website
-                        ? <a className="lieferantlink" href={a.supplier_website} target="_blank"
-                            rel="noopener">{a.supplier_name} ↗</a>
-                        : a.supplier_name)
-                    : "–"}</td>
-                  {schreiben &&
-                    <td className="rechts nowrap">
-                      <button className="linkknopf" data-arbearb={a.id}
-                        onClick={() => alt.artikelBearbeiten(a, behaelter)}>Bearbeiten</button>
-                      <button className="linkknopf linkknopf--gefahr" data-arweg={a.id}
-                        data-nr={a.article_number} onClick={() => loeschen(a, behaelter)}>Löschen</button>
-                    </td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        : <p className="hinweis">{sucht ? "Kein Artikel gefunden." : "Noch keine Artikel angelegt."}</p>}
-    </section>
+    <Karte titel="Artikel" zahl={liste.length}
+      unter={liste.length >= 50 ? "Die ersten 50. Mit der Suche findest du jeden." : undefined}>
+      <div className="bs-tabelle bs-tabelle--artikel">
+        <div className="bs-tabelle__kopf" aria-hidden="true">
+          <span>Nummer</span><span>Bezeichnung</span><span>Lieferant</span>{schreiben && <span />}
+        </div>
+        {liste.map((a) => (
+          <div key={a.id} className={"bs-tabelle__zeile" + (a.is_active === false ? " bs-inaktiv" : "")}>
+            <div>
+              <span className="bs-pos__nr">{a.article_number}</span>
+              {a.is_active === false && <span className="bs-chip bs-chip--still">ausgeblendet</span>}
+              {a.description && <div className="bs-pos__beschreibung">{a.description}</div>}
+            </div>
+            <div>{a.name}
+              {a.unit && a.unit !== "Stück" && <span className="bs-einheit">{a.unit}</span>}</div>
+            <div className="bs-gedaempft">{a.supplier_name
+              ? (a.supplier_website
+                  ? <a className="lieferantlink" href={a.supplier_website} target="_blank"
+                      rel="noopener">{a.supplier_name}<Zeichen name="aussen" groesse={13} /></a>
+                  : a.supplier_name)
+              : "–"}</div>
+            {schreiben &&
+              <div className="bs-pos__aktionen">
+                <Symbolknopf zeichen="stift" text="Bearbeiten" data-arbearb={a.id}
+                  onClick={() => alt.artikelBearbeiten(a, behaelter)} />
+                <Symbolknopf zeichen="muell" text="Löschen" gefahr data-arweg={a.id}
+                  data-nr={a.article_number} onClick={() => loeschen(a, behaelter)} />
+              </div>}
+          </div>
+        ))}
+      </div>
+    </Karte>
   );
 }
 

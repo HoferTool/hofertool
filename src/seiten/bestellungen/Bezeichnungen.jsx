@@ -3,7 +3,8 @@
 //  Die Liste, die beim Anlegen und Bearbeiten von Artikeln erscheint.
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
-import { Suchfeld, passt } from "../../teile/Suchfeld.jsx";
+import { passt } from "../../teile/Suchfeld.jsx";
+import { Leiste, NeuKnopf, Karte, Symbolknopf, Leer, Laedt, Fehler } from "./teile.jsx";
 
 export default function Bezeichnungen({ auffrischen }) {
   const best = alt.best;
@@ -14,37 +15,34 @@ export default function Bezeichnungen({ auffrischen }) {
 
   return (
     <>
-      <Suchfeld id="bz-suche" wert={suche} setzen={setSuche} />
-      {schreiben &&
-        <button className="knopf knopf--haupt knopf--breit" id="bz-neu"
-          onClick={() => bezeichnungDialog(null, neu)}>+ Neue Bezeichnung</button>}
+      <Leiste suchId="bz-suche" suche={suche} setSuche={setSuche} platzhalter="Bezeichnung suchen"
+        knopf={schreiben && <NeuKnopf id="bz-neu" text="Neue Bezeichnung"
+          onClick={() => bezeichnungDialog(null, neu)} />} />
       <div id="bz-liste">
         {fehler && !liste
-          ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>
+          ? <Fehler fehler={fehler} />
           : !gefiltert
-            ? <div className="laedt">Wird geladen …</div>
-            : <section className="karte">
-                <h2>Bezeichnungen <span className="marke">{gefiltert.length}</span></h2>
-                <p className="hinweis">Diese Liste erscheint beim Anlegen und Bearbeiten
-                  {" "}von Artikeln. So heisst dasselbe Werkzeug überall gleich.</p>
+            ? <Laedt />
+            : <Karte titel="Bezeichnungen" zahl={gefiltert.length}
+                unter="Diese Liste erscheint beim Anlegen und Bearbeiten von Artikeln. So heisst dasselbe Werkzeug überall gleich.">
                 {gefiltert.length
-                  ? <table className="tabelle"><tbody>
+                  ? <div className="bs-raster">
                       {gefiltert.map((z) => (
-                        <tr key={z.id}>
-                          <td className="stark">{z.name}</td>
+                        <div key={z.id} className="bs-raster__eintrag">
+                          <span className="bs-raster__name">{z.name}</span>
                           {schreiben &&
-                            <td className="rechts nowrap">
-                              <button className="linkknopf" data-bzb={z.id}
-                                onClick={() => bezeichnungDialog(z, neu)}>Bearbeiten</button>
-                              <button className="linkknopf linkknopf--gefahr" data-bzw={z.id}
-                                data-name={z.name} onClick={() => loeschen(z, neu)}>Löschen</button>
-                            </td>}
-                        </tr>
+                            <span className="bs-pos__aktionen">
+                              <Symbolknopf zeichen="stift" text="Bearbeiten" data-bzb={z.id}
+                                onClick={() => bezeichnungDialog(z, neu)} />
+                              <Symbolknopf zeichen="muell" text="Löschen" gefahr data-bzw={z.id}
+                                data-name={z.name} onClick={() => loeschen(z, neu)} />
+                            </span>}
+                        </div>
                       ))}
-                    </tbody></table>
-                  : <p className="hinweis">{suche.trim()
-                      ? 'Nichts gefunden zu "' + suche + '".' : "Noch keine Bezeichnung angelegt."}</p>}
-              </section>}
+                    </div>
+                  : <Leer text={suche.trim()
+                      ? 'Nichts gefunden zu "' + suche + '".' : "Noch keine Bezeichnung angelegt."} />}
+              </Karte>}
       </div>
     </>
   );
