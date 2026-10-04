@@ -3,7 +3,7 @@
 83 Sekunden, 1920 × 1080, Männerstimme (heller gestimmt) und eigene Elektro-Pop-Musik. Ablauf:
 
 1. Karte: Schweiz, Solothurn, Lohn-Ammannsegg, das Gebäude fällt auf den Punkt, seit 1928
-2. Inhaber Patrick Ruch, dann die Geschäftsleitung nur mit Namen
+2. Der Inhaber, dann die Geschäftsleitung nur mit Namen
 3. Eine CNC-Drehmaschine mit Stangenlader, Hersteller Star, Hanwha, Index, Willemin-Macodel (neu), Werkstoffe und bis 42 mm
 4. Probleme: Stillstand ohne Material, Zettel und Ordner, „Was läuft gerade?“
 5. Hofer Tool: Planwand, Material mit rotem Punkt, Suche, Pad Mode, Handy, Bestellungen, weitere Funktionen
