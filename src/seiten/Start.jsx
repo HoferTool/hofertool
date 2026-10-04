@@ -37,9 +37,11 @@ export default function Start({ auffrischen }) {
       <Solaranlage />
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
       <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />
-      <EinkaufKurz auffrischen={auffrischen} />
-      <Notizen auffrischen={auffrischen} />
+      {/* Reihenfolge nach Wunsch 4. Oktober 2026: Probleme, Bestellungen,
+          Notizen, Einkaufsliste, am Schluss die Geburtstage. */}
       <Bestellstand auffrischen={auffrischen} />
+      <Notizen auffrischen={auffrischen} />
+      <EinkaufKurz auffrischen={auffrischen} />
       <Geburtstage leute={geb.daten} fehler={geb.fehler} />
     </>
   );

@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.31.0";
+const APP_VERSION = "111.33.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4593,14 +4593,28 @@ async function planAktualisieren(b) {
 document.addEventListener("keydown", (e) => {
   if (e.key !== "h" && e.key !== "H") return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  // Schieber und Haken zählen nicht als Schreibfeld: nach dem Ziehen
+  // am Zeitraum soll H trotzdem gehen (Wunsch 4. Oktober 2026)
   const a = document.activeElement;
-  if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;
+  if (a && (istTextfeld(a) || a.tagName === "SELECT")) return;
   if (document.querySelector(".dialog-huelle, #pad")) return;
   const knopf = document.getElementById("pw-heute");
   if (!knopf) return;
   e.preventDefault();
   knopf.click();
 });
+
+// Schieber auf der Planwand nach dem Loslassen abwählen. Sonst bleibt
+// der Fokus darauf, und Pfeiltasten oder Mausrad verstellen ihn weiter.
+function planSchieberLoslassen(e) {
+  const el = e.target;
+  if (!el || el.tagName !== "INPUT" || el.type !== "range") return;
+  if (!el.closest(".pw-kopfleiste, .pw-zeitregler, #pw-inhalt, .pw-zeitschicht")) return;
+  // Erst nach dem Ereignis, damit der Browser das Ziehen sauber beendet
+  setTimeout(() => { if (document.activeElement === el) el.blur(); }, 0);
+}
+document.addEventListener("pointerup", planSchieberLoslassen, true);
+document.addEventListener("change", planSchieberLoslassen, true);
 
 // Zu heute springen, so dass noch zwei Wochen Vergangenheit zu sehen
 // sind: Beginn ist der Montag vor zwei Wochen
@@ -7054,7 +7068,9 @@ async function ladeBestellungen(offen) {
 
 async function ladeBestellungenFrisch(offen) {
   let a = db.from("order_items")
-    .select("*, articles(article_number, name, unit, supplier_id, description, suppliers(name, website, email, adresse, bestellweg)), suppliers(name, website, email, adresse, bestellweg), profiles!order_items_created_by_fkey(full_name, email)")
+    // suppliers(*) statt fester Spalten, damit logo_url mitkommt, sobald
+    // sql/lieferant-logo.sql gelaufen ist, und vorher nichts fehlschlägt
+    .select("*, articles(article_number, name, unit, supplier_id, description, suppliers(*)), suppliers(*), profiles!order_items_created_by_fkey(full_name, email)")
     .order("needed_by", { ascending: true, nullsFirst: false })
     .order("created_at");
   if (offen) a = a.in("status", OFFENE_STATUS);

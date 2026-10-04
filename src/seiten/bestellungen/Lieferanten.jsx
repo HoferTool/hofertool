@@ -5,13 +5,14 @@
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { passt } from "../../teile/Suchfeld.jsx";
-import { Leiste, NeuKnopf, Karte, Kuerzel, Symbolknopf, Zeichen, Leer, Laedt, Fehler } from "./teile.jsx";
+import { Leiste, NeuKnopf, Karte, Logo, Symbolknopf, Zeichen, Leer, Laedt, Fehler } from "./teile.jsx";
+import { logoOeffnen } from "./LogoFenster.jsx";
 
 export default function Lieferanten({ auffrischen, behaelter }) {
   const best = alt.best;
   const [suche, setSuche] = useSpeicherWert(best, "liefSuche", auffrischen);
   const schreiben = alt.darfSchreiben();
-  const { daten: liste, fehler } = useDaten(() => alt.ladeLieferanten(), [auffrischen]);
+  const { daten: liste, fehler, neu } = useDaten(() => alt.ladeLieferanten(), [auffrischen]);
 
   const leiste = <Leiste suchId="lf-suche" suche={suche} setSuche={setSuche}
     platzhalter="Lieferant suchen"
@@ -29,7 +30,8 @@ export default function Lieferanten({ auffrischen, behaelter }) {
           ? <div className="bs-liefliste">
               {gefiltert.map((l) => (
                 <div key={l.id} className="bs-lief">
-                  <Kuerzel name={l.name} />
+                  {/* Tipp aufs Logo: automatisch, eigenes Bild oder keins */}
+                  <Logo lief={l} name={l.name} onClick={schreiben ? () => logoOeffnen(l, neu) : undefined} />
                   <div className="bs-lief__text">
                     <div className="bs-lief__name">{l.website
                       ? <a className="lieferantlink" href={l.website} target="_blank" rel="noopener">

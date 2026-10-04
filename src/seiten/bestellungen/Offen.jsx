@@ -6,7 +6,7 @@
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { positionOeffnen } from "./PositionFenster.jsx";
-import { Leiste, NeuKnopf, Karte, Kuerzel, Status, Ziel, Zeichen, Symbolknopf,
+import { Leiste, NeuKnopf, Karte, Logo, Status, Ziel, Zeichen, Symbolknopf,
   Leer, Laedt, Fehler, mehrzahl } from "./teile.jsx";
 
 const BLOECKE = {
@@ -66,7 +66,6 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
   return (
     <>
       {leiste}
-      <Uebersicht posten={imBereich} heute={heute} />
 
       {BLOECKE[bereich].map((bl) => (
         <Block key={bl.status} block={bl} posten={gefiltert.filter((z) => z.status === bl.status)}
@@ -82,23 +81,6 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
   );
 }
 
-// Drei Zahlen oben: wie viele Positionen, bei wie vielen Lieferanten,
-// wie viele überfällig. Überfällig nur, wenn es welche gibt.
-function Uebersicht({ posten, heute }) {
-  if (!posten.length) return null;
-  const lieferanten = new Set(posten.map((z) => (lieferantVon(z) || {}).name || "–")).size;
-  const spaet = posten.filter((z) => fristArt(z, heute) === "spaet").length;
-  const bald = posten.filter((z) => fristArt(z, heute) === "bald").length;
-  return (
-    <div className="bs-uebersicht">
-      <div className="bs-wert"><b>{posten.length}</b><span>{posten.length === 1 ? "Position" : "Positionen"}</span></div>
-      <div className="bs-wert"><b>{lieferanten}</b><span>{lieferanten === 1 ? "Lieferant" : "Lieferanten"}</span></div>
-      {spaet > 0 && <div className="bs-wert bs-wert--spaet"><b>{spaet}</b><span>überfällig</span></div>}
-      {bald > 0 && <div className="bs-wert bs-wert--bald"><b>{bald}</b><span>in 3 Tagen fällig</span></div>}
-    </div>
-  );
-}
-
 function Block({ block, posten, schreiben, neu, behaelter, heute, einziger }) {
   if (!posten.length) return null;
 
@@ -107,7 +89,7 @@ function Block({ block, posten, schreiben, neu, behaelter, heute, einziger }) {
   posten.forEach((z) => {
     const lief = lieferantVon(z);
     const name = (lief && lief.name) || "Ohne Lieferant";
-    (gruppen[name] = gruppen[name] || { lief: null, website: null, weg: null, posten: [] }).posten.push(z);
+    (gruppen[name] = gruppen[name] || { lief: null, lief0: lief, website: null, weg: null, posten: [] }).posten.push(z);
     if (lief && lief.website) gruppen[name].website = lief.website;
     if (lief && lief.bestellweg) gruppen[name].weg = lief.bestellweg;
     if (lief && lief.bestellweg === "mail") gruppen[name].lief = lief;
@@ -157,7 +139,7 @@ function Lieferant({ name, gruppe, block, schreiben, neu, behaelter, heute }) {
   const unter = [positionen(gruppe.posten.length), BESTELLWEG[gruppe.weg]].filter(Boolean).join(" · ");
 
   return (
-    <Karte className="bs-lieferant" vorne={<Kuerzel name={name} />}
+    <Karte className="bs-lieferant" vorne={<Logo lief={gruppe.lief0} name={name} />}
       titel={gruppe.website
         ? <a className="lieferantlink" href={gruppe.website} target="_blank" rel="noopener">
             {name}<Zeichen name="aussen" groesse={14} /></a>
@@ -206,20 +188,18 @@ function Zeile({ z, schreiben, behaelter, heute }) {
             title="Artikelnummer kopieren" aria-label="Artikelnummer kopieren" onClick={kopieren}>
             <Zeichen name="kopie" groesse={14} /></button>
           <span className="bs-pos__name">{a2.name || ""}</span>
+          {a2.description && <span className="bs-pos__beschreibung">{a2.description}</span>}
         </div>
-        {a2.description && <div className="bs-pos__beschreibung">{a2.description}</div>}
+        {/* Alles Weitere in einer Zeile: Ziel, Frist, Notiz, wer und seit wann */}
         <div className="bs-pos__chips">
-          {/* Wohin die Ware nach dem Eintreffen soll — direkt am Artikel,
-              damit man es beim Auspacken sofort sieht */}
           <Ziel art={z.ziel_art} text={z.ziel_text} />
           {frist &&
             <span className={"bs-chip bs-chip--frist bs-chip--" + frist}>
               <Zeichen name="kalender" groesse={14} />
               {frist === "spaet" ? "überfällig seit " : "bis "}{alt.kurzDatum(z.needed_by)}</span>}
           {z.note && <span className="bs-chip bs-chip--notiz"><Zeichen name="notiz" groesse={14} />{z.note}</span>}
+          <span className="bs-pos__wer">{alt.personName(z.profiles)}{zeit && <> · {alt.statusZeitText(z)}</>}</span>
         </div>
-        <div className="bs-pos__wer">von {alt.personName(z.profiles)}
-          {zeit && <> · {alt.statusZeitText(z)}</>}</div>
       </div>
 
       <div className="bs-pos__menge">

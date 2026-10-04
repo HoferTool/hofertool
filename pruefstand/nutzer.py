@@ -59,6 +59,14 @@ with sync_playwright() as p:
     pruefe("Park freigegeben", park in prof("u2", "parks"))
     pg.uncheck(f"[data-pu='u2'][data-pp='{park}']"); pg.wait_for_timeout(500)
     pruefe("Park wieder entzogen", park not in prof("u2", "parks"))
+    # Bild vom Admin: Klick aufs Bild wählt eine Datei, Zuschnitt, dann gespeichert; × nimmt es weg
+    pruefe("Bildwahl bei jeder Person", pg.locator("[data-bild='u2']").count() == 1 and pg.locator("[data-bildweg='u2']").count() == 0)
+    png = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f00f0004010180b198ca180000000049454e44ae426082")
+    pg.set_input_files("[data-bild='u2']", {"name": "foto.png", "mimeType": "image/png", "buffer": png})
+    pg.wait_for_selector("#zs-ja"); pg.click("#zs-ja"); pg.wait_for_timeout(900)
+    pruefe("Bild gespeichert", str(prof("u2", "bild_url") or "").startswith("data:image") and pg.locator("[data-bildweg='u2']").count() == 1)
+    pg.locator("[data-bildweg='u2']").click(force=True); pg.wait_for_timeout(500)
+    pruefe("Bild entfernt", prof("u2", "bild_url") is None and pg.locator("[data-bildweg='u2']").count() == 0)
 
     # Personen ohne Login
     pg.click("#pe-neu"); pg.wait_for_selector("#pd-name")

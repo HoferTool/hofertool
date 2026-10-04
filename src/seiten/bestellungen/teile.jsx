@@ -4,6 +4,7 @@
 //  Alle Reiter sehen damit gleich aus, im Stil der Einstellungen:
 //  weisse Karten mit Titel, ruhige Zeilen, Farben aus dem Thema.
 // =================================================================
+import { useEffect, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 
 const PFADE = {
@@ -93,6 +94,53 @@ export function Kuerzel({ name }) {
   const teile = String(name || "?").replace(/[^\p{L}\p{N} ]/gu, " ").trim().split(/\s+/);
   const k = ((teile[0] || "?")[0] + ((teile[1] || "")[0] || "")).toUpperCase();
   return <span className="bs-kuerzel" aria-hidden="true">{k}</span>;
+}
+
+// Logo eines Lieferanten (111.31.0). logo_url leer: automatisch das
+// Symbol seiner Website, "keins": die Buchstaben, sonst das eigene Bild.
+export function logoQuelle(lief) {
+  if (!lief) return null;
+  const eigen = String(lief.logo_url || "").trim();
+  if (eigen === "keins") return null;
+  if (eigen) return eigen;
+  return websiteSymbol(lief.website);
+}
+
+export function websiteSymbol(website) {
+  const host = websiteHost(website);
+  return host ? "https://www.google.com/s2/favicons?domain=" + encodeURIComponent(host) + "&sz=128" : null;
+}
+function websiteHost(website) {
+  try {
+    const host = new URL(/^https?:\/\//i.test(website || "") ? website : "https://" + website).hostname;
+    return host && host.includes(".") ? host : null;
+  } catch (f) { return null; }
+}
+// Klappt der Google-Dienst nicht, direkt das Symbol der Website versuchen
+function ersatzSymbol(lief) {
+  const host = websiteHost(lief && lief.website);
+  return host ? "https://" + host + "/favicon.ico" : null;
+}
+
+// Kein Bild oder ein winziges Ersatzsymbol (Website ohne Logo): dann die
+// Buchstaben. Die Wahl merkt sich die Seite, damit nichts flackert.
+const kaputt = new Set();
+export function Logo({ lief, name, onClick, titel }) {
+  const eigen = !!String((lief && lief.logo_url) || "").trim();
+  const erste = logoQuelle(lief);
+  const zweite = !eigen && erste ? ersatzSymbol(lief) : null;
+  const wahl = () => [erste, zweite].find((q) => q && !kaputt.has(q)) || null;
+  const [quelle, setQuelle] = useState(wahl);
+  useEffect(() => { setQuelle(wahl()); }, [erste, zweite]);
+  const weg = () => { kaputt.add(quelle); setQuelle(wahl()); };
+  const inhalt = !quelle
+    ? <Kuerzel name={name || (lief && lief.name)} />
+    : <span className="bs-logo"><img src={quelle} alt="" loading="lazy" referrerPolicy="no-referrer"
+        onError={weg}
+        onLoad={(e) => { if (!eigen && e.currentTarget.naturalWidth < 24) weg(); }} /></span>;
+  if (!onClick) return inhalt;
+  return <button type="button" className="bs-logoknopf" title={titel || "Logo ändern"}
+    aria-label={titel || "Logo ändern"} onClick={onClick}>{inhalt}</button>;
 }
 
 export function Leer({ text }) {

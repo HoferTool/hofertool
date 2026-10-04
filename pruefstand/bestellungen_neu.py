@@ -42,10 +42,14 @@ with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     pg = seite(br, 1400)
 
-    # Übersicht: 2 offene Positionen, 1 überfällig
-    werte = pg.locator(".bs-uebersicht .bs-wert").all_inner_texts()
-    if not werte or not werte[0].startswith("2"): fehler.append("Übersicht Positionen: %s" % werte)
-    if not pg.locator(".bs-wert--spaet").count(): fehler.append("Überfällig fehlt in der Übersicht")
+    # Die Zahlenkacheln oben sind weg (Wunsch 4. Oktober 2026)
+    if pg.locator(".bs-uebersicht").count(): fehler.append("Zahlenkacheln noch da")
+    # Eigenes Logo erscheint als Bild; ohne Logo (Netz ist hier gesperrt) die Buchstaben
+    pg.evaluate("""TEST.daten.suppliers.find(x => x.id === 's1').logo_url =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='""")
+    pg.click("[data-best='bestellt']"); pg.wait_for_timeout(400)
+    pg.click("[data-best='offen']"); pg.wait_for_timeout(700)
+    if not pg.locator(".bs-lieferant .bs-logo img").count(): fehler.append("Lieferanten-Logo fehlt")
     if pg.locator(".bs-pos--spaet").count() != 1: fehler.append("Überfällige Zeile nicht markiert")
     if "überfällig seit" not in pg.inner_text(".bs-pos--spaet"): fehler.append("Frist-Chip fehlt")
     if "Star SR31" not in pg.inner_text(".bs-chip--ziel >> nth=0") and \
@@ -68,6 +72,18 @@ with sync_playwright() as p:
     # Historie: nach Monat gruppiert
     pg.click("[data-best='historie']"); pg.wait_for_timeout(500)
     if "August 2026" not in pg.inner_text("#best-inhalt"): fehler.append("Monat fehlt in der Historie")
+
+    # Lieferanten: Tipp aufs Logo öffnet das Fenster, "Kein Logo" speichert "keins"
+    pg.click("[data-best='lieferanten']"); pg.wait_for_timeout(500)
+    if pg.locator(".bs-lief .bs-logoknopf").count() < 2: fehler.append("Logoknöpfe fehlen")
+    pg.locator(".bs-lief .bs-logoknopf").first.click(); pg.wait_for_selector(".dialog-huelle [data-logoart]")
+    pg.click(".dialog-huelle [data-logoart='keins']"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(700)
+    if pg.evaluate("TEST.daten.suppliers.find(x => x.id === 's2').logo_url") != "keins":
+        fehler.append("Logo 'keins' nicht gespeichert")
+    if not pg.locator(".bs-lief").first.locator(".bs-kuerzel").count(): fehler.append("Nach 'keins' keine Buchstaben")
+    # Bezeichnungen als Zeilen
+    pg.click("[data-best='bezeichnungen']"); pg.wait_for_timeout(500)
+    if pg.locator(".bs-raster").count(): fehler.append("Bezeichnungen noch als Raster")
 
     # Artikel: Filter nach Lieferant als Auswahlliste
     pg.evaluate("""TEST.daten.articles.push({ id: "a9", article_number: "BR-77", name: "Bohrer",
