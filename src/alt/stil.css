@@ -5113,3 +5113,13 @@ body.dunkel .bs-wert--spaet { background: #3d1f1c; border-color: #6b2b25; }
 body.dunkel .bs-wert--bald { background: #3a2f14; border-color: #6b5420; }
 body.dunkel .bs-tag, body.dunkel .bs-tabelle__kopf { background: #232a32; }
 body.dunkel .bs-chip { border-color: #3a444f; }
+
+/* Artikel als Kacheln im Raster wie die Bezeichnungen (111.28.0) */
+.bs-raster--artikel { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.bs-raster__eintrag.bs-artikel { align-items: flex-start; padding: 14px 10px 14px 18px; }
+.bs-artikel__text { flex: 1 1 auto; min-width: 0; }
+.bs-artikel__nr { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.bs-artikel__nr .bs-chip { margin-left: 0; padding: 1px 8px; font-size: .74rem; }
+.bs-artikel__name { margin-top: 2px; }
+.bs-artikel__lief { margin-top: 6px; font-size: .82rem; color: var(--gedaempft); }
+.bs-artikel__lief .lieferantlink { display: inline-flex; align-items: center; gap: 4px; }

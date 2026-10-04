@@ -53,32 +53,31 @@ function Liste({ liste, sucht, schreiben, behaelter }) {
   return (
     <Karte titel="Artikel" zahl={liste.length}
       unter={liste.length >= 50 ? "Die ersten 50. Mit der Suche findest du jeden." : undefined}>
-      <div className="bs-tabelle bs-tabelle--artikel">
-        <div className="bs-tabelle__kopf" aria-hidden="true">
-          <span>Nummer</span><span>Bezeichnung</span><span>Lieferant</span>{schreiben && <span />}
-        </div>
+      {/* Kacheln im Raster wie bei den Bezeichnungen (Wunsch 4. Oktober 2026) */}
+      <div className="bs-raster bs-raster--artikel">
         {liste.map((a) => (
-          <div key={a.id} className={"bs-tabelle__zeile" + (a.is_active === false ? " bs-inaktiv" : "")}>
-            <div>
-              <span className="bs-pos__nr">{a.article_number}</span>
-              {a.is_active === false && <span className="bs-chip bs-chip--still">ausgeblendet</span>}
+          <div key={a.id} className={"bs-raster__eintrag bs-artikel" + (a.is_active === false ? " bs-inaktiv" : "")}>
+            <div className="bs-artikel__text">
+              <div className="bs-artikel__nr">
+                <span className="bs-pos__nr">{a.article_number}</span>
+                {a.is_active === false && <span className="bs-chip bs-chip--still">ausgeblendet</span>}
+              </div>
+              <div className="bs-artikel__name">{a.name}
+                {a.unit && a.unit !== "Stück" && <span className="bs-einheit">{a.unit}</span>}</div>
               {a.description && <div className="bs-pos__beschreibung">{a.description}</div>}
-            </div>
-            <div>{a.name}
-              {a.unit && a.unit !== "Stück" && <span className="bs-einheit">{a.unit}</span>}</div>
-            <div className="bs-gedaempft">{a.supplier_name
-              ? (a.supplier_website
+              {a.supplier_name &&
+                <div className="bs-artikel__lief">{a.supplier_website
                   ? <a className="lieferantlink" href={a.supplier_website} target="_blank"
-                      rel="noopener">{a.supplier_name}<Zeichen name="aussen" groesse={13} /></a>
-                  : a.supplier_name)
-              : "–"}</div>
+                      rel="noopener">{a.supplier_name}<Zeichen name="aussen" groesse={12} /></a>
+                  : a.supplier_name}</div>}
+            </div>
             {schreiben &&
-              <div className="bs-pos__aktionen">
+              <span className="bs-pos__aktionen">
                 <Symbolknopf zeichen="stift" text="Bearbeiten" data-arbearb={a.id}
                   onClick={() => alt.artikelBearbeiten(a, behaelter)} />
                 <Symbolknopf zeichen="muell" text="Löschen" gefahr data-arweg={a.id}
                   data-nr={a.article_number} onClick={() => loeschen(a, behaelter)} />
-              </div>}
+              </span>}
           </div>
         ))}
       </div>
