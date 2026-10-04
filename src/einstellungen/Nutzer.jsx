@@ -23,7 +23,7 @@ export default function Nutzer() {
   return (
     <>
       <Gruppe titel="Benutzer mit Login" text={bin
-        ? "Änderungen gelten sofort. Namen, Kürzel und Geburtstag werden beim Verlassen des Felds gespeichert."
+        ? "Änderungen gelten sofort. Namen, Kürzel und Geburtstag werden beim Verlassen des Felds gespeichert. Ein Klick auf das Bild setzt ein Foto."
         : "Ändern dürfen nur Administratoren."}>
         <div id="benutzerliste"><Benutzer bin={bin} /></div>
       </Gruppe>
@@ -55,6 +55,41 @@ function Bild({ url, name }) {
   return url
     ? <img className="kopf__bild" src={url} alt="" />
     : <span className="kopf__bild kopf__bild--leer">{(name || "?").charAt(0).toUpperCase()}</span>;
+}
+
+// Lädt ein gewähltes Bild zugeschnitten in die Ablage und gibt die
+// öffentliche Adresse zurück (null, wenn abgebrochen).
+async function bildHochladen(datei, pfad) {
+  const klein = await alt.bildZuschneiden(datei, 400);
+  if (!klein) return null;
+  const r = await alt.db.storage.from("profilbilder").upload(pfad, klein, { contentType: "image/jpeg" });
+  if (r.error) throw r.error;
+  return alt.db.storage.from("profilbilder").getPublicUrl(pfad).data.publicUrl;
+}
+
+// Bild, das der Admin per Klick wechseln kann. Wer nie unter „Mein
+// Konto“ vorbeikommt (Konten ohne Passwort am Tablet), bekommt sein
+// Foto so vom Admin. Ein zweiter Knopf nimmt es wieder weg.
+function BildWahl({ url, name, kennung, speichern }) {
+  const waehlen = async (e) => {
+    const f = (e.target.files || [])[0];
+    e.target.value = "";
+    if (!f) return;
+    try {
+      const adresse = await bildHochladen(f, "profil/" + kennung + "-" + Date.now() + ".jpg");
+      if (adresse) await speichern(adresse);
+    } catch (f2) { alt.meldung(alt.fehlertext(f2), "fehler"); }
+  };
+  return (
+    <span className="bildwahl">
+      <label className="bildwahl__knopf" title={url ? "Bild ändern" : "Bild setzen"}>
+        <Bild url={url} name={name} />
+        <input type="file" accept="image/*" hidden data-bild={kennung} onChange={waehlen} />
+      </label>
+      {url && <button type="button" className="bildwahl__weg" title="Bild entfernen" data-bildweg={kennung}
+        onClick={() => speichern(null)}>×</button>}
+    </span>
+  );
 }
 
 // Textfeld, das beim Verlassen speichert, und nur, wenn sich etwas
@@ -221,7 +256,10 @@ function BenutzerListe({ leute: anfang, parks, mitPin, bin, neu }) {
           return (
             <tr key={u.id} className={u.is_active ? "" : "zeile--inaktiv"}>
               <td><div className="bl-person">
-                <Bild url={u.bild_url} name={u.full_name || u.email} />
+                {bin
+                  ? <BildWahl url={u.bild_url} name={u.full_name || u.email} kennung={u.id}
+                      speichern={(adresse) => aendern(u.id, { bild_url: adresse }, adresse ? "Bild gespeichert." : "Bild entfernt.")} />
+                  : <Bild url={u.bild_url} name={u.full_name || u.email} />}
                 {bin
                   ? <Feld className="namensfeld-liste" data-name={u.id} wert={u.full_name} placeholder={u.email || ""}
                       speichern={(name) => aendern(u.id, { full_name: name || null }, "Name gespeichert.")} />
@@ -349,12 +387,9 @@ function PersonFenster({ person, zu, fertig }) {
     const f = (e.target.files || [])[0];
     if (!f) return;
     try {
-      const klein = await alt.bildZuschneiden(f, 400);
-      if (!klein) return;
-      const pfad = "person/" + Date.now() + ".jpg";
-      const r = await alt.db.storage.from("profilbilder").upload(pfad, klein, { contentType: "image/jpeg" });
-      if (r.error) throw r.error;
-      setBild(alt.db.storage.from("profilbilder").getPublicUrl(pfad).data.publicUrl);
+      const adresse = await bildHochladen(f, "person/" + Date.now() + ".jpg");
+      if (!adresse) return;
+      setBild(adresse);
       alt.meldung("Bild übernommen.");
     } catch (f2) { alt.meldung(alt.fehlertext(f2), "fehler"); }
   };
@@ -379,6 +414,7 @@ function PersonFenster({ person, zu, fertig }) {
           ? <img className="profilbild-gross" id="pd-vorschau" src={bild} alt="" />
           : <span className="profilbild-gross kopf__bild--leer" id="pd-vorschau">{(name || "?").charAt(0).toUpperCase()}</span>}
         <label className="knopf bildknopf">Bild wählen<input type="file" id="pd-datei" accept="image/*" hidden onChange={bildWaehlen} /></label>
+        {bild && <button type="button" className="knopf knopf--still" id="pd-bildweg" onClick={() => setBild(null)}>Entfernen</button>}
       </div>
       <label className="feld"><span>Name</span>
         <input type="text" id="pd-name" data-fokus="" value={name} onChange={(e) => setName(e.target.value)} /></label>
