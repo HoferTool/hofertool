@@ -5137,3 +5137,55 @@ body.dunkel .bs-chip { border-color: #3a444f; }
 .dialog--auftrag input[readonly], .dialog--auftrag textarea[readonly],
 .dialog--auftrag select:disabled { background: var(--grund); cursor: default; }
 .auf-nurlesen { margin: 0 0 8px; color: var(--gedaempft); }
+
+/* =================================================================
+   BESTELLUNGEN, zweite Runde (111.31.0): Lieferanten-Logo statt
+   Buchstaben, Bezeichnungen als Liste, Offen und Bestellt kompakter.
+   ================================================================= */
+.bs-logo { display: grid; place-items: center; flex: none; width: 40px; height: 40px;
+  border-radius: 10px; background: #fff; border: 1px solid var(--linie); overflow: hidden; }
+.bs-logo img { width: 32px; height: 32px; object-fit: contain; display: block; }
+.bs-logoknopf { padding: 0; border: none; background: none; cursor: pointer; border-radius: 10px;
+  display: block; flex: none; }
+.bs-logoknopf:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--marke) 22%, transparent); }
+.bs-logoknopf:focus-visible { outline: 2px solid var(--marke); outline-offset: 2px; }
+.bs-logofenster { max-width: 480px; }
+.bs-logofenster__vorschau { display: flex; align-items: center; gap: 14px; padding: 10px 0 16px; }
+.bs-logofenster__vorschau .bs-logo, .bs-logofenster__vorschau .bs-kuerzel { width: 56px; height: 56px; }
+.bs-logofenster__vorschau .bs-logo img { width: 46px; height: 46px; }
+.bs-logowahl { display: flex; flex-direction: column; gap: 6px; }
+.bs-logowahl__zeile { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px;
+  border: 1px solid var(--linie); border-radius: var(--radius); cursor: pointer; }
+.bs-logowahl__zeile.aktiv { border-color: var(--marke); background: var(--marke-hell); }
+.bs-logowahl__zeile input { margin-top: 3px; accent-color: var(--marke); }
+.bs-logowahl__zeile b { display: block; font-weight: 650; }
+.bs-logowahl__zeile small { display: block; margin-top: 2px; font-size: .82rem; color: var(--gedaempft); }
+.bs-logowahl__eigen { display: flex; gap: 8px; align-items: center; padding: 0 12px 4px 38px; }
+.bs-logowahl__eigen > input[type=text] { flex: 1 1 auto; min-width: 0; min-height: 36px; }
+.bs-logowahl__eigen > .knopf { cursor: pointer; }
+body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
+
+/* Bezeichnungen als Zeilen ohne Bild */
+.bs-lief--ohnebild { grid-template-columns: minmax(0, 1fr) 84px; min-height: 50px; padding: 6px 18px; }
+
+/* Offen und Bestellt kompakter: Beschreibung hinter dem Namen, Chips und
+   wer in einer Zeile, weniger Abstand */
+.bs-pos { padding: 9px 18px; }
+/* Nur breit: schmalere Spalten. Tablet und Handy behalten ihre Anordnung. */
+@media (min-width: 1001px) { .bs-pos { gap: 12px; grid-template-columns: minmax(0, 1fr) 100px 160px 84px; } }
+.bs-pos__titel .bs-pos__beschreibung { margin: 0; }
+.bs-pos__titel .bs-pos__beschreibung::before { content: "· "; }
+.bs-pos__chips { margin-top: 4px; align-items: center; }
+.bs-pos__chips .bs-pos__wer { margin: 0; }
+.bs-pos__chips .bs-chip { padding: 2px 8px; font-size: .76rem; }
+.bs-pos__menge > b { font-size: 1.15rem; }
+.bs-karte__kopf { padding: 10px 18px; }
+.bs-karte.karte { margin-bottom: 10px; }
+.bs-status { min-height: 28px; padding: 2px 8px 2px 10px; font-size: .8rem; }
+.bs-symbolknopf { width: 34px; height: 34px; }
+.bs-pos--historie { padding: 10px 18px; }
+@media (max-width: 640px) {
+  .bs-pos { padding: 10px 14px; gap: 8px; }
+  .bs-lief--ohnebild { grid-template-columns: minmax(0, 1fr) auto; }
+  .bs-lief--ohnebild > .bs-pos__aktionen { grid-column: 2; grid-row: 1; }
+}

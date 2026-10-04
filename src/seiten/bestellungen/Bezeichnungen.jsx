@@ -1,6 +1,7 @@
 // =================================================================
 //  BESTELLUNGEN · Reiter „Bezeichnungen“
 //  Die Liste, die beim Anlegen und Bearbeiten von Artikeln erscheint.
+//  Als Zeilen wie die Lieferanten, ohne Bild (Wunsch 4. Oktober 2026).
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { passt } from "../../teile/Suchfeld.jsx";
@@ -26,17 +27,17 @@ export default function Bezeichnungen({ auffrischen }) {
             : <Karte titel="Bezeichnungen" zahl={gefiltert.length}
                 unter="Diese Liste erscheint beim Anlegen und Bearbeiten von Artikeln. So heisst dasselbe Werkzeug überall gleich.">
                 {gefiltert.length
-                  ? <div className="bs-raster">
+                  ? <div className="bs-liefliste">
                       {gefiltert.map((z) => (
-                        <div key={z.id} className="bs-raster__eintrag">
-                          <span className="bs-raster__name">{z.name}</span>
+                        <div key={z.id} className="bs-lief bs-lief--ohnebild">
+                          <div className="bs-lief__text"><div className="bs-lief__name">{z.name}</div></div>
                           {schreiben &&
-                            <span className="bs-pos__aktionen">
+                            <div className="bs-pos__aktionen">
                               <Symbolknopf zeichen="stift" text="Bearbeiten" data-bzb={z.id}
                                 onClick={() => bezeichnungDialog(z, neu)} />
                               <Symbolknopf zeichen="muell" text="Löschen" gefahr data-bzw={z.id}
                                 data-name={z.name} onClick={() => loeschen(z, neu)} />
-                            </span>}
+                            </div>}
                         </div>
                       ))}
                     </div>

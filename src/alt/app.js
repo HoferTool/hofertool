@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.30.1";
+const APP_VERSION = "111.31.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7068,7 +7068,9 @@ async function ladeBestellungen(offen) {
 
 async function ladeBestellungenFrisch(offen) {
   let a = db.from("order_items")
-    .select("*, articles(article_number, name, unit, supplier_id, description, suppliers(name, website, email, adresse, bestellweg)), suppliers(name, website, email, adresse, bestellweg), profiles!order_items_created_by_fkey(full_name, email)")
+    // suppliers(*) statt fester Spalten, damit logo_url mitkommt, sobald
+    // sql/lieferant-logo.sql gelaufen ist, und vorher nichts fehlschlägt
+    .select("*, articles(article_number, name, unit, supplier_id, description, suppliers(*)), suppliers(*), profiles!order_items_created_by_fkey(full_name, email)")
     .order("needed_by", { ascending: true, nullsFirst: false })
     .order("created_at");
   if (offen) a = a.in("status", OFFENE_STATUS);
