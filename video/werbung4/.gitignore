@@ -1,0 +1,10 @@
+# Personendaten (GL-Team) und erzeugte Dateien bleiben ausserhalb des öffentlichen Repositorys
+index.html
+assets/team/
+werkzeuge/team.json
+assets/ton.wav
+musik.wav
+musik.json
+stimme.wav
+snapshots/
+*.mp4.log

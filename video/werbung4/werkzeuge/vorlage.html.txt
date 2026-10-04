@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="assets/gsap.min.js"></script>
+    <script src="assets/MotionPathPlugin.min.js"></script>
+<!--CSS_BASIS-->
+<!--CSS_ALT-->
+
+      /* A Karte */
+      #k-svg { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+      #k-scan { position: absolute; top: 0; bottom: 0; left: 0; width: 260px; opacity: 0;
+        background: linear-gradient(90deg, rgba(107,164,255,0), rgba(107,164,255,.35), rgba(107,164,255,0)); }
+      #k-hofer { top: 330px; font-size: 64px; font-weight: 800; letter-spacing: .32em; color: #6ba4ff; }
+      #k-titel { top: 410px; font-size: 168px; }
+      .k-label { position: absolute; left: 0; right: 0; text-align: center; font-size: 34px; font-weight: 800; letter-spacing: .3em; text-transform: uppercase; opacity: 0; }
+      .k-label span { display: inline-block; padding: 10px 26px; border-radius: 12px; background: rgba(7,13,24,.75); border: 2px solid rgba(107,164,255,.6); }
+      #k-l-ch { top: 140px; } #k-l-so { top: 150px; } #k-l-lohn { top: 760px; } #k-l-lohn span { background: #1f6fe0; border-color: #6ba4ff; }
+      #k-pin { position: absolute; left: 930px; top: 580px; width: 60px; height: 60px; opacity: 0; }
+      .k-puls { position: absolute; left: 900px; top: 610px; width: 120px; height: 60px; border-radius: 50%; border: 4px solid #6ba4ff; opacity: 0; }
+      #k-haus { position: absolute; left: 610px; top: 300px; width: 700px; height: 400px; opacity: 0; }
+      #k-staub { position: absolute; left: 560px; top: 610px; width: 800px; height: 140px; border-radius: 50%;
+        background: radial-gradient(ellipse, rgba(200,215,235,.55), rgba(200,215,235,0) 70%); opacity: 0; }
+      #k-seit { top: 870px; font-size: 64px; font-weight: 300; letter-spacing: .12em; opacity: 0; }
+      #k-jahr { font-weight: 850; }
+
+      /* B Team */
+      #t-titel { top: 90px; font-size: 92px; }
+      #t-kick { top: 60px; }
+      .t-karte { position: absolute; top: 250px; width: 330px; height: 640px; border-radius: 24px; overflow: hidden;
+        background: linear-gradient(180deg, #13223d, #0b1424); border: 1px solid rgba(107,164,255,.35); box-shadow: 0 50px 120px rgba(0,0,0,.6); opacity: 0; }
+      .t-foto { position: absolute; left: 0; right: 0; top: 0; height: 400px; overflow: hidden; }
+      .t-foto img { display: block; width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.05); }
+      .t-foto::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,13,24,0) 60%, rgba(11,20,36,.95)); }
+      .t-karte b { position: absolute; left: 26px; right: 16px; top: 420px; font-size: 36px; font-weight: 850; letter-spacing: -0.02em; line-height: 1.05; }
+      .t-karte em { position: absolute; left: 26px; top: 510px; font-style: normal; font-size: 22px; font-weight: 800; color: #fff; background: #1f6fe0;
+        padding: 6px 14px; border-radius: 10px; letter-spacing: .04em; }
+      .t-karte span { position: absolute; left: 26px; right: 20px; top: 560px; font-size: 21px; color: #8b9db8; font-weight: 600; line-height: 1.3; }
+
+      /* C Halle */
+      #halle { position: absolute; inset: 0; }
+      #h-wand { position: absolute; left: 0; right: 0; top: 0; height: 640px; background: linear-gradient(180deg, #0a1322, #121e33); }
+      #h-boden { position: absolute; left: -200px; right: -200px; top: 640px; height: 520px;
+        background: linear-gradient(180deg, #1a2639, #0b1220); }
+      #h-boden-linien { position: absolute; left: -400px; right: -400px; top: 640px; height: 520px; transform-origin: 50% 0; transform: perspective(600px) rotateX(58deg);
+        background-image: linear-gradient(90deg, rgba(107,164,255,.18) 2px, transparent 2px), linear-gradient(rgba(107,164,255,.12) 2px, transparent 2px);
+        background-size: 120px 120px; }
+      .h-lampe { position: absolute; top: 0; width: 260px; height: 14px; border-radius: 0 0 8px 8px; background: #eaf1fb; box-shadow: 0 0 60px 20px rgba(234,241,251,.35); }
+      .h-kegel { position: absolute; top: 14px; width: 560px; height: 640px; margin-left: -150px;
+        background: linear-gradient(180deg, rgba(234,241,251,.12), rgba(234,241,251,0)); clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%); }
+      .h-ma { position: absolute; }
+      .h-ma > div { position: absolute; inset: 0; }
+      .h-ma svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+      .h-lader { position: absolute; height: 0; }
+      .h-lader i { position: absolute; left: 0; right: 0; top: 0; height: 100%; border-radius: 10px;
+        background: linear-gradient(180deg, #c7ced8, #7d8794); box-shadow: inset 0 -6px 0 rgba(0,0,0,.2); }
+      .h-lader b { position: absolute; top: 30%; left: 4%; right: 0; height: 18%; background: #5d6a7a; border-radius: 6px; }
+      .h-schild { position: absolute; top: 60px; height: 96px; padding: 0 34px; border-radius: 18px; display: flex; align-items: center;
+        font-size: 50px; font-weight: 900; letter-spacing: .06em; color: #fff; opacity: 0; box-shadow: 0 20px 50px rgba(0,0,0,.5); white-space: nowrap; }
+      .h-schild small { font-size: 22px; font-weight: 900; margin-left: 16px; padding: 6px 12px; border-radius: 8px; background: #fff; color: #0b1424; letter-spacing: .05em; }
+      .h-strich { position: absolute; width: 4px; border-radius: 2px; transform-origin: 50% 0; opacity: 0; }
+      #h-text { position: absolute; left: 110px; top: 930px; }
+      #h-text b { display: block; font-size: 60px; font-weight: 850; letter-spacing: -0.03em; }
+      #h-lader-info { position: absolute; left: 40px; top: 620px; padding: 14px 22px; border-radius: 14px; background: #fff; color: #0b1424;
+        font-size: 30px; font-weight: 850; opacity: 0; box-shadow: 0 20px 40px rgba(0,0,0,.5); }
+      #h-lader-info::after { content: ""; position: absolute; left: 60px; bottom: -14px; border: 14px solid transparent; border-bottom: 0; border-top-color: #fff; }
+
+      /* D 42 mm */
+      #d-kreis { position: absolute; left: 180px; top: 200px; width: 680px; height: 680px; }
+      #d-teil { position: absolute; left: 900px; top: 360px; width: 900px; height: 280px; }
+      #d-zahl { position: absolute; left: 960px; top: 170px; font-size: 200px; }
+      #d-zahl small { font-size: 90px; font-weight: 700; color: #6ba4ff; margin-left: 16px; }
+      #d-sub { position: absolute; left: 970px; top: 690px; font-size: 44px; font-weight: 700; color: #8b9db8; }
+      #d-mat { position: absolute; left: 970px; top: 770px; display: flex; gap: 12px; }
+      #d-mat span { display: block; width: 70px; height: 18px; border-radius: 9px; }
+
+      /* N Bestellungen */
+      #g-best { left: 560px; top: 150px; width: 1280px; height: 762px; }
+      #w-best img { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; display: block; }
+      .b-klick { position: absolute; width: 70px; height: 70px; margin: -35px 0 0 -35px; border-radius: 50%; border: 5px solid #1f6fe0; background: rgba(31,111,224,.25); opacity: 0; }
+      #b-status { position: absolute; left: 1080px; top: 520px; display: flex; gap: 14px; align-items: center; opacity: 0; }
+      #b-status span { display: block; padding: 12px 22px; border-radius: 14px; font-size: 30px; font-weight: 850; }
+      #b-status i { font-style: normal; font-size: 36px; color: #6ba4ff; }
+      #b-mail { position: absolute; left: 1180px; top: 560px; width: 560px; padding: 26px 30px; border-radius: 22px; background: #fff; color: #0b1424; opacity: 0;
+        box-shadow: 0 50px 100px rgba(0,0,0,.6); }
+      #b-mail b { display: block; font-size: 30px; font-weight: 850; }
+      #b-mail small { display: block; font-size: 22px; color: #5d6a7a; margin-top: 6px; }
+      #b-mail .pdf { margin-top: 18px; display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 14px; background: #f1f4f8; font-size: 24px; font-weight: 800; }
+      #b-mail .pdf i { display: flex; align-items: center; justify-content: center; width: 54px; height: 64px; border-radius: 8px; background: #d6002a; color: #fff; font-style: normal; font-size: 18px; font-weight: 900; }
+
+      /* O Weitere */
+      #o-doks { position: absolute; left: 1150px; top: 220px; width: 400px; height: 520px; }
+      .o-dok { position: absolute; left: 0; top: 0; width: 400px; height: 520px; border-radius: 16px; background: #fbfbf7; box-shadow: 0 30px 60px rgba(0,0,0,.5); opacity: 0;
+        background-image: repeating-linear-gradient(180deg, transparent 0 34px, #d5dbe4 34px 38px); background-position: 0 120px; background-repeat: no-repeat; background-size: 80% 70%; }
+      .o-dok i { position: absolute; left: 30px; top: 30px; padding: 8px 14px; border-radius: 8px; color: #fff; font-style: normal; font-size: 24px; font-weight: 900; }
+      #o-wolke { position: absolute; inset: 0; }
+      .o-wort { position: absolute; padding: 14px 28px; border-radius: 40px; border: 2px solid rgba(107,164,255,.6); background: rgba(17,29,49,.9);
+        font-size: 38px; font-weight: 800; opacity: 0; white-space: nowrap; }
+
+      /* P Solar */
+      #p-text { position: absolute; left: 110px; top: 120px; width: 900px; }
+      #p-text h2 { font-size: 96px; font-weight: 850; letter-spacing: -0.04em; line-height: .95; margin-top: 18px; }
+      #p-haus { position: absolute; left: 60px; top: 470px; width: 1000px; height: 560px; }
+      #p-live { position: absolute; left: 1640px; top: 130px; padding: 14px 26px; border-radius: 16px; background: #c6e84a; color: #0b1424; font-size: 40px; font-weight: 900;
+        letter-spacing: .12em; display: flex; align-items: center; gap: 14px; opacity: 0; box-shadow: 0 0 60px rgba(198,232,74,.6); z-index: 6; }
+      #p-live i { display: block; width: 20px; height: 20px; border-radius: 50%; background: #0b1424; }
+      .handy-g { position: absolute; width: 460px; height: 960px; opacity: 0; }
+      .handy-g .vwrap { left: 18px; top: 18px; width: 424px; height: 924px; border-radius: 61px; }
+      .handy-g .ip-glanz i { position: absolute; left: -300px; top: -200px; width: 220px; height: 1400px; transform: rotate(25deg);
+        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.16), rgba(255,255,255,0)); }
+      #h-linien { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="76.5" data-width="1920" data-height="1080">
+      <audio id="ton" src="assets/ton.wav" data-start="0" data-duration="76.5" data-volume="1"></audio>
+
+      <div id="stage">
+        <div id="bg" class="clip" data-start="0" data-duration="76.5" data-track-index="0">
+          <div id="bg-glow1"></div><div id="bg-glow2"></div><div id="bg-grid"></div><div id="bg-red"></div>
+        </div>
+
+        <!-- A Karte: Schweiz, Solothurn, Lohn-Ammannsegg, das Gebäude fällt -->
+        <div id="sA" class="clip" data-start="0" data-duration="7.7" data-track-index="1">
+          <svg id="k-svg" viewBox="0 0 1920 1080">
+            <defs>
+              <filter id="k-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" /></filter>
+            </defs>
+            <g id="k-zoom">
+<!--KARTE-->
+            </g>
+          </svg>
+          <div id="k-scan"></div>
+          <div id="k-hofer" class="zentriert">HOFER + CO</div>
+          <div id="k-titel" class="zentriert mega">PRÄZISIONSDREHTEILE</div>
+          <div class="k-label" id="k-l-ch"><span>Schweiz</span></div>
+          <div class="k-label" id="k-l-so"><span>Kanton Solothurn</span></div>
+          <div class="k-puls" id="k-p1"></div><div class="k-puls" id="k-p2"></div>
+          <svg id="k-pin" viewBox="0 0 60 60"><path d="M30 58 C 30 58 6 32 6 20 A 24 24 0 0 1 54 20 C 54 32 30 58 30 58 Z" fill="#1f6fe0" stroke="#fff" stroke-width="3" /><circle cx="30" cy="20" r="8" fill="#fff" /></svg>
+          <div id="k-staub"></div>
+<!--HAUS-->
+          <div class="k-label" id="k-l-lohn"><span>Lohn-Ammannsegg</span></div>
+          <div id="k-seit" class="zentriert">SEIT <span id="k-jahr">1900</span></div>
+        </div>
+
+        <!-- B Geschäftsleitung -->
+        <div id="sB" class="clip" data-start="7.7" data-duration="4.7" data-track-index="1">
+          <div id="t-kick" class="zentriert kick">Hofer + Co</div>
+          <div id="t-titel" class="zentriert mega">Unsere Geschäftsleitung</div>
+<!--TEAM-->
+        </div>
+
+        <!-- C Maschinenhalle -->
+        <div id="sC" class="clip" data-start="12.4" data-duration="7.1" data-track-index="1">
+          <div id="halle">
+            <div id="h-wand"></div><div id="h-boden"></div><div id="h-boden-linien"></div>
+            <div class="h-kegel" style="left: 360px"></div><div class="h-kegel" style="left: 960px"></div><div class="h-kegel" style="left: 1560px"></div>
+            <div class="h-lampe" style="left: 340px"></div><div class="h-lampe" style="left: 830px"></div><div class="h-lampe" style="left: 1330px"></div>
+<!--HALLE-->
+          </div>
+          <div id="h-lader-info">Stangenlader</div>
+<!--SCHILDER-->
+          <div id="h-text"><b>CNC-Drehmaschinen mit Stangenlader</b></div>
+        </div>
+
+        <!-- D bis 42 mm -->
+        <div id="sD" class="clip" data-start="19.5" data-duration="4.4" data-track-index="1">
+          <svg id="d-kreis" viewBox="0 0 680 680">
+            <defs><pattern id="d-schraff" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="18" stroke="rgba(107,164,255,.35)" stroke-width="4" /></pattern></defs>
+            <circle id="d-ring1" cx="340" cy="340" r="300" fill="none" stroke="rgba(107,164,255,.25)" stroke-width="2" stroke-dasharray="6 14" />
+            <circle id="d-stange" cx="340" cy="340" r="250" fill="url(#d-schraff)" stroke="#eaf1fb" stroke-width="6" />
+            <circle cx="340" cy="340" r="10" fill="#6ba4ff" />
+            <g id="d-mass">
+              <line x1="90" y1="340" x2="590" y2="340" stroke="#f0b429" stroke-width="5" />
+              <polygon points="90,340 116,326 116,354" fill="#f0b429" /><polygon points="590,340 564,326 564,354" fill="#f0b429" />
+              <text x="340" y="320" text-anchor="middle" fill="#f0b429" font-family="Inter" font-weight="900" font-size="54">Ø 42</text>
+            </g>
+          </svg>
+          <svg id="d-teil" viewBox="0 0 900 280">
+            <path class="d-k" pathLength="1" fill="none" stroke="#eaf1fb" stroke-width="4" stroke-linejoin="round"
+              d="M40 110 L56 94 L230 94 L230 60 L450 60 L464 46 L660 46 L660 80 L800 80 L812 92 L812 188 L800 200 L660 200 L660 234 L464 234 L450 220 L230 220 L230 186 L56 186 L40 170 Z" />
+            <path class="d-k" pathLength="1" fill="none" stroke="#6ba4ff" stroke-width="3" d="M70 94 L84 186 M100 94 L114 186 M130 94 L144 186 M160 94 L174 186 M190 94 L204 186" />
+            <line class="d-k" pathLength="1" x1="10" y1="140" x2="880" y2="140" stroke="rgba(107,164,255,.6)" stroke-width="2" stroke-dasharray="24 8 5 8" />
+          </svg>
+          <div id="d-zahl" class="mega">bis <span id="d-n">0</span><small>mm</small></div>
+          <div id="d-sub">Stangen-Durchmesser, aus vielen Werkstoffen</div>
+          <div id="d-mat"><span style="background:#b3261e"></span><span style="background:#7a838d"></span><span style="background:#d4638f"></span><span style="background:#003884"></span><span style="background:#eef1f5"></span><span style="background:#f0b429"></span><span style="background:#c2650f"></span></div>
+        </div>
+
+        <!-- E Stillstand -->
+        <div id="s5" class="clip" data-start="23.9" data-duration="2.5" data-track-index="1">
+          <div id="p1-titel" class="zentriert mega">Ohne Material …</div>
+<!--P1MASCHINE-->
+          <svg id="p1-regal" viewBox="0 0 720 520">
+            <rect x="0" y="0" width="16" height="520" fill="#5d6a7a" /><rect x="704" y="0" width="16" height="520" fill="#5d6a7a" />
+            <rect x="0" y="150" width="720" height="14" fill="#5d6a7a" /><rect x="0" y="320" width="720" height="14" fill="#5d6a7a" /><rect x="0" y="490" width="720" height="14" fill="#5d6a7a" />
+            <!--STANGEN-->
+            <text id="p1-leer" x="360" y="270" text-anchor="middle" fill="#ff2d55" font-family="Inter" font-weight="900" font-size="90" opacity="0">LEER</text>
+          </svg>
+          <div id="p1-uhr">STILLSTAND <span id="p1-zeit">00:00:00</span></div>
+          <div id="p1-stempel">STILLSTAND</div>
+        </div>
+
+        <!-- F Zettel und Ordner -->
+        <div id="s6" class="clip" data-start="26.4" data-duration="3.9" data-track-index="1">
+          <div id="p2-titel" class="zentriert">Die Planung?</div>
+          <div class="zettel" id="z1" style="left: 120px; top: 190px">SR-32 ab Mo?<small>wer hat das geändert…</small></div>
+          <div class="zettel rosa" id="z2" style="left: 1440px; top: 170px">10008 Material fehlt!<small>bitte Büro anrufen</small></div>
+          <div class="zettel blau" id="z3" style="left: 250px; top: 640px">Stk. 340? 430?<small>Zettel in der Halle</small></div>
+          <div class="zettel weiss" id="z4" style="left: 1380px; top: 620px">Rüsten Di oder Mi?<small>Whiteboard</small></div>
+          <div class="zettel" id="z5" style="left: 800px; top: 330px">Hanwha frei?<small>Mi fragen</small></div>
+          <div class="zettel rosa" id="z6" style="left: 760px; top: 700px">Eilauftrag!!<small>vor 10007</small></div>
+          <div class="ordner" id="o1" style="left: 420px"><span>Zeich&shy;nungen 2019</span></div>
+          <div class="ordner" id="o2" style="left: 650px"><span>Ordner 3</span></div>
+          <div class="ordner" id="o3" style="left: 880px"><span>Ordner 4</span></div>
+          <div class="blatt" id="bl1" style="left: 520px; top: 420px"></div>
+          <div class="blatt" id="bl2" style="left: 700px; top: 420px"></div>
+          <div class="blatt" id="bl3" style="left: 900px; top: 420px"></div>
+          <div class="blatt" id="bl4" style="left: 600px; top: 420px"></div>
+          <div class="blatt" id="bl5" style="left: 820px; top: 420px"></div>
+          <div id="p2-lupe"></div>
+          <div id="p2-wo" class="zentriert mega">Wo ist die Zeichnung?</div>
+        </div>
+
+        <!-- G Was läuft -->
+        <div id="s7" class="clip" data-start="30.3" data-duration="3.9" data-track-index="1">
+          <div id="p3-frage" class="zentriert">
+            <span class="z1" id="p3-f1">Und keiner weiss genau:</span>
+            <span class="z2 mega" id="p3-f2">Was läuft gerade?</span>
+          </div>
+          <div id="p3-qs"><!--FRAGEN--></div>
+          <svg id="p3-uhr" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="88" fill="#121b2c" stroke="#ff6b81" stroke-width="8" />
+            <line id="p3-gross" x1="100" y1="100" x2="100" y2="30" stroke="#eaf1fb" stroke-width="8" stroke-linecap="round" />
+            <line id="p3-klein" x1="100" y1="100" x2="145" y2="100" stroke="#ff6b81" stroke-width="10" stroke-linecap="round" />
+          </svg>
+        </div>
+
+        <!-- H Auftritt -->
+        <div id="s8" class="clip" data-start="34.2" data-duration="2.3" data-track-index="1">
+          <div class="r-ring" id="r1"></div><div class="r-ring" id="r2"></div><div class="r-ring" id="r3"></div>
+          <div id="r-strahlen"><!--BURST--></div>
+          <div id="r-darum" class="zentriert">Darum haben wir gebaut:</div>
+          <div id="r-titel" class="zentriert mega"><span>Hofer</span> <span>Tool</span></div>
+          <div id="r-sub" class="zentriert">Planung · Produktion · Bestellungen</div>
+        </div>
+
+        <!-- I Planwand -->
+        <div id="s9" class="clip" data-start="36.5" data-duration="4.6" data-track-index="1">
+          <div class="f-text">
+            <div class="kick d-t">Planwand</div>
+            <h2 class="d-t">Ziehen. Fertig.</h2>
+            <div class="schritte">
+              <div class="schritt" id="d-s1"><i>1</i>Auftrag ziehen</div>
+              <div class="schritt" id="d-s2"><i>2</i>Verschieben</div>
+              <div class="schritt" id="d-s3"><i>3</i>Loslassen</div>
+              <div class="schritt ok" id="d-s4"><i>✓</i>Rest rutscht nach</div>
+            </div>
+          </div>
+        </div>
+        <div class="geraet browser" id="g-plan">
+          <div class="leiste"><i></i><i></i><i></i><span>hofertool / planwand</span></div>
+          <div class="vwrap" id="w-plan"><video id="v-plan" class="clip" src="assets/k_planwand.mp4" muted playsinline data-start="36.5" data-duration="4.6" data-track-index="3"></video></div>
+        </div>
+
+        <!-- J Material -->
+        <div id="s10" class="clip" data-start="41.1" data-duration="4.8" data-track-index="1">
+          <div id="mat-text"><div class="kick">Material-Management</div><h2>Material in Farbe.</h2></div>
+          <div id="mat-plan"><div id="mat-zoom"><!--MATPLAN--><div id="mat-ring"></div></div></div>
+          <div id="mat-hinweis"><em>●</em> Keine Materialmenge eingetragen</div>
+          <div id="mat-legende"><!--LEGENDE--></div>
+        </div>
+
+        <!-- K Suche -->
+        <div id="s11" class="clip" data-start="45.9" data-duration="3.3" data-track-index="1">
+          <div class="f-text">
+            <div class="kick e-t">Suche über alles</div>
+            <h2 class="e-t">Jeder Auftrag. Sofort.</h2>
+          </div>
+          <div id="e-tasten"><div class="taste" id="e-k1">Strg</div><div id="e-plus">+</div><div class="taste" id="e-k2">K</div></div>
+          <div id="e-tipp">10007</div>
+        </div>
+        <div class="geraet browser" id="g-suche">
+          <div class="leiste"><i></i><i></i><i></i><span>hofertool / suche</span></div>
+          <div class="vwrap" id="w-suche"><video id="v-suche" class="clip" src="assets/k_suche.mp4" muted playsinline data-start="45.9" data-duration="3.3" data-track-index="3"></video></div>
+        </div>
+
+        <!-- L Pad Mode -->
+        <div id="s12" class="clip" data-start="49.2" data-duration="4.3" data-track-index="1">
+          <div class="f-text">
+            <div class="kick f-t">Pad Mode</div>
+            <h2 class="f-t">An der Maschine.</h2>
+            <div class="schritte">
+              <div class="schritt" id="f-s1"><i>1</i>Antippen</div>
+              <div class="schritt" id="f-s2"><i>2</i>Stückzahl eingeben</div>
+              <div class="schritt ok" id="f-s3"><i>✓</i>Fertig</div>
+            </div>
+          </div>
+        </div>
+        <div class="geraet tablet" id="g-pad">
+          <div class="vwrap"><video id="v-pad" class="clip" src="assets/k_pad.mp4" muted playsinline data-start="49.2" data-duration="4.3" data-track-index="3"></video></div>
+        </div>
+
+        <!-- M Handy -->
+        <div id="s13" class="clip" data-start="53.5" data-duration="2.5" data-track-index="1">
+          <div class="f-text" id="ha-text">
+            <div class="kick ha-t">Unterwegs</div>
+            <h2 class="ha-t">Alles auch auf dem Handy.</h2>
+          </div>
+        </div>
+<!--HANDY1-->
+
+        <!-- N Bestellungen -->
+        <div id="s14b" class="clip" data-start="56.0" data-duration="6.0" data-track-index="1">
+          <div class="f-text">
+            <div class="kick n-t">Bestellungen</div>
+            <h2 class="n-t">Schnell bestellt.</h2>
+            <div class="schritte">
+              <div class="schritt" id="n-s1"><i>1</i>Position erfassen</div>
+              <div class="schritt" id="n-s2"><i>2</i>Status verfolgen</div>
+              <div class="schritt ok" id="n-s3"><i>✓</i>Mail mit PDF</div>
+            </div>
+          </div>
+        </div>
+        <div class="geraet browser" id="g-best">
+          <div class="leiste"><i></i><i></i><i></i><span>hofertool / bestellungen</span></div>
+          <div class="vwrap" id="w-best"><img src="assets/bestellungen.png" alt="" />
+            <div class="b-klick" id="b-k1" style="left: 723px; top: 227px"></div>
+            <div class="b-klick" id="b-k2" style="left: 1160px; top: 369px"></div>
+            <div class="b-klick" id="b-k3" style="left: 1033px; top: 319px"></div>
+          </div>
+        </div>
+
+        <div id="s14c" class="clip" data-start="56.0" data-duration="6.0" data-track-index="4">
+          <div id="b-status"><span style="background:#1b2330;color:#cfe1fb">Offen</span><i>→</i><span style="background:#1f7a4d;color:#fff">Bestellt</span></div>
+          <div id="b-mail"><b>Bestellung an Vischer &amp; Bolli AG</b><small>Hofer + Co · Bestellung als E-Mail</small>
+            <div class="pdf"><i>PDF</i>Bestellung.pdf</div></div>
+        </div>
+
+        <!-- O Weitere -->
+        <div id="s14" class="clip" data-start="62.0" data-duration="4.2" data-track-index="1">
+          <div class="mehr-bild" id="me-b2"><img src="assets/einkauf.png" alt="" /><div class="dunkel"></div></div>
+          <div class="mehr-bild" id="me-b3"><img src="assets/rechner.png" alt="" /><div class="dunkel"></div></div>
+          <div id="o-doks">
+            <div class="o-dok" id="o-d1"><i style="background:#1f6fe0">ZEICHNUNG</i></div>
+            <div class="o-dok" id="o-d2"><i style="background:#1f7a4d">WBG</i></div>
+            <div class="o-dok" id="o-d3"><i style="background:#d6002a">EINRICHTBLATT</i></div>
+          </div>
+          <div class="mehr-wort mega" id="me-w2">Einkauf</div>
+          <div class="mehr-wort mega" id="me-w3">Rechner</div>
+          <div class="mehr-wort mega" id="me-w4" style="left: 110px">Dokumente</div>
+          <div id="o-wolke"><!--WOLKE--></div>
+        </div>
+
+        <!-- P Solar live -->
+        <div id="s15p" class="clip" data-start="66.2" data-duration="4.9" data-track-index="1">
+          <div id="p-text"><div class="kick" style="color:#c6e84a" id="p-kick">Und das Beste</div><h2 id="p-h2">Unsere Solaranlage.<br />Live in der App.</h2></div>
+          <svg id="p-haus" viewBox="0 0 1600 560">
+            <defs>
+              <linearGradient id="s-pg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b5fb8" /><stop offset="1" stop-color="#0d2550" /></linearGradient>
+            </defs>
+            <g id="s-sonne" transform="translate(1380 110)">
+              <circle r="62" fill="#ffd34d" />
+              <g id="s-strahlen" stroke="#ffd34d" stroke-width="8" stroke-linecap="round"><!--STRAHLEN--></g>
+            </g>
+            <polygon points="250,300 1250,300 1150,170 350,170" fill="#26303d" />
+            <rect x="230" y="300" width="1040" height="250" fill="#3a4554" />
+            <rect x="230" y="300" width="1040" height="14" fill="#1f6fe0" />
+            <rect x="300" y="380" width="160" height="170" fill="#1b2330" /><rect x="500" y="360" width="700" height="90" rx="6" fill="#1b2330" />
+            <text x="520" y="420" fill="#eaf1fb" font-family="Inter" font-weight="800" font-size="44" letter-spacing="6">HOFER + CO</text>
+            <g id="s-panels"><!--PANELS--></g>
+            <path id="s-fluss" d="M760 170 C 900 20, 1400 -40, 1700 120" fill="none" stroke="#c6e84a" stroke-width="7" stroke-dasharray="14 18" opacity="0" />
+          </svg>
+          <div id="p-live"><i></i>LIVE</div>
+        </div>
+<!--HANDY2-->
+
+        <!-- Q Schluss -->
+        <div id="s15" class="clip" data-start="71.1" data-duration="5.4" data-track-index="1">
+          <div id="o-logo-wrap"><img id="o-logo" src="assets/logo-weiss.png" alt="" /></div>
+          <div id="o-line"></div>
+          <div id="o-titel" class="zentriert mega">Hofer Tool</div>
+          <div id="o-sub" class="zentriert">Präzision, jetzt auch in der Planung.</div>
+          <div id="o-chips"><span>Planwand</span><span>Produktion</span><span>Pad Mode</span><span>Material</span><span>Bestellungen</span><span>Solar live</span></div>
+        </div>
+      </div>
+
+      <div id="fx" class="clip" data-start="0" data-duration="76.5" data-track-index="2">
+        <div id="vignette"></div>
+        <div id="korn"></div>
+        <div id="streak"></div>
+        <div class="wipe" id="wB"></div>
+        <div class="wipe" id="wA"></div>
+        <div id="balken-o"></div><div id="balken-u"></div>
+        <div id="flash"></div>
+      </div>
+    </div>
+
+    <script>
+      gsap.registerPlugin(MotionPathPlugin);
+      const tl = gsap.timeline({ paused: true });
+      const E = "expo.out", EI = "power4.inOut";
+      const nicht = { immediateRender: false };
+      const ENDE = 76.5;
+      const F = (s, a, b, t) => tl.fromTo(s, a, b, t);
+      const O = (s, b, t) => tl.to(s, b, t);
+
+      const blitz = (t, s = 0.7) => F("#flash", { opacity: s }, { opacity: 0, duration: 0.3, ease: "power2.out", ...nicht }, t);
+      const wackeln = (t, k = 14) => {
+        [[k, -k * .6], [-k * .8, k * .5], [k * .5, k * .7], [-k * .3, -k * .4], [0, 0]].forEach(([x, y], i) => tl.to("#stage", { x, y, duration: 0.035, ease: "none" }, t + i * 0.035));
+      };
+      const wisch = (t) => {
+        F("#wB", { x: -2900 }, { x: 2000, duration: 0.5, ease: EI, ...nicht }, t - 0.27);
+        F("#wA", { x: -2900 }, { x: 2000, duration: 0.5, ease: EI, ...nicht }, t - 0.22);
+      };
+      const streifen = (t) => F("#streak", { x: -500, opacity: 1, rotation: 18 }, { x: 2300, opacity: 1, duration: 0.55, ease: "power2.inOut", ...nicht }, t);
+      const knall = (sel, t, d = 0.38) => F(sel,
+        { scale: 2.4, opacity: 0, filter: "blur(24px)", textShadow: "14px 0 #ff2d55, -14px 0 #00e5ff" },
+        { scale: 1, opacity: 1, filter: "blur(0px)", textShadow: "0px 0 rgba(255,45,85,0), 0px 0 rgba(0,229,255,0)", duration: d, ease: E }, t);
+      const weg = (sel, t, d = 0.25) => O(sel, { opacity: 0, scale: 0.92, filter: "blur(10px)", duration: d, ease: "power2.in" }, t);
+      const zaehlen = (id, von, bis, t, d, nach = "") => {
+        const z = { n: von };
+        F(z, { n: von }, { n: bis, duration: d, ease: "power3.out", onUpdate: () => { document.getElementById(id).textContent = Math.round(z.n) + nach; } }, t);
+      };
+      const kino = (t) => {
+        F("#balken-o, #balken-u", { height: 0 }, { height: 90, duration: 0.18, ease: "power3.out", ...nicht }, t);
+        O("#balken-o, #balken-u", { height: 0, duration: 0.3, ease: "power2.inOut" }, t + 0.5);
+      };
+      const schritte = (liste) => liste.forEach(([s, t]) => {
+        F(s, { x: -120, opacity: 0, scale: 0.8 }, { x: 0, opacity: 1, scale: 1, duration: 0.28, ease: "back.out(2)" }, t);
+        F(s + " i", { scale: 1.6 }, { scale: 1, duration: 0.28, ease: "back.out(3)" }, t + 0.04);
+      });
+
+      gsap.set(".r-st", { rotation: (i) => i * 22.5 });
+      tl.set("#wA, #wB", { x: -2900 }, 0);
+      tl.set("#streak", { opacity: 0 }, 0);
+      tl.fromTo("#bg-glow1", { x: 0, y: 0 }, { x: 1000, y: 350, duration: ENDE, ease: "sine.inOut" }, 0);
+      tl.fromTo("#bg-glow2", { x: 0, y: 0 }, { x: -900, y: -300, duration: ENDE, ease: "sine.inOut" }, 0);
+      tl.fromTo("#bg-grid", { x: 0, y: 0 }, { x: 160, y: 160, duration: ENDE, ease: "none" }, 0);
+
+      // ---- A Karte (0 – 7.7) ----
+      // Kamera über der Karte: log(Massstab) und Mittelpunkt werden getweent, das wirkt wie ein echter Flug
+      const K = @@KARTE_JS@@;
+      const kam = { l: Math.log(0.82), cx: 960, cy: 540, ty: 540 };
+      const kamSetzen = () => {
+        const s = Math.exp(kam.l);
+        document.getElementById("k-zoom").setAttribute("transform", `translate(${960 - s * kam.cx} ${kam.ty - s * kam.cy}) scale(${s})`);
+      };
+      F(kam, { l: Math.log(0.82), cx: 960, cy: 540, ty: 540 }, { l: 0, duration: 2.4, ease: "power2.out", onUpdate: kamSetzen }, 0);
+      O(kam, { l: Math.log(4.2), cx: K.so[0], cy: K.so[1], ty: 600, duration: 0.75, ease: EI, onUpdate: kamSetzen }, 2.45);
+      O(kam, { l: Math.log(36), cx: K.lohn[0], cy: K.lohn[1], ty: 640, duration: 1.0, ease: EI, onUpdate: kamSetzen }, 3.2);
+      O(kam, { l: Math.log(44), duration: 3.2, ease: "none", onUpdate: kamSetzen }, 4.2);
+      F(".k-kt", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: { each: 0.025, from: "random" } }, 0.05);
+      F("#k-land", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 0.0);
+      F("#k-scan", { x: -300, opacity: 1 }, { x: 2000, opacity: 1, duration: 1.3, ease: "power1.inOut" }, 0.1);
+      F("#k-l-ch", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.3, ease: E }, 0.35);
+      O("#k-l-ch", { opacity: 0, duration: 0.2 }, 2.4);
+      F("#k-hofer", { opacity: 0, scaleX: 1.6 }, { opacity: 1, scaleX: 1, duration: 0.4, ease: E }, 0.4);
+      blitz(1.45, 0.6); wackeln(1.45, 16);
+      knall("#k-titel", 1.45, 0.35);
+      F("#k-titel", { scaleX: 1 }, { scaleX: 1.05, duration: 0.95, ease: "none" }, 1.8);
+      O("#k-hofer, #k-titel", { opacity: 0, scale: 0.6, y: -300, filter: "blur(10px)", duration: 0.35, ease: "power3.in" }, 2.35);
+      F("#k-so", { fillOpacity: 0 }, { fillOpacity: 0.55, duration: 0.4 }, 2.6);
+      O(".k-kt", { opacity: 0.35, duration: 0.4 }, 2.6);
+      F("#k-l-so", { opacity: 0, y: -30 }, { opacity: 1, y: 0, duration: 0.3, ease: E }, 2.8);
+      F(".k-gm", { opacity: 0 }, { opacity: 1, duration: 0.4, stagger: { each: 0.004, from: "random" } }, 3.1);
+      F("#k-lohn", { fillOpacity: 0.2 }, { fillOpacity: 0.95, duration: 0.3, yoyo: true, repeat: 3, ease: "none" }, 3.6);
+      F("#k-pin", { opacity: 0, y: -120 }, { opacity: 1, y: 0, duration: 0.35, ease: "bounce.out" }, 3.75);
+      ["#k-p1", "#k-p2"].forEach((p, i) => F(p, { scale: 0.2, opacity: 1 }, { scale: 3, opacity: 0, duration: 0.8, ease: "power2.out", repeat: 1, ...nicht }, 3.9 + i * 0.3));
+      F("#k-l-lohn", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 3.6);
+      // Das Firmengebäude fällt auf den Punkt
+      O("#k-pin", { opacity: 0, duration: 0.1 }, 4.6);
+      F("#k-haus", { opacity: 1, y: -1100, scaleY: 1.15 }, { y: 0, scaleY: 1, duration: 0.38, ease: "power4.in" }, 4.32);
+      F("#k-haus", { scaleY: 0.86, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.35, ease: "elastic.out(1.2, 0.4)", ...nicht }, 4.7);
+      blitz(4.7, 0.55); wackeln(4.7, 30); kino(4.7);
+      F("#k-staub", { opacity: 0.9, scale: 0.3 }, { opacity: 0, scale: 1.8, duration: 0.9, ease: "power2.out", ...nicht }, 4.7);
+      O("#k-l-so", { opacity: 0, duration: 0.25 }, 4.7);
+      O("#k-zoom", { opacity: 0.45, duration: 0.6 }, 4.8);
+      F("#k-haus .k-dach", { opacity: 0, scaleY: 0 }, { opacity: 1, scaleY: 1, duration: 0.3, ease: "back.out(2)", stagger: 0.015, transformOrigin: "50% 100%" }, 5.0);
+      F("#k-seit", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.35, ease: E }, 5.5);
+      zaehlen("k-jahr", 1900, 1928, 5.55, 0.9);
+      F("#k-jahr", { scale: 1 }, { scale: 1.25, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", ...nicht }, 6.45);
+      F("#k-haus", { scale: 1 }, { scale: 1.12, duration: 2.9, ease: "power1.in", transformOrigin: "50% 100%", ...nicht }, 4.8);
+      streifen(6.6);
+      weg("#k-haus, #k-l-lohn, #k-seit, #k-svg, #k-staub", 7.45);
+
+      // ---- B Geschäftsleitung (7.7 – 12.4) ----
+      wisch(7.7);
+      F("#t-kick", { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.3, ease: E }, 7.8);
+      knall("#t-titel", 7.85, 0.35);
+      F(".t-karte", { opacity: 0, y: 500, rotationY: -60, transformPerspective: 1600 }, { opacity: 1, y: 0, rotationY: 0, duration: 0.5, ease: E, stagger: 0.28 }, 8.35);
+      F(".t-foto img", { scale: 1.35 }, { scale: 1.05, duration: 3.6, ease: "power2.out", stagger: 0.28 }, 8.35);
+      F(".t-karte em", { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.25, ease: E, stagger: 0.28 }, 8.7);
+      F(".t-karte", { y: 0 }, { y: -14, duration: 0.15, yoyo: true, repeat: 1, ease: "power1.inOut", stagger: 0.08, ...nicht }, 10.6);
+      O(".t-karte, #t-titel, #t-kick", { opacity: 0, y: -60, filter: "blur(10px)", duration: 0.25, ease: "power2.in", stagger: 0.03 }, 12.05);
+
+      // ---- C Maschinenhalle (12.4 – 19.5) ----
+      wisch(12.4);
+      F("#halle", { scale: 1.12, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: E }, 12.42);
+      O("#halle", { scale: 1.07, duration: 6.6, ease: "none" }, 12.9);
+      F(".h-ma", { y: 260, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "back.out(1.6)", stagger: 0.07 }, 12.55);
+      F(".h-lader", { x: -500, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: E, stagger: 0.07 }, 13.0);
+      F(".h-lampe, .h-kegel", { opacity: 0 }, { opacity: 1, duration: 0.08, stagger: 0.12, yoyo: true, repeat: 1, ...nicht }, 12.5);
+      F("#h-text", { opacity: 0, x: -100 }, { opacity: 1, x: 0, duration: 0.4, ease: E }, 13.0);
+      F("#h-lader-info", { opacity: 0, y: 30, scale: 0.6 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(2)" }, 15.3);
+      F(".h-lader i", { filter: "brightness(1)" }, { filter: "brightness(1.6)", duration: 0.15, yoyo: true, repeat: 3, ...nicht }, 15.3);
+      const SCH = @@SCHILDER_JS@@;
+      SCH.forEach(([s, t]) => {
+        blitz(t, 0.25); wackeln(t, 8);
+        knall("#hs-" + s, t, 0.32);
+        F(".hz-" + s, { strokeDashoffset: 1, opacity: 1 }, { strokeDashoffset: 0, opacity: 1, duration: 0.3, ease: E, ...nicht }, t + 0.1);
+        F(".hm-" + s, { filter: "brightness(1)" }, { filter: "brightness(1.45)", duration: 0.18, yoyo: true, repeat: 1, ease: "power1.inOut", ...nicht }, t + 0.1);
+        F(".hm-" + s + " .lampe", { opacity: 0.25 }, { opacity: 1, duration: 0.15 }, t + 0.1);
+      });
+      F("#hs-wm small", { scale: 0, rotation: -30 }, { scale: 1, rotation: -6, duration: 0.3, ease: "back.out(3)" }, 18.45);
+      O("#halle, .h-schild, #h-linien, #h-text, #h-lader-info", { opacity: 0, filter: "blur(12px)", duration: 0.25, ease: "power2.in" }, 19.25);
+
+      // ---- D bis 42 mm (19.5 – 23.9) ----
+      blitz(19.5, 0.35);
+      F("#d-kreis", { scale: 0.2, rotation: -180, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.6, ease: E }, 19.55);
+      F("#d-ring1", { rotation: 0, svgOrigin: "340 340" }, { rotation: 90, svgOrigin: "340 340", duration: 4.3, ease: "none" }, 19.55);
+      F("#d-stange", { attr: { r: 40 } }, { attr: { r: 250 }, duration: 1.4, ease: "power3.out" }, 20.6);
+      F("#d-mass", { opacity: 0, scaleX: 0, svgOrigin: "340 340" }, { opacity: 1, scaleX: 1, svgOrigin: "340 340", duration: 0.5, ease: E }, 21.6);
+      F("#d-teil .d-k", { strokeDasharray: 1, strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 1.2, ease: EI, stagger: 0.12 }, 19.7);
+      F("#d-teil", { x: 200, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: E }, 19.6);
+      F("#d-zahl", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35, ease: E }, 20.5);
+      zaehlen("d-n", 0, 42, 20.6, 1.4);
+      F("#d-zahl", { scale: 1 }, { scale: 1.12, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", transformOrigin: "0% 50%", ...nicht }, 22.0);
+      blitz(22.0, 0.3); wackeln(22.0, 10);
+      F("#d-sub", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.35, ease: E }, 22.2);
+      F("#d-mat span", { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.25, ease: E, stagger: 0.06 }, 22.4);
+      weg("#d-kreis, #d-teil, #d-zahl, #d-sub, #d-mat", 23.65);
+
+      // ---- E Stillstand (23.9 – 26.4) ----
+      F("#bg-red", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 23.9);
+      O("#bg-glow1, #bg-glow2", { opacity: 0.25, duration: 0.4 }, 23.9);
+      blitz(23.9, 0.4); wackeln(23.9, 12); kino(23.9);
+      knall("#p1-titel", 23.95, 0.33);
+      F("#p1-svg", { x: -600, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E }, 23.95);
+      F("#p1-regal", { x: 600, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E }, 24.0);
+      O(".p1-st", { x: -900, opacity: 0, duration: 0.25, ease: "power3.in", stagger: 0.05 }, 24.25);
+      F("#p1-leer", { opacity: 0, scale: 2 }, { opacity: 1, scale: 1, duration: 0.25, ease: E, svgOrigin: "360 240" }, 24.65);
+      O("#p1-titel", { opacity: 0, duration: 0.12 }, 24.85);
+      F("#p1-stempel", { opacity: 0, scale: 3, rotation: -30 }, { opacity: 1, scale: 1, rotation: -12, duration: 0.2, ease: "power4.in" }, 24.85);
+      blitz(25.05, 0.5); wackeln(25.05, 22);
+      F("#p1-lg", { opacity: 1 }, { opacity: 0.12, duration: 0.1 }, 24.8);
+      F("#p1-lr", { opacity: 0.2 }, { opacity: 1, duration: 0.12, yoyo: true, repeat: 9, ease: "none" }, 24.8);
+      F("#p1-svg .wz", { y: 0 }, { y: -60, duration: 0.3, ease: "power2.out" }, 24.8);
+      F("#p1-uhr", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.25, ease: E }, 25.15);
+      const zeit = { s: 0 };
+      F(zeit, { s: 0 }, { s: 3 * 3600 + 27 * 60 + 12, duration: 1.0, ease: "power2.in", onUpdate: () => {
+        const s = Math.floor(zeit.s), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
+        document.getElementById("p1-zeit").textContent = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0") + ":" + String(x).padStart(2, "0");
+      } }, 25.15);
+      O("#p1-svg, #p1-regal, #p1-stempel, #p1-uhr", { opacity: 0, scale: 0.85, filter: "blur(12px)", duration: 0.22, ease: "power2.in" }, 26.15);
+
+      // ---- F Zettel und Ordner (26.4 – 30.3) ----
+      wackeln(26.4, 8);
+      knall("#p2-titel", 26.42, 0.3);
+      [["#z1", -14, -400, 26.5], ["#z2", 11, 400, 26.66], ["#z3", 8, -400, 26.82], ["#z4", -9, 400, 26.98], ["#z5", 4, 0, 27.14], ["#z6", -6, 0, 27.3]].forEach(([s, r, x, t]) => {
+        F(s, { x, y: -600, rotation: r * 4, opacity: 0 }, { x: 0, y: 0, rotation: r, opacity: 1, duration: 0.28, ease: "back.out(1.8)" }, t);
+        O(s, { rotation: r + 3, y: 10, duration: 0.8, ease: "sine.inOut" }, t + 0.28);
+        wackeln(t + 0.2, 4);
+      });
+      O("#z1, #z3", { x: -1400, rotation: -60, duration: 0.3, ease: "power3.in" }, 28.1);
+      O("#z2, #z4", { x: 1400, rotation: 60, duration: 0.3, ease: "power3.in" }, 28.1);
+      O("#z5, #z6", { y: 1200, rotation: 40, duration: 0.3, ease: "power3.in" }, 28.1);
+      O("#p2-titel", { opacity: 0, duration: 0.2 }, 28.1);
+      F(".ordner", { y: -1100, rotation: (i) => [-12, 6, 14][i] }, { y: 0, rotation: (i) => [-4, 2, 6][i], duration: 0.38, ease: "bounce.out", stagger: 0.09 }, 28.3);
+      [["#bl1", -560, -40, -40], ["#bl2", -820, 120, 25], ["#bl3", 560, -20, -20], ["#bl4", -380, 220, 50], ["#bl5", 760, 160, -45]].forEach(([s, x, y, r], i) => {
+        F(s, { x: 0, y: 0, rotation: 0, opacity: 0, scale: 0.4 }, { x, y, rotation: r, opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 28.7 + i * 0.06);
+        O(s, { y: y + 220, rotation: r * 1.6, duration: 1.2, ease: "sine.in" }, 29.2 + i * 0.06);
+      });
+      F("#p2-lupe", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.28, ease: "back.out(2)" }, 28.95);
+      F("#p2-lupe", { x: 0, y: 0 }, { motionPath: { path: [{ x: -200, y: -60 }, { x: 80, y: 120 }, { x: -120, y: 160 }, { x: 40, y: -40 }], curviness: 1.4 }, duration: 1.1, ease: "sine.inOut" }, 29.0);
+      knall("#p2-wo", 29.2, 0.33);
+      O("#s6 .ordner, #s6 .blatt, #p2-lupe, #p2-wo", { opacity: 0, scale: 0.85, duration: 0.2, ease: "power2.in" }, 30.08);
+
+      // ---- G Was läuft (30.3 – 34.2) ----
+      blitz(30.3, 0.35); wackeln(30.3, 10);
+      F("#p3-f1", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.3, ease: E }, 30.4);
+      F(".p3-m", { y: 120, opacity: 0, rotationX: -80, transformPerspective: 1200 }, { y: 0, opacity: 1, rotationX: 0, duration: 0.3, ease: "back.out(2)", stagger: { each: 0.04, from: "random" } }, 30.55);
+      F(".p3-m span", { rotation: 0 }, { rotation: 360, duration: 0.5, ease: "power2.inOut", stagger: 0.05 }, 31.1);
+      knall("#p3-f2", 31.9, 0.33); wackeln(31.9, 12);
+      F(".p3-m span", { scale: 1 }, { scale: 1.4, duration: 0.12, yoyo: true, repeat: 7, ease: "power1.inOut", ...nicht }, 32.3);
+      F(".p3-m", { borderColor: "rgba(255,107,129,.5)" }, { borderColor: "rgba(255,45,85,1)", duration: 0.12, yoyo: true, repeat: 7, ease: "none" }, 32.3);
+      F("#p3-uhr", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 30.8);
+      F("#p3-gross", { rotation: 0, svgOrigin: "100 100" }, { rotation: 2160, svgOrigin: "100 100", duration: 3.0, ease: "power1.in" }, 30.8);
+      F("#p3-klein", { rotation: 0, svgOrigin: "100 100" }, { rotation: 180, svgOrigin: "100 100", duration: 3.0, ease: "power1.in" }, 30.8);
+      O("#s7", { scale: 1.1, duration: 1.5, ease: "power1.in" }, 32.3);
+      O("#p3-frage, #p3-qs, #p3-uhr", { scale: 0, opacity: 0, rotation: 30, duration: 0.4, ease: "power4.in" }, 33.75);
+      O("#bg-red", { opacity: 0, duration: 0.3 }, 33.9);
+      O("#bg-glow1, #bg-glow2", { opacity: 1, duration: 0.3 }, 34.05);
+
+      // ---- H Auftritt (34.2 – 36.5) ----
+      blitz(34.2, 1.0); wackeln(34.2, 24); kino(34.2);
+      ["#r1", "#r2", "#r3"].forEach((r, i) => F(r, { scale: 0.1, opacity: 1, borderWidth: 40 }, { scale: 2.8, opacity: 0, borderWidth: 2, duration: 0.9, ease: "power2.out" }, 34.2 + i * 0.12));
+      F(".r-st", { scaleX: 0, opacity: 1 }, { scaleX: 1, opacity: 0, duration: 0.7, ease: "power3.out", stagger: 0.01 }, 34.2);
+      F("#r-titel span", { scale: 3, opacity: 0, filter: "blur(30px)", textShadow: "18px 0 #ff2d55, -18px 0 #00e5ff" },
+        { scale: 1, opacity: 1, filter: "blur(0px)", textShadow: "0px 0 rgba(255,45,85,0), 0px 0 rgba(0,229,255,0)", duration: 0.4, ease: E, stagger: 0.1 }, 34.22);
+      F("#r-darum", { opacity: 0, y: -30 }, { opacity: 1, y: 0, duration: 0.3, ease: E }, 34.3);
+      F("#r-sub", { opacity: 0, scaleX: 1.6 }, { opacity: 1, scaleX: 1, duration: 0.45, ease: E }, 34.8);
+      F("#r-titel", { scale: 1 }, { scale: 1.07, duration: 2.2, ease: "none" }, 34.3);
+      streifen(35.4);
+      weg("#r-titel, #r-darum, #r-sub", 36.28);
+
+      // ---- I Planwand (36.5 – 41.1) ----
+      wisch(36.5);
+      F("#g-plan", { opacity: 0, x: 500, rotationY: -35, rotationX: 8, scale: 0.85, transformPerspective: 2000 },
+        { opacity: 1, x: 0, rotationY: -8, rotationX: 2, scale: 1, duration: 0.5, ease: E }, 36.52);
+      O("#g-plan", { rotationY: 0, rotationX: 0, duration: 3.9, ease: "sine.inOut" }, 37.0);
+      F("#w-plan", { scale: 1 }, { scale: 1.55, duration: 0.7, ease: EI, transformOrigin: "72% 22%" }, 37.2);
+      O("#w-plan", { scale: 1.05, duration: 0.6, ease: EI }, 40.0);
+      F(".d-t", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.08 }, 36.55);
+      schritte([["#d-s1", 37.7], ["#d-s2", 38.15], ["#d-s3", 38.85], ["#d-s4", 39.6]]);
+      O("#g-plan", { opacity: 0, x: -300, duration: 0.25, ease: "power2.in" }, 40.85);
+
+      // ---- J Material (41.1 – 45.9) ----
+      wisch(41.1);
+      F("#mat-text > *", { x: -100, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.08 }, 41.15);
+      F("#mat-plan", { opacity: 0, y: 200, rotationX: 30, transformPerspective: 2000 }, { opacity: 1, y: 0, rotationX: 0, duration: 0.45, ease: E }, 41.15);
+      F(".mat-balken", { x: 1700, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: E, stagger: 0.035 }, 41.35);
+      F(".mat-chip", { y: 60, opacity: 0, scale: 0.6 }, { y: 0, opacity: 1, scale: 1, duration: 0.28, ease: "back.out(2.5)", stagger: 0.07 }, 42.1);
+      @@MATFARBEN@@
+      O(".mat-balken:not(#mat-ziel)", { opacity: 0.3, duration: 0.3 }, 43.6);
+      O("#mat-zoom", { scale: 1.9, x: @@MATX@@, y: @@MATY@@, duration: 0.6, ease: EI }, 43.6);
+      F("#mat-ring", { opacity: 1, scale: 0.4 }, { opacity: 0, scale: 2.2, duration: 0.6, ease: "power2.out", repeat: 2 }, 44.3);
+      F("#mat-hinweis", { opacity: 0, scale: 0.5, y: 40 }, { opacity: 1, scale: 1, y: 0, duration: 0.35, ease: "back.out(2)" }, 44.4);
+      F("#mat-ziel em", { opacity: 1 }, { opacity: 0.2, duration: 0.15, yoyo: true, repeat: 7, ease: "none" }, 44.4);
+      O("#mat-plan, #mat-hinweis, #mat-legende, #mat-text", { opacity: 0, x: -300, duration: 0.25, ease: "power2.in" }, 45.65);
+
+      // ---- K Suche (45.9 – 49.2) ----
+      wisch(45.9);
+      F("#g-suche", { opacity: 0, y: 400, rotationX: 30, scale: 0.85, transformPerspective: 2000 },
+        { opacity: 1, y: 0, rotationX: 0, scale: 1, duration: 0.45, ease: E }, 45.95);
+      F("#w-suche", { scale: 1.0 }, { scale: 1.3, duration: 2.4, ease: "sine.inOut", transformOrigin: "50% 30%" }, 46.2);
+      F(".e-t", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.08 }, 46.0);
+      F("#e-tasten", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.25, ease: E }, 46.05);
+      O("#e-k1", { y: 10, boxShadow: "0 0px 0 #7d8ba0, 0 8px 20px rgba(0,0,0,.5)", duration: 0.07 }, 46.25);
+      O("#e-k2", { y: 10, boxShadow: "0 0px 0 #7d8ba0, 0 8px 20px rgba(0,0,0,.5)", duration: 0.07 }, 46.45);
+      O("#e-k1, #e-k2", { y: 0, boxShadow: "0 10px 0 #7d8ba0, 0 20px 40px rgba(0,0,0,.5)", duration: 0.12 }, 46.7);
+      F("#e-tipp", { opacity: 0 }, { opacity: 1, duration: 0.1 }, 46.7);
+      const tipp = { n: 0 };
+      F(tipp, { n: 0 }, { n: 5, duration: 0.9, ease: "none",
+        onUpdate: () => { document.getElementById("e-tipp").textContent = "10007".slice(0, Math.floor(tipp.n)) + (tipp.n < 5 ? "▍" : ""); } }, 46.7);
+      F("#e-tipp", { scale: 1 }, { scale: 1.25, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", ...nicht }, 47.65);
+      O("#g-suche", { opacity: 0, x: 300, duration: 0.25, ease: "power2.in" }, 48.95);
+
+      // ---- L Pad Mode (49.2 – 53.5) ----
+      wisch(49.2);
+      F("#g-pad", { opacity: 0, y: 700, rotation: 12, scale: 0.8 }, { opacity: 1, y: 0, rotation: 2, scale: 1, duration: 0.5, ease: E }, 49.25);
+      O("#g-pad", { rotation: -1, y: -15, duration: 3.5, ease: "sine.inOut" }, 49.75);
+      F(".f-t", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.08 }, 49.3);
+      schritte([["#f-s1", 51.15], ["#f-s2", 51.75], ["#f-s3", 52.85]]);
+      F("#g-pad", { scale: 1 }, { scale: 1.06, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", ...nicht }, 52.9);
+      O("#g-pad", { opacity: 0, y: 500, duration: 0.25, ease: "power2.in" }, 53.25);
+
+      // ---- M Handy (53.5 – 56.0) ----
+      blitz(53.5, 0.4);
+      F("#g-handy1", { opacity: 0, y: 1000, rotationY: -40, rotation: -8, scale: 0.8, transformPerspective: 2400 },
+        { opacity: 1, y: 0, rotationY: -12, rotation: 0, scale: 1, duration: 0.5, ease: E }, 53.52);
+      O("#g-handy1", { rotationY: 10, y: -12, duration: 1.9, ease: "sine.inOut" }, 54.02);
+      F("#g-handy1 .glanz", { x: 0 }, { x: 900, duration: 1.0, ease: "power2.inOut" }, 53.8);
+      F(".ha-t", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.1 }, 53.6);
+      O("#g-handy1", { opacity: 0, x: 900, rotation: 20, duration: 0.25, ease: "power2.in" }, 55.75);
+      O("#ha-text", { opacity: 0, duration: 0.2 }, 55.8);
+
+      // ---- N Bestellungen (56.0 – 62.0) ----
+      wisch(56.0);
+      F("#g-best", { opacity: 0, x: 500, rotationY: -30, scale: 0.85, transformPerspective: 2000 }, { opacity: 1, x: 0, rotationY: -6, scale: 1, duration: 0.5, ease: E }, 56.02);
+      O("#g-best", { rotationY: 0, duration: 5.4, ease: "sine.inOut" }, 56.5);
+      F(".n-t", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: E, stagger: 0.08 }, 56.1);
+      schritte([["#n-s1", 56.8], ["#n-s2", 59.15], ["#n-s3", 60.2]]);
+      // Kamera: Neue Position, dann Status, dann PDF
+      F("#w-best", { scale: 1 }, { scale: 1.7, duration: 0.6, ease: EI, transformOrigin: "56.5% 31.5%" }, 56.7);
+      F("#b-k1", { opacity: 1, scale: 0.3 }, { opacity: 0, scale: 1.8, duration: 0.5, ease: "power2.out", repeat: 1 }, 57.35);
+      O("#w-best", { scale: 1, duration: 0.5, ease: EI }, 58.5);
+      F("#w-best", { scale: 1, transformOrigin: "90.6% 51.2%" }, { scale: 1.8, duration: 0.55, ease: EI, transformOrigin: "90.6% 51.2%", ...nicht }, 59.05);
+      F("#b-k2", { opacity: 1, scale: 0.3 }, { opacity: 0, scale: 1.8, duration: 0.5, ease: "power2.out" }, 59.5);
+      F("#b-status", { opacity: 0, y: 40, scale: 0.6 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(2)" }, 59.55);
+      F("#b-status span:last-child", { scale: 1 }, { scale: 1.15, duration: 0.12, yoyo: true, repeat: 1, ...nicht }, 59.9);
+      O("#b-status", { opacity: 0, y: -30, duration: 0.2 }, 60.15);
+      F("#w-best", { scale: 1.8, transformOrigin: "80.7% 44.3%" }, { scale: 1.6, duration: 0.4, ease: EI, transformOrigin: "80.7% 44.3%", ...nicht }, 60.2);
+      F("#b-k3", { opacity: 1, scale: 0.3 }, { opacity: 0, scale: 1.8, duration: 0.5, ease: "power2.out" }, 60.45);
+      F("#b-mail", { opacity: 0, x: 200, y: 300, rotation: 12, scale: 0.6 }, { opacity: 1, x: 0, y: 0, rotation: -3, scale: 1, duration: 0.45, ease: "back.out(1.6)" }, 60.6);
+      O("#b-mail", { x: 1200, y: -500, rotation: 25, scale: 0.4, opacity: 0, duration: 0.45, ease: "power3.in" }, 61.4);
+      O("#g-best, #s14b .f-text", { opacity: 0, duration: 0.2 }, 61.8);
+
+      // ---- O Weitere (62.0 – 66.2) ----
+      [["#me-b2", "#me-w2", 62.1], ["#me-b3", "#me-w3", 63.25]].forEach(([b, w, t], i) => {
+        blitz(t, 0.35);
+        F(b, { opacity: 0, scale: 1.3, x: i % 2 ? -140 : 140, rotation: i % 2 ? -3 : 3 }, { opacity: 1, scale: 1.05, x: 0, rotation: 0, duration: 0.3, ease: E }, t);
+        O(b, { scale: 1.0, duration: 0.7, ease: "none" }, t + 0.3);
+        knall(w, t + 0.02, 0.3);
+        tl.to([b, w], { opacity: 0, duration: 0.1 }, (i ? 64.35 : 63.25) - 0.07);
+      });
+      blitz(64.35, 0.35);
+      knall("#me-w4", 64.37, 0.3);
+      F(".o-dok", { opacity: 0, y: 400, rotation: (i) => [-14, 4, 16][i] * 2 }, { opacity: 1, y: 0, rotation: (i) => [-10, 2, 12][i], duration: 0.35, ease: "back.out(1.5)", stagger: 0.09 }, 64.4);
+      O("#me-w4, .o-dok", { opacity: 0, scale: 0.8, duration: 0.15 }, 64.95);
+      F(".o-wort", { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(2.5)", stagger: 0.05 }, 65.0);
+      O(".o-wort", { x: (i) => (i % 2 ? 1 : -1) * (20 + i * 4), y: (i) => (i % 3 - 1) * 16, duration: 1.0, ease: "sine.inOut" }, 65.2);
+      O(".o-wort", { opacity: 0, scale: 0.4, duration: 0.2, stagger: 0.01 }, 65.95);
+
+      // ---- P Solar live (66.2 – 71.1) ----
+      blitz(66.2, 0.6); wackeln(66.2, 14); kino(66.2);
+      knall("#p-kick", 66.25, 0.3);
+      F("#p-h2", { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.4, ease: E }, 67.1);
+      F("#p-haus", { y: 300, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: E }, 66.3);
+      F("#s-sonne", { y: 260, scale: 0.4 }, { y: 0, scale: 1, duration: 0.6, ease: "back.out(1.6)" }, 66.45);
+      F("#s-strahlen", { rotation: 0, svgOrigin: "0 0" }, { rotation: 150, svgOrigin: "0 0", duration: 4.6, ease: "none" }, 66.45);
+      F(".s-p", { scaleY: 0, opacity: 0, transformOrigin: "50% 100%" }, { scaleY: 1, opacity: 1, duration: 0.25, ease: "back.out(2)", stagger: 0.016 }, 66.7);
+      F(".s-p", { opacity: 1 }, { opacity: 0.55, duration: 0.08, yoyo: true, repeat: 1, stagger: 0.012, ...nicht }, 67.6);
+      F("#s-fluss", { opacity: 0, strokeDashoffset: 0 }, { opacity: 1, strokeDashoffset: -480, duration: 3.3, ease: "none" }, 67.6);
+      F("#g-handy2", { opacity: 0, y: 1000, rotationY: -40, scale: 0.8, transformPerspective: 2400 }, { opacity: 1, y: 0, rotationY: -10, scale: 1, duration: 0.5, ease: E }, 67.15);
+      O("#g-handy2", { rotationY: 6, y: -10, duration: 3.4, ease: "sine.inOut" }, 67.65);
+      F("#g-handy2 .glanz", { x: 0 }, { x: 900, duration: 1.0, ease: "power2.inOut" }, 67.6);
+      F("#p-live", { opacity: 0, scale: 3, rotation: -20 }, { opacity: 1, scale: 1, rotation: -4, duration: 0.25, ease: "power4.in" }, 69.8);
+      blitz(70.05, 0.45); wackeln(70.05, 16);
+      F("#p-live i", { opacity: 1 }, { opacity: 0.2, duration: 0.2, yoyo: true, repeat: 3, ease: "none" }, 70.1);
+      F("#p-live", { boxShadow: "0 0 30px rgba(198,232,74,.4)" }, { boxShadow: "0 0 90px rgba(198,232,74,.95)", duration: 0.25, yoyo: true, repeat: 3, ...nicht }, 70.1);
+      O("#p-text, #p-haus, #g-handy2, #p-live", { opacity: 0, filter: "blur(10px)", duration: 0.25, ease: "power2.in" }, 70.85);
+
+      // ---- Q Schluss (71.1 – 76.5) ----
+      blitz(71.2, 0.9); wackeln(71.2, 16); kino(71.2);
+      F("#o-logo", { scale: 0.6, opacity: 0, filter: "blur(20px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.6, ease: E }, 71.15);
+      F("#o-line", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: EI }, 71.4);
+      knall("#o-titel", 71.4, 0.4);
+      F("#o-sub", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.45, ease: E }, 72.4);
+      F("#o-chips span", { opacity: 0, y: 30, scale: 0.7 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(2)", stagger: 0.08 }, 73.1);
+      F("#s15", { scale: 1 }, { scale: 1.05, duration: 5.4, ease: "none" }, 71.1);
+      streifen(72.8);
+      O("#o-logo-wrap, #o-line, #o-titel, #o-sub, #o-chips", { opacity: 0, duration: 0.8, ease: "power2.in" }, 75.6);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
