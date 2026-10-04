@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { Gruppe } from "./teile.jsx";
 
 export default function Nutzer() {
   const bin = alt.istAdmin();
@@ -21,8 +22,12 @@ export default function Nutzer() {
   };
   return (
     <>
-      <section className="karte"><h2>Benutzer mit Login</h2>
+      <Gruppe titel="Benutzer mit Login" text={bin
+        ? "Änderungen gelten sofort. Namen, Kürzel und Geburtstag werden beim Verlassen des Felds gespeichert."
+        : "Ändern dürfen nur Administratoren."}>
         <div id="benutzerliste"><Benutzer bin={bin} /></div>
+      </Gruppe>
+      <Gruppe titel="Was die Rollen dürfen">
         <div className="rollenhilfe">
           <div><strong>Administrator</strong> darf alles, ohne etwas einzuschalten.</div>
           <div><strong>Planwand</strong> sieht alle Parks und darf ändern, sobald oben Bearbeiten eingeschaltet ist.</div>
@@ -33,13 +38,13 @@ export default function Nutzer() {
           <div className="klein">Das Häkchen bei <strong>Plant</strong> heisst: Diese Person erscheint im
             Auftragsfenster unter „Eingeplant von". Das Kürzel daneben steht danach gross auf dem Balken.</div>
         </div>
-      </section>
-      <section className="karte"><div className="karte__kopf"><h2>Link für externe Partner</h2></div>
-        <p className="hinweis">Diesen Link bekommt Zurbrügg. Wer die App einmal darüber öffnet, sieht auf diesem
-          Gerät keine Kacheln eurer Leute — beim ersten Mal nur E-Mail und Passwort, danach die eigene Kachel.</p>
-        <div className="linkzeile"><input type="text" id="extern-link" readOnly value={link} />
+      </Gruppe>
+      <Gruppe titel="Link für externe Partner"
+        text={"Diesen Link bekommt Zurbrügg. Wer die App einmal darüber öffnet, sieht auf diesem Gerät keine "
+          + "Kacheln eurer Leute: beim ersten Mal nur E-Mail und Passwort, danach die eigene Kachel."}>
+        <div className="linkzeile"><input type="text" id="extern-link" aria-label="Link für externe Partner" readOnly value={link} />
           <button className="knopf knopf--klein" id="extern-link-kopieren" onClick={kopieren}>Kopieren</button></div>
-      </section>
+      </Gruppe>
       <Personen />
     </>
   );
@@ -245,11 +250,13 @@ function BenutzerListe({ leute: anfang, parks, mitPin, bin, neu }) {
                     onChange={(e) => aendern(u.id, { geburtstag: e.target.value || null }, "Geburtstag gespeichert.")} />
                 : langDatum(u.geburtstag)}</td>
               {bin && <td className="bu-pin">
-                <button className="linkknopf" data-pinsetzen={u.id} onClick={() => pinSetzen(u)}>
+                <div className="bu-anmeldung">
+                <button className="knopf knopf--mini" data-pinsetzen={u.id} onClick={() => pinSetzen(u)}>
                   {mitPin && mitPin.has(u.id) ? "PIN ändern" : "PIN setzen"}</button>
-                {!selbst && <>{" · "}<button className="linkknopf" data-pwsetzen={u.id} onClick={() => passwortSetzen(u)}>Passwort setzen</button></>}
+                {!selbst && <button className="knopf knopf--mini" data-pwsetzen={u.id} onClick={() => passwortSetzen(u)}>Passwort</button>}
                 {mitPin && !mitPin.has(u.id) && u.ohne_passwort && <>{" "}<span className="bz-spaet"
                   title="Kommt erst mit PIN oder Passwort vom Admin wieder hinein">fehlt</span></>}
+                </div>
               </td>}
               <td className="bu-status rechts">{bin && !selbst
                 ? <button className="linkknopf" data-aktiv={u.id} data-wert={u.is_active ? "0" : "1"}
@@ -261,9 +268,11 @@ function BenutzerListe({ leute: anfang, parks, mitPin, bin, neu }) {
       </div>
 
       {bin && parks.length > 0 && <>
-        <h3 className="untertitel">Zugriff auf Maschinenparks</h3>
-        <p className="hinweis">Ohne Haken entscheidet die Rolle: Langdreher sieht Parks mit "lang" im Namen,
-          Kurzdreher solche mit "kurz".</p>
+        <div className="es-unterkopf">
+          <h3>Zugriff auf Maschinenparks</h3>
+          <p className="es-gruppe__text">Ohne Auswahl entscheidet die Rolle: Langdreher sieht Parks mit „lang“
+            im Namen, Kurzdreher solche mit „kurz“.</p>
+        </div>
         {leute.filter((u) => u.role !== "admin" && u.role !== "planwand").map((u) => (
           <div className="parkzeile" key={u.id}>
             <div className="parkzeile__name"><Bild url={u.bild_url} name={u.full_name || u.email} /><span>{u.full_name || u.email}</span></div>
@@ -306,7 +315,7 @@ function Personen() {
   let inhalt;
   if (fehler && !leute) inhalt = <p className="hinweis">Noch nicht verfügbar: {alt.fehlertext(fehler)}</p>;
   else if (!leute) inhalt = <div className="laedt">Wird geladen …</div>;
-  else if (!leute.length) inhalt = <p className="hinweis">Noch niemand eingetragen.</p>;
+  else if (!leute.length) inhalt = <p className="es-leer">Noch niemand eingetragen.</p>;
   else {
     inhalt = (
       <table className="tabelle"><tbody>{leute.map((m) => (
@@ -323,13 +332,11 @@ function Personen() {
     );
   }
   return (
-    <section className="karte">
-      <div className="karte__kopf"><h2>Personen ohne Login</h2>
-        <button className="linkknopf" id="pe-neu" onClick={() => oeffnen(null)}>+ Person</button></div>
-      <p className="hinweis">Für Kollegen, die die App nicht benutzen, deren Geburtstag aber auf der Startseite
-        erscheinen soll.</p>
+    <Gruppe titel="Personen ohne Login"
+      text="Für Kollegen, die die App nicht benutzen, deren Geburtstag aber auf der Startseite erscheinen soll."
+      aktionen={<button className="knopf knopf--klein" id="pe-neu" onClick={() => oeffnen(null)}>+ Person</button>}>
       <div id="personenliste">{inhalt}</div>
-    </section>
+    </Gruppe>
   );
 }
 

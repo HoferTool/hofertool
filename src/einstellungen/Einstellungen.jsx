@@ -13,6 +13,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import Dokumente from "./Dokumente.jsx";
 import Farben from "./Farben.jsx";
 import Nutzer from "./Nutzer.jsx";
+import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["backup", "Backup"],
                 ["fehler", "Fehlerprotokoll"], ["farben", "Farben und Material", true],
@@ -46,7 +47,7 @@ function Einstellungen({ zu }) {
   else inhalt = <Nutzer />;
 
   return (
-    <div className="dialog dialog--breit dialog--einstellungen">
+    <div className="dialog dialog--breit dialog--einstellungen es">
       <div className="einstellungenkopf">
         <h1 className="seitentitel">Einstellungen</h1>
         {/* Der Ablauf (Nachfrage, Abmelden, Aufräumen) liegt im alten Programm */}
@@ -54,13 +55,18 @@ function Einstellungen({ zu }) {
           onClick={() => window.abmeldenFragen && window.abmeldenFragen()}>Abmelden</button>
         <button className="dialog__schliessen-inline" title="Schliessen" data-zu="" onClick={zu}>✕</button>
       </div>
-      <div className="reiter">
-        {reiter.map(([w, t]) => (
-          <button key={w} className={"reiter__knopf" + (offen === w ? " aktiv" : "")}
-            data-einst={w} onClick={() => waehlen(w)}>{t}</button>
-        ))}
+      {/* Breit: Reiter als Leiste links, der Inhalt rollt daneben.
+          Schmal: Reiter oben zum Wischen. */}
+      <div className="es-rumpf">
+        <nav className="reiter es-reiter" aria-label="Bereiche der Einstellungen">
+          {reiter.map(([w, t]) => (
+            <button key={w} className={"reiter__knopf es-reiter__knopf" + (offen === w ? " aktiv" : "")}
+              data-einst={w} aria-current={offen === w ? "page" : undefined}
+              onClick={() => waehlen(w)}><ReiterZeichen name={w} /><span>{t}</span></button>
+          ))}
+        </nav>
+        <div id="einst-inhalt" className="es-inhalt" key={offen}>{inhalt}</div>
       </div>
-      <div id="einst-inhalt" key={offen}>{inhalt}</div>
     </div>
   );
 }
@@ -188,85 +194,103 @@ function MeinKonto() {
     meldung("PIN entfernt. Du meldest dich jetzt mit dem Passwort an.");
   };
 
+  const anzeigename = name.trim() || profil.email || "";
   return (
-    <section className="karte"><h2>Mein Konto</h2>
-      <div className="kontokopf">
-        {bild
-          ? <img className="profilbild-gross" src={bild} alt="" />
-          : <span className="profilbild-gross kopf__bild--leer">
-              {((profil.full_name || profil.email) || "?").charAt(0).toUpperCase()}</span>}
-        <label className="knopf bildknopf">Bild wählen
-          <input type="file" id="mk-datei" accept="image/*" hidden onChange={bildWaehlen} /></label>
-      </div>
-      <label className="feld"><span>Anzeigename</span>
-        <input type="text" id="mn" value={name} onChange={(e) => setName(e.target.value)} /></label>
-      <button className="knopf" id="ns" onClick={nameSpeichern}>Name speichern</button>
-      <label className="feld feld--abstand"><span>Geburtstag</span>
-        <input type="date" id="mk-geburtstag" value={geburtstag}
-          onChange={(e) => geburtstagSpeichern(e.target.value)} />
-        <span className="feldhinweis">Erscheint auf der Startseite, wenn er in den
-          nächsten zwei Wochen ansteht.</span></label>
-      <label className="feld feld--abstand"><span>Neues Passwort</span>
-        <input type="password" id="np" autoComplete="new-password" value={passwort}
-          onChange={(e) => setPasswort(e.target.value)} /></label>
-      <button className="knopf" id="ps" onClick={passwortAendern}>Passwort ändern</button>
-      <label className="feld feld--abstand"><span>PIN statt Passwort</span>
-        <input type="password" id="mk-pin" inputMode="numeric" pattern="[0-9]*" maxLength={8}
-          autoComplete="new-password" placeholder="4 bis 8 Ziffern" value={pin}
-          onChange={(e) => setPin(e.target.value)} /></label>
-      <label className="feld"><span>PIN wiederholen</span>
-        <input type="password" id="mk-pin2" inputMode="numeric" pattern="[0-9]*" maxLength={8}
-          autoComplete="new-password" value={pin2} onChange={(e) => setPin2(e.target.value)} /></label>
-      <button className="knopf" id="mk-pinknopf" onClick={pinSpeichern}>PIN speichern</button>
-      <p className="hinweis">Danach tippst du auf deine Kachel und gibst die PIN ein. Das
-        bisherige Passwort gilt nicht mehr. Nach 5 falschen Versuchen ist das Konto
-        5 Minuten gesperrt. 6 Ziffern sind deutlich sicherer als 4.</p>
-      {mitPin && <button className="linkknopf" id="mk-pinweg" onClick={pinWeg}>
-        PIN entfernen und wieder mit Passwort anmelden</button>}
-      <label className="schalter feld--abstand"><input type="checkbox" id="mk-merken"
-        checked={merken} onChange={merkenAendern} />
-        <span>Auf diesem Gerät merken</span></label>
-      <p className="hinweis">Mit Haken genügt auf diesem Gerät ein Tipp auf deine Kachel,
-        auch nach dem Abmelden. Ohne Haken fragt es jedes Mal nach Passwort oder PIN.</p>
-    </section>
+    <>
+      <Gruppe titel="Mein Konto">
+        <div className="es-konto">
+          {bild
+            ? <img className="profilbild-gross" src={bild} alt="" />
+            : <span className="profilbild-gross kopf__bild--leer">
+                {(anzeigename || "?").charAt(0).toUpperCase()}</span>}
+          <div className="es-konto__wer">
+            <div className="es-konto__name">{anzeigename}</div>
+            <div className="es-zeile__hinweis">{profil.email || ""}</div>
+          </div>
+          <label className="knopf knopf--klein bildknopf">Bild wählen
+            <input type="file" id="mk-datei" accept="image/*" hidden onChange={bildWaehlen} /></label>
+        </div>
+        <Zeile titel="Anzeigename" text="So steht dein Name in der App.">
+          <div className="es-eingabe">
+            <input type="text" id="mn" aria-label="Anzeigename" value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") nameSpeichern(); }} />
+            <button className="knopf knopf--klein" id="ns" onClick={nameSpeichern}>Speichern</button>
+          </div>
+        </Zeile>
+        <Zeile titel="Geburtstag" text="Erscheint auf der Startseite, wenn er in den nächsten zwei Wochen ansteht.">
+          <input type="date" id="mk-geburtstag" className="es-schmal" aria-label="Geburtstag" value={geburtstag}
+            onChange={(e) => geburtstagSpeichern(e.target.value)} />
+        </Zeile>
+      </Gruppe>
+
+      <Gruppe titel="Anmeldung" text={mitPin
+        ? "Du meldest dich zurzeit mit deiner PIN an."
+        : "Du meldest dich zurzeit mit deinem Passwort an."}>
+        <Zeile titel="Neues Passwort" text={mitPin ? "Ersetzt deine PIN." : undefined}>
+          <div className="es-eingabe">
+            <input type="password" id="np" aria-label="Neues Passwort" autoComplete="new-password" value={passwort}
+              onChange={(e) => setPasswort(e.target.value)} />
+            <button className="knopf knopf--klein" id="ps" onClick={passwortAendern}>Passwort ändern</button>
+          </div>
+        </Zeile>
+        <Zeile titel="PIN statt Passwort" text={"Danach tippst du auf deine Kachel und gibst die PIN ein. "
+          + "Das bisherige Passwort gilt nicht mehr. Nach 5 falschen Versuchen ist das Konto "
+          + "5 Minuten gesperrt. 6 Ziffern sind deutlich sicherer als 4."}>
+          <div className="es-eingabe es-eingabe--pin">
+            <input type="password" id="mk-pin" aria-label="PIN" inputMode="numeric" pattern="[0-9]*" maxLength={8}
+              autoComplete="new-password" placeholder="4 bis 8 Ziffern" value={pin}
+              onChange={(e) => setPin(e.target.value)} />
+            <input type="password" id="mk-pin2" aria-label="PIN wiederholen" inputMode="numeric" pattern="[0-9]*"
+              maxLength={8} autoComplete="new-password" placeholder="wiederholen" value={pin2}
+              onChange={(e) => setPin2(e.target.value)} />
+            <button className="knopf knopf--klein" id="mk-pinknopf" onClick={pinSpeichern}>PIN speichern</button>
+          </div>
+          {mitPin && <button className="linkknopf es-unterlink" id="mk-pinweg" onClick={pinWeg}>
+            PIN entfernen und wieder mit Passwort anmelden</button>}
+        </Zeile>
+        <SchalterZeile id="mk-merken" titel="Auf diesem Gerät merken"
+          text="Ein Tipp auf deine Kachel genügt hier, auch nach dem Abmelden. Ohne fragt es jedes Mal nach Passwort oder PIN."
+          checked={merken} onChange={merkenAendern} />
+      </Gruppe>
+    </>
   );
 }
 
-function Schalter({ id, name, text, beiAenderung }) {
+function Schalter({ id, name, titel, text, beiAenderung }) {
   return (
-    <label className="schalter">
-      <input type="checkbox" id={id} defaultChecked={alt.einstellung(name)} onChange={(e) => {
+    <SchalterZeile id={id} titel={titel} text={text} defaultChecked={alt.einstellung(name)}
+      onChange={(e) => {
         alt.einstellungSetzen(name, e.target.checked);
         if (beiAenderung) beiAenderung(e.target.checked);
       }} />
-      <span>{text}</span>
-    </label>
   );
 }
 
 function Darstellung() {
   const [thema, setThema] = useState(alt.themaJetzt());
   return (
-    <section className="karte"><h2>Darstellung</h2>
-      <p className="hinweis">Die Themenfarbe gilt überall — Menü, Knöpfe, Planwand und Pad Mode.</p>
-      <div className="themawahl">
-        {THEMEN.map(([w, t]) => (
-          <button key={w} type="button" className={"themaknopf themaknopf--" + w + (thema === w ? " aktiv" : "")}
-            data-thema={w} onClick={() => { alt.themaSetzen(w); setThema(w); }}>
-            <span className="themaknopf__punkt" />{t}</button>
-        ))}
-      </div>
-      <Schalter id="e-dunkel" name="dunkel" text="Dunkler Modus"
+    <Gruppe titel="Darstellung">
+      <Zeile titel="Themenfarbe" text="Gilt überall: Menü, Knöpfe, Planwand und Pad Mode.">
+        <div className="themawahl">
+          {THEMEN.map(([w, t]) => (
+            <button key={w} type="button" className={"themaknopf themaknopf--" + w + (thema === w ? " aktiv" : "")}
+              data-thema={w} aria-pressed={thema === w} onClick={() => { alt.themaSetzen(w); setThema(w); }}>
+              <span className="themaknopf__punkt" />{t}</button>
+          ))}
+        </div>
+      </Zeile>
+      <Schalter id="e-dunkel" name="dunkel" titel="Dunkler Modus"
         beiAenderung={(an) => document.body.classList.toggle("dunkel", an)} />
-      <Schalter id="e-wochenende" name="wochenende" text="Samstag und Sonntag in der Wochenansicht zeigen" />
-      <Schalter id="e-wochestart" name="wochestart" text="Erfassung immer mit der Wochenansicht öffnen" />
+      <Schalter id="e-wochenende" name="wochenende" titel="Samstag und Sonntag zeigen"
+        text="In der Wochenansicht der Produktion." />
+      <Schalter id="e-wochestart" name="wochestart" titel="Erfassung mit der Woche öffnen"
+        text="Sonst öffnet die Erfassung mit dem Tag." />
       {/* Sofort wirksam, nicht erst nach dem nächsten Anmelden */}
-      <Schalter id="e-angemeldet" name="angemeldetbleiben"
-        text="Angemeldet bleiben — nicht nach fünf Minuten abmelden"
+      <Schalter id="e-angemeldet" name="angemeldetbleiben" titel="Angemeldet bleiben"
+        text="Ohne meldet sich die App nach fünf Minuten ohne Bedienung selbst ab. Gilt überall, wo du dich anmeldest."
         beiAenderung={() => { if (window.untaetigNeuStarten) window.untaetigNeuStarten(); }} />
-      <p className="hinweis">Gilt überall, wo du dich anmeldest. Ohne Haken meldet sich die
-        App nach fünf Minuten ohne Bedienung selbst ab.</p>
-    </section>
+    </Gruppe>
   );
 }
 
@@ -306,21 +330,25 @@ function PinUndMail() {
   };
 
   return (
-    <section className="karte"><h2>Pin für die Planwand</h2>
-      <p className="hinweis">Wer die Rolle Planwand hat, schaltet damit das Bearbeiten frei. Gilt für alle.</p>
-      <label className="feld"><span>Pin</span>
-        <input type="text" id="pin-feld" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} /></label>
-      <label className="feld"><span>Text für Bestellmails</span>
-        <textarea id="bestellmail-feld" rows={9} value={mail} onChange={(e) => setMail(e.target.value)} />
-        <span className="feldhinweis">Steht in jeder Bestellmail über dem PDF.
-          {" {datum}, {name} und {lieferant} werden ersetzt."}</span></label>
-      <div className="knopfreihe">
-        <button className="knopf knopf--klein" id="bestellmail-speichern" onClick={mailSpeichern}>Text speichern</button>
-        <button className="linkknopf" id="bestellmail-vorgabe"
-          onClick={() => setMail(alt.BESTELLMAIL_VORGABE)}>Vorgabe wiederherstellen</button>
-      </div>
-      <button className="knopf" id="pin-speichern" onClick={pinSpeichern}>Pin speichern</button>
-    </section>
+    <Gruppe titel="Für alle" text="Nur Administratoren sehen und ändern das.">
+      <Zeile titel="PIN für die Planwand" text="Wer die Rolle Planwand hat, schaltet damit das Bearbeiten frei.">
+        <div className="es-eingabe">
+          <input type="text" id="pin-feld" className="es-schmal" aria-label="PIN für die Planwand"
+            inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} />
+          <button className="knopf knopf--klein" id="pin-speichern" onClick={pinSpeichern}>Speichern</button>
+        </div>
+      </Zeile>
+      <Zeile breit titel="Text für Bestellmails"
+        text={"Steht in jeder Bestellmail über dem PDF. {datum}, {name} und {lieferant} werden ersetzt."}>
+        <textarea id="bestellmail-feld" aria-label="Text für Bestellmails" rows={9} value={mail}
+          onChange={(e) => setMail(e.target.value)} />
+        <div className="knopfreihe es-knopfreihe">
+          <button className="knopf knopf--klein" id="bestellmail-speichern" onClick={mailSpeichern}>Text speichern</button>
+          <button className="linkknopf" id="bestellmail-vorgabe"
+            onClick={() => setMail(alt.BESTELLMAIL_VORGABE)}>Vorgabe wiederherstellen</button>
+        </div>
+      </Zeile>
+    </Gruppe>
   );
 }
 
@@ -344,10 +372,8 @@ function UeberDieApp() {
   }, []);
   const profil = alt.profil || {};
   return (
-    <section className="karte"><h2>Über die App</h2>
-      <p className="klein">Version {alt.APP_VERSION} · angemeldet als {profil.email || ""} ·{" "}
-        <span id="dateistand">{stand}</span></p>
-    </section>
+    <p className="es-fuss">Hofer Tool · Version {alt.APP_VERSION} · angemeldet als {profil.email || ""} ·{" "}
+      <span id="dateistand">{stand}</span></p>
   );
 }
 
@@ -356,18 +382,16 @@ function UeberDieApp() {
 function Backup() {
   return (
     <>
-      <section className="karte"><div className="karte__kopf"><h2>Planwand als Excel</h2></div>
-        <p className="hinweis">Alle Aufträge der Planwand mit Maschine, Zeitraum, Zustand,
-          Stückzahl, Material und Notiz als Tabelle — zum Ansehen, Weitergeben oder Aufheben.
-          Ein zweites Blatt enthält die Maschinen.</p>
-        <button className="knopf knopf--haupt" id="bk-excel" onClick={() => alt.planwandExcel()}>
-          Excel herunterladen</button>
-      </section>
-      <section className="karte"><div className="karte__kopf"><h2>Sicherung der Datenbank</h2></div>
-        <p className="hinweis">Die vollständige Sicherung macht Supabase mit dem Pro-Plan jeden Tag
+      <Gruppe titel="Planwand als Excel"
+        text={"Alle Aufträge der Planwand mit Maschine, Zeitraum, Zustand, Stückzahl, Material und Notiz "
+          + "als Tabelle, zum Ansehen, Weitergeben oder Aufheben. Ein zweites Blatt enthält die Maschinen."}
+        aktionen={<button className="knopf knopf--haupt knopf--klein" id="bk-excel"
+          onClick={() => alt.planwandExcel()}>Excel herunterladen</button>} />
+      <Gruppe titel="Sicherung der Datenbank">
+        <p className="es-absatz">Die vollständige Sicherung macht Supabase mit dem Pro-Plan jeden Tag
           selbst, dazu kommt die Sicherung auf eurem Server mit <code>sicherung.ps1</code>.
           Die Excel-Datei oben ersetzt sie nicht, sie ist ein Stand zum Lesen.</p>
-      </section>
+      </Gruppe>
     </>
   );
 }
@@ -384,18 +408,13 @@ function Fehlerprotokoll() {
     setListe([]);
   };
   return (
-    <section className="karte">
-      <div className="karte__kopf">
-        <h2>Fehlerprotokoll</h2>
-        <span className="klein">{liste.length} Einträge auf diesem Gerät</span>
-        <div className="karte__aktionen">
-          {liste.length > 0 && <>
-            <button className="knopf knopf--klein" id="fp-datei" onClick={() => alt.fehlerAlsDatei()}>
-              Als Datei herunterladen</button>
-            <button className="linkknopf linkknopf--gefahr" id="fp-leeren" onClick={leeren}>Leeren</button>
-          </>}
-        </div>
-      </div>
+    <Gruppe titel="Fehlerprotokoll"
+      text={(liste.length === 1 ? "1 Eintrag" : liste.length + " Einträge") + " auf diesem Gerät"}
+      aktionen={liste.length > 0 && <>
+        <button className="linkknopf linkknopf--gefahr" id="fp-leeren" onClick={leeren}>Leeren</button>
+        <button className="knopf knopf--klein" id="fp-datei" onClick={() => alt.fehlerAlsDatei()}>
+          Als Datei herunterladen</button>
+      </>}>
       {liste.length
         ? <>
             <p className="hinweis">Die Datei kannst du mir schicken, statt Screenshots zu machen.
@@ -414,7 +433,8 @@ function Fehlerprotokoll() {
               ))}</tbody>
             </table></div>
           </>
-        : <p className="hinweis">Keine Fehler aufgezeichnet. So soll es sein.</p>}
-    </section>
+        : <div className="es-leer"><span className="es-leer__zeichen" aria-hidden="true">✓</span>
+            Keine Fehler aufgezeichnet. So soll es sein.</div>}
+    </Gruppe>
   );
 }

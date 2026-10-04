@@ -6,22 +6,22 @@
 // =================================================================
 import { useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
+import { Gruppe } from "./teile.jsx";
 
 export default function Farben() {
   return (
     <>
-      <section className="karte"><h2>Farben und Material</h2>
-        <p className="hinweis">Nur Farben mit einem Material erscheinen im Auftragsfenster. Das Kürzel steht
-          auf dem Balken — mehrere Angaben mit Schrägstrich, zum Beispiel E/N.</p>
+      <Gruppe titel="Farben und Material"
+        text={"Nur Farben mit einem Material erscheinen im Auftragsfenster. Das Kürzel steht auf dem Balken, "
+          + "mehrere Angaben mit Schrägstrich, zum Beispiel E/N. Gespeichert wird beim Verlassen des Felds."}>
         <div id="farbliste"><FarbListe /></div>
-      </section>
-      <section className="karte">
-        <div className="karte__kopf"><h2>Werkstofferkennung</h2><span className="klein">nach euren Werkstofftabellen</span></div>
-        <p className="hinweis">Jede Materialbezeichnung aus den Aufträgen mit der erkannten Gruppe. Was nicht
-          erkannt wird, steht oben — einmal zuordnen, die App merkt es sich. Neue Aufträge bekommen die Farbe
-          der Gruppe, solange niemand von Hand eine andere wählt.</p>
+      </Gruppe>
+      <Gruppe titel="Werkstofferkennung"
+        text={"Jede Materialbezeichnung aus den Aufträgen mit der erkannten Gruppe, nach euren Werkstofftabellen. "
+          + "Was nicht erkannt wird, steht oben: einmal zuordnen, die App merkt es sich. Neue Aufträge bekommen "
+          + "die Farbe der Gruppe, solange niemand von Hand eine andere wählt."}>
         <div id="werkstoffliste"><Werkstoffe /></div>
-      </section>
+      </Gruppe>
     </>
   );
 }
@@ -77,7 +77,7 @@ function FarbZeile({ f, nr, zu, gespeichert }) {
   };
 
   return (
-    <div className="farbzeile">
+    <div className={"farbzeile" + (material.trim() ? " farbzeile--belegt" : "")}>
       <span className="farbzeile__punkt" style={{ background: f.hex, color: f.schrift }}>{zu.buchstabe || ""}</span>
       <span className="farbzeile__name">{f.name}</span>
       <input type="text" className="farbzeile__material" data-fmat={f.wert} value={material} placeholder="Material"
@@ -132,7 +132,9 @@ function Werkstoffe() {
 
   return (
     <>
-      <p className="klein">{zeilen.length} Werkstoffe · {offen ? <b>{offen} nicht erkannt</b> : "alle erkannt"}</p>
+      <p className="es-zahlen">{zeilen.length} Werkstoffe · {offen
+        ? <span className="es-marke es-marke--warn">{offen} nicht erkannt</span>
+        : <span className="es-marke es-marke--gut">alle erkannt</span>}</p>
       <div className="tabellenrolle"><table className="tabelle ws-tabelle">
         <thead><tr><th>Werkstoff</th><th className="rechts">Aufträge</th><th>Gruppe</th><th>Von Hand</th></tr></thead>
         <tbody>{zeilen.map((z) => (

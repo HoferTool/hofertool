@@ -12,6 +12,7 @@
 // =================================================================
 import { useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
+import { Gruppe, Zeile, SchalterZeile } from "./teile.jsx";
 
 const kannOrdner = typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
 const artVon = (a) => alt.DOK_ARTEN[a] || alt.DOK_ARTEN.sonstiges;
@@ -62,23 +63,20 @@ export default function Dokumente() {
 
   return (
     <>
-      <section className="karte">
-        <div className="karte__kopf"><h2>Ordner abgleichen</h2>
-          {darf && kannOrdner && <button className="knopf knopf--klein" id="pool-ordner" onClick={ordnerLesen}>Ordner wählen</button>}
-        </div>
-        {kannOrdner
-          ? <p className="hinweis">Wähle den Ordner mit den Dateien. Die App liest ihn, ordnet jede Datei
-              anhand ihres Namens zu und zeigt dir die Zuordnung, bevor etwas hochgeladen wird. Der Ordner
-              darf im Netzlaufwerk liegen.</p>
-          : <p className="hinweis">Das Auswählen eines ganzen Ordners geht nur in Chrome oder Edge am
-              Rechner. Am Tablet und am Handy lädst du Dateien einzeln hoch — bei der HOCO Nr. oder beim
-              Maschinentyp.</p>}
+      <Gruppe titel="Ordner abgleichen"
+        text={kannOrdner
+          ? "Wähle den Ordner mit den Dateien. Die App liest ihn, ordnet jede Datei anhand ihres Namens zu "
+            + "und zeigt dir die Zuordnung, bevor etwas hochgeladen wird. Der Ordner darf im Netzlaufwerk liegen."
+          : "Das Auswählen eines ganzen Ordners geht nur in Chrome oder Edge am Rechner. Am Tablet und am "
+            + "Handy lädst du Dateien einzeln hoch, bei der HOCO Nr. oder beim Maschinentyp."}
+        aktionen={darf && kannOrdner && <button className="knopf knopf--klein knopf--haupt" id="pool-ordner"
+          onClick={ordnerLesen}>Ordner wählen</button>}>
         <div id="pool-liste">
           {pool && (pool.laedt
             ? <div className="laedt">Wird geprüft …</div>
             : <Zuordnung eintraege={pool.eintraege} fertig={() => { setPool(null); frisch(); }} />)}
         </div>
-      </section>
+      </Gruppe>
       <Regeln />
       <Netzlaufwerk />
       <Verlauf stand={stand} frisch={frisch} />
@@ -167,47 +165,46 @@ function Regeln() {
     "10844-0049_Messbericht.pdf", "10844-0049 Zeichnung Rev B.pdf"];
 
   return (
-    <section className="karte">
-      <div className="karte__kopf"><h2>So erkennt die App die Dateien</h2></div>
-      <p className="hinweis">Steht im Dateinamen eines dieser Stichwörter, kommt die Datei dorthin. Mehrere
-        Stichwörter mit Komma trennen. Gross und klein, Striche und Leerzeichen spielen keine Rolle, bei
-        längeren Wörtern wird ein Tippfehler verziehen. Die HOCO Nr. und der Maschinentyp werden immer von
-        selbst erkannt.</p>
-      <div className="dokregeln">
+    <>
+      <Gruppe titel="So erkennt die App die Dateien"
+        text={"Steht im Dateinamen eines dieser Stichwörter, kommt die Datei dorthin. Mehrere Stichwörter "
+          + "mit Komma trennen. Gross und klein, Striche und Leerzeichen spielen keine Rolle, bei längeren "
+          + "Wörtern wird ein Tippfehler verziehen. Die HOCO Nr. und der Maschinentyp werden immer von selbst erkannt."}>
         {FELDER.map(([k, t]) => (
-          <label className="feld" key={k}><span>{t}</span>
-            <input type="text" data-dokregel={k} value={felder[k]} onChange={(e) => setze(k, e.target.value)}
-              placeholder={k === "allgemein" ? "z. B. messbericht, prüfprotokoll, foto" : undefined} /></label>
+          <Zeile key={k} titel={t}>
+            <input type="text" data-dokregel={k} aria-label={t} value={felder[k]} onChange={(e) => setze(k, e.target.value)}
+              placeholder={k === "allgemein" ? "z. B. messbericht, prüfprotokoll, foto" : undefined} />
+          </Zeile>
         ))}
-        <label className="feld"><span>Steht nur die HOCO Nr. im Namen, ist es</span>
-          <select id="dokregel-nur" value={felder.nurNummer} onChange={(e) => setze("nurNummer", e.target.value)}>
+        <Zeile titel="Nur HOCO Nr. im Namen" text="Was ist die Datei, wenn sonst nichts im Namen steht?">
+          <select id="dokregel-nur" className="es-schmal" aria-label="Nur HOCO Nr. im Namen"
+            value={felder.nurNummer} onChange={(e) => setze("nurNummer", e.target.value)}>
             <option value="zeichnung">eine Zeichnung</option>
             <option value="allgemein">ein allgemeines Dokument</option>
-          </select></label>
-      </div>
-      <div className="knopfreihe">
-        <button className="knopf knopf--klein knopf--haupt" id="dokregel-speichern" onClick={speichern}>Regeln speichern</button>
-        <button className="linkknopf" id="dokregel-vorgabe"
-          onClick={() => setFelder(felderAus(alt.DOK_REGELN_VORGABE))}>Vorgabe wiederherstellen</button>
-      </div>
+          </select>
+        </Zeile>
+        <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
+          <button className="linkknopf" id="dokregel-vorgabe"
+            onClick={() => setFelder(felderAus(alt.DOK_REGELN_VORGABE))}>Vorgabe wiederherstellen</button>
+          <button className="knopf knopf--klein knopf--haupt" id="dokregel-speichern" onClick={speichern}>Regeln speichern</button>
+        </div>
+      </Gruppe>
 
-      <h3 className="untertitel">Ausprobieren</h3>
-      <label className="feld"><span>Dateiname eingeben — die App zeigt, wohin er ginge</span>
-        <input type="text" id="dokprobe" placeholder="z. B. 10844-0049 EB SW20.pdf" value={probe}
-          onChange={(e) => setProbe(e.target.value)} /></label>
-      <div id="dokprobe-ergebnis" className="dokprobe">
-        {p && <><b>{alt.dokZielText(p)}</b><span className="klein"> — {p.grund || ""}</span></>}
-      </div>
-
-      <h3 className="untertitel">Beispiele mit den jetzigen Regeln</h3>
-      <div id="dokbeispiele">
-        <table className="tabelle"><thead><tr><th>Dateiname</th><th>Wird zugeordnet als</th></tr></thead>
-          <tbody>{beispiele.map((n) => (
-            <tr key={n}><td><code>{n}</code></td><td>{alt.dokZielText(erkennen(n))}</td></tr>
-          ))}</tbody>
-        </table>
-      </div>
-    </section>
+      <Gruppe titel="Ausprobieren" text="Dateiname eingeben, die App zeigt, wohin er ginge. Unten Beispiele mit den Regeln, wie sie gerade oben stehen.">
+        <input type="text" id="dokprobe" aria-label="Dateiname zum Ausprobieren"
+          placeholder="z. B. 10844-0049 EB SW20.pdf" value={probe} onChange={(e) => setProbe(e.target.value)} />
+        <div id="dokprobe-ergebnis" className="dokprobe">
+          {p && <><b>{alt.dokZielText(p)}</b><span className="klein"> — {p.grund || ""}</span></>}
+        </div>
+        <div id="dokbeispiele" className="tabellenrolle">
+          <table className="tabelle es-tabelle"><thead><tr><th>Dateiname</th><th>Wird zugeordnet als</th></tr></thead>
+            <tbody>{beispiele.map((n) => (
+              <tr key={n}><td><code>{n}</code></td><td>{alt.dokZielText(erkennen(n))}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </Gruppe>
+    </>
   );
 }
 
@@ -226,15 +223,14 @@ async function pfadLaden() {
 function Netzlaufwerk() {
   const { daten } = useDaten(pfadLaden, []);
   return (
-    <section className="karte">
-      <div className="karte__kopf"><h2>Ordner auf dem Netzlaufwerk</h2></div>
-      <p className="hinweis">Diesen Ordner prüft das Hilfsprogramm auf dem Server jede Minute. Neue und
-        geänderte Dateien lädt es hoch und legt sie nach den Regeln oben ab — was an derselben Stelle lag,
-        wird ersetzt. Die Dateien im Ordner bleiben liegen.</p>
+    <Gruppe titel="Ordner auf dem Netzlaufwerk"
+      text={"Diesen Ordner prüft das Hilfsprogramm auf dem Server jede Minute. Neue und geänderte Dateien "
+        + "lädt es hoch und legt sie nach den Regeln oben ab; was an derselben Stelle lag, wird ersetzt. "
+        + "Die Dateien im Ordner bleiben liegen."}>
       {/* Erst nach dem Laden zeigen, damit die Felder mit dem
           gespeicherten Pfad beginnen */}
       {daten ? <PfadFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
-    </section>
+    </Gruppe>
   );
 }
 
@@ -269,14 +265,16 @@ function PfadFormular({ werte }) {
 
   return (
     <>
-      <label className="feld"><span>Pfad</span>
-        <input type="text" id="dokpfad" placeholder={"\\\\FS01\\Daten\\Zeichnungen"} value={pfad}
-          onChange={(e) => setPfad(e.target.value)} /></label>
-      <label className="schalter"><input type="checkbox" id="dokpfad-unter" checked={unter}
-        onChange={(e) => setUnter(e.target.checked)} /><span>Unterordner einbeziehen</span></label>
-      <div className="knopfreihe"><button className="knopf knopf--klein knopf--haupt" id="dokpfad-speichern"
-        onClick={speichern}>Pfad speichern</button></div>
-      <div id="dokpfad-stand" className="dokpfad-stand">{stand}</div>
+      <Zeile titel="Pfad">
+        <input type="text" id="dokpfad" aria-label="Pfad" placeholder={"\\\\FS01\\Daten\\Zeichnungen"} value={pfad}
+          onChange={(e) => setPfad(e.target.value)} />
+      </Zeile>
+      <SchalterZeile id="dokpfad-unter" titel="Unterordner einbeziehen" checked={unter}
+        onChange={(e) => setUnter(e.target.checked)} />
+      <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
+        <div id="dokpfad-stand" className="dokpfad-stand">{stand}</div>
+        <button className="knopf knopf--klein knopf--haupt" id="dokpfad-speichern"
+          onClick={speichern}>Pfad speichern</button></div>
     </>
   );
 }
@@ -305,7 +303,7 @@ function Verlauf({ stand, frisch }) {
   if (fehler && !liste) {
     inhalt = <p className="hinweis">Der Verlauf braucht noch <code>dokumente-verlauf.sql</code> in der Datenbank.</p>;
   } else if (!liste) inhalt = <div className="laedt">Wird geladen …</div>;
-  else if (!liste.length) inhalt = <p className="hinweis">Noch nichts abgelegt.</p>;
+  else if (!liste.length) inhalt = <p className="es-leer">Noch nichts abgelegt.</p>;
   else {
     inhalt = (
       <div className="tabellenrolle"><table className="tabelle">
@@ -323,12 +321,10 @@ function Verlauf({ stand, frisch }) {
     );
   }
   return (
-    <section className="karte">
-      <div className="karte__kopf"><h2>Verlauf</h2><span className="klein">welche Datei wohin ging</span>
-        <div className="karte__aktionen"><button className="linkknopf" id="wbg-aufraeumen" onClick={aufraeumen}>Alte WBG jetzt aufräumen</button></div>
-      </div>
+    <Gruppe titel="Verlauf" text="Welche Datei wohin ging."
+      aktionen={<button className="knopf knopf--klein" id="wbg-aufraeumen" onClick={aufraeumen}>Alte WBG aufräumen</button>}>
       <div id="dokverlauf">{inhalt}</div>
-    </section>
+    </Gruppe>
   );
 }
 
@@ -352,7 +348,7 @@ function Letzte({ stand, hochladen }) {
   let inhalt;
   if (fehler && !liste) inhalt = <p className="hinweis">Dafür fehlt noch dokumente.sql in der Datenbank.</p>;
   else if (!liste) inhalt = <div className="laedt">Wird geladen …</div>;
-  else if (!liste.length) inhalt = <p className="hinweis">Noch nichts abgelegt.</p>;
+  else if (!liste.length) inhalt = <p className="es-leer">Noch nichts abgelegt.</p>;
   else {
     inhalt = (
       <table className="tabelle">
@@ -374,10 +370,9 @@ function Letzte({ stand, hochladen }) {
     );
   }
   return (
-    <section className="karte">
-      <div className="karte__kopf"><h2>Zuletzt abgelegt</h2>
-        <button className="knopf knopf--klein" id="dok-neu" onClick={hochladen}>Dateien hochladen</button></div>
+    <Gruppe titel="Zuletzt abgelegt" text="Die letzten 25 Dokumente."
+      aktionen={<button className="knopf knopf--klein" id="dok-neu" onClick={hochladen}>Dateien hochladen</button>}>
       <div id="dok-letzte">{inhalt}</div>
-    </section>
+    </Gruppe>
   );
 }

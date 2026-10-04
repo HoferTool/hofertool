@@ -4675,3 +4675,194 @@ input[type="range"] { accent-color: var(--marke); }
 /* Dunkel ist alle Schrift weiss (!important), Löschen zeigt sich dort am roten Rahmen */
 body.dunkel .knopf.knopf--gefahr-leise { border-color: var(--gefahr); }
 .mpark .karte__kopf { align-items: center; }
+
+/* =================================================================
+   EINSTELLUNGEN, neu gestaltet (111.25.0)
+   Breit: Reiter als Leiste links, rechts rollt der Inhalt auf dem
+   grauen Grund, jede Gruppe eine weisse Karte. In einer Gruppe stehen
+   Zeilen: links was es ist mit kurzem Hinweis, rechts Feld oder
+   Schalter. Schmal: Reiter oben zum Wischen, Zeilen untereinander.
+   ================================================================= */
+.dialog--einstellungen.es { display: flex; flex-direction: column; padding: 0;
+  height: min(860px, 90dvh); max-height: 90dvh; overflow: hidden; width: 94vw;
+  max-width: min(1280px, 96vw); }
+.es .einstellungenkopf { padding: 16px 20px; margin: 0; border-bottom: 1px solid var(--linie);
+  flex: none; }
+.es .einstellungenkopf .seitentitel { font-size: 1.35rem; }
+.es .einstellungenkopf .knopf--gefahr { min-height: 40px; padding: 8px 14px; font-size: .9rem; }
+.es .dialog__schliessen-inline { width: 40px; height: 40px; }
+.es-rumpf { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 236px 1fr; }
+.es-inhalt { min-width: 0; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--grund); padding: 20px 24px 28px; }
+.es-inhalt { display: flex; flex-direction: column; gap: 14px; }
+.es-inhalt > * { flex: none; }
+
+/* Leiste links */
+.es .es-reiter { flex-direction: column; gap: 2px; margin: 0; padding: 14px 10px;
+  border-bottom: none; border-right: 1px solid var(--linie); overflow-y: auto; }
+.es .es-reiter__knopf { display: flex; align-items: center; gap: 11px; text-align: left;
+  width: 100%; padding: 10px 12px; border: none; border-radius: var(--radius);
+  font-size: .93rem; font-weight: 600; color: var(--gedaempft); }
+.es .es-reiter__knopf:hover { background: var(--grund); color: var(--tinte); }
+.es .es-reiter__knopf.aktiv { background: var(--marke-hell); color: var(--marke);
+  box-shadow: inset 3px 0 0 var(--marke); border-bottom-color: transparent; }
+.es-reiter__zeichen { flex: none; opacity: .85; }
+.es .es-reiter.fx-gleit::before { background: var(--marke-hell);
+  box-shadow: inset 3px 0 0 var(--marke); border-radius: var(--radius); }
+.es .es-reiter.fx-gleit .es-reiter__knopf.aktiv { background: none; box-shadow: none; }
+.es .es-reiter.fx-gleit .es-reiter__knopf:hover:not(.aktiv) { background: var(--grund); }
+
+/* Gruppe */
+.es-gruppe.karte { padding: 18px 20px; margin: 0; border-color: var(--linie);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04); overflow: visible; }
+.es-gruppe__kopf { display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; }
+.es-gruppe__kopf + * { margin-top: 12px; }
+.es-gruppe__titel { min-width: 0; }
+.es-gruppe__titel h2 { margin: 0; font-size: 1.02rem; font-weight: 650; }
+.es-gruppe__text { margin: 4px 0 0; font-size: .85rem; line-height: 1.45;
+  color: var(--gedaempft); max-width: 72ch; }
+.es-gruppe__aktionen { display: flex; align-items: center; gap: 12px; flex: none; }
+.es-unterkopf { margin: 22px 0 6px; padding-top: 18px; border-top: 1px solid var(--linie); }
+.es-unterkopf h3 { margin: 0; font-size: .95rem; font-weight: 650; }
+
+/* Zeilen */
+.es-zeile { display: grid; grid-template-columns: minmax(180px, 34%) 1fr; gap: 6px 24px;
+  align-items: center; padding: 14px 0; border-top: 1px solid var(--linie); }
+.es-gruppe__kopf + .es-zeile { margin-top: 10px; }
+.es-zeile__titel { font-weight: 600; font-size: .93rem; }
+.es-zeile__hinweis { margin-top: 2px; font-size: .8rem; line-height: 1.4; color: var(--gedaempft); }
+.es-zeile__feld { min-width: 0; }
+.es-zeile__feld > input:not([type=checkbox]), .es-zeile__feld > select,
+.es-zeile__feld > textarea { width: 100%; }
+.es-zeile--breit { grid-template-columns: 1fr; }
+.es-zeile--schalter { cursor: pointer; }
+.es-zeile--schalter .es-zeile__feld { justify-self: end; display: flex; }
+.es-schmal { max-width: 240px; }
+.es-eingabe { display: flex; gap: 8px; align-items: center; }
+.es-eingabe > input { flex: 1 1 auto; min-width: 0; }
+.es-eingabe > .es-schmal { flex: 0 1 240px; }
+.es-eingabe > .knopf { flex: none; }
+.es-eingabe--pin > input { flex: 1 1 120px; }
+.es-unterlink { margin-top: 8px; font-size: .85rem; }
+.es-knopfreihe { display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+.es-knopfreihe--ende { justify-content: flex-end; padding-top: 14px; border-top: 1px solid var(--linie); }
+.es-knopfreihe--ende > .dokpfad-stand { margin: 0 auto 0 0; font-size: .85rem; }
+.es-absatz { margin: 10px 0 0; font-size: .88rem; line-height: 1.5; color: var(--gedaempft); }
+.es-leer { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; padding: 14px 16px;
+  border: 1px dashed var(--linie-stark); border-radius: var(--radius);
+  font-size: .88rem; color: var(--gedaempft); }
+.es-leer__zeichen { display: grid; place-items: center; width: 24px; height: 24px; flex: none;
+  border-radius: 50%; background: color-mix(in srgb, var(--gut) 14%, transparent);
+  color: var(--gut); font-weight: 700; font-size: .8rem; }
+.es-fuss { margin: 18px 4px 0; font-size: .78rem; color: var(--gedaempft); }
+.es-zahlen { margin: 10px 0; font-size: .85rem; color: var(--gedaempft); }
+.es-marke { display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: .78rem; font-weight: 650; }
+.es-marke--warn { background: color-mix(in srgb, var(--warnung) 15%, transparent); color: var(--warnung); }
+.es-marke--gut { background: color-mix(in srgb, var(--gut) 14%, transparent); color: var(--gut); }
+
+/* Mein Konto */
+.es-konto { display: flex; align-items: center; gap: 16px; padding-bottom: 4px; }
+.es-konto .profilbild-gross { width: 64px; height: 64px; border-radius: 50%; font-size: 1.5rem;
+  display: grid; place-items: center; }
+.es-konto__wer { flex: 1 1 auto; min-width: 0; }
+.es-konto .bildknopf { flex: none; width: auto; min-width: 0; }
+.es-konto__name { font-weight: 650; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+
+/* Kippschalter statt Häkchen */
+.kippschalter { appearance: none; -webkit-appearance: none; position: relative; flex: none;
+  width: 44px; height: 26px; margin: 0; border-radius: 999px; cursor: pointer;
+  background: var(--linie-stark); transition: background .18s ease; }
+.kippschalter::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25);
+  transition: transform .18s ease; }
+.kippschalter:checked { background: var(--marke); }
+.kippschalter:checked::after { transform: translateX(18px); }
+.kippschalter:focus-visible { outline: 2px solid var(--marke); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .kippschalter, .kippschalter::after { transition: none; }
+}
+
+/* Themenfarben als Pillen */
+.es .themawahl { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.es .themaknopf { min-height: 36px; padding: 6px 12px; font-size: .88rem; }
+
+/* Dokumente */
+.es #dokprobe { width: 100%; }
+.es .dokprobe { padding: 10px 0 6px; font-size: .9rem; }
+.es .es-tabelle, .es-gruppe .tabelle { margin: 0; font-size: .88rem; }
+.es-gruppe .tabelle th { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
+.es-gruppe code { font-size: .8rem; padding: 1px 6px; border-radius: 3px;
+  background: var(--grund); border: 1px solid var(--linie); }
+
+/* Farben: zwei Spalten, belegte Farben kräftig, leere zurückhaltend */
+.es .farbzeilen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px; }
+.es .farbzeile { grid-template-columns: 30px 92px minmax(0, 1fr) 70px; gap: 8px; align-items: center;
+  padding: 4px 0; }
+.es .farbzeile__punkt { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  font-size: .75rem; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.es .farbzeile--belegt .farbzeile__name { color: var(--tinte); font-weight: 600; }
+.es .farbzeile:not(.farbzeile--belegt) input { background: var(--grund); }
+.es .farbzeile:not(.farbzeile--belegt) input:focus { background: var(--flaeche); }
+
+/* Nutzer */
+.es .bu-anmeldung { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.knopf--mini { min-height: 32px; padding: 4px 10px; font-size: .8rem; font-weight: 600; }
+/* Breite der Spalten so, dass für den Namen genug Platz bleibt */
+.es .tabelle--benutzer { min-width: 900px; }
+.es .tabelle--benutzer th:nth-child(2), .es .tabelle--benutzer .bu-rolle { width: 160px; }
+.es .tabelle--benutzer th:nth-child(3), .es .tabelle--benutzer .bu-bearb { width: 96px; }
+.es .tabelle--benutzer th:nth-child(6), .es .tabelle--benutzer .bu-geb { width: 150px; }
+.es .tabelle--benutzer th:nth-child(7) { width: 130px; }
+.es .tabelle--benutzer th:last-child, .es .tabelle--benutzer .bu-status { width: 110px; }
+.es .bu-anmeldung { flex-direction: column; align-items: flex-start; }
+.es .tabelle--benutzer td { padding-top: 10px; padding-bottom: 10px; }
+.es .parkzeile { grid-template-columns: minmax(180px, 34%) 1fr; align-items: center;
+  padding: 10px 0; border-top: 1px solid var(--linie); border-bottom: none; margin: 0; gap: 16px; }
+.es .parkzeile__wahl { flex-direction: row; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.es .parkzeile .parkzeile__wahl { display: flex; flex-direction: row; align-items: center; }
+.es .parkzeile__wahl .parkchip { display: inline-flex; width: auto; flex: none; }
+.es .parkchip { border: 1px solid var(--linie-stark); border-radius: 999px; padding: 6px 12px;
+  margin: 0; cursor: pointer; }
+.es .parkchip:has(input:checked) { border-color: var(--marke); background: var(--marke-hell);
+  color: var(--marke); font-weight: 600; }
+.es .parkchip input { width: 16px; height: 16px; accent-color: var(--marke); }
+.es .rollenhilfe { margin: 12px 0 0; display: grid; gap: 6px; font-size: .86rem; line-height: 1.45; }
+.es .rollenhilfe strong { color: var(--tinte); }
+.es .linkzeile { margin-top: 12px; }
+
+/* Schmal: Reiter oben, Zeilen untereinander */
+@media (max-width: 820px) {
+  .dialog--einstellungen.es { width: 100%; max-width: 100%; height: 92dvh; max-height: 92dvh; }
+  .es .einstellungenkopf { padding: 12px 14px; }
+  .es-rumpf { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .es .es-reiter { flex-direction: row; padding: 8px 10px; border-right: none;
+    border-bottom: 1px solid var(--linie); overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: none; gap: 4px; }
+  .es .es-reiter::-webkit-scrollbar { display: none; }
+  .es .es-reiter__knopf { width: auto; flex: none; white-space: nowrap; padding: 8px 12px; gap: 8px; }
+  .es .es-reiter__knopf.aktiv { box-shadow: inset 0 -3px 0 var(--marke); }
+  .es .es-reiter.fx-gleit::before { box-shadow: inset 0 -3px 0 var(--marke); }
+  .es-inhalt { padding: 14px 12px 22px; }
+  .es-gruppe.karte { padding: 16px; }
+  .es-zeile { grid-template-columns: 1fr; gap: 8px; }
+  .es-zeile--schalter { grid-template-columns: 1fr auto; }
+  .es-gruppe__kopf { flex-wrap: wrap; }
+  .es .farbzeilen { grid-template-columns: 1fr; }
+  .es .parkzeile { grid-template-columns: 1fr; gap: 8px; }
+}
+@media (max-width: 520px) {
+  .es-eingabe { flex-wrap: wrap; }
+  .es-eingabe > .knopf { flex: 1 1 100%; }
+  .es .es-reiter__zeichen { display: none; }
+}
+
+/* Dunkel */
+body.dunkel .es-gruppe.karte { box-shadow: none; }
+body.dunkel .es .farbzeile__punkt { box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+.es .tabelle--benutzer input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--marke); }
+.es #pool-liste:empty { display: none; }
+@media (min-width: 821px) { .es .es-reiter__knopf span { white-space: nowrap; } }
+body.dunkel .kippschalter:not(:checked) { background: #56616d; }
