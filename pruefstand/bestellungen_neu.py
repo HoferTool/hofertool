@@ -69,6 +69,19 @@ with sync_playwright() as p:
     pg.click("[data-best='historie']"); pg.wait_for_timeout(500)
     if "August 2026" not in pg.inner_text("#best-inhalt"): fehler.append("Monat fehlt in der Historie")
 
+    # Artikel: Filter nach Lieferant als Auswahlliste
+    pg.evaluate("""TEST.daten.articles.push({ id: "a9", article_number: "BR-77", name: "Bohrer",
+      unit: "Stück", description: null, supplier_id: "s2", is_active: true })""")
+    pg.click("[data-best='artikel']"); pg.wait_for_timeout(600)
+    if pg.locator("#ar-lief option").count() < 3: fehler.append("Lieferanten fehlen in der Auswahl")
+    alle = pg.locator("[data-arbearb]").count()
+    pg.select_option("#ar-lief", "Brütsch Rüegger"); pg.wait_for_timeout(600)
+    n = pg.locator("[data-arbearb]").count()
+    if not (n == 1 and pg.locator("[data-arbearb='a9']").count() == 1):
+        fehler.append("Lieferantenfilter: %d von %d" % (n, alle))
+    pg.select_option("#ar-lief", ""); pg.wait_for_timeout(600)
+    if pg.locator("[data-arbearb]").count() != alle: fehler.append("Filter zurück wirkt nicht")
+
     # Suche über die Lupe-Leiste filtert sofort
     pg.click("[data-best='offen']"); pg.wait_for_timeout(400)
     pg.fill("#bo-suche", "dringend"); pg.wait_for_timeout(200)

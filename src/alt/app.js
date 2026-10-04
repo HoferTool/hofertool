@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.28.0";
+const APP_VERSION = "111.29.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6888,9 +6888,13 @@ async function ladeLieferanten() {
   return (data || []).filter((l) => l.is_active !== false);
 }
 
-async function sucheArtikel(text) {
+// filter: { bez, lief } — Bezeichnung und Lieferant fragt schon die
+// Datenbank ab, sonst fehlen Treffer jenseits der ersten 50
+async function sucheArtikel(text, filter) {
   const t = (text || "").trim();
   let abfrage = db.from("artikel_uebersicht").select("*");
+  if (filter && filter.bez) abfrage = abfrage.eq("name", filter.bez);
+  if (filter && filter.lief) abfrage = abfrage.eq("supplier_name", filter.lief);
   if (t) {
     abfrage = abfrage.or("article_number.ilike.%" + t + "%,name.ilike.%" + t
       + "%,supplier_name.ilike.%" + t + "%");
@@ -6929,6 +6933,7 @@ const best = {
   ansicht: "offen",
   artikelSuche: "",
   artikelBez: "",
+  artikelLief: "",
   lieferantId: null,
   offenSuche: "",
   historieSuche: "",

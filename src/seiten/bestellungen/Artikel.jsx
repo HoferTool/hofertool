@@ -1,7 +1,7 @@
 // =================================================================
 //  BESTELLUNGEN · Reiter „Artikel“
 //  Suche fragt die Datenbank, kurz nachdem man aufgehört hat zu
-//  tippen. Der Filter nach Bezeichnung wirkt sofort.
+//  tippen. Filter nach Bezeichnung und Lieferant als Auswahllisten.
 // =================================================================
 import { alt, useDaten, useVerzoegert, useSpeicherWert } from "../../bruecke.jsx";
 import { Leiste, NeuKnopf, Karte, Symbolknopf, Zeichen, Leer, Laedt, Fehler } from "./teile.jsx";
@@ -10,21 +10,27 @@ export default function Artikel({ auffrischen, behaelter }) {
   const best = alt.best;
   const [suche, setSuche] = useSpeicherWert(best, "artikelSuche", auffrischen);
   const [bez, setBez] = useSpeicherWert(best, "artikelBez", auffrischen);
+  const [lief, setLief] = useSpeicherWert(best, "artikelLief", auffrischen);
   const ruhig = useVerzoegert(suche, 300);
   const schreiben = alt.darfSchreiben();
 
-  const { daten: liste, fehler } = useDaten(() => alt.sucheArtikel(ruhig), [ruhig, auffrischen]);
-  // Bezeichnungen für den Filter; der Filter ist Beiwerk, ohne geht es auch
+  const { daten: liste, fehler } = useDaten(() => alt.sucheArtikel(ruhig, { bez, lief }),
+    [ruhig, bez, lief, auffrischen]);
+  // Bezeichnungen und Lieferanten für die Filter; sie sind Beiwerk, ohne geht es auch
   const { daten: bezeichnungen } = useDaten(
     () => alt.ladeBezeichnungen().catch(() => []), [auffrischen]);
+  const { daten: lieferanten } = useDaten(
+    () => alt.ladeLieferanten().catch(() => []), [auffrischen]);
 
-  const gefiltert = liste && (bez ? liste.filter((a) => a.name === bez) : liste);
+  // Auch hier filtern, falls die Datenbank den Filter nicht kennt
+  const gefiltert = liste && liste.filter((a) =>
+    (!bez || a.name === bez) && (!lief || a.supplier_name === lief));
 
   return (
     <>
       <Leiste suchId="ar-suche" suche={suche} setSuche={setSuche}
         platzhalter="Nummer, Bezeichnung oder Lieferant suchen"
-        filter={
+        filter={<>
           <select id="ar-bez" className="auswahl bs-filter" value={bez} aria-label="Bezeichnung"
             onChange={(e) => { setBez(e.target.value); }}>
             <option value="">Alle Bezeichnungen</option>
@@ -32,7 +38,15 @@ export default function Artikel({ auffrischen, behaelter }) {
             {/* Gewählt, aber (noch) nicht geladen: trotzdem anzeigen */}
             {bez && !(bezeichnungen || []).some((z) => z.name === bez) &&
               <option value={bez}>{bez}</option>}
-          </select>}
+          </select>
+          <select id="ar-lief" className="auswahl bs-filter" value={lief} aria-label="Lieferant"
+            onChange={(e) => { setLief(e.target.value); }}>
+            <option value="">Alle Lieferanten</option>
+            {(lieferanten || []).map((l) => <option key={l.id} value={l.name}>{l.name}</option>)}
+            {lief && !(lieferanten || []).some((l) => l.name === lief) &&
+              <option value={lief}>{lief}</option>}
+          </select>
+        </>}
         knopf={schreiben && <NeuKnopf id="ar-neu" text="Neuer Artikel" onClick={async () => {
           const a = await alt.artikelSchnellAnlegen("");
           if (a) alt.seiteBestellungen(behaelter);
@@ -42,7 +56,7 @@ export default function Artikel({ auffrischen, behaelter }) {
           ? <Fehler fehler={fehler} />
           : !gefiltert
             ? <Laedt />
-            : <Liste liste={gefiltert} sucht={!!suche || !!bez} schreiben={schreiben} behaelter={behaelter} />}
+            : <Liste liste={gefiltert} sucht={!!suche || !!bez || !!lief} schreiben={schreiben} behaelter={behaelter} />}
       </div>
     </>
   );
