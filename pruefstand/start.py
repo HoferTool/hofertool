@@ -22,14 +22,15 @@ with sync_playwright() as p:
     pg.wait_for_selector("#db-notizen .karte"); pg.wait_for_timeout(1200)
     for teil in ["uhr", "wetter", "db-solar", "db-probleme", "db-einkauf", "db-status", "db-geburtstage"]:
         if not pg.locator("#" + teil).count(): fehler.append("fehlt: " + teil)
-    # Gemeldetes Problem ersetzt die Vorbereitung; erledigt kommt sie zurück
-    if pg.locator("#db-vorbereitung").count(): fehler.append("Vorbereitung trotz Problem sichtbar")
+    # Die Vorbereitung gibt es nicht mehr, an ihrer Stelle stehen die Probleme
+    if pg.locator("#db-vorbereitung").count(): fehler.append("Vorbereitung noch da")
     if "Material fehlt" not in pg.inner_text("#db-probleme"): fehler.append("Problem fehlt")
     pg.screenshot(path="start_problem.png")
     pg.locator("[data-probweg]").first.click(); pg.click(".dialog-huelle [data-ja]")
     pg.wait_for_timeout(400); pg.click(".dialog-huelle [data-ja]")
-    pg.wait_for_selector("#db-vorbereitung .karte", timeout=5000)
-    if pg.locator("#db-probleme .karte").count(): fehler.append("Problemkarte nach Erledigt noch da")
+    pg.wait_for_selector("#db-probleme .problemleer", timeout=5000)
+    if "Keine Probleme" not in pg.inner_text("#db-probleme"): fehler.append("Leere Problemkarte ohne Text")
+    if pg.locator("#db-vorbereitung").count(): fehler.append("Vorbereitung nach Erledigt da")
     if ":" not in pg.inner_text("#uhr"): fehler.append("Uhr leer")
     if "nicht verfügbar" not in pg.inner_text("#wetter"): fehler.append("Wetter ohne Ersatztext")
 

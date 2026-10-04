@@ -1,6 +1,7 @@
 // =================================================================
 //  STARTSEITE · die kleinen Karten
-//  Probleme, Vorbereitung, Einkauf, Bestellungen und Geburtstage.
+//  Probleme, Einkauf, Bestellungen und Geburtstage. Die Vorbereitung
+//  ist seit 111.26.0 weg, an ihrer Stelle stehen die Probleme.
 //  Jede lädt für sich; fehlt eine Tabelle, bleibt nur ihre Karte weg.
 // =================================================================
 import { alt, useDaten } from "../../bruecke.jsx";
@@ -15,8 +16,7 @@ async function abfrage(anfrage, ms, name) {
 
 // ---------- Gemeldete Probleme von der Planwand ----------
 
-// Lädt die Startseite selbst, weil die Karte an der Stelle der
-// Vorbereitung steht, solange etwas gemeldet ist.
+// Lädt die Startseite selbst und gibt die Liste an die Karte.
 // Leere Texte zählen nicht als Problem.
 export async function problemeLaden() {
   const data = await abfrage(alt.db.from("planwand").select("*").not("problem", "is", null)
@@ -24,15 +24,19 @@ export async function problemeLaden() {
   return data.filter((j) => String(j.problem || "").trim());
 }
 
-export function Probleme({ liste, neu }) {
+export function Probleme({ liste, fehler, neu }) {
   const darf = alt.darfSchreiben() || alt.darfPlanen();
+  if (!liste && !fehler) return <div id="db-probleme" />;
+  const n = liste ? liste.length : 0;
 
   return (
     <div id="db-probleme">
-      {liste && liste.length > 0 &&
-        <section className="karte karte--warnung">
-          <h2>⚠ Gemeldete Probleme <span className="marke">{liste.length}</span></h2>
-          {liste.map((j) => (
+      <section className={"karte" + (n ? " karte--warnung" : "")}>
+        <h2>{n ? "⚠ " : ""}Gemeldete Probleme{n > 0 && <> <span className="marke">{n}</span></>}</h2>
+        {!liste && <p className="hinweis">Probleme konnten nicht geladen werden.</p>}
+        {liste && !n && <p className="problemleer"><span className="problemleer__zeichen" aria-hidden="true">✓</span>
+          Keine Probleme gemeldet.</p>}
+        {n > 0 && liste.map((j) => (
             <div className="problemzeile" key={j.id}>
               <span className="problemzeile__zeichen">⚠</span>
               <div className="problemzeile__inhalt">
@@ -53,54 +57,6 @@ export function Probleme({ liste, neu }) {
                   onClick={() => alt.problemQuittieren(j, null, neu)}>Erledigt</button>}
             </div>
           ))}
-        </section>}
-    </div>
-  );
-}
-
-// ---------- Vorbereitung ----------
-
-function Statuszeile({ anzahl, text, art, knopf, ansehen }) {
-  return (
-    <div className={"statuszeile statuszeile--" + art}>
-      <span className="statuszeile__zahl">{alt.zahlText(anzahl)}</span>
-      <span>{text}</span>
-      {knopf && <button className="statuszeile__knopf" data-vorb={knopf}
-        onClick={(e) => { e.stopPropagation(); ansehen(); }}>Ansehen</button>}
-    </div>
-  );
-}
-
-export function Vorbereitung({ auffrischen }) {
-  const { daten: liste } = useDaten(async () => {
-    const data = await abfrage(alt.db.from("planwand").select("*").is("ended_at", null)
-      .not("planned_from", "is", null).order("planned_from"), 10000, "Vorbereitung");
-    // Nur, was wirklich ansteht: noch geplant (läuft nicht schon, wird
-    // nicht schon gerüstet) und Beginn in den nächsten zwei Wochen.
-    // Ohne diese Grenze zählte die Karte jeden offenen Auftrag bis weit
-    // in die Zukunft — 170 "ohne FA" sagen niemandem etwas.
-    const grenze = alt.arbeitstagePlus(alt.isoDatum(new Date()), 10);
-    return data.filter((j) => (j.plan_status || "geplant") === "geplant" && j.planned_from <= grenze);
-  }, [auffrischen]);
-
-  if (!liste) return <div id="db-vorbereitung" />;
-  // FA da = FA Nr. eingetragen, Material da = Menge eingetragen
-  const ohneFa = liste.filter((j) => !String(j.fa_nr || "").trim());
-  const ohneMaterial = liste.filter((j) => !String(j.material_menge || "").trim());
-
-  return (
-    <div id="db-vorbereitung">
-      <section className="karte">
-        <h2>Vorbereitung</h2>
-        <div className="statusliste">
-          <Statuszeile anzahl={ohneFa.length} text="ohne FA in den nächsten 2 Wochen"
-            art={ohneFa.length ? "warn" : "gut"} knopf={ohneFa.length ? "fa" : ""}
-            ansehen={() => alt.vorbereitungFenster(ohneFa, "Aufträge ohne FA")} />
-          <Statuszeile anzahl={ohneMaterial.length} text="ohne Material in den nächsten 2 Wochen"
-            art={ohneMaterial.length ? "warn" : "gut"} knopf={ohneMaterial.length ? "material" : ""}
-            ansehen={() => alt.vorbereitungFenster(ohneMaterial, "Aufträge ohne Material")} />
-        </div>
-        {!ohneFa.length && !ohneMaterial.length && <p className="hinweis">Alles vorbereitet.</p>}
       </section>
     </div>
   );

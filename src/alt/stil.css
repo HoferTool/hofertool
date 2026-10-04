@@ -4866,3 +4866,9 @@ body.dunkel .es .farbzeile__punkt { box-shadow: inset 0 0 0 1px rgba(255,255,255
 .es #pool-liste:empty { display: none; }
 @media (min-width: 821px) { .es .es-reiter__knopf span { white-space: nowrap; } }
 body.dunkel .kippschalter:not(:checked) { background: #56616d; }
+
+/* Startseite: leere Problemkarte, ruhig mit grünem Haken */
+.problemleer { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; color: var(--gedaempft); }
+.problemleer__zeichen { display: grid; place-items: center; width: 26px; height: 26px; flex: none;
+  border-radius: 50%; background: color-mix(in srgb, var(--gut) 15%, transparent);
+  color: var(--gut); font-weight: 700; font-size: .85rem; }
