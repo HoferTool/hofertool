@@ -144,15 +144,18 @@ karte_js = json.dumps({"so": K["soMitte"], "lohn": K["lohnMitte"]})
 
 # Firmengebäude (fällt auf den Punkt), mit Solar auf dem Dach und Logo an der Front
 dach = []
+# Die Module liegen ganz innerhalb der Dachfläche und folgen ihrer Schräge (80 px nach rechts auf 70 px Höhe)
+SCHRAEG = 80 / 70
 for r in range(2):
-    for c in range(8):
-        x = 150 + c * 50 + r * 18; y = 70 + r * 26
-        dach.append(f'<polygon class="k-dach" points="{x},{y} {x + 44},{y} {x + 58},{y + 22} {x + 14},{y + 22}" fill="#2b5fb8" stroke="#9cc3ff" stroke-width="1.5"/>')
+    y0 = 67 + r * 29; y1 = y0 + 25
+    for c in range(7):
+        x0 = 120 + 22 + c * 58 + (y0 - 60) * SCHRAEG; w = 52; d = (y1 - y0) * SCHRAEG
+        dach.append(f'<polygon class="k-dach" points="{x0:.1f},{y0} {x0 + w:.1f},{y0} {x0 + w + d:.1f},{y1} {x0 + d:.1f},{y1}" fill="#2b5fb8" stroke="#9cc3ff" stroke-width="1.5"/>')
 haus = f'''          <svg id="k-haus" viewBox="0 0 700 400">
             <ellipse cx="350" cy="384" rx="330" ry="18" fill="rgba(0,0,0,.5)"/>
+            <polygon points="560,60 640,130 640,380 560,320" fill="#2b3646"/>
             <polygon points="120,60 560,60 640,130 200,130" fill="#2a3442"/>
             {"".join(dach)}
-            <polygon points="560,60 640,130 640,380 560,320" fill="#2b3646"/>
             <rect x="60" y="130" width="580" height="250" fill="#d9dee5"/>
             <polygon points="60,130 120,60 200,130" fill="#bfc6cf"/>
             <rect x="60" y="130" width="580" height="16" fill="#1f6fe0"/>
@@ -163,9 +166,11 @@ haus = f'''          <svg id="k-haus" viewBox="0 0 700 400">
             <text x="480" y="216" fill="#eaf1fb" font-family="Inter" font-weight="800" font-size="20" letter-spacing="3">SEIT 1928</text>
           </svg>'''
 
+EIN = 9.5  # Einschub "Was wir machen" nach der Geschäftsleitung, verschiebt alles danach
+
 # ---------- Team (von hoferco.ch, Seite Team) ----------
 # Namen und Fotos liegen nicht im Repository (Personendaten), sondern in werkzeuge/team.json und assets/team/
-TEAM = [(p["name"], p["rolle"], p["aufgaben"], p["foto"], p["ausschnitt"]) for p in json.load(open("werkzeuge/team.json", encoding="utf-8"))] if os.path.exists("werkzeuge/team.json") else []
+TEAM = [(p["name"], p["rolle"], p["aufgaben"], p["foto"], p["ausschnitt"] + ";transform-origin:" + p.get("kopf", "50% 30%")) for p in json.load(open("werkzeuge/team.json", encoding="utf-8"))] if os.path.exists("werkzeuge/team.json") else []
 breite, klein, abst = 330, 280, 24
 links0 = (1920 - (breite + 40 + 4 * klein + 3 * abst)) // 2
 # Patrick (Inhaber) gross mit Abzeichen, die GL kleiner und nur mit Namen
@@ -233,8 +238,8 @@ ersatz = {
     "<!--P1MASCHINE-->": maschine("p1", "CNC", "#5d6a7a", lr="p1-lr", lg="p1-lg", wz_fest=True),
     "<!--FRAGEN-->": fragen, "<!--BURST-->": burst, "<!--MATPLAN-->": "".join(matplan), "<!--LEGENDE-->": legende,
     "<!--WOLKE-->": wolke,
-    "<!--HANDY1-->": handy("g-handy1", "k_handy.mp4", 56.9, 2.5, 1120, 60),
-    "<!--HANDY2-->": handy("g-handy2", "k_solar.mp4", 74.5, 4.0, 1330, 70),
+    "<!--HANDY1-->": handy("g-handy1", "k_handy.mp4", 56.9 + EIN, 2.5, 1120, 60),
+    "<!--HANDY2-->": handy("g-handy2", "k_solar.mp4", 74.5 + EIN, 4.0, 1330, 70),
     "@@KARTE_JS@@": karte_js, "@@SCHILDER_JS@@": schilder_js,
     "@@MATFARBEN@@": matfarben, "@@MATX@@": str(matx), "@@MATY@@": str(maty),
 }
@@ -246,15 +251,16 @@ print("index.html", len(html) // 1024, "KB")
 if "--nur-html" in sys.argv: sys.exit()
 
 # ---------- Musik ----------
-L = 83.9
-cfg = dict(laenge=L, aus="musik.wav", t=dict(groove=7.7, probleme=27.0, drop=37.6, outro=78.5),
-           schnitte=[7.7, 15.5, 27.0, 29.8, 33.7, 39.9, 44.5, 49.3, 52.6, 56.9, 59.4, 71.0, 73.6],
-           stiche=[1.45, 4.7, 18.85, 19.3, 20.0, 21.4, 24.3, 28.2, 77.45])
+_s = lambda t: t + EIN if t >= 15.49 else t
+L = 83.9 + EIN
+cfg = dict(laenge=L, aus="musik.wav", t=dict(groove=7.7, probleme=27.0 + EIN, drop=37.6 + EIN, outro=78.5 + EIN),
+           schnitte=[7.7, 15.5] + [_s(t) for t in [15.5, 27.0, 29.8, 33.7, 39.9, 44.5, 49.3, 52.6, 56.9, 59.4, 71.0, 73.6]],
+           stiche=[1.45, 4.7, 17.9] + [_s(t) for t in [18.85, 19.3, 20.0, 21.4, 24.3, 28.2, 77.45]])
 json.dump(cfg, open("musik.json", "w"))
 subprocess.run([sys.executable, "werkzeuge/musik.py", "musik.json"], check=True)
 
 # ---------- Stimme ----------
-START = [0.4, 3.2, 7.9, 15.6, 22.5, 27.1, 29.9, 33.8, 37.7, 40.0, 44.6, 49.4, 52.7, 57.0, 59.6, 71.3, 73.7, 78.6]
+START = [0.4, 3.2, 7.9, 15.7] + [t + EIN for t in [15.6, 22.5, 27.1, 29.9, 33.8, 37.7, 40.0, 44.6, 49.4, 52.7, 57.0, 59.6, 71.3, 73.7, 78.6]]
 ein, fc, mix = [], "", ""
 for i, t in enumerate(START):
     ein += ["-i", os.path.join(STIMME, f"s{i + 1}.wav")]; ms = int(t * 1000)

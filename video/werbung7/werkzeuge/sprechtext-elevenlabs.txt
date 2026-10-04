@@ -1,0 +1,54 @@
+HOFER TOOL WERBEVIDEO – TEXT MIT AUDIO-TAGS FÜR ELEVENLABS
+==========================================================
+
+So gehst du vor
+1. In ElevenLabs „Text to Speech“ öffnen.
+2. Modell „Eleven v3“ wählen. Nur dieses Modell versteht die Tags in eckigen Klammern.
+   (Bei „Multilingual v2“ würden die Tags mitgelesen.)
+3. Eine kräftige, freundliche Männerstimme wählen. Sprache: Deutsch.
+4. Den ganzen Text unten zwischen START und ENDE kopieren, einfügen, erzeugen.
+5. Wenn es gut klingt: MP3 herunterladen und im Thread anhängen.
+   Die Pausen zwischen den Sätzen nutze ich zum Schneiden, du musst nichts schneiden.
+
+Tipp: Gefällt ein einzelner Satz nicht, kannst du nur diesen Satz neu erzeugen und separat schicken.
+Ich ersetze ihn dann.
+
+----- START -----
+[confident] Hofer und Co. Präzisionsdrehteile.
+[long pause]
+[warm] Aus Lohn-Ammannsegg, im Kanton Solothurn. Seit neunzehnhundertachtundzwanzig.
+[long pause]
+Der Inhaber: (Name Inhaber). Und in der Geschäftsleitung: (Vornamen der Geschäftsleitung).
+[long pause]
+[warm] Wir sind ein Familienbetrieb in vierter Generation und fertigen Präzisionsdrehteile, vom Prototyp bis zur Serie. [proud] Für den Motoren- und Apparatebau, die Sicherheitstechnik und den Möbelbau.
+[long pause]
+[proud] Gedreht wird auf CNC-Drehmaschinen mit Stangenlader. Von Star, Hanwha und Index. Und ganz neu: Willemin-Macodel.
+[long pause]
+Verschiedenste Materialien. Bis zweiundvierzig Millimeter Durchmesser.
+[long pause]
+[serious] Aber: Ohne Material steht die Maschine.
+[long pause]
+[sighs] Die Planung hängt auf Zetteln. Die Zeichnung liegt irgendwo im Ordner.
+[long pause]
+[curious] Und keiner weiss genau: Was läuft gerade, auf welcher Maschine?
+[long pause]
+[excited] Darum haben wir das Hofer Tool gebaut!
+[long pause]
+[energetic] Die Planwand. Einen Auftrag ziehen, loslassen. Der Rest rutscht nach.
+[long pause]
+Jeder Auftrag zeigt sein Material in Farbe. Fehlt die Menge, dann leuchtet ein roter Punkt.
+[long pause]
+Steuerung K, Nummer eintippen, und der Auftrag ist da.
+[long pause]
+An der Maschine: der Pad Mode. Antippen, Stückzahl eingeben, fertig.
+[long pause]
+[casual] Und unterwegs: alles auch auf dem Handy.
+[long pause]
+Bestellungen. Zum Beispiel: zwanzig Wendeplatten von Seco Tools. Position erfassen. Status auf bestellt. Ein Klick, und die Bestellung kommt als PDF in die Mail.
+[long pause]
+[excited] Und vieles mehr!
+[long pause]
+[chuckles] Und das Beste: Sogar unsere Solaranlage auf dem Dach ist in der App. [excited] Und zwar live!
+[long pause]
+[confident] Hofer und Co. Präzisionsdrehteile. [pause] Und mit dem Hofer Tool: Präzision, jetzt auch in der Planung.
+----- ENDE -----

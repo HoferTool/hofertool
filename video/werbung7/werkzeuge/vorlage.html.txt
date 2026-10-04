@@ -154,14 +154,32 @@
         font-size: 30px; font-weight: 850; line-height: 1.2; }
       #n-bsp small { font-size: 22px; font-weight: 700; color: #8b9db8; }
       .o-wort.gross { font-size: 48px; background: #1f6fe0; border-color: #6ba4ff; }
-    </style>
+    
+      /* Einschub "Was wir machen" */
+      #w-kick { position: absolute; left: 140px; top: 150px; }
+      #w-titel { position: absolute; left: 140px; top: 200px; font-size: 128px; }
+      #w-sub { position: absolute; left: 146px; top: 340px; font-size: 46px; font-weight: 600; color: #8b9db8; }
+      #w-familie { position: absolute; right: 140px; top: 860px; display: flex; align-items: center; gap: 22px; padding: 20px 30px; border-radius: 22px;
+        background: rgba(31,111,224,.16); border: 2px solid rgba(107,164,255,.5); }
+      #w-familie i { font-style: normal; font-size: 84px; font-weight: 900; color: #6ba4ff; line-height: 1; }
+      #w-familie span { font-size: 30px; font-weight: 750; line-height: 1.2; color: #e8f0fb; }
+      #w-teil { position: absolute; left: 120px; top: 440px; width: 1000px; height: 467px; overflow: visible; }
+      .w-achse { stroke: #6ba4ff; stroke-width: 2; stroke-dasharray: 26 10 6 10; opacity: .55; }
+      .w-linie { fill: none; stroke: #eaf1fb; stroke-width: 5; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+      .w-linie.fein { stroke-width: 3; opacity: .7; }
+      .w-mass { fill: none; stroke: #c6e84a; stroke-width: 3; stroke-dasharray: 1; stroke-dashoffset: 1; }
+      .w-mtext { fill: #c6e84a; font-family: Inter, sans-serif; font-weight: 850; font-size: 44px; opacity: 0; }
+      #w-branchen { position: absolute; right: 140px; top: 470px; width: 620px; display: flex; flex-direction: column; gap: 22px; }
+      #w-branchen span { display: block; padding: 22px 30px; border-radius: 18px; background: rgba(255,255,255,.06); border: 2px solid rgba(107,164,255,.45);
+        font-size: 38px; font-weight: 800; color: #eaf1fb; opacity: 0; }
+</style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="83.9" data-width="1920" data-height="1080">
-      <audio id="ton" src="assets/ton.wav" data-start="0" data-duration="83.9" data-volume="1"></audio>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="93.4" data-width="1920" data-height="1080">
+      <audio id="ton" src="assets/ton.wav" data-start="0" data-duration="93.4" data-volume="1"></audio>
 
       <div id="stage">
-        <div id="bg" class="clip" data-start="0" data-duration="83.9" data-track-index="0">
+        <div id="bg" class="clip" data-start="0" data-duration="93.4" data-track-index="0">
           <div id="bg-glow1"></div><div id="bg-glow2"></div><div id="bg-grid"></div><div id="bg-red"></div>
         </div>
 
@@ -196,8 +214,26 @@
 <!--TEAM-->
         </div>
 
+        <!-- B2 Was wir machen (Einschub) -->
+        <div id="sW" class="clip" data-start="15.5" data-duration="9.5" data-track-index="1">
+          <div id="w-kick" class="kick">Was wir machen</div>
+          <div id="w-titel" class="mega">Präzisions&shy;drehteile</div>
+          <div id="w-sub">Vom Prototyp bis zur Serie</div>
+          <div id="w-familie"><i>4.</i><span>Familienbetrieb<br>in vierter Generation</span></div>
+          <svg id="w-teil" viewBox="0 0 900 420">
+            <line class="w-achse" x1="20" y1="210" x2="880" y2="210" />
+            <path class="w-linie" pathLength="1" d="M60 150 L60 270 L220 270 L220 300 L420 300 L420 250 L520 250 L520 285 L700 285 L700 240 L840 240 L840 180 L700 180 L700 135 L520 135 L520 170 L420 170 L420 120 L220 120 L220 150 Z" />
+            <path class="w-linie fein" pathLength="1" d="M720 240 L720 180 M740 240 L740 180 M760 240 L760 180 M780 240 L780 180 M800 240 L800 180 M820 240 L820 180" />
+            <path class="w-mass" pathLength="1" d="M320 120 L320 60 M320 300 L320 360 M300 70 L340 70 M300 350 L340 350 M320 70 L320 350" />
+            <text class="w-mtext" x="345" y="222">Ø 42</text>
+          </svg>
+          <div id="w-branchen">
+            <span>Motoren- und Apparatebau</span><span>Sicherheitstechnik</span><span>Möbelbau</span>
+          </div>
+        </div>
+
         <!-- C Eine Maschine: Hersteller, Werkstoffe, 42 mm -->
-        <div id="sC" class="clip" data-start="15.5" data-duration="14.5" data-track-index="1">
+        <div id="sC" class="clip" data-start="25.00" data-duration="14.5" data-track-index="1">
           <div id="halle">
             <div id="h-wand"></div><div id="h-boden"></div><div id="h-boden-linien"></div>
             <div class="h-kegel" style="left: 360px"></div><div class="h-kegel" style="left: 960px"></div><div class="h-kegel" style="left: 1560px"></div>
@@ -229,7 +265,7 @@
         </div>
 
         <!-- E Stillstand -->
-        <div id="s5" class="clip" data-start="27.00" data-duration="2.80" data-track-index="1">
+        <div id="s5" class="clip" data-start="36.50" data-duration="2.80" data-track-index="1">
           <div id="p1-titel" class="zentriert mega">Ohne Material …</div>
 <!--P1MASCHINE-->
           <svg id="p1-regal" viewBox="0 0 720 520">
@@ -243,7 +279,7 @@
         </div>
 
         <!-- F Zettel und Ordner -->
-        <div id="s6" class="clip" data-start="29.80" data-duration="3.90" data-track-index="1">
+        <div id="s6" class="clip" data-start="39.30" data-duration="3.90" data-track-index="1">
           <div id="p2-titel" class="zentriert">Die Planung?</div>
           <div class="zettel" id="z1" style="left: 120px; top: 190px">SR-32 ab Mo?<small>wer hat das geändert…</small></div>
           <div class="zettel rosa" id="z2" style="left: 1440px; top: 170px">10008 Material fehlt!<small>bitte Büro anrufen</small></div>
@@ -264,7 +300,7 @@
         </div>
 
         <!-- G Was läuft -->
-        <div id="s7" class="clip" data-start="33.70" data-duration="3.90" data-track-index="1">
+        <div id="s7" class="clip" data-start="43.20" data-duration="3.90" data-track-index="1">
           <div id="p3-frage" class="zentriert">
             <span class="z1" id="p3-f1">Und keiner weiss genau:</span>
             <span class="z2 mega" id="p3-f2">Was läuft gerade?</span>
@@ -278,7 +314,7 @@
         </div>
 
         <!-- H Auftritt -->
-        <div id="s8" class="clip" data-start="37.60" data-duration="2.30" data-track-index="1">
+        <div id="s8" class="clip" data-start="47.10" data-duration="2.30" data-track-index="1">
           <div class="r-ring" id="r1"></div><div class="r-ring" id="r2"></div><div class="r-ring" id="r3"></div>
           <div id="r-strahlen"><!--BURST--></div>
           <div id="r-darum" class="zentriert">Darum haben wir gebaut:</div>
@@ -287,7 +323,7 @@
         </div>
 
         <!-- I Planwand -->
-        <div id="s9" class="clip" data-start="39.90" data-duration="4.60" data-track-index="1">
+        <div id="s9" class="clip" data-start="49.40" data-duration="4.60" data-track-index="1">
           <div class="f-text">
             <div class="kick d-t">Planwand</div>
             <h2 class="d-t">Ziehen. Fertig.</h2>
@@ -301,11 +337,11 @@
         </div>
         <div class="geraet browser" id="g-plan">
           <div class="leiste"><i></i><i></i><i></i><span>hofertool / planwand</span></div>
-          <div class="vwrap" id="w-plan"><video id="v-plan" class="clip" src="assets/k_planwand.mp4" muted playsinline data-start="39.90" data-duration="4.60" data-track-index="3"></video></div>
+          <div class="vwrap" id="w-plan"><video id="v-plan" class="clip" src="assets/k_planwand.mp4" muted playsinline data-start="49.40" data-duration="4.60" data-track-index="3"></video></div>
         </div>
 
         <!-- J Material -->
-        <div id="s10" class="clip" data-start="44.50" data-duration="4.80" data-track-index="1">
+        <div id="s10" class="clip" data-start="54.00" data-duration="4.80" data-track-index="1">
           <div id="mat-text"><div class="kick">Material-Management</div><h2>Material in Farbe.</h2></div>
           <div id="mat-plan"><div id="mat-zoom"><!--MATPLAN--><div id="mat-ring"></div></div></div>
           <div id="mat-hinweis"><em>●</em> Keine Materialmenge eingetragen</div>
@@ -313,7 +349,7 @@
         </div>
 
         <!-- K Suche -->
-        <div id="s11" class="clip" data-start="49.30" data-duration="3.30" data-track-index="1">
+        <div id="s11" class="clip" data-start="58.80" data-duration="3.30" data-track-index="1">
           <div class="f-text">
             <div class="kick e-t">Suche über alles</div>
             <h2 class="e-t">Jeder Auftrag. Sofort.</h2>
@@ -323,11 +359,11 @@
         </div>
         <div class="geraet browser" id="g-suche">
           <div class="leiste"><i></i><i></i><i></i><span>hofertool / suche</span></div>
-          <div class="vwrap" id="w-suche"><video id="v-suche" class="clip" src="assets/k_suche.mp4" muted playsinline data-start="49.30" data-duration="3.30" data-track-index="3"></video></div>
+          <div class="vwrap" id="w-suche"><video id="v-suche" class="clip" src="assets/k_suche.mp4" muted playsinline data-start="58.80" data-duration="3.30" data-track-index="3"></video></div>
         </div>
 
         <!-- L Pad Mode -->
-        <div id="s12" class="clip" data-start="52.60" data-duration="4.30" data-track-index="1">
+        <div id="s12" class="clip" data-start="62.10" data-duration="4.30" data-track-index="1">
           <div class="f-text">
             <div class="kick f-t">Pad Mode</div>
             <h2 class="f-t">An der Maschine.</h2>
@@ -339,11 +375,11 @@
           </div>
         </div>
         <div class="geraet tablet" id="g-pad">
-          <div class="vwrap"><video id="v-pad" class="clip" src="assets/k_pad.mp4" muted playsinline data-start="52.60" data-duration="4.30" data-track-index="3"></video></div>
+          <div class="vwrap"><video id="v-pad" class="clip" src="assets/k_pad.mp4" muted playsinline data-start="62.10" data-duration="4.30" data-track-index="3"></video></div>
         </div>
 
         <!-- M Handy -->
-        <div id="s13" class="clip" data-start="56.90" data-duration="2.50" data-track-index="1">
+        <div id="s13" class="clip" data-start="66.40" data-duration="2.50" data-track-index="1">
           <div class="f-text" id="ha-text">
             <div class="kick ha-t">Unterwegs</div>
             <h2 class="ha-t">Alles auch auf dem Handy.</h2>
@@ -352,7 +388,7 @@
 <!--HANDY1-->
 
         <!-- N Bestellungen: echte Aufnahme aus dem Prüfstand -->
-        <div id="s14b" class="clip" data-start="59.4" data-duration="11.6" data-track-index="1">
+        <div id="s14b" class="clip" data-start="68.90" data-duration="11.6" data-track-index="1">
           <div class="f-text">
             <div class="kick n-t">Bestellungen</div>
             <h2 class="n-t">Schnell bestellt.</h2>
@@ -367,22 +403,22 @@
         </div>
         <div class="geraet browser" id="g-best">
           <div class="leiste"><i></i><i></i><i></i><span>hofertool / bestellungen</span></div>
-          <div class="vwrap" id="w-best"><video id="v-best" class="clip" src="assets/k_best.mp4" muted playsinline data-start="59.4" data-duration="11.6" data-track-index="3"></video></div>
+          <div class="vwrap" id="w-best"><video id="v-best" class="clip" src="assets/k_best.mp4" muted playsinline data-start="68.90" data-duration="11.6" data-track-index="3"></video></div>
         </div>
 
-        <div id="s14c" class="clip" data-start="59.4" data-duration="11.6" data-track-index="4">
+        <div id="s14c" class="clip" data-start="68.90" data-duration="11.6" data-track-index="4">
           <div id="b-status"><span style="background:#1b2330;color:#cfe1fb">Offen</span><i>→</i><span style="background:#1f7a4d;color:#fff">Bestellt</span></div>
           <div id="b-mail"><b>Bestellung an Seco Tools AG</b><small>Hofer + Co · Bestellung als E-Mail</small>
             <div class="pdf"><i>PDF</i>Bestellung.pdf</div></div>
         </div>
 
         <!-- O Sammelanzeige: alle weiteren Funktionen -->
-        <div id="s14" class="clip" data-start="71.0" data-duration="2.6" data-track-index="1">
+        <div id="s14" class="clip" data-start="80.50" data-duration="2.6" data-track-index="1">
           <div id="o-wolke"><!--WOLKE--></div>
         </div>
 
         <!-- P Solar live -->
-        <div id="s15p" class="clip" data-start="73.60" data-duration="4.90" data-track-index="1">
+        <div id="s15p" class="clip" data-start="83.10" data-duration="4.90" data-track-index="1">
           <div id="p-text"><div class="kick" style="color:#c6e84a" id="p-kick">Und das Beste</div><h2 id="p-h2">Unsere Solaranlage.<br />Live in der App.</h2></div>
           <svg id="p-haus" viewBox="0 0 1600 560">
             <defs>
@@ -405,7 +441,7 @@
 <!--HANDY2-->
 
         <!-- Q Schluss -->
-        <div id="s15" class="clip" data-start="78.50" data-duration="5.40" data-track-index="1">
+        <div id="s15" class="clip" data-start="88.00" data-duration="5.40" data-track-index="1">
           <div id="o-logo-wrap"><img id="o-logo" src="assets/logo-weiss.png" alt="" /></div>
           <div id="o-line"></div>
           <div id="o-titel" class="zentriert mega">Hofer Tool</div>
@@ -414,7 +450,7 @@
         </div>
       </div>
 
-      <div id="fx" class="clip" data-start="0" data-duration="83.9" data-track-index="2">
+      <div id="fx" class="clip" data-start="0" data-duration="93.4" data-track-index="2">
         <div id="vignette"></div>
         <div id="korn"></div>
         <div id="streak"></div>
@@ -430,7 +466,7 @@
       const tl = gsap.timeline({ paused: true });
       const E = "expo.out", EI = "power4.inOut";
       const nicht = { immediateRender: false };
-      const ENDE = 83.9;
+      const ENDE = 93.4;
       let Z = tl;
       // Fassung 6: ab dem Stillstand werden die alten Zeiten über M6 auf die neue Länge der englischen Stimme abgebildet
       const ZEITEN = @@ZEITEN@@;
@@ -440,12 +476,14 @@
         const z = ZEITEN[ZEITEN.length - 1]; return t + (z[3] - z[1]);
       };
       let ZT = (t) => t;
-      const F = (s, a, b, t) => Z.fromTo(s, a, b, ZT(t));
-      const O = (s, b, t) => Z.to(s, b, ZT(t));
+      // Ab der Maschine verschiebt der Einschub "Was wir machen" alles um EIN Sekunden
+      const EIN = 9.5; let VERS = 0;
+      const F = (s, a, b, t) => Z.fromTo(s, a, b, ZT(t) + VERS);
+      const O = (s, b, t) => Z.to(s, b, ZT(t) + VERS);
 
       const blitz = (t, s = 0.7) => F("#flash", { opacity: s }, { opacity: 0, duration: 0.3, ease: "power2.out", ...nicht }, t);
       const wackeln = (t, k = 14) => {
-        [[k, -k * .6], [-k * .8, k * .5], [k * .5, k * .7], [-k * .3, -k * .4], [0, 0]].forEach(([x, y], i) => Z.to("#stage", { x, y, duration: 0.035, ease: "none" }, ZT(t) + i * 0.035));
+        [[k, -k * .6], [-k * .8, k * .5], [k * .5, k * .7], [-k * .3, -k * .4], [0, 0]].forEach(([x, y], i) => Z.to("#stage", { x, y, duration: 0.035, ease: "none" }, ZT(t) + VERS + i * 0.035));
       };
       const wisch = (t) => {
         F("#wB", { x: -2900 }, { x: 2000, duration: 0.5, ease: EI, ...nicht }, t - 0.27);
@@ -514,7 +552,8 @@
       F("#k-staub", { opacity: 0.9, scale: 0.3 }, { opacity: 0, scale: 1.8, duration: 0.9, ease: "power2.out", ...nicht }, 4.7);
       O("#k-l-so", { opacity: 0, duration: 0.25 }, 4.7);
       O("#k-zoom", { opacity: 0.45, duration: 0.6 }, 4.8);
-      F("#k-haus .k-dach", { opacity: 0, scaleY: 0 }, { opacity: 1, scaleY: 1, duration: 0.3, ease: "back.out(2)", stagger: 0.015, transformOrigin: "50% 100%" }, 5.0);
+      // Nur einblenden: eine Skalierung verschob die Module über den Dachrand
+      F("#k-haus .k-dach", { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power1.out", stagger: 0.02 }, 5.0);
       F("#k-seit", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.35, ease: E }, 5.5);
       zaehlen("k-jahr", 1900, 1928, 5.55, 0.9);
       F("#k-jahr", { scale: 1 }, { scale: 1.25, duration: 0.12, yoyo: true, repeat: 1, ease: "power2.out", ...nicht }, 6.45);
@@ -528,7 +567,7 @@
       knall("#t-titel1", 7.85, 0.35);
       // Erst steht Patrick gross in der Mitte, dann rückt er an seinen Platz und die GL kommt dazu
       F("#t-inhaber", { opacity: 0, x: @@INH_X@@, y: 450, scale: 1.25, rotationY: -50, transformPerspective: 1600 }, { opacity: 1, x: @@INH_X@@, y: 50, scale: 1.25, rotationY: 0, duration: 0.55, ease: E }, 8.0);
-      F("#t-inhaber .t-foto img", { scale: 1.35 }, { scale: 1.05, duration: 7, ease: "power2.out" }, 8.0);
+      F("#t-inhaber .t-foto img", { scale: 1.2 }, { scale: 1, duration: 7, ease: "power2.out" }, 8.0);
       F("#t-inhaber em", { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.3, ease: E }, 8.8);
       F("#t-inhaber", { y: 0 }, { y: -16, duration: 0.15, yoyo: true, repeat: 1, ease: "power1.inOut", ...nicht }, 8.85);
       O("#t-titel1", { opacity: 0, y: -40, filter: "blur(10px)", duration: 0.22, ease: "power2.in" }, 9.45);
@@ -536,12 +575,31 @@
       O("#t-inhaber", { x: 0, y: 0, scale: 1, duration: 0.6, ease: EI }, 9.6);
       [10.97, 11.84, 12.75, 14.15].forEach((t, i) => {
         F("#t-gl" + i, { opacity: 0, y: 500, rotationY: -60, transformPerspective: 1600 }, { opacity: 1, y: 0, rotationY: 0, duration: 0.45, ease: E }, t - 0.15);
-        F("#t-gl" + i + " .t-foto img", { scale: 1.35 }, { scale: 1.05, duration: 3, ease: "power2.out" }, t - 0.15);
+        F("#t-gl" + i + " .t-foto img", { scale: 1.2 }, { scale: 1, duration: 3, ease: "power2.out" }, t - 0.15);
         blitz(t, 0.18);
       });
       F(".t-karte", { y: 0 }, { y: -14, duration: 0.15, yoyo: true, repeat: 1, ease: "power1.inOut", stagger: 0.07, ...nicht }, 14.65);
       O(".t-karte, #t-titel2, #t-kick", { opacity: 0, y: -60, filter: "blur(10px)", duration: 0.25, ease: "power2.in", stagger: 0.03 }, 15.15);
 
+      // ---- B2 Was wir machen (15.5 – 25.0) ----
+      wisch(15.5);
+      F("#w-kick", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.35, ease: E }, 15.6);
+      F("#w-familie", { opacity: 0, scale: 0.6, rotation: -8 }, { opacity: 1, scale: 1, rotation: 0, duration: 0.45, ease: "back.out(2)" }, 15.9);
+      F("#w-familie i", { scale: 2 }, { scale: 1, duration: 0.4, ease: "back.out(3)" }, 16.0);
+      knall("#w-titel", 17.9, 0.4); blitz(17.9, 0.3); wackeln(17.9, 10);
+      F(".w-achse", { opacity: 0 }, { opacity: 0.55, duration: 0.4 }, 17.9);
+      F("#w-teil .w-linie", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 1.6, ease: "power2.inOut", stagger: 0.5 }, 18.0);
+      F("#w-sub", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: E }, 19.3);
+      F("#w-teil .w-mass", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.6, ease: "power2.out" }, 19.8);
+      F(".w-mtext", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)", transformOrigin: "0% 50%" }, 20.2);
+      [21.0, 22.2, 23.3].forEach((t, i) => {
+        F("#w-branchen span:nth-child(" + (i + 1) + ")", { opacity: 0, x: 160 }, { opacity: 1, x: 0, duration: 0.35, ease: E }, t);
+        blitz(t, 0.15);
+      });
+      F("#w-teil", { x: 0 }, { x: 40, duration: 8, ease: "none" }, 16.0);
+      O("#sW > *", { opacity: 0, y: -50, filter: "blur(10px)", duration: 0.25, ease: "power2.in", stagger: 0.02 }, 24.6);
+
+      VERS = EIN;
       // ---- C Eine Maschine (15.5 – 30.0) ----
       wisch(15.5);
       F("#halle", { scale: 1.12, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: E }, 15.52);
