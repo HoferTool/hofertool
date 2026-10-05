@@ -5457,3 +5457,11 @@ body .pw-rolle--finger, body .pw-rolle--finger * { touch-action: pan-y !importan
   padding: 8px 10px; }
 .fettvorschau p { margin: 4px 0 0; line-height: 1.4; white-space: normal; }
 .fettvorschau strong { color: inherit; }
+/* Pad, Maschinentyp: Kacheln kompakt in gleich vollen Reihen mittig
+   (8 Typen = 4 + 4), auf schmalen Geräten brechen sie weiter um. */
+#pad .pad__wahl .pad__kacheln--typen { display: flex; flex-wrap: wrap; justify-content: center;
+  width: 100%; max-width: calc(var(--pad-spalten, 4) * 250px + (var(--pad-spalten, 4) - 1) * 18px); }
+#pad .pad__kacheln--typen .pad-kachel { width: 250px; min-height: 150px; }
+#pad .pad__kacheln--typen .pad-kachel--typ > span:first-child { font-size: 1.6rem; }
+#pad .pad__kacheln--typen .pad-kachel__nr { font-size: 1rem; }
+@media (max-width: 640px) { #pad .pad__kacheln--typen .pad-kachel { width: calc(50% - 9px); min-height: 120px; } }
