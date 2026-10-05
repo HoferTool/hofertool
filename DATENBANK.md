@@ -44,7 +44,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `chat_gespraeche`, `chat_teilnehmer`, `chat_nachrichten`, `chat_gelesen` | Chat |
 | `fahrzeuge`, `fahrzeug_buchungen`, `fahrzeug_probleme` | Fahrzeuge |
 | `dokumente`, `dokumente_verlauf` | Dokumentenpool und Verlauf |
-| `app_config` | Schlüssel/Wert: `werkstoff_zuordnung`, `dok_regeln`, `dok_pfad`, `dok_pfad_status`, Bestellmail-Text u. a. |
+| `app_config` | Schlüssel/Wert: `werkstoff_zuordnung`, `dok_regeln`, `dok_pfad`, `dok_pfad_status`, `dok_pool_pfad`, `dok_pool_status` (Stand schreibt das Dienstkonto, `sql/dokumente-pool.sql`), Bestellmail-Text u. a. |
 | `farb_material`, `wash_containers` | Stammdaten |
 | `solar_werte` | Solaranlage, gefüllt von aussen (`solarlog.ps1`); Startseite zeigt die letzten 24 h |
 | `ib_import` | Rohdaten des infoBoard-Imports (einmalig) |

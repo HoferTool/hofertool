@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.36.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.37.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -116,6 +116,7 @@ Alle sind PowerShell 5.1 auf Windows, ohne Installation.
 
 - **`solarlog.ps1`** (nicht hier, liegt im Betrieb) holt alle fünf Minuten die Werte vom Solar-Log und schreibt sie in `solar_werte`. **Schreibt noch ins alte Projekt.** Übergangsweise reicht das alte Projekt die Werte über `sql/solar-weiterleiten.sql` (pg_net-Auslöser) ans neue weiter.
 - **`dokumente-abgleich.ps1`** gleicht jede Minute einen Ordner auf dem Netzlaufwerk ab, mit dem Pfad aus der App, über ein Dienstkonto.
+- **`dokumente-pool.ps1`** leert alle fünf Minuten den Pool-Ordner (WBG mit FA Nr., Excel-Einrichtblätter) in die App; `pool-einplanen.ps1` legt die Aufgabe an. Beide Dokument-Programme laden `dokumente-teile.ps1` (Erkennen und Hochladen wie `dokErkennen`/`dokZielSuchen`/`dokHochladen` in der App, Änderungen an beiden Stellen nachziehen). Anleitung `anleitungen/Pool-Anleitung.md`.
 - **`sicherung.ps1` / `wiederherstellen.ps1`** sichern die Datenbank mit `pg_dump`.
 - **`verknuepfung.ps1`** legt eine Desktop-Verknüpfung mit Symbol an.
 - **Stolpersteine in PowerShell 5.1:** `"$var:"` in Anführungszeichen wird als Laufwerk gelesen, daher `${var}:` schreiben. Doppelte Anführungszeichen kommen bei anderen Programmen wie psql kaputt an. `2>&1` zusammen mit `ErrorActionPreference = Stop` bricht bei harmlosen Hinweisen ab. Dateien mit UTF-8 **mit BOM** speichern.

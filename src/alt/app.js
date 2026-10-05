@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.36.0";
+const APP_VERSION = "111.37.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1363,12 +1363,23 @@ function dokErkennen(dateiname, typen) {
   // Den Typnamen aus den Wörtern nehmen, damit er kein Stichwort vortäuscht
   const ohneTyp = typ ? glattGanz.replace(dokGlatt(typ.name), "") : glattGanz;
 
+  // FA Nr.: eine eigene Zahl mit 7 bis 10 Ziffern neben der HOCO Nr.,
+  // etwa „20268566 10007-0381“. Sie steht nur auf WBGs.
+  const faTreffer = rest.match(/(?:^|\D)(\d{7,10})(?!\d)/);
+  const fa = faTreffer ? faTreffer[1] : null;
+  // Einrichtblätter sind immer Excel-Dateien (Wunsch 5. Oktober 2026)
+  const istExcel = /\.(xlsx|xlsm|xls)$/i.test(roh);
+
   const regeln = DOK_REGELN || DOK_REGELN_VORGABE;
   let art = null, grund = "";
   for (const k of ["wbg", "einrichtblatt", "zeichnung", "allgemein"]) {
     const sw = (regeln[k] || []).find((s) => dokStichwortPasst(woerter, ohneTyp, s));
     if (sw) { art = k === "allgemein" ? "sonstiges" : k; grund = "Stichwort „" + sw + "“"; break; }
   }
+  // Ein Stichwort für Zeichnung oder WBG passt nicht zu Excel
+  if (istExcel && (art === "zeichnung" || art === "wbg")) art = null;
+  if (!art && fa && !istExcel) { art = "wbg"; grund = "FA Nr. " + fa + " im Namen"; }
+  if (!art && istExcel && (hoco || typ)) { art = "einrichtblatt"; grund = "Excel-Datei"; }
   // Übrig gebliebene Wörter ohne den Typ — ist sonst nichts im Namen?
   const sonstNichts = !ohneTyp.replace(/\d/g, "");
   if (!art) {
@@ -1382,22 +1393,79 @@ function dokErkennen(dateiname, typen) {
   }
 
   const titel = rest.replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
+  const mitFa = art === "wbg" && fa;
   return {
     dateiname: roh,
     hoco: hoco,
     typ: typ,
     art: art,
     grund: grund,
-    titel: titel || (hoco || ohneEndung),
-    passt: !!(hoco || typ),
+    fa: mitFa ? fa : null,
+    titel: mitFa ? "WBG FA " + fa : (titel || (hoco || ohneEndung)),
+    passt: !!(hoco || typ || mitFa),
   };
+}
+
+// Offene Aufträge einer HOCO Nr., der nächste zuerst
+async function dokOffeneAuftraege(hoco) {
+  const r = await db.from("jobs").select("id, job_number, fa_nr, machine_id, planned_from, wbg_url")
+    .eq("job_number", hoco).is("ended_at", null);
+  if (r.error) throw r.error;
+  return (r.data || []).slice().sort((a, b) =>
+    String(a.planned_from || "9999").localeCompare(String(b.planned_from || "9999")));
+}
+
+// Was sich nur mit der Datenbank klären lässt, vor dem Hochladen:
+// - WBG mit FA Nr.: An welchen Auftrag? Die FA Nr. gibt es nur einmal.
+//   Steht sie schon auf einem Auftrag, kommt die WBG dorthin (neue
+//   Fassung). Sonst an den nächsten offenen Auftrag der HOCO Nr., der
+//   noch keine FA Nr. hat, und die FA Nr. wird dort eingetragen.
+// - Einrichtblatt mit HOCO Nr., aber ohne Typ im Namen: Typ der
+//   Maschine, auf der der nächste offene Auftrag dieser Nummer steht.
+async function dokZielSuchen(z, typen) {
+  const n = Object.assign({}, z, { geprueft: true });
+  try {
+    if (n.art === "wbg" && n.fa) {
+      const r = await db.from("jobs").select("id, job_number, fa_nr, machine_id, planned_from, wbg_url")
+        .eq("fa_nr", n.fa).limit(1);
+      let auftrag = (r.data || [])[0] || null;
+      if (!auftrag && n.hoco) {
+        auftrag = (await dokOffeneAuftraege(n.hoco)).find((j) => !String(j.fa_nr || "").trim()) || null;
+      }
+      n.auftrag = auftrag;
+      if (auftrag) n.hoco = auftrag.job_number || n.hoco;
+      n.passt = !!auftrag;
+      if (!auftrag) {
+        n.grund = n.hoco ? "kein offener Auftrag der HOCO Nr. " + n.hoco + " ohne FA Nr."
+          : "kein Auftrag mit der FA Nr. " + n.fa + " und keine HOCO Nr. im Namen";
+      }
+    }
+    if (n.art === "einrichtblatt" && n.hoco && !n.typ) {
+      for (const j of await dokOffeneAuftraege(n.hoco)) {
+        if (!j.machine_id) continue;
+        const m = await db.from("machines").select("type_id").eq("id", j.machine_id).maybeSingle();
+        const tid = m && m.data && m.data.type_id;
+        const t = tid && ((typen || []).find((x) => String(x.id) === String(tid)) || { id: tid, name: "" });
+        if (t) { n.typ = t; n.typAusAuftrag = true; break; }
+      }
+    }
+  } catch (f) {
+    if (n.art === "wbg" && n.fa) { n.passt = false; n.grund = fehlertext(f); }
+  }
+  return n;
 }
 
 // Wohin eine Datei geht, in Worten — für die Probe und den Verlauf
 function dokZielText(z) {
   const name = (DOK_ARTEN[z.art] || DOK_ARTEN.sonstiges).name;
-  if (!z.passt) return "keine HOCO Nr. und kein Typ erkannt";
+  if (!z.passt) return z.fa ? "nicht zuzuordnen: " + z.grund : "keine HOCO Nr. und kein Typ erkannt";
   if (z.art === "einrichtblatt" && z.typ && !z.hoco) return "Einrichtblatt-Vorlage des Typs " + z.typ.name;
+  if (z.art === "wbg" && z.fa) {
+    if (z.auftrag) return "WBG mit FA " + z.fa + " an den Auftrag " + z.auftrag.job_number
+      + (z.auftrag.planned_from ? " vom " + kurzDatum(z.auftrag.planned_from) : "");
+    return "WBG mit FA " + z.fa + " an den nächsten offenen Auftrag"
+      + (z.hoco ? " der HOCO Nr. " + z.hoco : "");
+  }
   return name + (z.hoco ? " der HOCO Nr. " + z.hoco : "")
     + (z.typ ? " auf dem Typ " + z.typ.name : "");
 }
@@ -1466,6 +1534,14 @@ async function dokVerlauf(eintrag) {
 // derselben Stelle schon lag, wird ersetzt: der alte Eintrag und die
 // alte Datei verschwinden.
 async function dokHochladen(datei, zuordnung, quelle) {
+  // Ziel erst klären, damit nichts hochgeladen wird, das nirgends hingehört
+  if (!zuordnung.geprueft && ((zuordnung.art === "wbg" && zuordnung.fa)
+      || (zuordnung.art === "einrichtblatt" && zuordnung.hoco && !zuordnung.typ))) {
+    zuordnung = await dokZielSuchen(zuordnung, (typeof prod !== "undefined" && prod.typen) || []);
+  }
+  if (zuordnung.art === "wbg" && zuordnung.fa && !zuordnung.auftrag) {
+    throw new Error("Nicht zuzuordnen: " + (zuordnung.grund || "kein passender Auftrag"));
+  }
   const endung = (datei.name.split(".").pop() || "pdf").toLowerCase();
   const name = "dok/" + Date.now() + "-"
     + Math.random().toString(36).slice(2, 8) + "." + endung;
@@ -1489,7 +1565,9 @@ async function dokHochladen(datei, zuordnung, quelle) {
     a = typId ? a.eq("type_id", typId) : a.is("type_id", null);
     const r = await a;
     ((r && r.data) || []).forEach((d) => {
-      if (art !== "sonstiges" || dokGlatt(d.titel) === dokGlatt(titel)) alte.push(d);
+      // Allgemeines und WBG mit FA Nr. (je Auftrag eine) nur bei gleichem Titel
+      const nachTitel = art === "sonstiges" || (art === "wbg" && zuordnung.fa);
+      if (!nachTitel || dokGlatt(d.titel) === dokGlatt(titel)) alte.push(d);
     });
   } catch (f) { /* dann eben ohne Ersetzen */ }
 
@@ -1524,7 +1602,13 @@ async function dokHochladen(datei, zuordnung, quelle) {
       await db.from("hoco_type_data").upsert(
         { hoco_nr: hocoNr, type_id: typId, blatt_url: adresse }, { onConflict: "hoco_nr,type_id" });
     }
-    if (art === "wbg" && hocoNr) {
+    if (art === "wbg" && zuordnung.fa && zuordnung.auftrag) {
+      // Nur dieser eine Auftrag bekommt WBG und FA Nr.
+      const j = zuordnung.auftrag;
+      if (j.wbg_url) alteAdressen.push(j.wbg_url);
+      const r = await db.from("jobs").update({ wbg_url: adresse, fa_nr: zuordnung.fa }).eq("id", j.id);
+      if (r && r.error) throw r.error;
+    } else if (art === "wbg" && hocoNr) {
       // Die WBG gehört zu den offenen Aufträgen dieser Nummer
       const o = await db.from("jobs").select("id, wbg_url").eq("job_number", hocoNr).is("ended_at", null);
       ((o && o.data) || []).forEach((j) => { if (j.wbg_url) alteAdressen.push(j.wbg_url); });
@@ -8155,7 +8239,7 @@ Object.assign(alt, {
   ladeTypAufbau, platzVerschieben, platzEinreihen, toolVergleich, pathFarbe, blattPdfAmTyp,
   einst, fehlerLesen, ROLLEN, planerLaden, langDatum, historieAblegen, einfuegenOhneUnbekannte,
   farbzuteilungLaden, werkstoffKern, werkstoffSchluessel, werkstoffZuordnen, WERKSTOFFGRUPPEN,
-  DOK_ARTEN, DOK_REGELN_VORGABE, dokErkennen, dokZielText, dokMitRegeln, dokRegelnUebernehmen,
+  DOK_ARTEN, DOK_REGELN_VORGABE, dokErkennen, dokZielSuchen, dokZielText, dokMitRegeln, dokRegelnUebernehmen,
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
   FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen, bildZuschneiden,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE,
