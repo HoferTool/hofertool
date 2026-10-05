@@ -322,6 +322,8 @@ function Hochladen($datei, $z, [string]$quelle) {
   if ($art -eq "einrichtblatt" -and $typId -and $hoco) {
     $t = @(Lesen ("hoco_type_data?select=blatt_url&hoco_nr=eq." + (W $hoco) + "&type_id=eq." + $typId))
     if ($t.Count -gt 0 -and $t[0].blatt_url) { $alteAdressen += $t[0].blatt_url }
+    # Ohne Stammeintrag der HOCO Nr. lehnt die Datenbank das Blatt ab (409)
+    try { Aendern "Post" "hoco_parts?on_conflict=hoco_nr" @{ hoco_nr = $hoco } "resolution=ignore-duplicates" } catch { }
     Aendern "Post" "hoco_type_data?on_conflict=hoco_nr,type_id" @{ hoco_nr = $hoco; type_id = $typId; blatt_url = $adresse } "resolution=merge-duplicates"
   }
   if ($art -eq "wbg" -and $z.fa -and $z.auftrag) {

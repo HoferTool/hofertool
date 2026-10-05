@@ -108,6 +108,27 @@ function Rang([string]$name, [string]$typName) {
   return @{ rang = 0; fremd = ($fremd -join " ") }
 }
 
+# Wurde so ein Blatt (Toleranzen usw.) früher schon hochgeladen, als die
+# Regel noch fehlte, kommt es in der App wieder weg. Nur in der App, die
+# Datei im Ordner bleibt unberührt.
+function FalschesEntfernen($d, [string]$h, $typ) {
+  $alte = @(Lesen ("dokumente?select=id,datei_url&art=eq.einrichtblatt&hoco_nr=eq." + (W $h) +
+                   "&type_id=eq." + $typ.id + "&dateiname=eq." + (W $d.Name)))
+  if ($alte.Count -eq 0) { return $false }
+  $urls = @($alte | ForEach-Object { [string]$_.datei_url })
+  Aendern "Delete" ("dokumente?id=in.(" + (($alte | ForEach-Object { $_.id }) -join ",") + ")") $null $null
+  $t = @(Lesen ("hoco_type_data?select=blatt_url&hoco_nr=eq." + (W $h) + "&type_id=eq." + $typ.id))
+  if ($t.Count -gt 0 -and $urls -contains [string]$t[0].blatt_url) {
+    Aendern "Patch" ("hoco_type_data?hoco_nr=eq." + (W $h) + "&type_id=eq." + $typ.id) @{ blatt_url = $null } $null
+  }
+  AblageLoeschen $urls
+  try {
+    Aendern "Post" "dokumente_verlauf" @{ dateiname = $d.Name; art = "einrichtblatt"; hoco_nr = $h; type_id = $typ.id;
+      ziel = "entfernt: kein Einrichtblatt"; quelle = "eb-ordner"; ersetzt = $true } $null
+  } catch { }
+  return $true
+}
+
 # Woran man erkennt, ob sich eine Datei geändert hat
 function Kennung($d) { return $d.FullName + "|" + $d.LastWriteTimeUtc.Ticks + "|" + $d.Length }
 
@@ -187,7 +208,20 @@ try {
       $h = HocoAusName $d.Name
       if (-not $h) { $status.ohneNr++; Eintrag $oi $d.Name "" "ohne HOCO Nr. im Namen, bleibt weg"; continue }
       $r = Rang $d.Name $typ.name
-      if ($r.rang -eq 0) { $status.fremd++; Eintrag $oi $d.Name $h ("kein Einrichtblatt (" + $r.fremd + "), bleibt weg"); continue }
+      if ($r.rang -eq 0) {
+        $status.fremd++
+        $was = "kein Einrichtblatt (" + $r.fremd + "), bleibt weg"
+        if ($scharf) {
+          try {
+            if (FalschesEntfernen $d $h $typ) {
+              $was = "kein Einrichtblatt (" + $r.fremd + "), aus der App entfernt"
+              Schreibe ("aus der App entfernt: " + $d.FullName)
+            }
+          } catch { Schreibe ("Entfernen ging nicht: " + $d.Name + ": " + $_.Exception.Message) }
+        }
+        Eintrag $oi $d.Name $h $was
+        continue
+      }
       $d | Add-Member -NotePropertyName HoferRang -NotePropertyValue $r.rang -Force
       if (-not $jeNr[$h]) { $jeNr[$h] = @() }
       $jeNr[$h] += $d
