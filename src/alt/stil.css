@@ -5415,3 +5415,11 @@ body.einfuegemodus .pw-zelle:not(.pw-zelle--fein):hover { background: transparen
 .eb-ordner-unter { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
 .eb-liste { margin-top: 12px; }
 .eb-liste summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+/* Zifferblock: Tag wählen, dem die Stückzahl gehört (111.49.0). Der
+   gewählte Tag in der Themenfarbe, damit man ihn vor dem Eintragen sieht. */
+.zb-tage { display: flex; gap: 8px; margin-top: 10px; }
+.zb-tage button { flex: 1; height: 48px; border-radius: 12px; font-weight: 700;
+                  font-size: 1rem; border: 1px solid var(--linie);
+                  background: var(--flaeche); color: var(--tinte); cursor: pointer;
+                  touch-action: manipulation; }
+.zb-tage button.aktiv { background: var(--marke); border-color: var(--marke); color: #fff; }

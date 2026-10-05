@@ -143,21 +143,49 @@ async function abendBearbeiten(j, m, blattDaten) {
   if (zahl !== null) blattFeldSetzen(j, m, "abend_stk", zahl ? Math.round(zahl) : null);
 }
 
+// Tage, denen man eine Stückzahl zuordnen kann: heute und die drei
+// Arbeitstage davor (Wunsch 5. Oktober 2026: was am Freitag gemacht
+// wurde, aber erst am Montag eingetragen wird, soll beim Freitag
+// zählen). Samstag und Sonntag nur mit der Einstellung "Wochenende".
+// Nichts vor dem Beginn des Auftrags, sonst landete die Zahl auf einem
+// Tag, an dem noch der vorherige Auftrag lief.
+export function eintragTage(auftrag, jetzt = new Date()) {
+  const mitWochenende = alt.einstellung("wochenende");
+  const beginn = auftrag && auftrag.started_at
+    ? alt.isoDatum(new Date(auftrag.started_at)) : "";
+  const tage = [];
+  for (let k = 0; tage.length < 4 && k < 10; k++) {
+    // setDate statt Millisekunden, wegen der Zeitumstellung
+    const d = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate() - k);
+    const w = d.getDay();
+    if (k > 0 && !mitWochenende && (w === 0 || w === 6)) continue;
+    const wert = alt.isoDatum(d);
+    if (k > 0 && beginn && wert < beginn) break;
+    tage.push({ wert, text: k === 0 ? "Heute" : k === 1 ? "Gestern"
+      : ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][w] + " " + d.getDate() + "." });
+  }
+  return tage;
+}
+
 async function standEintragen(j, m) {
-  const zahl = await alt.zifferblock({ titel: "Stückzahl eintragen",
+  const antwort = await alt.zifferblock({ titel: "Stückzahl eintragen",
     hinweis: "Zählerstand, gesamt seit Auftragsbeginn"
       + (j.target_quantity ? " · Ziel " + alt.zahlText(j.target_quantity) : ""),
-    wert: j.stand || 0 });
-  if (zahl === null) return;
+    wert: j.stand || 0, tage: eintragTage(j) });
+  if (antwort === null) return;
+  const { zahl, tag } = antwort;
   // Vor dem Speichern merken: danach steht der neue Wert schon im Auftrag
   const standVorher = j.stand || 0;
   const neu = Math.max(0, Math.round(zahl));
+  const heute = alt.isoDatum(new Date());
   try {
-    await alt.speichereStand(m.id, alt.isoDatum(new Date()), neu, j.id);
+    await alt.speichereStand(m.id, tag || heute, neu, j.id);
     // Dieselbe Ablage wie in der Produktion — was hier eingetragen
     // wird, steht dort und auf der Planwand, und umgekehrt.
     try { alt.prod.auftraege = await alt.ladeLaufendeAuftraege(); } catch (g) { /* egal */ }
-    alt.meldung("Stückzahl eingetragen.");
+    alt.meldung(tag && tag !== heute
+      ? "Stückzahl für " + alt.wochentagName(tag) + ", " + alt.kurzDatum(tag) + " eingetragen."
+      : "Stückzahl eingetragen.");
     // Die neue Zahl zählt nach dem Neuzeichnen sichtbar hoch
     alt.pad.zaehlen = { von: standVorher, auf: neu };
     padZeichnen();

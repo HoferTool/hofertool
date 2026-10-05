@@ -134,6 +134,12 @@ export async function tagesmengen(maschineId, auftragId) {
   return jeTag;
 }
 
+function eingetragen(zeit, tag) {
+  const d = new Date(zeit);
+  if (isNaN(d) || alt.isoDatum(d) === tag) return uhrzeit(zeit);
+  return ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()] + " " + uhrzeit(zeit);
+}
+
 // Die letzten sieben Tage
 export function letzteTage(jeTag) {
   const heute = new Date();
@@ -148,8 +154,10 @@ export function letzteTage(jeTag) {
                 nummer: d.getDate(), heute: k === 0,
                 eintrag: e ? { stand: e.stand, zeit: e.zeit, job: e.job } : null,
                 menge: e ? e.menge : null,
-                // Uhrzeit des Geräts; der Zeitstempel kommt in UTC
-                uhr: e && e.zeit ? uhrzeit(e.zeit) : "" });
+                // Uhrzeit des Geräts; der Zeitstempel kommt in UTC.
+                // Später für diesen Tag eingetragen: mit dem Tag davor,
+                // damit "Fr 2." nicht eine Montagszeit wie Freitag zeigt.
+                uhr: e && e.zeit ? eingetragen(e.zeit, tag) : "" });
   }
   return raus;
 }
