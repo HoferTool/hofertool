@@ -10,7 +10,6 @@
 // =================================================================
 import { useLayoutEffect, useRef } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
-import DokAbschnitt from "../../hoco/DokAbschnitt.jsx";
 
 let ladeNr = 0;
 
@@ -106,8 +105,8 @@ export default function Typen({ geladen, neuLaden: aussen }) {
 }
 
 async function aufbauLaden(typ) {
-  const [paths, dokumente] = await Promise.all([alt.ladeTypAufbau(typ.id), alt.dokListe({ typId: typ.id })]);
-  return { paths, dokumente, nr: ++ladeNr };
+  const paths = await alt.ladeTypAufbau(typ.id);
+  return { paths, nr: ++ladeNr };
 }
 
 function Aufbau({ typ, darf, geladen, neuLaden }) {
@@ -119,7 +118,7 @@ function Aufbau({ typ, darf, geladen, neuLaden }) {
   const kopf = <button className="linkknopf" id="typ-zurueck" onClick={zurueck}>‹ alle Typen</button>;
   if (fehler && !daten) return <>{kopf}<div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div></>;
   if (!daten) return <>{kopf}<div className="laedt">Wird geladen …</div></>;
-  const { paths, dokumente } = daten;
+  const { paths } = daten;
 
   const pathNeu = async () => {
     const w = await alt.dialogFelder({ titel: "Neuer Path",
@@ -171,11 +170,6 @@ function Aufbau({ typ, darf, geladen, neuLaden }) {
       {/* Neu aufgebaut bei jedem Laden: Das Ziehen der Plätze hängt
           sich an die Elemente und darf nicht doppelt hängen */}
       <Paths key={daten.nr} paths={paths} darf={darf} neuLaden={neuLaden} />
-      {/* Weitere Dokumente am Typ — auch ohne Schreibrecht sichtbar */}
-      <div id="typ-dokumente">
-        <DokAbschnitt key={daten.nr} dokumente={dokumente} darf={darf}
-          was={"zu " + (typ.name || "diesem Typ")} zuordnung={{ typId: typ.id }} nachher={neuLaden} />
-      </div>
     </>
   );
 }

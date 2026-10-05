@@ -2788,8 +2788,10 @@ body[data-thema="orange"] .pad  { --pblau: #c25b10; }
                 display: flex; flex-direction: column; }
 /* Der Titel steht schon oben im Fenster — innen kein zweites Mal */
 /* Nur die oberste Überschrift doppelt sich mit dem Fenstertitel —
-   die Überschriften der übrigen Karten müssen bleiben. */
-.hoco-fenster > section.karte:first-of-type > .karte__kopf > h2:first-child,
+   die Überschriften der übrigen Karten müssen bleiben. Ausnahme: die
+   HOCO Nr. des offenen Teils, sonst steht sie nirgends (der Fenstertitel
+   sagt nur „HOCO Nr.“). */
+.hoco-fenster > section.karte:first-of-type > .karte__kopf > h2:first-child:not(.hoco-teilnr),
 .hoco-fenster > .karte__kopf > h2:first-child { display: none; }
 .hoco-fenster { flex: 1; min-height: 0; overflow: auto; padding-right: 4px; }
 .hoco-fenster .seitentitel { display: none; }

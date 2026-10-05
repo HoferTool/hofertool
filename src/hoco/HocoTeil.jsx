@@ -1,13 +1,11 @@
 // =================================================================
 //  EIN HOCO-TEIL
-//  Stammdaten mit Zeichnung, Einrichtblätter je Maschinentyp, weitere
-//  Dokumente, auf welchen Maschinen es lief und die FA Nummern mit
+//  Stammdaten mit Zeichnung, Einrichtblätter je Maschinentyp, auf welchen Maschinen es lief und die FA Nummern mit
 //  ihren Anhängen (WBG, Zeichnung, Werkzeugwechsel).
 // =================================================================
 import { useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { teilLaden, pdfHochladen } from "./daten.js";
-import DokAbschnitt from "./DokAbschnitt.jsx";
 
 const sicher = (name) => name.replace(/[^A-Za-z0-9.\-]/g, "_");
 
@@ -22,7 +20,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
   const fehler = (f) => meldung(fehlertext(f), "fehler");
 
   if (!daten) return <div className="laedt">Wird geladen …</div>;
-  const { faListe, vomAuftrag, maschinenlauf, typenGenutzt, dokumente } = daten;
+  const { faListe, vomAuftrag, maschinenlauf, typenGenutzt } = daten;
 
   const zeichnungWaehlen = async (e) => {
     const datei = (e.target.files || [])[0];
@@ -80,13 +78,13 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
     <>
       <button className="linkknopf" id="hoco-zurueck" onClick={zurueck}>‹ alle HOCO Nr.</button>
       <section className="karte">
-        <div className="karte__kopf"><h2>{t.hoco_nr}</h2>
+        <div className="karte__kopf"><h2 className="hoco-teilnr">{t.hoco_nr}</h2>
           {darf && <div className="karte__aktionen">
             <button className="linkknopf" id="hoco-bearb" onClick={bearbeiten}>Bearbeiten</button></div>}
         </div>
         <table className="tabelle"><tbody>
-          {[["Artikelbezeichnung", t.bezeichnung], ["Material", t.material],
-            ["Allgemeine Infos", t.infos]].map(([k, v]) => (
+          {/* „Allgemeine Infos“ ist weg (Wunsch 5. Oktober 2026), die Spalte bleibt */}
+          {[["Artikelbezeichnung", t.bezeichnung], ["Material", t.material]].map(([k, v]) => (
             <tr key={k}><td className="klein">{k}</td><td>{v || leer}</td></tr>
           ))}
         </tbody></table>
@@ -127,9 +125,6 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
           : <p className="hinweis">Diese Nummer ist noch auf keiner Maschine gelaufen. Ein Einrichtblatt
               hinterlegst du je Maschinentyp — entweder als Vorlage beim Typ oder hier für genau dieses Teil.</p>}
       </section>
-
-      <DokAbschnitt key={dokumente.map((d) => d.id).join()} dokumente={dokumente} darf={darf}
-        was={"zu " + t.hoco_nr} zuordnung={{ hoco: t.hoco_nr }} nachher={neu} />
 
       <section className="karte">
         <div className="karte__kopf"><h2>Gelaufen auf</h2><span className="klein">je Maschine der letzte Auftrag</span></div>

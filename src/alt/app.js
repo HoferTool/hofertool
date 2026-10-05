@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.53.0";
+const APP_VERSION = "111.54.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1609,83 +1609,6 @@ async function wbgAufraeumen(sofort) {
     }
   } catch (f) { fehlerMerken("WBG aufräumen", fehlertext(f)); }
   return weg;
-}
-
-// Abschnitt "Weitere Dokumente" — gleich aufgebaut bei der HOCO Nr.
-// und beim Maschinentyp. Zeigt die Liste, lädt neue Dateien hoch und
-// nimmt Einträge wieder heraus.
-function dokAbschnittMarkup(liste, darf, was) {
-  return '<section class="karte"><div class="karte__kopf">'
-    + '<h2>Allgemeine Dokumente</h2>'
-    + '<span class="klein">' + esc(was) + '</span>'
-    + (darf ? '<div class="karte__aktionen">'
-        + '<button class="knopf knopf--klein" data-dok-neu>Datei hinzufügen</button>'
-        + '</div>' : "")
-    + '</div>'
-    + (liste.length
-        ? '<table class="tabelle"><thead><tr><th>Titel</th><th>Art</th>'
-          + '<th>Datei</th><th></th></tr></thead><tbody>'
-          + liste.map((d) => '<tr>'
-              + '<td><strong>' + esc(d.titel || d.dateiname || "") + '</strong></td>'
-              + '<td class="klein">' + esc((DOK_ARTEN[d.art] || {}).name || d.art || "") + '</td>'
-              + '<td class="klein">' + esc(d.dateiname || "") + '</td>'
-              + '<td class="rechts nowrap">'
-              + '<button class="knopf knopf--klein" data-dok-auf="' + esc(d.datei_url) + '"'
-              + ' data-dok-titel="' + esc(d.titel || d.dateiname || "Dokument") + '">'
-              + 'Ansehen</button>'
-              + (darf ? ' <button class="linkknopf linkknopf--gefahr" data-dok-weg="'
-                  + esc(d.id) + '">Entfernen</button>' : "")
-              + '</td></tr>').join("")
-          + '</tbody></table>'
-        : '<p class="hinweis">Noch nichts hinterlegt. Zeichnung, WBG und '
-          + 'Einrichtblatt stehen weiter oben — hier kommt alles Übrige hin, '
-          + 'etwa Messberichte, Skizzen oder Kundenunterlagen.</p>')
-    + '</section>';
-}
-
-// Die Knöpfe des Abschnitts verbinden
-function dokAbschnittBinden(wurzel, zuordnung, nachher) {
-  wurzel.querySelectorAll("[data-dok-auf]").forEach((el) => {
-    el.onclick = () => betrachter(el.dataset.dokAuf,
-      el.dataset.dokTitel || "Dokument", true);
-  });
-
-  wurzel.querySelectorAll("[data-dok-weg]").forEach((el) => {
-    el.onclick = async () => {
-      const ja = await nachfragen({ titel: "Dokument entfernen?",
-        text: "Der Eintrag verschwindet aus der Liste. "
-          + "Die Datei selbst bleibt in der Ablage.",
-        bestaetigen: "Entfernen", gefahr: true });
-      if (!ja) return;
-      try { await dokLoeschen(el.dataset.dokWeg); meldung("Entfernt."); nachher(); }
-      catch (f) { meldung(fehlertext(f), "fehler"); }
-    };
-  });
-
-  const neu = wurzel.querySelector("[data-dok-neu]");
-  if (neu) neu.onclick = async () => {
-    const dateien = await dokWaehlen(true);
-    if (!dateien.length) return;
-    try {
-      meldung(dateien.length === 1 ? "Wird hochgeladen …"
-        : dateien.length + " Dateien werden hochgeladen …");
-      for (const datei of dateien) {
-        // Art aus dem Namen, Zuordnung aber fest: wir sind ja schon
-        // bei dieser Nummer oder diesem Typ.
-        const gedeutet = dokErkennen(datei.name, prod.typen || []);
-        await dokHochladen(datei, {
-          art: gedeutet.passt && gedeutet.art !== "zeichnung"
-            ? gedeutet.art : "sonstiges",
-          hoco: zuordnung.hoco || null,
-          typ: zuordnung.typId ? { id: zuordnung.typId } : null,
-          titel: gedeutet.titel || datei.name.replace(/\.[^.]+$/, ""),
-        });
-      }
-      meldung(dateien.length === 1 ? "Dokument hinterlegt."
-        : dateien.length + " Dokumente hinterlegt.");
-      nachher();
-    } catch (f) { meldung(fehlertext(f), "fehler"); }
-  };
 }
 
 // Dokumente zu einer HOCO Nr. oder einem Typ holen
@@ -7409,7 +7332,6 @@ async function hocoDialog(teil, vorgabe) {
         wert: teil ? (teil.material || "") : (v.material || ""),
         platzhalter: "z. B. X10CrNiS18-9 rd 011 mm h8",
         hinweis: "Alles in einem Feld, so wie es an der Stange steht" },
-      { name: "infos", label: "Allgemeine Infos", wert: teil ? (teil.infos || "") : "" },
     ], bestaetigen: teil ? "Speichern" : "Anlegen" });
   if (!w) return false;
 
@@ -7418,7 +7340,8 @@ async function hocoDialog(teil, vorgabe) {
     material: w.mat || null,
     // Die Zeichnungs Nr. ist aus der Oberfläche entfernt (Wunsch 5. Oktober 2026);
     // die Spalte bleibt, damit vorhandene Werte nicht verloren gehen.
-    infos: w.infos || null,
+    // „Allgemeine Infos“ ebenso (Wunsch 5. Oktober 2026): nicht mehr im Fenster,
+    // vorhandene Texte bleiben in der Spalte infos unangetastet.
   };
   // Die Zeichnung gehört zum Teil und gilt für jeden Typ gleich.
   // Beim Anlegen wird sie aus dem Auftrag übernommen, falls dort eine hängt.
@@ -8670,8 +8593,8 @@ Object.assign(alt, {
   naechsterArbeitstag, APP_VERSION,
   sucheStarten, sucheZumTreffer, sucheBeenden, sucheAllesDaten, sucheTreffer, sucheSpringen,
   freieFerienZeile,
-  ladeHoco, ladeHocoAusAuftraegen, groesseAusAuftrag, dokListe, dokAbschnittMarkup,
-  dokAbschnittBinden, hocoDialog, blattPdfWaehlen, blattPdfAnHoco,
+  ladeHoco, ladeHocoAusAuftraegen, groesseAusAuftrag, dokListe,
+  hocoDialog, blattPdfWaehlen, blattPdfAnHoco,
   ladeTypAufbau, platzVerschieben, platzEinreihen, toolVergleich, pathFarbe, blattPdfAmTyp,
   einst, fehlerLesen, ROLLEN, planerLaden, langDatum, historieAblegen, einfuegenOhneUnbekannte,
   farbzuteilungLaden, werkstoffKern, werkstoffSchluessel, werkstoffZuordnen, WERKSTOFFGRUPPEN,

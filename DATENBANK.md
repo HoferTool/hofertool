@@ -15,7 +15,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `machines` | Maschinen | `park_id`, `name`, `machine_number`, `type_id`, `sort_order`, `is_active` |
 | `machine_parks` | Bereiche (Langdreher, Kurzdreher, Extern) | `name`, `sort_order` |
 | `machine_types` | Maschinentypen (z. B. SW-20) | `name`, `blatt_url` (Einrichtblatt-Vorlage) |
-| `hoco_parts` | Stammdaten je HOCO Nr. | PK `hoco_nr`, `bezeichnung`, `material`, `zeichnungs_nr`, `zeichnung_url`, `waschgebinde`, `infos` |
+| `hoco_parts` | Stammdaten je HOCO Nr. | PK `hoco_nr`, `bezeichnung`, `material`, `zeichnungs_nr`, `zeichnung_url`, `waschgebinde`, `infos` (seit 111.54.0 nicht mehr in der App, Daten bleiben) |
 | `hoco_type_data` | Daten je HOCO Nr. **und** Typ | eindeutig (`hoco_nr`, `type_id`), `programm_nr`, `stueckzeit_s`, `blatt_url`, `abend_stk`, `pad_info` (Info an der Maschine). Eine Zeile je Typ, auf dem die Nummer gerüstet, gelaufen oder fertig wurde: trägt der Auslöser `jobs_typ_merken` selbst ein (`sql/hoco-typen.sql`) |
 | `vacations` | Ferien | `person` (Text), `zeile`, `von`, `tage`, `genehmigt` |
 | `tool_changes` | Werkzeugwechsel | `machine_id`, `job_id`, `tool_nr`, `grund`, `stueckzahl`, `gehalten_stk` |

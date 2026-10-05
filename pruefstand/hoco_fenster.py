@@ -38,7 +38,7 @@ with sync_playwright() as p:
     pg.locator("[data-hoco-auf='" + erste + "']").click(); pg.wait_for_timeout(1200)
     text = pg.inner_text("#hoco-fensterinhalt")
     pruefe("Teil offen mit allen Abschnitten",
-           all(w in text for w in ["Einrichtblätter", "Allgemeine Dokumente", "Gelaufen auf", "Artikelbezeichnung"]))
+           all(w in text for w in ["Einrichtblätter", "Gelaufen auf", "Artikelbezeichnung"]) and "Allgemeine" not in text)
     pruefe("FA Nummern zu " + erste, "FA Nummern" in text)
     pg.locator("#hoco-bearb").click(); pg.wait_for_timeout(400)
     pruefe("Bearbeiten öffnet das Fenster", "HOCO Nr. bearbeiten" in pg.inner_text(".dialog-huelle:last-child"))

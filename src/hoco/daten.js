@@ -147,10 +147,8 @@ export async function teilLaden(t, darf) {
       .sort((a, c) => String(a.name).localeCompare(String(c.name)));
   } catch (f) { /* dann eben ohne */ }
 
-  let dokumente = [];
-  try { dokumente = await alt.dokListe({ hoco: t.hoco_nr }); } catch (f) { /* ohne */ }
 
-  return { faListe, vomAuftrag, maschinenlauf, typenGenutzt, dokumente };
+  return { faListe, vomAuftrag, maschinenlauf, typenGenutzt };
 }
 
 // Ein PDF in die Ablage „zeichnungen“ laden und die Adresse liefern

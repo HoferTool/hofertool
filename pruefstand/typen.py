@@ -39,7 +39,7 @@ with sync_playwright() as p:
     pruefe("Aufbau ohne Parkreiter", pg.locator("#park-reiter").count() == 0)
     pruefe("Beide Paths mit Plätzen", pg.locator("[data-path-um]").count() == 2 and pg.locator("[data-platz='sl1']").count() == 1)
     pruefe("Plätze zeigen Toolnummer", "T100" in pg.inner_text("[data-platz='sl1']"))
-    pruefe("Dokumente-Abschnitt da", pg.locator("#typ-dokumente .karte").count() >= 1)
+    pruefe("Allgemeine Dokumente weg", pg.locator("#typ-dokumente").count() == 0 and "Allgemeine Dokumente" not in pg.inner_text("body"))
 
     # Path anlegen
     pg.click("#path-neu"); pg.locator(".dialog-huelle input").first.fill("Path 9"); ja(pg); pg.wait_for_timeout(900)
