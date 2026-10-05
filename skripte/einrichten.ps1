@@ -247,8 +247,16 @@ if ($poolAn) {
     anon_key     = $KEY
     email        = $mail
     passwort     = $pw
-    pool_ordner  = $POOL
   })
+  # Den Pool-Ordner bestimmt die App (Einstellungen -> Dokumente ->
+  # Pool-Ordner), darum steht er nicht in der Datei. Für die Probe muss
+  # es ihn geben.
+  try {
+    $k = Invoke-RestMethod -Uri "$U/rest/v1/app_config?select=wert&schluessel=eq.dok_pool_pfad" -TimeoutSec 30 `
+      -Headers @{ apikey = $KEY; Authorization = "Bearer $token" }
+    $w = [string](@($k)[0].wert)
+    if ($w.Trim()) { $POOL = $w.Trim() }
+  } catch { }
   Gut "abgleich-einstellungen.json gespeichert (enthält das Passwort, niemandem schicken)"
 } else {
   Warn "Pool wird übersprungen. Dienstkonto anlegen (Anleitung Schritt 2) und dieses Skript nochmals starten."

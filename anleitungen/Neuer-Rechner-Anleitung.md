@@ -92,6 +92,12 @@ Die Protokolle stehen in `C:\Hofer\Abgleich\solarlog.log` und
 
 ## Gut zu wissen
 
+- **Anderer Pool-Ordner:** In der App unter **Einstellungen →
+  Dokumente → Pool-Ordner** den Pfad eintragen (zum Beispiel
+  `D:\Scans\Pool`) und auf **Ordner speichern** tippen. Ab dem
+  nächsten Durchlauf nimmt das Programm diesen Ordner und legt ihn an,
+  falls es ihn noch nicht gibt. Am Rechner musst du nichts ändern.
+
 - Mit **Als Administrator** laufen beide Aufgaben immer, auch wenn
   niemand angemeldet ist und nach einem Neustart. Ohne Administrator
   nur, solange jemand angemeldet ist.
