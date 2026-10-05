@@ -5345,3 +5345,6 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
   justify-content: center; font-variant-numeric: tabular-nums; }
 .excelansicht__zoom .knopf:disabled { opacity: .4; }
 .excelansicht__fehler { padding: 24px; text-align: center; line-height: 1.5; }
+
+/* Auftragsfenster: Hinweis, dass Menge und Termin aus der Notiz kommen (111.37.0) */
+.auf-ausnotiz { display: block; margin: -2px 0 10px; }
