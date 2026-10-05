@@ -30,8 +30,9 @@ def seite(br, sitzung, vorher=""):
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded"); pg.wait_for_timeout(2300)
     return pg, f
 
+# Rückmeldungen stehen seit 111.56.0 als Text unter dem Feld, nicht mehr unten rechts
 def toast(pg):
-    return pg.evaluate("(() => { const t = [...document.querySelectorAll('.toast-bereich > *')]; return t.length ? t[t.length - 1].textContent.trim() : ''; })()")
+    return pg.evaluate("(() => { const t = document.querySelector('.login__fehler'); return t ? t.textContent.trim() : ''; })()")
 
 def versuch(pg, pin):
     pg.fill("#lp", pin); pg.locator("#lk").click(); pg.wait_for_timeout(700)
@@ -43,7 +44,7 @@ with sync_playwright() as p:
 
     # 1. Kachel mit PIN: Feld nimmt Ziffern
     pg, f = seite(br, False)
-    pg.locator(".login__kachel").nth(0).click(); pg.wait_for_timeout(500)
+    pg.locator(".login__kachel").nth(0).click(); pg.wait_for_timeout(1200)
     feld = pg.evaluate("(() => { const e = document.getElementById('lp'); return [e.placeholder, e.inputMode]; })()")
     print("PIN-Feld:", feld)
     if feld != ["PIN", "none"]: fehler.append("PIN-Feld falsch")
@@ -69,7 +70,7 @@ with sync_playwright() as p:
 
     # 5. Server-Funktion fehlt: Rückfall aufs Passwortfeld
     pg, f = seite(br, False, "window._keineFunktion = true;")
-    pg.locator(".login__kachel").nth(0).click(); pg.wait_for_timeout(500)
+    pg.locator(".login__kachel").nth(0).click(); pg.wait_for_timeout(1200)
     m = versuch(pg, "123456"); pg.wait_for_timeout(500)
     print("ohne Server-Funktion:", m, "| Feld jetzt:", pg.evaluate("document.getElementById('lp').placeholder"))
     if pg.evaluate("document.getElementById('lp').placeholder") != "Passwort": fehler.append("kein Rückfall aufs Passwort")
