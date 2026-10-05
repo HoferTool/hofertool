@@ -17,8 +17,8 @@
 
 # ---------- Einstellungen: dieselben wie in sicherung.ps1 ----------
 
-$Verbindung = "postgresql://postgres.yvbtgiqtndxqqxhjshnl:PASSWORT@aws-0-eu-central-1.pooler.supabase.com:5432/postgres"
-$SupabaseUrl      = "https://yvbtgiqtndxqqxhjshnl.supabase.co"
+$Verbindung = "postgresql://postgres.lzhqwbxfwqamauntehof:PASSWORT@aws-0-eu-central-2.pooler.supabase.com:5432/postgres"
+$SupabaseUrl      = "https://lzhqwbxfwqamauntehof.supabase.co"
 $DienstSchluessel = "HIER-DEN-SERVICE-ROLE-KEY-EINSETZEN"
 $Ziel  = "C:\Hofer\Sicherungen"
 $PgBin = "C:\Program Files\PostgreSQL\17\bin"

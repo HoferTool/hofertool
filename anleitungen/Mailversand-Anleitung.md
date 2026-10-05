@@ -58,7 +58,7 @@ direkt zu dir. Jeder Kollege, der bestellt, meldet sich einmal selbst an.
 1. **App-Registrierung anlegen.** Im Microsoft Entra Admin Center
    (früher Azure AD) unter *App-Registrierungen → Neue Registrierung*.
    Name: `Hofer Tool`. Als Weiterleitungsadresse die Adresse der App
-   eintragen, also `https://syshen69.github.io/hofer/`.
+   eintragen, also `https://hofertool.github.io/hofertool/`.
 
 2. **Berechtigung geben.** Bei dieser Registrierung unter
    *API-Berechtigungen* die Berechtigung **Mail.Send** hinzufügen und

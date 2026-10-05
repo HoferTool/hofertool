@@ -22,7 +22,7 @@ Wichtig: Version 17. Mit 15 oder älter lehnt Supabase die Verbindung ab.
 Im Dashboard oben auf **Connect**, dann **Session pooler** wählen und die Zeile kopieren. Sie sieht ungefähr so aus:
 
 ```
-postgresql://postgres.yvbtgiqtndxqqxhjshnl:[YOUR-PASSWORD]@aws-0-….pooler.supabase.com:5432/postgres
+postgresql://postgres.lzhqwbxfwqamauntehof:[YOUR-PASSWORD]@aws-0-….pooler.supabase.com:5432/postgres
 ```
 
 `[YOUR-PASSWORD]` durch das **Datenbank-Passwort** ersetzen, samt den eckigen Klammern. Wer es nicht mehr weiss, setzt es unter **Database → Settings** neu. Das ist ein anderes Passwort als die Anmeldung an der App.

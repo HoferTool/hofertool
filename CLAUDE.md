@@ -124,7 +124,7 @@ Alle sind PowerShell 5.1 auf Windows, ohne Installation.
 
 ## Umzug (abgeschlossen am 1. Oktober 2026)
 
-Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer` — dort liegt nur noch eine Weiterleitung. Alles ist ins neue Konto umgezogen. Das alte Projekt soll pausiert werden, sobald `solarlog.ps1` umgestellt ist.
+Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer` — dort liegt nur noch eine Weiterleitung. Alles ist ins neue Konto umgezogen. Seit 5. Oktober 2026 liefert der neue Solar-Rechner direkt ins neue Projekt (Quelle „Solar-Log direkt“), das alte Projekt wird nicht mehr gebraucht und darf pausiert werden. Altes Repository archivieren statt löschen, damit die alte Adresse weiterleitet. `sicherung.ps1` und `wiederherstellen.ps1` zeigen seit 5. Oktober 2026 aufs neue Projekt.
 
 ## Offene Punkte
 

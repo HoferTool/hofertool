@@ -22,9 +22,9 @@
 
 # Aus dem Supabase-Dashboard: Knopf "Connect" -> "Session pooler".
 # [YOUR-PASSWORD] durch das Datenbank-Passwort ersetzen.
-$Verbindung = "postgresql://postgres.yvbtgiqtndxqqxhjshnl:PASSWORT@aws-0-eu-central-1.pooler.supabase.com:5432/postgres"
+$Verbindung = "postgresql://postgres.lzhqwbxfwqamauntehof:PASSWORT@aws-0-eu-central-2.pooler.supabase.com:5432/postgres"
 
-$SupabaseUrl      = "https://yvbtgiqtndxqqxhjshnl.supabase.co"
+$SupabaseUrl      = "https://lzhqwbxfwqamauntehof.supabase.co"
 $DienstSchluessel = "HIER-DEN-SERVICE-ROLE-KEY-EINSETZEN"   # derselbe wie im Solar-Log-Skript
 
 $Ziel      = "C:\Hofer\Sicherungen"
