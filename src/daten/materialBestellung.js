@@ -14,6 +14,11 @@
 //  FA Nummern stehen nie in Notizen, darum ist die zehnstellige Zahl
 //  sicher eine Bestellung. Dasselbe macht sql/notiz-material.sql in
 //  der Datenbank (infoBoard-Import); beides bitte gleich halten.
+//
+//  Was so in Menge und Liefertermin steht, nimmt
+//  materialAusNotizEntfernen wieder aus der Notiz, damit nichts doppelt
+//  dasteht (Wunsch Patrick 5. Oktober 2026). Gegenstück in der
+//  Datenbank: sql/notiz-ohne-doppel.sql.
 // =================================================================
 
 const BE_NR = /(?<!\d)(20\d{8})(?!\d)/;
@@ -35,7 +40,8 @@ function mengeIn(zeile) {
   return m[1].replace(",", ".") + " " + EINHEIT[m[2].toLowerCase()];
 }
 
-function terminIn(zeile, jahrDerBestellung) {
+// Gibt { text, roh } zurück: „24.09.26“ und genau so, wie es dastand
+function terminFinden(zeile, jahrDerBestellung) {
   // Datumsteile ohne die Bestellnummer suchen, damit nichts daraus
   // als Tag gelesen wird
   const ohne = zeile.replace(new RegExp(BE_NR.source, "g"), " ");
@@ -47,11 +53,16 @@ function terminIn(zeile, jahrDerBestellung) {
     if (jahr.length === 4) jahr = jahr.slice(2);
     // Ohne Jahr („17.09“) gilt das Jahr der Bestellung
     if (!jahr && jahrDerBestellung) jahr = jahrDerBestellung.slice(2);
-    return zwei(tag) + "." + zwei(monat) + (jahr ? "." + jahr : "");
+    return { text: zwei(tag) + "." + zwei(monat) + (jahr ? "." + jahr : ""), roh: d[0] };
   }
   const k = ohne.match(KW);
-  if (k && Number(k[1]) >= 1 && Number(k[1]) <= 53) return "KW" + zwei(k[1]);
-  return "";
+  if (k && Number(k[1]) >= 1 && Number(k[1]) <= 53) return { text: "KW" + zwei(k[1]), roh: k[0] };
+  return null;
+}
+
+function terminIn(zeile, jahrDerBestellung) {
+  const t = terminFinden(zeile, jahrDerBestellung);
+  return t ? t.text : "";
 }
 
 function lieferantIn(zeile) {
@@ -80,7 +91,7 @@ export function materialBestellungLesen(notiz) {
     const termin = terminIn(zeile, jahr) || terminIn(naechste, jahr);
     if (!menge && !termin) return;
     kandidaten.push({ nr: nr[1], lieferant: lieferantIn(zeile), menge, termin,
-      matBe: MAT_BE.test(zeile) });
+      matBe: MAT_BE.test(zeile), zeile: i, jahr });
   });
   if (!kandidaten.length) return null;
   kandidaten.sort((a, b) => (b.matBe - a.matBe) || (!!b.menge - !!a.menge) || b.nr.localeCompare(a.nr));
@@ -89,4 +100,57 @@ export function materialBestellungLesen(notiz) {
   const woher = [k.lieferant, k.nr].filter(Boolean).join(" ");
   k.mengeText = k.menge ? k.menge + " · " + woher : "";
   return k;
+}
+
+
+// Wörter, die allein keine Information sind: bleibt nach dem Herausnehmen
+// nur so etwas übrig, fällt die ganze Zeile weg
+const FUELLWORT = new Set(["mat", "be", "te", "ca", "ab", "am", "von", "bis", "für", "nr",
+  "bestellt", "liefertermin", "termin", "menge", "kw"]);
+
+function zeileAufraeumen(zeile) {
+  const rest = zeile.replace(/\s+/g, " ").replace(/^[\s|:,;\-]+|[\s|:,;\-]+$/g, "");
+  const woerter = rest.toLowerCase().split(/[^a-zäöüé0-9']+/).filter(Boolean);
+  return woerter.every((w) => FUELLWORT.has(w)) ? null : rest;
+}
+
+// Nimmt aus der Notiz, was schon in Menge (menge) und Liefertermin
+// (termin) des Auftrags steht: Menge, Bestellnummer und Lieferant nur,
+// wenn das Mengenfeld diese Bestellung zeigt, das Datum nur, wenn es im
+// Liefertermin steht. Was sonst in der Zeile steht (Werkstoff,
+// „davon 1200kg“ …), bleibt. Gibt die Notiz unverändert zurück, wenn
+// nichts doppelt ist.
+export function materialAusNotizEntfernen(notiz, menge, termin) {
+  const text = String(notiz || "");
+  const k = materialBestellungLesen(text);
+  if (!k) return text;
+  const mengeFeld = String(menge || "").trim();
+  const mengeDa = !!k.mengeText && (mengeFeld === k.mengeText || mengeFeld.includes(k.nr));
+  const terminDa = !!k.termin && String(termin || "").trim() === k.termin;
+  if (!mengeDa && !terminDa) return text;
+
+  const zeilen = text.split(/\r?\n/);
+  const i = k.zeile;
+  const n = zeilen[i + 1] !== undefined && !BE_NR.test(zeilen[i + 1]) ? i + 1 : -1;
+  const neu = { [i]: zeilen[i] };
+  if (n >= 0) neu[n] = zeilen[n];
+  if (mengeDa) {
+    const z = mengeIn(neu[i]) ? i : n;
+    neu[z] = neu[z].replace(MENGE, " ");
+    neu[i] = neu[i].replace(k.nr, " ").replace(MAT_BE, " ");
+    if (k.lieferant) neu[i] = neu[i].replace(k.lieferant, " ");
+  }
+  if (terminDa) {
+    const z = terminFinden(zeilen[i], k.jahr) ? i : n;
+    const t = terminFinden(neu[z], k.jahr);
+    if (t) neu[z] = neu[z].replace(t.roh, " ");
+  }
+  const raus = [];
+  zeilen.forEach((zeile, j) => {
+    if (!(j in neu)) { raus.push(zeile); return; }
+    if (neu[j] === zeile) { raus.push(zeile); return; }
+    const rest = zeileAufraeumen(neu[j]);
+    if (rest !== null) raus.push(rest);
+  });
+  return raus.join("\n").replace(/\s+$/, "");
 }

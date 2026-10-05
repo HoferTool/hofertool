@@ -3,6 +3,8 @@
 # Notiz, stehen Menge und Liefertermin sofort in ihren Feldern und
 # werden gespeichert. Eine Startseiten-Notiz mit HOCO Nr. trägt die
 # Bestellung in den nächsten geplanten Auftrag dieser Nummer ein.
+# Seit 111.55.0 steht, was in Menge und Liefertermin übernommen ist,
+# nicht mehr doppelt in der Notiz.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -48,12 +50,16 @@ with sync_playwright() as p:
     j = pg.evaluate(f"TEST.daten.jobs.find(x => x.id === '{jid}')")
     if j["material_menge"] != "500 kg · Metalix 2025007893": fehler.append("Menge nicht gespeichert: " + str(j["material_menge"]))
     if j["material_liefertermin"] != "KW40": fehler.append("Termin nicht gespeichert: " + str(j["material_liefertermin"]))
+    # Menge steht im Feld, also weg aus der Notiz; der Termin wurde von
+    # Hand geändert, darum bleibt das Datum in der Notiz
+    if j["plan_note"] != "1. Los 5'000Stk.\n24.09.26\neilt": fehler.append("Notiz doppelt: " + repr(j["plan_note"]))
 
     # 2. Beim Öffnen: leere Felder aus vorhandener Notiz (infoBoard)
     pg.evaluate(f"(() => {{ const j = TEST.daten.jobs.find(x => x.id === '{jid}'); j.material_menge = null; j.material_liefertermin = null; j.plan_note = 'Notz 2026008351 150kg für 0002+0003\\n30.04.26\\n(aus infoBoard)'; }})()")
     pg.locator(f".pw-balken[data-auftrag='{jid}']").first.dblclick(); pg.wait_for_selector(".dialog--auftrag")
     if pg.input_value("#pl-menge-mat") != "150 kg · Notz 2026008351": fehler.append("Beim Öffnen nicht gefüllt: " + pg.input_value("#pl-menge-mat"))
     if pg.input_value("#pl-liefer") != "30.04.26": fehler.append("Termin beim Öffnen: " + pg.input_value("#pl-liefer"))
+    if pg.input_value("#pl-notiz") != "für 0002+0003\n(aus infoBoard)": fehler.append("Notiz beim Öffnen doppelt: " + repr(pg.input_value("#pl-notiz")))
     pg.click("#pl-nein"); pg.wait_for_timeout(400)
 
     # 3. Startseite: Notiz mit HOCO Nr. geht in den Auftrag
@@ -66,8 +72,17 @@ with sync_playwright() as p:
     j = pg.evaluate(f"TEST.daten.jobs.find(x => x.id === '{ziel['id']}')")
     if j["material_menge"] != "10 kg · SWS 2026008657": fehler.append("Startseiten-Notiz: Menge " + str(j["material_menge"]))
     if j["material_liefertermin"] != "KW41": fehler.append("Startseiten-Notiz: Termin " + str(j["material_liefertermin"]))
-    if not str(j["plan_note"]).startswith("Mat BE: SWS 10kg 2026008657 KW41\nalt"): fehler.append("Zeile nicht in Auftragsnotiz: " + repr(j["plan_note"]))
+    if j["plan_note"] != "alt": fehler.append("Zeile doppelt in Auftragsnotiz: " + repr(j["plan_note"]))
     toasts = pg.evaluate("[...document.querySelectorAll('.toast')].map(t=>t.textContent).join(' ')")
     if "Material für Auftrag" not in toasts: fehler.append("Keine Meldung: " + toasts[:200])
+
+    # 4. Planwand: Notiz, die nur aus der übernommenen Bestellung besteht,
+    # zeigt kein ✎ mehr und im Infofenster „keine Notiz“
+    pg.evaluate(f"""(() => {{ const j = TEST.daten.jobs.find(x => x.id === '{jid}');
+        j.plan_note = 'Mat BE: Metalix 2025007893 500kg 24.09.26 |';
+        j.material_menge = '500 kg · Metalix 2025007893'; j.material_liefertermin = '24.09.26'; }})()""")
+    pg.evaluate("location.hash='#planwand'"); pg.wait_for_selector(f".pw-balken[data-auftrag='{jid}']"); pg.wait_for_timeout(800)
+    if pg.locator(f".pw-balken[data-auftrag='{jid}'] .pw-balken__zeichen[title='Notiz']").count():
+        fehler.append("✎ trotz leerer Notiz")
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")

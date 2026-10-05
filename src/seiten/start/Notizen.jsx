@@ -4,7 +4,7 @@
 //  sich rückgängig machen; Löschen dürfen nur Administratoren.
 // =================================================================
 import { alt, useDaten } from "../../bruecke.jsx";
-import { materialBestellungLesen } from "../../daten/materialBestellung.js";
+import { materialBestellungLesen, materialAusNotizEntfernen } from "../../daten/materialBestellung.js";
 
 export default function Notizen({ auffrischen }) {
   const { daten: todos, fehler, neu } = useDaten(() => alt.ladeTodos(), [auffrischen]);
@@ -99,7 +99,8 @@ async function abhaken(e, t, neu) {
 // Steht in einer Notiz eine HOCO Nr. und eine Material-Bestellung,
 // etwa „10844-0049 Mat BE: Metalix 2025007893 500kg 24.09.26“, kommt
 // sie rüber in den nächsten geplanten Auftrag dieser Nummer: Menge und
-// Liefertermin werden eingetragen und die Zeile in seine Notiz gesetzt.
+// Liefertermin werden eingetragen. In seine Notiz kommt sie nicht, und
+// stand sie dort schon, fällt sie weg: sonst stünde alles doppelt da.
 async function materialInsAuftrag(text) {
   if (!alt.darfSchreiben()) return;
   const hoco = String(text || "").match(/(?<!\d)(\d{5})\s?-\s?(\d{4})(?!\d)/);
@@ -119,14 +120,13 @@ async function materialInsAuftrag(text) {
       alt.meldung("Material-Bestellung erkannt, aber kein offener Auftrag " + nr + " auf der Planwand.", "warn");
       return;
     }
-    const zeile = String(text).split(/\r?\n/).find((z) => z.includes(be.nr)) || "";
     const notiz = String(ziel.plan_note || "");
+    const notizNeu = materialAusNotizEntfernen(notiz, be.mengeText, be.termin);
     const daten = {
       material_liefertermin: be.termin || undefined,
       material_menge: be.mengeText || undefined,
       material_ok: be.mengeText ? true : undefined,
-      plan_note: notiz.includes(be.nr) ? undefined
-        : [zeile.replace(hoco[0], "").trim(), notiz].filter(Boolean).join("\n"),
+      plan_note: notizNeu !== notiz ? notizNeu : undefined,
     };
     Object.keys(daten).forEach((k) => daten[k] === undefined && delete daten[k]);
     const r = await alt.aendernOhneUnbekannte("jobs", daten, "id", ziel.id);

@@ -9,6 +9,7 @@
 
 import { alt, reactSeite, reactAufraeumen } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
+import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Einkauf from "../seiten/Einkauf.jsx";
 import Bestellungen from "../seiten/Bestellungen.jsx";
@@ -125,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.56.0";
+const APP_VERSION = "111.57.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3397,7 +3398,7 @@ async function planwandExcel() {
         "FA erstellt": j.fa_nr ? "ja" : "nein",
         "Material da": j.material_ok ? "ja" : "nein",
         "Materialplatz": materialPlatz(j),
-        "Notiz": notiz.notiz || "",
+        "Notiz": auftragNotiz(j),
         "Problem": j.problem || "",
         "Farbe": j.color || "",
         "Begonnen": j.started_at ? new Date(j.started_at) : null,
@@ -4129,8 +4130,7 @@ function balkenInfoVerhalten() {
             ? '<div class="pw-info__zeile">📦 ' + esc(materialPlatz(j)) + '</div>'
             : "")
         + '<div class="pw-info__zeile">✎ '
-        + (notizTrennen(j.plan_note).notiz
-            ? esc(notizTrennen(j.plan_note).notiz) : "keine Notiz") + '</div>' 
+        + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz") + '</div>' 
         + (j.problem ? '<div class="pw-info__zeile pw-info__zeile--warn">⚠ '
             + esc(j.problem) + '</div>' : "")
         + (j.geplant_von
@@ -5336,7 +5336,7 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
         + esc(j.problem) + '">⚠</span>' : "")
     // FA und M sind weg: Die Materiallage sagt der Punkt links, den
     // Rest sieht man im Infofenster.
-    + (j.plan_note ? '<span class="pw-balken__zeichen" title="Notiz">✎</span>' : "")
+    + (auftragNotiz(j) ? '<span class="pw-balken__zeichen" title="Notiz">✎</span>' : "")
     + (j.drawing_url ? '<span class="pw-balken__zeichen">PDF</span>' : "")
     + (j.wbg_url ? '<span class="pw-balken__zeichen">WBG</span>' : "")
     + '</div>'
@@ -6482,6 +6482,16 @@ function notizTrennen(text) {
     else rest.push(z);
   });
   return { notiz: rest.join("\n").trim(), ort: ort };
+}
+
+// Die Notiz, wie man sie liest: ohne Materialplatz und ohne das, was
+// aus einer Material-Bestellung schon in Menge und Liefertermin steht.
+// So steht nichts doppelt da, auch wenn sql/notiz-ohne-doppel.sql noch
+// nicht gelaufen ist.
+function auftragNotiz(j) {
+  if (!j) return "";
+  return materialAusNotizEntfernen(notizTrennen(j.plan_note).notiz,
+    j.material_menge, j.material_liefertermin).trim();
 }
 
 // Der Materialplatz hat seit 111.41.0 eine eigene Spalte
@@ -8585,7 +8595,7 @@ Object.assign(alt, {
   fortschrittRechnen, planAuftragDialog, dreiNachfragen, ladeTypen,
   pad, padSchliessen, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
-  notizTrennen, materialPlatz, materialPlatzSpalte, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen,
+  notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen,
   werkzeugWechselDialog, zifferblock,
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,

@@ -19,7 +19,7 @@ import { alt, useVerzoegert } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { neueFarbeDialog } from "../teile/Dialoge.jsx";
 import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
-import { materialBestellungLesen } from "../daten/materialBestellung.js";
+import { materialBestellungLesen, materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage) {
   alt.plan.imDialog = true;
@@ -82,8 +82,9 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum) {
     farbe: (auftrag && auftrag.color) || (v && v.color) || "blau",
     zustand: (auftrag && auftrag.plan_status) || "geplant",
     // Die Zeile "Material: …" steht im eigenen Feld Materialplatz. Stand
-    // sie auch hier, kam sie beim Speichern ein zweites Mal dazu.
-    notiz: alt.notizTrennen(quelle.plan_note || "").notiz,
+    // sie auch hier, kam sie beim Speichern ein zweites Mal dazu. Was
+    // aus der Bestellung in Menge und Liefertermin steht, fällt weg.
+    notiz: materialAusNotizEntfernen(alt.notizTrennen(quelle.plan_note || "").notiz, matMenge, liefer),
     // Die Kopie übernimmt auch die Zeichnung
     pdf: auftrag ? auftrag.drawing_url : (v ? (v.drawing_url || null) : null),
     wbg: auftrag ? auftrag.wbg_url : (v ? (v.wbg_url || null) : null),
@@ -334,7 +335,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       planned_from: w.von || null,
       planned_days: Math.max(1, Math.round(Number(w.tage) || 1)),
       target_quantity: w.menge === "" ? null : Math.max(0, Math.round(Number(w.menge))),
-      plan_note: alt.notizZusammen(w.notiz, platzSpalte ? "" : (w.matOrt || "")),
+      // Eine eben eingetippte Bestellung steht nach dem Speichern nur
+      // noch in Menge und Liefertermin, nicht doppelt in der Notiz
+      plan_note: alt.notizZusammen(materialAusNotizEntfernen(w.notiz, w.matMenge, w.liefer),
+        platzSpalte ? "" : (w.matOrt || "")),
       drawing_url: w.pdf,
       wbg_url: w.wbg,
       plan_status: w.zustand,
