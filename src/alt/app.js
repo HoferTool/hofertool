@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.36.0";
+const APP_VERSION = "111.37.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3032,6 +3032,26 @@ function farbenZurWahl() {
   if (!genutzt.length) return PLANFARBEN;   // solange nichts zugeteilt ist
   return genutzt.sort((a, b2) =>
     (FARBZUTEILUNG[a.wert].sortierung || 0) - (FARBZUTEILUNG[b2.wert].sortierung || 0));
+}
+
+// Seit 111.37.0 gibt es keine frei gewählten Farben mehr, nur die
+// Palette. Alte Aufträge mit eigener Farbe zeigen sie weiter; beim
+// Bearbeiten schlägt das Fenster die nächstliegende Palettenfarbe vor
+// (aus den angebotenen, damit gleich ein Material dazugehört).
+function naechstePlanfarbe(hex, auswahl) {
+  const zerlegen = (h) => {
+    const x = String(h || "").replace("#", "");
+    return [0, 2, 4].map((i) => parseInt(x.slice(i, i + 2), 16) || 0);
+  };
+  const [r, g, b2] = zerlegen(hex);
+  let beste = null, abstand = Infinity;
+  (auswahl && auswahl.length ? auswahl : PLANFARBEN).forEach((f) => {
+    const [r2, g2, b3] = zerlegen(f.hex);
+    // Gewichtet nach dem Auge: Grün fällt am meisten auf
+    const d = 2 * (r - r2) ** 2 + 4 * (g - g2) ** 2 + 3 * (b2 - b3) ** 2;
+    if (d < abstand) { abstand = d; beste = f; }
+  });
+  return beste || PLANFARBEN[0];
 }
 
 // Wer plant, wird in den Einstellungen angehakt. Nur diese
@@ -8139,7 +8159,7 @@ Object.assign(alt, {
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
   notizTrennen, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen,
   werkzeugWechselDialog, zifferblock,
-  PLANFARBEN, farbenZurWahl, meineInitialen, personVoll, naechsterFreierTag,
+  PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, ablageLoeschen,
