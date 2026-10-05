@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.34.0";
+const APP_VERSION = "111.35.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6370,6 +6370,158 @@ window.addEventListener("resize", () => {
 //  Hier bleibt nur das Blatt der Historie zum Drucken und Ablegen.
 // =================================================================
 
+// Das Blatt der Historie: Kopf in der Themenfarbe mit Logo, darunter
+// Kennzahlen, eine Übersicht je Werkzeug und alle Wechsel nach Tagen.
+// Die Farbe kommt aus LEISTENFARBE, weil die Töne des dunklen Modus auf
+// weissem Papier zu blass wären.
+function historieBlatt(maschine, auftrag, runden, titel) {
+  const farbe = LEISTENFARBE[themaJetzt()] || LEISTENFARBE.blau;
+  const leer = (x) => x === null || x === undefined;
+  const alle = runden.flatMap((r) => r.zeilen);
+  const zeiten = runden.map((r) => r.wann).filter(Boolean).sort();
+  const gehalten = alle.map((z) => z.gehalten_stk).filter((x) => !leer(x));
+  const schnitt = (l) => l.length ? Math.round(l.reduce((x, y) => x + y, 0) / l.length) : null;
+
+  // Je Werkzeug: wie oft gewechselt und wie lange es gehalten hat
+  const jeWz = {};
+  alle.forEach((z) => {
+    const w = jeWz[z.tool_nr] || (jeWz[z.tool_nr] = { nr: z.tool_nr, anzahl: 0, stk: [], zuletzt: null });
+    w.anzahl++;
+    if (!leer(z.gehalten_stk)) w.stk.push(z.gehalten_stk);
+    if (!w.zuletzt || z.gewechselt_am > w.zuletzt) w.zuletzt = z.gewechselt_am;
+  });
+  const werkzeuge = Object.values(jeWz)
+    .sort((x, y) => String(x.nr).localeCompare(String(y.nr), "de", { numeric: true }));
+  const groesster = Math.max(1, ...werkzeuge.map((w) => schnitt(w.stk) || 0));
+
+  const tagText = (iso) => new Date(iso).toLocaleDateString("de-CH",
+    { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const zeitText = (iso) => new Date(iso).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+  const datum = (iso) => new Date(iso).toLocaleDateString("de-CH",
+    { day: "2-digit", month: "2-digit", year: "numeric" });
+  const zeitraum = zeiten.length ? datum(zeiten[0]) + " – " + datum(zeiten[zeiten.length - 1]) : "—";
+
+  const angabe = (name, wert) => wert ? '<div class="angabe"><span>' + name + '</span><b>' + esc(wert) + '</b></div>' : "";
+  const kennzahl = (wert, name) => '<div class="zahl"><b>' + wert + '</b><span>' + name + '</span></div>';
+
+  let tagVorher = "";
+  const zeilen = runden.map((r) => {
+    const tag = r.wann ? isoDatum(new Date(r.wann)) : "";
+    let kopf = "";
+    if (tag !== tagVorher) {
+      tagVorher = tag;
+      kopf = '<tr class="tag"><td colspan="4">' + (r.wann ? esc(tagText(r.wann)) : "Ohne Datum") + '</td></tr>';
+    }
+    return kopf + '<tr class="runde">'
+      + '<td class="uhr">' + (r.wann ? esc(zeitText(r.wann)) : "") + '</td>'
+      + '<td class="stk">' + (leer(r.stk) ? "—" : zahlText(r.stk)) + '<small>Stk</small></td>'
+      + '<td>' + r.zeilen.map((z) => '<span class="wz"><b>' + esc(z.tool_nr) + '</b>'
+          + (leer(z.gehalten_stk) ? "" : '<i>' + zahlText(z.gehalten_stk) + ' Stk</i>') + '</span>').join("")
+      + (r.notiz ? '<div class="notiz">' + esc(r.notiz) + '</div>' : "") + '</td>'
+      + '<td class="wer">' + esc(r.person || "") + (r.auftrag ? '<small>' + esc(r.auftrag) + '</small>' : "") + '</td>'
+      + '</tr>';
+  }).join("");
+
+  return '<!doctype html><html lang="de"><head><meta charset="utf-8">'
+    + '<title>' + esc(titel) + '</title><style>'
+    + ':root { --f: ' + farbe + '; --f-hell: color-mix(in srgb, var(--f) 9%, #fff);'
+    + '  --f-mittel: color-mix(in srgb, var(--f) 22%, #fff); --tinte: #1d2430; --grau: #5c6675; --linie: #e1e5eb }'
+    + '@page { size: A4; margin: 12mm 12mm 14mm }'
+    + '* { box-sizing: border-box }'
+    + 'body { font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; font-size: 9.5pt;'
+    + '  color: var(--tinte); margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact }'
+    + '.seite { max-width: 186mm; margin: 0 auto; padding: 64px 0 8mm }'
+    + '@media print { .seite { padding: 0 } }'
+    + '.band { background: var(--f); color: #fff; border-radius: 3mm; padding: 6mm 7mm 5mm;'
+    + '  display: grid; grid-template-columns: 1fr auto; gap: 4mm; align-items: start;'
+    + '  background-image: linear-gradient(120deg, transparent 55%, rgba(255,255,255,.08) 55%, rgba(255,255,255,.08) 70%, transparent 70%) }'
+    + '.band small { text-transform: uppercase; letter-spacing: .14em; font-size: 7.5pt; opacity: .8; font-weight: 600 }'
+    + '.band h1 { font-size: 20pt; line-height: 1.1; margin: 1mm 0 0; font-weight: 700; letter-spacing: -.01em }'
+    + '.band img { height: 11mm; width: auto; display: block }'
+    + '.angaben { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2mm 7mm; margin-top: 2mm;'
+    + '  padding-top: 3mm; border-top: .4pt solid rgba(255,255,255,.35) }'
+    + '.angabe span { display: block; font-size: 7pt; text-transform: uppercase; letter-spacing: .1em; opacity: .75 }'
+    + '.angabe b { font-size: 10.5pt; font-weight: 600 }'
+    + '.zahlen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 6mm }'
+    + '.zahl { background: var(--f-hell); border-left: 1mm solid var(--f); border-radius: 1.5mm; padding: 2.5mm 3.5mm }'
+    + '.zahl b { display: block; font-size: 14pt; color: var(--f); font-variant-numeric: tabular-nums; line-height: 1.15 }'
+    + '.zahl span { font-size: 7.5pt; color: var(--grau) }'
+    + 'h2 { font-size: 8pt; text-transform: uppercase; letter-spacing: .12em; color: var(--f); margin: 0 0 2mm;'
+    + '  display: flex; align-items: center; gap: 3mm }'
+    + 'h2::after { content: ""; flex: 1; height: .5pt; background: var(--f-mittel) }'
+    + 'table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums }'
+    + 'tr { break-inside: avoid }'
+    + 'th { text-align: left; font-size: 7pt; text-transform: uppercase; letter-spacing: .08em; color: var(--grau);'
+    + '  font-weight: 600; padding: 0 2mm 1.5mm }'
+    + '.uebersicht { margin-bottom: 6mm }'
+    + '.uebersicht td { padding: 1.4mm 2mm; border-top: .4pt solid var(--linie) }'
+    + '.uebersicht .nr { font-weight: 700; width: 18mm }'
+    + '.uebersicht .r { text-align: right; white-space: nowrap }'
+    + '.balken { width: 40%; }'
+    + '.balken div { height: 2.4mm; border-radius: 1.2mm; background: var(--f-hell) }'
+    + '.balken div span { display: block; height: 100%; border-radius: 1.2mm; background: var(--f) }'
+    + '.tag td { padding: 3.5mm 2mm 1.2mm; font-weight: 700; font-size: 8.5pt; color: var(--f);'
+    + '  border-bottom: .8pt solid var(--f) }'
+    + '.runde td { padding: 2mm; border-bottom: .4pt solid var(--linie); vertical-align: top }'
+    + '.uhr { width: 13mm; color: var(--grau); white-space: nowrap }'
+    + '.stk { width: 24mm; font-weight: 700; font-size: 11pt; white-space: nowrap }'
+    + '.stk small { font-size: 7pt; font-weight: 400; color: var(--grau); margin-left: 1mm }'
+    + '.wz { display: inline-flex; align-items: baseline; gap: 1.2mm; background: var(--f-hell);'
+    + '  border: .5pt solid var(--f-mittel); border-radius: 1.5mm; padding: .5mm 2mm; margin: 0 1.2mm 1.2mm 0 }'
+    + '.wz b { color: var(--f) }'
+    + '.wz i { font-style: normal; color: var(--grau); font-size: 7.5pt }'
+    + '.notiz { color: var(--grau); font-size: 8.5pt; margin-top: .5mm }'
+    + '.wer { width: 34mm; text-align: right; color: var(--grau) }'
+    + '.wer small { display: block; font-size: 7.5pt }'
+    + '.fuss { margin-top: 6mm; padding-top: 2mm; border-top: .4pt solid var(--linie); display: flex;'
+    + '  justify-content: space-between; color: var(--grau); font-size: 7.5pt }'
+    + '.hinweis { color: var(--grau); font-size: 7.5pt; margin: 1.5mm 0 0 }'
+    + '.leiste { position: fixed; top: 10px; right: 12px; display: flex; gap: 6px }'
+    + '.leiste button { font: inherit; font-size: 10pt; padding: 8px 16px; border: 1px solid var(--f);'
+    + '  background: var(--f); color: #fff; border-radius: 6px; cursor: pointer;'
+    + '  box-shadow: 0 2px 8px rgba(0,0,0,.15) }'
+    + '.leiste button + button { background: #fff; color: var(--f) }'
+    + '@media print { .leiste { display: none } }'
+    + '</style></head><body>'
+    + '<div class="leiste"><button onclick="window.print()">Drucken / PDF</button>'
+    + '<button onclick="window.close()">Schliessen</button></div>'
+    + '<div class="seite">'
+    + '<header class="band"><div><small>Historie</small><h1>Werkzeugwechsel</h1></div>'
+    + '<img src="' + LOGO_WEISS + '" alt="Hofer + Co.">'
+    + '<div class="angaben">'
+    + angabe("Maschine", maschine.name)
+    + angabe("Maschinen-Nr.", maschine.machine_number)
+    + angabe("Auftrag", auftrag && auftrag.job_number)
+    + angabe("FA", auftrag && auftrag.fa_nr)
+    + angabe("Stand", datum(new Date().toISOString()))
+    + '</div></header>'
+    + '<div class="zahlen">'
+    + kennzahl(zahlText(runden.length), runden.length === 1 ? "Wechselrunde" : "Wechselrunden")
+    + kennzahl(zahlText(alle.length), "Werkzeuge gewechselt")
+    + kennzahl(schnitt(gehalten) === null ? "—" : zahlText(schnitt(gehalten)), "Stk gehalten im Schnitt")
+    + kennzahl('<span style="font-size:10pt">' + esc(zeitraum) + '</span>', "Zeitraum")
+    + '</div>'
+    + '<h2>Je Werkzeug</h2>'
+    + '<table class="uebersicht"><thead><tr><th>Werkzeug</th><th class="r">Wechsel</th>'
+    + '<th class="r">Ø gehalten</th><th>Standzeit im Vergleich</th><th class="r">Zuletzt</th></tr></thead><tbody>'
+    + werkzeuge.map((w) => {
+        const s = schnitt(w.stk);
+        return '<tr><td class="nr">' + esc(w.nr) + '</td>'
+          + '<td class="r">' + w.anzahl + '×</td>'
+          + '<td class="r">' + (s === null ? "—" : zahlText(s) + " Stk") + '</td>'
+          + '<td class="balken"><div><span style="width:' + (s === null ? 0 : Math.max(3, Math.round(s / groesster * 100))) + '%"></span></div></td>'
+          + '<td class="r">' + (w.zuletzt ? esc(datum(w.zuletzt)) : "") + '</td></tr>';
+      }).join("")
+    + '</tbody></table>'
+    + '<h2>Alle Wechsel</h2>'
+    + '<table><thead><tr><th>Zeit</th><th>Stückzahl</th><th>Gewechselte Werkzeuge · gehalten</th>'
+    + '<th style="text-align:right">Wer · Auftrag</th></tr></thead><tbody>' + zeilen + '</tbody></table>'
+    + '<p class="hinweis">Die Zahl hinter einem Werkzeug sagt, wie viele Stück es seit dem letzten Wechsel gehalten hat.</p>'
+    + '<div class="fuss"><span>Hofer + Co. Präzisionsdrehteile · Lohn-Ammannsegg</span>'
+    + '<span>Erstellt ' + esc(datumZeitKurz(new Date().toISOString())) + '</span></div>'
+    + '</div></body></html>';
+}
+
 async function historieAblegen(maschine, auftrag, runden) {
   const fenster = window.open("", "_blank");
   if (!fenster) { meldung("Das Fenster wurde blockiert.", "warn"); return; }
@@ -6377,51 +6529,7 @@ async function historieAblegen(maschine, auftrag, runden) {
   const titel = "Werkzeugwechsel_"
     + (auftrag && auftrag.fa_nr ? auftrag.fa_nr : maschine.name).replace(/[^A-Za-z0-9]+/g, "_")
     + "_" + isoDatum(new Date());
-
-  fenster.document.write('<!doctype html><html lang="de"><head><meta charset="utf-8">'
-    + '<title>' + esc(titel) + '</title><style>'
-    + '@page { size: A4; margin: 14mm }'
-    + 'body { font-family: Calibri, Arial, sans-serif; font-size: 10pt; margin: 0;'
-    + '       -webkit-print-color-adjust: exact; print-color-adjust: exact }'
-    + 'h1 { font-size: 15pt; margin: 0 0 2mm }'
-    + '.kopf { color: #445; font-size: 9pt; margin-bottom: 5mm }'
-    + 'table { width: 100%; border-collapse: collapse }'
-    + 'th { text-align: left; font-size: 8pt; letter-spacing: .06em; color: #003884;'
-    + '     border-bottom: 1pt solid #003884; padding: 0 2mm 1.5mm }'
-    + 'td { padding: 1.8mm 2mm; border-bottom: .4pt solid #dfe3e8; vertical-align: top }'
-    + '.nr { font-weight: 700; white-space: nowrap }'
-    + '.wz { display: inline-block; border: .5pt solid #9aa5b1; border-radius: 2mm;'
-    + '      padding: 0 1.5mm; margin: 0 1mm .8mm 0; font-size: 9pt }'
-    + '.wz i { font-style: normal; color: #667; font-size: 8pt }'
-    + '.leiste { position: fixed; top: 10px; right: 12px }'
-    + '.leiste button { font: inherit; padding: 7px 14px; margin-left: 6px;'
-    + '  border: 1px solid #003884; background: #003884; color: #fff; border-radius: 6px;'
-    + '  cursor: pointer }'
-    + '@media print { .leiste { display: none } }'
-    + '</style></head><body>'
-    + '<div class="leiste"><button onclick="window.print()">Drucken</button>'
-    + '<button onclick="window.close()">Schliessen</button></div>'
-    + '<h1>Werkzeugwechsel</h1>'
-    + '<div class="kopf">' + esc(maschine.name)
-    + (maschine.machine_number ? " · " + esc(maschine.machine_number) : "")
-    + (auftrag ? " · " + esc(auftrag.job_number || "") : "")
-    + (auftrag && auftrag.fa_nr ? " · FA " + esc(auftrag.fa_nr) : "")
-    + " · Stand " + esc(kurzDatum(isoDatum(new Date()))) + '</div>'
-    + '<table><thead><tr><th>Stückzahl</th><th>Gewechselte Werkzeuge</th>'
-    + '<th>Wann</th><th>Wer</th></tr></thead><tbody>'
-    + runden.map((r) => '<tr>'
-        + '<td class="nr">' + (r.stk === null || r.stk === undefined
-            ? "—" : zahlText(r.stk)) + '</td>'
-        + '<td>' + r.zeilen.map((z) => '<span class="wz">' + esc(z.tool_nr)
-            + (z.gehalten_stk !== null && z.gehalten_stk !== undefined
-                ? ' <i>' + zahlText(z.gehalten_stk) + ' Stk</i>' : "")
-            + '</span>').join("")
-        + (r.notiz ? '<div style="color:#667;font-size:9pt">' + esc(r.notiz) + '</div>' : "")
-        + '</td>'
-        + '<td>' + esc(datumZeitKurz(r.wann)) + '</td>'
-        + '<td>' + esc(r.person || "") + '</td>'
-        + '</tr>').join("")
-    + '</tbody></table></body></html>');
+  fenster.document.write(historieBlatt(maschine, auftrag, runden, titel));
   fenster.document.close();
 
   // Zusätzlich in der Ablage hinterlegen, damit die Historie später

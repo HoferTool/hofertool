@@ -64,6 +64,21 @@ with sync_playwright() as p:
     pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-wzhistorie]")
     pg.click("[data-wzhistorie]"); pg.wait_for_timeout(900)
     pruefe("Historie offen", "Werkzeugwechsel ·" in pg.inner_text(".dialog-huelle"))
+    # Einen Eintrag einer Runde mit zwei Werkzeugen löschen
+    pruefe("Löschknopf da", pg.locator("[data-wzweg]").count() >= 1)
+    pg.locator("[data-wzweg]").first.click(); pg.wait_for_selector(".statuswahl [data-w='alle']")
+    pg.locator(".statuswahl [data-w='0']").click(); pg.wait_for_timeout(900)
+    rest = pg.evaluate("(TEST.daten.tool_changes || []).map(z => z.tool_nr)")
+    pruefe("Nur ein Werkzeug gelöscht", len(rest) == 1)
+    pruefe("Historie zeigt noch eins", pg.locator(".dialog-huelle .wz-marke").count() == 1)
+    # Letzten Eintrag: einfache Nachfrage, Abbrechen lässt ihn stehen
+    pg.locator("[data-wzweg]").first.click(); pg.wait_for_selector("[data-ja]")
+    pg.locator(".dialog-huelle [data-nein]").last.click(); pg.wait_for_timeout(400)
+    pruefe("Abbrechen löscht nicht", pg.evaluate("TEST.daten.tool_changes.length") == 1)
+    pg.locator("[data-wzweg]").first.click(); pg.wait_for_selector("[data-ja]")
+    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(900)
+    pruefe("Letzter Eintrag gelöscht", pg.evaluate("TEST.daten.tool_changes.length") == 0
+           and "Noch kein Wechsel" in pg.inner_text(".dialog-huelle"))
     pg.click(".dialog-huelle [data-zu]"); pg.wait_for_timeout(300)
     pruefe("Historie zu, Pad noch da", pg.locator(".dialog-huelle").count() == 0 and pg.locator("#pad .pad-stk-zahl").count() == 1)
 

@@ -5310,3 +5310,15 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
 .bs-mengewahl__feld { width: 2.8em; }
 /* Breit: Mengenspalte etwas breiter, damit Feld und Einheit in eine Zeile passen */
 @media (min-width: 1001px) { .bs-pos:not(.bs-pos--historie) { grid-template-columns: minmax(0, 1fr) 124px 160px 84px; } }
+
+/* ---------- Werkzeugwechsel: Einträge löschen ----------
+   Gross genug für den Finger am Tablet, aber zurückhaltend, damit
+   man nicht aus Versehen auf Löschen tippt. */
+.wz-weg-zelle { width: 1%; text-align: right; }
+.wz-weg { display: inline-grid; place-items: center; width: 44px; height: 44px;
+          border: 1px solid transparent; border-radius: var(--radius); background: none;
+          color: var(--gedaempft); cursor: pointer; transition: color .15s, background .15s, border-color .15s; }
+.wz-weg:hover, .wz-weg:focus-visible { color: var(--gefahr); border-color: var(--gefahr);
+          background: color-mix(in srgb, var(--gefahr) 10%, transparent); }
+.wz-weg:active { transform: scale(.94); }
+.wz-weg:disabled { opacity: .4; cursor: default; }
