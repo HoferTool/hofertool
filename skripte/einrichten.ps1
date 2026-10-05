@@ -1,11 +1,15 @@
 ﻿# =================================================================
-#  NEUER RECHNER — Solaranlage und Dokumenten-Pool in einem Zug
+#  NEUER RECHNER — Solaranlage, WBG-Pool und Einrichtblätter in einem Zug
 #
-#  Richtet auf einem Windows-Rechner im Betrieb beides ein:
+#  Richtet auf einem Windows-Rechner im Betrieb drei Aufgaben ein:
 #    - Solar: holt alle fünf Minuten die Werte vom Solar-Log und
 #      liefert sie an die App (solarlog.ps1)
-#    - Pool:  leert alle fünf Minuten den Ordner C:\Hofer\Pool in die
-#      App (dokumente-pool.ps1)
+#    - Pool:  leert alle fünf Minuten die WBGs aus C:\Hofer\Pool in
+#      die App (dokumente-pool.ps1)
+#    - Einrichtblätter: liest alle fünf Minuten die Excel-Dateien aus
+#      den Typ-Ordnern, die in der App eingetragen sind, und lädt neue
+#      und geänderte hoch (einrichtblaetter.ps1). Liest nur, löscht nie.
+#      Bis der Schalter in der App an ist, nur Probelauf.
 #
 #  Was das Skript tut:
 #    1. Lädt die Programme von GitHub nach C:\Hofer\Abgleich.
@@ -13,7 +17,7 @@
 #    3. Fragt nach dem Solar-Schlüssel und dem Dienstkonto und trägt
 #       sie in die Einstellungsdateien ein.
 #    4. Probiert beides aus, ohne etwas zu schreiben.
-#    5. Legt die zwei Aufgaben in der Aufgabenplanung an. Sonst bleibt
+#    5. Legt die Aufgaben in der Aufgabenplanung an. Sonst bleibt
 #       nichts zurück: kein Dienst, kein Autostart, kein Programm, das
 #       im Hintergrund wartet. Das Einrichten selbst endet danach.
 #
@@ -86,7 +90,7 @@ if (-not $istAdmin) {
 # ---------- 1. Programme holen ----------
 Titel "1. Programme holen"
 New-Item -ItemType Directory -Force -Path $Ziel | Out-Null
-foreach ($n in @("solarlog.ps1", "dokumente-pool.ps1", "dokumente-teile.ps1", "pool-einplanen.ps1")) {
+foreach ($n in @("solarlog.ps1", "dokumente-pool.ps1", "dokumente-teile.ps1", "pool-einplanen.ps1", "einrichtblaetter.ps1")) {
   try {
     Invoke-WebRequest -UseBasicParsing -Uri "$QUELLE/$n" -OutFile (Join-Path $Ziel $n) -TimeoutSec 60
     Unblock-File -Path (Join-Path $Ziel $n) -ErrorAction SilentlyContinue
@@ -274,17 +278,48 @@ if ($solarAn) {
 if ($poolAn) {
   New-Item -ItemType Directory -Force -Path $POOL | Out-Null
   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "dokumente-pool.ps1") -Probe
+  Write-Host ""
+  Info "Einrichtblätter, Probelauf (lädt nichts hoch, ändert in den Ordnern nichts):"
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "einrichtblaetter.ps1") -Probe
+}
+
+# Die Einrichtblatt-Ordner liegen meist auf einem anderen Rechner. Das
+# Konto SYSTEM kommt dort nicht hinein, darum läuft diese Aufgabe auf
+# Wunsch unter einem Windows-Konto, das die Ordner öffnen kann.
+$ebKonto = $null; $ebPw = $null
+if ($poolAn -and $istAdmin) {
+  Titel "4b. Konto für die Einrichtblatt-Ordner"
+  Info "Liegen die Einrichtblatt-Ordner auf einem Netzlaufwerk (\\Server\...), braucht die Aufgabe"
+  Info "ein Windows-Konto, das diese Ordner öffnen darf. Liegen sie auf diesem Rechner: einfach Enter."
+  $ebKonto = Frage "Windows-Konto (z.B. $([Security.Principal.WindowsIdentity]::GetCurrent().Name), leer = nur dieser Rechner)" ""
+  if ($ebKonto) {
+    $sec = Read-Host "Windows-Passwort von $ebKonto (wird nicht angezeigt)" -AsSecureString
+    $ebPw = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
+    if (-not $ebPw) { $ebKonto = $null }
+  }
 }
 
 # ---------- 5. Aufgabenplanung ----------
 Titel "5. Aufgaben anlegen"
-function Einplanen([string]$name, [string]$skript, [string]$text) {
+function Einplanen([string]$name, [string]$skript, [string]$text, [string]$konto, [string]$kontoPw) {
   $aktion = New-ScheduledTaskAction -Execute "powershell.exe" -WorkingDirectory $Ziel `
     -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + (Join-Path $Ziel $skript) + '"')
   $ausloeser = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
   $einst = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+  if ($konto -and $kontoPw) {
+    # Läuft auch ohne Anmeldung, mit den Rechten dieses Kontos im Netz
+    try {
+      Register-ScheduledTask -TaskName $name -Action $aktion -Trigger $ausloeser -Settings $einst `
+        -User $konto -Password $kontoPw -RunLevel Limited -Description $text -Force | Out-Null
+      Gut "Aufgabe '$name': alle 5 Minuten, als $konto"
+      return
+    } catch {
+      Warn "Mit dem Konto $konto ging es nicht ($($_.Exception.Message)). Die Aufgabe läuft nun als SYSTEM"
+      Warn "und kommt nicht auf Netzlaufwerke. Dieses Skript nochmals starten und das Konto richtig eingeben."
+    }
+  }
   if ($istAdmin) {
     # Läuft auch ohne Anmeldung, nach einem Neustart von selbst
     $wer = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
@@ -296,9 +331,16 @@ function Einplanen([string]$name, [string]$skript, [string]$text) {
   Gut "Aufgabe '$name': alle 5 Minuten"
 }
 if ($solarAn) { Einplanen "Hofer Solar" "solarlog.ps1" "Liefert alle 5 Minuten die Werte des Solar-Log ans Hofer Tool." }
-if ($poolAn)  { Einplanen "Hofer Dokumente-Pool" "dokumente-pool.ps1" "Lädt alle 5 Minuten WBGs und Einrichtblätter aus dem Pool-Ordner ins Hofer Tool und leert ihn." }
+if ($poolAn)  {
+  Einplanen "Hofer Dokumente-Pool" "dokumente-pool.ps1" "Lädt alle 5 Minuten die WBGs aus dem Pool-Ordner ins Hofer Tool und leert ihn."
+  Einplanen "Hofer Einrichtblätter" "einrichtblaetter.ps1" "Liest alle 5 Minuten die Excel-Einrichtblätter aus den Typ-Ordnern und lädt neue ins Hofer Tool. Löscht und ändert in den Ordnern nie etwas." $ebKonto $ebPw
+}
 
 Titel "Fertig"
 if ($solarAn) { Info "Solar-Protokoll: $(Join-Path $Ziel 'solarlog.log')" }
-if ($poolAn)  { Info "Pool-Protokoll:  $(Join-Path $Ziel 'pool.log')"; Info "Dateien hineinlegen in: $POOL" }
+if ($poolAn)  {
+  Info "Pool-Protokoll:  $(Join-Path $Ziel 'pool.log')"; Info "WBGs hineinlegen in: $POOL"
+  Info "Einrichtblätter-Protokoll: $(Join-Path $Ziel 'einrichtblaetter.log')"
+  Info "Einrichtblätter: Bis du in der App den Schalter 'Hochladen' einschaltest, nur Probelauf."
+}
 Fertig 0

@@ -5404,3 +5404,14 @@ body.einfuegemodus .pw-zelle:not(.pw-zelle--fein):hover { background: transparen
    oder Finger am Balken hängen bleiben. */
 #pw-parkplatz { position: fixed; left: 0; top: 0; width: 0; height: 0;
   overflow: hidden; opacity: 0; pointer-events: none; }
+/* Einstellungen → Dokumente → Einrichtblatt-Ordner: je Zeile Pfad, Typ, Unterordner */
+.eb-ordner-zeile { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, 240px) auto auto;
+  gap: 8px; align-items: center; margin: 6px 0; }
+.eb-ordner-zeile > input, .eb-ordner-zeile > select { width: 100%; min-width: 0; margin: 0; }
+@media (max-width: 700px) {
+  .eb-ordner-zeile { grid-template-columns: minmax(0, 1fr) auto; padding-bottom: 8px; border-bottom: 1px solid var(--linie); }
+  .eb-ordner-pfad { grid-column: 1 / -1; }
+}
+.eb-ordner-unter { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.eb-liste { margin-top: 12px; }
+.eb-liste summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }

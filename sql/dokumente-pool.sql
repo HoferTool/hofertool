@@ -30,8 +30,8 @@ $$;
 
 drop policy if exists "dienst meldet stand" on public.app_config;
 create policy "dienst meldet stand" on public.app_config for all to authenticated
-  using (schluessel in ('dok_pfad_status', 'dok_pool_status') and (select public.bin_dienst()))
-  with check (schluessel in ('dok_pfad_status', 'dok_pool_status') and (select public.bin_dienst()));
+  using (schluessel in ('dok_pfad_status', 'dok_pool_status', 'eb_ordner_status') and (select public.bin_dienst()))
+  with check (schluessel in ('dok_pfad_status', 'dok_pool_status', 'eb_ordner_status') and (select public.bin_dienst()));
 
 notify pgrst, 'reload schema';
 

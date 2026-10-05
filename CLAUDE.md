@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.47.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.48.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -116,7 +116,8 @@ Alle sind PowerShell 5.1 auf Windows, ohne Installation.
 
 - **`solarlog.ps1`** holt alle fünf Minuten die Werte vom Solar-Log (`/getjp`, Abfrage 801/170) und liefert sie über `rpc/solar_melden` ins neue Projekt, mit eigenem Solar-Schlüssel aus `sql/solar.sql` in `solar-einstellungen.json` (kein Hauptschlüssel nötig). Anleitung: `anleitungen/Solar-Anleitung.md`. Bis Patrick sie umgesetzt hat, läuft im Betrieb noch das alte Skript ins alte Projekt, und das alte Projekt reicht die Werte über `sql/solar-weiterleiten.sql` (pg_net-Auslöser) ans neue weiter.
 - **`dokumente-abgleich.ps1`** gleicht jede Minute einen Ordner auf dem Netzlaufwerk ab, mit dem Pfad aus der App, über ein Dienstkonto.
-- **`dokumente-pool.ps1`** leert alle fünf Minuten den Pool-Ordner (WBG mit FA Nr., Excel-Einrichtblätter) in die App; `pool-einplanen.ps1` legt die Aufgabe an. Beide Dokument-Programme laden `dokumente-teile.ps1` (Erkennen und Hochladen wie `dokErkennen`/`dokZielSuchen`/`dokHochladen` in der App, Änderungen an beiden Stellen nachziehen). Anleitung `anleitungen/Pool-Anleitung.md`.
+- **`dokumente-pool.ps1`** leert alle fünf Minuten die WBGs aus dem Pool-Ordner in die App (anderes kommt nach „nicht zugeordnet“, gelöscht wird nur Hochgeladenes); `pool-einplanen.ps1` legt die Aufgabe an. Beide Dokument-Programme laden `dokumente-teile.ps1` (Erkennen und Hochladen wie `dokErkennen`/`dokZielSuchen`/`dokHochladen` in der App, Änderungen an beiden Stellen nachziehen). Anleitung `anleitungen/Pool-Anleitung.md`.
+- **`einrichtblaetter.ps1`** liest alle fünf Minuten die Typ-Ordner aus Einstellungen → Dokumente → Einrichtblatt-Ordner und lädt Excel mit HOCO Nr. im Namen als Einrichtblatt auf den Typ des Ordners. **Liest nur, löscht und verschiebt dort nie etwas** (Entscheid Patrick 5. Oktober 2026). Bis der Schalter „Hochladen“ in der App an ist, nur Probelauf. Anleitung `anleitungen/Einrichtblatt-Anleitung.md`.
 - **`einrichten.ps1`** richtet Solar und Pool auf einem neuen Rechner in einem Zug ein: holt die Programme von GitHub nach `C:\Hofer\Abgleich`, sucht den Solar-Log im Netz, fragt Solar-Schlüssel und Dienstkonto ab, probiert beides aus und legt die Aufgaben „Hofer Solar“ und „Hofer Dokumente-Pool“ an (als Administrator unter SYSTEM). Anleitung `anleitungen/Neuer-Rechner-Anleitung.md`.
 - **`sicherung.ps1` / `wiederherstellen.ps1`** sichern die Datenbank mit `pg_dump`.
 - **`verknuepfung.ps1`** legt eine Desktop-Verknüpfung mit Symbol an.

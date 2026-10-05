@@ -1,8 +1,12 @@
-# Pool-Ordner: WBGs und Einrichtblätter einfach hineinlegen
+# Pool-Ordner: WBGs einfach hineinlegen
 
-Ein Ordner auf deinem Rechner. Was du hineinlegst, holt ein kleines
-Programm alle fünf Minuten ab, legt es in der App am richtigen Ort ab
-und löscht es danach aus dem Ordner. Nichts muss installiert werden.
+Ein Ordner auf deinem Rechner, **nur für WBGs**. Was du hineinlegst,
+holt ein kleines Programm alle fünf Minuten ab, hängt es in der App an
+den richtigen Auftrag und löscht es danach aus dem Ordner.
+
+Einrichtblätter kommen **nicht** in den Pool. Die liest ein eigenes
+Programm aus den Typ-Ordnern, ohne dort etwas zu löschen, siehe
+[Einrichtblatt-Anleitung](Einrichtblatt-Anleitung.md).
 
 ## So benennst du die Dateien
 
@@ -10,9 +14,8 @@ und löscht es danach aus dem Ordner. Nichts muss installiert werden.
 |---|---|
 | `20268566 10007-0381.pdf` | WBG. Kommt an den **nächsten offenen Auftrag** der HOCO Nr. 10007-0381, der noch keine FA Nr. hat. Die FA Nr. 20268566 wird dort eingetragen. |
 | gleiche FA Nr. nochmals | Die FA Nr. gibt es nur einmal: Die neue WBG ersetzt die alte am selben Auftrag. |
-| `10844-0049 SW-20.xlsx` | Excel ist immer ein **Einrichtblatt**: für die HOCO Nr. 10844-0049 auf dem Typ SW-20. |
-| `10844-0049.xlsx` | Einrichtblatt ohne Typ im Namen: Es gilt der Typ der Maschine, auf der der nächste Auftrag dieser Nummer geplant ist. |
-| `SW-20.xlsx` | Einrichtblatt-Vorlage des Typs SW-20. |
+| `10007-0381 WBG.pdf` | WBG ohne FA Nr.: an alle offenen Aufträge der HOCO Nr. |
+| alles andere (Excel, Zeichnung, …) | Wird **nicht gelöscht**, sondern in den Unterordner „nicht zugeordnet“ geschoben. |
 
 Die Reihenfolge im Namen ist egal, Leerzeichen, Striche und
 Unterstriche auch. Die FA Nr. hat 7 bis 10 Ziffern.
@@ -21,6 +24,7 @@ Unterstriche auch. Die FA Nr. hat 7 bis 10 Ziffern.
   Ordner liegen und wird alle fünf Minuten neu versucht.
 - **Gar nicht zuzuordnen?** Die Datei kommt in den Unterordner
   „nicht zugeordnet“. Umbenennen und wieder in den Pool legen.
+  Gelöscht wird nur, was als WBG hochgeladen ist.
 - In der App unter **Einstellungen → Dokumente → Pool-Ordner** siehst
   du, wann das Programm zuletzt lief, was wartet und was nicht passte.
   Im **Verlauf** steht jede Datei mit „Pool-Ordner“ als Herkunft.

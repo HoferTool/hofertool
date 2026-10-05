@@ -1,12 +1,15 @@
-# Neuer Rechner: Solaranlage und Dokumenten-Pool
+# Neuer Rechner: Solaranlage, WBG-Pool und Einrichtblätter
 
-Ein Windows-Rechner im Betrieb übernimmt zwei Aufgaben, jede alle
+Ein Windows-Rechner im Betrieb übernimmt drei Aufgaben, jede alle
 fünf Minuten:
 
 - **Solar:** Werte vom Solar-Log holen und an die App liefern.
-- **Pool:** Dateien aus `C:\Hofer\Pool` (WBGs, Einrichtblätter) in die
-  App laden. Was das Programm mit welchem Dateinamen macht, steht in
-  der [Pool-Anleitung](Pool-Anleitung.md).
+- **Pool:** WBGs aus `C:\Hofer\Pool` in die App laden und den Ordner
+  leeren, siehe [Pool-Anleitung](Pool-Anleitung.md).
+- **Einrichtblätter:** Excel-Einrichtblätter aus den Typ-Ordnern lesen
+  und hochladen, ohne dort je etwas zu löschen. Bis du in der App
+  einschaltest, nur Probelauf. Siehe
+  [Einrichtblatt-Anleitung](Einrichtblatt-Anleitung.md).
 
 Der Rechner muss im selben Netz wie der Solar-Log sein und sollte
 immer laufen. Den alten Solar-Rechner brauchst du dafür nicht. Rechne
@@ -61,13 +64,18 @@ Mit diesem Konto lädt das Pool-Programm die Dateien hoch.
    - Danach probiert es beides aus, ohne etwas zu schreiben. Richtig
      ist bei Solar `Probe: Erzeugung … W, Verbrauch … W` und
      `Probe: Schlüssel ok`.
+   - **Windows-Konto für die Einrichtblatt-Ordner:** Liegen diese auf
+     einem anderen Rechner, dein Windows-Konto und dessen Passwort
+     eingeben (bleibt unsichtbar). Sonst einfach Enter.
    - Zum Schluss legt es in der Windows-Aufgabenplanung die Aufgaben
-     **Hofer Solar** und **Hofer Dokumente-Pool** an.
+     **Hofer Solar**, **Hofer Dokumente-Pool** und **Hofer
+     Einrichtblätter** an.
 4. Bei **Fertig** Enter drücken. Das Fenster geht zu, das Einrichten
    ist damit vorbei.
 
 Danach läuft alles nur noch über die **Aufgabenplanung**: Sie startet
-alle fünf Minuten `solarlog.ps1` und `dokumente-pool.ps1`, die tun
+alle fünf Minuten `solarlog.ps1`, `dokumente-pool.ps1` und
+`einrichtblaetter.ps1`, die tun
 ihre Arbeit und beenden sich sofort wieder. Es gibt keinen Dienst,
 keinen Autostart und kein Programm, das im Hintergrund wartet.
 Ansehen, anhalten oder löschen: Start-Knopf, **Aufgabenplanung**,

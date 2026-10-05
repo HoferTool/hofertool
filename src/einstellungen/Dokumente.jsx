@@ -105,6 +105,7 @@ export default function Dokumente() {
       </Gruppe>
       <Regeln />
       <PoolOrdner />
+      <EinrichtblattOrdner />
       <Netzlaufwerk />
       <Verlauf stand={stand} frisch={frisch} />
       <Letzte stand={stand} hochladen={hochladenWaehlen} />
@@ -257,10 +258,10 @@ function PoolOrdner() {
   const { daten } = useDaten(poolLaden, []);
   return (
     <Gruppe titel="Pool-Ordner"
-      text={"Ein Ordner, in den ihr WBGs und Einrichtblätter einfach hineinlegt. Das Programm "
-        + "dokumente-pool.ps1 holt sie über die Windows-Aufgabenplanung alle fünf Minuten ab, ordnet sie "
-        + "zu wie oben und löscht sie danach aus dem Ordner. Was nicht passt, kommt in den Unterordner "
-        + "„nicht zugeordnet“; eine WBG, deren Auftrag noch nicht geplant ist, wartet bis zu sieben Tage im Ordner."}>
+      text={"Ein Ordner nur für WBGs. Das Programm dokumente-pool.ps1 holt sie über die Windows-Aufgabenplanung "
+        + "alle fünf Minuten ab, ordnet sie zu wie oben und löscht sie danach aus dem Ordner. Alles andere, auch "
+        + "Excel, löscht es nicht, sondern schiebt es in den Unterordner „nicht zugeordnet“; eine WBG, deren "
+        + "Auftrag noch nicht geplant ist, wartet bis zu sieben Tage im Ordner."}>
       {daten ? <PoolFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
   );
@@ -305,6 +306,135 @@ function PoolFormular({ werte }) {
         <div id="dokpool-stand" className="dokpfad-stand">{stand}</div>
         <button className="knopf knopf--klein knopf--haupt" id="dokpool-speichern"
           onClick={speichern}>Ordner speichern</button></div>
+    </>
+  );
+}
+
+// ---------- Einrichtblatt-Ordner (nur lesen, je Ordner ein Typ) ----------
+//  einrichtblaetter.ps1 liest diese Ordner über die Aufgabenplanung und
+//  lädt Excel-Dateien mit HOCO Nr. im Namen als Einrichtblatt auf den Typ
+//  des Ordners. Es löscht dort nie etwas. Solange „Hochladen“ aus ist,
+//  meldet es nur, was es tun würde (Patrick will zuerst testen).
+
+async function ebLaden() {
+  const werte = {};
+  try {
+    const r = await alt.zeitlimit(alt.db.from("app_config").select("schluessel, wert")
+      .in("schluessel", ["eb_ordner", "eb_ordner_status"]), 6000, "Einrichtblatt-Ordner");
+    ((r && r.data) || []).forEach((x) => { werte[x.schluessel] = x.wert; });
+  } catch (f) { /* leer lassen */ }
+  const typen = await typenHolen();
+  return { werte, typen };
+}
+
+function EinrichtblattOrdner() {
+  const { daten } = useDaten(ebLaden, []);
+  return (
+    <Gruppe titel="Einrichtblatt-Ordner" id="eb-ordner"
+      text={"Ordner mit den Excel-Einrichtblättern, je Ordner ein Maschinentyp. Das Programm einrichtblaetter.ps1 "
+        + "schaut über die Windows-Aufgabenplanung alle fünf Minuten hinein und nimmt nur Excel-Dateien mit einer "
+        + "HOCO Nr. im Namen, egal wie sie sonst heissen. PDF, CAD und alles andere lässt es liegen. Es liest nur: "
+        + "In den Ordnern wird nie etwas gelöscht, verschoben oder geändert."}>
+      {daten ? <EbFormular werte={daten.werte} typen={daten.typen} /> : <div className="laedt">Wird geladen …</div>}
+    </Gruppe>
+  );
+}
+
+function jsonOder(text, ersatz) {
+  try { return text ? JSON.parse(text) : ersatz; } catch (f) { return ersatz; }
+}
+
+function EbFormular({ werte, typen }) {
+  const start = jsonOder(werte.eb_ordner, null) || {};
+  const [ordner, setOrdner] = useState(
+    (start.ordner && start.ordner.length) ? start.ordner : [{ pfad: "", typ: "", unter: false }]);
+  const [scharf, setScharf] = useState(!!start.scharf);
+  const st = jsonOder(werte.eb_ordner_status, null);
+  const admin = alt.istAdmin();
+
+  const aendern = (i, feld, wert) => setOrdner((l) => l.map((o, j) => (j === i ? { ...o, [feld]: wert } : o)));
+  const speichern = async (neuScharf) => {
+    const liste = ordner.map((o) => ({ pfad: (o.pfad || "").trim(), typ: o.typ || "", unter: !!o.unter }))
+      .filter((o) => o.pfad);
+    if (liste.some((o) => !o.typ)) { alt.meldung("Bei jedem Ordner einen Maschinentyp wählen.", "warn"); return; }
+    const r = await alt.db.from("app_config").upsert([{ schluessel: "eb_ordner",
+      wert: JSON.stringify({ scharf: neuScharf, ordner: liste }) }]);
+    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
+    setScharf(neuScharf);
+    alt.meldung(neuScharf ? "Hochladen eingeschaltet. Ab dem nächsten Durchlauf lädt das Programm hoch."
+      : "Gespeichert. Das Programm macht beim nächsten Durchlauf einen Probelauf.", "gut");
+  };
+  const umschalten = async () => {
+    if (!scharf) {
+      const ok = await alt.nachfragen({ titel: "Hochladen einschalten?",
+        text: "Ab dem nächsten Durchlauf lädt das Programm die Einrichtblätter aus den Ordnern hoch. Ein vorhandenes "
+          + "Einrichtblatt derselben HOCO Nr. auf demselben Typ wird in der App ersetzt. In den Ordnern ändert sich nichts.",
+        bestaetigen: "Einschalten" });
+      if (!ok) return;
+    }
+    speichern(!scharf);
+  };
+
+  let stand;
+  if (!st) stand = <span className="gedaempft">Das Programm hat sich noch nicht gemeldet.</span>;
+  else {
+    const minuten = (Date.now() - new Date(st.zeit).getTime()) / 60000;
+    const wuerde = (st.neu || 0) + (st.ersetzt || 0);
+    stand = <>
+      <span className={"dokpfad-punkt " + (minuten < 15 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
+      {(st.scharf ? "Zuletzt " : "Probelauf ") + alt.datumZeitKurz(st.zeit) + (st.rechner ? " auf " + st.rechner : "")
+        + " · " + (st.excel || 0) + " Excel-Dateien · "
+        + (st.scharf ? (st.hochgeladen || 0) + " hochgeladen"
+          : wuerde + " würden hochgeladen (" + (st.neu || 0) + " neu, " + (st.ersetzt || 0) + " ersetzen ein vorhandenes)")}
+      {minuten >= 15 && <> <b>— seit {Math.round(minuten)} Minuten keine Meldung</b></>}
+      {st.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{st.fehler}</div>}
+    </>;
+  }
+  const liste = (st && st.liste) || [];
+
+  return (
+    <>
+      {ordner.map((o, i) => (
+        <div className="eb-ordner-zeile" key={i}>
+          <input type="text" className="eb-ordner-pfad" aria-label="Ordner" placeholder={"\\\\Server\\Einrichtblätter\\SW-20"}
+            value={o.pfad} disabled={!admin} onChange={(e) => aendern(i, "pfad", e.target.value)} />
+          <select aria-label="Maschinentyp" value={o.typ} disabled={!admin} onChange={(e) => aendern(i, "typ", e.target.value)}>
+            <option value="">Typ wählen</option>
+            {typen.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <label className="eb-ordner-unter klein">
+            <input type="checkbox" checked={!!o.unter} disabled={!admin}
+              onChange={(e) => aendern(i, "unter", e.target.checked)} /> mit Unterordnern</label>
+          {admin && <button className="knopf knopf--klein" aria-label="Ordner entfernen" title="Ordner entfernen"
+            onClick={() => setOrdner((l) => (l.length > 1 ? l.filter((x, j) => j !== i) : [{ pfad: "", typ: "", unter: false }]))}>✕</button>}
+        </div>
+      ))}
+      {admin && <button className="knopf knopf--klein" id="eb-ordner-dazu"
+        onClick={() => setOrdner((l) => [...l, { pfad: "", typ: "", unter: false }])}>+ Ordner</button>}
+      <p className="klein gedaempft">Ordner auf einem anderen Rechner als \\Server\Freigabe\… eintragen, nicht mit
+        Laufwerksbuchstaben wie Z:. Gibt es für eine HOCO Nr. mehrere Excel-Dateien, zählt die zuletzt geänderte.</p>
+      <SchalterZeile id="eb-scharf" titel="Hochladen"
+        text={scharf ? "Ein: neue und geänderte Einrichtblätter werden hochgeladen."
+          : "Aus: nur Probelauf. Das Programm zeigt unten, was es hochladen würde, und lädt nichts hoch."}
+        checked={scharf} onChange={admin ? umschalten : () => {}} />
+      <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
+        <div id="eb-stand" className="dokpfad-stand">{stand}</div>
+        {admin && <button className="knopf knopf--klein knopf--haupt" id="eb-speichern"
+          onClick={() => speichern(scharf)}>Ordner speichern</button>}</div>
+      {liste.length > 0 && <details className="eb-liste" open={!st.scharf}>
+        <summary>{st.scharf ? "Letzter Durchlauf" : "Was der Probelauf hochladen würde"} ({liste.length})</summary>
+        <div className="tabellenrolle">
+          <table className="tabelle es-tabelle" id="eb-tabelle"><thead><tr>
+            <th>Datei</th><th>HOCO Nr.</th><th>Typ</th><th>Ergebnis</th></tr></thead>
+            <tbody>{liste.map((x, i) => (
+              <tr key={i}><td><code>{x.d}</code></td><td>{x.h || "–"}</td>
+                <td>{(st.ordner && st.ordner[x.o] && st.ordner[x.o].typ) || ""}</td><td>{x.w}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </details>}
+      {st && st.ordner && st.ordner.some((o) => o.fehler) && <div className="klein" style={{ color: "var(--gefahr)" }}>
+        {st.ordner.filter((o) => o.fehler).map((o) => o.pfad + ": " + o.fehler).join(" · ")}</div>}
     </>
   );
 }
@@ -382,7 +512,7 @@ function PfadFormular({ werte }) {
 
 // ---------- Verlauf ----------
 
-const QUELLE = { hand: "von Hand", ordner: "Ordner", pfad: "Netzlaufwerk", pool: "Pool-Ordner", "aufräumen": "aufgeräumt" };
+const QUELLE = { hand: "von Hand", ordner: "Ordner", pfad: "Netzlaufwerk", pool: "Pool-Ordner", "eb-ordner": "Einrichtblatt-Ordner", "aufräumen": "aufgeräumt" };
 
 async function verlaufLaden() {
   const r = await alt.zeitlimit(alt.db.from("dokumente_verlauf").select("*")

@@ -31,7 +31,7 @@ $einst = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAva
   -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
 
 Register-ScheduledTask -TaskName $name -Action $aktion -Trigger $ausloeser -Settings $einst `
-  -Description "Lädt alle 5 Minuten WBGs und Einrichtblätter aus dem Pool-Ordner ins Hofer Tool und leert ihn." `
+  -Description "Lädt alle 5 Minuten die WBGs aus dem Pool-Ordner ins Hofer Tool und leert ihn." `
   -Force | Out-Null
 
 Write-Host "Aufgabe '$name' angelegt: alle 5 Minuten, solange du angemeldet bist."

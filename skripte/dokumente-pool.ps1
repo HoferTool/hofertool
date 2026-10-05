@@ -1,17 +1,18 @@
 ﻿# =================================================================
-#  DOKUMENTE-POOL — Ordner leeren und in die App ablegen
+#  DOKUMENTE-POOL — WBGs aus dem Ordner in die App, Ordner leeren
 #
-#  Läuft über die Windows-Aufgabenplanung alle fünf Minuten. Nimmt
-#  jede Datei aus dem Pool-Ordner, ordnet sie am Namen zu wie die App,
-#  lädt sie hoch und löscht sie danach aus dem Ordner:
+#  Läuft über die Windows-Aufgabenplanung alle fünf Minuten. Im
+#  Pool-Ordner liegen nur WBGs. Das Programm ordnet jede am Namen zu
+#  wie die App, lädt sie hoch und löscht sie danach aus dem Ordner:
 #
 #     20268566 10007-0381.pdf   → WBG an den nächsten offenen Auftrag
 #                                 der HOCO Nr. 10007-0381 ohne FA Nr.,
 #                                 die FA Nr. 20268566 wird eingetragen
-#     10844-0049 SW-20.xlsx     → Einrichtblatt der HOCO Nr. auf SW-20
-#     10844-0049.xlsx           → Einrichtblatt, Typ von der Maschine
-#                                 des nächsten Auftrags
-#     SW-20.xlsx                → Einrichtblatt-Vorlage des Typs
+#     10007-0381 WBG.pdf        → WBG an die offenen Aufträge der Nr.
+#
+#  Alles andere (Excel, Zeichnungen, …) löscht es nicht, sondern
+#  schiebt es in den Unterordner "nicht zugeordnet". Einrichtblätter
+#  holt einrichtblaetter.ps1 aus den Typ-Ordnern, nur lesend.
 #
 #  Steht die FA Nr. schon auf einem Auftrag, ersetzt die neue WBG dort
 #  die alte. Eine WBG, deren Auftrag noch nicht geplant ist, bleibt bis
@@ -126,7 +127,13 @@ try {
   foreach ($d in $dateien) {
     if (NochInArbeit $d) { continue }                                 # beim nächsten Mal
     $z = Erkennen $d.Name $typen $regeln
-    if (BrauchtZiel $z) { $z = ZielSuchen $z $typen }
+    # Nur WBGs: alles andere bleibt unangetastet in "nicht zugeordnet"
+    if ($z.art -ne "wbg") {
+      $z.passt = $false
+      if ($d.Extension -match '^\.(xlsx|xlsm|xls)$') { $z.grund = "Einrichtblätter kommen aus den Einrichtblatt-Ordnern, nicht aus dem Pool" }
+      else { $z.grund = "im Pool nur WBGs (FA Nr. oder WBG im Namen)" }
+    }
+    elseif (BrauchtZiel $z) { $z = ZielSuchen $z $typen }
 
     if (-not $z.passt) {
       # WBG mit FA Nr., deren Auftrag noch nicht geplant ist: warten
