@@ -61,10 +61,17 @@ Mit diesem Konto lädt das Pool-Programm die Dateien hoch.
    - Danach probiert es beides aus, ohne etwas zu schreiben. Richtig
      ist bei Solar `Probe: Erzeugung … W, Verbrauch … W` und
      `Probe: Schlüssel ok`.
-   - Zum Schluss legt es die Aufgaben **Hofer Solar** und **Hofer
-     Dokumente-Pool** an und auf dem Desktop die Verknüpfung **Hofer
-     Pool**.
-4. Bei **Fertig** Enter drücken.
+   - Zum Schluss legt es in der Windows-Aufgabenplanung die Aufgaben
+     **Hofer Solar** und **Hofer Dokumente-Pool** an.
+4. Bei **Fertig** Enter drücken. Das Fenster geht zu, das Einrichten
+   ist damit vorbei.
+
+Danach läuft alles nur noch über die **Aufgabenplanung**: Sie startet
+alle fünf Minuten `solarlog.ps1` und `dokumente-pool.ps1`, die tun
+ihre Arbeit und beenden sich sofort wieder. Es gibt keinen Dienst,
+keinen Autostart und kein Programm, das im Hintergrund wartet.
+Ansehen, anhalten oder löschen: Start-Knopf, **Aufgabenplanung**,
+links **Aufgabenplanungsbibliothek**.
 
 Etwas falsch eingetippt? Einfach die Zeile aus Schritt 3.2 nochmals
 ausführen. Was stimmt, bleibt mit Enter stehen.
@@ -77,7 +84,7 @@ Nach fünf bis zehn Minuten:
   eben.
 - Unter **Einstellungen → Dokumente → Pool-Ordner** steht, wann das
   Programm zuletzt lief.
-- Eine WBG auf die Verknüpfung **Hofer Pool** ziehen. Nach fünf
+- Eine WBG in den Ordner `C:\Hofer\Pool` legen. Nach fünf
   Minuten ist sie aus dem Ordner verschwunden und hängt am Auftrag.
 
 Die Protokolle stehen in `C:\Hofer\Abgleich\solarlog.log` und
