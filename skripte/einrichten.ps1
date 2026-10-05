@@ -13,8 +13,9 @@
 #    3. Fragt nach dem Solar-Schlüssel und dem Dienstkonto und trägt
 #       sie in die Einstellungsdateien ein.
 #    4. Probiert beides aus, ohne etwas zu schreiben.
-#    5. Legt die zwei Aufgaben in der Aufgabenplanung an und eine
-#       Verknüpfung "Hofer Pool" auf dem Desktop.
+#    5. Legt die zwei Aufgaben in der Aufgabenplanung an. Sonst bleibt
+#       nichts zurück: kein Dienst, kein Autostart, kein Programm, das
+#       im Hintergrund wartet. Das Einrichten selbst endet danach.
 #
 #  Start (PowerShell, am besten "Als Administrator ausführen"):
 #     [Net.ServicePointManager]::SecurityProtocol='Tls12'; iwr -UseBasicParsing https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte/einrichten.ps1 -OutFile $env:TEMP\einrichten.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\einrichten.ps1
@@ -288,16 +289,6 @@ function Einplanen([string]$name, [string]$skript, [string]$text) {
 }
 if ($solarAn) { Einplanen "Hofer Solar" "solarlog.ps1" "Liefert alle 5 Minuten die Werte des Solar-Log ans Hofer Tool." }
 if ($poolAn)  { Einplanen "Hofer Dokumente-Pool" "dokumente-pool.ps1" "Lädt alle 5 Minuten WBGs und Einrichtblätter aus dem Pool-Ordner ins Hofer Tool und leert ihn." }
-
-if ($poolAn) {
-  try {
-    $sh = New-Object -ComObject WScript.Shell
-    $lnk = $sh.CreateShortcut((Join-Path ([Environment]::GetFolderPath("Desktop")) "Hofer Pool.lnk"))
-    $lnk.TargetPath = $POOL
-    $lnk.Save()
-    Gut "Verknüpfung 'Hofer Pool' auf dem Desktop"
-  } catch { }
-}
 
 Titel "Fertig"
 if ($solarAn) { Info "Solar-Protokoll: $(Join-Path $Ziel 'solarlog.log')" }

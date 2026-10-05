@@ -59,7 +59,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 | Datum | `isoDatum`, `plusTage`, `arbeitstage(ab, n)`, `arbeitstagePlus(datum, n)`, `naechsterArbeitstag`, `wochenStart`, `kurzDatum`, `datumZeitKurz` — Arbeitstage = Mo–Fr. `arbeitstage` und `arbeitstagePlus` merken sich Ergebnisse. |
 | Zahlen | `zahlText(n)` → `1'200` |
 | Planwand | `plan` (Zustand), `ladePlanAuftraege(alle)`, `planAktualisieren(b)`, `zeichnePlanwand(b)`, `neuZeichnen(b)`, `planKonflikteRechnen/Loesen`, `planAufruecken`, `parallelSenden(aufgaben)`, `zuHeute(b)` |
-| Werkstoffe | `werkstoffErkennen(bez)` → Gruppe und Farbe: V2A rot, V4A grau, Chromstahl rosa, Stahl blau, Alu weiss, Messing gelb, Neusilber orange |
+| Werkstoffe | `werkstoffErkennen(bez)` → Gruppe und Farbe: V2A rot, V4A grau, Chromstahl rosa, Stahl blau, Alu weiss, Messing orange, Neusilber gelb, Messing ohne Blei senf, Titan violett |
 | Pad Mode | `pad` (Zustand), `padZeichnen()`, `padStart`, `padParks`, `padMaschinen`, `padMaschine`, `padTextEinpassen()`, `betrachter(url, titel, istPdf)` |
 | Abgleich | `syncPruefen()`, `serverStempel(tabellen)`, `dashboardTeile(b, still)`, `stillNeuZeichnen(id, fn)` |
 | Dokumente | `dokErkennen(name, typen)`, `dokHochladen(datei, zuordnung, quelle)`, `DOK_REGELN` |
