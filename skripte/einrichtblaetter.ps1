@@ -135,7 +135,7 @@ try {
   $oi = -1
   foreach ($o in @($konf.ordner)) {
     $oi++
-    $pfad = ([string]$o.pfad).Trim()
+    $pfad = PfadAufloesen ([string]$o.pfad)
     $typ = $typen | Where-Object { [string]$_.id -eq [string]$o.typ } | Select-Object -First 1
     $info = @{ pfad = $pfad; typ = $(if ($typ) { $typ.name } else { "" }); excel = 0; fehler = $null }
     $status.ordner += $info
@@ -144,7 +144,7 @@ try {
     if (-not (Test-Path -LiteralPath $pfad)) {
       $info.fehler = "Ordner nicht erreichbar"
       if ($pfad -match '^[D-Zd-z]:') {
-        $info.fehler += ". Laufwerksbuchstaben kennt die Aufgabe oft nicht, besser \\Server\Freigabe\... eintragen"
+        $info.fehler += ". Das Laufwerk " + $pfad.Substring(0, 2) + " kennt die Aufgabe nicht, besser \\Server\Freigabe\... eintragen"
       }
       Schreibe ("Ordner nicht erreichbar: " + $pfad)
       continue

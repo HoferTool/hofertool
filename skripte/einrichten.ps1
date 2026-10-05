@@ -268,6 +268,22 @@ if ($poolAn) {
   Warn "Pool wird übersprungen. Dienstkonto anlegen (Anleitung Schritt 2) und dieses Skript nochmals starten."
 }
 
+# Laufwerksbuchstaben wie G: gibt es nur in der eigenen Anmeldung. Im
+# Administrator-Fenster und in der Aufgabenplanung fehlen sie oft. Dann
+# den Netzpfad nehmen, den Windows sich für dieses Laufwerk merkt
+# (HKCU:\Network\G → \\Server\Freigabe).
+function PfadAufloesen([string]$p) {
+  $p = ([string]$p).Trim()
+  $m = [regex]::Match($p, '^([A-Za-z]):(.*)$')
+  if (-not $m.Success) { return $p }
+  if (Test-Path -LiteralPath ($m.Groups[1].Value + ":\")) { return $p }
+  try {
+    $netz = (Get-ItemProperty -Path ("HKCU:\Network\" + $m.Groups[1].Value.ToUpper()) -ErrorAction Stop).RemotePath
+    if ($netz) { return ($netz.TrimEnd("\") + $m.Groups[2].Value) }
+  } catch { }
+  return $p
+}
+
 # ---------- 4. Probe ----------
 Titel "4. Ausprobieren (schreibt nichts)"
 if ($solarAn) {
@@ -278,8 +294,12 @@ if ($solarAn) {
   }
 }
 if ($poolAn) {
-  New-Item -ItemType Directory -Force -Path $POOL | Out-Null
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "dokumente-pool.ps1") -Probe
+  $poolEcht = PfadAufloesen $POOL
+  if ($poolEcht -ne $POOL) { Info "Laufwerk $($POOL.Substring(0, 2)) ist $poolEcht" }
+  $poolDa = $false
+  try { New-Item -ItemType Directory -Force -Path $poolEcht -ErrorAction Stop | Out-Null; $poolDa = $true }
+  catch { Warn "Den Pool-Ordner $POOL erreiche ich von hier aus nicht. Die Aufgabe wird trotzdem angelegt." }
+  if ($poolDa) { & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "dokumente-pool.ps1") -Probe }
   Write-Host ""
   Info "Einrichtblätter, Probelauf (lädt nichts hoch, ändert in den Ordnern nichts):"
   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "einrichtblaetter.ps1") -Probe
@@ -316,7 +336,7 @@ function Einplanen([string]$name, [string]$skript, [string]$text, [switch]$nurAn
 }
 if ($solarAn) { Einplanen "Hofer Solar" "solarlog.ps1" "Liefert alle 5 Minuten die Werte des Solar-Log ans Hofer Tool." }
 if ($poolAn)  {
-  Einplanen "Hofer Dokumente-Pool" "dokumente-pool.ps1" "Lädt alle 5 Minuten die WBGs aus dem Pool-Ordner ins Hofer Tool und leert ihn."
+  Einplanen "Hofer Dokumente-Pool" "dokumente-pool.ps1" "Lädt alle 5 Minuten die WBGs aus dem Pool-Ordner ins Hofer Tool und leert ihn." -nurAngemeldet
   Einplanen "Hofer Einrichtblätter" "einrichtblaetter.ps1" "Liest alle 5 Minuten die Excel-Einrichtblätter aus den Typ-Ordnern und lädt neue ins Hofer Tool. Löscht und ändert in den Ordnern nie etwas." -nurAngemeldet
 }
 

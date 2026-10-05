@@ -8,6 +8,22 @@
 #  StandSichern bereit.
 # =================================================================
 
+# Laufwerksbuchstaben wie G: gibt es nur in der eigenen Anmeldung. Im
+# Administrator-Fenster und in der Aufgabenplanung fehlen sie oft. Dann
+# den Netzpfad nehmen, den Windows sich für dieses Laufwerk merkt
+# (HKCU:\Network\G → \\Server\Freigabe).
+function PfadAufloesen([string]$p) {
+  $p = ([string]$p).Trim()
+  $m = [regex]::Match($p, '^([A-Za-z]):(.*)$')
+  if (-not $m.Success) { return $p }
+  if (Test-Path -LiteralPath ($m.Groups[1].Value + ":\")) { return $p }
+  try {
+    $netz = (Get-ItemProperty -Path ("HKCU:\Network\" + $m.Groups[1].Value.ToUpper()) -ErrorAction Stop).RemotePath
+    if ($netz) { return ($netz.TrimEnd("\") + $m.Groups[2].Value) }
+  } catch { }
+  return $p
+}
+
 # ---------- Anmelden ----------
 function JetztSek { [double]([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) }
 

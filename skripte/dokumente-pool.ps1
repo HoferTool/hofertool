@@ -103,6 +103,7 @@ try {
   if (-not $pfad) { $pfad = [string]$E.pool_ordner }
   if (-not $pfad) { $pfad = [string]$konf["dok_pool_pfad"] }
   if (-not $pfad) { $pfad = "C:\Hofer\Pool" }
+  $pfad = PfadAufloesen $pfad
   if (-not (Test-Path -LiteralPath $pfad)) {
     if ($Probe) { throw "Den Ordner $pfad gibt es nicht." }
     New-Item -ItemType Directory -Path $pfad | Out-Null
