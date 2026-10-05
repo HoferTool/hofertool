@@ -1,6 +1,7 @@
-# Planwand: Hat der Auftrag selbst keine Zeichnung, gilt die der HOCO Nr.
-# (wie im Pad Mode). Klick auf den Balken zeigt sie, das Auftragsfenster
-# zeigt sie in der Vorschau und mit "Ansehen (HOCO Nr.)".
+# Planwand: Hat der Auftrag selbst keine Zeichnung, die HOCO Nr. aber
+# schon, wird sie am Auftrag angeheftet und gespeichert. Klick auf den
+# Balken zeigt sie, das Auftragsfenster zeigt sie als normalen Anhang.
+# Dazu der Knopf fürs Einrichtblatt der gewählten Maschine.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -28,13 +29,16 @@ with sync_playwright() as p:
         sel = f".pw-balken[data-auftrag='{jid}']"
         pg.locator(sel).first.click(); pg.wait_for_timeout(1000)
         if pg.locator(".betrachter").count() == 0: fehler.append("Klick zeigt Zeichnung der HOCO Nr. nicht")
+        z = pg.evaluate(f"() => (TEST.daten.jobs || TEST.daten.planwand).concat(TEST.daten.planwand).find(j => j.id === '{jid}').drawing_url")
+        print("am Auftrag:", (z or "")[:30])
+        if not z: fehler.append("Zeichnung nicht am Auftrag gespeichert")
         for _ in range(3): pg.keyboard.press("Escape"); pg.wait_for_timeout(250)
         pg.wait_for_timeout(1500)
         pg.locator(sel).first.dblclick(); pg.wait_for_timeout(1200)
         if pg.locator(".dialog--auftrag").count() == 0: fehler.append("kein Auftragsfenster")
         if pg.locator("#pl-vorschau iframe").count() == 0: fehler.append("Vorschau leer")
-        if pg.locator("#pl-pdfreihe", has_text="Ansehen (HOCO Nr.)").count() == 0: fehler.append("Knopf Ansehen (HOCO Nr.) fehlt")
-        if pg.locator("#pl-pdfweg").count(): fehler.append("Entfernen-Knopf bei HOCO-Zeichnung")
+        if pg.locator("#pl-pdfreihe", has_text="Ansehen").count() == 0: fehler.append("Zeichnung nicht als Anhang")
+        if pg.locator("#pl-blattreihe", has_text="Ansehen").count() == 0: fehler.append("Knopf Einrichtblatt fehlt")
         pg.screenshot(path="/tmp/claude-0/-home-claude-hofertool/47056590-a2f7-5351-8db2-d712fe3879af/scratchpad/auftrag.png")
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:10])

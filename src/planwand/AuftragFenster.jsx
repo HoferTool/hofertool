@@ -112,8 +112,7 @@ function Vorschau({ adresse, titel }) {
 }
 
 // Ein PDF-Anhang: ansehen, entfernen oder wählen und hochladen
-// ersatz: Datei, die ohne eigene am Auftrag gilt (Zeichnung der HOCO Nr.)
-function Anhang({ was, ordner, adresse, setzen, darf, titel, id, wegId, standId, stand, setStand, ersatz }) {
+function Anhang({ was, ordner, adresse, setzen, darf, titel, id, wegId, standId, stand, setStand }) {
   const hochladen = async (e) => {
     const datei = (e.target.files || [])[0];
     if (!datei) return;
@@ -143,9 +142,6 @@ function Anhang({ was, ordner, adresse, setzen, darf, titel, id, wegId, standId,
       <div className="pdfreihe" id={id}>
         {adresse && <button type="button" className="knopf knopf--klein pdflink" data-pdfzeigen={adresse}
           onClick={() => alt.betrachter(adresse, titel, true)}>Ansehen</button>}
-        {!adresse && ersatz && <button type="button" className="knopf knopf--klein pdflink"
-          data-pdfzeigen={ersatz} title="Zeichnung aus den Stammdaten der HOCO Nr."
-          onClick={() => alt.betrachter(ersatz, titel, true)}>Ansehen (HOCO Nr.)</button>}
         {adresse && darf && <button type="button" className="knopf knopf--klein knopf--gefahr"
           id={wegId} title={was + " entfernen"} onClick={weg}>✕</button>}
         {/* Wählen erscheint nur, solange nichts dranhängt */}
@@ -178,15 +174,16 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const [beschaeftigt, setBeschaeftigt] = useState(false);
 
   // ----- Zeichnung der HOCO Nr. -----
-  // Hängt am Auftrag selbst keine Zeichnung, gilt die aus den Stammdaten
-  // der HOCO Nr. — so zeigt es auch der Pad Mode. Nur angezeigt, nicht
-  // an den Auftrag geschrieben.
-  const [hocoZeichnung, setHocoZeichnung] = useState("");
+  // Hängt am Auftrag noch keine Zeichnung, die HOCO Nr. hat aber eine,
+  // wird sie beim Öffnen gleich angeheftet (Wunsch Patrick 5. Oktober
+  // 2026): nicht nur anzeigen, sondern wirklich am Auftrag speichern.
   useEffect(() => {
     if (!auftrag || auftrag.drawing_url || !auftrag.job_number) return;
     let gueltig = true;
-    alt.ladeHocoEins(auftrag.job_number).then((teil) => {
-      if (gueltig && teil && teil.zeichnung_url) setHocoZeichnung(teil.zeichnung_url);
+    alt.zeichnungAnheften(auftrag).then((adresse) => {
+      if (!gueltig || !adresse || aktuell.current.pdf) return;
+      setze("pdf", adresse);
+      setPdfStand("Zeichnung von der HOCO Nr. angeheftet");
     }, () => { /* dann eben ohne */ });
     return () => { gueltig = false; };
   }, [auftrag]);
@@ -508,7 +505,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           </div>
           {/* Vorschau der Zeichnung füllt den freien Platz unter dem Material */}
           <div className="feld auf-zeichnung"><span className="feldlabel">Zeichnung</span>
-            <Vorschau adresse={w.pdf || hocoZeichnung || ""} titel={titelZeichnung} /></div>
+            <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} /></div>
         </div>
 
         {/* Spalte 3: Zustand, Notiz, Zeichnung */}
@@ -530,7 +527,17 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           <div className="feld"><span className="feldlabel">Zeichnung</span>
             <Anhang was="PDF" ordner="zeichnung" adresse={w.pdf} setzen={(x) => setze("pdf", x)}
               darf={darf} titel={titelZeichnung} id="pl-pdfreihe" wegId="pl-pdfweg"
-              standId="pl-pdfstand" stand={pdfStand} setStand={setPdfStand} ersatz={hocoZeichnung} /></div>
+              standId="pl-pdfstand" stand={pdfStand} setStand={setPdfStand} /></div>
+
+          {/* Das Einrichtblatt hängt an HOCO Nr. und Maschinentyp: es gilt
+              das der gewählten Maschine, wie im Pad Mode */}
+          {auftrag && auftrag.job_number && <div className="feld"><span className="feldlabel">Einrichtblatt</span>
+            <div className="pdfreihe" id="pl-blattreihe">
+              <button type="button" className="knopf knopf--klein pdflink" onClick={() => {
+                const m = maschinen.find((x) => x.id === w.maschine);
+                alt.einrichtblattPdfOeffnen(auftrag.job_number, m && m.type_id, auftrag.job_number);
+              }}>Ansehen</button></div>
+            <span className="feldhinweis">für den Typ der gewählten Maschine</span></div>}
 
           {/* Das Warenbegleitblatt liegt später den fertigen Teilen bei */}
           <div className="feld"><span className="feldlabel">WBG</span>

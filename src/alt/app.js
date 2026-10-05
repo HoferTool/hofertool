@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.59.0";
+const APP_VERSION = "111.60.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4528,12 +4528,25 @@ function balkenAnsehenVerhalten(b) {
   });
 }
 
-// Ohne eigene Zeichnung am Auftrag gilt die der HOCO Nr., wie im Pad Mode
+// Hat der Auftrag keine Zeichnung, die HOCO Nr. aber schon, wird sie
+// am Auftrag angeheftet und gespeichert (Wunsch Patrick 5. Oktober
+// 2026). Gibt die Adresse zurück, sonst null. Ohne Schreibrecht nur
+// zurückgeben, damit trotzdem etwas zu sehen ist.
+async function zeichnungAnheften(j) {
+  if (!j || j.drawing_url) return j ? j.drawing_url : null;
+  if (!j.job_number) return null;
+  let adresse = null;
+  try { const t = await ladeHocoEins(j.job_number); adresse = (t && t.zeichnung_url) || null; } catch (f) { return null; }
+  if (!adresse || !darfSchreiben()) return adresse;
+  try {
+    const u = await db.from("jobs").update({ drawing_url: adresse }).eq("id", j.id).is("drawing_url", null);
+    if (!u.error) j.drawing_url = adresse;
+  } catch (f) { /* beim nächsten Öffnen wieder */ }
+  return adresse;
+}
+
 async function balkenZeichnung(j) {
-  let adresse = j.drawing_url;
-  if (!adresse && j.job_number) {
-    try { const t = await ladeHocoEins(j.job_number); adresse = t && t.zeichnung_url; } catch (f) { /* ohne */ }
-  }
+  const adresse = j.drawing_url || await zeichnungAnheften(j);
   if (adresse) betrachter(adresse, "Zeichnung " + j.job_number, true);
   else meldung("Zu " + j.job_number + " ist keine Zeichnung hinterlegt.", "warn");
 }
@@ -7011,16 +7024,17 @@ async function historieAblegen(maschine, auftrag, runden) {
 //  danach frei änderbar, ohne dass Stammdaten oder Typ sich ändern.
 // =================================================================
 
-// Überträgt die Stammdaten auf alle Aufträge, die noch nicht
-// laufen. Gefüllt wird nur, was am Auftrag leer ist — Eingetipptes
-// bleibt stehen, und bei laufenden oder fertigen Aufträgen wird
-// nichts angefasst.
+// Überträgt die Stammdaten auf die Aufträge der Planwand. Gefüllt wird
+// nur, was am Auftrag leer ist — Eingetipptes bleibt stehen. Die
+// Zeichnung gilt für jeden Durchlauf der HOCO Nr. und kommt darum an
+// alle Aufträge, auch laufende und fertige (Wunsch Patrick 5. Oktober
+// 2026); das Material nur an solche, die noch nicht fertig sind.
 async function stammdatenAufPlanwand() {
   if (!darfSchreiben()) return 0;
 
+  const materialOffen = (j) => (j.plan_status || "geplant") !== "fertig";
   const offen = (plan.auftraege || []).filter((j) => j.job_number
-    && ["geplant", "ruesten"].indexOf(j.plan_status || "geplant") !== -1
-    && (!j.material_bez || !j.drawing_url));
+    && (!j.drawing_url || (!j.material_bez && materialOffen(j))));
   if (!offen.length) return 0;
 
   const nummern = [...new Set(offen.map((j) => j.job_number))];
@@ -7042,7 +7056,7 @@ async function stammdatenAufPlanwand() {
     if (!t) continue;
 
     const neu = {};
-    if (!j.material_bez && t.material) neu.material_bez = t.material;
+    if (!j.material_bez && t.material && materialOffen(j)) neu.material_bez = t.material;
     if (!j.drawing_url && t.zeichnung_url) neu.drawing_url = t.zeichnung_url;
     if (!Object.keys(neu).length) continue;
 
@@ -8604,7 +8618,7 @@ Object.assign(alt, {
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert,
   meineRolle, zeichneSeite,
   masseBerechnen, isMobil, zuHeute, hocoFenster, sucheDialog, serverStempel,
-  stammdatenAufPlanwand, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,
+  stammdatenAufPlanwand, zeichnungAnheften, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,
   naechsterArbeitstag, APP_VERSION,
   sucheStarten, sucheZumTreffer, sucheBeenden, sucheAllesDaten, sucheTreffer, sucheSpringen,
   freieFerienZeile,
