@@ -33,6 +33,7 @@ export default function Hoco() {
   }
   if (!daten) return <div className="laedt">Wird geladen …</div>;
   const { teile, ausPlan } = daten;
+  const typen = daten.typen || {};
 
   // ----- Ein einzelnes Teil -----
   if (prod.hocoOffen) {
@@ -51,7 +52,7 @@ export default function Hoco() {
   // HOCO Nr. und wird dort einmal hinterlegt.
   const nurPlan = Object.keys(ausPlan).filter((nr) => !bekannt[nr])
     .map((nr) => ({ hoco_nr: nr, ohneStamm: true, material: alt.groesseAusAuftrag(ausPlan[nr]) }));
-  const alle = teile.concat(nurPlan).sort((x, y) => String(x.hoco_nr).localeCompare(String(y.hoco_nr)));
+  const alle = teile.concat(nurPlan).map((t) => ({ ...t, typen: typen[t.hoco_nr] || [] })).sort((x, y) => String(x.hoco_nr).localeCompare(String(y.hoco_nr)));
 
   const suchen = (wert) => { setSuche(wert); prod.hocoSuche = wert; };
   const suchText = suche.trim().toLowerCase();
@@ -102,7 +103,8 @@ export default function Hoco() {
   if (suchText) {
     const treffer = alle.filter((t) => String(t.hoco_nr).toLowerCase().includes(suchText)
       || String(t.bezeichnung || "").toLowerCase().includes(suchText)
-      || String(t.material || "").toLowerCase().includes(suchText));
+      || String(t.material || "").toLowerCase().includes(suchText)
+      || t.typen.some((n) => String(n).toLowerCase().includes(suchText)));
     gefunden = treffer;
     titel = "Suche"; anzahl = treffer.length;
     inhalt = treffer.length ? <Tabelle liste={treffer} {...aktionen} /> : <p className="hinweis">Nichts gefunden.</p>;
@@ -205,7 +207,7 @@ export default function Hoco() {
 function Tabelle({ liste, darf, oeffnen, anlegen, bearbeiten, loeschen }) {
   return (
     <table className="tabelle">
-      <thead><tr><th>HOCO Nr.</th><th>Bezeichnung</th><th>Material</th><th /></tr></thead>
+      <thead><tr><th>HOCO Nr.</th><th>Bezeichnung</th><th>Material</th><th>Maschinentyp</th><th /></tr></thead>
       <tbody>{liste.map((t) => (
         <tr key={t.hoco_nr} className={t.ohneStamm ? "zeile--offen" : undefined}>
           <td>{t.ohneStamm
@@ -214,6 +216,7 @@ function Tabelle({ liste, darf, oeffnen, anlegen, bearbeiten, loeschen }) {
                 <strong>{t.hoco_nr}</strong></button>}</td>
           <td>{t.ohneStamm ? <span className="gedaempft">noch nicht hinterlegt</span> : (t.bezeichnung || "")}</td>
           <td className={t.ohneStamm ? "gedaempft" : undefined}>{t.material || ""}</td>
+          <td className="klein" data-hoco-typen={t.hoco_nr}>{t.typen.join(", ")}</td>
           <td className="rechts nowrap">{darf && (t.ohneStamm
             ? <button className="linkknopf" data-hoco-anlegen={t.hoco_nr} onClick={() => anlegen(t.hoco_nr)}>Stammdaten anlegen</button>
             : <>

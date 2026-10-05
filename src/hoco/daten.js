@@ -27,7 +27,36 @@ export async function hocoLaden(darf) {
       if (!r.error) { alt.stammVergessen(); teile = await alt.ladeHoco(""); }
     }
   } catch (f) { /* geht auch ohne */ }
-  return { teile, ausPlan };
+  const typen = await hocoTypenLaden();
+  return { teile, ausPlan, typen };
+}
+
+// Auf welchen Maschinentypen jede Nummer schon gelaufen ist (oder ein
+// Einrichtblatt hat): je HOCO Nr. die Typnamen. Die Datenbank trägt sie
+// seit sql/hoco-typen.sql selbst ein, sobald ein Auftrag rüstet, läuft
+// oder fertig ist (Wunsch 5. Oktober 2026).
+async function hocoTypenLaden() {
+  const jeNr = {};
+  try {
+    const typen = await alt.ladeTypen();
+    const namen = {};
+    (typen || []).forEach((x) => { namen[x.id] = x.name; });
+    const stufe = 1000;
+    for (let seite = 0; seite < 20; seite++) {
+      const r = await alt.db.from("hoco_type_data").select("hoco_nr, type_id")
+        .order("hoco_nr").range(seite * stufe, seite * stufe + stufe - 1);
+      if (r.error) break;
+      (r.data || []).forEach((z) => {
+        const n = namen[z.type_id];
+        if (!n) return;
+        if (!jeNr[z.hoco_nr]) jeNr[z.hoco_nr] = [];
+        if (jeNr[z.hoco_nr].indexOf(n) === -1) jeNr[z.hoco_nr].push(n);
+      });
+      if ((r.data || []).length < stufe) break;
+    }
+    Object.keys(jeNr).forEach((k) => jeNr[k].sort((a, c) => String(a).localeCompare(String(c))));
+  } catch (f) { /* dann eben ohne Typen */ }
+  return jeNr;
 }
 
 // Alles zu einer Nummer: FA Nummern, wo sie lief, Einrichtblätter je
