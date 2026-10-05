@@ -86,7 +86,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
         </div>
         <table className="tabelle"><tbody>
           {[["Artikelbezeichnung", t.bezeichnung], ["Material", t.material],
-            ["Zeichnungs Nr.", t.zeichnungs_nr], ["Allgemeine Infos", t.infos]].map(([k, v]) => (
+            ["Allgemeine Infos", t.infos]].map(([k, v]) => (
             <tr key={k}><td className="klein">{k}</td><td>{v || leer}</td></tr>
           ))}
         </tbody></table>

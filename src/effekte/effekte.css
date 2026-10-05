@@ -52,12 +52,9 @@ html { scrollbar-color: color-mix(in srgb, var(--marke) 35%, var(--linie)) trans
   background: linear-gradient(90deg, transparent, rgba(150, 200, 255, .95), #fff, rgba(150, 200, 255, .95), transparent);
   opacity: 0; pointer-events: none; z-index: 1; transform: translateX(-100%);
 }
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  body:not(.pw-seite) .kopf {
-    background: color-mix(in srgb, var(--flaeche) 78%, transparent);
-    backdrop-filter: saturate(1.6) blur(14px); -webkit-backdrop-filter: saturate(1.6) blur(14px);
-  }
-}
+/* Deckend statt Glas: beim Runterscrollen soll nichts durchscheinen
+   (Wunsch 5. Oktober 2026). */
+.kopf { background: var(--flaeche); }
 
 /* Suchfeld in der Kopfzeile: Rand und Taste leuchten auf */
 .kopf__suche { transition: border-color .18s ease, box-shadow .18s ease, color .18s ease; }

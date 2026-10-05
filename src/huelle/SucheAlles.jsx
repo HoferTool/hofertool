@@ -25,7 +25,7 @@ export function sucheOeffnen() {
 function SucheAlles({ zu }) {
   const [daten, setDaten] = useState(null);
   const [text, setText] = useState("");
-  const [markiert, setMarkiert] = useState(0);
+  const [markiert, setMarkiert] = useState(null);
 
   useEffect(() => {
     let weg = false;
@@ -34,7 +34,13 @@ function SucheAlles({ zu }) {
   }, []);
 
   const treffer = daten ? alt.sucheTreffer(daten, text) : [];
-  const stelle = Math.min(markiert, Math.max(0, treffer.length - 1));
+  // Ist eine HOCO Nr. vollständig eingetippt, steht ihr Treffer schon
+  // bereit: Enter öffnet direkt das Teil statt des ersten Auftrags
+  // (Wunsch 5. Oktober 2026). Mit den Pfeiltasten wählt man wie bisher.
+  const genau = treffer.findIndex((x) => x.art === "hoco"
+    && String(x.titel).toLowerCase() === text.trim().toLowerCase());
+  const stelle = markiert === null ? Math.max(0, genau)
+    : Math.min(markiert, Math.max(0, treffer.length - 1));
   const springen = (x) => { zu(); alt.sucheSpringen(x); };
 
   const taste = (e) => {
@@ -67,7 +73,7 @@ function SucheAlles({ zu }) {
         <span className="suche-alles__lupe">⌕</span>
         <input type="search" id="suche-alles-feld" autoComplete="off" data-fokus=""
           placeholder="HOCO Nr., FA Nr., Material, Werkzeug, Lieferant, Maschine …"
-          value={text} onChange={(e) => { setText(e.target.value); setMarkiert(0); }} onKeyDown={taste} />
+          value={text} onChange={(e) => { setText(e.target.value); setMarkiert(null); }} onKeyDown={taste} />
         <kbd>Esc</kbd>
       </div>
       <div className="suche-alles__liste" id="suche-alles-liste">{inhalt}</div>

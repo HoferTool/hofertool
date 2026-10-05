@@ -469,7 +469,6 @@ export default function Maschine({ d }) {
             <div className="pad-hocotext">
               <div className="pad-zeilen">
                 <Zeile name="Bezeichnung" wert={teil && teil.bezeichnung} />
-                <Zeile name="Zeichnung" wert={teil && teil.zeichnungs_nr} />
                 <Zeile name="FA Nr." wert={j && j.fa_nr} />
                 <Zeile name="Programm" wert={programm} />
               </div>

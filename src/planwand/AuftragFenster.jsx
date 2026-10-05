@@ -251,8 +251,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
         if (passend) { neu.farbe = passend.wert; uebernommen.push("Farbe"); }
       }
       if (Object.keys(neu).length) setW((x) => ({ ...x, ...neu }));
-      setHocoInfo([teil.bezeichnung, teil.material,
-        teil.zeichnungs_nr ? "Zeichnung " + teil.zeichnungs_nr : ""].filter((x) => x).join(" · ")
+      setHocoInfo([teil.bezeichnung, teil.material].filter((x) => x).join(" · ")
         + (uebernommen.length ? "  ·  übernommen: " + uebernommen.join(", ") : ""));
     }, () => { /* dann eben ohne */ });
     return () => { gueltig = false; };

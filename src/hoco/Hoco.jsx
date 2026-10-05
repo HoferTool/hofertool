@@ -83,7 +83,19 @@ export default function Hoco() {
     },
   };
 
-  let pfad = null, titel, anzahl, inhalt;
+  let pfad = null, titel, anzahl, inhalt, gefunden = [];
+  // Enter öffnet das Teil, wenn die Suche eindeutig ist: die Nummer
+  // ganz eingetippt oder nur noch ein Treffer (Wunsch 5. Oktober 2026)
+  const enter = (e) => {
+    if (e.key !== "Enter" || !suchText) return;
+    const t = gefunden.find((x) => String(x.hoco_nr).toLowerCase() === suchText)
+      || (gefunden.length === 1 ? gefunden[0] : null);
+    if (!t) return;
+    e.preventDefault();
+    if (!t.ohneStamm) aktionen.oeffnen(t.hoco_nr);
+    else if (darf) aktionen.anlegen(t.hoco_nr);
+    else alt.meldung("Zu " + t.hoco_nr + " sind noch keine Angaben hinterlegt.", "warn");
+  };
   const bereichText = (v) => v + " – " + (v + 99);
 
   // Wird gesucht, sind Ordner nur im Weg: dann alle Treffer flach
@@ -91,6 +103,7 @@ export default function Hoco() {
     const treffer = alle.filter((t) => String(t.hoco_nr).toLowerCase().includes(suchText)
       || String(t.bezeichnung || "").toLowerCase().includes(suchText)
       || String(t.material || "").toLowerCase().includes(suchText));
+    gefunden = treffer;
     titel = "Suche"; anzahl = treffer.length;
     inhalt = treffer.length ? <Tabelle liste={treffer} {...aktionen} /> : <p className="hinweis">Nichts gefunden.</p>;
 
@@ -182,7 +195,7 @@ export default function Hoco() {
             <button className="knopf knopf--klein" id="hoco-neu" onClick={aktionen.neu}>+ HOCO Nr.</button></div>}
         </div>
         <div className="suchleiste"><input type="text" id="hoco-such" placeholder="Suchen" autoComplete="off"
-          value={suche} onChange={(e) => suchen(e.target.value)} /></div>
+          value={suche} onChange={(e) => suchen(e.target.value)} onKeyDown={enter} /></div>
         {inhalt}
       </section>
     </>

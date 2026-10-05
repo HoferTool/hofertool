@@ -48,7 +48,7 @@ function SucheFenster({ b, zu }) {
       <label className="feld"><span>Suchbegriff</span>
         <input type="text" id="su-text" data-fokus="" value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") suchen(); }} /></label>
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); suchen(); } }} /></label>
 
       <div className="feld"><span className="feldlabel">Zeitraum</span>
         <div className="su-zeitgitter" id="su-zeitwahl">
@@ -95,7 +95,9 @@ function tasteAnmelden() {
   tasteDa = true;
   document.addEventListener("keydown", (e) => {
     const plan = alt.plan;
-    if (e.key !== "Enter" || !plan.sucheAktiv) return;
+    // Das Enter im Suchfeld selbst startet die Suche und zählt nicht
+    // gleich als „Weiter“ (sonst begann sie bei Treffer 2)
+    if (e.key !== "Enter" || !plan.sucheAktiv || e.defaultPrevented) return;
     if (document.querySelector(".dialog-huelle")) return;
     const a = document.activeElement;
     if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;

@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.41.0";
+const APP_VERSION = "111.42.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4181,7 +4181,7 @@ function sucheTreffer(d, text) {
         .filter(Boolean).join(" · "),
       daten: j, spaeter: (j.planned_from || "") >= heute }));
 
-  (d.hoco || []).filter((h) => passt(h.hoco_nr, h.bezeichnung, h.material, h.zeichnungs_nr))
+  (d.hoco || []).filter((h) => passt(h.hoco_nr, h.bezeichnung, h.material))
     .slice(0, 8)
     .forEach((h) => raus.push({ art: "hoco", titel: h.hoco_nr,
       zeile: [h.bezeichnung, h.material].filter(Boolean).join(" · "), daten: h }));
@@ -4330,6 +4330,8 @@ async function sucheStarten(text, b) {
 
   plan.sucheAktiv = true;
   await sucheZumTreffer(0, b);
+  // Nur ein Treffer: gleich das Auftragsfenster öffnen (Wunsch 5. Oktober 2026)
+  if (treffer.length === 1) setTimeout(() => planAuftragDialog(treffer[0], b), 260);
 }
 
 async function sucheZumTreffer(nr, b) {
@@ -6947,7 +6949,6 @@ async function hocoDialog(teil, vorgabe) {
         wert: teil ? (teil.material || "") : (v.material || ""),
         platzhalter: "z. B. X10CrNiS18-9 rd 011 mm h8",
         hinweis: "Alles in einem Feld, so wie es an der Stange steht" },
-      { name: "zeichnung", label: "Zeichnungs Nr.", wert: teil ? (teil.zeichnungs_nr || "") : "" },
       { name: "infos", label: "Allgemeine Infos", wert: teil ? (teil.infos || "") : "" },
     ], bestaetigen: teil ? "Speichern" : "Anlegen" });
   if (!w) return false;
@@ -6955,7 +6956,8 @@ async function hocoDialog(teil, vorgabe) {
   const daten = {
     bezeichnung: w.bez || null,
     material: w.mat || null,
-    zeichnungs_nr: w.zeichnung || null,
+    // Die Zeichnungs Nr. ist aus der Oberfläche entfernt (Wunsch 5. Oktober 2026);
+    // die Spalte bleibt, damit vorhandene Werte nicht verloren gehen.
     infos: w.infos || null,
   };
   // Die Zeichnung gehört zum Teil und gilt für jeden Typ gleich.
