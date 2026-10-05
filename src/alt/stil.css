@@ -5398,3 +5398,9 @@ body.einfuegemodus .pw-zelle:not(.pw-zelle--fein):hover { background: transparen
 .pw-balken--weissschrift .pw-rest { background: rgba(255, 255, 255, .22); }
 .pw-balken__statusgross--ohnematerial {
   text-shadow: 0 0 1px #fff, 0 0 2px #fff, 0 0 3px #fff; }
+
+/* Parkplatz für den gezogenen Balken, solange die Planwand beim Ziehen
+   am Rand weiterblättert: unsichtbar, aber im Dokument, damit Maus
+   oder Finger am Balken hängen bleiben. */
+#pw-parkplatz { position: fixed; left: 0; top: 0; width: 0; height: 0;
+  overflow: hidden; opacity: 0; pointer-events: none; }

@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.46.0";
+const APP_VERSION = "111.47.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3755,46 +3755,80 @@ function griffVerhalten(b) {
     if (!balken) return;
 
     let aktiv = false, startX = 0, spaltenBreite = 0;
-    let vonStart = 0, dauerStart = 0, vonJetzt = 0, dauerJetzt = 0;
+    let auftrag = null, vonStart = "", dauerStart = 1, vonJetzt = "", dauerJetzt = 1;
+
+    // Gerechnet wird in echten Daten, nicht in Spalten der Anzeige. So
+    // lässt sich über den Rand hinaus ziehen, während die Tafel
+    // weiterblättert, und ein angeschnittener Balken behält beim
+    // Ziehen am rechten Griff seine volle Dauer.
+    const zeigen = (el) => {
+      const tage = plan.sichtbareTage || [];
+      if (!el || !tage.length) return;
+      const ende = letzterArbeitstag(vonJetzt, dauerJetzt);
+      const draussen = ende < tage[0] || vonJetzt > tage[tage.length - 1];
+      el.style.visibility = draussen ? "hidden" : "";
+      if (draussen) return;
+      const von = vonJetzt < tage[0] ? 0 : tage.indexOf(vonJetzt);
+      const bis = ende > tage[tage.length - 1] ? tage.length - 1 : tage.indexOf(ende);
+      if (von < 0 || bis < von) return;
+      el.style.setProperty("--von", von);
+      el.style.setProperty("--dauer", bis - von + 1);
+      const p2 = el.querySelector(".pw-balken__prozent");
+      if (p2) p2.textContent = dauerJetzt + (dauerJetzt === 1 ? " Tag" : " Tage");
+    };
+    // Was die Tafel inzwischen weitergeblättert hat, zählt mit
+    const rechnen = (x) => {
+      const schritte = Math.round((x - startX) / spaltenBreite)
+        + (planZug && planZug.fang === griff ? planZug.verschoben : 0);
+      if (griff.dataset.griff === "rechts") {
+        dauerJetzt = Math.max(1, dauerStart + schritte);
+        vonJetzt = vonStart;
+      } else {
+        const s2 = Math.min(dauerStart - 1, schritte);
+        vonJetzt = arbeitstagePlus(vonStart, s2);
+        dauerJetzt = dauerStart - s2;
+      }
+    };
+    const kopieSuchen = () => document.querySelector('.pw-tafel [data-auftrag="'
+      + CSS.escape(balken.dataset.auftrag) + '"]');
 
     griff.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
       e.preventDefault();
+      auftrag = (plan.auftraege || []).find((j) => j.id === balken.dataset.auftrag);
+      if (!auftrag || !auftrag.planned_from) return;
       aktiv = true;
       startX = e.clientX;
-
-      const spuren = balken.closest(".pw-spuren");
       spaltenBreite = plan.spalte || 40;
 
-      vonStart = Number(balken.dataset.von) || 0;
-      dauerStart = Number(balken.dataset.dauer) || 1;
-      vonJetzt = vonStart;
-      dauerJetzt = dauerStart;
+      vonStart = vonJetzt = auftrag.planned_from;
+      dauerStart = dauerJetzt = Math.max(1, auftrag.planned_days || 1);
 
       balken.classList.add("pw-balken--groesse");
       try { griff.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
+      // Am Rand weiterblättern; nach dem Neuzeichnen zeigt die neue
+      // Fassung des Balkens die Dauer, die gerade gezogen wird.
+      // Der gezogene Balken selbst kommt in die neue Tafel zurück, an
+      // die Stelle seiner neuen Fassung. Die gäbe es nicht, sobald der
+      // Beginn aus dem Bild läuft, denn gespeichert ist noch die alte Dauer.
+      planZugStart(b, balken, griff, e.pointerId, startX, () => {
+        const kopie = kopieSuchen();
+        const schicht = document.querySelector('.pw-tafel [data-mzeile="'
+          + CSS.escape(auftrag.machine_id || "") + '"] .pw-balken-schicht');
+        if (kopie && kopie !== balken) kopie.remove();
+        if (schicht && balken.parentNode !== schicht) schicht.appendChild(balken);
+        rechnen(planZug.x);
+        zeigen(balken);
+      });
     });
 
     griff.addEventListener("pointermove", (e) => {
       if (!aktiv) return;
       e.preventDefault();
 
-      const schritte = Math.round((e.clientX - startX) / spaltenBreite);
-
-      if (griff.dataset.griff === "rechts") {
-        dauerJetzt = Math.max(1, Math.min(plan.tage - vonStart, dauerStart + schritte));
-        vonJetzt = vonStart;
-      } else {
-        const neuVon = Math.max(0, Math.min(vonStart + dauerStart - 1, vonStart + schritte));
-        vonJetzt = neuVon;
-        dauerJetzt = Math.max(1, dauerStart - (neuVon - vonStart));
-      }
-
-      balken.style.setProperty("--von", vonJetzt);
-      balken.style.setProperty("--dauer", dauerJetzt);
-
-      const p2 = balken.querySelector(".pw-balken__prozent");
-      if (p2) p2.textContent = dauerJetzt + (dauerJetzt === 1 ? " Tag" : " Tage");
+      rechnen(e.clientX);
+      zeigen(balken);
+      planZugBewegen(e.clientX, e.clientY);
     });
 
     griff.addEventListener("pointerup", async (e) => {
@@ -3802,19 +3836,15 @@ function griffVerhalten(b) {
       aktiv = false;
       e.stopPropagation();
       balken.classList.remove("pw-balken--groesse");
+      if (planZug && planZug.fang === griff) planZugEnde();
 
       if (vonJetzt === vonStart && dauerJetzt === dauerStart) { planAktualisieren(b); return; }
-
-      const auftrag = (plan.auftraege || []).find((j) => j.id === balken.dataset.auftrag);
       if (!auftrag) return;
 
       const daten = { planned_days: dauerJetzt };
 
       // Beim linken Griff verschiebt sich auch der erste Tag
-      if (griff.dataset.griff === "links") {
-        const tage = plan.sichtbareTage || [];
-        if (tage[vonJetzt]) daten.planned_from = tage[vonJetzt];
-      }
+      if (vonJetzt !== vonStart) daten.planned_from = vonJetzt;
 
       const altD = auftrag.planned_days, altV = auftrag.planned_from;
 
@@ -3880,8 +3910,11 @@ function griffVerhalten(b) {
     });
 
     griff.addEventListener("pointercancel", () => {
+      if (!aktiv) return;
       aktiv = false;
       balken.classList.remove("pw-balken--groesse");
+      if (planZug && planZug.fang === griff) planZugEnde();
+      planAktualisieren(b);
     });
   });
 }
@@ -5000,6 +5033,9 @@ function zeichnePlanwand(b) {
   } else {
     plan.rahmenNeu = false;
   }
+  // Wird gerade ein Balken gezogen, darf er beim Neuzeichnen nicht
+  // verschwinden, sonst reisst die Geste ab (siehe planZug).
+  planZugParken(rolleEl);
   rolleEl.innerHTML =
     '<div class="pw-tafel'
     // Unter 80 Prozent Zeilenhöhe passt nur noch eine Textzeile
@@ -5087,6 +5123,7 @@ function zeichnePlanwand(b) {
   if (!darfPlanen()) balkenAnsehenVerhalten(b);
   statusSchnellVerhalten(b);
   sucheHervorheben();
+  if (planZug) planZug.nachZeichnen();
 }
 
 // ---------- Ein einzelner Auftragsbalken ----------
@@ -5704,6 +5741,119 @@ function planVorschauWeg() {
   if (planVorschauEl) planVorschauEl.remove();
 }
 
+// ---------- Am Rand weiterblättern beim Ziehen ----------
+// Zieht man einen Balken oder seinen Griff an den linken oder rechten
+// Rand der Tafel, blättert die Planwand von selbst weiter, je näher am
+// Rand desto schneller (Wunsch 5. Oktober 2026). Geblättert wird in
+// ganzen Tagen wie mit dem Zeitregler, mit demselben schnellen
+// Neuzeichnen. Dabei entsteht die Tafel neu; der gezogene Balken kommt
+// vorher auf einen unsichtbaren Parkplatz, denn an ihm hängt die Geste
+// (Maus oder Finger). Ginge er verloren, risse das Ziehen ab.
+let planZug = null;
+
+function planZugStart(b, el, fang, pointerId, startX, nachZeichnen) {
+  planZugEnde();
+  planZug = { b: b, el: el, fang: fang, pointerId: pointerId, startX: startX,
+    nachZeichnen: () => {
+      nachZeichnen();
+      // Neu einfangen: Beim Umhängen lässt der Browser den Zeiger los
+      try { if (fang.isConnected) fang.setPointerCapture(pointerId); } catch (f) { /* egal */ }
+    },
+    x: startX, y: 0, richtung: 0, tempo: 0, rest: 0, letzte: 0,
+    gezeichnet: 0, bild: 0, verschoben: 0, warDraussen: false };
+}
+
+function planZugEnde() {
+  const z = planZug;
+  if (!z) return;
+  planZug = null;
+  if (z.bild) cancelAnimationFrame(z.bild);
+  if (z.el && z.el.parentNode && z.el.parentNode.id === "pw-parkplatz") z.el.remove();
+}
+
+function planZugParken(rolle) {
+  const z = planZug;
+  if (!z || !z.el || !rolle.contains(z.el)) return;
+  let platz = document.getElementById("pw-parkplatz");
+  if (!platz) {
+    platz = document.createElement("div");
+    platz.id = "pw-parkplatz";
+    platz.setAttribute("aria-hidden", "true");
+    document.body.appendChild(platz);
+  }
+  platz.appendChild(z.el);
+}
+
+// Bei jeder Bewegung: Liegt der Zeiger in der Randzone, läuft das
+// Blättern, sonst steht es. Gemessen wird nur, kein Neuzeichnen.
+function planZugBewegen(x, y) {
+  const z = planZug;
+  if (!z) return;
+  z.x = x; z.y = y;
+  const rolle = document.querySelector(".pw-rolle");
+  const tafel = rolle && rolle.querySelector(".pw-tafel");
+  if (!tafel) return;
+  const r = rolle.getBoundingClientRect();
+  // Die Namensspalte steht fest; die Tage beginnen an ihrem rechten Rand
+  const name = tafel.querySelector(".pw-zeile .pw-name");
+  const links = name ? name.getBoundingClientRect().right : r.left + (plan.namensbreite || 108);
+  const rechts = Math.min(r.left + rolle.clientLeft + rolle.clientWidth,
+    tafel.getBoundingClientRect().right);
+  const zone = Math.max(36, Math.min(90, (plan.spalte || 40) * 1.5));
+  let richtung = 0, tiefe = 0;
+  if (y >= r.top && y <= r.bottom) {
+    if (x < links + zone) { richtung = -1; tiefe = (links + zone - x) / zone; }
+    else if (x > rechts - zone) { richtung = 1; tiefe = (x - (rechts - zone)) / zone; }
+  }
+  // Wer einen Balken anpackt, der schon am Rand liegt, will nicht
+  // gleich blättern: Erst wenn der Zeiger einmal ausserhalb der Zone
+  // war oder deutlich zum Rand hin gefahren ist, gilt sie.
+  if (!richtung) z.warDraussen = true;
+  else if (!z.warDraussen && (x - z.startX) * richtung < 24) richtung = 0;
+
+  tiefe = Math.min(1, tiefe);
+  if (richtung !== z.richtung) z.rest = 0;
+  z.richtung = richtung;
+  z.tempo = 3 + 17 * tiefe * tiefe;   // Tage je Sekunde
+  if (richtung && !z.bild) {
+    z.letzte = performance.now();
+    z.bild = requestAnimationFrame(planZugSchritt);
+  } else if (!richtung && z.bild) {
+    cancelAnimationFrame(z.bild);
+    z.bild = 0;
+  }
+}
+
+function planZugSchritt(zeit) {
+  const z = planZug;
+  if (!z) return;
+  z.bild = 0;
+  if (!z.richtung) return;
+  const dt = Math.min(100, Math.max(0, zeit - z.letzte));
+  z.letzte = zeit;
+  z.rest += z.tempo * dt / 1000;
+  // Höchstens alle 45 ms neu zeichnen; was dazwischen anfällt,
+  // kommt im nächsten Schritt auf einmal.
+  if (z.rest >= 1 && zeit - z.gezeichnet >= 45) {
+    const n = Math.min(10, Math.floor(z.rest));
+    z.rest -= n;
+    z.gezeichnet = zeit;
+    planZugBlaettern(z.richtung * n);
+  }
+  if (planZug === z && z.richtung) z.bild = requestAnimationFrame(planZugSchritt);
+}
+
+// Planen geht nur ab Tabletbreite, dort gibt es keinen Puffer und
+// kein eigenes Scrollen der Rolle: Blättern heisst den Beginn schieben.
+function planZugBlaettern(tage) {
+  const z = planZug;
+  plan.start = arbeitstagePlus(plan.start, tage);
+  z.verschoben += tage;
+  if (typeof plan.reglerNachfuehren === "function") plan.reglerNachfuehren();
+  plan.nurZeitGeschoben = true;
+  neuZeichnen(z.b);
+}
+
 function balkenVerhalten(b) {
   const tafel = document.querySelector(".pw-tafel");
   wischVerhalten(b);
@@ -5718,7 +5868,14 @@ function balkenVerhalten(b) {
       if (schatten) { schatten.remove(); schatten = null; }
       el.classList.remove("pw-balken--zieht");
       el.style.pointerEvents = "";
-      tafel.classList.remove("pw-tafel--zieht");
+      // Nach dem Blättern am Rand ist die Tafel eine neue
+      const jetzt = document.querySelector(".pw-tafel");
+      if (jetzt) {
+        jetzt.classList.remove("pw-tafel--zieht");
+        jetzt.querySelectorAll(".pw-balken--zieht").forEach((x) =>
+          x.classList.remove("pw-balken--zieht"));
+      }
+      if (planZug && planZug.el === el) planZugEnde();
       planVorschauWeg();
       zieht = false;
       gestartet = false;
@@ -5756,6 +5913,17 @@ function balkenVerhalten(b) {
         // Erst mit dem Ziehen einfangen — sonst bricht der Browser
         // beim Berühren eines Balkens das Wischen ab.
         try { el.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
+        // Am Rand weiterblättern. Nach jedem Neuzeichnen die neue Tafel
+        // wieder durchlässig machen und die Vorschau an den Zeiger setzen.
+        planZugStart(b, el, el, e.pointerId, startX, () => {
+          const neu = document.querySelector(".pw-tafel");
+          if (!neu) return;
+          neu.classList.add("pw-tafel--zieht");
+          const kopie = neu.querySelector('[data-auftrag="' + CSS.escape(el.dataset.auftrag) + '"]');
+          if (kopie) kopie.classList.add("pw-balken--zieht");
+          planVorschauZeigen(neu, zelleUnter(planZug.x, planZug.y),
+            (plan.auftraege || []).find((j) => j.id === el.dataset.auftrag));
+        });
     };
 
     el.addEventListener("pointerdown", (e) => {
@@ -5800,8 +5968,9 @@ function balkenVerhalten(b) {
         schatten.style.top = e.clientY + "px";
       }
       // Vorschau so lang wie der Auftrag, nicht nur ein Tag
-      planVorschauZeigen(tafel, zelleUnter(e.clientX, e.clientY),
+      planVorschauZeigen(document.querySelector(".pw-tafel"), zelleUnter(e.clientX, e.clientY),
         (plan.auftraege || []).find((j) => j.id === el.dataset.auftrag));
+      planZugBewegen(e.clientX, e.clientY);
     });
 
     // Einfügemodus: Markierung an der Kante, an der eingefügt würde
