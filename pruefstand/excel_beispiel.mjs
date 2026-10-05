@@ -43,6 +43,9 @@ zeilen.forEach((z, i) => {
   r.eachCell({ includeEmpty: true }, (c, n) => { if (n <= 6) c.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }; });
 });
 ws.getRow(9).height = 32;
+// Zeile ohne Wert, nur mit Rahmen (exceljs liess solche Zeilen beim
+// Lesen weg, die Linien fehlten im Werkzeugprotokoll 10332-0762)
+for (let c = 1; c <= 6; c++) ws.getCell(11, c).border = { bottom: { style: "medium" }, left: { style: "thin" } };
 ws.getCell("D12").value = "Summe"; ws.getCell("D12").font = { italic: true };
 ws.getCell("E12").value = { formula: "SUM(E8:E10)", result: 4700 }; ws.getCell("E12").numFmt = "#,##0";
 ws.getCell("E12").font = { bold: true, color: { argb: "FFC00000" } };
@@ -77,7 +80,15 @@ teile[2] = teile[2]
   .replace(/(<a:blip[^>]*?)\/>/, '$1><a:clrChange><a:clrFrom><a:srgbClr val="FFFFFF"/></a:clrFrom><a:clrTo><a:srgbClr val="FFFFFF"><a:alpha val="0"/></a:srgbClr></a:clrTo></a:clrChange></a:blip>')
   .replace(/<a:stretch>/, '<a:srcRect r="50000"/><a:stretch>');
 z = teile.join("<xdr:pic>");
-if (!z.includes("srcRect") || !z.includes("clrChange")) throw new Error("Nachtrag ging nicht");
+// Textfeld wie die HD-Kästchen im Werkzeugprotokoll: Rand und Füllung
+// aus dem Formstil, Text fett, dazu „mm²“ mit hochgestellter 2
+z = z.replace("</xdr:wsDr>", '<xdr:oneCellAnchor><xdr:from><xdr:col>2</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>3</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>'
+  + '<xdr:ext cx="900000" cy="220000"/><xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="90" name="Textfeld 1"/><xdr:cNvSpPr txBox="1"/></xdr:nvSpPr>'
+  + '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="900000" cy="220000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>'
+  + '<xdr:style><a:lnRef idx="2"><a:srgbClr val="C00000"/></a:lnRef><a:fillRef idx="1"><a:schemeClr val="lt1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent2"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="dk1"/></a:fontRef></xdr:style>'
+  + '<xdr:txBody><a:bodyPr wrap="square" anchor="ctr"/><a:lstStyle/><a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="de-CH" sz="1200" b="1"/><a:t>HD</a:t></a:r>'
+  + '<a:r><a:rPr lang="de-CH" sz="1000"/><a:t> 4 mm</a:t></a:r><a:r><a:rPr lang="de-CH" sz="1000" baseline="30000"/><a:t>2</a:t></a:r></a:p></xdr:txBody></xdr:sp><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>');
+if (!z.includes("srcRect") || !z.includes("clrChange") || !z.includes("Textfeld 1")) throw new Error("Nachtrag ging nicht");
 zip.file(zPfad, z);
 writeFileSync("pruefstand/einrichtblatt-beispiel.xlsx", await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
 

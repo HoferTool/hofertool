@@ -22,19 +22,21 @@ const ZOOM_MIN = 0.5, ZOOM_MAX = 6;
 const RAND = 12, LUECKE = 16;
 // A4 bei 96 Punkten je Zoll (210 × 297 mm)
 const A4 = { b: 794, h: 1123 };
-// Kleinster Rand rundherum (6 mm). Manche Einrichtblätter haben oben
-// Rand 0; der Drucker lässt trotzdem einen Streifen frei, und ohne ihn
-// klebte die Tabelle oben am Papierrand (Patrick, 5. Oktober 2026).
-const MIN_RAND = 23;
+// Kleinster Rand rundherum (6 mm). Viele Einrichtblätter haben in
+// Excel Rand 0; ohne Mindestrand klebte die Tabelle am Papierrand.
+const MIN_RAND = 23, UEBERSTAND = 3;
 
 // Wie Excel das Blatt auf Seiten verteilt: Massstab aus „Einpassen“
 // oder „Verkleinern auf … %“, dann von oben nach unten an ganzen
-// Zeilen umbrechen, so viele Seiten wie nötig
+// Zeilen umbrechen, so viele Seiten wie nötig. Umbrochen wird mit den
+// Rändern aus Excel, damit es dieselben Seiten gibt wie ausgedruckt.
+// Danach wird bei zu kleinem Rand leicht verkleinert und der Inhalt
+// mitten aufs Blatt gesetzt, mit gleich breiten Rändern links und
+// rechts sowie oben und unten (Wunsch Patrick, 5. Oktober 2026).
 export function seitenRechnen(b) {
   const s = b.seite;
   const papier = s.quer ? { b: A4.h, h: A4.b } : A4;
-  const r = { l: Math.max(MIN_RAND, s.raender.l), r: Math.max(MIN_RAND, s.raender.r),
-    o: Math.max(MIN_RAND, s.raender.o), u: Math.max(MIN_RAND, s.raender.u) };
+  const r = s.raender;
   const pb = Math.max(100, papier.b - r.l - r.r), ph = Math.max(100, papier.h - r.o - r.u);
   const inh = s.inhalt;
   let f;
@@ -59,8 +61,11 @@ export function seitenRechnen(b) {
     if (zz >= inh.z1) break;
     z = zz; y0 = y1;
   }
-  const links = r.l + (s.mitte ? Math.max(0, (pb - inh.b * f) / 2) : 0);
-  return { papier, f, r, links, fenster, x0: inh.x, w: inh.b };
+  const hMax = Math.max(1, ...fenster.map((w) => w.y1 - w.y0));
+  f *= Math.min(1, (papier.b - 2 * MIN_RAND) / Math.max(1, inh.b * f), (papier.h - 2 * MIN_RAND) / (hMax * f));
+  const links = Math.max(0, (papier.b - inh.b * f) / 2);
+  const oben = Math.max(0, (papier.h - hMax * f) / 2);
+  return { papier, f, links, oben, fenster, x0: inh.x, w: inh.b };
 }
 
 export function ExcelAnsicht({ daten, beiFehler }) {
@@ -99,8 +104,8 @@ export function ExcelAnsicht({ daten, beiFehler }) {
   const massstab = grund * zoom;
 
   // Bilder als Adressen, beim Schliessen wieder freigeben
-  const bildUrls = useMemo(() => (b ? b.bilder.map((x) => URL.createObjectURL(x.blob)) : []), [b]);
-  useEffect(() => () => bildUrls.forEach((u) => URL.revokeObjectURL(u)), [bildUrls]);
+  const bildUrls = useMemo(() => (b ? b.bilder.map((x) => (x.blob ? URL.createObjectURL(x.blob) : null)) : []), [b]);
+  useEffect(() => () => bildUrls.forEach((u) => u && URL.revokeObjectURL(u)), [bildUrls]);
 
   useLayoutEffect(() => {
     const a = anker.current, el = buehne.current;
@@ -228,9 +233,11 @@ function Seite({ b, s, w, bildUrls }) {
       position: "relative", flex: "none", width: s.papier.b, height: s.papier.h, background: "#fff",
       boxShadow: "0 2px 12px rgba(0,0,0,.45)", overflow: "hidden",
     }}>
-      <div style={{ position: "absolute", left: s.links, top: s.r.o, width: s.w * s.f, height: hoehe * s.f, overflow: "hidden" }}>
-        <div style={{ zoom: s.f, position: "relative", width: s.w, height: hoehe }}>
-          <div style={{ position: "absolute", left: -s.x0, top: -w.y0 }}>
+      {/* Etwas Überstand rundherum, damit dicke Rahmen am Rand ganz zu sehen sind */}
+      <div style={{ position: "absolute", left: s.links - UEBERSTAND, top: s.oben - UEBERSTAND,
+        width: s.w * s.f + 2 * UEBERSTAND, height: hoehe * s.f + 2 * UEBERSTAND, overflow: "hidden" }}>
+        <div style={{ zoom: s.f, position: "relative", width: s.w + 2 * UEBERSTAND / s.f, height: hoehe + 2 * UEBERSTAND / s.f }}>
+          <div style={{ position: "absolute", left: -s.x0 + UEBERSTAND / s.f, top: -w.y0 + UEBERSTAND / s.f }}>
             <Blatt b={b} bildUrls={bildUrls} />
           </div>
         </div>
@@ -245,7 +252,9 @@ function Blatt({ b, bildUrls }) {
     <div className="excelansicht__blatt" data-excelblatt="" style={{
       position: "relative", width: b.breite, height: b.hoehe, background: "#fff",
       color: "#000", "--zf": "#000", fontFamily: "Calibri, Carlito, Arial, sans-serif", fontSize: "14.7px", lineHeight: 1.2,
-      overflow: "hidden",
+      // Sichtbar: dicke Rahmen am Blattrand ragen einen Pixel hinaus,
+      // abgeschnitten wird erst am Seitenfenster (Seite)
+      overflow: "visible",
     }}>
       {b.gitter && <Gitter b={b} />}
       {b.felder.map((f, i) => <Feld key={i} f={f} gitter={b.gitter} />)}
@@ -264,6 +273,7 @@ function Blatt({ b, bildUrls }) {
 // „Zuschneiden“) wird über einen Ausschnitt: das ganze Bild liegt
 // grösser darunter, und nur der gewählte Teil ist zu sehen.
 function Bild({ x, url }) {
+  if (x.form) return <Form x={x} />;
   const z = x.zuschnitt;
   const breit = z ? 1 - z.l - z.r : 1, hoch = z ? 1 - z.t - z.b : 1;
   const iw = breit > 0.001 ? x.b / breit : x.b, ih = hoch > 0.001 ? x.h / hoch : x.h;
@@ -276,6 +286,56 @@ function Bild({ x, url }) {
       transform: dreh.length ? dreh.join(" ") : undefined }}>
       <img src={url} alt="" draggable={false} style={{ position: "absolute", maxWidth: "none",
         left: z ? -z.l * iw : 0, top: z ? -z.t * ih : 0, width: iw, height: ih }} />
+    </div>
+  );
+}
+
+// Textfeld oder Form aus Excel (z. B. die roten HD-Kästchen): Füllung,
+// Rand, Text mit hoch- und tiefgestellten Teilen. Linien als Grafik.
+const TEXT_WAAG = { l: "left", ctr: "center", r: "right", just: "justify", dist: "justify" };
+const TEXT_SENK = { t: "flex-start", ctr: "center", b: "flex-end", just: "center", dist: "center" };
+function Form({ x }) {
+  const f = x.form;
+  const dreh = [];
+  if (x.drehung) dreh.push("rotate(" + x.drehung + "deg)");
+  if (f.linie) {
+    if (!f.rand) return null;
+    const b = Math.max(1, x.b), h = Math.max(1, x.h);
+    const [x1, x2] = f.spiegelH ? [b, 0] : [0, b], [y1, y2] = f.spiegelV ? [h, 0] : [0, h];
+    return (
+      <svg style={{ position: "absolute", left: x.x, top: x.y, width: b, height: h, overflow: "visible",
+        transform: dreh.length ? dreh.join(" ") : undefined }}>
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={f.rand.farbe} strokeWidth={f.rand.dicke}
+          strokeDasharray={f.rand.art === "dashed" ? "4 3" : undefined} />
+      </svg>
+    );
+  }
+  if (f.spiegelH) dreh.push("scaleX(-1)");
+  if (f.spiegelV) dreh.push("scaleY(-1)");
+  return (
+    <div style={{ position: "absolute", left: x.x, top: x.y, width: x.b, height: x.h, boxSizing: "border-box",
+      background: f.fuellung || "transparent",
+      border: f.rand ? f.rand.dicke + "px " + f.rand.art + " " + f.rand.farbe : "none",
+      borderRadius: f.ellipse ? "50%" : f.rund ? Math.min(x.b, x.h) / 6 : 0,
+      transform: dreh.length ? dreh.join(" ") : undefined,
+      display: "flex", flexDirection: "column", justifyContent: TEXT_SENK[f.anker] || "flex-start",
+      paddingLeft: f.innen.l, paddingRight: f.innen.r, paddingTop: f.innen.o, paddingBottom: f.innen.u,
+      overflow: "visible", writingMode: f.senkrecht ? "vertical-rl" : undefined }}>
+      {f.absaetze.map((a, i) => (
+        <div key={i} style={{ textAlign: TEXT_WAAG[a.ausrichtung] || "left", lineHeight: 1.2,
+          whiteSpace: f.umbruch ? "pre-wrap" : "pre", minHeight: a.teile.length ? undefined : a.pt * 1.2 * 96 / 72 }}>
+          {a.teile.map((t, j) => (t.text === "\n" ? <br key={j} /> : (
+            <span key={j} style={{
+              "--zf": t.farbe, color: t.farbe,
+              fontSize: (t.hoch ? t.pt * 0.66 : t.pt) * 96 / 72,
+              verticalAlign: t.hoch > 0 ? "super" : t.hoch < 0 ? "sub" : undefined,
+              fontWeight: t.fett ? 700 : 400, fontStyle: t.kursiv ? "italic" : undefined,
+              textDecoration: [t.unter && "underline", t.durch && "line-through"].filter(Boolean).join(" ") || undefined,
+              fontFamily: t.schrift && !t.schrift.startsWith("+") ? '"' + t.schrift + '", Calibri, Carlito, Arial, sans-serif' : undefined,
+            }}>{t.text}</span>
+          )))}
+        </div>
+      ))}
     </div>
   );
 }

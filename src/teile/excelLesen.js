@@ -275,7 +275,10 @@ function blattAusExcelJS(ws, wb, thema, eigeneBilder) {
   // Was gehört dazu? Alles mit Wert, Füllung oder Rahmen
   const zellen = new Map();   // "r,c" → Rohzelle (1-basiert)
   let letzteZ = 0, letzteS = 0;
-  ws.eachRow({ includeEmpty: false }, (row, r) => {
+  // Alle Zeilen ansehen: exceljs überspringt sonst Zeilen ohne Wert,
+  // auch wenn ihre Zellen Rahmen haben (fehlende Linien im Werkzeug-
+  // protokoll 10332-0762, Zeile 15)
+  ws.eachRow({ includeEmpty: true }, (row, r) => {
     if (r > MAX_ZEILEN) return;
     row.eachCell({ includeEmpty: true }, (cell, c) => {
       if (c > MAX_SPALTEN) return;
@@ -566,7 +569,7 @@ function modellBauen({ name, spalten, zeilen, gitter, merges, alle, zelle, stil,
     else { bx = posX(b.von.s, b.von.so); by = posY(b.von.z, b.von.zo); }
     if (b.bis) { bb = posX(b.bis.s, b.bis.so) - bx; bh = posY(b.bis.z, b.bis.zo) - by; }
     else if (b.ext) { bb = b.ext.width; bh = b.ext.height; }
-    if (!(bb > 0 && bh > 0)) return;
+    if (!(bb > 0 || bh > 0)) return;
     const rahmen = { x: bx, y: by, b: bb, h: bh };
     // Bilder in einer Gruppe: ihre Lage ist in den Massen der Gruppe
     // angegeben und wird auf den Rahmen der Gruppe umgerechnet
@@ -577,7 +580,7 @@ function modellBauen({ name, spalten, zeilen, gitter, merges, alle, zelle, stil,
         r = { x: bx + (t.lage.x - b.gruppe.off.x) * fx, y: by + (t.lage.y - b.gruppe.off.y) * fy,
           b: t.lage.cx * fx, h: t.lage.cy * fy };
       }
-      if (r.b > 0 && r.h > 0) bildListe.push({ ...r, blob: t.blob, zuschnitt: t.zuschnitt,
+      if ((r.b > 0 && r.h > 0) || (t.form && t.form.linie && (r.b > 0 || r.h > 0))) bildListe.push({ ...r, blob: t.blob, form: t.form, zuschnitt: t.zuschnitt,
         drehung: t.drehung || 0, spiegelH: !!t.spiegelH, spiegelV: !!t.spiegelV });
     });
   });
@@ -630,6 +633,7 @@ async function bilderAusZip(daten) {
 
   const mappe = await xml("xl/workbook.xml");
   const mappeRels = await rels("xl/workbook.xml");
+  const formLesen = formLeser(await xml("xl/theme/theme1.xml"), { kind, kinder, alle });
   const ergebnis = new Map();
   for (const blatt of alle(mappe, "sheet")) {
     const name = blatt.getAttribute("name");
@@ -704,6 +708,14 @@ async function bilderAusZip(daten) {
         if (b) liste.push({ ...eintrag, teile: [b] });
         continue;
       }
+      // Textfeld, Rechteck, Linie (in Excel „Formen“), z. B. die roten
+      // HD-Kästchen auf den Werkzeugprotokollen
+      const form = kind(anker, "sp") || kind(anker, "cxnSp");
+      if (form) {
+        const f = formLesen(form);
+        if (f) liste.push({ ...eintrag, teile: [f] });
+        continue;
+      }
       // Gruppe (eine Ebene): Bilder darin samt Umrechnung
       const gruppe = kind(anker, "grpSp");
       if (gruppe) {
@@ -711,6 +723,7 @@ async function bilderAusZip(daten) {
         const chOff = kind(gx, "chOff"), chExt = kind(gx, "chExt");
         const teile = [];
         for (const p of alle(gruppe, "pic")) { const b = await bildLesen(p); if (b && b.lage) teile.push(b); }
+        for (const p of [...alle(gruppe, "sp"), ...alle(gruppe, "cxnSp")]) { const f = formLesen(p); if (f && f.lage) teile.push(f); }
         if (teile.length && chOff && chExt) liste.push({ ...eintrag, teile,
           gruppe: { off: { x: +chOff.getAttribute("x"), y: +chOff.getAttribute("y") },
             ext: { cx: +chExt.getAttribute("cx"), cy: +chExt.getAttribute("cy") } } });
@@ -718,6 +731,158 @@ async function bilderAusZip(daten) {
     }
   }
   return ergebnis;
+}
+
+// ---------- Formen und Textfelder ----------
+
+// Liest eine Form (sp) oder Linie (cxnSp) aus der Zeichnungsebene:
+// Füllung, Rand, Ecken und Text mit Schrift, Farbe, fett, kursiv,
+// hoch- und tiefgestellt. Farben aus dem Farbschema (schemeClr) samt
+// Aufhellen/Abdunkeln (lumMod, lumOff, tint, shade) wie in Excel.
+function formLeser(themaDoc, { kind, kinder, alle }) {
+  const thema = {};
+  if (themaDoc) {
+    const schema = alle(themaDoc, "clrScheme")[0];
+    if (schema) for (const k of [...schema.children]) {
+      const c = k.children[0];
+      if (!c) continue;
+      thema[k.localName] = (c.localName === "sysClr" ? c.getAttribute("lastClr") : c.getAttribute("val")) || null;
+    }
+  }
+  const STD = { dk1: "000000", lt1: "FFFFFF", dk2: "44546A", lt2: "E7E6E6", accent1: "4472C4", accent2: "ED7D31",
+    accent3: "A5A5A5", accent4: "FFC000", accent5: "5B9BD5", accent6: "70AD47", hlink: "0563C1", folHlink: "954F72" };
+  const NAMEN = { tx1: "dk1", bg1: "lt1", tx2: "dk2", bg2: "lt2" };
+  const PRESET = { black: "000000", white: "FFFFFF", red: "FF0000", green: "008000", blue: "0000FF", yellow: "FFFF00" };
+  const zahlAttr = (el, n, std) => (el && el.getAttribute(n) != null ? Number(el.getAttribute(n)) : std);
+
+  // Eine Farbangabe (srgbClr, schemeClr, sysClr, prstClr) samt Änderungen
+  const farbeAus = (el, platzhalter) => {
+    if (!el) return null;
+    const c = [...el.children].find((k) => /^(srgbClr|schemeClr|sysClr|prstClr|scrgbClr)$/.test(k.localName));
+    if (!c) return null;
+    let hex = null;
+    if (c.localName === "srgbClr") hex = c.getAttribute("val");
+    else if (c.localName === "sysClr") hex = c.getAttribute("lastClr") || (c.getAttribute("val") === "window" ? "FFFFFF" : "000000");
+    else if (c.localName === "prstClr") hex = PRESET[c.getAttribute("val")] || "000000";
+    else if (c.localName === "schemeClr") {
+      const n = c.getAttribute("val");
+      if (n === "phClr") hex = platzhalter || null;
+      else { const k = NAMEN[n] || n; hex = thema[k] || STD[k] || null; }
+    }
+    if (!hex || !/^[0-9A-Fa-f]{6}$/.test(hex)) return null;
+    let mod = 1, off = 0, alpha = 1;
+    for (const m of [...c.children]) {
+      const v = Number(m.getAttribute("val")) / 100000;
+      if (m.localName === "lumMod") mod = v;
+      else if (m.localName === "lumOff") off = v;
+      else if (m.localName === "tint") hex = toenen(hex, 1 - v);
+      else if (m.localName === "shade") hex = toenen(hex, v - 1);
+      else if (m.localName === "alpha") alpha = v;
+    }
+    if (mod !== 1 || off !== 0) hex = helligkeit(hex, mod, off);
+    return alpha < 1 ? "rgba(" + [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",") + "," + alpha + ")" : "#" + hex;
+  };
+  // Füllung aus spPr (solidFill, gradFill, noFill); undefined = nicht angegeben
+  const fuellungAus = (el) => {
+    if (!el) return undefined;
+    if (kind(el, "noFill")) return null;
+    const solid = kind(el, "solidFill");
+    if (solid) return farbeAus(solid);
+    const grad = kind(el, "gradFill");
+    if (grad) { const st = alle(grad, "gs")[0]; return st ? farbeAus(st) : null; }
+    return undefined;
+  };
+
+  return (sp) => {
+    const linie = sp.localName === "cxnSp";
+    const spPr = kind(sp, "spPr"), stil = kind(sp, "style");
+    const xfrm = kind(spPr, "xfrm");
+    const off = kind(xfrm, "off"), ext = kind(xfrm, "ext");
+    const geo = kind(spPr, "prstGeom"), prst = geo ? geo.getAttribute("prst") : "rect";
+    // Füllung: eigene Angabe, sonst aus dem Formstil (fillRef 0 = keine)
+    let fuellung = linie ? null : fuellungAus(spPr);
+    if (fuellung === undefined) {
+      const ref = kind(stil, "fillRef");
+      fuellung = ref && zahlAttr(ref, "idx", 0) > 0 ? farbeAus(ref) : null;
+    }
+    // Rand: eigene Angabe, sonst aus dem Formstil (lnRef 1–3 = dünn bis dick)
+    const ln = kind(spPr, "ln");
+    let rand = null;
+    const lnRef = kind(stil, "lnRef");
+    const stilFarbe = lnRef && zahlAttr(lnRef, "idx", 0) > 0 ? farbeAus(lnRef) : null;
+    const stilBreite = lnRef ? [0, 6350, 12700, 19050][Math.min(3, zahlAttr(lnRef, "idx", 0))] : 0;
+    if (ln && kind(ln, "noFill")) rand = null;
+    else {
+      const f = ln && kind(ln, "solidFill") ? farbeAus(kind(ln, "solidFill")) : stilFarbe;
+      const w = zahlAttr(ln, "w", stilBreite || 9525);
+      if (f) rand = { farbe: f, dicke: Math.max(0.75, w / 9525),
+        art: ln && kind(ln, "prstDash") && kind(ln, "prstDash").getAttribute("val") !== "solid" ? "dashed" : "solid" };
+    }
+    // Text
+    const fontRef = kind(stil, "fontRef");
+    const textFarbe = (fontRef && farbeAus(fontRef)) || "#000000";
+    const body = kind(sp, "txBody");
+    const absaetze = [];
+    let anker = "t", innen = { l: 7.2, r: 7.2, o: 3.6, u: 3.6 }, umbruch = true, senkrecht = false;
+    if (body) {
+      const bp = kind(body, "bodyPr");
+      if (bp) {
+        anker = bp.getAttribute("anchor") || "t";
+        innen = { l: zahlAttr(bp, "lIns", 91440) / 12700, r: zahlAttr(bp, "rIns", 91440) / 12700,
+          o: zahlAttr(bp, "tIns", 45720) / 12700, u: zahlAttr(bp, "bIns", 45720) / 12700 };
+        umbruch = bp.getAttribute("wrap") !== "none";
+        senkrecht = /^(vert|vert270|eaVert)$/.test(bp.getAttribute("vert") || "");
+      }
+      for (const p of kinder(body, "p")) {
+        const pPr = kind(p, "pPr");
+        const teile = [];
+        let groesse = 11;
+        for (const r of [...p.children]) {
+          if (r.localName === "br") { teile.push({ text: "\n" }); continue; }
+          if (r.localName !== "r" && r.localName !== "fld") continue;
+          const rPr = kind(r, "rPr");
+          const t = kind(r, "t");
+          const sz = zahlAttr(rPr, "sz", 1100) / 100;
+          groesse = sz;
+          const basis = zahlAttr(rPr, "baseline", 0);
+          teile.push({ text: t ? t.textContent : "", pt: sz,
+            fett: rPr && rPr.getAttribute("b") === "1", kursiv: rPr && rPr.getAttribute("i") === "1",
+            unter: rPr && rPr.getAttribute("u") && rPr.getAttribute("u") !== "none",
+            durch: rPr && rPr.getAttribute("strike") && rPr.getAttribute("strike") !== "noStrike",
+            hoch: basis > 0 ? 1 : basis < 0 ? -1 : 0,
+            farbe: (rPr && kind(rPr, "solidFill") && farbeAus(kind(rPr, "solidFill"))) || textFarbe,
+            schrift: rPr && kind(rPr, "latin") ? kind(rPr, "latin").getAttribute("typeface") : null });
+        }
+        if (!teile.length) {
+          const e = kind(p, "endParaRPr");
+          groesse = zahlAttr(e, "sz", 1100) / 100;
+        }
+        absaetze.push({ ausrichtung: (pPr && pPr.getAttribute("algn")) || "l", teile, pt: groesse });
+      }
+    }
+    const hatText = absaetze.some((a) => a.teile.some((t) => t.text && t.text.trim()));
+    if (!fuellung && !rand && !hatText) return null;
+    return {
+      form: { linie, fuellung, rand, rund: prst === "roundRect", ellipse: prst === "ellipse",
+        absaetze: hatText ? absaetze : [], anker, innen, umbruch, senkrecht,
+        spiegelH: xfrm && xfrm.getAttribute("flipH") === "1", spiegelV: xfrm && xfrm.getAttribute("flipV") === "1" },
+      drehung: xfrm && xfrm.getAttribute("rot") ? Number(xfrm.getAttribute("rot")) / 60000 : 0,
+      lage: off && ext ? { x: +off.getAttribute("x"), y: +off.getAttribute("y"),
+        cx: +ext.getAttribute("cx"), cy: +ext.getAttribute("cy") } : null,
+    };
+  };
+}
+
+// Helligkeit ändern wie DrawingML (lumMod/lumOff im HSL-Raum)
+function helligkeit(hex, mod, off) {
+  const r = parseInt(hex.slice(0, 2), 16) / 255, g = parseInt(hex.slice(2, 4), 16) / 255, b = parseInt(hex.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const ziel = Math.max(0, Math.min(1, l * mod + off));
+  // Über toenen: positive Werte hellen auf, negative dunkeln ab
+  if (l === 0) return toenen("000000", ziel);
+  if (ziel >= l) return toenen(hex, l >= 1 ? 0 : (ziel - l) / (1 - l));
+  return toenen(hex, ziel / l - 1);
 }
 
 // „Farbe transparent setzen“ aus Excel: diese Farbe (mit etwas Spiel,

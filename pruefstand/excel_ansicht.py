@@ -95,6 +95,20 @@ with sync_playwright() as p:
           const r = { titel: f('Pos'), summe: f('4\\'700') };
           document.body.classList.remove('dunkel'); return r; }""")
         pruefe(name + ": Dunkelmodus: Schrift bleibt schwarz und rot", d["titel"] == "rgb(0, 0, 0)" and d["summe"] == "rgb(192, 0, 0)")
+        # Textfeld (wie die HD-Kästchen) mit Rand, Text und hochgestellter 2
+        tf = pg.evaluate("""() => {
+          const els = [...document.querySelectorAll('[data-excelblatt] > div')];
+          const box = els.find(e => e.textContent.startsWith('HD'));
+          if (!box) return null;
+          const hoch = [...box.querySelectorAll('span')].find(x => x.textContent === '2');
+          const dick = els.filter(e => parseFloat(e.style.left) === 0 && /^2px solid/.test(e.style.borderTop)).length;
+          return { text: box.textContent, rand: getComputedStyle(box).borderTopColor, breite: box.offsetWidth,
+            hoch: hoch ? getComputedStyle(hoch).verticalAlign : null, dick };
+        }""")
+        pruefe(name + ": Textfeld mit Rand und Text", bool(tf and tf["text"] == "HD 4 mm2" and tf["rand"] == "rgb(192, 0, 0)" and tf["breite"] > 80))
+        pruefe(name + ": Textfeld: 2 hochgestellt", bool(tf and tf["hoch"] == "super"))
+        pruefe(name + ": Zeile nur mit Rahmen wird gezeichnet", bool(tf and tf["dick"] == 3))
+        if not tf or tf["dick"] != 3: print(tf)
         pruefe(name + ": Zeilenumbruch", s["langUmbruch"] == "pre-wrap")
         pruefe(name + ": Rahmenlinien", s["striche"] >= 20)
         pruefe(name + ": Bild geladen", bool(s["bild"] and s["bild"]["ok"] and s["bild"]["b"] > 50))
