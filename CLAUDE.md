@@ -114,7 +114,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 
 Alle sind PowerShell 5.1 auf Windows, ohne Installation.
 
-- **`solarlog.ps1`** holt alle fünf Minuten die Werte vom Solar-Log (`/getjp`, Abfrage 801/170) und liefert sie über `rpc/solar_melden` ins neue Projekt, mit eigenem Solar-Schlüssel aus `sql/solar.sql` in `solar-einstellungen.json` (kein Hauptschlüssel nötig). Anleitung: `anleitungen/Solar-Anleitung.md`. Bis Patrick sie umgesetzt hat, läuft im Betrieb noch das alte Skript ins alte Projekt, und das alte Projekt reicht die Werte über `sql/solar-weiterleiten.sql` (pg_net-Auslöser) ans neue weiter.
+- **`solarlog.ps1`** holt alle fünf Minuten die Werte vom Solar-Log (`/getjp`, Abfrage 801/170) und liefert sie über `rpc/solar_melden` ins neue Projekt, mit eigenem Solar-Schlüssel aus `sql/solar.sql` in `solar-einstellungen.json` (kein Hauptschlüssel nötig). Anleitung: `anleitungen/Solar-Anleitung.md`. Läuft seit 5. Oktober 2026 im Betrieb direkt ins neue Projekt (`quelle` = „Solar-Log direkt“); die Weiterleitung `sql/solar-weiterleiten.sql` aus dem alten Projekt ist nicht mehr nötig.
 - **`dokumente-abgleich.ps1`** gleicht jede Minute einen Ordner auf dem Netzlaufwerk ab, mit dem Pfad aus der App, über ein Dienstkonto.
 - **`dokumente-pool.ps1`** leert alle fünf Minuten die WBGs aus dem Pool-Ordner in die App (anderes kommt nach „nicht zugeordnet“, gelöscht wird nur Hochgeladenes); `pool-einplanen.ps1` legt die Aufgabe an. Beide Dokument-Programme laden `dokumente-teile.ps1` (Erkennen und Hochladen wie `dokErkennen`/`dokZielSuchen`/`dokHochladen` in der App, Änderungen an beiden Stellen nachziehen). Anleitung `anleitungen/Pool-Anleitung.md`.
 - **`einrichtblaetter.ps1`** liest alle fünf Minuten die Typ-Ordner aus Einstellungen → Dokumente → Einrichtblatt-Ordner und lädt Excel mit HOCO Nr. im Namen als Einrichtblatt auf den Typ des Ordners. **Liest nur, löscht und verschiebt dort nie etwas** (Entscheid Patrick 5. Oktober 2026). Bis der Schalter „Hochladen“ in der App an ist, nur Probelauf. Anleitung `anleitungen/Einrichtblatt-Anleitung.md`.
@@ -129,7 +129,7 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer` — d
 
 ## Offene Punkte
 
-1. `solarlog.ps1` im Betrieb auf das neue Projekt umstellen: neues Skript und Anleitung liegen bereit (`anleitungen/Solar-Anleitung.md`, 5. Oktober 2026), Patrick muss `sql/solar.sql` ausführen und das Skript am Solar-Rechner austauschen. Danach ist `solar-weiterleiten` im alten Projekt nicht mehr nötig.
+1. ~~`solarlog.ps1` umstellen~~ erledigt am 5. Oktober 2026. Nach ein paar Tagen `solarlog-alt.ps1` am Solar-Rechner löschen.
 2. Datenbank-Passwort und Secret Key des neuen Projekts neu setzen — sie standen im Chat.
 3. Sicherung (`sicherung.ps1`) und Dokumente-Abgleich auf das neue Projekt umstellen.
 4. Supabase Pro für tägliche Sicherungen. Altes Projekt pausieren. `C:\Hofer\Umzug` löschen.
