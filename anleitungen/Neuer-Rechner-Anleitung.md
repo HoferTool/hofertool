@@ -49,7 +49,7 @@ Mit diesem Konto lädt das Pool-Programm die Dateien hoch.
 2. Diese Zeile hineinkopieren (Rechtsklick fügt ein) und Enter drücken:
 
    ```
-   [Net.ServicePointManager]::SecurityProtocol='Tls12'; iwr -UseBasicParsing https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte/einrichten.ps1 -OutFile $env:TEMP\einrichten.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\einrichten.ps1
+   [Net.ServicePointManager]::SecurityProtocol='Tls12'; iwr -UseBasicParsing https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte/einrichten.ps1?t=$(Get-Random) -OutFile $env:TEMP\einrichten.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\einrichten.ps1
    ```
 
 3. Das Programm führt dich durch:

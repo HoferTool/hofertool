@@ -24,7 +24,7 @@
 #       im Hintergrund wartet. Das Einrichten selbst endet danach.
 #
 #  Start (PowerShell, am besten "Als Administrator ausführen"):
-#     [Net.ServicePointManager]::SecurityProtocol='Tls12'; iwr -UseBasicParsing https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte/einrichten.ps1 -OutFile $env:TEMP\einrichten.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\einrichten.ps1
+#     [Net.ServicePointManager]::SecurityProtocol='Tls12'; iwr -UseBasicParsing https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte/einrichten.ps1?t=$(Get-Random) -OutFile $env:TEMP\einrichten.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\einrichten.ps1
 #
 #  Nochmals ausführen ist gefahrlos: Was schon eingetragen ist, bleibt
 #  mit Enter stehen, die Programme werden neu geholt, die Aufgaben
@@ -94,7 +94,7 @@ Titel "1. Programme holen"
 New-Item -ItemType Directory -Force -Path $Ziel | Out-Null
 foreach ($n in @("solarlog.ps1", "dokumente-pool.ps1", "dokumente-teile.ps1", "pool-einplanen.ps1", "einrichtblaetter.ps1")) {
   try {
-    Invoke-WebRequest -UseBasicParsing -Uri "$QUELLE/$n" -OutFile (Join-Path $Ziel $n) -TimeoutSec 60
+    Invoke-WebRequest -UseBasicParsing -Uri ("$QUELLE/${n}?t=" + [DateTime]::UtcNow.Ticks) -OutFile (Join-Path $Ziel $n) -TimeoutSec 60
     Unblock-File -Path (Join-Path $Ziel $n) -ErrorAction SilentlyContinue
     Gut "$n geholt"
   } catch {
