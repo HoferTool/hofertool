@@ -5310,7 +5310,8 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
 .excelansicht { position: absolute; inset: 0; display: flex; flex-direction: column; }
 .excelansicht__buehne { flex: 1; min-height: 0; overflow: auto; position: relative;
   -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-.excelansicht__rahmen { display: flex; justify-content: center; align-items: flex-start; margin: 0 auto; }
+.excelansicht__rahmen { display: flex; justify-content: center; align-items: flex-start;
+  width: max-content; min-width: 100%; min-height: 100%; box-sizing: border-box; }
 .excelansicht__blatt { -webkit-font-smoothing: antialiased; }
 .excelansicht__leiste { flex: none; display: flex; align-items: center; justify-content: space-between;
   gap: 8px; padding: 6px 10px; padding-bottom: max(6px, env(safe-area-inset-bottom));
