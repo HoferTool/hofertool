@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.37.0";
+const APP_VERSION = "111.38.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3126,6 +3126,26 @@ function farbenZurWahl() {
   if (!genutzt.length) return PLANFARBEN;   // solange nichts zugeteilt ist
   return genutzt.sort((a, b2) =>
     (FARBZUTEILUNG[a.wert].sortierung || 0) - (FARBZUTEILUNG[b2.wert].sortierung || 0));
+}
+
+// Seit 111.37.0 gibt es keine frei gewählten Farben mehr, nur die
+// Palette. Alte Aufträge mit eigener Farbe zeigen sie weiter; beim
+// Bearbeiten schlägt das Fenster die nächstliegende Palettenfarbe vor
+// (aus den angebotenen, damit gleich ein Material dazugehört).
+function naechstePlanfarbe(hex, auswahl) {
+  const zerlegen = (h) => {
+    const x = String(h || "").replace("#", "");
+    return [0, 2, 4].map((i) => parseInt(x.slice(i, i + 2), 16) || 0);
+  };
+  const [r, g, b2] = zerlegen(hex);
+  let beste = null, abstand = Infinity;
+  (auswahl && auswahl.length ? auswahl : PLANFARBEN).forEach((f) => {
+    const [r2, g2, b3] = zerlegen(f.hex);
+    // Gewichtet nach dem Auge: Grün fällt am meisten auf
+    const d = 2 * (r - r2) ** 2 + 4 * (g - g2) ** 2 + 3 * (b2 - b3) ** 2;
+    if (d < abstand) { abstand = d; beste = f; }
+  });
+  return beste || PLANFARBEN[0];
 }
 
 // Wer plant, wird in den Einstellungen angehakt. Nur diese
@@ -6504,7 +6524,7 @@ function historieBlatt(maschine, auftrag, runden, titel) {
     let kopf = "";
     if (tag !== tagVorher) {
       tagVorher = tag;
-      kopf = '<tr class="tag"><td colspan="4">' + (r.wann ? esc(tagText(r.wann)) : "Ohne Datum") + '</td></tr>';
+      kopf = '<tr class="tag"><td colspan="3">' + (r.wann ? esc(tagText(r.wann)) : "Ohne Datum") + '</td></tr>';
     }
     return kopf + '<tr class="runde">'
       + '<td class="uhr">' + (r.wann ? esc(zeitText(r.wann)) : "") + '</td>'
@@ -6512,7 +6532,6 @@ function historieBlatt(maschine, auftrag, runden, titel) {
       + '<td>' + r.zeilen.map((z) => '<span class="wz"><b>' + esc(z.tool_nr) + '</b>'
           + (leer(z.gehalten_stk) ? "" : '<i>' + zahlText(z.gehalten_stk) + ' Stk</i>') + '</span>').join("")
       + (r.notiz ? '<div class="notiz">' + esc(r.notiz) + '</div>' : "") + '</td>'
-      + '<td class="wer">' + esc(r.person || "") + (r.auftrag ? '<small>' + esc(r.auftrag) + '</small>' : "") + '</td>'
       + '</tr>';
   }).join("");
 
@@ -6565,8 +6584,6 @@ function historieBlatt(maschine, auftrag, runden, titel) {
     + '.wz b { color: var(--f) }'
     + '.wz i { font-style: normal; color: var(--grau); font-size: 7.5pt }'
     + '.notiz { color: var(--grau); font-size: 8.5pt; margin-top: .5mm }'
-    + '.wer { width: 34mm; text-align: right; color: var(--grau) }'
-    + '.wer small { display: block; font-size: 7.5pt }'
     + '.fuss { margin-top: 6mm; padding-top: 2mm; border-top: .4pt solid var(--linie); display: flex;'
     + '  justify-content: space-between; color: var(--grau); font-size: 7.5pt }'
     + '.hinweis { color: var(--grau); font-size: 7.5pt; margin: 1.5mm 0 0 }'
@@ -6608,8 +6625,7 @@ function historieBlatt(maschine, auftrag, runden, titel) {
       }).join("")
     + '</tbody></table>'
     + '<h2>Alle Wechsel</h2>'
-    + '<table><thead><tr><th>Zeit</th><th>Stückzahl</th><th>Gewechselte Werkzeuge · gehalten</th>'
-    + '<th style="text-align:right">Wer · Auftrag</th></tr></thead><tbody>' + zeilen + '</tbody></table>'
+    + '<table><thead><tr><th>Zeit</th><th>Stückzahl</th><th>Gewechselte Werkzeuge · gehalten</th></tr></thead><tbody>' + zeilen + '</tbody></table>'
     + '<p class="hinweis">Die Zahl hinter einem Werkzeug sagt, wie viele Stück es seit dem letzten Wechsel gehalten hat.</p>'
     + '<div class="fuss"><span>Hofer + Co. Präzisionsdrehteile · Lohn-Ammannsegg</span>'
     + '<span>Erstellt ' + esc(datumZeitKurz(new Date().toISOString())) + '</span></div>'
@@ -6758,7 +6774,7 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
 function istExcelDatei(name) { return /\.(xlsx|xlsm|xls)$/i.test(String(name || "")); }
 
 // Ein Einrichtblatt auswählen, hochladen und die Adresse zurückgeben.
-// Seit 111.37.0 nur noch Excel (Wunsch 5. Oktober 2026).
+// Seit 111.38.0 nur noch Excel (Wunsch 5. Oktober 2026).
 function blattPdfWaehlen() {
   return new Promise((fertig) => {
     const feld = document.createElement("input");
@@ -8240,7 +8256,7 @@ Object.assign(alt, {
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
   notizTrennen, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen,
   werkzeugWechselDialog, zifferblock,
-  PLANFARBEN, farbenZurWahl, meineInitialen, personVoll, naechsterFreierTag,
+  PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, ablageLoeschen,

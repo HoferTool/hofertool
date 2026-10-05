@@ -3938,12 +3938,6 @@ body.dunkel .pw-ferien, body.dunkel .pw-ferien * { color: #fff !important; }
 .pw-zeile--ferienblock .pw-ferien { grid-row: var(--bahn, 1); margin: 0 !important; }
 .pw-zeile--ferienblock .pw-name--fein { display: flex; align-items: flex-start; padding-top: 6px; }
 /* Eigener Farbwähler in der Farbreihe */
-.farbknopf--frei { position: relative; overflow: hidden; cursor: pointer;
-                   border: 1px dashed var(--linie-stark) !important; }
-.farbknopf--frei input { position: absolute; inset: 0; opacity: 0; width: 100%;
-                         height: 100%; cursor: pointer; }
-.farbknopf--frei span { pointer-events: none; font-weight: 700; color: #10161d;
-                        mix-blend-mode: difference; filter: invert(1); }
 /* Kurz aufleuchten, wenn man aus einer Meldung zum Balken springt */
 .pw-balken--gezeigt { outline: 3px solid #ffc940; outline-offset: 2px;
                       animation: gezeigt 1.2s ease-in-out 3; z-index: 5; }
@@ -5346,10 +5340,20 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
 .excelansicht__zoom .knopf:disabled { opacity: .4; }
 .excelansicht__fehler { padding: 24px; text-align: center; line-height: 1.5; }
 
-/* Einstellungen → Dokumente: Fläche zum Hineinziehen von Dateien (111.37.0) */
+/* Einstellungen → Dokumente: Fläche zum Hineinziehen von Dateien (111.38.0) */
 .pool-ablage { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center;
   padding: 22px 18px; border: 2px dashed var(--linie-stark); border-radius: var(--radius); color: var(--gedaempft);
   transition: border-color .15s, background-color .15s; }
 .pool-ablage b { color: var(--tinte); }
 .pool-ablage .klein { max-width: 60ch; }
 .pool-ablage--ueber { border-color: var(--marke); background: var(--marke-hell); }
+/* ---------- Materialfarben nur aus der Palette (111.37.0) ---------- */
+/* "+" legt eine neue Farbe aus der Palette an, kein freier Farbwähler */
+.farbknopf--neu { background: var(--flaeche) !important; color: var(--marke) !important;
+                  border: 1px dashed var(--linie-stark) !important; font-weight: 700;
+                  font-size: 1.05rem !important; cursor: pointer; }
+.farbknopf--neu:hover { border-color: var(--marke) !important; }
+/* Eigene Farbe eines alten Auftrags: nur angezeigt, nicht wählbar */
+.farbknopf--alt { display: inline-block; cursor: default;
+                  background-image: linear-gradient(135deg, transparent 45%, rgba(255,255,255,.85) 45% 55%, transparent 55%) !important; }
+.farbwahl--neu { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }

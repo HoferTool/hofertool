@@ -9,7 +9,9 @@
 //      felder: [{ name, label, typ, wert, platzhalter, pflicht,
 //                 hinweis, auswahl: [[wert, text]], ziffern }]
 //      → Objekt mit den Werten oder null bei Abbruch
+//    neueFarbeDialog(farben) → { farbe, material, kuerzel } oder null
 // =================================================================
+import { useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
 
@@ -127,4 +129,54 @@ export function dialogFelder(o) {
       </div>
     );
   });
+}
+
+// Neue Materialfarbe: Es gibt keinen freien Farbwähler, nur die
+// Palette der App (Wunsch 5. Oktober 2026). Angeboten werden die
+// Palettenfarben, die noch kein Material haben.
+function NeueFarbe({ farben, fertig }) {
+  const [farbe, setFarbe] = useState(null);
+  const [material, setMaterial] = useState("");
+  const [kuerzel, setKuerzel] = useState("");
+  const absenden = (e) => {
+    if (e) e.preventDefault();
+    if (!farbe) { alt.meldung("Bitte eine Farbe wählen.", "warn"); return; }
+    if (!material.trim()) { alt.meldung("Material wird benötigt.", "warn"); return; }
+    fertig({ farbe, material: material.trim(), kuerzel: kuerzel.trim() });
+  };
+  const gewaehlt = farben.find((f) => f.wert === farbe);
+  return (
+    <div className="dialog" role="dialog" aria-modal="true">
+      <h2>Neue Farbe</h2>
+      <p>Farbe aus der Palette wählen und das Material dazu eintragen. Sie steht danach in jedem Auftrag zur Wahl.</p>
+      <form onSubmit={absenden}>
+        <div className="feld"><span className="feldlabel">Farbe{gewaehlt ? ": " + gewaehlt.name : ""}</span>
+          <div className="farbwahl farbwahl--neu">
+            {farben.map((f) => (
+              <button key={f.wert} type="button" data-neufarbe={f.wert} title={f.name}
+                aria-label={f.name} aria-pressed={farbe === f.wert}
+                className={"farbknopf" + (farbe === f.wert ? " aktiv" : "")}
+                style={{ background: f.hex, color: f.schrift }}
+                onClick={() => setFarbe(f.wert)} />
+            ))}
+          </div></div>
+        <div className="auf-zweier">
+          <label className="feld"><span>Material</span>
+            <input id="neufarbe-material" type="text" value={material} placeholder="z. B. Titan"
+              data-fokus="" onChange={(e) => setMaterial(e.target.value)} /></label>
+          <label className="feld"><span>Kürzel</span>
+            <input id="neufarbe-kuerzel" type="text" value={kuerzel} placeholder="z. B. T"
+              onChange={(e) => setKuerzel(e.target.value)} /></label>
+        </div>
+      </form>
+      <div className="dialog__knoepfe">
+        <button className="knopf knopf--still" data-nein="" onClick={() => fertig(null)}>Abbrechen</button>
+        <button className="knopf knopf--haupt" data-ja="" onClick={() => absenden()}>Farbe anlegen</button>
+      </div>
+    </div>
+  );
+}
+
+export function neueFarbeDialog(farben) {
+  return fensterMitWert(null, (fertig) => <NeueFarbe farben={farben} fertig={fertig} />);
 }

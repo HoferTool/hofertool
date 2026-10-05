@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { alt, useVerzoegert } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { neueFarbeDialog } from "../teile/Dialoge.jsx";
 import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage) {
@@ -229,6 +230,35 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   }, [nrRuhig, auftrag]);
 
   const farbeWaehlen = (wert) => { farbeVonHand.current = true; setze("farbe", wert); };
+
+  // Eigene Farben gibt es nicht mehr (111.37.0). Hat ein alter Auftrag
+  // noch eine, schlägt das Fenster beim Bearbeiten die nächstliegende
+  // Palettenfarbe vor; gespeichert wird sie erst mit "Speichern".
+  const [vorschlag] = useState(() => (/^#/.test(w.farbe) && !nurLesen
+    ? alt.naechstePlanfarbe(w.farbe, alt.farbenZurWahl()).wert : null));
+  useEffect(() => { if (vorschlag) setze("farbe", vorschlag); }, []);
+
+  // Neue Farbe: nur aus der Palette, gleich mit Material und Kürzel
+  const [, farbenNeu] = useState(0);
+  const neueFarbe = async () => {
+    const frei = alt.PLANFARBEN.filter((f) => !alt.FARBZUTEILUNG[f.wert]);
+    if (!frei.length) {
+      alt.meldung("Alle Farben der Palette sind schon vergeben. In den Einstellungen unter Farben und Material umbenennen.", "warn");
+      return;
+    }
+    const neu = await neueFarbeDialog(frei);
+    if (!neu) return;
+    const nr = alt.PLANFARBEN.findIndex((f) => f.wert === neu.farbe);
+    const { error } = await alt.db.from("farb_material").upsert({
+      farbe: neu.farbe, material: neu.material, buchstabe: neu.kuerzel || null, sortierung: nr });
+    if (error) alt.meldung(alt.fehlertext(error), "fehler");
+    else {
+      await alt.farbzuteilungLaden();
+      alt.meldung("Farbe " + alt.farbeVon(neu.farbe).name + " für " + neu.material + " angelegt.", "gut");
+    }
+    farbenNeu((x) => x + 1);
+    farbeWaehlen(neu.farbe);
+  };
   const planerUmschalten = (k) => setW((x) => ({ ...x,
     planer: x.planer.includes(k) ? x.planer.filter((p) => p !== k) : [...x.planer, k] }));
 
@@ -403,15 +433,16 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   title={z ? z.material + " (" + f.name + ")" : f.name}
                   disabled={nurLesen} onClick={() => farbeWaehlen(f.wert)}>{z ? (z.buchstabe || "") : ""}</button>;
               })}
-              {/* Beliebige Farbe: der kleine Farbwähler am Ende der Reihe */}
-              <label className={"farbknopf farbknopf--frei" + (freieFarbe ? " aktiv" : "")}
-                title="Eigene Farbe" style={{ background: freieFarbe ? w.farbe : "#fff" }}>
-                <input type="color" id="pl-farbfrei" value={freieFarbe ? w.farbe : "#4f9bff"}
-                  disabled={!darf} onChange={(e) => farbeWaehlen(e.target.value)} />
-                <span>+</span></label>
+              {/* Ein alter Auftrag mit eigener Farbe: nur zum Ansehen */}
+              {freieFarbe && <span className="farbknopf farbknopf--alt aktiv" title="Eigene Farbe (alt)"
+                style={{ background: w.farbe }} />}
+              {darf && <button type="button" id="pl-farbneu" className="farbknopf farbknopf--neu"
+                title="Neue Farbe aus der Palette" aria-label="Neue Farbe" onClick={neueFarbe}>+</button>}
             </div>
             <span className="feldhinweis" id="pl-farbmaterial">
-              {zuteilung[w.farbe] ? zuteilung[w.farbe].material : ""}</span>
+              {[zuteilung[w.farbe] ? zuteilung[w.farbe].material : "",
+                vorschlag && w.farbe === vorschlag ? "eigene Farbe ersetzt durch " + alt.farbeVon(w.farbe).name
+                  + ", gilt nach dem Speichern" : ""].filter((x) => x).join(" · ")}</span>
           </div>
           {/* Vorschau der Zeichnung füllt den freien Platz unter dem Material */}
           <div className="feld auf-zeichnung"><span className="feldlabel">Zeichnung</span>
