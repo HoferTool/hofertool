@@ -57,14 +57,20 @@ export function wetterZeichen(code) {
   return "⛅";
 }
 
-// Tagesmengen einer Maschine über ein halbes Jahr. Gezählt wird die
-// Zunahme des Zählerstands gegenüber dem letzten Stand desselben
-// Auftrags. Der erste Stand eines Auftrags zählt nur dann ganz, wenn
-// er kurz nach dessen Beginn liegt — sonst wäre er der ganze Zähler
-// seit Wochen und kein Tagewerk.
+// Tagesmengen einer Maschine über ein halbes Jahr. Eingetragen wird
+// der Gesamtzähler, und zwar am Morgen danach (Wunsch 5. Oktober
+// 2026): Was am Dienstag dasteht, ist am Montag gemacht worden. Darum
+// gehört die Zunahme gegenüber dem vorherigen Stand desselben Auftrags
+// zum Tag DIESES vorherigen Stands, nicht zum Tag der Eingabe. So
+// landet, was am Montag für Freitag eingetragen wird, beim Freitag,
+// und heute bleibt leer, bis morgen der nächste Stand kommt.
+// Der erste Stand eines Auftrags zählt nur, wenn er kurz nach dessen
+// Beginn liegt, und gehört dann zum Tag des Beginns — sonst wäre er
+// der ganze Zähler seit Wochen und kein Tagewerk.
 //
 // Ein Tag ist der Kalendertag von 00:00 bis 00:00 (record_date, das
-// Datum des Geräts beim Eintragen).
+// Datum des Geräts beim Eintragen). Gespeichert wird weiter am Tag der
+// Eingabe; nur die Statistik im Pad Mode rechnet so.
 //
 // Mit auftragId zählt nur dieser Auftrag: Die Statistik im Pad Mode
 // beginnt bei jedem neuen Auftrag von vorn (Wunsch 5. Oktober 2026).
@@ -112,26 +118,41 @@ export async function tagesmengen(maschineId, auftragId) {
     }
   });
 
-  // Zunahmen je Tag, über alle Aufträge zusammen
+  // Zunahmen je Tag, über alle Aufträge zusammen. stand und zeit sind
+  // der Zählerstand am Tag der Eingabe (für den Verlauf), gutZeit die
+  // Eingabe, deren Zunahme diesem Tag gutgeschrieben wurde.
   const jeTag = {};
+  const tagVon = (d, k) => jeTag[d]
+    || (jeTag[d] = { menge: null, zeit: "", stand: 0, job: k, gutZeit: "" });
+  const gutschreiben = (d, k, menge, zeit) => {
+    const t = tagVon(d, k);
+    t.menge = (t.menge || 0) + menge;
+    if (String(zeit) > String(t.gutZeit)) t.gutZeit = zeit;
+  };
   Object.keys(jeAuftrag).forEach((k) => {
-    let vorher = null;
+    let vorher = null, vorherTag = null;
     Object.keys(jeAuftrag[k]).sort().forEach((d) => {
       const e = jeAuftrag[k][d];
-      let menge = null;
-      if (vorher) menge = Math.max(0, e.stand - vorher.stand);
+      if (vorher) gutschreiben(vorherTag, k, Math.max(0, e.stand - vorher.stand), e.zeit);
       else {
         const b = beginn[k];
-        const nah = b && (alt.ausIso(d) - alt.ausIso(b)) / TAG <= 3.1;
-        menge = nah ? e.stand : null;
+        const nah = b && b <= d && (alt.ausIso(d) - alt.ausIso(b)) / TAG <= 3.1;
+        if (nah) gutschreiben(b, k, e.stand, e.zeit);
       }
-      const t = jeTag[d] || (jeTag[d] = { menge: null, zeit: "", stand: 0, job: k });
-      if (menge !== null) t.menge = (t.menge || 0) + menge;
+      const t = tagVon(d, k);
       if (String(e.zeit) > String(t.zeit)) { t.zeit = e.zeit; t.stand = e.stand; t.job = k; }
-      vorher = e;
+      vorher = e; vorherTag = d;
     });
   });
   return jeTag;
+}
+
+// Uhrzeit des Geräts (der Zeitstempel kommt in UTC), an einem anderen
+// Tag als dem des Balkens mit dem Wochentag davor
+function eingetragen(zeit, tag) {
+  const d = new Date(zeit);
+  if (isNaN(d) || alt.isoDatum(d) === tag) return uhrzeit(zeit);
+  return ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()] + " " + uhrzeit(zeit);
 }
 
 // Die letzten sieben Tage
@@ -148,8 +169,9 @@ export function letzteTage(jeTag) {
                 nummer: d.getDate(), heute: k === 0,
                 eintrag: e ? { stand: e.stand, zeit: e.zeit, job: e.job } : null,
                 menge: e ? e.menge : null,
-                // Uhrzeit des Geräts; der Zeitstempel kommt in UTC
-                uhr: e && e.zeit ? uhrzeit(e.zeit) : "" });
+                // Wann die Zahl dieses Balkens eingetragen wurde, meist
+                // am Tag danach: dann mit Wochentag („Mo 07:10“).
+                uhr: e && e.gutZeit ? eingetragen(e.gutZeit, tag) : "" });
   }
   return raus;
 }

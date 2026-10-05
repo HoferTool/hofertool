@@ -414,7 +414,9 @@ export default function Maschine({ d }) {
   const notiz = alt.notizTrennen(j ? j.plan_note : "");
   const padInfo = (blattDaten && blattDaten.pad_info) || "";
   const tage = letzteTage(jeTag);
-  const heuteMenge = (tage.find((t) => t.heute) || {}).menge || 0;
+  // Heute steht erst morgen fest (eingetragen wird am Morgen danach),
+  // darum der jüngste Tag mit einer Menge
+  const zuletzt = [...tage].reverse().find((t) => t.menge !== null && t.menge !== undefined);
   const status = j ? (alt.PLANSTATUS[j.plan_status] || alt.PLANSTATUS.geplant) : null;
 
   const ansichtWaehlen = (e, w) => {
@@ -517,7 +519,10 @@ export default function Maschine({ d }) {
                 <div className="pad-stk-zahl">{j ? zahlText(j.stand || 0) : "—"}</div></div>
               <div className="pad-stk-neben">
                 {!!(j && j.target_quantity) && <span>von {zahlText(j.target_quantity)} · {prozent(j)} %</span>}
-                <span>heute {zahlText(heuteMenge)} Stk</span>
+                <span>{zuletzt
+                  ? (zuletzt.heute ? "heute" : zuletzt.wochentag + " " + zuletzt.nummer + ".")
+                    + " " + zahlText(zuletzt.menge) + " Stk"
+                  : "noch keine Tagesmenge"}</span>
               </div>
             </div>
             <div className="pad-stk-leiste"><div className="pad-stk-wahl">
