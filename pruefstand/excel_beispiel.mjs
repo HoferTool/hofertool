@@ -5,6 +5,8 @@
 import ExcelJS from "exceljs";
 import * as XLSX from "xlsx";
 import { readFileSync, writeFileSync } from "node:fs";
+import { deflateSync } from "node:zlib";
+import JSZip from "jszip";
 
 const wb = new ExcelJS.Workbook();
 const ws = wb.addWorksheet("Einrichtblatt", { views: [{ showGridLines: false }] });
@@ -48,13 +50,32 @@ ws.getCell("A14").value = { richText: [{ text: "Achtung: ", font: { bold: true, 
 const bild = wb.addImage({ buffer: readFileSync("public/logo.png"), extension: "png" });
 ws.addImage(bild, { tl: { col: 4, row: 3 }, br: { col: 6, row: 5.5 }, editAs: "oneCell" });
 
+// Werkzeugbild wie aus dem Katalog: links rot, rechts weiss. In Excel
+// ist es zugeschnitten (nur die linke Hälfte, srcRect) und Weiss ist
+// durchsichtig gesetzt (clrChange). Beides baut unten der Nachtrag ein.
+const werkzeug = wb.addImage({ buffer: pngBauen(40, 20, (x) => (x < 20 ? [200, 0, 0] : [255, 255, 255])), extension: "png" });
+ws.addImage(werkzeug, { tl: { col: 0, row: 14 }, br: { col: 1, row: 16 }, editAs: "oneCell" });
+
 const w2 = wb.addWorksheet("Werkzeuge");
 w2.getCell("A1").value = "Platz"; w2.getCell("B1").value = "Artikel"; w2.getCell("A1").font = { bold: true };
 w2.getCell("A2").value = "T01"; w2.getCell("B2").value = "VCGT 160404";
 w2.getCell("C2").value = 0.25; w2.getCell("C2").numFmt = "0%";
 const w3 = wb.addWorksheet("Versteckt"); w3.state = "hidden"; w3.getCell("A1").value = "geheim";
 
-await wb.xlsx.writeFile("pruefstand/einrichtblatt-beispiel.xlsx");
+// Nachtrag: exceljs kann Zuschneiden und „Farbe transparent setzen“
+// nicht schreiben, also direkt in die Zeichnung des ersten Blattes
+const zip = await JSZip.loadAsync(await wb.xlsx.writeBuffer());
+const zPfad = Object.keys(zip.files).find((n) => /^xl\/drawings\/drawing\d+\.xml$/.test(n));
+let z = await zip.file(zPfad).async("string");
+const teile = z.split("<xdr:pic>");
+// Das zweite Bild im Blatt ist das Werkzeug
+teile[2] = teile[2]
+  .replace(/(<a:blip[^>]*?)\/>/, '$1><a:clrChange><a:clrFrom><a:srgbClr val="FFFFFF"/></a:clrFrom><a:clrTo><a:srgbClr val="FFFFFF"><a:alpha val="0"/></a:srgbClr></a:clrTo></a:clrChange></a:blip>')
+  .replace(/<a:stretch>/, '<a:srcRect r="50000"/><a:stretch>');
+z = teile.join("<xdr:pic>");
+if (!z.includes("srcRect") || !z.includes("clrChange")) throw new Error("Nachtrag ging nicht");
+zip.file(zPfad, z);
+writeFileSync("pruefstand/einrichtblatt-beispiel.xlsx", await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
 
 const alt = XLSX.utils.book_new();
 const blatt = XLSX.utils.aoa_to_sheet([["Einrichtblatt alt"], [], ["Pos", "Werkzeug", "Drehzahl"],
@@ -64,3 +85,22 @@ blatt["!cols"] = [{ wch: 6 }, { wch: 24 }, { wch: 10 }];
 XLSX.utils.book_append_sheet(alt, blatt, "Blatt1");
 writeFileSync("pruefstand/einrichtblatt-alt.xls", XLSX.write(alt, { type: "buffer", bookType: "biff8" }));
 console.log("geschrieben");
+
+// Kleines PNG ohne Bibliothek: farbe(x, y) → [r, g, b]
+function pngBauen(b, h, farbe) {
+  const roh = Buffer.alloc((b * 3 + 1) * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < b; x++) {
+    const [r, g, bl] = farbe(x, y), i = y * (b * 3 + 1) + 1 + x * 3;
+    roh[i] = r; roh[i + 1] = g; roh[i + 2] = bl;
+  }
+  const crc = (buf) => { let c = ~0; for (const v of buf) { c ^= v; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return ~c >>> 0; };
+  const stueck = (typ, daten) => {
+    const l = Buffer.alloc(4); l.writeUInt32BE(daten.length);
+    const td = Buffer.concat([Buffer.from(typ), daten]);
+    const c = Buffer.alloc(4); c.writeUInt32BE(crc(td));
+    return Buffer.concat([l, td, c]);
+  };
+  const kopf = Buffer.alloc(13); kopf.writeUInt32BE(b, 0); kopf.writeUInt32BE(h, 4); kopf[8] = 8; kopf[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), stueck("IHDR", kopf),
+    stueck("IDAT", deflateSync(roh)), stueck("IEND", Buffer.alloc(0))]);
+}
