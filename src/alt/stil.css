@@ -5358,3 +5358,16 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
 .zuschnitt-regler { display: flex; align-items: center; gap: 10px; margin: 4px 6px 14px;
   color: var(--gedaempft); font-weight: 650; }
 .zuschnitt-regler input { flex: 1; accent-color: var(--marke); }
+
+/* ---------- Planwand: Vorschau beim Verschieben und Einfügen ----------
+   So lang wie der Auftrag, durchsichtig, damit man sieht, was darunter liegt */
+.pw-vorschau { grid-column: calc(var(--von) + 1) / span var(--dauer);
+  /* absolut, damit die Balken in der Schicht nicht ausweichen */
+  position: absolute; top: 0; bottom: 0; left: 0; right: 0; z-index: 6; pointer-events: none !important;
+  display: flex; align-items: center; min-width: 0; overflow: hidden;
+  padding: 0 7px; border-radius: 3px; white-space: nowrap;
+  font-size: calc(.72rem * var(--pw-s, 1)); font-weight: 700; color: var(--marke);
+  background: color-mix(in srgb, var(--signalgelb) 70%, transparent);
+  outline: 2px dashed var(--marke); outline-offset: -2px; }
+body.einfuegemodus .pw-zelle:not(.pw-zelle--fein):hover { background: transparent !important;
+  outline: none; }
