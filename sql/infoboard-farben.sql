@@ -1,4 +1,7 @@
 -- =================================================================
+--  NICHT MEHR AUSFÜHREN (seit 111.37.0 nur noch Palettenfarben,
+--  siehe eigene-farben-weg.sql).
+--
 --  FARBEN AUS INFOBOARD, unverändert
 --
 --  Beim Import wurde jede infoBoard-Farbe auf die nächstliegende
