@@ -13,8 +13,10 @@
 #     Werkzeugprotokoll 10844-0049.xlsx    10844-0049 auf dem Typ des
 #     10844-0049 neu.xlsm                  Ordners
 #
-#  Gibt es für dieselbe HOCO Nr. mehrere Excel-Dateien im Ordner,
-#  zählt die zuletzt geänderte. Eine Datei wird nur hochgeladen, wenn
+#  Hat der Name ausser HOCO Nr., Typ und "Werkzeugprotokoll" noch ein
+#  anderes Wort (Toleranzen, Plattenwechsel, Werkzeugkosten …), ist es
+#  kein Einrichtblatt und bleibt weg. Gibt es für eine HOCO Nr. mehrere,
+#  zählt das Werkzeugprotokoll, sonst die zuletzt geänderte Datei. Eine Datei wird nur hochgeladen, wenn
 #  sie neu ist oder sich seit dem letzten Mal geändert hat.
 #
 #  DAS PROGRAMM LIEST NUR. In den Ordnern wird nie etwas gelöscht,
@@ -84,6 +86,28 @@ function HocoAusName([string]$name) {
   return $null
 }
 
+# Ist die Excel-Datei ein Einrichtblatt? Im selben Ordner liegen auch
+# Toleranzen, Plattenwechsel, Werkzeugkosten usw. mit derselben HOCO Nr.
+#   1 = Werkzeugprotokoll im Namen (auch vertippt: Werkzeuprotokoll …)
+#   2 = sonst nur HOCO Nr., Typ, Ziffern oder "Nr"
+#   0 = ein anderes Wort im Namen: kein Einrichtblatt, bleibt weg
+function Rang([string]$name, [string]$typName) {
+  $ohne = [regex]::Replace([IO.Path]::GetFileNameWithoutExtension($name), '\d{4,6}\s?-\s?\d{3,5}', ' ')
+  $typWoerter = @(($typName.ToLower() -split '[^a-zäöüß]+') | Where-Object { $_ })
+  $fremd = @()
+  $prot = $false
+  foreach ($w in (($ohne.ToLower() -split '[^a-zäöüß]+') | Where-Object { $_ })) {
+    # Alte Fassungen und Kopien nie, auch nicht als Werkzeugprotokoll
+    if (@('alt', 'old', 'kopie', 'copy') -contains $w) { return @{ rang = 0; fremd = $w } }
+    if ($w -match 'protokol') { $prot = $true; continue }
+    if ($typWoerter -contains $w -or $w -eq 'sw' -or $w -eq 'nr') { continue }
+    $fremd += $w
+  }
+  if ($prot) { return @{ rang = 1; fremd = "" } }
+  if ($fremd.Count -eq 0) { return @{ rang = 2; fremd = "" } }
+  return @{ rang = 0; fremd = ($fremd -join " ") }
+}
+
 # Woran man erkennt, ob sich eine Datei geändert hat
 function Kennung($d) { return $d.FullName + "|" + $d.LastWriteTimeUtc.Ticks + "|" + $d.Length }
 
@@ -105,7 +129,7 @@ function LesendKopieren($d) {
 # ---------- Durchlauf ----------
 $status = @{ zeit = (Get-Date).ToUniversalTime().ToString("o"); rechner = $env:COMPUTERNAME;
              scharf = $false; ordner = @(); excel = 0; neu = 0; ersetzt = 0; gleich = 0;
-             ohneNr = 0; aelter = 0; hochgeladen = 0; fehler = $null; liste = @() }
+             ohneNr = 0; fremd = 0; aelter = 0; hochgeladen = 0; fehler = $null; liste = @() }
 function Eintrag($o, [string]$datei, [string]$hoco, [string]$was) {
   if ($status.liste.Count -lt $listeHoechstens) {
     $status.liste += @{ o = $o; d = $datei; h = $hoco; w = $was }
@@ -156,19 +180,23 @@ try {
     $info.excel = $alle.Count
     $status.excel += $alle.Count
 
-    # Je HOCO Nr. die zuletzt geänderte Datei
+    # Je HOCO Nr. das Werkzeugprotokoll, sonst die Datei nur mit Nummer;
+    # bei mehreren davon die zuletzt geänderte
     $jeNr = @{}
     foreach ($d in $alle) {
       $h = HocoAusName $d.Name
       if (-not $h) { $status.ohneNr++; Eintrag $oi $d.Name "" "ohne HOCO Nr. im Namen, bleibt weg"; continue }
+      $r = Rang $d.Name $typ.name
+      if ($r.rang -eq 0) { $status.fremd++; Eintrag $oi $d.Name $h ("kein Einrichtblatt (" + $r.fremd + "), bleibt weg"); continue }
+      $d | Add-Member -NotePropertyName HoferRang -NotePropertyValue $r.rang -Force
       if (-not $jeNr[$h]) { $jeNr[$h] = @() }
       $jeNr[$h] += $d
     }
     foreach ($h in ($jeNr.Keys | Sort-Object)) {
-      $gruppe = @($jeNr[$h] | Sort-Object LastWriteTimeUtc -Descending)
+      $gruppe = @($jeNr[$h] | Sort-Object @{ Expression = { $_.HoferRang } }, @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true })
       $d = $gruppe[0]
       foreach ($x in ($gruppe | Select-Object -Skip 1)) {
-        $status.aelter++; Eintrag $oi $x.Name $h ("ältere Fassung, es zählt " + $d.Name)
+        $status.aelter++; Eintrag $oi $x.Name $h ("weiteres Blatt, es zählt " + $d.Name)
       }
       $schluessel = $h + "|" + [string]$typ.id
       $kennung = Kennung $d
@@ -216,7 +244,7 @@ if ($Probe -or -not $status.scharf) {
   Write-Host ""
   Write-Host ("Probelauf: " + $status.excel + " Excel-Dateien gefunden, " + ($status.neu + $status.ersetzt) +
     " würden hochgeladen (" + $status.neu + " neu, " + $status.ersetzt + " ersetzen ein vorhandenes), " +
-    $status.ohneNr + " ohne HOCO Nr., " + $status.aelter + " ältere Fassungen. Nichts hochgeladen, im Ordner nichts verändert.")
+    $status.ohneNr + " ohne HOCO Nr., " + $status.fremd + " keine Einrichtblätter (Toleranzen usw.), " + $status.aelter + " weitere Blätter derselben Nummer. Nichts hochgeladen, im Ordner nichts verändert.")
   foreach ($o in $status.ordner) {
     $t = "  " + $o.pfad + "  (Typ " + $o.typ + "): " + $o.excel + " Excel-Dateien"
     if ($o.fehler) { $t += " — " + $o.fehler }
