@@ -6430,7 +6430,7 @@ function historieBlatt(maschine, auftrag, runden, titel) {
     let kopf = "";
     if (tag !== tagVorher) {
       tagVorher = tag;
-      kopf = '<tr class="tag"><td colspan="4">' + (r.wann ? esc(tagText(r.wann)) : "Ohne Datum") + '</td></tr>';
+      kopf = '<tr class="tag"><td colspan="3">' + (r.wann ? esc(tagText(r.wann)) : "Ohne Datum") + '</td></tr>';
     }
     return kopf + '<tr class="runde">'
       + '<td class="uhr">' + (r.wann ? esc(zeitText(r.wann)) : "") + '</td>'
@@ -6438,7 +6438,6 @@ function historieBlatt(maschine, auftrag, runden, titel) {
       + '<td>' + r.zeilen.map((z) => '<span class="wz"><b>' + esc(z.tool_nr) + '</b>'
           + (leer(z.gehalten_stk) ? "" : '<i>' + zahlText(z.gehalten_stk) + ' Stk</i>') + '</span>').join("")
       + (r.notiz ? '<div class="notiz">' + esc(r.notiz) + '</div>' : "") + '</td>'
-      + '<td class="wer">' + esc(r.person || "") + (r.auftrag ? '<small>' + esc(r.auftrag) + '</small>' : "") + '</td>'
       + '</tr>';
   }).join("");
 
@@ -6491,8 +6490,6 @@ function historieBlatt(maschine, auftrag, runden, titel) {
     + '.wz b { color: var(--f) }'
     + '.wz i { font-style: normal; color: var(--grau); font-size: 7.5pt }'
     + '.notiz { color: var(--grau); font-size: 8.5pt; margin-top: .5mm }'
-    + '.wer { width: 34mm; text-align: right; color: var(--grau) }'
-    + '.wer small { display: block; font-size: 7.5pt }'
     + '.fuss { margin-top: 6mm; padding-top: 2mm; border-top: .4pt solid var(--linie); display: flex;'
     + '  justify-content: space-between; color: var(--grau); font-size: 7.5pt }'
     + '.hinweis { color: var(--grau); font-size: 7.5pt; margin: 1.5mm 0 0 }'
@@ -6534,8 +6531,7 @@ function historieBlatt(maschine, auftrag, runden, titel) {
       }).join("")
     + '</tbody></table>'
     + '<h2>Alle Wechsel</h2>'
-    + '<table><thead><tr><th>Zeit</th><th>Stückzahl</th><th>Gewechselte Werkzeuge · gehalten</th>'
-    + '<th style="text-align:right">Wer · Auftrag</th></tr></thead><tbody>' + zeilen + '</tbody></table>'
+    + '<table><thead><tr><th>Zeit</th><th>Stückzahl</th><th>Gewechselte Werkzeuge · gehalten</th></tr></thead><tbody>' + zeilen + '</tbody></table>'
     + '<p class="hinweis">Die Zahl hinter einem Werkzeug sagt, wie viele Stück es seit dem letzten Wechsel gehalten hat.</p>'
     + '<div class="fuss"><span>Hofer + Co. Präzisionsdrehteile · Lohn-Ammannsegg</span>'
     + '<span>Erstellt ' + esc(datumZeitKurz(new Date().toISOString())) + '</span></div>'
