@@ -244,7 +244,7 @@ function Blatt({ b, bildUrls }) {
   return (
     <div className="excelansicht__blatt" data-excelblatt="" style={{
       position: "relative", width: b.breite, height: b.hoehe, background: "#fff",
-      color: "#000", fontFamily: "Calibri, Carlito, Arial, sans-serif", fontSize: "14.7px", lineHeight: 1.2,
+      color: "#000", "--zf": "#000", fontFamily: "Calibri, Carlito, Arial, sans-serif", fontSize: "14.7px", lineHeight: 1.2,
       overflow: "hidden",
     }}>
       {b.gitter && <Gitter b={b} />}

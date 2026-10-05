@@ -5415,3 +5415,9 @@ body.einfuegemodus .pw-zelle:not(.pw-zelle--fein):hover { background: transparen
 .eb-ordner-unter { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
 .eb-liste { margin-top: 12px; }
 .eb-liste summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+
+/* Excel-Ansicht: das Blatt ist weisses Papier. Der Dunkelmodus macht
+   sonst jede Schrift weiss (body.dunkel *), und die Einrichtblätter
+   sahen leer aus (Patrick, 5. Oktober 2026). Jede Zelle trägt ihre
+   Excel-Farbe in --zf, ohne eigene Farbe erbt sie die des Blattes. */
+body .excelansicht__blatt, body .excelansicht__blatt * { color: var(--zf, #000) !important; }

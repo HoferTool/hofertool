@@ -217,7 +217,9 @@ function schriftStil(font, thema) {
   if (font.strike) deko.push("line-through");
   if (deko.length) s.textDecoration = deko.join(" ");
   const c = farbe(font.color, thema);
-  if (c) s.color = c;
+  // Farbe auch als Variable: der Dunkelmodus färbt sonst jede Schrift
+  // weiss (siehe .excelansicht__blatt in stil.css)
+  if (c) { s.color = c; s["--zf"] = c; }
   if (font.vertAlign === "superscript") s.verticalAlign = "super";
   if (font.vertAlign === "subscript") s.verticalAlign = "sub";
   return s;

@@ -88,6 +88,13 @@ with sync_playwright() as p:
         pruefe(name + ": Titel über vier Spalten verbunden", s["titelB"] and s["titelB"] > 400)
         pruefe(name + ": Kopfzeile fett und hell eingefärbt", s["posFett"] == "700" and s["posBg"] not in ("", "rgba(0, 0, 0, 0)"))
         pruefe(name + ": Summe rot", s["summeFarbe"] == "rgb(192, 0, 0)")
+        # Dunkelmodus macht sonst jede Schrift weiss, auch auf dem Papier
+        d = pg.evaluate("""() => { document.body.classList.add('dunkel');
+          const els = [...document.querySelectorAll('[data-excelblatt] div')];
+          const f = (t) => { const e = els.find(x => x.textContent === t); return e ? getComputedStyle(e).color : null; };
+          const r = { titel: f('Pos'), summe: f('4\\'700') };
+          document.body.classList.remove('dunkel'); return r; }""")
+        pruefe(name + ": Dunkelmodus: Schrift bleibt schwarz und rot", d["titel"] == "rgb(0, 0, 0)" and d["summe"] == "rgb(192, 0, 0)")
         pruefe(name + ": Zeilenumbruch", s["langUmbruch"] == "pre-wrap")
         pruefe(name + ": Rahmenlinien", s["striche"] >= 20)
         pruefe(name + ": Bild geladen", bool(s["bild"] and s["bild"]["ok"] and s["bild"]["b"] > 50))
