@@ -24,7 +24,7 @@ export default function Nutzer() {
   return (
     <>
       <Gruppe titel="Benutzer mit Login" text={bin
-        ? "Änderungen gelten sofort. Namen, Kürzel und Geburtstag werden beim Verlassen des Felds gespeichert. Ein Klick auf das Bild setzt ein Foto."
+        ? "Wird beim Verlassen des Felds gespeichert. Ein Klick auf das Bild setzt ein Foto."
         : "Ändern dürfen nur Administratoren."}>
         <div id="benutzerliste"><Benutzer bin={bin} /></div>
       </Gruppe>
@@ -41,8 +41,7 @@ export default function Nutzer() {
         </div>
       </Gruppe>
       <Gruppe titel="Link für externe Partner"
-        text={"Diesen Link bekommt Zurbrügg. Wer die App einmal darüber öffnet, sieht auf diesem Gerät keine "
-          + "Kacheln eurer Leute: beim ersten Mal nur E-Mail und Passwort, danach die eigene Kachel."}>
+        text={"Für Zurbrügg. Ein Gerät, das die App darüber öffnet, zeigt keine Kacheln eurer Leute."}>
         <div className="linkzeile"><input type="text" id="extern-link" aria-label="Link für externe Partner" readOnly value={link} />
           <button className="knopf knopf--klein" id="extern-link-kopieren" onClick={kopieren}>Kopieren</button></div>
       </Gruppe>
@@ -372,7 +371,7 @@ function Personen() {
   }
   return (
     <Gruppe titel="Personen ohne Login"
-      text="Für Kollegen, die die App nicht benutzen, deren Geburtstag aber auf der Startseite erscheinen soll."
+      text="Nur für den Geburtstag auf der Startseite."
       aktionen={<button className="knopf knopf--klein" id="pe-neu" onClick={() => oeffnen(null)}>+ Person</button>}>
       <div id="personenliste">{inhalt}</div>
     </Gruppe>

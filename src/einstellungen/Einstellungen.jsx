@@ -212,7 +212,7 @@ function MeinKonto() {
           <label className="knopf knopf--klein bildknopf">Bild wählen
             <input type="file" id="mk-datei" accept="image/*" hidden onChange={bildWaehlen} /></label>
         </div>
-        <Zeile titel="Anzeigename" text="So steht dein Name in der App.">
+        <Zeile titel="Anzeigename">
           <div className="es-eingabe">
             <input type="text" id="mn" aria-label="Anzeigename" value={name}
               onChange={(e) => setName(e.target.value)}
@@ -236,9 +236,7 @@ function MeinKonto() {
             <button className="knopf knopf--klein" id="ps" onClick={passwortAendern}>Passwort ändern</button>
           </div>
         </Zeile>
-        <Zeile titel="PIN statt Passwort" text={"Danach tippst du auf deine Kachel und gibst die PIN ein. "
-          + "Das bisherige Passwort gilt nicht mehr. Nach 5 falschen Versuchen ist das Konto "
-          + "5 Minuten gesperrt. 6 Ziffern sind deutlich sicherer als 4."}>
+        <Zeile titel="PIN statt Passwort" text="Ersetzt das Passwort: Kachel antippen und PIN eingeben.">
           <div className="es-eingabe es-eingabe--pin">
             <input type="password" id="mk-pin" aria-label="PIN" inputMode="numeric" pattern="[0-9]*" maxLength={8}
               autoComplete="new-password" placeholder="4 bis 8 Ziffern" value={pin}
@@ -252,7 +250,7 @@ function MeinKonto() {
             PIN entfernen und wieder mit Passwort anmelden</button>}
         </Zeile>
         <SchalterZeile id="mk-merken" titel="Auf diesem Gerät merken"
-          text="Ein Tipp auf deine Kachel genügt hier, auch nach dem Abmelden. Ohne fragt es jedes Mal nach Passwort oder PIN."
+          text="Ein Tipp auf deine Kachel genügt hier, auch nach dem Abmelden."
           checked={merken} onChange={merkenAendern} />
       </Gruppe>
     </>
@@ -273,7 +271,7 @@ function Darstellung() {
   const [thema, setThema] = useState(alt.themaJetzt());
   return (
     <Gruppe titel="Darstellung">
-      <Zeile titel="Themenfarbe" text="Gilt überall: Menü, Knöpfe, Planwand und Pad Mode.">
+      <Zeile titel="Themenfarbe">
         <div className="themawahl">
           {THEMEN.map(([w, t]) => (
             <button key={w} type="button" className={"themaknopf themaknopf--" + w + (thema === w ? " aktiv" : "")}
@@ -290,7 +288,7 @@ function Darstellung() {
         text="Sonst öffnet die Erfassung mit dem Tag." />
       {/* Sofort wirksam, nicht erst nach dem nächsten Anmelden */}
       <Schalter id="e-angemeldet" name="angemeldetbleiben" titel="Angemeldet bleiben"
-        text="Ohne meldet sich die App nach fünf Minuten ohne Bedienung selbst ab. Gilt überall, wo du dich anmeldest."
+        text="Ohne meldet sich die App nach fünf Minuten ohne Bedienung selbst ab."
         beiAenderung={() => { if (window.untaetigNeuStarten) window.untaetigNeuStarten(); }} />
     </Gruppe>
   );
@@ -332,7 +330,7 @@ function PinUndMail() {
   };
 
   return (
-    <Gruppe titel="Für alle" text="Nur Administratoren sehen und ändern das.">
+    <Gruppe titel="Für alle">
       <Zeile titel="PIN für die Planwand" text="Wer die Rolle Planwand hat, schaltet damit das Bearbeiten frei.">
         <div className="es-eingabe">
           <input type="text" id="pin-feld" className="es-schmal" aria-label="PIN für die Planwand"
@@ -341,7 +339,7 @@ function PinUndMail() {
         </div>
       </Zeile>
       <Zeile breit titel="Text für Bestellmails"
-        text={"Steht in jeder Bestellmail über dem PDF. {datum}, {name} und {lieferant} werden ersetzt."}>
+        text={"{datum}, {name} und {lieferant} werden ersetzt."}>
         <textarea id="bestellmail-feld" aria-label="Text für Bestellmails" rows={9} value={mail}
           onChange={(e) => setMail(e.target.value)} />
         <div className="knopfreihe es-knopfreihe">
@@ -372,9 +370,8 @@ function UeberDieApp() {
     })();
     return () => { weg = true; };
   }, []);
-  const profil = alt.profil || {};
   return (
-    <p className="es-fuss">Hofer Tool · Version {alt.APP_VERSION} · angemeldet als {profil.email || ""} ·{" "}
+    <p className="es-fuss">Version {alt.APP_VERSION} ·{" "}
       <span id="dateistand">{stand}</span></p>
   );
 }
@@ -385,15 +382,10 @@ function Backup() {
   return (
     <>
       <Gruppe titel="Planwand als Excel"
-        text={"Alle Aufträge der Planwand mit Maschine, Zeitraum, Zustand, Stückzahl, Material und Notiz "
-          + "als Tabelle, zum Ansehen, Weitergeben oder Aufheben. Ein zweites Blatt enthält die Maschinen."}
+        text={"Alle Aufträge mit Maschine, Zeitraum, Zustand, Stückzahl, Material und Notiz, "
+          + "auf einem zweiten Blatt die Maschinen."}
         aktionen={<button className="knopf knopf--haupt knopf--klein" id="bk-excel"
           onClick={() => alt.planwandExcel()}>Excel herunterladen</button>} />
-      <Gruppe titel="Sicherung der Datenbank">
-        <p className="es-absatz">Die vollständige Sicherung macht Supabase mit dem Pro-Plan jeden Tag
-          selbst, dazu kommt die Sicherung auf eurem Server mit <code>sicherung.ps1</code>.
-          Die Excel-Datei oben ersetzt sie nicht, sie ist ein Stand zum Lesen.</p>
-      </Gruppe>
     </>
   );
 }
@@ -419,8 +411,6 @@ function Fehlerprotokoll() {
       </>}>
       {liste.length
         ? <>
-            <p className="hinweis">Die Datei kannst du mir schicken, statt Screenshots zu machen.
-              Jedes Gerät führt sein eigenes Protokoll.</p>
             <div className="tabellenrolle"><table className="tabelle fp-tabelle">
               <thead><tr><th>Zeit</th><th>Seite</th><th>Person</th><th>Meldung</th></tr></thead>
               <tbody>{liste.map((e, i) => (
@@ -436,7 +426,7 @@ function Fehlerprotokoll() {
             </table></div>
           </>
         : <div className="es-leer"><span className="es-leer__zeichen" aria-hidden="true">✓</span>
-            Keine Fehler aufgezeichnet. So soll es sein.</div>}
+            Keine Fehler aufgezeichnet.</div>}
     </Gruppe>
   );
 }

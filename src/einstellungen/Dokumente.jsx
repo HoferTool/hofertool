@@ -83,10 +83,8 @@ export default function Dokumente() {
     <>
       <Gruppe titel="Ordner abgleichen"
         text={kannOrdner
-          ? "Wähle den Ordner mit den Dateien. Die App liest ihn, ordnet jede Datei anhand ihres Namens zu "
-            + "und zeigt dir die Zuordnung, bevor etwas hochgeladen wird. Der Ordner darf im Netzlaufwerk liegen."
-          : "Das Auswählen eines ganzen Ordners geht nur in Chrome oder Edge am Rechner. Am Tablet und am "
-            + "Handy lädst du Dateien einzeln hoch, bei der HOCO Nr. oder beim Maschinentyp."}
+          ? "Die App ordnet jede Datei nach ihrem Namen zu und zeigt die Zuordnung, bevor etwas hochgeladen wird."
+          : "Ganze Ordner gehen nur in Chrome oder Edge am Rechner."}
         aktionen={darf && kannOrdner && <button className="knopf knopf--klein knopf--haupt" id="pool-ordner"
           onClick={ordnerLesen}>Ordner wählen</button>}>
         {darf && !pool && <div id="pool-ablage" className={"pool-ablage" + (ueber ? " pool-ablage--ueber" : "")}
@@ -201,9 +199,7 @@ function Regeln() {
   return (
     <>
       <Gruppe titel="So erkennt die App die Dateien"
-        text={"Steht im Dateinamen eines dieser Stichwörter, kommt die Datei dorthin. Mehrere Stichwörter "
-          + "mit Komma trennen. Gross und klein, Striche und Leerzeichen spielen keine Rolle, bei längeren "
-          + "Wörtern wird ein Tippfehler verziehen. Die HOCO Nr. und der Maschinentyp werden immer von selbst erkannt."}>
+        text={"Steht eines dieser Stichwörter im Dateinamen, kommt die Datei dorthin. Mehrere mit Komma trennen."}>
         {FELDER.map(([k, t]) => (
           <Zeile key={k} titel={t}>
             <input type="text" data-dokregel={k} aria-label={t} value={felder[k]} onChange={(e) => setze(k, e.target.value)}
@@ -224,7 +220,7 @@ function Regeln() {
         </div>
       </Gruppe>
 
-      <Gruppe titel="Ausprobieren" text="Dateiname eingeben, die App zeigt, wohin er ginge. Unten Beispiele mit den Regeln, wie sie gerade oben stehen.">
+      <Gruppe titel="Ausprobieren" text="Dateiname eingeben, die App zeigt, wohin er ginge.">
         <input type="text" id="dokprobe" aria-label="Dateiname zum Ausprobieren"
           placeholder="z. B. 10844-0049 EB SW20.pdf" value={probe} onChange={(e) => setProbe(e.target.value)} />
         <div id="dokprobe-ergebnis" className="dokprobe">
@@ -258,10 +254,8 @@ function PoolOrdner() {
   const { daten } = useDaten(poolLaden, []);
   return (
     <Gruppe titel="Pool-Ordner"
-      text={"Ein Ordner nur für WBGs. Das Programm dokumente-pool.ps1 holt sie über die Windows-Aufgabenplanung "
-        + "alle fünf Minuten ab, ordnet sie zu wie oben und löscht sie danach aus dem Ordner. Alles andere, auch "
-        + "Excel, löscht es nicht, sondern schiebt es in den Unterordner „nicht zugeordnet“; eine WBG, deren "
-        + "Auftrag noch nicht geplant ist, wartet bis zu sieben Tage im Ordner."}>
+      text={"Nur für WBGs. Alle fünf Minuten werden sie hochgeladen und aus dem Ordner gelöscht. Anderes kommt "
+        + "in den Unterordner „nicht zugeordnet“. Eine WBG ohne geplanten Auftrag wartet bis zu sieben Tage."}>
       {daten ? <PoolFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
   );
@@ -331,10 +325,8 @@ function EinrichtblattOrdner() {
   const { daten } = useDaten(ebLaden, []);
   return (
     <Gruppe titel="Einrichtblatt-Ordner" id="eb-ordner"
-      text={"Ordner mit den Excel-Einrichtblättern, je Ordner ein Maschinentyp. Das Programm einrichtblaetter.ps1 "
-        + "schaut über die Windows-Aufgabenplanung alle fünf Minuten hinein und nimmt nur Excel-Dateien mit einer "
-        + "HOCO Nr. im Namen, egal wie sie sonst heissen. PDF, CAD und alles andere lässt es liegen. Es liest nur: "
-        + "In den Ordnern wird nie etwas gelöscht, verschoben oder geändert."}>
+      text={"Je Ordner ein Maschinentyp. Alle fünf Minuten werden Excel-Dateien mit HOCO Nr. im Namen "
+        + "hochgeladen. In den Ordnern wird nie etwas gelöscht, verschoben oder geändert."}>
       {daten ? <EbFormular werte={daten.werte} typen={daten.typen} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
   );
@@ -455,9 +447,8 @@ function Netzlaufwerk() {
   const { daten } = useDaten(pfadLaden, []);
   return (
     <Gruppe titel="Ordner auf dem Netzlaufwerk"
-      text={"Diesen Ordner prüft das Hilfsprogramm auf dem Server jede Minute. Neue und geänderte Dateien "
-        + "lädt es hoch und legt sie nach den Regeln oben ab; was an derselben Stelle lag, wird ersetzt. "
-        + "Die Dateien im Ordner bleiben liegen."}>
+      text={"Wird jede Minute geprüft. Neue und geänderte Dateien werden nach den Regeln oben abgelegt, "
+        + "die Dateien im Ordner bleiben liegen."}>
       {/* Erst nach dem Laden zeigen, damit die Felder mit dem
           gespeicherten Pfad beginnen */}
       {daten ? <PfadFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}

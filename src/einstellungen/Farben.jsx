@@ -17,9 +17,7 @@ export default function Farben() {
         <div id="farbliste"><FarbListe /></div>
       </Gruppe>
       <Gruppe titel="Werkstofferkennung"
-        text={"Jede Materialbezeichnung aus den Aufträgen mit der erkannten Gruppe, nach euren Werkstofftabellen. "
-          + "Was nicht erkannt wird, steht oben: einmal zuordnen, die App merkt es sich. Neue Aufträge bekommen "
-          + "die Farbe der Gruppe, solange niemand von Hand eine andere wählt."}>
+        text={"Nicht erkannte Werkstoffe stehen oben: einmal zuordnen, die App merkt es sich."}>
         <div id="werkstoffliste"><Werkstoffe /></div>
       </Gruppe>
     </>
