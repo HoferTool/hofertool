@@ -63,7 +63,7 @@ gedeutet as (
              where z2 !~* '(\srd\s|\smm\b|\sh\d\b|X\d+Cr|11SMn|CuZn|CuNi|AlMg|AlCu|\bTi\b|PEEK|POM|1\.4\d{3}|ETG|Ecobrass)'
            ), ' | '),
            '\d{5}-\d{4}', '', 'g'),
-           -- kg sind keine Stückzahl („Metalix 2025007893 500kg“, seit 111.37.0)
+           -- kg sind keine Stückzahl („Metalix 2025007893 500kg“, seit 111.39.0)
            '\d[\d''.,]*\s*kg', '', 'gi'),
            '\m(KW|kw)\s*\d+', '', 'g'),
            '\m20[2-3]\d\M', '', 'g'),

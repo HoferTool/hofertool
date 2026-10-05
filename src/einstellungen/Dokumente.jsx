@@ -34,10 +34,28 @@ export default function Dokumente() {
   const pruefen = async (dateien) => {
     setPool({ laedt: true });
     const typen = await typenHolen();
-    setPool({ eintraege: dateien.map((datei) => {
-      const zuordnung = alt.dokErkennen(datei.name, typen);
+    // WBG mit FA Nr. und Einrichtblätter ohne Typ im Namen brauchen
+    // einen Blick in die Aufträge, bevor die Zuordnung feststeht
+    const eintraege = await Promise.all(dateien.map(async (datei) => {
+      let zuordnung = alt.dokErkennen(datei.name, typen);
+      if ((zuordnung.art === "wbg" && zuordnung.fa)
+          || (zuordnung.art === "einrichtblatt" && zuordnung.hoco && !zuordnung.typ)) {
+        zuordnung = await alt.dokZielSuchen(zuordnung, typen);
+      }
       return { datei, zuordnung, nehmen: zuordnung.passt };
-    }) });
+    }));
+    setPool({ eintraege });
+  };
+
+  // Dateien aus dem Explorer auf die Fläche ziehen
+  const [ueber, setUeber] = useState(false);
+  const fallen = (e) => {
+    e.preventDefault(); setUeber(false);
+    if (!darf) return;
+    const dateien = [...((e.dataTransfer && e.dataTransfer.files) || [])]
+      .filter((d) => /\.(pdf|png|jpe?g|webp|tif?f|xlsx|xlsm|xls)$/i.test(d.name));
+    if (!dateien.length) { alt.meldung("Keine passenden Dateien (PDF, Bild oder Excel).", "warn"); return; }
+    pruefen(dateien);
   };
 
   const ordnerLesen = async () => {
@@ -71,6 +89,14 @@ export default function Dokumente() {
             + "Handy lädst du Dateien einzeln hoch, bei der HOCO Nr. oder beim Maschinentyp."}
         aktionen={darf && kannOrdner && <button className="knopf knopf--klein knopf--haupt" id="pool-ordner"
           onClick={ordnerLesen}>Ordner wählen</button>}>
+        {darf && !pool && <div id="pool-ablage" className={"pool-ablage" + (ueber ? " pool-ablage--ueber" : "")}
+          onDragOver={(e) => { e.preventDefault(); setUeber(true); }}
+          onDragLeave={() => setUeber(false)} onDrop={fallen}>
+          <b>Dateien hierher ziehen</b>
+          <span className="klein">WBG mit FA Nr. und HOCO Nr. im Namen (etwa „20268566 10007-0381.pdf“) kommen an den
+            nächsten offenen Auftrag ohne FA Nr., die FA Nr. wird dort eingetragen. Einrichtblätter nur als Excel
+            (etwa „10844-0049 SW-20.xlsx“; ohne Typ im Namen gilt der Typ der Maschine des nächsten Auftrags).</span>
+        </div>}
         <div id="pool-liste">
           {pool && (pool.laedt
             ? <div className="laedt">Wird geprüft …</div>
@@ -78,6 +104,7 @@ export default function Dokumente() {
         </div>
       </Gruppe>
       <Regeln />
+      <PoolOrdner />
       <Netzlaufwerk />
       <Verlauf stand={stand} frisch={frisch} />
       <Letzte stand={stand} hochladen={hochladenWaehlen} />
@@ -112,7 +139,7 @@ function Zuordnung({ eintraege, fertig }) {
         <button className="knopf knopf--klein knopf--haupt" id="pool-los"
           disabled={!anzahl} onClick={los}>{laeuft || anzahl + " hochladen"}</button>
       </div>
-      <table className="tabelle"><thead><tr><th /><th>Datei</th><th>Art</th><th>HOCO Nr.</th><th>Typ</th></tr></thead>
+      <table className="tabelle"><thead><tr><th /><th>Datei</th><th>Art</th><th>HOCO Nr.</th><th>Typ</th><th>Auftrag</th></tr></thead>
         <tbody>{eintraege.map((e, i) => (
           <tr key={i} className={nehmen[i] ? "" : "pool-zeile--offen"}>
             <td><input type="checkbox" data-pool={i} checked={nehmen[i]}
@@ -120,12 +147,17 @@ function Zuordnung({ eintraege, fertig }) {
             <td>{e.datei.name}</td>
             <td>{artVon(e.zuordnung.art).zeichen} {artVon(e.zuordnung.art).name}</td>
             <td>{e.zuordnung.hoco || "—"}</td>
-            <td>{e.zuordnung.typ ? e.zuordnung.typ.name : "—"}</td>
+            <td>{e.zuordnung.typ ? e.zuordnung.typ.name + (e.zuordnung.typAusAuftrag ? " (vom Auftrag)" : "") : "—"}</td>
+            <td className="klein">{e.zuordnung.fa
+              ? (e.zuordnung.auftrag
+                  ? "FA " + e.zuordnung.fa + (e.zuordnung.auftrag.planned_from ? " · geplant " + alt.kurzDatum(e.zuordnung.auftrag.planned_from) : "")
+                  : e.zuordnung.grund)
+              : "—"}</td>
           </tr>
         ))}</tbody>
       </table>
-      <p className="hinweis">Grau hinterlegte Zeilen konnte die App keiner Nummer und keinem Typ zuordnen.
-        Benenne die Datei um oder lade sie direkt bei der HOCO Nr. hoch.</p>
+      <p className="hinweis">Grau hinterlegte Zeilen konnte die App keiner Nummer, keinem Typ oder keinem
+        offenen Auftrag zuordnen. Benenne die Datei um, plane zuerst den Auftrag oder lade sie direkt bei der HOCO Nr. hoch.</p>
     </>
   );
 }
@@ -160,9 +192,10 @@ function Regeln() {
 
   const p = probe.trim() ? erkennen(probe.trim()) : null;
   const typName = (typen && typen[0] && typen[0].name) || "SW-20";
-  const beispiele = ["10844-0049.pdf", "10844-0049_WBG.pdf", "10844-0049_EB.pdf",
-    "10844-0049_EB_" + typName + ".pdf", "EB_" + typName + ".pdf",
-    "10844-0049_Messbericht.pdf", "10844-0049 Zeichnung Rev B.pdf"];
+  const beispiele = ["10844-0049.pdf", "10844-0049_WBG.pdf", "10844-0049_EB.xlsx",
+    "10844-0049_EB_" + typName + ".xlsx", "EB_" + typName + ".xlsx", "10844-0049_EB.pdf",
+    "10844-0049_Messbericht.pdf", "10844-0049 Zeichnung Rev B.pdf",
+    "20268566 10007-0381.pdf", "10844-0049 " + typName + ".xlsx"];
 
   return (
     <>
@@ -204,6 +237,74 @@ function Regeln() {
           </table>
         </div>
       </Gruppe>
+    </>
+  );
+}
+
+// ---------- Pool-Ordner (wird nach dem Hochladen geleert) ----------
+
+async function poolLaden() {
+  const werte = {};
+  try {
+    const r = await alt.zeitlimit(alt.db.from("app_config").select("schluessel, wert")
+      .in("schluessel", ["dok_pool_pfad", "dok_pool_status"]), 6000, "Pool");
+    ((r && r.data) || []).forEach((x) => { werte[x.schluessel] = x.wert; });
+  } catch (f) { /* leer lassen */ }
+  return werte;
+}
+
+function PoolOrdner() {
+  const { daten } = useDaten(poolLaden, []);
+  return (
+    <Gruppe titel="Pool-Ordner"
+      text={"Ein Ordner, in den ihr WBGs und Einrichtblätter einfach hineinlegt. Das Programm "
+        + "dokumente-pool.ps1 holt sie über die Windows-Aufgabenplanung alle fünf Minuten ab, ordnet sie "
+        + "zu wie oben und löscht sie danach aus dem Ordner. Was nicht passt, kommt in den Unterordner "
+        + "„nicht zugeordnet“; eine WBG, deren Auftrag noch nicht geplant ist, wartet bis zu sieben Tage im Ordner."}>
+      {daten ? <PoolFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
+    </Gruppe>
+  );
+}
+
+function PoolFormular({ werte }) {
+  const [pfad, setPfad] = useState(werte.dok_pool_pfad || "");
+  let st = null;
+  try { st = werte.dok_pool_status ? JSON.parse(werte.dok_pool_status) : null; } catch (f) { st = null; }
+
+  const speichern = async () => {
+    const r = await alt.db.from("app_config").upsert([{ schluessel: "dok_pool_pfad", wert: pfad.trim() }]);
+    if (r.error) alt.meldung(alt.fehlertext(r.error), "fehler");
+    else alt.meldung("Pool-Ordner gespeichert. Das Programm nimmt ihn beim nächsten Durchlauf.");
+  };
+
+  let stand;
+  if (!st) stand = <span className="gedaempft">Das Programm hat sich noch nicht gemeldet.</span>;
+  else {
+    const minuten = (Date.now() - new Date(st.zeit).getTime()) / 60000;
+    stand = <>
+      <span className={"dokpfad-punkt " + (minuten < 15 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
+      {"Zuletzt " + alt.datumZeitKurz(st.zeit) + (st.rechner ? " auf " + st.rechner : "")
+        + " · " + (st.neu || 0) + " abgelegt"
+        + (st.wartet && st.wartet.length ? " · " + st.wartet.length + " warten auf ihren Auftrag" : "")}
+      {minuten >= 15 && <> <b>— seit {Math.round(minuten)} Minuten keine Meldung</b></>}
+      {st.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{st.fehler}</div>}
+      {st.wartet && st.wartet.length > 0 && <div className="klein gedaempft">Wartet: {
+        st.wartet.slice(0, 12).join(", ") + (st.wartet.length > 12 ? " …" : "")}</div>}
+      {st.ohne && st.ohne.length > 0 && <div className="klein gedaempft">Nicht zugeordnet: {
+        st.ohne.slice(0, 12).join(", ") + (st.ohne.length > 12 ? " …" : "")}</div>}
+    </>;
+  }
+
+  return (
+    <>
+      <Zeile titel="Ordner" text="Auf dem Rechner, auf dem die Aufgabe läuft. Leer lassen, dann gilt C:\Hofer\Pool.">
+        <input type="text" id="dokpool" aria-label="Pool-Ordner" placeholder={"C:\\Hofer\\Pool"} value={pfad}
+          onChange={(e) => setPfad(e.target.value)} />
+      </Zeile>
+      <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
+        <div id="dokpool-stand" className="dokpfad-stand">{stand}</div>
+        <button className="knopf knopf--klein knopf--haupt" id="dokpool-speichern"
+          onClick={speichern}>Ordner speichern</button></div>
     </>
   );
 }
@@ -281,7 +382,7 @@ function PfadFormular({ werte }) {
 
 // ---------- Verlauf ----------
 
-const QUELLE = { hand: "von Hand", ordner: "Ordner", pfad: "Netzlaufwerk", "aufräumen": "aufgeräumt" };
+const QUELLE = { hand: "von Hand", ordner: "Ordner", pfad: "Netzlaufwerk", pool: "Pool-Ordner", "aufräumen": "aufgeräumt" };
 
 async function verlaufLaden() {
   const r = await alt.zeitlimit(alt.db.from("dokumente_verlauf").select("*")

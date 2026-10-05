@@ -64,7 +64,7 @@ with sync_playwright() as p:
     fc.value.set_files([
         {"name": "10844-0049_WBG.pdf", "mimeType": "application/pdf", "buffer": b"%PDF-1.4"},
         {"name": "Unbekannt.pdf", "mimeType": "application/pdf", "buffer": b"%PDF-1.4"},
-        {"name": "EB_Star SR-32J.pdf", "mimeType": "application/pdf", "buffer": b"%PDF-1.4"}])
+        {"name": "EB_Star SR-32J.xlsx", "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "buffer": b"PK"}])
     pg.wait_for_selector("#pool-los"); pg.wait_for_timeout(300)
     pruefe("Zuordnung: 2 von 3", "3 Dateien gelesen · 2 zugeordnet" in pg.inner_text("#pool-liste"))
     pruefe("Unbekannte grau", pg.locator(".pool-zeile--offen").count() == 1)

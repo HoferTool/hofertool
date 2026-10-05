@@ -1,5 +1,5 @@
 -- =================================================================
---  MATERIAL-BESTELLUNG AUS DER NOTIZ (111.37.0)
+--  MATERIAL-BESTELLUNG AUS DER NOTIZ (111.39.0)
 --
 --  Was das tut, in einfachen Worten:
 --  Steht in der Notiz eines Auftrags eine Material-Bestellung, am

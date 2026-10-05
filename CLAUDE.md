@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.37.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.39.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -99,7 +99,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 ## Wichtige Entscheidungen — nicht ohne Rückfrage ändern
 
 - **Planwand:** lädt alles Offene, alles Zukünftige und fest ein Jahr zurück. Älteres kommt nach, wenn man mit dem Zeitregler zurückfährt. Taste **H** und Knopf **Heute** springen auf den Montag vor zwei Wochen. Escape schliesst Fenster. Ein Klick auf einen Balken zeigt die Zeichnung, Doppelklick (Doppeltipp) öffnet das Auftragsfenster (Wunsch 3. Oktober 2026). Ohne Planrecht nur zum Ansehen: ändern lassen sich dort nur Zustand und Problem (Wunsch 4. Oktober 2026). Beim Verschieben weichen andere Aufträge aus, abgeschlossene werden nie verschoben. Danach kommt die Frage „Lücke lassen?". Löschen fragt nicht nach.
-- **Balken:** Farbe = Werkstoff. Das Zeichen vorne zeigt den Zustand: ○ geplant, 🔧 rüsten, 🔍 QS, ▶ läuft, ✔ fertig. Ein roter Punkt ● bei „geplant" heisst: keine Materialmenge eingetragen.
+- **Balken:** Farbe = Werkstoff. Farben nur aus der Palette `PLANFARBEN`, kein freier Farbwähler (Wunsch 5. Oktober 2026); neue Farben mit „+“ im Auftragsfenster. Das Zeichen vorne zeigt den Zustand: ○ geplant, 🔧 rüsten, 🔍 QS, ▶ läuft, ✔ fertig. Ein roter Punkt ● bei „geplant" heisst: keine Materialmenge eingetragen.
 - **Auftragsfenster:** keine Häkchen „FA erstellt" oder „Material da" mehr. In der Vorschau steht die FA Nr. oder „Kein FA vorhanden".
 - **Suche auf der Planwand:** Reihenfolge „Neuester / Ältester Auftrag zuerst", Weiter und Zurück in der Leiste unten.
 - **Startseite:** aktualisiert sich still, ohne sichtbares Neuladen. Die Personentabelle zählt nicht für den Abgleich. Oben in der Mitte steht das weisse Logo. Die Karte „Vorbereitung“ ist weg (Wunsch 4. Oktober 2026). An ihrer Stelle steht immer „Gemeldete Probleme“, ohne Meldung mit „Keine Probleme gemeldet“.
@@ -114,8 +114,9 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 
 Alle sind PowerShell 5.1 auf Windows, ohne Installation.
 
-- **`solarlog.ps1`** (nicht hier, liegt im Betrieb) holt alle fünf Minuten die Werte vom Solar-Log und schreibt sie in `solar_werte`. **Schreibt noch ins alte Projekt.** Übergangsweise reicht das alte Projekt die Werte über `sql/solar-weiterleiten.sql` (pg_net-Auslöser) ans neue weiter.
+- **`solarlog.ps1`** holt alle fünf Minuten die Werte vom Solar-Log (`/getjp`, Abfrage 801/170) und liefert sie über `rpc/solar_melden` ins neue Projekt, mit eigenem Solar-Schlüssel aus `sql/solar.sql` in `solar-einstellungen.json` (kein Hauptschlüssel nötig). Anleitung: `anleitungen/Solar-Anleitung.md`. Bis Patrick sie umgesetzt hat, läuft im Betrieb noch das alte Skript ins alte Projekt, und das alte Projekt reicht die Werte über `sql/solar-weiterleiten.sql` (pg_net-Auslöser) ans neue weiter.
 - **`dokumente-abgleich.ps1`** gleicht jede Minute einen Ordner auf dem Netzlaufwerk ab, mit dem Pfad aus der App, über ein Dienstkonto.
+- **`dokumente-pool.ps1`** leert alle fünf Minuten den Pool-Ordner (WBG mit FA Nr., Excel-Einrichtblätter) in die App; `pool-einplanen.ps1` legt die Aufgabe an. Beide Dokument-Programme laden `dokumente-teile.ps1` (Erkennen und Hochladen wie `dokErkennen`/`dokZielSuchen`/`dokHochladen` in der App, Änderungen an beiden Stellen nachziehen). Anleitung `anleitungen/Pool-Anleitung.md`.
 - **`sicherung.ps1` / `wiederherstellen.ps1`** sichern die Datenbank mit `pg_dump`.
 - **`verknuepfung.ps1`** legt eine Desktop-Verknüpfung mit Symbol an.
 - **Stolpersteine in PowerShell 5.1:** `"$var:"` in Anführungszeichen wird als Laufwerk gelesen, daher `${var}:` schreiben. Doppelte Anführungszeichen kommen bei anderen Programmen wie psql kaputt an. `2>&1` zusammen mit `ErrorActionPreference = Stop` bricht bei harmlosen Hinweisen ab. Dateien mit UTF-8 **mit BOM** speichern.
@@ -126,7 +127,7 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer` — d
 
 ## Offene Punkte
 
-1. `solarlog.ps1` im Betrieb auf das neue Projekt umstellen, danach `solar-weiterleiten` im alten Projekt nicht mehr nötig.
+1. `solarlog.ps1` im Betrieb auf das neue Projekt umstellen: neues Skript und Anleitung liegen bereit (`anleitungen/Solar-Anleitung.md`, 5. Oktober 2026), Patrick muss `sql/solar.sql` ausführen und das Skript am Solar-Rechner austauschen. Danach ist `solar-weiterleiten` im alten Projekt nicht mehr nötig.
 2. Datenbank-Passwort und Secret Key des neuen Projekts neu setzen — sie standen im Chat.
 3. Sicherung (`sicherung.ps1`) und Dokumente-Abgleich auf das neue Projekt umstellen.
 4. Supabase Pro für tägliche Sicherungen. Altes Projekt pausieren. `C:\Hofer\Umzug` löschen.

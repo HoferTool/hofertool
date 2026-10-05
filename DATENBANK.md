@@ -44,9 +44,10 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `chat_gespraeche`, `chat_teilnehmer`, `chat_nachrichten`, `chat_gelesen` | Chat |
 | `fahrzeuge`, `fahrzeug_buchungen`, `fahrzeug_probleme` | Fahrzeuge |
 | `dokumente`, `dokumente_verlauf` | Dokumentenpool und Verlauf |
-| `app_config` | Schlüssel/Wert: `werkstoff_zuordnung`, `dok_regeln`, `dok_pfad`, `dok_pfad_status`, Bestellmail-Text u. a. |
+| `app_config` | Schlüssel/Wert: `werkstoff_zuordnung`, `dok_regeln`, `dok_pfad`, `dok_pfad_status`, `dok_pool_pfad`, `dok_pool_status` (Stand schreibt das Dienstkonto, `sql/dokumente-pool.sql`), Bestellmail-Text u. a. |
 | `farb_material`, `wash_containers` | Stammdaten |
-| `solar_werte` | Solaranlage, gefüllt von aussen (`solarlog.ps1`); Startseite zeigt die letzten 24 h |
+| `solar_werte` | Solaranlage, gefüllt von aussen (`solarlog.ps1` über `solar_melden`); Startseite zeigt die letzten 24 h |
+| `solar_zugang` | eine Zeile mit dem Solar-Schlüssel für `solarlog.ps1`; für App und Besucher ganz gesperrt (`sql/solar.sql`) |
 | `ib_import` | Rohdaten des infoBoard-Imports (einmalig) |
 | `eier_zaehler`, `eier_historie`, `game_scores` | Spass |
 
@@ -83,7 +84,8 @@ Beispiele: `jobs` löschen nur `bin_admin()`; `profiles` lesen alle, ändern nur
 - `profil_schutz()` — verhindert, dass jemand die eigene Rolle hochsetzt.
 - `maschine_loeschbar()`, `park_loeschbar()`, `maschine_hart_loeschen()`, `park_hart_loeschen()`.
 - `neuer_benutzer()` — legt bei neuem Login das Profil an.
-- `solar_aufraeumen()` — löscht Solarwerte älter als 90 Tage.
+- `solar_melden(schluessel, werte, nur_pruefen)` — nimmt Solarwerte von `solarlog.ps1` an (auch ohne Anmeldung aufrufbar), prüft den Solar-Schlüssel aus `solar_zugang`, höchstens ein Wert pro 50 s, löscht dabei Werte älter als 90 Tage. `nur_pruefen` prüft nur den Schlüssel.
+- `solar_aufraeumen()` — löscht Solarwerte älter als 90 Tage (nur noch für den SQL Editor).
 - `ib_naechster_arbeitstag()`, `ib_plus_arbeitstage()`, `ib_letzter_tag()` — Arbeitstage wie in der App: Mo–Fr, keine Feiertage.
 
 ## Echtzeit

@@ -2,7 +2,7 @@
 //  MASCHINENTYPEN
 //  Liste der Typen und der Aufbau eines Typs: Paths mit ihren
 //  Werkzeugplätzen, so wie sie später auf dem Werkzeugblatt stehen,
-//  dazu das Einrichtblatt (PDF) als Vorlage und weitere Dokumente.
+//  dazu das Einrichtblatt (Excel) als Vorlage und weitere Dokumente.
 //
 //  Welcher Typ offen ist, steht in prod.typOffen (Escape geht von dort
 //  eine Ebene zurück). Nach jeder Änderung lädt die Produktion still
@@ -133,7 +133,7 @@ function Aufbau({ typ, darf, geladen, neuLaden }) {
     "Path angelegt.", neuLaden);
   };
 
-  // Einrichtblatt als PDF am Maschinentyp — die Vorlage für alle Teile,
+  // Einrichtblatt (Excel) am Maschinentyp — die Vorlage für alle Teile,
   // die auf diesem Typ laufen
   const blatt = async () => {
     let jetzt = null;
@@ -143,7 +143,7 @@ function Aufbau({ typ, darf, geladen, neuLaden }) {
     } catch (f) { /* dann eben ohne */ }
     const titel = "Einrichtblatt " + (typ.name || "");
     const wahl = await alt.auswahlDialog(titel,
-      [{ wert: "neu", text: jetzt ? "📄  Andere Datei hinterlegen (PDF oder Excel)" : "📄  Datei hinterlegen (PDF oder Excel)" }]
+      [{ wert: "neu", text: jetzt ? "📄  Andere Datei hinterlegen (Excel)" : "📄  Datei hinterlegen (Excel)" }]
         .concat(jetzt ? [{ wert: "auf", text: "👁  Ansehen" }, { wert: "weg", text: "✕  Entfernen" }] : []));
     if (!wahl) return;
     if (wahl === "auf") { alt.betrachter(jetzt, titel, true); return; }
@@ -162,7 +162,7 @@ function Aufbau({ typ, darf, geladen, neuLaden }) {
       <section className="karte">
         <div className="karte__kopf"><h2>{typ.name}</h2>
           {darf && <div className="karte__aktionen">
-            <button className="knopf knopf--klein" id="typ-blatt" onClick={blatt}>Einrichtblatt (PDF/Excel)</button>
+            <button className="knopf knopf--klein" id="typ-blatt" onClick={blatt}>Einrichtblatt (Excel)</button>
             <button className="knopf knopf--klein" id="path-neu" onClick={pathNeu}>+ Path</button></div>}
         </div>
         {typ.beschreibung && <p className="klein">{typ.beschreibung}</p>}
