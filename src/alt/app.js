@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.55.0";
+const APP_VERSION = "111.55.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4528,8 +4528,13 @@ function balkenAnsehenVerhalten(b) {
   });
 }
 
-function balkenZeichnung(j) {
-  if (j.drawing_url) betrachter(j.drawing_url, "Zeichnung " + j.job_number, true);
+// Ohne eigene Zeichnung am Auftrag gilt die der HOCO Nr., wie im Pad Mode
+async function balkenZeichnung(j) {
+  let adresse = j.drawing_url;
+  if (!adresse && j.job_number) {
+    try { const t = await ladeHocoEins(j.job_number); adresse = t && t.zeichnung_url; } catch (f) { /* ohne */ }
+  }
+  if (adresse) betrachter(adresse, "Zeichnung " + j.job_number, true);
   else meldung("Zu " + j.job_number + " ist keine Zeichnung hinterlegt.", "warn");
 }
 
