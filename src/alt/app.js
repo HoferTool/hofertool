@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.43.0";
+const APP_VERSION = "111.45.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4475,8 +4475,18 @@ function zellenVerhalten(b) {
   const tafel = document.querySelector(".pw-tafel");
   if (!tafel || !darfPlanen()) return;
 
+  // Beim Einfügen zeigt die Zelle unter der Maus, wo der kopierte
+  // Auftrag in ganzer Länge zu liegen käme.
+  tafel.onpointerover = (e) => {
+    if (!plan.zwischenablage || e.pointerType === "touch") return;
+    const zelle = e.target.closest && e.target.closest("[data-zelle]");
+    planVorschauZeigen(tafel, zelle ? zelle.dataset.zelle : null, plan.zwischenablage);
+  };
+  tafel.onpointerleave = () => { if (plan.zwischenablage) planVorschauWeg(); };
+
   tafel.querySelectorAll("[data-zelle]").forEach((zelle) => {
     zelle.onclick = () => {
+      planVorschauWeg();
       const teile = zelle.dataset.zelle.split("|");
       // Liegt ein kopierter Auftrag bereit, wird er hier eingefügt
       if (plan.zwischenablage) {
@@ -5666,6 +5676,37 @@ function zeilenVerschieben(b) {
   });
 }
 
+// Vorschau beim Verschieben und Einfügen: ein durchsichtiger Balken,
+// so lang wie der Auftrag, ab der Zelle unter dem Zeiger. Ein einziges
+// Element wandert mit; neu gesetzt wird nur, wenn sich die Zelle
+// ändert, damit das Ziehen nicht langsamer wird.
+let planVorschauEl = null, planVorschauSchluessel = "";
+function planVorschauZeigen(tafel, zelle, auftrag) {
+  const schluessel = zelle ? zelle + "|" + (auftrag && auftrag.id) : "";
+  if (schluessel === planVorschauSchluessel && planVorschauEl && planVorschauEl.isConnected) return;
+  planVorschauSchluessel = schluessel;
+  if (!zelle || !auftrag || !tafel) { planVorschauWeg(); return; }
+  const teile = zelle.split("|");
+  const tage = plan.sichtbareTage || [];
+  const von = tage.indexOf(teile[1]);
+  const zeile = tafel.querySelector('[data-mzeile="' + CSS.escape(teile[0]) + '"] .pw-balken-schicht');
+  if (von < 0 || !zeile) { planVorschauWeg(); return; }
+  const dauer = Math.max(1, Math.min(auftrag.planned_days || 1, tage.length - von));
+  if (!planVorschauEl) {
+    planVorschauEl = document.createElement("div");
+    planVorschauEl.className = "pw-vorschau";
+  }
+  planVorschauEl.style.setProperty("--von", von);
+  planVorschauEl.style.setProperty("--dauer", dauer);
+  planVorschauEl.textContent = (auftrag.job_number || "") + "  ·  "
+    + (auftrag.planned_days || 1) + (auftrag.planned_days > 1 ? " Tage" : " Tag");
+  if (planVorschauEl.parentNode !== zeile) zeile.appendChild(planVorschauEl);
+}
+function planVorschauWeg() {
+  planVorschauSchluessel = "";
+  if (planVorschauEl) planVorschauEl.remove();
+}
+
 function balkenVerhalten(b) {
   const tafel = document.querySelector(".pw-tafel");
   wischVerhalten(b);
@@ -5681,7 +5722,7 @@ function balkenVerhalten(b) {
       el.classList.remove("pw-balken--zieht");
       el.style.pointerEvents = "";
       tafel.classList.remove("pw-tafel--zieht");
-      tafel.querySelectorAll(".pw-zelle--ziel").forEach((z) => z.classList.remove("pw-zelle--ziel"));
+      planVorschauWeg();
       zieht = false;
       gestartet = false;
     };
@@ -5761,12 +5802,9 @@ function balkenVerhalten(b) {
         schatten.style.left = e.clientX + "px";
         schatten.style.top = e.clientY + "px";
       }
-      tafel.querySelectorAll(".pw-zelle--ziel").forEach((z) => z.classList.remove("pw-zelle--ziel"));
-      const ziel = zelleUnter(e.clientX, e.clientY);
-      if (ziel) {
-        const z = tafel.querySelector('[data-zelle="' + CSS.escape(ziel) + '"]');
-        if (z) z.classList.add("pw-zelle--ziel");
-      }
+      // Vorschau so lang wie der Auftrag, nicht nur ein Tag
+      planVorschauZeigen(tafel, zelleUnter(e.clientX, e.clientY),
+        (plan.auftraege || []).find((j) => j.id === el.dataset.auftrag));
     });
 
     // Einfügemodus: Markierung an der Kante, an der eingefügt würde
@@ -5918,6 +5956,7 @@ function zwischenablageSetzen(auftrag, b) {
 
 function zwischenablageLeeren() {
   plan.zwischenablage = null;
+  planVorschauWeg();
   document.body.classList.remove("einfuegemodus");
   const l = document.getElementById("einfuege-leiste");
   if (l) l.remove();

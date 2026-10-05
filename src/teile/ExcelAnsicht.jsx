@@ -3,8 +3,12 @@
 //  Zeigt eine Excel-Datei (meist ein Einrichtblatt) direkt in der App,
 //  ohne Excel auf dem Gerät: Zellen mit Schrift, Farben, Rahmen,
 //  verbundene Zellen und Bilder, mehrere Blätter über die Reiter unten.
-//  Das Blatt füllt zuerst die Breite (100 %). Vergrössern geht wie beim
-//  PDF mit zwei Fingern, Strg + Mausrad, Doppeltipp oder − / % / +.
+//  Jedes Blatt erscheint als A4-Seite wie beim Drucken: hoch oder quer,
+//  mit den Rändern, dem Druckbereich und dem Massstab aus Excel
+//  („Auf eine Seite einpassen“). Wunsch von Tristan, 5. Oktober 2026:
+//  so sieht es aus wie das ausgedruckte Blatt an der Maschine. 100 % =
+//  ganze Seite sichtbar. Vergrössern wie beim PDF mit zwei Fingern,
+//  Strg + Mausrad, Doppeltipp oder − / % / +.
 //
 //  Gezeichnet wird mit festen Pixeln je Spalte und Zeile, genau wie
 //  Excel es speichert. So sitzen Bilder dort, wo sie im Blatt sitzen.
@@ -14,10 +18,45 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { excelLesen } from "./excelLesen.js";
 
-const ZOOM_MIN = 0.25, ZOOM_MAX = 6;
-// Ein kleines Blatt nicht riesig aufblasen
-const EINPASSEN_MAX = 2.5;
-const RAND = 12;
+const ZOOM_MIN = 0.5, ZOOM_MAX = 6;
+const RAND = 12, LUECKE = 16;
+// A4 bei 96 Punkten je Zoll (210 × 297 mm)
+const A4 = { b: 794, h: 1123 };
+
+// Wie Excel das Blatt auf Seiten verteilt: Massstab aus „Einpassen“
+// oder „Verkleinern auf … %“, dann von oben nach unten an ganzen
+// Zeilen umbrechen, so viele Seiten wie nötig
+export function seitenRechnen(b) {
+  const s = b.seite;
+  const papier = s.quer ? { b: A4.h, h: A4.b } : A4;
+  const r = s.raender;
+  const pb = Math.max(100, papier.b - r.l - r.r), ph = Math.max(100, papier.h - r.o - r.u);
+  const inh = s.inhalt;
+  let f;
+  if (s.einpassen) {
+    const fw = s.einpassen.b > 0 ? (pb * s.einpassen.b) / Math.max(1, inh.b) : Infinity;
+    const fh = s.einpassen.h > 0 ? (ph * s.einpassen.h) / Math.max(1, inh.h) : Infinity;
+    f = Math.min(fw, fh, 1);
+  } else {
+    // Zu breit für die Seite: lieber verkleinern als quer aufteilen
+    f = Math.min(s.massstab || 1, pb / Math.max(1, inh.b));
+  }
+  if (!isFinite(f) || f <= 0) f = 1;
+  const proSeite = ph / f;
+  const fenster = [];
+  let z = inh.z0, y0 = inh.y;
+  while (fenster.length < 60) {
+    let zz = z;
+    while (zz < inh.z1 && b.y[zz + 1] - y0 <= proSeite + 0.5) zz++;
+    if (zz === z) zz = Math.min(z + 1, inh.z1);
+    const y1 = b.y[zz];
+    fenster.push({ y0, y1 });
+    if (zz >= inh.z1) break;
+    z = zz; y0 = y1;
+  }
+  const links = r.l + (s.mitte ? Math.max(0, (pb - inh.b * f) / 2) : 0);
+  return { papier, f, r, links, fenster, x0: inh.x, w: inh.b };
+}
 
 export function ExcelAnsicht({ daten, beiFehler }) {
   const buehne = useRef(null);
@@ -48,8 +87,10 @@ export function ExcelAnsicht({ daten, beiFehler }) {
   }, []);
 
   const b = blaetter && blaetter[Math.min(aktiv, blaetter.length - 1)];
-  // 100 % = Blatt so breit wie die Fläche
-  const grund = b && flaeche ? Math.min(EINPASSEN_MAX, Math.max(0.05, (flaeche.b - 2 * RAND) / Math.max(1, b.breite))) : 1;
+  const seiten = useMemo(() => (b ? seitenRechnen(b) : null), [b]);
+  // 100 % = eine ganze Seite passt in die Fläche, mit etwas Rand
+  const grund = seiten && flaeche ? Math.max(0.05, Math.min((flaeche.b - 2 * RAND) / seiten.papier.b,
+    (flaeche.h - 2 * RAND) / seiten.papier.h)) : 1;
   const massstab = grund * zoom;
 
   // Bilder als Adressen, beim Schliessen wieder freigeben
@@ -141,10 +182,12 @@ export function ExcelAnsicht({ daten, beiFehler }) {
   return (
     <div className="excelansicht">
       <div className="excelansicht__buehne" ref={buehne} onDoubleClick={doppelt}>
-        {b && flaeche && <div ref={blatt} className="excelansicht__rahmen"
-          style={{ width: b.breite * massstab + 2 * RAND, minHeight: "100%", padding: RAND, boxSizing: "border-box" }}>
-          <div style={{ width: b.breite * massstab, height: b.hoehe * massstab, margin: "0 auto" }}>
-            <Blatt b={b} massstab={massstab} bildUrls={bildUrls} />
+        {b && flaeche && <div ref={blatt} className="excelansicht__rahmen" style={{ padding: RAND }}>
+          <div className="excelansicht__seiten" data-excelseiten="" style={{ zoom: massstab, display: "flex",
+            flexDirection: "column", alignItems: "center", gap: LUECKE }}>
+            {seiten.fenster.map((w, i) => (
+              <Seite key={i} b={b} s={seiten} w={w} bildUrls={bildUrls} />
+            ))}
           </div>
         </div>}
         {!b && <div className="pdfansicht__laden">Excel wird geladen …</div>}
@@ -160,7 +203,7 @@ export function ExcelAnsicht({ daten, beiFehler }) {
         <div className="excelansicht__zoom">
           <button className="knopf knopf--klein" aria-label="Verkleinern" data-kleiner=""
             onClick={() => zoomSetzen(zoom / 1.4)} disabled={zoom <= ZOOM_MIN}>−</button>
-          <button className="knopf knopf--klein" data-einpassen="" title="Ganze Breite"
+          <button className="knopf knopf--klein" data-einpassen="" title="Ganze Seite"
             onClick={() => zoomSetzen(1)}>{Math.round(zoom * 100)}%</button>
           <button className="knopf knopf--klein" aria-label="Vergrössern" data-groesser=""
             onClick={() => zoomSetzen(zoom * 1.4)} disabled={zoom >= ZOOM_MAX}>+</button>
@@ -170,14 +213,34 @@ export function ExcelAnsicht({ daten, beiFehler }) {
   );
 }
 
-// Das Blatt selbst in Originalgrösse, mit CSS „zoom“ vergrössert. So
-// bleibt die Schrift bei jeder Grösse scharf.
-function Blatt({ b, massstab, bildUrls }) {
+// Eine Papierseite: weiss, mit den Rändern aus Excel. Darin ein
+// Fenster auf den Teil des Blattes, der auf diese Seite kommt. Alles
+// mit CSS „zoom“ statt transform, damit die Schrift scharf bleibt.
+function Seite({ b, s, w, bildUrls }) {
+  const hoehe = w.y1 - w.y0;
+  return (
+    <div className="excelansicht__papier" data-excelseite="" style={{
+      position: "relative", flex: "none", width: s.papier.b, height: s.papier.h, background: "#fff",
+      boxShadow: "0 2px 12px rgba(0,0,0,.45)", overflow: "hidden",
+    }}>
+      <div style={{ position: "absolute", left: s.links, top: s.r.o, width: s.w * s.f, height: hoehe * s.f, overflow: "hidden" }}>
+        <div style={{ zoom: s.f, position: "relative", width: s.w, height: hoehe }}>
+          <div style={{ position: "absolute", left: -s.x0, top: -w.y0 }}>
+            <Blatt b={b} bildUrls={bildUrls} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Das Blatt selbst in Originalgrösse
+function Blatt({ b, bildUrls }) {
   return (
     <div className="excelansicht__blatt" data-excelblatt="" style={{
-      position: "relative", width: b.breite, height: b.hoehe, zoom: massstab, background: "#fff",
+      position: "relative", width: b.breite, height: b.hoehe, background: "#fff",
       color: "#000", fontFamily: "Calibri, Carlito, Arial, sans-serif", fontSize: "14.7px", lineHeight: 1.2,
-      overflow: "hidden", boxShadow: "0 0 0 1px rgba(0,0,0,.08)",
+      overflow: "hidden",
     }}>
       {b.gitter && <Gitter b={b} />}
       {b.felder.map((f, i) => <Feld key={i} f={f} gitter={b.gitter} />)}
@@ -254,24 +317,26 @@ function Feld({ f, gitter }) {
     : f.umbruch ? <span style={{ width: "100%" }}>{inhalt}</span> : inhalt}</div>;
 }
 
-// Drucken: eine Kopie des Blattes in ein eigenes Fenster, auf die
-// Seitenbreite verkleinert, damit nicht die ganze App mitgedruckt wird
+// Drucken: die Seiten so, wie sie auf dem Bildschirm stehen, je eine
+// A4-Seite, in ein eigenes Fenster, damit nicht die ganze App mitkommt
 export function excelDrucken(wurzel, titel, meldung) {
-  const el = wurzel && wurzel.querySelector("[data-excelblatt]");
+  const el = wurzel && wurzel.querySelector("[data-excelseiten]");
   if (!el) return false;
   const w = window.open("", "_blank");
   if (!w) { meldung("Das Fenster wurde blockiert.", "warn"); return true; }
-  const breite = parseFloat(el.style.width) || 1000;
-  const hoehe = parseFloat(el.style.height) || 700;
-  // A4: quer, wenn das Blatt breiter als hoch ist
-  const quer = breite > hoehe;
-  const seiteB = quer ? 1040 : 720;
+  const erste = el.querySelector("[data-excelseite]");
+  const quer = erste && parseFloat(erste.style.width) > parseFloat(erste.style.height);
   const kopie = el.cloneNode(true);
-  kopie.style.zoom = String(Math.min(1, seiteB / breite));
-  kopie.style.boxShadow = "none";
+  kopie.style.zoom = "1"; kopie.style.gap = "0";
+  kopie.querySelectorAll("[data-excelseite]").forEach((p) => {
+    p.style.boxShadow = "none";
+    // Ein Hauch kleiner als A4, sonst rutscht beim Drucker eine leere Seite nach
+    p.style.height = (parseFloat(p.style.height) - 2) + "px";
+    p.style.breakAfter = "page";
+  });
   const t = String(titel || "Excel").replace(/[<>&"]/g, "");
   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + t + "</title>"
-    + "<style>@page{size:A4 " + (quer ? "landscape" : "portrait") + ";margin:8mm}body{margin:0}"
+    + "<style>@page{size:A4 " + (quer ? "landscape" : "portrait") + ";margin:0}body{margin:0}"
     + "*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body></body></html>");
   w.document.close();
   w.document.body.appendChild(w.document.importNode(kopie, true));

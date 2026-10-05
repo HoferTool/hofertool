@@ -1,4 +1,4 @@
-# Auftragswechsel (111.43.0): Die Produktion zeigt am Tag einen Hinweis
+# Auftragswechsel (111.45.0): Die Produktion zeigt am Tag einen Hinweis
 # mit Uhrzeit und altem → neuem Auftrag, die Tagesleistung zählt beide
 # Aufträge des Tages, und die Statistik im Pad Mode beginnt beim neuen
 # Auftrag von vorn.
