@@ -117,7 +117,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
                     {(e.eigenes || e.vorlage) && <><button className="knopf knopf--klein" data-blatt-typ={e.typId}
                       onClick={() => blattAnsehen(e.typId)}>Ansehen</button>{" "}</>}
                     {darf && <button className="linkknopf" data-blatt-pdf={e.typId}
-                      onClick={() => blattHinterlegen(e.typId)}>{e.eigenes ? "Ersetzen" : "PDF hinterlegen"}</button>}
+                      onClick={() => blattHinterlegen(e.typId)}>{e.eigenes ? "Ersetzen" : "Datei hinterlegen"}</button>}
                     {darf && e.eigenes && <>{" "}<button className="linkknopf linkknopf--gefahr" data-blatt-weg={e.typId}
                       onClick={() => blattEntfernen(e.typId)}>Entfernen</button></>}
                   </td>

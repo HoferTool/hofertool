@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.35.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.36.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -30,7 +30,7 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
     - `src/hoco/`: HOCO Nummern (Ordner, Suche, einzelnes Teil).
     - `src/einstellungen/`: Einstellungsfenster mit allen Reitern (Dokumente, Farben und Material, Nutzer).
     - `src/pad/`: Pad Mode mit Zifferblock und Werkzeugwechsel.
-    - `src/teile/`: Fenster (`fensterOeffnen`), Dialoge (`nachfragen`, `dialogFelder`, `auswahlDialog`), Betrachter, Reiter. `src/daten/`: gemeinsame Daten.
+    - `src/teile/`: Fenster (`fensterOeffnen`), Dialoge (`nachfragen`, `dialogFelder`, `auswahlDialog`), Betrachter (PDF, Bild und Excel: `ExcelAnsicht.jsx`, `excelLesen.js`), Reiter. `src/daten/`: gemeinsame Daten.
   - `src/bruecke.jsx` verbindet beides: `reactSeite(Komponente)` hängt eine React-Seite in `SEITEN`, `<AltTeil zeichne={…}>` bettet einen noch alten Teil in eine React-Seite, und `alt` ist der Werkzeugkasten, den das alte Programm für React-Seiten füllt (`Object.assign(alt, {...})` nach `SEITEN`).
   - Umbau Bereich für Bereich; die App muss nach jedem Schritt vollständig laufen.
 - Das Skript ist ein **ES-Modul**. Funktionen sind **nicht global** und im Browser-Terminal nicht aufrufbar.
@@ -104,7 +104,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 - **Suche auf der Planwand:** Reihenfolge „Neuester / Ältester Auftrag zuerst", Weiter und Zurück in der Leiste unten.
 - **Startseite:** aktualisiert sich still, ohne sichtbares Neuladen. Die Personentabelle zählt nicht für den Abgleich. Oben in der Mitte steht das weisse Logo. Die Karte „Vorbereitung“ ist weg (Wunsch 4. Oktober 2026). An ihrer Stelle steht immer „Gemeldete Probleme“, ohne Meldung mit „Keine Probleme gemeldet“.
 - **Notizen:** Jeder darf jede Notiz bearbeiten. Ein Vorschlagsverfahren war gewünscht und wurde wieder entfernt.
-- **Pad Mode:** Die Startseite zeigt nur „Maschinen". Zeichnung, WBG und Einrichtblatt öffnen im gemeinsamen Betrachter, PDFs auf volle Breite. „Zurück" geht genau einen Schritt. Die Materialkachel ist in der Werkstofffarbe gefüllt. Der Text der Auftragskachel passt seine Grösse an die Menge an.
+- **Pad Mode:** Die Startseite zeigt nur „Maschinen". Zeichnung, WBG und Einrichtblatt öffnen im gemeinsamen Betrachter, PDFs auf volle Breite, Excel-Einrichtblätter (seit 111.36.0) auf volle Breite mit Blattreitern. „Zurück" geht genau einen Schritt. Die Materialkachel ist in der Werkstofffarbe gefüllt. Der Text der Auftragskachel passt seine Grösse an die Menge an.
 - **Produktion, Woche** (Wunsch 3. Oktober 2026): Die Tabelle nutzt die ganze Breite. Links je Maschine Zustand, Nummer, Balken für Stand und Ziel und die Knöpfe in einer Reihe; unter jedem Tag die Tagesleistung, rechts die Wochensumme. Der **Tag** zeigt dieselben Blöcke als Karten, so viele Spalten wie Platz ist, mit grossem Feld für den Zählerstand. Statt einer Suche filtern Knöpfe nach Maschinentyp (nur wenn im Park mindestens zwei Typen vorkommen).
 - **Anmeldung:** immer blau, Kacheln alphabetisch. Punkt auf der Kachel = `ohne_passwort`. Solche Konten ohne PIN kommen mit einem Tipp hinein (Server-Funktion `pin-anmelden` mit `offen: true`, `offenAnmelden`, Entscheid 3. Oktober 2026), mit PIN wird nach der PIN gefragt, mit Ziffernblock. Alle anderen geben ihr Passwort ein. Der Server prüft sie: nach **5 falschen Versuchen 5 Minuten Sperre**, danach wieder 5 Versuche, immer so weiter. Wer eine PIN hat, hat ein zufälliges Passwort. Admins setzen PINs unter Einstellungen → Nutzer. Ein gemeinsames Passwort im Code gibt es nicht mehr. **Gerät merken** (Entscheid 3. Oktober 2026): Mit dem Häkchen „Auf diesem Gerät merken“ hebt das Gerät je Person den Erneuerungsschlüssel der Sitzung auf (`hofer.geraet.sitzungen`, `gemerktAnmelden`). Danach genügt dort ein Tipp auf die Kachel. „Abmelden“ meldet auf so einem Gerät nur lokal ab (`abmelden()`), damit der Schlüssel gültig bleibt.
 - **Bestellmail:** eine `.eml`-Datei mit PDF im Anhang, Aptos 12, zwei Logos mit Link (hoferco.ch, salt-pepper.ch).

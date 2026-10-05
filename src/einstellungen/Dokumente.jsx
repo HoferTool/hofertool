@@ -47,7 +47,7 @@ export default function Dokumente() {
     try {
       for await (const eintrag of ordner.values()) {
         if (eintrag.kind !== "file") continue;
-        if (!/\.(pdf|png|jpe?g|webp|tif?f)$/i.test(eintrag.name)) continue;
+        if (!/\.(pdf|png|jpe?g|webp|tif?f|xlsx|xlsm|xls)$/i.test(eintrag.name)) continue;
         dateien.push(await eintrag.getFile());
         if (dateien.length >= 500) break;
       }
@@ -371,7 +371,14 @@ function Letzte({ stand, hochladen }) {
   }
   return (
     <Gruppe titel="Zuletzt abgelegt" text="Die letzten 25 Dokumente."
-      aktionen={<button className="knopf knopf--klein" id="dok-neu" onClick={hochladen}>Dateien hochladen</button>}>
+      aktionen={<>
+        {/* Nur ansehen, ohne hochzuladen: etwa ein Einrichtblatt als
+            Excel vom Stick oder aus dem Mail */}
+        <label className="knopf knopf--klein" id="dok-ansehen">Datei ansehen
+          <input type="file" hidden accept={"application/pdf,image/*,.xlsx,.xlsm,.xls"}
+            onChange={(e) => { const d = e.target.files && e.target.files[0]; e.target.value = ""; alt.dateiAnsehen(d); }} /></label>{" "}
+        <button className="knopf knopf--klein" id="dok-neu" onClick={hochladen}>Dateien hochladen</button>
+      </>}>
       <div id="dok-letzte">{inhalt}</div>
     </Gruppe>
   );

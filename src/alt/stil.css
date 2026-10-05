@@ -5322,3 +5322,26 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
           background: color-mix(in srgb, var(--gefahr) 10%, transparent); }
 .wz-weg:active { transform: scale(.94); }
 .wz-weg:disabled { opacity: .4; cursor: default; }
+
+/* ---------- Excel-Ansicht (Einrichtblatt als Excel, 111.36.0) ----------
+   Gleiche dunkle Bühne wie beim PDF. Unten eine Leiste mit den Blättern
+   links und dem Zoom rechts; schwebende Knöpfe würden Zellen verdecken. */
+.excelansicht { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.excelansicht__buehne { flex: 1; min-height: 0; overflow: auto; position: relative;
+  -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.excelansicht__rahmen { display: flex; justify-content: center; align-items: flex-start; margin: 0 auto; }
+.excelansicht__blatt { -webkit-font-smoothing: antialiased; }
+.excelansicht__leiste { flex: none; display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 6px 10px; padding-bottom: max(6px, env(safe-area-inset-bottom));
+  background: #1b2027; border-top: 1px solid #2c333d; }
+.excelansicht__reiter { display: flex; gap: 4px; overflow-x: auto; min-width: 0; scrollbar-width: none; }
+.excelansicht__reiterknopf { flex: none; border: 1px solid #47505c; background: transparent; color: #c9d1da;
+  border-radius: 4px; padding: 0 12px; min-height: 36px; font: inherit; font-size: .85rem; cursor: pointer;
+  white-space: nowrap; transition: background-color .15s ease, color .15s ease; }
+.excelansicht__reiterknopf:hover { background: rgba(255,255,255,.06); color: #fff; }
+.excelansicht__reiterknopf.ist-aktiv { background: var(--marke, #003884); border-color: var(--marke, #003884); color: #fff; }
+.excelansicht__zoom { flex: none; display: flex; gap: 6px; }
+.excelansicht__zoom .knopf { background: transparent; border-color: #47505c; color: #fff; min-width: 44px;
+  justify-content: center; font-variant-numeric: tabular-nums; }
+.excelansicht__zoom .knopf:disabled { opacity: .4; }
+.excelansicht__fehler { padding: 24px; text-align: center; line-height: 1.5; }

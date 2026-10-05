@@ -24,7 +24,7 @@ import { sucheOeffnen } from "../huelle/SucheAlles.jsx";
 import { anmeldungZeigen } from "../huelle/Anmeldung.jsx";
 import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
 import { zifferblock } from "../pad/Zifferblock.jsx";
-import { betrachter } from "../teile/Betrachter.jsx";
+import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { werkzeugWechselDialog } from "../pad/Werkzeugwechsel.jsx";
 import { ferienDialog } from "../planwand/FerienFenster.jsx";
 import { hocoFenster } from "../planwand/HocoFenster.jsx";
@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.35.0";
+const APP_VERSION = "111.36.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1695,7 +1695,7 @@ function dokWaehlen(mehrere) {
   return new Promise((fertig) => {
     const feld = document.createElement("input");
     feld.type = "file";
-    feld.accept = "application/pdf,image/*";
+    feld.accept = "application/pdf,image/*,.xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel";
     if (mehrere) feld.multiple = true;
     feld.onchange = () => fertig([...(feld.files || [])]);
     feld.click();
@@ -6666,7 +6666,7 @@ function blattPdfWaehlen() {
   return new Promise((fertig) => {
     const feld = document.createElement("input");
     feld.type = "file";
-    feld.accept = "application/pdf,image/*";
+    feld.accept = "application/pdf,image/*,.xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel";
     feld.onchange = async () => {
       const datei = feld.files && feld.files[0];
       if (!datei) { fertig(null); return; }
@@ -8137,7 +8137,7 @@ Object.assign(alt, {
   fortschrittRechnen, planAuftragDialog, dreiNachfragen, ladeTypen,
   pad, padSchliessen, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
-  notizTrennen, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter,
+  notizTrennen, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen,
   werkzeugWechselDialog, zifferblock,
   PLANFARBEN, farbenZurWahl, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,

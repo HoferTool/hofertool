@@ -231,7 +231,9 @@ function Hochladen($datei, $z) {
   $endung = $datei.Extension.TrimStart(".").ToLower()
   if (-not $endung) { $endung = "pdf" }
   $mime = @{ pdf = "application/pdf"; png = "image/png"; jpg = "image/jpeg"; jpeg = "image/jpeg";
-             webp = "image/webp"; tif = "image/tiff"; tiff = "image/tiff" }[$endung]
+             webp = "image/webp"; tif = "image/tiff"; tiff = "image/tiff";
+             xlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+             xlsm = "application/vnd.ms-excel.sheet.macroEnabled.12"; xls = "application/vnd.ms-excel" }[$endung]
   if (-not $mime) { $mime = "application/octet-stream" }
   $pfad = "dok/" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + "-" + ([Guid]::NewGuid().ToString("N").Substring(0, 6)) + "." + $endung
   $h = Kopf; $h["x-upsert"] = "true"
@@ -307,7 +309,7 @@ try {
 
   $rek = ($konf["dok_pfad_unterordner"] -eq "ja")
   $dateien = @(Get-ChildItem -LiteralPath $pfad -File -Recurse:$rek |
-    Where-Object { $_.Extension -match '^\.(pdf|png|jpe?g|webp|tiff?)$' })
+    Where-Object { $_.Extension -match '^\.(pdf|png|jpe?g|webp|tiff?|xlsx|xlsm|xls)$' })
   $status.dateien = $dateien.Count
 
   $erledigt = 0
