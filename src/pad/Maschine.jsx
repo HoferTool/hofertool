@@ -1,6 +1,6 @@
 // =================================================================
 //  PAD MODE: DASHBOARD EINER MASCHINE
-//  Drei Spalten: links der Auftrag mit Notiz, in der Mitte alles zur
+//  Drei Spalten: links der Auftrag mit der Info an der Maschine, in der Mitte alles zur
 //  Stückzahl samt Tagesdiagramm, rechts Tag, Wetter und was danach
 //  auf dieser Maschine kommt. Darunter die grossen Knöpfe.
 //
@@ -15,6 +15,7 @@ import { useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck } from "./Pad.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
+import { FettText } from "../teile/FettText.jsx";
 import {
   holeWetterStunden, wetterZeichen, tagesmengen, letzteTage, schnitte,
   schnittTage, schnittLang, naechsteAuftraege, prognose,
@@ -129,7 +130,7 @@ async function infoBearbeiten(j, m, blattDaten) {
   const w = await alt.dialogFelder({ titel: "Info an der Maschine",
     hinweis: "Steht nur hier im Pad Mode. Läuft dieselbe HOCO Nr. später "
       + "wieder auf diesem Typ, steht der Text wieder da.",
-    felder: [{ name: "text", label: "Text", typ: "textarea",
+    felder: [{ name: "text", label: "Text", typ: "textarea", fett: true,
                wert: (blattDaten && blattDaten.pad_info) || "" }],
     bestaetigen: "Speichern" });
   if (w) blattFeldSetzen(j, m, "pad_info", (w.text || "").trim() || null);
@@ -411,7 +412,6 @@ export default function Maschine({ d }) {
   const datei = pad.reiter === "zeichnung" ? zeichnung : (pad.reiter === "wbg" ? wbg : "");
   const kontext = { m, j, zeichnung, wbg };
 
-  const notiz = alt.notizTrennen(j ? j.plan_note : "");
   const padInfo = (blattDaten && blattDaten.pad_info) || "";
   const tage = letzteTage(jeTag);
   // Heute steht erst morgen fest (eingetragen wird am Morgen danach),
@@ -484,14 +484,15 @@ export default function Maschine({ d }) {
                 <Zeile name="FA Nr." wert={j && j.fa_nr} />
                 <Zeile name="Programm" wert={programm} />
               </div>
-              {notiz.notiz && <div className="pad-notiz"><p>✎ {notiz.notiz}</p></div>}
+              {/* Die Notiz zum Auftrag steht hier nicht mehr (Wunsch Patrick
+                  5. Oktober 2026), ihr Platz geht an die Info darunter. */}
               {/* Eigenes Feld nur fürs Pad: hängt an HOCO Nr. und Typ, steht
                   also wieder da, wenn dasselbe Teil hier erneut läuft. */}
               {mitTyp &&
                 <div className="pad-info" data-padfeld="info" onClick={() => infoBearbeiten(j, m, blattDaten)}>
                   <span className="pad-name">Info an der Maschine · antippen</span>
                   {padInfo
-                    ? <p>{padInfo.split("\n").map((z, i) => <span key={i}>{i > 0 && <br />}{z}</span>)}</p>
+                    ? <p><FettText text={padInfo} /></p>
                     : <p className="pad-leer">antippen und eintragen</p>}
                 </div>}
             </div>
