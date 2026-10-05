@@ -4309,13 +4309,17 @@ body.rolle-extern [data-einst]:not([data-einst="allgemein"]) { display: none !im
    Bewegung“ eingestellt hat, bekommt sie nicht. */
 @media (prefers-reduced-motion: no-preference) {
   /* Startseite: die Karten kommen kurz nacheinander herein */
-  .react-seite:has(> .kopfkarte) > * { animation: lebendig-herein .5s cubic-bezier(.16, 1, .3, 1) both; }
-  .react-seite:has(> .kopfkarte) > :nth-child(2) { animation-delay: 50ms; }
-  .react-seite:has(> .kopfkarte) > :nth-child(3) { animation-delay: 100ms; }
-  .react-seite:has(> .kopfkarte) > :nth-child(4) { animation-delay: 140ms; }
-  .react-seite:has(> .kopfkarte) > :nth-child(5) { animation-delay: 180ms; }
-  .react-seite:has(> .kopfkarte) > :nth-child(6) { animation-delay: 220ms; }
-  .react-seite:has(> .kopfkarte) > :nth-child(n+7) { animation-delay: 260ms; }
+  /* Ohne :has(): Das kostete bei jedem eingefügten Element irgendwo
+     auf der Seite ein Neuberechnen aller Stile, und die Vorschau beim
+     Verschieben auf der Planwand ruckelte (111.51.0). Die Kopfkarte
+     steht immer zuoberst, darum reicht der Geschwister-Selektor. */
+  .react-seite > .kopfkarte, .react-seite > .kopfkarte ~ * { animation: lebendig-herein .5s cubic-bezier(.16, 1, .3, 1) both; }
+  .react-seite > .kopfkarte ~ :nth-child(2) { animation-delay: 50ms; }
+  .react-seite > .kopfkarte ~ :nth-child(3) { animation-delay: 100ms; }
+  .react-seite > .kopfkarte ~ :nth-child(4) { animation-delay: 140ms; }
+  .react-seite > .kopfkarte ~ :nth-child(5) { animation-delay: 180ms; }
+  .react-seite > .kopfkarte ~ :nth-child(6) { animation-delay: 220ms; }
+  .react-seite > .kopfkarte ~ :nth-child(n+7) { animation-delay: 260ms; }
 
   /* Das blaue Band: ein weiches Licht wandert langsam hin und her */
   .kopfkarte:not(.kopfkarte--geburtstag) { overflow: hidden; isolation: isolate; }
@@ -5421,3 +5425,7 @@ body.einfuegemodus .pw-zelle:not(.pw-zelle--fein):hover { background: transparen
    sahen leer aus (Patrick, 5. Oktober 2026). Jede Zelle trägt ihre
    Excel-Farbe in --zf, ohne eigene Farbe erbt sie die des Blattes. */
 body .excelansicht__blatt, body .excelansicht__blatt * { color: var(--zf, #000) !important; }
+
+/* Planwand mit dem Finger (111.51.0): Langes Drücken hebt den Balken an.
+   Auf dem iPad darf dabei kein Menü und keine Lupe aufgehen. */
+.pw-balken, .pw-griff { -webkit-touch-callout: none; }

@@ -95,6 +95,11 @@ with sync_playwright() as p:
     pg, f = seite(br, 1280, 800, finger=True)
     b = pg.evaluate(BALKEN); vorher = pg.evaluate(JOB, b["id"]); start0 = pg.evaluate(TAG0)
     rand = pg.evaluate(RAND)
+    # Mit dem Finger bleibt der Balken dort gepackt, wo man ihn anfasst
+    # (111.50.0): Sein Anfang landet so viele Arbeitstage vor dem Ziel,
+    # wie der Finger hinter seinem Anfang lag.
+    unter = pg.evaluate("([x,y]) => { const z = document.elementsFromPoint(x,y).find((e) => e.dataset.zelle); return z.dataset.zelle.split('|')[1]; }", [b["x"], b["y"]])
+    versatz = pg.evaluate("([a,b]) => { let d = new Date(a+'T00:00:00'), n = 0; const e = new Date(b+'T00:00:00'); while (d < e) { d.setDate(d.getDate()+1); if (d.getDay() % 6) n++; } return n; }", [vorher[0], unter])
     cdp = pg.context.new_cdp_session(pg)
     def touch(art, x, y):
         cdp.send("Input.dispatchTouchEvent", {"type": art,
@@ -111,13 +116,20 @@ with sync_playwright() as p:
         x = max(zx, x - 25); touch("touchMove", x, b["y"]); pg.wait_for_timeout(16)
     pg.wait_for_timeout(200)
     ziel = pg.evaluate("([x,y]) => { const z = document.elementFromPoint(x,y).closest('[data-zelle]'); return z && z.dataset.zelle.split('|')[1]; }", [zx, b["y"]])
+    ziel = pg.evaluate("([a,n]) => { let d = new Date(a+'T00:00:00'); while (n > 0) { d.setDate(d.getDate()-1); if (d.getDay() % 6) n--; } return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }", [ziel, versatz])
     touch("touchEnd", 0, 0); pg.wait_for_timeout(1200)
     if pg.locator("[data-ja]").count(): pg.locator("[data-ja]").first.click(); pg.wait_for_timeout(1000)
     nachher = pg.evaluate(JOB, b["id"])
-    print("Finger: blättert", start0, "->", start1, "| abgelegt", nachher[0], "Ziel", ziel, "| richtig:", start1 > start0 and nachher[0] == ziel)
+    print("Finger: blättert", start0, "->", start1, "| abgelegt", nachher[0], "Ziel", ziel, "(gepackt", versatz, "Tage nach Beginn)", "| richtig:", start1 > start0 and nachher[0] == ziel)
     ok3 = start1 > start0 and nachher[0] == ziel
     # Normales Wischen bleibt: kurzer Wisch ohne Halten verschiebt keinen Balken
-    b = pg.evaluate(BALKEN); vorher = pg.evaluate(JOB, b["id"])
+    b = pg.evaluate(BALKEN)
+    if not b:
+        # Weit geblättert und dort kein passender Balken: frisch anfangen
+        alt = f; pg.context.close(); pg, f = seite(br, 1280, 800, finger=True); f += alt
+        cdp = pg.context.new_cdp_session(pg)
+        b = pg.evaluate(BALKEN)
+    vorher = pg.evaluate(JOB, b["id"])
     touch("touchStart", b["x"], b["y"]);
     for i in range(8): touch("touchMove", b["x"] - 20 * i, b["y"]); pg.wait_for_timeout(16)
     touch("touchEnd", 0, 0); pg.wait_for_timeout(800)

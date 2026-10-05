@@ -222,7 +222,7 @@ input, select, textarea { transition: border-color .18s ease, box-shadow .18s ea
   body:not(.pw-seite) #inhalt.reiter-eintritt { animation: none; }
   /* Die Startseite hatte ihren eigenen Eintritt; der hier ersetzt ihn,
      sonst liefe er beim Wegnehmen von fx-seite ein zweites Mal */
-  .react-seite:has(> .kopfkarte) > * { animation: none; }
+  .react-seite > .kopfkarte, .react-seite > .kopfkarte ~ * { animation: none; }
   body:not(.pw-seite) #inhalt.fx-seite > .react-seite > *,
   body:not(.pw-seite) #inhalt.fx-seite > :not(.react-seite) {
     animation: fx-teil-herein .48s var(--fx-kurve) backwards; }

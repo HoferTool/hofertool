@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.50.0";
+const APP_VERSION = "111.51.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3792,19 +3792,28 @@ function griffVerhalten(b) {
     const kopieSuchen = () => document.querySelector('.pw-tafel [data-auftrag="'
       + CSS.escape(balken.dataset.auftrag) + '"]');
 
-    griff.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-      e.preventDefault();
+    // Mit dem Finger erst nach kurzem Halten: Ein Wischen, das zufällig
+    // auf dem schmalen Griff beginnt, soll die Tafel scrollen und nicht
+    // die Dauer ändern. Bisher griff der Griff sofort, dann übernahm
+    // der Browser das Wischen und brach das Ziehen gleich wieder ab.
+    let halten = null, wartet = false, x0 = 0, y0 = 0;
+    const packen = (e) => {
+      wartet = false;
+      clearTimeout(halten);
       auftrag = (plan.auftraege || []).find((j) => j.id === balken.dataset.auftrag);
       if (!auftrag || !auftrag.planned_from) return;
       aktiv = true;
-      startX = e.clientX;
+      startX = x0;
       spaltenBreite = plan.spalte || 40;
 
       vonStart = vonJetzt = auftrag.planned_from;
       dauerStart = dauerJetzt = Math.max(1, auftrag.planned_days || 1);
 
       balken.classList.add("pw-balken--groesse");
+      if (e.pointerType === "touch") {
+        plan.zugInGeste = true;
+        if (navigator.vibrate) navigator.vibrate(30);
+      }
       try { griff.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
       // Am Rand weiterblättern; nach dem Neuzeichnen zeigt die neue
       // Fassung des Balkens die Dauer, die gerade gezogen wird.
@@ -3820,9 +3829,37 @@ function griffVerhalten(b) {
         rechnen(planZug.x);
         zeigen(balken);
       });
+    };
+
+    griff.addEventListener("pointerdown", (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+      x0 = e.clientX; y0 = e.clientY;
+      if (e.pointerType === "touch") {
+        wartet = true;
+        clearTimeout(halten);
+        halten = setTimeout(() => { if (wartet) packen(e); }, 250);
+        return;
+      }
+      packen(e);
     });
 
+    // Hat der Finger den Griff gepackt, gehört die Geste ihm — sonst
+    // scrollt der Browser weiter und bricht das Ziehen ab.
+    griff.addEventListener("touchmove", (e) => {
+      if (aktiv && e.cancelable) e.preventDefault();
+    }, { passive: false });
+    griff.addEventListener("touchend", () => { wartet = false; clearTimeout(halten); });
+
     griff.addEventListener("pointermove", (e) => {
+      if (wartet) {
+        // Losgefahren, bevor das Halten greift: das ist ein Wischen
+        if (Math.abs(e.clientX - x0) > 12 || Math.abs(e.clientY - y0) > 12) {
+          wartet = false; clearTimeout(halten);
+        }
+        return;
+      }
       if (!aktiv) return;
       e.preventDefault();
 
@@ -3832,6 +3869,7 @@ function griffVerhalten(b) {
     });
 
     griff.addEventListener("pointerup", async (e) => {
+      wartet = false; clearTimeout(halten);
       if (!aktiv) return;
       aktiv = false;
       e.stopPropagation();
@@ -3910,6 +3948,7 @@ function griffVerhalten(b) {
     });
 
     griff.addEventListener("pointercancel", () => {
+      wartet = false; clearTimeout(halten);
       if (!aktiv) return;
       aktiv = false;
       balken.classList.remove("pw-balken--groesse");
@@ -4095,7 +4134,12 @@ function balkenInfoVerhalten() {
       const t = e.touches[0];
       startY = t.clientY; startX = t.clientX;
       clearTimeout(halten);
-      halten = setTimeout(() => { zeigen(); }, 450);
+      halten = setTimeout(() => {
+        // Wer plant, hebt mit langem Drücken den Balken an. Dann soll
+        // nicht noch das Infofenster mitten ins Verschieben springen.
+        if (plan.zugInGeste || document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return;
+        zeigen();
+      }, 450);
     }, { passive: true });
 
     el.addEventListener("touchmove", (e) => {
@@ -4478,9 +4522,16 @@ function statusSchnellVerhalten(b) {
 
   tafel.querySelectorAll(".pw-balken__statusgross").forEach((symbol) => {
     symbol.style.cursor = "pointer";
-    symbol.addEventListener("pointerdown", (e) => e.stopPropagation());
+    // Mit dem Finger geht das Drücken auch an den Balken weiter: Das
+    // Symbol ist gross, und langes Drücken darauf soll den Balken
+    // verschieben wie überall sonst. Kurzes Tippen bleibt der Zustand.
+    symbol.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "touch") e.stopPropagation();
+    });
     symbol.onclick = async (e) => {
       e.stopPropagation();
+      // Gleich nach einem Verschieben ist das kein Tippen aufs Symbol
+      if (Date.now() - (plan.zugEndeZeit || 0) < 500) return;
       const balken = symbol.closest("[data-auftrag]");
       const j = balken && (plan.auftraege || []).find((x) => x.id === balken.dataset.auftrag);
       if (!j) return;
@@ -5377,6 +5428,7 @@ function wischVerhalten(b) {
   let x0 = 0, y0 = 0, zeit = 0, aktiv = false;
 
   rolle.addEventListener("touchstart", (e) => {
+    plan.zugInGeste = false;
     if (e.touches.length !== 1) { aktiv = false; return; }
     aktiv = true;
     x0 = e.touches[0].clientX;
@@ -5387,8 +5439,11 @@ function wischVerhalten(b) {
   rolle.addEventListener("touchend", (e) => {
     if (!aktiv) return;
     aktiv = false;
-    // Wird gerade ein Balken gezogen, gehört die Geste dem Ziehen
-    if (document.querySelector(".pw-balken--zieht")) return;
+    // Wird gerade ein Balken gezogen, gehört die Geste dem Ziehen.
+    // Beim Loslassen ist das Ziehen schon aufgeräumt, bevor dieses
+    // touchend kommt; darum merkt sich die Geste selbst, dass gezogen
+    // wurde. Sonst blätterte ein schneller Zug die ganze Wand weiter.
+    if (plan.zugInGeste || document.querySelector(".pw-balken--zieht")) return;
     // Gibt es einen Puffer, blättert schon das Scrollen der Tafel.
     // Beides zusammen würde sich gegenseitig zurückschieben.
     if (plan.puffer) return;
@@ -5722,10 +5777,18 @@ function planVorschauZeigen(tafel, zelle, auftrag) {
   if (!zelle || !auftrag || !tafel) { planVorschauWeg(); return; }
   const teile = zelle.split("|");
   const tage = plan.sichtbareTage || [];
-  const von = tage.indexOf(teile[1]);
+  let von = tage.indexOf(teile[1]);
+  let rest = auftrag.planned_days || 1;
+  // Beginnt der Auftrag vor dem ersten sichtbaren Tag (am Tablet packt
+  // man ihn in der Mitte), zeigt die Vorschau den sichtbaren Teil.
+  if (von < 0 && tage.length && teile[1] < tage[0]) {
+    let d = teile[1];
+    while (d < tage[0] && rest > 0) { d = arbeitstagePlus(d, 1); rest--; }
+    von = rest > 0 ? 0 : -1;
+  }
   const zeile = tafel.querySelector('[data-mzeile="' + CSS.escape(teile[0]) + '"] .pw-balken-schicht');
   if (von < 0 || !zeile) { planVorschauWeg(); return; }
-  const dauer = Math.max(1, Math.min(auftrag.planned_days || 1, tage.length - von));
+  const dauer = Math.max(1, Math.min(rest, tage.length - von));
   if (!planVorschauEl) {
     planVorschauEl = document.createElement("div");
     planVorschauEl.className = "pw-vorschau";
@@ -5790,15 +5853,24 @@ function planZugBewegen(x, y) {
   const z = planZug;
   if (!z) return;
   z.x = x; z.y = y;
-  const rolle = document.querySelector(".pw-rolle");
-  const tafel = rolle && rolle.querySelector(".pw-tafel");
-  if (!tafel) return;
-  const r = rolle.getBoundingClientRect();
-  // Die Namensspalte steht fest; die Tage beginnen an ihrem rechten Rand
-  const name = tafel.querySelector(".pw-zeile .pw-name");
-  const links = name ? name.getBoundingClientRect().right : r.left + (plan.namensbreite || 108);
-  const rechts = Math.min(r.left + rolle.clientLeft + rolle.clientWidth,
-    tafel.getBoundingClientRect().right);
+  // Die Masse der Tafel ändern sich beim Ziehen kaum. Sie bei jeder
+  // Bewegung neu zu messen, zwang den Browser jedes Mal, die ganze
+  // Seite neu zu setzen — am Tablet spürbar als Ruckeln. Darum nur
+  // alle halbe Sekunde und nach jedem Blättern neu messen.
+  const jetzt = performance.now();
+  if (!z.mass || jetzt - z.mass.zeit > 500) {
+    const rolle = document.querySelector(".pw-rolle");
+    const tafel = rolle && rolle.querySelector(".pw-tafel");
+    if (!tafel) return;
+    const r = rolle.getBoundingClientRect();
+    // Die Namensspalte steht fest; die Tage beginnen an ihrem rechten Rand
+    const name = tafel.querySelector(".pw-zeile .pw-name");
+    z.mass = { zeit: jetzt, top: r.top, bottom: r.bottom,
+      links: name ? name.getBoundingClientRect().right : r.left + (plan.namensbreite || 108),
+      rechts: Math.min(r.left + rolle.clientLeft + rolle.clientWidth,
+        tafel.getBoundingClientRect().right) };
+  }
+  const r = z.mass, links = z.mass.links, rechts = z.mass.rechts;
   const zone = Math.max(36, Math.min(90, (plan.spalte || 40) * 1.5));
   let richtung = 0, tiefe = 0;
   if (y >= r.top && y <= r.bottom) {
@@ -5852,6 +5924,7 @@ function planZugBlaettern(tage) {
   if (typeof plan.reglerNachfuehren === "function") plan.reglerNachfuehren();
   plan.nurZeitGeschoben = true;
   neuZeichnen(z.b);
+  z.mass = null;
 }
 
 function balkenVerhalten(b) {
@@ -5861,10 +5934,12 @@ function balkenVerhalten(b) {
 
   tafel.querySelectorAll("[data-auftrag]").forEach((el) => {
     let halten = null, zieht = false, schatten = null, gestartet = false;
-    let startX = 0, startY = 0;
+    let startX = 0, startY = 0, vomSymbol = false, versatz = 0;
+    let bild = 0, zeigerX = 0, zeigerY = 0;
 
     const aufraeumen = () => {
       clearTimeout(halten);
+      if (bild) { cancelAnimationFrame(bild); bild = 0; }
       if (schatten) { schatten.remove(); schatten = null; }
       el.classList.remove("pw-balken--zieht");
       el.style.pointerEvents = "";
@@ -5877,6 +5952,7 @@ function balkenVerhalten(b) {
       }
       if (planZug && planZug.el === el) planZugEnde();
       planVorschauWeg();
+      if (zieht) plan.zugEndeZeit = Date.now();
       zieht = false;
       gestartet = false;
     };
@@ -5886,6 +5962,16 @@ function balkenVerhalten(b) {
       if (!treffer) return null;
       const zelle = treffer.closest("[data-zelle]");
       return zelle ? zelle.dataset.zelle : null;
+    };
+    // Mit dem Finger bleibt der Balken dort gepackt, wo man ihn
+    // angefasst hat: Wer ihn in der Mitte hält und zwei Tage nach links
+    // zieht, verschiebt ihn um zwei Tage. Vorher sprang sein Anfang
+    // unter den Finger, und der Balken machte einen Satz.
+    const zielUnter = (x, y) => {
+      const zelle = zelleUnter(x, y);
+      if (!zelle || !versatz) return zelle;
+      const teile = zelle.split("|");
+      return teile[0] + "|" + arbeitstagePlus(teile[1], -versatz);
     };
 
     // Das eigentliche Anheben des Balkens. Mit der Maus geschieht es,
@@ -5903,13 +5989,27 @@ function balkenVerhalten(b) {
         el.style.pointerEvents = "none";
         tafel.classList.add("pw-tafel--zieht");
         if (navigator.vibrate) navigator.vibrate(30);
+        versatz = 0;
+        if (zeigerArt === "touch") {
+          plan.zugInGeste = true;
+          const a = (plan.auftraege || []).find((j) => j.id === el.dataset.auftrag);
+          const unter = zelleUnter(startX, startY);
+          if (a && a.planned_from && unter) {
+            const tag = unter.split("|")[1];
+            let d = a.planned_from;
+            while (d < tag && versatz < 400) { d = arbeitstagePlus(d, 1); versatz++; }
+          }
+        }
 
         schatten = document.createElement("div");
         schatten.className = "pw-schatten";
         schatten.textContent = el.querySelector(".pw-balken__nr").textContent;
         document.body.appendChild(schatten);
-        schatten.style.left = startX + "px";
-        schatten.style.top = startY + "px";
+        // Verschoben wird mit translate: Das braucht kein neues Setzen
+        // der Seite, left und top dagegen schon.
+        schatten.style.left = "0px";
+        schatten.style.top = "0px";
+        schatten.style.translate = startX + "px " + startY + "px";
         // Erst mit dem Ziehen einfangen — sonst bricht der Browser
         // beim Berühren eines Balkens das Wischen ab.
         try { el.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
@@ -5921,7 +6021,7 @@ function balkenVerhalten(b) {
           neu.classList.add("pw-tafel--zieht");
           const kopie = neu.querySelector('[data-auftrag="' + CSS.escape(el.dataset.auftrag) + '"]');
           if (kopie) kopie.classList.add("pw-balken--zieht");
-          planVorschauZeigen(neu, zelleUnter(planZug.x, planZug.y),
+          planVorschauZeigen(neu, zielUnter(planZug.x, planZug.y),
             (plan.auftraege || []).find((j) => j.id === el.dataset.auftrag));
         });
     };
@@ -5930,6 +6030,7 @@ function balkenVerhalten(b) {
       if (e.button !== undefined && e.button !== 0) return;
       gestartet = true;
       zeigerArt = e.pointerType || "mouse";
+      vomSymbol = !!(e.target.closest && e.target.closest(".pw-balken__statusgross"));
       startX = e.clientX;
       startY = e.clientY;
       // Nur mit dem Finger braucht es das Halten
@@ -5949,7 +6050,10 @@ function balkenVerhalten(b) {
       // Fährt der Finger los, bevor das Halten greift, ist es ein
       // Wischen — dann lassen wir die Tafel scrollen.
       if (!zieht) {
-        const weit = Math.abs(e.clientX - startX) > 6 || Math.abs(e.clientY - startY) > 6;
+        // Ein Finger zittert beim Halten ein paar Pixel. Mit 6 Pixeln
+        // brach das Halten oft ab, und statt zu ziehen scrollte die Wand.
+        const spiel = zeigerArt === "touch" ? 12 : 6;
+        const weit = Math.abs(e.clientX - startX) > spiel || Math.abs(e.clientY - startY) > spiel;
         if (!weit) return;
         if (zeigerArt === "touch") {
           // Fährt der Finger los, bevor das Halten greift, ist es ein
@@ -5963,15 +6067,22 @@ function balkenVerhalten(b) {
       }
       e.preventDefault();
 
-      if (schatten) {
-        schatten.style.left = e.clientX + "px";
-        schatten.style.top = e.clientY + "px";
-      }
-      // Vorschau so lang wie der Auftrag, nicht nur ein Tag
-      planVorschauZeigen(document.querySelector(".pw-tafel"), zelleUnter(e.clientX, e.clientY),
-        (plan.auftraege || []).find((j) => j.id === el.dataset.auftrag));
-      planZugBewegen(e.clientX, e.clientY);
+      // Höchstens einmal je Bild nachführen. Ein Finger liefert oft
+      // mehr Bewegungen, als der Bildschirm zeigen kann; jede davon
+      // einzeln auszuwerten, liess das Ziehen am Tablet hängen.
+      zeigerX = e.clientX; zeigerY = e.clientY;
+      if (!bild) bild = requestAnimationFrame(nachfuehren);
     });
+
+    const nachfuehren = () => {
+      bild = 0;
+      if (!zieht) return;
+      if (schatten) schatten.style.translate = zeigerX + "px " + zeigerY + "px";
+      // Vorschau so lang wie der Auftrag, nicht nur ein Tag
+      planVorschauZeigen(document.querySelector(".pw-tafel"), zielUnter(zeigerX, zeigerY),
+        (plan.auftraege || []).find((j) => j.id === el.dataset.auftrag));
+      planZugBewegen(zeigerX, zeigerY);
+    };
 
     // Einfügemodus: Markierung an der Kante, an der eingefügt würde
     el.addEventListener("mousemove", (e) => {
@@ -5988,12 +6099,14 @@ function balkenVerhalten(b) {
     el.addEventListener("pointerup", async (e) => {
       if (!gestartet) return;
       const warZiehen = zieht;
-      const ziel = warZiehen ? zelleUnter(e.clientX, e.clientY) : null;
+      const ziel = warZiehen ? zielUnter(e.clientX, e.clientY) : null;
       aufraeumen();
 
       const auftrag = (plan.auftraege || []).find((j) => j.id === el.dataset.auftrag);
       if (!auftrag) return;
 
+      // Kurz aufs Symbol getippt: Das Symbol ändert den Zustand selbst
+      if (!warZiehen && vomSymbol) return;
       if (!warZiehen) {
         if (plan.kopierModus) {
           kopierModusBeenden(b);
