@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.45.0";
+const APP_VERSION = "111.46.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2837,9 +2837,12 @@ function groesseBauen(dm, toleranz) {
   return "Ø" + dm + (toleranz ? " " + toleranz : "");
 }
 
-// Macht eine Farbe kräftig und leuchtend: Sättigung hoch, Helligkeit
-// auf einen Wert, bei dem sie noch strahlt, aber Text darauf lesbar
-// bleibt. Zurück kommt der Hintergrund und die passende Schriftfarbe.
+// Macht eine Farbe kräftig: Sättigung hoch, Helligkeit in ein sattes
+// Mittel. Früher wurde jede Farbe so weit aufgehellt, bis schwarze
+// Schrift darauf passte — das ergab Pastelltöne (Wunsch 5. Oktober
+// 2026: „kräftiger“). Jetzt bleibt die Farbe satt, und die Schrift
+// richtet sich nach ihr: schwarz auf hellen Tönen wie Gelb, weiss auf
+// dunklen wie Blau oder Rot, je nachdem, was mehr Kontrast gibt.
 function leuchtend(hex) {
   const h = String(hex || "#888888").replace("#", "");
   const voll = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
@@ -2851,7 +2854,7 @@ function leuchtend(hex) {
   let farbton = 0;
   const helle = (max + min) / 2;
   const spanne = max - min;
-  let saettigung = spanne === 0 ? 0
+  const saettigung = spanne === 0 ? 0
     : spanne / (1 - Math.abs(2 * helle - 1));
 
   if (spanne !== 0) {
@@ -2862,42 +2865,33 @@ function leuchtend(hex) {
     if (farbton < 0) farbton += 360;
   }
 
-  // Sättigung anheben, Helligkeit auf ein kräftiges Mittel bringen.
-  // Fast farblose Töne — Weiss, Grau — bleiben, wie sie sind.
-  const sNeu = saettigung < 0.12 ? saettigung : Math.min(0.78, saettigung * 1.15 + 0.08);
-  let lNeu = saettigung < 0.12 ? Math.max(helle, 0.82)
-    : Math.min(0.74, Math.max(0.58, helle * 0.3 + 0.5));
+  // Fast farblose Töne — Weiss, Grau, Anthrazit — bleiben, wie sie sind.
+  const bunt = saettigung >= 0.2;
+  const sNeu = bunt ? Math.min(0.95, saettigung * 1.15 + 0.08) : saettigung;
+  // Die Helligkeit rückt nur ein Stück zur Mitte: sehr dunkle Töne
+  // (Marine, Dunkelrot) leuchten etwas mehr, helle (Beige) werden
+  // satter — aber Blau und Marine, Rot und Dunkelrot bleiben unterscheidbar.
+  const lNeu = bunt ? helle + (0.48 - helle) * 0.35 : helle;
 
-  // Aus Ton, Sättigung und Helligkeit wieder eine Farbe machen
-  const bauen = (l) => {
-    const c = (1 - Math.abs(2 * l - 1)) * sNeu;
-    const x = c * (1 - Math.abs(((farbton / 60) % 2) - 1));
-    const m = l - c / 2;
-    let rr = 0, gg = 0, bb = 0;
-    if (farbton < 60) { rr = c; gg = x; }
-    else if (farbton < 120) { rr = x; gg = c; }
-    else if (farbton < 180) { gg = c; bb = x; }
-    else if (farbton < 240) { gg = x; bb = c; }
-    else if (farbton < 300) { rr = x; bb = c; }
-    else { rr = c; bb = x; }
-    const zahl = (v) => Math.max(0, Math.min(255, Math.round((v + m) * 255)));
-    return [zahl(rr), zahl(gg), zahl(bb)];
-  };
+  const c = (1 - Math.abs(2 * lNeu - 1)) * sNeu;
+  const x = c * (1 - Math.abs(((farbton / 60) % 2) - 1));
+  const m = lNeu - c / 2;
+  let rr = 0, gg = 0, bb = 0;
+  if (farbton < 60) { rr = c; gg = x; }
+  else if (farbton < 120) { rr = x; gg = c; }
+  else if (farbton < 180) { gg = c; bb = x; }
+  else if (farbton < 240) { gg = x; bb = c; }
+  else if (farbton < 300) { rr = x; bb = c; }
+  else { rr = c; bb = x; }
+  const ton = [rr, gg, bb].map((v) => Math.max(0, Math.min(255, Math.round((v + m) * 255))));
 
-  // Die Schrift bleibt überall schwarz. Deshalb wird die Farbe nur so
-  // kräftig, wie es dafür reicht — ist sie zu dunkel, wird sie
-  // schrittweise aufgehellt, bis Schwarz darauf sicher lesbar ist.
-  const wahrgenommen = ([r2, g2, b2]) => 0.299 * r2 + 0.587 * g2 + 0.114 * b2;
-  let ton = bauen(lNeu);
-  let schutz = 0;
-  while (wahrgenommen(ton) < 168 && lNeu < 0.94 && schutz++ < 40) {
-    lNeu += 0.02;
-    ton = bauen(lNeu);
-  }
-
-  const hintergrund = "#" + ton
-    .map((v) => v.toString(16).padStart(2, "0")).join("");
-  return { hg: hintergrund, vg: "#10151c" };
+  // Kontrast nach WCAG: Schwarz oder Weiss, was besser trägt
+  const lin = (v) => { const k = v / 255; return k <= 0.03928 ? k / 12.92 : Math.pow((k + 0.055) / 1.055, 2.4); };
+  const lum = 0.2126 * lin(ton[0]) + 0.7152 * lin(ton[1]) + 0.0722 * lin(ton[2]);
+  const gegenSchwarz = (lum + 0.05) / 0.05;
+  const gegenWeiss = 1.05 / (lum + 0.05);
+  const hintergrund = "#" + ton.map((v) => v.toString(16).padStart(2, "0")).join("");
+  return { hg: hintergrund, vg: gegenSchwarz >= gegenWeiss ? "#10151c" : "#ffffff" };
 }
 
 // Mischt eine Farbe mit Weiss. anteil 0 = unverändert, 1 = weiss.
@@ -5100,11 +5094,11 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
   const fertig = st === "fertig";
   const f = farbeVon(j.color);
 
-  // Schwarze Schrift liest sich am besten. Damit sie auf jeder Farbe
-  // trägt, wird die Balkenfläche aufgehellt und die volle Farbe als
-  // Streifen an den linken Rand gelegt — so bleibt sie erkennbar.
+  // Die Balkenfläche ist die kräftige Farbe, die Schrift schwarz oder
+  // weiss, je nachdem, was darauf besser lesbar ist. Die Palettenfarbe
+  // steht zusätzlich als Streifen am linken Rand.
   const voll = fertig ? "#6b7280" : f.hex;
-  // Farben der Palette werden zu einem ruhigen Mittelton aufgehellt.
+  // Farben der Palette werden satter gemacht (leuchtend).
   // Eine frei gewählte Farbe — etwa aus infoBoard — bleibt genau so,
   // wie sie ist; die Schrift richtet sich nach der Helligkeit.
   const freieFarbe = /^#[0-9a-f]{6}$/i.test(String(j.color || ""));
@@ -5113,7 +5107,8 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
   const hg = ton.hg;
   const vg = ton.vg;
   const laeuft = st === "laeuft";
-  const randKlasse = laeuft ? " pw-balken--laeuft" : "";
+  const randKlasse = (laeuft ? " pw-balken--laeuft" : "")
+    + (vg === "#ffffff" || vg === "#fff" ? " pw-balken--weissschrift" : "");
 
   // Fortschritt in Schritten von fünf Prozent, bezogen auf den
   // GANZEN Auftrag — nicht auf den Ausschnitt, den man gerade sieht.
@@ -5165,7 +5160,7 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
     + ' data-von="' + spalte + '" data-dauer="' + Math.max(1, dauer) + '"'
     + ' data-angeschnitten="' + (angeschnitten ? "1" : "0") + '"'
     + ' style="--von:' + spalte + ';--dauer:' + Math.max(1, dauer)
-    + ';--voll:' + voll + ';background:' + hg + ';color:' + vg + '">'
+    + ';--voll:' + voll + ';--schrift:' + vg + ';background:' + hg + ';color:' + vg + '">'
 
     + (restLinks !== null
         ? '<div class="pw-rest" style="left:' + restLinks + '%"></div>' : "")
