@@ -74,8 +74,13 @@ with sync_playwright() as p:
             bild: (() => { const i = document.querySelector('[data-excelblatt] img'); return i ? { b: i.offsetWidth, h: i.offsetHeight, ok: i.complete && i.naturalWidth > 0 } : null; })(),
             gitter: !!document.querySelector('[data-excelblatt] svg'),
             reiter: [...document.querySelectorAll('[data-blattreiter]')].map(r => r.textContent),
-            blattB: document.querySelector('[data-excelblatt]').getBoundingClientRect().width,
-            buehneB: document.querySelector('.excelansicht__buehne').clientWidth,
+            seiten: document.querySelectorAll('[data-excelseite]').length,
+            papier: (() => { const r = document.querySelector('[data-excelseite]').getBoundingClientRect();
+              const bu = document.querySelector('.excelansicht__buehne').getBoundingClientRect();
+              return { b: r.width, h: r.height, l: r.left - bu.left, o: r.top - bu.top, r: bu.right - r.right, u: bu.bottom - r.bottom }; })(),
+            inhalt: (() => { const p = document.querySelector('[data-excelseite]').getBoundingClientRect();
+              const f = document.querySelector('[data-excelseite] > div').getBoundingClientRect();
+              return { l: f.left - p.left, o: f.top - p.top, r: p.right - f.right }; })(),
             quer: document.documentElement.scrollWidth <= window.innerWidth };
         }""")
         print(name, s)
@@ -105,16 +110,21 @@ with sync_playwright() as p:
                and wz.get("links", [0, 0, 0, 0])[3] == 255 and wz["links"][0] > 150)
         pruefe(name + ": ohne Hilfslinien wie im Blatt eingestellt", not s["gitter"])
         pruefe(name + ": Blätter ohne verstecktes", s["reiter"] == ["Einrichtblatt", "Werkzeuge"])
-        pruefe(name + ": füllt die Breite", abs(s["blattB"] + 24 - s["buehneB"]) < 4 or s["blattB"] < s["buehneB"])
+        pa = s["papier"]
+        pruefe(name + ": eine A4-Seite quer", s["seiten"] == 1 and abs(pa["b"] / pa["h"] - 1123 / 794) < 0.01)
+        pruefe(name + ": ganze Seite sichtbar und eingepasst", min(pa["l"], pa["o"], pa["r"], pa["u"]) >= 8
+               and min(pa["l"] + pa["r"], pa["o"] + pa["u"]) < 30)
+        pruefe(name + ": Ränder der Seite zu sehen", s["inhalt"]["l"] > pa["b"] * 0.03 and s["inhalt"]["o"] > pa["h"] * 0.04
+               and s["inhalt"]["r"] >= s["inhalt"]["l"] - 1)
         pruefe(name + ": nichts ragt aus dem Bildschirm", s["quer"])
         if bilder: pg.screenshot(path=f"{AB}/excel-{name}.png")
         # Zoom
-        b0 = s["blattB"]
+        b0 = pa["b"]
         pg.click("[data-groesser]"); pg.wait_for_timeout(400)
-        b1 = pg.evaluate("document.querySelector('[data-excelblatt]').getBoundingClientRect().width")
+        b1 = pg.evaluate("document.querySelector('[data-excelseite]').getBoundingClientRect().width")
         pruefe(name + ": Vergrössern", b1 > b0 * 1.3 and pg.inner_text("[data-einpassen]") == "140%")
         pg.click("[data-einpassen]"); pg.wait_for_timeout(400)
-        pruefe(name + ": Einpassen zurück", abs(pg.evaluate("document.querySelector('[data-excelblatt]').getBoundingClientRect().width") - b0) < 2)
+        pruefe(name + ": Einpassen zurück", abs(pg.evaluate("document.querySelector('[data-excelseite]').getBoundingClientRect().width") - b0) < 2)
         # Drucken: eigenes Fenster mit dem Blatt samt Bild
         with pg.expect_popup() as neu: pg.click(".betrachter [data-drucken]")
         dr = neu.value; dr.wait_for_timeout(800)

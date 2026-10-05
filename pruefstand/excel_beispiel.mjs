@@ -56,6 +56,10 @@ ws.addImage(bild, { tl: { col: 4, row: 3 }, br: { col: 6, row: 5.5 }, editAs: "o
 const werkzeug = wb.addImage({ buffer: pngBauen(40, 20, (x) => (x < 20 ? [200, 0, 0] : [255, 255, 255])), extension: "png" });
 ws.addImage(werkzeug, { tl: { col: 0, row: 14 }, br: { col: 1, row: 16 }, editAs: "oneCell" });
 
+// Druckeinstellung wie ein echtes Einrichtblatt: A4 quer, eine Seite
+ws.pageSetup = { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 1,
+  printArea: "A1:F16", margins: { left: 0.5, right: 0.5, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 } };
+
 const w2 = wb.addWorksheet("Werkzeuge");
 w2.getCell("A1").value = "Platz"; w2.getCell("B1").value = "Artikel"; w2.getCell("A1").font = { bold: true };
 w2.getCell("A2").value = "T01"; w2.getCell("B2").value = "VCGT 160404";

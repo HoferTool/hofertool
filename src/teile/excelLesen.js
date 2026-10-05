@@ -330,6 +330,24 @@ function blattAusExcelJS(ws, wb, thema, eigeneBilder) {
     }
   } catch (f) { /* ohne Bilder */ }
 
+  // Seite wie beim Drucken: Hoch/Quer, Ränder, Massstab, Druckbereich
+  const ps = ws.pageSetup || {};
+  const druck = druckbereichLesen(ps.printArea);
+  if (druck) {
+    letzteZ = Math.max(letzteZ, Math.min(druck.bottom, MAX_ZEILEN));
+    letzteS = Math.max(letzteS, Math.min(druck.right, MAX_SPALTEN));
+  }
+  const m = ps.margins || {};
+  const zoll = (v, std) => (typeof v === "number" && v >= 0 ? v : std) * 96;
+  const seite = {
+    quer: ps.orientation === "landscape",
+    raender: { l: zoll(m.left, 0.7), r: zoll(m.right, 0.7), o: zoll(m.top, 0.75), u: zoll(m.bottom, 0.75) },
+    massstab: ps.scale > 0 ? ps.scale / 100 : 1,
+    einpassen: ps.fitToPage ? { b: ps.fitToWidth ?? 1, h: ps.fitToHeight ?? 1 } : null,
+    mitte: !!ps.horizontalCentered,
+    druck,
+  };
+
   letzteZ = Math.max(1, letzteZ); letzteS = Math.max(1, letzteS);
 
   // Masse
@@ -352,7 +370,9 @@ function blattAusExcelJS(ws, wb, thema, eigeneBilder) {
   const gitter = !(ansichten && ansichten.showGridLines === false);
 
   return modellBauen({
-    name: ws.name, spalten, zeilen, gitter, merges,
+    name: ws.name, spalten, zeilen, gitter, merges, seite,
+    // Auf dem Papier zählt, ob Gitternetzlinien mitgedruckt werden
+    druckGitter: !!ps.showGridLines,
     alle: zellen, zelle,
     stil: (z) => {
       const cell = z.cell;
@@ -456,7 +476,7 @@ async function mitSheetJS(daten) {
 
 // ---------- Gemeinsames Modell ----------
 
-function modellBauen({ name, spalten, zeilen, gitter, merges, alle, zelle, stil, rahmen, bilder }) {
+function modellBauen({ name, spalten, zeilen, gitter, merges, alle, zelle, stil, rahmen, bilder, seite, druckGitter }) {
   const x = [0]; spalten.forEach((b, i) => x.push(x[i] + b));
   const y = [0]; zeilen.forEach((h, i) => y.push(y[i] + h));
   const nZ = zeilen.length, nS = spalten.length;
@@ -560,7 +580,17 @@ function modellBauen({ name, spalten, zeilen, gitter, merges, alle, zelle, stil,
     });
   });
 
-  return { name, spalten, zeilen, x, y, breite: x[nS], hoehe: y[nZ], gitter, felder, striche, bilder: bildListe };
+  // Inhalt der Seite in Pixeln: der Druckbereich, sonst alles Benutzte
+  const s = seite || { quer: false, raender: { l: 67, r: 67, o: 72, u: 72 }, massstab: 1, einpassen: null, druck: null };
+  const d = s.druck;
+  const inhalt = d && d.top <= nZ && d.left <= nS
+    ? { x: x[d.left - 1], y: y[d.top - 1], b: x[Math.min(d.right, nS)] - x[d.left - 1], h: y[Math.min(d.bottom, nZ)] - y[d.top - 1],
+      z0: d.top - 1, z1: Math.min(d.bottom, nZ) }
+    : { x: 0, y: 0, b: x[nS], h: y[nZ], z0: 0, z1: nZ };
+  // Ohne Angabe (alte .xls): quer, wenn der Inhalt breiter als hoch ist
+  const quer = seite ? s.quer : inhalt.b > inhalt.h * 1.1;
+  return { name, spalten, zeilen, x, y, breite: x[nS], hoehe: y[nZ], gitter: druckGitter !== undefined ? druckGitter : false,
+    felder, striche, bilder: bildListe, seite: { ...s, quer, inhalt } };
 }
 
 // ---------- Bilder direkt aus der Datei ----------
@@ -704,4 +734,11 @@ async function farbeDurchsichtig(blob, hex) {
   }
   g.putImageData(d, 0, 0);
   return await new Promise((ok, nein) => c.toBlob((x) => (x ? ok(x) : nein(new Error("Bild"))), "image/png"));
+}
+
+// Druckbereich wie „'Tabelle 1'!$A$1:$K$45“ (bei mehreren der erste)
+function druckbereichLesen(text) {
+  if (!text) return null;
+  const erster = String(text).split(",")[0];
+  return bereichLesen(erster.replace(/^.*!/, "").replace(/\$/g, ""));
 }
