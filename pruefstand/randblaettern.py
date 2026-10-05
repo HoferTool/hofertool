@@ -1,5 +1,5 @@
 # Ziehen am Rand blättert die Planwand weiter (111.47.0):
-# Balken mit der Maus, rechter Griff mit der Maus, Balken mit dem Finger
+# Balken mit der Maus, rechter Griff mit der Maus
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -69,7 +69,12 @@ with sync_playwright() as p:
     alle += f
 
     # 2) Rechter Griff an den Rand: Dauer wächst über den sichtbaren Bereich
-    b = pg.evaluate(BALKEN); vorher = pg.evaluate(JOB, b["id"])
+    b = pg.evaluate(BALKEN)
+    if not b:
+        # Bei langsamem Rechner blättert Schritt 1 weiter, als Balken da sind
+        pg.context.close(); pg, f = seite(br, 1600, 1000); rand = pg.evaluate(RAND)
+        b = pg.evaluate(BALKEN)
+    vorher = pg.evaluate(JOB, b["id"])
     g = pg.evaluate("(id) => { const r = document.querySelector('.pw-balken[data-auftrag=\"'+id+'\"] [data-griff=rechts]').getBoundingClientRect(); return {x: r.x + r.width/2, y: r.y + r.height/2}; }", b["id"])
     pg.mouse.move(g["x"], g["y"]); pg.mouse.down()
     pg.mouse.move(g["x"] + 40, g["y"], steps=4)
@@ -91,37 +96,14 @@ with sync_playwright() as p:
     alle += f
     pg.context.close()
 
-    # 3) Tablet mit dem Finger: lange drücken, an den Rand ziehen
+    # 3) Mit dem Finger wird seit 111.53.0 nichts mehr verschoben
+    #    (Wunsch Patrick); das Wischen prüft wischen_finger.py.
     pg, f = seite(br, 1280, 800, finger=True)
-    b = pg.evaluate(BALKEN); vorher = pg.evaluate(JOB, b["id"]); start0 = pg.evaluate(TAG0)
-    rand = pg.evaluate(RAND)
-    # Mit dem Finger bleibt der Balken dort gepackt, wo man ihn anfasst
-    # (111.50.0): Sein Anfang landet so viele Arbeitstage vor dem Ziel,
-    # wie der Finger hinter seinem Anfang lag.
-    unter = pg.evaluate("([x,y]) => { const z = document.elementsFromPoint(x,y).find((e) => e.dataset.zelle); return z.dataset.zelle.split('|')[1]; }", [b["x"], b["y"]])
-    versatz = pg.evaluate("([a,b]) => { let d = new Date(a+'T00:00:00'), n = 0; const e = new Date(b+'T00:00:00'); while (d < e) { d.setDate(d.getDate()+1); if (d.getDay() % 6) n++; } return n; }", [vorher[0], unter])
     cdp = pg.context.new_cdp_session(pg)
     def touch(art, x, y):
         cdp.send("Input.dispatchTouchEvent", {"type": art,
             "touchPoints": [] if art == "touchEnd" else [{"x": x, "y": y, "id": 1}]})
-    touch("touchStart", b["x"], b["y"]); pg.wait_for_timeout(550)
-    x = b["x"]
-    while x < rand["rechts"] - 10:
-        x = min(rand["rechts"] - 10, x + 25); touch("touchMove", x, b["y"]); pg.wait_for_timeout(16)
-    for i in range(60):  # Finger bleibt am Rand liegen, wackelt kaum
-        touch("touchMove", x - (i % 2), b["y"]); pg.wait_for_timeout(20)
-    start1 = pg.evaluate(TAG0)
-    zx = rand["rechts"] - 350
-    while x > zx:
-        x = max(zx, x - 25); touch("touchMove", x, b["y"]); pg.wait_for_timeout(16)
-    pg.wait_for_timeout(200)
-    ziel = pg.evaluate("([x,y]) => { const z = document.elementFromPoint(x,y).closest('[data-zelle]'); return z && z.dataset.zelle.split('|')[1]; }", [zx, b["y"]])
-    ziel = pg.evaluate("([a,n]) => { let d = new Date(a+'T00:00:00'); while (n > 0) { d.setDate(d.getDate()-1); if (d.getDay() % 6) n--; } return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }", [ziel, versatz])
-    touch("touchEnd", 0, 0); pg.wait_for_timeout(1200)
-    if pg.locator("[data-ja]").count(): pg.locator("[data-ja]").first.click(); pg.wait_for_timeout(1000)
-    nachher = pg.evaluate(JOB, b["id"])
-    print("Finger: blättert", start0, "->", start1, "| abgelegt", nachher[0], "Ziel", ziel, "(gepackt", versatz, "Tage nach Beginn)", "| richtig:", start1 > start0 and nachher[0] == ziel)
-    ok3 = start1 > start0 and nachher[0] == ziel
+    ok3 = True
     # Normales Wischen bleibt: kurzer Wisch ohne Halten verschiebt keinen Balken
     b = pg.evaluate(BALKEN)
     if not b:

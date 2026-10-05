@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.52.3";
+const APP_VERSION = "111.53.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3663,7 +3663,19 @@ function masseBerechnen(b) {
   plan.tage = Math.max(5, Math.min(200, plan.tageWunsch));
 
   const breite = (b && b.clientWidth) || window.innerWidth;
-  const gesamt = Math.max(280, breite) - 8;
+  let gesamt = Math.max(280, breite) - 8;
+  // Mit dem Finger sind die Spalten fest breit und die Tafel wird nicht
+  // mehr seitlich gescrollt. Dann muss genau gerechnet werden, was in
+  // die Rolle passt, sonst ist die letzte Spalte abgeschnitten.
+  if (fingerTafel()) {
+    const rolle = document.querySelector(".pw-rolle");
+    if (rolle && rolle.clientWidth > 200) gesamt = rolle.clientWidth;
+    else if (b) {
+      const st = getComputedStyle(b);
+      gesamt = Math.max(280, b.clientWidth - (parseFloat(st.paddingLeft) || 0)
+        - (parseFloat(st.paddingRight) || 0) - 2);
+    }
+  }
 
   // Die Spalte wird genau so breit wie die längste Beschriftung —
   // Nummer und Name zusammen, in den Grössen, in denen sie wirklich
@@ -3833,15 +3845,13 @@ function griffVerhalten(b) {
 
     griff.addEventListener("pointerdown", (e) => {
       if (e.button !== undefined && e.button !== 0) return;
+      if (e.pointerType === "touch") return;   // Finger: der Balken bekommt den Tipp
       e.stopPropagation();
       e.preventDefault();
       x0 = e.clientX; y0 = e.clientY;
-      if (e.pointerType === "touch") {
-        wartet = true;
-        clearTimeout(halten);
-        halten = setTimeout(() => { if (wartet) packen(e); }, 250);
-        return;
-      }
+      // Mit dem Finger wird auf der Planwand nichts verschoben (Wunsch
+      // Patrick, 5. Oktober 2026): Wischen soll nur blättern.
+      if (e.pointerType === "touch") return;
       packen(e);
     });
 
@@ -3965,7 +3975,121 @@ function griffVerhalten(b) {
 // die Tafel mit dem Finger: Wer am Rand ankommt, bekommt den
 // nächsten Abschnitt nachgeladen und bleibt dabei an derselben
 // Stelle stehen.
+// Gerät mit Finger, auf dem die Tafel feste Spalten hat (Handy und
+// Tablet). Dort blättert die App das Wischen selbst (fingerBlaettern).
+function fingerTafel() {
+  return (navigator.maxTouchPoints || 0) > 0
+    && window.matchMedia("(max-width: 780px), (hover: none) and (pointer: coarse)").matches;
+}
+
+// Wischen mit dem Finger: Die Tafel folgt dem Finger genau und rollt
+// nach dem Loslassen kurz aus. Erst wenn sie steht, rückt die App den
+// Zeitraum um die gewischten Tage weiter und zeichnet einmal neu.
+// Vorher scrollte der Browser selbst, und am Rand des Puffers wurde
+// mitten im Schwung neu gezeichnet. Auf dem iPhone sprang die Wand
+// dabei Monate weit hin und her und blieb zwischendurch leer
+// (Bildschirmaufnahme Patrick, 5. Oktober 2026). Senkrecht scrollt
+// weiter der Browser.
+function fingerBlaettern(b) {
+  const rolle = document.querySelector(".pw-rolle");
+  if (!rolle || rolle._finger) return;
+  rolle._finger = true;
+
+  let x0 = 0, y0 = 0, links0 = 0, richtung = null, aktiv = false;
+  let spur = [], bild = 0;
+  const spalte = () => plan.spalte || 40;
+  const grenze = (x) => Math.max(0, Math.min(rolle.scrollWidth - rolle.clientWidth, x));
+
+  const halt = () => { if (bild) cancelAnimationFrame(bild); bild = 0; };
+
+  // Stehen geblieben: Zeitraum weiterrücken und neu zeichnen. Die Tafel
+  // steht danach optisch an derselben Stelle.
+  const uebernehmen = () => {
+    if (!rolle.isConnected) return;
+    const tage = Math.round((rolle.scrollLeft - plan.puffer * spalte()) / spalte());
+    if (!tage) return;
+    const oben = rolle.scrollTop;
+    plan.start = arbeitstagePlus(plan.start, tage);
+    if (typeof plan.reglerNachfuehren === "function") plan.reglerNachfuehren();
+    zeichnePlanwand(b);
+    const neu = document.querySelector(".pw-rolle");
+    if (neu) neu.scrollTop = oben;
+  };
+
+  // Auf eine ganze Spalte einrasten, dann übernehmen
+  const einrasten = () => {
+    const nullpunkt = plan.puffer * spalte();
+    const ziel = grenze(nullpunkt + Math.round((rolle.scrollLeft - nullpunkt) / spalte()) * spalte());
+    const von = rolle.scrollLeft, t0 = performance.now();
+    const schritt = (t) => {
+      const k = Math.min(1, (t - t0) / 140);
+      rolle.scrollLeft = von + (ziel - von) * (1 - Math.pow(1 - k, 3));
+      if (k < 1 && rolle.isConnected) bild = requestAnimationFrame(schritt);
+      else { bild = 0; uebernehmen(); }
+    };
+    bild = requestAnimationFrame(schritt);
+  };
+
+  // Schwung nach dem Loslassen: v in Pixel je Millisekunde
+  const ausrollen = (v) => {
+    let letzte = performance.now();
+    const schritt = (t) => {
+      const dt = Math.min(40, t - letzte); letzte = t;
+      const vorher = rolle.scrollLeft;
+      rolle.scrollLeft = grenze(vorher + v * dt);
+      v *= Math.pow(0.996, dt);
+      const amRand = rolle.scrollLeft === vorher && Math.abs(v * dt) >= 1;
+      if (Math.abs(v) > 0.05 && !amRand && rolle.isConnected) bild = requestAnimationFrame(schritt);
+      else { bild = 0; einrasten(); }
+    };
+    if (Math.abs(v) > 0.1) bild = requestAnimationFrame(schritt);
+    else einrasten();
+  };
+
+  rolle.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) { aktiv = false; return; }
+    halt();
+    aktiv = true; richtung = null;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    links0 = rolle.scrollLeft;
+    spur = [[performance.now(), x0]];
+  }, { passive: true });
+
+  rolle.addEventListener("touchmove", (e) => {
+    if (!aktiv || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dx = t.clientX - x0, dy = t.clientY - y0;
+    if (!richtung) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 8) return;
+      // Was zuerst überwiegt, gilt für die ganze Geste
+      richtung = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    }
+    if (richtung !== "x") return;
+    if (e.cancelable) e.preventDefault();
+    rolle.scrollLeft = grenze(links0 - dx);
+    const jetzt = performance.now();
+    spur.push([jetzt, t.clientX]);
+    while (spur.length > 2 && jetzt - spur[0][0] > 90) spur.shift();
+  }, { passive: false });
+
+  const ende = (abgebrochen) => {
+    if (!aktiv) return;
+    aktiv = false;
+    if (richtung !== "x") return;
+    let v = 0;
+    const jetzt = performance.now();
+    if (!abgebrochen && spur.length > 1 && jetzt - spur[spur.length - 1][0] < 60) {
+      const a = spur[0], z = spur[spur.length - 1];
+      if (z[0] > a[0]) v = -(z[1] - a[1]) / (z[0] - a[0]);
+    }
+    ausrollen(Math.max(-6, Math.min(6, v)));
+  };
+  rolle.addEventListener("touchend", () => ende(false), { passive: true });
+  rolle.addEventListener("touchcancel", () => ende(true), { passive: true });
+}
+
 function zeitWischen(b) {
+  if (plan.puffer && fingerTafel()) { fingerBlaettern(b); return; }
   // Galt bisher nur unter 720 Pixel — damit war das Wischen auf
   // jedem Tablet aus, obwohl es dort am meisten gebraucht wird.
   if (!istTippgeraet()) return;
@@ -4591,6 +4715,7 @@ function ferienGriffe(b) {
     let vonStart = 0, dauerStart = 0, vonJetzt = 0, dauerJetzt = 0;
 
     griff.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "touch") return;   // mit dem Finger nichts verschieben
       e.stopPropagation();
       e.preventDefault();
       aktiv = true;
@@ -4886,7 +5011,9 @@ function zeichnePlanwand(b) {
   // Auf dem Handy wird links und rechts je ein Bildschirm mehr
   // gezeichnet. Sonst ist die Tafel kaum breiter als das Display,
   // man ist dauernd am Rand und es zittert beim Wischen.
-  plan.puffer = isMobil() ? plan.tage : 0;
+  // Mit Puffer links und rechts lässt sich die Tafel mit dem Finger
+  // ziehen. Seit 111.53.0 auch am Tablet (Wunsch Patrick, 5. Oktober 2026).
+  plan.puffer = isMobil() || fingerTafel() ? plan.tage : 0;
   const zeichenStart = plan.puffer
     ? arbeitstagePlus(plan.start, -plan.puffer) : plan.start;
 
@@ -5096,6 +5223,7 @@ function zeichnePlanwand(b) {
     + ';--pw-s:' + (plan.skala || 1)
     + ';--pw-v:' + (plan.vskala || 1).toFixed(3)
     + ';--pw-spalte:' + (plan.spalte || 40) + 'px'
+    + ';--pw-sicht:' + plan.tage
     + ';--pw-name:' + (plan.namensbreite || 108) + 'px">'
     + '<div class="pw-kopfblock">' + monatZeile + kwZeile + kopf
     // Der Zeitregler sitzt direkt unter den Tagen, über den Spalten
@@ -5148,7 +5276,10 @@ function zeichnePlanwand(b) {
   // eigentlich gewählte Zeitraum beginnt.
   if (plan.puffer) {
     const rolle = document.querySelector(".pw-rolle");
-    if (rolle) rolle.scrollLeft = plan.puffer * (plan.spalte || 40);
+    if (rolle) {
+      rolle.classList.toggle("pw-rolle--finger", fingerTafel());
+      rolle.scrollLeft = plan.puffer * (plan.spalte || 40);
+    }
   }
 
   planBalkenGleiten(vorherLagen);
@@ -5337,6 +5468,8 @@ function ferienVerhalten(b) {
       gestartet = true;
       const sx = e.clientX, sy = e.clientY;
       startX = sx; startY = sy;
+      // Mit dem Finger nur antippen, nicht verschieben
+      if (e.pointerType === "touch") return;
       halten = setTimeout(() => {
         zieht = true;
         el.classList.add("pw-balken--zieht");
@@ -5696,6 +5829,7 @@ function zeilenVerschieben(b) {
 
     el.addEventListener("pointerdown", (e) => {
       if (e.button && e.button !== 0) return;
+      if (e.pointerType === "touch") return;   // mit dem Finger nicht umsortieren
       halten = setTimeout(() => {
         zieht = true;
         el.classList.add("pw-name--zieht");
@@ -6034,7 +6168,9 @@ function balkenVerhalten(b) {
       startX = e.clientX;
       startY = e.clientY;
       // Nur mit dem Finger braucht es das Halten
-      if (zeigerArt === "touch") halten = setTimeout(() => anheben(e), 400);
+      // Mit dem Finger wird auf der Planwand nichts verschoben (Wunsch
+      // Patrick, 5. Oktober 2026): Wischen soll nur blättern.
+      // Ein Tipp bleibt ein Tipp (Zeichnung, Doppeltipp Auftragsfenster).
     });
 
     // Sobald das lange Drücken gegriffen hat, gehört die Geste dem

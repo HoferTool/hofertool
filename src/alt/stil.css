@@ -5429,3 +5429,13 @@ body .excelansicht__blatt, body .excelansicht__blatt * { color: var(--zf, #000) 
 /* Planwand mit dem Finger (111.51.0): Langes Drücken hebt den Balken an.
    Auf dem iPad darf dabei kein Menü und keine Lupe aufgehen. */
 .pw-balken, .pw-griff { -webkit-touch-callout: none; }
+
+/* Planwand mit dem Finger (111.53.0): Waagrecht wischt die App selbst
+   (fingerBlaettern), der Browser scrollt nur noch senkrecht. Balken
+   lassen sich mit dem Finger nicht mehr verschieben. */
+body .pw-rolle--finger { overflow-x: hidden !important; }
+body .pw-rolle--finger, body .pw-rolle--finger * { touch-action: pan-y !important; }
+/* Der Zeitregler bleibt im sichtbaren Teil stehen, auch wenn die Tafel
+   links und rechts einen Puffer hat */
+.pw-rolle--finger .pw-zeitplatz { position: sticky; left: var(--pw-name, 108px);
+  width: calc(var(--pw-spalte, 40px) * var(--pw-sicht, 15)); }
