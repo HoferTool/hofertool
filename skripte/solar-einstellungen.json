@@ -1,0 +1,5 @@
+﻿{
+  "solarlog_adresse": "HIER DIE ADRESSE DES SOLAR-LOG, z.B. 192.168.1.50",
+  "solarlog_passwort": "",
+  "solar_schluessel": "HIER DEN SOLAR-SCHLUESSEL AUS sql/solar.sql EINSETZEN"
+}
