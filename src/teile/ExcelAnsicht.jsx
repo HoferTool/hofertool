@@ -22,6 +22,10 @@ const ZOOM_MIN = 0.5, ZOOM_MAX = 6;
 const RAND = 12, LUECKE = 16;
 // A4 bei 96 Punkten je Zoll (210 × 297 mm)
 const A4 = { b: 794, h: 1123 };
+// Kleinster Rand rundherum (6 mm). Manche Einrichtblätter haben oben
+// Rand 0; der Drucker lässt trotzdem einen Streifen frei, und ohne ihn
+// klebte die Tabelle oben am Papierrand (Patrick, 5. Oktober 2026).
+const MIN_RAND = 23;
 
 // Wie Excel das Blatt auf Seiten verteilt: Massstab aus „Einpassen“
 // oder „Verkleinern auf … %“, dann von oben nach unten an ganzen
@@ -29,7 +33,8 @@ const A4 = { b: 794, h: 1123 };
 export function seitenRechnen(b) {
   const s = b.seite;
   const papier = s.quer ? { b: A4.h, h: A4.b } : A4;
-  const r = s.raender;
+  const r = { l: Math.max(MIN_RAND, s.raender.l), r: Math.max(MIN_RAND, s.raender.r),
+    o: Math.max(MIN_RAND, s.raender.o), u: Math.max(MIN_RAND, s.raender.u) };
   const pb = Math.max(100, papier.b - r.l - r.r), ph = Math.max(100, papier.h - r.o - r.u);
   const inh = s.inhalt;
   let f;
