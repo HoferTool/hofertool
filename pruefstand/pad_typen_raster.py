@@ -1,5 +1,6 @@
 # Pad Mode, Maschinentyp: die Kacheln stehen kompakt in gleich vollen
 # Reihen in der Mitte (8 Kacheln = 4 + 4), nicht in einer langen Zeile.
+# Darüber steht gross das Hofer-Logo, auch bei Parks und Maschinen.
 import time, sys
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -41,7 +42,18 @@ with sync_playwright() as p:
         if n != reihen: fehler.append(f"{breite}px: {n} Reihen statt {reihen}")
         sw = pg.evaluate("() => document.documentElement.scrollWidth > innerWidth")
         if sw: fehler.append(f"{breite}px: waagrechter Bildlauf")
+        # Grosses Logo über Typen, Maschinen und Parks
+        def logo(wo):
+            h = pg.evaluate("() => { const l = document.querySelector('#pad .pad__wahllogo'); return l ? l.getBoundingClientRect().height : 0; }")
+            if h < 80: fehler.append(f"{breite}px {wo}: Logo fehlt oder klein ({h:.0f}px)")
+        logo("Typen")
         if bild: pg.screenshot(path=f"{bild}-{breite}.png")
+        pg.locator("#pad [data-padtyp]").first.click(); pg.wait_for_selector("#pad .pad-kachel--maschine")
+        logo("Maschinen")
+        if bild: pg.screenshot(path=f"{bild}-{breite}-maschinen.png")
+        pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad [data-padtyp]")
+        pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad [data-park]")
+        logo("Parks")
         pg.close()
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")

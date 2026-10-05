@@ -261,6 +261,7 @@ function Typen({ gruppen, alle }) {
       {/* Kompakt in der Mitte, in gleich vollen Reihen statt einer langen
           Zeile über den ganzen Bildschirm (Wunsch 5. Oktober 2026). */}
       <div className="pad__wahl">
+        <img className="pad__wahllogo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
       <div className="pad__kacheln pad__kacheln--typen" style={{ "--pad-spalten": spalten(gruppen.length + 1) }}>
         {gruppen.map((g) => (
           <button key={g.k} className="pad-kachel pad-kachel--typ" data-padtyp={g.k} onClick={() => waehlen(g.k)}>
@@ -292,6 +293,7 @@ function Maschinen({ eigene, laufend }) {
     <>
       <PadKopf titel="Maschinen" zurueck />
       <div className="pad__wahl">
+        <img className="pad__wahllogo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
         <div className="pad__kacheln pad__kacheln--maschinen" style={{ "--pad-spalten": spalten(eigene.length) }}>
           {eigene.length
             ? eigene.map((m) => {

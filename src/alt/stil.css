@@ -5465,3 +5465,7 @@ body .pw-rolle--finger, body .pw-rolle--finger * { touch-action: pan-y !importan
 #pad .pad__kacheln--typen .pad-kachel--typ > span:first-child { font-size: 1.6rem; }
 #pad .pad__kacheln--typen .pad-kachel__nr { font-size: 1rem; }
 @media (max-width: 640px) { #pad .pad__kacheln--typen .pad-kachel { width: calc(50% - 9px); min-height: 120px; } }
+/* Pad: Hofer-Logo gross über Parks, Maschinentyp und Maschinen
+   (Wunsch Patrick, 5. Oktober 2026: „überall und viel grösser“). */
+#pad .pad__wahl .pad__wahllogo { height: clamp(90px, 20vh, 230px); max-width: 90%; object-fit: contain; }
+@media (max-width: 640px) { #pad .pad__wahl .pad__wahllogo { height: auto; width: 80%; } }
