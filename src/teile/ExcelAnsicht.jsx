@@ -187,10 +187,27 @@ function Blatt({ b, massstab, bildUrls }) {
           [s.waag ? "borderTop" : "borderLeft"]: s.dicke + "px " + s.art + " " + s.farbe,
         }} />
       ))}
-      {b.bilder.map((x, i) => (
-        <img key={"b" + i} src={bildUrls[i]} alt="" draggable={false}
-          style={{ position: "absolute", left: x.x, top: x.y, width: x.b, height: x.h }} />
-      ))}
+      {b.bilder.map((x, i) => <Bild key={"b" + i} x={x} url={bildUrls[i]} />)}
+    </div>
+  );
+}
+
+// Ein Bild im Rahmen, den es im Blatt hat. Zugeschnitten (in Excel
+// „Zuschneiden“) wird über einen Ausschnitt: das ganze Bild liegt
+// grösser darunter, und nur der gewählte Teil ist zu sehen.
+function Bild({ x, url }) {
+  const z = x.zuschnitt;
+  const breit = z ? 1 - z.l - z.r : 1, hoch = z ? 1 - z.t - z.b : 1;
+  const iw = breit > 0.001 ? x.b / breit : x.b, ih = hoch > 0.001 ? x.h / hoch : x.h;
+  const dreh = [];
+  if (x.drehung) dreh.push("rotate(" + x.drehung + "deg)");
+  if (x.spiegelH) dreh.push("scaleX(-1)");
+  if (x.spiegelV) dreh.push("scaleY(-1)");
+  return (
+    <div style={{ position: "absolute", left: x.x, top: x.y, width: x.b, height: x.h, overflow: "hidden",
+      transform: dreh.length ? dreh.join(" ") : undefined }}>
+      <img src={url} alt="" draggable={false} style={{ position: "absolute", maxWidth: "none",
+        left: z ? -z.l * iw : 0, top: z ? -z.t * ih : 0, width: iw, height: ih }} />
     </div>
   );
 }

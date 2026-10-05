@@ -86,6 +86,23 @@ with sync_playwright() as p:
         pruefe(name + ": Zeilenumbruch", s["langUmbruch"] == "pre-wrap")
         pruefe(name + ": Rahmenlinien", s["striche"] >= 20)
         pruefe(name + ": Bild geladen", bool(s["bild"] and s["bild"]["ok"] and s["bild"]["b"] > 50))
+        # Werkzeugbild: in Excel zugeschnitten (linke Hälfte) und Weiss durchsichtig
+        wz = pg.evaluate("""async () => {
+          const imgs = [...document.querySelectorAll('[data-excelblatt] img')];
+          if (imgs.length < 2) return { anzahl: imgs.length };
+          const i = imgs[1], rahmen = i.parentElement;
+          await (i.decode ? i.decode().catch(() => {}) : null);
+          const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight;
+          const g = c.getContext('2d'); g.drawImage(i, 0, 0);
+          return { anzahl: imgs.length, bildB: i.getBoundingClientRect().width, rahmenB: rahmen.getBoundingClientRect().width,
+            ueberlauf: getComputedStyle(rahmen).overflow, links: [...g.getImageData(5, 5, 1, 1).data],
+            rechts: [...g.getImageData(35, 5, 1, 1).data] };
+        }""")
+        print(name, "werkzeug", wz)
+        pruefe(name + ": Zuschnitt aus Excel", wz.get("anzahl") == 2 and wz["ueberlauf"] == "hidden"
+               and abs(wz["bildB"] - 2 * wz["rahmenB"]) < 2)
+        pruefe(name + ": Weiss durchsichtig, Rot bleibt", wz.get("rechts", [0, 0, 0, 255])[3] == 0
+               and wz.get("links", [0, 0, 0, 0])[3] == 255 and wz["links"][0] > 150)
         pruefe(name + ": ohne Hilfslinien wie im Blatt eingestellt", not s["gitter"])
         pruefe(name + ": Blätter ohne verstecktes", s["reiter"] == ["Einrichtblatt", "Werkzeuge"])
         pruefe(name + ": füllt die Breite", abs(s["blattB"] + 24 - s["buehneB"]) < 4 or s["blattB"] < s["buehneB"])

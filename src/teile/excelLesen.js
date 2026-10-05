@@ -239,10 +239,15 @@ async function mitExcelJS(daten) {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(daten.buffer.slice(daten.byteOffset, daten.byteOffset + daten.byteLength));
   const thema = themaLesen(wb);
+  // Bilder liest die App selbst aus der Datei: exceljs vergisst den
+  // Zuschnitt, die durchsichtige Farbe, Drehung und Gruppen. Geht das
+  // schief, bleiben die Bilder von exceljs.
+  let zipBilder = null;
+  try { zipBilder = await bilderAusZip(daten); } catch (f) { zipBilder = null; }
   const blaetter = [];
   for (const ws of wb.worksheets) {
     if (ws.state && ws.state !== "visible") continue;
-    blaetter.push(blattAusExcelJS(ws, wb, thema));
+    blaetter.push(blattAusExcelJS(ws, wb, thema, zipBilder && zipBilder.get(ws.name)));
   }
   if (!blaetter.length) throw new Error("Die Datei enthält kein sichtbares Blatt.");
   return blaetter;
@@ -264,7 +269,7 @@ function zelleWert(cell) {
   return { wert: v };
 }
 
-function blattAusExcelJS(ws, wb, thema) {
+function blattAusExcelJS(ws, wb, thema, eigeneBilder) {
   // Was gehört dazu? Alles mit Wert, Füllung oder Rahmen
   const zellen = new Map();   // "r,c" → Rohzelle (1-basiert)
   let letzteZ = 0, letzteS = 0;
@@ -299,7 +304,17 @@ function blattAusExcelJS(ws, wb, thema) {
 
   // Bilder: wo sie sitzen, in Zellen und Versatz (EMU)
   const rohBilder = [];
-  try {
+  if (eigeneBilder) {
+    eigeneBilder.forEach((b) => {
+      if (b.bis) {
+        letzteZ = Math.max(letzteZ, Math.min(b.bis.z + (b.bis.zo ? 1 : 0), MAX_ZEILEN));
+        letzteS = Math.max(letzteS, Math.min(b.bis.s + (b.bis.so ? 1 : 0), MAX_SPALTEN));
+      } else if (b.von) {
+        letzteZ = Math.max(letzteZ, Math.min(b.von.z + 1, MAX_ZEILEN));
+        letzteS = Math.max(letzteS, Math.min(b.von.s + 1, MAX_SPALTEN));
+      }
+    });
+  } else try {
     for (const bild of ws.getImages()) {
       const medium = wb.getImage(Number(bild.imageId));
       if (!medium || !medium.buffer || !/^(png|jpe?g|gif|bmp|webp|svg)$/i.test(medium.extension || "")) continue;
@@ -366,7 +381,7 @@ function blattAusExcelJS(ws, wb, thema) {
       const [dicke, art] = RAHMEN[s.style];
       return { dicke, art, farbe: farbe(s.color, thema) || "#000" };
     },
-    bilder: rohBilder.map((b) => {
+    bilder: eigeneBilder || rohBilder.map((b) => {
       const typ = /svg/i.test(b.medium.extension) ? "image/svg+xml" : "image/" + b.medium.extension.toLowerCase().replace("jpg", "jpeg");
       return {
         blob: new Blob([b.medium.buffer], { type: typ }),
@@ -522,13 +537,171 @@ function modellBauen({ name, spalten, zeilen, gitter, merges, alle, zelle, stil,
   // Bilder in Pixel umrechnen (1 Pixel = 9525 EMU)
   const posX = (s, o) => (x[Math.min(s, nS)] || 0) + o / 9525;
   const posY = (z, o) => (y[Math.min(z, nZ)] || 0) + o / 9525;
-  const bildListe = bilder.map((b) => {
-    const bx = posX(b.von.s, b.von.so), by = posY(b.von.z, b.von.zo);
-    let bb, bh;
+  const bildListe = [];
+  bilder.forEach((b) => {
+    let bx, by, bb, bh;
+    if (b.abs) { bx = b.abs.x; by = b.abs.y; }
+    else { bx = posX(b.von.s, b.von.so); by = posY(b.von.z, b.von.zo); }
     if (b.bis) { bb = posX(b.bis.s, b.bis.so) - bx; bh = posY(b.bis.z, b.bis.zo) - by; }
     else if (b.ext) { bb = b.ext.width; bh = b.ext.height; }
-    return { x: bx, y: by, b: bb, h: bh, blob: b.blob };
-  }).filter((b) => b.b > 0 && b.h > 0);
+    if (!(bb > 0 && bh > 0)) return;
+    const rahmen = { x: bx, y: by, b: bb, h: bh };
+    // Bilder in einer Gruppe: ihre Lage ist in den Massen der Gruppe
+    // angegeben und wird auf den Rahmen der Gruppe umgerechnet
+    (b.teile || [{ blob: b.blob }]).forEach((t) => {
+      let r = rahmen;
+      if (t.lage && b.gruppe && b.gruppe.ext.cx && b.gruppe.ext.cy) {
+        const fx = bb / b.gruppe.ext.cx, fy = bh / b.gruppe.ext.cy;
+        r = { x: bx + (t.lage.x - b.gruppe.off.x) * fx, y: by + (t.lage.y - b.gruppe.off.y) * fy,
+          b: t.lage.cx * fx, h: t.lage.cy * fy };
+      }
+      if (r.b > 0 && r.h > 0) bildListe.push({ ...r, blob: t.blob, zuschnitt: t.zuschnitt,
+        drehung: t.drehung || 0, spiegelH: !!t.spiegelH, spiegelV: !!t.spiegelV });
+    });
+  });
 
   return { name, spalten, zeilen, x, y, breite: x[nS], hoehe: y[nZ], gitter, felder, striche, bilder: bildListe };
+}
+
+// ---------- Bilder direkt aus der Datei ----------
+
+// Liest je Blatt die Zeichnungsebene (xl/drawings/…): Anker, Zuschnitt
+// (srcRect), „Farbe transparent setzen“ (clrChange), Drehung, Spiegeln
+// und Gruppen. Ergebnis: Map Blattname → Liste wie bei exceljs.
+async function bilderAusZip(daten) {
+  const JSZip = (await import("jszip")).default;
+  const zip = await JSZip.loadAsync(daten);
+  const xml = async (pfad) => {
+    const f = zip.file(pfad);
+    return f ? new DOMParser().parseFromString(await f.async("string"), "application/xml") : null;
+  };
+  const alle = (el, name) => (el ? [...el.getElementsByTagNameNS("*", name)] : []);
+  const kinder = (el, name) => (el ? [...el.children].filter((k) => k.localName === name) : []);
+  const kind = (el, name) => kinder(el, name)[0] || null;
+  const RID = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+  // Beziehungen einer Datei: Id → voller Pfad im Zip
+  const rels = async (datei) => {
+    const teile = datei.split("/"); const name = teile.pop();
+    const doc = await xml(teile.concat("_rels", name + ".rels").join("/"));
+    const aus = {};
+    alle(doc, "Relationship").forEach((r) => {
+      const ziel = r.getAttribute("Target") || "";
+      if (ziel.startsWith("/")) { aus[r.getAttribute("Id")] = ziel.slice(1); return; }
+      const weg = teile.slice();
+      ziel.split("/").forEach((st) => { if (st === "..") weg.pop(); else if (st && st !== ".") weg.push(st); });
+      aus[r.getAttribute("Id")] = weg.join("/");
+    });
+    return aus;
+  };
+  const zahl = (el, name) => { const k = kind(el, name); return k ? Number(k.textContent) || 0 : 0; };
+  const punkt = (el) => el && { s: zahl(el, "col"), so: zahl(el, "colOff"), z: zahl(el, "row"), zo: zahl(el, "rowOff") };
+
+  const mappe = await xml("xl/workbook.xml");
+  const mappeRels = await rels("xl/workbook.xml");
+  const ergebnis = new Map();
+  for (const blatt of alle(mappe, "sheet")) {
+    const name = blatt.getAttribute("name");
+    const blattPfad = mappeRels[blatt.getAttributeNS(RID, "id") || blatt.getAttribute("r:id")];
+    if (!blattPfad) continue;
+    const blattDoc = await xml(blattPfad);
+    const zeichnung = alle(blattDoc, "drawing")[0];
+    const liste = [];
+    ergebnis.set(name, liste);
+    if (!zeichnung) continue;
+    const blattRels = await rels(blattPfad);
+    const zPfad = blattRels[zeichnung.getAttributeNS(RID, "id") || zeichnung.getAttribute("r:id")];
+    const zDoc = zPfad && await xml(zPfad);
+    if (!zDoc) continue;
+    const zRels = await rels(zPfad);
+    const medien = new Map();
+
+    // Ein Bild (pic) lesen: Datei, Zuschnitt, durchsichtige Farbe, Lage
+    const bildLesen = async (pic) => {
+      const fuell = kind(pic, "blipFill");
+      const blip = kind(fuell, "blip");
+      const ziel = blip && zRels[blip.getAttributeNS(RID, "embed") || blip.getAttribute("r:embed")];
+      if (!ziel || !/\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(ziel)) return null;
+      const quer = alle(blip, "clrChange")[0];
+      let durchsichtig = null;
+      if (quer) {
+        const von = kind(quer, "clrFrom");
+        const c = von && (kind(von, "srgbClr") || kind(von, "sysClr"));
+        if (c) durchsichtig = (c.getAttribute("val") && /^[0-9A-F]{6}$/i.test(c.getAttribute("val"))
+          ? c.getAttribute("val") : c.getAttribute("lastClr")) || null;
+      }
+      const schluessel = ziel + "|" + (durchsichtig || "");
+      if (!medien.has(schluessel)) {
+        const f = zip.file(ziel);
+        if (!f) return null;
+        const endung = ziel.split(".").pop().toLowerCase();
+        const typ = endung === "svg" ? "image/svg+xml" : "image/" + endung.replace("jpg", "jpeg");
+        let blob = new Blob([await f.async("uint8array")], { type: typ });
+        if (durchsichtig) { try { blob = await farbeDurchsichtig(blob, durchsichtig); } catch (e) { /* dann so */ } }
+        medien.set(schluessel, blob);
+      }
+      const zu = kind(fuell, "srcRect");
+      const anteil = (n) => (zu && zu.getAttribute(n) ? Number(zu.getAttribute(n)) / 100000 : 0);
+      const zuschnitt = zu ? { l: anteil("l"), t: anteil("t"), r: anteil("r"), b: anteil("b") } : null;
+      const xfrm = kind(kind(pic, "spPr"), "xfrm");
+      const off = kind(xfrm, "off"), ext = kind(xfrm, "ext");
+      return {
+        blob: medien.get(schluessel), zuschnitt,
+        drehung: xfrm && xfrm.getAttribute("rot") ? Number(xfrm.getAttribute("rot")) / 60000 : 0,
+        spiegelH: xfrm && xfrm.getAttribute("flipH") === "1", spiegelV: xfrm && xfrm.getAttribute("flipV") === "1",
+        lage: off && ext ? { x: +off.getAttribute("x"), y: +off.getAttribute("y"),
+          cx: +ext.getAttribute("cx"), cy: +ext.getAttribute("cy") } : null,
+      };
+    };
+
+    for (const anker of [...zDoc.documentElement.children]) {
+      const art = anker.localName;
+      if (!/^(twoCellAnchor|oneCellAnchor|absoluteAnchor)$/.test(art)) continue;
+      const eintrag = {};
+      if (art === "absoluteAnchor") {
+        const pos = kind(anker, "pos");
+        eintrag.abs = { x: (+pos.getAttribute("x") || 0) / 9525, y: (+pos.getAttribute("y") || 0) / 9525 };
+      } else eintrag.von = punkt(kind(anker, "from"));
+      if (art === "twoCellAnchor") eintrag.bis = punkt(kind(anker, "to"));
+      else {
+        const e = kind(anker, "ext");
+        if (e) eintrag.ext = { width: (+e.getAttribute("cx") || 0) / 9525, height: (+e.getAttribute("cy") || 0) / 9525 };
+      }
+      const pic = kind(anker, "pic");
+      if (pic) {
+        const b = await bildLesen(pic);
+        if (b) liste.push({ ...eintrag, teile: [b] });
+        continue;
+      }
+      // Gruppe (eine Ebene): Bilder darin samt Umrechnung
+      const gruppe = kind(anker, "grpSp");
+      if (gruppe) {
+        const gx = kind(kind(gruppe, "grpSpPr"), "xfrm");
+        const chOff = kind(gx, "chOff"), chExt = kind(gx, "chExt");
+        const teile = [];
+        for (const p of alle(gruppe, "pic")) { const b = await bildLesen(p); if (b && b.lage) teile.push(b); }
+        if (teile.length && chOff && chExt) liste.push({ ...eintrag, teile,
+          gruppe: { off: { x: +chOff.getAttribute("x"), y: +chOff.getAttribute("y") },
+            ext: { cx: +chExt.getAttribute("cx"), cy: +chExt.getAttribute("cy") } } });
+      }
+    }
+  }
+  return ergebnis;
+}
+
+// „Farbe transparent setzen“ aus Excel: diese Farbe (mit etwas Spiel,
+// weil JPEG-Bilder sie nie ganz genau treffen) wird durchsichtig
+async function farbeDurchsichtig(blob, hex) {
+  const bild = await createImageBitmap(blob);
+  const c = document.createElement("canvas");
+  c.width = bild.width; c.height = bild.height;
+  const g = c.getContext("2d");
+  g.drawImage(bild, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height);
+  const r = parseInt(hex.slice(0, 2), 16), gr = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
+  const spiel = /jpe?g/.test(blob.type) ? 40 : 8;
+  for (let i = 0; i < d.data.length; i += 4) {
+    if (Math.abs(d.data[i] - r) <= spiel && Math.abs(d.data[i + 1] - gr) <= spiel && Math.abs(d.data[i + 2] - b) <= spiel) d.data[i + 3] = 0;
+  }
+  g.putImageData(d, 0, 0);
+  return await new Promise((ok, nein) => c.toBlob((x) => (x ? ok(x) : nein(new Error("Bild"))), "image/png"));
 }
