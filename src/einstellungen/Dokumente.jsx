@@ -2,9 +2,8 @@
 //  EINSTELLUNGEN → DOKUMENTE
 //  Ordner abgleichen (die App liest einen Ordner, ordnet jede Datei
 //  am Namen zu und lädt erst nach einem Blick auf die Zuordnung hoch),
-//  die Regeln für Dateinamen mit Probe und Beispielen, der Pfad fürs
-//  Hilfsprogramm auf dem Netzlaufwerk, der Verlauf und was zuletzt
-//  abgelegt wurde.
+//  die Ordner, die Aufgaben der Windows-Aufgabenplanung lesen (Pool,
+//  Einrichtblätter, Zeichnungen) und was zuletzt abgelegt wurde. Die Regeln für Dateinamen sind fest im Code (DOK_REGELN).
 //
 //  Die Erkennung selbst (dokErkennen) und das Hochladen (dokHochladen)
 //  sind noch im alten Programm: Sie werden auch beim Planen und von
@@ -101,11 +100,9 @@ export default function Dokumente() {
             : <Zuordnung eintraege={pool.eintraege} fertig={() => { setPool(null); frisch(); }} />)}
         </div>
       </Gruppe>
-      <Regeln />
       <PoolOrdner />
       <EinrichtblattOrdner />
-      <Netzlaufwerk />
-      <Verlauf stand={stand} frisch={frisch} />
+      <ZeichnungsOrdner />
       <Letzte stand={stand} hochladen={hochladenWaehlen} />
     </>
   );
@@ -161,83 +158,6 @@ function Zuordnung({ eintraege, fertig }) {
   );
 }
 
-// ---------- Regeln für Dateinamen ----------
-
-const FELDER = [["zeichnung", "Zeichnung"], ["wbg", "WBG"], ["einrichtblatt", "Einrichtblatt"], ["allgemein", "Allgemein"]];
-
-function felderAus(regeln) {
-  const f = { nurNummer: regeln.nurNummer || "zeichnung" };
-  FELDER.forEach(([k]) => { f[k] = (regeln[k] || []).join(", "); });
-  return f;
-}
-
-function Regeln() {
-  const [felder, setFelder] = useState(() => felderAus(alt.DOK_REGELN || alt.DOK_REGELN_VORGABE));
-  const [probe, setProbe] = useState("");
-  const { daten: typen } = useDaten(typenHolen, []);
-  const setze = (k, w) => setFelder((f) => ({ ...f, [k]: w }));
-
-  const regeln = { nurNummer: felder.nurNummer };
-  FELDER.forEach(([k]) => { regeln[k] = felder[k].split(/[,;]+/).map((x) => x.trim()).filter(Boolean); });
-  // Probe und Beispiele mit den Regeln, wie sie gerade in den Feldern stehen
-  const erkennen = (name) => alt.dokMitRegeln(regeln, () => alt.dokErkennen(name, typen || []));
-
-  const speichern = async () => {
-    const { error } = await alt.db.from("app_config").upsert({ schluessel: "dok_regeln", wert: JSON.stringify(regeln) });
-    if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
-    alt.dokRegelnUebernehmen(regeln);
-    alt.meldung("Regeln gespeichert.");
-  };
-
-  const p = probe.trim() ? erkennen(probe.trim()) : null;
-  const typName = (typen && typen[0] && typen[0].name) || "SW-20";
-  const beispiele = ["10844-0049.pdf", "10844-0049_WBG.pdf", "10844-0049_EB.xlsx",
-    "10844-0049_EB_" + typName + ".xlsx", "EB_" + typName + ".xlsx", "10844-0049_EB.pdf",
-    "10844-0049_Messbericht.pdf", "10844-0049 Zeichnung Rev B.pdf",
-    "20268566 10007-0381.pdf", "10844-0049 " + typName + ".xlsx"];
-
-  return (
-    <>
-      <Gruppe titel="So erkennt die App die Dateien"
-        text={"Steht eines dieser Stichwörter im Dateinamen, kommt die Datei dorthin. Mehrere mit Komma trennen."}>
-        {FELDER.map(([k, t]) => (
-          <Zeile key={k} titel={t}>
-            <input type="text" data-dokregel={k} aria-label={t} value={felder[k]} onChange={(e) => setze(k, e.target.value)}
-              placeholder={k === "allgemein" ? "z. B. messbericht, prüfprotokoll, foto" : undefined} />
-          </Zeile>
-        ))}
-        <Zeile titel="Nur HOCO Nr. im Namen" text="Was ist die Datei, wenn sonst nichts im Namen steht?">
-          <select id="dokregel-nur" className="es-schmal" aria-label="Nur HOCO Nr. im Namen"
-            value={felder.nurNummer} onChange={(e) => setze("nurNummer", e.target.value)}>
-            <option value="zeichnung">eine Zeichnung</option>
-            <option value="allgemein">ein allgemeines Dokument</option>
-          </select>
-        </Zeile>
-        <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
-          <button className="linkknopf" id="dokregel-vorgabe"
-            onClick={() => setFelder(felderAus(alt.DOK_REGELN_VORGABE))}>Vorgabe wiederherstellen</button>
-          <button className="knopf knopf--klein knopf--haupt" id="dokregel-speichern" onClick={speichern}>Regeln speichern</button>
-        </div>
-      </Gruppe>
-
-      <Gruppe titel="Ausprobieren" text="Dateiname eingeben, die App zeigt, wohin er ginge.">
-        <input type="text" id="dokprobe" aria-label="Dateiname zum Ausprobieren"
-          placeholder="z. B. 10844-0049 EB SW20.pdf" value={probe} onChange={(e) => setProbe(e.target.value)} />
-        <div id="dokprobe-ergebnis" className="dokprobe">
-          {p && <><b>{alt.dokZielText(p)}</b><span className="klein"> — {p.grund || ""}</span></>}
-        </div>
-        <div id="dokbeispiele" className="tabellenrolle">
-          <table className="tabelle es-tabelle"><thead><tr><th>Dateiname</th><th>Wird zugeordnet als</th></tr></thead>
-            <tbody>{beispiele.map((n) => (
-              <tr key={n}><td><code>{n}</code></td><td>{alt.dokZielText(erkennen(n))}</td></tr>
-            ))}</tbody>
-          </table>
-        </div>
-      </Gruppe>
-    </>
-  );
-}
-
 // ---------- Pool-Ordner (wird nach dem Hochladen geleert) ----------
 
 async function poolLaden() {
@@ -252,8 +172,14 @@ async function poolLaden() {
 
 function PoolOrdner() {
   const { daten } = useDaten(poolLaden, []);
+  // Nimmt WBGs von Aufträgen weg, die seit über fünf Tagen fertig sind (sonst einmal am Tag von selbst)
+  const aufraeumen = async () => {
+    const n = await alt.wbgAufraeumen(true);
+    alt.meldung(n ? n + " alte WBG entfernt." : "Nichts aufzuräumen.");
+  };
   return (
     <Gruppe titel="Pool-Ordner"
+      aktionen={<button className="knopf knopf--klein" id="wbg-aufraeumen" onClick={aufraeumen}>Alte WBG aufräumen</button>}
       text={"Nur für WBGs. Alle fünf Minuten werden sie hochgeladen und aus dem Ordner gelöscht. Anderes kommt "
         + "in den Unterordner „nicht zugeordnet“. Eine WBG ohne geplanten Auftrag wartet bis zu sieben Tage."}>
       {daten ? <PoolFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
@@ -431,124 +357,117 @@ function EbFormular({ werte, typen }) {
   );
 }
 
-// ---------- Ordner auf dem Netzlaufwerk ----------
+// ---------- Zeichnungs-Ordner (nur lesen) ----------
+//  zeichnungen.ps1 liest diesen Ordner über die Aufgabenplanung. Darin
+//  liegen viele PDFs und anderes. Je HOCO Nr. zählt nur eine PDF mit
+//  „hofer“ im Namen, sonst eine mit „kunde“; gibt es keine, bleibt die
+//  Nummer weg (Wunsch 5. Oktober 2026). Es löscht, verschiebt und ändert
+//  dort nie etwas. Solange „Hochladen“ aus ist, nur Probelauf.
+//  Den Stand meldet das Programm unter dok_pfad_status: Diesen Eintrag
+//  darf das Dienstkonto schon schreiben, so braucht es kein neues SQL.
 
-async function pfadLaden() {
+async function zngLaden() {
   const werte = {};
   try {
     const r = await alt.zeitlimit(alt.db.from("app_config").select("schluessel, wert")
-      .in("schluessel", ["dok_pfad", "dok_pfad_unterordner", "dok_pfad_status"]), 6000, "Pfad");
+      .in("schluessel", ["zng_ordner", "dok_pfad_status"]), 6000, "Zeichnungs-Ordner");
     ((r && r.data) || []).forEach((x) => { werte[x.schluessel] = x.wert; });
   } catch (f) { /* leer lassen */ }
   return werte;
 }
 
-function Netzlaufwerk() {
-  const { daten } = useDaten(pfadLaden, []);
+function ZeichnungsOrdner() {
+  const { daten } = useDaten(zngLaden, []);
   return (
-    <Gruppe titel="Ordner auf dem Netzlaufwerk"
-      text={"Wird jede Minute geprüft. Neue und geänderte Dateien werden nach den Regeln oben abgelegt, "
-        + "die Dateien im Ordner bleiben liegen."}>
-      {/* Erst nach dem Laden zeigen, damit die Felder mit dem
-          gespeicherten Pfad beginnen */}
-      {daten ? <PfadFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
+    <Gruppe titel="Zeichnungs-Ordner" id="zng-ordner"
+      text={"Alle fünf Minuten wird je HOCO Nr. die PDF mit „hofer“ im Namen als Zeichnung hochgeladen, "
+        + "sonst die mit „kunde“. Im Ordner wird nie etwas gelöscht, verschoben oder geändert."}>
+      {daten ? <ZngFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
   );
 }
 
-function PfadFormular({ werte }) {
-  const [pfad, setPfad] = useState(werte.dok_pfad || "");
-  const [unter, setUnter] = useState(werte.dok_pfad_unterordner === "ja");
-  let st = null;
-  try { st = werte.dok_pfad_status ? JSON.parse(werte.dok_pfad_status) : null; } catch (f) { st = null; }
+function ZngFormular({ werte }) {
+  const start = jsonOder(werte.zng_ordner, null) || {};
+  const [pfad, setPfad] = useState(start.pfad || "");
+  const [unter, setUnter] = useState(!!start.unter);
+  const [scharf, setScharf] = useState(!!start.scharf);
+  const st = jsonOder(werte.dok_pfad_status, null);
+  // Ein Stand vom früheren Netzlaufwerk-Programm hat kein „zng“
+  const stand = st && st.zng ? st : null;
+  const admin = alt.istAdmin();
 
-  const speichern = async () => {
-    const r = await alt.db.from("app_config").upsert([
-      { schluessel: "dok_pfad", wert: pfad.trim() },
-      { schluessel: "dok_pfad_unterordner", wert: unter ? "ja" : "nein" }]);
-    if (r.error) alt.meldung(alt.fehlertext(r.error), "fehler");
-    else alt.meldung("Pfad gespeichert. Das Hilfsprogramm nimmt ihn beim nächsten Durchlauf.");
+  const speichern = async (neuScharf) => {
+    const r = await alt.db.from("app_config").upsert([{ schluessel: "zng_ordner",
+      wert: JSON.stringify({ pfad: pfad.trim(), unter, scharf: neuScharf }) }]);
+    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
+    setScharf(neuScharf);
+    alt.meldung(neuScharf ? "Hochladen eingeschaltet. Ab dem nächsten Durchlauf lädt das Programm hoch."
+      : "Gespeichert. Das Programm macht beim nächsten Durchlauf einen Probelauf.", "gut");
+  };
+  const umschalten = async () => {
+    if (!scharf) {
+      const ok = await alt.nachfragen({ titel: "Hochladen einschalten?",
+        text: "Ab dem nächsten Durchlauf lädt das Programm die Zeichnungen aus dem Ordner hoch. Eine vorhandene "
+          + "Zeichnung derselben HOCO Nr. wird in der App ersetzt. Im Ordner ändert sich nichts.",
+        bestaetigen: "Einschalten" });
+      if (!ok) return;
+    }
+    speichern(!scharf);
   };
 
-  let stand;
-  if (!st) stand = <span className="gedaempft">Das Hilfsprogramm hat sich noch nicht gemeldet.</span>;
+  let zeile;
+  if (!stand) zeile = <span className="gedaempft">Die Aufgabe „Hofer Zeichnungen“ hat sich noch nicht gemeldet.</span>;
   else {
-    const minuten = (Date.now() - new Date(st.zeit).getTime()) / 60000;
-    stand = <>
-      <span className={"dokpfad-punkt " + (minuten < 5 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
-      {"Letzter Abgleich " + alt.datumZeitKurz(st.zeit) + (st.rechner ? " auf " + st.rechner : "")
-        + " · " + (st.dateien || 0) + " Dateien im Ordner · " + (st.neu || 0) + " neu abgelegt"}
-      {minuten >= 5 && <> <b>— seit {Math.round(minuten)} Minuten keine Meldung</b></>}
-      {st.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{st.fehler}</div>}
-      {st.ohne && st.ohne.length > 0 && <div className="klein gedaempft">Nicht zugeordnet: {
-        st.ohne.slice(0, 12).join(", ") + (st.ohne.length > 12 ? " …" : "")}</div>}
+    const minuten = (Date.now() - new Date(stand.zeit).getTime()) / 60000;
+    const wuerde = (stand.neu || 0) + (stand.ersetzt || 0);
+    zeile = <>
+      <span className={"dokpfad-punkt " + (minuten < 15 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
+      {(stand.scharf ? "Zuletzt " : "Probelauf ") + alt.datumZeitKurz(stand.zeit) + (stand.rechner ? " auf " + stand.rechner : "")
+        + " · " + alt.zahlText(stand.pdf || 0) + " PDFs · " + alt.zahlText(stand.nummern || 0) + " HOCO Nr. mit Zeichnung · "
+        + (stand.scharf ? (stand.hochgeladen || 0) + " hochgeladen"
+          : wuerde + " würden hochgeladen (" + (stand.neu || 0) + " neu, " + (stand.ersetzt || 0) + " ersetzen eine vorhandene"
+            + (stand.mb ? ", zusammen " + stand.mb + " MB" : "") + ")")}
+      {minuten >= 15 && <> <b>— seit {Math.round(minuten)} Minuten keine Meldung</b></>}
+      {stand.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{stand.fehler}</div>}
     </>;
   }
+  const liste = (stand && stand.liste) || [];
 
   return (
     <>
-      <Zeile titel="Pfad">
-        <input type="text" id="dokpfad" aria-label="Pfad" placeholder={"\\\\FS01\\Daten\\Zeichnungen"} value={pfad}
-          onChange={(e) => setPfad(e.target.value)} />
+      <Zeile titel="Ordner" text="Als \\Server\Freigabe\… eintragen, nicht mit Laufwerksbuchstaben wie Z:.">
+        <input type="text" id="zng-pfad" aria-label="Zeichnungs-Ordner" placeholder={"\\\\Server\\Zeichnungen"}
+          value={pfad} disabled={!admin} onChange={(e) => setPfad(e.target.value)} />
       </Zeile>
-      <SchalterZeile id="dokpfad-unter" titel="Unterordner einbeziehen" checked={unter}
-        onChange={(e) => setUnter(e.target.checked)} />
+      <SchalterZeile id="zng-unter" titel="Unterordner einbeziehen" checked={unter}
+        onChange={admin ? (e) => setUnter(e.target.checked) : () => {}} />
+      <SchalterZeile id="zng-scharf" titel="Hochladen"
+        text={scharf ? "Ein: neue und geänderte Zeichnungen werden hochgeladen."
+          : "Aus: nur Probelauf. Das Programm zeigt unten, was es hochladen würde, und lädt nichts hoch."}
+        checked={scharf} onChange={admin ? umschalten : () => {}} />
       <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
-        <div id="dokpfad-stand" className="dokpfad-stand">{stand}</div>
-        <button className="knopf knopf--klein knopf--haupt" id="dokpfad-speichern"
-          onClick={speichern}>Pfad speichern</button></div>
+        <div id="zng-stand" className="dokpfad-stand">{zeile}</div>
+        {admin && <button className="knopf knopf--klein knopf--haupt" id="zng-speichern"
+          onClick={() => speichern(scharf)}>Ordner speichern</button>}</div>
+      {liste.length > 0 && <details className="eb-liste" open={!stand.scharf}>
+        <summary>{stand.scharf ? "Letzter Durchlauf" : "Was der Probelauf hochladen würde"} ({liste.length})</summary>
+        <div className="tabellenrolle">
+          <table className="tabelle es-tabelle" id="zng-tabelle"><thead><tr>
+            <th>Datei</th><th>HOCO Nr.</th><th>Ergebnis</th></tr></thead>
+            <tbody>{liste.map((x, i) => (
+              <tr key={i}><td><code>{x.d}</code></td><td>{x.h || "–"}</td><td>{x.w}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </details>}
     </>
   );
 }
 
-// ---------- Verlauf ----------
-
-const QUELLE = { hand: "von Hand", ordner: "Ordner", pfad: "Netzlaufwerk", pool: "Pool-Ordner", "eb-ordner": "Einrichtblatt-Ordner", "aufräumen": "aufgeräumt" };
-
-async function verlaufLaden() {
-  const r = await alt.zeitlimit(alt.db.from("dokumente_verlauf").select("*")
-    .order("zeit", { ascending: false }).limit(100), 8000, "Verlauf");
-  if (r.error) throw r.error;
-  // Die Namen der Personen braucht „Wer“
-  await alt.personenLaden();
-  return r.data || [];
-}
-
-function Verlauf({ stand, frisch }) {
-  const { daten: liste, fehler } = useDaten(verlaufLaden, [stand]);
-  const aufraeumen = async () => {
-    const n = await alt.wbgAufraeumen(true);
-    alt.meldung(n ? n + " alte WBG entfernt." : "Nichts aufzuräumen.");
-    frisch();
-  };
-  let inhalt;
-  if (fehler && !liste) {
-    inhalt = <p className="hinweis">Der Verlauf braucht noch <code>dokumente-verlauf.sql</code> in der Datenbank.</p>;
-  } else if (!liste) inhalt = <div className="laedt">Wird geladen …</div>;
-  else if (!liste.length) inhalt = <p className="es-leer">Noch nichts abgelegt.</p>;
-  else {
-    inhalt = (
-      <div className="tabellenrolle"><table className="tabelle">
-        <thead><tr><th>Zeit</th><th>Datei</th><th>Ging nach</th><th>Wie</th><th>Wer</th></tr></thead>
-        <tbody>{liste.map((v, i) => (
-          <tr key={v.id || i}>
-            <td className="klein nowrap">{alt.datumZeitKurz(v.zeit)}</td>
-            <td>{v.dateiname || "—"}</td>
-            <td>{v.ziel || ""}{v.ersetzt && <> <span className="marke">ersetzt</span></>}</td>
-            <td className="klein">{QUELLE[v.quelle] || v.quelle || ""}</td>
-            <td className="klein">{alt.personVoll(v.von) || ""}</td>
-          </tr>
-        ))}</tbody>
-      </table></div>
-    );
-  }
-  return (
-    <Gruppe titel="Verlauf" text="Welche Datei wohin ging."
-      aktionen={<button className="knopf knopf--klein" id="wbg-aufraeumen" onClick={aufraeumen}>Alte WBG aufräumen</button>}>
-      <div id="dokverlauf">{inhalt}</div>
-    </Gruppe>
-  );
-}
+// Den Verlauf (Tabelle dokumente_verlauf) schreiben App und Aufgaben
+// weiter, angezeigt wird er nicht mehr (Wunsch 5. Oktober 2026): Er ist
+// nur zum Nachschauen, wenn etwas nicht stimmt.
 
 // ---------- Zuletzt abgelegt ----------
 

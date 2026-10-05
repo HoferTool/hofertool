@@ -97,7 +97,7 @@ try {
   Anmelden
 
   $konf = @{}
-  Lesen "app_config?select=schluessel,wert&schluessel=in.(dok_pool_pfad,dok_regeln)" |
+  Lesen "app_config?select=schluessel,wert&schluessel=eq.dok_pool_pfad" |
     ForEach-Object { $konf[$_.schluessel] = $_.wert }
   $pfad = $Ordner
   if (-not $pfad) { $pfad = [string]$E.pool_ordner }
@@ -111,12 +111,6 @@ try {
   }
   $beiseite = Join-Path $pfad "nicht zugeordnet"
 
-  $regeln = @{}
-  $VORGABE.Keys | ForEach-Object { $regeln[$_] = $VORGABE[$_] }
-  if ($konf["dok_regeln"]) {
-    $g = $konf["dok_regeln"] | ConvertFrom-Json
-    $g.PSObject.Properties | ForEach-Object { $regeln[$_.Name] = $_.Value }
-  }
   $typen = @(Lesen "machine_types?select=id,name")
 
   # Nur der Ordner selbst, nicht "nicht zugeordnet" darunter
@@ -127,7 +121,7 @@ try {
 
   foreach ($d in $dateien) {
     if (NochInArbeit $d) { continue }                                 # beim nächsten Mal
-    $z = Erkennen $d.Name $typen $regeln
+    $z = Erkennen $d.Name $typen
     # Nur WBGs: alles andere bleibt unangetastet in "nicht zugeordnet"
     if ($z.art -ne "wbg") {
       $z.passt = $false

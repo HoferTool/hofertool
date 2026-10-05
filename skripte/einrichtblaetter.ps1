@@ -79,13 +79,6 @@ function StandSichern {
 
 . (Join-Path $ordnerHier "dokumente-teile.ps1")
 
-# HOCO Nr. im Namen, gleich wie die App sie erkennt: 10844-0049, 10844 - 0049
-function HocoAusName([string]$name) {
-  $m = [regex]::Match([IO.Path]::GetFileNameWithoutExtension($name), '(?<!\d)(\d{4,6})\s?-\s?(\d{3,5})(?!\d)')
-  if ($m.Success) { return $m.Groups[1].Value + "-" + $m.Groups[2].Value }
-  return $null
-}
-
 # Ist die Excel-Datei ein Einrichtblatt? Im selben Ordner liegen auch
 # Toleranzen, Plattenwechsel, Werkzeugkosten usw. mit derselben HOCO Nr.
 #   1 = Werkzeugprotokoll im Namen (auch vertippt: Werkzeuprotokoll …)
@@ -127,24 +120,6 @@ function FalschesEntfernen($d, [string]$h, $typ) {
       ziel = "entfernt: kein Einrichtblatt"; quelle = "eb-ordner"; ersetzt = $true } $null
   } catch { }
   return $true
-}
-
-# Woran man erkennt, ob sich eine Datei geändert hat
-function Kennung($d) { return $d.FullName + "|" + $d.LastWriteTimeUtc.Ticks + "|" + $d.Length }
-
-# Nur lesend öffnen und nach %TEMP% kopieren. FileShare ReadWrite, damit
-# eine in Excel offene Datei trotzdem gelesen werden kann und Excel
-# nichts merkt.
-function LesendKopieren($d) {
-  $temp = Join-Path $env:TEMP ("hofer-eb-" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
-  New-Item -ItemType Directory -Path $temp | Out-Null
-  $ziel = Join-Path $temp $d.Name
-  $quelle = [IO.File]::Open($d.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
-  try {
-    $aus = [IO.File]::Create($ziel)
-    try { $quelle.CopyTo($aus) } finally { $aus.Close() }
-  } finally { $quelle.Close() }
-  return Get-Item -LiteralPath $ziel
 }
 
 # ---------- Durchlauf ----------

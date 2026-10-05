@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.60.0";
+const APP_VERSION = "111.61.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1210,29 +1210,20 @@ const DOK_ARTEN = {
 
 // =================================================================
 //  REGELN FÜR DATEINAMEN
-//  Welche Stichwörter im Dateinamen wohin führen, legt ihr selbst in
-//  den Einstellungen fest. Die Erkennung ist tolerant: Gross und klein
-//  egal, Striche und Leerzeichen egal, ein Tippfehler bei längeren
-//  Wörtern wird verziehen.
+//  Welche Stichwörter im Dateinamen wohin führen. Fest im Code, seit
+//  die Felder dafür aus den Einstellungen weg sind (Wunsch 5. Oktober
+//  2026: „nervt nur“). Dieselbe Liste steht in skripte/dokumente-teile.ps1,
+//  Änderungen an beiden Stellen nachziehen. Die Erkennung ist tolerant:
+//  Gross und klein egal, Striche und Leerzeichen egal, ein Tippfehler
+//  bei längeren Wörtern wird verziehen. Nur die HOCO Nr. im Namen heisst
+//  Zeichnung (PDF) oder Einrichtblatt (Excel).
 // =================================================================
 
-const DOK_REGELN_VORGABE = {
+const DOK_REGELN = {
   zeichnung: ["zeichnung", "zng", "drawing", "zchn"],
   wbg: ["wbg", "werkbegleitschein", "begleitschein"],
-  einrichtblatt: ["eb", "einrichtblatt", "einrichteblatt", "einrichten", "setup"],
-  allgemein: [],
-  nurNummer: "zeichnung",          // was eine Datei ist, in der nur die HOCO Nr. steht
+  einrichtblatt: ["eb", "einrichtblatt", "einrichteblatt", "einrichten", "setup", "werkzeugprotokoll"],
 };
-let DOK_REGELN = JSON.parse(JSON.stringify(DOK_REGELN_VORGABE));
-
-async function dokRegelnLaden() {
-  try {
-    const r = await zeitlimit(db.from("app_config").select("wert")
-      .eq("schluessel", "dok_regeln").maybeSingle(), 6000, "Dokumentregeln");
-    const gelesen = (!r.error && r.data && r.data.wert) ? JSON.parse(r.data.wert) : null;
-    DOK_REGELN = Object.assign(JSON.parse(JSON.stringify(DOK_REGELN_VORGABE)), gelesen || {});
-  } catch (f) { DOK_REGELN = JSON.parse(JSON.stringify(DOK_REGELN_VORGABE)); }
-}
 
 // Nur Buchstaben und Ziffern, klein — "SW-20", "sw 20" und "SW20" sind gleich
 function dokGlatt(t) { return String(t || "").toLowerCase().replace(/[^a-z0-9äöü]/g, ""); }
@@ -1292,11 +1283,10 @@ function dokErkennen(dateiname, typen) {
   // Einrichtblätter sind immer Excel-Dateien (Wunsch 5. Oktober 2026)
   const istExcel = /\.(xlsx|xlsm|xls)$/i.test(roh);
 
-  const regeln = DOK_REGELN || DOK_REGELN_VORGABE;
   let art = null, grund = "";
-  for (const k of ["wbg", "einrichtblatt", "zeichnung", "allgemein"]) {
-    const sw = (regeln[k] || []).find((s) => dokStichwortPasst(woerter, ohneTyp, s));
-    if (sw) { art = k === "allgemein" ? "sonstiges" : k; grund = "Stichwort „" + sw + "“"; break; }
+  for (const k of ["wbg", "einrichtblatt", "zeichnung"]) {
+    const sw = DOK_REGELN[k].find((s) => dokStichwortPasst(woerter, ohneTyp, s));
+    if (sw) { art = k; grund = "Stichwort „" + sw + "“"; break; }
   }
   // Ein Stichwort für Zeichnung oder WBG passt nicht zu Excel
   if (istExcel && (art === "zeichnung" || art === "wbg")) art = null;
@@ -1310,11 +1300,13 @@ function dokErkennen(dateiname, typen) {
   const sonstNichts = !ohneTyp.replace(/\d/g, "");
   if (!art) {
     if (hoco && sonstNichts) {
-      art = regeln.nurNummer === "allgemein" ? "sonstiges" : (regeln.nurNummer || "zeichnung");
+      art = "zeichnung";
       grund = "nur die Nummer im Namen";
     } else {
+      // „Allgemein“ gibt es nicht mehr (111.54.0): Was weder Zeichnung,
+      // WBG noch Einrichtblatt ist, wird nicht abgelegt
       art = "sonstiges";
-      grund = "kein Stichwort, deshalb allgemein";
+      grund = "weder Zeichnung, WBG noch Einrichtblatt im Namen";
     }
   }
 
@@ -1328,7 +1320,7 @@ function dokErkennen(dateiname, typen) {
     grund: grund,
     fa: mitFa ? fa : null,
     titel: mitFa ? "WBG FA " + fa : (titel || (hoco || ohneEndung)),
-    passt: !nurExcel && !!(hoco || typ || mitFa),
+    passt: !nurExcel && art !== "sonstiges" && !!(hoco || typ || mitFa),
   };
 }
 
@@ -1385,7 +1377,7 @@ async function dokZielSuchen(z, typen) {
 function dokZielText(z) {
   const name = (DOK_ARTEN[z.art] || DOK_ARTEN.sonstiges).name;
   if (!z.passt) {
-    if (z.fa || z.art === "einrichtblatt") return "nicht zuzuordnen: " + z.grund;
+    if (z.fa || z.art === "einrichtblatt" || z.art === "sonstiges") return "nicht zuzuordnen: " + z.grund;
     return "keine HOCO Nr. und kein Typ erkannt";
   }
   if (z.art === "einrichtblatt" && z.typ && !z.hoco) return "Einrichtblatt-Vorlage des Typs " + z.typ.name;
@@ -1639,20 +1631,6 @@ function dokWaehlen(mehrere) {
     feld.onchange = () => fertig([...(feld.files || [])]);
     feld.click();
   });
-}
-
-// Der Dokumentenpool (Ordner wählen, zuordnen, hochladen) ist in
-// src/einstellungen/Dokumente.jsx. Probe und
-// Beispiele dort rechnen mit den Regeln, wie sie gerade in den Feldern
-// stehen, noch bevor jemand speichert.
-function dokMitRegeln(regeln, fn) {
-  const vorher = DOK_REGELN;
-  DOK_REGELN = regeln;
-  try { return fn(); } finally { DOK_REGELN = vorher; }
-}
-
-function dokRegelnUebernehmen(regeln) {
-  DOK_REGELN = Object.assign(JSON.parse(JSON.stringify(DOK_REGELN_VORGABE)), regeln);
 }
 
 // ---------- Notizen ----------
@@ -3285,7 +3263,6 @@ async function farbzuteilungLaden() {
   } catch (f) { /* ohne Zuteilung bleibt die ganze Palette nutzbar */ }
   await werkstoffeGelerntLaden();
   await bestellmailTextLaden();
-  await dokRegelnLaden();
   // Alte WBG wegräumen, einmal am Tag, im Hintergrund
   setTimeout(() => { wbgAufraeumen().catch(() => {}); }, 4000);
 }
@@ -8627,7 +8604,7 @@ Object.assign(alt, {
   ladeTypAufbau, platzVerschieben, platzEinreihen, toolVergleich, pathFarbe, blattPdfAmTyp,
   einst, fehlerLesen, ROLLEN, planerLaden, langDatum, historieAblegen, einfuegenOhneUnbekannte,
   farbzuteilungLaden, werkstoffKern, werkstoffSchluessel, werkstoffZuordnen, WERKSTOFFGRUPPEN,
-  DOK_ARTEN, DOK_REGELN_VORGABE, dokErkennen, dokZielSuchen, dokZielText, dokMitRegeln, dokRegelnUebernehmen,
+  DOK_ARTEN, dokErkennen, dokZielSuchen, dokZielText,
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
   FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE,
@@ -8640,7 +8617,6 @@ Object.defineProperty(alt, "db", { get: () => db });
 Object.defineProperty(alt, "profil", { get: () => profil });
 Object.defineProperty(alt, "PLANER", { get: () => PLANER });
 Object.defineProperty(alt, "FARBZUTEILUNG", { get: () => FARBZUTEILUNG });
-Object.defineProperty(alt, "DOK_REGELN", { get: () => DOK_REGELN });
 
 // =================================================================
 //  LAUFENDER ABGLEICH

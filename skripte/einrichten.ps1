@@ -1,7 +1,7 @@
 ﻿# =================================================================
-#  NEUER RECHNER — Solaranlage, WBG-Pool und Einrichtblätter in einem Zug
+#  NEUER RECHNER — Solaranlage, WBG-Pool, Einrichtblätter und Zeichnungen
 #
-#  Richtet auf einem Windows-Rechner im Betrieb drei Aufgaben ein:
+#  Richtet auf einem Windows-Rechner im Betrieb vier Aufgaben ein:
 #    - Solar: holt alle fünf Minuten die Werte vom Solar-Log und
 #      liefert sie an die App (solarlog.ps1)
 #    - Pool:  leert alle fünf Minuten die WBGs aus C:\Hofer\Pool in
@@ -12,6 +12,11 @@
 #      Bis der Schalter in der App an ist, nur Probelauf. Läuft unter
 #      dem angemeldeten Windows-Konto (wegen der Netzlaufwerke), ohne
 #      dass ein Passwort eingegeben werden muss.
+#    - Zeichnungen: liest alle fünf Minuten den Zeichnungs-Ordner aus der
+#      App und lädt je HOCO Nr. die PDF mit "hofer" (sonst "kunde") im
+#      Namen als Zeichnung hoch (zeichnungen.ps1). Liest nur, löscht nie.
+#      Bis der Schalter in der App an ist, nur Probelauf. Wie die
+#      Einrichtblätter unter dem angemeldeten Konto.
 #
 #  Was das Skript tut:
 #    1. Lädt die Programme von GitHub nach C:\Hofer\Abgleich.
@@ -81,7 +86,7 @@ function JsonSchreiben([string]$datei, $objekt) {
 $istAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
             ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-Write-Host "Hofer Tool: Solaranlage und Dokumenten-Pool einrichten" -ForegroundColor Cyan
+Write-Host "Hofer Tool: Solaranlage, Pool, Einrichtblätter und Zeichnungen einrichten" -ForegroundColor Cyan
 Write-Host "Ordner: $Ziel"
 if (-not $istAdmin) {
   Warn "Ohne Administratorrechte laufen die Aufgaben nur, solange du angemeldet bist."
@@ -91,7 +96,7 @@ if (-not $istAdmin) {
 # ---------- 1. Programme holen ----------
 Titel "1. Programme holen"
 New-Item -ItemType Directory -Force -Path $Ziel | Out-Null
-foreach ($n in @("solarlog.ps1", "dokumente-pool.ps1", "dokumente-teile.ps1", "pool-einplanen.ps1", "einrichtblaetter.ps1", "unsichtbar.vbs")) {
+foreach ($n in @("solarlog.ps1", "dokumente-pool.ps1", "dokumente-teile.ps1", "pool-einplanen.ps1", "einrichtblaetter.ps1", "zeichnungen.ps1", "unsichtbar.vbs")) {
   try {
     Invoke-WebRequest -UseBasicParsing -Uri ("$QUELLE/${n}?t=" + [DateTime]::UtcNow.Ticks) -OutFile (Join-Path $Ziel $n) -TimeoutSec 60
     Unblock-File -Path (Join-Path $Ziel $n) -ErrorAction SilentlyContinue
@@ -302,6 +307,9 @@ if ($poolAn) {
   Write-Host ""
   Info "Einrichtblätter, Probelauf (lädt nichts hoch, ändert in den Ordnern nichts):"
   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "einrichtblaetter.ps1") -Probe
+  Write-Host ""
+  Info "Zeichnungen, Probelauf (lädt nichts hoch, ändert im Ordner nichts):"
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "zeichnungen.ps1") -Probe
 }
 
 # ---------- 5. Aufgabenplanung ----------
@@ -340,6 +348,7 @@ if ($solarAn) { Einplanen "Hofer Solar" "solarlog.ps1" "Liefert alle 5 Minuten d
 if ($poolAn)  {
   Einplanen "Hofer Dokumente-Pool" "dokumente-pool.ps1" "Lädt alle 5 Minuten die WBGs aus dem Pool-Ordner ins Hofer Tool und leert ihn." -nurAngemeldet
   Einplanen "Hofer Einrichtblätter" "einrichtblaetter.ps1" "Liest alle 5 Minuten die Excel-Einrichtblätter aus den Typ-Ordnern und lädt neue ins Hofer Tool. Löscht und ändert in den Ordnern nie etwas." -nurAngemeldet
+  Einplanen "Hofer Zeichnungen" "zeichnungen.ps1" "Liest alle 5 Minuten die Zeichnungs-PDFs (hofer, sonst kunde) aus dem Zeichnungs-Ordner und lädt neue ins Hofer Tool. Löscht und ändert im Ordner nie etwas." -nurAngemeldet
 }
 
 Titel "Fertig"
@@ -348,5 +357,7 @@ if ($poolAn)  {
   Info "Pool-Protokoll:  $(Join-Path $Ziel 'pool.log')"; Info "WBGs hineinlegen in: $POOL"
   Info "Einrichtblätter-Protokoll: $(Join-Path $Ziel 'einrichtblaetter.log')"
   Info "Einrichtblätter: Bis du in der App den Schalter 'Hochladen' einschaltest, nur Probelauf."
+  Info "Zeichnungen-Protokoll: $(Join-Path $Ziel 'zeichnungen.log')"
+  Info "Zeichnungen: ebenso nur Probelauf, bis der Schalter beim Zeichnungs-Ordner an ist."
 }
 Fertig 0

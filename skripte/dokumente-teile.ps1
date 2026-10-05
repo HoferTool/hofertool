@@ -2,8 +2,8 @@
 #  DOKUMENTE — GEMEINSAME TEILE
 #
 #  Anmelden, Erkennen am Dateinamen und Hochladen, genau nach den
-#  Regeln der App. Wird von dokumente-abgleich.ps1 (Netzlaufwerk) und
-#  dokumente-pool.ps1 (Pool-Ordner) geladen, nicht selbst gestartet.
+#  Regeln der App. Wird von dokumente-pool.ps1 (Pool-Ordner),
+#  einrichtblaetter.ps1 und zeichnungen.ps1 geladen, nicht selbst gestartet.
 #  Das ladende Skript stellt $E, $U, $KEY, $stand, Schreibe und
 #  StandSichern bereit.
 # =================================================================
@@ -22,6 +22,32 @@ function PfadAufloesen([string]$p) {
     if ($netz) { return ($netz.TrimEnd("\") + $m.Groups[2].Value) }
   } catch { }
   return $p
+}
+
+# HOCO Nr. im Namen, gleich wie die App sie erkennt: 10844-0049, 10844 - 0049
+function HocoAusName([string]$name) {
+  $m = [regex]::Match([IO.Path]::GetFileNameWithoutExtension($name), '(?<!\d)(\d{4,6})\s?-\s?(\d{3,5})(?!\d)')
+  if ($m.Success) { return $m.Groups[1].Value + "-" + $m.Groups[2].Value }
+  return $null
+}
+
+# Woran man erkennt, ob sich eine Datei geändert hat
+function Kennung($d) { return $d.FullName + "|" + $d.LastWriteTimeUtc.Ticks + "|" + $d.Length }
+
+# Für die Ordner, die nur gelesen werden (Einrichtblätter, Zeichnungen):
+# nur lesend öffnen und nach %TEMP% kopieren. FileShare ReadWrite, damit
+# eine gerade offene Datei trotzdem gelesen werden kann und niemand etwas
+# merkt. Hochgeladen wird die Kopie, das Original bleibt unberührt.
+function LesendKopieren($d) {
+  $temp = Join-Path $env:TEMP ("hofer-kopie-" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
+  New-Item -ItemType Directory -Path $temp | Out-Null
+  $ziel = Join-Path $temp $d.Name
+  $quelle = [IO.File]::Open($d.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+  try {
+    $aus = [IO.File]::Create($ziel)
+    try { $quelle.CopyTo($aus) } finally { $aus.Close() }
+  } finally { $quelle.Close() }
+  return Get-Item -LiteralPath $ziel
 }
 
 # ---------- Anmelden ----------
@@ -72,13 +98,12 @@ function Aendern([string]$methode, [string]$pfad, $objekt, [string]$prefer) {
 }
 function W([string]$t) { [Uri]::EscapeDataString($t) }
 
-# ---------- Regeln — genau wie in der App ----------
-$VORGABE = @{
+# ---------- Regeln — genau wie DOK_REGELN in der App ----------
+# Fest, seit die Felder dafür aus den Einstellungen weg sind (5. Oktober 2026)
+$REGELN = @{
   zeichnung = @("zeichnung", "zng", "drawing", "zchn")
   wbg = @("wbg", "werkbegleitschein", "begleitschein")
-  einrichtblatt = @("eb", "einrichtblatt", "einrichteblatt", "einrichten", "setup")
-  allgemein = @()
-  nurNummer = "zeichnung"
+  einrichtblatt = @("eb", "einrichtblatt", "einrichteblatt", "einrichten", "setup", "werkzeugprotokoll")
 }
 
 function Glatt([string]$t) { if (-not $t) { return "" }; return ($t.ToLower() -replace '[^a-z0-9äöü]', '') }
@@ -117,7 +142,7 @@ function StichwortPasst($woerter, [string]$glattGanz, [string]$stichwort) {
   return $false
 }
 
-function Erkennen([string]$dateiname, $typen, $regeln) {
+function Erkennen([string]$dateiname, $typen) {
   $ohneEndung = [IO.Path]::GetFileNameWithoutExtension($dateiname)
   $hoco = $null; $rest = $ohneEndung
   $m = [regex]::Match($ohneEndung, '(\d{4,6})\s?-\s?(\d{3,5})')
@@ -144,12 +169,9 @@ function Erkennen([string]$dateiname, $typen, $regeln) {
   if ($typ) { $ohneTyp = ([regex]([regex]::Escape((Glatt $typ.name)))).Replace($glattGanz, "", 1) }
 
   $art = $null
-  foreach ($k in @("wbg", "einrichtblatt", "zeichnung", "allgemein")) {
-    foreach ($sw in @($regeln[$k])) {
-      if (StichwortPasst $woerter $ohneTyp $sw) {
-        if ($k -eq "allgemein") { $art = "sonstiges" } else { $art = $k }
-        break
-      }
+  foreach ($k in @("wbg", "einrichtblatt", "zeichnung")) {
+    foreach ($sw in @($REGELN[$k])) {
+      if (StichwortPasst $woerter $ohneTyp $sw) { $art = $k; break }
     }
     if ($art) { break }
   }
@@ -159,10 +181,10 @@ function Erkennen([string]$dateiname, $typen, $regeln) {
   # Einrichtblätter nur als Excel: eine PDF mit "EB" im Namen passt nicht
   $nurExcel = ($art -eq "einrichtblatt" -and -not $istExcel)
   $sonstNichts = -not ($ohneTyp -replace '\d', '')
+  # "Allgemein" gibt es nicht mehr: was sonst nichts ist, wird nicht abgelegt
+  $keins = $false
   if (-not $art) {
-    if ($hoco -and $sonstNichts) {
-      if ($regeln.nurNummer -eq "allgemein") { $art = "sonstiges" } else { $art = "zeichnung" }
-    } else { $art = "sonstiges" }
+    if ($hoco -and $sonstNichts) { $art = "zeichnung" } else { $art = "sonstiges"; $keins = $true }
   }
   $titel = (($rest -replace '_+', ' ') -replace '\s+', ' ').Trim()
   if (-not $titel) { if ($hoco) { $titel = $hoco } else { $titel = $ohneEndung } }
@@ -171,8 +193,9 @@ function Erkennen([string]$dateiname, $typen, $regeln) {
   if ($fa) { $titel = "WBG FA " + $fa }
   $grund = ""
   if ($nurExcel) { $grund = "Einrichtblätter nur als Excel-Datei" }
+  if ($keins) { $grund = "weder Zeichnung, WBG noch Einrichtblatt im Namen" }
   return @{ hoco = $hoco; typ = $typ; art = $art; titel = $titel; fa = $fa; auftrag = $null; grund = $grund;
-            passt = [bool]((-not $nurExcel) -and ($hoco -or $typ -or $fa)) }
+            passt = [bool]((-not $nurExcel) -and (-not $keins) -and ($hoco -or $typ -or $fa)) }
 }
 
 # Offene Aufträge einer HOCO Nr., der nächste zuerst
@@ -227,7 +250,7 @@ function BrauchtZiel($z) {
 function ZielText($z) {
   $namen = @{ zeichnung = "Zeichnung"; wbg = "WBG"; einrichtblatt = "Einrichtblatt"; sonstiges = "Allgemein" }
   if (-not $z.passt) {
-    if ($z.fa -or $z.art -eq "einrichtblatt") { return "nicht zuzuordnen: " + $z.grund }
+    if ($z.fa -or $z.art -eq "einrichtblatt" -or $z.art -eq "sonstiges") { return "nicht zuzuordnen: " + $z.grund }
     return "keine HOCO Nr. und kein Typ erkannt"
   }
   if ($z.art -eq "wbg" -and $z.fa) {

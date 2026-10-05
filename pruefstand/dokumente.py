@@ -1,5 +1,5 @@
-# Einstellungen → Dokumente: Regeln mit Probe und Beispielen, speichern,
-# Vorgabe, Pfad fürs Netzlaufwerk, Verlauf, Dateien hochladen, löschen
+# Einstellungen → Dokumente: keine Regelfelder mehr, Zeichnungs-Ordner,
+# Verlauf, Dateien hochladen, löschen
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -8,8 +8,9 @@ K = """daten.dokumente = [{ id: 'd1', art: 'zeichnung', hoco_nr: '10844-0049', t
   dateiname: 'alt.pdf', datei_url: 'https://x/alt.pdf', erstellt_am: '2026-09-30T08:00:00Z' }];
 daten.dokumente_verlauf = [{ id: 'v1', zeit: '2026-09-30T08:00:00Z', dateiname: 'alt.pdf',
   ziel: 'Zeichnung der HOCO Nr. 10844-0049', quelle: 'pfad', ersetzt: true, von: null }];
-daten.app_config.push({ schluessel: 'dok_pfad', wert: '\\\\\\\\FS01\\\\Zeichnungen' },
-  { schluessel: 'dok_pfad_status', wert: JSON.stringify({ zeit: new Date().toISOString(), rechner: 'SRV1', dateien: 12, neu: 2 }) });
+daten.app_config.push({ schluessel: 'zng_ordner', wert: JSON.stringify({ pfad: '\\\\\\\\FS01\\\\Zeichnungen', unter: false, scharf: false }) },
+  { schluessel: 'dok_pfad_status', wert: JSON.stringify({ zng: true, zeit: new Date().toISOString(), rechner: 'SRV1', scharf: false,
+    pdf: 1234, nummern: 40, neu: 1, ersetzt: 1, mb: 3.5, liste: [{ d: '10844-0049 Hofer.pdf', h: '10844-0049', w: 'würde hochladen: neu' }] }) });
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 fehler = []
@@ -28,35 +29,30 @@ with sync_playwright() as p:
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(600)
     pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1200)
     text = pg.inner_text("#einst-inhalt")
-    pruefe("Alle Abschnitte da", all(t in text for t in ["Ordner abgleichen", "So erkennt", "Netzlaufwerk", "Verlauf", "Zuletzt abgelegt"]))
+    pruefe("Alle Abschnitte da", all(t in text for t in ["Ordner abgleichen", "Pool-Ordner", "Einrichtblatt-Ordner", "Zeichnungs-Ordner", "Zuletzt abgelegt"]))
+    # Regeln und Ausprobieren sind weg (Wunsch 5. Oktober 2026), ebenso das Hilfsprogramm
+    pruefe("Regeln und Ausprobieren weg", not any(t in text for t in ["So erkennt", "Ausprobieren", "Vorgabe wiederherstellen", "Hilfsprogramm", "Netzlaufwerk"]))
+    pruefe("Keine Regelfelder", pg.locator("[data-dokregel], #dokprobe, #dokpfad").count() == 0)
 
-    # Beispiele und Probe
-    bsp = pg.inner_text("#dokbeispiele")
-    pruefe("Beispiel WBG erkannt", "WBG der HOCO Nr. 10844-0049" in bsp)
-    pruefe("Beispiel mit Typ erkannt", "Star SR-32J" in bsp)
-    pg.fill("#dokprobe", "10844-0049_Begleit.pdf"); pg.wait_for_timeout(200)
-    vorher = pg.inner_text("#dokprobe-ergebnis")
-    pg.fill("[data-dokregel='wbg']", "wbg, begleit"); pg.wait_for_timeout(200)
-    nachher = pg.inner_text("#dokprobe-ergebnis")
-    print("Probe vorher:", vorher, "| nachher:", nachher)
-    pruefe("Probe folgt den Feldern sofort", "WBG" not in vorher.split("—")[0] and nachher.startswith("WBG"))
-    pruefe("Regel noch nicht gespeichert", pg.evaluate("!TEST.daten.app_config.some(x => x.schluessel === 'dok_regeln')"))
-    pg.click("#dokregel-speichern"); pg.wait_for_timeout(500)
-    gesp = pg.evaluate("JSON.parse((TEST.daten.app_config.find(x => x.schluessel === 'dok_regeln') || {wert:'{}'}).wert)")
-    pruefe("Regeln gespeichert", gesp.get("wbg") == ["wbg", "begleit"] and gesp.get("nurNummer") == "zeichnung")
-    pg.click("#dokregel-vorgabe"); pg.wait_for_timeout(200)
-    pruefe("Vorgabe stellt Felder zurück", pg.input_value("[data-dokregel='wbg']") == "wbg, werkbegleitschein, begleitschein")
-
-    # Pfad (der Nachbau hängt beim upsert ohne onConflict hinten an, darum findLast)
-    pruefe("Pfad geladen", pg.input_value("#dokpfad") == "\\\\FS01\\Zeichnungen")
-    pruefe("Stand des Hilfsprogramms", "SRV1" in pg.inner_text("#dokpfad-stand") and "12 Dateien" in pg.inner_text("#dokpfad-stand"))
-    pg.fill("#dokpfad", "\\\\FS02\\Neu"); pg.check("#dokpfad-unter"); pg.click("#dokpfad-speichern"); pg.wait_for_timeout(500)
-    pfad = pg.evaluate("[TEST.daten.app_config.findLast(x => x.schluessel === 'dok_pfad').wert, TEST.daten.app_config.find(x => x.schluessel === 'dok_pfad_unterordner').wert]")
-    print("Pfad:", pfad)
-    pruefe("Pfad gespeichert", pfad == ["\\\\FS02\\Neu", "ja"])
+    # Zeichnungs-Ordner: Pfad, Stand des Probelaufs, speichern, Hochladen einschalten
+    pruefe("Pfad geladen", pg.input_value("#zng-pfad") == "\\\\FS01\\Zeichnungen")
+    stand = pg.inner_text("#zng-stand"); print("Stand:", stand)
+    pruefe("Stand des Probelaufs", "Probelauf" in stand and "SRV1" in stand and "1’234 PDFs" in stand and "2 würden hochgeladen" in stand and "3.5 MB" in stand)
+    pruefe("Liste des Probelaufs", "10844-0049 Hofer.pdf" in pg.inner_text("#zng-ordner"))
+    pg.fill("#zng-pfad", "\\\\FS02\\Neu"); pg.locator("#zng-unter").check(force=True); pg.click("#zng-speichern"); pg.wait_for_timeout(500)
+    k = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'zng_ordner').wert)"); print("Gespeichert:", k)
+    pruefe("Ordner gespeichert", k == {"pfad": "\\\\FS02\\Neu", "unter": True, "scharf": False})
+    pg.locator("#zng-scharf").click(force=True); pg.wait_for_timeout(300)
+    pruefe("Einschalten fragt nach", "Hochladen einschalten?" in pg.locator(".dialog-huelle").last.inner_text())
+    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(500)
+    k = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'zng_ordner').wert)")
+    pruefe("Hochladen eingeschaltet", k.get("scharf") is True and k.get("pfad") == "\\\\FS02\\Neu")
 
     # Verlauf und Zuletzt abgelegt
-    pruefe("Verlauf zeigt Eintrag", "ersetzt" in pg.inner_text("#dokverlauf") and "Netzlaufwerk" in pg.inner_text("#dokverlauf"))
+    # Verlauf nicht mehr sichtbar (wird weiter geschrieben), Aufräumen beim Pool-Ordner
+    pruefe("Verlauf nicht sichtbar", pg.locator("#dokverlauf").count() == 0 and "Welche Datei wohin ging" not in pg.inner_text("#einst-inhalt"))
+    pruefe("Alte WBG beim Pool-Ordner", pg.locator("section.es-gruppe:has(h2:text-is('Pool-Ordner')) #wbg-aufraeumen").count() == 1)
+    pg.click("#wbg-aufraeumen"); pg.wait_for_timeout(500)
     pruefe("Zuletzt abgelegt zeigt Datei", "alt.pdf" in pg.inner_text("#dok-letzte"))
 
     # Hochladen: Zuordnung zeigen, eine Datei abwählen, hochladen

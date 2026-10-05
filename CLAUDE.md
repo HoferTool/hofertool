@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.60.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.61.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -40,7 +40,7 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
 
 ### Gliederung von index.html (Abschnittsüberschriften `//  NAME`)
 
-RÜCKGÄNGIG · OFFLINE · EXTERNE GERÄTE · FEHLERPROTOKOLL · STARTSEITE · DOKUMENTE · REGELN FÜR DATEINAMEN · WBG AUFRÄUMEN · SOLARANLAGE · DATENSICHERUNG · RECHTE · DIALOGE · PRODUKTION · ERFASSEN · PLANWAND · WERKSTOFFE · SUCHE ÜBER ALLES · ÜBERSICHT · MASCHINEN VERWALTEN · MASCHINENTYPEN · PAD MODE · ZIFFERBLOCK · EINRICHTBLATT · EINRICHTBLATT ALS PDF · ARTIKEL UND LIEFERANTEN · BESTELLUNGEN · EINKAUFSLISTE · RECHNER FÜR DIE WERKSTATT · GRAVUR · FORTSCHRITT · LAUFENDER ABGLEICH
+RÜCKGÄNGIG · OFFLINE · EXTERNE GERÄTE · FEHLERPROTOKOLL · STARTSEITE · DOKUMENTE · REGELN FÜR DATEINAMEN (fest in `DOK_REGELN`) · WBG AUFRÄUMEN · SOLARANLAGE · DATENSICHERUNG · RECHTE · DIALOGE · PRODUKTION · ERFASSEN · PLANWAND · WERKSTOFFE · SUCHE ÜBER ALLES · ÜBERSICHT · MASCHINEN VERWALTEN · MASCHINENTYPEN · PAD MODE · ZIFFERBLOCK · EINRICHTBLATT · EINRICHTBLATT ALS PDF · ARTIKEL UND LIEFERANTEN · BESTELLUNGEN · EINKAUFSLISTE · RECHNER FÜR DIE WERKSTATT · GRAVUR · FORTSCHRITT · LAUFENDER ABGLEICH
 
 Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellungen`, `einkauf`, `rechner`), Navigation über den Hash, etwa `#/planwand`, mit `zeichneSeite()`. Einstellungen sind ein Fenster mit Reitern: Allgemein, Dokumente, Backup, Fehlerprotokoll, Farben und Material, Nutzer.
 
@@ -115,10 +115,10 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 Alle sind PowerShell 5.1 auf Windows, ohne Installation.
 
 - **`solarlog.ps1`** holt alle fünf Minuten die Werte vom Solar-Log (`/getjp`, Abfrage 801/170) und liefert sie über `rpc/solar_melden` ins neue Projekt, mit eigenem Solar-Schlüssel aus `sql/solar.sql` in `solar-einstellungen.json` (kein Hauptschlüssel nötig). Läuft seit 5. Oktober 2026 im Betrieb direkt ins neue Projekt (`quelle` = „Solar-Log direkt“).
-- **`dokumente-abgleich.ps1`** gleicht jede Minute einen Ordner auf dem Netzlaufwerk ab, mit dem Pfad aus der App, über ein Dienstkonto.
-- **`dokumente-pool.ps1`** leert alle fünf Minuten die WBGs aus dem Pool-Ordner in die App (anderes kommt nach „nicht zugeordnet“, gelöscht wird nur Hochgeladenes); `pool-einplanen.ps1` legt die Aufgabe an. Beide Dokument-Programme laden `dokumente-teile.ps1` (Erkennen und Hochladen wie `dokErkennen`/`dokZielSuchen`/`dokHochladen` in der App, Änderungen an beiden Stellen nachziehen).
+- **`dokumente-pool.ps1`** leert alle fünf Minuten die WBGs aus dem Pool-Ordner in die App (anderes kommt nach „nicht zugeordnet“, gelöscht wird nur Hochgeladenes); `pool-einplanen.ps1` legt die Aufgabe an. Alle Dokument-Programme laden `dokumente-teile.ps1` (Erkennen und Hochladen wie `dokErkennen`/`dokZielSuchen`/`dokHochladen` in der App, Änderungen an beiden Stellen nachziehen).
 - **`einrichtblaetter.ps1`** liest alle fünf Minuten die Typ-Ordner aus Einstellungen → Dokumente → Einrichtblatt-Ordner und lädt Excel mit HOCO Nr. im Namen als Einrichtblatt auf den Typ des Ordners. **Liest nur, löscht und verschiebt dort nie etwas** (Entscheid Patrick 5. Oktober 2026). Bis der Schalter „Hochladen“ in der App an ist, nur Probelauf.
-- **`einrichten.ps1`** richtet Solar und Pool auf einem neuen Rechner in einem Zug ein: holt die Programme von GitHub nach `C:\Hofer\Abgleich`, sucht den Solar-Log im Netz, fragt Solar-Schlüssel und Dienstkonto ab, probiert beides aus und legt die Aufgaben „Hofer Solar“ und „Hofer Dokumente-Pool“ an (als Administrator unter SYSTEM).
+- **`zeichnungen.ps1`** liest alle fünf Minuten den Zeichnungs-Ordner aus Einstellungen → Dokumente und lädt je HOCO Nr. die PDF mit „hofer“ im Namen als Zeichnung hoch, sonst die mit „kunde“; ohne beide nichts (Wunsch Patrick 5. Oktober 2026). Nur für HOCO Nr., die die App kennt. **Liest nur**, wie die Einrichtblätter. Bis der Schalter „Hochladen“ an ist, nur Probelauf.
+- **`einrichten.ps1`** richtet Solar und Pool auf einem neuen Rechner in einem Zug ein: holt die Programme von GitHub nach `C:\Hofer\Abgleich`, sucht den Solar-Log im Netz, fragt Solar-Schlüssel und Dienstkonto ab, probiert beides aus und legt die Aufgaben „Hofer Solar“ (unter SYSTEM), „Hofer Dokumente-Pool“, „Hofer Einrichtblätter“ und „Hofer Zeichnungen“ (unter dem angemeldeten Konto, ohne Passwort, ohne Fenster über `unsichtbar.vbs`) an.
 - **`sicherung.ps1` / `wiederherstellen.ps1`** sichern die Datenbank mit `pg_dump`.
 - **`verknuepfung.ps1`** legt eine Desktop-Verknüpfung mit Symbol an (`hofer-tool.ico` liegt daneben).
 - **Anleitungen** liegen nicht im Repository (Wunsch Patrick, 5. Oktober 2026). Braucht er eine, schreibt Claude sie ihm Schritt für Schritt direkt in den Chat.

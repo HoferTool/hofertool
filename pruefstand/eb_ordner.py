@@ -33,7 +33,7 @@ with sync_playwright() as p:
     pruefe("Probelauf-Stand", "Probelauf" in st and "3 würden hochgeladen" in st)
     pruefe("Liste zeigt Datei", "10844-0049.xlsx" in pg.inner_text("#eb-tabelle"))
     pruefe("Ordnerfehler sichtbar", "Ordner nicht erreichbar" in pg.inner_text("#eb-ordner"))
-    pruefe("Pool-Text nur WBGs", "nur für WBGs" in pg.inner_text("#inhalt, body"))
+    pruefe("Pool-Text nur WBGs", "nur für wbgs" in pg.inner_text("body").lower())
 
     # Ordner ohne Typ wird nicht gespeichert
     pg.locator(".eb-ordner-pfad").first.fill("\\\\FS01\\EB\\SR32")

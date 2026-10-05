@@ -32,20 +32,31 @@ with sync_playwright() as p:
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(600)
     pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1200)
 
-    # Probe
-    def probe(n):
-        pg.fill("#dokprobe", n); pg.wait_for_timeout(150); return pg.inner_text("#dokprobe-ergebnis")
-    t = probe("20268566 10007-0381.pdf"); print(t)
-    pruefe("FA Nr. erkannt", t.startswith("WBG mit FA 20268566") and "10007-0381" in t)
-    t = probe("10844-0049 Star SR-32J.xlsx"); print(t)
-    pruefe("Excel = Einrichtblatt", t.startswith("Einrichtblatt der HOCO Nr. 10844-0049 auf dem Typ Star SR-32J"))
-    t = probe("Star SR-32J.xlsx"); print(t)
-    pruefe("Excel nur Typ = Vorlage", t.startswith("Einrichtblatt-Vorlage"))
-    pruefe("Excel ohne HOCO und Typ bleibt unzugeordnet", "keine HOCO" in probe("Liste.xlsx"))
-    t = probe("10844-0049_EB.pdf"); print(t)
-    pruefe("PDF als Einrichtblatt abgelehnt", t.startswith("nicht zuzuordnen: Einrichtblätter nur als Excel"))
-    pruefe("Zeichnung bleibt Zeichnung", probe("10844-0049.pdf").startswith("Zeichnung"))
-    pruefe("Beispiele zeigen FA und Excel", "WBG mit FA 20268566" in pg.inner_text("#dokbeispiele"))
+    # Erkennen am Namen (seit 111.61.0 fest im Code, ohne Ausprobieren-Feld):
+    # Dateien auf die Fläche ziehen, die Zuordnung lesen, nichts hochladen
+    def ziehen(namen):
+        pg.evaluate("""(namen) => { const dt = new DataTransfer();
+          namen.forEach((n) => dt.items.add(new File(['x'], n, { type: n.endsWith('.pdf') ? 'application/pdf' : 'application/vnd.ms-excel' })));
+          const el = document.querySelector('#pool-ablage');
+          el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }""", namen)
+        pg.wait_for_selector("#pool-los"); pg.wait_for_timeout(400)
+        zeilen = pg.evaluate("[...document.querySelectorAll('#pool-liste tbody tr')].map(tr => [...tr.cells].slice(1).map(td => td.innerText.trim()).join(' | ') + (tr.classList.contains('pool-zeile--offen') ? ' | OFFEN' : ''))")
+        for z in zeilen: print("  ", z)
+        return zeilen
+    z = ziehen(["10844-0049 Star SR-32J.xlsx", "Star SR-32J.xlsx", "Liste.xlsx", "10844-0049_EB.pdf",
+                "10844-0049.pdf", "10844-0049 Werkzeugprotokoll.xlsx", "10844-0049 Messbericht.pdf", "10844-0049 Zeichnung Rev B.pdf"])
+    pruefe("Excel = Einrichtblatt mit Typ", "Einrichtblatt | 10844-0049 | Star SR-32J" in z[0] and "OFFEN" not in z[0])
+    pruefe("Excel nur Typ = Vorlage", "Einrichtblatt | — | Star SR-32J" in z[1] and "OFFEN" not in z[1])
+    pruefe("Excel ohne HOCO und Typ bleibt unzugeordnet", "OFFEN" in z[2])
+    pruefe("PDF als Einrichtblatt abgelehnt", "OFFEN" in z[3])
+    pruefe("Nur Nummer = Zeichnung", "Zeichnung | 10844-0049" in z[4] and "OFFEN" not in z[4])
+    pruefe("Werkzeugprotokoll = Einrichtblatt", "Einrichtblatt | 10844-0049" in z[5])
+    pruefe("Ohne Stichwort: kein Allgemein mehr, bleibt offen", "OFFEN" in z[6])
+    pruefe("Stichwort Zeichnung", "Zeichnung | 10844-0049" in z[7] and "OFFEN" not in z[7])
+    pg.evaluate("document.querySelectorAll('#pool-liste input[type=checkbox]').forEach(c => { if (c.checked) c.click(); })")
+    pruefe("Nichts hochgeladen", pg.evaluate("TEST.daten.dokumente.length") == 0)
+    pg.locator("[data-einst='allgemein']").click(); pg.wait_for_timeout(500)
+    pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1200)
 
     # Pool-Ordner
     pruefe("Pool-Ordner mit Stand", "BUERO1" in pg.inner_text("#dokpool-stand") and "1 warten" in pg.inner_text("#dokpool-stand"))
