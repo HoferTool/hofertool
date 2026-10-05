@@ -15,7 +15,6 @@
 #  des Solar-Log und dem Solar-Schlüssel (aus sql/solar.sql). Den
 #  geheimen Hauptschlüssel des Projekts braucht es nicht mehr.
 #  Windows PowerShell 5.1 reicht, nichts zu installieren.
-#  Anleitung: anleitungen/Solar-Anleitung.md
 # =================================================================
 
 param([switch]$Probe)

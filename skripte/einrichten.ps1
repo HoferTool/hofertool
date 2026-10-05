@@ -32,7 +32,6 @@
 #  wenn niemand angemeldet ist; sonst nur, solange du angemeldet bist.
 #
 #  Windows PowerShell 5.1 reicht, nichts zu installieren.
-#  Anleitung: anleitungen/Neuer-Rechner-Anleitung.md
 # =================================================================
 
 param([string]$Ziel = "C:\Hofer\Abgleich")

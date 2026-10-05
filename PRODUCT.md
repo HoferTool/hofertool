@@ -48,7 +48,6 @@ Massgeschneidert für genau diesen Betrieb: Werkstofferkennung aus den eigenen M
 
 ## Evidence on Hand
 
-- Bildschirmfotos der Kurzanleitung in `bilder/` (Anmelden, Start, Notizen, Planwand, Auftrag, Produktion, Bestellungen, Pad).
 - Prüfstand mit nachgebauter Datenbank in `pruefstand/`.
 - Keine Kundenstimmen oder Kennzahlen zur Nutzung vorhanden; nichts davon erfinden.
 
