@@ -5358,3 +5358,15 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
 .zuschnitt-regler { display: flex; align-items: center; gap: 10px; margin: 4px 6px 14px;
   color: var(--gedaempft); font-weight: 650; }
 .zuschnitt-regler input { flex: 1; accent-color: var(--marke); }
+
+/* Auftragswechsel am Tag (111.43.0): kleiner Hinweis in der Farbe der
+   Marke, in der Woche nur Zeichen und Uhrzeit, im Tag ganz ausgeschrieben */
+.zelle__wechsel { display: inline-block; margin-top: 3px; padding: 1px 6px; border-radius: 999px;
+  font-size: .72rem; font-weight: 650; color: var(--marke); background: var(--marke-hell);
+  font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
+.mk-eingabe:has(.mk-wechsel) { flex-wrap: wrap; row-gap: 8px; }
+.mk-wechsel { flex: 1 0 100%; padding: 5px 9px; border-radius: 8px; font-size: .8rem;
+  color: var(--marke); background: var(--marke-hell); font-variant-numeric: tabular-nums; }
+.mk-wechsel b { font-weight: 700; margin-right: 4px; }
+.mk-wechsel span { white-space: nowrap; }
+.pad-stk-seit { font-size: .78em; opacity: .75; }

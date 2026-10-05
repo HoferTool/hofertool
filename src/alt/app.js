@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.42.0";
+const APP_VERSION = "111.43.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2568,6 +2568,10 @@ async function ladeZaehlerstaende(von, bis, maschinenIds) {
   // Auftrag —, wird je Auftrag gezählt, nicht einfach der Vorgänger
   // in der Liste genommen.
   const proSchluessel = {};
+  // Tagesleistung je Maschine und Tag über alle Aufträge zusammen. An
+  // einem Tag mit Auftragswechsel zählt so auch, was der alte Auftrag
+  // an dem Tag noch gemacht hat, nicht nur der neue.
+  const tagSumme = {};
   Object.keys(proMaschine).forEach((mid) => {
     const liste = proMaschine[mid];
     const letzter = {};
@@ -2579,6 +2583,8 @@ async function ladeZaehlerstaende(von, bis, maschinenIds) {
 
       // Genaue Ablage je Auftrag
       proSchluessel[mid + "|" + z.record_date + "|" + z.job_id] = z;
+      const tk = mid + "|" + z.record_date;
+      if (Number.isFinite(z.leistung)) tagSumme[tk] = (tagSumme[tk] || 0) + z.leistung;
 
       // Für die Tagesansicht: gibt es an einem Tag mehrere Zeilen, zählt
       // die des laufenden Auftrags, sonst die zuletzt geänderte
@@ -2593,7 +2599,7 @@ async function ladeZaehlerstaende(von, bis, maschinenIds) {
     });
   });
 
-  return { proSchluessel: proSchluessel, proMaschine: proMaschine };
+  return { proSchluessel: proSchluessel, proMaschine: proMaschine, tagSumme: tagSumme };
 }
 
 // Ein Zählerstand gehört zu Maschine, Tag UND Auftrag. Vorher war der

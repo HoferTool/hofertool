@@ -5,6 +5,7 @@
 //  und das Wetter mit Stundenverlauf. Reine Rechnungen, kein Markup.
 // =================================================================
 import { alt } from "../bruecke.jsx";
+import { uhrzeit } from "../daten/auftragswechsel.js";
 
 const TAG = 86400000;
 
@@ -61,15 +62,23 @@ export function wetterZeichen(code) {
 // Auftrags. Der erste Stand eines Auftrags zählt nur dann ganz, wenn
 // er kurz nach dessen Beginn liegt — sonst wäre er der ganze Zähler
 // seit Wochen und kein Tagewerk.
-export async function tagesmengen(maschineId) {
+//
+// Ein Tag ist der Kalendertag von 00:00 bis 00:00 (record_date, das
+// Datum des Geräts beim Eintragen).
+//
+// Mit auftragId zählt nur dieser Auftrag: Die Statistik im Pad Mode
+// beginnt bei jedem neuen Auftrag von vorn (Wunsch 5. Oktober 2026).
+export async function tagesmengen(maschineId, auftragId) {
   const db = alt.db;
   const von = new Date(Date.now() - 200 * TAG);
   const zeilen = [];
   try {
     for (let ab = 0; ab < 5000; ab += 1000) {
-      const r = await db.from("production_records")
+      let q = db.from("production_records")
         .select("record_date, quantity, job_id, updated_at, created_at")
-        .eq("machine_id", maschineId)
+        .eq("machine_id", maschineId);
+      if (auftragId) q = q.eq("job_id", auftragId);
+      const r = await q
         .gte("record_date", alt.isoDatum(von))
         .order("record_date").range(ab, ab + 999);
       const teil = (r && r.data) || [];
@@ -85,7 +94,8 @@ export async function tagesmengen(maschineId) {
     try {
       const r = await db.from("jobs").select("id, started_at, planned_from").in("id", jobIds);
       ((r && r.data) || []).forEach((j) => {
-        beginn[j.id] = String(j.started_at || j.planned_from || "").slice(0, 10);
+        // Beginn als Kalendertag des Geräts, nicht als UTC-Datum
+        beginn[j.id] = j.started_at ? alt.isoDatum(new Date(j.started_at)) : String(j.planned_from || "");
       });
     } catch (f) { /* ohne Beginn zählt der erste Stand nicht */ }
   }
@@ -112,7 +122,7 @@ export async function tagesmengen(maschineId) {
       if (vorher) menge = Math.max(0, e.stand - vorher.stand);
       else {
         const b = beginn[k];
-        const nah = b && (new Date(d) - new Date(b)) / TAG <= 3;
+        const nah = b && (alt.ausIso(d) - alt.ausIso(b)) / TAG <= 3.1;
         menge = nah ? e.stand : null;
       }
       const t = jeTag[d] || (jeTag[d] = { menge: null, zeit: "", stand: 0, job: k });
@@ -129,14 +139,17 @@ export function letzteTage(jeTag) {
   const heute = new Date();
   const raus = [];
   for (let k = 6; k >= 0; k--) {
-    const d = new Date(heute.getTime() - k * TAG);
+    // Mit setDate statt Millisekunden: An der Zeitumstellung hat ein
+    // Tag 23 oder 25 Stunden, sonst rutscht ein Tag doppelt hinein
+    const d = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate() - k);
     const tag = alt.isoDatum(d);
     const e = jeTag[tag] || null;
     raus.push({ datum: tag, wochentag: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()],
                 nummer: d.getDate(), heute: k === 0,
                 eintrag: e ? { stand: e.stand, zeit: e.zeit, job: e.job } : null,
                 menge: e ? e.menge : null,
-                uhr: e ? String(e.zeit || "").slice(11, 16) : "" });
+                // Uhrzeit des Geräts; der Zeitstempel kommt in UTC
+                uhr: e && e.zeit ? uhrzeit(e.zeit) : "" });
   }
   return raus;
 }
@@ -152,8 +165,8 @@ export function schnitte(jeTag, art) {
   if (art === "woche") {
     const montag = alt.ausIso(alt.wochenStart(alt.isoDatum(heute)));
     for (let k = 7; k >= 0; k--) {
-      const start = new Date(montag.getTime() - k * 7 * TAG);
-      gruppen.push({ von: alt.isoDatum(start), bis: alt.isoDatum(new Date(start.getTime() + 6 * TAG)),
+      const start = new Date(montag.getFullYear(), montag.getMonth(), montag.getDate() - k * 7);
+      gruppen.push({ von: alt.isoDatum(start), bis: alt.plusTage(alt.isoDatum(start), 6),
                      titel: "KW " + alt.kalenderwoche(alt.isoDatum(start)), jetzt: k === 0 });
     }
   } else {

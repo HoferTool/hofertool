@@ -57,6 +57,16 @@ with sync_playwright() as p:
     pg.screenshot(path="produktion.png")
 
     # Alte Reiter
+    # Die Beispieldaten beginnen am Montag dieser Woche — an einem Montag
+    # ist darum noch nichts im Verzug. Ein laufender Auftrag bekommt
+    # einen Beginn vor zwei Wochen ohne Stückzahl, dann ist er sicher
+    # im Verzug, egal an welchem Wochentag der Test läuft.
+    pg.evaluate("""(() => {
+      const j = TEST.daten.jobs.find(x => x.plan_status === 'laeuft' && x.target_quantity);
+      const d = new Date(); d.setDate(d.getDate() - 14);
+      j.planned_from = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      j.planned_days = 30; j.stand = 0;
+    })()""")
     pg.click("[data-ansicht='fortschritt']"); pg.wait_for_selector(".fo-zeile")
     alle = pg.locator(".fo-zeile").count()
     pg.select_option("#fo-nur", "verzug"); pg.wait_for_timeout(200)

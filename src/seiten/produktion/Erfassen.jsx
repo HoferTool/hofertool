@@ -7,6 +7,7 @@
 // =================================================================
 import { useReducer } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
+import { auftragswechselLaden, wechselText } from "../../daten/auftragswechsel.js";
 
 // Statt einer Suche filtern Knöpfe nach Maschinentyp (Wunsch 3. Oktober
 // 2026): Am Tablet tippt man lieber einen Knopf, als zu schreiben.
@@ -116,7 +117,11 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
   const prod = alt.prod;
   const ids = maschinen.map((m) => m.id);
   const { daten: staende, fehler, neu } = useDaten(
-    () => alt.ladeZaehlerstaende(von, bis, ids), [von, bis, ids.join(","), geladen]);
+    // Die Auftragswechsel sind Beiwerk: fehlen sie, gehen die Zahlen vor
+    () => Promise.all([alt.ladeZaehlerstaende(von, bis, ids),
+      auftragswechselLaden(ids, von, bis).catch(() => ({}))])
+      .then(([st, wechsel]) => ({ ...st, wechsel })),
+    [von, bis, ids.join(","), geladen]);
 
   if (fehler && !staende) {
     return <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>;
@@ -124,6 +129,15 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
   if (!staende) return <div className="laedt">Zahlen werden geladen …</div>;
 
   const aktionen = auftragsAktionen(neuLaden);
+  // Tagesleistung über alle Aufträge des Tages (Kalendertag 00:00 bis
+  // 00:00, so wie record_date gespeichert wird)
+  const leistung = (mid, datum) => {
+    const k = mid + "|" + datum;
+    if (staende.tagSumme && k in staende.tagSumme) return staende.tagSumme[k];
+    const e = staende.proSchluessel[k];
+    return e && Number.isFinite(e.leistung) ? e.leistung : null;
+  };
+  const wechsel = (mid, datum) => (staende.wechsel && staende.wechsel[mid + "|" + datum]) || [];
   const feld = (m, datum) => (
     <StandFeld maschine={m} datum={datum} staende={staende} neu={neu} behaelter={behaelter} />
   );
@@ -136,15 +150,21 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
       <div className="mkarten mkarten--tag">
         {maschinen.map((m) => {
           const j = prod.auftraege[m.id];
-          const e = staende.proSchluessel[m.id + "|" + prod.tag];
+          const l = leistung(m.id, prod.tag);
+          const w = wechsel(m.id, prod.tag);
           const eingabe = (
             <div className="mk-eingabe">
               <div className="mkarte__label">Zählerstand<span>gesamt seit Auftragsbeginn</span></div>
               <div className="mk-feld">
                 {feld(m, prod.tag)}
                 <span className="zelle__leistung">
-                  {e && Number.isFinite(e.leistung) ? leistungText(e.leistung) + " heute" : ""}</span>
+                  {l !== null ? leistungText(l) + (prod.tag === alt.isoDatum(new Date()) ? " heute" : " am Tag") : ""}</span>
               </div>
+              {w.map((x) => (
+                <div key={x.zeit} className="mk-wechsel" data-wechsel={m.id}>
+                  <b>⇄ Auftragswechsel</b> <span>{x.uhr}</span>{" "}
+                  {x.vorher ? <><span>{x.vorher}</span> → </> : "neu "}<span>{x.neu}</span></div>
+              ))}
             </div>
           );
           return (
@@ -177,9 +197,9 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
             {maschinen.map((m) => {
               const j = prod.auftraege[m.id];
               let summe = 0, erfasst = false;
-              const eintraege = tage.map((t) => staende.proSchluessel[m.id + "|" + t]);
-              eintraege.forEach((e) => {
-                if (e && Number.isFinite(e.leistung)) { summe += e.leistung; erfasst = true; }
+              const leistungen = tage.map((t) => leistung(m.id, t));
+              leistungen.forEach((l) => {
+                if (l !== null) { summe += l; erfasst = true; }
               });
               return (
                 <tr key={m.id}>
@@ -188,13 +208,18 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
                       stand={j ? aktuellerStand(m.id, staende) : null} />
                   </th>
                   {tage.map((t, i) => {
-                    const e = eintraege[i];
+                    const l = leistungen[i];
+                    const w = wechsel(m.id, t);
                     return (
                       <td key={t} className={t === heute ? "heute" : ""}>{feld(m, t)}
                         {/* Die Zeile darunter steht immer da, auch leer, damit
                             alle Felder einer Reihe auf gleicher Höhe bleiben */}
                         <span className="zelle__leistung">
-                          {e && Number.isFinite(e.leistung) ? leistungText(e.leistung) : ""}</span>
+                          {l !== null ? leistungText(l) : ""}</span>
+                        {w.length > 0 &&
+                          <span className="zelle__wechsel" data-wechsel={m.id}
+                            title={"Auftragswechsel " + w.map(wechselText).join(", ")}>
+                            ⇄ {w.map((x) => x.uhr).join(", ")}</span>}
                       </td>
                     );
                   })}
@@ -208,7 +233,8 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
       </div></div>
       <p className="hinweis">Die grosse Zahl ist der Zählerstand seit Auftragsbeginn.
         {" "}Darunter steht die daraus errechnete Tagesleistung, ganz rechts die Summe der Woche.
-        {" "}Links stehen Stand und Ziel des laufenden Auftrags.</p>
+        {" "}Links stehen Stand und Ziel des laufenden Auftrags.
+        {" "}Ein Tag zählt von 00:00 bis 00:00. ⇄ zeigt einen Auftragswechsel an diesem Tag.</p>
     </>
   );
 }

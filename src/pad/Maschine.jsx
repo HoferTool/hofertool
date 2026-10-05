@@ -52,7 +52,9 @@ export async function maschineLaden(p) {
   }
 
   const [jeTag, danach, wetter] = await Promise.all([
-    tagesmengen(m.id),
+    // Statistik nur des laufenden Auftrags: Sie beginnt bei jedem
+    // Auftragswechsel neu. Ohne Auftrag alles dieser Maschine.
+    tagesmengen(m.id, j ? j.id : null),
     naechsteAuftraege(m.id, j ? j.id : null),
     holeWetterStunden().catch(() => null),
   ]);
@@ -236,8 +238,16 @@ function StkBalken({ jeTag, art }) {
   ));
 }
 
+// Seit wann die Statistik zählt: Beginn des laufenden Auftrags
+function seitText(auftrag) {
+  if (!auftrag || !auftrag.started_at) return "";
+  const d = new Date(auftrag.started_at);
+  return isNaN(d) ? "" : "seit Auftragsbeginn " + alt.kurzDatum(alt.isoDatum(d));
+}
+
 function StkFuss({ jeTag, art, auftrag }) {
   const zahlText = alt.zahlText;
+  const seit = seitText(auftrag);
   if (art === "woche" || art === "monat") {
     const mitWert = schnitte(jeTag, art).filter((x) => x.tage);
     const summe = mitWert.reduce((n, x) => n + x.summe, 0);
@@ -245,7 +255,7 @@ function StkFuss({ jeTag, art, auftrag }) {
     return (
       <>
         <span>Ø {tage ? zahlText(Math.round(summe / tage)) : "–"} pro Produktionstag</span>
-        <span>{art === "woche" ? "letzte 8 Wochen" : "letzte 6 Monate"} · Zahl oben = Ø pro Tag</span>
+        <span>{seit || (art === "woche" ? "letzte 8 Wochen" : "letzte 6 Monate")} · Zahl oben = Ø pro Tag</span>
       </>
     );
   }
@@ -254,7 +264,7 @@ function StkFuss({ jeTag, art, auftrag }) {
   const schnitt = schnittTage(letzteTage(jeTag));
   return (
     <>
-      <span>Schnitt {zahlText(schnitt)} pro Tag</span>
+      <span>Schnitt {zahlText(schnitt)} pro Tag{seit && <span className="pad-stk-seit"> · {seit}</span>}</span>
       <span>{prognose(auftrag, schnittLang(jeTag) || schnitt)}</span>
     </>
   );
