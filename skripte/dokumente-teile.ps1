@@ -83,18 +83,29 @@ $VORGABE = @{
 
 function Glatt([string]$t) { if (-not $t) { return "" }; return ($t.ToLower() -replace '[^a-z0-9äöü]', '') }
 
+# Wie viele Buchstaben man ändern muss, damit aus a b wird (höchstens
+# 3 zählt). Bewusst ohne zweidimensionales Feld $d[$i, $j]: Windows
+# PowerShell 5.1 liest das innerhalb von [Math]::Min(...) falsch.
 function Abstand([string]$a, [string]$b) {
   if ([Math]::Abs($a.Length - $b.Length) -gt 2) { return 3 }
-  $d = New-Object 'int[,]' ($a.Length + 1), ($b.Length + 1)
-  for ($i = 0; $i -le $a.Length; $i++) { $d[$i, 0] = $i }
-  for ($j = 0; $j -le $b.Length; $j++) { $d[0, $j] = $j }
+  $breite = $b.Length + 1
+  $d = New-Object 'int[]' (($a.Length + 1) * $breite)
+  for ($i = 0; $i -le $a.Length; $i++) { $d[$i * $breite] = $i }
+  for ($j = 0; $j -le $b.Length; $j++) { $d[$j] = $j }
   for ($i = 1; $i -le $a.Length; $i++) {
     for ($j = 1; $j -le $b.Length; $j++) {
-      $k = 1; if ($a[$i - 1] -eq $b[$j - 1]) { $k = 0 }
-      $d[$i, $j] = [Math]::Min([Math]::Min($d[($i - 1), $j] + 1, $d[$i, ($j - 1)] + 1), $d[($i - 1), ($j - 1)] + $k)
+      $k = 1
+      if ($a[$i - 1] -eq $b[$j - 1]) { $k = 0 }
+      $oben = $d[($i - 1) * $breite + $j] + 1
+      $links = $d[$i * $breite + $j - 1] + 1
+      $schraeg = $d[($i - 1) * $breite + $j - 1] + $k
+      $min = $oben
+      if ($links -lt $min) { $min = $links }
+      if ($schraeg -lt $min) { $min = $schraeg }
+      $d[$i * $breite + $j] = $min
     }
   }
-  return $d[$a.Length, $b.Length]
+  return $d[$a.Length * $breite + $b.Length]
 }
 
 function StichwortPasst($woerter, [string]$glattGanz, [string]$stichwort) {
