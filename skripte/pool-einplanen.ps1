@@ -23,8 +23,11 @@ if ($Weg) {
 $skript = Join-Path $ordnerHier "dokumente-pool.ps1"
 if (-not (Test-Path $skript)) { Write-Host "dokumente-pool.ps1 fehlt neben diesem Skript."; exit 1 }
 
-$aktion = New-ScheduledTaskAction -Execute "powershell.exe" -WorkingDirectory $ordnerHier `
-  -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $skript + '"')
+# Über unsichtbar.vbs, damit kein PowerShell-Fenster aufblitzt
+$vbs = Join-Path $ordnerHier "unsichtbar.vbs"
+if (-not (Test-Path $vbs)) { Write-Host "unsichtbar.vbs fehlt neben diesem Skript."; exit 1 }
+$aktion = New-ScheduledTaskAction -Execute "wscript.exe" -WorkingDirectory $ordnerHier `
+  -Argument ('//B //Nologo "' + $vbs + '" dokumente-pool.ps1')
 $ausloeser = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
   -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
 $einst = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `

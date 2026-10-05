@@ -92,7 +92,7 @@ if (-not $istAdmin) {
 # ---------- 1. Programme holen ----------
 Titel "1. Programme holen"
 New-Item -ItemType Directory -Force -Path $Ziel | Out-Null
-foreach ($n in @("solarlog.ps1", "dokumente-pool.ps1", "dokumente-teile.ps1", "pool-einplanen.ps1", "einrichtblaetter.ps1")) {
+foreach ($n in @("solarlog.ps1", "dokumente-pool.ps1", "dokumente-teile.ps1", "pool-einplanen.ps1", "einrichtblaetter.ps1", "unsichtbar.vbs")) {
   try {
     Invoke-WebRequest -UseBasicParsing -Uri ("$QUELLE/${n}?t=" + [DateTime]::UtcNow.Ticks) -OutFile (Join-Path $Ziel $n) -TimeoutSec 60
     Unblock-File -Path (Join-Path $Ziel $n) -ErrorAction SilentlyContinue
@@ -308,8 +308,11 @@ if ($poolAn) {
 # ---------- 5. Aufgabenplanung ----------
 Titel "5. Aufgaben anlegen"
 function Einplanen([string]$name, [string]$skript, [string]$text, [switch]$nurAngemeldet) {
-  $aktion = New-ScheduledTaskAction -Execute "powershell.exe" -WorkingDirectory $Ziel `
-    -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + (Join-Path $Ziel $skript) + '"')
+  # Über unsichtbar.vbs, damit kein PowerShell-Fenster aufblitzt
+  # (powershell.exe direkt zeigt trotz -WindowStyle Hidden kurz eines).
+  # -Force beim Anlegen ersetzt die bisherige Aufgabe gleichen Namens.
+  $aktion = New-ScheduledTaskAction -Execute "wscript.exe" -WorkingDirectory $Ziel `
+    -Argument ('//B //Nologo "' + (Join-Path $Ziel "unsichtbar.vbs") + '" ' + $skript)
   $ausloeser = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
   $einst = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `

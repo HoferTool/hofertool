@@ -93,8 +93,9 @@ Das legt in der Aufgabenplanung die Aufgabe **Hofer Dokumente-Pool**
 an: alle fünf Minuten, solange du angemeldet bist. Entfernen mit
 `.\pool-einplanen.ps1 -Weg`.
 
-Lieber von Hand in der Aufgabenplanung? Programm `powershell.exe`,
-Argumente `-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\Hofer\Abgleich\dokumente-pool.ps1"`,
+Lieber von Hand in der Aufgabenplanung? Programm `wscript.exe`,
+Argumente `//B //Nologo "C:\Hofer\Abgleich\unsichtbar.vbs" dokumente-pool.ps1`
+(so blitzt kein PowerShell-Fenster auf),
 Starten in `C:\Hofer\Abgleich`, Trigger „Wiederholen jede: 5 Minuten“.
 
 **Protokoll:** `C:\Hofer\Abgleich\pool.log`
