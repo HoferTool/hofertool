@@ -1,7 +1,7 @@
 // =================================================================
 //  ZUSCHNITT
 //  Gemeinsames Fenster zum Zuschneiden eines Bildes, für Nutzerbilder
-//  und Lieferanten-Logos (111.39.0). Ziehen mit Maus oder Finger,
+//  und Lieferanten-Logos (111.40.0). Ziehen mit Maus oder Finger,
 //  Grösse mit Regler, Mausrad oder zwei Fingern. Rundherum bleibt ein
 //  abgedunkelter Rand sichtbar, damit man sieht, was wegfällt.
 //

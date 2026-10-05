@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.39.0";
+const APP_VERSION = "111.40.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3466,7 +3466,9 @@ async function planwandExcel() {
         "Stand": j.stand || 0,
         "Material": j.material_bez || "",
         "Menge": j.material_menge || "",
-        "Liefertermin": datum(j.material_liefertermin),
+        // Der Liefertermin ist Text: „2026-09-24“, „24.09.26“ oder „KW41“
+        "Liefertermin": /^\d{4}-\d{2}-\d{2}/.test(String(j.material_liefertermin || ""))
+          ? datum(j.material_liefertermin) : (j.material_liefertermin || ""),
         "FA erstellt": j.fa_nr ? "ja" : "nein",
         "Material da": j.material_ok ? "ja" : "nein",
         "Materialhinweis": notiz.ort || "",

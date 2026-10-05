@@ -4,7 +4,7 @@
 //  Bild (hochladen oder Adresse einfügen) oder nur die Buchstaben.
 //  Gespeichert in suppliers.logo_url: leer = automatisch, "keins" =
 //  Buchstaben, sonst das Bild. Ein hochgeladenes Bild wird zuerst
-//  zugeschnitten (111.39.0) und steht dann als 160-Pixel-PNG direkt in
+//  zugeschnitten (111.40.0) und steht dann als 160-Pixel-PNG direkt in
 //  der Spalte, so braucht es keinen Speicherplatz-Ordner. PNG, damit ein
 //  durchsichtiger Hintergrund erhalten bleibt.
 // =================================================================

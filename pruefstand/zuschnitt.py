@@ -1,4 +1,4 @@
-# Bilder zuschneiden (111.39.0): gemeinsames Fenster für Lieferanten-Logos
+# Bilder zuschneiden (111.40.0): gemeinsames Fenster für Lieferanten-Logos
 # und Nutzerbilder. Ziehen, Regler, zwei Finger, Ergebnis aus dem
 # Original. Fehlt suppliers.logo_url, kommt eine deutliche Meldung und
 # das Logo-Fenster bleibt offen.

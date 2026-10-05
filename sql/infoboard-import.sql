@@ -4,6 +4,10 @@
 --  Vorher infoboard-daten.sql ausführen — das legt die Tabelle
 --  ib_import an und füllt sie mit allen Balken. Kein CSV-Upload nötig.
 --
+--  Material-Bestellungen in den Notizen („Mat BE: Metalix 2025007893
+--  500kg 24.09.26“) füllen Menge und Liefertermin der Aufträge, wenn
+--  vorher einmal notiz-material.sql ausgeführt wurde (Auslöser an jobs).
+--
 --  Dann dieses Skript im SQL-Editor ausführen. Es hat drei Teile:
 --   A  Vorbereitung — liest die Texte auseinander
 --   B  Probelauf   — zeigt Zahlen und was fehlen würde. NICHTS wird
@@ -53,12 +57,14 @@ gedeutet as (
     (select z from (
        select (regexp_replace(m[1], '[''\.]', '', 'g'))::bigint as z
        from regexp_matches(
-         regexp_replace(regexp_replace(regexp_replace(
+         regexp_replace(regexp_replace(regexp_replace(regexp_replace(
            array_to_string(array(
              select z2 from unnest(t.zeilen) z2
              where z2 !~* '(\srd\s|\smm\b|\sh\d\b|X\d+Cr|11SMn|CuZn|CuNi|AlMg|AlCu|\bTi\b|PEEK|POM|1\.4\d{3}|ETG|Ecobrass)'
            ), ' | '),
            '\d{5}-\d{4}', '', 'g'),
+           -- kg sind keine Stückzahl („Metalix 2025007893 500kg“, seit 111.39.0)
+           '\d[\d''.,]*\s*kg', '', 'gi'),
            '\m(KW|kw)\s*\d+', '', 'g'),
            '\m20[2-3]\d\M', '', 'g'),
          '(?<![\d.])(\d{1,3}(?:[''\.]\d{3})+|\d{3,7})(?![\d.])', 'g') m
