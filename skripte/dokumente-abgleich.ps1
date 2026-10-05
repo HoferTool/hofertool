@@ -10,8 +10,8 @@
 #     10844-0049_WBG.pdf        → WBG an den offenen Aufträgen
 #     20268566 10007-0381.pdf   → WBG mit FA Nr. an den nächsten Auftrag
 #     10844-0049 SW-20.xlsx     → Excel ist immer ein Einrichtblatt
-#     10844-0049_EB_SW-20.pdf   → Einrichtblatt dieser Nummer auf SW-20
-#     EB_SW-20.pdf              → Einrichtblatt-Vorlage des Typs
+#     10844-0049_EB_SW-20.xlsx  → Einrichtblatt dieser Nummer auf SW-20
+#     EB_SW-20.xlsx             → Einrichtblatt-Vorlage des Typs (nur Excel)
 #     10844-0049 Foto.pdf       → Allgemein zur HOCO Nr.
 #
 #  Was an derselben Stelle lag, wird ersetzt. Die Dateien im Ordner

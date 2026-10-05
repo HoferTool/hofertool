@@ -129,6 +129,8 @@ function Erkennen([string]$dateiname, $typen, $regeln) {
   if ($istExcel -and ($art -eq "zeichnung" -or $art -eq "wbg")) { $art = $null }
   if (-not $art -and $fa -and -not $istExcel) { $art = "wbg" }
   if (-not $art -and $istExcel -and ($hoco -or $typ)) { $art = "einrichtblatt" }
+  # Einrichtblätter nur als Excel: eine PDF mit "EB" im Namen passt nicht
+  $nurExcel = ($art -eq "einrichtblatt" -and -not $istExcel)
   $sonstNichts = -not ($ohneTyp -replace '\d', '')
   if (-not $art) {
     if ($hoco -and $sonstNichts) {
@@ -140,8 +142,10 @@ function Erkennen([string]$dateiname, $typen, $regeln) {
 
   if ($art -ne "wbg") { $fa = $null }
   if ($fa) { $titel = "WBG FA " + $fa }
-  return @{ hoco = $hoco; typ = $typ; art = $art; titel = $titel; fa = $fa; auftrag = $null; grund = "";
-            passt = [bool]($hoco -or $typ -or $fa) }
+  $grund = ""
+  if ($nurExcel) { $grund = "Einrichtblätter nur als Excel-Datei" }
+  return @{ hoco = $hoco; typ = $typ; art = $art; titel = $titel; fa = $fa; auftrag = $null; grund = $grund;
+            passt = [bool]((-not $nurExcel) -and ($hoco -or $typ -or $fa)) }
 }
 
 # Offene Aufträge einer HOCO Nr., der nächste zuerst
@@ -196,7 +200,7 @@ function BrauchtZiel($z) {
 function ZielText($z) {
   $namen = @{ zeichnung = "Zeichnung"; wbg = "WBG"; einrichtblatt = "Einrichtblatt"; sonstiges = "Allgemein" }
   if (-not $z.passt) {
-    if ($z.fa) { return "nicht zuzuordnen: " + $z.grund }
+    if ($z.fa -or $z.art -eq "einrichtblatt") { return "nicht zuzuordnen: " + $z.grund }
     return "keine HOCO Nr. und kein Typ erkannt"
   }
   if ($z.art -eq "wbg" -and $z.fa) {

@@ -1380,6 +1380,10 @@ function dokErkennen(dateiname, typen) {
   if (istExcel && (art === "zeichnung" || art === "wbg")) art = null;
   if (!art && fa && !istExcel) { art = "wbg"; grund = "FA Nr. " + fa + " im Namen"; }
   if (!art && istExcel && (hoco || typ)) { art = "einrichtblatt"; grund = "Excel-Datei"; }
+  // Einrichtblätter nur als Excel (Wunsch 5. Oktober 2026): eine PDF mit
+  // „EB“ im Namen wird nicht mehr als Einrichtblatt abgelegt
+  const nurExcel = art === "einrichtblatt" && !istExcel;
+  if (nurExcel) grund = "Einrichtblätter nur als Excel-Datei";
   // Übrig gebliebene Wörter ohne den Typ — ist sonst nichts im Namen?
   const sonstNichts = !ohneTyp.replace(/\d/g, "");
   if (!art) {
@@ -1402,7 +1406,7 @@ function dokErkennen(dateiname, typen) {
     grund: grund,
     fa: mitFa ? fa : null,
     titel: mitFa ? "WBG FA " + fa : (titel || (hoco || ohneEndung)),
-    passt: !!(hoco || typ || mitFa),
+    passt: !nurExcel && !!(hoco || typ || mitFa),
   };
 }
 
@@ -1458,7 +1462,10 @@ async function dokZielSuchen(z, typen) {
 // Wohin eine Datei geht, in Worten — für die Probe und den Verlauf
 function dokZielText(z) {
   const name = (DOK_ARTEN[z.art] || DOK_ARTEN.sonstiges).name;
-  if (!z.passt) return z.fa ? "nicht zuzuordnen: " + z.grund : "keine HOCO Nr. und kein Typ erkannt";
+  if (!z.passt) {
+    if (z.fa || z.art === "einrichtblatt") return "nicht zuzuordnen: " + z.grund;
+    return "keine HOCO Nr. und kein Typ erkannt";
+  }
   if (z.art === "einrichtblatt" && z.typ && !z.hoco) return "Einrichtblatt-Vorlage des Typs " + z.typ.name;
   if (z.art === "wbg" && z.fa) {
     if (z.auftrag) return "WBG mit FA " + z.fa + " an den Auftrag " + z.auftrag.job_number
@@ -1538,6 +1545,9 @@ async function dokHochladen(datei, zuordnung, quelle) {
   if (!zuordnung.geprueft && ((zuordnung.art === "wbg" && zuordnung.fa)
       || (zuordnung.art === "einrichtblatt" && zuordnung.hoco && !zuordnung.typ))) {
     zuordnung = await dokZielSuchen(zuordnung, (typeof prod !== "undefined" && prod.typen) || []);
+  }
+  if (zuordnung.art === "einrichtblatt" && !istExcelDatei(datei.name)) {
+    throw new Error("Einrichtblätter nur als Excel-Datei (.xlsx, .xlsm, .xls).");
   }
   if (zuordnung.art === "wbg" && zuordnung.fa && !zuordnung.auftrag) {
     throw new Error("Nicht zuzuordnen: " + (zuordnung.grund || "kein passender Auftrag"));
@@ -6745,15 +6755,22 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
     "Einrichtblatt " + (titel || hocoNr || ""), true);
 }
 
-// Eine PDF auswählen, hochladen und die Adresse zurückgeben
+function istExcelDatei(name) { return /\.(xlsx|xlsm|xls)$/i.test(String(name || "")); }
+
+// Ein Einrichtblatt auswählen, hochladen und die Adresse zurückgeben.
+// Seit 111.37.0 nur noch Excel (Wunsch 5. Oktober 2026).
 function blattPdfWaehlen() {
   return new Promise((fertig) => {
     const feld = document.createElement("input");
     feld.type = "file";
-    feld.accept = "application/pdf,image/*,.xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel";
+    feld.accept = ".xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel";
     feld.onchange = async () => {
       const datei = feld.files && feld.files[0];
       if (!datei) { fertig(null); return; }
+      if (!istExcelDatei(datei.name)) {
+        meldung("Einrichtblätter nur als Excel-Datei (.xlsx, .xlsm, .xls).", "warn");
+        fertig(null); return;
+      }
       try {
         meldung("Wird hochgeladen …");
         const endung = (datei.name.split(".").pop() || "pdf").toLowerCase();

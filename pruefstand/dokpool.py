@@ -42,6 +42,8 @@ with sync_playwright() as p:
     t = probe("Star SR-32J.xlsx"); print(t)
     pruefe("Excel nur Typ = Vorlage", t.startswith("Einrichtblatt-Vorlage"))
     pruefe("Excel ohne HOCO und Typ bleibt unzugeordnet", "keine HOCO" in probe("Liste.xlsx"))
+    t = probe("10844-0049_EB.pdf"); print(t)
+    pruefe("PDF als Einrichtblatt abgelehnt", t.startswith("nicht zuzuordnen: Einrichtblätter nur als Excel"))
     pruefe("Zeichnung bleibt Zeichnung", probe("10844-0049.pdf").startswith("Zeichnung"))
     pruefe("Beispiele zeigen FA und Excel", "WBG mit FA 20268566" in pg.inner_text("#dokbeispiele"))
 

@@ -94,7 +94,7 @@ export default function Dokumente() {
           onDragLeave={() => setUeber(false)} onDrop={fallen}>
           <b>Dateien hierher ziehen</b>
           <span className="klein">WBG mit FA Nr. und HOCO Nr. im Namen (etwa „20268566 10007-0381.pdf“) kommen an den
-            nächsten offenen Auftrag ohne FA Nr., die FA Nr. wird dort eingetragen. Excel-Dateien sind Einrichtblätter
+            nächsten offenen Auftrag ohne FA Nr., die FA Nr. wird dort eingetragen. Einrichtblätter nur als Excel
             (etwa „10844-0049 SW-20.xlsx“; ohne Typ im Namen gilt der Typ der Maschine des nächsten Auftrags).</span>
         </div>}
         <div id="pool-liste">
@@ -192,8 +192,8 @@ function Regeln() {
 
   const p = probe.trim() ? erkennen(probe.trim()) : null;
   const typName = (typen && typen[0] && typen[0].name) || "SW-20";
-  const beispiele = ["10844-0049.pdf", "10844-0049_WBG.pdf", "10844-0049_EB.pdf",
-    "10844-0049_EB_" + typName + ".pdf", "EB_" + typName + ".pdf",
+  const beispiele = ["10844-0049.pdf", "10844-0049_WBG.pdf", "10844-0049_EB.xlsx",
+    "10844-0049_EB_" + typName + ".xlsx", "EB_" + typName + ".xlsx", "10844-0049_EB.pdf",
     "10844-0049_Messbericht.pdf", "10844-0049 Zeichnung Rev B.pdf",
     "20268566 10007-0381.pdf", "10844-0049 " + typName + ".xlsx"];
 
