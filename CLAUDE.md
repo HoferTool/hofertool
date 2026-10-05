@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.45.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.45.1 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -59,7 +59,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 | Datum | `isoDatum`, `plusTage`, `arbeitstage(ab, n)`, `arbeitstagePlus(datum, n)`, `naechsterArbeitstag`, `wochenStart`, `kurzDatum`, `datumZeitKurz` — Arbeitstage = Mo–Fr. `arbeitstage` und `arbeitstagePlus` merken sich Ergebnisse. |
 | Zahlen | `zahlText(n)` → `1'200` |
 | Planwand | `plan` (Zustand), `ladePlanAuftraege(alle)`, `planAktualisieren(b)`, `zeichnePlanwand(b)`, `neuZeichnen(b)`, `planKonflikteRechnen/Loesen`, `planAufruecken`, `parallelSenden(aufgaben)`, `zuHeute(b)` |
-| Werkstoffe | `werkstoffErkennen(bez)` → Gruppe und Farbe: V2A rot, V4A grau, Chromstahl rosa, Stahl blau, Alu weiss, Messing gelb, Neusilber orange |
+| Werkstoffe | `werkstoffErkennen(bez)` → Gruppe und Farbe: V2A rot, V4A grau, Chromstahl rosa, Stahl blau, Alu weiss, Messing orange, Neusilber gelb, Messing ohne Blei senf, Titan violett |
 | Pad Mode | `pad` (Zustand), `padZeichnen()`, `padStart`, `padParks`, `padMaschinen`, `padMaschine`, `padTextEinpassen()`, `betrachter(url, titel, istPdf)` |
 | Abgleich | `syncPruefen()`, `serverStempel(tabellen)`, `dashboardTeile(b, still)`, `stillNeuZeichnen(id, fn)` |
 | Dokumente | `dokErkennen(name, typen)`, `dokHochladen(datei, zuordnung, quelle)`, `DOK_REGELN` |

@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.45.0";
+const APP_VERSION = "111.45.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3160,9 +3160,11 @@ const WERKSTOFFGRUPPEN = {
   v4a:        { name: "V4A",            farbe: "grau",   zusatz: "rostfrei, mit Molybdän" },
   chrom:      { name: "Chromstahl",     farbe: "rosa",   zusatz: "rostfrei, magnetisch" },
   alu:        { name: "Aluminium",      farbe: "weiss",  zusatz: "" },
-  neusilber:  { name: "Neusilber",      farbe: "orange", zusatz: "",
+  // Neusilber gelb, Messing orange, wie unter Farben und Material
+  // eingetragen (Entscheid 5. Oktober 2026, vorher umgekehrt)
+  neusilber:  { name: "Neusilber",      farbe: "gelb",   zusatz: "",
                 spaene: "1608 Neusilber Späne Pb", schrott: "1606 Neusilber Schrott Pb" },
-  messing:    { name: "Messing",        farbe: "gelb",   zusatz: "",
+  messing:    { name: "Messing",        farbe: "orange", zusatz: "",
                 spaene: "1427 MS 58 Späne", schrott: "1414 MS 58 Schrott" },
   messing_ohne_pb: { name: "Messing ohne Blei", farbe: "senf",
                 zusatz: "unbedingt separat halten",
