@@ -220,8 +220,15 @@ function schriftStil(font, thema) {
   // Farbe auch als Variable: der Dunkelmodus färbt sonst jede Schrift
   // weiss (siehe .excelansicht__blatt in stil.css)
   if (c) { s.color = c; s["--zf"] = c; }
-  if (font.vertAlign === "superscript") s.verticalAlign = "super";
-  if (font.vertAlign === "subscript") s.verticalAlign = "sub";
+  // Hoch- und tiefgestellt kleiner wie in Excel und nur verschoben,
+  // nicht mit vertical-align: das machte die Zeile höher, und die
+  // Zelle schnitt die Zahlen oben und unten ab (Patrick, 5. Oktober 2026)
+  if (font.vertAlign === "superscript" || font.vertAlign === "subscript") {
+    s.fontSize = font.size ? Math.round(font.size * PX_JE_PT * 6.6) / 10 + "px" : "0.66em";
+    s.position = "relative";
+    s.top = font.vertAlign === "superscript" ? "-0.4em" : "0.2em";
+    s.lineHeight = 1;
+  }
   return s;
 }
 

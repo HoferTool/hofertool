@@ -49,6 +49,10 @@ for (let c = 1; c <= 6; c++) ws.getCell(11, c).border = { bottom: { style: "medi
 ws.getCell("D12").value = "Summe"; ws.getCell("D12").font = { italic: true };
 ws.getCell("E12").value = { formula: "SUM(E8:E10)", result: 4700 }; ws.getCell("E12").numFmt = "#,##0";
 ws.getCell("E12").font = { bold: true, color: { argb: "FFC00000" } };
+// Toleranz wie im Werkzeugprotokoll: hoch- und tiefgestellt in einer Zelle
+ws.getCell("C12").value = { richText: [{ text: "6.80 ", font: { bold: true, size: 12 } },
+  { text: "+0.05", font: { bold: true, size: 12, vertAlign: "superscript" } },
+  { text: " -0.10", font: { bold: true, size: 12, vertAlign: "subscript" } }] };
 ws.getCell("A14").value = { richText: [{ text: "Achtung: ", font: { bold: true, color: { argb: "FFC00000" } } }, { text: "Masse nach Zeichnung prüfen" }] };
 const bild = wb.addImage({ buffer: readFileSync("public/logo.png"), extension: "png" });
 ws.addImage(bild, { tl: { col: 4, row: 3 }, br: { col: 6, row: 5.5 }, editAs: "oneCell" });

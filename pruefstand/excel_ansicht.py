@@ -103,12 +103,25 @@ with sync_playwright() as p:
           const hoch = [...box.querySelectorAll('span')].find(x => x.textContent === '2');
           const dick = els.filter(e => parseFloat(e.style.left) === 0 && /^2px solid/.test(e.style.borderTop)).length;
           return { text: box.textContent, rand: getComputedStyle(box).borderTopColor, breite: box.offsetWidth,
-            hoch: hoch ? getComputedStyle(hoch).verticalAlign : null, dick };
+            hoch: hoch ? (() => { const a = hoch.getBoundingClientRect(), m = [...box.querySelectorAll('span')].find(x => x.textContent.includes('mm')).getBoundingClientRect(); return a.bottom < m.bottom - m.height * 0.15; })() : null, dick };
         }""")
         pruefe(name + ": Textfeld mit Rand und Text", bool(tf and tf["text"] == "HD 4 mm2" and tf["rand"] == "rgb(192, 0, 0)" and tf["breite"] > 80))
-        pruefe(name + ": Textfeld: 2 hochgestellt", bool(tf and tf["hoch"] == "super"))
+        pruefe(name + ": Textfeld: 2 hochgestellt", bool(tf and tf["hoch"] is True))
         pruefe(name + ": Zeile nur mit Rahmen wird gezeichnet", bool(tf and tf["dick"] == 3))
         if not tf or tf["dick"] != 3: print(tf)
+        # Hoch- und tiefgestellt in einer Zelle: ganz sichtbar, nichts abgeschnitten
+        ht = pg.evaluate("""() => {
+          const sp = [...document.querySelectorAll('[data-excelblatt] span')];
+          const hoch = sp.find(x => x.textContent === '+0.05'), tief = sp.find(x => x.textContent === ' -0.10');
+          const basis = sp.find(x => x.textContent === '6.80 ');
+          if (!hoch || !tief || !basis) return null;
+          let zelle = hoch.parentElement; while (zelle && zelle.style.position !== 'absolute') zelle = zelle.parentElement;
+          const z = zelle.getBoundingClientRect(), h = hoch.getBoundingClientRect(), t = tief.getBoundingClientRect(), b = basis.getBoundingClientRect();
+          return { oben: h.top - z.top, unten: z.bottom - t.bottom, drin: h.top >= z.top - 1 && t.bottom <= z.bottom + 1, hoeher: h.top + h.height / 2 < b.top + b.height / 2 - b.height * 0.05, tiefer: t.top + t.height / 2 > b.top + b.height / 2 + b.height * 0.05,
+            kleiner: h.height < b.height };
+        }""")
+        pruefe(name + ": Hoch/tief in der Zelle ganz sichtbar", bool(ht and ht['drin'] and ht['hoeher'] and ht['tiefer'] and ht['kleiner']))
+        if not ht or not (ht['drin'] and ht['hoeher'] and ht['tiefer'] and ht['kleiner']): print(ht)
         pruefe(name + ": Zeilenumbruch", s["langUmbruch"] == "pre-wrap")
         pruefe(name + ": Rahmenlinien", s["striche"] >= 20)
         pruefe(name + ": Bild geladen", bool(s["bild"] and s["bild"]["ok"] and s["bild"]["b"] > 50))

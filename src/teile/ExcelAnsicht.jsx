@@ -328,7 +328,8 @@ function Form({ x }) {
             <span key={j} style={{
               "--zf": t.farbe, color: t.farbe,
               fontSize: (t.hoch ? t.pt * 0.66 : t.pt) * 96 / 72,
-              verticalAlign: t.hoch > 0 ? "super" : t.hoch < 0 ? "sub" : undefined,
+              position: t.hoch ? "relative" : undefined, lineHeight: t.hoch ? 1 : undefined,
+              top: t.hoch > 0 ? "-0.4em" : t.hoch < 0 ? "0.2em" : undefined,
               fontWeight: t.fett ? 700 : 400, fontStyle: t.kursiv ? "italic" : undefined,
               textDecoration: [t.unter && "underline", t.durch && "line-through"].filter(Boolean).join(" ") || undefined,
               fontFamily: t.schrift && !t.schrift.startsWith("+") ? '"' + t.schrift + '", Calibri, Carlito, Arial, sans-serif' : undefined,
