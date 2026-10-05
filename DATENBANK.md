@@ -17,6 +17,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `machine_types` | Maschinentypen (z. B. SW-20) | `name`, `blatt_url` (Einrichtblatt-Vorlage) |
 | `hoco_parts` | Stammdaten je HOCO Nr. | PK `hoco_nr`, `bezeichnung`, `material`, `zeichnungs_nr`, `zeichnung_url`, `waschgebinde`, `infos` (seit 111.54.0 nicht mehr in der App, Daten bleiben) |
 | `hoco_type_data` | Daten je HOCO Nr. **und** Typ | eindeutig (`hoco_nr`, `type_id`), `programm_nr`, `stueckzeit_s`, `blatt_url`, `abend_stk`, `pad_info` (Info an der Maschine). Eine Zeile je Typ, auf dem die Nummer gerüstet, gelaufen oder fertig wurde: trägt der Auslöser `jobs_typ_merken` selbst ein (`sql/hoco-typen.sql`) |
+| `pad_skizzen` | Skizze im Pad Mode, eine je Auftrag | PK `job_id` (→ `jobs`, wird mitgelöscht), `striche` (jsonb: Liste von `{f: Farbe, d: Dicke, p: [x, y, …]}`, Punkte und Dicke geteilt durch die Breite der Fläche), `geaendert_am`, `geaendert_von`. Der Auslöser `jobs_skizze_weg` löscht die Zeile, sobald der Auftrag auf `fertig` geht (`sql/pad-skizze.sql`) |
 | `vacations` | Ferien | `person` (Text), `zeile`, `von`, `tage`, `genehmigt` |
 | `tool_changes` | Werkzeugwechsel | `machine_id`, `job_id`, `tool_nr`, `grund`, `stueckzahl`, `gehalten_stk` |
 | `setup_sheets`, `setup_sheet_paths`, `setup_sheet_slots`, `setup_snapshots` | Einrichtblätter | |

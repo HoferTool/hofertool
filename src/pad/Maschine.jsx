@@ -16,6 +16,7 @@ import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck } from "./Pad.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText } from "../teile/FettText.jsx";
+import Skizze from "./Skizze.jsx";
 import {
   holeWetterStunden, wetterZeichen, tagesmengen, letzteTage, schnitte,
   schnittTage, schnittLang, naechsteAuftraege, prognose,
@@ -540,7 +541,9 @@ export default function Maschine({ d }) {
         </div>
 
         {/* ----- rechte Säule ----- */}
-        <div className="pad-spalte"><Saeule wetter={wetter} danach={danach} /></div>
+        <div className="pad-spalte pad-spalte--rechts"><Saeule wetter={wetter} danach={danach} />
+          {/* Der Rest der Spalte ist zum Zeichnen da (Wunsch Patrick 5. Oktober 2026) */}
+          <Skizze key={j ? j.id : "ohne"} j={j} /></div>
       </div>
 
       {/* ----- Knöpfe ----- */}

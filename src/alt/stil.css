@@ -5469,3 +5469,37 @@ body .pw-rolle--finger, body .pw-rolle--finger * { touch-action: pan-y !importan
    (Wunsch Patrick, 5. Oktober 2026: „überall und viel grösser“). */
 #pad .pad__wahl .pad__wahllogo { height: clamp(90px, 20vh, 230px); max-width: 90%; object-fit: contain; }
 @media (max-width: 640px) { #pad .pad__wahl .pad__wahllogo { height: auto; width: 80%; } }
+/* Skizze im Pad Mode: nimmt den Rest der rechten Spalte, Uhr und
+   Wetter darüber nur so hoch wie ihr Inhalt */
+.pad-spalte--rechts .pad-karte2--saeule { flex: none; }
+.pad-karte2--skizze { flex: 1 1 auto; min-height: 220px; gap: 8px; padding: 11px 12px 12px;
+                      background: linear-gradient(165deg, #10283f, #091626); }
+.pad-skizze__kopf { display: flex; flex-direction: column; gap: 7px; }
+.pad-skizze__leiste { display: flex; flex-direction: column; gap: 7px; }
+.pad-skizze__farben { display: flex; flex-wrap: wrap; gap: 5px; }
+.pad-skizze__farbe { width: 26px; height: 26px; border-radius: 50%; flex: none; padding: 0;
+                     background: var(--f); border: 2px solid rgba(255,255,255,.18);
+                     cursor: pointer; touch-action: manipulation;
+                     transition: transform .12s ease, box-shadow .12s ease; }
+.pad-skizze__farbe.aktiv { transform: scale(1.12);
+                           box-shadow: 0 0 0 2px #091626, 0 0 0 4px #eef4ff; }
+.pad-skizze__gruppe { display: flex; flex-wrap: wrap; gap: 5px; }
+.pad-skizze__knopf { min-width: 36px; height: 36px; border-radius: 11px; padding: 0 6px;
+                     display: inline-flex; align-items: center; justify-content: center;
+                     background: rgba(255,255,255,.06); color: #eef4ff;
+                     border: 1px solid rgba(255,255,255,.12); cursor: pointer;
+                     font-size: .8rem; font-weight: 700; touch-action: manipulation; }
+.pad-skizze__knopf i { display: block; border-radius: 50%; }
+.pad-skizze__knopf.aktiv { background: rgba(127,192,255,.22); border-color: #7fc0ff; }
+.pad-skizze__knopf:disabled { opacity: .35; cursor: default; }
+.pad-skizze__knopf--rot { color: #ffb4ab; }
+.pad-skizze__flaeche { flex: 1; min-height: 140px; position: relative; border-radius: 14px;
+                       overflow: hidden; background: rgba(255,255,255,.035);
+                       border: 1px dashed rgba(255,255,255,.14); }
+.pad-skizze__leinwand { position: absolute; inset: 0; display: block; touch-action: none;
+                        cursor: crosshair; -webkit-user-select: none; user-select: none; }
+.pad-skizze__leinwand--radierer { cursor: cell; }
+.pad-skizze__hinweis { position: absolute; inset: 0; display: flex; align-items: center;
+                       justify-content: center; text-align: center; padding: 16px;
+                       font-size: .82rem; color: #7f97b5; pointer-events: none; }
+@media (max-width: 1000px) { .pad-karte2--skizze { min-height: 360px; } }
