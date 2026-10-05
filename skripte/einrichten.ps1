@@ -9,7 +9,9 @@
 #    - Einrichtblätter: liest alle fünf Minuten die Excel-Dateien aus
 #      den Typ-Ordnern, die in der App eingetragen sind, und lädt neue
 #      und geänderte hoch (einrichtblaetter.ps1). Liest nur, löscht nie.
-#      Bis der Schalter in der App an ist, nur Probelauf.
+#      Bis der Schalter in der App an ist, nur Probelauf. Läuft unter
+#      dem angemeldeten Windows-Konto (wegen der Netzlaufwerke), ohne
+#      dass ein Passwort eingegeben werden muss.
 #
 #  Was das Skript tut:
 #    1. Lädt die Programme von GitHub nach C:\Hofer\Abgleich.
@@ -283,42 +285,24 @@ if ($poolAn) {
   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "einrichtblaetter.ps1") -Probe
 }
 
-# Die Einrichtblatt-Ordner liegen meist auf einem anderen Rechner. Das
-# Konto SYSTEM kommt dort nicht hinein, darum läuft diese Aufgabe auf
-# Wunsch unter einem Windows-Konto, das die Ordner öffnen kann.
-$ebKonto = $null; $ebPw = $null
-if ($poolAn -and $istAdmin) {
-  Titel "4b. Konto für die Einrichtblatt-Ordner"
-  Info "Liegen die Einrichtblatt-Ordner auf einem Netzlaufwerk (\\Server\...), braucht die Aufgabe"
-  Info "ein Windows-Konto, das diese Ordner öffnen darf. Liegen sie auf diesem Rechner: einfach Enter."
-  $ebKonto = Frage "Windows-Konto (z.B. $([Security.Principal.WindowsIdentity]::GetCurrent().Name), leer = nur dieser Rechner)" ""
-  if ($ebKonto) {
-    $sec = Read-Host "Windows-Passwort von $ebKonto (wird nicht angezeigt)" -AsSecureString
-    $ebPw = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
-    if (-not $ebPw) { $ebKonto = $null }
-  }
-}
-
 # ---------- 5. Aufgabenplanung ----------
 Titel "5. Aufgaben anlegen"
-function Einplanen([string]$name, [string]$skript, [string]$text, [string]$konto, [string]$kontoPw) {
+function Einplanen([string]$name, [string]$skript, [string]$text, [switch]$nurAngemeldet) {
   $aktion = New-ScheduledTaskAction -Execute "powershell.exe" -WorkingDirectory $Ziel `
     -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + (Join-Path $Ziel $skript) + '"')
   $ausloeser = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
   $einst = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
-  if ($konto -and $kontoPw) {
-    # Läuft auch ohne Anmeldung, mit den Rechten dieses Kontos im Netz
-    try {
-      Register-ScheduledTask -TaskName $name -Action $aktion -Trigger $ausloeser -Settings $einst `
-        -User $konto -Password $kontoPw -RunLevel Limited -Description $text -Force | Out-Null
-      Gut "Aufgabe '$name': alle 5 Minuten, als $konto"
-      return
-    } catch {
-      Warn "Mit dem Konto $konto ging es nicht ($($_.Exception.Message)). Die Aufgabe läuft nun als SYSTEM"
-      Warn "und kommt nicht auf Netzlaufwerke. Dieses Skript nochmals starten und das Konto richtig eingeben."
-    }
+  if ($nurAngemeldet) {
+    # Läuft unter dem angemeldeten Windows-Konto, ohne Passwort. So kommt
+    # die Aufgabe auf die Netzlaufwerke, die dieses Konto öffnen darf
+    # (SYSTEM käme dort nicht hinein). Dafür nur, solange es angemeldet ist.
+    $wer = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive
+    Register-ScheduledTask -TaskName $name -Action $aktion -Trigger $ausloeser -Settings $einst `
+      -Principal $wer -Description $text -Force | Out-Null
+    Gut "Aufgabe '$name': alle 5 Minuten, solange $([Security.Principal.WindowsIdentity]::GetCurrent().Name) angemeldet ist"
+    return
   }
   if ($istAdmin) {
     # Läuft auch ohne Anmeldung, nach einem Neustart von selbst
@@ -333,7 +317,7 @@ function Einplanen([string]$name, [string]$skript, [string]$text, [string]$konto
 if ($solarAn) { Einplanen "Hofer Solar" "solarlog.ps1" "Liefert alle 5 Minuten die Werte des Solar-Log ans Hofer Tool." }
 if ($poolAn)  {
   Einplanen "Hofer Dokumente-Pool" "dokumente-pool.ps1" "Lädt alle 5 Minuten die WBGs aus dem Pool-Ordner ins Hofer Tool und leert ihn."
-  Einplanen "Hofer Einrichtblätter" "einrichtblaetter.ps1" "Liest alle 5 Minuten die Excel-Einrichtblätter aus den Typ-Ordnern und lädt neue ins Hofer Tool. Löscht und ändert in den Ordnern nie etwas." $ebKonto $ebPw
+  Einplanen "Hofer Einrichtblätter" "einrichtblaetter.ps1" "Liest alle 5 Minuten die Excel-Einrichtblätter aus den Typ-Ordnern und lädt neue ins Hofer Tool. Löscht und ändert in den Ordnern nie etwas." -nurAngemeldet
 }
 
 Titel "Fertig"

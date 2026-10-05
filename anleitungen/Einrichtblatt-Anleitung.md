@@ -39,10 +39,7 @@ darum nicht.
 3. **Programm einrichten:** Am Rechner mit dem Pool die Zeile aus der
    [Neuer-Rechner-Anleitung](Neuer-Rechner-Anleitung.md), Schritt 3.2,
    nochmals ausführen (Als Administrator). Was schon eingetragen ist,
-   bleibt mit Enter stehen. Neu fragt es nach einem **Windows-Konto**:
-   Liegen die Ordner auf einem anderen Rechner, hier dein
-   Windows-Konto und dessen Passwort eingeben, sonst kommt die Aufgabe
-   nicht an die Ordner. Am Schluss legt es die Aufgabe **Hofer
+   bleibt mit Enter stehen. Am Schluss legt es die Aufgabe **Hofer
    Einrichtblätter** an und zeigt gleich einen Probelauf.
 4. **Probelauf ansehen:** Nach fünf Minuten steht in der App unter
    **Einrichtblatt-Ordner** „Probelauf …“ und darunter die Liste:
@@ -62,8 +59,8 @@ Ausschalten geht jederzeit mit demselben Schalter.
   eintragen, nicht mit einem Laufwerksbuchstaben wie `Z:`. Die
   Aufgabe kennt die Laufwerksbuchstaben oft nicht.
 - Steht bei einem Ordner „Ordner nicht erreichbar“, findet die Aufgabe
-  ihn nicht: Pfad prüfen, oder Schritt 3 mit dem richtigen
-  Windows-Konto wiederholen.
+  ihn nicht: Pfad prüfen. Die Aufgabe läuft unter dem Windows-Konto,
+  mit dem du Schritt 3 gemacht hast, und nur, solange es angemeldet ist.
 - Probelauf von Hand, im PowerShell-Fenster:
   `powershell -ExecutionPolicy Bypass -File C:\Hofer\Abgleich\einrichtblaetter.ps1 -Probe`
 - Protokoll: `C:\Hofer\Abgleich\einrichtblaetter.log`

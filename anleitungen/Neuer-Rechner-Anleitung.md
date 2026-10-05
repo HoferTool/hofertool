@@ -64,9 +64,6 @@ Mit diesem Konto lädt das Pool-Programm die Dateien hoch.
    - Danach probiert es beides aus, ohne etwas zu schreiben. Richtig
      ist bei Solar `Probe: Erzeugung … W, Verbrauch … W` und
      `Probe: Schlüssel ok`.
-   - **Windows-Konto für die Einrichtblatt-Ordner:** Liegen diese auf
-     einem anderen Rechner, dein Windows-Konto und dessen Passwort
-     eingeben (bleibt unsichtbar). Sonst einfach Enter.
    - Zum Schluss legt es in der Windows-Aufgabenplanung die Aufgaben
      **Hofer Solar**, **Hofer Dokumente-Pool** und **Hofer
      Einrichtblätter** an.
