@@ -8,14 +8,14 @@
 //    dialogFelder({ titel, text, felder, bestaetigen, gefahr })
 //      felder: [{ name, label, typ, wert, platzhalter, pflicht,
 //                 hinweis, auswahl: [[wert, text]], ziffern, fett }]
-//      fett: true gibt einem Textfeld den Knopf „Fett“ und eine Vorschau
+//      fett: true gibt einem Textfeld die Knöpfe Fett, Kursiv, Unterstrichen
 //      → Objekt mit den Werten oder null bei Abbruch
 //    neueFarbeDialog(farben) → { farbe, material, kuerzel } oder null
 // =================================================================
 import { useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
-import { FettText, fettUmschalten } from "./FettText.jsx";
+import { TextMitStil, stilWert } from "./FettText.jsx";
 
 // Öffnet ein Fenster, das mit einem Wert endet. Schliessen über
 // Escape, Zurück oder daneben klicken ergibt den Abbruchwert.
@@ -94,28 +94,11 @@ function Feld({ f, id, erstes }) {
   );
 }
 
-// Textfeld mit Fett-Knopf. Der Knopf reagiert schon beim Antippen
-// (pointerdown) und verhindert dort das Wegnehmen des Fokus, sonst
-// geht auf dem Tablet die Markierung verloren, bevor er sie liest.
+// Textfeld mit Knöpfen für Fett, Kursiv und Unterstrichen
 function FettFeld({ f, id, erstes }) {
-  const [text, setText] = useState(f.wert || "");
-  const fett = (e) => {
-    e.preventDefault();
-    const feld = document.getElementById(id);
-    if (feld && !fettUmschalten(feld)) alt.meldung("Erst ein Wort antippen oder markieren.", "warn");
-  };
   return (
-    <div className="feld feld--fett"><label htmlFor={id}>{f.label}</label>
-      <div className="fettleiste">
-        <button type="button" className="knopf fettknopf" data-fett="" aria-label="Fett"
-          onPointerDown={fett} onClick={(e) => { if (e.detail === 0) fett(e); }}><b>B</b> Fett</button>
-        <span className="feldhinweis">Wort antippen oder markieren, dann „Fett“.</span>
-      </div>
-      <textarea id={id} rows={6} placeholder={f.platzhalter || ""} defaultValue={f.wert || ""}
-        onInput={(e) => setText(e.target.value)} data-fokus={erstes ? "" : undefined} />
-      {/\*\*/.test(text) &&
-        <div className="fettvorschau" data-fettvorschau=""><span className="feldhinweis">So sieht es aus:</span>
-          <p><FettText text={text} /></p></div>}
+    <div className="feld feld--fett"><span>{f.label}</span>
+      <TextMitStil id={id} wert={f.wert} platzhalter={f.platzhalter} erstes={erstes} />
       {f.hinweis && <span className="feldhinweis">{f.hinweis}</span>}
     </div>
   );
@@ -133,7 +116,8 @@ export function dialogFelder(o) {
       const ergebnis = {};
       for (const f of felder) {
         const el = document.getElementById(nr + f.name);
-        const wert = ((el && el.value) || "").trim();
+        const wert = el && el.dataset.stilfeld !== undefined ? stilWert(el)
+          : ((el && el.value) || "").trim();
         if (f.pflicht && !wert) {
           el.focus();
           el.classList.add("menge--fehler");

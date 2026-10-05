@@ -1,5 +1,5 @@
 # Pad Mode: Notiz zum Auftrag ist weg, Info an der Maschine zeigt **fett**,
-# und im Fenster macht der Knopf „Fett“ per Antippen ein Wort fett.
+# Knöpfe B, I, U: auf Markiertes umschalten, ohne Markierung fürs Weiterschreiben.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -36,24 +36,49 @@ with sync_playwright() as p:
     print("  Kachel", round(hk["height"]), "Info", round(ik["height"]))
     pruefe(ik["y"] + ik["height"] > hk["y"] + hk["height"] - 30, "Info füllt die Kachel bis unten")
     pg.screenshot(path="s_padfett_kachel.png")
-    # Fenster öffnen, ein Wort antippen und fett machen
+    # Fenster öffnen: alter Text mit ** erscheint fett im Feld
     pg.locator("#pad .pad-info").tap(); pg.wait_for_timeout(600)
-    ta = pg.locator(".dialog textarea")
-    ta.fill("Achtung Spannzange wechseln")
-    ta.evaluate("t => { t.focus(); t.setSelectionRange(10, 10); }")  # Cursor in „Spannzange“
-    pg.locator("[data-fett]").tap(); pg.wait_for_timeout(200)
-    pruefe(ta.input_value() == "Achtung **Spannzange** wechseln", "Antippen macht das Wort fett: " + ta.input_value())
-    pruefe(pg.locator("[data-fettvorschau] strong").inner_text() == "Spannzange", "Vorschau zeigt fett")
+    fe = pg.locator(".dialog [data-stilfeld]")
+    pruefe(fe.locator("b").inner_text() == "nach 20'000 Stk", "alter **-Text ist im Feld fett")
+    # alles leeren und neu schreiben
+    fe.evaluate("e => { e.innerHTML = ''; e.focus(); }")
+    pg.keyboard.type("Achtung Spannzange wechseln")
+    # Wort „Spannzange“ markieren und B antippen
+    fe.evaluate("""e => { const t = e.firstChild; const r = document.createRange(); r.setStart(t, 8); r.setEnd(t, 18);
+       const s = getSelection(); s.removeAllRanges(); s.addRange(r); }""")
+    pg.locator("[data-stil=bold]").tap(); pg.wait_for_timeout(150)
+    pruefe(fe.locator("b").inner_text() == "Spannzange", "Markierung wird fett: " + fe.inner_html())
+    pruefe(pg.locator("[data-stil=bold]").get_attribute("aria-pressed") == "true", "Knopf B zeigt an")
+    pg.locator("[data-stil=bold]").tap(); pg.wait_for_timeout(150)
+    pruefe(fe.locator("b").count() == 0, "nochmals B macht es wieder normal: " + fe.inner_html())
+    # Ohne Markierung: Cursor ans Ende, I an, schreiben, I aus, schreiben
+    fe.evaluate("""e => { const r = document.createRange(); r.selectNodeContents(e); r.collapse(false);
+       const s = getSelection(); s.removeAllRanges(); s.addRange(r); }""")
+    pg.locator("[data-stil=italic]").tap(); pg.wait_for_timeout(100)
+    pg.keyboard.type(" sofort")
+    pg.locator("[data-stil=italic]").tap(); pg.wait_for_timeout(100)
+    pg.keyboard.type(" normal")
+    pruefe(fe.locator("i").inner_text().strip() == "sofort", "I an: Geschriebenes kursiv: " + fe.inner_html())
+    pruefe("normal" not in fe.locator("i").inner_text(), "I aus: wieder normal")
+    # Unterstrichen, neue Zeile
+    pg.keyboard.press("Enter")
+    pg.locator("[data-stil=underline]").tap(); pg.wait_for_timeout(100)
+    pg.keyboard.type("Masse 7")
+    pruefe(fe.locator("u").inner_text() == "Masse 7", "U unterstreicht: " + fe.inner_html())
     pg.screenshot(path="s_padfett_fenster.png")
-    pg.locator("[data-fett]").tap(); pg.wait_for_timeout(200)
-    pruefe(ta.input_value() == "Achtung Spannzange wechseln", "nochmals antippen macht es wieder normal")
-    ta.evaluate("t => { t.focus(); t.setSelectionRange(0, 18); }")
-    pg.locator("[data-fett]").tap(); pg.wait_for_timeout(200)
-    pruefe(ta.input_value() == "**Achtung Spannzange** wechseln", "Markierung wird fett: " + ta.input_value())
     pg.locator(".dialog [data-ja]").click(); pg.wait_for_timeout(1200)
-    gesp = pg.evaluate("() => TEST.daten.hoco_type_data.map(x => x.pad_info)")
-    pruefe(any(x == "**Achtung Spannzange** wechseln" for x in gesp), "gespeichert mit **")
-    pruefe(pg.locator("#pad .pad-info strong").inner_text() == "Achtung Spannzange", "nach Speichern fett im Pad")
+    gesp = [x for x in pg.evaluate("() => TEST.daten.hoco_type_data.map(x => x.pad_info)") if x and "Achtung" in x]
+    print("  gespeichert:", gesp)
+    pruefe(bool(gesp) and gesp[0] == "Achtung Spannzange wechseln<i> sofort</i> normal<br><u>Masse 7</u>", "sauber gespeichert")
+    pruefe(pg.locator("#pad .pad-info em").inner_text().strip() == "sofort", "kursiv im Pad")
+    pruefe(pg.locator("#pad .pad-info u").inner_text() == "Masse 7", "unterstrichen im Pad")
+    pruefe(pg.locator("#pad .pad-info br").count() == 1, "Zeilenumbruch im Pad")
+    pg.screenshot(path="s_padfett_kachel2.png")
+    # Gefährliches HTML wird nicht ausgeführt
+    pg.evaluate("""() => { TEST.daten.hoco_type_data.forEach(x => x.pad_info = '<b>x</b><img src=x onerror="window.boese=1">'); }""")
+    pg.locator("#pad .pad-info").tap(); pg.wait_for_timeout(500)
+    pg.locator(".dialog [data-ja]").click(); pg.wait_for_timeout(1200)
+    pruefe(not pg.evaluate("() => window.boese"), "kein fremdes HTML ausgeführt")
     br.close()
 fehler += f
 print("Fehler:", fehler if fehler else "keine")

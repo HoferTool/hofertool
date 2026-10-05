@@ -1,58 +1,155 @@
 // =================================================================
-//  FETTER TEXT
-//  Einzelne Wörter fett schreiben, ohne Textverarbeitung: Fettes
-//  steht als **Wort** im Text. So bleibt der Text in der Datenbank und
-//  überall sonst lesbar, und auf dem Tablet genügt ein Knopf statt
-//  einer Tastenkombination (Wunsch Patrick 5. Oktober 2026).
-//    <FettText text="..." />          zeigt **…** fett, Zeilen bleiben
-//    fettUmschalten(textarea)         macht die Auswahl fett oder wieder normal
+//  TEXT MIT FETT, KURSIV UND UNTERSTRICHEN
+//  Für die Info an der Maschine im Pad Mode (Wunsch Patrick
+//  5. Oktober 2026). Auf dem Tablet gibt es keine Tastenkürzel, darum
+//  drei Knöpfe B, I, U. Sie wirken auf zwei Arten, wie in Word:
+//    - Text markiert (oder Cursor in einem Wort): das wird umgeschaltet
+//    - nichts markiert: Knopf ist an, alles Weitergeschriebene ist so,
+//      bis man ihn wieder antippt
+//  Das Feld ist darum ein bearbeitbarer Bereich statt eines Textfelds;
+//  der Browser kann beides von sich aus (execCommand).
+//
+//  Gespeichert wird nur ein kleiner, sicherer Teil von HTML: <b>, <i>,
+//  <u> und <br>. Text ohne Auszeichnung bleibt reiner Text. Ältere
+//  Einträge mit **fett** werden weiter fett gezeigt.
+//    <FettText text="..." />     zeigt gespeicherten Text an
+//    <TextMitStil ... />         Eingabefeld mit den drei Knöpfen
+//    stilWert(element)           liest das Feld als Speichertext
 // =================================================================
+import { useEffect, useRef, useState } from "react";
 
-const FETT = /\*\*([^*\n]+?)\*\*/g;
+const ALT_FETT = /\*\*([^*\n]+?)\*\*/g;
+const IST_HTML = /<(b|i|u|br|strong|em)\b[^>]*>/i;
 
-export function FettText({ text }) {
-  return (text || "").split("\n").map((zeile, i) => {
-    const teile = [];
-    let rest = 0;
-    for (const t of zeile.matchAll(FETT)) {
-      if (t.index > rest) teile.push(zeile.slice(rest, t.index));
-      teile.push(<strong key={t.index}>{t[1]}</strong>);
-      rest = t.index + t[0].length;
-    }
-    if (rest < zeile.length) teile.push(zeile.slice(rest));
-    return <span key={i}>{i > 0 && <br />}{teile}</span>;
-  });
+const escHtml = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// Gespeicherten Text in sicheres HTML für das Eingabefeld umwandeln
+function alsHtml(text) {
+  text = text || "";
+  if (IST_HTML.test(text)) return sauber(text);
+  return escHtml(text).replace(ALT_FETT, "<b>$1</b>").replace(/\n/g, "<br>");
 }
 
-// Ohne Auswahl nimmt der Knopf das Wort, in dem der Cursor steht, weil
-// auf dem Tablet das genaue Markieren mühsam ist. Ist die Stelle schon
-// fett, wird sie wieder normal.
-export function fettUmschalten(feld) {
-  const w = feld.value;
-  let a = feld.selectionStart ?? w.length, b = feld.selectionEnd ?? w.length;
-  if (a === b) {
-    while (a > 0 && /[^\s*]/.test(w[a - 1])) a--;
-    while (b < w.length && /[^\s*]/.test(w[b])) b++;
-  }
-  // Leerzeichen am Rand der Auswahl bleiben draussen, sonst greift ** nicht
-  while (a < b && /\s/.test(w[a])) a++;
-  while (b > a && /\s/.test(w[b - 1])) b--;
-  if (a === b) return false;
+// Liest beliebiges HTML (auch was Safari oder Chrome beim Bearbeiten
+// erzeugen, etwa <div> je Zeile oder <span style="font-weight:bold">)
+// und gibt nur Text, <b>, <i>, <u> und <br> zurück.
+function sauber(html) {
+  const doc = new DOMParser().parseFromString("<div>" + html + "</div>", "text/html");
+  return serialisieren(doc.body.firstChild).replace(/(<br>)+$/, "");
+}
 
-  let neu, von, bis;
-  const innen = w.slice(a, b);
-  if (w.slice(a - 2, a) === "**" && w.slice(b, b + 2) === "**") {
-    neu = w.slice(0, a - 2) + innen + w.slice(b + 2); von = a - 2; bis = b - 2;
-  } else if (innen.length > 4 && innen.startsWith("**") && innen.endsWith("**")) {
-    neu = w.slice(0, a) + innen.slice(2, -2) + w.slice(b); von = a; bis = b - 4;
-  } else {
-    // Fett über mehrere Zeilen: jede Zeile einzeln einpacken
-    const gepackt = innen.split("\n").map((z) => (z.trim() ? z.replace(/\*\*/g, "").replace(/^(\s*)(.*?)(\s*)$/, "$1**$2**$3") : z)).join("\n");
-    neu = w.slice(0, a) + gepackt + w.slice(b); von = a; bis = a + gepackt.length;
-  }
-  feld.value = neu;
-  feld.focus();
-  feld.setSelectionRange(von, bis);
-  feld.dispatchEvent(new Event("input", { bubbles: true }));
-  return true;
+function serialisieren(knoten) {
+  let aus = "";
+  knoten.childNodes.forEach((k, nr) => {
+    if (k.nodeType === 3) { aus += escHtml(k.nodeValue.replace(/ /g, " ")); return; }
+    if (k.nodeType !== 1) return;
+    const tag = k.tagName.toLowerCase();
+    if (tag === "br") { aus += "<br>"; return; }
+    let innen = serialisieren(k);
+    const st = k.style || {};
+    const fett = tag === "b" || tag === "strong" || /^(bold|[6-9]00)$/.test(st.fontWeight || "");
+    const kursiv = tag === "i" || tag === "em" || st.fontStyle === "italic";
+    const unter = tag === "u" || /underline/.test(st.textDecoration || st.textDecorationLine || "");
+    if (innen) {
+      if (unter) innen = "<u>" + innen + "</u>";
+      if (kursiv) innen = "<i>" + innen + "</i>";
+      if (fett) innen = "<b>" + innen + "</b>";
+    }
+    // Zeilen als <div> oder <p>: Zeilenumbruch davor, ausser ganz am Anfang
+    if ((tag === "div" || tag === "p") && nr > 0 && !/<br>$/.test(aus)) aus += "<br>";
+    aus += innen;
+  });
+  return aus;
+}
+
+// Fürs Speichern: ohne Auszeichnung reiner Text mit Zeilenumbrüchen
+export function stilWert(el) {
+  const html = sauber(el.innerHTML);
+  if (/<(b|i|u)>/.test(html)) return html.trim();
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html.replace(/<br>/g, "\n");
+  return tmp.textContent.trim();
+}
+
+// Anzeige als React-Elemente, nie über innerHTML
+function zuReact(knoten, weg) {
+  const teile = [];
+  knoten.childNodes.forEach((k, i) => {
+    const key = weg + "." + i;
+    if (k.nodeType === 3) teile.push(k.nodeValue);
+    else if (k.nodeType === 1) {
+      const tag = k.tagName.toLowerCase();
+      if (tag === "br") teile.push(<br key={key} />);
+      else if (tag === "b") teile.push(<strong key={key}>{zuReact(k, key)}</strong>);
+      else if (tag === "i") teile.push(<em key={key}>{zuReact(k, key)}</em>);
+      else if (tag === "u") teile.push(<u key={key}>{zuReact(k, key)}</u>);
+      else teile.push(...zuReact(k, key));
+    }
+  });
+  return teile;
+}
+
+export function FettText({ text }) {
+  const doc = new DOMParser().parseFromString("<div>" + alsHtml(text) + "</div>", "text/html");
+  return <>{zuReact(doc.body.firstChild, "t")}</>;
+}
+
+const KNOEPFE = [
+  { befehl: "bold", zeichen: "B", name: "Fett", stil: { fontWeight: 900 } },
+  { befehl: "italic", zeichen: "I", name: "Kursiv", stil: { fontStyle: "italic", fontFamily: "Georgia, serif" } },
+  { befehl: "underline", zeichen: "U", name: "Unterstrichen", stil: { textDecoration: "underline" } },
+];
+
+// Eingabefeld mit den Knöpfen. Die Knöpfe handeln schon beim Antippen
+// (pointerdown) und verhindern dort, dass das Feld den Fokus verliert,
+// sonst wäre auf dem Tablet die Markierung weg und die Tastatur zu.
+export function TextMitStil({ id, wert, platzhalter, erstes }) {
+  const feld = useRef(null);
+  const [an, setAn] = useState({});
+
+  useEffect(() => {
+    feld.current.innerHTML = alsHtml(wert);
+    try { document.execCommand("styleWithCSS", false, false); } catch (f) { /* egal */ }
+    // Knöpfe zeigen, ob an der Cursorstelle fett, kursiv oder unterstrichen gilt
+    const pruefen = () => {
+      const sel = document.getSelection();
+      if (!feld.current || !sel || !feld.current.contains(sel.anchorNode)) return;
+      const neu = {};
+      KNOEPFE.forEach((k) => { try { neu[k.befehl] = document.queryCommandState(k.befehl); } catch (f) { /* egal */ } });
+      setAn(neu);
+    };
+    document.addEventListener("selectionchange", pruefen);
+    return () => document.removeEventListener("selectionchange", pruefen);
+  }, []);
+
+  const druecken = (e, befehl) => {
+    e.preventDefault();
+    const el = feld.current;
+    const sel = document.getSelection();
+    if (!el.contains(sel.anchorNode)) {
+      // Cursor ans Ende, falls das Feld noch nicht angetippt war
+      el.focus();
+      const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
+      sel.removeAllRanges(); sel.addRange(r);
+    }
+    document.execCommand(befehl, false, null);
+    setAn((a) => ({ ...a, [befehl]: document.queryCommandState(befehl) }));
+  };
+
+  return (
+    <>
+      <div className="stilleiste" role="toolbar" aria-label="Schrift">
+        {KNOEPFE.map((k) => (
+          <button key={k.befehl} type="button" className={"knopf stilknopf" + (an[k.befehl] ? " aktiv" : "")}
+            data-stil={k.befehl} aria-label={k.name} aria-pressed={!!an[k.befehl]} title={k.name}
+            onPointerDown={(e) => druecken(e, k.befehl)} onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => { if (e.detail === 0) druecken(e, k.befehl); }}>
+            <span style={k.stil}>{k.zeichen}</span></button>
+        ))}
+      </div>
+      <div id={id} ref={feld} className="stilfeld" contentEditable suppressContentEditableWarning
+        role="textbox" aria-multiline="true" data-stilfeld="" data-platzhalter={platzhalter || ""}
+        data-fokus={erstes ? "" : undefined} />
+    </>
+  );
 }
