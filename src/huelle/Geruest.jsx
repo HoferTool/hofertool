@@ -135,10 +135,11 @@ function Geruest() {
     <>
       <header className="kopf">
         <button className="kopf__klapp" id="nav-klapp" title="Menü ein- oder ausklappen" onClick={klappen}>☰</button>
-        {/* Das Logo führt auf die Firmenwebsite, in einem neuen Tab, damit
-            die App offen bleibt (Wunsch 5. Oktober 2026; vorher lud es neu). */}
-        <a className="kopf__logolink" id="kopf-website" href="https://www.hoferco.ch"
-          target="_blank" rel="noopener" title="hoferco.ch öffnen"><Logo /></a>
+        {/* Das Logo lädt die Seite neu. Im Vollbild gibt es sonst keinen
+            Weg, eine hängende Ansicht aufzufrischen. Der Link auf hoferco.ch
+            (111.42.0) ist wieder weg (Wunsch 5. Oktober 2026 abends). */}
+        <button className="kopf__logolink" id="kopf-neuladen" title="Seite neu laden"
+          onClick={() => location.reload()}><Logo /></button>
         {alt.meineRolle() === "planwand" && <AdminKnopf />}
         {/* Gesperrt und freigegeben wird er von knopfRueckgaengigZeigen im
             alten Programm. Kein disabled hier: React würde Klicks sonst
