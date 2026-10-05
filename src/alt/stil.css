@@ -1252,19 +1252,6 @@ body.kopiermodus .pw-balken { cursor: copy; outline: 1px dashed var(--signalgelb
          white-space: pre; user-select: text; }
 
 /* ---------- Bild zuschneiden ---------- */
-.zuschnitt { position: relative; display: inline-block; max-width: 100%;
-             margin: 8px 0 14px; line-height: 0; touch-action: none; }
-.zuschnitt img { max-width: 100%; max-height: 46vh; display: block; }
-.zuschnitt__rahmen { position: absolute; border: 2px solid var(--signalgelb);
-                     box-shadow: 0 0 0 9999px rgba(0,0,0,.45); cursor: move;
-                     touch-action: none; }
-.zuschnitt__griff { position: absolute; right: -9px; bottom: -9px;
-                    width: 20px; height: 20px; background: var(--signalgelb);
-                    border-radius: 3px; cursor: nwse-resize; touch-action: none; }
-.zuschnitt__vorschau { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-.zuschnitt__vorschau canvas { border-radius: 8px; border: 2px solid var(--linie-stark);
-                              width: 84px; height: 84px; }
-
 /* ---------- Kopfzeile: Anordnung ---------- */
 .kopf { gap: 10px; }
 .kopf__logo { margin-right: 4px; }
@@ -5357,3 +5344,14 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
 .farbknopf--alt { display: inline-block; cursor: default;
                   background-image: linear-gradient(135deg, transparent 45%, rgba(255,255,255,.85) 45% 55%, transparent 55%) !important; }
 .farbwahl--neu { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+
+/* Zuschneiden von Nutzerbildern und Lieferanten-Logos (111.39.0) */
+.zuschnitt-fenster { max-width: 420px; text-align: center; }
+.zuschnitt-fenster p { text-align: left; }
+.zuschnitt-leinwand { display: block; margin: 10px auto 6px; border-radius: var(--radius);
+  touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; max-width: 100%; }
+.zuschnitt-leinwand:active { cursor: grabbing; }
+.zuschnitt-leinwand:focus-visible { outline: 2px solid var(--marke); outline-offset: 3px; }
+.zuschnitt-regler { display: flex; align-items: center; gap: 10px; margin: 4px 6px 14px;
+  color: var(--gedaempft); font-weight: 650; }
+.zuschnitt-regler input { flex: 1; accent-color: var(--marke); }

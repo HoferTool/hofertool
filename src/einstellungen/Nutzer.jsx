@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { Gruppe } from "./teile.jsx";
+import { zuschneiden } from "../teile/Zuschnitt.jsx";
 
 export default function Nutzer() {
   const bin = alt.istAdmin();
@@ -60,7 +61,7 @@ function Bild({ url, name }) {
 // Lädt ein gewähltes Bild zugeschnitten in die Ablage und gibt die
 // öffentliche Adresse zurück (null, wenn abgebrochen).
 async function bildHochladen(datei, pfad) {
-  const klein = await alt.bildZuschneiden(datei, 400);
+  const klein = await zuschneiden(datei, { kante: 400 });
   if (!klein) return null;
   const r = await alt.db.storage.from("profilbilder").upload(pfad, klein, { contentType: "image/jpeg" });
   if (r.error) throw r.error;
@@ -385,6 +386,7 @@ function PersonFenster({ person, zu, fertig }) {
 
   const bildWaehlen = async (e) => {
     const f = (e.target.files || [])[0];
+    e.target.value = "";
     if (!f) return;
     try {
       const adresse = await bildHochladen(f, "person/" + Date.now() + ".jpg");

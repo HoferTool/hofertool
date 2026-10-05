@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { zuschneiden } from "../teile/Zuschnitt.jsx";
 import Dokumente from "./Dokumente.jsx";
 import Farben from "./Farben.jsx";
 import Nutzer from "./Nutzer.jsx";
@@ -99,9 +100,10 @@ function MeinKonto() {
 
   const bildWaehlen = async (e) => {
     const f = (e.target.files || [])[0];
+    e.target.value = "";
     if (!f) return;
     try {
-      const klein = await alt.bildZuschneiden(f, 400);
+      const klein = await zuschneiden(f, { kante: 400 });
       if (!klein) return;
       const pfad = "profil/" + profil.id + "-" + Date.now() + ".jpg";
       const r = await db.storage.from("profilbilder").upload(pfad, klein, { contentType: "image/jpeg" });

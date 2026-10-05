@@ -385,6 +385,18 @@ function bauer(tabelle) {
             return;
           }
         }
+        // Ein Test kann Spalten fehlen lassen, wie vor einem SQL-Nachtrag:
+        // TEST.fehlendeSpalten = { suppliers: ["logo_url"] }
+        const fehlt = ((window.TEST && TEST.fehlendeSpalten) || {})[tabelle] || [];
+        if ((zustand.art === "update" || zustand.art === "insert") && fehlt.length) {
+          const zeilen = Array.isArray(zustand.nutzlast) ? zustand.nutzlast : [zustand.nutzlast];
+          const spalte = fehlt.find((f) => zeilen.some((z) => z && Object.prototype.hasOwnProperty.call(z, f)));
+          if (spalte) {
+            fertig({ data: null, error: { code: "PGRST204",
+              message: "Could not find the '" + spalte + "' column of '" + tabelle + "' in the schema cache" } });
+            return;
+          }
+        }
         if (zustand.art === "update") {
           // Pflichtfelder wie in der echten Datenbank: leeren geht nicht
           const PFLICHT = { jobs: ["started_at", "machine_id", "job_number"] };

@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.38.0";
+const APP_VERSION = "111.39.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -298,85 +298,6 @@ function dialogSchliessen(huelle, zu) {
     zu();
   };
   document.addEventListener("keydown", taste);
-}
-
-// Bild quadratisch zuschneiden. Zeigt eine Vorschau und liefert
-function bildZuschneiden(datei, kante) {
-  return new Promise((fertig) => {
-    const leser = new FileReader();
-    leser.onload = () => {
-      const bild = new Image();
-      bild.onload = () => {
-        const huelle = document.createElement("div");
-        huelle.className = "dialog-huelle";
-        huelle.innerHTML = '<div class="dialog">'
-          + '<h2>Bild zuschneiden</h2>'
-          + '<p class="klein">Ziehe das Bild zurecht und stelle die Grösse ein. '
-          + 'Der gezeigte Ausschnitt wird gespeichert.</p>'
-          + '<div class="zuschnitt" id="zs-buehne">'
-          + '<canvas id="zs-leinwand"></canvas></div>'
-          + '<label class="feld"><span>Grösse</span>'
-          + '<input type="range" id="zs-zoom" min="100" max="300" value="100"></label>'
-          + '<div class="dialog__knoepfe">'
-          + '<button class="knopf knopf--still" id="zs-nein">Abbrechen</button>'
-          + '<button class="knopf knopf--haupt" id="zs-ja">Übernehmen</button>'
-          + '</div></div>';
-        document.body.appendChild(huelle);
-
-        const leinwand = huelle.querySelector("#zs-leinwand");
-        const ctx = leinwand.getContext("2d");
-        const seite = 260;
-        leinwand.width = seite;
-        leinwand.height = seite;
-
-        let zoom = 1, vx = 0, vy = 0;
-        const grund = Math.max(seite / bild.width, seite / bild.height);
-
-        const zeichnen = () => {
-          const f = grund * zoom;
-          const bw = bild.width * f, bh = bild.height * f;
-          vx = Math.min(0, Math.max(seite - bw, vx));
-          vy = Math.min(0, Math.max(seite - bh, vy));
-          ctx.fillStyle = "#1c2229";
-          ctx.fillRect(0, 0, seite, seite);
-          ctx.drawImage(bild, vx, vy, bw, bh);
-        };
-        zeichnen();
-
-        let zieht = false, lx = 0, ly = 0;
-        leinwand.addEventListener("pointerdown", (e) => {
-          zieht = true; lx = e.clientX; ly = e.clientY;
-          leinwand.setPointerCapture(e.pointerId);
-        });
-        leinwand.addEventListener("pointermove", (e) => {
-          if (!zieht) return;
-          vx += e.clientX - lx; vy += e.clientY - ly;
-          lx = e.clientX; ly = e.clientY;
-          zeichnen();
-        });
-        leinwand.addEventListener("pointerup", () => { zieht = false; });
-
-        huelle.querySelector("#zs-zoom").oninput = (e) => {
-          zoom = Number(e.target.value) / 100;
-          zeichnen();
-        };
-
-        const zu = (wert) => { huelle.remove(); fertig(wert); };
-        huelle.querySelector("#zs-nein").onclick = () => zu(null);
-        dialogSchliessen(huelle, () => zu(null));
-
-        huelle.querySelector("#zs-ja").onclick = () => {
-          const ziel = document.createElement("canvas");
-          const g = kante || 400;
-          ziel.width = g; ziel.height = g;
-          ziel.getContext("2d").drawImage(leinwand, 0, 0, seite, seite, 0, 0, g, g);
-          ziel.toBlob((blob) => zu(blob), "image/jpeg", 0.88);
-        };
-      };
-      bild.src = leser.result;
-    };
-    leser.readAsDataURL(datei);
-  });
 }
 
 function bildVerkleinern(datei, maxKante) {
@@ -8274,7 +8195,7 @@ Object.assign(alt, {
   farbzuteilungLaden, werkstoffKern, werkstoffSchluessel, werkstoffZuordnen, WERKSTOFFGRUPPEN,
   DOK_ARTEN, DOK_REGELN_VORGABE, dokErkennen, dokZielSuchen, dokZielText, dokMitRegeln, dokRegelnUebernehmen,
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
-  FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen, bildZuschneiden,
+  FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE,
   APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, offenAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
   sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung,

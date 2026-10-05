@@ -3,39 +3,19 @@
 //  Drei Möglichkeiten: automatisch das Symbol der Website, ein eigenes
 //  Bild (hochladen oder Adresse einfügen) oder nur die Buchstaben.
 //  Gespeichert in suppliers.logo_url: leer = automatisch, "keins" =
-//  Buchstaben, sonst das Bild. Ein hochgeladenes Bild steht verkleinert
-//  direkt in der Spalte, so braucht es keinen Speicherplatz-Ordner.
+//  Buchstaben, sonst das Bild. Ein hochgeladenes Bild wird zuerst
+//  zugeschnitten (111.39.0) und steht dann als 160-Pixel-PNG direkt in
+//  der Spalte, so braucht es keinen Speicherplatz-Ordner. PNG, damit ein
+//  durchsichtiger Hintergrund erhalten bleibt.
 // =================================================================
 import { useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { Logo, websiteSymbol } from "./teile.jsx";
+import { zuschneiden } from "../../teile/Zuschnitt.jsx";
 
 export function logoOeffnen(lief, fertig) {
   fensterOeffnen((zu) => <LogoFenster lief={lief} zu={zu} fertig={fertig} />);
-}
-
-// Bild auf höchstens 160 Pixel verkleinern, als PNG, damit ein
-// durchsichtiger Hintergrund erhalten bleibt
-function logoVerkleinern(datei) {
-  return new Promise((fertig, ablehnen) => {
-    const leser = new FileReader();
-    leser.onload = () => {
-      const bild = new Image();
-      bild.onload = () => {
-        const f = Math.min(1, 160 / Math.max(bild.width, bild.height));
-        const c = document.createElement("canvas");
-        c.width = Math.max(1, Math.round(bild.width * f));
-        c.height = Math.max(1, Math.round(bild.height * f));
-        c.getContext("2d").drawImage(bild, 0, 0, c.width, c.height);
-        fertig(c.toDataURL("image/png"));
-      };
-      bild.onerror = () => ablehnen(new Error("Das Bild lässt sich nicht lesen."));
-      bild.src = leser.result;
-    };
-    leser.onerror = () => ablehnen(new Error("Die Datei lässt sich nicht lesen."));
-    leser.readAsDataURL(datei);
-  });
 }
 
 function LogoFenster({ lief, zu, fertig }) {
@@ -50,8 +30,12 @@ function LogoFenster({ lief, zu, fertig }) {
 
   const datei = async (e) => {
     const f = (e.target.files || [])[0];
+    e.target.value = "";
     if (!f) return;
-    try { setEigen(await logoVerkleinern(f)); setArt("eigen"); }
+    try {
+      const bild = await zuschneiden(f, { kante: 160, ganz: true, format: "image/png", alsText: true });
+      if (bild) { setEigen(bild); setArt("eigen"); }
+    }
     catch (f2) { alt.meldung(f2.message, "fehler"); }
   };
 
@@ -62,12 +46,15 @@ function LogoFenster({ lief, zu, fertig }) {
     setSpeichert(true);
     try {
       const r = await alt.aendernOhneUnbekannte("suppliers", { logo_url: wert }, "id", lief.id);
+      // Fehlt die Spalte noch, wurde nichts gespeichert: deutlich sagen
+      // und das Fenster offen lassen, damit die Wahl nicht verloren geht
       if (r && r.weggelassen && r.weggelassen.includes("logo_url")) {
-        alt.meldung("Eigene Logos brauchen noch sql/lieferant-logo.sql in der Datenbank.", "warn");
-      } else {
-        alt.meldung("Logo gespeichert.");
-        lief.logo_url = wert;
+        alt.meldung("Logo nicht gespeichert: In der Datenbank fehlt noch die Spalte dafür. "
+          + "Der Admin muss einmal sql/lieferant-logo.sql im Supabase SQL Editor ausführen.", "fehler");
+        return;
       }
+      alt.meldung("Logo gespeichert.");
+      lief.logo_url = wert;
       zu();
       if (fertig) fertig();
     } catch (f) {
