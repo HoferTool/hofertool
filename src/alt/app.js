@@ -125,7 +125,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.40.0";
+const APP_VERSION = "111.41.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3471,7 +3471,7 @@ async function planwandExcel() {
           ? datum(j.material_liefertermin) : (j.material_liefertermin || ""),
         "FA erstellt": j.fa_nr ? "ja" : "nein",
         "Material da": j.material_ok ? "ja" : "nein",
-        "Materialhinweis": notiz.ort || "",
+        "Materialplatz": materialPlatz(j),
         "Notiz": notiz.notiz || "",
         "Problem": j.problem || "",
         "Farbe": j.color || "",
@@ -4004,8 +4004,8 @@ function balkenInfoVerhalten() {
               + esc(werkstoffText(g)) + (g.spaene ? " · Späne " + esc(g.spaene) : "") + '</div>' : "";
           })()
         // Der Hinweis zum Material gehört direkt hinter den Termin
-        + (notizTrennen(j.plan_note).ort
-            ? '<div class="pw-info__zeile">📦 ' + esc(notizTrennen(j.plan_note).ort) + '</div>'
+        + (materialPlatz(j)
+            ? '<div class="pw-info__zeile">📦 ' + esc(materialPlatz(j)) + '</div>'
             : "")
         + '<div class="pw-info__zeile">✎ '
         + (notizTrennen(j.plan_note).notiz
@@ -6083,12 +6083,30 @@ function notizTrennen(text) {
   const zeilen = String(text || "").split("\n");
   let ort = "";
   const rest = [];
+  // Jede Zeile "Material: …" gehört zum Materialplatz, nicht zur Notiz.
+  // Stand sie doppelt drin, blieb die zweite in der Notiz und kam beim
+  // Speichern zur ersten dazu, also immer wieder doppelt.
   zeilen.forEach((z) => {
     const t = z.match(MATERIALZEILE);
-    if (t && !ort) ort = t[1].trim();
+    if (t) { if (!ort) ort = t[1].trim(); }
     else rest.push(z);
   });
   return { notiz: rest.join("\n").trim(), ort: ort };
+}
+
+// Der Materialplatz hat seit 111.41.0 eine eigene Spalte
+// (sql/materialplatz.sql). Bis das SQL läuft, steht er wie bisher als
+// Zeile "Material: …" in der Notiz; beide Wege werden hier gelesen.
+function materialPlatz(j) {
+  if (!j) return "";
+  if (j.material_platz) return String(j.material_platz);
+  return notizTrennen(j.plan_note).ort;
+}
+
+// Gibt es die Spalte schon? Die geladenen Aufträge verraten es, denn
+// die Planwand liefert sie mit, sobald das SQL gelaufen ist.
+function materialPlatzSpalte() {
+  return (plan.auftraege || []).some((x) => x && "material_platz" in x);
 }
 
 function notizZusammen(notiz, ort) {
@@ -8177,7 +8195,7 @@ Object.assign(alt, {
   fortschrittRechnen, planAuftragDialog, dreiNachfragen, ladeTypen,
   pad, padSchliessen, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
-  notizTrennen, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen,
+  notizTrennen, materialPlatz, materialPlatzSpalte, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen,
   werkzeugWechselDialog, zifferblock,
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,

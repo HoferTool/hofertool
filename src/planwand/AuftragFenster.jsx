@@ -72,7 +72,7 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum) {
     tage: String(tage),
     bis: auftrag && auftrag.planned_from ? alt.letzterArbeitstag(auftrag.planned_from, tage) : "",
     menge: String(leerOder(auftrag ? auftrag.target_quantity : (v ? v.target_quantity : ""))),
-    matOrt: alt.notizTrennen(quelle.plan_note || "").ort,
+    matOrt: alt.materialPlatz(quelle),
     planer,
     matBez: quelle.material_bez || "",
     matMenge,
@@ -81,7 +81,9 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum) {
       ? be : null,
     farbe: (auftrag && auftrag.color) || (v && v.color) || "blau",
     zustand: (auftrag && auftrag.plan_status) || "geplant",
-    notiz: quelle.plan_note || "",
+    // Die Zeile "Material: …" steht im eigenen Feld Materialplatz. Stand
+    // sie auch hier, kam sie beim Speichern ein zweites Mal dazu.
+    notiz: alt.notizTrennen(quelle.plan_note || "").notiz,
     // Die Kopie übernimmt auch die Zeichnung
     pdf: auftrag ? auftrag.drawing_url : (v ? (v.drawing_url || null) : null),
     wbg: auftrag ? auftrag.wbg_url : (v ? (v.wbg_url || null) : null),
@@ -155,6 +157,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   // Ohne Planungsrecht ist das Fenster zum Nachschauen da: ändern lässt
   // sich nur, was auch vorher schon ging, also Zustand und Problem melden
   const nurLesen = !darf;
+  // Den Materialplatz pflegt auch, wer an der Maschine steht und das
+  // Material hinlegt: alle mit Schreibrecht, nur Externe nicht
+  const darfPlatz = darf || (!!auftrag && alt.darfSchreiben() && !alt.istExtern());
   const extern = alt.istExtern();
   const maschinen = alt.prod.maschinen || [];
   const [w, setW] = useState(() => anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum));
@@ -293,18 +298,26 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     if (!darf && auftrag) {
       zu();
       try {
+        const platzNeu = (w.matOrt || "").trim();
+        if (darfPlatz && platzNeu !== alt.materialPlatz(auftrag).trim()) {
+          await alt.aendernOhneUnbekannte("jobs", alt.materialPlatzSpalte()
+            ? { material_platz: platzNeu || null }
+            : { plan_note: alt.notizZusammen(alt.notizTrennen(auftrag.plan_note).notiz, platzNeu) },
+            "id", auftrag.id);
+        }
         const r = await alt.zustandSetzen(auftrag, w.zustand);
         alt.meldung("Zustand geändert." + (r.hinweis ? " " + r.hinweis : ""));
         alt.planAktualisieren(b);
       } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
       return;
     }
+    // Mit eigener Spalte steht der Materialplatz nicht mehr in der Notiz
+    const platzSpalte = alt.materialPlatzSpalte();
     const daten = {
       planned_from: w.von || null,
       planned_days: Math.max(1, Math.round(Number(w.tage) || 1)),
       target_quantity: w.menge === "" ? null : Math.max(0, Math.round(Number(w.menge))),
-      // Notiz und Materialhinweis stehen gemeinsam im selben Feld
-      plan_note: alt.notizZusammen(w.notiz, w.matOrt || ""),
+      plan_note: alt.notizZusammen(w.notiz, platzSpalte ? "" : (w.matOrt || "")),
       drawing_url: w.pdf,
       wbg_url: w.wbg,
       plan_status: w.zustand,
@@ -321,6 +334,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       fa_nr: w.faNr.trim() || null,
       machine_id: w.maschine,
     };
+    if (platzSpalte) daten.material_platz = (w.matOrt || "").trim() || null;
     setBeschaeftigt(true);
     try { await auftragSpeichern({ auftrag, daten, nr: w.nr.trim(), b, zu }); }
     finally { setBeschaeftigt(false); }
@@ -403,11 +417,6 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
             <input id="pl-menge" inputMode="decimal" readOnly={nurLesen} type="number" min="0" step="1" value={w.menge}
               onChange={(e) => setze("menge", e.target.value)} /></label>
 
-          <label className="feld" id="pl-ortfeld"><span>Hinweis zum Material</span>
-            <input type="text" id="pl-matort" maxLength={120} readOnly={!darf}
-              placeholder="z. B. Regal 4 oben, Palette bei der Säge" value={w.matOrt}
-              onChange={(e) => setze("matOrt", e.target.value)} /></label>
-
           <div className="feld"><span className="feldlabel">Eingeplant von</span>
             {!planerListe.length
               ? <span className="feldhinweis">Niemand ist als Planer hinterlegt. Das wird in den
@@ -450,6 +459,11 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           {w.ausNotiz && <span className="feldhinweis auf-ausnotiz" id="pl-ausnotiz">
             Aus der Notiz übernommen: {[w.ausNotiz.lieferant, w.ausNotiz.nr].filter(Boolean).join(" ")}
             {darf ? " · wird beim Speichern eingetragen" : ""}</span>}
+          {/* Eigenes Feld, unabhängig von Notiz und Bestellung */}
+          <label className="feld" id="pl-ortfeld"><span>Materialplatz</span>
+            <input type="text" id="pl-matort" maxLength={120} readOnly={!darfPlatz}
+              placeholder="z. B. Regal 4 oben, Palette bei der Säge" value={w.matOrt}
+              onChange={(e) => setze("matOrt", e.target.value)} /></label>
           <div className="feld"><span className="feldlabel">Farbe und Material</span>
             <div className="farbwahl">
               {alt.farbenZurWahl().map((f) => {

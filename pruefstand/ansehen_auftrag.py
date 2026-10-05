@@ -41,8 +41,10 @@ with sync_playwright() as p:
     pruefe("Kein Betrachter dazu", pg.locator(".betrachter").count() == 0)
     pruefe("Hinweis 'Nur zum Ansehen'", pg.locator("#pl-nurlesen").count() == 1)
 
-    for f in ["#pl-fa-nr","#pl-von","#pl-tage","#pl-bis","#pl-menge","#pl-matort","#pl-mat-bez","#pl-menge-mat","#pl-liefer","#pl-notiz"]:
+    for f in ["#pl-fa-nr","#pl-von","#pl-tage","#pl-bis","#pl-menge","#pl-mat-bez","#pl-menge-mat","#pl-liefer","#pl-notiz"]:
         pruefe("gesperrt " + f, pg.evaluate("(s) => { const e = document.querySelector(s); return !!e && (e.readOnly || e.disabled); }", f))
+    # Den Materialplatz pflegt auch, wer das Material hinlegt (111.41.0)
+    pruefe("Materialplatz offen", pg.evaluate("() => { const e = document.querySelector('#pl-matort'); return !!e && !e.readOnly; }"))
     pruefe("Maschine gesperrt", pg.locator("#pl-maschine").is_disabled())
     pruefe("Farbknöpfe gesperrt", pg.evaluate("[...document.querySelectorAll('[data-plfarbe]')].every(b => b.disabled)"))
     pruefe("Planerknöpfe gesperrt", pg.evaluate("[...document.querySelectorAll('[data-planer]')].every(b => b.disabled)"))

@@ -521,7 +521,7 @@ export default function Maschine({ d }) {
             <div id="pad-stk-verlauf" hidden={stkAnsicht !== "tag"}><Verlauf tage={tage} auftrag={j} /></div>
             <div className="pad-stk-fuss" id="pad-stk-fuss"><StkFuss jeTag={jeTag} art={stkAnsicht} auftrag={j} /></div>
           </div>
-          <Material j={j} teil={teil} ort={notiz.ort} />
+          <Material j={j} teil={teil} ort={alt.materialPlatz(j)} />
         </div>
 
         {/* ----- rechte Säule ----- */}
