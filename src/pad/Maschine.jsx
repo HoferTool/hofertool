@@ -1,8 +1,8 @@
 // =================================================================
 //  PAD MODE: DASHBOARD EINER MASCHINE
 //  Drei Spalten: links der Auftrag mit der Info an der Maschine, in der Mitte alles zur
-//  Stückzahl samt Tagesdiagramm, rechts Tag, Wetter und was danach
-//  auf dieser Maschine kommt. Darunter die grossen Knöpfe.
+//  Stückzahl samt Tagesdiagramm, rechts Tag, Wetter Stunde für Stunde und die Skizze.
+//  Darunter die grossen Knöpfe.
 //
 //  Alle Felder und Knöpfe stehen immer da. Fehlt etwas, steht ein
 //  Hinweis statt eines leeren Platzes — so sieht die Maschine an der
@@ -11,7 +11,7 @@
 //  Zifferblock, Werkzeugwechsel, Einrichtblatt und der Betrachter
 //  für Zeichnung und WBG sind noch Fenster aus dem alten Programm.
 // =================================================================
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck } from "./Pad.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
@@ -19,7 +19,7 @@ import { FettText } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
 import {
   holeWetterStunden, wetterZeichen, tagesmengen, letzteTage, schnitte,
-  schnittTage, schnittLang, naechsteAuftraege, prognose,
+  schnittTage, schnittLang, prognose,
 } from "./daten.js";
 
 const zweistellig = (n) => String(n).padStart(2, "0");
@@ -53,15 +53,14 @@ export async function maschineLaden(p) {
     if (!programm) programmGrund = "nicht eingetragen";
   }
 
-  const [jeTag, danach, wetter] = await Promise.all([
+  const [jeTag, wetter] = await Promise.all([
     // Statistik nur des laufenden Auftrags: Sie beginnt bei jedem
     // Auftragswechsel neu. Ohne Auftrag alles dieser Maschine.
     tagesmengen(m.id, j ? j.id : null),
-    naechsteAuftraege(m.id, j ? j.id : null),
     holeWetterStunden().catch(() => null),
   ]);
   if (!p.reiter) p.reiter = "uebersicht";
-  return { art: "maschine", m, j, teil, blattDaten, programm, programmGrund, jeTag, danach, wetter };
+  return { art: "maschine", m, j, teil, blattDaten, programm, programmGrund, jeTag, wetter };
 }
 
 // ---------- Aktionen ----------
@@ -352,7 +351,29 @@ function Material({ j, teil, ort }) {
   );
 }
 
-function Saeule({ wetter, danach }) {
+// Uhr und Wetter. Das Wetter Stunde für Stunde ist an der Maschine
+// wichtig, was danach auf der Maschine kommt, nicht (Wunsch Patrick
+// 6. Oktober 2026), darum steht dort jetzt nur noch das Wetter.
+function Saeule({ wetter }) {
+  const liste = useRef(null);
+  // Die Skizze darunter braucht ihren Platz. Reicht er nicht für alle
+  // Stunden, verschwinden die späteren ganz, statt halb abgeschnitten
+  // dazustehen. visibility statt display, damit sich die Höhe dabei
+  // nicht ändert und der Beobachter nicht im Kreis läuft.
+  useEffect(() => {
+    const el = liste.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const pruefen = () => {
+      const hoehe = el.clientHeight;
+      [...el.children].forEach((z) => {
+        z.style.visibility = z.offsetTop + z.offsetHeight <= hoehe + 1 ? "" : "hidden";
+      });
+    };
+    const b = new ResizeObserver(pruefen);
+    b.observe(el);
+    pruefen();
+    return () => b.disconnect();
+  }, [wetter]);
   const jetzt = new Date();
   const heute = alt.isoDatum(jetzt);
   return (
@@ -371,27 +392,18 @@ function Saeule({ wetter, danach }) {
       </div>
 
       {wetter && wetter.stunden.length > 0 && <>
-        <div className="pad-stunden">
+        <div className="pad-linie" />
+        <div className="pad-stunden2" data-padstunden="" ref={liste}>
           {wetter.stunden.map((x) => (
-            <div key={x.stunde}><b>{x.stunde}</b><i>{wetterZeichen(x.code)}</i><u>{x.grad}°</u></div>
+            <div key={x.stunde} className="pad-stunde">
+              <b>{x.stunde}</b><i>{wetterZeichen(x.code)}</i><u>{x.grad}°</u>
+              <span className={"pad-regen" + (x.regen >= 50 ? " pad-regen--viel" : "")}>
+                {x.regen === null || x.regen === undefined ? "" : "💧 " + x.regen + " %"}</span>
+            </div>
           ))}
         </div>
         {wetter.untergang && <span className="pad-klein">Sonnenuntergang {wetter.untergang}</span>}
       </>}
-
-      <div className="pad-linie" />
-      <span className="pad-name">Als Nächstes auf dieser Maschine</span>
-      {danach.length
-        ? <div className="pad-danach">
-            {danach.map((x) => (
-              <div key={x.id} className="pad-danach__zeile">
-                <b>{x.job_number}</b>
-                <span>{(x.planned_from ? "ab " + alt.kurzDatum(x.planned_from) : "")
-                  + (x.target_quantity ? " · " + alt.zahlText(x.target_quantity) : "")}</span>
-              </div>
-            ))}
-          </div>
-        : <span className="pad-klein">Nichts weiter eingeplant.</span>}
     </div>
   );
 }
@@ -399,7 +411,7 @@ function Saeule({ wetter, danach }) {
 // ---------- Dashboard ----------
 
 export default function Maschine({ d }) {
-  const { m, j, teil, blattDaten, programm, programmGrund, jeTag, danach, wetter } = d;
+  const { m, j, teil, blattDaten, programm, programmGrund, jeTag, wetter } = d;
   const pad = alt.pad;
   const zahlText = alt.zahlText;
   const [stkAnsicht, setStkAnsicht] = useState(pad.stkAnsicht || "tag");
@@ -541,7 +553,7 @@ export default function Maschine({ d }) {
         </div>
 
         {/* ----- rechte Säule ----- */}
-        <div className="pad-spalte pad-spalte--rechts"><Saeule wetter={wetter} danach={danach} />
+        <div className="pad-spalte pad-spalte--rechts"><Saeule wetter={wetter} />
           {/* Der Rest der Spalte ist zum Zeichnen da (Wunsch Patrick 5. Oktober 2026) */}
           <Skizze key={j ? j.id : "ohne"} j={j} /></div>
       </div>

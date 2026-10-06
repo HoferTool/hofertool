@@ -5565,3 +5565,36 @@ body.dunkel .login__flieger-bild { background: #eef2f8; color: #0f1620; }
 }
 /* Während die Kachel an ihren Platz zurückschwebt, bleibt der Platz leer */
 .login__kachel--heim .login__kachel-bild { visibility: hidden; }
+/* Pad: Wetter Stunde für Stunde als Liste, gut lesbar von weitem.
+   „Als Nächstes auf dieser Maschine“ ist dafür weg (Wunsch 6. Oktober 2026). */
+.pad-uhr { white-space: nowrap; font-size: clamp(1.7rem, 2.6vw, 2.3rem); }
+.pad-stunden2 { display: flex; flex-direction: column; gap: 4px; }
+.pad-stunde { display: grid; grid-template-columns: 3.4em 1.8em 1fr auto; align-items: center;
+  gap: 6px; padding: 5px 10px; border-radius: 10px; background: rgba(255,255,255,.05);
+  font-size: .95rem; }
+.pad-stunde:first-child { background: rgba(127,192,255,.14); }
+.pad-stunde b { font-weight: 600; color: #9fb3ce; font-variant-numeric: tabular-nums; }
+.pad-stunde i { font-style: normal; font-size: 1.25rem; line-height: 1; }
+.pad-stunde u { text-decoration: none; font-weight: 800; font-size: 1.05rem; }
+.pad-regen { font-size: .8rem; color: #9fb3ce; text-align: right; white-space: nowrap;
+  font-variant-numeric: tabular-nums; }
+.pad-regen--viel { color: #8fd0ff; font-weight: 700; }
+/* Wetter und Skizze teilen sich die rechte Spalte: die Skizze behält
+   mindestens ihre Höhe, die Stundenliste nimmt den Rest und blendet
+   Stunden aus, die nicht mehr ganz Platz haben. */
+.pad-spalte--rechts .pad-karte2--saeule { flex: 0 1 auto; min-height: 0; }
+.pad-spalte--rechts .pad-karte2--skizze { flex: 1 1 0; }
+.pad-stunden2 { flex: 1 1 auto; min-height: 0; overflow: hidden; position: relative; }
+/* Tablet hochkant: rechte Spalte liegt quer unter allem, darum Wetter
+   und Skizze nebeneinander, beide gleich breit. Am Handy untereinander,
+   das Wetter dann in voller Länge. */
+@media (max-width: 1000px) {
+  .pad-flaeche .pad-spalte--rechts { flex-direction: row; }
+  .pad-spalte--rechts > .pad-karte2--saeule,
+  .pad-spalte--rechts > .pad-karte2--skizze { flex: 1 1 0; min-width: 0; }
+}
+@media (max-width: 640px) {
+  .pad-flaeche .pad-spalte--rechts { flex-direction: column; }
+  .pad-spalte--rechts > .pad-karte2--saeule { flex: none; }
+  .pad-spalte--rechts > .pad-karte2--skizze { flex: 1 1 auto; }
+}

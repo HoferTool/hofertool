@@ -14,8 +14,8 @@ export async function holeWetterStunden() {
   const adresse = "https://api.open-meteo.com/v1/forecast"
     + "?latitude=" + alt.ORT.lat + "&longitude=" + alt.ORT.lon
     + "&current=temperature_2m,weather_code"
-    + "&hourly=temperature_2m,weather_code"
-    + "&daily=sunset&timezone=Europe%2FZurich&forecast_days=1";
+    + "&hourly=temperature_2m,weather_code,precipitation_probability"
+    + "&daily=sunset&timezone=Europe%2FZurich&forecast_days=2";
 
   const antwort = await alt.zeitlimit(fetch(adresse), 6000, "Wetter");
   if (!antwort.ok) throw new Error("Wetterdienst antwortet nicht");
@@ -25,11 +25,14 @@ export async function holeWetterStunden() {
   const stunden = [];
   (d.hourly.time || []).forEach((zeit, i) => {
     const t = new Date(zeit);
-    if (t <= jetzt || stunden.length >= 5) return;
+    // Stunden ab der laufenden, bis über den Feierabend hinaus; dafür
+    // holt die Abfrage zwei Tage, sonst wäre es am Abend leer
+    if (t.getTime() + 3600e3 <= jetzt.getTime() || stunden.length >= 8) return;
     stunden.push({
       stunde: String(t.getHours()).padStart(2, "0") + ".00",
       grad: Math.round(d.hourly.temperature_2m[i]),
       code: d.hourly.weather_code[i],
+      regen: d.hourly.precipitation_probability ? d.hourly.precipitation_probability[i] : null,
     });
   });
 
