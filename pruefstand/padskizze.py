@@ -60,7 +60,9 @@ with sync_playwright() as p:
     pg.wait_for_timeout(900)
     s = gespeichert(pg)
     pruefe(len(s) == 2, "zwei Striche gespeichert: %d" % len(s))
-    pruefe(len(s) == 2 and s[1]["f"] == "#b3261e" and s[1]["d"] > s[0]["d"], "zweiter Strich rot und dicker")
+    pruefe(len(s) == 2 and s[1]["f"] == "#b3261e" and s[1]["d"] > s[0]["d"], "zweiter Strich rot und dicker"
+           + ("" if len(s) == 2 and s[1]["f"] == "#b3261e" and s[1]["d"] > s[0]["d"]
+              else " " + str([(x.get("f"), x.get("d")) for x in s])))
     pruefe(pg.evaluate("() => TEST.daten.pad_skizzen[0].job_id") is not None, "hängt am Auftrag")
     # Pixel auf der Leinwand gemalt?
     farbig = pg.evaluate("""() => { const c = document.querySelector('.pad-skizze__leinwand');

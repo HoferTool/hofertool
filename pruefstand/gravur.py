@@ -19,6 +19,38 @@ with sync_playwright() as p:
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**",
               "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
+    # Die Umrisse kommen aus der Schrift „Arial“ des Rechners. Die sieht
+    # auf jedem Rechner etwas anders aus (andere Schriftfassung, anderes
+    # Glätten der Kanten), darum zählte der G-Code hier andere Punkte als
+    # auf GitHub, auch mit mitgebrachter Schrift. Der Test zeichnet die
+    # Buchstaben darum selbst als Pixelschrift aus ganzen Kästchen (5×7,
+    # fett = breiter, kursiv = schräg versetzt). Das ergibt überall
+    # dieselben Umrisse; geprüft wird, was die App daraus macht.
+    pg.add_init_script(r"""(() => {
+      const Z = { H: ['10001','10001','10001','11111','10001','10001','10001'],
+        O: ['01110','10001','10001','10001','10001','10001','01110'],
+        F: ['11111','10000','10000','11110','10000','10000','10000'],
+        E: ['11111','10000','10000','11110','10000','10000','11111'],
+        R: ['11110','10001','10001','11110','10100','10010','10001'],
+        A: ['01110','10001','10001','11111','10001','10001','10001'],
+        b: ['10000','10000','10110','11001','10001','10001','11110'],
+        1: ['00100','01100','00100','00100','00100','00100','01110'],
+        2: ['01110','10001','00001','00010','00100','01000','11111'],
+        ' ': ['00000','00000','00000','00000','00000','00000','00000'] };
+      const P = CanvasRenderingContext2D.prototype, mt = P.measureText, ft = P.fillText;
+      const art = (c) => { const f = c.font || ""; if (!/Arial/.test(f)) return null;
+        const px = parseFloat((f.match(/([\d.]+)px/) || [0, 10])[1]);
+        return { s: Math.max(1, Math.floor(px / 8)), fett: /bold|700/.test(f), kursiv: /italic/.test(f) }; };
+      P.measureText = function (t) { const a = art(this); if (!a) return mt.call(this, t);
+        return { width: [...t].length * 6 * a.s, actualBoundingBoxAscent: 7 * a.s, actualBoundingBoxDescent: 0 }; };
+      P.fillText = function (t, x, y) { const a = art(this); if (!a) return ft.call(this, t, x, y);
+        let cx = Math.round(x); const oben = Math.round(y) - 7 * a.s;
+        for (const ch of t) { const z = Z[ch] || ['11111','11111','11111','11111','11111','11111','11111'];
+          z.forEach((reihe, r) => { const schief = a.kursiv ? Math.round((6 - r) * a.s / 3) : 0;
+            [...reihe].forEach((bit, k) => { if (bit === '1') this.fillRect(cx + k * a.s + schief, oben + r * a.s,
+              a.s + (a.fett ? Math.round(a.s / 2) : 0), a.s); }); });
+          cx += 6 * a.s; } };
+    })();""")
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#rechner'")
     pg.wait_for_selector("[data-unter='rechner/gravur']"); pg.click("[data-unter='rechner/gravur']")

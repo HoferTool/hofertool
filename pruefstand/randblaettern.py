@@ -82,7 +82,12 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1000)
     sicht = pg.evaluate("(id) => { const k = document.querySelector('.pw-tafel [data-auftrag=\"'+id+'\"]'); return [!!k && k.classList.contains('pw-balken--groesse') && k.style.visibility !== 'hidden' && k.getBoundingClientRect().width > 100, k && k.className, k && Math.round(k.getBoundingClientRect().width), k && k.style.cssText]; }", b["id"])
     pg.mouse.move(rand["rechts"] - 300, g["y"], steps=6); pg.wait_for_timeout(300)
-    endziel = pg.evaluate("([x,y]) => { const z = document.elementsFromPoint(x,y).find((e) => e.dataset.zelle); return z && z.dataset.zelle.split('|')[1]; }", [rand["rechts"] - 300, g["y"]])
+    # Nicht genau auf eine Spaltengrenze zeigen (dort ist offen, welcher
+    # Tag gemeint ist), sondern ins linke Drittel eines Tages: Auch dort
+    # muss der Balken auf genau diesem Tag enden.
+    zx = pg.evaluate("([x,y]) => { const z = document.elementsFromPoint(x,y).find((e) => e.dataset.zelle); const r = z.getBoundingClientRect(); return r.x + r.width * 0.3; }", [rand["rechts"] - 300, g["y"]])
+    pg.mouse.move(zx, g["y"], steps=2); pg.wait_for_timeout(300)
+    endziel = pg.evaluate("([x,y]) => { const z = document.elementsFromPoint(x,y).find((e) => e.dataset.zelle); return z && z.dataset.zelle.split('|')[1]; }", [zx, g["y"]])
     pg.mouse.up(); pg.wait_for_timeout(1500)
     nachher = pg.evaluate(JOB, b["id"])
     ende = pg.evaluate("([a,n]) => { let d = new Date(a+'T00:00:00'); let k = 1; while (k < n) { d.setDate(d.getDate()+1); if (d.getDay() % 6) k++; } return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }", nachher)

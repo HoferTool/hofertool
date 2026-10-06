@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.77.1";
+const APP_VERSION = "111.77.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3914,7 +3914,7 @@ function griffVerhalten(b) {
     const balken = griff.closest("[data-auftrag]");
     if (!balken) return;
 
-    let aktiv = false, startX = 0, spaltenBreite = 0;
+    let aktiv = false, startX = 0, spaltenBreite = 0, mitte = 0, grund = 0;
     let auftrag = null, vonStart = "", dauerStart = 1, vonJetzt = "", dauerJetzt = 1;
 
     // Gerechnet wird in echten Daten, nicht in Spalten der Anzeige. So
@@ -3937,8 +3937,14 @@ function griffVerhalten(b) {
       if (p2) p2.textContent = dauerJetzt + (dauerJetzt === 1 ? " Tag" : " Tage");
     };
     // Was die Tafel inzwischen weitergeblättert hat, zählt mit
+    // Gerechnet wird ab der Mitte des Randtages, nicht ab der Stelle,
+    // wo die Maus den Griff packte: Der Griff sitzt am Rand der Spalte,
+    // so landete das Ende einen Tag vor dem Tag unter dem Zeiger, wenn
+    // dieser in der linken Hälfte stand. Jetzt endet (oder beginnt) der
+    // Balken immer auf dem Tag unter dem Zeiger. `grund` hebt auf, was
+    // schon beim Packen dazukäme, damit nichts springt.
     const rechnen = (x) => {
-      const schritte = Math.round((x - startX) / spaltenBreite)
+      const schritte = Math.round((x - mitte) / spaltenBreite) - grund
         + (planZug && planZug.fang === griff ? planZug.verschoben : 0);
       if (griff.dataset.griff === "rechts") {
         dauerJetzt = Math.max(1, dauerStart + schritte);
@@ -3965,6 +3971,10 @@ function griffVerhalten(b) {
       aktiv = true;
       startX = x0;
       spaltenBreite = plan.spalte || 40;
+      const rb = balken.getBoundingClientRect();
+      mitte = griff.dataset.griff === "rechts"
+        ? rb.right - spaltenBreite / 2 : rb.left + spaltenBreite / 2;
+      grund = Math.round((startX - mitte) / spaltenBreite);
 
       vonStart = vonJetzt = auftrag.planned_from;
       dauerStart = dauerJetzt = Math.max(1, auftrag.planned_days || 1);
