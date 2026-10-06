@@ -126,7 +126,7 @@ Alle sind PowerShell 5.1 auf Windows, ohne Installation.
 
 ## Umzug (abgeschlossen am 1. Oktober 2026)
 
-Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer` — dort liegt nur noch eine Weiterleitung. Alles ist ins neue Konto umgezogen. Seit 5. Oktober 2026 liefert der neue Solar-Rechner direkt ins neue Projekt (Quelle „Solar-Log direkt“), das alte Projekt wird nicht mehr gebraucht und darf pausiert werden. Altes Repository archivieren statt löschen, damit die alte Adresse weiterleitet. `sicherung.ps1` und `wiederherstellen.ps1` zeigen seit 5. Oktober 2026 aufs neue Projekt.
+Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alles ist ins neue Konto umgezogen. Seit 5. Oktober 2026 liefert der neue Solar-Rechner direkt ins neue Projekt (Quelle „Solar-Log direkt“), das alte Projekt wird nicht mehr gebraucht und darf pausiert werden. Das alte Projekt ist aus (Patrick, 6. Oktober 2026). Die alte Adresse syshen69.github.io/hofer soll **nicht** mehr weiterleiten, sondern „Fehler: falscher Link“ zeigen (Wunsch 6. Oktober 2026); Claude hat keinen Zugriff auf `syshen69/hofer`, die Fehlerseite lädt Patrick dort selbst als `index.html` hoch. `sicherung.ps1` und `wiederherstellen.ps1` zeigen seit 5. Oktober 2026 aufs neue Projekt.
 
 ## Offene Punkte
 
