@@ -5598,34 +5598,6 @@ body.dunkel .login__flieger-bild { background: #eef2f8; color: #0f1620; }
 .pad-hocotext .pad-info[data-schrift="mittel"] p { font-size: 1.5rem; }
 .pad-hocotext .pad-info[data-schrift="gross"] p { font-size: 2.1rem; }
 .pad-hocotext .pad-info[data-schrift="riesig"] p { font-size: 2.9rem; line-height: 1.25; }
-/* Pad Mode in der Themenfarbe (Wunsch Patrick 6. Oktober 2026): Mit
-   einer anderen Themenfarbe als Blau nehmen die blauen Kacheln, ihre
-   Rahmen und die Hervorhebungen die Themenfarbe (--pblau) an. Blau
-   bleibt unverändert. Material (Werkstofffarbe) und Fortschritt
-   (grün/rot) behalten ihre Bedeutungsfarben, nur der Rahmen folgt. */
-body[data-thema] .pad .pad-karte2 { border-color: color-mix(in srgb, var(--pblau) 45%, transparent) !important; }
-body[data-thema] .pad .pad-karte2--hoco {
-  background: linear-gradient(150deg, color-mix(in srgb, var(--pblau) 58%, #0b1526),
-                                      color-mix(in srgb, var(--pblau) 26%, #0b1526)) !important; }
-body[data-thema] .pad .pad-karte2--stk {
-  background: linear-gradient(150deg, color-mix(in srgb, var(--pblau) 62%, #0b1526),
-                                      color-mix(in srgb, var(--pblau) 24%, #0b1526)) !important; }
-body[data-thema] .pad .pad-karte2--abend {
-  background: linear-gradient(140deg, color-mix(in srgb, var(--pblau) 40%, #0b1526),
-                                      color-mix(in srgb, var(--pblau) 16%, #0b1526)) !important; }
-body[data-thema] .pad .pad-karte2--saeule,
-body[data-thema] .pad .pad-karte2--skizze {
-  background: linear-gradient(165deg, color-mix(in srgb, var(--pblau) 28%, #0b1526),
-                                      color-mix(in srgb, var(--pblau) 10%, #091626)) !important; }
-body[data-thema] .pad .pad-info { background: color-mix(in srgb, var(--pblau) 12%, transparent);
-  border-color: color-mix(in srgb, var(--pblau) 55%, #fff 10%); }
-body[data-thema] .pad .pad-info:active { background: color-mix(in srgb, var(--pblau) 24%, transparent); }
-body[data-thema] .pad .pad-knopf--zeichnung {
-  background: linear-gradient(140deg, color-mix(in srgb, var(--pblau) 70%, #0b1526),
-                                      color-mix(in srgb, var(--pblau) 40%, #0b1526)); }
-body[data-thema] .pad .pad-stunden--regen .pad-stunde:first-child,
-body[data-thema] .pad .pad-skizze__knopf.aktiv { background: color-mix(in srgb, var(--pblau) 30%, transparent);
-  border-color: color-mix(in srgb, var(--pblau) 70%, #fff); }
 /* Tablet hochkant: die rechte Spalte liegt quer unter allem, darum
    Wetter und Skizze nebeneinander, sonst schiebt die Skizze die Knöpfe weg */
 @media (max-width: 1000px) and (min-width: 641px) {
@@ -5697,7 +5669,15 @@ body[data-thema] .pad .pad-skizze__knopf.aktiv { background: color-mix(in srgb, 
 @media (max-width: 719px) {
   .dialog--auftrag .auf-notiz { margin-bottom: 14px !important; }
 }
-body[data-thema] .pad .pad-tag--heute i { background: color-mix(in srgb, var(--pblau) 55%, #fff); }
-body[data-thema] .pad .pad-karte2--verzug:has(.pad-leer) {
-  background: linear-gradient(140deg, color-mix(in srgb, var(--pblau) 22%, #1a2433),
-                                      color-mix(in srgb, var(--pblau) 10%, #121b28)) !important; }
+/* Pad Mode: Kacheln bleiben bläulich (Wunsch Patrick 6. Oktober 2026),
+   nur der Rahmen und das Leuchten beim Drüberfahren mit der Maus
+   folgen der Themenfarbe. Bei Blau bleibt alles wie bisher. */
+@media (hover: hover) {
+  body[data-thema] .pad .pad-kachel:hover {
+    border-color: color-mix(in srgb, var(--pblau) 75%, #fff 10%);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .45),
+                0 0 0 1px color-mix(in srgb, var(--pblau) 60%, transparent),
+                inset 0 1px 0 rgba(255, 255, 255, .1); }
+}
+body[data-thema] #pad .pad-kachel--maschine::before {
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--pblau) 80%, #fff), transparent); }

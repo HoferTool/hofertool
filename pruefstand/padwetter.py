@@ -74,11 +74,18 @@ with sync_playwright() as p:
         pg.locator("#pad .pad-info").click(); pg.wait_for_timeout(500)
         pruefe(pg.locator(".dialog select").input_value() == "gross", name + ": Fenster zeigt gewählte Grösse")
         pg.locator(".dialog [data-nein]").click(); pg.wait_for_timeout(300)
-        # Themenfarbe rosa: Kacheln nicht mehr blau
+        # Themenfarbe rosa: Dashboard-Kacheln bleiben bläulich (Wunsch 6. Oktober 2026)
         vor = pg.evaluate("() => getComputedStyle(document.querySelector('#pad .pad-karte2--hoco')).backgroundImage")
         pg.evaluate("() => document.body.setAttribute('data-thema', 'rosa')"); pg.wait_for_timeout(200)
         nach = pg.evaluate("() => getComputedStyle(document.querySelector('#pad .pad-karte2--hoco')).backgroundImage")
-        pruefe(vor != nach, name + ": HOCO-Kachel in Themenfarbe")
+        pruefe(vor == nach, name + ": HOCO-Kachel bleibt bläulich")
+        # Auf der Maschinenwahl: Rahmen beim Drüberfahren in der Themenfarbe
+        pg.locator("#pad [data-padzurueck]").click(); pg.wait_for_timeout(900)
+        k = pg.locator("#pad .pad-kachel").first
+        k.hover(); pg.wait_for_timeout(400)
+        rahmen = k.evaluate("e => getComputedStyle(e).borderTopColor")
+        print("   Rahmen beim Drüberfahren:", rahmen)
+        pruefe("107, 164, 255" not in rahmen and rahmen != "rgba(0, 0, 0, 0)", name + ": Rahmen beim Drüberfahren in Themenfarbe")
         pg.screenshot(path=f"s_padwetter_{name}_rosa.png")
         fehler += f
         pg.close()
