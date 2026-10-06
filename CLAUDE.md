@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.73.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.74.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -119,20 +119,20 @@ Alle sind PowerShell 5.1 auf Windows, ohne Installation.
 - **`einrichtblaetter.ps1`** liest alle fünf Minuten die Typ-Ordner aus Einstellungen → Dokumente → Einrichtblatt-Ordner und lädt Excel mit HOCO Nr. im Namen als Einrichtblatt auf den Typ des Ordners. **Liest nur, löscht und verschiebt dort nie etwas** (Entscheid Patrick 5. Oktober 2026). Bis der Schalter „Hochladen“ in der App an ist, nur Probelauf.
 - **`zeichnungen.ps1`** liest alle fünf Minuten den Zeichnungs-Ordner aus Einstellungen → Dokumente und lädt je HOCO Nr. die PDF mit „hofer“ im Namen als Zeichnung hoch, sonst die mit „kunde“; ohne beide nichts (Wunsch Patrick 5. Oktober 2026). Nur für HOCO Nr., die die App kennt. **Liest nur**, wie die Einrichtblätter. Bis der Schalter „Hochladen“ an ist, nur Probelauf.
 - **`einrichten.ps1`** richtet Solar und Pool auf einem neuen Rechner in einem Zug ein: holt die Programme von GitHub nach `C:\Hofer\Abgleich`, sucht den Solar-Log im Netz, fragt Solar-Schlüssel und Dienstkonto ab, probiert beides aus und legt die Aufgaben „Hofer Solar“ (unter SYSTEM), „Hofer Dokumente-Pool“, „Hofer Einrichtblätter“ und „Hofer Zeichnungen“ (unter dem angemeldeten Konto, ohne Passwort, ohne Fenster über `unsichtbar.vbs`) an.
-- **`sicherung.ps1` / `wiederherstellen.ps1`** sichern die Datenbank mit `pg_dump`.
+- **`sicherung.ps1`** (seit 111.74.0, Aufgabe „Hofer Sicherung“ alle fünf Minuten, von `einrichten.ps1` angelegt, mit dem Dienstkonto): sichert einmal am Tag ab der eingestellten Uhrzeit alle Tabellen (ein Aufruf `sicherung_lesen`, ein Augenblick) als `Hofer-Sicherung-JJJJ-MM-TT-HHMM.jsonl.gz` und alle hochgeladenen Dateien (Ordner `Dateien`, nur Neues) in den Ordner aus Einstellungen → Backup. „Jetzt sichern“ und „Zurückspielen“ in der App schreiben `app_config.sicherung_auftrag`; das Programm sichert vor dem Zurückspielen den heutigen Stand (`-vor-Zurueckspielen`), dann ersetzt `sicherung_einspielen` alles in einer Transaktion. Kein Datenbank-Passwort, kein `pg_dump` mehr; PINs (`pin_schutz`) und Solar-Schlüssel (`solar_zugang`) sind nicht dabei. SQL: `sql/sicherung.sql`.
 - **`verknuepfung.ps1`** legt eine Desktop-Verknüpfung mit Symbol an (`hofer-tool.ico` liegt daneben).
 - **Anleitungen** liegen nicht im Repository (Wunsch Patrick, 5. Oktober 2026). Braucht er eine, schreibt Claude sie ihm Schritt für Schritt direkt in den Chat.
 - **Stolpersteine in PowerShell 5.1:** `"$var:"` in Anführungszeichen wird als Laufwerk gelesen, daher `${var}:` schreiben. Doppelte Anführungszeichen kommen bei anderen Programmen wie psql kaputt an. `2>&1` zusammen mit `ErrorActionPreference = Stop` bricht bei harmlosen Hinweisen ab. Dateien mit UTF-8 **mit BOM** speichern.
 
 ## Umzug (abgeschlossen am 1. Oktober 2026)
 
-Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alles ist ins neue Konto umgezogen. Seit 5. Oktober 2026 liefert der neue Solar-Rechner direkt ins neue Projekt (Quelle „Solar-Log direkt“), das alte Projekt wird nicht mehr gebraucht. **Alles Alte ist abgeschaltet (6. Oktober 2026):** altes Supabase-Projekt aus, altes Repository archiviert. Die alte Adresse syshen69.github.io/hofer leitet **nicht** mehr weiter, sondern zeigt „Fehler: falscher Link“ (Wunsch Patrick); nie wieder eine Weiterleitung einbauen. Claude hat keinen Zugriff auf `syshen69/hofer`. `sicherung.ps1` und `wiederherstellen.ps1` zeigen seit 5. Oktober 2026 aufs neue Projekt.
+Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alles ist ins neue Konto umgezogen. Seit 5. Oktober 2026 liefert der neue Solar-Rechner direkt ins neue Projekt (Quelle „Solar-Log direkt“), das alte Projekt wird nicht mehr gebraucht. **Alles Alte ist abgeschaltet (6. Oktober 2026):** altes Supabase-Projekt aus, altes Repository archiviert. Die alte Adresse syshen69.github.io/hofer leitet **nicht** mehr weiter, sondern zeigt „Fehler: falscher Link“ (Wunsch Patrick); nie wieder eine Weiterleitung einbauen. Claude hat keinen Zugriff auf `syshen69/hofer`. Die Sicherung läuft seit 111.74.0 über das Dienstkonto im neuen Projekt.
 
 ## Offene Punkte
 
 1. ~~`solarlog.ps1` umstellen~~ erledigt am 5. Oktober 2026. ~~`solarlog-alt.ps1` am Solar-Rechner löschen~~ erledigt am 6. Oktober 2026 (alles Alte abgeschaltet).
 2. Datenbank-Passwort und Secret Key des neuen Projekts neu setzen — sie standen im Chat.
-3. Sicherung (`sicherung.ps1`) und Dokumente-Abgleich auf das neue Projekt umstellen.
+3. Sicherung in Betrieb nehmen: `sql/sicherung.sql` ausführen, `einrichten.ps1` auf dem Pool-Rechner nochmals laufen lassen, Speicherort unter Einstellungen → Backup eintragen.
 4. Supabase Pro für tägliche Sicherungen. `C:\Hofer\Umzug` löschen.
 5. Offline am Tablet einmal testen.
 6. PIN-Anmeldung in Betrieb nehmen: `sql/pin-anmeldung.sql` ausführen und allen eine PIN oder ein Passwort setzen. `sql/offenes-passwort-weg.sql` **nie ausführen** (Entscheid 3. Oktober 2026), die Datei bleibt nur als Möglichkeit liegen. Die E-Mail-Adressen sind über `login_kacheln` weiterhin öffentlich lesbar.

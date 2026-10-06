@@ -14,6 +14,7 @@ import { zuschneiden } from "../teile/Zuschnitt.jsx";
 import Dokumente from "./Dokumente.jsx";
 import Farben from "./Farben.jsx";
 import Nutzer from "./Nutzer.jsx";
+import Sicherung from "./Sicherung.jsx";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["backup", "Backup"],
@@ -381,6 +382,7 @@ function UeberDieApp() {
 function Backup() {
   return (
     <>
+      <Sicherung />
       <Gruppe titel="Planwand als Excel"
         text={"Alle Aufträge mit Maschine, Zeitraum, Zustand, Stückzahl, Material und Notiz, "
           + "auf einem zweiten Blatt die Maschinen."}
