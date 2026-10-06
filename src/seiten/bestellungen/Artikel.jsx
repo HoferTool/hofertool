@@ -116,12 +116,19 @@ async function loeschen(a, behaelter) {
 
   // Erst die Abhängigkeiten, dann den Artikel. So klappt es immer.
   const db = alt.db;
+  const vorherArtikel = await alt.rueckSichern("articles", { id: a.id });
+  const vorherPos = await alt.rueckSichern("order_items", { article_id: a.id });
   await db.from("order_items").delete().eq("article_id", a.id);
   const r = await db.from("articles").delete().eq("id", a.id).select();
 
   if (r.error) alt.meldung(alt.fehlertext(r.error), "fehler");
   else if ((r.data || []).length === 0)
     alt.meldung("Nichts gelöscht. Vermutlich fehlen die Rechte in der Datenbank.", "fehler");
-  else alt.meldung("Artikel gelöscht.");
+  else {
+    // Zurück erst der Artikel, dann die Positionen: sie zeigen auf ihn
+    alt.merkeSchritt("Löschen von " + a.article_number, [
+      alt.rueckRein("articles", vorherArtikel), alt.rueckRein("order_items", vorherPos)]);
+    alt.meldung("Artikel gelöscht.");
+  }
   alt.seiteBestellungen(behaelter);
 }

@@ -40,7 +40,7 @@ export default function Notizen({ auffrischen }) {
                     <button className="linkknopf linkknopf--gefahr" data-nweg={t.id}
                       onClick={async (e) => {
                         e.preventDefault();
-                        const w = await alt.loeschen({ tabelle: "todos", id: t.id,
+                        const w = await alt.loeschen({ tabelle: "todos", id: t.id, rueckText: "Löschen einer Notiz",
                           titel: "Notiz löschen", text: '"' + (t.text || "") + '" wird endgültig entfernt.' });
                         if (w) neu();
                       }}>Löschen</button>}
@@ -60,9 +60,11 @@ async function neueNotiz(neu) {
       { name: "frist", label: "Bis wann", typ: "date" }],
     bestaetigen: "Speichern" });
   if (!w) return;
-  const { error } = await alt.db.from("todos").insert({ text: w.text, due_date: w.frist || null });
-  if (error) alt.meldung(alt.fehlertext(error), "fehler");
-  else { alt.meldung("Notiz gespeichert."); neu(); materialInsAuftrag(w.text); }
+  const { data, error } = await alt.db.from("todos")
+    .insert({ text: w.text, due_date: w.frist || null }).select("id");
+  if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+  if (Array.isArray(data) && data[0]) alt.merkeSchritt("Neue Notiz", alt.rueckWeg("todos", { id: data[0].id }));
+  alt.meldung("Notiz gespeichert."); neu(); materialInsAuftrag(w.text);
 }
 
 async function bearbeiten(t, neu) {
@@ -74,8 +76,10 @@ async function bearbeiten(t, neu) {
   if (!w) return;
   const { error } = await alt.db.from("todos")
     .update({ text: w.text, due_date: w.frist || null }).eq("id", t.id);
-  if (error) alt.meldung(alt.fehlertext(error), "fehler");
-  else { alt.meldung("Gespeichert."); neu(); if (w.text !== t.text) materialInsAuftrag(w.text); }
+  if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+  alt.merkeSchritt("Notiz bearbeiten",
+    alt.rueckSetz("todos", { text: t.text, due_date: t.due_date || null }, { id: t.id }));
+  alt.meldung("Gespeichert."); neu(); if (w.text !== t.text) materialInsAuftrag(w.text);
 }
 
 async function abhaken(e, t, neu) {
@@ -88,10 +92,8 @@ async function abhaken(e, t, neu) {
     is_done: true, done_at: new Date().toISOString(), done_by: alt.profil.id,
   }).eq("id", t.id);
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
-  alt.merkeSchritt("Notiz abhaken", async () => {
-    await db.from("todos").update({ is_done: false, done_at: null, done_by: null }).eq("id", t.id);
-    neu();
-  });
+  alt.merkeSchritt("Notiz abhaken",
+    alt.rueckSetz("todos", { is_done: false, done_at: null, done_by: null }, { id: t.id }));
   alt.meldung("Erledigt.");
   neu();
 }

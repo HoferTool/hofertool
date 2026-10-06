@@ -71,6 +71,9 @@ async function loeschen(l, behaelter) {
 
   // Verweise lösen, damit das Löschen nicht scheitert
   const db = alt.db;
+  const vorher = await alt.rueckSichern("suppliers", { id: l.id });
+  const artikel = (await alt.rueckSichern("articles", { supplier_id: l.id })).map((x) => x.id);
+  const positionen = (await alt.rueckSichern("order_items", { supplier_id: l.id })).map((x) => x.id);
   await db.from("articles").update({ supplier_id: null }).eq("supplier_id", l.id);
   await db.from("order_items").update({ supplier_id: null }).eq("supplier_id", l.id);
 
@@ -78,6 +81,12 @@ async function loeschen(l, behaelter) {
   if (r.error) alt.meldung(alt.fehlertext(r.error), "fehler");
   else if ((r.data || []).length === 0)
     alt.meldung("Nichts gelöscht. Vermutlich fehlen die Rechte in der Datenbank.", "fehler");
-  else alt.meldung("Lieferant gelöscht.");
+  else {
+    // Zurück: erst der Lieferant, dann die Verweise wieder auf ihn
+    alt.merkeSchritt("Löschen von " + l.name, [alt.rueckRein("suppliers", vorher)]
+      .concat([alt.rueckSetz("articles", { supplier_id: l.id }, { id: artikel }),
+        alt.rueckSetz("order_items", { supplier_id: l.id }, { id: positionen })]));
+    alt.meldung("Lieferant gelöscht.");
+  }
   alt.seiteBestellungen(behaelter);
 }

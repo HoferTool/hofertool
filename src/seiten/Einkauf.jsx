@@ -89,11 +89,8 @@ function Eintrag({ z, erledigte, neu }) {
       is_done: true, done_at: new Date().toISOString(), done_by: alt.profil.id,
     }).eq("id", z.id);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
-    alt.merkeSchritt("Einkauf abhaken", async () => {
-      await alt.db.from("shopping_items")
-        .update({ is_done: false, done_at: null, done_by: null }).eq("id", z.id);
-      neu();
-    });
+    alt.merkeSchritt("Einkauf abhaken", alt.rueckSetz("shopping_items",
+      { is_done: false, done_at: null, done_by: null }, { id: z.id }));
     alt.meldung("Abgehakt.");
     neu();
   };
@@ -103,9 +100,13 @@ function Eintrag({ z, erledigte, neu }) {
     const ok = await alt.nachfragen({ titel: "Von der Liste nehmen",
       text: "Soll dieser Punkt gelöscht werden?", bestaetigen: "Löschen", gefahr: true });
     if (!ok) return;
+    const vorher = await alt.rueckSichern("shopping_items", { id: z.id });
     const { error } = await alt.db.from("shopping_items").delete().eq("id", z.id);
     if (error) alt.meldung(alt.fehlertext(error), "fehler");
-    else { alt.meldung("Gelöscht."); neu(); }
+    else {
+      alt.merkeSchritt("Löschen von " + (z.text || "Eintrag"), alt.rueckRein("shopping_items", vorher));
+      alt.meldung("Gelöscht."); neu();
+    }
   };
 
   return (
@@ -148,10 +149,14 @@ async function eintragDialog(eintrag, neu) {
 
   const daten = { text: w.text, menge: w.menge || null, laden: w.laden || null,
                   prio: Number(prio) };
-  const { error } = eintrag
+  const vorher = eintrag ? await alt.rueckSichern("shopping_items", { id: eintrag.id }) : [];
+  const { data, error } = eintrag
     ? await alt.db.from("shopping_items").update(daten).eq("id", eintrag.id)
-    : await alt.db.from("shopping_items").insert(daten);
+    : await alt.db.from("shopping_items").insert(daten).select("id");
 
-  if (error) alt.meldung(alt.fehlertext(error), "fehler");
-  else { alt.meldung(eintrag ? "Gespeichert." : "Steht auf der Liste."); neu(); }
+  if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+  const neuId = !eintrag && Array.isArray(data) && data[0] && data[0].id;
+  if (eintrag) alt.merkeSchritt("Ändern von " + eintrag.text, alt.rueckRein("shopping_items", vorher));
+  else if (neuId) alt.merkeSchritt("Eintrag " + w.text, alt.rueckWeg("shopping_items", { id: neuId }));
+  alt.meldung(eintrag ? "Gespeichert." : "Steht auf der Liste."); neu();
 }

@@ -107,7 +107,7 @@ function PositionFenster({ zu, fertig }) {
     if (!zielText) { alt.meldung("Bitte noch angeben, wohin die Lieferung soll.", "warn"); return; }
 
     setSpeichert(true);
-    const { error } = await alt.db.from("order_items").insert({
+    const { data, error } = await alt.db.from("order_items").insert({
       article_id: gewaehlt.id,
       supplier_id: gewaehlt.supplier_id || null,
       quantity: m,
@@ -115,9 +115,11 @@ function PositionFenster({ zu, fertig }) {
       note: notiz.trim() || null,
       ziel_art: zielArt,
       ziel_text: zielText,
-    });
+    }).select("id");
     setSpeichert(false);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+    if (Array.isArray(data) && data[0]) alt.merkeSchritt("Neue Position " + (gewaehlt.article_number || ""),
+      alt.rueckWeg("order_items", { id: data[0].id }));
     zu();
     alt.meldung("Position hinzugefügt.");
     if (fertig) fertig();

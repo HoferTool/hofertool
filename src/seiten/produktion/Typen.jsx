@@ -13,12 +13,51 @@ import { alt, useDaten } from "../../bruecke.jsx";
 
 let ladeNr = 0;
 
-async function senden(anfrage, gut, neuLaden) {
+// rueck: optional der Schritt für Rückgängig, [Text, Schritte]
+async function senden(anfrage, gut, neuLaden, rueck) {
   const { error } = await anfrage;
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return false; }
+  if (rueck) alt.merkeSchritt(rueck[0], rueck[1]);
   alt.meldung(gut);
   neuLaden();
   return true;
+}
+
+// Für Rückgängig alles sichern, was mit einem Path oder Typ verschwindet
+// oder seinen Verweis verliert (Paths, Plätze, Daten je HOCO Nr.,
+// Dokumente; Maschinen und Einrichtblätter verlieren nur den Verweis).
+async function pathTeile(pfadIds) {
+  const slots = await alt.rueckSichern("type_slots", { path_id: pfadIds });
+  const slotIds = slots.map((x) => x.id);
+  const blattPfade = (await alt.rueckSichern("setup_sheet_paths", { path_id: pfadIds }));
+  const blattSlots = (await alt.rueckSichern("setup_sheet_slots", { slot_id: slotIds }));
+  return { slots, schritte: [alt.rueckRein("type_slots", slots)]
+    .concat(blattPfade.map((x) => alt.rueckSetz("setup_sheet_paths", { path_id: x.path_id }, { id: x.id })))
+    .concat(blattSlots.map((x) => alt.rueckSetz("setup_sheet_slots", { slot_id: x.slot_id }, { id: x.id }))) };
+}
+
+async function pathSichern(p) {
+  const pfad = await alt.rueckSichern("type_paths", { id: p.id });
+  const teile = await pathTeile([p.id]);
+  return ["Löschen von " + p.name, [alt.rueckRein("type_paths", pfad)].concat(teile.schritte)];
+}
+
+async function typSichern(t) {
+  const typ = await alt.rueckSichern("machine_types", { id: t.id });
+  const pfade = await alt.rueckSichern("type_paths", { type_id: t.id });
+  const teile = await pathTeile(pfade.map((x) => x.id));
+  const daten = await alt.rueckSichern("hoco_type_data", { type_id: t.id });
+  const doks = await alt.rueckSichern("dokumente", { type_id: t.id });
+  const ids = async (tab) => (await alt.rueckSichern(tab, { type_id: t.id })).map((x) => x.id);
+  const maschinen = await ids("machines");
+  const blaetter = await ids("setup_sheets");
+  const schnapp = await ids("setup_snapshots");
+  return ["Löschen von " + t.name, [alt.rueckRein("machine_types", typ), alt.rueckRein("type_paths", pfade)]
+    .concat(teile.schritte)
+    .concat([alt.rueckRein("hoco_type_data", daten), alt.rueckRein("dokumente", doks),
+      alt.rueckSetz("machines", { type_id: t.id }, { id: maschinen }),
+      alt.rueckSetz("setup_sheets", { type_id: t.id }, { id: blaetter }),
+      alt.rueckSetz("setup_snapshots", { type_id: t.id }, { id: schnapp })])];
 }
 
 const zweimalFragen = (titel, text, letzte) => alt.doppeltNachfragen(
@@ -63,14 +102,17 @@ export default function Typen({ geladen, neuLaden: aussen }) {
         { name: "text", label: "Beschreibung", wert: t.beschreibung || "" }] });
     if (!w) return;
     senden(alt.db.from("machine_types").update({ name: w.name, beschreibung: w.text || null }).eq("id", t.id),
-      "Gespeichert.", neuLaden);
+      "Gespeichert.", neuLaden, ["Ändern von " + t.name,
+        alt.rueckSetz("machine_types", { name: t.name, beschreibung: t.beschreibung || null }, { id: t.id })]);
   };
   const loeschen = async (t) => {
     const ok = await zweimalFragen("Typ löschen",
       'Soll der Typ "' + t.name + '" gelöscht werden? Paths, Plätze und Werkzeuge gehen mit. '
       + "Maschinen mit diesem Typ bleiben erhalten, stehen danach aber ohne Typ da.",
       "Letzte Rückfrage. Danach ist der ganze Aufbau weg.");
-    if (ok) senden(alt.db.from("machine_types").delete().eq("id", t.id), "Typ gelöscht.", neuLaden);
+    if (!ok) return;
+    const rueck = await typSichern(t);
+    senden(alt.db.from("machine_types").delete().eq("id", t.id), "Typ gelöscht.", neuLaden, rueck);
   };
 
   return (
@@ -195,11 +237,14 @@ function Paths({ paths, darf, neuLaden }) {
         { name: "nummer", label: "Nummer", typ: "number", wert: p.nummer || 1 }] });
     if (!w) return;
     senden(db.from("type_paths").update({ name: w.name, nummer: Math.max(1, Math.round(Number(w.nummer) || 1)) })
-      .eq("id", p.id), "Gespeichert.", neuLaden);
+      .eq("id", p.id), "Gespeichert.", neuLaden, ["Ändern von " + p.name,
+        alt.rueckSetz("type_paths", { name: p.name, nummer: p.nummer || 1 }, { id: p.id })]);
   };
   const pathLoeschen = async (p) => {
     const ok = await zweimalFragen("Path löschen", '"' + p.name + '" löschen? Alle Plätze und Werkzeuge darauf gehen mit.');
-    if (ok) senden(db.from("type_paths").delete().eq("id", p.id), "Path gelöscht.", neuLaden);
+    if (!ok) return;
+    const rueck = await pathSichern(p);
+    senden(db.from("type_paths").delete().eq("id", p.id), "Path gelöscht.", neuLaden, rueck);
   };
 
   // Ein neuer Platz braucht nur seine Toolnummer. Wie sie geschrieben
@@ -225,12 +270,19 @@ function Paths({ paths, darf, neuLaden }) {
       felder: [{ name: "tool", label: "Toolnummer", wert: sl.tool_nr || "", pflicht: true }] });
     if (!w) return;
     const nr = String(w.tool || "").trim();
-    if (nr) senden(db.from("type_slots").update({ tool_nr: nr, bezeichnung: nr }).eq("id", sl.id), "Gespeichert.", neuLaden);
+    if (nr) senden(db.from("type_slots").update({ tool_nr: nr, bezeichnung: nr }).eq("id", sl.id), "Gespeichert.", neuLaden,
+      ["Ändern von Platz " + (sl.tool_nr || ""), alt.rueckSetz("type_slots",
+        { tool_nr: sl.tool_nr || null, bezeichnung: sl.bezeichnung || null }, { id: sl.id })]);
   };
   const platzLoeschen = async (sl) => {
     const ok = await zweimalFragen("Werkzeugplatz löschen",
       "Soll dieser Werkzeugplatz gelöscht werden? Die Werkzeuge darauf gehen mit.");
-    if (ok) senden(db.from("type_slots").delete().eq("id", sl.id), "Platz gelöscht.", neuLaden);
+    if (!ok) return;
+    const slots = await alt.rueckSichern("type_slots", { id: sl.id });
+    const blatt = (await alt.rueckSichern("setup_sheet_slots", { slot_id: sl.id })).map((x) => x.id);
+    senden(db.from("type_slots").delete().eq("id", sl.id), "Platz gelöscht.", neuLaden,
+      ["Löschen von Platz " + (sl.tool_nr || ""), [alt.rueckRein("type_slots", slots),
+        alt.rueckSetz("setup_sheet_slots", { slot_id: sl.id }, { id: blatt })]]);
   };
 
   return (

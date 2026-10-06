@@ -160,22 +160,11 @@ export async function auftragSpeichern({ auftrag, daten, nr, b, zu }) {
       Object.keys(daten).concat(["plan_status", "started_at", "ended_at", "job_number"])
         .forEach((k) => { if (k in vorherSelbst) alteWerte[k] = vorherSelbst[k]; });
     }
-    alt.merkeSchritt((neuAngelegt ? "Anlegen von " : "Ändern von ") + nrText, async () => {
-      if (neuAngelegt) {
-        const r1 = await db.from("jobs").delete().eq("id", festId);
-        if (r1.error) throw r1.error;
-      } else if (alteWerte) {
-        await alt.aendernOhneUnbekannte("jobs", alteWerte, "id", festId);
-      }
-      for (const x of vorherAndere) {
-        const jetzt = (plan.auftraege || []).find((y) => y.id === x.id);
-        if (jetzt && jetzt.planned_from === x.planned_from && jetzt.planned_days === x.planned_days
-            && jetzt.machine_id === x.machine_id) continue;
-        await db.from("jobs").update({ planned_from: x.planned_from,
-          planned_days: x.planned_days, machine_id: x.machine_id }).eq("id", x.id);
-      }
-      alt.planAktualisieren(b);
-    });
+    alt.merkeSchritt((neuAngelegt ? "Anlegen von " : "Ändern von ") + nrText, [
+      neuAngelegt ? alt.rueckWeg("jobs", { id: festId })
+        : (alteWerte ? alt.rueckSetz("jobs", alteWerte, { id: festId }) : null),
+    ].concat(vorherAndere.map((x) => alt.rueckSetz("jobs", { planned_from: x.planned_from,
+      planned_days: x.planned_days, machine_id: x.machine_id }, { id: x.id }))));
   }
 
   zu();
@@ -226,30 +215,13 @@ export async function auftragLoeschen(auftrag, b, zu) {
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
   const anzahl = (zahlen.data || []).length;
   if (sicherung.data) {
-    alt.merkeSchritt("Löschen von " + auftrag.job_number, async () => {
-      for (const v of vorherNachrueck) {
-        await db.from("jobs").update({ planned_from: v.von }).eq("id", v.id);
-      }
-      const zurueckJob = await db.from("jobs").insert(sicherung.data);
-      if (zurueckJob.error) {
-        alt.meldung("Der Auftrag liess sich nicht zurückholen: "
-          + alt.fehlertext(zurueckJob.error), "fehler");
-        return;
-      }
-      // Erst der Auftrag, dann die Zahlen — sie zeigen auf ihn. upsert,
-      // falls am selben Tag inzwischen ein anderer Eintrag steht.
-      if (anzahl) {
-        const zurueckZahlen = await db.from("production_records")
-          .upsert(zahlen.data, { onConflict: "machine_id,record_date" });
-        if (zurueckZahlen.error) {
-          alt.meldung("Der Auftrag ist zurück, die Stückzahlen nicht: "
-            + alt.fehlertext(zurueckZahlen.error), "fehler");
-        } else {
-          alt.meldung("Auftrag und " + anzahl + " Stückzahleinträge zurückgeholt.");
-        }
-      }
-      alt.planAktualisieren(b);
-    });
+    // Erst der Auftrag, dann die Zahlen: sie zeigen auf ihn. Die Zahlen
+    // als upsert, falls am selben Tag inzwischen ein anderer Eintrag steht.
+    alt.merkeSchritt("Löschen von " + auftrag.job_number,
+      vorherNachrueck.map((v) => alt.rueckSetz("jobs", { planned_from: v.von }, { id: v.id }))
+        .concat([alt.rueckRein("jobs", sicherung.data),
+          anzahl ? alt.rueckRein("production_records", zahlen.data,
+            "machine_id,record_date,job_id|machine_id,record_date") : null]));
   }
   alt.meldung(anzahl
     ? "Auftrag und " + anzahl + " Stückzahleinträge gelöscht. Mit Strg+Z zurücknehmen."

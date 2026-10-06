@@ -514,7 +514,9 @@ function bauer(tabelle) {
   return b;
 }
 
-export function createClient() {
+export function createClient(_url, _key, optionen) {
+  // Tests prüfen den Speicher, den die App für die Sitzung mitgibt
+  if (window.TEST) TEST.sitzungSpeicher = optionen && optionen.auth && optionen.auth.storage;
   return {
     from: (t) => bauer(t),
     // Tests können Antworten je Funktion vorgeben: TEST.rpc.name = (args) => data

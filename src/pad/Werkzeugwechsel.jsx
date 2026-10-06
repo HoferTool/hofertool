@@ -180,6 +180,10 @@ async function loeschen(maschine, runde) {
   }
 
   const ids = weg.map((z) => z.id).filter(Boolean);
+  // Für Rückgängig: die gelöschten Einträge und alle desselben Werkzeugs,
+  // deren Standzeit gleich neu gerechnet wird
+  const werkzeuge = Array.from(new Set(weg.map((z) => z.tool_nr)));
+  const vorher = await alt.rueckSichern("tool_changes", { machine_id: maschine.id, tool_nr: werkzeuge });
   try {
     const r = await alt.db.from("tool_changes").delete().in("id", ids).select("id");
     if (r.error) throw r.error;
@@ -191,6 +195,7 @@ async function loeschen(maschine, runde) {
   } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
 
   await gehaltenNachrechnen(maschine, weg);
+  alt.merkeSchritt("Werkzeugwechsel löschen", alt.rueckRein("tool_changes", vorher));
   alt.meldung(weg.length === 1 ? "Eintrag " + weg[0].tool_nr + " gelöscht." : anzahlText(weg.length) + " gelöscht.", "gut");
   return true;
 }

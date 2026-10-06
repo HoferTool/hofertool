@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.75.0";
+const APP_VERSION = "111.76.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -330,39 +330,187 @@ function bildVerkleinern(datei, maxKante) {
 // =================================================================
 //  RÜCKGÄNGIG
 //  Jede Änderung, die sich sauber zurücknehmen lässt, wird hier
-//  abgelegt. Strg + Z oder der Knopf nimmt den letzten Schritt zurück.
+//  abgelegt. Strg + Z oder der Knopf nimmt den letzten Schritt zurück,
+//  auf jeder Seite (Wunsch Patrick, 6. Oktober 2026: „appübergreifend,
+//  auch wenn man neu lädt oder die Seite wechselt, bis man ausloggt
+//  oder die Seite schliesst“).
+//  Darum ist ein Schritt keine Funktion mehr, sondern eine Liste von
+//  Datenbank-Schritten, die sich aufschreiben lässt. Die Liste liegt im
+//  sessionStorage: Sie übersteht Neuladen und Seitenwechsel, geht mit
+//  dem Tab zu und wird beim Abmelden geleert.
+//  Bausteine für die Liste:
+//    rueckWeg(tabelle, wo)              Zeilen löschen (etwas Neues weg)
+//    rueckRein(tabelle, zeilen, konflikt) Zeilen zurückschreiben (upsert)
+//    rueckSetz(tabelle, daten, wo)      alte Werte wieder eintragen
+//    rueckStand(maschine, datum, stand, auftrag)  Zählerstand
+//  wo ist ein Objekt { spalte: wert, … }.
 // =================================================================
 
-const rueckgaengigListe = [];
+const RUECK_SCHLUESSEL = "hofer.rueckgaengig";
+const RUECK_HOECHSTENS = 30;
 
-function merkeSchritt(text, zuruecknehmen) {
-  rueckgaengigListe.push({ text: text, tun: zuruecknehmen });
-  if (rueckgaengigListe.length > 30) rueckgaengigListe.shift();
+function rueckLesen() {
+  try {
+    const l = JSON.parse(sessionStorage.getItem(RUECK_SCHLUESSEL) || "[]");
+    return Array.isArray(l) ? l.filter((s) => s && Array.isArray(s.schritte)) : [];
+  } catch (f) { return []; }
+}
+
+const rueckgaengigListe = rueckLesen();
+
+function rueckAblegen() {
+  // Ist der Speicher voll, die ältesten Schritte opfern statt alle
+  for (let n = rueckgaengigListe.length; n >= 0; n--) {
+    try {
+      sessionStorage.setItem(RUECK_SCHLUESSEL,
+        JSON.stringify(rueckgaengigListe.slice(rueckgaengigListe.length - n)));
+      return;
+    } catch (f) { /* weiter mit weniger */ }
+  }
+}
+
+// Beim Abmelden und wenn jemand anderes sich anmeldet
+function rueckLeeren() {
+  rueckgaengigListe.length = 0;
+  try { sessionStorage.removeItem(RUECK_SCHLUESSEL); } catch (f) { /* egal */ }
   knopfRueckgaengigZeigen();
+}
+
+const rueckWeg = (t, wo) => ({ a: "weg", t: t, wo: wo });
+const rueckRein = (t, z, k) => ({ a: "rein", t: t, z: Array.isArray(z) ? z : [z], k: k || "id" });
+const rueckSetz = (t, d, wo) => ({ a: "setz", t: t, d: d, wo: wo });
+const rueckStand = (m, d, s, j) => ({ a: "stand", m: m, d: d, s: s, j: j });
+
+// Zeilen vor dem Löschen oder Ändern lesen, damit Rückgängig sie
+// zurückschreiben kann. Gibt eine leere Liste, wenn nichts zu lesen ist.
+async function rueckSichern(t, wo) {
+  if (rueckLeer(wo)) return [];
+  try {
+    const r = await rueckFilter(db.from(t).select("*"), wo);
+    // Als Kopie, damit spätere Änderungen sie nicht mitverändern
+    return (r && !r.error && Array.isArray(r.data)) ? JSON.parse(JSON.stringify(r.data)) : [];
+  } catch (f) { return []; }
+}
+
+function merkeSchritt(text, schritte) {
+  let liste = (Array.isArray(schritte) ? schritte : [schritte]).filter(Boolean);
+  if (!liste.length) return;
+  // Als Kopie ablegen: so bleibt der Stand von jetzt, auch wenn die
+  // Zeilen danach in der App weiter verändert werden
+  try { liste = JSON.parse(JSON.stringify(liste)); } catch (f) { return; }
+  rueckgaengigListe.push({ text: text, schritte: liste,
+    wer: (profil && profil.id) || null, zeit: Date.now() });
+  while (rueckgaengigListe.length > RUECK_HOECHSTENS) rueckgaengigListe.shift();
+  rueckAblegen();
+  knopfRueckgaengigZeigen();
+}
+
+// Schritte einer anderen Person (gleicher Tab, ohne Abmelden
+// gewechselt) gelten nicht
+function rueckEigene() {
+  const ich = (profil && profil.id) || null;
+  for (let i = rueckgaengigListe.length - 1; i >= 0; i--) {
+    if (rueckgaengigListe[i].wer && rueckgaengigListe[i].wer !== ich) rueckgaengigListe.splice(i, 1);
+  }
 }
 
 function knopfRueckgaengigZeigen() {
   const k = document.getElementById("rueck-knopf");
   if (!k) return;
+  rueckEigene();
   k.hidden = false;
   k.disabled = rueckgaengigListe.length === 0;
   k.title = rueckgaengigListe.length
-    ? "Rückgängig: " + rueckgaengigListe[rueckgaengigListe.length - 1].text
-    : "";
+    ? "Rückgängig: " + rueckgaengigListe[rueckgaengigListe.length - 1].text + " (Strg + Z)"
+    : "Nichts zum Zurücknehmen";
 }
 
+// wo: { spalte: wert } oder { spalte: [wert, …] } für mehrere Zeilen
+function rueckFilter(q, wo) {
+  Object.keys(wo || {}).forEach((k) => {
+    q = wo[k] === null ? q.is(k, null) : (Array.isArray(wo[k]) ? q.in(k, wo[k]) : q.eq(k, wo[k]));
+  });
+  return q;
+}
+
+const rueckLeer = (wo) => Object.keys(wo || {}).some((k) => Array.isArray(wo[k]) && !wo[k].length);
+
+async function rueckAusfuehren(s) {
+  let r = null;
+  if ((s.a === "weg" || s.a === "setz") && rueckLeer(s.wo)) return;
+  if (s.a === "weg") {
+    if (!s.wo || !Object.keys(s.wo).length) throw new Error("Löschen ohne Bedingung");
+    r = await rueckFilter(db.from(s.t).delete(), s.wo);
+  } else if (s.a === "rein") {
+    if (!s.z.length) return;
+    // Mehrere Schlüssel nacheinander probieren (Stückzahlen haben je
+    // nach Stand der Datenbank zwei oder drei Spalten im Schlüssel)
+    // Spalten, die die Datenbank nicht kennt, werden weggelassen
+    const konflikte = String(s.k).split("|");
+    let zeilen = s.z;
+    for (let versuch = 0, i = 0; versuch < 10 && i < konflikte.length; versuch++) {
+      r = await db.from(s.t).upsert(zeilen, { onConflict: konflikte[i] });
+      const text = String((r.error && r.error.message) || "");
+      const spalte = text.match(/find the '([^']+)' column/i) || text.match(/column "([^"]+)" of relation/i);
+      if (spalte) {
+        zeilen = zeilen.map((z) => { const k = Object.assign({}, z); delete k[spalte[1]]; return k; });
+      } else if (/ON CONFLICT|unique or exclusion|no unique/i.test(text)) {
+        i++;
+      } else break;
+    }
+  } else if (s.a === "setz") {
+    const schluessel = Object.keys(s.wo || {});
+    if (!schluessel.length) throw new Error("Ändern ohne Bedingung");
+    if (schluessel.length === 1 && !Array.isArray(s.wo[schluessel[0]])) {
+      await aendernOhneUnbekannte(s.t, s.d, schluessel[0], s.wo[schluessel[0]]);
+      return;
+    }
+    r = await rueckFilter(db.from(s.t).update(s.d), s.wo);
+  } else if (s.a === "stand") {
+    await speichereStand(s.m, s.d, s.s, s.j);
+    return;
+  } else {
+    throw new Error("Unbekannter Schritt");
+  }
+  if (r && r.error) throw r.error;
+}
+
+// Nach dem Zurücknehmen die offene Seite still auffrischen
+function rueckAuffrischen() {
+  const pfad = (location.hash.replace(/^#\/?/, "").split("/")[0]) || "dashboard";
+  if (pfad === "planwand") {
+    if (plan.b && document.body.contains(plan.b)) planAktualisieren(plan.b);
+    return;
+  }
+  const bereich = document.getElementById("inhalt");
+  const seite = SEITEN.find((x) => x.pfad === (sync.pfad || pfad));
+  if (!bereich || !seite) return;
+  const y = window.scrollY;
+  seite.zeige(bereich);
+  setTimeout(() => window.scrollTo(0, y), 60);
+}
+
+let rueckLaeuft = false;
+
 async function schrittZurueck() {
+  if (rueckLaeuft) return;
+  rueckEigene();
   const letzter = rueckgaengigListe.pop();
+  rueckAblegen();
   knopfRueckgaengigZeigen();
   if (!letzter) { meldung("Nichts zum Zurücknehmen.", "warn"); return; }
 
+  rueckLaeuft = true;
   try {
     // Auf der Planwand gleiten die Balken an ihren alten Platz zurück
     planFliessenAnmelden();
-    await letzter.tun();
+    for (const s of letzter.schritte) await rueckAusfuehren(s);
     meldung("Zurückgenommen: " + letzter.text);
   } catch (f) {
     meldung("Zurücknehmen fehlgeschlagen: " + fehlertext(f), "fehler");
+  } finally {
+    rueckLaeuft = false;
+    rueckAuffrischen();
   }
 }
 
@@ -730,6 +878,106 @@ function sitzungMerken(email, schluessel) {
     if (schluessel) alle[e] = schluessel; else delete alle[e];
     localStorage.setItem(GERAET_SITZUNGEN, JSON.stringify(alle));
   } catch (f) { /* ohne Speicher eben jedes Mal anmelden */ }
+  // Häkchen gesetzt oder weg: die laufende Sitzung an den passenden Ort
+  sitzungUmziehen();
+}
+
+// ---------- Abmelden beim Schliessen ----------
+// Wunsch Patrick, 6. Oktober 2026: „Wenn man die Seite schliesst, soll
+// es auch abmelden, ausser man hat angemeldet bleiben drin.“
+// Supabase legt die Sitzung über diesen Speicher ab. Wer sich auf dem
+// Gerät merken lässt (Häkchen „Auf diesem Gerät merken“), bleibt im
+// localStorage und damit angemeldet. Alle anderen liegen im
+// sessionStorage: Neuladen und Seitenwechsel behalten die Anmeldung,
+// Schliessen des Tabs oder Browsers meldet ab.
+function sitzungEmail(wert) {
+  try {
+    const o = JSON.parse(wert);
+    return (o && o.user && o.user.email) || "";
+  } catch (f) { return ""; }
+}
+
+function sitzungDauerhaft(wert) {
+  return sitzungGemerkt(sitzungEmail(wert));
+}
+
+const sitzungSpeicher = {
+  getItem(k) {
+    try {
+      const w = sessionStorage.getItem(k);
+      if (w !== null) return w;
+    } catch (f) { /* weiter */ }
+    try { return localStorage.getItem(k); } catch (f) { return null; }
+  },
+  setItem(k, v) {
+    const dauerhaft = sitzungDauerhaft(v);
+    try {
+      (dauerhaft ? localStorage : sessionStorage).setItem(k, v);
+      (dauerhaft ? sessionStorage : localStorage).removeItem(k);
+    } catch (f) {
+      // sessionStorage gesperrt: lieber angemeldet bleiben als gar nicht
+      try { localStorage.setItem(k, v); } catch (f2) { /* egal */ }
+    }
+  },
+  removeItem(k) {
+    try { sessionStorage.removeItem(k); } catch (f) { /* egal */ }
+    try { localStorage.removeItem(k); } catch (f) { /* egal */ }
+  },
+};
+
+const SITZUNG_MUSTER = /^sb-.*-auth-token/;
+
+function sitzungSchluessel() {
+  const alle = new Set();
+  try { Object.keys(localStorage).filter((k) => SITZUNG_MUSTER.test(k)).forEach((k) => alle.add(k)); } catch (f) { /* egal */ }
+  try { Object.keys(sessionStorage).filter((k) => SITZUNG_MUSTER.test(k)).forEach((k) => alle.add(k)); } catch (f) { /* egal */ }
+  return Array.from(alle);
+}
+
+function sitzungUmziehen() {
+  sitzungSchluessel().forEach((k) => {
+    const w = sitzungSpeicher.getItem(k);
+    if (w !== null) sitzungSpeicher.setItem(k, w);
+  });
+}
+
+// Ein zweiter Tab hat keinen eigenen sessionStorage. Damit er nicht
+// nach der Anmeldung fragt, solange ein anderer Tab angemeldet ist,
+// fragt er beim Start kurz bei den offenen Tabs nach (nur dieselbe
+// Adresse kann mithören).
+let sitzungKanal = null;
+try {
+  sitzungKanal = typeof BroadcastChannel === "function" ? new BroadcastChannel("hofer-sitzung") : null;
+  if (sitzungKanal) sitzungKanal.onmessage = (e) => {
+    if (!e.data || e.data.frage !== true) return;
+    const antwort = {};
+    try {
+      Object.keys(sessionStorage).filter((k) => SITZUNG_MUSTER.test(k))
+        .forEach((k) => { antwort[k] = sessionStorage.getItem(k); });
+    } catch (f) { /* nichts zu geben */ }
+    if (Object.keys(antwort).length) sitzungKanal.postMessage({ sitzung: antwort });
+  };
+} catch (f) { sitzungKanal = null; }
+
+function sitzungVonAnderemTab() {
+  if (!sitzungKanal || sitzungSchluessel().length) return Promise.resolve(false);
+  return new Promise((fertig) => {
+    let uhr = null;
+    const hoeren = (e) => {
+      if (!e.data || !e.data.sitzung) return;
+      clearTimeout(uhr);
+      sitzungKanal.removeEventListener("message", hoeren);
+      Object.keys(e.data.sitzung).forEach((k) => {
+        if (SITZUNG_MUSTER.test(k) && typeof e.data.sitzung[k] === "string") {
+          try { sessionStorage.setItem(k, e.data.sitzung[k]); } catch (f) { /* egal */ }
+        }
+      });
+      fertig(true);
+    };
+    sitzungKanal.addEventListener("message", hoeren);
+    uhr = setTimeout(() => { sitzungKanal.removeEventListener("message", hoeren); fertig(false); }, 250);
+    try { sitzungKanal.postMessage({ frage: true }); } catch (f) { clearTimeout(uhr); fertig(false); }
+  });
 }
 
 // Supabase tauscht den Schlüssel beim Erneuern aus; der alte gilt danach
@@ -998,6 +1246,8 @@ async function verbinden() {
         return modul.createClient(SUPABASE_URL, SUPABASE_KEY, {
           auth: {
             persistSession: true,
+            // Gemerkt: bleibt; sonst nur bis der Tab zugeht
+            storage: sitzungSpeicher,
             autoRefreshToken: true,
             detectSessionInUrl: true,
             // Die Browsersperre wird umgangen. Sie kann sich in
@@ -1027,6 +1277,8 @@ let profil = null;
 // Sitzung im Speicher.
 async function abmelden() {
   stammVergessen();
+  // Rückgängig gilt nur bis zum Abmelden
+  rueckLeeren();
   const s = await sitzung();
   if (!s || !sitzungGemerkt(s.user && s.user.email)) {
     try { await db.auth.signOut(); } catch (f) { /* lokal ist trotzdem weg */ }
@@ -1035,11 +1287,7 @@ async function abmelden() {
   sitzungMerken(s.user.email, s.refresh_token);
   try { db.auth.stopAutoRefresh(); } catch (f) { /* egal */ }
   try { db.removeAllChannels(); } catch (f) { /* egal */ }
-  try {
-    Object.keys(localStorage)
-      .filter((k) => /^sb-.*-auth-token/.test(k))
-      .forEach((k) => localStorage.removeItem(k));
-  } catch (f) { /* egal */ }
+  sitzungSchluessel().forEach((k) => sitzungSpeicher.removeItem(k));
   db = await verbinden();
   sitzungenVerfolgen(db);
 }
@@ -2175,8 +2423,11 @@ async function loeschen(o) {
       bestaetigen: "Endgültig löschen", gefahr: true });
   if (!ok) return false;
 
+  // Für Rückgängig den ganzen Eintrag sichern
+  const sicherung = await db.from(o.tabelle).select("*").eq("id", o.id).maybeSingle();
   const { error } = await db.from(o.tabelle).delete().eq("id", o.id);
   if (error) { meldung(fehlertext(error), "fehler"); return false; }
+  if (sicherung && sicherung.data) merkeSchritt(o.rueckText || "Löschen", rueckRein(o.tabelle, sicherung.data));
   meldung("Gelöscht.");
   return true;
 }
@@ -3864,14 +4115,9 @@ function griffVerhalten(b) {
         }
       }
 
-      merkeSchritt("Dauer von " + auftrag.job_number, async () => {
-        for (const v of vorherNachrueck) {
-          await db.from("jobs").update({ planned_from: v.von }).eq("id", v.id);
-        }
-        await db.from("jobs")
-          .update({ planned_days: altD, planned_from: altV }).eq("id", auftrag.id);
-        planAktualisieren(b);
-      });
+      merkeSchritt("Dauer von " + auftrag.job_number,
+        vorherNachrueck.map((v) => rueckSetz("jobs", { planned_from: v.von }, { id: v.id }))
+          .concat([rueckSetz("jobs", { planned_days: altD, planned_from: altV }, { id: auftrag.id })]));
       meldung(dauerJetzt + (dauerJetzt === 1 ? " Tag" : " Tage") + " eingeplant."
         + (vorherNachrueck.length ? "  " + vorherNachrueck.length
             + (vorherNachrueck.length === 1 ? " Auftrag" : " Aufträge") + " bündig dahinter." : ""));
@@ -4938,6 +5184,8 @@ function aeltereNachladen(b) {
 }
 
 function zeichnePlanwand(b) {
+  // Rückgängig frischt nach dem Zurücknehmen diese Tafel auf
+  plan.b = b;
   // Nach einem Verschieben: Lage der Balken vor dem Neuzeichnen merken
   const vorherLagen = planBalkenMerken();
   // Die Spaltenbreite hängt an den Maschinennamen. Beim ersten Lauf
@@ -5474,10 +5722,8 @@ function ferienVerhalten(b) {
         .update({ zeile: neueBahn, von: teile[1] }).eq("id", f2.id);
       if (error) meldung(fehlertext(error), "fehler");
       else {
-        merkeSchritt("Ferien von " + f2.person, async () => {
-          await db.from("vacations").update({ zeile: altZ, von: altVon }).eq("id", f2.id);
-          planAktualisieren(b);
-        });
+        merkeSchritt("Ferien von " + f2.person,
+          rueckSetz("vacations", { zeile: altZ, von: altVon }, { id: f2.id }));
         meldung("Verschoben."); planAktualisieren(b);
       }
     });
@@ -6254,14 +6500,9 @@ function balkenVerhalten(b) {
       planFliessenAnmelden();
 
       const zurueck = ausgewichen.concat(aufgeschlossen);
-      merkeSchritt("Verschieben von " + auftrag.job_number, async () => {
-        await parallelSenden(zurueck.map((v) => () =>
-          db.from("jobs").update({ planned_from: v.von }).eq("id", v.id)));
-        await db.from("jobs")
-          .update({ machine_id: vorherM, planned_from: vorherD })
-          .eq("id", auftrag.id);
-        planAktualisieren(b);
-      });
+      merkeSchritt("Verschieben von " + auftrag.job_number,
+        zurueck.map((v) => rueckSetz("jobs", { planned_from: v.von }, { id: v.id }))
+          .concat([rueckSetz("jobs", { machine_id: vorherM, planned_from: vorherD }, { id: auftrag.id })]));
 
       meldung("Verschoben."
         + (ausgewichen.length ? "  " + ausgewichen.length + " ausgewichen." : "")
@@ -8629,7 +8870,7 @@ const SEITEN = [
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
   zeitlimit, meldung, nachfragen, fehlertext, dialogFelder, auswahlDialog,
-  merkeSchritt, personName, zielPersonFinden, darfSchreiben,
+  merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,
   reiterUebergang,
   best, seiteBestellungen, sucheArtikel, ladeBezeichnungen, ladeLieferanten,
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
@@ -9162,6 +9403,7 @@ window.addEventListener("hashchange", () => {
 
 try {
   stand("Verbindung wird aufgebaut …");
+  await sitzungVonAnderemTab();
   db = await verbinden();
   sitzungenVerfolgen(db);
 
