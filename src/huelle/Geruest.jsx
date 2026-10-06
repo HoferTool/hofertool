@@ -145,7 +145,13 @@ function Geruest() {
             alten Programm. Kein disabled hier: React würde Klicks sonst
             auch nach dem Freigeben verschlucken. */}
         <button className="kopf__rueck" id="rueck-knopf" title="Rückgängig (Strg + Z)"
-          onClick={() => alt.schrittZurueck()}><span>↶</span><b>Rückgängig</b></button>
+          onClick={() => alt.schrittZurueck()}>
+          {/* Gebogener Pfeil zurück im Strich der Suche statt des Schriftzeichens ↶,
+              das je nach Gerät anders aussah (Wunsch 6. Oktober 2026) */}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>
+          <b>Rückgängig</b></button>
         <span className="kopf__luecke" />
         <button className="kopf__suche" id="kopf-suche" title="Suchen (Strg + K)"
           onClick={() => alt.sucheOeffnen()} onMouseEnter={vorladen} onFocus={vorladen}>

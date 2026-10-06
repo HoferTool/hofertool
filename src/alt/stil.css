@@ -3573,12 +3573,16 @@ body.dunkel .login__kachel:hover .login__kachel-buchstabe { background: #fff; }
 body.dunkel .login input, body.dunkel .login select {
   background: #10161e; border-color: #303945; color: #e8eef7; }
 /* Rückgängig: am Computer mit Beschriftung, am Handy nur das Zeichen */
-.kopf__rueck { display: inline-flex !important; align-items: center; gap: 6px;
-               height: 38px; padding: 0 12px; margin-right: 8px; border-radius: 10px;
+/* width: auto, weil die ältere Regel oben 32px setzt: Sonst ragte die
+   Schrift aus dem Rahmen und das Zeichen wurde winzig (111.77.3) */
+.kopf__rueck { display: inline-flex !important; align-items: center; gap: 7px;
+               width: auto; height: 38px; padding: 0 14px 0 11px; margin-right: 8px; border-radius: 10px;
                font: inherit; font-size: .9rem; cursor: pointer; color: var(--tinte); }
-.kopf__rueck span { font-size: 1.1rem; line-height: 1; }
+.kopf__rueck svg { width: 18px; height: 18px; flex: none; color: var(--marke); }
+.kopf__rueck b { font-weight: 500; }
+.dunkel .kopf__rueck svg { color: inherit; }
 .kopf__rueck:disabled { opacity: .4; cursor: default; }
-@media (max-width: 760px) { .kopf__rueck b { display: none; } .kopf__rueck { padding: 0 10px; } }
+@media (max-width: 760px) { .kopf__rueck b { display: none; } .kopf__rueck { padding: 0; width: 38px; justify-content: center; } }
 /* ---------- Solaranlage: flach, klar, mit Tagesverlauf ----------
    Die Anzeige nimmt deutlich weniger Höhe ein: Werte und
    Eigenverbrauch stehen in einer Zeile, darunter der Verlauf. */
