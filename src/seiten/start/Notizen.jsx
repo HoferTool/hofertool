@@ -103,7 +103,7 @@ async function abhaken(e, t, neu) {
 // stand sie dort schon, fällt sie weg: sonst stünde alles doppelt da.
 async function materialInsAuftrag(text) {
   if (!alt.darfSchreiben()) return;
-  const hoco = String(text || "").match(/(?<!\d)(\d{5})\s?-\s?(\d{4})(?!\d)/);
+  const hoco = String(text || "").match(/(?:^|\D)(\d{5})\s?-\s?(\d{4})(?!\d)/);
   const be = materialBestellungLesen(text);
   if (!hoco || !be) return;
   const nr = hoco[1] + "-" + hoco[2];
