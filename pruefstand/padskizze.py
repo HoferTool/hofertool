@@ -55,14 +55,19 @@ with sync_playwright() as p:
     finger(pg, cdp, [(x0 + i * 8, y0 + (i % 5) * 6) for i in range(20)])
     # Seit 111.66.0: Farbe über den Farbwähler, Dicke wechselt reihum (mittel → dick)
     pg.locator("[data-skizzefarbwahl]").evaluate("e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(e, '#b3261e'); e.dispatchEvent(new Event('input', { bubbles: true })); }")
-    pg.locator("[data-skizzedicke]").tap()
+    dk = pg.locator("[data-skizzedicke]")
+    vor_tipp = dk.get_attribute("data-skizzedicke")
+    bb = dk.bounding_box()
+    darunter = pg.evaluate("([x,y]) => { const e = document.elementFromPoint(x,y); return e ? e.tagName + '.' + e.className : null; }", [bb["x"] + bb["width"] / 2, bb["y"] + bb["height"] / 2])
+    dk.tap(); pg.wait_for_timeout(200)
+    nach_tipp = dk.get_attribute("data-skizzedicke")
     finger(pg, cdp, [(x0 + 10, y0 + 100 + i * 7) for i in range(15)])
     pg.wait_for_timeout(900)
     s = gespeichert(pg)
     pruefe(len(s) == 2, "zwei Striche gespeichert: %d" % len(s))
     pruefe(len(s) == 2 and s[1]["f"] == "#b3261e" and s[1]["d"] > s[0]["d"], "zweiter Strich rot und dicker"
            + ("" if len(s) == 2 and s[1]["f"] == "#b3261e" and s[1]["d"] > s[0]["d"]
-              else " " + str([(x.get("f"), x.get("d")) for x in s])))
+              else " " + str([(x.get("f"), x.get("d")) for x in s]) + " Dicke %s -> %s, unter dem Knopf %s" % (vor_tipp, nach_tipp, darunter)))
     pruefe(pg.evaluate("() => TEST.daten.pad_skizzen[0].job_id") is not None, "hängt am Auftrag")
     # Pixel auf der Leinwand gemalt?
     farbig = pg.evaluate("""() => { const c = document.querySelector('.pad-skizze__leinwand');
