@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.71.0";
+const APP_VERSION = "111.72.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6771,7 +6771,9 @@ function leerlaufPruefen() {
   }
 }
 
-function padOeffnen() {
+// zustand: nur beim Wiederöffnen nach dem Neuladen (padNeuLaden),
+// damit das Pad gleich dort aufgeht, wo man war, ohne Umweg über Start
+function padOeffnen(zustand) {
   if (document.getElementById("pad")) return;
   const h = document.createElement("div");
   h.id = "pad";
@@ -6791,7 +6793,37 @@ function padOeffnen() {
   if (inhalt) inhalt.innerHTML = "";
   if (typeof syncStoppen === "function") syncStoppen();
   pad.wo = "start";
+  if (zustand) Object.assign(pad, zustand);
   padZeichnen();
+}
+
+// Tipp aufs Logo im Pad: die App neu laden und danach wieder genau
+// dort im Pad landen, etwa auf dem Dashboard derselben Maschine
+// (Wunsch 6. Oktober 2026). Der Ort liegt nur für diesen einen
+// Neustart im Speicher des Tabs; die Anmeldung bleibt ohnehin.
+const PAD_NEULADEN = "hofer.pad.neuladen";
+const PAD_FELDER = ["wo", "parkId", "typId", "typUebersprungen", "maschineId", "reiter"];
+
+function padNeuLaden() {
+  const z = { zeit: Date.now() };
+  PAD_FELDER.forEach((k) => { if (pad[k] !== undefined) z[k] = pad[k]; });
+  try { sessionStorage.setItem(PAD_NEULADEN, JSON.stringify(z)); } catch (f) { /* dann eben Start */ }
+  location.reload();
+}
+
+// Gibt true zurück, wenn das Pad wieder geöffnet wurde. Älter als
+// zehn Minuten zählt nicht, etwa wenn dazwischen die Anmeldung kam.
+function padWiederOeffnen() {
+  let z = null;
+  try {
+    z = JSON.parse(sessionStorage.getItem(PAD_NEULADEN) || "null");
+    sessionStorage.removeItem(PAD_NEULADEN);
+  } catch (f) { z = null; }
+  if (!z || !(Date.now() - z.zeit < 10 * 60 * 1000)) return false;
+  const zustand = {};
+  PAD_FELDER.forEach((k) => { if (k in z) zustand[k] = z[k]; });
+  padOeffnen(zustand);
+  return !!document.getElementById("pad");
 }
 
 function padSchliessen() {
@@ -8613,7 +8645,7 @@ Object.assign(alt, {
   ladeAlleMaschinen, maschineZielText, doppeltNachfragen, parallelSenden,
   aendernOhneUnbekannte, zielZeichen, kurzDatum, zahlText, isoDatum,
   fortschrittRechnen, planAuftragDialog, dreiNachfragen, ladeTypen,
-  pad, padSchliessen, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
+  pad, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
   notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen,
   werkzeugWechselDialog, zifferblock,
@@ -9099,7 +9131,11 @@ function zeichneGeruest() {
   window.untaetigNeuStarten = () => leerlaufAktiv();
 
   if (!location.hash) location.hash = "#/dashboard";
-  Promise.all([farbzuteilungLaden(), planerLaden()]).then(() => zeichneSeite());
+  // Nach dem Neuladen aus dem Pad gleich wieder ins Pad, ohne die
+  // Seite darunter erst aufzubauen
+  Promise.all([farbzuteilungLaden(), planerLaden()]).then(() => {
+    if (!padWiederOeffnen()) zeichneSeite();
+  });
   padKnopfEinbauen();
   if (!window._escZurueck) { window._escZurueck = true; escapeZurueck(); }
 }

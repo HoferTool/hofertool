@@ -441,7 +441,11 @@ export default function Maschine({ d }) {
   // Dadurch bleibt für die Zeichnung die ganze Fläche übrig.
   const kopf = (
     <div className="pad__kopf pad__kopf--dash">
-      <img className="pad__logo2" src="./logo.png" alt="Hofer + Co." />
+      {/* Tipp aufs Logo lädt die App neu, das Dashboard bleibt offen */}
+      <button className="pad__logoknopf" data-padneu="" title="Neu laden"
+        onClick={() => alt.padNeuLaden()}>
+        <img className="pad__logo2" src="./logo.png" alt="Hofer + Co." />
+      </button>
       <button className="pad__zurueck" data-padzurueck="" onClick={padZurueck}>‹ Zurück</button>
       <span className="pad__titel pad__titel--links">
         {m.name}{m.machine_number && <> <span className="pad__nr">{m.machine_number}</span></>}

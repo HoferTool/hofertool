@@ -5814,3 +5814,9 @@ body[data-thema] #pad .pad-kachel--maschine::before {
 /* Klein steht das Blatt oben unter der Leiste, gross in der Mitte */
 .pad-skizze__raum { align-items: flex-start; }
 .pad-skizze-gross .pad-skizze__raum { align-items: center; }
+
+/* Logo im Pad-Dashboard ist ein Knopf: Tippen lädt neu (111.72.0) */
+.pad__logoknopf { background: none; border: 0; padding: 0; margin: 0; flex: none;
+                  display: flex; align-items: center; cursor: pointer;
+                  -webkit-tap-highlight-color: transparent; }
+.pad__logoknopf:active .pad__logo2 { opacity: .6; }
