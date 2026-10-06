@@ -126,14 +126,14 @@ Alle sind PowerShell 5.1 auf Windows, ohne Installation.
 
 ## Umzug (abgeschlossen am 1. Oktober 2026)
 
-Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alles ist ins neue Konto umgezogen. Seit 5. Oktober 2026 liefert der neue Solar-Rechner direkt ins neue Projekt (Quelle „Solar-Log direkt“), das alte Projekt wird nicht mehr gebraucht und darf pausiert werden. Das alte Projekt ist aus (Patrick, 6. Oktober 2026). Die alte Adresse syshen69.github.io/hofer soll **nicht** mehr weiterleiten, sondern „Fehler: falscher Link“ zeigen (Wunsch 6. Oktober 2026); Claude hat keinen Zugriff auf `syshen69/hofer`, die Fehlerseite lädt Patrick dort selbst als `index.html` hoch. `sicherung.ps1` und `wiederherstellen.ps1` zeigen seit 5. Oktober 2026 aufs neue Projekt.
+Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alles ist ins neue Konto umgezogen. Seit 5. Oktober 2026 liefert der neue Solar-Rechner direkt ins neue Projekt (Quelle „Solar-Log direkt“), das alte Projekt wird nicht mehr gebraucht. **Alles Alte ist abgeschaltet (6. Oktober 2026):** altes Supabase-Projekt aus, altes Repository archiviert. Die alte Adresse syshen69.github.io/hofer leitet **nicht** mehr weiter, sondern zeigt „Fehler: falscher Link“ (Wunsch Patrick); nie wieder eine Weiterleitung einbauen. Claude hat keinen Zugriff auf `syshen69/hofer`. `sicherung.ps1` und `wiederherstellen.ps1` zeigen seit 5. Oktober 2026 aufs neue Projekt.
 
 ## Offene Punkte
 
 1. ~~`solarlog.ps1` umstellen~~ erledigt am 5. Oktober 2026. Nach ein paar Tagen `solarlog-alt.ps1` am Solar-Rechner löschen.
 2. Datenbank-Passwort und Secret Key des neuen Projekts neu setzen — sie standen im Chat.
 3. Sicherung (`sicherung.ps1`) und Dokumente-Abgleich auf das neue Projekt umstellen.
-4. Supabase Pro für tägliche Sicherungen. Altes Projekt pausieren. `C:\Hofer\Umzug` löschen.
+4. Supabase Pro für tägliche Sicherungen. `C:\Hofer\Umzug` löschen.
 5. Offline am Tablet einmal testen.
 6. PIN-Anmeldung in Betrieb nehmen: `sql/pin-anmeldung.sql` ausführen und allen eine PIN oder ein Passwort setzen. `sql/offenes-passwort-weg.sql` **nie ausführen** (Entscheid 3. Oktober 2026), die Datei bleibt nur als Möglichkeit liegen. Die E-Mail-Adressen sind über `login_kacheln` weiterhin öffentlich lesbar.
 7. Standzeiten der Werkzeuge aus `tool_changes.gehalten_stk` auswerten.
