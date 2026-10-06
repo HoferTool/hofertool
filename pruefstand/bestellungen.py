@@ -53,12 +53,11 @@ with sync_playwright() as p:
     if "MTEC-452410" in pg.inner_text("#best-inhalt"): fehler.append("Status für alle wirkt nicht")
     pg.click("[data-best='offen']"); pg.wait_for_timeout(500)
 
-    # Löschen mit doppelter Rückfrage, dann Rückgängig
+    # Löschen mit genau einer Rückfrage, dann Rückgängig
     pg.click("[data-bweg='o1']")
-    for _ in range(2):
-        pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.locator(".dialog-huelle [data-ja]").last.click()
-        pg.wait_for_timeout(300)
-    pg.wait_for_timeout(600)
+    pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.locator(".dialog-huelle [data-ja]").last.click()
+    pg.wait_for_timeout(900)
+    if pg.locator(".dialog-huelle [data-ja]").count(): fehler.append("Nach dem Löschen kommt noch eine Rückfrage")
     if pg.locator("[data-bweg='o1']").count(): fehler.append("Löschen wirkt nicht")
     pg.click("#rueck-knopf"); pg.wait_for_timeout(800)
     if not pg.locator("[data-bweg='o1']").count(): fehler.append("Rückgängig nach Löschen wirkt nicht")

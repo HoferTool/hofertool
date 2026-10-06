@@ -284,11 +284,10 @@ async function bearbeiten(z, behaelter) {
 
 async function loeschen(z, behaelter) {
   const nr = (z.articles && z.articles.article_number) || "";
-  const ok = await alt.doppeltNachfragen(
-    { titel: "Position löschen", text: "Soll die Position " + nr + " wirklich gelöscht werden?",
-      bestaetigen: "Weiter zum Löschen", gefahr: true },
-    { titel: "Wirklich endgültig löschen?", text: "Letzte Rückfrage. Danach ist die Position weg.",
-      bestaetigen: "Endgültig löschen", gefahr: true });
+  // Nur eine Rückfrage (Wunsch 6. Oktober 2026); "Rückgängig" holt die Position zurück
+  const ok = await alt.nachfragen(
+    { titel: "Position löschen", text: "Soll die Position " + nr + " gelöscht werden?",
+      bestaetigen: "Löschen", gefahr: true });
   if (!ok) return;
   const db = alt.db;
   const sicherung = await db.from("order_items").select("*").eq("id", z.id).single();
