@@ -45,7 +45,9 @@ with sync_playwright() as p:
     kn = pg.locator("#pad .pad-knoepfe").bounding_box()
     print("  Fläche", round(fl["width"]), "x", round(fl["height"]))
     pruefe(fl["y"] > sa["y"] + sa["height"] - 2, "Fläche unter Uhr und Wetter")
-    pruefe(fl["height"] > 200, "Fläche ist gross")
+    # Seit 111.70.1 ein Blatt 16:10 über die ganze Breite der Kachel
+    kb = pg.locator("#pad .pad-karte2--skizze").bounding_box()
+    pruefe(fl["width"] > kb["width"] - 30 and abs(fl["height"] / fl["width"] - 0.625) < 0.01, "Fläche ist so breit wie die Kachel, 16:10")
     pruefe(fl["y"] + fl["height"] < kn["y"], "Fläche endet vor den Knöpfen")
     pg.screenshot(path="s_padskizze_leer.png")
 

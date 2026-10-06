@@ -13,8 +13,11 @@
 //
 //  Mit dem Knopf oben rechts in der Fläche geht die Skizze gross über
 //  das ganze Pad auf und mit demselben Knopf (oder Escape) wieder
-//  zurück in die kleine Kachel (Wunsch Patrick 6. Oktober 2026). Was
-//  über den Rand einer Fläche hinausginge, wird dort kleiner gezeigt.
+//  zurück in die kleine Kachel (Wunsch Patrick 6. Oktober 2026).
+//  Klein und gross ist dasselbe Blatt im Querformat 16:10, klein einfach
+//  verkleinert: gleiche Umbrüche, nichts abgeschnitten (Wunsch Patrick
+//  6. Oktober 2026, "meistens macht man es eh auf"). Nur ältere
+//  Zeichnungen, die über das Blatt hinausgehen, werden kleiner gezeigt.
 //
 //  Knopf "T" setzt ein Textfeld auf die Skizze, mit Fett, Kursiv,
 //  Unterstrichen und Schriftgrösse wie die Info an der Maschine
@@ -35,6 +38,12 @@ import { FettText } from "../teile/FettText.jsx";
 // Dicke in Bildpunkten bei 400 px Breite, wächst mit der Fläche mit
 const DICKEN = [["duenn", 3], ["mittel", 7], ["dick", 14]];
 const NACHLADEN_MS = 15000;
+// Höhe des Blatts im Verhältnis zur Breite (16:10, wie die grosse
+// Skizze auf dem iPad quer)
+const BLATT = 0.625;
+// Textfelder werden auf einem gedachten Blatt dieser Breite gesetzt und
+// als Ganzes skaliert, damit sie klein genau so umbrechen wie gross
+const TEXTBLATT = 1000;
 // Schriftgrösse der Textfelder in Bildpunkten bei 400 px Breite,
 // wächst wie die Striche mit der Fläche mit
 const SCHRIFTEN = [["klein", "Klein", 14], ["mittel", "Mittel", 20], ["gross", "Gross", 30],
@@ -129,6 +138,7 @@ export default function Skizze({ j }) {
   const getippt = useRef(null);
   const massstab = useRef(1);        // < 1, wenn die Zeichnung sonst nicht ganz hineinpasst
   const flaeche = useRef(null);
+  const raum = useRef(null);         // Platz in der Kachel, in den das Blatt passen muss
   const leinwand = useRef(null);
   const breite = useRef(0);
   const aktuell = useRef(null);      // Strich, der gerade entsteht
@@ -159,7 +169,7 @@ export default function Skizze({ j }) {
       const p = s.p || [], r = (s.d || 0) / 2;
       for (let i = 0; i + 1 < p.length; i += 2) { mx = Math.max(mx, p[i] + r); my = Math.max(my, p[i + 1] + r); }
     });
-    const hoehe = (cv.height / dpr) / (w || 1);
+    const hoehe = BLATT;
     let k = 1;
     // mit etwas Rand, damit nichts an der Kante klebt
     if (mx > 1) k = Math.min(k, 0.98 / mx);
@@ -176,20 +186,24 @@ export default function Skizze({ j }) {
 
   // Die Fläche folgt der Grösse der Kachel
   useLayoutEffect(() => {
-    const el = flaeche.current, cv = leinwand.current;
-    if (!el || !cv) return;
+    const el = flaeche.current, cv = leinwand.current, rm = raum.current;
+    if (!el || !cv || !rm) return;
     const anpassen = () => {
-      const r = el.getBoundingClientRect();
+      // Das grösste Blatt 16:10, das in den Platz passt
+      const r = rm.getBoundingClientRect();
+      const w = Math.max(1, Math.floor(Math.min(r.width, r.height / BLATT)));
+      const h = Math.max(1, Math.round(w * BLATT));
+      el.style.width = w + "px"; el.style.height = h + "px";
       const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-      breite.current = r.width;
-      cv.width = Math.max(1, Math.round(r.width * dpr));
-      cv.height = Math.max(1, Math.round(r.height * dpr));
-      cv.style.width = r.width + "px"; cv.style.height = r.height + "px";
+      breite.current = w;
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(h * dpr);
+      cv.style.width = w + "px"; cv.style.height = h + "px";
       allesZeichnen();
     };
     anpassen();
     const ro = new ResizeObserver(anpassen);
-    ro.observe(el);
+    ro.observe(rm);
     return () => ro.disconnect();
   }, [allesZeichnen, gross]);
 
@@ -373,11 +387,16 @@ export default function Skizze({ j }) {
     const w = await textDialog(null);
     if (!w || !(w.text || "").trim()) return;
     alt.pad.skizzeSchrift = w.schrift;
-    // Links oben in der sichtbaren Fläche, jedes weitere etwas tiefer
+    // Links oben, ein weiteres unter den Texten, die schon da sind
     const k = massstab.current || 1;
-    const n = strichRef.current.filter(istText).length % 6;
+    const f = flaeche.current.getBoundingClientRect();
+    let unten = 0.05;
+    flaeche.current.querySelectorAll("[data-skizzetext]").forEach((el) => {
+      unten = Math.max(unten, (el.getBoundingClientRect().bottom - f.top) / (f.width || 1) + 0.015);
+    });
+    if (unten > BLATT - 0.06) unten = 0.05;
     aendern([...strichRef.current, { t: 1, h: w.text.trim(), x: rund(0.05 / k),
-      y: rund((0.05 + n * 0.09) / k), g: w.schrift, f: farbe, p: [] }]);
+      y: rund(unten / k), g: w.schrift, f: farbe, p: [] }]);
   };
 
   const textBearbeiten = async (i) => {
@@ -458,29 +477,34 @@ export default function Skizze({ j }) {
       <Symbol d={gross ? KLEIN : GROSS} />{gross && <span>Verkleinern</span>}</button>;
 
   const flaecheTeil = (
+    <div className="pad-skizze__raum" ref={raum}>
     <div className="pad-skizze__flaeche" ref={flaeche}>
       <canvas ref={leinwand} className={"pad-skizze__leinwand" + (radierer ? " pad-skizze__leinwand--radierer" : "")}
         onPointerDown={runter} onPointerMove={bewegen} onPointerUp={hoch} onPointerCancel={hoch}
         onLostPointerCapture={hoch} />
-      {masse.w > 0 && striche.map((s, i) => {
+      {masse.w > 0 &&
+      <div className="pad-skizze__textblatt" style={{ width: TEXTBLATT, height: TEXTBLATT * BLATT,
+        transform: "scale(" + masse.w / TEXTBLATT + ")" }}>
+      {striche.map((s, i) => {
         if (!istText(s)) return null;
         const pos = zieh && zieh.i === i ? zieh : s;
-        const e = masse.w * masse.k;
+        const e = TEXTBLATT * masse.k;
         const links = pos.x * e;
-        // Klein bleibt rechts Platz für den Knopf zum Grossmachen
         return (
           <div key={"t" + i} className={"pad-skizze__text" + (darf ? " pad-skizze__text--darf" : "")
             + (zieh && zieh.i === i ? " pad-skizze__text--zieht" : "")}
             data-skizzetext={i}
             style={{ left: links, top: pos.y * e, color: s.f,
-                     fontSize: schriftPx(s.g) / 400 * e, maxWidth: Math.max(60, masse.w - links - (gross ? 4 : 50)) }}
+                     fontSize: schriftPx(s.g) / 400 * e, maxWidth: Math.max(120, TEXTBLATT - links - 8) }}
             onPointerDown={(ev) => textRunter(ev, i)} onPointerMove={textBewegen}
             onPointerUp={textHoch} onPointerCancel={textHoch} onClick={() => textKlick(i)}>
             <FettText text={s.h} /></div>
         );
       })}
+      </div>}
       {leer && <span className="pad-skizze__hinweis">{hinweis}</span>}
       {!gross && grossKnopf}
+    </div>
     </div>
   );
 

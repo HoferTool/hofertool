@@ -5797,3 +5797,16 @@ body[data-thema] #pad .pad-kachel--maschine::before {
 .pad-skizze__text--darf { pointer-events: auto; cursor: grab; }
 .pad-skizze__text--zieht { cursor: grabbing; outline: 2px dashed rgba(127, 192, 255, .8);
   background: rgba(9, 22, 38, .35); }
+/* Skizze als Blatt 16:10 (6. Oktober 2026): klein ist das grosse Bild
+   verkleinert. Der Raum nimmt den Platz der Kachel, das Blatt darin
+   bekommt seine Grösse aus Skizze.jsx und steht in der Mitte. */
+.pad-skizze__raum { flex: 1 1 auto; min-height: 120px; min-width: 0; position: relative;
+  display: flex; align-items: center; justify-content: center; }
+.pad-skizze__raum > .pad-skizze__flaeche { flex: none; min-height: 0; }
+.pad-skizze__textblatt { position: absolute; top: 0; left: 0; transform-origin: 0 0;
+  pointer-events: none; }
+.pad-skizze__textblatt .pad-skizze__text { padding: 4px 8px; border-radius: 10px; }
+.pad-skizze__textblatt .pad-skizze__text--zieht { outline-width: 4px; }
+/* Klein steht das Blatt oben unter der Leiste, gross in der Mitte */
+.pad-skizze__raum { align-items: flex-start; }
+.pad-skizze-gross .pad-skizze__raum { align-items: center; }

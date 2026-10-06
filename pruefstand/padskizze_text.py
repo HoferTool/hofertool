@@ -78,7 +78,7 @@ with sync_playwright() as p:
         pruefe(t[0]["g"] == "gross" and t[0]["f"] == "#ffd54f" and t[0]["p"] == [], "Grösse, Farbe, leeres p")
     el = pg.locator("[data-skizzetext]")
     pruefe(el.count() == 1 and el.locator("strong").count() == 1 and el.locator("u").count() == 1, "Text mit Auszeichnung zu sehen")
-    fs1 = el.evaluate("e => parseFloat(getComputedStyle(e).fontSize)")
+    fs1 = el.bounding_box()["height"]
     pg.screenshot(path="s_padtext_klein.png")
 
     # Verschieben mit dem Finger
@@ -119,7 +119,7 @@ with sync_playwright() as p:
     pg.locator("[data-skizze='gross']").tap(); pg.wait_for_timeout(700)
     el = pg.locator(".pad-skizze-gross [data-skizzetext]")
     pruefe(el.count() == 1, "Text auch gross zu sehen")
-    fs2 = el.evaluate("e => parseFloat(getComputedStyle(e).fontSize)") if el.count() else 0
+    fs2 = el.bounding_box()["height"] if el.count() else 0
     print("  Schrift klein / gross:", fs1, fs2)
     pruefe(fs2 > fs1 * 1.5, "Schrift wächst mit")
     pg.locator(".pad-skizze-gross [data-skizze='text']").tap(); pg.wait_for_timeout(400)
@@ -130,6 +130,20 @@ with sync_playwright() as p:
     pg.locator(".dialog .knopf--haupt").first.click()
     pruefe(len(texte(gespeichert(pg))) == 2, "zweiter Text im Grossmodus")
     pg.screenshot(path="s_padtext_gross.png")
+    # Klein ist genau das grosse Bild verkleinert: gleiche Lage und Umbrüche
+    LAGE = """() => { const f = document.querySelector('.pad-skizze__flaeche').getBoundingClientRect();
+      return [...document.querySelectorAll('[data-skizzetext]')].map(e => { const b = e.getBoundingClientRect();
+        return [(b.left - f.left) / f.width, (b.top - f.top) / f.width, b.width / f.width, b.height / f.width]; })
+        .concat([[f.height / f.width]]); }"""
+    gross_lage = pg.evaluate(LAGE)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+    klein_lage = pg.evaluate(LAGE)
+    abw = max(abs(a - b) for x, y in zip(gross_lage, klein_lage) for a, b in zip(x, y))
+    print("  gross", [[round(v, 3) for v in x] for x in gross_lage])
+    print("  klein", [[round(v, 3) for v in x] for x in klein_lage])
+    pruefe(len(gross_lage) == len(klein_lage) and abw < 0.01, "klein gleich wie gross, nur kleiner (Abweichung %.4f)" % abw)
+    pg.screenshot(path="s_padtext_klein2.png")
+    pg.locator("[data-skizze='gross']").tap(); pg.wait_for_timeout(600)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
     pruefe(pg.locator(".pad-skizze-gross").count() == 0, "Escape verkleinert")
 

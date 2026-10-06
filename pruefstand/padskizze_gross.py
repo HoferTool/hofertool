@@ -53,7 +53,8 @@ with sync_playwright() as p:
         pruefe(pg.locator("#pad .pad-skizze-gross").count() == 1, "gross geöffnet")
         gf = pg.locator(".pad-skizze-gross .pad-skizze__flaeche").bounding_box()
         print("  klein", round(klein["width"]), "x", round(klein["height"]), " gross", round(gf["width"]), "x", round(gf["height"]))
-        pruefe(gf["width"] > vp["width"] * 0.85 and gf["height"] > vp["height"] * 0.7, "Fläche fast so gross wie der Bildschirm")
+        # Seit 111.70.1 ein Blatt 16:10: es füllt die Breite oder die Höhe
+        pruefe(gf["width"] > vp["width"] * 0.85 or gf["height"] > vp["height"] * 0.7, "Fläche fast so gross wie der Bildschirm")
         lb = pg.locator(".pad-skizze-gross .pad-skizze__leiste").bounding_box()
         pruefe(lb["x"] + lb["width"] <= vp["width"] and lb["y"] >= 0, "Leiste ganz sichtbar")
         pruefe(pg.locator("#pad .pad-karte2--skizze").count() == 2, "leere Kachel hält den Platz im Dashboard")
