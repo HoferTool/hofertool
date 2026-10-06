@@ -15,6 +15,8 @@
 //    <FettText text="..." />     zeigt gespeicherten Text an
 //    <TextMitStil ... />         Eingabefeld mit den drei Knöpfen
 //    stilWert(element)           liest das Feld als Speichertext
+//    infoTeilen(text), infoZusammen(schrift, text)
+//                                Schriftgrösse, die vorne im Text steht
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 
@@ -89,7 +91,21 @@ function zuReact(knoten, weg) {
   return teile;
 }
 
+// Die Schriftgrösse der Info steht als unsichtbarer Vermerk vorne im
+// Text, damit dafür keine neue Spalte in der Datenbank nötig ist
+const SCHRIFT = /^<!--schrift:([a-z]+)-->/;
+export function infoTeilen(text) {
+  const t = text || "";
+  const m = t.match(SCHRIFT);
+  return m ? { schrift: m[1], text: t.slice(m[0].length) } : { schrift: "auto", text: t };
+}
+export function infoZusammen(schrift, text) {
+  if (!text) return "";
+  return (schrift && schrift !== "auto" ? "<!--schrift:" + schrift + "-->" : "") + text;
+}
+
 export function FettText({ text }) {
+  text = infoTeilen(text).text;
   const doc = new DOMParser().parseFromString("<div>" + alsHtml(text) + "</div>", "text/html");
   return <>{zuReact(doc.body.firstChild, "t")}</>;
 }

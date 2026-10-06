@@ -11,11 +11,11 @@
 //  Zifferblock, Werkzeugwechsel, Einrichtblatt und der Betrachter
 //  für Zeichnung und WBG sind noch Fenster aus dem alten Programm.
 // =================================================================
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck } from "./Pad.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
-import { FettText } from "../teile/FettText.jsx";
+import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
 import {
   holeWetterStunden, wetterZeichen, tagesmengen, letzteTage, schnitte,
@@ -127,13 +127,15 @@ async function blattFeldSetzen(j, m, feld, wert) {
 }
 
 async function infoBearbeiten(j, m, blattDaten) {
+  const info = infoTeilen(blattDaten && blattDaten.pad_info);
   const w = await alt.dialogFelder({ titel: "Info an der Maschine",
-    hinweis: "Steht nur hier im Pad Mode. Läuft dieselbe HOCO Nr. später "
-      + "wieder auf diesem Typ, steht der Text wieder da.",
-    felder: [{ name: "text", label: "Text", typ: "textarea", fett: true,
-               wert: (blattDaten && blattDaten.pad_info) || "" }],
+    felder: [
+      { name: "text", label: "Text", typ: "textarea", fett: true, wert: info.text },
+      { name: "schrift", label: "Schriftgrösse", wert: info.schrift,
+        auswahl: [["auto", "Automatisch (nach Textmenge)"], ["klein", "Klein"],
+                  ["mittel", "Mittel"], ["gross", "Gross"], ["riesig", "Sehr gross"]] }],
     bestaetigen: "Speichern" });
-  if (w) blattFeldSetzen(j, m, "pad_info", (w.text || "").trim() || null);
+  if (w) blattFeldSetzen(j, m, "pad_info", infoZusammen(w.schrift, (w.text || "").trim()) || null);
 }
 
 async function abendBearbeiten(j, m, blattDaten) {
@@ -353,27 +355,9 @@ function Material({ j, teil, ort }) {
 
 // Uhr und Wetter. Das Wetter Stunde für Stunde ist an der Maschine
 // wichtig, was danach auf der Maschine kommt, nicht (Wunsch Patrick
-// 6. Oktober 2026), darum steht dort jetzt nur noch das Wetter.
+// 6. Oktober 2026). Die Stunden stehen nebeneinander, damit die Skizze
+// darunter Platz hat.
 function Saeule({ wetter }) {
-  const liste = useRef(null);
-  // Die Skizze darunter braucht ihren Platz. Reicht er nicht für alle
-  // Stunden, verschwinden die späteren ganz, statt halb abgeschnitten
-  // dazustehen. visibility statt display, damit sich die Höhe dabei
-  // nicht ändert und der Beobachter nicht im Kreis läuft.
-  useEffect(() => {
-    const el = liste.current;
-    if (!el || typeof ResizeObserver === "undefined") return undefined;
-    const pruefen = () => {
-      const hoehe = el.clientHeight;
-      [...el.children].forEach((z) => {
-        z.style.visibility = z.offsetTop + z.offsetHeight <= hoehe + 1 ? "" : "hidden";
-      });
-    };
-    const b = new ResizeObserver(pruefen);
-    b.observe(el);
-    pruefen();
-    return () => b.disconnect();
-  }, [wetter]);
   const jetzt = new Date();
   const heute = alt.isoDatum(jetzt);
   return (
@@ -392,13 +376,12 @@ function Saeule({ wetter }) {
       </div>
 
       {wetter && wetter.stunden.length > 0 && <>
-        <div className="pad-linie" />
-        <div className="pad-stunden2" data-padstunden="" ref={liste}>
+        <div className="pad-stunden pad-stunden--regen" data-padstunden="">
           {wetter.stunden.map((x) => (
             <div key={x.stunde} className="pad-stunde">
               <b>{x.stunde}</b><i>{wetterZeichen(x.code)}</i><u>{x.grad}°</u>
-              <span className={"pad-regen" + (x.regen >= 50 ? " pad-regen--viel" : "")}>
-                {x.regen === null || x.regen === undefined ? "" : "💧 " + x.regen + " %"}</span>
+              {x.regen !== null && x.regen !== undefined &&
+                <span className={"pad-regen" + (x.regen >= 50 ? " pad-regen--viel" : "")}>{x.regen}%</span>}
             </div>
           ))}
         </div>
@@ -502,7 +485,8 @@ export default function Maschine({ d }) {
               {/* Eigenes Feld nur fürs Pad: hängt an HOCO Nr. und Typ, steht
                   also wieder da, wenn dasselbe Teil hier erneut läuft. */}
               {mitTyp &&
-                <div className="pad-info" data-padfeld="info" onClick={() => infoBearbeiten(j, m, blattDaten)}>
+                <div className="pad-info" data-padfeld="info" data-schrift={infoTeilen(padInfo).schrift}
+                  onClick={() => infoBearbeiten(j, m, blattDaten)}>
                   <span className="pad-name">Info an der Maschine · antippen</span>
                   {padInfo
                     ? <p><FettText text={padInfo} /></p>

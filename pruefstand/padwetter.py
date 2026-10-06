@@ -1,5 +1,6 @@
-# Pad Mode: rechts Wetter Stunde für Stunde mit Regen, „Als Nächstes“ ist weg,
-# die Skizze bleibt darunter.
+# Pad Mode rechts: Wetter Stunde für Stunde nebeneinander mit Regen, „Als
+# Nächstes“ ist weg, Skizze darunter mit allen Knöpfen auf einer Zeile und
+# Farbwähler. Dazu Schriftgrösse der Info und Kacheln in der Themenfarbe.
 import time, json, datetime
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -11,16 +12,18 @@ WETTER = {"current": {"temperature_2m": 11.4, "weather_code": 2},
              "weather_code": [[0, 2, 3, 61, 80][i % 5] for i in range(len(zeiten))],
              "precipitation_probability": [(i * 13) % 100 for i in range(len(zeiten))]},
   "daily": {"sunset": [jetzt.strftime("%Y-%m-%d") + "T18:52"]}}
+F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
+  "daten.pad_skizzen = daten.pad_skizzen || [];\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 fehler = []
 def pruefe(ok, text):
     print(("ok   " if ok else "FEHLT") + " " + text)
     if not ok: fehler.append(text)
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])
-    for name, vp in [("tablet", {"width":1180,"height":820}), ("tablet_hoch", {"width":820,"height":1180})]:
-        pg = br.new_context(viewport=vp, has_touch=True).new_page()
+    for name, vp in [("tablet", {"width":1180,"height":820}), ("tablet_hoch", {"width":820,"height":1180}), ("breit", {"width":2000,"height":1250})]:
+        pg = br.new_context(viewport=vp).new_page()
         f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
-        pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
+        pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
         pg.route("**://api.open-meteo.com/**", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(WETTER)))
         for u in ["**://fonts.googleapis.com/**","**://fonts.gstatic.com/**","**://esm.sh/**","**://*.supabase.co/**"]:
             pg.route(u, lambda r: r.abort())
@@ -29,29 +32,54 @@ with sync_playwright() as p:
         pg.locator("#pad [data-padwo='parks']").click(); pg.wait_for_timeout(900)
         pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(900)
         pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(1800)
-        txt = pg.locator("#pad").inner_text()
-        pruefe("Als Nächstes" not in txt, name + ": „Als Nächstes“ ist weg")
-        n = pg.evaluate("() => [...document.querySelectorAll('#pad .pad-stunde')].filter(z => getComputedStyle(z).visibility !== 'hidden').length")
-        pruefe(n >= 5, name + ": mindestens 5 Stunden sichtbar (" + str(n) + ")")
-        # keine Stunde halb abgeschnitten, und Skizze über den Knöpfen
-        halb = pg.evaluate("""() => { const l = document.querySelector('#pad .pad-stunden2'); const r = l.getBoundingClientRect();
-          return [...l.children].filter(z => getComputedStyle(z).visibility !== 'hidden' && z.getBoundingClientRect().bottom > r.bottom + 1).length; }""")
-        pruefe(halb == 0, name + ": keine Stunde abgeschnitten")
-        knopf = pg.locator("#pad .pad-fuss, #pad [data-padknoepfe]").first
-        skb = pg.locator("#pad .pad-karte2--skizze").bounding_box()
-        flb = pg.locator("#pad .pad-flaeche").bounding_box()
-        pruefe(skb["y"] + skb["height"] <= flb["y"] + flb["height"] + 1, name + ": Skizze bleibt in der Fläche")
+        pg.screenshot(path=f"s_padwetter_{name}.png")
+        pruefe("Als Nächstes" not in pg.locator("#pad").inner_text(), name + ": „Als Nächstes“ ist weg")
+        n = pg.locator("#pad .pad-stunde").count()
+        pruefe(n == 6, name + ": 6 Stunden (" + str(n) + ")")
+        ys = pg.evaluate("() => [...document.querySelectorAll('#pad .pad-stunde')].map(z => Math.round(z.getBoundingClientRect().top))")
+        pruefe(len(set(ys)) == 1, name + ": Stunden nebeneinander")
         erste = pg.locator("#pad .pad-stunde b").first.inner_text()
         pruefe(erste == jetzt.strftime("%H") + ".00", name + ": beginnt mit laufender Stunde " + erste)
         pruefe("%" in pg.locator("#pad .pad-stunde").first.inner_text(), name + ": Regen in Prozent")
-        pruefe(pg.locator("#pad .pad-karte2--skizze").count() == 1, name + ": Skizze ist noch da")
-        sk = pg.locator("#pad .pad-karte2--skizze").bounding_box()
-        pruefe(sk and sk["height"] >= 150, name + ": Skizze hat Platz (" + str(round(sk["height"])) + ")")
-        uhr = pg.locator("#pad-uhr").bounding_box()
-        pruefe(uhr["height"] < 60, name + ": Uhr auf einer Zeile")
-        ueber = pg.evaluate("() => document.documentElement.scrollWidth > innerWidth")
-        pruefe(not ueber, name + ": nichts ragt seitlich heraus")
-        pg.screenshot(path=f"s_padwetter_{name}.png")
+        ys = pg.evaluate("() => [...document.querySelectorAll('#pad .pad-skizze__leiste > *')].map(z => Math.round(z.getBoundingClientRect().top + z.getBoundingClientRect().height / 2))")
+        pruefe(len(ys) == 7 and max(ys) - min(ys) <= 2, name + ": Zeichenknöpfe auf einer Zeile " + str(ys))
+        lb = pg.locator("#pad .pad-skizze__leiste").bounding_box(); kb = pg.locator("#pad .pad-karte2--skizze").bounding_box()
+        pruefe(lb["x"] + lb["width"] <= kb["x"] + kb["width"], name + ": Leiste passt in die Kachel")
+        flb = pg.locator("#pad .pad-flaeche").bounding_box()
+        pruefe(kb["height"] >= 200 and kb["y"] + kb["height"] <= flb["y"] + flb["height"] + 1, name + ": Skizze hat Platz (" + str(round(kb["height"])) + ")")
+        pruefe(pg.locator("#pad-uhr").bounding_box()["height"] < 60, name + ": Uhr auf einer Zeile")
+        pruefe(not pg.evaluate("() => document.documentElement.scrollWidth > innerWidth"), name + ": nichts ragt seitlich heraus")
+        # Farbe über den Farbwähler, dann zeichnen: Strich hat die Farbe
+        pg.locator("[data-skizzefarbwahl]").evaluate("e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(e, '#12ab34'); e.dispatchEvent(new Event('input', { bubbles: true })); }")
+        pg.wait_for_timeout(100)
+        cv = pg.locator("#pad .pad-skizze__leinwand").bounding_box()
+        pg.mouse.move(cv["x"] + 30, cv["y"] + 30); pg.mouse.down(); pg.mouse.move(cv["x"] + 90, cv["y"] + 60, steps=6); pg.mouse.up()
+        pg.wait_for_timeout(1000)
+        sk = pg.evaluate("() => (TEST.daten.pad_skizzen || []).map(x => (x.striche || []).map(s => s.f)).flat()")
+        pruefe("#12ab34" in sk, name + ": Strich in gewählter Farbe " + str(sk[-1:]))
+        pg.locator("[data-skizzefarbe='#000000']").click(); pg.wait_for_timeout(100)
+        pruefe("aktiv" in pg.locator("[data-skizzefarbe='#000000']").get_attribute("class"), name + ": Schwarz wählbar")
+        d0 = pg.locator("[data-skizzedicke]").get_attribute("data-skizzedicke")
+        pg.locator("[data-skizzedicke]").click(); pg.wait_for_timeout(100)
+        pruefe(d0 == "mittel" and pg.locator("[data-skizzedicke]").get_attribute("data-skizzedicke") == "dick", name + ": Stiftdicke wechselt, Start mittel")
+        # Schriftgrösse der Info
+        pg.locator("#pad .pad-info").click(); pg.wait_for_timeout(500)
+        pg.locator(".dialog [data-stilfeld]").evaluate("e => { e.innerHTML = 'Masse 7 <b>jede Stunde</b>'; }")
+        pg.locator(".dialog select").select_option("gross")
+        pg.locator(".dialog [data-ja]").click(); pg.wait_for_timeout(1200)
+        pruefe(pg.locator("#pad .pad-info").get_attribute("data-schrift") == "gross", name + ": Schrift gross gespeichert")
+        fs = pg.evaluate("() => getComputedStyle(document.querySelector('#pad .pad-info p') || document.body).fontSize")
+        pruefe(fs == "33.6px", name + ": Info in grosser Schrift (" + fs + ")")
+        pruefe("schrift" not in pg.locator("#pad .pad-info").inner_text(), name + ": Vermerk unsichtbar")
+        pg.locator("#pad .pad-info").click(); pg.wait_for_timeout(500)
+        pruefe(pg.locator(".dialog select").input_value() == "gross", name + ": Fenster zeigt gewählte Grösse")
+        pg.locator(".dialog [data-nein]").click(); pg.wait_for_timeout(300)
+        # Themenfarbe rosa: Kacheln nicht mehr blau
+        vor = pg.evaluate("() => getComputedStyle(document.querySelector('#pad .pad-karte2--hoco')).backgroundImage")
+        pg.evaluate("() => document.body.setAttribute('data-thema', 'rosa')"); pg.wait_for_timeout(200)
+        nach = pg.evaluate("() => getComputedStyle(document.querySelector('#pad .pad-karte2--hoco')).backgroundImage")
+        pruefe(vor != nach, name + ": HOCO-Kachel in Themenfarbe")
+        pg.screenshot(path=f"s_padwetter_{name}_rosa.png")
         fehler += f
         pg.close()
     br.close()

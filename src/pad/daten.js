@@ -25,9 +25,9 @@ export async function holeWetterStunden() {
   const stunden = [];
   (d.hourly.time || []).forEach((zeit, i) => {
     const t = new Date(zeit);
-    // Stunden ab der laufenden, bis über den Feierabend hinaus; dafür
-    // holt die Abfrage zwei Tage, sonst wäre es am Abend leer
-    if (t.getTime() + 3600e3 <= jetzt.getTime() || stunden.length >= 8) return;
+    // Sechs Stunden ab der laufenden; die Abfrage holt zwei Tage,
+    // sonst wäre es am Abend leer
+    if (t.getTime() + 3600e3 <= jetzt.getTime() || stunden.length >= 6) return;
     stunden.push({
       stunde: String(t.getHours()).padStart(2, "0") + ".00",
       grad: Math.round(d.hourly.temperature_2m[i]),

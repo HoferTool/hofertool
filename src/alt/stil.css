@@ -5565,38 +5565,73 @@ body.dunkel .login__flieger-bild { background: #eef2f8; color: #0f1620; }
 }
 /* Während die Kachel an ihren Platz zurückschwebt, bleibt der Platz leer */
 .login__kachel--heim .login__kachel-bild { visibility: hidden; }
-/* Pad: Wetter Stunde für Stunde als Liste, gut lesbar von weitem.
-   „Als Nächstes auf dieser Maschine“ ist dafür weg (Wunsch 6. Oktober 2026). */
+/* Pad: Wetter Stunde für Stunde nebeneinander, mit Regen in Prozent.
+   „Als Nächstes auf dieser Maschine“ ist dafür weg (Wunsch 6. Oktober
+   2026), der freie Platz geht an die Skizze. */
 .pad-uhr { white-space: nowrap; font-size: clamp(1.7rem, 2.6vw, 2.3rem); }
-.pad-stunden2 { display: flex; flex-direction: column; gap: 4px; }
-.pad-stunde { display: grid; grid-template-columns: 3.4em 1.8em 1fr auto; align-items: center;
-  gap: 6px; padding: 5px 10px; border-radius: 10px; background: rgba(255,255,255,.05);
-  font-size: .95rem; }
-.pad-stunde:first-child { background: rgba(127,192,255,.14); }
-.pad-stunde b { font-weight: 600; color: #9fb3ce; font-variant-numeric: tabular-nums; }
-.pad-stunde i { font-style: normal; font-size: 1.25rem; line-height: 1; }
-.pad-stunde u { text-decoration: none; font-weight: 800; font-size: 1.05rem; }
-.pad-regen { font-size: .8rem; color: #9fb3ce; text-align: right; white-space: nowrap;
-  font-variant-numeric: tabular-nums; }
+.pad-stunden--regen { margin-top: 2px; }
+.pad-stunden--regen .pad-stunde { padding: 6px 2px; min-width: 0; }
+.pad-stunden--regen .pad-stunde:first-child { background: rgba(127,192,255,.14); }
+.pad-stunden--regen b { font-variant-numeric: tabular-nums; }
+.pad-stunden--regen u { font-size: .86rem; }
+.pad-regen { font-size: .62rem; color: #9fb3ce; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pad-regen--viel { color: #8fd0ff; font-weight: 700; }
-/* Wetter und Skizze teilen sich die rechte Spalte: die Skizze behält
-   mindestens ihre Höhe, die Stundenliste nimmt den Rest und blendet
-   Stunden aus, die nicht mehr ganz Platz haben. */
-.pad-spalte--rechts .pad-karte2--saeule { flex: 0 1 auto; min-height: 0; }
+.pad-spalte--rechts .pad-karte2--saeule { flex: none; }
 .pad-spalte--rechts .pad-karte2--skizze { flex: 1 1 0; }
-.pad-stunden2 { flex: 1 1 auto; min-height: 0; overflow: hidden; position: relative; }
-/* Tablet hochkant: rechte Spalte liegt quer unter allem, darum Wetter
-   und Skizze nebeneinander, beide gleich breit. Am Handy untereinander,
-   das Wetter dann in voller Länge. */
-@media (max-width: 1000px) {
+/* Skizze: alle Knöpfe auf einer Zeile (Wunsch 6. Oktober 2026) */
+.pad-skizze__leiste { flex-direction: row !important; flex-wrap: nowrap; align-items: center; gap: 5px; }
+.pad-skizze__leiste > * { flex: none; }
+.pad-skizze__leiste .pad-skizze__farbe { width: 30px; height: 30px; }
+.pad-skizze__farbe--waehler { position: relative; overflow: hidden; cursor: pointer;
+  width: 36px !important; height: 36px !important;
+  background: conic-gradient(#ff4d4d, #ffd84d, #5ee06a, #4dd2ff, #6a6aff, #e04dff, #ff4d4d) !important; }
+.pad-skizze__farbe--waehler::after { content: ""; position: absolute; inset: 7px; border-radius: 50%;
+  background: var(--f); box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+.pad-skizze__farbe--waehler input { position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; border: 0; padding: 0; cursor: pointer; }
+.pad-skizze__leiste .pad-skizze__knopf { min-width: 34px; height: 34px; padding: 0 5px; }
+.pad-skizze__kopf { flex-direction: row !important; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; column-gap: 10px; }
+/* Info an der Maschine: Schriftgrösse von Hand (Wunsch 6. Oktober 2026).
+   „Automatisch“ bleibt das Einpassen nach der Textmenge. */
+.pad-hocotext .pad-info[data-schrift="klein"] p { font-size: 1.05rem; }
+.pad-hocotext .pad-info[data-schrift="mittel"] p { font-size: 1.5rem; }
+.pad-hocotext .pad-info[data-schrift="gross"] p { font-size: 2.1rem; }
+.pad-hocotext .pad-info[data-schrift="riesig"] p { font-size: 2.9rem; line-height: 1.25; }
+/* Pad Mode in der Themenfarbe (Wunsch Patrick 6. Oktober 2026): Mit
+   einer anderen Themenfarbe als Blau nehmen die blauen Kacheln, ihre
+   Rahmen und die Hervorhebungen die Themenfarbe (--pblau) an. Blau
+   bleibt unverändert. Material (Werkstofffarbe) und Fortschritt
+   (grün/rot) behalten ihre Bedeutungsfarben, nur der Rahmen folgt. */
+body[data-thema] .pad .pad-karte2 { border-color: color-mix(in srgb, var(--pblau) 45%, transparent) !important; }
+body[data-thema] .pad .pad-karte2--hoco {
+  background: linear-gradient(150deg, color-mix(in srgb, var(--pblau) 58%, #0b1526),
+                                      color-mix(in srgb, var(--pblau) 26%, #0b1526)) !important; }
+body[data-thema] .pad .pad-karte2--stk {
+  background: linear-gradient(150deg, color-mix(in srgb, var(--pblau) 62%, #0b1526),
+                                      color-mix(in srgb, var(--pblau) 24%, #0b1526)) !important; }
+body[data-thema] .pad .pad-karte2--abend {
+  background: linear-gradient(140deg, color-mix(in srgb, var(--pblau) 40%, #0b1526),
+                                      color-mix(in srgb, var(--pblau) 16%, #0b1526)) !important; }
+body[data-thema] .pad .pad-karte2--saeule,
+body[data-thema] .pad .pad-karte2--skizze {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--pblau) 28%, #0b1526),
+                                      color-mix(in srgb, var(--pblau) 10%, #091626)) !important; }
+body[data-thema] .pad .pad-info { background: color-mix(in srgb, var(--pblau) 12%, transparent);
+  border-color: color-mix(in srgb, var(--pblau) 55%, #fff 10%); }
+body[data-thema] .pad .pad-info:active { background: color-mix(in srgb, var(--pblau) 24%, transparent); }
+body[data-thema] .pad .pad-knopf--zeichnung {
+  background: linear-gradient(140deg, color-mix(in srgb, var(--pblau) 70%, #0b1526),
+                                      color-mix(in srgb, var(--pblau) 40%, #0b1526)); }
+body[data-thema] .pad .pad-stunden--regen .pad-stunde:first-child,
+body[data-thema] .pad .pad-skizze__knopf.aktiv { background: color-mix(in srgb, var(--pblau) 30%, transparent);
+  border-color: color-mix(in srgb, var(--pblau) 70%, #fff); }
+/* Tablet hochkant: die rechte Spalte liegt quer unter allem, darum
+   Wetter und Skizze nebeneinander, sonst schiebt die Skizze die Knöpfe weg */
+@media (max-width: 1000px) and (min-width: 641px) {
   .pad-flaeche .pad-spalte--rechts { flex-direction: row; }
   .pad-spalte--rechts > .pad-karte2--saeule,
-  .pad-spalte--rechts > .pad-karte2--skizze { flex: 1 1 0; min-width: 0; }
-}
-@media (max-width: 640px) {
-  .pad-flaeche .pad-spalte--rechts { flex-direction: column; }
-  .pad-spalte--rechts > .pad-karte2--saeule { flex: none; }
-  .pad-spalte--rechts > .pad-karte2--skizze { flex: 1 1 auto; }
+  .pad-spalte--rechts > .pad-karte2--skizze { flex: 1 1 0; min-width: 0; min-height: 0; }
 }
 
 /* ---------- Auftragsfenster neu angeordnet (111.65.0) ----------
@@ -5662,3 +5697,7 @@ body.dunkel .login__flieger-bild { background: #eef2f8; color: #0f1620; }
 @media (max-width: 719px) {
   .dialog--auftrag .auf-notiz { margin-bottom: 14px !important; }
 }
+body[data-thema] .pad .pad-tag--heute i { background: color-mix(in srgb, var(--pblau) 55%, #fff); }
+body[data-thema] .pad .pad-karte2--verzug:has(.pad-leer) {
+  background: linear-gradient(140deg, color-mix(in srgb, var(--pblau) 22%, #1a2433),
+                                      color-mix(in srgb, var(--pblau) 10%, #121b28)) !important; }

@@ -14,8 +14,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 
-// Farben aus der App-Palette, die auf dem dunklen Pad gut zu sehen sind
-const FARBEN = ["weiss", "gelb", "hellorange", "rot", "rosa", "hellgruen", "cyan", "flieder"];
+// Alles zum Zeichnen steht auf einer Zeile (Wunsch Patrick 6. Oktober
+// 2026): ein Farbknopf mit dem Farbwähler des Geräts (dort gibt es auch
+// die Pipette), daneben Weiss und Schwarz zum schnellen Wechseln, und
+// ein Knopf, der die Stiftdicke reihum wechselt (Start: mittel).
+const SCHNELL = [["Weiss", "#ffffff"], ["Schwarz", "#000000"]];
 // Dicke in Bildpunkten bei 400 px Breite, wächst mit der Fläche mit
 const DICKEN = [["duenn", 3], ["mittel", 7], ["dick", 14]];
 const NACHLADEN_MS = 15000;
@@ -29,7 +32,9 @@ function Symbol({ d }) {
     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
 }
 
+// Früher gemerkte Farben waren Namen aus der Palette, jetzt #hex
 function farbHex(wert) {
+  if (/^#[0-9a-f]{6}$/i.test(wert || "")) return wert.toLowerCase();
   const f = (alt.PLANFARBEN || []).find((x) => x.wert === wert);
   return f ? f.hex : "#ffffff";
 }
@@ -87,7 +92,7 @@ export default function Skizze({ j }) {
   const jobId = j ? j.id : null;
   const darf = !!(jobId && alt.darfSchreiben && alt.darfSchreiben());
   const [striche, setStriche] = useState([]);
-  const [farbe, setFarbe] = useState(() => alt.pad.skizzeFarbe || "weiss");
+  const [farbe, setFarbe] = useState(() => farbHex(alt.pad.skizzeFarbe || "#ffffff"));
   const [dicke, setDicke] = useState(() => alt.pad.skizzeDicke || "mittel");
   const [radierer, setRadierer] = useState(false);
   const [zustand, setZustand] = useState("laedt"); // laedt | bereit | fehlt
@@ -224,7 +229,7 @@ export default function Skizze({ j }) {
     const [x, y] = punkt(e);
     if (radierer) { radieren(x, y); return; }
     const px = (DICKEN.find((d) => d[0] === dicke) || DICKEN[1])[1];
-    aktuell.current = { f: farbHex(farbe), d: rund(px / 400), p: [x, y] };
+    aktuell.current = { f: farbe, d: rund(px / 400), p: [x, y] };
     allesZeichnen();
   };
 
@@ -260,7 +265,12 @@ export default function Skizze({ j }) {
 
   // ---------- Leiste ----------
   const farbeWaehlen = (f) => { setFarbe(f); setRadierer(false); alt.pad.skizzeFarbe = f; };
-  const dickeWaehlen = (d) => { setDicke(d); setRadierer(false); alt.pad.skizzeDicke = d; };
+  const dickeWechseln = () => {
+    const i = DICKEN.findIndex((d) => d[0] === dicke);
+    const d = DICKEN[(i + 1) % DICKEN.length][0];
+    setDicke(d); setRadierer(false); alt.pad.skizzeDicke = d;
+  };
+  const dickePx = (DICKEN.find((d) => d[0] === dicke) || DICKEN[1])[1];
   const zurueck = () => { if (striche.length) aendern(striche.slice(0, -1)); };
   const loeschen = async () => {
     if (!striche.length) return;
@@ -283,31 +293,32 @@ export default function Skizze({ j }) {
         <span className="pad-name">Skizze</span>
         {darf && zustand !== "fehlt" &&
           <div className="pad-skizze__leiste">
-            <div className="pad-skizze__farben">
-              {FARBEN.map((f) => (
-                <button key={f} type="button" aria-label={"Farbe " + f} data-skizzefarbe={f}
-                  className={"pad-skizze__farbe" + (!radierer && farbe === f ? " aktiv" : "")}
-                  style={{ "--f": farbHex(f) }} onClick={() => farbeWaehlen(f)} />
-              ))}
-            </div>
-            <div className="pad-skizze__gruppe">
-              {DICKEN.map(([d, px]) => (
-                <button key={d} type="button" aria-label={"Stift " + d} data-skizzedicke={d}
-                  className={"pad-skizze__knopf" + (!radierer && dicke === d ? " aktiv" : "")}
-                  onClick={() => dickeWaehlen(d)}>
-                  <i style={{ width: Math.max(4, px * 1.1), height: Math.max(4, px * 1.1),
-                              background: radierer ? "#cfe0f5" : farbHex(farbe) }} /></button>
-              ))}
-              <button type="button" data-skizze="radierer" aria-label="Radierer"
-                className={"pad-skizze__knopf" + (radierer ? " aktiv" : "")}
-                onClick={() => setRadierer(!radierer)}><Symbol d={RADIERER} /></button>
-              <button type="button" data-skizze="zurueck" aria-label="Rückgängig"
-                className="pad-skizze__knopf" disabled={!striche.length}
-                onClick={zurueck}><Symbol d={ZURUECK} /></button>
-              <button type="button" data-skizze="loeschen" aria-label="Alles löschen"
-                className="pad-skizze__knopf pad-skizze__knopf--rot"
-                disabled={!striche.length} onClick={loeschen}><Symbol d={EIMER} /></button>
-            </div>
+            {/* Der Farbwähler liegt unsichtbar über dem Knopf: ein Tipp
+                öffnet direkt den des Geräts */}
+            <label className={"pad-skizze__farbe pad-skizze__farbe--waehler" + (!radierer
+              && !SCHNELL.some((q) => q[1] === farbe) ? " aktiv" : "")} style={{ "--f": farbe }}
+              aria-label="Farbe wählen" title="Farbe wählen">
+              <input type="color" value={farbe} data-skizzefarbwahl=""
+                onChange={(e) => farbeWaehlen(e.target.value.toLowerCase())} />
+            </label>
+            {SCHNELL.map(([name, hex]) => (
+              <button key={hex} type="button" aria-label={name} title={name} data-skizzefarbe={hex}
+                className={"pad-skizze__farbe" + (!radierer && farbe === hex ? " aktiv" : "")}
+                style={{ "--f": hex }} onClick={() => farbeWaehlen(hex)} />
+            ))}
+            <button type="button" aria-label={"Stiftdicke " + dicke} title="Stiftdicke wechseln"
+              data-skizzedicke={dicke} className="pad-skizze__knopf" onClick={dickeWechseln}>
+              <i style={{ width: Math.max(4, dickePx * 1.1), height: Math.max(4, dickePx * 1.1),
+                          background: farbe, boxShadow: "0 0 0 1px rgba(255,255,255,.5)" }} /></button>
+            <button type="button" data-skizze="radierer" aria-label="Radierer"
+              className={"pad-skizze__knopf" + (radierer ? " aktiv" : "")}
+              onClick={() => setRadierer(!radierer)}><Symbol d={RADIERER} /></button>
+            <button type="button" data-skizze="zurueck" aria-label="Rückgängig"
+              className="pad-skizze__knopf" disabled={!striche.length}
+              onClick={zurueck}><Symbol d={ZURUECK} /></button>
+            <button type="button" data-skizze="loeschen" aria-label="Alles löschen"
+              className="pad-skizze__knopf pad-skizze__knopf--rot"
+              disabled={!striche.length} onClick={loeschen}><Symbol d={EIMER} /></button>
           </div>}
       </div>
       <div className="pad-skizze__flaeche" ref={flaeche}>

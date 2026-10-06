@@ -51,8 +51,9 @@ with sync_playwright() as p:
 
     x0, y0 = fl["x"] + 30, fl["y"] + 40
     finger(pg, cdp, [(x0 + i * 8, y0 + (i % 5) * 6) for i in range(20)])
-    pg.locator("[data-skizzefarbe='rot']").tap()
-    pg.locator("[data-skizzedicke='dick']").tap()
+    # Seit 111.66.0: Farbe über den Farbwähler, Dicke wechselt reihum (mittel → dick)
+    pg.locator("[data-skizzefarbwahl]").evaluate("e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(e, '#b3261e'); e.dispatchEvent(new Event('input', { bubbles: true })); }")
+    pg.locator("[data-skizzedicke]").tap()
     finger(pg, cdp, [(x0 + 10, y0 + 100 + i * 7) for i in range(15)])
     pg.wait_for_timeout(900)
     s = gespeichert(pg)
@@ -76,7 +77,7 @@ with sync_playwright() as p:
     pruefe(len(gespeichert(pg)) == 0, "Radierer entfernt den Strich")
 
     # Neu laden: Zeichnung wieder da
-    pg.locator("[data-skizzefarbe='gelb']").tap()
+    pg.locator("[data-skizzefarbe='#ffffff']").tap()
     finger(pg, cdp, [(x0 + i * 10, y0 + 60) for i in range(12)])
     pg.wait_for_timeout(900)
     daten = pg.evaluate("() => JSON.stringify(TEST.daten)")
