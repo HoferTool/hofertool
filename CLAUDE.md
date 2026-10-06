@@ -130,14 +130,14 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alle
 
 ## Offene Punkte
 
-1. ~~`solarlog.ps1` umstellen~~ erledigt am 5. Oktober 2026. Nach ein paar Tagen `solarlog-alt.ps1` am Solar-Rechner löschen.
+1. ~~`solarlog.ps1` umstellen~~ erledigt am 5. Oktober 2026. ~~`solarlog-alt.ps1` am Solar-Rechner löschen~~ erledigt am 6. Oktober 2026 (alles Alte abgeschaltet).
 2. Datenbank-Passwort und Secret Key des neuen Projekts neu setzen — sie standen im Chat.
 3. Sicherung (`sicherung.ps1`) und Dokumente-Abgleich auf das neue Projekt umstellen.
 4. Supabase Pro für tägliche Sicherungen. `C:\Hofer\Umzug` löschen.
 5. Offline am Tablet einmal testen.
 6. PIN-Anmeldung in Betrieb nehmen: `sql/pin-anmeldung.sql` ausführen und allen eine PIN oder ein Passwort setzen. `sql/offenes-passwort-weg.sql` **nie ausführen** (Entscheid 3. Oktober 2026), die Datei bleibt nur als Möglichkeit liegen. Die E-Mail-Adressen sind über `login_kacheln` weiterhin öffentlich lesbar.
 7. Standzeiten der Werkzeuge aus `tool_changes.gehalten_stk` auswerten.
-8. Offene Entscheide: infoBoard-Echtstart, ob der Park „Extern" für interne Rollen sichtbar ist, Lieferantenferien im Ferienblock, doppelte Namen in den Ferien.
+8. Offene Entscheide: infoBoard-Echtstart, ob der Park „Extern" für interne Rollen sichtbar ist, Lieferantenferien im Ferienblock. ~~Doppelte Namen in den Ferien~~ erledigt am 6. Oktober 2026 (spielt keine Rolle mehr).
 9. Kameras später neu überlegen. Das alte Modul ist entfernt.
 
 ## Sicherheit
