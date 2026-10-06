@@ -1940,8 +1940,12 @@ body.dunkel .kopf__logo { filter: brightness(0) invert(1); }
 .login__wechsel--raus { animation: loginRaus .16s ease forwards; }
 .login__wechsel--rein { animation: loginRein .26s cubic-bezier(.2,.8,.2,1); }
 @keyframes loginRaus { to { opacity: 0; transform: scale(.97); } }
-@keyframes loginRein { from { opacity: 0; transform: scale(.97); }
-                       to { opacity: 1; transform: none; } }
+/* Nur einblenden, nicht wachsen: Die schwebende Kachel misst ihr Ziel
+   (Anmeldefeld oder Platz in der Kachelwand) zu Beginn. Wuchs der Teil
+   dabei noch von .97 auf 1, stand das Ziel am Ende ein paar Pixel
+   anders, und die Kachel hüpfte nach der Landung kurz nach oben
+   (Patrick, 6. Oktober 2026). */
+@keyframes loginRein { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---------- Auftragsfenster: alles auf einen Blick ---------- */
 .dialog--auftrag { max-width: min(1180px, 96vw); width: 96vw;
