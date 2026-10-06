@@ -457,7 +457,8 @@ export default function Maschine({ d }) {
           <button className="pad-sprung" data-padtab="" onClick={neuerTab}>Neuer Tab</button>
         </>}
       </div>
-      <button className="pad__zu" data-padzu="" onClick={() => alt.padSchliessen()}>✕ Schliessen</button>
+      <button className="pad__zu" data-padzu="" onClick={() => alt.padSchliessen()}
+        aria-label="Schliessen">✕<span className="pad__zutext"> Schliessen</span></button>
     </div>
   );
 
