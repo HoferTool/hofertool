@@ -55,6 +55,9 @@ with sync_playwright() as p:
     finger(pg, cdp, [(x0 + i * 8, y0 + (i % 5) * 6) for i in range(20)])
     # Seit 111.66.0: Farbe über den Farbwähler, Dicke wechselt reihum (mittel → dick)
     pg.locator("[data-skizzefarbwahl]").evaluate("e => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(e, '#b3261e'); e.dispatchEvent(new Event('input', { bubbles: true })); }")
+    # Kurz warten wie ein Mensch: Neuere Chrome schlucken einen Tipp, der
+    # gleich nach dem Ende eines Strichs kommt (auf GitHub rot, hier grün)
+    pg.wait_for_timeout(900)
     dk = pg.locator("[data-skizzedicke]")
     vor_tipp = dk.get_attribute("data-skizzedicke")
     bb = dk.bounding_box()
