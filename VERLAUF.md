@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 111.x — nach dem Umzug (1.–2. Oktober 2026)
 
+- **111.69.2** Pad Mode, Skizze (Patrick, 6. Oktober 2026): die Knöpfe Weiss und Schwarz sind weg, beide Farben gibt es im Farbwähler mit Pipette. Leiste: Farbe, Dicke, Radierer, Rückgängig, Löschen.
 - **111.69.1** Bestellungen: Bezeichnung noch eine Stufe kleiner (Wunsch Patrick, 6. Oktober 2026), Beschreibung dahinter ebenfalls etwas kleiner.
 - **111.69.0** Pad Mode, Skizze gross (Wunsch Patrick, 6. Oktober 2026: „Zeichenpad gross machen, soll aber verkleinert sein“): Im Dashboard bleibt die Skizze klein. Der Knopf oben rechts in der Zeichenfläche öffnet sie über das ganze Pad, mit grösseren Knöpfen; „Verkleinern“ oder Escape bringt sie zurück in die Kachel. Dieselbe Zeichnung, nur grösser (die Striche sind auf die Breite bezogen). Auch ohne Schreibrecht lässt sie sich gross ansehen. Prüfstand `padskizze_gross.py`.
 - **111.68.0** Bestellungen (Wunsch Patrick, 6. Oktober 2026): nur die Artikelnummer bleibt gross, Bezeichnung, Beschreibung, Ziel, Frist, Notiz und „wer“ kleiner. „Wohin“ bei einer Person zeigt den heutigen Namen: alte Einträge („Thomas“, „sebastian.moser“, voller Name) werden beim Laden der Person zugeordnet (`zielPersonFinden`: Adresse, voller Name oder eindeutiger Vorname), neue merken sich die Mailadresse. „Bearbeiten“ bietet Personen zur Wahl und speichert dabei die Adresse. Ohne SQL. Prüfstand `bestellungen_namen.py`.

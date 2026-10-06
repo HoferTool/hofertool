@@ -77,7 +77,7 @@ with sync_playwright() as p:
     pruefe(len(gespeichert(pg)) == 0, "Radierer entfernt den Strich")
 
     # Neu laden: Zeichnung wieder da
-    pg.locator("[data-skizzefarbe='#ffffff']").tap()
+    pg.locator("[data-skizze='radierer']").tap()  # Radierer wieder aus
     finger(pg, cdp, [(x0 + i * 10, y0 + 60) for i in range(12)])
     pg.wait_for_timeout(900)
     daten = pg.evaluate("() => JSON.stringify(TEST.daten)")

@@ -22,9 +22,9 @@ import { alt } from "../bruecke.jsx";
 
 // Alles zum Zeichnen steht auf einer Zeile (Wunsch Patrick 6. Oktober
 // 2026): ein Farbknopf mit dem Farbwähler des Geräts (dort gibt es auch
-// die Pipette), daneben Weiss und Schwarz zum schnellen Wechseln, und
-// ein Knopf, der die Stiftdicke reihum wechselt (Start: mittel).
-const SCHNELL = [["Weiss", "#ffffff"], ["Schwarz", "#000000"]];
+// die Pipette; Weiss und Schwarz gibt es dort auch, darum keine eigenen
+// Knöpfe mehr dafür) und ein Knopf, der die Stiftdicke reihum wechselt
+// (Start: mittel).
 // Dicke in Bildpunkten bei 400 px Breite, wächst mit der Fläche mit
 const DICKEN = [["duenn", 3], ["mittel", 7], ["dick", 14]];
 const NACHLADEN_MS = 15000;
@@ -356,16 +356,11 @@ export default function Skizze({ j }) {
             {/* Der Farbwähler liegt unsichtbar über dem Knopf: ein Tipp
                 öffnet direkt den des Geräts */}
             <label className={"pad-skizze__farbe pad-skizze__farbe--waehler" + (!radierer
-              && !SCHNELL.some((q) => q[1] === farbe) ? " aktiv" : "")} style={{ "--f": farbe }}
+              ? " aktiv" : "")} style={{ "--f": farbe }}
               aria-label="Farbe wählen" title="Farbe wählen">
               <input type="color" value={farbe} data-skizzefarbwahl=""
                 onChange={(e) => farbeWaehlen(e.target.value.toLowerCase())} />
             </label>
-            {SCHNELL.map(([name, hex]) => (
-              <button key={hex} type="button" aria-label={name} title={name} data-skizzefarbe={hex}
-                className={"pad-skizze__farbe" + (!radierer && farbe === hex ? " aktiv" : "")}
-                style={{ "--f": hex }} onClick={() => farbeWaehlen(hex)} />
-            ))}
             <button type="button" aria-label={"Stiftdicke " + dicke} title="Stiftdicke wechseln"
               data-skizzedicke={dicke} className="pad-skizze__knopf" onClick={dickeWechseln}>
               <i style={{ width: Math.max(4, dickePx * 1.1), height: Math.max(4, dickePx * 1.1),
