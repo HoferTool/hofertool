@@ -5701,3 +5701,81 @@ body[data-thema] .pad .pad-tag--heute i { background: color-mix(in srgb, var(--p
 body[data-thema] .pad .pad-karte2--verzug:has(.pad-leer) {
   background: linear-gradient(140deg, color-mix(in srgb, var(--pblau) 22%, #1a2433),
                                       color-mix(in srgb, var(--pblau) 10%, #121b28)) !important; }
+
+/* ---------- Auftragsfenster: Zeichnung quer (111.67.0) ----------
+   Wunsch Patrick 6. Oktober 2026: Zeichnungen sind fast immer quer,
+   die Vorschau also auch. Links alles zum Auftrag und Material mit
+   der Notiz unten, rechts die Zeichnung, darunter die Dokumente
+   nebeneinander. */
+.dialog--auftrag .auf-dreier { grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr); }
+.dialog--auftrag .auf-dreier.auf-dreier--gleich { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dialog--auftrag .auf-zweier { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dialog--auftrag .auf-zweier.auf-zweier--menge { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+.dialog--auftrag .auf-spalte .feld { margin-bottom: 7px; }
+.dialog--auftrag .auf-zweier .feld, .dialog--auftrag .auf-dreier .feld { margin-bottom: 7px; }
+.dialog--auftrag #pl-notiz { min-height: 90px !important; }
+/* Knöpfe der Dokumente füllen ihre Spalte */
+.dialog--auftrag .auf-dok .pdfreihe { display: flex; width: 100%; }
+.dialog--auftrag .auf-dok .pdfreihe .knopf, .dialog--auftrag .auf-dok .pdfreihe .bildknopf
+  { flex: 1 1 auto !important; min-width: 0; justify-content: center; }
+.dialog--auftrag .auf-dok .pdfreihe .knopf--gefahr { flex: 0 0 auto !important; }
+.auf-trenner { height: 1px; background: var(--linie); margin: 2px 0 10px; flex: none; }
+.dialog--auftrag .pl-werkstoff { display: block; white-space: nowrap; overflow: hidden;
+                                 text-overflow: ellipsis; }
+.dialog--auftrag #pl-farbmaterial:empty { display: none; }
+.dialog--auftrag .farbwahl { flex-wrap: wrap; }
+
+/* Rechts: Vorschau füllt, Dokumente in einer Reihe darunter */
+.dialog--auftrag .auf-spalte--zeichnung { display: flex; flex-direction: column; gap: 10px; }
+.dialog--auftrag .auf-spalte--zeichnung .auf-zeichnung { margin: 0; flex: 1 1 auto; min-height: 0; }
+.dialog--auftrag .auf-spalte--zeichnung .auf-vorschau { flex: 1 1 auto; height: auto;
+                                                        min-height: 0; aspect-ratio: auto; }
+.dialog--auftrag .auf-dokumente { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                                  gap: 10px; margin: 0; padding-top: 0; border-top: 0; flex: none; }
+.dialog--auftrag .auf-dok { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.dialog--auftrag .auf-dok > .feldlabel { padding-top: 0; }
+.dialog--auftrag .auf-dok__knoepfe .feldhinweis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+@media (min-width: 1200px) {
+  .dialog--auftrag { max-width: min(1640px, 96vw); height: min(92dvh, 900px); }
+  .dialog--auftrag .auf-raster { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) !important;
+                                 gap: 0 24px; }
+  /* Die Vorschau nimmt die Höhe, die frei ist, bleibt aber quer:
+     höchstens so hoch wie ein liegendes A4-Blatt bei dieser Breite */
+  .dialog--auftrag .auf-spalte--zeichnung .auf-zeichnung { display: flex; flex-direction: column;
+                                                           justify-content: flex-start; }
+  .dialog--auftrag .auf-spalte--zeichnung .auf-vorschau { width: 100%; max-height: calc(100% );
+                                                          min-height: 260px; }
+}
+@media (max-width: 1199px) {
+  .dialog--auftrag { height: auto; }
+  .dialog--auftrag .auf-raster { grid-template-columns: minmax(0, 1fr) !important; }
+  .dialog--auftrag .auf-spalte--zeichnung { grid-column: auto; }
+  .dialog--auftrag .auf-spalte--zeichnung .auf-vorschau { flex: none; min-height: 0;
+                                                          aspect-ratio: 1.414 / 1; }
+  .dialog--auftrag .auf-notiz { margin-bottom: 14px !important; }
+}
+@media (min-width: 720px) and (max-width: 1199px) {
+  .dialog--auftrag { max-width: 96vw; }
+}
+@media (max-width: 560px) {
+  .dialog--auftrag .auf-dreier--gleich { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dialog--auftrag .auf-dreier--gleich > :last-child { grid-column: 1 / -1; }
+  .dialog--auftrag .auf-zweier { grid-template-columns: minmax(0, 1fr); }
+}
+.auf-farbname { font-weight: 500; color: var(--gedaempft); margin-left: 6px; }
+.auf-farbname:not(:empty)::before { content: "· "; }
+.dialog--auftrag .auf-dok { align-items: stretch; }
+.dialog--auftrag .auf-dok__knoepfe { align-items: stretch; }
+.dialog--auftrag .auf-trenner { margin: 0 0 7px; }
+.dialog--auftrag .farbwahl { padding: 5px 7px; }
+@media (min-width: 1200px) and (max-height: 760px) {
+  .dialog--auftrag #pl-notiz { min-height: 72px !important; }
+}
+@media (max-width: 560px) {
+  .dialog--auftrag .auf-dreier.auf-dreier--gleich { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dialog--auftrag .auf-zweier.auf-zweier--menge { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 1199px) {
+  .dialog--auftrag #pl-notiz { min-height: 120px !important; }
+}

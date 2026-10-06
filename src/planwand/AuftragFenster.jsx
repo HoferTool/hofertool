@@ -1,13 +1,13 @@
 // =================================================================
 //  AUFTRAGSFENSTER
-//  Einplanen, ändern, kopieren: ein Fenster in drei Spalten
+//  Einplanen, ändern, kopieren: ein Fenster in zwei Bereichen
 //  (Anordnung Wunsch Patrick 6. Oktober 2026, vorher ragte unten
 //  einiges aus dem Fenster):
-//    1. Auftrag: Zustand als Auswahlfeld, FA Nr., Maschine, Ab/Tage/Bis,
-//       Menge, wer eingeplant hat, darunter die Notiz für die Maschine
-//    2. Material (Bezeichnung, Menge, Liefertermin, Platz, Farbe) und
-//       die Dokumente (Zeichnung, Einrichtblatt, WBG)
-//    3. Vorschau der Zeichnung über die ganze Höhe
+//    links  Zustand als Auswahlfeld, FA Nr., Menge, Maschine, wer
+//           eingeplant hat, Ab/Tage/Bis, Material, Farbe und unten
+//           die Notiz für die Maschine
+//    rechts die Zeichnung quer (Zeichnungen sind fast immer quer),
+//           darunter Zeichnung, Einrichtblatt und WBG nebeneinander
 //  Keine Häkchen „FA erstellt“ oder „Material da“: Das ergibt sich
 //  aus FA Nr. und Materialmenge.
 //
@@ -106,7 +106,7 @@ function Vorschau({ adresse, titel }) {
     <div className="auf-vorschau auf-vorschau--da" id="pl-vorschau">
       {bild
         ? <img src={adresse} alt="Zeichnung" />
-        : <iframe src={adresse + "#navpanes=0&view=FitH"} title="Zeichnung" loading="lazy" />}
+        : <iframe src={adresse + "#navpanes=0&view=Fit"} title="Zeichnung" loading="lazy" />}
       <button type="button" className="auf-vorschau__gross" title="Gross ansehen"
         onClick={() => alt.betrachter(adresse, titel, !bild)}>⤢</button>
     </div>
@@ -402,11 +402,14 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       {nurLesen && auftrag && <p className="klein auf-nurlesen" id="pl-nurlesen">
         Nur zum Ansehen. {extern ? "" : "Ändern lässt sich hier der Zustand, und mit „Problem“ meldest du, was fehlt oder klemmt."}</p>}
 
-      {/* ---------- Drei Spalten ---------- */}
+      {/* ---------- Zwei Bereiche ----------
+          Links alles zum Auftrag und Material, unten die Notiz.
+          Rechts die Zeichnung quer, darunter die Dokumente
+          (Wunsch Patrick 6. Oktober 2026). */}
       <div className="auf-raster">
 
-        {/* Spalte 1: Auftrag und Zeit */}
-        <div className="auf-spalte">
+        {/* Links: Auftrag, Material, Notiz */}
+        <div className="auf-spalte auf-spalte--links">
           {!auftrag && <>
             <label className="feld"><span>HOCO Nr.</span>
               <input id="pl-nr" type="text" autoCapitalize="characters" value={w.nr}
@@ -415,7 +418,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           </>}
           {/* Zustand als ein Auswahlfeld statt fünf Knöpfe: braucht
               eine Zeile statt drei. Auch ohne Planrecht wählbar. */}
-          <div className="auf-zweier">
+          <div className="auf-dreier auf-dreier--gleich">
             <label className="feld"><span>Zustand</span>
               <select id="pl-zustand" className={"auf-zustandwahl auf-zustandwahl--" + w.zustand}
                 disabled={extern} value={w.zustand} onChange={(e) => setze("zustand", e.target.value)}>
@@ -427,14 +430,32 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
             <label className="feld"><span>FA Nr.</span>
               <input id="pl-fa-nr" type="text" autoComplete="off" value={w.faNr} readOnly={!darf}
                 onChange={(e) => setze("faNr", e.target.value)} /></label>
+            <label className="feld"><span>Fertigungsmenge</span>
+              <input id="pl-menge" inputMode="decimal" readOnly={nurLesen} type="number" min="0" step="1" value={w.menge}
+                onChange={(e) => setze("menge", e.target.value)} /></label>
           </div>
-          <label className="feld"><span>Maschine</span>
-            <select id="pl-maschine" disabled={!darf} value={w.maschine}
-              onChange={(e) => setze("maschine", e.target.value)}>
-              {maschinen.map((m) => <option key={m.id} value={m.id}>
-                {m.name + (m.machine_number ? " (" + m.machine_number + ")" : "")}</option>)}
-            </select></label>
+          <div className="auf-zweier">
+            <label className="feld"><span>Maschine</span>
+              <select id="pl-maschine" disabled={!darf} value={w.maschine}
+                onChange={(e) => setze("maschine", e.target.value)}>
+                {maschinen.map((m) => <option key={m.id} value={m.id}>
+                  {m.name + (m.machine_number ? " (" + m.machine_number + ")" : "")}</option>)}
+              </select></label>
 
+            <div className="feld"><span className="feldlabel">Eingeplant von</span>
+              {!planerListe.length
+                ? <span className="feldhinweis">Niemand ist als Planer hinterlegt. Das wird in den
+                    Einstellungen bei der Person angehakt, zusammen mit einem Kürzel.</span>
+                : <div className="auf-planer">
+                    {planerListe.map((u) => {
+                      const kuerzel = (u.initialen || "").trim();
+                      return <button key={u.id || kuerzel} type="button" data-planer={kuerzel}
+                        className={"planerknopf" + (w.planer.includes(kuerzel) ? " aktiv" : "")}
+                        title={u.full_name || u.email} disabled={nurLesen} onClick={() => planerUmschalten(kuerzel)}>{kuerzel}</button>;
+                    })}
+                  </div>}
+            </div>
+          </div>
           <div className="auf-dreier">
             <label className="feld"><span>Ab</span>
               <input id="pl-von" type="date" readOnly={nurLesen} value={w.von} onChange={(e) => vonAendern(e.target.value)} /></label>
@@ -445,47 +466,27 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
               <input id="pl-bis" type="date" readOnly={nurLesen} value={w.bis} onChange={(e) => bisAendern(e.target.value)} /></label>
           </div>
 
+          <div className="auf-trenner" />
           <div className="auf-zweier">
-          <label className="feld"><span>Fertigungsmenge</span>
-            <input id="pl-menge" inputMode="decimal" readOnly={nurLesen} type="number" min="0" step="1" value={w.menge}
-              onChange={(e) => setze("menge", e.target.value)} /></label>
-
-          <div className="feld"><span className="feldlabel">Eingeplant von</span>
-            {!planerListe.length
-              ? <span className="feldhinweis">Niemand ist als Planer hinterlegt. Das wird in den
-                  Einstellungen bei der Person angehakt, zusammen mit einem Kürzel.</span>
-              : <div className="auf-planer">
-                  {planerListe.map((u) => {
-                    const kuerzel = (u.initialen || "").trim();
-                    return <button key={u.id || kuerzel} type="button" data-planer={kuerzel}
-                      className={"planerknopf" + (w.planer.includes(kuerzel) ? " aktiv" : "")}
-                      title={u.full_name || u.email} disabled={nurLesen} onClick={() => planerUmschalten(kuerzel)}>{kuerzel}</button>;
-                  })}
-                </div>}
+            {/* Alles in einem Feld, so wie es an der Stange steht */}
+            <label className="feld"><span>Material</span>
+              <input id="pl-mat-bez" type="text" readOnly={nurLesen} list="pl-matliste" autoComplete="off"
+                placeholder="z. B. X10CrNiS18-9 rd 011 mm h8" value={w.matBez}
+                onChange={(e) => setze("matBez", e.target.value)} />
+              <span className="pl-werkstoff" id="pl-werkstoff">
+                {!w.matBez.trim() ? null
+                  : !gruppe
+                    ? <span className="gedaempft">Werkstoff nicht erkannt — in den Einstellungen unter
+                        Farben und Material zuordnen</span>
+                    : <><span className="ws-farbe" style={{ background: alt.farbeVon(gruppe.farbe).hex }} />
+                        {alt.werkstoffText(gruppe) + (gruppe.spaene ? " · Späne " + gruppe.spaene : "")}</>}
+              </span></label>
+            {/* Eigenes Feld, unabhängig von Notiz und Bestellung */}
+            <label className="feld" id="pl-ortfeld"><span>Materialplatz</span>
+              <input type="text" id="pl-matort" maxLength={120} readOnly={!darfPlatz}
+                placeholder="z. B. Regal 4 oben, Palette bei der Säge" value={w.matOrt}
+                onChange={(e) => setze("matOrt", e.target.value)} /></label>
           </div>
-          </div>
-
-          {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
-          <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>
-            <textarea id="pl-notiz" readOnly={!darf} value={w.notiz}
-              onChange={(e) => notizAendern(e.target.value)} /></label>
-        </div>
-
-        {/* Spalte 2: Material und Dokumente */}
-        <div className="auf-spalte">
-          {/* Alles in einem Feld, so wie es an der Stange steht */}
-          <label className="feld"><span>Material</span>
-            <input id="pl-mat-bez" type="text" readOnly={nurLesen} list="pl-matliste" autoComplete="off"
-              placeholder="z. B. X10CrNiS18-9 rd 011 mm h8" value={w.matBez}
-              onChange={(e) => setze("matBez", e.target.value)} />
-            <span className="pl-werkstoff" id="pl-werkstoff">
-              {!w.matBez.trim() ? null
-                : !gruppe
-                  ? <span className="gedaempft">Werkstoff nicht erkannt — in den Einstellungen unter
-                      Farben und Material zuordnen</span>
-                  : <><span className="ws-farbe" style={{ background: alt.farbeVon(gruppe.farbe).hex }} />
-                      {alt.werkstoffText(gruppe) + (gruppe.spaene ? " · Späne " + gruppe.spaene : "")}</>}
-            </span></label>
           <div className="auf-zweier auf-zweier--menge">
             <label className="feld"><span>Menge vorhanden oder bestellt</span>
               <input id="pl-menge-mat" type="text" readOnly={nurLesen} value={w.matMenge}
@@ -497,12 +498,12 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           {w.ausNotiz && <span className="feldhinweis auf-ausnotiz" id="pl-ausnotiz">
             Aus der Notiz übernommen: {[w.ausNotiz.lieferant, w.ausNotiz.nr].filter(Boolean).join(" ")}
             {darf ? " · wird beim Speichern eingetragen" : ""}</span>}
-          {/* Eigenes Feld, unabhängig von Notiz und Bestellung */}
-          <label className="feld" id="pl-ortfeld"><span>Materialplatz</span>
-            <input type="text" id="pl-matort" maxLength={120} readOnly={!darfPlatz}
-              placeholder="z. B. Regal 4 oben, Palette bei der Säge" value={w.matOrt}
-              onChange={(e) => setze("matOrt", e.target.value)} /></label>
-          <div className="feld"><span className="feldlabel">Farbe und Material</span>
+          <div className="feld"><span className="feldlabel">Farbe und Material
+            {/* Das Material zur Farbe steht gleich daneben, spart eine Zeile */}
+            <span className="auf-farbname" id="pl-farbmaterial">
+              {[zuteilung[w.farbe] ? zuteilung[w.farbe].material : "",
+                vorschlag && w.farbe === vorschlag ? "eigene Farbe ersetzt durch " + alt.farbeVon(w.farbe).name
+                  + ", gilt nach dem Speichern" : ""].filter((x) => x).join(" · ")}</span></span>
             <div className="farbwahl">
               {alt.farbenZurWahl().map((f) => {
                 const z = zuteilung[f.wert];
@@ -518,12 +519,19 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
               {darf && <button type="button" id="pl-farbneu" className="farbknopf farbknopf--neu"
                 title="Neue Farbe aus der Palette" aria-label="Neue Farbe" onClick={neueFarbe}>+</button>}
             </div>
-            <span className="feldhinweis" id="pl-farbmaterial">
-              {[zuteilung[w.farbe] ? zuteilung[w.farbe].material : "",
-                vorschlag && w.farbe === vorschlag ? "eigene Farbe ersetzt durch " + alt.farbeVon(w.farbe).name
-                  + ", gilt nach dem Speichern" : ""].filter((x) => x).join(" · ")}</span>
           </div>
-          {/* Dokumente kompakt: Name links, Knöpfe rechts */}
+
+          {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
+          <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>
+            <textarea id="pl-notiz" readOnly={!darf} value={w.notiz}
+              onChange={(e) => notizAendern(e.target.value)} /></label>
+        </div>
+
+        {/* Rechts: Zeichnung quer, darunter die Dokumente */}
+        <div className="auf-spalte auf-spalte--zeichnung">
+          <div className="feld auf-zeichnung">
+            <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} /></div>
+          {/* Dokumente direkt unter der Zeichnung, nebeneinander */}
           <div className="auf-dokumente">
             <div className="auf-dok"><span className="feldlabel">Zeichnung</span>
               <div className="auf-dok__knoepfe">
@@ -550,12 +558,6 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   darf={darf} titel={"WBG " + ((auftrag && auftrag.job_number) || "")} wegId="pl-wbgweg"
                   standId="pl-wbgstand" stand={wbgStand} setStand={setWbgStand} /></div></div>
           </div>
-        </div>
-
-        {/* Spalte 3: Vorschau der Zeichnung über die ganze Höhe */}
-        <div className="auf-spalte auf-spalte--zeichnung">
-          <div className="feld auf-zeichnung"><span className="feldlabel">Zeichnung</span>
-            <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} /></div>
         </div>
       </div>
 

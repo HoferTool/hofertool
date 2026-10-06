@@ -1,7 +1,7 @@
 # Auftragsfenster (Wunsch Patrick 6. Oktober 2026): nichts darf über den
 # Rand des Fensters hinausragen, auf grossem Bildschirm, Laptop, Tablet
-# und Handy. Zustand ist ein Auswahlfeld, die Zeichnung steht rechts,
-# die Notiz unten links. Bilder nach /tmp/auftrag_<breite>x<hoehe>.png
+# und Handy. Zustand ist ein Auswahlfeld, die Zeichnung steht rechts und
+# quer, die Dokumente darunter, die Notiz unten links. Bilder nach /tmp/auftrag_<breite>x<hoehe>.png
 import sys, time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -60,17 +60,26 @@ with sync_playwright() as p:
           if (raster.scrollHeight > raster.clientHeight + 1 && !/auto|scroll/.test(ueberlauf)) raus.push('Raster ragt unten raus');
           return { raus, scrollt: raster.scrollHeight > raster.clientHeight + 1 };
         }""")
+        if "--mess" in sys.argv:
+            print(pg.evaluate("""() => { const r = document.querySelector('.auf-raster');
+              const o = [...document.querySelectorAll('.auf-dok .pdfreihe .knopf, .auf-dok')].map(e => e.className + ' ' + Math.round(e.getBoundingClientRect().right));
+              return { sh: r.scrollHeight, ch: r.clientHeight, sw: r.scrollWidth, cw: r.clientWidth, o }; }"""))
         print(f"{bw}x{bh}:", "ok" if not r["raus"] else r["raus"][:5], "(scrollt)" if r["scrollt"] else "")
         for x in r["raus"]: fehler.append(f"{bw}x{bh}: {x}")
         if bw >= 1280 and bh >= 720 and r["scrollt"]: fehler.append(f"{bw}x{bh}: muss scrollen")
         # Zustand als Auswahl, Vorschau rechts, Notiz links
         if pg.locator("select#pl-zustand").count() != 1: fehler.append(f"{bw}x{bh}: kein Auswahlfeld Zustand")
-        elif bw >= 1000:
+        else:
             lage = pg.evaluate("""() => { const q = (s) => document.querySelector(s).getBoundingClientRect();
-              return { vorschauX: q('#pl-vorschau').left, notizX: q('#pl-notiz').left, faX: q('#pl-maschine').left,
-                       notizY: q('#pl-notiz').top, mengeY: q('#pl-menge').top, matX: q('#pl-mat-bez').left }; }""")
-            if not (lage["vorschauX"] > lage["matX"] > lage["faX"]): fehler.append(f"{bw}x{bh}: Vorschau nicht rechts {lage}")
-            if not (abs(lage["notizX"] - lage["faX"]) < 2 and lage["notizY"] > lage["mengeY"]): fehler.append(f"{bw}x{bh}: Notiz nicht unten links {lage}")
+              const v = q('#pl-vorschau');
+              return { vorschauX: v.left, vorschauB: v.width, vorschauH: v.height, notizX: q('#pl-notiz').left,
+                       faX: q('#pl-maschine').left, notizY: q('#pl-notiz').top, matY: q('#pl-mat-bez').top,
+                       dokY: q('#pl-pdfreihe').top, vorschauU: v.bottom }; }""")
+            # Zeichnung quer (Wunsch 6. Oktober 2026)
+            if lage["vorschauB"] < lage["vorschauH"] * 1.2: fehler.append(f"{bw}x{bh}: Vorschau nicht quer {lage}")
+            if lage["dokY"] < lage["vorschauU"] - 1: fehler.append(f"{bw}x{bh}: Dokumente nicht unter der Zeichnung")
+            if not (abs(lage["notizX"] - lage["faX"]) < 2 and lage["notizY"] > lage["matY"]): fehler.append(f"{bw}x{bh}: Notiz nicht unten links {lage}")
+            if bw >= 1200 and not (lage["vorschauX"] > lage["notizX"] + 200): fehler.append(f"{bw}x{bh}: Vorschau nicht rechts {lage}")
         pg.context.close()
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:12])
