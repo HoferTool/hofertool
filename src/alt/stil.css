@@ -5763,8 +5763,8 @@ body[data-thema] #pad .pad-kachel--maschine::before {
 /* Bestellungen (Wunsch 6. Oktober 2026): nur die Artikelnummer bleibt
    gross. Bezeichnung, Beschreibung, Ziel, Frist, Notiz und wer kleiner,
    damit das Auge zuerst die Nummer findet. */
-.bs-pos__titel .bs-pos__name { font-size: .86rem; }
-.bs-pos__titel .bs-pos__beschreibung { font-size: .78rem; }
+.bs-pos__titel .bs-pos__name { font-size: .78rem; }
+.bs-pos__titel .bs-pos__beschreibung { font-size: .74rem; }
 .bs-pos__chips .bs-chip { padding: 1px 7px; font-size: .7rem; }
 .bs-pos__chips .bs-chip svg { width: 12px; height: 12px; }
 .bs-pos__wer, .bs-pos__chips .bs-pos__wer { font-size: .72rem; }
