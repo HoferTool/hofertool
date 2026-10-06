@@ -5787,3 +5787,13 @@ body[data-thema] #pad .pad-kachel--maschine::before {
 .pad-skizze-gross .pad-skizze__gross { height: 44px; padding: 0 14px; font-size: .9rem; }
 .pad-skizze-gross .pad-skizze__farbe--waehler { width: 44px !important; height: 44px !important; }
 .pad-skizze-gross .pad-skizze__kopf > .pad-skizze__gross { margin-left: auto; }
+/* Textfelder auf der Skizze (Wunsch Patrick, 6. Oktober 2026): liegen
+   über der Leinwand, Grösse und Lage auf die Breite bezogen wie die
+   Striche. Mit dem Finger verschiebbar, darum kein Scrollen darauf. */
+.pad-skizze__text { position: absolute; z-index: 1; line-height: 1.2; white-space: normal;
+  overflow-wrap: anywhere; padding: 2px 4px; border-radius: 6px; pointer-events: none;
+  -webkit-user-select: none; user-select: none; touch-action: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .55); }
+.pad-skizze__text--darf { pointer-events: auto; cursor: grab; }
+.pad-skizze__text--zieht { cursor: grabbing; outline: 2px dashed rgba(127, 192, 255, .8);
+  background: rgba(9, 22, 38, .35); }

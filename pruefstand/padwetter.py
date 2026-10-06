@@ -42,7 +42,7 @@ with sync_playwright() as p:
         pruefe(erste == jetzt.strftime("%H") + ".00", name + ": beginnt mit laufender Stunde " + erste)
         pruefe("%" in pg.locator("#pad .pad-stunde").first.inner_text(), name + ": Regen in Prozent")
         ys = pg.evaluate("() => [...document.querySelectorAll('#pad .pad-skizze__leiste > *')].map(z => Math.round(z.getBoundingClientRect().top + z.getBoundingClientRect().height / 2))")
-        pruefe(len(ys) == 5 and max(ys) - min(ys) <= 2, name + ": Zeichenknöpfe auf einer Zeile " + str(ys))
+        pruefe(len(ys) == 6 and max(ys) - min(ys) <= 2, name + ": Zeichenknöpfe auf einer Zeile " + str(ys))
         lb = pg.locator("#pad .pad-skizze__leiste").bounding_box(); kb = pg.locator("#pad .pad-karte2--skizze").bounding_box()
         pruefe(lb["x"] + lb["width"] <= kb["x"] + kb["width"], name + ": Leiste passt in die Kachel")
         flb = pg.locator("#pad .pad-flaeche").bounding_box()
