@@ -51,7 +51,8 @@ with sync_playwright() as p:
 
     # Vor der Eingabe am Montag: Mi 500, Do 462, Freitag noch offen
     balken = pg.locator("#pad .pad-tag b").all_inner_texts()
-    if balken != ["–", "500", "462", "–", "–", "–", "–"]: fehler.append("Vorher falsch: " + str(balken))
+    # (seit 111.71.0 nur Arbeitstage: Fr 25. bis Mo 5.)
+    if balken != ["–", "–", "–", "500", "462", "–", "–"]: fehler.append("Vorher falsch: " + str(balken))
 
     # Montag 14:00 den Stand eintragen
     eintragen(1270)
@@ -62,9 +63,9 @@ with sync_playwright() as p:
     pg.evaluate("TEST.daten.production_records.forEach(z => { if (!z.updated_at) z.updated_at = '2026-10-05T12:00:00Z'; })")
     eintragen(1270)
     balken = pg.locator("#pad .pad-tag b").all_inner_texts()
-    if balken != ["–", "500", "462", "308", "–", "–", "–"]: fehler.append("Freitag nicht 308: " + str(balken))
+    if balken != ["–", "–", "–", "500", "462", "308", "–"]: fehler.append("Freitag nicht 308: " + str(balken))
     unten = pg.locator("#pad .pad-tag small").all_inner_texts()
-    if unten[3] != "Mo 14:00" or unten[2] != "Fr 07:05" or unten[-1] != "—":
+    if unten[5] != "Mo 14:00" or unten[4] != "Fr 07:05" or unten[-1] != "—":
         fehler.append("Eintragezeit falsch: " + str(unten))
     neben = pg.inner_text("#pad .pad-stk-neben")
     if "Fr 2. 308 Stk" not in neben: fehler.append("Neben der Zahl: " + neben)

@@ -77,6 +77,12 @@ export function wetterZeichen(code) {
 //
 // Mit auftragId zählt nur dieser Auftrag: Die Statistik im Pad Mode
 // beginnt bei jedem neuen Auftrag von vorn (Wunsch 5. Oktober 2026).
+//
+// Gezählt wird nur an Arbeitstagen (Mo–Fr, Wunsch 6. Oktober 2026).
+// Landet eine Zunahme doch auf einem Samstag oder Sonntag (weil am
+// Wochenende ein Stand eingetragen wurde), zählt sie beim Freitag
+// davor. So geht kein Stück verloren und der Schnitt rechnet nur mit
+// Arbeitstagen.
 export async function tagesmengen(maschineId, auftragId) {
   const db = alt.db;
   const von = new Date(Date.now() - 200 * TAG);
@@ -128,7 +134,7 @@ export async function tagesmengen(maschineId, auftragId) {
   const tagVon = (d, k) => jeTag[d]
     || (jeTag[d] = { menge: null, zeit: "", stand: 0, job: k, gutZeit: "" });
   const gutschreiben = (d, k, menge, zeit) => {
-    const t = tagVon(d, k);
+    const t = tagVon(arbeitstagAmOderVor(d), k);
     t.menge = (t.menge || 0) + menge;
     if (String(zeit) > String(t.gutZeit)) t.gutZeit = zeit;
   };
@@ -150,6 +156,16 @@ export async function tagesmengen(maschineId, auftragId) {
   return jeTag;
 }
 
+// Der Tag selbst, oder an Samstag und Sonntag der Freitag davor
+function arbeitstagAmOderVor(tag) {
+  const d = alt.ausIso(tag);
+  if (isNaN(d)) return tag;
+  const w = d.getDay();
+  if (w === 6) d.setDate(d.getDate() - 1);
+  if (w === 0) d.setDate(d.getDate() - 2);
+  return alt.isoDatum(d);
+}
+
 // Uhrzeit des Geräts (der Zeitstempel kommt in UTC), an einem anderen
 // Tag als dem des Balkens mit dem Wochentag davor
 function eingetragen(zeit, tag) {
@@ -158,17 +174,19 @@ function eingetragen(zeit, tag) {
   return ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()] + " " + uhrzeit(zeit);
 }
 
-// Die letzten sieben Tage
+// Die letzten sieben Arbeitstage (Mo–Fr) bis heute; Samstag und
+// Sonntag erscheinen nicht, dort wird nichts gezählt
 export function letzteTage(jeTag) {
   const heute = new Date();
   const raus = [];
-  for (let k = 6; k >= 0; k--) {
-    // Mit setDate statt Millisekunden: An der Zeitumstellung hat ein
-    // Tag 23 oder 25 Stunden, sonst rutscht ein Tag doppelt hinein
+  // Mit setDate statt Millisekunden: An der Zeitumstellung hat ein
+  // Tag 23 oder 25 Stunden, sonst rutscht ein Tag doppelt hinein
+  for (let k = 0; raus.length < 7 && k < 14; k++) {
     const d = new Date(heute.getFullYear(), heute.getMonth(), heute.getDate() - k);
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
     const tag = alt.isoDatum(d);
     const e = jeTag[tag] || null;
-    raus.push({ datum: tag, wochentag: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()],
+    raus.unshift({ datum: tag, wochentag: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][d.getDay()],
                 nummer: d.getDate(), heute: k === 0,
                 eintrag: e ? { stand: e.stand, zeit: e.zeit, job: e.job } : null,
                 menge: e ? e.menge : null,
@@ -182,8 +200,8 @@ export function letzteTage(jeTag) {
 const MONATE = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
 // Schnitt pro Produktionstag, je Woche oder je Monat. Gezählt werden
-// nur Tage, an denen etwas erfasst wurde — ein Wochenende oder eine
-// Pause drückt den Schnitt nicht.
+// nur Arbeitstage (Mo–Fr), an denen etwas erfasst wurde — ein
+// Wochenende oder eine Pause drückt den Schnitt nicht.
 export function schnitte(jeTag, art) {
   const heute = new Date();
   const gruppen = [];
@@ -209,6 +227,7 @@ export function schnitte(jeTag, art) {
       if (d < g.von || d > g.bis) return;
       const m = jeTag[d].menge;
       if (m === null || m === undefined || m <= 0) return;
+      if (!istArbeitstag(d)) return;
       summe += m; tage++;
     });
     g.summe = summe; g.tage = tage;
@@ -217,16 +236,21 @@ export function schnitte(jeTag, art) {
   return gruppen;
 }
 
-// Schnitt der letzten sieben Tage, nur Tage mit Eintrag
+function istArbeitstag(tag) {
+  const w = alt.ausIso(tag).getDay();
+  return w !== 0 && w !== 6;
+}
+
+// Schnitt der letzten sieben Arbeitstage, nur Tage mit Eintrag
 export function schnittTage(tage) {
   const mitWert = tage.filter((t) => t.menge !== null && t.menge !== undefined);
   return mitWert.length
     ? Math.round(mitWert.reduce((n, t) => n + (t.menge || 0), 0) / mitWert.length) : 0;
 }
 
-// Schnitt der letzten 20 Produktionstage — Grundlage der Prognose
+// Schnitt der letzten 20 Produktionstage (Mo–Fr) — Grundlage der Prognose
 export function schnittLang(jeTag) {
-  const werte = Object.keys(jeTag).sort().reverse()
+  const werte = Object.keys(jeTag).filter(istArbeitstag).sort().reverse()
     .map((d) => jeTag[d].menge).filter((m) => m && m > 0).slice(0, 20);
   return werte.length ? Math.round(werte.reduce((n, m) => n + m, 0) / werte.length) : 0;
 }

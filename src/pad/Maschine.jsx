@@ -267,7 +267,7 @@ function StkFuss({ jeTag, art, auftrag }) {
   const schnitt = schnittTage(letzteTage(jeTag));
   return (
     <>
-      <span>Schnitt {zahlText(schnitt)} pro Tag{seit && <span className="pad-stk-seit"> · {seit}</span>}</span>
+      <span>Schnitt {zahlText(schnitt)} pro Arbeitstag{seit && <span className="pad-stk-seit"> · {seit}</span>}</span>
       <span>{prognose(auftrag, schnittLang(jeTag) || schnitt)}</span>
     </>
   );
