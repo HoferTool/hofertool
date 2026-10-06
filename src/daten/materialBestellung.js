@@ -21,9 +21,12 @@
 //  Datenbank: sql/notiz-ohne-doppel.sql.
 // =================================================================
 
-const BE_NR = /(?<!\d)(20\d{8})(?!\d)/;
-const MENGE = /(?<![\d.,'])(\d{1,3}(?:'\d{3})+|\d+(?:[.,]\d+)?)\s*(kg|stk|stück|stg|stangen)\b\.?/i;
-const DATUM = /(?<![\d.])(\d{1,2})\.(\d{1,2})\.?(\d{4}|\d{2})?(?![\d.,]|\s*(?:chf|fr|kg|mm))/i;
+// Ohne Rückblick in den Mustern („was steht davor?“): Das iPad an der
+// Maschine (Safari 16.1) kennt ihn nicht und startet sonst die ganze App
+// nicht. Stattdessen steht das Zeichen davor als eigene Gruppe im Muster.
+const BE_NR = /(?:^|\D)(20\d{8})(?!\d)/;
+const MENGE = /(^|[^\d.,'])(\d{1,3}(?:'\d{3})+|\d+(?:[.,]\d+)?)\s*(kg|stk|stück|stg|stangen)\b\.?/i;
+const DATUM = /(^|[^\d.])(\d{1,2})\.(\d{1,2})\.?(\d{4}|\d{2})?(?![\d.,]|\s*(?:chf|fr|kg|mm))/i;
 const KW = /\bKW\s*(\d{1,2})\b/i;
 const MAT_BE = /\bmat\.?\s*be\b/i;
 // Wörter, die vor dem Lieferanten stehen können, aber keiner sind
@@ -37,23 +40,23 @@ const EINHEIT = { kg: "kg", stk: "Stk.", "stück": "Stk.", stg: "Stg.", stangen:
 function mengeIn(zeile) {
   const m = zeile.match(MENGE);
   if (!m) return "";
-  return m[1].replace(",", ".") + " " + EINHEIT[m[2].toLowerCase()];
+  return m[2].replace(",", ".") + " " + EINHEIT[m[3].toLowerCase()];
 }
 
 // Gibt { text, roh } zurück: „24.09.26“ und genau so, wie es dastand
 function terminFinden(zeile, jahrDerBestellung) {
   // Datumsteile ohne die Bestellnummer suchen, damit nichts daraus
   // als Tag gelesen wird
-  const ohne = zeile.replace(new RegExp(BE_NR.source, "g"), " ");
+  const ohne = zeile.replace(new RegExp(BE_NR.source, "g"), (t, nr) => t.slice(0, t.length - nr.length) + " ");
   // Alle Treffer prüfen: „1.4301“ ist ein Werkstoff, kein Datum
   for (const d of ohne.matchAll(new RegExp(DATUM.source, "gi"))) {
-    const tag = Number(d[1]), monat = Number(d[2]);
+    const tag = Number(d[2]), monat = Number(d[3]);
     if (tag < 1 || tag > 31 || monat < 1 || monat > 12) continue;
-    let jahr = d[3] || "";
+    let jahr = d[4] || "";
     if (jahr.length === 4) jahr = jahr.slice(2);
     // Ohne Jahr („17.09“) gilt das Jahr der Bestellung
     if (!jahr && jahrDerBestellung) jahr = jahrDerBestellung.slice(2);
-    return { text: zwei(tag) + "." + zwei(monat) + (jahr ? "." + jahr : ""), roh: d[0] };
+    return { text: zwei(tag) + "." + zwei(monat) + (jahr ? "." + jahr : ""), roh: d[0].slice(d[1].length) };
   }
   const k = ohne.match(KW);
   if (k && Number(k[1]) >= 1 && Number(k[1]) <= 53) return { text: "KW" + zwei(k[1]), roh: k[0] };
@@ -136,7 +139,7 @@ export function materialAusNotizEntfernen(notiz, menge, termin) {
   if (n >= 0) neu[n] = zeilen[n];
   if (mengeDa) {
     const z = mengeIn(neu[i]) ? i : n;
-    neu[z] = neu[z].replace(MENGE, " ");
+    neu[z] = neu[z].replace(MENGE, "$1 ");
     neu[i] = neu[i].replace(k.nr, " ").replace(MAT_BE, " ");
     if (k.lieferant) neu[i] = neu[i].replace(k.lieferant, " ");
   }

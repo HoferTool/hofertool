@@ -39,10 +39,29 @@ function offlineListe() {
   };
 }
 
+// Das iPad an der Maschine hat Safari 16.1. Der kennt in Suchmustern
+// keinen Rückblick (?<! und ?<=) und startet dann die ganze App nicht
+// (6. Oktober 2026). Darum bricht das Bauen ab, wenn einer drinsteht.
+function safariPruefen() {
+  return {
+    name: "hofer-safari-16",
+    apply: "build",
+    generateBundle(_o, bundle) {
+      for (const [name, teil] of Object.entries(bundle)) {
+        const code = teil.type === "chunk" ? teil.code : "";
+        if (/\(\?<[=!]/.test(code)) {
+          this.error(name + ": Suchmuster mit Rückblick (?<! oder ?<=). "
+            + "Safari 16 auf dem iPad startet damit nicht. Bitte ohne schreiben.");
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig({
   // Relative Pfade: Die App liegt auf GitHub Pages unter /hofertool/
   base: "./",
-  plugins: [react(), offlineListe()],
+  plugins: [react(), offlineListe(), safariPruefen()],
   build: {
     outDir: "dist",
     // Die App wartet beim Start auf die Datenbank (await ganz oben)
