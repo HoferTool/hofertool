@@ -39,7 +39,7 @@ with sync_playwright() as p:
       || e.getBoundingClientRect().right > document.documentElement.clientWidth + 1).length"""
 
     # Artikel: eine Zeile je Artikel, alle Zellen auf gleicher Höhe
-    pg.locator("[data-best='artikel']").first.click()
+    pg.locator("[data-unter='bestellungen/artikel']:visible, [data-best='artikel']:visible").first.click()
     pg.wait_for_selector(".bs-tabelle--artikel .bs-tabelle__zeile"); pg.wait_for_timeout(300)
     n = pg.locator(".bs-tabelle--artikel .bs-tabelle__zeile").count()
     if n < 3: fehler.append("Artikel-Zeilen: " + str(n))
@@ -52,7 +52,7 @@ with sync_playwright() as p:
     if BILD: pg.screenshot(path=BILD + "-artikel.png")
 
     # Historie: Spalten verteilt, keine grosse Lücke in der Mitte
-    pg.locator("[data-best='historie']").first.click()
+    pg.locator("[data-unter='bestellungen/historie']:visible, [data-best='historie']:visible").first.click()
     pg.wait_for_selector(".bs-tabelle--historie .bs-tabelle__zeile"); pg.wait_for_timeout(300)
     if pg.locator("[data-hstatus]").count() < 3: fehler.append("Historie unvollständig")
     luecke = pg.evaluate("""() => { const z = document.querySelector('.bs-tabelle--historie .bs-tabelle__zeile');
@@ -70,11 +70,11 @@ with sync_playwright() as p:
         u = pg.evaluate(UEBERLAUF, ".bs-tabelle--historie .bs-tabelle__zeile")
         if u: fehler.append(f"Historie läuft über ({name}): {u}")
         if BILD: pg.screenshot(path=BILD + f"-historie-{name}.png")
-        pg.locator("[data-best='artikel']").first.click(); pg.wait_for_timeout(400)
+        pg.locator("[data-unter='bestellungen/artikel']:visible, [data-best='artikel']:visible").first.click(); pg.wait_for_timeout(400)
         u = pg.evaluate(UEBERLAUF, ".bs-tabelle--artikel .bs-tabelle__zeile")
         if u: fehler.append(f"Artikel läuft über ({name}): {u}")
         if BILD: pg.screenshot(path=BILD + f"-artikel-{name}.png")
-        pg.locator("[data-best='historie']").first.click(); pg.wait_for_timeout(400)
+        pg.locator("[data-unter='bestellungen/historie']:visible, [data-best='historie']:visible").first.click(); pg.wait_for_timeout(400)
 
     print("Fehler:", "; ".join(fehler) if fehler else "keine")
     br.close()

@@ -20,7 +20,7 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#produktion'")
     pg.wait_for_selector("#raster .menge, #raster .kein-feld"); pg.wait_for_timeout(500)
-    pg.click("[data-ansicht='maschinen']"); pg.wait_for_selector("#park-reiter")
+    pg.click("[data-unter='produktion/maschinen']"); pg.wait_for_selector("#park-reiter")
     pg.locator("[data-parkreiter='typen']").click(); pg.wait_for_selector("[data-typ-auf]")
     pruefe("Liste mit beiden Typen", pg.locator("[data-typ-auf]").count() == 2 and "Star SR-32J" in pg.inner_text("#park-inhalt"))
 

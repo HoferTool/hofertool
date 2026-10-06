@@ -41,8 +41,8 @@ with sync_playwright() as p:
 
     # Umbenennen wirkt sofort beim nächsten Laden
     pg.evaluate("TEST.daten.profiles[2].full_name = 'Tristan Neu'")
-    pg.click("[data-best='bestellt']"); pg.wait_for_timeout(300)
-    pg.click("[data-best='offen']"); pg.wait_for_timeout(700)
+    pg.click("[data-unter='bestellungen/bestellt']"); pg.wait_for_timeout(300)
+    pg.click("[data-unter='bestellungen/offen']"); pg.wait_for_timeout(700)
     if "Tristan Neu" not in pg.inner_text("#best-inhalt"): fehler.append("Umbenennen nicht übernommen")
 
     # Schriftgrössen: Nummer grösser als Bezeichnung und Beschreibung

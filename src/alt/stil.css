@@ -5898,3 +5898,11 @@ body[data-thema] #pad .pad-kachel--maschine::before {
 @media (prefers-reduced-motion: reduce) { .si-dreher { animation: none; } }
 .si-marke { margin-left: 8px; }
 .si-knopfzelle { text-align: right; width: 1%; white-space: nowrap; }
+/* ---------- Reiter nur einmal (Wunsch Patrick, 6. Oktober 2026) ----------
+   Am PC stehen die Reiter von Produktion, Bestellungen und Rechner schon
+   in der Seitenleiste links. Darum zeigt die Seite selbst sie dort nicht
+   nochmals. Am Handy (Leiste unten) und bei eingeklappter Seitenleiste
+   gibt es links keine Reiter, dann bleibt die Leiste auf der Seite. */
+@media (min-width: 780px) {
+  body:not(.nav--schmal) .reiter--seite { display: none; }
+}

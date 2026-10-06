@@ -45,7 +45,8 @@ with sync_playwright() as p:
     pruefe("Klassen nach dem Wechsel wieder weg", pg.evaluate(
         "!document.querySelector('.kopf').classList.contains('fx-glanz') && !document.getElementById('inhalt').classList.contains('fx-seite')"))
 
-    # Reiter
+    # Reiter (stehen am PC nur bei eingeklappter Seitenleiste auf der Seite)
+    pg.click("#nav-klapp"); pg.wait_for_timeout(300)
     pg.wait_for_selector(".reiter.fx-gleit")
     l = lage(".reiter")
     pruefe("Reiter: Markierung auf dem aktiven Reiter", l["x"] == l["ax"] and l["sicht"] == "1")
@@ -59,6 +60,7 @@ with sync_playwright() as p:
     pruefe("Welle erscheint", pg.locator(".fx-welle").count() == 1)
     pg.mouse.up(); pg.wait_for_timeout(1000)
     pruefe("Welle wieder weg", pg.locator(".fx-welle").count() == 0)
+    pg.click("#nav-klapp"); pg.wait_for_timeout(300)
 
     # Licht unter der Maus auf einer Karte der Startseite
     pg.click(".nav__punkt[data-nav='dashboard']"); pg.wait_for_selector(".karte--klickbar"); pg.wait_for_timeout(900)
