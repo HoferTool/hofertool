@@ -23,7 +23,7 @@ with sync_playwright() as p:
     if "MTEC-452410" not in pg.inner_text("#best-inhalt"): fehler.append("Position fehlt in Offen")
 
     for r in ["bestellt", "historie", "artikel", "bezeichnungen", "lieferanten", "offen"]:
-        pg.click(f"[data-best='{r}']"); pg.wait_for_timeout(500)
+        pg.click(f"[data-unter='bestellungen/{r}']"); pg.wait_for_timeout(500)
         if pg.locator(f"[data-best='{r}'].aktiv").count() != 1: fehler.append("Reiter nicht aktiv: " + r)
         if pg.locator("#best-inhalt").count() != 1: fehler.append("best-inhalt nicht genau einmal: " + r)
         if "Wird geladen" in pg.inner_text("#best-inhalt"): fehler.append("lädt ewig: " + r)
@@ -35,7 +35,7 @@ with sync_playwright() as p:
     pg.wait_for_timeout(800)
     if "MTEC-452410" in pg.inner_text("#best-inhalt"): fehler.append("Nach Statuswechsel noch in Offen")
     if pg.locator("h1.seitentitel").count() != 1: fehler.append("Titel doppelt nach Auffrischen")
-    pg.click("[data-best='bestellt']"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='bestellungen/bestellt']"); pg.wait_for_timeout(500)
     if "MTEC-452410" not in pg.inner_text("#best-inhalt"): fehler.append("Nicht in Bestellt")
 
     # Suche filtert sofort und behält den Fokus
@@ -51,7 +51,7 @@ with sync_playwright() as p:
     pg.click("[data-sammelstatus]"); pg.click(".dialog-huelle [data-w='offen']")
     pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(800)
     if "MTEC-452410" in pg.inner_text("#best-inhalt"): fehler.append("Status für alle wirkt nicht")
-    pg.click("[data-best='offen']"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='bestellungen/offen']"); pg.wait_for_timeout(500)
 
     # Löschen mit genau einer Rückfrage, dann Rückgängig
     pg.click("[data-bweg='o1']")
@@ -65,33 +65,33 @@ with sync_playwright() as p:
     # Geliefert setzen: steht dann in der Historie
     pg.click("[data-bstatus='o1']"); pg.click(".dialog-huelle [data-neu='geliefert']")
     pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(800)
-    pg.click("[data-best='historie']"); pg.wait_for_timeout(600)
+    pg.click("[data-unter='bestellungen/historie']"); pg.wait_for_timeout(600)
     if not pg.locator("[data-hstatus='o1']").count(): fehler.append("Nicht in der Historie")
     pg.fill("#bh-suche", "zzz"); pg.wait_for_timeout(200)
     if "Nichts gefunden" not in pg.inner_text("#best-inhalt"): fehler.append("Historie-Suche")
     pg.fill("#bh-suche", "")
 
     # Artikel: Suche mit Verzögerung, Filter nach Bezeichnung
-    pg.click("[data-best='artikel']"); pg.wait_for_timeout(600)
+    pg.click("[data-unter='bestellungen/artikel']"); pg.wait_for_timeout(600)
     if not pg.locator("[data-arbearb='a1']").count(): fehler.append("Artikel fehlt")
     pg.fill("#ar-suche", "MTEC"); pg.wait_for_timeout(700)
     if not pg.locator("[data-arbearb='a1']").count(): fehler.append("Artikelsuche findet nichts")
 
     # Lieferanten filtern
-    pg.click("[data-best='lieferanten']"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='bestellungen/lieferanten']"); pg.wait_for_timeout(500)
     if pg.locator("[data-lf]").count() != 2: fehler.append("Lieferanten: %d" % pg.locator("[data-lf]").count())
     pg.fill("#lf-suche", "brütsch"); pg.wait_for_timeout(200)
     if pg.locator("[data-lf]").count() != 1: fehler.append("Lieferantensuche")
     pg.fill("#lf-suche", "")
 
     # Bezeichnung anlegen
-    pg.click("[data-best='bezeichnungen']"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='bestellungen/bezeichnungen']"); pg.wait_for_timeout(500)
     pg.click("#bz-neu"); pg.wait_for_selector(".dialog-huelle input")
     pg.fill(".dialog-huelle input", "Bohrer"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(600)
     if "Bohrer" not in pg.inner_text("#bz-liste"): fehler.append("Bezeichnung nicht angelegt")
 
     # Escape: vom Unterreiter auf Offen
-    pg.click("[data-best='lieferanten']"); pg.wait_for_timeout(400)
+    pg.click("[data-unter='bestellungen/lieferanten']"); pg.wait_for_timeout(400)
     pg.locator("h1").click(); pg.keyboard.press("Escape"); pg.wait_for_timeout(600)
     if not pg.locator("[data-best='offen'].aktiv").count(): fehler.append("Escape springt nicht auf Offen")
 

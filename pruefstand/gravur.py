@@ -21,7 +21,7 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#rechner'")
-    pg.wait_for_selector("[data-rech='gravur']"); pg.click("[data-rech='gravur']")
+    pg.wait_for_selector("[data-unter='rechner/gravur']"); pg.click("[data-unter='rechner/gravur']")
     pg.wait_for_selector("pre.gcode")
     code = lambda: pg.text_content("pre.gcode")
     def feld(name, wert):

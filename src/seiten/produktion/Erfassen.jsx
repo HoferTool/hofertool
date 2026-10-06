@@ -282,15 +282,9 @@ function StandFeld({ maschine, datum, staende, neu }) {
     try {
       await alt.speichereStand(maschine.id, datum, stand, auftragId);
       const vorherWert = eintrag ? eintrag.quantity : null;
-      alt.merkeSchritt("Zählerstand vom " + alt.kurzDatum(datum), async () => {
-        if (vorherWert === null) {
-          await alt.db.from("production_records").delete()
-            .eq("machine_id", maschine.id).eq("record_date", datum);
-        } else {
-          await alt.speichereStand(maschine.id, datum, vorherWert, auftragId);
-        }
-        neu();
-      });
+      alt.merkeSchritt("Zählerstand vom " + alt.kurzDatum(datum), vorherWert === null
+        ? alt.rueckWeg("production_records", { machine_id: maschine.id, record_date: datum })
+        : alt.rueckStand(maschine.id, datum, vorherWert, auftragId));
       el.classList.remove("menge--speichert");
       el.classList.add("menge--gespeichert");
       setTimeout(() => el.classList.remove("menge--gespeichert"), 900);

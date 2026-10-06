@@ -36,7 +36,7 @@ def seite(p, breite, hoehe, touch=False):
 
 def logoFenster(pg):
     pg.evaluate("location.hash='#bestellungen'"); pg.wait_for_timeout(600)
-    pg.click("[data-best='lieferanten']"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='bestellungen/lieferanten']:visible, [data-best='lieferanten']:visible"); pg.wait_for_timeout(500)
     pg.locator(".bs-lief .bs-logoknopf").first.click(); pg.wait_for_selector(".dialog-huelle [data-logoart]")
     pg.click(".dialog-huelle [data-logoart='eigen']")
 

@@ -16,7 +16,7 @@ export function Reiter({ reiter, aktiv, waehlen, merkmal, seite }) {
   useEffect(() => { if (seite) reiterMelden(seite, aktiv, melder); }, [seite, aktiv, melder]);
   useEffect(() => () => { if (seite) reiterAbmelden(seite, melder); }, [seite, melder]);
   return (
-    <div className="reiter">
+    <div className={"reiter" + (seite ? " reiter--seite" : "")}>
       {reiter.map(([wert, text]) => (
         <button key={wert} className={"reiter__knopf" + (aktiv === wert ? " aktiv" : "")}
           {...{ ["data-" + merkmal]: wert }} onClick={() => waehlen(wert)}>{text}</button>

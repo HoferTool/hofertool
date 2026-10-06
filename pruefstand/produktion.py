@@ -67,7 +67,7 @@ with sync_playwright() as p:
       j.planned_from = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
       j.planned_days = 30; j.stand = 0;
     })()""")
-    pg.click("[data-ansicht='fortschritt']"); pg.wait_for_selector(".fo-zeile")
+    pg.click("[data-unter='produktion/fortschritt']"); pg.wait_for_selector(".fo-zeile")
     alle = pg.locator(".fo-zeile").count()
     pg.select_option("#fo-nur", "verzug"); pg.wait_for_timeout(200)
     verzug = pg.locator(".fo-zeile").count()
@@ -80,7 +80,7 @@ with sync_playwright() as p:
     if pg.locator("#prod-inhalt .pw-rolle, #prod-inhalt .pw-balken").count(): fehler.append("Planwand im Fortschritt gezeichnet")
     if pg.locator(".fo-zeile").count() != alle: fehler.append("Fortschritt nach Speichern falsch")
     if pg.locator(".dialog-huelle").count(): fehler.append("Auftragsfenster bleibt offen")
-    pg.click("[data-ansicht='maschinen']"); pg.wait_for_selector("#park-reiter"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='produktion/maschinen']"); pg.wait_for_selector("#park-reiter"); pg.wait_for_timeout(500)
     # Maschine bearbeiten: neuer Name kommt an und steht in der Liste
     knopf = pg.locator("[data-masch-um]").first
     mid = knopf.get_attribute("data-masch-um")

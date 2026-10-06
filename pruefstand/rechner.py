@@ -33,11 +33,11 @@ with sync_playwright() as p:
     # Jeder Reiter zeigt etwas
     for reiter, merkmal in [("winkel", "input"), ("gcode", "textarea, input"), ("cachse", "svg, canvas, input"),
                             ("gravur", "input, canvas"), ("dxf", "input, button")]:
-        pg.click(f"[data-rech='{reiter}']"); pg.wait_for_timeout(250)
+        pg.click(f"[data-unter='rechner/{reiter}']"); pg.wait_for_timeout(250)
         if not pg.locator(f"#rech-inhalt").locator(merkmal).count():
             fehler.append("Reiter leer: " + reiter)
         if pg.locator("#rech-inhalt").count() != 1: fehler.append("rech-inhalt doppelt bei " + reiter)
-    pg.click("[data-rech='winkel']"); pg.wait_for_timeout(200)
+    pg.click("[data-unter='rechner/winkel']"); pg.wait_for_timeout(200)
     # Dreieck: a = 3, b = 4 → c = 5, β = 53,13°
     pg.fill("#w-a", "3"); pg.press("#w-a", "Tab"); pg.fill("#w-g", "4"); pg.press("#w-g", "Tab"); pg.wait_for_timeout(200)
     erg = pg.locator(".karte--ergebnis").first.inner_text().replace("\n", " ")
@@ -54,7 +54,7 @@ with sync_playwright() as p:
     pg.wait_for_timeout(200)
 
     # G-Code: Fase 1 × 45° auf Ø20, mit und ohne A-Programmierung
-    pg.click("[data-rech='gcode']"); pg.wait_for_timeout(250)
+    pg.click("[data-unter='rechner/gcode']"); pg.wait_for_timeout(250)
     prog = pg.inner_text("pre.gcode")
     if "G0X22.00Z0.00" not in prog or ",A45." not in prog: fehler.append("G-Code falsch: " + prog[:80])
     pg.check("#g-ohnea"); pg.wait_for_timeout(200)
@@ -64,14 +64,14 @@ with sync_playwright() as p:
     pg.fill("#g-dm", "30"); pg.press("#g-dm", "Enter"); pg.wait_for_timeout(200)
     if "G0X32.00" not in pg.inner_text("pre.gcode"): fehler.append("Durchmesser wirkt nicht")
     pg.check("#g-radan"); pg.uncheck("#g-ohnea"); pg.fill("#g-dm", "20"); pg.press("#g-dm", "Tab")
-    pg.click("[data-rech='winkel']"); pg.wait_for_timeout(200)
+    pg.click("[data-unter='rechner/winkel']"); pg.wait_for_timeout(200)
 
     # Seitenwechsel und zurück: Eingaben bleiben, Reiter bleibt
     pg.evaluate("location.hash='#einkauf'"); pg.wait_for_timeout(600)
     if pg.locator("#r-d").count(): fehler.append("Rechner nach Seitenwechsel noch da")
     pg.evaluate("location.hash='#rechner'"); pg.wait_for_timeout(400)
     if not pg.locator("[data-rech='winkel'].aktiv").count(): fehler.append("Reiter nicht gemerkt")
-    pg.click("[data-rech='drehzahl']"); pg.wait_for_timeout(200)
+    pg.click("[data-unter='rechner/drehzahl']"); pg.wait_for_timeout(200)
     if pg.input_value("#r-d") != "10": fehler.append("Durchmesser nicht gemerkt")
     for i in range(6):   # schnelles Hin und Her darf nichts kaputt machen
         pg.evaluate("location.hash='#einkauf'"); pg.wait_for_timeout(60)

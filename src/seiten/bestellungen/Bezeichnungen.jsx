@@ -55,9 +55,11 @@ async function loeschen(z, neu) {
         + "Artikel, die sie tragen, behalten ihren Namen.",
     bestaetigen: "Löschen", gefahr: true });
   if (!ok) return;
+  const vorher = await alt.rueckSichern("designations", { id: z.id });
   const { error } = await alt.db.from("designations").delete().eq("id", z.id);
-  if (error) alt.meldung(alt.fehlertext(error), "fehler");
-  else { alt.meldung("Gelöscht."); neu(); }
+  if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+  alt.merkeSchritt("Löschen von " + z.name, alt.rueckRein("designations", vorher));
+  alt.meldung("Gelöscht."); neu();
 }
 
 async function bezeichnungDialog(eintrag, neu) {

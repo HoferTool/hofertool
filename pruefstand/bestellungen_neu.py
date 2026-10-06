@@ -47,8 +47,8 @@ with sync_playwright() as p:
     # Eigenes Logo erscheint als Bild; ohne Logo (Netz ist hier gesperrt) die Buchstaben
     pg.evaluate("""TEST.daten.suppliers.find(x => x.id === 's1').logo_url =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='""")
-    pg.click("[data-best='bestellt']"); pg.wait_for_timeout(400)
-    pg.click("[data-best='offen']"); pg.wait_for_timeout(700)
+    pg.click("[data-unter='bestellungen/bestellt']:visible, [data-best='bestellt']:visible"); pg.wait_for_timeout(400)
+    pg.click("[data-unter='bestellungen/offen']:visible, [data-best='offen']:visible"); pg.wait_for_timeout(700)
     if not pg.locator(".bs-lieferant .bs-logo img").count(): fehler.append("Lieferanten-Logo fehlt")
     if pg.locator(".bs-pos--spaet").count() != 1: fehler.append("Überfällige Zeile nicht markiert")
     if "überfällig seit" not in pg.inner_text(".bs-pos--spaet"): fehler.append("Frist-Chip fehlt")
@@ -65,16 +65,16 @@ with sync_playwright() as p:
     pg.click(".dialog-huelle [data-nein]")
 
     # Bestellt: Teillieferung mit Balken
-    pg.click("[data-best='bestellt']"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='bestellungen/bestellt']:visible, [data-best='bestellt']:visible"); pg.wait_for_timeout(500)
     b = pg.evaluate("(document.querySelector('.bs-teil__balken i')||{style:{}}).style.width")
     if b != "25%": fehler.append("Teillieferung-Balken: %r" % b)
 
     # Historie: nach Monat gruppiert
-    pg.click("[data-best='historie']"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='bestellungen/historie']:visible, [data-best='historie']:visible"); pg.wait_for_timeout(500)
     if "August 2026" not in pg.inner_text("#best-inhalt"): fehler.append("Monat fehlt in der Historie")
 
     # Lieferanten: Tipp aufs Logo öffnet das Fenster, "Kein Logo" speichert "keins"
-    pg.click("[data-best='lieferanten']"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='bestellungen/lieferanten']:visible, [data-best='lieferanten']:visible"); pg.wait_for_timeout(500)
     if pg.locator(".bs-lief .bs-logoknopf").count() < 2: fehler.append("Logoknöpfe fehlen")
     pg.locator(".bs-lief .bs-logoknopf").first.click(); pg.wait_for_selector(".dialog-huelle [data-logoart]")
     pg.click(".dialog-huelle [data-logoart='keins']"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(700)
@@ -82,13 +82,13 @@ with sync_playwright() as p:
         fehler.append("Logo 'keins' nicht gespeichert")
     if not pg.locator(".bs-lief").first.locator(".bs-kuerzel").count(): fehler.append("Nach 'keins' keine Buchstaben")
     # Bezeichnungen als Zeilen
-    pg.click("[data-best='bezeichnungen']"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='bestellungen/bezeichnungen']:visible, [data-best='bezeichnungen']:visible"); pg.wait_for_timeout(500)
     if pg.locator(".bs-raster").count(): fehler.append("Bezeichnungen noch als Raster")
 
     # Artikel: Filter nach Lieferant als Auswahlliste
     pg.evaluate("""TEST.daten.articles.push({ id: "a9", article_number: "BR-77", name: "Bohrer",
       unit: "Stück", description: null, supplier_id: "s2", is_active: true })""")
-    pg.click("[data-best='artikel']"); pg.wait_for_timeout(600)
+    pg.click("[data-unter='bestellungen/artikel']:visible, [data-best='artikel']:visible"); pg.wait_for_timeout(600)
     if pg.locator("#ar-lief option").count() < 3: fehler.append("Lieferanten fehlen in der Auswahl")
     alle = pg.locator("[data-arbearb]").count()
     pg.select_option("#ar-lief", "Brütsch Rüegger"); pg.wait_for_timeout(600)
@@ -99,7 +99,7 @@ with sync_playwright() as p:
     if pg.locator("[data-arbearb]").count() != alle: fehler.append("Filter zurück wirkt nicht")
 
     # Suche über die Lupe-Leiste filtert sofort
-    pg.click("[data-best='offen']"); pg.wait_for_timeout(400)
+    pg.click("[data-unter='bestellungen/offen']:visible, [data-best='offen']:visible"); pg.wait_for_timeout(400)
     pg.fill("#bo-suche", "dringend"); pg.wait_for_timeout(200)
     if pg.locator(".bs-pos").count() != 1: fehler.append("Suche nach Notiz: %d" % pg.locator(".bs-pos").count())
     pg.fill("#bo-suche", "")
@@ -108,7 +108,7 @@ with sync_playwright() as p:
     # Handy: nichts ragt seitlich hinaus
     pg = seite(br, 390)
     for r in ["offen", "bestellt", "historie", "artikel", "bezeichnungen", "lieferanten"]:
-        pg.click(f"[data-best='{r}']"); pg.wait_for_timeout(450)
+        pg.click(f"[data-unter='bestellungen/{r}']:visible, [data-best='{r}']:visible"); pg.wait_for_timeout(450)
         breit = pg.evaluate("document.documentElement.scrollWidth")
         if breit > 392: fehler.append("Handy %s zu breit: %d" % (r, breit))
     pg.context.close()

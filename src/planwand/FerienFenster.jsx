@@ -49,18 +49,26 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
       note: notiz.trim() || null,
     };
     if (!eintrag) daten.genehmigt = planer;
-    const { error } = eintrag
+    const vorher = eintrag ? await alt.rueckSichern("vacations", { id: eintrag.id }) : [];
+    const { data, error } = eintrag
       ? await alt.db.from("vacations").update(daten).eq("id", eintrag.id)
-      : await alt.db.from("vacations").insert(daten);
+      : await alt.db.from("vacations").insert(daten).select("id");
+    if (!error) {
+      const neuId = !eintrag && Array.isArray(data) && data[0] && data[0].id;
+      if (eintrag) alt.merkeSchritt("Ferien von " + eintrag.person, alt.rueckRein("vacations", vorher));
+      else if (neuId) alt.merkeSchritt("Ferien von " + wer, alt.rueckWeg("vacations", { id: neuId }));
+    }
     fertig(error, !eintrag && !planer ? "Anfrage gestellt." : "Gespeichert.");
   };
 
   const bestaetigen = async () => {
+    const vorher = await alt.rueckSichern("vacations", { id: eintrag.id });
     const { error } = await alt.db.from("vacations").update({
       genehmigt: true,
       genehmigt_von: profil.id,
       genehmigt_am: new Date().toISOString(),
     }).eq("id", eintrag.id);
+    if (!error) alt.merkeSchritt("Ferien bestätigen", alt.rueckRein("vacations", vorher));
     fertig(error, "Ferien bestätigt.");
   };
 
@@ -70,7 +78,9 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
       text: "Soll der Eintrag für " + eintrag.person + " gelöscht werden?",
       bestaetigen: "Löschen", gefahr: true });
     if (!sicher) return;
+    const vorher = await alt.rueckSichern("vacations", { id: eintrag.id });
     const { error } = await alt.db.from("vacations").delete().eq("id", eintrag.id);
+    if (!error) alt.merkeSchritt("Löschen der Ferien von " + eintrag.person, alt.rueckRein("vacations", vorher));
     fertig(error, "Gelöscht.");
   };
 

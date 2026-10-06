@@ -56,7 +56,7 @@ with sync_playwright() as p:
     # Maschinentyp, Maschine, Park
     pg.evaluate("location.hash='#produktion'")
     pg.wait_for_selector("#raster .menge, #raster .kein-feld"); pg.wait_for_timeout(500)
-    pg.click("[data-ansicht='maschinen']"); pg.wait_for_selector("#park-reiter")
+    pg.click("[data-unter='produktion/maschinen']"); pg.wait_for_selector("#park-reiter")
     mid = pg.locator("[data-masch-weg]").first.get_attribute("data-masch-weg")
     einmal(pg, f"[data-masch-weg='{mid}']", "Maschine")
     pruefe("Maschine gelöscht", pg.evaluate(f"!TEST.daten.machines.some(m => m.id === '{mid}')"))

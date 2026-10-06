@@ -45,7 +45,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `chat_gespraeche`, `chat_teilnehmer`, `chat_nachrichten`, `chat_gelesen` | Chat |
 | `fahrzeuge`, `fahrzeug_buchungen`, `fahrzeug_probleme` | Fahrzeuge |
 | `dokumente`, `dokumente_verlauf` | Dokumentenpool und Verlauf |
-| `app_config` | Schlüssel/Wert: `werkstoff_zuordnung`, `zng_ordner` (Zeichnungs-Ordner: Pfad, Unterordner, Hochladen), `dok_pfad_status` (Stand von `zeichnungen.ps1`), `eb_ordner`, `eb_ordner_status`, `dok_pool_pfad`, `dok_pool_status` (Stände schreibt das Dienstkonto, `sql/dokumente-pool.sql`, `sql/einrichtblatt-ordner.sql`); `dok_regeln` und `dok_pfad` werden seit 111.61.0 nicht mehr gelesen (Stand schreibt das Dienstkonto, `sql/dokumente-pool.sql`), Bestellmail-Text u. a. |
+| `app_config` | Schlüssel/Wert: `werkstoff_zuordnung`, `zng_ordner` (Zeichnungs-Ordner: Pfad, Unterordner, Hochladen), `dok_pfad_status` (Stand von `zeichnungen.ps1`), `eb_ordner`, `eb_ordner_status`, `dok_pool_pfad`, `dok_pool_status`, `sicherung` (Speicherort, Uhrzeit, Tage), `sicherung_auftrag` (Jetzt sichern / Zurückspielen, nur Admin), `sicherung_status` (Stand von `sicherung.ps1`, Dienstkonto, `sql/sicherung.sql`) (Stände schreibt das Dienstkonto, `sql/dokumente-pool.sql`, `sql/einrichtblatt-ordner.sql`); `dok_regeln` und `dok_pfad` werden seit 111.61.0 nicht mehr gelesen (Stand schreibt das Dienstkonto, `sql/dokumente-pool.sql`), Bestellmail-Text u. a. |
 | `farb_material`, `wash_containers` | Stammdaten |
 | `solar_werte` | Solaranlage, gefüllt von aussen (`solarlog.ps1` über `solar_melden`); Startseite zeigt die letzten 24 h |
 | `solar_zugang` | eine Zeile mit dem Solar-Schlüssel für `solarlog.ps1`; für App und Besucher ganz gesperrt (`sql/solar.sql`) |
@@ -87,6 +87,8 @@ Beispiele: `jobs` löschen nur `bin_admin()`; `profiles` lesen alle, ändern nur
 - `neuer_benutzer()` — legt bei neuem Login das Profil an.
 - `solar_melden(schluessel, werte, nur_pruefen)` — nimmt Solarwerte von `solarlog.ps1` an (auch ohne Anmeldung aufrufbar), prüft den Solar-Schlüssel aus `solar_zugang`, höchstens ein Wert pro 50 s, löscht dabei Werte älter als 90 Tage. `nur_pruefen` prüft nur den Schlüssel.
 - `solar_aufraeumen()` — löscht Solarwerte älter als 90 Tage (nur noch für den SQL Editor).
+- `sicherung_lesen()` — alle Tabellen der App (ausser `pin_schutz`, `solar_zugang`, `sicherung_puffer`) in einem Aufruf als json `[{t, nr, zeilen}]`; `sicherung_dateien()` — Liste aller Dateien im Storage. Nur Admin und Dienstkonto.
+- `sicherung_puffern(lauf, tabelle, zeilen)` und `sicherung_einspielen(lauf, tabellen)` — Zurückspielen über die Zwischenablage `sicherung_puffer`: in einer Transaktion Auslöser aus, Verweise erst am Schluss geprüft, Tabellen leeren und füllen, Zähler nachstellen, `app_config.sicherung*` bleibt. Admin immer, Dienstkonto nur mit offenem Auftrag eines Admins (danach `erledigt`). Personen ohne Anmeldekonto fallen weg.
 - `ib_naechster_arbeitstag()`, `ib_plus_arbeitstage()`, `ib_letzter_tag()` — Arbeitstage wie in der App: Mo–Fr, keine Feiertage.
 
 ## Echtzeit

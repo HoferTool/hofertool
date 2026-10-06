@@ -5820,3 +5820,89 @@ body[data-thema] #pad .pad-kachel--maschine::before {
                   display: flex; align-items: center; cursor: pointer;
                   -webkit-tap-highlight-color: transparent; }
 .pad__logoknopf:active .pad__logo2 { opacity: .6; }
+
+/* Bestellungen, Artikel wieder als Liste (Wunsch Patrick, 6. Oktober
+   2026): eine Zeile je Artikel, Nummer gross, Bezeichnung daneben,
+   Beschreibung klein darunter, rechts der Lieferant. */
+.bs-tabelle--artikel .bs-tabelle__kopf, .bs-tabelle--artikel .bs-tabelle__zeile {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr) 84px; gap: 12px; }
+.bs-tabelle--artikel .bs-tabelle__zeile { min-height: 48px; padding-top: 7px; padding-bottom: 7px; }
+.bs-tabelle--artikel .bs-artikel__name { margin-top: 0; font-size: .86rem; }
+.bs-tabelle--artikel .bs-pos__beschreibung { margin-top: 1px; font-size: .74rem; }
+.bs-tabelle--artikel .bs-artikel__lief { margin-top: 0; }
+.bs-tabelle--artikel .bs-pos__aktionen { opacity: .55; transition: opacity .15s ease; }
+.bs-tabelle--artikel .bs-tabelle__zeile:hover .bs-pos__aktionen,
+.bs-tabelle--artikel .bs-tabelle__zeile:focus-within .bs-pos__aktionen { opacity: 1; }
+
+/* Historie in Spalten (Wunsch Patrick, 6. Oktober 2026: „nicht so Platz
+   lassen für nichts, dann alles reinquetschen“): Datum, Artikel, Wohin,
+   Lieferant, Besteller, Menge und Status nebeneinander über die ganze
+   Breite, eine ruhige Zeile je Lieferung. */
+.bs-tabelle--historie .bs-hz {
+  grid-template-columns: 92px minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, .9fr) 92px 112px;
+  gap: 12px; }
+.bs-tabelle--historie .bs-tabelle__zeile { min-height: 46px; padding-top: 6px; padding-bottom: 6px; }
+.bs-hz__rechts { text-align: right; }
+.bs-hz__wann { display: flex; flex-direction: column; line-height: 1.2; white-space: nowrap; }
+.bs-hz__wann b { font-size: .86rem; font-weight: 650; }
+.bs-hz__wann small { font-size: .72rem; color: var(--gedaempft); }
+.bs-hz__artikel { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; min-width: 0; }
+.bs-hz__artikel .bs-pos__name { font-size: .78rem; color: var(--gedaempft); }
+.bs-hz__ziel { min-width: 0; }
+.bs-hz__ziel .bs-chip { padding: 1px 7px; font-size: .7rem; }
+.bs-hz__ziel .bs-chip svg { width: 12px; height: 12px; }
+.bs-hz__klein { min-width: 0; font-size: .78rem; color: var(--gedaempft); overflow-wrap: anywhere; }
+.bs-hz__vor { display: none; }
+.bs-tabelle--historie .bs-pos__menge > b { font-size: 1.05rem; }
+
+/* Tablet: zwei Zeilen, oben Artikel, Menge und Status, darunter der Rest */
+@media (max-width: 1000px) {
+  .bs-tabelle--historie .bs-tabelle__kopf { display: none; }
+  .bs-tabelle--historie .bs-hz {
+    grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr) auto auto;
+    grid-template-areas: "wann artikel artikel menge status" "wann ziel lief wer wer";
+    row-gap: 4px; align-items: center; }
+  .bs-hz__wann { grid-area: wann; align-self: start; padding-top: 4px; }
+  .bs-hz__artikel { grid-area: artikel; }
+  .bs-hz__ziel { grid-area: ziel; }
+  .bs-hz__lief { grid-area: lief; }
+  .bs-hz__wer { grid-area: wer; }
+  .bs-tabelle--historie .bs-pos__menge { grid-area: menge; }
+  .bs-tabelle--historie .bs-pos__status { grid-area: status; }
+  .bs-hz__vor { display: inline; }
+  .bs-hz__ziel:empty { display: none; }
+}
+/* Handy: Datum links, rechts alles untereinander */
+@media (max-width: 640px) {
+  .bs-tabelle--historie .bs-tabelle__zeile { padding: 10px 14px; }
+  .bs-tabelle--historie .bs-hz {
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    grid-template-areas: "wann artikel menge" "wann lief lief" "wann wer wer" "wann ziel status";
+    gap: 2px 10px; }
+  .bs-tabelle--historie .bs-pos__status { justify-content: flex-end; }
+  .bs-tabelle--artikel .bs-tabelle__zeile { grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 12px; padding: 10px 14px; }
+  .bs-tabelle--artikel .bs-tabelle__zeile > :not(.bs-pos__aktionen) { grid-column: 1; }
+  .bs-tabelle--artikel .bs-pos__aktionen { grid-column: 2; grid-row: 1 / span 3; opacity: 1; }
+}
+/* ---------- Einstellungen → Backup: Sicherung (111.74.0) ---------- */
+.si-fehler { color: var(--gefahr); margin-top: 2px; }
+.si-auftrag { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: .9rem; line-height: 1.45;
+  display: flex; align-items: center; gap: 10px; }
+.si-auftrag--laeuft { background: var(--marke-hell); }
+.si-auftrag--gut { background: rgba(31, 122, 77, .12); color: var(--gut); }
+.si-auftrag--fehler { background: rgba(179, 38, 30, .1); color: var(--gefahr); }
+.si-dreher { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor;
+  border-right-color: transparent; animation: siDrehen .9s linear infinite; opacity: .7; }
+@keyframes siDrehen { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .si-dreher { animation: none; } }
+.si-marke { margin-left: 8px; }
+.si-knopfzelle { text-align: right; width: 1%; white-space: nowrap; }
+/* ---------- Reiter nur einmal (Wunsch Patrick, 6. Oktober 2026) ----------
+   Am PC stehen die Reiter von Produktion, Bestellungen und Rechner schon
+   in der Seitenleiste links. Darum zeigt die Seite selbst sie dort nicht
+   nochmals. Am Handy (Leiste unten) und bei eingeklappter Seitenleiste
+   gibt es links keine Reiter, dann bleibt die Leiste auf der Seite. */
+@media (min-width: 780px) {
+  body:not(.nav--schmal) .reiter--seite { display: none; }
+}

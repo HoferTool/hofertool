@@ -48,7 +48,7 @@ with sync_playwright() as p:
     pruefe("Nie unter 1", menge() == 1 and pg.locator("[data-mminus='m1']").is_disabled())
     pg.screenshot(path="/tmp/claude-0/-home-claude-hofertool/ac5a1233-94ed-5390-be12-011144ed9f22/scratchpad/menge.png",
                   clip=pg.locator(".bs-lieferant").first.bounding_box())
-    pg.click("[data-best='bestellt']"); pg.wait_for_timeout(500)
+    pg.click("[data-unter='bestellungen/bestellt']"); pg.wait_for_timeout(500)
     pruefe("In Bestellt kein Feld", pg.locator("[data-menge]").count() == 0 and "40" in pg.inner_text("#best-inhalt"))
     br.close()
 print("Fehler:", fehler[:3] if fehler else "keine")

@@ -15,9 +15,11 @@ import Typen from "./Typen.jsx";
 import { Uebergang } from "../../teile/Reiter.jsx";
 
 // Was die Datenbank meldet, kommt als Meldung unten rechts
-async function senden(anfrage, gut, neuLaden) {
+// rueck: optional der Schritt für Rückgängig, [Text, Schritte]
+async function senden(anfrage, gut, neuLaden, rueck) {
   const { error } = await anfrage;
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return false; }
+  if (rueck) alt.merkeSchritt(rueck[0], rueck[1]);
   if (gut) alt.meldung(gut);
   neuLaden();
   return true;
@@ -64,21 +66,28 @@ const aktion = {
     const w = await alt.dialogFelder({ titel: "Maschinenpark umbenennen",
       felder: [{ name: "name", label: "Name", wert: p.name, pflicht: true }] });
     if (!w || w.name === p.name) return;
-    senden(alt.db.from("machine_parks").update({ name: w.name }).eq("id", p.id), "Umbenannt.", neuLaden);
+    senden(alt.db.from("machine_parks").update({ name: w.name }).eq("id", p.id), "Umbenannt.", neuLaden,
+      ["Umbenennen von " + p.name, alt.rueckSetz("machine_parks", { name: p.name }, { id: p.id })]);
   },
 
   async parkAktiv(p, neuLaden) {
     const ein = !p.is_active;
     if (!ein && !(await deaktivierenFragen("Maschinenpark deaktivieren", "Der Park"))) return;
-    senden(alt.db.from("machine_parks").update({ is_active: ein }).eq("id", p.id), null, neuLaden);
+    senden(alt.db.from("machine_parks").update({ is_active: ein }).eq("id", p.id), null, neuLaden,
+      [(ein ? "Aktivieren von " : "Deaktivieren von ") + p.name,
+        alt.rueckSetz("machine_parks", { is_active: !ein }, { id: p.id })]);
   },
 
   async parkLoeschen(p, anzahl, neuLaden) {
     const ok = await loeschenFragen("Maschinenpark löschen", '"' + p.name + '"',
       anzahl > 0 ? "Achtung: " + anzahl + " Maschinen sind noch zugeordnet." : "", "der Park");
     if (!ok) return;
+    const vorher = await alt.rueckSichern("machine_parks", { id: p.id });
     const { error } = await alt.db.from("machine_parks").delete().eq("id", p.id);
-    if (!error) { alt.meldung("Maschinenpark gelöscht."); neuLaden(); return; }
+    if (!error) {
+      alt.merkeSchritt("Löschen von " + p.name, alt.rueckRein("machine_parks", vorher));
+      alt.meldung("Maschinenpark gelöscht."); neuLaden(); return;
+    }
     hartLoeschen(error, "ALLE Maschinen, Stückzahlen, Aufträge und Kontrollmeldungen dieses Parks",
       "park_hart_loeschen", { p_park_id: p.id }, neuLaden);
   },
@@ -107,19 +116,30 @@ const aktion = {
           wert: m.type_id || "", hinweis: "Legt fest, welche Werkzeugplätze die Maschine hat" }] });
     if (!w) return;
     senden(alt.db.from("machines").update({ name: w.name, machine_number: w.nummer || null,
-      type_id: w.typ || null }).eq("id", m.id), "Gespeichert.", neuLaden);
+      type_id: w.typ || null }).eq("id", m.id), "Gespeichert.", neuLaden,
+      ["Ändern von " + m.name, alt.rueckSetz("machines", { name: m.name,
+        machine_number: m.machine_number || null, type_id: m.type_id || null }, { id: m.id })]);
   },
 
   async maschineAktiv(m, neuLaden) {
     const ein = !m.is_active;
     if (!ein && !(await deaktivierenFragen("Maschine deaktivieren", "Die Maschine"))) return;
-    senden(alt.db.from("machines").update({ is_active: ein }).eq("id", m.id), null, neuLaden);
+    senden(alt.db.from("machines").update({ is_active: ein }).eq("id", m.id), null, neuLaden,
+      [(ein ? "Aktivieren von " : "Deaktivieren von ") + m.name,
+        alt.rueckSetz("machines", { is_active: !ein }, { id: m.id })]);
   },
 
   async maschineLoeschen(m, neuLaden) {
     if (!(await loeschenFragen("Maschine löschen", '"' + m.name + '"', "", "die Maschine"))) return;
+    // Werkzeugwechsel gehen mit der Maschine, darum beide sichern
+    const vorher = await alt.rueckSichern("machines", { id: m.id });
+    const wechsel = await alt.rueckSichern("tool_changes", { machine_id: m.id });
     const { error } = await alt.db.from("machines").delete().eq("id", m.id);
-    if (!error) { alt.meldung("Maschine gelöscht."); neuLaden(); return; }
+    if (!error) {
+      alt.merkeSchritt("Löschen von " + m.name,
+        [alt.rueckRein("machines", vorher), alt.rueckRein("tool_changes", wechsel)]);
+      alt.meldung("Maschine gelöscht."); neuLaden(); return;
+    }
     hartLoeschen(error, "alle Stückzahlen, Aufträge und Kontrollmeldungen dieser Maschine",
       "maschine_hart_loeschen", { p_machine_id: m.id }, neuLaden);
   },

@@ -52,7 +52,7 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/claude-0/typfilter-d.png")
 
     # Maschinen und Typen
-    pg.click("[data-ansicht='maschinen']"); pg.wait_for_selector(".mliste")
+    pg.click("[data-unter='produktion/maschinen']"); pg.wait_for_selector(".mliste")
     pruefe("Maschinen als Zeilen mit Typ", pg.locator(".mliste__zeile").count() >= 6 and pg.locator(".mliste__typ").count() >= 6)
     pg.click("[data-parkreiter='p-kurz']"); pg.wait_for_timeout(500)
     pruefe("Ohne Typ markiert", pg.locator(".mliste__typ--leer").count() == 1)

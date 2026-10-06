@@ -279,6 +279,7 @@ async function bearbeiten(z, behaelter) {
 
   const wert = String(w.ziel || jetzt);
   const trenn = wert.indexOf("::");
+  const vorher = await alt.rueckSichern("order_items", { id: z.id });
   const { error } = await alt.db.from("order_items").update({
     quantity: Math.max(1, Math.round(w.menge)),
     needed_by: w.frist || null,
@@ -286,8 +287,10 @@ async function bearbeiten(z, behaelter) {
     ziel_art: wert.slice(0, trenn),
     ziel_text: wert.slice(trenn + 2),
   }).eq("id", z.id);
-  if (error) alt.meldung(alt.fehlertext(error), "fehler");
-  else { alt.meldung("Gespeichert."); alt.seiteBestellungen(behaelter); }
+  if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+  alt.merkeSchritt("Ändern der Position " + ((z.articles && z.articles.article_number) || ""),
+    alt.rueckRein("order_items", vorher));
+  alt.meldung("Gespeichert."); alt.seiteBestellungen(behaelter);
 }
 
 async function loeschen(z, behaelter) {
@@ -301,10 +304,8 @@ async function loeschen(z, behaelter) {
   const sicherung = await db.from("order_items").select("*").eq("id", z.id).single();
   const { error } = await db.from("order_items").delete().eq("id", z.id);
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
-  if (sicherung.data) alt.merkeSchritt("Löschen einer Bestellposition", async () => {
-    await db.from("order_items").insert(sicherung.data);
-    alt.seiteBestellungen(behaelter);
-  });
+  if (sicherung.data) alt.merkeSchritt("Löschen der Position " + nr,
+    alt.rueckRein("order_items", sicherung.data));
   alt.meldung("Position gelöscht.");
   alt.seiteBestellungen(behaelter);
 }

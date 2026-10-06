@@ -76,9 +76,14 @@ export default function Hoco() {
         text: nr + " löschen? Die Einrichtblätter dazu gehen mit.",
         bestaetigen: "Löschen", gefahr: true });
       if (!ok) return;
+      // Die Daten je Typ gehen mit der Nummer, darum beide sichern
+      const vorher = await alt.rueckSichern("hoco_parts", { hoco_nr: nr });
+      const jeTyp = await alt.rueckSichern("hoco_type_data", { hoco_nr: nr });
       const { error } = await alt.db.from("hoco_parts").delete().eq("hoco_nr", nr);
-      if (error) alt.meldung(alt.fehlertext(error), "fehler");
-      else { alt.meldung("Gelöscht."); nachAenderung(); }
+      if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+      alt.merkeSchritt("Löschen von " + nr, [alt.rueckRein("hoco_parts", vorher, "hoco_nr"),
+        alt.rueckRein("hoco_type_data", jeTyp)]);
+      alt.meldung("Gelöscht."); nachAenderung();
     },
   };
 
