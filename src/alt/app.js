@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.67.0";
+const APP_VERSION = "111.68.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2319,6 +2319,26 @@ function personName(p2, ersatz) {
   return teil.split(/[._-]+/).filter((x) => x)
     .map((x) => x.charAt(0).toUpperCase() + x.slice(1))
     .join(" ");
+}
+
+// Zu wem eine Bestellung nach dem Eintreffen geht, stand früher als
+// Name im Text ("Thomas", "sebastian.moser"). Wird jemand unter
+// Einstellungen → Nutzer umbenannt, blieb dort der alte Name stehen.
+// Neue Einträge merken sich die Mailadresse; alte werden über Adresse,
+// vollen Namen oder einen eindeutigen Vornamen der Person zugeordnet.
+function zielPersonFinden(text, leute) {
+  const t = String(text || "").trim().toLowerCase();
+  if (!t || !leute || !leute.length) return null;
+  const vorne = (e) => String(e || "").toLowerCase().split("@")[0];
+  const genau = leute.find((u) => String(u.email || "").toLowerCase() === t
+    || vorne(u.email) === t || String(u.full_name || "").trim().toLowerCase() === t);
+  if (genau) return genau;
+  // Nur ein Vorname: gilt nur, wenn ihn genau eine Person trägt
+  if (/\s/.test(t)) return null;
+  const passend = leute.filter((u) =>
+    String(u.full_name || "").trim().toLowerCase().split(/\s+/)[0] === t
+    || vorne(u.email).split(/[._-]+/)[0] === t);
+  return passend.length === 1 ? passend[0] : null;
 }
 
 function leistungText(n) {
@@ -7634,9 +7654,18 @@ async function ladeBestellungenFrisch(offen) {
   else a = a.eq("status", "geliefert").limit(200)
              .order("created_at", { ascending: false });
 
-  const { data, error } = await zeitlimit(a, 12000, "Bestellungen");
+  // Personen gleich mitholen, damit "Wohin" den heutigen Namen zeigt
+  const leuteAnfrage = db.from("profiles").select("id, full_name, email").then((r) => r, () => ({}));
+  const [{ data, error }, leute] = await Promise.all([
+    zeitlimit(a, 12000, "Bestellungen"), leuteAnfrage]);
   if (error) throw error;
-  return data || [];
+  const liste = data || [];
+  liste.forEach((z) => {
+    if (z.ziel_art !== "person") return;
+    const p2 = zielPersonFinden(z.ziel_text, leute && leute.data);
+    if (p2) { z.ziel_anzeige = personName(p2); z.ziel_person = p2.email || z.ziel_text; }
+  });
+  return liste;
 }
 
 // Die Seite ist in src/seiten/Bestellungen.jsx. Wer hier
@@ -8568,7 +8597,7 @@ const SEITEN = [
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
   zeitlimit, meldung, nachfragen, fehlertext, dialogFelder, auswahlDialog,
-  merkeSchritt, personName, darfSchreiben,
+  merkeSchritt, personName, zielPersonFinden, darfSchreiben,
   reiterUebergang,
   best, seiteBestellungen, sucheArtikel, ladeBezeichnungen, ladeLieferanten,
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,

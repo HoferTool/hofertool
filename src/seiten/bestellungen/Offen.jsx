@@ -57,7 +57,7 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
   const gefiltert = !sucht ? liste : liste.filter((z) => {
     const a2 = z.articles || {};
     return [a2.article_number, a2.name, a2.description, (lieferantVon(z) || {}).name,
-            z.note, z.ziel_text, alt.personName(z.profiles, "")]
+            z.note, z.ziel_text, z.ziel_anzeige, alt.personName(z.profiles, "")]
       .map((x) => String(x || "").toLowerCase()).join(" ").includes(sucht);
   });
 
@@ -193,7 +193,7 @@ function Zeile({ z, schreiben, behaelter, heute }) {
         </div>
         {/* Alles Weitere in einer Zeile: Ziel, Frist, Notiz, wer und seit wann */}
         <div className="bs-pos__chips">
-          <Ziel art={z.ziel_art} text={z.ziel_text} />
+          <Ziel art={z.ziel_art} text={z.ziel_anzeige || z.ziel_text} />
           {frist &&
             <span className={"bs-chip bs-chip--frist bs-chip--" + frist}>
               <Zeichen name="kalender" groesse={14} />
@@ -253,7 +253,15 @@ async function bearbeiten(z, behaelter) {
   const zielListe = [["lager::Lager", "Lager"]].concat(
     (best.alleMaschinen || []).map((m) => ["maschine::" + alt.maschineZielText(m),
       "Maschine: " + m.name + (m.machine_number ? " · " + m.machine_number : "")]));
-  const jetzt = (z.ziel_art || "lager") + "::" + (z.ziel_text || "Lager");
+  // Personen ebenfalls zur Wahl, gemerkt mit Mailadresse (siehe zielPersonFinden)
+  try {
+    const r = await alt.db.from("profiles").select("full_name, email").eq("is_active", true);
+    (r.data || []).filter((u) => u.email)
+      .map((u) => ["person::" + u.email, "Person: " + alt.personName(u)])
+      .sort((x, y) => x[1].localeCompare(y[1], "de"))
+      .forEach((e) => zielListe.push(e));
+  } catch (f) { /* ohne Personen geht es auch */ }
+  const jetzt = (z.ziel_art || "lager") + "::" + (z.ziel_person || z.ziel_text || "Lager");
   // Steht dort etwas anderes — eine Person oder freier Text —, bleibt
   // es als Möglichkeit erhalten, statt still zu verschwinden.
   if (!zielListe.some(([wert]) => wert === jetzt) && z.ziel_text) {

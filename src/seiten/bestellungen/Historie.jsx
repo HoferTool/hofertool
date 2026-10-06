@@ -32,7 +32,7 @@ export default function Historie({ auffrischen, behaelter }) {
     .filter((z) => {
       const a = z.articles || {};
       return passt(suche, [a.article_number, a.name, (z.suppliers && z.suppliers.name),
-                           alt.personName(z.profiles, ""), z.ziel_text]);
+                           alt.personName(z.profiles, ""), z.ziel_text, z.ziel_anzeige]);
     });
 
   // Nach Monat der Lieferung gruppiert, der jüngste zuoberst
@@ -82,7 +82,7 @@ function Zeile({ z, schreiben, behaelter }) {
           <span className="bs-pos__name">{a.name || ""}</span>
         </div>
         <div className="bs-pos__chips">
-          <Ziel art={z.ziel_art} text={z.ziel_text} />
+          <Ziel art={z.ziel_art} text={z.ziel_anzeige || z.ziel_text} />
         </div>
         <div className="bs-pos__wer">{(z.suppliers && z.suppliers.name) || "Ohne Lieferant"}
           {" · von "}{alt.personName(z.profiles, "–")}</div>

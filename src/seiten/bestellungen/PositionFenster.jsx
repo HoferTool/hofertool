@@ -87,12 +87,14 @@ function PositionFenster({ zu, fertig }) {
     if (art === "person" && !personen) {
       try {
         const a = await alt.db.from("profiles").select("full_name, email").eq("is_active", true).order("full_name");
-        const namen = (a.data || []).map((u) => u.full_name || u.email);
+        // Gespeichert wird die Mailadresse, angezeigt der Name. So
+        // stimmt der Name auch nach einem Umbenennen noch.
+        const namen = (a.data || []).map((u) => ({ wert: u.email || u.full_name, text: alt.personName(u) }));
         try {
           const c = await alt.db.from("people").select("name").order("name");
-          (c.data || []).forEach((m) => namen.push(m.name));
+          (c.data || []).forEach((m) => namen.push({ wert: m.name, text: m.name }));
         } catch (f) { /* Tabelle gibt es vielleicht nicht */ }
-        setPersonen(namen.sort());
+        setPersonen(namen.sort((x, y) => x.text.localeCompare(y.text, "de")));
       } catch (f) { setPersonen(false); }
     }
   };
@@ -187,7 +189,7 @@ function PositionFenster({ zu, fertig }) {
                 : <>
                     <option value="">{personen === null ? "Wird geladen …"
                       : personen === false ? "Konnte nicht geladen werden" : "Person wählen"}</option>
-                    {(personen || []).map((n, i) => <option key={n + i} value={n}>{n}</option>)}
+                    {(personen || []).map((n, i) => <option key={n.wert + i} value={n.wert}>{n.text}</option>)}
                   </>}
             </select>}
           {zielArt === "andere" &&
