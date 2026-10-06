@@ -5906,3 +5906,109 @@ body[data-thema] #pad .pad-kachel--maschine::before {
 @media (min-width: 780px) {
   body:not(.nav--schmal) .reiter--seite { display: none; }
 }
+
+/* ---------- Pad Mode auf dem Handy (111.77.0) ----------
+   Wunsch Patrick 6. Oktober 2026: „auf dem Handy möglich, auch wenn
+   die Schriften klein sind“. Gilt nur, wo das Handy schmal (hochkant)
+   oder niedrig (quer) ist; das iPad (mindestens 744 Pixel in beide
+   Richtungen) bleibt genau wie abgenommen. Statt alles in die Höhe
+   des Bildschirms zu pressen, steht jede Kachel in ihrer natürlichen
+   Höhe untereinander, und das ganze Pad rollt mit dem Finger. */
+@media (max-width: 640px), (max-height: 500px) {
+  #pad.pad { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+             font-size: .95rem; }
+  #pad.pad > * { flex-shrink: 0; }
+  /* Kopf: eine Zeile, Titel wird gekürzt statt dreizeilig */
+  #pad .pad__kopf { gap: 6px !important; padding: 6px 8px; position: sticky; top: 0; z-index: 5; }
+  #pad .pad__zurueck, #pad .pad__zu { width: auto; height: 38px; padding: 0 10px;
+    font-size: .9rem; white-space: nowrap; flex: none; }
+  #pad .pad__zurueck--leer { width: 1px; padding: 0; }
+  #pad .pad__titel { font-size: 1rem; min-width: 0; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  #pad .pad__logo2 { height: 26px !important; }
+  #pad .pad__logoknopf { flex: none; }
+  #pad .pad__sprunge { flex: none; }
+  #pad .pad__sprunge:empty { display: none; }
+  #pad .pad-sprung { padding: 6px 8px; font-size: .78rem; }
+
+  /* Start, Parks, Typen, Maschinen: kleinere Kacheln, Logo kleiner */
+  #pad .pad__start, #pad .pad__wahl { flex: 0 0 auto; overflow: visible; gap: 18px;
+    padding: 16px 12px 22px; justify-content: flex-start; }
+  #pad .pad__wahl .pad__wahllogo, #pad .pad__wahllogo { height: 80px; width: auto; max-width: 80%; }
+  #pad .pad__kacheln--einzeln .pad-kachel { min-height: 130px; font-size: 1.5rem; }
+  #pad .pad__kacheln--parks { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px; }
+  #pad .pad__kacheln--parks .pad-kachel { min-height: 100px; font-size: 1.25rem; padding: 14px 8px; }
+  #pad .pad__wahl .pad__kacheln--maschinen { grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important; }
+  #pad .pad__kacheln--maschinen .pad-kachel { min-height: 110px; font-size: 1.15rem; padding: 14px 8px; gap: 4px; }
+  #pad .pad__kacheln--maschinen .pad-kachel__nr { font-size: .85rem; }
+  #pad .pad__kacheln--maschinen .pad-kachel__auftrag { font-size: .95rem; }
+  #pad .pad__kacheln--typen .pad-kachel { min-height: 96px; padding: 14px 8px; }
+  #pad .pad__kacheln--typen .pad-kachel--typ > span:first-child { font-size: 1.25rem; }
+  #pad .pad__kacheln--typen .pad-kachel__nr { font-size: .85rem; }
+
+  /* Dashboard: alles untereinander in natürlicher Höhe */
+  #pad .pad__hinweis { padding: 8px 12px 0; font-size: .85rem; }
+  #pad .pad-flaeche { flex: none; display: flex; flex-direction: column; gap: 8px;
+    padding: 8px 8px 0; min-height: 0; }
+  #pad .pad-spalte { flex: none; gap: 8px; }
+  #pad .pad-karte2 { flex: none !important; min-height: 0; border-radius: 16px; padding: 11px 13px; }
+  #pad .pad-karte2--material { padding-left: 18px !important; }
+  /* Der Text der Auftragskachel braucht nicht mehr in eine feste Höhe
+     zu passen: feste Grösse, die Kachel wächst mit */
+  #pad .pad-hocotext { font-size: 1rem !important; overflow: visible; flex: none; }
+  #pad .pad-wert--gross { font-size: 1.8rem; }
+  #pad .pad-wert { font-size: 1.35rem; }
+  #pad .pad-stk-zahl, #pad .pad-karte2--stk .pad-stk-zahl { font-size: 2.2rem; }
+  #pad .pad-tage { flex: none; height: 110px; }
+  #pad .pad-uhr { font-size: 1.8rem; }
+  /* Skizze: das Blatt 16:10 über die ganze Breite, wie am Pad verkleinert */
+  #pad .pad-flaeche .pad-spalte--rechts { flex-direction: column; }
+  #pad .pad-spalte--rechts > .pad-karte2--saeule,
+  #pad .pad-flaeche .pad-karte2--skizze { flex: none !important; min-height: 0; }
+  #pad .pad-flaeche .pad-skizze__raum { flex: none; min-height: 0; aspect-ratio: 16 / 10; }
+  #pad .pad-skizze__leiste { flex-wrap: wrap; }
+
+  /* Knöpfe: zwei nebeneinander, der Zustand über die ganze Breite */
+  #pad .pad-knoepfe { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+    margin: 10px 8px 0 !important; }
+  #pad .pad-knopf { height: 56px; font-size: .95rem; border-radius: 14px; }
+  #pad .pad-knoepfe > :last-child { grid-column: 1 / -1; }
+  #pad .pad__balken { margin: 10px 8px 14px; }
+  #pad .pad__datei { flex: 1 1 auto; min-height: calc(100dvh - 54px); }
+}
+/* Handy quer: zwei Spalten, damit die Breite genutzt wird */
+@media (max-height: 500px) and (min-width: 600px) {
+  #pad .pad__wahl .pad__wahllogo, #pad .pad__wahllogo { height: 48px; }
+  #pad .pad__start, #pad .pad__wahl { gap: 12px; padding-top: 10px; }
+  #pad .pad__kacheln--einzeln .pad-kachel { min-height: 110px; }
+  #pad .pad__wahl .pad__kacheln--maschinen { grid-template-columns: repeat(var(--pad-spalten, 3), minmax(0, 220px)) !important; }
+  #pad .pad__kacheln--parks { grid-template-columns: repeat(var(--pad-spalten, 2), minmax(0, 300px)) !important; }
+  #pad .pad__kacheln--typen .pad-kachel { width: 200px; }
+  #pad .pad-flaeche { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start; }
+  #pad .pad-flaeche .pad-spalte--rechts { grid-column: 1 / -1; display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  #pad .pad-knoepfe { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  #pad .pad-knoepfe > :last-child { grid-column: auto; }
+  #pad .pad-knopf { font-size: .85rem; padding: 0 4px; }
+}
+/* Handy hochkant: beim Schliessen genügt das Kreuz, der Platz geht an den Namen */
+@media (max-width: 640px) {
+  #pad .pad__zutext { display: none; }
+  #pad .pad__zu { min-width: 44px; font-size: 1.1rem; }
+}
+#pad .pad__zutext { margin-left: .3em; }
+/* Zifferblock am Handy quer: Tasten rechts neben Anzeige und Knöpfen,
+   sonst wäre „Eintragen“ unter dem Bildschirmrand */
+@media (max-height: 500px) and (min-width: 600px) {
+  .dialog.zifferblock { width: min(720px, 96vw) !important; max-width: none; display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 18px;
+    grid-auto-flow: row dense; align-content: start; max-height: 94vh; padding: 14px 18px; }
+  .dialog.zifferblock > * { grid-column: 1; }
+  .dialog.zifferblock > .zb-tasten { grid-column: 2; grid-row: 1 / span 8; align-self: center; }
+  .dialog.zifferblock > h2 { margin: 0 0 6px; font-size: 1.15rem; }
+  .zifferblock .zb-tasten button { height: 50px; font-size: 1.35rem; }
+  .zifferblock .zb-anzeige { font-size: 2rem; }
+  .zifferblock .zb-knoepfe .knopf { height: 48px; }
+}
