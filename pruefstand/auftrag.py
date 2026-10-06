@@ -32,7 +32,7 @@ with sync_playwright() as p:
     pg.fill("#pl-mat-bez", "1.4305 rd 12"); pg.wait_for_timeout(500)
     if "V2A" not in pg.inner_text("#pl-werkstoff"): fehler.append("Werkstoff nicht erkannt: " + pg.inner_text("#pl-werkstoff"))
     pg.fill("#pl-menge", "1234")
-    pg.click("[data-plstatus='ruesten']")
+    pg.select_option("#pl-zustand", "ruesten")
     pg.click("#pl-ja"); pg.wait_for_timeout(1500)
     for _ in range(2):   # Rückfrage "Material auch beim Teil ändern?"
         if pg.locator(".dialog-huelle [data-nein]").count():

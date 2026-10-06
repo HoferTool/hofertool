@@ -52,14 +52,14 @@ with sync_playwright() as p:
     pruefe("Kein Löschen", pg.locator("#pl-loeschen").count() == 0)
     pruefe("Kein Kopieren", pg.locator("#pl-kopieren-eigen").count() == 0)
     pruefe("Problem-Knopf da", pg.locator("#pl-problem-eigen").count() == 1)
-    pruefe("Zustand wählbar", pg.evaluate("[...document.querySelectorAll('[data-plstatus]')].every(b => !b.disabled)"))
+    pruefe("Zustand wählbar", pg.locator("#pl-zustand").is_enabled())
 
     # Tippen in ein gesperrtes Feld ändert nichts
     pg.locator("#pl-menge").click(); pg.keyboard.type("999"); pg.wait_for_timeout(100)
     pruefe("Menge bleibt", pg.input_value("#pl-menge") == ("" if vorher.get("target_quantity") is None else str(vorher["target_quantity"])))
 
     neu = "qs" if vorher.get("plan_status") != "qs" else "ruesten"
-    pg.click(f"[data-plstatus='{neu}']"); pg.click("#pl-ja"); pg.wait_for_timeout(1200)
+    pg.select_option("#pl-zustand", neu); pg.click("#pl-ja"); pg.wait_for_timeout(1200)
     nachher = pg.evaluate("(id) => JSON.parse(JSON.stringify(TEST.daten.planwand.find(j => j.id === id)))", jid)
     pruefe("Zustand gespeichert", nachher.get("plan_status") == neu)
     for k in ["planned_from","planned_days","target_quantity","color","plan_note","fa_nr","material_bez","machine_id","drawing_url"]:

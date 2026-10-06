@@ -1,11 +1,13 @@
 // =================================================================
 //  AUFTRAGSFENSTER
-//  Einplanen, ändern, kopieren: ein Fenster in drei Spalten.
-//    1. Auftrag und Zeit (HOCO Nr., FA Nr., Maschine, Ab/Tage/Bis,
-//       Menge, Hinweis zum Material, wer eingeplant hat)
-//    2. Material (Bezeichnung, Menge, Liefertermin, Farbe, Vorschau
-//       der Zeichnung)
-//    3. Zustand, Notiz, Zeichnung und WBG
+//  Einplanen, ändern, kopieren: ein Fenster in drei Spalten
+//  (Anordnung Wunsch Patrick 6. Oktober 2026, vorher ragte unten
+//  einiges aus dem Fenster):
+//    1. Auftrag: Zustand als Auswahlfeld, FA Nr., Maschine, Ab/Tage/Bis,
+//       Menge, wer eingeplant hat, darunter die Notiz für die Maschine
+//    2. Material (Bezeichnung, Menge, Liefertermin, Platz, Farbe) und
+//       die Dokumente (Zeichnung, Einrichtblatt, WBG)
+//    3. Vorschau der Zeichnung über die ganze Höhe
 //  Keine Häkchen „FA erstellt“ oder „Material da“: Das ergibt sich
 //  aus FA Nr. und Materialmenge.
 //
@@ -411,9 +413,21 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 onChange={(e) => setze("nr", e.target.value)} /></label>
             <p className="klein" id="pl-hoco-info">{hocoInfo}</p>
           </>}
-          <label className="feld"><span>FA Nr.</span>
-            <input id="pl-fa-nr" type="text" autoComplete="off" value={w.faNr} readOnly={!darf}
-              onChange={(e) => setze("faNr", e.target.value)} /></label>
+          {/* Zustand als ein Auswahlfeld statt fünf Knöpfe: braucht
+              eine Zeile statt drei. Auch ohne Planrecht wählbar. */}
+          <div className="auf-zweier">
+            <label className="feld"><span>Zustand</span>
+              <select id="pl-zustand" className={"auf-zustandwahl auf-zustandwahl--" + w.zustand}
+                disabled={extern} value={w.zustand} onChange={(e) => setze("zustand", e.target.value)}>
+                {Object.keys(alt.PLANSTATUS).map((k) => (
+                  <option key={k} value={k} data-plstatus={k}>
+                    {alt.PLANSTATUS[k].zeichen} {alt.PLANSTATUS[k].name}</option>
+                ))}
+              </select></label>
+            <label className="feld"><span>FA Nr.</span>
+              <input id="pl-fa-nr" type="text" autoComplete="off" value={w.faNr} readOnly={!darf}
+                onChange={(e) => setze("faNr", e.target.value)} /></label>
+          </div>
           <label className="feld"><span>Maschine</span>
             <select id="pl-maschine" disabled={!darf} value={w.maschine}
               onChange={(e) => setze("maschine", e.target.value)}>
@@ -431,6 +445,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
               <input id="pl-bis" type="date" readOnly={nurLesen} value={w.bis} onChange={(e) => bisAendern(e.target.value)} /></label>
           </div>
 
+          <div className="auf-zweier">
           <label className="feld"><span>Fertigungsmenge</span>
             <input id="pl-menge" inputMode="decimal" readOnly={nurLesen} type="number" min="0" step="1" value={w.menge}
               onChange={(e) => setze("menge", e.target.value)} /></label>
@@ -448,11 +463,16 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   })}
                 </div>}
           </div>
+          </div>
+
+          {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
+          <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>
+            <textarea id="pl-notiz" readOnly={!darf} value={w.notiz}
+              onChange={(e) => notizAendern(e.target.value)} /></label>
         </div>
 
-        {/* Spalte 2: Material */}
+        {/* Spalte 2: Material und Dokumente */}
         <div className="auf-spalte">
-          <div className="auf-blocktitel">Material</div>
           {/* Alles in einem Feld, so wie es an der Stange steht */}
           <label className="feld"><span>Material</span>
             <input id="pl-mat-bez" type="text" readOnly={nurLesen} list="pl-matliste" autoComplete="off"
@@ -466,7 +486,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   : <><span className="ws-farbe" style={{ background: alt.farbeVon(gruppe.farbe).hex }} />
                       {alt.werkstoffText(gruppe) + (gruppe.spaene ? " · Späne " + gruppe.spaene : "")}</>}
             </span></label>
-          <div className="auf-zweier">
+          <div className="auf-zweier auf-zweier--menge">
             <label className="feld"><span>Menge vorhanden oder bestellt</span>
               <input id="pl-menge-mat" type="text" readOnly={nurLesen} value={w.matMenge}
                 onChange={(e) => setze("matMenge", e.target.value)} /></label>
@@ -503,47 +523,39 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 vorschlag && w.farbe === vorschlag ? "eigene Farbe ersetzt durch " + alt.farbeVon(w.farbe).name
                   + ", gilt nach dem Speichern" : ""].filter((x) => x).join(" · ")}</span>
           </div>
-          {/* Vorschau der Zeichnung füllt den freien Platz unter dem Material */}
-          <div className="feld auf-zeichnung"><span className="feldlabel">Zeichnung</span>
-            <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} /></div>
+          {/* Dokumente kompakt: Name links, Knöpfe rechts */}
+          <div className="auf-dokumente">
+            <div className="auf-dok"><span className="feldlabel">Zeichnung</span>
+              <div className="auf-dok__knoepfe">
+                <Anhang was="PDF" ordner="zeichnung" adresse={w.pdf} setzen={(x) => setze("pdf", x)}
+                  darf={darf} titel={titelZeichnung} id="pl-pdfreihe" wegId="pl-pdfweg"
+                  standId="pl-pdfstand" stand={pdfStand} setStand={setPdfStand} /></div></div>
+
+            {/* Das Einrichtblatt hängt an HOCO Nr. und Maschinentyp: es gilt
+                das der gewählten Maschine, wie im Pad Mode */}
+            {auftrag && auftrag.job_number && <div className="auf-dok"><span className="feldlabel">Einrichtblatt</span>
+              <div className="auf-dok__knoepfe">
+                <div className="pdfreihe" id="pl-blattreihe">
+                  <button type="button" className="knopf knopf--klein pdflink"
+                    title="Einrichtblatt für den Typ der gewählten Maschine" onClick={() => {
+                    const m = maschinen.find((x) => x.id === w.maschine);
+                    alt.einrichtblattPdfOeffnen(auftrag.job_number, m && m.type_id, auftrag.job_number);
+                  }}>Ansehen</button></div>
+                <span className="feldhinweis">für den Typ der gewählten Maschine</span></div></div>}
+
+            {/* Das Warenbegleitblatt liegt später den fertigen Teilen bei */}
+            <div className="auf-dok"><span className="feldlabel">WBG</span>
+              <div className="auf-dok__knoepfe">
+                <Anhang was="WBG" ordner="wbg" adresse={w.wbg} setzen={(x) => setze("wbg", x)}
+                  darf={darf} titel={"WBG " + ((auftrag && auftrag.job_number) || "")} wegId="pl-wbgweg"
+                  standId="pl-wbgstand" stand={wbgStand} setStand={setWbgStand} /></div></div>
+          </div>
         </div>
 
-        {/* Spalte 3: Zustand, Notiz, Zeichnung */}
-        <div className="auf-spalte">
-          <div className="feld"><span className="feldlabel">Zustand</span>
-            <div className="auf-zustand">
-              {Object.keys(alt.PLANSTATUS).map((k) => (
-                <button key={k} type="button" data-plstatus={k}
-                  className={"wahlknopf" + (w.zustand === k ? " aktiv" : "")}
-                  disabled={extern} onClick={() => setze("zustand", k)}>
-                  {alt.PLANSTATUS[k].zeichen} {alt.PLANSTATUS[k].name}</button>
-              ))}
-            </div></div>
-
-          <label className="feld feld--wachsend"><span>Notiz für die Maschine</span>
-            <textarea id="pl-notiz" readOnly={!darf} value={w.notiz}
-              onChange={(e) => notizAendern(e.target.value)} /></label>
-
-          <div className="feld"><span className="feldlabel">Zeichnung</span>
-            <Anhang was="PDF" ordner="zeichnung" adresse={w.pdf} setzen={(x) => setze("pdf", x)}
-              darf={darf} titel={titelZeichnung} id="pl-pdfreihe" wegId="pl-pdfweg"
-              standId="pl-pdfstand" stand={pdfStand} setStand={setPdfStand} /></div>
-
-          {/* Das Einrichtblatt hängt an HOCO Nr. und Maschinentyp: es gilt
-              das der gewählten Maschine, wie im Pad Mode */}
-          {auftrag && auftrag.job_number && <div className="feld"><span className="feldlabel">Einrichtblatt</span>
-            <div className="pdfreihe" id="pl-blattreihe">
-              <button type="button" className="knopf knopf--klein pdflink" onClick={() => {
-                const m = maschinen.find((x) => x.id === w.maschine);
-                alt.einrichtblattPdfOeffnen(auftrag.job_number, m && m.type_id, auftrag.job_number);
-              }}>Ansehen</button></div>
-            <span className="feldhinweis">für den Typ der gewählten Maschine</span></div>}
-
-          {/* Das Warenbegleitblatt liegt später den fertigen Teilen bei */}
-          <div className="feld"><span className="feldlabel">WBG</span>
-            <Anhang was="WBG" ordner="wbg" adresse={w.wbg} setzen={(x) => setze("wbg", x)}
-              darf={darf} titel={"WBG " + ((auftrag && auftrag.job_number) || "")} wegId="pl-wbgweg"
-              standId="pl-wbgstand" stand={wbgStand} setStand={setWbgStand} /></div>
+        {/* Spalte 3: Vorschau der Zeichnung über die ganze Höhe */}
+        <div className="auf-spalte auf-spalte--zeichnung">
+          <div className="feld auf-zeichnung"><span className="feldlabel">Zeichnung</span>
+            <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} /></div>
         </div>
       </div>
 

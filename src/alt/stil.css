@@ -5598,3 +5598,67 @@ body.dunkel .login__flieger-bild { background: #eef2f8; color: #0f1620; }
   .pad-spalte--rechts > .pad-karte2--saeule { flex: none; }
   .pad-spalte--rechts > .pad-karte2--skizze { flex: 1 1 auto; }
 }
+
+/* ---------- Auftragsfenster neu angeordnet (111.65.0) ----------
+   Wunsch Patrick 6. Oktober 2026: unten ragten Vorschau und „PDF
+   wählen“ aus dem Fenster. Jetzt: links Auftrag mit Zustand als
+   Auswahlfeld und der Notiz unten, Mitte Material und Dokumente,
+   rechts die Zeichnung über die ganze Höhe. Was nicht passt, scrollt
+   im Fenster; nichts ragt mehr über den Rand. */
+.dialog--auftrag { overflow: hidden; }
+.dialog--auftrag .auf-raster { overflow-y: auto !important; overflow-x: hidden;
+                               overscroll-behavior: contain; padding-right: 2px; }
+.dialog--auftrag .auf-spalte .feld > span { min-height: 1.1em; white-space: nowrap;
+                                            overflow: hidden; text-overflow: ellipsis; }
+.dialog--auftrag .auf-zweier { align-items: start; }
+.dialog--auftrag .auf-planer { flex-wrap: wrap; gap: 5px; }
+.dialog--auftrag .planerknopf { min-height: 36px; }
+
+/* Zustand: ein Auswahlfeld, das Zeichen zeigt den Stand */
+.auf-zustandwahl { font-weight: 650; }
+.auf-zustandwahl--laeuft, .auf-zustandwahl--fertig { border-color: var(--marke) !important;
+  box-shadow: inset 3px 0 0 var(--marke); }
+.dialog--auftrag .auf-zustandwahl:disabled { opacity: 1; }
+
+/* Notiz unten links: füllt die Spalte */
+.dialog--auftrag .auf-notiz { flex: 1 1 auto; margin-bottom: 0 !important; }
+.dialog--auftrag #pl-notiz { min-height: 130px !important; max-height: none; height: 100%; }
+
+/* Dokumente: Name links, Knöpfe rechts, eine Zeile je Dokument */
+.auf-dokumente { display: flex; flex-direction: column; gap: 7px; margin-top: 4px;
+                 padding-top: 10px; border-top: 1px solid var(--linie); }
+.auf-dok { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: start; gap: 8px; }
+.auf-dok > .feldlabel { font-size: .76rem; font-weight: 600; padding-top: 9px; }
+.auf-dok__knoepfe { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.auf-dok__knoepfe .pdfreihe .knopf { min-height: 34px; }
+.auf-dok__knoepfe .bildknopf { flex: 1 1 auto !important; justify-content: center; text-align: center; }
+.auf-dok__knoepfe .feldhinweis { font-size: .72rem; }
+.auf-dok__knoepfe .feldhinweis:empty { display: none; }
+
+/* Vorschau rechts */
+.auf-spalte--zeichnung .auf-zeichnung { margin: 0; flex: 1 1 auto; display: flex;
+                                        flex-direction: column; min-height: 0; }
+.dialog--auftrag .auf-spalte--zeichnung .auf-vorschau { flex: 1 1 auto; height: auto; min-height: 280px; }
+
+/* Breiter Bildschirm: drei Spalten, das Fenster nutzt die Höhe */
+@media (min-width: 1000px) {
+  .dialog--auftrag { max-width: min(1440px, 96vw); height: min(92dvh, 880px); }
+  .dialog--auftrag .auf-raster { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr);
+                                 gap: 0 22px; }
+  .dialog--auftrag .auf-spalte--zeichnung .auf-vorschau { min-height: 240px; }
+}
+/* Tablet hochkant: zwei Spalten, die Zeichnung darunter über die ganze Breite */
+@media (min-width: 720px) and (max-width: 999px) {
+  .dialog--auftrag .auf-spalte--zeichnung { grid-column: 1 / -1; }
+  .dialog--auftrag .auf-spalte--zeichnung .auf-vorschau { min-height: 340px; }
+}
+/* Handy: eine Spalte, Zeichnung zuletzt */
+@media (max-width: 719px) {
+  .dialog--auftrag .auf-spalte--zeichnung .auf-vorschau { min-height: 240px; }
+  .dialog--auftrag #pl-notiz { height: auto; }
+}
+/* „Menge vorhanden oder bestellt“ braucht mehr Platz als der Termin */
+.dialog--auftrag .auf-zweier--menge { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+@media (max-width: 719px) {
+  .dialog--auftrag .auf-notiz { margin-bottom: 14px !important; }
+}
