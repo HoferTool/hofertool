@@ -23,16 +23,12 @@ async function senden(anfrage, gut, neuLaden) {
   return true;
 }
 
-// Zwei Rückfragen, bei Administratoren drei mit Eintippen des Namens
+// Eine Rückfrage, dann wird gelöscht (Wunsch 6. Oktober 2026: nur einmal fragen)
 function loeschenFragen(titel, name, warnung, was) {
-  return alt.istAdmin()
-    ? alt.dreiNachfragen(titel, name, warnung)
-    : alt.doppeltNachfragen(
-        { titel, text: "Soll " + name + " wirklich gelöscht werden? Deaktivieren wäre sicherer.",
-          bestaetigen: "Weiter zum Löschen", gefahr: true },
-        { titel: "Wirklich endgültig löschen?",
-          text: "Letzte Rückfrage. Danach ist " + was + " unwiderruflich weg.",
-          bestaetigen: "Endgültig löschen", gefahr: true });
+  return alt.nachfragen({ titel,
+    text: "Soll " + name + " gelöscht werden? " + (warnung ? warnung + " " : "")
+      + "Danach ist " + was + " weg. Deaktivieren wäre der sichere Weg.",
+    bestaetigen: "Löschen", gefahr: true });
 }
 
 // Lehnt die Datenbank ab (es hängen noch Zahlen daran), dürfen

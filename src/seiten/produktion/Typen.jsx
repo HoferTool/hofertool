@@ -21,10 +21,9 @@ async function senden(anfrage, gut, neuLaden) {
   return true;
 }
 
-const zweimalFragen = (titel, text, letzte) => alt.doppeltNachfragen(
-  { titel, text, bestaetigen: "Weiter zum Löschen", gefahr: true },
-  { titel: "Wirklich endgültig löschen?", text: letzte || "Letzte Rückfrage.",
-    bestaetigen: "Endgültig löschen", gefahr: true });
+// Eine Rückfrage, dann wird gelöscht (Wunsch 6. Oktober 2026: nur einmal fragen)
+const einmalFragen = (titel, text) => alt.nachfragen(
+  { titel, text, bestaetigen: "Löschen", gefahr: true });
 
 export default function Typen({ geladen, neuLaden: aussen }) {
   const prod = alt.prod;
@@ -66,10 +65,9 @@ export default function Typen({ geladen, neuLaden: aussen }) {
       "Gespeichert.", neuLaden);
   };
   const loeschen = async (t) => {
-    const ok = await zweimalFragen("Typ löschen",
+    const ok = await einmalFragen("Typ löschen",
       'Soll der Typ "' + t.name + '" gelöscht werden? Paths, Plätze und Werkzeuge gehen mit. '
-      + "Maschinen mit diesem Typ bleiben erhalten, stehen danach aber ohne Typ da.",
-      "Letzte Rückfrage. Danach ist der ganze Aufbau weg.");
+      + "Maschinen mit diesem Typ bleiben erhalten, stehen danach aber ohne Typ da.");
     if (ok) senden(alt.db.from("machine_types").delete().eq("id", t.id), "Typ gelöscht.", neuLaden);
   };
 
@@ -198,7 +196,7 @@ function Paths({ paths, darf, neuLaden }) {
       .eq("id", p.id), "Gespeichert.", neuLaden);
   };
   const pathLoeschen = async (p) => {
-    const ok = await zweimalFragen("Path löschen", '"' + p.name + '" löschen? Alle Plätze und Werkzeuge darauf gehen mit.');
+    const ok = await einmalFragen("Path löschen", '"' + p.name + '" löschen? Alle Plätze und Werkzeuge darauf gehen mit.');
     if (ok) senden(db.from("type_paths").delete().eq("id", p.id), "Path gelöscht.", neuLaden);
   };
 
@@ -228,7 +226,7 @@ function Paths({ paths, darf, neuLaden }) {
     if (nr) senden(db.from("type_slots").update({ tool_nr: nr, bezeichnung: nr }).eq("id", sl.id), "Gespeichert.", neuLaden);
   };
   const platzLoeschen = async (sl) => {
-    const ok = await zweimalFragen("Werkzeugplatz löschen",
+    const ok = await einmalFragen("Werkzeugplatz löschen",
       "Soll dieser Werkzeugplatz gelöscht werden? Die Werkzeuge darauf gehen mit.");
     if (ok) senden(db.from("type_slots").delete().eq("id", sl.id), "Platz gelöscht.", neuLaden);
   };

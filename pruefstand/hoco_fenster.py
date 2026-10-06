@@ -61,7 +61,6 @@ with sync_playwright() as p:
     pruefe("angelegt", pg.evaluate("TEST.daten.hoco_parts.some(h => h.hoco_nr === '10990-0001')"))
     pg.fill("#hoco-such", "10990"); pg.wait_for_timeout(400)
     pg.locator("[data-hoco-weg='10990-0001']").click(); pg.wait_for_timeout(300)
-    pg.locator("[data-ja]").last.click(); pg.wait_for_timeout(300)
     pg.locator("[data-ja]").last.click(); pg.wait_for_timeout(800)
     pruefe("gelöscht", not pg.evaluate("TEST.daten.hoco_parts.some(h => h.hoco_nr === '10990-0001')"))
     pruefe("aus der Liste weg", pg.locator("[data-hoco-weg='10990-0001']").count() == 0)

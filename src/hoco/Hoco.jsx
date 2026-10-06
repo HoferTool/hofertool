@@ -72,11 +72,9 @@ export default function Hoco() {
       if (await alt.hocoDialog(teile.find((x) => x.hoco_nr === nr))) nachAenderung();
     },
     loeschen: async (nr) => {
-      const ok = await alt.doppeltNachfragen(
-        { titel: "HOCO Nr. löschen", text: nr + " löschen? Die Einrichtblätter dazu gehen mit.",
-          bestaetigen: "Weiter zum Löschen", gefahr: true },
-        { titel: "Wirklich endgültig löschen?", text: "Letzte Rückfrage.",
-          bestaetigen: "Endgültig löschen", gefahr: true });
+      const ok = await alt.nachfragen({ titel: "HOCO Nr. löschen",
+        text: nr + " löschen? Die Einrichtblätter dazu gehen mit.",
+        bestaetigen: "Löschen", gefahr: true });
       if (!ok) return;
       const { error } = await alt.db.from("hoco_parts").delete().eq("hoco_nr", nr);
       if (error) alt.meldung(alt.fehlertext(error), "fehler");

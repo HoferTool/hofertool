@@ -31,7 +31,7 @@ with sync_playwright() as p:
     pg.locator(f"[data-typ-um='{neu}']").click(); pg.locator(".dialog-huelle input").first.fill("Citizen L20 VIII"); ja(pg); pg.wait_for_timeout(800)
     pruefe("Typ umbenannt", "Citizen L20 VIII" in pg.inner_text("#park-inhalt"))
     pruefe("Typen-Reiter bleibt aktiv", pg.locator("[data-parkreiter='typen'].aktiv").count() == 1)
-    pg.locator(f"[data-typ-weg='{neu}']").click(); ja(pg); ja(pg); pg.wait_for_timeout(800)
+    pg.locator(f"[data-typ-weg='{neu}']").click(); ja(pg); pg.wait_for_timeout(800)
     pruefe("Typ gelöscht", pg.evaluate(f"!TEST.daten.machine_types.some(t => t.id === '{neu}')") and pg.locator(f"[data-typ-auf='{neu}']").count() == 0)
 
     # Aufbau von Star SR-32J
@@ -63,9 +63,9 @@ with sync_playwright() as p:
     pruefe("Platz auf anderen Path gezogen", pg.evaluate("TEST.daten.type_slots.find(s => s.id === 'sl1').path_id") == path)
     pruefe("Ziehen danach noch einmal möglich (einmal gebunden)", pg.locator("[data-platz='sl1'].platz--fassbar").count() == 1)
     # Platz und Path löschen
-    pg.locator(f"[data-platz-weg='{platz}']").click(); ja(pg); ja(pg); pg.wait_for_timeout(900)
+    pg.locator(f"[data-platz-weg='{platz}']").click(); ja(pg); pg.wait_for_timeout(900)
     pruefe("Platz gelöscht", pg.locator(f"[data-platz='{platz}']").count() == 0)
-    pg.locator(f"[data-path-weg='{path}']").click(); ja(pg); ja(pg); pg.wait_for_timeout(900)
+    pg.locator(f"[data-path-weg='{path}']").click(); ja(pg); pg.wait_for_timeout(900)
     pruefe("Path gelöscht", pg.locator(f"[data-platz-neu='{path}']").count() == 0)
 
     # Escape und Zurück

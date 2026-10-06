@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.72.0";
+const APP_VERSION = "111.72.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2166,41 +2166,17 @@ function seiteSichtbar(pfad) {
 //  (nachfragen, dialogFelder, auswahlDialog) sind in src/teile/Dialoge.jsx.
 // =================================================================
 
-// Löschen mit zwei Rückfragen. Gibt true zurück, wenn gelöscht wurde.
+// Löschen mit einer Rückfrage (Wunsch 6. Oktober 2026: nur einmal fragen).
+// Gibt true zurück, wenn gelöscht wurde.
 async function loeschen(o) {
-  const ok = await doppeltNachfragen(
-    { titel: o.titel, text: o.text, bestaetigen: "Weiter zum Löschen", gefahr: true },
-    { titel: "Wirklich endgültig löschen?",
-      text: o.zweiteFrage || "Letzte Rückfrage. Danach ist der Eintrag unwiderruflich weg.",
-      bestaetigen: "Endgültig löschen", gefahr: true });
+  const ok = await nachfragen({ titel: o.titel, text: o.text,
+    bestaetigen: "Löschen", gefahr: true });
   if (!ok) return false;
 
   const { error } = await db.from(o.tabelle).delete().eq("id", o.id);
   if (error) { meldung(fehlertext(error), "fehler"); return false; }
   meldung("Gelöscht.");
   return true;
-}
-
-// Drei Rückfragen für Admins bei besonders kritischen Aktionen.
-async function dreiNachfragen(was, was2, warnung) {
-  const a = await nachfragen({ titel: was + " – Schritt 1 von 3",
-    text: 'Soll ' + was2 + ' wirklich gelöscht werden? Deaktivieren wäre der sichere Weg.',
-    bestaetigen: "Weiter", gefahr: true });
-  if (!a) return false;
-  const b = await nachfragen({ titel: was + " – Schritt 2 von 3",
-    text: (warnung ? warnung + " " : "") + "Alles daran (Stückzahlen, Aufträge) geht verloren.",
-    bestaetigen: "Ja, ich will löschen", gefahr: true });
-  if (!b) return false;
-  return await nachfragen({ titel: was + " – Letzte Bestätigung",
-    text: "Das ist unwiderruflich. Danach gibt es kein Zurück.",
-    bestaetigen: "Endgültig löschen", gefahr: true });
-}
-
-// Zwei Rückfragen hintereinander für wirklich kritische Aktionen.
-async function doppeltNachfragen(erste, zweite) {
-  const a = await nachfragen(erste);
-  if (!a) return false;
-  return await nachfragen(zweite);
 }
 
 // =================================================================
@@ -6420,14 +6396,10 @@ async function problemMelden(b, vorausgewaehlt) {
 }
 
 async function problemQuittieren(auftrag, b, danach) {
-  const ok = await doppeltNachfragen(
-    { titel: "Problem erledigt?",
-      text: "Auftrag " + auftrag.job_number + ": " + (auftrag.problem || "")
-          + " — ist das wirklich behoben?",
-      bestaetigen: "Ja, weiter" },
-    { titel: "Meldung entfernen",
-      text: "Die Meldung verschwindet danach von der Planwand und von der Startseite.",
-      bestaetigen: "Meldung entfernen" });
+  const ok = await nachfragen({ titel: "Problem erledigt?",
+    text: "Auftrag " + auftrag.job_number + ": " + (auftrag.problem || "")
+        + " — ist das behoben? Die Meldung verschwindet danach von der Planwand und von der Startseite.",
+    bestaetigen: "Meldung entfernen" });
   if (!ok) return;
 
   const { error } = await db.from("jobs").update({
@@ -8642,9 +8614,9 @@ Object.assign(alt, {
   PLANSTATUS, zustandSetzen, einrichtblattPdfOeffnen, BESTELLSTATUS,
   ladeBestellungen, stammVergessen, statusDaten, statusZeit, statusZeitText,
   bestStatusDialog, bestellungDrucken, artikelBearbeiten,
-  ladeAlleMaschinen, maschineZielText, doppeltNachfragen, parallelSenden,
+  ladeAlleMaschinen, maschineZielText, parallelSenden,
   aendernOhneUnbekannte, zielZeichen, kurzDatum, zahlText, isoDatum,
-  fortschrittRechnen, planAuftragDialog, dreiNachfragen, ladeTypen,
+  fortschrittRechnen, planAuftragDialog, ladeTypen,
   pad, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
   notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen,

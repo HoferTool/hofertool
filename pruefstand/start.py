@@ -31,7 +31,7 @@ with sync_playwright() as p:
     if "Material fehlt" not in pg.inner_text("#db-probleme"): fehler.append("Problem fehlt")
     pg.screenshot(path="start_problem.png")
     pg.locator("[data-probweg]").first.click(); pg.click(".dialog-huelle [data-ja]")
-    pg.wait_for_timeout(400); pg.click(".dialog-huelle [data-ja]")
+    pg.wait_for_timeout(400)
     pg.wait_for_selector("#db-probleme .problemleer", timeout=5000)
     if "Keine Probleme" not in pg.inner_text("#db-probleme"): fehler.append("Leere Problemkarte ohne Text")
     if pg.locator("#db-vorbereitung").count(): fehler.append("Vorbereitung nach Erledigt da")
