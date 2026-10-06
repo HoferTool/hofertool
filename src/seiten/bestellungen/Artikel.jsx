@@ -67,31 +67,38 @@ function Liste({ liste, sucht, schreiben, behaelter }) {
   return (
     <Karte titel="Artikel" zahl={liste.length}
       unter={liste.length >= 50 ? "Die ersten 50. Mit der Suche findest du jeden." : undefined}>
-      {/* Kacheln im Raster wie bei den Bezeichnungen (Wunsch 4. Oktober 2026) */}
-      <div className="bs-raster bs-raster--artikel">
+      {/* Wieder als Liste (Wunsch Patrick, 6. Oktober 2026: „Artikel wieder zu
+          einer Liste“): je Artikel eine Zeile, Spalten Nummer, Bezeichnung,
+          Lieferant. So lässt sich die Spalte mit dem Auge herunterlesen. */}
+      <div className="bs-tabelle bs-tabelle--artikel">
+        <div className="bs-tabelle__kopf">
+          <span>Artikelnummer</span><span>Bezeichnung</span><span>Lieferant</span><span />
+        </div>
         {liste.map((a) => (
-          <div key={a.id} className={"bs-raster__eintrag bs-artikel" + (a.is_active === false ? " bs-inaktiv" : "")}>
+          <div key={a.id} className={"bs-tabelle__zeile bs-artikel" + (a.is_active === false ? " bs-inaktiv" : "")}>
+            <div className="bs-artikel__nr">
+              <span className="bs-pos__nr">{a.article_number}</span>
+              {a.is_active === false && <span className="bs-chip bs-chip--still">ausgeblendet</span>}
+            </div>
             <div className="bs-artikel__text">
-              <div className="bs-artikel__nr">
-                <span className="bs-pos__nr">{a.article_number}</span>
-                {a.is_active === false && <span className="bs-chip bs-chip--still">ausgeblendet</span>}
-              </div>
               <div className="bs-artikel__name">{a.name}
                 {a.unit && a.unit !== "Stück" && <span className="bs-einheit">{a.unit}</span>}</div>
               {a.description && <div className="bs-pos__beschreibung">{a.description}</div>}
-              {a.supplier_name &&
-                <div className="bs-artikel__lief">{a.supplier_website
+            </div>
+            <div className="bs-artikel__lief">{a.supplier_name
+              ? (a.supplier_website
                   ? <a className="lieferantlink" href={a.supplier_website} target="_blank"
                       rel="noopener">{a.supplier_name}<Zeichen name="aussen" groesse={12} /></a>
-                  : a.supplier_name}</div>}
-            </div>
-            {schreiben &&
-              <span className="bs-pos__aktionen">
+                  : a.supplier_name)
+              : "–"}</div>
+            <span className="bs-pos__aktionen">
+              {schreiben && <>
                 <Symbolknopf zeichen="stift" text="Bearbeiten" data-arbearb={a.id}
                   onClick={() => alt.artikelBearbeiten(a, behaelter)} />
                 <Symbolknopf zeichen="muell" text="Löschen" gefahr data-arweg={a.id}
                   data-nr={a.article_number} onClick={() => loeschen(a, behaelter)} />
-              </span>}
+              </>}
+            </span>
           </div>
         ))}
       </div>

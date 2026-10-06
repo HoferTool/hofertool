@@ -22,7 +22,7 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#bestellungen'"); pg.wait_for_timeout(1800)
     print("Offen — Zeiten:", pg.evaluate("[...document.querySelectorAll('.bs-pos__wer')].map(x => x.textContent)"))
     pg.locator("button:has-text('Historie'), [data-bansicht='historie']").first.click(); pg.wait_for_timeout(1500)
-    print("Historie — Zeile:", pg.evaluate("(document.querySelector('.bs-pos--historie')||{}).innerText||''").replace("\n", " | ").replace("\t", " | "))
+    print("Historie — Zeile:", pg.evaluate("(document.querySelector('.bs-tabelle--historie .bs-tabelle__zeile')||{}).innerText||''").replace("\n", " | ").replace("\t", " | "))
     pg.locator("[data-hstatus='og']").click(); pg.wait_for_timeout(500)
     print("Dialog:", pg.evaluate("(document.querySelector('.dialog')||{}).innerText||''").replace("\n", " | "))
     pg.locator(".dialog [data-neu='bestellt']").click(); pg.wait_for_timeout(400)
