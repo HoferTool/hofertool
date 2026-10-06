@@ -40,7 +40,13 @@ with sync_playwright() as p:
 
     # 1. Offenes Konto: ein Tipp, drin
     pg, f = seite(br)
-    kachel(pg, "Beat")
+    pg.locator(".login__kachel", has_text="Beat").click(); pg.wait_for_timeout(700)
+    mitte = pg.evaluate("""(() => { const e = document.querySelector('.login__flieger');
+      if (!e) return null; const r = e.getBoundingClientRect();
+      return [Math.round(r.left + r.width / 2 - innerWidth / 2), !!document.querySelector('.login__ring')]; })()""")
+    print("Beat schwebt in der Mitte:", mitte)
+    if not mitte or abs(mitte[0]) > 3 or not mitte[1]: fehler.append("Kachel schwebt nicht in die Mitte")
+    pg.wait_for_timeout(1500)
     print("Beat angemeldet:", angemeldet(pg), pg.evaluate("window._aufrufe"))
     if not angemeldet(pg): fehler.append("offenes Konto kommt nicht rein")
     fehler += f; pg.close()

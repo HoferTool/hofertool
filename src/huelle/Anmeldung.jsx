@@ -38,9 +38,11 @@ export function anmeldungAbbauen() {
 
 // Wechsel zwischen Kachelwand und Anmeldefeld: kurz ausblenden, dann
 // das andere einblenden.
-const RAUS = 160, REIN = 260;
+const REIN = 260;
 // So lange schwebt die gewählte Kachel in die Mitte oder ins Feld
 const FLUG = 520;
+// So lange bleibt sie mit Ladezeichen in der Mitte, auch wenn es schneller ginge
+const HALT = 650;
 const SCHWUNG = "cubic-bezier(.2,.8,.2,1)";
 
 const wenigBewegung = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -125,6 +127,8 @@ function Anmeldung() {
   // Das grosse Bild im Anmeldefeld wartet unsichtbar, bis die Kachel landet
   const [landet, setLandet] = useState(false);
   const [auswahlFehler, setAuswahlFehler] = useState("");
+  // Kachel, die gerade an ihren Platz zurückschwebt (dort solange leer)
+  const [heim, setHeim] = useState(null);
   const fliegerRef = useRef(null);
   const beschaeftigt = useRef(false);
   const uhr = useRef([]);
@@ -170,10 +174,15 @@ function Anmeldung() {
 
     flushSync(() => { setFlieger({ konto, laedt: true }); setKarteWeg(true); });
     const flug = fliegerRef.current ? fliegen(fliegerRef.current, von, mitteRechteck()) : Promise.resolve();
+    // Der Server antwortet oft schneller, als die Kachel fliegt. Damit man
+    // sie trotzdem in der Mitte ankommen und kurz schweben sieht, geht es
+    // erst nach dem Flug und einem kurzen Halt hinein (Wunsch Patrick,
+    // 6. Oktober 2026: „auch bei Leuten ohne PIN in die Mitte“).
+    const angekommen = flug.then(() => new Promise((ok) => setTimeout(ok, wenigBewegung() ? 0 : HALT)));
 
     const hinein = async () => {
       alt.geraetKontoMerken(konto.email);
-      await alt.profilLaden();
+      await Promise.all([alt.profilLaden(), angekommen]);
       alt.zeichneGeruest();
     };
     try {
@@ -197,15 +206,30 @@ function Anmeldung() {
     }
   };
 
-  const zurueck = () => {
-    if (beschaeftigt.current) return;
-    setAnmeldungKlasse("login__wechsel--raus");
-    spaeter(() => {
+  // „anderes Konto“: Die Kachel schwebt aus dem Anmeldefeld zurück an
+  // ihren Platz in der Kachelwand (Wunsch Patrick, 6. Oktober 2026).
+  const zurueck = async () => {
+    if (beschaeftigt.current || !wahl) return;
+    beschaeftigt.current = true;
+    const konto = wahl.konto;
+    const gross = document.querySelector("#lg-anmeldung .login__gross");
+    const von = gross ? gross.getBoundingClientRect() : null;
+    flushSync(() => {
+      setFlieger({ konto, laedt: false });
+      setHeim(konto.email);
       setWahl(null);
       setAnmeldungKlasse("");
       setAuswahlKlasse("login__wechsel--rein");
-      spaeter(() => setAuswahlKlasse(""), REIN);
-    }, RAUS);
+    });
+    const el = fliegerRef.current;
+    const platz = [...document.querySelectorAll("#lg-auswahl .login__kachel")]
+      .find((k) => k.dataset.email === konto.email);
+    const ziel = platz && platz.querySelector(".login__kachel-bild");
+    if (el && ziel && von) await fliegen(el, von, ziel.getBoundingClientRect());
+    setHeim(null);
+    setFlieger(null);
+    spaeter(() => setAuswahlKlasse(""), REIN);
+    beschaeftigt.current = false;
   };
 
   // Mit Escape zurück zur Auswahl
@@ -237,7 +261,8 @@ function Anmeldung() {
         {wand.reihen.map((reihe, r) => (
           <div className="login__reihe" key={r}>
             {reihe.map((u) => (
-              <button type="button" className="login__kachel" key={u.email || u.full_name}
+              <button type="button" key={u.email || u.full_name} data-email={u.email}
+                className={"login__kachel" + (heim && heim === u.email ? " login__kachel--heim" : "")}
                 onClick={(ev) => kontoWaehlen(u, ev)}>
                 <Bildchen konto={u} className={"login__kachel-bild" + (u.bild_url ? "" : " login__kachel-buchstabe")} />
                 <span className="login__kachel-name">{alt.personName(u)}</span>

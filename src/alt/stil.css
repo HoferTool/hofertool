@@ -5563,3 +5563,5 @@ body.dunkel .login__flieger-bild { background: #eef2f8; color: #0f1620; }
   .login__flieger-bild, .login__flieger-name, .login__fehler { animation: none !important; }
   .login__ring, .login__punkt { animation-duration: 2.4s !important; }
 }
+/* Während die Kachel an ihren Platz zurückschwebt, bleibt der Platz leer */
+.login__kachel--heim .login__kachel-bild { visibility: hidden; }

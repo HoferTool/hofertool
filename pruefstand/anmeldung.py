@@ -44,8 +44,14 @@ with sync_playwright() as p:
     pruefe("Escape: zurück zur Auswahl", pg.locator("#lp").count() == 0 and pg.is_visible("#lg-auswahl"))
     pg.locator(".login__kachel").nth(2).click(); pg.wait_for_timeout(1200)
     pruefe("PIN-Feld für Zora", pg.get_attribute("#lp", "placeholder") == "PIN")
-    pg.locator("#lg-anderes").click(); pg.wait_for_timeout(500)
-    pruefe("anderes Konto: zurück", pg.locator("#lp").count() == 0)
+    pg.locator("#lg-anderes").click(); pg.wait_for_timeout(200)
+    unterwegs = pg.evaluate("""(() => { const e = document.querySelector('.login__flieger'); if (!e) return null;
+      const k = document.querySelector('.login__kachel--heim .login__kachel-bild');
+      return !!k && getComputedStyle(k).visibility === 'hidden'; })()""")
+    pruefe("anderes Konto: Kachel schwebt zurück an ihren Platz", unterwegs is True)
+    pg.wait_for_timeout(600)
+    pruefe("anderes Konto: zurück, Kachel wieder an ihrem Platz", pg.locator("#lp").count() == 0
+      and pg.locator(".login__flieger").count() == 0 and pg.locator(".login__kachel--heim").count() == 0)
 
     pg.locator(".login__kachel").nth(1).click(); pg.wait_for_timeout(800)
     pg.locator("#lk").click(); pg.wait_for_timeout(300)
