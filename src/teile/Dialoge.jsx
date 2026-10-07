@@ -4,7 +4,7 @@
 //  Aufrufe wie bisher, jetzt in React:
 //    nachfragen({ titel, text, bestaetigen, abbrechen, gefahr })
 //      → true oder false
-//    auswahlDialog(titel, [{ wert, text }]) → wert oder null
+//    auswahlDialog(titel, [{ wert, text }], text?) → wert oder null
 //    dialogFelder({ titel, text, felder, bestaetigen, gefahr })
 //      felder: [{ name, label, typ, wert, platzhalter, pflicht,
 //                 hinweis, auswahl: [[wert, text]], ziffern, fett }]
@@ -44,9 +44,10 @@ export function nachfragen(o) {
   ));
 }
 
-export function auswahlDialog(titel, optionen) {
+export function auswahlDialog(titel, optionen, text) {
   return fensterMitWert(null, (fertig) => (
     <div className="dialog"><h2>{titel}</h2>
+      {text && <p className="dialog__text">{text}</p>}
       <div className="statuswahl">
         {optionen.map((o) => (
           <button key={o.wert} className="knopf" data-w={o.wert} onClick={() => fertig(String(o.wert))}>

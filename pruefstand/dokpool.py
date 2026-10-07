@@ -39,6 +39,9 @@ with sync_playwright() as p:
           namen.forEach((n) => dt.items.add(new File(['x'], n, { type: n.endsWith('.pdf') ? 'application/pdf' : 'application/vnd.ms-excel' })));
           const el = document.querySelector('#pool-ablage');
           el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }""", namen)
+        # Frage nach dem Typ (Excel ohne Typ im Namen) mit dem ersten Typ beantworten
+        pg.wait_for_selector("#pool-los, .dialog-huelle [data-w]")
+        if pg.locator(".dialog-huelle [data-w]").count(): pg.locator(".dialog-huelle [data-w]").first.click()
         pg.wait_for_selector("#pool-los"); pg.wait_for_timeout(400)
         zeilen = pg.evaluate("[...document.querySelectorAll('#pool-liste tbody tr')].map(tr => [...tr.cells].slice(1).map(td => td.innerText.trim()).join(' | ') + (tr.classList.contains('pool-zeile--offen') ? ' | OFFEN' : ''))")
         for z in zeilen: print("  ", z)
@@ -75,12 +78,18 @@ with sync_playwright() as p:
       const el = document.querySelector('#pool-ablage');
       el.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true }));
       el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true })); }""")
+    # Excel ohne Typ im Namen: Die App fragt nach dem Maschinentyp (111.79.0)
+    pg.wait_for_selector(".dialog-huelle [data-w]"); pg.wait_for_timeout(300)
+    frage = pg.locator(".dialog-huelle .dialog").last.inner_text(); print(frage)
+    pruefe("Frage nach dem Typ", "Für welchen Maschinentyp?" in frage and "10007-0381.xlsx" in frage)
+    pg.screenshot(path="/tmp/claude-0/dok-typfrage.png")
+    pg.locator(".dialog-huelle [data-w='t2']").click()
     pg.wait_for_selector("#pool-los"); pg.wait_for_timeout(500)
     liste = pg.inner_text("#pool-liste"); print(liste)
     pruefe("5 gelesen, 4 zugeordnet", "5 Dateien gelesen · 4 zugeordnet" in liste)
     pruefe("Nächster Auftrag ohne FA (12.10.)", "FA 20268566 · geplant 12.10." in liste)
     pruefe("Schon vergebene FA geht an ihren Auftrag", "FA 20260001 · geplant 01.10." in liste)
-    pruefe("Typ vom Auftrag", "Tornos (vom Auftrag)" in liste or "(vom Auftrag)" in liste)
+    pruefe("Gewählter Typ in der Liste", pg.evaluate("document.querySelector('[data-pooltyp]').value") == "t2")
     pruefe("Ohne Auftrag nicht zugeordnet", "kein offener Auftrag der HOCO Nr. 55555-0001" in liste)
     pg.screenshot(path="/tmp/claude-0/dokpool.png")
     pg.click("#pool-los"); pg.wait_for_timeout(1800)
@@ -92,10 +101,40 @@ with sync_playwright() as p:
     pruefe("Beendeter p4 unberührt", jobs["p4"][0] is None and not jobs["p4"][1])
     pruefe("p5 bekommt FA", jobs["p5"][0] == "20269999")
     htd = pg.evaluate("TEST.daten.hoco_type_data.filter(x => x.hoco_nr === '10007-0381').map(x => x.type_id)")
-    pruefe("Einrichtblatt am Typ der Maschine", htd == ["t2"])
+    pruefe("Einrichtblatt am gewählten Typ", htd == ["t2"])
     docs = pg.evaluate("TEST.daten.dokumente.map(d => d.art + ':' + d.hoco_nr + ':' + d.titel)"); print(docs)
     pruefe("Zwei WBG-Einträge nebeneinander", sum(1 for d in docs if d.startswith("wbg:10007-0381")) == 2)
     pruefe("Verlauf geschrieben", pg.evaluate("TEST.daten.dokumente_verlauf.length") == 4)
+
+    # Ganzer Ordner, der wie ein Typ heisst: keine Frage, Typ vom Ordner.
+    # Ein anderer Ordner ohne Typnamen: Frage, Abbrechen lässt die Datei grau.
+    def ordner_ziehen(ordner):
+        pg.evaluate("""(ordner) => {
+          const datei = (n) => ({ isFile: true, isDirectory: false, name: n,
+            file: (ok) => ok(new File(['xl'], n, { type: 'application/vnd.ms-excel' })) });
+          const mappe = (name, namen) => ({ isFile: false, isDirectory: true, name,
+            createReader: () => { let mal = 0; return { readEntries: (ok) => ok(mal++ ? [] : namen.map(datei)) }; } });
+          const items = Object.entries(ordner).map(([name, namen]) => ({ kind: 'file', webkitGetAsEntry: () => mappe(name, namen) }));
+          const ev = new Event('drop', { bubbles: true, cancelable: true });
+          Object.defineProperty(ev, 'dataTransfer', { value: { items, files: [] } });
+          document.querySelector('#pool-ablage').dispatchEvent(ev); }""", ordner)
+    typname = pg.evaluate("TEST.daten.machine_types.find(t => t.id === 't1').name")
+    ordner_ziehen({typname: ["10844-0049.xlsx", "10844-0050 Werkzeugprotokoll.xlsx"]})
+    pg.wait_for_selector("#pool-los"); pg.wait_for_timeout(400)
+    pruefe("Ordner mit Typnamen: keine Frage", pg.locator(".dialog-huelle [data-w]").count() == 0)
+    liste = pg.inner_text("#pool-liste"); print(liste)
+    pruefe("Typ vom Ordner", liste.count(typname + " (vom Ordner)") == 2 and "2 zugeordnet" in liste)
+    pg.evaluate("document.querySelectorAll('#pool-liste input[type=checkbox]').forEach(c => { if (c.checked) c.click(); })")
+    pg.locator("[data-einst='allgemein']").click(); pg.wait_for_timeout(400)
+    pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1000)
+    ordner_ziehen({"Neue Blätter": ["10844-0049.xlsx"]})
+    pg.wait_for_selector(".dialog-huelle [data-w]"); pg.wait_for_timeout(300)
+    pg.locator(".dialog-huelle [data-nein]").last.click()
+    pg.wait_for_selector("#pool-los"); pg.wait_for_timeout(400)
+    pruefe("Abgebrochen: grau und nicht wählbar", pg.locator(".pool-zeile--offen").count() == 1
+           and pg.locator("[data-pool='0']").is_disabled())
+    pg.select_option("[data-pooltyp='0']", "t1"); pg.wait_for_timeout(200)
+    pruefe("Typ in der Liste nachgewählt", pg.locator(".pool-zeile--offen").count() == 0 and pg.inner_text("#pool-los") == "1 hochladen")
     fehler += f
     br.close()
 print("Fehler:", fehler[:3] if fehler else "keine")

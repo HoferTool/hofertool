@@ -15,6 +15,41 @@ import { Gruppe, Zeile, SchalterZeile } from "./teile.jsx";
 
 const kannOrdner = typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
 const artVon = (a) => alt.DOK_ARTEN[a] || alt.DOK_ARTEN.sonstiges;
+const DATEI_ARTEN = /\.(pdf|png|jpe?g|webp|tif?f|xlsx|xlsm|xls)$/i;
+const typenSortiert = (typen) => typen.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), "de"));
+
+// Einrichtblatt auf einen gewählten Typ setzen (oder ohne Typ zurück)
+function typSetzen(z, t) {
+  return Object.assign({}, z, t
+    ? { typ: t, typGewaehlt: true, passt: true, grund: "Excel-Datei" }
+    : { typ: null, typGewaehlt: false, passt: false, grund: "kein Maschinentyp gewählt" });
+}
+
+// Was auf die Fläche gezogen wurde, als [{ datei, ordner }]. Ganze Ordner
+// (Chrome, Edge, Safari) werden mit ihren Unterordnern gelesen; jede Datei
+// merkt sich die Namen der Ordner, in denen sie lag (der nächste zuletzt).
+async function ausAblage(dt) {
+  if (!dt) return [];
+  // Die Einträge müssen sofort geholt werden, nach dem ersten await ist die Liste leer
+  const eintraege = [...(dt.items || [])].map((i) => (i.kind === "file" && i.webkitGetAsEntry ? i.webkitGetAsEntry() : null));
+  const lose = [...(dt.files || [])];
+  if (!eintraege.some((e) => e && e.isDirectory)) return lose.map((datei) => ({ datei }));
+  const aus = [];
+  const datei = (e) => new Promise((ok, schief) => e.file(ok, schief));
+  const lesen = (r) => new Promise((ok, schief) => r.readEntries(ok, schief));
+  const gehe = async (e, ordner) => {
+    if (aus.length >= 500 || !e) return;
+    if (e.isFile) { aus.push({ datei: await datei(e), ordner }); return; }
+    if (!e.isDirectory) return;
+    const r = e.createReader();
+    // readEntries liefert in Paketen, bis eine leere Liste kommt
+    for (let teil = await lesen(r); teil.length; teil = await lesen(r)) {
+      for (const k of teil) await gehe(k, ordner.concat(e.name));
+    }
+  };
+  for (const e of eintraege) await gehe(e, []);
+  return aus;
+}
 
 async function typenHolen() {
   if (alt.prod.typen && alt.prod.typen.length) return alt.prod.typen;
@@ -30,29 +65,54 @@ export default function Dokumente() {
   // Dateien, deren Zuordnung gerade angezeigt wird (null = keine)
   const [pool, setPool] = useState(null);
 
+  // dateien: [{ datei, ordner }]; ordner sind die Namen der Ordner, aus
+  // denen die Datei kam (beim Hineinziehen ganzer Ordner oder „Ordner wählen“)
   const pruefen = async (dateien) => {
     setPool({ laedt: true });
     const typen = await typenHolen();
-    // WBG mit FA Nr. und Einrichtblätter ohne Typ im Namen brauchen
-    // einen Blick in die Aufträge, bevor die Zuordnung feststeht
-    const eintraege = await Promise.all(dateien.map(async (datei) => {
+    // WBG mit FA Nr. brauchen einen Blick in die Aufträge, bevor die Zuordnung feststeht
+    const eintraege = await Promise.all(dateien.map(async ({ datei, ordner }) => {
       let zuordnung = alt.dokErkennen(datei.name, typen);
-      if ((zuordnung.art === "wbg" && zuordnung.fa)
-          || (zuordnung.art === "einrichtblatt" && zuordnung.hoco && !zuordnung.typ)) {
-        zuordnung = await alt.dokZielSuchen(zuordnung, typen);
+      if (zuordnung.art === "wbg" && zuordnung.fa) zuordnung = await alt.dokZielSuchen(zuordnung, typen);
+      // Einrichtblatt ohne Typ im Namen (Wunsch Patrick, 7. Oktober 2026):
+      // Heisst der Ordner wie ein Maschinentyp, gilt dieser Typ. Sonst wird
+      // gefragt, nicht mehr still der Typ der Maschine des nächsten Auftrags genommen.
+      if (zuordnung.art === "einrichtblatt" && zuordnung.hoco && !zuordnung.typ && /\.(xlsx|xlsm|xls)$/i.test(datei.name)) {
+        let ordnerTyp = null;
+        for (let i = (ordner || []).length - 1; i >= 0 && !ordnerTyp; i--) {
+          ordnerTyp = alt.dokErkennen(ordner[i] + ".xlsx", typen).typ;
+        }
+        zuordnung = Object.assign({}, zuordnung, ordnerTyp
+          ? { typ: ordnerTyp, typAusOrdner: true, geprueft: true }
+          : { typFrage: true, geprueft: true, passt: false, grund: "kein Maschinentyp gewählt" });
       }
-      return { datei, zuordnung, nehmen: zuordnung.passt };
+      return { datei, zuordnung };
     }));
-    setPool({ eintraege });
+    const offen = eintraege.filter((e) => e.zuordnung.typFrage);
+    if (offen.length && typen.length) {
+      const namen = offen.map((e) => "„" + e.datei.name + "“");
+      const wahl = await alt.auswahlDialog("Für welchen Maschinentyp?",
+        typenSortiert(typen).map((t) => ({ wert: t.id, text: t.name })),
+        (offen.length === 1 ? "Im Namen von " + namen[0] + " steht kein Maschinentyp."
+          : "Bei " + offen.length + " Einrichtblättern steht kein Maschinentyp im Namen: "
+            + namen.slice(0, 5).join(", ") + (offen.length > 5 ? " …" : "") + ".")
+          + (offen.length === 1 ? " In der Liste danach lässt sich der Typ noch ändern."
+            : " Der gewählte Typ gilt für alle, in der Liste danach lässt er sich je Datei ändern."));
+      const t = wahl !== null && typen.find((x) => String(x.id) === String(wahl));
+      if (t) offen.forEach((e) => { e.zuordnung = typSetzen(e.zuordnung, t); });
+    }
+    setPool({ typen: typenSortiert(typen), eintraege: eintraege.map((e) => Object.assign(e, { nehmen: e.zuordnung.passt })) });
   };
 
-  // Dateien aus dem Explorer auf die Fläche ziehen
+  // Dateien aus dem Explorer auf die Fläche ziehen, auch ganze Ordner
   const [ueber, setUeber] = useState(false);
-  const fallen = (e) => {
+  const fallen = async (e) => {
     e.preventDefault(); setUeber(false);
     if (!darf) return;
-    const dateien = [...((e.dataTransfer && e.dataTransfer.files) || [])]
-      .filter((d) => /\.(pdf|png|jpe?g|webp|tif?f|xlsx|xlsm|xls)$/i.test(d.name));
+    let dateien;
+    try { dateien = await ausAblage(e.dataTransfer); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
+    dateien = dateien.filter((d) => DATEI_ARTEN.test(d.datei.name));
     if (!dateien.length) { alt.meldung("Keine passenden Dateien (PDF, Bild oder Excel).", "warn"); return; }
     pruefen(dateien);
   };
@@ -64,8 +124,8 @@ export default function Dokumente() {
     try {
       for await (const eintrag of ordner.values()) {
         if (eintrag.kind !== "file") continue;
-        if (!/\.(pdf|png|jpe?g|webp|tif?f|xlsx|xlsm|xls)$/i.test(eintrag.name)) continue;
-        dateien.push(await eintrag.getFile());
+        if (!DATEI_ARTEN.test(eintrag.name)) continue;
+        dateien.push({ datei: await eintrag.getFile(), ordner: [ordner.name] });
         if (dateien.length >= 500) break;
       }
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
@@ -75,7 +135,7 @@ export default function Dokumente() {
 
   const hochladenWaehlen = async () => {
     const dateien = await alt.dokWaehlen(true);
-    if (dateien.length) pruefen(dateien);
+    if (dateien.length) pruefen(dateien.map((datei) => ({ datei })));
   };
 
   return (
@@ -92,12 +152,13 @@ export default function Dokumente() {
           <b>Dateien hierher ziehen</b>
           <span className="klein">WBG mit FA Nr. und HOCO Nr. im Namen (etwa „20268566 10007-0381.pdf“) kommen an den
             nächsten offenen Auftrag ohne FA Nr., die FA Nr. wird dort eingetragen. Einrichtblätter nur als Excel
-            (etwa „10844-0049 SW-20.xlsx“; ohne Typ im Namen gilt der Typ der Maschine des nächsten Auftrags).</span>
+            (etwa „10844-0049 SW-20.xlsx“). Steht kein Maschinentyp im Namen, fragt die App nach dem Typ, ausser
+            der Ordner heisst wie der Typ: Dann einfach den ganzen Ordner hierher ziehen.</span>
         </div>}
         <div id="pool-liste">
           {pool && (pool.laedt
             ? <div className="laedt">Wird geprüft …</div>
-            : <Zuordnung eintraege={pool.eintraege} fertig={() => { setPool(null); frisch(); }} />)}
+            : <Zuordnung eintraege={pool.eintraege} typen={pool.typen} fertig={() => { setPool(null); frisch(); }} />)}
         </div>
       </Gruppe>
       <PoolOrdner />
@@ -110,8 +171,15 @@ export default function Dokumente() {
 
 // ---------- Zuordnung prüfen, dann hochladen ----------
 
-function Zuordnung({ eintraege, fertig }) {
-  const [nehmen, setNehmen] = useState(() => eintraege.map((e) => e.nehmen));
+function Zuordnung({ eintraege: anfang, typen, fertig }) {
+  const [eintraege, setEintraege] = useState(anfang);
+  const [nehmen, setNehmen] = useState(() => anfang.map((e) => e.nehmen));
+  // Typ eines Einrichtblatts ohne Typ im Namen hier je Datei ändern
+  const typWaehlen = (i, id) => {
+    const t = (typen || []).find((x) => String(x.id) === id) || null;
+    setEintraege((l) => l.map((e, j) => (j === i ? Object.assign({}, e, { zuordnung: typSetzen(e.zuordnung, t) }) : e)));
+    setNehmen((n) => n.map((x, j) => (j === i ? !!t : x)));
+  };
   const [laeuft, setLaeuft] = useState(null);
   const anzahl = nehmen.filter(Boolean).length;
 
@@ -139,11 +207,18 @@ function Zuordnung({ eintraege, fertig }) {
         <tbody>{eintraege.map((e, i) => (
           <tr key={i} className={nehmen[i] ? "" : "pool-zeile--offen"}>
             <td><input type="checkbox" data-pool={i} checked={nehmen[i]}
+              disabled={e.zuordnung.typFrage && !e.zuordnung.typ}
               onChange={(ev) => setNehmen((n) => n.map((x, j) => (j === i ? ev.target.checked : x)))} /></td>
             <td>{e.datei.name}</td>
             <td>{artVon(e.zuordnung.art).zeichen} {artVon(e.zuordnung.art).name}</td>
             <td>{e.zuordnung.hoco || "—"}</td>
-            <td>{e.zuordnung.typ ? e.zuordnung.typ.name + (e.zuordnung.typAusAuftrag ? " (vom Auftrag)" : "") : "—"}</td>
+            <td>{e.zuordnung.typFrage
+              ? <select data-pooltyp={i} value={e.zuordnung.typ ? String(e.zuordnung.typ.id) : ""}
+                  onChange={(ev) => typWaehlen(i, ev.target.value)}>
+                  <option value="">Typ wählen …</option>
+                  {(typen || []).map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+                </select>
+              : e.zuordnung.typ ? e.zuordnung.typ.name + (e.zuordnung.typAusOrdner ? " (vom Ordner)" : "") : "—"}</td>
             <td className="klein">{e.zuordnung.fa
               ? (e.zuordnung.auftrag
                   ? "FA " + e.zuordnung.fa + (e.zuordnung.auftrag.planned_from ? " · geplant " + alt.kurzDatum(e.zuordnung.auftrag.planned_from) : "")
@@ -153,7 +228,7 @@ function Zuordnung({ eintraege, fertig }) {
         ))}</tbody>
       </table>
       <p className="hinweis">Grau hinterlegte Zeilen konnte die App keiner Nummer, keinem Typ oder keinem
-        offenen Auftrag zuordnen. Benenne die Datei um, plane zuerst den Auftrag oder lade sie direkt bei der HOCO Nr. hoch.</p>
+        offenen Auftrag zuordnen. Fehlt bei einem Einrichtblatt nur der Typ, wähle ihn in der Spalte Typ. Benenne die Datei um, plane zuerst den Auftrag oder lade sie direkt bei der HOCO Nr. hoch.</p>
     </>
   );
 }
