@@ -12,6 +12,8 @@
 //                m: Mindesthöhe (fehlt = so hoch wie der Text), p: [] }
 //    Bild      { t: "bild", u: Adresse, x, y, b: Breite, v: Höhe/Breite,
 //                q: Adresse des PDFs (bei PDF-Seiten), s: Seitennummer, n: Name, p: [] }
+//    Tabelle   { t: "tab", z: [[Zelle, …], …] Zeilen mit Zellen (Text wie oben),
+//                x, y, b: Breite, g: Grösse, f: Farbe, v: gemessene Höhe, p: [] }
 //  Alle Lagen und Grössen sind durch die Breite des Blatts geteilt:
 //  Die Seite sieht auf PC, iPad und Handy gleich aus, nur grösser oder
 //  kleiner. Das Blatt wächst nach unten mit, so weit wie nötig.
@@ -44,6 +46,28 @@ const STILE = [["bold", "B", "Fett", { fontWeight: 900 }],
   ["strikeThrough", "S", "Durchgestrichen", { textDecoration: "line-through" }]];
 const istText = (s) => !!(s && s.t === 1);
 const istBildEl = (s) => !!(s && s.t === "bild");
+const istTab = (s) => !!(s && s.t === "tab");
+
+// Tabelle (Wunsch Patrick 7. Oktober 2026): „3 3“ ins Textfeld tippen
+// und Tab drücken gibt 3 Spalten und 3 Zeilen, wie in Word zuerst die
+// Spalten. Höchstens 12 Spalten und 60 Zeilen.
+const TAB_MUSTER = /^\s*(\d{1,2})\s*[x×*\s]\s*(\d{1,2})\s*$/i;
+function neueTabelle(s, spalten, zeilen) {
+  const b = Math.max(0.15, Math.min(1 - s.x - 0.02, spalten * 0.18));
+  return { t: "tab", x: s.x, y: s.y, b: rund(b), g: s.g, f: s.f,
+    z: Array.from({ length: zeilen }, () => Array(spalten).fill("")), p: [] };
+}
+// Eine Zeile oder Spalte mehr; die Tabelle wird für die Spalte breiter,
+// soweit das Blatt reicht
+function tabMehr(s, art) {
+  const n = s.z[0].length, m = s.z.length;
+  if (art === "zeile") {
+    const neu = { ...s, z: [...s.z, s.z[0].map(() => "")] };
+    if (s.v) neu.v = rund(s.v * (m + 1) / m);
+    return neu;
+  }
+  return { ...s, z: s.z.map((r) => [...r, ""]), b: rund(Math.min(1 - s.x, s.b * (n + 1) / n)) };
+}
 
 const ZIEHEN = "M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3";
 const STIFT = "M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1zM14.5 6.5l3 3";
@@ -82,6 +106,7 @@ const merk = { werkzeug: "text", farbe: "#1d2430", dicke: "mittel", schrift: "mi
 function unterkante(s) {
   if (istBildEl(s)) return s.y + s.b * s.v;
   if (istText(s)) return s.y + Math.max(0.08, s.m || 0);
+  if (istTab(s)) return s.y + (s.v || s.z.length * schriftPx(s.g) * 1.75 / 1000);
   let m = 0;
   const p = s.p || [];
   for (let i = 1; i < p.length; i += 2) m = Math.max(m, p[i]);
@@ -114,6 +139,9 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   const [hinweis, setHinweis] = useState(false);
   const editRef = useRef(null);
   const editorEl = useRef(null);
+  const zelleEl = useRef(null);               // Zelle der offenen Tabelle mit dem Fokus
+  const tabelleEl = useRef(null);
+  const editHuelle = useRef(null);
   const tipp = useRef(null);
   const offenBeimTipp = useRef(false);
   const aendernRef = useRef(null);
@@ -347,28 +375,34 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   const textSchliessen = useCallback(() => {
     const ed = editRef.current;
     if (!ed) return;
-    editRef.current = null; setEdit(null);
-    const h = (ed.s.h || "").trim();
+    // Höhe der Tabelle messen, solange sie noch da ist (für die Länge des Blatts)
+    const t = tabelleEl.current;
+    const v = t && wRef.current ? rund(t.offsetHeight / wRef.current) : 0;
+    editRef.current = null; setEdit(null); zelleEl.current = null;
+    let neu = null;
+    if (ed.weg) neu = null;
+    else if (istTab(ed.s)) neu = { ...ed.s, z: ed.s.z.map((r) => r.map((c) => (c || "").trim())), v: v || ed.s.v };
+    else if ((ed.s.h || "").trim()) neu = { ...ed.s, h: ed.s.h.trim() };
     const liste = inhaltRef.current.slice();
     if (ed.i >= 0) {
       if (liste[ed.i] !== ed.alt) return;     // inzwischen anders geworden (Rückgängig)
-      const a = ed.alt;
-      if (!h) liste.splice(ed.i, 1);
-      else if (a.h === h && a.g === ed.s.g && a.f === ed.s.f && a.x === ed.s.x && a.y === ed.s.y && a.b === ed.s.b && a.m === ed.s.m) return;
-      else liste[ed.i] = { ...ed.s, h };
+      if (!neu) liste.splice(ed.i, 1);
+      else if (JSON.stringify(ed.alt) === JSON.stringify(neu)) return;
+      else liste[ed.i] = neu;
     } else {
-      if (!h) return;
-      liste.push({ ...ed.s, h });
+      if (!neu) return;
+      liste.push(neu);
     }
     aendernRef.current(liste);
   }, []);
 
   textSchliessenRef.current = textSchliessen;
 
-  const textAnfangen = (i, s, klick) => {
+  const textAnfangen = (i, s, klick, ziel) => {
     textSchliessen();
     setHinweis(false);
-    const ed = { i, alt: i >= 0 ? inhaltRef.current[i] : null, s: { ...s }, klick, nr: Date.now() };
+    const ed = { i, alt: i >= 0 ? inhaltRef.current[i] : null, s: { ...s }, klick, nr: Date.now(),
+      ziel: ziel ? { ...ziel, n: 1 } : null };
     editRef.current = ed; setEdit(ed);
   };
   const editSetzen = (aenderung) => {
@@ -404,13 +438,106 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     sel.removeAllRanges(); sel.addRange(r);
   }, [edit && edit.nr]);
 
+  // ---------- Tabellen ----------
+  // Die Zellen sind eigene Schreibfelder; React füllt sie nicht, sonst
+  // spränge die Schreibmarke. Beim Öffnen kommt der Text hinein, danach
+  // schreibt jede Eingabe in den Entwurf zurück.
+  const zelleSetzen = (el) => {
+    const ed = editRef.current;
+    if (!ed || !istTab(ed.s)) return;
+    const [r, c] = el.dataset.nbzelle.split("-").map(Number);
+    if (!ed.s.z[r]) return;
+    const z = ed.s.z.map((x) => x.slice());
+    z[r][c] = stilWert(el);
+    const neu = { ...ed, s: { ...ed.s, z } };
+    editRef.current = neu; setEdit(neu);
+  };
+  const zielSetzen = (s, r, c) => {
+    const ed = editRef.current;
+    if (!ed) return;
+    const neu = { ...ed, s, klick: null, ziel: { r, c, n: ((ed.ziel && ed.ziel.n) || 0) + 1 } };
+    editRef.current = neu; setEdit(neu);
+  };
+  // Tab: nächste Zelle, in der letzten eine neue Zeile; Umschalt + Tab zurück
+  const zelleTaste = (e) => {
+    if (e.key !== "Tab") return;
+    e.preventDefault();
+    const ed = editRef.current;
+    if (!ed || !istTab(ed.s)) return;
+    const [r, c] = e.currentTarget.dataset.nbzelle.split("-").map(Number);
+    const n = ed.s.z[0].length;
+    const k = r * n + c + (e.shiftKey ? -1 : 1);
+    if (k < 0) return;
+    if (k >= ed.s.z.length * n) { zielSetzen(tabMehr(ed.s, "zeile"), ed.s.z.length, 0); return; }
+    zielSetzen(ed.s, Math.floor(k / n), k % n);
+  };
+  // Plus am Rand: eine Spalte oder Zeile mehr, die Schreibmarke kommt hinein
+  const tabPlus = (e, i, art) => {
+    e.preventDefault(); e.stopPropagation();
+    const ed = editRef.current;
+    if (ed && ed.i === i && istTab(ed.s)) {
+      const r = zelleEl.current ? Number(zelleEl.current.dataset.nbzelle.split("-")[0]) : 0;
+      zielSetzen(tabMehr(ed.s, art), art === "zeile" ? ed.s.z.length : r, art === "zeile" ? 0 : ed.s.z[0].length);
+      return;
+    }
+    const s = inhaltRef.current[i];
+    if (!istTab(s)) return;
+    textAnfangen(i, tabMehr(s, art), null, art === "zeile" ? { r: s.z.length, c: 0 } : { r: 0, c: s.z[0].length });
+  };
+  // Im Textfeld „3 3“ und Tab: aus dem Feld wird eine Tabelle
+  const feldTaste = (e) => {
+    if (e.key !== "Tab" || e.shiftKey) return;
+    const m = TAB_MUSTER.exec(e.currentTarget.innerText || "");
+    const ed = editRef.current;
+    if (!m || !ed) return;
+    const spalten = Math.min(12, Number(m[1])), zeilen = Math.min(60, Number(m[2]));
+    if (!spalten || !zeilen) return;
+    e.preventDefault();
+    const neu = { ...ed, s: neueTabelle(ed.s, spalten, zeilen), klick: null, nr: Date.now(), ziel: { r: 0, c: 0, n: 1 } };
+    editRef.current = neu; setEdit(neu);
+  };
+
+  // Tabelle öffnen: alle Zellen füllen; danach die Zielzelle fokussieren
+  const gefuellt = useRef(0);
+  useLayoutEffect(() => {
+    const t = tabelleEl.current;
+    const ed = editRef.current;
+    if (!t || !ed || !istTab(ed.s)) return;
+    const alle = t.querySelectorAll("[data-nbzelle]");
+    alle.forEach((el) => {
+      const [r, c] = el.dataset.nbzelle.split("-").map(Number);
+      const h = (ed.s.z[r] && ed.s.z[r][c]) || "";
+      // Neue Zellen sind leer; vorhandene behalten, was darin steht
+      if (gefuellt.current !== ed.nr || (!el.innerHTML && h)) el.innerHTML = alsHtml(h);
+    });
+    gefuellt.current = ed.nr;
+    let el = null, r = null;
+    if (ed.klick) {
+      const unter = document.elementFromPoint(ed.klick[0], ed.klick[1]);
+      el = unter && unter.closest ? unter.closest("[data-nbzelle]") : null;
+      if (el && document.caretRangeFromPoint) {
+        r = document.caretRangeFromPoint(ed.klick[0], ed.klick[1]);
+        if (r && !el.contains(r.startContainer)) r = null;
+      }
+    }
+    if (!el && ed.ziel) el = t.querySelector("[data-nbzelle=\"" + ed.ziel.r + "-" + ed.ziel.c + "\"]");
+    if (!el) el = alle[0];
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    zelleEl.current = el;
+    if (!r) { r = document.createRange(); r.selectNodeContents(el); r.collapse(false); }
+    const sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(r);
+  }, [edit && edit.nr, edit && edit.ziel && edit.ziel.n]);
+
   const stilDruecken = (e, befehl) => {
     e.preventDefault(); e.stopPropagation();
-    const el = editorEl.current;
+    const el = editorEl.current || zelleEl.current;
     if (!el) return;
     if (!el.contains(window.getSelection().anchorNode)) el.focus();
     document.execCommand(befehl, false, null);
-    editSetzen({ h: stilWert(el) });
+    if (el.dataset.nbzelle) zelleSetzen(el);
+    else editSetzen({ h: stilWert(el) });
   };
 
   // Tippen daneben schliesst das Feld; Escape auch (vor dem Fenster)
@@ -447,12 +574,13 @@ export default function Seite({ id, darf, onTitel, huelle }) {
         // Ecke unten rechts: Breite und Höhe zugleich (Wunsch Patrick
         // 7. Oktober 2026: „in beide Richtungen“). Die Höhe ist eine
         // Mindesthöhe m; längerer Text macht das Feld weiter höher.
-        const r = editorEl.current ? editorEl.current.parentNode.getBoundingClientRect() : null;
+        const r = editHuelle.current ? editHuelle.current.getBoundingClientRect() : null;
         const alt0 = start.s.b || (r ? r.width / b : 0.3);
         const h0 = start.h || (r ? r.height / b : 0.05);
         if (!start.h) start.h = h0;
-        editSetzen({ b: rund(Math.max(0.05, Math.min(1 - start.s.x, alt0 + dx))),
-          m: rund(Math.max(0.02, h0 + dy)) });
+        const breite = rund(Math.max(0.05, Math.min(1 - start.s.x, alt0 + dx)));
+        // Tabellen werden nur breiter oder schmaler, die Höhe ergibt sich aus den Zeilen
+        editSetzen(istTab(start.s) ? { b: breite } : { b: breite, m: rund(Math.max(0.02, h0 + dy)) });
       } else {
         editSetzen({ x: rund(Math.max(0, Math.min(0.95, start.s.x + dx))), y: rund(Math.max(0, start.s.y + dy)) });
       }
@@ -461,7 +589,8 @@ export default function Seite({ id, darf, onTitel, huelle }) {
       ziel.removeEventListener("pointermove", bewegt);
       ziel.removeEventListener("pointerup", fertig);
       ziel.removeEventListener("pointercancel", fertig);
-      if (editorEl.current) editorEl.current.focus({ preventScroll: true });
+      const f = editorEl.current || zelleEl.current;
+      if (f) f.focus({ preventScroll: true });
     };
     ziel.addEventListener("pointermove", bewegt);
     ziel.addEventListener("pointerup", fertig);
@@ -651,6 +780,43 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     width: s.b ? s.b * w : undefined, maxWidth: s.b ? undefined : Math.max(80, (1 - s.x) * w - 6) });
   const hoehe = seitenHoehe(zieh ? inhalt.map((s, i) => (i === zieh.i ? zieh.s : s)) : inhalt);
   const ansicht = (s, i) => (zieh && zieh.i === i ? zieh.s : s);
+  // Leiste über dem offenen Feld oder der offenen Tabelle
+  const leiste = edit && (
+    <div className={"nb-textleiste" + (edit.s.y * w < 52 ? " nb-textleiste--unten" : "")}
+      role="toolbar" aria-label="Schrift">
+      <span className="nb-textleiste__griff" data-nbtextziehen="" title="Verschieben"
+        aria-label="Verschieben" onPointerDown={(e) => editZiehen(e, "lage")}><Symbol d={ZIEHEN} /></span>
+      {STILE.map(([befehl, zeichen, name, stil]) => (
+        <button key={befehl} type="button" className="nb-textleiste__knopf" data-stil={befehl}
+          aria-label={name} title={name} onPointerDown={(e) => stilDruecken(e, befehl)}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => { if (e.detail === 0) stilDruecken(e, befehl); }}>
+          <span style={stil}>{zeichen}</span></button>))}
+      <select value={edit.s.g} data-nbschrift="" aria-label="Schriftgrösse"
+        onChange={(e) => { merk.schrift = e.target.value; editSetzen({ g: e.target.value });
+          requestAnimationFrame(() => { const f = editorEl.current || zelleEl.current; if (f) f.focus({ preventScroll: true }); }); }}>
+        {SCHRIFTEN.map(([g, name]) => <option key={g} value={g}>{name}</option>)}
+      </select>
+      <button type="button" className="nb-textleiste__knopf nb-textleiste__weg" data-nbtextweg=""
+        aria-label={istTab(edit.s) ? "Tabelle löschen" : "Textfeld löschen"}
+        title={istTab(edit.s) ? "Tabelle löschen" : "Textfeld löschen"}
+        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation();
+          if (editRef.current) editRef.current = { ...editRef.current, weg: true };
+          textSchliessen(); }}>
+        <Symbol d={EIMER} /></button>
+    </div>);
+  // Rand rechts und unten: beim Drüberfahren erscheint ein Plus für eine
+  // Spalte oder Zeile mehr (Wunsch Patrick 7. Oktober 2026)
+  const plusRand = (i) => (<>
+    <button type="button" className="nb-tab__plus nb-tab__plus--spalte" data-nbspalteplus=""
+      aria-label="Spalte dazu" title="Spalte dazu"
+      onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onClick={(e) => tabPlus(e, i, "spalte")}><span>+</span></button>
+    <button type="button" className="nb-tab__plus nb-tab__plus--zeile" data-nbzeileplus=""
+      aria-label="Zeile dazu" title="Zeile dazu"
+      onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onClick={(e) => tabPlus(e, i, "zeile")}><span>+</span></button>
+  </>);
   const knopf = (wz, d, name) => (
     <button type="button" className={"nb-knopf" + (werkzeug === wz ? " aktiv" : "")} data-nbwerkzeug={wz}
       aria-label={name} title={name} aria-pressed={werkzeug === wz} onClick={() => werkzeugSetzen(wz)}>
@@ -727,33 +893,45 @@ export default function Seite({ id, darf, onTitel, huelle }) {
                 onPointerUp={loslassen} onPointerCancel={loslassen}>
                 <FettText text={s.h} /></div>);
           })}
-          {edit && w > 0 &&
-            <div className="nb-text nb-text--edit" style={{ ...textStil(edit.s), minWidth: 60 }}
+          {w > 0 && inhalt.map((s0, i) => {
+            if (!istTab(s0) || (edit && edit.i === i)) return null;
+            const s = ansicht(s0, i);
+            return (
+              <div key={"z" + i} className="nb-text nb-tab" data-nbtab={i} style={textStil(s)}
+                onPointerDown={(e) => greifen(e, i, "text")}
+                onPointerUp={loslassen} onPointerCancel={loslassen}>
+                <table><tbody>
+                  {s.z.map((zeile, r) => (
+                    <tr key={r}>{zeile.map((c, k) => <td key={k}><FettText text={c} /></td>)}</tr>))}
+                </tbody></table>
+                {darf && werkzeug === "text" && plusRand(i)}
+              </div>);
+          })}
+          {edit && w > 0 && !istTab(edit.s) &&
+            <div ref={editHuelle} className="nb-text nb-text--edit" style={{ ...textStil(edit.s), minWidth: 60 }}
               data-nbedit="">
-              <div className={"nb-textleiste" + (edit.s.y * w < 52 ? " nb-textleiste--unten" : "")}
-                role="toolbar" aria-label="Schrift">
-                <span className="nb-textleiste__griff" data-nbtextziehen="" title="Verschieben"
-                  aria-label="Verschieben" onPointerDown={(e) => editZiehen(e, "lage")}><Symbol d={ZIEHEN} /></span>
-                {STILE.map(([befehl, zeichen, name, stil]) => (
-                  <button key={befehl} type="button" className="nb-textleiste__knopf" data-stil={befehl}
-                    aria-label={name} title={name} onPointerDown={(e) => stilDruecken(e, befehl)}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={(e) => { if (e.detail === 0) stilDruecken(e, befehl); }}>
-                    <span style={stil}>{zeichen}</span></button>))}
-                <select value={edit.s.g} data-nbschrift="" aria-label="Schriftgrösse"
-                  onChange={(e) => { merk.schrift = e.target.value; editSetzen({ g: e.target.value });
-                    requestAnimationFrame(() => editorEl.current && editorEl.current.focus({ preventScroll: true })); }}>
-                  {SCHRIFTEN.map(([g, name]) => <option key={g} value={g}>{name}</option>)}
-                </select>
-                <button type="button" className="nb-textleiste__knopf nb-textleiste__weg" data-nbtextweg=""
-                  aria-label="Textfeld löschen" title="Textfeld löschen"
-                  onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); editSetzen({ h: "" }); textSchliessen(); }}>
-                  <Symbol d={EIMER} /></button>
-              </div>
+              {leiste}
               <div ref={editorEl} className="nb-text__feld" contentEditable suppressContentEditableWarning
-                role="textbox" aria-multiline="true" data-nbfeld=""
+                role="textbox" aria-multiline="true" data-nbfeld="" onKeyDown={feldTaste}
                 onInput={(e) => editSetzen({ h: stilWert(e.currentTarget) })} />
               <span className="nb-text__breite" data-nbbreite="" title="Grösse ändern" aria-label="Grösse ändern"
+                onPointerDown={(e) => editZiehen(e, "breite")} />
+            </div>}
+          {edit && w > 0 && istTab(edit.s) &&
+            <div ref={editHuelle} className="nb-text nb-text--edit nb-tab nb-tab--edit" style={textStil(edit.s)}
+              data-nbedit="" data-nbtabedit="">
+              {leiste}
+              <table ref={tabelleEl}><tbody>
+                {edit.s.z.map((zeile, r) => (
+                  <tr key={r}>{zeile.map((_, k) => (
+                    <td key={k}><div className="nb-tab__zelle" contentEditable suppressContentEditableWarning
+                      role="textbox" aria-label={"Zeile " + (r + 1) + ", Spalte " + (k + 1)} data-nbzelle={r + "-" + k}
+                      onFocus={(e) => { zelleEl.current = e.currentTarget; }}
+                      onInput={(e) => zelleSetzen(e.currentTarget)} onKeyDown={zelleTaste} /></td>))}
+                  </tr>))}
+              </tbody></table>
+              {plusRand(edit.i)}
+              <span className="nb-text__breite" data-nbbreite="" title="Breite ändern" aria-label="Breite ändern"
                 onPointerDown={(e) => editZiehen(e, "breite")} />
             </div>}
           {!inhalt.length && darf && !edit && !hinweis &&

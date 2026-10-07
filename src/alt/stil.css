@@ -6381,3 +6381,33 @@ body.dunkel .nb-blatt .nb-textleiste select { background: #fff !important; borde
   .nutzerzeile__wer { flex: 1 1 0; }
   .nutzerzeile__infos { order: 3; flex: 1 1 100%; padding-left: 52px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Notizbücher, 111.91.0: Tabellen. „3 3“ und Tab im Textfeld gibt eine
+   Tabelle; am Rand rechts und unten erscheint beim Drüberfahren ein Plus
+   für eine Spalte oder Zeile mehr (auf dem Tablet sichtbar, solange die
+   Tabelle offen ist). */
+.nb-tab { white-space: normal; padding: 0; }
+.nb-tab table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.nb-tab td { border: 1px solid #9aa3ad; padding: .2em .4em; vertical-align: top; white-space: pre-wrap;
+  overflow-wrap: anywhere; min-width: 1em; height: 1.7em; }
+body.dunkel .nb-blatt .nb-tab td { border-color: #5d6875; }
+.nb-tab__zelle { outline: none; min-height: 1.3em; cursor: text; -webkit-user-select: text; user-select: text;
+  -webkit-user-modify: read-write; }
+.nb-tab--edit td:focus-within { background: rgba(31, 95, 191, .08); }
+body.dunkel .nb-tab--edit td:focus-within { background: rgba(107, 164, 255, .14); }
+.nb-tab__plus { position: absolute; border: 0; padding: 0; background: none; cursor: pointer; opacity: 0;
+  display: grid; place-items: center; transition: opacity .12s; z-index: 6; touch-action: manipulation; }
+.nb-tab__plus--spalte { top: 0; bottom: 0; right: -22px; width: 20px; }
+.nb-tab__plus--zeile { left: 0; right: 0; bottom: -22px; height: 20px; }
+.nb-tab__plus span { width: 20px; height: 20px; border-radius: 50%; background: var(--marke);
+  color: #fff !important; font-size: 16px; line-height: 20px; font-weight: 700; text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+.nb-tab__plus::before { content: ""; position: absolute; background: var(--marke); opacity: .45; border-radius: 2px; }
+.nb-tab__plus--spalte::before { top: 0; bottom: 0; left: 1px; width: 3px; }
+.nb-tab__plus--zeile::before { left: 0; right: 0; top: 1px; height: 3px; }
+.nb-tab__plus:hover, .nb-tab__plus:focus-visible { opacity: 1; }
+@media (hover: none) { .nb-tab--edit .nb-tab__plus { opacity: .85; } }
+/* Bei der offenen Tabelle sitzt der Breitengriff unten rechts, damit er
+   den Plus-Rändern nicht im Weg ist */
+.nb-tab--edit .nb-text__breite { top: auto; bottom: -24px; right: -24px; margin: 0; width: 14px; height: 14px;
+  cursor: ew-resize; border-radius: 50%; }
