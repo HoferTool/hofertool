@@ -26,7 +26,7 @@ const IST_HTML = /<(b|i|u|s|br|strong|em|strike|del)\b[^>]*>/i;
 const escHtml = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 // Gespeicherten Text in sicheres HTML für das Eingabefeld umwandeln
-function alsHtml(text) {
+export function alsHtml(text) {
   text = text || "";
   if (IST_HTML.test(text)) return sauber(text);
   return escHtml(text).replace(ALT_FETT, "<b>$1</b>").replace(/\n/g, "<br>");

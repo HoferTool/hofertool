@@ -7,23 +7,25 @@
 //
 //  Alles auf der Seite steht in einer Liste (Spalte inhalt):
 //    Strich    { f: "#hex", d: Dicke, p: [x, y, …] }
-//    Text      { t: 1, h: Text mit <b> <i> <u> <s> <br>, x, y, g: Grösse, f: Farbe, p: [] }
+//    Text      { t: 1, h: Text mit <b> <i> <u> <s> <br>, x, y, g: Grösse, f: Farbe,
+//                b: Breite des Felds (fehlt = so breit wie der Text), p: [] }
 //    Bild      { t: "bild", u: Adresse, x, y, b: Breite, v: Höhe/Breite,
 //                q: Adresse des PDFs (bei PDF-Seiten), s: Seitennummer, n: Name, p: [] }
 //  Alle Lagen und Grössen sind durch die Breite des Blatts geteilt:
 //  Die Seite sieht auf PC, iPad und Handy gleich aus, nur grösser oder
 //  kleiner. Das Blatt wächst nach unten mit, so weit wie nötig.
 //
-//  Werkzeuge: Hand (verschieben, antippen zum Bearbeiten, mit dem
-//  Finger rollen), Stift, Radierer. Mit dem Stift rollt man mit zwei
-//  Fingern. Die Zeichenfläche ist nur so gross wie der sichtbare Teil
+//  Werkzeuge: Schreiben (Start: hintippen und lostippen, Felder und
+//  Bilder antippen zum Bearbeiten, mit dem Finger rollen), Stift,
+//  Radierer. Gezeichnet wird nur mit dem Stift (Wunsch Patrick
+//  7. Oktober 2026); mit dem Stift rollt man mit zwei Fingern. Die Zeichenfläche ist nur so gross wie der sichtbare Teil
 //  und folgt beim Rollen: Ein langes Blatt mit vielen PDF-Seiten wäre
 //  als eine Fläche zu gross für Safari auf dem iPad.
 // =================================================================
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { FettText } from "../teile/FettText.jsx";
-import { rund, strichZeichnen, getroffen, Symbol, RADIERER, ZURUECK, TEXT } from "../teile/zeichnen.jsx";
+import { FettText, alsHtml, stilWert } from "../teile/FettText.jsx";
+import { rund, strichZeichnen, getroffen, Symbol, RADIERER, ZURUECK, TEXT, EIMER } from "../teile/zeichnen.jsx";
 import { seiteLaden, seiteSpeichern, bildEinfuegen, pdfEinfuegen, istPdf, istBild, SEITEN } from "./daten.js";
 
 // Höhe des leeren Blatts (A4 hochkant) und Platz unter dem Inhalt
@@ -35,15 +37,19 @@ const DICKEN = [["duenn", 2.5], ["mittel", 5], ["dick", 11]];
 const SCHRIFTEN = [["klein", "Klein", 16], ["mittel", "Mittel", 22], ["gross", "Gross", 32],
                    ["riesig", "Sehr gross", 46]];
 const schriftPx = (g) => (SCHRIFTEN.find((x) => x[0] === g) || SCHRIFTEN[1])[2];
+const STILE = [["bold", "B", "Fett", { fontWeight: 900 }],
+  ["italic", "I", "Kursiv", { fontStyle: "italic", fontFamily: "Georgia, serif" }],
+  ["underline", "U", "Unterstrichen", { textDecoration: "underline" }],
+  ["strikeThrough", "S", "Durchgestrichen", { textDecoration: "line-through" }]];
 const istText = (s) => !!(s && s.t === 1);
 const istBildEl = (s) => !!(s && s.t === "bild");
 
-const HAND = "M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5v-8a1.5 1.5 0 0 1 3 0V12M14 11.5V5a1.5 1.5 0 0 1 3 0v7M17 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-2a6 6 0 0 1-4.8-2.4L4.6 15a1.5 1.5 0 0 1 2.3-1.9L8 14.5";
+const ZIEHEN = "M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3";
 const STIFT = "M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1zM14.5 6.5l3 3";
 const BILD = "M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15 9.5a1 1 0 1 0 0-.01";
 
 // Was sich die Person zuletzt eingestellt hat, gilt beim nächsten Blatt wieder
-const merk = { werkzeug: "stift", farbe: "#1d2430", dicke: "mittel", schrift: "mittel" };
+const merk = { werkzeug: "text", farbe: "#1d2430", dicke: "mittel", schrift: "mittel" };
 
 // Unterkante eines Elements in Breitenanteilen
 function unterkante(s) {
@@ -74,6 +80,14 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   const [zieh, setZieh] = useState(null);     // Element, das gerade verschoben wird
   const [laeuft, setLaeuft] = useState("");   // Einfügen läuft
   const [kannZurueck, setKannZurueck] = useState(false);
+  const [edit, setEdit] = useState(null);     // Textfeld, in dem gerade geschrieben wird
+  const [hinweis, setHinweis] = useState(false);
+  const editRef = useRef(null);
+  const editorEl = useRef(null);
+  const tipp = useRef(null);
+  const offenBeimTipp = useRef(false);
+  const aendernRef = useRef(null);
+  const textSchliessenRef = useRef(() => {});
   const inhaltRef = useRef([]);
   const titelRef = useRef("");
   const anfang = useRef(null);                // Stand beim Öffnen, für Rückgängig der App
@@ -129,6 +143,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   // Beim Wechseln der Seite oder Schliessen: Wartendes sofort senden und
   // für das Rückgängig der App den Stand von vorher ablegen
   useEffect(() => () => {
+    if (editRef.current) textSchliessenRef.current();
     if (offen.current) { clearTimeout(offen.current); senden(); }
     const a = anfang.current;
     if (a && (a.titel !== titelRef.current || JSON.stringify(a.inhalt) !== JSON.stringify(inhaltRef.current))) {
@@ -143,6 +158,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     setKannZurueck(true);
     inhaltRef.current = liste; setInhalt(liste); speichern();
   };
+  aendernRef.current = aendern;
   const zurueck = useCallback(() => {
     const vorher = verlauf.current.pop();
     setKannZurueck(verlauf.current.length > 0);
@@ -289,45 +305,150 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     aendern([...inhaltRef.current, s]);
   };
 
-  // ---------- Textfelder ----------
-  const textDialog = (wert) => alt.dialogFelder({
-    titel: wert ? "Text bearbeiten" : "Text einfügen",
-    felder: [
-      { name: "text", label: "Text", typ: "textarea", fett: true, durch: true, wert: wert ? wert.h : "",
-        hinweis: wert ? "Text leeren und speichern nimmt das Feld weg." : "Danach mit der Hand verschieben." },
-      { name: "schrift", label: "Schriftgrösse", wert: wert ? wert.g : merk.schrift,
-        auswahl: SCHRIFTEN.map((x) => [x[0], x[1]]) }],
-    bestaetigen: wert ? "Speichern" : "Einfügen" });
-
-  const textNeu = async () => {
-    const t = await textDialog(null);
-    if (!t || !(t.text || "").trim()) return;
-    merk.schrift = t.schrift;
-    // Oben links im sichtbaren Teil, unter Texten, die dort schon stehen
-    const b = wRef.current || 1;
-    const oben = Math.max(0, sichtRef.current.oben - blattOben()) / b;
-    const sichtUnten = oben + sichtRef.current.hoehe / b;
-    let y = oben + 0.04;
-    blatt.current.querySelectorAll("[data-nbtext]").forEach((el) => {
-      const r = el.getBoundingClientRect(), f = blatt.current.getBoundingClientRect();
-      const u = (r.bottom - f.top) / b;
-      if (u > oben && u < sichtUnten - 0.05) y = Math.max(y, u + 0.015);
-    });
-    aendern([...inhaltRef.current, { t: 1, h: t.text.trim(), x: 0.04, y: rund(y), g: t.schrift, f: farbe, p: [] }]);
-  };
-
-  const textBearbeiten = async (i) => {
-    const vorher = inhaltRef.current[i];
-    const t = await textDialog(vorher);
-    if (!t || inhaltRef.current[i] !== vorher) return;
-    const text = (t.text || "").trim();
+  // ---------- Textfelder: direkt auf dem Blatt schreiben ----------
+  // Wie in OneNote (Wunsch Patrick 7. Oktober 2026): Mit dem Werkzeug
+  // „Schreiben“ (Start) tippt man irgendwo aufs Blatt und schreibt dort
+  // los. Ein Textfeld antippen bearbeitet es an Ort und Stelle. Über
+  // dem Feld stehen B, I, U, S, Grösse und Löschen, links der Griff zum
+  // Verschieben, rechts der Griff für die Breite des Felds.
+  // Der Entwurf liegt in editRef, damit Schliessen und Seitenwechsel
+  // ihn auch dann noch speichern, wenn das Feld schon weg ist.
+  const textSchliessen = useCallback(() => {
+    const ed = editRef.current;
+    if (!ed) return;
+    editRef.current = null; setEdit(null);
+    const h = (ed.s.h || "").trim();
     const liste = inhaltRef.current.slice();
-    if (text) liste[i] = { ...vorher, h: text, g: t.schrift };
-    else liste.splice(i, 1);
-    aendern(liste);
+    if (ed.i >= 0) {
+      if (liste[ed.i] !== ed.alt) return;     // inzwischen anders geworden (Rückgängig)
+      const a = ed.alt;
+      if (!h) liste.splice(ed.i, 1);
+      else if (a.h === h && a.g === ed.s.g && a.f === ed.s.f && a.x === ed.s.x && a.y === ed.s.y && a.b === ed.s.b) return;
+      else liste[ed.i] = { ...ed.s, h };
+    } else {
+      if (!h) return;
+      liste.push({ ...ed.s, h });
+    }
+    aendernRef.current(liste);
+  }, []);
+
+  textSchliessenRef.current = textSchliessen;
+
+  const textAnfangen = (i, s, klick) => {
+    textSchliessen();
+    setHinweis(false);
+    const ed = { i, alt: i >= 0 ? inhaltRef.current[i] : null, s: { ...s }, klick, nr: Date.now() };
+    editRef.current = ed; setEdit(ed);
+  };
+  const editSetzen = (aenderung) => {
+    const ed = editRef.current;
+    if (!ed) return;
+    const neu = { ...ed, s: { ...ed.s, ...aenderung } };
+    editRef.current = neu; setEdit(neu);
   };
 
-  // ---------- Verschieben (Hand) ----------
+  // Neues Feld an der Stelle des Tipps: die Zeile sitzt mittig auf dem Finger
+  const textNeuHier = (e) => {
+    const [x, y] = punkt(e);
+    const g = merk.schrift;
+    const zeile = schriftPx(g) * 1.3 / 1000;
+    textAnfangen(-1, { t: 1, h: "", x: rund(Math.max(0, Math.min(0.94, x - 0.004))),
+      y: rund(Math.max(0, y - zeile / 2)), g, f: farbe, p: [] }, null);
+  };
+
+  // Feld mit Inhalt füllen, Fokus und Schreibmarke dorthin, wo getippt wurde
+  useLayoutEffect(() => {
+    const el = editorEl.current;
+    if (!edit || !el) return;
+    el.innerHTML = alsHtml(edit.s.h);
+    try { document.execCommand("styleWithCSS", false, false); } catch (f) { /* egal */ }
+    el.focus({ preventScroll: true });
+    const sel = window.getSelection();
+    let r = null;
+    if (edit.klick && document.caretRangeFromPoint) {
+      r = document.caretRangeFromPoint(edit.klick[0], edit.klick[1]);
+      if (r && !el.contains(r.startContainer)) r = null;
+    }
+    if (!r) { r = document.createRange(); r.selectNodeContents(el); r.collapse(false); }
+    sel.removeAllRanges(); sel.addRange(r);
+  }, [edit && edit.nr]);
+
+  const stilDruecken = (e, befehl) => {
+    e.preventDefault(); e.stopPropagation();
+    const el = editorEl.current;
+    if (!el) return;
+    if (!el.contains(window.getSelection().anchorNode)) el.focus();
+    document.execCommand(befehl, false, null);
+    editSetzen({ h: stilWert(el) });
+  };
+
+  // Tippen daneben schliesst das Feld; Escape auch (vor dem Fenster)
+  useEffect(() => {
+    if (!edit) return;
+    const daneben = (e) => {
+      const t = e.target;
+      if (t.closest && (t.closest(".nb-text--edit") || t.closest(".nb-leiste") || t.closest(".dialog-huelle:not(.nb-huelle)"))) return;
+      offenBeimTipp.current = e;
+      textSchliessen();
+    };
+    const taste = (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault(); e.stopPropagation();
+      textSchliessen();
+    };
+    document.addEventListener("pointerdown", daneben, true);
+    window.addEventListener("keydown", taste, true);
+    return () => { document.removeEventListener("pointerdown", daneben, true); window.removeEventListener("keydown", taste, true); };
+  }, [!!edit, textSchliessen]);
+
+  // Feld verschieben (Griff links) und Breite ändern (Griff rechts)
+  const editZiehen = (e, art) => {
+    e.preventDefault(); e.stopPropagation();
+    const ed = editRef.current;
+    if (!ed) return;
+    const start = { x: e.clientX, y: e.clientY, s: ed.s };
+    const ziel = e.currentTarget;
+    try { ziel.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
+    const b = wRef.current || 1;
+    const bewegt = (ev) => {
+      const dx = (ev.clientX - start.x) / b, dy = (ev.clientY - start.y) / b;
+      if (art === "breite") {
+        const box = editorEl.current ? editorEl.current.parentNode.getBoundingClientRect().width / b : 0.3;
+        const alt0 = start.s.b || box;
+        editSetzen({ b: rund(Math.max(0.05, Math.min(1 - start.s.x, alt0 + dx))) });
+      } else {
+        editSetzen({ x: rund(Math.max(0, Math.min(0.95, start.s.x + dx))), y: rund(Math.max(0, start.s.y + dy)) });
+      }
+    };
+    const fertig = () => {
+      ziel.removeEventListener("pointermove", bewegt);
+      ziel.removeEventListener("pointerup", fertig);
+      ziel.removeEventListener("pointercancel", fertig);
+      if (editorEl.current) editorEl.current.focus({ preventScroll: true });
+    };
+    ziel.addEventListener("pointermove", bewegt);
+    ziel.addEventListener("pointerup", fertig);
+    ziel.addEventListener("pointercancel", fertig);
+  };
+
+  // ---------- Tippen aufs Blatt ----------
+  const blattRunter = (e) => {
+    if (e.target === e.currentTarget) setWahl(-1);
+    tipp.current = { x: e.clientX, y: e.clientY, ziel: e.target, zu: offenBeimTipp.current === e.nativeEvent };
+    offenBeimTipp.current = false;
+  };
+  const blattHoch = (e) => {
+    const t = tipp.current;
+    tipp.current = null;
+    if (!t || !darfZeichnen || werkzeug !== "text" || e.type !== "pointerup") return;
+    if (Math.hypot(e.clientX - t.x, e.clientY - t.y) > 8) return;
+    if (t.ziel !== blatt.current) return;
+    // War ein Feld offen, schliesst der Tipp daneben es nur
+    if (t.zu) return;
+    textNeuHier(e);
+  };
+
+  // ---------- Bilder verschieben, Texte antippen ----------
   // art: "text" | "bild" | "groesse"
   const greifen = (e, i, art) => {
     if (!darfZeichnen || ziehen.current) return;
@@ -335,9 +456,11 @@ export default function Seite({ id, darf, onTitel, huelle }) {
       e.preventDefault(); e.stopPropagation();
       aendern(inhaltRef.current.filter((_, n) => n !== i)); return;
     }
-    if (werkzeug !== "hand") return;
+    if (werkzeug !== "text") return;
     e.stopPropagation();
     const s = inhaltRef.current[i];
+    // Text: antippen bearbeitet; ziehen rollt das Blatt (Finger)
+    if (art === "text") { ziehen.current = { i, s, art: "texttipp", sx: e.clientX, sy: e.clientY }; return; }
     // Ein Bild, das nicht gewählt ist, wird erst gewählt: so lässt sich
     // auf einer Seite voller PDF-Seiten mit dem Finger weiter rollen
     if (art === "bild" && wahl !== i) { ziehen.current = { i, s, art: "waehlen", sx: e.clientX, sy: e.clientY }; return; }
@@ -347,7 +470,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   };
   const ziehBewegen = (e) => {
     const z = ziehen.current;
-    if (!z || z.art === "waehlen" || z.id !== e.pointerId) return;
+    if (!z || z.art === "waehlen" || z.art === "texttipp" || z.id !== e.pointerId) return;
     e.preventDefault();
     const dx = e.clientX - z.sx, dy = e.clientY - z.sy;
     if (!z.weit && Math.hypot(dx, dy) < 6) return;
@@ -367,8 +490,10 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     const z = ziehen.current;
     if (!z) return;
     ziehen.current = null; setZieh(null);
-    if (z.art === "waehlen") {
-      if (e.type === "pointerup" && Math.hypot(e.clientX - z.sx, e.clientY - z.sy) < 8) setWahl(z.i);
+    const getippt = e.type === "pointerup" && Math.hypot(e.clientX - z.sx, e.clientY - z.sy) < 8;
+    if (z.art === "waehlen") { if (getippt) setWahl(z.i); return; }
+    if (z.art === "texttipp") {
+      if (getippt && inhaltRef.current[z.i] === z.s) textAnfangen(z.i, z.s, [e.clientX, e.clientY]);
       return;
     }
     if (inhaltRef.current[z.i] !== z.s) return;
@@ -376,13 +501,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
       const liste = inhaltRef.current.slice();
       liste[z.i] = z.neu;
       aendern(liste);
-    } else if (e.type === "pointerup" && z.art === "text") getippt.current = z.i;
-  };
-  // Bearbeiten erst beim Klick, sonst schliesst der Klick das neue Fenster gleich wieder
-  const textKlick = (i) => {
-    if (getippt.current !== i) return;
-    getippt.current = null;
-    textBearbeiten(i);
+    }
   };
   const bildWeg = (i) => { setWahl(-1); aendern(inhaltRef.current.filter((_, n) => n !== i)); };
 
@@ -462,8 +581,18 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     return () => { document.removeEventListener("keydown", taste); document.removeEventListener("paste", kleben); };
   });
 
-  const werkzeugSetzen = (wz) => { setWerkzeug(wz); merk.werkzeug = wz; setWahl(-1); };
-  const farbeSetzen = (f) => { setFarbe(f); merk.farbe = f; if (werkzeug !== "stift") werkzeugSetzen("stift"); };
+  const werkzeugSetzen = (wz) => {
+    if (wz !== "text") textSchliessen();
+    setWerkzeug(wz); merk.werkzeug = wz; setWahl(-1); setHinweis(false);
+  };
+  // Knopf T: Hinweis zeigen, dann kommt das Feld dorthin, wo man tippt
+  const textKnopf = () => { textSchliessen(); werkzeugSetzen("text"); setHinweis(true); };
+  // Farbe gilt für das offene Textfeld, neue Texte und den Stift
+  const farbeSetzen = (f) => {
+    setFarbe(f); merk.farbe = f;
+    if (editRef.current) { editSetzen({ f }); return; }
+    if (werkzeug === "radierer") werkzeugSetzen("stift");
+  };
   const dickeWechseln = () => {
     const i = DICKEN.findIndex((d) => d[0] === dicke);
     const d = DICKEN[(i + 1) % DICKEN.length][0];
@@ -474,6 +603,9 @@ export default function Seite({ id, darf, onTitel, huelle }) {
 
   if (inhalt === null) return <div className="nb-seite"><p className="nb-leer">Wird geladen …</p></div>;
 
+  // Lage, Farbe, Grösse und Breite eines Textfelds auf dem Blatt
+  const textStil = (s) => ({ left: s.x * w, top: s.y * w, color: s.f, fontSize: schriftPx(s.g) * w / 1000,
+    width: s.b ? s.b * w : undefined, maxWidth: s.b ? undefined : Math.max(80, (1 - s.x) * w - 6) });
   const hoehe = seitenHoehe(zieh ? inhalt.map((s, i) => (i === zieh.i ? zieh.s : s)) : inhalt);
   const ansicht = (s, i) => (zieh && zieh.i === i ? zieh.s : s);
   const knopf = (wz, d, name) => (
@@ -485,8 +617,10 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     <div className={"nb-seite nb-seite--" + werkzeug}>
       {darf &&
         <div className="nb-leiste" role="toolbar" aria-label="Werkzeuge">
-          {knopf("hand", HAND, "Hand: verschieben, antippen zum Bearbeiten, rollen")}
-          {knopf("stift", STIFT, "Stift")}
+          <button type="button" className={"nb-knopf" + (werkzeug === "text" ? " aktiv" : "")} data-nbwerkzeug="text"
+            data-nb="text" aria-label="Schreiben: Textfeld setzen" title="Schreiben: dort hintippen, wo der Text hin soll"
+            aria-pressed={werkzeug === "text"} onClick={textKnopf}><Symbol d={TEXT} /></button>
+          {knopf("stift", STIFT, "Stift: zeichnen")}
           <label className="nb-farbe" style={{ "--f": farbe }} aria-label="Farbe wählen" title="Farbe wählen">
             <input type="color" value={farbe} data-nbfarbe=""
               onChange={(e) => farbeSetzen(e.target.value.toLowerCase())} />
@@ -496,8 +630,6 @@ export default function Seite({ id, darf, onTitel, huelle }) {
             <i style={{ width: 3 + dickePx * 1.3, height: 3 + dickePx * 1.3, background: farbe }} /></button>
           {knopf("radierer", RADIERER, "Radierer")}
           <span className="nb-trenner" />
-          <button type="button" className="nb-knopf" data-nb="text" aria-label="Text einfügen" title="Text einfügen"
-            onClick={textNeu}><Symbol d={TEXT} /></button>
           <button type="button" className="nb-knopf" data-nb="einfuegen" aria-label="Bild oder PDF einfügen"
             title="Bild oder PDF einfügen" disabled={!!laeuft} onClick={() => datei.current.click()}>
             <Symbol d={BILD} /></button>
@@ -508,6 +640,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
             title="Rückgängig (Strg + Z)" disabled={!kannZurueck} onClick={zurueck}><Symbol d={ZURUECK} /></button>
           {laeuft && <span className="nb-laeuft" role="status">{laeuft}</span>}
         </div>}
+      {hinweis && <div className="nb-tipp" role="status" data-nbtipp="">Tippe dort hin, wo das Textfeld hin soll.</div>}
       <div className="nb-rolle" ref={rolle} onDragOver={(e) => { if (darfZeichnen) e.preventDefault(); }}
         onDrop={fallen} onPointerDown={(e) => { if (e.target === e.currentTarget) setWahl(-1); }}>
         <input className="nb-titel" value={titel} placeholder="Titel der Seite" readOnly={!darf}
@@ -515,7 +648,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
           onChange={(e) => titelAendern(e.target.value)} />
         <div className="nb-blatt" ref={blatt} data-nbblatt=""
           style={{ width: w, height: Math.round(hoehe * w) }}
-          onPointerDown={(e) => { if (e.target === e.currentTarget) setWahl(-1); }}>
+          onPointerDown={blattRunter} onPointerUp={blattHoch} onPointerCancel={blattHoch}>
           {w > 0 && inhalt.map((s0, i) => {
             if (!istBildEl(s0)) return null;
             const s = ansicht(s0, i);
@@ -542,19 +675,47 @@ export default function Seite({ id, darf, onTitel, huelle }) {
             onPointerDown={runter} onPointerMove={bewegen} onPointerUp={hoch} onPointerCancel={hoch}
             onLostPointerCapture={hoch} />
           {w > 0 && inhalt.map((s0, i) => {
-            if (!istText(s0)) return null;
+            if (!istText(s0) || (edit && edit.i === i)) return null;
             const s = ansicht(s0, i);
             return (
               <div key={"t" + i} className="nb-text" data-nbtext={i}
-                style={{ left: s.x * w, top: s.y * w, color: s.f, fontSize: schriftPx(s.g) * w / 1000,
-                         maxWidth: Math.max(80, (1 - s.x) * w - 6) }}
-                onPointerDown={(e) => greifen(e, i, "text")} onPointerMove={ziehBewegen}
-                onPointerUp={loslassen} onPointerCancel={loslassen} onClick={() => textKlick(i)}>
+                style={textStil(s)}
+                onPointerDown={(e) => greifen(e, i, "text")}
+                onPointerUp={loslassen} onPointerCancel={loslassen}>
                 <FettText text={s.h} /></div>);
           })}
-          {!inhalt.length && darf &&
-            <span className="nb-hinweis">Hier zeichnen oder schreiben. Bilder und PDFs mit dem Bild-Knopf
-              einfügen oder hierher ziehen.</span>}
+          {edit && w > 0 &&
+            <div className="nb-text nb-text--edit" style={{ ...textStil(edit.s), minWidth: 60 }}
+              data-nbedit="">
+              <div className={"nb-textleiste" + (edit.s.y * w < 52 ? " nb-textleiste--unten" : "")}
+                role="toolbar" aria-label="Schrift">
+                <span className="nb-textleiste__griff" data-nbtextziehen="" title="Verschieben"
+                  aria-label="Verschieben" onPointerDown={(e) => editZiehen(e, "lage")}><Symbol d={ZIEHEN} /></span>
+                {STILE.map(([befehl, zeichen, name, stil]) => (
+                  <button key={befehl} type="button" className="nb-textleiste__knopf" data-stil={befehl}
+                    aria-label={name} title={name} onPointerDown={(e) => stilDruecken(e, befehl)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={(e) => { if (e.detail === 0) stilDruecken(e, befehl); }}>
+                    <span style={stil}>{zeichen}</span></button>))}
+                <select value={edit.s.g} data-nbschrift="" aria-label="Schriftgrösse"
+                  onChange={(e) => { merk.schrift = e.target.value; editSetzen({ g: e.target.value });
+                    requestAnimationFrame(() => editorEl.current && editorEl.current.focus({ preventScroll: true })); }}>
+                  {SCHRIFTEN.map(([g, name]) => <option key={g} value={g}>{name}</option>)}
+                </select>
+                <button type="button" className="nb-textleiste__knopf nb-textleiste__weg" data-nbtextweg=""
+                  aria-label="Textfeld löschen" title="Textfeld löschen"
+                  onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); editSetzen({ h: "" }); textSchliessen(); }}>
+                  <Symbol d={EIMER} /></button>
+              </div>
+              <div ref={editorEl} className="nb-text__feld" contentEditable suppressContentEditableWarning
+                role="textbox" aria-multiline="true" data-nbfeld=""
+                onInput={(e) => editSetzen({ h: stilWert(e.currentTarget) })} />
+              <span className="nb-text__breite" data-nbbreite="" title="Breite ändern" aria-label="Breite ändern"
+                onPointerDown={(e) => editZiehen(e, "breite")} />
+            </div>}
+          {!inhalt.length && darf && !edit && !hinweis &&
+            <span className="nb-hinweis">Irgendwo hintippen und schreiben. Zum Zeichnen den Stift wählen.
+              Bilder und PDFs mit dem Bild-Knopf einfügen oder hierher ziehen.</span>}
         </div>
       </div>
     </div>

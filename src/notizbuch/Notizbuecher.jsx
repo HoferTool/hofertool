@@ -11,7 +11,7 @@
 //  und Seiten lassen sich mit Rückgängig zurücknehmen, ebenso alles,
 //  was auf einer Seite geändert wurde (als ein Schritt je Besuch).
 // =================================================================
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { Symbol, EIMER } from "../teile/zeichnen.jsx";
@@ -36,8 +36,43 @@ export function notizbuecherOeffnen() {
 
 const seitenName = (s) => (s.titel || "").trim() || "Ohne Titel";
 
+// Breite der Spalten Bücher und Seiten: mit dem Strich dazwischen
+// ziehen, je Person gemerkt (Wunsch Patrick 7. Oktober 2026)
+const SPALTEN = "notizbuch_spalten";
+const SPALTE_MIN = 120, SPALTE_MAX = 480;
+function spaltenLesen() {
+  const t = String((alt.einstellungWert && alt.einstellungWert(SPALTEN, "")) || "").split(",").map(Number);
+  const gut = (n) => (n >= SPALTE_MIN && n <= SPALTE_MAX ? n : 220);
+  return [gut(t[0]), gut(t[1])];
+}
+
 function Notizbuecher({ zu, huelle }) {
   const darf = !(alt.istExtern && alt.istExtern());
+  const [spalten, setSpalten] = useState(spaltenLesen);
+  const spaltenRef = useRef(spalten);
+  spaltenRef.current = spalten;
+  const spalteZiehen = (e, nr) => {
+    e.preventDefault();
+    const ziel = e.currentTarget;
+    try { ziel.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
+    const start = e.clientX, breite = spaltenRef.current[nr];
+    ziel.classList.add("aktiv");
+    const bewegt = (ev) => {
+      const neu = spaltenRef.current.slice();
+      neu[nr] = Math.round(Math.max(SPALTE_MIN, Math.min(SPALTE_MAX, breite + ev.clientX - start)));
+      setSpalten(neu);
+    };
+    const fertig = () => {
+      ziel.classList.remove("aktiv");
+      ziel.removeEventListener("pointermove", bewegt);
+      ziel.removeEventListener("pointerup", fertig);
+      ziel.removeEventListener("pointercancel", fertig);
+      alt.einstellungSetzenWert(SPALTEN, spaltenRef.current.join(","));
+    };
+    ziel.addEventListener("pointermove", bewegt);
+    ziel.addEventListener("pointerup", fertig);
+    ziel.addEventListener("pointercancel", fertig);
+  };
   const [buecher, setBuecher] = useState(null);
   const [fehlt, setFehlt] = useState(false);
   const [buchId, setBuchId] = useState(() => gemerkt().buch || null);
@@ -82,8 +117,9 @@ function Notizbuecher({ zu, huelle }) {
     titel: b ? "Notizbuch bearbeiten" : "Neues Notizbuch",
     felder: [
       { name: "name", label: "Name", wert: b ? b.name : "", pflicht: true, platzhalter: "z. B. Besprechungen" },
-      { name: "farbe", label: "Farbe", wert: b ? b.farbe : BUCHFARBEN[(buecher || []).length % BUCHFARBEN.length][0],
-        auswahl: BUCHFARBEN }],
+      // Farbwähler des Geräts mit Pipette statt einer Liste (Wunsch Patrick 7. Oktober 2026)
+      { name: "farbe", label: "Farbe", typ: "color",
+        wert: b ? b.farbe : BUCHFARBEN[(buecher || []).length % BUCHFARBEN.length][0] }],
     bestaetigen: b ? "Speichern" : "Anlegen" });
 
   const buchNeu = async () => {
@@ -188,7 +224,7 @@ function Notizbuecher({ zu, huelle }) {
         <h2>{buch ? buch.name : "Notizbücher"}</h2>
         <button type="button" className="nb-zu" aria-label="Schliessen" title="Schliessen (Escape)" onClick={zu}>×</button>
       </div>
-      <div className="nb-koerper">
+      <div className="nb-koerper" style={{ "--nb-b": spalten[0] + "px", "--nb-s": spalten[1] + "px" }}>
         <nav className="nb-buecher" aria-label="Notizbücher">
           <div className="nb-spaltenkopf">Bücher
             {darf && !fehlt && <button type="button" className="nb-plus" data-nb="buch-neu" aria-label="Neues Notizbuch"
@@ -208,6 +244,8 @@ function Notizbuecher({ zu, huelle }) {
                 </>}
               </div>))}
           </div>
+          <span className="nb-teiler" data-nbteiler="0" role="separator" aria-orientation="vertical"
+            aria-label="Breite der Bücher" title="Breite ziehen" onPointerDown={(e) => spalteZiehen(e, 0)} />
         </nav>
         <nav className="nb-seiten" aria-label="Seiten">
           <div className="nb-spaltenkopf">Seiten
@@ -223,6 +261,8 @@ function Notizbuecher({ zu, huelle }) {
                     data-nbseiteweg="" onClick={() => seiteLoeschen(s)}><Symbol d={EIMER} /></button>}
               </div>))}
           </div>
+          <span className="nb-teiler" data-nbteiler="1" role="separator" aria-orientation="vertical"
+            aria-label="Breite der Seiten" title="Breite ziehen" onPointerDown={(e) => spalteZiehen(e, 1)} />
         </nav>
         <main className="nb-haupt">{haupt}</main>
       </div>

@@ -50,8 +50,8 @@ const TEXTBLATT = 1000;
 const SCHRIFTEN = [["klein", "Klein", 14], ["mittel", "Mittel", 20], ["gross", "Gross", 30],
                    ["riesig", "Sehr gross", 44]];
 const schriftPx = (g) => (SCHRIFTEN.find((x) => x[0] === g) || SCHRIFTEN[1])[2];
-// Ein Textfeld: { t: 1, h: Text (mit <b>, <i>, <u>, <br>), x, y, g: Grösse,
-// f: "#hex", p: [] }. Das leere p lässt ältere Fassungen der App, die
+// Ein Textfeld: { t: 1, h: Text (mit <b>, <i>, <u>, <s>, <br>), x, y, g: Grösse,
+// f: "#hex", b: Breite (fehlt = so breit wie der Text), p: [] }. Das leere p lässt ältere Fassungen der App, die
 // noch auf einem Pad offen sind, das Feld einfach übergehen.
 const istText = (s) => !!(s && s.t);
 
@@ -78,6 +78,7 @@ export default function Skizze({ j }) {
   const [gross, setGross] = useState(false);
   const [masse, setMasse] = useState({ w: 0, k: 1 });
   const [zieh, setZieh] = useState(null); // Textfeld, das gerade verschoben wird
+  const [breiteZieh, setBreiteZieh] = useState(null); // Textfeld, dessen Breite gerade gezogen wird
   const verlauf = useRef([]);        // frühere Fassungen für Rückgängig
   const ziehen = useRef(null);
   const getippt = useRef(null);
@@ -399,6 +400,37 @@ export default function Skizze({ j }) {
     getippt.current = null;
     textBearbeiten(i);
   };
+  // Breite eines Textfelds mit dem Griff rechts ziehen (Wunsch Patrick
+  // 7. Oktober 2026: „Grösse vom Feld anpassen“). Gespeichert als b in
+  // Breitenanteilen wie x; ohne b ist das Feld so breit wie sein Text.
+  const breiteRunter = (e, i) => {
+    if (!darf || zeiger.current !== null) return;
+    e.preventDefault(); e.stopPropagation();
+    const ziel = e.currentTarget, s0 = strichRef.current[i];
+    try { ziel.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
+    const cv = leinwand.current.getBoundingClientRect();
+    const einheit = (cv.width || 1) * massstab.current;
+    const start = e.clientX, b0 = ziel.parentNode.getBoundingClientRect().width / einheit;
+    let b = b0;
+    const bewegt = (ev) => {
+      b = rund(Math.max(0.08, Math.min(1 / massstab.current - s0.x, b0 + (ev.clientX - start) / einheit)));
+      setBreiteZieh({ i, b });
+    };
+    const fertig = () => {
+      ziel.removeEventListener("pointermove", bewegt);
+      ziel.removeEventListener("pointerup", fertig);
+      ziel.removeEventListener("pointercancel", fertig);
+      setBreiteZieh(null);
+      if (strichRef.current[i] !== s0 || Math.abs(b - b0) < 0.005) return;
+      const liste = strichRef.current.slice();
+      liste[i] = { ...s0, b };
+      aendern(liste);
+    };
+    ziel.addEventListener("pointermove", bewegt);
+    ziel.addEventListener("pointerup", fertig);
+    ziel.addEventListener("pointercancel", fertig);
+  };
+
   const loeschen = async () => {
     if (!striche.length) return;
     const ok = await alt.nachfragen({ titel: "Skizze löschen?",
@@ -435,15 +467,20 @@ export default function Skizze({ j }) {
         const pos = zieh && zieh.i === i ? zieh : s;
         const e = TEXTBLATT * masse.k;
         const links = pos.x * e;
+        const b = breiteZieh && breiteZieh.i === i ? breiteZieh.b : s.b;
         return (
           <div key={"t" + i} className={"pad-skizze__text" + (darf ? " pad-skizze__text--darf" : "")
             + (zieh && zieh.i === i ? " pad-skizze__text--zieht" : "")}
             data-skizzetext={i}
             style={{ left: links, top: pos.y * e, color: s.f,
-                     fontSize: schriftPx(s.g) / 400 * e, maxWidth: Math.max(120, TEXTBLATT - links - 8) }}
+                     fontSize: schriftPx(s.g) / 400 * e,
+                     width: b ? b * e : undefined, maxWidth: b ? undefined : Math.max(120, TEXTBLATT - links - 8) }}
             onPointerDown={(ev) => textRunter(ev, i)} onPointerMove={textBewegen}
             onPointerUp={textHoch} onPointerCancel={textHoch} onClick={() => textKlick(i)}>
-            <FettText text={s.h} /></div>
+            <FettText text={s.h} />
+            {darf && <span className="pad-skizze__breite" data-skizzebreite={i} aria-label="Breite ändern"
+              title="Breite ändern" onPointerDown={(ev) => breiteRunter(ev, i)} onClick={(ev) => ev.stopPropagation()} />}
+            </div>
         );
       })}
       </div>}

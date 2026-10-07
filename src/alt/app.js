@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.80.0";
+const APP_VERSION = "111.81.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8904,7 +8904,7 @@ Object.assign(alt, {
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, ablageLoeschen,
-  sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert,
+  sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert, einstellungWert,
   meineRolle, zeichneSeite,
   masseBerechnen, isMobil, zuHeute, hocoFenster, sucheDialog, serverStempel,
   stammdatenAufPlanwand, zeichnungAnheften, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,

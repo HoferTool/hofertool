@@ -7,6 +7,8 @@
 import { alt, useDaten } from "../../bruecke.jsx";
 import { notizbuecherOeffnen, BUCH } from "../../notizbuch/Notizbuecher.jsx";
 import { Symbol } from "../../teile/zeichnen.jsx";
+
+const PLUS = "M12 5v14M5 12h14";
 import { materialBestellungLesen, materialAusNotizEntfernen } from "../../daten/materialBestellung.js";
 
 export default function Notizen({ auffrischen }) {
@@ -25,8 +27,10 @@ export default function Notizen({ auffrischen }) {
       <section className="karte">
         <div className="karte__kopf"><h2>Notizen</h2>
           <div className="notiz-kopfrechts">
+            {/* Nur ein Plus statt „+ Neue Notiz“ (Wunsch Patrick 7. Oktober 2026) */}
             {alt.darfSchreiben() &&
-              <button className="linkknopf" id="notiz-neu" onClick={() => neueNotiz(neu)}>+ Neue Notiz</button>}
+              <button type="button" className="notizbuch-knopf" id="notiz-neu" aria-label="Neue Notiz"
+                title="Neue Notiz" onClick={() => neueNotiz(neu)}><Symbol d={PLUS} /></button>}
             {/* Notizbücher: nur ein Buch als Zeichen (Wunsch Patrick 7. Oktober 2026) */}
             {!alt.istExtern() &&
               <button type="button" className="notizbuch-knopf" id="notizbuch-knopf" aria-label="Notizbücher"
