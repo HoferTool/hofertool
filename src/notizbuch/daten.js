@@ -28,7 +28,8 @@ async function antwort(abfrage, was) {
 }
 
 export const buecherLaden = () => antwort(alt.db.from(BUECHER)
-  .select("id, name, farbe, reihenfolge, erstellt_am")
+  // Alle Spalten: gesperrt gibt es erst mit sql/notizbuch-passwort.sql
+  .select("*")
   .order("reihenfolge", { ascending: true }).order("erstellt_am", { ascending: true }), "Notizbücher");
 
 export const seitenLaden = (buchId) => antwort(alt.db.from(SEITEN)
@@ -37,6 +38,37 @@ export const seitenLaden = (buchId) => antwort(alt.db.from(SEITEN)
 
 export const seiteLaden = (id) => antwort(alt.db.from(SEITEN)
   .select("id, titel, inhalt").eq("id", id).maybeSingle(), "Seite");
+
+// ---------- Passwort (sql/notizbuch-passwort.sql) ----------
+// Die Datenbank prüft das Passwort und gibt die Seiten erst danach
+// heraus; die App merkt sich nur, welche Bücher gerade offen sind.
+export function fehltFunktion(e) {
+  const t = String((e && (e.message || e.code)) || "");
+  return /PGRST202|42883|notizbuch_(oeffnen|passwort|zu)|could not find the function/i.test(t);
+}
+async function rpc(name, werte) {
+  const r = await alt.zeitlimit(alt.db.rpc(name, werte), 10000, "Notizbuch");
+  if (r && r.error) throw r.error;
+  return r ? r.data : null;
+}
+export const buchOeffnen = (id, passwort) => rpc("notizbuch_oeffnen", { p_buch: id, p_passwort: passwort });
+export const passwortSetzen = (id, alt0, neu) => rpc("notizbuch_passwort", { p_buch: id, p_alt: alt0, p_neu: neu });
+// Alle offenen Bücher wieder zu, wenn das Fenster zugeht
+export function buecherZu() {
+  try {
+    Promise.resolve(alt.db.rpc("notizbuch_zu", { p_buch: null })).catch(() => { /* ohne SQL: egal */ });
+  } catch (f) { /* egal */ }
+}
+// Antwort der Datenbank als Satz für die Person
+export function passwortText(r) {
+  const s = String(r || "");
+  if (s === "falsch") return "Falsches Passwort.";
+  if (s === "kurz") return "Das Passwort braucht mindestens 4 Zeichen.";
+  if (s === "fehlt") return "Das Notizbuch gibt es nicht mehr.";
+  const m = /^warten:(\d+)/.exec(s);
+  if (m) return "Zu viele falsche Versuche. Bitte " + m[1] + (m[1] === "1" ? " Minute" : " Minuten") + " warten.";
+  return "";
+}
 
 export async function seiteSpeichern(id, daten) {
   return antwort(alt.db.from(SEITEN)

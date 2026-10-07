@@ -50,9 +50,20 @@ drop policy if exists "notizbuecher alle" on public.notizbuecher;
 create policy "notizbuecher alle" on public.notizbuecher
   for all to authenticated using (not public.ist_extern()) with check (not public.ist_extern());
 
+-- Ist sql/notizbuch-passwort.sql schon ausgeführt, bleibt dessen Sperre
+-- erhalten (sonst würde ein zweites Ausführen dieser Datei sie aufheben)
 drop policy if exists "notizbuch seiten alle" on public.notizbuch_seiten;
-create policy "notizbuch seiten alle" on public.notizbuch_seiten
-  for all to authenticated using (not public.ist_extern()) with check (not public.ist_extern());
+do $$
+begin
+  if to_regprocedure('public.notizbuch_frei(uuid)') is not null then
+    execute 'create policy "notizbuch seiten alle" on public.notizbuch_seiten for all to authenticated '
+         || 'using (not public.ist_extern() and public.notizbuch_frei(buch_id)) '
+         || 'with check (not public.ist_extern() and public.notizbuch_frei(buch_id))';
+  else
+    execute 'create policy "notizbuch seiten alle" on public.notizbuch_seiten for all to authenticated '
+         || 'using (not public.ist_extern()) with check (not public.ist_extern())';
+  end if;
+end $$;
 
 grant select, insert, update, delete on public.notizbuecher to authenticated;
 grant select, insert, update, delete on public.notizbuch_seiten to authenticated;

@@ -6220,3 +6220,59 @@ body.dunkel .nb-text * { color: inherit; }
   border-radius: 7px; background: rgba(127, 192, 255, .75); cursor: ew-resize; touch-action: none; }
 .pad-skizze__breite::before { content: ""; position: absolute; inset: -10px -8px; }
 .dialog input[type=color] { width: 72px; height: 42px; padding: 3px; cursor: pointer; }
+
+/* Notizbücher, 111.82.0: verkleinert als schwebendes Feld über der App.
+   Kopf zum Verschieben, Ränder und Ecken zum Ziehen der Grösse. Liegt
+   über dem Pad (70), unter den Fenstern (80). */
+.nb-schwebend { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 75; }
+.nb-schwebend .dialog.nb { position: fixed; max-width: none; max-height: none; margin: 0;
+  border-radius: 12px; border: 1px solid var(--linie-stark);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .28), 0 2px 8px rgba(0, 0, 0, .14); }
+.nb--klein .nb-kopf { cursor: move; touch-action: none; user-select: none; -webkit-user-select: none;
+  padding: 6px 8px 6px 12px; }
+.nb--klein .nb-kopf h2 { font-size: 1rem; }
+.nb--klein .nb-zu { width: 34px; height: 34px; cursor: pointer; }
+.nb-zu--klein { display: grid; place-items: center; font-size: 1rem; }
+.nb-schwebend--zieht, .nb-schwebend--zieht * { user-select: none !important; -webkit-user-select: none !important; }
+.nb-schwebend--zieht .nb-rolle { pointer-events: none; }
+.nb-rand { position: absolute; z-index: 8; touch-action: none; }
+.nb-rand--n, .nb-rand--s { left: 14px; right: 14px; height: 10px; cursor: ns-resize; }
+.nb-rand--n { top: -5px; } .nb-rand--s { bottom: -5px; }
+.nb-rand--e, .nb-rand--w { top: 14px; bottom: 14px; width: 10px; cursor: ew-resize; }
+.nb-rand--e { right: -5px; } .nb-rand--w { left: -5px; }
+.nb-rand--ne, .nb-rand--nw, .nb-rand--se, .nb-rand--sw { width: 22px; height: 22px; }
+.nb-rand--ne { top: -6px; right: -6px; cursor: nesw-resize; }
+.nb-rand--sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.nb-rand--nw { top: -6px; left: -6px; cursor: nwse-resize; }
+.nb-rand--se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+/* Sichtbarer Griff unten rechts, damit man das Ziehen findet */
+.nb-rand--se::after { content: ""; position: absolute; right: 9px; bottom: 9px; width: 10px; height: 10px;
+  border-right: 2px solid var(--gedaempft); border-bottom: 2px solid var(--gedaempft); border-radius: 0 0 3px 0; }
+/* Schmales kleines Fenster: Bücher und Seiten als Leisten oben, wie auf dem Handy */
+.nb--schmal .nb-koerper { display: flex; flex-direction: column; }
+.nb--schmal .nb-buecher, .nb--schmal .nb-seiten { border-right: 0; border-bottom: 1px solid var(--linie);
+  flex-direction: row; align-items: center; flex: none; }
+.nb--schmal .nb-teiler { display: none; }
+.nb--schmal .nb-spaltenkopf { padding: 4px 4px 4px 8px; gap: 6px; font-size: 0; }
+.nb--schmal .nb-spaltenkopf .nb-plus { font-size: 1rem; }
+.nb--schmal .nb-liste { display: flex; overflow-x: auto; overflow-y: hidden; padding: 4px; gap: 4px; flex: 1 1 auto; }
+.nb--schmal .nb-eintrag { margin: 0; flex: none; max-width: 70%; }
+.nb--schmal .nb-eintrag__name { padding: 6px 8px; }
+.nb--schmal .nb-rolle { padding: 10px 8px 30px; }
+.nb--schmal .nb-titel { font-size: 1.2rem; }
+.nb--schmal .nb-leiste { padding: 6px 8px; }
+
+/* Notizbuch mit Passwort */
+.nb-eintrag__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.nb-schlosschen { display: grid; flex: none; margin-left: auto; color: var(--gedaempft); }
+.nb-schlosschen svg { width: 15px; height: 15px; }
+.nb-schlosschen.offen { color: var(--gut, #2e7d32); opacity: .8; }
+.nb-schloss { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.nb-schloss p { margin: 0; }
+.nb-schloss__zeichen { color: var(--buch); display: grid; margin-bottom: 6px; }
+.nb-schloss__zeichen svg { width: 44px; height: 44px; }
+body.dunkel .nb-schloss__zeichen, body.dunkel .nb-schloss__zeichen * { color: var(--buch); }
+.nb-schloss__feld { margin-top: 10px; width: min(280px, 100%); font: inherit; font-size: 1.05rem;
+  padding: 10px 12px; border: 1px solid var(--linie-stark); border-radius: 10px; background: var(--flaeche);
+  color: var(--tinte); text-align: center; }
+.nb-schloss__fehler { color: var(--gefahr) !important; font-weight: 600; }

@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.81.0";
+const APP_VERSION = "111.82.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -530,8 +530,9 @@ function istTextfeld(el) {
 document.addEventListener("keydown", (e) => {
   if (!((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z")) return;
   if (istTextfeld(e.target)) return;
-  // Offenes Fenster: dort gibt es nichts zurückzunehmen
-  if (document.querySelector(".dialog-huelle")) return;
+  // Offenes Fenster: dort gibt es nichts zurückzunehmen. Im kleinen
+  // Notizbuch nimmt die Seite selbst zurück, wenn man zuletzt dort war.
+  if (document.querySelector(".dialog-huelle, .nb-schwebend[data-aktiv='1']")) return;
   e.preventDefault();
   schrittZurueck();
 });
@@ -5071,7 +5072,7 @@ document.addEventListener("keydown", (e) => {
   // am Zeitraum soll H trotzdem gehen (Wunsch 4. Oktober 2026)
   const a = document.activeElement;
   if (a && (istTextfeld(a) || a.tagName === "SELECT")) return;
-  if (document.querySelector(".dialog-huelle, #pad")) return;
+  if (document.querySelector(".dialog-huelle, #pad, .nb-schwebend[data-aktiv='1']")) return;
   const knopf = document.getElementById("pw-heute");
   if (!knopf) return;
   e.preventDefault();
@@ -9355,7 +9356,9 @@ function zeichneGeruest() {
     if (typeof padSchliessen === "function") padSchliessen();
     await abmelden();
     profil = null;
-    document.querySelectorAll(".dialog-huelle").forEach((el) => el.remove());
+    // Auch das kleine Notizbuch geht beim Abmelden zu
+    document.querySelectorAll(".dialog-huelle, .nb-schwebend [data-zu]").forEach((el) =>
+      (el.classList.contains("dialog-huelle") ? el.remove() : el.click()));
     ["werkzeugleiste"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.remove();

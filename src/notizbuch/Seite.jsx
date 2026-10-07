@@ -562,6 +562,11 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   // Strg + V fügt ein kopiertes Bild ein
   useEffect(() => {
     const oben = () => {
+      // Kleines Notizbuch: nur wenn man zuletzt hineingetippt hat und
+      // kein anderes Fenster darüber offen ist
+      if (huelle && huelle.classList.contains("nb-schwebend")) {
+        return huelle.dataset.aktiv === "1" && !document.querySelector(".dialog-huelle");
+      }
       const alle = document.querySelectorAll(".dialog-huelle");
       return alle[alle.length - 1] === huelle;
     };
