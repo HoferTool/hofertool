@@ -12,6 +12,7 @@
 import { useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Gruppe, Zeile, SchalterZeile } from "./teile.jsx";
+import { notizbuecherVerwalten } from "./Notizbuecher.jsx";
 
 const kannOrdner = typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
 const artVon = (a) => alt.DOK_ARTEN[a] || alt.DOK_ARTEN.sonstiges;
@@ -140,6 +141,11 @@ export default function Dokumente() {
 
   return (
     <>
+      {/* Ganz oben: Passwörter der Notizbücher, nur für Admins
+          (Wunsch Patrick 7. Oktober 2026) */}
+      {alt.istAdmin() && <Gruppe titel="Notizbücher" id="nb-balken"
+        text="Passwort eines Notizbuchs neu setzen oder die Sperre aufheben, ohne das alte zu kennen."
+        aktionen={<button className="knopf knopf--klein" id="nb-verwalten" onClick={notizbuecherVerwalten}>Bearbeiten</button>} />}
       <Gruppe titel="Ordner abgleichen"
         text={kannOrdner
           ? "Die App ordnet jede Datei nach ihrem Namen zu und zeigt die Zuordnung, bevor etwas hochgeladen wird."

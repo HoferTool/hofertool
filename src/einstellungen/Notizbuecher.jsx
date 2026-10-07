@@ -1,5 +1,7 @@
 // =================================================================
 //  EINSTELLUNGEN · Notizbücher (nur Admins)
+//  Unter Dokumente ganz oben ein Balken mit „Bearbeiten“; der Knopf
+//  öffnet dieses Fenster (Wunsch Patrick 7. Oktober 2026).
 //  Ein gesperrtes Notizbuch ist auch für Admins zu. Hat jemand sein
 //  Passwort vergessen, setzt ein Admin hier ein neues, ohne das alte
 //  zu kennen, oder hebt die Sperre ganz auf (Wunsch Patrick
@@ -8,12 +10,16 @@
 // =================================================================
 import { useCallback, useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { Gruppe } from "./teile.jsx";
+import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { buecherLaden, passwortAdmin, passwortText, fehltFunktion, fehltTabelle } from "../notizbuch/daten.js";
 
 const SQL_FEHLT = "Das geht, sobald die Datei notizbuch-passwort.sql in Supabase ausgeführt ist.";
 
-export default function Notizbuecher() {
+export function notizbuecherVerwalten() {
+  fensterOeffnen((zu) => <Notizbuecher zu={zu} />);
+}
+
+function Notizbuecher({ zu }) {
   const [buecher, setBuecher] = useState(null);
   const [fehlt, setFehlt] = useState("");
 
@@ -59,8 +65,13 @@ export default function Notizbuecher() {
   };
 
   return (
-    <Gruppe titel="Notizbücher mit Passwort"
-      text="Ein gesperrtes Notizbuch ist auch für Admins zu. Hat jemand das Passwort vergessen, setzt du hier ein neues, ohne das alte zu kennen, oder hebst die Sperre auf.">
+    <div className="dialog dialog--nbverwalten" role="dialog" aria-label="Notizbücher">
+      <div className="es-nbkopf">
+        <h2>Notizbücher</h2>
+        <button type="button" className="dialog__schliessen-inline" title="Schliessen" data-zu="" onClick={zu}>✕</button>
+      </div>
+      <p className="es-zeile__hinweis">Ein gesperrtes Notizbuch ist auch für Admins zu. Hat jemand das Passwort
+        vergessen, setzt du hier ein neues, ohne das alte zu kennen, oder hebst die Sperre auf.</p>
       {fehlt && <p className="es-zeile__hinweis">{fehlt}</p>}
       {buecher === null && <p className="es-zeile__hinweis">Wird geladen …</p>}
       {buecher && !buecher.length && !fehlt && <p className="es-zeile__hinweis">Noch kein Notizbuch.</p>}
@@ -79,6 +90,6 @@ export default function Notizbuecher() {
               </span>
             </li>))}
         </ul>}
-    </Gruppe>
+    </div>
   );
 }

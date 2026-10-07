@@ -6360,3 +6360,8 @@ body.dunkel .nb-blatt .nb-textleiste select { background: #fff !important; borde
 .es-nb__stand { font-size: .85rem; color: var(--gedaempft); min-width: 70px; }
 .es-nb__stand.zu { color: var(--gefahr); font-weight: 600; }
 .es-nb__knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Fenster Notizbücher (aus Einstellungen → Dokumente) */
+.dialog.dialog--nbverwalten { max-width: 680px; }
+.es-nbkopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.es-nbkopf h2 { margin: 0; }
+.dialog--nbverwalten > .es-zeile__hinweis { margin-bottom: 10px; }
