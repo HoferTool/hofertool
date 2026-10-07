@@ -6301,3 +6301,8 @@ body.dunkel .nb-blatt .nb-text { color: var(--nbf) !important; }
 body.dunkel .nb-blatt .nb-text * { color: inherit !important; }
 body.dunkel .nb-blatt .nb-textleiste, body.dunkel .nb-blatt .nb-textleiste * { color: #1d2430 !important; }
 body.dunkel .nb-blatt .nb-textleiste select { background: #fff !important; border-color: #d6dbe3 !important; }
+
+/* Profilbilder alle grau, sehr helle mässig umgekehrt (Wunsch
+   7. Oktober 2026, Erkennung in src/teile/profilbilder.js) */
+:is(img.kopf__bild, img.geb-bild, img.profilbild-gross, img.login__kachel-bild) { filter: grayscale(1); }
+:is(img.kopf__bild, img.geb-bild, img.profilbild-gross, img.login__kachel-bild)[data-hell] { filter: grayscale(1) invert(.8) contrast(1.1); }
