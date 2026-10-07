@@ -410,20 +410,24 @@ export default function Skizze({ j }) {
     try { ziel.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
     const cv = leinwand.current.getBoundingClientRect();
     const einheit = (cv.width || 1) * massstab.current;
-    const start = e.clientX, b0 = ziel.parentNode.getBoundingClientRect().width / einheit;
-    let b = b0;
+    // Ecke unten rechts: Breite und Höhe zugleich (Wunsch Patrick
+    // 7. Oktober 2026: „in beide Richtungen“); m ist die Mindesthöhe
+    const r0 = ziel.parentNode.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY, b0 = r0.width / einheit, m0 = r0.height / einheit;
+    let b = b0, m = s0.m || 0;
     const bewegt = (ev) => {
-      b = rund(Math.max(0.08, Math.min(1 / massstab.current - s0.x, b0 + (ev.clientX - start) / einheit)));
-      setBreiteZieh({ i, b });
+      b = rund(Math.max(0.08, Math.min(1 / massstab.current - s0.x, b0 + (ev.clientX - sx) / einheit)));
+      m = rund(Math.max(0.02, m0 + (ev.clientY - sy) / einheit));
+      setBreiteZieh({ i, b, m });
     };
     const fertig = () => {
       ziel.removeEventListener("pointermove", bewegt);
       ziel.removeEventListener("pointerup", fertig);
       ziel.removeEventListener("pointercancel", fertig);
       setBreiteZieh(null);
-      if (strichRef.current[i] !== s0 || Math.abs(b - b0) < 0.005) return;
+      if (strichRef.current[i] !== s0 || (Math.abs(b - b0) < 0.005 && Math.abs(m - (s0.m || 0)) < 0.005)) return;
       const liste = strichRef.current.slice();
-      liste[i] = { ...s0, b };
+      liste[i] = { ...s0, b, m };
       aendern(liste);
     };
     ziel.addEventListener("pointermove", bewegt);
@@ -468,18 +472,19 @@ export default function Skizze({ j }) {
         const e = TEXTBLATT * masse.k;
         const links = pos.x * e;
         const b = breiteZieh && breiteZieh.i === i ? breiteZieh.b : s.b;
+        const m = breiteZieh && breiteZieh.i === i ? breiteZieh.m : s.m;
         return (
           <div key={"t" + i} className={"pad-skizze__text" + (darf ? " pad-skizze__text--darf" : "")
             + (zieh && zieh.i === i ? " pad-skizze__text--zieht" : "")}
             data-skizzetext={i}
             style={{ left: links, top: pos.y * e, color: s.f,
                      fontSize: schriftPx(s.g) / 400 * e,
-                     width: b ? b * e : undefined, maxWidth: b ? undefined : Math.max(120, TEXTBLATT - links - 8) }}
+                     width: b ? b * e : undefined, minHeight: m ? m * e : undefined, maxWidth: b ? undefined : Math.max(120, TEXTBLATT - links - 8) }}
             onPointerDown={(ev) => textRunter(ev, i)} onPointerMove={textBewegen}
             onPointerUp={textHoch} onPointerCancel={textHoch} onClick={() => textKlick(i)}>
             <FettText text={s.h} />
-            {darf && <span className="pad-skizze__breite" data-skizzebreite={i} aria-label="Breite ändern"
-              title="Breite ändern" onPointerDown={(ev) => breiteRunter(ev, i)} onClick={(ev) => ev.stopPropagation()} />}
+            {darf && <span className="pad-skizze__breite" data-skizzebreite={i} aria-label="Grösse ändern"
+              title="Grösse ändern" onPointerDown={(ev) => breiteRunter(ev, i)} onClick={(ev) => ev.stopPropagation()} />}
             </div>
         );
       })}

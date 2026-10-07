@@ -185,6 +185,33 @@ with sync_playwright() as p:
     br.close()
     fehler += f
 
+    # ---------- Darkmode: dunkles Blatt, helle Schrift; Griff zieht Breite und Höhe ----------
+    br, pg, f = start(p)
+    pg.evaluate("() => document.body.classList.add('dunkel')")
+    pg.locator("#notizbuch-knopf").click(); pg.wait_for_timeout(700)
+    pg.locator("[data-nbbuch='nb1']").click(); pg.wait_for_timeout(700)
+    bg = pg.evaluate("() => getComputedStyle(document.querySelector('.nb-blatt')).backgroundColor")
+    fa = pg.evaluate("() => getComputedStyle(document.querySelector('[data-nbtext]')).color")
+    pruefe(bg == "rgb(28, 34, 43)", "Darkmode: Blatt dunkel " + bg)
+    pruefe(fa == "rgb(238, 241, 245)", "Darkmode: Schrift hell " + fa)
+    pg.screenshot(path=os.path.join(BILDORDNER, "notizbuch-dunkel.png"))
+    pg.evaluate("() => document.body.classList.remove('dunkel')"); pg.wait_for_timeout(300)
+    fa = pg.evaluate("() => getComputedStyle(document.querySelector('[data-nbtext]')).color")
+    bg = pg.evaluate("() => getComputedStyle(document.querySelector('.nb-blatt')).backgroundColor")
+    pruefe(fa == "rgb(29, 36, 48)" and bg == "rgb(255, 255, 255)", "hell: Blatt weiss, Schrift dunkel")
+    pg.locator("[data-nbtext]").first.click(); pg.wait_for_timeout(400)
+    r0 = pg.locator("[data-nbedit]").bounding_box()
+    g = pg.locator("[data-nbbreite]").bounding_box()
+    pg.mouse.move(g["x"] + g["width"] / 2, g["y"] + g["height"] / 2); pg.mouse.down()
+    pg.mouse.move(g["x"] + g["width"] / 2 + 60, g["y"] + g["height"] / 2 + 80, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
+    r1 = pg.locator("[data-nbedit]").bounding_box()
+    pruefe(r1["height"] > r0["height"] + 60 and r1["width"] != r0["width"], "Textfeld-Ecke zieht Breite und Höhe (%dx%d -> %dx%d)" % (r0["width"], r0["height"], r1["width"], r1["height"]))
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(1200)
+    m = pg.evaluate("() => TEST.daten.notizbuch_seiten.find(s => s.id === 'ns1').inhalt[0].m")
+    pruefe(m and m > 0.05, "Höhe gespeichert (m=%s)" % m)
+    br.close()
+    fehler += f
+
     # ---------- Handy: kleines Fenster passt hinein ----------
     br, pg, f = start(p, 390, 844)
     pg.locator("#notizbuch-knopf").click(); pg.wait_for_timeout(700)

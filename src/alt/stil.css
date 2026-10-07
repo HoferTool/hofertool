@@ -6276,3 +6276,28 @@ body.dunkel .nb-schloss__zeichen, body.dunkel .nb-schloss__zeichen * { color: va
   padding: 10px 12px; border: 1px solid var(--linie-stark); border-radius: 10px; background: var(--flaeche);
   color: var(--tinte); text-align: center; }
 .nb-schloss__fehler { color: var(--gefahr) !important; font-weight: 600; }
+
+/* 111.83.0: Notizbuch im Darkmode dunkel, Schrift hell (die Farben
+   schaltet Seite.jsx); Griffe ziehen Breite und Höhe zugleich */
+body.dunkel .nb-blatt { background: #1c222b; box-shadow: 0 1px 3px rgba(0, 0, 0, .5), 0 8px 24px rgba(0, 0, 0, .3); }
+body.dunkel .nb-text--edit { background: rgba(28, 34, 43, .6); outline-color: rgba(107, 164, 255, .8); }
+body.dunkel .nb-seite--text .nb-text:hover { outline-color: rgba(107, 164, 255, .6); }
+.nb-text__breite { top: auto; bottom: -12px; right: -12px; width: 18px; height: 18px; margin-top: 0;
+  border-radius: 50%; cursor: nwse-resize; }
+.nb-text__breite::before { content: ""; position: absolute; inset: -10px; }
+.pad-skizze__breite { top: auto; bottom: -14px; right: -14px; width: 22px; height: 22px; margin-top: 0;
+  border-radius: 50%; cursor: nwse-resize; border: 2px solid rgba(255, 255, 255, .85); }
+.pad-skizze__breite::before { inset: -10px; }
+/* Mehrzeilige Felder: Breite und Höhe ziehbar. In einfachen Fenstern
+   mit Feldern wächst das Fenster mit, sonst bis zur Breite des Platzes */
+textarea, .dialog textarea, .feld--wachsend textarea, .stilfeld { resize: both; max-width: 100%; }
+.dialog-huelle > .dialog[class="dialog"]:has(textarea, .stilfeld) { width: auto;
+  min-width: min(400px, calc(100vw - 32px)); max-width: calc(100vw - 32px); }
+.dialog-huelle > .dialog[class="dialog"]:has(textarea, .stilfeld) textarea,
+.dialog-huelle > .dialog[class="dialog"]:has(textarea, .stilfeld) .stilfeld { max-width: calc(100vw - 72px); min-width: 100%; }
+/* Die Dunkel-Ansicht macht sonst jede Schrift weiss (body.dunkel *);
+   auf dem Blatt gilt die Farbe des Textfelds */
+body.dunkel .nb-blatt .nb-text { color: var(--nbf) !important; }
+body.dunkel .nb-blatt .nb-text * { color: inherit !important; }
+body.dunkel .nb-blatt .nb-textleiste, body.dunkel .nb-blatt .nb-textleiste * { color: #1d2430 !important; }
+body.dunkel .nb-blatt .nb-textleiste select { background: #fff !important; border-color: #d6dbe3 !important; }

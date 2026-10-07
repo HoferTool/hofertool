@@ -8,7 +8,8 @@
 //  Alles auf der Seite steht in einer Liste (Spalte inhalt):
 //    Strich    { f: "#hex", d: Dicke, p: [x, y, …] }
 //    Text      { t: 1, h: Text mit <b> <i> <u> <s> <br>, x, y, g: Grösse, f: Farbe,
-//                b: Breite des Felds (fehlt = so breit wie der Text), p: [] }
+//                b: Breite des Felds (fehlt = so breit wie der Text),
+//                m: Mindesthöhe (fehlt = so hoch wie der Text), p: [] }
 //    Bild      { t: "bild", u: Adresse, x, y, b: Breite, v: Höhe/Breite,
 //                q: Adresse des PDFs (bei PDF-Seiten), s: Seitennummer, n: Name, p: [] }
 //  Alle Lagen und Grössen sind durch die Breite des Blatts geteilt:
@@ -49,12 +50,38 @@ const STIFT = "M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1zM14.5 6.5l3 3";
 const BILD = "M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15 9.5a1 1 0 1 0 0-.01";
 
 // Was sich die Person zuletzt eingestellt hat, gilt beim nächsten Blatt wieder
+// Dunkle Ansicht (Wunsch Patrick 7. Oktober 2026): Das Blatt ist dunkel,
+// schwarze Schrift und Striche erscheinen weiss; im hellen umgekehrt
+// weisse als schwarz. Gespeichert wird die gewählte Farbe, nur die
+// Anzeige wechselt, damit dieselbe Seite in beiden Ansichten lesbar ist.
+function hell(f) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(f || ""));
+  if (!m) return 0;
+  const n = parseInt(m[1], 16);
+  return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+}
+export function anzeigeFarbe(f, dunkel) {
+  const h = hell(f);
+  if (dunkel && h < 0.3) return "#eef1f5";
+  if (!dunkel && h > 0.85) return "#1d2430";
+  return f;
+}
+function useDunkel() {
+  const [d, setD] = useState(() => document.body.classList.contains("dunkel"));
+  useEffect(() => {
+    const b = new MutationObserver(() => setD(document.body.classList.contains("dunkel")));
+    b.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    return () => b.disconnect();
+  }, []);
+  return d;
+}
+
 const merk = { werkzeug: "text", farbe: "#1d2430", dicke: "mittel", schrift: "mittel" };
 
 // Unterkante eines Elements in Breitenanteilen
 function unterkante(s) {
   if (istBildEl(s)) return s.y + s.b * s.v;
-  if (istText(s)) return s.y + 0.08;
+  if (istText(s)) return s.y + Math.max(0.08, s.m || 0);
   let m = 0;
   const p = s.p || [];
   for (let i = 1; i < p.length; i += 2) m = Math.max(m, p[i]);
@@ -73,6 +100,9 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   const [titel, setTitel] = useState("");
   const [werkzeug, setWerkzeug] = useState(merk.werkzeug);
   const [farbe, setFarbe] = useState(merk.farbe);
+  const dunkel = useDunkel();
+  const dunkelRef = useRef(dunkel);
+  dunkelRef.current = dunkel;
   const [dicke, setDicke] = useState(merk.dicke);
   const [w, setW] = useState(0);              // Breite des Blatts in px
   const [sicht, setSicht] = useState({ oben: 0, hoehe: 0 });
@@ -223,11 +253,12 @@ export default function Seite({ id, darf, onTitel, huelle }) {
       const p = s.p || [];
       let drin = false;
       for (let i = 1; i < p.length && !drin; i += 2) drin = p[i] >= von && p[i] <= bis;
-      if (drin) strichZeichnen(c, s, breite);
+      if (drin) strichZeichnen(c, { ...s, f: anzeigeFarbe(s.f, dunkelRef.current) }, breite);
     });
-    if (aktuell.current) strichZeichnen(c, aktuell.current, breite);
+    const a = aktuell.current;
+    if (a) strichZeichnen(c, { ...a, f: anzeigeFarbe(a.f, dunkelRef.current) }, breite);
   }, []);
-  useLayoutEffect(() => { allesZeichnen(); }, [inhalt, w, sicht, allesZeichnen]);
+  useLayoutEffect(() => { allesZeichnen(); }, [inhalt, w, sicht, dunkel, allesZeichnen]);
 
   // ---------- Stift, Radierer, zwei Finger rollen ----------
   const punkt = (e) => {
@@ -323,7 +354,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
       if (liste[ed.i] !== ed.alt) return;     // inzwischen anders geworden (Rückgängig)
       const a = ed.alt;
       if (!h) liste.splice(ed.i, 1);
-      else if (a.h === h && a.g === ed.s.g && a.f === ed.s.f && a.x === ed.s.x && a.y === ed.s.y && a.b === ed.s.b) return;
+      else if (a.h === h && a.g === ed.s.g && a.f === ed.s.f && a.x === ed.s.x && a.y === ed.s.y && a.b === ed.s.b && a.m === ed.s.m) return;
       else liste[ed.i] = { ...ed.s, h };
     } else {
       if (!h) return;
@@ -413,9 +444,15 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     const bewegt = (ev) => {
       const dx = (ev.clientX - start.x) / b, dy = (ev.clientY - start.y) / b;
       if (art === "breite") {
-        const box = editorEl.current ? editorEl.current.parentNode.getBoundingClientRect().width / b : 0.3;
-        const alt0 = start.s.b || box;
-        editSetzen({ b: rund(Math.max(0.05, Math.min(1 - start.s.x, alt0 + dx))) });
+        // Ecke unten rechts: Breite und Höhe zugleich (Wunsch Patrick
+        // 7. Oktober 2026: „in beide Richtungen“). Die Höhe ist eine
+        // Mindesthöhe m; längerer Text macht das Feld weiter höher.
+        const r = editorEl.current ? editorEl.current.parentNode.getBoundingClientRect() : null;
+        const alt0 = start.s.b || (r ? r.width / b : 0.3);
+        const h0 = start.h || (r ? r.height / b : 0.05);
+        if (!start.h) start.h = h0;
+        editSetzen({ b: rund(Math.max(0.05, Math.min(1 - start.s.x, alt0 + dx))),
+          m: rund(Math.max(0.02, h0 + dy)) });
       } else {
         editSetzen({ x: rund(Math.max(0, Math.min(0.95, start.s.x + dx))), y: rund(Math.max(0, start.s.y + dy)) });
       }
@@ -609,7 +646,8 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   if (inhalt === null) return <div className="nb-seite"><p className="nb-leer">Wird geladen …</p></div>;
 
   // Lage, Farbe, Grösse und Breite eines Textfelds auf dem Blatt
-  const textStil = (s) => ({ left: s.x * w, top: s.y * w, color: s.f, fontSize: schriftPx(s.g) * w / 1000,
+  const textStil = (s) => ({ left: s.x * w, top: s.y * w, color: anzeigeFarbe(s.f, dunkel), "--nbf": anzeigeFarbe(s.f, dunkel),
+    fontSize: schriftPx(s.g) * w / 1000, minHeight: s.m ? s.m * w : undefined,
     width: s.b ? s.b * w : undefined, maxWidth: s.b ? undefined : Math.max(80, (1 - s.x) * w - 6) });
   const hoehe = seitenHoehe(zieh ? inhalt.map((s, i) => (i === zieh.i ? zieh.s : s)) : inhalt);
   const ansicht = (s, i) => (zieh && zieh.i === i ? zieh.s : s);
@@ -632,7 +670,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
           </label>
           <button type="button" className="nb-knopf" aria-label={"Stiftdicke " + dicke} title="Stiftdicke wechseln"
             data-nbdicke={dicke} onClick={dickeWechseln}>
-            <i style={{ width: 3 + dickePx * 1.3, height: 3 + dickePx * 1.3, background: farbe }} /></button>
+            <i style={{ width: 3 + dickePx * 1.3, height: 3 + dickePx * 1.3, background: anzeigeFarbe(farbe, dunkel) }} /></button>
           {knopf("radierer", RADIERER, "Radierer")}
           <span className="nb-trenner" />
           <button type="button" className="nb-knopf" data-nb="einfuegen" aria-label="Bild oder PDF einfügen"
@@ -715,7 +753,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
               <div ref={editorEl} className="nb-text__feld" contentEditable suppressContentEditableWarning
                 role="textbox" aria-multiline="true" data-nbfeld=""
                 onInput={(e) => editSetzen({ h: stilWert(e.currentTarget) })} />
-              <span className="nb-text__breite" data-nbbreite="" title="Breite ändern" aria-label="Breite ändern"
+              <span className="nb-text__breite" data-nbbreite="" title="Grösse ändern" aria-label="Grösse ändern"
                 onPointerDown={(e) => editZiehen(e, "breite")} />
             </div>}
           {!inhalt.length && darf && !edit && !hinweis &&
