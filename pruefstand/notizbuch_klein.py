@@ -34,7 +34,10 @@ def start(p, breite=1400, hoehe=900):
     pg.evaluate("""() => { window.OFFEN = new Set();
       TEST.rpc.notizbuch_oeffnen = (a) => { if (a.p_passwort !== 'abcd') return 'falsch'; OFFEN.add(a.p_buch); return 'ok'; };
       TEST.rpc.notizbuch_passwort = (a) => { const b = TEST.daten.notizbuecher.find(x => x.id === a.p_buch);
+        if (b.gesperrt && a.p_alt !== 'abcd') return 'falsch';
         b.gesperrt = !!a.p_neu; if (a.p_neu) OFFEN.add(a.p_buch); return 'ok'; };
+      TEST.rpc.notizbuch_passwort_admin = (a) => { const b = TEST.daten.notizbuecher.find(x => x.id === a.p_buch);
+        b.gesperrt = !!a.p_neu; OFFEN.delete(a.p_buch); return 'ok'; };
       TEST.rpc.notizbuch_zu = () => { OFFEN.clear(); return null; }; }""")
     return br, pg, f
 
@@ -144,12 +147,13 @@ with sync_playwright() as p:
     pg.locator("#notizbuch-knopf").click(); pg.wait_for_timeout(800)
     pruefe(pg.locator("[data-nbschloss]").count() == 1, "nach Schliessen wieder gesperrt")
 
-    # Sperre aufheben (Admin, ohne altes Passwort)
+    # Sperre aufheben: auch der Admin braucht im Notizbuch das alte Passwort
     pg.locator("[data-nbbuchpw]").click(); pg.wait_for_timeout(400)
-    pruefe(pg.locator(".dialog-huelle:not(.nb-huelle) input[type=password]").count() == 2, "Admin: kein altes Passwort nötig")
+    pruefe(pg.locator(".dialog-huelle:not(.nb-huelle) input[type=password]").count() == 3, "auch Admin: altes Passwort nötig")
+    pg.locator(".dialog-huelle:not(.nb-huelle) input[type=password]").first.fill("abcd")
     pg.locator(".dialog-huelle:not(.nb-huelle) [data-ja]").click(); pg.wait_for_timeout(900)
     a = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'notizbuch_passwort').pop()")
-    pruefe(a and a["args"]["p_neu"] == "" and a["args"]["p_alt"] is None, "leer = Sperre aufheben")
+    pruefe(a and a["args"]["p_neu"] == "" and a["args"]["p_alt"] == "abcd", "leer = Sperre aufheben")
     pruefe(pg.locator("[data-nbschloss]").count() == 0 and pg.locator("[data-nbbuch='nb2'] .nb-schlosschen").count() == 0, "aufgehoben: offen, kein Schloss")
     # Sperren mit neuem Passwort
     pg.locator("[data-nbbuchpw]").click(); pg.wait_for_timeout(400)
@@ -167,6 +171,26 @@ with sync_playwright() as p:
     pg.locator("[data-nbbuch='nb1']").click(); pg.wait_for_timeout(500)
     pruefe(pg.locator("[data-nbbuch='nb2'] .nb-schlosschen.offen").count() == 1, "offenes Schloss in der Liste")
     pruefe(pg.locator(".dialog-huelle .dialog.nb").count() == 1, "Fenster noch offen")
+
+    # ---------- Einstellungen → Notizbücher: Admin setzt neu ohne altes ----------
+    pg.locator(".dialog-huelle .dialog.nb [data-zu]").click(); pg.wait_for_timeout(600)
+    pg.evaluate("document.getElementById('kopf-einstellungen').click()"); pg.wait_for_timeout(1000)
+    pg.locator("[data-einst='notizbuecher']").click(); pg.wait_for_timeout(900)
+    pruefe(pg.locator("[data-esnb]").count() == 2, "Reiter Notizbücher listet die Bücher")
+    z = pg.locator("[data-esnb='nb2']")
+    pruefe(z.locator(".es-nb__stand.zu").count() == 1, "gesperrtes Buch als gesperrt")
+    pg.screenshot(path=os.path.join(BILDORDNER, "notizbuch-einstellungen.png"))
+    z.locator("[data-esnbneu]").click(); pg.wait_for_timeout(400)
+    fs = pg.locator(".dialog-huelle .dialog:not(.dialog--einstellungen) input[type=password]")
+    pruefe(fs.count() == 2, "ohne altes Passwort")
+    fs.nth(0).fill("neu9"); fs.nth(1).fill("neu9")
+    pg.locator(".dialog-huelle .dialog:not(.dialog--einstellungen) [data-ja]").click(); pg.wait_for_timeout(900)
+    a = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'notizbuch_passwort_admin').pop()")
+    pruefe(a and a["args"]["p_neu"] == "neu9", "Admin setzt neues Passwort")
+    z.locator("[data-esnbweg]").click(); pg.wait_for_timeout(400)
+    pg.locator(".dialog-huelle .dialog:not(.dialog--einstellungen) [data-ja]").click(); pg.wait_for_timeout(900)
+    a = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'notizbuch_passwort_admin').pop()")
+    pruefe(a and a["args"]["p_neu"] == "" and z.locator(".es-nb__stand.zu").count() == 0, "Admin hebt Sperre auf")
     br.close()
     fehler += f
 

@@ -6319,3 +6319,11 @@ body.dunkel .nb-blatt .nb-textleiste select { background: #fff !important; borde
   .es .tabelle--benutzer { min-width: 0; }
   .es .tabelle--benutzer .bu-andere { width: auto; }
 }
+/* Einstellungen → Notizbücher (111.86.0) */
+.es-nb-liste { list-style: none; margin: 0; padding: 0; }
+.es-nb { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--linie); flex-wrap: wrap; }
+.es-nb__ruecken { width: 8px; height: 24px; border-radius: 2px; flex: none; }
+.es-nb__name { font-weight: 600; flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.es-nb__stand { font-size: .85rem; color: var(--gedaempft); min-width: 70px; }
+.es-nb__stand.zu { color: var(--gefahr); font-weight: 600; }
+.es-nb__knoepfe { display: flex; gap: 8px; flex-wrap: wrap; }

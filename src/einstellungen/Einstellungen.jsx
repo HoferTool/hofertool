@@ -14,13 +14,14 @@ import { zuschneiden } from "../teile/Zuschnitt.jsx";
 import Dokumente from "./Dokumente.jsx";
 import Farben from "./Farben.jsx";
 import Nutzer from "./Nutzer.jsx";
+import Notizbuecher from "./Notizbuecher.jsx";
 import Sicherung from "./Sicherung.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["backup", "Backup"],
                 ["fehler", "Fehlerprotokoll"], ["farben", "Farben und Material", true],
-                ["nutzer", "Nutzer", true]];
+                ["nutzer", "Nutzer", true], ["notizbuecher", "Notizbücher", true]];
 
 const THEMEN = [["blau", "Blau"], ["rot", "Rot"], ["gruen", "Grün"], ["gelb", "Gelb"],
                 ["rosa", "Rosa"], ["violett", "Violett"], ["orange", "Orange"]];
@@ -47,6 +48,7 @@ function Einstellungen({ zu }) {
   else if (offen === "fehler") inhalt = <Fehlerprotokoll />;
   else if (offen === "dokumente") inhalt = <Dokumente />;
   else if (offen === "farben") inhalt = <Farben />;
+  else if (offen === "notizbuecher") inhalt = <Notizbuecher />;
   else inhalt = <Nutzer />;
 
   return (

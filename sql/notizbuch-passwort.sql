@@ -14,9 +14,13 @@
 --     (bis das Fenster zugeht, höchstens 8 Stunden).
 --  4. Die Seiten gesperrter Bücher sieht und ändert nur, wer sie geöffnet hat.
 --  5. Funktionen: notizbuch_oeffnen (Passwort prüfen), notizbuch_zu,
---     notizbuch_passwort (setzen, ändern, entfernen). Ein Admin darf das
---     Passwort ohne das alte neu setzen oder entfernen (vergessenes Passwort).
+--     notizbuch_passwort (setzen, ändern, entfernen, immer mit dem alten
+--     Passwort). Ein gesperrtes Buch ist auch für Admins zu.
 --     Nach 5 falschen Versuchen 5 Minuten warten, wie bei der Anmeldung.
+--  6. notizbuch_passwort_admin: Nur ein Admin, in der App unter
+--     Einstellungen → Notizbücher, setzt ein neues Passwort ohne das
+--     alte zu kennen oder hebt die Sperre auf (vergessenes Passwort).
+--     Das Buch geht dabei für den Admin nicht auf.
 --
 --  Voraussetzung: sql/notizbuecher.sql ist ausgeführt.
 --  Läuft gefahrlos mehrfach. Am Ende eine Probe mit ok / FEHLT.
@@ -120,7 +124,8 @@ $$;
 revoke all on function public.notizbuch_zu(uuid) from public, anon;
 grant execute on function public.notizbuch_zu(uuid) to authenticated;
 
--- p_neu leer = Sperre aufheben. Ohne Admin-Recht braucht es das alte Passwort.
+-- p_neu leer = Sperre aufheben. Ist das Buch gesperrt, braucht es
+-- immer das alte Passwort, auch für Admins (Wunsch Patrick 7. Oktober 2026).
 create or replace function public.notizbuch_passwort(p_buch uuid, p_alt text, p_neu text)
 returns text language plpgsql security definer set search_path = public, extensions as $$
 declare s public.notizbuch_schutz;
@@ -128,7 +133,7 @@ begin
   if auth.uid() is null or public.ist_extern() then raise exception 'Nicht erlaubt.'; end if;
   if not exists (select 1 from public.notizbuecher where id = p_buch) then return 'fehlt'; end if;
   select * into s from public.notizbuch_schutz where buch_id = p_buch for update;
-  if found and not public.bin_admin() then
+  if found then
     if s.warten_bis is not null and s.warten_bis > now() then
       return 'warten:' || ceil(extract(epoch from (s.warten_bis - now())) / 60)::int;
     end if;
@@ -161,6 +166,31 @@ end $$;
 revoke all on function public.notizbuch_passwort(uuid, text, text) from public, anon;
 grant execute on function public.notizbuch_passwort(uuid, text, text) to authenticated;
 
+-- ---------- 6. Admin: neues Passwort ohne das alte, oder Sperre weg ----------
+create or replace function public.notizbuch_passwort_admin(p_buch uuid, p_neu text)
+returns text language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if auth.uid() is null or not public.bin_admin() then raise exception 'Nur für Admins.'; end if;
+  if not exists (select 1 from public.notizbuecher where id = p_buch) then return 'fehlt'; end if;
+  if coalesce(p_neu, '') <> '' and length(p_neu) < 4 then return 'kurz'; end if;
+  perform set_config('hofer.notizbuch_passwort', '1', true);
+  if coalesce(p_neu, '') = '' then
+    delete from public.notizbuch_schutz where buch_id = p_buch;
+    update public.notizbuecher set gesperrt = false where id = p_buch;
+  else
+    insert into public.notizbuch_schutz (buch_id, passwort)
+      values (p_buch, crypt(p_neu, gen_salt('bf')))
+      on conflict (buch_id) do update set passwort = excluded.passwort, fehlversuche = 0, warten_bis = null;
+    update public.notizbuecher set gesperrt = true where id = p_buch;
+    -- Wer das Buch mit dem alten Passwort offen hatte, muss das neue eingeben
+    delete from public.notizbuch_offen where buch_id = p_buch;
+  end if;
+  perform set_config('hofer.notizbuch_passwort', '', true);
+  return 'ok';
+end $$;
+revoke all on function public.notizbuch_passwort_admin(uuid, text) from public, anon;
+grant execute on function public.notizbuch_passwort_admin(uuid, text) to authenticated;
+
 notify pgrst, 'reload schema';
 
 -- ---------- Probe ----------
@@ -179,7 +209,8 @@ union all
 select 'Funktionen',
        case when to_regprocedure('public.notizbuch_oeffnen(uuid,text)') is not null
          and to_regprocedure('public.notizbuch_passwort(uuid,text,text)') is not null
-         and to_regprocedure('public.notizbuch_zu(uuid)') is not null then 'ok' else 'FEHLT' end
+         and to_regprocedure('public.notizbuch_zu(uuid)') is not null
+         and to_regprocedure('public.notizbuch_passwort_admin(uuid,text)') is not null then 'ok' else 'FEHLT' end
 union all
 select 'Schloss lässt sich nicht umgehen',
        case when exists (select 1 from pg_trigger where tgname = 'notizbuecher_schloss') then 'ok' else 'FEHLT' end;

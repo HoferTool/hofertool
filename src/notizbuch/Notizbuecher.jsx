@@ -316,19 +316,20 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten }) {
     setPwLaeuft(false);
   };
 
-  // Sperren, Passwort ändern oder Sperre aufheben. Ein Admin braucht das
-  // alte Passwort nicht (falls es jemand vergessen hat).
+  // Sperren, Passwort ändern oder Sperre aufheben. Ist das Buch
+  // gesperrt, braucht es immer das alte Passwort, auch für Admins; ein
+  // vergessenes Passwort setzt ein Admin unter Einstellungen →
+  // Notizbücher neu (Wunsch Patrick 7. Oktober 2026).
   const passwortDialog = async (b) => {
-    const admin = !!(alt.istAdmin && alt.istAdmin());
     const felder = [];
-    if (b.gesperrt && !admin) felder.push({ name: "alt", label: "Bisheriges Passwort", typ: "password", pflicht: true });
+    if (b.gesperrt) felder.push({ name: "alt", label: "Bisheriges Passwort", typ: "password", pflicht: true });
     felder.push({ name: "neu", label: b.gesperrt ? "Neues Passwort" : "Passwort", typ: "password",
       pflicht: !b.gesperrt, hinweis: b.gesperrt ? "Leer lassen hebt die Sperre auf." : "Mindestens 4 Zeichen." });
     felder.push({ name: "nochmals", label: "Passwort nochmals", typ: "password" });
     const w = await alt.dialogFelder({
       titel: b.gesperrt ? "Passwort für „" + b.name + "“" : "„" + b.name + "“ mit Passwort sperren",
-      text: b.gesperrt ? (admin ? "Als Admin brauchst du das bisherige Passwort nicht." : "")
-        : "Die Seiten sieht danach nur, wer das Passwort eingibt. Wer es vergisst, fragt einen Admin.",
+      text: b.gesperrt ? "Passwort vergessen? Ein Admin setzt es unter Einstellungen → Notizbücher neu."
+        : "Die Seiten sieht danach nur, wer das Passwort eingibt, auch kein Admin. Wer es vergisst, fragt einen Admin.",
       felder, bestaetigen: b.gesperrt ? "Speichern" : "Sperren" });
     if (!w) return;
     if (w.neu !== w.nochmals) { alt.meldung("Die beiden Passwörter sind nicht gleich.", "warn"); return; }

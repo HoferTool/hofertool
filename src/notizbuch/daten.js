@@ -44,7 +44,7 @@ export const seiteLaden = (id) => antwort(alt.db.from(SEITEN)
 // heraus; die App merkt sich nur, welche Bücher gerade offen sind.
 export function fehltFunktion(e) {
   const t = String((e && (e.message || e.code)) || "");
-  return /PGRST202|42883|notizbuch_(oeffnen|passwort|zu)|could not find the function/i.test(t);
+  return /PGRST202|42883|notizbuch_(oeffnen|passwort|passwort_admin|zu)|could not find the function/i.test(t);
 }
 async function rpc(name, werte) {
   const r = await alt.zeitlimit(alt.db.rpc(name, werte), 10000, "Notizbuch");
@@ -53,6 +53,8 @@ async function rpc(name, werte) {
 }
 export const buchOeffnen = (id, passwort) => rpc("notizbuch_oeffnen", { p_buch: id, p_passwort: passwort });
 export const passwortSetzen = (id, alt0, neu) => rpc("notizbuch_passwort", { p_buch: id, p_alt: alt0, p_neu: neu });
+// Nur Admins, unter Einstellungen → Notizbücher: ohne das alte Passwort
+export const passwortAdmin = (id, neu) => rpc("notizbuch_passwort_admin", { p_buch: id, p_neu: neu });
 // Alle offenen Bücher wieder zu, wenn das Fenster zugeht
 export function buecherZu() {
   try {

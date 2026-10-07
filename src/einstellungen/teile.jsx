@@ -56,6 +56,7 @@ const PFADE = {
   backup: <><path d="M12 3v12M7 10l5 5 5-5" /><path d="M4 17v4h16v-4" /></>,
   fehler: <><path d="M12 3 2 20h20z" /><path d="M12 10v4M12 17v.5" /></>,
   farben: <><circle cx="12" cy="12" r="9" /><circle cx="8" cy="10" r="1.3" /><circle cx="12" cy="7.5" r="1.3" /><circle cx="16" cy="10" r="1.3" /><path d="M12 21a3 3 0 0 1 0-6h2" /></>,
+  notizbuecher: <><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3" /><path d="M10 9.5V8.5a2 2 0 0 1 4 0v1M9.5 9.5h5v4h-5z" /></>,
   nutzer: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" /><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 13.8c2 .9 3.5 3 3.5 6.2" /></>,
 };
 
