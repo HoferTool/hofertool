@@ -15,6 +15,7 @@ import Dokumente from "./Dokumente.jsx";
 import Farben from "./Farben.jsx";
 import Nutzer from "./Nutzer.jsx";
 import Sicherung from "./Sicherung.jsx";
+import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["backup", "Backup"],
@@ -293,10 +294,9 @@ function Darstellung() {
   );
 }
 
-// Nur für Administratoren: Pin der Rolle Planwand und Text der Bestellmail
+// Nur für Administratoren: Pin der Rolle Planwand und Text der Bestellmail (eigenes Fenster)
 function PinUndMail() {
   const [pin, setPin] = useState("");
-  const [mail, setMail] = useState(alt.bestellmailText());
   const db = alt.db;
   const { meldung, fehlertext } = alt;
 
@@ -319,14 +319,6 @@ function PinUndMail() {
     if (error) meldung(fehlertext(error), "fehler");
     else meldung("Pin gespeichert.");
   };
-  const mailSpeichern = async () => {
-    const wert = mail.trim();
-    const { error } = await db.from("app_config")
-      .upsert({ schluessel: "bestellmail_text", wert: wert || alt.BESTELLMAIL_VORGABE });
-    if (error) { meldung(fehlertext(error), "fehler"); return; }
-    alt.bestellmailSetzen(wert);
-    meldung("Text gespeichert.");
-  };
 
   return (
     <Gruppe titel="Für alle">
@@ -337,15 +329,9 @@ function PinUndMail() {
           <button className="knopf knopf--klein" id="pin-speichern" onClick={pinSpeichern}>Speichern</button>
         </div>
       </Zeile>
-      <Zeile breit titel="Text für Bestellmails"
-        text={"{datum}, {name} und {lieferant} werden ersetzt."}>
-        <textarea id="bestellmail-feld" aria-label="Text für Bestellmails" rows={9} value={mail}
-          onChange={(e) => setMail(e.target.value)} />
-        <div className="knopfreihe es-knopfreihe">
-          <button className="knopf knopf--klein" id="bestellmail-speichern" onClick={mailSpeichern}>Text speichern</button>
-          <button className="linkknopf" id="bestellmail-vorgabe"
-            onClick={() => setMail(alt.BESTELLMAIL_VORGABE)}>Vorgabe wiederherstellen</button>
-        </div>
+      {/* Der Text steht nicht mehr hier, sondern im eigenen Fenster mit Vorschau */}
+      <Zeile titel="Text für Bestellmails" text="Die Mail an den Lieferanten mit Logos und Links.">
+        <button className="knopf knopf--klein" id="bestellmail-oeffnen" onClick={bestellmailOeffnen}>Text bearbeiten</button>
       </Zeile>
     </Gruppe>
   );

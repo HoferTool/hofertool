@@ -45,7 +45,12 @@ with sync_playwright() as p:
     pruefe("ungleiche PIN: Warnung", "nicht gleich" in pg.inner_text(".toast-bereich"))
     pg.fill("#mk-geburtstag", "1990-05-04"); pg.wait_for_timeout(600)
     pruefe("Geburtstag gespeichert", pg.evaluate("TEST.daten.profiles.find(p => p.id === 'u1').geburtstag") == "1990-05-04")
+    pruefe("Mailtext nicht direkt in den Einstellungen", pg.locator(".dialog--einstellungen #bestellmail-feld").count() == 0)
+    pg.locator("#bestellmail-oeffnen").click(); pg.wait_for_timeout(400)
+    pg.locator("#bestellmail-bearbeiten").click(); pg.wait_for_timeout(200)
     pg.fill("#bestellmail-feld", "Hallo {lieferant}"); pg.locator("#bestellmail-speichern").click(); pg.wait_for_timeout(500)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pruefe("Mailfenster zu, Einstellungen offen", pg.locator(".dialog--bestellmail").count() == 0 and offen())
     pruefe("Mailtext gespeichert", pg.evaluate("(TEST.daten.app_config || []).some(c => c.schluessel === 'bestellmail_text' && c.wert === 'Hallo {lieferant}')"))
 
     # Fehlerprotokoll

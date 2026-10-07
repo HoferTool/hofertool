@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.77.5";
+const APP_VERSION = "111.78.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3491,6 +3491,50 @@ function bestellmailHtml(text) {
     + '<td style="vertical-align:middle;padding:0;">' + logo(MAIL_LOGOS[1]) + '</td>'
     + '</tr></table>'
     + '</div></body></html>';
+}
+
+// Vor- und Nachname der angemeldeten Person kommen aus der
+// Mailadresse, nicht aus dem Anzeigenamen. Getrennt wird am Punkt
+// und am Unterstrich: aus saheesan.hudson@hoferco.ch wird
+// Saheesan Hudson. Bindestriche bleiben Teil des Namens, damit
+// aus anna-lena.mueller-weber nicht Anna Weber wird. Nur wenn
+// keine Adresse hinterlegt ist, greift ersatzweise der Anzeigename.
+// Gebraucht vom Bestellblatt und von der Vorschau der Mail.
+function bestellerName() {
+  const wer = (profil && (profil.full_name || profil.email)) || "";
+  const mail = (profil && profil.email) || "";
+  const gross = (t) => t.toLowerCase().split("-")
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("-");
+  const quelle = mail ? mail.split("@")[0] : wer;
+  const teile = (/\s/.test(quelle.trim())
+    ? quelle.trim().split(/\s+/)
+    : quelle.split(/[._]+/)).filter((t) => t);
+  const vorname = gross(teile[0] || "");
+  const nachname = teile.length > 1 ? gross(teile[teile.length - 1]) : "";
+  return { wer, vorname, nachname, voll: (vorname + " " + nachname).trim() || wer };
+}
+
+// Die Mail so, wie sie beim Lieferanten ankommt, für das Fenster
+// „Text bearbeiten“: Platzhalter mit heutigem Datum und dem eigenen
+// Namen gefüllt, die Logos als eingebettete Bilder statt cid:, und
+// Links gehen in einem neuen Fenster auf statt in der Vorschau.
+function bestellmailVorschau(text, lieferantName) {
+  const j = new Date();
+  const heute = String(j.getDate()).padStart(2, "0") + "."
+    + String(j.getMonth() + 1).padStart(2, "0") + "." + j.getFullYear();
+  const gefuellt = String(text || "")
+    .replace(/\{datum\}/g, heute)
+    .replace(/\{name\}/g, bestellerName().voll)
+    .replace(/\{lieferant\}/g, lieferantName || "");
+  let html = bestellmailHtml(gefuellt)
+    .replace("<head>", '<head><base target="_blank">'
+      + "<style>body{padding:14px 18px !important;}"
+      // Auf dem Handy die Logos untereinander, statt sie abzuschneiden
+      + "@media (max-width:480px){td{display:block;padding:0 0 14px 0 !important;}}</style>");
+  MAIL_LOGOS.forEach((l) => {
+    html = html.split("cid:" + l.id).join("data:image/png;base64," + l.bild);
+  });
+  return { html, betreff: "Bestellung " + heute + " – Hofer + Co." };
 }
 
 async function bestellmailTextLaden() {
@@ -8309,23 +8353,7 @@ function bestellungDrucken(lieferant, posten) {
   const heuteText = String(jetzt.getDate()).padStart(2, "0") + "."
     + String(jetzt.getMonth() + 1).padStart(2, "0") + "." + jetzt.getFullYear();
 
-  const wer = (profil && (profil.full_name || profil.email)) || "";
-  const mail = (profil && profil.email) || "";
-
-  // Vor- und Nachname der angemeldeten Person kommen aus der
-  // Mailadresse, nicht aus dem Anzeigenamen. Getrennt wird am Punkt
-  // und am Unterstrich: aus saheesan.hudson@hoferco.ch wird
-  // Saheesan Hudson. Bindestriche bleiben Teil des Namens, damit
-  // aus anna-lena.mueller-weber nicht Anna Weber wird. Nur wenn
-  // keine Adresse hinterlegt ist, greift ersatzweise der Anzeigename.
-  const gross = (t) => t.toLowerCase().split("-")
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("-");
-  const quelle = mail ? mail.split("@")[0] : wer;
-  const teile = (/\s/.test(quelle.trim())
-    ? quelle.trim().split(/\s+/)
-    : quelle.split(/[._]+/)).filter((t) => t);
-  const vorname = gross(teile[0] || "");
-  const nachname = teile.length > 1 ? gross(teile[teile.length - 1]) : "";
+  const { wer, vorname, nachname } = bestellerName();
 
   // Zeichen und Unterschrift sind dasselbe: S.Hudson
   const kurz = nachname ? vorname.charAt(0) + "." + nachname : vorname;
@@ -8891,7 +8919,7 @@ Object.assign(alt, {
   DOK_ARTEN, dokErkennen, dokZielSuchen, dokZielText,
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
   FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen,
-  bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE,
+  bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE, bestellmailVorschau,
   APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, offenAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
   sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung,
   istExternGeraet, profilLaden, zeichneGeruest,
