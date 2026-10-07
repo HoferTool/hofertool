@@ -21,10 +21,19 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html#dashboard", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(600)
-    pg.locator("[data-einst='nutzer']").click(); pg.wait_for_selector("[data-rolle]")
+    pg.locator("[data-einst='nutzer']").click(); pg.wait_for_selector("[data-bearbeiten]")
     prof = lambda id, feld: pg.evaluate(f"TEST.daten.profiles.find(u => u.id === '{id}')['{feld}']")
+    def fenster(id):
+        if pg.locator(".nutzerfenster").count():
+            pg.locator(".nutzerfenster [data-zu]").click(); pg.wait_for_timeout(700)
+        pg.click(f"[data-bearbeiten='{id}']"); pg.wait_for_selector(".nutzerfenster"); pg.wait_for_timeout(200)
 
-    pruefe("Eigene Zeile ohne Rollenwahl", pg.locator("[data-rolle='u1']").count() == 0 and pg.locator("[data-rolle='u2']").count() == 1)
+    pruefe("Liste: Name und Knopf", pg.locator(".nutzerzeile").count() == 3 and pg.locator("[data-bearbeiten]").count() == 3
+           and pg.locator("#benutzerliste [data-rolle]").count() == 0)
+    fenster("u1")
+    pruefe("Eigenes Fenster ohne Rollenwahl", pg.locator("[data-rolle='u1']").count() == 0 and pg.locator("[data-aktiv='u1']").count() == 0)
+    fenster("u2")
+    pruefe("Fenster mit Rollenwahl", pg.locator("[data-rolle='u2']").count() == 1)
     # Name
     pg.fill("[data-name='u2']", "Ramona Jordi"); pg.press("[data-name='u2']", "Enter"); pg.wait_for_timeout(500)
     pruefe("Name gespeichert", prof("u2", "full_name") == "Ramona Jordi")
@@ -34,11 +43,12 @@ with sync_playwright() as p:
     pruefe("Abbrechen lässt die Rolle", prof("u2", "role") == "langdreher" and pg.input_value("[data-rolle='u2']") == "langdreher")
     pg.select_option("[data-rolle='u2']", "kurzdreher"); ja(pg); pg.wait_for_timeout(600)
     pruefe("Rolle geändert", prof("u2", "role") == "kurzdreher" and pg.input_value("[data-rolle='u2']") == "kurzdreher")
+    fenster("u3")
     # Bearbeiten
     pg.check("[data-bearb='u3']"); pg.wait_for_timeout(500)
     pruefe("Bearbeiten erlaubt", prof("u3", "darf_bearbeiten") is True)
     # Plant: ohne Kürzel kommt der Vorschlag aus dem Namen
-    pg.fill("[data-plan-kuerzel='u3']", ""); pg.locator("h1").first.click(); pg.wait_for_timeout(500)
+    pg.fill("[data-plan-kuerzel='u3']", ""); pg.locator(".nutzerfenster__mail").click(); pg.wait_for_timeout(500)
     pruefe("Kürzel geleert", prof("u3", "initialen") is None)
     pg.fill("[data-name='u3']", "Tristan Ecker"); pg.press("[data-name='u3']", "Enter"); pg.wait_for_timeout(500)
     pg.check("[data-plan-ist='u3']"); pg.wait_for_timeout(600)
@@ -52,7 +62,10 @@ with sync_playwright() as p:
     # Deaktivieren
     pg.locator("[data-aktiv='u3']").click(); ja(pg); pg.wait_for_timeout(600)
     pruefe("Deaktiviert", prof("u3", "is_active") is False and pg.inner_text("[data-aktiv='u3']") == "Aktivieren")
+    fenster("u3")
     pruefe("Geburtstag nach Neuladen noch da", pg.input_value("[data-geb='u3']") == "1990-05-17")
+    pruefe("Liste zeigt inaktiv", "inaktiv" in pg.inner_text("[data-nutzer='u3']"))
+    fenster("u2")
     # Parks
     park = pg.evaluate("TEST.daten.machine_parks.find(p => p.is_active !== false).id")
     pg.check(f"[data-pu='u2'][data-pp='{park}']"); pg.wait_for_timeout(500)
@@ -68,6 +81,9 @@ with sync_playwright() as p:
     pg.locator("[data-bildweg='u2']").click(force=True); pg.wait_for_timeout(500)
     pruefe("Bild entfernt", prof("u2", "bild_url") is None and pg.locator("[data-bildweg='u2']").count() == 0)
 
+    pg.locator(".nutzerfenster [data-zu]").click(); pg.wait_for_timeout(700)
+    pruefe("Fenster zu, Einstellungen offen", pg.locator(".nutzerfenster").count() == 0 and pg.locator(".dialog--einstellungen").count() == 1)
+    pruefe("Liste zeigt ganzen Namen", "Ramona Jordi" in pg.inner_text("[data-nutzer='u2']"))
     # Personen ohne Login
     pg.click("#pe-neu"); pg.wait_for_selector("#pd-name")
     pruefe("Name hat den Fokus", pg.evaluate("document.activeElement.id") == "pd-name")

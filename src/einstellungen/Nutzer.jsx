@@ -25,7 +25,7 @@ export default function Nutzer() {
   return (
     <>
       <Gruppe titel="Benutzer mit Login" text={bin
-        ? "Wird beim Verlassen des Felds gespeichert. Ein Klick auf das Bild setzt ein Foto."
+        ? "„Bearbeiten“ öffnet alles zu einer Person: Rolle, Rechte, Bild, Parks, Passwort und PIN."
         : "Ändern dürfen nur Administratoren."}>
         <div id="benutzerliste"><Benutzer bin={bin} /></div>
       </Gruppe>
@@ -144,24 +144,62 @@ function Benutzer({ bin }) {
   return <BenutzerListe key={daten.nr} {...daten} bin={bin} neu={neu} />;
 }
 
-function BenutzerListe({ leute: anfang, parks, mitPin, bin, neu }) {
-  const [leute, setLeute] = useState(anfang);
+// Liste: je Person Bild, ganzer Name und darunter Rolle und Merkmale,
+// rechts ein Knopf „Bearbeiten“. Alles andere steht im Fenster (Wunsch
+// Patrick, 7. Oktober 2026: „pro Nutzer den Namen ganz sehen, daneben
+// einen Knopf zum Bearbeiten, dort alles andere, auch Passwort und PIN“).
+function BenutzerListe({ leute, parks, mitPin, bin, neu }) {
   const ich = alt.profil && alt.profil.id;
   const ROLLEN = alt.ROLLEN;
+  const oeffnen = (u) => {
+    alt.plan.imDialog = true;
+    fensterOeffnen((zu) => <NutzerFenster person={u} parks={parks} mitPin={mitPin} zu={zu} />,
+      () => { alt.plan.imDialog = false; neu(); });
+  };
+  return (
+    <div className="nutzerliste">
+      {leute.map((u) => {
+        const merkmale = [ROLLEN[u.role] || u.role];
+        if (istAndererNutzer(u)) merkmale.push("Andere Nutzer");
+        if (u.ist_planer && u.initialen) merkmale.push("plant als " + u.initialen);
+        if (bin && mitPin) merkmale.push(mitPin.has(u.id) ? "mit PIN" : u.ohne_passwort ? "ohne Passwort" : "mit Passwort");
+        return (
+          <div key={u.id} className={"nutzerzeile" + (u.is_active ? "" : " nutzerzeile--inaktiv")} data-nutzer={u.id}>
+            <Bild url={u.bild_url} name={u.full_name || u.email} />
+            <div className="nutzerzeile__wer">
+              <div className="nutzerzeile__name">{u.full_name || u.email}
+                {u.id === ich && <> <span className="marke">du</span></>}
+                {!u.is_active && <> <span className="marke marke--grau">inaktiv</span></>}</div>
+              <div className="nutzerzeile__was">{merkmale.join(" · ")}</div>
+            </div>
+            {bin && <button className="knopf knopf--klein" data-bearbeiten={u.id} onClick={() => oeffnen(u)}>Bearbeiten</button>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-  // Ändert Felder an einer Person. Die Liste zeigt die Änderung sofort
-  // (ein Häkchen soll beim Klick umspringen, nicht erst nach dem
-  // Speichern) und nimmt sie zurück, wenn das Speichern scheitert.
-  const aendern = async (id, felder, gut) => {
-    const vorher = leute.find((u) => u.id === id);
+// Fenster für eine Person: speichert jede Änderung sofort, die Liste
+// dahinter lädt beim Schliessen neu.
+function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
+  const [u, setU] = useState(person);
+  const [mitPin, setMitPin] = useState(() => !!(pinAnfang && pinAnfang.has(person.id)));
+  const selbst = u.id === (alt.profil && alt.profil.id);
+  const ROLLEN = alt.ROLLEN;
+  const wer = u.full_name || u.email || "Person";
+
+  // Zeigt die Änderung sofort (ein Häkchen soll beim Klick umspringen)
+  // und nimmt sie zurück, wenn das Speichern scheitert.
+  const aendern = async (felder, gut) => {
     const zurueck = {};
-    Object.keys(felder).forEach((k) => { zurueck[k] = vorher ? vorher[k] : undefined; });
-    setLeute((l) => l.map((u) => (u.id === id ? { ...u, ...felder } : u)));
-    const { error } = await alt.db.from("profiles").update(felder).eq("id", id);
+    Object.keys(felder).forEach((k) => { zurueck[k] = u[k]; });
+    setU((x) => ({ ...x, ...felder }));
+    const { error } = await alt.db.from("profiles").update(felder).eq("id", u.id);
     if (error) {
       alt.meldung("andere_nutzer" in felder && /andere_nutzer/.test(error.message || "")
         ? "Dafür fehlt noch sql/andere-nutzer.sql in der Datenbank." : alt.fehlertext(error), "fehler");
-      setLeute((l) => l.map((u) => (u.id === id ? { ...u, ...zurueck } : u)));
+      setU((x) => ({ ...x, ...zurueck }));
       return false;
     }
     if ("ist_planer" in felder || "initialen" in felder) await alt.planerLaden();
@@ -169,24 +207,24 @@ function BenutzerListe({ leute: anfang, parks, mitPin, bin, neu }) {
     return true;
   };
 
-  const rolle = async (u, wert) => {
+  const rolle = async (wert) => {
     const ok = await alt.nachfragen({ titel: "Rolle ändern?", text: "Neue Rolle: " + (ROLLEN[wert] || wert), bestaetigen: "Ja, ändern" });
-    if (ok && await aendern(u.id, { role: wert }, "Rolle geändert.")) neu();
+    if (ok) aendern({ role: wert }, "Rolle geändert.");
   };
 
-  const plant = (u, an) => {
+  const plant = (an) => {
     const felder = { ist_planer: an };
     // Beim Anhaken ohne Kürzel gleich die Initialen vorschlagen
     if (an && !(u.initialen || "").trim()) {
       const k = kuerzelVorschlag(u.full_name);
       if (k) felder.initialen = k;
     }
-    aendern(u.id, felder, "Gespeichert.");
+    aendern(felder, "Gespeichert.");
   };
 
-  const pinSetzen = async (u) => {
+  const pinSetzen = async () => {
     const w = await alt.dialogFelder({
-      titel: "PIN für " + (u.full_name || u.email || "Person"),
+      titel: "PIN für " + wer,
       text: "Die Person tippt danach auf ihre Kachel und gibt diese PIN ein. Ihr bisheriges Passwort gilt nicht "
         + "mehr. Sag ihr die PIN persönlich.",
       felder: [{ name: "pin", label: "PIN (4 bis 8 Ziffern, besser 6)", typ: "password", ziffern: true, pflicht: true }],
@@ -200,15 +238,16 @@ function BenutzerListe({ leute: anfang, parks, mitPin, bin, neu }) {
         ? "Dafür fehlt noch pin-anmeldung.sql in der Datenbank." : alt.fehlertext(error), "fehler");
       return;
     }
+    setMitPin(true);
+    setU((x) => ({ ...x, ohne_passwort: true }));
     alt.meldung("PIN gesetzt.");
-    neu();
   };
 
   // Passwort vergessen: Der Admin setzt ein neues, ohne das alte zu kennen.
   // Eine PIN fällt dabei weg, die Person meldet sich mit dem Passwort an.
-  const passwortSetzen = async (u) => {
+  const passwortSetzen = async () => {
     const w = await alt.dialogFelder({
-      titel: "Passwort für " + (u.full_name || u.email || "Person"),
+      titel: "Passwort für " + wer,
       text: "Die Person meldet sich danach mit diesem Passwort an. Eine PIN gilt dann nicht mehr. Sag ihr das "
         + "Passwort persönlich.",
       felder: [
@@ -224,115 +263,100 @@ function BenutzerListe({ leute: anfang, parks, mitPin, bin, neu }) {
         ? "Dafür fehlt noch pin-anmeldung.sql in der Datenbank." : alt.fehlertext(error), "fehler");
       return;
     }
+    setMitPin(false);
+    setU((x) => ({ ...x, ohne_passwort: false }));
     alt.meldung("Passwort gesetzt.");
-    neu();
   };
 
-  const aktiv = async (u) => {
+  const aktiv = async () => {
     const ein = !u.is_active;
     const ok = await alt.nachfragen({
       titel: ein ? "Benutzer aktivieren" : "Benutzer deaktivieren",
       text: ein ? "Die Person kann sich danach wieder anmelden." : "Die Person kann sich danach nicht mehr anmelden.",
       bestaetigen: ein ? "Aktivieren" : "Deaktivieren", gefahr: !ein });
-    if (ok && await aendern(u.id, { is_active: ein })) neu();
+    if (ok) aendern({ is_active: ein });
   };
 
-  const parkUmschalten = (u, parkId, an) => {
+  const parkUmschalten = (parkId, an) => {
     const liste = (u.parks || []).filter((x) => x !== parkId);
     if (an) liste.push(parkId);
-    aendern(u.id, { parks: liste }, "Zugriff gespeichert.");
+    aendern({ parks: liste }, "Zugriff gespeichert.");
   };
 
-  const langDatum = (d) => (d ? alt.langDatum(d) : "–");
+  const anmeldungText = mitPin ? "Meldet sich mit PIN an."
+    : u.ohne_passwort ? "Kommt ohne Passwort hinein (Tipp auf die Kachel)." : "Meldet sich mit Passwort an.";
 
   return (
-    <>
-      <div className="tabellenrolle">
-        <table className="tabelle tabelle--benutzer"><thead><tr>
-          <th>Name</th><th>Rolle</th><th className="mitte">Bearbeiten</th>
-          <th className="mitte">Plant</th><th className="mitte">Kürzel</th>
-          <th>Geburtstag</th>{bin && <th>Anmeldung</th>}
-          <th className="mitte bu-andere" title="Gerätekonten wie Planwand oder Pad Mode: Ihre Kachel steht bei der Anmeldung unten unter „Andere Nutzer“">Andere Nutzer</th><th className="rechts">Status</th>
-        </tr></thead>
-        <tbody>{leute.map((u) => {
-          const selbst = u.id === ich;
-          return (
-            <tr key={u.id} className={u.is_active ? "" : "zeile--inaktiv"}>
-              <td><div className="bl-person">
-                {bin
-                  ? <BildWahl url={u.bild_url} name={u.full_name || u.email} kennung={u.id}
-                      speichern={(adresse) => aendern(u.id, { bild_url: adresse }, adresse ? "Bild gespeichert." : "Bild entfernt.")} />
-                  : <Bild url={u.bild_url} name={u.full_name || u.email} />}
-                {bin
-                  ? <Feld className="namensfeld-liste" data-name={u.id} wert={u.full_name} placeholder={u.email || ""}
-                      speichern={(name) => aendern(u.id, { full_name: name || null }, "Name gespeichert.")} />
-                  : <span>{u.full_name || u.email}</span>}
-                {selbst && <> <span className="marke">du</span></>}
-              </div></td>
-              <td className="bu-rolle">{bin && !selbst
-                ? <select className="auswahl" data-rolle={u.id} value={u.role || ""} onChange={(e) => rolle(u, e.target.value)}>
-                    {Object.keys(ROLLEN).map((w) => <option key={w} value={w}>{ROLLEN[w]}</option>)}
-                  </select>
-                : (ROLLEN[u.role] || u.role)}</td>
-              <td className="bu-bearb mitte">{bin && !selbst && u.role !== "admin"
-                ? <input type="checkbox" data-bearb={u.id} checked={!!u.darf_bearbeiten}
-                    onChange={(e) => aendern(u.id, { darf_bearbeiten: e.target.checked },
-                      e.target.checked ? "Darf jetzt bearbeiten." : "Bearbeiten entzogen.")} />
-                : (u.role === "admin" ? "immer" : (u.darf_bearbeiten ? "ja" : "nein"))}</td>
-              <td className="bu-plant mitte">{bin
-                ? <input type="checkbox" data-plan-ist={u.id} checked={!!u.ist_planer} onChange={(e) => plant(u, e.target.checked)} />
-                : (u.ist_planer ? "ja" : "nein")}</td>
-              <td className="bu-kuerzel mitte">{bin
-                ? <Feld className="kuerzelfeld" data-plan-kuerzel={u.id} maxLength={4} gross wert={u.initialen}
-                    speichern={(k) => aendern(u.id, { initialen: k || null }, "Kürzel gespeichert.")} />
-                : (u.initialen || "–")}</td>
-              <td className="bu-geb">{bin
-                ? <input type="date" className="gebfeld" data-geb={u.id} value={u.geburtstag || ""}
-                    onChange={(e) => aendern(u.id, { geburtstag: e.target.value || null }, "Geburtstag gespeichert.")} />
-                : langDatum(u.geburtstag)}</td>
-              {bin && <td className="bu-pin">
-                <div className="bu-anmeldung">
-                <button className="knopf knopf--mini" data-pinsetzen={u.id} onClick={() => pinSetzen(u)}>
-                  {mitPin && mitPin.has(u.id) ? "PIN ändern" : "PIN setzen"}</button>
-                {!selbst && <button className="knopf knopf--mini" data-pwsetzen={u.id} onClick={() => passwortSetzen(u)}>Passwort</button>}
-                {mitPin && !mitPin.has(u.id) && u.ohne_passwort && <>{" "}<span className="bz-spaet"
-                  title="Kommt erst mit PIN oder Passwort vom Admin wieder hinein">fehlt</span></>}
-                </div>
-              </td>}
-              <td className="bu-andere mitte">{bin
-                ? <input type="checkbox" data-andere={u.id} checked={istAndererNutzer(u)}
-                    title="Kachel bei der Anmeldung unter „Andere Nutzer“"
-                    onChange={(e) => aendern(u.id, { andere_nutzer: e.target.checked },
-                      e.target.checked ? "Steht jetzt unter „Andere Nutzer“." : "Steht jetzt bei den Personen.")} />
-                : (istAndererNutzer(u) ? "ja" : "nein")}</td>
-              <td className="bu-status rechts">{bin && !selbst
-                ? <button className="linkknopf" data-aktiv={u.id} data-wert={u.is_active ? "0" : "1"}
-                    onClick={() => aktiv(u)}>{u.is_active ? "Deaktivieren" : "Aktivieren"}</button>
-                : (u.is_active ? "aktiv" : "inaktiv")}</td>
-            </tr>
-          );
-        })}</tbody></table>
+    <div className="dialog nutzerfenster">
+      <button className="dialog__schliessen-inline" title="Schliessen" onClick={zu}>✕</button>
+      <div className="nutzerfenster__kopf">
+        <BildWahl url={u.bild_url} name={wer} kennung={u.id}
+          speichern={(adresse) => aendern({ bild_url: adresse }, adresse ? "Bild gespeichert." : "Bild entfernt.")} />
+        <label className="feld nutzerfenster__name"><span>Name</span>
+          <Feld className="namensfeld-liste" data-name={u.id} wert={u.full_name} placeholder={u.email || ""}
+            speichern={(name) => aendern({ full_name: name || null }, "Name gespeichert.")} /></label>
+      </div>
+      <div className="nutzerfenster__mail">{u.email}</div>
+
+      <div className="nutzerfenster__raster">
+        <label className="feld"><span>Rolle</span>
+          {selbst
+            ? <div className="nutzerfenster__wert">{ROLLEN[u.role] || u.role}</div>
+            : <select className="auswahl" data-rolle={u.id} value={u.role || ""} onChange={(e) => rolle(e.target.value)}>
+                {Object.keys(ROLLEN).map((w) => <option key={w} value={w}>{ROLLEN[w]}</option>)}
+              </select>}</label>
+        <label className="feld"><span>Geburtstag</span>
+          <input type="date" className="gebfeld" data-geb={u.id} value={u.geburtstag || ""}
+            onChange={(e) => aendern({ geburtstag: e.target.value || null }, "Geburtstag gespeichert.")} /></label>
+        <label className="feld"><span>Kürzel auf dem Balken</span>
+          <Feld className="kuerzelfeld" data-plan-kuerzel={u.id} maxLength={4} gross wert={u.initialen}
+            speichern={(k) => aendern({ initialen: k || null }, "Kürzel gespeichert.")} /></label>
+        <div className="nutzerfenster__haken">
+          {u.role === "admin"
+            ? <div className="nutzerfenster__wert">Bearbeiten: immer</div>
+            : <label className="schalter"><input type="checkbox" data-bearb={u.id} checked={!!u.darf_bearbeiten}
+                disabled={selbst}
+                onChange={(e) => aendern({ darf_bearbeiten: e.target.checked },
+                  e.target.checked ? "Darf jetzt bearbeiten." : "Bearbeiten entzogen.")} /><span>Darf bearbeiten</span></label>}
+          <label className="schalter"><input type="checkbox" data-plan-ist={u.id} checked={!!u.ist_planer}
+            onChange={(e) => plant(e.target.checked)} /><span>Plant (erscheint unter „Eingeplant von“)</span></label>
+          <label className="schalter"><input type="checkbox" data-andere={u.id} checked={istAndererNutzer(u)}
+            onChange={(e) => aendern({ andere_nutzer: e.target.checked },
+              e.target.checked ? "Steht jetzt unter „Andere Nutzer“." : "Steht jetzt bei den Personen.")} />
+            <span>Andere Nutzer (Kachel bei der Anmeldung unten unter „Andere Nutzer“)</span></label>
+        </div>
       </div>
 
-      {bin && parks.length > 0 && <>
-        <div className="es-unterkopf">
-          <h3>Zugriff auf Maschinenparks</h3>
+      {parks.length > 0 && u.role !== "admin" && u.role !== "planwand" && (
+        <div className="nutzerfenster__teil">
+          <h3>Maschinenparks</h3>
           <p className="es-gruppe__text">Ohne Auswahl entscheidet die Rolle: Langdreher sieht Parks mit „lang“
             im Namen, Kurzdreher solche mit „kurz“.</p>
+          <div className="parkzeile__wahl">{parks.map((pk) => (
+            <label className="parkchip" key={pk.id}>
+              <input type="checkbox" data-pu={u.id} data-pp={pk.id} checked={(u.parks || []).includes(pk.id)}
+                onChange={(e) => parkUmschalten(pk.id, e.target.checked)} />
+              <span>{pk.name}</span></label>
+          ))}</div>
         </div>
-        {leute.filter((u) => u.role !== "admin" && u.role !== "planwand").map((u) => (
-          <div className="parkzeile" key={u.id}>
-            <div className="parkzeile__name"><Bild url={u.bild_url} name={u.full_name || u.email} /><span>{u.full_name || u.email}</span></div>
-            <div className="parkzeile__wahl">{parks.map((pk) => (
-              <label className="parkchip" key={pk.id}>
-                <input type="checkbox" data-pu={u.id} data-pp={pk.id} checked={(u.parks || []).includes(pk.id)}
-                  onChange={(e) => parkUmschalten(u, pk.id, e.target.checked)} />
-                <span>{pk.name}</span></label>
-            ))}</div>
-          </div>
-        ))}
-      </>}
-    </>
+      )}
+
+      <div className="nutzerfenster__teil">
+        <h3>Anmeldung</h3>
+        <p className="es-gruppe__text">{anmeldungText}</p>
+        <div className="bu-anmeldung nutzerfenster__knoepfe">
+          <button className="knopf knopf--klein" data-pinsetzen={u.id} onClick={pinSetzen}>
+            {mitPin ? "PIN ändern" : "PIN setzen"}</button>
+          <button className="knopf knopf--klein" data-pwsetzen={u.id} onClick={passwortSetzen}>Passwort setzen</button>
+        </div>
+      </div>
+
+      <div className="dialog__knoepfe nutzerfenster__fuss">
+        {!selbst && <button className={u.is_active ? "linkknopf linkknopf--gefahr" : "knopf"} data-aktiv={u.id}
+          data-wert={u.is_active ? "0" : "1"} onClick={aktiv}>{u.is_active ? "Deaktivieren" : "Aktivieren"}</button>}
+        <button className="knopf knopf--haupt" data-zu="" onClick={zu}>Fertig</button>
+      </div>
+    </div>
   );
 }
 

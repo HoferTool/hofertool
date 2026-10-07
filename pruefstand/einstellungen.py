@@ -68,7 +68,7 @@ with sync_playwright() as p:
     pg.locator("[data-einst='farben']").click(); pg.wait_for_timeout(1200)
     pruefe("Farben geladen", pg.locator("#farbliste .laedt").count() == 0 and pg.locator("#farbliste").count() == 1)
     pg.locator("[data-einst='nutzer']").click(); pg.wait_for_timeout(1200)
-    pruefe("Benutzerliste geladen", pg.locator("#benutzerliste .laedt").count() == 0 and "PIN setzen" in pg.inner_text("#benutzerliste"))
+    pruefe("Benutzerliste geladen", pg.locator("#benutzerliste .laedt").count() == 0 and pg.locator("#benutzerliste [data-bearbeiten]").count() > 0)
     pg.locator("#extern-link-kopieren").click(); pg.wait_for_timeout(400)
     pruefe("Link kopiert", "#/extern" in pg.evaluate("navigator.clipboard.readText()"))
     pg.locator("#pe-neu").click(); pg.wait_for_timeout(400)

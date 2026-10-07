@@ -6309,15 +6309,48 @@ body.dunkel .nb-blatt .nb-textleiste select { background: #fff !important; borde
    7. Oktober 2026, Erkennung in src/teile/profilbilder.js) */
 :is(img.kopf__bild, img.geb-bild, img.profilbild-gross, img.login__kachel-bild) { filter: grayscale(1); }
 :is(img.kopf__bild, img.geb-bild, img.profilbild-gross, img.login__kachel-bild)[data-hell] { filter: grayscale(1) invert(.8) contrast(1.1); }
-/* Einstellungen breiter, damit die Nutzertabelle mit der Spalte
-   „Andere Nutzer“ ohne Rollbalken Platz hat (Wunsch Patrick, 7. Oktober 2026) */
+/* Einstellungen etwas breiter (Wunsch Patrick, 7. Oktober 2026) */
 .dialog--einstellungen.es { max-width: min(1440px, 97vw); }
-.es .tabelle--benutzer { min-width: 980px; }
-.es .tabelle--benutzer .bu-andere { width: 92px; }
-.es .tabelle--benutzer .bu-andere input { width: 20px; height: 20px; }
-@media (max-width: 820px) {
-  .es .tabelle--benutzer { min-width: 0; }
-  .es .tabelle--benutzer .bu-andere { width: auto; }
+
+/* Nutzer: Liste mit ganzem Namen und Knopf, alles andere im Fenster */
+.nutzerliste { display: flex; flex-direction: column; }
+.nutzerzeile { display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid var(--linie); }
+.nutzerzeile:last-child { border-bottom: none; }
+.nutzerzeile .kopf__bild { width: 40px; height: 40px; flex: none; font-size: 1rem; }
+.nutzerzeile__wer { flex: 1 1 auto; min-width: 0; }
+.nutzerzeile__name { font-weight: 600; color: var(--tinte); overflow-wrap: anywhere; }
+.nutzerzeile__was { font-size: .85rem; color: var(--gedaempft); margin-top: 2px; }
+.nutzerzeile--inaktiv .nutzerzeile__wer, .nutzerzeile--inaktiv .kopf__bild { opacity: .55; }
+.nutzerzeile .knopf { flex: none; }
+.marke--grau { background: var(--linie); color: var(--gedaempft); }
+
+.nutzerfenster { width: min(640px, 96vw); max-width: 96vw; position: relative; }
+.nutzerfenster .dialog__schliessen-inline { position: absolute; top: 12px; right: 12px; }
+.nutzerfenster__kopf { display: flex; align-items: flex-end; gap: 14px; padding-right: 44px; }
+.nutzerfenster__kopf .bildwahl .kopf__bild { width: 64px; height: 64px; font-size: 1.5rem; }
+.nutzerfenster__name { flex: 1 1 auto; margin-bottom: 0 !important; min-width: 0; }
+.nutzerfenster__name input { width: 100%; }
+.nutzerfenster__mail { font-size: .85rem; color: var(--gedaempft); margin: 6px 0 16px 78px; overflow-wrap: anywhere; }
+.nutzerfenster__raster { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.nutzerfenster__raster .auswahl, .nutzerfenster__raster input[type=text],
+.nutzerfenster__raster input[type=date] { width: 100%; }
+.nutzerfenster__haken { grid-column: 1 / -1; }
+.nutzerfenster__haken .schalter { margin-bottom: 8px; align-items: center; }
+.nutzerfenster__haken input[type=checkbox] { width: 20px; height: 20px; flex: none; }
+.nutzerfenster__wert { padding: 8px 0; color: var(--tinte); }
+.nutzerfenster__teil { border-top: 1px solid var(--linie); padding-top: 12px; margin-top: 8px; }
+.nutzerfenster__teil h3 { margin: 0 0 4px; font-size: 1rem; }
+.nutzerfenster__teil .parkzeile__wahl { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.nutzerfenster__teil .parkchip { flex: none; width: auto; margin: 0; display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--linie-stark); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.nutzerfenster__knoepfe { flex-direction: row !important; gap: 8px; margin-top: 8px; }
+.nutzerfenster__fuss { justify-content: space-between; align-items: center; margin-top: 16px; }
+.nutzerfenster__fuss .knopf--haupt { margin-left: auto; flex: none; min-width: 140px; }
+.nutzerfenster__knoepfe .knopf { flex: none; }
+@media (max-width: 560px) {
+  .nutzerfenster__raster { grid-template-columns: 1fr; }
+  .nutzerfenster__mail { margin-left: 0; }
 }
 /* Einstellungen → Notizbücher (111.86.0) */
 .es-nb-liste { list-style: none; margin: 0; padding: 0; }

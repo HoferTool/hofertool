@@ -104,7 +104,8 @@ with sync_playwright() as p:
 
     # 5) Nutzerbild: quadratisch 400, kein Durchsichtiges, mittig
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(600)
-    pg.locator("[data-einst='nutzer']").click(); pg.wait_for_selector("[data-bild='u2']", state='attached')
+    pg.locator("[data-einst='nutzer']").click(); pg.wait_for_selector("[data-bearbeiten='u2']")
+    pg.click("[data-bearbeiten='u2']"); pg.wait_for_selector("[data-bild='u2']", state='attached')
     pg.set_input_files("[data-bild='u2']", {"name": "foto.png", "mimeType": "image/png", "buffer": png})
     pg.wait_for_selector("#zs-leinwand"); pg.wait_for_timeout(200)
     pg.screenshot(path="zuschnitt-nutzer.png")
