@@ -133,7 +133,15 @@ async function benutzerLaden(bin) {
       if (!p.error && Array.isArray(p.data)) mitPin = new Set(p.data.map((x) => x.user_id));
     } catch (f) { /* ohne SQL gibt es noch keine PINs */ }
   }
-  return { leute: r.data || [], parks, mitPin, nr: ++ladeNr };
+  // Zuletzt online und letzte Anmeldung (nur Admin, sql/nutzer-online.sql)
+  let status = null;
+  if (bin) {
+    try {
+      const st = await alt.zeitlimit(alt.db.rpc("nutzer_status"), 8000, "Status");
+      if (!st.error && Array.isArray(st.data)) status = new Map(st.data.map((x) => [x.user_id, x]));
+    } catch (f) { /* ohne SQL bleibt die Mitte leer */ }
+  }
+  return { leute: r.data || [], parks, mitPin, status, nr: ++ladeNr };
 }
 
 function Benutzer({ bin }) {
@@ -148,7 +156,34 @@ function Benutzer({ bin }) {
 // rechts ein Knopf „Bearbeiten“. Alles andere steht im Fenster (Wunsch
 // Patrick, 7. Oktober 2026: „pro Nutzer den Namen ganz sehen, daneben
 // einen Knopf zum Bearbeiten, dort alles andere, auch Passwort und PIN“).
-function BenutzerListe({ leute, parks, mitPin, bin, neu }) {
+// Wann zuletzt: eben, vor Minuten, heute, gestern oder mit Datum
+const ONLINE_MS = 4 * 60000;
+function wannText(iso) {
+  if (!iso) return "noch nie";
+  const d = new Date(iso);
+  const ms = Date.now() - d.getTime();
+  if (ms < ONLINE_MS) return "jetzt online";
+  if (ms < 3600000) return "vor " + Math.max(1, Math.round(ms / 60000)) + " Min.";
+  const p = (n) => String(n).padStart(2, "0");
+  const zeit = p(d.getHours()) + ":" + p(d.getMinutes());
+  const heute = new Date(); heute.setHours(0, 0, 0, 0);
+  const tag = new Date(d); tag.setHours(0, 0, 0, 0);
+  const tage = Math.round((heute - tag) / 86400000);
+  if (tage === 0) return "heute " + zeit;
+  if (tage === 1) return "gestern " + zeit;
+  return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear();
+}
+
+function Info({ titel, wert, punkt, hinweis }) {
+  return (
+    <div className="nutzerinfo" title={hinweis}>
+      <div className="nutzerinfo__titel">{titel}</div>
+      <div className="nutzerinfo__wert">{punkt && <span className={"nutzerinfo__punkt nutzerinfo__punkt--" + punkt} />}{wert}</div>
+    </div>
+  );
+}
+
+function BenutzerListe({ leute, parks, mitPin, status, bin, neu }) {
   const ich = alt.profil && alt.profil.id;
   const ROLLEN = alt.ROLLEN;
   const oeffnen = (u) => {
@@ -172,10 +207,37 @@ function BenutzerListe({ leute, parks, mitPin, bin, neu }) {
                 {!u.is_active && <> <span className="marke marke--grau">inaktiv</span></>}</div>
               <div className="nutzerzeile__was">{merkmale.join(" · ")}</div>
             </div>
+            <NutzerInfos u={u} status={status} bin={bin} />
             {bin && <button className="knopf knopf--klein" data-bearbeiten={u.id} onClick={() => oeffnen(u)}>Bearbeiten</button>}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September",
+  "Oktober", "November", "Dezember"];
+// Geburtstag ohne Jahr, wie er auf der Startseite gefeiert wird
+const geburtstagText = (iso) => {
+  const t = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
+  return t ? Number(t[3]) + ". " + MONATE[Number(t[2]) - 1] : "–";
+};
+
+// Die Mitte der Zeile: zuletzt online, letzte Anmeldung, Geburtstag
+// (Wunsch Patrick, 7. Oktober 2026: „die Lücke füllen, dass man sieht,
+// wann zuletzt online und so“).
+function NutzerInfos({ u, status, bin }) {
+  const st = status && status.get(u.id);
+  const fehlt = bin && !status ? "Dafür fehlt noch sql/nutzer-online.sql in der Datenbank." : undefined;
+  const online = st && st.zuletzt_online && Date.now() - new Date(st.zuletzt_online).getTime() < ONLINE_MS;
+  return (
+    <div className="nutzerzeile__infos">
+      {bin && <Info titel="Zuletzt online" hinweis={fehlt}
+        wert={st ? wannText(st.zuletzt_online) : "–"} punkt={st ? (online ? "an" : "aus") : null} />}
+      {bin && <Info titel="Letzte Anmeldung" hinweis={fehlt}
+        wert={st ? (st.letzte_anmeldung ? wannText(st.letzte_anmeldung).replace("jetzt online", "gerade eben") : "noch nie") : "–"} />}
+      <Info titel="Geburtstag" wert={geburtstagText(u.geburtstag)} />
     </div>
   );
 }

@@ -43,7 +43,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 
 | Tabelle | Zweck |
 |---|---|
-| `profiles` | Benutzer: `role` (`admin`, `planwand`, `langdreher`, `kurzdreher`, `mitarbeiter`, `produktion`, `extern`), `parks` (uuid[] für Extern), `ohne_passwort`, `einstellungen` (jsonb, persönliche Einstellungen), `initialen`, `bild_url`, `geburtstag`, `andere_nutzer` (Kachel bei der Anmeldung unter „Andere Nutzer“, `sql/andere-nutzer.sql`) |
+| `profiles` | Benutzer: `role` (`admin`, `planwand`, `langdreher`, `kurzdreher`, `mitarbeiter`, `produktion`, `extern`), `parks` (uuid[] für Extern), `ohne_passwort`, `einstellungen` (jsonb, persönliche Einstellungen), `initialen`, `bild_url`, `geburtstag`, `andere_nutzer` (Kachel bei der Anmeldung unter „Andere Nutzer“, `sql/andere-nutzer.sql`), `zuletzt_online` (Lebenszeichen der App über `ich_bin_da()`, Admins lesen es mit der letzten Anmeldung über `nutzer_status()`, `sql/nutzer-online.sql`) |
 | `people` | Personen ohne Login (Geburtstage) |
 | `todos` | Notizen auf der Startseite |
 | `chat_gespraeche`, `chat_teilnehmer`, `chat_nachrichten`, `chat_gelesen` | Chat |

@@ -16,6 +16,12 @@ K = """daten.login_kacheln = window.OHNE_SPALTE ? [
   { email: 'marco@hoferco.ch', full_name: 'Marco Steiner', role: 'langdreher', andere_nutzer: false }];
 if (window.NICHT_ADMIN) daten.profiles[0].role = 'langdreher';
 daten.profiles[1].andere_nutzer = false;
+daten.profiles[2].geburtstag = '1990-05-17';
+TEST.rpc.nutzer_status = () => [
+  { user_id: 'u1', zuletzt_online: new Date().toISOString(), letzte_anmeldung: new Date(Date.now() - 3 * 3600000).toISOString() },
+  { user_id: 'u2', zuletzt_online: new Date(Date.now() - 26 * 3600000).toISOString(), letzte_anmeldung: null },
+  { user_id: 'u3', zuletzt_online: null, letzte_anmeldung: '2026-09-01T08:00:00Z' }];
+TEST.rpc.ich_bin_da = () => null;
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 
@@ -69,6 +75,12 @@ with sync_playwright() as p:
     pg, f = seite(br, True)
     pg.evaluate("document.getElementById('kopf-einstellungen').click()"); pg.wait_for_timeout(1200)
     pg.locator("[data-einst='nutzer']").click(); pg.wait_for_timeout(1200)
+    zeilen = pg.evaluate("Object.fromEntries([...document.querySelectorAll('[data-nutzer]')].map(z => [z.dataset.nutzer, z.querySelector('.nutzerzeile__infos').innerText.replace(/\\n/g, ' | ')]))")
+    for k, v in zeilen.items(): print("Mitte", k, ":", v)
+    if "jetzt online" not in zeilen["u1"] or "17. Mai" not in zeilen["u3"] or "noch nie" not in zeilen["u3"]: fehler.append("Mitte der Zeile falsch")
+    da = pg.evaluate("TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'ich_bin_da').length")
+    print("Lebenszeichen gesendet:", da)
+    if da < 1: fehler.append("kein Lebenszeichen")
     pg.click("[data-bearbeiten='u2']"); pg.wait_for_selector(".nutzerfenster")
     print("Häkchen:", pg.evaluate("[...document.querySelectorAll('[data-andere]')].map(k => k.dataset.andere + ':' + k.checked)"))
     pg.locator("[data-andere='u2']").click(); pg.wait_for_timeout(800)

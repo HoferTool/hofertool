@@ -6365,3 +6365,19 @@ body.dunkel .nb-blatt .nb-textleiste select { background: #fff !important; borde
 .es-nbkopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
 .es-nbkopf h2 { margin: 0; }
 .dialog--nbverwalten > .es-zeile__hinweis { margin-bottom: 10px; }
+
+/* Nutzerliste: Mitte mit zuletzt online, letzter Anmeldung, Geburtstag */
+.nutzerzeile__wer { flex: 0 1 300px; }
+.nutzerzeile__infos { flex: 1 1 auto; min-width: 0; display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 16px; }
+.nutzerinfo { min-width: 0; }
+.nutzerinfo__titel { font-size: .75rem; color: var(--gedaempft); text-transform: uppercase; letter-spacing: .03em; }
+.nutzerinfo__wert { font-size: .92rem; color: var(--tinte); display: flex; align-items: center; gap: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nutzerinfo__punkt { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--linie-stark); }
+.nutzerinfo__punkt--an { background: #2e9d4f; box-shadow: 0 0 0 3px rgba(46,157,79,.18); }
+@media (max-width: 820px) {
+  .nutzerzeile { flex-wrap: wrap; }
+  .nutzerzeile__wer { flex: 1 1 0; }
+  .nutzerzeile__infos { order: 3; flex: 1 1 100%; padding-left: 52px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

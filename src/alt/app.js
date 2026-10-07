@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.89.0";
+const APP_VERSION = "111.90.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1316,12 +1316,35 @@ async function profilLaden() {
         .eq("id", s.user.id).single(), 10000, "Profil");
     if (error || !data) throw error || new Error("kein Profil");
     profil = data;
+    lebenszeichenStarten();
   } catch (f) {
     console.warn("Profil nicht ladbar:", f.message);
     profil = { id: s.user.id, email: s.user.email, full_name: null,
                role: "admin", is_active: true };
   }
   return profil;
+}
+
+// Lebenszeichen für „zuletzt online“ unter Einstellungen → Nutzer
+// (Wunsch Patrick, 7. Oktober 2026). Alle zwei Minuten, solange die
+// App sichtbar ist, und beim Zurückkehren in den Tab. Fehlt
+// sql/nutzer-online.sql noch, schlägt der Aufruf still fehl.
+let lebenszeichenTakt = null;
+let lebenszeichenZuletzt = 0;
+function lebenszeichen() {
+  if (!profil || !db || document.visibilityState !== "visible") return;
+  if (Date.now() - lebenszeichenZuletzt < 60000) return;
+  lebenszeichenZuletzt = Date.now();
+  try {
+    Promise.resolve(db.rpc("ich_bin_da")).catch(() => {});
+  } catch (f) { /* ohne SQL kein Lebenszeichen */ }
+}
+function lebenszeichenStarten() {
+  lebenszeichenZuletzt = 0;
+  lebenszeichen();
+  if (lebenszeichenTakt) return;
+  lebenszeichenTakt = setInterval(lebenszeichen, 120000);
+  document.addEventListener("visibilitychange", lebenszeichen);
 }
 
 // -----------------------------------------------------------------
