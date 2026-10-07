@@ -18,8 +18,10 @@ import Sicherung from "./Sicherung.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
-const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente"], ["backup", "Backup"],
-                ["fehler", "Fehlerprotokoll"], ["farben", "Farben und Material", true],
+// Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
+// 7. Oktober 2026: „für alle nicht Admins nur Allgemein sichtbar“).
+const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente", true], ["backup", "Backup", true],
+                ["fehler", "Fehlerprotokoll", true], ["farben", "Farben und Material", true],
                 ["nutzer", "Nutzer", true]];
 
 const THEMEN = [["blau", "Blau"], ["rot", "Rot"], ["gruen", "Grün"], ["gelb", "Gelb"],
