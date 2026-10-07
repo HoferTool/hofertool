@@ -16,7 +16,7 @@ d.order_items.push(
    note: "dringend", ziel_art: "maschine", ziel_text: "Star SR31 L-1001", created_by: "u1",
    created_at: "2026-09-28T08:00:00Z" },
  { id: "o3", article_id: "a1", supplier_id: "s1", quantity: 40, status: "teilweise_geliefert",
-   geliefert_menge: 10, needed_by: null, note: null, ziel_art: "lager", ziel_text: "Lager",
+   geliefert_menge: 10, needed_by: t(-5), note: null, ziel_art: "lager", ziel_text: "Lager",
    created_by: "u1", created_at: "2026-09-20T08:00:00Z" },
  { id: "o4", article_id: "a1", supplier_id: "s1", quantity: 5, status: "geliefert",
    needed_by: null, note: null, ziel_art: "lager", ziel_text: "Lager", created_by: "u1",
@@ -67,6 +67,8 @@ with sync_playwright() as p:
     # Bestellt: Teillieferung mit Balken
     pg.click("[data-unter='bestellungen/bestellt']:visible, [data-best='bestellt']:visible"); pg.wait_for_timeout(500)
     b = pg.evaluate("(document.querySelector('.bs-teil__balken i')||{style:{}}).style.width")
+    # Das Datum heisst „bis wann bestellen“: bei Bestelltem nicht mehr zeigen
+    if pg.locator(".bs-chip--frist, .bs-pos--spaet").count(): fehler.append("Frist bei Bestelltem sichtbar")
     if b != "25%": fehler.append("Teillieferung-Balken: %r" % b)
 
     # Historie: nach Monat gruppiert

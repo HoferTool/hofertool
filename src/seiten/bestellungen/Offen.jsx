@@ -23,9 +23,11 @@ const lieferantVon = (z) => (z.articles && z.articles.suppliers) || z.suppliers 
 
 const positionen = (n) => mehrzahl(n, "Position", "Positionen");
 
-// Frist: überfällig rot, in den nächsten drei Tagen gelb, sonst ruhig
+// Frist: überfällig rot, in den nächsten drei Tagen gelb, sonst ruhig.
+// Das Datum heisst „bis wann bestellen“; ist bestellt, zählt es nicht
+// mehr, darum nur bei Offenem (Wunsch Patrick, 7. Oktober 2026).
 function fristArt(z, heute) {
-  if (!z.needed_by) return null;
+  if (!z.needed_by || z.status !== "offen") return null;
   if (z.needed_by < heute) return "spaet";
   if (z.needed_by <= alt.plusTage(heute, 3)) return "bald";
   return "normal";
