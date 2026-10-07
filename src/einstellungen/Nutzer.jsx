@@ -1,7 +1,7 @@
 // =================================================================
 //  EINSTELLUNGEN → NUTZER
 //  Benutzer mit Login (Rolle, Bearbeiten, Plant mit Kürzel, Geburtstag,
-//  PIN und Passwort, aktiv), Zugriff auf Maschinenparks, der Link für
+//  PIN und Passwort, Andere Nutzer, aktiv), Zugriff auf Maschinenparks, der Link für
 //  externe Partner und Personen ohne Login (nur für die Geburtstage
 //  auf der Startseite). Ändern dürfen nur Administratoren, alle
 //  anderen sehen die Liste.
@@ -11,6 +11,7 @@ import { alt, useDaten } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { Gruppe } from "./teile.jsx";
 import { zuschneiden } from "../teile/Zuschnitt.jsx";
+import { istAndererNutzer } from "../huelle/Anmeldung.jsx";
 
 export default function Nutzer() {
   const bin = alt.istAdmin();
@@ -158,7 +159,8 @@ function BenutzerListe({ leute: anfang, parks, mitPin, bin, neu }) {
     setLeute((l) => l.map((u) => (u.id === id ? { ...u, ...felder } : u)));
     const { error } = await alt.db.from("profiles").update(felder).eq("id", id);
     if (error) {
-      alt.meldung(alt.fehlertext(error), "fehler");
+      alt.meldung("andere_nutzer" in felder && /andere_nutzer/.test(error.message || "")
+        ? "Dafür fehlt noch sql/andere-nutzer.sql in der Datenbank." : alt.fehlertext(error), "fehler");
       setLeute((l) => l.map((u) => (u.id === id ? { ...u, ...zurueck } : u)));
       return false;
     }
@@ -249,7 +251,8 @@ function BenutzerListe({ leute: anfang, parks, mitPin, bin, neu }) {
         <table className="tabelle tabelle--benutzer"><thead><tr>
           <th>Name</th><th>Rolle</th><th className="mitte">Bearbeiten</th>
           <th className="mitte">Plant</th><th className="mitte">Kürzel</th>
-          <th>Geburtstag</th>{bin && <th>Anmeldung</th>}<th className="rechts">Status</th>
+          <th>Geburtstag</th>{bin && <th>Anmeldung</th>}
+          <th className="mitte bu-andere" title="Gerätekonten wie Planwand oder Pad Mode: Ihre Kachel steht bei der Anmeldung unten unter „Andere Nutzer“">Andere Nutzer</th><th className="rechts">Status</th>
         </tr></thead>
         <tbody>{leute.map((u) => {
           const selbst = u.id === ich;
@@ -296,6 +299,12 @@ function BenutzerListe({ leute: anfang, parks, mitPin, bin, neu }) {
                   title="Kommt erst mit PIN oder Passwort vom Admin wieder hinein">fehlt</span></>}
                 </div>
               </td>}
+              <td className="bu-andere mitte">{bin
+                ? <input type="checkbox" data-andere={u.id} checked={istAndererNutzer(u)}
+                    title="Kachel bei der Anmeldung unter „Andere Nutzer“"
+                    onChange={(e) => aendern(u.id, { andere_nutzer: e.target.checked },
+                      e.target.checked ? "Steht jetzt unter „Andere Nutzer“." : "Steht jetzt bei den Personen.")} />
+                : (istAndererNutzer(u) ? "ja" : "nein")}</td>
               <td className="bu-status rechts">{bin && !selbst
                 ? <button className="linkknopf" data-aktiv={u.id} data-wert={u.is_active ? "0" : "1"}
                     onClick={() => aktiv(u)}>{u.is_active ? "Deaktivieren" : "Aktivieren"}</button>

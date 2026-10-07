@@ -97,6 +97,7 @@ function MeinKonto() {
   const [pin2, setPin2] = useState("");
   const [mitPin, setMitPin] = useState(!!profil.ohne_passwort);
   const [merken, setMerken] = useState(() => alt.sitzungGemerkt(profil.email));
+  const admin = alt.istAdmin();
   const db = alt.db;
   const { meldung, fehlertext } = alt;
 
@@ -228,9 +229,14 @@ function MeinKonto() {
         </Zeile>
       </Gruppe>
 
-      <Gruppe titel="Anmeldung" text={mitPin
+      <Gruppe titel="Anmeldung" text={(mitPin
         ? "Du meldest dich zurzeit mit deiner PIN an."
-        : "Du meldest dich zurzeit mit deinem Passwort an."}>
+        : "Du meldest dich zurzeit mit deinem Passwort an.")
+        + (admin ? "" : " Passwort und PIN ändert ein Administrator.")}>
+        {/* Passwörter und PINs ändern nur Admins (Wunsch Patrick,
+            7. Oktober 2026), auch das eigene. Die Datenbank lässt
+            pin_setzen seit sql/andere-nutzer.sql ebenfalls nur Admins zu. */}
+        {admin && <>
         <Zeile titel="Neues Passwort" text={mitPin ? "Ersetzt deine PIN." : undefined}>
           <div className="es-eingabe">
             <input type="password" id="np" aria-label="Neues Passwort" autoComplete="new-password" value={passwort}
@@ -251,6 +257,7 @@ function MeinKonto() {
           {mitPin && <button className="linkknopf es-unterlink" id="mk-pinweg" onClick={pinWeg}>
             PIN entfernen und wieder mit Passwort anmelden</button>}
         </Zeile>
+        </>}
         <SchalterZeile id="mk-merken" titel="Auf diesem Gerät merken"
           text="Ein Tipp auf deine Kachel genügt hier, auch nach dem Abmelden."
           checked={merken} onChange={merkenAendern} />

@@ -92,6 +92,16 @@ async function kachelnLaden() {
   return data;
 }
 
+// Gerätekonten wie Planwand, Pad Mode oder Päckli Pad stehen nicht
+// zwischen den Leuten, sondern unten unter „Andere Nutzer“ (Wunsch
+// Patrick, 7. Oktober 2026). Das Häkchen setzt der Admin unter
+// Einstellungen → Nutzer. Solange sql/andere-nutzer.sql fehlt, kennen
+// die Kacheln das Häkchen nicht; dann gelten die Planwand-Konten als
+// solche, denn genau das sind bisher die Gerätekonten.
+export function istAndererNutzer(u) {
+  return u.andere_nutzer === undefined || u.andere_nutzer === null ? u.role === "planwand" : !!u.andere_nutzer;
+}
+
 // Reihen ausgleichen: lieber 3 + 3 als 5 + 1. Höchstens drei Zeilen,
 // waagrecht gefüllt: aus 18 Personen werden 6 · 6 · 6. Bei wenigen
 // Personen mindestens drei nebeneinander, sonst stünde bei drei
@@ -129,6 +139,8 @@ function Anmeldung() {
   const [auswahlFehler, setAuswahlFehler] = useState("");
   // Kachel, die gerade an ihren Platz zurückschwebt (dort solange leer)
   const [heim, setHeim] = useState(null);
+  // Welche Kacheln die Wand zeigt: die Leute oder die anderen Nutzer
+  const [andere, setAndere] = useState(false);
   const fliegerRef = useRef(null);
   const beschaeftigt = useRef(false);
   const uhr = useRef([]);
@@ -232,6 +244,16 @@ function Anmeldung() {
     beschaeftigt.current = false;
   };
 
+  // Zwischen Leuten und anderen Nutzern wechseln: kurz ausblenden und
+  // die andere Gruppe einblenden, wie beim Wechsel ins Anmeldefeld
+  const umschalten = () => {
+    if (beschaeftigt.current) return;
+    setAuswahlFehler("");
+    setAndere((a) => !a);
+    setAuswahlKlasse("login__wechsel--rein");
+    spaeter(() => setAuswahlKlasse(""), REIN);
+  };
+
   // Mit Escape zurück zur Auswahl
   useEffect(() => {
     if (!wahl) return undefined;
@@ -246,8 +268,13 @@ function Anmeldung() {
   // auf die Fensterbreite.
   let karteStil;
   let wand = null;
+  let leute = [], geraete = [], gezeigt = [];
   if (kacheln) {
-    wand = reihenBilden(kacheln);
+    leute = kacheln.filter((u) => !istAndererNutzer(u));
+    geraete = kacheln.filter(istAndererNutzer);
+    // Ohne Leute gleich die anderen, ohne andere gibt es nichts umzuschalten
+    gezeigt = (andere && geraete.length) || !leute.length ? geraete : leute;
+    wand = reihenBilden(gezeigt);
     const breit = wand.breiteste * 112 + (wand.breiteste - 1) * 14 + 56;
     karteStil = { maxWidth: "min(96vw, " + Math.max(380, breit) + "px)" };
   }
@@ -273,6 +300,10 @@ function Anmeldung() {
         ))}
       </div>
       {auswahlFehler && <div className="login__fehler" role="alert">{auswahlFehler}</div>}
+      {leute.length > 0 && geraete.length > 0 && (
+        <button type="button" className="linkknopf login__anderekonto" id="lg-andere"
+          onClick={umschalten}>{gezeigt === geraete ? "Personen" : "Andere Nutzer"}</button>
+      )}
     </>);
   }
 
