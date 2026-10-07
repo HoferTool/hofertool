@@ -8,7 +8,8 @@
 //    dialogFelder({ titel, text, felder, bestaetigen, gefahr })
 //      felder: [{ name, label, typ, wert, platzhalter, pflicht,
 //                 hinweis, auswahl: [[wert, text]], ziffern, fett }]
-//      fett: true gibt einem Textfeld die Knöpfe Fett, Kursiv, Unterstrichen
+//      fett: true gibt einem Textfeld die Knöpfe Fett, Kursiv, Unterstrichen,
+//      durch: true dazu Durchgestrichen
 //      → Objekt mit den Werten oder null bei Abbruch
 //    neueFarbeDialog(farben) → { farbe, material, kuerzel } oder null
 // =================================================================
@@ -99,7 +100,8 @@ function Feld({ f, id, erstes }) {
 function FettFeld({ f, id, erstes }) {
   return (
     <div className="feld feld--fett"><span>{f.label}</span>
-      <TextMitStil id={id} wert={f.wert} platzhalter={f.platzhalter} erstes={erstes} />
+      <TextMitStil id={id} wert={f.wert} platzhalter={f.platzhalter} erstes={erstes}
+        durch={!!f.durch} />
       {f.hinweis && <span className="feldhinweis">{f.hinweis}</span>}
     </div>
   );

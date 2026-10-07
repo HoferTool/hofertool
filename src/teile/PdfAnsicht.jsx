@@ -17,7 +17,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 // pdf.js erst laden, wenn ein PDF aufgeht: hält den Start der App klein.
 // Die „legacy“-Fassung läuft auch auf älteren iPads.
 let pdfjsLaden = null;
-function pdfjs() {
+export function pdfjs() {
   if (!pdfjsLaden) {
     pdfjsLaden = Promise.all([
       import("pdfjs-dist/legacy/build/pdf.mjs"),

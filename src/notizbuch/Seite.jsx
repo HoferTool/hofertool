@@ -1,0 +1,562 @@
+// =================================================================
+//  NOTIZBÜCHER · Eine Seite
+//  Ein weisses Blatt wie in OneNote: zeichnen mit Finger, Stift oder
+//  Maus (gleiche Striche wie die Skizze im Pad Mode, src/teile/
+//  zeichnen.jsx), Textfelder mit Fett, Kursiv, Unterstrichen,
+//  Durchgestrichen und Grösse, eingefügte Bilder und PDFs.
+//
+//  Alles auf der Seite steht in einer Liste (Spalte inhalt):
+//    Strich    { f: "#hex", d: Dicke, p: [x, y, …] }
+//    Text      { t: 1, h: Text mit <b> <i> <u> <s> <br>, x, y, g: Grösse, f: Farbe, p: [] }
+//    Bild      { t: "bild", u: Adresse, x, y, b: Breite, v: Höhe/Breite,
+//                q: Adresse des PDFs (bei PDF-Seiten), s: Seitennummer, n: Name, p: [] }
+//  Alle Lagen und Grössen sind durch die Breite des Blatts geteilt:
+//  Die Seite sieht auf PC, iPad und Handy gleich aus, nur grösser oder
+//  kleiner. Das Blatt wächst nach unten mit, so weit wie nötig.
+//
+//  Werkzeuge: Hand (verschieben, antippen zum Bearbeiten, mit dem
+//  Finger rollen), Stift, Radierer. Mit dem Stift rollt man mit zwei
+//  Fingern. Die Zeichenfläche ist nur so gross wie der sichtbare Teil
+//  und folgt beim Rollen: Ein langes Blatt mit vielen PDF-Seiten wäre
+//  als eine Fläche zu gross für Safari auf dem iPad.
+// =================================================================
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { alt } from "../bruecke.jsx";
+import { FettText } from "../teile/FettText.jsx";
+import { rund, strichZeichnen, getroffen, Symbol, RADIERER, ZURUECK, TEXT } from "../teile/zeichnen.jsx";
+import { seiteLaden, seiteSpeichern, bildEinfuegen, pdfEinfuegen, istPdf, istBild, SEITEN } from "./daten.js";
+
+// Höhe des leeren Blatts (A4 hochkant) und Platz unter dem Inhalt
+const A4 = 1.414;
+const RAND_UNTEN = 0.45;
+const BLATT_MAX = 1100;
+// Dicke und Schrift in Bildpunkten bei 1000 px Breite
+const DICKEN = [["duenn", 2.5], ["mittel", 5], ["dick", 11]];
+const SCHRIFTEN = [["klein", "Klein", 16], ["mittel", "Mittel", 22], ["gross", "Gross", 32],
+                   ["riesig", "Sehr gross", 46]];
+const schriftPx = (g) => (SCHRIFTEN.find((x) => x[0] === g) || SCHRIFTEN[1])[2];
+const istText = (s) => !!(s && s.t === 1);
+const istBildEl = (s) => !!(s && s.t === "bild");
+
+const HAND = "M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5v-8a1.5 1.5 0 0 1 3 0V12M14 11.5V5a1.5 1.5 0 0 1 3 0v7M17 9.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-2a6 6 0 0 1-4.8-2.4L4.6 15a1.5 1.5 0 0 1 2.3-1.9L8 14.5";
+const STIFT = "M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1zM14.5 6.5l3 3";
+const BILD = "M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15 9.5a1 1 0 1 0 0-.01";
+
+// Was sich die Person zuletzt eingestellt hat, gilt beim nächsten Blatt wieder
+const merk = { werkzeug: "stift", farbe: "#1d2430", dicke: "mittel", schrift: "mittel" };
+
+// Unterkante eines Elements in Breitenanteilen
+function unterkante(s) {
+  if (istBildEl(s)) return s.y + s.b * s.v;
+  if (istText(s)) return s.y + 0.08;
+  let m = 0;
+  const p = s.p || [];
+  for (let i = 1; i < p.length; i += 2) m = Math.max(m, p[i]);
+  return m + (s.d || 0);
+}
+export const seitenHoehe = (liste) =>
+  Math.max(A4, (liste || []).reduce((m, s) => Math.max(m, unterkante(s)), 0) + RAND_UNTEN);
+
+function istTextfeld(el) {
+  return !!(el && (el.isContentEditable || el.tagName === "TEXTAREA"
+    || (el.tagName === "INPUT" && !/^(color|button|checkbox|radio|range|file)$/i.test(el.type || ""))));
+}
+
+export default function Seite({ id, darf, onTitel, huelle }) {
+  const [inhalt, setInhalt] = useState(null);
+  const [titel, setTitel] = useState("");
+  const [werkzeug, setWerkzeug] = useState(merk.werkzeug);
+  const [farbe, setFarbe] = useState(merk.farbe);
+  const [dicke, setDicke] = useState(merk.dicke);
+  const [w, setW] = useState(0);              // Breite des Blatts in px
+  const [sicht, setSicht] = useState({ oben: 0, hoehe: 0 });
+  const [wahl, setWahl] = useState(-1);       // gewähltes Bild (Hand)
+  const [zieh, setZieh] = useState(null);     // Element, das gerade verschoben wird
+  const [laeuft, setLaeuft] = useState("");   // Einfügen läuft
+  const [kannZurueck, setKannZurueck] = useState(false);
+  const inhaltRef = useRef([]);
+  const titelRef = useRef("");
+  const anfang = useRef(null);                // Stand beim Öffnen, für Rückgängig der App
+  const verlauf = useRef([]);
+  const rolle = useRef(null);
+  const blatt = useRef(null);
+  const leinwand = useRef(null);
+  const datei = useRef(null);
+  const aktuell = useRef(null);
+  const zeiger = useRef(new Map());
+  const rollen = useRef(null);
+  const ziehen = useRef(null);
+  const getippt = useRef(null);
+  const offen = useRef(null);
+  const wRef = useRef(0);
+  wRef.current = w;
+  const sichtRef = useRef(sicht);
+  sichtRef.current = sicht;
+  const darfZeichnen = darf && inhalt !== null;
+
+  // ---------- Laden ----------
+  useEffect(() => {
+    let weg = false;
+    seiteLaden(id).then((d) => {
+      if (weg) return;
+      const liste = Array.isArray(d && d.inhalt) ? d.inhalt : [];
+      const t = (d && d.titel) || "";
+      inhaltRef.current = liste; titelRef.current = t;
+      anfang.current = { inhalt: liste, titel: t };
+      setInhalt(liste); setTitel(t);
+    }).catch((e) => {
+      if (weg) return;
+      alt.meldung("Seite nicht geladen: " + alt.fehlertext(e), "fehler");
+      setInhalt([]);
+    });
+    return () => { weg = true; };
+  }, [id]);
+
+  // ---------- Speichern ----------
+  const senden = useCallback(async () => {
+    offen.current = null;
+    try {
+      await seiteSpeichern(id, { inhalt: inhaltRef.current, titel: titelRef.current });
+    } catch (e) {
+      alt.meldung("Seite nicht gespeichert: " + alt.fehlertext(e), "fehler");
+    }
+  }, [id]);
+  const speichern = useCallback(() => {
+    clearTimeout(offen.current);
+    offen.current = setTimeout(senden, 600);
+  }, [senden]);
+
+  // Beim Wechseln der Seite oder Schliessen: Wartendes sofort senden und
+  // für das Rückgängig der App den Stand von vorher ablegen
+  useEffect(() => () => {
+    if (offen.current) { clearTimeout(offen.current); senden(); }
+    const a = anfang.current;
+    if (a && (a.titel !== titelRef.current || JSON.stringify(a.inhalt) !== JSON.stringify(inhaltRef.current))) {
+      alt.merkeSchritt("Notizbuch-Seite ändern",
+        alt.rueckSetz(SEITEN, { inhalt: a.inhalt, titel: a.titel }, { id }));
+    }
+  }, [id, senden]);
+
+  const aendern = (liste) => {
+    verlauf.current.push(inhaltRef.current);
+    if (verlauf.current.length > 80) verlauf.current.shift();
+    setKannZurueck(true);
+    inhaltRef.current = liste; setInhalt(liste); speichern();
+  };
+  const zurueck = useCallback(() => {
+    const vorher = verlauf.current.pop();
+    setKannZurueck(verlauf.current.length > 0);
+    if (!vorher) return;
+    setWahl(-1);
+    inhaltRef.current = vorher; setInhalt(vorher); speichern();
+  }, [speichern]);
+
+  const titelAendern = (t) => {
+    titelRef.current = t; setTitel(t); onTitel(id, t); speichern();
+  };
+
+  // ---------- Grösse und Rollen ----------
+  useLayoutEffect(() => {
+    const r = rolle.current;
+    if (!r) return;
+    const messen = () => {
+      // Auf dem Handy mindestens 560 px breit (dann seitlich rollen),
+      // sonst wäre normale Schrift kaum mehr lesbar
+      const breite = Math.max(560, Math.min(BLATT_MAX, r.clientWidth - (r.clientWidth > 700 ? 48 : 16)));
+      setW(Math.floor(breite));
+      setSicht({ oben: r.scrollTop, hoehe: r.clientHeight });
+    };
+    messen();
+    const ro = new ResizeObserver(messen);
+    ro.observe(r);
+    let rahmen = 0;
+    const gerollt = () => {
+      cancelAnimationFrame(rahmen);
+      rahmen = requestAnimationFrame(() => setSicht({ oben: r.scrollTop, hoehe: r.clientHeight }));
+    };
+    r.addEventListener("scroll", gerollt, { passive: true });
+    return () => { ro.disconnect(); r.removeEventListener("scroll", gerollt); cancelAnimationFrame(rahmen); };
+  }, [inhalt !== null]);
+
+  // Oberkante des Blatts im Rollbereich (es hat oben etwas Abstand)
+  const blattOben = () => (blatt.current ? blatt.current.offsetTop : 0);
+
+  // ---------- Zeichnen ----------
+  const allesZeichnen = useCallback(() => {
+    const cv = leinwand.current;
+    if (!cv || !wRef.current) return;
+    const breite = wRef.current;
+    const { oben, hoehe } = sichtRef.current;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Die Fläche deckt nur den sichtbaren Teil des Blatts
+    const ab = Math.max(0, oben - blattOben());
+    const h = Math.max(1, Math.round(hoehe));
+    if (cv.width !== Math.round(breite * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(breite * dpr); cv.height = Math.round(h * dpr);
+      cv.style.width = breite + "px"; cv.style.height = h + "px";
+    }
+    cv.style.top = ab + "px";
+    const c = cv.getContext("2d");
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, cv.width, cv.height);
+    c.setTransform(dpr, 0, 0, dpr, 0, -ab * dpr);
+    const von = ab / breite - 0.05, bis = (ab + h) / breite + 0.05;
+    inhaltRef.current.forEach((s) => {
+      if (s.t) return;
+      // Nur, was im sichtbaren Teil liegt
+      const p = s.p || [];
+      let drin = false;
+      for (let i = 1; i < p.length && !drin; i += 2) drin = p[i] >= von && p[i] <= bis;
+      if (drin) strichZeichnen(c, s, breite);
+    });
+    if (aktuell.current) strichZeichnen(c, aktuell.current, breite);
+  }, []);
+  useLayoutEffect(() => { allesZeichnen(); }, [inhalt, w, sicht, allesZeichnen]);
+
+  // ---------- Stift, Radierer, zwei Finger rollen ----------
+  const punkt = (e) => {
+    const r = blatt.current.getBoundingClientRect();
+    const b = wRef.current || 1;
+    return [rund((e.clientX - r.left) / b), rund((e.clientY - r.top) / b)];
+  };
+  const radieren = (x, y) => {
+    const r = 10 / (wRef.current || 1000);
+    const rest = inhaltRef.current.filter((s) => !!s.t || !getroffen(s, x, y, r));
+    if (rest.length !== inhaltRef.current.length) { inhaltRef.current = rest; setInhalt(rest); }
+  };
+  const mitte = () => {
+    let y = 0;
+    zeiger.current.forEach((p) => { y += p.y; });
+    return y / (zeiger.current.size || 1);
+  };
+
+  const runter = (e) => {
+    if (!darfZeichnen || (e.pointerType === "mouse" && e.button !== 0)) return;
+    e.preventDefault();
+    zeiger.current.set(e.pointerId, { y: e.clientY });
+    try { leinwand.current.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
+    if (zeiger.current.size >= 2) {
+      // Zweiter Finger: der angefangene Strich fällt weg, es wird gerollt
+      aktuell.current = null; rollen.current = mitte(); allesZeichnen();
+      return;
+    }
+    rollen.current = null;
+    const [x, y] = punkt(e);
+    if (werkzeug === "radierer") {
+      aktuell.current = { radiert: inhaltRef.current };
+      radieren(x, y); return;
+    }
+    const px = (DICKEN.find((d) => d[0] === dicke) || DICKEN[1])[1];
+    aktuell.current = { f: farbe, d: rund(px / 1000), p: [x, y] };
+    allesZeichnen();
+  };
+  const bewegen = (e) => {
+    if (!zeiger.current.has(e.pointerId)) return;
+    e.preventDefault();
+    zeiger.current.set(e.pointerId, { y: e.clientY });
+    if (rollen.current !== null) {
+      const m = mitte();
+      rolle.current.scrollTop -= m - rollen.current;
+      rollen.current = m;
+      return;
+    }
+    const liste = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    (liste.length ? liste : [e]).forEach((ev) => {
+      const [x, y] = punkt(ev);
+      const s = aktuell.current;
+      if (!s) return;
+      if (s.radiert) { radieren(x, y); return; }
+      const n = s.p.length;
+      if (Math.hypot(x - s.p[n - 2], y - s.p[n - 1]) < 0.0015) return;
+      s.p.push(x, y);
+    });
+    if (werkzeug !== "radierer") allesZeichnen();
+  };
+  const hoch = (e) => {
+    if (!zeiger.current.has(e.pointerId)) return;
+    zeiger.current.delete(e.pointerId);
+    if (zeiger.current.size) { if (rollen.current !== null) rollen.current = mitte(); return; }
+    rollen.current = null;
+    const s = aktuell.current;
+    aktuell.current = null;
+    if (!s) return;
+    if (s.radiert) {
+      if (s.radiert !== inhaltRef.current) {
+        verlauf.current.push(s.radiert); setKannZurueck(true); speichern();
+      }
+      return;
+    }
+    aendern([...inhaltRef.current, s]);
+  };
+
+  // ---------- Textfelder ----------
+  const textDialog = (wert) => alt.dialogFelder({
+    titel: wert ? "Text bearbeiten" : "Text einfügen",
+    felder: [
+      { name: "text", label: "Text", typ: "textarea", fett: true, durch: true, wert: wert ? wert.h : "",
+        hinweis: wert ? "Text leeren und speichern nimmt das Feld weg." : "Danach mit der Hand verschieben." },
+      { name: "schrift", label: "Schriftgrösse", wert: wert ? wert.g : merk.schrift,
+        auswahl: SCHRIFTEN.map((x) => [x[0], x[1]]) }],
+    bestaetigen: wert ? "Speichern" : "Einfügen" });
+
+  const textNeu = async () => {
+    const t = await textDialog(null);
+    if (!t || !(t.text || "").trim()) return;
+    merk.schrift = t.schrift;
+    // Oben links im sichtbaren Teil, unter Texten, die dort schon stehen
+    const b = wRef.current || 1;
+    const oben = Math.max(0, sichtRef.current.oben - blattOben()) / b;
+    const sichtUnten = oben + sichtRef.current.hoehe / b;
+    let y = oben + 0.04;
+    blatt.current.querySelectorAll("[data-nbtext]").forEach((el) => {
+      const r = el.getBoundingClientRect(), f = blatt.current.getBoundingClientRect();
+      const u = (r.bottom - f.top) / b;
+      if (u > oben && u < sichtUnten - 0.05) y = Math.max(y, u + 0.015);
+    });
+    aendern([...inhaltRef.current, { t: 1, h: t.text.trim(), x: 0.04, y: rund(y), g: t.schrift, f: farbe, p: [] }]);
+  };
+
+  const textBearbeiten = async (i) => {
+    const vorher = inhaltRef.current[i];
+    const t = await textDialog(vorher);
+    if (!t || inhaltRef.current[i] !== vorher) return;
+    const text = (t.text || "").trim();
+    const liste = inhaltRef.current.slice();
+    if (text) liste[i] = { ...vorher, h: text, g: t.schrift };
+    else liste.splice(i, 1);
+    aendern(liste);
+  };
+
+  // ---------- Verschieben (Hand) ----------
+  // art: "text" | "bild" | "groesse"
+  const greifen = (e, i, art) => {
+    if (!darfZeichnen || ziehen.current) return;
+    if (werkzeug === "radierer" && art === "text") {
+      e.preventDefault(); e.stopPropagation();
+      aendern(inhaltRef.current.filter((_, n) => n !== i)); return;
+    }
+    if (werkzeug !== "hand") return;
+    e.stopPropagation();
+    const s = inhaltRef.current[i];
+    // Ein Bild, das nicht gewählt ist, wird erst gewählt: so lässt sich
+    // auf einer Seite voller PDF-Seiten mit dem Finger weiter rollen
+    if (art === "bild" && wahl !== i) { ziehen.current = { i, s, art: "waehlen", sx: e.clientX, sy: e.clientY }; return; }
+    e.preventDefault();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
+    ziehen.current = { i, s, art, sx: e.clientX, sy: e.clientY, weit: false, id: e.pointerId };
+  };
+  const ziehBewegen = (e) => {
+    const z = ziehen.current;
+    if (!z || z.art === "waehlen" || z.id !== e.pointerId) return;
+    e.preventDefault();
+    const dx = e.clientX - z.sx, dy = e.clientY - z.sy;
+    if (!z.weit && Math.hypot(dx, dy) < 6) return;
+    z.weit = true;
+    const b = wRef.current || 1;
+    let neu;
+    if (z.art === "groesse") {
+      neu = { ...z.s, b: rund(Math.max(0.06, Math.min(1 - z.s.x, z.s.b + dx / b))) };
+    } else {
+      neu = { ...z.s, x: rund(Math.max(-0.02, Math.min(0.96, z.s.x + dx / b))),
+              y: rund(Math.max(0, z.s.y + dy / b)) };
+    }
+    z.neu = neu;
+    setZieh({ i: z.i, s: neu });
+  };
+  const loslassen = (e) => {
+    const z = ziehen.current;
+    if (!z) return;
+    ziehen.current = null; setZieh(null);
+    if (z.art === "waehlen") {
+      if (e.type === "pointerup" && Math.hypot(e.clientX - z.sx, e.clientY - z.sy) < 8) setWahl(z.i);
+      return;
+    }
+    if (inhaltRef.current[z.i] !== z.s) return;
+    if (z.weit && z.neu) {
+      const liste = inhaltRef.current.slice();
+      liste[z.i] = z.neu;
+      aendern(liste);
+    } else if (e.type === "pointerup" && z.art === "text") getippt.current = z.i;
+  };
+  // Bearbeiten erst beim Klick, sonst schliesst der Klick das neue Fenster gleich wieder
+  const textKlick = (i) => {
+    if (getippt.current !== i) return;
+    getippt.current = null;
+    textBearbeiten(i);
+  };
+  const bildWeg = (i) => { setWahl(-1); aendern(inhaltRef.current.filter((_, n) => n !== i)); };
+
+  // ---------- Bilder und PDFs einfügen ----------
+  const einfuegen = async (dateien, ort) => {
+    const liste = Array.from(dateien || []).filter((d) => istPdf(d) || istBild(d));
+    if (!liste.length) {
+      if (dateien && dateien.length) alt.meldung("Nur Bilder und PDFs lassen sich einfügen.", "warn");
+      return;
+    }
+    // Ohne Ort: unter allem, was schon auf der Seite steht
+    let y = ort ? ort.y : inhaltRef.current.reduce((m, s) => Math.max(m, unterkante(s) + 0.04), 0.04);
+    const x = ort ? ort.x : 0.04;
+    const neu = [];
+    let ersteY = y;
+    try {
+      for (const d of liste) {
+        setLaeuft("Wird eingefügt: " + d.name);
+        if (istPdf(d)) {
+          const r = await pdfEinfuegen(d, (i, n) => setLaeuft("PDF " + d.name + ": Seite " + i + " von " + n));
+          r.seiten.forEach((s) => {
+            neu.push({ t: "bild", u: s.u, q: s.q, s: s.s, n: d.name, x: rund(x), y: rund(y), b: rund(Math.min(0.92, 1 - x)), v: rund(s.v), p: [] });
+            y += Math.min(0.92, 1 - x) * s.v + 0.03;
+          });
+          if (r.alle > r.seiten.length) {
+            alt.meldung("Nur die ersten " + r.seiten.length + " von " + r.alle + " Seiten eingefügt.", "warn");
+          }
+        } else {
+          const r = await bildEinfuegen(d);
+          const b = Math.min(0.92, 1 - x, Math.max(0.2, r.px / 1000));
+          neu.push({ t: "bild", u: r.u, n: d.name, x: rund(x), y: rund(y), b: rund(b), v: rund(r.v), p: [] });
+          y += b * r.v + 0.03;
+        }
+      }
+    } catch (e) {
+      alt.fehlerMerken && alt.fehlerMerken("Notizbuch einfügen", alt.fehlertext(e));
+      alt.meldung("Einfügen ging nicht: " + alt.fehlertext(e), "fehler");
+    } finally {
+      setLaeuft("");
+    }
+    if (!neu.length) return;
+    aendern([...inhaltRef.current, ...neu]);
+    // Hinrollen, damit man sieht, was dazugekommen ist
+    requestAnimationFrame(() => {
+      const r = rolle.current;
+      if (r && !ort) r.scrollTo({ top: blattOben() + ersteY * (wRef.current || 1) - 20, behavior: "smooth" });
+    });
+  };
+
+  const fallen = (e) => {
+    if (!darfZeichnen || !e.dataTransfer || !e.dataTransfer.files.length) return;
+    e.preventDefault();
+    const [x, y] = punkt(e);
+    einfuegen(e.dataTransfer.files, { x: Math.max(0, Math.min(0.9, x)), y: Math.max(0, y) });
+  };
+
+  // Strg + Z nimmt im Fenster den letzten Schritt auf der Seite zurück,
+  // Strg + V fügt ein kopiertes Bild ein
+  useEffect(() => {
+    const oben = () => {
+      const alle = document.querySelectorAll(".dialog-huelle");
+      return alle[alle.length - 1] === huelle;
+    };
+    const taste = (e) => {
+      if (!((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z")) return;
+      if (istTextfeld(e.target) || !oben()) return;
+      e.preventDefault();
+      zurueck();
+    };
+    const kleben = (e) => {
+      if (!darfZeichnen || istTextfeld(e.target) || !oben()) return;
+      const f = e.clipboardData && e.clipboardData.files;
+      if (f && f.length) { e.preventDefault(); einfuegen(f); }
+    };
+    document.addEventListener("keydown", taste);
+    document.addEventListener("paste", kleben);
+    return () => { document.removeEventListener("keydown", taste); document.removeEventListener("paste", kleben); };
+  });
+
+  const werkzeugSetzen = (wz) => { setWerkzeug(wz); merk.werkzeug = wz; setWahl(-1); };
+  const farbeSetzen = (f) => { setFarbe(f); merk.farbe = f; if (werkzeug !== "stift") werkzeugSetzen("stift"); };
+  const dickeWechseln = () => {
+    const i = DICKEN.findIndex((d) => d[0] === dicke);
+    const d = DICKEN[(i + 1) % DICKEN.length][0];
+    setDicke(d); merk.dicke = d;
+    if (werkzeug !== "stift") werkzeugSetzen("stift");
+  };
+  const dickePx = (DICKEN.find((d) => d[0] === dicke) || DICKEN[1])[1];
+
+  if (inhalt === null) return <div className="nb-seite"><p className="nb-leer">Wird geladen …</p></div>;
+
+  const hoehe = seitenHoehe(zieh ? inhalt.map((s, i) => (i === zieh.i ? zieh.s : s)) : inhalt);
+  const ansicht = (s, i) => (zieh && zieh.i === i ? zieh.s : s);
+  const knopf = (wz, d, name) => (
+    <button type="button" className={"nb-knopf" + (werkzeug === wz ? " aktiv" : "")} data-nbwerkzeug={wz}
+      aria-label={name} title={name} aria-pressed={werkzeug === wz} onClick={() => werkzeugSetzen(wz)}>
+      <Symbol d={d} /></button>);
+
+  return (
+    <div className={"nb-seite nb-seite--" + werkzeug}>
+      {darf &&
+        <div className="nb-leiste" role="toolbar" aria-label="Werkzeuge">
+          {knopf("hand", HAND, "Hand: verschieben, antippen zum Bearbeiten, rollen")}
+          {knopf("stift", STIFT, "Stift")}
+          <label className="nb-farbe" style={{ "--f": farbe }} aria-label="Farbe wählen" title="Farbe wählen">
+            <input type="color" value={farbe} data-nbfarbe=""
+              onChange={(e) => farbeSetzen(e.target.value.toLowerCase())} />
+          </label>
+          <button type="button" className="nb-knopf" aria-label={"Stiftdicke " + dicke} title="Stiftdicke wechseln"
+            data-nbdicke={dicke} onClick={dickeWechseln}>
+            <i style={{ width: 3 + dickePx * 1.3, height: 3 + dickePx * 1.3, background: farbe }} /></button>
+          {knopf("radierer", RADIERER, "Radierer")}
+          <span className="nb-trenner" />
+          <button type="button" className="nb-knopf" data-nb="text" aria-label="Text einfügen" title="Text einfügen"
+            onClick={textNeu}><Symbol d={TEXT} /></button>
+          <button type="button" className="nb-knopf" data-nb="einfuegen" aria-label="Bild oder PDF einfügen"
+            title="Bild oder PDF einfügen" disabled={!!laeuft} onClick={() => datei.current.click()}>
+            <Symbol d={BILD} /></button>
+          <input ref={datei} type="file" hidden multiple accept="image/*,application/pdf,.pdf" data-nbdatei=""
+            onChange={(e) => { const f = e.target.files; einfuegen(f); e.target.value = ""; }} />
+          <span className="nb-trenner" />
+          <button type="button" className="nb-knopf" data-nb="zurueck" aria-label="Rückgängig"
+            title="Rückgängig (Strg + Z)" disabled={!kannZurueck} onClick={zurueck}><Symbol d={ZURUECK} /></button>
+          {laeuft && <span className="nb-laeuft" role="status">{laeuft}</span>}
+        </div>}
+      <div className="nb-rolle" ref={rolle} onDragOver={(e) => { if (darfZeichnen) e.preventDefault(); }}
+        onDrop={fallen} onPointerDown={(e) => { if (e.target === e.currentTarget) setWahl(-1); }}>
+        <input className="nb-titel" value={titel} placeholder="Titel der Seite" readOnly={!darf}
+          style={{ width: w || undefined }} data-nbtitel="" maxLength={120}
+          onChange={(e) => titelAendern(e.target.value)} />
+        <div className="nb-blatt" ref={blatt} data-nbblatt=""
+          style={{ width: w, height: Math.round(hoehe * w) }}
+          onPointerDown={(e) => { if (e.target === e.currentTarget) setWahl(-1); }}>
+          {w > 0 && inhalt.map((s0, i) => {
+            if (!istBildEl(s0)) return null;
+            const s = ansicht(s0, i);
+            return (
+              <div key={"b" + i} className={"nb-bild" + (wahl === i ? " nb-bild--wahl" : "")} data-nbbild={i}
+                style={{ left: s.x * w, top: s.y * w, width: s.b * w, height: s.b * s.v * w }}
+                onPointerDown={(e) => greifen(e, i, "bild")} onPointerMove={ziehBewegen}
+                onPointerUp={loslassen} onPointerCancel={loslassen}>
+                <img src={s.u} alt={s.n || "Bild"} draggable={false} loading="lazy" />
+                {wahl === i && darf && <>
+                  <button type="button" className="nb-bild__weg" data-nbbildweg="" aria-label="Bild entfernen"
+                    title="Entfernen" onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => bildWeg(i)}>×</button>
+                  {s.q && <button type="button" className="nb-bild__pdf" title="PDF öffnen"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => alt.betrachter(s.q, s.n || "PDF", true)}>PDF öffnen</button>}
+                  <span className="nb-bild__griff" data-nbgriff="" aria-label="Grösse ändern"
+                    onPointerDown={(e) => greifen(e, i, "groesse")} onPointerMove={ziehBewegen}
+                    onPointerUp={loslassen} onPointerCancel={loslassen} />
+                </>}
+              </div>);
+          })}
+          <canvas ref={leinwand} className="nb-leinwand"
+            onPointerDown={runter} onPointerMove={bewegen} onPointerUp={hoch} onPointerCancel={hoch}
+            onLostPointerCapture={hoch} />
+          {w > 0 && inhalt.map((s0, i) => {
+            if (!istText(s0)) return null;
+            const s = ansicht(s0, i);
+            return (
+              <div key={"t" + i} className="nb-text" data-nbtext={i}
+                style={{ left: s.x * w, top: s.y * w, color: s.f, fontSize: schriftPx(s.g) * w / 1000,
+                         maxWidth: Math.max(80, (1 - s.x) * w - 6) }}
+                onPointerDown={(e) => greifen(e, i, "text")} onPointerMove={ziehBewegen}
+                onPointerUp={loslassen} onPointerCancel={loslassen} onClick={() => textKlick(i)}>
+                <FettText text={s.h} /></div>);
+          })}
+          {!inhalt.length && darf &&
+            <span className="nb-hinweis">Hier zeichnen oder schreiben. Bilder und PDFs mit dem Bild-Knopf
+              einfügen oder hierher ziehen.</span>}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -10,7 +10,7 @@
 //  der Browser kann beides von sich aus (execCommand).
 //
 //  Gespeichert wird nur ein kleiner, sicherer Teil von HTML: <b>, <i>,
-//  <u> und <br>. Text ohne Auszeichnung bleibt reiner Text. Ältere
+//  <u>, <s> (durchgestrichen) und <br>. Text ohne Auszeichnung bleibt reiner Text. Ältere
 //  Einträge mit **fett** werden weiter fett gezeigt.
 //    <FettText text="..." />     zeigt gespeicherten Text an
 //    <TextMitStil ... />         Eingabefeld mit den drei Knöpfen
@@ -21,7 +21,7 @@
 import { useEffect, useRef, useState } from "react";
 
 const ALT_FETT = /\*\*([^*\n]+?)\*\*/g;
-const IST_HTML = /<(b|i|u|br|strong|em)\b[^>]*>/i;
+const IST_HTML = /<(b|i|u|s|br|strong|em|strike|del)\b[^>]*>/i;
 
 const escHtml = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -52,7 +52,10 @@ function serialisieren(knoten) {
     const fett = tag === "b" || tag === "strong" || /^(bold|[6-9]00)$/.test(st.fontWeight || "");
     const kursiv = tag === "i" || tag === "em" || st.fontStyle === "italic";
     const unter = tag === "u" || /underline/.test(st.textDecoration || st.textDecorationLine || "");
+    const durch = tag === "s" || tag === "strike" || tag === "del"
+      || /line-through/.test(st.textDecoration || st.textDecorationLine || "");
     if (innen) {
+      if (durch) innen = "<s>" + innen + "</s>";
       if (unter) innen = "<u>" + innen + "</u>";
       if (kursiv) innen = "<i>" + innen + "</i>";
       if (fett) innen = "<b>" + innen + "</b>";
@@ -67,7 +70,7 @@ function serialisieren(knoten) {
 // Fürs Speichern: ohne Auszeichnung reiner Text mit Zeilenumbrüchen
 export function stilWert(el) {
   const html = sauber(el.innerHTML);
-  if (/<(b|i|u)>/.test(html)) return html.trim();
+  if (/<(b|i|u|s)>/.test(html)) return html.trim();
   const tmp = document.createElement("div");
   tmp.innerHTML = html.replace(/<br>/g, "\n");
   return tmp.textContent.trim();
@@ -85,6 +88,7 @@ function zuReact(knoten, weg) {
       else if (tag === "b") teile.push(<strong key={key}>{zuReact(k, key)}</strong>);
       else if (tag === "i") teile.push(<em key={key}>{zuReact(k, key)}</em>);
       else if (tag === "u") teile.push(<u key={key}>{zuReact(k, key)}</u>);
+      else if (tag === "s") teile.push(<s key={key}>{zuReact(k, key)}</s>);
       else teile.push(...zuReact(k, key));
     }
   });
@@ -115,11 +119,17 @@ const KNOEPFE = [
   { befehl: "italic", zeichen: "I", name: "Kursiv", stil: { fontStyle: "italic", fontFamily: "Georgia, serif" } },
   { befehl: "underline", zeichen: "U", name: "Unterstrichen", stil: { textDecoration: "underline" } },
 ];
+// Durchgestrichen gibt es nur, wo es gewünscht ist: Skizze und
+// Notizbücher (Wunsch Patrick 7. Oktober 2026); die Info an der
+// Maschine bleibt bei B, I, U.
+const DURCH = { befehl: "strikeThrough", zeichen: "S", name: "Durchgestrichen",
+  stil: { textDecoration: "line-through" } };
 
 // Eingabefeld mit den Knöpfen. Die Knöpfe handeln schon beim Antippen
 // (pointerdown) und verhindern dort, dass das Feld den Fokus verliert,
 // sonst wäre auf dem Tablet die Markierung weg und die Tastatur zu.
-export function TextMitStil({ id, wert, platzhalter, erstes }) {
+export function TextMitStil({ id, wert, platzhalter, erstes, durch }) {
+  const knoepfe = durch ? [...KNOEPFE, DURCH] : KNOEPFE;
   const feld = useRef(null);
   const [an, setAn] = useState({});
 
@@ -131,7 +141,7 @@ export function TextMitStil({ id, wert, platzhalter, erstes }) {
       const sel = document.getSelection();
       if (!feld.current || !sel || !feld.current.contains(sel.anchorNode)) return;
       const neu = {};
-      KNOEPFE.forEach((k) => { try { neu[k.befehl] = document.queryCommandState(k.befehl); } catch (f) { /* egal */ } });
+      knoepfe.forEach((k) => { try { neu[k.befehl] = document.queryCommandState(k.befehl); } catch (f) { /* egal */ } });
       setAn(neu);
     };
     document.addEventListener("selectionchange", pruefen);
@@ -155,7 +165,7 @@ export function TextMitStil({ id, wert, platzhalter, erstes }) {
   return (
     <>
       <div className="stilleiste" role="toolbar" aria-label="Schrift">
-        {KNOEPFE.map((k) => (
+        {knoepfe.map((k) => (
           <button key={k.befehl} type="button" className={"knopf stilknopf" + (an[k.befehl] ? " aktiv" : "")}
             data-stil={k.befehl} aria-label={k.name} aria-pressed={!!an[k.befehl]} title={k.name}
             onPointerDown={(e) => druecken(e, k.befehl)} onMouseDown={(e) => e.preventDefault()}

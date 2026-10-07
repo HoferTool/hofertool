@@ -18,6 +18,8 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `hoco_parts` | Stammdaten je HOCO Nr. | PK `hoco_nr`, `bezeichnung`, `material`, `zeichnungs_nr`, `zeichnung_url`, `waschgebinde`, `infos` (seit 111.54.0 nicht mehr in der App, Daten bleiben) |
 | `hoco_type_data` | Daten je HOCO Nr. **und** Typ | eindeutig (`hoco_nr`, `type_id`), `programm_nr`, `stueckzeit_s`, `blatt_url`, `abend_stk`, `pad_info` (Info an der Maschine). Eine Zeile je Typ, auf dem die Nummer gerüstet, gelaufen oder fertig wurde: trägt der Auslöser `jobs_typ_merken` selbst ein (`sql/hoco-typen.sql`) |
 | `pad_skizzen` | Skizze im Pad Mode, eine je Auftrag | PK `job_id` (→ `jobs`, wird mitgelöscht), `striche` (jsonb: Liste von `{f: Farbe, d: Dicke, p: [x, y, …]}`, Punkte und Dicke geteilt durch die Breite der Fläche), `geaendert_am`, `geaendert_von`. Der Auslöser `jobs_skizze_weg` löscht die Zeile, sobald der Auftrag auf `fertig` geht (`sql/pad-skizze.sql`) |
+| `notizbuecher` | Notizbücher (Startseite, Buch-Knopf bei den Notizen, 111.80.0) | `id`, `name`, `farbe` (#hex), `reihenfolge`, `erstellt_am`, `erstellt_von`, `geaendert_am`. Alle ausser Externen lesen und schreiben (`sql/notizbuecher.sql`) |
+| `notizbuch_seiten` | Seiten eines Notizbuchs | `buch_id` (→ `notizbuecher`, wird mitgelöscht), `titel`, `reihenfolge`, `inhalt` (jsonb: Liste wie bei `pad_skizzen` aus Strichen `{f, d, p}`, Textfeldern `{t: 1, h, x, y, g, f}` mit `<b> <i> <u> <s> <br>` und Bildern `{t: "bild", u, x, y, b, v, q, s, n}`; alles geteilt durch die Breite des Blatts; eingefügte PDFs sind je Seite ein Bild mit `q` = Adresse des PDFs), `geaendert_am`, `geaendert_von` |
 | `vacations` | Ferien | `person` (Text), `zeile`, `von`, `tage`, `genehmigt` |
 | `tool_changes` | Werkzeugwechsel | `machine_id`, `job_id`, `tool_nr`, `grund`, `stueckzahl`, `gehalten_stk` |
 | `setup_sheets`, `setup_sheet_paths`, `setup_sheet_slots`, `setup_snapshots` | Einrichtblätter | |
@@ -97,4 +99,4 @@ In der Publikation `supabase_realtime`: `jobs`, `vacations`, Chat-Tabellen. Die 
 
 ## Dateiablage (Storage)
 
-Ablagen: `zeichnungen` (öffentlich — Zeichnungen, WBG, Einrichtblätter, Dokumentenpool unter `dok/`), `profilbilder`, `chat`.
+Ablagen: `zeichnungen` (öffentlich — Zeichnungen, WBG, Einrichtblätter, Dokumentenpool unter `dok/`), `profilbilder`, `chat`, `notizbuecher` (öffentlich, zufällige Namen `JJJJ/….jpg|pdf` — Bilder und PDFs der Notizbücher; beim Entfernen von der Seite bleiben die Dateien liegen, damit Rückgängig sie zurückholen kann).

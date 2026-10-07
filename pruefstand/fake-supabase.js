@@ -323,6 +323,12 @@ function bauer(tabelle) {
   function lauf() {
     return new Promise((fertig) => {
       setTimeout(() => {
+        // Tabellen, die es noch nicht gibt (SQL nicht ausgeführt)
+        if (window.FEHLENDE_TABELLEN && window.FEHLENDE_TABELLEN.includes(tabelle)) {
+          fertig({ data: null, error: { code: "PGRST205",
+            message: "Could not find the table 'public." + tabelle + "' in the schema cache" } });
+          return;
+        }
         const tab = daten[tabelle] || (daten[tabelle] = []);
         TEST.protokoll.push({ tabelle, art: zustand.art });
 
@@ -534,8 +540,11 @@ export function createClient(_url, _key, optionen) {
     channel: () => ({ on() { return this; }, subscribe() { return this; } }),
     removeChannel: () => {},
     removeAllChannels: () => {},
-    storage: { from: () => ({
-      upload: (pfad) => Promise.resolve({ data: { path: pfad }, error: null }),
+    storage: { from: (ablage) => ({
+      upload: (pfad, datei, o) => {
+        TEST.protokoll.push({ art: "upload", ablage, pfad, typ: o && o.contentType, groesse: datei && datei.size });
+        return Promise.resolve({ data: { path: pfad }, error: null });
+      },
       getPublicUrl: (pfad) => ({ data: { publicUrl:
         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
         + "AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==#" + pfad } }),

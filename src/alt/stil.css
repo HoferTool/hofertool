@@ -6045,3 +6045,130 @@ body[data-thema] #pad .pad-kachel--maschine::before {
   .bm--bearbeiten .bm-inhalt { grid-template-columns: minmax(0, 1fr); }
   .bm-schreiben textarea { min-height: 220px; }
 }
+
+/* ---------- Notizbücher (Wunsch Patrick 7. Oktober 2026) ----------
+   Knopf mit Buch bei den Notizen auf der Startseite und ein grosses
+   Fenster wie OneNote: Bücher, Seiten, Blatt. Das Blatt bleibt auch im
+   dunklen Modus weiss wie Papier, damit Farben und PDFs stimmen. */
+.notiz-kopfrechts { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.notizbuch-knopf { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0;
+  border: 1px solid var(--linie); border-radius: 8px; background: var(--flaeche);
+  color: var(--marke); cursor: pointer; align-self: center; }
+.notizbuch-knopf:hover { border-color: var(--marke); background: var(--marke-hell); }
+body.dunkel .notizbuch-knopf, body.dunkel .notizbuch-knopf * { color: #8fb8ff; }
+
+.nb-huelle { padding: 12px; }
+.dialog.nb { max-width: none; width: min(1560px, 100%); height: calc(100vh - 24px);
+  height: calc(100dvh - 24px); max-height: none; overflow: hidden; padding: 0;
+  display: flex; flex-direction: column; }
+.nb-kopf { display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px;
+  border-bottom: 3px solid var(--buch); flex: none; }
+.nb-kopf h2 { margin: 0; font-size: 1.1rem; flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-kopf__zeichen { color: var(--buch); display: grid; }
+body.dunkel .nb-kopf__zeichen, body.dunkel .nb-kopf__zeichen * { color: var(--buch); }
+.nb-zu { width: 38px; height: 38px; border: 0; background: none; font-size: 1.7rem; line-height: 1;
+  cursor: pointer; border-radius: 8px; color: var(--gedaempft); }
+.nb-zu:hover { background: var(--grund); }
+.nb-koerper { flex: 1 1 auto; min-height: 0; display: grid;
+  grid-template-columns: 220px 220px minmax(0, 1fr); }
+.nb-buecher, .nb-seiten { display: flex; flex-direction: column; min-height: 0;
+  border-right: 1px solid var(--linie); }
+.nb-buecher { background: var(--grund); }
+.nb-spaltenkopf { display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 10px 6px 14px; font-size: .78rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--gedaempft); flex: none; }
+.nb-plus { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--linie);
+  background: var(--flaeche); border-radius: 8px; cursor: pointer; color: var(--marke); padding: 0; }
+.nb-plus:hover { border-color: var(--marke); }
+.nb-liste { overflow-y: auto; padding: 0 6px 10px; min-height: 0; }
+.nb-eintrag { display: flex; align-items: center; gap: 2px; border-radius: 8px; margin-bottom: 2px; }
+.nb-eintrag.aktiv { background: var(--marke-hell); }
+body.dunkel .nb-eintrag.aktiv { background: rgba(107, 164, 255, .16); }
+.nb-eintrag__name { flex: 1 1 auto; min-width: 0; text-align: left; border: 0; background: none;
+  font: inherit; padding: 9px 8px; cursor: pointer; border-radius: 8px; display: flex;
+  align-items: center; gap: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--tinte); }
+.nb-eintrag:not(.aktiv) .nb-eintrag__name:hover { background: rgba(127, 140, 160, .12); }
+.nb-eintrag.aktiv .nb-eintrag__name { font-weight: 650; }
+.nb-ruecken { width: 8px; height: 22px; border-radius: 2px; background: var(--f); flex: none; }
+.nb-mini { width: 30px; height: 30px; flex: none; display: grid; place-items: center; padding: 0;
+  border: 0; background: none; border-radius: 6px; cursor: pointer; color: var(--gedaempft); }
+.nb-mini svg { width: 16px; height: 16px; }
+.nb-mini:hover { background: var(--flaeche); color: var(--tinte); }
+.nb-mini--weg:hover { color: var(--gefahr); }
+.nb-haupt { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--grund); }
+.nb-fehlt { margin: auto; text-align: center; padding: 24px; max-width: 420px; }
+.nb-fehlt .knopf { margin-top: 6px; }
+
+.nb-seite { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.nb-leer { margin: auto; color: var(--gedaempft); }
+.nb-leiste { display: flex; align-items: center; gap: 6px; padding: 8px 12px; flex: none;
+  background: var(--flaeche); border-bottom: 1px solid var(--linie); overflow-x: auto; }
+.nb-knopf { min-width: 40px; height: 40px; flex: none; display: grid; place-items: center; padding: 0 6px;
+  border: 1px solid var(--linie); border-radius: 10px; background: var(--flaeche); cursor: pointer;
+  color: var(--tinte); }
+.nb-knopf:hover:not(:disabled) { border-color: var(--marke); }
+.nb-knopf.aktiv { background: var(--marke); border-color: var(--marke); color: #fff; }
+body.dunkel .nb-knopf.aktiv, body.dunkel .nb-knopf.aktiv * { color: #fff; }
+.nb-knopf:disabled { opacity: .4; cursor: default; }
+.nb-knopf i { display: block; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, .25); }
+.nb-farbe { position: relative; width: 40px; height: 40px; flex: none; border-radius: 50%; overflow: hidden;
+  cursor: pointer; background: conic-gradient(#ff4d4d, #ffd84d, #5ee06a, #4dd2ff, #6a6aff, #e04dff, #ff4d4d); }
+.nb-farbe::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--f);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .9); pointer-events: none; }
+.nb-farbe input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0;
+  padding: 0; cursor: pointer; }
+.nb-trenner { width: 1px; height: 26px; background: var(--linie); margin: 0 4px; flex: none; }
+.nb-laeuft { font-size: .85rem; color: var(--gedaempft); white-space: nowrap; margin-left: 6px; }
+
+.nb-rolle { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 14px 24px 40px;
+  -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.nb-titel { display: block; margin: 0 auto 10px; font: inherit; font-size: 1.45rem; font-weight: 650;
+  border: 0; border-bottom: 1px solid var(--linie-stark); background: transparent; padding: 4px 2px;
+  color: var(--tinte); border-radius: 0; max-width: 100%; }
+.nb-titel:focus { outline: none; box-shadow: none !important; border-bottom-color: var(--marke) !important; }
+.nb-blatt { position: relative; margin: 0 auto; background: #fff; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 8px 24px rgba(0, 0, 0, .06); border-radius: 2px;
+  touch-action: pan-x pan-y; user-select: none; -webkit-user-select: none; }
+.nb-leinwand { position: absolute; left: 0; top: 0; touch-action: none; z-index: 2; }
+.nb-seite--hand .nb-leinwand { pointer-events: none; }
+.nb-seite--stift .nb-leinwand { cursor: crosshair; }
+.nb-seite--radierer .nb-leinwand { cursor: cell; }
+.nb-bild { position: absolute; z-index: 1; pointer-events: none; }
+.nb-bild img { width: 100%; height: 100%; display: block; -webkit-user-drag: none; }
+.nb-seite--hand .nb-bild { pointer-events: auto; cursor: pointer; }
+.nb-bild--wahl { z-index: 3; outline: 2px solid var(--marke); outline-offset: 1px; touch-action: none;
+  cursor: move !important; }
+.nb-bild__weg { position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; border-radius: 50%;
+  border: 0; background: rgba(179, 38, 30, .92); color: #fff !important; font-size: 1.3rem; line-height: 1;
+  cursor: pointer; }
+.nb-bild__pdf { position: absolute; top: 6px; left: 6px; border: 0; border-radius: 8px; padding: 7px 11px;
+  background: rgba(16, 22, 29, .82); color: #fff !important; font: inherit; font-size: .85rem; cursor: pointer; }
+.nb-bild__griff { position: absolute; right: -9px; bottom: -9px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--marke); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+  cursor: nwse-resize; touch-action: none; }
+.nb-text { position: absolute; z-index: 3; line-height: 1.3; white-space: pre-wrap; overflow-wrap: anywhere;
+  pointer-events: none; padding: 1px 2px; border-radius: 3px; }
+body.dunkel .nb-text * { color: inherit; }
+.nb-seite--hand .nb-text, .nb-seite--radierer .nb-text { pointer-events: auto; cursor: pointer; touch-action: none; }
+.nb-seite--hand .nb-text:hover { outline: 1px dashed rgba(31, 95, 191, .55); }
+.nb-seite--radierer .nb-text:hover { outline: 1px dashed rgba(179, 38, 30, .7); }
+.nb-hinweis { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); width: min(80%, 420px);
+  text-align: center; color: #8a94a3 !important; pointer-events: none; z-index: 0; line-height: 1.5; }
+
+/* Handy und schmales Tablet: Bücher und Seiten als Leisten oben */
+@media (max-width: 820px) {
+  .nb-huelle { padding: 0; }
+  .dialog.nb { height: 100vh; height: 100dvh; border-radius: 0; }
+  .nb-koerper { display: flex; flex-direction: column; }
+  .nb-buecher, .nb-seiten { border-right: 0; border-bottom: 1px solid var(--linie);
+    flex-direction: row; align-items: center; flex: none; }
+  .nb-spaltenkopf { padding: 6px 4px 6px 10px; gap: 6px; font-size: 0; }
+  .nb-spaltenkopf .nb-plus { font-size: 1rem; }
+  .nb-liste { display: flex; overflow-x: auto; overflow-y: hidden; padding: 6px; gap: 4px; flex: 1 1 auto; }
+  .nb-eintrag { margin: 0; flex: none; max-width: 70vw; }
+  .nb-eintrag__name { padding: 7px 9px; }
+  .nb-rolle { padding: 10px 8px 30px; }
+  .nb-titel { font-size: 1.2rem; }
+}

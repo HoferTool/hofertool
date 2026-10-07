@@ -2,8 +2,11 @@
 //  STARTSEITE · Notizen
 //  Jeder darf jede Notiz bearbeiten. Abhaken fragt nach und lässt
 //  sich rückgängig machen; Löschen dürfen nur Administratoren.
+//  Rechts oben das Buch: öffnet die Notizbücher (src/notizbuch/).
 // =================================================================
 import { alt, useDaten } from "../../bruecke.jsx";
+import { notizbuecherOeffnen, BUCH } from "../../notizbuch/Notizbuecher.jsx";
+import { Symbol } from "../../teile/zeichnen.jsx";
 import { materialBestellungLesen, materialAusNotizEntfernen } from "../../daten/materialBestellung.js";
 
 export default function Notizen({ auffrischen }) {
@@ -21,8 +24,14 @@ export default function Notizen({ auffrischen }) {
     <div id="db-notizen">
       <section className="karte">
         <div className="karte__kopf"><h2>Notizen</h2>
-          {alt.darfSchreiben() &&
-            <button className="linkknopf" id="notiz-neu" onClick={() => neueNotiz(neu)}>+ Neue Notiz</button>}
+          <div className="notiz-kopfrechts">
+            {alt.darfSchreiben() &&
+              <button className="linkknopf" id="notiz-neu" onClick={() => neueNotiz(neu)}>+ Neue Notiz</button>}
+            {/* Notizbücher: nur ein Buch als Zeichen (Wunsch Patrick 7. Oktober 2026) */}
+            {!alt.istExtern() &&
+              <button type="button" className="notizbuch-knopf" id="notizbuch-knopf" aria-label="Notizbücher"
+                title="Notizbücher" onClick={notizbuecherOeffnen}><Symbol d={BUCH} /></button>}
+          </div>
         </div>
         {todos.length
           ? <div className="notizen">
