@@ -47,7 +47,9 @@ export default function Erfassen({ geladen, neuLaden, behaelter, zuMaschinen }) 
   const typ = typen.some(([w]) => w === prod.typFilter) ? prod.typFilter : null;
   const maschinen = typ ? imPark.filter((m) => typVon(m) === typ) : imPark;
   const istWoche = prod.modus === "woche";
-  const tageProWoche = alt.einstellung("wochenende") ? 7 : 5;
+  // Die Woche zeigt immer Montag bis Freitag; der Schalter „Samstag und Sonntag
+  // zeigen“ ist weg (Wunsch Patrick, 7. Oktober 2026).
+  const tageProWoche = 5;
   const von = istWoche ? alt.wochenStart(prod.tag) : prod.tag;
   const bis = istWoche ? alt.plusTage(von, tageProWoche - 1) : prod.tag;
   const setzen = (aenderung) => { Object.assign(prod, aenderung); zeichnen(); };
