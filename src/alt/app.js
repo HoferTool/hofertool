@@ -126,7 +126,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.92.0";
+const APP_VERSION = "111.93.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1186,6 +1186,85 @@ function fensterleisteFaerben(thema) {
   }
   m.setAttribute("content", LEISTENFARBE[thema] || LEISTENFARBE.blau);
 }
+
+// Symbol für den Home-Bildschirm (iPhone, iPad): Das iPhone nimmt das
+// Bild aus <link rel="apple-touch-icon"> genau im Moment von „Zum
+// Home-Bildschirm“ und wechselt es danach nie mehr. Darum wird das
+// Symbol hier laufend in der gewählten Themenfarbe und hell oder dunkel
+// neu gemalt (Wunsch Patrick, 7. Oktober 2026). Hell: Grund in der
+// Themenfarbe, Logo weiss. Dunkel: Grund wie der dunkle Modus, Logo in
+// der hellen Themenfarbe. Grundlage ist icon-512.png (weiss auf Blau):
+// der Rotanteil jedes Punkts sagt, wie viel Logo darin steckt.
+const ICON_DUNKEL_LOGO = {
+  blau: "#6ba4ff", rot: "#ff8a80", gruen: "#5fd699", gelb: "#f2c85a",
+  rosa: "#ff86c4", violett: "#b98cf0", orange: "#ffa45c",
+};
+let iconVorlage = null;
+let iconStand = "";
+
+function hexRgb(h) {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function homeIconMalen() {
+  const b = document.body;
+  if (!b) return;
+  const thema = b.getAttribute("data-thema") || "blau";
+  const dunkel = b.classList.contains("dunkel");
+  const stand = thema + (dunkel ? ".dunkel" : "");
+  if (stand === iconStand) return;
+  if (!iconVorlage) {
+    iconVorlage = new Image();
+    iconVorlage.onload = () => { iconStand = ""; homeIconMalen(); };
+    iconVorlage.src = "./icon-512.png";
+    return;
+  }
+  if (!iconVorlage.complete || !iconVorlage.naturalWidth) return;
+  try {
+    // 180 Punkte ist die Grösse, die das iPhone für den Home-Bildschirm nimmt
+    const g = 180;
+    const c = document.createElement("canvas");
+    c.width = g; c.height = g;
+    const x = c.getContext("2d");
+    x.drawImage(iconVorlage, 0, 0, g, g);
+    const bild = x.getImageData(0, 0, g, g);
+    const p = bild.data;
+    const grund = hexRgb(dunkel ? "#14181d" : (LEISTENFARBE[thema] || LEISTENFARBE.blau));
+    const logo = hexRgb(dunkel ? (ICON_DUNKEL_LOGO[thema] || ICON_DUNKEL_LOGO.blau) : "#ffffff");
+    for (let i = 0; i < p.length; i += 4) {
+      const t = p[i] / 255;
+      p[i] = Math.round(grund[0] + (logo[0] - grund[0]) * t);
+      p[i + 1] = Math.round(grund[1] + (logo[1] - grund[1]) * t);
+      p[i + 2] = Math.round(grund[2] + (logo[2] - grund[2]) * t);
+      p[i + 3] = 255;
+    }
+    x.putImageData(bild, 0, 0);
+    const url = c.toDataURL("image/png");
+    let l = document.querySelector('link[rel="apple-touch-icon"]');
+    if (!l) {
+      l = document.createElement("link");
+      l.rel = "apple-touch-icon";
+      document.head.appendChild(l);
+    }
+    l.setAttribute("sizes", "180x180");
+    l.setAttribute("href", url);
+    iconStand = stand;
+  } catch (e) { /* dann bleibt das feste blaue Symbol */ }
+}
+
+// Ein Wächter am body genügt: Themenfarbe, dunkler Modus und die immer
+// blaue Anmeldeseite laufen alle über data-thema und die Klasse „dunkel“.
+function homeIconBeobachten() {
+  if (!document.body || typeof MutationObserver === "undefined") return;
+  let warten = 0;
+  new MutationObserver(() => {
+    clearTimeout(warten);
+    warten = setTimeout(homeIconMalen, 150);
+  }).observe(document.body, { attributes: true, attributeFilter: ["class", "data-thema"] });
+  homeIconMalen();
+}
+homeIconBeobachten();
 
 function einstellungSetzenWert(name, wert) {
   einstellungAblegen(name, String(wert));
