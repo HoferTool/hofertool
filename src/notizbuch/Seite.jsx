@@ -71,6 +71,7 @@ function tabMehr(s, art) {
 
 const ZIEHEN = "M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3";
 const STIFT = "M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1zM14.5 6.5l3 3";
+const TABELLE = "M4 5h16v14H4zM4 10h16M4 15h16M9.5 5v14M14.5 5v14";
 const BILD = "M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15 9.5a1 1 0 1 0 0-.01";
 
 // Was sich die Person zuletzt eingestellt hat, gilt beim nächsten Blatt wieder
@@ -100,7 +101,7 @@ function useDunkel() {
   return d;
 }
 
-const merk = { werkzeug: "text", farbe: "#1d2430", dicke: "mittel", schrift: "mittel" };
+const merk = { werkzeug: "text", farbe: "#1d2430", dicke: "mittel", schrift: "mittel", spalten: 3, zeilen: 3 };
 
 // Unterkante eines Elements in Breitenanteilen
 function unterkante(s) {
@@ -136,7 +137,8 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   const [laeuft, setLaeuft] = useState("");   // Einfügen läuft
   const [kannZurueck, setKannZurueck] = useState(false);
   const [edit, setEdit] = useState(null);     // Textfeld, in dem gerade geschrieben wird
-  const [hinweis, setHinweis] = useState(false);
+  const [hinweis, setHinweis] = useState(false);   // true = Textfeld setzen, sonst eigener Text
+  const tabWartet = useRef(null);             // gewählte Tabelle, kommt beim nächsten Tipp aufs Blatt
   const editRef = useRef(null);
   const editorEl = useRef(null);
   const zelleEl = useRef(null);               // Zelle der offenen Tabelle mit dem Fokus
@@ -609,6 +611,16 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     if (!t || !darfZeichnen || werkzeug !== "text" || e.type !== "pointerup") return;
     if (Math.hypot(e.clientX - t.x, e.clientY - t.y) > 8) return;
     if (t.ziel !== blatt.current) return;
+    // Tabelle vom Knopf: kommt dorthin, wo getippt wurde
+    if (tabWartet.current) {
+      const [sp, ze] = tabWartet.current;
+      tabWartet.current = null;
+      const [x, y] = punkt(e);
+      const zeile = schriftPx(merk.schrift) * 1.7 / 1000;
+      textAnfangen(-1, neueTabelle({ x: rund(Math.max(0, Math.min(0.85, x - 0.004))),
+        y: rund(Math.max(0, y - zeile / 2)), g: merk.schrift, f: farbe }, sp, ze), null, { r: 0, c: 0 });
+      return;
+    }
     // War ein Feld offen, schliesst der Tipp daneben es nur
     if (t.zu) return;
     textNeuHier(e);
@@ -754,7 +766,25 @@ export default function Seite({ id, darf, onTitel, huelle }) {
 
   const werkzeugSetzen = (wz) => {
     if (wz !== "text") textSchliessen();
-    setWerkzeug(wz); merk.werkzeug = wz; setWahl(-1); setHinweis(false);
+    setWerkzeug(wz); merk.werkzeug = wz; setWahl(-1); setHinweis(false); tabWartet.current = null;
+  };
+  // Knopf Tabelle (Wunsch Patrick 7. Oktober 2026): fragt nach Spalten
+  // und Zeilen, dann hintippen, wo die Tabelle hin soll
+  const tabelleKnopf = async () => {
+    textSchliessen();
+    setHinweis(false); tabWartet.current = null;
+    const w = await alt.dialogFelder({ titel: "Tabelle einfügen",
+      felder: [
+        { name: "spalten", label: "Spalten", typ: "number", wert: merk.spalten, pflicht: true, hinweis: "1 bis 12" },
+        { name: "zeilen", label: "Zeilen", typ: "number", wert: merk.zeilen, pflicht: true, hinweis: "1 bis 60" }],
+      bestaetigen: "Einfügen" });
+    if (!w) return;
+    const sp = Math.max(1, Math.min(12, Math.round(Number(w.spalten)) || 0));
+    const ze = Math.max(1, Math.min(60, Math.round(Number(w.zeilen)) || 0));
+    merk.spalten = sp; merk.zeilen = ze;
+    werkzeugSetzen("text");
+    tabWartet.current = [sp, ze];
+    setHinweis("Tippe dort hin, wo die Tabelle hin soll.");
   };
   // Knopf T: Hinweis zeigen, dann kommt das Feld dorthin, wo man tippt
   const textKnopf = () => { textSchliessen(); werkzeugSetzen("text"); setHinweis(true); };
@@ -829,6 +859,8 @@ export default function Seite({ id, darf, onTitel, huelle }) {
           <button type="button" className={"nb-knopf" + (werkzeug === "text" ? " aktiv" : "")} data-nbwerkzeug="text"
             data-nb="text" aria-label="Schreiben: Textfeld setzen" title="Schreiben: dort hintippen, wo der Text hin soll"
             aria-pressed={werkzeug === "text"} onClick={textKnopf}><Symbol d={TEXT} /></button>
+          <button type="button" className="nb-knopf" data-nb="tabelle" aria-label="Tabelle einfügen"
+            title="Tabelle einfügen" onClick={tabelleKnopf}><Symbol d={TABELLE} /></button>
           {knopf("stift", STIFT, "Stift: zeichnen")}
           <label className="nb-farbe" style={{ "--f": farbe }} aria-label="Farbe wählen" title="Farbe wählen">
             <input type="color" value={farbe} data-nbfarbe=""
@@ -849,7 +881,8 @@ export default function Seite({ id, darf, onTitel, huelle }) {
             title="Rückgängig (Strg + Z)" disabled={!kannZurueck} onClick={zurueck}><Symbol d={ZURUECK} /></button>
           {laeuft && <span className="nb-laeuft" role="status">{laeuft}</span>}
         </div>}
-      {hinweis && <div className="nb-tipp" role="status" data-nbtipp="">Tippe dort hin, wo das Textfeld hin soll.</div>}
+      {hinweis && <div className="nb-tipp" role="status" data-nbtipp="">
+        {hinweis === true ? "Tippe dort hin, wo das Textfeld hin soll." : hinweis}</div>}
       <div className="nb-rolle" ref={rolle} onDragOver={(e) => { if (darfZeichnen) e.preventDefault(); }}
         onDrop={fallen} onPointerDown={(e) => { if (e.target === e.currentTarget) setWahl(-1); }}>
         <input className="nb-titel" value={titel} placeholder="Titel der Seite" readOnly={!darf}

@@ -134,6 +134,26 @@ with sync_playwright() as p:
     pg.locator("[data-nbtab]").click(); pg.wait_for_timeout(900)
     pruefe(len(tabellen(pg)) == 0, "Radierer entfernt die Tabelle")
 
+    # Knopf Tabelle: fragt nach Spalten und Zeilen, dann hintippen
+    pg.locator("[data-nbwerkzeug='text']").click()
+    pg.locator("[data-nb='tabelle']").click(); pg.wait_for_timeout(400)
+    felder = pg.locator(".dialog-huelle:not(.nb-huelle) input")
+    pruefe(felder.count() == 2, "Fenster fragt Spalten und Zeilen (%d Felder)" % felder.count())
+    felder.nth(0).fill("4"); felder.nth(1).fill("2")
+    pg.screenshot(path=os.path.join(BILDORDNER, "notizbuch-tabelle-knopf.png"))
+    pg.locator(".dialog-huelle:not(.nb-huelle) [data-ja]").click(); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-nbtipp]").inner_text().startswith("Tippe dort hin, wo die Tabelle"), "Hinweis zum Hintippen")
+    pg.mouse.click(b["x"] + 150, b["y"] + 400); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-nbtabedit] tr").count() == 2 and pg.locator("[data-nbtabedit] tr").first.locator("td").count() == 4,
+           "Knopf gibt 4 Spalten und 2 Zeilen")
+    pruefe(zelle(pg) == "0-0", "Schreibmarke in der ersten Zelle")
+    pg.keyboard.type("A"); pg.keyboard.press("Escape"); pg.wait_for_timeout(1000)
+    t = tabellen(pg)
+    pruefe(len(t) == 1 and t[0]["z"][0][0] == "A", "Tabelle vom Knopf gespeichert")
+    pg.mouse.click(b["x"] + 700, b["y"] + 500); pg.wait_for_timeout(200)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
+    pg.screenshot(path=os.path.join(BILDORDNER, "notizbuch-tabelle-fertig.png"))
+
     pruefe(not f, "keine Skriptfehler: " + "; ".join(f))
     br.close()
 
