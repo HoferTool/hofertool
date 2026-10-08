@@ -1,7 +1,7 @@
 // =================================================================
 //  PAD MODE: DASHBOARD EINER MASCHINE
 //  Drei Spalten: links der Auftrag mit der Info an der Maschine, in der Mitte alles zur
-//  Stückzahl samt Tagesdiagramm, rechts Tag, Wetter Stunde für Stunde und die Skizze.
+//  Stückzahl samt Tagesdiagramm, rechts Tag, Wetter der nächsten Tage und die Skizze.
 //  Darunter die grossen Knöpfe.
 //
 //  Alle Felder und Knöpfe stehen immer da. Fehlt etwas, steht ein
@@ -11,14 +11,14 @@
 //  Zifferblock, Werkzeugwechsel, Einrichtblatt und der Betrachter
 //  für Zeichnung und WBG sind noch Fenster aus dem alten Programm.
 // =================================================================
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck } from "./Pad.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
 import {
-  holeWetterStunden, wetterZeichen, tagesmengen, letzteTage, schnitte,
+  holeWetterTage, wetterZeichen, tagesmengen, letzteTage, schnitte,
   schnittTage, schnittLang, prognose,
 } from "./daten.js";
 
@@ -57,7 +57,7 @@ export async function maschineLaden(p) {
     // Statistik nur des laufenden Auftrags: Sie beginnt bei jedem
     // Auftragswechsel neu. Ohne Auftrag alles dieser Maschine.
     tagesmengen(m.id, j ? j.id : null),
-    holeWetterStunden().catch(() => null),
+    holeWetterTage().catch(() => null),
   ]);
   if (!p.reiter) p.reiter = "uebersicht";
   return { art: "maschine", m, j, teil, blattDaten, programm, programmGrund, jeTag, wetter };
@@ -353,13 +353,36 @@ function Material({ j, teil, ort }) {
   );
 }
 
-// Uhr und Wetter. Das Wetter Stunde für Stunde ist an der Maschine
-// wichtig, was danach auf der Maschine kommt, nicht (Wunsch Patrick
-// 6. Oktober 2026). Die Stunden stehen nebeneinander, damit die Skizze
+// Uhr, die von selbst weiterläuft (Wunsch Patrick 8. Oktober 2026):
+// vorher stand die Zeit vom Öffnen still, bis man neu lud. Der Takt
+// richtet sich auf den Minutenwechsel aus, damit die Anzeige nicht bis
+// zu einer Minute hinterherhinkt; Wochentag und Datum ziehen mit.
+function useJetzt() {
+  const [jetzt, setJetzt] = useState(() => new Date());
+  useEffect(() => {
+    let takt;
+    const weiter = () => {
+      const d = new Date();
+      setJetzt(d);
+      takt = setTimeout(weiter, 60000 - d.getSeconds() * 1000 - d.getMilliseconds() + 50);
+    };
+    takt = setTimeout(weiter, 60000 - jetzt.getSeconds() * 1000 - jetzt.getMilliseconds() + 50);
+    // Ein schlafendes Tablet verpasst Takte: beim Aufwachen gleich nachstellen
+    const sichtbar = () => { if (!document.hidden) { clearTimeout(takt); weiter(); } };
+    document.addEventListener("visibilitychange", sichtbar);
+    return () => { clearTimeout(takt); document.removeEventListener("visibilitychange", sichtbar); };
+  }, []);
+  return jetzt;
+}
+
+// Uhr und Wetter. Statt Stunde für Stunde zeigt das Wetter die nächsten
+// Tage, im gleichen Stil wie vorher die Stunden (Wunsch Patrick
+// 8. Oktober 2026). Die Tage stehen nebeneinander, damit die Skizze
 // darunter Platz hat.
 function Saeule({ wetter }) {
-  const jetzt = new Date();
+  const jetzt = useJetzt();
   const heute = alt.isoDatum(jetzt);
+  const tage = wetter ? wetter.tage.filter((x) => x.datum >= heute).slice(0, 6) : [];
   return (
     <div className="pad-karte2 pad-karte2--saeule">
       <div className="pad-uhrblock">
@@ -375,11 +398,13 @@ function Saeule({ wetter }) {
           : <span className="pad-ort">Wetter nicht verfügbar</span>}
       </div>
 
-      {wetter && wetter.stunden.length > 0 && <>
-        <div className="pad-stunden pad-stunden--regen" data-padstunden="">
-          {wetter.stunden.map((x) => (
-            <div key={x.stunde} className="pad-stunde">
-              <b>{x.stunde}</b><i>{wetterZeichen(x.code)}</i><u>{x.grad}°</u>
+      {tage.length > 0 && <>
+        <div className="pad-stunden pad-stunden--regen" data-padtage="">
+          {tage.map((x) => (
+            <div key={x.datum} className="pad-stunde pad-wettertag">
+              <b>{x.datum === heute ? "Heute" : TAGNAME[new Date(x.datum + "T12:00").getDay()]}</b>
+              <i>{wetterZeichen(x.code)}</i>
+              <u>{x.hoch}°</u><span className="pad-tief">{x.tief}°</span>
               {x.regen !== null && x.regen !== undefined &&
                 <span className={"pad-regen" + (x.regen >= 50 ? " pad-regen--viel" : "")}>{x.regen}%</span>}
             </div>
@@ -390,6 +415,8 @@ function Saeule({ wetter }) {
     </div>
   );
 }
+
+const TAGNAME = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
 // ---------- Dashboard ----------
 

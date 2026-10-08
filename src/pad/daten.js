@@ -2,46 +2,42 @@
 //  PAD MODE: DATEN
 //  Was das Dashboard einer Maschine braucht: Tagesmengen über ein
 //  halbes Jahr, die Schnitte je Woche und Monat, was danach kommt,
-//  und das Wetter mit Stundenverlauf. Reine Rechnungen, kein Markup.
+//  und das Wetter der nächsten Tage. Reine Rechnungen, kein Markup.
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { uhrzeit } from "../daten/auftragswechsel.js";
 
 const TAG = 86400000;
 
-// Wetter samt Stundenverlauf — für die Säule im Pad Mode
-export async function holeWetterStunden() {
+// Wetter samt den nächsten Tagen — für die Säule im Pad Mode. Sieben
+// Tage holen, damit nach Mitternacht (Tablet läuft durch) noch sechs
+// ab dem neuen Heute übrig sind.
+export async function holeWetterTage() {
   const adresse = "https://api.open-meteo.com/v1/forecast"
     + "?latitude=" + alt.ORT.lat + "&longitude=" + alt.ORT.lon
     + "&current=temperature_2m,weather_code"
-    + "&hourly=temperature_2m,weather_code,precipitation_probability"
-    + "&daily=sunset&timezone=Europe%2FZurich&forecast_days=2";
+    + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunset"
+    + "&timezone=Europe%2FZurich&forecast_days=7";
 
   const antwort = await alt.zeitlimit(fetch(adresse), 6000, "Wetter");
   if (!antwort.ok) throw new Error("Wetterdienst antwortet nicht");
   const d = await antwort.json();
+  const t = d.daily || {};
 
-  const jetzt = new Date();
-  const stunden = [];
-  (d.hourly.time || []).forEach((zeit, i) => {
-    const t = new Date(zeit);
-    // Sechs Stunden ab der laufenden; die Abfrage holt zwei Tage,
-    // sonst wäre es am Abend leer
-    if (t.getTime() + 3600e3 <= jetzt.getTime() || stunden.length >= 6) return;
-    stunden.push({
-      stunde: String(t.getHours()).padStart(2, "0") + ".00",
-      grad: Math.round(d.hourly.temperature_2m[i]),
-      code: d.hourly.weather_code[i],
-      regen: d.hourly.precipitation_probability ? d.hourly.precipitation_probability[i] : null,
-    });
-  });
+  const tage = (t.time || []).map((datum, i) => ({
+    datum,
+    code: t.weather_code[i],
+    hoch: Math.round(t.temperature_2m_max[i]),
+    tief: Math.round(t.temperature_2m_min[i]),
+    regen: t.precipitation_probability_max ? t.precipitation_probability_max[i] : null,
+  }));
 
   return {
     temperatur: Math.round(d.current.temperature_2m),
     code: d.current.weather_code,
     text: alt.WETTER_TEXT[d.current.weather_code] || "",
-    stunden,
-    untergang: (d.daily && d.daily.sunset && d.daily.sunset[0] || "").slice(11, 16),
+    tage,
+    untergang: (t.sunset && t.sunset[0] || "").slice(11, 16),
   };
 }
 

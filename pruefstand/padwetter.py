@@ -11,7 +11,12 @@ WETTER = {"current": {"temperature_2m": 11.4, "weather_code": 2},
   "hourly": {"time": zeiten, "temperature_2m": [8 + (i % 7) for i in range(len(zeiten))],
              "weather_code": [[0, 2, 3, 61, 80][i % 5] for i in range(len(zeiten))],
              "precipitation_probability": [(i * 13) % 100 for i in range(len(zeiten))]},
-  "daily": {"sunset": [jetzt.strftime("%Y-%m-%d") + "T18:52"]}}
+  "daily": {"time": [(jetzt + datetime.timedelta(days=t)).strftime("%Y-%m-%d") for t in range(7)],
+            "weather_code": [[0, 2, 3, 61, 80, 71, 95][t] for t in range(7)],
+            "temperature_2m_max": [14.4 + t for t in range(7)],
+            "temperature_2m_min": [3.6 + t for t in range(7)],
+            "precipitation_probability_max": [t * 15 for t in range(7)],
+            "sunset": [jetzt.strftime("%Y-%m-%d") + "T18:52"]}}
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
   "daten.pad_skizzen = daten.pad_skizzen || [];\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 fehler = []
@@ -34,13 +39,25 @@ with sync_playwright() as p:
         pg.locator("#pad .pad-kachel").first.click(); pg.wait_for_timeout(1800)
         pg.screenshot(path=f"s_padwetter_{name}.png")
         pruefe("Als Nächstes" not in pg.locator("#pad").inner_text(), name + ": „Als Nächstes“ ist weg")
-        n = pg.locator("#pad .pad-stunde").count()
-        pruefe(n == 6, name + ": 6 Stunden (" + str(n) + ")")
+        n = pg.locator("#pad .pad-wettertag").count()
+        pruefe(n == 6, name + ": 6 Tage (" + str(n) + ")")
         ys = pg.evaluate("() => [...document.querySelectorAll('#pad .pad-stunde')].map(z => Math.round(z.getBoundingClientRect().top))")
-        pruefe(len(set(ys)) == 1, name + ": Stunden nebeneinander")
-        erste = pg.locator("#pad .pad-stunde b").first.inner_text()
-        pruefe(erste == jetzt.strftime("%H") + ".00", name + ": beginnt mit laufender Stunde " + erste)
-        pruefe("%" in pg.locator("#pad .pad-stunde").first.inner_text(), name + ": Regen in Prozent")
+        pruefe(len(set(ys)) == 1, name + ": Tage nebeneinander")
+        erste = pg.locator("#pad .pad-wettertag b").first.inner_text()
+        pruefe(erste == "Heute", name + ": beginnt mit Heute (" + erste + ")")
+        zweite = pg.locator("#pad .pad-wettertag b").nth(1).inner_text()
+        morgen = ["Mo","Di","Mi","Do","Fr","Sa","So"][(jetzt + datetime.timedelta(days=1)).weekday()]
+        pruefe(zweite == morgen, name + ": dann Wochentag " + zweite)
+        t0 = pg.locator("#pad .pad-wettertag").first.inner_text()
+        pruefe("14°" in t0 and "4°" in t0, name + ": Höchst- und Tiefstwert " + t0.replace(chr(10), " "))
+        pruefe("%" in pg.locator("#pad .pad-wettertag").nth(1).inner_text(), name + ": Regen in Prozent")
+        # Uhr läuft live: Zeit des Browsers eine Minute vorstellen
+        vor = pg.locator("#pad-uhr").inner_text()
+        pg.evaluate("""() => { const D = Date, plus = 61000; window.Date = class extends D { constructor(...a) { super(...(a.length ? a : [D.now() + plus])); } static now() { return D.now() + plus; } }; document.dispatchEvent(new Event('visibilitychange')); }""")
+        pg.wait_for_timeout(1200)
+        nach = pg.locator("#pad-uhr").inner_text()
+        pruefe(vor != nach, name + ": Uhr läuft weiter " + vor.replace(chr(10), "") + " -> " + nach.replace(chr(10), ""))
+        pg.evaluate("() => { window.Date = Object.getPrototypeOf(window.Date); }")
         ys = pg.evaluate("() => [...document.querySelectorAll('#pad .pad-skizze__leiste > *')].map(z => Math.round(z.getBoundingClientRect().top + z.getBoundingClientRect().height / 2))")
         pruefe(len(ys) == 6 and max(ys) - min(ys) <= 2, name + ": Zeichenknöpfe auf einer Zeile " + str(ys))
         lb = pg.locator("#pad .pad-skizze__leiste").bounding_box(); kb = pg.locator("#pad .pad-karte2--skizze").bounding_box()
