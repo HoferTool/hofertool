@@ -482,7 +482,7 @@ function ZngFormular({ werte, neu }) {
 // ---------- Zuletzt abgelegt ----------
 
 async function letzteLaden() {
-  const r = await alt.db.from("dokumente").select("*").order("erstellt_am", { ascending: false }).limit(25);
+  const r = await alt.db.from("dokumente").select("*").order("erstellt_am", { ascending: false }).limit(100);
   if (r.error) throw r.error;
   return r.data || [];
 }
@@ -521,7 +521,7 @@ function Letzte({ stand, hochladen }) {
     );
   }
   return (
-    <Gruppe titel="Zuletzt abgelegt" text="Die letzten 25 Dokumente."
+    <Gruppe titel="Zuletzt abgelegt" text="Die letzten 100 Dokumente."
       aktionen={<>
         {/* Nur ansehen, ohne hochzuladen: etwa ein Einrichtblatt als
             Excel vom Stick oder aus dem Mail */}

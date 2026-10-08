@@ -5,11 +5,12 @@
 //  zurück ist. Wer und wann kommen beim Erfassen („raus“) und beim
 //  Abhaken („rein“) von selbst dazu. Abgehakte Einträge verschwinden
 //  aus der Karte und stehen in der Historie (Knopf mit der Uhr).
-//  Zwei Felder nebeneinander: was und an wen. Raus geht es erst, wenn
-//  beide ausgefüllt sind (Wunsch Patrick 8. Oktober 2026).
+//  Neues kommt wie bei den Notizen über den Plus-Knopf: ein Fenster
+//  mit „Was“ und „An wen“, raus geht es erst, wenn beide ausgefüllt
+//  sind (Wunsch Patrick 8. Oktober 2026, keine dauernd sichtbaren Felder).
 //  Tabelle: sql/materialausgabe.sql
 // =================================================================
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { Symbol } from "../../teile/zeichnen.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
@@ -37,10 +38,6 @@ async function offeneLaden() {
 
 export default function Materialausgabe({ auffrischen }) {
   const { daten: liste, fehler, neu } = useDaten(offeneLaden, [auffrischen]);
-  const [text, setText] = useState("");
-  const [anWen, setAnWen] = useState("");
-  const anWenFeld = useRef(null);
-  const [laeuft, setLaeuft] = useState(false);
 
   if (alt.istExtern()) return null;
   if (fehler && !liste) {
@@ -51,11 +48,15 @@ export default function Materialausgabe({ auffrischen }) {
 
   const admin = alt.istAdmin();
 
-  const erfassen = async (e) => {
-    e.preventDefault();
-    const t = text.trim(), a = anWen.trim();
-    if (!t || !a || laeuft) return;
-    setLaeuft(true);
+  const erfassen = async () => {
+    const w = await alt.dialogFelder({ titel: "Materialausgabe Extern",
+      felder: [
+        { name: "text", label: "Was geht raus?", typ: "textarea", pflicht: true },
+        { name: "an_wen", label: "An wen?", pflicht: true }],
+      bestaetigen: "Raus" });
+    if (!w) return;
+    const t = String(w.text || "").trim(), a = String(w.an_wen || "").trim();
+    if (!t || !a) { alt.meldung("Bitte beides ausfüllen: was und an wen.", "warn"); return; }
     let { data, error } = await alt.db.from("materialausgabe")
       .insert({ text: t, an_wen: a, raus_von: alt.profil.id }).select("id");
     // Ohne die Spalte an_wen (sql/materialausgabe.sql noch nicht neu
@@ -64,10 +65,9 @@ export default function Materialausgabe({ auffrischen }) {
       ({ data, error } = await alt.db.from("materialausgabe")
         .insert({ text: t + " → " + a, raus_von: alt.profil.id }).select("id"));
     }
-    setLaeuft(false);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     if (Array.isArray(data) && data[0]) alt.merkeSchritt("Materialausgabe erfassen", alt.rueckWeg("materialausgabe", { id: data[0].id }));
-    setText(""); setAnWen(""); neu();
+    alt.meldung("Raus eingetragen."); neu();
   };
 
   return (
@@ -76,25 +76,14 @@ export default function Materialausgabe({ auffrischen }) {
         <div className="karte__kopf"><h2>Materialausgabe Extern
           {liste.length > 0 && <> <span className="marke">{liste.length}</span></>}</h2>
           <div className="notiz-kopfrechts">
+            {/* Plus wie bei den Notizen, kein dauernd sichtbares Feld (Wunsch Patrick 8. Oktober 2026) */}
+            {alt.darfSchreiben() &&
+              <button type="button" className="notizbuch-knopf" id="matausgabe-neu" aria-label="Neue Materialausgabe"
+                title="Neue Materialausgabe" onClick={erfassen}><Symbol d={PLUS} /></button>}
             <button type="button" className="notizbuch-knopf" id="matausgabe-historie" aria-label="Historie"
               title="Historie" onClick={historieOeffnen}><Symbol d={HISTORIE} /></button>
           </div>
         </div>
-        <form className="matausgabe-neu" onSubmit={erfassen}>
-          <input type="text" id="matausgabe-text" value={text} maxLength={500}
-            placeholder="Was geht raus?"
-            aria-label="Was geht raus?" onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              // Ist der Plus-Knopf gesperrt, schickt Enter das Formular nicht ab:
-              // dann von Hand ins Feld „An wen“
-              if (e.key === "Enter" && text.trim() && !anWen.trim()) { e.preventDefault(); anWenFeld.current.focus(); }
-            }} />
-          <input type="text" id="matausgabe-anwen" className="matausgabe-anwen" ref={anWenFeld}
-            value={anWen} maxLength={200} placeholder="An wen?" aria-label="An wen?"
-            onChange={(e) => setAnWen(e.target.value)} />
-          <button type="submit" className="notizbuch-knopf" id="matausgabe-neu" aria-label="Eintragen"
-            title="Eintragen" disabled={!text.trim() || !anWen.trim() || laeuft}><Symbol d={PLUS} /></button>
-        </form>
         {liste.length
           ? <div className="notizen">
               {liste.map((m) => (

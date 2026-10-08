@@ -19,35 +19,34 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#dashboard'")
-    pg.wait_for_selector("#matausgabe-text")
+    pg.wait_for_selector("#matausgabe-neu")
 
     # Steht über den Notizen
     if not pg.evaluate("document.querySelector('#db-materialausgabe').compareDocumentPosition(document.querySelector('#db-notizen')) & 4"):
         fehler.append("Karte steht nicht über den Notizen")
     if "Nichts draussen" not in pg.inner_text("#db-materialausgabe"): fehler.append("Leere Karte ohne Hinweis")
 
-    # Nur „was“ ohne „an wen“: geht nicht raus, Enter springt ins zweite Feld
-    pg.fill("#matausgabe-text", "3 Stangen V2A Ø 20"); pg.press("#matausgabe-text", "Enter"); pg.wait_for_timeout(400)
+    # Kein dauernd sichtbares Feld, nur der Plus-Knopf (Wunsch 8. Oktober 2026)
+    if pg.locator("#db-materialausgabe input[type=text]").count(): fehler.append("Felder dauernd sichtbar")
+    def neu(was, wen):
+        pg.click("#matausgabe-neu"); pg.wait_for_selector(".dialog-huelle textarea")
+        pg.fill(".dialog-huelle textarea", was)
+        if wen is not None: pg.fill('.dialog-huelle input[id$="-an_wen"]', wen)
+        pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(500)
+    # Nur „was“ ohne „an wen“: geht nicht raus
+    neu("3 Stangen V2A Ø 20", None)
     if pg.evaluate("TEST.daten.materialausgabe.length"): fehler.append("Ohne 'an wen' trotzdem erfasst")
-    if pg.evaluate("document.activeElement.id") != "matausgabe-anwen": fehler.append("Enter springt nicht ins Feld 'an wen'")
-    if not pg.locator("#matausgabe-neu").is_disabled(): fehler.append("Plus ohne 'an wen' nicht gesperrt")
-    # Nebeneinander
-    a = pg.locator("#matausgabe-text").bounding_box(); b = pg.locator("#matausgabe-anwen").bounding_box()
-    if abs(a["y"] - b["y"]) > 2 or b["x"] <= a["x"] + a["width"] - 1: fehler.append("Felder nicht nebeneinander")
-    pg.fill("#matausgabe-anwen", "Zurbrügg"); pg.press("#matausgabe-anwen", "Enter"); pg.wait_for_timeout(500)
-    for t, w in [("Spannzange 16 mm", "Meier AG"), ("1 Kiste Messing Ø 8", "Zurbrügg")]:
-        pg.fill("#matausgabe-text", t); pg.fill("#matausgabe-anwen", w); pg.click("#matausgabe-neu"); pg.wait_for_timeout(500)
-    if pg.input_value("#matausgabe-anwen") != "": fehler.append("Feld 'an wen' nicht geleert")
-    if [x.get("an_wen") for x in pg.evaluate("TEST.daten.materialausgabe")] != ["Zurbrügg", "Meier AG", "Zurbrügg"]:
-        fehler.append("an_wen falsch: " + str(pg.evaluate("TEST.daten.materialausgabe.map(x => x.an_wen)")))
-    if "an Meier AG" not in pg.inner_text("#db-materialausgabe"): fehler.append("'an wen' fehlt in der Karte")
+    if pg.locator(".dialog-huelle").count(): pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    neu("3 Stangen V2A Ø 20", "Zurbrügg"); neu("Spannzange 16 mm", "Meier AG"); neu("1 Kiste Messing Ø 8", "Zurbrügg")
     zeilen = pg.locator("#db-materialausgabe .notiz")
     if zeilen.count() != 3: fehler.append("Erwartet 3 Einträge, sind " + str(zeilen.count()))
-    if pg.input_value("#matausgabe-text") != "": fehler.append("Feld nicht geleert")
     d = pg.evaluate("TEST.daten.materialausgabe")
     if not all(x.get("raus_von") == "u1" and x.get("raus_am") for x in d): fehler.append("raus nicht gespeichert: " + str(d)[:200])
     if "raus" not in pg.inner_text("#db-materialausgabe") or "saheesan" not in pg.inner_text("#db-materialausgabe").lower():
         fehler.append("Wer/wann raus fehlt in der Karte")
+    if [x.get("an_wen") for x in d] != ["Zurbrügg", "Meier AG", "Zurbrügg"]:
+        fehler.append("an_wen falsch: " + str([x.get("an_wen") for x in d]))
+    if "an Meier AG" not in pg.inner_text("#db-materialausgabe"): fehler.append("'an wen' fehlt in der Karte")
     pg.evaluate("document.querySelector('.dialog-huelle') || 0")
     pg.screenshot(path="materialausgabe-karte.png", clip=pg.locator("#db-materialausgabe").bounding_box())
 
