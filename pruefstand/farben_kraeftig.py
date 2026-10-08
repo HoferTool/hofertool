@@ -1,7 +1,7 @@
-# Planwand: Die Balken sind kräftig gefärbt (111.46.0). Auf dunklen
-# Farben wie Blau steht weisse Schrift, auf hellen wie Gelb schwarze,
-# hell und dunkel gut lesbar. Der rote Punkt „keine Menge“ hat einen
-# hellen Rand, damit er auch auf Rot sichtbar ist.
+# Planwand: Die Balken sind kräftig gefärbt (111.46.0). Die Anschrift
+# ist seit 111.104.0 immer schwarz, auf jeder Farbe und in beiden
+# Modi (Wunsch Patrick 8. Oktober 2026, vorher weiss auf dunklen Farben).
+# Statt des roten Punkts steht seit 111.103.0 das rote M.
 import os, sys, time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -48,10 +48,8 @@ with sync_playwright() as p:
         # Früher wurde jede Farbe zu Pastell aufgehellt (Helligkeit um 0.7)
         pruefe(modus + ": bunte Balken nicht pastell (Helligkeit < 0.6)", bunte and max(w["hell"] for w in bunte) < 0.6,
                round(max(w["hell"] for w in bunte), 2) if bunte else "")
-        pruefe(modus + ": Schrift lesbar (Kontrast >= 4)", min(w["kontrast"] for w in werte) >= 4,
-               round(min(w["kontrast"] for w in werte), 2))
         pg.screenshot(path=os.path.join(BILDER, "planwand-farben-" + modus + ".png"))
-    # Blau: weisse Schrift, Gelb: schwarze
+    # Immer schwarz, auch auf Blau
     schrift = pg.evaluate("""() => {
       const s = {};
       document.querySelectorAll('.pw-balken:not(.pw-balken--fertig)').forEach((b) => {
@@ -60,11 +58,8 @@ with sync_playwright() as p:
       });
       return s;
     }""")
-    pruefe("Blau mit weisser Schrift", schrift.get("blau") == "rgb(255, 255, 255)", schrift.get("blau"))
-    pruefe("Gelb mit schwarzer Schrift", schrift.get("gelb") not in (None, "rgb(255, 255, 255)"), schrift.get("gelb"))
-    punkt = pg.locator(".pw-balken__statusgross--ohnematerial")
-    if punkt.count():
-        pruefe("Roter Punkt mit hellem Rand", "255, 255, 255" in punkt.first.evaluate("e => getComputedStyle(e).textShadow"))
+    pruefe("Blau mit schwarzer Schrift", schrift.get("blau") == "rgb(0, 0, 0)", schrift.get("blau"))
+    pruefe("Gelb mit schwarzer Schrift", schrift.get("gelb") == "rgb(0, 0, 0)", schrift.get("gelb"))
     fehler += f
     br.close()
 print("Fehler:", fehler[:3] if fehler else "keine")
