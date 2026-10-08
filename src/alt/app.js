@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.114.0";
+const APP_VERSION = "111.115.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1063,6 +1063,39 @@ async function fassungHolen() {
   location.reload();
   return true;
 }
+
+// ---------- Jede Stunde kurz neu laden ----------
+// Wunsch Patrick, 8. Oktober 2026: „soll jede Stunde kurz neu laden bei
+// allen“. So holt sich auch ein Bildschirm, der tagelang offen bleibt,
+// die neuste Fassung, und ein hängen gebliebener Abgleich fängt frisch
+// an. Neu geladen wird nur in einem ruhigen Moment: kein Fenster oder
+// Dialog offen, kein Feld mit Schreibmarke, kein Balken am Haken,
+// nichts wartet auf das Netz, und seit einer halben Minute keine
+// Berührung. Sonst probiert es die App jede Minute wieder. Im Pad geht
+// es über padNeuLaden, damit das Tablet danach wieder genau dort steht.
+// Die Anmeldung übersteht das Neuladen (sessionStorage oder, mit
+// „merken“, localStorage), die Seite bleibt über den Hash dieselbe.
+const NEULADEN_TAKT = 60 * 60 * 1000;
+let neuladenAb = Date.now() + NEULADEN_TAKT;
+
+function neuladenRuhig() {
+  if (document.querySelector(".dialog-huelle, .pw-balken--zieht, .pw-balken--groesse")) return false;
+  const a = document.activeElement;
+  if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return false;
+  if (OFFLINE.offline || OFFLINE.sendet || offlineSchlange().length) return false;
+  if (navigator.onLine === false) return false;
+  if (Date.now() - leerlauf.letzte < 30000) return false;
+  return true;
+}
+
+function stuendlichNeuLaden() {
+  if (Date.now() < neuladenAb || !neuladenRuhig()) return;
+  // Falls das Neuladen scheitert, nicht jede Minute wieder: erst in einer Stunde
+  neuladenAb = Date.now() + NEULADEN_TAKT;
+  if (document.getElementById("pad") && typeof padNeuLaden === "function") padNeuLaden();
+  else location.reload();
+}
+setInterval(stuendlichNeuLaden, 60000);
 
 // =================================================================
 //  FEHLERPROTOKOLL
