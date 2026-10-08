@@ -1,55 +1,24 @@
 // =================================================================
 //  EINSTELLUNGEN · Sicherung
-//  Wunsch Patrick, 6. Oktober 2026: „man soll den Pfad angeben können,
-//  wo sie abgespeichert werden, und es soll einfach möglich sein, dass
-//  man es reinspielen kann und alles wieder so ist wie beim letzten
-//  Sichern“.
+//  Seit 111.109.0 macht die App die Sicherung selbst, ohne Programm auf
+//  einem Rechner (Wunsch Patrick, 8. Oktober 2026): eine ZIP-Datei mit
+//  allen Daten und allen hochgeladenen Dateien in einen Ordner, den man
+//  auf diesem Gerät einmal wählt. Ablauf und Format in src/teile/sicherung.js.
 //
-//  Gesichert wird nicht vom Browser aus, sondern von der Aufgabe
-//  „Hofer Sicherung“ (skripte/sicherung.ps1) auf dem Rechner im
-//  Betrieb: Nur der kommt an den Ordner auf dem Netzlaufwerk. Die App
-//  und das Programm reden über drei Einträge in app_config:
-//    sicherung          Speicherort, Uhrzeit, wie lange behalten (Admin)
-//    sicherung_auftrag  „Jetzt sichern“ oder „Zurückspielen“ (Admin)
-//    sicherung_status   was das Programm meldet: letzte Sicherung,
-//                       Liste der Dateien im Ordner, Ergebnis des
-//                       letzten Auftrags (Dienstkonto)
-//  Das Programm schaut alle fünf Minuten nach, darum dauert ein
-//  Auftrag bis zu fünf Minuten, bis er beginnt.
+//  In app_config:
+//    sicherung         Uhrzeit, wie lange behalten, welches Gerät sichert,
+//                      mit welchem Konto ausser Admins (konto, etwa das
+//                      Planwand-Konto auf dem Pool-Rechner, sql/sicherung-konto.sql)
+//    sicherung_status  letzte Sicherung, Fehler, Liste der Dateien im Ordner
 // =================================================================
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Gruppe, Zeile } from "./teile.jsx";
+import {
+  kannOrdner, geraetId, geraetName, ordnerHolen, ordnerWaehlen, ordnerErlaubt, ordnerListe,
+  konfLaden, konfSpeichern, sichernUndMelden, sicherungLaeuft, wannAusName, sicherungKopf, zurueckspielen,
+} from "../teile/sicherung.js";
 
-const SCHLUESSEL = ["sicherung", "sicherung_auftrag", "sicherung_status"];
-
-function jsonOder(text, ersatz) {
-  try { return text ? JSON.parse(text) : ersatz; } catch (f) { return ersatz; }
-}
-
-async function laden() {
-  const r = await alt.zeitlimit(alt.db.from("app_config").select("schluessel, wert")
-    .in("schluessel", SCHLUESSEL), 6000, "Sicherung");
-  if (r && r.error) throw r.error;
-  const werte = {};
-  ((r && r.data) || []).forEach((x) => { werte[x.schluessel] = jsonOder(x.wert, null); });
-  return werte;
-}
-
-// Offen = angefordert, aber noch nicht erledigt gemeldet, und nicht
-// älter als zwei Tage (dann gilt er auch in der Datenbank nicht mehr)
-function auftragOffen(auftrag, status) {
-  if (!auftrag || !auftrag.id) return false;
-  if (status && status.auftrag && status.auftrag.id === auftrag.id) return false;
-  return Date.now() - new Date(auftrag.zeit).getTime() < 2 * 86400000;
-}
-
-// „Hofer-Sicherung-2026-10-06-1900.jsonl.gz“ → Datum der Sicherung
-function wannAusName(name, ersatz) {
-  const m = /(\d{4})-(\d\d)-(\d\d)-(\d\d)(\d\d)/.exec(name || "");
-  if (!m) return ersatz ? new Date(ersatz) : null;
-  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
-}
 function datumText(d) {
   if (!d || isNaN(d)) return "–";
   const z = (n) => String(n).padStart(2, "0");
@@ -62,14 +31,11 @@ function mbText(mb) {
 
 export default function Sicherung() {
   const [auffrischen, setAuffrischen] = useState(0);
-  const { daten, fehler } = useDaten(laden, [auffrischen]);
-  // Solange ein Auftrag läuft, alle 10 Sekunden nachsehen, sonst jede Minute
-  const offen = daten && auftragOffen(daten.sicherung_auftrag, daten.sicherung_status);
+  const { daten, fehler } = useDaten(konfLaden, [auffrischen]);
   useEffect(() => {
-    const t = setInterval(() => setAuffrischen((n) => n + 1), offen ? 10000 : 60000);
+    const t = setInterval(() => setAuffrischen((n) => n + 1), 60000);
     return () => clearInterval(t);
-  }, [offen]);
-
+  }, []);
   if (!daten) {
     return (
       <Gruppe titel="Sicherung" id="si">
@@ -77,135 +43,205 @@ export default function Sicherung() {
       </Gruppe>
     );
   }
-  return <SicherungInhalt werte={daten} offen={offen} neu={() => setAuffrischen((n) => n + 1)} />;
+  return <SicherungInhalt konf={daten.konf} status={daten.status} neu={() => setAuffrischen((n) => n + 1)} />;
 }
 
-function SicherungInhalt({ werte, offen, neu }) {
+function SicherungInhalt({ konf, status, neu }) {
   const admin = alt.istAdmin();
-  const konf = werte.sicherung || {};
-  const status = werte.sicherung_status;
-  const auftrag = werte.sicherung_auftrag;
-  const [pfad, setPfad] = useState(konf.pfad || "");
   const [stunde, setStunde] = useState(konf.stunde ?? 18);
   const [behalten, setBehalten] = useState(konf.behalten || 30);
+  const [konto, setKonto] = useState(konf.konto || "");
+  const [konten, setKonten] = useState([]);
+  const [griff, setGriff] = useState(null);
+  const [erlaubt, setErlaubt] = useState("fehlt");
+  const [liste, setListe] = useState(null);
+  const [arbeit, setArbeit] = useState("");
+  const [ergebnis, setErgebnis] = useState(null);
+  const dateiFeld = useRef(null);
+  const hier = konf.geraet && konf.geraet.id === geraetId();
 
-  const speichern = async () => {
-    const r = await alt.db.from("app_config").upsert([{ schluessel: "sicherung",
-      wert: JSON.stringify({ pfad: pfad.trim(), stunde: Number(stunde), behalten: Number(behalten) }) }]);
-    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
-    alt.meldung(pfad.trim() ? "Gespeichert. Die nächste Sicherung kommt in diesen Ordner." : "Gespeichert.", "gut");
+  // Ordner dieses Geräts und, wenn freigegeben, seine Sicherungen
+  const ordnerLesen = async (h) => {
+    const s = await ordnerErlaubt(h, false);
+    setGriff(h); setErlaubt(s);
+    if (s === "granted") { try { setListe(await ordnerListe(h)); } catch (f) { setListe(null); } }
+  };
+  useEffect(() => { if (kannOrdner) ordnerHolen().then(ordnerLesen); }, []);
+  // Konten ohne Admin, die die tägliche Sicherung machen dürfen
+  useEffect(() => {
+    Promise.resolve(alt.db.from("profiles").select("id, full_name, email, role, is_active").order("full_name"))
+      .then((r) => setKonten(((r && r.data) || []).filter((p) => p.role !== "admin" && p.is_active !== false)))
+      .catch(() => {});
+  }, []);
+
+  const speichern = async (extra) => {
+    const neuKonf = Object.assign({}, konf, { stunde: Number(stunde), behalten: Number(behalten), konto: konto || null }, extra || {});
+    delete neuKonf.pfad;
+    await konfSpeichern(neuKonf);
+    return neuKonf;
+  };
+
+  // Ordner wählen macht dieses Gerät zum Sicherungsgerät
+  const ordnerNeu = async () => {
+    let h;
+    try { h = await ordnerWaehlen(); } catch (f) { return null; }
+    try {
+      await speichern({ geraet: { id: geraetId(), name: geraetName(), ordner: h.name } });
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return null; }
+    await ordnerLesen(h);
+    alt.meldung("Ordner „" + h.name + "“ gewählt. Dieses Gerät macht jetzt die Sicherungen.", "gut");
+    neu();
+    return h;
+  };
+
+  // Freigabe holen (braucht den Klick), sonst Ordner wählen. Nur „Ordner
+  // wählen“ macht ein Gerät zum Sicherungsgerät; „Jetzt sichern“ an einem
+  // anderen Computer schreibt bloss dort hin (der Pool-Rechner bleibt es).
+  const ordnerBereit = async () => {
+    if (griff && (await ordnerErlaubt(griff, true)) === "granted") return griff;
+    if (!konf.geraet) return ordnerNeu();
+    let h;
+    try { h = await ordnerWaehlen(); } catch (f) { return null; }
+    await ordnerLesen(h);
+    return h;
+  };
+
+  const jetztSichern = async () => {
+    if (sicherungLaeuft()) return;
+    const h = await ordnerBereit();
+    if (!h) return;
+    setErgebnis(null); setArbeit("Sicherung beginnt …");
+    try {
+      const l = await sichernUndMelden(h, "manuell", setArbeit, Number(behalten));
+      setErgebnis({ ok: true, text: "Gesichert: " + l.datei + " (" + mbText(l.mb) + ", " + alt.zahlText(l.zeilen) + " Einträge, "
+        + alt.zahlText(l.dateien) + " Dateien" + (l.fehlt ? ", " + l.fehlt + " Dateien nicht lesbar" : "") + ")" });
+    } catch (f) {
+      setErgebnis({ ok: false, text: alt.fehlertext(f) });
+    }
+    setArbeit("");
+    await ordnerLesen(h);
     neu();
   };
 
-  const auftragGeben = async (art, datei) => {
-    const p = alt.profil || {};
-    const neuerAuftrag = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), art,
-      zeit: new Date().toISOString(), von: p.full_name || p.email || "" };
-    if (datei) neuerAuftrag.datei = datei;
-    const r = await alt.db.from("app_config").upsert([{ schluessel: "sicherung_auftrag", wert: JSON.stringify(neuerAuftrag) }]);
-    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
-    neu();
-  };
-
-  const jetztSichern = () => {
-    if (!konf.pfad) { alt.meldung("Zuerst einen Speicherort eintragen und speichern.", "warn"); return; }
-    auftragGeben("sichern");
-  };
-
-  const zurueckspielen = async (eintrag) => {
-    const wann = datumText(wannAusName(eintrag.d, eintrag.z));
+  const einspielen = async (datei) => {
+    let kopf;
+    try { kopf = (await sicherungKopf(datei)).kopf; }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
+    const wann = datumText(new Date(kopf.erstellt));
     const ok = await alt.nachfragen({ titel: "Sicherung zurückspielen?",
-      text: "Alle Daten der App werden auf den Stand vom " + wann + " gesetzt. Was seither eingetragen "
-        + "oder geändert wurde, ist danach weg. Vorher sichert der Rechner den heutigen Stand, "
-        + "so lässt er sich wieder zurückholen.",
+      text: "Alle Daten der App werden auf den Stand vom " + wann + " gesetzt. Was seither eingetragen oder geändert "
+        + "wurde, ist danach weg." + (griff && erlaubt === "granted" ? " Vorher wird der heutige Stand in den Ordner gesichert." : ""),
       bestaetigen: "Zurückspielen", gefahr: true });
     if (!ok) return;
-    auftragGeben("zurueck", eintrag.d);
+    setErgebnis(null);
+    try {
+      let vorher = null;
+      if (griff && (await ordnerErlaubt(griff, true)) === "granted") {
+        setArbeit("Heutiger Stand wird zuerst gesichert …");
+        vorher = await sichernUndMelden(griff, "vorher", setArbeit, Number(behalten));
+      }
+      const r = await zurueckspielen(datei, setArbeit);
+      setErgebnis({ ok: true, zurueck: true, text: "Zurückgespielt: " + alt.zahlText(r.zeilen || 0) + " Einträge in " + (r.tabellen || 0)
+        + " Tabellen" + (r.dateien ? ", " + r.dateien + " Dateien wieder hochgeladen" : "")
+        + (r.dateienFehlt ? ", " + r.dateienFehlt + " Dateien nicht möglich" : "")
+        + (r.ohneKonto ? ", " + r.ohneKonto + " Person(en) ohne Anmeldekonto weggelassen" : "")
+        + (vorher ? ". Der Stand davor liegt in " + vorher.datei : "") + "." });
+    } catch (f) {
+      setErgebnis({ ok: false, text: alt.fehlertext(f) });
+    }
+    setArbeit("");
+    if (griff) await ordnerLesen(griff);
   };
 
-  // ---------- Was das Programm meldet ----------
-  let meldezeile;
-  if (!status) {
-    meldezeile = <span className="gedaempft">Die Aufgabe „Hofer Sicherung“ hat sich noch nicht gemeldet.</span>;
-  } else {
-    const minuten = (Date.now() - new Date(status.zeit).getTime()) / 60000;
-    const l = status.letzte;
-    meldezeile = <>
-      <span className={"dokpfad-punkt " + (minuten < 15 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
-      {l ? "Letzte Sicherung " + datumText(new Date(l.zeit)) + " · " + alt.zahlText(l.zeilen || 0) + " Einträge · "
-        + alt.zahlText(l.dateien || 0) + " Dateien" : "Noch keine Sicherung"}
-      {status.rechner && <span className="gedaempft"> · Rechner {status.rechner}</span>}
-      {minuten >= 15 && <> <b>— seit {Math.round(minuten)} Minuten keine Meldung</b></>}
-      {status.fehler && <div className="klein si-fehler" id="si-fehler">{status.fehler}</div>}
-    </>;
-  }
+  const ausOrdner = async (name) => {
+    try { einspielen(await (await griff.getFileHandle(name)).getFile()); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
 
-  // ---------- Laufender oder letzter Auftrag ----------
-  let auftragZeile = null;
-  if (offen) {
-    auftragZeile = <div className="si-auftrag si-auftrag--laeuft" id="si-auftrag">
-      <span className="si-dreher" aria-hidden="true" />
-      {auftrag.art === "zurueck"
-        ? "Zurückspielen von " + datumText(wannAusName(auftrag.datei)) + " ist angefordert."
-        : "Sicherung ist angefordert."}
-      {" Der Rechner beginnt innert fünf Minuten damit."}
-    </div>;
-  } else if (status && status.auftrag && auftrag && status.auftrag.id === auftrag.id
-             && Date.now() - new Date(status.auftrag.zeit).getTime() < 86400000) {
-    auftragZeile = <div className={"si-auftrag " + (status.auftrag.ok ? "si-auftrag--gut" : "si-auftrag--fehler")} id="si-auftrag">
-      {status.auftrag.ok ? "✓ " : "Nicht geklappt: "}{status.auftrag.text}
-      {status.auftrag.ok && status.auftrag.art === "zurueck" && " Andere Geräte mit Strg + F5 neu laden."}
-    </div>;
-  }
-
-  const liste = (status && status.liste) || [];
+  // ---------- Stand ----------
+  const l = status && status.letzte;
+  const ordnerText = konf.geraet
+    ? "Ordner „" + (konf.geraet.ordner || "?") + "“ auf " + (hier ? "diesem Gerät" : konf.geraet.name || "einem anderen Gerät")
+    : "Noch kein Ordner gewählt";
+  const meldezeile = <>
+    <span className={"dokpfad-punkt " + (l && Date.now() - new Date(l.zeit).getTime() < 36 * 3600000 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
+    {l ? "Letzte Sicherung " + datumText(new Date(l.zeit)) + " · " + alt.zahlText(l.zeilen || 0) + " Einträge · "
+      + alt.zahlText(l.dateien || 0) + " Dateien" + (l.mb ? " · " + mbText(l.mb) : "") : "Noch keine Sicherung"}
+    {status && status.fehler && <div className="klein si-fehler" id="si-fehler">{status.fehler}</div>}
+  </>;
+  const zeilen = liste || (status && status.liste) || [];
 
   return (
     <>
       <Gruppe titel="Sicherung" id="si"
-        text={"Einmal am Tag sichert der Rechner im Betrieb alle Daten der App und alle hochgeladenen Dateien "
-          + "in diesen Ordner. Passwörter und PINs sind nicht dabei, sie bleiben, wie sie sind."}>
-        <Zeile titel="Speicherort" text="Als \\Server\Freigabe\… eintragen, nicht mit Laufwerksbuchstaben wie Z:.">
-          <input type="text" id="si-pfad" aria-label="Speicherort der Sicherung"
-            placeholder={"\\\\Server\\Sicherungen\\Hofer Tool"} value={pfad} disabled={!admin}
-            onChange={(e) => setPfad(e.target.value)} />
+        text={"Die App sichert alle Daten und alle hochgeladenen Dateien (Zeichnungen, WBGs, Bilder) in eine einzige "
+          + "Datei im gewählten Ordner, einmal am Tag ab der eingestellten Uhrzeit. Dafür muss die App auf dem Gerät mit "
+          + "dem Ordner offen sein, mit einem Admin oder dem Konto unten angemeldet; war sie zu, holt sie es beim nächsten "
+          + "Öffnen nach. "
+          + "Passwörter und PINs sind nicht dabei."}>
+        <Zeile titel="Speicherort" text={ordnerText}>
+          {kannOrdner
+            ? admin && <button className="knopf knopf--klein" id="si-ordner" onClick={ordnerNeu}>
+                {griff && hier ? "Anderen Ordner wählen" : "Ordner wählen"}</button>
+            : <span className="klein gedaempft">Ordner wählen geht nur in Chrome oder Edge am Computer.</span>}
         </Zeile>
-        <Zeile titel="Täglich ab" text="Sobald der Rechner nach dieser Uhrzeit läuft. War er aus, holt er es nach.">
+        {hier && griff && erlaubt !== "granted" && <p className="hinweis klein" id="si-freigabe">
+          Der Browser braucht die Erlaubnis für den Ordner nochmals. Einmal auf „Jetzt sichern“ drücken und „Zulassen“ wählen,
+          am besten „Bei jedem Besuch zulassen“.</p>}
+        <Zeile titel="Täglich ab" text="Sobald die App nach dieser Uhrzeit offen ist.">
           <select id="si-stunde" value={stunde} disabled={!admin} onChange={(e) => setStunde(e.target.value)}>
             {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00 Uhr</option>)}
           </select>
         </Zeile>
-        <Zeile titel="Behalten" text="Ältere Sicherungen werden gelöscht, die neuesten drei bleiben immer.">
+        <Zeile titel="Sichern auch als" text="Konto ohne Admin, das auf dem Sicherungsgerät angemeldet ist, etwa Planwand auf dem Pool-Rechner.">
+          <select id="si-konto" value={konto} disabled={!admin} onChange={(e) => setKonto(e.target.value)}>
+            <option value="">nur Admins</option>
+            {konten.map((p) => <option key={p.id} value={p.id}>{p.full_name || p.email}</option>)}
+          </select>
+        </Zeile>
+        <Zeile titel="Behalten" text="Ältere Sicherungen werden im Ordner gelöscht, die neuesten drei bleiben immer.">
           <select id="si-behalten" value={behalten} disabled={!admin} onChange={(e) => setBehalten(e.target.value)}>
             {[7, 14, 30, 60, 90, 180, 365].map((t) => <option key={t} value={t}>{t} Tage</option>)}
           </select>
         </Zeile>
         <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
           <div id="si-stand" className="dokpfad-stand">{meldezeile}</div>
-          {admin && <button className="knopf knopf--klein" id="si-jetzt" disabled={offen}
+          {admin && kannOrdner && <button className="knopf knopf--klein" id="si-jetzt" disabled={!!arbeit}
             onClick={jetztSichern}>Jetzt sichern</button>}
           {admin && <button className="knopf knopf--klein knopf--haupt" id="si-speichern"
-            onClick={speichern}>Speichern</button>}
+            onClick={async () => { try { await speichern(); alt.meldung("Gespeichert.", "gut"); neu(); }
+              catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); } }}>Speichern</button>}
         </div>
-        {auftragZeile}
+        {arbeit && <div className="si-auftrag si-auftrag--laeuft" id="si-auftrag">
+          <span className="si-dreher" aria-hidden="true" />{arbeit} Bitte die App offen lassen.</div>}
+        {!arbeit && ergebnis && <div className={"si-auftrag " + (ergebnis.ok ? "si-auftrag--gut" : "si-auftrag--fehler")} id="si-auftrag">
+          {ergebnis.ok ? "✓ " : "Nicht geklappt: "}{ergebnis.text}
+          {ergebnis.zurueck && <> <button className="knopf knopf--klein" onClick={() => location.reload()}>Neu laden</button></>}
+        </div>}
       </Gruppe>
 
       <Gruppe titel="Zurückspielen" id="si-zurueck"
-        text="Setzt alle Daten der App auf den Stand einer Sicherung zurück. Fehlende Dateien kommen aus dem Ordner wieder dazu.">
-        {liste.length
+        text="Setzt alle Daten der App auf den Stand einer Sicherung zurück. Fehlende Dateien kommen aus der Sicherung wieder hoch."
+        aktionen={admin && <>
+          <button className="knopf knopf--klein" id="si-datei" disabled={!!arbeit}
+            onClick={() => dateiFeld.current && dateiFeld.current.click()}>Datei wählen …</button>
+          <input ref={dateiFeld} type="file" hidden accept=".zip,application/zip"
+            onChange={(e) => { const d = e.target.files && e.target.files[0]; e.target.value = ""; if (d) einspielen(d); }} />
+        </>}>
+        {zeilen.length
           ? <div className="tabellenrolle"><table className="tabelle es-tabelle" id="si-liste">
               <thead><tr><th>Stand vom</th><th>Grösse</th><th /></tr></thead>
-              <tbody>{liste.map((x) => (
+              <tbody>{zeilen.map((x) => (
                 <tr key={x.d}>
                   <td>{datumText(wannAusName(x.d, x.z))}
                     {/vor-Zurueckspielen/.test(x.d) && <span className="marke si-marke">vor dem Zurückspielen</span>}</td>
                   <td className="nowrap">{mbText(x.mb)}</td>
-                  <td className="si-knopfzelle">{admin && <button className="knopf knopf--klein si-zurueckknopf"
-                    disabled={offen} onClick={() => zurueckspielen(x)}>Zurückspielen</button>}</td>
+                  <td className="si-knopfzelle">{admin && liste && <button className="knopf knopf--klein si-zurueckknopf"
+                    disabled={!!arbeit} onClick={() => ausOrdner(x.d)}>Zurückspielen</button>}</td>
                 </tr>
               ))}</tbody>
             </table></div>
-          : <p className="es-leer">{status ? "Im Ordner liegt noch keine Sicherung." : "Noch keine Sicherung gemeldet."}</p>}
+          : <p className="es-leer">Im Ordner liegt noch keine Sicherung. Mit „Datei wählen …“ lässt sich jede Sicherungsdatei zurückspielen.</p>}
       </Gruppe>
     </>
   );

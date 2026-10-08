@@ -375,17 +375,9 @@ function UeberDieApp() {
 
 // ---------- Backup ----------
 
+// „Planwand als Excel“ ist weg (Wunsch Patrick 8. Oktober 2026)
 function Backup() {
-  return (
-    <>
-      <Sicherung />
-      <Gruppe titel="Planwand als Excel"
-        text={"Alle Aufträge mit Maschine, Zeitraum, Zustand, Stückzahl, Material und Notiz, "
-          + "auf einem zweiten Blatt die Maschinen."}
-        aktionen={<button className="knopf knopf--haupt knopf--klein" id="bk-excel"
-          onClick={() => alt.planwandExcel()}>Excel herunterladen</button>} />
-    </>
-  );
+  return <Sicherung />;
 }
 
 // ---------- Fehlerprotokoll ----------

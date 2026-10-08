@@ -557,6 +557,13 @@ export function createClient(_url, _key, optionen) {
         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
         + "AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==#" + pfad } }),
       remove: () => Promise.resolve({ data: null, error: null }),
+      // Tests legen Inhalte in TEST.ablage["ablage/pfad"] ab (Text oder Uint8Array)
+      download: (pfad) => {
+        TEST.protokoll.push({ art: "download", ablage, pfad });
+        const inhalt = TEST.ablage && TEST.ablage[ablage + "/" + pfad];
+        return Promise.resolve(inhalt === undefined ? { data: null, error: { message: "Object not found" } }
+          : { data: new Blob([inhalt]), error: null });
+      },
     }) },
     auth: {
       getSession: () => Promise.resolve({

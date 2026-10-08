@@ -1,25 +1,25 @@
 ﻿# =================================================================
-#  NEUER RECHNER — Solaranlage, WBG und Zeichnungen, Einrichtblätter, Sicherung
+#  NEUER RECHNER — eine Aufgabe "HoferTool" für alles
 #
-#  Richtet auf einem Windows-Rechner im Betrieb vier Aufgaben ein:
-#    - Solar: holt alle fünf Minuten die Werte vom Solar-Log und
-#      liefert sie an die App (solarlog.ps1)
-#    - Dokumente: lauscht auf die App (dokumente-abruf.ps1). Öffnet
-#      jemand eine WBG, lädt es die WBGs aus dem Pool-Ordner hoch und
-#      löscht sie dort; öffnet jemand eine Zeichnung, holt es die PDF
-#      der HOCO Nr. aus dem Zeichnungs-Ordner (dort nur lesen). Schaut
-#      alle zwei Sekunden nach, die Aufgabe startet es neu, falls es
-#      einmal nicht läuft. Unter dem angemeldeten Konto, wegen der
-#      Netzlaufwerke, ohne dass ein Passwort eingegeben werden muss.
-#    - Einrichtblätter: liest auf Knopfdruck in der App die Excel-Dateien
-#      aus den Typ-Ordnern, die in der App eingetragen sind, und lädt neue
-#      und geänderte hoch (einrichtblaetter.ps1). Liest nur, löscht nie.
-#      Schaut alle fünf Minuten nach dem Knopf. Unter dem angemeldeten
-#      Konto wie die Dokumente.
-#    - Sicherung: sichert einmal am Tag alle Daten und hochgeladenen
-#      Dateien in den Ordner aus der App (Einstellungen → Backup) und
-#      spielt eine Sicherung zurück, wenn ein Admin es dort anfordert
-#      (sicherung.ps1). Unter dem angemeldeten Konto, wegen Netzlaufwerken.
+#  Richtet auf einem Windows-Rechner im Betrieb die Aufgabe "HoferTool"
+#  ein (Wunsch Patrick 8. Oktober 2026: eine Aufgabe für alles, im
+#  Hintergrund, ohne Knöpfe). Sie startet alle fünf Minuten unsichtbar
+#  hofertool.ps1, und das erledigt nacheinander:
+#    - Solar: Werte vom Solar-Log an die App (solarlog.ps1)
+#    - WBG: lädt die WBGs aus dem Pool-Ordner hoch und löscht sie dort
+#      (dokumente-pool.ps1). Der einzige Ordner, in dem gelöscht wird.
+#    - Zeichnungen: lädt neue und geänderte PDFs aus dem Zeichnungs-
+#      Ordner hoch (zeichnungen.ps1). Liest nur.
+#    - Einrichtblätter: lädt neue und geänderte Excel-Dateien aus den
+#      Typ-Ordnern hoch (einrichtblaetter.ps1). Liest nur.
+#  Hat sich nichts geändert, tut sie nichts. Sie läuft unter dem
+#  angemeldeten Konto, weil nur dieses auf die Netzlaufwerke kommt,
+#  ohne dass ein Passwort eingegeben werden muss. Darum läuft sie nur,
+#  solange dieses Konto angemeldet ist (gesperrt reicht).
+#
+#  Die Sicherung macht seit 111.109.0 die App selbst (Einstellungen →
+#  Backup), ohne Programm; die frühere Aufgabe "Hofer Sicherung" und
+#  sicherung.ps1 räumt dieses Skript weg.
 #
 #  Was das Skript tut:
 #    1. Lädt die Programme von GitHub nach C:\Hofer\Abgleich.
@@ -27,18 +27,17 @@
 #    3. Fragt nach dem Solar-Schlüssel und dem Dienstkonto und trägt
 #       sie in die Einstellungsdateien ein.
 #    4. Probiert beides aus, ohne etwas zu schreiben.
-#    5. Legt die Aufgaben in der Aufgabenplanung an und entfernt die
-#       früheren "Hofer Dokumente-Pool" und "Hofer Zeichnungen". Sonst
-#       bleibt nichts zurück: kein Dienst, kein Autostart. Nur die
-#       Aufgabe "Hofer Dokumente" wartet im Hintergrund auf die App.
+#    5. Legt die Aufgabe "HoferTool" an und entfernt die früheren
+#       einzelnen Aufgaben ("Hofer Solar", "Hofer Dokumente", "Hofer
+#       Sicherung" usw.). Sonst bleibt nichts zurück:
+#       kein Dienst, kein Autostart.
 #
 #  Start (PowerShell, am besten "Als Administrator ausführen"):
 #     [Net.ServicePointManager]::SecurityProtocol='Tls12'; iwr -UseBasicParsing https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte/einrichten.ps1?t=$(Get-Random) -OutFile $env:TEMP\einrichten.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\einrichten.ps1
 #
 #  Nochmals ausführen ist gefahrlos: Was schon eingetragen ist, bleibt
 #  mit Enter stehen, die Programme werden neu geholt, die Aufgaben
-#  ersetzt. Mit Administratorrechten laufen die Aufgaben immer, auch
-#  wenn niemand angemeldet ist; sonst nur, solange du angemeldet bist.
+#  ersetzt.
 #
 #  Windows PowerShell 5.1 reicht, nichts zu installieren.
 # =================================================================
@@ -90,17 +89,17 @@ function JsonSchreiben([string]$datei, $objekt) {
 $istAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
             ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-Write-Host "Hofer Tool: Solaranlage, WBG und Zeichnungen, Einrichtblätter und Sicherung einrichten" -ForegroundColor Cyan
+Write-Host "Hofer Tool: Aufgabe HoferTool einrichten (Solar, WBG, Zeichnungen, Einrichtblätter)" -ForegroundColor Cyan
 Write-Host "Ordner: $Ziel"
 if (-not $istAdmin) {
-  Warn "Ohne Administratorrechte laufen die Aufgaben nur, solange du angemeldet bist."
+  Warn "Ohne Administratorrechte lassen sich frühere Aufgaben unter SYSTEM (Hofer Solar) nicht entfernen."
   Warn "Besser: PowerShell mit Rechtsklick -> 'Als Administrator ausführen' öffnen und nochmals starten."
 }
 
 # ---------- 1. Programme holen ----------
 Titel "1. Programme holen"
 New-Item -ItemType Directory -Force -Path $Ziel | Out-Null
-foreach ($n in @("solarlog.ps1", "dokumente-abruf.ps1", "dokumente-teile.ps1", "einrichtblaetter.ps1", "sicherung.ps1", "unsichtbar.vbs")) {
+foreach ($n in @("hofertool.ps1", "solarlog.ps1", "dokumente-pool.ps1", "zeichnungen.ps1", "einrichtblaetter.ps1", "dokumente-teile.ps1", "unsichtbar.vbs")) {
   try {
     Invoke-WebRequest -UseBasicParsing -Uri ("$QUELLE/${n}?t=" + [DateTime]::UtcNow.Ticks) -OutFile (Join-Path $Ziel $n) -TimeoutSec 60
     Unblock-File -Path (Join-Path $Ziel $n) -ErrorAction SilentlyContinue
@@ -307,78 +306,57 @@ if ($poolAn) {
   $poolDa = $false
   try { New-Item -ItemType Directory -Force -Path $poolEcht -ErrorAction Stop | Out-Null; $poolDa = $true }
   catch { Warn "Den Pool-Ordner $POOL erreiche ich von hier aus nicht. Die Aufgabe wird trotzdem angelegt." }
-  Info "WBG und Zeichnungen, Probe (lädt nichts hoch, ändert in den Ordnern nichts):"
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "dokumente-abruf.ps1") -Probe
+  Info "WBG, Probe (lädt nichts hoch, löscht nichts):"
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "dokumente-pool.ps1") -Probe
   Write-Host ""
-  Info "Einrichtblätter, Probelauf (lädt nichts hoch, ändert in den Ordnern nichts):"
+  Info "Zeichnungen, Probe (lädt nichts hoch, ändert im Ordner nichts):"
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "zeichnungen.ps1") -Probe
+  Write-Host ""
+  Info "Einrichtblätter, Probe (lädt nichts hoch, ändert in den Ordnern nichts):"
   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "einrichtblaetter.ps1") -Probe
 }
 
 # ---------- 5. Aufgabenplanung ----------
-Titel "5. Aufgaben anlegen"
-# -dauernd: für dokumente-abruf.ps1, das selbst weiterläuft. Ohne
-# Zeitgrenze; der Start alle fünf Minuten holt es nur zurück, wenn es
-# nicht mehr läuft (IgnoreNew).
-function Einplanen([string]$name, [string]$skript, [string]$text, [switch]$nurAngemeldet, [switch]$dauernd) {
+Titel "5. Aufgabe anlegen"
+# Die früheren einzelnen Aufgaben, ersetzt durch "HoferTool"; die
+# Sicherung macht seit 111.109.0 die App selbst
+foreach ($alt in @("Hofer Solar", "Hofer Dokumente", "Hofer Einrichtblätter", "Hofer Dokumente-Pool", "Hofer Zeichnungen", "Hofer Sicherung")) {
+  if (Get-ScheduledTask -TaskName $alt -ErrorAction SilentlyContinue) {
+    try { Unregister-ScheduledTask -TaskName $alt -Confirm:$false -ErrorAction Stop; Gut "Frühere Aufgabe '$alt' entfernt" }
+    catch { Warn "Frühere Aufgabe '$alt' liess sich nicht entfernen (als Administrator nochmals starten)." }
+  }
+}
+foreach ($alt in @("dokumente-abruf.ps1", "abruf.log", "sicherung.ps1", "sicherung-stand.json")) {
+  Remove-Item -LiteralPath (Join-Path $Ziel $alt) -Force -ErrorAction SilentlyContinue
+}
+
+$wer = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+if ($solarAn -or $poolAn) {
   # Über unsichtbar.vbs, damit kein PowerShell-Fenster aufblitzt
   # (powershell.exe direkt zeigt trotz -WindowStyle Hidden kurz eines).
-  # -Force beim Anlegen ersetzt die bisherige Aufgabe gleichen Namens.
+  # -Force ersetzt eine bisherige Aufgabe gleichen Namens.
   $aktion = New-ScheduledTaskAction -Execute "wscript.exe" -WorkingDirectory $Ziel `
-    -Argument ('//B //Nologo "' + (Join-Path $Ziel "unsichtbar.vbs") + '" ' + $skript)
+    -Argument ('//B //Nologo "' + (Join-Path $Ziel "unsichtbar.vbs") + '" hofertool.ps1')
   $ausloeser = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
-  $grenze = New-TimeSpan -Minutes 30
-  if ($dauernd) { $grenze = [TimeSpan]::Zero }
+  # Läuft noch einer, fällt der nächste Start aus (IgnoreNew)
   $einst = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `
-    -ExecutionTimeLimit $grenze
-  if ($nurAngemeldet) {
-    # Läuft unter dem angemeldeten Windows-Konto, ohne Passwort. So kommt
-    # die Aufgabe auf die Netzlaufwerke, die dieses Konto öffnen darf
-    # (SYSTEM käme dort nicht hinein). Dafür nur, solange es angemeldet ist.
-    $wer = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive
-    Register-ScheduledTask -TaskName $name -Action $aktion -Trigger $ausloeser -Settings $einst `
-      -Principal $wer -Description $text -Force | Out-Null
-    if ($dauernd) {
-      # Gleich starten statt erst in einer Minute
-      try { Start-ScheduledTask -TaskName $name } catch { }
-      Gut "Aufgabe '$name': läuft dauernd, solange $([Security.Principal.WindowsIdentity]::GetCurrent().Name) angemeldet ist"
-    } else {
-      Gut "Aufgabe '$name': alle 5 Minuten, solange $([Security.Principal.WindowsIdentity]::GetCurrent().Name) angemeldet ist"
-    }
-    return
-  }
-  if ($istAdmin) {
-    # Läuft auch ohne Anmeldung, nach einem Neustart von selbst
-    $wer = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
-  } else {
-    $wer = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive
-  }
-  Register-ScheduledTask -TaskName $name -Action $aktion -Trigger $ausloeser -Settings $einst `
-    -Principal $wer -Description $text -Force | Out-Null
-  Gut "Aufgabe '$name': alle 5 Minuten"
-}
-if ($solarAn) { Einplanen "Hofer Solar" "solarlog.ps1" "Liefert alle 5 Minuten die Werte des Solar-Log ans Hofer Tool." }
-if ($poolAn)  {
-  # Die früheren Aufgaben, ersetzt durch "Hofer Dokumente"
-  foreach ($alt in @("Hofer Dokumente-Pool", "Hofer Zeichnungen")) {
-    if (Get-ScheduledTask -TaskName $alt -ErrorAction SilentlyContinue) {
-      Unregister-ScheduledTask -TaskName $alt -Confirm:$false
-      Gut "Frühere Aufgabe '$alt' entfernt"
-    }
-  }
-  Einplanen "Hofer Dokumente" "dokumente-abruf.ps1" "Wartet auf die App: Öffnet jemand eine WBG, lädt es die WBGs aus dem Pool-Ordner ins Hofer Tool und löscht sie dort. Öffnet jemand eine Zeichnung, lädt es die PDF der HOCO Nr. aus dem Zeichnungs-Ordner hoch, ohne dort etwas zu ändern." -nurAngemeldet -dauernd
-  Einplanen "Hofer Einrichtblätter" "einrichtblaetter.ps1" "Schaut alle 5 Minuten, ob in der App 'Einrichtblätter hochladen' gedrückt wurde, und lädt dann die Excel-Einrichtblätter aus den Typ-Ordnern ins Hofer Tool. Löscht und ändert in den Ordnern nie etwas." -nurAngemeldet
-  Einplanen "Hofer Sicherung" "sicherung.ps1" "Sichert einmal am Tag alle Daten des Hofer Tools in den Ordner aus der App (Einstellungen -> Backup) und spielt auf Wunsch eine Sicherung zurück." -nurAngemeldet
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 40)
+  # Unter dem angemeldeten Konto, ohne Passwort: So kommt die Aufgabe auf
+  # die Netzlaufwerke, die dieses Konto öffnen darf (SYSTEM käme dort
+  # nicht hinein). Dafür nur, solange es angemeldet ist.
+  $prinzipal = New-ScheduledTaskPrincipal -UserId $wer -LogonType Interactive
+  Register-ScheduledTask -TaskName "HoferTool" -Action $aktion -Trigger $ausloeser -Settings $einst `
+    -Principal $prinzipal -Force -Description ("Alle 5 Minuten im Hintergrund: Solar-Log an das Hofer Tool, WBGs aus dem " +
+    "Pool-Ordner hochladen und dort löschen, neue und geänderte Zeichnungen und Einrichtblätter hochladen (dort nur lesen).") | Out-Null
+  try { Start-ScheduledTask -TaskName "HoferTool" } catch { }
+  Gut "Aufgabe 'HoferTool': alle 5 Minuten, solange $wer angemeldet ist"
+} else {
+  Warn "Weder Solar noch Dienstkonto eingerichtet, darum keine Aufgabe angelegt."
 }
 
 Titel "Fertig"
-if ($solarAn) { Info "Solar-Protokoll: $(Join-Path $Ziel 'solarlog.log')" }
-if ($poolAn)  {
-  Info "WBG und Zeichnungen, Protokoll: $(Join-Path $Ziel 'abruf.log')"; Info "WBGs hineinlegen in: $POOL"
-  Info "WBG und Zeichnungen kommen, sobald jemand sie in der App öffnet."
-  Info "Einrichtblätter-Protokoll: $(Join-Path $Ziel 'einrichtblaetter.log')"
-  Info "Einrichtblätter: nur auf Knopfdruck in der App (Einstellungen -> Dokumente)."
-  Info "Sicherung-Protokoll: $(Join-Path $Ziel 'sicherung.log')"
-  Info "Sicherung: sobald in der App unter Einstellungen -> Backup ein Speicherort steht, einmal am Tag."
-}
+Info "Protokoll: $(Join-Path $Ziel 'hofertool.log'), dazu je Teil eines (solarlog.log, pool.log, zeichnungen.log, einrichtblaetter.log)"
+if ($poolAn) { Info "WBGs hineinlegen in: $POOL" }
+Info "Den Stand zeigt die App unter Einstellungen -> Dokumente."
 Fertig 0

@@ -12,8 +12,7 @@ daten.jobs.push(
   { id: 'p3', job_number: '10007-0381', fa_nr: '', machine_id: 'm-k1', planned_from: '2026-10-12', wbg_url: 'https://x/alt-wbg.pdf', ended_at: null },
   { id: 'p4', job_number: '10007-0381', fa_nr: null, machine_id: 'm-k1', planned_from: '2026-10-05', wbg_url: null, ended_at: '2026-10-04T10:00:00Z' },
   { id: 'p5', job_number: '77777-0001', fa_nr: null, machine_id: 'm-k2', planned_from: '2026-10-15', wbg_url: null, ended_at: null });
-daten.app_config.push({ schluessel: 'dok_pool_status', wert: JSON.stringify({ abruf: true, zeit: new Date().toISOString(), rechner: 'BUERO1', neu: 4, wartet: ['20269999 55555-0001.pdf'], ohne: ['Quatsch.pdf'] }) },
-  { schluessel: 'dok_abruf_status', wert: JSON.stringify({ gesehen: new Date().toISOString(), rechner: 'BUERO1' }) });
+daten.app_config.push({ schluessel: 'dok_pool_status', wert: JSON.stringify({ immer: true, zeit: new Date().toISOString(), gesehen: new Date().toISOString(), rechner: 'BUERO1', neu: 0, zuletzt: { zeit: new Date().toISOString(), anzahl: 4 }, wartet: ['20269999 55555-0001.pdf'], ohne: ['Quatsch.pdf'] }) });
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 fehler = []
@@ -63,7 +62,8 @@ with sync_playwright() as p:
     pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1200)
 
     # Pool-Ordner
-    pruefe("Pool-Ordner mit Stand", "BUERO1" in pg.inner_text("#dokpool-stand") and "1 warten" in pg.inner_text("#dokpool-stand"))
+    pruefe("Pool-Ordner mit Stand", "BUERO1" in pg.inner_text("#dokpool-stand") and "1 warten" in pg.inner_text("#dokpool-stand")
+           and "Zuletzt hochgeladen" in pg.inner_text("#dokpool-stand") and "(4)" in pg.inner_text("#dokpool-stand"))
     pg.fill("#dokpool", "D:\\\\Pool"); pg.click("#dokpool-speichern"); pg.wait_for_timeout(400)
     pruefe("Pool-Ordner gespeichert", pg.evaluate("(TEST.daten.app_config.findLast(x => x.schluessel === 'dok_pool_pfad') || {}).wert") == "D:\\\\Pool")
 

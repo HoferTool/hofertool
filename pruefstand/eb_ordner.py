@@ -1,10 +1,11 @@
-# Einrichtblatt-Ordner (111.48.0): je Ordner ein Typ, seit 111.94.0 Knöpfe
-# statt Schalter, Probelauf-Liste aus eb_ordner_status; Pool seit 111.98.0 ohne Knöpfe
+# Einrichtblatt-Ordner (111.48.0): je Ordner ein Typ. Seit 111.108.0 keine
+# Knöpfe mehr, die Aufgabe „HoferTool“ lädt alle fünf Minuten von selbst
 import time, json
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
-STATUS = {"zeit": "2099-01-01T00:00:00Z", "rechner": "BUERO1", "scharf": False, "excel": 5, "neu": 2, "ersetzt": 1,
+STATUS = {"immer": True, "zeit": "2099-01-01T00:00:00Z", "gesehen": "2099-01-01T00:00:00Z", "rechner": "BUERO1",
+          "zuletzt": {"zeit": "2098-12-31T10:00:00Z", "anzahl": 3}, "scharf": True, "excel": 1205, "rest": 0, "neu": 2, "ersetzt": 1,
           "gleich": 0, "ohneNr": 1, "aelter": 1, "hochgeladen": 0, "fehler": None,
           "ordner": [{"pfad": "\\\\FS01\\EB\\SR32", "typ": "Star SR-32J", "excel": 5, "fehler": None},
                      {"pfad": "Z:\\EB", "typ": "Tornos Swiss GT 26", "excel": 0, "fehler": "Ordner nicht erreichbar"}],
@@ -30,8 +31,7 @@ with sync_playwright() as p:
 
     pruefe("Abschnitt da", pg.locator("#eb-ordner").count() == 1)
     st = pg.inner_text("#eb-stand"); print(st)
-    pruefe("Probelauf-Stand", "Probelauf" in st and "3 würden hochgeladen" in st)
-    pruefe("Liste zeigt Datei", "10844-0049.xlsx" in pg.inner_text("#eb-tabelle"))
+    pruefe("Stand der Aufgabe", "BUERO1" in st and "1’205 Excel-Dateien" in st and "Zuletzt hochgeladen" in st and "(3)" in st)
     pruefe("Ordnerfehler sichtbar", "Ordner nicht erreichbar" in pg.inner_text("#eb-ordner"))
     pruefe("Pool-Text nur WBGs", "nur für wbgs" in pg.inner_text("body").lower())
 
@@ -47,28 +47,13 @@ with sync_playwright() as p:
     pg.click("#eb-speichern"); pg.wait_for_timeout(400)
     w = json.loads(pg.evaluate("(TEST.daten.app_config.findLast(x => x.schluessel === 'eb_ordner') || {}).wert || 'null'"))
     print(w)
-    pruefe("Gespeichert, aus", w and w["scharf"] is False and len(w["ordner"]) == 2
+    pruefe("Gespeichert", w and "scharf" not in w and len(w["ordner"]) == 2
            and w["ordner"][0] == {"pfad": "\\\\FS01\\EB\\SR32", "typ": "t1", "unter": False}
            and w["ordner"][1]["unter"] is True)
 
-    # Statt Schalter Knöpfe (Wunsch 8. Oktober 2026): Abbrechen gibt keinen Auftrag
-    pruefe("Kein Schalter mehr", pg.locator("#eb-scharf").count() == 0)
-    pruefe("Alte Fassung erkannt", pg.locator("#eb-ordner .dok-altfassung").count() == 1)
-    pg.click("#eb-hochladen"); pg.wait_for_timeout(300)
-    pg.click(".dialog-huelle [data-nein]"); pg.wait_for_timeout(300)
-    pruefe("Abbrechen gibt keinen Auftrag", pg.evaluate("TEST.daten.app_config.some(x => x.schluessel === 'eb_auftrag')") == False)
-    pg.click("#eb-hochladen"); pg.wait_for_timeout(300)
-    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(500)
-    a = json.loads(pg.evaluate("TEST.daten.app_config.findLast(x => x.schluessel === 'eb_auftrag').wert"))
-    pruefe("Auftrag Hochladen", a["art"] == "hochladen" and "angefordert" in pg.inner_text("#eb-auftrag")
-           and pg.locator("#eb-probe").is_disabled())
-    # Beim Pool gibt es seit 111.98.0 keine Knöpfe mehr: WBGs kommen beim Öffnen
-    pruefe("Pool ohne Knöpfe", pg.locator("#pool-probe, #pool-hochladen").count() == 0)
-    pg.evaluate("""() => { TEST.daten.app_config.push({ schluessel: 'dok_pool_status', wert: JSON.stringify({ abruf: true,
-      zeit: new Date().toISOString(), rechner: 'POOL', dateien: 3, neu: 3, ohne: [], wartet: [] }) }); }""")
-    pg.locator("[data-einst='allgemein']").click(); pg.wait_for_timeout(500)
-    pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1200)
-    pruefe("Pool zeigt letztes Leeren", "3 abgelegt" in pg.inner_text("#dokpool-stand"))
+    # Keine Knöpfe mehr, nirgends (Wunsch 8. Oktober 2026)
+    pruefe("Keine Knöpfe", pg.locator("#eb-probe, #eb-hochladen, #pool-probe, #pool-hochladen, #zng-probe, #zng-hochladen").count() == 0)
+    pruefe("Zeichnungen ohne Meldung", "noch nicht gemeldet" in pg.inner_text("#zng-stand"))
     pg.locator("#eb-ordner").screenshot(path="eb_ordner.png")
     fehler += f
     br.close()

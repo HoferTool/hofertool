@@ -30,6 +30,7 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL } from "../daten/symbole.js";
+import { sicherungWaechter } from "../teile/sicherung.js";
 import { werkzeugWechselDialog } from "../pad/Werkzeugwechsel.jsx";
 import { ferienDialog } from "../planwand/FerienFenster.jsx";
 import { hocoFenster } from "../planwand/HocoFenster.jsx";
@@ -130,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.107.0";
+const APP_VERSION = "111.109.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3687,6 +3688,8 @@ async function farbzuteilungLaden() {
   await bestellmailTextLaden();
   // Alte WBG wegräumen, einmal am Tag, im Hintergrund
   setTimeout(() => { wbgAufraeumen().catch(() => {}); }, 4000);
+  // Tägliche Sicherung, wenn dieses Gerät das Sicherungsgerät ist (src/teile/sicherung.js)
+  sicherungWaechter();
 }
 
 // Auf der Planwand darf jeder alles sehen. Geändert wird erst,
@@ -3740,97 +3743,6 @@ async function ladeFerien() {
   return data || [];
 }
 
-// =================================================================
-//  Planwand als Excel
-//  Alle Aufträge mit Maschine, Zeitraum, Menge, Stand, Zustand und
-//  Notiz in einer Tabelle. Die Bibliothek dafür wird erst beim Klick
-//  geladen, damit sie die App sonst nicht belastet.
-// =================================================================
-
-function excelBibliothek() {
-  if (window.XLSX) return Promise.resolve(window.XLSX);
-  return new Promise((fertig, scheitern) => {
-    const el = document.createElement("script");
-    el.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
-    el.onload = () => fertig(window.XLSX);
-    el.onerror = () => scheitern(new Error("Excel-Bibliothek liess sich nicht laden"));
-    document.head.appendChild(el);
-  });
-}
-
-async function planwandExcel() {
-  meldung("Excel wird erstellt …");
-  let XLSX;
-  try { XLSX = await excelBibliothek(); }
-  catch (f) { meldung(fehlertext(f), "fehler"); return; }
-
-  let liste = [];
-  try { liste = await ladePlanAuftraege(true); }
-  catch (f) { meldung(fehlertext(f), "fehler"); return; }
-
-  const zustandName = (k) => (PLANSTATUS[k] || PLANSTATUS.geplant).name;
-  const datum = (t) => (t ? new Date(String(t).slice(0, 10) + "T00:00:00") : null);
-
-  const zeilen = liste
-    .slice()
-    .sort((a, b) => String(a.park || "").localeCompare(String(b.park || ""))
-      || (a.maschine_reihenfolge || 0) - (b.maschine_reihenfolge || 0)
-      || String(a.planned_from || "").localeCompare(String(b.planned_from || "")))
-    .map((j) => {
-      const notiz = notizTrennen(j.plan_note);
-      return {
-        "Park": j.park || "",
-        "Maschine": (j.maschine_nr ? j.maschine_nr + " " : "") + (j.maschine || ""),
-        "HOCO Nr.": j.job_number || "",
-        "FA Nr.": j.fa_nr || "",
-        "Von": datum(j.planned_from),
-        "Bis": datum(planEnde(j.planned_from, j.planned_days || 1)),
-        "Arbeitstage": j.planned_days || 1,
-        "Zustand": zustandName(j.plan_status),
-        "Stückzahl Ziel": j.target_quantity || null,
-        "Stand": j.stand || 0,
-        "Material": j.material_bez || "",
-        "Menge": j.material_menge || "",
-        // Der Liefertermin ist Text: „2026-09-24“, „24.09.26“ oder „KW41“
-        "Liefertermin": /^\d{4}-\d{2}-\d{2}/.test(String(j.material_liefertermin || ""))
-          ? datum(j.material_liefertermin) : (j.material_liefertermin || ""),
-        "FA erstellt": j.fa_nr ? "ja" : "nein",
-        "Material da": j.material_ok ? "ja" : "nein",
-        "Materialplatz": materialPlatz(j),
-        "Notiz": auftragNotiz(j),
-        "Problem": j.problem || "",
-        "Farbe": j.color || "",
-        "Begonnen": j.started_at ? new Date(j.started_at) : null,
-        "Beendet": j.ended_at ? new Date(j.ended_at) : null,
-      };
-    });
-
-  const blatt = XLSX.utils.json_to_sheet(zeilen, { cellDates: true });
-  // Spaltenbreiten und Filter, damit es in Excel gleich lesbar ist
-  const breiten = [14, 22, 12, 12, 11, 11, 11, 10, 13, 10, 30, 12, 12, 10, 11, 26, 40, 26, 10, 18, 18];
-  blatt["!cols"] = breiten.map((b) => ({ wch: b }));
-  blatt["!autofilter"] = { ref: XLSX.utils.encode_range({
-    s: { r: 0, c: 0 }, e: { r: zeilen.length, c: breiten.length - 1 } }) };
-
-  const mappe = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(mappe, blatt, "Planwand");
-
-  // Zweites Blatt: die Maschinen
-  let maschinen = [];
-  try { maschinen = await ladeMaschinen(true); } catch (f) { maschinen = []; }
-  const mZeilen = (maschinen || []).map((m) => ({
-    "Nummer": m.machine_number || "", "Name": m.name || "",
-    "Aktiv": m.is_active === false ? "nein" : "ja" }));
-  if (mZeilen.length) {
-    const b2 = XLSX.utils.json_to_sheet(mZeilen);
-    b2["!cols"] = [{ wch: 10 }, { wch: 26 }, { wch: 8 }];
-    XLSX.utils.book_append_sheet(mappe, b2, "Maschinen");
-  }
-
-  const name = "Planwand_" + isoDatum(new Date()) + ".xlsx";
-  XLSX.writeFile(mappe, name, { cellDates: true });
-  meldung(zeilen.length + " Aufträge als " + name + " gespeichert.");
-}
 
 async function ladePlanAuftraege(alle) {
   await personenLaden();
@@ -9107,7 +9019,7 @@ Object.assign(alt, {
   farbzuteilungLaden, werkstoffKern, werkstoffSchluessel, werkstoffZuordnen, WERKSTOFFGRUPPEN,
   DOK_ARTEN, dokErkennen, dokZielSuchen, dokZielText,
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
-  FEHLER_SCHLUESSEL, planwandExcel, themaJetzt, themaSetzen, einstellungSetzen,
+  FEHLER_SCHLUESSEL, themaJetzt, themaSetzen, einstellungSetzen,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE, bestellmailVorschau,
   APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, offenAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
   sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung,
