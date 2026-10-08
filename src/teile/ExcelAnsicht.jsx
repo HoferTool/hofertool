@@ -193,11 +193,20 @@ export function ExcelAnsicht({ daten, beiFehler }) {
     <div className="excelansicht">
       <div className="excelansicht__buehne" ref={buehne} onDoubleClick={doppelt}>
         {b && flaeche && <div ref={blatt} className="excelansicht__rahmen" style={{ padding: RAND }}>
-          <div className="excelansicht__seiten" data-excelseiten="" style={{ zoom: massstab, display: "flex",
-            flexDirection: "column", alignItems: "center", gap: LUECKE }}>
-            {seiten.fenster.map((w, i) => (
-              <Seite key={i} b={b} s={seiten} w={w} bildUrls={bildUrls} />
-            ))}
+          {/* Vergrössert wird mit transform statt CSS „zoom“: so wächst die
+              Schrift genau wie das Blatt mit, Zellen und Text bleiben bei
+              jedem Zoom im selben Verhältnis wie im Excel. Mit „zoom“ rundet
+              Safari die Schriftgrössen und der Text lief aus den Zellen.
+              Die Hülle nimmt die vergrösserte Fläche zum Rollen ein. */}
+          <div style={{ flex: "none", position: "relative", width: seiten.papier.b * massstab,
+            height: (seiten.fenster.length * (seiten.papier.h + LUECKE) - LUECKE) * massstab }}>
+            <div className="excelansicht__seiten" data-excelseiten="" style={{ position: "absolute", left: 0, top: 0,
+              width: seiten.papier.b, transform: "scale(" + massstab + ")", transformOrigin: "0 0", display: "flex",
+              flexDirection: "column", alignItems: "center", gap: LUECKE }}>
+              {seiten.fenster.map((w, i) => (
+                <Seite key={i} b={b} s={seiten} w={w} bildUrls={bildUrls} />
+              ))}
+            </div>
           </div>
         </div>}
         {!b && <div className="pdfansicht__laden">Excel wird geladen …</div>}
@@ -224,8 +233,8 @@ export function ExcelAnsicht({ daten, beiFehler }) {
 }
 
 // Eine Papierseite: weiss, mit den Rändern aus Excel. Darin ein
-// Fenster auf den Teil des Blattes, der auf diese Seite kommt. Alles
-// mit CSS „zoom“ statt transform, damit die Schrift scharf bleibt.
+// Fenster auf den Teil des Blattes, der auf diese Seite kommt, mit
+// transform verkleinert, damit die Schrift genau wie das Blatt mitgeht.
 function Seite({ b, s, w, bildUrls }) {
   const hoehe = w.y1 - w.y0;
   return (
@@ -236,7 +245,7 @@ function Seite({ b, s, w, bildUrls }) {
       {/* Etwas Überstand rundherum, damit dicke Rahmen am Rand ganz zu sehen sind */}
       <div style={{ position: "absolute", left: s.links - UEBERSTAND, top: s.oben - UEBERSTAND,
         width: s.w * s.f + 2 * UEBERSTAND, height: hoehe * s.f + 2 * UEBERSTAND, overflow: "hidden" }}>
-        <div style={{ zoom: s.f, position: "relative", width: s.w + 2 * UEBERSTAND / s.f, height: hoehe + 2 * UEBERSTAND / s.f }}>
+        <div style={{ transform: "scale(" + s.f + ")", transformOrigin: "0 0", position: "relative", width: s.w + 2 * UEBERSTAND / s.f, height: hoehe + 2 * UEBERSTAND / s.f }}>
           <div style={{ position: "absolute", left: -s.x0 + UEBERSTAND / s.f, top: -w.y0 + UEBERSTAND / s.f }}>
             <Blatt b={b} bildUrls={bildUrls} />
           </div>
@@ -393,7 +402,7 @@ export function excelDrucken(wurzel, titel, meldung) {
   const erste = el.querySelector("[data-excelseite]");
   const quer = erste && parseFloat(erste.style.width) > parseFloat(erste.style.height);
   const kopie = el.cloneNode(true);
-  kopie.style.zoom = "1"; kopie.style.gap = "0";
+  kopie.style.transform = "none"; kopie.style.position = "static"; kopie.style.gap = "0";
   kopie.querySelectorAll("[data-excelseite]").forEach((p) => {
     p.style.boxShadow = "none";
     // Ein Hauch kleiner als A4, sonst rutscht beim Drucker eine leere Seite nach

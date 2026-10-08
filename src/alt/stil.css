@@ -6414,3 +6414,19 @@ body.dunkel .nb-tab--edit td:focus-within { background: rgba(107, 164, 255, .14)
 
 /* Pool, Einrichtblätter, Zeichnungen: Dreher vor „angefordert“ (111.94.0) */
 .dok-auftrag .si-dreher { display: inline-block; vertical-align: -3px; margin-right: 4px; }
+/* Zeichnungs-Ordner: Dreher vor „angefordert“ (111.94.0) */
+#zng-auftrag .si-dreher { display: inline-block; vertical-align: -3px; margin-right: 4px; }
+
+/* ---------- Carlito für Excel-Einrichtblätter (111.96.0) ----------
+   Einrichtblätter sind in Calibri geschrieben. iPad und Handy haben
+   Calibri nicht und nahmen Arial, das deutlich breiter ist: Text lief
+   aus den Zellen. Carlito ist gleich breit wie Calibri (freie Schrift,
+   Lizenz in src/schrift). Wer Calibri hat, behält Calibri. */
+@font-face { font-family: Carlito; font-weight: 400; font-style: normal; font-display: swap;
+  src: local("Carlito"), url("../schrift/carlito-regular.woff2") format("woff2"); }
+@font-face { font-family: Carlito; font-weight: 700; font-style: normal; font-display: swap;
+  src: local("Carlito Bold"), local("Carlito-Bold"), url("../schrift/carlito-bold.woff2") format("woff2"); }
+@font-face { font-family: Carlito; font-weight: 400; font-style: italic; font-display: swap;
+  src: local("Carlito Italic"), local("Carlito-Italic"), url("../schrift/carlito-italic.woff2") format("woff2"); }
+@font-face { font-family: Carlito; font-weight: 700; font-style: italic; font-display: swap;
+  src: local("Carlito Bold Italic"), local("Carlito-BoldItalic"), url("../schrift/carlito-bolditalic.woff2") format("woff2"); }
