@@ -108,8 +108,20 @@ with sync_playwright() as p:
     if "42 s" not in pg.inner_text("#pad .pad-karte2--zeit"): fehler.append("Kachel zeigt nicht 42 s")
     pg.screenshot(path="stueckzeit-pad-42.png")
     # Jetzt lässt er sich beenden, ohne Frage
+    # Mit Stückzeit fragt es trotzdem jedes Mal (111.102.0): 42 steht da.
+    # Erst abbrechen → bleibt offen; dann neue Zahl tippen → ersetzt 42.
     beenden()
-    if pg.locator(".zifferblock").count(): fehler.append("Fragt trotz Stückzeit")
+    if not pg.locator(".zifferblock h2:has-text('Stückzeit bestätigen')").count(): fehler.append("Fragt nicht nochmals")
+    if pg.inner_text("#zb-anzeige").strip() != "42": fehler.append("Bisherige Stückzeit nicht vorgegeben: " + pg.inner_text("#zb-anzeige"))
+    pg.screenshot(path="stueckzeit-bestaetigen.png")
+    pg.click(".zifferblock [data-zbnein]"); pg.wait_for_timeout(800)
+    if pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tT').plan_status") == "fertig": fehler.append("Abbrechen hat trotzdem beendet")
+    beenden()
+    for z in "38": pg.click(f".zifferblock [data-zb='{z}']")
+    if pg.inner_text("#zb-anzeige").strip() != "38": fehler.append("Neue Zahl ersetzt nicht: " + pg.inner_text("#zb-anzeige"))
+    pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(1500)
+    neu = pg.evaluate(f"(TEST.daten.hoco_type_data.find(z => z.hoco_nr === '10333-0003' && z.type_id === '{typ}') || {{}}).stueckzeit_s")
+    if neu != 38: fehler.append("Neue Stückzeit nicht gespeichert: " + str(neu))
     if pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tT').plan_status") != "fertig": fehler.append("Mit Stückzeit nicht beendet")
     pg.click("#pad [data-padzu]"); pg.wait_for_timeout(600)
 
@@ -120,7 +132,7 @@ with sync_playwright() as p:
     pg.fill("#hoco-such", "10333-0003"); pg.wait_for_timeout(500)
     pg.click("[data-hoco-auf='10333-0003']"); pg.wait_for_timeout(1500)
     text = pg.inner_text("#hoco-fensterinhalt")
-    for w in ["Produktionsanlage", "Einrichtblatt", "Stückzeit", "42 s"]:
+    for w in ["Produktionsanlage", "Einrichtblatt", "Stückzeit", "38 s"]:
         if w not in text: fehler.append("HOCO ohne " + w)
     for w in ["Gelaufen auf", "Artikelbezeichnung", "Geheimteil", "Einrichtblätter"]:
         if w in text: fehler.append("HOCO zeigt noch " + w)

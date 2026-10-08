@@ -10,25 +10,33 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 
 const TASTEN = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "C", "0", "⌫"];
 
-export function zifferblock({ titel, hinweis, wert, schritte }) {
+// ersetzen: Der vorgegebene Wert steht da und lässt sich mit „Eintragen“
+// übernehmen; die erste getippte Ziffer ersetzt ihn, statt anzuhängen.
+export function zifferblock({ titel, hinweis, wert, schritte, ersetzen }) {
   return new Promise((fertig) => {
     let ergebnis = null;
     // Abbrechen, Escape und Tippen daneben schliessen über das Fenster;
     // das Ergebnis steht dann noch auf null
     fensterOeffnen((zu) => (
-      <Zifferblock titel={titel} hinweis={hinweis} wert={wert} schritte={schritte}
+      <Zifferblock titel={titel} hinweis={hinweis} wert={wert} schritte={schritte} ersetzen={ersetzen}
         fertig={(zahl) => { ergebnis = zahl; zu(); }} zu={zu} />
     ), () => fertig(ergebnis));
   });
 }
 
-function Zifferblock({ titel, hinweis, wert, schritte, fertig, zu }) {
+function Zifferblock({ titel, hinweis, wert, schritte, ersetzen, fertig, zu }) {
   const [eingabe, setEingabe] = useState(String(wert == null ? "" : wert).replace(/\D/g, ""));
-  const tippen = (t) => setEingabe((e) => {
+  const frisch = useRef(!!ersetzen);
+  const tippen = (t) => {
+    const neu = frisch.current && /^\d$/.test(t);
+    frisch.current = false;
+    setEingabe((e) => tasteAnwenden(neu ? "" : e, t));
+  };
+  const tasteAnwenden = (e, t) => {
     if (t === "C") return "";
     if (t === "⌫") return e.slice(0, -1);
     return e.length < 9 ? (e === "0" ? "" : e) + t : e;
-  });
+  };
   const eintragen = (e) => fertig(e === "" ? null : Number(e));
 
   // Die Tastatur hört im ganzen Dokument mit; die Eingabe liegt in

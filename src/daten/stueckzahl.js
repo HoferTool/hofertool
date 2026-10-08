@@ -13,8 +13,8 @@
 //
 //  Stückzeit (Sekunden, je HOCO Nr. und Maschinentyp in
 //  hoco_type_data.stueckzeit_s): Ohne sie lässt sich ab dem 8. Oktober
-//  2026 kein Auftrag mehr beenden. Fehlt sie beim Beenden, fragt die
-//  App gleich danach; ohne Eingabe bleibt der Auftrag offen.
+//  2026 kein Auftrag mehr beenden. Beim Beenden fragt die App jedes Mal
+//  danach (bestätigen oder neu); ohne Eingabe bleibt der Auftrag offen.
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
@@ -83,16 +83,20 @@ export async function stueckzeitSetzen(hocoNr, typId, sekunden) {
 }
 
 // Zifferblock für die Stückzeit. Liefert die Sekunden, 0 zum Leeren
-// oder null bei Abbruch.
+// oder null bei Abbruch. Ein vorhandener Wert steht da und lässt sich
+// mit „Eintragen“ übernehmen, die erste Ziffer ersetzt ihn.
 export async function stueckzeitFragen(titel, hinweis, wert) {
-  const zahl = await zifferblock({ titel, hinweis, wert: wert ? Math.round(wert) : "" });
+  const zahl = await zifferblock({ titel, hinweis, wert: wert ? Math.round(wert) : "", ersetzen: true });
   if (zahl === null) return null;
   return Math.max(0, Math.round(zahl));
 }
 
-// Vor dem Beenden: Ist die Stückzeit für HOCO Nr. und Maschinentyp
-// da? Sonst danach fragen. Wirft einen Fehler mit verständlichem
-// Text, wenn sie fehlt; dann wird der Auftrag nicht beendet.
+// Vor dem Beenden fragt die App jedes Mal nach der Stückzeit für HOCO
+// Nr. und Maschinentyp (Wunsch Patrick 8. Oktober 2026: „jedes Mal
+// fragen, ob andere oder neu, erst dann beendbar“). Eine vorhandene
+// steht schon da: „Eintragen“ bestätigt sie, eine neue Zahl ersetzt
+// sie. Ohne Stückzeit oder bei Abbruch wirft sie einen Fehler mit
+// verständlichem Text; dann wird der Auftrag nicht beendet.
 // Maschinen ohne Typ (die externen) haben keinen Platz dafür und
 // werden darum nicht aufgehalten.
 export async function stueckzeitVorDemBeenden(j) {
@@ -107,10 +111,13 @@ export async function stueckzeitVorDemBeenden(j) {
     if (/stueckzeit_s/.test(f.message || "")) return;
     throw f;
   }
-  if (da > 0) return;
-  const s = await stueckzeitFragen("Stückzeit fehlt",
-    "Ohne Stückzeit lässt sich " + j.job_number + " nicht beenden. Sekunden pro Stück auf "
-      + (maschine.name || "dieser Maschine") + ":", "");
+  const auf = (maschine.name || "dieser Maschine");
+  const s = await stueckzeitFragen(da > 0 ? "Stückzeit bestätigen" : "Stückzeit fehlt",
+    da > 0
+      ? "Stimmt die Stückzeit von " + j.job_number + " auf " + auf + " noch? „Eintragen“ übernimmt "
+        + stueckzeitText(da) + ", sonst die neue Zahl in Sekunden tippen."
+      : "Ohne Stückzeit lässt sich " + j.job_number + " nicht beenden. Sekunden pro Stück auf " + auf + ":",
+    da > 0 ? da : "");
   if (!s) throw new Error("Ohne Stückzeit kann der Auftrag nicht beendet werden.");
-  await stueckzeitSetzen(j.job_number, maschine.type_id, s);
+  if (s !== Math.round(da || 0)) await stueckzeitSetzen(j.job_number, maschine.type_id, s);
 }
