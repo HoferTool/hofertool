@@ -57,7 +57,7 @@ with sync_playwright() as p:
             if zustand()["betrachter"]: fehler.append(f"{breite}: Zeichnung kommt verspätet dazu")
             zu()
         # Auftrag ohne Zeichnung: ein Klick → Fenster „Keine Zeichnung vorhanden“
-        # (seit 111.97.0; der Rechner lauscht hier nicht, also sofort)
+        # (seit 111.98.0; der Rechner lauscht hier nicht, also sofort)
         jid2 = pg.evaluate(mit, False)
         if jid2:
             tippen(f".pw-balken[data-auftrag='{jid2}']", 1); z = zustand()
