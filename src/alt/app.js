@@ -29,7 +29,7 @@ import { stueckzeitVorDemBeenden } from "../daten/stueckzahl.js";
 import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
-  symbolInfoOffen, M_SYMBOL } from "../daten/symbole.js";
+  symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
 import { sicherungWaechter } from "../teile/sicherung.js";
 import { werkzeugWechselDialog } from "../pad/Werkzeugwechsel.jsx";
 import { ferienDialog } from "../planwand/FerienFenster.jsx";
@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.109.0";
+const APP_VERSION = "111.110.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6366,7 +6366,7 @@ function balkenVerhalten(b) {
 
   tafel.querySelectorAll("[data-auftrag]").forEach((el) => {
     let halten = null, zieht = false, schatten = null, gestartet = false;
-    let startX = 0, startY = 0, vomSymbol = false, versatz = 0;
+    let startX = 0, startY = 0, vomSymbol = false, vomSymbolBild = null, versatz = 0;
     let bild = 0, zeigerX = 0, zeigerY = 0;
 
     const aufraeumen = () => {
@@ -6463,6 +6463,9 @@ function balkenVerhalten(b) {
       gestartet = true;
       zeigerArt = e.pointerType || "mouse";
       vomSymbol = !!(e.target.closest && e.target.closest(".pw-balken__statusgross"));
+      // Ein Symbol aus den Einstellungen am Balken: Doppelklick nimmt es weg
+      const bild = e.target.closest && e.target.closest("[data-plsymbol]");
+      vomSymbolBild = bild ? bild.dataset.plsymbol : null;
       startX = e.clientX;
       startY = e.clientY;
       // Nur mit dem Finger braucht es das Halten
@@ -6542,6 +6545,15 @@ function balkenVerhalten(b) {
       // Kurz aufs Symbol getippt: Das Symbol ändert den Zustand selbst
       if (!warZiehen && vomSymbol) return;
       if (!warZiehen) {
+        // Smiley → Anwenden → dieser Balken bekommt das Symbol
+        if (symbolModusAktiv()) {
+          if (istAdmin()) symbolAnAuftrag(auftrag, b);
+          return;
+        }
+        if (vomSymbolBild) {
+          if (istAdmin()) symbolAmBalkenKlick(auftrag, vomSymbolBild, b);
+          return;
+        }
         if (plan.kopierModus) {
           kopierModusBeenden(b);
           zwischenablageSetzen(auftrag, b);

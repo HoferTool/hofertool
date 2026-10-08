@@ -9,7 +9,6 @@
 //  auf, siehe planAktualisieren).
 // =================================================================
 import { alt } from "../bruecke.jsx";
-import { symbolSpalte } from "../daten/symbole.js";
 
 // Die FA Nr. gibt es genau einmal. Steht sie schon auf einem anderen
 // Auftrag, wird abgebrochen, bevor die Datenbank es mit einer
@@ -115,12 +114,6 @@ export async function auftragSpeichern({ auftrag, daten, nr, b, zu }) {
     daten.job_number = nr;
     // Ohne eigene Angabe hinter den letzten Auftrag dieser Maschine
     if (!daten.planned_from) daten.planned_from = alt.naechsterFreierTag(daten.machine_id);
-    // Ohne sql/plan-symbole.sql kennt die Datenbank die Spalte nicht,
-    // und das Anlegen schlüge ganz fehl
-    if ("symbole" in daten && !symbolSpalte()) {
-      if (daten.symbole) alt.meldung("Symbole lassen sich erst nach sql/plan-symbole.sql speichern.", "warn");
-      delete daten.symbole;
-    }
     const r = await db.from("jobs").insert(daten).select();
     fehler = r.error;
     const neuerSatz = (r.data || [])[0];

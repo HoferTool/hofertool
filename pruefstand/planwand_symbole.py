@@ -48,19 +48,29 @@ with sync_playwright() as p:
     hg = pg.evaluate("""(id) => getComputedStyle(document.querySelector(`.pw-balken[data-auftrag='${id}'] .pw-msymbol rect`)).fill""", ohne)
     pruefe("M auf weissem Feld", "255, 255, 255" in hg or hg == "#fff" or hg == "rgb(255, 255, 255)")
 
-    # ---------- Symbol vergeben ----------
+    # ---------- Symbol vergeben: Smiley → Anwenden → Balken ----------
     el = pg.locator(f".pw-balken[data-auftrag='{mit}']").first
     el.scroll_into_view_if_needed()
     el.click(); pg.wait_for_timeout(80); el.click(); pg.wait_for_timeout(900)
     pruefe("Fenster offen", pg.locator(".dialog--auftrag").count() == 1)
     pruefe("Kein Plus für neue Farbe", pg.locator("#pl-farbneu").count() == 0)
     pruefe("Keine Späne im Fenster", "Späne" not in pg.inner_text(".dialog--auftrag"))
-    pruefe("Symbol zur Wahl", pg.locator("[data-plsymbolwahl='sKack']").count() == 1)
-    pg.click("[data-plsymbolwahl='sKack']")
-    if pg.locator("#pl-abruf").count() and not pg.input_value("#pl-abruf"): pg.fill("#pl-abruf", "je 1000 Stk KW 44")
-    pg.screenshot(path="/tmp/symbol_fenster.png")
-    pg.click("#pl-ja"); pg.wait_for_timeout(1400)
+    pruefe("Nichts von Symbolen im Auftragsfenster", pg.locator("#pl-symbole").count() == 0
+           and "Symbol" not in pg.inner_text(".dialog--auftrag"))
+    pg.click("#pl-nein"); pg.wait_for_timeout(500)
+    pruefe("Smiley-Knopf da", pg.locator("#pw-symbole").count() == 1)
+    pg.click("#pw-symbole"); pg.wait_for_timeout(700)
+    pruefe("Fenster Symbole offen", pg.locator(".dialog--symbole #sym-liste [data-symbol='sKack']").count() == 1)
+    pruefe("Dort Symbol anlegen möglich", pg.locator(".dialog--symbole #sym-anlegen").count() == 1)
+    pg.screenshot(path="/tmp/symbole_fenster.png")
+    pg.click("[data-symanwenden='sKack']"); pg.wait_for_timeout(500)
+    pruefe("Fenster zu, Leiste da", pg.locator(".dialog--symbole").count() == 0
+           and pg.locator("#symbol-leiste").count() == 1 and "Kack Teili" in pg.inner_text("#symbol-leiste"))
+    pg.screenshot(path="/tmp/symbol_anwenden.png")
+    el = pg.locator(f".pw-balken[data-auftrag='{mit}']").first
+    el.scroll_into_view_if_needed(); el.click(); pg.wait_for_timeout(1400)
     pruefe("Symbol gespeichert", pg.evaluate("(id) => TEST.daten.planwand.find(j => j.id === id).symbole", mit) == "sKack")
+    pruefe("Leiste weg, kein Fenster offen", pg.locator("#symbol-leiste").count() == 0 and pg.locator(".dialog-huelle").count() == 0)
     pg.wait_for_selector(f".pw-balken[data-auftrag='{mit}'] .pw-balken__symbol", timeout=5000)
     sym = pg.locator(f".pw-balken[data-auftrag='{mit}'] .pw-balken__symbol").first
     pruefe("Symbol steht hinter der Nummer", pg.evaluate("""(id) => { const s = document.querySelector(`.pw-balken[data-auftrag='${id}'] .pw-balken__symbol`);
@@ -73,8 +83,16 @@ with sync_playwright() as p:
            and "Kack Teili" in pg.inner_text(".pw-symbolinfo"))
     pruefe("Schnellvorschau weg", pg.locator(".pw-info").count() == 0)
     pg.screenshot(path="/tmp/symbol_hover.png")
+    # Ein Klick aufs Symbol öffnet nichts, Doppelklick nimmt es weg
+    sym.click(); pg.wait_for_timeout(700)
+    pruefe("Ein Klick aufs Symbol öffnet nichts", pg.locator(".dialog-huelle, .betrachter").count() == 0)
+    pruefe("Symbol noch da", pg.evaluate("(id) => TEST.daten.planwand.find(j => j.id === id).symbole", mit) == "sKack")
+    sym = pg.locator(f".pw-balken[data-auftrag='{mit}'] .pw-balken__symbol").first
+    sym.click(); pg.wait_for_timeout(80); sym.click(); pg.wait_for_timeout(1400)
+    pruefe("Doppelklick entfernt das Symbol", pg.evaluate("(id) => TEST.daten.planwand.find(j => j.id === id).symbole", mit) in (None, ""))
+    pruefe("Kein Auftragsfenster aufgegangen", pg.locator(".dialog--auftrag").count() == 0)
+    pruefe("Symbol vom Balken weg", pg.locator(f".pw-balken[data-auftrag='{mit}'] .pw-balken__symbol").count() == 0)
     pg.mouse.move(10, 10); pg.wait_for_timeout(300)
-    pruefe("Fenster des Symbols wieder weg", pg.locator(".pw-symbolinfo").count() == 0)
 
     # ---------- Plus-Knopf ----------
     vorlage = pg.evaluate("""() => { const j = TEST.daten.planwand.find(j => j.job_number && !j.ended_at && j.planned_days > 2);
@@ -102,15 +120,6 @@ with sync_playwright() as p:
     if neu:
         print("     eingeplant ab", neu[0].get("planned_from"), "letzter Beginn bisher", ende)
         pruefe("Ans Ende der Maschine", (neu[0].get("planned_from") or "") > ende)
-
-    # ---------- Smiley-Knopf neben dem Plus (nur Admins) ----------
-    pruefe("Smiley-Knopf da", pg.locator("#pw-symbole").count() == 1)
-    pg.click("#pw-symbole"); pg.wait_for_timeout(700)
-    pruefe("Fenster Symbole offen", pg.locator(".dialog--symbole #sym-liste [data-symbol='sKack']").count() == 1)
-    pruefe("Dort Symbol anlegen möglich", pg.locator(".dialog--symbole #sym-anlegen").count() == 1)
-    pg.screenshot(path="/tmp/symbole_fenster.png")
-    pg.click("#sym-zu"); pg.wait_for_timeout(400)
-    pruefe("Fenster wieder zu", pg.locator(".dialog--symbole").count() == 0)
 
     # ---------- Einstellungen → Symbole ----------
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(600)

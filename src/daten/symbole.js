@@ -96,6 +96,95 @@ export function symbolInfoSetzen(x, y) {
     : Math.min(window.innerHeight - h - 8, y + abstand + 6)) + "px";
 }
 
+// ---------- Symbol an einen Auftrag ----------
+// Ablauf (Wunsch Patrick 8. Oktober 2026): Smiley auf der Planwand,
+// beim Symbol „Anwenden“, dann den Balken anklicken. Doppelklick auf das
+// Symbol am Balken nimmt es wieder weg. Im Auftragsfenster steht nichts
+// davon. Gespeichert wird direkt in jobs.symbole, mit Rückgängig.
+
+export function symbolModusAktiv() { return !!alt.plan.symbolWahl; }
+
+export function symbolAnwendenStart(id, b) {
+  const s = liste.find((x) => x.id === id);
+  if (!s) return;
+  if (!symbolSpalte()) {
+    alt.meldung("Symbole lassen sich erst nach sql/plan-symbole.sql an Aufträge hängen.", "warn");
+    return;
+  }
+  alt.plan.symbolWahl = id;
+  alt.plan.symbolBehaelter = b || alt.plan.behaelter;
+  document.body.classList.add("symbolmodus");
+  let l = document.getElementById("symbol-leiste");
+  if (!l) {
+    l = document.createElement("div");
+    l.id = "symbol-leiste";
+    l.className = "einfuege-leiste";
+    document.body.appendChild(l);
+  }
+  l.innerHTML = '<img class="einfuege-leiste__bild" src="' + esc(s.bild) + '" alt="">'
+    + '<span><b>' + esc(s.text) + '</b> — den Auftrag anklicken, der das Symbol bekommen soll</span>'
+    + '<button type="button" class="knopf knopf--klein" id="symbol-ende">Abbrechen</button>';
+  l.querySelector("#symbol-ende").onclick = symbolAnwendenEnde;
+}
+
+export function symbolAnwendenEnde() {
+  alt.plan.symbolWahl = null;
+  document.body.classList.remove("symbolmodus");
+  const l = document.getElementById("symbol-leiste");
+  if (l) l.remove();
+}
+
+// Escape bricht das Anwenden ab, sofern kein Fenster offen ist
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !alt.plan || !alt.plan.symbolWahl) return;
+  if (document.querySelector(".dialog-huelle")) return;
+  symbolAnwendenEnde();
+});
+
+async function symboleSchreiben(auftrag, ids, text, b) {
+  const vorher = auftrag.symbole || null;
+  const neu = ids.join(",") || null;
+  if (vorher === neu) return;
+  try {
+    const r = await alt.aendernOhneUnbekannte("jobs", { symbole: neu }, "id", auftrag.id);
+    if (r && r.error) throw r.error;
+    if (r && r.weggelassen && r.weggelassen.includes("symbole")) {
+      alt.meldung("Symbole lassen sich erst nach sql/plan-symbole.sql speichern.", "warn");
+      return;
+    }
+    auftrag.symbole = neu;
+    alt.merkeSchritt(text + " " + (auftrag.job_number || "Auftrag"),
+      [alt.rueckSetz("jobs", { symbole: vorher }, { id: auftrag.id })]);
+    alt.meldung(text + ".", "gut");
+    if (b) alt.planAktualisieren(b);
+  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+}
+
+// Der angeklickte Balken bekommt das gewählte Symbol; der Modus endet
+export function symbolAnAuftrag(auftrag, b) {
+  const id = alt.plan.symbolWahl;
+  symbolAnwendenEnde();
+  if (!id || !auftrag) return;
+  const ids = symbolIds(auftrag.symbole);
+  if (ids.includes(id)) { alt.meldung("Dieses Symbol hat der Auftrag schon."); return; }
+  return symboleSchreiben(auftrag, [...ids, id], "Symbol an", b);
+}
+
+// Doppelklick (Doppeltipp) auf das Symbol am Balken: weg damit. Ein
+// einzelner Klick tut nichts, auch nicht die Zeichnung öffnen.
+let klickWarten = null;
+export function symbolAmBalkenKlick(auftrag, id, b) {
+  if (klickWarten && klickWarten.id === id && klickWarten.auftrag === auftrag.id) {
+    clearTimeout(klickWarten.zeit);
+    klickWarten = null;
+    const auswahl = window.getSelection && window.getSelection();
+    if (auswahl) auswahl.removeAllRanges();
+    return symboleSchreiben(auftrag, symbolIds(auftrag.symbole).filter((x) => x !== id), "Symbol weg von", b);
+  }
+  if (klickWarten) clearTimeout(klickWarten.zeit);
+  klickWarten = { id, auftrag: auftrag.id, zeit: setTimeout(() => { klickWarten = null; }, 320) };
+}
+
 // Das „M“ statt des Geplant-Kreises: weisses Feld, rotes M. Es heisst,
 // dass bei „Menge vorhanden oder bestellt“ nichts steht (Bild von
 // Patrick, 8. Oktober 2026). Als SVG, damit es in jeder Grösse scharf ist.

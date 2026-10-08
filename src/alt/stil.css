@@ -6595,3 +6595,8 @@ body.dunkel .matausgabe-an { color: #8fb8ff; }
   box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
   background: #fff3cd; color: #5c4400; border-color: #e0b84a;
 }
+/* Symbol anwenden (111.110.0): Leiste unten wie beim Einfügen, Balken
+   zeigen den Zeiger zum Antippen */
+.einfuege-leiste__bild { width: 26px; height: 26px; object-fit: contain; flex: none; }
+body.symbolmodus .pw-balken { cursor: pointer; }
+body.symbolmodus .pw-balken:hover { outline: 2px solid var(--marke); outline-offset: -2px; }

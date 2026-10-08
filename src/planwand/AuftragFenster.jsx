@@ -23,7 +23,6 @@
 import { useEffect, useRef, useState } from "react";
 import { alt, useVerzoegert } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { symbole, symbolIds, symbolSpalte } from "../daten/symbole.js";
 import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
 import { materialBestellungLesen, materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
@@ -92,7 +91,6 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer) {
       ? be : null,
     farbe: (auftrag && auftrag.color) || (v && v.color) || "blau",
     zustand: (auftrag && auftrag.plan_status) || "geplant",
-    symbole: symbolIds(quelle.symbole),
     // Die Zeile "Material: …" steht im eigenen Feld Materialplatz. Stand
     // sie auch hier, kam sie beim Speichern ein zweites Mal dazu. Was
     // aus der Bestellung in Menge und Liefertermin steht, fällt weg.
@@ -345,8 +343,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
 
   // Neue Farben gibt es nur noch in den Einstellungen unter Farben und
   // Material (Wunsch Patrick 8. Oktober 2026), nicht mehr hier mit „+“.
-  const symbolUmschalten = (id) => setW((x) => ({ ...x,
-    symbole: x.symbole.includes(id) ? x.symbole.filter((p) => p !== id) : [...x.symbole, id] }));
+  // Symbole kommen nicht über dieses Fenster, sondern über den Smiley
+  // auf der Planwand direkt an den Balken.
   const planerUmschalten = (k) => setW((x) => ({ ...x,
     planer: x.planer.includes(k) ? x.planer.filter((p) => p !== k) : [...x.planer, k] }));
 
@@ -405,10 +403,6 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     };
     if (abrufDa) daten.abruf_info = w.abruf.trim() || null;
     if (platzSpalte) daten.material_platz = (w.matOrt || "").trim() || null;
-    // Symbole erst, wenn die Datenbank die Spalte kennt (sql/plan-symbole.sql)
-    const symbolText = w.symbole.filter((id) => symbole().some((s) => s.id === id)).join(",") || null;
-    if (symbolSpalte()) daten.symbole = symbolText;
-    else if (symbolText) alt.meldung("Symbole lassen sich erst nach sql/plan-symbole.sql speichern.", "warn");
     setBeschaeftigt(true);
     try { await auftragSpeichern({ auftrag, daten, nr: w.nr.trim(), b, zu }); }
     finally { setBeschaeftigt(false); }
@@ -598,18 +592,6 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
             </div>
           </div>
 
-          {/* Symbole aus Einstellungen → Symbole, stehen auf dem Balken
-              hinter der HOCO Nr. */}
-          {symbole().length > 0 && <div className="feld"><span className="feldlabel">Symbol auf dem Balken</span>
-            <div className="auf-symbole" id="pl-symbole">
-              {symbole().map((s) => (
-                <button key={s.id} type="button" data-plsymbolwahl={s.id} title={s.text}
-                  className={"symbolknopf" + (w.symbole.includes(s.id) ? " aktiv" : "")}
-                  aria-pressed={w.symbole.includes(s.id)} disabled={nurLesen}
-                  onClick={() => symbolUmschalten(s.id)}>
-                  <img src={s.bild} alt="" /><span>{s.text}</span></button>
-              ))}
-            </div></div>}
 
           {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
           <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>

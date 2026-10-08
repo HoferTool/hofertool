@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { zuschneiden } from "../teile/Zuschnitt.jsx";
-import { symbole, symboleLaden, symboleSpeichern, symbolSpalte } from "../daten/symbole.js";
+import { symbole, symboleLaden, symboleSpeichern, symbolSpalte, symbolAnwendenStart } from "../daten/symbole.js";
 import { Gruppe } from "./teile.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 
@@ -20,7 +20,8 @@ export function symboleFensterOeffnen() {
   alt.plan.imDialog = true;
   fensterOeffnen((zu) => (
     <div className="dialog dialog--breit dialog--symbole">
-      <Symbole />
+      {/* Anwenden: Fenster zu, dann den Balken anklicken */}
+      <Symbole anwenden={(id) => { zu(); symbolAnwendenStart(id, alt.plan.behaelter); }} />
       <div className="dialog__knoepfe">
         <button className="knopf knopf--still" id="sym-zu" onClick={zu}>Schliessen</button>
       </div>
@@ -41,7 +42,7 @@ async function bildWaehlen() {
   return zuschneiden(datei, { kante: 96, ganz: true, format: "image/png", alsText: true });
 }
 
-export default function Symbole() {
+export default function Symbole({ anwenden }) {
   const [liste, setListe] = useState(null);
   const [neuText, setNeuText] = useState("");
   const [neuBild, setNeuBild] = useState(null);
@@ -75,14 +76,14 @@ export default function Symbole() {
   return (
     <>
       <Gruppe titel="Symbole auf den Balken"
-        text={"Ein Bild mit einer kurzen Erklärung. Im Auftragsfenster unter „Symbol auf dem Balken“ "
-          + "lässt es sich einem Auftrag geben. Es steht dann auf dem Balken hinter der HOCO Nr.; "
-          + "wer mit der Maus darüberfährt, sieht Bild und Erklärung."}>
+        text={"Ein Bild mit einer kurzen Erklärung. „Anwenden“ und dann den Auftrag auf der Planwand "
+          + "anklicken: Das Symbol steht danach auf dem Balken hinter der HOCO Nr.; wer mit der Maus "
+          + "darüberfährt, sieht Bild und Erklärung. Doppelklick auf das Symbol am Balken nimmt es wieder weg."}>
         {!symbolSpalte() && <p className="hinweis" id="sym-sql">Damit Aufträge ein Symbol bekommen
           können, muss einmal <b>sql/plan-symbole.sql</b> im Supabase SQL Editor laufen. Anlegen geht schon jetzt.</p>}
         <div className="sym-liste" id="sym-liste">
           {!liste.length && <p className="gedaempft">Noch keine Symbole angelegt.</p>}
-          {liste.map((s, i) => <SymbolZeile key={s.id} s={s} beschaeftigt={beschaeftigt}
+          {liste.map((s, i) => <SymbolZeile key={s.id} s={s} beschaeftigt={beschaeftigt} anwenden={anwenden}
             aendern={(neu) => ablegen(liste.map((x, k) => (k === i ? { ...x, ...neu } : x)), "Gespeichert.")}
             loeschen={async () => {
               const ok = await alt.nachfragen({ titel: "Symbol löschen",
@@ -106,7 +107,7 @@ export default function Symbole() {
   );
 }
 
-function SymbolZeile({ s, aendern, loeschen, beschaeftigt }) {
+function SymbolZeile({ s, aendern, loeschen, beschaeftigt, anwenden }) {
   const [text, setText] = useState(s.text);
   const gemerkt = useRef(s.text);
   const textFest = () => {
@@ -123,6 +124,9 @@ function SymbolZeile({ s, aendern, loeschen, beschaeftigt }) {
         <img src={s.bild} alt="" /></button>
       <input type="text" maxLength={80} value={text} onChange={(e) => setText(e.target.value)}
         onBlur={textFest} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+      {anwenden && <button type="button" className="knopf knopf--klein knopf--haupt" data-symanwenden={s.id}
+        title="Dann den Auftrag auf der Planwand anklicken" disabled={beschaeftigt}
+        onClick={() => anwenden(s.id)}>Anwenden</button>}
       <button type="button" className="knopf knopf--klein knopf--gefahr" title="Symbol löschen"
         disabled={beschaeftigt} onClick={loeschen}>Löschen</button>
     </div>
