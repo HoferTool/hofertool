@@ -10,8 +10,18 @@
 //    sicherung.json      Kopf: wann, wer, welche Tabellen und Dateien
 //    tabellen/<t>.json   alle Zeilen einer Tabelle (aus sicherung_lesen,
 //                        ein Augenblick für alle Tabellen)
-//    dateien/<b>/<p>     jede hochgeladene Datei (Zeichnungen, WBGs,
-//                        Bilder, Notizbuch-Seiten …)
+//    dateien/<b>/<p>     jede hochgeladene Datei (WBGs, Bilder,
+//                        Notizbuch-Seiten …), ausser Zeichnungen und
+//                        Einrichtblätter der HOCO Nummern (seit 111.116.0,
+//                        Wunsch Patrick 8. Oktober 2026: „alles sichern
+//                        ausser Einrichtblätter und Zeichnungen, weil man
+//                        das wieder hochladen kann per Aufgaben“): die
+//                        liegen in den Ordnern am Pool-Rechner, und die
+//                        Aufgabe „HoferTool“ lädt sie von dort hoch. Welche
+//                        Dateien das sind, steht in den Tabellen
+//                        (ohneDateien); im Kopf stehen sie unter
+//                        „ausgelassen“, damit das Zurückspielen weiss,
+//                        was nicht aus der Sicherung kommen kann.
 //
 //  Den Ordner wählt man einmal auf einem Gerät (Chrome oder Edge):
 //  Ein Browser darf nicht von selbst in einen Ordner schreiben, nur in
@@ -27,7 +37,10 @@
 //  Zurückspielen nutzt die Funktionen aus sql/sicherung.sql, die Admins
 //  ohnehin dürfen: sicherung_puffern je Tabelle, dann sicherung_einspielen
 //  ersetzt alles in einem Zug (scheitert etwas, bleibt alles wie vorher).
-//  Danach kommen Dateien, die fehlen, aus der ZIP wieder hoch.
+//  Danach kommen Dateien, die fehlen, aus der ZIP wieder hoch. Zeichnungen
+//  und Einrichtblätter sind nicht in der ZIP: Fehlen sie in der Ablage,
+//  meldet das Zurückspielen, wie viele, und sie müssen aus den Ordnern am
+//  Pool-Rechner wieder hochgeladen werden.
 // =================================================================
 import { Zip, ZipDeflate, ZipPassThrough, inflateSync, strToU8, strFromU8 } from "fflate";
 import { alt } from "../bruecke.jsx";
@@ -166,6 +179,39 @@ function dateiName(d, grund) {
 let laeuft = null;
 export const sicherungLaeuft = () => !!laeuft;
 
+// Aus der öffentlichen Adresse einer Datei Ablage und Pfad:
+// …/storage/v1/object/public/zeichnungen/dok/123-abc.pdf → "zeichnungen|dok/123-abc.pdf"
+function ablageSchluessel(adresse) {
+  const m = /\/object\/(?:public|sign|authenticated)\/([^/?#]+)\/([^?#]+)/.exec(String(adresse || ""));
+  if (!m) return null;
+  try { return m[1] + "|" + decodeURIComponent(m[2]); } catch (f) { return m[1] + "|" + m[2]; }
+}
+
+// Welche Dateien nicht in die Sicherung gehören: Zeichnungen (Stammdaten,
+// Aufträge, Dokumentenpool) und Einrichtblätter der HOCO Nummern (je Typ
+// und im Dokumentenpool). Die Vorlagen der Maschinentypen bleiben drin:
+// die holt keine Aufgabe zurück. Gibt Map "ablage|pfad" → Art zurück.
+export function ohneDateien(tabellen) {
+  const ohne = new Map();
+  const merke = (adresse, art) => { const k = ablageSchluessel(adresse); if (k && !ohne.has(k)) ohne.set(k, art); };
+  const zeilen = (t) => { const x = (tabellen || []).find((y) => y && y.t === t); return (x && x.zeilen) || []; };
+  zeilen("hoco_parts").forEach((z) => merke(z.zeichnung_url, "zeichnung"));
+  zeilen("jobs").forEach((z) => merke(z.drawing_url, "zeichnung"));
+  zeilen("hoco_type_data").forEach((z) => merke(z.blatt_url, "einrichtblatt"));
+  zeilen("dokumente").forEach((z) => {
+    if (z.art === "zeichnung") merke(z.datei_url, "zeichnung");
+    else if (z.art === "einrichtblatt" && z.hoco_nr) merke(z.datei_url, "einrichtblatt");
+  });
+  return ohne;
+}
+
+// Zählt, wie viele Zeichnungen und Einrichtblätter in einer Liste stehen
+export function ohneZaehlen(liste) {
+  const n = { zeichnungen: 0, einrichtblaetter: 0 };
+  (liste || []).forEach((o) => { if (o.art === "einrichtblatt") n.einrichtblaetter++; else n.zeichnungen++; });
+  return n;
+}
+
 // fortschritt(text) meldet, wie weit es ist. Gibt { datei, mb, zeilen, dateien, fehlt } zurück.
 export async function sichern(h, grund, fortschritt) {
   if (laeuft) throw new Error("Es läuft schon eine Sicherung.");
@@ -178,7 +224,12 @@ export async function sichern(h, grund, fortschritt) {
     if (!tabellen.length) throw new Error("Die Datenbank hat keine Tabellen geliefert (sql/sicherung.sql ausgeführt?).");
     const d = await alt.db.rpc("sicherung_dateien");
     if (d.error) throw d.error;
-    const liste = (d.data || []).filter((x) => x && x.b && x.p);
+    const alle = (d.data || []).filter((x) => x && x.b && x.p);
+    // Zeichnungen und Einrichtblätter bleiben draussen (Wunsch Patrick, 8. Oktober 2026)
+    const ohne = ohneDateien(tabellen);
+    const liste = alle.filter((x) => !ohne.has(x.b + "|" + x.p));
+    const ausgelassen = alle.filter((x) => ohne.has(x.b + "|" + x.p)).map((x) => ({ b: x.b, p: x.p, art: ohne.get(x.b + "|" + x.p) }));
+    const ohneZahl = ohneZaehlen(ausgelassen);
 
     const jetzt = new Date();
     let name = dateiName(jetzt, grund);
@@ -205,7 +256,7 @@ export async function sichern(h, grund, fortschritt) {
     let zeilen = 0;
     const kopfTabellen = tabellen.map((x) => { zeilen += x.nr || 0; return { t: x.t, n: x.nr || 0 }; });
     await eintragen("sicherung.json", strToU8(JSON.stringify({ art: "hofer-sicherung", version: 2,
-      erstellt: jetzt.toISOString(), geraet: geraetName(), grund, tabellen: kopfTabellen, dateien: liste }, null, 1)), true);
+      erstellt: jetzt.toISOString(), geraet: geraetName(), grund, tabellen: kopfTabellen, dateien: liste, ausgelassen }, null, 1)), true);
     for (const x of tabellen) await eintragen("tabellen/" + x.t + ".json", strToU8(JSON.stringify(x.zeilen || [])), true);
 
     let n = 0, fehlt = 0;
@@ -240,7 +291,8 @@ export async function sichern(h, grund, fortschritt) {
     }
     const groesse = (await (await h.getFileHandle(ziel)).getFile()).size;
     return { zeit: jetzt.toISOString(), datei: ziel, mb: Math.round(groesse / 104857.6) / 10, tabellen: tabellen.length,
-      zeilen, dateien: liste.length - fehlt, fehlt, grund, geraet: geraetName() };
+      zeilen, dateien: liste.length - fehlt, fehlt, ohneZeichnungen: ohneZahl.zeichnungen, ohneEinrichtblaetter: ohneZahl.einrichtblaetter,
+      grund, geraet: geraetName() };
   })();
   try { return await laeuft; } finally { laeuft = null; }
 }
@@ -332,9 +384,12 @@ export async function zurueckspielen(datei, fortschritt) {
 
   // Dateien, die es nicht mehr gibt, wieder hochladen
   const jetzt = new Set();
+  let listeDa = false;
   try {
     const d = await alt.db.rpc("sicherung_dateien");
+    if (d.error) throw d.error;
     (d.data || []).forEach((x) => jetzt.add(x.b + "|" + x.p));
+    listeDa = true;
   } catch (f) { /* dann eben alle versuchen */ }
   let wieder = 0, fehlt = 0, n = 0;
   const fehlend = (kopf.dateien || []).filter((o) => o && !jetzt.has(o.b + "|" + o.p));
@@ -350,8 +405,11 @@ export async function zurueckspielen(datei, fortschritt) {
       wieder++;
     } catch (f) { fehlt++; }
   }
+  // Zeichnungen und Einrichtblätter waren nicht in der Sicherung: Welche
+  // davon fehlen jetzt in der Ablage?
+  const ohneFehlt = ohneZaehlen(listeDa ? (kopf.ausgelassen || []).filter((o) => o && o.b && o.p && !jetzt.has(o.b + "|" + o.p)) : []);
   return { tabellen: antw.tabellen, zeilen: antw.zeilen, ohneKonto: antw.ohne_konto, dateien: wieder, dateienFehlt: fehlt,
-    stand: kopf.erstellt };
+    ohneZeichnungen: ohneFehlt.zeichnungen, ohneEinrichtblaetter: ohneFehlt.einrichtblaetter, stand: kopf.erstellt };
 }
 
 // ---------- Täglich von selbst ----------

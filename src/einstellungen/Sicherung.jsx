@@ -3,7 +3,10 @@
 //  Seit 111.109.0 macht die App die Sicherung selbst, ohne Programm auf
 //  einem Rechner (Wunsch Patrick, 8. Oktober 2026): eine ZIP-Datei mit
 //  allen Daten und allen hochgeladenen Dateien in einen Ordner, den man
-//  auf diesem Gerät einmal wählt. Ablauf und Format in src/teile/sicherung.js.
+//  auf diesem Gerät einmal wählt. Zeichnungen und Einrichtblätter sind
+//  seit 111.116.0 nicht dabei (Wunsch Patrick, 8. Oktober 2026), die holt
+//  die Aufgabe „HoferTool“ aus den Ordnern am Pool-Rechner. Ablauf und
+//  Format in src/teile/sicherung.js.
 //
 //  In app_config:
 //    sicherung         Uhrzeit, wie lange behalten, welches Gerät sichert,
@@ -16,13 +19,20 @@ import { alt, useDaten } from "../bruecke.jsx";
 import { Gruppe, Zeile } from "./teile.jsx";
 import {
   kannOrdner, geraetId, geraetName, ordnerHolen, ordnerWaehlen, ordnerErlaubt, ordnerListe,
-  konfLaden, konfSpeichern, sichernUndMelden, sicherungLaeuft, wannAusName, sicherungKopf, zurueckspielen,
+  konfLaden, konfSpeichern, sichernUndMelden, sicherungLaeuft, wannAusName, sicherungKopf, zurueckspielen, ohneZaehlen,
 } from "../teile/sicherung.js";
 
 function datumText(d) {
   if (!d || isNaN(d)) return "–";
   const z = (n) => String(n).padStart(2, "0");
   return z(d.getDate()) + "." + z(d.getMonth() + 1) + "." + d.getFullYear() + ", " + z(d.getHours()) + ":" + z(d.getMinutes()) + " Uhr";
+}
+// „ohne 250 Zeichnungen und 1 Einrichtblatt“ (leer, wenn nichts ausgelassen wurde)
+function ohneText(z, e) {
+  const teile = [];
+  if (z) teile.push(z === 1 ? "1 Zeichnung" : alt.zahlText(z) + " Zeichnungen");
+  if (e) teile.push(e === 1 ? "1 Einrichtblatt" : alt.zahlText(e) + " Einrichtblätter");
+  return teile.join(" und ");
 }
 function mbText(mb) {
   if (mb === undefined || mb === null) return "";
@@ -113,8 +123,10 @@ function SicherungInhalt({ konf, status, neu }) {
     setErgebnis(null); setArbeit("Sicherung beginnt …");
     try {
       const l = await sichernUndMelden(h, "manuell", setArbeit, Number(behalten));
+      const ohne = ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter);
       setErgebnis({ ok: true, text: "Gesichert: " + l.datei + " (" + mbText(l.mb) + ", " + alt.zahlText(l.zeilen) + " Einträge, "
-        + alt.zahlText(l.dateien) + " Dateien" + (l.fehlt ? ", " + l.fehlt + " Dateien nicht lesbar" : "") + ")" });
+        + alt.zahlText(l.dateien) + " Dateien" + (l.fehlt ? ", " + l.fehlt + " Dateien nicht lesbar" : "")
+        + (ohne ? ", ohne " + ohne : "") + ")" });
     } catch (f) {
       setErgebnis({ ok: false, text: alt.fehlertext(f) });
     }
@@ -128,9 +140,12 @@ function SicherungInhalt({ konf, status, neu }) {
     try { kopf = (await sicherungKopf(datei)).kopf; }
     catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
     const wann = datumText(new Date(kopf.erstellt));
+    const oz = ohneZaehlen(kopf.ausgelassen);
+    const ohne = ohneText(oz.zeichnungen, oz.einrichtblaetter);
     const ok = await alt.nachfragen({ titel: "Sicherung zurückspielen?",
       text: "Alle Daten der App werden auf den Stand vom " + wann + " gesetzt. Was seither eingetragen oder geändert "
-        + "wurde, ist danach weg." + (griff && erlaubt === "granted" ? " Vorher wird der heutige Stand in den Ordner gesichert." : ""),
+        + "wurde, ist danach weg." + (griff && erlaubt === "granted" ? " Vorher wird der heutige Stand in den Ordner gesichert." : "")
+        + (ohne ? " Nicht in der Sicherung: " + ohne + "; die kommen aus den Ordnern am Pool-Rechner." : ""),
       bestaetigen: "Zurückspielen", gefahr: true });
     if (!ok) return;
     setErgebnis(null);
@@ -145,12 +160,20 @@ function SicherungInhalt({ konf, status, neu }) {
         + " Tabellen" + (r.dateien ? ", " + r.dateien + " Dateien wieder hochgeladen" : "")
         + (r.dateienFehlt ? ", " + r.dateienFehlt + " Dateien nicht möglich" : "")
         + (r.ohneKonto ? ", " + r.ohneKonto + " Person(en) ohne Anmeldekonto weggelassen" : "")
-        + (vorher ? ". Der Stand davor liegt in " + vorher.datei : "") + "." });
+        + (vorher ? ". Der Stand davor liegt in " + vorher.datei : "") + "."
+        + (ohneFehltText(r) ? " " + ohneFehltText(r) : "") });
     } catch (f) {
       setErgebnis({ ok: false, text: alt.fehlertext(f) });
     }
     setArbeit("");
     if (griff) await ordnerLesen(griff);
+  };
+
+  // Zeichnungen und Einrichtblätter, die weder in der Sicherung noch in der Ablage sind
+  const ohneFehltText = (r) => {
+    const t = ohneText(r.ohneZeichnungen, r.ohneEinrichtblaetter);
+    return t ? "Nicht in der Sicherung und in der Ablage nicht mehr da: " + t
+      + ". Sie müssen aus den Ordnern am Pool-Rechner neu hochgeladen werden." : "";
   };
 
   const ausOrdner = async (name) => {
@@ -166,7 +189,9 @@ function SicherungInhalt({ konf, status, neu }) {
   const meldezeile = <>
     <span className={"dokpfad-punkt " + (l && Date.now() - new Date(l.zeit).getTime() < 36 * 3600000 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
     {l ? "Letzte Sicherung " + datumText(new Date(l.zeit)) + " · " + alt.zahlText(l.zeilen || 0) + " Einträge · "
-      + alt.zahlText(l.dateien || 0) + " Dateien" + (l.mb ? " · " + mbText(l.mb) : "") : "Noch keine Sicherung"}
+      + alt.zahlText(l.dateien || 0) + " Dateien" + (l.mb ? " · " + mbText(l.mb) : "")
+      + (ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter) ? " · ohne " + ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter) : "")
+      : "Noch keine Sicherung"}
     {status && status.fehler && <div className="klein si-fehler" id="si-fehler">{status.fehler}</div>}
   </>;
   const zeilen = liste || (status && status.liste) || [];
@@ -174,11 +199,12 @@ function SicherungInhalt({ konf, status, neu }) {
   return (
     <>
       <Gruppe titel="Sicherung" id="si"
-        text={"Die App sichert alle Daten und alle hochgeladenen Dateien (Zeichnungen, WBGs, Bilder) in eine einzige "
+        text={"Die App sichert alle Daten und alle hochgeladenen Dateien (WBGs, Bilder, Notizbuch-Seiten) in eine einzige "
           + "Datei im gewählten Ordner, einmal am Tag ab der eingestellten Uhrzeit. Dafür muss die App auf dem Gerät mit "
           + "dem Ordner offen sein, mit einem Admin oder dem Konto unten angemeldet; war sie zu, holt sie es beim nächsten "
           + "Öffnen nach. "
-          + "Passwörter und PINs sind nicht dabei."}>
+          + "Nicht dabei: Zeichnungen und Einrichtblätter (die liegen in den Ordnern am Pool-Rechner, und die Aufgabe "
+          + "„HoferTool“ lädt sie von dort hoch), Passwörter und PINs."}>
         <Zeile titel="Speicherort" text={ordnerText}>
           {kannOrdner
             ? admin && <button className="knopf knopf--klein" id="si-ordner" onClick={ordnerNeu}>
@@ -221,7 +247,8 @@ function SicherungInhalt({ konf, status, neu }) {
       </Gruppe>
 
       <Gruppe titel="Zurückspielen" id="si-zurueck"
-        text="Setzt alle Daten der App auf den Stand einer Sicherung zurück. Fehlende Dateien kommen aus der Sicherung wieder hoch."
+        text={"Setzt alle Daten der App auf den Stand einer Sicherung zurück. Fehlende Dateien kommen aus der Sicherung wieder hoch; "
+          + "Zeichnungen und Einrichtblätter sind nicht darin, die kommen aus den Ordnern am Pool-Rechner."}
         aktionen={admin && <>
           <button className="knopf knopf--klein" id="si-datei" disabled={!!arbeit}
             onClick={() => dateiFeld.current && dateiFeld.current.click()}>Datei wählen …</button>
