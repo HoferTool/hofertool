@@ -41,7 +41,7 @@
 #     Ordner geändert hat (Kennung aus Name, Grösse und Änderungszeit).
 #
 #  Damit man sieht, wie die Dateien wirklich heissen, meldet das Programm
-#  der App dazu einige Beispiele von PDFs ohne HOCO Nr. und die Namen der
+#  der App dazu alle Pfade der PDFs (höchstens 5000) und die Namen der
 #  Unterordner (dok_pfad_status: beispiele, ordner).
 #
 #  DAS PROGRAMM LIEST NUR. Im Ordner wird nie etwas gelöscht,
@@ -239,14 +239,13 @@ try {
     $jeNr[$h] += $d
   }
   $status.nummern = $jeNr.Count
-  # Beispiele gleichmässig über den ganzen Ordner verteilt, und die
-  # Unterordner der ersten Ebene, damit man in der Datenbank sieht, wie
-  # die Dateien wirklich heissen
+  # Alle Pfade (ohne den Zeichnungs-Ordner davor, höchstens 5000) und die
+  # Unterordner der ersten Ebene, damit Claude in der Datenbank sieht, wie
+  # die Dateien wirklich heissen, und die Regel danach baut (Patrick,
+  # 8. Oktober 2026: "lädt es nicht einfach alles hoch und du filterst?" –
+  # die Namen ja, die Dateien nicht)
   $status.ohneNr = $ohneNr.Count
-  if ($ohneNr.Count -gt 0) {
-    $schritt = [int][Math]::Max(1, [Math]::Floor($ohneNr.Count / 30))
-    for ($i = 0; $i -lt $ohneNr.Count -and $status.beispiele.Count -lt 30; $i += $schritt) { $status.beispiele += [string]$ohneNr[$i] }
-  }
+  $status.beispiele = @($alle | Select-Object -First 5000 | ForEach-Object { Relativ $_.FullName $pfad })
   try {
     $status.ordner = @(Get-ChildItem -LiteralPath $pfad -Directory -ErrorAction SilentlyContinue | Select-Object -First 60 | ForEach-Object { $_.Name })
   } catch { }
