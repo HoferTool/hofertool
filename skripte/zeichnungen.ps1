@@ -12,11 +12,24 @@
 #     dok_pfad_status   was das Programm meldet (Dienstkonto)
 #
 #  Im Ordner liegen viele PDFs und anderes. Das Programm nimmt nur PDFs
-#  mit einer HOCO Nr. im Namen und dazu "hofer" oder "kunde":
+#  mit einer HOCO Nr. und dazu "hofer" oder "kunde" im Dateinamen:
 #
 #     10844-0049 Hofer.pdf           → Zeichnung der HOCO Nr. 10844-0049
 #     10844-0049 Kundenzeichnung.pdf   (nur wenn es keine "hofer" gibt)
 #     10844-0049 Rohteil.pdf         → bleibt weg
+#
+#  Die HOCO Nr. steht selten im Dateinamen: Die Zeichnungen heissen nach
+#  der Zeichnungsnummer des Kunden, etwa "416.4630.02_Kunde.pdf" (so
+#  heissen die von Hand hochgeladenen Zeichnungen in der App). Darum
+#  gilt auch die HOCO Nr. im Namen eines Ordners darüber (seit 111.113.0,
+#  8. Oktober 2026): zuerst der Dateiname, dann die Ordner von innen nach
+#  aussen bis zum Zeichnungs-Ordner selbst:
+#
+#     ...\10844-0049 Deckel\416.4630.02_Kunde.pdf → HOCO Nr. 10844-0049
+#
+#  Damit man sieht, wie die Dateien wirklich heissen, meldet das Programm
+#  der App dazu einige Beispiele von PDFs ohne HOCO Nr. und die Namen der
+#  Unterordner (dok_pfad_status: beispiele, ordner).
 #
 #  Je HOCO Nr. zählt eine PDF mit "hofer", sonst eine mit "kunde"; gibt
 #  es mehrere, die zuletzt geänderte. Gibt es keine, bleibt die Nummer
@@ -114,6 +127,37 @@ function Rang([string]$name) {
   return 0
 }
 
+# HOCO Nr. in einem Ordnernamen, ohne dass etwas als Endung abgeschnitten
+# wird ("10844-0049 v1.2" hat keine Endung)
+function HocoAusText([string]$text) {
+  $m = [regex]::Match([string]$text, '(?<!\d)(\d{4,6})\s?-\s?(\d{3,5})(?!\d)')
+  if ($m.Success) { return $m.Groups[1].Value + "-" + $m.Groups[2].Value }
+  return $null
+}
+
+# Die HOCO Nr. der Datei: zuerst im Dateinamen, sonst in den Ordnern von
+# innen nach aussen, bis zum Zeichnungs-Ordner (der zählt nicht mit).
+# Liefert die Nummer und woher sie kommt ("name" oder "ordner").
+function HocoAusPfad($d, [string]$wurzel) {
+  $h = HocoAusName $d.Name
+  if ($h) { return @{ nr = $h; woher = "name" } }
+  $w = $wurzel.TrimEnd('\').ToLower()
+  $o = $d.Directory
+  while ($o -and $o.FullName.TrimEnd('\').Length -gt $w.Length -and $o.FullName.TrimEnd('\').ToLower() -ne $w) {
+    $h = HocoAusText $o.Name
+    if ($h) { return @{ nr = $h; woher = "ordner" } }
+    $o = $o.Parent
+  }
+  return $null
+}
+
+# Pfad ohne den Zeichnungs-Ordner davor, für die Beispiele in der App
+function Relativ([string]$voll, [string]$wurzel) {
+  $w = $wurzel.TrimEnd('\')
+  if ($voll.Length -gt $w.Length -and $voll.Substring(0, $w.Length).ToLower() -eq $w.ToLower()) { return $voll.Substring($w.Length).TrimStart('\') }
+  return $voll
+}
+
 # ---------- Durchlauf ----------
 # zng = true unterscheidet diesen Stand vom früheren Netzlaufwerk-Programm,
 # das denselben Eintrag dok_pfad_status benutzte
@@ -121,7 +165,8 @@ function Rang([string]$name) {
 $jetztIso = (Get-Date).ToUniversalTime().ToString("o")
 $status = @{ zng = $true; immer = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME;
              scharf = $false; pfad = ""; pdf = 0; nummern = 0; ohneWahl = 0; unbekannt = 0; rest = 0;
-             neu = 0; ersetzt = 0; gleich = 0; hochgeladen = 0; mb = 0; fehler = $null; liste = @() }
+             neu = 0; ersetzt = 0; gleich = 0; hochgeladen = 0; mb = 0; fehler = $null; liste = @();
+             ohneNr = 0; imOrdner = 0; beispiele = @(); ordner = @() }
 function Eintrag([string]$datei, [string]$hoco, [string]$was) {
   if ($status.liste.Count -lt $listeHoechstens) { $status.liste += @{ d = $datei; h = $hoco; w = $was } }
 }
@@ -169,11 +214,14 @@ try {
     Where-Object { $_.Extension -eq '.pdf' })
   $status.pdf = $alle.Count
 
-  # Je HOCO Nr. die PDFs mit "hofer" oder "kunde"
-  $jeNr = @{}; $ohne = @{}
+  # Je HOCO Nr. die PDFs mit "hofer" oder "kunde"; die Nummer aus dem
+  # Dateinamen oder aus einem Ordner darüber
+  $jeNr = @{}; $ohne = @{}; $ohneNr = New-Object Collections.ArrayList
   foreach ($d in $alle) {
-    $h = HocoAusName $d.Name
-    if (-not $h) { continue }
+    $f = HocoAusPfad $d $pfad
+    if (-not $f) { [void]$ohneNr.Add((Relativ $d.FullName $pfad)); continue }
+    $h = $f.nr
+    if ($f.woher -eq "ordner") { $status.imOrdner++ }
     $r = Rang $d.Name
     if ($r -eq 0) { $ohne[$h] = $true; continue }
     $d | Add-Member -NotePropertyName HoferRang -NotePropertyValue $r -Force
@@ -182,6 +230,17 @@ try {
   }
   $status.nummern = $jeNr.Count
   $status.ohneWahl = @($ohne.Keys | Where-Object { -not $jeNr[$_] }).Count
+  # Beispiele gleichmässig über den ganzen Ordner verteilt, und die
+  # Unterordner der ersten Ebene, damit man in der Datenbank sieht, wie
+  # die Dateien wirklich heissen
+  $status.ohneNr = $ohneNr.Count
+  if ($ohneNr.Count -gt 0) {
+    $schritt = [int][Math]::Max(1, [Math]::Floor($ohneNr.Count / 30))
+    for ($i = 0; $i -lt $ohneNr.Count -and $status.beispiele.Count -lt 30; $i += $schritt) { $status.beispiele += [string]$ohneNr[$i] }
+  }
+  try {
+    $status.ordner = @(Get-ChildItem -LiteralPath $pfad -Directory -ErrorAction SilentlyContinue | Select-Object -First 60 | ForEach-Object { $_.Name })
+  } catch { }
 
   $nochFrei = $hoechstensJeLauf
   $bytes = [double]0
@@ -249,6 +308,7 @@ if ($Probe -or -not $status.scharf) {
   Write-Host ("Probelauf: " + $status.pdf + " PDFs gefunden, " + $status.nummern + " HOCO Nr. mit 'hofer' oder 'kunde', " +
     ($status.neu + $status.ersetzt) + " würden hochgeladen (" + $status.neu + " neu, " + $status.ersetzt +
     " ersetzen eine vorhandene, zusammen " + $status.mb + " MB), " + $status.unbekannt + " HOCO Nr. kennt die App nicht, " +
-    $status.ohneWahl + " HOCO Nr. ohne 'hofer' oder 'kunde'. Nichts hochgeladen, im Ordner nichts verändert.")
+    $status.ohneWahl + " HOCO Nr. ohne 'hofer' oder 'kunde', " + $status.ohneNr + " PDFs ohne HOCO Nr. in Name oder Ordner (" +
+    $status.imOrdner + " mit HOCO Nr. aus dem Ordnernamen). Nichts hochgeladen, im Ordner nichts verändert.")
   if ($status.fehler) { Write-Host ("Fehler: " + $status.fehler) }
 }

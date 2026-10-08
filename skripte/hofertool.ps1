@@ -19,6 +19,11 @@
 #
 #  Die Sicherung gehört nicht dazu: Die macht die App selbst (Einstellungen → Backup).
 #
+#  Vor jedem Durchlauf holt es die neueste Fassung aller Programme von
+#  GitHub (Zweig main, seit 111.113.0): Eine Korrektur kommt so am Pool-
+#  Rechner an, ohne dass jemand einrichten.ps1 nochmals startet. Ohne
+#  Internet oder bei einer leeren Antwort bleibt die vorhandene Fassung.
+#
 #  Protokoll: hofertool.log daneben, jeder Teil hat zusätzlich sein eigenes.
 #  Windows PowerShell 5.1 reicht, nichts zu installieren.
 # =================================================================
@@ -66,7 +71,39 @@ function Teil([string]$skript, [int]$minuten, [string]$braucht) {
   }
 }
 
+# ---------- Selbst aktualisieren ----------
+# Jede Datei kommt zuerst nach %TEMP%; übernommen wird sie nur, wenn sie
+# wie ein Programm von uns aussieht (Kopfzeile "# ====") und anders ist
+# als die vorhandene. hofertool.ps1 selbst kommt zuletzt: Die laufende
+# Fassung ist schon eingelesen, die neue gilt ab dem nächsten Durchlauf.
+$QUELLE = "https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte"
+function Aktualisieren {
+  try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
+  foreach ($n in @("dokumente-teile.ps1", "solarlog.ps1", "dokumente-pool.ps1", "zeichnungen.ps1", "einrichtblaetter.ps1", "hofertool.ps1")) {
+    $ziel = Join-Path $ordnerHier $n
+    $temp = Join-Path $env:TEMP ("hofertool-neu-" + $n)
+    try {
+      Invoke-WebRequest -UseBasicParsing -Uri ("$QUELLE/${n}?t=" + [DateTime]::UtcNow.Ticks) -OutFile $temp -TimeoutSec 20 -ErrorAction Stop
+      $neu = [IO.File]::ReadAllBytes($temp)
+      $text = [Text.Encoding]::UTF8.GetString($neu)
+      if ($neu.Length -lt 200 -or -not $text.Contains("# ====")) { continue }
+      if (Test-Path -LiteralPath $ziel) {
+        $alt = [IO.File]::ReadAllBytes($ziel)
+        if ([BitConverter]::ToString($alt) -eq [BitConverter]::ToString($neu)) { continue }
+      }
+      [IO.File]::WriteAllBytes($ziel, $neu)
+      Unblock-File -Path $ziel -ErrorAction SilentlyContinue
+      Schreibe ("$n von GitHub aktualisiert")
+    } catch {
+      # Kein Internet oder GitHub nicht erreichbar: still mit der vorhandenen Fassung weiter
+    } finally {
+      Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
+    }
+  }
+}
+
 try {
+  Aktualisieren
   Teil "solarlog.ps1"         2  "solar-einstellungen.json"
   Teil "dokumente-pool.ps1"   10 "abgleich-einstellungen.json"
   Teil "zeichnungen.ps1"      10 "abgleich-einstellungen.json"
