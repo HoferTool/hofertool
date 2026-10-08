@@ -135,7 +135,7 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alle
 
 1. ~~`solarlog.ps1` umstellen~~ erledigt am 5. Oktober 2026. ~~`solarlog-alt.ps1` am Solar-Rechner löschen~~ erledigt am 6. Oktober 2026 (alles Alte abgeschaltet).
 2. Datenbank-Passwort und Secret Key des neuen Projekts neu setzen — sie standen im Chat.
-3. Sicherung in Betrieb nehmen: `sql/sicherung-konto.sql` ausführen, am Pool-Rechner als Admin unter Einstellungen → Backup „Ordner wählen“, „Sichern auch als“ = Planwand, Speichern, einmal „Jetzt sichern“, dann wieder als Planwand anmelden (`sql/sicherung.sql` ist ausgeführt, geprüft am 8. Oktober 2026).
+3. ~~Sicherung in Betrieb nehmen~~ erledigt am 8. Oktober 2026: `sql/sicherung-konto.sql` ausgeführt, Sicherungsgerät ist der Pool-Rechner (Ordner „Sicherung HoferTool“, ab 18 Uhr, „Sichern auch als“ gesetzt), erste Sicherung 127 MB. Die Aufgabe „HoferTool“ läuft auf PCWIN-10PLANBÜR (Solar, Pool, Zeichnungen, Einrichtblätter gemeldet).
 4. Supabase Pro für tägliche Sicherungen. `C:\Hofer\Umzug` löschen.
 5. Offline am Tablet einmal testen.
 6. PIN-Anmeldung in Betrieb nehmen: `sql/pin-anmeldung.sql` ausführen und allen eine PIN oder ein Passwort setzen. `sql/offenes-passwort-weg.sql` **nie ausführen** (Entscheid 3. Oktober 2026), die Datei bleibt nur als Möglichkeit liegen. Die E-Mail-Adressen sind über `login_kacheln` weiterhin öffentlich lesbar.
