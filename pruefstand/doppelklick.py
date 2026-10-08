@@ -56,11 +56,14 @@ with sync_playwright() as p:
             pg.wait_for_timeout(600)
             if zustand()["betrachter"]: fehler.append(f"{breite}: Zeichnung kommt verspätet dazu")
             zu()
-        # Auftrag ohne Zeichnung: ein Klick → Hinweis
+        # Auftrag ohne Zeichnung: ein Klick → Fenster „Keine Zeichnung vorhanden“
+        # (seit 111.97.0; der Rechner lauscht hier nicht, also sofort)
         jid2 = pg.evaluate(mit, False)
         if jid2:
             tippen(f".pw-balken[data-auftrag='{jid2}']", 1); z = zustand()
-            if "keine Zeichnung" not in z["warnung"]: fehler.append(f"{breite}: kein Hinweis ohne Zeichnung ({z['warnung'][:60]})")
+            pg.wait_for_timeout(600)
+            t = pg.evaluate("(document.querySelector('.betrachter') || {}).innerText || ''")
+            if "Keine Zeichnung vorhanden" not in t: fehler.append(f"{breite}: kein Hinweis ohne Zeichnung ({t[:60]})")
             if z["auftrag"]: fehler.append(f"{breite}: ein Klick ohne Zeichnung öffnet Auftragsfenster")
             zu()
         ctx.close()
