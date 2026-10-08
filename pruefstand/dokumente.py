@@ -34,19 +34,31 @@ with sync_playwright() as p:
     pruefe("Regeln und Ausprobieren weg", not any(t in text for t in ["So erkennt", "Ausprobieren", "Vorgabe wiederherstellen", "Hilfsprogramm", "Netzlaufwerk"]))
     pruefe("Keine Regelfelder", pg.locator("[data-dokregel], #dokprobe, #dokpfad").count() == 0)
 
-    # Zeichnungs-Ordner: Pfad, Stand des Probelaufs, speichern, Hochladen einschalten
+    # Zeichnungs-Ordner: Pfad, Stand des Probelaufs, speichern, Knöpfe statt Schalter (Wunsch 8. Oktober 2026)
     pruefe("Pfad geladen", pg.input_value("#zng-pfad") == "\\\\FS01\\Zeichnungen")
     stand = pg.inner_text("#zng-stand"); print("Stand:", stand)
     pruefe("Stand des Probelaufs: " + repr(stand[:160]), "Probelauf" in stand and "SRV1" in stand and re.search(r"1\D?234 PDFs", stand) and "2 würden hochgeladen" in stand and "3.5 MB" in stand)
     pruefe("Liste des Probelaufs", "10844-0049 Hofer.pdf" in pg.inner_text("#zng-ordner"))
+    pruefe("Kein Schalter Hochladen mehr", pg.locator("#zng-scharf").count() == 0)
+    pruefe("Alte Fassung erkannt", pg.locator("#zng-altfassung").count() == 1)
     pg.fill("#zng-pfad", "\\\\FS02\\Neu"); pg.locator("#zng-unter").check(force=True); pg.click("#zng-speichern"); pg.wait_for_timeout(500)
     k = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'zng_ordner').wert)"); print("Gespeichert:", k)
     pruefe("Ordner gespeichert", k == {"pfad": "\\\\FS02\\Neu", "unter": True, "scharf": False})
-    pg.locator("#zng-scharf").click(force=True); pg.wait_for_timeout(300)
-    pruefe("Einschalten fragt nach", "Hochladen einschalten?" in pg.locator(".dialog-huelle").last.inner_text())
-    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(500)
-    k = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'zng_ordner').wert)")
-    pruefe("Hochladen eingeschaltet", k.get("scharf") is True and k.get("pfad") == "\\\\FS02\\Neu")
+    pg.click("#zng-hochladen"); pg.wait_for_timeout(300)
+    pruefe("Hochladen fragt nach", "Zeichnungen hochladen?" in pg.locator(".dialog-huelle").last.inner_text())
+    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
+    a = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'zng_auftrag').wert)"); print("Auftrag:", a)
+    pruefe("Auftrag geschrieben", a.get("art") == "hochladen" and a.get("id"))
+    pruefe("Angefordert angezeigt", "angefordert" in pg.inner_text("#zng-auftrag") and pg.locator("#zng-hochladen").is_disabled() and pg.locator("#zng-probe").is_disabled())
+    pg.locator("#zng-ordner").screenshot(path="/tmp/claude-0/-home-claude-hofertool/cf6e8930-4227-5e71-9691-165e06a705e8/scratchpad/zng.png")
+    # Das Programm meldet: erledigt → Knöpfe wieder frei
+    pg.evaluate("""(id) => { const s = TEST.daten.app_config.find(x => x.schluessel === 'dok_pfad_status');
+      s.wert = JSON.stringify({ zng: true, knopf: true, zeit: new Date().toISOString(), gesehen: new Date().toISOString(), rechner: 'SRV1',
+        scharf: true, pdf: 1234, nummern: 40, hochgeladen: 2, rest: 0, auftrag: { id, art: 'hochladen', von: 'x' }, liste: [] }); }""", a["id"])
+    pg.wait_for_timeout(11000)
+    stand = pg.inner_text("#zng-stand"); print("Stand danach:", stand)
+    pruefe("Erledigt gemeldet", "Hochgeladen" in stand and "2 hochgeladen" in stand and pg.locator("#zng-altfassung").count() == 0)
+    pruefe("Knöpfe wieder frei", not pg.locator("#zng-hochladen").is_disabled())
 
     # Verlauf und Zuletzt abgelegt
     # Verlauf nicht mehr sichtbar (wird weiter geschrieben), Aufräumen beim Pool-Ordner

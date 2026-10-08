@@ -1,9 +1,17 @@
 ﻿# =================================================================
 #  ZEICHNUNGEN — PDFs aus dem Zeichnungs-Ordner in die App
 #
-#  Läuft über die Windows-Aufgabenplanung alle fünf Minuten. Welcher
-#  Ordner es ist, steht in der App unter Einstellungen → Dokumente →
-#  Zeichnungs-Ordner.
+#  Läuft über die Windows-Aufgabenplanung alle fünf Minuten, tut aber
+#  nur etwas, wenn in der App jemand auf "Probelauf" oder "Zeichnungen
+#  hochladen" gedrückt hat (Wunsch Patrick 8. Oktober 2026: das braucht
+#  es nur ein paar Mal im Jahr). Sonst liest es einen einzigen Eintrag
+#  und meldet nur, dass es noch läuft. Welcher Ordner es ist, steht in
+#  der App unter Einstellungen → Dokumente → Zeichnungs-Ordner.
+#
+#  App und Programm reden über app_config:
+#     zng_ordner        Ordner, Unterordner ja/nein (Admin)
+#     zng_auftrag       der Knopfdruck: id, art (probe/hochladen), von
+#     dok_pfad_status   was das Programm meldet (Dienstkonto)
 #
 #  Im Ordner liegen viele PDFs und anderes. Das Programm nimmt nur PDFs
 #  mit einer HOCO Nr. im Namen und dazu "hofer" oder "kunde":
@@ -23,13 +31,13 @@
 #  verschoben, umbenannt oder geändert. Zum Hochladen kopiert es die
 #  Datei zuerst nach %TEMP% und lädt die Kopie hoch.
 #
-#  Solange in der App der Schalter "Hochladen" aus ist, macht jeder
-#  Durchlauf nur einen Probelauf: Er zeigt in der App, was er tun
-#  würde, und lädt nichts hoch.
+#  Der Knopf "Probelauf" zeigt in der App nur, was hochgeladen würde.
+#  Höchstens 100 Dateien je Durchlauf; sind es mehr, bleibt der Auftrag
+#  offen und der nächste Durchlauf macht weiter.
 #
 #  Aufruf:
-#     .\zeichnungen.ps1            normaler Durchlauf
-#     .\zeichnungen.ps1 -Probe     immer nur zeigen, nie hochladen
+#     .\zeichnungen.ps1            normaler Durchlauf (wartet auf den Knopf)
+#     .\zeichnungen.ps1 -Probe     sofort ein Probelauf, nie hochladen
 #
 #  Braucht daneben dokumente-teile.ps1 und abgleich-einstellungen.json.
 #  Windows PowerShell 5.1 reicht, nichts zu installieren.
@@ -64,11 +72,12 @@ $U = ($E.supabase_url).TrimEnd("/")
 $KEY = $E.anon_key
 
 # Anmeldung und welche Datei je HOCO Nr. zuletzt hochgeladen wurde
-$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{} }
+$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; erledigt = $null; letzter = $null }
 if (Test-Path $standDatei) {
   try {
     $g = Get-Content -Raw -Path $standDatei -Encoding UTF8 | ConvertFrom-Json
     $stand.token = $g.token; $stand.ablauf = [double]$g.ablauf; $stand.auffrischen = $g.auffrischen
+    $stand.erledigt = $g.erledigt; $stand.letzter = $g.letzter
     if ($g.dateien) { $g.dateien.PSObject.Properties | ForEach-Object { $stand.dateien[$_.Name] = [string]$_.Value } }
   } catch { }
 }
@@ -101,23 +110,55 @@ function Rang([string]$name) {
 # ---------- Durchlauf ----------
 # zng = true unterscheidet diesen Stand vom früheren Netzlaufwerk-Programm,
 # das denselben Eintrag dok_pfad_status benutzte
-$status = @{ zng = $true; zeit = (Get-Date).ToUniversalTime().ToString("o"); rechner = $env:COMPUTERNAME;
-             scharf = $false; pfad = ""; pdf = 0; nummern = 0; ohneWahl = 0; unbekannt = 0;
-             neu = 0; ersetzt = 0; gleich = 0; hochgeladen = 0; mb = 0; fehler = $null; liste = @() }
+# knopf = true sagt der App, dass dieses Programm auf den Knopf wartet
+$jetztIso = (Get-Date).ToUniversalTime().ToString("o")
+$status = @{ zng = $true; knopf = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME;
+             scharf = $false; pfad = ""; pdf = 0; nummern = 0; ohneWahl = 0; unbekannt = 0; rest = 0;
+             neu = 0; ersetzt = 0; gleich = 0; hochgeladen = 0; mb = 0; fehler = $null; auftrag = $null; liste = @() }
 function Eintrag([string]$datei, [string]$hoco, [string]$was) {
   if ($status.liste.Count -lt $listeHoechstens) { $status.liste += @{ d = $datei; h = $hoco; w = $was } }
 }
 
+function Melden($wert) {
+  try {
+    Aendern "Post" "app_config?on_conflict=schluessel" @{ schluessel = "dok_pfad_status";
+      wert = ($wert | ConvertTo-Json -Compress -Depth 4) } "resolution=merge-duplicates"
+  } catch { Schreibe ("Stand nicht an die App gemeldet: " + $_.Exception.Message) }
+}
+
+$a = $null
 try {
   Anmelden
 
-  $konf = $null
-  $k = @(Lesen "app_config?select=wert&schluessel=eq.zng_ordner")
-  if ($k.Count -gt 0 -and $k[0].wert) { $konf = $k[0].wert | ConvertFrom-Json }
+  $werte = @{}
+  Lesen "app_config?select=schluessel,wert&schluessel=in.(zng_ordner,zng_auftrag)" |
+    ForEach-Object { if ($_.wert) { try { $werte[$_.schluessel] = $_.wert | ConvertFrom-Json } catch { } } }
+  $konf = $werte["zng_ordner"]
+  $a = $werte["zng_auftrag"]
+  # Ein Knopfdruck gilt zwei Tage, danach nicht mehr
+  $offen = $a -and $a.id -and [string]$a.id -ne [string]$stand.erledigt -and
+    ((Get-Date).ToUniversalTime() - ([datetime]$a.zeit).ToUniversalTime()).TotalDays -lt 2
+  if (-not $offen -and -not $Probe) {
+    # Nichts zu tun: den letzten Bericht wieder melden, nur mit neuer
+    # Zeit "gesehen", damit die App sieht, dass die Aufgabe läuft
+    $letzter = $null
+    if ($stand.letzter) { try { $letzter = $stand.letzter | ConvertFrom-Json } catch { } }
+    if (-not $letzter) { $letzter = [pscustomobject]@{ zng = $true; knopf = $true; rechner = $env:COMPUTERNAME } }
+    $letzter | Add-Member -NotePropertyName gesehen -NotePropertyValue $jetztIso -Force
+    $letzter | Add-Member -NotePropertyName rechner -NotePropertyValue $env:COMPUTERNAME -Force
+    Melden $letzter
+    exit 0
+  }
+  # Ein Probelauf von Hand verbraucht keinen Knopfdruck aus der App
+  if (-not $offen -or $Probe) { $a = $null }
+  if ($a) {
+    $status.auftrag = @{ id = [string]$a.id; art = [string]$a.art; von = [string]$a.von }
+    Schreibe ("Auftrag aus der App: " + $a.art + " von " + $a.von)
+  }
   if (-not $konf -or -not ([string]$konf.pfad).Trim()) {
     throw "In der App ist noch kein Zeichnungs-Ordner eingetragen (Einstellungen → Dokumente)."
   }
-  $scharf = [bool]$konf.scharf -and -not $Probe
+  $scharf = $a -and $a.art -eq "hochladen" -and -not $Probe
   $status.scharf = $scharf
   if (-not $scharf) { Schreibe "Probelauf: es wird nichts hochgeladen." }
 
@@ -175,7 +216,7 @@ try {
       Schreibe ("Probe: " + $d.FullName + "  →  " + $h + ", " + $was)
       continue
     }
-    if ($nochFrei -le 0) { Eintrag $d.Name $h "kommt beim nächsten Durchlauf"; continue }
+    if ($nochFrei -le 0) { $status.rest++; Eintrag $d.Name $h "kommt beim nächsten Durchlauf"; continue }
 
     $kopie = $null
     try {
@@ -188,6 +229,7 @@ try {
       $z = @{ hoco = $h; typ = $null; art = "zeichnung"; titel = $h; fa = $null; auftrag = $null; grund = ""; passt = $true }
       Hochladen $kopie $z "zng"
       $stand.dateien[$h] = $kennung
+      StandSichern
       $mitZeichnung[$h] = $true
       $status.hochgeladen++
       $bytes += $d.Length
@@ -209,10 +251,12 @@ try {
   Schreibe ("Abbruch: " + $_.Exception.Message)
 }
 
-try {
-  Aendern "Post" "app_config?on_conflict=schluessel" @{ schluessel = "dok_pfad_status";
-    wert = ($status | ConvertTo-Json -Compress -Depth 4) } "resolution=merge-duplicates"
-} catch { Schreibe ("Stand nicht an die App gemeldet: " + $_.Exception.Message) }
+# Erledigt ist der Knopfdruck erst, wenn nichts mehr auf den nächsten
+# Durchlauf wartet. Nach einem Abbruch (Ordner weg) auch, sonst käme
+# derselbe Fehler zwei Tage lang alle fünf Minuten.
+if ($a -and (($status.rest -eq 0) -or ($status.fehler -and $status.hochgeladen -eq 0))) { $stand.erledigt = [string]$a.id }
+Melden $status
+$stand.letzter = ($status | ConvertTo-Json -Compress -Depth 4)
 StandSichern
 
 if ($Probe -or -not $status.scharf) {
