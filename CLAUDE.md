@@ -142,7 +142,7 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alle
 7. Standzeiten der Werkzeuge aus `tool_changes.gehalten_stk` auswerten.
 8. Offene Entscheide: infoBoard-Echtstart, ob der Park „Extern" für interne Rollen sichtbar ist, Lieferantenferien im Ferienblock. ~~Doppelte Namen in den Ferien~~ erledigt am 6. Oktober 2026 (spielt keine Rolle mehr).
 9. Kameras später neu überlegen. Das alte Modul ist entfernt.
-10. `sql/abruf-siegel.sql` im SQL Editor ausführen (Abrufinformation und Siegel, 111.100.0).
+10. ~~`sql/abruf-siegel.sql` ausführen~~ erledigt am 8. Oktober 2026.
 
 ## Sicherheit
 
