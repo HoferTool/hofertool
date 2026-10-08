@@ -32,7 +32,8 @@ with sync_playwright() as p:
     pg.click("#pad [data-padfeld='stand']"); pg.wait_for_selector("[data-zbja]")
     pg.click("[data-zb='C']") if pg.locator("[data-zb='C']").count() else None
     for t in "4321": pg.click(f"[data-zb='{t}']")
-    pg.click("[data-zbja]"); pg.wait_for_timeout(1800)
+    # Erste Zahl heute: Frage „Wurde heute schon produziert?“ → Ja
+    pg.click("[data-zbja]"); pg.wait_for_timeout(600); pg.locator(".dialog-huelle [data-w='ja']").click() if pg.locator(".dialog-huelle [data-w='ja']").count() else None; pg.wait_for_timeout(1800)
     if pg.inner_text("#pad .pad-stk-zahl").replace("’", "'") != "4'321":
         fehler.append("Stückzahl nicht angezeigt: " + pg.inner_text("#pad .pad-stk-zahl"))
     if not pg.evaluate("TEST.daten.production_records.some(z => z.quantity === 4321)"):

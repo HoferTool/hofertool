@@ -43,7 +43,7 @@ with sync_playwright() as p:
     pruefe("Nichts gespeichert", not pg.evaluate("TEST.daten.production_records.some(z => z.quantity === 1234)"))
     # Enter trägt ein
     pg.click("#pad [data-padfeld='stand']"); pg.wait_for_selector("[data-zbja]")
-    pg.click("[data-zb='C']"); pg.keyboard.type("777"); pg.keyboard.press("Enter"); pg.wait_for_timeout(1500)
+    pg.click("[data-zb='C']"); pg.keyboard.type("777"); pg.keyboard.press("Enter"); pg.wait_for_timeout(600); pg.locator(".dialog-huelle [data-w='ja']").click() if pg.locator(".dialog-huelle [data-w='ja']").count() else None; pg.wait_for_timeout(1500)
     pruefe("Enter trägt ein", pg.locator("[data-zbja]").count() == 0
            and pg.evaluate("TEST.daten.production_records.some(z => z.quantity === 777)"))
 

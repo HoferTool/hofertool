@@ -8,6 +8,9 @@ import { alt } from "../bruecke.jsx";
 import { uhrzeit } from "../daten/auftragswechsel.js";
 
 const TAG = 86400000;
+// Ab diesem Tag zählt die Zunahme zum Tag des Stands (Frage „Wurde
+// heute schon produziert?“), vorher zum Tag des vorherigen Stands
+const UMSTELLUNG = "2026-10-08";
 
 // Wetter samt den nächsten Tagen — für die Säule im Pad Mode. Sieben
 // Tage holen, damit nach Mitternacht (Tablet läuft durch) noch sechs
@@ -57,19 +60,17 @@ export function wetterZeichen(code) {
 }
 
 // Tagesmengen einer Maschine über ein halbes Jahr. Eingetragen wird
-// der Gesamtzähler, und zwar am Morgen danach (Wunsch 5. Oktober
-// 2026): Was am Dienstag dasteht, ist am Montag gemacht worden. Darum
-// gehört die Zunahme gegenüber dem vorherigen Stand desselben Auftrags
-// zum Tag DIESES vorherigen Stands, nicht zum Tag der Eingabe. So
-// landet, was am Montag für Freitag eingetragen wird, beim Freitag,
-// und heute bleibt leer, bis morgen der nächste Stand kommt.
+// der Gesamtzähler. Die Zunahme gegenüber dem vorherigen Stand
+// desselben Auftrags gehört zum Tag des Stands (record_date). Welcher
+// Tag das ist, klärt seit 8. Oktober 2026 die Frage „Wurde heute schon
+// produziert?“ bei der ersten Eingabe am Tag: Bei Nein liegt der Stand
+// auf dem letzten Arbeitstag (src/daten/stueckzahl.js). Vorher galt
+// fest „am Morgen danach“ und die Zunahme ging zum Tag davor; so
+// rechnet die Produktion schon immer.
 // Der erste Stand eines Auftrags zählt nur, wenn er kurz nach dessen
-// Beginn liegt, und gehört dann zum Tag des Beginns — sonst wäre er
-// der ganze Zähler seit Wochen und kein Tagewerk.
-//
-// Ein Tag ist der Kalendertag von 00:00 bis 00:00 (record_date, das
-// Datum des Geräts beim Eintragen). Gespeichert wird weiter am Tag der
-// Eingabe; nur die Statistik im Pad Mode rechnet so.
+// Beginn liegt — sonst wäre er der ganze Zähler seit Wochen und kein
+// Tagewerk. Stände vor der Umstellung rechnen weiter nach der alten
+// Regel, damit die Balken der Vergangenheit nicht um einen Tag rutschen.
 //
 // Mit auftragId zählt nur dieser Auftrag: Die Statistik im Pad Mode
 // beginnt bei jedem neuen Auftrag von vorn (Wunsch 5. Oktober 2026).
@@ -138,11 +139,12 @@ export async function tagesmengen(maschineId, auftragId) {
     let vorher = null, vorherTag = null;
     Object.keys(jeAuftrag[k]).sort().forEach((d) => {
       const e = jeAuftrag[k][d];
-      if (vorher) gutschreiben(vorherTag, k, Math.max(0, e.stand - vorher.stand), e.zeit);
+      const neu = d >= UMSTELLUNG;
+      if (vorher) gutschreiben(neu ? d : vorherTag, k, Math.max(0, e.stand - vorher.stand), e.zeit);
       else {
         const b = beginn[k];
         const nah = b && b <= d && (alt.ausIso(d) - alt.ausIso(b)) / TAG <= 3.1;
-        if (nah) gutschreiben(b, k, e.stand, e.zeit);
+        if (nah) gutschreiben(neu ? d : b, k, e.stand, e.zeit);
       }
       const t = tagVon(d, k);
       if (String(e.zeit) > String(t.zeit)) { t.zeit = e.zeit; t.stand = e.stand; t.job = k; }

@@ -122,7 +122,7 @@ export async function teilLaden(t, darf) {
   try {
     const [maschinen, typen, sheets] = await Promise.all([
       alt.ladeMaschinen(true), alt.ladeTypen(),
-      db.from("hoco_type_data").select("type_id, blatt_url").eq("hoco_nr", t.hoco_nr),
+      db.from("hoco_type_data").select("*").eq("hoco_nr", t.hoco_nr),
     ]);
     const namen = {};
     (typen || []).forEach((x) => { namen[x.id] = x.name; });
@@ -130,7 +130,7 @@ export async function teilLaden(t, darf) {
     const dazu = (typId) => {
       if (!typId) return null;
       if (!sammlung[typId]) {
-        sammlung[typId] = { typId, name: namen[typId] || "ohne Typ", maschinen: [], eigenes: null, vorlage: null };
+        sammlung[typId] = { typId, name: namen[typId] || "ohne Typ", maschinen: [], eigenes: null, vorlage: null, zeit: null };
       }
       return sammlung[typId];
     };
@@ -142,7 +142,7 @@ export async function teilLaden(t, darf) {
       if (e.maschinen.indexOf(bez) === -1) e.maschinen.push(bez);
     });
     (typen || []).forEach((t2) => { const e = sammlung[t2.id]; if (e) e.vorlage = t2.blatt_url || null; });
-    ((sheets && sheets.data) || []).forEach((s) => { const e = dazu(s.type_id); if (e) e.eigenes = s.blatt_url || null; });
+    ((sheets && sheets.data) || []).forEach((s) => { const e = dazu(s.type_id); if (e) { e.eigenes = s.blatt_url || null; e.zeit = s.stueckzeit_s ? Number(s.stueckzeit_s) : null; } });
     typenGenutzt = Object.keys(sammlung).map((k) => sammlung[k])
       .sort((a, c) => String(a.name).localeCompare(String(c.name)));
   } catch (f) { /* dann eben ohne */ }

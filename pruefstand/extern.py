@@ -40,7 +40,7 @@ with sync_playwright() as p:
     felder = pg.evaluate("[...document.querySelectorAll('input.menge')].map(i => i.dataset.maschine + (i.disabled ? ' gesperrt' : ' frei'))")
     print("Stückzahlfelder:", felder[:6])
     if pg.locator("input.menge:not([disabled])").count():
-        pg.locator("input.menge:not([disabled])").first.fill("480"); pg.keyboard.press("Tab"); pg.wait_for_timeout(1500)
+        pg.locator("input.menge:not([disabled])").first.fill("480"); pg.keyboard.press("Tab"); pg.wait_for_timeout(600); pg.locator(".dialog-huelle [data-w='ja']").click() if pg.locator(".dialog-huelle [data-w='ja']").count() else None; pg.wait_for_timeout(1500)
         print("gemeldet:", pg.evaluate("TEST.daten.production_records.filter(r => r.machine_id === 'm-ex').map(r => r.quantity)"))
     # Strg+K öffnet keine Suche
     pg.keyboard.press("Control+k"); pg.wait_for_timeout(500)

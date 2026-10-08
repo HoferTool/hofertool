@@ -6,6 +6,7 @@
 //  werden nur die Zahlen neu geholt; Bildlauf und Fokus bleiben.
 // =================================================================
 import { useReducer } from "react";
+import { standTagWaehlen, standTagHinweis } from "../../daten/stueckzahl.js";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { auftragswechselLaden, wechselText } from "../../daten/auftragswechsel.js";
 
@@ -280,13 +281,24 @@ function StandFeld({ maschine, datum, staende, neu }) {
     if (!Number.isFinite(stand)) { alt.meldung("Bitte eine Zahl eingeben.", "warn"); return; }
     if (eintrag && eintrag.quantity === stand) return;
 
+    // Erste Zahl heute: Frage „Wurde heute schon produziert?“. Bei
+    // Nein geht der Stand auf den letzten Arbeitstag (Wunsch 8. Oktober 2026).
+    const tag = await standTagWaehlen(laeuftJetzt ? j : { id: auftragId }, datum);
+    if (!tag) { el.value = wert; return; }
     el.classList.add("menge--speichert");
     try {
-      await alt.speichereStand(maschine.id, datum, stand, auftragId);
-      const vorherWert = eintrag ? eintrag.quantity : null;
-      alt.merkeSchritt("Zählerstand vom " + alt.kurzDatum(datum), vorherWert === null
-        ? alt.rueckWeg("production_records", { machine_id: maschine.id, record_date: datum })
-        : alt.rueckStand(maschine.id, datum, vorherWert, auftragId));
+      await alt.speichereStand(maschine.id, tag, stand, auftragId);
+      // Der frühere Wert genau dieses Auftrags an diesem Tag
+      const frueher = tag === datum ? eintrag : staende.proSchluessel[maschine.id + "|" + tag + "|" + auftragId];
+      const vorherWert = frueher && frueher.job_id === auftragId ? frueher.quantity : null;
+      alt.merkeSchritt("Zählerstand vom " + alt.kurzDatum(tag), vorherWert === null
+        ? alt.rueckWeg("production_records", { machine_id: maschine.id, record_date: tag, job_id: auftragId })
+        : alt.rueckStand(maschine.id, tag, vorherWert, auftragId));
+      if (tag !== datum) {
+        // Das Feld von heute bleibt leer, die Zahl steht beim Vortag
+        el.value = wert;
+        alt.meldung("Stückzahl eingetragen." + standTagHinweis(tag));
+      }
       el.classList.remove("menge--speichert");
       el.classList.add("menge--gespeichert");
       setTimeout(() => el.classList.remove("menge--gespeichert"), 900);

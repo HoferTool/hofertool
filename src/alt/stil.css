@@ -6492,3 +6492,17 @@ body.dunkel .siegel { border-color: #ff8a80; color: #ff8a80; background: rgba(25
 @media (max-width: 560px) {
   .dialog--auftrag .auf-zweier.auf-zweier--abruf { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Pad Mode: Vorsprung und Stückzeit teilen sich eine Reihe
+   (Wunsch 8. Oktober 2026). Die Reihe wächst wie vorher die
+   Vorsprung-Kachel allein. */
+.pad-reihe2 { flex: 1 1 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-height: 0; }
+.pad-reihe2 > .pad-karte2 { justify-content: center; min-width: 0; }
+.pad-reihe2 .pad-wert { font-size: 1.35rem; }
+.pad-karte2--zeit { cursor: pointer; background: linear-gradient(140deg, #3d3283, #1f1946) !important;
+                    border-color: rgba(170,150,255,.22) !important; }
+.pad-karte2--zeit .pad-name { color: #d2caf5; }
+.pad-karte2--zeit[data-padfeld=""] { cursor: default; }
+.pad-karte2--zeit:not([data-padfeld="stueckzeit"]) { background: linear-gradient(140deg, #24364f, #142236) !important;
+                                   border-color: rgba(255,255,255,.1) !important; }
+.pad-karte2--zeit:active { filter: brightness(1.15); }

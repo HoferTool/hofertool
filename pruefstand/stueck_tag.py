@@ -2,7 +2,8 @@
 # danach eingetragen. Im Pad Mode gehört die Zunahme darum zum Tag des
 # vorherigen Stands: Was am Montag eingetragen wird, zählt beim Freitag,
 # heute bleibt leer. Die Uhr steht fest auf Montag, 5. Oktober 2026,
-# 14:00 in Zürich.
+# 14:00 in Zürich. Seit 111.101.0 gilt diese Regel nur noch für Stände
+# vor dem 8. Oktober 2026 (neue Regel: stueckzeit.py).
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -47,7 +48,10 @@ with sync_playwright() as p:
         pg.click("#pad [data-padfeld='stand']"); pg.wait_for_selector(".zifferblock")
         pg.click(".zifferblock [data-zb='C']")
         for z in str(zahl): pg.click(f".zifferblock [data-zb='{z}']")
-        pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(900)
+        pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(600)
+        # Seit 111.100.0 fragt die erste Zahl am Tag: Ja = für heute
+        if pg.locator(".dialog-huelle [data-w='ja']").count(): pg.click(".dialog-huelle [data-w='ja']")
+        pg.wait_for_timeout(900)
 
     # Vor der Eingabe am Montag: Mi 500, Do 462, Freitag noch offen
     balken = pg.locator("#pad .pad-tag b").all_inner_texts()

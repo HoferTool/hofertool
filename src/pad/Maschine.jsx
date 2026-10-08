@@ -18,6 +18,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
+import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitFragen } from "../daten/stueckzahl.js";
 import {
   holeWetterTage, wetterZeichen, tagesmengen, letzteTage, schnitte,
   schnittTage, schnittLang, prognose,
@@ -119,7 +120,7 @@ async function blattFeldSetzen(j, m, feld, wert) {
     { onConflict: "hoco_nr,type_id" });
   if (error) {
     alt.meldung(new RegExp(feld).test(error.message || "")
-      ? "Dafür fehlt noch blattpdf.sql in der Datenbank."
+      ? "Dafür fehlt noch " + (feld === "stueckzeit_s" ? "die Spalte stueckzeit_s" : "blattpdf.sql") + " in der Datenbank."
       : alt.fehlertext(error), "fehler");
     return;
   }
@@ -147,21 +148,33 @@ async function abendBearbeiten(j, m, blattDaten) {
   if (zahl !== null) blattFeldSetzen(j, m, "abend_stk", zahl ? Math.round(zahl) : null);
 }
 
+// Die Stückzeit in Sekunden steht rechts neben dem Vorsprung und
+// gehört wie die Info zu HOCO Nr. und Maschinentyp (Wunsch 8. Oktober 2026)
+async function zeitBearbeiten(j, m, blattDaten) {
+  const s = await stueckzeitFragen("Stückzeit", "Sekunden pro Stück auf " + (m.name || "dieser Maschine") + ":",
+    blattDaten && blattDaten.stueckzeit_s);
+  if (s !== null) blattFeldSetzen(j, m, "stueckzeit_s", s || null);
+}
+
 async function standEintragen(j, m) {
+  // Das Feld ist leer: man tippt den neuen Zählerstand, statt den
+  // alten erst zu löschen (Wunsch 8. Oktober 2026)
   const zahl = await alt.zifferblock({ titel: "Stückzahl eintragen",
-    hinweis: "Zählerstand, gesamt seit Auftragsbeginn"
+    hinweis: "Zählerstand, gesamt seit Auftragsbeginn · bisher " + alt.zahlText(j.stand || 0)
       + (j.target_quantity ? " · Ziel " + alt.zahlText(j.target_quantity) : ""),
-    wert: j.stand || 0 });
+    wert: "" });
   if (zahl === null) return;
   // Vor dem Speichern merken: danach steht der neue Wert schon im Auftrag
   const standVorher = j.stand || 0;
   const neu = Math.max(0, Math.round(zahl));
   try {
-    await alt.speichereStand(m.id, alt.isoDatum(new Date()), neu, j.id);
+    const tag = await standTagWaehlen(j, alt.isoDatum(new Date()));
+    if (!tag) return;
+    await alt.speichereStand(m.id, tag, neu, j.id);
     // Dieselbe Ablage wie in der Produktion — was hier eingetragen
     // wird, steht dort und auf der Planwand, und umgekehrt.
     try { alt.prod.auftraege = await alt.ladeLaufendeAuftraege(); } catch (g) { /* egal */ }
-    alt.meldung("Stückzahl eingetragen.");
+    alt.meldung("Stückzahl eingetragen." + standTagHinweis(tag));
     // Die neue Zahl zählt nach dem Neuzeichnen sichtbar hoch
     alt.pad.zaehlen = { von: standVorher, auf: neu };
     padZeichnen();
@@ -440,8 +453,7 @@ export default function Maschine({ d }) {
 
   const padInfo = (blattDaten && blattDaten.pad_info) || "";
   const tage = letzteTage(jeTag);
-  // Heute steht erst morgen fest (eingetragen wird am Morgen danach),
-  // darum der jüngste Tag mit einer Menge
+  // Der jüngste Tag mit einer Menge
   const zuletzt = [...tage].reverse().find((t) => t.menge !== null && t.menge !== undefined);
   const status = j ? (alt.PLANSTATUS[j.plan_status] || alt.PLANSTATUS.geplant) : null;
 
@@ -511,7 +523,6 @@ export default function Maschine({ d }) {
             {/* Der Textteil richtet seine Schrift nach der Menge (padTextEinpassen) */}
             <div className="pad-hocotext">
               <div className="pad-zeilen">
-                <Zeile name="Bezeichnung" wert={teil && teil.bezeichnung} />
                 <Zeile name="FA Nr." wert={j && j.fa_nr} />
                 <Zeile name="Programm" wert={programm} />
               </div>
@@ -540,7 +551,19 @@ export default function Maschine({ d }) {
             </span>
           </div>
 
-          <div className="pad-karte2 pad-karte2--verzug"><Fortschritt j={j} /></div>
+          {/* Vorsprung und Stückzeit teilen sich die Reihe (Wunsch 8. Oktober 2026) */}
+          <div className="pad-reihe2">
+            <div className="pad-karte2 pad-karte2--verzug"><Fortschritt j={j} /></div>
+            <div className="pad-karte2 pad-karte2--zeit" data-padfeld={mitTyp ? "stueckzeit" : ""}
+              onClick={mitTyp ? () => zeitBearbeiten(j, m, blattDaten) : undefined}>
+              <span className="pad-name">Stückzeit{mitTyp ? " · antippen" : ""}</span>
+              <span className="pad-wert">
+                {blattDaten && blattDaten.stueckzeit_s
+                  ? stueckzeitText(blattDaten.stueckzeit_s)
+                  : <Leer>{mitTyp ? "antippen und eintragen" : (programmGrund || "—")}</Leer>}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* ----- Mitte: alles zur Stückzahl ----- */}

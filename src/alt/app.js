@@ -25,6 +25,7 @@ import { sucheOeffnen } from "../huelle/SucheAlles.jsx";
 import { anmeldungZeigen } from "../huelle/Anmeldung.jsx";
 import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
 import { zifferblock } from "../pad/Zifferblock.jsx";
+import { stueckzeitVorDemBeenden } from "../daten/stueckzahl.js";
 import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { werkzeugWechselDialog } from "../pad/Werkzeugwechsel.jsx";
@@ -127,7 +128,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.100.0";
+const APP_VERSION = "111.101.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4710,10 +4711,11 @@ function sucheTreffer(d, text) {
         .filter(Boolean).join(" · "),
       daten: j, spaeter: (j.planned_from || "") >= heute }));
 
-  (d.hoco || []).filter((h) => passt(h.hoco_nr, h.bezeichnung, h.material))
+  // Ohne Artikelbezeichnung (Wunsch 8. Oktober 2026)
+  (d.hoco || []).filter((h) => passt(h.hoco_nr, h.material))
     .slice(0, 8)
     .forEach((h) => raus.push({ art: "hoco", titel: h.hoco_nr,
-      zeile: [h.bezeichnung, h.material].filter(Boolean).join(" · "), daten: h }));
+      zeile: h.material || "", daten: h }));
 
   (d.maschinen || []).filter((m) => passt(m.name, m.machine_number)).slice(0, 6)
     .forEach((m) => raus.push({ art: "maschine",
@@ -5972,6 +5974,10 @@ function wischVerhalten(b) {
 // abgeschlossen und tauchte nirgends mehr auf.
 async function zustandSetzen(j, neu) {
   if (!j || !neu) return { ok: false };
+  // Beenden nur mit Stückzeit (Wunsch 8. Oktober 2026). Alle Wege zum
+  // Beenden laufen hier durch: Pad, Produktion, Planwand, Auftragsfenster.
+  // Was schon fertig ist, bleibt unberührt.
+  if (neu === "fertig" && j.plan_status !== "fertig" && !j.ended_at) await stueckzeitVorDemBeenden(j);
   const jetzt = new Date().toISOString();
   let hinweis = "";
   let naechster = null;
@@ -7806,7 +7812,6 @@ async function hocoDialog(teil, vorgabe) {
       ...(teil ? [] : [{ name: "nr", label: "HOCO Nr.", pflicht: true,
                         wert: v.hoco_nr || "",
                         platzhalter: "z. B. 10007-0414" }]),
-      { name: "bez", label: "Artikelbezeichnung", wert: teil ? (teil.bezeichnung || "") : "" },
       { name: "mat", label: "Material",
         wert: teil ? (teil.material || "") : (v.material || ""),
         platzhalter: "z. B. X10CrNiS18-9 rd 011 mm h8",
@@ -7815,7 +7820,8 @@ async function hocoDialog(teil, vorgabe) {
   if (!w) return false;
 
   const daten = {
-    bezeichnung: w.bez || null,
+    // Die Artikelbezeichnung ist aus der App entfernt (Wunsch 8. Oktober 2026);
+    // die Spalte bezeichnung bleibt mit ihren Werten.
     material: w.mat || null,
     // Die Zeichnungs Nr. ist aus der Oberfläche entfernt (Wunsch 5. Oktober 2026);
     // die Spalte bleibt, damit vorhandene Werte nicht verloren gehen.

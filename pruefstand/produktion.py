@@ -33,7 +33,8 @@ with sync_playwright() as p:
     # Zählerstand eintragen, gespeichert, zurücknehmen
     feld = pg.locator(".mkarten .menge:not([disabled])").first
     mid = feld.get_attribute("data-maschine")
-    feld.fill("777"); feld.press("Enter"); pg.wait_for_timeout(800)
+    # Erste Zahl heute: Frage „Wurde heute schon produziert?“ → Ja
+    feld.fill("777"); feld.press("Enter"); pg.wait_for_timeout(600); pg.locator(".dialog-huelle [data-w='ja']").click() if pg.locator(".dialog-huelle [data-w='ja']").count() else None; pg.wait_for_timeout(800)
     gespeichert = pg.evaluate(f"TEST.daten.production_records.filter(z => z.machine_id === '{mid}' && z.quantity === 777).length")
     if not gespeichert: fehler.append("Zählerstand nicht gespeichert")
     if pg.locator(f".menge[data-maschine='{mid}']").input_value() != "777": fehler.append("Feld zeigt den Wert nicht")

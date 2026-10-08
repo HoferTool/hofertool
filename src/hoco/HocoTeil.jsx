@@ -1,12 +1,13 @@
 // =================================================================
 //  EIN HOCO-TEIL
-//  Stammdaten mit Zeichnung, Einrichtblätter je Maschinentyp, auf welchen Maschinen es lief und die FA Nummern mit
-//  ihren Anhängen (WBG, Zeichnung, Werkzeugwechsel).
+//  Stammdaten mit Zeichnung, je Maschinentyp Einrichtblatt und Stückzeit („Produktionsanlage“) und die FA Nummern
+//  mit ihren Anhängen (WBG, Zeichnung, Werkzeugwechsel).
 // =================================================================
 import { useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { teilLaden, pdfHochladen } from "./daten.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
+import { stueckzeitText, stueckzeitFragen, stueckzeitSetzen } from "../daten/stueckzahl.js";
 
 const sicher = (name) => name.replace(/[^A-Za-z0-9.\-]/g, "_");
 
@@ -21,7 +22,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
   const fehler = (f) => meldung(fehlertext(f), "fehler");
 
   if (!daten) return <div className="laedt">Wird geladen …</div>;
-  const { faListe, vomAuftrag, maschinenlauf, typenGenutzt } = daten;
+  const { faListe, vomAuftrag, typenGenutzt } = daten;
 
   const zeichnungWaehlen = async (e) => {
     const datei = (e.target.files || [])[0];
@@ -50,6 +51,13 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
     const adresse = await alt.blattPdfWaehlen();
     if (!adresse) return;
     try { await alt.blattPdfAnHoco(t.hoco_nr, typId, adresse); fertig("Einrichtblatt für " + t.hoco_nr + " hinterlegt."); }
+    catch (f) { fehler(f); }
+  };
+  // Stückzeit in Sekunden je Maschinentyp (Wunsch 8. Oktober 2026)
+  const zeitBearbeiten = async (e) => {
+    const s = await stueckzeitFragen("Stückzeit " + e.name, "Sekunden pro Stück für " + t.hoco_nr + ":", e.zeit);
+    if (s === null) return;
+    try { await stueckzeitSetzen(t.hoco_nr, e.typId, s || null); meldung(s ? "Stückzeit gespeichert." : "Stückzeit entfernt."); neu(); }
     catch (f) { fehler(f); }
   };
   const blattEntfernen = async (typId) => {
@@ -85,7 +93,8 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
         </div>
         <table className="tabelle"><tbody>
           {/* „Allgemeine Infos“ ist weg (Wunsch 5. Oktober 2026), die Spalte bleibt */}
-          {[["Artikelbezeichnung", t.bezeichnung], ["Material", t.material]].map(([k, v]) => (
+          {/* Die Artikelbezeichnung ebenso (Wunsch 8. Oktober 2026) */}
+          {[["Material", t.material]].map(([k, v]) => (
             <tr key={k}><td className="klein">{k}</td><td>{v || leer}</td></tr>
           ))}
         </tbody></table>
@@ -104,16 +113,20 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
       </section>
 
       <section className="karte">
-        <div className="karte__kopf"><h2>Einrichtblätter</h2><span className="klein">je Maschinentyp eines</span></div>
+        <div className="karte__kopf"><h2>Produktionsanlage</h2><span className="klein">je Maschinentyp</span></div>
         {typenGenutzt.length
           ? <table className="tabelle">
-              <thead><tr><th>Maschinentyp</th><th>Maschinen</th><th>Blatt</th><th /></tr></thead>
+              <thead><tr><th>Maschinentyp</th><th>Maschinen</th><th>Einrichtblatt</th><th>Stückzeit</th><th /></tr></thead>
               <tbody>{typenGenutzt.map((e) => (
                 <tr key={e.typId}>
                   <td><strong>{e.name}</strong></td>
                   <td className="klein">{e.maschinen.join(", ") || "—"}</td>
                   <td className="klein">{e.eigenes ? "eigenes hinterlegt"
                     : (e.vorlage ? "Vorlage vom Typ" : <span className="gedaempft">noch keines</span>)}</td>
+                  <td className="nowrap">{darf
+                    ? <button className="linkknopf" data-stueckzeit={e.typId} onClick={() => zeitBearbeiten(e)}>
+                        {e.zeit ? stueckzeitText(e.zeit) : "eintragen"}</button>
+                    : (e.zeit ? stueckzeitText(e.zeit) : leer)}</td>
                   <td className="rechts nowrap">
                     {(e.eigenes || e.vorlage) && <><button className="knopf knopf--klein" data-blatt-typ={e.typId}
                       onClick={() => blattAnsehen(e.typId)}>Ansehen</button>{" "}</>}
@@ -129,32 +142,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
               hinterlegst du je Maschinentyp — entweder als Vorlage beim Typ oder hier für genau dieses Teil.</p>}
       </section>
 
-      <section className="karte">
-        <div className="karte__kopf"><h2>Gelaufen auf</h2><span className="klein">je Maschine der letzte Auftrag</span></div>
-        {maschinenlauf.length
-          ? <table className="tabelle">
-              <thead><tr><th>Maschine</th><th>Zuletzt</th><th>FA Nr.</th><th>Stück</th></tr></thead>
-              <tbody>{maschinenlauf.map((j, i) => {
-                // Kommt die Maschine nicht mit der Abfrage, wird sie aus
-                // der geladenen Liste nachgeschlagen
-                const m = j.machines || (alt.prod.maschinen || []).find((x) => x.id === j.machine_id) || {};
-                const nr = m.machine_number || m.machine_nr;
-                return (
-                  <tr key={j.id} className={i === 0 ? "hl-jetzt" : undefined}>
-                    <td>{nr && <><b>{nr}</b> </>}{m.name || "unbekannt"}
-                      {i === 0 && <> <span className="hl-marke">zuletzt</span></>}</td>
-                    <td className="nowrap">{alt.kurzDatum(j.planned_from)
-                      + (j.planned_from ? " " + String(j.planned_from).slice(0, 4) : "")}</td>
-                    <td>{j.fa_nr || leer}</td>
-                    <td className="nowrap">{alt.zahlText(j.stand || 0)
-                      + (j.target_quantity ? " / " + alt.zahlText(j.target_quantity) : "")}</td>
-                  </tr>
-                );
-              })}</tbody>
-            </table>
-          : <p className="hinweis">Noch kein Auftrag auf dieser Nummer.</p>}
-      </section>
-
+      {/* „Gelaufen auf“ ist weg (Wunsch 8. Oktober 2026) */}
       {faListe.length > 0 && <section className="karte">
         <div className="karte__kopf"><h2>FA Nummern</h2><span className="marke">{faListe.length}</span></div>
         <table className="tabelle"><tbody>{faListe.map((x) => (

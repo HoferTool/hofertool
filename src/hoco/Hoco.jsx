@@ -105,7 +105,6 @@ export default function Hoco() {
   // Wird gesucht, sind Ordner nur im Weg: dann alle Treffer flach
   if (suchText) {
     const treffer = alle.filter((t) => String(t.hoco_nr).toLowerCase().includes(suchText)
-      || String(t.bezeichnung || "").toLowerCase().includes(suchText)
       || String(t.material || "").toLowerCase().includes(suchText)
       || t.typen.some((n) => String(n).toLowerCase().includes(suchText)));
     gefunden = treffer;
@@ -210,15 +209,16 @@ export default function Hoco() {
 function Tabelle({ liste, darf, oeffnen, anlegen, bearbeiten, loeschen }) {
   return (
     <table className="tabelle">
-      <thead><tr><th>HOCO Nr.</th><th>Bezeichnung</th><th>Material</th><th>Maschinentyp</th><th /></tr></thead>
+      <thead><tr><th>HOCO Nr.</th><th>Material</th><th>Maschinentyp</th><th /></tr></thead>
       <tbody>{liste.map((t) => (
         <tr key={t.hoco_nr} className={t.ohneStamm ? "zeile--offen" : undefined}>
           <td>{t.ohneStamm
             ? <strong>{t.hoco_nr}</strong>
             : <button className="linkknopf" data-hoco-auf={t.hoco_nr} onClick={() => oeffnen(t.hoco_nr)}>
                 <strong>{t.hoco_nr}</strong></button>}</td>
-          <td>{t.ohneStamm ? <span className="gedaempft">noch nicht hinterlegt</span> : (t.bezeichnung || "")}</td>
-          <td className={t.ohneStamm ? "gedaempft" : undefined}>{t.material || ""}</td>
+          {/* Ohne Spalte Bezeichnung (Wunsch 8. Oktober 2026) */}
+          <td className={t.ohneStamm ? "gedaempft" : undefined}>{t.material
+            || (t.ohneStamm ? "noch nicht hinterlegt" : "")}</td>
           <td className="klein" data-hoco-typen={t.hoco_nr}>{t.typen.join(", ")}</td>
           <td className="rechts nowrap">{darf && (t.ohneStamm
             ? <button className="linkknopf" data-hoco-anlegen={t.hoco_nr} onClick={() => anlegen(t.hoco_nr)}>Stammdaten anlegen</button>
