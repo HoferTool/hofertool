@@ -1,9 +1,14 @@
 ﻿# =================================================================
 #  EINRICHTBLÄTTER — Excel-Dateien aus den Typ-Ordnern in die App
 #
-#  Läuft über die Windows-Aufgabenplanung alle fünf Minuten. Welche
-#  Ordner es anschaut und zu welchem Maschinentyp jeder gehört, steht
-#  in der App unter Einstellungen → Dokumente → Einrichtblatt-Ordner.
+#  Läuft über die Windows-Aufgabenplanung alle fünf Minuten, tut aber
+#  nur etwas, wenn in der App jemand auf "Probelauf" oder
+#  "Einrichtblätter hochladen" gedrückt hat (Wunsch Patrick 8. Oktober
+#  2026, wie bei den Zeichnungen). Der Knopf schreibt eb_auftrag in
+#  app_config; sonst liest das Programm nur diesen Eintrag und meldet,
+#  dass es läuft. Welche Ordner es anschaut und zu welchem Maschinentyp
+#  jeder gehört, steht in der App unter Einstellungen → Dokumente →
+#  Einrichtblatt-Ordner.
 #
 #  In den Ordnern liegen auch PDFs, CAD-Dateien und anderes. Das
 #  Programm nimmt nur Excel-Dateien (.xlsx, .xlsm, .xls) mit einer
@@ -24,13 +29,13 @@
 #  Datei zuerst nach %TEMP% und lädt die Kopie hoch, so stört es auch
 #  nicht, wenn die Datei gerade in Excel offen ist.
 #
-#  Solange in der App der Schalter "Hochladen" aus ist, macht jeder
-#  Durchlauf nur einen Probelauf: Er zeigt in der App, was er tun
-#  würde, und lädt nichts hoch.
+#  Der Knopf "Probelauf" zeigt in der App nur, was hochgeladen würde.
+#  Höchstens 150 Dateien je Durchlauf; sind es mehr, bleibt der Auftrag
+#  offen und der nächste Durchlauf macht weiter.
 #
 #  Aufruf:
-#     .\einrichtblaetter.ps1            normaler Durchlauf
-#     .\einrichtblaetter.ps1 -Probe     immer nur zeigen, nie hochladen
+#     .\einrichtblaetter.ps1            normaler Durchlauf (wartet auf den Knopf)
+#     .\einrichtblaetter.ps1 -Probe     sofort ein Probelauf, nie hochladen
 #
 #  Braucht daneben dokumente-teile.ps1 und abgleich-einstellungen.json.
 #  Windows PowerShell 5.1 reicht, nichts zu installieren.
@@ -65,11 +70,12 @@ $U = ($E.supabase_url).TrimEnd("/")
 $KEY = $E.anon_key
 
 # Anmeldung und welche Datei je HOCO Nr. und Typ zuletzt hochgeladen wurde
-$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{} }
+$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; erledigt = $null; letzter = $null }
 if (Test-Path $standDatei) {
   try {
     $g = Get-Content -Raw -Path $standDatei -Encoding UTF8 | ConvertFrom-Json
     $stand.token = $g.token; $stand.ablauf = [double]$g.ablauf; $stand.auffrischen = $g.auffrischen
+    $stand.erledigt = $g.erledigt; $stand.letzter = $g.letzter
     if ($g.dateien) { $g.dateien.PSObject.Properties | ForEach-Object { $stand.dateien[$_.Name] = [string]$_.Value } }
   } catch { }
 }
@@ -122,26 +128,61 @@ function FalschesEntfernen($d, [string]$h, $typ) {
   return $true
 }
 
+
+# Ein Knopfdruck gilt zwei Tage, danach nicht mehr
+function AuftragOffen($a) {
+  return [bool]($a -and $a.id -and [string]$a.id -ne [string]$stand.erledigt -and
+    ((Get-Date).ToUniversalTime() - ([datetime]$a.zeit).ToUniversalTime()).TotalDays -lt 2)
+}
+# Nichts zu tun: den letzten Bericht wieder melden, nur mit neuer Zeit
+# "gesehen", damit die App sieht, dass die Aufgabe läuft
+function NurLebenMelden([string]$schluessel) {
+  $letzter = $null
+  if ($stand.letzter) { try { $letzter = $stand.letzter | ConvertFrom-Json } catch { } }
+  if (-not $letzter) { $letzter = [pscustomobject]@{ knopf = $true } }
+  $letzter | Add-Member -NotePropertyName gesehen -NotePropertyValue ((Get-Date).ToUniversalTime().ToString("o")) -Force
+  $letzter | Add-Member -NotePropertyName rechner -NotePropertyValue $env:COMPUTERNAME -Force
+  try {
+    Aendern "Post" "app_config?on_conflict=schluessel" @{ schluessel = $schluessel;
+      wert = ($letzter | ConvertTo-Json -Compress -Depth 4) } "resolution=merge-duplicates"
+  } catch { Schreibe ("Stand nicht an die App gemeldet: " + $_.Exception.Message) }
+}
+
 # ---------- Durchlauf ----------
-$status = @{ zeit = (Get-Date).ToUniversalTime().ToString("o"); rechner = $env:COMPUTERNAME;
-             scharf = $false; ordner = @(); excel = 0; neu = 0; ersetzt = 0; gleich = 0;
-             ohneNr = 0; fremd = 0; aelter = 0; hochgeladen = 0; fehler = $null; liste = @() }
+# knopf = true sagt der App, dass dieses Programm auf den Knopf wartet
+$jetztIso = (Get-Date).ToUniversalTime().ToString("o")
+$status = @{ knopf = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME;
+             scharf = $false; ordner = @(); excel = 0; neu = 0; ersetzt = 0; gleich = 0; rest = 0;
+             ohneNr = 0; fremd = 0; aelter = 0; hochgeladen = 0; fehler = $null; auftrag = $null; liste = @() }
 function Eintrag($o, [string]$datei, [string]$hoco, [string]$was) {
   if ($status.liste.Count -lt $listeHoechstens) {
     $status.liste += @{ o = $o; d = $datei; h = $hoco; w = $was }
   }
 }
 
+$a = $null
 try {
   Anmelden
 
-  $konf = $null
-  $k = @(Lesen "app_config?select=wert&schluessel=eq.eb_ordner")
-  if ($k.Count -gt 0 -and $k[0].wert) { $konf = $k[0].wert | ConvertFrom-Json }
+  $werte = @{}
+  Lesen "app_config?select=schluessel,wert&schluessel=in.(eb_ordner,eb_auftrag)" |
+    ForEach-Object { if ($_.wert) { try { $werte[$_.schluessel] = $_.wert | ConvertFrom-Json } catch { } } }
+  $konf = $werte["eb_ordner"]
+  $a = $werte["eb_auftrag"]
+  if (-not (AuftragOffen $a)) {
+    $a = $null
+    if (-not $Probe) { NurLebenMelden "eb_ordner_status"; exit 0 }
+  }
+  # Ein Probelauf von Hand verbraucht keinen Knopfdruck aus der App
+  if ($Probe) { $a = $null }
+  if ($a) {
+    $status.auftrag = @{ id = [string]$a.id; art = [string]$a.art; von = [string]$a.von }
+    Schreibe ("Auftrag aus der App: " + $a.art + " von " + $a.von)
+  }
   if (-not $konf -or -not $konf.ordner -or @($konf.ordner).Count -eq 0) {
     throw "In der App sind noch keine Einrichtblatt-Ordner eingetragen (Einstellungen → Dokumente)."
   }
-  $scharf = [bool]$konf.scharf -and -not $Probe
+  $scharf = [bool]($a -and $a.art -eq "hochladen" -and -not $Probe)
   $status.scharf = $scharf
   if (-not $scharf) { Schreibe "Probelauf: es wird nichts hochgeladen." }
 
@@ -215,7 +256,7 @@ try {
       if ($ersetzt) { $status.ersetzt++ } else { $status.neu++ }
       $was = $(if ($ersetzt) { "ersetzt das Einrichtblatt in der App" } else { "neu" })
       if (-not $scharf) { Eintrag $oi $d.Name $h ("würde hochladen: " + $was); Schreibe ("Probe: " + $d.FullName + "  →  " + $h + " auf " + $typ.name + ", " + $was); continue }
-      if ($nochFrei -le 0) { Eintrag $oi $d.Name $h "kommt beim nächsten Durchlauf"; continue }
+      if ($nochFrei -le 0) { $status.rest++; Eintrag $oi $d.Name $h "kommt beim nächsten Durchlauf"; continue }
 
       $kopie = $null
       try {
@@ -223,6 +264,7 @@ try {
         $z = @{ hoco = $h; typ = $typ; art = "einrichtblatt"; titel = $h; fa = $null; auftrag = $null; grund = ""; passt = $true }
         Hochladen $kopie $z "eb-ordner"
         $stand.dateien[$schluessel] = $kennung
+        StandSichern
         $vorhanden[$schluessel] = $true
         $status.hochgeladen++
         $nochFrei--
@@ -243,10 +285,15 @@ try {
   Schreibe ("Abbruch: " + $_.Exception.Message)
 }
 
+# Erledigt ist der Knopfdruck erst, wenn nichts mehr auf den nächsten
+# Durchlauf wartet. Nach einem Abbruch auch, sonst käme derselbe Fehler
+# zwei Tage lang alle fünf Minuten.
+if ($a -and (($status.rest -eq 0) -or ($status.fehler -and $status.hochgeladen -eq 0))) { $stand.erledigt = [string]$a.id }
 try {
   Aendern "Post" "app_config?on_conflict=schluessel" @{ schluessel = "eb_ordner_status";
     wert = ($status | ConvertTo-Json -Compress -Depth 4) } "resolution=merge-duplicates"
 } catch { Schreibe ("Stand nicht an die App gemeldet (sql/einrichtblatt-ordner.sql ausgeführt?): " + $_.Exception.Message) }
+$stand.letzter = ($status | ConvertTo-Json -Compress -Depth 4)
 StandSichern
 
 if ($Probe -or -not $status.scharf) {

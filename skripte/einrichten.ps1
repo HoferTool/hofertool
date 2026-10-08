@@ -4,12 +4,13 @@
 #  Richtet auf einem Windows-Rechner im Betrieb fünf Aufgaben ein:
 #    - Solar: holt alle fünf Minuten die Werte vom Solar-Log und
 #      liefert sie an die App (solarlog.ps1)
-#    - Pool:  leert alle fünf Minuten die WBGs aus C:\Hofer\Pool in
-#      die App (dokumente-pool.ps1)
-#    - Einrichtblätter: liest alle fünf Minuten die Excel-Dateien aus
-#      den Typ-Ordnern, die in der App eingetragen sind, und lädt neue
+#    - Pool:  leert auf Knopfdruck in der App die WBGs aus
+#      C:\Hofer\Pool in die App (dokumente-pool.ps1); schaut dafür alle
+#      fünf Minuten nach, ob jemand gedrückt hat
+#    - Einrichtblätter: liest auf Knopfdruck in der App die Excel-Dateien
+#      aus den Typ-Ordnern, die in der App eingetragen sind, und lädt neue
 #      und geänderte hoch (einrichtblaetter.ps1). Liest nur, löscht nie.
-#      Bis der Schalter in der App an ist, nur Probelauf. Läuft unter
+#      Schaut alle fünf Minuten nach dem Knopf. Läuft unter
 #      dem angemeldeten Windows-Konto (wegen der Netzlaufwerke), ohne
 #      dass ein Passwort eingegeben werden muss.
 #    - Zeichnungen: schaut alle fünf Minuten, ob in der App jemand auf
@@ -350,8 +351,8 @@ function Einplanen([string]$name, [string]$skript, [string]$text, [switch]$nurAn
 }
 if ($solarAn) { Einplanen "Hofer Solar" "solarlog.ps1" "Liefert alle 5 Minuten die Werte des Solar-Log ans Hofer Tool." }
 if ($poolAn)  {
-  Einplanen "Hofer Dokumente-Pool" "dokumente-pool.ps1" "Lädt alle 5 Minuten die WBGs aus dem Pool-Ordner ins Hofer Tool und leert ihn." -nurAngemeldet
-  Einplanen "Hofer Einrichtblätter" "einrichtblaetter.ps1" "Liest alle 5 Minuten die Excel-Einrichtblätter aus den Typ-Ordnern und lädt neue ins Hofer Tool. Löscht und ändert in den Ordnern nie etwas." -nurAngemeldet
+  Einplanen "Hofer Dokumente-Pool" "dokumente-pool.ps1" "Schaut alle 5 Minuten, ob in der App 'WBGs hochladen' gedrückt wurde, und lädt dann die WBGs aus dem Pool-Ordner ins Hofer Tool und leert ihn." -nurAngemeldet
+  Einplanen "Hofer Einrichtblätter" "einrichtblaetter.ps1" "Schaut alle 5 Minuten, ob in der App 'Einrichtblätter hochladen' gedrückt wurde, und lädt dann die Excel-Einrichtblätter aus den Typ-Ordnern ins Hofer Tool. Löscht und ändert in den Ordnern nie etwas." -nurAngemeldet
   Einplanen "Hofer Zeichnungen" "zeichnungen.ps1" "Schaut alle 5 Minuten, ob in der App 'Zeichnungen hochladen' gedrückt wurde, und lädt dann die Zeichnungs-PDFs (hofer, sonst kunde) aus dem Zeichnungs-Ordner ins Hofer Tool. Löscht und ändert im Ordner nie etwas." -nurAngemeldet
   Einplanen "Hofer Sicherung" "sicherung.ps1" "Sichert einmal am Tag alle Daten des Hofer Tools in den Ordner aus der App (Einstellungen -> Backup) und spielt auf Wunsch eine Sicherung zurück." -nurAngemeldet
 }
@@ -361,7 +362,7 @@ if ($solarAn) { Info "Solar-Protokoll: $(Join-Path $Ziel 'solarlog.log')" }
 if ($poolAn)  {
   Info "Pool-Protokoll:  $(Join-Path $Ziel 'pool.log')"; Info "WBGs hineinlegen in: $POOL"
   Info "Einrichtblätter-Protokoll: $(Join-Path $Ziel 'einrichtblaetter.log')"
-  Info "Einrichtblätter: Bis du in der App den Schalter 'Hochladen' einschaltest, nur Probelauf."
+  Info "WBGs und Einrichtblätter: nur auf Knopfdruck in der App (Einstellungen -> Dokumente)."
   Info "Zeichnungen-Protokoll: $(Join-Path $Ziel 'zeichnungen.log')"
   Info "Zeichnungen: nur auf Knopfdruck in der App (Einstellungen -> Dokumente -> Zeichnungs-Ordner)."
   Info "Sicherung-Protokoll: $(Join-Path $Ziel 'sicherung.log')"

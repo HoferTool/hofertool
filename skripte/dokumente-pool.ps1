@@ -1,8 +1,12 @@
 ﻿# =================================================================
 #  DOKUMENTE-POOL — WBGs aus dem Ordner in die App, Ordner leeren
 #
-#  Läuft über die Windows-Aufgabenplanung alle fünf Minuten. Im
-#  Pool-Ordner liegen nur WBGs. Das Programm ordnet jede am Namen zu
+#  Läuft über die Windows-Aufgabenplanung alle fünf Minuten, tut aber
+#  nur etwas, wenn in der App jemand beim Pool-Ordner auf "WBGs
+#  hochladen" gedrückt hat (Wunsch Patrick 8. Oktober 2026, wie bei den
+#  Zeichnungen). Der Knopf schreibt pool_auftrag in app_config; sonst
+#  liest das Programm nur diesen Eintrag und meldet, dass es läuft.
+#  Im Pool-Ordner liegen nur WBGs. Das Programm ordnet jede am Namen zu
 #  wie die App, lädt sie hoch und löscht sie danach aus dem Ordner:
 #
 #     20268566 10007-0381.pdf   → WBG an den nächsten offenen Auftrag
@@ -16,11 +20,12 @@
 #
 #  Steht die FA Nr. schon auf einem Auftrag, ersetzt die neue WBG dort
 #  die alte. Eine WBG, deren Auftrag noch nicht geplant ist, bleibt bis
-#  zu sieben Tage liegen und wird bei jedem Durchlauf neu versucht.
+#  zu sieben Tage liegen und wird beim nächsten Knopfdruck neu versucht.
 #  Was gar nicht passt, kommt in den Unterordner "nicht zugeordnet".
 #
 #  Aufruf:
-#     .\dokumente-pool.ps1            normaler Durchlauf
+#     .\dokumente-pool.ps1            normaler Durchlauf (wartet auf den Knopf)
+#     .\dokumente-pool.ps1 -Jetzt      sofort, ohne Knopf
 #     .\dokumente-pool.ps1 -Probe     zeigt nur, was es tun würde
 #
 #  Der Ordner: -Ordner "D:\Pool", sonst "pool_ordner" in
@@ -31,7 +36,7 @@
 #  Windows PowerShell 5.1 reicht, nichts zu installieren.
 # =================================================================
 
-param([switch]$Probe, [string]$Ordner)
+param([switch]$Probe, [switch]$Jetzt, [string]$Ordner)
 
 $ErrorActionPreference = "Stop"
 $ordnerHier = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -59,11 +64,12 @@ $U = ($E.supabase_url).TrimEnd("/")
 $KEY = $E.anon_key
 
 # Anmeldung merken und welche wartenden Dateien schon im Protokoll stehen
-$stand = @{ token = $null; ablauf = 0; auffrischen = $null; gemeldet = @{} }
+$stand = @{ token = $null; ablauf = 0; auffrischen = $null; gemeldet = @{}; erledigt = $null; letzter = $null }
 if (Test-Path $standDatei) {
   try {
     $g = Get-Content -Raw -Path $standDatei -Encoding UTF8 | ConvertFrom-Json
     $stand.token = $g.token; $stand.ablauf = [double]$g.ablauf; $stand.auffrischen = $g.auffrischen
+    $stand.erledigt = $g.erledigt; $stand.letzter = $g.letzter
     if ($g.gemeldet) { $g.gemeldet.PSObject.Properties | ForEach-Object { $stand.gemeldet[$_.Name] = $_.Value } }
   } catch { }
 }
@@ -90,15 +96,47 @@ function Beiseite($datei, [string]$ziel) {
   Move-Item -LiteralPath $datei.FullName -Destination $neu
 }
 
+
+# Ein Knopfdruck gilt zwei Tage, danach nicht mehr
+function AuftragOffen($a) {
+  return [bool]($a -and $a.id -and [string]$a.id -ne [string]$stand.erledigt -and
+    ((Get-Date).ToUniversalTime() - ([datetime]$a.zeit).ToUniversalTime()).TotalDays -lt 2)
+}
+# Nichts zu tun: den letzten Bericht wieder melden, nur mit neuer Zeit
+# "gesehen", damit die App sieht, dass die Aufgabe läuft
+function NurLebenMelden([string]$schluessel) {
+  $letzter = $null
+  if ($stand.letzter) { try { $letzter = $stand.letzter | ConvertFrom-Json } catch { } }
+  if (-not $letzter) { $letzter = [pscustomobject]@{ knopf = $true } }
+  $letzter | Add-Member -NotePropertyName gesehen -NotePropertyValue ((Get-Date).ToUniversalTime().ToString("o")) -Force
+  $letzter | Add-Member -NotePropertyName rechner -NotePropertyValue $env:COMPUTERNAME -Force
+  try {
+    Aendern "Post" "app_config?on_conflict=schluessel" @{ schluessel = $schluessel;
+      wert = ($letzter | ConvertTo-Json -Compress -Depth 4) } "resolution=merge-duplicates"
+  } catch { Schreibe ("Stand nicht an die App gemeldet: " + $_.Exception.Message) }
+}
+
 # ---------- Durchlauf ----------
-$status = @{ zeit = (Get-Date).ToUniversalTime().ToString("o"); rechner = $env:COMPUTERNAME;
-             dateien = 0; neu = 0; fehler = $null; ohne = @(); wartet = @() }
+# knopf = true sagt der App, dass dieses Programm auf den Knopf wartet
+$jetztIso = (Get-Date).ToUniversalTime().ToString("o")
+$status = @{ knopf = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME;
+             dateien = 0; neu = 0; fehler = $null; auftrag = $null; ohne = @(); wartet = @() }
+$a = $null
 try {
   Anmelden
 
   $konf = @{}
-  Lesen "app_config?select=schluessel,wert&schluessel=eq.dok_pool_pfad" |
+  Lesen "app_config?select=schluessel,wert&schluessel=in.(dok_pool_pfad,pool_auftrag)" |
     ForEach-Object { $konf[$_.schluessel] = $_.wert }
+  try { if ($konf["pool_auftrag"]) { $a = $konf["pool_auftrag"] | ConvertFrom-Json } } catch { }
+  if (-not (AuftragOffen $a)) {
+    $a = $null
+    if (-not $Probe -and -not $Jetzt -and -not $Ordner) { NurLebenMelden "dok_pool_status"; exit 0 }
+  }
+  if ($a -and -not $Probe) {
+    $status.auftrag = @{ id = [string]$a.id; art = [string]$a.art; von = [string]$a.von }
+    Schreibe ("Auftrag aus der App von " + $a.von)
+  }
   $pfad = $Ordner
   if (-not $pfad) { $pfad = [string]$E.pool_ordner }
   if (-not $pfad) { $pfad = [string]$konf["dok_pool_pfad"] }
@@ -170,10 +208,12 @@ try {
 }
 
 if (-not $Probe) {
+  if ($a) { $stand.erledigt = [string]$a.id }
   try {
     Aendern "Post" "app_config?on_conflict=schluessel" @{ schluessel = "dok_pool_status";
       wert = ($status | ConvertTo-Json -Compress -Depth 3) } "resolution=merge-duplicates"
   } catch { Schreibe ("Stand nicht gemeldet: " + $_.Exception.Message) }
+  $stand.letzter = ($status | ConvertTo-Json -Compress -Depth 3)
   StandSichern
 } else {
   Write-Host ""

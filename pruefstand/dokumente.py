@@ -40,7 +40,7 @@ with sync_playwright() as p:
     pruefe("Stand des Probelaufs: " + repr(stand[:160]), "Probelauf" in stand and "SRV1" in stand and re.search(r"1\D?234 PDFs", stand) and "2 würden hochgeladen" in stand and "3.5 MB" in stand)
     pruefe("Liste des Probelaufs", "10844-0049 Hofer.pdf" in pg.inner_text("#zng-ordner"))
     pruefe("Kein Schalter Hochladen mehr", pg.locator("#zng-scharf").count() == 0)
-    pruefe("Alte Fassung erkannt", pg.locator("#zng-altfassung").count() == 1)
+    pruefe("Alte Fassung erkannt", pg.locator("#zng-ordner .dok-altfassung").count() == 1)
     pg.fill("#zng-pfad", "\\\\FS02\\Neu"); pg.locator("#zng-unter").check(force=True); pg.click("#zng-speichern"); pg.wait_for_timeout(500)
     k = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'zng_ordner').wert)"); print("Gespeichert:", k)
     pruefe("Ordner gespeichert", k == {"pfad": "\\\\FS02\\Neu", "unter": True, "scharf": False})
@@ -57,7 +57,7 @@ with sync_playwright() as p:
         scharf: true, pdf: 1234, nummern: 40, hochgeladen: 2, rest: 0, auftrag: { id, art: 'hochladen', von: 'x' }, liste: [] }); }""", a["id"])
     pg.wait_for_timeout(11000)
     stand = pg.inner_text("#zng-stand"); print("Stand danach:", stand)
-    pruefe("Erledigt gemeldet", "Hochgeladen" in stand and "2 hochgeladen" in stand and pg.locator("#zng-altfassung").count() == 0)
+    pruefe("Erledigt gemeldet", "Hochgeladen" in stand and "2 hochgeladen" in stand and pg.locator("#zng-ordner .dok-altfassung").count() == 0)
     pruefe("Knöpfe wieder frei", not pg.locator("#zng-hochladen").is_disabled())
 
     # Verlauf und Zuletzt abgelegt

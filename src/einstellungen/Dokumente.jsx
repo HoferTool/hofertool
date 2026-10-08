@@ -239,63 +239,149 @@ function Zuordnung({ eintraege: anfang, typen, fertig }) {
   );
 }
 
-// ---------- Pool-Ordner (wird nach dem Hochladen geleert) ----------
+// ---------- Knopfdruck für die Aufgaben auf dem Pool-Rechner ----------
+//  WBGs, Einrichtblätter und Zeichnungen kommen nur noch auf Knopfdruck
+//  (Wunsch Patrick 8. Oktober 2026: „das brauchts nur paar mal im
+//  Jahr“). Der Knopf schreibt einen Auftrag in app_config (pool_auftrag,
+//  eb_auftrag, zng_auftrag); die Aufgabe schaut alle fünf Minuten nach
+//  und tut sonst nichts. Ihren Stand meldet sie wie bisher unter
+//  dok_pool_status, eb_ordner_status und dok_pfad_status: Diese Einträge
+//  darf das Dienstkonto schon schreiben, so braucht es kein neues SQL.
+//  „gesehen“ im Stand ist die letzte Meldung, „knopf“ heisst, dass die
+//  Fassung auf dem Rechner den Knopf kennt.
 
-async function poolLaden() {
+function jsonOder(text, ersatz) {
+  try { return text ? JSON.parse(text) : ersatz; } catch (f) { return ersatz; }
+}
+
+async function configLaden(schluessel, name) {
   const werte = {};
   try {
     const r = await alt.zeitlimit(alt.db.from("app_config").select("schluessel, wert")
-      .in("schluessel", ["dok_pool_pfad", "dok_pool_status"]), 6000, "Pool");
+      .in("schluessel", schluessel), 6000, name);
     ((r && r.data) || []).forEach((x) => { werte[x.schluessel] = x.wert; });
   } catch (f) { /* leer lassen */ }
   return werte;
 }
 
+// Offen = gedrückt, aber vom Programm noch nicht fertig gemeldet. Mehr
+// Dateien, als ein Durchlauf schafft (rest > 0): Der nächste macht
+// weiter. Nach zwei Tagen gilt der Knopfdruck auch für das Programm
+// nicht mehr.
+function auftragOffen(auftrag, stand) {
+  if (!auftrag || !auftrag.id) return false;
+  const a = stand && stand.auftrag;
+  if (a && a.id === auftrag.id && !(stand.rest > 0)) return false;
+  return Date.now() - new Date(auftrag.zeit).getTime() < 2 * 86400000;
+}
+
+// Nach dem Knopfdruck alle 10 Sekunden nachsehen, sonst jede Minute
+function useNachsehen(laden) {
+  const [auffrischen, setAuffrischen] = useState(0);
+  const { daten } = useDaten(laden, [auffrischen]);
+  const [offen, setOffen] = useState(false);
+  useEffect(() => {
+    const t = setInterval(() => setAuffrischen((n) => n + 1), offen ? 10000 : 60000);
+    return () => clearInterval(t);
+  }, [offen]);
+  return { daten, neu: () => setAuffrischen((n) => n + 1), setOffen };
+}
+
+// Punkt, Zeit der letzten Meldung, Warnung bei Stille oder alter Fassung
+function Lebt({ stand, aufgabe, children }) {
+  if (!stand) return <span className="gedaempft">Die Aufgabe „{aufgabe}“ hat sich noch nicht gemeldet.</span>;
+  const minuten = (Date.now() - new Date(stand.gesehen || stand.zeit).getTime()) / 60000;
+  return <>
+    <span className={"dokpfad-punkt " + (minuten < 15 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
+    {children}
+    {minuten >= 15 && <> <b>— seit {Math.round(minuten)} Minuten keine Meldung</b></>}
+    {stand.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{stand.fehler}</div>}
+    {!stand.knopf && <div className="klein dok-altfassung" style={{ color: "var(--gefahr)" }}>
+      Auf dem Rechner läuft noch die alte Fassung des Programms. Sie kennt den Knopf noch nicht.</div>}
+  </>;
+}
+
+// Die Knöpfe „Probelauf“ und „… hochladen“ mit der Zeile davor
+function KnopfReihe({ id, schluessel, auftrag, offen, stand, probe, hochladen, frage, vorher, neu }) {
+  const laeuft = offen && stand && stand.auftrag && stand.auftrag.id === auftrag.id;
+  const geben = async (art) => {
+    if (vorher && !(await vorher())) return;
+    if (art === "hochladen" && frage) {
+      const ok = await alt.nachfragen({ titel: hochladen + "?", text: frage, bestaetigen: "Hochladen" });
+      if (!ok) return;
+    }
+    const p = alt.profil || {};
+    const neuerAuftrag = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), art,
+      zeit: new Date().toISOString(), von: p.full_name || p.email || "" };
+    const r = await alt.db.from("app_config").upsert([{ schluessel, wert: JSON.stringify(neuerAuftrag) }]);
+    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
+    neu();
+  };
+  return (
+    <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
+      <div id={id + "-auftrag"} className="dokpfad-stand dok-auftrag">
+        {offen ? <><span className="si-dreher" aria-hidden="true" /> {(auftrag.art === "hochladen" ? "Hochladen" : "Probelauf")
+          + (laeuft ? " läuft, beim nächsten Durchlauf geht es weiter." : " angefordert um " + alt.datumZeitKurz(auftrag.zeit)
+            + ". Der Rechner beginnt innert fünf Minuten.")}</>
+          : <span className="gedaempft">{probe ? "Der Probelauf zeigt nur, was hochgeladen würde." : ""}</span>}
+      </div>
+      {probe && <button className="knopf knopf--klein" id={id + "-probe"} disabled={offen}
+        onClick={() => geben("probe")}>Probelauf</button>}
+      <button className="knopf knopf--klein knopf--haupt" id={id + "-hochladen"} disabled={offen}
+        onClick={() => geben("hochladen")}>{hochladen}</button>
+    </div>
+  );
+}
+
+// ---------- Pool-Ordner (wird nach dem Hochladen geleert) ----------
+
+const poolLaden = () => configLaden(["dok_pool_pfad", "dok_pool_status", "pool_auftrag"], "Pool");
+
 function PoolOrdner() {
-  const { daten } = useDaten(poolLaden, []);
+  const { daten, neu, setOffen } = useNachsehen(poolLaden);
   // Nimmt WBGs von Aufträgen weg, die seit über fünf Tagen fertig sind (sonst einmal am Tag von selbst)
   const aufraeumen = async () => {
     const n = await alt.wbgAufraeumen(true);
     alt.meldung(n ? n + " alte WBG entfernt." : "Nichts aufzuräumen.");
   };
   return (
-    <Gruppe titel="Pool-Ordner"
+    <Gruppe titel="Pool-Ordner" id="pool-ordner"
       aktionen={<button className="knopf knopf--klein" id="wbg-aufraeumen" onClick={aufraeumen}>Alte WBG aufräumen</button>}
-      text={"Nur für WBGs. Alle fünf Minuten werden sie hochgeladen und aus dem Ordner gelöscht. Anderes kommt "
-        + "in den Unterordner „nicht zugeordnet“. Eine WBG ohne geplanten Auftrag wartet bis zu sieben Tage."}>
-      {daten ? <PoolFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
+      text={"Nur für WBGs. Auf Knopfdruck werden sie hochgeladen und aus dem Ordner gelöscht. Anderes kommt "
+        + "in den Unterordner „nicht zugeordnet“. Eine WBG ohne geplanten Auftrag bleibt bis zu sieben Tage liegen "
+        + "und kommt beim nächsten Knopfdruck mit."}>
+      {daten ? <PoolFormular werte={daten} neu={neu} setOffen={setOffen} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
   );
 }
 
-function PoolFormular({ werte }) {
+function PoolFormular({ werte, neu, setOffen }) {
   const [pfad, setPfad] = useState(werte.dok_pool_pfad || "");
-  let st = null;
-  try { st = werte.dok_pool_status ? JSON.parse(werte.dok_pool_status) : null; } catch (f) { st = null; }
+  const st = jsonOder(werte.dok_pool_status, null);
+  const auftrag = jsonOder(werte.pool_auftrag, null);
+  const offen = auftragOffen(auftrag, st);
+  useEffect(() => setOffen(offen), [offen]);
 
-  const speichern = async () => {
+  const speichern = async (still) => {
     const r = await alt.db.from("app_config").upsert([{ schluessel: "dok_pool_pfad", wert: pfad.trim() }]);
-    if (r.error) alt.meldung(alt.fehlertext(r.error), "fehler");
-    else alt.meldung("Pool-Ordner gespeichert. Das Programm nimmt ihn beim nächsten Durchlauf.");
+    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return false; }
+    if (!still) alt.meldung("Pool-Ordner gespeichert.");
+    return true;
   };
 
-  let stand;
-  if (!st) stand = <span className="gedaempft">Das Programm hat sich noch nicht gemeldet.</span>;
-  else {
-    const minuten = (Date.now() - new Date(st.zeit).getTime()) / 60000;
-    stand = <>
-      <span className={"dokpfad-punkt " + (minuten < 15 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
-      {"Zuletzt " + alt.datumZeitKurz(st.zeit) + (st.rechner ? " auf " + st.rechner : "")
+  const lief = st && (!st.knopf || st.auftrag);
+  const stand = (
+    <Lebt stand={st} aufgabe="Hofer Dokumente-Pool">
+      {st && (lief ? "Zuletzt " + alt.datumZeitKurz(st.zeit) + (st.rechner ? " auf " + st.rechner : "")
         + " · " + (st.neu || 0) + " abgelegt"
-        + (st.wartet && st.wartet.length ? " · " + st.wartet.length + " warten auf ihren Auftrag" : "")}
-      {minuten >= 15 && <> <b>— seit {Math.round(minuten)} Minuten keine Meldung</b></>}
-      {st.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{st.fehler}</div>}
-      {st.wartet && st.wartet.length > 0 && <div className="klein gedaempft">Wartet: {
+        + (st.wartet && st.wartet.length ? " · " + st.wartet.length + " warten auf ihren Auftrag" : "")
+        : "Bereit" + (st.rechner ? " auf " + st.rechner : "") + " · noch nie auf Knopfdruck gelaufen")}
+      {lief && st.wartet && st.wartet.length > 0 && <div className="klein gedaempft">Wartet: {
         st.wartet.slice(0, 12).join(", ") + (st.wartet.length > 12 ? " …" : "")}</div>}
-      {st.ohne && st.ohne.length > 0 && <div className="klein gedaempft">Nicht zugeordnet: {
+      {lief && st.ohne && st.ohne.length > 0 && <div className="klein gedaempft">Nicht zugeordnet: {
         st.ohne.slice(0, 12).join(", ") + (st.ohne.length > 12 ? " …" : "")}</div>}
-    </>;
-  }
+    </Lebt>
+  );
 
   return (
     <>
@@ -305,8 +391,11 @@ function PoolFormular({ werte }) {
       </Zeile>
       <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
         <div id="dokpool-stand" className="dokpfad-stand">{stand}</div>
-        <button className="knopf knopf--klein knopf--haupt" id="dokpool-speichern"
-          onClick={speichern}>Ordner speichern</button></div>
+        <button className="knopf knopf--klein" id="dokpool-speichern"
+          onClick={() => speichern(false)}>Ordner speichern</button></div>
+      {/* Den Ordner, wie er gerade im Feld steht, gleich mitspeichern */}
+      <KnopfReihe id="pool" schluessel="pool_auftrag" auftrag={auftrag} offen={offen} stand={st} hochladen="WBGs hochladen"
+        vorher={() => (pfad.trim() === (werte.dok_pool_pfad || "") ? true : speichern(true))} neu={neu} />
     </>
   );
 }
@@ -314,82 +403,70 @@ function PoolFormular({ werte }) {
 // ---------- Einrichtblatt-Ordner (nur lesen, je Ordner ein Typ) ----------
 //  einrichtblaetter.ps1 liest diese Ordner über die Aufgabenplanung und
 //  lädt Excel-Dateien mit HOCO Nr. im Namen als Einrichtblatt auf den Typ
-//  des Ordners. Es löscht dort nie etwas. Solange „Hochladen“ aus ist,
-//  meldet es nur, was es tun würde (Patrick will zuerst testen).
+//  des Ordners. Es löscht dort nie etwas.
 
 async function ebLaden() {
-  const werte = {};
-  try {
-    const r = await alt.zeitlimit(alt.db.from("app_config").select("schluessel, wert")
-      .in("schluessel", ["eb_ordner", "eb_ordner_status"]), 6000, "Einrichtblatt-Ordner");
-    ((r && r.data) || []).forEach((x) => { werte[x.schluessel] = x.wert; });
-  } catch (f) { /* leer lassen */ }
+  const werte = await configLaden(["eb_ordner", "eb_ordner_status", "eb_auftrag"], "Einrichtblatt-Ordner");
   const typen = await typenHolen();
   return { werte, typen };
 }
 
 function EinrichtblattOrdner() {
-  const { daten } = useDaten(ebLaden, []);
+  const { daten, neu, setOffen } = useNachsehen(ebLaden);
   return (
     <Gruppe titel="Einrichtblatt-Ordner" id="eb-ordner"
-      text={"Je Ordner ein Maschinentyp. Alle fünf Minuten werden Excel-Dateien mit HOCO Nr. im Namen "
+      text={"Je Ordner ein Maschinentyp. Auf Knopfdruck werden Excel-Dateien mit HOCO Nr. im Namen "
         + "hochgeladen. In den Ordnern wird nie etwas gelöscht, verschoben oder geändert."}>
-      {daten ? <EbFormular werte={daten.werte} typen={daten.typen} /> : <div className="laedt">Wird geladen …</div>}
+      {daten ? <EbFormular werte={daten.werte} typen={daten.typen} neu={neu} setOffen={setOffen} />
+        : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
   );
 }
 
-function jsonOder(text, ersatz) {
-  try { return text ? JSON.parse(text) : ersatz; } catch (f) { return ersatz; }
-}
-
-function EbFormular({ werte, typen }) {
+function EbFormular({ werte, typen, neu, setOffen }) {
   const start = jsonOder(werte.eb_ordner, null) || {};
   const [ordner, setOrdner] = useState(
     (start.ordner && start.ordner.length) ? start.ordner : [{ pfad: "", typ: "", unter: false }]);
-  const [scharf, setScharf] = useState(!!start.scharf);
+  const [gespeichert, setGespeichert] = useState(JSON.stringify(start.ordner || []));
   const st = jsonOder(werte.eb_ordner_status, null);
+  const auftrag = jsonOder(werte.eb_auftrag, null);
+  const offen = auftragOffen(auftrag, st);
+  useEffect(() => setOffen(offen), [offen]);
   const admin = alt.istAdmin();
 
   const aendern = (i, feld, wert) => setOrdner((l) => l.map((o, j) => (j === i ? { ...o, [feld]: wert } : o)));
-  const speichern = async (neuScharf) => {
-    const liste = ordner.map((o) => ({ pfad: (o.pfad || "").trim(), typ: o.typ || "", unter: !!o.unter }))
-      .filter((o) => o.pfad);
-    if (liste.some((o) => !o.typ)) { alt.meldung("Bei jedem Ordner einen Maschinentyp wählen.", "warn"); return; }
+  const liste = () => ordner.map((o) => ({ pfad: (o.pfad || "").trim(), typ: o.typ || "", unter: !!o.unter }))
+    .filter((o) => o.pfad);
+  // scharf bleibt immer aus: Eine noch alte Fassung von einrichtblaetter.ps1
+  // auf dem Rechner lädt so nicht mehr von selbst alle fünf Minuten hoch
+  const speichern = async (still) => {
+    const l = liste();
+    if (l.some((o) => !o.typ)) { alt.meldung("Bei jedem Ordner einen Maschinentyp wählen.", "warn"); return false; }
     const r = await alt.db.from("app_config").upsert([{ schluessel: "eb_ordner",
-      wert: JSON.stringify({ scharf: neuScharf, ordner: liste }) }]);
-    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
-    setScharf(neuScharf);
-    alt.meldung(neuScharf ? "Hochladen eingeschaltet. Ab dem nächsten Durchlauf lädt das Programm hoch."
-      : "Gespeichert. Das Programm macht beim nächsten Durchlauf einen Probelauf.", "gut");
+      wert: JSON.stringify({ scharf: false, ordner: l }) }]);
+    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return false; }
+    setGespeichert(JSON.stringify(l));
+    if (!still) alt.meldung("Gespeichert.", "gut");
+    return true;
   };
-  const umschalten = async () => {
-    if (!scharf) {
-      const ok = await alt.nachfragen({ titel: "Hochladen einschalten?",
-        text: "Ab dem nächsten Durchlauf lädt das Programm die Einrichtblätter aus den Ordnern hoch. Ein vorhandenes "
-          + "Einrichtblatt derselben HOCO Nr. auf demselben Typ wird in der App ersetzt. In den Ordnern ändert sich nichts.",
-        bestaetigen: "Einschalten" });
-      if (!ok) return;
-    }
-    speichern(!scharf);
+  const vorher = async () => {
+    const l = liste();
+    if (!l.length) { alt.meldung("Zuerst einen Ordner eintragen.", "warn"); return false; }
+    return JSON.stringify(l) === gespeichert ? true : speichern(true);
   };
 
-  let stand;
-  if (!st) stand = <span className="gedaempft">Das Programm hat sich noch nicht gemeldet.</span>;
-  else {
-    const minuten = (Date.now() - new Date(st.zeit).getTime()) / 60000;
-    const wuerde = (st.neu || 0) + (st.ersetzt || 0);
-    stand = <>
-      <span className={"dokpfad-punkt " + (minuten < 15 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
-      {(st.scharf ? "Zuletzt " : "Probelauf ") + alt.datumZeitKurz(st.zeit) + (st.rechner ? " auf " + st.rechner : "")
-        + " · " + (st.excel || 0) + " Excel-Dateien · "
-        + (st.scharf ? (st.hochgeladen || 0) + " hochgeladen"
-          : wuerde + " würden hochgeladen (" + (st.neu || 0) + " neu, " + (st.ersetzt || 0) + " ersetzen ein vorhandenes)")}
-      {minuten >= 15 && <> <b>— seit {Math.round(minuten)} Minuten keine Meldung</b></>}
-      {st.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{st.fehler}</div>}
-    </>;
-  }
-  const liste = (st && st.liste) || [];
+  const wuerde = st ? (st.neu || 0) + (st.ersetzt || 0) : 0;
+  const lief = st && (!st.knopf || st.auftrag);
+  const stand = (
+    <Lebt stand={st} aufgabe="Hofer Einrichtblätter">
+      {st && (!lief ? "Bereit" + (st.rechner ? " auf " + st.rechner : "") + " · noch nie auf Knopfdruck gelaufen"
+        : (st.scharf ? (st.knopf ? "Hochgeladen " : "Zuletzt ") : "Probelauf ") + alt.datumZeitKurz(st.zeit)
+        + (st.rechner ? " auf " + st.rechner : "") + " · " + (st.excel || 0) + " Excel-Dateien · "
+        + (st.scharf ? (st.hochgeladen || 0) + " hochgeladen" + (st.rest ? ", " + alt.zahlText(st.rest) + " folgen" : "")
+          : wuerde + " würden hochgeladen (" + (st.neu || 0) + " neu, " + (st.ersetzt || 0) + " ersetzen ein vorhandenes)"))}
+    </Lebt>
+  );
+  const zeilen = (lief && st.liste) || [];
 
   return (
     <>
@@ -412,147 +489,94 @@ function EbFormular({ werte, typen }) {
         onClick={() => setOrdner((l) => [...l, { pfad: "", typ: "", unter: false }])}>+ Ordner</button>}
       <p className="klein gedaempft">Ordner auf einem anderen Rechner als \\Server\Freigabe\… eintragen, nicht mit
         Laufwerksbuchstaben wie Z:. Gibt es für eine HOCO Nr. mehrere Excel-Dateien, zählt die zuletzt geänderte.</p>
-      <SchalterZeile id="eb-scharf" titel="Hochladen"
-        text={scharf ? "Ein: neue und geänderte Einrichtblätter werden hochgeladen."
-          : "Aus: nur Probelauf. Das Programm zeigt unten, was es hochladen würde, und lädt nichts hoch."}
-        checked={scharf} onChange={admin ? umschalten : () => {}} />
       <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
         <div id="eb-stand" className="dokpfad-stand">{stand}</div>
-        {admin && <button className="knopf knopf--klein knopf--haupt" id="eb-speichern"
-          onClick={() => speichern(scharf)}>Ordner speichern</button>}</div>
-      {liste.length > 0 && <details className="eb-liste" open={!st.scharf}>
-        <summary>{st.scharf ? "Letzter Durchlauf" : "Was der Probelauf hochladen würde"} ({liste.length})</summary>
+        {admin && <button className="knopf knopf--klein" id="eb-speichern"
+          onClick={() => speichern(false)}>Ordner speichern</button>}</div>
+      {admin && <KnopfReihe id="eb" schluessel="eb_auftrag" auftrag={auftrag} offen={offen} stand={st} probe
+        hochladen="Einrichtblätter hochladen" vorher={vorher} neu={neu}
+        frage={"Der Rechner im Betrieb lädt alle neuen und geänderten Einrichtblätter aus den Ordnern hoch. Ein "
+          + "vorhandenes Einrichtblatt derselben HOCO Nr. auf demselben Typ wird in der App ersetzt. In den Ordnern "
+          + "ändert sich nichts."} />}
+      {zeilen.length > 0 && <details className="eb-liste" open={!st.scharf}>
+        <summary>{st.scharf ? "Letzter Durchlauf" : "Was der Probelauf hochladen würde"} ({zeilen.length})</summary>
         <div className="tabellenrolle">
           <table className="tabelle es-tabelle" id="eb-tabelle"><thead><tr>
             <th>Datei</th><th>HOCO Nr.</th><th>Typ</th><th>Ergebnis</th></tr></thead>
-            <tbody>{liste.map((x, i) => (
+            <tbody>{zeilen.map((x, i) => (
               <tr key={i}><td><code>{x.d}</code></td><td>{x.h || "–"}</td>
                 <td>{(st.ordner && st.ordner[x.o] && st.ordner[x.o].typ) || ""}</td><td>{x.w}</td></tr>
             ))}</tbody>
           </table>
         </div>
       </details>}
-      {st && st.ordner && st.ordner.some((o) => o.fehler) && <div className="klein" style={{ color: "var(--gefahr)" }}>
+      {lief && st.ordner && st.ordner.some((o) => o.fehler) && <div className="klein" style={{ color: "var(--gefahr)" }}>
         {st.ordner.filter((o) => o.fehler).map((o) => o.pfad + ": " + o.fehler).join(" · ")}</div>}
     </>
   );
 }
 
-// ---------- Zeichnungs-Ordner (nur lesen, auf Knopfdruck) ----------
+// ---------- Zeichnungs-Ordner (nur lesen) ----------
 //  zeichnungen.ps1 liest diesen Ordner über die Aufgabenplanung. Darin
 //  liegen viele PDFs und anderes. Je HOCO Nr. zählt nur eine PDF mit
 //  „hofer“ im Namen, sonst eine mit „kunde“; gibt es keine, bleibt die
 //  Nummer weg (Wunsch 5. Oktober 2026). Es löscht, verschiebt und ändert
-//  dort nie etwas.
-//  Hochgeladen wird nur noch auf Knopfdruck (Wunsch Patrick 8. Oktober
-//  2026: „das brauchts nur paar mal im Jahr“). Der Knopf schreibt
-//  zng_auftrag, das Programm schaut alle fünf Minuten nach und tut
-//  sonst nichts. Den Stand meldet es unter dok_pfad_status: Diesen
-//  Eintrag darf das Dienstkonto schon schreiben, so braucht es kein
-//  neues SQL.
+//  dort nie etwas. Den Stand meldet es unter dok_pfad_status.
 
-async function zngLaden() {
-  const werte = {};
-  try {
-    const r = await alt.zeitlimit(alt.db.from("app_config").select("schluessel, wert")
-      .in("schluessel", ["zng_ordner", "zng_auftrag", "dok_pfad_status"]), 6000, "Zeichnungs-Ordner");
-    ((r && r.data) || []).forEach((x) => { werte[x.schluessel] = x.wert; });
-  } catch (f) { /* leer lassen */ }
-  return werte;
-}
-
-// Offen = gedrückt, aber vom Programm noch nicht fertig gemeldet. Mehr
-// als 100 Dateien schafft es nicht in einem Durchlauf (rest > 0), dann
-// macht es beim nächsten weiter. Nach zwei Tagen gilt der Knopfdruck
-// auch für das Programm nicht mehr.
-function zngOffen(auftrag, stand) {
-  if (!auftrag || !auftrag.id) return false;
-  const a = stand && stand.auftrag;
-  if (a && a.id === auftrag.id && !(stand.rest > 0)) return false;
-  return Date.now() - new Date(auftrag.zeit).getTime() < 2 * 86400000;
-}
+const zngLaden = () => configLaden(["zng_ordner", "zng_auftrag", "dok_pfad_status"], "Zeichnungs-Ordner");
 
 function ZeichnungsOrdner() {
-  const [auffrischen, setAuffrischen] = useState(0);
-  const { daten } = useDaten(zngLaden, [auffrischen]);
-  const neu = () => setAuffrischen((n) => n + 1);
-  // Nach dem Knopfdruck alle 10 Sekunden nachsehen, sonst jede Minute
-  const st = daten && jsonOder(daten.dok_pfad_status, null);
-  const offen = !!daten && zngOffen(jsonOder(daten.zng_auftrag, null), st && st.zng ? st : null);
-  useEffect(() => {
-    const t = setInterval(neu, offen ? 10000 : 60000);
-    return () => clearInterval(t);
-  }, [offen]);
+  const { daten, neu, setOffen } = useNachsehen(zngLaden);
   return (
     <Gruppe titel="Zeichnungs-Ordner" id="zng-ordner"
       text={"Auf Knopfdruck wird je HOCO Nr. die PDF mit „hofer“ im Namen als Zeichnung hochgeladen, "
         + "sonst die mit „kunde“. Im Ordner wird nie etwas gelöscht, verschoben oder geändert."}>
-      {daten ? <ZngFormular werte={daten} offen={offen} neu={neu} /> : <div className="laedt">Wird geladen …</div>}
+      {daten ? <ZngFormular werte={daten} neu={neu} setOffen={setOffen} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
   );
 }
 
-function ZngFormular({ werte, offen, neu }) {
+function ZngFormular({ werte, neu, setOffen }) {
   const start = jsonOder(werte.zng_ordner, null) || {};
   const [pfad, setPfad] = useState(start.pfad || "");
   const [unter, setUnter] = useState(!!start.unter);
+  const [gespeichert, setGespeichert] = useState((start.pfad || "") + "|" + !!start.unter);
   const st = jsonOder(werte.dok_pfad_status, null);
   // Ein Stand vom früheren Netzlaufwerk-Programm hat kein „zng“
   const stand = st && st.zng ? st : null;
   const auftrag = jsonOder(werte.zng_auftrag, null);
+  const offen = auftragOffen(auftrag, stand);
+  useEffect(() => setOffen(offen), [offen]);
   const admin = alt.istAdmin();
 
   // scharf bleibt immer aus: Eine noch alte Fassung von zeichnungen.ps1
   // auf dem Rechner lädt so nicht mehr von selbst alle fünf Minuten hoch
-  const speichern = async () => {
+  const speichern = async (still) => {
     const r = await alt.db.from("app_config").upsert([{ schluessel: "zng_ordner",
       wert: JSON.stringify({ pfad: pfad.trim(), unter, scharf: false }) }]);
     if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return false; }
+    setGespeichert(pfad.trim() + "|" + unter);
+    if (!still) alt.meldung("Gespeichert.", "gut");
     return true;
   };
-
-  const knopf = async (art) => {
-    if (!pfad.trim()) { alt.meldung("Zuerst den Ordner eintragen.", "warn"); return; }
-    if (art === "hochladen") {
-      const ok = await alt.nachfragen({ titel: "Zeichnungen hochladen?",
-        text: "Der Rechner im Betrieb lädt alle neuen und geänderten Zeichnungen aus dem Ordner hoch. Eine "
-          + "vorhandene Zeichnung derselben HOCO Nr. wird in der App ersetzt. Im Ordner ändert sich nichts.",
-        bestaetigen: "Hochladen" });
-      if (!ok) return;
-    }
-    // Den Ordner, wie er gerade im Feld steht, gleich mitspeichern
-    if (pfad.trim() !== (start.pfad || "") || unter !== !!start.unter) { if (!(await speichern())) return; }
-    const p = alt.profil || {};
-    const neuerAuftrag = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), art,
-      zeit: new Date().toISOString(), von: p.full_name || p.email || "" };
-    const r = await alt.db.from("app_config").upsert([{ schluessel: "zng_auftrag", wert: JSON.stringify(neuerAuftrag) }]);
-    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
-    neu();
+  const vorher = async () => {
+    if (!pfad.trim()) { alt.meldung("Zuerst den Ordner eintragen.", "warn"); return false; }
+    return pfad.trim() + "|" + unter === gespeichert ? true : speichern(true);
   };
 
-  // ---------- Was das Programm meldet ----------
-  let zeile;
-  if (!stand) zeile = <span className="gedaempft">Die Aufgabe „Hofer Zeichnungen“ hat sich noch nicht gemeldet.</span>;
-  else {
-    const minuten = (Date.now() - new Date(stand.gesehen || stand.zeit).getTime()) / 60000;
-    const wuerde = (stand.neu || 0) + (stand.ersetzt || 0);
-    const durchlauf = stand.pdf !== undefined;
-    zeile = <>
-      <span className={"dokpfad-punkt " + (minuten < 15 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
-      {!durchlauf ? "Bereit" + (stand.rechner ? " auf " + stand.rechner : "") + " · noch nie auf Knopfdruck gelaufen"
+  const wuerde = stand ? (stand.neu || 0) + (stand.ersetzt || 0) : 0;
+  const durchlauf = stand && stand.pdf !== undefined;
+  const zeile = (
+    <Lebt stand={stand} aufgabe="Hofer Zeichnungen">
+      {stand && (!durchlauf ? "Bereit" + (stand.rechner ? " auf " + stand.rechner : "") + " · noch nie auf Knopfdruck gelaufen"
         : (stand.scharf ? "Hochgeladen " : "Probelauf ") + alt.datumZeitKurz(stand.zeit) + (stand.rechner ? " auf " + stand.rechner : "")
         + " · " + alt.zahlText(stand.pdf || 0) + " PDFs · " + alt.zahlText(stand.nummern || 0) + " HOCO Nr. mit Zeichnung · "
         + (stand.scharf ? (stand.hochgeladen || 0) + " hochgeladen" + (stand.rest ? ", " + alt.zahlText(stand.rest) + " folgen" : "")
           : wuerde + " würden hochgeladen (" + (stand.neu || 0) + " neu, " + (stand.ersetzt || 0) + " ersetzen eine vorhandene"
-            + (stand.mb ? ", zusammen " + stand.mb + " MB" : "") + ")")}
-      {minuten >= 15 && <> <b>— seit {Math.round(minuten)} Minuten keine Meldung</b></>}
-      {stand.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{stand.fehler}</div>}
-      {!stand.knopf && <div className="klein" id="zng-altfassung" style={{ color: "var(--gefahr)" }}>
-        Auf dem Rechner läuft noch die alte Fassung des Programms. Sie kennt den Knopf noch nicht.</div>}
-    </>;
-  }
+            + (stand.mb ? ", zusammen " + stand.mb + " MB" : "") + ")"))}
+    </Lebt>
+  );
   const liste = (stand && stand.liste) || [];
-  const laeuft = offen && stand && stand.auftrag && stand.auftrag.id === (auftrag && auftrag.id);
 
   return (
     <>
@@ -565,18 +589,11 @@ function ZngFormular({ werte, offen, neu }) {
       <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
         <div id="zng-stand" className="dokpfad-stand">{zeile}</div>
         {admin && <button className="knopf knopf--klein" id="zng-speichern"
-          onClick={async () => { if (await speichern()) { alt.meldung("Gespeichert.", "gut"); neu(); } }}>Ordner speichern</button>}</div>
-      {admin && <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
-        <div id="zng-auftrag" className="dokpfad-stand">
-          {offen ? <><span className="si-dreher" aria-hidden="true" /> {(auftrag.art === "hochladen" ? "Hochladen" : "Probelauf")
-            + (laeuft ? " läuft, beim nächsten Durchlauf geht es weiter." : " angefordert um " + alt.datumZeitKurz(auftrag.zeit)
-              + ". Der Rechner beginnt innert fünf Minuten.")}</>
-            : <span className="gedaempft">Der Probelauf zeigt nur, was hochgeladen würde.</span>}
-        </div>
-        <button className="knopf knopf--klein" id="zng-probe" disabled={offen} onClick={() => knopf("probe")}>Probelauf</button>
-        <button className="knopf knopf--klein knopf--haupt" id="zng-hochladen" disabled={offen}
-          onClick={() => knopf("hochladen")}>Zeichnungen hochladen</button>
-      </div>}
+          onClick={async () => { if (await speichern(false)) neu(); }}>Ordner speichern</button>}</div>
+      {admin && <KnopfReihe id="zng" schluessel="zng_auftrag" auftrag={auftrag} offen={offen} stand={stand} probe
+        hochladen="Zeichnungen hochladen" vorher={vorher} neu={neu}
+        frage={"Der Rechner im Betrieb lädt alle neuen und geänderten Zeichnungen aus dem Ordner hoch. Eine "
+          + "vorhandene Zeichnung derselben HOCO Nr. wird in der App ersetzt. Im Ordner ändert sich nichts."} />}
       {liste.length > 0 && <details className="eb-liste" open={!stand.scharf}>
         <summary>{stand.scharf ? "Letzter Durchlauf" : "Was der Probelauf hochladen würde"} ({liste.length})</summary>
         <div className="tabellenrolle">

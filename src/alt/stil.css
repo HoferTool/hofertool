@@ -6412,5 +6412,5 @@ body.dunkel .nb-tab--edit td:focus-within { background: rgba(107, 164, 255, .14)
 .nb-tab--edit .nb-text__breite { top: auto; bottom: -24px; right: -24px; margin: 0; width: 14px; height: 14px;
   cursor: ew-resize; border-radius: 50%; }
 
-/* Zeichnungs-Ordner: Dreher vor „angefordert“ (111.94.0) */
-#zng-auftrag .si-dreher { display: inline-block; vertical-align: -3px; margin-right: 4px; }
+/* Pool, Einrichtblätter, Zeichnungen: Dreher vor „angefordert“ (111.94.0) */
+.dok-auftrag .si-dreher { display: inline-block; vertical-align: -3px; margin-right: 4px; }

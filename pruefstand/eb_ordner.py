@@ -1,5 +1,5 @@
-# Einrichtblatt-Ordner (111.48.0): je Ordner ein Typ, Schalter „Hochladen“
-# erst nach Rückfrage, Probelauf-Liste aus eb_ordner_status
+# Einrichtblatt-Ordner (111.48.0): je Ordner ein Typ, seit 111.94.0 Knöpfe
+# statt Schalter (auch beim Pool), Probelauf-Liste aus eb_ordner_status
 import time, json
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -51,15 +51,28 @@ with sync_playwright() as p:
            and w["ordner"][0] == {"pfad": "\\\\FS01\\EB\\SR32", "typ": "t1", "unter": False}
            and w["ordner"][1]["unter"] is True)
 
-    # Einschalten fragt nach; Abbrechen lässt es aus
-    pg.click("#eb-scharf"); pg.wait_for_timeout(300)
+    # Statt Schalter Knöpfe (Wunsch 8. Oktober 2026): Abbrechen gibt keinen Auftrag
+    pruefe("Kein Schalter mehr", pg.locator("#eb-scharf").count() == 0)
+    pruefe("Alte Fassung erkannt", pg.locator("#eb-ordner .dok-altfassung").count() == 1)
+    pg.click("#eb-hochladen"); pg.wait_for_timeout(300)
     pg.click(".dialog-huelle [data-nein]"); pg.wait_for_timeout(300)
-    w = json.loads(pg.evaluate("TEST.daten.app_config.findLast(x => x.schluessel === 'eb_ordner').wert"))
-    pruefe("Abbrechen lässt aus", w["scharf"] is False and not pg.is_checked("#eb-scharf"))
-    pg.click("#eb-scharf"); pg.wait_for_timeout(300)
-    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(400)
-    w = json.loads(pg.evaluate("TEST.daten.app_config.findLast(x => x.schluessel === 'eb_ordner').wert"))
-    pruefe("Eingeschaltet", w["scharf"] is True and pg.is_checked("#eb-scharf") and len(w["ordner"]) == 2)
+    pruefe("Abbrechen gibt keinen Auftrag", pg.evaluate("TEST.daten.app_config.some(x => x.schluessel === 'eb_auftrag')") == False)
+    pg.click("#eb-hochladen"); pg.wait_for_timeout(300)
+    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(500)
+    a = json.loads(pg.evaluate("TEST.daten.app_config.findLast(x => x.schluessel === 'eb_auftrag').wert"))
+    pruefe("Auftrag Hochladen", a["art"] == "hochladen" and "angefordert" in pg.inner_text("#eb-auftrag")
+           and pg.locator("#eb-probe").is_disabled())
+    # Probelauf beim Pool gibt es nicht; „WBGs hochladen“ ohne Rückfrage
+    pruefe("Pool ohne Probelauf", pg.locator("#pool-probe").count() == 0)
+    pg.click("#pool-hochladen"); pg.wait_for_timeout(500)
+    a = json.loads(pg.evaluate("TEST.daten.app_config.findLast(x => x.schluessel === 'pool_auftrag').wert"))
+    pruefe("Pool-Auftrag", a["art"] == "hochladen" and "angefordert" in pg.inner_text("#pool-auftrag"))
+    # Das Programm meldet fertig: Knöpfe wieder frei
+    pg.evaluate("""(id) => { TEST.daten.app_config.push({ schluessel: 'dok_pool_status', wert: JSON.stringify({ knopf: true,
+      zeit: new Date().toISOString(), gesehen: new Date().toISOString(), rechner: 'POOL', dateien: 3, neu: 3,
+      auftrag: { id, art: 'hochladen' }, ohne: [], wartet: [] }) }); }""", a["id"])
+    pg.wait_for_timeout(11000)
+    pruefe("Pool fertig gemeldet", "3 abgelegt" in pg.inner_text("#dokpool-stand") and not pg.locator("#pool-hochladen").is_disabled())
     pg.locator("#eb-ordner").screenshot(path="eb_ordner.png")
     fehler += f
     br.close()
