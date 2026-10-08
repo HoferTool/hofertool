@@ -14,6 +14,7 @@
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
+import { symboleFensterOeffnen } from "../einstellungen/Symbole.jsx";
 
 // Strg + F öffnet die Suche, solange die Planwand offen ist. Einmal
 // angemeldet für die ganze Sitzung, der Behälter kommt aus plan.
@@ -234,6 +235,14 @@ function Kopfleiste({ b, mobil }) {
           onClick={() => alt.planAuftragDialog(null, b, null, null, null, true)}>
           <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"
             strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+        </button>}
+        {/* Symbole für die Balken anlegen, nur für Admins */}
+        {alt.istAdmin() && !mobil && <button className="knopf knopf--klein pw-eck pw-eck--plus" id="pw-symbole"
+          title="Symbole" aria-label="Symbole" onClick={symboleFensterOeffnen}>
+          <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9" />
+            <path d="M8 14.5c1 1.5 2.4 2.2 4 2.2s3-.7 4-2.2" />
+            <circle cx="9" cy="10" r=".9" fill="currentColor" /><circle cx="15" cy="10" r=".9" fill="currentColor" /></svg>
         </button>}
         {/* Zu heute springen, mit zwei Wochen Rückblick */}
         <button className="knopf knopf--klein pw-eck" id="pw-heute"

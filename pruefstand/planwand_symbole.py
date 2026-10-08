@@ -103,6 +103,15 @@ with sync_playwright() as p:
         print("     eingeplant ab", neu[0].get("planned_from"), "letzter Beginn bisher", ende)
         pruefe("Ans Ende der Maschine", (neu[0].get("planned_from") or "") > ende)
 
+    # ---------- Smiley-Knopf neben dem Plus (nur Admins) ----------
+    pruefe("Smiley-Knopf da", pg.locator("#pw-symbole").count() == 1)
+    pg.click("#pw-symbole"); pg.wait_for_timeout(700)
+    pruefe("Fenster Symbole offen", pg.locator(".dialog--symbole #sym-liste [data-symbol='sKack']").count() == 1)
+    pruefe("Dort Symbol anlegen möglich", pg.locator(".dialog--symbole #sym-anlegen").count() == 1)
+    pg.screenshot(path="/tmp/symbole_fenster.png")
+    pg.click("#sym-zu"); pg.wait_for_timeout(400)
+    pruefe("Fenster wieder zu", pg.locator(".dialog--symbole").count() == 0)
+
     # ---------- Einstellungen → Symbole ----------
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(600)
     pg.evaluate("window.einstellungenOeffnen ? einstellungenOeffnen() : null")

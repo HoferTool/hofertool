@@ -11,6 +11,22 @@ import { alt } from "../bruecke.jsx";
 import { zuschneiden } from "../teile/Zuschnitt.jsx";
 import { symbole, symboleLaden, symboleSpeichern, symbolSpalte } from "../daten/symbole.js";
 import { Gruppe } from "./teile.jsx";
+import { fensterOeffnen } from "../teile/Fenster.jsx";
+
+// Smiley-Knopf auf der Planwand (nur Admins, Wunsch Patrick 8. Oktober
+// 2026): derselbe Inhalt wie der Reiter, als eigenes Fenster
+export function symboleFensterOeffnen() {
+  if (document.querySelector(".dialog--symbole")) return;
+  alt.plan.imDialog = true;
+  fensterOeffnen((zu) => (
+    <div className="dialog dialog--breit dialog--symbole">
+      <Symbole />
+      <div className="dialog__knoepfe">
+        <button className="knopf knopf--still" id="sym-zu" onClick={zu}>Schliessen</button>
+      </div>
+    </div>
+  ), () => { alt.plan.imDialog = false; });
+}
 
 // Bild wählen und quadratisch zuschneiden, als kleine PNG-Adresse
 async function bildWaehlen() {
