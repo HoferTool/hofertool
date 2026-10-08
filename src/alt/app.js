@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.105.0";
+const APP_VERSION = "111.106.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5991,7 +5991,8 @@ function wischVerhalten(b) {
 //  - Auf einer Maschine läuft höchstens ein Auftrag. Wird einer auf
 //    "läuft" gesetzt, gehen andere laufende dort zurück auf geplant.
 //  - Wird ein Auftrag beendet, rückt der nächste auf derselben
-//    Maschine nach und läuft.
+//    Maschine nach und steht auf Rüsten (Wunsch 8. Oktober 2026,
+//    vorher gleich auf "läuft" — gerüstet wird aber immer zuerst).
 // Wird ein beendeter Auftrag wieder geöffnet, verschwindet sein
 // Endzeitpunkt. Genau daran hing es bisher: der Zustand stand auf
 // "läuft", aber der Endzeitpunkt blieb, und damit galt er weiter als
@@ -6048,12 +6049,15 @@ async function zustandSetzen(j, neu) {
       .eq("machine_id", j.machine_id).is("ended_at", null).neq("id", j.id)
       .not("planned_from", "is", null).order("planned_from").limit(1);
     naechster = n && n.data && n.data[0];
-    if (naechster && naechster.plan_status !== "laeuft") {
-      const r2 = await db.from("jobs").update({
-        plan_status: "laeuft", started_at: jetzt,
-      }).eq("id", naechster.id);
+    // Nur ein geplanter rückt auf Rüsten. Steht er schon auf Rüsten,
+    // QS oder läuft, ist er weiter, und das bleibt so. started_at
+    // bleibt, bis er wirklich läuft.
+    if (naechster && (naechster.plan_status || "geplant") === "geplant") {
+      const r2 = await db.from("jobs").update({ plan_status: "ruesten" })
+        .eq("id", naechster.id);
       if (r2.error) throw r2.error;
-      hinweis = naechster.job_number + " läuft jetzt.";
+      naechster.plan_status = "ruesten";
+      hinweis = naechster.job_number + " steht jetzt auf Rüsten.";
     }
   }
   return { ok: true, hinweis: hinweis, naechster: naechster };

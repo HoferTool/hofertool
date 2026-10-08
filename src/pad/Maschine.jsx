@@ -75,13 +75,13 @@ async function zustandWechseln(m, j) {
         Object.keys(PLANSTATUS).filter((k) => k !== j.plan_status)
           .map((k) => ({ wert: k,
             text: PLANSTATUS[k].zeichen + "  " + PLANSTATUS[k].name
-              + (k === "fertig" ? "  · nächster rückt nach" : "") })));
+              + (k === "fertig" ? "  · nächster auf Rüsten" : "") })));
       if (!wahl) return;
       if (wahl === "fertig") {
         const ok = await alt.nachfragen({
           titel: "Auftrag beenden",
           text: "Auftrag " + j.job_number + " wird abgeschlossen. "
-            + "Der nächste Auftrag auf dieser Maschine rückt nach und läuft.",
+            + "Der nächste Auftrag auf dieser Maschine rückt nach und steht auf Rüsten.",
           bestaetigen: "Auftrag beenden",
         });
         if (!ok) return;
