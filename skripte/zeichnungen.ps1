@@ -11,32 +11,38 @@
 #     zng_ordner        Ordner, Unterordner ja/nein (Admin)
 #     dok_pfad_status   was das Programm meldet (Dienstkonto)
 #
-#  Im Ordner liegen viele PDFs und anderes. Das Programm nimmt nur PDFs
-#  mit einer HOCO Nr. und dazu "hofer" oder "kunde" im Dateinamen:
+#  Im Ordner liegen viele PDFs und anderes, und die Zeichnungen heissen
+#  "einfach irgendwie" (Patrick, 8. Oktober 2026), meist nach der
+#  Zeichnungsnummer des Kunden, etwa "416.4630.02_Kunde.pdf". Die HOCO
+#  Nr. steht im Dateinamen oder im Namen eines Ordners darüber: zuerst
+#  der Dateiname, dann die Ordner von innen nach aussen bis zum
+#  Zeichnungs-Ordner selbst.
 #
-#     10844-0049 Hofer.pdf           → Zeichnung der HOCO Nr. 10844-0049
-#     10844-0049 Kundenzeichnung.pdf   (nur wenn es keine "hofer" gibt)
-#     10844-0049 Rohteil.pdf         → bleibt weg
+#     10844-0049 Hofer.pdf                        → HOCO Nr. 10844-0049
+#     ...\10844-0049 Deckel\416.4630.02_Kunde.pdf  → HOCO Nr. 10844-0049
 #
-#  Die HOCO Nr. steht selten im Dateinamen: Die Zeichnungen heissen nach
-#  der Zeichnungsnummer des Kunden, etwa "416.4630.02_Kunde.pdf" (so
-#  heissen die von Hand hochgeladenen Zeichnungen in der App). Darum
-#  gilt auch die HOCO Nr. im Namen eines Ordners darüber (seit 111.113.0,
-#  8. Oktober 2026): zuerst der Dateiname, dann die Ordner von innen nach
-#  aussen bis zum Zeichnungs-Ordner selbst:
+#  Regel seit 111.114.0 (Wunsch Patrick, 8. Oktober 2026: "es soll mal
+#  eine Zeichnung hochladen; wenn es nicht passt, lösche ich sie, und du
+#  lädst das nächste Mal ein anderes Dokument hoch; gibt es keine mehr,
+#  lässt du es sein; eine manuell per HoferTool hochgeladene ist Master"):
 #
-#     ...\10844-0049 Deckel\416.4630.02_Kunde.pdf → HOCO Nr. 10844-0049
+#   - Je HOCO Nr., die die App kennt (HOCO Nummern oder Auftrag), kommt
+#     EINE PDF hoch: zuerst eine mit "hofer" im Namen, dann "kunde", dann
+#     irgendeine; bei mehreren die zuletzt geänderte.
+#   - Nimmt jemand die Zeichnung in der App weg ("Zeichnung entfernen" im
+#     Betrachter), kommt beim nächsten Durchlauf die nächste Datei. Die
+#     weggenommene steht in zeichnungen-stand.json unter "abgelehnt" und
+#     kommt nie wieder. Gibt es keine andere mehr, bleibt die Nummer ohne.
+#   - Eine Zeichnung, die nicht von diesem Programm stammt (von Hand in
+#     der App hochgeladen oder gewählt), ist Master: Sie wird nie ersetzt.
+#     Woran man das erkennt: Die Adresse in hoco_parts.zeichnung_url ist
+#     nicht die, die das Programm selbst hochgeladen hat ("adressen").
+#   - Die eigene Zeichnung wird nur ersetzt, wenn sich die Datei im
+#     Ordner geändert hat (Kennung aus Name, Grösse und Änderungszeit).
 #
 #  Damit man sieht, wie die Dateien wirklich heissen, meldet das Programm
 #  der App dazu einige Beispiele von PDFs ohne HOCO Nr. und die Namen der
 #  Unterordner (dok_pfad_status: beispiele, ordner).
-#
-#  Je HOCO Nr. zählt eine PDF mit "hofer", sonst eine mit "kunde"; gibt
-#  es mehrere, die zuletzt geänderte. Gibt es keine, bleibt die Nummer
-#  weg (Wunsch 5. Oktober 2026). Hochgeladen wird nur für HOCO Nr., die
-#  die App schon kennt (bei den HOCO Nummern oder als Auftrag), sonst
-#  käme der ganze Ordner mit Jahren alter Teile in die Ablage. Eine
-#  Datei wird nur hochgeladen, wenn sie neu ist oder sich geändert hat.
 #
 #  DAS PROGRAMM LIEST NUR. Im Ordner wird nie etwas gelöscht,
 #  verschoben, umbenannt oder geändert. Zum Hochladen kopiert es die
@@ -82,13 +88,18 @@ $U = ($E.supabase_url).TrimEnd("/")
 $KEY = $E.anon_key
 
 # Anmeldung und welche Datei je HOCO Nr. zuletzt hochgeladen wurde
-$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; erledigt = $null; letzter = $null }
+# dateien: je HOCO Nr. die Kennung der hochgeladenen Datei, adressen: die
+# Adresse davon in der App, abgelehnt: je HOCO Nr. die Dateien, die in
+# der App wieder weggenommen wurden (volle Pfade)
+$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; adressen = @{}; abgelehnt = @{}; erledigt = $null; letzter = $null }
 if (Test-Path $standDatei) {
   try {
     $g = Get-Content -Raw -Path $standDatei -Encoding UTF8 | ConvertFrom-Json
     $stand.token = $g.token; $stand.ablauf = [double]$g.ablauf; $stand.auffrischen = $g.auffrischen
     $stand.erledigt = $g.erledigt; $stand.letzter = $g.letzter
     if ($g.dateien) { $g.dateien.PSObject.Properties | ForEach-Object { $stand.dateien[$_.Name] = [string]$_.Value } }
+    if ($g.adressen) { $g.adressen.PSObject.Properties | ForEach-Object { $stand.adressen[$_.Name] = [string]$_.Value } }
+    if ($g.abgelehnt) { $g.abgelehnt.PSObject.Properties | ForEach-Object { $stand.abgelehnt[$_.Name] = @($_.Value | ForEach-Object { [string]$_ }) } }
   } catch { }
 }
 # Was dokumente-abruf.ps1 (111.98.0, Abruf beim Öffnen) hochgeladen hat,
@@ -119,12 +130,13 @@ function LesenAlle([string]$pfad) {
   return $alle
 }
 
-#   1 = "hofer" im Namen, 2 = "kunde" im Namen, 0 = keins von beiden
+#   1 = "hofer" im Namen, 2 = "kunde" im Namen, 3 = keins von beiden
+#   (seit 111.114.0 zählen auch die: "viele Zeichnungen heissen einfach irgendwie")
 function Rang([string]$name) {
   $n = $name.ToLower()
   if ($n.Contains("hofer")) { return 1 }
   if ($n.Contains("kunde")) { return 2 }
-  return 0
+  return 3
 }
 
 # HOCO Nr. in einem Ordnernamen, ohne dass etwas als Endung abgeschnitten
@@ -164,9 +176,9 @@ function Relativ([string]$voll, [string]$wurzel) {
 # immer = true sagt der App, dass diese Fassung ohne Knopf läuft
 $jetztIso = (Get-Date).ToUniversalTime().ToString("o")
 $status = @{ zng = $true; immer = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME;
-             scharf = $false; pfad = ""; pdf = 0; nummern = 0; ohneWahl = 0; unbekannt = 0; rest = 0;
+             scharf = $false; pfad = ""; pdf = 0; nummern = 0; unbekannt = 0; rest = 0;
              neu = 0; ersetzt = 0; gleich = 0; hochgeladen = 0; mb = 0; fehler = $null; liste = @();
-             ohneNr = 0; imOrdner = 0; beispiele = @(); ordner = @() }
+             ohneNr = 0; imOrdner = 0; beispiele = @(); ordner = @(); manuell = 0; abgelehnt = 0; keineMehr = 0 }
 function Eintrag([string]$datei, [string]$hoco, [string]$was) {
   if ($status.liste.Count -lt $listeHoechstens) { $status.liste += @{ d = $datei; h = $hoco; w = $was } }
 }
@@ -202,11 +214,11 @@ try {
     throw $f
   }
 
-  # Welche HOCO Nr. kennt die App, und welche hat schon eine Zeichnung?
-  $bekannt = @{}; $mitZeichnung = @{}; $stamm = @{}
+  # Welche HOCO Nr. kennt die App, und welche Zeichnung hat sie jetzt?
+  $bekannt = @{}; $adresseVon = @{}; $stamm = @{}
   foreach ($t in (LesenAlle "hoco_parts?select=hoco_nr,zeichnung_url&order=hoco_nr")) {
     $bekannt[[string]$t.hoco_nr] = $true; $stamm[[string]$t.hoco_nr] = $true
-    if ($t.zeichnung_url) { $mitZeichnung[[string]$t.hoco_nr] = $true }
+    if ($t.zeichnung_url) { $adresseVon[[string]$t.hoco_nr] = [string]$t.zeichnung_url }
   }
   foreach ($j in (LesenAlle "jobs?select=job_number&order=id")) { if ($j.job_number) { $bekannt[[string]$j.job_number] = $true } }
 
@@ -214,22 +226,19 @@ try {
     Where-Object { $_.Extension -eq '.pdf' })
   $status.pdf = $alle.Count
 
-  # Je HOCO Nr. die PDFs mit "hofer" oder "kunde"; die Nummer aus dem
-  # Dateinamen oder aus einem Ordner darüber
-  $jeNr = @{}; $ohne = @{}; $ohneNr = New-Object Collections.ArrayList
+  # Je HOCO Nr. alle PDFs; die Nummer aus dem Dateinamen oder aus einem
+  # Ordner darüber
+  $jeNr = @{}; $ohneNr = New-Object Collections.ArrayList
   foreach ($d in $alle) {
     $f = HocoAusPfad $d $pfad
     if (-not $f) { [void]$ohneNr.Add((Relativ $d.FullName $pfad)); continue }
     $h = $f.nr
     if ($f.woher -eq "ordner") { $status.imOrdner++ }
-    $r = Rang $d.Name
-    if ($r -eq 0) { $ohne[$h] = $true; continue }
-    $d | Add-Member -NotePropertyName HoferRang -NotePropertyValue $r -Force
+    $d | Add-Member -NotePropertyName HoferRang -NotePropertyValue (Rang $d.Name) -Force
     if (-not $jeNr[$h]) { $jeNr[$h] = @() }
     $jeNr[$h] += $d
   }
   $status.nummern = $jeNr.Count
-  $status.ohneWahl = @($ohne.Keys | Where-Object { -not $jeNr[$_] }).Count
   # Beispiele gleichmässig über den ganzen Ordner verteilt, und die
   # Unterordner der ersten Ebene, damit man in der Datenbank sieht, wie
   # die Dateien wirklich heissen
@@ -245,13 +254,36 @@ try {
   $nochFrei = $hoechstensJeLauf
   $bytes = [double]0
   foreach ($h in ($jeNr.Keys | Sort-Object)) {
-    $gruppe = @($jeNr[$h] | Sort-Object @{ Expression = { $_.HoferRang } }, @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true })
-    $d = $gruppe[0]
     if (-not $bekannt[$h]) { $status.unbekannt++; continue }
-    $kennung = Kennung $d
-    if ($stand.dateien[$h] -eq $kennung) { $status.gleich++; continue }
+    $jetzt = [string]$adresseVon[$h]
+    $eigene = [string]$stand.adressen[$h]
 
-    $ersetzt = [bool]$mitZeichnung[$h]
+    # Von Hand hochgeladen oder gewählt: Master, bleibt
+    if ($jetzt -and ($jetzt -ne $eigene)) { $status.manuell++; continue }
+
+    # Die eigene Zeichnung ist in der App weggenommen worden: diese Datei
+    # kommt nie wieder, die nächste ist dran (dateien ohne adressen: aus
+    # einer Fassung vor 111.114.0 hochgeladen, zählt genauso)
+    if (-not $jetzt -and ($eigene -or $stand.dateien[$h])) {
+      $weg = ([string]$stand.dateien[$h]).Split("|")[0]
+      if ($weg) {
+        if (-not $stand.abgelehnt[$h]) { $stand.abgelehnt[$h] = @() }
+        if ($stand.abgelehnt[$h] -notcontains $weg) { $stand.abgelehnt[$h] += $weg }
+      }
+      $stand.dateien.Remove($h); $stand.adressen.Remove($h)
+      StandSichern
+      $status.abgelehnt++
+      Schreibe ("Zeichnung von " + $h + " in der App entfernt, nächste Datei: " + $weg)
+    }
+
+    $gruppe = @($jeNr[$h] | Where-Object { @($stand.abgelehnt[$h]) -notcontains $_.FullName } |
+      Sort-Object @{ Expression = { $_.HoferRang } }, @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true })
+    if ($gruppe.Count -eq 0) { $status.keineMehr++; continue }
+    $d = $gruppe[0]
+    $kennung = Kennung $d
+    if ($jetzt -and $stand.dateien[$h] -eq $kennung) { $status.gleich++; continue }
+
+    $ersetzt = [bool]$jetzt
     if ($ersetzt) { $status.ersetzt++ } else { $status.neu++ }
     $was = $(if ($ersetzt) { "ersetzt die Zeichnung in der App" } else { "neu" })
     if (-not $scharf) {
@@ -271,10 +303,12 @@ try {
         $stamm[$h] = $true
       }
       $z = @{ hoco = $h; typ = $null; art = "zeichnung"; titel = $h; fa = $null; auftrag = $null; grund = ""; passt = $true }
+      $script:letzteAdresse = $null
       Hochladen $kopie $z "zng"
       $stand.dateien[$h] = $kennung
+      $stand.adressen[$h] = [string]$script:letzteAdresse
       StandSichern
-      $mitZeichnung[$h] = $true
+      $adresseVon[$h] = [string]$script:letzteAdresse
       $status.hochgeladen++
       $bytes += $d.Length
       $nochFrei--
@@ -305,10 +339,11 @@ StandSichern
 
 if ($Probe -or -not $status.scharf) {
   Write-Host ""
-  Write-Host ("Probelauf: " + $status.pdf + " PDFs gefunden, " + $status.nummern + " HOCO Nr. mit 'hofer' oder 'kunde', " +
+  Write-Host ("Probelauf: " + $status.pdf + " PDFs gefunden, " + $status.nummern + " HOCO Nr. mit PDF, " +
     ($status.neu + $status.ersetzt) + " würden hochgeladen (" + $status.neu + " neu, " + $status.ersetzt +
-    " ersetzen eine vorhandene, zusammen " + $status.mb + " MB), " + $status.unbekannt + " HOCO Nr. kennt die App nicht, " +
-    $status.ohneWahl + " HOCO Nr. ohne 'hofer' oder 'kunde', " + $status.ohneNr + " PDFs ohne HOCO Nr. in Name oder Ordner (" +
+    " ersetzen eine eigene, zusammen " + $status.mb + " MB), " + $status.unbekannt + " HOCO Nr. kennt die App nicht, " +
+    $status.manuell + " mit Zeichnung von Hand (Master), " + $status.keineMehr + " ohne weitere Datei, " +
+    $status.ohneNr + " PDFs ohne HOCO Nr. in Name oder Ordner (" +
     $status.imOrdner + " mit HOCO Nr. aus dem Ordnernamen). Nichts hochgeladen, im Ordner nichts verändert.")
   if ($status.fehler) { Write-Host ("Fehler: " + $status.fehler) }
 }

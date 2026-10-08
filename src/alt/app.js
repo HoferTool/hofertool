@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.113.0";
+const APP_VERSION = "111.114.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1857,6 +1857,35 @@ async function zeichnungErsetzen(hocoNr, neu, alt) {
     await db.from("dokumente").delete().eq("art", "zeichnung").eq("hoco_nr", hocoNr).is("type_id", null);
   } catch (f) { /* Hauptsache, der Auftrag hat die neue */ }
   await ablageLoeschen(alte.filter((u) => u && u !== neu));
+}
+
+// Zeichnung einer HOCO Nr. entfernen (Wunsch Patrick 8. Oktober 2026):
+// Die Aufgabe „HoferTool“ lädt je HOCO Nr. eine Zeichnung aus dem
+// Zeichnungs-Ordner hoch. Passt sie nicht, nimmt man sie hier weg, und
+// beim nächsten Durchlauf kommt die nächste Datei. Weg aus den
+// Stammdaten, von allen Aufträgen der Nummer und aus „Zuletzt
+// abgelegt“, mit einer Rückfrage. Die Datei bleibt in der Ablage, damit
+// Rückgängig alles zurückholen kann.
+async function zeichnungEntfernen(hocoNr) {
+  const ok = await nachfragen({ titel: "Zeichnung entfernen",
+    text: "Soll die Zeichnung der HOCO Nr. " + hocoNr + " entfernt werden? Liegt im Zeichnungs-Ordner "
+      + "noch eine andere Datei zu dieser Nummer, lädt die Aufgabe „HoferTool“ beim nächsten Durchlauf diese hoch.",
+    bestaetigen: "Entfernen", gefahr: true });
+  if (!ok) return false;
+  const teile = await rueckSichern("hoco_parts", { hoco_nr: hocoNr });
+  const auftraege = await rueckSichern("jobs", { job_number: hocoNr });
+  const doks = await rueckSichern("dokumente", { art: "zeichnung", hoco_nr: hocoNr });
+  const r1 = await db.from("hoco_parts").update({ zeichnung_url: null }).eq("hoco_nr", hocoNr);
+  if (r1.error) throw r1.error;
+  const r2 = await db.from("jobs").update({ drawing_url: null }).eq("job_number", hocoNr);
+  if (r2.error) throw r2.error;
+  try { await db.from("dokumente").delete().eq("art", "zeichnung").eq("hoco_nr", hocoNr); } catch (f) { /* dann bleibt der Eintrag */ }
+  merkeSchritt("Zeichnung " + hocoNr + " entfernt",
+    teile.filter((t) => t.zeichnung_url).map((t) => rueckSetz("hoco_parts", { zeichnung_url: t.zeichnung_url }, { hoco_nr: t.hoco_nr }))
+      .concat(auftraege.filter((j) => j.drawing_url).map((j) => rueckSetz("jobs", { drawing_url: j.drawing_url }, { id: j.id })))
+      .concat(doks.length ? [rueckRein("dokumente", doks)] : []));
+  dokVerlauf({ art: "zeichnung", hoco_nr: hocoNr, ziel: "Zeichnung entfernt", quelle: "hand" });
+  return true;
 }
 
 // Ein Eintrag im Verlauf: welche Datei wohin ging
@@ -9094,7 +9123,7 @@ Object.assign(alt, {
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
-  planKonflikteLoesen, planAufruecken, zeichnungErsetzen, ablageLoeschen,
+  planKonflikteLoesen, planAufruecken, zeichnungErsetzen, zeichnungEntfernen, ablageLoeschen,
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert, einstellungWert,
   meineRolle, zeichneSeite,
   masseBerechnen, isMobil, zuHeute, hocoFenster, sucheDialog, serverStempel,

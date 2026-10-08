@@ -419,10 +419,11 @@ function EbFormular({ werte, typen }) {
 }
 
 // ---------- Zeichnungs-Ordner (nur lesen) ----------
-//  zeichnungen.ps1 sucht hier je HOCO Nr. die PDF mit „hofer“ im Namen,
-//  sonst die mit „kunde“; gibt es keine, bleibt die Nummer weg (Wunsch
-//  5. Oktober 2026). Die HOCO Nr. steht im Dateinamen oder im Namen eines
-//  Ordners darüber (111.113.0). Es löscht, verschiebt und ändert dort nie etwas.
+//  zeichnungen.ps1 lädt hier je HOCO Nr. eine PDF hoch („hofer“ vor
+//  „kunde“ vor irgendeiner, 111.114.0); „Zeichnung entfernen“ im
+//  Betrachter holt die nächste, von Hand Hochgeladenes ist Master. Die
+//  HOCO Nr. steht im Dateinamen oder im Namen eines Ordners darüber
+//  (111.113.0). Es löscht, verschiebt und ändert dort nie etwas.
 
 const zngLaden = () => configLaden(["zng_ordner", "dok_pfad_status"], "Zeichnungs-Ordner");
 
@@ -430,9 +431,10 @@ function ZeichnungsOrdner() {
   const { daten, neu } = useNachsehen(zngLaden);
   return (
     <Gruppe titel="Zeichnungs-Ordner" id="zng-ordner"
-      text={"Die Aufgabe „HoferTool“ sucht hier alle fünf Minuten je HOCO Nr. die PDF mit „hofer“ im Namen, sonst "
-        + "die mit „kunde“, und lädt sie hoch, wenn sie neu oder geändert ist. Die HOCO Nr. darf im Dateinamen oder "
-        + "im Namen eines Ordners darüber stehen. Im Ordner wird nie etwas gelöscht, verschoben oder geändert."}>
+      text={"Die Aufgabe „HoferTool“ lädt hier alle fünf Minuten je HOCO Nr. eine PDF hoch: zuerst eine mit „hofer“ im Namen, "
+        + "sonst „kunde“, sonst irgendeine. Die HOCO Nr. darf im Dateinamen oder im Namen eines Ordners darüber stehen. "
+        + "Passt die Zeichnung nicht, nimmt man sie im Betrachter mit „Zeichnung entfernen“ weg, dann kommt die nächste Datei. "
+        + "Eine von Hand hochgeladene Zeichnung bleibt immer. Im Ordner wird nie etwas gelöscht, verschoben oder geändert."}>
       {daten ? <ZngFormular werte={daten} neu={neu} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
   );

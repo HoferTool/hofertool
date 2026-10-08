@@ -33,7 +33,8 @@ export function dateiAnsehen(datei) {
 }
 
 // Auch für dokZeigen (DokAbruf.jsx): „hinweis“ steht klein neben dem Titel
-export function Betrachter({ adresse, titel, art, endung, zu, hinweis }) {
+// knoepfe: weitere Knöpfe im Kopf, vor „Schliessen“ (etwa „Zeichnung entfernen“)
+export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }) {
   const istPdf = art === "pdf", istXl = art === "excel";
   const rahmen = useRef(null);
   const wurzel = useRef(null);
@@ -133,6 +134,7 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis }) {
           <button className="knopf knopf--klein" data-drucken="" onClick={drucken}>Drucken</button>
           <button className="knopf knopf--klein" data-speichern="" onClick={speichern}>Speichern</button>
           <a className="knopf knopf--klein" href={adresse} target="_blank" rel="noopener">Neuer Tab</a>
+          {knoepfe || null}
           <button className="knopf knopf--klein" data-zu="" onClick={zu}>Schliessen</button>
         </div>
       </div>

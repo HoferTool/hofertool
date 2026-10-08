@@ -313,6 +313,9 @@ function Hochladen($datei, $z, [string]$quelle) {
   Invoke-RestMethod -Method Post -Uri "$U/storage/v1/object/zeichnungen/$pfad" -Headers $h `
     -ContentType $mime -InFile $datei.FullName | Out-Null
   $adresse = "$U/storage/v1/object/public/zeichnungen/$pfad"
+  # Für das aufrufende Programm: zeichnungen.ps1 merkt sich so, welche
+  # Adresse von ihm stammt (manuell hochgeladene Zeichnungen sind Master)
+  $script:letzteAdresse = $adresse
 
   $art = $z.art; $hoco = $z.hoco; $typId = $null
   if ($z.typ) { $typId = $z.typ.id }
