@@ -10,7 +10,11 @@
 //  schon gespeicherten Bilder mitmachen, ohne dass jemand sie neu
 //  hochladen muss.
 // =================================================================
-const WAHL = "img.kopf__bild, img.geb-bild, img.profilbild-gross, img.login__kachel-bild";
+// Auch die Kachel, die bei der Anmeldung in die Mitte oder ins Feld
+// schwebt (login__flieger-bild, login__gross): Sie ist eine Kopie der
+// Kachel und muss genauso aussehen, sonst springt ein umgekehrtes Bild
+// unterwegs wieder auf hell (Fehler gemeldet 8. Oktober 2026).
+const WAHL = "img.kopf__bild, img.geb-bild, img.profilbild-gross, img.login__kachel-bild, img.login__flieger-bild, img.login__gross";
 // Anteil fast weisser Punkte, ab dem ein Bild als „viel Weiss“ gilt
 const GRENZE = 0.4;
 const ergebnis = new Map(); // Adresse → true/false, damit jedes Bild nur einmal gemessen wird
@@ -40,6 +44,12 @@ function messenMitFreigabe(adresse) {
     kopie.onerror = () => fertig(false);
     kopie.src = adresse;
   });
+}
+
+// Schon gemessen und hell? Damit eine Kopie des Bildes gleich beim
+// Erscheinen richtig aussieht und nicht erst nach dem Laden umspringt.
+export function bildHell(adresse) {
+  return ergebnis.get(adresse) === true;
 }
 
 function setzen(bild, hell) {

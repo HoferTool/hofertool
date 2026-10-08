@@ -6307,8 +6307,8 @@ body.dunkel .nb-blatt .nb-textleiste select { background: #fff !important; borde
 
 /* Profilbilder alle grau, sehr helle mässig umgekehrt (Wunsch
    7. Oktober 2026, Erkennung in src/teile/profilbilder.js) */
-:is(img.kopf__bild, img.geb-bild, img.profilbild-gross, img.login__kachel-bild) { filter: grayscale(1); }
-:is(img.kopf__bild, img.geb-bild, img.profilbild-gross, img.login__kachel-bild)[data-hell] { filter: grayscale(1) invert(.8) contrast(1.1); }
+:is(img.kopf__bild, img.geb-bild, img.profilbild-gross, img.login__kachel-bild, img.login__flieger-bild, img.login__gross) { filter: grayscale(1); }
+:is(img.kopf__bild, img.geb-bild, img.profilbild-gross, img.login__kachel-bild, img.login__flieger-bild, img.login__gross)[data-hell] { filter: grayscale(1) invert(.8) contrast(1.1); }
 /* Einstellungen etwas breiter (Wunsch Patrick, 7. Oktober 2026) */
 .dialog--einstellungen.es { max-width: min(1440px, 97vw); }
 

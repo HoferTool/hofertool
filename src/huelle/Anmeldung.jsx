@@ -15,6 +15,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
+import { bildHell } from "../teile/profilbilder.js";
 
 let wurzel = null;
 
@@ -71,7 +72,7 @@ function fliegen(el, von, nach) {
 function Bildchen({ konto, className }) {
   const name = konto.full_name || konto.email;
   return konto.bild_url
-    ? <img className={className} src={konto.bild_url} alt="" />
+    ? <img className={className} src={konto.bild_url} alt="" data-hell={bildHell(konto.bild_url) ? "" : undefined} />
     : <span className={className + " login__buchstabe"}>{name.charAt(0).toUpperCase()}</span>;
 }
 
