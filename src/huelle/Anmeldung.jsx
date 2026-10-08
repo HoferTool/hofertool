@@ -96,11 +96,11 @@ async function kachelnLaden() {
 // Gerätekonten wie Planwand, Pad Mode oder Päckli Pad stehen nicht
 // zwischen den Leuten, sondern unten unter „Andere Nutzer“ (Wunsch
 // Patrick, 7. Oktober 2026). Das Häkchen setzt der Admin unter
-// Einstellungen → Nutzer. Solange sql/andere-nutzer.sql fehlt, kennen
-// die Kacheln das Häkchen nicht; dann gelten die Planwand-Konten als
-// solche, denn genau das sind bisher die Gerätekonten.
+// Einstellungen → Nutzer. Die Regel selbst (samt Ersatz, solange
+// sql/andere-nutzer.sql fehlt) steht im alten Programm, weil sie auch
+// die Abmeldung braucht: Solche Konten werden nie von selbst abgemeldet.
 export function istAndererNutzer(u) {
-  return u.andere_nutzer === undefined || u.andere_nutzer === null ? u.role === "planwand" : !!u.andere_nutzer;
+  return alt.istAndererNutzer(u);
 }
 
 // Reihen ausgleichen: lieber 3 + 3 als 5 + 1. Höchstens drei Zeilen,
@@ -350,7 +350,7 @@ function Anmeldung() {
 // aufPasswort gesetzt heisst: Das Feld nimmt eine PIN.
 // Rückmeldungen gibt es keine als Meldung unten rechts: Nur wenn etwas
 // nicht stimmt, erscheint der Grund direkt unter dem Feld.
-function useAnmelden(vorgabeMail, aufPasswort, hinweis) {
+function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerken) {
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState(hinweis ? { text: hinweis, n: 0 } : null);
   const nameRef = useRef(null);
@@ -408,9 +408,12 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis) {
         if (error) throw error;
       }
       alt.geraetKontoMerken(email);
-      // Häkchen „Auf diesem Gerät merken“: Schlüssel der Sitzung aufheben
+      // Häkchen „Auf diesem Gerät merken“: Schlüssel der Sitzung aufheben.
+      // Andere Nutzer (Planwand, Päckli Pad …) immer, die bleiben
+      // angemeldet (Wunsch Patrick, 8. Oktober 2026).
       const s = await alt.sitzung();
-      alt.sitzungMerken(email, merkRef.current && merkRef.current.checked && s ? s.refresh_token : null);
+      const merken = immerMerken || (merkRef.current && merkRef.current.checked);
+      alt.sitzungMerken(email, merken && s ? s.refresh_token : null);
       await alt.profilLaden();
       alt.zeichneGeruest();
     } catch (f) {
@@ -425,8 +428,10 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis) {
     : null;
 
   const knopf = (<>
-    <label className="schalter login__merken"><input type="checkbox" id="lmerk" defaultChecked ref={merkRef} />
-      <span>Auf diesem Gerät merken</span></label>
+    {immerMerken
+      ? <div className="login__merken login__merken--immer" id="lmerk-immer">Dieses Konto bleibt angemeldet.</div>
+      : <label className="schalter login__merken"><input type="checkbox" id="lmerk" defaultChecked ref={merkRef} />
+          <span>Auf diesem Gerät merken</span></label>}
     <button type="submit" className={"knopf knopf--haupt knopf--breit" + (laeuft ? " login__knopf--laeuft" : "")}
       id="lk" disabled={laeuft} aria-busy={laeuft}>
       {laeuft ? <><span className="login__punkt" aria-hidden="true" />Anmelden …</> : "Anmelden"}</button>
@@ -435,7 +440,8 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis) {
 }
 
 function KontoAnmeldung({ konto, mitPin, aufPasswort, hinweis, wartet }) {
-  const { absenden, pwRef, knopf, fehlerZeile } = useAnmelden(konto.email, mitPin ? aufPasswort : null, hinweis);
+  const { absenden, pwRef, knopf, fehlerZeile } = useAnmelden(konto.email, mitPin ? aufPasswort : null, hinweis,
+    istAndererNutzer(konto));
   // autoFocus wirkt beim Wechsel nicht zuverlässig, darum von Hand
   useLayoutEffect(() => { if (pwRef.current) pwRef.current.focus({ preventScroll: true }); }, [pwRef]);
   const name = konto.full_name || konto.email;

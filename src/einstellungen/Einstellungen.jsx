@@ -263,9 +263,12 @@ function MeinKonto() {
             PIN entfernen und wieder mit Passwort anmelden</button>}
         </Zeile>
         </>}
-        <SchalterZeile id="mk-merken" titel="Auf diesem Gerät merken"
-          text="Ein Tipp auf deine Kachel genügt hier, auch nach dem Abmelden."
-          checked={merken} onChange={merkenAendern} />
+        {alt.istAndererNutzer()
+          ? <SchalterZeile id="mk-merken" titel="Auf diesem Gerät merken"
+              text="Dieses Konto bleibt immer angemeldet, auch nach dem Schliessen." checked disabled />
+          : <SchalterZeile id="mk-merken" titel="Auf diesem Gerät merken"
+              text="Ein Tipp auf deine Kachel genügt hier, auch nach dem Abmelden."
+              checked={merken} onChange={merkenAendern} />}
       </Gruppe>
     </>
   );
@@ -298,10 +301,15 @@ function Darstellung() {
         beiAenderung={(an) => document.body.classList.toggle("dunkel", an)} />
       <Schalter id="e-wochestart" name="wochestart" titel="Erfassung mit der Woche öffnen"
         text="Sonst öffnet die Erfassung mit dem Tag." />
-      {/* Sofort wirksam, nicht erst nach dem nächsten Anmelden */}
-      <Schalter id="e-angemeldet" name="angemeldetbleiben" titel="Angemeldet bleiben"
-        text="Ohne meldet sich die App nach fünf Minuten ohne Bedienung selbst ab."
-        beiAenderung={() => { if (window.untaetigNeuStarten) window.untaetigNeuStarten(); }} />
+      {/* Sofort wirksam, nicht erst nach dem nächsten Anmelden. Andere
+          Nutzer (Planwand, Päckli Pad …) werden nie von selbst abgemeldet,
+          da gibt es nichts zu wählen (Wunsch Patrick, 8. Oktober 2026). */}
+      {alt.istAndererNutzer()
+        ? <SchalterZeile id="e-angemeldet" titel="Angemeldet bleiben"
+            text="Dieses Konto wird nie von selbst abgemeldet." checked disabled />
+        : <Schalter id="e-angemeldet" name="angemeldetbleiben" titel="Angemeldet bleiben"
+            text="Ohne meldet sich die App nach fünf Minuten ohne Bedienung selbst ab."
+            beiAenderung={() => { if (window.untaetigNeuStarten) window.untaetigNeuStarten(); }} />}
     </Gruppe>
   );
 }

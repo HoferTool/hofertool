@@ -34,16 +34,16 @@ export function Zeile({ titel, text, breit, children }) {
 }
 
 // Ein Ein/Aus als Kippschalter: die ganze Zeile ist anklickbar
-export function SchalterZeile({ id, titel, text, checked, defaultChecked, onChange }) {
+export function SchalterZeile({ id, titel, text, checked, defaultChecked, onChange, disabled }) {
   return (
-    <label className="es-zeile es-zeile--schalter">
+    <label className={"es-zeile es-zeile--schalter" + (disabled ? " es-zeile--fest" : "")}>
       <div className="es-zeile__text">
         <div className="es-zeile__titel">{titel}</div>
         {text && <div className="es-zeile__hinweis">{text}</div>}
       </div>
       <div className="es-zeile__feld">
         <input type="checkbox" role="switch" className="kippschalter" id={id}
-          checked={checked} defaultChecked={defaultChecked} onChange={onChange} />
+          checked={checked} defaultChecked={defaultChecked} onChange={onChange || (() => {})} disabled={disabled} />
       </div>
     </label>
   );

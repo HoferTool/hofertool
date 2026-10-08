@@ -6600,3 +6600,10 @@ body.dunkel .matausgabe-an { color: #8fb8ff; }
 .einfuege-leiste__bild { width: 26px; height: 26px; object-fit: contain; flex: none; }
 body.symbolmodus .pw-balken { cursor: pointer; }
 body.symbolmodus .pw-balken:hover { outline: 2px solid var(--marke); outline-offset: -2px; }
+
+/* Andere Nutzer (111.111.0): statt des Häkchens „Auf diesem Gerät merken“
+   steht bei Planwand, Päckli Pad und Co. nur der Hinweis, und unter
+   Einstellungen sind die beiden Schalter fest eingeschaltet. */
+.login__merken--immer { text-align: center; opacity: .8; }
+.es-zeile--fest { cursor: default; }
+.es-zeile--fest .kippschalter { opacity: .55; cursor: default; }

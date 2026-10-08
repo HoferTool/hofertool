@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.110.0";
+const APP_VERSION = "111.111.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1394,12 +1394,26 @@ async function profilLaden() {
   if (!s) { profil = null; return null; }
 
   try {
-    const { data, error } = await zeitlimit(
-      db.from("profiles").select("id, email, full_name, role, is_active, geburtstag, "
-        + "bild_url, parks, darf_bearbeiten, ist_planer, initialen, ohne_passwort, einstellungen")
+    const spalten = "id, email, full_name, role, is_active, geburtstag, "
+      + "bild_url, parks, darf_bearbeiten, ist_planer, initialen, ohne_passwort, einstellungen";
+    let { data, error } = await zeitlimit(
+      db.from("profiles").select(spalten + ", andere_nutzer")
         .eq("id", s.user.id).single(), 10000, "Profil");
+    // Ohne sql/andere-nutzer.sql kennt die Datenbank das Häkchen nicht:
+    // dann ohne die Spalte lesen, statt ohne Profil dazustehen
+    if (error && /andere_nutzer/.test(String(error.message || ""))) {
+      ({ data, error } = await zeitlimit(
+        db.from("profiles").select(spalten).eq("id", s.user.id).single(), 10000, "Profil"));
+    }
     if (error || !data) throw error || new Error("kein Profil");
     profil = data;
+    // Andere Nutzer bleiben auf diesem Gerät angemeldet, egal wie sie
+    // hereingekommen sind (Tipp, PIN oder Passwort ohne Häkchen) und
+    // auch, wenn sie schon vor diesem Stand angemeldet waren: Der
+    // Schlüssel wird aufgehoben, die Sitzung zieht in den localStorage.
+    if (istAndererNutzer(profil) && s.refresh_token && !sitzungGemerkt(profil.email)) {
+      sitzungMerken(profil.email, s.refresh_token);
+    }
     lebenszeichenStarten();
   } catch (f) {
     console.warn("Profil nicht ladbar:", f.message);
@@ -2487,6 +2501,20 @@ function parkErlaubt(parkId) {
 
 function meineRolle() { return (profil && profil.role) || "produktion"; }
 function istAdmin() { return meineRolle() === "admin"; }
+
+// „Andere Nutzer“ sind Gerätekonten wie Planwand, Pad Mode oder Päckli
+// Pad (Häkchen unter Einstellungen → Nutzer, profiles.andere_nutzer).
+// Solche Konten werden nie von selbst abgemeldet (Wunsch Patrick,
+// 8. Oktober 2026): keine Abmeldung nach fünf Minuten Ruhe, und die
+// Sitzung bleibt auf dem Gerät, auch wenn das Fenster zugeht.
+// Ohne u gilt die angemeldete Person. Solange sql/andere-nutzer.sql
+// fehlt, kennt das Profil das Häkchen nicht; dann zählt die Rolle
+// Planwand, denn genau das waren bisher die Gerätekonten.
+function istAndererNutzer(u) {
+  const k = u || profil;
+  if (!k) return false;
+  return k.andere_nutzer === undefined || k.andere_nutzer === null ? k.role === "planwand" : !!k.andere_nutzer;
+}
 function darfSchreiben() {
   const r = meineRolle();
   return r === "admin" || r === "planwand"
@@ -7117,8 +7145,11 @@ function leerlaufPruefen() {
   }
 
   // Im Pad Mode wird nicht abgemeldet. Das Tablet liegt an der
-  // Maschine und soll den ganzen Tag zeigen, was läuft.
-  if (document.getElementById("pad")) {
+  // Maschine und soll den ganzen Tag zeigen, was läuft. Dasselbe gilt
+  // für alle „Andere Nutzer“ wie Planwand oder Päckli Pad (Wunsch
+  // Patrick, 8. Oktober 2026): Die hängen am Bildschirm im Betrieb und
+  // sollen nie von selbst abgemeldet werden.
+  if (document.getElementById("pad") || istAndererNutzer()) {
     leerlauf.letzte = Date.now();
     if (leerlauf.hinweis) { leerlauf.hinweis.remove(); leerlauf.hinweis = null; }
     return;
@@ -9034,7 +9065,7 @@ Object.assign(alt, {
   FEHLER_SCHLUESSEL, themaJetzt, themaSetzen, einstellungSetzen,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE, bestellmailVorschau,
   APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, offenAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
-  sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung,
+  sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung, istAndererNutzer,
   istExternGeraet, profilLaden, zeichneGeruest,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit
