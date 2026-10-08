@@ -22,6 +22,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { neueFarbeDialog } from "../teile/Dialoge.jsx";
 import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
 import { materialBestellungLesen, materialAusNotizEntfernen } from "../daten/materialBestellung.js";
+import { dokZeigen } from "../teile/DokAbruf.jsx";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage) {
   alt.plan.imDialog = true;
@@ -114,7 +115,9 @@ function Vorschau({ adresse, titel }) {
 }
 
 // Ein PDF-Anhang: ansehen, entfernen oder wählen und hochladen
-function Anhang({ was, ordner, adresse, setzen, darf, titel, id, wegId, standId, stand, setStand }) {
+// „abruf“ (gespeicherter Auftrag): Ansehen lässt den Pool-Rechner im
+// Ordner nach Neuerem schauen und geht auch ohne Datei (dokZeigen)
+function Anhang({ was, ordner, adresse, setzen, darf, titel, id, wegId, standId, stand, setStand, abruf }) {
   const hochladen = async (e) => {
     const datei = (e.target.files || [])[0];
     if (!datei) return;
@@ -142,8 +145,9 @@ function Anhang({ was, ordner, adresse, setzen, darf, titel, id, wegId, standId,
   return (
     <>
       <div className="pdfreihe" id={id}>
-        {adresse && <button type="button" className="knopf knopf--klein pdflink" data-pdfzeigen={adresse}
-          onClick={() => alt.betrachter(adresse, titel, true)}>Ansehen</button>}
+        {(adresse || abruf) && <button type="button" className="knopf knopf--klein pdflink" data-pdfzeigen={adresse || ""}
+          onClick={() => (abruf ? dokZeigen({ ...abruf, titel, adresse, neu: setzen })
+            : alt.betrachter(adresse, titel, true))}>Ansehen</button>}
         {adresse && darf && <button type="button" className="knopf knopf--klein knopf--gefahr"
           id={wegId} title={was + " entfernen"} onClick={weg}>✕</button>}
         {/* Wählen erscheint nur, solange nichts dranhängt */}
@@ -536,6 +540,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
             <div className="auf-dok"><span className="feldlabel">Zeichnung</span>
               <div className="auf-dok__knoepfe">
                 <Anhang was="PDF" ordner="zeichnung" adresse={w.pdf} setzen={(x) => setze("pdf", x)}
+                  abruf={auftrag && auftrag.job_number ? { art: "zeichnung", hoco: auftrag.job_number } : null}
                   darf={darf} titel={titelZeichnung} id="pl-pdfreihe" wegId="pl-pdfweg"
                   standId="pl-pdfstand" stand={pdfStand} setStand={setPdfStand} /></div></div>
 
@@ -555,6 +560,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
             <div className="auf-dok"><span className="feldlabel">WBG</span>
               <div className="auf-dok__knoepfe">
                 <Anhang was="WBG" ordner="wbg" adresse={w.wbg} setzen={(x) => setze("wbg", x)}
+                  abruf={auftrag && auftrag.job_number ? { art: "wbg", hoco: auftrag.job_number,
+                    auftragId: auftrag.id, fa: auftrag.fa_nr } : null}
                   darf={darf} titel={"WBG " + ((auftrag && auftrag.job_number) || "")} wegId="pl-wbgweg"
                   standId="pl-wbgstand" stand={wbgStand} setStand={setWbgStand} /></div></div>
           </div>

@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { teilLaden, pdfHochladen } from "./daten.js";
+import { dokZeigen } from "../teile/DokAbruf.jsx";
 
 const sicher = (name) => name.replace(/[^A-Za-z0-9.\-]/g, "_");
 
@@ -89,8 +90,10 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
           ))}
         </tbody></table>
         <div className="pdfreihe">
-          {t.zeichnung_url && <button className="knopf knopf--klein" data-zeichnung={t.zeichnung_url}
-            onClick={() => ansehen(t.zeichnung_url, "Zeichnung " + t.hoco_nr)}>Zeichnung ansehen</button>}
+          {/* Schaut dabei im Zeichnungs-Ordner nach Neuerem, auch ohne Zeichnung */}
+          <button className="knopf knopf--klein" data-zeichnung={t.zeichnung_url || ""}
+            onClick={() => dokZeigen({ art: "zeichnung", titel: "Zeichnung " + t.hoco_nr, adresse: t.zeichnung_url,
+              hoco: t.hoco_nr, neu: () => nachAenderung() })}>Zeichnung ansehen</button>
           {darf && <label className="knopf knopf--klein bildknopf">
             {t.zeichnung_url ? "Zeichnung ersetzen" : "Zeichnung wählen"}
             <input type="file" id="hoco-pdf" accept="application/pdf" hidden onChange={zeichnungWaehlen} /></label>}
@@ -161,8 +164,9 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
             {/* Die Anhänge des Auftrags: das Warenbegleitblatt gehört zum
                 Durchlauf, ist also je FA Nr. ein anderes */}
             <td className="nowrap">
-              {x.wbg_url && <button className="linkknopf" data-fadatei={x.wbg_url}
-                onClick={() => ansehen(x.wbg_url, "WBG " + x.fa_nr)}>WBG</button>}
+              <button className="linkknopf" data-fadatei={x.wbg_url || ""}
+                onClick={() => dokZeigen({ art: "wbg", titel: "WBG " + x.fa_nr, adresse: x.wbg_url, hoco: t.hoco_nr,
+                  auftragId: x.id, fa: x.fa_nr, neu: () => neu() })}>WBG</button>
               {x.drawing_url && <>{" "}<button className="linkknopf" data-fadatei={x.drawing_url}
                 onClick={() => ansehen(x.drawing_url, "Zeichnung " + x.fa_nr)}>Zeichnung</button></>}
               {x.wz_historie_url && <>{" "}<button className="linkknopf" data-fadatei={x.wz_historie_url}
@@ -173,7 +177,6 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
               {/* Hier stand ein zweiter Knopf „Wechsel“ für ein Blatt aller
                   Werkzeugwechsel der FA. Die Funktion dahinter gab es nie, der
                   Klick lief ins Leere. Kommt mit der Auswertung der Standzeiten. */}
-              {!x.wbg_url && !x.drawing_url && !darf && <span className="gedaempft klein">ohne Anhang</span>}
             </td>
             <td className="klein rechts">{(alt.PLANSTATUS[x.plan_status || "geplant"] || {}).name || ""}</td>
           </tr>

@@ -32,7 +32,8 @@ export function dateiAnsehen(datei) {
   betrachter(URL.createObjectURL(datei), name.replace(/\.[^.]+$/, ""), art === "pdf", art, endung);
 }
 
-function Betrachter({ adresse, titel, art, endung, zu }) {
+// Auch für dokZeigen (DokAbruf.jsx): „hinweis“ steht klein neben dem Titel
+export function Betrachter({ adresse, titel, art, endung, zu, hinweis }) {
   const istPdf = art === "pdf", istXl = art === "excel";
   const rahmen = useRef(null);
   const wurzel = useRef(null);
@@ -127,6 +128,7 @@ function Betrachter({ adresse, titel, art, endung, zu }) {
     <div className="betrachter" ref={wurzel}>
       <div className="betrachter__kopf">
         <span className="betrachter__titel">{titel || ""}</span>
+        {hinweis && <span className="betrachter__abruf" data-abrufhinweis="">{hinweis}</span>}
         <div className="betrachter__knoepfe">
           <button className="knopf knopf--klein" data-drucken="" onClick={drucken}>Drucken</button>
           <button className="knopf knopf--klein" data-speichern="" onClick={speichern}>Speichern</button>

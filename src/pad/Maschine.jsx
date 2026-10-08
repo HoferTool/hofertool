@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck } from "./Pad.jsx";
+import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
@@ -182,23 +183,25 @@ function knopfGedrueckt(wert, { m, j, zeichnung, wbg }) {
     alt.werkzeugWechselDialog(m, j);
     return;
   }
-  if (wert === "zeichnung" && !zeichnung) {
-    alt.meldung("Keine Zeichnung hinterlegt — weder am Auftrag noch bei der HOCO Nr.", "warn");
-    return;
-  }
-  if (wert === "wbg" && !wbg) {
-    alt.meldung(j
-      ? "Für diesen Auftrag ist keine WBG hinterlegt. Hochladen geht im "
-        + "Auftragsfenster auf der Planwand."
-      : "Ohne laufenden Auftrag gibt es keine WBG.", "warn");
+  if (!j) {
+    // Ohne Auftrag keine HOCO Nr., also nichts zum Nachschauen
+    if (wert === "zeichnung" && zeichnung) { alt.betrachter(zeichnung, "Zeichnung", !/\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(zeichnung)); return; }
+    alt.meldung(wert === "wbg" ? "Ohne laufenden Auftrag gibt es keine WBG."
+      : "Ohne laufenden Auftrag gibt es keine Zeichnung.", "warn");
     return;
   }
   // Zeichnung und WBG öffnen im selben Betrachter wie das
-  // Einrichtblatt — gleiche Leiste, gleiche Knöpfe, Schliessen führt
-  // zurück auf diese Maschine
-  const adresse = wert === "zeichnung" ? zeichnung : wbg;
-  const titel = (wert === "zeichnung" ? "Zeichnung " : "WBG ") + ((j && j.job_number) || "");
-  alt.betrachter(adresse, titel, !/\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(adresse));
+  // Einrichtblatt. Was schon da ist, kommt sofort; der Pool-Rechner
+  // schaut dabei im Ordner nach Neuerem (Wunsch Patrick 8. Oktober
+  // 2026). Ist nichts da, steht dort „Keine WBG vorhanden“.
+  const istWbg = wert === "wbg";
+  dokZeigen({ art: istWbg ? "wbg" : "zeichnung", titel: (istWbg ? "WBG " : "Zeichnung ") + (j.job_number || ""),
+    adresse: istWbg ? wbg : zeichnung, hoco: j.job_number, auftragId: j.id, fa: j.fa_nr,
+    neu: (a) => {
+      if (istWbg) j.wbg_url = a; else j.drawing_url = a;
+      // Die Knöpfe sind danach nicht mehr grau
+      padZeichnen();
+    } });
 }
 
 // ---------- Teile ----------

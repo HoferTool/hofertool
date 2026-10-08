@@ -1,5 +1,5 @@
 # Einrichtblatt-Ordner (111.48.0): je Ordner ein Typ, seit 111.94.0 Knöpfe
-# statt Schalter (auch beim Pool), Probelauf-Liste aus eb_ordner_status
+# statt Schalter, Probelauf-Liste aus eb_ordner_status; Pool seit 111.98.0 ohne Knöpfe
 import time, json
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -62,17 +62,13 @@ with sync_playwright() as p:
     a = json.loads(pg.evaluate("TEST.daten.app_config.findLast(x => x.schluessel === 'eb_auftrag').wert"))
     pruefe("Auftrag Hochladen", a["art"] == "hochladen" and "angefordert" in pg.inner_text("#eb-auftrag")
            and pg.locator("#eb-probe").is_disabled())
-    # Probelauf beim Pool gibt es nicht; „WBGs hochladen“ ohne Rückfrage
-    pruefe("Pool ohne Probelauf", pg.locator("#pool-probe").count() == 0)
-    pg.click("#pool-hochladen"); pg.wait_for_timeout(500)
-    a = json.loads(pg.evaluate("TEST.daten.app_config.findLast(x => x.schluessel === 'pool_auftrag').wert"))
-    pruefe("Pool-Auftrag", a["art"] == "hochladen" and "angefordert" in pg.inner_text("#pool-auftrag"))
-    # Das Programm meldet fertig: Knöpfe wieder frei
-    pg.evaluate("""(id) => { TEST.daten.app_config.push({ schluessel: 'dok_pool_status', wert: JSON.stringify({ knopf: true,
-      zeit: new Date().toISOString(), gesehen: new Date().toISOString(), rechner: 'POOL', dateien: 3, neu: 3,
-      auftrag: { id, art: 'hochladen' }, ohne: [], wartet: [] }) }); }""", a["id"])
-    pg.wait_for_timeout(11000)
-    pruefe("Pool fertig gemeldet", "3 abgelegt" in pg.inner_text("#dokpool-stand") and not pg.locator("#pool-hochladen").is_disabled())
+    # Beim Pool gibt es seit 111.98.0 keine Knöpfe mehr: WBGs kommen beim Öffnen
+    pruefe("Pool ohne Knöpfe", pg.locator("#pool-probe, #pool-hochladen").count() == 0)
+    pg.evaluate("""() => { TEST.daten.app_config.push({ schluessel: 'dok_pool_status', wert: JSON.stringify({ abruf: true,
+      zeit: new Date().toISOString(), rechner: 'POOL', dateien: 3, neu: 3, ohne: [], wartet: [] }) }); }""")
+    pg.locator("[data-einst='allgemein']").click(); pg.wait_for_timeout(500)
+    pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1200)
+    pruefe("Pool zeigt letztes Leeren", "3 abgelegt" in pg.inner_text("#dokpool-stand"))
     pg.locator("#eb-ordner").screenshot(path="eb_ordner.png")
     fehler += f
     br.close()

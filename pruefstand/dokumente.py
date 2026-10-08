@@ -9,8 +9,8 @@ K = """daten.dokumente = [{ id: 'd1', art: 'zeichnung', hoco_nr: '10844-0049', t
 daten.dokumente_verlauf = [{ id: 'v1', zeit: '2026-09-30T08:00:00Z', dateiname: 'alt.pdf',
   ziel: 'Zeichnung der HOCO Nr. 10844-0049', quelle: 'pfad', ersetzt: true, von: null }];
 daten.app_config.push({ schluessel: 'zng_ordner', wert: JSON.stringify({ pfad: '\\\\\\\\FS01\\\\Zeichnungen', unter: false, scharf: false }) },
-  { schluessel: 'dok_pfad_status', wert: JSON.stringify({ zng: true, zeit: new Date().toISOString(), rechner: 'SRV1', scharf: false,
-    pdf: 1234, nummern: 40, neu: 1, ersetzt: 1, mb: 3.5, liste: [{ d: '10844-0049 Hofer.pdf', h: '10844-0049', w: 'würde hochladen: neu' }] }) });
+  { schluessel: 'dok_abruf_status', wert: JSON.stringify({ gesehen: new Date().toISOString(), rechner: 'SRV1',
+    zng: { zeit: new Date().toISOString(), hoco: '10844-0049', ergebnis: 'neu', text: 'neu hochgeladen' } }) });
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 fehler = []
@@ -34,31 +34,21 @@ with sync_playwright() as p:
     pruefe("Regeln und Ausprobieren weg", not any(t in text for t in ["So erkennt", "Ausprobieren", "Vorgabe wiederherstellen", "Hilfsprogramm", "Netzlaufwerk"]))
     pruefe("Keine Regelfelder", pg.locator("[data-dokregel], #dokprobe, #dokpfad").count() == 0)
 
-    # Zeichnungs-Ordner: Pfad, Stand des Probelaufs, speichern, Knöpfe statt Schalter (Wunsch 8. Oktober 2026)
+    # Zeichnungs-Ordner: Pfad, Stand des lauschenden Programms, speichern, keine Knöpfe mehr (Wunsch 8. Oktober 2026)
     pruefe("Pfad geladen", pg.input_value("#zng-pfad") == "\\\\FS01\\Zeichnungen")
     stand = pg.inner_text("#zng-stand"); print("Stand:", stand)
-    pruefe("Stand des Probelaufs: " + repr(stand[:160]), "Probelauf" in stand and "SRV1" in stand and re.search(r"1\D?234 PDFs", stand) and "2 würden hochgeladen" in stand and "3.5 MB" in stand)
-    pruefe("Liste des Probelaufs", "10844-0049 Hofer.pdf" in pg.inner_text("#zng-ordner"))
-    pruefe("Kein Schalter Hochladen mehr", pg.locator("#zng-scharf").count() == 0)
-    pruefe("Alte Fassung erkannt", pg.locator("#zng-ordner .dok-altfassung").count() == 1)
+    pruefe("Stand: bereit und zuletzt: " + repr(stand[:160]), "Bereit auf SRV1" in stand and "10844-0049 neu hochgeladen" in stand)
+    pruefe("Keine Knöpfe Probelauf und Hochladen", pg.locator("#zng-hochladen, #zng-probe, #pool-hochladen, #zng-scharf").count() == 0)
     pg.fill("#zng-pfad", "\\\\FS02\\Neu"); pg.locator("#zng-unter").check(force=True); pg.click("#zng-speichern"); pg.wait_for_timeout(500)
     k = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'zng_ordner').wert)"); print("Gespeichert:", k)
     pruefe("Ordner gespeichert", k == {"pfad": "\\\\FS02\\Neu", "unter": True, "scharf": False})
-    pg.click("#zng-hochladen"); pg.wait_for_timeout(300)
-    pruefe("Hochladen fragt nach", "Zeichnungen hochladen?" in pg.locator(".dialog-huelle").last.inner_text())
-    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
-    a = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'zng_auftrag').wert)"); print("Auftrag:", a)
-    pruefe("Auftrag geschrieben", a.get("art") == "hochladen" and a.get("id"))
-    pruefe("Angefordert angezeigt", "angefordert" in pg.inner_text("#zng-auftrag") and pg.locator("#zng-hochladen").is_disabled() and pg.locator("#zng-probe").is_disabled())
-    pg.locator("#zng-ordner").screenshot(path="/tmp/claude-0/-home-claude-hofertool/cf6e8930-4227-5e71-9691-165e06a705e8/scratchpad/zng.png")
-    # Das Programm meldet: erledigt → Knöpfe wieder frei
-    pg.evaluate("""(id) => { const s = TEST.daten.app_config.find(x => x.schluessel === 'dok_pfad_status');
-      s.wert = JSON.stringify({ zng: true, knopf: true, zeit: new Date().toISOString(), gesehen: new Date().toISOString(), rechner: 'SRV1',
-        scharf: true, pdf: 1234, nummern: 40, hochgeladen: 2, rest: 0, auftrag: { id, art: 'hochladen', von: 'x' }, liste: [] }); }""", a["id"])
-    pg.wait_for_timeout(11000)
-    stand = pg.inner_text("#zng-stand"); print("Stand danach:", stand)
-    pruefe("Erledigt gemeldet", "Hochgeladen" in stand and "2 hochgeladen" in stand and pg.locator("#zng-ordner .dok-altfassung").count() == 0)
-    pruefe("Knöpfe wieder frei", not pg.locator("#zng-hochladen").is_disabled())
+    # Lange keine Meldung: Warnung
+    pg.evaluate("""() => { const s = TEST.daten.app_config.find(x => x.schluessel === 'dok_abruf_status');
+      s.wert = JSON.stringify({ gesehen: new Date(Date.now() - 10 * 60000).toISOString(), rechner: 'SRV1' }); }""")
+    pg.locator("[data-einst='allgemein']").click(); pg.wait_for_timeout(500)
+    pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1200)
+    stand = pg.inner_text("#zng-stand"); print("Stand still:", stand)
+    pruefe("Stille gemeldet", "Seit 10 Minuten keine Meldung" in stand and "Seit 10 Minuten" in pg.inner_text("#dokpool-stand"))
 
     # Verlauf und Zuletzt abgelegt
     # Verlauf nicht mehr sichtbar (wird weiter geschrieben), Aufräumen beim Pool-Ordner

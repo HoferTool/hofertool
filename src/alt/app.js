@@ -26,6 +26,7 @@ import { anmeldungZeigen } from "../huelle/Anmeldung.jsx";
 import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
 import { zifferblock } from "../pad/Zifferblock.jsx";
 import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
+import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { werkzeugWechselDialog } from "../pad/Werkzeugwechsel.jsx";
 import { ferienDialog } from "../planwand/FerienFenster.jsx";
 import { hocoFenster } from "../planwand/HocoFenster.jsx";
@@ -126,7 +127,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.97.0";
+const APP_VERSION = "111.98.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4921,10 +4922,19 @@ async function zeichnungAnheften(j) {
   return adresse;
 }
 
+// Zeigt die Zeichnung sofort, wenn eine da ist, und lässt den
+// Pool-Rechner im Zeichnungs-Ordner nach einer neueren schauen
+// (Wunsch Patrick 8. Oktober 2026). Ohne Zeichnung wartet das Fenster
+// darauf und zeigt sonst „Keine Zeichnung vorhanden“.
 async function balkenZeichnung(j) {
   const adresse = j.drawing_url || await zeichnungAnheften(j);
-  if (adresse) betrachter(adresse, "Zeichnung " + j.job_number, true);
-  else meldung("Zu " + j.job_number + " ist keine Zeichnung hinterlegt.", "warn");
+  if (!j.job_number) {
+    if (adresse) betrachter(adresse, "Zeichnung", true);
+    else meldung("Ohne HOCO Nr. gibt es keine Zeichnung.", "warn");
+    return;
+  }
+  dokZeigen({ art: "zeichnung", titel: "Zeichnung " + j.job_number, adresse, hoco: j.job_number,
+    neu: (a) => { j.drawing_url = a; } });
 }
 
 // Wer planen darf: Ein Klick auf den Balken zeigt die Zeichnung, wie
@@ -9001,7 +9011,7 @@ Object.assign(alt, {
   fortschrittRechnen, planAuftragDialog, ladeTypen,
   pad, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
-  notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen,
+  notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
   werkzeugWechselDialog, zifferblock,
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,

@@ -2,8 +2,8 @@
 #  DOKUMENTE — GEMEINSAME TEILE
 #
 #  Anmelden, Erkennen am Dateinamen und Hochladen, genau nach den
-#  Regeln der App. Wird von dokumente-pool.ps1 (Pool-Ordner),
-#  einrichtblaetter.ps1 und zeichnungen.ps1 geladen, nicht selbst gestartet.
+#  Regeln der App. Wird von dokumente-abruf.ps1 (Pool-Ordner und
+#  Zeichnungen) und einrichtblaetter.ps1 geladen, nicht selbst gestartet.
 #  Das ladende Skript stellt $E, $U, $KEY, $stand, Schreibe und
 #  StandSichern bereit.
 # =================================================================

@@ -6434,3 +6434,13 @@ body.dunkel .nb-tab--edit td:focus-within { background: rgba(107, 164, 255, .14)
    8. Oktober 2026). Unter dem Höchstwert klein der Tiefstwert. */
 .pad-stunden--regen .pad-tief { font-size: .64rem; color: #9fb3ce; font-weight: 600;
                                 font-variant-numeric: tabular-nums; line-height: 1.1; }
+
+/* ---------- Dokumente auf Abruf (DokAbruf.jsx) ---------- */
+.betrachter__abruf { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 6px;
+                     color: #9aa5b1; font-size: .8rem; white-space: nowrap; overflow: hidden; }
+.abruf-leer { display: flex; flex-direction: column; align-items: center; gap: 10px;
+              color: #dfe5ec; font-size: 1.05rem; text-align: center; padding: 24px; }
+.abruf-leer .si-dreher { width: 28px; height: 28px; border-width: 3px; }
+.abruf-leer b { font-size: 1.3rem; }
+.abruf-leer .klein { color: #9aa5b1; }
+@media (max-width: 640px) { .betrachter__abruf { flex: 1 1 100%; } }

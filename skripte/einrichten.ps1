@@ -1,23 +1,21 @@
 ﻿# =================================================================
-#  NEUER RECHNER — Solaranlage, WBG-Pool, Einrichtblätter, Zeichnungen, Sicherung
+#  NEUER RECHNER — Solaranlage, WBG und Zeichnungen, Einrichtblätter, Sicherung
 #
-#  Richtet auf einem Windows-Rechner im Betrieb fünf Aufgaben ein:
+#  Richtet auf einem Windows-Rechner im Betrieb vier Aufgaben ein:
 #    - Solar: holt alle fünf Minuten die Werte vom Solar-Log und
 #      liefert sie an die App (solarlog.ps1)
-#    - Pool:  leert auf Knopfdruck in der App die WBGs aus
-#      C:\Hofer\Pool in die App (dokumente-pool.ps1); schaut dafür alle
-#      fünf Minuten nach, ob jemand gedrückt hat
+#    - Dokumente: lauscht auf die App (dokumente-abruf.ps1). Öffnet
+#      jemand eine WBG, lädt es die WBGs aus dem Pool-Ordner hoch und
+#      löscht sie dort; öffnet jemand eine Zeichnung, holt es die PDF
+#      der HOCO Nr. aus dem Zeichnungs-Ordner (dort nur lesen). Schaut
+#      alle zwei Sekunden nach, die Aufgabe startet es neu, falls es
+#      einmal nicht läuft. Unter dem angemeldeten Konto, wegen der
+#      Netzlaufwerke, ohne dass ein Passwort eingegeben werden muss.
 #    - Einrichtblätter: liest auf Knopfdruck in der App die Excel-Dateien
 #      aus den Typ-Ordnern, die in der App eingetragen sind, und lädt neue
 #      und geänderte hoch (einrichtblaetter.ps1). Liest nur, löscht nie.
-#      Schaut alle fünf Minuten nach dem Knopf. Läuft unter
-#      dem angemeldeten Windows-Konto (wegen der Netzlaufwerke), ohne
-#      dass ein Passwort eingegeben werden muss.
-#    - Zeichnungen: schaut alle fünf Minuten, ob in der App jemand auf
-#      "Zeichnungen hochladen" oder "Probelauf" gedrückt hat, und lädt
-#      dann je HOCO Nr. die PDF mit "hofer" (sonst "kunde") im Namen aus
-#      dem Zeichnungs-Ordner als Zeichnung hoch (zeichnungen.ps1). Liest
-#      nur, löscht nie. Wie die Einrichtblätter unter dem angemeldeten Konto.
+#      Schaut alle fünf Minuten nach dem Knopf. Unter dem angemeldeten
+#      Konto wie die Dokumente.
 #    - Sicherung: sichert einmal am Tag alle Daten und hochgeladenen
 #      Dateien in den Ordner aus der App (Einstellungen → Backup) und
 #      spielt eine Sicherung zurück, wenn ein Admin es dort anfordert
@@ -29,9 +27,10 @@
 #    3. Fragt nach dem Solar-Schlüssel und dem Dienstkonto und trägt
 #       sie in die Einstellungsdateien ein.
 #    4. Probiert beides aus, ohne etwas zu schreiben.
-#    5. Legt die Aufgaben in der Aufgabenplanung an. Sonst bleibt
-#       nichts zurück: kein Dienst, kein Autostart, kein Programm, das
-#       im Hintergrund wartet. Das Einrichten selbst endet danach.
+#    5. Legt die Aufgaben in der Aufgabenplanung an und entfernt die
+#       früheren "Hofer Dokumente-Pool" und "Hofer Zeichnungen". Sonst
+#       bleibt nichts zurück: kein Dienst, kein Autostart. Nur die
+#       Aufgabe "Hofer Dokumente" wartet im Hintergrund auf die App.
 #
 #  Start (PowerShell, am besten "Als Administrator ausführen"):
 #     [Net.ServicePointManager]::SecurityProtocol='Tls12'; iwr -UseBasicParsing https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte/einrichten.ps1?t=$(Get-Random) -OutFile $env:TEMP\einrichten.ps1; powershell -ExecutionPolicy Bypass -File $env:TEMP\einrichten.ps1
@@ -91,7 +90,7 @@ function JsonSchreiben([string]$datei, $objekt) {
 $istAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
             ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-Write-Host "Hofer Tool: Solaranlage, Pool, Einrichtblätter, Zeichnungen und Sicherung einrichten" -ForegroundColor Cyan
+Write-Host "Hofer Tool: Solaranlage, WBG und Zeichnungen, Einrichtblätter und Sicherung einrichten" -ForegroundColor Cyan
 Write-Host "Ordner: $Ziel"
 if (-not $istAdmin) {
   Warn "Ohne Administratorrechte laufen die Aufgaben nur, solange du angemeldet bist."
@@ -101,7 +100,7 @@ if (-not $istAdmin) {
 # ---------- 1. Programme holen ----------
 Titel "1. Programme holen"
 New-Item -ItemType Directory -Force -Path $Ziel | Out-Null
-foreach ($n in @("solarlog.ps1", "dokumente-pool.ps1", "dokumente-teile.ps1", "pool-einplanen.ps1", "einrichtblaetter.ps1", "zeichnungen.ps1", "sicherung.ps1", "unsichtbar.vbs")) {
+foreach ($n in @("solarlog.ps1", "dokumente-abruf.ps1", "dokumente-teile.ps1", "einrichtblaetter.ps1", "sicherung.ps1", "unsichtbar.vbs")) {
   try {
     Invoke-WebRequest -UseBasicParsing -Uri ("$QUELLE/${n}?t=" + [DateTime]::UtcNow.Ticks) -OutFile (Join-Path $Ziel $n) -TimeoutSec 60
     Unblock-File -Path (Join-Path $Ziel $n) -ErrorAction SilentlyContinue
@@ -308,18 +307,19 @@ if ($poolAn) {
   $poolDa = $false
   try { New-Item -ItemType Directory -Force -Path $poolEcht -ErrorAction Stop | Out-Null; $poolDa = $true }
   catch { Warn "Den Pool-Ordner $POOL erreiche ich von hier aus nicht. Die Aufgabe wird trotzdem angelegt." }
-  if ($poolDa) { & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "dokumente-pool.ps1") -Probe }
+  Info "WBG und Zeichnungen, Probe (lädt nichts hoch, ändert in den Ordnern nichts):"
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "dokumente-abruf.ps1") -Probe
   Write-Host ""
   Info "Einrichtblätter, Probelauf (lädt nichts hoch, ändert in den Ordnern nichts):"
   & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "einrichtblaetter.ps1") -Probe
-  Write-Host ""
-  Info "Zeichnungen, Probelauf (lädt nichts hoch, ändert im Ordner nichts):"
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Ziel "zeichnungen.ps1") -Probe
 }
 
 # ---------- 5. Aufgabenplanung ----------
 Titel "5. Aufgaben anlegen"
-function Einplanen([string]$name, [string]$skript, [string]$text, [switch]$nurAngemeldet) {
+# -dauernd: für dokumente-abruf.ps1, das selbst weiterläuft. Ohne
+# Zeitgrenze; der Start alle fünf Minuten holt es nur zurück, wenn es
+# nicht mehr läuft (IgnoreNew).
+function Einplanen([string]$name, [string]$skript, [string]$text, [switch]$nurAngemeldet, [switch]$dauernd) {
   # Über unsichtbar.vbs, damit kein PowerShell-Fenster aufblitzt
   # (powershell.exe direkt zeigt trotz -WindowStyle Hidden kurz eines).
   # -Force beim Anlegen ersetzt die bisherige Aufgabe gleichen Namens.
@@ -327,8 +327,10 @@ function Einplanen([string]$name, [string]$skript, [string]$text, [switch]$nurAn
     -Argument ('//B //Nologo "' + (Join-Path $Ziel "unsichtbar.vbs") + '" ' + $skript)
   $ausloeser = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
     -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
+  $grenze = New-TimeSpan -Minutes 30
+  if ($dauernd) { $grenze = [TimeSpan]::Zero }
   $einst = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable `
-    -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+    -ExecutionTimeLimit $grenze
   if ($nurAngemeldet) {
     # Läuft unter dem angemeldeten Windows-Konto, ohne Passwort. So kommt
     # die Aufgabe auf die Netzlaufwerke, die dieses Konto öffnen darf
@@ -336,7 +338,13 @@ function Einplanen([string]$name, [string]$skript, [string]$text, [switch]$nurAn
     $wer = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive
     Register-ScheduledTask -TaskName $name -Action $aktion -Trigger $ausloeser -Settings $einst `
       -Principal $wer -Description $text -Force | Out-Null
-    Gut "Aufgabe '$name': alle 5 Minuten, solange $([Security.Principal.WindowsIdentity]::GetCurrent().Name) angemeldet ist"
+    if ($dauernd) {
+      # Gleich starten statt erst in einer Minute
+      try { Start-ScheduledTask -TaskName $name } catch { }
+      Gut "Aufgabe '$name': läuft dauernd, solange $([Security.Principal.WindowsIdentity]::GetCurrent().Name) angemeldet ist"
+    } else {
+      Gut "Aufgabe '$name': alle 5 Minuten, solange $([Security.Principal.WindowsIdentity]::GetCurrent().Name) angemeldet ist"
+    }
     return
   }
   if ($istAdmin) {
@@ -351,20 +359,25 @@ function Einplanen([string]$name, [string]$skript, [string]$text, [switch]$nurAn
 }
 if ($solarAn) { Einplanen "Hofer Solar" "solarlog.ps1" "Liefert alle 5 Minuten die Werte des Solar-Log ans Hofer Tool." }
 if ($poolAn)  {
-  Einplanen "Hofer Dokumente-Pool" "dokumente-pool.ps1" "Schaut alle 5 Minuten, ob in der App 'WBGs hochladen' gedrückt wurde, und lädt dann die WBGs aus dem Pool-Ordner ins Hofer Tool und leert ihn." -nurAngemeldet
+  # Die früheren Aufgaben, ersetzt durch "Hofer Dokumente"
+  foreach ($alt in @("Hofer Dokumente-Pool", "Hofer Zeichnungen")) {
+    if (Get-ScheduledTask -TaskName $alt -ErrorAction SilentlyContinue) {
+      Unregister-ScheduledTask -TaskName $alt -Confirm:$false
+      Gut "Frühere Aufgabe '$alt' entfernt"
+    }
+  }
+  Einplanen "Hofer Dokumente" "dokumente-abruf.ps1" "Wartet auf die App: Öffnet jemand eine WBG, lädt es die WBGs aus dem Pool-Ordner ins Hofer Tool und löscht sie dort. Öffnet jemand eine Zeichnung, lädt es die PDF der HOCO Nr. aus dem Zeichnungs-Ordner hoch, ohne dort etwas zu ändern." -nurAngemeldet -dauernd
   Einplanen "Hofer Einrichtblätter" "einrichtblaetter.ps1" "Schaut alle 5 Minuten, ob in der App 'Einrichtblätter hochladen' gedrückt wurde, und lädt dann die Excel-Einrichtblätter aus den Typ-Ordnern ins Hofer Tool. Löscht und ändert in den Ordnern nie etwas." -nurAngemeldet
-  Einplanen "Hofer Zeichnungen" "zeichnungen.ps1" "Schaut alle 5 Minuten, ob in der App 'Zeichnungen hochladen' gedrückt wurde, und lädt dann die Zeichnungs-PDFs (hofer, sonst kunde) aus dem Zeichnungs-Ordner ins Hofer Tool. Löscht und ändert im Ordner nie etwas." -nurAngemeldet
   Einplanen "Hofer Sicherung" "sicherung.ps1" "Sichert einmal am Tag alle Daten des Hofer Tools in den Ordner aus der App (Einstellungen -> Backup) und spielt auf Wunsch eine Sicherung zurück." -nurAngemeldet
 }
 
 Titel "Fertig"
 if ($solarAn) { Info "Solar-Protokoll: $(Join-Path $Ziel 'solarlog.log')" }
 if ($poolAn)  {
-  Info "Pool-Protokoll:  $(Join-Path $Ziel 'pool.log')"; Info "WBGs hineinlegen in: $POOL"
+  Info "WBG und Zeichnungen, Protokoll: $(Join-Path $Ziel 'abruf.log')"; Info "WBGs hineinlegen in: $POOL"
+  Info "WBG und Zeichnungen kommen, sobald jemand sie in der App öffnet."
   Info "Einrichtblätter-Protokoll: $(Join-Path $Ziel 'einrichtblaetter.log')"
-  Info "WBGs und Einrichtblätter: nur auf Knopfdruck in der App (Einstellungen -> Dokumente)."
-  Info "Zeichnungen-Protokoll: $(Join-Path $Ziel 'zeichnungen.log')"
-  Info "Zeichnungen: nur auf Knopfdruck in der App (Einstellungen -> Dokumente -> Zeichnungs-Ordner)."
+  Info "Einrichtblätter: nur auf Knopfdruck in der App (Einstellungen -> Dokumente)."
   Info "Sicherung-Protokoll: $(Join-Path $Ziel 'sicherung.log')"
   Info "Sicherung: sobald in der App unter Einstellungen -> Backup ein Speicherort steht, einmal am Tag."
 }
