@@ -195,7 +195,11 @@ function Anmeldung() {
 
     const hinein = async () => {
       alt.geraetKontoMerken(konto.email);
+      // Neue Fassung auf dem Server? Dann lädt die Seite neu, und die
+      // Anmeldung bleibt (Wunsch Patrick, 8. Oktober 2026)
+      const fassung = alt.fassungPruefen();
       await Promise.all([alt.profilLaden(), angekommen]);
+      if (await fassung) return;
       alt.zeichneGeruest();
     };
     try {
@@ -414,7 +418,10 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerken) {
       const s = await alt.sitzung();
       const merken = immerMerken || (merkRef.current && merkRef.current.checked);
       alt.sitzungMerken(email, merken && s ? s.refresh_token : null);
+      // Neue Fassung auf dem Server? Dann neu laden, auch ohne Häkchen
+      const fassung = alt.fassungPruefen();
       await alt.profilLaden();
+      if (await fassung) return;
       alt.zeichneGeruest();
     } catch (f) {
       nochmal(alt.fehlertext(f));

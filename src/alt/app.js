@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.111.0";
+const APP_VERSION = "111.112.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1015,6 +1015,53 @@ async function gemerktAnmelden(email) {
     if (!/fetch|netz|network|zeit/i.test(String((f && f.message) || f))) sitzungMerken(email, null);
     return false;
   }
+}
+
+// ---------- Neue Fassung beim Anmelden ----------
+// Wunsch Patrick, 8. Oktober 2026: „Wenn man sich per Klick anmeldet,
+// egal ob merken drin ist oder nicht, soll es neu laden, und die neue
+// Fassung ist drauf.“ Der Browser hält die Seite sonst bis zu zehn
+// Minuten fest (GitHub Pages), und wer nie abgemeldet wird, lädt sie
+// von allein nie neu. Darum fragt die App beim Start und bei jeder
+// Anmeldung per Klick den Server nach der aktuellen index.html. Steht
+// darin eine andere Programmdatei (assets/index-….js, der Name trägt
+// eine Prüfsumme) als die, die gerade läuft, lädt sie sich neu.
+// Die Anmeldung übersteht das: Sie liegt im sessionStorage oder, mit
+// „merken“, im localStorage. Ohne Netz oder bei gleicher Fassung
+// passiert nichts. Für dieselbe neue Fassung wird nur einmal je Tab
+// neu geladen, damit es nie im Kreis geht.
+const FASSUNG_NEULADEN = "hofer.fassung.neuladen";
+
+function eigeneFassung() {
+  const s = document.querySelector('script[type="module"][src*="assets/index-"]');
+  return s ? String(s.getAttribute("src")).replace(/.*\//, "") : "";
+}
+
+// Gibt true zurück, wenn neu geladen wird. Länger als zweieinhalb
+// Sekunden wartet niemand darauf: Dann geht es ohne weiter, und die
+// Antwort vom Server lädt die Seite eben später neu.
+function fassungPruefen() {
+  const lauf = fassungHolen().catch(() => false);
+  return Promise.race([lauf, new Promise((ok) => setTimeout(() => ok(false), 2500))]);
+}
+
+async function fassungHolen() {
+  const eigene = eigeneFassung();
+  if (!eigene || navigator.onLine === false) return false;
+  let html;
+  try {
+    const r = await zeitlimit(fetch("./index.html?stand=" + Date.now(), { cache: "no-store" }), 8000, "Fassung");
+    if (!r.ok) return false;
+    html = await r.text();
+  } catch (f) { return false; }
+  const m = html.match(/assets\/(index-[^"'\s]+\.js)/);
+  if (!m || m[1] === eigene) return false;
+  try {
+    if (sessionStorage.getItem(FASSUNG_NEULADEN) === m[1]) return false;
+    sessionStorage.setItem(FASSUNG_NEULADEN, m[1]);
+  } catch (f) { /* ohne Speicher trotzdem einmal neu laden */ }
+  location.reload();
+  return true;
 }
 
 // =================================================================
@@ -9066,7 +9113,7 @@ Object.assign(alt, {
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE, bestellmailVorschau,
   APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, offenAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
   sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung, istAndererNutzer,
-  istExternGeraet, profilLaden, zeichneGeruest,
+  istExternGeraet, profilLaden, zeichneGeruest, fassungPruefen,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit
 Object.defineProperty(alt, "db", { get: () => db });
@@ -9565,7 +9612,11 @@ try {
   sitzungenVerfolgen(db);
 
   stand("Anmeldung wird geprüft …");
+  // Nebenbei: Liegt auf dem Server eine neuere Fassung, lädt die Seite
+  // gleich neu, bevor jemand anfängt zu arbeiten
+  const fassung = fassungPruefen();
   const p = await profilLaden();
+  if (await fassung) throw new Error("__neuladen__");
 
   BOOT.hidden = true;
   WURZEL.hidden = false;
@@ -9581,6 +9632,10 @@ try {
     zeichneGeruest();
   }
 } catch (fehler) {
-  console.error(fehler);
-  startFehler(esc(fehler.message || String(fehler)));
+  // Neu laden läuft schon: nichts mehr anzeigen
+  if (fehler && fehler.message === "__neuladen__") { /* Seite kommt gleich neu */ }
+  else {
+    console.error(fehler);
+    startFehler(esc(fehler.message || String(fehler)));
+  }
 }
