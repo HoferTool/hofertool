@@ -6506,3 +6506,48 @@ body.dunkel .siegel { border-color: #ff8a80; color: #ff8a80; background: rgba(25
 .pad-karte2--zeit:not([data-padfeld="stueckzeit"]) { background: linear-gradient(140deg, #24364f, #142236) !important;
                                    border-color: rgba(255,255,255,.1) !important; }
 .pad-karte2--zeit:active { filter: brightness(1.15); }
+/* ---------- Rotes M statt Geplant-Kreis (111.103.0) ----------
+   Weisses Feld, rotes M: bei „Menge vorhanden oder bestellt“ steht
+   nichts. Keine Füllung und kein Schein mehr wie beim früheren Punkt. */
+.pw-balken__statusgross--ohnematerial { text-shadow: none !important; display: inline-flex;
+  align-items: center; }
+.pw-msymbol { width: .78em; height: .9em; display: block; flex: none;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, .25)); }
+
+/* ---------- Symbole auf den Balken (111.103.0) ---------- */
+.pw-balken__symbol { height: 1.25em; width: auto; max-width: 2.2em; object-fit: contain;
+  vertical-align: middle; margin-left: .25em; flex: none; border-radius: 2px;
+  -webkit-user-drag: none; user-select: none; }
+.pw-tafel--sehrflach .pw-balken__symbol { height: 1em; }
+.pw-symbolinfo { position: fixed; z-index: 9000; pointer-events: none; background: var(--flaeche, #fff);
+  color: var(--text, #10151c); border: 1px solid var(--linie, #d6dbe2); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .22); padding: 10px 12px; max-width: 240px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pw-symbolinfo img { width: 96px; height: 96px; object-fit: contain; }
+.pw-symbolinfo__text { font-weight: 600; text-align: center; font-size: .95rem; line-height: 1.3; }
+
+/* Auftragsfenster: Symbole zum An- und Abwählen */
+.auf-symbole { display: flex; flex-wrap: wrap; gap: 6px; }
+.symbolknopf { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 4px;
+  border: 1px solid var(--linie, #d6dbe2); border-radius: 8px; background: var(--flaeche, #fff);
+  color: inherit; font: inherit; font-size: .85rem; cursor: pointer; }
+.symbolknopf img { width: 22px; height: 22px; object-fit: contain; }
+.symbolknopf.aktiv { border-color: var(--marke); box-shadow: 0 0 0 2px var(--marke) inset; font-weight: 600; }
+.symbolknopf:disabled { cursor: default; opacity: .7; }
+
+/* Einstellungen → Symbole */
+.sym-liste { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.sym-zeile, .sym-neu { display: flex; align-items: center; gap: 10px; }
+.sym-zeile input, .sym-neu input { flex: 1; min-width: 0; }
+.sym-bild { width: 52px; height: 52px; flex: none; border: 1px dashed var(--linie, #c8ced6);
+  border-radius: 8px; background: var(--flaeche, #fff); display: flex; align-items: center;
+  justify-content: center; cursor: pointer; padding: 3px; color: var(--gedaempft); font-size: .7rem;
+  line-height: 1.1; text-align: center; }
+.sym-bild img { width: 100%; height: 100%; object-fit: contain; }
+.sym-zeile .sym-bild { border-style: solid; }
+.pw-eck--plus .pw-ecksym { width: 20px; height: 20px; }
+/* Mit Symbol darf die erste Zeile nicht breiter als der Balken werden,
+   sonst schneidet der Rand das Symbol ab; die Nummer kürzt sich dann
+   mit „…“. Ohne Symbol bleibt die Anschrift genau wie bisher. */
+.pw-zeile1:has(.pw-balken__symbol) { max-width: 100%; }
+.pw-zeile1 .pw-balken__symbol { flex: none; }

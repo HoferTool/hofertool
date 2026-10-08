@@ -13,6 +13,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { zuschneiden } from "../teile/Zuschnitt.jsx";
 import Dokumente from "./Dokumente.jsx";
 import Farben from "./Farben.jsx";
+import Symbole from "./Symbole.jsx";
 import Nutzer from "./Nutzer.jsx";
 import Sicherung from "./Sicherung.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
@@ -22,6 +23,7 @@ import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 // 7. Oktober 2026: „für alle nicht Admins nur Allgemein sichtbar“).
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente", true], ["backup", "Backup", true],
                 ["fehler", "Fehlerprotokoll", true], ["farben", "Farben und Material", true],
+                ["symbole", "Symbole", true],
                 ["nutzer", "Nutzer", true]];
 
 const THEMEN = [["blau", "Blau"], ["rot", "Rot"], ["gruen", "Grün"], ["gelb", "Gelb"],
@@ -49,6 +51,7 @@ function Einstellungen({ zu }) {
   else if (offen === "fehler") inhalt = <Fehlerprotokoll />;
   else if (offen === "dokumente") inhalt = <Dokumente />;
   else if (offen === "farben") inhalt = <Farben />;
+  else if (offen === "symbole") inhalt = <Symbole />;
   else inhalt = <Nutzer />;
 
   return (

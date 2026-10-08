@@ -1,6 +1,7 @@
 # Materialfarben nur aus der Palette (Wunsch 5. Oktober 2026): Im
-# Auftragsfenster gibt es keinen freien Farbwähler mehr. "+" legt eine
-# neue Farbe aus der Palette an, mit Material und Kürzel. Ein alter
+# Auftragsfenster gibt es keinen freien Farbwähler mehr. Neue Farben
+# gibt es nur in den Einstellungen (Wunsch 8. Oktober 2026, vorher "+"
+# im Auftragsfenster). Ein alter
 # Auftrag mit eigener Farbe bekommt beim Bearbeiten die nächstliegende
 # Palettenfarbe vorgeschlagen, gespeichert erst mit "Speichern".
 import time
@@ -37,7 +38,7 @@ with sync_playwright() as p:
     oeffnen(pg, jid)
     pruefe("Fenster offen", pg.locator(".dialog--auftrag").count() == 1)
     pruefe("Kein freier Farbwähler", pg.locator(".dialog--auftrag input[type=color]").count() == 0)
-    pruefe("Knopf Neue Farbe", pg.locator("#pl-farbneu").count() == 1)
+    pruefe("Kein Knopf Neue Farbe mehr", pg.locator("#pl-farbneu").count() == 0)
     pruefe("Alte Farbe nach Vorschlag weg", pg.locator(".farbknopf--alt").count() == 0)
     hinweis = pg.inner_text("#pl-farbmaterial")
     print("     Hinweis:", hinweis)
@@ -47,26 +48,8 @@ with sync_playwright() as p:
     pruefe("Vorschlag ist angebotene Farbe", bool(aktiv))
     pg.screenshot(path="/tmp/farbe_vorschlag.png")
 
-    # Neue Farbe anlegen
-    vorher = pg.evaluate("TEST.daten.farb_material.map(z => z.farbe)")
-    pg.click("#pl-farbneu"); pg.wait_for_timeout(500)
-    angebot = pg.evaluate("[...document.querySelectorAll('[data-neufarbe]')].map(b => b.dataset.neufarbe)")
-    pruefe("Nur freie Palettenfarben angeboten", len(angebot) > 0 and not (set(angebot) & set(vorher)))
-    pruefe("Auch im Dialog kein Farbwähler", pg.locator("input[type=color]").count() == 0)
-    # Ohne Farbe geht es nicht
-    pg.fill("#neufarbe-material", "Kupfer"); pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
-    pruefe("Ohne Farbe bleibt Dialog offen", pg.locator("[data-neufarbe]").count() > 0)
-    neu = angebot[0]
-    pg.click(f"[data-neufarbe='{neu}']"); pg.fill("#neufarbe-kuerzel", "CU")
-    pg.screenshot(path="/tmp/farbe_neu_dialog.png")
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(800)
-    z = pg.evaluate("(f) => TEST.daten.farb_material.find(z => z.farbe === f) || null", neu)
-    pruefe("Zuteilung gespeichert", bool(z) and z["material"] == "Kupfer" and z["buchstabe"] == "CU")
-    pruefe("Neue Farbe im Fenster gewählt", pg.evaluate("document.querySelector('[data-plfarbe].aktiv')?.dataset.plfarbe") == neu)
-    pruefe("Material darunter", "Kupfer" in pg.inner_text("#pl-farbmaterial"))
-    pg.screenshot(path="/tmp/farbe_neu.png")
     pg.click("#pl-ja"); pg.wait_for_timeout(1200)
     farbe = pg.evaluate("(id) => TEST.daten.planwand.find(j => j.id === id).color", jid)
-    pruefe("Auftrag gespeichert mit Palettenfarbe", farbe == neu)
+    pruefe("Auftrag gespeichert mit Palettenfarbe", farbe == aktiv)
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:12])

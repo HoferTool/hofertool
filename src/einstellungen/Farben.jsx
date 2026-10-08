@@ -12,7 +12,8 @@ export default function Farben() {
   return (
     <>
       <Gruppe titel="Farben und Material"
-        text={"Nur Farben mit einem Material erscheinen im Auftragsfenster. Das Kürzel steht auf dem Balken, "
+        text={"Neue Farbe: bei einer freien Farbe das Material eintragen. Nur Farben mit einem Material "
+          + "erscheinen im Auftragsfenster, neue Farben gibt es nur hier. Das Kürzel steht auf dem Balken, "
           + "mehrere Angaben mit Schrägstrich, zum Beispiel E/N. Gespeichert wird beim Verlassen des Felds."}>
         <div id="farbliste"><FarbListe /></div>
       </Gruppe>
@@ -141,8 +142,7 @@ function Werkstoffe() {
             <td className="rechts">{z.n}</td>
             <td>{z.g
               ? <><span className="ws-farbe" style={{ background: alt.farbeVon(z.g.farbe).hex }} />
-                  {alt.werkstoffText(z.g)}
-                  {z.g.spaene && <div className="klein gedaempft">Späne {z.g.spaene}</div>}</>
+                  {z.g.name}</>
               : <span className="gedaempft">nicht erkannt</span>}</td>
             <td>
               <select data-werkstoff={z.beispiel} value={z.g && z.g.gelernt ? z.g.key : ""}

@@ -28,6 +28,8 @@ import { zifferblock } from "../pad/Zifferblock.jsx";
 import { stueckzeitVorDemBeenden } from "../daten/stueckzahl.js";
 import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
+import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
+  symbolInfoOffen, M_SYMBOL } from "../daten/symbole.js";
 import { werkzeugWechselDialog } from "../pad/Werkzeugwechsel.jsx";
 import { ferienDialog } from "../planwand/FerienFenster.jsx";
 import { hocoFenster } from "../planwand/HocoFenster.jsx";
@@ -128,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.102.0";
+const APP_VERSION = "111.103.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -269,7 +271,7 @@ function oberstesFensterSchliessen() {
     if (oberstesFensterSchliessen()) { e.preventDefault(); return; }
     // Kein richtiges Fenster offen: dann das kleine Infofenster der
     // Planwand, das beim Antippen eines Balkens stehen bleibt
-    const infos = document.querySelectorAll(".pw-info");
+    const infos = document.querySelectorAll(".pw-info, .pw-symbolinfo");
     if (infos.length) { infos.forEach((x) => x.remove()); e.preventDefault(); }
   }, true);
 })();
@@ -4494,8 +4496,12 @@ function balkenInfoVerhalten() {
   };
   weg();
 
+  symbolInfoWeg();
+
   tafel.querySelectorAll("[data-auftrag]").forEach((el) => {
     const zeigen = () => {
+      // Über einem Symbol steht dessen Erklärung, nicht die Vorschau
+      if (symbolInfoOffen()) return;
       const id = el.dataset.auftrag;
       const j = (plan.auftraege || []).find((x) => x.id === id);
       if (!j) return;
@@ -4570,13 +4576,26 @@ function balkenInfoVerhalten() {
     };
 
     // Am Computer beim Darüberfahren — und es folgt dem Zeiger
-    el.addEventListener("mouseenter", (e) => { mausX = e.clientX; mausY = e.clientY; zeigen(); });
+    // Über einem Symbol: dessen Fenster statt der Vorschau
+    const symbolUnter = (e) => (e.target && e.target.closest ? e.target.closest("[data-plsymbol]") : null);
+    el.addEventListener("mouseenter", (e) => {
+      mausX = e.clientX; mausY = e.clientY;
+      const s = symbolUnter(e);
+      if (s) symbolInfoZeigen(s, e.clientX, e.clientY); else zeigen();
+    });
     el.addEventListener("mousemove", (e) => {
       mausX = e.clientX; mausY = e.clientY;
+      const s = symbolUnter(e);
+      if (s) {
+        if (!symbolInfoOffen()) { weg(); symbolInfoZeigen(s, e.clientX, e.clientY); }
+        else symbolInfoSetzen(e.clientX, e.clientY);
+        return;
+      }
+      if (symbolInfoOffen()) { symbolInfoWeg(); zeigen(); }
       if (fenster) requestAnimationFrame(platzieren);
     });
-    el.addEventListener("mouseleave", weg);
-    el.addEventListener("mousedown", weg);
+    el.addEventListener("mouseleave", () => { symbolInfoWeg(); weg(); });
+    el.addEventListener("mousedown", () => { symbolInfoWeg(); weg(); });
 
     // Auf dem Handy: langes Drücken. Kurzes Tippen bleibt ein Klick,
     // und sobald gescrollt wird, verschwindet die Vorschau wieder.
@@ -4584,11 +4603,13 @@ function balkenInfoVerhalten() {
     el.addEventListener("touchstart", (e) => {
       const t = e.touches[0];
       startY = t.clientY; startX = t.clientX;
+      const s = symbolUnter(e);
       clearTimeout(halten);
       halten = setTimeout(() => {
         // Wer plant, hebt mit langem Drücken den Balken an. Dann soll
         // nicht noch das Infofenster mitten ins Verschieben springen.
         if (plan.zugInGeste || document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return;
+        if (s) { symbolInfoZeigen(s, startX, startY); return; }
         zeigen();
       }, 450);
     }, { passive: true });
@@ -4597,12 +4618,12 @@ function balkenInfoVerhalten() {
       const t = e.touches[0];
       if (Math.abs(t.clientY - startY) > 8 || Math.abs(t.clientX - startX) > 8) {
         clearTimeout(halten);
-        weg();
+        weg(); symbolInfoWeg();
       }
     }, { passive: true });
 
     el.addEventListener("touchend", () => { clearTimeout(halten); });
-    el.addEventListener("touchcancel", () => { clearTimeout(halten); weg(); });
+    el.addEventListener("touchcancel", () => { clearTimeout(halten); weg(); symbolInfoWeg(); });
   });
 
   // Ein Tipp irgendwo anders schliesst die Vorschau
@@ -5746,7 +5767,8 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
     + '<div class="pw-balken__aussen">'
     // Bei "geplant" sagt das Zeichen, ob das Material besorgt ist.
     // Massgebend ist das Feld "Menge vorhanden oder bestellt": steht
-    // dort nichts, ist der Kreis rot gefüllt.
+    // dort nichts, steht statt des Kreises das rote M auf weissem Feld
+    // (Wunsch Patrick 8. Oktober 2026, vorher ein rot gefüllter Kreis).
     + '<span class="pw-balken__statusgross'
     + (st === "geplant" && !mengeDa ? " pw-balken__statusgross--ohnematerial" : "")
     + '" title="'
@@ -5756,11 +5778,13 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
             : ""))
     + '">'
     + (st === "geplant" && !mengeDa
-        ? "●"
+        ? M_SYMBOL
         : (PLANSTATUS[st] || PLANSTATUS.geplant).zeichen) + '</span>'
     + '<div class="pw-balken__inhalt">'
     + '<div class="pw-zeile1">'
     + '<span class="pw-balken__nr">' + esc(j.job_number) + '</span>'
+    // Symbole aus den Einstellungen, gleich hinter der Nummer
+    + symbolHtml(j)
     + (j.problem ? '<span class="pw-balken__warnung" title="'
         + esc(j.problem) + '">⚠</span>' : "")
     // FA und M sind weg: Die Materiallage sagt der Punkt links, den
@@ -9439,7 +9463,7 @@ function zeichneSeite() {
   const roh = location.hash.replace(/^#\/?/, "").split("/")[0];
   // Das kleine Infofenster eines Planwand-Balkens hängt am Seitenende —
   // beim Wechsel auf eine andere Seite darf es nicht stehen bleiben
-  document.querySelectorAll(".pw-info").forEach((x) => x.remove());
+  document.querySelectorAll(".pw-info, .pw-symbolinfo").forEach((x) => x.remove());
 
   // Alte Verweise auf #/einstellungen öffnen jetzt das Fenster
   // Wer noch einen Verweis auf die alte Seite hat, landet im Reiter
@@ -9548,7 +9572,7 @@ function zeichneGeruest() {
   if (!location.hash) location.hash = "#/dashboard";
   // Nach dem Neuladen aus dem Pad gleich wieder ins Pad, ohne die
   // Seite darunter erst aufzubauen
-  Promise.all([farbzuteilungLaden(), planerLaden()]).then(() => {
+  Promise.all([farbzuteilungLaden(), planerLaden(), symboleLaden()]).then(() => {
     if (!padWiederOeffnen()) zeichneSeite();
   });
   padKnopfEinbauen();

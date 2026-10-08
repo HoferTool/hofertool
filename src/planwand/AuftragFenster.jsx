@@ -15,35 +15,41 @@
 //  vorlage). Ohne auftrag ist es ein neuer Auftrag, mit vorlage eine
 //  Kopie (alles übernommen ausser Nummer, Maschine, Stückzahl und
 //  Zeichnung; Beginn dort, wo die Maschine wieder frei ist).
+//  Mit leer (Plus-Knopf der Planwand, Wunsch Patrick 8. Oktober 2026)
+//  ist alles leer, auch Maschine und Datum: Die HOCO Nr. holt
+//  Maschine, Material, Zeichnung und Dauer aus Stammdaten und letztem
+//  Auftrag; ohne Ab kommt der Auftrag ans Ende der Maschine.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt, useVerzoegert } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { neueFarbeDialog } from "../teile/Dialoge.jsx";
+import { symbole, symbolIds, symbolSpalte } from "../daten/symbole.js";
 import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
 import { materialBestellungLesen, materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 
-export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage) {
+export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
   fensterOeffnen((zu) => (
     <AuftragFenster auftrag={auftrag || null} b={b} vorgabeMaschine={vorgabeMaschine}
-      vorgabeDatum={vorgabeDatum} vorlage={vorlage || null} zu={zu} />
+      vorgabeDatum={vorgabeDatum} vorlage={vorlage || null} leer={!auftrag && !vorlage && !!leer} zu={zu} />
   ), () => { alt.plan.imDialog = false; });
 }
 
 const istBild = (adresse) => /\.(png|jpe?g|webp|gif)(\?|$)/i.test(adresse);
 
 // Was beim Öffnen in den Feldern steht
-function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum) {
+function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer) {
   const maschinen = alt.prod.maschinen || [];
   const quelle = auftrag || v || {};
   const leerOder = (x) => (x === null || x === undefined ? "" : x);
   const maschine = auftrag ? auftrag.machine_id
+    : leer ? ""
     : (vorgabeMaschine || (maschinen[0] ? maschinen[0].id : ""));
   // Ein neuer Auftrag beginnt dort, wo die Maschine wieder frei ist —
   // nicht heute. Sonst liegt die Kopie sofort auf einem anderen Auftrag.
   const von = auftrag ? (auftrag.planned_from || "")
+    : leer ? ""
     : (vorgabeDatum
        || alt.naechsterFreierTag(vorgabeMaschine || (v && v.machine_id)
             || (maschinen[0] ? maschinen[0].id : null))
@@ -86,6 +92,7 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum) {
       ? be : null,
     farbe: (auftrag && auftrag.color) || (v && v.color) || "blau",
     zustand: (auftrag && auftrag.plan_status) || "geplant",
+    symbole: symbolIds(quelle.symbole),
     // Die Zeile "Material: …" steht im eigenen Feld Materialplatz. Stand
     // sie auch hier, kam sie beim Speichern ein zweites Mal dazu. Was
     // aus der Bestellung in Menge und Liefertermin steht, fällt weg.
@@ -161,7 +168,30 @@ function Anhang({ was, ordner, adresse, setzen, darf, titel, id, wegId, standId,
   );
 }
 
-function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v, zu }) {
+// Der letzte Auftrag dieser HOCO Nr.: welche Maschine, wie lange, welches
+// Material. Ohne frühere Aufträge eine Maschine des Typs, auf dem die
+// Nummer schon gerüstet wurde (hoco_type_data).
+async function letzterAuftrag(nr) {
+  const maschinen = alt.prod.maschinen || [];
+  const bekannt = (id) => maschinen.some((m) => m.id === id);
+  try {
+    const r = await alt.db.from("jobs").select("machine_id, planned_days, material_bez, planned_from")
+      .eq("job_number", nr).order("planned_from", { ascending: false, nullsFirst: false }).limit(5);
+    const liste = r.data || [];
+    const j = liste.find((x) => bekannt(x.machine_id)) || liste[0];
+    let maschine = j && bekannt(j.machine_id) ? j.machine_id : "";
+    if (!maschine) {
+      const t = await alt.db.from("hoco_type_data").select("type_id").eq("hoco_nr", nr).limit(5);
+      const typen = (t.data || []).map((x) => x.type_id);
+      const m = maschinen.find((x) => typen.includes(x.type_id));
+      if (m) maschine = m.id;
+    }
+    if (!j && !maschine) return null;
+    return { maschine, tage: j ? Number(j.planned_days) || 0 : 0, material: j ? j.material_bez : null };
+  } catch (f) { return null; }
+}
+
+function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v, leer, zu }) {
   const darf = alt.darfPlanen();
   // Ohne Planungsrecht ist das Fenster zum Nachschauen da: ändern lässt
   // sich nur, was auch vorher schon ging, also Zustand und Problem melden
@@ -171,11 +201,12 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const darfPlatz = darf || (!!auftrag && alt.darfSchreiben() && !alt.istExtern());
   const extern = alt.istExtern();
   const maschinen = alt.prod.maschinen || [];
-  const [w, setW] = useState(() => anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum));
+  const [w, setW] = useState(() => anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer));
   const setze = (feld, wert) => setW((x) => ({ ...x, [feld]: wert }));
   const aktuell = useRef(w);
   aktuell.current = w;
   const farbeVonHand = useRef(false);
+  const tageVonHand = useRef(false);
   const [hocoInfo, setHocoInfo] = useState("");
   const [pdfStand, setPdfStand] = useState("");
   const [wbgStand, setWbgStand] = useState("");
@@ -219,7 +250,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   // ----- Von, Bis und Dauer im Gleichklang -----
   const vonAendern = (von) => setW((x) => ({ ...x, von,
     bis: von ? alt.letzterArbeitstag(von, Math.max(1, Number(x.tage) || 1)) : x.bis }));
-  const tageAendern = (tage) => setW((x) => ({ ...x, tage,
+  const tageAendern = (tage) => { tageVonHand.current = true; tageSetzen(tage); };
+  const tageSetzen = (tage) => setW((x) => ({ ...x, tage,
     bis: x.von ? alt.letzterArbeitstag(x.von, Math.max(1, Number(tage) || 1)) : x.bis }));
   const bisAendern = (bis) => setW((x) => {
     if (!x.von || !bis) return { ...x, bis };
@@ -251,16 +283,31 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     const nr = nrRuhig.trim();
     if (!nr) { setHocoInfo(""); return; }
     let gueltig = true;
-    alt.ladeHocoEins(nr).then((teil) => {
+    Promise.all([alt.ladeHocoEins(nr), letzterAuftrag(nr)]).then(([teil, vorher]) => {
       if (!gueltig) return;
-      if (!teil) {
-        setHocoInfo("Zu dieser Nummer sind noch keine Stammdaten hinterlegt. "
-          + "Anlegen geht unter Produktion → HOCO Nr.");
-        return;
-      }
       const jetzt = aktuell.current;
       const neu = {};
       const uebernommen = [];
+      // Maschine und Dauer vom letzten Auftrag dieser Nummer, sonst eine
+      // Maschine des Typs, auf dem sie schon lief. Die Maschine nur, wenn
+      // noch keine gewählt ist (Plus-Knopf), sonst gilt der Klick auf die Zeile.
+      if (vorher && !jetzt.maschine && vorher.maschine) {
+        neu.maschine = vorher.maschine; uebernommen.push("Maschine");
+      }
+      if (vorher && vorher.tage && !tageVonHand.current && jetzt.tage === "1" && vorher.tage > 1) {
+        tageSetzen(String(vorher.tage)); uebernommen.push("Dauer");
+      }
+      // Die Farbe kommt wie immer aus dem Werkstoff des Materials
+      if (!jetzt.matBez && !(teil && teil.material) && vorher && vorher.material) {
+        neu.matBez = vorher.material; uebernommen.push("Material");
+      }
+      if (!teil) {
+        if (Object.keys(neu).length) setW((x) => ({ ...x, ...neu }));
+        setHocoInfo((uebernommen.length ? "Vom letzten Auftrag übernommen: " + uebernommen.join(", ") + ". " : "")
+          + "Zu dieser Nummer sind noch keine Stammdaten hinterlegt. "
+          + "Anlegen geht unter Produktion → HOCO Nr.");
+        return;
+      }
       if (teil.zeichnung_url && !jetzt.pdf) {
         neu.pdf = teil.zeichnung_url;
         uebernommen.push("Zeichnung");
@@ -296,27 +343,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     ? alt.naechstePlanfarbe(w.farbe, alt.farbenZurWahl()).wert : null));
   useEffect(() => { if (vorschlag) setze("farbe", vorschlag); }, []);
 
-  // Neue Farbe: nur aus der Palette, gleich mit Material und Kürzel
-  const [, farbenNeu] = useState(0);
-  const neueFarbe = async () => {
-    const frei = alt.PLANFARBEN.filter((f) => !alt.FARBZUTEILUNG[f.wert]);
-    if (!frei.length) {
-      alt.meldung("Alle Farben der Palette sind schon vergeben. In den Einstellungen unter Farben und Material umbenennen.", "warn");
-      return;
-    }
-    const neu = await neueFarbeDialog(frei);
-    if (!neu) return;
-    const nr = alt.PLANFARBEN.findIndex((f) => f.wert === neu.farbe);
-    const { error } = await alt.db.from("farb_material").upsert({
-      farbe: neu.farbe, material: neu.material, buchstabe: neu.kuerzel || null, sortierung: nr });
-    if (error) alt.meldung(alt.fehlertext(error), "fehler");
-    else {
-      await alt.farbzuteilungLaden();
-      alt.meldung("Farbe " + alt.farbeVon(neu.farbe).name + " für " + neu.material + " angelegt.", "gut");
-    }
-    farbenNeu((x) => x + 1);
-    farbeWaehlen(neu.farbe);
-  };
+  // Neue Farben gibt es nur noch in den Einstellungen unter Farben und
+  // Material (Wunsch Patrick 8. Oktober 2026), nicht mehr hier mit „+“.
+  const symbolUmschalten = (id) => setW((x) => ({ ...x,
+    symbole: x.symbole.includes(id) ? x.symbole.filter((p) => p !== id) : [...x.symbole, id] }));
   const planerUmschalten = (k) => setW((x) => ({ ...x,
     planer: x.planer.includes(k) ? x.planer.filter((p) => p !== k) : [...x.planer, k] }));
 
@@ -346,6 +376,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       if (abrufFeld.current) abrufFeld.current.focus();
       return;
     }
+    if (!w.maschine) { alt.meldung("Bitte eine Maschine wählen.", "warn"); return; }
     // Mit eigener Spalte steht der Materialplatz nicht mehr in der Notiz
     const platzSpalte = alt.materialPlatzSpalte();
     const daten = {
@@ -374,6 +405,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     };
     if (abrufDa) daten.abruf_info = w.abruf.trim() || null;
     if (platzSpalte) daten.material_platz = (w.matOrt || "").trim() || null;
+    // Symbole erst, wenn die Datenbank die Spalte kennt (sql/plan-symbole.sql)
+    const symbolText = w.symbole.filter((id) => symbole().some((s) => s.id === id)).join(",") || null;
+    if (symbolSpalte()) daten.symbole = symbolText;
+    else if (symbolText) alt.meldung("Symbole lassen sich erst nach sql/plan-symbole.sql speichern.", "warn");
     setBeschaeftigt(true);
     try { await auftragSpeichern({ auftrag, daten, nr: w.nr.trim(), b, zu }); }
     finally { setBeschaeftigt(false); }
@@ -407,7 +442,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   {auftrag.geaendert_am ? " · " + alt.datumZeitKurz(auftrag.geaendert_am) : ""}</span>}
               </>
             : <>
-                <h2>{v ? "Kopie anlegen" : "Auftrag einplanen"}</h2>
+                <h2>{v ? "Kopie anlegen" : leer ? "Neuer Auftrag" : "Auftrag einplanen"}</h2>
                 {v && <span className="auf-kopf__unter">von {v.job_number} — Nummer, Maschine,
                   Stückzahl und Zeichnung neu setzen</span>}
               </>}
@@ -495,6 +530,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
             <label className="feld"><span>Maschine</span>
               <select id="pl-maschine" disabled={!darf} value={w.maschine}
                 onChange={(e) => setze("maschine", e.target.value)}>
+                {!w.maschine && <option value="">Maschine wählen</option>}
                 {maschinen.map((m) => <option key={m.id} value={m.id}>
                   {m.name + (m.machine_number ? " (" + m.machine_number + ")" : "")}</option>)}
               </select></label>
@@ -506,6 +542,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
             <label className="feld"><span>Bis</span>
               <input id="pl-bis" type="date" readOnly={nurLesen} value={w.bis} onChange={(e) => bisAendern(e.target.value)} /></label>
           </div>
+          {!auftrag && !w.von && <span className="feldhinweis" id="pl-ans-ende">
+            Ohne Datum kommt der Auftrag ans Ende der Maschine.</span>}
 
           <div className="auf-trenner" />
           <div className="auf-zweier">
@@ -520,7 +558,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                     ? <span className="gedaempft">Werkstoff nicht erkannt — in den Einstellungen unter
                         Farben und Material zuordnen</span>
                     : <><span className="ws-farbe" style={{ background: alt.farbeVon(gruppe.farbe).hex }} />
-                        {alt.werkstoffText(gruppe) + (gruppe.spaene ? " · Späne " + gruppe.spaene : "")}</>}
+                        {gruppe.name}</>}
               </span></label>
             {/* Eigenes Feld, unabhängig von Notiz und Bestellung */}
             <label className="feld" id="pl-ortfeld"><span>Materialplatz</span>
@@ -557,10 +595,21 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
               {/* Ein alter Auftrag mit eigener Farbe: nur zum Ansehen */}
               {freieFarbe && <span className="farbknopf farbknopf--alt aktiv" title="Eigene Farbe (alt)"
                 style={{ background: w.farbe }} />}
-              {darf && <button type="button" id="pl-farbneu" className="farbknopf farbknopf--neu"
-                title="Neue Farbe aus der Palette" aria-label="Neue Farbe" onClick={neueFarbe}>+</button>}
             </div>
           </div>
+
+          {/* Symbole aus Einstellungen → Symbole, stehen auf dem Balken
+              hinter der HOCO Nr. */}
+          {symbole().length > 0 && <div className="feld"><span className="feldlabel">Symbol auf dem Balken</span>
+            <div className="auf-symbole" id="pl-symbole">
+              {symbole().map((s) => (
+                <button key={s.id} type="button" data-plsymbolwahl={s.id} title={s.text}
+                  className={"symbolknopf" + (w.symbole.includes(s.id) ? " aktiv" : "")}
+                  aria-pressed={w.symbole.includes(s.id)} disabled={nurLesen}
+                  onClick={() => symbolUmschalten(s.id)}>
+                  <img src={s.bild} alt="" /><span>{s.text}</span></button>
+              ))}
+            </div></div>}
 
           {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
           <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>
