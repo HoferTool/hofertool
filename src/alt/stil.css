@@ -6444,3 +6444,13 @@ body.dunkel .nb-tab--edit td:focus-within { background: rgba(107, 164, 255, .14)
 .abruf-leer b { font-size: 1.3rem; }
 .abruf-leer .klein { color: #9aa5b1; }
 @media (max-width: 640px) { .betrachter__abruf { flex: 1 1 100%; } }
+
+/* ---------- Startseite · Materialausgabe Extern (111.99.0) ---------- */
+.matausgabe-neu { display: flex; gap: 8px; align-items: center; margin: 4px 0 6px; }
+.matausgabe-neu input { flex: 1; min-width: 0; }
+.matausgabe-neu .notizbuch-knopf:disabled { opacity: .45; cursor: default; }
+.matausgabe-suche { width: 100%; margin: 0 0 10px; }
+.matausgabe-rolle { max-height: min(65vh, 640px); overflow: auto; }
+.matausgabe-rolle .tabelle { width: 100%; }
+.matausgabe-rolle th { position: sticky; top: 0; background: var(--flaeche); z-index: 1; }
+.matausgabe-offen td { background: var(--marke-hell); }

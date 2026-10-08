@@ -12,6 +12,7 @@ import { Probleme, problemeLaden, EinkaufKurz, Bestellstand, Geburtstage,
   geburtstageLaden, geburtstageAufbereiten } from "./start/Karten.jsx";
 import { GeburtstagMitte, Konfetti } from "./start/Geburtstag.jsx";
 import Notizen from "./start/Notizen.jsx";
+import Materialausgabe from "./start/Materialausgabe.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 
 export default function Start({ auffrischen }) {
@@ -38,8 +39,10 @@ export default function Start({ auffrischen }) {
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
       <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />
       {/* Reihenfolge nach Wunsch 4. Oktober 2026: Probleme, Bestellungen,
-          Notizen, Einkaufsliste, am Schluss die Geburtstage. */}
+          Notizen, Einkaufsliste, am Schluss die Geburtstage. Über den
+          Notizen die Materialausgabe Extern (Wunsch 8. Oktober 2026). */}
       <Bestellstand auffrischen={auffrischen} />
+      <Materialausgabe auffrischen={auffrischen} />
       <Notizen auffrischen={auffrischen} />
       <EinkaufKurz auffrischen={auffrischen} />
       <Geburtstage leute={geb.daten} fehler={geb.fehler} />

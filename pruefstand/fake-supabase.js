@@ -158,7 +158,7 @@ const daten = {
     pad_info: "Kühlmittel prüfen, Zange nach 20'000 Stk", abend_stk: 150 }], setup_sheets: [], setup_sheet_slots: [],
   werkzeugwechsel: [],
   einrichtblaetter: [],
-  todos: [], shopping_items: [],
+  todos: [], shopping_items: [], materialausgabe: [],
   suppliers: [
     { id: "s1", name: "Vischer & Bolli AG", website: "https://vb.ch",
       email: "v@vb.ch", adresse: "Kanalstrasse 17", bestellweg: "mail" },
@@ -358,6 +358,10 @@ function bauer(tabelle) {
               if (z.is_done === undefined) z.is_done = false;
               if (!z.created_at) z.created_at = new Date().toISOString();
             }
+            if (tabelle === "materialausgabe") {
+              if (!z.raus_am) z.raus_am = new Date().toISOString();
+              if (z.rein_am === undefined) { z.rein_am = null; z.rein_von = null; }
+            }
             tab.push(z);
             if (tabelle === "jobs" && daten.planwand !== tab) daten.planwand.push(z);
           });
@@ -473,6 +477,10 @@ function bauer(tabelle) {
               profiles: daten.profiles[0] || null,
             });
           });
+        }
+        if (tabelle === "materialausgabe") {
+          const person = (id) => daten.profiles.find((x) => x.id === id) || null;
+          treffer = treffer.map((z) => Object.assign({}, z, { raus: person(z.raus_von), rein: person(z.rein_von) }));
         }
         if (tabelle === "chat_nachrichten" || tabelle === "chat_teilnehmer") {
           treffer = treffer.map((z) => Object.assign({}, z, {

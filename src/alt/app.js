@@ -127,7 +127,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.98.0";
+const APP_VERSION = "111.99.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2379,7 +2379,7 @@ function begruessung() {
 
 const SICHERUNG_TABELLEN = [
   "profiles", "machine_parks", "machines", "jobs", "production_records",
-  "suppliers", "articles", "order_items", "todos",
+  "suppliers", "articles", "order_items", "todos", "materialausgabe",
   "shopping_items", "vacations",
 ];
 
@@ -9097,6 +9097,7 @@ async function seitenStempel(pfad) {
   if (pfad === "dashboard") {
     await hole("jobs", "id,problem,problem_at,fa_erstellt,material_ok,planned_from,plan_status");
     await hole("todos", "id,text,is_done,due_date");
+    await hole("materialausgabe", "id,text,rein_am");
     await hole("shopping_items", "id,text,is_done,prio");
     await hole("order_items", "id,status,quantity,needed_by");
     // ohne Personen: dort stehen auch die persönlichen Einstellungen
@@ -9126,7 +9127,7 @@ function syncTabellen(pfad) {
   // Ohne profiles: dort landen auch die persönlichen Einstellungen. Jeder
   // Regler, den jemand im Betrieb verschob, liess sonst alle Startseiten
   // neu aufbauen. Geburtstage kommen beim nächsten Öffnen.
-  if (pfad === "dashboard") return ["jobs", "todos", "shopping_items", "order_items"];
+  if (pfad === "dashboard") return ["jobs", "todos", "shopping_items", "order_items", "materialausgabe"];
   if (pfad === "produktion") return ["production_records", "jobs", "machines"];
   if (pfad === "bestellungen") return ["order_items", "articles", "suppliers", "designations"];
   if (pfad === "einkauf") return ["shopping_items"];
