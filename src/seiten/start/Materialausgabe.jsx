@@ -5,9 +5,11 @@
 //  zurück ist. Wer und wann kommen beim Erfassen („raus“) und beim
 //  Abhaken („rein“) von selbst dazu. Abgehakte Einträge verschwinden
 //  aus der Karte und stehen in der Historie (Knopf mit der Uhr).
+//  Zwei Felder nebeneinander: was und an wen. Raus geht es erst, wenn
+//  beide ausgefüllt sind (Wunsch Patrick 8. Oktober 2026).
 //  Tabelle: sql/materialausgabe.sql
 // =================================================================
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { Symbol } from "../../teile/zeichnen.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
@@ -36,6 +38,8 @@ async function offeneLaden() {
 export default function Materialausgabe({ auffrischen }) {
   const { daten: liste, fehler, neu } = useDaten(offeneLaden, [auffrischen]);
   const [text, setText] = useState("");
+  const [anWen, setAnWen] = useState("");
+  const anWenFeld = useRef(null);
   const [laeuft, setLaeuft] = useState(false);
 
   if (alt.istExtern()) return null;
@@ -49,15 +53,21 @@ export default function Materialausgabe({ auffrischen }) {
 
   const erfassen = async (e) => {
     e.preventDefault();
-    const t = text.trim();
-    if (!t || laeuft) return;
+    const t = text.trim(), a = anWen.trim();
+    if (!t || !a || laeuft) return;
     setLaeuft(true);
-    const { data, error } = await alt.db.from("materialausgabe")
-      .insert({ text: t, raus_von: alt.profil.id }).select("id");
+    let { data, error } = await alt.db.from("materialausgabe")
+      .insert({ text: t, an_wen: a, raus_von: alt.profil.id }).select("id");
+    // Ohne die Spalte an_wen (sql/materialausgabe.sql noch nicht neu
+    // ausgeführt) steht der Empfänger im Text, damit nichts verloren geht
+    if (error && /an_wen/.test(String(error.message || ""))) {
+      ({ data, error } = await alt.db.from("materialausgabe")
+        .insert({ text: t + " → " + a, raus_von: alt.profil.id }).select("id"));
+    }
     setLaeuft(false);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     if (Array.isArray(data) && data[0]) alt.merkeSchritt("Materialausgabe erfassen", alt.rueckWeg("materialausgabe", { id: data[0].id }));
-    setText(""); neu();
+    setText(""); setAnWen(""); neu();
   };
 
   return (
@@ -72,10 +82,18 @@ export default function Materialausgabe({ auffrischen }) {
         </div>
         <form className="matausgabe-neu" onSubmit={erfassen}>
           <input type="text" id="matausgabe-text" value={text} maxLength={500}
-            placeholder="Was geht raus? Schreiben und Enter"
-            aria-label="Was geht raus?" onChange={(e) => setText(e.target.value)} />
+            placeholder="Was geht raus?"
+            aria-label="Was geht raus?" onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              // Ist der Plus-Knopf gesperrt, schickt Enter das Formular nicht ab:
+              // dann von Hand ins Feld „An wen“
+              if (e.key === "Enter" && text.trim() && !anWen.trim()) { e.preventDefault(); anWenFeld.current.focus(); }
+            }} />
+          <input type="text" id="matausgabe-anwen" className="matausgabe-anwen" ref={anWenFeld}
+            value={anWen} maxLength={200} placeholder="An wen?" aria-label="An wen?"
+            onChange={(e) => setAnWen(e.target.value)} />
           <button type="submit" className="notizbuch-knopf" id="matausgabe-neu" aria-label="Eintragen"
-            title="Eintragen" disabled={!text.trim() || laeuft}><Symbol d={PLUS} /></button>
+            title="Eintragen" disabled={!text.trim() || !anWen.trim() || laeuft}><Symbol d={PLUS} /></button>
         </form>
         {liste.length
           ? <div className="notizen">
@@ -84,6 +102,7 @@ export default function Materialausgabe({ auffrischen }) {
                   <input type="checkbox" data-matrein={m.id} title="Zurück, abhaken"
                     onChange={(e) => abhaken(e, m, neu)} />
                   <span className="notiz__text">{m.text}
+                    {m.an_wen && <> <span className="matausgabe-an">an {m.an_wen}</span></>}
                     <span className="klein"> · raus {alt.datumZeitKurz(m.raus_am)}
                       {m.raus ? ", " + alt.personName(m.raus) : ""}</span></span>
                   <button className="linkknopf" data-matbearb={m.id}
@@ -119,12 +138,14 @@ async function abhaken(e, m, neu) {
 
 async function bearbeiten(m, neu) {
   const w = await alt.dialogFelder({ titel: "Materialausgabe bearbeiten",
-    felder: [{ name: "text", label: "Was ging raus?", typ: "textarea", wert: m.text, pflicht: true }],
+    felder: [{ name: "text", label: "Was ging raus?", typ: "textarea", wert: m.text, pflicht: true },
+      { name: "an_wen", label: "An wen?", wert: m.an_wen || "", pflicht: true }],
     bestaetigen: "Speichern" });
-  if (!w || w.text === m.text) return;
-  const { error } = await alt.db.from("materialausgabe").update({ text: w.text }).eq("id", m.id);
-  if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
-  alt.merkeSchritt("Materialausgabe bearbeiten", alt.rueckSetz("materialausgabe", { text: m.text }, { id: m.id }));
+  if (!w || (w.text === m.text && w.an_wen === (m.an_wen || ""))) return;
+  try { await alt.aendernOhneUnbekannte("materialausgabe", { text: w.text, an_wen: w.an_wen }, "id", m.id); }
+  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
+  alt.merkeSchritt("Materialausgabe bearbeiten",
+    alt.rueckSetz("materialausgabe", { text: m.text, an_wen: m.an_wen || null }, { id: m.id }));
   alt.meldung("Gespeichert."); neu();
 }
 
@@ -155,6 +176,7 @@ function Historie({ liste, zu }) {
   const [suche, setSuche] = useState("");
   const s = suche.trim().toLowerCase();
   const gezeigt = s ? liste.filter((m) => String(m.text || "").toLowerCase().includes(s)
+    || String(m.an_wen || "").toLowerCase().includes(s)
     || alt.personName(m.raus, "").toLowerCase().includes(s)
     || alt.personName(m.rein, "").toLowerCase().includes(s)) : liste;
   return (
@@ -166,10 +188,11 @@ function Historie({ liste, zu }) {
           value={suche} onChange={(e) => setSuche(e.target.value)} />}
       {gezeigt.length
         ? <div className="matausgabe-rolle"><table className="tabelle">
-            <thead><tr><th>Was</th><th>Raus</th><th>Wer raus</th><th>Rein</th><th>Wer rein</th></tr></thead>
+            <thead><tr><th>Was</th><th>An wen</th><th>Raus</th><th>Wer raus</th><th>Rein</th><th>Wer rein</th></tr></thead>
             <tbody>{gezeigt.map((m) => (
               <tr key={m.id} className={m.rein_am ? "" : "matausgabe-offen"}>
                 <td>{m.text}</td>
+                <td>{m.an_wen || "—"}</td>
                 <td className="klein nowrap">{mitJahr(m.raus_am)}</td>
                 <td className="klein">{m.raus ? alt.personName(m.raus) : "—"}</td>
                 <td className="klein nowrap">{m.rein_am ? mitJahr(m.rein_am) : <strong>noch draussen</strong>}</td>

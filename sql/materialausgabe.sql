@@ -8,6 +8,7 @@
 --
 --  Diese Datei legt dafür die Tabelle materialausgabe an:
 --    text      was rausging
+--    an_wen    an wen es ging (seit 111.105.0)
 --    raus_am   wann es rausging (beim Erfassen, von selbst)
 --    raus_von  wer es erfasst hat (von selbst)
 --    rein_am   wann es abgehakt wurde, leer = noch draussen
@@ -28,6 +29,9 @@ create table if not exists public.materialausgabe (
   rein_am   timestamptz,
   rein_von  uuid references public.profiles (id) on delete set null
 );
+-- Seit 111.105.0: an wen es ging
+alter table public.materialausgabe add column if not exists an_wen text;
+
 create index if not exists materialausgabe_offen on public.materialausgabe (rein_am, raus_am);
 
 alter table public.materialausgabe enable row level security;
@@ -51,6 +55,10 @@ notify pgrst, 'reload schema';
 -- ---------- Probe ----------
 select 'Tabelle materialausgabe' as punkt,
        case when to_regclass('public.materialausgabe') is not null then 'ok' else 'FEHLT' end as ergebnis
+union all
+select 'Spalte an_wen',
+       case when exists (select 1 from information_schema.columns where table_schema = 'public'
+                         and table_name = 'materialausgabe' and column_name = 'an_wen') then 'ok' else 'FEHLT' end
 union all
 select 'Regel',
        case when exists (select 1 from pg_policies where tablename = 'materialausgabe'

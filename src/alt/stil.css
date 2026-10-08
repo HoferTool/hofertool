@@ -6582,3 +6582,9 @@ body .pw-tafel .pw-balken__planer { font-weight: 500 !important;
   font-size: clamp(8px, calc((100cqh - 6px) * .32), 24px) !important; }
 /* Nur noch eine Zeile: die Nummer nimmt die ganze Höhe */
 .pw-tafel--sehrflach .pw-zeile1 { font-size: clamp(8px, calc((100cqh - 4px) * .85), 30px) !important; }
+/* Materialausgabe: zweites Feld „An wen“ (111.105.0) */
+.matausgabe-neu #matausgabe-text { flex: 3; }
+.matausgabe-neu .matausgabe-anwen { flex: 2; min-width: 0; }
+.matausgabe-an { display: inline-block; margin-left: 4px; padding: 0 7px; border-radius: 999px;
+  background: var(--marke-hell); color: var(--marke); font-size: .82rem; font-weight: 600; }
+body.dunkel .matausgabe-an { color: #8fb8ff; }

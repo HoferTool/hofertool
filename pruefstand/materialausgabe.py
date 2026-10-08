@@ -1,6 +1,6 @@
 # Materialausgabe Extern (111.99.0): Karte über den Notizen. Ins Feld
 # schreiben und Enter legt einen Eintrag an (raus: wann, wer), Abhaken
-# trägt rein ein und nimmt ihn aus der Karte. Die Historie zeigt alles.
+# trägt rein ein. Seit 111.105.0 zweites Feld „An wen“, beide Pflicht und nimmt ihn aus der Karte. Die Historie zeigt alles.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -26,8 +26,21 @@ with sync_playwright() as p:
         fehler.append("Karte steht nicht über den Notizen")
     if "Nichts draussen" not in pg.inner_text("#db-materialausgabe"): fehler.append("Leere Karte ohne Hinweis")
 
-    for t in ["3 Stangen V2A Ø 20 an Zurbrügg", "Spannzange 16 mm", "1 Kiste Messing Ø 8"]:
-        pg.fill("#matausgabe-text", t); pg.press("#matausgabe-text", "Enter"); pg.wait_for_timeout(500)
+    # Nur „was“ ohne „an wen“: geht nicht raus, Enter springt ins zweite Feld
+    pg.fill("#matausgabe-text", "3 Stangen V2A Ø 20"); pg.press("#matausgabe-text", "Enter"); pg.wait_for_timeout(400)
+    if pg.evaluate("TEST.daten.materialausgabe.length"): fehler.append("Ohne 'an wen' trotzdem erfasst")
+    if pg.evaluate("document.activeElement.id") != "matausgabe-anwen": fehler.append("Enter springt nicht ins Feld 'an wen'")
+    if not pg.locator("#matausgabe-neu").is_disabled(): fehler.append("Plus ohne 'an wen' nicht gesperrt")
+    # Nebeneinander
+    a = pg.locator("#matausgabe-text").bounding_box(); b = pg.locator("#matausgabe-anwen").bounding_box()
+    if abs(a["y"] - b["y"]) > 2 or b["x"] <= a["x"] + a["width"] - 1: fehler.append("Felder nicht nebeneinander")
+    pg.fill("#matausgabe-anwen", "Zurbrügg"); pg.press("#matausgabe-anwen", "Enter"); pg.wait_for_timeout(500)
+    for t, w in [("Spannzange 16 mm", "Meier AG"), ("1 Kiste Messing Ø 8", "Zurbrügg")]:
+        pg.fill("#matausgabe-text", t); pg.fill("#matausgabe-anwen", w); pg.click("#matausgabe-neu"); pg.wait_for_timeout(500)
+    if pg.input_value("#matausgabe-anwen") != "": fehler.append("Feld 'an wen' nicht geleert")
+    if [x.get("an_wen") for x in pg.evaluate("TEST.daten.materialausgabe")] != ["Zurbrügg", "Meier AG", "Zurbrügg"]:
+        fehler.append("an_wen falsch: " + str(pg.evaluate("TEST.daten.materialausgabe.map(x => x.an_wen)")))
+    if "an Meier AG" not in pg.inner_text("#db-materialausgabe"): fehler.append("'an wen' fehlt in der Karte")
     zeilen = pg.locator("#db-materialausgabe .notiz")
     if zeilen.count() != 3: fehler.append("Erwartet 3 Einträge, sind " + str(zeilen.count()))
     if pg.input_value("#matausgabe-text") != "": fehler.append("Feld nicht geleert")
@@ -48,12 +61,13 @@ with sync_playwright() as p:
     # Historie
     pg.click("#matausgabe-historie"); pg.wait_for_selector(".matausgabe-historie table")
     kopf = pg.inner_text(".matausgabe-historie thead")
-    for k in ["Was", "Raus", "Wer raus", "Rein", "Wer rein"]:
+    for k in ["Was", "An wen", "Raus", "Wer raus", "Rein", "Wer rein"]:
         if k not in kopf: fehler.append("Spalte fehlt: " + k)
     reihen = pg.locator(".matausgabe-historie tbody tr")
     if reihen.count() != 3: fehler.append("Historie zeigt " + str(reihen.count()) + " statt 3")
     txt = pg.inner_text(".matausgabe-historie tbody")
     if "noch draussen" not in txt: fehler.append("Offene ohne 'noch draussen'")
+    if "Meier AG" not in txt: fehler.append("'an wen' fehlt in Historie")
     if "Spannzange 16 mm" not in txt: fehler.append("Abgehakter fehlt in Historie")
     pg.screenshot(path="materialausgabe-historie-hell.png")
     pg.evaluate("document.body.classList.add('dunkel')"); pg.wait_for_timeout(300)
