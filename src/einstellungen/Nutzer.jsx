@@ -38,7 +38,7 @@ export default function Nutzer() {
           <div><strong>Extern</strong> ist für Partner wie Zurbrügg: nur die Planwand der eigenen Maschinen ansehen
             und dort Stückzahlen melden, sonst nichts.</div>
           <div className="klein">Das Häkchen bei <strong>Plant</strong> heisst: Diese Person erscheint im
-            Auftragsfenster unter „Eingeplant von". Das Kürzel daneben steht danach gross auf dem Balken.</div>
+            Auftragsfenster unter „Siegel“. Das Kürzel daneben erscheint als Siegel in der Schnellvorschau.</div>
         </div>
       </Gruppe>
       <Gruppe titel="Link für externe Partner"

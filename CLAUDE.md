@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.99.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.100.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -102,7 +102,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 
 - **Planwand:** lädt alles Offene, alles Zukünftige und fest ein Jahr zurück. Älteres kommt nach, wenn man mit dem Zeitregler zurückfährt. Taste **H** und Knopf **Heute** springen auf den Montag vor zwei Wochen. Escape schliesst Fenster. Ein Klick auf einen Balken zeigt die Zeichnung, Doppelklick (Doppeltipp) öffnet das Auftragsfenster (Wunsch 3. Oktober 2026). Ohne Planrecht nur zum Ansehen: ändern lassen sich dort nur Zustand und Problem (Wunsch 4. Oktober 2026). Auf Handy und Tablet wird mit dem Finger nichts verschoben, Wischen blättert nur die Zeit vor und zurück (Wunsch 5. Oktober 2026). Beim Verschieben weichen andere Aufträge aus, abgeschlossene werden nie verschoben. Danach kommt die Frage „Lücke lassen?". Löschen fragt nicht nach.
 - **Balken:** Farbe = Werkstoff, auf der Tafel kräftig gezeichnet, Schrift schwarz oder weiss je nach Farbe (Wunsch 5. Oktober 2026). Farben nur aus der Palette `PLANFARBEN`, kein freier Farbwähler (Wunsch 5. Oktober 2026); neue Farben mit „+“ im Auftragsfenster. Das Zeichen vorne zeigt den Zustand: ○ geplant, 🔧 rüsten, 🔍 QS, ▶ läuft, ✔ fertig. Ein roter Punkt ● bei „geplant" heisst: keine Materialmenge eingetragen.
-- **Auftragsfenster:** keine Häkchen „FA erstellt" oder „Material da" mehr. Anordnung (Wunsch 6. Oktober 2026): links Zustand als Auswahlfeld, Auftrag, Material und unten die Notiz; rechts die Zeichnung **quer**, darunter Zeichnung, Einrichtblatt und WBG; nichts darf über den Fensterrand ragen. In der Vorschau steht die FA Nr. oder „Kein FA vorhanden".
+- **Auftragsfenster:** keine Häkchen „FA erstellt" oder „Material da" mehr. Anordnung (Wunsch 6. Oktober 2026): links Zustand als Auswahlfeld, Auftrag, Material und unten die Notiz; rechts die Zeichnung **quer**, darunter Zeichnung, Einrichtblatt und WBG; nichts darf über den Fensterrand ragen. In der Vorschau steht die FA Nr. oder „Kein FA vorhanden". Unter Zustand, FA Nr. und Fertigungsmenge das Feld **Abrufinformation** (freier Text, nur am Auftrag); Pflicht für neue und ab 8. Oktober 2026 angelegte Aufträge, sonst wird nicht gespeichert (Wunsch 8. Oktober 2026). Daneben das **Siegel** (früher „Eingeplant von“), die Maschine steht bei Ab, Tage und Bis. Das Siegel: das Kürzel steht als runder Stempel neben der HOCO Nr. in Fenster und Schnellvorschau, nicht auf dem Balken; wer ein Kürzel hat, bekommt es bei einem neuen Auftrag eingeschaltet. **Schnellvorschau** (Darüberfahren über den Balken) in dieser Reihenfolge: HOCO Nr. mit Siegel, Fertigungsmenge, Abrufinformation, Lücke, alles zum Material, Lücke, alles andere, zuletzt „Letzte Änderung“ mit Datum, Zeit und Person (Wunsch 8. Oktober 2026).
 - **Suche auf der Planwand:** Reihenfolge „Neuester / Ältester Auftrag zuerst", Weiter und Zurück in der Leiste unten.
 - **Startseite:** aktualisiert sich still, ohne sichtbares Neuladen. Die Personentabelle zählt nicht für den Abgleich. Oben in der Mitte steht das weisse Logo. Die Karte „Vorbereitung“ ist weg (Wunsch 4. Oktober 2026). An ihrer Stelle steht immer „Gemeldete Probleme“, ohne Meldung mit „Keine Probleme gemeldet“. Über den Notizen die Karte **Materialausgabe Extern** (Wunsch 8. Oktober 2026, `src/seiten/start/Materialausgabe.jsx`, Tabelle `materialausgabe` aus `sql/materialausgabe.sql`): ins Feld schreiben und Enter, abhaken heisst „zurück“; Wann und Wer für raus und rein kommen von selbst, der Uhr-Knopf öffnet die Historie als Fenster.
 - **Löschen** fragt überall genau einmal nach, dann ist es weg (Wunsch 6. Oktober 2026). Keine zweite oder dritte Rückfrage mehr.
@@ -142,6 +142,7 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alle
 7. Standzeiten der Werkzeuge aus `tool_changes.gehalten_stk` auswerten.
 8. Offene Entscheide: infoBoard-Echtstart, ob der Park „Extern" für interne Rollen sichtbar ist, Lieferantenferien im Ferienblock. ~~Doppelte Namen in den Ferien~~ erledigt am 6. Oktober 2026 (spielt keine Rolle mehr).
 9. Kameras später neu überlegen. Das alte Modul ist entfernt.
+10. `sql/abruf-siegel.sql` im SQL Editor ausführen (Abrufinformation und Siegel, 111.100.0).
 
 ## Sicherheit
 

@@ -6454,3 +6454,41 @@ body.dunkel .nb-tab--edit td:focus-within { background: rgba(107, 164, 255, .14)
 .matausgabe-rolle .tabelle { width: 100%; }
 .matausgabe-rolle th { position: sticky; top: 0; background: var(--flaeche); z-index: 1; }
 .matausgabe-offen td { background: var(--marke-hell); }
+/* ---------- Siegel und Abrufinformation (111.100.0) ----------
+   Das Siegel ist das Kürzel dessen, der eingeplant hat, als runder
+   Stempel neben der HOCO Nr. (Schnellvorschau und Auftragsfenster). */
+.siegel-reihe { display: inline-flex; gap: 4px; align-items: center; flex: none; }
+.siegel { display: inline-flex; align-items: center; justify-content: center;
+          min-width: 28px; height: 28px; padding: 0 4px; border-radius: 999px;
+          border: 2px solid #b3261e; box-shadow: inset 0 0 0 1px rgba(179,38,30,.35);
+          color: #b3261e; font-weight: 800; font-size: .68rem; letter-spacing: .03em;
+          transform: rotate(-8deg); background: rgba(179,38,30,.06); line-height: 1; }
+body.dunkel .siegel { border-color: #ff8a80; color: #ff8a80; background: rgba(255,138,128,.1);
+                      box-shadow: inset 0 0 0 1px rgba(255,138,128,.35); }
+.pw-info__kopf { display: flex; align-items: center; justify-content: space-between;
+                 gap: 8px; margin-bottom: 4px; }
+.pw-info__nr { font-weight: 750; font-size: 1rem; }
+.pw-info__luecke { height: 8px; }
+.pw-info__was { color: var(--gedaempft); font-size: .74rem; }
+.pw-info__zeile--abruf { font-weight: 650; }
+.pw-info__zeile--leer { color: var(--gedaempft); font-style: italic; }
+.pw-info__zeile--schluss { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--linie); }
+.auf-kopf__titel .siegel-reihe { margin-left: 10px; vertical-align: middle; }
+.auf-kopf__nr { display: flex; align-items: center; }
+#pl-abruf.fehlt { border-color: #b3261e; box-shadow: 0 0 0 2px rgba(179,38,30,.25); }
+.auf-abruf .feldhinweis--fehlt { color: #b3261e; font-weight: 600; }
+/* Abrufinformation und Siegel teilen sich eine Zeile, Maschine steht
+   bei Ab, Tage und Bis. So braucht das Fenster trotz neuem Feld keine
+   Zeile mehr und passt auf den Laptop (1280 × 720) ohne Rollen. */
+.dialog--auftrag .auf-zweier.auf-zweier--abruf { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+.auf-vierer { display: grid; gap: 8px;
+              grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.15fr) 56px minmax(0, 1.15fr); }
+.auf-vierer .feld { margin-bottom: 7px; }
+.auf-vierer input[type="date"] { padding-left: 6px; padding-right: 4px; }
+@media (max-width: 700px) {
+  .auf-vierer { grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); }
+  .auf-vierer > :first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  .dialog--auftrag .auf-zweier.auf-zweier--abruf { grid-template-columns: minmax(0, 1fr); }
+}

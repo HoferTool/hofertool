@@ -10,7 +10,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 
 | Tabelle | Zweck | Wichtige Spalten |
 |---|---|---|
-| `jobs` | Aufträge auf der Planwand | `job_number` (= HOCO Nr., Format `10844-0049`), `machine_id`, `planned_from` (date), `planned_days` (Arbeitstage), `plan_status` (`geplant`, `ruesten`, `qs`, `laeuft`, `fertig`), `target_quantity`, `started_at`, `ended_at`, `color` (Name oder `#hex`), `plan_note` (Notiz; vor `sql/materialplatz.sql` stand darin auch „Material: …"), `material_platz` (wo das Material liegt, 111.41.0), `fa_nr`, `material_bez`, `material_menge`, `material_liefertermin` (beide Text; füllt der Auslöser `jobs_material_aus_notiz` aus „Mat BE: …“ in der Notiz, `sql/notiz-material.sql`), `drawing_url`, `wbg_url`, `problem`, `problem_at`, `problem_by`, `geaendert_von`, `geaendert_am`, `sort_order`; Altlasten: `fa_erstellt`, `material_ok` (werden beim Speichern aus `fa_nr` / `material_menge` abgeleitet) |
+| `jobs` | Aufträge auf der Planwand | `job_number` (= HOCO Nr., Format `10844-0049`), `machine_id`, `planned_from` (date), `planned_days` (Arbeitstage), `plan_status` (`geplant`, `ruesten`, `qs`, `laeuft`, `fertig`), `target_quantity`, `started_at`, `ended_at`, `color` (Name oder `#hex`), `plan_note` (Notiz; vor `sql/materialplatz.sql` stand darin auch „Material: …"), `material_platz` (wo das Material liegt, 111.41.0), `abruf_info` (Abrufinformation, freier Text, 111.100.0, `sql/abruf-siegel.sql`), `geplant_von` (Siegel: Kürzel, mehrere mit „/“), `fa_nr`, `material_bez`, `material_menge`, `material_liefertermin` (beide Text; füllt der Auslöser `jobs_material_aus_notiz` aus „Mat BE: …“ in der Notiz, `sql/notiz-material.sql`), `drawing_url`, `wbg_url`, `problem`, `problem_at`, `problem_by`, `geaendert_von`, `geaendert_am`, `sort_order`; Altlasten: `fa_erstellt`, `material_ok` (werden beim Speichern aus `fa_nr` / `material_menge` abgeleitet) |
 | `production_records` | Zählerstände | `machine_id`, `job_id`, `record_date`, `quantity` = **Gesamtzähler seit Auftragsbeginn**, nicht Tagesmenge |
 | `machines` | Maschinen | `park_id`, `name`, `machine_number`, `type_id`, `sort_order`, `is_active` |
 | `machine_parks` | Bereiche (Langdreher, Kurzdreher, Extern) | `name`, `sort_order` |
@@ -62,7 +62,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 
 | Sicht | Zweck |
 |---|---|
-| `planwand` | Aufträge mit Maschine, Park, `stand` (letzter Zählerstand), `problem_von`, `geaendert_*`. **Mit `security_invoker`**, damit die Regeln für Externe greifen. Die App lädt sie seitenweise (je 1'000) mit `count: exact`. |
+| `planwand` | Aufträge mit Maschine, Park, `stand` (letzter Zählerstand), `problem_von`, `geaendert_*`, ab `sql/abruf-siegel.sql` auch `abruf_info`, `geplant_von` und `created_at`. **Mit `security_invoker`**, damit die Regeln für Externe greifen. Die App lädt sie seitenweise (je 1'000) mit `count: exact`. |
 | `login_kacheln` | Kacheln auf der Anmeldeseite (läuft **ohne** Anmeldung; nicht auf `security_invoker` stellen) |
 | `laufende_auftraege`, `werkzeugwechsel`, `einrichtblaetter`, `kontrolle_lesbar`, `artikel_uebersicht`, `bestand_je_platz`, `bewegungen_lesbar`, `typ_aufbau`, `solar_jetzt` | lesefreundliche Sichten |
 | `ib_gedeutet`, `ib_ueberlappungen` | Hilfen für den infoBoard-Import |

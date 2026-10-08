@@ -3,9 +3,9 @@
 //  Einplanen, ändern, kopieren: ein Fenster in zwei Bereichen
 //  (Anordnung Wunsch Patrick 6. Oktober 2026, vorher ragte unten
 //  einiges aus dem Fenster):
-//    links  Zustand als Auswahlfeld, FA Nr., Menge, Maschine, wer
-//           eingeplant hat, Ab/Tage/Bis, Material, Farbe und unten
-//           die Notiz für die Maschine
+//    links  Zustand als Auswahlfeld, FA Nr., Menge, darunter die
+//           Abrufinformation, Maschine, Siegel (wer eingeplant hat),
+//           Ab/Tage/Bis, Material, Farbe und unten die Notiz
 //    rechts die Zeichnung quer (Zeichnungen sind fast immer quer),
 //           darunter Zeichnung, Einrichtblatt und WBG nebeneinander
 //  Keine Häkchen „FA erstellt“ oder „Material da“: Das ergibt sich
@@ -70,6 +70,8 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum) {
   return {
     nr: v ? (v.job_number || "") : "",
     faNr: auftrag ? (auftrag.fa_nr || "") : "",
+    // Gehört nur zu diesem Auftrag: keine Stammdaten, nicht in die Kopie
+    abruf: auftrag ? (auftrag.abruf_info || "") : "",
     maschine: maschine || "",
     von,
     tage: String(tage),
@@ -178,6 +180,12 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const [pdfStand, setPdfStand] = useState("");
   const [wbgStand, setWbgStand] = useState("");
   const [beschaeftigt, setBeschaeftigt] = useState(false);
+  // Abrufinformation: Pflicht für Neue und alles ab 8. Oktober 2026
+  // (Wunsch Patrick). Ohne das SQL gibt es die Spalte noch nicht.
+  const abrufDa = alt.abrufSpalte(auftrag);
+  const abrufMuss = darf && abrufDa && alt.abrufPflicht(auftrag);
+  const [abrufFehlt, setAbrufFehlt] = useState(false);
+  const abrufFeld = useRef(null);
 
   // ----- Zeichnung der HOCO Nr. -----
   // Hängt am Auftrag noch keine Zeichnung, die HOCO Nr. hat aber eine,
@@ -332,6 +340,12 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
       return;
     }
+    if (abrufMuss && !w.abruf.trim()) {
+      setAbrufFehlt(true);
+      alt.meldung("Bitte die Abrufinformation eintragen, sonst lässt sich der Auftrag nicht speichern.", "warn");
+      if (abrufFeld.current) abrufFeld.current.focus();
+      return;
+    }
     // Mit eigener Spalte steht der Materialplatz nicht mehr in der Notiz
     const platzSpalte = alt.materialPlatzSpalte();
     const daten = {
@@ -358,6 +372,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       fa_nr: w.faNr.trim() || null,
       machine_id: w.maschine,
     };
+    if (abrufDa) daten.abruf_info = w.abruf.trim() || null;
     if (platzSpalte) daten.material_platz = (w.matOrt || "").trim() || null;
     setBeschaeftigt(true);
     try { await auftragSpeichern({ auftrag, daten, nr: w.nr.trim(), b, zu }); }
@@ -368,6 +383,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const freieFarbe = /^#/.test(w.farbe);
   const zuteilung = alt.FARBZUTEILUNG;
   const planerListe = alt.PLANER;
+  // Kürzel, die am Auftrag stehen oder einem selbst gehören, aber nicht
+  // in der Planerliste sind: trotzdem als Knopf zeigen
+  const planerExtra = w.planer.filter((k) =>
+    !planerListe.some((u) => (u.initialen || "").trim() === k));
   const geaendertVon = auftrag && auftrag.geaendert_von ? alt.personVoll(auftrag.geaendert_von) : "";
 
   return (
@@ -377,7 +396,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
         <div className="auf-kopf__titel">
           {auftrag
             ? <>
-                <h2>{auftrag.job_number}</h2>
+                <div className="auf-kopf__nr"><h2>{auftrag.job_number}</h2>
+                  {w.planer.length > 0 && <span className="siegel-reihe" id="pl-siegel">
+                    {w.planer.map((k) => <span key={k} className="siegel"
+                      title={"Eingeplant von " + (alt.siegelName(k) || k)}>{k}</span>)}</span>}</div>
                 <span className="auf-kopf__unter">{auftrag.maschine || ""}
                   {auftrag.stand ? " · " + alt.zahlText(auftrag.stand) : ""}
                   {auftrag.target_quantity ? " / " + alt.zahlText(auftrag.target_quantity) : ""}</span>
@@ -438,16 +460,22 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
               <input id="pl-menge" inputMode="decimal" readOnly={nurLesen} type="number" min="0" step="1" value={w.menge}
                 onChange={(e) => setze("menge", e.target.value)} /></label>
           </div>
-          <div className="auf-zweier">
-            <label className="feld"><span>Maschine</span>
-              <select id="pl-maschine" disabled={!darf} value={w.maschine}
-                onChange={(e) => setze("maschine", e.target.value)}>
-                {maschinen.map((m) => <option key={m.id} value={m.id}>
-                  {m.name + (m.machine_number ? " (" + m.machine_number + ")" : "")}</option>)}
-              </select></label>
+          {/* Gleich darunter die Abrufinformation, daneben das Siegel.
+              Damit das Fenster auf dem Laptop ohne Rollen Platz hat,
+              steht die Maschine dafür in der Zeile mit Ab, Tage und Bis. */}
+          <div className="auf-zweier auf-zweier--abruf">
+            {/* Freier Text, keine Regel: „je 1000 Stk KW 44, 45, 46“ */}
+            <label className="feld auf-abruf"><span>Abrufinformation{abrufMuss ? " *" : ""}</span>
+              <input id="pl-abruf" ref={abrufFeld} type="text" autoComplete="off" readOnly={nurLesen}
+                className={abrufFehlt && !w.abruf.trim() ? "fehlt" : ""}
+                title={darf && !abrufDa ? "Wird erst gespeichert, wenn sql/abruf-siegel.sql in Supabase ausgeführt ist." : undefined}
+                placeholder={darf && !abrufDa ? "erst nach sql/abruf-siegel.sql" : "z. B. je 1'000 Stk KW 44, 45, 46"}
+                value={w.abruf} onChange={(e) => setze("abruf", e.target.value)} />
+              {abrufFehlt && !w.abruf.trim() && <span className="feldhinweis feldhinweis--fehlt" id="pl-abruf-fehlt">
+                Ohne Abrufinformation lässt sich der Auftrag nicht speichern.</span>}</label>
 
-            <div className="feld"><span className="feldlabel">Eingeplant von</span>
-              {!planerListe.length
+            <div className="feld"><span className="feldlabel">Siegel</span>
+              {!planerListe.length && !planerExtra.length
                 ? <span className="feldhinweis">Niemand ist als Planer hinterlegt. Das wird in den
                     Einstellungen bei der Person angehakt, zusammen mit einem Kürzel.</span>
                 : <div className="auf-planer">
@@ -457,10 +485,19 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                         className={"planerknopf" + (w.planer.includes(kuerzel) ? " aktiv" : "")}
                         title={u.full_name || u.email} disabled={nurLesen} onClick={() => planerUmschalten(kuerzel)}>{kuerzel}</button>;
                     })}
+                    {planerExtra.map((k) => <button key={"x" + k} type="button" data-planer={k}
+                      className="planerknopf aktiv" title={alt.siegelName(k) || k} disabled={nurLesen}
+                      onClick={() => planerUmschalten(k)}>{k}</button>)}
                   </div>}
             </div>
           </div>
-          <div className="auf-dreier">
+          <div className="auf-vierer">
+            <label className="feld"><span>Maschine</span>
+              <select id="pl-maschine" disabled={!darf} value={w.maschine}
+                onChange={(e) => setze("maschine", e.target.value)}>
+                {maschinen.map((m) => <option key={m.id} value={m.id}>
+                  {m.name + (m.machine_number ? " (" + m.machine_number + ")" : "")}</option>)}
+              </select></label>
             <label className="feld"><span>Ab</span>
               <input id="pl-von" type="date" readOnly={nurLesen} value={w.von} onChange={(e) => vonAendern(e.target.value)} /></label>
             <label className="feld"><span>Tage</span>

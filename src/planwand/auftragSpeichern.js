@@ -118,7 +118,8 @@ export async function auftragSpeichern({ auftrag, daten, nr, b, zu }) {
     fehler = r.error;
     const neuerSatz = (r.data || [])[0];
     if (!fehler && neuerSatz) {
-      plan.auftraege.push(Object.assign({}, daten, { id: neuerSatz.id }));
+      plan.auftraege.push(Object.assign({}, daten, { id: neuerSatz.id,
+        created_at: neuerSatz.created_at || new Date().toISOString() }));
       festId = neuerSatz.id;
       // Für eine neue HOCO Nr. gleich einen Stammdatenplatz anlegen,
       // sonst findet das Einrichtblatt nichts

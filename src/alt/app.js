@@ -127,7 +127,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.99.0";
+const APP_VERSION = "111.100.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3382,9 +3382,33 @@ function personVoll(id) {
 }
 
 // Kürzel der angemeldeten Person, falls sie selbst plant
+// Wer ein Kürzel hat, bekommt bei einem neuen Auftrag sein Siegel
+// gleich eingeschaltet (Wunsch Patrick 8. Oktober 2026), auch wenn er
+// in den Einstellungen nicht als Planer angehakt ist.
 function meineInitialen() {
-  const ich = PLANER.find((u) => u.id === (profil && profil.id));
+  const id = profil && profil.id;
+  const ich = PLANER.find((u) => u.id === id) || PERSONEN[id];
   return ich ? (ich.initialen || "").trim() : "";
+}
+
+// ---------- Siegel ----------
+// Das Siegel ist das Kürzel dessen, der den Auftrag eingeplant hat
+// (Spalte geplant_von, mehrere mit "/" getrennt). Es steht in der
+// Schnellvorschau und im Auftragsfenster neben der HOCO Nr., nicht
+// auf dem Balken (Balkenanschrift bleibt zweizeilig, Wunsch Patrick
+// 8. Oktober 2026).
+function siegelListe(geplantVon) {
+  return String(geplantVon || "").split("/").map((x) => x.trim()).filter(Boolean);
+}
+function siegelName(kuerzel) {
+  const k = String(kuerzel || "").trim().toUpperCase();
+  const u = PLANER.concat(Object.values(PERSONEN))
+    .find((x) => (x.initialen || "").trim().toUpperCase() === k);
+  return u ? (u.full_name || u.email || "") : "";
+}
+function siegelHtml(geplantVon) {
+  return siegelListe(geplantVon).map((k) => '<span class="siegel" title="Eingeplant von '
+    + esc(siegelName(k) || k) + '">' + esc(k) + '</span>').join("");
 }
 
 // =================================================================
@@ -4477,50 +4501,52 @@ function balkenInfoVerhalten() {
       weg();
 
       const zustand = PLANSTATUS[j.plan_status || "geplant"] || PLANSTATUS.geplant;
-      const material = [];
-      material.push(j.material_bez || "Material –");
-      material.push(j.material_menge || "Menge –");
-      material.push(j.material_liefertermin ? "bis " + j.material_liefertermin : "Termin –");
+      const zeile = (inhalt, art) => '<div class="pw-info__zeile'
+        + (art ? " pw-info__zeile--" + art : "") + '">' + inhalt + '</div>';
+      const luecke = '<div class="pw-info__luecke"></div>';
+      const abruf = String(j.abruf_info || "").trim();
+      const g = werkstoffErkennen(j.material_bez);
 
-      // Immer dieselben Zeilen, in derselben Reihenfolge — fehlt etwas,
-      // steht dort ein Strich, statt die Zeile ganz wegzulassen.
+      // Reihenfolge nach Wunsch Patrick (8. Oktober 2026): oben HOCO Nr.
+      // und Siegel, dann Fertigungsmenge und Abrufinformation, nach
+      // einer Lücke alles zum Material, nach einer Lücke alles andere,
+      // ganz unten die letzte Änderung. Fehlt etwas, steht dort ein
+      // Hinweis, statt die Zeile ganz wegzulassen.
       fenster = document.createElement("div");
       fenster.className = "pw-info";
-      fenster.innerHTML = '<div class="pw-info__zustand">' + zustand.zeichen
-        + '<span>' + esc(zustand.name) + '</span></div>'
-        + '<div class="pw-info__zeile pw-info__zeile--stark">' + esc(j.job_number) + '</div>'
-        + '<div class="pw-info__zeile">' + esc(j.maschine || "–")
-        + (j.maschine_nr ? " · " + esc(j.maschine_nr) : "") + '</div>'
-        + '<div class="pw-info__zeile">'
-        + (j.target_quantity
+      fenster.innerHTML = '<div class="pw-info__kopf">'
+        + '<span class="pw-info__nr">' + esc(j.job_number) + '</span>'
+        + '<span class="siegel-reihe">' + siegelHtml(j.geplant_von) + '</span></div>'
+        + zeile(j.target_quantity
             ? zahlText(j.stand || 0) + ' / ' + zahlText(j.target_quantity) + ' Stück'
-            : "Keine Stückzahl hinterlegt") + '</div>'
-        + '<div class="pw-info__zeile">' + esc(material.join(" · ")) + '</div>'
-        + (() => {
-            const g = werkstoffErkennen(j.material_bez);
-            return g ? '<div class="pw-info__zeile pw-info__zeile--klein">'
-              + '<span class="ws-farbe" style="background:' + farbeVon(g.farbe).hex + '"></span>'
-              + esc(werkstoffText(g)) + (g.spaene ? " · Späne " + esc(g.spaene) : "") + '</div>' : "";
-          })()
-        // Der Hinweis zum Material gehört direkt hinter den Termin
-        + (materialPlatz(j)
-            ? '<div class="pw-info__zeile">📦 ' + esc(materialPlatz(j)) + '</div>'
-            : "")
-        + '<div class="pw-info__zeile">✎ '
-        + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz") + '</div>' 
-        + (j.problem ? '<div class="pw-info__zeile pw-info__zeile--warn">⚠ '
-            + esc(j.problem) + '</div>' : "")
-        + (j.geplant_von
-            ? '<div class="pw-info__zeile pw-info__zeile--klein">Eingeplant von '
-              + esc(j.geplant_von) + '</div>' : "")
-        + (j.geaendert_von && personVoll(j.geaendert_von)
-            ? '<div class="pw-info__zeile pw-info__zeile--klein">Zuletzt geändert von '
-              + esc(personVoll(j.geaendert_von))
-              + (j.geaendert_am ? " · " + esc(datumZeitKurz(j.geaendert_am)) : "") + '</div>' : "")
-        + '<div class="pw-info__zeile pw-info__zeile--klein">'
-        + (String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden")
-        + " · " + (String(j.material_menge || "").trim() ? "Material " + esc(j.material_menge)
-                   : "Keine Materialmenge") + '</div>';
+            : "Keine Fertigungsmenge hinterlegt")
+        + (abruf
+            ? zeile('<span class="pw-info__was">Abruf</span> ' + esc(abruf), "abruf")
+            : ("abruf_info" in j ? zeile("Keine Abrufinformation", "leer") : ""))
+
+        + luecke
+        + zeile(esc(j.material_bez || "Kein Material eingetragen"))
+        + (g ? zeile('<span class="ws-farbe" style="background:' + farbeVon(g.farbe).hex + '"></span>'
+              + esc(werkstoffText(g)), "klein") : "")
+        + zeile(String(j.material_menge || "").trim()
+            ? '<span class="pw-info__was">Menge</span> ' + esc(j.material_menge)
+            : "Keine Materialmenge")
+        + (String(j.material_liefertermin || "").trim()
+            ? zeile('<span class="pw-info__was">Liefertermin</span> ' + esc(j.material_liefertermin)) : "")
+        + (materialPlatz(j) ? zeile("📦 " + esc(materialPlatz(j))) : "")
+
+        + luecke
+        + zeile(zustand.zeichen + " " + esc(zustand.name))
+        + zeile(esc(j.maschine || "–") + (j.maschine_nr ? " · " + esc(j.maschine_nr) : ""))
+        + zeile(String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden")
+        + zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz"))
+        + (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : "")
+
+        + (j.geaendert_am
+            ? zeile("Letzte Änderung " + esc(datumZeitKurz(j.geaendert_am))
+              + (j.geaendert_von && personVoll(j.geaendert_von)
+                  ? " · " + esc(personVoll(j.geaendert_von)) : ""), "klein pw-info__zeile--schluss")
+            : "");
 
       document.body.appendChild(fenster);
       platzieren();
@@ -5743,9 +5769,8 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
     + '</div>'
     + '<div class="pw-zeile2">' + esc(zeileZwei) + '</div>'
     + '</div>'
-    + (j.geplant_von
-        ? '<span class="pw-balken__planer" title="Eingeplant von ' + esc(j.geplant_von) + '">'
-          + esc(j.geplant_von) + '</span>' : "")
+    // Das Kürzel (Siegel) steht nur in der Schnellvorschau, die
+    // Anschrift bleibt zweizeilig (Wunsch Patrick 8. Oktober 2026)
     + '</div>' 
 
     + (darfPlanen() && !angeschnitten
@@ -6897,6 +6922,22 @@ function materialPlatz(j) {
 // die Planwand liefert sie mit, sobald das SQL gelaufen ist.
 function materialPlatzSpalte() {
   return (plan.auftraege || []).some((x) => x && "material_platz" in x);
+}
+
+// Abrufinformation (sql/abruf-siegel.sql, 111.100.0): ein freier Text
+// je Auftrag, etwa "je 1000 Stk KW 44, 45, 46". Bis das SQL läuft,
+// fehlt die Spalte; dann wird sie weder verlangt noch geschrieben.
+function abrufSpalte(j) {
+  if (j && "abruf_info" in j) return true;
+  return (plan.auftraege || []).some((x) => x && "abruf_info" in x);
+}
+
+// Pflicht ab dem 8. Oktober 2026 (Wunsch Patrick): neue Aufträge und
+// alle, die seither angelegt wurden. Ältere dürfen leer bleiben.
+const ABRUF_PFLICHT_AB = "2026-10-08";
+function abrufPflicht(j) {
+  if (!j) return true;
+  return !!j.created_at && isoDatum(new Date(j.created_at)) >= ABRUF_PFLICHT_AB;
 }
 
 function notizZusammen(notiz, ort) {
@@ -9011,7 +9052,8 @@ Object.assign(alt, {
   fortschrittRechnen, planAuftragDialog, ladeTypen,
   pad, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
-  notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
+  notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, abrufSpalte, abrufPflicht,
+  siegelListe, siegelName, siegelHtml, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
   werkzeugWechselDialog, zifferblock,
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,
