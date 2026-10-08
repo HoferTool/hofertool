@@ -42,7 +42,7 @@ with sync_playwright() as p:
         pruefe("HOCO-Treffer ist markiert", "▣" in pg.inner_text(".suche-alles__treffer.aktiv"))
         pg.keyboard.press("Enter"); pg.wait_for_timeout(2500)
         txt = pg.evaluate("[...document.querySelectorAll('.dialog-huelle')].map(d => d.innerText).join(' ')")
-        pruefe("HOCO-Teil offen", "Artikelbezeichnung" in txt and "10000-0301" in txt)
+        pruefe("HOCO-Teil offen", "Produktionsanlage" in txt and "10000-0301" in txt)
         pruefe("keine Zeichnungs Nr. im Teil", "Zeichnungs Nr" not in txt and "416.4638.01" not in txt)
         # Bearbeiten-Fenster ohne Zeichnungs Nr.
         pg.click("#hoco-bearb"); pg.wait_for_timeout(500)

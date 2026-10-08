@@ -62,7 +62,8 @@ with sync_playwright() as p:
     pg.mouse.click(ziel["x"], ziel["y"]); pg.wait_for_selector("#pl-nr")
     pg.fill("#pl-nr", "10000-0301"); pg.wait_for_timeout(1200)
     if pg.input_value("#pl-mat-bez") != "CW400J": fehler.append("Material nicht aus Stammdaten: " + pg.input_value("#pl-mat-bez"))
-    if "Deckel" not in pg.inner_text("#pl-hoco-info"): fehler.append("Stammdaten nicht angezeigt")
+    # Artikelbezeichnung ist seit 111.100.0 weg, das Material steht da
+    if "CW400J" not in pg.inner_text("#pl-hoco-info") or "Deckel" in pg.inner_text("#pl-hoco-info"): fehler.append("Stammdaten nicht angezeigt")
     if not pg.locator("#pl-pdfreihe [data-pdfzeigen]").count(): fehler.append("Zeichnung nicht übernommen")
     pg.click("#pl-ja"); pg.wait_for_timeout(1500)
     if pg.evaluate("TEST.daten.jobs.length") != vorher + 1: fehler.append("Neuer Auftrag nicht angelegt")

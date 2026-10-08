@@ -49,7 +49,7 @@ with sync_playwright() as p:
         pg.click(".zifferblock [data-zb='C']")
         for z in str(zahl): pg.click(f".zifferblock [data-zb='{z}']")
         pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(600)
-        # Seit 111.100.0 fragt die erste Zahl am Tag: Ja = für heute
+        # Seit 111.101.0 fragt die erste Zahl am Tag: Ja = für heute
         if pg.locator(".dialog-huelle [data-w='ja']").count(): pg.click(".dialog-huelle [data-w='ja']")
         pg.wait_for_timeout(900)
 
