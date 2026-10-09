@@ -377,12 +377,6 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
           <Feld className="kuerzelfeld" data-plan-kuerzel={u.id} maxLength={4} gross wert={u.initialen}
             speichern={(k) => aendern({ initialen: k || null }, "Kürzel gespeichert.")} /></label>
         <div className="nutzerfenster__haken">
-          {u.role === "admin"
-            ? <div className="nutzerfenster__wert">Bearbeiten: immer</div>
-            : <label className="schalter"><input type="checkbox" data-bearb={u.id} checked={!!u.darf_bearbeiten}
-                disabled={selbst}
-                onChange={(e) => aendern({ darf_bearbeiten: e.target.checked },
-                  e.target.checked ? "Darf jetzt bearbeiten." : "Bearbeiten entzogen.")} /><span>Darf bearbeiten</span></label>}
           <label className="schalter"><input type="checkbox" data-plan-ist={u.id} checked={!!u.ist_planer}
             onChange={(e) => plant(e.target.checked)} /><span>Plant (erscheint unter „Eingeplant von“)</span></label>
           <label className="schalter"><input type="checkbox" data-andere={u.id} checked={istAndererNutzer(u)}

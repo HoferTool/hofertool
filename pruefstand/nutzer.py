@@ -44,9 +44,8 @@ with sync_playwright() as p:
     pg.select_option("[data-rolle='u2']", "kurzdreher"); ja(pg); pg.wait_for_timeout(600)
     pruefe("Rolle geändert", prof("u2", "role") == "kurzdreher" and pg.input_value("[data-rolle='u2']") == "kurzdreher")
     fenster("u3")
-    # Bearbeiten
-    pg.check("[data-bearb='u3']"); pg.wait_for_timeout(500)
-    pruefe("Bearbeiten erlaubt", prof("u3", "darf_bearbeiten") is True)
+    # Häkchen „Darf bearbeiten“ ist seit 1.10.0 weg: Planwand nur für Admins
+    pruefe("Kein Häkchen Darf bearbeiten", pg.locator("[data-bearb='u3']").count() == 0)
     # Plant: ohne Kürzel kommt der Vorschlag aus dem Namen
     pg.fill("[data-plan-kuerzel='u3']", ""); pg.locator(".nutzerfenster__mail").click(); pg.wait_for_timeout(500)
     pruefe("Kürzel geleert", prof("u3", "initialen") is None)

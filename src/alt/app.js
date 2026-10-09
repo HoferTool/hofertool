@@ -135,7 +135,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.9.0";
+const APP_VERSION = "1.10.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3937,12 +3937,6 @@ function darfBearbeitenKnopf() {
   return !isMobil();
 }
 
-function darfWirklichBearbeiten() {
-  if (isMobil()) return false;
-  return istAdmin() || meineRolle() === "planwand"
-    || (profil && profil.darf_bearbeiten === true);
-}
-
 // Den Materialplatz am Auftrag ändern nur Admins und wer das Häkchen
 // „Materialplatz bearbeiten“ hat (Wunsch Patrick, 9. Oktober 2026,
 // profiles.darf_materialplatz, sql/materialplatz-recht.sql). Die
@@ -3952,14 +3946,15 @@ function darfMaterialplatz() {
   return istAdmin() || (profil && profil.darf_materialplatz === true);
 }
 
-// Darf gerade auf der Planwand geändert werden?
+// Darf gerade auf der Planwand geändert werden? Nur noch Admins
+// (Wunsch Patrick, 9. Oktober 2026: „Planwand soll nur noch bearbeitbar
+// sein durch Admin“), auch das Konto Planwand und das frühere Häkchen
+// „Darf bearbeiten“ nicht mehr. Ferien (darfFerien), Zustand, Problem
+// und Materialplatz (darfMaterialplatz) gehen weiter wie bisher. Die
+// Datenbank prüft dasselbe (sql/planwand-nur-admin.sql).
 function darfPlanen() {
   if (isMobil()) return false;
-  if (istAdmin()) return true;
-  if (profil && profil.darf_bearbeiten === true) return true;
-  // Das Planwand-Konto darf ohne Freischalten ändern: der Knopf
-  // „Bearbeiten“ mit PIN ist weg (Wunsch Patrick, 9. Oktober 2026).
-  return meineRolle() === "planwand";
+  return istAdmin();
 }
 
 // Warndreieck für Probleme auf dem Balken: gelb mit schwarzem Rand,

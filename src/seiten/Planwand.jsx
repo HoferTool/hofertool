@@ -291,7 +291,7 @@ function Kopfleiste({ b, mobil }) {
       </div>
       {!alt.darfPlanen() && <div className="nurlesen">{mobil
         ? "Bearbeitbar nur am Desktop, nicht auf dem Handy."
-        : "Du kannst die Planung ansehen. Ändern dürfen Planer und Administratoren."}</div>}
+        : "Du kannst die Planung ansehen. Ändern dürfen nur Administratoren."}</div>}
     </div>
   );
 }
