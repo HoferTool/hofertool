@@ -22,6 +22,23 @@
 #  zählt das Werkzeugprotokoll, sonst die zuletzt geänderte Datei. Eine Datei wird nur hochgeladen, wenn
 #  sie neu ist oder sich seit dem letzten Mal geändert hat.
 #
+#  Regel wie bei den Zeichnungen (Wunsch Patrick, 9. Oktober 2026: "WBGs
+#  und Einrichtblätter kann jeder löschen; wenn man löscht, soll es eine
+#  andere Datei versuchen; falls keine vorhanden, steht dort nicht
+#  vorhanden; manuell hochgeladen ist Master"):
+#   - Nimmt jemand das Einrichtblatt in der App weg ("Einrichtblatt
+#     entfernen" im Betrachter oder bei der HOCO Nr.), kommt beim
+#     nächsten Durchlauf die nächste Excel-Datei dieser Nummer im Ordner.
+#     Die weggenommene steht in einrichtblaetter-stand.json unter
+#     "abgelehnt" und kommt nie wieder. Gibt es keine andere mehr, bleibt
+#     die Nummer ohne Blatt.
+#   - Ein Blatt, das nicht von diesem Programm stammt (in der App von Hand
+#     hinterlegt), ist Master und wird nie ersetzt. Woran man das erkennt:
+#     Die Adresse in hoco_type_data.blatt_url ist nicht die, die das
+#     Programm selbst hochgeladen hat ("adressen"). Blätter aus einer
+#     Fassung vor dieser Regel zählen als eigene (einmalig aus "dateien"
+#     übernommen), damit geänderte Excel-Dateien weiter hochkommen.
+#
 #  DAS PROGRAMM LIEST NUR. In den Ordnern wird nie etwas gelöscht,
 #  verschoben, umbenannt oder geändert. Zum Hochladen kopiert es die
 #  Datei zuerst nach %TEMP% und lädt die Kopie hoch, so stört es auch
@@ -67,13 +84,19 @@ $U = ($E.supabase_url).TrimEnd("/")
 $KEY = $E.anon_key
 
 # Anmeldung und welche Datei je HOCO Nr. und Typ zuletzt hochgeladen wurde
-$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; erledigt = $null; letzter = $null }
+# (dateien: Kennung, adressen: die eigene Adresse in der App, abgelehnt:
+# in der App weggenommene Dateien, volle Pfade)
+$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; adressen = @{}; abgelehnt = @{}; erledigt = $null; letzter = $null }
+$adressenNeu = $true
 if (Test-Path $standDatei) {
   try {
     $g = Get-Content -Raw -Path $standDatei -Encoding UTF8 | ConvertFrom-Json
     $stand.token = $g.token; $stand.ablauf = [double]$g.ablauf; $stand.auffrischen = $g.auffrischen
     $stand.erledigt = $g.erledigt; $stand.letzter = $g.letzter
     if ($g.dateien) { $g.dateien.PSObject.Properties | ForEach-Object { $stand.dateien[$_.Name] = [string]$_.Value } }
+    if ($g.PSObject.Properties.Name -contains "adressen") { $adressenNeu = $false }
+    if ($g.adressen) { $g.adressen.PSObject.Properties | ForEach-Object { $stand.adressen[$_.Name] = [string]$_.Value } }
+    if ($g.abgelehnt) { $g.abgelehnt.PSObject.Properties | ForEach-Object { $stand.abgelehnt[$_.Name] = @($_.Value | ForEach-Object { [string]$_ }) } }
   } catch { }
 }
 function StandSichern {
@@ -131,7 +154,8 @@ function FalschesEntfernen($d, [string]$h, $typ) {
 $jetztIso = (Get-Date).ToUniversalTime().ToString("o")
 $status = @{ immer = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME;
              scharf = $false; ordner = @(); excel = 0; neu = 0; ersetzt = 0; gleich = 0; rest = 0;
-             ohneNr = 0; fremd = 0; aelter = 0; hochgeladen = 0; fehler = $null; liste = @() }
+             ohneNr = 0; fremd = 0; aelter = 0; hochgeladen = 0; manuell = 0; abgelehnt = 0; keineMehr = 0;
+             fehler = $null; liste = @() }
 function Eintrag($o, [string]$datei, [string]$hoco, [string]$was) {
   if ($status.liste.Count -lt $listeHoechstens) {
     $status.liste += @{ o = $o; d = $datei; h = $hoco; w = $was }
@@ -153,10 +177,17 @@ try {
   if (-not $scharf) { Schreibe "Probelauf: es wird nichts hochgeladen." }
 
   $typen = @(Lesen "machine_types?select=id,name")
-  # Welche HOCO Nr. auf welchem Typ hat in der App schon ein Einrichtblatt?
-  $vorhanden = @{}
+  # Welche HOCO Nr. auf welchem Typ hat in der App schon ein Einrichtblatt, und welches?
+  $vorhanden = @{}; $blattVon = @{}
   Lesen "hoco_type_data?select=hoco_nr,type_id,blatt_url&blatt_url=not.is.null" |
-    ForEach-Object { $vorhanden[[string]$_.hoco_nr + "|" + [string]$_.type_id] = $true }
+    ForEach-Object { $k = [string]$_.hoco_nr + "|" + [string]$_.type_id; $vorhanden[$k] = $true; $blattVon[$k] = [string]$_.blatt_url }
+  # Einmalig nach dem Wechsel auf diese Fassung: Was das Programm früher
+  # hochgeladen hat (dateien), gilt als eigenes Blatt, nicht als Master
+  if ($adressenNeu) {
+    foreach ($k in @($stand.dateien.Keys)) { if ($blattVon[$k]) { $stand.adressen[$k] = [string]$blattVon[$k] } }
+    $adressenNeu = $false
+    StandSichern
+  }
 
   $nochFrei = $hoechstensJeLauf
   $oi = -1
@@ -209,14 +240,36 @@ try {
       $jeNr[$h] += $d
     }
     foreach ($h in ($jeNr.Keys | Sort-Object)) {
-      $gruppe = @($jeNr[$h] | Sort-Object @{ Expression = { $_.HoferRang } }, @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true })
+      $schluessel = $h + "|" + [string]$typ.id
+      $jetzt = [string]$blattVon[$schluessel]
+      $eigene = [string]$stand.adressen[$schluessel]
+
+      # In der App von Hand hinterlegt: Master, bleibt
+      if ($jetzt -and ($jetzt -ne $eigene)) { $status.manuell++; Eintrag $oi "" $h "in der App von Hand hinterlegt (Master), bleibt"; continue }
+
+      # Das eigene Blatt ist in der App weggenommen worden: diese Datei
+      # kommt nie wieder, die nächste ist dran
+      if (-not $jetzt -and $stand.dateien[$schluessel]) {
+        $weg = ([string]$stand.dateien[$schluessel]).Split("|")[0]
+        if ($weg) {
+          if (-not $stand.abgelehnt[$schluessel]) { $stand.abgelehnt[$schluessel] = @() }
+          if ($stand.abgelehnt[$schluessel] -notcontains $weg) { $stand.abgelehnt[$schluessel] += $weg }
+        }
+        $stand.dateien.Remove($schluessel); $stand.adressen.Remove($schluessel)
+        StandSichern
+        $status.abgelehnt++
+        Schreibe ("Einrichtblatt von " + $h + " auf " + $typ.name + " in der App entfernt, nächste Datei: " + $weg)
+      }
+
+      $gruppe = @($jeNr[$h] | Where-Object { @($stand.abgelehnt[$schluessel]) -notcontains $_.FullName } |
+        Sort-Object @{ Expression = { $_.HoferRang } }, @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true })
+      if ($gruppe.Count -eq 0) { $status.keineMehr++; Eintrag $oi "" $h "alle Dateien in der App entfernt, bleibt ohne Blatt"; continue }
       $d = $gruppe[0]
       foreach ($x in ($gruppe | Select-Object -Skip 1)) {
         $status.aelter++; Eintrag $oi $x.Name $h ("weiteres Blatt, es zählt " + $d.Name)
       }
-      $schluessel = $h + "|" + [string]$typ.id
       $kennung = Kennung $d
-      if ($stand.dateien[$schluessel] -eq $kennung) { $status.gleich++; continue }
+      if ($jetzt -and $stand.dateien[$schluessel] -eq $kennung) { $status.gleich++; continue }
 
       $ersetzt = [bool]$vorhanden[$schluessel]
       if ($ersetzt) { $status.ersetzt++ } else { $status.neu++ }
@@ -228,9 +281,12 @@ try {
       try {
         $kopie = LesendKopieren $d
         $z = @{ hoco = $h; typ = $typ; art = "einrichtblatt"; titel = $h; fa = $null; auftrag = $null; grund = ""; passt = $true }
+        $script:letzteAdresse = $null
         Hochladen $kopie $z "eb-ordner"
         $stand.dateien[$schluessel] = $kennung
+        $stand.adressen[$schluessel] = [string]$script:letzteAdresse
         StandSichern
+        $blattVon[$schluessel] = [string]$script:letzteAdresse
         $vorhanden[$schluessel] = $true
         $status.hochgeladen++
         $nochFrei--
@@ -266,7 +322,8 @@ if ($Probe -or -not $status.scharf) {
   Write-Host ""
   Write-Host ("Probelauf: " + $status.excel + " Excel-Dateien gefunden, " + ($status.neu + $status.ersetzt) +
     " würden hochgeladen (" + $status.neu + " neu, " + $status.ersetzt + " ersetzen ein vorhandenes), " +
-    $status.ohneNr + " ohne HOCO Nr., " + $status.fremd + " keine Einrichtblätter (Toleranzen usw.), " + $status.aelter + " weitere Blätter derselben Nummer. Nichts hochgeladen, im Ordner nichts verändert.")
+    $status.ohneNr + " ohne HOCO Nr., " + $status.fremd + " keine Einrichtblätter (Toleranzen usw.), " + $status.aelter + " weitere Blätter derselben Nummer, " +
+    $status.manuell + " von Hand hinterlegt (Master), " + $status.keineMehr + " ohne Blatt, weil alle entfernt. Nichts hochgeladen, im Ordner nichts verändert.")
   foreach ($o in $status.ordner) {
     $t = "  " + $o.pfad + "  (Typ " + $o.typ + "): " + $o.excel + " Excel-Dateien"
     if ($o.fehler) { $t += " — " + $o.fehler }

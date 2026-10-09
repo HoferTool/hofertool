@@ -21,6 +21,15 @@
 #  zu sieben Tage liegen und wird bei jedem Durchlauf neu versucht.
 #  Was gar nicht passt, kommt in den Unterordner "nicht zugeordnet".
 #
+#  Wie bei den Zeichnungen (Wunsch Patrick, 9. Oktober 2026): Nimmt
+#  jemand die WBG in der App weg ("WBG entfernen" im Betrachter), bleibt
+#  die FA Nr. am Auftrag, und die nächste WBG mit dieser Nummer im Pool
+#  hängt sich wieder an. Eine WBG, die nicht von diesem Programm stammt
+#  (in der App von Hand hochgeladen), ist Master und wird nie ersetzt:
+#  Die Adresse in jobs.wbg_url ist dann nicht die, die das Programm
+#  selbst hochgeladen hat ("adressen" in pool-stand.json, je Auftrag).
+#  Eine neue Pool-Datei zu so einem Auftrag kommt nach "nicht zugeordnet".
+#
 #  Aufruf:
 #     .\dokumente-pool.ps1            normaler Durchlauf
 #     .\dokumente-pool.ps1 -Probe     zeigt nur, was es tun würde
@@ -61,13 +70,14 @@ $U = ($E.supabase_url).TrimEnd("/")
 $KEY = $E.anon_key
 
 # Anmeldung merken und welche wartenden Dateien schon im Protokoll stehen
-$stand = @{ token = $null; ablauf = 0; auffrischen = $null; gemeldet = @{}; erledigt = $null; letzter = $null }
+$stand = @{ token = $null; ablauf = 0; auffrischen = $null; gemeldet = @{}; adressen = @{}; erledigt = $null; letzter = $null }
 if (Test-Path $standDatei) {
   try {
     $g = Get-Content -Raw -Path $standDatei -Encoding UTF8 | ConvertFrom-Json
     $stand.token = $g.token; $stand.ablauf = [double]$g.ablauf; $stand.auffrischen = $g.auffrischen
     $stand.erledigt = $g.erledigt; $stand.letzter = $g.letzter
     if ($g.gemeldet) { $g.gemeldet.PSObject.Properties | ForEach-Object { $stand.gemeldet[$_.Name] = $_.Value } }
+    if ($g.adressen) { $g.adressen.PSObject.Properties | ForEach-Object { $stand.adressen[$_.Name] = [string]$_.Value } }
   } catch { }
 }
 function StandSichern {
@@ -98,7 +108,7 @@ function Beiseite($datei, [string]$ziel) {
 # immer = true sagt der App, dass diese Fassung ohne Knopf läuft
 $jetztIso = (Get-Date).ToUniversalTime().ToString("o")
 $status = @{ immer = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME;
-             dateien = 0; neu = 0; fehler = $null; ohne = @(); wartet = @() }
+             dateien = 0; neu = 0; manuell = 0; fehler = $null; ohne = @(); wartet = @() }
 try {
   Anmelden
 
@@ -136,10 +146,19 @@ try {
     }
     elseif (BrauchtZiel $z) { $z = ZielSuchen $z $typen }
 
+    # Hängt am Auftrag eine WBG, die nicht von hier stammt (in der App
+    # von Hand hochgeladen): Master, die Pool-Datei ersetzt sie nicht
+    if ($z.passt -and $z.art -eq "wbg" -and $z.fa -and $z.auftrag -and $z.auftrag.wbg_url -and
+        ([string]$z.auftrag.wbg_url -ne [string]$stand.adressen[[string]$z.auftrag.id])) {
+      $z.passt = $false; $z.master = $true
+      $z.grund = "am Auftrag hängt eine von Hand hochgeladene WBG (Master)"
+      $status.manuell++
+    }
+
     if (-not $z.passt) {
       # WBG mit FA Nr., deren Auftrag noch nicht geplant ist: warten
       $alter = ((Get-Date) - $d.CreationTime).TotalDays
-      if ($z.art -eq "wbg" -and $z.fa -and $alter -lt $wartenTage) {
+      if ($z.art -eq "wbg" -and $z.fa -and -not $z.master -and $alter -lt $wartenTage) {
         $status.wartet += $d.Name
         $nochDa[$d.Name] = $true
         if (-not $stand.gemeldet[$d.Name]) {
@@ -157,7 +176,9 @@ try {
     if ($Probe) { Schreibe ($d.Name + "  →  " + (ZielText $z)); continue }
 
     try {
+      $script:letzteAdresse = $null
       Hochladen $d $z "pool"
+      if ($z.auftrag) { $stand.adressen[[string]$z.auftrag.id] = [string]$script:letzteAdresse }
       Remove-Item -LiteralPath $d.FullName -Force
       $status.neu++
       Schreibe ($d.Name + "  →  " + (ZielText $z))

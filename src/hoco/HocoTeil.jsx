@@ -60,8 +60,10 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
     try { await stueckzeitSetzen(t.hoco_nr, e.typId, s || null); meldung(s ? "Stückzeit gespeichert." : "Stückzeit entfernt."); neu(); }
     catch (f) { fehler(f); }
   };
+  // Eine Rückfrage, mit Rückgängig; die Aufgabe holt beim nächsten
+  // Durchlauf die nächste Excel-Datei aus dem Ordner, wenn es eine gibt
   const blattEntfernen = async (typId) => {
-    try { await alt.blattPdfAnHoco(t.hoco_nr, typId, null); fertig("Entfernt. Es gilt wieder die Vorlage vom Typ."); }
+    try { if (await alt.einrichtblattEntfernen(t.hoco_nr, typId)) fertig("Einrichtblatt entfernt."); }
     catch (f) { fehler(f); }
   };
 

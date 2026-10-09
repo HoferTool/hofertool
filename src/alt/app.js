@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.120.0";
+const APP_VERSION = "111.121.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1918,6 +1918,53 @@ async function zeichnungEntfernen(hocoNr) {
       .concat(auftraege.filter((j) => j.drawing_url).map((j) => rueckSetz("jobs", { drawing_url: j.drawing_url }, { id: j.id })))
       .concat(doks.length ? [rueckRein("dokumente", doks)] : []));
   dokVerlauf({ art: "zeichnung", hoco_nr: hocoNr, ziel: "Zeichnung entfernt", quelle: "hand" });
+  return true;
+}
+
+// WBG eines Auftrags entfernen (Wunsch Patrick, 9. Oktober 2026: „WBGs
+// und Einrichtblätter kann jeder löschen, wie bei der Zeichnung“). Die
+// FA Nr. bleibt am Auftrag: Kommt im Pool eine neue WBG mit dieser
+// Nummer, hängt dokumente-pool.ps1 sie wieder an. Mit Rückgängig.
+async function wbgEntfernen(auftragId) {
+  const j = await rueckSichern("jobs", { id: auftragId });
+  const auftrag = j[0];
+  if (!auftrag || !auftrag.wbg_url) return false;
+  const ok = await nachfragen({ titel: "WBG entfernen",
+    text: "Soll die WBG" + (auftrag.fa_nr ? " mit FA " + auftrag.fa_nr : "") + " vom Auftrag " + (auftrag.job_number || "")
+      + " entfernt werden? Legt jemand eine neue WBG in den Pool-Ordner, hängt die Aufgabe „HoferTool“ sie wieder an.",
+    bestaetigen: "Entfernen", gefahr: true });
+  if (!ok) return false;
+  const doks = await rueckSichern("dokumente", { art: "wbg", datei_url: auftrag.wbg_url });
+  const r = await db.from("jobs").update({ wbg_url: null }).eq("id", auftragId);
+  if (r.error) throw r.error;
+  try { if (doks.length) await db.from("dokumente").delete().in("id", doks.map((d) => d.id)); } catch (f) { /* dann bleibt der Eintrag */ }
+  merkeSchritt("WBG " + (auftrag.fa_nr || auftrag.job_number || "") + " entfernt",
+    [rueckSetz("jobs", { wbg_url: auftrag.wbg_url }, { id: auftragId })].concat(doks.length ? [rueckRein("dokumente", doks)] : []));
+  dokVerlauf({ art: "wbg", hoco_nr: auftrag.job_number || null, ziel: "WBG entfernt" + (auftrag.fa_nr ? " (FA " + auftrag.fa_nr + ")" : ""), quelle: "hand" });
+  return true;
+}
+
+// Einrichtblatt einer HOCO Nr. auf einem Typ entfernen. Liegt im
+// Typ-Ordner noch eine andere Excel-Datei zu dieser Nummer, lädt
+// einrichtblaetter.ps1 beim nächsten Durchlauf diese hoch; die
+// entfernte kommt nie wieder. Mit Rückgängig.
+async function einrichtblattEntfernen(hocoNr, typId) {
+  const zeilen = await rueckSichern("hoco_type_data", { hoco_nr: hocoNr, type_id: typId });
+  const z = zeilen[0];
+  if (!z || !z.blatt_url) return false;
+  const ok = await nachfragen({ titel: "Einrichtblatt entfernen",
+    text: "Soll das Einrichtblatt der HOCO Nr. " + hocoNr + " auf diesem Typ entfernt werden? Liegt im Einrichtblatt-Ordner "
+      + "noch eine andere Excel-Datei zu dieser Nummer, lädt die Aufgabe „HoferTool“ beim nächsten Durchlauf diese hoch.",
+    bestaetigen: "Entfernen", gefahr: true });
+  if (!ok) return false;
+  const doks = await rueckSichern("dokumente", { art: "einrichtblatt", hoco_nr: hocoNr, type_id: typId });
+  const r = await db.from("hoco_type_data").update({ blatt_url: null }).eq("hoco_nr", hocoNr).eq("type_id", typId);
+  if (r.error) throw r.error;
+  try { if (doks.length) await db.from("dokumente").delete().in("id", doks.map((d) => d.id)); } catch (f) { /* dann bleibt der Eintrag */ }
+  merkeSchritt("Einrichtblatt " + hocoNr + " entfernt",
+    [rueckSetz("hoco_type_data", { blatt_url: z.blatt_url }, { hoco_nr: hocoNr, type_id: typId })]
+      .concat(doks.length ? [rueckRein("dokumente", doks)] : []));
+  dokVerlauf({ art: "einrichtblatt", hoco_nr: hocoNr, type_id: typId, ziel: "Einrichtblatt entfernt", quelle: "hand" });
   return true;
 }
 
@@ -7676,13 +7723,12 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
   try { gefunden = await blattPdfSuchen(hocoNr, typId); }
   catch (f) { meldung(fehlertext(f), "fehler"); return; }
 
-  if (!gefunden.adresse) {
-    meldung("Für diesen Typ ist noch kein Einrichtblatt hinterlegt. "
-      + "Hinterlegen kannst du es beim Maschinentyp oder bei der HOCO Nr.", "warn");
-    return;
-  }
-  betrachter(gefunden.adresse,
-    "Einrichtblatt " + (titel || hocoNr || ""), true);
+  // Im gemeinsamen Betrachter wie Zeichnung und WBG: ohne Blatt steht
+  // dort „Kein Einrichtblatt vorhanden“, mit eigenem Blatt der Knopf
+  // „Einrichtblatt entfernen“ (Wunsch Patrick, 9. Oktober 2026). Die
+  // Vorlage vom Typ lässt sich hier nicht entfernen, nur beim Typ.
+  dokZeigen({ art: "einrichtblatt", titel: "Einrichtblatt " + (titel || hocoNr || ""), adresse: gefunden.adresse,
+    hoco: gefunden.eigenes ? hocoNr : null, typId });
 }
 
 function istExcelDatei(name) { return /\.(xlsx|xlsm|xls)$/i.test(String(name || "")); }
@@ -9167,7 +9213,7 @@ Object.assign(alt, {
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
-  planKonflikteLoesen, planAufruecken, zeichnungErsetzen, zeichnungEntfernen, ablageLoeschen,
+  planKonflikteLoesen, planAufruecken, zeichnungErsetzen, zeichnungEntfernen, wbgEntfernen, einrichtblattEntfernen, ablageLoeschen,
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert, einstellungWert,
   meineRolle, zeichneSeite,
   masseBerechnen, isMobil, zuHeute, hocoFenster, sucheDialog, serverStempel,
