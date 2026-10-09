@@ -161,8 +161,33 @@ function mitJahr(iso) {
     + " " + p(d.getHours()) + ":" + p(d.getMinutes());
 }
 
-function Historie({ liste, zu }) {
+function Historie({ liste: anfang, zu }) {
+  const [liste, setListe] = useState(anfang);
   const [suche, setSuche] = useState("");
+  // Nur Admins räumen die Historie auf, wie beim Löschen in der Karte
+  // (Wunsch Patrick 9. Oktober 2026: „lösche die Historie“). Einzeln
+  // mit einer Rückfrage und Rückgängig, oder alles Abgehakte auf einmal.
+  const admin = alt.istAdmin();
+  const weg = async (m) => {
+    const ok = await alt.loeschen({ tabelle: "materialausgabe", id: m.id, rueckText: "Löschen aus der Historie",
+      titel: "Eintrag löschen", text: '"' + (m.text || "") + '" wird endgültig aus der Historie entfernt.' });
+    if (ok) setListe((l) => l.filter((x) => x.id !== m.id));
+  };
+  const alleWeg = async () => {
+    const fertig = liste.filter((m) => m.rein_am);
+    if (!fertig.length) return;
+    const ok = await alt.nachfragen({ titel: "Historie löschen",
+      text: fertig.length + " abgehakte Einträge werden endgültig entfernt. Was noch draussen ist, bleibt.",
+      bestaetigen: "Löschen", gefahr: true });
+    if (!ok) return;
+    const { error } = await alt.db.from("materialausgabe").delete().in("id", fertig.map((m) => m.id));
+    if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+    // Die Personen (raus, rein) gehören nicht in die Tabelle zurück
+    alt.merkeSchritt("Historie löschen", alt.rueckRein("materialausgabe",
+      fertig.map(({ raus, rein, ...zeile }) => zeile)));
+    alt.meldung("Historie gelöscht.");
+    setListe((l) => l.filter((m) => !m.rein_am));
+  };
   const s = suche.trim().toLowerCase();
   const gezeigt = s ? liste.filter((m) => String(m.text || "").toLowerCase().includes(s)
     || String(m.an_wen || "").toLowerCase().includes(s)
@@ -171,13 +196,15 @@ function Historie({ liste, zu }) {
   return (
     <div className="dialog dialog--breit matausgabe-historie">
       <div className="blatt__kopf"><h2>Materialausgabe Extern · Historie</h2>
+        {admin && liste.some((m) => m.rein_am) &&
+          <button className="knopf knopf--klein" id="matausgabe-alleweg" onClick={alleWeg}>Historie löschen</button>}
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
       {liste.length > 8 &&
         <input type="search" className="matausgabe-suche" placeholder="Suchen …" aria-label="Suchen"
           value={suche} onChange={(e) => setSuche(e.target.value)} />}
       {gezeigt.length
         ? <div className="matausgabe-rolle"><table className="tabelle">
-            <thead><tr><th>Was</th><th>An wen</th><th>Raus</th><th>Wer raus</th><th>Rein</th><th>Wer rein</th></tr></thead>
+            <thead><tr><th>Was</th><th>An wen</th><th>Raus</th><th>Wer raus</th><th>Rein</th><th>Wer rein</th>{admin && <th aria-label="Löschen"></th>}</tr></thead>
             <tbody>{gezeigt.map((m) => (
               <tr key={m.id} className={m.rein_am ? "" : "matausgabe-offen"}>
                 <td>{m.text}</td>
@@ -186,6 +213,8 @@ function Historie({ liste, zu }) {
                 <td className="klein">{m.raus ? alt.personName(m.raus) : "—"}</td>
                 <td className="klein nowrap">{m.rein_am ? mitJahr(m.rein_am) : <strong>noch draussen</strong>}</td>
                 <td className="klein">{m.rein ? alt.personName(m.rein) : "—"}</td>
+                {admin && <td className="rechts nowrap">
+                  <button className="linkknopf linkknopf--gefahr" data-mathweg={m.id} onClick={() => weg(m)}>Löschen</button></td>}
               </tr>
             ))}</tbody>
           </table></div>
