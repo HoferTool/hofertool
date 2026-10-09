@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
 import { PdfAnsicht, pdfjs } from "./PdfAnsicht.jsx";
-import { inDerAppDrucken, pdfSeitenAlsBilder } from "./drucken.js";
+import { inDerAppDrucken, pdfSeitenAlsBilder, perTeilenDrucken } from "./drucken.js";
 import { ExcelAnsicht, excelDrucken } from "./ExcelAnsicht.jsx";
 import { istExcel } from "./excelLesen.js";
 
@@ -44,13 +44,15 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
   // Anzeige des Browsers als Rückfall. Excel: „fehler“, wenn sie sich
   // nicht lesen lässt.
   const [pdf, setPdf] = useState({ art: "laden" });
+  // Ein Bild wird vom Browser selbst gezeigt; geholt wird es trotzdem,
+  // damit „Drucken“ auf dem iPad die Datei sofort ins Teilen-Fenster
+  // geben kann.
   useEffect(() => {
-    if (!istPdf && !istXl) return;
     let weg = false;
     fetch(adresse)
       .then((a) => { if (!a.ok) throw new Error("nicht erreichbar"); return a.blob(); })
       .then(async (blob) => {
-        const daten = new Uint8Array(await blob.arrayBuffer());
+        const daten = (istPdf || istXl) ? new Uint8Array(await blob.arrayBuffer()) : null;
         if (!weg) setPdf({ art: "bereit", blob, daten });
       })
       .catch(() => { if (!weg) setPdf({ art: istXl ? "fehler" : "browser" }); });
@@ -65,8 +67,16 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
   // wenn die PDF nicht selbst geladen werden konnte (Anzeige des
   // Browsers), bleibt der alte Weg über den Rahmen und den neuen Tab.
   const [druckt, setDruckt] = useState(false);
+  const dateiName = () => (titel || "Datei").replace(/[^A-Za-z0-9._-]+/g, "_") + "."
+    + (endung || (String(adresse).split(/[?#]/)[0].match(/\.([A-Za-z0-9]{2,5})$/) || [])[1]
+       || (istPdf ? "pdf" : istXl ? "xlsx" : "jpg")).toLowerCase();
   const drucken = async () => {
     if (druckt) return;
+    // iPad und iPhone: window.print() öffnet dort in der App auf dem
+    // Startbildschirm nichts. Die Datei geht ins Teilen-Fenster, dort
+    // tippt man „Drucken“ (Patrick, 9. Oktober 2026). Ohne Warten, sonst
+    // gilt der Tipp nicht mehr als Berührung.
+    if (pdf.blob && perTeilenDrucken(pdf.blob, dateiName(), titel)) return;
     if (istXl) {
       if (!excelDrucken(wurzel.current, titel)) alt.meldung("Die Datei ist noch nicht geladen.", "warn");
       return;
@@ -104,9 +114,7 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
   // Speichern: erst versuchen, die Datei wirklich herunterzuladen.
   // Klappt das wegen der Herkunft nicht, öffnet sie sich stattdessen.
   const speichern = async () => {
-    const e = endung || (String(adresse).split(/[?#]/)[0].match(/\.([A-Za-z0-9]{2,5})$/) || [])[1]
-      || (istPdf ? "pdf" : istXl ? "xlsx" : "jpg");
-    const name = (titel || "Datei").replace(/[^A-Za-z0-9._-]+/g, "_") + "." + e.toLowerCase();
+    const name = dateiName();
     const laden = (href, extra) => {
       const a = document.createElement("a");
       a.href = href; a.download = name;

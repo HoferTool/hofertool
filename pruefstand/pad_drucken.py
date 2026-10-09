@@ -3,6 +3,11 @@
 # auf dem iPad nie lädt und nicht druckt; der Knopf tat dort nichts.
 # Geprüft: Zeichnung (PDF, quer und hoch mit zwei Seiten) und ein Foto,
 # auf dem iPad quer und hochkant mit dem Finger, am PC mit der Maus.
+# Dazu der iPad-Nachbau (Safari-Kennung, Finger, navigator.share): Dort
+# öffnet window.print() in der App auf dem Startbildschirm nichts, darum
+# geht die Datei selbst ins Teilen-Fenster, wo „Drucken“ steht
+# (Patrick, 9. Oktober 2026, 111.122.1). Geteilt wird das Original:
+# PDF, Foto und das Excel-Einrichtblatt.
 import sys, time, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -35,6 +40,14 @@ def png_bauen(b, h):
             + block(b"IDAT", zlib.compress(zeilen)) + block(b"IEND", b""))
 PNG = png_bauen(4, 2)
 
+XLSX = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "einrichtblatt-beispiel.xlsx"), "rb").read()
+FXL = FAKE.replace("blatt_url: null", "blatt_url: 'https://x.invalid/eb.xlsx'")
+IPAD_UA = "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+# Teilen-Fenster nachgebaut: merkt sich, was geteilt wurde
+TEILEN = """() => { window.__geteilt = []; window.__prints = 0;
+  navigator.canShare = (d) => !!(d && d.files && d.files.length);
+  navigator.share = (d) => { window.__geteilt.push(d.files.map(f => ({ name: f.name, typ: f.type, groesse: f.size }))); return Promise.resolve(); };
+  window.print = () => { window.__prints++; }; }"""
 fehler = []
 def pruefe(name, ok):
     print(("ok   " if ok else "FALSCH ") + name)
@@ -45,7 +58,8 @@ SPY = "() => { window.__prints = 0; window.print = () => { window.__prints++; };
 
 def route(r):
     u = r.request.url
-    if u.endswith(".png"): r.fulfill(status=200, content_type="image/png", body=PNG, headers={"Access-Control-Allow-Origin": "*"})
+    if u.endswith(".xlsx"): r.fulfill(status=200, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", body=XLSX, headers={"Access-Control-Allow-Origin": "*"})
+    elif u.endswith(".png"): r.fulfill(status=200, content_type="image/png", body=PNG, headers={"Access-Control-Allow-Origin": "*"})
     else: r.fulfill(status=200, content_type="application/pdf", body=QUER if "quer" in u else HOCH,
                     headers={"Access-Control-Allow-Origin": "*"})
 
@@ -109,8 +123,43 @@ def zeichnung_drucken(pg, name, mobil, adresse, erwartet_seiten, erwartet_quer):
            and pg.evaluate("document.title") == "Hofer Tool"
            and pg.locator(".betrachter-huelle").count() == 1 and pg.inner_text(".betrachter [data-drucken]") == "Drucken")
 
+def ipad_teilen(pg, name, adresse, reiter, erwartet_name, erwartet_typ, erwartet_groesse):
+    pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
+    pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
+    if adresse: pg.evaluate("(a) => { for (const j of TEST.daten.jobs) j.drawing_url = a; }", adresse)
+    ins_pad(pg, True)
+    tippen(pg, f"#pad [data-padreiter='{reiter}']", True)
+    pg.wait_for_selector(".betrachter-huelle")
+    if reiter == "blatt": pg.wait_for_selector("[data-excelblatt]", timeout=20000)
+    elif adresse.endswith(".png"): pg.wait_for_selector(".betrachter img")
+    else: pg.wait_for_selector(".pdfansicht canvas[data-fertig]", timeout=15000)
+    pg.wait_for_timeout(600)
+    pg.evaluate(TEILEN)
+    tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(800)
+    g = pg.evaluate("window.__geteilt"); print(name, erwartet_name, g)
+    pruefe(f"{name}: {erwartet_name} geht ins Teilen-Fenster", len(g) == 1 and len(g[0]) == 1
+           and g[0][0]["name"] == erwartet_name and g[0][0]["typ"] == erwartet_typ and g[0][0]["groesse"] == erwartet_groesse)
+    pruefe(f"{name}: {erwartet_name} kein window.print und kein Druckbereich",
+           pg.evaluate("window.__prints") == 0 and pg.locator("#druckdatei").count() == 0)
+    pruefe(f"{name}: {erwartet_name} Knopf wieder normal", pg.inner_text(".betrachter [data-drucken]") == "Drucken"
+           and not pg.locator(".betrachter [data-drucken]").is_disabled())
+
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
+    # iPad-Nachbau: Teilen-Fenster statt Druckdialog
+    ctx = br.new_context(viewport={"width": 1180, "height": 820}, device_scale_factor=2, is_mobile=True, has_touch=True, user_agent=IPAD_UA)
+    pg = ctx.new_page()
+    f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
+    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FXL))
+    for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
+        pg.route(u, lambda r: r.abort())
+    pg.route("**://x.invalid/**", route)
+    ipad_teilen(pg, "ipad-teilen", "https://x.invalid/quer.pdf", "zeichnung", "Zeichnung_10007-0324.pdf", "application/pdf", len(QUER))
+    ipad_teilen(pg, "ipad-teilen", "https://x.invalid/foto.png", "zeichnung", "Zeichnung_10007-0324.png", "image/png", len(PNG))
+    ipad_teilen(pg, "ipad-teilen", "", "blatt", "Einrichtblatt_10007-0324.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", len(XLSX))
+    pruefe("ipad-teilen: keine Seitenfehler", not f)
+    if f: print(f)
+    ctx.close()
     for name, b, h, mobil in [("ipad-quer", 1180, 820, True), ("ipad-hoch", 820, 1180, True), ("pc", 1600, 900, False)]:
         ctx = br.new_context(viewport={"width": b, "height": h}, device_scale_factor=2, is_mobile=mobil, has_touch=mobil)
         pg = ctx.new_page()

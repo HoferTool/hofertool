@@ -11,6 +11,31 @@
 //  2026). Auf diesem Weg braucht es weder Fenster noch Rahmen.
 // =================================================================
 
+// iPad und iPhone (ein iPad meldet sich als Macintosh mit Fingern).
+// Dort öffnet window.print() in der App auf dem Startbildschirm keinen
+// Druckdialog (Patrick, 9. Oktober 2026: „der Button ladet kurz, dann
+// wieder normal, aber kein Fenster“). Der Weg, der dort geht, ist das
+// Teilen-Fenster mit der Datei: Darin steht „Drucken“, wie bei der
+// Bestellmail (navigator.share mit der PDF).
+export function istAppleFinger() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+}
+
+// Die Datei selbst ins Teilen-Fenster des iPads geben. Gibt true zurück,
+// wenn das Fenster aufging (auch wenn danach abgebrochen wurde), false,
+// wenn das Gerät es nicht kann; dann druckt der Aufrufer anders.
+// Muss direkt aus dem Tipp heraus aufgerufen werden, ohne Warten.
+export function perTeilenDrucken(blob, name, titel) {
+  if (!istAppleFinger() || !navigator.canShare || !navigator.share) return false;
+  let datei;
+  try { datei = new File([blob], name, { type: blob.type || "application/octet-stream" }); }
+  catch (f) { return false; }
+  if (!navigator.canShare({ files: [datei] })) return false;
+  navigator.share({ files: [datei], title: titel || name }).catch(() => { /* abgebrochen */ });
+  return true;
+}
+
 // elemente: fertige DOM-Knoten (je Seite einer, mit break-after: page
 // bis auf den letzten). quer wählt das Papier, titel steht im Druck-
 // dialog und als Dateiname beim Speichern als PDF.
