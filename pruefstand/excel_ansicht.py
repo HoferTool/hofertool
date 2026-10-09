@@ -159,12 +159,16 @@ with sync_playwright() as p:
         pruefe(name + ": Vergrössern", b1 > b0 * 1.3 and pg.inner_text("[data-einpassen]") == "140%")
         pg.click("[data-einpassen]"); pg.wait_for_timeout(400)
         pruefe(name + ": Einpassen zurück", abs(pg.evaluate("document.querySelector('[data-excelseite]').getBoundingClientRect().width") - b0) < 2)
-        # Drucken: eigenes Fenster mit dem Blatt samt Bild
-        with pg.expect_popup() as neu: pg.click(".betrachter [data-drucken]")
-        dr = neu.value; dr.wait_for_timeout(800)
-        pruefe(name + ": Drucken mit Blatt und Bild", "Einrichtblatt 10844-0049" in dr.inner_text("body")
-               and dr.evaluate("[...document.images].every(i => i.naturalWidth > 0)"))
-        dr.close()
+        # Drucken: direkt aus der App, das Blatt samt Bild im Druckbereich
+        pg.evaluate("() => { window.__prints = 0; window.print = () => { window.__prints++; }; }")
+        pg.click(".betrachter [data-drucken]"); pg.wait_for_timeout(1200)
+        pruefe(name + ": Drucken mit Blatt und Bild", pg.evaluate("window.__prints") == 1
+               and "Einrichtblatt 10844-0049" in pg.evaluate("document.getElementById('druckdatei').innerText")
+               and pg.evaluate("[...document.querySelectorAll('#druckdatei img')].every(i => i.naturalWidth > 0)")
+               and pg.evaluate("document.body.classList.contains('nur-datei-drucken')"))
+        pg.evaluate("window.dispatchEvent(new Event('afterprint'))"); pg.wait_for_timeout(200)
+        pruefe(name + ": nach dem Drucken aufgeräumt", pg.locator("#druckdatei").count() == 0
+               and not pg.evaluate("document.body.classList.contains('nur-datei-drucken')"))
         # Zweites Blatt
         pg.click("[data-blattreiter='1']"); pg.wait_for_timeout(300)
         t2 = blatt_text(pg)

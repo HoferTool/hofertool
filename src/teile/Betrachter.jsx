@@ -10,7 +10,8 @@
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
-import { PdfAnsicht } from "./PdfAnsicht.jsx";
+import { PdfAnsicht, pdfjs } from "./PdfAnsicht.jsx";
+import { inDerAppDrucken, pdfSeitenAlsBilder } from "./drucken.js";
 import { ExcelAnsicht, excelDrucken } from "./ExcelAnsicht.jsx";
 import { istExcel } from "./excelLesen.js";
 
@@ -38,6 +39,7 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
   const istPdf = art === "pdf", istXl = art === "excel";
   const rahmen = useRef(null);
   const wurzel = useRef(null);
+  const bild = useRef(null);
   // PDF: einmal holen. „bereit“ = selbst zeichnen, „browser“ = die
   // Anzeige des Browsers als Rückfall. Excel: „fehler“, wenn sie sich
   // nicht lesen lässt.
@@ -55,26 +57,31 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
     return () => { weg = true; };
   }, [adresse, art]);
 
-  // Drucken: bei einem PDF über ein unsichtbares Fenster mit der schon
-  // geladenen Datei (gleiche Herkunft, also erlaubt). Sonst über das
-  // eingebettete Fenster, und geht beides nicht, bleibt der neue Tab.
-  const drucken = () => {
+  // Drucken direkt aus der App (src/teile/drucken.js): Die PDF wird
+  // Seite für Seite als Bild gezeichnet, ein Foto kommt als Bild, das
+  // Excel-Blatt als Kopie. Vorher lief das über ein unsichtbares Fenster
+  // oder einen verborgenen Rahmen; Safari auf dem iPad druckt beides
+  // nicht, der Knopf tat dort nichts (Patrick, 9. Oktober 2026). Nur
+  // wenn die PDF nicht selbst geladen werden konnte (Anzeige des
+  // Browsers), bleibt der alte Weg über den Rahmen und den neuen Tab.
+  const [druckt, setDruckt] = useState(false);
+  const drucken = async () => {
+    if (druckt) return;
     if (istXl) {
-      if (!excelDrucken(wurzel.current, titel, alt.meldung)) alt.meldung("Die Datei ist noch nicht geladen.", "warn");
+      if (!excelDrucken(wurzel.current, titel)) alt.meldung("Die Datei ist noch nicht geladen.", "warn");
       return;
     }
     if (istPdf) {
-      if (pdf.blob) {
-        const url = URL.createObjectURL(pdf.blob);
-        const f = document.createElement("iframe");
-        f.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;border:0;left:-10px;top:-10px";
-        f.src = url;
-        f.onload = () => {
-          try { f.contentWindow.focus(); f.contentWindow.print(); }
-          catch (e) { window.open(url, "_blank"); }
-          setTimeout(() => { f.remove(); URL.revokeObjectURL(url); }, 60000);
-        };
-        document.body.appendChild(f);
+      if (pdf.art === "laden") { alt.meldung("Die Datei ist noch nicht geladen.", "warn"); return; }
+      if (pdf.daten) {
+        setDruckt(true);
+        try {
+          const bilder = await pdfSeitenAlsBilder(await pdfjs(), pdf.daten);
+          const erste = bilder[0];
+          inDerAppDrucken(bilder, { quer: !!erste && erste.classList.contains("druckdatei__seite--quer"), titel });
+        } catch (f) {
+          alt.meldung("Drucken ging nicht: " + alt.fehlertext(f), "fehler");
+        } finally { setDruckt(false); }
         return;
       }
       try {
@@ -86,16 +93,12 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
       if (!w) alt.meldung("Zum Drucken bitte über \"Neuer Tab\" öffnen.", "warn");
       return;
     }
-    // Bild: in einem eigenen Fenster, sonst würde die ganze App
-    // mitgedruckt
-    const w = window.open("", "_blank");
-    if (!w) { alt.meldung("Das Fenster wurde blockiert.", "warn"); return; }
-    const esc = alt.esc;
-    w.document.write('<!doctype html><html><head><meta charset="utf-8">'
-      + "<title>" + esc(titel || "Bild") + "</title>"
-      + "<style>@page{margin:10mm}body{margin:0}img{max-width:100%;height:auto;display:block}</style></head><body>"
-      + '<img src="' + esc(adresse) + '" onload="window.print()"></body></html>');
-    w.document.close();
+    // Bild: als Seite, so gross wie das Papier erlaubt
+    const img = document.createElement("img");
+    img.src = adresse; img.alt = titel || "Bild";
+    img.className = "druckdatei__seite";
+    const quer = !!(bild.current && bild.current.naturalWidth > bild.current.naturalHeight);
+    inDerAppDrucken([img], { quer, titel, rand: "10mm" });
   };
 
   // Speichern: erst versuchen, die Datei wirklich herunterzuladen.
@@ -131,7 +134,7 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
         <span className="betrachter__titel">{titel || ""}</span>
         {hinweis && <span className="betrachter__abruf" data-abrufhinweis="">{hinweis}</span>}
         <div className="betrachter__knoepfe">
-          <button className="knopf knopf--klein" data-drucken="" onClick={drucken}>Drucken</button>
+          <button className="knopf knopf--klein" data-drucken="" onClick={drucken} disabled={druckt}>{druckt ? "Druckt …" : "Drucken"}</button>
           <button className="knopf knopf--klein" data-speichern="" onClick={speichern}>Speichern</button>
           <a className="knopf knopf--klein" href={adresse} target="_blank" rel="noopener">Neuer Tab</a>
           {knoepfe || null}
@@ -154,7 +157,7 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
               {alt.isMobil() && <p className="betrachter__hinweis">Wird nichts angezeigt, öffne die Datei über
                 "Neuer Tab". Manche Handys zeigen PDFs nicht direkt in der App an.</p>}
             </>
-          : <img src={adresse} alt="Foto" />}
+          : <img ref={bild} src={adresse} alt="Foto" />}
       </div>
     </div>
   );

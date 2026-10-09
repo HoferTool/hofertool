@@ -6608,3 +6608,22 @@ body.symbolmodus .pw-balken:hover { outline: 2px solid var(--marke); outline-off
    Dezent, aber auch im dunklen Modus und auf dem Handy zu sehen. */
 .pw-tag--woche, .pw-zelle--woche { border-left: 2px solid #9aa5b4; }
 body.dunkel .pw-tag--woche, body.dunkel .pw-zelle--woche { border-left-color: #566374; }
+/* Drucken aus der App heraus (src/teile/drucken.js, 111.121.1): Der
+   Bereich #druckdatei ist am Bildschirm unsichtbar; beim Drucken ist er
+   das Einzige, was auf die Seite kommt. Je Seite ein Bild oder ein
+   Excel-Blatt, ein Hauch kleiner als das Papier, sonst rutscht beim
+   Drucker eine leere Seite nach. */
+#druckdatei { display: none; }
+@media print {
+  body.nur-datei-drucken > *:not(#druckdatei) { display: none !important; }
+  body.nur-datei-drucken #druckdatei { display: block !important; background: #fff !important; }
+  html, body.nur-datei-drucken { height: auto !important; margin: 0 !important; padding: 0 !important;
+                                 overflow: visible !important; background: #fff !important; }
+  #druckdatei * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #druckdatei .druckdatei__seite { display: block; width: 100%; height: auto; max-height: 99.5vh;
+                                   object-fit: contain; object-position: top left;
+                                   break-after: page; page-break-after: always; }
+  #druckdatei .druckdatei__seite:last-child { break-after: auto; page-break-after: auto; }
+  #druckdatei [data-excelseite] { break-after: page; page-break-after: always; }
+  #druckdatei [data-excelseite]:last-child { break-after: auto; page-break-after: auto; }
+}

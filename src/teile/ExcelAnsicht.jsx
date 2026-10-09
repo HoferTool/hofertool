@@ -17,6 +17,7 @@
 // =================================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { excelLesen } from "./excelLesen.js";
+import { inDerAppDrucken } from "./drucken.js";
 
 const ZOOM_MIN = 0.5, ZOOM_MAX = 6;
 const RAND = 12, LUECKE = 16;
@@ -393,31 +394,21 @@ function Feld({ f, gitter }) {
 }
 
 // Drucken: die Seiten so, wie sie auf dem Bildschirm stehen, je eine
-// A4-Seite, in ein eigenes Fenster, damit nicht die ganze App mitkommt
-export function excelDrucken(wurzel, titel, meldung) {
+// A4-Seite, als Kopie direkt aus der App (src/teile/drucken.js). Ein
+// eigenes Fenster wie früher öffnet Safari als App auf dem iPad nicht.
+export function excelDrucken(wurzel, titel) {
   const el = wurzel && wurzel.querySelector("[data-excelseiten]");
   if (!el) return false;
-  const w = window.open("", "_blank");
-  if (!w) { meldung("Das Fenster wurde blockiert.", "warn"); return true; }
   const erste = el.querySelector("[data-excelseite]");
   const quer = erste && parseFloat(erste.style.width) > parseFloat(erste.style.height);
   const kopie = el.cloneNode(true);
   kopie.style.transform = "none"; kopie.style.position = "static"; kopie.style.gap = "0";
+  kopie.style.display = "block";
   kopie.querySelectorAll("[data-excelseite]").forEach((p) => {
     p.style.boxShadow = "none";
     // Ein Hauch kleiner als A4, sonst rutscht beim Drucker eine leere Seite nach
     p.style.height = (parseFloat(p.style.height) - 2) + "px";
-    p.style.breakAfter = "page";
   });
-  const t = String(titel || "Excel").replace(/[<>&"]/g, "");
-  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + t + "</title>"
-    + "<style>@page{size:A4 " + (quer ? "landscape" : "portrait") + ";margin:0}body{margin:0}"
-    + "*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body></body></html>");
-  w.document.close();
-  w.document.body.appendChild(w.document.importNode(kopie, true));
-  // Bilder abwarten, sonst fehlen sie auf dem Papier
-  const bilder = [...w.document.images];
-  Promise.all(bilder.map((i) => (i.complete ? null : new Promise((ok) => { i.onload = i.onerror = ok; }))))
-    .then(() => setTimeout(() => { w.focus(); w.print(); }, 50));
+  inDerAppDrucken([kopie], { quer, titel: titel || "Excel" });
   return true;
 }

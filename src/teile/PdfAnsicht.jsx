@@ -67,7 +67,9 @@ export function PdfAnsicht({ daten, beiFehler }) {
   // Fläche messen, auch beim Drehen des Tablets
   useLayoutEffect(() => {
     const el = buehne.current;
-    const messen = () => setFlaeche({ b: el.clientWidth, h: el.clientHeight });
+    // Beim Drucken aus der App ist der Betrachter kurz ausgeblendet
+    // (Fläche 0): dann bleibt das letzte Mass stehen.
+    const messen = () => { if (el.clientWidth && el.clientHeight) setFlaeche({ b: el.clientWidth, h: el.clientHeight }); };
     messen();
     const ro = new ResizeObserver(messen);
     ro.observe(el);
