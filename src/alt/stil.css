@@ -6753,3 +6753,8 @@ body.pad-offen .dialog.dialog--wetter, .dialog--wetter { max-width: min(1000px, 
   .wf-tag { grid-template-columns: 5.4rem 1.8rem 2rem minmax(40px, 1fr) 2rem; padding: 8px; }
   .wf-tag__regen, .wf-tag__wind, .wf-tag__sonne { white-space: normal; }
 }
+/* Kopier-Zeichen für den Pfad der Zeichnung (1.1.0) */
+.pfad-kopieren { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  width: 20px; height: 20px; margin-left: 4px; padding: 0; border: 0; border-radius: 4px;
+  background: transparent; color: var(--gedaempft); cursor: pointer; }
+.pfad-kopieren:hover, .pfad-kopieren:focus-visible { color: var(--marke); background: rgba(127, 127, 127, .15); }

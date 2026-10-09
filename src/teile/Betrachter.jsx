@@ -14,6 +14,7 @@ import { PdfAnsicht, pdfjs } from "./PdfAnsicht.jsx";
 import { inDerAppDrucken, pdfSeitenAlsBilder, perTeilenDrucken } from "./drucken.js";
 import { ExcelAnsicht, excelDrucken } from "./ExcelAnsicht.jsx";
 import { istExcel } from "./excelLesen.js";
+import { usePfad, pfadKopieren } from "../daten/zeichnungPfad.jsx";
 import { poolDruckLaden, poolDruckerName, poolKannExcel, poolDrucken, pdfSeitenAlsJpg } from "./poolDruck.js";
 
 // „art“ nur, wenn die Adresse nichts verrät (Datei vom Gerät): "pdf",
@@ -38,6 +39,8 @@ export function dateiAnsehen(datei) {
 // knoepfe: weitere Knöpfe im Kopf, vor „Schliessen“ (etwa „Zeichnung entfernen“)
 export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }) {
   const istPdf = art === "pdf", istXl = art === "excel";
+  // Zeichnung vom Laufwerk des Pool-Rechners: „Pfad“ statt „Neuer Tab“
+  const pfad = usePfad(adresse);
   const rahmen = useRef(null);
   const wurzel = useRef(null);
   const bild = useRef(null);
@@ -207,7 +210,9 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
             </div>}
           </span>
           <button className="knopf knopf--klein" data-speichern="" onClick={speichern}>Speichern</button>
-          <a className="knopf knopf--klein" href={adresse} target="_blank" rel="noopener">Neuer Tab</a>
+          {pfad
+            ? <button className="knopf knopf--klein" data-pfad="" title={pfad} onClick={() => pfadKopieren(pfad)}>Pfad</button>
+            : <a className="knopf knopf--klein" href={adresse} target="_blank" rel="noopener">Neuer Tab</a>}
           {knoepfe || null}
           <button className="knopf knopf--klein" data-zu="" onClick={zu}>Schliessen</button>
         </div>

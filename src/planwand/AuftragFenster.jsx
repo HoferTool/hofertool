@@ -26,6 +26,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
 import { materialBestellungLesen, materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
+import { PfadKopieren } from "../daten/zeichnungPfad.jsx";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
@@ -605,7 +606,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
             <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} /></div>
           {/* Dokumente direkt unter der Zeichnung, nebeneinander */}
           <div className="auf-dokumente">
-            <div className="auf-dok"><span className="feldlabel">Zeichnung</span>
+            <div className="auf-dok"><span className="feldlabel">Zeichnung <PfadKopieren adresse={w.pdf} /></span>
               <div className="auf-dok__knoepfe">
                 <Anhang was="PDF" ordner="zeichnung" adresse={w.pdf} setzen={(x) => setze("pdf", x)}
                   abruf={auftrag && auftrag.job_number ? { art: "zeichnung", hoco: auftrag.job_number } : null}

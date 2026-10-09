@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.1.0** Pfad der Zeichnung kopieren (Wunsch Patrick, 9. Oktober 2026). `zeichnungen.ps1` schreibt beim Hochladen den Pfad auf dem Laufwerk (Netzwerkadresse) mit der Adresse in `hoco_parts.zeichnung_quelle` (`sql/zeichnung-pfad.sql`, eingespielt); schon hochgeladene bekommen ihn beim nächsten Durchlauf. Im Betrachter steht dann „Pfad“ statt „Neuer Tab“, im Auftragsfenster ein Kopier-Zeichen neben „Zeichnung“; ein Klick kopiert ihn, Windows-Taste + R, Strg + V, Enter öffnet die Zeichnung im PDF-Programm. Von Hand ersetzte Zeichnungen und iPad oder Handy: wie bisher „Neuer Tab“. Test `zeichnung_pfad.py`.
 - **1.0.0** Versionsnummer zurückgesetzt (Wunsch Patrick, 9. Oktober 2026: „reset von Versionszahl auf 1.0.0“). Die App zeigt jetzt Version 1.0.0; der Inhalt ist derselbe wie 111.127.0. Neue Funktion → 1.1.0, Korrektur → 1.0.1. Nichts in der App vergleicht Versionsnummern: neue Fassungen erkennt sie am Dateinamen des Programms, der Service Worker an der Dateiliste. Angaben „seit 111.x“ in Texten meinen die alte Zählung.
 
 ## 111.x — nach dem Umzug (1.–2. Oktober 2026)

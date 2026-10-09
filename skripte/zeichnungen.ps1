@@ -138,6 +138,15 @@ function StandSichern {
 
 . (Join-Path $ordnerHier "dokumente-teile.ps1")
 
+# Woher die Zeichnung kommt, für „Pfad“ im Betrachter und das
+# Kopier-Zeichen im Auftragsfenster (Wunsch Patrick, 9. Oktober 2026).
+# Mit der Adresse dazu: Ersetzt jemand die Zeichnung von Hand, passt
+# sie nicht mehr, und die App zeigt keinen falschen Pfad.
+function QuelleMelden([string]$hoco, [string]$pfad, [string]$adresse) {
+  if (-not $adresse) { return }
+  Aendern "Patch" ("hoco_parts?hoco_nr=eq." + (W $hoco)) @{ zeichnung_quelle = @{ pfad = $pfad; url = $adresse } } $null
+}
+
 # Die Datenbank gibt höchstens 1000 Zeilen auf einmal heraus
 function LesenAlle([string]$pfad) {
   $alle = @(); $ab = 0
@@ -261,9 +270,15 @@ try {
 
   # Welche HOCO Nr. kennt die App, und welche Zeichnung hat sie jetzt?
   $bekannt = @{}; $adresseVon = @{}; $stamm = @{}
-  foreach ($t in (LesenAlle "hoco_parts?select=hoco_nr,zeichnung_url&order=hoco_nr")) {
+  # zeichnung_quelle: Pfad auf dem Laufwerk, den die App zum Kopieren
+  # anbietet (seit 1.1.0, sql/zeichnung-pfad.sql)
+  $quelleVon = @{}
+  try { $teile = @(LesenAlle "hoco_parts?select=hoco_nr,zeichnung_url,zeichnung_quelle&order=hoco_nr"); $mitQuelle = $true }
+  catch { $teile = @(LesenAlle "hoco_parts?select=hoco_nr,zeichnung_url&order=hoco_nr"); $mitQuelle = $false }
+  foreach ($t in $teile) {
     $bekannt[[string]$t.hoco_nr] = $true; $stamm[[string]$t.hoco_nr] = $true
     if ($t.zeichnung_url) { $adresseVon[[string]$t.hoco_nr] = [string]$t.zeichnung_url }
+    if ($t.zeichnung_quelle) { $quelleVon[[string]$t.hoco_nr] = $t.zeichnung_quelle }
   }
   foreach ($j in (LesenAlle "jobs?select=job_number&order=id")) { if ($j.job_number) { $bekannt[[string]$j.job_number] = $true } }
 
@@ -325,7 +340,16 @@ try {
     if ($gruppe.Count -eq 0) { $status.keineMehr++; continue }
     $d = $gruppe[0]
     $kennung = Kennung $d
-    if ($jetzt -and $stand.dateien[$h] -eq $kennung) { $status.gleich++; continue }
+    if ($jetzt -and $stand.dateien[$h] -eq $kennung) {
+      $status.gleich++
+      # Schon hochgeladen, aber noch ohne Pfad (vor 1.1.0): nachtragen
+      $q = $quelleVon[$h]
+      if ($scharf -and $mitQuelle -and (-not $q -or [string]$q.pfad -ne $d.FullName -or [string]$q.url -ne $jetzt) -and
+          ((Get-Date) - $startZeit).TotalSeconds -lt $zeitHoechstensSek) {
+        try { QuelleMelden $h $d.FullName $jetzt } catch { }
+      }
+      continue
+    }
 
     $ersetzt = [bool]$jetzt
     if ($ersetzt) { $status.ersetzt++ } else { $status.neu++ }
@@ -353,6 +377,7 @@ try {
       $stand.adressen[$h] = [string]$script:letzteAdresse
       StandSichern
       $adresseVon[$h] = [string]$script:letzteAdresse
+      if ($mitQuelle) { try { QuelleMelden $h $d.FullName ([string]$script:letzteAdresse) } catch { } }
       $status.hochgeladen++
       $bytes += $d.Length
       $nochFrei--
