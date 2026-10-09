@@ -9,6 +9,8 @@
 export const RADIERER = "M7 21h10M5.5 14.5l8-8a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8L12 18H8.5l-3-3a1 1 0 0 1 0-.5z";
 export const ZURUECK = "M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11";
 export const EIMER = "M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3";
+// Farbeimer zum Ausmalen (nicht verwechseln mit EIMER, dem Abfalleimer)
+export const FARBEIMER = "M19 11 11 3l-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2a2 2 0 0 0 2.8 0zM5 2l5 5M2 13h15M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4z";
 export const TEXT = "M5 7V5h14v2M12 5v14M9 19h6";
 export const GROSS = "M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7";
 export const KLEIN = "M20 10h-6V4M4 14h6v6M14 10l7-7M10 14l-7 7";
@@ -61,3 +63,67 @@ export function getroffen(s, x, y, r) {
   return false;
 }
 
+
+// Farbeimer: malt die geschlossene Fläche um (sx, sy) in Gerätepunkten
+// mit der Farbe hex aus, direkt in den Bildpunkten der Leinwand. Gleiche
+// Fläche heisst: Farbe nah genug an der Farbe beim Startpunkt, damit die
+// weichen Ränder der Striche nicht als Lücke stehen bleiben. Danach wird
+// die Fläche um einen Bildpunkt erweitert, sonst bliebe am Rand ein
+// heller Saum. besitzer (optional, eine Zahl je Bildpunkt) merkt sich,
+// welche Füllung den Punkt gemalt hat, damit der Radierer sie findet.
+export function flaecheFuellen(c, sx, sy, hex, besitzer, nr) {
+  const W = c.canvas.width, H = c.canvas.height;
+  const x0 = Math.floor(sx), y0 = Math.floor(sy);
+  if (x0 < 0 || y0 < 0 || x0 >= W || y0 >= H) return;
+  const bild = c.getImageData(0, 0, W, H), d = bild.data;
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || "");
+  if (!m) return;
+  const fr = parseInt(m[1], 16), fg = parseInt(m[2], 16), fb = parseInt(m[3], 16);
+  const s = (y0 * W + x0) * 4;
+  const sr = d[s], sg = d[s + 1], sb = d[s + 2], sa = d[s + 3];
+  const GRENZE = 70;
+  // Durchsichtig ist durchsichtig, egal welche Farbe darin steht
+  const gleich = (i) => {
+    const a = d[i + 3];
+    if (sa < 8) return a <= GRENZE;
+    return Math.abs(a - sa) <= GRENZE && Math.abs(d[i] - sr) <= GRENZE &&
+      Math.abs(d[i + 1] - sg) <= GRENZE && Math.abs(d[i + 2] - sb) <= GRENZE;
+  };
+  const maske = new Uint8Array(W * H);
+  // Zeilenweise füllen: schnell genug auch für ein grosses Blatt
+  const stapel = [x0, y0];
+  while (stapel.length) {
+    const y = stapel.pop(), x = stapel.pop();
+    let l = x;
+    while (l >= 0 && !maske[y * W + l] && gleich((y * W + l) * 4)) l--;
+    l++;
+    let oben = false, unten = false;
+    for (let r = l; r < W; r++) {
+      const k = y * W + r;
+      if (maske[k] || !gleich(k * 4)) break;
+      maske[k] = 1;
+      if (y > 0) {
+        const o = k - W, ja = !maske[o] && gleich(o * 4);
+        if (ja && !oben) { stapel.push(r, y - 1); oben = true; } else if (!ja) oben = false;
+      }
+      if (y < H - 1) {
+        const u = k + W, ja = !maske[u] && gleich(u * 4);
+        if (ja && !unten) { stapel.push(r, y + 1); unten = true; } else if (!ja) unten = false;
+      }
+    }
+  }
+  for (let k = 0; k < W * H; k++) {
+    let ja = maske[k] === 1;
+    if (!ja) {
+      // ein Bildpunkt Rand dazu
+      const x = k % W;
+      ja = (x > 0 && maske[k - 1] === 1) || (x < W - 1 && maske[k + 1] === 1) ||
+        (k >= W && maske[k - W] === 1) || (k + W < W * H && maske[k + W] === 1);
+    }
+    if (!ja) continue;
+    const i = k * 4;
+    d[i] = fr; d[i + 1] = fg; d[i + 2] = fb; d[i + 3] = 255;
+    if (besitzer) besitzer[k] = nr;
+  }
+  c.putImageData(bild, 0, 0);
+}

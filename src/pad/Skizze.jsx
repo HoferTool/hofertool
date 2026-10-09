@@ -24,12 +24,21 @@
 //  (Wunsch Patrick 6. Oktober 2026). Textfelder stehen in derselben
 //  Liste wie die Striche, darum gelten dieselben Regeln (je Auftrag,
 //  auf allen Pads, weg bei Fertig) und es braucht kein neues SQL.
+//
+//  Der Farbeimer malt eine geschlossene Fläche in der gewählten Farbe
+//  aus (Wunsch Patrick 9. Oktober 2026). Gespeichert wird nur der
+//  Punkt, an dem man hingetippt hat, und die Farbe, wieder in derselben
+//  Liste; beim Zeichnen wird an dieser Stelle in der Reihenfolge der
+//  Liste ausgemalt. So passt es auf jedem Pad, Rückgängig und Löschen
+//  gehen wie bei den Strichen. Der Radierer nimmt eine Füllung weg,
+//  wenn man auf sie tippt.
 // =================================================================
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { alt } from "../bruecke.jsx";
 import { FettText } from "../teile/FettText.jsx";
-import { rund, strichZeichnen, getroffen, Symbol, RADIERER, ZURUECK, EIMER, TEXT, GROSS, KLEIN } from "../teile/zeichnen.jsx";
+import { rund, strichZeichnen, getroffen, Symbol, RADIERER, ZURUECK, EIMER, FARBEIMER, TEXT, GROSS, KLEIN,
+  flaecheFuellen } from "../teile/zeichnen.jsx";
 
 // Alles zum Zeichnen steht auf einer Zeile (Wunsch Patrick 6. Oktober
 // 2026): ein Farbknopf mit dem Farbwähler des Geräts (dort gibt es auch
@@ -54,6 +63,9 @@ const schriftPx = (g) => (SCHRIFTEN.find((x) => x[0] === g) || SCHRIFTEN[1])[2];
 // f: "#hex", b: Breite (fehlt = so breit wie der Text), p: [] }. Das leere p lässt ältere Fassungen der App, die
 // noch auf einem Pad offen sind, das Feld einfach übergehen.
 const istText = (s) => !!(s && s.t);
+// Eine Füllung: { u: 1, x, y, f: "#hex", p: [] }, x und y wie bei den
+// Strichen. Das leere p lässt ältere Fassungen sie übergehen.
+const istFuellung = (s) => !!(s && s.u);
 
 // Früher gemerkte Farben waren Namen aus der Palette, jetzt #hex
 function farbHex(wert) {
@@ -74,6 +86,7 @@ export default function Skizze({ j }) {
   const [farbe, setFarbe] = useState(() => farbHex(alt.pad.skizzeFarbe || "#ffffff"));
   const [dicke, setDicke] = useState(() => alt.pad.skizzeDicke || "mittel");
   const [radierer, setRadierer] = useState(false);
+  const [eimer, setEimer] = useState(false);
   const [zustand, setZustand] = useState("laedt"); // laedt | bereit | fehlt
   const [gross, setGross] = useState(false);
   const [masse, setMasse] = useState({ w: 0, k: 1 });
@@ -91,6 +104,7 @@ export default function Skizze({ j }) {
   const zeiger = useRef(null);       // nur ein Finger zeichnet
   const stand = useRef("");          // geaendert_am der geladenen Fassung
   const offen = useRef(null);        // wartendes Speichern
+  const bildRef = useRef(null);      // fertige Striche und Füllungen, damit beim Zeichnen nicht jedes Mal neu ausgemalt wird
   const strichRef = useRef(striche);
   strichRef.current = striche;
 
@@ -112,6 +126,7 @@ export default function Skizze({ j }) {
     strichRef.current.forEach((s) => {
       // Bei Textfeldern zählt der Anfang; verschieben lassen sie sich nur in der Fläche
       if (istText(s)) { mx = Math.max(mx, s.x); my = Math.max(my, s.y + 0.03); return; }
+      if (istFuellung(s)) return;
       const p = s.p || [], r = (s.d || 0) / 2;
       for (let i = 0; i + 1 < p.length; i += 2) { mx = Math.max(mx, p[i] + r); my = Math.max(my, p[i + 1] + r); }
     });
@@ -124,7 +139,32 @@ export default function Skizze({ j }) {
     // Die Textfelder liegen als Elemente über der Leinwand und brauchen
     // dieselbe Breite und Verkleinerung
     setMasse((m) => (m.w === w && m.k === k ? m : { w, k }));
-    strichRef.current.forEach((s) => strichZeichnen(c, s, w * k));
+    // Die fertigen Striche liegen in einem eigenen Bild: Füllungen
+    // brauchen jeden Bildpunkt, das soll nicht bei jeder Fingerbewegung
+    // wieder laufen
+    const liste = strichRef.current;
+    let b = bildRef.current;
+    if (!b || b.liste !== liste || b.cv.width !== cv.width || b.cv.height !== cv.height || b.k !== k) {
+      const bcv = (b && b.cv) || document.createElement("canvas");
+      bcv.width = cv.width; bcv.height = cv.height;
+      const bc = bcv.getContext("2d", { willReadFrequently: true });
+      bc.setTransform(1, 0, 0, 1, 0, 0);
+      bc.clearRect(0, 0, bcv.width, bcv.height);
+      bc.setTransform(dpr, 0, 0, dpr, 0, 0);
+      let besitzer = null;
+      liste.forEach((s, i) => {
+        if (istFuellung(s)) {
+          if (!besitzer) besitzer = new Uint16Array(bcv.width * bcv.height);
+          bc.setTransform(1, 0, 0, 1, 0, 0);
+          flaecheFuellen(bc, s.x * w * k * dpr, s.y * w * k * dpr, s.f, besitzer, i + 1);
+          bc.setTransform(dpr, 0, 0, dpr, 0, 0);
+        } else strichZeichnen(bc, s, w * k);
+      });
+      b = bildRef.current = { cv: bcv, liste, k, besitzer, dpr };
+    }
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.drawImage(b.cv, 0, 0);
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (aktuell.current) strichZeichnen(c, aktuell.current, w * k);
   }, []);
 
@@ -254,7 +294,17 @@ export default function Skizze({ j }) {
 
   const radieren = (x, y) => {
     const r = 12 / ((breite.current || 400) * massstab.current);
-    const rest = strichRef.current.filter((s) => istText(s) || !getroffen(s, x, y, r));
+    let rest = strichRef.current.filter((s) => istText(s) || istFuellung(s) || !getroffen(s, x, y, r));
+    // Kein Strich getroffen: vielleicht eine Füllung
+    const b = bildRef.current;
+    if (rest.length === strichRef.current.length && b && b.besitzer && b.liste === strichRef.current) {
+      const k = massstab.current * (breite.current || 1) * b.dpr;
+      const px = Math.floor(x * k), py = Math.floor(y * k);
+      if (px >= 0 && py >= 0 && px < b.cv.width && py < b.cv.height) {
+        const nr = b.besitzer[py * b.cv.width + px];
+        if (nr) rest = rest.filter((_, i) => i !== nr - 1);
+      }
+    }
     if (rest.length !== strichRef.current.length) { strichRef.current = rest; setStriche(rest); }
   };
 
@@ -265,6 +315,12 @@ export default function Skizze({ j }) {
     try { leinwand.current.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
     const [x, y] = punkt(e);
     if (radierer) { merken(); radieren(x, y); return; }
+    if (eimer) {
+      // Ausmalen braucht nur den Tipp, kein Ziehen
+      zeiger.current = null;
+      aendern([...strichRef.current, { u: 1, x, y, f: farbe, p: [] }]);
+      return;
+    }
     const px = (DICKEN.find((d) => d[0] === dicke) || DICKEN[1])[1];
     aktuell.current = { f: farbe, d: rund(px / 400), p: [x, y] };
     allesZeichnen();
@@ -304,11 +360,12 @@ export default function Skizze({ j }) {
   };
 
   // ---------- Leiste ----------
+  // Eine neue Farbe lässt den Farbeimer an: erst Farbe, dann ausmalen
   const farbeWaehlen = (f) => { setFarbe(f); setRadierer(false); alt.pad.skizzeFarbe = f; };
   const dickeWechseln = () => {
     const i = DICKEN.findIndex((d) => d[0] === dicke);
     const d = DICKEN[(i + 1) % DICKEN.length][0];
-    setDicke(d); setRadierer(false); alt.pad.skizzeDicke = d;
+    setDicke(d); setRadierer(false); setEimer(false); alt.pad.skizzeDicke = d;
   };
   const dickePx = (DICKEN.find((d) => d[0] === dicke) || DICKEN[1])[1];
   const zurueck = () => {
@@ -329,7 +386,7 @@ export default function Skizze({ j }) {
     bestaetigen: wert ? "Speichern" : "Einfügen" });
 
   const textNeu = async () => {
-    setRadierer(false);
+    setRadierer(false); setEimer(false);
     const w = await textDialog(null);
     if (!w || !(w.text || "").trim()) return;
     alt.pad.skizzeSchrift = w.schrift;
@@ -460,7 +517,8 @@ export default function Skizze({ j }) {
   const flaecheTeil = (
     <div className="pad-skizze__raum" ref={raum}>
     <div className="pad-skizze__flaeche" ref={flaeche}>
-      <canvas ref={leinwand} className={"pad-skizze__leinwand" + (radierer ? " pad-skizze__leinwand--radierer" : "")}
+      <canvas ref={leinwand} className={"pad-skizze__leinwand" + (radierer ? " pad-skizze__leinwand--radierer" : "")
+        + (eimer ? " pad-skizze__leinwand--eimer" : "")}
         onPointerDown={runter} onPointerMove={bewegen} onPointerUp={hoch} onPointerCancel={hoch}
         onLostPointerCapture={hoch} />
       {masse.w > 0 &&
@@ -516,9 +574,13 @@ export default function Skizze({ j }) {
               data-skizzedicke={dicke} className="pad-skizze__knopf" onClick={dickeWechseln}>
               <i style={{ width: Math.max(4, dickePx * 1.1), height: Math.max(4, dickePx * 1.1),
                           background: farbe, boxShadow: "0 0 0 1px rgba(255,255,255,.5)" }} /></button>
+            <button type="button" data-skizze="eimer" aria-label="Farbeimer: Fläche ausmalen"
+              title="Farbeimer: Fläche ausmalen"
+              className={"pad-skizze__knopf" + (eimer ? " aktiv" : "")}
+              onClick={() => { setEimer(!eimer); setRadierer(false); }}><Symbol d={FARBEIMER} /></button>
             <button type="button" data-skizze="radierer" aria-label="Radierer"
               className={"pad-skizze__knopf" + (radierer ? " aktiv" : "")}
-              onClick={() => setRadierer(!radierer)}><Symbol d={RADIERER} /></button>
+              onClick={() => { setRadierer(!radierer); setEimer(false); }}><Symbol d={RADIERER} /></button>
             <button type="button" data-skizze="zurueck" aria-label="Rückgängig"
               className="pad-skizze__knopf" disabled={!kannZurueck}
               onClick={zurueck}><Symbol d={ZURUECK} /></button>

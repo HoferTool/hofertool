@@ -6846,3 +6846,5 @@ body .pw-tafel .pw-balken--laeuft { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .5
 .pad-browser { display: flex; align-items: center; gap: 10px; }
 .pad-browser svg { width: 1.35em; height: 1.35em; flex: none; fill: none;
   stroke: currentColor; stroke-width: 1.6; }
+/* Farbeimer in der Pad-Skizze (seit 1.15.0) */
+.pad-skizze__leinwand--eimer { cursor: copy; }
