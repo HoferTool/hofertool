@@ -1,7 +1,9 @@
 # Materialplatz als eigenes Feld im Auftragsfenster (111.41.0).
 # Ohne SQL steht er wie bisher als Zeile "Material: …" in der Notiz,
 # mit der Spalte material_platz dort und nicht mehr in der Notiz.
-# Ein Langdreher ohne Planrecht darf ihn ebenfalls ändern.
+# Ändern dürfen ihn nur Admins und wer das Häkchen „Materialplatz
+# bearbeiten“ hat (1.5.0), auch ohne Planrecht. Alle anderen, auch wer
+# planen darf, sehen ihn nur; Speichern lässt ihn dann, wie er war.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -15,7 +17,43 @@ ROLLE = '''role: "admin", is_active: true, geburtstag: null, bild_url: null, par
       darf_bearbeiten: true,'''
 assert ROLLE in FAKE
 LANG = FAKE.replace(ROLLE, '''role: "langdreher", is_active: true, geburtstag: null, bild_url: null, parks: [],
+      darf_bearbeiten: false, darf_materialplatz: true,''')
+LANG_OHNE = FAKE.replace(ROLLE, '''role: "langdreher", is_active: true, geburtstag: null, bild_url: null, parks: [],
       darf_bearbeiten: false,''')
+PLANER_OHNE = FAKE.replace(ROLLE, '''role: "langdreher", is_active: true, geburtstag: null, bild_url: null, parks: [],
+      darf_bearbeiten: true,''')
+
+def gesperrt(br, fake, titel):
+    pg = br.new_context(viewport={"width": 1600, "height": 950}).new_page()
+    pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
+    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=fake))
+    for u in ["**://fonts.googleapis.com/**","**://fonts.gstatic.com/**","**://esm.sh/**","**://*.supabase.co/**","**://api.open-meteo.com/**"]:
+        pg.route(u, lambda r: r.abort())
+    pg.add_init_script("""(() => { const t = setInterval(() => { if (window.TEST && TEST.daten) {
+      TEST.daten.planwand.forEach(j => { j.material_platz = 'Regal 1'; });
+      clearInterval(t); } }, 5); })();""")
+    pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
+    pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#planwand'")
+    pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(800)
+    jid = pg.evaluate("""() => { const ids = new Set(TEST.daten.planwand.filter(j => !j.ended_at && j.plan_status !== 'fertig').map(j => j.id));
+      const b = [...document.querySelectorAll('.pw-balken[data-auftrag]')].find(b => ids.has(b.dataset.auftrag)
+        && b.getBoundingClientRect().width > 40); return b && b.dataset.auftrag; }""")
+    el = pg.locator(f".pw-balken[data-auftrag='{jid}']").first
+    el.scroll_into_view_if_needed()
+    el.click(); pg.wait_for_timeout(80); el.click(); pg.wait_for_timeout(900)
+    pruefe(titel + ": Fenster offen", pg.locator(".dialog--auftrag").count() == 1)
+    pruefe(titel + ": Platz sichtbar", pg.input_value("#pl-matort") == "Regal 1")
+    pruefe(titel + ": Feld gesperrt", pg.evaluate("document.querySelector('#pl-matort').readOnly"))
+    # Auch von Hand ins Feld geschrieben wird nichts gespeichert
+    pg.evaluate("""() => { const e = document.querySelector('#pl-matort');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(e, 'Anderswo');
+      e.dispatchEvent(new Event('input', { bubbles: true })); }""")
+    pg.click("#pl-ja"); pg.wait_for_timeout(1300)
+    j = pg.evaluate("(id) => JSON.parse(JSON.stringify(TEST.daten.planwand.find(x => x.id === id)))", jid)
+    pruefe(titel + ": Platz unverändert", j.get("material_platz") == "Regal 1")
+    pruefe(titel + ": nichts an material_platz geschickt", not pg.evaluate(
+      "() => TEST.protokoll.some(a => JSON.stringify(a).includes('Anderswo'))"))
+    pg.close()
 
 def lauf(br, fake, spalte, titel):
     pg = br.new_context(viewport={"width": 1600, "height": 950}).new_page()
@@ -73,5 +111,7 @@ with sync_playwright() as p:
     lauf(br, FAKE, True, "admin mit SQL")
     lauf(br, LANG, True, "langdreher mit SQL")
     lauf(br, LANG, False, "langdreher ohne SQL")
+    gesperrt(br, LANG_OHNE, "langdreher ohne Häkchen")
+    gesperrt(br, PLANER_OHNE, "planer ohne Häkchen")
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:12])

@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 1.4.0 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
+- **Stand:** Version 1.5.0 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
 
 ## Mit wem du arbeitest
 
@@ -71,7 +71,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 
 ### Rollen
 
-`admin`, `planwand`, `langdreher`, `kurzdreher` dürfen schreiben. `planwand` (Gerätekonto am Pool-Rechner) darf seit 111.123.0 dazu alles rund um Dokumente hochladen und Sicherung: Einstellungen → Dokumente und → Backup mit allen Knöpfen, tägliche Sicherung, Zurückspielen (Wunsch Patrick, 9. Oktober 2026, `darfDokumenteUndSicherung()`, `sql/planwand-dokumente-sicherung.sql`); seit 111.124.0 auch Fehlerprotokoll, Farben und Material, Symbole und Text der Bestellmail (`sql/planwand-einstellungen.sql`); Zeichnung und WBG entfernen, Reiter Nutzer, PIN der Planwand und Notizbuch-Passwörter bleiben bei Admins. `mitarbeiter` sieht alles und darf im Einkauf mitmachen. `extern` (Firma Zurbrügg) sieht nur Planwand und Produktion seiner Parks und meldet sich über einen Link mit `#/extern` an. Daneben gibt es `dienst` für das Dienstkonto des Netzlaufwerk-Abgleichs.
+`admin`, `planwand`, `langdreher`, `kurzdreher` dürfen schreiben. `planwand` (Gerätekonto am Pool-Rechner) darf seit 111.123.0 dazu alles rund um Dokumente hochladen und Sicherung: Einstellungen → Dokumente und → Backup mit allen Knöpfen, tägliche Sicherung, Zurückspielen (Wunsch Patrick, 9. Oktober 2026, `darfDokumenteUndSicherung()`, `sql/planwand-dokumente-sicherung.sql`); seit 111.124.0 auch Fehlerprotokoll, Farben und Material, Symbole und Text der Bestellmail (`sql/planwand-einstellungen.sql`); Zeichnung und WBG entfernen, Reiter Nutzer, PIN der Planwand und Notizbuch-Passwörter bleiben bei Admins. Den **Materialplatz** im Auftragsfenster ändern nur Admins und wer unter Einstellungen → Nutzer das Häkchen „Materialplatz bearbeiten“ hat, alle anderen sehen ihn nur (Wunsch Patrick, 9. Oktober 2026, `darfMaterialplatz()`, `profiles.darf_materialplatz`, in der Datenbank geprüft mit `sql/materialplatz-recht.sql`). `mitarbeiter` sieht alles und darf im Einkauf mitmachen. `extern` (Firma Zurbrügg) sieht nur Planwand und Produktion seiner Parks und meldet sich über einen Link mit `#/extern` an. Daneben gibt es `dienst` für das Dienstkonto des Netzlaufwerk-Abgleichs.
 
 ## So arbeitest du an der App
 

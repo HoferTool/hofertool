@@ -196,6 +196,7 @@ function BenutzerListe({ leute, parks, mitPin, status, bin, neu }) {
       {leute.map((u) => {
         const merkmale = [ROLLEN[u.role] || u.role];
         if (istAndererNutzer(u)) merkmale.push("Andere Nutzer");
+        if (u.darf_materialplatz && u.role !== "admin") merkmale.push("Materialplatz");
         if (u.ist_planer && u.initialen) merkmale.push("plant als " + u.initialen);
         if (bin && mitPin) merkmale.push(mitPin.has(u.id) ? "mit PIN" : u.ohne_passwort ? "ohne Passwort" : "mit Passwort");
         return (
@@ -260,7 +261,9 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
     const { error } = await alt.db.from("profiles").update(felder).eq("id", u.id);
     if (error) {
       alt.meldung("andere_nutzer" in felder && /andere_nutzer/.test(error.message || "")
-        ? "Dafür fehlt noch sql/andere-nutzer.sql in der Datenbank." : alt.fehlertext(error), "fehler");
+        ? "Dafür fehlt noch sql/andere-nutzer.sql in der Datenbank."
+        : "darf_materialplatz" in felder && /darf_materialplatz/.test(error.message || "")
+          ? "Dafür fehlt noch sql/materialplatz-recht.sql in der Datenbank." : alt.fehlertext(error), "fehler");
       setU((x) => ({ ...x, ...zurueck }));
       return false;
     }
@@ -386,6 +389,12 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
             onChange={(e) => aendern({ andere_nutzer: e.target.checked },
               e.target.checked ? "Steht jetzt unter „Andere Nutzer“." : "Steht jetzt bei den Personen.")} />
             <span>Andere Nutzer (Kachel bei der Anmeldung unten unter „Andere Nutzer“)</span></label>
+          {u.role === "admin"
+            ? <div className="nutzerfenster__wert">Materialplatz bearbeiten: immer</div>
+            : <label className="schalter"><input type="checkbox" data-matplatz={u.id} checked={!!u.darf_materialplatz}
+                onChange={(e) => aendern({ darf_materialplatz: e.target.checked },
+                  e.target.checked ? "Darf jetzt den Materialplatz bearbeiten." : "Materialplatz nur noch ansehen.")} />
+                <span>Materialplatz bearbeiten (Feld im Auftragsfenster)</span></label>}
         </div>
       </div>
 

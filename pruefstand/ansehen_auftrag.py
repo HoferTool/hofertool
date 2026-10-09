@@ -43,8 +43,8 @@ with sync_playwright() as p:
 
     for f in ["#pl-fa-nr","#pl-von","#pl-tage","#pl-bis","#pl-menge","#pl-mat-bez","#pl-menge-mat","#pl-liefer","#pl-notiz"]:
         pruefe("gesperrt " + f, pg.evaluate("(s) => { const e = document.querySelector(s); return !!e && (e.readOnly || e.disabled); }", f))
-    # Den Materialplatz pflegt auch, wer das Material hinlegt (111.41.0)
-    pruefe("Materialplatz offen", pg.evaluate("() => { const e = document.querySelector('#pl-matort'); return !!e && !e.readOnly; }"))
+    # Den Materialplatz ändern nur Admins und wer das Häkchen hat (1.5.0)
+    pruefe("Materialplatz gesperrt ohne Häkchen", pg.evaluate("() => { const e = document.querySelector('#pl-matort'); return !!e && e.readOnly; }"))
     pruefe("Maschine gesperrt", pg.locator("#pl-maschine").is_disabled())
     pruefe("Farbknöpfe gesperrt", pg.evaluate("[...document.querySelectorAll('[data-plfarbe]')].every(b => b.disabled)"))
     pruefe("Planerknöpfe gesperrt", pg.evaluate("[...document.querySelectorAll('[data-planer]')].every(b => b.disabled)"))

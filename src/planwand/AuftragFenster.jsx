@@ -195,9 +195,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   // Ohne Planungsrecht ist das Fenster zum Nachschauen da: ändern lässt
   // sich nur, was auch vorher schon ging, also Zustand und Problem melden
   const nurLesen = !darf;
-  // Den Materialplatz pflegt auch, wer an der Maschine steht und das
-  // Material hinlegt: alle mit Schreibrecht, nur Externe nicht
-  const darfPlatz = darf || (!!auftrag && alt.darfSchreiben() && !alt.istExtern());
+  // Den Materialplatz ändern nur Admins und wer das Häkchen „Materialplatz
+  // bearbeiten“ hat, auch ohne Planungsrecht; alle anderen sehen ihn nur
+  // (Wunsch Patrick, 9. Oktober 2026)
+  const darfPlatz = alt.darfMaterialplatz();
   const extern = alt.istExtern();
   const maschinen = alt.prod.maschinen || [];
   const [w, setW] = useState(() => anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer));
@@ -378,6 +379,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     if (!w.maschine) { alt.meldung("Bitte eine Maschine wählen.", "warn"); return; }
     // Mit eigener Spalte steht der Materialplatz nicht mehr in der Notiz
     const platzSpalte = alt.materialPlatzSpalte();
+    // Ohne Recht bleibt der Materialplatz, wie er war
+    const platzWert = darfPlatz ? (w.matOrt || "") : (auftrag ? alt.materialPlatz(auftrag) : "");
     const daten = {
       planned_from: w.von || null,
       planned_days: Math.max(1, Math.round(Number(w.tage) || 1)),
@@ -385,7 +388,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       // Eine eben eingetippte Bestellung steht nach dem Speichern nur
       // noch in Menge und Liefertermin, nicht doppelt in der Notiz
       plan_note: alt.notizZusammen(materialAusNotizEntfernen(w.notiz, w.matMenge, w.liefer),
-        platzSpalte ? "" : (w.matOrt || "")),
+        platzSpalte ? "" : platzWert),
       drawing_url: w.pdf,
       wbg_url: w.wbg,
       plan_status: w.zustand,
@@ -403,7 +406,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       machine_id: w.maschine,
     };
     if (abrufDa) daten.abruf_info = w.abruf.trim() || null;
-    if (platzSpalte) daten.material_platz = (w.matOrt || "").trim() || null;
+    if (platzSpalte && darfPlatz) daten.material_platz = platzWert.trim() || null;
     setBeschaeftigt(true);
     try { await auftragSpeichern({ auftrag, daten, nr: w.nr.trim(), b, zu }); }
     finally { setBeschaeftigt(false); }

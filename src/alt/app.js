@@ -134,7 +134,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.5.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1480,11 +1480,12 @@ async function profilLaden() {
     const spalten = "id, email, full_name, role, is_active, geburtstag, "
       + "bild_url, parks, darf_bearbeiten, ist_planer, initialen, ohne_passwort, einstellungen";
     let { data, error } = await zeitlimit(
-      db.from("profiles").select(spalten + ", andere_nutzer")
+      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz")
         .eq("id", s.user.id).single(), 10000, "Profil");
-    // Ohne sql/andere-nutzer.sql kennt die Datenbank das Häkchen nicht:
-    // dann ohne die Spalte lesen, statt ohne Profil dazustehen
-    if (error && /andere_nutzer/.test(String(error.message || ""))) {
+    // Ohne sql/andere-nutzer.sql oder sql/materialplatz-recht.sql kennt die
+    // Datenbank das Häkchen nicht: dann ohne die Spalten lesen, statt ohne
+    // Profil dazustehen
+    if (error && /andere_nutzer|darf_materialplatz/.test(String(error.message || ""))) {
       ({ data, error } = await zeitlimit(
         db.from("profiles").select(spalten).eq("id", s.user.id).single(), 10000, "Profil"));
     }
@@ -3924,6 +3925,15 @@ function darfWirklichBearbeiten() {
   if (isMobil()) return false;
   return istAdmin() || meineRolle() === "planwand"
     || (profil && profil.darf_bearbeiten === true);
+}
+
+// Den Materialplatz am Auftrag ändern nur Admins und wer das Häkchen
+// „Materialplatz bearbeiten“ hat (Wunsch Patrick, 9. Oktober 2026,
+// profiles.darf_materialplatz, sql/materialplatz-recht.sql). Die
+// Datenbank prüft dasselbe.
+function darfMaterialplatz() {
+  if (istExtern()) return false;
+  return istAdmin() || (profil && profil.darf_materialplatz === true);
 }
 
 // Darf gerade auf der Planwand geändert werden?
@@ -9212,7 +9222,7 @@ Object.assign(alt, {
   best, seiteBestellungen, sucheArtikel, ladeBezeichnungen, ladeLieferanten,
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, esc,
-  darfPlanen, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
+  darfPlanen, darfMaterialplatz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
   arbeitstagePlus, ausIso, ladeTodos, loeschen,
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, ladePlanAuftraege,
   istExtern, einstellung, rollenMerken, produktionAlteAnsicht, seiteProduktion,
