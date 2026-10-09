@@ -12,7 +12,8 @@
 //                        ein Augenblick für alle Tabellen)
 //    dateien/<b>/<p>     jede hochgeladene Datei (WBGs, Bilder,
 //                        Notizbuch-Seiten …), ausser Zeichnungen und
-//                        Einrichtblätter der HOCO Nummern (seit 111.116.0,
+//                        Einrichtblätter der HOCO Nummern und alter
+//                        Dateien, die nirgends mehr gebraucht werden (seit 111.116.0,
 //                        Wunsch Patrick 8. Oktober 2026: „alles sichern
 //                        ausser Einrichtblätter und Zeichnungen, weil man
 //                        das wieder hochladen kann per Aufgaben“): die
@@ -187,11 +188,18 @@ function ablageSchluessel(adresse) {
   try { return m[1] + "|" + decodeURIComponent(m[2]); } catch (f) { return m[1] + "|" + m[2]; }
 }
 
-// Welche Dateien nicht in die Sicherung gehören: Zeichnungen (Stammdaten,
-// Aufträge, Dokumentenpool) und Einrichtblätter der HOCO Nummern (je Typ
-// und im Dokumentenpool). Die Vorlagen der Maschinentypen bleiben drin:
-// die holt keine Aufgabe zurück. Gibt Map "ablage|pfad" → Art zurück.
-export function ohneDateien(tabellen) {
+// Welche Dateien nicht in die Sicherung gehören (Wunsch Patrick, 8. und
+// 9. Oktober 2026): Zeichnungen (Stammdaten, Aufträge, Dokumentenpool),
+// Einrichtblätter der HOCO Nummern (je Typ und im Dokumentenpool) und
+// alte Dateien in der Ablage „zeichnungen“, auf die keine Tabelle mehr
+// verweist (ersetzte Zeichnungen und Einrichtblätter aus dem Umzug und
+// von der Aufgabe; die App selbst gilt sie als löschbar, siehe
+// dateiNochVerwendet). Ob eine Datei noch gebraucht wird, zeigt ein
+// Blick in alle gesicherten Tabellen: Jede Adresse in irgendeinem Feld
+// zählt, auch in Tabellen, die es heute noch nicht gibt. Die Vorlagen
+// der Maschinentypen bleiben drin. Gibt Map "ablage|pfad" → Art zurück
+// ("zeichnung", "einrichtblatt" oder "alt").
+export function ohneDateien(tabellen, dateien) {
   const ohne = new Map();
   const merke = (adresse, art) => { const k = ablageSchluessel(adresse); if (k && !ohne.has(k)) ohne.set(k, art); };
   const zeilen = (t) => { const x = (tabellen || []).find((y) => y && y.t === t); return (x && x.zeilen) || []; };
@@ -202,13 +210,26 @@ export function ohneDateien(tabellen) {
     if (z.art === "zeichnung") merke(z.datei_url, "zeichnung");
     else if (z.art === "einrichtblatt" && z.hoco_nr) merke(z.datei_url, "einrichtblatt");
   });
+  // Alles, worauf irgendeine Tabelle verweist, egal in welchem Feld
+  const verwendet = new Set();
+  const muster = /\/object\/(?:public|sign|authenticated)\/[^/?#"\\]+\/[^?#"\\]+/g;
+  for (const t of tabellen || []) {
+    const text = JSON.stringify((t && t.zeilen) || []);
+    let m;
+    while ((m = muster.exec(text))) { const k = ablageSchluessel(m[0]); if (k) verwendet.add(k); }
+  }
+  for (const d of dateien || []) {
+    if (!d || d.b !== "zeichnungen") continue;
+    const k = d.b + "|" + d.p;
+    if (!ohne.has(k) && !verwendet.has(k)) ohne.set(k, "alt");
+  }
   return ohne;
 }
 
-// Zählt, wie viele Zeichnungen und Einrichtblätter in einer Liste stehen
+// Zählt, wie viele Zeichnungen, Einrichtblätter und alte Dateien in einer Liste stehen
 export function ohneZaehlen(liste) {
-  const n = { zeichnungen: 0, einrichtblaetter: 0 };
-  (liste || []).forEach((o) => { if (o.art === "einrichtblatt") n.einrichtblaetter++; else n.zeichnungen++; });
+  const n = { zeichnungen: 0, einrichtblaetter: 0, alt: 0 };
+  (liste || []).forEach((o) => { if (o.art === "einrichtblatt") n.einrichtblaetter++; else if (o.art === "alt") n.alt++; else n.zeichnungen++; });
   return n;
 }
 
@@ -225,8 +246,8 @@ export async function sichern(h, grund, fortschritt) {
     const d = await alt.db.rpc("sicherung_dateien");
     if (d.error) throw d.error;
     const alle = (d.data || []).filter((x) => x && x.b && x.p);
-    // Zeichnungen und Einrichtblätter bleiben draussen (Wunsch Patrick, 8. Oktober 2026)
-    const ohne = ohneDateien(tabellen);
+    // Zeichnungen, Einrichtblätter und alte Dateien bleiben draussen (Wunsch Patrick, 8. und 9. Oktober 2026)
+    const ohne = ohneDateien(tabellen, alle);
     const liste = alle.filter((x) => !ohne.has(x.b + "|" + x.p));
     const ausgelassen = alle.filter((x) => ohne.has(x.b + "|" + x.p)).map((x) => ({ b: x.b, p: x.p, art: ohne.get(x.b + "|" + x.p) }));
     const ohneZahl = ohneZaehlen(ausgelassen);
@@ -291,7 +312,7 @@ export async function sichern(h, grund, fortschritt) {
     }
     const groesse = (await (await h.getFileHandle(ziel)).getFile()).size;
     return { zeit: jetzt.toISOString(), datei: ziel, mb: Math.round(groesse / 104857.6) / 10, tabellen: tabellen.length,
-      zeilen, dateien: liste.length - fehlt, fehlt, ohneZeichnungen: ohneZahl.zeichnungen, ohneEinrichtblaetter: ohneZahl.einrichtblaetter,
+      zeilen, dateien: liste.length - fehlt, fehlt, ohneZeichnungen: ohneZahl.zeichnungen, ohneEinrichtblaetter: ohneZahl.einrichtblaetter, ohneAlt: ohneZahl.alt,
       grund, geraet: geraetName() };
   })();
   try { return await laeuft; } finally { laeuft = null; }
@@ -406,8 +427,8 @@ export async function zurueckspielen(datei, fortschritt) {
     } catch (f) { fehlt++; }
   }
   // Zeichnungen und Einrichtblätter waren nicht in der Sicherung: Welche
-  // davon fehlen jetzt in der Ablage?
-  const ohneFehlt = ohneZaehlen(listeDa ? (kopf.ausgelassen || []).filter((o) => o && o.b && o.p && !jetzt.has(o.b + "|" + o.p)) : []);
+  // davon fehlen jetzt in der Ablage? (Alte Dateien braucht niemand.)
+  const ohneFehlt = ohneZaehlen(listeDa ? (kopf.ausgelassen || []).filter((o) => o && o.b && o.p && o.art !== "alt" && !jetzt.has(o.b + "|" + o.p)) : []);
   return { tabellen: antw.tabellen, zeilen: antw.zeilen, ohneKonto: antw.ohne_konto, dateien: wieder, dateienFehlt: fehlt,
     ohneZeichnungen: ohneFehlt.zeichnungen, ohneEinrichtblaetter: ohneFehlt.einrichtblaetter, stand: kopf.erstellt };
 }

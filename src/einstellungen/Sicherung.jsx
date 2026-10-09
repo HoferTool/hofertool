@@ -27,12 +27,13 @@ function datumText(d) {
   const z = (n) => String(n).padStart(2, "0");
   return z(d.getDate()) + "." + z(d.getMonth() + 1) + "." + d.getFullYear() + ", " + z(d.getHours()) + ":" + z(d.getMinutes()) + " Uhr";
 }
-// „ohne 250 Zeichnungen und 1 Einrichtblatt“ (leer, wenn nichts ausgelassen wurde)
-function ohneText(z, e) {
+// „ohne 250 Zeichnungen, 1 Einrichtblatt und 470 alte Dateien“ (leer, wenn nichts ausgelassen wurde)
+function ohneText(z, e, a) {
   const teile = [];
   if (z) teile.push(z === 1 ? "1 Zeichnung" : alt.zahlText(z) + " Zeichnungen");
   if (e) teile.push(e === 1 ? "1 Einrichtblatt" : alt.zahlText(e) + " Einrichtblätter");
-  return teile.join(" und ");
+  if (a) teile.push(a === 1 ? "1 alte Datei" : alt.zahlText(a) + " alte Dateien");
+  return teile.length > 2 ? teile.slice(0, -1).join(", ") + " und " + teile[teile.length - 1] : teile.join(" und ");
 }
 function mbText(mb) {
   if (mb === undefined || mb === null) return "";
@@ -123,7 +124,7 @@ function SicherungInhalt({ konf, status, neu }) {
     setErgebnis(null); setArbeit("Sicherung beginnt …");
     try {
       const l = await sichernUndMelden(h, "manuell", setArbeit, Number(behalten));
-      const ohne = ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter);
+      const ohne = ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter, l.ohneAlt);
       setErgebnis({ ok: true, text: "Gesichert: " + l.datei + " (" + mbText(l.mb) + ", " + alt.zahlText(l.zeilen) + " Einträge, "
         + alt.zahlText(l.dateien) + " Dateien" + (l.fehlt ? ", " + l.fehlt + " Dateien nicht lesbar" : "")
         + (ohne ? ", ohne " + ohne : "") + ")" });
@@ -141,11 +142,11 @@ function SicherungInhalt({ konf, status, neu }) {
     catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
     const wann = datumText(new Date(kopf.erstellt));
     const oz = ohneZaehlen(kopf.ausgelassen);
-    const ohne = ohneText(oz.zeichnungen, oz.einrichtblaetter);
+    const ohne = ohneText(oz.zeichnungen, oz.einrichtblaetter, oz.alt);
     const ok = await alt.nachfragen({ titel: "Sicherung zurückspielen?",
       text: "Alle Daten der App werden auf den Stand vom " + wann + " gesetzt. Was seither eingetragen oder geändert "
         + "wurde, ist danach weg." + (griff && erlaubt === "granted" ? " Vorher wird der heutige Stand in den Ordner gesichert." : "")
-        + (ohne ? " Nicht in der Sicherung: " + ohne + "; die kommen aus den Ordnern am Pool-Rechner." : ""),
+        + (ohne ? " Nicht in der Sicherung: " + ohne + "; Zeichnungen und Einrichtblätter kommen aus den Ordnern am Pool-Rechner." : ""),
       bestaetigen: "Zurückspielen", gefahr: true });
     if (!ok) return;
     setErgebnis(null);
@@ -190,7 +191,7 @@ function SicherungInhalt({ konf, status, neu }) {
     <span className={"dokpfad-punkt " + (l && Date.now() - new Date(l.zeit).getTime() < 36 * 3600000 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
     {l ? "Letzte Sicherung " + datumText(new Date(l.zeit)) + " · " + alt.zahlText(l.zeilen || 0) + " Einträge · "
       + alt.zahlText(l.dateien || 0) + " Dateien" + (l.mb ? " · " + mbText(l.mb) : "")
-      + (ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter) ? " · ohne " + ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter) : "")
+      + (ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter, l.ohneAlt) ? " · ohne " + ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter, l.ohneAlt) : "")
       : "Noch keine Sicherung"}
     {status && status.fehler && <div className="klein si-fehler" id="si-fehler">{status.fehler}</div>}
   </>;
@@ -204,7 +205,7 @@ function SicherungInhalt({ konf, status, neu }) {
           + "dem Ordner offen sein, mit einem Admin oder dem Konto unten angemeldet; war sie zu, holt sie es beim nächsten "
           + "Öffnen nach. "
           + "Nicht dabei: Zeichnungen und Einrichtblätter (die liegen in den Ordnern am Pool-Rechner, und die Aufgabe "
-          + "„HoferTool“ lädt sie von dort hoch), Passwörter und PINs."}>
+          + "„HoferTool“ lädt sie von dort hoch), alte Dateien, die nirgends mehr gebraucht werden, Passwörter und PINs."}>
         <Zeile titel="Speicherort" text={ordnerText}>
           {kannOrdner
             ? admin && <button className="knopf knopf--klein" id="si-ordner" onClick={ordnerNeu}>
