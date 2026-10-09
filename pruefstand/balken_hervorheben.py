@@ -26,6 +26,11 @@ with sync_playwright() as p:
     id_ = pg.evaluate("[...document.querySelectorAll('.pw-balken[data-auftrag]')].find(b => b.getBoundingClientRect().width > 80).dataset.auftrag")
     sel = f'.pw-balken[data-auftrag="{id_}"]'
     vorher = pg.evaluate(STIL, sel)
+    # Dünner grauer Rahmen (1.9.0) an einem Balken, der nicht läuft
+    rahmen = pg.evaluate("""() => { const b = [...document.querySelectorAll('.pw-balken[data-auftrag]')]
+      .find(x => !x.classList.contains('pw-balken--laeuft')); return getComputedStyle(b).boxShadow; }""")
+    print("     rahmen", rahmen)
+    pruefe("dünner grauer Rahmen", "rgba(110, 116, 124, 0.85)" in rahmen and "inset" in rahmen and " 1px" in rahmen)
     pg.hover(sel); pg.wait_for_timeout(300)
     drauf = pg.evaluate(STIL, sel)
     print("     vorher", vorher); print("     drauf ", drauf)
