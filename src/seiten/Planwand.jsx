@@ -228,14 +228,8 @@ function Kopfleiste({ b, mobil }) {
         </div>
       </div>
       <div className="pw-eckknoepfe">
-        {/* Ein ganz leerer Auftrag (Wunsch Patrick 8. Oktober 2026): die
-            HOCO Nr. holt den Rest, ohne Datum kommt er ans Ende */}
-        {alt.darfPlanen() && <button className="knopf knopf--klein pw-eck pw-eck--plus" id="pw-neu"
-          title="Neuer Auftrag" aria-label="Neuer Auftrag"
-          onClick={() => alt.planAuftragDialog(null, b, null, null, null, true)}>
-          <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"
-            strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-        </button>}
+        {/* Der Plus-Knopf für einen ganz leeren Auftrag ist weg
+            (Wunsch Patrick, 9. Oktober 2026) */}
         {/* Symbole für die Balken anlegen, nur für Admins */}
         {alt.istAdmin() && !mobil && <button className="knopf knopf--klein pw-eck pw-eck--plus" id="pw-symbole"
           title="Symbole" aria-label="Symbole" onClick={symboleFensterOeffnen}>

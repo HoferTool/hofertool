@@ -94,32 +94,9 @@ with sync_playwright() as p:
     pruefe("Symbol vom Balken weg", pg.locator(f".pw-balken[data-auftrag='{mit}'] .pw-balken__symbol").count() == 0)
     pg.mouse.move(10, 10); pg.wait_for_timeout(300)
 
-    # ---------- Plus-Knopf ----------
-    vorlage = pg.evaluate("""() => { const j = TEST.daten.planwand.find(j => j.job_number && !j.ended_at && j.planned_days > 2);
-      return { nr: j.job_number, m: j.machine_id, tage: j.planned_days }; }""")
-    pruefe("Plus-Knopf da", pg.locator("#pw-neu").count() == 1)
-    pg.click("#pw-neu"); pg.wait_for_timeout(700)
-    pruefe("Neuer Auftrag offen", "Neuer Auftrag" in pg.inner_text(".dialog--auftrag h2"))
-    pruefe("Maschine leer", pg.input_value("#pl-maschine") == "")
-    pruefe("Ab leer", pg.input_value("#pl-von") == "")
-    pruefe("Hinweis Ende der Maschine", pg.locator("#pl-ans-ende").count() == 1)
-    pg.click("#pl-ja"); pg.wait_for_timeout(400)
-    pruefe("Ohne Maschine nicht gespeichert", pg.locator(".dialog--auftrag").count() == 1)
-    pg.fill("#pl-nr", vorlage["nr"]); pg.wait_for_timeout(1500)
-    print("     übernommen:", pg.inner_text("#pl-hoco-info"))
-    pruefe("Maschine vom letzten Auftrag", pg.input_value("#pl-maschine") == vorlage["m"])
-    pruefe("Dauer vom letzten Auftrag", pg.input_value("#pl-tage") == str(vorlage["tage"]))
-    if pg.locator("#pl-abruf").count(): pg.fill("#pl-abruf", "je 1000 Stk KW 44, 45")
-    pg.screenshot(path="/tmp/plus_auftrag.png")
-    anzahl = pg.evaluate("TEST.daten.planwand.length")
-    ende = pg.evaluate("""(m) => { let e = ''; TEST.daten.planwand.filter(j => j.machine_id === m && j.planned_from && j.plan_status !== 'fertig')
-      .forEach(j => { if (j.planned_from > e) e = j.planned_from; }); return e; }""", vorlage["m"])
-    pg.click("#pl-ja"); pg.wait_for_timeout(1500)
-    neu = pg.evaluate("(n) => TEST.daten.planwand.slice(n)", anzahl)
-    pruefe("Auftrag angelegt", len(neu) == 1 and neu[0]["job_number"] == vorlage["nr"])
-    if neu:
-        print("     eingeplant ab", neu[0].get("planned_from"), "letzter Beginn bisher", ende)
-        pruefe("Ans Ende der Maschine", (neu[0].get("planned_from") or "") > ende)
+    # ---------- Plus-Knopf ist weg (Wunsch Patrick, 9. Oktober 2026) ----------
+    pruefe("Kein Plus-Knopf für neuen Auftrag", pg.locator("#pw-neu").count() == 0)
+    pruefe("Smiley-Knopf bleibt", pg.locator("#pw-symbole").count() == 1)
 
     # ---------- Einstellungen → Symbole ----------
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(600)

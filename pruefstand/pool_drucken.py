@@ -113,11 +113,13 @@ with sync_playwright() as p:
     tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(300)
     pruefe("Drucken öffnet die Auswahl", pg.locator("[data-druckwahl]").count() == 1)
     pruefe("Knopf heisst Planbüro", pg.inner_text("[data-pooldruck]").strip() == "Planbüro")
-    pruefe("keine Kopien-Knöpfe", pg.locator("[data-kopienmehr], [data-kopien]").count() == 0)
+    pruefe("Kopien starten bei 1", pg.inner_text("[data-kopien]") == "1")
     bx = pg.locator("[data-druckwahl]").bounding_box()
     pruefe("Auswahl ganz im Bild", bx["x"] >= 0 and bx["x"] + bx["width"] <= pg.viewport_size["width"])
     pruefe("noch nichts gedruckt", pg.evaluate("window.__prints") == 0 and pg.locator("#druckdatei").count() == 0)
     if bilder: pg.screenshot(path=f"{AB}/pool-druck-auswahl.png")
+    tippen(pg, "[data-kopienmehr]", True); pg.wait_for_timeout(100)
+    pruefe("Kopien auf 2", pg.inner_text("[data-kopien]") == "2")
     tippen(pg, "[data-pooldruck]", True)
     pg.wait_for_function("TEST.daten.druckauftraege && TEST.daten.druckauftraege.length === 1", timeout=15000)
     a = pg.evaluate("TEST.daten.druckauftraege[0]")
@@ -126,8 +128,8 @@ with sync_playwright() as p:
     pruefe("zwei JPG-Seiten in die Ablage druck", len(ups) == 2 and all(u["ablage"] == "druck" and u["typ"] == "image/jpeg"
            and u["pfad"].startswith(a["id"] + "/") and u["groesse"] > 1000 for u in ups)
            and sorted(u["pfad"].split("/")[1] for u in ups) == ["1.jpg", "2.jpg"])
-    pruefe("Auftrag: bilder, 2 Seiten, 1 Kopie, Drucker, Titel, wer", a["art"] == "bilder" and a["seiten"] == 2
-           and a["kopien"] == 1 and a["drucker"] == "SHARP MX-3061" and a["titel"].startswith("Zeichnung") and a["wer"])
+    pruefe("Auftrag: bilder, 2 Seiten, 2 Kopien, Drucker, Titel, wer", a["art"] == "bilder" and a["seiten"] == 2
+           and a["kopien"] == 2 and a["drucker"] == "SHARP MX-3061" and a["titel"].startswith("Zeichnung") and a["wer"])
     pruefe("Auswahl zu, Knopf wieder normal", pg.locator("[data-druckwahl]").count() == 0
            and pg.inner_text(".betrachter [data-drucken]") == "Drucken")
     pruefe("Meldung: geht an den Drucker", any("Geht ans Planbüro" in m for m in meldungen(pg)))
@@ -140,8 +142,10 @@ with sync_playwright() as p:
     # Fehler vom Pool-Rechner kommt als Meldung
     pg.wait_for_timeout(3800)
     tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(200)
+    pruefe("Kopien beim nächsten Öffnen wieder 1", pg.inner_text("[data-kopien]") == "1")
     tippen(pg, "[data-pooldruck]", True)
     pg.wait_for_function("TEST.daten.druckauftraege.length === 2", timeout=15000)
+    pruefe("zweiter Auftrag mit 1 Kopie", pg.evaluate("TEST.daten.druckauftraege[1].kopien") == 1)
     pg.evaluate("TEST.daten.druckauftraege[1].zustand = 'fehler'; TEST.daten.druckauftraege[1].meldung = 'Papier leer'")
     pg.wait_for_function("[...document.querySelectorAll('.toast')].some(t => t.textContent.includes('Papier leer'))", timeout=8000)
     pruefe("Fehler vom Pool-Rechner als Meldung", True)
