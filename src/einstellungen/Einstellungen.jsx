@@ -25,8 +25,7 @@ import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 // (111.123.0) und seit 111.124.0 alles wie ein Admin ausser „Nutzer“
 // (Wunsch Patrick, 9. Oktober 2026: „Planwand soll bei Einstellungen
 // alles machen können wie Admin“), erkannt an darfDokumenteUndSicherung().
-// Nutzer (Passwörter, PINs, Rollen) bleibt bei Admins, bis Patrick das
-// ausdrücklich entscheidet. true = nur Admins, "dok" = Admins und Planwand.
+// Nutzer (Passwörter anderer, PINs anderer, Rollen) bleibt bei Admins. true = nur Admins, "dok" = Admins und Planwand.
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente", "dok"], ["backup", "Backup", "dok"],
                 ["fehler", "Fehlerprotokoll", "dok"], ["farben", "Farben und Material", "dok"],
                 ["symbole", "Symbole", "dok"],
@@ -109,9 +108,25 @@ function MeinKonto() {
   const [pin2, setPin2] = useState("");
   const [mitPin, setMitPin] = useState(!!profil.ohne_passwort);
   const [merken, setMerken] = useState(() => alt.sitzungGemerkt(profil.email));
+  const [mitSchutz, setMitSchutz] = useState(null);
   const admin = alt.istAdmin();
+  // Passwort und PIN ändert jeder an seinem eigenen Konto (Wunsch Patrick,
+  // 9. Oktober 2026), nur Gerätekonten („Andere Nutzer“) und das
+  // Dienstkonto nicht. Die Datenbank prüft dasselbe (sql/eigenes-passwort.sql).
+  const selbst = admin || (!alt.istAndererNutzer() && profil.role !== "dienst");
+  // Ganz ohne Passwort, also ein Tipp auf die Kachel: nie für Externe
+  const offenErlaubt = selbst && profil.role !== "extern";
   const db = alt.db;
   const { meldung, fehlertext } = alt;
+
+  // ohne_passwort heisst „PIN“ oder „ganz offen“; das sagt erst pin_schutz
+  useEffect(() => {
+    if (!profil.ohne_passwort) return;
+    db.rpc("pin_vorhanden").then((r) => {
+      if (!r.error) setMitSchutz((r.data || []).some((z) => z.user_id === profil.id));
+    });
+  }, []);
+  const offen = mitPin && mitSchutz === false;
 
   const bildWaehlen = async (e) => {
     const f = (e.target.files || [])[0];
@@ -193,6 +208,7 @@ function MeinKonto() {
     setPin(""); setPin2("");
     profil.ohne_passwort = true;
     setMitPin(true);
+    setMitSchutz(true);
     meldung("PIN gespeichert. Ab jetzt: Kachel antippen und PIN eingeben.");
   };
 
@@ -209,6 +225,25 @@ function MeinKonto() {
     if (r.error) return meldung(fehlertext(r.error), "fehler");
     await pinAufheben();
     meldung("PIN entfernt. Du meldest dich jetzt mit dem Passwort an.");
+  };
+
+  // Passwort und PIN ganz weg: ein Tipp auf die Kachel genügt
+  const ohneSchutz = async () => {
+    const ja = await alt.nachfragen({
+      titel: "Ohne Passwort anmelden?",
+      text: "Danach kommt jeder mit einem Tipp auf deine Kachel in dein Konto. Dein Passwort und deine PIN "
+        + "gelten nicht mehr.",
+      bestaetigen: "Ohne Passwort" });
+    if (!ja) return;
+    const { error } = await db.rpc("ohne_passwort_setzen");
+    if (error) {
+      return meldung(/ohne_passwort_setzen/.test(error.message || "")
+        ? "Dafür fehlt noch eigenes-passwort.sql in der Datenbank." : fehlertext(error), "fehler");
+    }
+    profil.ohne_passwort = true;
+    setMitPin(true);
+    setMitSchutz(false);
+    meldung("Ab jetzt genügt ein Tipp auf deine Kachel.");
   };
 
   const anzeigename = name.trim() || profil.email || "";
@@ -241,15 +276,14 @@ function MeinKonto() {
         </Zeile>
       </Gruppe>
 
-      <Gruppe titel="Anmeldung" text={(mitPin
+      <Gruppe titel="Anmeldung" text={(offen
+        ? "Du kommst zurzeit ohne Passwort hinein, mit einem Tipp auf deine Kachel."
+        : mitPin
         ? "Du meldest dich zurzeit mit deiner PIN an."
         : "Du meldest dich zurzeit mit deinem Passwort an.")
-        + (admin ? "" : " Passwort und PIN ändert ein Administrator.")}>
-        {/* Passwörter und PINs ändern nur Admins (Wunsch Patrick,
-            7. Oktober 2026), auch das eigene. Die Datenbank lässt
-            pin_setzen seit sql/andere-nutzer.sql ebenfalls nur Admins zu. */}
-        {admin && <>
-        <Zeile titel="Neues Passwort" text={mitPin ? "Ersetzt deine PIN." : undefined}>
+        + (selbst ? "" : " Passwort und PIN ändert ein Administrator.")}>
+        {selbst && <>
+        <Zeile titel="Neues Passwort" text={offen ? "Ab dann wieder mit Passwort." : mitPin ? "Ersetzt deine PIN." : undefined}>
           <div className="es-eingabe">
             <input type="password" id="np" aria-label="Neues Passwort" autoComplete="new-password" value={passwort}
               onChange={(e) => setPasswort(e.target.value)} />
@@ -266,9 +300,13 @@ function MeinKonto() {
               onChange={(e) => setPin2(e.target.value)} />
             <button className="knopf knopf--klein" id="mk-pinknopf" onClick={pinSpeichern}>PIN speichern</button>
           </div>
-          {mitPin && <button className="linkknopf es-unterlink" id="mk-pinweg" onClick={pinWeg}>
+          {mitPin && !offen && <button className="linkknopf es-unterlink" id="mk-pinweg" onClick={pinWeg}>
             PIN entfernen und wieder mit Passwort anmelden</button>}
         </Zeile>
+        {offenErlaubt && !offen && <Zeile titel="Ohne Passwort"
+          text="Passwort und PIN löschen: ein Tipp auf deine Kachel genügt.">
+          <button className="knopf knopf--klein" id="mk-offen" onClick={ohneSchutz}>Ohne Passwort</button>
+        </Zeile>}
         </>}
         {alt.istAndererNutzer()
           ? <SchalterZeile id="mk-merken" titel="Auf diesem Gerät merken"

@@ -111,14 +111,14 @@ with sync_playwright() as p:
     if pg.evaluate("document.querySelector('.nutzerfenster').scrollWidth > document.querySelector('.nutzerfenster').clientWidth + 1"): fehler.append("Fenster am Handy zu breit")
     fehler += f; pg.close()
 
-    # 4. Kein Admin: kein Passwort- und kein PIN-Feld, „merken“ bleibt
+    # 4. Kein Admin: seit 1.2.0 eigenes Passwort und eigene PIN, „merken“ bleibt
     pg, f = seite(br, True, "window.NICHT_ADMIN = true;")
     pg.evaluate("document.getElementById('kopf-einstellungen').click()"); pg.wait_for_timeout(1200)
     da = pg.evaluate("[!!document.getElementById('np'), !!document.getElementById('mk-pin'), !!document.getElementById('mk-merken')]")
     text = pg.evaluate("[...document.querySelectorAll('.es-gruppe')].map(g => g.textContent).find(t => t.includes('Administrator')) || ''")
     print("Passwort, PIN, merken:", da, "|", text[:120])
-    if da != [False, False, True]: fehler.append("Nicht-Admin sieht Passwort oder PIN")
-    if "Passwort und PIN ändert ein Administrator" not in text: fehler.append("Hinweis fehlt")
+    if da != [True, True, True]: fehler.append("Nicht-Admin sieht eigenes Passwort oder PIN nicht")
+    if "ändert ein Administrator" in text: fehler.append("alter Hinweis noch da")
     reiter = pg.evaluate("[...document.querySelectorAll('[data-einst]')].map(k => k.dataset.einst)")
     print("Reiter ohne Admin:", reiter)
     if reiter != ["allgemein"]: fehler.append("Nicht-Admin sieht mehr als Allgemein")
