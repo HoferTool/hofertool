@@ -85,5 +85,35 @@ with sync_playwright() as p:
     pruefe("Rückgängig: WBG und Dokument wieder da", j == ADR and d == 1)
 
     pg.screenshot(path="dok_entfernen.png")
+
+    # ---- Nicht-Admin (Langdreher): Einrichtblatt ja, Zeichnung und WBG nein ----
+    pg2 = br.new_context(viewport={"width": 1600, "height": 950}).new_page()
+    pg2.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
+    pg2.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript",
+        body=FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
+            "daten.profiles[0].role = 'langdreher';\nif (typeof window !== \"undefined\") window.TEST = TEST;")))
+    for u in ["**://fonts.googleapis.com/**","**://fonts.gstatic.com/**","**://esm.sh/**","**://*.supabase.co/**","**://api.open-meteo.com/**"]:
+        pg2.route(u, lambda r: r.abort())
+    pg2.goto(f"http://127.0.0.1:{PORT}/index.html#planwand", wait_until="domcontentloaded")
+    pg2.wait_for_selector(".pw-tafel"); pg2.wait_for_timeout(1200)
+    pg2.evaluate("""(ADR) => {
+      TEST.daten.hoco_type_data.push({ hoco_nr: '10000-0301', type_id: 't1', blatt_url: ADR, stueckzeit_s: 12 });
+      const t = TEST.daten.hoco_parts.find(x => x.hoco_nr === '10000-0301'); if (t) t.zeichnung_url = ADR;
+    }""", ADR)
+    pg2.locator("#pw-hoco").click(); pg2.wait_for_timeout(1000)
+    pg2.locator("[data-bereich='10000']").click(); pg2.wait_for_timeout(600)
+    pg2.locator("[data-kunde='10000']").click(); pg2.wait_for_timeout(600)
+    pg2.locator("[data-hoco-auf='10000-0301']").click(); pg2.wait_for_timeout(1200)
+    pg2.locator("[data-blatt-typ='t1']").click(); pg2.wait_for_selector(".betrachter"); pg2.wait_for_timeout(600)
+    pruefe("Langdreher: Einrichtblatt entfernen da", pg2.locator("[data-dokweg='einrichtblatt']").count() == 1)
+    pg2.locator(".betrachter [data-zu]").click(); pg2.wait_for_timeout(400)
+    w = pg2.locator("tr:has-text('2026-9999') button[data-fadatei]").filter(has_text="WBG")
+    w.click(); pg2.wait_for_selector(".betrachter"); pg2.wait_for_timeout(600)
+    pruefe("Langdreher: kein WBG entfernen", pg2.locator("[data-dokweg]").count() == 0)
+    pg2.locator(".betrachter [data-zu]").click(); pg2.wait_for_timeout(400)
+    z = pg2.locator("[data-zeichnung='" + ADR + "']")
+    pruefe("Langdreher: Zeichnung ansehen da", z.count() == 1)
+    z.click(); pg2.wait_for_selector(".betrachter"); pg2.wait_for_timeout(600)
+    pruefe("Langdreher: kein Zeichnung entfernen", pg2.locator("[data-dokweg]").count() == 0)
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:10])

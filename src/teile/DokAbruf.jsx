@@ -18,17 +18,21 @@ const artDerDatei = (a) => (istExcel(a) ? "excel" : istBild(a) ? "bild" : "pdf")
 // art "wbg", "zeichnung" oder "einrichtblatt". Im Kopf steht „… entfernen“
 // (Wunsch Patrick 8. und 9. Oktober 2026: passt die von der Aufgabe
 // hochgeladene Datei nicht, nimmt man sie weg, und die Aufgabe lädt die
-// nächste; das darf jeder ausser Externen): bei der Zeichnung mit HOCO
-// Nr., bei der WBG mit auftragId, beim Einrichtblatt mit HOCO Nr. und
-// typId (nur das eigene Blatt der Nummer, nicht die Vorlage vom Typ).
+// nächste). Zeichnung und WBG entfernen nur Admins, das Einrichtblatt
+// jeder ausser Externen (Patrick, 9. Oktober 2026: „nur Admins, egal wo,
+// Zeichnungen und WBGs löschen; Einrichtblätter kann jeder löschen“):
+// bei der Zeichnung mit HOCO Nr., bei der WBG mit auftragId, beim
+// Einrichtblatt mit HOCO Nr. und typId (nur das eigene Blatt der
+// Nummer, nicht die Vorlage vom Typ).
 // neu(null) sagt dem Aufrufer, dass sie weg ist. fa nehmen die Aufrufer
 // noch mit, es wird nicht mehr gebraucht.
 export function dokZeigen({ art, titel, adresse, hoco, auftragId, typId, neu }) {
-  const darf = !!adresse && !(alt.istExtern && alt.istExtern());
-  const entfernen = !darf ? null
-    : art === "zeichnung" && hoco ? { text: "Zeichnung entfernen", tu: () => alt.zeichnungEntfernen(hoco), weg: "Zeichnung entfernt." }
-    : art === "wbg" && auftragId ? { text: "WBG entfernen", tu: () => alt.wbgEntfernen(auftragId), weg: "WBG entfernt." }
-    : art === "einrichtblatt" && hoco && typId ? { text: "Einrichtblatt entfernen", tu: () => alt.einrichtblattEntfernen(hoco, typId), weg: "Einrichtblatt entfernt." }
+  const admin = !!adresse && !!(alt.istAdmin && alt.istAdmin());
+  const jeder = !!adresse && !(alt.istExtern && alt.istExtern());
+  const entfernen =
+      art === "zeichnung" && hoco && admin ? { text: "Zeichnung entfernen", tu: () => alt.zeichnungEntfernen(hoco), weg: "Zeichnung entfernt." }
+    : art === "wbg" && auftragId && admin ? { text: "WBG entfernen", tu: () => alt.wbgEntfernen(auftragId), weg: "WBG entfernt." }
+    : art === "einrichtblatt" && hoco && typId && jeder ? { text: "Einrichtblatt entfernen", tu: () => alt.einrichtblattEntfernen(hoco, typId), weg: "Einrichtblatt entfernt." }
     : null;
   const name = art === "wbg" ? "Keine WBG vorhanden" : art === "einrichtblatt" ? "Kein Einrichtblatt vorhanden" : "Keine Zeichnung vorhanden";
   fensterOeffnen((zu) => adresse
