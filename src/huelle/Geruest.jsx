@@ -36,6 +36,11 @@ const WEBSEITEN = [
 // dasselbe (ein zweiter Klick holt es nach vorn); auf Tablet und Handy
 // gibt es keine Fenster, dort öffnet der Link wie gewohnt einen Tab.
 function webseiteOeffnen(e, w) {
+  // Zeichen hüpfen lassen wie bei den Seiten; Klasse neu setzen, damit
+  // es auch beim zweiten Klick wieder hüpft
+  const k = e.currentTarget;
+  k.classList.remove("nav__punkt--hupft"); void k.offsetWidth; k.classList.add("nav__punkt--hupft");
+  k.addEventListener("animationend", () => k.classList.remove("nav__punkt--hupft"), { once: true });
   if (matchMedia("(pointer: coarse)").matches) return;
   const b = Math.min(1100, screen.availWidth - 40), h = Math.min(850, screen.availHeight - 40);
   const f = window.open(w.url, "hofer-" + w.name.toLowerCase().replace(/\W/g, ""),

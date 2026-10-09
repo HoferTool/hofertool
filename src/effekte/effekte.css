@@ -208,7 +208,8 @@ input, select, textarea { transition: border-color .18s ease, box-shadow .18s ea
   .nav__punkt:nth-child(4) { animation-delay: .24s; }
   .nav__punkt:nth-child(5) { animation-delay: .28s; }
   .nav__punkt:nth-child(6) { animation-delay: .32s; }
-  .nav__punkt:nth-child(n+7) { animation-delay: .36s; }
+  .nav__punkt:nth-child(7) { animation-delay: .36s; }
+  .nav__punkt:nth-child(n+8) { animation-delay: .40s; }
   .kopf > * { animation: fx-kopf-herein .45s var(--fx-kurve) backwards; }
   .kopf > :nth-child(2) { animation-delay: .04s; }
   .kopf > :nth-child(3) { animation-delay: .08s; }
@@ -248,6 +249,9 @@ input, select, textarea { transition: border-color .18s ease, box-shadow .18s ea
     .nav__punkt:hover .nav__text { transform: translateX(3px); }
   }
   .nav__punkt.aktiv .nav__zeichen { animation: fx-zeichen .5s var(--fx-kurve); }
+  /* Google und Just Eat werden nie „aktiv“ (eigenes Fenster), darum
+     hüpft ihr Zeichen beim Klick (Wunsch Patrick, 9. Oktober 2026) */
+  .nav__punkt--web.nav__punkt--hupft .nav__zeichen { animation: fx-zeichen .5s var(--fx-kurve); }
 
   /* Reiter: der Text hebt sich unter der Maus */
   .reiter__knopf { transition: color .15s ease, transform .2s var(--fx-kurve); }

@@ -26,8 +26,10 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/google_vorher.png", clip={"x": 0, "y": 0, "width": 300, "height": 500})
     with ctx.expect_page() as neu:
         knopf.click()
+    hupft = pg.evaluate("getComputedStyle(document.querySelector('.nav__punkt--google .nav__zeichen')).animationName")
     f = neu.value; f.wait_for_load_state()
     pruefe("Fenster mit Google offen", "google.ch" in f.url)
+    pruefe("Zeichen hüpft beim Klick", hupft == "fx-zeichen")
     pruefe("App bleibt, wo sie ist", "127.0.0.1" in pg.url)
     gfarben = pg.evaluate("[...document.querySelectorAll('.nav__punkt--google path')].map(p => getComputedStyle(p).fill)")
     tfarbe = pg.evaluate("getComputedStyle(document.querySelector('.nav__punkt--google .nav__text')).color")
