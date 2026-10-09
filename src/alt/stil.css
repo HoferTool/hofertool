@@ -6627,3 +6627,21 @@ body.dunkel .pw-tag--woche, body.dunkel .pw-zelle--woche { border-left-color: #5
   #druckdatei [data-excelseite] { break-after: page; page-break-after: always; }
   #druckdatei [data-excelseite]:last-child { break-after: auto; page-break-after: auto; }
 }
+
+/* Oben nichts Verschwommenes (Wunsch Patrick, 9. Oktober 2026): Auf dem
+   iPad lief der Inhalt beim Rollen unscharf unter der Uhrzeile oben durch,
+   weil die Kopfzeile erst unter der Statusleiste begann. Jetzt reicht sie
+   bis ganz oben (Abstand der Statusleiste dazu), und ein Schatten in der
+   Flächenfarbe deckt auch das ab, was Safari darüber noch zeichnet. Ohne
+   Statusleiste (Computer) ist env(...) 0 und alles bleibt wie bisher. */
+:root { --kopfhoehe: calc(54px + env(safe-area-inset-top, 0px)); }
+.kopf { padding-top: env(safe-area-inset-top, 0px);
+        box-shadow: 0 -300px 0 0 var(--flaeche); }
+/* Im Pad Mode kein Glas mehr am Kopf, und er beginnt unter der
+   Statusleiste. Auf dem iPad rollt das Pad nicht, die Farbe bleibt; auf
+   dem Handy rollt es unter dem Kopf durch, dort ist er ganz deckend. */
+.pad__kopf { -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+             padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important; }
+@media (max-width: 640px), (max-height: 500px) {
+  #pad .pad__kopf { background: #0a1220 !important; }
+}
