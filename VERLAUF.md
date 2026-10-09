@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.12.3** Einstellungen: Das Konto Planwand sieht nur noch Allgemein, Dokumente und Backup (Wunsch Patrick, 9. Oktober 2026: „Planwand soll nur allgemein dokumente backup sehen können“). Fehlerprotokoll, Farben und Material und Symbole sind wieder nur für Admins. Gilt für alle Konten mit Rolle planwand (Planwand, Pad Mode, Päckli Pad, QS Pad). Test `andere_nutzer.py` angepasst.
 - **1.12.2** Menü: Die Logos von Google und Just Eat sind einfarbig wie die anderen Menüzeichen (Wunsch Patrick, 9. Oktober 2026: „bitte die Buttons ohne Farbe“).
 - **1.12.1** Menü: Der Knopf Google zeigt das originale bunte G (Wunsch Patrick, 9. Oktober 2026).
 - **1.12.0** Menü: Knopf „Just Eat“ unter Google, mit dem Original-Logo (oranges Haus mit Besteck, aus Simple Icons; Wunsch Patrick, 9. Oktober 2026). Öffnet just-eat.ch wie Google in einem eigenen Fenster. Die Knöpfe zu Webseiten stehen jetzt in einer Liste `WEBSEITEN` in `src/huelle/Geruest.jsx`. Test `google_knopf.py` erweitert.

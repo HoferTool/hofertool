@@ -26,10 +26,12 @@ import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 // (111.123.0) und seit 111.124.0 alles wie ein Admin ausser „Nutzer“
 // (Wunsch Patrick, 9. Oktober 2026: „Planwand soll bei Einstellungen
 // alles machen können wie Admin“), erkannt an darfDokumenteUndSicherung().
+// Seit 1.12.3 wieder nur Allgemein, Dokumente und Backup (Wunsch Patrick,
+// 9. Oktober 2026: „Planwand soll nur allgemein dokumente backup sehen“).
 // Nutzer (Passwörter anderer, PINs anderer, Rollen) bleibt bei Admins. true = nur Admins, "dok" = Admins und Planwand.
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente", "dok"], ["backup", "Backup", "dok"],
-                ["fehler", "Fehlerprotokoll", "dok"], ["farben", "Farben und Material", "dok"],
-                ["symbole", "Symbole", "dok"],
+                ["fehler", "Fehlerprotokoll", true], ["farben", "Farben und Material", true],
+                ["symbole", "Symbole", true],
                 ["nutzer", "Nutzer", true]];
 
 const THEMEN = [["blau", "Blau"], ["rot", "Rot"], ["gruen", "Grün"], ["gelb", "Gelb"],
