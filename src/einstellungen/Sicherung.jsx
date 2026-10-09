@@ -206,7 +206,8 @@ function SicherungInhalt({ konf, status, neu }) {
           + "dem Ordner offen sein, mit einem Admin, dem Konto Planwand oder dem Konto unten angemeldet; war sie zu, holt sie es beim nächsten "
           + "Öffnen nach. "
           + "Nicht dabei: Zeichnungen und Einrichtblätter (die liegen in den Ordnern am Pool-Rechner, und die Aufgabe "
-          + "„HoferTool“ lädt sie von dort hoch), alte Dateien, die nirgends mehr gebraucht werden, Passwörter und PINs."}>
+          + "„HoferTool“ lädt sie von dort hoch) und alte Dateien, die nirgends mehr gebraucht werden. Die Nutzer kommen mit Passwort und PIN mit, "
+          + "nur verschlüsselt, damit nach dem schlimmsten Fall wieder alle hineinkommen."}>
         <Zeile titel="Speicherort" text={ordnerText}>
           {kannOrdner
             ? admin && <button className="knopf knopf--klein" id="si-ordner" onClick={ordnerNeu}>

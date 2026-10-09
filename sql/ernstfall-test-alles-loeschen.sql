@@ -1,65 +1,56 @@
 -- =================================================================
---  ERNSTFALL-TEST: ALLE DATEN DER APP LÖSCHEN
+--  ERNSTFALL-TEST: WIRKLICH ALLES LÖSCHEN, AUCH DIE NUTZER
 --
---  ACHTUNG: Das löscht wirklich. Es gibt kein Rückgängig.
---  Zurück kommt alles nur über die Sicherung der App:
---  Einstellungen → Backup → Zurückspielen.
+--  ACHTUNG: Das löscht wirklich. Es gibt kein Rückgängig. Danach kommt
+--  niemand mehr in die App, auch kein Admin.
 --
---  Wunsch Patrick, 9. Oktober 2026: „ein SQL, wobei ich alles löschen
---  kann, das Schlimmste, was passieren kann, und dann das Backup
---  zurückspielen und schauen, ob es geht“.
+--  Wunsch Patrick, 9. Oktober 2026: „das Schlimmste wäre, wenn alles weg
+--  wäre, heisst auch Nutzer; es soll möglich sein, per SQL es zu machen“.
 --
 --  Was gelöscht wird:
---    - jede Tabelle, die in der Sicherung steckt (Planwand, Aufträge,
---      HOCO Nummern, Stückzahlen, Bestellungen, Einkauf, Notizen,
---      Notizbücher, Ferien, Materialausgabe, Solarwerte, Dokumente-Liste …)
---    - alle Einstellungen in app_config
+--    - jede Tabelle der App (Planwand, Aufträge, HOCO Nummern,
+--      Stückzahlen, Bestellungen, Einkauf, Notizen, Notizbücher, Ferien,
+--      Materialausgabe, Solarwerte, Einstellungen, Personen …)
+--    - alle Nutzerkonten mit Passwort und PIN, auch alle Anmeldungen
 --
---  Was stehen bleibt, damit man nach dem Löschen überhaupt noch
---  hineinkommt und zurückspielen darf:
---    - die Konten und Personen (profiles, Anmeldung, Passwörter, PINs);
---      ohne sie weiss die Datenbank nicht mehr, wer Admin oder Planwand
---      ist, und niemand dürfte zurückspielen
---    - in app_config die Einstellungen der Sicherung selbst (Ordner,
---      Sicherungsgerät) und der PIN der Planwand
---    - alle Dateien in der Ablage (WBGs, Bilder, Zeichnungen,
+--  Was stehen bleibt:
+--    - der Aufbau der Datenbank (Tabellen, Regeln, Funktionen)
+--    - der Solar-Schlüssel (ist nicht in der Sicherung)
+--    - die Dateien in der Ablage (WBGs, Bilder, Zeichnungen,
 --      Einrichtblätter): Supabase lässt Dateien nicht per SQL löschen
 --
---  Danach ist die App leer: keine Aufträge, keine Maschinen, keine
---  Notizen. Das ist gewollt.
+--  Zurück kommt alles nur aus der Sicherung (ZIP-Datei), und zwar per
+--  SQL: Claude macht aus der ZIP-Datei das SQL und spielt es ein. Die
+--  Sicherung muss dafür mit sql/sicherung-mit-konten.sql gemacht sein
+--  (ab 9. Oktober 2026), sonst fehlen danach die Nutzer.
 -- =================================================================
 
 begin;
 
--- Einstellungen weg, ausser Sicherung und PIN der Planwand
-delete from public.app_config
-where schluessel not like 'sicherung%'
-  and schluessel <> 'planwand_pin';
-
--- Alle anderen Tabellen der Sicherung leeren, ausser app_config
--- (oben) und profiles (Konten). Ohne „cascade“: Würde etwas an den
--- Konten hängen, bricht es ab, statt sie mitzunehmen.
+-- Alle Tabellen der App leeren
 do $$
 declare liste text;
 begin
   select string_agg(format('public.%I', t), ', ')
     into liste
-  from unnest(public.sicherung_tabellenliste()) t
-  where t not in ('app_config', 'profiles');
+  from unnest(public.sicherung_tabellenliste()) t;
   execute 'truncate table ' || liste;
 end $$;
+
+-- Alle Konten weg (nimmt Anmeldungen, Identitäten und PINs mit)
+delete from auth.users;
 
 commit;
 
 -- Probe: zeigt je Tabelle, wie viele Zeilen noch da sind.
--- Erwartet: überall 0, ausser profiles (Konten) und app_config (2 bis 3).
+-- Erwartet: überall 0 und „ok, leer“.
 select tabelle, zeilen,
-       case when tabelle in ('profiles', 'app_config') then 'bleibt'
-            when zeilen = 0 then 'ok, leer'
-            else 'FEHLT, nicht leer' end as probe
+       case when zeilen = 0 then 'ok, leer' else 'FEHLT, nicht leer' end as probe
 from (
   select t as tabelle,
          (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from public.%I', t), false, true, '')))[1]::text::bigint as zeilen
   from unnest(public.sicherung_tabellenliste()) t
+  union all select 'Nutzerkonten', (select count(*) from auth.users)
+  union all select 'PINs', (select count(*) from public.pin_schutz)
 ) z
-order by (zeilen > 0 and tabelle not in ('profiles', 'app_config')) desc, tabelle;
+order by (zeilen > 0) desc, tabelle;
