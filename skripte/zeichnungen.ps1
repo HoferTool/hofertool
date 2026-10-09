@@ -61,8 +61,8 @@
 #  verschoben, umbenannt oder geändert. Zum Hochladen kopiert es die
 #  Datei zuerst nach %TEMP% und lädt die Kopie hoch.
 #
-#  Höchstens 100 Dateien je Durchlauf; sind es mehr, macht der nächste
-#  Durchlauf weiter.
+#  Höchstens 3000 Dateien und 8 Minuten je Durchlauf; sind es mehr,
+#  macht der nächste Durchlauf weiter.
 #
 #  Aufruf:
 #     .\zeichnungen.ps1            normaler Durchlauf
@@ -79,7 +79,14 @@ $ordnerHier = Split-Path -Parent $MyInvocation.MyCommand.Path
 $einstDatei = Join-Path $ordnerHier "abgleich-einstellungen.json"
 $standDatei = Join-Path $ordnerHier "zeichnungen-stand.json"
 $protDatei  = Join-Path $ordnerHier "zeichnungen.log"
-$hoechstensJeLauf = 100
+# Höchstens so viele je Durchlauf (Wunsch Patrick 9. Oktober 2026: "auf
+# 3000 oder aufs Maximum"). Damit hofertool.ps1 das Programm nicht nach
+# 10 Minuten abbricht und Solar, WBGs und Einrichtblätter nicht warten,
+# fängt es nach 8 Minuten keine neue Datei mehr an; der Rest kommt im
+# nächsten Durchlauf.
+$hoechstensJeLauf = 3000
+$zeitHoechstensSek = 480
+$startZeit = Get-Date
 $listeHoechstens  = 300
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -329,7 +336,7 @@ try {
       Schreibe ("Probe: " + $d.FullName + "  →  " + $h + ", " + $was)
       continue
     }
-    if ($nochFrei -le 0) { $status.rest++; Eintrag $d.Name $h "kommt beim nächsten Durchlauf"; continue }
+    if ($nochFrei -le 0 -or ((Get-Date) - $startZeit).TotalSeconds -gt $zeitHoechstensSek) { $status.rest++; Eintrag $d.Name $h "kommt beim nächsten Durchlauf"; continue }
 
     $kopie = $null
     try {
