@@ -131,7 +131,10 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.127.0";
+// Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
+// früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
+// wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
+const APP_VERSION = "1.0.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer

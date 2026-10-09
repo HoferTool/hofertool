@@ -1,7 +1,7 @@
 {
   "name": "hofer-tool",
   "private": true,
-  "version": "111.10.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Interne Web-App der Hofer + Co. Präzisionsdrehteile",
   "scripts": {

@@ -2,6 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+## 1.x — neue Zählung (ab 9. Oktober 2026)
+
+- **1.0.0** Versionsnummer zurückgesetzt (Wunsch Patrick, 9. Oktober 2026: „reset von Versionszahl auf 1.0.0“). Die App zeigt jetzt Version 1.0.0; der Inhalt ist derselbe wie 111.127.0. Neue Funktion → 1.1.0, Korrektur → 1.0.1. Nichts in der App vergleicht Versionsnummern: neue Fassungen erkennt sie am Dateinamen des Programms, der Service Worker an der Dateiliste. Angaben „seit 111.x“ in Texten meinen die alte Zählung.
+
 ## 111.x — nach dem Umzug (1.–2. Oktober 2026)
 
 - **111.127.0** Wetterfenster im Pad Mode (Wunsch Patrick, 9. Oktober 2026: „wenn man auf Wetter klickt, soll ein Fenster aufgehen mit mehr Wetterinfos, stündlich und so“). Ein Tipp aufs Wetter oder auf die Tage in der Säule öffnet `src/pad/Wetter.jsx`: oben jetzt mit gefühlter Temperatur, Wind mit Richtung, Böen, Feuchte, Regen und UV heute, Sonnenauf- und -untergang; darunter die nächsten 24 Stunden mit Temperaturkurve, Regenbalken, Menge und Wind (seitlich rollbar, Linie bei Mitternacht, nachts Mond statt Sonne); zuletzt 7 Tage mit Spanne Tief bis Hoch, Regen, Wind mit Böen und Sonnenstunden. Holt die Daten beim Öffnen frisch bei Open-Meteo. Test `padwetter_fenster.py`.
