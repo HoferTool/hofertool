@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.119.1";
+const APP_VERSION = "111.120.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5458,6 +5458,14 @@ function zeichnePlanwand(b) {
     koennteSichtbar(f.von, f.tage, sichtVon, sichtBis));
   plan.sichtbareTage = tage;
   const heute = isoDatum(new Date());
+  // Wochenübergang (111.120.0, Wunsch Patrick 9. Oktober 2026): der erste
+  // Tag jeder Woche bekommt links eine etwas stärkere Linie, damit man
+  // Freitag und Montag auf einen Blick auseinanderhält. Erkannt am
+  // Vortag in der Tafel, nicht fest am Montag — so stimmt es auch, wenn
+  // einmal ein Tag fehlt.
+  const wochenAnfang = new Set(tage.filter((t, i) => (i === 0
+    ? ausIso(t).getDay() === 1 : wochenStart(t) !== wochenStart(tage[i - 1]))));
+  const wocheKlasse = (t, art) => (wochenAnfang.has(t) ? " " + art + "--woche" : "");
 
   const titel = document.getElementById("pw-titel");
   if (titel) {
@@ -5507,7 +5515,8 @@ function zeichnePlanwand(b) {
     + '<div class="pw-name pw-name--kopf">Maschine</div>'
     + tage.map((t) => {
         const wt = WT_KURZ[(ausIso(t).getDay() + 6) % 7];
-        return '<div class="pw-tag' + (t === heute ? " pw-tag--heute" : "") + '">'
+        return '<div class="pw-tag' + (t === heute ? " pw-tag--heute" : "")
+          + wocheKlasse(t, "pw-tag") + '">'
           + '<span class="pw-tag__wt">' + wt + '</span>'
           + '<span class="pw-tag__datum">' + ausIso(t).getDate() + '</span>'
           + '</div>';
@@ -5527,7 +5536,8 @@ function zeichnePlanwand(b) {
       + '<div class="pw-parkflaeche"></div></div>'
       + maschinen.map((m) => {
           const zellen = tage.map((t) => '<div class="pw-zelle'
-            + (t === heute ? " pw-zelle--heute" : "") + '" data-zelle="'
+            + (t === heute ? " pw-zelle--heute" : "") + wocheKlasse(t, "pw-zelle")
+            + '" data-zelle="'
             + esc(m.id) + '|' + t + '"></div>').join("");
 
           const balken = (auftraegeJeMaschine.get(m.id) || [])
@@ -5586,7 +5596,8 @@ function zeichnePlanwand(b) {
   // Ein einziger Block für alle Ferien, ohne Zeilenlinien dazwischen
   const ferienBahnen = ferienAnzahl;
   const ferienZellen = tage.map((t) => '<div class="pw-zelle pw-zelle--fein pw-zelle--ferienblock'
-    + (t === heute ? " pw-zelle--heute" : "") + '" data-fzelle="0|' + t + '"></div>').join("");
+    + (t === heute ? " pw-zelle--heute" : "") + wocheKlasse(t, "pw-zelle")
+    + '" data-fzelle="0|' + t + '"></div>').join("");
 
   const ferienBalken = ferienSichtbar.map((f2) => {
     const belegt = arbeitstage(f2.von, f2.tage || 1);

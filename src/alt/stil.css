@@ -6601,3 +6601,10 @@ body.symbolmodus .pw-balken:hover { outline: 2px solid var(--marke); outline-off
 .login__merken--immer { text-align: center; opacity: .8; }
 .es-zeile--fest { cursor: default; }
 .es-zeile--fest .kippschalter { opacity: .55; cursor: default; }
+
+/* Wochenübergang auf der Planwand (111.120.0, Wunsch Patrick 9. Oktober
+   2026): zwischen Freitag und Montag eine etwas stärkere Linie als
+   zwischen den Tagen, in Kopfzeile, Maschinenzeilen und Ferienblock.
+   Dezent, aber auch im dunklen Modus und auf dem Handy zu sehen. */
+.pw-tag--woche, .pw-zelle--woche { border-left: 2px solid #9aa5b4; }
+body.dunkel .pw-tag--woche, body.dunkel .pw-zelle--woche { border-left-color: #566374; }
