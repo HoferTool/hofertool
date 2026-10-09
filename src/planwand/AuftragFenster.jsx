@@ -20,7 +20,7 @@
 //  Maschine, Material, Zeichnung und Dauer aus Stammdaten und letztem
 //  Auftrag; ohne Ab kommt der Auftrag ans Ende der Maschine.
 // =================================================================
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt, useVerzoegert } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
@@ -238,6 +238,12 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const abrufMuss = darf && abrufDa && alt.abrufPflicht(auftrag);
   const [abrufFehlt, setAbrufFehlt] = useState(false);
   const abrufFeld = useRef(null);
+  // Höhe der Abrufinformation nach dem Text richten, höchstens fünf
+  // Zeilen (Grenze im CSS), danach rollt das Feld selbst
+  useLayoutEffect(() => {
+    const f = abrufFeld.current; if (!f) return;
+    f.style.height = "auto"; f.style.height = (f.scrollHeight + 2) + "px";
+  }, [w.abruf]);
 
   // ----- Zeichnung der HOCO Nr. -----
   // Hängt am Auftrag noch keine Zeichnung, die HOCO Nr. hat aber eine,
@@ -520,15 +526,19 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           <div className="auf-zweier auf-zweier--abruf">
             {/* Freier Text, keine Regel: „je 1000 Stk KW 44, 45, 46“ */}
             <label className="feld auf-abruf"><span>Abrufinformation{abrufMuss ? " *" : ""}</span>
-              <input id="pl-abruf" ref={abrufFeld} type="text" autoComplete="off" readOnly={nurLesen}
+              {/* Mehrzeilig: Shift + Enter gibt eine neue Zeile, Enter allein
+                  tut nichts wie vorher im einzeiligen Feld (Wunsch Patrick
+                  9. Oktober 2026). Das Feld wächst mit dem Text. */}
+              <textarea id="pl-abruf" ref={abrufFeld} rows={1} autoComplete="off" readOnly={nurLesen}
                 className={abrufFehlt && !w.abruf.trim() ? "fehlt" : ""}
                 title={darf && !abrufDa ? "Wird erst gespeichert, wenn sql/abruf-siegel.sql in Supabase ausgeführt ist." : undefined}
                 placeholder={darf && !abrufDa ? "erst nach sql/abruf-siegel.sql" : "z. B. je 1'000 Stk KW 44, 45, 46"}
-                value={w.abruf} onChange={(e) => setze("abruf", e.target.value)} />
+                value={w.abruf} onChange={(e) => setze("abruf", e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) e.preventDefault(); }} />
               {abrufFehlt && !w.abruf.trim() && <span className="feldhinweis feldhinweis--fehlt" id="pl-abruf-fehlt">
                 Ohne Abrufinformation lässt sich der Auftrag nicht speichern.</span>}</label>
 
-            <div className="feld"><span className="feldlabel">Siegel</span>
+            <div className="feld auf-siegel"><span className="feldlabel">Siegel</span>
               {!planerListe.length && !planerExtra.length
                 ? <span className="feldhinweis">Niemand ist als Planer hinterlegt. Das wird in den
                     Einstellungen bei der Person angehakt, zusammen mit einem Kürzel.</span>

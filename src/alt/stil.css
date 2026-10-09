@@ -6794,3 +6794,30 @@ body .pw-tafel .pw-balken { contain: layout paint style; }
 /* Beim Ziehen am Zeitregler ist die Tafel breiter als das Fenster
    (Vorrat links und rechts) und rollt nur seitlich */
 .pw-tafel.pw-tafel--vorrat { min-width: 0 !important; max-width: none !important; }
+
+/* ---------- Auftragsfenster: Abrufinformation mehrzeilig (1.8.1) ----------
+   Wunsch Patrick 9. Oktober 2026: Shift + Enter gibt eine neue Zeile.
+   Das Feld wächst bis fünf Zeilen, die Notiz für die Maschine gibt
+   dafür Höhe ab. Reicht es trotzdem nicht, rollt nur die linke Seite,
+   die Zeichnung rechts bleibt stehen. Die Siegel stehen ganz rechts. */
+.dialog--auftrag #pl-abruf { resize: none; overflow-y: auto; min-height: 36px;
+  max-height: calc(5 * 1.35em + 14px); line-height: 1.35; padding: 7px 9px; font-size: .9rem; }
+.dialog--auftrag #pl-notiz { min-height: 64px !important; }
+.pw-info__zeile--abruf { white-space: pre-line; }
+.dialog--auftrag .auf-zweier.auf-zweier--abruf { grid-template-columns: minmax(0, 1fr) auto; }
+.dialog--auftrag .auf-siegel { display: flex; flex-direction: column; align-items: flex-end;
+                               text-align: right; max-width: 300px; }
+.dialog--auftrag .auf-siegel .auf-planer { justify-content: flex-end; }
+@media (min-width: 1200px) {
+  .dialog--auftrag .auf-raster { overflow: hidden !important; grid-template-rows: minmax(0, 1fr);
+                                 flex: 1 1 auto; min-height: 0; }
+  .dialog--auftrag .auf-spalte--links { overflow-y: auto; overflow-x: hidden; min-height: 0;
+                                        overscroll-behavior: contain; padding-right: 4px; }
+  .dialog--auftrag .auf-spalte--links > * { flex-shrink: 0; }
+  .dialog--auftrag .auf-spalte--links > .auf-notiz { flex: 1 0 auto; }
+}
+@media (max-width: 560px) {
+  .dialog--auftrag .auf-zweier.auf-zweier--abruf { grid-template-columns: minmax(0, 1fr); }
+  .dialog--auftrag .auf-siegel { align-items: flex-start; text-align: left; max-width: none; }
+  .dialog--auftrag .auf-siegel .auf-planer { justify-content: flex-start; }
+}
