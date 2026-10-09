@@ -333,6 +333,29 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
     alt.meldung("Passwort gesetzt.");
   };
 
+  // Aus Versehen Passwort oder PIN gesetzt: Der Admin nimmt beides weg,
+  // danach genügt ein Tipp auf die Kachel (Wunsch Patrick, 9. Oktober 2026).
+  // Externe und das Dienstkonto lässt der Server nie offen hinein, darum
+  // gibt es den Knopf bei ihnen nicht.
+  const offenMoeglich = u.role !== "extern" && u.role !== "dienst";
+  const ohnePasswort = async () => {
+    const ja = await alt.nachfragen({
+      titel: "Passwort und PIN entfernen?",
+      text: "Danach kommt jeder mit einem Tipp auf die Kachel von " + wer + " in dieses Konto. "
+        + "Das bisherige Passwort und die PIN gelten nicht mehr.",
+      bestaetigen: "Entfernen", gefahr: true });
+    if (!ja) return;
+    const { error } = await alt.db.rpc("ohne_passwort_fuer", { p_ziel: u.id });
+    if (error) {
+      alt.meldung(/ohne_passwort_fuer/.test(error.message || "")
+        ? "Dafür fehlt noch sql/admin-ohne-passwort.sql in der Datenbank." : alt.fehlertext(error), "fehler");
+      return;
+    }
+    setMitPin(false);
+    setU((x) => ({ ...x, ohne_passwort: true }));
+    alt.meldung("Passwort und PIN entfernt. Ein Tipp auf die Kachel genügt.");
+  };
+
   const aktiv = async () => {
     const ein = !u.is_active;
     const ok = await alt.nachfragen({
@@ -408,11 +431,14 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
 
       <div className="nutzerfenster__teil">
         <h3>Anmeldung</h3>
-        <p className="es-gruppe__text">{anmeldungText}</p>
+        <p className="es-gruppe__text">{anmeldungText}{!offenMoeglich
+          && " Externe und das Dienstkonto brauchen immer ein Passwort, „Passwort setzen“ nimmt eine PIN weg."}</p>
         <div className="bu-anmeldung nutzerfenster__knoepfe">
           <button className="knopf knopf--klein" data-pinsetzen={u.id} onClick={pinSetzen}>
             {mitPin ? "PIN ändern" : "PIN setzen"}</button>
           <button className="knopf knopf--klein" data-pwsetzen={u.id} onClick={passwortSetzen}>Passwort setzen</button>
+          {offenMoeglich && (mitPin || !u.ohne_passwort) &&
+            <button className="knopf knopf--klein" data-ohnepw={u.id} onClick={ohnePasswort}>Passwort und PIN entfernen</button>}
         </div>
       </div>
 
