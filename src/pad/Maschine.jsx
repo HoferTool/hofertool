@@ -18,6 +18,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
+import { wetterFensterOeffnen } from "./Wetter.jsx";
 import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitFragen } from "../daten/stueckzahl.js";
 import {
   holeWetterTage, wetterZeichen, tagesmengen, letzteTage, schnitte,
@@ -394,7 +395,8 @@ function useJetzt() {
 // Uhr und Wetter. Statt Stunde für Stunde zeigt das Wetter die nächsten
 // Tage, im gleichen Stil wie vorher die Stunden (Wunsch Patrick
 // 8. Oktober 2026). Die Tage stehen nebeneinander, damit die Skizze
-// darunter Platz hat.
+// darunter Platz hat. Ein Tipp aufs Wetter öffnet das Wetterfenster mit
+// Stunden und mehr (Wunsch Patrick 9. Oktober 2026).
 function Saeule({ wetter }) {
   const jetzt = useJetzt();
   const heute = alt.isoDatum(jetzt);
@@ -406,7 +408,8 @@ function Saeule({ wetter }) {
           <div className="pad-uhr" id="pad-uhr"><Ziffern text={zweistellig(jetzt.getHours()) + ":" + zweistellig(jetzt.getMinutes())} /></div>
           <span className="pad-wdatum">{alt.kurzDatum(heute)} · KW {alt.kalenderwoche(heute)}</span></div>
         {wetter
-          ? <div className="pad-wetterblock">
+          ? <div className="pad-wetterblock pad-wetterknopf" role="button" tabIndex={0} data-wetteroeffnen=""
+              onClick={wetterFensterOeffnen} title="Mehr Wetter">
               <span className="pad-wzeichen">{wetterZeichen(wetter.code)}</span>
               <span className="pad-grad">{wetter.temperatur}°</span>
               <span className="pad-ort">{wetter.text}<br />Lohn-Ammannsegg</span>
@@ -415,7 +418,8 @@ function Saeule({ wetter }) {
       </div>
 
       {tage.length > 0 && <>
-        <div className="pad-stunden pad-stunden--regen" data-padtage="">
+        <div className="pad-stunden pad-stunden--regen pad-wetterknopf" data-padtage="" role="button"
+          onClick={wetterFensterOeffnen} title="Mehr Wetter">
           {tage.map((x) => (
             <div key={x.datum} className="pad-stunde pad-wettertag">
               <b>{x.datum === heute ? "Heute" : TAGNAME[new Date(x.datum + "T12:00").getDay()]}</b>

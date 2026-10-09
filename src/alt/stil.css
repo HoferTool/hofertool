@@ -6675,3 +6675,81 @@ body.dunkel .pw-tag--woche, body.dunkel .pw-zelle--woche { border-left-color: #5
 @media (max-width: 640px) {
   .druckwahl { left: 0; right: auto; }
 }
+
+/* ---------- Wetterfenster im Pad (Wunsch Patrick 9. Oktober 2026) ----------
+   Dunkel wie die Säule im Pad, egal ob heller oder dunkler Modus. */
+.pad-wetterknopf { cursor: pointer; border-radius: 12px; transition: background .15s; }
+.pad-wetterknopf:hover, .pad-wetterknopf:active { background: rgba(255,255,255,.06); }
+body.pad-offen .dialog.dialog--wetter, .dialog--wetter { max-width: min(1000px, 96vw) !important;
+                  width: 96vw !important; max-height: 92vh; overflow-y: auto; font-size: 1rem;
+                  background: linear-gradient(165deg, #10283f, #091626); color: #eef4ff;
+                  border: 1px solid rgba(255,255,255,.1); padding: 18px 20px 20px; }
+.wf-kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.wf-kopf h2 { margin: 0; font-size: 1.3rem; font-weight: 800; }
+.wf-kopf h2 span { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase;
+                   color: #8fa6c6; font-weight: 600; margin-left: 8px; }
+.wf-zu { width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(255,255,255,.15);
+         background: rgba(255,255,255,.06); color: #eef4ff; font-size: 1.1rem; cursor: pointer; }
+.wf-hinweis { color: #b8cbe6; padding: 30px 0; text-align: center; }
+.wf-jetzt { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center;
+            padding: 14px 16px; border-radius: 16px; background: rgba(255,255,255,.05); }
+.wf-jetzt__haupt { display: flex; align-items: center; gap: 14px; }
+.wf-jetzt__zeichen { font-size: 3.4rem; line-height: 1; }
+.wf-jetzt__grad { font-size: 3rem; font-weight: 800; line-height: 1; }
+.wf-jetzt__text { font-size: .95rem; color: #d6e3f5; margin-top: 2px; }
+.wf-jetzt__spanne { font-size: .78rem; color: #9fb3ce; }
+.wf-angaben { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.wf-angabe { display: flex; flex-direction: column; gap: 1px; padding: 7px 10px; border-radius: 10px;
+             background: rgba(255,255,255,.05); min-width: 0; }
+.wf-angabe span { font-size: .66rem; color: #9fb3ce; text-transform: uppercase; letter-spacing: .05em; }
+.wf-angabe b { font-size: .95rem; font-weight: 700; white-space: nowrap; }
+.wf-block { margin-top: 16px; }
+.wf-block h3 { margin: 0 0 8px; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em;
+               color: #9fb3ce; font-weight: 700; }
+.wf-stunden { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 14px;
+              background: rgba(255,255,255,.04); padding: 6px 0 8px; }
+.wf-kurve { display: block; }
+.wf-stundenreihe { display: flex; }
+.wf-stunde { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
+             border-left: 1px solid transparent; }
+.wf-stunde--neuertag { border-left-color: rgba(255,255,255,.25); }
+.wf-stunde b { font-size: .68rem; color: #9fb3ce; font-weight: 600; }
+.wf-stunde i { font-style: normal; font-size: 1.3rem; }
+.wf-stunde u { text-decoration: none; font-size: .95rem; font-weight: 800; }
+.wf-regenbalken { width: 14px; height: 34px; border-radius: 4px; background: rgba(255,255,255,.07);
+                  display: flex; align-items: flex-end; overflow: hidden; margin-top: 2px; }
+.wf-regenbalken span { width: 100%; background: #5aa4ff; opacity: .6; }
+.wf-regenbalken span.wf-viel { opacity: 1; }
+.wf-regen { font-size: .7rem; color: #9cc8ff; font-weight: 700; }
+.wf-mm { font-size: .62rem; color: #9cc8ff; min-height: .8rem; }
+.wf-wind { font-size: .62rem; color: #9fb3ce; white-space: nowrap; }
+.wf-tage { display: flex; flex-direction: column; gap: 6px; }
+.wf-tag { display: grid; align-items: center; gap: 4px 10px; padding: 8px 12px; border-radius: 12px;
+          background: rgba(255,255,255,.05);
+          grid-template-columns: 6.6rem 2rem minmax(70px, 1fr) 2.2rem minmax(70px, 1.2fr) 2.4rem 8.6rem 10.2rem 8.4rem; }
+.wf-tag__name { font-size: .92rem; font-weight: 700; display: flex; flex-direction: column; line-height: 1.15; }
+.wf-tag__name small { font-size: .68rem; color: #9fb3ce; font-weight: 500; }
+.wf-tag__zeichen { font-style: normal; font-size: 1.5rem; text-align: center; }
+.wf-tag__text { font-size: .8rem; color: #d6e3f5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-tag__tief { text-align: right; color: #9fb3ce; font-weight: 600; }
+.wf-tag__hoch { font-weight: 800; }
+.wf-spanne { position: relative; height: 8px; border-radius: 4px; background: rgba(255,255,255,.08); }
+.wf-spanne span { position: absolute; top: 0; bottom: 0; border-radius: 4px;
+                  background: linear-gradient(90deg, #5aa4ff, #ffb547); }
+.wf-tag__regen, .wf-tag__wind, .wf-tag__sonne { font-size: .75rem; color: #b8cbe6; white-space: nowrap; }
+.wf-tag__regen.wf-viel { color: #9cc8ff; font-weight: 700; }
+@media (max-width: 1000px) {
+  .wf-jetzt { grid-template-columns: 1fr; }
+  .wf-tag { grid-template-columns: 6.4rem 2rem 2.2rem minmax(60px, 1fr) 2.2rem;
+            grid-template-areas: "n z ti sp ho" "n z r r r" "n z w w w" "n z so so so"; }
+  .wf-tag__name { grid-area: n; } .wf-tag__zeichen { grid-area: z; }
+  .wf-tag__tief { grid-area: ti; } .wf-spanne { grid-area: sp; } .wf-tag__hoch { grid-area: ho; }
+  .wf-tag__regen { grid-area: r; } .wf-tag__wind { grid-area: w; } .wf-tag__sonne { grid-area: so; }
+  .wf-tag__text { display: none; }
+}
+@media (max-width: 640px) {
+  .wf-angaben { grid-template-columns: repeat(2, 1fr); }
+  body.pad-offen .dialog.dialog--wetter, .dialog--wetter { padding: 14px; width: 100% !important; max-width: 100% !important; }
+  .wf-tag { grid-template-columns: 5.4rem 1.8rem 2rem minmax(40px, 1fr) 2rem; padding: 8px; }
+  .wf-tag__regen, .wf-tag__wind, .wf-tag__sonne { white-space: normal; }
+}
