@@ -34,37 +34,26 @@ function suchTasteAnmelden() {
 // Aufträge, Ferien und Stempel holen, dann die Tafel zeichnen
 async function tafelLaden(b, inhalt) {
   const plan = alt.plan;
+  // Aufträge, Ferien und Stempel gleichzeitig holen statt nacheinander
+  const ferienHolen = alt.ladeFerien().then((liste) => liste.map((f) => {
+    f.genehmigt_von_name = f.profiles ? f.profiles.full_name : null;
+    return f;
+  })).catch((f) => { console.warn("Ferien:", f.message); return []; });
+  let ferienErst = [];
   try {
-    const [stErst, listeErst] = await Promise.all([
-      alt.serverStempel(["jobs", "vacations", "production_records"]), alt.ladePlanAuftraege()]);
+    const [stErst, listeErst, ferien] = await Promise.all([
+      alt.serverStempel(["jobs", "vacations", "production_records"]), alt.ladePlanAuftraege(),
+      ferienHolen]);
     if (stErst) plan.stempel = stErst;
     plan.auftraege = listeErst;
-    // Aufträge, die nur mit einer HOCO Nr. angelegt wurden, holen
-    // sich hier Material, Grösse und Zeichnung aus den Stammdaten.
-    try {
-      const wieViele = await alt.stammdatenAufPlanwand();
-      if (wieViele) {
-        alt.meldung(wieViele + (wieViele === 1 ? " Auftrag" : " Aufträge")
-          + " aus den Stammdaten ergänzt.");
-      }
-    } catch (g) { /* Beiwerk, die Wand steht auch ohne */ }
+    ferienErst = ferien;
   } catch (f) {
     inhalt.innerHTML = '<div class="karte karte--fehler"><p>' + alt.esc(alt.fehlertext(f)) + '</p>'
       + '<p class="klein">Version ' + alt.esc(alt.APP_VERSION) + '</p></div>';
     return;
   }
   if (!inhalt.isConnected) return;
-
-  try {
-    plan.ferien = (await alt.ladeFerien()).map((f) => {
-      f.genehmigt_von_name = f.profiles ? f.profiles.full_name : null;
-      return f;
-    });
-  } catch (f) {
-    plan.ferien = [];
-    console.warn("Ferien:", f.message);
-  }
-  if (!inhalt.isConnected) return;
+  plan.ferien = ferienErst;
 
   try {
     alt.zeichnePlanwand(b);
@@ -75,7 +64,20 @@ async function tafelLaden(b, inhalt) {
       + '<p>' + alt.esc(f && f.message ? f.message : String(f)) + '</p>'
       + '<p class="klein">Version ' + alt.esc(alt.APP_VERSION) + '</p></div>';
     console.error("Planwand zeichnen:", f);
+    return;
   }
+
+  // Aufträge, die nur mit einer HOCO Nr. angelegt wurden, holen
+  // sich Material, Grösse und Zeichnung aus den Stammdaten. Erst nach
+  // dem Zeichnen, damit die Wand nicht auf diese Abfrage warten muss.
+  try {
+    const wieViele = await alt.stammdatenAufPlanwand();
+    if (wieViele && inhalt.isConnected && document.querySelector(".pw-tafel")) {
+      alt.meldung(wieViele + (wieViele === 1 ? " Auftrag" : " Aufträge")
+        + " aus den Stammdaten ergänzt.");
+      alt.neuZeichnen(b);
+    }
+  } catch (g) { /* Beiwerk, die Wand steht auch ohne */ }
 }
 
 // Zeitregler: rückwärts so weit, wie Aufträge eingeplant sind,
@@ -134,6 +136,7 @@ function zeitreglerEinrichten(zeitregler, marke, von, bis, b) {
   // Schritte, als der Bildschirm zeigen kann; gezeichnet wird höchstens
   // einmal je Bild, mit dem neusten Stand.
   let bildAngefordert = false;
+  let wertGezeichnet = Number(zeitregler.value);
   const schieben = () => {
     beschriften();
     plan.start = alt.arbeitstagePlus(nullpunkt, Number(zeitregler.value));
@@ -141,12 +144,34 @@ function zeitreglerEinrichten(zeitregler, marke, von, bis, b) {
     bildAngefordert = true;
     requestAnimationFrame(() => {
       bildAngefordert = false;
+      // Mit der Maus gezogen: im Vorrat nur seitlich rollen (planVorratStarten)
+      const wert = Number(zeitregler.value);
+      const richtung = Math.sign(wert - wertGezeichnet);
+      wertGezeichnet = wert;
+      if (alt.planVorratSchieben(richtung)) { alt.aeltereNachladen(b); return; }
+      // Schon so gezeichnet, etwa gleich nach dem Loslassen
+      if (!plan.vorrat && plan.gezeichnetAb === plan.start) return;
       plan.nurZeitGeschoben = true;
       alt.neuZeichnen(b);
     });
   };
+  // Anfassen legt den Vorrat an, Loslassen zeichnet wieder normal
+  const anfassen = (e) => {
+    if (e.pointerType === "touch") return;
+    alt.planVorratStarten();
+  };
+  const loslassen = () => alt.planVorratEnde(b);
   zeitregler.addEventListener("input", schieben);
-  return () => zeitregler.removeEventListener("input", schieben);
+  zeitregler.addEventListener("pointerdown", anfassen);
+  window.addEventListener("pointerup", loslassen);
+  window.addEventListener("pointercancel", loslassen);
+  return () => {
+    zeitregler.removeEventListener("input", schieben);
+    zeitregler.removeEventListener("pointerdown", anfassen);
+    window.removeEventListener("pointerup", loslassen);
+    window.removeEventListener("pointercancel", loslassen);
+    plan.vorrat = 0;
+  };
 }
 
 function Kopfleiste({ b, mobil }) {

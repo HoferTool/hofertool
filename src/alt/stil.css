@@ -6784,3 +6784,13 @@ body .pw-tafel .pw-balken .pw-balken__warnung {
   display: inline-flex; align-self: center; flex: none; margin: 0 .15em; line-height: 1 !important; }
 .pw-warnsymbol { height: clamp(14px, calc(100cqh - 8px), 64px); width: auto; display: block;
   filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, .9)); }
+/* ---------- Planwand flüssiger (1.8.0) ----------
+   Jeder Balken ist für sich abgeschlossen: Was in ihm passiert, zwingt
+   den Browser nicht, die übrige Tafel neu anzuordnen oder zu malen. Der
+   Balken schneidet seinen Inhalt ohnehin ab (overflow: hidden), am
+   Aussehen ändert sich nichts. Das spart beim Neuzeichnen rund ein
+   Viertel und beim Darüberfahren die Hälfte der Arbeit. */
+body .pw-tafel .pw-balken { contain: layout paint style; }
+/* Beim Ziehen am Zeitregler ist die Tafel breiter als das Fenster
+   (Vorrat links und rechts) und rollt nur seitlich */
+.pw-tafel.pw-tafel--vorrat { min-width: 0 !important; max-width: none !important; }

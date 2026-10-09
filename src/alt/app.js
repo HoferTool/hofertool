@@ -135,7 +135,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.8.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3982,7 +3982,8 @@ async function ladeFerien() {
 
 
 async function ladePlanAuftraege(alle) {
-  await personenLaden();
+  // Die Namen kommen gleichzeitig mit dem ersten Paket, nicht davor
+  const personen = personenLaden();
   // Supabase gibt höchstens 1000 Zeilen je Abfrage zurück. Mit den
   // übernommenen Aufträgen aus infoBoard sind es mehr — deshalb wird
   // in Blöcken geholt, bis nichts mehr kommt. Sonst blieben nur die
@@ -4010,7 +4011,7 @@ async function ladePlanAuftraege(alle) {
     return zeitlimit(a.order("planned_from", { nullsFirst: false }).order("id")
       .range(von, von + stufe - 1), 15000, "Planwand");
   };
-  const erstes = await paket(0, true);
+  const [erstes] = await Promise.all([paket(0, true), personen]);
   if (erstes.error) throw erstes.error;
   const liste = (erstes.data || []).slice();
   let gesamt = typeof erstes.count === "number" ? erstes.count : null;
@@ -4041,18 +4042,21 @@ async function standsNachtragen(auftraege) {
   const ids = [...new Set((auftraege || []).map((j) => j.id).filter(Boolean))];
   if (!ids.length) return;
   const juengster = {};
-  for (let i = 0; i < ids.length; i += 150) {
-    const teil = ids.slice(i, i + 150);
-    try {
-      const r = await db.from("production_records")
-        .select("job_id, quantity, record_date, updated_at").in("job_id", teil);
-      (r.data || []).forEach((z) => {
-        const da = juengster[z.job_id];
-        const schl = String(z.record_date || "") + String(z.updated_at || "");
-        if (!da || schl >= da.schl) juengster[z.job_id] = { menge: Number(z.quantity) || 0, schl: schl };
-      });
-    } catch (f) { /* dann bleibt der Wert aus der Ansicht */ }
-  }
+  // Die Pakete gleichzeitig holen statt nacheinander
+  const teile = [];
+  for (let i = 0; i < ids.length; i += 150) teile.push(ids.slice(i, i + 150));
+  const antworten = await Promise.all(teile.map((teil) => db.from("production_records")
+    .select("job_id, quantity, record_date, updated_at").in("job_id", teil)
+    .then((r) => r, () => null)));
+  antworten.forEach((r) => {
+    // Fehlt ein Paket, bleibt dort der Wert aus der Ansicht
+    if (!r || r.error) return;
+    (r.data || []).forEach((z) => {
+      const da = juengster[z.job_id];
+      const schl = String(z.record_date || "") + String(z.updated_at || "");
+      if (!da || schl >= da.schl) juengster[z.job_id] = { menge: Number(z.quantity) || 0, schl: schl };
+    });
+  });
   auftraege.forEach((j) => {
     if (juengster[j.id]) j.stand = juengster[j.id].menge;
   });
@@ -4075,14 +4079,12 @@ async function planAbgleich(b, ereignis) {
     if (stempel && !ereignis && stempel === plan.stempel) return;
     if (stempel) plan.stempel = stempel;
 
-    const neueAuftraege = await ladePlanAuftraege();
-    let neueFerien = [];
-    try {
-      neueFerien = (await ladeFerien()).map((f) => {
-        f.genehmigt_von_name = f.profiles ? f.profiles.full_name : null;
-        return f;
-      });
-    } catch (f) { neueFerien = plan.ferien || []; }
+    // Aufträge und Ferien gleichzeitig
+    const ferienHolen = ladeFerien().then((liste) => liste.map((f) => {
+      f.genehmigt_von_name = f.profiles ? f.profiles.full_name : null;
+      return f;
+    })).catch(() => plan.ferien || []);
+    const [neueAuftraege, neueFerien] = await Promise.all([ladePlanAuftraege(), ferienHolen]);
 
     const alt = JSON.stringify([plan.auftraege, plan.ferien]);
     const neu = JSON.stringify([neueAuftraege, neueFerien]);
@@ -4775,11 +4777,18 @@ function balkenInfoVerhalten() {
     el.addEventListener("touchcancel", () => { clearTimeout(halten); weg(); symbolInfoWeg(); });
   });
 
-  // Ein Tipp irgendwo anders schliesst die Vorschau
-  document.addEventListener("touchstart", (e) => {
-    if (fenster && !e.target.closest("[data-auftrag]")) weg();
-  }, { passive: true });
+  // Ein Tipp irgendwo anders schliesst die Vorschau. Nur einmal
+  // anmelden: Früher kam bei jedem Neuzeichnen ein Zuhörer dazu, nach
+  // Stunden waren es Tausende, und jeder Tipp wurde zäh.
+  if (!vorschauTippDa) {
+    vorschauTippDa = true;
+    document.addEventListener("touchstart", (e) => {
+      if (e.target.closest && e.target.closest("[data-auftrag]")) return;
+      document.querySelectorAll(".pw-info").forEach((x) => x.remove());
+    }, { passive: true });
+  }
 }
+let vorschauTippDa = false;
 
 // Alles, was ein Auftrag an Angaben trägt, als ein Suchtext
 function auftragText(j) {
@@ -5350,27 +5359,28 @@ async function planAktualisieren(b) {
   const x = rolle ? rolle.scrollLeft : 0;
   const y = rolle ? rolle.scrollTop : 0;
 
+  // Alles gleichzeitig holen; Ferien sind Beiwerk, ein Fehler dort
+  // lässt die bisherigen stehen
+  const ferienHolen = ladeFerien().then((liste) => liste.map((f) => {
+    f.genehmigt_von_name = f.profiles ? f.profiles.full_name : null;
+    return f;
+  })).catch(() => null);
   try {
-    const [st, liste] = await Promise.all([
-      serverStempel(["jobs", "vacations", "production_records"]), ladePlanAuftraege()]);
+    const [st, liste, ferien] = await Promise.all([
+      serverStempel(["jobs", "vacations", "production_records"]), ladePlanAuftraege(), ferienHolen]);
     if (st) plan.stempel = st;
     plan.auftraege = liste;
+    if (ferien) plan.ferien = ferien;
   } catch (f) {
     meldung(fehlertext(f), "fehler");
     return;
   }
 
-  try {
-    plan.ferien = (await ladeFerien()).map((f) => {
-      f.genehmigt_von_name = f.profiles ? f.profiles.full_name : null;
-      return f;
-    });
-  } catch (f) { /* Ferien sind Beiwerk */ }
-
   zeichnePlanwand(b);
 
   const neu = document.querySelector(".pw-rolle");
-  if (neu) { neu.scrollLeft = x; neu.scrollTop = y; }
+  // Mit Vorrat (Zeitregler wird gezogen) steht die Tafel schon richtig
+  if (neu) { if (!plan.vorrat) neu.scrollLeft = x; neu.scrollTop = y; }
 }
 
 // Taste H auf der Planwand: zu heute — nur wenn man nicht gerade in
@@ -5524,6 +5534,56 @@ function aeltereNachladen(b) {
   }, 350);
 }
 
+// ---------- Zeitregler ohne Neuaufbau ----------
+// Beim Ziehen am Zeitregler wurde früher bei jedem Bild die ganze Tafel
+// neu aufgebaut, mit allen Balken. Das kostete bei vielen Aufträgen
+// spürbar Zeit, die Wand ruckelte. Jetzt wird beim Anfassen einmal
+// links und rechts ein Vorrat an Tagen dazugezeichnet, und solange der
+// Regler darin bleibt, rollt die Tafel nur seitlich, wie auf dem
+// Tablet. Erst ausserhalb des Vorrats oder beim Loslassen wird neu
+// gezeichnet. Nur am Computer; mit dem Finger gibt es den Puffer schon.
+function planVorratStarten() {
+  if (plan.vorrat || isMobil() || fingerTafel()) return;
+  const zelle = document.querySelector(".pw-tafel .pw-zeile[data-mzeile] .pw-zelle");
+  const name = document.querySelector(".pw-tafel .pw-zeile[data-mzeile] .pw-name");
+  if (!zelle || !name) return;
+  // Genau die Breiten, die jetzt zu sehen sind, damit nichts springt
+  const spalte = zelle.getBoundingClientRect().width;
+  const links = name.getBoundingClientRect().width;
+  if (!(spalte > 0) || !(links > 0)) return;
+  plan.vorratSpalte = spalte;
+  plan.vorratName = links;
+  plan.vorrat = Math.max(10, Math.min(plan.tage, 40));
+  plan.vorratRichtung = 0;
+}
+
+// Liegt der neue Beginn im schon gezeichneten Bereich, nur seitlich
+// rollen. Gibt false zurück, wenn neu gezeichnet werden muss.
+function planVorratSchieben(richtung) {
+  if (!plan.vorrat || !plan.vorratSpalte) return false;
+  // Muss neu gezeichnet werden, dann mit dem Vorrat in Zugrichtung
+  plan.vorratRichtung = richtung || 0;
+  const tafel = document.querySelector(".pw-tafel--vorrat");
+  const rolle = tafel && tafel.parentElement;
+  const tage = plan.sichtbareTage || [];
+  const i = tage.indexOf(plan.start);
+  if (!rolle || i < 0 || i + plan.tage > tage.length) return false;
+  rolle.scrollLeft = i * plan.vorratSpalte;
+  const titel = document.getElementById("pw-titel");
+  if (titel) titel.textContent = kurzDatum(tage[i]) + " – " + kurzDatum(tage[i + plan.tage - 1]);
+  return true;
+}
+
+// Beim Loslassen: wieder die normale Tafel, genau am gewählten Beginn
+function planVorratEnde(b) {
+  if (!plan.vorrat) return;
+  plan.vorrat = 0;
+  // Nur angefasst, nicht gezogen: Die Tafel ist noch die normale
+  if (!document.querySelector(".pw-tafel--vorrat")) return;
+  plan.nurZeitGeschoben = true;
+  neuZeichnen(b);
+}
+
 function zeichnePlanwand(b) {
   // Rückgängig frischt nach dem Zurücknehmen diese Tafel auf
   plan.b = b;
@@ -5540,11 +5600,22 @@ function zeichnePlanwand(b) {
   // man ist dauernd am Rand und es zittert beim Wischen.
   // Mit Puffer links und rechts lässt sich die Tafel mit dem Finger
   // ziehen. Seit 111.53.0 auch am Tablet (Wunsch Patrick, 5. Oktober 2026).
-  plan.puffer = isMobil() || fingerTafel() ? plan.tage : 0;
+  // Am Computer gibt es den Puffer nur, solange jemand am Zeitregler
+  // zieht (planVorratStarten): Dann rollt die Tafel nur noch seitlich,
+  // statt bei jedem Schritt neu aufgebaut zu werden.
+  plan.puffer = isMobil() || fingerTafel() ? plan.tage : (plan.vorrat || 0);
+  const vorratAktiv = !!plan.vorrat && !(isMobil() || fingerTafel());
+  // Der Vorrat liegt auf der Seite, in die der Regler gerade läuft
+  let rechts = plan.puffer;
+  if (vorratAktiv) {
+    const r = plan.vorratRichtung || 0;
+    plan.puffer = r > 0 ? 0 : (r < 0 ? plan.vorrat * 2 : plan.vorrat);
+    rechts = plan.vorrat * 2 - plan.puffer;
+  }
   const zeichenStart = plan.puffer
     ? arbeitstagePlus(plan.start, -plan.puffer) : plan.start;
 
-  const tage = arbeitstage(zeichenStart, plan.tage + plan.puffer * 2);
+  const tage = arbeitstage(zeichenStart, plan.tage + plan.puffer + rechts);
   // Für schnelles Nachschlagen: welcher Tag an welcher Stelle steht
   const tagIndex = new Map(tage.map((t, i) => [t, i]));
   const sichtVon = tage[0], sichtBis = tage[tage.length - 1];
@@ -5557,6 +5628,7 @@ function zeichnePlanwand(b) {
   const ferienKandidaten = (plan.ferien || []).filter((f) =>
     koennteSichtbar(f.von, f.tage, sichtVon, sichtBis));
   plan.sichtbareTage = tage;
+  plan.gezeichnetAb = plan.start;
   const heute = isoDatum(new Date());
   // Wochenübergang (111.120.0, Wunsch Patrick 9. Oktober 2026): der erste
   // Tag jeder Woche bekommt links eine etwas stärkere Linie, damit man
@@ -5758,10 +5830,12 @@ function zeichnePlanwand(b) {
     // Unter 80 Prozent Zeilenhöhe passt nur noch eine Textzeile
     + ((plan.vskala || 1) < 0.8 ? " pw-tafel--flach" : "")
     + ((plan.vskala || 1) < 0.55 ? " pw-tafel--sehrflach" : "")
+    + (vorratAktiv ? " pw-tafel--vorrat" : "")
     + '" style="--pw-tage:' + tage.length
     + ';--pw-s:' + (plan.skala || 1)
     + ';--pw-v:' + (plan.vskala || 1).toFixed(3)
-    + ';--pw-spalte:' + (plan.spalte || 40) + 'px'
+    + ';--pw-spalte:' + (vorratAktiv ? plan.vorratSpalte : (plan.spalte || 40)) + 'px'
+    + (vorratAktiv ? ";width:" + (plan.vorratName + tage.length * plan.vorratSpalte) + "px" : "")
     + ';--pw-sicht:' + plan.tage
     + ';--pw-name:' + (plan.namensbreite || 108) + 'px">'
     + '<div class="pw-kopfblock">' + monatZeile + kwZeile + kopf
@@ -5813,12 +5887,17 @@ function zeichnePlanwand(b) {
 
   // Der Puffer liegt links davor — also dorthin scrollen, wo der
   // eigentlich gewählte Zeitraum beginnt.
-  if (plan.puffer) {
+  if (vorratAktiv) {
+    rolleEl.scrollLeft = plan.puffer * plan.vorratSpalte;
+  } else if (plan.puffer) {
     const rolle = document.querySelector(".pw-rolle");
     if (rolle) {
       rolle.classList.toggle("pw-rolle--finger", fingerTafel());
       rolle.scrollLeft = plan.puffer * (plan.spalte || 40);
     }
+  } else if (rolleEl.scrollLeft) {
+    // Nach dem Ziehen am Zeitregler steht die Tafel wieder ganz links
+    rolleEl.scrollLeft = 0;
   }
 
   planBalkenGleiten(vorherLagen);
@@ -9305,6 +9384,7 @@ Object.assign(alt, {
   meineRolle, zeichneSeite,
   masseBerechnen, isMobil, zuHeute, hocoFenster, sucheDialog, serverStempel,
   stammdatenAufPlanwand, zeichnungAnheften, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,
+  planVorratStarten, planVorratSchieben, planVorratEnde, aeltereNachladen,
   naechsterArbeitstag, APP_VERSION,
   sucheStarten, sucheZumTreffer, sucheBeenden, sucheAllesDaten, sucheTreffer, sucheSpringen,
   freieFerienZeile,
