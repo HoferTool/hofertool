@@ -6645,3 +6645,25 @@ body.dunkel .pw-tag--woche, body.dunkel .pw-zelle--woche { border-left-color: #5
 @media (max-width: 640px), (max-height: 500px) {
   #pad .pad__kopf { background: #0a1220 !important; }
 }
+
+/* ---------- Drucken: wohin? (Pool-Rechner oder dieses Gerät) ----------
+   Klappt unter „Drucken“ im Betrachter auf, nur wenn unter
+   Einstellungen → Dokumente ein Drucker gewählt ist (9. Oktober 2026). */
+.druckwahl-huelle { position: relative; display: inline-flex; }
+.druckwahl { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30;
+             display: flex; flex-direction: column; gap: 8px; min-width: 250px;
+             padding: 12px; background: #1d2430; border: 1px solid #47505c;
+             border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+.betrachter__knoepfe .druckwahl .knopf { justify-content: center; white-space: nowrap; }
+.betrachter__knoepfe .druckwahl [data-pooldruck] { background: #1f6fe0; border-color: #1f6fe0;
+                                                   font-weight: 600; min-height: 44px; }
+.betrachter__knoepfe .druckwahl [data-geraetdruck] { min-height: 40px; }
+.druckwahl__kopien { display: flex; align-items: center; gap: 10px; font-size: .9rem; }
+.druckwahl__kopien span { flex: 1; color: #b9c3ce; }
+.druckwahl__kopien b { min-width: 1.6em; text-align: center; font-variant-numeric: tabular-nums; }
+.betrachter__knoepfe .druckwahl__kopien .knopf { flex: none; width: 36px; height: 36px; padding: 0; font-size: 1.1rem; }
+@media (max-width: 640px) {
+  .druckwahl-huelle { flex: 1 1 0; }
+  .druckwahl-huelle > .knopf { flex: 1 1 0; }
+  .druckwahl { min-width: min(280px, calc(100vw - 28px)); }
+}

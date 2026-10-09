@@ -45,6 +45,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 |---|---|
 | `profiles` | Benutzer: `role` (`admin`, `planwand`, `langdreher`, `kurzdreher`, `mitarbeiter`, `produktion`, `extern`), `parks` (uuid[] für Extern), `ohne_passwort`, `einstellungen` (jsonb, persönliche Einstellungen), `initialen`, `bild_url`, `geburtstag`, `andere_nutzer` (Kachel bei der Anmeldung unter „Andere Nutzer“, `sql/andere-nutzer.sql`), `zuletzt_online` (Lebenszeichen der App über `ich_bin_da()`, Admins lesen es mit der letzten Anmeldung über `nutzer_status()`, `sql/nutzer-online.sql`) |
 | `people` | Personen ohne Login (Geburtstage) |
+| `druckauftraege` | Drucken über den Pool-Rechner (111.126.0) | `art` (bilder, excel), `quelle` (Excel-Adresse), `blatt`, `seiten` (JPG unter Ablage `druck`/`id`/1.jpg …), `kopien`, `drucker`, `zustand` (offen, druckt, fertig, fehler), `meldung`, `wer`. Anlegen alle ausser Externen, abarbeiten nur das Dienstkonto (`sql/drucken-pool.sql`). `app_config.druck` (gewählter Drucker, Admin und Planwand) und `druck_status` (Drucker am Pool-Rechner, Dienstkonto) |
 | `materialausgabe` | Materialausgabe Extern auf der Startseite (111.99.0) | `text`, `an_wen` (seit 111.105.0), `raus_am`, `raus_von` (→ `profiles`), `rein_am` (leer = noch draussen), `rein_von` (→ `profiles`). Alle ausser Externen lesen und schreiben (`sql/materialausgabe.sql`) |
 | `todos` | Notizen auf der Startseite |
 | `chat_gespraeche`, `chat_teilnehmer`, `chat_nachrichten`, `chat_gelesen` | Chat |

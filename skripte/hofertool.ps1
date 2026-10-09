@@ -11,6 +11,10 @@
 #     zeichnungen.ps1       Zeichnungen hochladen, nur lesen
 #     einrichtblaetter.ps1  Einrichtblätter hochladen, nur lesen
 #
+#  Dazu startet es drucken.ps1, wenn es nicht schon läuft: Das bleibt
+#  dauernd im Hintergrund und druckt Aufträge aus der App alle paar
+#  Sekunden, nicht erst beim nächsten Durchlauf (seit 111.126.0).
+#
 #  Jeder Teil läuft für sich: Bricht einer ab oder hängt er (etwa weil
 #  ein Netzlaufwerk nicht antwortet), kommen die anderen trotzdem dran.
 #  Unveränderte Dateien lassen die Teile in Ruhe, dann tun sie nichts.
@@ -79,7 +83,7 @@ function Teil([string]$skript, [int]$minuten, [string]$braucht) {
 $QUELLE = "https://raw.githubusercontent.com/HoferTool/hofertool/main/skripte"
 function Aktualisieren {
   try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
-  foreach ($n in @("dokumente-teile.ps1", "solarlog.ps1", "dokumente-pool.ps1", "zeichnungen.ps1", "einrichtblaetter.ps1", "hofertool.ps1")) {
+  foreach ($n in @("dokumente-teile.ps1", "solarlog.ps1", "dokumente-pool.ps1", "zeichnungen.ps1", "einrichtblaetter.ps1", "drucken.ps1", "hofertool.ps1")) {
     $ziel = Join-Path $ordnerHier $n
     $temp = Join-Path $env:TEMP ("hofertool-neu-" + $n)
     try {
@@ -102,8 +106,26 @@ function Aktualisieren {
   }
 }
 
+# ---------- Drucken im Hintergrund ----------
+# drucken.ps1 hält die Sperre "Global\HoferToolDrucken", solange es läuft.
+# Gibt es sie nicht, ist es nicht da (abgestürzt, Rechner neu gestartet)
+# und kommt jetzt. Es läuft weiter, wenn dieser Durchlauf fertig ist.
+function DruckenStarten {
+  $pfad = Join-Path $ordnerHier "drucken.ps1"
+  if (-not (Test-Path $pfad) -or -not (Test-Path (Join-Path $ordnerHier "abgleich-einstellungen.json"))) { return }
+  try { $m = [Threading.Mutex]::OpenExisting("Global\HoferToolDrucken"); $m.Dispose(); return } catch { }
+  try {
+    Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -WorkingDirectory $ordnerHier `
+      -ArgumentList @("-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", ('"' + $pfad + '"')) | Out-Null
+    Schreibe "drucken.ps1 gestartet"
+  } catch {
+    Schreibe ("drucken.ps1 liess sich nicht starten: " + $_.Exception.Message)
+  }
+}
+
 try {
   Aktualisieren
+  DruckenStarten
   Teil "solarlog.ps1"         2  "solar-einstellungen.json"
   Teil "dokumente-pool.ps1"   10 "abgleich-einstellungen.json"
   Teil "zeichnungen.ps1"      10 "abgleich-einstellungen.json"

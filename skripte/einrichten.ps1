@@ -99,7 +99,7 @@ if (-not $istAdmin) {
 # ---------- 1. Programme holen ----------
 Titel "1. Programme holen"
 New-Item -ItemType Directory -Force -Path $Ziel | Out-Null
-foreach ($n in @("hofertool.ps1", "solarlog.ps1", "dokumente-pool.ps1", "zeichnungen.ps1", "einrichtblaetter.ps1", "dokumente-teile.ps1", "unsichtbar.vbs")) {
+foreach ($n in @("hofertool.ps1", "solarlog.ps1", "dokumente-pool.ps1", "zeichnungen.ps1", "einrichtblaetter.ps1", "drucken.ps1", "dokumente-teile.ps1", "unsichtbar.vbs")) {
   try {
     Invoke-WebRequest -UseBasicParsing -Uri ("$QUELLE/${n}?t=" + [DateTime]::UtcNow.Ticks) -OutFile (Join-Path $Ziel $n) -TimeoutSec 60
     Unblock-File -Path (Join-Path $Ziel $n) -ErrorAction SilentlyContinue

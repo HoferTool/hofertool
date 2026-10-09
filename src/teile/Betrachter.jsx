@@ -14,6 +14,7 @@ import { PdfAnsicht, pdfjs } from "./PdfAnsicht.jsx";
 import { inDerAppDrucken, pdfSeitenAlsBilder, perTeilenDrucken } from "./drucken.js";
 import { ExcelAnsicht, excelDrucken } from "./ExcelAnsicht.jsx";
 import { istExcel } from "./excelLesen.js";
+import { poolDruckLaden, poolDruckerName, poolKannExcel, poolDrucken, pdfSeitenAlsJpg } from "./poolDruck.js";
 
 // „art“ nur, wenn die Adresse nichts verrät (Datei vom Gerät): "pdf",
 // "excel" oder "bild". Sonst entscheidet die Endung, und Excel gewinnt
@@ -70,7 +71,58 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
   const dateiName = () => (titel || "Datei").replace(/[^A-Za-z0-9._-]+/g, "_") + "."
     + (endung || (String(adresse).split(/[?#]/)[0].match(/\.([A-Za-z0-9]{2,5})$/) || [])[1]
        || (istPdf ? "pdf" : istXl ? "xlsx" : "jpg")).toLowerCase();
+  // Drucken über den Pool-Rechner (src/teile/poolDruck.js): Ist unter
+  // Einstellungen → Dokumente ein Drucker gewählt, fragt „Drucken“ erst,
+  // wohin. iPad und Handy am WLAN Hofer&Co erreichen den Sharp im
+  // Firmennetz nicht, der Pool-Rechner schon (Wunsch Patrick, 9. Oktober 2026).
+  const [pool, setPool] = useState(null);      // { drucker, excel } oder null
+  const [wahl, setWahl] = useState(false);     // Auswahl offen?
+  const [kopien, setKopien] = useState(1);
+  useEffect(() => {
+    let weg = false;
+    poolDruckLaden().then((k) => {
+      if (!weg) setPool(poolDruckerName(k) ? { drucker: poolDruckerName(k), excel: poolKannExcel(k) } : null);
+    });
+    return () => { weg = true; };
+  }, []);
+  // Tipp daneben schliesst die Auswahl
+  useEffect(() => {
+    if (!wahl) return undefined;
+    const weg = (e) => { if (!e.target.closest(".druckwahl-huelle")) setWahl(false); };
+    document.addEventListener("pointerdown", weg, true);
+    return () => document.removeEventListener("pointerdown", weg, true);
+  }, [wahl]);
+  // Excel druckt der Pool-Rechner aus der Datei selbst, die muss also
+  // in der Ablage liegen (nicht eine Datei nur auf diesem Gerät)
+  const poolGeht = !!pool && (istXl ? pool.excel && /^https?:/i.test(adresse) : true);
+  const knopfDrucken = () => {
+    if (druckt) return;
+    if (poolGeht) { setWahl((w) => !w); return; }
+    drucken();
+  };
+  const anPool = async () => {
+    setWahl(false);
+    if (pdf.art === "laden") { alt.meldung("Die Datei ist noch nicht geladen.", "warn"); return; }
+    setDruckt(true);
+    try {
+      if (istXl) {
+        const reiter = wurzel.current && wurzel.current.querySelector("[data-blattreiter][aria-selected='true']");
+        await poolDrucken({ art: "excel", quelle: adresse, blatt: reiter ? reiter.textContent : null, titel, kopien });
+      } else if (istPdf) {
+        if (!pdf.daten) throw new Error("Die PDF liess sich nicht laden.");
+        const seiten = await pdfSeitenAlsJpg(await pdfjs(), pdf.daten);
+        await poolDrucken({ art: "bilder", bilder: seiten.map((x) => x.blob), titel, kopien });
+      } else {
+        if (!pdf.blob) throw new Error("Das Bild liess sich nicht laden.");
+        await poolDrucken({ art: "bilder", bilder: [pdf.blob], titel, kopien });
+      }
+    } catch (f) {
+      alt.meldung("Drucken ging nicht: " + alt.fehlertext(f), "fehler");
+    } finally { setDruckt(false); }
+  };
+
   const drucken = async () => {
+    setWahl(false);
     if (druckt) return;
     // iPad und iPhone: window.print() öffnet dort in der App auf dem
     // Startbildschirm nichts. Die Datei geht ins Teilen-Fenster, dort
@@ -142,7 +194,22 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
         <span className="betrachter__titel">{titel || ""}</span>
         {hinweis && <span className="betrachter__abruf" data-abrufhinweis="">{hinweis}</span>}
         <div className="betrachter__knoepfe">
-          <button className="knopf knopf--klein" data-drucken="" onClick={drucken} disabled={druckt}>{druckt ? "Druckt …" : "Drucken"}</button>
+          <span className="druckwahl-huelle">
+            <button className="knopf knopf--klein" data-drucken="" onClick={knopfDrucken} disabled={druckt}
+              aria-expanded={poolGeht ? wahl : undefined}>{druckt ? "Druckt …" : "Drucken"}</button>
+            {wahl && <div className="druckwahl" data-druckwahl="" role="menu">
+              <button className="knopf knopf--haupt" data-pooldruck="" onClick={anPool}>An {pool.drucker} drucken</button>
+              <div className="druckwahl__kopien">
+                <span>Kopien</span>
+                <button className="knopf knopf--klein" aria-label="Weniger" data-kopienweniger=""
+                  onClick={() => setKopien((n) => Math.max(1, n - 1))} disabled={kopien <= 1}>−</button>
+                <b data-kopien="">{kopien}</b>
+                <button className="knopf knopf--klein" aria-label="Mehr" data-kopienmehr=""
+                  onClick={() => setKopien((n) => Math.min(20, n + 1))} disabled={kopien >= 20}>+</button>
+              </div>
+              <button className="knopf" data-geraetdruck="" onClick={drucken}>Auf diesem Gerät drucken</button>
+            </div>}
+          </span>
           <button className="knopf knopf--klein" data-speichern="" onClick={speichern}>Speichern</button>
           <a className="knopf knopf--klein" href={adresse} target="_blank" rel="noopener">Neuer Tab</a>
           {knoepfe || null}

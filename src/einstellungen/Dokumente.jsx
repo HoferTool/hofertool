@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Gruppe, Zeile, SchalterZeile } from "./teile.jsx";
 import { notizbuecherVerwalten } from "./Notizbuecher.jsx";
+import { poolDruckLaden } from "../teile/poolDruck.js";
 
 const kannOrdner = typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
 const artVon = (a) => alt.DOK_ARTEN[a] || alt.DOK_ARTEN.sonstiges;
@@ -167,6 +168,7 @@ export default function Dokumente() {
             : <Zuordnung eintraege={pool.eintraege} typen={pool.typen} fertig={() => { setPool(null); frisch(); }} />)}
         </div>
       </Gruppe>
+      <PoolDrucker />
       <PoolOrdner />
       <EinrichtblattOrdner />
       <ZeichnungsOrdner />
@@ -290,6 +292,75 @@ function Lebt({ stand, children }) {
       : "Noch nichts hochgeladen"}</div>
     {stand.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{stand.fehler}</div>}
   </>;
+}
+
+// ---------- Drucker am Pool-Rechner ----------
+//  iPad und Handy am WLAN Hofer&Co erreichen den Sharp im Firmennetz
+//  nicht. Der Knopf „Drucken“ im Betrachter legt darum einen Auftrag
+//  ab, den drucken.ps1 auf dem Pool-Rechner holt und auf diesem Drucker
+//  druckt (Wunsch Patrick, 9. Oktober 2026, src/teile/poolDruck.js).
+//  Die Liste der Drucker meldet der Pool-Rechner selbst (druck_status).
+
+const druckLaden = () => configLaden(["druck", "druck_status"], "Drucker");
+
+function PoolDrucker() {
+  const { daten } = useNachsehen(druckLaden);
+  return (
+    <Gruppe titel="Drucker am Pool-Rechner" id="pool-drucker"
+      text={"iPad und Handy im WLAN Hofer&Co kommen nicht an den Drucker im Firmennetz. Ist hier ein Drucker gewählt, "
+        + "fragt „Drucken“ im Betrachter (Zeichnung, WBG, Einrichtblatt), ob über den Pool-Rechner gedruckt werden soll. "
+        + "Der Pool-Rechner schaut alle paar Sekunden nach und druckt."}>
+      {daten ? <DruckerFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
+    </Gruppe>
+  );
+}
+
+function DruckerFormular({ werte }) {
+  const einst = jsonOder(werte.druck, null) || {};
+  const st = jsonOder(werte.druck_status, null);
+  const [drucker, setDrucker] = useState(einst.drucker || "");
+  const darf = alt.darfDokumenteUndSicherung();
+  const liste = (st && st.drucker) || [];
+  // Gewählter Drucker auch dann in der Liste, wenn der Pool-Rechner ihn (noch) nicht meldet
+  const namen = drucker && !liste.includes(drucker) ? [drucker, ...liste] : liste;
+
+  const speichern = async () => {
+    const r = await alt.db.from("app_config").upsert([{ schluessel: "druck",
+      wert: JSON.stringify(Object.assign({}, einst, { drucker })) }]);
+    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
+    poolDruckLaden(true);
+    alt.meldung(drucker ? "Drucker gespeichert. „Drucken“ fragt jetzt, wohin." : "Drucken über den Pool-Rechner ist aus.");
+  };
+
+  const sek = st && st.gesehen ? (Date.now() - new Date(st.gesehen).getTime()) / 1000 : null;
+  return (
+    <>
+      <Zeile titel="Drucker" text="So heisst er auf dem Pool-Rechner. Leer = nur auf dem eigenen Gerät drucken.">
+        <select id="pooldrucker" aria-label="Drucker am Pool-Rechner" value={drucker} disabled={!darf}
+          onChange={(e) => setDrucker(e.target.value)}>
+          <option value="">Keiner</option>
+          {namen.map((n) => <option key={n} value={n}>{n}{st && st.standard === n ? " (Standard)" : ""}</option>)}
+        </select>
+      </Zeile>
+      <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
+        <div id="pooldrucker-stand" className="dokpfad-stand">
+          {!st ? <span className="gedaempft">Der Pool-Rechner hat sich noch nicht gemeldet. Die Liste der Drucker
+            kommt, sobald die Aufgabe „HoferTool“ dort die neue Fassung geholt hat (bis zehn Minuten).</span>
+            : <>
+              <span className={"dokpfad-punkt " + (sek < 120 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
+              Bereit {alt.datumZeitKurz(st.gesehen)}{st.rechner ? " auf " + st.rechner : ""}
+              {sek >= 120 && <> <b>— der Pool-Rechner meldet sich nicht (ist er an und angemeldet?)</b></>}
+              <div className="klein gedaempft">{st.excel ? "Excel ist da, Einrichtblätter gehen auch."
+                : "Kein Excel auf dem Pool-Rechner: Einrichtblätter nur auf dem eigenen Gerät."}</div>
+              {st.zuletzt && st.zuletzt.zeit && <div className="klein gedaempft">Zuletzt gedruckt {
+                alt.datumZeitKurz(st.zuletzt.zeit)}{st.zuletzt.titel ? ": " + st.zuletzt.titel : ""}</div>}
+              {st.fehler && <div className="klein" style={{ color: "var(--gefahr)" }}>{st.fehler}</div>}
+            </>}
+        </div>
+        {darf && <button className="knopf knopf--klein" id="pooldrucker-speichern" onClick={speichern}>Drucker speichern</button>}
+      </div>
+    </>
+  );
 }
 
 const poolLaden = () => configLaden(["dok_pool_pfad", "dok_pool_status"], "Pool");
