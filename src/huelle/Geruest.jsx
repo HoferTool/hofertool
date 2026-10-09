@@ -15,6 +15,19 @@ import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen } from "./unterreiter.js";
 
+const GOOGLE = "https://www.google.ch/";
+
+// Am Computer ein eigenes kleines Fenster neben der App; auf Tablet und
+// Handy gibt es keine Fenster, dort öffnet der Link wie gewohnt.
+function googleOeffnen(e) {
+  if (matchMedia("(pointer: coarse)").matches) return;
+  const b = Math.min(1100, screen.availWidth - 40), h = Math.min(850, screen.availHeight - 40);
+  const f = window.open(GOOGLE, "hofer-google",
+    "popup,width=" + b + ",height=" + h + ",left=" + Math.round((screen.availWidth - b) / 2)
+    + ",top=" + Math.round((screen.availHeight - h) / 2));
+  if (f) { e.preventDefault(); f.focus(); }
+}
+
 let wurzel = null;
 let aktivSetzen = () => {};
 
@@ -145,6 +158,21 @@ function Geruest() {
               {aktiv === s.pfad && UNTERREITER[s.pfad] && <Unterreiter seite={s.pfad} />}
             </Fragment>
           ))}
+          {/* Google (Wunsch Patrick, 9. Oktober 2026): Google lässt sich
+              nicht innerhalb der App anzeigen (die Seite verbietet das),
+              darum ein eigenes Browserfenster. Immer dasselbe, ein zweiter
+              Klick holt es nach vorn. Externe sehen den Knopf nicht. */}
+          {!alt.istExtern() && (
+            <a className="nav__punkt nav__punkt--google" href={GOOGLE} target="_blank" rel="noopener"
+              title="Google-Suche in eigenem Fenster" onClick={googleOeffnen}>
+              <span className="nav__zeichen" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="navsym" fill="none" stroke="currentColor"
+                  strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 12a8 8 0 1 1-2.34-5.66" /><path d="M12.5 12H20" /></svg>
+              </span>
+              <span className="nav__text">Google</span>
+            </a>
+          )}
         </nav>
         <main className="inhalt" id="inhalt" />
       </div>
