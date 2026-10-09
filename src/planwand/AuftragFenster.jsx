@@ -238,12 +238,27 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const abrufMuss = darf && abrufDa && alt.abrufPflicht(auftrag);
   const [abrufFehlt, setAbrufFehlt] = useState(false);
   const abrufFeld = useRef(null);
-  // Höhe der Abrufinformation nach dem Text richten, höchstens fünf
-  // Zeilen (Grenze im CSS), danach rollt das Feld selbst
+  // Abrufinformation und Notiz zeigen immer den ganzen Text, ohne
+  // eigenen Rollbalken; reicht der Platz nicht, rollt die linke Seite
+  // (Wunsch Patrick 9. Oktober 2026). Die Notiz füllt ausserdem, was
+  // unten noch frei ist, darum bekommt sie die Texthöhe als Mindesthöhe.
+  const notizFeld = useRef(null);
   useLayoutEffect(() => {
     const f = abrufFeld.current; if (!f) return;
     f.style.height = "auto"; f.style.height = (f.scrollHeight + 2) + "px";
   }, [w.abruf]);
+  useLayoutEffect(() => {
+    const f = notizFeld.current; if (!f) return;
+    const messen = () => {
+      const vorher = f.style.height;
+      f.style.height = "0px";
+      f.style.setProperty("--inhalt", (f.scrollHeight + 2) + "px");
+      f.style.height = vorher;
+    };
+    messen();
+    window.addEventListener("resize", messen);
+    return () => window.removeEventListener("resize", messen);
+  }, [w.notiz]);
 
   // ----- Zeichnung der HOCO Nr. -----
   // Hängt am Auftrag noch keine Zeichnung, die HOCO Nr. hat aber eine,
@@ -630,7 +645,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
 
           {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
           <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>
-            <textarea id="pl-notiz" readOnly={!darf} value={w.notiz}
+            <textarea id="pl-notiz" ref={notizFeld} readOnly={!darf} value={w.notiz}
               onChange={(e) => notizAendern(e.target.value)} /></label>
         </div>
 

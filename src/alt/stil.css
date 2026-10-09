@@ -6797,12 +6797,15 @@ body .pw-tafel .pw-balken { contain: layout paint style; }
 
 /* ---------- Auftragsfenster: Abrufinformation mehrzeilig (1.8.1) ----------
    Wunsch Patrick 9. Oktober 2026: Shift + Enter gibt eine neue Zeile.
-   Das Feld wächst bis fünf Zeilen, die Notiz für die Maschine gibt
-   dafür Höhe ab. Reicht es trotzdem nicht, rollt nur die linke Seite,
+   Beide Felder zeigen immer den ganzen Text. Reicht es trotzdem nicht, rollt nur die linke Seite,
    die Zeichnung rechts bleibt stehen. Die Siegel stehen ganz rechts. */
-.dialog--auftrag #pl-abruf { resize: none; overflow-y: auto; min-height: 36px;
-  max-height: calc(5 * 1.35em + 14px); line-height: 1.35; padding: 7px 9px; font-size: .9rem; }
-.dialog--auftrag #pl-notiz { min-height: 64px !important; }
+.dialog--auftrag #pl-abruf { resize: none; overflow: hidden; min-height: 36px;
+  line-height: 1.35; padding: 7px 9px; font-size: .9rem; }
+/* Ganzer Text ohne eigenen Rollbalken (Nachtrag Patrick 9. Oktober 2026:
+   „wenn es 7 Zeilen braucht, dann 7 anzeigen, man kann ja die ganze
+   linke Seite scrollen“). --inhalt setzt AuftragFenster.jsx. */
+.dialog--auftrag #pl-notiz { min-height: max(64px, var(--inhalt, 64px)) !important;
+                             max-height: none !important; overflow: hidden; }
 .pw-info__zeile--abruf { white-space: pre-line; }
 .dialog--auftrag .auf-zweier.auf-zweier--abruf { grid-template-columns: minmax(0, 1fr) auto; }
 .dialog--auftrag .auf-siegel { display: flex; flex-direction: column; align-items: flex-end;

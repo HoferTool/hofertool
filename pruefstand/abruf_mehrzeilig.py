@@ -1,6 +1,6 @@
 # Auftragsfenster (Wunsch Patrick 9. Oktober 2026): Abrufinformation
 # mehrzeilig mit Shift + Enter, Enter allein gibt keine Zeile. Das Feld
-# wächst, die Notiz wird kleiner, reicht es nicht, rollt nur die linke
+# und die Notiz zeigen immer den ganzen Text, reicht es nicht, rollt nur die linke
 # Seite. Die Siegel stehen ganz rechts. Bilder nach /tmp/abruf_<breite>x<hoehe>.png
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -70,6 +70,9 @@ with sync_playwright() as p:
                        notiz: document.querySelector('#pl-notiz').getBoundingClientRect().height,
                        fensterU: document.querySelector('.dialog--auftrag').getBoundingClientRect().bottom,
                        vorschau: document.querySelector('#pl-vorschau').getBoundingClientRect().top }; }""")
+            ganz = pg.evaluate("""() => ['#pl-abruf', '#pl-notiz'].map(s => { const e = document.querySelector(s);
+              return e.scrollHeight <= e.clientHeight + 1; })""")
+            pruefe(f"{bw}x{bh}: Abruf (12 Zeilen) und Notiz (4 Zeilen) ganz sichtbar {ganz}", all(ganz))
             pruefe(f"{bw}x{bh}: Notiz bleibt brauchbar ({r['notiz']:.0f}px)", r["notiz"] >= 60)
             pruefe(f"{bw}x{bh}: Fenster bleibt im Bildschirm", r["fensterU"] <= bh + 1)
             pruefe(f"{bw}x{bh}: Raster rollt nicht als Ganzes", not r["raster"])
