@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.123.0";
+const APP_VERSION = "111.124.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2677,6 +2677,9 @@ function darfSchreiben() {
     || r === "langdreher" || r === "kurzdreher";
 }
 
+// Seit 111.124.0 dazu Fehlerprotokoll, Farben und Material, Symbole und
+// der Text der Bestellmail („Planwand soll bei Einstellungen alles
+// machen können wie Admin“); Nutzer, PINs und Passwörter bleiben bei Admins.
 // Dokumente und Sicherung: Einstellungen → Dokumente (Ordner am
 // Pool-Rechner, Dateien hochladen) und Einstellungen → Backup (Ordner
 // wählen, Jetzt sichern, tägliche Sicherung, Zurückspielen) dürfen

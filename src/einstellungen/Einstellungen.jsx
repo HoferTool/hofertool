@@ -21,12 +21,15 @@ import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 // Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
 // 7. Oktober 2026: „für alle nicht Admins nur Allgemein sichtbar“).
-// Ausnahme seit 111.123.0: Das Konto Planwand sieht auch „Dokumente“
-// und „Backup“ (Wunsch Patrick, 9. Oktober 2026), erkannt an
-// darfDokumenteUndSicherung(). true = nur Admins, "dok" = Admins und Planwand.
+// Ausnahme: Das Konto Planwand sieht auch „Dokumente“ und „Backup“
+// (111.123.0) und seit 111.124.0 alles wie ein Admin ausser „Nutzer“
+// (Wunsch Patrick, 9. Oktober 2026: „Planwand soll bei Einstellungen
+// alles machen können wie Admin“), erkannt an darfDokumenteUndSicherung().
+// Nutzer (Passwörter, PINs, Rollen) bleibt bei Admins, bis Patrick das
+// ausdrücklich entscheidet. true = nur Admins, "dok" = Admins und Planwand.
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente", "dok"], ["backup", "Backup", "dok"],
-                ["fehler", "Fehlerprotokoll", true], ["farben", "Farben und Material", true],
-                ["symbole", "Symbole", true],
+                ["fehler", "Fehlerprotokoll", "dok"], ["farben", "Farben und Material", "dok"],
+                ["symbole", "Symbole", "dok"],
                 ["nutzer", "Nutzer", true]];
 
 const THEMEN = [["blau", "Blau"], ["rot", "Rot"], ["gruen", "Grün"], ["gelb", "Gelb"],
@@ -90,7 +93,7 @@ function Allgemein({ bin }) {
     <>
       <MeinKonto />
       <Darstellung />
-      {bin && <PinUndMail />}
+      {(bin || alt.darfDokumenteUndSicherung()) && <PinUndMail bin={bin} />}
       <UeberDieApp />
     </>
   );
@@ -318,14 +321,16 @@ function Darstellung() {
   );
 }
 
-// Nur für Administratoren: Pin der Rolle Planwand und Text der Bestellmail (eigenes Fenster)
-function PinUndMail() {
+// Pin der Rolle Planwand (nur Admins) und Text der Bestellmail (Admins
+// und Planwand seit 111.124.0, eigenes Fenster)
+function PinUndMail({ bin }) {
   const [pin, setPin] = useState("");
   const db = alt.db;
   const { meldung, fehlertext } = alt;
 
   useEffect(() => {
     let weg = false;
+    if (!bin) return;
     (async () => {
       try {
         const r = await alt.zeitlimit(db.from("app_config").select("wert")
@@ -334,7 +339,7 @@ function PinUndMail() {
       } catch (f) { /* Tabelle gibt es vielleicht noch nicht */ }
     })();
     return () => { weg = true; };
-  }, [db]);
+  }, [db, bin]);
 
   const pinSpeichern = async () => {
     const wert = pin.trim();
@@ -346,13 +351,13 @@ function PinUndMail() {
 
   return (
     <Gruppe titel="Für alle">
-      <Zeile titel="PIN für die Planwand" text="Wer die Rolle Planwand hat, schaltet damit das Bearbeiten frei.">
+      {bin && <Zeile titel="PIN für die Planwand" text="Wer die Rolle Planwand hat, schaltet damit das Bearbeiten frei.">
         <div className="es-eingabe">
           <input type="text" id="pin-feld" className="es-schmal" aria-label="PIN für die Planwand"
             inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} />
           <button className="knopf knopf--klein" id="pin-speichern" onClick={pinSpeichern}>Speichern</button>
         </div>
-      </Zeile>
+      </Zeile>}
       {/* Der Text steht nicht mehr hier, sondern im eigenen Fenster mit Vorschau */}
       <Zeile titel="Text für Bestellmails" text="Die Mail an den Lieferanten mit Logos und Links.">
         <button className="knopf knopf--klein" id="bestellmail-oeffnen" onClick={bestellmailOeffnen}>Text bearbeiten</button>

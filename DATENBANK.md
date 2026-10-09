@@ -79,7 +79,7 @@ Die Regeln laufen über Hilfsfunktionen:
 
 Muster: Jede Tabelle hat `lesen` / `anlegen` / `aendern` / `loeschen`. Zusätzlich gibt es **restriktive** Regeln `extern gesperrt` beziehungsweise `extern nur eigene …`. Diese verwenden `(select public.ist_extern())`, damit die Funktion einmal pro Abfrage läuft statt einmal pro Zeile.
 
-Beispiele: `jobs` löschen nur `bin_admin()`; `profiles` lesen alle, ändern nur sich selbst oder Admin; `app_config` schreiben nur Admin; Planwand darf die Schlüssel `dok_pool_pfad`, `eb_ordner`, `zng_ordner`, `sicherung` und `sicherung_status` (Regel `planwand dokumente und sicherung`), das Dienstkonto nur seine Stände.
+Beispiele: `jobs` löschen nur `bin_admin()`; `profiles` lesen alle, ändern nur sich selbst oder Admin; `app_config` schreiben nur Admin; Planwand darf die Schlüssel `dok_pool_pfad`, `eb_ordner`, `zng_ordner`, `sicherung` und `sicherung_status` (Regel `planwand dokumente und sicherung`) sowie `plan_symbole` und `bestellmail_text` (Regel `planwand einstellungen`), dazu `farb_material` (`sql/planwand-einstellungen.sql`), das Dienstkonto nur seine Stände.
 
 ## Funktionen und Auslöser
 
