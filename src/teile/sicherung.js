@@ -438,7 +438,7 @@ export async function zurueckspielen(datei, fortschritt) {
 
 // ---------- Täglich von selbst ----------
 //  Läuft auf jedem Gerät nach der Anmeldung, tut aber nur etwas auf dem
-//  Sicherungsgerät, wenn ein Admin oder das Sicherungskonto angemeldet
+//  Sicherungsgerät, wenn ein Admin, Planwand oder das Sicherungskonto angemeldet
 //  ist. Fehlt die Freigabe für den Ordner (der Browser fragt nach einem
 //  Neustart manchmal neu), zeigt die App unten links einen Knopf
 //  „Sicherung: Ordner freigeben“; ein Tipp darauf genügt, auch ohne Admin.
@@ -454,7 +454,8 @@ async function pruefen() {
   try { k = await konfLaden(); } catch (f) { return; }
   const konf = k.konf || {};
   if (!konf.geraet || konf.geraet.id !== geraetId()) return;
-  const darf = (alt.istAdmin && alt.istAdmin()) || (konf.konto && konf.konto === alt.profil.id);
+  // Admins, das Konto Planwand (9. Oktober 2026) oder das gewählte Sicherungskonto
+  const darf = (alt.darfDokumenteUndSicherung ? alt.darfDokumenteUndSicherung() : alt.istAdmin()) || (konf.konto && konf.konto === alt.profil.id);
   if (!darf) return;
   const stunde = konf.stunde ?? 18;
   const letzte = k.status && k.status.letzte && k.status.letzte.zeit ? new Date(k.status.letzte.zeit) : null;

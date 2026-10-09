@@ -73,13 +73,13 @@ Die Regeln laufen über Hilfsfunktionen:
 - `darf_lesen()` — angemeldet und aktiv
 - `darf_schreiben()` — admin, planwand, langdreher, kurzdreher
 - `darf_planen()` — darf Aufträge planen
-- `bin_admin()`, `meine_rolle()`, `ist_extern()`
+- `bin_admin()`, `bin_planwand()` (Konto Planwand, `sql/planwand-dokumente-sicherung.sql`), `bin_dienst()`, `meine_rolle()`, `ist_extern()`
 - `extern_darf_park(id)`, `extern_darf_maschine(id)` — Externe sehen nur ihre Parks und Maschinen
 - `ist_teilnehmer(gespraech)` — Chat
 
 Muster: Jede Tabelle hat `lesen` / `anlegen` / `aendern` / `loeschen`. Zusätzlich gibt es **restriktive** Regeln `extern gesperrt` beziehungsweise `extern nur eigene …`. Diese verwenden `(select public.ist_extern())`, damit die Funktion einmal pro Abfrage läuft statt einmal pro Zeile.
 
-Beispiele: `jobs` löschen nur `bin_admin()`; `profiles` lesen alle, ändern nur sich selbst oder Admin; `app_config` schreiben nur Admin.
+Beispiele: `jobs` löschen nur `bin_admin()`; `profiles` lesen alle, ändern nur sich selbst oder Admin; `app_config` schreiben nur Admin; Planwand darf die Schlüssel `dok_pool_pfad`, `eb_ordner`, `zng_ordner`, `sicherung` und `sicherung_status` (Regel `planwand dokumente und sicherung`), das Dienstkonto nur seine Stände.
 
 ## Funktionen und Auslöser
 
@@ -92,8 +92,8 @@ Beispiele: `jobs` löschen nur `bin_admin()`; `profiles` lesen alle, ändern nur
 - `neuer_benutzer()` — legt bei neuem Login das Profil an.
 - `solar_melden(schluessel, werte, nur_pruefen)` — nimmt Solarwerte von `solarlog.ps1` an (auch ohne Anmeldung aufrufbar), prüft den Solar-Schlüssel aus `solar_zugang`, höchstens ein Wert pro 50 s, löscht dabei Werte älter als 90 Tage. `nur_pruefen` prüft nur den Schlüssel.
 - `solar_aufraeumen()` — löscht Solarwerte älter als 90 Tage (nur noch für den SQL Editor).
-- `sicherung_lesen()` — alle Tabellen der App (ausser `pin_schutz`, `solar_zugang`, `sicherung_puffer`) in einem Aufruf als json `[{t, nr, zeilen}]`; `sicherung_dateien()` — Liste aller Dateien im Storage. Nur Admin und Dienstkonto.
-- `sicherung_puffern(lauf, tabelle, zeilen)` und `sicherung_einspielen(lauf, tabellen)` — Zurückspielen über die Zwischenablage `sicherung_puffer`: in einer Transaktion Auslöser aus, Verweise erst am Schluss geprüft, Tabellen leeren und füllen, Zähler nachstellen, `app_config.sicherung*` bleibt. Admin immer, Dienstkonto nur mit offenem Auftrag eines Admins (danach `erledigt`). Personen ohne Anmeldekonto fallen weg.
+- `sicherung_lesen()` — alle Tabellen der App (ausser `pin_schutz`, `solar_zugang`, `sicherung_puffer`) in einem Aufruf als json `[{t, nr, zeilen}]`; `sicherung_dateien()` — Liste aller Dateien im Storage. Admin, Planwand, Dienstkonto und das Sicherungskonto.
+- `sicherung_puffern(lauf, tabelle, zeilen)` und `sicherung_einspielen(lauf, tabellen)` — Zurückspielen über die Zwischenablage `sicherung_puffer`: in einer Transaktion Auslöser aus, Verweise erst am Schluss geprüft, Tabellen leeren und füllen, Zähler nachstellen, `app_config.sicherung*` bleibt. Admin und Planwand immer, Dienstkonto nur mit offenem Auftrag eines Admins (danach `erledigt`). Personen ohne Anmeldekonto fallen weg.
 - `ib_naechster_arbeitstag()`, `ib_plus_arbeitstage()`, `ib_letzter_tag()` — Arbeitstage wie in der App: Mo–Fr, keine Feiertage.
 
 ## Echtzeit

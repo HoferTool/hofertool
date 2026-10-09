@@ -15,6 +15,7 @@ K = """daten.login_kacheln = window.OHNE_SPALTE ? [
   { email: 'chef@hoferco.ch', full_name: 'Chef Planwand', role: 'planwand', andere_nutzer: false },
   { email: 'marco@hoferco.ch', full_name: 'Marco Steiner', role: 'langdreher', andere_nutzer: false }];
 if (window.NICHT_ADMIN) daten.profiles[0].role = 'langdreher';
+if (window.PLANWAND) daten.profiles[0].role = 'planwand';
 daten.profiles[1].andere_nutzer = false;
 daten.profiles[2].geburtstag = '1990-05-17';
 TEST.rpc.nutzer_status = () => [
@@ -121,6 +122,26 @@ with sync_playwright() as p:
     reiter = pg.evaluate("[...document.querySelectorAll('[data-einst]')].map(k => k.dataset.einst)")
     print("Reiter ohne Admin:", reiter)
     if reiter != ["allgemein"]: fehler.append("Nicht-Admin sieht mehr als Allgemein")
+    fehler += f; pg.close()
+
+    # 5. Planwand (111.123.0): dazu Dokumente und Backup, mit allen Knöpfen,
+    # aber kein Nutzer, keine Farben, kein Passwort
+    pg, f = seite(br, True, "window.PLANWAND = true;")
+    pg.evaluate("document.getElementById('kopf-einstellungen').click()"); pg.wait_for_timeout(1200)
+    reiter = pg.evaluate("[...document.querySelectorAll('[data-einst]')].map(k => k.dataset.einst)")
+    print("Reiter Planwand:", reiter)
+    if reiter != ["allgemein", "dokumente", "backup"]: fehler.append("Planwand sieht nicht genau Allgemein, Dokumente, Backup")
+    if pg.locator("#np").count(): fehler.append("Planwand sieht Passwortfeld")
+    pg.locator("[data-einst='backup']").click(); pg.wait_for_timeout(1500)
+    knoepfe = pg.evaluate("[!!document.getElementById('si-speichern'), !!document.getElementById('si-jetzt'), !!document.getElementById('si-ordner'), !!document.getElementById('si-datei'), !document.getElementById('si-stunde').disabled]")
+    print("Backup-Knöpfe Planwand:", knoepfe)
+    if knoepfe != [True, True, True, True, True]: fehler.append("Planwand fehlen Knöpfe im Backup")
+    pg.screenshot(path="/tmp/an-planwand-backup.png")
+    pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1500)
+    dok = pg.evaluate("[!!document.getElementById('dokpool-speichern'), !!document.getElementById('eb-speichern'), !!document.getElementById('zng-speichern'), !!document.getElementById('nb-verwalten')]")
+    print("Dokumente-Knöpfe Planwand (Pool, EB, Zeichnungen, Notizbücher):", dok)
+    if dok != [True, True, True, False]: fehler.append("Planwand: Ordner speichern fehlt oder Notizbücher sichtbar")
+    pg.screenshot(path="/tmp/an-planwand-dokumente.png")
     fehler += f; pg.close()
     br.close()
 print("Fehler:", fehler[:3] if fehler else "keine")

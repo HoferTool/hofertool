@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 
 // Aus einer PIN wird intern ein längeres Passwort — Supabase verlangt
 // mindestens sechs Zeichen, eine PIN hat oft nur vier.
-const APP_VERSION = "111.122.1";
+const APP_VERSION = "111.123.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2675,6 +2675,18 @@ function darfSchreiben() {
   const r = meineRolle();
   return r === "admin" || r === "planwand"
     || r === "langdreher" || r === "kurzdreher";
+}
+
+// Dokumente und Sicherung: Einstellungen → Dokumente (Ordner am
+// Pool-Rechner, Dateien hochladen) und Einstellungen → Backup (Ordner
+// wählen, Jetzt sichern, tägliche Sicherung, Zurückspielen) dürfen
+// Admins und das Konto Planwand (Wunsch Patrick, 9. Oktober 2026: „die
+// Planwand-Rolle soll Zugriff haben mit allem, was mit Dokumente
+// hochladen und Backup zu tun hat“). Die Aufgabe „HoferTool“ am
+// Pool-Rechner läuft mit dem Dienstkonto, nicht mit Planwand.
+// In der Datenbank: sql/planwand-dokumente-sicherung.sql.
+function darfDokumenteUndSicherung() {
+  return istAdmin() || meineRolle() === "planwand";
 }
 
 // Mitarbeiter dürfen überall zusehen, aber nur im Einkauf mitmachen.
@@ -9194,7 +9206,7 @@ Object.assign(alt, {
   best, seiteBestellungen, sucheArtikel, ladeBezeichnungen, ladeLieferanten,
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, esc,
-  darfPlanen, istAdmin, balkenZeigen, problemQuittieren, vorbereitungFenster,
+  darfPlanen, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
   arbeitstagePlus, ausIso, ladeTodos, loeschen,
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, ladePlanAuftraege,
   istExtern, einstellung, rollenMerken, produktionAlteAnsicht, seiteProduktion,

@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 111.122.1 (Konstante `APP_VERSION` in `src/alt/app.js`).
+- **Stand:** Version 111.123.0 (Konstante `APP_VERSION` in `src/alt/app.js`).
 
 ## Mit wem du arbeitest
 
@@ -43,7 +43,7 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
 
 RÜCKGÄNGIG · OFFLINE · EXTERNE GERÄTE · FEHLERPROTOKOLL · STARTSEITE · DOKUMENTE · REGELN FÜR DATEINAMEN (fest in `DOK_REGELN`) · WBG AUFRÄUMEN · SOLARANLAGE · DATENSICHERUNG · RECHTE · DIALOGE · PRODUKTION · ERFASSEN · PLANWAND · WERKSTOFFE · SUCHE ÜBER ALLES · ÜBERSICHT · MASCHINEN VERWALTEN · MASCHINENTYPEN · PAD MODE · ZIFFERBLOCK · EINRICHTBLATT · EINRICHTBLATT ALS PDF · ARTIKEL UND LIEFERANTEN · BESTELLUNGEN · EINKAUFSLISTE · RECHNER FÜR DIE WERKSTATT · GRAVUR · FORTSCHRITT · LAUFENDER ABGLEICH
 
-Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellungen`, `einkauf`, `rechner`), Navigation über den Hash, etwa `#/planwand`, mit `zeichneSeite()`. Einstellungen sind ein Fenster mit Reitern: Allgemein, Dokumente, Backup (nur die Sicherung, „Planwand als Excel“ ist seit 111.108.0 weg), Fehlerprotokoll, Farben und Material, Symbole, Nutzer. Wer nicht Admin ist, sieht nur Allgemein (Wunsch 7. Oktober 2026).
+Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellungen`, `einkauf`, `rechner`), Navigation über den Hash, etwa `#/planwand`, mit `zeichneSeite()`. Einstellungen sind ein Fenster mit Reitern: Allgemein, Dokumente, Backup (nur die Sicherung, „Planwand als Excel“ ist seit 111.108.0 weg), Fehlerprotokoll, Farben und Material, Symbole, Nutzer. Wer nicht Admin ist, sieht nur Allgemein (Wunsch 7. Oktober 2026); Planwand sieht dazu Dokumente und Backup (Wunsch 9. Oktober 2026).
 
 ### Wichtige Bausteine
 
@@ -57,7 +57,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 | Fehlerprotokoll | `fehlerMerken(was, text)` |
 | Rückgängig | `merkeSchritt(text, schritte)`, `rueckSichern`, `rueckWeg`, `rueckRein`, `rueckSetz`, `rueckStand` (alle über `alt`) |
 | Persönliche Einstellungen | `einstellungWert(name, standard)`, `einstellung(name)`, `einstellungAblegen(name, wert)` — am Konto (`profiles.einstellungen`) und je Person auf dem Gerät |
-| Rechte | `istAdmin()`, `darfSchreiben()`, `darfPlanen()`, `istExtern()`, `seiteSichtbar(pfad)`, `meineRolle()` |
+| Rechte | `istAdmin()`, `darfSchreiben()`, `darfPlanen()`, `darfDokumenteUndSicherung()` (Admin und Planwand), `istExtern()`, `seiteSichtbar(pfad)`, `meineRolle()` |
 | Datum | `isoDatum`, `plusTage`, `arbeitstage(ab, n)`, `arbeitstagePlus(datum, n)`, `naechsterArbeitstag`, `wochenStart`, `kurzDatum`, `datumZeitKurz` — Arbeitstage = Mo–Fr. `arbeitstage` und `arbeitstagePlus` merken sich Ergebnisse. |
 | Zahlen | `zahlText(n)` → `1'200` |
 | Planwand | `plan` (Zustand), `ladePlanAuftraege(alle)`, `planAktualisieren(b)`, `zeichnePlanwand(b)`, `neuZeichnen(b)`, `planKonflikteRechnen/Loesen`, `planAufruecken`, `parallelSenden(aufgaben)`, `zuHeute(b)` |
@@ -71,7 +71,7 @@ Die Seiten stehen in `SEITEN` (`dashboard`, `planwand`, `produktion`, `bestellun
 
 ### Rollen
 
-`admin`, `planwand`, `langdreher`, `kurzdreher` dürfen schreiben. `mitarbeiter` sieht alles und darf im Einkauf mitmachen. `extern` (Firma Zurbrügg) sieht nur Planwand und Produktion seiner Parks und meldet sich über einen Link mit `#/extern` an. Daneben gibt es `dienst` für das Dienstkonto des Netzlaufwerk-Abgleichs.
+`admin`, `planwand`, `langdreher`, `kurzdreher` dürfen schreiben. `planwand` (Gerätekonto am Pool-Rechner) darf seit 111.123.0 dazu alles rund um Dokumente hochladen und Sicherung: Einstellungen → Dokumente und → Backup mit allen Knöpfen, tägliche Sicherung, Zurückspielen (Wunsch Patrick, 9. Oktober 2026, `darfDokumenteUndSicherung()`, `sql/planwand-dokumente-sicherung.sql`); Zeichnung und WBG entfernen bleiben bei Admins, ebenso Notizbuch-Passwörter. `mitarbeiter` sieht alles und darf im Einkauf mitmachen. `extern` (Firma Zurbrügg) sieht nur Planwand und Produktion seiner Parks und meldet sich über einen Link mit `#/extern` an. Daneben gibt es `dienst` für das Dienstkonto des Netzlaufwerk-Abgleichs.
 
 ## So arbeitest du an der App
 

@@ -21,7 +21,10 @@ import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 // Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
 // 7. Oktober 2026: „für alle nicht Admins nur Allgemein sichtbar“).
-const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente", true], ["backup", "Backup", true],
+// Ausnahme seit 111.123.0: Das Konto Planwand sieht auch „Dokumente“
+// und „Backup“ (Wunsch Patrick, 9. Oktober 2026), erkannt an
+// darfDokumenteUndSicherung(). true = nur Admins, "dok" = Admins und Planwand.
+const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente", "dok"], ["backup", "Backup", "dok"],
                 ["fehler", "Fehlerprotokoll", true], ["farben", "Farben und Material", true],
                 ["symbole", "Symbole", true],
                 ["nutzer", "Nutzer", true]];
@@ -40,7 +43,8 @@ function Einstellungen({ zu }) {
   // Nur Reiter, für die man die Rechte hat. War zuletzt einer offen,
   // den diese Person nicht sehen darf — etwa weil vorher ein Admin
   // am selben Gerät angemeldet war —, geht es auf den ersten zurück.
-  const reiter = REITER.filter(([, , nurAdmin]) => bin || !nurAdmin);
+  const dok = alt.darfDokumenteUndSicherung();
+  const reiter = REITER.filter(([, , wer]) => !wer || bin || (wer === "dok" && dok));
   if (!reiter.some(([w]) => w === alt.einst.reiter)) alt.einst.reiter = reiter[0][0];
   const [offen, setOffen] = useState(alt.einst.reiter);
   const waehlen = (w) => { alt.einst.reiter = w; setOffen(w); };

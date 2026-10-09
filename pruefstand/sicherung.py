@@ -92,7 +92,7 @@ with sync_playwright() as p:
     pruefe("Kein Speicherort-Feld mehr", pg.locator("#si-pfad").count() == 0)
     pruefe("Noch kein Ordner", "Noch kein Ordner gewählt" in pg.inner_text("#si"))
     konten = pg.evaluate("[...document.querySelectorAll('#si-konto option')].map(o => [o.value, o.textContent])"); print("Konten:", konten)
-    pruefe("Konten ohne Admin zur Wahl", len(konten) >= 2 and konten[0][1] == "nur Admins")
+    pruefe("Konten ohne Admin zur Wahl", len(konten) >= 2 and konten[0][1] == "nur Admins und Planwand")
     pg.select_option("#si-konto", konten[1][0])
     pg.click("#si-ordner"); pg.wait_for_timeout(600)
     k = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'sicherung').wert)"); print("Einstellung:", k)

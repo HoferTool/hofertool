@@ -315,7 +315,7 @@ function PoolOrdner() {
 function PoolFormular({ werte }) {
   const [pfad, setPfad] = useState(werte.dok_pool_pfad || "");
   const st = jsonOder(werte.dok_pool_status, null);
-  const admin = alt.istAdmin();
+  const admin = alt.darfDokumenteUndSicherung(); // Admins und Planwand (9. Oktober 2026)
 
   const speichern = async () => {
     const r = await alt.db.from("app_config").upsert([{ schluessel: "dok_pool_pfad", wert: pfad.trim() }]);
@@ -372,7 +372,7 @@ function EbFormular({ werte, typen }) {
   const [ordner, setOrdner] = useState(
     (start.ordner && start.ordner.length) ? start.ordner : [{ pfad: "", typ: "", unter: false }]);
   const st = jsonOder(werte.eb_ordner_status, null);
-  const admin = alt.istAdmin();
+  const admin = alt.darfDokumenteUndSicherung(); // Admins und Planwand (9. Oktober 2026)
 
   const aendern = (i, feld, wert) => setOrdner((l) => l.map((o, j) => (j === i ? { ...o, [feld]: wert } : o)));
   const speichern = async () => {
@@ -445,7 +445,7 @@ function ZngFormular({ werte, neu }) {
   const [pfad, setPfad] = useState(start.pfad || "");
   const [unter, setUnter] = useState(!!start.unter);
   const st = jsonOder(werte.dok_pfad_status, null);
-  const admin = alt.istAdmin();
+  const admin = alt.darfDokumenteUndSicherung(); // Admins und Planwand (9. Oktober 2026)
 
   const speichern = async () => {
     const r = await alt.db.from("app_config").upsert([{ schluessel: "zng_ordner",

@@ -58,7 +58,8 @@ export default function Sicherung() {
 }
 
 function SicherungInhalt({ konf, status, neu }) {
-  const admin = alt.istAdmin();
+  // Admins und das Konto Planwand (Wunsch Patrick, 9. Oktober 2026)
+  const admin = alt.darfDokumenteUndSicherung();
   const [stunde, setStunde] = useState(konf.stunde ?? 18);
   const [behalten, setBehalten] = useState(konf.behalten || 30);
   const [konto, setKonto] = useState(konf.konto || "");
@@ -202,7 +203,7 @@ function SicherungInhalt({ konf, status, neu }) {
       <Gruppe titel="Sicherung" id="si"
         text={"Die App sichert alle Daten und alle hochgeladenen Dateien (WBGs, Bilder, Notizbuch-Seiten) in eine einzige "
           + "Datei im gewählten Ordner, einmal am Tag ab der eingestellten Uhrzeit. Dafür muss die App auf dem Gerät mit "
-          + "dem Ordner offen sein, mit einem Admin oder dem Konto unten angemeldet; war sie zu, holt sie es beim nächsten "
+          + "dem Ordner offen sein, mit einem Admin, dem Konto Planwand oder dem Konto unten angemeldet; war sie zu, holt sie es beim nächsten "
           + "Öffnen nach. "
           + "Nicht dabei: Zeichnungen und Einrichtblätter (die liegen in den Ordnern am Pool-Rechner, und die Aufgabe "
           + "„HoferTool“ lädt sie von dort hoch), alte Dateien, die nirgends mehr gebraucht werden, Passwörter und PINs."}>
@@ -220,9 +221,9 @@ function SicherungInhalt({ konf, status, neu }) {
             {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00 Uhr</option>)}
           </select>
         </Zeile>
-        <Zeile titel="Sichern auch als" text="Konto ohne Admin, das auf dem Sicherungsgerät angemeldet ist, etwa Planwand auf dem Pool-Rechner.">
+        <Zeile titel="Sichern auch als" text="Weiteres Konto, das auf dem Sicherungsgerät angemeldet ist. Admins und Planwand dürfen immer.">
           <select id="si-konto" value={konto} disabled={!admin} onChange={(e) => setKonto(e.target.value)}>
-            <option value="">nur Admins</option>
+            <option value="">nur Admins und Planwand</option>
             {konten.map((p) => <option key={p.id} value={p.id}>{p.full_name || p.email}</option>)}
           </select>
         </Zeile>
