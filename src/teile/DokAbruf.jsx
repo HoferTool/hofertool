@@ -11,6 +11,7 @@ import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
 import { Betrachter } from "./Betrachter.jsx";
 import { istExcel } from "./excelLesen.js";
+import { wiederOeffner } from "./wiederherstellen.js";
 
 const istBild = (a) => /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(String(a || ""));
 const artDerDatei = (a) => (istExcel(a) ? "excel" : istBild(a) ? "bild" : "pdf");
@@ -27,6 +28,7 @@ const artDerDatei = (a) => (istExcel(a) ? "excel" : istBild(a) ? "bild" : "pdf")
 // neu(null) sagt dem Aufrufer, dass sie weg ist. fa nehmen die Aufrufer
 // noch mit, es wird nicht mehr gebraucht.
 export function dokZeigen({ art, titel, adresse, hoco, auftragId, typId, neu }) {
+  const merken = { art: "dok", daten: { art, titel, adresse, hoco, auftragId, typId } };
   const admin = !!adresse && !!(alt.istAdmin && alt.istAdmin());
   const jeder = !!adresse && !(alt.istExtern && alt.istExtern());
   const entfernen =
@@ -46,8 +48,9 @@ export function dokZeigen({ art, titel, adresse, hoco, auftragId, typId, neu }) 
               zu();
             } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
           }}>{entfernen.text}</button> : null} />
-    : <Keines name={name} titel={titel} zu={zu} />, null, "betrachter-huelle");
+    : <Keines name={name} titel={titel} zu={zu} />, null, "betrachter-huelle", merken);
 }
+wiederOeffner("dok", (d) => dokZeigen(d));
 
 function Keines({ name, titel, zu }) {
   return (

@@ -1,7 +1,8 @@
 # Jede Stunde kurz neu laden (111.113.0, Wunsch Patrick 8. Oktober 2026):
 # nach einer Stunde lädt die Seite neu, Anmeldung und Seite bleiben; mit
 # offenem Fenster oder Schreibmarke im Feld wartet sie, bis es ruhig ist;
-# im Pad landet sie danach wieder im Pad.
+# im Pad landet sie danach wieder im Pad. Eine offene Zeichnung hält sie
+# nicht auf und ist danach wieder offen (1.7.0).
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -80,6 +81,20 @@ with sync_playwright() as p:
     pg.clock.fast_forward(STUNDE); pg.wait_for_timeout(3000)
     pruefe("Pad: neu geladen", im_pad and neu_geladen(pg))
     pruefe("Pad: danach wieder im Pad", pg.evaluate("!!document.getElementById('pad')"))
+    fehler += f; pg.close()
+
+    # 5. Offene Zeichnung hält das Neuladen nicht auf und ist danach wieder offen (1.7.0)
+    pg, f = seite(br, "#/planwand")
+    jz = pg.evaluate("(() => { const ids = new Set(TEST.daten.planwand.filter(j => j.drawing_url).map(j => j.id));"
+                     " const b = [...document.querySelectorAll('.pw-balken[data-auftrag]')].find(b => ids.has(b.dataset.auftrag) && b.getBoundingClientRect().width > 40);"
+                     " return b && b.dataset.auftrag; })()")
+    pg.locator(f".pw-balken[data-auftrag='{jz}']").first.click(); pg.clock.fast_forward(1500); pg.wait_for_timeout(800)
+    offen = pg.locator(".betrachter-huelle").count() == 1
+    marke(pg)
+    pg.clock.fast_forward(STUNDE); pg.wait_for_timeout(3500)
+    pruefe("Zeichnung offen: trotzdem neu geladen", offen and neu_geladen(pg))
+    pg.clock.fast_forward(1500); pg.wait_for_timeout(1500)
+    pruefe("Zeichnung danach wieder offen", pg.locator(".betrachter-huelle").count() == 1)
     fehler += f; pg.close()
     br.close()
 

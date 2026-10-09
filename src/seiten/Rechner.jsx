@@ -5,6 +5,7 @@
 // =================================================================
 import { useState } from "react";
 import { useGemerkt } from "../bruecke.jsx";
+import { teilMerken } from "../teile/wiederherstellen.js";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Winkel from "./rechner/Winkel.jsx";
@@ -29,6 +30,9 @@ const gemerkt = {
   zaehne: "",
   fz: "",
 };
+
+// Auch nach dem Neuladen (src/teile/wiederherstellen.js): Reiter und Werte
+teilMerken("rechner", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
 
 // Für die Seitenleiste: ohne Wert lesen, mit Wert für das nächste Öffnen setzen
 export function rechnerAnsicht(wert) {

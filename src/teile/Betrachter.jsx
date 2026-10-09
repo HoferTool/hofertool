@@ -15,6 +15,7 @@ import { inDerAppDrucken, pdfSeitenAlsBilder, perTeilenDrucken } from "./drucken
 import { ExcelAnsicht, excelDrucken } from "./ExcelAnsicht.jsx";
 import { istExcel } from "./excelLesen.js";
 import { usePfad, pfadKopieren } from "../daten/zeichnungPfad.jsx";
+import { wiederOeffner } from "./wiederherstellen.js";
 import { poolDruckLaden, poolDruckerName, poolKannExcel, poolDrucken, pdfSeitenAlsJpg } from "./poolDruck.js";
 
 // „art“ nur, wenn die Adresse nichts verrät (Datei vom Gerät): "pdf",
@@ -22,9 +23,14 @@ import { poolDruckLaden, poolDruckerName, poolKannExcel, poolDrucken, pdfSeitenA
 // auch dort, wo ein Aufrufer „PDF“ annimmt (Einrichtblatt, Dokumente).
 export function betrachter(adresse, titel, istPdf, art, endung) {
   art = art || (istExcel(adresse) ? "excel" : istPdf ? "pdf" : "bild");
+  // Nach dem Neuladen wieder offen, ausser bei einer Datei vom Gerät:
+  // deren Adresse gilt nur, solange die Seite steht
+  const merken = /^(blob|data):/.test(String(adresse)) ? null
+    : { art: "betrachter", daten: { adresse, titel, art, endung } };
   fensterOeffnen((zu) => <Betrachter adresse={adresse} titel={titel} art={art} endung={endung} zu={zu} />,
-    null, "betrachter-huelle");
+    null, "betrachter-huelle", merken);
 }
+wiederOeffner("betrachter", (d) => betrachter(d.adresse, d.titel, d.art === "pdf", d.art, d.endung));
 
 // Eine Datei vom Gerät ansehen, ohne sie hochzuladen
 export function dateiAnsehen(datei) {

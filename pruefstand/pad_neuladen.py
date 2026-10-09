@@ -35,11 +35,18 @@ with sync_playwright() as p:
           "| Merker weg:", pg.evaluate("sessionStorage.getItem('hofer.pad.neuladen') === null"))
     pg.screenshot(path="pad_neuladen.png")
     ok = neu and nachher == vorher and vorher != "kein Pad"
-    # Ein zweites normales Neuladen öffnet das Pad nicht mehr von selbst
+    # Seit 1.7.0 bleibt auch ein normales Neuladen im Pad (Wunsch
+    # 9. Oktober 2026); erst nach dem Schliessen des Pads nicht mehr
+    pg.reload(); pg.wait_for_selector("#pad .pad__kopf--dash", timeout=15000); pg.wait_for_timeout(1200)
+    bleibt = titel() == vorher
+    print("Normales Neuladen bleibt im Pad:", bleibt)
+    if not bleibt: f.append("Pad nach normalem Neuladen nicht mehr da")
+    pg.evaluate("document.querySelector('#pad [data-padzu], #pad .pad__schliessen') ? document.querySelector('#pad [data-padzu], #pad .pad__schliessen').click() : null")
+    pg.wait_for_timeout(800)
     pg.reload(); pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1800)
     zu = pg.locator("#pad").count() == 0
-    print("Normales Neuladen ohne Pad:", zu)
+    print("Nach dem Schliessen kein Pad:", zu)
     if not ok: f.append("Dashboard nach Neuladen nicht dasselbe")
-    if not zu: f.append("Pad ging ohne Logo-Tipp wieder auf")
+    if not zu: f.append("Pad ging nach dem Schliessen wieder auf")
     print("Fehler:", f[:3] if f else "keine")
     br.close()

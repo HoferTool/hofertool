@@ -27,14 +27,35 @@ import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
 import { materialBestellungLesen, materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { PfadKopieren } from "../daten/zeichnungPfad.jsx";
+import { wiederOeffner } from "../teile/wiederherstellen.js";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
   fensterOeffnen((zu) => (
     <AuftragFenster auftrag={auftrag || null} b={b} vorgabeMaschine={vorgabeMaschine}
       vorgabeDatum={vorgabeDatum} vorlage={vorlage || null} leer={!auftrag && !vorlage && !!leer} zu={zu} />
-  ), () => { alt.plan.imDialog = false; });
+  ), () => { alt.plan.imDialog = false; }, null,
+  // Nur ein bestehender Auftrag auf der Planwand geht nach dem Neuladen
+  // wieder auf, frisch aus der Datenbank. Was im Fenster eingetippt,
+  // aber nicht gespeichert war, ist dann weg; ein neuer Auftrag oder
+  // eine Kopie gehen gar nicht wieder auf.
+  // Aus dem Fortschritt (b.nachPlanAenderung) nicht: Dort fehlt die Tafel.
+  auftrag && auftrag.id && !(b && b.nachPlanAenderung) ? { art: "auftrag", daten: { id: auftrag.id } } : null);
 }
+
+// Warten, bis die Planwand ihre Aufträge hat; höchstens 20 Sekunden
+wiederOeffner("auftrag", ({ id }) => {
+  const ende = Date.now() + 20000;
+  const versuch = () => {
+    const plan = alt.plan;
+    if (!/^#\/?planwand/.test(location.hash) || document.querySelector(".dialog--auftrag")) return;
+    const da = plan.auftraege && plan.b && plan.b.isConnected;
+    const j = da ? plan.auftraege.find((x) => x.id === id) : null;
+    if (j) planAuftragDialog(j, plan.b);
+    else if (!da && Date.now() < ende) setTimeout(versuch, 200);
+  };
+  versuch();
+});
 
 const istBild = (adresse) => /\.(png|jpe?g|webp|gif)(\?|$)/i.test(adresse);
 

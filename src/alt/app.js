@@ -37,6 +37,7 @@ import { hocoFenster } from "../planwand/HocoFenster.jsx";
 import Hoco from "../hoco/Hoco.jsx";
 import { maschinenkopf } from "../seiten/rechner/kopf.jsx";
 import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
+import { zustandVorher, zustandVergessen, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -134,7 +135,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.7.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1081,8 +1082,16 @@ async function fassungHolen() {
 const NEULADEN_TAKT = 60 * 60 * 1000;
 let neuladenAb = Date.now() + NEULADEN_TAKT;
 
+// Fenster, die nur etwas zeigen und nach dem Neuladen wieder aufgehen
+// (src/teile/wiederherstellen.js), halten das Neuladen nicht auf: Eine
+// Zeichnung, die am Tablet den ganzen Tag offen ist, bekommt so trotzdem
+// die neue Fassung und steht danach wieder da.
+const NEULADEN_FENSTER_RUHIG = ["betrachter", "dok", "wetter", "hoco"];
+
 function neuladenRuhig() {
-  if (document.querySelector(".dialog-huelle, .pw-balken--zieht, .pw-balken--groesse")) return false;
+  if (document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return false;
+  const fenster = Array.from(document.querySelectorAll(".dialog-huelle"));
+  if (fenster.some((h) => !NEULADEN_FENSTER_RUHIG.includes(fensterArt(h)))) return false;
   const a = document.activeElement;
   if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return false;
   if (OFFLINE.offline || OFFLINE.sendet || offlineSchlange().length) return false;
@@ -7435,6 +7444,16 @@ function padNeuLaden() {
   location.reload();
 }
 
+// Auch bei jedem anderen Neuladen (Strg + F5, neue Fassung) geht das
+// Pad wieder dort auf, wo es war (Wunsch 9. Oktober 2026)
+let padGemerkt = null;
+teilMerken("pad", () => {
+  if (!document.getElementById("pad")) return null;
+  const z = {};
+  PAD_FELDER.forEach((k) => { if (pad[k] !== undefined) z[k] = pad[k]; });
+  return z;
+}, (z) => { padGemerkt = Object.assign({ zeit: Date.now() }, z); });
+
 // Gibt true zurück, wenn das Pad wieder geöffnet wurde. Älter als
 // zehn Minuten zählt nicht, etwa wenn dazwischen die Anmeldung kam.
 function padWiederOeffnen() {
@@ -7443,6 +7462,8 @@ function padWiederOeffnen() {
     z = JSON.parse(sessionStorage.getItem(PAD_NEULADEN) || "null");
     sessionStorage.removeItem(PAD_NEULADEN);
   } catch (f) { z = null; }
+  if (!z) z = padGemerkt;
+  padGemerkt = null;
   if (!z || !(Date.now() - z.zeit < 10 * 60 * 1000)) return false;
   const zustand = {};
   PAD_FELDER.forEach((k) => { if (k in z) zustand[k] = z[k]; });
@@ -8190,6 +8211,25 @@ const best = {
   // von der Parkzuweisung der angemeldeten Person
   alleMaschinen: [],
 };
+
+// Nach dem Neuladen: dieselben Reiter, Ordner und Suchen wie vorher
+// (src/teile/wiederherstellen.js). Tag und Zeitraum der Produktion
+// nicht: Die sollen am nächsten Morgen wieder bei heute stehen. Der
+// Zeitraum der Planwand nur am selben Tag.
+const MERKEN_PROD = ["ansicht", "parkReiter", "typOffen", "hocoOffen", "hocoSuche", "hocoBereich",
+  "hocoKunde", "parkId", "modus"];
+const MERKEN_BEST = ["ansicht", "lieferantId", "offenSuche", "historieSuche"];
+function felderLesen(o, felder) {
+  const z = {};
+  felder.forEach((k) => { if (o[k] !== null && o[k] !== undefined && o[k] !== "") z[k] = o[k]; });
+  return z;
+}
+function felderSetzen(o, felder, z) { felder.forEach((k) => { if (k in z) o[k] = z[k]; }); }
+teilMerken("prod", () => felderLesen(prod, MERKEN_PROD), (z) => felderSetzen(prod, MERKEN_PROD, z));
+teilMerken("best", () => felderLesen(best, MERKEN_BEST), (z) => felderSetzen(best, MERKEN_BEST, z));
+teilMerken("einst", () => einst.reiter, (w) => { einst.reiter = w; });
+teilMerken("plan", () => (plan.start ? { tag: isoDatum(new Date()), start: plan.start } : null),
+  (z) => { if (z.tag === isoDatum(new Date()) && z.start) plan.start = z.start; });
 
 const BESTELLSTATUS = {
   offen: "Offen",
@@ -9710,6 +9750,7 @@ function zeichneGeruest() {
 
   async function jetztAbmelden() {
     leerlaufStoppen();
+    zustandVergessen();
     if (typeof padSchliessen === "function") padSchliessen();
     await abmelden();
     profil = null;
@@ -9744,8 +9785,11 @@ function zeichneGeruest() {
   if (!location.hash) location.hash = "#/dashboard";
   // Nach dem Neuladen aus dem Pad gleich wieder ins Pad, ohne die
   // Seite darunter erst aufzubauen
+  // Ebenso Reiter, Fenster und Bildlauf von vor dem Neuladen
+  const nachher = zustandVorher(profil && profil.id);
   Promise.all([farbzuteilungLaden(), planerLaden(), symboleLaden()]).then(() => {
     if (!padWiederOeffnen()) zeichneSeite();
+    nachher();
   });
   padKnopfEinbauen();
   if (!window._escZurueck) { window._escZurueck = true; escapeZurueck(); }

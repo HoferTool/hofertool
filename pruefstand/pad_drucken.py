@@ -149,6 +149,8 @@ with sync_playwright() as p:
     # iPad-Nachbau: Teilen-Fenster statt Druckdialog
     ctx = br.new_context(viewport={"width": 1180, "height": 820}, device_scale_factor=2, is_mobile=True, has_touch=True, user_agent=IPAD_UA)
     pg = ctx.new_page()
+    # Jeder Aufruf fängt frisch an, ohne Pad und Fenster vom letzten (seit 1.7.0)
+    pg.add_init_script("try { sessionStorage.removeItem('hofer.wiederherstellen') } catch (e) {}")
     f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FXL))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
@@ -163,6 +165,8 @@ with sync_playwright() as p:
     for name, b, h, mobil in [("ipad-quer", 1180, 820, True), ("ipad-hoch", 820, 1180, True), ("pc", 1600, 900, False)]:
         ctx = br.new_context(viewport={"width": b, "height": h}, device_scale_factor=2, is_mobile=mobil, has_touch=mobil)
         pg = ctx.new_page()
+        # Jeder Aufruf fängt frisch an, ohne Pad und Fenster vom letzten (seit 1.7.0)
+        pg.add_init_script("try { sessionStorage.removeItem('hofer.wiederherstellen') } catch (e) {}")
         f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
         pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
         for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**",

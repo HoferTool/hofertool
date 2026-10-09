@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { wiederOeffner } from "../teile/wiederherstellen.js";
 import { wetterZeichen } from "./daten.js";
 
 const TAGNAME = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
@@ -22,8 +23,9 @@ const richtung = (grad) => (grad === null || grad === undefined ? "" : RICHTUNG[
 const zeitVon = (iso) => (iso || "").slice(11, 16);
 
 export function wetterFensterOeffnen() {
-  fensterOeffnen((zu) => <WetterFenster zu={zu} />, null, "wetter-huelle");
+  fensterOeffnen((zu) => <WetterFenster zu={zu} />, null, "wetter-huelle", { art: "wetter" });
 }
+wiederOeffner("wetter", () => wetterFensterOeffnen());
 
 export async function holeWetterGenau() {
   const adresse = "https://api.open-meteo.com/v1/forecast"

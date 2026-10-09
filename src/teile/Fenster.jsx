@@ -9,12 +9,15 @@
 //  klasse hängt weitere Klassen an die Hülle (etwa „suche-huelle“).
 //  Ein Element mit data-fokus bekommt nach dem Öffnen den Fokus
 //  (autoFocus wirkt nicht, solange die Hülle noch nicht im Dokument ist).
+//  merken = { art, daten }: Das Fenster geht nach dem Neuladen wieder
+//  auf (src/teile/wiederherstellen.js). daten muss als JSON gehen.
 // =================================================================
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
+import { fensterMerken } from "./wiederherstellen.js";
 
-export function fensterOeffnen(zeichne, beimSchliessen, klasse) {
+export function fensterOeffnen(zeichne, beimSchliessen, klasse, merken) {
   const huelle = document.createElement("div");
   huelle.className = "dialog-huelle" + (klasse ? " " + klasse : "");
   const wurzel = createRoot(huelle);
@@ -29,6 +32,7 @@ export function fensterOeffnen(zeichne, beimSchliessen, klasse) {
   };
   flushSync(() => wurzel.render(zeichne(zu)));
   document.body.appendChild(huelle);
+  if (merken) fensterMerken(huelle, merken);
   alt.dialogSchliessen(huelle, zu);
   const fokus = huelle.querySelector("[data-fokus]");
   if (fokus) fokus.focus();

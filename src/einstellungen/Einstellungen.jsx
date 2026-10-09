@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { wiederOeffner } from "../teile/wiederherstellen.js";
 import { zuschneiden } from "../teile/Zuschnitt.jsx";
 import Dokumente from "./Dokumente.jsx";
 import Farben from "./Farben.jsx";
@@ -37,8 +38,11 @@ const THEMEN = [["blau", "Blau"], ["rot", "Rot"], ["gruen", "Grün"], ["gelb", "
 export function einstellungenOeffnen() {
   if (document.querySelector(".dialog--einstellungen")) return;
   alt.plan.imDialog = true;
-  fensterOeffnen((zu) => <Einstellungen zu={zu} />, () => { alt.plan.imDialog = false; });
+  // Nach dem Neuladen wieder offen, im selben Reiter (alt.einst.reiter)
+  fensterOeffnen((zu) => <Einstellungen zu={zu} />, () => { alt.plan.imDialog = false; }, null,
+    { art: "einstellungen" });
 }
+wiederOeffner("einstellungen", () => einstellungenOeffnen());
 
 function Einstellungen({ zu }) {
   const bin = alt.istAdmin();

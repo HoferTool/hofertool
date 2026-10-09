@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { wiederOeffner, teilMerken } from "../teile/wiederherstellen.js";
 import { Symbol, EIMER, GROSS, KLEIN } from "../teile/zeichnen.jsx";
 import Seite from "./Seite.jsx";
 import { buecherLaden, seitenLaden, fehltTabelle, BUCHFARBEN, BUECHER, SEITEN,
@@ -79,7 +80,7 @@ function grossOeffnen() {
   let verkleinert = false;
   const zu = fensterOeffnen((zu0) => <Notizbuecher zu={zu0} huelle={() => huelle}
     umschalten={() => { verkleinert = true; zu0(); schwebendOeffnen(); }} />,
-  () => { if (!verkleinert) allesZu(); }, "nb-huelle");
+  () => { if (!verkleinert) allesZu(); }, "nb-huelle", { art: "notizbuch" });
   const alle = document.querySelectorAll(".dialog-huelle.nb-huelle");
   huelle = alle[alle.length - 1];
   return zu;
@@ -90,6 +91,11 @@ export function notizbuecherOeffnen() {
   schwebendZu();
   grossOeffnen();
 }
+
+// Nach dem Neuladen wieder offen, gross oder klein, mit demselben Buch
+// und derselben Seite (MERKEN). Bücher mit Passwort sind dann wieder zu.
+wiederOeffner("notizbuch", () => notizbuecherOeffnen());
+teilMerken("notizbuchKlein", () => (schwebe ? true : null), () => schwebendOeffnen(), true);
 
 // Lage und Grösse des kleinen Fensters, je Person gemerkt
 const RAHMEN = "notizbuch_rahmen";

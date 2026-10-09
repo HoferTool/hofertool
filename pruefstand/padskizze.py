@@ -33,6 +33,8 @@ with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])
     ctx = br.new_context(viewport={"width":1180,"height":820}, has_touch=True, device_scale_factor=2)
     pg = ctx.new_page()
+    # Jeder Aufruf fängt frisch an, ohne Pad und Fenster vom letzten (seit 1.7.0)
+    pg.add_init_script("try { sessionStorage.removeItem('hofer.wiederherstellen') } catch (e) {}")
     f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
     for u in ["**://fonts.googleapis.com/**","**://fonts.gstatic.com/**","**://esm.sh/**","**://*.supabase.co/**","**://api.open-meteo.com/**"]:
