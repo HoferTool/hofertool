@@ -40,13 +40,13 @@ insert into public.production_records_vor_neustart select * from public.producti
 insert into public.tool_changes_vor_neustart select * from public.tool_changes t
   where not exists (select 1 from public.tool_changes_vor_neustart b where b.id = t.id);
 
-drop table if exists pg_temp.alt_ids;
-create temp table alt_ids as select id from public.jobs;
+drop table if exists public.neustart_alt_ids;
+create table public.neustart_alt_ids as select id from public.jobs;
 
 -- Je Maschine darf nur ein Auftrag laufen: die bisherigen laufenden
 -- kurz beenden, sonst lässt die Datenbank die neuen nicht hinein
 update public.jobs set ended_at = now()
-where id in (select id from alt_ids) and plan_status = 'laeuft' and ended_at is null;
+where id in (select id from public.neustart_alt_ids) and plan_status = 'laeuft' and ended_at is null;
 
 -- HOCO Nummern, die noch fehlen
 insert into public.hoco_parts (hoco_nr, material)
@@ -99,7 +99,7 @@ begin
   for r in
     select id, machine_id, planned_from, greatest(1, coalesce(planned_days, 1)) as tage
     from public.jobs
-    where id not in (select id from alt_ids)
+    where id not in (select id from public.neustart_alt_ids)
     order by machine_id, planned_from, id
   loop
     if aktuelle_maschine is distinct from r.machine_id then
@@ -125,43 +125,43 @@ set color = case
     else color
   end
 where color in ('orange', 'gelb', 'senf')
-  and id not in (select id from alt_ids);
+  and id not in (select id from public.neustart_alt_ids);
 
 -- Stückzahlen, Werkzeugwechsel und Skizzen an den neuen Auftrag hängen
-drop table if exists pg_temp.umhaengen;
-create temp table umhaengen as
+drop table if exists public.neustart_umhaengen;
+create table public.neustart_umhaengen as
 select a.id as alt_id, (
   select n.id from public.jobs n
-  where n.id not in (select id from alt_ids)
+  where n.id not in (select id from public.neustart_alt_ids)
     and n.job_number = a.job_number and n.machine_id = a.machine_id
   order by abs(n.planned_from - a.planned_from), n.planned_from desc
   limit 1) as neu_id
 from public.jobs a
-where a.id in (select id from alt_ids)
+where a.id in (select id from public.neustart_alt_ids)
   and (exists (select 1 from public.production_records p where p.job_id = a.id)
     or exists (select 1 from public.tool_changes t where t.job_id = a.id)
     or exists (select 1 from public.pad_skizzen s where s.job_id = a.id));
 
 update public.production_records p set job_id = u.neu_id
-from umhaengen u where p.job_id = u.alt_id and u.neu_id is not null;
-delete from public.production_records p where p.job_id in (select id from alt_ids);
+from public.neustart_umhaengen u where p.job_id = u.alt_id and u.neu_id is not null;
+delete from public.production_records p where p.job_id in (select id from public.neustart_alt_ids);
 
 update public.tool_changes t set job_id = u.neu_id
-from umhaengen u where t.job_id = u.alt_id and u.neu_id is not null;
+from public.neustart_umhaengen u where t.job_id = u.alt_id and u.neu_id is not null;
 
 update public.pad_skizzen s set job_id = u.neu_id
-from umhaengen u where s.job_id = u.alt_id and u.neu_id is not null
+from public.neustart_umhaengen u where s.job_id = u.alt_id and u.neu_id is not null
   and not exists (select 1 from public.pad_skizzen x where x.job_id = u.neu_id);
 
 -- Bisherige Aufträge und Ferien weg, Ferien neu
-delete from public.jobs where id in (select id from alt_ids);
+delete from public.jobs where id in (select id from public.neustart_alt_ids);
 
 delete from public.vacations;
 insert into public.vacations (person, von, tage, note, zeile)
 select person, von, tage, note, zeile from public.ferien_neu;
 
-drop table if exists pg_temp.umhaengen;
-drop table if exists pg_temp.alt_ids;
+drop table if exists public.neustart_umhaengen;
+drop table if exists public.neustart_alt_ids;
 
 commit;
 
