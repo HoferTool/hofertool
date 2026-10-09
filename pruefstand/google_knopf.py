@@ -29,6 +29,8 @@ with sync_playwright() as p:
     f = neu.value; f.wait_for_load_state()
     pruefe("Fenster mit Google offen", "google.ch" in f.url)
     pruefe("App bleibt, wo sie ist", "127.0.0.1" in pg.url)
+    gfarben = pg.evaluate("[...document.querySelectorAll('.nav__punkt--google path')].map(p => getComputedStyle(p).fill)")
+    pruefe("Google-G in vier Farben", len(set(gfarben)) == 4)
     je = pg.locator(".nav__punkt--justeat")
     pruefe("Knopf Just Eat im Menü", je.count() == 1 and "Just Eat" in je.inner_text())
     farbe = pg.evaluate("getComputedStyle(document.querySelector('.nav__punkt--justeat path')).fill")
