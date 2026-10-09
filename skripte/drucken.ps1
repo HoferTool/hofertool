@@ -79,8 +79,16 @@ function StandSichern {
 . (Join-Path $ordnerHier "dokumente-teile.ps1")
 
 # ---------- Was der Rechner kann ----------
+# Als echte Liste von Texten: Über die Pipeline kamen in PowerShell 5.1
+# nur leere Namen in der Datenbank an (9. Oktober 2026).
 function DruckerListe {
-  return @([System.Drawing.Printing.PrinterSettings]::InstalledPrinterNames | ForEach-Object { [string]$_ } | Sort-Object)
+  $namen = New-Object 'System.Collections.Generic.List[string]'
+  try { foreach ($n in [System.Drawing.Printing.PrinterSettings]::InstalledPrinterNames) { if ([string]$n) { $namen.Add([string]$n) } } } catch { }
+  if ($namen.Count -eq 0) {
+    try { foreach ($d in Get-WmiObject -Class Win32_Printer) { if ([string]$d.Name) { $namen.Add([string]$d.Name) } } } catch { }
+  }
+  $namen.Sort()
+  return ,([string[]]$namen.ToArray())
 }
 function StandardDrucker {
   try { return (New-Object System.Drawing.Printing.PrinterSettings).PrinterName } catch { return $null }
@@ -93,7 +101,7 @@ $zuletzt = $null
 $letzterFehler = $null
 function StandMelden {
   $status = @{ gesehen = (Get-Date).ToUniversalTime().ToString("o"); rechner = $env:COMPUTERNAME;
-               drucker = @(DruckerListe); standard = (StandardDrucker); excel = (HatExcel);
+               drucker = [string[]](DruckerListe); standard = [string](StandardDrucker); excel = [bool](HatExcel);
                zuletzt = $script:zuletzt; fehler = $script:letzterFehler }
   if ($Probe) { return $status }
   Aendern "Post" "app_config?on_conflict=schluessel" @{ schluessel = "druck_status";
