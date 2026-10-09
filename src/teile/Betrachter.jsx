@@ -77,7 +77,11 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
   // Firmennetz nicht, der Pool-Rechner schon (Wunsch Patrick, 9. Oktober 2026).
   const [pool, setPool] = useState(null);      // { drucker, excel } oder null
   const [wahl, setWahl] = useState(false);     // Auswahl offen?
-  const [kopien, setKopien] = useState(1);
+  // Der Knopf heisst nur „Planbüro“: der volle Name des Druckers
+  // (\\hof-chso-fs01\SHARP … Planbüro) machte die Auswahl so breit, dass
+  // sie im Pad über den Rand ragte. Kopien gibt es keine mehr, ein Tipp
+  // ist ein Blatt (Wunsch Patrick, 9. Oktober 2026).
+  const kopien = 1;
   useEffect(() => {
     let weg = false;
     poolDruckLaden().then((k) => {
@@ -198,15 +202,7 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
             <button className="knopf knopf--klein" data-drucken="" onClick={knopfDrucken} disabled={druckt}
               aria-expanded={poolGeht ? wahl : undefined}>{druckt ? "Druckt …" : "Drucken"}</button>
             {wahl && <div className="druckwahl" data-druckwahl="" role="menu">
-              <button className="knopf knopf--haupt" data-pooldruck="" onClick={anPool}>An {pool.drucker} drucken</button>
-              <div className="druckwahl__kopien">
-                <span>Kopien</span>
-                <button className="knopf knopf--klein" aria-label="Weniger" data-kopienweniger=""
-                  onClick={() => setKopien((n) => Math.max(1, n - 1))} disabled={kopien <= 1}>−</button>
-                <b data-kopien="">{kopien}</b>
-                <button className="knopf knopf--klein" aria-label="Mehr" data-kopienmehr=""
-                  onClick={() => setKopien((n) => Math.min(20, n + 1))} disabled={kopien >= 20}>+</button>
-              </div>
+              <button className="knopf knopf--haupt" data-pooldruck="" onClick={anPool}>Planbüro</button>
               <button className="knopf" data-geraetdruck="" onClick={drucken}>Auf diesem Gerät drucken</button>
             </div>}
           </span>

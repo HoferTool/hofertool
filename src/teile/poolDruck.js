@@ -124,14 +124,16 @@ export async function poolDrucken({ art, bilder, quelle, blatt, titel, kopien })
     kopien: Math.max(1, Math.min(20, kopien || 1)), drucker,
   }]), 10000, "Druckauftrag");
   if (r && r.error) throw r.error;
-  verfolgen(id, drucker, poolLebt(k));
+  verfolgen(id, "Planbüro", poolLebt(k));
   return id;
 }
 
 // Nachschauen, bis der Pool-Rechner fertig ist; die Meldung unten
 // rechts sagt, wie es steht. Nach drei Minuten ohne Antwort aufgeben.
-function verfolgen(id, drucker, lebt) {
-  alt.meldung(lebt ? "Geht an " + drucker + " …"
+// „ort“ ist der Name für die Meldungen: „Planbüro“ statt des langen
+// Druckernamens mit Server davor (Wunsch Patrick, 9. Oktober 2026).
+function verfolgen(id, ort, lebt) {
+  alt.meldung(lebt ? "Geht ans " + ort + " …"
     : "Druckauftrag liegt bereit. Der Pool-Rechner hat sich länger nicht gemeldet; er druckt, sobald er läuft.",
     lebt ? undefined : "warn");
   const start = Date.now();
@@ -142,9 +144,9 @@ function verfolgen(id, drucker, lebt) {
       const r = await alt.db.from("druckauftraege").select("zustand, meldung").eq("id", id).maybeSingle();
       a = r && r.data;
     } catch (f) { /* beim nächsten Mal */ }
-    if (a && a.zustand === "fertig") { alt.meldung("Gedruckt auf " + drucker + ".", "gut"); return; }
+    if (a && a.zustand === "fertig") { alt.meldung("Gedruckt im " + ort + ".", "gut"); return; }
     if (a && a.zustand === "fehler") { alt.meldung("Drucken ging nicht: " + (a.meldung || "unbekannter Fehler"), "fehler"); return; }
-    if (a && a.zustand === "druckt" && gemeldet !== "druckt") { gemeldet = "druckt"; alt.meldung("Druckt auf " + drucker + " …"); }
+    if (a && a.zustand === "druckt" && gemeldet !== "druckt") { gemeldet = "druckt"; alt.meldung("Druckt im " + ort + " …"); }
     const vergangen = Date.now() - start;
     if (lebt && !gewarnt && a && a.zustand === "offen" && vergangen > 45000) {
       gewarnt = true;

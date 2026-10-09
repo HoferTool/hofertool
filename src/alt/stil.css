@@ -6667,3 +6667,11 @@ body.dunkel .pw-tag--woche, body.dunkel .pw-zelle--woche { border-left-color: #5
   .druckwahl-huelle > .knopf { flex: 1 1 0; }
   .druckwahl { min-width: min(280px, calc(100vw - 28px)); }
 }
+
+/* Druckauswahl „Planbüro“ (111.126.1): rechts am Knopf ausgerichtet und
+   nie breiter als der Bildschirm, damit sie im Pad nicht abgeschnitten wird. */
+.druckwahl { left: auto; right: 0; min-width: 270px; max-width: calc(100vw - 24px); }
+.betrachter__knoepfe .druckwahl .knopf { white-space: normal; }
+@media (max-width: 640px) {
+  .druckwahl { left: 0; right: auto; }
+}
