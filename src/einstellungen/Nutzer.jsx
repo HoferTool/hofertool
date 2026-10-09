@@ -32,7 +32,7 @@ export default function Nutzer() {
       <Gruppe titel="Was die Rollen dürfen">
         <div className="rollenhilfe">
           <div><strong>Administrator</strong> darf alles, ohne etwas einzuschalten.</div>
-          <div><strong>Planwand</strong> sieht alle Parks und darf ändern, sobald oben Bearbeiten eingeschaltet ist.</div>
+          <div><strong>Planwand</strong> sieht alle Parks und darf ändern.</div>
           <div><strong>Langdreher</strong> und <strong>Kurzdreher</strong> sehen nur ihren Park, in Produktion und Planwand.</div>
           <div><strong>Mitarbeiter</strong> darf überall zusehen und den Einkauf nutzen, sonst nichts ändern.</div>
           <div><strong>Extern</strong> ist für Partner wie Zurbrügg: nur die Planwand der eigenen Maschinen ansehen

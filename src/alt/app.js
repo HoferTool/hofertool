@@ -134,7 +134,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.6.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2636,6 +2636,14 @@ function meineParks() {
 // Zuweisung die Parks mit "extern", "Lohn" oder "fremd" im Namen
 function istExtern() { return meineRolle() === "extern"; }
 
+// Ferien darf jeder eintragen, verschieben und löschen, ausser Externen
+// und dem Dienstkonto (Wunsch Patrick, 9. Oktober 2026). Ziehen und
+// Griffe nur am Computer, auf dem Handy über das Ferienfenster.
+function darfFerien() {
+  const r = meineRolle();
+  return !!r && r !== "extern" && r !== "dienst";
+}
+
 function parkErlaubt(parkId) {
   if (istAdmin() || meineRolle() === "planwand") return true;
   if (istExtern()) {
@@ -3125,7 +3133,6 @@ const plan = {
   kopierModus: false,
   syncTakt: null,
   imDialog: false,
-  pinOk: false,
   adminModus: false,
   spalte: 0,
   spalte: 0,
@@ -3941,8 +3948,17 @@ function darfPlanen() {
   if (isMobil()) return false;
   if (istAdmin()) return true;
   if (profil && profil.darf_bearbeiten === true) return true;
-  return meineRolle() === "planwand" && plan.pinOk === true;
+  // Das Planwand-Konto darf ohne Freischalten ändern: der Knopf
+  // „Bearbeiten“ mit PIN ist weg (Wunsch Patrick, 9. Oktober 2026).
+  return meineRolle() === "planwand";
 }
+
+// Warndreieck für Probleme auf dem Balken: gelb mit schwarzem Rand,
+// damit es auf Rot (V2A) genauso auffällt wie auf Weiss (Alu).
+const WARN_SYMBOL = '<svg class="pw-warnsymbol" viewBox="0 0 24 22" aria-hidden="true">'
+  + '<path d="M12 1.5 23 20.5H1z" fill="#ffd400" stroke="#000" stroke-width="1.6" stroke-linejoin="round"/>'
+  + '<path d="M12 7.5v6.5" stroke="#000" stroke-width="2.4" stroke-linecap="round"/>'
+  + '<circle cx="12" cy="17.2" r="1.4" fill="#000"/></svg>';
 
 const FERIEN_ZEILEN = 5;
 
@@ -5205,7 +5221,7 @@ function zellenVerhalten(b) {
 // Ferienbalken an den Rändern ziehen
 function ferienGriffe(b) {
   const tafel = document.querySelector(".pw-tafel");
-  if (!tafel || !darfPlanen()) return;
+  if (!tafel || !darfFerien() || isMobil()) return;
 
   tafel.querySelectorAll("[data-fgriff]").forEach((griff) => {
     const balken = griff.closest("[data-ferien]");
@@ -5674,6 +5690,7 @@ function zeichnePlanwand(b) {
     + (t === heute ? " pw-zelle--heute" : "") + wocheKlasse(t, "pw-zelle")
     + '" data-fzelle="0|' + t + '"></div>').join("");
 
+  const fGriffe = darfFerien() && !isMobil();
   const ferienBalken = ferienSichtbar.map((f2) => {
     const belegt = arbeitstage(f2.von, f2.tage || 1);
     const sichtbar = belegt.filter((t) => tagIndex.has(t));
@@ -5681,16 +5698,16 @@ function zeichnePlanwand(b) {
     const von = tagIndex.get(sichtbar[0]);
     const feAngeschnitten = belegt[0] !== sichtbar[0];
     const bahn = bahnVon[f2.id] || Math.max(1, Number(f2.zeile) || 1);
-    return '<div class="pw-ferien'
-      + (f2.genehmigt === false ? " pw-ferien--anfrage" : "") + '"'
+    // Ferien brauchen keine Bestätigung mehr (Wunsch 9. Oktober 2026)
+    return '<div class="pw-ferien"'
       + ' data-ferien="' + esc(f2.id) + '"'
       + ' data-von="' + von + '" data-dauer="' + sichtbar.length + '"'
       + ' style="--von:' + von + ';--dauer:' + sichtbar.length + ';--bahn:' + bahn + '">'
       + '<span class="pw-ferien__name">'
-      + (f2.genehmigt === false ? "? " : "") + esc(f2.person) + '</span>'
-      + (darfPlanen() && !feAngeschnitten
+      + esc(f2.person) + '</span>'
+      + (fGriffe && !feAngeschnitten
           ? '<span class="pw-griff pw-griff--links" data-fgriff="links"></span>' : "")
-      + (darfPlanen()
+      + (fGriffe
           ? '<span class="pw-griff pw-griff--rechts" data-fgriff="rechts"></span>' : "")
       + '</div>';
   }).join("");
@@ -5920,8 +5937,10 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
     + '<span class="pw-balken__nr">' + esc(j.job_number) + '</span>'
     // Symbole aus den Einstellungen, gleich hinter der Nummer
     + symbolHtml(j)
+    // Problem: grosses gelbes Warndreieck, auf jeder Werkstofffarbe
+    // gut zu sehen (Wunsch Patrick 9. Oktober 2026: „gross machen“)
     + (j.problem ? '<span class="pw-balken__warnung" title="'
-        + esc(j.problem) + '">⚠</span>' : "")
+        + esc(j.problem) + '">' + WARN_SYMBOL + '</span>' : "")
     // FA und M sind weg: Die Materiallage sagt der Punkt links, den
     // Rest sieht man im Infofenster.
     + (auftragNotiz(j) ? '<span class="pw-balken__zeichen" title="Notiz">✎</span>' : "")
@@ -5945,8 +5964,8 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
 
 function ferienVerhalten(b) {
   const tafel = document.querySelector(".pw-tafel");
-  // Auch wer nicht planen darf, stellt Anfragen
-  if (!tafel || !darfSchreiben()) return;
+  // Ferien darf jeder, nicht nur wer planen darf
+  if (!tafel || !darfFerien()) return;
 
   tafel.querySelectorAll("[data-fzelle]").forEach((zelle) => {
     zelle.onclick = async () => {

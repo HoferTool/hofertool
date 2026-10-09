@@ -1,8 +1,8 @@
 // =================================================================
 //  FERIEN
-//  Fenster zum Eintragen, Ändern, Bestätigen und Löschen von Ferien
-//  in der Ferienzeile der Planwand. Wer nicht planen darf, stellt eine
-//  Anfrage; Planer und Administratoren bestätigen sie hier.
+//  Fenster zum Eintragen, Ändern und Löschen von Ferien in der
+//  Ferienzeile der Planwand. Eine Bestätigung braucht es nicht mehr
+//  (Wunsch Patrick, 9. Oktober 2026): alles Eingetragene gilt sofort.
 // =================================================================
 import { useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -19,8 +19,6 @@ export function ferienDialog(eintrag, zeile, datum, b) {
 function FerienFenster({ eintrag, zeile, datum, b, zu }) {
   const start = eintrag ? eintrag.von
     : (datum || alt.naechsterArbeitstag(alt.isoDatum(new Date())));
-  const planer = alt.darfPlanen();
-  const istAnfrage = !!eintrag && eintrag.genehmigt === false;
   const profil = alt.profil;
 
   const [person, setPerson] = useState(eintrag ? eintrag.person : ((profil && profil.full_name) || ""));
@@ -48,7 +46,7 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
       von: erster, tage,
       note: notiz.trim() || null,
     };
-    if (!eintrag) daten.genehmigt = planer;
+    if (!eintrag) daten.genehmigt = true;
     const vorher = eintrag ? await alt.rueckSichern("vacations", { id: eintrag.id }) : [];
     const { data, error } = eintrag
       ? await alt.db.from("vacations").update(daten).eq("id", eintrag.id)
@@ -58,18 +56,7 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
       if (eintrag) alt.merkeSchritt("Ferien von " + eintrag.person, alt.rueckRein("vacations", vorher));
       else if (neuId) alt.merkeSchritt("Ferien von " + wer, alt.rueckWeg("vacations", { id: neuId }));
     }
-    fertig(error, !eintrag && !planer ? "Anfrage gestellt." : "Gespeichert.");
-  };
-
-  const bestaetigen = async () => {
-    const vorher = await alt.rueckSichern("vacations", { id: eintrag.id });
-    const { error } = await alt.db.from("vacations").update({
-      genehmigt: true,
-      genehmigt_von: profil.id,
-      genehmigt_am: new Date().toISOString(),
-    }).eq("id", eintrag.id);
-    if (!error) alt.merkeSchritt("Ferien bestätigen", alt.rueckRein("vacations", vorher));
-    fertig(error, "Ferien bestätigt.");
+    fertig(error, "Gespeichert.");
   };
 
   const loeschen = async () => {
@@ -86,17 +73,7 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
 
   return (
     <div className="dialog">
-      <h2>{eintrag ? "Ferien" : (planer ? "Ferien eintragen" : "Ferien anfragen")}</h2>
-      {eintrag && (istAnfrage
-        ? <div className="problemkasten">
-            <div className="problemkasten__kopf">Noch nicht bestätigt</div>
-            <div className="klein">Diese Ferien warten auf den Administrator.</div>
-          </div>
-        : <div className="karte--ergebnis meldungszahl">
-            <div className="ergebnis__titel">Bestätigt</div>
-            <div>{(eintrag.genehmigt_von_name || "Administrator")
-              + (eintrag.genehmigt_am ? " · " + alt.datumZeitKurz(eintrag.genehmigt_am) : "")}</div>
-          </div>)}
+      <h2>{eintrag ? "Ferien" : "Ferien eintragen"}</h2>
 
       <label className="feld"><span>Wer</span>
         <input id="fd-person" type="text" placeholder="Name" data-fokus="" value={person}
@@ -112,9 +89,8 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
 
       <div className="dialog__knoepfe">
         {eintrag && <button className="knopf knopf--gefahr" id="fd-weg" onClick={loeschen}>Ferien löschen</button>}
-        {istAnfrage && planer && <button className="knopf knopf--haupt" id="fd-ok" onClick={bestaetigen}>Bestätigen</button>}
         <button className="knopf knopf--still" id="fd-nein" onClick={zu}>Abbrechen</button>
-        <button className={"knopf " + (istAnfrage && planer ? "knopf--still" : "knopf--haupt")}
+        <button className="knopf knopf--haupt"
           id="fd-ja" onClick={speichern}>Speichern</button>
       </div>
     </div>

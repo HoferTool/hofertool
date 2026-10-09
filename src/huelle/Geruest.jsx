@@ -58,41 +58,6 @@ function Logo() {
     style={breite ? { width: breite + "px" } : undefined} />;
 }
 
-// Für die Rolle „planwand“: Bearbeiten erst nach einem Pin
-function AdminKnopf() {
-  const plan = alt.plan;
-  const [an, setAn] = useState(!!plan.pinOk);
-  const klick = async () => {
-    if (plan.pinOk) {
-      plan.pinOk = false; setAn(false);
-      alt.meldung("Bearbeiten gesperrt.");
-      alt.zeichneSeite();
-      return;
-    }
-    const w = await alt.dialogFelder({
-      titel: "Bearbeiten freischalten",
-      text: "Bitte den Pin eingeben.",
-      felder: [{ name: "pin", label: "Pin", typ: "password", pflicht: true }],
-      bestaetigen: "Freischalten" });
-    if (!w) return;
-    let richtig = "0000";
-    try {
-      const r = await alt.zeitlimit(alt.db.from("app_config").select("wert")
-        .eq("schluessel", "planwand_pin").maybeSingle(), 8000, "Pin");
-      if (!r.error && r.data && r.data.wert) richtig = r.data.wert;
-    } catch (f) { /* dann gilt der Standardpin */ }
-    if (String(w.pin).trim() !== String(richtig).trim()) {
-      alt.meldung("Falscher Pin.", "fehler");
-      return;
-    }
-    plan.pinOk = true; setAn(true);
-    alt.meldung("Bearbeiten freigeschaltet.");
-    alt.zeichneSeite();
-  };
-  return <button className={"kopf__admin" + (an ? " aktiv" : "")} id="kopf-admin"
-    title="Bearbeiten freischalten" onClick={klick}>Bearbeiten</button>;
-}
-
 // Die Reiter der offenen Seite unter ihrem Punkt in der Seitenleiste.
 // Nur ab Tablet-Breite sichtbar (CSS); unten in der Leiste wäre kein Platz.
 function Unterreiter({ seite }) {
@@ -140,7 +105,6 @@ function Geruest() {
             (111.42.0) ist wieder weg (Wunsch 5. Oktober 2026 abends). */}
         <button className="kopf__logolink" id="kopf-neuladen" title="Seite neu laden"
           onClick={() => location.reload()}><Logo /></button>
-        {alt.meineRolle() === "planwand" && <AdminKnopf />}
         {/* Gesperrt und freigegeben wird er von knopfRueckgaengigZeigen im
             alten Programm. Kein disabled hier: React würde Klicks sonst
             auch nach dem Freigeben verschlucken. */}

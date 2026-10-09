@@ -1,4 +1,4 @@
-# Ferienfenster: eintragen, Anfrage bestätigen, löschen, Abbrechen mit Escape
+# Ferienfenster: eintragen, ohne Bestätigung, löschen, Abbrechen mit Escape
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -38,15 +38,15 @@ with sync_playwright() as p:
            bool(neu) and neu["von"] == von and neu["note"] == "Wanderwoche" and neu["genehmigt"] is True)
     pruefe("Balken erscheint", pg.locator("[data-ferien]", has_text="Testperson").count() >= 1)
 
-    # Anfrage von Tristan bestätigen
+    # Keine Bestätigung mehr: weder Kasten noch Knopf, auch bei alten Anfragen
     pg.locator("[data-ferien='f2']").click(); pg.wait_for_timeout(500)
-    pruefe("Anfrage: noch nicht bestätigt", "Noch nicht bestätigt" in pg.inner_text(".dialog-huelle"))
-    pg.locator("#fd-ok").click(); pg.wait_for_timeout(1000)
-    pruefe("bestätigt", pg.evaluate("TEST.daten.vacations.find(v => v.id === 'f2').genehmigt") is True)
+    txt = pg.inner_text(".dialog-huelle")
+    pruefe("kein Bestätigen", "estätig" not in txt and pg.locator("#fd-ok").count() == 0)
+    pruefe("nicht gestreift", pg.locator("[data-ferien='f2'].pw-ferien--anfrage").count() == 0)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
 
     # Ramona löschen
     pg.locator("[data-ferien='f1']").click(); pg.wait_for_timeout(500)
-    pruefe("Bestätigt-Kasten", "Bestätigt" in pg.inner_text(".dialog-huelle"))
     pg.locator("#fd-weg").click(); pg.wait_for_timeout(400)
     pg.locator("[data-ja]").click(); pg.wait_for_timeout(1000)
     pruefe("gelöscht", not pg.evaluate("TEST.daten.vacations.some(v => v.id === 'f1')"))

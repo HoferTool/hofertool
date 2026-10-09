@@ -92,7 +92,7 @@ function Allgemein({ bin }) {
     <>
       <MeinKonto />
       <Darstellung />
-      {(bin || alt.darfDokumenteUndSicherung()) && <PinUndMail bin={bin} />}
+      {(bin || alt.darfDokumenteUndSicherung()) && <Bestellmail />}
       <UeberDieApp />
     </>
   );
@@ -359,43 +359,11 @@ function Darstellung() {
   );
 }
 
-// Pin der Rolle Planwand (nur Admins) und Text der Bestellmail (Admins
-// und Planwand seit 111.124.0, eigenes Fenster)
-function PinUndMail({ bin }) {
-  const [pin, setPin] = useState("");
-  const db = alt.db;
-  const { meldung, fehlertext } = alt;
-
-  useEffect(() => {
-    let weg = false;
-    if (!bin) return;
-    (async () => {
-      try {
-        const r = await alt.zeitlimit(db.from("app_config").select("wert")
-          .eq("schluessel", "planwand_pin").maybeSingle(), 8000, "Pin");
-        if (!weg && !r.error && r.data) setPin(r.data.wert || "");
-      } catch (f) { /* Tabelle gibt es vielleicht noch nicht */ }
-    })();
-    return () => { weg = true; };
-  }, [db, bin]);
-
-  const pinSpeichern = async () => {
-    const wert = pin.trim();
-    if (!wert) { meldung("Bitte einen Pin eingeben.", "warn"); return; }
-    const { error } = await db.from("app_config").upsert({ schluessel: "planwand_pin", wert });
-    if (error) meldung(fehlertext(error), "fehler");
-    else meldung("Pin gespeichert.");
-  };
-
+// Text der Bestellmail (Admins und Planwand seit 111.124.0, eigenes
+// Fenster). Den PIN der Planwand gibt es nicht mehr (9. Oktober 2026).
+function Bestellmail() {
   return (
     <Gruppe titel="Für alle">
-      {bin && <Zeile titel="PIN für die Planwand" text="Wer die Rolle Planwand hat, schaltet damit das Bearbeiten frei.">
-        <div className="es-eingabe">
-          <input type="text" id="pin-feld" className="es-schmal" aria-label="PIN für die Planwand"
-            inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} />
-          <button className="knopf knopf--klein" id="pin-speichern" onClick={pinSpeichern}>Speichern</button>
-        </div>
-      </Zeile>}
       {/* Der Text steht nicht mehr hier, sondern im eigenen Fenster mit Vorschau */}
       <Zeile titel="Text für Bestellmails" text="Die Mail an den Lieferanten mit Logos und Links.">
         <button className="knopf knopf--klein" id="bestellmail-oeffnen" onClick={bestellmailOeffnen}>Text bearbeiten</button>

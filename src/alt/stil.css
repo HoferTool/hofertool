@@ -6775,3 +6775,12 @@ body.pad-offen .dialog.dialog--wetter, .dialog--wetter { max-width: min(1000px, 
                 0 4px 14px rgba(0, 0, 0, .45) !important;
   }
 }
+
+/* ---------- Problemzeichen gross (1.6.0) ----------
+   Wunsch Patrick 9. Oktober 2026: „Problemzeichen bei Balken gross
+   machen“. Gelbes Warndreieck, füllt die Höhe des Balkens fast (cqh, der
+   Balken ist ein Grössen-Behälter), damit man es von weitem sieht. */
+body .pw-tafel .pw-balken .pw-balken__warnung {
+  display: inline-flex; align-self: center; flex: none; margin: 0 .15em; line-height: 1 !important; }
+.pw-warnsymbol { height: clamp(14px, calc(100cqh - 8px), 64px); width: auto; display: block;
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, .9)); }
