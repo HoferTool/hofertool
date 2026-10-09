@@ -106,8 +106,8 @@ with sync_playwright() as p:
     st = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'sicherung_status').wert)")
     print("Stand:", {k: v for k, v in st.items() if k != "liste"})
     pruefe("Tägliche Sicherung gemacht", st["letzte"]["grund"] == "taeglich" and st["letzte"]["zeilen"] == 10)
-    pruefe("Eine Datei nicht lesbar gezählt", st["letzte"]["fehlt"] == 1 and st["letzte"]["dateien"] == 5)
-    pruefe("Zeichnungen, Einrichtblätter und Altes gezählt", st["letzte"]["ohneZeichnungen"] == 2 and st["letzte"]["ohneEinrichtblaetter"] == 1
+    pruefe("Eine Datei nicht lesbar gezählt", st["letzte"]["fehlt"] == 1 and st["letzte"]["dateien"] == 4)
+    pruefe("Zeichnungen, Einrichtblätter und Altes gezählt", st["letzte"]["ohneZeichnungen"] == 2 and st["letzte"]["ohneEinrichtblaetter"] == 2
            and st["letzte"]["ohneAlt"] == 1)
     namen = pg.evaluate("[...window.ORDNER.keys()].sort()"); print("Ordner:", namen)
     pruefe("Alte aufgeräumt, neueste drei bleiben", "Hofer-Sicherung-2025-01-01-1800.zip" not in namen
@@ -125,9 +125,9 @@ with sync_playwright() as p:
            {"t": "hoco_parts", "n": 1}, {"t": "hoco_type_data", "n": 1}, {"t": "dokumente", "n": 4}, {"t": "irgendwas", "n": 1}, {"t": "leer", "n": 0}])
     print("Ausgelassen:", kopf.get("ausgelassen"))
     pruefe("Zeichnungen und Einrichtblatt nicht in der ZIP", not any(n.startswith("dateien/zeichnungen/dok/z") or "blatt" in n for n in z.namelist())
-           and sorted((o["p"], o["art"]) for o in kopf["ausgelassen"]) == [("dok/blatt ü.xlsx", "einrichtblatt"), ("dok/z1.pdf", "zeichnung"), ("dok/z2.pdf", "zeichnung"), ("zeichnung/alt.pdf", "alt")]
+           and sorted((o["p"], o["art"]) for o in kopf["ausgelassen"]) == [("dok/blatt ü.xlsx", "einrichtblatt"), ("dok/vorlage.xlsx", "einrichtblatt"), ("dok/z1.pdf", "zeichnung"), ("dok/z2.pdf", "zeichnung"), ("zeichnung/alt.pdf", "alt")]
            and not any(o["p"] == "dok/z1.pdf" for o in kopf["dateien"]))
-    pruefe("Vorlage des Typs bleibt drin", z.read("dateien/zeichnungen/dok/vorlage.xlsx") == b"XLSX")
+    pruefe("Vorlage des Typs auch draussen", "dateien/zeichnungen/dok/vorlage.xlsx" not in z.namelist())
     pruefe("Alte Datei ohne Verweis draussen, verwiesene in anderer Tabelle drin",
            "dateien/zeichnungen/zeichnung/alt.pdf" not in z.namelist() and z.read("dateien/zeichnungen/wbg/wz.html") == b"<html>")
     pruefe("Tabelle mit Umlauten", json.loads(z.read("tabellen/jobs.json"))[0]["plan_note"] == "Notiz mit „Umlaut“ ä")
@@ -142,8 +142,8 @@ with sync_playwright() as p:
     pg.wait_for_function("document.querySelector('#si-auftrag') && document.querySelector('#si-auftrag').textContent.includes('Gesichert')", timeout=20000)
     print(pg.inner_text("#si-auftrag"))
     pruefe("Jetzt sichern meldet Datei", ".zip" in pg.inner_text("#si-auftrag") and "10 Einträge" in pg.inner_text("#si-auftrag")
-           and "ohne 2 Zeichnungen, 1 Einrichtblatt und 1 alte Datei" in pg.inner_text("#si-auftrag"))
-    pruefe("Stand nennt Ausgelassenes", "ohne 2 Zeichnungen, 1 Einrichtblatt und 1 alte Datei" in pg.inner_text("#si-stand"))
+           and "ohne 2 Zeichnungen, 2 Einrichtblätter und 1 alte Datei" in pg.inner_text("#si-auftrag"))
+    pruefe("Stand nennt Ausgelassenes", "ohne 2 Zeichnungen, 2 Einrichtblätter und 1 alte Datei" in pg.inner_text("#si-stand"))
     pruefe("Text nennt die Aufgabe", "Zeichnungen und Einrichtblätter" in pg.inner_text("#si") and "HoferTool" in pg.inner_text("#si"))
     pruefe("Liste im Fenster", pg.locator("#si-liste tbody tr").count() == 3)
     pruefe("Letzte Sicherung angezeigt", "Letzte Sicherung" in pg.inner_text("#si-stand"))
@@ -156,7 +156,7 @@ with sync_playwright() as p:
     pg.wait_for_selector(".dialog-huelle [data-ja]")
     frage = pg.locator(".dialog-huelle").last.inner_text(); print(frage)
     pruefe("Rückfrage nennt Stand", "Stand vom" in frage and "heutige Stand" in frage)
-    pruefe("Rückfrage nennt Ausgelassenes", "Nicht in der Sicherung: 2 Zeichnungen, 1 Einrichtblatt und 1 alte Datei" in frage)
+    pruefe("Rückfrage nennt Ausgelassenes", "Nicht in der Sicherung: 2 Zeichnungen, 2 Einrichtblätter und 1 alte Datei" in frage)
     pg.click(".dialog-huelle [data-ja]")
     pg.wait_for_function("document.querySelector('#si-auftrag') && document.querySelector('#si-auftrag').textContent.includes('Zurückgespielt')", timeout=20000)
     print(pg.inner_text("#si-auftrag"))
@@ -167,9 +167,9 @@ with sync_playwright() as p:
     pruefe("Alle Tabellen gepuffert", "sicherung_puffern:jobs:2" in prot and "sicherung_puffern:dokumente:4" in prot and "sicherung_puffern:leer:0" in prot)
     pruefe("Alte Datei beim Zurückspielen nicht hochgeladen", "upload:zeichnungen/zeichnung/alt.pdf" not in prot and "upload:zeichnungen/wbg/wz.html" in prot)
     pruefe("Fehlende Dateien wieder hoch", "upload:zeichnungen/dok/ü b.pdf" in prot and "upload:profilbilder/u1.png" in prot
-           and "upload:zeichnungen/dok/a.pdf" not in prot and "upload:zeichnungen/dok/vorlage.xlsx" in prot)
+           and "upload:zeichnungen/dok/a.pdf" not in prot and "upload:zeichnungen/dok/vorlage.xlsx" not in prot)
     pruefe("Zeichnungen nicht hochgeladen", not any(n in prot for n in ["upload:zeichnungen/dok/z1.pdf", "upload:zeichnungen/dok/z2.pdf", "upload:zeichnungen/dok/blatt ü.xlsx"]))
-    pruefe("Meldet, was fehlt", "nicht mehr da: 1 Zeichnung und 1 Einrichtblatt" in pg.inner_text("#si-auftrag") and "Pool-Rechner" in pg.inner_text("#si-auftrag"))
+    pruefe("Meldet, was fehlt", "nicht mehr da: 1 Zeichnung und 2 Einrichtblätter" in pg.inner_text("#si-auftrag") and "Pool-Rechner" in pg.inner_text("#si-auftrag"))
     pruefe("Keine zweite Rückfrage", pg.locator(".dialog-huelle [data-ja]").count() == 0)
     pruefe("Neu-laden-Knopf", pg.locator("#si-auftrag button").count() == 1)
 

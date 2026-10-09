@@ -12,7 +12,7 @@
 //                        ein Augenblick für alle Tabellen)
 //    dateien/<b>/<p>     jede hochgeladene Datei (WBGs, Bilder,
 //                        Notizbuch-Seiten …), ausser Zeichnungen und
-//                        Einrichtblätter der HOCO Nummern und alter
+//                        Einrichtblätter (auch Vorlagen der Typen) und alter
 //                        Dateien, die nirgends mehr gebraucht werden (seit 111.116.0,
 //                        Wunsch Patrick 8. Oktober 2026: „alles sichern
 //                        ausser Einrichtblätter und Zeichnungen, weil man
@@ -189,15 +189,17 @@ function ablageSchluessel(adresse) {
 }
 
 // Welche Dateien nicht in die Sicherung gehören (Wunsch Patrick, 8. und
-// 9. Oktober 2026): Zeichnungen (Stammdaten, Aufträge, Dokumentenpool),
-// Einrichtblätter der HOCO Nummern (je Typ und im Dokumentenpool) und
+// 9. Oktober 2026: „einfach keine Zeichnungen, auch Master-Zeichnungen,
+// und alles, was mit Excel-Einrichtblättern zu tun hat“): Zeichnungen
+// (Stammdaten, Aufträge, Dokumentenpool), Einrichtblätter (je HOCO Nr.
+// und Typ, Vorlagen der Typen, Dokumentenpool) und
 // alte Dateien in der Ablage „zeichnungen“, auf die keine Tabelle mehr
 // verweist (ersetzte Zeichnungen und Einrichtblätter aus dem Umzug und
 // von der Aufgabe; die App selbst gilt sie als löschbar, siehe
 // dateiNochVerwendet). Ob eine Datei noch gebraucht wird, zeigt ein
 // Blick in alle gesicherten Tabellen: Jede Adresse in irgendeinem Feld
-// zählt, auch in Tabellen, die es heute noch nicht gibt. Die Vorlagen
-// der Maschinentypen bleiben drin. Gibt Map "ablage|pfad" → Art zurück
+// zählt, auch in Tabellen, die es heute noch nicht gibt. Gibt Map
+// "ablage|pfad" → Art zurück
 // ("zeichnung", "einrichtblatt" oder "alt").
 export function ohneDateien(tabellen, dateien) {
   const ohne = new Map();
@@ -206,9 +208,10 @@ export function ohneDateien(tabellen, dateien) {
   zeilen("hoco_parts").forEach((z) => merke(z.zeichnung_url, "zeichnung"));
   zeilen("jobs").forEach((z) => merke(z.drawing_url, "zeichnung"));
   zeilen("hoco_type_data").forEach((z) => merke(z.blatt_url, "einrichtblatt"));
+  zeilen("machine_types").forEach((z) => merke(z.blatt_url, "einrichtblatt"));
   zeilen("dokumente").forEach((z) => {
     if (z.art === "zeichnung") merke(z.datei_url, "zeichnung");
-    else if (z.art === "einrichtblatt" && z.hoco_nr) merke(z.datei_url, "einrichtblatt");
+    else if (z.art === "einrichtblatt") merke(z.datei_url, "einrichtblatt");
   });
   // Alles, worauf irgendeine Tabelle verweist, egal in welchem Feld
   const verwendet = new Set();
