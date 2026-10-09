@@ -21,6 +21,19 @@
 #     10844-0049 Hofer.pdf                        → HOCO Nr. 10844-0049
 #     ...\10844-0049 Deckel\416.4630.02_Kunde.pdf  → HOCO Nr. 10844-0049
 #
+#  So ist der Ordner "FREIGEGEBENE ZEICHNUNGEN" aber fast überall
+#  aufgebaut (seit 111.122.1, Meldung Patrick 9. Oktober 2026: "die
+#  Zeichnung 10841-0009 hat es nicht genommen"): ein Ordner je Kunde mit
+#  der Kundennummer, darin ein Ordner je Teil, der mit der Teilnummer
+#  beginnt. Die HOCO Nr. ist dann beides zusammen, und das gilt vor einer
+#  Nummer im Dateinamen (dort steht meist die des Kunden):
+#
+#     10841\0009 Federführung 6-kt. SW 24 x 13\300 088 Kunde.pdf
+#                                                  → HOCO Nr. 10841-0009
+#
+#  Liegt eine PDF in einem Unterordner "alt" oder "Archiv" (alte Stände),
+#  kommt sie erst dran, wenn alle anderen der Nummer entfernt sind.
+#
 #  Regel seit 111.114.0 (Wunsch Patrick, 8. Oktober 2026: "es soll mal
 #  eine Zeichnung hochladen; wenn es nicht passt, lösche ich sie, und du
 #  lädst das nächste Mal ein anderes Dokument hoch; gibt es keine mehr,
@@ -132,11 +145,20 @@ function LesenAlle([string]$pfad) {
 
 #   1 = "hofer" im Namen, 2 = "kunde" im Namen, 3 = keins von beiden
 #   (seit 111.114.0 zählen auch die: "viele Zeichnungen heissen einfach irgendwie")
-function Rang([string]$name) {
-  $n = $name.ToLower()
-  if ($n.Contains("hofer")) { return 1 }
-  if ($n.Contains("kunde")) { return 2 }
-  return 3
+#   +3, wenn die Datei in einem Unterordner für alte Stände liegt ("alt",
+#   "Archiv" usw.): die kommen erst, wenn alle aktuellen entfernt sind
+function Rang($d, [string]$wurzel) {
+  $n = $d.Name.ToLower()
+  $r = 3
+  if ($n.Contains("hofer")) { $r = 1 }
+  elseif ($n.Contains("kunde")) { $r = 2 }
+  $w = $wurzel.TrimEnd('\').ToLower()
+  $o = $d.Directory
+  while ($o -and $o.FullName.TrimEnd('\').Length -gt $w.Length) {
+    if ($o.Name -match '^\s*(alt|alte|archiv|archive|old|veraltet)\s*$') { return $r + 3 }
+    $o = $o.Parent
+  }
+  return $r
 }
 
 # HOCO Nr. in einem Ordnernamen, ohne dass etwas als Endung abgeschnitten
@@ -147,13 +169,29 @@ function HocoAusText([string]$text) {
   return $null
 }
 
-# Die HOCO Nr. der Datei: zuerst im Dateinamen, sonst in den Ordnern von
-# innen nach aussen, bis zum Zeichnungs-Ordner (der zählt nicht mit).
-# Liefert die Nummer und woher sie kommt ("name" oder "ordner").
+# Die HOCO Nr. der Datei. Zuerst Kundenordner mit Teilordner darin
+# ("10841\0009 Federführung …"), so ist der Zeichnungs-Ordner fast überall
+# aufgebaut, und dort steht im Dateinamen oft die Zeichnungsnummer des
+# Kunden, die wie eine HOCO Nr. aussieht ("30243-014 Kunde.pdf"). Sonst
+# im Dateinamen, sonst in den Ordnern von innen nach aussen, bis zum
+# Zeichnungs-Ordner (der zählt nicht mit). Liefert die Nummer und woher
+# sie kommt ("name" oder "ordner").
 function HocoAusPfad($d, [string]$wurzel) {
+  $w = $wurzel.TrimEnd('\').ToLower()
+  $o = $d.Directory
+  while ($o -and $o.FullName.TrimEnd('\').Length -gt $w.Length) {
+    # Teilnummer vorne im Ordnernamen, die Kundennummer ist der ganze
+    # Name des Ordners darüber
+    $t = [regex]::Match([string]$o.Name, '^\s*(\d{3,5})(?!\d)')
+    $k = $o.Parent
+    if ($t.Success -and $k -and $k.FullName.TrimEnd('\').Length -gt $w.Length) {
+      $kn = [regex]::Match([string]$k.Name, '^\s*(\d{4,6})\s*$')
+      if ($kn.Success) { return @{ nr = $kn.Groups[1].Value + "-" + $t.Groups[1].Value; woher = "ordner" } }
+    }
+    $o = $o.Parent
+  }
   $h = HocoAusName $d.Name
   if ($h) { return @{ nr = $h; woher = "name" } }
-  $w = $wurzel.TrimEnd('\').ToLower()
   $o = $d.Directory
   while ($o -and $o.FullName.TrimEnd('\').Length -gt $w.Length -and $o.FullName.TrimEnd('\').ToLower() -ne $w) {
     $h = HocoAusText $o.Name
@@ -234,7 +272,7 @@ try {
     if (-not $f) { [void]$ohneNr.Add((Relativ $d.FullName $pfad)); continue }
     $h = $f.nr
     if ($f.woher -eq "ordner") { $status.imOrdner++ }
-    $d | Add-Member -NotePropertyName HoferRang -NotePropertyValue (Rang $d.Name) -Force
+    $d | Add-Member -NotePropertyName HoferRang -NotePropertyValue (Rang $d $pfad) -Force
     if (-not $jeNr[$h]) { $jeNr[$h] = @() }
     $jeNr[$h] += $d
   }
