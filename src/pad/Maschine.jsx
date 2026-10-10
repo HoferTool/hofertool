@@ -579,12 +579,13 @@ export default function Maschine({ d }) {
             {!alt.istExtern() &&
               <a className="pad-karte2 pad-karte2--browser" data-padfeld="browser"
                 href={BROWSER_URL} target="_blank" rel="noopener" onClick={browserOeffnen}>
-                <span className="pad-name">Browser · antippen</span>
+                <span className="pad-name">Internet · antippen</span>
                 <span className="pad-wert pad-browser">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" />
                     <path d="M2.5 12h19M12 2.5c2.6 2.8 3.9 6 3.9 9.5s-1.3 6.7-3.9 9.5M12 2.5C9.4 5.3 8.1 8.5 8.1 12s1.3 6.7 3.9 9.5" /></svg>
-                  {/* Nirgends „Google“ (Wunsch Patrick, 10. Oktober 2026) */}
-                  Safari
+                  {/* Nirgends „Google“, die Kachel heisst „Internet“
+                      (Wunsch Patrick, 10. Oktober 2026) */}
+                  Internet
                 </span>
               </a>}
           </div>
