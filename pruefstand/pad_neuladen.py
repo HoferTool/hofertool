@@ -23,12 +23,13 @@ with sync_playwright() as p:
     pg.locator("#pad .pad-kachel--maschine").first.click(); pg.wait_for_timeout(2000)
     titel = lambda: pg.evaluate("(document.querySelector('#pad .pad__titel')||{}).textContent||'kein Pad'")
     vorher = titel()
-    # Seit 1.20.3 kein Logo mehr oben im Dashboard (Wunsch Patrick)
-    if pg.locator("#pad .pad__kopf--dash img, [data-padneu]").count(): f.append("Logo noch oben im Dashboard")
+    # Seit 1.20.3 kein Logo mehr oben im Dashboard (Wunsch Patrick),
+    # seit 1.21.0 dafür der Knopf Neu laden oben
+    if pg.locator("#pad .pad__kopf--dash img").count(): f.append("Logo noch oben im Dashboard")
     print("Dashboard vorher:", vorher)
     pg.evaluate("window.__alteSeite = true")
     with pg.expect_navigation():
-        pg.reload()
+        pg.click("#pad [data-padneu]")
     pg.wait_for_selector("#pad .pad__kopf--dash", timeout=15000); pg.wait_for_timeout(1200)
     nachher = titel()
     neu = pg.evaluate("window.__alteSeite !== true")

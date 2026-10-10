@@ -60,6 +60,18 @@ export function padZurueck() {
   });
 }
 
+// Neu laden, und man bleibt, wo man ist (Wunsch Patrick, 10. Oktober
+// 2026). padNeuLaden merkt sich Ansicht, Park und Maschine im Tab.
+export function PadNeuLadenKnopf() {
+  return (
+    <button className="pad__neu" data-padneu="" aria-label="Neu laden" title="Neu laden"
+      onClick={() => alt.padNeuLaden()}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" />
+        <path d="M20 4v5h-5" /></svg>
+    </button>
+  );
+}
+
 // Grosse Knöpfe statt eines schmalen Balkens mit Pfeilchen: an der
 // Maschine wird mit Handschuhen getippt.
 export function PadKopf({ titel, zurueck }) {
@@ -69,6 +81,7 @@ export function PadKopf({ titel, zurueck }) {
         ? <button className="pad__zurueck" data-padzurueck="" onClick={padZurueck}>‹ Zurück</button>
         : <span className="pad__zurueck pad__zurueck--leer" />}
       <span className="pad__titel">{titel}</span>
+      <PadNeuLadenKnopf />
       <button className="pad__zu" data-padzu="" onClick={() => alt.padSchliessen()}
         aria-label="Schliessen">✕<span className="pad__zutext"> Schliessen</span></button>
     </div>

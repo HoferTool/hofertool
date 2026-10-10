@@ -13,7 +13,7 @@
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { padZeichnen, padZurueck } from "./Pad.jsx";
+import { padZeichnen, padZurueck, PadNeuLadenKnopf } from "./Pad.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
@@ -509,8 +509,8 @@ export default function Maschine({ d }) {
     <div className="pad__kopf pad__kopf--dash">
       {/* Kein Logo mehr oben (Wunsch Patrick, 10. Oktober 2026, 1.20.3):
           oben stehen wie überall im Pad nur Zurück und Schliessen. Damit
-          ist auch „Logo antippen lädt neu“ weg; das stündliche Neuladen
-          und Strg + F5 bleiben und führen wieder hierher. */}
+          ist „Logo antippen lädt neu“ weg; dafür gibt es seit 1.21.0 den
+          Knopf Neu laden neben Schliessen. */}
       <button className="pad__zurueck" data-padzurueck="" onClick={padZurueck}>‹ Zurück</button>
       <span className="pad__titel pad__titel--links">
         {m.name}{m.machine_number && <> <span className="pad__nr">{m.machine_number}</span></>}
@@ -522,6 +522,7 @@ export default function Maschine({ d }) {
           <button className="pad-sprung" data-padtab="" onClick={neuerTab}>Neuer Tab</button>
         </>}
       </div>
+      <PadNeuLadenKnopf />
       <button className="pad__zu" data-padzu="" onClick={() => alt.padSchliessen()}
         aria-label="Schliessen">✕<span className="pad__zutext"> Schliessen</span></button>
     </div>

@@ -7048,3 +7048,61 @@ body .pw-tafel .pw-balken--laeuft { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .5
 #pad .pad-qs--zwei .pad-qs__doks { grid-template-columns: repeat(2, 64px) !important; }
 #pad .pad-qs--zwei .pad-qs__hoco { font-size: .98rem; letter-spacing: -.01em; }
 @media (max-width: 900px) { #pad .pad-qs .pad-qs__zeile { padding-right: 10px; } }
+
+/* ---------- Anlagen Check: Tasten breiter und dicker (1.20.7) ----------
+   Wunsch Patrick, 10. Oktober 2026: „bei QS Check ist der Text
+   abgeschnitten … Knöpfe etwas breiter und dicker; dicker allgemein“.
+   Breiten wachsen mit dem Bildschirm (iPad 10" bis 13"), damit
+   „QS Check“ immer ganz dasteht. */
+#pad .pad-qs--zwei .pad-qs__zustaende { grid-template-columns: repeat(5, clamp(48px, 4.6vw, 64px)); gap: 4px; }
+#pad .pad-qs--zwei .pad-qs__knopf { font-size: clamp(.56rem, .78vw, .7rem); padding: 0 1px; }
+#pad .pad-qs--zwei .pad-qs__knopf, #pad .pad-qs--zwei .pad-qs__dok { height: 60px; }
+#pad .pad-qs--zwei .pad-qs__zeile { padding-top: 4px; padding-bottom: 4px; margin-bottom: 5px; }
+#pad .pad-qs--zwei .pad-qs__doks { grid-template-columns: repeat(2, clamp(56px, 5.4vw, 80px)) !important; }
+#pad .pad-qs--zwei .pad-qs__zeile { grid-template-columns: 46px minmax(0, 1fr) auto auto; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__knopf, #pad .pad-qs:not(.pad-qs--zwei) .pad-qs__dok { height: 80px; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__zustaende { grid-template-columns: repeat(5, 84px); }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__knopf { font-size: .85rem; }
+#pad .pad-qs--zwei .pad-qs__doks { grid-template-columns: repeat(2, clamp(62px, 5.8vw, 80px)) !important; }
+#pad .pad-qs--zwei .pad-qs__dok { font-size: clamp(.6rem, .82vw, .72rem) !important; padding: 0 1px; }
+#pad .pad-qs--zwei .pad-qs__zeile { padding-top: 3px; padding-bottom: 3px; margin-bottom: 4px; }
+#pad .pad-qs--zwei { padding-top: 6px; padding-bottom: 8px; }
+/* Hochkant und Handy: eine Spalte, Tasten über die ganze Breite */
+@media (max-width: 900px) {
+  #pad .pad-qs.pad-qs--zwei .pad-qs__zeile { grid-template-columns: 80px minmax(0, 1fr) auto;
+    grid-template-areas: "nr name hoco" "doks doks doks" "zust zust zust"; }
+  #pad .pad-qs.pad-qs--zwei .pad-qs__doks { grid-template-columns: 1fr 1fr !important; }
+  #pad .pad-qs.pad-qs--zwei .pad-qs__zustaende { grid-template-columns: repeat(5, 1fr) !important; }
+  #pad .pad-qs.pad-qs--zwei .pad-qs__knopf { font-size: .72rem; }
+}
+@media (max-width: 480px) {
+  #pad .pad-qs.pad-qs--zwei .pad-qs__zeile { grid-template-columns: 62px minmax(0, 1fr) auto; }
+  #pad .pad-qs .pad-qs__knopf { font-size: .62rem !important; }
+}
+#pad .pad-qs--zwei .pad-qs__knopf, #pad .pad-qs--zwei .pad-qs__dok { height: 58px; }
+/* Zwei Spalten (iPad quer): oben Nummer gross und der Name klein
+   daneben (gekürzt, wenn eng), darunter die HOCO Nr. über die ganze
+   Breite, damit sie nie abgeschnitten wird (Wunsch Patrick: Nummer
+   zählt mehr als der Name) */
+@media (min-width: 901px) {
+  #pad .pad-qs.pad-qs--zwei .pad-qs__zeile { grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "nr name doks zust" "hoco hoco doks zust"; column-gap: 6px; }
+  #pad .pad-qs.pad-qs--zwei .pad-qs__maschine { display: block; align-self: end; padding-bottom: 2px; }
+  #pad .pad-qs.pad-qs--zwei .pad-qs__nr { align-self: end; font-size: 1.4rem !important; }
+  #pad .pad-qs.pad-qs--zwei .pad-qs__auftrag { align-self: start; }
+  #pad .pad-qs.pad-qs--zwei .pad-qs__hoco { font-size: .95rem; }
+}
+
+/* ---------- Pad: Knopf Neu laden oben (1.21.0) ----------
+   Neben Schliessen, gleich hoch und im selben Stil; Zeichen statt
+   Text, damit die Leiste nicht voller wird. */
+#pad .pad__neu { flex: none; width: 58px; height: 58px; display: inline-flex; align-items: center;
+  justify-content: center; border-radius: 16px; color: #f2f4f7; cursor: pointer;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); padding: 0; }
+#pad .pad__neu:active { background: rgba(255,255,255,.18); }
+#pad .pad__neu:active svg { transform: rotate(160deg); }
+#pad .pad__neu svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2.4;
+  stroke-linecap: round; stroke-linejoin: round; transition: transform .3s ease; }
+@media (max-width: 560px) { #pad .pad__neu { width: 44px; height: 44px; border-radius: 12px; }
+  #pad .pad__neu svg { width: 22px; height: 22px; } }
+@media (max-width: 760px) { #pad .pad__kopf--dash .pad__neu { width: 38px; height: 38px; } }

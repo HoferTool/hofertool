@@ -107,17 +107,26 @@ with sync_playwright() as p:
     if "10444-0002" not in pg.locator("#pad [data-qsmaschine='m-k1']").inner_text():
         fehler.append("Nächster steht nicht in der Zeile")
 
+    # Neu laden oben: danach wieder dieselbe Liste
+    with pg.expect_navigation():
+        pg.click("#pad [data-padneu]")
+    pg.wait_for_selector("#pad [data-qsmaschine='m-k1']", timeout=15000)
     pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad [data-qspark]")
     pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad [data-padwo='qs']")
 
-    for name, b, h, mob in [("ipad", 1180, 820, True), ("ipad-hoch", 820, 1180, True), ("handy", 390, 844, True)]:
+    for name, b, h, mob in [("ipad", 1180, 820, True), ("ipad10", 1080, 810, True), ("ipad13", 1366, 1024, True), ("ipad-hoch", 820, 1180, True), ("handy", 390, 844, True)]:
         q = seite(br, b, h, mob)
         q.click("#pad [data-padwo='qs']"); q.wait_for_selector("#pad [data-qspark]")
         q.click("#pad [data-qspark='p-lang']"); q.wait_for_selector("#pad .pad-qs__zeile"); q.wait_for_timeout(700)
         if q.locator("#pad .pad-qs__zeile").count() != 20: fehler.append(name + ": Langdreher nicht 20 Zeilen")
         breit = q.evaluate("document.querySelector('#pad .pad-qs').scrollWidth - document.querySelector('#pad .pad-qs').clientWidth")
         if breit > 1: fehler.append(f"{name}: ragt seitlich {breit}px heraus")
-        if name == "ipad":
+        # Kein Text in den Tasten abgeschnitten
+        ab = q.evaluate("[...document.querySelectorAll('#pad .pad-qs__knopf span:last-child, #pad .pad-qs__dok')].filter(e => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().width > e.closest('button').getBoundingClientRect().width + 1).length")
+        if ab: fehler.append(f"{name}: {ab} Tasten mit abgeschnittenem Text")
+        hb = q.evaluate("[...document.querySelectorAll('#pad .pad-qs__hoco, #pad .pad-qs__nr')].filter(e => e.scrollWidth > e.clientWidth + 1).length")
+        if hb: fehler.append(f"{name}: {hb} HOCO- oder Maschinen-Nr. abgeschnitten")
+        if name.startswith("ipad") and name != "ipad-hoch":
             hoch = q.evaluate("(() => { const e = document.querySelector('#pad .pad-qs'); return e.scrollHeight - e.clientHeight; })()")
             if hoch > 1: fehler.append(f"iPad quer, Langdreher: nicht alles auf einem Bildschirm, {hoch}px zu viel")
         if BILDER: q.screenshot(path=f"{BILDER}/qs-{name}.png")
