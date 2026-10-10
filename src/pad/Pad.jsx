@@ -117,7 +117,14 @@ async function typenLaden(p) {
 }
 
 async function sichtLaden(p) {
-  if (p.wo === "parks") return { art: "parks", parks: await alt.ladeParks(false) };
+  if (p.wo === "parks") {
+    // Mit der Zahl der Maschinen je Park, wie beim Anlagen Check
+    // (Wunsch Patrick, 10. Oktober 2026)
+    const [parks, maschinen] = await Promise.all([alt.ladeParks(false), alt.ladeAlleMaschinen()]);
+    const anzahl = {};
+    maschinen.forEach((m) => { anzahl[m.park_id] = (anzahl[m.park_id] || 0) + 1; });
+    return { art: "parks", parks, anzahl };
+  }
   if (p.wo === "typen") return typenLaden(p);
   if (p.wo === "maschinen") return maschinenLaden(p);
   if (p.wo === "maschine") {
@@ -187,7 +194,7 @@ function Pad({ h, auffrischen }) {
   if (!d) return <div className="pad__laedt">Wird geladen …</div>;
 
   if (d.art === "start") return <Start />;
-  if (d.art === "parks") return <Parks parks={d.parks} />;
+  if (d.art === "parks") return <Parks parks={d.parks} anzahl={d.anzahl} />;
   if (d.art === "typen") return <Typen gruppen={d.gruppen} alle={d.alle} />;
   if (d.art === "maschinen") return <Maschinen eigene={d.eigene} laufend={d.laufend} />;
   if (d.art === "maschine") return <Maschine d={d} />;
@@ -243,7 +250,7 @@ function Rahmen({ titel, id, klasse, zeichne }) {
 
 // ---------- Parks ----------
 
-function Parks({ parks }) {
+function Parks({ parks, anzahl }) {
   return (
     <>
       <PadKopf titel="Maschinenparks" zurueck />
@@ -255,6 +262,9 @@ function Parks({ parks }) {
                 <button key={park.id} className="pad-kachel" data-park={park.id}
                   onClick={() => gehe((p) => { p.parkId = park.id; p.typId = null; p.wo = "typen"; })}>
                   <span>{park.name}</span>
+                  <span className="pad-kachel__nr">
+                    {(anzahl[park.id] || 0) + ((anzahl[park.id] || 0) === 1 ? " Maschine" : " Maschinen")}
+                  </span>
                 </button>))
             : <p className="pad__leer">Keine Parks angelegt.</p>}
         </div>

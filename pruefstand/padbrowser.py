@@ -5,12 +5,14 @@ from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 f = []
-def lauf(p, touch, name):
+def lauf(p, touch, name, start=False):
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])
     ctx = br.new_context(viewport={"width":1180,"height":820}, device_scale_factor=2,
                          has_touch=touch, is_mobile=touch)
     ctx.route("**://www.google.ch/**", lambda r: r.fulfill(status=200, content_type="text/html", body="<p>Google</p>"))
     pg = ctx.new_page()
+    # App auf dem Startbildschirm des iPads (1.20.0): navigator.standalone
+    if start: pg.add_init_script("Object.defineProperty(navigator, 'standalone', { get: () => true })")
     pg.on("pageerror", lambda e: f.append(str(e)[:220]))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200,
         content_type="application/javascript", body=FAKE))
@@ -33,6 +35,14 @@ def lauf(p, touch, name):
     print(name, "Reihe:", r)
     if not (r["gleicheZeile"] and abs(r["aB"]-r["bB"])<3): f.append(name+": Kacheln nicht nebeneinander")
     pg.screenshot(path=f"padbrowser-{name}.png")
+    if start:
+        # Ohne neuen Tab: im selben Fenster, das iOS über der App zeigt
+        seiten = len(ctx.pages)
+        pg.locator(".pad-karte2--browser").click(); pg.wait_for_timeout(1500)
+        print(name, "geöffnet:", pg.url)
+        if len(ctx.pages) != seiten: f.append(name + ": neuer Tab statt Fenster über der App")
+        if "google" not in pg.url: f.append(name + ": kein Google")
+        br.close(); return
     with ctx.expect_page(timeout=5000) as neu:
         pg.locator(".pad-karte2--browser").click()
     print(name, "geöffnet:", neu.value.url, "| Grösse:", neu.value.evaluate("[innerWidth, innerHeight]"))
@@ -41,4 +51,5 @@ def lauf(p, touch, name):
 with sync_playwright() as p:
     lauf(p, True, "tablet")
     lauf(p, False, "computer")
+    lauf(p, True, "startbildschirm", True)
 print("Fehler:", f[:3] if f else "keine")

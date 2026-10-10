@@ -60,6 +60,12 @@ with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])
     pg = seite(br, 1500, 950)
     if BILDER: pg.screenshot(path=BILDER + "/qs-start.png")
+    # Bei „Maschinen“ steht auf jeder Park-Kachel die Zahl der Maschinen
+    pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park='p-lang']"); pg.wait_for_timeout(700)
+    t = pg.inner_text("#pad [data-park='p-lang']")
+    if "20 Maschinen" not in t: fehler.append("Maschinen-Parks ohne Anzahl: " + t)
+    if BILDER: pg.screenshot(path=BILDER + "/maschinen-parks.png")
+    pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad [data-padwo='qs']")
     pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector("#pad [data-qspark]")
     if BILDER: pg.screenshot(path=BILDER + "/qs-parks.png")
     pg.click("#pad [data-qspark='p-kurz']"); pg.wait_for_selector("#pad .pad-qs__zeile")
