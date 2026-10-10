@@ -1,5 +1,5 @@
 // =================================================================
-//  PAD MODE: QS CHECK
+//  PAD MODE: ANLAGEN CHECK (früher QS Check, umbenannt in 1.16.1)
 //  Alle Maschinen untereinander, je mit dem Auftrag, der gerade dran
 //  ist, und am Ende der Zeile der Zustand zum direkten Wechseln
 //  (Wunsch Patrick, 10. Oktober 2026). So geht man beim Rundgang
@@ -67,7 +67,7 @@ export default function QsCheck({ gruppen }) {
   const darf = alt.darfSchreiben();
   return (
     <>
-      <PadKopf titel="QS Check" zurueck />
+      <PadKopf titel="Anlagen Check" zurueck />
       <div className="pad-qs pad--wischen">
         {!gruppen.length && <p className="pad__leer">Keine Maschinen angelegt.</p>}
         {gruppen.map(({ park, zeilen }) => (

@@ -216,7 +216,7 @@ function Start() {
           </button>
           <button className="pad-kachel pad-kachel--qs" data-padwo="qs"
             onClick={() => gehe((p) => { p.wo = "qs"; })}>
-            <span className="pad-kachel__zeichen">🔍</span><span>QS Check</span>
+            <span className="pad-kachel__zeichen">🔍</span><span>Anlagen Check</span>
           </button>
         </div>
       </div>
