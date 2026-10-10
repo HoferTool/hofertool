@@ -4,6 +4,8 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.20.4** Pad Mode, Kachel Browser: Beschriftung „Safari“ statt „Google“ (Wunsch Patrick, 10. Oktober 2026: „soll nirgends Google stehen“).
+- **1.20.3** Pad-Dashboard: Das Hofer-Logo oben links ist weg (Wunsch Patrick, 10. Oktober 2026); oben stehen wie auf allen Pad-Seiten ausser der ersten nur Zurück und Schliessen. Damit entfällt „Logo antippen lädt neu“. Test `pad_neuladen.py` angepasst.
 - **1.20.2** Pad Mode, Kachel Browser: wieder Safari statt Fenster über der App (Patrick, 10. Oktober 2026: „kein Google, will Safari, es sind alles iPads“). Aus der App auf dem Startbildschirm öffnet der Link mit neuem Tab die Safari-App mit google.ch als Startseite.
 - **1.20.1** Anlagen Check grösser (Wunsch Patrick, 10. Oktober 2026: „die ganzen Balken dicker, habe noch Platz“, „Maschinen-Nr. müssen auch stehen“): höhere Zeilen und Tasten, grössere Schrift, die Maschinennummer steht wieder hinter dem Namen. Langdreher mit 20 Maschinen passt weiter auf einen iPad-Bildschirm quer.
 - **1.20.0** Pad Mode, Kachel Browser: In der App auf dem Startbildschirm von iPad und iPhone öffnet Google in einem Safari-Fenster über der App (mit „Fertig“ zurück), statt in die Safari-App zu wechseln (Wunsch Patrick, 10. Oktober 2026: „dass einfach ein Fenster aufgeht und nicht die App“). Dafür öffnet der Link dort ohne neuen Tab; iOS zeigt Adressen ausserhalb der App so an. Im normalen Safari-Tab und am Computer wie bisher. Test `padbrowser.py` erweitert.

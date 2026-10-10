@@ -39,7 +39,7 @@ const BROWSER_URL = "https://www.google.ch/";
 function browserOeffnen(e) {
   if (matchMedia("(pointer: coarse)").matches) return;
   const b = Math.min(1100, screen.availWidth - 40), h = Math.min(850, screen.availHeight - 40);
-  const f = window.open(BROWSER_URL, "hofer-google",
+  const f = window.open(BROWSER_URL, "hofer-browser",
     "popup,width=" + b + ",height=" + h + ",left=" + Math.round((screen.availWidth - b) / 2)
     + ",top=" + Math.round((screen.availHeight - h) / 2));
   if (f) { e.preventDefault(); f.focus(); }
@@ -507,11 +507,10 @@ export default function Maschine({ d }) {
   // Dadurch bleibt für die Zeichnung die ganze Fläche übrig.
   const kopf = (
     <div className="pad__kopf pad__kopf--dash">
-      {/* Tipp aufs Logo lädt die App neu, das Dashboard bleibt offen */}
-      <button className="pad__logoknopf" data-padneu="" title="Neu laden"
-        onClick={() => alt.padNeuLaden()}>
-        <img className="pad__logo2" src="./logo.png" alt="Hofer + Co." />
-      </button>
+      {/* Kein Logo mehr oben (Wunsch Patrick, 10. Oktober 2026, 1.20.3):
+          oben stehen wie überall im Pad nur Zurück und Schliessen. Damit
+          ist auch „Logo antippen lädt neu“ weg; das stündliche Neuladen
+          und Strg + F5 bleiben und führen wieder hierher. */}
       <button className="pad__zurueck" data-padzurueck="" onClick={padZurueck}>‹ Zurück</button>
       <span className="pad__titel pad__titel--links">
         {m.name}{m.machine_number && <> <span className="pad__nr">{m.machine_number}</span></>}
@@ -584,7 +583,8 @@ export default function Maschine({ d }) {
                 <span className="pad-wert pad-browser">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" />
                     <path d="M2.5 12h19M12 2.5c2.6 2.8 3.9 6 3.9 9.5s-1.3 6.7-3.9 9.5M12 2.5C9.4 5.3 8.1 8.5 8.1 12s1.3 6.7 3.9 9.5" /></svg>
-                  Google
+                  {/* Nirgends „Google“ (Wunsch Patrick, 10. Oktober 2026) */}
+                  Safari
                 </span>
               </a>}
           </div>
