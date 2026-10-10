@@ -65,16 +65,17 @@ with sync_playwright() as p:
         {"name": "Unbekannt.pdf", "mimeType": "application/pdf", "buffer": b"%PDF-1.4"},
         {"name": "EB_Star SR-32J.xlsx", "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "buffer": b"PK"}])
     pg.wait_for_selector("#pool-los"); pg.wait_for_timeout(300)
-    pruefe("Zuordnung: 2 von 3", "3 Dateien gelesen · 2 zugeordnet" in pg.inner_text("#pool-liste"))
-    pruefe("Unbekannte grau", pg.locator(".pool-zeile--offen").count() == 1)
-    pg.uncheck("[data-pool='2']"); pg.wait_for_timeout(200)
+    # WBG ohne FA Nr. ist nicht eindeutig und wird nicht zugeordnet (seit 1.21.2)
+    pruefe("Zuordnung: 1 von 3", "3 Dateien gelesen · 1 zugeordnet" in pg.inner_text("#pool-liste"))
+    pruefe("WBG ohne FA und Unbekannte grau", pg.locator(".pool-zeile--offen").count() == 2)
+    pruefe("Grund WBG ohne FA", "WBG ohne FA Nr. ist nicht eindeutig" in pg.inner_text("#pool-liste"))
     pruefe("Knopf zählt mit", pg.inner_text("#pool-los") == "1 hochladen")
     pg.click("#pool-los"); pg.wait_for_timeout(1200)
     neu = pg.evaluate("TEST.daten.dokumente.filter(d => d.id !== 'd1').map(d => d.art + ':' + d.hoco_nr)")
     print("Abgelegt:", neu)
-    pruefe("Nur die gewählte Datei abgelegt", neu == ["wbg:10844-0049"])
+    pruefe("Nur das Einrichtblatt abgelegt, keine WBG ohne FA", neu == ["einrichtblatt:null"])
     pruefe("Zuordnung danach weg", pg.locator("#pool-los").count() == 0)
-    pruefe("Zuletzt abgelegt frisch", "10844-0049_WBG.pdf" in pg.inner_text("#dok-letzte"))
+    pruefe("Zuletzt abgelegt frisch", "EB_Star SR-32J.xlsx" in pg.inner_text("#dok-letzte"))
 
     # Löschen
     pg.locator("[data-dokweg='d1']").click(); pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)

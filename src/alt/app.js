@@ -144,7 +144,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.23.0";
+const APP_VERSION = "1.23.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1786,6 +1786,10 @@ function dokErkennen(dateiname, typen) {
 
   const titel = rest.replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
   const mitFa = art === "wbg" && fa;
+  // WBG nur mit FA Nr. (Wunsch Patrick, 10. Oktober 2026): ohne sie ist
+  // nicht eindeutig, an welchen Auftrag sie gehört
+  const wbgOhneFa = art === "wbg" && !fa;
+  if (wbgOhneFa) grund = "WBG ohne FA Nr. ist nicht eindeutig";
   return {
     dateiname: roh,
     hoco: hoco,
@@ -1794,7 +1798,7 @@ function dokErkennen(dateiname, typen) {
     grund: grund,
     fa: mitFa ? fa : null,
     titel: mitFa ? "WBG FA " + fa : (titel || (hoco || ohneEndung)),
-    passt: !nurExcel && art !== "sonstiges" && !!(hoco || typ || mitFa),
+    passt: !nurExcel && !wbgOhneFa && art !== "sonstiges" && !!(hoco || typ || mitFa),
   };
 }
 
@@ -2012,6 +2016,10 @@ async function dokHochladen(datei, zuordnung, quelle) {
   }
   if (zuordnung.art === "einrichtblatt" && !istExcelDatei(datei.name)) {
     throw new Error("Einrichtblätter nur als Excel-Datei (.xlsx, .xlsm, .xls).");
+  }
+  // WBG nur mit FA Nr. (Wunsch Patrick, 10. Oktober 2026)
+  if (zuordnung.art === "wbg" && !zuordnung.fa) {
+    throw new Error("WBG ohne FA Nr. ist nicht eindeutig. Die FA Nr. muss im Dateinamen stehen.");
   }
   if (zuordnung.art === "wbg" && zuordnung.fa && !zuordnung.auftrag) {
     throw new Error("Nicht zuzuordnen: " + (zuordnung.grund || "kein passender Auftrag"));

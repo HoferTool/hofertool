@@ -231,12 +231,12 @@ function Zuordnung({ eintraege: anfang, typen, fertig }) {
               ? (e.zuordnung.auftrag
                   ? "FA " + e.zuordnung.fa + (e.zuordnung.auftrag.planned_from ? " · geplant " + alt.kurzDatum(e.zuordnung.auftrag.planned_from) : "")
                   : e.zuordnung.grund)
-              : "—"}</td>
+              : (e.zuordnung.art === "wbg" ? e.zuordnung.grund : "—")}</td>
           </tr>
         ))}</tbody>
       </table>
       <p className="hinweis">Grau hinterlegte Zeilen konnte die App keiner Nummer, keinem Typ oder keinem
-        offenen Auftrag zuordnen. Fehlt bei einem Einrichtblatt nur der Typ, wähle ihn in der Spalte Typ. Benenne die Datei um, plane zuerst den Auftrag oder lade sie direkt bei der HOCO Nr. hoch.</p>
+        offenen Auftrag zuordnen. Eine WBG braucht die FA Nr. im Namen, sonst ist sie nicht eindeutig. Fehlt bei einem Einrichtblatt nur der Typ, wähle ihn in der Spalte Typ. Benenne die Datei um, plane zuerst den Auftrag oder lade sie direkt bei der HOCO Nr. hoch.</p>
     </>
   );
 }
