@@ -9,9 +9,10 @@
 //  sonstigen Dateien“.
 //
 //  Eine Datei Hofer-Planwand-JJJJ-MM-TT-HHMM.html: die ganze Planwand
-//  (alle Aufträge, Maschinen, Ferien) mit eigenem kleinen Programm
-//  darin, öffnet sich mit Doppelklick im Browser, ohne App, ohne Netz.
-//  Aufbau der Seite in planwandArchivSeite.js.
+//  (alle Aufträge, Maschinen, Ferien) zusammen mit der App selbst, nur
+//  mit dem Reiter Planwand und nur zum Ansehen; öffnet sich mit
+//  Doppelklick im Browser, ohne Netz. Aufbau in planwandArchivSeite.js,
+//  Datenbank aus der Datei in src/archiv/archivDb.js.
 //
 //  Gleicher Ablauf wie die Sicherung (sicherung.js), aber eigener Ordner
 //  und eigene Einstellung: Den Ordner wählt man einmal auf einem Gerät
@@ -112,7 +113,7 @@ export async function archivSchreiben(h) {
   if (laeuft) throw new Error("Die Planwand-Datei wird schon geschrieben.");
   laeuft = (async () => {
     const daten = await alt.planArchivDaten();
-    const html = archivSeite(daten);
+    const html = await archivSeite(daten);
     const jetzt = new Date(daten.erstellt);
     const name = dateiName(jetzt);
     let ziel = name;
@@ -122,9 +123,7 @@ export async function archivSchreiben(h) {
     const w = await (await h.getFileHandle(ziel, { create: true })).createWritable();
     await w.write(new Blob([html], { type: "text/html" }));
     await w.close();
-    let auftraege = 0;
-    daten.parks.forEach((p) => p.maschinen.forEach((m) => { auftraege += m.balken.length; }));
-    return { zeit: daten.erstellt, datei: ziel, kb: Math.round(html.length / 1024), auftraege, geraet: geraetName() };
+    return { zeit: daten.erstellt, datei: ziel, kb: Math.round(html.length / 1024), auftraege: daten.auftraege, geraet: geraetName() };
   })();
   try { return await laeuft; } finally { laeuft = null; }
 }

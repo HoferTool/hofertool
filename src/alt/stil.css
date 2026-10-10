@@ -7126,3 +7126,10 @@ body.dunkel .login__karte #lk * { color: #003884; }
 .login__karte #lk .login__punkt { border-color: rgba(0,56,132,.25); border-top-color: #003884; }
 /* Planwand-Archiv (1.22.0): eigener Freigabe-Knopf, über dem der Sicherung */
 .pa-freigeben { bottom: 56px; }
+/* Backup-Datei der Planwand (1.22.0): nur die Planwand, nur zum Ansehen.
+   Was dort nichts tun kann, ist weg; an der Stelle von „Pad Mode“ steht,
+   von wann das Backup ist. */
+body.archiv #rueck-knopf, body.archiv #kopf-suche, body.archiv #kopf-einstellungen,
+body.archiv .kopf__benutzer, body.archiv .nav__punkt--web,
+body.archiv #pw-hoco, body.archiv #pw-symbole { display: none !important; }
+.archiv-marke { cursor: default; white-space: nowrap; }

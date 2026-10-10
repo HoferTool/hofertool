@@ -289,7 +289,9 @@ function Kopfleiste({ b, mobil }) {
           <span>HOCO Nr.</span>
         </button>
       </div>
-      {!alt.darfPlanen() && <div className="nurlesen">{mobil
+      {!alt.darfPlanen() && <div className="nurlesen">{alt.istArchiv()
+        ? "Backup der Planwand, nur zum Ansehen. Ändern geht nur in der App."
+        : mobil
         ? "Bearbeitbar nur am Desktop, nicht auf dem Handy."
         : "Du kannst die Planung ansehen. Ändern dürfen nur Administratoren."}</div>}
     </div>

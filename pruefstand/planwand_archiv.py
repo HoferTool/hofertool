@@ -1,4 +1,4 @@
-# Planwand-Archiv (1.22.0): eigener Ordner, jeden Tag eine HTML-Datei mit
+# Planwand-Archiv (1.22.0, Ansicht wie der Reiter Planwand seit 1.23.0): eigener Ordner, jeden Tag eine HTML-Datei mit
 # der ganzen Planwand, die sich ohne App im Browser öffnen lässt; alte
 # Dateien werden aufgeräumt. Danach die Datei selbst: Balken, Vorschau,
 # Suche, Blättern, keine Fehler, keine Adressen nach aussen.
@@ -73,8 +73,9 @@ with sync_playwright() as p:
            and "Hofer-Planwand-2025-01-02-1800.html" not in namen and "Hofer-Planwand-2025-01-04-1800.html" in namen and "anderes.txt" in namen)
     neu = [n for n in namen if n.startswith("Hofer-Planwand-") and not n.startswith("Hofer-Planwand-2025")][0]
     html = pg.evaluate("n => new TextDecoder().decode(window.ORDNER.get(n).daten)", neu)
-    pruefe("Keine Adressen nach aussen", not re.search(r'(src|href)="https?:', html) and "supabase.co/storage" not in html)
-    pruefe("Keine Zeichnungs-Adressen", "drawing_url" not in html and ".pdf" not in html)
+    daten = html[html.index("window.HOFER_ARCHIV = ") + 22:html.index("// Die Uhr der Seite")]
+    pruefe("Keine Zeichnungen oder WBGs in den Daten", "data:application/pdf" not in daten and '"drawing_url":null' in daten)
+    print("Grösse:", round(len(html) / 1024), "KB")
     # Liste in den Einstellungen
     pg.locator("[data-einst='allgemein']").click(); pg.wait_for_timeout(300)
     pg.locator("[data-einst='backup']").click(); pg.wait_for_selector("#pa-liste"); pg.wait_for_timeout(300)
@@ -89,26 +90,31 @@ with sync_playwright() as p:
     v.on("pageerror", lambda e: vf.append(str(e)[:200]))
     netz = []
     v.on("request", lambda r: netz.append(r.url) if not r.url.startswith(("data:", "file:")) else None)
-    v.goto("file://" + os.path.abspath("planwand_archiv_datei.html")); v.wait_for_timeout(500)
-    pruefe("Nur Reiter Planwand", v.locator("header .reiter").count() == 1 and v.inner_text("header .reiter") == "Planwand")
-    n0 = v.locator(".balken").count(); print("Balken:", n0)
-    pruefe("Balken gezeichnet", n0 > 0)
-    pruefe("Maschinen und Parks", v.locator(".parkzeile").count() >= 2)
-    b = v.locator(".balken").first; b.hover(); v.wait_for_timeout(200)
-    pruefe("Vorschau beim Darüberfahren", v.locator(".info").is_visible() and ("Stück" in v.inner_text(".info") or "Fertigungsmenge" in v.inner_text(".info")))
+    v.goto("file://" + os.path.abspath("planwand_archiv_datei.html"))
+    v.wait_for_selector(".pw-balken", timeout=20000); v.wait_for_timeout(800)
+    pruefe("Statt Pad Mode: Backup vom … (offline)", v.locator("#pad-knopf").count() == 0
+           and re.match(r"Backup vom \d\d\.\d\d\.\d{4}, \d\d:\d\d \(offline\)", v.inner_text("#archiv-marke")))
+    nav = v.evaluate("[...document.querySelectorAll('.nav__punkt')].filter(e => e.offsetParent).map(e => e.textContent.trim())")
+    print("Menü:", nav)
+    pruefe("Nur Reiter Planwand", nav == ["Planwand"])
+    pruefe("Keine Einstellungen, Suche über alles, Rückgängig", not v.locator("#kopf-einstellungen").is_visible()
+           and not v.locator("#kopf-suche").is_visible() and not v.locator("#rueck-knopf").is_visible())
+    n0 = v.locator(".pw-balken").count(); print("Balken:", n0)
+    pruefe("Balken wie auf der Planwand", n0 > 10)
+    pruefe("Tage und Höhe einstellbar", v.locator("input[type=range]").count() >= 2)
+    v.locator(".pw-balken").first.hover(); v.wait_for_timeout(400)
+    pruefe("Schnellvorschau", v.locator(".pw-info").count() == 1)
+    v.mouse.move(5, 5); v.wait_for_timeout(200)
     v.screenshot(path="planwand_archiv.png")
-    t0 = v.inner_text("#titel"); v.click("#vor"); v.wait_for_timeout(200)
-    pruefe("Blättern", v.inner_text("#titel") != t0)
-    v.click("#heute"); v.wait_for_timeout(200)
-    pruefe("Stand-Tag zurück", v.inner_text("#titel") == t0)
-    nr = v.evaluate("JSON.parse(document.getElementById('daten').textContent).parks.flatMap(p => p.maschinen.flatMap(m => m.balken))[0].nr")
-    v.fill("#suche", nr); v.wait_for_timeout(500)
-    pruefe("Suche findet und markiert", v.locator(".balken.fund").count() == 1 and "/" in v.inner_text("#treffer"))
-    v.select_option("#wochen", "2"); v.wait_for_timeout(200)
-    pruefe("Zeitraum 2 Wochen", v.locator(".zeile.kopf").nth(2).locator(".tag").count() == 10)
-    v.set_viewport_size({"width": 390, "height": 800}); v.wait_for_timeout(300)
-    pruefe("Handy: Seite ohne Überlauf", v.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
+    # Heute ist der Tag des Backups
+    pruefe("Heute-Linie da", v.locator(".pw-heutelinie").count() == 1)
+    # Ändern geht nicht
+    v.keyboard.press("h"); v.wait_for_timeout(300)
+    v.reload(); v.wait_for_selector(".pw-balken", timeout=20000); v.wait_for_timeout(500)
+    print("Nach Neuladen:", v.locator(".pw-balken").count())
+    pruefe("Neu laden geht offline", v.locator(".pw-balken").count() > 10)
     pruefe("Kein Netz gebraucht", not netz)
+    print("Netz:", netz[:5])
     fehler += vf
     print("Fehler:", fehler if fehler else "keine")
     br.close()

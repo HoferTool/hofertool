@@ -105,9 +105,9 @@ function Inhalt({ konf, status, neu }) {
 
   return (
     <Gruppe titel="Planwand-Archiv" id="pa"
-      text={"Jeden Tag eine Datei mit der ganzen Planwand (alle Aufträge, Maschinen und Ferien) in einem eigenen Ordner. "
-        + "Doppelklick auf die Datei öffnet sie im Browser, ohne App und ohne Internet, zum Nachschauen, wie die Planwand "
-        + "an diesem Tag aussah. Nur die Planwand, keine Zeichnungen und keine anderen Dateien. Zum Zurückspielen ist die "
+      text={"Jeden Tag eine Datei mit der ganzen Planwand (alle Aufträge, Maschinen und Ferien, rund 2 MB) in einem eigenen Ordner. "
+        + "Doppelklick auf die Datei öffnet sie im Browser, ohne Internet, genau wie der Reiter Planwand, zum Nachschauen, wie die Planwand "
+        + "an diesem Tag aussah. Nur die Planwand, nur zum Ansehen, keine Zeichnungen und keine anderen Dateien. Zum Zurückspielen ist die "
         + "Sicherung oben da. Die App muss auf dem Gerät mit dem Ordner offen sein, mit einem Admin, dem Konto Planwand "
         + "oder dem Sicherungskonto angemeldet."}>
       <Zeile titel="Speicherort" text={ordnerText}>
