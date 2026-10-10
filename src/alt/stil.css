@@ -6849,47 +6849,62 @@ body .pw-tafel .pw-balken--laeuft { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .5
 /* Farbeimer in der Pad-Skizze (seit 1.15.0) */
 .pad-skizze__leinwand--eimer { cursor: copy; }
 
-/* ---------- Pad Mode: QS Check (seit 1.16.0) ----------
+/* ---------- Pad Mode: Anlagen Check (seit 1.16.0) ----------
    Unter „Maschinen“ auf der Startseite ein zweiter, flacherer Knopf.
-   Die Liste: je Maschine eine Zeile, Nummer und Name, der Auftrag,
-   der dran ist, und am Ende die fünf Zustände als grosse Tasten
-   (Handschuhe). Der aktuelle Zustand leuchtet in seiner Farbe. */
+   Seit 1.17.0 kompakt (Wunsch Patrick, 10. Oktober 2026: „jeden
+   Status sehen ist gut, aber kleiner, dass man alles auf einem sehen
+   kann“): alle Maschinen eines Bildschirms auf einen Blick, nach Park
+   mit Überschrift, auf dem iPad quer in zwei Spalten. Je Zeile Name,
+   HOCO Nr. und die fünf Zustände als kleine Tasten; der aktuelle
+   leuchtet in seiner Farbe. */
 #pad .pad__start .pad__kacheln--start { flex-direction: column; align-items: center; gap: 18px; }
 #pad .pad__kacheln--start .pad-kachel--qs { min-height: 110px; font-size: 1.6rem; flex-direction: row; gap: 14px; }
 #pad .pad__kacheln--start .pad-kachel--qs .pad-kachel__zeichen { font-size: 1.8rem; }
-#pad .pad-qs { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 18px 24px 36px;
-  display: flex; flex-direction: column; gap: 22px; }
-#pad .pad-qs__park { display: flex; flex-direction: column; gap: 10px; width: min(1400px, 100%); margin: 0 auto; }
-#pad .pad-qs__parkname { margin: 4px 4px 2px; font-size: 1.15rem; font-weight: 700; color: #9fb3cf;
-  text-transform: uppercase; letter-spacing: .06em; }
-#pad .pad-qs__zeile { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(160px, 1.1fr) auto;
-  align-items: center; gap: 16px; padding: 12px 14px; border-radius: 16px;
-  background: linear-gradient(160deg, #142441, #0e1a2e); border: 1px solid rgba(255,255,255,.1); }
-#pad .pad-qs__maschine { display: flex; flex-direction: column; min-width: 0; }
-#pad .pad-qs__nr { font-size: .95rem; color: #9fb3cf; font-variant-numeric: tabular-nums; }
-#pad .pad-qs__name { font-size: 1.35rem; font-weight: 700; color: #eef4ff;
+#pad .pad-qs { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 12px 20px;
+  columns: 2; column-gap: 14px; }
+#pad .pad-qs__park { display: contents; }
+#pad .pad-qs__parkname { margin: 6px 4px 4px; font-size: .85rem; font-weight: 700; color: #9fb3cf;
+  text-transform: uppercase; letter-spacing: .06em; break-after: avoid; }
+#pad .pad-qs__park:first-child .pad-qs__parkname { margin-top: 0; }
+#pad .pad-qs__zeile { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr) auto;
+  align-items: center; gap: 8px; padding: 3px 4px 3px 10px; margin-bottom: 4px; border-radius: 9px;
+  background: linear-gradient(160deg, #142441, #0e1a2e); border: 1px solid rgba(255,255,255,.1);
+  break-inside: avoid; }
+#pad .pad-qs__maschine, #pad .pad-qs__auftrag { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+#pad .pad-qs__name { font-size: 1rem; font-weight: 700; color: #eef4ff;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#pad .pad-qs__auftrag { display: flex; flex-direction: column; min-width: 0; }
-#pad .pad-qs__hoco { font-size: 1.4rem; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
-#pad .pad-qs__menge { font-size: .95rem; color: #9fb3cf; font-variant-numeric: tabular-nums; }
-#pad .pad-qs__auftrag--leer { color: #7d8ca3; font-size: 1.1rem; font-style: italic; }
-#pad .pad-qs__zustaende { display: grid; grid-template-columns: repeat(5, 104px); gap: 8px; }
-#pad .pad-qs__knopf { height: 72px; border-radius: 14px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 3px; font-size: .95rem; font-weight: 700;
+#pad .pad-qs__nr { font-size: .75rem; color: #9fb3cf; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#pad .pad-qs__hoco { font-size: 1rem; font-weight: 700; color: #fff; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#pad .pad-qs__menge { font-size: .75rem; color: #9fb3cf; white-space: nowrap; font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; }
+#pad .pad-qs__auftrag--leer { color: #7d8ca3; font-size: .9rem; font-style: italic; }
+#pad .pad-qs__zustaende { display: grid; grid-template-columns: repeat(5, 50px); gap: 3px; }
+#pad .pad-qs__knopf { height: 38px; padding: 0 2px; border-radius: 7px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1px; font-size: .6rem; font-weight: 700; line-height: 1.05;
   color: #c9d6ea; background: #1a2333; border: 1px solid rgba(255,255,255,.12); cursor: pointer;
-  transition: transform .12s ease, background-color .15s ease; }
-#pad .pad-qs__knopf:active { transform: scale(.96); }
+  white-space: nowrap; overflow: hidden; transition: transform .12s ease; }
+#pad .pad-qs__knopf:active { transform: scale(.94); }
 #pad .pad-qs__knopf:disabled { cursor: default; opacity: .55; }
-#pad .pad-qs__knopf--an { color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.55) inset; opacity: 1 !important; }
+#pad .pad-qs__knopf--an { color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.6) inset; opacity: 1 !important; }
 #pad .pad-qs__knopf.pad-zustand--fertig { background: linear-gradient(160deg, #2a6d8a, #1b4a5e) !important; }
-#pad .pad-qs__zeichen { font-size: 1.3rem; line-height: 1; }
-@media (max-width: 1100px) {
-  #pad .pad-qs__zeile { grid-template-columns: 1fr 1fr; }
+#pad .pad-qs__zeichen { font-size: .95rem; line-height: 1; }
+/* Menge nur, wenn Platz ist */
+@media (max-width: 1300px) { #pad .pad-qs__menge { display: none; } }
+/* Hochkant und Handy: eine Spalte */
+@media (max-width: 900px) { #pad .pad-qs { columns: 1; } }
+@media (max-width: 480px) {
+  #pad .pad-qs { padding: 6px 6px 20px; }
+  #pad .pad-qs__zeile { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 6px; padding: 5px 6px 5px 8px; }
+  #pad .pad-qs__maschine { grid-column: 1; }
+  #pad .pad-qs__auftrag { grid-column: 2; justify-self: end; }
   #pad .pad-qs__zustaende { grid-column: 1 / -1; grid-template-columns: repeat(5, 1fr); }
+  #pad .pad-qs__knopf { height: 40px; font-size: .62rem; }
 }
-@media (max-width: 640px) {
-  #pad .pad-qs { padding: 12px 10px 28px; }
-  #pad .pad-qs__zeile { gap: 10px; padding: 10px; }
-  #pad .pad-qs__knopf { height: 62px; font-size: .78rem; }
-  #pad .pad-qs__name, #pad .pad-qs__hoco { font-size: 1.15rem; }
-}
+/* Allgemeine Mindesthöhe der Knöpfe hier aus, sonst passen nicht alle
+   Maschinen auf das iPad; Nummer klein unter den Namen. */
+#pad .pad-qs__knopf { min-height: 0; min-width: 0; }
+#pad .pad-qs__maschine { flex-direction: column; align-items: flex-start; gap: 0; line-height: 1.15; }
+#pad .pad-qs__nr { font-size: .68rem; }
+#pad .pad-qs__knopf { height: 34px; }
+#pad .pad-qs__zeile { padding-top: 2px; padding-bottom: 2px; margin-bottom: 3px; }
+@media (max-width: 480px) { #pad .pad-qs__knopf { height: 40px; } }

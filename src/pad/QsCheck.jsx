@@ -63,6 +63,10 @@ async function wechseln(j, wahl) {
   } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
 }
 
+// Alles auf einem Bildschirm (Wunsch Patrick, 10. Oktober 2026: „jeden
+// Status sehen ist gut, aber kleiner, dass man alles auf einem sehen
+// kann“, „nach Parks“): nach Park mit Überschrift, auf dem iPad quer in
+// zwei Spalten, die Zustände als kleine Tasten.
 export default function QsCheck({ gruppen }) {
   const darf = alt.darfSchreiben();
   return (
@@ -78,8 +82,8 @@ export default function QsCheck({ gruppen }) {
               return (
                 <div key={m.id} className="pad-qs__zeile" data-qsmaschine={m.id}>
                   <div className="pad-qs__maschine">
-                    <span className="pad-qs__nr">{m.machine_number || ""}</span>
                     <span className="pad-qs__name">{m.name}</span>
+                    <span className="pad-qs__nr">{m.machine_number || ""}</span>
                   </div>
                   <div className={"pad-qs__auftrag" + (j ? "" : " pad-qs__auftrag--leer")}>
                     {j
@@ -87,7 +91,7 @@ export default function QsCheck({ gruppen }) {
                           <span className="pad-qs__hoco">{j.job_number}</span>
                           {!!j.target_quantity &&
                             <span className="pad-qs__menge">
-                              {alt.zahlText(j.stand || 0)} / {alt.zahlText(j.target_quantity)} Stk.
+                              {alt.zahlText(j.stand || 0)} / {alt.zahlText(j.target_quantity)}
                             </span>}
                         </>
                       : "kein Auftrag"}

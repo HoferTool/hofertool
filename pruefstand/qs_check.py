@@ -32,6 +32,20 @@ def seite(br, b, h, mobil=False):
       const basis = { machine_id: 'm-k1', ended_at: null, planned_days: 3, target_quantity: 1000 };
       D.jobs.push({ ...basis, id: 'qA', job_number: '10444-0001', plan_status: 'ruesten',
         started_at: '2026-10-01T04:00:00Z', planned_from: '2026-10-01' });
+      // So viele Maschinen wie im Betrieb (28): Kurz 6, Lang 20, Extern 2
+      if (!D.machine_parks.find(x => x.id === 'p-ext'))
+        D.machine_parks.push({ id: 'p-ext', name: 'Extern', is_active: true });
+      const zahl = (pk) => D.machines.filter(x => x.park_id === pk && x.is_active !== false).length;
+      for (const [pk, soll, vor] of [['p-lang', 20, 'L'], ['p-kurz', 6, 'K'], ['p-ext', 2, 'E']]) {
+        for (let i = zahl(pk); i < soll; i++) {
+          const id = 'mx-' + pk + i;
+          D.machines.push({ id, park_id: pk, name: 'Citizen L20-' + i, machine_number: vor + '-' + (3000 + i),
+            is_active: true, sort_order: 100 + i, type_id: null });
+          D.jobs.push({ id: 'jx' + id, machine_id: id, job_number: '10' + (500 + i) + '-0' + (100 + i),
+            plan_status: ['laeuft', 'ruesten', 'qs', 'geplant'][i % 4], ended_at: null,
+            planned_from: '2026-10-0' + (1 + i % 9), started_at: '2026-10-01T04:00:00Z', target_quantity: 1200 });
+        }
+      }
       D.jobs.push({ ...basis, id: 'qB', job_number: '10444-0002', plan_status: 'geplant',
         started_at: '2026-09-01T04:00:00Z', planned_from: '2026-10-20' });
     }""")
@@ -83,6 +97,9 @@ with sync_playwright() as p:
         q.click("#pad [data-padwo='qs']"); q.wait_for_selector("#pad .pad-qs__zeile"); q.wait_for_timeout(700)
         breit = q.evaluate("document.querySelector('#pad .pad-qs').scrollWidth - document.querySelector('#pad .pad-qs').clientWidth")
         if breit > 1: fehler.append(f"{name}: ragt seitlich {breit}px heraus")
+        if name == "ipad":
+            hoch = q.evaluate("(() => { const e = document.querySelector('#pad .pad-qs'); return e.scrollHeight - e.clientHeight; })()")
+            if hoch > 1: fehler.append(f"iPad quer: nicht alles auf einem Bildschirm, {hoch}px zu viel")
         if BILDER: q.screenshot(path=f"{BILDER}/qs-{name}.png")
         q.context.close()
     br.close()
