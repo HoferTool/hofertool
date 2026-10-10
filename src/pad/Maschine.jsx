@@ -30,23 +30,14 @@ import {
 // vorn), auf Tablet und Handy öffnet der Link wie gewohnt einen Tab
 // bzw. Safari. Gleiches Verhalten wie die Knöpfe im Menü (Geruest.jsx).
 //
-// Seit 1.19.0 in der App auf dem Startbildschirm (iPad, iPhone) ohne
-// target: Eine Adresse ausserhalb der App öffnet iOS dann in einem
-// Safari-Fenster über der App mit „Fertig“ zum Zurückkehren, statt in
-// die Safari-App zu wechseln (Wunsch Patrick, 10. Oktober 2026: „ein
-// Fenster aufgeht und nicht die App“). Im normalen Safari-Tab bleibt
-// es ein neuer Tab, sonst wäre die App weg.
+// 1.20.0 öffnete Google in der App auf dem Startbildschirm in einem
+// Fenster über der App; Patrick will aber die Safari-App (10. Oktober
+// 2026: „kein Google, will Safari, es sind alles iPads“). Darum seit
+// 1.20.2 wieder der Link mit neuem Tab: Aus der App auf dem
+// Startbildschirm öffnet iOS ihn in Safari.
 const BROWSER_URL = "https://www.google.ch/";
-function vomStartbildschirm() {
-  return navigator.standalone === true
-    || matchMedia("(display-mode: standalone)").matches
-    || matchMedia("(display-mode: fullscreen)").matches;
-}
 function browserOeffnen(e) {
-  if (matchMedia("(pointer: coarse)").matches) {
-    if (vomStartbildschirm()) { e.preventDefault(); location.href = BROWSER_URL; }
-    return;
-  }
+  if (matchMedia("(pointer: coarse)").matches) return;
   const b = Math.min(1100, screen.availWidth - 40), h = Math.min(850, screen.availHeight - 40);
   const f = window.open(BROWSER_URL, "hofer-google",
     "popup,width=" + b + ",height=" + h + ",left=" + Math.round((screen.availWidth - b) / 2)

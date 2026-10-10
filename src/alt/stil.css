@@ -6965,3 +6965,39 @@ body .pw-tafel .pw-balken--laeuft { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .5
 #pad .pad-qs--zwei .pad-qs__zustaende { grid-area: zust; }
 #pad .pad-qs--zwei .pad-qs__nr { display: none; }
 #pad .pad-qs--zwei .pad-qs__hoco { font-size: .9rem; font-weight: 600; color: #cfe0f7; }
+/* ---------- Anlagen Check grösser (1.20.1) ----------
+   Wunsch Patrick, 10. Oktober 2026: „die ganzen Balken dicker, habe
+   noch Platz“ und „Maschinen-Nr. müssen auch stehen“. Zeilen und
+   Tasten höher, Schrift grösser; die Nummer steht hinter dem Namen,
+   in zwei Spalten die HOCO Nr. darunter. */
+#pad .pad-qs__zeile { padding-top: 5px; padding-bottom: 5px; margin-bottom: 7px; border-radius: 12px; }
+#pad .pad-qs .pad-qs__knopf, #pad .pad-qs .pad-qs__dok { height: 60px; border-radius: 10px; }
+#pad .pad-qs .pad-qs__knopf { font-size: .7rem; gap: 3px; }
+#pad .pad-qs .pad-qs__zeichen { font-size: 1.25rem; }
+#pad .pad-qs .pad-qs__dok { font-size: .8rem !important; }
+#pad .pad-qs__maschine { flex-direction: row; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+#pad .pad-qs__name { font-size: 1.25rem; }
+#pad .pad-qs__nr, #pad .pad-qs--zwei .pad-qs__nr { display: inline; font-size: .95rem; font-weight: 600; color: #9fb3cf; }
+#pad .pad-qs__hoco { font-size: 1.2rem; }
+#pad .pad-qs--zwei .pad-qs__name { font-size: 1.1rem; }
+#pad .pad-qs--zwei .pad-qs__nr { font-size: .85rem; }
+#pad .pad-qs--zwei .pad-qs__hoco { font-size: 1rem; }
+#pad .pad-qs--zwei .pad-qs__zustaende { grid-template-columns: repeat(5, 44px); }
+#pad .pad-qs--zwei .pad-qs__knopf { font-size: .55rem; }
+#pad .pad-qs--zwei .pad-qs__dok { font-size: .68rem !important; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__zustaende { grid-template-columns: repeat(5, 78px); }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__knopf { font-size: .8rem; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__zeile { padding-top: 8px; padding-bottom: 8px; margin-bottom: 10px; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__knopf, #pad .pad-qs:not(.pad-qs--zwei) .pad-qs__dok { height: 72px; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__name { font-size: 1.5rem; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__hoco { font-size: 1.45rem; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__zeile { width: min(1150px, 100%); }
+@media (max-width: 480px) {
+  #pad .pad-qs .pad-qs__knopf, #pad .pad-qs .pad-qs__dok { height: 48px !important; }
+  #pad .pad-qs .pad-qs__name, #pad .pad-qs .pad-qs__hoco { font-size: 1.1rem; }
+}
+#pad .pad-qs--zwei .pad-qs__knopf, #pad .pad-qs--zwei .pad-qs__dok { height: 54px; }
+#pad .pad-qs--zwei .pad-qs__zeile { padding-top: 4px; padding-bottom: 4px; margin-bottom: 6px; }
+#pad .pad-qs__maschine { flex-wrap: nowrap; }
+#pad .pad-qs__name { min-width: 0; flex: 0 1 auto; }
+#pad .pad-qs__nr { flex: none; }

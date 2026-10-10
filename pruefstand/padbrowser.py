@@ -51,5 +51,6 @@ def lauf(p, touch, name, start=False):
 with sync_playwright() as p:
     lauf(p, True, "tablet")
     lauf(p, False, "computer")
-    lauf(p, True, "startbildschirm", True)
+    # Seit 1.20.2 auch vom Startbildschirm wieder ein neuer Tab (Safari)
+    lauf(p, True, "startbildschirm")
 print("Fehler:", f[:3] if f else "keine")
