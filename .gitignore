@@ -6,3 +6,4 @@ skripte/*-lokal.json
 # Vite: Pakete und gebaute Fassung
 node_modules/
 dist/
+pruefstand/planwand_archiv_datei.html

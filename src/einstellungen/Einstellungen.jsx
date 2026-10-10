@@ -17,6 +17,7 @@ import Farben from "./Farben.jsx";
 import Symbole from "./Symbole.jsx";
 import Nutzer from "./Nutzer.jsx";
 import Sicherung from "./Sicherung.jsx";
+import PlanwandArchiv from "./PlanwandArchiv.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
@@ -405,8 +406,9 @@ function UeberDieApp() {
 // ---------- Backup ----------
 
 // „Planwand als Excel“ ist weg (Wunsch Patrick 8. Oktober 2026)
+// Darunter das Planwand-Archiv zum Nachschauen (1.22.0, Wunsch Patrick 10. Oktober 2026)
 function Backup() {
-  return <Sicherung />;
+  return <><Sicherung /><PlanwandArchiv /></>;
 }
 
 // ---------- Fehlerprotokoll ----------

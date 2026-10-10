@@ -31,6 +31,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
 import { sicherungWaechter } from "../teile/sicherung.js";
+import { planArchivWaechter } from "../teile/planwandArchiv.js";
 import { werkzeugWechselDialog } from "../pad/Werkzeugwechsel.jsx";
 import { ferienDialog } from "../planwand/FerienFenster.jsx";
 import { hocoFenster } from "../planwand/HocoFenster.jsx";
@@ -135,7 +136,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.21.1";
+const APP_VERSION = "1.22.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3909,6 +3910,8 @@ async function farbzuteilungLaden() {
   setTimeout(() => { wbgAufraeumen().catch(() => {}); }, 4000);
   // Tägliche Sicherung, wenn dieses Gerät das Sicherungsgerät ist (src/teile/sicherung.js)
   sicherungWaechter();
+  // Tägliche Planwand-Datei zum Nachschauen (src/teile/planwandArchiv.js)
+  planArchivWaechter();
 }
 
 // Auf der Planwand darf jeder alles sehen. Geändert wird erst,
@@ -9338,6 +9341,79 @@ function fortschrittRechnen(j) {
 
 // Die Ansicht Fortschritt ist in src/seiten/produktion/Fortschritt.jsx.
 
+// =================================================================
+//  PLANWAND-ARCHIV
+//  Die Daten für die tägliche Planwand-Datei (src/teile/planwandArchiv.js,
+//  Wunsch Patrick 10. Oktober 2026): alle Aufträge, Maschinen und Ferien,
+//  schon fertig gerechnet wie auf der Tafel (Farbe, Zeichen, Anschrift,
+//  Schnellvorschau), damit die Datei im Browser ohne App und ohne Netz
+//  dasselbe Bild zeigt. Keine Zeichnungen, keine Bilder, keine Adressen.
+// =================================================================
+async function planArchivDaten() {
+  const [auftraege, parks, maschinen, ferien] = await Promise.all([
+    ladePlanAuftraege(true), ladeParksFrisch(false), ladeMaschinenFrisch(false),
+    ladeFerien().catch(() => [])]);
+  const jeMaschine = new Map();
+  auftraege.forEach((j) => {
+    if (!j.planned_from || !j.machine_id) return;
+    if (!jeMaschine.has(j.machine_id)) jeMaschine.set(j.machine_id, []);
+    jeMaschine.get(j.machine_id).push(j);
+  });
+  const balken = (j) => {
+    const st = j.plan_status || "geplant";
+    const fertig = st === "fertig";
+    const f = farbeVon(j.color);
+    const freieFarbe = /^#[0-9a-f]{6}$/i.test(String(j.color || ""));
+    const hg = fertig ? "#d9dce0" : (freieFarbe ? f.hex : leuchtend(f.hex).hg);
+    const mengeDa = String(j.material_menge || "").trim();
+    let anteil = null;
+    if (j.target_quantity > 0) anteil = Math.max(0, Math.min(100, Math.round((j.stand || 0) / j.target_quantity * 20) * 5));
+    else if (fertig) anteil = 100;
+    const zustand = PLANSTATUS[st] || PLANSTATUS.geplant;
+    const abruf = String(j.abruf_info || "").trim();
+    const g = werkstoffErkennen(j.material_bez);
+    // Schnellvorschau in derselben Reihenfolge wie auf der Tafel; "" = Lücke
+    const info = [
+      [j.target_quantity ? zahlText(j.stand || 0) + " / " + zahlText(j.target_quantity) + " Stück" : "Keine Fertigungsmenge hinterlegt"],
+      abruf ? ["Abruf " + abruf, "abruf"] : null,
+      [""],
+      [j.material_bez || "Kein Material eingetragen"],
+      g ? [werkstoffText(g), "klein", farbeVon(g.farbe).hex] : null,
+      [mengeDa ? "Menge " + mengeDa : "Keine Materialmenge"],
+      String(j.material_liefertermin || "").trim() ? ["Liefertermin " + j.material_liefertermin] : null,
+      materialPlatz(j) ? ["📦 " + materialPlatz(j)] : null,
+      [""],
+      [zustand.zeichen + " " + zustand.name],
+      [String(j.fa_nr || "").trim() ? "FA " + j.fa_nr : "Kein FA vorhanden"],
+      ["✎ " + (auftragNotiz(j) || "keine Notiz")],
+      j.problem ? ["⚠ " + j.problem, "warn"] : null,
+      j.geaendert_am ? ["Letzte Änderung " + datumZeitKurz(j.geaendert_am)
+        + (j.geaendert_von && personVoll(j.geaendert_von) ? " · " + personVoll(j.geaendert_von) : ""), "klein"] : null,
+    ].filter(Boolean);
+    let zwei = "";
+    if (j.target_quantity) zwei = zahlText(j.stand || 0) + " / " + zahlText(j.target_quantity);
+    else if ((st === "laeuft" || fertig) && j.stand) zwei = zahlText(j.stand) + " Stk";
+    return {
+      von: arbeitstage(j.planned_from, 1)[0], tage: Math.max(1, Number(j.planned_days) || 1),
+      hg, st, z: zustand.zeichen, m: st === "geplant" && !mengeDa, nr: j.job_number || "", zwei,
+      anteil, problem: j.problem || "", siegel: siegelListe(j.geplant_von), fa: j.fa_nr || "",
+      mat: j.material_bez || "", info,
+    };
+  };
+  return {
+    erstellt: new Date().toISOString(),
+    parks: parks.map((p) => ({
+      name: p.name,
+      maschinen: maschinen.filter((m) => m.park_id === p.id).map((m) => ({
+        nr: m.machine_number || "", name: m.name || "",
+        balken: (jeMaschine.get(m.id) || []).map(balken),
+      })),
+    })).filter((p) => p.maschinen.length),
+    ferien: (ferien || []).filter((f) => f.von).map((f) => ({
+      person: f.person || "", von: arbeitstage(f.von, 1)[0], tage: Math.max(1, Number(f.tage) || 1) })),
+  };
+}
+
 const SEITEN = [
   { pfad: "dashboard",    titel: "Start",        zeichen: SYM.start, zeige: seiteDashboard },
   { pfad: "planwand",     titel: "Planwand",     zeichen: SYM.planwand, zeige: seitePlanwand },
@@ -9357,6 +9433,7 @@ Object.assign(alt, {
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, esc,
   darfPlanen, darfMaterialplatz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
   arbeitstagePlus, ausIso, ladeTodos, loeschen,
+  planArchivDaten,
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, ladePlanAuftraege,
   istExtern, einstellung, rollenMerken, produktionAlteAnsicht, seiteProduktion,
   ladeZaehlerstaende, speichereStand, wochenStart, plusTage, wochentagName, WT_KURZ,

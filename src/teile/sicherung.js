@@ -75,7 +75,7 @@ function idb() {
     r.onerror = () => nein(r.error);
   });
 }
-async function idbTun(art, ...werte) {
+export async function idbTun(art, ...werte) {
   const d = await idb();
   return new Promise((ok, nein) => {
     const tx = d.transaction("griffe", art === "get" ? "readonly" : "readwrite");
