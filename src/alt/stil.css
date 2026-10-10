@@ -6908,3 +6908,42 @@ body .pw-tafel .pw-balken--laeuft { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .5
 #pad .pad-qs__knopf { height: 34px; }
 #pad .pad-qs__zeile { padding-top: 2px; padding-bottom: 2px; margin-bottom: 3px; }
 @media (max-width: 480px) { #pad .pad-qs__knopf { height: 40px; } }
+
+/* ---------- Anlagen Check je Park, mit Zeichnung und WBG (1.18.0) ----------
+   Zuerst der Park wie bei „Maschinen“, dann nur dessen Maschinen. Ab
+   neun Maschinen zwei Spalten (Langdreher), sonst eine breite. Vor den
+   Zuständen zwei kleine Knöpfe Zeichnung und WBG in den Farben des
+   Dashboards; fehlt die Datei, sind sie blass wie dort. */
+#pad .pad-qs { columns: 1; }
+#pad .pad-qs--zwei { columns: 2; }
+@media (max-width: 900px) { #pad .pad-qs--zwei { columns: 1; } }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__zeile { width: min(1000px, 100%); margin-left: auto; margin-right: auto; }
+#pad .pad-qs__zeile { grid-template-columns: minmax(0, 1fr) minmax(0, .85fr) auto auto; gap: 6px; }
+#pad .pad-qs__hoco { font-size: .95rem; overflow: hidden; text-overflow: ellipsis; }
+#pad .pad-qs__doks { display: grid; grid-template-columns: repeat(2, 56px); gap: 3px; }
+#pad .pad-qs__dok { height: 34px; min-height: 0; min-width: 0; padding: 0 2px; border-radius: 7px;
+  font-size: .64rem; font-weight: 700; color: #eef4ff; border: 1px solid rgba(255,255,255,.14);
+  cursor: pointer; white-space: nowrap; overflow: hidden; transition: transform .12s ease; }
+#pad .pad-qs__dok:active { transform: scale(.94); }
+#pad .pad-qs__dok--leer { opacity: .4; }
+#pad .pad-qs__zustaende { grid-template-columns: repeat(5, 47px); }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__doks { grid-template-columns: repeat(2, 80px); }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__zustaende { grid-template-columns: repeat(5, 64px); }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__knopf, #pad .pad-qs:not(.pad-qs--zwei) .pad-qs__dok { height: 42px; font-size: .72rem; }
+@media (max-width: 480px) {
+  #pad .pad-qs__zeile { grid-template-columns: minmax(0, 1fr) auto; }
+  #pad .pad-qs__doks { grid-column: 1 / -1; grid-template-columns: 1fr 1fr !important; }
+  #pad .pad-qs__zustaende { grid-template-columns: repeat(5, 1fr) !important; }
+  #pad .pad-qs__knopf, #pad .pad-qs__dok { height: 40px !important; }
+}
+/* Zwei Spalten: die HOCO Nr. ganz zeigen, der Name gibt nach. Zehn
+   Zeilen je Spalte lassen auf dem iPad Platz für höhere Tasten. */
+#pad .pad-qs__zeile { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+#pad .pad-qs__name { max-width: 100%; }
+#pad .pad-qs__hoco { overflow: visible; }
+#pad .pad-qs--zwei .pad-qs__doks { grid-template-columns: repeat(2, 52px); }
+#pad .pad-qs--zwei .pad-qs__dok { font-size: .58rem; }
+#pad .pad-qs--zwei .pad-qs__zustaende { grid-template-columns: repeat(5, 45px); }
+#pad .pad-qs--zwei .pad-qs__knopf { font-size: .56rem; }
+#pad .pad-qs--zwei .pad-qs__knopf, #pad .pad-qs--zwei .pad-qs__dok { height: 48px; }
+#pad .pad-qs--zwei .pad-qs__zeile { margin-bottom: 6px; }

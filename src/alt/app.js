@@ -135,7 +135,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.17.0";
+const APP_VERSION = "1.18.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7509,7 +7509,7 @@ function padOeffnen(zustand) {
 // (Wunsch 6. Oktober 2026). Der Ort liegt nur für diesen einen
 // Neustart im Speicher des Tabs; die Anmeldung bleibt ohnehin.
 const PAD_NEULADEN = "hofer.pad.neuladen";
-const PAD_FELDER = ["wo", "parkId", "typId", "typUebersprungen", "maschineId", "reiter"];
+const PAD_FELDER = ["wo", "parkId", "typId", "typUebersprungen", "maschineId", "reiter", "qsPark", "qsParkUebersprungen"];
 
 function padNeuLaden() {
   const z = { zeit: Date.now() };

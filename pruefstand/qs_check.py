@@ -60,11 +60,20 @@ with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])
     pg = seite(br, 1500, 950)
     if BILDER: pg.screenshot(path=BILDER + "/qs-start.png")
-    pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector("#pad .pad-qs__zeile")
+    pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector("#pad [data-qspark]")
+    if BILDER: pg.screenshot(path=BILDER + "/qs-parks.png")
+    pg.click("#pad [data-qspark='p-kurz']"); pg.wait_for_selector("#pad .pad-qs__zeile")
     pg.wait_for_timeout(600)
     n = pg.locator("#pad .pad-qs__zeile").count()
     nm = pg.evaluate("TEST.daten.machines.filter(m => m.is_active !== false).length")
-    if n < 2: fehler.append(f"zu wenige Zeilen: {n} (Maschinen {nm})")
+    if n != 6: fehler.append(f"Kurzdreher sollte 6 Zeilen haben: {n}")
+    # Zeichnung und WBG öffnen den Betrachter
+    pg.locator("#pad [data-qsmaschine='m-k1'] [data-qsdok='zeichnung']").click()
+    pg.wait_for_selector(".betrachter"); t = pg.inner_text(".betrachter__titel")
+    if "10444-0001" not in t: fehler.append("Zeichnung: falscher Titel " + t)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pg.locator("#pad [data-qsmaschine='m-k1'] [data-qsdok='wbg']").click()
+    pg.wait_for_selector(".betrachter"); pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     z = pg.locator("#pad [data-qsmaschine='m-k1']")
     if "10444-0001" not in z.inner_text(): fehler.append("Auftrag fehlt in der Zeile: " + z.inner_text())
     if "pad-zustand--ruesten" not in (z.locator("[data-qszustand='ruesten']").get_attribute("class") or ""):
@@ -90,16 +99,19 @@ with sync_playwright() as p:
     if "10444-0002" not in pg.locator("#pad [data-qsmaschine='m-k1']").inner_text():
         fehler.append("Nächster steht nicht in der Zeile")
 
+    pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad [data-qspark]")
     pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad [data-padwo='qs']")
 
     for name, b, h, mob in [("ipad", 1180, 820, True), ("ipad-hoch", 820, 1180, True), ("handy", 390, 844, True)]:
         q = seite(br, b, h, mob)
-        q.click("#pad [data-padwo='qs']"); q.wait_for_selector("#pad .pad-qs__zeile"); q.wait_for_timeout(700)
+        q.click("#pad [data-padwo='qs']"); q.wait_for_selector("#pad [data-qspark]")
+        q.click("#pad [data-qspark='p-lang']"); q.wait_for_selector("#pad .pad-qs__zeile"); q.wait_for_timeout(700)
+        if q.locator("#pad .pad-qs__zeile").count() != 20: fehler.append(name + ": Langdreher nicht 20 Zeilen")
         breit = q.evaluate("document.querySelector('#pad .pad-qs').scrollWidth - document.querySelector('#pad .pad-qs').clientWidth")
         if breit > 1: fehler.append(f"{name}: ragt seitlich {breit}px heraus")
         if name == "ipad":
             hoch = q.evaluate("(() => { const e = document.querySelector('#pad .pad-qs'); return e.scrollHeight - e.clientHeight; })()")
-            if hoch > 1: fehler.append(f"iPad quer: nicht alles auf einem Bildschirm, {hoch}px zu viel")
+            if hoch > 1: fehler.append(f"iPad quer, Langdreher: nicht alles auf einem Bildschirm, {hoch}px zu viel")
         if BILDER: q.screenshot(path=f"{BILDER}/qs-{name}.png")
         q.context.close()
     br.close()
