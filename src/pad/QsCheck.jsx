@@ -136,9 +136,12 @@ export default function QsCheck({ park, zeilen, zeichnungen }) {
           const wbg = j ? (j.wbg_url || "") : "";
           return (
             <div key={m.id} className="pad-qs__zeile" data-qsmaschine={m.id}>
+              {/* Nummer vorne, gross und bündig untereinander: an der
+                  Maschine sucht man die Nummer, nicht den Namen (Wunsch
+                  Patrick, 10. Oktober 2026) */}
+              <div className="pad-qs__nr">{m.machine_number || "—"}</div>
               <div className="pad-qs__maschine">
                 <span className="pad-qs__name">{m.name}</span>
-                <span className="pad-qs__nr">{m.machine_number || ""}</span>
               </div>
               <div className={"pad-qs__auftrag" + (j ? "" : " pad-qs__auftrag--leer")}>
                 {j ? <span className="pad-qs__hoco">{j.job_number}</span> : "kein Auftrag"}

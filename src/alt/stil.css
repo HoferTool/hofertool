@@ -7001,3 +7001,50 @@ body .pw-tafel .pw-balken--laeuft { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .5
 #pad .pad-qs__maschine { flex-wrap: nowrap; }
 #pad .pad-qs__name { min-width: 0; flex: 0 1 auto; }
 #pad .pad-qs__nr { flex: none; }
+
+/* ---------- Anlagen Check: Maschinen-Nr. vorne und gross (1.20.6) ----------
+   Wunsch Patrick, 10. Oktober 2026: „die Nr. sollten alle untereinander
+   stehen und mehr auffallen, man will das besser sehen als den Namen“.
+   Eigene Spalte ganz links, gross und weiss; der Name klein daneben. */
+#pad .pad-qs .pad-qs__nr { display: block !important; grid-area: nr; font-size: 1.7rem !important;
+  font-weight: 800 !important; color: #fff !important; white-space: nowrap; letter-spacing: .01em;
+  font-variant-numeric: tabular-nums; line-height: 1; }
+#pad .pad-qs .pad-qs__maschine { grid-area: name; display: block; min-width: 0; }
+#pad .pad-qs .pad-qs__name { display: block; font-size: 1rem !important; font-weight: 600;
+  color: #9fb3cf; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pad .pad-qs .pad-qs__auftrag { grid-area: hoco; }
+#pad .pad-qs .pad-qs__doks { grid-area: doks; }
+#pad .pad-qs .pad-qs__zustaende { grid-area: zust; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__zeile { grid-template-columns: 130px minmax(0, 1fr) minmax(0, .9fr) auto auto;
+  grid-template-areas: "nr name hoco doks zust"; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__nr { font-size: 2rem !important; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__name { font-size: 1.15rem !important; }
+#pad .pad-qs--zwei .pad-qs__zeile { grid-template-columns: 96px minmax(0, 1fr) auto auto;
+  grid-template-areas: "nr name doks zust" "nr hoco doks zust"; }
+#pad .pad-qs--zwei .pad-qs__nr { font-size: 1.45rem !important; }
+#pad .pad-qs--zwei .pad-qs__maschine { align-self: end; }
+#pad .pad-qs--zwei .pad-qs__name { font-size: .85rem !important; }
+#pad .pad-qs--zwei .pad-qs__hoco { font-size: 1.05rem; color: #fff; font-weight: 700; }
+@media (max-width: 900px) {
+  #pad .pad-qs .pad-qs__zeile { grid-template-columns: 110px minmax(0, 1fr) auto;
+    grid-template-areas: "nr name hoco" "doks doks doks" "zust zust zust"; }
+  #pad .pad-qs .pad-qs__doks { grid-template-columns: 1fr 1fr !important; }
+  #pad .pad-qs .pad-qs__zustaende { grid-template-columns: repeat(5, 1fr) !important; }
+}
+@media (max-width: 480px) {
+  #pad .pad-qs .pad-qs__zeile { grid-template-columns: 84px minmax(0, 1fr) auto; }
+  #pad .pad-qs .pad-qs__nr { font-size: 1.3rem !important; }
+}
+/* Im Betrieb sind die Nummern dreistellig (111, 201 …): schmale feste
+   Spalte, damit alle bündig stehen und Name und HOCO Nr. Platz haben */
+#pad .pad-qs--zwei .pad-qs__zeile { grid-template-columns: 62px minmax(0, 1fr) auto auto; }
+#pad .pad-qs:not(.pad-qs--zwei) .pad-qs__zeile { grid-template-columns: 90px minmax(0, 1fr) minmax(0, .9fr) auto auto; }
+#pad .pad-qs .pad-qs__nr { overflow: hidden; text-overflow: ellipsis; }
+#pad .pad-qs .pad-qs__hoco { overflow: hidden; text-overflow: ellipsis; display: block; }
+@media (max-width: 900px) { #pad .pad-qs .pad-qs__zeile { grid-template-columns: 80px minmax(0, 1fr) auto; } }
+@media (max-width: 480px) { #pad .pad-qs .pad-qs__zeile { grid-template-columns: 62px minmax(0, 1fr) auto; } }
+/* Zwei Spalten: die HOCO Nr. muss ganz zu sehen sein */
+#pad .pad-qs--zwei .pad-qs__zeile { grid-template-columns: 50px minmax(0, 1fr) auto auto; gap: 5px; }
+#pad .pad-qs--zwei .pad-qs__doks { grid-template-columns: repeat(2, 64px) !important; }
+#pad .pad-qs--zwei .pad-qs__hoco { font-size: .98rem; letter-spacing: -.01em; }
+@media (max-width: 900px) { #pad .pad-qs .pad-qs__zeile { padding-right: 10px; } }

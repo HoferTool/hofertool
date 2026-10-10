@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.20.6** Anlagen Check: Die Maschinen-Nr. steht in einer eigenen Spalte ganz vorne, gross und weiss, alle bündig untereinander; der Name klein daneben (Wunsch Patrick, 10. Oktober 2026: „die Nr. sollten alle untereinander stehen und mehr auffallen, man will das besser sehen als den Maschinennamen“).
 - **1.20.5** Pad Mode: Die Kachel Browser heisst „Internet“ (Wunsch Patrick, 10. Oktober 2026).
 - **1.20.4** Pad Mode, Kachel Browser: Beschriftung „Safari“ statt „Google“ (Wunsch Patrick, 10. Oktober 2026: „soll nirgends Google stehen“).
 - **1.20.3** Pad-Dashboard: Das Hofer-Logo oben links ist weg (Wunsch Patrick, 10. Oktober 2026); oben stehen wie auf allen Pad-Seiten ausser der ersten nur Zurück und Schliessen. Damit entfällt „Logo antippen lädt neu“. Test `pad_neuladen.py` angepasst.

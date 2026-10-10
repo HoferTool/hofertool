@@ -46,6 +46,8 @@ def seite(br, b, h, mobil=False):
             planned_from: '2026-10-0' + (1 + i % 9), started_at: '2026-10-01T04:00:00Z', target_quantity: 1200 });
         }
       }
+      // Nummern wie im Betrieb: dreistellig
+      D.machines.forEach((x, i) => { x.machine_number = String(101 + i); });
       D.jobs.push({ ...basis, id: 'qB', job_number: '10444-0002', plan_status: 'geplant',
         started_at: '2026-09-01T04:00:00Z', planned_from: '2026-10-20' });
     }""")
