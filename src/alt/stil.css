@@ -7106,3 +7106,21 @@ body .pw-tafel .pw-balken--laeuft { box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .5
 @media (max-width: 560px) { #pad .pad__neu { width: 44px; height: 44px; border-radius: 12px; }
   #pad .pad__neu svg { width: 22px; height: 22px; } }
 @media (max-width: 760px) { #pad .pad__kopf--dash .pad__neu { width: 38px; height: 38px; } }
+
+/* Anmelden als richtiger Knopf (Wunsch Patrick, 10. Oktober 2026): Auf der
+   blauen Karte ging der blaue Hauptknopf unter und sah wie Text aus. Darum
+   weiss mit blauer Schrift, gross und mit Schatten, damit er nach Passwort
+   oder PIN sofort ins Auge fällt. Die Anmeldung ist immer blau, auch im
+   dunklen Modus, darum gilt die Farbe fest. */
+.login__karte #lk, body.dunkel .login__karte #lk {
+  min-height: 54px; margin-top: 6px; border-radius: 12px;
+  background: #fff; border: 2px solid #fff; color: #003884;
+  font-size: 18px; font-weight: 700; letter-spacing: .02em;
+  box-shadow: 0 6px 18px rgba(0,0,0,.28);
+  transition: background .15s ease, box-shadow .15s ease, transform .1s ease;
+}
+body.dunkel .login__karte #lk * { color: #003884; }
+.login__karte #lk:hover:not(:disabled) { background: #e8f0fb; box-shadow: 0 8px 22px rgba(0,0,0,.34); }
+.login__karte #lk:focus-visible { outline: 3px solid rgba(255,255,255,.7); outline-offset: 3px; }
+.login__karte #lk:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.login__karte #lk .login__punkt { border-color: rgba(0,56,132,.25); border-top-color: #003884; }

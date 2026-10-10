@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.21.1** Anmeldung: „Anmelden“ ist ein richtiger Knopf, weiss mit blauer Schrift, gross und mit Schatten; vorher ging der blaue Knopf auf der blauen Karte unter und sah wie Text aus (Wunsch Patrick, 10. Oktober 2026).
 - **1.21.0** Pad Mode: Knopf **Neu laden** (Kreispfeil) oben in der Leiste jeder Pad-Seite neben Schliessen; lädt neu und man bleibt auf derselben Seite, auch im Anlagen Check mit dem gewählten Park (Wunsch Patrick, 10. Oktober 2026). Anlagen Check: Status-Tasten breiter und höher, „QS Check“ wird nicht mehr abgeschnitten (geprüft auf iPad 10", 11" und 13"); in zwei Spalten steht die HOCO Nr. unter der Maschinen-Nr. über die ganze Breite. Tests `qs_check.py` und `pad_neuladen.py`.
 - **1.20.6** Anlagen Check: Die Maschinen-Nr. steht in einer eigenen Spalte ganz vorne, gross und weiss, alle bündig untereinander; der Name klein daneben (Wunsch Patrick, 10. Oktober 2026: „die Nr. sollten alle untereinander stehen und mehr auffallen, man will das besser sehen als den Maschinennamen“).
 - **1.20.5** Pad Mode: Die Kachel Browser heisst „Internet“ (Wunsch Patrick, 10. Oktober 2026).
