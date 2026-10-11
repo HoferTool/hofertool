@@ -316,11 +316,11 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
       text: "Die Person meldet sich danach mit diesem Passwort an. Eine PIN gilt dann nicht mehr. Sag ihr das "
         + "Passwort persönlich.",
       felder: [
-        { name: "pw", label: "Neues Passwort (mindestens 8 Zeichen)", typ: "password", pflicht: true },
+        { name: "pw", label: "Neues Passwort (mindestens 6 Zeichen)", typ: "password", pflicht: true },
         { name: "pw2", label: "Nochmals eingeben", typ: "password", pflicht: true }],
       bestaetigen: "Passwort setzen" });
     if (!w) return;
-    if (String(w.pw || "").length < 8) { alt.meldung("Das Passwort braucht mindestens 8 Zeichen.", "warn"); return; }
+    if (String(w.pw || "").length < 6) { alt.meldung("Das Passwort braucht mindestens 6 Zeichen.", "warn"); return; }
     if (w.pw !== w.pw2) { alt.meldung("Die beiden Passwörter sind nicht gleich.", "warn"); return; }
     const { error } = await alt.db.rpc("passwort_setzen", { p_passwort: w.pw, p_ziel: u.id });
     if (error) {

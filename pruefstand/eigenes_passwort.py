@@ -40,6 +40,11 @@ with sync_playwright() as p:
     pruefe("zeigt: ohne Passwort", "ohne Passwort hinein" in txt)
     pruefe("Knopf Ohne Passwort weg", pg.locator("#mk-offen").count() == 0)
     pruefe("PIN entfernen weg", pg.locator("#mk-pinweg").count() == 0)
+    # Mindestens 6 Zeichen (seit 1.23.2): 5 wird abgelehnt, 6 geht durch
+    pg.fill("#np", "12345"); pg.locator("#ps").click(); pg.wait_for_timeout(400)
+    pruefe("5 Zeichen abgelehnt", "mindestens 6 Zeichen" in pg.evaluate("document.body.innerText"))
+    pg.fill("#np", "123456"); pg.locator("#ps").click(); pg.wait_for_timeout(600)
+    pruefe("6 Zeichen angenommen", "Passwort geändert" in pg.evaluate("document.body.innerText"))
     pruefe("keine Fehler (Langdreher)", not f)
 
     pg, f = seite(br, "extern")

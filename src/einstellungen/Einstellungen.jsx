@@ -191,9 +191,10 @@ function MeinKonto() {
   };
 
   const passwortAendern = async () => {
-    // Keine Längenvorgabe — ein einzelnes Zeichen genügt. Leer bleibt
-    // trotzdem unzulässig, sonst hätte das Konto gar keines.
+    // Mindestens 6 Zeichen (Wunsch Patrick, 11. Oktober 2026) — so viel
+    // verlangt auch Supabase selbst, die Meldung kommt hier aber auf Deutsch.
     if (!passwort) return meldung("Bitte ein Passwort eingeben.", "warn");
+    if (passwort.length < 6) return meldung("Das Passwort braucht mindestens 6 Zeichen.", "warn");
     const { error } = await db.auth.updateUser({ password: passwort });
     if (error) return meldung(fehlertext(error), "fehler");
     setPasswort("");
@@ -228,6 +229,7 @@ function MeinKonto() {
       bestaetigen: "Speichern",
     });
     if (!w || !(w.pw || "")) return meldung("Kein Passwort eingegeben. Nichts geändert.", "warn");
+    if (w.pw.length < 6) return meldung("Das Passwort braucht mindestens 6 Zeichen. Nichts geändert.", "warn");
     const r = await db.auth.updateUser({ password: w.pw });
     if (r.error) return meldung(fehlertext(r.error), "fehler");
     await pinAufheben();

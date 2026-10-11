@@ -110,8 +110,8 @@ begin
   if not bin_admin() then
     raise exception 'Nur ein Admin darf Passwörter von anderen setzen';
   end if;
-  if p_passwort is null or length(p_passwort) < 8 then
-    raise exception 'Das Passwort braucht mindestens 8 Zeichen';
+  if p_passwort is null or length(p_passwort) < 6 then
+    raise exception 'Das Passwort braucht mindestens 6 Zeichen';
   end if;
 
   update auth.users
