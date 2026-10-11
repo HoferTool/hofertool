@@ -99,6 +99,9 @@ function abfrage(daten, tabelle) {
 
 export function archivVerbindung(archiv) {
   const daten = (archiv && archiv.daten) || {};
+  // Die Aufträge stehen nur einmal in der Datei (als Planwand); das
+  // Auftragsfenster fragt sie als jobs ab
+  if (!daten.jobs) daten.jobs = daten.planwand || [];
   const sitzung = { access_token: "archiv", refresh_token: "archiv", user: { id: archiv.ich.id, email: archiv.ich.email } };
   return {
     from: (t) => abfrage(daten, t),

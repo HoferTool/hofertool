@@ -9397,7 +9397,7 @@ async function planArchivDaten() {
     auftraege: zeilen.length,
     ich,
     daten: {
-      planwand: zeilen, jobs: zeilen, machines: maschinen, machine_parks: parks, machine_types: typen,
+      planwand: zeilen, machines: maschinen, machine_parks: parks, machine_types: typen,
       vacations: ferien, profiles: personen.concat([ich]), farb_material: farben, app_config: konfig,
     },
   };
