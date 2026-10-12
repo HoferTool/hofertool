@@ -8,6 +8,7 @@
 import { useReducer } from "react";
 import { standTagWaehlen, standTagHinweis } from "../../daten/stueckzahl.js";
 import { alt, useDaten } from "../../bruecke.jsx";
+import { dokZeigen } from "../../teile/DokAbruf.jsx";
 import { auftragswechselLaden, wechselText } from "../../daten/auftragswechsel.js";
 
 // Statt einer Suche filtern Knöpfe nach Maschinentyp (Wunsch 3. Oktober
@@ -374,8 +375,16 @@ function AuftragsBlock({ maschine, aktionen, stand, mitte }) {
     <>
       <div className="aw-kopf">{kopf}
         {/* Den Zustand darf jeder ändern, auch ohne Schreibrecht */}
-        <button className={"auftrag__status aw-status aw-status--" + schl} data-auftrag-status={j.id}
-          title="Zustand ändern" onClick={() => aktionen.zustand(j)}>{zustand.zeichen} {zustand.name}</button>
+        <span className="aw-kopf__rechts">
+          <button className={"auftrag__status aw-status aw-status--" + schl} data-auftrag-status={j.id}
+            title="Zustand ändern" onClick={() => aktionen.zustand(j)}>{zustand.zeichen} {zustand.name}</button>
+          {/* Beenden steht direkt neben dem Zustand (Wunsch Patrick
+              12. Oktober 2026), mit denselben Fragen wie überall:
+              letzte Stückzahl, Stückzeit, nächster Auftrag auf Rüsten */}
+          {schreiben &&
+            <button className="aw-knopf aw-knopf--ende" data-auftrag-ende={j.id} data-maschine={maschine.id}
+              onClick={() => aktionen.beenden(j)}>Beenden</button>}
+        </span>
       </div>
       <div className="aw-nr">{j.job_number}</div>
       {ziel ? <>
@@ -399,11 +408,12 @@ function AuftragsBlock({ maschine, aktionen, stand, mitte }) {
             Einrichtblatt für diese Maschine direkt */}
         <button className="aw-knopf" data-blatt={j.id} data-maschine={maschine.id}
           onClick={() => aktionen.einrichtblatt(j, maschine)}>Einrichtblatt</button>
-        {schreiben && <>
-          <button className="aw-knopf" data-auftrag-menge={j.id} onClick={() => aktionen.menge(j)}>Menge</button>
-          <button className="aw-knopf aw-knopf--ende" data-auftrag-ende={j.id} data-maschine={maschine.id}
-            onClick={() => aktionen.beenden(j)}>Beenden</button>
-        </>}
+        {/* Zeichnung und WBG im selben Betrachter wie im Auftragsfenster
+            und im Pad (Wunsch Patrick 12. Oktober 2026) */}
+        <button className="aw-knopf" data-zeichnung={j.id} onClick={() => aktionen.dok("zeichnung", j)}>Zeichnung</button>
+        <button className="aw-knopf" data-wbg={j.id} onClick={() => aktionen.dok("wbg", j)}>WBG</button>
+        {schreiben &&
+          <button className="aw-knopf" data-auftrag-menge={j.id} onClick={() => aktionen.menge(j)}>Menge</button>}
       </div>
     </>
   );
@@ -417,6 +427,16 @@ function auftragsAktionen(neuLaden) {
   return {
     async einrichtblatt(j, m) {
       await alt.einrichtblattPdfOeffnen(j.job_number, m && m.type_id, j.job_number);
+    },
+
+    // Die Zeichnung kommt wie auf der Planwand vom Auftrag oder sonst
+    // von der HOCO Nr.; ohne Datei steht „Keine … vorhanden“ da.
+    async dok(art, j) {
+      const istWbg = art === "wbg";
+      const adresse = istWbg ? j.wbg_url : (j.drawing_url || await alt.zeichnungAnheften(j));
+      dokZeigen({ art, titel: (istWbg ? "WBG " : "Zeichnung ") + (j.job_number || ""),
+        adresse: adresse || null, hoco: j.job_number, auftragId: j.id,
+        neu: (a) => { if (istWbg) j.wbg_url = a; else j.drawing_url = a; } });
     },
 
     async zustand(j) {
