@@ -10,7 +10,8 @@
 //  der HOCO Nr. gebraucht.
 // =================================================================
 import { useEffect, useState } from "react";
-import { alt, useDaten } from "../bruecke.jsx";
+import { alt, useDaten, useVerzoegert } from "../bruecke.jsx";
+import { Suchfeld, passt } from "../teile/Suchfeld.jsx";
 import { Gruppe, Zeile, SchalterZeile } from "./teile.jsx";
 import { notizbuecherVerwalten } from "./Notizbuecher.jsx";
 import { poolDruckLaden } from "../teile/poolDruck.js";
@@ -552,14 +553,45 @@ function ZngFormular({ werte, neu }) {
 
 // ---------- Zuletzt abgelegt ----------
 
-async function letzteLaden() {
-  const r = await alt.db.from("dokumente").select("*").order("erstellt_am", { ascending: false }).limit(100);
+// Ohne Suche nur die letzten 10 (Wunsch Patrick 12. Oktober 2026),
+// mit Suche alle abgelegten Dokumente, die passen. Gesucht wird in der
+// Datenbank, nicht in den 10 sichtbaren.
+const LETZTE_ANZAHL = 10;
+const LETZTE_TREFFER = 200;
+
+async function letzteLaden(suche) {
+  // Komma, Klammern und Anführungszeichen trennen bei or() die Bedingungen
+  const t = (suche || "").replace(/[,()"%*\\]/g, " ").trim();
+  let abfrage = alt.db.from("dokumente").select("*");
+  if (t) {
+    const muster = "%" + t.replace(/\s+/g, "%") + "%";
+    abfrage = abfrage.or(["dateiname", "titel", "hoco_nr", "art"].map((f) => f + ".ilike." + muster).join(","));
+  }
+  const r = await abfrage.order("erstellt_am", { ascending: false }).limit(t ? LETZTE_TREFFER : LETZTE_ANZAHL);
   if (r.error) throw r.error;
   return r.data || [];
 }
 
+// erstellt_am ist ein Zeitstempel; kurzDatum las daraus „NaN.NaN.“.
+// Mit Jahr, weil die Suche auch Älteres findet.
+function abgelegtAm(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  const p = (n) => String(n).padStart(2, "0");
+  return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear();
+}
+
 function Letzte({ stand, hochladen }) {
-  const { daten: liste, fehler, neu } = useDaten(letzteLaden, [stand]);
+  const [suche, setSuche] = useState("");
+  const sucheRuhig = useVerzoegert(suche.trim(), 300);
+  const { daten: geladen, fehler, neu } = useDaten(() => letzteLaden(sucheRuhig), [stand, sucheRuhig]);
+  // Dasselbe nochmals im Gerät, damit beim Tippen nichts Unpassendes
+  // stehen bleibt, bis die Datenbank geantwortet hat
+  const liste = geladen && (sucheRuhig
+    ? geladen.filter((d) => suche.trim().split(/\s+/).every((w) =>
+      passt(w, [d.dateiname, d.titel, d.hoco_nr, d.art, artVon(d.art).name])))
+    : geladen);
   const loeschen = async (id) => {
     const ok = await alt.nachfragen({ titel: "Dokument löschen", text: "Soll dieses Dokument gelöscht werden?",
       bestaetigen: "Löschen", gefahr: true });
@@ -570,7 +602,7 @@ function Letzte({ stand, hochladen }) {
   let inhalt;
   if (fehler && !liste) inhalt = <p className="hinweis">Dafür fehlt noch dokumente.sql in der Datenbank.</p>;
   else if (!liste) inhalt = <div className="laedt">Wird geladen …</div>;
-  else if (!liste.length) inhalt = <p className="es-leer">Noch nichts abgelegt.</p>;
+  else if (!liste.length) inhalt = <p className="es-leer">{sucheRuhig ? "Nichts gefunden." : "Noch nichts abgelegt."}</p>;
   else {
     inhalt = (
       <table className="tabelle">
@@ -580,7 +612,7 @@ function Letzte({ stand, hochladen }) {
             <td>{artVon(d.art).zeichen} {artVon(d.art).name}</td>
             <td>{d.dateiname || d.titel || ""}</td>
             <td>{d.hoco_nr || ""}</td>
-            <td className="klein">{alt.kurzDatum(d.erstellt_am || "")}</td>
+            <td className="klein nowrap">{abgelegtAm(d.erstellt_am)}</td>
             <td className="rechts nowrap">
               <button className="linkknopf" data-dokauf={d.datei_url}
                 onClick={() => alt.betrachter(d.datei_url, "Dokument", true)}>Ansehen</button>{" "}
@@ -592,7 +624,9 @@ function Letzte({ stand, hochladen }) {
     );
   }
   return (
-    <Gruppe titel="Zuletzt abgelegt" text="Die letzten 100 Dokumente."
+    <Gruppe titel="Zuletzt abgelegt"
+      text={sucheRuhig ? (liste && liste.length >= LETZTE_TREFFER ? "Die neuesten " + LETZTE_TREFFER + " Treffer." : "Treffer aus allen abgelegten Dokumenten.")
+        : "Die letzten " + LETZTE_ANZAHL + " Dokumente. Die Suche findet alle."}
       aktionen={<>
         {/* Nur ansehen, ohne hochzuladen: etwa ein Einrichtblatt als
             Excel vom Stick oder aus dem Mail */}
@@ -601,6 +635,7 @@ function Letzte({ stand, hochladen }) {
             onChange={(e) => { const d = e.target.files && e.target.files[0]; e.target.value = ""; alt.dateiAnsehen(d); }} /></label>{" "}
         <button className="knopf knopf--klein" id="dok-neu" onClick={hochladen}>Dateien hochladen</button>
       </>}>
+      <Suchfeld id="dok-letzte-suche" wert={suche} setzen={setSuche} platzhalter="Datei, HOCO Nr. oder Art suchen" />
       <div id="dok-letzte">{inhalt}</div>
     </Gruppe>
   );

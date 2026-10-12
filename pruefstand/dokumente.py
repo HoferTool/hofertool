@@ -81,6 +81,30 @@ with sync_playwright() as p:
     pg.locator("[data-dokweg='d1']").click(); pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(800)
     pruefe("Dokument gelöscht", pg.evaluate("!TEST.daten.dokumente.some(d => d.id === 'd1')") and "alt.pdf" not in pg.inner_text("#dok-letzte"))
     pruefe("Einstellungen noch offen", pg.locator(".dialog--einstellungen").count() == 1)
+
+    # Nur die letzten 10, Suche über alle (Wunsch Patrick 12. Oktober 2026)
+    pg.evaluate("""() => { for (let i = 1; i <= 30; i++) TEST.daten.dokumente.push({ id: 'z' + i, art: 'zeichnung',
+      hoco_nr: '20000-' + String(i).padStart(4, '0'), titel: 'Z' + i, dateiname: 'teil-' + i + '.pdf',
+      datei_url: 'https://x/' + i + '.pdf', erstellt_am: new Date(Date.UTC(2026, 9, 1, i)).toISOString() }); }""")
+    pg.locator("[data-einst='allgemein']").click(); pg.wait_for_timeout(500)
+    pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1200)
+    zeilen = pg.locator("#dok-letzte tbody tr").count()
+    pruefe("Nur 10 Einträge: " + str(zeilen), zeilen == 10)
+    pruefe("Neueste oben", "teil-30.pdf" in pg.inner_text("#dok-letzte") and "teil-3.pdf" not in pg.inner_text("#dok-letzte"))
+    pg.fill("#dok-letzte-suche", "teil-3.pdf"); pg.wait_for_timeout(1000)
+    t = pg.inner_text("#dok-letzte"); print("Suche:", t.replace("\n", " | ")[:200])
+    pruefe("Suche findet Älteres", "teil-3.pdf" in t and pg.locator("#dok-letzte tbody tr").count() == 1)
+    pg.fill("#dok-letzte-suche", "20000-0005"); pg.wait_for_timeout(1000)
+    pruefe("Suche nach HOCO Nr.", "teil-5.pdf" in pg.inner_text("#dok-letzte"))
+    pg.fill("#dok-letzte-suche", "gibtsnicht"); pg.wait_for_timeout(1000)
+    pruefe("Nichts gefunden", "Nichts gefunden" in pg.inner_text("#dok-letzte"))
+    pg.fill("#dok-letzte-suche", ""); pg.wait_for_timeout(1000)
+    pruefe("Leer wieder 10", pg.locator("#dok-letzte tbody tr").count() == 10)
+    import os
+    if os.environ.get("BILD_ORDNER"):
+        pg.fill("#dok-letzte-suche", "teil-2"); pg.wait_for_timeout(1000)
+        pg.locator("#dok-letzte-suche").screenshot(path=os.environ["BILD_ORDNER"] + "/suche.png")
+        pg.locator("#dok-letzte").screenshot(path=os.environ["BILD_ORDNER"] + "/letzte.png")
     fehler += f
     br.close()
 print("Fehler:", fehler[:3] if fehler else "keine")
