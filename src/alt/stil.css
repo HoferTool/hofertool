@@ -7139,3 +7139,6 @@ body.archiv #pw-hoco, body.archiv #pw-symbole { display: none !important; }
 .dialog--auftrag .auf-mtrotzdem { display: inline-flex; align-items: center; gap: 6px;
   margin-top: 4px; font-size: .78rem; color: var(--gedaempft); cursor: pointer; }
 .dialog--auftrag .auf-mtrotzdem input { width: auto; margin: 0; }
+
+/* Waschprogramm aus der WBG unter dem WBG-Knopf (1.25.0) */
+.dialog--auftrag .auf-waschprog { font-size: .8rem; padding-top: 2px; color: var(--text, inherit); }

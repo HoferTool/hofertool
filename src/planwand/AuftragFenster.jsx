@@ -28,6 +28,7 @@ import { materialBestellungLesen, materialAusNotizEntfernen } from "../daten/mat
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { PfadKopieren } from "../daten/zeichnungPfad.jsx";
 import { wiederOeffner } from "../teile/wiederherstellen.js";
+import { useWaschprog } from "../daten/waschprog.js";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
@@ -227,6 +228,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const maschinen = alt.prod.maschinen || [];
   const [w, setW] = useState(() => anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer));
   const setze = (feld, wert) => setW((x) => ({ ...x, [feld]: wert }));
+  const waschprog = useWaschprog(typeof w.wbg === "string" ? w.wbg : "");
   const aktuell = useRef(w);
   aktuell.current = w;
   const farbeVonHand = useRef(false);
@@ -697,7 +699,11 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   abruf={auftrag && auftrag.job_number ? { art: "wbg", hoco: auftrag.job_number,
                     auftragId: auftrag.id, fa: auftrag.fa_nr } : null}
                   darf={darf} titel={"WBG " + ((auftrag && auftrag.job_number) || "")} wegId="pl-wbgweg"
-                  standId="pl-wbgstand" stand={wbgStand} setStand={setWbgStand} /></div></div>
+                  standId="pl-wbgstand" stand={wbgStand} setStand={setWbgStand} />
+                {/* Die Zeile „Waschprog-Nr.“ der WBG, aus der PDF gelesen
+                    (Wunsch Patrick, 12. Oktober 2026) */}
+                {waschprog && <span className="auf-waschprog" id="pl-waschprog">
+                  Waschprog-Nr.: <b>{waschprog}</b></span>}</div></div>
           </div>
         </div>
       </div>

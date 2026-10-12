@@ -18,6 +18,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
+import { useWaschprog } from "../daten/waschprog.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
 import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitFragen } from "../daten/stueckzahl.js";
 import {
@@ -472,6 +473,8 @@ export default function Maschine({ d }) {
   // genau einer FA Nr., deshalb gibt es dort keine Ausweichsuche.
   const zeichnung = (j && j.drawing_url) || (teil && teil.zeichnung_url) || "";
   const wbg = (j && j.wbg_url) || "";
+  // Aus der WBG gelesen (Wunsch Patrick, 12. Oktober 2026)
+  const waschprog = useWaschprog(wbg);
   const datei = pad.reiter === "zeichnung" ? zeichnung : (pad.reiter === "wbg" ? wbg : "");
   const kontext = { m, j, zeichnung, wbg };
 
@@ -549,6 +552,7 @@ export default function Maschine({ d }) {
               <div className="pad-zeilen">
                 <Zeile name="FA Nr." wert={j && j.fa_nr} />
                 <Zeile name="Programm" wert={programm} />
+                <Zeile name="Waschprog." wert={waschprog} />
               </div>
               {/* Die Notiz zum Auftrag steht hier nicht mehr (Wunsch Patrick
                   5. Oktober 2026), ihr Platz geht an die Info darunter. */}
