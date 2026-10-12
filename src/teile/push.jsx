@@ -120,7 +120,9 @@ export async function pushNachAnmeldung() {
     if (!pushMoeglich() || !pushFuerMich()) return;
     if (!pushEingeschaltet()) { await pushAbmelden(); return; }
     if (Notification.permission === "granted") { await pushAbonnieren(false); return; }
-    if (Notification.permission === "default") hinweisZeigen();
+    // Nur fragen, wenn der Server bereit ist (Schlüssel da). So taucht das
+    // Feld nicht auf, solange sql/push-mitteilungen.sql fehlt.
+    if (Notification.permission === "default") { await absenderSchluessel(); hinweisZeigen(); }
   } catch (f) {
     console.warn("Push:", f && f.message);
   }
