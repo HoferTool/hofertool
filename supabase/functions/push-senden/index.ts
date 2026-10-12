@@ -1,0 +1,105 @@
+// Push-Mitteilungen für das Hofer Tool (Wunsch Patrick, 12. Oktober 2026).
+//
+// GET  liefert den öffentlichen Schlüssel, mit dem sich ein Gerät beim
+//      Push-Dienst (Apple, Google, Mozilla) anmeldet. Gibt es noch
+//      keinen, wird das Schlüsselpaar hier einmal erzeugt und in
+//      push_schluessel abgelegt. Der geheime Teil verlässt den Server nie.
+// POST { titel, text } schickt die Nachricht an alle Geräte in
+//      push_abos. Nur für Admins. Geräte, die der Push-Dienst nicht
+//      mehr kennt (404, 410), werden dabei weggeräumt.
+import { createClient } from "jsr:@supabase/supabase-js@2";
+import webpush from "npm:web-push@3.6.7";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+};
+
+const antwort = (daten: unknown, status = 200) =>
+  new Response(JSON.stringify(daten), {
+    status,
+    headers: { ...CORS, "Content-Type": "application/json" },
+  });
+
+// Neue Projekte geben den geheimen Schlüssel als SUPABASE_SECRET_KEYS,
+// ältere als SUPABASE_SERVICE_ROLE_KEY
+function geheimSchluessel(): string | undefined {
+  const alt = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (alt) return alt;
+  try {
+    const neu = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
+    return neu.default ?? Object.values(neu)[0] as string | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// deno-lint-ignore no-explicit-any
+async function schluesselpaar(db: any) {
+  const { data } = await db.from("push_schluessel").select("oeffentlich, geheim").eq("id", 1).maybeSingle();
+  if (data) return data as { oeffentlich: string; geheim: string };
+  const neu = webpush.generateVAPIDKeys();
+  // Rufen zwei Geräte gleichzeitig zum ersten Mal, gewinnt das erste
+  await db.from("push_schluessel").upsert(
+    { id: 1, oeffentlich: neu.publicKey, geheim: neu.privateKey },
+    { onConflict: "id", ignoreDuplicates: true });
+  const { data: gespeichert } = await db.from("push_schluessel").select("oeffentlich, geheim").eq("id", 1).single();
+  return gespeichert as { oeffentlich: string; geheim: string };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+
+  const schluessel = geheimSchluessel();
+  const url = Deno.env.get("SUPABASE_URL");
+  if (!schluessel || !url) return antwort({ fehler: "nicht eingerichtet" }, 500);
+  const db = createClient(url, schluessel, { auth: { persistSession: false } });
+
+  let paar;
+  try {
+    paar = await schluesselpaar(db);
+  } catch (f) {
+    return antwort({ fehler: "Schlüssel fehlt: " + (f as Error).message }, 500);
+  }
+  if (req.method === "GET") return antwort({ schluessel: paar.oeffentlich });
+
+  // Wer schickt? Nur angemeldete Admins
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const { data: wer } = await db.auth.getUser(token);
+  if (!wer?.user) return antwort({ fehler: "nicht angemeldet" }, 401);
+  const { data: profil } = await db.from("profiles").select("role").eq("id", wer.user.id).single();
+  if (profil?.role !== "admin") return antwort({ fehler: "nur für Admins" }, 403);
+
+  let titel = "", text = "";
+  try {
+    const k = await req.json();
+    titel = String(k.titel ?? "").trim().slice(0, 100);
+    text = String(k.text ?? "").trim().slice(0, 1000);
+  } catch { /* leer */ }
+  if (!text) return antwort({ fehler: "Text fehlt" }, 400);
+
+  webpush.setVapidDetails("mailto:info@hoferco.ch", paar.oeffentlich, paar.geheim);
+  const { data: abos } = await db.from("push_abos").select("endpoint, p256dh, auth");
+  const nutzlast = JSON.stringify({ titel: titel || "Hofer Tool", text });
+
+  let erreicht = 0;
+  const weg: string[] = [];
+  await Promise.all((abos ?? []).map(async (a) => {
+    try {
+      await webpush.sendNotification(
+        { endpoint: a.endpoint, keys: { p256dh: a.p256dh, auth: a.auth } },
+        nutzlast, { TTL: 60 * 60 * 24, urgency: "high" });
+      erreicht++;
+    } catch (f) {
+      const status = (f as { statusCode?: number }).statusCode;
+      if (status === 404 || status === 410) weg.push(a.endpoint);
+      else console.warn("Push fehlgeschlagen", status, (f as Error).message);
+    }
+  }));
+  if (weg.length) await db.from("push_abos").delete().in("endpoint", weg);
+
+  const geraete = (abos ?? []).length;
+  await db.from("push_nachrichten").insert({ titel: titel || null, text, von: wer.user.id, geraete, erreicht });
+  return antwort({ geraete, erreicht, weggeraeumt: weg.length });
+});

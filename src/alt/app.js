@@ -46,6 +46,7 @@ import { hocoFenster } from "../planwand/HocoFenster.jsx";
 import Hoco from "../hoco/Hoco.jsx";
 import { maschinenkopf } from "../seiten/rechner/kopf.jsx";
 import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
+import { pushNachAnmeldung, pushHinweisWeg } from "../teile/push.jsx";
 import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 
 const BOOT = document.getElementById("boot");
@@ -144,7 +145,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.34.0";
+const APP_VERSION = "1.35.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1522,6 +1523,9 @@ async function profilLaden() {
       sitzungMerken(profil.email, s.refresh_token);
     }
     lebenszeichenStarten();
+    // Push-Mitteilungen nach der Einstellung dieser Person (1.35.0).
+    // Etwas später, damit die Seite zuerst steht.
+    setTimeout(pushNachAnmeldung, 2000);
   } catch (f) {
     console.warn("Profil nicht ladbar:", f.message);
     profil = { id: s.user.id, email: s.user.email, full_name: null,
@@ -9988,6 +9992,7 @@ function zeichneGeruest() {
     if (typeof padSchliessen === "function") padSchliessen();
     await abmelden();
     profil = null;
+    pushHinweisWeg();
     // Auch das kleine Notizbuch geht beim Abmelden zu
     document.querySelectorAll(".dialog-huelle, .nb-schwebend [data-zu]").forEach((el) =>
       (el.classList.contains("dialog-huelle") ? el.remove() : el.click()));

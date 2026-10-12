@@ -20,6 +20,8 @@ import Nutzer from "./Nutzer.jsx";
 import Sicherung from "./Sicherung.jsx";
 import PlanwandArchiv from "./PlanwandArchiv.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
+import { pushMoeglich, pushNurVomStartbildschirm, pushEingeschaltet, pushAbonnieren, pushAbmelden,
+  pushNachrichtSenden, pushHinweisWeg } from "../teile/push.jsx";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 // Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
@@ -100,6 +102,7 @@ function Allgemein({ bin }) {
     <>
       <MeinKonto />
       <Darstellung />
+      {alt.meineRolle() !== "extern" && <Mitteilungen bin={bin} />}
       {(bin || alt.darfDokumenteUndSicherung()) && <Bestellmail />}
       <UeberDieApp />
     </>
@@ -365,6 +368,56 @@ function Darstellung() {
         : <Schalter id="e-angemeldet" name="angemeldetbleiben" titel="Angemeldet bleiben"
             text="Ohne meldet sich die App nach fünf Minuten ohne Bedienung selbst ab."
             beiAenderung={() => { if (window.untaetigNeuStarten) window.untaetigNeuStarten(); }} />}
+    </Gruppe>
+  );
+}
+
+// Push-Mitteilungen (1.35.0): von Anfang an an, hier abschaltbar.
+// Admins schicken von hier eine Nachricht an alle.
+function Mitteilungen({ bin }) {
+  const [an, setAn] = useState(pushEingeschaltet());
+  const [laeuft, setLaeuft] = useState(false);
+  const moeglich = pushMoeglich();
+  const erlaubnis = moeglich ? Notification.permission : null;
+  let hinweis = "Nachrichten vom Büro kommen auf dieses Gerät, auch wenn die App zu ist.";
+  if (pushNurVomStartbildschirm()) {
+    hinweis = "Auf iPhone und iPad nur, wenn das Hofer Tool auf dem Startbildschirm liegt: "
+      + "in Safari Teilen, dann „Zum Home-Bildschirm“, und von dort öffnen.";
+  } else if (!moeglich) {
+    hinweis = "Dieser Browser kann keine Mitteilungen empfangen.";
+  } else if (an && erlaubnis === "denied") {
+    hinweis = "Auf diesem Gerät blockiert. In den Einstellungen des Browsers oder Geräts "
+      + "Mitteilungen für das Hofer Tool erlauben.";
+  }
+  const aendern = async (e) => {
+    const neu = e.target.checked;
+    setAn(neu);
+    alt.einstellungSetzen("push", neu);
+    pushHinweisWeg();
+    if (!moeglich) return;
+    setLaeuft(true);
+    try {
+      if (neu) {
+        const ok = await pushAbonnieren(true);
+        if (ok) alt.meldung("Mitteilungen sind eingeschaltet.", "gut");
+        else alt.meldung("Der Browser hat Mitteilungen nicht erlaubt.", "warn");
+      } else {
+        await pushAbmelden();
+      }
+    } catch (f) {
+      alt.meldung("Mitteilungen: " + alt.fehlertext(f), "warn");
+    }
+    setLaeuft(false);
+  };
+  return (
+    <Gruppe titel="Mitteilungen">
+      <SchalterZeile id="e-push" titel="Push-Mitteilungen" text={hinweis}
+        checked={an} onChange={aendern} disabled={laeuft} />
+      {bin && (
+        <Zeile titel="Nachricht an alle" text="Kommt als Mitteilung auf alle Geräte, die sie eingeschaltet haben.">
+          <button className="knopf knopf--klein" id="push-senden" onClick={pushNachrichtSenden}>Senden …</button>
+        </Zeile>
+      )}
     </Gruppe>
   );
 }

@@ -7209,3 +7209,18 @@ body.pw-seite .su-leiste { bottom: 40px; }
 /* Einrichtblatt, Zeichnung, WBG und Menge passen so in eine Reihe */
 .aw-knoepfe .aw-knopf { padding-left: 9px; padding-right: 9px; }
 @media (max-width: 1300px) { .aw-knoepfe { gap: 5px; } .aw-knoepfe .aw-knopf { padding-left: 6px; padding-right: 6px; } }
+
+/* Push-Mitteilungen: kleines Feld unten nach der Anmeldung (1.35.0) */
+.push-hinweis {
+  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%); z-index: 9000;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  width: min(560px, calc(100vw - 32px)); box-sizing: border-box;
+  padding: 14px 16px; border-radius: 14px;
+  background: var(--flaeche); color: var(--tinte);
+  border: 1px solid var(--linie);
+  box-shadow: 0 12px 32px rgba(0,0,0,.22);
+}
+.push-hinweis__text { flex: 1 1 240px; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.push-hinweis__text span { color: var(--gedaempft); }
+.push-hinweis__knoepfe { display: flex; gap: 8px; margin-left: auto; }
