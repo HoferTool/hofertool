@@ -1,5 +1,6 @@
 # Stückzeit fehlt (1.26.0): Die Kachel Stückzeit im Pad pulsiert, solange
 # keine Zeit eingetragen ist, und hört damit auf, sobald eine da ist.
+# Die Bilder setzt ein Admin unter Einstellungen → Symbole (1.29.0).
 # Ebenso die Kachel Stückzahl, solange heute keine Stückzahl gemeldet ist (1.28.0).
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -24,12 +25,24 @@ with sync_playwright() as p:
       TEST.daten.production_records = TEST.daten.production_records.filter(z => z.record_date !== iso
         && !String(z.updated_at || z.created_at || '').startsWith(iso)); }""")
     pg.evaluate("""() => TEST.daten.app_config.push({ schluessel: 'pad_mahnbilder', wert: JSON.stringify({
-      stueckzeit: { person: 'mb' },
-      stueckzahl: { bild: 'data:image/gif;base64,R0lGODlhAQABAIABAP8AAP///ywAAAAAAQABAAACAkQBADs=' } }) })""")
+      stueckzeit: { person: 'mb' } }) })""")
     # Ein Testbild als Profilfoto (ein rotes Pixel)
     pg.evaluate("""() => { const p = TEST.daten.profiles; const v = p[0];
       p.push(Object.assign({}, v, { id: 'mb', full_name: 'Test Person', email: 'tp@test',
-        bild_url: 'data:image/gif;base64,R0lGODlhAQABAIABAP8AAP///ywAAAAAAQABAAACAkQBADs=' })); }""")
+        bild_url: 'data:image/gif;base64,R0lGODlhAQABAIABAP8AAP///ywAAAAAAQABAAACAkQBADs=' })); }""")    # Bild für die Stückzahl unter Einstellungen → Symbole wählen
+    import base64, io, os
+    png = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "icon-192.png")
+    pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(600)
+    pg.locator("[data-einst='symbole']").click(); pg.wait_for_timeout(1000)
+    pruefe("Abschnitt Bilder im Pad Mode da", pg.locator("#mahnbilder [data-mahnbild='stueckzahl']").count() == 1)
+    with pg.expect_file_chooser() as fc: pg.click("#mahnbilder [data-mahnbild='stueckzahl'] .sym-bild")
+    fc.value.set_files(png); pg.wait_for_selector("#zs-ja"); pg.click("#zs-ja"); pg.wait_for_timeout(1500)
+    gesp = pg.evaluate("(TEST.daten.app_config.find(z => z.schluessel === 'pad_mahnbilder') || {}).wert || ''")
+    pruefe("Bild gespeichert, Person bleibt", '"stueckzahl":{"bild":"data:image' in gesp and '"person":"mb"' in gesp)
+    pruefe("Vorschau zeigt beide Bilder", pg.locator("#mahnbilder img").count() == 2)
+    pg.screenshot(path="/tmp/mahnbilder-einst.png")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+
     pg.evaluate("document.getElementById('pad-knopf').click()"); pg.wait_for_timeout(900)
     pg.click("[data-padwo='parks']"); pg.wait_for_timeout(900)
     for el in pg.query_selector_all("#pad [data-park]"):

@@ -7197,3 +7197,5 @@ body.pw-seite .su-leiste { bottom: 40px; }
 .pad-karte2.pad-karte2--stk.pad-karte2--nervt { animation-name: pad-stk-nervt; }
 /* „Stückzeit löschen“ über die ganze Breite, Abbrechen und Eintragen darunter */
 .zb-knoepfe [data-zbloeschen] { grid-column: 1 / -1; }
+/* Bilder im Pad Mode unter Einstellungen → Symbole (seit 1.29.0) */
+.sym-zeile .mahnbild-name { flex: 1 1 auto; font-weight: 600; }

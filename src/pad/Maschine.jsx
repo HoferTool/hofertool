@@ -19,6 +19,7 @@ import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
+import { mahnBilder } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
 import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitFragen } from "../daten/stueckzahl.js";
 import {
@@ -269,31 +270,8 @@ function heuteKeineStueckzahl(j, jeTag) {
     tag === heute || (e && e.zeit && alt.isoDatum(new Date(e.zeit)) === heute));
 }
 
-// Bilder, die neben einer fehlenden Stückzeit oder Stückzahl erscheinen
-// (Wunsch Patrick, 12. Oktober 2026). Welche, steht nur in der Datenbank
-// (app_config „pad_mahnbilder“: je Art { person: Konto-Kennung } für dessen
-// Profilfoto oder { bild: Adresse }), nicht hier: das Repository ist
-// öffentlich, Namen und Fotos von Leuten gehören nicht hinein.
-// Einmal je Sitzung geholt, nur wenn es gebraucht wird.
-let mahnBilderLaden = null;
-function mahnBilder() {
-  if (!mahnBilderLaden) {
-    mahnBilderLaden = (async () => {
-      const r = await alt.db.from("app_config").select("wert").eq("schluessel", "pad_mahnbilder").maybeSingle();
-      const konf = r && !r.error && r.data && r.data.wert ? JSON.parse(r.data.wert) : {};
-      const raus = {};
-      for (const [art, w] of Object.entries(konf || {})) {
-        if (w && w.bild) raus[art] = w.bild;
-        else if (w && w.person) {
-          const p = await alt.db.from("profiles").select("bild_url").eq("id", w.person).maybeSingle();
-          raus[art] = (p && p.data && p.data.bild_url) || null;
-        }
-      }
-      return raus;
-    })().catch(() => ({}));
-  }
-  return mahnBilderLaden;
-}
+// Bild neben einer fehlenden Stückzeit oder Stückzahl, aus der Datenbank
+// (daten/mahnbilder.js), nur geholt, wenn es gebraucht wird
 function useMahnBild(art, noetig) {
   const [url, setUrl] = useState(null);
   useEffect(() => {

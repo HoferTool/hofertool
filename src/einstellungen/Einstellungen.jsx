@@ -15,6 +15,7 @@ import { zuschneiden } from "../teile/Zuschnitt.jsx";
 import Dokumente from "./Dokumente.jsx";
 import Farben from "./Farben.jsx";
 import Symbole from "./Symbole.jsx";
+import MahnBilder from "./MahnBilder.jsx";
 import Nutzer from "./Nutzer.jsx";
 import Sicherung from "./Sicherung.jsx";
 import PlanwandArchiv from "./PlanwandArchiv.jsx";
@@ -64,7 +65,7 @@ function Einstellungen({ zu }) {
   else if (offen === "fehler") inhalt = <Fehlerprotokoll />;
   else if (offen === "dokumente") inhalt = <Dokumente />;
   else if (offen === "farben") inhalt = <Farben />;
-  else if (offen === "symbole") inhalt = <Symbole />;
+  else if (offen === "symbole") inhalt = <><Symbole /><MahnBilder /></>;
   else inhalt = <Nutzer />;
 
   return (
