@@ -87,8 +87,9 @@ function SucheFenster({ b, zu }) {
 
 let leiste = null;   // { el, wurzel }
 
-// Enter springt zum nächsten Treffer, Umschalt + Enter zurück. Gilt,
-// solange die Suche läuft und kein Fenster offen ist.
+// Enter springt zum nächsten Treffer, Umschalt + Enter zurück, Escape
+// beendet die Suche (Wunsch Patrick 12. Oktober 2026). Gilt, solange
+// die Suche läuft und kein Fenster offen ist.
 let tasteDa = false;
 function tasteAnmelden() {
   if (tasteDa) return;
@@ -104,6 +105,16 @@ function tasteAnmelden() {
     e.preventDefault();
     alt.sucheZumTreffer(plan.trefferNr + (e.shiftKey ? -1 : 1), plan.behaelter);
   });
+  // Escape vor allen anderen (capture): Läuft gerade auch das Einfügen,
+  // beendet es zuerst nur das, sonst schlösse ein Druck beides
+  document.addEventListener("keydown", (e) => {
+    const plan = alt.plan;
+    if (e.key !== "Escape" || !plan.sucheAktiv || plan.zwischenablage) return;
+    if (document.querySelector(".dialog-huelle")) return;
+    const a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+    alt.sucheBeenden();
+  }, true);
 }
 
 export function sucheLeisteZeigen(b, ziel) {
@@ -142,7 +153,7 @@ function SuchLeiste({ b, ziel }) {
         <button type="button" className="knopf knopf--klein" id="su-weiter" title="Enter"
           onClick={() => alt.sucheZumTreffer(plan.trefferNr + 1, b)}>Weiter ›</button>
       </>}
-      <button type="button" className="knopf knopf--klein" id="su-ende"
+      <button type="button" className="knopf knopf--klein" id="su-ende" title="Escape"
         onClick={() => alt.sucheBeenden()}>Suche beenden</button>
     </>
   );
