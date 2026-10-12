@@ -7226,3 +7226,40 @@ body.pw-seite .su-leiste { bottom: 40px; }
 .push-hinweis__knoepfe { display: flex; gap: 8px; margin-left: auto; }
 .push-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .push-historie__text { white-space: pre-wrap; }
+
+/* ---------- Temp-Ordner (1.38.0, src/seiten/Temp.jsx) ---------- */
+.temp { max-width: 900px; position: relative; }
+.temp__hinweis { color: var(--gedaempft); margin: -4px 0 14px; }
+.temp__knoepfe { display: flex; flex-wrap: wrap; gap: 10px; }
+.temp__knoepfe .knopf { display: inline-flex; align-items: center; gap: 8px; }
+.temp__zeichen { width: 20px; height: 20px; flex: none; }
+.temp__ablage { margin-top: 12px; padding: 18px; border: 2px dashed var(--linie-stark);
+  border-radius: var(--radius); text-align: center; color: var(--gedaempft); }
+.temp--ziehen .temp__ablage { border-color: var(--marke); color: var(--marke); background: var(--marke-hell); }
+.temp__leer { margin-top: 16px; }
+.temp__liste { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px; }
+.temp__liste--laeuft { margin-top: 12px; }
+.temp__zeile { display: flex; align-items: center; gap: 12px; padding: 8px 10px;
+  background: var(--flaeche); border: 1px solid var(--linie); border-radius: var(--radius); min-width: 0; }
+.temp__bild { flex: none; width: 56px; height: 56px; border-radius: 8px; overflow: hidden; padding: 0;
+  border: 1px solid var(--linie); background: var(--grund); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; }
+.temp__bild img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.temp__art { font-size: .75rem; font-weight: 700; color: var(--gedaempft); display: flex; }
+.temp__art .temp__zeichen { width: 26px; height: 26px; }
+.temp__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left;
+  background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: inherit; }
+.temp__text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.temp__liste--laeuft .temp__text { cursor: default; }
+.temp__runter { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.temp__zeile .chipweg { font-size: 1.6rem; flex: none; padding: 0 6px; }
+.temp__alle { margin-top: 12px; color: var(--gefahr); }
+.temp__dreht { width: 22px; height: 22px; border-radius: 50%; border: 3px solid var(--linie);
+  border-top-color: var(--marke); animation: temp-dreht .8s linear infinite; }
+@keyframes temp-dreht { to { transform: rotate(360deg); } }
+/* Handy: Herunterladen nur als Zeichen, damit der Name Platz hat */
+@media (max-width: 640px) {
+  .temp__runter span { display: none; }
+  .temp__runter { padding: 8px 10px; }
+  .temp__knoepfe .knopf { flex: 1 1 100%; justify-content: center; }
+}

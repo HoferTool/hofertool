@@ -248,7 +248,8 @@ export async function sichern(h, grund, fortschritt) {
     if (!tabellen.length) throw new Error("Die Datenbank hat keine Tabellen geliefert (sql/sicherung.sql ausgeführt?).");
     const d = await alt.db.rpc("sicherung_dateien");
     if (d.error) throw d.error;
-    const alle = (d.data || []).filter((x) => x && x.b && x.p);
+    // Die Temp-Ordner der Leute (src/daten/temp.js) gehören nicht in die Sicherung
+    const alle = (d.data || []).filter((x) => x && x.b && x.p && x.b !== "temp");
     // Zeichnungen, Einrichtblätter und alte Dateien bleiben draussen (Wunsch Patrick, 8. und 9. Oktober 2026)
     const ohne = ohneDateien(tabellen, alle);
     const liste = alle.filter((x) => !ohne.has(x.b + "|" + x.p));

@@ -11,6 +11,8 @@ import { alt, reactSeite, reactAufraeumen } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
+import Temp from "../seiten/Temp.jsx";
+import { tempAufraeumenTaeglich } from "../daten/temp.js";
 import Einkauf from "../seiten/Einkauf.jsx";
 import Bestellungen from "../seiten/Bestellungen.jsx";
 import Start from "../seiten/Start.jsx";
@@ -145,7 +147,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.37.0";
+const APP_VERSION = "1.38.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1103,6 +1105,7 @@ const NEULADEN_FENSTER_RUHIG = ["betrachter", "dok", "wetter", "hoco"];
 
 function neuladenRuhig() {
   if (document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return false;
+  if (document.querySelector(".temp__liste--laeuft")) return false; // Temp-Ordner lädt hoch
   const fenster = Array.from(document.querySelectorAll(".dialog-huelle"));
   if (fenster.some((h) => !NEULADEN_FENSTER_RUHIG.includes(fensterArt(h)))) return false;
   const a = document.activeElement;
@@ -3945,6 +3948,8 @@ async function farbzuteilungLaden() {
   // und tägliche Planwand-Datei zum Nachschauen (src/teile/planwandArchiv.js);
   // beides nicht in einer Backup-Datei
   if (!ARCHIV) { sicherungWaechter(); planArchivWaechter(); }
+  // Abgelaufenes in den Temp-Ordnern aller wegräumen, einmal am Tag je Gerät
+  if (!ARCHIV && !istExtern()) tempAufraeumenTaeglich();
 }
 
 // Auf der Planwand darf jeder alles sehen. Geändert wird erst,
@@ -7552,7 +7557,12 @@ function leerlaufPruefen() {
   // für alle „Andere Nutzer“ wie Planwand oder Päckli Pad (Wunsch
   // Patrick, 8. Oktober 2026): Die hängen am Bildschirm im Betrieb und
   // sollen nie von selbst abgemeldet werden.
-  if (document.getElementById("pad") || istAndererNutzer()) {
+  // Ebenso, solange der Temp-Ordner hochlädt oder die Kamera bzw. die
+  // Dateiauswahl offen ist (src/seiten/Temp.jsx): ein Video vom Handy
+  // dauert länger als eine Minute, ohne dass jemand in der App tippt
+  const tempWahl = +document.body.dataset.tempWahl || 0;
+  if (document.getElementById("pad") || istAndererNutzer() || document.querySelector(".temp__liste--laeuft")
+    || (tempWahl && Date.now() - tempWahl < 30 * 60000)) {
     leerlauf.letzte = Date.now();
     if (leerlauf.hinweis) { leerlauf.hinweis.remove(); leerlauf.hinweis = null; }
     return;
@@ -9398,6 +9408,10 @@ SYM.rechner = svg('<path d="M3 19.5h18"/><path d="M3 19.5L17 5"/>'
   + '<path d="M11 19.5a8 8 0 0 0-2.4-5.7"/><circle cx="3" cy="19.5" r="1.1"'
   + ' fill="currentColor" stroke="none"/>');
 
+// Temp: Ordner mit Pfeil nach oben (vom Handy hinein)
+SYM.temp = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
+  + '<path d="M12 16v-5"/><path d="M9.5 13.5L12 11l2.5 2.5"/>');
+
 // Einstellungen: Schieberegler
 SYM.einstellungen = svg('<line x1="4" y1="7" x2="20" y2="7"/>'
   + '<line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>'
@@ -9494,6 +9508,8 @@ const SEITEN = [
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: reactSeite(Einkauf) },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
+  // Eigener Ordner je Person, vor Google (Wunsch Patrick, 12. Oktober 2026)
+  { pfad: "temp",         titel: "Temp",         zeichen: SYM.temp, zeige: reactSeite(Temp) },
 ];
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen

@@ -551,12 +551,37 @@ export function createClient(_url, _key, optionen) {
     storage: { from: (ablage) => ({
       upload: (pfad, datei, o) => {
         TEST.protokoll.push({ art: "upload", ablage, pfad, typ: o && o.contentType, groesse: datei && datei.size });
+        if (TEST.ordner) (TEST.ordner[ablage] = TEST.ordner[ablage] || []).push({ pfad,
+          size: datei && datei.size, mimetype: o && o.contentType, created_at: new Date().toISOString() });
         return Promise.resolve({ data: { path: pfad }, error: null });
       },
       getPublicUrl: (pfad) => ({ data: { publicUrl:
         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
         + "AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==#" + pfad } }),
-      remove: () => Promise.resolve({ data: null, error: null }),
+      remove: (pfade) => {
+        TEST.protokoll.push({ art: "remove", ablage, pfade });
+        // Temp-Ordner: gelöschte Dateien verschwinden aus der Liste
+        if (TEST.ordner && TEST.ordner[ablage]) TEST.ordner[ablage] = TEST.ordner[ablage].filter((o) => !(pfade || []).includes(o.pfad));
+        return Promise.resolve({ data: null, error: null });
+      },
+      // Ordnerinhalt: Tests legen Dateien in TEST.ordner[ablage] = [{pfad, size, mimetype, created_at}];
+      // hochgeladene kommen dazu
+      list: (ordner) => {
+        TEST.protokoll.push({ art: "list", ablage, ordner });
+        const alle = (TEST.ordner && TEST.ordner[ablage]) || [];
+        const da = alle.filter((o) => o.pfad.startsWith(ordner + "/")).map((o) => ({
+          id: "id-" + o.pfad, name: o.pfad.slice(ordner.length + 1), created_at: o.created_at,
+          metadata: { size: o.size, mimetype: o.mimetype } }));
+        return Promise.resolve({ data: da, error: null });
+      },
+      createSignedUrl: (pfad, _s, o) => {
+        TEST.protokoll.push({ art: "signiert", ablage, pfad, download: o && o.download });
+        return Promise.resolve({ data: { signedUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+          + "AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==#" + pfad }, error: null });
+      },
+      createSignedUrls: (pfade) => Promise.resolve({ data: pfade.map((pfad) => ({ path: pfad,
+        signedUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+          + "AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==#" + pfad })), error: null }),
       // Tests legen Inhalte in TEST.ablage["ablage/pfad"] ab (Text oder Uint8Array)
       download: (pfad) => {
         TEST.protokoll.push({ art: "download", ablage, pfad });
