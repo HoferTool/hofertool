@@ -46,5 +46,11 @@ with sync_playwright() as p:
     pruefe("gespeichert", wert is True)
     pruefe("Balken zeigt jetzt das rote M", pg.locator(sel + " .pw-msymbol").count() == 1)
     pruefe("Menge bleibt", bool(pg.evaluate(f"TEST.daten.planwand.find(j => j.id === '{jid}').material_menge")))
+    # Häkchen wieder weg: M verschwindet
+    el.click(); pg.wait_for_timeout(80); el.click(); pg.wait_for_timeout(1000)
+    pruefe("Häkchen bleibt gesetzt beim Öffnen", pg.locator("#pl-m-trotzdem").is_checked())
+    pg.click("#pl-m-trotzdem"); pg.click("#pl-ja"); pg.wait_for_timeout(1500)
+    pruefe("Häkchen weg: kein M mehr", pg.locator(sel + " .pw-msymbol").count() == 0
+           and pg.evaluate(f"TEST.daten.planwand.find(j => j.id === '{jid}').material_m_trotzdem") is False)
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:12])
