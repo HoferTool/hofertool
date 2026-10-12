@@ -488,6 +488,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     !planerListe.some((u) => (u.initialen || "").trim() === k));
   const geaendertVon = auftrag && auftrag.geaendert_von ? alt.personVoll(auftrag.geaendert_von) : "";
 
+  const kopfM = maschinen.find((m) => m.id === w.maschine);
+  const maschineKopf = kopfM ? kopfM.name + (kopfM.machine_number ? " (" + kopfM.machine_number + ")" : "") : "";
   return (
     <div className="dialog dialog--auftrag">
       {/* ---------- Kopfzeile ---------- */}
@@ -499,7 +501,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   {w.planer.length > 0 && <span className="siegel-reihe" id="pl-siegel">
                     {w.planer.map((k) => <span key={k} className="siegel"
                       title={"Eingeplant von " + (alt.siegelName(k) || k)}>{k}</span>)}</span>}</div>
-                <span className="auf-kopf__unter">{auftrag.maschine || ""}
+                {/* Maschine mit Nummer aus der Auswahl unten, damit sie
+                    sich gleich mitändert (Wunsch Patrick 12. Oktober 2026) */}
+                <span className="auf-kopf__unter" id="pl-kopf-maschine">{maschineKopf || auftrag.maschine || ""}
                   {auftrag.stand ? " · " + alt.zahlText(auftrag.stand) : ""}
                   {auftrag.target_quantity ? " / " + alt.zahlText(auftrag.target_quantity) : ""}</span>
                 {geaendertVon && <span className="auf-kopf__unter">Zuletzt geändert von {geaendertVon}
