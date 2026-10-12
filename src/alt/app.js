@@ -145,7 +145,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.36.0";
+const APP_VERSION = "1.37.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2967,17 +2967,23 @@ function stammVergessen() {
   stammGedaechtnis.runde++;
 }
 
-async function ladeParks(auchInaktive) {
-  return stammGemerkt("parks" + (auchInaktive ? "-alle" : ""),
-    () => ladeParksFrisch(auchInaktive));
+// Mit fuerPlanwand kommen alle Parks und Maschinen, ohne Rücksicht auf
+// Rolle oder zugewiesene Parks: Die Planwand sehen alle ganz, nur die
+// Produktion zeigt den eigenen Bereich (Wunsch Patrick, 12. Oktober 2026).
+// Externe bleiben auch auf der Planwand bei ihren Parks.
+async function ladeParks(auchInaktive, fuerPlanwand) {
+  const ganz = !!fuerPlanwand && !istExtern();
+  return stammGemerkt("parks" + (auchInaktive ? "-alle" : "") + (ganz ? "-plan" : ""),
+    () => ladeParksFrisch(auchInaktive, ganz));
 }
 
-async function ladeMaschinen(auchInaktive) {
-  return stammGemerkt("maschinen" + (auchInaktive ? "-alle" : ""),
-    () => ladeMaschinenFrisch(auchInaktive));
+async function ladeMaschinen(auchInaktive, fuerPlanwand) {
+  const ganz = !!fuerPlanwand && !istExtern();
+  return stammGemerkt("maschinen" + (auchInaktive ? "-alle" : "") + (ganz ? "-plan" : ""),
+    () => ladeMaschinenFrisch(auchInaktive, ganz));
 }
 
-async function ladeParksFrisch(auchInaktive) {
+async function ladeParksFrisch(auchInaktive, ganz) {
   let a = db.from("machine_parks").select("*").order("name");
   if (!auchInaktive) a = a.eq("is_active", true);
   const { data, error } = await zeitlimit(a, 10000, "Maschinenparks");
@@ -2986,17 +2992,17 @@ async function ladeParksFrisch(auchInaktive) {
   plan.parksAlle = data || [];
   // Eigene Parks nach Name, externe Maschinen immer zuletzt
   const extern = (p) => /extern|lohn|fremd/i.test(String(p.name || "")) ? 1 : 0;
-  return (data || []).filter((p) => parkErlaubt(p.id))
+  return (data || []).filter((p) => ganz || parkErlaubt(p.id))
     .sort((a, b) => extern(a) - extern(b)
       || String(a.name || "").localeCompare(String(b.name || ""), "de"));
 }
 
-async function ladeMaschinenFrisch(auchInaktive) {
+async function ladeMaschinenFrisch(auchInaktive, ganz) {
   let a = db.from("machines").select("*").order("sort_order").order("name");
   if (!auchInaktive) a = a.eq("is_active", true);
   const { data, error } = await zeitlimit(a, 10000, "Maschinen");
   if (error) throw error;
-  return (data || []).filter((m) => parkErlaubt(m.park_id));
+  return (data || []).filter((m) => ganz || parkErlaubt(m.park_id));
 }
 
 // Alle Maschinen, ohne Rücksicht auf die Parkzuweisung. Für die
@@ -6595,7 +6601,7 @@ function zeilenVerschieben(b) {
         }
         // Die Liste im Speicher neu ordnen, sonst bleibt die Wand
         // stehen, obwohl die Datenbank schon geändert ist.
-        try { prod.maschinen = await ladeMaschinen(false); }
+        try { prod.maschinen = await ladeMaschinen(false, true); }
         catch (g) {
           (prod.maschinen || []).sort((x, y) =>
             (x.sort_order || 0) - (y.sort_order || 0));

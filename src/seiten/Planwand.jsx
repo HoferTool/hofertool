@@ -349,8 +349,8 @@ export default function Planwand({ auffrischen, behaelter: b }) {
     let weg = false;
     (async () => {
       try {
-        alt.prod.parks = await alt.ladeParks(false);
-        alt.prod.maschinen = await alt.ladeMaschinen(false);
+        alt.prod.parks = await alt.ladeParks(false, true);
+        alt.prod.maschinen = await alt.ladeMaschinen(false, true);
         if (!weg) setStand({ art: "bereit" });
       } catch (f) {
         if (!weg) setStand({ art: "fehler", text: alt.fehlertext(f) });

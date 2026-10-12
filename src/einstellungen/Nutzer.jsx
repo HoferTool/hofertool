@@ -33,7 +33,7 @@ export default function Nutzer() {
         <div className="rollenhilfe">
           <div><strong>Administrator</strong> darf alles, ohne etwas einzuschalten.</div>
           <div><strong>Planwand</strong> sieht alle Parks und darf ändern.</div>
-          <div><strong>Langdreher</strong> und <strong>Kurzdreher</strong> sehen nur ihren Park, in Produktion und Planwand.</div>
+          <div><strong>Langdreher</strong> und <strong>Kurzdreher</strong> sehen in der Produktion nur ihren Park, die Planwand ganz.</div>
           <div><strong>Mitarbeiter</strong> darf überall zusehen und den Einkauf nutzen, sonst nichts ändern.</div>
           <div><strong>Extern</strong> ist für Partner wie Zurbrügg: nur die Planwand der eigenen Maschinen ansehen
             und dort Stückzahlen melden, sonst nichts.</div>
@@ -418,7 +418,8 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
       {parks.length > 0 && u.role !== "admin" && u.role !== "planwand" && (
         <div className="nutzerfenster__teil">
           <h3>Maschinenparks</h3>
-          <p className="es-gruppe__text">Ohne Auswahl entscheidet die Rolle: Langdreher sieht Parks mit „lang“
+          <p className="es-gruppe__text">Gilt für die Produktion, die Planwand sehen alle ganz.
+            Ohne Auswahl entscheidet die Rolle: Langdreher sieht Parks mit „lang“
             im Namen, Kurzdreher solche mit „kurz“.</p>
           <div className="parkzeile__wahl">{parks.map((pk) => (
             <label className="parkchip" key={pk.id}>
