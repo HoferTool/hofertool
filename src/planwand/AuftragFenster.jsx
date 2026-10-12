@@ -251,9 +251,21 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   // (Wunsch Patrick 9. Oktober 2026). Die Notiz füllt ausserdem, was
   // unten noch frei ist, darum bekommt sie die Texthöhe als Mindesthöhe.
   const notizFeld = useRef(null);
+  // Beim Öffnen hängt das Fenster im ersten Augenblick noch nicht im
+  // Bild, scrollHeight ist dann 0 und das Feld blieb einzeilig, obwohl
+  // mehrere Zeilen gespeichert waren (Meldung Patrick 12. Oktober 2026).
+  // Darum misst ein ResizeObserver nach, sobald das Feld wirklich Platz
+  // hat oder seine Breite ändert.
   useLayoutEffect(() => {
     const f = abrufFeld.current; if (!f) return;
-    f.style.height = "auto"; f.style.height = (f.scrollHeight + 2) + "px";
+    const messen = () => {
+      if (!f.clientWidth) return;
+      f.style.height = "auto"; f.style.height = (f.scrollHeight + 2) + "px";
+    };
+    messen();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(messen); ro.observe(f);
+    return () => ro.disconnect();
   }, [w.abruf]);
   useLayoutEffect(() => {
     const f = notizFeld.current; if (!f) return;
@@ -265,7 +277,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     };
     messen();
     window.addEventListener("resize", messen);
-    return () => window.removeEventListener("resize", messen);
+    // Wie bei der Abrufinformation: erst messen, wenn das Fenster steht
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => { if (f.clientWidth) messen(); }) : null;
+    if (ro) ro.observe(f);
+    return () => { window.removeEventListener("resize", messen); if (ro) ro.disconnect(); };
   }, [w.notiz]);
 
   // ----- Zeichnung der HOCO Nr. -----
