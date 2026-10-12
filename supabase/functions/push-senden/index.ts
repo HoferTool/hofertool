@@ -37,15 +37,21 @@ function geheimSchluessel(): string | undefined {
 
 // deno-lint-ignore no-explicit-any
 async function schluesselpaar(db: any) {
-  const { data } = await db.from("push_schluessel").select("oeffentlich, geheim").eq("id", 1).maybeSingle();
-  if (data) return data as { oeffentlich: string; geheim: string };
+  const lesen = async () => {
+    const { data, error } = await db.from("push_schluessel").select("oeffentlich, geheim").eq("id", 1).maybeSingle();
+    if (error) throw new Error("lesen: " + error.message);
+    return data as { oeffentlich: string; geheim: string } | null;
+  };
+  const da = await lesen();
+  if (da) return da;
   const neu = webpush.generateVAPIDKeys();
   // Rufen zwei Geräte gleichzeitig zum ersten Mal, gewinnt das erste
-  await db.from("push_schluessel").upsert(
-    { id: 1, oeffentlich: neu.publicKey, geheim: neu.privateKey },
-    { onConflict: "id", ignoreDuplicates: true });
-  const { data: gespeichert } = await db.from("push_schluessel").select("oeffentlich, geheim").eq("id", 1).single();
-  return gespeichert as { oeffentlich: string; geheim: string };
+  const { error } = await db.from("push_schluessel").insert(
+    { id: 1, oeffentlich: neu.publicKey, geheim: neu.privateKey });
+  if (error && error.code !== "23505") throw new Error("ablegen: " + error.message);
+  const gespeichert = await lesen();
+  if (!gespeichert) throw new Error("nach dem Ablegen nicht da");
+  return gespeichert;
 }
 
 Deno.serve(async (req) => {
@@ -60,6 +66,7 @@ Deno.serve(async (req) => {
   try {
     paar = await schluesselpaar(db);
   } catch (f) {
+    console.error("Schlüssel:", (f as Error).message);
     return antwort({ fehler: "Schlüssel fehlt: " + (f as Error).message }, 500);
   }
   if (req.method === "GET") return antwort({ schluessel: paar.oeffentlich });
