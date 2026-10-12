@@ -144,7 +144,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.24.0";
+const APP_VERSION = "1.24.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5033,11 +5033,46 @@ function aufPlanwandZeigen(nummer) {
   location.hash = "#/planwand";
 }
 
+// Die Planwand lädt nur ein Jahr zurück. Die Suche soll aber auch
+// ältere Aufträge finden, ohne dass man zuerst mit dem Zeitregler
+// zurückfährt (Wunsch Patrick 12. Oktober 2026). Darum holt sie die
+// abgeschlossenen Aufträge vor dem geladenen Bereich einmal dazu und
+// merkt sie sich fünf Minuten lang.
+async function sucheAeltereHolen() {
+  const ab = plan.geladenAb;
+  if (!ab) return [];
+  const m = plan.sucheAelter;
+  if (m && m.ab === ab && Date.now() - m.zeit < 300000) return m.liste;
+  const stufe = 1000, liste = [];
+  for (let von = 0; von < 100000; von += stufe) {
+    const r = await zeitlimit(db.from("planwand").select("*")
+      .not("ended_at", "is", null).lt("planned_from", ab)
+      .order("planned_from").order("id").range(von, von + stufe - 1), 15000, "Ältere Aufträge");
+    if (r.error) throw r.error;
+    liste.push(...(r.data || []));
+    if (!r.data || r.data.length < stufe) break;
+  }
+  plan.sucheAelter = { ab, zeit: Date.now(), liste };
+  return liste;
+}
+
 async function sucheStarten(text, b) {
   const t = (text || "").trim().toLowerCase();
   if (!t) return;
 
-  const treffer = (plan.auftraege || [])
+  let aeltere = [];
+  try { aeltere = await sucheAeltereHolen(); }
+  catch (e) {
+    fehlerMerken("Suche: ältere Aufträge", fehlertext(e));
+    meldung("Ältere Aufträge konnten nicht geladen werden, gesucht wird nur im geladenen Bereich.", "warn");
+  }
+  // Alles, worin gesucht wird, auch für Weiter und Zurück
+  const quelle = new Map();
+  aeltere.forEach((j) => quelle.set(j.id, j));
+  (plan.auftraege || []).forEach((j) => quelle.set(j.id, j));
+  plan.sucheQuelle = quelle;
+
+  const treffer = [...quelle.values()]
     .filter((j) => auftragText(j).includes(t) && sucheImZeitraum(j))
     // Neuester oder ältester Auftrag zuerst; ohne Datum ganz hinten
     .sort((a, c) => {
@@ -5067,7 +5102,9 @@ async function sucheZumTreffer(nr, b) {
   if (!liste.length) return;
 
   plan.trefferNr = ((nr % liste.length) + liste.length) % liste.length;
-  const ziel = (plan.auftraege || []).find((j) => j.id === liste[plan.trefferNr]);
+  const id = liste[plan.trefferNr];
+  const ziel = (plan.auftraege || []).find((j) => j.id === id)
+    || (plan.sucheQuelle && plan.sucheQuelle.get(id));
   if (!ziel) return;
 
   if (ziel.planned_from) {
