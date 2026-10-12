@@ -144,7 +144,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.24.1";
+const APP_VERSION = "1.24.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4941,7 +4941,7 @@ function sucheVorladen() {
 function sucheSpringen(x) {
   if (!x) return;
   const b = document.getElementById("inhalt");
-  if (x.art === "auftrag") { balkenZeigen(x.daten.id); return; }
+  if (x.art === "auftrag") { balkenZeigen(x.daten.id, true); return; }
   if (x.art === "hoco") {
     prod.hocoOffen = x.daten.hoco_nr;
     if (location.hash.replace(/^#\/?/, "") !== "planwand") location.hash = "#/planwand";
@@ -4989,16 +4989,21 @@ document.addEventListener("keydown", (e) => {
 // Zu genau einem Auftrag springen: Planwand öffnen, den Zeitraum so
 // legen, dass der Balken sichtbar ist, ihn hervorheben und das
 // Auftragsfenster öffnen.
-function balkenZeigen(auftragId) {
+// ohneFenster: aus der Suche nur hinführen, das Fenster nicht öffnen
+// (Wunsch 12. Oktober 2026: „beim suchen den auftrag nie direkt öffnen“).
+function balkenZeigen(auftragId, ohneFenster) {
   if (!auftragId) return;
   plan.zeigeAuftrag = auftragId;
+  plan.zeigeOhneFenster = !!ohneFenster;
   if (location.hash.replace(/^#\/?/, "") === "planwand") zeichneSeite();
   else location.hash = "#/planwand";
 }
 
 async function balkenZeigenAusfuehren(b) {
   const id = plan.zeigeAuftrag;
+  const ohneFenster = plan.zeigeOhneFenster;
   plan.zeigeAuftrag = null;
+  plan.zeigeOhneFenster = false;
   if (!id) return;
   let j = (plan.auftraege || []).find((x) => x.id === id);
   if (!j) {
@@ -5022,7 +5027,7 @@ async function balkenZeigenAusfuehren(b) {
     el.classList.add("pw-balken--gezeigt");
     setTimeout(() => el.classList.remove("pw-balken--gezeigt"), 3600);
   }
-  planAuftragDialog(j, b);
+  if (!ohneFenster) planAuftragDialog(j, b);
 }
 
 function aufPlanwandZeigen(nummer) {
@@ -5092,9 +5097,10 @@ async function sucheStarten(text, b) {
   }
 
   plan.sucheAktiv = true;
+  // Auch bei nur einem Treffer nur hinführen, das Auftragsfenster öffnet
+  // man selbst mit Doppelklick (Wunsch 12. Oktober 2026, vorher ging es
+  // bei einem Treffer gleich auf).
   await sucheZumTreffer(0, b);
-  // Nur ein Treffer: gleich das Auftragsfenster öffnen (Wunsch 5. Oktober 2026)
-  if (treffer.length === 1) setTimeout(() => planAuftragDialog(treffer[0], b), 260);
 }
 
 async function sucheZumTreffer(nr, b) {

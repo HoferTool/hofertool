@@ -34,8 +34,9 @@ with sync_playwright() as p:
     pg.keyboard.press("Enter"); pg.wait_for_timeout(2500)
     pruefe("Enter schliesst die Suche", pg.locator(".suche-alles").count() == 0)
     pruefe("auf der Planwand", "planwand" in pg.evaluate("location.hash"))
-    pruefe("Auftragsfenster zu " + nr, nr in pg.evaluate("[...document.querySelectorAll('.dialog-huelle')].map(d => d.innerText).join(' ')"))
-    pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+    # Seit 1.24.2 nur hinführen, kein Auftragsfenster (Wunsch 12. Oktober 2026)
+    pruefe("kein Auftragsfenster", pg.locator(".dialog--auftrag").count() == 0)
+    pruefe("Balken hervorgehoben", pg.locator(".pw-balken--gezeigt").count() == 1)
 
     pg.keyboard.press("Control+k"); pg.wait_for_timeout(400)
     pg.keyboard.type("xyzxyz"); pg.wait_for_timeout(300)
