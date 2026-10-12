@@ -6,7 +6,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Vorschau:** https://hofertool.github.io/hofertool/vorschau/ — derselbe Ablauf baut zusätzlich den Zweig `claude/project-thread-eoqlna` (Effekte, Thread „Effekte und neues Design“) in den Ordner `vorschau/`, mit **denselben echten Daten**. Neu gebaut bei jedem Push auf `main` und nach jedem grünen Prüfstand auf dem Zweig. `sw.js` lässt alles unter `/vorschau/` in Ruhe. Live geht die Vorschau erst, wenn der Zweig in `main` übernommen wird.
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 1.30.2 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
+- **Stand:** Version 1.31.0 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
 
 ## Mit wem du arbeitest
 
@@ -24,7 +24,7 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
   - `index.html` ist nur noch das Gerüst, das `src/main.jsx` lädt.
   - `src/alt/app.js` und `src/alt/stil.css` sind das bisherige Programm und die bisherige Gestaltung. Darin stecken noch die Planwand-Tafel (`zeichnePlanwand` mit Ziehen, Griffen und Wischen; sie bleibt bewusst das bewährte Zeichenprogramm), die Erkennung und das Hochladen von Dokumenten, Druckblätter und viele Helfer.
   - In React neu gebaut:
-    - `src/seiten/`: Startseite (am Geburtstag Person mit Kuchen und Konfetti im blauen Band, `start/Geburtstag.jsx`), Bestellungen (mit Fenster „Neue Position“), Einkauf, Rechner-Reiter Drehzahl, Winkel, G-Code, C-Achse, Gravur und DXF (Vor- und Nachspann gemeinsam in `rechner/kopf.jsx`, Linienzüge in `rechner/geometrie.js`), Produktion (Erfassen, Fortschritt, Maschinenparks, Maschinentypen), Planwand-Seite mit Kopfleiste.
+    - `src/seiten/`: Startseite (am Geburtstag Person mit Kuchen und Konfetti im blauen Band, `start/Geburtstag.jsx`), Bestellungen (mit Fenster „Neue Position“), Einkauf, Rechner-Reiter Drehzahl, Winkel, G-Code, C-Achse, Gravur und DXF (Vor- und Nachspann gemeinsam in `rechner/kopf.jsx`, Linienzüge in `rechner/geometrie.js`), Produktion (Erfassen, Fortschritt, Maschinenparks, Maschinentypen; „Aufbau übernehmen“ kopiert Paths und Plätze eines anderen Typs, seit 1.31.0), Planwand-Seite mit Kopfleiste.
     - `src/huelle/`: Anmeldung, Kopfzeile und Navigation, Suche über alles.
     - `src/planwand/`: Auftragsfenster, Suche auf der Planwand, Ferienfenster, HOCO-Fenster.
     - `src/hoco/`: HOCO Nummern (Ordner, Suche, einzelnes Teil).

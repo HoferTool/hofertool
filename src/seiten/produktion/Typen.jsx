@@ -60,6 +60,36 @@ async function typSichern(t) {
       alt.rueckSetz("setup_snapshots", { type_id: t.id }, { id: schnapp })])];
 }
 
+// Aufbau eines anderen Typs übernehmen (Wunsch Patrick 12. Oktober 2026):
+// Paths und Plätze werden als Kopie an den Typ gehängt, danach passt man
+// an, was anders ist. Die Vorlage selbst bleibt unverändert. Alle Spalten
+// ausser den Kennungen werden mitgenommen, so kommen auch spätere neue
+// Spalten von selbst mit.
+async function aufbauKopieren(vonId, nachId, abSortierung) {
+  const quelle = await alt.ladeTypAufbau(vonId);
+  const neu = [];
+  let plaetze = 0;
+  for (let i = 0; i < quelle.length; i++) {
+    const { id, type_id, type_slots, ...pfad } = quelle[i];
+    const r = await alt.db.from("type_paths")
+      .insert({ ...pfad, type_id: nachId, sortierung: abSortierung + i + 1 }).select();
+    if (r.error) throw r.error;
+    const angelegt = (r.data || [])[0];
+    if (!angelegt) continue;
+    neu.push(angelegt.id);
+    const slots = (type_slots || []).map(({ id: _i, path_id, ...sl }) => ({ ...sl, path_id: angelegt.id }));
+    if (slots.length) {
+      const rs = await alt.db.from("type_slots").insert(slots);
+      if (rs.error) throw rs.error;
+      plaetze += slots.length;
+    }
+  }
+  return { neu, pfade: neu.length, plaetze };
+}
+
+const aufbauText = (k) => (k.pfade === 1 ? "1 Path" : k.pfade + " Paths") + " mit "
+  + (k.plaetze === 1 ? "1 Platz" : k.plaetze + " Plätzen") + " übernommen.";
+
 // Eine Rückfrage, dann wird gelöscht (Wunsch 6. Oktober 2026: nur einmal fragen)
 const einmalFragen = (titel, text) => alt.nachfragen(
   { titel, text, bestaetigen: "Löschen", gefahr: true });
@@ -80,7 +110,7 @@ export default function Typen({ geladen, neuLaden: aussen }) {
 
   if (prod.typOffen) {
     const typ = typen.find((x) => x.id === prod.typOffen);
-    if (typ) return <Aufbau typ={typ} darf={darf} geladen={geladen} neuLaden={neuLaden} />;
+    if (typ) return <Aufbau typ={typ} typen={typen} darf={darf} geladen={geladen} neuLaden={neuLaden} />;
     prod.typOffen = null;
   }
 
@@ -89,10 +119,23 @@ export default function Typen({ geladen, neuLaden: aussen }) {
     const w = await alt.dialogFelder({ titel: "Neuer Maschinentyp",
       felder: [
         { name: "name", label: "Name", pflicht: true, platzhalter: "z. B. Star SR-32J" },
-        { name: "text", label: "Beschreibung", wert: "" }],
+        { name: "text", label: "Beschreibung", wert: "" }]
+        .concat(typen.length ? [{ name: "vorlage", label: "Aufbau übernehmen von", wert: "",
+          auswahl: [["", "— leer anfangen —"]].concat(typen.map((t) => [t.id, t.name])),
+          hinweis: "Paths und Werkzeugplätze werden kopiert, danach anpassen, was anders ist" }] : []),
       bestaetigen: "Anlegen" });
     if (!w) return;
-    senden(alt.db.from("machine_types").insert({ name: w.name, beschreibung: w.text || null }), "Typ angelegt.", neuLaden);
+    const r = await alt.db.from("machine_types").insert({ name: w.name, beschreibung: w.text || null }).select();
+    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
+    const angelegt = (r.data || [])[0];
+    if (w.vorlage && angelegt) {
+      try {
+        const k = await aufbauKopieren(w.vorlage, angelegt.id, 0);
+        alt.meldung("Typ angelegt. " + aufbauText(k));
+      } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+    } else alt.meldung("Typ angelegt.");
+    if (angelegt) alt.merkeSchritt("Neuer Typ " + w.name, alt.rueckWeg("machine_types", { id: angelegt.id }));
+    neuLaden();
   };
   const bearbeiten = async (t) => {
     const w = await alt.dialogFelder({ titel: "Maschinentyp bearbeiten",
@@ -149,7 +192,7 @@ async function aufbauLaden(typ) {
   return { paths, nr: ++ladeNr };
 }
 
-function Aufbau({ typ, darf, geladen, neuLaden }) {
+function Aufbau({ typ, darf, geladen, neuLaden, typen }) {
   const prod = alt.prod;
   const { daten, fehler } = useDaten(() => aufbauLaden(typ), [typ.id, geladen.nr]);
   const db = alt.db;
@@ -170,6 +213,43 @@ function Aufbau({ typ, darf, geladen, neuLaden }) {
     senden(db.from("type_paths").insert({ type_id: typ.id, name: w.name,
       nummer: Math.max(1, Math.round(Number(w.nummer) || 1)), sortierung: paths.length + 1 }),
     "Path angelegt.", neuLaden);
+  };
+
+  // Aufbau eines anderen Typs übernehmen. Hat dieser Typ schon Paths,
+  // fragt die App, ob sie dazukommen oder die bisherigen ersetzen.
+  const uebernehmen = async () => {
+    const andere = (typen || []).filter((t) => t.id !== typ.id);
+    if (!andere.length) { alt.meldung("Es gibt noch keinen anderen Typ.", "warn"); return; }
+    const von = await alt.auswahlDialog("Aufbau übernehmen",
+      andere.map((t) => ({ wert: t.id, text: t.name })),
+      "Von welchem Typ? Paths und Werkzeugplätze werden kopiert, danach kannst du anpassen, was anders ist.");
+    if (!von) return;
+    let ersetzen = false;
+    if (paths.length) {
+      const wie = await alt.auswahlDialog("Bisheriger Aufbau",
+        [{ wert: "dazu", text: "➕  Dazunehmen, bisherige Paths bleiben" },
+          { wert: "ersetzen", text: "↻  Ersetzen, bisherige Paths löschen" }],
+        typ.name + " hat schon " + (paths.length === 1 ? "1 Path" : paths.length + " Paths") + ".");
+      if (!wie) return;
+      ersetzen = wie === "ersetzen";
+    }
+    try {
+      let schritte = [];
+      if (ersetzen) {
+        const ids = paths.map((p) => p.id);
+        const alte = await alt.rueckSichern("type_paths", { id: ids });
+        const teile = await pathTeile(ids);
+        schritte = [alt.rueckRein("type_paths", alte)].concat(teile.schritte);
+        const r = await db.from("type_paths").delete().in("id", ids);
+        if (r.error) throw r.error;
+      }
+      const ab = ersetzen ? 0 : paths.reduce((m, p) => Math.max(m, p.sortierung || 0), 0);
+      const k = await aufbauKopieren(von, typ.id, ab);
+      // Rückgängig: zuerst die Kopie weg, dann das Ersetzte zurück
+      alt.merkeSchritt("Aufbau übernehmen", [alt.rueckWeg("type_paths", { id: k.neu })].concat(schritte));
+      alt.meldung(aufbauText(k), "gut");
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+    neuLaden();
   };
 
   // Einrichtblatt (Excel) am Maschinentyp — die Vorlage für alle Teile,
@@ -201,11 +281,13 @@ function Aufbau({ typ, darf, geladen, neuLaden }) {
       <section className="karte">
         <div className="karte__kopf"><h2>{typ.name}</h2>
           {darf && <div className="karte__aktionen">
+            <button className="knopf knopf--klein" id="typ-uebernehmen" onClick={uebernehmen}>Aufbau übernehmen</button>
             <button className="knopf knopf--klein" id="typ-blatt" onClick={blatt}>Einrichtblatt (Excel)</button>
             <button className="knopf knopf--klein" id="path-neu" onClick={pathNeu}>+ Path</button></div>}
         </div>
         {typ.beschreibung && <p className="klein">{typ.beschreibung}</p>}
-        {!paths.length && <p className="hinweis">Noch kein Path angelegt. Die meisten Maschinen haben zwei oder drei.</p>}
+        {!paths.length && <p className="hinweis">Noch kein Path angelegt. Die meisten Maschinen haben zwei oder drei.
+          {darf && " Mit „Aufbau übernehmen“ kopierst du den Aufbau eines anderen Typs."}</p>}
       </section>
       {/* Neu aufgebaut bei jedem Laden: Das Ziehen der Plätze hängt
           sich an die Elemente und darf nicht doppelt hängen */}
