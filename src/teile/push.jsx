@@ -17,8 +17,10 @@
 //  Auf iPhone und iPad gehen Mitteilungen nur, wenn das Hofer Tool auf
 //  dem Startbildschirm liegt (iOS 16.4 oder neuer).
 // =================================================================
+import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
+import { fensterOeffnen } from "./Fenster.jsx";
 
 const SCHLUESSEL_SPEICHER = "hofer.push.schluessel";
 const SPAETER_SPEICHER = "hofer.push.spaeter";
@@ -206,4 +208,64 @@ export async function pushNachrichtSenden() {
   } catch (f) {
     alt.meldung("Nicht gesendet: " + alt.fehlertext(f), "fehler");
   }
+}
+
+// ---------- Admins: Historie der gesendeten Nachrichten ----------
+// (Wunsch Patrick, 12. Oktober 2026: „Historie einbauen“). Lesen dürfen
+// nur Admins (Regel in sql/push-mitteilungen.sql), geschrieben wird
+// sie nur von der Server-Funktion beim Senden.
+
+export async function pushHistorieOeffnen() {
+  let liste, personen = {};
+  try {
+    const { data, error } = await alt.zeitlimit(
+      alt.db.from("push_nachrichten").select("id, titel, text, von, gesendet, geraete, erreicht")
+        .order("gesendet", { ascending: false }).limit(500), 10000, "Push-Historie");
+    if (error) throw error;
+    liste = data || [];
+    const ids = [...new Set(liste.map((n) => n.von).filter(Boolean))];
+    if (ids.length) {
+      const r = await alt.db.from("profiles").select("id, full_name, email").in("id", ids);
+      for (const p of r.data || []) personen[p.id] = p;
+    }
+  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
+  fensterOeffnen((zu) => <Historie liste={liste} personen={personen} zu={zu} />);
+}
+
+function mitJahr(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  const p = (n) => String(n).padStart(2, "0");
+  return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + String(d.getFullYear()).slice(2)
+    + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+
+function Historie({ liste, personen, zu }) {
+  const [suche, setSuche] = useState("");
+  const wer = (n) => (n.von ? alt.personName(personen[n.von], "unbekannt") : "—");
+  const s = suche.trim().toLowerCase();
+  const gezeigt = s ? liste.filter((n) => String(n.titel || "").toLowerCase().includes(s)
+    || String(n.text || "").toLowerCase().includes(s) || wer(n).toLowerCase().includes(s)) : liste;
+  return (
+    <div className="dialog dialog--breit matausgabe-historie push-historie">
+      <div className="blatt__kopf"><h2>Push-Nachrichten · Historie</h2>
+        <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
+      {liste.length > 8 &&
+        <input type="search" className="matausgabe-suche" placeholder="Suchen …" aria-label="Suchen"
+          value={suche} onChange={(e) => setSuche(e.target.value)} />}
+      {gezeigt.length
+        ? <div className="matausgabe-rolle"><table className="tabelle">
+            <thead><tr><th>Gesendet</th><th>Von</th><th>Nachricht</th><th>Angekommen</th></tr></thead>
+            <tbody>{gezeigt.map((n) => (
+              <tr key={n.id}>
+                <td className="klein nowrap">{mitJahr(n.gesendet)}</td>
+                <td className="klein">{wer(n)}</td>
+                <td>{n.titel && <strong>{n.titel}<br /></strong>}<span className="push-historie__text">{n.text}</span></td>
+                <td className="klein nowrap">{n.erreicht} von {n.geraete}</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        : <p className="hinweis">{liste.length ? "Nichts gefunden." : "Noch keine Nachricht gesendet."}</p>}
+    </div>
+  );
 }

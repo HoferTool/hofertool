@@ -70,6 +70,21 @@ with sync_playwright() as p:
     pruefe("Meldung mit Zahl", "2 von 3" in pg.inner_text(".toast-bereich"))
     pg.screenshot(path="/tmp/claude-0/push-einst.png")
 
+    # Historie (1.36.0)
+    pg.evaluate("""TEST.daten.push_nachrichten = [
+      { id: 1, titel: 'Info', text: 'Morgen Betriebsversammlung', von: 'u1', gesendet: '2026-10-12T15:00:00Z', geraete: 3, erreicht: 2 },
+      { id: 2, titel: null, text: 'Kaffee ist da', von: 'u1', gesendet: '2026-10-11T07:00:00Z', geraete: 3, erreicht: 3 }]""")
+    pg.locator("#push-historie").click(); pg.wait_for_timeout(600)
+    h = pg.locator(".push-historie")
+    pruefe("Historie offen", h.count() == 1)
+    t = h.inner_text() if h.count() else ""
+    pruefe("Historie zeigt Nachrichten", "Betriebsversammlung" in t and "Kaffee ist da" in t)
+    pruefe("Historie zeigt Angekommen", "2 von 3" in t and "3 von 3" in t)
+    pruefe("neueste zuerst", t.find("Betriebsversammlung") < t.find("Kaffee"))
+    pg.screenshot(path="/tmp/claude-0/push-historie.png")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pruefe("Historie zu, Einstellungen offen", pg.locator(".push-historie").count() == 0 and pg.locator(".dialog--einstellungen").count() == 1)
+
     # Ohne Server-Schlüssel kein Feld
     pg2 = ctx.new_page()
     pg2.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))

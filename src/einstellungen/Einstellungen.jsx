@@ -21,7 +21,7 @@ import Sicherung from "./Sicherung.jsx";
 import PlanwandArchiv from "./PlanwandArchiv.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { pushMoeglich, pushNurVomStartbildschirm, pushEingeschaltet, pushAbonnieren, pushAbmelden,
-  pushNachrichtSenden, pushHinweisWeg } from "../teile/push.jsx";
+  pushNachrichtSenden, pushHistorieOeffnen, pushHinweisWeg } from "../teile/push.jsx";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 // Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
@@ -415,7 +415,10 @@ function Mitteilungen({ bin }) {
         checked={an} onChange={aendern} disabled={laeuft} />
       {bin && (
         <Zeile titel="Nachricht an alle" text="Kommt als Mitteilung auf alle Geräte, die sie eingeschaltet haben.">
-          <button className="knopf knopf--klein" id="push-senden" onClick={pushNachrichtSenden}>Senden …</button>
+          <div className="push-knoepfe">
+            <button className="knopf knopf--klein" id="push-senden" onClick={pushNachrichtSenden}>Senden …</button>
+            <button className="knopf knopf--klein knopf--still" id="push-historie" onClick={pushHistorieOeffnen}>Historie</button>
+          </div>
         </Zeile>
       )}
     </Gruppe>
