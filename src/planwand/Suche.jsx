@@ -110,7 +110,8 @@ function tasteAnmelden() {
   document.addEventListener("keydown", (e) => {
     const plan = alt.plan;
     if (e.key !== "Escape" || !plan.sucheAktiv || plan.zwischenablage) return;
-    if (document.querySelector(".dialog-huelle")) return;
+    // Escape hat schon ein Fenster geschlossen: die Suche bleibt
+    if (e.defaultPrevented || document.querySelector(".dialog-huelle")) return;
     const a = document.activeElement;
     if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
     alt.sucheBeenden();

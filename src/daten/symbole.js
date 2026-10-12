@@ -137,7 +137,8 @@ export function symbolAnwendenEnde() {
 // Escape bricht das Anwenden ab, sofern kein Fenster offen ist
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || !alt.plan || !alt.plan.symbolWahl) return;
-  if (document.querySelector(".dialog-huelle")) return;
+  // Escape hat schon ein Fenster geschlossen: das Anwenden bleibt
+  if (e.defaultPrevented || document.querySelector(".dialog-huelle")) return;
   symbolAnwendenEnde();
 });
 

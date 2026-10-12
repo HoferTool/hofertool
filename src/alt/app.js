@@ -144,7 +144,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.30.1";
+const APP_VERSION = "1.30.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -159,8 +159,11 @@ const APP_VERSION = "1.30.1";
 function escapeZurueck() {
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    // Ein offenes Fenster hat Vorrang, das schliesst sich selbst
-    if (document.querySelector(".dialog-huelle")) return;
+    // Ein offenes Fenster hat Vorrang, das schliesst sich selbst.
+    // Hat Escape gerade eben ein Fenster geschlossen (zentral, siehe
+    // fensterUeberwachen), ist es schon weg: dann nicht noch zusätzlich
+    // eine Ebene zurück (Wunsch Patrick 12. Oktober 2026)
+    if (e.defaultPrevented || document.querySelector(".dialog-huelle")) return;
     // In einem Eingabefeld ist Escape zum Verwerfen da
     const a = document.activeElement;
     if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
@@ -7108,7 +7111,8 @@ function zwischenablageLeiste(b) {
 // Escape beendet das Einfügen, sofern gerade kein Fenster offen ist
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || !plan.zwischenablage) return;
-  if (document.querySelector(".dialog-huelle")) return;
+  // Escape hat schon ein Fenster geschlossen: das Einfügen bleibt
+  if (e.defaultPrevented || document.querySelector(".dialog-huelle")) return;
   zwischenablageLeeren();
 });
 
