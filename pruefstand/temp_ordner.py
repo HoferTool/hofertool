@@ -50,10 +50,10 @@ with sync_playwright() as p:
     if pg.locator("[data-temp='icon-192.png'] img").count() != 1: fehler.append("keine Vorschau beim Bild")
     # Zu gross
     gross = "/tmp/riesig.mov"
-    with open(gross, "wb") as f: f.truncate(51 * 1024 * 1024)
+    with open(gross, "wb") as f: f.truncate(501 * 1024 * 1024)
     pg.set_input_files("#temp-datei", [gross])
     pg.wait_for_timeout(600)
-    if "grösser als 50 MB" not in pg.inner_text("body"): fehler.append("keine Meldung bei zu grosser Datei")
+    if "grösser als 500 MB" not in pg.inner_text("body"): fehler.append("keine Meldung bei zu grosser Datei")
     if pg.evaluate("TEST.protokoll.filter(x => x.art === 'upload' && x.ablage === 'temp').length") != 1:
         fehler.append("zu grosse Datei trotzdem hochgeladen")
     pg.screenshot(path="/tmp/temp-pc.png")

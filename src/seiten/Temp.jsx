@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
-import { TEMP_TAGE, TEMP_MAX, tempListe, tempHochladen, tempLoeschen, tempAdresse, tempVorschauen } from "../daten/temp.js";
+import { TEMP_TAGE, TEMP_MAX, TEMP_MAX_MB, tempListe, tempHochladen, tempLoeschen, tempAdresse, tempVorschauen } from "../daten/temp.js";
 
 const ruehrbar = () => window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 
@@ -62,7 +62,7 @@ export default function Temp({ auffrischen }) {
     if (!dateien.length) return;
     const zuGross = dateien.filter((d) => d.size > TEMP_MAX);
     if (zuGross.length) alt.meldung(zuGross.map((d) => d.name).join(", ")
-      + (zuGross.length > 1 ? " sind" : " ist") + " grösser als 50 MB und " + (zuGross.length > 1 ? "werden" : "wird") + " nicht hochgeladen.", "warn");
+      + (zuGross.length > 1 ? " sind" : " ist") + " grösser als " + TEMP_MAX_MB + " MB und " + (zuGross.length > 1 ? "werden" : "wird") + " nicht hochgeladen.", "warn");
     const ok = dateien.filter((d) => d.size <= TEMP_MAX);
     let gut = 0;
     for (const d of ok) {
@@ -133,7 +133,7 @@ export default function Temp({ auffrischen }) {
     <div className={"temp" + (ziehen ? " temp--ziehen" : "")} id="temp-seite" {...zieh}>
       <h1 className="seitentitel">Mein Temp-Ordner</h1>
       <p className="temp__hinweis">
-        Nur du siehst diese Dateien. Nach {TEMP_TAGE} Tagen werden sie von selbst gelöscht. Höchstens 50 MB je Datei.
+        Nur du siehst diese Dateien. Nach {TEMP_TAGE} Tagen werden sie von selbst gelöscht. Höchstens {TEMP_MAX_MB} MB je Datei.
       </p>
       <div className="temp__knoepfe">
         {touch && <>

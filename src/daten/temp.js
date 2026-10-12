@@ -11,8 +11,10 @@ import { alt } from "../bruecke.jsx";
 
 export const ABLAGE = "temp";
 export const TEMP_TAGE = 7;
-// Grenze der Ablage und von Supabase Free je Datei
-export const TEMP_MAX = 50 * 1024 * 1024;
+// Grenze je Datei, gleich wie in der Ablage (sql/temp-ordner.sql). Seit
+// Supabase Pro 500 MB statt 50, damit auch längere Handyvideos gehen.
+export const TEMP_MAX_MB = 500;
+export const TEMP_MAX = TEMP_MAX_MB * 1024 * 1024;
 
 const ordner = () => alt.profil && alt.profil.id;
 
@@ -49,7 +51,7 @@ export async function tempListe() {
 export async function tempHochladen(datei) {
   const id = ordner();
   if (!id) throw new Error("Nicht angemeldet.");
-  if (datei.size > TEMP_MAX) throw new Error(datei.name + " ist grösser als 50 MB.");
+  if (datei.size > TEMP_MAX) throw new Error(datei.name + " ist grösser als " + TEMP_MAX_MB + " MB.");
   const r = await alt.db.storage.from(ABLAGE).upload(id + "/" + speicherName(datei.name), datei,
     { contentType: datei.type || "application/octet-stream", upsert: false });
   if (r.error) throw r.error;

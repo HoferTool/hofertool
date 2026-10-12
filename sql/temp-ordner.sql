@@ -7,7 +7,8 @@
 --  Computer wieder herunter (Wunsch Patrick, 12. Oktober 2026).
 --
 --  Diese Datei legt dafür die Ablage „temp“ an:
---    - nicht öffentlich, höchstens 50 MB je Datei
+--    - nicht öffentlich, höchstens 500 MB je Datei (seit Supabase Pro; die Grenze des
+--      ganzen Projekts unter Storage → Settings muss mindestens so hoch sein)
 --    - jede Datei liegt im Ordner <Konto-Kennung>/…
 --    - Lesen, Hochladen, Ändern und Löschen nur im eigenen Ordner.
 --      Das prüft die Datenbank, nicht die App: auch Admins sehen
@@ -20,8 +21,8 @@
 -- =================================================================
 
 insert into storage.buckets (id, name, public, file_size_limit)
-values ('temp', 'temp', false, 52428800)
-on conflict (id) do update set public = false, file_size_limit = 52428800;
+values ('temp', 'temp', false, 524288000)
+on conflict (id) do update set public = false, file_size_limit = 524288000;
 
 -- Ohne "drop": so läuft die Datei auch über die Supabase-Verbindung
 -- ohne Rückfrage, und mehrfach Ausführen schadet nicht.
