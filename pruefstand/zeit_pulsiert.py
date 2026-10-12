@@ -1,5 +1,6 @@
 # Stückzeit fehlt (1.26.0): Die Kachel Stückzeit im Pad pulsiert, solange
 # keine Zeit eingetragen ist, und hört damit auf, sobald eine da ist.
+# Ebenso die Kachel Stückzahl, solange heute keine Stückzahl gemeldet ist (1.28.0).
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -18,9 +19,16 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("(TEST.daten.hoco_type_data || []).forEach(z => z.stueckzeit_s = null)")
+    # Heute noch nichts gemeldet
+    pg.evaluate("""() => { const h = new Date(); const iso = h.getFullYear() + '-' + String(h.getMonth()+1).padStart(2,'0') + '-' + String(h.getDate()).padStart(2,'0');
+      TEST.daten.production_records = TEST.daten.production_records.filter(z => z.record_date !== iso
+        && !String(z.updated_at || z.created_at || '').startsWith(iso)); }""")
+    pg.evaluate("""() => TEST.daten.app_config.push({ schluessel: 'pad_mahnbilder', wert: JSON.stringify({
+      stueckzeit: { person: 'mb' },
+      stueckzahl: { bild: 'data:image/gif;base64,R0lGODlhAQABAIABAP8AAP///ywAAAAAAQABAAACAkQBADs=' } }) })""")
     # Ein Testbild als Profilfoto (ein rotes Pixel)
     pg.evaluate("""() => { const p = TEST.daten.profiles; const v = p[0];
-      p.push(Object.assign({}, v, { id: 'mb', full_name: 'Michel Bolinger', email: 'mb@test',
+      p.push(Object.assign({}, v, { id: 'mb', full_name: 'Test Person', email: 'tp@test',
         bild_url: 'data:image/gif;base64,R0lGODlhAQABAIABAP8AAP///ywAAAAAAQABAAACAkQBADs=' })); }""")
     pg.evaluate("document.getElementById('pad-knopf').click()"); pg.wait_for_timeout(900)
     pg.click("[data-padwo='parks']"); pg.wait_for_timeout(900)
@@ -39,6 +47,13 @@ with sync_playwright() as p:
     print("     Rot-Schicht:", sorted(werte))
     pruefe("rote Schicht wechselt", len(werte) > 2)
     pruefe("Foto steht in der Kachel", pg.locator(k + " .pad-zeit-foto").count() == 1)
+    s = ".pad-karte2--stk"
+    import datetime
+    werktag = datetime.date.today().weekday() < 5
+    if werktag:
+        pruefe("Stückzahl-Kachel mahnt (heute nichts gemeldet)", pg.locator(s + ".pad-karte2--stkfehlt").count() == 1)
+        pruefe("Bild in der Stückzahl-Kachel", pg.locator(s + " .pad-zeit-foto").count() == 1
+               and pg.evaluate(f"document.querySelector('{s} .pad-zeit-foto').naturalWidth") > 0)
     pg.wait_for_timeout(400); pg.screenshot(path="/tmp/zeit-pulsiert.png")
     # Zeit eintragen: Kachel antippen, Zahl, Eintragen
     pg.locator(k).click(force=True); pg.wait_for_timeout(600)
@@ -48,5 +63,21 @@ with sync_playwright() as p:
     print("     Kachel:", pg.inner_text(k).replace("\n", " | "))
     pruefe("nach dem Eintragen ruhig", pg.locator(k + ".pad-karte2--zeitfehlt").count() == 0)
     pruefe("Foto wieder weg", pg.locator(k + " .pad-zeit-foto").count() == 0)
+    # Stückzeit wieder löschen (1.28.0): Knopf im Zifferblock, eine Rückfrage
+    pg.locator(k).click(force=True); pg.wait_for_selector(".zifferblock [data-zbloeschen]")
+    pg.wait_for_timeout(800); pg.screenshot(path="/tmp/zeit-loeschen.png")
+    pg.click(".zifferblock [data-zbloeschen]"); pg.wait_for_timeout(500)
+    pg.locator(".dialog-huelle button:has-text('Löschen')").last.click(); pg.wait_for_timeout(1500)
+    pruefe("Stückzeit gelöscht, Kachel mahnt wieder", pg.locator(k + ".pad-karte2--zeitfehlt").count() == 1
+           and "42" not in pg.inner_text(k))
+    if werktag:
+        pg.locator(s).click(force=True); pg.wait_for_selector(".zifferblock [data-zbja]")
+        pg.keyboard.type("120"); pg.wait_for_timeout(200)
+        pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(900)
+        pg.wait_for_timeout(500)
+        if pg.locator(".dialog-huelle button:has-text('Ja')").count():
+            pg.locator(".dialog-huelle button:has-text('Ja')").first.click(); pg.wait_for_timeout(1500)
+        pg.wait_for_timeout(1000)
+        pruefe("nach dem Melden ruhig", pg.locator(s + ".pad-karte2--stkfehlt").count() == 0)
     br.close()
 print("Fehler:", "keine" if not (fehler or f) else (fehler + f)[:12])

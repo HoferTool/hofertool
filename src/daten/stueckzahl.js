@@ -85,9 +85,12 @@ export async function stueckzeitSetzen(hocoNr, typId, sekunden) {
 // Zifferblock für die Stückzeit. Liefert die Sekunden, 0 zum Leeren
 // oder null bei Abbruch. Ein vorhandener Wert steht da und lässt sich
 // mit „Eintragen“ übernehmen, die erste Ziffer ersetzt ihn.
-export async function stueckzeitFragen(titel, hinweis, wert) {
-  const zahl = await zifferblock({ titel, hinweis, wert: wert ? Math.round(wert) : "", ersetzen: true });
-  if (zahl === null) return null;
+// mitLoeschen: Ist schon eine Stückzeit da, gibt es den Knopf
+// „Stückzeit löschen“; dann kommt "loeschen" zurück.
+export async function stueckzeitFragen(titel, hinweis, wert, mitLoeschen) {
+  const zahl = await zifferblock({ titel, hinweis, wert: wert ? Math.round(wert) : "", ersetzen: true,
+    loeschen: mitLoeschen && wert ? "Stückzeit löschen" : undefined });
+  if (zahl === null || zahl === "loeschen") return zahl;
   return Math.max(0, Math.round(zahl));
 }
 

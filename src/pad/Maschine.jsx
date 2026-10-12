@@ -173,8 +173,17 @@ async function abendBearbeiten(j, m, blattDaten) {
 // Die Stückzeit in Sekunden steht rechts neben dem Vorsprung und
 // gehört wie die Info zu HOCO Nr. und Maschinentyp (Wunsch 8. Oktober 2026)
 async function zeitBearbeiten(j, m, blattDaten) {
+  const da = blattDaten && blattDaten.stueckzeit_s;
   const s = await stueckzeitFragen("Stückzeit", "Sekunden pro Stück auf " + (m.name || "dieser Maschine") + ":",
-    blattDaten && blattDaten.stueckzeit_s);
+    da, true);
+  if (s === "loeschen") {
+    // Eine Rückfrage, dann ist sie weg (Wunsch 6. Oktober 2026)
+    const ja = await alt.nachfragen({ titel: "Stückzeit löschen?",
+      text: "Die Stückzeit " + stueckzeitText(da) + " von " + j.job_number + " auf " + (m.name || "dieser Maschine")
+        + " wird entfernt.", bestaetigen: "Löschen", gefahr: true });
+    if (ja) blattFeldSetzen(j, m, "stueckzeit_s", null);
+    return;
+  }
   if (s !== null) blattFeldSetzen(j, m, "stueckzeit_s", s || null);
 }
 
@@ -247,25 +256,52 @@ function Zeile({ name, wert }) {
   return <><b>{name}</b><span>{wert}</span></>;
 }
 
-// Profilfoto, das neben einer fehlenden Stückzeit erscheint (Wunsch Patrick,
-// 12. Oktober 2026). Einmal je Sitzung geholt, nur wenn es gebraucht wird.
-const MAHN_PERSON = "Michel Bolinger";
-let mahnFotoLaden = null;
-function useMahnFoto(noetig) {
+// Heute noch keine Stückzahl gemeldet: nur für einen laufenden Auftrag an
+// einem Arbeitstag. Gemeldet heisst ein Eintrag für heute oder ein heute
+// gemachter Eintrag (auf „Wurde heute schon produziert? Nein“ landet die
+// Zahl auf dem letzten Arbeitstag, ist aber trotzdem heute gemeldet).
+function heuteKeineStueckzahl(j, jeTag) {
+  if (!j || j.plan_status !== "laeuft") return false;
+  const jetzt = new Date();
+  if (jetzt.getDay() === 0 || jetzt.getDay() === 6) return false;
+  const heute = alt.isoDatum(jetzt);
+  return !Object.entries(jeTag || {}).some(([tag, e]) =>
+    tag === heute || (e && e.zeit && alt.isoDatum(new Date(e.zeit)) === heute));
+}
+
+// Bilder, die neben einer fehlenden Stückzeit oder Stückzahl erscheinen
+// (Wunsch Patrick, 12. Oktober 2026). Welche, steht nur in der Datenbank
+// (app_config „pad_mahnbilder“: je Art { person: Konto-Kennung } für dessen
+// Profilfoto oder { bild: Adresse }), nicht hier: das Repository ist
+// öffentlich, Namen und Fotos von Leuten gehören nicht hinein.
+// Einmal je Sitzung geholt, nur wenn es gebraucht wird.
+let mahnBilderLaden = null;
+function mahnBilder() {
+  if (!mahnBilderLaden) {
+    mahnBilderLaden = (async () => {
+      const r = await alt.db.from("app_config").select("wert").eq("schluessel", "pad_mahnbilder").maybeSingle();
+      const konf = r && !r.error && r.data && r.data.wert ? JSON.parse(r.data.wert) : {};
+      const raus = {};
+      for (const [art, w] of Object.entries(konf || {})) {
+        if (w && w.bild) raus[art] = w.bild;
+        else if (w && w.person) {
+          const p = await alt.db.from("profiles").select("bild_url").eq("id", w.person).maybeSingle();
+          raus[art] = (p && p.data && p.data.bild_url) || null;
+        }
+      }
+      return raus;
+    })().catch(() => ({}));
+  }
+  return mahnBilderLaden;
+}
+function useMahnBild(art, noetig) {
   const [url, setUrl] = useState(null);
   useEffect(() => {
     if (!noetig) return;
     let weg = false;
-    if (!mahnFotoLaden) {
-      mahnFotoLaden = alt.db.from("profiles").select("bild_url").eq("full_name", MAHN_PERSON)
-        .then((r) => {
-          const z = r && r.data && (Array.isArray(r.data) ? r.data[0] : r.data);
-          return (z && z.bild_url) || null;
-        }).catch(() => null);
-    }
-    mahnFotoLaden.then((u) => { if (!weg) setUrl(u); });
+    mahnBilder().then((b) => { if (!weg) setUrl(b[art] || null); });
     return () => { weg = true; };
-  }, [noetig]);
+  }, [art, noetig]);
   return url;
 }
 
@@ -496,7 +532,9 @@ export default function Maschine({ d }) {
   const zeichnung = (j && j.drawing_url) || (teil && teil.zeichnung_url) || "";
   const wbg = (j && j.wbg_url) || "";
   const zeitFehlt = mitTyp && !(blattDaten && blattDaten.stueckzeit_s);
-  const mahnFoto = useMahnFoto(zeitFehlt);
+  const stkFehlt = heuteKeineStueckzahl(j, jeTag);
+  const stkBild = useMahnBild("stueckzahl", stkFehlt);
+  const mahnFoto = useMahnBild("stueckzeit", zeitFehlt);
   // Aus der WBG gelesen (Wunsch Patrick, 12. Oktober 2026)
   const waschprog = useWaschprog(wbg);
   const datei = pad.reiter === "zeichnung" ? zeichnung : (pad.reiter === "wbg" ? wbg : "");
@@ -624,11 +662,11 @@ export default function Maschine({ d }) {
             <div className="pad-karte2 pad-karte2--verzug"><Fortschritt j={j} /></div>
             {/* Fehlt die Stückzeit, pulsiert die Kachel absichtlich lästig,
                 bis sie eingetragen ist (Wunsch Patrick, 12. Oktober 2026) */}
-            <div className={"pad-karte2 pad-karte2--zeit" + (zeitFehlt ? " pad-karte2--zeitfehlt" : "")}
+            <div className={"pad-karte2 pad-karte2--zeit" + (zeitFehlt ? " pad-karte2--zeitfehlt pad-karte2--nervt" : "")}
               data-padfeld={mitTyp ? "stueckzeit" : ""}
               onClick={mitTyp ? () => zeitBearbeiten(j, m, blattDaten) : undefined}>
               <span className="pad-name">Stückzeit{mitTyp ? " · antippen" : ""}</span>
-              {/* Dazu Michel Bolinger als kleines Foto (Wunsch Patrick, 12. Oktober 2026) */}
+              {/* Dazu ein kleines Foto (Wunsch Patrick, 12. Oktober 2026) */}
               {zeitFehlt && mahnFoto && <img className="pad-zeit-foto" src={mahnFoto} alt="" />}
               <span className="pad-wert">
                 {blattDaten && blattDaten.stueckzeit_s
@@ -641,8 +679,13 @@ export default function Maschine({ d }) {
 
         {/* ----- Mitte: alles zur Stückzahl ----- */}
         <div className="pad-spalte">
-          <div className="pad-karte2 pad-karte2--stk" data-padfeld={j ? "stand" : ""}
+          {/* Läuft der Auftrag und ist heute noch keine Stückzahl gemeldet,
+              mahnt die Kachel wie bei der Stückzeit (Wunsch Patrick,
+              12. Oktober 2026). */}
+          <div className={"pad-karte2 pad-karte2--stk" + (stkFehlt ? " pad-karte2--stkfehlt pad-karte2--nervt" : "")}
+            data-padfeld={j ? "stand" : ""}
             onClick={j ? () => standEintragen(j, m) : undefined}>
+            {stkFehlt && stkBild && <img className="pad-zeit-foto" src={stkBild} alt="" />}
             <div className="pad-stk-kopf">
               <div><span className="pad-name">Stückzahl{j ? " · antippen" : ""}</span>
                 <div className="pad-stk-zahl">{j ? zahlText(j.stand || 0) : "—"}</div></div>
