@@ -247,6 +247,28 @@ function Zeile({ name, wert }) {
   return <><b>{name}</b><span>{wert}</span></>;
 }
 
+// Profilfoto, das neben einer fehlenden Stückzeit erscheint (Wunsch Patrick,
+// 12. Oktober 2026). Einmal je Sitzung geholt, nur wenn es gebraucht wird.
+const MAHN_PERSON = "Michel Bolinger";
+let mahnFotoLaden = null;
+function useMahnFoto(noetig) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    if (!noetig) return;
+    let weg = false;
+    if (!mahnFotoLaden) {
+      mahnFotoLaden = alt.db.from("profiles").select("bild_url").eq("full_name", MAHN_PERSON)
+        .then((r) => {
+          const z = r && r.data && (Array.isArray(r.data) ? r.data[0] : r.data);
+          return (z && z.bild_url) || null;
+        }).catch(() => null);
+    }
+    mahnFotoLaden.then((u) => { if (!weg) setUrl(u); });
+    return () => { weg = true; };
+  }, [noetig]);
+  return url;
+}
+
 function Leer({ children }) {
   return <span className="pad-leer">{children}</span>;
 }
@@ -473,6 +495,8 @@ export default function Maschine({ d }) {
   // genau einer FA Nr., deshalb gibt es dort keine Ausweichsuche.
   const zeichnung = (j && j.drawing_url) || (teil && teil.zeichnung_url) || "";
   const wbg = (j && j.wbg_url) || "";
+  const zeitFehlt = mitTyp && !(blattDaten && blattDaten.stueckzeit_s);
+  const mahnFoto = useMahnFoto(zeitFehlt);
   // Aus der WBG gelesen (Wunsch Patrick, 12. Oktober 2026)
   const waschprog = useWaschprog(wbg);
   const datei = pad.reiter === "zeichnung" ? zeichnung : (pad.reiter === "wbg" ? wbg : "");
@@ -598,9 +622,14 @@ export default function Maschine({ d }) {
           {/* Vorsprung und Stückzeit teilen sich die Reihe (Wunsch 8. Oktober 2026) */}
           <div className="pad-reihe2">
             <div className="pad-karte2 pad-karte2--verzug"><Fortschritt j={j} /></div>
-            <div className="pad-karte2 pad-karte2--zeit" data-padfeld={mitTyp ? "stueckzeit" : ""}
+            {/* Fehlt die Stückzeit, pulsiert die Kachel absichtlich lästig,
+                bis sie eingetragen ist (Wunsch Patrick, 12. Oktober 2026) */}
+            <div className={"pad-karte2 pad-karte2--zeit" + (zeitFehlt ? " pad-karte2--zeitfehlt" : "")}
+              data-padfeld={mitTyp ? "stueckzeit" : ""}
               onClick={mitTyp ? () => zeitBearbeiten(j, m, blattDaten) : undefined}>
               <span className="pad-name">Stückzeit{mitTyp ? " · antippen" : ""}</span>
+              {/* Dazu Michel Bolinger als kleines Foto (Wunsch Patrick, 12. Oktober 2026) */}
+              {zeitFehlt && mahnFoto && <img className="pad-zeit-foto" src={mahnFoto} alt="" />}
               <span className="pad-wert">
                 {blattDaten && blattDaten.stueckzeit_s
                   ? stueckzeitText(blattDaten.stueckzeit_s)
