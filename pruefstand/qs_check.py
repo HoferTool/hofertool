@@ -100,6 +100,9 @@ with sync_playwright() as p:
     pg.locator("#pad [data-qsmaschine='m-k1'] [data-qszustand='fertig']").click()
     pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.click(".dialog-huelle [data-ja]")
     pg.wait_for_selector(".zifferblock [data-zbja]")
+    # Letzte Stückzahl (seit 1.25.0) überspringen, dann die Stückzeit
+    if pg.locator(".zifferblock h2:has-text('Letzte Stückzahl')").count():
+        pg.click(".zifferblock [data-zbnein]"); pg.wait_for_selector(".zifferblock h2:has-text('Stückzeit')")
     pg.locator(".zifferblock").get_by_text("3", exact=True).first.click()
     pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(1500)
     if zustand(pg, "qA") != "fertig": fehler.append("nicht beendet: " + zustand(pg, "qA"))

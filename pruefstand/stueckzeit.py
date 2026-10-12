@@ -92,6 +92,9 @@ with sync_playwright() as p:
         pg.click("#pad [data-padstatus]"); pg.wait_for_selector(".dialog-huelle [data-w='fertig']")
         pg.click(".dialog-huelle [data-w='fertig']"); pg.wait_for_selector(".dialog-huelle [data-ja]")
         pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(700)
+        # Letzte Stückzahl beim Auftragswechsel (1.25.0) überspringen
+        if pg.locator(".zifferblock h2:has-text('Letzte Stückzahl')").count():
+            pg.click(".zifferblock [data-zbnein]"); pg.wait_for_timeout(700)
     beenden()
     if not pg.locator(".zifferblock h2:has-text('Stückzeit fehlt')").count(): fehler.append("Keine Frage nach Stückzeit")
     pg.screenshot(path="stueckzeit-fehlt.png")

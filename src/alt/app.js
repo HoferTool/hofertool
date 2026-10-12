@@ -25,7 +25,7 @@ import { sucheOeffnen } from "../huelle/SucheAlles.jsx";
 import { anmeldungZeigen } from "../huelle/Anmeldung.jsx";
 import { sucheDialog, sucheLeisteZeigen, sucheLeisteWeg } from "../planwand/Suche.jsx";
 import { zifferblock } from "../pad/Zifferblock.jsx";
-import { stueckzeitVorDemBeenden } from "../daten/stueckzahl.js";
+import { stueckzeitVorDemBeenden, letzteStueckzahlFragen } from "../daten/stueckzahl.js";
 import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
@@ -144,7 +144,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.29.0";
+const APP_VERSION = "1.30.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6313,7 +6313,11 @@ async function zustandSetzen(j, neu) {
   // Beenden nur mit Stückzeit (Wunsch 8. Oktober 2026). Alle Wege zum
   // Beenden laufen hier durch: Pad, Produktion, Planwand, Auftragsfenster.
   // Was schon fertig ist, bleibt unberührt.
-  if (neu === "fertig" && j.plan_status !== "fertig" && !j.ended_at) await stueckzeitVorDemBeenden(j);
+  // Beim Auftragswechsel noch einmal die Stückzahl (Wunsch 12. Oktober
+  // 2026): vor der Stückzeit, damit der Zählerstand des Tages nicht fehlt
+  const beendet = neu === "fertig" && j.plan_status !== "fertig" && !j.ended_at;
+  if (beendet) await letzteStueckzahlFragen(j);
+  if (beendet) await stueckzeitVorDemBeenden(j);
   const jetzt = new Date().toISOString();
   let hinweis = "";
   let naechster = null;
@@ -6325,10 +6329,13 @@ async function zustandSetzen(j, neu) {
     // Nur was wirklich auf "läuft" steht, geht zurück. started_at ist
     // in der Datenbank Pflicht und bei jedem Auftrag gesetzt — daran
     // lässt sich "läuft" nicht erkennen, und leeren darf man es nicht.
-    const andere = await db.from("jobs").select("id, job_number, plan_status")
+    const andere = await db.from("jobs").select("id, job_number, plan_status, machine_id")
       .eq("machine_id", j.machine_id).is("ended_at", null).neq("id", j.id)
       .eq("plan_status", "laeuft");
     const laufend = (andere && andere.data) || [];
+    // Der abgelöste Auftrag bekommt seine letzte Stückzahl, bevor der
+    // neue läuft (Wunsch 12. Oktober 2026)
+    for (const x of laufend) await letzteStueckzahlFragen(x);
     for (const x of laufend) {
       const r0 = await db.from("jobs")
         .update({ plan_status: "geplant" }).eq("id", x.id);

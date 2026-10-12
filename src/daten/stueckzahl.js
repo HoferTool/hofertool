@@ -59,6 +59,51 @@ export function standTagHinweis(tag) {
   return tag === alt.isoDatum(new Date()) ? "" : " Gezählt für " + tagText(tag) + ".";
 }
 
+// ---------- Letzte Stückzahl beim Auftragswechsel ----------
+
+// Wird ein Auftrag beendet oder von einem neuen auf derselben Maschine
+// abgelöst, fragt die App noch einmal nach dem Zählerstand (Wunsch
+// Patrick 12. Oktober 2026: „nochmal die Chance, eine Stückzahl
+// einzugeben, wenn man am gleichen Tag den nächsten anfängt“). Sonst
+// fehlt, was der alte Auftrag bis zum Wechsel noch gemacht hat: Am
+// nächsten Morgen läuft im Pad und in der Produktion schon der neue.
+// Gefragt wird nur, wenn der Auftrag lief oder schon Zahlen hat.
+// „Überspringen“ lässt alles, wie es ist, und hält den Wechsel nie auf.
+export async function letzteStueckzahlFragen(j) {
+  if (!j || !j.id || !j.machine_id) return;
+  let bisher = null;
+  try {
+    const r = await alt.db.from("production_records").select("record_date, quantity")
+      .eq("job_id", j.id).order("record_date", { ascending: false }).limit(1);
+    const z = ((r && r.data) || [])[0];
+    if (z) bisher = Number(z.quantity) || 0;
+  } catch (f) { /* dann eben ohne „bisher“ */ }
+  if (bisher === null && j.plan_status !== "laeuft") return;
+
+  const zahl = await zifferblock({ titel: "Letzte Stückzahl · " + (j.job_number || "Auftrag"),
+    hinweis: "Auftragswechsel: Zählerstand von " + (j.job_number || "diesem Auftrag")
+      + ", gesamt seit Auftragsbeginn · bisher " + alt.zahlText(bisher || 0)
+      + ". Ohne Änderung „Überspringen“.",
+    wert: "", abbrechen: "Überspringen" });
+  if (zahl === null) return;
+  const neu = Math.max(0, Math.round(zahl));
+  const tag = await standTagWaehlen(j, alt.isoDatum(new Date()));
+  if (!tag) return;
+  let vorher = null;
+  try {
+    const r = await alt.db.from("production_records").select("quantity")
+      .eq("job_id", j.id).eq("record_date", tag).limit(1);
+    const z = ((r && r.data) || [])[0];
+    if (z) vorher = z.quantity;
+  } catch (f) { /* Rückgängig löscht dann die Zeile */ }
+  await alt.speichereStand(j.machine_id, tag, neu, j.id);
+  alt.merkeSchritt("Letzte Stückzahl " + (j.job_number || ""), vorher === null
+    ? alt.rueckWeg("production_records", { machine_id: j.machine_id, record_date: tag, job_id: j.id })
+    : alt.rueckStand(j.machine_id, tag, vorher, j.id));
+  alt.meldung("Stückzahl " + alt.zahlText(neu) + " für " + (j.job_number || "den Auftrag")
+    + " eingetragen." + standTagHinweis(tag));
+}
+
 // ---------- Stückzeit ----------
 
 // Sekunden als Text, etwa „45 s“ oder „12,5 s“

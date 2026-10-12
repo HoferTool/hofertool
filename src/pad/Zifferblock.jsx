@@ -14,19 +14,20 @@ const TASTEN = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "C", "0", "⌫"];
 // übernehmen; die erste getippte Ziffer ersetzt ihn, statt anzuhängen.
 // loeschen: Text für einen roten Knopf, der statt einer Zahl "loeschen"
 // liefert (Stückzeit wieder entfernen, Wunsch Patrick 12. Oktober 2026).
-export function zifferblock({ titel, hinweis, wert, schritte, ersetzen, loeschen }) {
+// abbrechen: anderer Text für „Abbrechen“, etwa „Überspringen“.
+export function zifferblock({ titel, hinweis, wert, schritte, ersetzen, loeschen, abbrechen }) {
   return new Promise((fertig) => {
     let ergebnis = null;
     // Abbrechen, Escape und Tippen daneben schliessen über das Fenster;
     // das Ergebnis steht dann noch auf null
     fensterOeffnen((zu) => (
-      <Zifferblock titel={titel} hinweis={hinweis} wert={wert} schritte={schritte} ersetzen={ersetzen} loeschen={loeschen}
+      <Zifferblock titel={titel} hinweis={hinweis} wert={wert} schritte={schritte} ersetzen={ersetzen} loeschen={loeschen} abbrechen={abbrechen}
         fertig={(zahl) => { ergebnis = zahl; zu(); }} zu={zu} />
     ), () => fertig(ergebnis));
   });
 }
 
-function Zifferblock({ titel, hinweis, wert, schritte, ersetzen, loeschen, fertig, zu }) {
+function Zifferblock({ titel, hinweis, wert, schritte, ersetzen, loeschen, abbrechen, fertig, zu }) {
   const [eingabe, setEingabe] = useState(String(wert == null ? "" : wert).replace(/\D/g, ""));
   const frisch = useRef(!!ersetzen);
   const tippen = (t) => {
@@ -75,7 +76,7 @@ function Zifferblock({ titel, hinweis, wert, schritte, ersetzen, loeschen, ferti
       <div className="zb-knoepfe">
         {loeschen && <button type="button" className="knopf knopf--gefahr" data-zbloeschen=""
           onClick={() => fertig("loeschen")}>{loeschen}</button>}
-        <button type="button" className="knopf knopf--still" data-zbnein="" data-nein="" onClick={zu}>Abbrechen</button>
+        <button type="button" className="knopf knopf--still" data-zbnein="" data-nein="" onClick={zu}>{abbrechen || "Abbrechen"}</button>
         <button type="button" className="knopf knopf--haupt" data-zbja="" onClick={() => eintragen(eingabe)}>Eintragen</button>
       </div>
     </div>
