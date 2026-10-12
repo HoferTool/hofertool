@@ -301,8 +301,8 @@ function Kopfleiste({ b, mobil }) {
 // Der Zeitregler lebt auf der Bühne, ausserhalb der Tafel: die Tafel
 // wird beim Schieben laufend neu gezeichnet, der Regler darf dabei
 // nicht mit ersetzt werden, sonst bricht der Browser das Ziehen ab.
-// zeitschichtLegen im alten Programm legt die Schicht über den
-// Platzhalter unter der Datumszeile.
+// Die Schicht steht unter der Tafel, ganz unten am Bildschirm;
+// zeitschichtLegen im alten Programm richtet sie an den Tagen aus.
 function Zeitregler({ b }) {
   const regler = useRef(null), marke = useRef(null), von = useRef(null), bis = useRef(null);
   useLayoutEffect(() => zeitreglerEinrichten(regler.current, marke.current, von.current, bis.current, b), [b]);
@@ -385,7 +385,7 @@ export default function Planwand({ auffrischen, behaelter: b }) {
   return (
     <div id="pw-seite">
       <Kopfleiste b={b} mobil={mobil} />
-      <div className="pw-buehne">
+      <div className={"pw-buehne" + (mobil ? "" : " pw-buehne--regler")}>
         <div id="pw-inhalt" ref={inhaltRef} />
         <div className="pw-zeitschicht" id="pw-zeitschicht" hidden>{!mobil && <Zeitregler b={b} />}</div>
       </div>

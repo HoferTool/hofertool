@@ -7166,3 +7166,22 @@ body.archiv #pw-hoco, body.archiv #pw-symbole { display: none !important; }
   width: 56px; height: 56px; border-radius: 50%; object-fit: cover; z-index: 1;
   border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
 .pad-karte2--zeitfehlt .pad-wert { padding-right: 66px; }
+/* ---------- Zeitregler ganz unten (seit 1.27.0) ----------
+   Wunsch Patrick, 12. Oktober 2026: der Schieber für hin und her steht
+   nicht mehr oben bei den Tagen, sondern unter der Tafel am unteren
+   Bildschirmrand. Die Tafel wird dafür um seine Höhe kürzer. */
+.pw-buehne--regler .pw-zeitschicht { position: static; height: 26px; padding: 0 6px 0 4px;
+  flex: none; }
+.pw-buehne--regler #pw-inhalt .pw-rolle {
+  height: calc(100vh - var(--pw-oben, 220px) - 8px - 26px); }
+@media (max-width: 720px) {
+  .pw-buehne--regler #pw-inhalt .pw-rolle {
+    height: calc(100dvh - var(--pw-oben, 200px) - 8px - 26px); }
+}
+.pw-buehne--regler .pw-zeitschicht .pw-zeitregler input[type="range"] { height: 18px !important; }
+.pw-buehne--regler .pw-zeitschicht .pw-zeitmarke { top: 2px !important; height: 14px !important; }
+/* Die Leiste der Suche steht über dem Regler, nicht auf ihm */
+body.pw-seite .su-leiste { bottom: 40px; }
+@media (max-width: 780px) {
+  body.pw-seite .su-leiste { bottom: calc(var(--navhoehe) + 12px); }
+}

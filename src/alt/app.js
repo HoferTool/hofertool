@@ -144,7 +144,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.26.0";
+const APP_VERSION = "1.27.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4231,22 +4231,22 @@ function masseBerechnen(b) {
 const seitePlanwand = reactSeite(Planwand);
 const hocoSeite = reactSeite(Hoco);
 
-// Die Schicht mit dem Zeitregler auf den Platzhalter unter der
-// Datumszeile legen. Der Regler selbst wird nur einmal verschoben.
+// Der Zeitregler steht ganz unten am Bildschirm, unter der Tafel und
+// genau so breit wie die Tage (Wunsch Patrick, 12. Oktober 2026; vorher
+// unter der Datumszeile). Der Regler selbst wird nur einmal verschoben.
 function zeitschichtLegen() {
   const schicht = document.getElementById("pw-zeitschicht");
-  const platz = document.getElementById("pw-zeitplatz");
   if (!schicht) return;
   const regler = document.querySelector(".pw-kopfleiste .pw-zeitregler");
   if (regler) schicht.appendChild(regler);
-  if (!platz) { schicht.hidden = true; return; }
+  const rolle = document.querySelector("#pw-inhalt .pw-rolle");
+  if (!rolle || !schicht.querySelector(".pw-zeitregler")) { schicht.hidden = true; return; }
   const buehne = schicht.parentElement.getBoundingClientRect();
-  const r = platz.getBoundingClientRect();
+  const r = rolle.getBoundingClientRect();
+  const name = plan.namensbreite || 108;
   schicht.hidden = false;
-  schicht.style.left = (r.left - buehne.left) + "px";
-  schicht.style.top = (r.top - buehne.top) + "px";
-  schicht.style.width = r.width + "px";
-  schicht.style.height = r.height + "px";
+  schicht.style.marginLeft = Math.round(r.left - buehne.left + rolle.clientLeft + name) + "px";
+  schicht.style.width = Math.max(0, Math.round(rolle.clientWidth - name)) + "px";
 }
 window.addEventListener("resize", () => requestAnimationFrame(zeitschichtLegen));
 
@@ -5114,7 +5114,12 @@ async function sucheZumTreffer(nr, b) {
   if (!ziel) return;
 
   if (ziel.planned_from) {
-    plan.start = naechsterArbeitstag(plusTage(ziel.planned_from, -2));
+    // Der Treffer steht in der Mitte des Bildschirms: so viele Arbeitstage
+    // davor, wie neben dem Balken links und rechts frei bleiben (Wunsch
+    // Patrick, 12. Oktober 2026; vorher stand er zwei Tage nach dem Rand).
+    const dauer = Math.max(1, ziel.planned_days || 1);
+    const davor = Math.max(0, Math.floor((plan.tage - dauer) / 2));
+    plan.start = arbeitstagePlus(ziel.planned_from, -davor);
     await planAktualisieren(b);
   } else {
     sucheHervorheben();
@@ -5122,7 +5127,9 @@ async function sucheZumTreffer(nr, b) {
 
   setTimeout(() => {
     const el = document.querySelector('[data-auftrag="' + CSS.escape(ziel.id) + '"]');
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    // Waagrecht steht er schon in der Mitte; seitlich rollen würde die
+    // Tafel gegen den Zeitregler verschieben
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
   }, 220);
 
   sucheLeisteZeigen(b, ziel);
@@ -5900,10 +5907,7 @@ function zeichnePlanwand(b) {
     + ';--pw-sicht:' + plan.tage
     + ';--pw-name:' + (plan.namensbreite || 108) + 'px">'
     + '<div class="pw-kopfblock">' + monatZeile + kwZeile + kopf
-    // Der Zeitregler sitzt direkt unter den Tagen, über den Spalten
-    + (isMobil() ? "" : '<div class="pw-zeile pw-zeile--zeitregler">'
-        + '<div class="pw-name pw-name--kopf pw-name--zeit"></div>'
-        + '<div class="pw-zeitplatz" id="pw-zeitplatz"></div></div>')
+    // Der Zeitregler steht nicht mehr hier, sondern unter der Tafel
     + '</div>'
     + zeilen + ferienZeilen
     + (heuteSpalte >= 0
