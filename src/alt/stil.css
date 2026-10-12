@@ -7199,3 +7199,6 @@ body.pw-seite .su-leiste { bottom: 40px; }
 .zb-knoepfe [data-zbloeschen] { grid-column: 1 / -1; }
 /* Bilder im Pad Mode unter Einstellungen → Symbole (seit 1.29.0) */
 .sym-zeile .mahnbild-name { flex: 1 1 auto; font-weight: 600; }
+/* Kein roter Heute-Strich mehr im Zeitregler (Wunsch Patrick, 12. Oktober 2026,
+   seit 1.30.1): er störte beim Ziehen am Schieber unten. */
+.pw-zeitmarke { display: none !important; }
