@@ -2,7 +2,7 @@
 # Planwand, Päckli Pad und Co. bleiben angemeldet, egal wie sie
 # hereinkommen: keine Abmeldung nach fünf Minuten Ruhe, Schlüssel bleibt
 # auf dem Gerät, in den Einstellungen sind die Schalter fest an.
-# Personen bleiben wie bisher: nach fünf Minuten kommt die Abmeldung.
+# Personen bleiben wie bisher: nach einer Minute (seit 1.34.0) kommt die Abmeldung.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright

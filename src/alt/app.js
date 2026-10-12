@@ -46,7 +46,7 @@ import { hocoFenster } from "../planwand/HocoFenster.jsx";
 import Hoco from "../hoco/Hoco.jsx";
 import { maschinenkopf } from "../seiten/rechner/kopf.jsx";
 import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
-import { zustandVorher, zustandVergessen, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
+import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -144,7 +144,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.33.0";
+const APP_VERSION = "1.34.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7486,8 +7486,11 @@ async function ladeBlaetter(hocoNr) {
 
 const pad = { wo: "start", parkId: null, maschineId: null, daten: {} };
 
-const LEERLAUF_MS = 5 * 60 * 1000;     // fünf Minuten
-const WARNUNG_MS = 20 * 1000;          // so lange vorher warnen
+// Eine Minute, die letzten zehn Sekunden zählen im roten Feld oben
+// rückwärts (Wunsch Patrick, 12. Oktober 2026; vorher fünf Minuten
+// und 20 Sekunden)
+const LEERLAUF_MS = 60 * 1000;
+const WARNUNG_MS = 10 * 1000;
 let leerlauf = { letzte: Date.now(), takt: null, abmelden: null, hinweis: null };
 
 function leerlaufAktiv() {
@@ -7511,7 +7514,8 @@ function leerlaufStarten(abmelden) {
   document.addEventListener("mousemove", leerlauf.bewegt, { passive: true });
   leerlauf.sichtbar = () => { if (!document.hidden) leerlaufPruefen(); };
   document.addEventListener("visibilitychange", leerlauf.sichtbar);
-  leerlauf.takt = setInterval(leerlaufPruefen, 2000);
+  // Jede Sekunde, damit der Countdown keine Zahl überspringt
+  leerlauf.takt = setInterval(leerlaufPruefen, 1000);
 }
 
 function leerlaufStoppen() {
@@ -7552,7 +7556,7 @@ function leerlaufPruefen() {
     if (abmelden) {
       // Die Meldung erst nach dem Aufbau der Anmeldeseite zeigen,
       // sonst verschwindet sie mit dem alten Inhalt
-      abmelden().then(() => setTimeout(() =>
+      abmelden(true).then(() => setTimeout(() =>
         meldung("Automatische Abmeldung."), 400));
     }
     return;
@@ -7565,7 +7569,8 @@ function leerlaufPruefen() {
       leerlauf.hinweis.className = "leerlauf-hinweis";
       document.body.appendChild(leerlauf.hinweis);
     }
-    leerlauf.hinweis.innerHTML = '<strong>Abmeldung in ' + rest + ' Sekunden</strong>'
+    leerlauf.hinweis.innerHTML = '<strong>Abmeldung in <span class="leerlauf-zahl">' + rest
+      + '</span> ' + (rest === 1 ? "Sekunde" : "Sekunden") + '</strong>'
       + '<span>Tippe irgendwo, um angemeldet zu bleiben.</span>';
   }
 }
@@ -9966,15 +9971,19 @@ function zeichneGeruest() {
 
   if (einstellungWert("navschmal", "0") === "1") document.body.classList.add("nav--schmal");
 
-  // Nach fünf Minuten ohne Eingabe wird abgemeldet. 20 Sekunden vorher
+  // Nach einer Minute ohne Eingabe wird abgemeldet. 10 Sekunden vorher
   // erscheint eine Warnung; jede Berührung, jeder Klick, jede Taste
   // setzt die Uhr zurück. Gerechnet wird mit Zeitstempeln, nicht mit
   // einem einzelnen Zähler — so greift es auch, wenn der Browser das
   // Fenster im Hintergrund schlafen legt.
   leerlaufStarten(jetztAbmelden);
 
-  async function jetztAbmelden() {
+  // vonSelbst: der Leerlaufwächter. Dann merkt sich die App, wo man
+  // war, und die nächste Anmeldung derselben Person am selben Tag
+  // landet wieder dort.
+  async function jetztAbmelden(vonSelbst) {
     leerlaufStoppen();
+    if (vonSelbst === true) zustandFuerSpaeter();
     zustandVergessen();
     if (typeof padSchliessen === "function") padSchliessen();
     await abmelden();
@@ -10003,10 +10012,15 @@ function zeichneGeruest() {
 
 
   // Das automatische Abmelden erledigt der Leerlaufwächter weiter
-  // oben. Er zählt dieselben fünf Minuten, warnt aber vorher mit
+  // oben. Er zählt dieselbe Minute, warnt aber vorher mit
   // einem Countdown. Zwei Uhren nebeneinander wären nur verwirrend.
   window.untaetigNeuStarten = () => leerlaufAktiv();
 
+  // Nach einer automatischen Abmeldung: zurück, wo man war
+  if (!ARCHIV && profil) {
+    const vorher = zustandNachAnmeldung(profil.id);
+    if (vorher && !location.hash) location.hash = vorher;
+  }
   if (!location.hash) location.hash = ARCHIV ? "#/planwand" : "#/dashboard";
   document.body.classList.toggle("archiv", !!ARCHIV);
   // Nach dem Neuladen aus dem Pad gleich wieder ins Pad, ohne die

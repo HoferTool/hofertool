@@ -63,6 +63,46 @@ export function zustandVergessen() {
   try { sessionStorage.removeItem(SCHLUESSEL); } catch (f) { /* egal */ }
 }
 
+// Automatische Abmeldung (Wunsch Patrick, 12. Oktober 2026: „wenn man
+// abgemeldet wird soll man wenn man in sein nutzer anklickt wider dort
+// sein wo man war, ausser es ist ein neuer tag dan wider start“). Vor
+// dem Vergessen legt die App den Stand im localStorage ab, damit er
+// auch ein Neuladen bei der Anmeldung (neue Fassung) übersteht. Er
+// gehört genau einer Person und gilt nur am selben Tag.
+const NACH_ABMELDUNG = "hofer.nachAbmeldung";
+
+function heute() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")
+    + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+export function zustandFuerSpaeter() {
+  zustandSichern();
+  try {
+    const z = JSON.parse(sessionStorage.getItem(SCHLUESSEL) || "null");
+    if (z) localStorage.setItem(NACH_ABMELDUNG, JSON.stringify(Object.assign(z, { tag: heute() })));
+  } catch (f) { /* dann eben Startseite */ }
+}
+
+// Nach der Anmeldung: gibt die Adresse zurück, wo die Person war, und
+// legt den Stand so hin, dass zustandVorher ihn wie nach einem
+// Neuladen aufnimmt. Eine andere Person verwirft ihn nicht: Die
+// erste kann später noch kommen, am selben Tag.
+export function zustandNachAnmeldung(id) {
+  let z = null;
+  try { z = JSON.parse(localStorage.getItem(NACH_ABMELDUNG) || "null"); } catch (f) { z = null; }
+  if (!z || !id) return null;
+  if (z.tag !== heute()) { try { localStorage.removeItem(NACH_ABMELDUNG); } catch (f) { /* egal */ } return null; }
+  if (z.nutzer !== id) return null;
+  try {
+    localStorage.removeItem(NACH_ABMELDUNG);
+    z.zeit = Date.now();
+    sessionStorage.setItem(SCHLUESSEL, JSON.stringify(z));
+  } catch (f) { return null; }
+  return z.hash || null;
+}
+
 // Vor dem Zeichnen der Seite. Gibt zurück, was nach dem Zeichnen
 // kommt: die übrigen Teile und die Fenster.
 export function zustandVorher(id) {
