@@ -108,6 +108,9 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer) {
     planer,
     matBez: quelle.material_bez || "",
     matMenge,
+    // Rotes M auf dem Balken trotz eingetragener Menge (Wunsch Patrick
+    // 12. Oktober 2026); gehört zum Auftrag, nicht in die Kopie
+    mTrotzdem: !!(auftrag && auftrag.material_m_trotzdem),
     liefer,
     ausNotiz: be && ((!quelle.material_menge && be.mengeText) || (!quelle.material_liefertermin && be.termin))
       ? be : null,
@@ -236,6 +239,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   // (Wunsch Patrick). Ohne das SQL gibt es die Spalte noch nicht.
   const abrufDa = alt.abrufSpalte(auftrag);
   const abrufMuss = darf && abrufDa && alt.abrufPflicht(auftrag);
+  // Häkchen „M trotzdem zeigen“: ohne sql/material-m-trotzdem.sql gibt es
+  // die Spalte noch nicht, dann nur grau
+  const mSpalte = alt.spalteDa("material_m_trotzdem", auftrag);
   const [abrufFehlt, setAbrufFehlt] = useState(false);
   const abrufFeld = useRef(null);
   // Abrufinformation und Notiz zeigen immer den ganzen Text, ohne
@@ -448,6 +454,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       machine_id: w.maschine,
     };
     if (abrufDa) daten.abruf_info = w.abruf.trim() || null;
+    if (mSpalte) daten.material_m_trotzdem = !!w.mTrotzdem;
     if (platzSpalte && darfPlatz) daten.material_platz = platzWert.trim() || null;
     setBeschaeftigt(true);
     try { await auftragSpeichern({ auftrag, daten, nr: w.nr.trim(), b, zu }); }
@@ -611,9 +618,18 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 onChange={(e) => setze("matOrt", e.target.value)} /></label>
           </div>
           <div className="auf-zweier auf-zweier--menge">
-            <label className="feld"><span>Menge vorhanden oder bestellt</span>
+            {/* div statt label: das Häkchen darunter ist ein eigenes label */}
+            <div className="feld"><span>Menge vorhanden oder bestellt</span>
               <input id="pl-menge-mat" type="text" readOnly={nurLesen} value={w.matMenge}
-                onChange={(e) => setze("matMenge", e.target.value)} /></label>
+                onChange={(e) => setze("matMenge", e.target.value)} />
+              {/* Etwa bestellt, aber noch nicht da: das rote M bleibt */}
+              <label className="auf-mtrotzdem" title={!mSpalte
+                ? "Geht erst, wenn sql/material-m-trotzdem.sql in Supabase ausgeführt ist."
+                : "Auf dem Balken steht das rote M, auch wenn bei der Menge etwas steht."}>
+                <input type="checkbox" id="pl-m-trotzdem" checked={w.mTrotzdem}
+                  disabled={nurLesen || !mSpalte}
+                  onChange={(e) => setze("mTrotzdem", e.target.checked)} />
+                <span>M trotzdem zeigen</span></label></div>
             <label className="feld"><span>Liefertermin</span>
               <input id="pl-liefer" type="text" readOnly={nurLesen} value={w.liefer}
                 onChange={(e) => setze("liefer", e.target.value)} /></label>

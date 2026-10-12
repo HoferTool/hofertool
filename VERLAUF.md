@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.24.0** Auftragsfenster: Häkchen „M trotzdem zeigen“ unter „Menge vorhanden oder bestellt“ (Wunsch Patrick, 12. Oktober 2026). Ist es gesetzt, steht auf dem Balken das rote M, auch wenn bei der Menge etwas eingetragen ist. Spalte `jobs.material_m_trotzdem` aus `sql/material-m-trotzdem.sql`; ohne sie ist das Häkchen grau. Test `m_trotzdem.py`.
 - **1.23.2** Passwörter: Mindestens 6 Zeichen reichen (Wunsch Patrick, 11. Oktober 2026: „für pw min 6 zeichen reicht“). Gilt beim eigenen Passwort unter Einstellungen → Allgemein, beim Entfernen der PIN und beim Passwort, das ein Admin unter Einstellungen → Nutzer setzt (vorher 8). In der Datenbank prüft `passwort_setzen` ebenfalls 6 (`sql/pin-anmeldung.sql`). Bestehende Passwörter und PINs bleiben, wie sie sind. Test `eigenes_passwort.py` ergänzt.
 - **1.23.1** Dokumente: Eine WBG ohne FA Nr. im Dateinamen nimmt die App nicht mehr an (Einstellungen → Dokumente zeigt sie grau mit „WBG ohne FA Nr. ist nicht eindeutig“, Hochladen bricht ab), weil sonst nicht klar ist, an welchen Auftrag sie gehört (Wunsch Patrick, 10. Oktober 2026). Die Aufgabe „HoferTool“ bleibt bewusst unverändert. Test `dokumente.py` angepasst.
 - **1.23.1** Planwand-Archiv: Die Aufträge stehen nur noch einmal in der Datei statt doppelt (Planwand und jobs), das spart rund 3 MB je Datei.

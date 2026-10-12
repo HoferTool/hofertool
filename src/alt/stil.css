@@ -7133,3 +7133,9 @@ body.archiv #rueck-knopf, body.archiv #kopf-suche, body.archiv #kopf-einstellung
 body.archiv .kopf__benutzer, body.archiv .nav__punkt--web,
 body.archiv #pw-hoco, body.archiv #pw-symbole { display: none !important; }
 .archiv-marke { cursor: default; white-space: nowrap; }
+
+/* ---------- Häkchen „M trotzdem zeigen“ (1.24.0) ----------
+   Klein unter dem Feld „Menge vorhanden oder bestellt“ */
+.dialog--auftrag .auf-mtrotzdem { display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 4px; font-size: .78rem; color: var(--gedaempft); cursor: pointer; }
+.dialog--auftrag .auf-mtrotzdem input { width: auto; margin: 0; }

@@ -144,7 +144,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.23.2";
+const APP_VERSION = "1.24.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6010,6 +6010,9 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
   }
 
   const mengeDa = String(j.material_menge || "").trim();
+  // Häkchen „M trotzdem zeigen“ im Auftragsfenster: das rote M bleibt,
+  // auch wenn eine Menge eingetragen ist (Wunsch Patrick 12. Oktober 2026)
+  const mZeigen = !mengeDa || !!j.material_m_trotzdem;
 
   return '<div class="pw-balken' + (fertig ? " pw-balken--fertig" : "")
     + (angeschnitten ? " pw-balken--offen" : "") + randKlasse + '"'
@@ -6028,14 +6031,15 @@ function planBalken(j, spalte, dauer, angeschnitten, vorlaufTage, dauerWahr) {
     // dort nichts, steht statt des Kreises das rote M auf weissem Feld
     // (Wunsch Patrick 8. Oktober 2026, vorher ein rot gefüllter Kreis).
     + '<span class="pw-balken__statusgross'
-    + (st === "geplant" && !mengeDa ? " pw-balken__statusgross--ohnematerial" : "")
+    + (st === "geplant" && mZeigen ? " pw-balken__statusgross--ohnematerial" : "")
     + '" title="'
     + esc((PLANSTATUS[st] || PLANSTATUS.geplant).name
         + (st === "geplant"
-            ? (mengeDa ? " · Material " + mengeDa : " · keine Menge eingetragen")
+            ? (mengeDa ? " · Material " + mengeDa + (mZeigen ? " (M von Hand gesetzt)" : "")
+                       : " · keine Menge eingetragen")
             : ""))
     + '">'
-    + (st === "geplant" && !mengeDa
+    + (st === "geplant" && mZeigen
         ? M_SYMBOL
         : (PLANSTATUS[st] || PLANSTATUS.geplant).zeichen) + '</span>'
     + '<div class="pw-balken__inhalt">'
@@ -7233,6 +7237,13 @@ function materialPlatzSpalte() {
 // Abrufinformation (sql/abruf-siegel.sql, 111.100.0): ein freier Text
 // je Auftrag, etwa "je 1000 Stk KW 44, 45, 46". Bis das SQL läuft,
 // fehlt die Spalte; dann wird sie weder verlangt noch geschrieben.
+// Kennt die Datenbank diese Spalte schon? Sie steht dann am Auftrag
+// oder an irgendeinem geladenen Auftrag (select *).
+function spalteDa(name, j) {
+  if (j && name in j) return true;
+  return (plan.auftraege || []).some((x) => x && name in x);
+}
+
 function abrufSpalte(j) {
   if (j && "abruf_info" in j) return true;
   return (plan.auftraege || []).some((x) => x && "abruf_info" in x);
@@ -9434,7 +9445,7 @@ Object.assign(alt, {
   fortschrittRechnen, planAuftragDialog, ladeTypen,
   pad, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
-  notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, abrufSpalte, abrufPflicht,
+  notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, abrufSpalte, spalteDa, abrufPflicht,
   siegelListe, siegelName, siegelHtml, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
   werkzeugWechselDialog, zifferblock,
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
