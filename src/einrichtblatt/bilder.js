@@ -35,37 +35,44 @@ const svg = (box, inhalt, spiegel) => {
 const pt = (x, y) => x.toFixed(1) + " " + y.toFixed(1);
 const poly = (punkte, art) => '<path d="M' + punkte.map(([x, y]) => pt(x, y)).join(" L") + ' Z" ' + art + "/>";
 
-// Drehstahl wie das Bild von Patrick: nur der Kopf mit wenig Halter
-// (Wunsch 13. Oktober 2026: „weniger Halter“). Einstellwinkel 93° „so
-// mässig normal“: die Hauptschneide läuft fast senkrecht am Halter
-// herunter, 3° frei, die Spitze links oben.
-const KURZ = "0 0 60 72";
-const halterKopf = poly([[18, 71], [46, 71], [46, 32], [38, 12], [21, 7], [13, 38], [18, 46]], HALTER);
+// Dreh-, Gewinde- und Stechhalter nach dem Foto von Patrick (13. Oktober
+// 2026, Satz SDJCR, SER, MGEHR): gerader Vierkantschaft, oben rechts
+// abgeschrägt, die Platte sitzt in der Ecke links oben. Schaft kurz
+// („weniger Halter“). Einstellwinkel 93°, Spitze links oben.
+const KURZ = "0 0 60 90";
 const loch = (l) => '<circle cx="' + l[0].toFixed(1) + '" cy="' + l[1].toFixed(1) + '" r="' + l[2] + '" ' + LOCH + "/>";
-// Rhombische Platte: winkel 55 (D) oder 35 (V)
+const drehHalter = poly([[16, 89], [44, 89], [44, 32], [29, 14], [16, 14]], HALTER);
+// Rhombische Platte: winkel 55 (D) oder 35 (V), lange Diagonale schräg
+// nach rechts unten in den Halter
 function rhombus(winkel) {
-  const tx = 9, ty = 6, lang = winkel > 45 ? 24 : 27;
-  const w1 = (87 * Math.PI) / 180, w2 = ((87 - winkel) * Math.PI) / 180;
+  const tx = 11, ty = 7, lang = winkel > 45 ? 21 : 23;
+  const w1 = ((45 + winkel / 2) * Math.PI) / 180, w2 = ((45 - winkel / 2) * Math.PI) / 180;
   const p1 = [tx + lang * Math.cos(w1), ty + lang * Math.sin(w1)];
   const p3 = [tx + lang * Math.cos(w2), ty + lang * Math.sin(w2)];
   const p2 = [p1[0] + p3[0] - tx, p1[1] + p3[1] - ty];
-  return poly([[tx, ty], p1, p2, p3], PLATTE) + loch([(tx + p2[0]) / 2, (ty + p2[1]) / 2, winkel > 45 ? 3.4 : 2.6]);
+  return poly([[tx, ty], p1, p2, p3], PLATTE) + loch([(tx + p2[0]) / 2, (ty + p2[1]) / 2, winkel > 45 ? 3.2 : 2.6]);
 }
-const drehstahl = (winkel) => halterKopf + rhombus(winkel);
-// Gewinde: liegende Vollprofilplatte 16 mit drei Schneidecken, jede
-// Ecke ein 60°-Profil mit gerundeter Kuppe (Wunsch 13. Oktober 2026).
+const drehstahl = (winkel) => drehHalter + rhombus(winkel);
+// Gewinde (SER): Kopf mit Auflage, liegende Vollprofilplatte 16 mit drei
+// Schneidecken, jede Ecke ein 60°-Profil (Wunsch 13. Oktober 2026)
 function gewindeplatte() {
-  const m = [27, 25], r = 14;
+  const m = [26, 23], r = 13;
   let d = "";
   for (let i = 0; i < 3; i++) {
-    const w = ((-125 + i * 120) * Math.PI) / 180;      // erste Ecke zeigt nach links oben
+    const w = ((-135 + i * 120) * Math.PI) / 180;      // erste Ecke zeigt nach links oben
     const ecke = (dw, rr) => pt(m[0] + rr * Math.cos(w + dw), m[1] + rr * Math.sin(w + dw));
     d += (i ? " L" : "M") + ecke(-0.5, r * 0.62) + " L" + ecke(-0.2, r * 0.82) + " L" + ecke(0, r * 1.3)
       + " L" + ecke(0.2, r * 0.82) + " L" + ecke(0.5, r * 0.62);
   }
-  return '<path d="' + d + ' Z" ' + PLATTE + "/>" + loch([m[0], m[1], 3.2]);
+  return '<path d="' + d + ' Z" ' + PLATTE + "/>" + loch([m[0], m[1], 3]);
 }
-const gewindestahl = halterKopf + gewindeplatte();
+const gewindestahl = poly([[16, 89], [44, 89], [44, 30], [39, 15], [26, 8], [16, 14]], HALTER) + gewindeplatte();
+// Stechhalter (MGEHR): Schaft, Stechplatte senkrecht links oben, daneben
+// die Spannbacke
+const stechen = poly([[16, 89], [44, 89], [44, 44], [36, 36], [16, 36]], HALTER)
+  + poly([[16, 5], [24, 5], [24, 46], [16, 46]], PLATTE)
+  + '<path ' + LINIE + ' d="M16 9 H24"/>'
+  + poly([[24, 46], [24, 18], [33, 22], [33, 36], [36, 36], [36, 46]], HALTER);
 
 // Bohrer quer, Spitze rechts: schlank, gebogene Spannuten und deutliche
 // 118°-Spitze mit Schneidkanten, damit er nicht wie ein Fräser aussieht
@@ -125,10 +132,6 @@ function raendel() {
     + '<g clip-path="url(#eb-rr)">' + muster + "</g>"
     + '<path stroke="#222" stroke-width="3" stroke-linecap="round" d="M5 22 H55"/>';
 }
-// Stechhalter wie im Excel-Foto: Grundkörper, schmales Schwert, Platte oben
-const stechen = '<rect x="10" y="62" width="34" height="55" ' + DUNKEL + "/>"
-  + poly([[34, 62], [34, 14], [44, 10], [44, 62]], HALTER)
-  + '<rect x="34" y="3" width="10" height="11" ' + PLATTE + "/>";
 // Utilis-Stechplatte: lang und schmal, beide Enden schneidend
 const utilis = poly([[24, 10], [30, 3], [36, 10], [36, 110], [30, 117], [24, 110]], PLATTE)
   + '<path ' + LINIE + ' d="M30 18 V102"/>' + '<circle cx="30" cy="60" r="3" ' + LOCH + "/>";
@@ -143,8 +146,8 @@ export const BILDER = [
   ["drehen_v_l", "Drehstahl V-Platte spiegelverkehrt", svg(KURZ, drehstahl(35), true)],
   ["gewindedrehen", "Gewinde-Drehstahl (Vollprofilplatte 16)", svg(KURZ, gewindestahl)],
   ["gewindedrehen_l", "Gewinde-Drehstahl spiegelverkehrt", svg(KURZ, gewindestahl, true)],
-  ["stechen", "Abstechen / Einstechen", svg(HOCH, stechen)],
-  ["stechen_l", "Abstechen / Einstechen spiegelverkehrt", svg(HOCH, stechen, true)],
+  ["stechen", "Abstechen / Einstechen", svg(KURZ, stechen)],
+  ["stechen_l", "Abstechen / Einstechen spiegelverkehrt", svg(KURZ, stechen, true)],
   ["utilis", "Utilis-Platte schmal", svg(HOCH, utilis)],
   ["bohren", "Bohrer", svg(QUER, bohrer(false))],
   ["bohren_flach", "Flachbohrer", svg(QUER, bohrer(true)), true],
@@ -153,7 +156,7 @@ export const BILDER = [
   ["fraesen", "Schaftfräser", svg(QUER, fraeser(false))],
   ["kugelfraeser", "Kugelfräser", svg(QUER, fraeser(true))],
   ["scheibenfraeser", "Scheibenfräser", svg(RUND, scheibe())],
-  ["raendeln", "Rändelstahl", svg(KURZ, raendel())],
+  ["raendeln", "Rändelstahl", svg("0 0 60 72", raendel())],
 ];
 
 // Bohrer fragen nach: normal oder flach
