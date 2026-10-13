@@ -12,7 +12,7 @@ import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Temp from "../seiten/Temp.jsx";
-import { tempAufraeumenTaeglich } from "../daten/temp.js";
+import { tempAufraeumenRegelmaessig } from "../daten/temp.js";
 import Einkauf from "../seiten/Einkauf.jsx";
 import Bestellungen from "../seiten/Bestellungen.jsx";
 import Start from "../seiten/Start.jsx";
@@ -147,7 +147,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.40.0";
+const APP_VERSION = "1.40.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3948,8 +3948,8 @@ async function farbzuteilungLaden() {
   // und tägliche Planwand-Datei zum Nachschauen (src/teile/planwandArchiv.js);
   // beides nicht in einer Backup-Datei
   if (!ARCHIV) { sicherungWaechter(); planArchivWaechter(); }
-  // Abgelaufenes in den Temp-Ordnern aller wegräumen, einmal am Tag je Gerät
-  if (!ARCHIV && !istExtern()) tempAufraeumenTaeglich();
+  // Abgelaufenes in den Temp-Ordnern aller wegräumen, höchstens stündlich je Gerät
+  if (!ARCHIV && !istExtern()) tempAufraeumenRegelmaessig();
 }
 
 // Auf der Planwand darf jeder alles sehen. Geändert wird erst,

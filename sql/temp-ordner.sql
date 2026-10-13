@@ -13,8 +13,8 @@
 --    - Lesen, Hochladen, Ändern und Löschen nur im eigenen Ordner.
 --      Das prüft die Datenbank, nicht die App: auch Admins sehen
 --      die Ordner anderer nicht.
---  Nach 7 Tagen löscht die Server-Funktion „temp-aufraeumen“
---  (supabase/functions/) die Dateien; die App ruft sie einmal am Tag.
+--  Nach 24 Stunden löscht die Server-Funktion „temp-aufraeumen“
+--  (supabase/functions/) die Dateien; die App ruft sie höchstens stündlich.
 --  Die Sicherung lässt die Ablage „temp“ aus (src/teile/sicherung.js).
 --
 --  Gefahrlos mehrfach ausführbar. Am Ende eine Probe mit ok / FEHLT.

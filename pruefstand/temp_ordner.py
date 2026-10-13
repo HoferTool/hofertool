@@ -21,7 +21,8 @@ def seite(p, breite, hoehe, mobil):
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt")
     pg.evaluate("""() => { TEST.ordner = { temp: [
-      { pfad: 'u1/1791800000000-Messprotokoll.pdf', size: 250000, mimetype: 'application/pdf', created_at: new Date(Date.now() - 2*86400000).toISOString() },
+      { pfad: 'u1/1791800000000-Messprotokoll.pdf', size: 250000, mimetype: 'application/pdf', created_at: new Date(Date.now() - 2*3600000).toISOString() },
+      { pfad: 'u1/1791700000000-Alt.jpg', size: 900, mimetype: 'image/jpeg', created_at: new Date(Date.now() - 30*3600000).toISOString() },
       { pfad: 'u2/1791800000000-Fremd_Geheim.jpg', size: 1000, mimetype: 'image/jpeg', created_at: new Date().toISOString() } ] }; }""")
     pg.evaluate("location.hash='#temp'")
     pg.wait_for_selector("#temp-seite"); pg.wait_for_timeout(500)
@@ -36,7 +37,11 @@ with sync_playwright() as p:
     text = pg.inner_text("#temp-seite")
     if "Messprotokoll.pdf" not in text: fehler.append("eigene Datei fehlt")
     if "Fremd" in text: fehler.append("fremde Datei sichtbar")
-    if "noch 5 Tage" not in text: fehler.append("Frist nicht angezeigt: " + text[:300])
+    if "gelöscht (noch 22 Std.)" not in text: fehler.append("Frist nicht angezeigt: " + text[:300])
+    if "Nach 24 Stunden" not in text: fehler.append("Hinweis 24 Stunden fehlt")
+    if "Alt.jpg" in text: fehler.append("abgelaufene Datei sichtbar")
+    if pg.evaluate("TEST.protokoll.filter(x => x.art === 'remove').map(x => x.pfade)") != [["u1/1791700000000-Alt.jpg"]]:
+        fehler.append("abgelaufene Datei nicht weggeräumt")
     if pg.locator("#temp-foto").count(): fehler.append("Foto-Knopf am Computer")
     lst = pg.evaluate("TEST.protokoll.filter(x => x.art === 'list').map(x => x.ordner)")
     if not lst or any(o != "u1" for o in lst): fehler.append("liest fremden Ordner: %s" % lst)
@@ -70,7 +75,7 @@ with sync_playwright() as p:
     pg.click("[data-tempweg='Messprotokoll.pdf']"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(600)
     if pg.locator("[data-temp='Messprotokoll.pdf']").count(): fehler.append("Löschen wirkt nicht")
     weg = pg.evaluate("TEST.protokoll.filter(x => x.art === 'remove').map(x => x.pfade)")
-    if weg != [["u1/1791800000000-Messprotokoll.pdf"]]: fehler.append("falsch gelöscht: %s" % weg)
+    if weg[-1:] != [["u1/1791800000000-Messprotokoll.pdf"]]: fehler.append("falsch gelöscht: %s" % weg)
     br.close()
 
     # Handy: Foto und Video aufnehmen

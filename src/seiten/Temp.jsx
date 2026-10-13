@@ -3,13 +3,13 @@
 //  Ein eigener Ordner je Person, um Dateien, Fotos und Videos vom
 //  Handy oder Tablet auf den Computer zu bringen: dort hochladen oder
 //  direkt aufnehmen, am Computer herunterladen und löschen. Nur die
-//  Person selbst sieht ihn (geprüft in der Datenbank). Nach 7 Tagen
+//  Person selbst sieht ihn (geprüft in der Datenbank). Nach 24 Stunden
 //  ist alles von selbst weg. Daten in src/daten/temp.js.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
-import { TEMP_TAGE, TEMP_MAX, TEMP_MAX_MB, tempListe, tempHochladen, tempLoeschen, tempAdresse, tempVorschauen } from "../daten/temp.js";
+import { TEMP_STUNDEN, wegAm, TEMP_MAX, TEMP_MAX_MB, tempListe, tempHochladen, tempLoeschen, tempAdresse, tempVorschauen } from "../daten/temp.js";
 
 const ruehrbar = () => window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 
@@ -19,10 +19,15 @@ function groesseText(b) {
   return b + " Byte";
 }
 
+// Bei jeder Datei steht, wann sie weg ist, damit sich niemand fragt
+// (Wunsch Patrick, 13. Oktober 2026)
 function restText(am) {
-  const rest = TEMP_TAGE - Math.floor((Date.now() - new Date(am).getTime()) / 86400000);
-  if (rest <= 1) return "wird bald gelöscht";
-  return "noch " + rest + " Tage";
+  const weg = wegAm(am);
+  const min = Math.max(0, Math.round((weg.getTime() - Date.now()) / 60000));
+  const p = (n) => String(n).padStart(2, "0");
+  const heute = new Date().toDateString() === weg.toDateString();
+  const wann = (heute ? "heute" : "morgen") + " " + p(weg.getHours()) + ":" + p(weg.getMinutes());
+  return "wird " + wann + " gelöscht (noch " + (min >= 60 ? Math.floor(min / 60) + " Std." : min + " Min.") + ")";
 }
 
 const istBild = (d) => /^image\//.test(d.typ) || /\.(jpe?g|png|gif|webp|heic)$/i.test(d.name);
@@ -133,7 +138,7 @@ export default function Temp({ auffrischen }) {
     <div className={"temp" + (ziehen ? " temp--ziehen" : "")} id="temp-seite" {...zieh}>
       <h1 className="seitentitel">Mein Temp-Ordner</h1>
       <p className="temp__hinweis">
-        Nur du siehst diese Dateien. Nach {TEMP_TAGE} Tagen werden sie von selbst gelöscht. Höchstens {TEMP_MAX_MB} MB je Datei.
+        Nur du siehst diese Dateien. Nach {TEMP_STUNDEN} Stunden werden sie von selbst gelöscht. Höchstens {TEMP_MAX_MB} MB je Datei.
       </p>
       <div className="temp__knoepfe">
         {touch && <>

@@ -2,16 +2,16 @@
 //
 // Jede Person hat in der Ablage „temp“ einen eigenen Ordner
 // (<Konto-Kennung>/…), den nur sie selbst lesen und löschen darf
-// (sql/temp-ordner.sql). Dateien älter als FRIST_TAGE sollen trotzdem
+// (sql/temp-ordner.sql). Dateien älter als FRIST_STUNDEN sollen trotzdem
 // verschwinden, auch bei Leuten, die die App nicht mehr öffnen. Das
 // kann nur der Server mit dem geheimen Schlüssel.
 //
-// Die App ruft die Funktion einmal am Tag je Gerät auf (mit Anmeldung,
+// Die App ruft die Funktion höchstens stündlich je Gerät auf (mit Anmeldung,
 // die Supabase prüft). Sie löscht nur Abgelaufenes und gibt nur die
 // Anzahl zurück, nie Namen: so erfährt niemand etwas über fremde Ordner.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const FRIST_TAGE = 7;
+const FRIST_STUNDEN = 24; // Wunsch Patrick, 13. Oktober 2026 (vorher 7 Tage)
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
   if (!url || !schluessel) return antwort({ fehler: "Server nicht eingerichtet" }, 500);
   const db = createClient(url, schluessel, { auth: { persistSession: false } });
   const ablage = db.storage.from("temp");
-  const grenze = Date.now() - FRIST_TAGE * 86400000;
+  const grenze = Date.now() - FRIST_STUNDEN * 3600000;
 
   // Oberste Ebene: ein Ordner je Person
   const { data: ordner, error } = await ablage.list("", { limit: 1000 });
@@ -66,5 +66,5 @@ Deno.serve(async (req) => {
       if (dateien.length < 1000) break;
     }
   }
-  return antwort({ geloescht, frist: FRIST_TAGE });
+  return antwort({ geloescht, frist_stunden: FRIST_STUNDEN });
 });

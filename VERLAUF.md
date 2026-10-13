@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.40.1** Temp-Ordner: Dateien werden nach **24 Stunden** gelöscht statt nach 7 Tagen, und bei jeder Datei steht, wann („wird morgen 10:15 gelöscht (noch 23 Std.)“), oben „Nach 24 Stunden werden sie von selbst gelöscht“ (Wunsch Patrick, 13. Oktober 2026: „nach 24h ist es weg, soll aber dort stehen, dass sich die Leute nicht fragen“). Die Server-Funktion `temp-aufraeumen` läuft dafür höchstens stündlich je Gerät, abgelaufene eigene Dateien räumt die Seite beim Laden gleich selbst weg.
 - **1.40.0** Auftragsfenster: Schliessen ist ein X oben rechts neben „Problem“, Löschen, Kopieren und Speichern stehen unten rechts statt unten links (Wunsch Patrick, 13. Oktober 2026). Escape schliesst wie bisher. Bildschirmfoto aus `abruf_siegel.py`.
 - **1.39.0** Push-Historie: Admins löschen einzelne Nachrichten (Knopf „Löschen“ in der Zeile) oder mit „Historie löschen“ alles, je eine Rückfrage (Wunsch Patrick, 13. Oktober 2026). Gelöscht wird über die Server-Funktion `push-senden` (`{ loeschen: [id] | "alle" }`), weil `push_nachrichten` für die App nur lesbar ist; darum ohne Rückgängig und ohne Datenbank-Änderung. Test `push.py`.
 - **1.38.1** Temp-Ordner: bis 500 MB je Datei statt 50, weil Supabase jetzt auf Pro läuft (längere Handyvideos).

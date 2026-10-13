@@ -4,13 +4,17 @@
 //  <Konto-Kennung>/…, um Dateien, Fotos und Videos vom Handy auf den
 //  Computer zu bringen. Nur die Person selbst darf ihn lesen und
 //  ändern, das prüft die Datenbank (sql/temp-ordner.sql). Nach
-//  TEMP_TAGE löscht die Server-Funktion „temp-aufraeumen“ alles.
+//  TEMP_STUNDEN (24, Wunsch Patrick 13. Oktober 2026) löscht die
+//  Server-Funktion „temp-aufraeumen“ alles.
 //  Nicht in der Sicherung (src/teile/sicherung.js).
 // =================================================================
 import { alt } from "../bruecke.jsx";
 
 export const ABLAGE = "temp";
-export const TEMP_TAGE = 7;
+export const TEMP_STUNDEN = 24;
+export const TEMP_MS = TEMP_STUNDEN * 3600000;
+// Wann eine Datei gelöscht wird
+export const wegAm = (am) => new Date(new Date(am).getTime() + TEMP_MS);
 // Grenze je Datei, gleich wie in der Ablage (sql/temp-ordner.sql). Seit
 // Supabase Pro 500 MB statt 50, damit auch längere Handyvideos gehen.
 export const TEMP_MAX_MB = 500;
@@ -45,7 +49,11 @@ export async function tempListe() {
       am: d.created_at,
     }));
   liste.sort((a, b) => String(b.am).localeCompare(String(a.am)));
-  return liste;
+  // Abgelaufene eigene Dateien gleich selbst wegräumen, nicht erst beim
+  // nächsten Lauf der Server-Funktion: angezeigt wird nur, was noch gilt
+  const alt_ = liste.filter((d) => wegAm(d.am).getTime() <= Date.now());
+  if (alt_.length) tempLoeschen(alt_.map((d) => d.pfad)).catch(() => {});
+  return liste.filter((d) => !alt_.includes(d));
 }
 
 export async function tempHochladen(datei) {
@@ -78,14 +86,16 @@ export async function tempVorschauen(pfade) {
   return aus;
 }
 
-// Einmal am Tag je Gerät die Server-Funktion anstossen, die
-// Abgelaufenes bei allen löscht. Fehler sind egal: dann eben morgen.
-export function tempAufraeumenTaeglich() {
-  const heute = new Date().toISOString().slice(0, 10);
-  try { if (localStorage.getItem("hofer.tempAufgeraeumt") === heute) return; } catch (f) { /* egal */ }
+// Höchstens einmal in der Stunde je Gerät die Server-Funktion anstossen,
+// die Abgelaufenes bei allen löscht (bei jedem Start der App, also auch
+// beim stündlichen Neuladen). Fehler sind egal: dann eben beim nächsten Mal.
+export function tempAufraeumenRegelmaessig() {
+  let zuletzt = 0;
+  try { zuletzt = +localStorage.getItem("hofer.tempAufgeraeumt") || 0; } catch (f) { /* egal */ }
+  if (Date.now() - zuletzt < 3600000) return;
   setTimeout(() => {
     alt.db.functions.invoke("temp-aufraeumen", { body: {} }).then((r) => {
-      if (r && !r.error) { try { localStorage.setItem("hofer.tempAufgeraeumt", heute); } catch (f) { /* egal */ } }
+      if (r && !r.error) { try { localStorage.setItem("hofer.tempAufgeraeumt", String(Date.now())); } catch (f) { /* egal */ } }
     }).catch(() => {});
   }, 8000);
 }
