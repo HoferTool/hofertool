@@ -7263,3 +7263,9 @@ body.pw-seite .su-leiste { bottom: 40px; }
   .temp__runter { padding: 8px 10px; }
   .temp__knoepfe .knopf { flex: 1 1 100%; justify-content: center; }
 }
+
+/* Auftragsfenster: X oben rechts, Knöpfe unten rechts (1.40.0) */
+.auf-kopf__knoepfe { align-items: center; }
+.auf-kopf__knoepfe .dialog__schliessen-inline { width: 40px; height: 40px; }
+/* „unten links“ von früher gilt nicht mehr: jetzt unten rechts */
+.dialog--auftrag .dialog__knoepfe.auf-fuss { justify-content: flex-end !important; }

@@ -515,10 +515,14 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                   Stückzahl und Zeichnung neu setzen</span>}
               </>}
         </div>
-        {auftrag && !extern && <div className="auf-kopf__knoepfe">
-          <button type="button" className="knopf knopf--klein knopf--warnung" id="pl-problem-eigen"
-            onClick={() => { zu(); alt.problemMelden(b, auftrag); }}>Problem</button>
-        </div>}
+        {/* Schliessen als X oben rechts, die übrigen Knöpfe unten rechts
+            (Wunsch Patrick, 13. Oktober 2026). Escape schliesst weiterhin. */}
+        <div className="auf-kopf__knoepfe">
+          {auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--warnung" id="pl-problem-eigen"
+            onClick={() => { zu(); alt.problemMelden(b, auftrag); }}>Problem</button>}
+          <button type="button" className="dialog__schliessen-inline" id="pl-nein" title="Schliessen"
+            aria-label="Schliessen" data-zu="" onClick={zu}>✕</button>
+        </div>
       </div>
 
       {auftrag && auftrag.problem && <div className="problemkasten problemkasten--schmal">
@@ -727,14 +731,13 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
         </div>
       </div>
 
-      <div className="dialog__knoepfe">
+      <div className="dialog__knoepfe auf-fuss">
         {auftrag && darf && <button className="knopf knopf--gefahr" id="pl-loeschen"
           onClick={() => auftragLoeschen(auftrag, b, zu)}>Löschen</button>}
         {/* Kopieren: der Auftrag kommt in die Zwischenablage, eingefügt
             wird mit einem Klick auf die Tafel */}
         {auftrag && darf && <button type="button" className="knopf" id="pl-kopieren-eigen"
           onClick={() => { zu(); alt.zwischenablageSetzen(auftrag, b); }}>Kopieren</button>}
-        <button className="knopf knopf--still" id="pl-nein" onClick={zu}>Schliessen</button>
         {!extern && <button className="knopf knopf--haupt" id="pl-ja" disabled={beschaeftigt}
           onClick={speichern}>Speichern</button>}
       </div>
