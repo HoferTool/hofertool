@@ -7367,7 +7367,7 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
 .am-geraet--handy .anmeldemeldung__text { font-size: 16px; }
 .am-geraet--pc .anmeldemeldung__bild img { max-height: 324px; }
 .am-geraet--handy .anmeldemeldung__bild img { max-height: 303px; }
-.am-geraet button { pointer-events: none; }
+.am-geraet .am-abmelden, .am-geraet #am-gelesen { pointer-events: none; }
 
 /* Bilder an ihrem Platz im Text (1.48.0) */
 .am-bilder__nr { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.65); color: #fff;
@@ -7375,3 +7375,37 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
 .am-bilder__eins .am-bilder__intext { position: absolute; right: 4px; bottom: 4px; padding: 2px 8px; min-height: 0;
   background: var(--flaeche); color: var(--tinte); border: 1px solid var(--linie-stark); font-size: 12px; }
 
+
+/* Meldungen mit Seiten (1.49.0) */
+.anmeldemeldung__rolle { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin-bottom: 14px; }
+.anmeldemeldung__rolle .anmeldemeldung__text { overflow: visible; margin-bottom: 0; }
+.anmeldemeldung__ueber { margin: 0; font-size: 1.15rem; }
+.anmeldemeldung__seiten { display: flex; align-items: center; gap: 12px; margin: -4px 0 14px; flex-wrap: wrap; }
+.anmeldemeldung__seitenzahl { font-size: 13px; font-weight: 600; color: var(--gedaempft); font-variant-numeric: tabular-nums; }
+.anmeldemeldung__punkte { display: flex; gap: 6px; }
+.anmeldemeldung__punkte i { width: 22px; height: 5px; border-radius: 3px; background: var(--linie); }
+.anmeldemeldung__punkte i.war { background: color-mix(in srgb, var(--marke) 45%, var(--linie)); }
+.anmeldemeldung__punkte i.an { background: var(--marke); }
+.anmeldemeldung__knoepfe .am-abmelden { flex: 0 1 auto; margin-right: auto; }
+.anmeldemeldung__knoepfe .knopf--haupt, .anmeldemeldung__knoepfe [data-am-zurueck] { flex: 0 1 180px; }
+@media (max-width: 640px) { .anmeldemeldung__knoepfe .knopf { flex: 1 1 auto !important; min-width: 0; }
+  .anmeldemeldung__knoepfe .am-abmelden { order: 3; flex-basis: 100% !important; } }
+.am-geraet--handy .anmeldemeldung__knoepfe .knopf { flex: 1 1 auto !important; min-width: 0; }
+.am-geraet--handy .anmeldemeldung__knoepfe .am-abmelden { order: 3; flex-basis: 100% !important; }
+
+.anmeldemeldung-bearbeiten .am-seite { border: 1px solid var(--linie); border-left: 4px solid var(--marke);
+  border-radius: var(--radius); padding: 12px 14px 14px; margin: 0 0 12px; display: grid; gap: 8px; }
+.am-seite__kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.am-seite__knoepfe { display: flex; align-items: center; gap: 6px; }
+.am-seite__knoepfe .linkknopf { margin-left: 6px; }
+.am-seite__ueber { font-weight: 600; }
+.anmeldemeldung-bearbeiten .am-seite .stilfeld { min-height: 90px; }
+.am-seite .am-bilder { margin-top: 0; }
+.am-seite .am-bilder__eins, .am-seite .am-bilder__dazu { width: 130px; height: 96px; }
+.am-seite-dazu { width: 100%; padding: 12px; border: 2px dashed var(--linie-stark); border-radius: var(--radius);
+  background: none; color: var(--gedaempft); font: inherit; font-weight: 600; cursor: pointer; margin-bottom: 6px; }
+.am-seite-dazu:hover { border-color: var(--marke); color: var(--marke); }
+.anmeldemeldung__bilder { display: grid; gap: 12px; }
+.anmeldemeldung__bilder.mehrere { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start; }
+.anmeldemeldung__bilder.mehrere .anmeldemeldung__bild img { max-height: 300px; }
+.am-geraet--handy .anmeldemeldung__bilder.mehrere { grid-template-columns: 1fr; }

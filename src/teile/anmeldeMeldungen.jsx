@@ -49,15 +49,44 @@ function meldungZusammen(html, bilder) {
   return (html || "") + (bilder && bilder.length ? "<!--bilder:" + JSON.stringify(bilder) + "-->" : "");
 }
 
-// Text und Bilder einer Meldung, wie sie nach dem Anmelden erscheint.
+// Seiten (seit 1.49.0, Wunsch Patrick 13. Oktober 2026: „mehrere
+// Seiten, Schritt für Schritt lesen, je Seite ein oder mehrere Bilder,
+// damit man weiss, welches Bild zu welchem Text gehört“). Eine Meldung
+// mit Seiten steht ganz als <!--seiten:[{ueber, text, bilder}]--> im
+// Text. Ältere Meldungen (Text und <!--bilder:…-->) sind eine Seite.
+const SEITEN = /^\s*<!--seiten:([\s\S]*)-->\s*$/;
+
+export function seitenLesen(text) {
+  const m = String(text || "").match(SEITEN);
+  if (m) {
+    try {
+      const liste = JSON.parse(m[1]);
+      if (Array.isArray(liste) && liste.length) {
+        return liste.map((x) => ({ ueber: String((x && x.ueber) || ""), text: String((x && x.text) || ""),
+          bilder: Array.isArray(x && x.bilder) ? x.bilder.filter((b) => typeof b === "string") : [] }));
+      }
+    } catch (f) { /* wie alt */ }
+  }
+  const { html, bilder } = meldungTeilen(text);
+  return [{ ueber: "", text: html, bilder }];
+}
+
+function seitenText(seiten) {
+  // Eine Seite ohne Überschrift bleibt im alten, kürzeren Aufbau
+  if (seiten.length === 1 && !seiten[0].ueber) return meldungZusammen(seiten[0].text, seiten[0].bilder);
+  return "<!--seiten:" + JSON.stringify(seiten.map((x) => ({ ueber: x.ueber, text: x.text, bilder: x.bilder }))) + "-->";
+}
+
+// Text und Bilder einer Seite, wie sie nach dem Anmelden erscheint.
 // Steht im Text „[Bild 2]“, kommt das zweite Bild genau dort hin
-// (Wunsch Patrick 13. Oktober 2026: Bild gleich beim passenden Punkt);
-// Bilder ohne solchen Platz stehen am Ende.
+// (1.48.0); Bilder ohne solchen Platz stehen am Ende.
 const BILD_PLATZ = /\[\s*Bild\s+(\d+)\s*\]/gi;
 
-function Inhalt({ text }) {
-  const { html, bilder } = meldungTeilen(text);
+function Inhalt({ text, bilder, ueber }) {
+  const html = text || "";
+  bilder = bilder || [];
   const teile = [];
+  if (ueber) teile.push(<h3 key="ueber" className="anmeldemeldung__ueber">{ueber}</h3>);
   const benutzt = new Set();
   let rest = 0, m;
   BILD_PLATZ.lastIndex = 0;
@@ -73,10 +102,62 @@ function Inhalt({ text }) {
     if (bilder[nr]) { benutzt.add(nr); teile.push(<Bild key={"b" + m.index} url={bilder[nr]} />); }
   }
   textStueck(html.slice(rest), "tende");
-  bilder.forEach((b, i) => { if (!benutzt.has(i)) teile.push(<Bild key={"r" + i} url={b} />); });
+  // Übrige Bilder nebeneinander, wenn es mehrere sind (auf dem Handy untereinander)
+  const rest2 = bilder.map((b, i) => [b, i]).filter(([, i]) => !benutzt.has(i));
+  if (rest2.length) {
+    teile.push(<div key="bilder" className={"anmeldemeldung__bilder" + (rest2.length > 1 ? " mehrere" : "")}>
+      {rest2.map(([b, i]) => <Bild key={"r" + i} url={b} />)}</div>);
+  }
   return <div className="anmeldemeldung__text">{teile}</div>;
 }
 
+// Eine Meldung mit Kopf, Seite und Knöpfen. Für das Feld nach dem
+// Anmelden und für die Vorschau. Gelesen gibt es erst auf der letzten
+// Seite, davor Weiter; Zurück ab der zweiten.
+function MeldungAnsicht({ m, wievielte, gelesen, laeuft, abmelden, vorschau }) {
+  const seiten = seitenLesen(m.text);
+  const [nr, setNr] = useState(0);
+  const s = seiten[Math.min(nr, seiten.length - 1)];
+  const letzte = nr >= seiten.length - 1;
+  const text = useRef(null);
+  const blaettern = (r) => {
+    setNr((x) => Math.max(0, Math.min(seiten.length - 1, x + r)));
+    if (text.current) text.current.scrollTop = 0;
+  };
+  return (
+    <div className="dialog anmeldemeldung" role={vorschau ? undefined : "alertdialog"} aria-modal={vorschau ? undefined : "true"}
+      aria-labelledby={vorschau ? undefined : "am-titel"}>
+      <div className="anmeldemeldung__kopf">
+        <span className="anmeldemeldung__marke">Neu im Hofer Tool</span>
+        <span className="anmeldemeldung__datum">{datumText(m.erstellt)}{wievielte ? " · " + wievielte : ""}</span>
+      </div>
+      <h2 id={vorschau ? undefined : "am-titel"}>{m.titel}</h2>
+      {seiten.length > 1 && (
+        <div className="anmeldemeldung__seiten" aria-label={"Seite " + (nr + 1) + " von " + seiten.length}>
+          <span className="anmeldemeldung__seitenzahl">Seite {nr + 1} von {seiten.length}</span>
+          <span className="anmeldemeldung__punkte" aria-hidden="true">
+            {seiten.map((_, i) => <i key={i} className={i === nr ? "an" : i < nr ? "war" : ""} />)}
+          </span>
+        </div>
+      )}
+      <div className="anmeldemeldung__rolle" ref={text} key={nr}>
+        <Inhalt text={s.text} bilder={s.bilder} ueber={s.ueber} />
+      </div>
+      <div className="dialog__knoepfe anmeldemeldung__knoepfe">
+        <button className="knopf knopf--still am-abmelden" tabIndex={vorschau ? -1 : undefined}
+          onClick={vorschau ? undefined : abmelden}>Abmelden</button>
+        {nr > 0 && <button className="knopf knopf--still" id={vorschau ? undefined : "am-zurueck"}
+          data-am-zurueck="" onClick={() => blaettern(-1)}>Zurück</button>}
+        {letzte
+          ? <button className="knopf knopf--haupt" id={vorschau ? undefined : "am-gelesen"} disabled={laeuft}
+              tabIndex={vorschau ? -1 : undefined} autoFocus={!vorschau}
+              onClick={vorschau ? undefined : gelesen}>{wievielte && !/(\d+) von \1$/.test(wievielte) ? "Gelesen, weiter" : "Gelesen"}</button>
+          : <button className="knopf knopf--haupt" id={vorschau ? undefined : "am-weiter"} data-am-weiter=""
+              autoFocus={!vorschau} onClick={() => blaettern(1)}>Weiter</button>}
+      </div>
+    </div>
+  );
+}
 function Bild({ url }) {
   // Bilder als data:-Adresse (eingefügt ohne Ablage) nicht als Link öffnen
   const bild = <img src={url} alt="" loading="eager" />;
@@ -190,21 +271,8 @@ function Sperre({ liste, userId, zu }) {
     }
   };
   return (
-    <div className="dialog anmeldemeldung" role="alertdialog" aria-modal="true"
-      aria-labelledby="am-titel" key={m.id}>
-      <div className="anmeldemeldung__kopf">
-        <span className="anmeldemeldung__marke">Neu im Hofer Tool</span>
-        <span className="anmeldemeldung__datum">
-          {datumText(m.erstellt)}{liste.length > 1 ? " · " + (nr + 1) + " von " + liste.length : ""}</span>
-      </div>
-      <h2 id="am-titel">{m.titel}</h2>
-      <Inhalt text={m.text} />
-      <div className="dialog__knoepfe anmeldemeldung__knoepfe">
-        <button className="knopf knopf--still" onClick={abmelden}>Abmelden</button>
-        <button className="knopf knopf--haupt" id="am-gelesen" onClick={gelesen} disabled={laeuft} autoFocus>
-          {nr + 1 < liste.length ? "Gelesen, weiter" : "Gelesen"}</button>
-      </div>
-    </div>
+    <MeldungAnsicht key={m.id} m={m} gelesen={gelesen} laeuft={laeuft} abmelden={abmelden}
+      wievielte={liste.length > 1 ? "Meldung " + (nr + 1) + " von " + liste.length : ""} />
   );
 }
 
@@ -270,18 +338,7 @@ function GeraeteVorschau({ m, zu }) {
         <div className={"am-geraet am-geraet--" + art}
           style={{ width: g.b, height: g.h, transform: "scale(" + mass + ")" }}>
           <div className="am-geraet__huelle">
-            <div className="dialog anmeldemeldung">
-              <div className="anmeldemeldung__kopf">
-                <span className="anmeldemeldung__marke">Neu im Hofer Tool</span>
-                <span className="anmeldemeldung__datum">{datumText(m.erstellt)}</span>
-              </div>
-              <h2>{m.titel}</h2>
-              <Inhalt text={m.text} />
-              <div className="dialog__knoepfe anmeldemeldung__knoepfe">
-                <button className="knopf knopf--still" tabIndex={-1}>Abmelden</button>
-                <button className="knopf knopf--haupt" tabIndex={-1}>Gelesen</button>
-              </div>
-            </div>
+            <MeldungAnsicht m={m} vorschau />
           </div>
         </div>
       </div>
@@ -290,9 +347,10 @@ function GeraeteVorschau({ m, zu }) {
   );
 }
 
-// Eigenes Fenster statt dialogFelder, weil Bilder dazukommen: Titel,
-// Text mit B, I, U und darunter die Bilder mit „Bild hinzufügen“ (auch
-// Einfügen mit Strg + V). Ergebnis { titel, text, neu } oder null.
+// Eigenes Fenster statt dialogFelder: Titel und darunter die Seiten,
+// jede mit Überschrift, Text mit B, I, U und ihren eigenen Bildern
+// („Bild hinzufügen“, am Computer auch hineinziehen oder Strg + V auf
+// der Seite). Ergebnis { titel, text, neu } oder null.
 function bearbeitenDialog(m) {
   return new Promise((fertig) => {
     let ende = false;
@@ -312,108 +370,140 @@ async function bildHochladen(datei) {
   return alt.db.storage.from(ABLAGE).getPublicUrl(pfad).data.publicUrl;
 }
 
+let seitenZaehler = 0;
+const neueSeite = (x) => ({ k: "s" + (++seitenZaehler), ueber: (x && x.ueber) || "", text: (x && x.text) || "",
+  bilder: (x && x.bilder) || [], laedt: 0 });
+
 function Bearbeiten({ m, fertig }) {
-  const anfang = meldungTeilen(m ? m.text : "");
   const [titel, setTitel] = useState(m ? m.titel : "");
-  const [bilder, setBilder] = useState(anfang.bilder);
-  const [laedt, setLaedt] = useState(0);
+  const [seiten, setSeiten] = useState(() => seitenLesen(m ? m.text : "").map(neueSeite));
   const [neu, setNeu] = useState("nein");
   const [fehlt, setFehlt] = useState(false);
   const wahl = useRef(null);
+  const ziel = useRef(null);   // Seite, für die gerade Bilder gewählt werden
+  const laedt = seiten.some((x) => x.laedt > 0);
 
-  const dazu = async (dateien) => {
+  const aendern = (k, fn) => setSeiten((l) => l.map((x) => (x.k === k ? fn(x) : x)));
+  const dazu = async (k, dateien) => {
     const liste = Array.from(dateien || []).filter((d) => /^image\//.test(d.type));
     if (!liste.length) return;
-    setLaedt((n) => n + liste.length);
+    aendern(k, (x) => ({ ...x, laedt: x.laedt + liste.length }));
     for (const d of liste) {
       try {
         const url = await bildHochladen(d);
-        setBilder((b) => [...b, url]);
+        aendern(k, (x) => ({ ...x, bilder: [...x.bilder, url] }));
       } catch (f) {
         alt.meldung("Bild nicht hochgeladen: " + alt.fehlertext(f), "fehler");
       }
-      setLaedt((n) => n - 1);
+      aendern(k, (x) => ({ ...x, laedt: x.laedt - 1 }));
     }
   };
-  const einfuegen = (e) => {
+  const einfuegen = (k, e) => {
     const d = Array.from((e.clipboardData && e.clipboardData.files) || []);
-    if (d.some((x) => /^image\//.test(x.type))) { e.preventDefault(); dazu(d); }
+    if (d.some((x) => /^image\//.test(x.type))) { e.preventDefault(); e.stopPropagation(); dazu(k, d); }
   };
-  // „[Bild n]“ an die Schreibmarke im Text, sonst ans Ende
-  const inText = (i) => {
-    const el = document.getElementById("am-text");
-    if (!el) return;
-    const sel = document.getSelection();
-    if (!sel || !el.contains(sel.anchorNode)) {
-      el.focus();
-      const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
-      sel.removeAllRanges(); sel.addRange(r);
-    }
-    document.execCommand("insertText", false, "[Bild " + (i + 1) + "]");
-  };
-  const schieben = (i, r) => setBilder((b) => {
-    const n = b.slice(); const j = i + r;
-    if (j < 0 || j >= n.length) return b;
+  const bildSchieben = (k, i, r) => aendern(k, (x) => {
+    const n = x.bilder.slice(); const j = i + r;
+    if (j < 0 || j >= n.length) return x;
+    [n[i], n[j]] = [n[j], n[i]]; return { ...x, bilder: n };
+  });
+  const seiteSchieben = (i, r) => setSeiten((l) => {
+    const n = l.slice(); const j = i + r;
+    if (j < 0 || j >= n.length) return l;
     [n[i], n[j]] = [n[j], n[i]]; return n;
   });
-  const speichern = () => {
-    if (!titel.trim()) { setFehlt(true); return; }
-    const feld = document.getElementById("am-text");
-    const html = feld ? stilWert(feld) : "";
-    fertig({ titel: titel.trim(), text: meldungZusammen(html, bilder), neu });
+  const seiteWeg = async (x, i) => {
+    const feld = document.getElementById("am-text-" + x.k);
+    const leer = !x.ueber.trim() && !x.bilder.length && !(feld && feld.textContent.trim());
+    if (!leer && !(await alt.nachfragen({ titel: "Seite löschen",
+      text: "Seite " + (i + 1) + (x.ueber ? " („" + x.ueber + "“)" : "") + " mit Text und Bildern entfernen?",
+      bestaetigen: "Löschen", gefahr: true }))) return;
+    setSeiten((l) => l.filter((y) => y.k !== x.k));
   };
-
+  const seiteDazu = () => {
+    const s = neueSeite();
+    setSeiten((l) => [...l, s]);
+    setTimeout(() => {
+      const el = document.querySelector('[data-seite-k="' + s.k + '"]');
+      if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); const u = el.querySelector("input"); if (u) u.focus(); }
+    }, 50);
+  };
+  // Stand aller Felder, auch ungespeichert (Text steht nur im Feld selbst)
+  const stand = () => seiten.map((x) => {
+    const feld = document.getElementById("am-text-" + x.k);
+    return { ueber: x.ueber.trim(), text: feld ? stilWert(feld) : x.text, bilder: x.bilder };
+  });
+  const speichern = () => {
+    if (!titel.trim()) { setFehlt(true); document.getElementById("am-titel-feld").focus(); return; }
+    fertig({ titel: titel.trim(), text: seitenText(stand()), neu });
+  };
   // Vorschau (Wunsch Patrick 13. Oktober 2026: „beim Erstellen eine
   // Vorschau sehen, für PC und Handy“): nimmt den Stand der Felder, auch
   // ungespeichert, und zeigt die Meldung wie nach dem Anmelden.
-  const vorschau = () => {
-    const feld = document.getElementById("am-text");
-    geraeteVorschau({ titel: titel.trim() || "(ohne Titel)",
-      text: meldungZusammen(feld ? stilWert(feld) : "", bilder), erstellt: m ? m.erstellt : new Date().toISOString() });
-  };
+  const vorschau = () => geraeteVorschau({ titel: titel.trim() || "(ohne Titel)",
+    text: seitenText(stand()), erstellt: m ? m.erstellt : new Date().toISOString() });
+
   return (
-    <div className="dialog anmeldemeldung-bearbeiten" onPaste={einfuegen}
-      onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); dazu(e.dataTransfer.files); }}>
+    <div className="dialog anmeldemeldung-bearbeiten"
+      onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()}>
       <h2>{m ? "Meldung bearbeiten" : "Neue Meldung"}</h2>
-      {!m && <p className="hinweis">Erscheint bei allen nach dem nächsten Anmelden, bis sie auf „Gelesen“ tippen.</p>}
+      {!m && <p className="hinweis">Erscheint bei allen nach dem nächsten Anmelden. Mit mehreren Seiten liest man
+        Schritt für Schritt mit „Weiter“, „Gelesen“ kommt erst auf der letzten Seite.</p>}
       <label className="feld"><span>Titel</span>
-        <input id="am-titel-feld" type="text" value={titel} data-fokus="" placeholder="z. B. Neu: Letzten Eintrag löschen"
+        <input id="am-titel-feld" type="text" value={titel} data-fokus="" placeholder="z. B. Neu im Hofer Tool"
           className={fehlt ? "fehlt" : ""} onChange={(e) => { setTitel(e.target.value); setFehlt(false); }} />
       </label>
       {fehlt && <p className="feld-fehler">Bitte einen Titel eingeben.</p>}
-      <div className="feld"><span>Text</span>
-        <TextMitStil id="am-text" wert={anfang.html} platzhalter="Was ist neu, wo findet man es, wie geht es?" />
-      </div>
-      <div className="feld"><span>Bilder</span>
-        <div className="am-bilder">
-          {bilder.map((b, i) => (
-            <div key={b} className="am-bilder__eins">
-              <img src={b} alt="" />
-              <span className="am-bilder__nr">Bild {i + 1}</span>
-              <button type="button" className="knopf knopf--klein am-bilder__intext" data-intext={i}
-                title="„[Bild …]“ an der Schreibmarke in den Text setzen: dort erscheint das Bild"
-                onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}
-                onClick={() => inText(i)}>In Text</button>
-              <div className="am-bilder__knoepfe">
-                {bilder.length > 1 && <>
-                  <button type="button" className="knopf knopf--klein knopf--still" title="Nach vorne"
-                    disabled={i === 0} onClick={() => schieben(i, -1)}>‹</button>
-                  <button type="button" className="knopf knopf--klein knopf--still" title="Nach hinten"
-                    disabled={i === bilder.length - 1} onClick={() => schieben(i, 1)}>›</button></>}
-                <button type="button" className="knopf knopf--klein am-bilder__weg" data-bildweg={i} title="Bild entfernen"
-                  onClick={() => setBilder((x) => x.filter((y) => y !== b))}>✕</button>
+
+      {seiten.map((x, i) => (
+        <section key={x.k} className="am-seite" data-seite={i} data-seite-k={x.k}
+          onPaste={(e) => einfuegen(x.k, e)}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); dazu(x.k, e.dataTransfer.files); }}>
+          <div className="am-seite__kopf">
+            <strong>Seite {i + 1}{seiten.length > 1 ? " von " + seiten.length : ""}</strong>
+            {seiten.length > 1 && <div className="am-seite__knoepfe">
+              <button type="button" className="knopf knopf--klein knopf--still" title="Seite nach vorne"
+                disabled={i === 0} onClick={() => seiteSchieben(i, -1)}>↑</button>
+              <button type="button" className="knopf knopf--klein knopf--still" title="Seite nach hinten"
+                disabled={i === seiten.length - 1} onClick={() => seiteSchieben(i, 1)}>↓</button>
+              <button type="button" className="linkknopf linkknopf--gefahr" data-seiteweg={i}
+                onClick={() => seiteWeg(x, i)}>Seite löschen</button>
+            </div>}
+          </div>
+          <input type="text" className="am-seite__ueber" value={x.ueber} aria-label={"Überschrift Seite " + (i + 1)}
+            placeholder="Überschrift, z. B. Abmelden mit Esc (kann leer bleiben)"
+            onChange={(e) => { const v = e.target.value; aendern(x.k, (y) => ({ ...y, ueber: v })); }} />
+          <TextMitStil id={"am-text-" + x.k} wert={x.text} platzhalter="Was ist neu, wo findet man es, wie geht es?" />
+          <div className="am-bilder">
+            {x.bilder.map((b, j) => (
+              <div key={b + j} className="am-bilder__eins">
+                <img src={b} alt="" />
+                <div className="am-bilder__knoepfe">
+                  {x.bilder.length > 1 && <>
+                    <button type="button" className="knopf knopf--klein knopf--still" title="Nach vorne"
+                      disabled={j === 0} onClick={() => bildSchieben(x.k, j, -1)}>‹</button>
+                    <button type="button" className="knopf knopf--klein knopf--still" title="Nach hinten"
+                      disabled={j === x.bilder.length - 1} onClick={() => bildSchieben(x.k, j, 1)}>›</button></>}
+                  <button type="button" className="knopf knopf--klein am-bilder__weg" data-bildweg={j} title="Bild entfernen"
+                    onClick={() => aendern(x.k, (y) => ({ ...y, bilder: y.bilder.filter((_, n) => n !== j) }))}>✕</button>
+                </div>
               </div>
-            </div>
-          ))}
-          {laedt > 0 && <div className="am-bilder__eins am-bilder__laedt">Lädt …</div>}
-          <button type="button" className="am-bilder__dazu" id="am-bild-dazu" onClick={() => wahl.current.click()}>
-            <span aria-hidden="true">+</span>Bild hinzufügen</button>
-          <input ref={wahl} type="file" accept="image/*" multiple hidden id="am-bild-datei"
-            onChange={(e) => { dazu(e.target.files); e.target.value = ""; }} />
-        </div>
-        <p className="hinweis klein">Am Computer auch Bild hierher ziehen oder mit Strg + V einfügen.
-          „In Text“ setzt [Bild 1] an die Schreibmarke: dort erscheint das Bild, sonst steht es am Ende.</p>
-      </div>
+            ))}
+            {x.laedt > 0 && <div className="am-bilder__eins am-bilder__laedt">Lädt …</div>}
+            <button type="button" className="am-bilder__dazu" data-bilddazu={i}
+              onClick={() => { ziel.current = x.k; wahl.current.click(); }}>
+              <span aria-hidden="true">+</span>Bild zu dieser Seite</button>
+          </div>
+        </section>
+      ))}
+      <input ref={wahl} type="file" accept="image/*" multiple hidden id="am-bild-datei"
+        onChange={(e) => { dazu(ziel.current, e.target.files); e.target.value = ""; }} />
+      <button type="button" className="am-seite-dazu" id="am-seite-dazu" onClick={seiteDazu}>
+        <span aria-hidden="true">+</span> Seite hinzufügen</button>
+      <p className="hinweis klein">Bilder gehören immer zu ihrer Seite und stehen unter deren Text. Am Computer
+        auch ein Bild auf die Seite ziehen oder dort mit Strg + V einfügen.</p>
+
       {m && (
         <label className="feld"><span>Wer sie schon gelesen hat</span>
           <select id="am-neu-wahl" value={neu} onChange={(e) => setNeu(e.target.value)}>
@@ -425,7 +515,7 @@ function Bearbeiten({ m, fertig }) {
       <div className="dialog__knoepfe">
         <button className="knopf knopf--still" id="am-vorschau" onClick={vorschau}>Vorschau</button>
         <button className="knopf knopf--still" data-nein="" onClick={() => fertig(null)}>Abbrechen</button>
-        <button className="knopf knopf--haupt" id="am-speichern" disabled={laedt > 0} onClick={speichern}>
+        <button className="knopf knopf--haupt" id="am-speichern" disabled={laedt} onClick={speichern}>
           {m ? "Speichern" : "Veröffentlichen"}</button>
       </div>
     </div>
@@ -497,7 +587,9 @@ function Verwalten({ anfang, zu }) {
               <div className="anmeldemeldungen__zeile">
                 <div className="anmeldemeldungen__was">
                   <strong>{m.titel}</strong>
-                  <span className="klein">{datumText(m.erstellt)}{m.aktiv ? "" : " · ausgeschaltet"}</span>
+                  <span className="klein">{datumText(m.erstellt)}
+                    {seitenLesen(m.text).length > 1 ? " · " + seitenLesen(m.text).length + " Seiten" : ""}
+                    {m.aktiv ? "" : " · ausgeschaltet"}</span>
                 </div>
                 <button className="linkknopf" data-leser={m.id}
                   onClick={() => setOffen(offen === m.id ? null : m.id)}>
