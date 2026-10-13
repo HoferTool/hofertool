@@ -9,7 +9,11 @@
 --  (Wunsch Patrick, 13. Oktober 2026).
 --
 --  Tabelle artikel_bild: eine Zeile je Artikel, bild = Name der
---  Zeichnung (etwa „bohren“). Die Artikel selbst bleiben unverändert.
+--  Zeichnung (etwa „bohren“) oder „eigen:<id>“. Die Artikel selbst
+--  bleiben unverändert.
+--
+--  Tabelle eb_bilder: eigene Bilder, die man in der App zur Bibliothek
+--  hochlädt (Datei in der Ablage „zeichnungen“, einrichtblatt/bilder/).
 --  Lesen dürfen alle Angemeldeten, ändern alle ausser Externen.
 --  Gefahrlos mehrfach ausführbar. Am Ende eine Probe mit ok / FEHLT.
 -- =================================================================
@@ -46,8 +50,29 @@ drop policy if exists "loeschen" on public.artikel_bild;
 create policy "loeschen" on public.artikel_bild for delete to authenticated
   using (public.darf_schreiben() and not public.ist_extern());
 
+create table if not exists public.eb_bilder (
+  id           uuid primary key default gen_random_uuid(),
+  name         text,
+  url          text not null,
+  pfad         text,
+  erstellt_am  timestamptz not null default now(),
+  erstellt_von uuid default auth.uid() references public.profiles (id) on delete set null
+);
+alter table public.eb_bilder enable row level security;
+drop policy if exists "lesen" on public.eb_bilder;
+create policy "lesen" on public.eb_bilder for select to authenticated using (public.darf_lesen());
+drop policy if exists "anlegen" on public.eb_bilder;
+create policy "anlegen" on public.eb_bilder for insert to authenticated
+  with check (public.darf_schreiben() and not public.ist_extern());
+drop policy if exists "loeschen" on public.eb_bilder;
+create policy "loeschen" on public.eb_bilder for delete to authenticated
+  using (public.darf_schreiben() and not public.ist_extern());
+
 notify pgrst, 'reload schema';
 
 -- ---------- Probe ----------
 select 'Tabelle artikel_bild' as punkt,
-       case when to_regclass('public.artikel_bild') is not null then 'ok' else 'FEHLT' end as ergebnis;
+       case when to_regclass('public.artikel_bild') is not null then 'ok' else 'FEHLT' end as ergebnis
+union all
+select 'Tabelle eb_bilder',
+       case when to_regclass('public.eb_bilder') is not null then 'ok' else 'FEHLT' end;

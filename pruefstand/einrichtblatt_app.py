@@ -24,7 +24,7 @@ with sync_playwright() as p:
     pg.wait_for_selector(".pw-tafel"); pg.wait_for_timeout(1200)
     pg.evaluate("""(XL) => {
       TEST.daten.hoco_type_data.push({ hoco_nr: '10000-0301', type_id: 't1', blatt_url: XL, stueckzeit_s: null });
-      TEST.daten.einrichtblatt_app = []; TEST.daten.artikel_bild = [];
+      TEST.daten.einrichtblatt_app = []; TEST.daten.artikel_bild = []; TEST.daten.eb_bilder = [];
     }""", XL)
     pg.locator("#pw-hoco").click(); pg.wait_for_timeout(1000)
     pg.locator("[data-bereich='10000']").click(); pg.wait_for_timeout(600)
@@ -52,7 +52,7 @@ with sync_playwright() as p:
     pruefe("Stückzeit ergänzt", td.get("stueckzeit_s") == 33)
     s = pg.inner_text("[data-eba-seite]")
     pruefe("Blatt zeigt Kopf", "Werkzeug- Protokoll-Star SR32J" in s and "O1111" in s and "10000-0301" in s and "Deckel" in s)
-    pruefe("Vorschlag-Bild aus Tätigkeit", pg.locator("[data-platz='T100'] [data-bild='abstechen']").count() == 1
+    pruefe("Vorschlag-Bild aus Tätigkeit", pg.locator("[data-platz='T100'] [data-bild='stechen']").count() == 1
            and pg.locator("[data-platz='T200'] [data-bild='bohren']").count() == 1
            and pg.locator("[data-platz='T3100'] [data-bild='gewindebohren']").count() == 1)
     pg.screenshot(path="einrichtblatt_app_ansicht.png")
@@ -68,12 +68,25 @@ with sync_playwright() as p:
     pruefe("Artikel-Vorschlag", pf.locator("[data-artikel='a1']").count() == 1 and pf.locator("[data-pf-neuartikel]").count() == 1)
     pf.locator("[data-artikel='a1']").click()
     pf.locator("[data-pf-bild]").click()
-    pruefe("Bibliothek offen", pf.locator("[data-bib]").count() >= 15)
+    pruefe("Bibliothek offen, ohne Beschriftung", pf.locator("[data-bib]").count() >= 15 and pf.locator("[data-bib='bohren_flach']").count() == 0
+           and pf.locator("[data-pf-bibliothek]").inner_text().strip() in ("+—", "+\n—", "+ —"))
     pg.screenshot(path="einrichtblatt_app_platz.png")
-    pf.locator("[data-bib='flachbohrer']").click()
+    pf.locator("[data-bib='bohren']").click(); pg.wait_for_selector(".dialog-huelle [data-w='bohren_flach']")
+    pg.locator(".dialog-huelle [data-w='bohren_flach']").click(); pg.wait_for_timeout(300)
+    pruefe("Flachbohrer gewählt", pf.locator("[data-pf-bild] [data-bild='bohren_flach']").count() == 1)
+    # Eigenes Bild hochladen
+    pf.locator("[data-pf-bild]").click()
+    PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+    pf.locator("[data-bib-hoch]").set_input_files({"name": "mein-werkzeug.png", "mimeType": "image/png", "buffer": PNG})
+    pg.wait_for_timeout(1200)
+    eb = pg.evaluate("TEST.daten.eb_bilder")
+    pruefe("Eigenes Bild in der Bibliothek", len(eb) == 1 and eb[0]["name"] == "mein-werkzeug" and pf.locator("[data-pf-bild] .eba-svg--foto").count() == 1)
+    pf.locator("[data-pf-bild]").click()
+    pf.locator("[data-bib='bohren']").click(); pg.wait_for_selector(".dialog-huelle [data-w='bohren_flach']")
+    pg.locator(".dialog-huelle [data-w='bohren_flach']").click(); pg.wait_for_timeout(300)
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(500)
-    pruefe("Bild am Artikel gemerkt", pg.evaluate("TEST.daten.artikel_bild.find(x => x.article_id === 'a1')?.bild") == "flachbohrer")
-    pruefe("T100 bekommt das Artikelbild auch", pg.locator("[data-platz='T100'] [data-bild='flachbohrer']").count() == 1)
+    pruefe("Bild am Artikel gemerkt", pg.evaluate("TEST.daten.artikel_bild.find(x => x.article_id === 'a1')?.bild") == "bohren_flach")
+    pruefe("T100 bekommt das Artikelbild auch", pg.locator("[data-platz='T100'] [data-bild='bohren_flach']").count() == 1)
     pg.click("[data-eba-speichern]"); pg.wait_for_timeout(800)
     b = pg.evaluate("TEST.daten.einrichtblatt_app[0]")
     t2 = b["plaetze"]["T200"]

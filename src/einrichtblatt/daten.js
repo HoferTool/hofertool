@@ -9,6 +9,7 @@
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { excelRoh, blattAusExcel } from "./excelEinlesen.js";
+import { eigeneBilderSetzen } from "./bilder.js";
 
 export const TABELLE = "einrichtblatt_app";
 
@@ -48,6 +49,7 @@ export async function blattLaden(hocoNr, typId) {
     db.from("hoco_type_data").select("*").eq("hoco_nr", hocoNr).eq("type_id", typId).limit(1)
       .then((r) => (r.data || [])[0] || null),
     artikelBilderLaden(),
+    eigeneBilderLaden(),
   ]);
   const typ = (typen || []).find((t) => t.id === typId) || { id: typId, name: "" };
   // blatt_aufbau holt die gemerkte Typenliste nicht unbedingt mit
@@ -118,6 +120,63 @@ export async function artikelBilderLaden() {
     if (r.error) return {};
     return Object.fromEntries((r.data || []).map((z) => [z.article_id, z.bild]));
   } catch (f) { return {}; }
+}
+
+// Eigene Bilder der Bibliothek (Tabelle eb_bilder, Wunsch Patrick
+// 13. Oktober 2026: „soll auch die Option haben, weitere Bilder per App
+// hochzuladen“). Fehlt die Tabelle, gibt es eben nur die gezeichneten.
+export async function eigeneBilderLaden() {
+  try {
+    const r = await alt.db.from("eb_bilder").select("id, name, url").order("erstellt_am");
+    if (!r.error) eigeneBilderSetzen(r.data || []);
+  } catch (f) { /* nur die gezeichneten */ }
+}
+
+// Verkleinert auf höchstens 480 Pixel, damit das Blatt schnell lädt
+async function verkleinern(datei) {
+  try {
+    const bild = await createImageBitmap(datei);
+    const f = Math.min(1, 480 / Math.max(bild.width, bild.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bild.width * f); c.height = Math.round(bild.height * f);
+    c.getContext("2d").drawImage(bild, 0, 0, c.width, c.height);
+    const blob = await new Promise((ok) => c.toBlob(ok, "image/png"));
+    if (blob) return blob;
+  } catch (f) { /* dann das Original */ }
+  return datei;
+}
+
+// Hochladen, in die Bibliothek eintragen, Schlüssel zurückgeben
+export async function eigenesBildHochladen(datei) {
+  const blob = await verkleinern(datei);
+  const daten = new Uint8Array(await blob.arrayBuffer());
+  let name;
+  try {
+    const h = await crypto.subtle.digest("SHA-256", daten);
+    name = [...new Uint8Array(h)].slice(0, 16).map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch (f) { name = Date.now() + "-" + Math.random().toString(36).slice(2, 8); }
+  const pfad = "einrichtblatt/bilder/" + name + ".png";
+  const ablage = alt.db.storage.from("zeichnungen");
+  const r = await ablage.upload(pfad, blob, { upsert: true, contentType: blob.type || "image/png" });
+  if (r.error && !/exist/i.test(String(r.error.message || ""))) throw r.error;
+  const url = ablage.getPublicUrl(pfad).data.publicUrl;
+  const e = await alt.db.from("eb_bilder").insert([{ name: String(datei.name || "Eigenes Bild").replace(/\.[^.]+$/, ""), url, pfad }]).select();
+  if (e.error) {
+    if (/eb_bilder|does not exist|schema cache/i.test(String(e.error.message || "")))
+      throw new Error("Die Datenbank kennt die eigenen Bilder noch nicht (sql/einrichtblatt-bilder.sql).");
+    throw e.error;
+  }
+  await eigeneBilderLaden();
+  return "eigen:" + ((e.data || [])[0] || {}).id;
+}
+
+export async function eigenesBildLoeschen(id) {
+  const r = await alt.db.from("eb_bilder").select("pfad").eq("id", id).limit(1);
+  const pfad = ((r.data || [])[0] || {}).pfad;
+  const d = await alt.db.from("eb_bilder").delete().eq("id", id);
+  if (d.error) throw d.error;
+  if (pfad) { try { await alt.db.storage.from("zeichnungen").remove([pfad]); } catch (f) { /* bleibt eben liegen */ } }
+  await eigeneBilderLaden();
 }
 
 // Ab jetzt hat dieser Artikel überall dieses Bild (null nimmt es weg)

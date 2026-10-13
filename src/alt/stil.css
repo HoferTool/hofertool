@@ -7371,3 +7371,11 @@ body.pw-seite .su-leiste { bottom: 40px; }
                                 border: 1px solid var(--linie-stark); border-radius: 6px;
                                 background: var(--flaeche); color: var(--tinte); }
 .eba-platzfenster .feld > span { font-size: .75rem; color: var(--gedaempft); }
+/* Bibliothek nur mit Bildern, ohne Beschriftung (1.43.0) */
+.eba-pf-bib { position: relative; height: 72px; justify-content: center; }
+.eba-pf-bib .eba-svg { height: 60px; max-width: 100%; }
+.eba-svg--foto img { height: 100%; width: auto; max-width: 100%; object-fit: contain; display: block; }
+.eba-pf-bib--hoch { font-size: 1.6rem; color: #1f6feb; cursor: pointer; border-style: dashed; }
+.eba-pf-bib--keins { font-size: 1.2rem; color: var(--gedaempft); }
+.eba-pf-bib-weg { position: absolute; top: 2px; right: 3px; font-size: .7rem; color: var(--gefahr);
+                  background: #fff; border-radius: 50%; width: 16px; height: 16px; line-height: 16px; }

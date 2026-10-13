@@ -17,11 +17,14 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
 import { blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, artikelBildSetzen,
   STAMM_FELDER, WASCHGEBINDE } from "./daten.js";
-import { BILDER, bildDaten, platzBild } from "./bilder.js";
+import { BILDER, NACHFRAGE, bildDaten, platzBild, eigeneBilder } from "./bilder.js";
+import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
 
 // Eine Zeichnung aus der Bibliothek (eigene Daten im Code, kein fremdes Markup)
 export function BildZeichnung({ schluessel, className }) {
   const b = bildDaten(schluessel);
+  if (b && b.url) return <span className={"eba-svg eba-svg--foto " + (className || "")} data-bild={schluessel} title={b.name}>
+    <img src={b.url} alt="" /></span>;
   return b ? <span className={"eba-svg " + (className || "")} data-bild={schluessel} title={b.name}
     dangerouslySetInnerHTML={{ __html: b.svg }} /> : null;
 }
@@ -204,13 +207,8 @@ function PlatzFenster({ nr, pfad, wert, setzen, zu, artikelBilder, artikelBildNe
           <label className="feld"><span>Mass</span><input data-pf="mass" value={p.mass || ""} onChange={f("mass")} /></label>
         </div>
       </div>
-      {bildWahl && <div className="eba-pf-bibliothek" data-pf-bibliothek="">
-        {BILDER.map(([k, name]) => <button key={k} className={"eba-pf-bib" + (bild && bild.schluessel === k ? " eba-pf-bib--an" : "")}
-          data-bib={k} title={name} onClick={() => { setP(Object.assign({}, p, { bild: k })); setBildWahl(false); }}>
-          <BildZeichnung schluessel={k} /><span>{name}</span></button>)}
-        <button className="eba-pf-bib eba-pf-bib--keins" data-bib="" onClick={() => { setP(Object.assign({}, p, { bild: null })); setBildWahl(false); }}>
-          <span>Kein Bild</span></button>
-      </div>}
+      {bildWahl && <Bibliothek aktiv={bild && bild.schluessel}
+        waehlen={(k) => { setP(Object.assign({}, p, { bild: k })); setBildWahl(false); }} />}
       <label className="feld eba-pf-such"><span>Werkzeug (Artikel){artikelName ? " · " + artikelName : ""}</span>
         <input data-pf="werkzeug" value={p.werkzeug || ""} placeholder="Artikel suchen oder Text"
           onChange={(e) => { setP(Object.assign({}, p, { werkzeug: e.target.value, article_id: null })); setSuche(true); }} />
@@ -233,6 +231,49 @@ function PlatzFenster({ nr, pfad, wert, setzen, zu, artikelBilder, artikelBildNe
         <button className="knopf knopf--klein" data-pf-leeren="" onClick={() => setP({})}>Platz leeren</button>
         <button className="knopf knopf--klein knopf--haupt" data-pf-ok="" onClick={fertig}>Übernehmen</button>
       </div>
+    </div>
+  );
+}
+
+// Auswahl der Bilder: nur Bilder, keine Beschriftung (Wunsch Patrick,
+// 13. Oktober 2026). Beim Bohrer fragt ein kleines Fenster nach normal
+// oder flach. Am Ende die eigenen, hochgeladenen Bilder und „+“.
+function Bibliothek({ aktiv, waehlen }) {
+  const [, neu] = useState(0);
+  const [laedt, setLaedt] = useState(false);
+  const darf = alt.darfSchreiben() && !alt.istExtern();
+  const nehmen = async (k) => {
+    const n = NACHFRAGE[k];
+    if (!n) { waehlen(k); return; }
+    const w = await alt.auswahlDialog(n.titel, n.wahl.map(([wert, text]) => ({ wert, text })));
+    if (w) waehlen(w);
+  };
+  const hoch = async (e) => {
+    const d = (e.target.files || [])[0];
+    e.target.value = "";
+    if (!d) return;
+    setLaedt(true);
+    try { const k = await eigenesBildHochladen(d); neu((x) => x + 1); waehlen(k); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+    finally { setLaedt(false); }
+  };
+  const weg = async (b, ev) => {
+    ev.stopPropagation();
+    if (!(await alt.nachfragen({ titel: "Bild löschen", text: "Dieses Bild aus der Bibliothek löschen? Wo es schon verwendet ist, steht danach kein Bild mehr.", bestaetigen: "Löschen", gefahr: true }))) return;
+    try { await eigenesBildLoeschen(b.id); neu((x) => x + 1); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
+  const an = (k) => aktiv === k || (NACHFRAGE[k] && NACHFRAGE[k].wahl.some(([w]) => w === aktiv));
+  return (
+    <div className="eba-pf-bibliothek" data-pf-bibliothek="">
+      {BILDER.filter((b) => !b[3]).map(([k, name]) => <button key={k} className={"eba-pf-bib" + (an(k) ? " eba-pf-bib--an" : "")}
+        data-bib={k} title={name} onClick={() => nehmen(k)}><BildZeichnung schluessel={k} /></button>)}
+      {eigeneBilder().map((b) => <button key={b.schluessel} className={"eba-pf-bib" + (aktiv === b.schluessel ? " eba-pf-bib--an" : "")}
+        data-bib={b.schluessel} title={b.name} onClick={() => nehmen(b.schluessel)}><BildZeichnung schluessel={b.schluessel} />
+        {darf && <span className="eba-pf-bib-weg" data-bib-weg={b.id} onClick={(ev) => weg(b, ev)}>✕</span>}</button>)}
+      {darf && <label className="eba-pf-bib eba-pf-bib--hoch" title="Eigenes Bild hochladen">{laedt ? "…" : "+"}
+        <input type="file" accept="image/*" hidden data-bib-hoch="" onChange={hoch} /></label>}
+      <button className="eba-pf-bib eba-pf-bib--keins" data-bib="" title="Kein Bild" onClick={() => waehlen(null)}>—</button>
     </div>
   );
 }
