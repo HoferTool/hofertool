@@ -27,7 +27,9 @@ const artDerDatei = (a) => (istExcel(a) ? "excel" : istBild(a) ? "bild" : "pdf")
 // Nummer, nicht die Vorlage vom Typ).
 // neu(null) sagt dem Aufrufer, dass sie weg ist. fa nehmen die Aufrufer
 // noch mit, es wird nicht mehr gebraucht.
-export function dokZeigen({ art, titel, adresse, hoco, auftragId, typId, neu }) {
+// extra: ein weiterer Knopf { text, tu(zu) }, etwa „Ins App-Blatt
+// umwandeln“ beim Einrichtblatt; geht nach dem Neuladen nicht mit.
+export function dokZeigen({ art, titel, adresse, hoco, auftragId, typId, neu, extra }) {
   const merken = { art: "dok", daten: { art, titel, adresse, hoco, auftragId, typId } };
   const admin = !!adresse && !!(alt.istAdmin && alt.istAdmin());
   const jeder = !!adresse && !(alt.istExtern && alt.istExtern());
@@ -37,9 +39,13 @@ export function dokZeigen({ art, titel, adresse, hoco, auftragId, typId, neu }) 
     : art === "einrichtblatt" && hoco && typId && jeder ? { text: "Einrichtblatt entfernen", tu: () => alt.einrichtblattEntfernen(hoco, typId), weg: "Einrichtblatt entfernt." }
     : null;
   const name = art === "wbg" ? "Keine WBG vorhanden" : art === "einrichtblatt" ? "Kein Einrichtblatt vorhanden" : "Keine Zeichnung vorhanden";
+  const extraKnopf = (zu) => (extra
+    ? <button className="knopf knopf--klein knopf--haupt" data-dokextra={art}
+        onClick={async () => { try { await extra.tu(zu); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); } }}>{extra.text}</button>
+    : null);
   fensterOeffnen((zu) => adresse
     ? <Betrachter adresse={adresse} titel={titel} art={artDerDatei(adresse)} zu={zu}
-        knoepfe={entfernen ? <button className="knopf knopf--klein knopf--gefahr" data-zeichnungweg={hoco || auftragId || ""} data-dokweg={art}
+        knoepfe={<>{extraKnopf(zu)}{entfernen ? <button className="knopf knopf--klein knopf--gefahr" data-zeichnungweg={hoco || auftragId || ""} data-dokweg={art}
           onClick={async () => {
             try {
               if (!(await entfernen.tu())) return;
@@ -47,17 +53,18 @@ export function dokZeigen({ art, titel, adresse, hoco, auftragId, typId, neu }) 
               if (neu) neu(null);
               zu();
             } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
-          }}>{entfernen.text}</button> : null} />
-    : <Keines name={name} titel={titel} zu={zu} />, null, "betrachter-huelle", merken);
+          }}>{entfernen.text}</button> : null}</>} />
+    : <Keines name={name} titel={titel} zu={zu} knoepfe={extraKnopf(zu)} />, null, "betrachter-huelle", merken);
 }
 wiederOeffner("dok", (d) => dokZeigen(d));
 
-function Keines({ name, titel, zu }) {
+function Keines({ name, titel, zu, knoepfe }) {
   return (
     <div className="betrachter">
       <div className="betrachter__kopf">
         <span className="betrachter__titel">{titel || ""}</span>
         <div className="betrachter__knoepfe">
+          {knoepfe}
           <button className="knopf knopf--klein" data-zu="" onClick={zu}>Schliessen</button>
         </div>
       </div>

@@ -146,6 +146,7 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alle
 8. Offene Entscheide: infoBoard-Echtstart, ob der Park „Extern" für interne Rollen sichtbar ist, Lieferantenferien im Ferienblock. ~~Doppelte Namen in den Ferien~~ erledigt am 6. Oktober 2026 (spielt keine Rolle mehr).
 9. Kameras später neu überlegen. Das alte Modul ist entfernt.
 10. ~~`sql/abruf-siegel.sql` ausführen~~ erledigt am 8. Oktober 2026.
+11. **Einrichtblatt in der App** (Test, Zweig `claude/project-thread-au2n7k`, Adresse …/hofertool/test/): zuerst SW-20 testen, danach die anderen Typen (Star: 2 Paths, 2 Programm-Nr.). **Geometriedaten** (bisher nur SW-20) später genauer anschauen (Wunsch Patrick, 13. Oktober 2026).
 
 ## Sicherheit
 

@@ -10,6 +10,7 @@
 // =================================================================
 import { useLayoutEffect, useRef } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
+import { alleEinlesen } from "../../einrichtblatt/Einlesen.jsx";
 
 let ladeNr = 0;
 
@@ -283,6 +284,8 @@ function Aufbau({ typ, darf, geladen, neuLaden, typen }) {
           {darf && <div className="karte__aktionen">
             <button className="knopf knopf--klein" id="typ-uebernehmen" onClick={uebernehmen}>Aufbau übernehmen</button>
             <button className="knopf knopf--klein" id="typ-blatt" onClick={blatt}>Einrichtblatt (Excel)</button>
+            {alt.istAdmin() && <button className="knopf knopf--klein" id="typ-blaetter-einlesen"
+              onClick={() => alleEinlesen(typ).catch((f) => alt.meldung(alt.fehlertext(f), "fehler"))}>Einrichtblätter einlesen</button>}
             <button className="knopf knopf--klein" id="path-neu" onClick={pathNeu}>+ Path</button></div>}
         </div>
         {typ.beschreibung && <p className="klein">{typ.beschreibung}</p>}

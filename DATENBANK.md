@@ -14,9 +14,10 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `production_records` | Zählerstände | `machine_id`, `job_id`, `record_date`, `quantity` = **Gesamtzähler seit Auftragsbeginn**, nicht Tagesmenge |
 | `machines` | Maschinen | `park_id`, `name`, `machine_number`, `type_id`, `sort_order`, `is_active` |
 | `machine_parks` | Bereiche (Langdreher, Kurzdreher, Extern) | `name`, `sort_order` |
-| `machine_types` | Maschinentypen (z. B. SW-20) | `name`, `blatt_url` (Einrichtblatt-Vorlage) |
+| `machine_types` | Maschinentypen (z. B. SW-20) | `name`, `blatt_url` (Einrichtblatt-Vorlage), `blatt_aufbau` (Lage der Werkzeugplätze auf dem Blatt in der App, `{geometrie, reihen}`, `sql/einrichtblatt-app.sql`) |
 | `hoco_parts` | Stammdaten je HOCO Nr. | PK `hoco_nr`, `bezeichnung`, `material`, `zeichnungs_nr`, `zeichnung_url`, `waschgebinde`, `infos` (seit 111.54.0 nicht mehr in der App, Daten bleiben) |
 | `hoco_type_data` | Daten je HOCO Nr. **und** Typ | eindeutig (`hoco_nr`, `type_id`), `programm_nr`, `stueckzeit_s` (Sekunden pro Stück, Pflicht vor dem Beenden seit 111.101.0), `blatt_url`, `abend_stk`, `pad_info` (Info an der Maschine). Eine Zeile je Typ, auf dem die Nummer gerüstet, gelaufen oder fertig wurde: trägt der Auslöser `jobs_typ_merken` selbst ein (`sql/hoco-typen.sql`) |
+| `einrichtblatt_app` | Einrichtblatt in der App (1.43.0, Test) | eindeutig (`hoco_nr`, `type_id`), `programme` (je Path), `geometrie`, `maschine_nr`, `bemerkung`, `plaetze` (je T-Nr.: `taetigkeit`, `mass`, `hersteller`, `werkzeug`, `article_id`, `hd`, `standzeit`, `bild`), `excel_url`, `gut_am`/`gut_von` (danach kein Excel mehr). `sql/einrichtblatt-app.sql` |
 | `pad_skizzen` | Skizze im Pad Mode, eine je Auftrag | PK `job_id` (→ `jobs`, wird mitgelöscht), `striche` (jsonb: Liste von `{f: Farbe, d: Dicke, p: [x, y, …]}`, Punkte und Dicke geteilt durch die Breite der Fläche), `geaendert_am`, `geaendert_von`. Der Auslöser `jobs_skizze_weg` löscht die Zeile, sobald der Auftrag auf `fertig` geht (`sql/pad-skizze.sql`) |
 | `notizbuecher` | Notizbücher (Startseite, Buch-Knopf bei den Notizen, 111.80.0) | `id`, `name`, `farbe` (#hex), `reihenfolge`, `erstellt_am`, `erstellt_von`, `geaendert_am`, `gesperrt` (Schloss, ändert nur `notizbuch_passwort`; Auslöser `notizbuecher_schloss`). Alle ausser Externen lesen und schreiben (`sql/notizbuecher.sql`) |
 | `notizbuch_schutz` | Passwort eines gesperrten Notizbuchs (111.82.0) | PK `buch_id`, `passwort` (bcrypt), `fehlversuche`, `warten_bis`. Niemand liest direkt, nur die Funktionen `notizbuch_oeffnen(buch, passwort)` → `ok`/`falsch`/`warten:N`, `notizbuch_passwort(buch, alt, neu)` (leer = Sperre weg, immer mit altem Passwort), `notizbuch_passwort_admin(buch, neu)` (nur Admin, ohne altes) und `notizbuch_zu(buch)` (`sql/notizbuch-passwort.sql`) |
@@ -34,6 +35,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 |---|---|---|
 | `order_items` | Bestellpositionen | `article_id`, `supplier_id`, `quantity`, `status` (`offen`, `bestellt`, `teilweise_geliefert`, `geliefert`), `status_am` (Zeitpunkt des letzten Statuswechsels), `ordered_at`, `delivered_at`, `completed_at`, `geliefert_menge`, `ziel_art`, `ziel_text`, `needed_by` |
 | `articles` | Artikel | `article_number`, `name`, `unit`, `supplier_id` |
+| `artikel_bild` | Bild des Artikels auf dem Einrichtblatt | `article_id` (Schlüssel), `bild` (Name der Zeichnung aus `src/einrichtblatt/bilder.js`). `sql/einrichtblatt-bilder.sql` |
 | `suppliers` | Lieferanten | `name`, `email`, `website`, `bestellweg` (`website` oder `mail`), `logo_url` (leer = Symbol der Website, `keins` = Buchstaben, sonst Bild; `sql/lieferant-logo.sql`) |
 | `designations` | Bezeichnungen | |
 | `shopping_items` | Einkaufsliste | `text`, `menge`, `laden`, `prio` (1–4), `is_done` |

@@ -8,6 +8,10 @@
 # jedes Mal, wenn der Prüfstand auf diesem Zweig grün geworden ist.
 # Gibt es den Zweig nicht oder schlägt das Bauen fehl, kommt die
 # Live-App trotzdem raus, nur ohne Vorschau.
+#
+# Genauso liegt unter .../hofertool/test/ der Zweig TEST (Einrichtblatt
+# in der App, Wunsch Patrick 13. Oktober 2026: „vorbereiten, aber nicht
+# einbauen, will es zuerst testen“), ebenfalls mit echten Daten.
 name: Ausliefern
 
 on:
@@ -16,11 +20,12 @@ on:
   workflow_run:
     workflows: ["Prüfen"]
     types: [completed]
-    branches: [claude/project-thread-eoqlna]
+    branches: [claude/project-thread-eoqlna, claude/project-thread-au2n7k]
   workflow_dispatch:
 
 env:
   VORSCHAU: claude/project-thread-eoqlna
+  TEST: claude/project-thread-au2n7k
 
 permissions:
   contents: read
@@ -54,7 +59,7 @@ jobs:
         continue-on-error: true
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || env.VORSCHAU }}
+          ref: ${{ (github.event.workflow_run.head_branch == env.VORSCHAU && github.event.workflow_run.head_sha) || env.VORSCHAU }}
           path: _vorschau
       - name: Vorschau bauen
         if: steps.vorschau.outcome == 'success'
@@ -65,6 +70,23 @@ jobs:
           npm run build
           mkdir -p ../dist/vorschau
           cp -r dist/. ../dist/vorschau/
+
+      - name: Test-Zweig holen
+        id: test
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ (github.event.workflow_run.head_branch == env.TEST && github.event.workflow_run.head_sha) || env.TEST }}
+          path: _test
+      - name: Test bauen
+        if: steps.test.outcome == 'success'
+        continue-on-error: true
+        working-directory: _test
+        run: |
+          npm ci
+          npm run build
+          mkdir -p ../dist/test
+          cp -r dist/. ../dist/test/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
