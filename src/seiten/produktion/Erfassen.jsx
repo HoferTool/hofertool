@@ -409,9 +409,9 @@ function AuftragsBlock({ maschine, aktionen, stand, mitte, letzter }) {
         </div>
       )}
       {/* Den letzten Eintrag löschen, etwa nach einem Tippfehler
-          (Wunsch Patrick 13. Oktober 2026); nicht für Externe, die von
-          neuen Funktionen nie betroffen sind (Wunsch Patrick) */}
-      {letzter && schreiben && !alt.istExtern() &&
+          (Wunsch Patrick 13. Oktober 2026); wer Zahlen melden darf,
+          auch Externe bei ihren Maschinen (Patrick 13. Oktober 2026) */}
+      {letzter && (schreiben || alt.istExtern()) &&
         <button className="linkknopf aw-letzter-weg" data-letzter-weg={maschine.id}
           title={"Löscht " + alt.zahlText(letzter.quantity) + " Stück vom " + alt.kurzDatum(letzter.record_date)}
           onClick={() => aktionen.letztenLoeschen(j, maschine)}>

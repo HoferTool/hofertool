@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.42.2** Letzten Eintrag löschen doch auch für Externe, bei ihren eigenen Maschinen (Patrick 13. Oktober 2026: Externe sollen es auch dürfen; bei Neuem für Externe vorher fragen). `sql/stueckzahl-loeschen.sql` wieder ohne Ausnahme für Externe.
 - **1.42.1** Letzten Eintrag löschen nicht für Externe (Externe sind von neuen Funktionen nie betroffen, Wunsch Patrick); `sql/stueckzahl-loeschen.sql` entsprechend angepasst.
 - **1.42.0** Produktion → Erfassen: **Letzten Eintrag löschen** (Wunsch Patrick, 13. Oktober 2026). Unter Stand und Ziel jeder Maschine mit erfasstem Zählerstand steht der Knopf mit Zahl und Datum, in Tag und Woche; eine Rückfrage, dann ist der jüngste Eintrag des laufenden Auftrags weg, mit Rückgängig. Darf jeder, der Zahlen erfassen darf, ausser Externe; dafür `sql/stueckzahl-loeschen.sql` (Löschen in `production_records` mit `darf_schreiben()` statt nur Admin). Test `letzter_eintrag.py`.
 - **1.41.1** Auftragsfenster: Löschen, Kopieren und Speichern wieder unten links, das X bleibt oben rechts (Wunsch Patrick, 13. Oktober 2026).
