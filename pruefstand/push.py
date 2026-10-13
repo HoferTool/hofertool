@@ -62,17 +62,19 @@ with sync_playwright() as p:
     # Senden
     pg.locator("#push-senden").click(); pg.wait_for_timeout(500)
     pruefe("Dialog nennt Geräte", "3 Geräte" in pg.inner_text(".dialog-huelle:last-child"))
+    pg.locator(".dialog-huelle:last-child select").select_option("langdreher")
     pg.locator(".dialog-huelle:last-child input").first.fill("Info")
     pg.locator(".dialog-huelle:last-child textarea").fill("Morgen Betriebsversammlung")
     pg.locator(".dialog-huelle:last-child [data-ja]").click(); pg.wait_for_timeout(600)
     gesendet = pg.evaluate("TEST.protokoll.filter(x => x.art === 'funktion' && x.name === 'push-senden' && x.body)")
     pruefe("an Server geschickt", len(gesendet) == 1 and gesendet[0]["body"]["text"] == "Morgen Betriebsversammlung")
+    pruefe("Empfänger Langdreher", len(gesendet) == 1 and gesendet[0]["body"].get("empfaenger") == "langdreher")
     pruefe("Meldung mit Zahl", "2 von 3" in pg.inner_text(".toast-bereich"))
     pg.screenshot(path="/tmp/claude-0/push-einst.png")
 
     # Historie (1.36.0)
     pg.evaluate("""TEST.daten.push_nachrichten = [
-      { id: 1, titel: 'Info', text: 'Morgen Betriebsversammlung', von: 'u1', gesendet: '2026-10-12T15:00:00Z', geraete: 3, erreicht: 2 },
+      { id: 1, titel: 'Info', text: 'Morgen Betriebsversammlung', von: 'u1', empfaenger: 'langdreher', gesendet: '2026-10-12T15:00:00Z', geraete: 3, erreicht: 2 },
       { id: 2, titel: null, text: 'Kaffee ist da', von: 'u1', gesendet: '2026-10-11T07:00:00Z', geraete: 3, erreicht: 3 }]""")
     pg.locator("#push-historie").click(); pg.wait_for_timeout(600)
     h = pg.locator(".push-historie")
@@ -80,6 +82,7 @@ with sync_playwright() as p:
     t = h.inner_text() if h.count() else ""
     pruefe("Historie zeigt Nachrichten", "Betriebsversammlung" in t and "Kaffee ist da" in t)
     pruefe("Historie zeigt Angekommen", "2 von 3" in t and "3 von 3" in t)
+    pruefe("Historie zeigt Empfänger", "Langdreher" in t)
     pruefe("neueste zuerst", t.find("Betriebsversammlung") < t.find("Kaffee"))
     pg.screenshot(path="/tmp/claude-0/push-historie.png")
     # Löschen (1.39.0): einzeln mit einer Rückfrage, über die Server-Funktion

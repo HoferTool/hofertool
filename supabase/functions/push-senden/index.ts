@@ -4,8 +4,10 @@
 //      Push-Dienst (Apple, Google, Mozilla) anmeldet. Gibt es noch
 //      keinen, wird das Schlüsselpaar hier einmal erzeugt und in
 //      push_schluessel abgelegt. Der geheime Teil verlässt den Server nie.
-// POST { titel, text } schickt die Nachricht an alle Geräte in
-//      push_abos. Nur für Admins. Geräte, die der Push-Dienst nicht
+// POST { titel, text, empfaenger } schickt die Nachricht an die Geräte
+//      in push_abos, deren Person zur Gruppe passt: "alle" (Vorgabe),
+//      "langdreher" oder "kurzdreher" (Rolle in profiles; seit 13. Oktober
+//      2026, Wunsch Patrick). Nur für Admins. Geräte, die der Push-Dienst nicht
 //      mehr kennt (404, 410), werden dabei weggeräumt.
 // POST { loeschen: [id, …] } oder { loeschen: "alle" } löscht Einträge
 //      der Historie (push_nachrichten), nur für Admins. Über den Server,
@@ -98,13 +100,22 @@ Deno.serve(async (req) => {
   text = String(k.text ?? "").trim().slice(0, 1000);
   if (!text) return antwort({ fehler: "Text fehlt" }, 400);
 
+  const GRUPPEN = ["alle", "langdreher", "kurzdreher"];
+  const empfaenger = GRUPPEN.includes(k.empfaenger) ? k.empfaenger : "alle";
+
   webpush.setVapidDetails("mailto:info@hoferco.ch", paar.oeffentlich, paar.geheim);
-  const { data: abos } = await db.from("push_abos").select("endpoint, p256dh, auth");
+  const { data: alleAbos } = await db.from("push_abos").select("endpoint, p256dh, auth, user_id");
+  let abos = alleAbos ?? [];
+  if (empfaenger !== "alle") {
+    const { data: leute } = await db.from("profiles").select("id").eq("role", empfaenger);
+    const ids = new Set((leute ?? []).map((p) => p.id));
+    abos = abos.filter((a) => ids.has(a.user_id));
+  }
   const nutzlast = JSON.stringify({ titel: titel || "Hofer Tool", text });
 
   let erreicht = 0;
   const weg: string[] = [];
-  await Promise.all((abos ?? []).map(async (a) => {
+  await Promise.all(abos.map(async (a) => {
     try {
       await webpush.sendNotification(
         { endpoint: a.endpoint, keys: { p256dh: a.p256dh, auth: a.auth } },
@@ -118,7 +129,13 @@ Deno.serve(async (req) => {
   }));
   if (weg.length) await db.from("push_abos").delete().in("endpoint", weg);
 
-  const geraete = (abos ?? []).length;
-  await db.from("push_nachrichten").insert({ titel: titel || null, text, von: wer.user.id, geraete, erreicht });
+  const geraete = abos.length;
+  const eintrag = { titel: titel || null, text, von: wer.user.id, geraete, erreicht, empfaenger };
+  const { error: fehlerHistorie } = await db.from("push_nachrichten").insert(eintrag);
+  // Ohne sql/push-empfaenger.sql kennt die Tabelle die Spalte nicht
+  if (fehlerHistorie) {
+    const { empfaenger: _weg, ...ohne } = eintrag;
+    await db.from("push_nachrichten").insert(ohne);
+  }
   return antwort({ geraete, erreicht, weggeraeumt: weg.length });
 });

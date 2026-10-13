@@ -175,7 +175,13 @@ export function pushHinweisWeg() {
   if (hinweisOffen) hinweisOffen();
 }
 
-// ---------- Admins: Nachricht an alle ----------
+// ---------- Admins: Nachricht senden ----------
+
+const EMPFAENGER = [["alle", "Alle"], ["langdreher", "Langdreher"], ["kurzdreher", "Kurzdreher"]];
+function empfaengerText(w) {
+  const g = EMPFAENGER.find(([x]) => x === (w || "alle"));
+  return g ? g[1] : "Alle";
+}
 
 export async function pushNachrichtSenden() {
   let zahl = null;
@@ -183,11 +189,14 @@ export async function pushNachrichtSenden() {
     const r = await alt.db.rpc("push_geraete_zahl");
     if (!r.error) zahl = r.data;
   } catch (f) { /* ohne Zahl */ }
+  // Empfänger wählen (Wunsch Patrick, 13. Oktober 2026: „Lang, Kurz oder
+  // alle“). Gefiltert wird auf dem Server nach der Rolle der Person.
   const e = await alt.dialogFelder({
-    titel: "Push-Nachricht an alle",
-    text: zahl === null ? "Geht an alle Geräte mit eingeschalteten Mitteilungen."
-      : "Geht an " + zahl + (zahl === 1 ? " Gerät" : " Geräte") + " mit eingeschalteten Mitteilungen.",
+    titel: "Push-Nachricht senden",
+    text: zahl === null ? "Geht an die Geräte mit eingeschalteten Mitteilungen."
+      : "Insgesamt haben " + zahl + (zahl === 1 ? " Gerät" : " Geräte") + " Mitteilungen eingeschaltet.",
     felder: [
+      { name: "empfaenger", label: "An", auswahl: EMPFAENGER, wert: "alle" },
       { name: "titel", label: "Titel", platzhalter: "Hofer Tool" },
       { name: "text", label: "Nachricht", typ: "textarea", pflicht: true },
     ],
@@ -196,7 +205,8 @@ export async function pushNachrichtSenden() {
   if (!e) return;
   try {
     const { data, error } = await alt.zeitlimit(
-      alt.db.functions.invoke("push-senden", { body: { titel: e.titel, text: e.text } }), 30000, "Push senden");
+      alt.db.functions.invoke("push-senden", { body: { titel: e.titel, text: e.text, empfaenger: e.empfaenger } }),
+      30000, "Push senden");
     if (error) {
       let text = alt.fehlertext(error);
       try { const k = await error.context.json(); if (k && k.fehler) text = k.fehler; } catch (f) { /* Text bleibt */ }
@@ -204,7 +214,9 @@ export async function pushNachrichtSenden() {
     }
     alt.meldung(data.geraete
       ? "Gesendet an " + data.erreicht + " von " + data.geraete + " Geräten."
-      : "Noch kein Gerät hat Mitteilungen eingeschaltet.", data.geraete ? "gut" : "warn");
+      : e.empfaenger === "alle" ? "Noch kein Gerät hat Mitteilungen eingeschaltet."
+        : "Bei den " + empfaengerText(e.empfaenger) + " hat noch niemand Mitteilungen eingeschaltet.",
+      data.geraete ? "gut" : "warn");
   } catch (f) {
     alt.meldung("Nicht gesendet: " + alt.fehlertext(f), "fehler");
   }
@@ -219,7 +231,7 @@ export async function pushHistorieOeffnen() {
   let liste, personen = {};
   try {
     const { data, error } = await alt.zeitlimit(
-      alt.db.from("push_nachrichten").select("id, titel, text, von, gesendet, geraete, erreicht")
+      alt.db.from("push_nachrichten").select("*")
         .order("gesendet", { ascending: false }).limit(500), 10000, "Push-Historie");
     if (error) throw error;
     liste = data || [];
@@ -297,11 +309,12 @@ function Historie({ liste: anfang, personen, zu }) {
           value={suche} onChange={(e) => setSuche(e.target.value)} />}
       {gezeigt.length
         ? <div className="matausgabe-rolle"><table className="tabelle">
-            <thead><tr><th>Gesendet</th><th>Von</th><th>Nachricht</th><th>Angekommen</th><th aria-label="Löschen"></th></tr></thead>
+            <thead><tr><th>Gesendet</th><th>Von</th><th>An</th><th>Nachricht</th><th>Angekommen</th><th aria-label="Löschen"></th></tr></thead>
             <tbody>{gezeigt.map((n) => (
               <tr key={n.id}>
                 <td className="klein nowrap">{mitJahr(n.gesendet)}</td>
                 <td className="klein">{wer(n)}</td>
+                <td className="klein">{empfaengerText(n.empfaenger)}</td>
                 <td>{n.titel && <strong>{n.titel}<br /></strong>}<span className="push-historie__text">{n.text}</span></td>
                 <td className="klein nowrap">{n.erreicht} von {n.geraete}</td>
                 <td className="rechts nowrap">

@@ -373,7 +373,7 @@ function Darstellung() {
 }
 
 // Push-Mitteilungen (1.35.0): von Anfang an an, hier abschaltbar.
-// Admins schicken von hier eine Nachricht an alle.
+// Admins schicken von hier eine Nachricht an alle, Lang- oder Kurzdreher.
 function Mitteilungen({ bin }) {
   const [an, setAn] = useState(pushEingeschaltet());
   const [laeuft, setLaeuft] = useState(false);
@@ -414,7 +414,7 @@ function Mitteilungen({ bin }) {
       <SchalterZeile id="e-push" titel="Push-Mitteilungen" text={hinweis}
         checked={an} onChange={aendern} disabled={laeuft} />
       {bin && (
-        <Zeile titel="Nachricht an alle" text="Kommt als Mitteilung auf alle Geräte, die sie eingeschaltet haben.">
+        <Zeile titel="Push-Nachricht" text="An alle, nur Langdreher oder nur Kurzdreher, auf jedes Gerät mit eingeschalteten Mitteilungen.">
           <div className="push-knoepfe">
             <button className="knopf knopf--klein" id="push-senden" onClick={pushNachrichtSenden}>Senden …</button>
             <button className="knopf knopf--klein knopf--still" id="push-historie" onClick={pushHistorieOeffnen}>Historie</button>
