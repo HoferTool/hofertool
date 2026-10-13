@@ -69,6 +69,12 @@ function fliegen(el, von, nach) {
   return a.finished.catch(() => {});
 }
 
+// Gruss über dem Namen, während die Anmeldung läuft
+function gruss() {
+  const h = new Date().getHours();
+  return h < 5 ? "Gute Nacht" : h < 11 ? "Guten Morgen" : h < 17 ? "Guten Tag" : h < 22 ? "Guten Abend" : "Gute Nacht";
+}
+
 function Bildchen({ konto, className }) {
   const name = konto.full_name || konto.email;
   return konto.bild_url
@@ -334,13 +340,25 @@ function Anmeldung() {
           </div>
         )}
       </div>
+      {flieger && flieger.laedt && (
+        // Bühne hinter der wartenden Kachel: dunkler Rand, Licht in der
+        // Mitte, unten klein das Logo (Wunsch Patrick 13. Oktober 2026:
+        // „Ladebildschirm soll cooler sein“). Nur CSS, verzögert nichts.
+        <div className="login__buehne" aria-hidden="true">
+          <img className="login__buehne-logo" src="./logo-weiss.svg" alt="" />
+        </div>
+      )}
       {flieger && (
         <div className={"login__flieger" + (flieger.laedt ? " login__flieger--laedt" : "")} ref={fliegerRef}>
+          {flieger.laedt && (<>
+            <span className="login__wellen" aria-hidden="true"><i /><i /><i /></span>
+            <span className="login__ring" aria-hidden="true" />
+          </>)}
           <Bildchen konto={flieger.konto} className="login__flieger-bild" />
           {flieger.laedt && (
             <div className="login__flieger-name" role="status">
+              <span className="login__gruss">{gruss()}</span>
               {alt.personName(flieger.konto)}<span className="login__sr"> wird angemeldet</span>
-              <span className="login__ring" aria-hidden="true" />
             </div>
           )}
         </div>

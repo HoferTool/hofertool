@@ -7449,3 +7449,70 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
 .am-geraet--handy .anmeldemeldung__knoepfe .am-haupt { grid-column: 2; grid-row: 1; }
 .am-geraet--handy .anmeldemeldung__knoepfe .am-abmelden { grid-column: 1 / -1; grid-row: 2; }
 .am-geraet--handy .anmeldemeldung__knoepfe .am-abmelden + .am-haupt { grid-column: 1 / -1; }
+
+/* ---------- Ladebildschirm nach dem Anmelden (1.51.0) ----------
+   Wunsch Patrick 13. Oktober 2026: „cooler“. Die Kachel wartet in der
+   Mitte auf einer Bühne: Rand abgedunkelt, Licht hinter der Kachel,
+   Wellen wie die Kreise im Logo-Band, ein Lichtbogen läuft um die
+   Kachel statt des Drehkreises, darunter Gruss und Name, unten das Logo.
+   Alles nur transform und opacity, die Wartezeit bleibt dieselbe. */
+@property --login-winkel { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.login__buehne { position: fixed; inset: 0; z-index: 299; pointer-events: none;
+  background:
+    radial-gradient(circle at 50% calc(50% - 36px), rgba(255,255,255,.16) 0, rgba(255,255,255,0) 32vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.55) 100%);
+  animation: loginBuehne .5s ease both; }
+@keyframes loginBuehne { from { opacity: 0; } to { opacity: 1; } }
+.login__buehne-logo { position: absolute; left: 50%; bottom: max(28px, 6vh); translate: -50% 0;
+  width: min(190px, 44vw); height: auto; opacity: 0;
+  animation: loginLogo .6s ease .45s forwards; }
+@keyframes loginLogo { from { opacity: 0; transform: translateY(8px); } to { opacity: .6; transform: none; } }
+
+/* Wellen: drei Kreise gehen ruhig von der Kachel weg und verblassen */
+.login__wellen { position: absolute; inset: 0; z-index: -1; display: grid; place-items: center; }
+.login__wellen i { position: absolute; width: 112%; height: 112%; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,.55); opacity: 0;
+  animation: loginWelle 2.7s cubic-bezier(.2,.6,.3,1) infinite; }
+.login__wellen i:nth-child(1) { animation-delay: .5s; }
+.login__wellen i:nth-child(2) { animation-delay: 1.4s; }
+.login__wellen i:nth-child(3) { animation-delay: 2.3s; }
+@keyframes loginWelle { 0% { transform: scale(.9); opacity: .55; }
+                        100% { transform: scale(2.5); opacity: 0; } }
+
+/* Lichtbogen um die Kachel: ein heller Schweif läuft im Kreis */
+.login__flieger--laedt .login__ring { position: absolute; inset: -9px; display: block;
+  width: auto; height: auto; margin: 0; border: 0; border-radius: 20%; padding: 3px;
+  background: conic-gradient(from var(--login-winkel),
+    rgba(255,255,255,0) 0deg, rgba(255,255,255,0) 200deg,
+    rgba(160,205,255,.55) 290deg, #fff 355deg, rgba(255,255,255,0) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  filter: drop-shadow(0 0 6px rgba(170,210,255,.8));
+  opacity: 0; animation: loginBogen 1.15s linear infinite, loginEinblenden .35s ease .45s forwards; }
+@keyframes loginBogen { to { --login-winkel: 360deg; } }
+
+/* Die ganze Kachel samt Bogen und Wellen schwebt auf und ab. Über
+   translate statt transform, das gehört dem Flug (fliegen()). */
+.login__flieger--laedt { animation: loginSchwebenGanz 2.6s ease-in-out .55s infinite; }
+@keyframes loginSchwebenGanz { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+.login__flieger--laedt .login__flieger-bild { animation: none; }
+/* Bild: mit sanftem Leuchten statt hartem Schatten */
+.login__flieger--laedt .login__flieger-bild {
+  box-shadow: 0 18px 50px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.18), 0 0 60px rgba(140,190,255,.35); }
+
+/* Dunkler Modus färbt sonst alles weiss (!important), auch den
+   Buchstaben auf der hellen Kachel: dann war er kaum zu sehen */
+body.dunkel .login__flieger-bild.login__buchstabe { color: #0f1620 !important; }
+/* Gruss klein über dem Namen */
+.login__flieger--laedt .login__flieger-name { top: calc(100% + 30px); font-size: 1.35rem;
+  letter-spacing: .01em; text-shadow: 0 2px 12px rgba(0,0,0,.35); }
+.login__gruss { display: block; margin-bottom: 4px; font-size: .78rem; font-weight: 600;
+  letter-spacing: .16em; text-transform: uppercase; opacity: .7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .login__buehne, .login__buehne-logo, .login__wellen i, .login__flieger--laedt { animation: none !important; }
+  .login__buehne-logo { opacity: .6; }
+  .login__wellen { display: none; }
+  .login__flieger--laedt .login__ring { opacity: 1; animation: loginBogen 3s linear infinite !important; }
+}

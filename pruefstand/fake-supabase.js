@@ -542,8 +542,9 @@ export function createClient(_url, _key, optionen) {
     functions: { invoke: (name, opt) => {
       TEST.protokoll.push({ art: "funktion", name, body: opt && opt.body });
       const f = TEST.funktionen && TEST.funktionen[name];
-      return Promise.resolve(f ? { data: f(opt && opt.body), error: null }
-        : { data: null, error: { message: "nicht eingerichtet" } });
+      // Eine Funktion darf auch ein Promise liefern (langsamer Server)
+      if (!f) return Promise.resolve({ data: null, error: { message: "nicht eingerichtet" } });
+      return Promise.resolve(f(opt && opt.body)).then((data) => ({ data, error: null }));
     } },
     channel: () => ({ on() { return this; }, subscribe() { return this; } }),
     removeChannel: () => {},
