@@ -240,28 +240,72 @@ function mitJahr(iso) {
     + " " + p(d.getHours()) + ":" + p(d.getMinutes());
 }
 
-function Historie({ liste, personen, zu }) {
+// Löschen geht über die Server-Funktion: die Tabelle ist für die App
+// nur lesbar (Wunsch Patrick, 13. Oktober 2026: „man soll drin löschen
+// können“). Eine Rückfrage, wie überall beim Löschen.
+async function historieLoeschen(was) {
+  try {
+    const { data, error } = await alt.zeitlimit(
+      alt.db.functions.invoke("push-senden", { body: { loeschen: was } }), 15000, "Push-Historie löschen");
+    if (error) {
+      let text = alt.fehlertext(error);
+      try { const k = await error.context.json(); if (k && k.fehler) text = k.fehler; } catch (f) { /* Text bleibt */ }
+      throw new Error(text);
+    }
+    return data || {};
+  } catch (f) {
+    alt.meldung("Nicht gelöscht: " + alt.fehlertext(f), "fehler");
+    return null;
+  }
+}
+
+function Historie({ liste: anfang, personen, zu }) {
+  const [liste, setListe] = useState(anfang);
   const [suche, setSuche] = useState("");
   const wer = (n) => (n.von ? alt.personName(personen[n.von], "unbekannt") : "—");
+  const weg = async (n) => {
+    const ok = await alt.nachfragen({ titel: "Nachricht löschen",
+      text: '"' + (n.titel ? n.titel + ": " : "") + n.text + '" wird aus der Historie entfernt.',
+      bestaetigen: "Löschen", gefahr: true });
+    if (!ok) return;
+    if (await historieLoeschen([n.id])) {
+      setListe((l) => l.filter((x) => x.id !== n.id));
+      alt.meldung("Gelöscht.");
+    }
+  };
+  const alleWeg = async () => {
+    const ok = await alt.nachfragen({ titel: "Historie löschen",
+      text: "Alle " + liste.length + " Nachrichten werden aus der Historie entfernt.",
+      bestaetigen: "Löschen", gefahr: true });
+    if (!ok) return;
+    if (await historieLoeschen("alle")) {
+      setListe([]);
+      alt.meldung("Historie gelöscht.");
+    }
+  };
   const s = suche.trim().toLowerCase();
   const gezeigt = s ? liste.filter((n) => String(n.titel || "").toLowerCase().includes(s)
     || String(n.text || "").toLowerCase().includes(s) || wer(n).toLowerCase().includes(s)) : liste;
   return (
     <div className="dialog dialog--breit matausgabe-historie push-historie">
       <div className="blatt__kopf"><h2>Push-Nachrichten · Historie</h2>
+        {liste.length > 0 &&
+          <button className="knopf knopf--klein" id="push-alleweg" onClick={alleWeg}>Historie löschen</button>}
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
       {liste.length > 8 &&
         <input type="search" className="matausgabe-suche" placeholder="Suchen …" aria-label="Suchen"
           value={suche} onChange={(e) => setSuche(e.target.value)} />}
       {gezeigt.length
         ? <div className="matausgabe-rolle"><table className="tabelle">
-            <thead><tr><th>Gesendet</th><th>Von</th><th>Nachricht</th><th>Angekommen</th></tr></thead>
+            <thead><tr><th>Gesendet</th><th>Von</th><th>Nachricht</th><th>Angekommen</th><th aria-label="Löschen"></th></tr></thead>
             <tbody>{gezeigt.map((n) => (
               <tr key={n.id}>
                 <td className="klein nowrap">{mitJahr(n.gesendet)}</td>
                 <td className="klein">{wer(n)}</td>
                 <td>{n.titel && <strong>{n.titel}<br /></strong>}<span className="push-historie__text">{n.text}</span></td>
                 <td className="klein nowrap">{n.erreicht} von {n.geraete}</td>
+                <td className="rechts nowrap">
+                  <button className="linkknopf linkknopf--gefahr" data-pushweg={n.id} onClick={() => weg(n)}>Löschen</button></td>
               </tr>
             ))}</tbody>
           </table></div>

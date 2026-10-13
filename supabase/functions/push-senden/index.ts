@@ -7,6 +7,9 @@
 // POST { titel, text } schickt die Nachricht an alle Geräte in
 //      push_abos. Nur für Admins. Geräte, die der Push-Dienst nicht
 //      mehr kennt (404, 410), werden dabei weggeräumt.
+// POST { loeschen: [id, …] } oder { loeschen: "alle" } löscht Einträge
+//      der Historie (push_nachrichten), nur für Admins. Über den Server,
+//      weil die Tabelle für die App nur lesbar ist.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
@@ -79,11 +82,20 @@ Deno.serve(async (req) => {
   if (profil?.role !== "admin") return antwort({ fehler: "nur für Admins" }, 403);
 
   let titel = "", text = "";
-  try {
-    const k = await req.json();
-    titel = String(k.titel ?? "").trim().slice(0, 100);
-    text = String(k.text ?? "").trim().slice(0, 1000);
-  } catch { /* leer */ }
+  // deno-lint-ignore no-explicit-any
+  let k: any = {};
+  try { k = await req.json(); } catch { /* leer */ }
+  if (k.loeschen !== undefined) {
+    let abfrage = db.from("push_nachrichten").delete({ count: "exact" });
+    if (k.loeschen === "alle") abfrage = abfrage.gt("id", 0);
+    else if (Array.isArray(k.loeschen) && k.loeschen.length) abfrage = abfrage.in("id", k.loeschen.map(Number));
+    else return antwort({ fehler: "nichts zum Löschen" }, 400);
+    const { error, count } = await abfrage;
+    if (error) return antwort({ fehler: error.message }, 500);
+    return antwort({ geloescht: count ?? 0 });
+  }
+  titel = String(k.titel ?? "").trim().slice(0, 100);
+  text = String(k.text ?? "").trim().slice(0, 1000);
   if (!text) return antwort({ fehler: "Text fehlt" }, 400);
 
   webpush.setVapidDetails("mailto:info@hoferco.ch", paar.oeffentlich, paar.geheim);

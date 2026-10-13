@@ -82,6 +82,18 @@ with sync_playwright() as p:
     pruefe("Historie zeigt Angekommen", "2 von 3" in t and "3 von 3" in t)
     pruefe("neueste zuerst", t.find("Betriebsversammlung") < t.find("Kaffee"))
     pg.screenshot(path="/tmp/claude-0/push-historie.png")
+    # Löschen (1.39.0): einzeln mit einer Rückfrage, über die Server-Funktion
+    pg.evaluate("""TEST.funktionen['push-senden'] = (b) => b && b.loeschen ? { geloescht: 1 } : b ? { geraete: 3, erreicht: 2 } : { schluessel: 'BAAA' }""")
+    pg.locator("[data-pushweg='2']").click(); pg.wait_for_timeout(400)
+    pg.locator(".dialog-huelle:last-child [data-ja]").click(); pg.wait_for_timeout(600)
+    weg = pg.evaluate("TEST.protokoll.filter(x => x.art === 'funktion' && x.body && x.body.loeschen)")
+    pruefe("einzeln gelöscht", len(weg) == 1 and weg[0]["body"]["loeschen"] == [2])
+    pruefe("Zeile weg", "Kaffee ist da" not in pg.inner_text(".push-historie") and "Betriebsversammlung" in pg.inner_text(".push-historie"))
+    pg.locator("#push-alleweg").click(); pg.wait_for_timeout(400)
+    pg.locator(".dialog-huelle:last-child [data-ja]").click(); pg.wait_for_timeout(600)
+    weg = pg.evaluate("TEST.protokoll.filter(x => x.art === 'funktion' && x.body && x.body.loeschen)")
+    pruefe("alles gelöscht", len(weg) == 2 and weg[1]["body"]["loeschen"] == "alle")
+    pruefe("Historie leer", "Noch keine Nachricht" in pg.inner_text(".push-historie"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pruefe("Historie zu, Einstellungen offen", pg.locator(".push-historie").count() == 0 and pg.locator(".dialog--einstellungen").count() == 1)
 
