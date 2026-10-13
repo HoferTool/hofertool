@@ -49,18 +49,40 @@ function meldungZusammen(html, bilder) {
   return (html || "") + (bilder && bilder.length ? "<!--bilder:" + JSON.stringify(bilder) + "-->" : "");
 }
 
-// Text und Bilder einer Meldung, wie sie nach dem Anmelden erscheint
+// Text und Bilder einer Meldung, wie sie nach dem Anmelden erscheint.
+// Steht im Text „[Bild 2]“, kommt das zweite Bild genau dort hin
+// (Wunsch Patrick 13. Oktober 2026: Bild gleich beim passenden Punkt);
+// Bilder ohne solchen Platz stehen am Ende.
+const BILD_PLATZ = /\[\s*Bild\s+(\d+)\s*\]/gi;
+
 function Inhalt({ text }) {
   const { html, bilder } = meldungTeilen(text);
-  return (
-    <div className="anmeldemeldung__text">
-      {html && <div><FettText text={html} /></div>}
-      {bilder.map((b) => (
-        <a key={b} href={b} target="_blank" rel="noopener" className="anmeldemeldung__bild">
-          <img src={b} alt="" loading="eager" /></a>
-      ))}
-    </div>
-  );
+  const teile = [];
+  const benutzt = new Set();
+  let rest = 0, m;
+  BILD_PLATZ.lastIndex = 0;
+  const textStueck = (t, k) => {
+    // Zeilenumbrüche direkt am Bild würden nur leere Zeilen machen
+    t = t.replace(/^(\s*<br\s*\/?>)+|(<br\s*\/?>\s*)+$/gi, "");
+    if (t.replace(/<[^>]*>|&nbsp;|\s/g, "")) teile.push(<div key={k}><FettText text={t} /></div>);
+  };
+  while ((m = BILD_PLATZ.exec(html))) {
+    const nr = Number(m[1]) - 1;
+    textStueck(html.slice(rest, m.index), "t" + m.index);
+    rest = m.index + m[0].length;
+    if (bilder[nr]) { benutzt.add(nr); teile.push(<Bild key={"b" + m.index} url={bilder[nr]} />); }
+  }
+  textStueck(html.slice(rest), "tende");
+  bilder.forEach((b, i) => { if (!benutzt.has(i)) teile.push(<Bild key={"r" + i} url={b} />); });
+  return <div className="anmeldemeldung__text">{teile}</div>;
+}
+
+function Bild({ url }) {
+  // Bilder als data:-Adresse (eingefügt ohne Ablage) nicht als Link öffnen
+  const bild = <img src={url} alt="" loading="eager" />;
+  return /^https?:/.test(url)
+    ? <a href={url} target="_blank" rel="noopener" className="anmeldemeldung__bild">{bild}</a>
+    : <div className="anmeldemeldung__bild">{bild}</div>;
 }
 
 // Wer Meldungen bekommt: eine echte Person, kein Gerät, kein Externer
@@ -90,16 +112,22 @@ export async function meldungenNachAnmeldung() {
     if (!bekommtMeldungen(p) || alt.istArchiv() || alt.istAndererNutzer()) return;
     if (sperre) return;
     const db = alt.db;
+    // Zuerst nur die Kennungen: Text und Bilder können gross sein und
+    // werden nur für die Meldungen geholt, die diese Person noch nicht kennt
     const [m, q] = await Promise.all([
-      alt.zeitlimit(db.from(TABELLE).select("id, titel, text, erstellt").eq("aktiv", true)
-        .order("erstellt", { ascending: true }), 10000, "Meldungen"),
+      alt.zeitlimit(db.from(TABELLE).select("id").eq("aktiv", true), 10000, "Meldungen"),
       alt.zeitlimit(db.from(QUITTUNGEN).select("meldung_id").eq("user_id", p.id), 10000, "Quittungen"),
     ]);
     if (m.error || q.error) return;
     const gelesen = new Set((q.data || []).map((x) => x.meldung_id));
-    const offen = (m.data || []).filter((x) => !gelesen.has(x.id));
+    const ids = (m.data || []).map((x) => x.id).filter((id) => !gelesen.has(id));
+    if (!ids.length) return;
+    const t = await alt.zeitlimit(db.from(TABELLE).select("id, titel, text, erstellt").in("id", ids)
+      .order("erstellt", { ascending: true }), 30000, "Meldungen");
+    const offen = (t.data || []).filter((x) => ids.includes(x.id))
+      .sort((x, y) => (x.erstellt < y.erstellt ? -1 : 1));
     // Inzwischen abgemeldet oder jemand anderes angemeldet?
-    if (!offen.length || alt.profil !== p) return;
+    if (t.error || !offen.length || alt.profil !== p) return;
     sperreZeigen(offen, p.id);
   } catch (f) {
     console.warn("Meldungen:", f && f.message);
@@ -311,6 +339,18 @@ function Bearbeiten({ m, fertig }) {
     const d = Array.from((e.clipboardData && e.clipboardData.files) || []);
     if (d.some((x) => /^image\//.test(x.type))) { e.preventDefault(); dazu(d); }
   };
+  // „[Bild n]“ an die Schreibmarke im Text, sonst ans Ende
+  const inText = (i) => {
+    const el = document.getElementById("am-text");
+    if (!el) return;
+    const sel = document.getSelection();
+    if (!sel || !el.contains(sel.anchorNode)) {
+      el.focus();
+      const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
+      sel.removeAllRanges(); sel.addRange(r);
+    }
+    document.execCommand("insertText", false, "[Bild " + (i + 1) + "]");
+  };
   const schieben = (i, r) => setBilder((b) => {
     const n = b.slice(); const j = i + r;
     if (j < 0 || j >= n.length) return b;
@@ -349,6 +389,11 @@ function Bearbeiten({ m, fertig }) {
           {bilder.map((b, i) => (
             <div key={b} className="am-bilder__eins">
               <img src={b} alt="" />
+              <span className="am-bilder__nr">Bild {i + 1}</span>
+              <button type="button" className="knopf knopf--klein am-bilder__intext" data-intext={i}
+                title="„[Bild …]“ an der Schreibmarke in den Text setzen: dort erscheint das Bild"
+                onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}
+                onClick={() => inText(i)}>In Text</button>
               <div className="am-bilder__knoepfe">
                 {bilder.length > 1 && <>
                   <button type="button" className="knopf knopf--klein knopf--still" title="Nach vorne"
@@ -366,7 +411,8 @@ function Bearbeiten({ m, fertig }) {
           <input ref={wahl} type="file" accept="image/*" multiple hidden id="am-bild-datei"
             onChange={(e) => { dazu(e.target.files); e.target.value = ""; }} />
         </div>
-        <p className="hinweis klein">Am Computer auch Bild hierher ziehen oder mit Strg + V einfügen.</p>
+        <p className="hinweis klein">Am Computer auch Bild hierher ziehen oder mit Strg + V einfügen.
+          „In Text“ setzt [Bild 1] an die Schreibmarke: dort erscheint das Bild, sonst steht es am Ende.</p>
       </div>
       {m && (
         <label className="feld"><span>Wer sie schon gelesen hat</span>

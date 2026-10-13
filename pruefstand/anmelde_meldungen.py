@@ -19,7 +19,7 @@ VORAB = """(() => { let t; Object.defineProperty(window, 'TEST', { configurable:
       { id: 'm1', titel: 'Neu: Letzten Eintrag löschen', text: 'Unter <b>Produktion → Erfassen</b> steht jetzt\\n„Letzten Eintrag löschen“.<!--bilder:[\\"https://bild.test/a.png\\"]-->', aktiv: true, erstellt: '2026-10-13T08:00:00Z' },
       { id: 'm2', titel: 'Schon gelesen', text: 'x', aktiv: true, erstellt: '2026-10-10T08:00:00Z' },
       { id: 'm3', titel: 'Ausgeschaltet', text: 'y', aktiv: false, erstellt: '2026-10-11T08:00:00Z' },
-      { id: 'm4', titel: 'Zweite neue', text: 'Noch etwas.', aktiv: true, erstellt: '2026-10-13T09:00:00Z' }];
+      { id: 'm4', titel: 'Zweite neue', text: 'Vorher<br>[Bild 1]<br>Nachher<!--bilder:[\\"https://bild.test/b.png\\"]-->', aktiv: true, erstellt: '2026-10-13T09:00:00Z' }];
     v.daten.anmelde_quittungen = [{ meldung_id: 'm2', user_id: 'u1', am: '2026-10-10T09:00:00Z' },
                                   { meldung_id: 'm1', user_id: 'u2', am: '2026-10-13T09:30:00Z' }];
     if (window.GERAET) v.daten.profiles[0].andere_nutzer = true;
@@ -60,6 +60,8 @@ with sync_playwright() as p:
     pruefe("Klick daneben tut nichts", sperre() == 1)
     pg.locator("#am-gelesen").click(); pg.wait_for_timeout(600)
     pruefe(f"Danach die zweite ({titel()!r})", titel() == "Zweite neue")
+    folge = pg.evaluate("() => [...document.querySelector('.anmeldemeldung__text').children].map(c => c.querySelector('img') ? 'BILD' : c.textContent.trim()).join('|')")
+    pruefe(f"[Bild 1] steht an seinem Platz ({folge})", folge == "Vorher|BILD|Nachher")
     pg.locator("#am-gelesen").click(); pg.wait_for_timeout(600)
     pruefe("Nach dem letzten Gelesen ist sie weg", sperre() == 0)
     q = pg.evaluate("() => TEST.daten.anmelde_quittungen.filter(x => x.user_id === 'u1').map(x => x.meldung_id).sort().join(',')")
