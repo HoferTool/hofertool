@@ -158,6 +158,36 @@ with sync_playwright() as p:
     pg.locator("[data-amweg=m3]").click(); pg.wait_for_timeout(400)
     pg.locator(".dialog-huelle").last.locator(".knopf--gefahr").click(); pg.wait_for_timeout(600)
     pruefe("Löschen nach einer Rückfrage", not pg.evaluate("() => TEST.daten.anmelde_meldungen.some(x => x.id === 'm3')"))
+    # Aus Datei laden (1.50.0): füllt Titel, Seiten, Text und Bilder aus
+    import json, base64, tempfile
+    tmp = tempfile.mkdtemp()
+    datei = os.path.join(tmp, "meldung.json")
+    open(datei, "w", encoding="utf-8").write(json.dumps({"titel": "Aus der Datei", "seiten": [
+        {"ueber": "A", "text": "Zeile 1\nZeile <b>2</b>", "bilder": ["data:image/png;base64," + base64.b64encode(open(PROBE, "rb").read()).decode()]},
+        {"ueber": "B", "text": "Nur Text", "bilder": ["https://bild.test/a.png"]}]}, ensure_ascii=False))
+    kaputt = os.path.join(tmp, "kaputt.json"); open(kaputt, "w").write("das ist keine Meldung")
+    pg.locator("#am-neu").click(); pg.wait_for_timeout(500)
+    pruefe("Knopf „Aus Datei laden“", pg.locator("#am-aus-datei").count() == 1)
+    with pg.expect_file_chooser() as fc:
+        pg.locator("#am-aus-datei").click()
+    fc.value.set_files(kaputt); pg.wait_for_timeout(600)
+    pruefe("Falsche Datei: Meldung, nichts geändert", "keine Meldung" in pg.locator("body").inner_text() and pg.locator(".am-seite").count() == 1)
+    pg.locator("#am-titel-feld").fill("Schon etwas")
+    hoch = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'upload').length")
+    with pg.expect_file_chooser() as fc:
+        pg.locator("#am-aus-datei").click()
+    fc.value.set_files(datei); pg.wait_for_timeout(500)
+    pruefe("Fragt vor dem Ersetzen", pg.locator(".dialog-huelle").count() >= 2)
+    pg.locator(".dialog-huelle").last.locator(".knopf--haupt").click(); pg.wait_for_timeout(1500)
+    pruefe("Titel aus der Datei", pg.locator("#am-titel-feld").input_value() == "Aus der Datei")
+    pruefe("Zwei Seiten mit Überschriften", pg.locator(".am-seite").count() == 2
+           and pg.locator(".am-seite").nth(1).locator(".am-seite__ueber").input_value() == "B")
+    pruefe("Text mit Zeilen und Fett", pg.locator(".am-seite").nth(0).locator(".stilfeld b").count() == 1
+           and "Zeile 1" in pg.locator(".am-seite").nth(0).locator(".stilfeld").inner_text())
+    pruefe("Bild aus der Datei hochgeladen", pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'upload').length") == hoch + 1)
+    pg.locator("#am-speichern").click(); pg.wait_for_timeout(800)
+    st = pg.evaluate("() => { const t = TEST.daten.anmelde_meldungen.find(x => x.titel === 'Aus der Datei').text; return JSON.parse(t.match(/^<!--seiten:([\\s\\S]*)-->$/)[1]).map(x => x.ueber + ':' + x.bilder.length + ':' + x.bilder.every(b => !b.startsWith('data:') || b.includes('#meldungen/')) + ':' + x.text.includes('<br>')); }")
+    pruefe(f"Aus Datei gespeichert ({st})", st == ["A:1:true:true", "B:1:true:false"])
     pg.context.close()
 
     # Gerätekonto: keine Meldung

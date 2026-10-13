@@ -7417,3 +7417,11 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
 .pw-zeitschicht[hidden] { display: none !important; }
 .laedt--spaet { animation: laedtSpaet .2s ease .7s both; }
 @keyframes laedtSpaet { from { opacity: 0; } to { opacity: 1; } }
+
+/* Meldung aus Datei laden (1.50.0) */
+.am-ausdatei { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -4px 0 12px;
+  padding: 8px 10px; border: 1px dashed var(--linie-stark); border-radius: var(--radius); }
+.am-ausdatei .hinweis { margin: 0; }
+/* Viele Seiten (12 und mehr) passen auch am Handy: die Striche werden schmaler statt über den Rand zu laufen */
+.anmeldemeldung__punkte { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+.anmeldemeldung__punkte i { flex: 0 1 22px; min-width: 6px; }

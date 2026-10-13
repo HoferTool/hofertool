@@ -370,6 +370,30 @@ async function bildHochladen(datei) {
   return alt.db.storage.from(ABLAGE).getPublicUrl(pfad).data.publicUrl;
 }
 
+// Meldung aus einer Datei (Wunsch Patrick 13. Oktober 2026: „baue ein,
+// dass ich per Datei es einfach einfügen kann, falls du es für mich
+// verfasst, und es dann schön von selber ausfüllt“). Claude schreibt
+// eine .json-Datei { titel, seiten: [{ ueber, text, bilder }] }, Bilder
+// als Adresse oder direkt als data:-Bild, damit alles in einer Datei
+// steckt. Text darf Zeilenumbrüche und <b>, <i>, <u> haben. Gibt
+// { titel, seiten } zurück oder wirft einen Fehler mit verständlichem Text.
+export function meldungAusDatei(roh) {
+  let d;
+  try { d = JSON.parse(String(roh).replace(/^\uFEFF/, "")); }
+  catch (f) { throw new Error("Die Datei ist keine Meldung (kein lesbarer Inhalt)."); }
+  if (d && typeof d.text === "string" && !Array.isArray(d.seiten)) d = { ...d, seiten: seitenLesen(d.text) };
+  if (!d || !Array.isArray(d.seiten) || !d.seiten.length) throw new Error("In der Datei stehen keine Seiten.");
+  const zeilen = (t) => (Array.isArray(t) ? t.join("\n") : String(t || "")).replace(/\r?\n/g, "<br>");
+  return {
+    titel: String(d.titel || "").trim(),
+    seiten: d.seiten.map((x) => ({
+      ueber: String((x && (x.ueber || x.ueberschrift)) || "").trim(),
+      text: zeilen(x && x.text),
+      bilder: ((x && x.bilder) || []).filter((b) => typeof b === "string" && /^(https?:|data:image\/)/.test(b)),
+    })),
+  };
+}
+
 let seitenZaehler = 0;
 const neueSeite = (x) => ({ k: "s" + (++seitenZaehler), ueber: (x && x.ueber) || "", text: (x && x.text) || "",
   bilder: (x && x.bilder) || [], laedt: 0 });
@@ -420,6 +444,37 @@ function Bearbeiten({ m, fertig }) {
       bestaetigen: "Löschen", gefahr: true }))) return;
     setSeiten((l) => l.filter((y) => y.k !== x.k));
   };
+  // Aus Datei laden: ersetzt Titel und alle Seiten. data:-Bilder stehen
+  // sofort da und werden im Hintergrund hochgeladen, damit die Meldung
+  // klein bleibt; klappt das nicht, bleiben sie als data:-Bild (geht auch).
+  const datei = useRef(null);
+  const ausDatei = async (d) => {
+    if (!d) return;
+    let inhalt;
+    try { inhalt = meldungAusDatei(await d.text()); }
+    catch (f) { alt.meldung(f.message, "fehler"); return; }
+    const etwasDa = titel.trim() || seiten.some((x) => {
+      const feld = document.getElementById("am-text-" + x.k);
+      return x.ueber.trim() || x.bilder.length || (feld && feld.textContent.trim());
+    });
+    if (etwasDa && !(await alt.nachfragen({ titel: "Aus Datei laden",
+      text: "Titel und alle Seiten durch den Inhalt der Datei ersetzen?", bestaetigen: "Ersetzen" }))) return;
+    const liste = inhalt.seiten.map((x) => ({ ...neueSeite(x), laedt: x.bilder.filter((b) => b.startsWith("data:")).length }));
+    if (inhalt.titel) { setTitel(inhalt.titel); setFehlt(false); }
+    setSeiten(liste);
+    alt.meldung("Meldung aus der Datei geladen: " + liste.length + (liste.length === 1 ? " Seite." : " Seiten."), "gut");
+    let fehler = false;
+    for (const s of liste) {
+      for (const b of s.bilder.filter((x) => x.startsWith("data:"))) {
+        try {
+          const url = await bildHochladen(await (await fetch(b)).blob());
+          aendern(s.k, (x) => ({ ...x, bilder: x.bilder.map((y) => (y === b ? url : y)) }));
+        } catch (f) { fehler = true; }
+        aendern(s.k, (x) => ({ ...x, laedt: x.laedt - 1 }));
+      }
+    }
+    if (fehler) alt.meldung("Nicht alle Bilder liessen sich hochladen, sie bleiben in der Meldung gespeichert.", "warn");
+  };
   const seiteDazu = () => {
     const s = neueSeite();
     setSeiten((l) => [...l, s]);
@@ -449,6 +504,13 @@ function Bearbeiten({ m, fertig }) {
       <h2>{m ? "Meldung bearbeiten" : "Neue Meldung"}</h2>
       {!m && <p className="hinweis">Erscheint bei allen nach dem nächsten Anmelden. Mit mehreren Seiten liest man
         Schritt für Schritt mit „Weiter“, „Gelesen“ kommt erst auf der letzten Seite.</p>}
+      <div className="am-ausdatei">
+        <button type="button" className="knopf knopf--klein knopf--still" id="am-aus-datei"
+          onClick={() => datei.current.click()}>Aus Datei laden …</button>
+        <span className="hinweis klein">Füllt Titel, Seiten, Text und Bilder von selbst aus (Datei .json, z. B. von Claude).</span>
+        <input ref={datei} type="file" accept=".json,application/json,text/plain" hidden id="am-datei"
+          onChange={(e) => { ausDatei(e.target.files[0]); e.target.value = ""; }} />
+      </div>
       <label className="feld"><span>Titel</span>
         <input id="am-titel-feld" type="text" value={titel} data-fokus="" placeholder="z. B. Neu im Hofer Tool"
           className={fehlt ? "fehlt" : ""} onChange={(e) => { setTitel(e.target.value); setFehlt(false); }} />
