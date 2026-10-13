@@ -209,6 +209,59 @@ export async function meldungenVerwalten() {
 
 wiederOeffner("anmeldemeldungen", () => meldungenVerwalten());
 
+// ---------- Vorschau am PC und am Handy ----------
+// Die Meldung wird in echter Grösse auf einen Bildschirm von 1440 × 900
+// (PC) oder 390 × 844 (Handy) gelegt und als Ganzes verkleinert, damit
+// man sieht, wie viel Platz Text und Bilder dort wirklich brauchen.
+const GERAETE = { pc: { b: 1440, h: 900, name: "PC" }, handy: { b: 390, h: 844, name: "Handy" } };
+
+function geraeteVorschau(m) {
+  fensterOeffnen((zu) => <GeraeteVorschau m={m} zu={zu} />, null, "am-vorschau-huelle");
+}
+
+function GeraeteVorschau({ m, zu }) {
+  const [art, setArt] = useState(() => (window.innerWidth < 700 ? "handy" : "pc"));
+  const g = GERAETE[art];
+  const platzB = Math.min(window.innerWidth - 72, 1000);
+  const platzH = window.innerHeight - 190;
+  const mass = Math.min(1, platzB / g.b, platzH / g.h);
+  return (
+    <div className="dialog am-vorschau">
+      <div className="am-vorschau__kopf">
+        <h2>Vorschau</h2>
+        <div className="am-vorschau__wahl" role="tablist" aria-label="Gerät">
+          {Object.entries(GERAETE).map(([k, x]) => (
+            <button key={k} role="tab" aria-selected={art === k} data-geraet={k}
+              className={"knopf knopf--klein" + (art === k ? " knopf--haupt" : " knopf--still")}
+              onClick={() => setArt(k)}>{x.name}</button>
+          ))}
+        </div>
+        <button className="dialog__schliessen-inline" title="Schliessen" data-zu="" onClick={zu}>✕</button>
+      </div>
+      <div className="am-vorschau__buehne" style={{ width: g.b * mass, height: g.h * mass }}>
+        <div className={"am-geraet am-geraet--" + art}
+          style={{ width: g.b, height: g.h, transform: "scale(" + mass + ")" }}>
+          <div className="am-geraet__huelle">
+            <div className="dialog anmeldemeldung">
+              <div className="anmeldemeldung__kopf">
+                <span className="anmeldemeldung__marke">Neu im Hofer Tool</span>
+                <span className="anmeldemeldung__datum">{datumText(m.erstellt)}</span>
+              </div>
+              <h2>{m.titel}</h2>
+              <Inhalt text={m.text} />
+              <div className="dialog__knoepfe anmeldemeldung__knoepfe">
+                <button className="knopf knopf--still" tabIndex={-1}>Abmelden</button>
+                <button className="knopf knopf--haupt" tabIndex={-1}>Gelesen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className="hinweis klein am-vorschau__fuss">So sieht es nach dem Anmelden aus{mass < 1 ? ", hier verkleinert" : ""}. Nichts wird gespeichert.</p>
+    </div>
+  );
+}
+
 // Eigenes Fenster statt dialogFelder, weil Bilder dazukommen: Titel,
 // Text mit B, I, U und darunter die Bilder mit „Bild hinzufügen“ (auch
 // Einfügen mit Strg + V). Ergebnis { titel, text, neu } oder null.
@@ -270,6 +323,14 @@ function Bearbeiten({ m, fertig }) {
     fertig({ titel: titel.trim(), text: meldungZusammen(html, bilder), neu });
   };
 
+  // Vorschau (Wunsch Patrick 13. Oktober 2026: „beim Erstellen eine
+  // Vorschau sehen, für PC und Handy“): nimmt den Stand der Felder, auch
+  // ungespeichert, und zeigt die Meldung wie nach dem Anmelden.
+  const vorschau = () => {
+    const feld = document.getElementById("am-text");
+    geraeteVorschau({ titel: titel.trim() || "(ohne Titel)",
+      text: meldungZusammen(feld ? stilWert(feld) : "", bilder), erstellt: m ? m.erstellt : new Date().toISOString() });
+  };
   return (
     <div className="dialog anmeldemeldung-bearbeiten" onPaste={einfuegen}
       onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); dazu(e.dataTransfer.files); }}>
@@ -316,6 +377,7 @@ function Bearbeiten({ m, fertig }) {
         </label>
       )}
       <div className="dialog__knoepfe">
+        <button className="knopf knopf--still" id="am-vorschau" onClick={vorschau}>Vorschau</button>
         <button className="knopf knopf--still" data-nein="" onClick={() => fertig(null)}>Abbrechen</button>
         <button className="knopf knopf--haupt" id="am-speichern" disabled={laedt > 0} onClick={speichern}>
           {m ? "Speichern" : "Veröffentlichen"}</button>
@@ -368,22 +430,7 @@ function Verwalten({ anfang, zu }) {
     alt.meldung("Gelöscht.");
     neuLaden();
   };
-  const vorschau = (m) => {
-    // Dasselbe Feld wie nach dem Anmelden, quittiert aber nichts
-    fensterOeffnen((schliessen) => (
-      <div className="dialog anmeldemeldung">
-        <div className="anmeldemeldung__kopf">
-          <span className="anmeldemeldung__marke">Neu im Hofer Tool</span>
-          <span className="anmeldemeldung__datum">{datumText(m.erstellt)} · Vorschau</span>
-        </div>
-        <h2>{m.titel}</h2>
-        <Inhalt text={m.text} />
-        <div className="dialog__knoepfe anmeldemeldung__knoepfe">
-          <button className="knopf knopf--haupt" data-zu="" onClick={schliessen}>Schliessen</button>
-        </div>
-      </div>
-    ));
-  };
+  const vorschau = (m) => geraeteVorschau(m);
 
   return (
     <div className="dialog dialog--breit anmeldemeldungen">

@@ -7303,6 +7303,7 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
 .anmeldemeldung-bearbeiten input.fehlt { border-color: var(--gefahr); }
 .anmeldemeldung-bearbeiten .feld-fehler { color: var(--gefahr); font-size: 13px; margin: -8px 0 12px; }
 .anmeldemeldung-bearbeiten .stilfeld { min-height: 140px; }
+.anmeldemeldung-bearbeiten #am-vorschau { margin-right: auto; }
 .am-bilder { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
 .am-bilder__eins { position: relative; width: 150px; height: 110px; border: 1px solid var(--linie); border-radius: var(--radius);
   overflow: hidden; background: var(--grund); display: grid; place-items: center; font-size: 13px; color: var(--gedaempft); }
@@ -7344,3 +7345,26 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
   background: rgba(15, 18, 22, .72); color: #c9d1da; font-size: .9rem; white-space: nowrap;
   animation: pad-schoner-hinweis 6s ease forwards; }
 @keyframes pad-schoner-hinweis { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Vorschau einer Meldung am PC und am Handy (1.47.0) */
+.dialog.am-vorschau { width: auto; max-width: calc(100vw - 32px); max-height: none; overflow: visible;
+  display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.am-vorschau__kopf { display: flex; align-items: center; gap: 14px; width: 100%; }
+.am-vorschau__kopf h2 { margin: 0; flex: 1 1 auto; }
+.am-vorschau__wahl { display: flex; gap: 6px; }
+.am-vorschau__buehne { position: relative; overflow: hidden; border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--linie-stark), 0 10px 30px rgba(0,0,0,.25); }
+.am-vorschau__fuss { margin: 0; text-align: center; }
+.am-geraet { position: absolute; left: 0; top: 0; transform-origin: 0 0; background: var(--grund); overflow: hidden; }
+.am-geraet__huelle { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px;
+  background: rgba(15, 18, 21, .72); }
+.am-geraet .dialog.anmeldemeldung { max-height: 90%; }
+.am-geraet--pc .dialog.anmeldemeldung { min-height: min(420px, 80%); }
+/* Handy: dieselben Regeln wie die Bildschirmbreite bis 640 Pixel */
+.am-geraet--handy .am-geraet__huelle { padding: 16px; }
+.am-geraet--handy .dialog.anmeldemeldung { padding: 20px 18px 16px; min-height: 0; }
+.am-geraet--handy .dialog.anmeldemeldung h2 { font-size: 1.3rem; }
+.am-geraet--handy .anmeldemeldung__text { font-size: 16px; }
+.am-geraet .anmeldemeldung__bild img { max-height: 540px; }
+.am-geraet--handy .anmeldemeldung__bild img { max-height: 500px; }
+.am-geraet button { pointer-events: none; }
