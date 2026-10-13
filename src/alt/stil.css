@@ -7375,3 +7375,10 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
 .am-bilder__eins .am-bilder__intext { position: absolute; right: 4px; bottom: 4px; padding: 2px 8px; min-height: 0;
   background: var(--flaeche); color: var(--tinte); border: 1px solid var(--linie-stark); font-size: 12px; }
 
+/* Planwand ohne Aufblitzen (1.48.1, Wunsch Patrick 13. Oktober 2026):
+   Der Zeitregler bleibt weg, solange keine Tafel steht (display: flex
+   überstimmte sonst hidden), und „wird geladen“ zeigt sich erst nach
+   einem Augenblick, bei schnellem Netz also gar nicht. */
+.pw-zeitschicht[hidden] { display: none !important; }
+.laedt--spaet { animation: laedtSpaet .2s ease .7s both; }
+@keyframes laedtSpaet { from { opacity: 0; } to { opacity: 1; } }

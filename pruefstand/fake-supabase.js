@@ -521,7 +521,7 @@ function bauer(tabelle) {
         fertig(zustand.einzeln
           ? { data: treffer[0] || null, error: treffer.length ? null : { message: "keine Zeile" } }
           : { data: treffer, error: null });
-      }, 1);
+      }, (TEST.verzoegerung && TEST.verzoegerung[tabelle]) || 1);   // Tests machen das Netz langsam
     });
   }
 

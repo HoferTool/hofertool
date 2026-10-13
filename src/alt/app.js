@@ -148,7 +148,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.48.0";
+const APP_VERSION = "1.48.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2722,6 +2722,7 @@ function parkErlaubt(parkId) {
 }
 
 function meineRolle() { return (profil && profil.role) || "produktion"; }
+function meineProfilId() { return (profil && profil.id) || null; }
 function istAdmin() { return meineRolle() === "admin"; }
 
 // „Andere Nutzer“ sind Gerätekonten wie Planwand, Pad Mode oder Päckli
@@ -9531,6 +9532,7 @@ const SEITEN = [
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
+  meineProfilId,
   zeitlimit, meldung, nachfragen, fehlertext, dialogFelder, auswahlDialog,
   merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,
   reiterUebergang,
