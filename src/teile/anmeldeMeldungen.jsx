@@ -125,7 +125,7 @@ function MeldungAnsicht({ m, wievielte, gelesen, laeuft, abmelden, vorschau }) {
     if (text.current) text.current.scrollTop = 0;
   };
   return (
-    <div className="dialog anmeldemeldung" role={vorschau ? undefined : "alertdialog"} aria-modal={vorschau ? undefined : "true"}
+    <div className={"dialog anmeldemeldung" + (seiten.length > 1 ? " anmeldemeldung--seiten" : "")} role={vorschau ? undefined : "alertdialog"} aria-modal={vorschau ? undefined : "true"}
       aria-labelledby={vorschau ? undefined : "am-titel"}>
       <div className="anmeldemeldung__kopf">
         <span className="anmeldemeldung__marke">Neu im Hofer Tool</span>
@@ -146,13 +146,18 @@ function MeldungAnsicht({ m, wievielte, gelesen, laeuft, abmelden, vorschau }) {
       <div className="dialog__knoepfe anmeldemeldung__knoepfe">
         <button className="knopf knopf--still am-abmelden" tabIndex={vorschau ? -1 : undefined}
           onClick={vorschau ? undefined : abmelden}>Abmelden</button>
-        {nr > 0 && <button className="knopf knopf--still" id={vorschau ? undefined : "am-zurueck"}
-          data-am-zurueck="" onClick={() => blaettern(-1)}>Zurück</button>}
+        {/* Zurück steht ab zwei Seiten immer da (auf Seite 1 nur unsichtbar), damit
+            Weiter und Gelesen nie springen (Wunsch Patrick 13. Oktober 2026: „der
+            Gelesen-Knopf soll immer an derselben Stelle sein“) */}
+        {seiten.length > 1 && <button className={"knopf knopf--still am-zurueck-knopf" + (nr > 0 ? "" : " am-unsichtbar")}
+          id={vorschau || nr === 0 ? undefined : "am-zurueck"} data-am-zurueck={nr > 0 ? "" : undefined}
+          disabled={nr === 0} aria-hidden={nr === 0 ? "true" : undefined} tabIndex={nr === 0 ? -1 : undefined}
+          onClick={() => blaettern(-1)}>Zurück</button>}
         {letzte
-          ? <button className="knopf knopf--haupt" id={vorschau ? undefined : "am-gelesen"} disabled={laeuft}
+          ? <button className="knopf knopf--haupt am-haupt" id={vorschau ? undefined : "am-gelesen"} disabled={laeuft}
               tabIndex={vorschau ? -1 : undefined} autoFocus={!vorschau}
               onClick={vorschau ? undefined : gelesen}>{wievielte && !/(\d+) von \1$/.test(wievielte) ? "Gelesen, weiter" : "Gelesen"}</button>
-          : <button className="knopf knopf--haupt" id={vorschau ? undefined : "am-weiter"} data-am-weiter=""
+          : <button className="knopf knopf--haupt am-haupt" id={vorschau ? undefined : "am-weiter"} data-am-weiter=""
               autoFocus={!vorschau} onClick={() => blaettern(1)}>Weiter</button>}
       </div>
     </div>

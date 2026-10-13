@@ -7425,3 +7425,27 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
 /* Viele Seiten (12 und mehr) passen auch am Handy: die Striche werden schmaler statt über den Rand zu laufen */
 .anmeldemeldung__punkte { flex: 0 1 auto; min-width: 0; max-width: 100%; }
 .anmeldemeldung__punkte i { flex: 0 1 22px; min-width: 6px; }
+
+/* Knöpfe der Meldung an fester Stelle (1.50.1, Wunsch Patrick 13. Oktober 2026):
+   Mit Seiten ist das Fenster immer gleich hoch, der Text rollt darin, und
+   Zurück hält seinen Platz auch auf Seite 1. So stehen Weiter und Gelesen auf
+   jeder Seite genau an derselben Stelle. */
+.dialog.anmeldemeldung--seiten { height: min(860px, 94vh); }
+.anmeldemeldung__knoepfe .am-unsichtbar { visibility: hidden; }
+.anmeldemeldung__knoepfe .am-haupt, .anmeldemeldung__knoepfe .am-zurueck-knopf { flex: 0 0 180px; }
+@media (max-width: 640px) {
+  .dialog.anmeldemeldung--seiten { height: calc(100dvh - 40px); max-height: none; }
+  .anmeldemeldung__knoepfe { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .anmeldemeldung__knoepfe .knopf { width: 100%; margin: 0 !important; }
+  .anmeldemeldung__knoepfe .am-zurueck-knopf { grid-column: 1; grid-row: 1; }
+  .anmeldemeldung__knoepfe .am-haupt { grid-column: 2; grid-row: 1; }
+  .anmeldemeldung__knoepfe .am-abmelden { grid-column: 1 / -1; grid-row: 2; }
+  .anmeldemeldung__knoepfe .am-haupt:only-child, .anmeldemeldung__knoepfe .am-abmelden + .am-haupt { grid-column: 1 / -1; }
+}
+.am-geraet--handy .dialog.anmeldemeldung--seiten { height: calc(844px - 32px); max-height: none; }
+.am-geraet--handy .anmeldemeldung__knoepfe { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; }
+.am-geraet--handy .anmeldemeldung__knoepfe .knopf { width: 100%; margin: 0 !important; }
+.am-geraet--handy .anmeldemeldung__knoepfe .am-zurueck-knopf { grid-column: 1; grid-row: 1; }
+.am-geraet--handy .anmeldemeldung__knoepfe .am-haupt { grid-column: 2; grid-row: 1; }
+.am-geraet--handy .anmeldemeldung__knoepfe .am-abmelden { grid-column: 1 / -1; grid-row: 2; }
+.am-geraet--handy .anmeldemeldung__knoepfe .am-abmelden + .am-haupt { grid-column: 1 / -1; }
