@@ -139,6 +139,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || !alt.plan || !alt.plan.symbolWahl) return;
   // Escape hat schon ein Fenster geschlossen: das Anwenden bleibt
   if (e.defaultPrevented || document.querySelector(".dialog-huelle")) return;
+  // Verbraucht: Escape fragt dann nicht noch nach dem Abmelden
+  e.preventDefault();
   symbolAnwendenEnde();
 });
 

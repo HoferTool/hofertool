@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.43.0** Escape ohne offenes Fenster fragt „Abmelden?“, Enter bestätigt und meldet ab, Escape oder Abbrechen bleibt angemeldet (Wunsch Patrick, 13. Oktober 2026: „wenn man esc drückt obwohl kein fenster oder so offen ist soll es fragen ob man sich abmelden will“). Zuerst schliesst Escape wie bisher das oberste Fenster, beendet Suche, Einfügen oder Symbol-Anwenden oder geht eine Ebene zurück; gefragt wird erst, wenn nichts davon mehr da ist, und nicht in einem Eingabefeld, im Pad, beim schwebenden Notizbuch, im Archiv und nicht für Externe. Test `escape_abmelden.py`.
 - **1.42.3** Push-Mitteilungen: Kommt beim Einschalten „Registration failed - push service error“ (Chrome erreicht seinen Push-Dienst nicht), räumt die App ein altes Abo weg und versucht es nach 1,5 Sekunden noch einmal; klappt es dann nicht, sagt die Meldung auf Deutsch, was zu tun ist (Browser neu starten, bei Brave Google-Push einschalten, sonst Edge). Fehlerbericht Patrick 13. Oktober 2026, Test in `push.py`.
 - **1.42.2** Letzten Eintrag löschen doch auch für Externe, bei ihren eigenen Maschinen (Patrick 13. Oktober 2026: Externe sollen es auch dürfen; bei Neuem für Externe vorher fragen). `sql/stueckzahl-loeschen.sql` wieder ohne Ausnahme für Externe.
 - **1.42.1** Letzten Eintrag löschen nicht für Externe (Externe sind von neuen Funktionen nie betroffen, Wunsch Patrick); `sql/stueckzahl-loeschen.sql` entsprechend angepasst.

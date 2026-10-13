@@ -147,7 +147,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.42.3";
+const APP_VERSION = "1.43.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -185,6 +185,17 @@ function escapeZurueck() {
     }
     if (wo === "bestellungen" && best.ansicht && best.ansicht !== "offen") {
       best.ansicht = "offen"; zeichneSeite(); return;
+    }
+
+    // Nichts mehr offen, keine Ebene zurück: dann fragt Escape, ob man
+    // sich abmelden will; Enter bestätigt (Wunsch Patrick 13. Oktober
+    // 2026). Nicht im Archiv, nicht für Externe (neue Funktionen nur
+    // auf Nachfrage) und nicht, solange das kleine Notizbuch schwebt.
+    if (ARCHIV || !profil || istExtern() || !document.getElementById("inhalt")) return;
+    if (document.querySelector("#pad, .nb-schwebend")) return;
+    if (typeof window.abmeldenFragen === "function") {
+      e.preventDefault();
+      window.abmeldenFragen();
     }
   });
 }
@@ -7128,6 +7139,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || !plan.zwischenablage) return;
   // Escape hat schon ein Fenster geschlossen: das Einfügen bleibt
   if (e.defaultPrevented || document.querySelector(".dialog-huelle")) return;
+  // Verbraucht: Escape fragt dann nicht noch nach dem Abmelden
+  e.preventDefault();
   zwischenablageLeeren();
 });
 
