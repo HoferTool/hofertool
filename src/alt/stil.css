@@ -7298,7 +7298,7 @@ body.pw-seite .su-leiste { bottom: 40px; }
 .eba-tat, .eba-mass { font-weight: 700; font-size: 13px; }
 .eba-platz > .eba-bild { height: 84px; display: flex; align-items: center; justify-content: center; padding: 2px 0; }
 .eba-svg { display: inline-flex; height: 100%; }
-.eba-svg svg { height: 100%; width: auto; display: block; }
+.eba-svg svg { height: 100%; width: auto; max-width: 100%; display: block; }
 .eba-her, .eba-wz { font-size: 10.5px; }
 .eba-platz--bearbeiten { cursor: pointer; }
 .eba-platz--bearbeiten:hover { background: #f4f8ff; }
