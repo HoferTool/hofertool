@@ -1,7 +1,7 @@
 # Wunsch Patrick 13. Oktober 2026: Meldung, die jeder nach dem Anmelden
 # zuerst quittieren muss (neue Funktionen erklären); verwalten unter
 # Einstellungen → Allgemein. Gerätekonten bekommen keine.
-import time, sys
+import time, sys, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
@@ -10,11 +10,13 @@ def pruefe(was, ok):
     print(("ok   " if ok else "FEHLT") + " " + was)
     if not ok: fehler.append(was)
 BILD = sys.argv[1] if len(sys.argv) > 1 else None
+# Ein Bild für die Meldung: das Logo aus public/
+PROBE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "icon-512.png")
 
 VORAB = """(() => { let t; Object.defineProperty(window, 'TEST', { configurable: true,
   get() { return t; }, set(v) { t = v;
     v.daten.anmelde_meldungen = [
-      { id: 'm1', titel: 'Neu: Letzten Eintrag löschen', text: 'Unter <b>Produktion → Erfassen</b> steht jetzt\\n„Letzten Eintrag löschen“.', aktiv: true, erstellt: '2026-10-13T08:00:00Z' },
+      { id: 'm1', titel: 'Neu: Letzten Eintrag löschen', text: 'Unter <b>Produktion → Erfassen</b> steht jetzt\\n„Letzten Eintrag löschen“.<!--bilder:[\\"https://bild.test/a.png\\"]-->', aktiv: true, erstellt: '2026-10-13T08:00:00Z' },
       { id: 'm2', titel: 'Schon gelesen', text: 'x', aktiv: true, erstellt: '2026-10-10T08:00:00Z' },
       { id: 'm3', titel: 'Ausgeschaltet', text: 'y', aktiv: false, erstellt: '2026-10-11T08:00:00Z' },
       { id: 'm4', titel: 'Zweite neue', text: 'Noch etwas.', aktiv: true, erstellt: '2026-10-13T09:00:00Z' }];
@@ -28,6 +30,7 @@ def seite(br, geraet=False):
     if geraet: ctx.add_init_script("window.GERAET = true;")
     ctx.add_init_script(VORAB)
     pg = ctx.new_page()
+    pg.route("https://bild.test/**", lambda r: r.fulfill(status=200, content_type="image/png", body=open(PROBE, "rb").read()))
     pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
@@ -44,6 +47,11 @@ with sync_playwright() as p:
     pruefe("Meldung liegt nach dem Anmelden über allem", sperre() == 1)
     pruefe(f"Älteste ungelesene zuerst ({titel()!r})", titel() == "Neu: Letzten Eintrag löschen")
     pruefe("Fett aus dem Text", pg.locator(".anmeldemeldung__text b, .anmeldemeldung__text strong").count() == 1)
+    pruefe("Bild in der Meldung", pg.locator(".anmeldemeldung__bild img").count() == 1)
+    pruefe("Kein Bild-Vermerk im Text", "bilder:" not in pg.locator(".anmeldemeldung__text").inner_text())
+    pg.wait_for_timeout(500)
+    gr = pg.evaluate("() => { const r = document.querySelector('.dialog.anmeldemeldung').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; }")
+    pruefe(f"Fenster gross und mittig ({gr})", gr[0] >= 780 and abs(gr[1] - 720) < 4 and abs(gr[2] - 450) < 40)
     pruefe("Zähler 1 von 2", "1 von 2" in pg.locator(".anmeldemeldung__datum").inner_text())
     if BILD: pg.screenshot(path=BILD + "/meldung-anmelden.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(600)
@@ -75,10 +83,19 @@ with sync_playwright() as p:
     pg.locator("#am-neu").click(); pg.wait_for_timeout(500)
     pg.locator(".dialog-huelle").last.locator("input").first.fill("Neu: Meldungen")
     pg.locator(".dialog-huelle").last.locator(".stilfeld").click(); pg.keyboard.type("Hallo zusammen")
+    pg.set_input_files("#am-bild-datei", PROBE); pg.wait_for_timeout(1200)
+    pruefe("Bild hochgeladen in zeichnungen/meldungen", pg.evaluate("() => TEST.protokoll.some(x => x.art === 'upload' && x.ablage === 'zeichnungen' && /^meldungen\\//.test(x.pfad) && x.typ === 'image/jpeg')"))
+    pruefe("Vorschau des Bildes im Fenster", pg.locator(".am-bilder__eins img").count() == 1)
     if BILD: pg.screenshot(path=BILD + "/meldung-neu.png")
     pg.locator(".dialog-huelle").last.locator(".knopf--haupt").click(); pg.wait_for_timeout(800)
     n = pg.evaluate("() => TEST.daten.anmelde_meldungen.find(x => x.titel === 'Neu: Meldungen')")
     pruefe("Neue Meldung gespeichert", bool(n) and "Hallo" in (n or {}).get("text", ""))
+    pruefe("Mit Bild gespeichert", "<!--bilder:[" in (n or {}).get("text", ""))
+    pg.locator("[data-ambearbeiten=m1]").click(); pg.wait_for_timeout(600)
+    pruefe("Bearbeiten zeigt vorhandenes Bild", pg.locator(".am-bilder__eins img").count() == 1)
+    pg.locator("[data-bildweg='0']").click(); pg.locator("#am-speichern").click(); pg.wait_for_timeout(700)
+    t1 = pg.evaluate("() => TEST.daten.anmelde_meldungen.find(x => x.id === 'm1').text")
+    pruefe("Bild entfernt, Text bleibt", "bilder:" not in t1 and "Erfassen" in t1)
     pg.locator("[data-amaktiv=m4]").click(); pg.wait_for_timeout(600)
     pruefe("Ausschalten speichert", pg.evaluate("() => TEST.daten.anmelde_meldungen.find(x => x.id === 'm4').aktiv") is False)
     pg.locator("[data-amweg=m3]").click(); pg.wait_for_timeout(400)

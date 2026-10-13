@@ -19,15 +19,49 @@
 //  Ohne sql/anmelde-meldungen.sql fehlen die Tabellen: dann zeigt die
 //  App einfach nichts, und die Einstellungen sagen, was fehlt.
 // =================================================================
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
 import { wiederOeffner } from "./wiederherstellen.js";
-import { FettText } from "./FettText.jsx";
+import { FettText, TextMitStil, stilWert } from "./FettText.jsx";
 
 const TABELLE = "anmelde_meldungen";
 const QUITTUNGEN = "anmelde_quittungen";
+const ABLAGE = "zeichnungen";
+
+// Bilder (Wunsch Patrick 13. Oktober 2026: „will auch Bilder reinmachen
+// können“) liegen in der Ablage „zeichnungen“ unter meldungen/ und
+// stehen als Liste hinten im Text: <!--bilder:["adresse", …]-->. So
+// braucht es keine neue Spalte, und die Sicherung nimmt die Bilder mit,
+// weil der Text auf sie verweist.
+const BILDER = /<!--bilder:(\[[\s\S]*?\])-->\s*$/;
+
+export function meldungTeilen(text) {
+  text = text || "";
+  const m = text.match(BILDER);
+  let bilder = [];
+  if (m) { try { bilder = JSON.parse(m[1]).filter((x) => typeof x === "string"); } catch (f) { /* ohne */ } }
+  return { html: m ? text.slice(0, m.index) : text, bilder };
+}
+
+function meldungZusammen(html, bilder) {
+  return (html || "") + (bilder && bilder.length ? "<!--bilder:" + JSON.stringify(bilder) + "-->" : "");
+}
+
+// Text und Bilder einer Meldung, wie sie nach dem Anmelden erscheint
+function Inhalt({ text }) {
+  const { html, bilder } = meldungTeilen(text);
+  return (
+    <div className="anmeldemeldung__text">
+      {html && <div><FettText text={html} /></div>}
+      {bilder.map((b) => (
+        <a key={b} href={b} target="_blank" rel="noopener" className="anmeldemeldung__bild">
+          <img src={b} alt="" loading="eager" /></a>
+      ))}
+    </div>
+  );
+}
 
 // Wer Meldungen bekommt: eine echte Person, kein Gerät, kein Externer
 export function bekommtMeldungen(p) {
@@ -136,7 +170,7 @@ function Sperre({ liste, userId, zu }) {
           {datumText(m.erstellt)}{liste.length > 1 ? " · " + (nr + 1) + " von " + liste.length : ""}</span>
       </div>
       <h2 id="am-titel">{m.titel}</h2>
-      <div className="anmeldemeldung__text"><FettText text={m.text} /></div>
+      <Inhalt text={m.text} />
       <div className="dialog__knoepfe anmeldemeldung__knoepfe">
         <button className="knopf knopf--still" onClick={abmelden}>Abmelden</button>
         <button className="knopf knopf--haupt" id="am-gelesen" onClick={gelesen} disabled={laeuft} autoFocus>
@@ -175,23 +209,119 @@ export async function meldungenVerwalten() {
 
 wiederOeffner("anmeldemeldungen", () => meldungenVerwalten());
 
-async function bearbeitenDialog(m) {
-  const felder = [
-    { name: "titel", label: "Titel", wert: m ? m.titel : "", pflicht: true,
-      platzhalter: "z. B. Neu: Letzten Eintrag löschen" },
-    { name: "text", label: "Text", typ: "textarea", fett: true, wert: m ? m.text : "",
-      platzhalter: "Was ist neu, wo findet man es, wie geht es?" },
-  ];
-  if (m) {
-    felder.push({ name: "neu", label: "Wer sie schon gelesen hat", wert: "nein",
-      auswahl: [["nein", "Muss sie nicht nochmals lesen"], ["ja", "Bekommt sie nochmals"]] });
-  }
-  return alt.dialogFelder({
-    titel: m ? "Meldung bearbeiten" : "Neue Meldung",
-    text: m ? null : "Erscheint bei allen nach dem nächsten Anmelden, bis sie auf „Gelesen“ tippen.",
-    felder,
-    bestaetigen: m ? "Speichern" : "Veröffentlichen",
+// Eigenes Fenster statt dialogFelder, weil Bilder dazukommen: Titel,
+// Text mit B, I, U und darunter die Bilder mit „Bild hinzufügen“ (auch
+// Einfügen mit Strg + V). Ergebnis { titel, text, neu } oder null.
+function bearbeitenDialog(m) {
+  return new Promise((fertig) => {
+    let ende = false;
+    const raus = (w) => { if (!ende) { ende = true; fertig(w); } };
+    fensterOeffnen((schliessen) => (
+      <Bearbeiten m={m} fertig={(w) => { raus(w); schliessen(); }} />
+    ), () => raus(null));
   });
+}
+
+async function bildHochladen(datei) {
+  const blob = await alt.bildVerkleinern(datei, 1800);
+  const pfad = "meldungen/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + ".jpg";
+  const r = await alt.zeitlimit(alt.db.storage.from(ABLAGE).upload(pfad, blob, { contentType: "image/jpeg" }),
+    60000, "Bild hochladen");
+  if (r.error) throw r.error;
+  return alt.db.storage.from(ABLAGE).getPublicUrl(pfad).data.publicUrl;
+}
+
+function Bearbeiten({ m, fertig }) {
+  const anfang = meldungTeilen(m ? m.text : "");
+  const [titel, setTitel] = useState(m ? m.titel : "");
+  const [bilder, setBilder] = useState(anfang.bilder);
+  const [laedt, setLaedt] = useState(0);
+  const [neu, setNeu] = useState("nein");
+  const [fehlt, setFehlt] = useState(false);
+  const wahl = useRef(null);
+
+  const dazu = async (dateien) => {
+    const liste = Array.from(dateien || []).filter((d) => /^image\//.test(d.type));
+    if (!liste.length) return;
+    setLaedt((n) => n + liste.length);
+    for (const d of liste) {
+      try {
+        const url = await bildHochladen(d);
+        setBilder((b) => [...b, url]);
+      } catch (f) {
+        alt.meldung("Bild nicht hochgeladen: " + alt.fehlertext(f), "fehler");
+      }
+      setLaedt((n) => n - 1);
+    }
+  };
+  const einfuegen = (e) => {
+    const d = Array.from((e.clipboardData && e.clipboardData.files) || []);
+    if (d.some((x) => /^image\//.test(x.type))) { e.preventDefault(); dazu(d); }
+  };
+  const schieben = (i, r) => setBilder((b) => {
+    const n = b.slice(); const j = i + r;
+    if (j < 0 || j >= n.length) return b;
+    [n[i], n[j]] = [n[j], n[i]]; return n;
+  });
+  const speichern = () => {
+    if (!titel.trim()) { setFehlt(true); return; }
+    const feld = document.getElementById("am-text");
+    const html = feld ? stilWert(feld) : "";
+    fertig({ titel: titel.trim(), text: meldungZusammen(html, bilder), neu });
+  };
+
+  return (
+    <div className="dialog anmeldemeldung-bearbeiten" onPaste={einfuegen}
+      onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); dazu(e.dataTransfer.files); }}>
+      <h2>{m ? "Meldung bearbeiten" : "Neue Meldung"}</h2>
+      {!m && <p className="hinweis">Erscheint bei allen nach dem nächsten Anmelden, bis sie auf „Gelesen“ tippen.</p>}
+      <label className="feld"><span>Titel</span>
+        <input id="am-titel-feld" type="text" value={titel} data-fokus="" placeholder="z. B. Neu: Letzten Eintrag löschen"
+          className={fehlt ? "fehlt" : ""} onChange={(e) => { setTitel(e.target.value); setFehlt(false); }} />
+      </label>
+      {fehlt && <p className="feld-fehler">Bitte einen Titel eingeben.</p>}
+      <div className="feld"><span>Text</span>
+        <TextMitStil id="am-text" wert={anfang.html} platzhalter="Was ist neu, wo findet man es, wie geht es?" />
+      </div>
+      <div className="feld"><span>Bilder</span>
+        <div className="am-bilder">
+          {bilder.map((b, i) => (
+            <div key={b} className="am-bilder__eins">
+              <img src={b} alt="" />
+              <div className="am-bilder__knoepfe">
+                {bilder.length > 1 && <>
+                  <button type="button" className="knopf knopf--klein knopf--still" title="Nach vorne"
+                    disabled={i === 0} onClick={() => schieben(i, -1)}>‹</button>
+                  <button type="button" className="knopf knopf--klein knopf--still" title="Nach hinten"
+                    disabled={i === bilder.length - 1} onClick={() => schieben(i, 1)}>›</button></>}
+                <button type="button" className="knopf knopf--klein am-bilder__weg" data-bildweg={i} title="Bild entfernen"
+                  onClick={() => setBilder((x) => x.filter((y) => y !== b))}>✕</button>
+              </div>
+            </div>
+          ))}
+          {laedt > 0 && <div className="am-bilder__eins am-bilder__laedt">Lädt …</div>}
+          <button type="button" className="am-bilder__dazu" id="am-bild-dazu" onClick={() => wahl.current.click()}>
+            <span aria-hidden="true">+</span>Bild hinzufügen</button>
+          <input ref={wahl} type="file" accept="image/*" multiple hidden id="am-bild-datei"
+            onChange={(e) => { dazu(e.target.files); e.target.value = ""; }} />
+        </div>
+        <p className="hinweis klein">Am Computer auch Bild hierher ziehen oder mit Strg + V einfügen.</p>
+      </div>
+      {m && (
+        <label className="feld"><span>Wer sie schon gelesen hat</span>
+          <select id="am-neu-wahl" value={neu} onChange={(e) => setNeu(e.target.value)}>
+            <option value="nein">Muss sie nicht nochmals lesen</option>
+            <option value="ja">Bekommt sie nochmals</option>
+          </select>
+        </label>
+      )}
+      <div className="dialog__knoepfe">
+        <button className="knopf knopf--still" data-nein="" onClick={() => fertig(null)}>Abbrechen</button>
+        <button className="knopf knopf--haupt" id="am-speichern" disabled={laedt > 0} onClick={speichern}>
+          {m ? "Speichern" : "Veröffentlichen"}</button>
+      </div>
+    </div>
+  );
 }
 
 function Verwalten({ anfang, zu }) {
@@ -247,7 +377,7 @@ function Verwalten({ anfang, zu }) {
           <span className="anmeldemeldung__datum">{datumText(m.erstellt)} · Vorschau</span>
         </div>
         <h2>{m.titel}</h2>
-        <div className="anmeldemeldung__text"><FettText text={m.text} /></div>
+        <Inhalt text={m.text} />
         <div className="dialog__knoepfe anmeldemeldung__knoepfe">
           <button className="knopf knopf--haupt" data-zu="" onClick={schliessen}>Schliessen</button>
         </div>
