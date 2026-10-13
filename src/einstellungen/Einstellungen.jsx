@@ -405,7 +405,7 @@ function Mitteilungen({ bin }) {
         await pushAbmelden();
       }
     } catch (f) {
-      alt.meldung("Mitteilungen: " + alt.fehlertext(f), "warn");
+      alt.meldung("Mitteilungen gehen nicht: " + alt.fehlertext(f), "warn");
     }
     setLaeuft(false);
   };
