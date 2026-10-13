@@ -2722,6 +2722,7 @@ function parkErlaubt(parkId) {
 }
 
 function meineRolle() { return (profil && profil.role) || "produktion"; }
+function meineProfilId() { return (profil && profil.id) || null; }
 function istAdmin() { return meineRolle() === "admin"; }
 
 // „Andere Nutzer“ sind Gerätekonten wie Planwand, Pad Mode oder Päckli
@@ -9531,6 +9532,7 @@ const SEITEN = [
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
+  meineProfilId,
   zeitlimit, meldung, nachfragen, fehlertext, dialogFelder, auswahlDialog,
   merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,
   reiterUebergang,
