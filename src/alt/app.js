@@ -148,7 +148,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.45.0";
+const APP_VERSION = "1.46.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9543,7 +9543,7 @@ Object.assign(alt, {
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, ladePlanAuftraege,
   istExtern, einstellung, rollenMerken, produktionAlteAnsicht, seiteProduktion,
   ladeZaehlerstaende, speichereStand, wochenStart, plusTage, wochentagName, WT_KURZ,
-  PLANSTATUS, zustandSetzen, einrichtblattPdfOeffnen, BESTELLSTATUS,
+  PLANSTATUS, zustandSetzen, einrichtblattPdfOeffnen, blattPdfSuchen, BESTELLSTATUS,
   ladeBestellungen, stammVergessen, statusDaten, statusZeit, statusZeitText,
   bestStatusDialog, bestellungDrucken, artikelBearbeiten,
   ladeAlleMaschinen, maschineZielText, parallelSenden,

@@ -18,6 +18,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
+import Bildschirmschoner from "./Bildschirmschoner.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
@@ -579,6 +580,8 @@ export default function Maschine({ d }) {
   return (
     <>
       {kopf}
+      {/* Nach einer Minute ohne Berührung das Einrichtblatt gross (Wunsch Patrick, 13. Oktober 2026) */}
+      <Bildschirmschoner hoco={j ? j.job_number : null} typId={m.type_id || null} />
       {!j && <p className="pad__hinweis">Auf dieser Maschine läuft gerade kein Auftrag.</p>}
       <div className="pad-flaeche">
 

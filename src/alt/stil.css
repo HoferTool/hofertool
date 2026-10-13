@@ -7329,3 +7329,18 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
 .anmeldemeldungen__leser { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;
   margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--linie, #d6dbe3); font-size: 14px; }
 .anmeldemeldungen__leser ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* ---------- Pad Mode: Bildschirmschoner mit dem Einrichtblatt (1.46.0) ----------
+   Über dem ganzen Pad, unter Fenstern und Meldungen. Das Blatt füllt die
+   Fläche (ganze Seite sichtbar); Reiter und Zoom der Excel-Ansicht sind
+   weg, ein Tipp irgendwohin führt zurück. */
+.pad-schoner { position: fixed; inset: 0; z-index: 79; background: #0f1216; color: #f2f4f7; }
+.pad-schoner__blatt { position: absolute; inset: 0; }
+.pad-schoner .excelansicht__leiste, .pad-schoner .pdfansicht__zoom { display: none; }
+.pad-schoner__deckel { position: absolute; inset: 0; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; touch-action: none; }
+.pad-schoner__hinweis { position: absolute; left: 50%; bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%); pointer-events: none; padding: 6px 16px; border-radius: 999px;
+  background: rgba(15, 18, 22, .72); color: #c9d1da; font-size: .9rem; white-space: nowrap;
+  animation: pad-schoner-hinweis 6s ease forwards; }
+@keyframes pad-schoner-hinweis { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
