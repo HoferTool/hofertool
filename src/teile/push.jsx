@@ -83,6 +83,45 @@ function geraetName() {
   return "Gerät";
 }
 
+// Chrome meldet „Registration failed - push service error“, wenn sein
+// Push-Dienst (Google) gerade nicht antwortet oder ein altes Abo hängt.
+// Einmal aufräumen und neu versuchen hilft oft; sonst eine Meldung, die
+// sagt, was zu tun ist (Fehlerbericht Patrick, 13. Oktober 2026).
+async function abonnierenMitNeuversuch(r, schluessel) {
+  const optionen = { userVisibleOnly: true, applicationServerKey: alsBytes(schluessel) };
+  try {
+    return await r.pushManager.subscribe(optionen);
+  } catch (f) {
+    if (!pushDienstFehler(f)) throw f;
+    try { const vorher = await r.pushManager.getSubscription(); if (vorher) await vorher.unsubscribe(); } catch (g) { /* egal */ }
+    await new Promise((ok) => setTimeout(ok, 1500));
+    try {
+      return await r.pushManager.subscribe(optionen);
+    } catch (g) {
+      if (!pushDienstFehler(g)) throw g;
+      throw new Error(pushDienstText());
+    }
+  }
+}
+
+function pushDienstFehler(f) {
+  return !!f && (f.name === "AbortError" || /push service|Registration failed/i.test(f.message || ""));
+}
+
+function pushDienstText() {
+  const brave = !!navigator.brave;
+  if (brave) {
+    return "Brave lässt Mitteilungen nur zu, wenn unter Einstellungen → Datenschutz und Sicherheit "
+      + "„Google-Dienste für Push-Nachrichten verwenden“ eingeschaltet ist. Danach Brave neu starten.";
+  }
+  if (/Edg\//.test(navigator.userAgent)) {
+    return "Der Mitteilungsdienst von Edge antwortet nicht. Edge ganz schliessen und neu öffnen, dann nochmals einschalten.";
+  }
+  return "Der Mitteilungsdienst des Browsers antwortet nicht. Browser ganz schliessen und neu öffnen, "
+    + "dann nochmals einschalten. Geht es dann immer noch nicht, blockiert vermutlich das Firmennetz "
+    + "den Dienst von Google; mit Microsoft Edge geht es meistens.";
+}
+
 // Meldet dieses Gerät an. Fragt den Browser nur, wenn erlaubt = true
 // (also direkt aus einem Tipp heraus).
 export async function pushAbonnieren(fragen) {
@@ -95,9 +134,7 @@ export async function pushAbonnieren(fragen) {
   }
   const schluessel = await absenderSchluessel();
   let abo = await r.pushManager.getSubscription();
-  if (!abo) {
-    abo = await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: alsBytes(schluessel) });
-  }
+  if (!abo) abo = await abonnierenMitNeuversuch(r, schluessel);
   const j = abo.toJSON();
   const { error } = await alt.db.rpc("push_abo_setzen", {
     p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_geraet: geraetName(),

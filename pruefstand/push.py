@@ -59,6 +59,26 @@ with sync_playwright() as p:
     pg.locator("#e-push").check(); pg.wait_for_timeout(600)
     pruefe("wieder angemeldet", pg.evaluate("TEST.protokoll.filter(x => x.name === 'push_abo_setzen').length") == 2)
 
+    # 1.42.3: Chrome „Registration failed - push service error“ – einmal neu versuchen,
+    # sonst verständliche Meldung statt des englischen Textes
+    pg.evaluate("""(async () => { const r = await navigator.serviceWorker.getRegistration();
+      window.__subOrig = r.pushManager.subscribe; window.__fehlschlaege = 1;
+      r.pushManager.subscribe = async (o) => { if (window.__fehlschlaege-- > 0) {
+        const e = new Error('Registration failed - push service error'); e.name = 'AbortError'; throw e; }
+        return window.__subOrig(o); }; })()""")
+    pg.locator("#e-push").uncheck(); pg.wait_for_timeout(600)
+    pg.locator("#e-push").check(); pg.wait_for_timeout(2600)
+    pruefe("nach einem Fehler neu versucht und angemeldet", pg.evaluate("TEST.protokoll.filter(x => x.name === 'push_abo_setzen').length") == 3)
+    pg.evaluate("window.__fehlschlaege = 9")
+    pg.locator("#e-push").uncheck(); pg.wait_for_timeout(600)
+    pg.locator("#e-push").check(); pg.wait_for_timeout(2600)
+    t = pg.inner_text(".toast-bereich")
+    pruefe("verständliche Meldung", "Mitteilungsdienst des Browsers antwortet nicht" in t and "push service" not in t)
+    pg.screenshot(path="/tmp/claude-0/push-fehler.png")
+    pg.evaluate("window.__fehlschlaege = 0")
+    pg.locator("#e-push").uncheck(); pg.wait_for_timeout(400)
+    pg.locator("#e-push").check(); pg.wait_for_timeout(800)
+
     # Senden
     pg.locator("#push-senden").click(); pg.wait_for_timeout(500)
     pruefe("Dialog nennt Geräte", "3 Geräte" in pg.inner_text(".dialog-huelle:last-child"))
