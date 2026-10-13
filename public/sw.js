@@ -24,7 +24,7 @@ const VORSILBE = "hofer-app-" + BEREICH + "-";
 const HUELLE = VORSILBE + "__FASSUNG__";
 // Die Ablage der früheren Einzeldatei-App (hofer-huelle-…) räumt nur
 // die Live-App weg, sobald sie selbst diese Fassung ist.
-const IST_VORSCHAU = /\/vorschau\/$/.test(BEREICH);
+const IST_VORSCHAU = /\/(vorschau|test)\/$/.test(BEREICH);
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -54,7 +54,8 @@ self.addEventListener("fetch", (e) => {
   // Die Vorschau der neuen Fassung unter .../vorschau/ hat ihren eigenen
   // Helfer. Ohne diese Zeile würde ihre Seite hier als gemerkte Fassung
   // der Live-App abgelegt und ohne Netz statt der Live-App erscheinen.
-  if (url.pathname.includes("/vorschau/")) return;
+  // Dasselbe für die Test-Fassung unter .../test/.
+  if (url.pathname.includes("/vorschau/") || url.pathname.includes("/test/")) return;
 
   // Die Seite: erst das Netz, sonst die gemerkte Fassung
   if (anfrage.mode === "navigate" || url.pathname.endsWith("/index.html")
@@ -111,7 +112,7 @@ self.addEventListener("notificationclick", (e) => {
   e.waitUntil((async () => {
     const offen = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const c of offen) {
-      if (c.url.startsWith(self.registration.scope) && !c.url.includes("/vorschau/") && "focus" in c) return c.focus();
+      if (c.url.startsWith(self.registration.scope) && !c.url.includes("/vorschau/") && !c.url.includes("/test/") && "focus" in c) return c.focus();
     }
     return self.clients.openWindow(self.registration.scope);
   })());

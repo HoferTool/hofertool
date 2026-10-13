@@ -181,6 +181,14 @@ try {
   $vorhanden = @{}; $blattVon = @{}
   Lesen "hoco_type_data?select=hoco_nr,type_id,blatt_url&blatt_url=not.is.null" |
     ForEach-Object { $k = [string]$_.hoco_nr + "|" + [string]$_.type_id; $vorhanden[$k] = $true; $blattVon[$k] = [string]$_.blatt_url }
+  # Blätter, die in der App gemacht und als gut bestätigt sind: dafür
+  # nie mehr ein Excel (Wunsch Patrick, 13. Oktober 2026). Fehlt die
+  # Tabelle einrichtblatt_app noch, gibt es eben keine.
+  $inDerApp = @{}
+  try {
+    Lesen "einrichtblatt_app?select=hoco_nr,type_id&gut_am=not.is.null" |
+      ForEach-Object { $inDerApp[[string]$_.hoco_nr + "|" + [string]$_.type_id] = $true }
+  } catch { }
   # Einmalig nach dem Wechsel auf diese Fassung: Was das Programm früher
   # hochgeladen hat (dateien), gilt als eigenes Blatt, nicht als Master
   if ($adressenNeu) {
@@ -243,6 +251,9 @@ try {
       $schluessel = $h + "|" + [string]$typ.id
       $jetzt = [string]$blattVon[$schluessel]
       $eigene = [string]$stand.adressen[$schluessel]
+
+      # Blatt in der App ist gut: kein Excel mehr, auch kein nächstes
+      if ($inDerApp[$schluessel]) { Eintrag $oi "" $h "Blatt in der App, kein Excel mehr"; continue }
 
       # In der App von Hand hinterlegt: Master, bleibt
       if ($jetzt -and ($jetzt -ne $eigene)) { $status.manuell++; Eintrag $oi "" $h "in der App von Hand hinterlegt (Master), bleibt"; continue }
