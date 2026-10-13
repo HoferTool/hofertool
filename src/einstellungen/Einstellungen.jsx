@@ -22,6 +22,7 @@ import PlanwandArchiv from "./PlanwandArchiv.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { pushMoeglich, pushNurVomStartbildschirm, pushEingeschaltet, pushAbonnieren, pushAbmelden,
   pushNachrichtSenden, pushHistorieOeffnen, pushHinweisWeg } from "../teile/push.jsx";
+import { meldungenVerwalten } from "../teile/anmeldeMeldungen.jsx";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 // Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
@@ -103,6 +104,7 @@ function Allgemein({ bin }) {
       <MeinKonto />
       <Darstellung />
       {alt.meineRolle() !== "extern" && <Mitteilungen bin={bin} />}
+      {bin && <AnmeldeMeldungen />}
       {(bin || alt.darfDokumenteUndSicherung()) && <Bestellmail />}
       <UeberDieApp />
     </>
@@ -421,6 +423,18 @@ function Mitteilungen({ bin }) {
           </div>
         </Zeile>
       )}
+    </Gruppe>
+  );
+}
+
+// Meldungen beim Anmelden (1.44.0, Wunsch Patrick 13. Oktober 2026):
+// Admins schreiben hier, was neu ist; alle sehen es nach dem Anmelden.
+function AnmeldeMeldungen() {
+  return (
+    <Gruppe titel="Meldungen beim Anmelden">
+      <Zeile titel="Meldungen" text="Erscheint bei allen nach dem Anmelden, bis sie auf „Gelesen“ tippen. Zum Beispiel, um Neues in der App zu erklären.">
+        <button className="knopf knopf--klein" id="am-verwalten" onClick={meldungenVerwalten}>Verwalten …</button>
+      </Zeile>
     </Gruppe>
   );
 }
