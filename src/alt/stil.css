@@ -7268,3 +7268,7 @@ body.pw-seite .su-leiste { bottom: 40px; }
 .auf-kopf__knoepfe { align-items: center; }
 .auf-kopf__knoepfe .dialog__schliessen-inline { width: 40px; height: 40px; }
 .dialog--auftrag .dialog__knoepfe.auf-fuss { justify-content: flex-start !important; }
+
+/* Produktion → Erfassen: letzten Eintrag löschen (1.42.0) */
+.aw-letzter-weg { display: block; margin: 2px 0 4px; font-size: 12px; color: var(--gedaempft); text-align: left; }
+.aw-letzter-weg:hover { color: #c62828; }

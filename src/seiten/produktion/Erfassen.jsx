@@ -174,7 +174,7 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
           return (
             <div className="mkarte mkarte--tag" key={m.id}>
               <AuftragsBlock maschine={m} aktionen={aktionen} mitte={eingabe}
-                stand={j ? aktuellerStand(m.id, staende) : null} />
+                stand={j ? aktuellerStand(m.id, staende) : null} letzter={letzterEintrag(m.id, staende)} />
             </div>
           );
         })}
@@ -209,7 +209,7 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
                 <tr key={m.id}>
                   <th className="fest fest--voll fest--woche">
                     <AuftragsBlock maschine={m} aktionen={aktionen}
-                      stand={j ? aktuellerStand(m.id, staende) : null} />
+                      stand={j ? aktuellerStand(m.id, staende) : null} letzter={letzterEintrag(m.id, staende)} />
                   </th>
                   {tage.map((t, i) => {
                     const l = leistungen[i];
@@ -247,15 +247,21 @@ function leistungText(n) {
   return (n > 0 ? "+" : "") + alt.zahlText(n);
 }
 
-// Letzter erfasster Zählerstand des laufenden Auftrags
-function aktuellerStand(maschineId, staende) {
+// Letzter erfasster Eintrag des laufenden Auftrags (oder null)
+function letzterEintrag(maschineId, staende) {
   const j = alt.prod.auftraege[maschineId];
-  if (!j) return 0;
+  if (!j) return null;
   const liste = (staende.proMaschine && staende.proMaschine[maschineId]) || [];
   for (let i = liste.length - 1; i >= 0; i--) {
-    if (liste[i].job_id === j.id) return liste[i].quantity;
+    if (liste[i].job_id === j.id) return liste[i];
   }
-  return 0;
+  return null;
+}
+
+// Letzter erfasster Zählerstand des laufenden Auftrags
+function aktuellerStand(maschineId, staende) {
+  const e = letzterEintrag(maschineId, staende);
+  return e ? e.quantity : 0;
 }
 
 // ---------- Ein Eingabefeld für den Zählerstand ----------
@@ -347,7 +353,7 @@ function AuftragFehlt({ maschine, aktionen }) {
 // Oben Maschine und Zustand, darunter gross die Nummer, ein Balken für
 // Stand und Ziel und die Knöpfe in einer Reihe. Die Tagesansicht setzt
 // ihr Eingabefeld als „mitte“ vor die Knöpfe.
-function AuftragsBlock({ maschine, aktionen, stand, mitte }) {
+function AuftragsBlock({ maschine, aktionen, stand, mitte, letzter }) {
   const j = alt.prod.auftraege[maschine.id];
   const schreiben = alt.darfSchreiben();
   const kopf = (
@@ -402,6 +408,13 @@ function AuftragsBlock({ maschine, aktionen, stand, mitte }) {
           <span>seit {alt.kurzDatum(alt.isoDatum(new Date(j.started_at)))}</span>
         </div>
       )}
+      {/* Den letzten Eintrag löschen, etwa nach einem Tippfehler
+          (Wunsch Patrick 13. Oktober 2026); wer Zahlen melden darf */}
+      {letzter && (schreiben || alt.istExtern()) &&
+        <button className="linkknopf aw-letzter-weg" data-letzter-weg={maschine.id}
+          title={"Löscht " + alt.zahlText(letzter.quantity) + " Stück vom " + alt.kurzDatum(letzter.record_date)}
+          onClick={() => aktionen.letztenLoeschen(j, maschine)}>
+          Letzten Eintrag löschen ({alt.zahlText(letzter.quantity)} · {alt.kurzDatum(letzter.record_date)})</button>}
       {mitte}
       <div className="aw-knoepfe">
         {/* Die HOCO Nr. steht am Auftrag, damit öffnet sich das
@@ -489,6 +502,37 @@ function auftragsAktionen(neuLaden) {
         .eq("id", j.id);
       if (error) alt.meldung(alt.fehlertext(error), "fehler");
       else fertig("Gespeichert.");
+    },
+
+    // Der jüngste Eintrag dieses Auftrags, frisch aus der Datenbank,
+    // damit auch einer ausserhalb des gezeigten Zeitraums zählt
+    async letztenLoeschen(j, m) {
+      let e;
+      try {
+        const { data, error } = await alt.zeitlimit(
+          alt.db.from("production_records").select("machine_id, record_date, quantity, job_id")
+            .eq("machine_id", m.id).eq("job_id", j.id)
+            .order("record_date", { ascending: false }).limit(1), 10000, "Stückzahl");
+        if (error) throw error;
+        e = data && data[0];
+      } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
+      if (!e) { alt.meldung("Für diesen Auftrag ist nichts erfasst.", "warn"); return; }
+      const ok = await alt.nachfragen({ titel: "Letzten Eintrag löschen",
+        text: m.name + ", Auftrag " + j.job_number + ": Zählerstand " + alt.zahlText(e.quantity)
+            + " vom " + alt.kurzDatum(e.record_date) + " wird gelöscht.",
+        bestaetigen: "Löschen", gefahr: true });
+      if (!ok) return;
+      const { data: weg, error } = await alt.db.from("production_records").delete()
+        .eq("machine_id", m.id).eq("record_date", e.record_date).eq("job_id", j.id).select();
+      if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+      // Ohne Recht löscht die Datenbank still nichts
+      if (Array.isArray(weg) && !weg.length) {
+        alt.meldung("Nicht gelöscht: Dafür fehlt das Recht (sql/stueckzahl-loeschen.sql).", "fehler");
+        return;
+      }
+      alt.merkeSchritt("Zählerstand vom " + alt.kurzDatum(e.record_date) + " gelöscht",
+        alt.rueckStand(m.id, e.record_date, e.quantity, j.id));
+      fertig("Eintrag gelöscht.");
     },
 
     async beenden(j) {
