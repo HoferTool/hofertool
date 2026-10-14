@@ -23,6 +23,7 @@ import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { pushMoeglich, pushNurVomStartbildschirm, pushEingeschaltet, pushAbonnieren, pushAbmelden,
   pushNachrichtSenden, pushHistorieOeffnen, pushHinweisWeg } from "../teile/push.jsx";
 import { meldungenVerwalten } from "../teile/anmeldeMeldungen.jsx";
+import { schutzNoetig, schutzGesetzt } from "../teile/schutzPflicht.jsx";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 // Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
@@ -127,8 +128,11 @@ function MeinKonto() {
   // 9. Oktober 2026), nur Gerätekonten („Andere Nutzer“) und das
   // Dienstkonto nicht. Die Datenbank prüft dasselbe (sql/eigenes-passwort.sql).
   const selbst = admin || (!alt.istAndererNutzer() && profil.role !== "dienst");
-  // Ganz ohne Passwort, also ein Tipp auf die Kachel: nie für Externe
-  const offenErlaubt = selbst && profil.role !== "extern";
+  // Ganz ohne Passwort, also ein Tipp auf die Kachel: nie für Externe,
+  // und seit 1.56.0 auch nicht mehr für Personen im Betrieb (Passwort
+  // oder PIN ist Pflicht, src/teile/schutzPflicht.jsx), nur noch für
+  // Gerätekonten, wenn ein Admin dort angemeldet ist
+  const offenErlaubt = selbst && profil.role !== "extern" && !schutzNoetig(profil);
   const db = alt.db;
   const { meldung, fehlertext } = alt;
 
@@ -207,6 +211,7 @@ function MeinKonto() {
     if (profil.ohne_passwort) await pinAufheben();
     profil.ohne_passwort = false;
     setMitPin(false);
+    schutzGesetzt();
     meldung("Passwort geändert. Du meldest dich jetzt mit dem Passwort an.");
   };
 
@@ -223,6 +228,7 @@ function MeinKonto() {
     profil.ohne_passwort = true;
     setMitPin(true);
     setMitSchutz(true);
+    schutzGesetzt();
     meldung("PIN gespeichert. Ab jetzt: Kachel antippen und PIN eingeben.");
   };
 
@@ -291,7 +297,7 @@ function MeinKonto() {
         </Zeile>
       </Gruppe>
 
-      <Gruppe titel="Anmeldung" text={(offen
+      <Gruppe titel="Anmeldung" id="es-anmeldung" text={(offen
         ? "Du kommst zurzeit ohne Passwort hinein, mit einem Tipp auf deine Kachel."
         : mitPin
         ? "Du meldest dich zurzeit mit deiner PIN an."

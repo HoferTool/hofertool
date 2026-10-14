@@ -50,6 +50,7 @@ import { maschinenkopf } from "../seiten/rechner/kopf.jsx";
 import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
 import { pushNachAnmeldung, pushHinweisWeg } from "../teile/push.jsx";
 import { meldungenNachAnmeldung, meldungenWeg } from "../teile/anmeldeMeldungen.jsx";
+import { schutzPflicht, schutzWeg } from "../teile/schutzPflicht.jsx";
 import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 
 const BOOT = document.getElementById("boot");
@@ -148,7 +149,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.55.3";
+const APP_VERSION = "1.56.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1550,12 +1551,16 @@ async function profilLaden(frisch) {
       sitzungMerken(profil.email, s.refresh_token);
     }
     lebenszeichenStarten();
-    // Push-Mitteilungen nach der Einstellung dieser Person (1.35.0).
-    // Etwas später, damit die Seite zuerst steht.
-    setTimeout(pushNachAnmeldung, 2000);
-    // Meldungen beim Anmelden (1.44.0): was noch nicht gelesen ist, liegt
-    // über allem, bis die Person „Gelesen“ tippt
-    setTimeout(meldungenNachAnmeldung, 600);
+    // Ohne Passwort und ohne PIN geht nichts, bis eins gesetzt ist
+    // (1.56.0). Erst danach Meldungen beim Anmelden (1.44.0), die über
+    // allem liegen, bis die Person „Gelesen“ tippt, und Push-Mitteilungen
+    // (1.35.0), etwas später, damit die Seite zuerst steht.
+    const fuer = data;
+    setTimeout(async () => {
+      if (!(await schutzPflicht()) || profil !== fuer) return;
+      meldungenNachAnmeldung();
+      setTimeout(pushNachAnmeldung, 1400);
+    }, 600);
   } catch (f) {
     console.warn("Profil nicht ladbar:", f.message);
     profil = { id: s.user.id, email: s.user.email, full_name: null,
@@ -10116,6 +10121,7 @@ function zeichneGeruest() {
     profil = null;
     pushHinweisWeg();
     meldungenWeg();
+    schutzWeg();
     // Auch das kleine Notizbuch geht beim Abmelden zu
     document.querySelectorAll(".dialog-huelle, .nb-schwebend [data-zu]").forEach((el) =>
       (el.classList.contains("dialog-huelle") ? el.remove() : el.click()));
