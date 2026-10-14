@@ -38,15 +38,17 @@ const poly = (punkte, art) => '<path d="M' + punkte.map(([x, y]) => pt(x, y)).jo
 // Dreh-, Gewinde- und Stechhalter nach dem Foto von Patrick (13. Oktober
 // 2026, Satz SDJCR, SER, MGEHR): gerader Vierkantschaft, oben rechts
 // abgeschrägt, die Platte sitzt in der Ecke links oben. Schaft kurz
-// („weniger Halter“). Einstellwinkel 93°, Spitze links oben.
-const KURZ = "0 0 60 90";
+// („weniger Halter“, 14. Oktober: „unten mehr kürzen“). Die linke
+// Schneide der D- und V-Platte steht rechtwinklig, also senkrecht am
+// Halter (Wunsch 14. Oktober 2026), Spitze links oben.
+const KURZ = "0 0 60 64";
 const loch = (l) => '<circle cx="' + l[0].toFixed(1) + '" cy="' + l[1].toFixed(1) + '" r="' + l[2] + '" ' + LOCH + "/>";
-const drehHalter = poly([[16, 89], [44, 89], [44, 32], [29, 14], [16, 14]], HALTER);
+const drehHalter = poly([[16, 63], [44, 63], [44, 32], [29, 14], [16, 14]], HALTER);
 // Rhombische Platte: winkel 55 (D) oder 35 (V), lange Diagonale schräg
 // nach rechts unten in den Halter
 function rhombus(winkel) {
-  const tx = 11, ty = 7, lang = winkel > 45 ? 21 : 23;
-  const w1 = ((45 + winkel / 2) * Math.PI) / 180, w2 = ((45 - winkel / 2) * Math.PI) / 180;
+  const tx = 13, ty = 5, lang = winkel > 45 ? 21 : 24;
+  const w1 = Math.PI / 2, w2 = ((90 - winkel) * Math.PI) / 180;
   const p1 = [tx + lang * Math.cos(w1), ty + lang * Math.sin(w1)];
   const p3 = [tx + lang * Math.cos(w2), ty + lang * Math.sin(w2)];
   const p2 = [p1[0] + p3[0] - tx, p1[1] + p3[1] - ty];
@@ -56,20 +58,22 @@ const drehstahl = (winkel) => drehHalter + rhombus(winkel);
 // Gewinde (SER): Kopf mit Auflage, liegende Vollprofilplatte 16 mit drei
 // Schneidecken, jede Ecke ein 60°-Profil (Wunsch 13. Oktober 2026)
 function gewindeplatte() {
-  const m = [26, 23], r = 13;
-  let d = "";
+  const m = [28, 27], R = 21;
+  const ecke = (i) => { const w = ((-100 + i * 120) * Math.PI) / 180; return [m[0] + R * Math.cos(w), m[1] + R * Math.sin(w)]; };
+  const zw = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const rein = (q, k) => zw(q, m, k);                   // ein Stück zur Mitte hin
+  const punkte = [];
   for (let i = 0; i < 3; i++) {
-    const w = ((-135 + i * 120) * Math.PI) / 180;      // erste Ecke zeigt nach links oben
-    const ecke = (dw, rr) => pt(m[0] + rr * Math.cos(w + dw), m[1] + rr * Math.sin(w + dw));
-    d += (i ? " L" : "M") + ecke(-0.5, r * 0.62) + " L" + ecke(-0.2, r * 0.82) + " L" + ecke(0, r * 1.3)
-      + " L" + ecke(0.2, r * 0.82) + " L" + ecke(0.5, r * 0.62);
+    const v = ecke(i), vor = ecke((i + 2) % 3);
+    // gerade Flanke, dann die Kerbe, dann der schmale Zahn mit Spitze in der Ecke
+    punkte.push(zw(vor, v, 0.12), zw(vor, v, 0.56), rein(zw(vor, v, 0.6), 0.34), rein(zw(vor, v, 0.84), 0.3), v);
   }
-  return '<path d="' + d + ' Z" ' + PLATTE + "/>" + loch([m[0], m[1], 3]);
+  return poly(punkte, PLATTE) + '<circle cx="' + m[0] + '" cy="' + m[1] + '" r="5.5" ' + LOCH + "/>";
 }
-const gewindestahl = poly([[16, 89], [44, 89], [44, 30], [39, 15], [26, 8], [16, 14]], HALTER) + gewindeplatte();
+const gewindestahl = poly([[16, 63], [44, 63], [44, 32], [40, 16], [26, 10], [16, 16]], HALTER) + gewindeplatte();
 // Stechhalter (MGEHR): Schaft, Stechplatte senkrecht links oben, daneben
 // die Spannbacke
-const stechen = poly([[16, 89], [44, 89], [44, 44], [36, 36], [16, 36]], HALTER)
+const stechen = poly([[16, 63], [44, 63], [44, 44], [36, 36], [16, 36]], HALTER)
   + poly([[16, 5], [24, 5], [24, 46], [16, 46]], PLATTE)
   + '<path ' + LINIE + ' d="M16 9 H24"/>'
   + poly([[24, 46], [24, 18], [33, 22], [33, 36], [36, 36], [36, 46]], HALTER);
@@ -84,10 +88,13 @@ function bohrer(flach) {
   if (!flach) s += '<path ' + LINIE + ' d="M101 22 L107 30 L101 38"/>';
   return s;
 }
-// Zentrier- und Anbohrer: kurzer dicker Körper mit 90°-Spitze
-const zentrierer = '<rect x="3" y="15" width="78" height="30" ' + HELL + "/>"
-  + '<path d="M81 15 L96 30 L81 45 Z" ' + HELL + "/>"
-  + poly([[62, 45], [70, 45], [88, 22], [81, 15], [78, 15]], NUT);
+// Zentrier- und Anbohrer: kurz und dick, eine gebogene Spannut,
+// 90°-Spitze mit Schneidkante
+const zentrierer = '<rect x="6" y="17" width="58" height="26" ' + HELL + "/>"
+  + '<path d="M64 17 H88 L101 30 L88 43 H64 Z" ' + HELL + "/>"
+  + '<path d="M66 43 Q78 32 84 17 H92 Q86 32 76 43 Z" ' + NUT + "/>"
+  + '<path ' + LINIE + ' d="M88 17 L94 30 L88 43"/>'
+  + '<path ' + LINIE + ' d="M10 17 V43"/>';
 // Gewindebohrer und -former: Gewinde als Zähne oben und unten
 function gewindebohrer() {
   const oben = [], unten = [];
@@ -132,9 +139,12 @@ function raendel() {
     + '<g clip-path="url(#eb-rr)">' + muster + "</g>"
     + '<path stroke="#222" stroke-width="3" stroke-linecap="round" d="M5 22 H55"/>';
 }
-// Utilis-Stechplatte: lang und schmal, beide Enden schneidend
-const utilis = poly([[24, 10], [30, 3], [36, 10], [36, 110], [30, 117], [24, 110]], PLATTE)
-  + '<path ' + LINIE + ' d="M30 18 V102"/>' + '<circle cx="30" cy="60" r="3" ' + LOCH + "/>";
+// Utilis-Stechplatte am Halter: lange schmale Platte senkrecht links
+// oben, mit Spannpratze und Schraube (Wunsch 14. Oktober 2026)
+const utilis = poly([[16, 63], [44, 63], [44, 40], [38, 34], [16, 34]], HALTER)
+  + poly([[17, 9], [21, 3], [25, 9], [25, 50], [17, 50]], PLATTE)
+  + poly([[25, 50], [25, 22], [36, 26], [38, 34], [44, 40], [44, 50]], HALTER)
+  + '<circle cx="34" cy="34" r="2.6" ' + LOCH + "/>";
 
 // [Schlüssel, Name (nur als Hinweis beim Darüberfahren), Zeichnung, versteckt]
 // Versteckte erscheinen nicht in der Auswahl, sondern über eine Rückfrage
@@ -148,7 +158,8 @@ export const BILDER = [
   ["gewindedrehen_l", "Gewinde-Drehstahl spiegelverkehrt", svg(KURZ, gewindestahl, true)],
   ["stechen", "Abstechen / Einstechen", svg(KURZ, stechen)],
   ["stechen_l", "Abstechen / Einstechen spiegelverkehrt", svg(KURZ, stechen, true)],
-  ["utilis", "Utilis-Platte schmal", svg(HOCH, utilis)],
+  ["utilis", "Utilis-Platte am Halter", svg(KURZ, utilis)],
+  ["utilis_l", "Utilis-Platte spiegelverkehrt", svg(KURZ, utilis, true)],
   ["bohren", "Bohrer", svg(QUER, bohrer(false))],
   ["bohren_flach", "Flachbohrer", svg(QUER, bohrer(true)), true],
   ["zentrieren", "Zentrier- / Anbohrer", svg(QUER, zentrierer)],
