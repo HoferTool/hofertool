@@ -7615,3 +7615,103 @@ html.login-oben-dunkel .login__kappe { background-color: #1c2229; }
 .login { transition: background .6s ease; }
 html.login-oben-hell .login { background: #ffffff !important; }
 html.login-oben-dunkel .login { background: #1c2229 !important; }
+
+/* ---------- Ein HOCO-Teil (Wunsch Patrick 14. Oktober 2026: „sieht tot
+   aus, kann farbiger sein, mit Themenfarbe“). Alles aus --marke, damit
+   jede Themenfarbe und der dunkle Modus von selbst passen. ---------- */
+.hocoteil { --ht-tint: color-mix(in srgb, var(--marke) 9%, var(--flaeche));
+            --ht-tint2: color-mix(in srgb, var(--marke) 18%, var(--flaeche)); }
+.hocoteil #hoco-zurueck { display: inline-block; margin-bottom: 10px; font-weight: 600; }
+.hocoteil .karte { border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+/* Kopf als Band in der Themenfarbe, mit leichtem Schimmer wie das
+   Blatt der Werkzeugwechsel-Historie */
+.hocoteil__kopf { background: var(--marke); color: #fff; border: none; padding: 18px 20px;
+  background-image: linear-gradient(120deg, transparent 55%, rgba(255,255,255,.08) 55%,
+                                    rgba(255,255,255,.08) 70%, transparent 70%); }
+.hocoteil__kopf .karte__kopf { align-items: flex-start; }
+.hocoteil__titel small { display: block; font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; opacity: .8; }
+.hocoteil__kopf h2.hoco-teilnr { font-size: 1.7rem; font-weight: 700; margin: 2px 0 0; letter-spacing: -.01em; color: #fff; }
+.hocoteil__kopf .hocoteil__bearb { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.45); }
+.hocoteil__kopf .hocoteil__bearb:hover { background: rgba(255,255,255,.26); }
+.hocoteil__angaben { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 12px 0 14px;
+  padding-top: 12px; border-top: 1px solid rgba(255,255,255,.3); }
+.hocoteil__angabe small { display: block; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; opacity: .75; }
+.hocoteil__angabe b { font-size: 1.05rem; font-weight: 650; }
+.hocoteil__pdf { gap: 8px; }
+.hocoteil__pdf .bildknopf { flex: 0 0 auto; min-width: 0; }
+.hocoteil__kopf .knopf { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.45); }
+.hocoteil__kopf .knopf:hover { background: rgba(255,255,255,.26); }
+.hocoteil .hocoteil__kopf .knopf.hocoteil__haupt { background: #fff; color: var(--marke); border-color: #fff; font-weight: 650; }
+.hocoteil__kopf .feldhinweis { color: #fff; }
+/* Dunkler Modus: --marke ist dort hell, weisse Schrift darauf ginge
+   unter. Das Band wird ein dunkler Ton der Themenfarbe. */
+body.dunkel .hocoteil__kopf { background-color: color-mix(in srgb, var(--marke) 30%, var(--flaeche)); }
+body.dunkel .hocoteil .hocoteil__kopf .knopf.hocoteil__haupt { background: color-mix(in srgb, var(--marke) 60%, #000); border-color: var(--marke); }
+
+/* Die übrigen Karten: Kopf mit Strich in der Themenfarbe */
+.hocoteil__karte { border-top: 4px solid var(--marke); }
+.hocoteil__karte > .karte__kopf h2 { color: var(--marke); }
+.hocoteil__tabelle thead th { background: var(--ht-tint); color: var(--marke); border-bottom: none; }
+.hocoteil__tabelle thead th:first-child { border-radius: 6px 0 0 6px; }
+.hocoteil__tabelle thead th:last-child { border-radius: 0 6px 6px 0; }
+.hocoteil__tabelle tbody tr:hover td { background: var(--ht-tint); }
+.hocoteil__maschinen { display: flex; flex-wrap: wrap; gap: 4px; }
+.hocoteil__maschine { font-size: .78rem; padding: 2px 8px; border-radius: 999px;
+  background: var(--grund); border: 1px solid var(--linie); white-space: nowrap; }
+/* Farbige Marken für Einrichtblatt und Stückzeit */
+.hocoteil__marke { display: inline-block; font: inherit; font-size: .8rem; font-weight: 600;
+  padding: 3px 10px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
+.hocoteil__marke--gut   { background: color-mix(in srgb, var(--gut) 14%, var(--flaeche)); color: var(--gut);
+                          border-color: color-mix(in srgb, var(--gut) 35%, var(--flaeche)); }
+.hocoteil__marke--thema { background: var(--ht-tint2); color: var(--marke);
+                          border-color: color-mix(in srgb, var(--marke) 35%, var(--flaeche)); }
+.hocoteil__marke--warn  { background: color-mix(in srgb, var(--warnung) 14%, var(--flaeche)); color: var(--warnung);
+                          border-color: color-mix(in srgb, var(--warnung) 40%, var(--flaeche)); }
+.hocoteil__marke--leer  { background: var(--grund); color: var(--gedaempft); border-color: var(--linie); }
+.hocoteil__marke--knopf { cursor: pointer; }
+.hocoteil__marke--knopf:hover { filter: brightness(.95); border-color: currentColor; }
+.hocoteil .knopf.hocoteil__haupt { background: var(--marke); color: #fff; border-color: var(--marke); }
+
+/* FA Nummern: Anhänge als kleine Knöpfe, Zustand als farbige Marke */
+.hocoteil__fa td { vertical-align: middle; }
+.hocoteil__fa td:first-child strong { font-variant-numeric: tabular-nums; }
+.hocoteil__anhaenge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hocoteil__anhaenge .bildknopf { flex: 0 0 auto; min-width: 0; margin-left: 4px; }
+.hocoteil__anhang { font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer;
+  padding: 4px 11px; border-radius: 6px; border: 1px solid var(--linie);
+  background: var(--flaeche); color: var(--tinte); }
+.hocoteil__anhang::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 6px; vertical-align: 1px; background: currentColor; }
+.hocoteil__anhang--wbg { color: var(--marke); border-color: color-mix(in srgb, var(--marke) 40%, var(--flaeche));
+                         background: var(--ht-tint); }
+.hocoteil__anhang--wz  { color: #8a4fd0; border-color: color-mix(in srgb, #8a4fd0 40%, var(--flaeche));
+                         background: color-mix(in srgb, #8a4fd0 10%, var(--flaeche)); }
+.hocoteil__anhang:hover { filter: brightness(.95); border-color: currentColor; }
+body.dunkel .hocoteil__anhang--wz { color: #c3a1f2; }
+.hocoteil__zustand { display: inline-block; font-size: .78rem; font-weight: 650; padding: 3px 10px;
+  border-radius: 999px; background: var(--grund); color: var(--gedaempft); border: 1px solid var(--linie); }
+.hocoteil__zustand--laeuft  { background: color-mix(in srgb, var(--gut) 15%, var(--flaeche)); color: var(--gut);
+                              border-color: color-mix(in srgb, var(--gut) 40%, var(--flaeche)); }
+.hocoteil__zustand--ruesten,
+.hocoteil__zustand--qs      { background: color-mix(in srgb, var(--warnung) 15%, var(--flaeche)); color: var(--warnung);
+                              border-color: color-mix(in srgb, var(--warnung) 40%, var(--flaeche)); }
+.hocoteil__zustand--geplant { background: var(--ht-tint); color: var(--marke);
+                              border-color: color-mix(in srgb, var(--marke) 30%, var(--flaeche)); }
+.hocoteil__zustand--fertig  { background: var(--grund); color: var(--gedaempft); }
+@media (max-width: 640px) {
+  .hocoteil__kopf h2.hoco-teilnr { font-size: 1.35rem; }
+  .hocoteil__fa td:nth-child(2) { display: none; }
+}
+/* Im dunklen Modus ist alle Schrift weiss (body.dunkel *), Farbe kommt
+   dort nur über Flächen und Ränder: darum kräftigere Töne */
+body.dunkel .hocoteil { --ht-tint: color-mix(in srgb, var(--marke) 22%, var(--flaeche));
+                        --ht-tint2: color-mix(in srgb, var(--marke) 34%, var(--flaeche)); }
+body.dunkel .hocoteil .knopf.hocoteil__haupt { background: color-mix(in srgb, var(--marke) 60%, #000); }
+body.dunkel .hocoteil__karte > .karte__kopf h2 { border-left: 4px solid var(--marke); padding-left: 8px; }
+body.dunkel .hocoteil__marke--gut, body.dunkel .hocoteil__zustand--laeuft
+  { background: color-mix(in srgb, var(--gut) 45%, var(--flaeche)); border-color: var(--gut); }
+body.dunkel .hocoteil__marke--warn, body.dunkel .hocoteil__zustand--ruesten, body.dunkel .hocoteil__zustand--qs
+  { background: color-mix(in srgb, var(--warnung) 45%, var(--flaeche)); border-color: var(--warnung); }
+body.dunkel .hocoteil__anhang--wbg { background: color-mix(in srgb, var(--marke) 35%, var(--flaeche)); border-color: var(--marke); }
+body.dunkel .hocoteil__anhang--wz  { background: color-mix(in srgb, #8a4fd0 45%, var(--flaeche)); border-color: #a77ae6; }
+body.dunkel .hocoteil__zustand--geplant { background: color-mix(in srgb, var(--marke) 30%, var(--flaeche)); border-color: var(--marke); }

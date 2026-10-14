@@ -371,7 +371,7 @@ function PoolOrdner() {
   // Nimmt WBGs von Aufträgen weg, die seit über fünf Tagen fertig sind (sonst einmal am Tag von selbst)
   const aufraeumen = async () => {
     const n = await alt.wbgAufraeumen(true);
-    alt.meldung(n ? n + " alte WBG entfernt." : "Nichts aufzuräumen.");
+    alt.meldung(n ? n + " alte WBG und Werkzeugwechsel entfernt." : "Nichts aufzuräumen.");
   };
   return (
     <Gruppe titel="Pool-Ordner" id="pool-ordner"

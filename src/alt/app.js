@@ -148,7 +148,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.54.8";
+const APP_VERSION = "1.55.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2147,7 +2147,8 @@ async function dokHochladen(datei, zuordnung, quelle) {
 // =================================================================
 //  WBG AUFRÄUMEN
 //  Eine WBG bleibt, solange ihr Auftrag läuft, und noch fünf Tage
-//  danach. Dann verschwinden Datei und Eintrag. Läuft einmal am Tag,
+//  danach. Dann verschwinden Datei und Eintrag. Ebenso die
+//  Werkzeugwechsel-Historie am Auftrag. Läuft einmal am Tag,
 //  sobald jemand mit Schreibrecht die App öffnet.
 // =================================================================
 
@@ -2175,6 +2176,17 @@ async function wbgAufraeumen(sofort) {
       await db.from("jobs").update({ wbg_url: null }).in("id", alt.map((j) => j.id));
       await ablageLoeschen(adressen);
       weg += alt.length;
+    }
+    // 1b. Werkzeugwechsel-Historie genauso: fünf Tage nach dem Ende weg
+    // (Wunsch Patrick 14. Oktober 2026). Jede Datei gehört nur zu einem
+    // Auftrag, darum ohne Prüfung auf andere Aufträge.
+    const h = await db.from("jobs").select("id, wz_historie_url")
+      .not("wz_historie_url", "is", null).lt("ended_at", grenze).limit(500);
+    const hist = (h && !h.error && h.data) || [];
+    if (hist.length) {
+      await db.from("jobs").update({ wz_historie_url: null }).in("id", hist.map((j) => j.id));
+      await ablageLoeschen(hist.map((j) => j.wz_historie_url));
+      weg += hist.length;
     }
     // 2. WBG in den Dokumenten, zu denen kein offener Auftrag mehr läuft
     const d = await db.from("dokumente").select("id, hoco_nr, datei_url, erstellt_am").eq("art", "wbg");
