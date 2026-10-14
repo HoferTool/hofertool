@@ -1,4 +1,5 @@
-# Ladebildschirm nach dem Anmelden (1.51.0): Bühne, Wellen, Lichtbogen, Gruss
+# Ladebildschirm nach dem Anmelden (1.51.0): Bühne, Wellen, Lichtbogen, Gruss;
+# seit 1.52.0 Logo oben und die Planwand wird dabei vorgeladen
 import os, time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -38,10 +39,20 @@ with sync_playwright() as p:
         pruefe(name + ": Bühne", z["buehne"]); pruefe(name + ": drei Wellen", z["wellen"] == 3)
         pruefe(name + ": Lichtbogen", z["ring"]); pruefe(name + ": Gruss", z["gruss"].startswith("Gute"))
         pruefe(name + ": Name", "Beat" in z["name"])
+        oben = pg.evaluate("(() => { const e = document.querySelector('.login__buehne-logo'); return e ? e.getBoundingClientRect().top : -1; })()")
+        pruefe(name + ": Logo oben", 0 <= oben < hoehe * 0.25)
         if BILD: pg.screenshot(path=os.path.join(BILD, "lade-" + name + ".png"))
         pg.wait_for_timeout(2500)
         drin = pg.evaluate("!document.getElementById('lg-auswahl') && !document.querySelector('.login__buehne')")
         pruefe(name + ": danach angemeldet, Bühne weg", drin)
+        # 1.52.0: Die Planwand wurde während des Wartens schon geholt
+        # und steht beim Öffnen sofort da, ohne „Planung wird geladen“
+        vor = pg.evaluate("TEST.protokoll.filter((p) => p.tabelle === 'planwand').length")
+        pruefe(name + ": Planwand vorgeladen", vor > 0)
+        pg.evaluate("location.hash = '#/planwand'")
+        pg.wait_for_timeout(250)
+        sofort = pg.evaluate("!!document.querySelector('.pw-tafel') && !document.querySelector('.laedt')")
+        pruefe(name + ": Planwand steht sofort", sofort)
         fehler += f; pg.close()
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")

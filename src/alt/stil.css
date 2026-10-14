@@ -7454,7 +7454,7 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
    Wunsch Patrick 13. Oktober 2026: „cooler“. Die Kachel wartet in der
    Mitte auf einer Bühne: Rand abgedunkelt, Licht hinter der Kachel,
    Wellen wie die Kreise im Logo-Band, ein Lichtbogen läuft um die
-   Kachel statt des Drehkreises, darunter Gruss und Name, unten das Logo.
+   Kachel statt des Drehkreises, darunter Gruss und Name, oben das Logo.
    Alles nur transform und opacity, die Wartezeit bleibt dieselbe. */
 @property --login-winkel { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 .login__buehne { position: fixed; inset: 0; z-index: 299; pointer-events: none;
@@ -7463,10 +7463,12 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
     radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.55) 100%);
   animation: loginBuehne .5s ease both; }
 @keyframes loginBuehne { from { opacity: 0; } to { opacity: 1; } }
-.login__buehne-logo { position: absolute; left: 50%; bottom: max(28px, 6vh); translate: -50% 0;
-  width: min(190px, 44vw); height: auto; opacity: 0;
+/* Logo oben, wo es auch auf der Anmeldekarte stand (Wunsch Patrick,
+   14. Oktober 2026: „Hoferlogo soll oben bleiben“) */
+.login__buehne-logo { position: absolute; left: 50%; top: max(36px, 9vh); translate: -50% 0;
+  width: min(300px, 62vw); height: auto; opacity: 0;
   animation: loginLogo .6s ease .45s forwards; }
-@keyframes loginLogo { from { opacity: 0; transform: translateY(8px); } to { opacity: .6; transform: none; } }
+@keyframes loginLogo { from { opacity: 0; transform: translateY(-8px); } to { opacity: .95; transform: none; } }
 
 /* Wellen: drei Kreise gehen ruhig von der Kachel weg und verblassen */
 .login__wellen { position: absolute; inset: 0; z-index: -1; display: grid; place-items: center; }
@@ -7512,7 +7514,7 @@ body.dunkel .login__flieger-bild.login__buchstabe { color: #0f1620 !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .login__buehne, .login__buehne-logo, .login__wellen i, .login__flieger--laedt { animation: none !important; }
-  .login__buehne-logo { opacity: .6; }
+  .login__buehne-logo { opacity: .95; }
   .login__wellen { display: none; }
   .login__flieger--laedt .login__ring { opacity: 1; animation: loginBogen 3s linear infinite !important; }
 }

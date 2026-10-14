@@ -11,6 +11,8 @@
 //  liegen ohnehin schon im Offline-Zwischenspeicher des Geräts.
 // =================================================================
 
+import { alt } from "../bruecke.jsx";
+
 const DB_NAME = "hofer-planwand";
 const ABLAGE = "stand";
 const ALTER_MAX = 14 * 86400000;   // älter lohnt das Zeigen nicht
@@ -68,4 +70,29 @@ export function standMerken(wer, daten) {
       db.close();
     } catch (f) { /* ohne Ablage lädt die Planwand nächstes Mal wie bisher */ }
   }, 1500);
+}
+
+// Während der Ladebildschirm nach dem Anmelden steht, die Planwand
+// schon holen und als Stand ablegen: Öffnet man sie danach, steht sie
+// sofort da (Wunsch Patrick, 14. Oktober 2026: „kannst ja Daten schon
+// vorladen, dass es nachher weniger lange geht“). Fehler stören nicht,
+// dann lädt die Planwand eben wie bisher beim Öffnen.
+export async function planwandVorladen() {
+  const wer = alt.meineProfilId();
+  if (!wer || !alt.seiteSichtbar("planwand")) return;
+  const ferien = alt.ladeFerien().then((liste) => liste.map((f) => {
+    f.genehmigt_von_name = f.profiles ? f.profiles.full_name : null;
+    return f;
+  })).catch(() => []);
+  const [parks, maschinen, auftraege, fer] = await Promise.all([
+    alt.ladeParks(false, true), alt.ladeMaschinen(false, true), alt.ladePlanAuftraege(), ferien]);
+  standMerken(wer, { parks, maschinen, parksAlle: alt.plan.parksAlle,
+    auftraege, ferien: fer, geladenAb: alt.plan.geladenAb });
+}
+
+// Vorladen, aber höchstens so lange warten; was danach noch kommt,
+// landet trotzdem im Stand
+export function planwandVorladenHoechstens(ms) {
+  const vor = planwandVorladen().catch((f) => console.warn("Planwand vorladen:", f));
+  return Promise.race([vor, new Promise((ok) => setTimeout(ok, ms))]);
 }

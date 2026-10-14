@@ -46,7 +46,7 @@ with sync_playwright() as p:
       return [Math.round(r.left + r.width / 2 - innerWidth / 2), !!document.querySelector('.login__ring')]; })()""")
     print("Beat schwebt in der Mitte:", mitte)
     if not mitte or abs(mitte[0]) > 3 or not mitte[1]: fehler.append("Kachel schwebt nicht in die Mitte")
-    pg.wait_for_timeout(1500)
+    pg.wait_for_timeout(2200)
     print("Beat angemeldet:", angemeldet(pg), pg.evaluate("window._aufrufe"))
     if not angemeldet(pg): fehler.append("offenes Konto kommt nicht rein")
     fehler += f; pg.close()

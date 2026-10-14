@@ -16,6 +16,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { bildHell } from "../teile/profilbilder.js";
+import { planwandVorladenHoechstens } from "../daten/planwandStand.js";
 
 let wurzel = null;
 
@@ -42,8 +43,15 @@ export function anmeldungAbbauen() {
 const REIN = 260;
 // So lange schwebt die gewählte Kachel in die Mitte oder ins Feld
 const FLUG = 520;
-// So lange bleibt sie mit Ladezeichen in der Mitte, auch wenn es schneller ginge
-const HALT = 650;
+// So lange bleibt sie mit Ladezeichen in der Mitte, auch wenn es schneller
+// ginge. Seit 1.52.0 eine Sekunde länger, dafür lädt die Planwand in der
+// Zeit schon vor (Wunsch Patrick, 14. Oktober 2026)
+const HALT = 1650;
+// Länger als so wartet die Anmeldung nicht auf das Vorladen
+const VORLADEN_MAX = 2500;
+// Mit Passwort oder PIN gibt es keinen Ladebildschirm, nur den Knopf:
+// dort höchstens eine Sekunde zusätzlich
+const VORLADEN_MAX_KNOPF = 1000;
 const SCHWUNG = "cubic-bezier(.2,.8,.2,1)";
 
 const wenigBewegung = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -204,7 +212,10 @@ function Anmeldung() {
       // Neue Fassung auf dem Server? Dann lädt die Seite neu, und die
       // Anmeldung bleibt (Wunsch Patrick, 8. Oktober 2026)
       const fassung = alt.fassungPruefen();
-      await Promise.all([alt.profilLaden(), angekommen]);
+      // Erst das Profil (Rechte, Extern), dann die Planwand vorladen,
+      // während die Kachel noch schwebt
+      await alt.profilLaden();
+      await Promise.all([angekommen, planwandVorladenHoechstens(VORLADEN_MAX)]);
       if (await fassung) return;
       alt.zeichneGeruest();
     };
@@ -439,6 +450,7 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerken) {
       // Neue Fassung auf dem Server? Dann neu laden, auch ohne Häkchen
       const fassung = alt.fassungPruefen();
       await alt.profilLaden();
+      await planwandVorladenHoechstens(VORLADEN_MAX_KNOPF);
       if (await fassung) return;
       alt.zeichneGeruest();
     } catch (f) {
