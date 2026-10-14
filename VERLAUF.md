@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.53.0** Ladebildschirm mit Farbwechsel (Wunsch Patrick, 14. Oktober 2026: „wenn ich eine Themenfarbe habe, soll es einen Farbwechsel machen, auch bei Darkmode, cooler Verlauf von der Mitte aus“): Sobald das Profil geladen ist, breitet sich die eigene Farbe als runde Welle von der Kachel aus über den ganzen Bildschirm aus, im dunklen Modus die Themenfarbe stark abgedunkelt. Wer blau und hell hat, sieht keinen Wechsel. Die Welle läuft immer ganz fertig (1,2 s), ohne Bewegung (reduzierte Bewegung) gibt es keine. Test `ladebildschirm.py` (rot, grün dunkel, blau).
 - **1.52.3** Ladebildschirm: Logo wieder höher (nah am oberen Rand), die Kachel mit Name dafür etwas unter der Bildschirmmitte, damit die Wellen das Logo nicht berühren (Wunsch Patrick, 14. Oktober 2026: „Logo höher und Benutzer tiefer, dass die Animation nicht ins Logo geht“). Test `ladebildschirm.py` prüft das jetzt auch auf iPad quer und kleinem Laptop.
 - **1.52.2** Ladebildschirm: Das Logo steht etwas tiefer, mit mehr Abstand zum oberen Rand (Wunsch Patrick, 14. Oktober 2026).
 - **1.52.1** Einstellungen → Dokumente → „Zuletzt abgelegt“: Die Spalte „Abgelegt“ zeigt neben dem Datum auch die Uhrzeit, etwa „14.10.2026 08:42“ (Wunsch Patrick, 14. Oktober 2026: „will Uhrzeit bei hochgeladenen Docs sehen“).

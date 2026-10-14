@@ -60,6 +60,8 @@ const wenigBewegung = () => window.matchMedia("(prefers-reduced-motion: reduce)"
 // Bildschirmmitte, damit die Wellen nicht ins Logo oben laufen
 // (Wunsch Patrick, 14. Oktober 2026). Name und Gruss passen darunter.
 const MITTE_TIEFER = 24;
+// Dauer der Farbwelle (wie loginFarbwelle in stil.css)
+const FARBWELLE = 1200;
 function mitteRechteck() {
   const g = Math.round(Math.min(132, Math.max(96, window.innerWidth * 0.28)));
   return { left: (window.innerWidth - g) / 2, top: window.innerHeight / 2 - g / 2 + MITTE_TIEFER, width: g, height: g };
@@ -77,6 +79,23 @@ function fliegen(el, von, nach) {
     { transform: `translate(${von.left - nach.left}px, ${von.top - nach.top}px) scale(${s})` },
     { transform: "none" }], { duration: FLUG, easing: SCHWUNG });
   return a.finished.catch(() => {});
+}
+
+// Farbe, in die der Ladebildschirm von der Mitte aus wechselt, sobald
+// das Profil da ist: die Themenfarbe der Person, im dunklen Modus fast
+// schwarz mit einem Hauch davon (Wunsch Patrick, 14. Oktober 2026:
+// „cooler Verlauf von der Mitte aus“). Null heisst: bleibt, wie es ist.
+const THEMA_FARBE = {
+  blau: "#003884", rot: "#a4231c", gruen: "#1c6b42", gelb: "#8a6608",
+  rosa: "#a4256e", violett: "#5b2a9e", orange: "#9c4a0c",
+};
+function farbwechselZiel() {
+  const thema = alt.themaJetzt();
+  const dunkel = !!alt.einstellung("dunkel");
+  const jetztDunkel = document.body.classList.contains("dunkel");
+  if (thema === "blau" && dunkel === jetztDunkel) return null;
+  const farbe = THEMA_FARBE[thema] || THEMA_FARBE.blau;
+  return dunkel ? { farbe, dunkel: true } : { farbe, dunkel: false };
 }
 
 // Gruss über dem Namen, während die Anmeldung läuft
@@ -217,7 +236,12 @@ function Anmeldung() {
       // Erst das Profil (Rechte, Extern), dann die Planwand vorladen,
       // während die Kachel noch schwebt
       await alt.profilLaden();
-      await Promise.all([angekommen, planwandVorladenHoechstens(VORLADEN_MAX)]);
+      const ziel = farbwechselZiel();
+      if (ziel) setFlieger((f) => (f ? { ...f, farbe: ziel } : f));
+      // Antwortet der Server spät, soll die Farbwelle trotzdem fertig
+      // laufen, statt mitten im Verlauf abzubrechen
+      const welle = ziel && !wenigBewegung() ? new Promise((ok) => setTimeout(ok, FARBWELLE)) : null;
+      await Promise.all([angekommen, welle, planwandVorladenHoechstens(VORLADEN_MAX)]);
       if (await fassung) return;
       alt.zeichneGeruest();
     };
@@ -358,6 +382,10 @@ function Anmeldung() {
         // Mitte, unten klein das Logo (Wunsch Patrick 13. Oktober 2026:
         // „Ladebildschirm soll cooler sein“). Nur CSS, verzögert nichts.
         <div className="login__buehne" aria-hidden="true">
+          {flieger.farbe && (
+            <div className={"login__farbwelle" + (flieger.farbe.dunkel ? " login__farbwelle--dunkel" : "")}
+              style={{ "--ziel": flieger.farbe.farbe }} />
+          )}
           <img className="login__buehne-logo" src="./logo-weiss.svg" alt="" />
         </div>
       )}

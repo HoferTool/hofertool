@@ -9,6 +9,8 @@ K = """daten.login_kacheln = [
   { id: 'u4', email: 'beat@hoferco.ch', full_name: 'Beat Offen', role: 'langdreher', ohne_passwort: true },
   { id: 'u1', email: 'marco@hoferco.ch', full_name: 'Marco Steiner', role: 'langdreher' }];
 // Langsamer Server: so bleibt der Ladebildschirm zum Anschauen stehen
+// Profil-Einstellungen für den Farbwechsel (1.53.0)
+if (window._einst) daten.profiles.forEach((p) => { p.einstellungen = window._einst; });
 TEST.funktionen['pin-anmelden'] = (b) => new Promise((ok) => setTimeout(() => ok({ status: 'ok', token_hash: 'offen' }), window._warten || 0));
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
@@ -29,7 +31,7 @@ with sync_playwright() as p:
         pg.add_init_script("window.OHNE_SITZUNG = true; window._warten = 2500;")
         pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded"); pg.wait_for_timeout(2300)
         if dunkel: pg.evaluate("document.body.classList.add('dunkel')")
-        pg.locator(".login__kachel", has_text="Beat").click(); pg.wait_for_timeout(1300)
+        pg.locator(".login__kachel", has_text="Beat").click(); pg.wait_for_timeout(850)
         z = pg.evaluate("""(() => ({ buehne: !!document.querySelector('.login__buehne'),
           wellen: document.querySelectorAll('.login__wellen i').length,
           ring: !!document.querySelector('.login__flieger .login__ring'),
@@ -48,7 +50,8 @@ with sync_playwright() as p:
         print(name, "Abstand Welle zu Logo:", abstand)
         pruefe(name + ": Wellen berühren das Logo nicht", abstand > 0)
         if BILD: pg.screenshot(path=os.path.join(BILD, "lade-" + name + ".png"))
-        pg.wait_for_timeout(2500)
+        # Im dunklen Fall läuft danach noch die Farbwelle zurück zu Blau
+        pg.wait_for_timeout(3300)
         drin = pg.evaluate("!document.getElementById('lg-auswahl') && !document.querySelector('.login__buehne')")
         pruefe(name + ": danach angemeldet, Bühne weg", drin)
         # 1.52.0: Die Planwand wurde während des Wartens schon geholt
@@ -59,6 +62,28 @@ with sync_playwright() as p:
         pg.wait_for_timeout(250)
         sofort = pg.evaluate("!!document.querySelector('.pw-tafel') && !document.querySelector('.laedt')")
         pruefe(name + ": Planwand steht sofort", sofort)
+        fehler += f; pg.close()
+
+    # 1.53.0: Mit Themenfarbe oder dunklem Modus wechselt die Farbe von der
+    # Mitte aus; ohne beides bleibt es blau ohne Welle
+    for einst, name, soll in [("{thema: 'rot'}", "rot", "rot"), ("{thema: 'gruen', dunkel: true}", "gruen-dunkel", "gruen"),
+                              ("{}", "blau", None)]:
+        pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
+        f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
+        pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
+        for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
+            pg.route(u, lambda r: r.abort())
+        pg.add_init_script("window.OHNE_SITZUNG = true; window._warten = 300; window._einst = " + einst + ";")
+        pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded"); pg.wait_for_timeout(2300)
+        pg.locator(".login__kachel", has_text="Beat").click(); pg.wait_for_timeout(850)
+        welle = pg.locator(".login__farbwelle").count()
+        if BILD: pg.screenshot(path=os.path.join(BILD, "farbe-" + name + "-mitte.png"))
+        pg.wait_for_timeout(900)
+        if BILD: pg.screenshot(path=os.path.join(BILD, "farbe-" + name + ".png"))
+        pruefe(name + ": Farbwelle " + ("da" if soll else "keine"), (welle == 1) == bool(soll))
+        pg.wait_for_timeout(2500)
+        thema = pg.evaluate("document.body.getAttribute('data-thema')")
+        pruefe(name + ": App danach im Thema", thema == soll)
         fehler += f; pg.close()
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")

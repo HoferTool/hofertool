@@ -7520,3 +7520,31 @@ body.dunkel .login__flieger-bild.login__buchstabe { color: #0f1620 !important; }
   .login__wellen { display: none; }
   .login__flieger--laedt .login__ring { opacity: 1; animation: loginBogen 3s linear infinite !important; }
 }
+
+/* ---------- Ladebildschirm: Farbwechsel von der Mitte aus (1.53.0) ----------
+   Sobald das Profil da ist, wächst ein Kreis von der Kachel aus über den
+   ganzen Bildschirm, in der Themenfarbe der Person, im dunklen Modus fast
+   schwarz mit einem Hauch davon. Danach erscheint die App schon in dieser
+   Farbe, ohne Sprung (Wunsch Patrick, 14. Oktober 2026). Licht und
+   dunkler Rand liegen im Kreis mit, damit die Bühne gleich bleibt. */
+.login__farbwelle { position: absolute; inset: 0;
+  --mitte: 50% calc(50% + 24px);
+  background:
+    radial-gradient(circle at var(--mitte), rgba(255,255,255,.18) 0, rgba(255,255,255,0) 32vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.5) 100%),
+    var(--ziel);
+  clip-path: circle(0 at var(--mitte));
+  animation: loginFarbwelle 1.2s cubic-bezier(.55,.05,.25,1) forwards; }
+.login__farbwelle--dunkel {
+  background:
+    radial-gradient(circle at var(--mitte), rgba(255,255,255,.12) 0, rgba(255,255,255,0) 30vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 100%),
+    #10161f;
+  background:
+    radial-gradient(circle at var(--mitte), rgba(255,255,255,.12) 0, rgba(255,255,255,0) 30vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 100%),
+    color-mix(in srgb, var(--ziel) 22%, #0e141c); }
+@keyframes loginFarbwelle { to { clip-path: circle(150vmax at var(--mitte)); } }
+@media (prefers-reduced-motion: reduce) {
+  .login__farbwelle { animation: none; clip-path: none; }
+}
