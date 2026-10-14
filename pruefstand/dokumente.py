@@ -57,6 +57,7 @@ with sync_playwright() as p:
     pruefe("Alte WBG beim Pool-Ordner", pg.locator("section.es-gruppe:has(h2:text-is('Pool-Ordner')) #wbg-aufraeumen").count() == 1)
     pg.click("#wbg-aufraeumen"); pg.wait_for_timeout(500)
     pruefe("Zuletzt abgelegt zeigt Datei", "alt.pdf" in pg.inner_text("#dok-letzte"))
+    pruefe("Abgelegt mit Uhrzeit", "30.09.2026 " in pg.inner_text("#dok-letzte") and ":00" in pg.inner_text("#dok-letzte"))
 
     # Hochladen: Zuordnung zeigen, eine Datei abwählen, hochladen
     with pg.expect_file_chooser() as fc: pg.click("#dok-neu")

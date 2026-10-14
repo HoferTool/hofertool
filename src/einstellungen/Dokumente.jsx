@@ -573,13 +573,15 @@ async function letzteLaden(suche) {
 }
 
 // erstellt_am ist ein Zeitstempel; kurzDatum las daraus „NaN.NaN.“.
-// Mit Jahr, weil die Suche auch Älteres findet.
+// Mit Jahr, weil die Suche auch Älteres findet, und mit Uhrzeit
+// (Wunsch Patrick 14. Oktober 2026: „will Uhrzeit bei hochgeladenen Docs sehen“).
 function abgelegtAm(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   if (isNaN(d)) return "";
   const p = (n) => String(n).padStart(2, "0");
-  return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear();
+  return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear()
+    + " " + p(d.getHours()) + ":" + p(d.getMinutes());
 }
 
 function Letzte({ stand, hochladen }) {
