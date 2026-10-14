@@ -225,7 +225,7 @@ function Anmeldung() {
       alt.geraetKontoMerken(konto.email);
       // Neue Fassung auf dem Server? Dann lädt die Seite neu, und die
       // Anmeldung bleibt (Wunsch Patrick, 8. Oktober 2026)
-      const fassung = alt.fassungPruefen();
+      const fassung = alt.fassungPruefen(true);
       // Erst das Profil (Rechte, Extern), dann die Planwand vorladen,
       // während die Kachel noch schwebt
       await alt.profilLaden(true);
@@ -235,7 +235,7 @@ function Anmeldung() {
       // laufen, statt mitten im Verlauf abzubrechen
       const welle = !wenigBewegung() ? new Promise((ok) => setTimeout(ok, FARBWELLE)) : null;
       await Promise.all([angekommen, welle, planwandVorladenHoechstens(VORLADEN_MAX)]);
-      if (await fassung) return;
+      if (await fassung) { location.reload(); return; }
       alt.zeichneGeruest();
     };
     try {
@@ -477,10 +477,10 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerken) {
       const merken = immerMerken || (merkRef.current && merkRef.current.checked);
       alt.sitzungMerken(email, merken && s ? s.refresh_token : null);
       // Neue Fassung auf dem Server? Dann neu laden, auch ohne Häkchen
-      const fassung = alt.fassungPruefen();
+      const fassung = alt.fassungPruefen(true);
       await alt.profilLaden(true);
       await planwandVorladenHoechstens(VORLADEN_MAX_KNOPF);
-      if (await fassung) return;
+      if (await fassung) { location.reload(); return; }
       alt.zeichneGeruest();
     } catch (f) {
       nochmal(alt.fehlertext(f));

@@ -148,7 +148,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.54.1";
+const APP_VERSION = "1.54.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1071,12 +1071,17 @@ function eigeneFassung() {
 // Gibt true zurück, wenn neu geladen wird. Länger als zweieinhalb
 // Sekunden wartet niemand darauf: Dann geht es ohne weiter, und die
 // Antwort vom Server lädt die Seite eben später neu.
-function fassungPruefen() {
-  const lauf = fassungHolen().catch(() => false);
+// spaeter: nicht selbst neu laden, nur melden. Bei der Anmeldung lädt
+// die Seite erst neu, wenn die Animation ganz durch ist; vorher sprang
+// sie nach langer Pause mitten im Ladebildschirm in die App (Wunsch
+// Patrick, 14. Oktober 2026: „erst einloggen, wenn die Animation
+// durchgeführt wurde“)
+function fassungPruefen(spaeter) {
+  const lauf = fassungHolen(spaeter).catch(() => false);
   return Promise.race([lauf, new Promise((ok) => setTimeout(() => ok(false), 2500))]);
 }
 
-async function fassungHolen() {
+async function fassungHolen(spaeter) {
   const eigene = eigeneFassung();
   if (!eigene || navigator.onLine === false) return false;
   let html;
@@ -1091,7 +1096,7 @@ async function fassungHolen() {
     if (sessionStorage.getItem(FASSUNG_NEULADEN) === m[1]) return false;
     sessionStorage.setItem(FASSUNG_NEULADEN, m[1]);
   } catch (f) { /* ohne Speicher trotzdem einmal neu laden */ }
-  location.reload();
+  if (!spaeter) location.reload();
   return true;
 }
 

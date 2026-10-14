@@ -89,5 +89,26 @@ with sync_playwright() as p:
         thema = pg.evaluate("document.body.getAttribute('data-thema')")
         pruefe(name + ": App danach im Thema", thema == soll)
         fehler += f; pg.close()
+
+    # 1.53.3: Liegt auf dem Server eine neue Fassung (Tab lange offen),
+    # lädt die Seite erst nach der Animation neu, nicht mitten drin
+    pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
+    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
+    for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
+        pg.route(u, lambda r: r.abort())
+    pg.add_init_script("window.OHNE_SITZUNG = true; window._warten = 300;")
+    pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded"); pg.wait_for_timeout(2300)
+    pg.route("**/index.html?stand=*", lambda r: r.fulfill(status=200, content_type="text/html",
+             body='<script type="module" src="./assets/index-NEU123.js"></script>'))
+    pg.evaluate("window._nichtNeu = 1")
+    pg.locator(".login__kachel", has_text="Beat").click()
+    pg.wait_for_timeout(1500)
+    noch = pg.evaluate("window._nichtNeu === 1 && !!document.querySelector('.login__buehne')")
+    pruefe("neue Fassung: Animation läuft noch, kein Neuladen mittendrin", noch)
+    pg.wait_for_timeout(3000)
+    neu = pg.evaluate("window._nichtNeu === undefined")
+    pruefe("neue Fassung: danach neu geladen", neu)
+    fehler += f; pg.close()
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")
