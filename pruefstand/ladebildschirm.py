@@ -20,7 +20,7 @@ def pruefe(name, ok):
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
-    for breite, hoehe, dunkel, name in [(1440, 900, False, "pc"), (390, 844, False, "handy"), (1440, 900, True, "pc-dunkel")]:
+    for breite, hoehe, dunkel, name in [(1440, 900, False, "pc"), (390, 844, False, "handy"), (1440, 900, True, "pc-dunkel"), (1024, 768, False, "ipad-quer"), (1366, 650, False, "laptop-klein")]:
         pg = br.new_context(viewport={"width": breite, "height": hoehe}).new_page()
         f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
         pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
@@ -40,7 +40,13 @@ with sync_playwright() as p:
         pruefe(name + ": Lichtbogen", z["ring"]); pruefe(name + ": Gruss", z["gruss"].startswith("Gute"))
         pruefe(name + ": Name", "Beat" in z["name"])
         oben = pg.evaluate("(() => { const e = document.querySelector('.login__buehne-logo'); return e ? e.getBoundingClientRect().top : -1; })()")
-        pruefe(name + ": Logo oben", 0 <= oben < hoehe * 0.25)
+        pruefe(name + ": Logo oben", 0 <= oben < hoehe * 0.12)
+        # 1.52.3: Die grösste Welle (112 % der Kachel, 2,5-fach) bleibt unter dem Logo
+        abstand = pg.evaluate("""(() => { const l = document.querySelector('.login__buehne-logo').getBoundingClientRect();
+          const k = document.querySelector('.login__flieger').getBoundingClientRect();
+          return Math.round((k.top + k.height / 2) - k.width * 1.12 * 2.5 / 2 - l.bottom); })()""")
+        print(name, "Abstand Welle zu Logo:", abstand)
+        pruefe(name + ": Wellen berühren das Logo nicht", abstand > 0)
         if BILD: pg.screenshot(path=os.path.join(BILD, "lade-" + name + ".png"))
         pg.wait_for_timeout(2500)
         drin = pg.evaluate("!document.getElementById('lg-auswahl') && !document.querySelector('.login__buehne')")

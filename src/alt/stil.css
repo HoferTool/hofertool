@@ -7459,14 +7459,15 @@ body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
 @property --login-winkel { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 .login__buehne { position: fixed; inset: 0; z-index: 299; pointer-events: none;
   background:
-    radial-gradient(circle at 50% calc(50% - 36px), rgba(255,255,255,.16) 0, rgba(255,255,255,0) 32vmin),
+    radial-gradient(circle at 50% calc(50% + 24px), rgba(255,255,255,.16) 0, rgba(255,255,255,0) 32vmin),
     radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.55) 100%);
   animation: loginBuehne .5s ease both; }
 @keyframes loginBuehne { from { opacity: 0; } to { opacity: 1; } }
 /* Logo oben, wo es auch auf der Anmeldekarte stand (Wunsch Patrick,
-   14. Oktober 2026: „Hoferlogo soll oben bleiben“), mit etwas Abstand
-   zum oberen Rand (Wunsch Patrick, 14. Oktober 2026, 1.52.2) */
-.login__buehne-logo { position: absolute; left: 50%; top: max(64px, 15vh); translate: -50% 0;
+   14. Oktober 2026: „Hoferlogo soll oben bleiben“), nahe am oberen Rand;
+   die Kachel steht dafür tiefer, damit die Wellen das Logo nicht
+   berühren (Wunsch Patrick, 14. Oktober 2026, 1.52.3) */
+.login__buehne-logo { position: absolute; left: 50%; top: max(24px, 5vh); translate: -50% 0;
   width: min(300px, 62vw); height: auto; opacity: 0;
   animation: loginLogo .6s ease .45s forwards; }
 @keyframes loginLogo { from { opacity: 0; transform: translateY(-8px); } to { opacity: .95; transform: none; } }

@@ -56,11 +56,13 @@ const SCHWUNG = "cubic-bezier(.2,.8,.2,1)";
 
 const wenigBewegung = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// Wo die schwebende Kachel in der Mitte stehen bleibt: etwas über der
-// Bildschirmmitte, damit Name und Ladezeichen darunter Platz haben.
+// Wo die schwebende Kachel in der Mitte stehen bleibt: etwas unter der
+// Bildschirmmitte, damit die Wellen nicht ins Logo oben laufen
+// (Wunsch Patrick, 14. Oktober 2026). Name und Gruss passen darunter.
+const MITTE_TIEFER = 24;
 function mitteRechteck() {
   const g = Math.round(Math.min(132, Math.max(96, window.innerWidth * 0.28)));
-  return { left: (window.innerWidth - g) / 2, top: window.innerHeight / 2 - g / 2 - 36, width: g, height: g };
+  return { left: (window.innerWidth - g) / 2, top: window.innerHeight / 2 - g / 2 + MITTE_TIEFER, width: g, height: g };
 }
 
 // Die schwebende Kachel von einem Rechteck zum anderen bringen. Das

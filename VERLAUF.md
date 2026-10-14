@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.52.3** Ladebildschirm: Logo wieder höher (nah am oberen Rand), die Kachel mit Name dafür etwas unter der Bildschirmmitte, damit die Wellen das Logo nicht berühren (Wunsch Patrick, 14. Oktober 2026: „Logo höher und Benutzer tiefer, dass die Animation nicht ins Logo geht“). Test `ladebildschirm.py` prüft das jetzt auch auf iPad quer und kleinem Laptop.
 - **1.52.2** Ladebildschirm: Das Logo steht etwas tiefer, mit mehr Abstand zum oberen Rand (Wunsch Patrick, 14. Oktober 2026).
 - **1.52.1** Einstellungen → Dokumente → „Zuletzt abgelegt“: Die Spalte „Abgelegt“ zeigt neben dem Datum auch die Uhrzeit, etwa „14.10.2026 08:42“ (Wunsch Patrick, 14. Oktober 2026: „will Uhrzeit bei hochgeladenen Docs sehen“).
 - **1.52.0** Ladebildschirm nach dem Anmelden: Das Hofer-Logo steht oben statt unten (Wunsch Patrick, 14. Oktober 2026: „Hoferlogo soll oben bleiben, darf eine Sekunde länger gehen, kannst ja Daten schon vorladen“). Der Bildschirm bleibt eine Sekunde länger stehen und holt in der Zeit die Planwand (Aufträge, Ferien, Parks, Maschinen) und legt sie als Stand ab; öffnet man danach die Planwand, steht sie sofort da. Gewartet wird aufs Vorladen höchstens 2,5 Sekunden, mit Passwort oder PIN (ohne Ladebildschirm) höchstens 1 Sekunde zusätzlich. `planwandVorladen` in `src/daten/planwandStand.js`, Test `ladebildschirm.py`.
