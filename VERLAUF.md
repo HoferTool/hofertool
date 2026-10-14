@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.55.3** Menü: Der Knopf **Google** ist weg (Wunsch Patrick, 14. Oktober 2026: „nim google raus aus reiter menu“). Unter den Seiten steht nur noch Just Eat. Die Kachel „Internet“ im Pad Mode öffnet weiterhin google.ch.
 - **1.54.7** Pad Mode: Beim Antippen des grünen Knopfs „Läuft“ wanderte sein leuchtender Rahmen von ganz links nach ganz rechts über den Bildschirm (Patrick, 14. Oktober 2026). Die Lichtkante beim Antippen schob den Rahmen mit, weil der Zustandsknopf sein Leuchten im selben Teil zeichnet; der Zustandsknopf bekommt die Lichtkante jetzt nicht mehr.
 - **1.54.6** Rand oben am iPhone wechselt jetzt auch mit der Welle (Patrick, 14. Oktober 2026: „PC geht, Handy noch nicht“). Safari nimmt die Farbe von der Anmeldeseite, die dort liegt, nicht vom Grund; darum wechselt jetzt auch sie im selben Moment auf Weiss oder Dunkel.
 - **1.54.5** Fensterleiste oben (PC und Handy) wechselt beim Anmelden mit der Welle (Wunsch Patrick, 14. Oktober 2026: „geht beides nicht, färbt den Balken oben vom Fenster erst nach Start“). Die Leiste nimmt ihre Farbe aus `theme-color`; die wechselt jetzt genau, wenn die Welle oben ankommt, auf Weiss oder Dunkel und bleibt danach so. In der App ist die Leiste damit immer wie die Kopfzeile weiss oder dunkel, nicht mehr in der Themenfarbe. Dazu ein schmaler fester Streifen ganz oben auf dem Ladebildschirm, nach dem Safari am Handy den Rand färbt.

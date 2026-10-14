@@ -16,16 +16,10 @@ import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen } from "./unterreiter.js";
 
 // Knöpfe zu Webseiten unten im Menü (Wunsch Patrick, 9. Oktober 2026).
+// Google ist seit 1.55.3 weg (Wunsch Patrick 14. Oktober 2026).
 // Diese Seiten lassen sich nicht innerhalb der App anzeigen (sie
 // verbieten das), darum je ein eigenes Browserfenster.
 const WEBSEITEN = [
-  { name: "Google", url: "https://www.google.ch/", titel: "Google-Suche in eigenem Fenster",
-    // Original-G von Google, einfarbig wie die anderen Menüzeichen (Wunsch Patrick, 9. Oktober 2026)
-    zeichen: <svg viewBox="0 0 48 48" className="navsym" aria-hidden="true">
-      <path fill="currentColor" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-      <path fill="currentColor" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-      <path fill="currentColor" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-      <path fill="currentColor" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" /></svg> },
   // Original-Logo von Just Eat (Haus mit Besteck), aus Simple Icons, einfarbig
   { name: "Just Eat", url: "https://www.just-eat.ch/", titel: "Just Eat in eigenem Fenster",
     zeichen: <svg viewBox="0 0 24 24" className="navsym" aria-hidden="true">
