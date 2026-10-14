@@ -378,7 +378,10 @@ function PoolOrdner() {
       aktionen={<button className="knopf knopf--klein" id="wbg-aufraeumen" onClick={aufraeumen}>Alte WBG aufräumen</button>}
       text={"Nur für WBGs. Die Aufgabe „HoferTool“ lädt alle fünf Minuten die WBGs aus diesem Ordner hoch und "
         + "löscht sie dort. Anderes kommt in den Unterordner „nicht zugeordnet“. Eine WBG ohne geplanten Auftrag "
-        + "bleibt bis zu sieben Tage liegen und kommt mit, sobald er geplant ist."}>
+        + "bleibt bis zu sieben Tage liegen und kommt mit, sobald er geplant ist. Was in „nicht zugeordnet“ liegt, "
+        + "liest die Aufgabe nicht mehr. Für einen neuen Versuch die Datei von dort in den Pool-Ordner kopieren und "
+        + "einfügen, nicht ausschneiden: Nur eine Kopie zählt als neu und wartet wieder sieben Tage, eine "
+        + "ausgeschnittene Datei behält ihr altes Datum und geht ohne Auftrag sofort zurück."}>
       {daten ? <PoolFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
   );
