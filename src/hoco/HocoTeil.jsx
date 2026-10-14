@@ -93,12 +93,13 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
   };
 
   // Gestaltung (Wunsch Patrick 14. Oktober 2026: „sieht tot aus, kann
-  // farbiger sein, mit Themenfarbe“): Kopf als Band in der Themenfarbe,
-  // Einrichtblatt, Stückzeit und Zustand als farbige Marken, die Anhänge
-  // der FA als kleine Knöpfe statt einer Reihe blauer Links.
+  // farbiger sein“, dann „alles als Knopf, nicht Text zum Anklicken, und
+  // weniger Themenfarbe, aber schon ein bisschen“): Kopf leicht getönt mit
+  // Strich in der Themenfarbe, alles Anklickbare als Knopf, Einrichtblatt
+  // und Zustand als farbige Marken.
   return (
     <div className="hocoteil">
-      <button className="linkknopf" id="hoco-zurueck" onClick={zurueck}>‹ alle HOCO Nr.</button>
+      <button className="knopf knopf--klein" id="hoco-zurueck" onClick={zurueck}>‹ alle HOCO Nr.</button>
       <section className="karte hocoteil__kopf">
         <div className="karte__kopf">
           <div className="hocoteil__titel">
@@ -106,7 +107,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
             <h2 className="hoco-teilnr">{t.hoco_nr}</h2>
           </div>
           {darf && <div className="karte__aktionen">
-            <button className="knopf knopf--klein hocoteil__bearb" id="hoco-bearb" onClick={bearbeiten}>Bearbeiten</button></div>}
+            <button className="knopf knopf--klein" id="hoco-bearb" onClick={bearbeiten}>Bearbeiten</button></div>}
         </div>
         {/* „Allgemeine Infos“ ist weg (Wunsch 5. Oktober 2026), die Spalte bleibt */}
         {/* Die Artikelbezeichnung ebenso (Wunsch 8. Oktober 2026) */}
@@ -145,16 +146,16 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
                     : e.vorlage ? <span className="hocoteil__marke hocoteil__marke--thema">Vorlage vom Typ</span>
                     : <span className="hocoteil__marke hocoteil__marke--leer">noch keines</span>}</td>
                   <td className="nowrap">{darf
-                    ? <button className={"hocoteil__marke hocoteil__marke--knopf " + (e.zeit ? "hocoteil__marke--thema" : "hocoteil__marke--warn")}
+                    ? <button className={"knopf knopf--klein" + (e.zeit ? "" : " hocoteil__fehlt")}
                         data-stueckzeit={e.typId} onClick={() => zeitBearbeiten(e)}>
                         {e.zeit ? stueckzeitText(e.zeit) : "eintragen"}</button>
                     : (e.zeit ? <span className="hocoteil__marke hocoteil__marke--thema">{stueckzeitText(e.zeit)}</span> : leer)}</td>
                   <td className="rechts nowrap">
                     {(e.eigenes || e.vorlage) && <><button className="knopf knopf--klein hocoteil__haupt" data-blatt-typ={e.typId}
                       onClick={() => blattAnsehen(e.typId)}>Ansehen</button>{" "}</>}
-                    {darf && <button className="linkknopf" data-blatt-pdf={e.typId}
+                    {darf && <button className="knopf knopf--klein" data-blatt-pdf={e.typId}
                       onClick={() => blattHinterlegen(e.typId)}>{e.eigenes ? "Ersetzen" : "Datei hinterlegen"}</button>}
-                    {darf && e.eigenes && <>{" "}<button className="linkknopf linkknopf--gefahr" data-blatt-weg={e.typId}
+                    {darf && e.eigenes && <>{" "}<button className="knopf knopf--klein knopf--gefahr-leise" data-blatt-weg={e.typId}
                       onClick={() => blattEntfernen(e.typId)}>Entfernen</button></>}
                   </td>
                 </tr>
@@ -177,12 +178,12 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
                 steht oben (Wunsch Patrick 14. Oktober 2026). */}
             <td className="nowrap">
               <span className="hocoteil__anhaenge">
-                <button className="hocoteil__anhang hocoteil__anhang--wbg" data-fadatei={x.wbg_url || ""}
+                <button className="knopf knopf--klein hocoteil__anhang hocoteil__anhang--wbg" data-fadatei={x.wbg_url || ""}
                   onClick={() => dokZeigen({ art: "wbg", titel: "WBG " + x.fa_nr, adresse: x.wbg_url, hoco: t.hoco_nr,
                     auftragId: x.id, fa: x.fa_nr, neu: () => neu() })}>WBG</button>
-                {x.wz_historie_url && <button className="hocoteil__anhang hocoteil__anhang--wz" data-fadatei={x.wz_historie_url}
+                {x.wz_historie_url && <button className="knopf knopf--klein hocoteil__anhang hocoteil__anhang--wz" data-fadatei={x.wz_historie_url}
                   onClick={() => ansehen(x.wz_historie_url, "Werkzeugwechsel " + x.fa_nr)}>Werkzeugwechsel</button>}
-                {darf && <label className="linkknopf bildknopf">{x.wbg_url ? "WBG ersetzen" : "WBG wählen"}
+                {darf && <label className="knopf knopf--klein bildknopf">{x.wbg_url ? "WBG ersetzen" : "WBG wählen"}
                   <input type="file" accept="application/pdf" hidden data-wbgauftrag={x.id}
                     onChange={(e) => wbgWaehlen(x.id, e)} /></label>}
               </span>
