@@ -110,5 +110,30 @@ with sync_playwright() as p:
     neu = pg.evaluate("window._nichtNeu === undefined")
     pruefe("neue Fassung: danach neu geladen", neu)
     fehler += f; pg.close()
+
+    # 1.54.4: Der Grund der Seite (am iPhone der Rand oben) wechselt, wenn
+    # die Welle oben ankommt: vorher blau, danach weiss bzw. dunkel
+    for einst, name, soll in [("{}", "hell", "rgb(255, 255, 255)"), ("{dunkel: true}", "dunkel", "rgb(28, 34, 41)")]:
+        pg = br.new_context(viewport={"width": 390, "height": 844}).new_page()
+        f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
+        pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
+        for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
+            pg.route(u, lambda r: r.abort())
+        pg.add_init_script("window.OHNE_SITZUNG = true; window._warten = 300; window._einst = " + einst + ";")
+        pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded"); pg.wait_for_timeout(2300)
+        pg.evaluate("""window._lauf = []; window._t0 = performance.now(); (function mess() {
+          const w = document.querySelector('.login__farbwelle');
+          const r = w ? parseFloat((getComputedStyle(w).clipPath.match(/circle\(([\d.]+)px/) || [])[1] || 0) : 0;
+          const oben = w ? r >= innerHeight / 2 + 24 : false;
+          window._lauf.push({ t: performance.now(), oben, klasse: document.documentElement.className });
+          if (document.querySelector('.login')) requestAnimationFrame(mess); })();""")
+        pg.locator(".login__kachel", has_text="Beat").click()
+        pg.wait_for_timeout(5000)
+        lauf = pg.evaluate("window._lauf")
+        t_oben = next((x["t"] for x in lauf if x["oben"]), None)
+        t_klasse = next((x["t"] for x in lauf if "login-oben" in x["klasse"]), None)
+        print(name, "Welle oben:", t_oben and round(t_oben), "Klasse:", t_klasse and round(t_klasse))
+        pruefe(name + ": Rand oben wechselt, wenn die Welle oben ist", t_oben and t_klasse and abs(t_klasse - t_oben) < 150)
+        fehler += f; pg.close()
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")

@@ -7594,3 +7594,9 @@ body.dunkel .login__flieger-bild.login__buchstabe { color: #0f1620 !important; }
 html:has(.login) { background: #003884; }
 html:has(.login) body { background: var(--stahl); }
 html:has(body.dunkel .login), html:has(body.dunkel .login) body { background: #0e141c; }
+/* Wechsel des Grunds, sobald die Welle oben ankommt (1.54.4): weich
+   auf das Weiss oder Dunkel der App-Kopfzeile, damit danach nichts
+   mehr springt (Wunsch Patrick, 14. Oktober 2026) */
+html:has(.login), html:has(.login) body { transition: background-color .6s ease; }
+html.login-oben-hell:has(.login), html.login-oben-hell:has(.login) body { background: #ffffff !important; }
+html.login-oben-dunkel:has(.login), html.login-oben-dunkel:has(.login) body { background: #1c2229 !important; }

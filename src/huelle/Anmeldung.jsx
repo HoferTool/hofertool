@@ -22,6 +22,7 @@ let wurzel = null;
 
 export function anmeldungZeigen(ziel) {
   anmeldungAbbauen();
+  obenZuruecksetzen();
   ziel.innerHTML = "";
   const huelle = document.createElement("div");
   huelle.className = "react-seite";
@@ -89,6 +90,34 @@ function fliegen(el, von, nach) {
 // Name werden dabei auf Weiss dunkel.
 function farbwechselZiel() {
   return { dunkel: !!alt.einstellung("dunkel") };
+}
+
+// Der Rand ganz oben (am iPhone bei Uhr und Akku) nimmt Safari aus dem
+// Grund der Seite. Er wechselt genau dann weich auf Weiss oder Dunkel,
+// wenn die Welle oben ankommt, statt nach der Anmeldung zu springen
+// (Wunsch Patrick, 14. Oktober 2026). Der Zeitpunkt folgt aus der Kurve
+// der Welle in stil.css (cubic-bezier(.7,0,.3,1), FARBWELLE, Radius bis
+// 150vmax, Mitte 24px unter der Bildschirmmitte).
+const OBEN_KLASSEN = ["login-oben-hell", "login-oben-dunkel"];
+function obenZuruecksetzen() {
+  document.documentElement.classList.remove(...OBEN_KLASSEN);
+}
+function welleObenNach() {
+  const b = (s, p1, p2) => 3 * (1 - s) * (1 - s) * s * p1 + 3 * (1 - s) * s * s * p2 + s * s * s;
+  const anteil = (innerHeight / 2 + MITTE_TIEFER) / (1.5 * Math.max(innerWidth, innerHeight));
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const m = (lo + hi) / 2;
+    if (b(m, 0, 1) < anteil) lo = m; else hi = m;
+  }
+  return b(lo, 0.7, 0.3) * FARBWELLE;
+}
+function obenWechseln(ziel) {
+  const klasse = ziel.dunkel ? "login-oben-dunkel" : "login-oben-hell";
+  setTimeout(() => {
+    obenZuruecksetzen();
+    document.documentElement.classList.add(klasse);
+  }, wenigBewegung() ? 0 : welleObenNach());
 }
 
 // Gruss über dem Namen, während die Anmeldung läuft
@@ -230,7 +259,7 @@ function Anmeldung() {
       // während die Kachel noch schwebt
       await alt.profilLaden(true);
       const ziel = farbwechselZiel();
-      if (ziel) setFlieger((f) => (f ? { ...f, farbe: ziel } : f));
+      if (ziel) { setFlieger((f) => (f ? { ...f, farbe: ziel } : f)); obenWechseln(ziel); }
       // Antwortet der Server spät, soll die Farbwelle trotzdem fertig
       // laufen, statt mitten im Verlauf abzubrechen
       const welle = !wenigBewegung() ? new Promise((ok) => setTimeout(ok, FARBWELLE)) : null;
