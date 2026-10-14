@@ -7584,3 +7584,13 @@ body.dunkel .login__flieger-bild.login__buchstabe { color: #0f1620 !important; }
   .login__farbwelle, .login__logo-dunkel { animation: none; clip-path: none; }
   .login__farbwelle-saum { display: none; }
 }
+
+/* ---------- Anmeldeseite: Grund hinter der Seite blau (1.54.3) ----------
+   Safari am iPhone färbt den Rand oben (Uhr, Akku) mit dem Grund der
+   ganzen Seite, nicht mit der blauen Anmeldekarte. Der Grund war hell,
+   darum stand oben ein weisser Streifen (Wunsch Patrick, 14. Oktober
+   2026: „fixe, dass es nicht weiss sein soll“). Solange die Anmeldung
+   da ist, ist der Grund darum so blau wie sie, im dunklen Modus dunkel. */
+html:has(.login) { background: #003884; }
+html:has(.login) body { background: var(--stahl); }
+html:has(body.dunkel .login), html:has(body.dunkel .login) body { background: #0e141c; }
