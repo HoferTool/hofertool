@@ -117,6 +117,9 @@ function obenWechseln(ziel) {
   setTimeout(() => {
     obenZuruecksetzen();
     document.documentElement.classList.add(klasse);
+    // Leiste oben (Fenster am PC, Handy) im selben Moment wie der Grund
+    const m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute("content", ziel.dunkel ? "#1c2229" : "#ffffff");
   }, wenigBewegung() ? 0 : welleObenNach());
 }
 
@@ -408,6 +411,9 @@ function Anmeldung() {
             <div className={"login__farbwelle" + (flieger.farbe.dunkel ? " login__farbwelle--dunkel" : "")} />
             <div className="login__farbwelle-saum" />
           </>)}
+          {/* Schmaler fester Streifen ganz oben: Safari am Handy nimmt die
+              Farbe des Rands bei Uhr und Akku von so einem Streifen */}
+          <div className="login__kappe" />
           <img className="login__buehne-logo" src="./logo-weiss.svg" alt="" />
           {flieger.farbe && !flieger.farbe.dunkel && (
             // Auf Weiss ein dunkles Logo, das mit derselben Welle kommt

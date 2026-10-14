@@ -113,7 +113,7 @@ with sync_playwright() as p:
 
     # 1.54.4: Der Grund der Seite (am iPhone der Rand oben) wechselt, wenn
     # die Welle oben ankommt: vorher blau, danach weiss bzw. dunkel
-    for einst, name, soll in [("{}", "hell", "rgb(255, 255, 255)"), ("{dunkel: true}", "dunkel", "rgb(28, 34, 41)")]:
+    for einst, name, soll in [("{}", "hell", "#ffffff"), ("{dunkel: true}", "dunkel", "#1c2229")]:
         pg = br.new_context(viewport={"width": 390, "height": 844}).new_page()
         f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
         pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
@@ -125,7 +125,8 @@ with sync_playwright() as p:
           const w = document.querySelector('.login__farbwelle');
           const r = w ? parseFloat((getComputedStyle(w).clipPath.match(/circle\(([\d.]+)px/) || [])[1] || 0) : 0;
           const oben = w ? r >= innerHeight / 2 + 24 : false;
-          window._lauf.push({ t: performance.now(), oben, klasse: document.documentElement.className });
+          window._lauf.push({ t: performance.now(), oben, klasse: document.documentElement.className,
+            leiste: document.querySelector('meta[name="theme-color"]').content });
           if (document.querySelector('.login')) requestAnimationFrame(mess); })();""")
         pg.locator(".login__kachel", has_text="Beat").click()
         pg.wait_for_timeout(5000)
@@ -134,6 +135,12 @@ with sync_playwright() as p:
         t_klasse = next((x["t"] for x in lauf if "login-oben" in x["klasse"]), None)
         print(name, "Welle oben:", t_oben and round(t_oben), "Klasse:", t_klasse and round(t_klasse))
         pruefe(name + ": Rand oben wechselt, wenn die Welle oben ist", t_oben and t_klasse and abs(t_klasse - t_oben) < 150)
+        # 1.54.5: Fensterleiste (theme-color) im selben Moment, danach bleibt sie
+        t_leiste = next((x["t"] for x in lauf if x["leiste"] == soll), None)
+        pruefe(name + ": Fensterleiste wechselt mit der Welle", t_leiste and t_oben and abs(t_leiste - t_oben) < 150)
+        pruefe(name + ": vor der Welle blau", lauf[0]["leiste"] == "#003884")
+        nachher = pg.evaluate("document.querySelector('meta[name=\"theme-color\"]').content")
+        pruefe(name + ": Fensterleiste nach dem Start gleich (" + nachher + ")", nachher == soll)
         fehler += f; pg.close()
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")

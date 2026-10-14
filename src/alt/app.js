@@ -148,7 +148,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.54.4";
+const APP_VERSION = "1.54.5";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1296,26 +1296,31 @@ function themaAnwenden() {
   const w = themaJetzt();
   if (w === "blau") document.body.removeAttribute("data-thema");
   else document.body.setAttribute("data-thema", w);
-  fensterleisteFaerben(w);
+  fensterleisteFaerben();
 }
 
-// Die Leiste oben am installierten App-Fenster (Windows, Tablet) nimmt
-// ihre Farbe aus <meta name="theme-color">. Ohne das bliebe sie immer
-// blau, egal welche Themenfarbe gewählt ist. Bewusst die kräftige
-// Farbe des hellen Modus: Die hellen Töne des dunklen Modus wären mit
-// der weissen Schrift in der Leiste kaum lesbar.
+// Die Leiste oben am installierten App-Fenster (Windows, Tablet) und
+// am Handy der Rand bei Uhr und Akku nehmen ihre Farbe aus
+// <meta name="theme-color">. Auf der Anmeldeseite blau, in der App wie
+// die Kopfzeile weiss oder im dunklen Modus dunkel (Wunsch Patrick,
+// 14. Oktober 2026: „System heisst weiss oder Dark Mode“). Beim Anmelden
+// wechselt sie mit der Welle (obenWechseln in Anmeldung.jsx), damit
+// danach nichts mehr springt. LEISTENFARBE bleibt für Druckblätter.
 const LEISTENFARBE = {
   blau: "#003884", rot: "#a4231c", gruen: "#1c6b42", gelb: "#8a6608",
   rosa: "#a4256e", violett: "#5b2a9e", orange: "#9c4a0c",
 };
-function fensterleisteFaerben(thema) {
+const KOPFFARBE = { hell: "#ffffff", dunkel: "#1c2229", anmeldung: "#003884" };
+function fensterleisteFaerben(art) {
   let m = document.querySelector('meta[name="theme-color"]');
   if (!m) {
     m = document.createElement("meta");
     m.name = "theme-color";
     document.head.appendChild(m);
   }
-  m.setAttribute("content", LEISTENFARBE[thema] || LEISTENFARBE.blau);
+  const farbe = art === "anmeldung" ? KOPFFARBE.anmeldung
+    : document.body.classList.contains("dunkel") ? KOPFFARBE.dunkel : KOPFFARBE.hell;
+  m.setAttribute("content", farbe);
 }
 
 // Symbol für den Home-Bildschirm (iPhone, iPad): Das iPhone nimmt das
@@ -1591,7 +1596,7 @@ function zeigeLogin() {
   // Immer im gewohnten Blau, egal was die letzte Person eingestellt hatte
   document.body.classList.remove("dunkel", "nav--schmal", "rolle-extern");
   document.body.removeAttribute("data-thema");
-  fensterleisteFaerben("blau");
+  fensterleisteFaerben("anmeldung");
   einstellungenNeuLesen();
   anmeldungZeigen(WURZEL);
 }
@@ -9639,7 +9644,7 @@ Object.assign(alt, {
   farbzuteilungLaden, werkstoffKern, werkstoffSchluessel, werkstoffZuordnen, WERKSTOFFGRUPPEN,
   DOK_ARTEN, dokErkennen, dokZielSuchen, dokZielText,
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
-  FEHLER_SCHLUESSEL, themaJetzt, themaSetzen, einstellungSetzen,
+  FEHLER_SCHLUESSEL, themaJetzt, themaSetzen, fensterleisteFaerben, einstellungSetzen,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE, bestellmailVorschau,
   APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, offenAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
   sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung, istAndererNutzer,

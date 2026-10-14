@@ -7600,3 +7600,12 @@ html:has(body.dunkel .login), html:has(body.dunkel .login) body { background: #0
 html:has(.login), html:has(.login) body { transition: background-color .6s ease; }
 html.login-oben-hell:has(.login), html.login-oben-hell:has(.login) body { background: #ffffff !important; }
 html.login-oben-dunkel:has(.login), html.login-oben-dunkel:has(.login) body { background: #1c2229 !important; }
+/* Streifen ganz oben auf der Bühne (1.54.5): Safari am Handy färbt den
+   Rand bei Uhr und Akku nach einem festen Element, das oben anliegt.
+   Er wechselt mit der Welle, wie Grund und Fensterleiste. */
+.login__kappe { position: fixed; top: 0; left: 0; right: 0; z-index: 2;
+  height: max(1px, env(safe-area-inset-top, 0px)); pointer-events: none;
+  background-color: #003884; transition: background-color .6s ease; }
+body.dunkel .login__kappe { background-color: #0e141c; }
+html.login-oben-hell .login__kappe { background-color: #ffffff; }
+html.login-oben-dunkel .login__kappe { background-color: #1c2229; }

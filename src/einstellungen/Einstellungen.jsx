@@ -358,7 +358,7 @@ function Darstellung() {
         </div>
       </Zeile>
       <Schalter id="e-dunkel" name="dunkel" titel="Dunkler Modus"
-        beiAenderung={(an) => document.body.classList.toggle("dunkel", an)} />
+        beiAenderung={(an) => { document.body.classList.toggle("dunkel", an); alt.fensterleisteFaerben(); }} />
       <Schalter id="e-wochestart" name="wochestart" titel="Erfassung mit der Woche öffnen"
         text="Sonst öffnet die Erfassung mit dem Tag." />
       {/* Sofort wirksam, nicht erst nach dem nächsten Anmelden. Andere
