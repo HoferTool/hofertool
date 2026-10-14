@@ -228,7 +228,7 @@ function Anmeldung() {
       const fassung = alt.fassungPruefen();
       // Erst das Profil (Rechte, Extern), dann die Planwand vorladen,
       // während die Kachel noch schwebt
-      await alt.profilLaden();
+      await alt.profilLaden(true);
       const ziel = farbwechselZiel();
       if (ziel) setFlieger((f) => (f ? { ...f, farbe: ziel } : f));
       // Antwortet der Server spät, soll die Farbwelle trotzdem fertig
@@ -478,7 +478,7 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerken) {
       alt.sitzungMerken(email, merken && s ? s.refresh_token : null);
       // Neue Fassung auf dem Server? Dann neu laden, auch ohne Häkchen
       const fassung = alt.fassungPruefen();
-      await alt.profilLaden();
+      await alt.profilLaden(true);
       await planwandVorladenHoechstens(VORLADEN_MAX_KNOPF);
       if (await fassung) return;
       alt.zeichneGeruest();

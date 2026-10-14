@@ -148,7 +148,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.53.2";
+const APP_VERSION = "1.54.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1509,7 +1509,8 @@ async function sitzung() {
   }
 }
 
-async function profilLaden() {
+// frisch: direkt nach einer Anmeldung, dann beginnen die 4 Stunden neu
+async function profilLaden(frisch) {
   // Gemerkte Parks, Maschinen und Typen gehören zur vorherigen Sitzung
   stammVergessen();
   const s = await sitzung();
@@ -1530,6 +1531,7 @@ async function profilLaden() {
     }
     if (error || !data) throw error || new Error("kein Profil");
     profil = data;
+    if (frisch === true) zuletztSchreiben(true);
     // Andere Nutzer bleiben auf diesem Gerät angemeldet, egal wie sie
     // hereingekommen sind (Tipp, PIN oder Passwort ohne Häkchen) und
     // auch, wenn sie schon vor diesem Stand angemeldet waren: Der
@@ -7524,10 +7526,49 @@ const pad = { wo: "start", parkId: null, maschineId: null, daten: {} };
 // und 20 Sekunden)
 const LEERLAUF_MS = 60 * 1000;
 const WARNUNG_MS = 10 * 1000;
-let leerlauf = { letzte: Date.now(), takt: null, abmelden: null, hinweis: null };
+let leerlauf = { letzte: Date.now(), echt: Date.now(), takt: null, abmelden: null, hinweis: null };
+
+// Nach 4 Stunden ohne Bedienung wird immer abgemeldet, auch mit
+// „Angemeldet bleiben“ und im Pad Mode (Wunsch Patrick, 14. Oktober
+// 2026: „egal was man eingestellt hat“). Nur die Gerätekonten („Andere
+// Nutzer“) bleiben angemeldet. Die letzte Bedienung je Person liegt im
+// localStorage, damit es auch nach geschlossenem Tab oder schlafendem
+// Rechner greift und Bedienung in einem anderen Tab mitzählt.
+const LEERLAUF_MAX_MS = 4 * 60 * 60 * 1000;
+const ZULETZT_SCHLUESSEL = "hofer.zuletztAktiv";
+let zuletztGeschrieben = 0;
+
+function zuletztLesen(id) {
+  try {
+    const alle = JSON.parse(localStorage.getItem(ZULETZT_SCHLUESSEL) || "{}");
+    return +alle[id] || 0;
+  } catch (f) { return 0; }
+}
+
+function zuletztSchreiben(sofort) {
+  if (!profil || !profil.id) return;
+  const jetzt = Date.now();
+  // Höchstens alle 30 Sekunden, bei jedem Tastendruck wäre zu viel
+  if (!sofort && jetzt - zuletztGeschrieben < 30000) return;
+  zuletztGeschrieben = jetzt;
+  try {
+    const alle = JSON.parse(localStorage.getItem(ZULETZT_SCHLUESSEL) || "{}");
+    alle[profil.id] = jetzt;
+    localStorage.setItem(ZULETZT_SCHLUESSEL, JSON.stringify(alle));
+  } catch (f) { /* ohne Speicher zählt nur dieser Tab */ }
+}
+
+// Beim Start mit noch gültiger Sitzung: war die Person zu lange weg?
+function zuLangeWeg(p) {
+  if (!p || !p.id || istAndererNutzer(p)) return false;
+  const zuletzt = zuletztLesen(p.id);
+  return zuletzt > 0 && Date.now() - zuletzt >= LEERLAUF_MAX_MS;
+}
 
 function leerlaufAktiv() {
   leerlauf.letzte = Date.now();
+  leerlauf.echt = leerlauf.letzte;
+  zuletztSchreiben();
   if (leerlauf.hinweis) { leerlauf.hinweis.remove(); leerlauf.hinweis = null; }
 }
 
@@ -7535,6 +7576,10 @@ function leerlaufStarten(abmelden) {
   leerlaufStoppen();
   leerlauf.abmelden = abmelden;
   leerlauf.letzte = Date.now();
+  // Die 4 Stunden laufen über das stündliche Neuladen hinweg weiter;
+  // nur eine Anmeldung (profilLaden(true)) setzt sie neu
+  leerlauf.echt = (profil && zuletztLesen(profil.id)) || leerlauf.letzte;
+  if (leerlauf.echt === leerlauf.letzte) zuletztSchreiben(true);
   ["pointerdown", "keydown", "wheel", "touchstart", "input"].forEach((art) =>
     document.addEventListener(art, leerlaufAktiv, { capture: true, passive: true }));
   // Mausbewegung zählt auch, aber nur alle paar Sekunden — sonst wird
@@ -7563,6 +7608,20 @@ function leerlaufStoppen() {
 
 function leerlaufPruefen() {
   if (!leerlauf.takt || !profil) return;
+  // Obergrenze 4 Stunden vor allen Ausnahmen; nur Gerätekonten und ein
+  // laufendes Hochladen im Temp-Ordner halten sie auf
+  if (!istAndererNutzer() && !document.querySelector(".temp__liste--laeuft")) {
+    const zuletzt = Math.max(leerlauf.echt, zuletztLesen(profil.id));
+    if (Date.now() - zuletzt >= LEERLAUF_MAX_MS) {
+      const abmelden = leerlauf.abmelden;
+      leerlaufStoppen();
+      if (abmelden) {
+        abmelden(true).then(() => setTimeout(() =>
+          meldung("Automatische Abmeldung nach 4 Stunden ohne Bedienung."), 400));
+      }
+      return;
+    }
+  }
   // Wer den Haken "Angemeldet bleiben" gesetzt hat, wird nicht
   // abgemeldet — wie bisher.
   if (einstellung("angemeldetbleiben")) {
@@ -10112,14 +10171,26 @@ try {
   // Nebenbei: Liegt auf dem Server eine neuere Fassung, lädt die Seite
   // gleich neu, bevor jemand anfängt zu arbeiten
   const fassung = fassungPruefen();
-  const p = await profilLaden();
+  let p = await profilLaden();
   if (await fassung) throw new Error("__neuladen__");
+  // Seit über 4 Stunden nicht mehr bedient (Tab zu, Rechner im
+  // Ruhezustand): Sitzung beenden statt weitermachen
+  let zuLange = false;
+  if (p && zuLangeWeg(p)) {
+    zuLange = true;
+    zustandVergessen();
+    await abmelden();
+    profil = null;
+    p = null;
+  }
 
   BOOT.hidden = true;
   WURZEL.hidden = false;
 
   if (!p) {
     zeigeLogin();
+    if (zuLange) setTimeout(() =>
+      meldung("Automatische Abmeldung nach 4 Stunden ohne Bedienung."), 400);
   } else if (p.is_active === false) {
     await db.auth.signOut();
     profil = null;
