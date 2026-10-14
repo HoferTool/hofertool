@@ -183,8 +183,118 @@ function Geruest() {
             </a>
           ))}
         </nav>
+        {/* Am Handy statt der Leiste unten ein Knopf mit Fenster (seit 1.57.0).
+            Externe behalten die Leiste, sie haben nur zwei Punkte. */}
+        {!alt.istExtern() && <HandyMenue aktiv={aktiv} />}
         <main className="inhalt" id="inhalt" />
       </div>
     </>
+  );
+}
+
+// Die Symbole in möglichst gleich vollen Zeilen, höchstens vier je
+// Zeile: 8 → 4 4, 7 → 4 3, 6 → 3 3, 5 → 3 2, 10 → 4 3 3. Eine kürzere
+// Zeile steht in der Mitte (Wunsch Patrick 14. Oktober 2026: „gleich
+// viele pro Zeile, sonst so symmetrisch wie möglich“).
+export function menueZeilen(n) {
+  if (n <= 0) return [];
+  const zeilen = Math.ceil(n / 4);
+  const basis = Math.floor(n / zeilen), mehr = n % zeilen;
+  return Array.from({ length: zeilen }, (_, i) => basis + (i < mehr ? 1 : 0));
+}
+
+// Menü am Handy (Wunsch Patrick 14. Oktober 2026): unten ein breiter
+// Knopf mit der offenen Seite, ein Tipp öffnet ein kleines Fenster mit
+// allen Symbolen. Ab Tablet-Breite blendet CSS es aus, dort bleibt die
+// Leiste links.
+function HandyMenue({ aktiv }) {
+  // zu → offen → schliesst (Ausblenden läuft) → zu
+  const [zustand, setZustand] = useState("zu");
+  const offen = zustand === "offen";
+
+  const schliessen = () => setZustand((z) => (z === "offen" ? "schliesst" : z));
+  useEffect(() => {
+    if (zustand !== "schliesst") return;
+    const t = setTimeout(() => setZustand("zu"), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 220);
+    return () => clearTimeout(t);
+  }, [zustand]);
+  // Seitenwechsel von woanders (Suche, Zurück) schliesst es auch
+  useEffect(() => { schliessen(); }, [aktiv]);
+  useEffect(() => {
+    document.body.classList.add("nav--menue");
+    return () => document.body.classList.remove("nav--menue");
+  }, []);
+  useEffect(() => {
+    if (!offen) return;
+    // Escape schliesst nur dieses Fenster, sonst nichts (wie überall)
+    const taste = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault(); e.stopPropagation(); schliessen();
+    };
+    document.addEventListener("keydown", taste, true);
+    return () => document.removeEventListener("keydown", taste, true);
+  }, [offen]);
+
+  const seiten = alt.SEITEN.filter((s) => alt.seiteSichtbar(s.pfad));
+  const punkte = [
+    ...seiten.map((s) => ({ schluessel: s.pfad, titel: s.titel, href: "#/" + s.pfad,
+      zeichen: <span className="handymenue__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} /> })),
+    ...WEBSEITEN.map((w) => ({ schluessel: "web-" + w.name, titel: w.name, href: w.url, web: w,
+      zeichen: <span className="handymenue__zeichen" aria-hidden="true">{w.zeichen}</span> })),
+  ];
+  const jetzt = seiten.find((s) => s.pfad === aktiv) || seiten[0];
+
+  // Zeilen aus der Verteilung bauen; die laufende Nummer steuert das
+  // gestaffelte Einblenden
+  const zeilen = [];
+  let nr = 0;
+  for (const anzahl of menueZeilen(punkte.length)) {
+    zeilen.push(punkte.slice(nr, nr + anzahl).map((p, i) => ({ ...p, nr: nr + i })));
+    nr += anzahl;
+  }
+
+  const waehlen = (e, p) => {
+    // Das Symbol hüpft kurz, dann geht das Fenster zu
+    const k = e.currentTarget;
+    k.classList.remove("handymenue__punkt--tipp"); void k.offsetWidth; k.classList.add("handymenue__punkt--tipp");
+    if (p.web) webseiteOeffnen(e, p.web);
+    setTimeout(schliessen, 120);
+  };
+
+  return (
+    <div className={"handymenue handymenue--" + zustand}>
+      {zustand !== "zu" && <>
+        <div className="handymenue__schleier" onClick={schliessen} />
+        <div className="handymenue__fenster" role="dialog" aria-label="Menü">
+          {zeilen.map((zeile, z) => (
+            <div key={z} className="handymenue__zeile">
+              {zeile.map((p) => (
+                <a key={p.schluessel} href={p.href} style={{ "--nr": p.nr }}
+                  className={"handymenue__punkt" + (p.schluessel === aktiv ? " aktiv" : "")}
+                  {...(p.web ? { target: "_blank", rel: "noopener" } : {})}
+                  onClick={(e) => waehlen(e, p)}>
+                  {p.zeichen}
+                  <span className="handymenue__text">{p.titel}</span>
+                </a>
+              ))}
+            </div>
+          ))}
+        </div>
+      </>}
+      <button type="button" className="handymenue__knopf" aria-expanded={offen}
+        onClick={() => setZustand(offen ? "schliesst" : "offen")}>
+        <span className="handymenue__glanz" aria-hidden="true" />
+        <span className="handymenue__seite">
+          {jetzt && <span className="handymenue__knopfzeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: jetzt.zeichen }} />}
+          <span className="handymenue__knopftext">{jetzt ? jetzt.titel : "Menü"}</span>
+        </span>
+        <span className="handymenue__menue">
+          <span>{offen ? "Schliessen" : "Menü"}</span>
+          <svg className="handymenue__pfeil" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 15l6-6 6 6" /></svg>
+        </span>
+      </button>
+    </div>
   );
 }
