@@ -7609,3 +7609,9 @@ html.login-oben-dunkel:has(.login), html.login-oben-dunkel:has(.login) body { ba
 body.dunkel .login__kappe { background-color: #0e141c; }
 html.login-oben-hell .login__kappe { background-color: #ffffff; }
 html.login-oben-dunkel .login__kappe { background-color: #1c2229; }
+/* Safari am Handy nimmt die Farbe oben vom Inhalt, der dort liegt, und
+   das ist die Anmeldeseite selbst, nicht der Grund (1.54.6). Sie wechselt
+   darum mit derselben Welle; die Welle deckt sie dort ohnehin schon zu. */
+.login { transition: background .6s ease; }
+html.login-oben-hell .login { background: #ffffff !important; }
+html.login-oben-dunkel .login { background: #1c2229 !important; }
