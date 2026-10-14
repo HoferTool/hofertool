@@ -175,14 +175,15 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
             {/* Die Anhänge des Auftrags: das Warenbegleitblatt gehört zum
                 Durchlauf, ist also je FA Nr. ein anderes. Die Zeichnung
                 steht hier nicht mehr, sie gilt für die ganze HOCO Nr. und
-                steht oben (Wunsch Patrick 14. Oktober 2026). */}
+                steht oben (Wunsch Patrick 14. Oktober 2026). Das Protokoll
+                der Werkzeugwechsel heisst kurz „Protokoll WW“ (ebenso). */}
             <td className="nowrap">
               <span className="hocoteil__anhaenge">
                 <button className="knopf knopf--klein hocoteil__anhang hocoteil__anhang--wbg" data-fadatei={x.wbg_url || ""}
                   onClick={() => dokZeigen({ art: "wbg", titel: "WBG " + x.fa_nr, adresse: x.wbg_url, hoco: t.hoco_nr,
                     auftragId: x.id, fa: x.fa_nr, neu: () => neu() })}>WBG</button>
                 {x.wz_historie_url && <button className="knopf knopf--klein hocoteil__anhang hocoteil__anhang--wz" data-fadatei={x.wz_historie_url}
-                  onClick={() => ansehen(x.wz_historie_url, "Werkzeugwechsel " + x.fa_nr)}>Werkzeugwechsel</button>}
+                  onClick={() => ansehen(x.wz_historie_url, "Protokoll WW " + x.fa_nr)}>Protokoll WW</button>}
                 {darf && <label className="knopf knopf--klein bildknopf">{x.wbg_url ? "WBG ersetzen" : "WBG wählen"}
                   <input type="file" accept="application/pdf" hidden data-wbgauftrag={x.id}
                     onChange={(e) => wbgWaehlen(x.id, e)} /></label>}
