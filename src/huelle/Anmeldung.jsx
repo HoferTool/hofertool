@@ -61,7 +61,7 @@ const wenigBewegung = () => window.matchMedia("(prefers-reduced-motion: reduce)"
 // (Wunsch Patrick, 14. Oktober 2026). Name und Gruss passen darunter.
 const MITTE_TIEFER = 24;
 // Dauer der Farbwelle (wie loginFarbwelle in stil.css)
-const FARBWELLE = 1200;
+const FARBWELLE = 2200;
 function mitteRechteck() {
   const g = Math.round(Math.min(132, Math.max(96, window.innerWidth * 0.28)));
   return { left: (window.innerWidth - g) / 2, top: window.innerHeight / 2 - g / 2 + MITTE_TIEFER, width: g, height: g };
@@ -81,21 +81,22 @@ function fliegen(el, von, nach) {
   return a.finished.catch(() => {});
 }
 
-// Farbe, in die der Ladebildschirm von der Mitte aus wechselt, sobald
-// das Profil da ist: die Themenfarbe der Person, im dunklen Modus fast
-// schwarz mit einem Hauch davon (Wunsch Patrick, 14. Oktober 2026:
-// „cooler Verlauf von der Mitte aus“). Null heisst: bleibt, wie es ist.
-const THEMA_FARBE = {
-  blau: "#003884", rot: "#a4231c", gruen: "#1c6b42", gelb: "#8a6608",
-  rosa: "#a4256e", violett: "#5b2a9e", orange: "#9c4a0c",
+// Farbwechsel, sobald das Profil da ist (Wunsch Patrick, 14. Oktober
+// 2026: „Themenfarbe soll nur das Logo betreffen, der Farbverlauf soll
+// langsamer und cooler sein“): Die Themenfarbe färbt nur das Logo, von
+// seiner Mitte aus; der Hintergrund wechselt nur zwischen hell und
+// dunkel, mit einer Welle von der Kachel aus. Hell genug für den blauen
+// Grund. Null heisst: bleibt, wie es ist.
+const LOGO_FARBE = {
+  rot: "#ff6b5e", gruen: "#4fdc94", gelb: "#ffd34d",
+  rosa: "#ff7cc6", violett: "#bd98ff", orange: "#ffa24d",
 };
 function farbwechselZiel() {
-  const thema = alt.themaJetzt();
+  const logo = LOGO_FARBE[alt.themaJetzt()] || null;
   const dunkel = !!alt.einstellung("dunkel");
-  const jetztDunkel = document.body.classList.contains("dunkel");
-  if (thema === "blau" && dunkel === jetztDunkel) return null;
-  const farbe = THEMA_FARBE[thema] || THEMA_FARBE.blau;
-  return dunkel ? { farbe, dunkel: true } : { farbe, dunkel: false };
+  const welle = dunkel !== document.body.classList.contains("dunkel");
+  if (!logo && !welle) return null;
+  return { logo, welle, dunkel };
 }
 
 // Gruss über dem Namen, während die Anmeldung läuft
@@ -382,11 +383,15 @@ function Anmeldung() {
         // Mitte, unten klein das Logo (Wunsch Patrick 13. Oktober 2026:
         // „Ladebildschirm soll cooler sein“). Nur CSS, verzögert nichts.
         <div className="login__buehne" aria-hidden="true">
-          {flieger.farbe && (
-            <div className={"login__farbwelle" + (flieger.farbe.dunkel ? " login__farbwelle--dunkel" : "")}
-              style={{ "--ziel": flieger.farbe.farbe }} />
-          )}
+          {flieger.farbe && flieger.farbe.welle && (<>
+            <div className={"login__farbwelle" + (flieger.farbe.dunkel ? " login__farbwelle--dunkel" : "")} />
+            <div className="login__farbwelle-saum" />
+          </>)}
           <img className="login__buehne-logo" src="./logo-weiss.svg" alt="" />
+          {flieger.farbe && flieger.farbe.logo && (
+            <div className="login__buehne-logo login__logo-farbe"
+              style={{ "--ziel": flieger.farbe.logo, WebkitMaskImage: "url(./logo-weiss.svg)", maskImage: "url(./logo-weiss.svg)" }} />
+          )}
         </div>
       )}
       {flieger && (

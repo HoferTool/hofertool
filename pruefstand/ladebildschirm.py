@@ -51,7 +51,7 @@ with sync_playwright() as p:
         pruefe(name + ": Wellen berühren das Logo nicht", abstand > 0)
         if BILD: pg.screenshot(path=os.path.join(BILD, "lade-" + name + ".png"))
         # Im dunklen Fall läuft danach noch die Farbwelle zurück zu Blau
-        pg.wait_for_timeout(3300)
+        pg.wait_for_timeout(4300)
         drin = pg.evaluate("!document.getElementById('lg-auswahl') && !document.querySelector('.login__buehne')")
         pruefe(name + ": danach angemeldet, Bühne weg", drin)
         # 1.52.0: Die Planwand wurde während des Wartens schon geholt
@@ -66,8 +66,12 @@ with sync_playwright() as p:
 
     # 1.53.0: Mit Themenfarbe oder dunklem Modus wechselt die Farbe von der
     # Mitte aus; ohne beides bleibt es blau ohne Welle
-    for einst, name, soll in [("{thema: 'rot'}", "rot", "rot"), ("{thema: 'gruen', dunkel: true}", "gruen-dunkel", "gruen"),
-                              ("{}", "blau", None)]:
+    # 1.53.1: Die Themenfarbe färbt nur das Logo, die Welle über den Grund
+    # kommt nur beim Wechsel zwischen hell und dunkel
+    for einst, name, soll, logo, grund in [("{thema: 'rot'}", "rot", "rot", True, False),
+                              ("{thema: 'gruen', dunkel: true}", "gruen-dunkel", "gruen", True, True),
+                              ("{dunkel: true}", "blau-dunkel", None, False, True),
+                              ("{}", "blau", None, False, False)]:
         pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
         f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
         pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
@@ -75,12 +79,14 @@ with sync_playwright() as p:
             pg.route(u, lambda r: r.abort())
         pg.add_init_script("window.OHNE_SITZUNG = true; window._warten = 300; window._einst = " + einst + ";")
         pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded"); pg.wait_for_timeout(2300)
-        pg.locator(".login__kachel", has_text="Beat").click(); pg.wait_for_timeout(850)
+        pg.locator(".login__kachel", has_text="Beat").click(); pg.wait_for_timeout(1500)
         welle = pg.locator(".login__farbwelle").count()
+        logofarbe = pg.locator(".login__logo-farbe").count()
         if BILD: pg.screenshot(path=os.path.join(BILD, "farbe-" + name + "-mitte.png"))
-        pg.wait_for_timeout(900)
+        pg.wait_for_timeout(700)
         if BILD: pg.screenshot(path=os.path.join(BILD, "farbe-" + name + ".png"))
-        pruefe(name + ": Farbwelle " + ("da" if soll else "keine"), (welle == 1) == bool(soll))
+        pruefe(name + ": Welle über den Grund " + ("da" if grund else "keine"), (welle == 1) == grund)
+        pruefe(name + ": Logo in Farbe " + ("ja" if logo else "nein"), (logofarbe == 1) == logo)
         pg.wait_for_timeout(2500)
         thema = pg.evaluate("document.body.getAttribute('data-thema')")
         pruefe(name + ": App danach im Thema", thema == soll)

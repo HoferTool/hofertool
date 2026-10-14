@@ -7521,30 +7521,55 @@ body.dunkel .login__flieger-bild.login__buchstabe { color: #0f1620 !important; }
   .login__flieger--laedt .login__ring { opacity: 1; animation: loginBogen 3s linear infinite !important; }
 }
 
-/* ---------- Ladebildschirm: Farbwechsel von der Mitte aus (1.53.0) ----------
-   Sobald das Profil da ist, wächst ein Kreis von der Kachel aus über den
-   ganzen Bildschirm, in der Themenfarbe der Person, im dunklen Modus fast
-   schwarz mit einem Hauch davon. Danach erscheint die App schon in dieser
-   Farbe, ohne Sprung (Wunsch Patrick, 14. Oktober 2026). Licht und
-   dunkler Rand liegen im Kreis mit, damit die Bühne gleich bleibt. */
+/* ---------- Ladebildschirm: Farbwechsel von der Mitte aus (1.53.0, 1.53.1) ----------
+   Die Themenfarbe färbt nur das Logo (Wunsch Patrick, 14. Oktober 2026:
+   „Themenfarbe soll nur das Logo betreffen“): Ein Kreis wächst von der
+   Mitte des Logos aus, danach läuft ein Lichtschimmer darüber. Wechselt
+   die Person zwischen hell und dunkel, wächst von der Kachel aus ein
+   Kreis mit leuchtendem Saum über den ganzen Grund. Beides langsam und
+   weich („langsamer und cooler“), 2,2 s wie FARBWELLE in Anmeldung.jsx. */
 .login__farbwelle { position: absolute; inset: 0;
   --mitte: 50% calc(50% + 24px);
   background:
     radial-gradient(circle at var(--mitte), rgba(255,255,255,.18) 0, rgba(255,255,255,0) 32vmin),
     radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.5) 100%),
-    var(--ziel);
+    var(--stahl);
   clip-path: circle(0 at var(--mitte));
-  animation: loginFarbwelle 1.2s cubic-bezier(.55,.05,.25,1) forwards; }
+  animation: loginFarbwelle 2.2s cubic-bezier(.7,0,.3,1) forwards; }
 .login__farbwelle--dunkel {
   background:
-    radial-gradient(circle at var(--mitte), rgba(255,255,255,.12) 0, rgba(255,255,255,0) 30vmin),
+    radial-gradient(circle at var(--mitte), rgba(255,255,255,.1) 0, rgba(255,255,255,0) 30vmin),
     radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 100%),
-    #10161f;
-  background:
-    radial-gradient(circle at var(--mitte), rgba(255,255,255,.12) 0, rgba(255,255,255,0) 30vmin),
-    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 100%),
-    color-mix(in srgb, var(--ziel) 22%, #0e141c); }
+    #0e141c; }
 @keyframes loginFarbwelle { to { clip-path: circle(150vmax at var(--mitte)); } }
+/* Der Saum: ein leuchtender Ring genau an der Kante der Welle */
+.login__farbwelle-saum { position: absolute; left: 50%; top: calc(50% + 24px);
+  width: 0; height: 0; translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  border: 2px solid rgba(255,255,255,.55);
+  box-shadow: 0 0 24px 6px rgba(140,190,255,.35), inset 0 0 24px 6px rgba(140,190,255,.25);
+  animation: loginFarbSaum 2.2s cubic-bezier(.7,0,.3,1) forwards; }
+@keyframes loginFarbSaum {
+  0% { width: 0; height: 0; opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: .8; }
+  100% { width: 300vmax; height: 300vmax; opacity: 0; } }
+/* Das Logo in der Themenfarbe: dieselbe Form als Maske, darüber die
+   Farbe, die als Kreis aus der Mitte wächst, dann ein Schimmer */
+.login__logo-farbe { aspect-ratio: 643 / 240; opacity: 1; animation: none;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  background:
+    linear-gradient(105deg, rgba(255,255,255,0) 40%, rgba(255,255,255,.9) 50%, rgba(255,255,255,0) 60%) no-repeat,
+    var(--ziel);
+  background-size: 250% 100%, auto;
+  background-position: 160% 0, 0 0;
+  clip-path: circle(0 at 50% 50%);
+  filter: drop-shadow(0 0 0 transparent);
+  animation: loginLogoFarbe 2.2s cubic-bezier(.7,0,.3,1) forwards,
+             loginLogoSchimmer 1.4s ease-in-out 2.1s forwards; }
+@keyframes loginLogoFarbe { to { clip-path: circle(75% at 50% 50%); } }
+@keyframes loginLogoSchimmer { to { background-position: -60% 0, 0 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .login__farbwelle { animation: none; clip-path: none; }
+  .login__farbwelle, .login__logo-farbe { animation: none; clip-path: none; }
+  .login__farbwelle-saum { display: none; }
 }
