@@ -22,7 +22,7 @@ import { poolDruckLaden, poolDruckerName, poolKannExcel, poolDrucken, pdfSeitenA
 // "excel" oder "bild". Sonst entscheidet die Endung, und Excel gewinnt
 // auch dort, wo ein Aufrufer „PDF“ annimmt (Einrichtblatt, Dokumente).
 export function betrachter(adresse, titel, istPdf, art, endung) {
-  art = art || (istExcel(adresse) ? "excel" : istPdf ? "pdf" : "bild");
+  art = art || (istExcel(adresse) ? "excel" : istHtml(adresse) ? "html" : istPdf ? "pdf" : "bild");
   // Nach dem Neuladen wieder offen, ausser bei einer Datei vom Gerät:
   // deren Adresse gilt nur, solange die Seite steht
   const merken = /^(blob|data):/.test(String(adresse)) ? null
@@ -31,6 +31,13 @@ export function betrachter(adresse, titel, istPdf, art, endung) {
     null, "betrachter-huelle", merken);
 }
 wiederOeffner("betrachter", (d) => betrachter(d.adresse, d.titel, d.art === "pdf", d.art, d.endung));
+
+// Eine HTML-Seite, etwa die Werkzeugwechsel-Historie beim Auftrag
+// (historieAblegen in app.js). Die Ablage liefert solche Dateien aus
+// Sicherheitsgründen als reinen Text aus; im Rahmen stand darum der
+// Quelltext statt der Seite (Patrick, 14. Oktober 2026). Der Betrachter
+// holt den Text und zeigt ihn selbst als Seite.
+const istHtml = (adresse) => /\.html?$/i.test(String(adresse || "").split(/[?#]/)[0]);
 
 // Eine Datei vom Gerät ansehen, ohne sie hochzuladen
 export function dateiAnsehen(datei) {
@@ -44,7 +51,9 @@ export function dateiAnsehen(datei) {
 // Auch für dokZeigen (DokAbruf.jsx): „hinweis“ steht klein neben dem Titel
 // knoepfe: weitere Knöpfe im Kopf, vor „Schliessen“ (etwa „Zeichnung entfernen“)
 export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }) {
-  const istPdf = art === "pdf", istXl = art === "excel";
+  // Aufrufer, die „PDF“ annehmen, bekommen für .html die Seite
+  if (art === "pdf" && istHtml(adresse)) art = "html";
+  const istPdf = art === "pdf", istXl = art === "excel", istSeite = art === "html";
   // Zeichnung vom Laufwerk des Pool-Rechners: „Pfad“ statt „Neuer Tab“
   const pfad = usePfad(adresse);
   const rahmen = useRef(null);
@@ -62,12 +71,19 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
     fetch(adresse)
       .then((a) => { if (!a.ok) throw new Error("nicht erreichbar"); return a.blob(); })
       .then(async (blob) => {
+        if (istSeite) {
+          const text = await blob.text();
+          const seite = new Blob([text], { type: "text/html" });
+          if (!weg) setPdf({ art: "bereit", blob: seite, text, url: URL.createObjectURL(seite) });
+          return;
+        }
         const daten = (istPdf || istXl) ? new Uint8Array(await blob.arrayBuffer()) : null;
         if (!weg) setPdf({ art: "bereit", blob, daten });
       })
       .catch(() => { if (!weg) setPdf({ art: istXl ? "fehler" : "browser" }); });
     return () => { weg = true; };
   }, [adresse, art]);
+  useEffect(() => () => { if (pdf.url) URL.revokeObjectURL(pdf.url); }, [pdf.url]);
 
   // Drucken direkt aus der App (src/teile/drucken.js): Die PDF wird
   // Seite für Seite als Bild gezeichnet, ein Foto kommt als Bild, das
@@ -143,6 +159,12 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
     // tippt man „Drucken“ (Patrick, 9. Oktober 2026). Ohne Warten, sonst
     // gilt der Tipp nicht mehr als Berührung.
     if (pdf.blob && perTeilenDrucken(pdf.blob, dateiName(), titel)) return;
+    if (istSeite) {
+      if (pdf.art !== "bereit") { alt.meldung("Die Seite ist noch nicht geladen.", "warn"); return; }
+      try { rahmen.current.contentWindow.focus(); rahmen.current.contentWindow.print(); }
+      catch (f) { alt.meldung("Drucken ging nicht: " + alt.fehlertext(f), "fehler"); }
+      return;
+    }
     if (istXl) {
       if (!excelDrucken(wurzel.current, titel)) alt.meldung("Die Datei ist noch nicht geladen.", "warn");
       return;
@@ -227,12 +249,21 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
           <button className="knopf knopf--klein" data-speichern="" onClick={speichern}>Speichern</button>
           {pfad
             ? <button className="knopf knopf--klein" data-pfad="" title={pfad} onClick={() => pfadKopieren(pfad)}>Pfad</button>
-            : <a className="knopf knopf--klein" href={adresse} target="_blank" rel="noopener">Neuer Tab</a>}
+            : <a className="knopf knopf--klein" href={(istSeite && pdf.url) || adresse} target="_blank" rel="noopener">Neuer Tab</a>}
           {knoepfe || null}
           <button className="knopf knopf--klein" data-zu="" onClick={zu}>Schliessen</button>
         </div>
       </div>
-      <div className={"betrachter__buehne" + ((istPdf && pdf.art !== "browser") || istXl ? " betrachter__buehne--pdf" : "")}>
+      <div className={"betrachter__buehne" + ((istPdf && pdf.art !== "browser") || istXl ? " betrachter__buehne--pdf" : "")
+        + (istSeite ? " betrachter__buehne--seite" : "")}>
+        {istSeite && pdf.art === "laden" && <div className="pdfansicht__laden">Wird geladen …</div>}
+        {istSeite && pdf.art === "browser" && <div className="pdfansicht__laden excelansicht__fehler">
+          Diese Seite lässt sich nicht laden.</div>}
+        {/* Ohne Skripte: die Knöpfe oben in der Seite selbst (Drucken,
+            Schliessen) gehen hier nicht und sind darum ausgeblendet */}
+        {istSeite && pdf.art === "bereit" && <iframe ref={rahmen} title={titel || "Seite"}
+          sandbox="allow-same-origin allow-modals"
+          srcDoc={pdf.text.replace(/<\/head>/i, "<style>.leiste{display:none!important}</style></head>")} />}
         {istXl && pdf.art === "laden" && <div className="pdfansicht__laden">Excel wird geladen …</div>}
         {istXl && pdf.art === "bereit" &&
           <ExcelAnsicht daten={pdf.daten} beiFehler={() => setPdf({ art: "fehler" })} />}
@@ -242,7 +273,7 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
         {istPdf && pdf.art === "laden" && <div className="pdfansicht__laden">PDF wird geladen …</div>}
         {istPdf && pdf.art === "bereit" &&
           <PdfAnsicht daten={pdf.daten} beiFehler={() => setPdf({ art: "browser" })} />}
-        {istXl ? null : istPdf
+        {istXl || istSeite ? null : istPdf
           ? pdf.art === "browser" && <>
               <iframe ref={rahmen} src={alt.pdfGanz(adresse)} title="Zeichnung" />
               {alt.isMobil() && <p className="betrachter__hinweis">Wird nichts angezeigt, öffne die Datei über
