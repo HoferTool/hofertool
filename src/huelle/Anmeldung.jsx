@@ -82,21 +82,13 @@ function fliegen(el, von, nach) {
 }
 
 // Farbwechsel, sobald das Profil da ist (Wunsch Patrick, 14. Oktober
-// 2026: „Themenfarbe soll nur das Logo betreffen, der Farbverlauf soll
-// langsamer und cooler sein“): Die Themenfarbe färbt nur das Logo, von
-// seiner Mitte aus; der Hintergrund wechselt nur zwischen hell und
-// dunkel, mit einer Welle von der Kachel aus. Hell genug für den blauen
-// Grund. Null heisst: bleibt, wie es ist.
-const LOGO_FARBE = {
-  rot: "#ff6b5e", gruen: "#4fdc94", gelb: "#ffd34d",
-  rosa: "#ff7cc6", violett: "#bd98ff", orange: "#ffa24d",
-};
+// 2026: „keine Themenfarbe, nur dunkel oder weiss als Effekt; auch ohne
+// Dark Mode soll der Bildschirm von blau weiss werden, gleich wie bei
+// Dark Mode“): Von der Kachel aus wächst ein Kreis über den ganzen
+// Bildschirm, weiss oder im dunklen Modus fast schwarz. Logo, Gruss und
+// Name werden dabei auf Weiss dunkel.
 function farbwechselZiel() {
-  const logo = LOGO_FARBE[alt.themaJetzt()] || null;
-  const dunkel = !!alt.einstellung("dunkel");
-  const welle = dunkel !== document.body.classList.contains("dunkel");
-  if (!logo && !welle) return null;
-  return { logo, welle, dunkel };
+  return { dunkel: !!alt.einstellung("dunkel") };
 }
 
 // Gruss über dem Namen, während die Anmeldung läuft
@@ -241,7 +233,7 @@ function Anmeldung() {
       if (ziel) setFlieger((f) => (f ? { ...f, farbe: ziel } : f));
       // Antwortet der Server spät, soll die Farbwelle trotzdem fertig
       // laufen, statt mitten im Verlauf abzubrechen
-      const welle = ziel && !wenigBewegung() ? new Promise((ok) => setTimeout(ok, FARBWELLE)) : null;
+      const welle = !wenigBewegung() ? new Promise((ok) => setTimeout(ok, FARBWELLE)) : null;
       await Promise.all([angekommen, welle, planwandVorladenHoechstens(VORLADEN_MAX)]);
       if (await fassung) return;
       alt.zeichneGeruest();
@@ -383,19 +375,21 @@ function Anmeldung() {
         // Mitte, unten klein das Logo (Wunsch Patrick 13. Oktober 2026:
         // „Ladebildschirm soll cooler sein“). Nur CSS, verzögert nichts.
         <div className="login__buehne" aria-hidden="true">
-          {flieger.farbe && flieger.farbe.welle && (<>
+          {flieger.farbe && (<>
             <div className={"login__farbwelle" + (flieger.farbe.dunkel ? " login__farbwelle--dunkel" : "")} />
             <div className="login__farbwelle-saum" />
           </>)}
           <img className="login__buehne-logo" src="./logo-weiss.svg" alt="" />
-          {flieger.farbe && flieger.farbe.logo && (
-            <div className="login__buehne-logo login__logo-farbe"
-              style={{ "--ziel": flieger.farbe.logo, WebkitMaskImage: "url(./logo-weiss.svg)", maskImage: "url(./logo-weiss.svg)" }} />
+          {flieger.farbe && !flieger.farbe.dunkel && (
+            // Auf Weiss ein dunkles Logo, das mit derselben Welle kommt
+            <div className="login__buehne-logo login__logo-dunkel"
+              style={{ WebkitMaskImage: "url(./logo-weiss.svg)", maskImage: "url(./logo-weiss.svg)" }} />
           )}
         </div>
       )}
       {flieger && (
-        <div className={"login__flieger" + (flieger.laedt ? " login__flieger--laedt" : "")} ref={fliegerRef}>
+        <div className={"login__flieger" + (flieger.laedt ? " login__flieger--laedt" : "")
+          + (flieger.farbe && !flieger.farbe.dunkel ? " login__flieger--hell" : "")} ref={fliegerRef}>
           {flieger.laedt && (<>
             <span className="login__wellen" aria-hidden="true"><i /><i /><i /></span>
             <span className="login__ring" aria-hidden="true" />

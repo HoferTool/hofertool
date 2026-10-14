@@ -7521,21 +7521,24 @@ body.dunkel .login__flieger-bild.login__buchstabe { color: #0f1620 !important; }
   .login__flieger--laedt .login__ring { opacity: 1; animation: loginBogen 3s linear infinite !important; }
 }
 
-/* ---------- Ladebildschirm: Farbwechsel von der Mitte aus (1.53.0, 1.53.1) ----------
-   Die Themenfarbe färbt nur das Logo (Wunsch Patrick, 14. Oktober 2026:
-   „Themenfarbe soll nur das Logo betreffen“): Ein Kreis wächst von der
-   Mitte des Logos aus, danach läuft ein Lichtschimmer darüber. Wechselt
-   die Person zwischen hell und dunkel, wächst von der Kachel aus ein
-   Kreis mit leuchtendem Saum über den ganzen Grund. Beides langsam und
-   weich („langsamer und cooler“), 2,2 s wie FARBWELLE in Anmeldung.jsx. */
+/* ---------- Ladebildschirm: Farbwechsel von der Mitte aus (1.53.0–1.53.2) ----------
+   Keine Themenfarbe, nur hell oder dunkel (Wunsch Patrick, 14. Oktober
+   2026: „nur dark oder weiss als Effekt, auch ohne Dark Mode soll der
+   Bildschirm von blau weiss werden“): Sobald das Profil da ist, wächst
+   von der Kachel aus ein Kreis mit leuchtendem Saum über den ganzen
+   Bildschirm, weiss oder fast schwarz. Auf Weiss kommt mit derselben
+   Welle ein dunkles Logo, Gruss, Name und Wellen werden dunkel.
+   2,2 s wie FARBWELLE in Anmeldung.jsx („langsamer und cooler“). */
+.login__buehne { --welle-mitte-y: calc(50vh + 24px); --welle-zeit: 2.2s;
+  --welle-kurve: cubic-bezier(.7,0,.3,1); }
 .login__farbwelle { position: absolute; inset: 0;
-  --mitte: 50% calc(50% + 24px);
+  --mitte: 50% var(--welle-mitte-y);
   background:
-    radial-gradient(circle at var(--mitte), rgba(255,255,255,.18) 0, rgba(255,255,255,0) 32vmin),
-    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.5) 100%),
-    var(--stahl);
+    radial-gradient(circle at var(--mitte), #fff 0, #fff 30vmin, rgba(255,255,255,0) 90vmax),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 40%, rgba(0,30,70,.08) 100%),
+    #f2f5f9;
   clip-path: circle(0 at var(--mitte));
-  animation: loginFarbwelle 2.2s cubic-bezier(.7,0,.3,1) forwards; }
+  animation: loginFarbwelle var(--welle-zeit) var(--welle-kurve) forwards; }
 .login__farbwelle--dunkel {
   background:
     radial-gradient(circle at var(--mitte), rgba(255,255,255,.1) 0, rgba(255,255,255,0) 30vmin),
@@ -7543,33 +7546,41 @@ body.dunkel .login__flieger-bild.login__buchstabe { color: #0f1620 !important; }
     #0e141c; }
 @keyframes loginFarbwelle { to { clip-path: circle(150vmax at var(--mitte)); } }
 /* Der Saum: ein leuchtender Ring genau an der Kante der Welle */
-.login__farbwelle-saum { position: absolute; left: 50%; top: calc(50% + 24px);
+.login__farbwelle-saum { position: absolute; left: 50%; top: var(--welle-mitte-y);
   width: 0; height: 0; translate: -50% -50%; border-radius: 50%; pointer-events: none;
-  border: 2px solid rgba(255,255,255,.55);
-  box-shadow: 0 0 24px 6px rgba(140,190,255,.35), inset 0 0 24px 6px rgba(140,190,255,.25);
-  animation: loginFarbSaum 2.2s cubic-bezier(.7,0,.3,1) forwards; }
+  border: 2px solid rgba(255,255,255,.7);
+  box-shadow: 0 0 28px 8px rgba(140,190,255,.4), inset 0 0 28px 8px rgba(140,190,255,.3);
+  animation: loginFarbSaum var(--welle-zeit) var(--welle-kurve) forwards; }
 @keyframes loginFarbSaum {
   0% { width: 0; height: 0; opacity: 0; }
   10% { opacity: 1; }
   80% { opacity: .8; }
   100% { width: 300vmax; height: 300vmax; opacity: 0; } }
-/* Das Logo in der Themenfarbe: dieselbe Form als Maske, darüber die
-   Farbe, die als Kreis aus der Mitte wächst, dann ein Schimmer */
-.login__logo-farbe { aspect-ratio: 643 / 240; opacity: 1; animation: none;
+/* Dunkles Logo auf Weiss: dieselbe Form als Maske, abgeschnitten von
+   genau demselben Kreis wie die Welle (Mitte von der Logo-Ecke aus
+   gerechnet), so wird es genau dort dunkel, wo die Welle schon ist */
+.login__logo-dunkel { aspect-ratio: 643 / 240; opacity: 1; animation: none;
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-  background:
-    linear-gradient(105deg, rgba(255,255,255,0) 40%, rgba(255,255,255,.9) 50%, rgba(255,255,255,0) 60%) no-repeat,
-    var(--ziel);
-  background-size: 250% 100%, auto;
-  background-position: 160% 0, 0 0;
-  clip-path: circle(0 at 50% 50%);
-  filter: drop-shadow(0 0 0 transparent);
-  animation: loginLogoFarbe 2.2s cubic-bezier(.7,0,.3,1) forwards,
-             loginLogoSchimmer 1.4s ease-in-out 2.1s forwards; }
-@keyframes loginLogoFarbe { to { clip-path: circle(75% at 50% 50%); } }
-@keyframes loginLogoSchimmer { to { background-position: -60% 0, 0 0; } }
+  background: var(--stahl);
+  --logo-mitte: 50% calc(var(--welle-mitte-y) - max(24px, 5vh));
+  clip-path: circle(0 at var(--logo-mitte));
+  animation: loginLogoDunkel var(--welle-zeit) var(--welle-kurve) forwards; }
+@keyframes loginLogoDunkel { to { clip-path: circle(150vmax at var(--logo-mitte)); } }
+/* Gruss, Name, Wellen und Bogen werden auf Weiss dunkel, sobald die
+   Welle bei ihnen ist (sie liegen nahe der Mitte) */
+.login__flieger--hell .login__flieger-name { color: var(--stahl); text-shadow: none;
+  transition: color .6s ease .35s, text-shadow .6s ease .35s; }
+.login__flieger--hell .login__wellen i { border-color: rgba(0,56,132,.35);
+  transition: border-color .6s ease .35s; }
+.login__flieger--hell .login__flieger-bild {
+  box-shadow: 0 18px 50px rgba(0,30,70,.25), 0 0 0 1px rgba(0,56,132,.12), 0 0 60px rgba(0,80,180,.18); }
+.login__flieger--laedt.login__flieger--hell .login__ring {
+  background: conic-gradient(from var(--login-winkel),
+    rgba(0,56,132,0) 0deg, rgba(0,56,132,0) 200deg,
+    rgba(40,110,210,.5) 290deg, #0b4fb3 355deg, rgba(0,56,132,0) 360deg);
+  filter: drop-shadow(0 0 6px rgba(40,110,210,.45)); }
 @media (prefers-reduced-motion: reduce) {
-  .login__farbwelle, .login__logo-farbe { animation: none; clip-path: none; }
+  .login__farbwelle, .login__logo-dunkel { animation: none; clip-path: none; }
   .login__farbwelle-saum { display: none; }
 }

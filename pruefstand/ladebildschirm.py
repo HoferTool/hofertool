@@ -64,14 +64,12 @@ with sync_playwright() as p:
         pruefe(name + ": Planwand steht sofort", sofort)
         fehler += f; pg.close()
 
-    # 1.53.0: Mit Themenfarbe oder dunklem Modus wechselt die Farbe von der
-    # Mitte aus; ohne beides bleibt es blau ohne Welle
-    # 1.53.1: Die Themenfarbe färbt nur das Logo, die Welle über den Grund
-    # kommt nur beim Wechsel zwischen hell und dunkel
-    for einst, name, soll, logo, grund in [("{thema: 'rot'}", "rot", "rot", True, False),
-                              ("{thema: 'gruen', dunkel: true}", "gruen-dunkel", "gruen", True, True),
+    # 1.53.2: Keine Themenfarbe mehr; immer eine Welle, weiss mit dunklem
+    # Logo oder im dunklen Modus dunkel mit weissem Logo
+    for einst, name, soll, logo, grund in [("{thema: 'rot'}", "rot", "rot", True, True),
+                              ("{thema: 'gruen', dunkel: true}", "gruen-dunkel", "gruen", False, True),
                               ("{dunkel: true}", "blau-dunkel", None, False, True),
-                              ("{}", "blau", None, False, False)]:
+                              ("{}", "blau", None, True, True)]:
         pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
         f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
         pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
@@ -81,12 +79,12 @@ with sync_playwright() as p:
         pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded"); pg.wait_for_timeout(2300)
         pg.locator(".login__kachel", has_text="Beat").click(); pg.wait_for_timeout(1500)
         welle = pg.locator(".login__farbwelle").count()
-        logofarbe = pg.locator(".login__logo-farbe").count()
+        logofarbe = pg.locator(".login__logo-dunkel").count()
         if BILD: pg.screenshot(path=os.path.join(BILD, "farbe-" + name + "-mitte.png"))
         pg.wait_for_timeout(700)
         if BILD: pg.screenshot(path=os.path.join(BILD, "farbe-" + name + ".png"))
         pruefe(name + ": Welle über den Grund " + ("da" if grund else "keine"), (welle == 1) == grund)
-        pruefe(name + ": Logo in Farbe " + ("ja" if logo else "nein"), (logofarbe == 1) == logo)
+        pruefe(name + ": Logo dunkel " + ("ja" if logo else "nein"), (logofarbe == 1) == logo)
         pg.wait_for_timeout(2500)
         thema = pg.evaluate("document.body.getAttribute('data-thema')")
         pruefe(name + ": App danach im Thema", thema == soll)
