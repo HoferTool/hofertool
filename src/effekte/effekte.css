@@ -381,7 +381,7 @@ input, select, textarea { transition: border-color .18s ease, box-shadow .18s ea
 .pad__balken__fuellung { overflow: hidden; }
 
 @media (prefers-reduced-motion: no-preference) {
-  #pad .pad-kachel.fx-tipp::after, #pad .pad-knopf.fx-tipp::after {
+  #pad .pad-kachel.fx-tipp::after, #pad .pad-knopf:not(.pad-knopf--zustand).fx-tipp::after {
     animation: fx-kante .6s cubic-bezier(.2, .8, .2, 1); }
   @media (hover: hover) {
     #pad .pad-kachel:hover::after { animation: fx-kante .9s cubic-bezier(.2, .8, .2, 1); }
