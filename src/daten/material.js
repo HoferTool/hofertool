@@ -34,7 +34,7 @@ import { alleBestellungenLesen } from "./materialBestellung.js";
 
 export const ORTE_STANDARD = ["Restelager", "Aussenlager Nord", "Aussenlager Nord-Nord", "Halle",
   "Bei Zurbrügg", "Beim Lieferanten"];
-const STANGE_MM = 3000, STUMPEN_MM = 250;
+const STANGE_MM = 3000, STUMPEN_MM = 250, PLANIEREN_MM = 0.5;
 
 // g/cm³ je Werkstoffgruppe aus werkstoffErkennen
 const DICHTE = { stahl: 7.85, v2a: 7.9, v4a: 8.0, chrom: 7.7, alu: 2.7, messing: 8.5,
@@ -295,12 +295,16 @@ export function bedarfRechnen(j, teil, maschine) {
   const typ = maschine && maschine.typ;
   const stange = (typ && Number(typ.stangen_mm)) || STANGE_MM;
   const stumpen = typ && typ.stumpen_mm !== undefined && typ.stumpen_mm !== null ? Number(typ.stumpen_mm) : STUMPEN_MM;
-  const jeStange = Math.floor((stange - stumpen) / laenge);
+  // Je Teil Länge + Abstecher (beim Typ) + 0,5 mm fürs Planieren beider
+  // Seiten (Wunsch Patrick 15. Oktober 2026); nur für die Menge
+  const abstecher = (typ && Number(typ.abstecher_mm)) || 0;
+  const jeTeil = laenge + abstecher + PLANIEREN_MM;
+  const jeStange = Math.floor((stange - stumpen) / jeTeil);
   if (jeStange < 1) return null;
   const stueck = Math.max(0, (Number(j.target_quantity) || 0) - (Number(j.stand) || 0));
   if (!stueck) return { kg: 0, stangen: 0, sicher: !!teil.teil_mass_bestaetigt };
   const stangen = Math.ceil(stueck / jeStange);
-  return { kg: stangen * stange / 1000 * kgm, stangen, jeStange, stange, stumpen, laenge,
+  return { kg: stangen * stange / 1000 * kgm, stangen, jeStange, stange, stumpen, laenge, abstecher, jeTeil,
     sicher: !!teil.teil_mass_bestaetigt };
 }
 
@@ -443,43 +447,75 @@ export function ampelText(eintrag) {
 // ---------- Länge aus dem Einrichtblatt ----------
 
 // Sucht im Excel die Zeile „Artikel Bez.“ und darin „17 x 7.00“
-// (Durchmesser x Länge). Gibt { d, laenge, text } oder null.
+// (Durchmesser x Länge). Gibt { d, laenge, text } oder, wenn nichts
+// passt, { grund, text } — der Grund kommt in die Liste, damit man
+// sieht, woran es lag (Patrick 15. Oktober 2026: „warum nur so 120?“).
+const BEZ_FELD = /^(art(ikel)?bez|artikel$|artikelbezeichnung|teilbez|benennung|bezeichnung)/;
+
 export async function massAusEinrichtblatt(url) {
   const antwort = await fetch(url);
-  if (!antwort.ok) throw new Error("Einrichtblatt nicht erreichbar");
+  if (!antwort.ok) return { grund: "Einrichtblatt nicht erreichbar" };
   const daten = new Uint8Array(await antwort.arrayBuffer());
   const m = await import("xlsx");
   const XLSX = m.default && m.default.read ? m.default : m;
-  const buch = XLSX.read(daten, { type: "array" });
+  let buch;
+  try { buch = XLSX.read(daten, { type: "array" }); }
+  catch (f) { return { grund: "Excel nicht lesbar" }; }
+  let gesehen = "";
+  let ersatz = null;
   for (const name of buch.SheetNames) {
     const blatt = buch.Sheets[name];
     const zeilen = XLSX.utils.sheet_to_json(blatt, { header: 1, raw: false, blankrows: false }).slice(0, 200);
     for (let z = 0; z < zeilen.length; z++) {
       const zeile = zeilen[z] || [];
       for (let s = 0; s < zeile.length; s++) {
-        const t = String(zeile[s] || "").toLowerCase().replace(/[\s.\-_:]+/g, "");
-        if (!/^art(ikel)?bez/.test(t)) continue;
-        // Wert rechts daneben, sonst darunter
-        const kandidaten = zeile.slice(s + 1, s + 8).concat([(zeilen[z + 1] || [])[s]]);
+        const roh = String(zeile[s] || "");
+        const t = roh.toLowerCase().replace(/[\s.\-_:]+/g, "");
+        if (!BEZ_FELD.test(t)) {
+          // Ohne Feldname: eine Zelle mit Wort und „17 x 7“ merken, falls
+          // das Blatt gar kein Feld „Art. Bez.“ hat
+          if (!ersatz && z < 60 && /[a-zäöü]{3}/i.test(roh)) {
+            const mass = massLesen(roh);
+            if (mass) ersatz = mass;
+          }
+          continue;
+        }
+        // Wert rechts daneben (auch weit rechts bei verbundenen Zellen),
+        // sonst darunter
+        const unten = zeilen[z + 1] || [];
+        const kandidaten = [String(roh).replace(/^[^:]*:/, "")]
+          .concat(zeile.slice(s + 1, s + 25), unten.slice(s, s + 8));
         for (const k of kandidaten) {
           const mass = massLesen(k);
           if (mass) return mass;
         }
-        // Alles in einer Zelle: „Art. Bez.: Deckel 17 x 7“
-        const mass = massLesen(String(zeile[s]).replace(/^[^:]*:/, ""));
-        if (mass) return mass;
+        const text = kandidaten.map((k) => String(k || "").trim()).filter(Boolean).join(" · ").slice(0, 80);
+        if (text && !gesehen) gesehen = text;
       }
     }
   }
-  return null;
+  if (ersatz) return { ...ersatz, text: "ohne Feld Art. Bez.: " + ersatz.text };
+  return gesehen ? { grund: "Art. Bez. ohne „Ø x Länge“", text: gesehen } : { grund: "Kein Feld Art. Bez. im Blatt" };
 }
 
+// „17 x 7.00“, „17mm x 7mm“, „Ø17 x 7,5“; sonst „Ø 17 L 7“ oder „L=7“
 export function massLesen(text) {
   const t = String(text || "");
-  const alle = [...t.matchAll(/(\d+(?:[.,]\d+)?)\s*[x×*]\s*(\d+(?:[.,]\d+)?)/gi)];
-  if (!alle.length) return null;
-  const m = alle[alle.length - 1];
-  const d = zahl(m[1]), laenge = zahl(m[2]);
-  if (!d || !laenge || d > 120 || laenge > 1000) return null;
+  const zahlMuster = "(\\d+(?:[.,]\\d+)?)";
+  // Gewinde wie „M6x0.75“ zählen nicht (Buchstabe direkt davor)
+  const alle = [...t.matchAll(new RegExp("[øØ]?\\s*" + zahlMuster + "\\s*(?:mm)?\\s*[x×*]\\s*[øØ]?\\s*" + zahlMuster, "gi"))]
+    .filter((m) => !/[a-zäöü]/i.test(t.charAt(m.index + m[0].search(/[øØ\d]/) - 1)));
+  let d = null, laenge = null;
+  if (alle.length) {
+    const m = alle[alle.length - 1];
+    d = zahl(m[1]); laenge = zahl(m[2]);
+  } else {
+    const l = t.match(new RegExp("\\bL(?:änge)?\\s*[=:]?\\s*" + zahlMuster, "i"));
+    if (!l) return null;
+    laenge = zahl(l[1]);
+    const dm = t.match(new RegExp("(?:[øØ]|\\bD)\\s*[=:]?\\s*" + zahlMuster, "i"));
+    d = dm ? zahl(dm[1]) : null;
+  }
+  if (!laenge || laenge > 1000 || (d && d > 120)) return null;
   return { d, laenge, text: t.trim() };
 }

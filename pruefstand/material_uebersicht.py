@@ -30,7 +30,7 @@ with sync_playwright() as p:
     pg.evaluate("""() => {
       const D = TEST.daten;
       const m = D.machines.find(x => x.id === 'm-k1'); m.type_id = 't1';
-      D.machine_types.forEach(t => { t.stangen_mm = 3000; t.stumpen_mm = 250; });
+      D.machine_types.forEach(t => { t.stangen_mm = 3000; t.stumpen_mm = 250; t.abstecher_mm = 2.5; });
       D.jobs = D.jobs.filter(j => j.machine_id !== 'm-k1');
       const basis = { machine_id: 'm-k1', maschine: m.name, maschine_nr: m.machine_number, ended_at: null,
         planned_days: 3, target_quantity: 5000, stand: 0, started_at: '2026-09-01T04:00:00Z', color: 'rosa' };
@@ -64,7 +64,7 @@ with sync_playwright() as p:
     pruefe("Bestellung aus der Notiz einmal gezählt", t.count("2026008261") == 1 and "680 kg" in t)
     pruefe("Laufender Auftrag an der Maschine", "an " in t)
     import re
-    pruefe("Mindestmenge, nicht sicher", re.search(r"mind\. ca\. 1.150 kg", t) and "nicht bestätigt" in t)
+    pruefe("Mindestmenge mit Abstecher 2,5 + 0,5 mm, nicht sicher", re.search(r"mind\. ca\. 1.275 kg", t) and "nicht bestätigt" in t)
     pruefe("Ähnlich an Lager (h8)", "ähnlich an Lager: h8" in t)
     pg.screenshot(path="/tmp/material_seite.png", full_page=True)
 

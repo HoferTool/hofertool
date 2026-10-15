@@ -181,7 +181,8 @@ function Gruppe({ g, neu, erfassen }) {
               {a.versatz ? <span className="klein"> (Planwand {kurz(a.auftrag.planned_from)}, Maschine {a.versatz > 0 ? a.versatz + " Tage hinten" : -a.versatz + " Tage voraus"})</span> : null}</span>
             <span className="zahl">{alt.zahlText(Math.max(0, (Number(a.auftrag.target_quantity) || 0) - (Number(a.auftrag.stand) || 0)))} Stk.</span>
             <span className="klein">{a.bedarf
-              ? "mind. " + kgText(a.bedarf.kg) + " (" + a.bedarf.stangen + " Stangen à " + a.bedarf.jeStange + " Stk.)" + (a.bedarf.sicher ? "" : ", Länge nicht bestätigt")
+              ? "mind. " + kgText(a.bedarf.kg) + " (" + a.bedarf.stangen + " Stangen à " + a.bedarf.jeStange + " Stk."
+                + (a.bedarf.abstecher ? "" : ", ohne Abstecher") + ")" + (a.bedarf.sicher ? "" : ", Länge nicht bestätigt")
               : "Länge fehlt"}</span>
             <Ampel ampel={a.ampel} text={a.ampel === "fehlt" && a.fehltKg ? "fehlt " + kgText(a.fehltKg) : null} />
           </div>))}
@@ -306,19 +307,27 @@ function Laengen({ d, suche, neu }) {
     const jeNr = {};
     (r.data || []).forEach((x) => { (jeNr[x.hoco_nr] = jeNr[x.hoco_nr] || []).push(x); });
     const aufgaben = Object.keys(jeNr);
+    // Ohne Einrichtblatt gibt es nichts zu lesen; das steht dann dabei
+    await Promise.all(ohne.filter((nr) => !jeNr[nr]).map((nr) =>
+      speichern(nr, { teil_mass_quelle: "Nicht gefunden: kein Einrichtblatt vorhanden" })));
     let gefunden = 0, fertig = 0;
     setLaeuft({ fertig: 0, von: aufgaben.length });
     const eine = async (nr) => {
       // Zuerst das Blatt vom Typ der geplanten Maschine
       const typ = (d.maschineVon[nummern.get(nr).auftrag.machine_id] || {}).type_id;
       const blaetter = jeNr[nr].sort((a, b) => (b.type_id === typ) - (a.type_id === typ));
+      let grund = "";
       for (const b of blaetter) {
         try {
           const m = await massAusEinrichtblatt(b.blatt_url);
-          if (m && await speichern(nr, { teil_d_mm: m.d, teil_laenge_mm: m.laenge, teil_mass_bestaetigt: false,
-            teil_mass_quelle: "Einrichtblatt: " + m.text.slice(0, 120) })) { gefunden++; break; }
-        } catch (f) { /* nächstes Blatt */ }
+          if (m && m.laenge) {
+            if (await speichern(nr, { teil_d_mm: m.d, teil_laenge_mm: m.laenge, teil_mass_bestaetigt: false,
+              teil_mass_quelle: "Einrichtblatt: " + m.text.slice(0, 120) })) { gefunden++; grund = ""; break; }
+          } else if (m && !grund) grund = m.grund + (m.text ? ": " + m.text : "");
+        } catch (f) { if (!grund) grund = "Excel nicht lesbar"; }
       }
+      // Woran es lag, steht danach in der Liste bei der Nummer
+      if (grund) await speichern(nr, { teil_mass_quelle: "Nicht gefunden: " + grund.slice(0, 140) });
       fertig++;
       setLaeuft({ fertig, von: aufgaben.length });
     };
@@ -326,7 +335,10 @@ function Laengen({ d, suche, neu }) {
     const warte = aufgaben.slice();
     await Promise.all([1, 2, 3].map(async () => { while (warte.length) await eine(warte.shift()); }));
     setLaeuft(null);
-    alt.meldung(gefunden + " von " + ohne.length + " Längen gefunden. Bitte prüfen und bestätigen.", gefunden ? "gut" : "warn");
+    const ohneBlatt = ohne.length - aufgaben.length;
+    alt.meldung(gefunden + " von " + ohne.length + " Längen gefunden"
+      + (ohneBlatt > 0 ? ", " + ohneBlatt + " ohne Einrichtblatt" : "")
+      + ". Bitte prüfen und bestätigen; bei den übrigen steht, woran es lag.", gefunden ? "gut" : "warn");
     neu();
   };
 
