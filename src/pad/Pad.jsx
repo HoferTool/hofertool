@@ -19,7 +19,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt, reactAufraeumen } from "../bruecke.jsx";
 import Maschine, { maschineLaden } from "./Maschine.jsx";
-import QsCheck, { QsParks, qsLaden } from "./QsCheck.jsx";
+import QsCheck, { qsLaden } from "./QsCheck.jsx";
 
 let wurzel = null, huelle = null, zaehler = 0;
 
@@ -54,8 +54,6 @@ export function padZurueck() {
     else if (p.wo === "maschine") p.wo = "maschinen";
     else if (p.wo === "maschinen") p.wo = p.typUebersprungen ? "parks" : "typen";
     else if (p.wo === "typen") p.wo = "parks";
-    else if (p.wo === "qs") p.wo = p.qsParkUebersprungen ? "start" : "qsparks";
-    else if (p.wo === "qsparks") p.wo = "start";
     else p.wo = "start";
   });
 }
@@ -146,7 +144,8 @@ async function sichtLaden(p) {
     p.wo = "maschinen";
     return maschinenLaden(p);
   }
-  if (p.wo === "qs" || p.wo === "qsparks") return qsLaden(p);
+  if (p.wo === "qsparks") p.wo = "qs"; // gemerkt von vor 1.62.0
+  if (p.wo === "qs") return qsLaden(p);
   if (p.wo === "planwand") return { art: "planwand" };
   if (String(p.wo).indexOf("seite:") === 0) {
     const pfad = p.wo.slice(6);
@@ -211,8 +210,7 @@ function Pad({ h, auffrischen }) {
   if (d.art === "typen") return <Typen gruppen={d.gruppen} alle={d.alle} />;
   if (d.art === "maschinen") return <Maschinen eigene={d.eigene} laufend={d.laufend} />;
   if (d.art === "maschine") return <Maschine d={d} />;
-  if (d.art === "qsparks") return <QsParks gruppen={d.gruppen} />;
-  if (d.art === "qs") return <QsCheck park={d.park} zeilen={d.zeilen} zeichnungen={d.zeichnungen} />;
+  if (d.art === "qs") return <QsCheck zeilen={d.zeilen} teile={d.teile} />;
   if (d.art === "planwand") {
     return <Rahmen key={stand.nr} titel="Planwand" id="pad-planwand" klasse="pad__rolle"
       zeichne={(ziel) => alt.seitePlanwand(ziel)} />;
@@ -237,7 +235,7 @@ function Start() {
             <span className="pad-kachel__zeichen">⚙</span><span>Maschinen</span>
           </button>
           <button className="pad-kachel pad-kachel--qs" data-padwo="qs"
-            onClick={() => gehe((p) => { p.wo = "qsparks"; })}>
+            onClick={() => gehe((p) => { p.wo = "qs"; })}>
             <span className="pad-kachel__zeichen">🔍</span><span>Anlagen Check</span>
           </button>
         </div>

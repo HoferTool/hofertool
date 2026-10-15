@@ -14,21 +14,21 @@
 //  fragt nach und nach der Stückzeit, der nächste rückt auf Rüsten.
 // =================================================================
 //
-//  Seit 1.18.0 wie bei „Maschinen“ zuerst der Park, dann die Liste nur
-//  dieses Parks, und je Zeile Zeichnung und WBG (Wunsch Patrick,
-//  10. Oktober 2026). Gibt es nur einen Park, entfällt die Wahl.
+//  Seit 1.62.0 alle Maschinen zusammen, ohne Parkwahl, über die ganze
+//  Fläche, egal wie gross der Bildschirm ist; je Maschine dazu das
+//  Material in seiner Werkstofffarbe und wie weit die Stückzahl ist
+//  (Wunsch Patrick, 15. Oktober 2026). Externe sehen dieselbe Ansicht
+//  mit ihren Maschinen (ladeMaschinen schränkt sie auf ihre Parks ein).
+import { useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { PadKopf, padZeichnen } from "./Pad.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 
-const gehe = (aendern) => { aendern(alt.pad); padZeichnen(); };
-
 // Die Zustände in der Reihenfolge, in der ein Auftrag sie durchläuft
 const ABLAUF = ["geplant", "ruesten", "qs", "laeuft", "fertig"];
 
-export async function qsLaden(p) {
-  const [parks, maschinen, laufend, offen] = await Promise.all([
-    alt.ladeParks(false),
+export async function qsLaden() {
+  const [maschinen, laufend, offen] = await Promise.all([
     alt.ladeMaschinen(false),
     alt.ladeLaufendeAuftraege(),
     alt.db.from("jobs").select("*").is("ended_at", null)
@@ -42,53 +42,27 @@ export async function qsLaden(p) {
     const da = naechster[j.machine_id];
     if (!da || String(j.planned_from) < String(da.planned_from)) naechster[j.machine_id] = j;
   });
-  const gruppen = parks.map((park) => ({
-    park,
-    zeilen: maschinen.filter((m) => m.park_id === park.id)
-      .map((m) => ({ m, j: laufend[m.id] || naechster[m.id] || null })),
-  })).filter((g) => g.zeilen.length);
-  if (p.wo === "qsparks") {
-    if (gruppen.length > 1) return { art: "qsparks", gruppen };
-    p.qsPark = gruppen.length ? gruppen[0].park.id : null;
-    p.qsParkUebersprungen = true;
-    p.wo = "qs";
-  } else p.qsParkUebersprungen = gruppen.length <= 1;
-  const g = gruppen.find((x) => x.park.id === p.qsPark) || gruppen[0] || null;
-  if (!g) return { art: "qs", park: null, zeilen: [], zeichnungen: {} };
-  p.qsPark = g.park.id;
+  // Nach Nummer, wie man beim Rundgang an den Maschinen vorbeikommt
+  const zeilen = maschinen
+    .map((m) => ({ m, j: laufend[m.id] || naechster[m.id] || null }))
+    .sort((a, b) => String(a.m.machine_number || "").localeCompare(
+      String(b.m.machine_number || ""), "de", { numeric: true }));
 
-  // Zeichnung am Auftrag, sonst die der HOCO Nr. — wie im Dashboard
-  const nummern = [...new Set(g.zeilen.map((z) => z.j && z.j.job_number).filter(Boolean))];
-  const zeichnungen = {};
+  // Der nächste geplante Auftrag hat noch keinen Stand nachgetragen
+  try {
+    await alt.standsNachtragen(zeilen.map((z) => z.j).filter((j) => j && j.stand == null));
+  } catch (f) { /* Beiwerk */ }
+
+  // Zeichnung und Material der HOCO Nr., wenn am Auftrag nichts steht
+  const nummern = [...new Set(zeilen.map((z) => z.j && z.j.job_number).filter(Boolean))];
+  const teile = {};
   if (nummern.length) {
     try {
-      const r = await alt.db.from("hoco_parts").select("hoco_nr, zeichnung_url").in("hoco_nr", nummern);
-      ((r && r.data) || []).forEach((t) => { if (t.zeichnung_url) zeichnungen[t.hoco_nr] = t.zeichnung_url; });
+      const r = await alt.db.from("hoco_parts").select("hoco_nr, zeichnung_url, material").in("hoco_nr", nummern);
+      ((r && r.data) || []).forEach((t) => { teile[t.hoco_nr] = t; });
     } catch (f) { /* Beiwerk */ }
   }
-  return { art: "qs", park: g.park, zeilen: g.zeilen, zeichnungen };
-}
-
-// Parkwahl wie bei „Maschinen“
-export function QsParks({ gruppen }) {
-  return (
-    <>
-      <PadKopf titel="Anlagen Check" zurueck />
-      <div className="pad__wahl">
-        <img className="pad__wahllogo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
-        <div className="pad__kacheln pad__kacheln--parks"
-          style={{ "--pad-spalten": Math.min(gruppen.length, 3) }}>
-          {gruppen.map(({ park, zeilen }) => (
-            <button key={park.id} className="pad-kachel" data-qspark={park.id}
-              onClick={() => gehe((p) => { p.qsPark = park.id; p.wo = "qs"; })}>
-              <span>{park.name}</span>
-              <span className="pad-kachel__nr">{zeilen.length + (zeilen.length === 1 ? " Maschine" : " Maschinen")}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
-  );
+  return { art: "qs", zeilen, teile };
 }
 
 // Zeichnung und WBG im selben Betrachter wie im Dashboard
@@ -119,48 +93,124 @@ async function wechseln(j, wahl) {
   } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
 }
 
-// Kompakt (Wunsch Patrick, 10. Oktober 2026: „jeden Status sehen ist
-// gut, aber kleiner, dass man alles auf einem sehen kann“): bei vielen
-// Maschinen auf dem iPad quer in zwei Spalten, die Zustände als
-// kleine Tasten, davor Zeichnung und WBG.
-export default function QsCheck({ park, zeilen, zeichnungen }) {
+// Wie viele Spalten? Jede Karte will etwa 44 × 4,5 Schriftgrössen
+// breit und hoch (eine Zeile), schmal 25 × 8 (zwei Zeilen). Gewählt
+// wird, was die Schrift am grössten macht; so füllen die Karten jeden
+// Bildschirm. Wird die Schrift kleiner als 11 Pixel, rollt die Liste.
+const FORMEN = [{ zwei: false, b: 44, h: 4.5 }, { zwei: true, b: 25, h: 8 }];
+const LUECKE = 6;
+const MIN_SCHRIFT = 11;
+function rasterWaehlen(breite, hoehe, n) {
+  let best = null;
+  for (const f of FORMEN) {
+    for (let c = 1; c <= 8; c++) {
+      const reihen = Math.ceil(Math.max(n, 1) / c);
+      const w = (breite - (c - 1) * LUECKE) / c;
+      const h = (hoehe - (reihen - 1) * LUECKE) / reihen;
+      const schrift = Math.min(w / f.b, h / f.h, 22);
+      // Ab der Mindestschrift rollt es senkrecht, dann zählt nur die Breite
+      const wert = schrift >= MIN_SCHRIFT ? schrift : Math.min(w / f.b, MIN_SCHRIFT) - 1 + schrift / 100;
+      if (!best || wert > best.wert) best = { wert, spalten: c, zwei: f.zwei, rollt: schrift < MIN_SCHRIFT };
+    }
+  }
+  return best;
+}
+
+function useRaster(n) {
+  const ref = useRef(null);
+  const [raster, setRaster] = useState(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const messen = () => {
+      // Am Handy rollt das ganze Pad, dort zählt die Höhe des Fensters
+      const hoehe = Math.min(el.clientHeight, window.innerHeight - Math.max(0, el.getBoundingClientRect().top));
+      const r = rasterWaehlen(el.clientWidth - 16, hoehe - 16, n);
+      setRaster((v) => (v && v.spalten === r.spalten && v.zwei === r.zwei && v.rollt === r.rollt ? v : r));
+    };
+    messen();
+    const ro = new ResizeObserver(messen);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [n]);
+  return [ref, raster];
+}
+
+// Material als Feld in der Werkstofffarbe, wie die Kachel im Dashboard
+function MaterialFeld({ bez }) {
+  if (!bez) return <span className="pad-ak__mat pad-ak__mat--leer">Material fehlt</span>;
+  const g = alt.werkstoffErkennen(bez);
+  const f = g ? alt.farbeVon(g.farbe) : null;
+  return (
+    <span className="pad-ak__mat" title={bez}
+      style={f ? { background: f.hex, color: alt.schriftZu(f.hex) } : undefined}>
+      {g && <b>{g.name}</b>}<span>{bez}</span>
+    </span>
+  );
+}
+
+// Stückzahl: „1'200 von 5'000“ mit Balken
+function Fortschritt({ j }) {
+  const stand = Number(j.stand) || 0;
+  const ziel = Number(j.target_quantity) || 0;
+  const prozent = ziel ? Math.min(100, Math.round(stand / ziel * 100)) : 0;
+  return (
+    <div className="pad-ak__fort">
+      <span className="pad-ak__zahl">
+        <b>{alt.zahlText(stand)}</b>{ziel ? <> von {alt.zahlText(ziel)}</> : " Stk"}
+      </span>
+      <span className="pad-ak__balken"><i style={{ width: prozent + "%" }} /></span>
+    </div>
+  );
+}
+
+export default function QsCheck({ zeilen, teile }) {
   const darf = alt.darfSchreiben();
+  const [ref, raster] = useRaster(zeilen.length);
+  const klasse = "pad-ak pad--wischen" + (raster && raster.zwei ? " pad-ak--zwei" : "")
+    + (raster && raster.rollt ? " pad-ak--rollt" : "");
   return (
     <>
-      <PadKopf titel={"Anlagen Check" + (park ? " · " + park.name : "")} zurueck />
-      <div className={"pad-qs pad--wischen" + (zeilen.length > 8 ? " pad-qs--zwei" : "")}>
-        {!zeilen.length && <p className="pad__leer">Keine Maschinen in diesem Park.</p>}
-        {zeilen.map(({ m, j }) => {
+      <PadKopf titel="Anlagen Check" zurueck />
+      <div ref={ref} className={klasse} style={{ "--ak-spalten": raster ? raster.spalten : 1 }}>
+        {!zeilen.length && <p className="pad__leer">Keine Maschinen.</p>}
+        {raster && zeilen.map(({ m, j }) => {
           const st = j ? (j.plan_status || "geplant") : null;
-          const zeichnung = j ? (j.drawing_url || zeichnungen[j.job_number] || "") : "";
+          const teil = (j && teile[j.job_number]) || {};
+          const zeichnung = j ? (j.drawing_url || teil.zeichnung_url || "") : "";
           const wbg = j ? (j.wbg_url || "") : "";
           return (
-            <div key={m.id} className="pad-qs__zeile" data-qsmaschine={m.id}>
-              {/* Nummer vorne, gross und bündig untereinander: an der
-                  Maschine sucht man die Nummer, nicht den Namen (Wunsch
-                  Patrick, 10. Oktober 2026) */}
-              <div className="pad-qs__nr">{m.machine_number || "—"}</div>
-              <div className="pad-qs__maschine">
-                <span className="pad-qs__name">{m.name}</span>
-              </div>
-              <div className={"pad-qs__auftrag" + (j ? "" : " pad-qs__auftrag--leer")}>
-                {j ? <span className="pad-qs__hoco">{j.job_number}</span> : "kein Auftrag"}
-              </div>
-              <div className="pad-qs__doks">
-                {j && [["zeichnung", "Zeichnung", zeichnung], ["wbg", "WBG", wbg]].map(([art, text, adresse]) => (
-                  <button key={art} data-qsdok={art} onClick={() => dokOeffnen(art, j, adresse)}
-                    className={"pad-qs__dok pad-knopf--" + art + (adresse ? "" : " pad-qs__dok--leer")}>{text}</button>
-                ))}
-              </div>
-              <div className="pad-qs__zustaende">
-                {j && ABLAUF.map((k) => (
-                  <button key={k} data-qszustand={k} disabled={!darf}
-                    className={"pad-qs__knopf" + (k === st ? " pad-qs__knopf--an pad-zustand--" + k : "")}
-                    onClick={() => wechseln(j, k)}>
-                    <span className="pad-qs__zeichen">{alt.PLANSTATUS[k].zeichen}</span>
-                    <span>{alt.PLANSTATUS[k].name}</span>
-                  </button>
-                ))}
+            <div key={m.id} className={"pad-ak__karte" + (st ? " pad-ak__karte--" + st : "")} data-qsmaschine={m.id}>
+              <div className="pad-ak__innen">
+                <div className="pad-ak__kopf">
+                  <span className="pad-ak__nr">{m.machine_number || "—"}</span>
+                  <span className="pad-ak__name">{m.name}</span>
+                </div>
+                {j ? (
+                  <>
+                    <div className="pad-ak__auftrag">
+                      <span className="pad-ak__hoco">{j.job_number}</span>
+                      <MaterialFeld bez={j.material_bez || teil.material || ""} />
+                    </div>
+                    <Fortschritt j={j} />
+                    <div className="pad-ak__doks">
+                      {[["zeichnung", "Zeichnung", zeichnung], ["wbg", "WBG", wbg]].map(([art, text, adresse]) => (
+                        <button key={art} data-qsdok={art} onClick={() => dokOeffnen(art, j, adresse)}
+                          className={"pad-ak__dok pad-knopf--" + art + (adresse ? "" : " pad-ak__dok--leer")}>{text}</button>
+                      ))}
+                    </div>
+                    <div className="pad-ak__zustaende">
+                      {ABLAUF.map((k) => (
+                        <button key={k} data-qszustand={k} disabled={!darf}
+                          className={"pad-ak__knopf" + (k === st ? " pad-ak__knopf--an pad-zustand--" + k : "")}
+                          onClick={() => wechseln(j, k)}>
+                          <span className="pad-ak__zeichen">{alt.PLANSTATUS[k].zeichen}</span>
+                          <span className="pad-ak__wort">{alt.PLANSTATUS[k].name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : <div className="pad-ak__leer">kein Auftrag</div>}
               </div>
             </div>
           );

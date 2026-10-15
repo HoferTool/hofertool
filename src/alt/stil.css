@@ -7793,3 +7793,73 @@ body:has(.schutzpflicht-huelle) .push-hinweis { display: none; }
 
 /* Einstellungen → Farben: Knopf für die nicht verwendeten Farben */
 .farb-weitere { margin-top: 12px; }
+
+/* ---------- Anlagen Check seit 1.62.0: alle Maschinen zusammen, ganze Fläche ----------
+   Die Spaltenzahl rechnet QsCheck.jsx aus (rasterWaehlen), die Reihen
+   teilen sich die Höhe. Jede Karte ist ein Container: Alles darin ist
+   in em und die Schrift folgt der Kartengrösse, so wächst der Inhalt
+   auf grossen Bildschirmen mit, statt Leerraum zu lassen. */
+#pad .pad-ak { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px;
+  display: grid; gap: 6px; grid-template-columns: repeat(var(--ak-spalten, 1), minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr); align-content: stretch; }
+#pad .pad-ak--rollt { grid-auto-rows: 50px; align-content: start; }
+#pad .pad-ak--zwei.pad-ak--rollt { grid-auto-rows: 92px; }
+#pad .pad-ak__karte { container-type: size; min-width: 0; min-height: 0; position: relative;
+  border-radius: 9px; overflow: hidden;
+  background: linear-gradient(160deg, #142441, #0e1a2e); border: 1px solid rgba(255,255,255,.1); }
+/* Links ein schmaler Streifen in der Farbe des Zustands */
+#pad .pad-ak__karte::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: #3b4a60; }
+#pad .pad-ak__karte--laeuft::before { background: #2fb46a; }
+#pad .pad-ak__karte--ruesten::before { background: #e0951f; }
+#pad .pad-ak__karte--qs::before { background: #9a5ce6; }
+#pad .pad-ak__innen { height: 100%; box-sizing: border-box; padding: 0 .45em 0 .7em;
+  font-size: clamp(9px, min(100cqw / 50, 100cqh / 4.5), 26px);
+  display: grid; grid-template-columns: 5.2em minmax(0, 1fr) 7.6em auto auto; gap: .45em; align-items: center; }
+#pad .pad-ak--zwei .pad-ak__innen { font-size: clamp(9px, min(100cqw / 25, 100cqh / 8), 26px);
+  grid-template-columns: 4.6em 2.8em minmax(0, 1fr) 7em; grid-template-rows: minmax(0, 1fr) minmax(3.5em, 1.2fr);
+  grid-template-areas: "kopf auf auf fort" "doks doks zust zust"; padding: .3em .4em .35em .6em; row-gap: .25em; }
+#pad .pad-ak--zwei .pad-ak__kopf { grid-area: kopf; }
+#pad .pad-ak--zwei .pad-ak__auftrag { grid-area: auf; }
+#pad .pad-ak--zwei .pad-ak__fort { grid-area: fort; }
+#pad .pad-ak--zwei .pad-ak__doks { grid-area: doks; }
+#pad .pad-ak--zwei .pad-ak__zustaende { grid-area: zust; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+#pad .pad-ak__kopf { display: flex; flex-direction: column; min-width: 0; line-height: 1.05; }
+#pad .pad-ak__nr { font-size: 1.7em; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+#pad .pad-ak__name { font-size: .62em; color: #9fb3cf; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pad .pad-ak__auftrag { display: flex; flex-direction: column; align-items: flex-start; gap: .25em; min-width: 0; }
+#pad .pad-ak__hoco { font-size: 1.12em; font-weight: 700; color: #fff; white-space: nowrap;
+  font-variant-numeric: tabular-nums; line-height: 1.05; }
+#pad .pad-ak__mat { display: inline-flex; align-items: baseline; gap: .4em; max-width: 100%;
+  padding: .12em .5em; border-radius: .35em; font-size: .7em; line-height: 1.25;
+  background: #2a3446; color: #e6edf7; box-shadow: 0 0 0 1px rgba(0,0,0,.25) inset;
+  white-space: nowrap; overflow: hidden; }
+#pad .pad-ak__mat > span { overflow: hidden; text-overflow: ellipsis; opacity: .85; }
+#pad .pad-ak__mat--leer { background: transparent; color: #7d8ca3; font-style: italic; box-shadow: none; padding-left: 0; }
+#pad .pad-ak__fort { display: flex; flex-direction: column; gap: .3em; min-width: 0; }
+#pad .pad-ak__zahl { font-size: .72em; color: #9fb3cf; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#pad .pad-ak__zahl b { font-size: 1.3em; color: #fff; }
+#pad .pad-ak__balken { display: block; height: .38em; border-radius: 1em; background: rgba(255,255,255,.12); overflow: hidden; }
+#pad .pad-ak__balken i { display: block; height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, #2fb46a, #6be39b); }
+#pad .pad-ak__doks { display: grid; grid-template-columns: repeat(2, 3.7em); gap: .25em; }
+#pad .pad-ak__zustaende { display: grid; grid-template-columns: repeat(5, 3.2em); gap: .25em; }
+#pad .pad-ak__dok, #pad .pad-ak__knopf { height: 3.5em; padding: 0 .1em; border-radius: .45em; font-size: inherit;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1em;
+  font-weight: 700; line-height: 1.05; color: #c9d6ea; background: #1a2333;
+  border: 1px solid rgba(255,255,255,.12); cursor: pointer; white-space: nowrap; overflow: hidden;
+  transition: transform .12s ease; }
+#pad .pad-ak--zwei .pad-ak__dok, #pad .pad-ak--zwei .pad-ak__knopf { height: 100%; }
+#pad .pad-ak__dok { font-size: .62em; height: 5.6em; }
+#pad .pad-ak--zwei .pad-ak__dok { height: 100%; }
+#pad .pad-ak__dok--leer { opacity: .45; }
+#pad .pad-ak__knopf:active, #pad .pad-ak__dok:active { transform: scale(.94); }
+#pad .pad-ak__knopf:disabled { cursor: default; opacity: .55; }
+#pad .pad-ak__knopf--an { color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.6) inset; opacity: 1 !important; }
+#pad .pad-ak__knopf.pad-zustand--fertig { background: linear-gradient(160deg, #2a6d8a, #1b4a5e) !important; }
+#pad .pad-ak__zeichen { font-size: 1.05em; line-height: 1; }
+#pad .pad-ak__wort { font-size: .55em; }
+#pad .pad-ak__leer { grid-column: 2 / -1; color: #7d8ca3; font-style: italic; font-size: .9em; }
+#pad .pad-ak__dok.pad-knopf--zeichnung { background: linear-gradient(140deg, #1d4f8c, #12365f); }
+#pad .pad-ak__dok.pad-knopf--wbg { background: linear-gradient(140deg, #4a3480, #2d1f55); }
+#pad .pad-ak--zwei .pad-ak__doks, #pad .pad-ak--zwei .pad-ak__zustaende { align-self: stretch; grid-template-rows: minmax(0, 1fr); }
