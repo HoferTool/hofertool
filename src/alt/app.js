@@ -149,7 +149,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.59.0";
+const APP_VERSION = "1.60.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3742,7 +3742,9 @@ const WERKSTOFFGRUPPEN = {
                 spaene: "1608 Neusilber Späne Pb", schrott: "1606 Neusilber Schrott Pb" },
   messing:    { name: "Messing",        farbe: "orange", zusatz: "",
                 spaene: "1427 MS 58 Späne", schrott: "1414 MS 58 Schrott" },
-  messing_ohne_pb: { name: "Messing ohne Blei", farbe: "senf",
+  // Ecobrass auf der Planwand gleich wie Messing (Wunsch Patrick
+  // 15. Oktober 2026, vorher Senf); getrennt bleibt es bei den Spänen
+  messing_ohne_pb: { name: "Messing ohne Blei", farbe: "orange",
                 zusatz: "unbedingt separat halten",
                 spaene: "1499 MS ohne Pb", schrott: "1499 MS ohne Pb" },
   titan:      { name: "Titan",          farbe: "violett", zusatz: "" },

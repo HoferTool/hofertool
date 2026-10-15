@@ -4,7 +4,9 @@ import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
-K = """daten.jobs.push({ id: 'jw1', hoco_nr: '10999-0001', material_bez: 'Zauberstahl XY 12', planned_from: '2026-09-01', planned_to: '2026-09-02' });"""
+K = """daten.jobs.push({ id: 'jw1', hoco_nr: '10999-0001', material_bez: 'Zauberstahl XY 12', planned_from: '2026-09-01', planned_to: '2026-09-02' });
+daten.jobs.push({ id: 'jw2', hoco_nr: '10999-0002', material_bez: 'CuZn21Si3 rd 013 mm h9', planned_from: '2026-09-01', planned_to: '2026-09-02' });
+daten.jobs.push({ id: 'jw3', hoco_nr: '10999-0003', material_bez: 'CuZn39Pb3 rd 010 mm h9', planned_from: '2026-09-01', planned_to: '2026-09-02' });"""
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 fehler = []
 def pruefe(name, ok):
@@ -38,6 +40,15 @@ with sync_playwright() as p:
     pg.locator(f"[data-fmat='{farbe}']").focus(); pg.locator("h1").first.click(); pg.wait_for_timeout(300)
     pruefe("Unverändert verlassen speichert nicht", not pg.evaluate(f"TEST.protokoll.slice({n}).some(x => x.tabelle === 'farb_material')"))
 
+    # Nur verwendete Farben, die übrigen hinter „Weitere Farben“
+    belegt = pg.evaluate("TEST.daten.farb_material.length") + 1  # die eben geleerte bleibt bis zum Neuladen
+    pruefe("Nur verwendete Farben", pg.locator("#farbliste .farbzeile").count() == belegt)
+    pruefe("Keine freie Farbe sichtbar", pg.locator("[data-fmat='senf']").count() == 0)
+    pg.locator("[data-farben-weitere]").click(); pg.wait_for_timeout(200)
+    pruefe("Weitere Farben zeigt alle", pg.locator("#farbliste .farbzeile").count() == pg.evaluate("22") and pg.locator("[data-fmat='senf']").count() == 1)
+    pg.locator("[data-farben-weitere]").click(); pg.wait_for_timeout(200)
+    pruefe("Wieder nur verwendete", pg.locator("[data-fmat='senf']").count() == 0)
+
     # Werkstoffe
     pg.wait_for_selector("#werkstoffliste table")
     text = pg.inner_text("#werkstoffliste")
@@ -48,6 +59,9 @@ with sync_playwright() as p:
     sel.select_option(gruppe); pg.wait_for_timeout(1200)
     zeile = pg.locator("tr", has=pg.locator("[data-werkstoff='Zauberstahl XY 12']"))
     pruefe("Zugeordnet und erkannt", "nicht erkannt" not in zeile.inner_text() and pg.input_value("[data-werkstoff='Zauberstahl XY 12']") == gruppe)
+    farbe_von = lambda bez: pg.evaluate("b => getComputedStyle(document.querySelector(`[data-werkstoff='${b}']`).closest('tr').querySelector('.ws-farbe')).backgroundColor", bez)
+    print("Ecobrass:", farbe_von("CuZn21Si3 rd 013 mm h9"), "Messing:", farbe_von("CuZn39Pb3 rd 010 mm h9"))
+    pruefe("Ecobrass gleiche Farbe wie Messing", farbe_von("CuZn21Si3 rd 013 mm h9") == farbe_von("CuZn39Pb3 rd 010 mm h9") == "rgb(194, 101, 15)")
     pruefe("Einstellungen noch offen", pg.locator(".dialog--einstellungen").count() == 1)
     fehler += f
     br.close()

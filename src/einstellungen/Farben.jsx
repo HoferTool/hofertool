@@ -12,7 +12,7 @@ export default function Farben() {
   return (
     <>
       <Gruppe titel="Farben und Material"
-        text={"Neue Farbe: bei einer freien Farbe das Material eintragen. Nur Farben mit einem Material "
+        text={"Hier stehen die verwendeten Farben. Neue Farbe: unter „Weitere Farben“ bei einer freien Farbe das Material eintragen. Nur Farben mit einem Material "
           + "erscheinen im Auftragsfenster, neue Farben gibt es nur hier. Das Kürzel steht auf dem Balken, "
           + "mehrere Angaben mit Schrägstrich, zum Beispiel E/N. Gespeichert wird beim Verlassen des Felds."}>
         <div id="farbliste"><FarbListe /></div>
@@ -36,15 +36,38 @@ async function farbenLaden() {
 function FarbListe() {
   const { daten: zuteilung, neu } = useDaten(farbenLaden, []);
   if (!zuteilung) return <div className="laedt">Wird geladen …</div>;
+  return <FarbZeilen zuteilung={zuteilung} neu={neu} />;
+}
+
+// Nur die Farben, die ein Material haben, also verwendet werden (Wunsch
+// Patrick 15. Oktober 2026). Die übrigen kommen erst mit „Weitere
+// Farben“, denn nur dort lässt sich eine neue Farbe anlegen. Welche
+// gezeigt werden, steht beim Öffnen fest: Wer ein Material löscht oder
+// einträgt, behält die Zeile vor Augen, bis der Reiter neu geladen ist.
+function FarbZeilen({ zuteilung, neu }) {
+  const [verwendet] = useState(() => new Set(Object.keys(zuteilung)
+    .filter((k) => String(zuteilung[k].material || "").trim())));
+  const [alle, setAlle] = useState(() => verwendet.size === 0);
+  const liste = alt.PLANFARBEN.map((f, nr) => ({ f, nr }))
+    .filter(({ f }) => alle || verwendet.has(f.wert));
+  const weitere = alt.PLANFARBEN.length - verwendet.size;
   return (
-    <div className="farbzeilen">
-      {alt.PLANFARBEN.map((f, nr) => (
-        // Der Schlüssel bleibt nach dem Speichern gleich: Wer schon im
-        // nächsten Feld tippt, verliert sonst, was er dort eingibt
-        <FarbZeile key={f.wert} f={f} nr={nr}
-          zu={zuteilung[f.wert] || {}} gespeichert={neu} />
-      ))}
-    </div>
+    <>
+      <div className="farbzeilen">
+        {liste.map(({ f, nr }) => (
+          // Der Schlüssel bleibt nach dem Speichern gleich: Wer schon im
+          // nächsten Feld tippt, verliert sonst, was er dort eingibt
+          <FarbZeile key={f.wert} f={f} nr={nr}
+            zu={zuteilung[f.wert] || {}} gespeichert={neu} />
+        ))}
+      </div>
+      {weitere > 0 && verwendet.size > 0 && (
+        <button type="button" className="knopf knopf--klein farb-weitere" data-farben-weitere
+          onClick={() => setAlle(!alle)}>
+          {alle ? "Nur verwendete Farben" : "Weitere Farben (" + weitere + ")"}
+        </button>
+      )}
+    </>
   );
 }
 

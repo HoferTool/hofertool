@@ -7790,3 +7790,6 @@ body:has(.schutzpflicht-huelle) .push-hinweis { display: none; }
     .handymenue__glanz { display: none; }
   }
 }
+
+/* Einstellungen → Farben: Knopf für die nicht verwendeten Farben */
+.farb-weitere { margin-top: 12px; }
