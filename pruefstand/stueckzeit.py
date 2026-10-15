@@ -8,7 +8,7 @@
 #   „Gelaufen auf“ und „Artikelbezeichnung“ sind weg.
 # Die Uhr steht fest auf Dienstag, 13. Oktober 2026, 14:00 in Zürich.
 import time
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import art_info, server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -26,6 +26,8 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt")
+    # Die mahnenden Kacheln pulsieren; still, damit Klicks ein ruhiges Ziel haben
+    pg.add_style_tag(content=".pad-karte2--nervt, .pad-karte2--nervt * { animation: none !important; }")
     # Auftrag T läuft seit 1.10. auf m-k1 (Typ gesetzt), letzter Stand Fr 9.10.
     typ = pg.evaluate("""(() => {
       const D = TEST.daten;
@@ -36,6 +38,8 @@ with sync_playwright() as p:
       D.jobs.push({ ...vorlage, id: 'tT', job_number: '10333-0003', plan_status: 'laeuft',
         started_at: '2026-10-01T04:00:00Z', ended_at: null, target_quantity: 5000, stand: 900,
         planned_from: '2026-10-01' });
+      // Die Länge der HOCO Nr. gibt es seit 1.68.0, noch leer
+      D.hoco_parts.push({ hoco_nr: '10333-0003', teil_laenge_mm: null, teil_mass_bestaetigt: false });
       D.production_records = D.production_records.filter(z => z.machine_id !== 'm-k1');
       D.production_records.push(
         { id: 't1', machine_id: 'm-k1', job_id: 'tT', record_date: '2026-10-09', quantity: 900, updated_at: '2026-10-09T15:00:00Z' });
@@ -53,7 +57,7 @@ with sync_playwright() as p:
         return pg.evaluate("TEST.daten.production_records.filter(z => z.job_id === 'tT').map(z => z.record_date + '=' + z.quantity).sort()")
 
     def eintragen(zahl, antwort):
-        pg.click("#pad [data-padfeld='stand']"); pg.wait_for_selector(".zifferblock")
+        pg.click("#pad [data-padfeld='stand']", force=True); pg.wait_for_selector(".zifferblock")
         if pg.inner_text("#zb-anzeige").strip() != "0" or not pg.locator(".zb-anzeige--leer").count():
             fehler.append("Zifferblock nicht leer: " + pg.inner_text("#zb-anzeige"))
         for z in str(zahl): pg.click(f".zifferblock [data-zb='{z}']")
@@ -97,47 +101,58 @@ with sync_playwright() as p:
         if pg.locator(".zifferblock h2:has-text('Letzte Stückzahl')").count():
             pg.click(".zifferblock [data-zbnein]"); pg.wait_for_timeout(700)
     beenden()
-    if not pg.locator(".zifferblock h2:has-text('Stückzeit fehlt')").count(): fehler.append("Keine Frage nach Stückzeit")
+    # Seit 1.68.0 ein Fenster „Art. Info“ mit Stückzeit und Länge
+    if not pg.locator(".dialog-huelle h2:has-text('Art. Info fehlt')").count(): fehler.append("Keine Frage nach Stückzeit")
     pg.screenshot(path="stueckzeit-fehlt.png")
-    pg.click(".zifferblock [data-zbnein]"); pg.wait_for_timeout(800)
+    art_info(pg, ok=False); pg.wait_for_timeout(800)
     if pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tT').plan_status") == "fertig": fehler.append("Ohne Stückzeit beendet")
     if "Stückzeit" not in pg.inner_text("body"): fehler.append("Keine Meldung zur Stückzeit")
 
     # Stückzeit in der Kachel eintragen
-    zeit.click(); pg.wait_for_selector(".zifferblock")
-    for z in "42": pg.click(f".zifferblock [data-zb='{z}']")
-    pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(1200)
+    zeit.click(); art_info(pg, 42); pg.wait_for_timeout(1200)
     gespeichert = pg.evaluate(f"(TEST.daten.hoco_type_data.find(z => z.hoco_nr === '10333-0003' && z.type_id === '{typ}') || {{}}).stueckzeit_s")
     if gespeichert != 42: fehler.append("Stückzeit nicht gespeichert: " + str(gespeichert))
     if "42 s" not in pg.inner_text("#pad .pad-karte2--zeit"): fehler.append("Kachel zeigt nicht 42 s")
     pg.screenshot(path="stueckzeit-pad-42.png")
-    # Jetzt lässt er sich beenden, ohne Frage
+    kachel = pg.inner_text("#pad .pad-karte2--zeit")
+    if "Art. Info" not in kachel.replace("ART. INFO", "Art. Info") or "Länge fehlt" not in kachel:
+        fehler.append("Kachel ohne Art. Info/Länge: " + kachel.replace("\n", " | "))
+    if not pg.locator("#pad .pad-karte2--zeitfehlt").count(): fehler.append("Kachel mahnt nicht ohne Länge")
+    pg.locator("#pad .pad-karte2--zeit").screenshot(path="artinfo-kachel.png")
     # Mit Stückzeit fragt es trotzdem jedes Mal (111.102.0): 42 steht da.
-    # Erst abbrechen → bleibt offen; dann neue Zahl tippen → ersetzt 42.
+    # Erst abbrechen → bleibt offen; dann neue Zahl → ersetzt 42.
     beenden()
-    if not pg.locator(".zifferblock h2:has-text('Stückzeit bestätigen')").count(): fehler.append("Fragt nicht nochmals")
-    if pg.inner_text("#zb-anzeige").strip() != "42": fehler.append("Bisherige Stückzeit nicht vorgegeben: " + pg.inner_text("#zb-anzeige"))
+    pg.wait_for_selector(".dialog-huelle h2:has-text('Art. Info')")
+    wert = pg.input_value(".dialog-huelle input[id$='-zeit']")
+    if wert != "42": fehler.append("Bisherige Stückzeit nicht vorgegeben: " + wert)
     pg.screenshot(path="stueckzeit-bestaetigen.png")
-    pg.click(".zifferblock [data-zbnein]"); pg.wait_for_timeout(800)
+    art_info(pg, ok=False); pg.wait_for_timeout(800)
     if pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tT').plan_status") == "fertig": fehler.append("Abbrechen hat trotzdem beendet")
+    # Ohne Länge geht es nicht (Wunsch Patrick 15. Oktober 2026)
     beenden()
-    for z in "38": pg.click(f".zifferblock [data-zb='{z}']")
-    if pg.inner_text("#zb-anzeige").strip() != "38": fehler.append("Neue Zahl ersetzt nicht: " + pg.inner_text("#zb-anzeige"))
-    pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(1500)
+    art_info(pg, 38); pg.wait_for_timeout(700)
+    if not pg.locator(".dialog-huelle h2:has-text('Art. Info')").count(): fehler.append("Ohne Länge geschlossen")
+    if pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tT').plan_status") == "fertig": fehler.append("Ohne Länge beendet")
+    art_info(pg, 38, "7,5"); pg.wait_for_timeout(1500)
     neu = pg.evaluate(f"(TEST.daten.hoco_type_data.find(z => z.hoco_nr === '10333-0003' && z.type_id === '{typ}') || {{}}).stueckzeit_s")
     if neu != 38: fehler.append("Neue Stückzeit nicht gespeichert: " + str(neu))
+    l = pg.evaluate("(TEST.daten.hoco_parts.find(z => z.hoco_nr === '10333-0003') || {})")
+    if l.get("teil_laenge_mm") != 7.5 or not l.get("teil_mass_bestaetigt"): fehler.append("Länge nicht gespeichert: " + str(l))
+    # Danach fragt seit 1.67.0 „Rest Material?“
+    if pg.locator(".mat-dialog").count(): pg.locator(".mat-dialog button:has-text('Kein Rest')").first.click(); pg.wait_for_timeout(1200)
     if pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tT').plan_status") != "fertig": fehler.append("Mit Stückzeit nicht beendet")
-    pg.click("#pad [data-padzu]"); pg.wait_for_timeout(600)
+    pg.click("#pad [data-padzu]", force=True); pg.wait_for_timeout(600)
 
     # HOCO Nr.: Produktionsanlage mit Stückzeit, ohne „Gelaufen auf“ und Bezeichnung
-    pg.evaluate("TEST.daten.hoco_parts.push({ hoco_nr: '10333-0003', bezeichnung: 'Geheimteil', material: 'CW614N', zeichnung_url: null })")
+    pg.evaluate("""(() => { const D = TEST.daten.hoco_parts; const neu = { bezeichnung: 'Geheimteil', material: 'CW614N', zeichnung_url: null };
+      const da = D.find(z => z.hoco_nr === '10333-0003'); if (da) Object.assign(da, neu); else D.push({ hoco_nr: '10333-0003', ...neu }); })()""")
     pg.evaluate("location.hash='#/planwand'"); pg.wait_for_selector("#pw-hoco"); pg.wait_for_timeout(800)
     pg.click("#pw-hoco"); pg.wait_for_selector("#hoco-such")
     pg.fill("#hoco-such", "10333-0003"); pg.wait_for_timeout(500)
     pg.click("[data-hoco-auf='10333-0003']"); pg.wait_for_timeout(1500)
     text = pg.inner_text("#hoco-fensterinhalt")
-    for w in ["Produktionsanlage", "Einrichtblatt", "Stückzeit", "38 s"]:
-        if w not in text: fehler.append("HOCO ohne " + w)
+    for w in ["Produktionsanlage", "Einrichtblatt", "Stückzeit", "38 s", "Länge", "7,5 mm"]:
+        if w.lower() not in text.lower(): fehler.append("HOCO ohne " + w)
     for w in ["Gelaufen auf", "Artikelbezeichnung", "Geheimteil", "Einrichtblätter"]:
         if w in text: fehler.append("HOCO zeigt noch " + w)
     pg.screenshot(path="stueckzeit-hoco.png", full_page=True)

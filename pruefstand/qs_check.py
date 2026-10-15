@@ -3,7 +3,7 @@
 # dran ist, Zustand am Ende der Zeile direkt wechseln. Dazu Bilder am
 # Computer, auf dem iPad und am Handy.
 import time, os
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import art_info, server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -99,12 +99,11 @@ with sync_playwright() as p:
     # Beenden: Rückfrage, Stückzeit, nächster auf Rüsten und in der Zeile
     pg.locator("#pad [data-qsmaschine='m-k1'] [data-qszustand='fertig']").click()
     pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.click(".dialog-huelle [data-ja]")
-    pg.wait_for_selector(".zifferblock [data-zbja]")
-    # Letzte Stückzahl (seit 1.25.0) überspringen, dann die Stückzeit
+    pg.wait_for_timeout(700)
+    # Letzte Stückzahl (seit 1.25.0) überspringen, dann Art. Info
     if pg.locator(".zifferblock h2:has-text('Letzte Stückzahl')").count():
-        pg.click(".zifferblock [data-zbnein]"); pg.wait_for_selector(".zifferblock h2:has-text('Stückzeit')")
-    pg.locator(".zifferblock").get_by_text("3", exact=True).first.click()
-    pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(1500)
+        pg.click(".zifferblock [data-zbnein]")
+    art_info(pg, 3, 7); pg.wait_for_timeout(1500)
     if zustand(pg, "qA") != "fertig": fehler.append("nicht beendet: " + zustand(pg, "qA"))
     if zustand(pg, "qB") != "ruesten": fehler.append("Nächster nicht auf Rüsten: " + zustand(pg, "qB"))
     if "10444-0002" not in pg.locator("#pad [data-qsmaschine='m-k1']").inner_text():

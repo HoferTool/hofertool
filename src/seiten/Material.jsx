@@ -332,13 +332,15 @@ function Laengen({ d, suche, neu }) {
 
   const aendern = async (x) => {
     const t = d.teile[x.nr] || {};
-    const w = await alt.dialogFelder({ titel: "Fertigteil " + x.nr, text: x.material,
-      felder: [{ name: "d", label: "Durchmesser in mm", wert: t.teil_d_mm || "", ziffern: false },
-               { name: "l", label: "Länge in mm", wert: t.teil_laenge_mm || "" }], bestaetigen: "Bestätigen" });
+    // Nur die Länge: den Durchmesser nimmt die App vom Material, der
+    // des Fertigteils bringt für die Menge nichts (Patrick 15. Oktober 2026)
+    const w = await alt.dialogFelder({ titel: "Länge " + x.nr, text: x.material,
+      felder: [{ name: "l", label: "Länge des Teils in mm", wert: t.teil_laenge_mm || "", dezimal: true }],
+      bestaetigen: "Bestätigen" });
     if (!w) return;
     const zahl = (v) => { const n = Number(String(v).replace(",", ".")); return v !== "" && isFinite(n) && n > 0 ? n : null; };
     if (!zahl(w.l)) { alt.meldung("Die Länge fehlt.", "warn"); return; }
-    if (await speichern(x.nr, { teil_d_mm: zahl(w.d), teil_laenge_mm: zahl(w.l), teil_mass_bestaetigt: true,
+    if (await speichern(x.nr, { teil_laenge_mm: zahl(w.l), teil_mass_bestaetigt: true,
       teil_mass_quelle: "von Hand" })) neu();
   };
   const bestaetigen = async (x) => { if (await speichern(x.nr, { teil_mass_bestaetigt: true })) neu(); };
@@ -347,7 +349,9 @@ function Laengen({ d, suche, neu }) {
     <>
       <div className="karte karte--hinweis">
         <p>Die Länge des Fertigteils steht im Einrichtblatt bei „Artikel Bez.“, etwa „Getriebedeckel 17 x 7.00“
-          (Durchmesser x Länge). Erst wenn sie bestätigt ist, gilt die Mindestmenge als sicher.
+          (Durchmesser x Länge); die App nimmt nur die Länge, den Durchmesser nimmt sie vom Material.
+          Erst wenn sie bestätigt ist, gilt die Mindestmenge als sicher. Im Pad steht sie bei „Art. Info“,
+          beim Beenden muss sie stimmen.
           Stangenlänge und Rest-Stumpen stehen beim Maschinentyp (Produktion → Typen).</p>
         {darf && <button className="knopf knopf--haupt" id="mat-laengen-holen" disabled={!!laeuft} onClick={ausBlaettern}>
           {laeuft ? "Liest " + laeuft.fertig + " von " + laeuft.von + " …" : "Längen aus Einrichtblättern lesen"}</button>}
@@ -361,7 +365,7 @@ function Laengen({ d, suche, neu }) {
             <div key={x.nr} className="mat-laenge" data-hoco={x.nr}>
               <b>{x.nr}</b>
               <span className="klein">{x.material}</span>
-              <span>{t.teil_laenge_mm ? (t.teil_d_mm ? "Ø " + t.teil_d_mm + " × " : "") + t.teil_laenge_mm + " mm" : "keine Länge"}</span>
+              <span>{t.teil_laenge_mm ? "Länge " + String(t.teil_laenge_mm).replace(".", ",") + " mm" : "keine Länge"}</span>
               <span className="klein">{t.teil_mass_quelle || ""}</span>
               {t.teil_laenge_mm
                 ? (t.teil_mass_bestaetigt ? <span className="mat-ampel mat-ampel--gut">bestätigt</span>

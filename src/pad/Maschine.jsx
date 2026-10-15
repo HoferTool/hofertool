@@ -23,7 +23,8 @@ import Bildschirmschoner from "./Bildschirmschoner.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
-import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitFragen } from "../daten/stueckzahl.js";
+import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitSetzen, artInfoFragen, laengeText,
+  laengeSetzen } from "../daten/stueckzahl.js";
 import {
   holeWetterTage, wetterZeichen, tagesmengen, letzteTage, schnitte,
   schnittTage, schnittLang, prognose,
@@ -173,21 +174,38 @@ async function abendBearbeiten(j, m, blattDaten) {
   if (zahl !== null) blattFeldSetzen(j, m, "abend_stk", zahl ? Math.round(zahl) : null);
 }
 
-// Die Stückzeit in Sekunden steht rechts neben dem Vorsprung und
-// gehört wie die Info zu HOCO Nr. und Maschinentyp (Wunsch 8. Oktober 2026)
-async function zeitBearbeiten(j, m, blattDaten) {
-  const da = blattDaten && blattDaten.stueckzeit_s;
-  const s = await stueckzeitFragen("Stückzeit", "Sekunden pro Stück auf " + (m.name || "dieser Maschine") + ":",
-    da, true);
-  if (s === "loeschen") {
+// Art. Info (Wunsch Patrick 15. Oktober 2026, vorher nur „Stückzeit“):
+// ein Fenster mit Stückzeit (je HOCO Nr. und Maschinentyp) und Länge
+// des Fertigteils (je HOCO Nr.). Eine Stückzeit leeren fragt einmal.
+// Externe sehen nur die Stückzeit, Material ist nichts für sie.
+function teilLaenge(teil) {
+  if (alt.istExtern() || !teil || !("teil_laenge_mm" in teil)) return null;
+  return { mm: teil.teil_laenge_mm ? Number(teil.teil_laenge_mm) : null, sicher: !!teil.teil_mass_bestaetigt };
+}
+
+async function artInfoBearbeiten(j, m, blattDaten, teil) {
+  const da = blattDaten && blattDaten.stueckzeit_s ? Number(blattDaten.stueckzeit_s) : 0;
+  const laenge = teilLaenge(teil);
+  const w = await artInfoFragen({ titel: "Art. Info " + j.job_number, auf: m.name, zeit: da, laenge,
+    mitZeit: true, mitLaenge: !!laenge });
+  if (!w) return;
+  if (da && !w.zeit) {
     // Eine Rückfrage, dann ist sie weg (Wunsch 6. Oktober 2026)
     const ja = await alt.nachfragen({ titel: "Stückzeit löschen?",
       text: "Die Stückzeit " + stueckzeitText(da) + " von " + j.job_number + " auf " + (m.name || "dieser Maschine")
         + " wird entfernt.", bestaetigen: "Löschen", gefahr: true });
-    if (ja) blattFeldSetzen(j, m, "stueckzeit_s", null);
-    return;
+    if (!ja) return;
   }
-  if (s !== null) blattFeldSetzen(j, m, "stueckzeit_s", s || null);
+  try {
+    if (w.zeit !== da) await stueckzeitSetzen(j.job_number, m.type_id, w.zeit || null);
+    if (laenge && w.laenge && (w.laenge !== Number(laenge.mm || 0) || !laenge.sicher))
+      await laengeSetzen(j.job_number, w.laenge);
+    alt.meldung("Gespeichert.");
+  } catch (f) {
+    alt.meldung(/stueckzeit_s/.test(f.message || "") ? "Dafür fehlt noch die Spalte stueckzeit_s in der Datenbank."
+      : alt.fehlertext(f), "fehler");
+  }
+  padZeichnen();
 }
 
 async function standEintragen(j, m) {
@@ -536,7 +554,10 @@ export default function Maschine({ d }) {
   // genau einer FA Nr., deshalb gibt es dort keine Ausweichsuche.
   const zeichnung = (j && j.drawing_url) || (teil && teil.zeichnung_url) || "";
   const wbg = (j && j.wbg_url) || "";
-  const zeitFehlt = mitTyp && !(blattDaten && blattDaten.stueckzeit_s);
+  // Die Kachel mahnt, solange Stückzeit oder bestätigte Länge fehlen
+  const laenge = teilLaenge(teil);
+  const laengeFehlt = mitTyp && !!laenge && !(laenge.mm && laenge.sicher);
+  const zeitFehlt = mitTyp && (!(blattDaten && blattDaten.stueckzeit_s) || laengeFehlt);
   const stkFehlt = heuteKeineStueckzahl(j, jeTag);
   const stkBild = useMahnBild("stueckzahl", stkFehlt);
   const mahnFoto = useMahnBild("stueckzeit", zeitFehlt);
@@ -675,15 +696,17 @@ export default function Maschine({ d }) {
                 bis sie eingetragen ist (Wunsch Patrick, 12. Oktober 2026) */}
             <div className={"pad-karte2 pad-karte2--zeit" + (zeitFehlt ? " pad-karte2--zeitfehlt pad-karte2--nervt" : "")}
               data-padfeld={mitTyp ? "stueckzeit" : ""}
-              onClick={mitTyp ? () => zeitBearbeiten(j, m, blattDaten) : undefined}>
-              <span className="pad-name">Stückzeit{mitTyp ? " · antippen" : ""}</span>
+              onClick={mitTyp ? () => artInfoBearbeiten(j, m, blattDaten, teil) : undefined}>
+              <span className="pad-name">{laenge ? "Art. Info" : "Stückzeit"}{mitTyp ? " · antippen" : ""}</span>
               {/* Dazu ein kleines Foto (Wunsch Patrick, 12. Oktober 2026) */}
               {zeitFehlt && mahnFoto && <img className="pad-zeit-foto" src={mahnFoto} alt="" />}
               <span className="pad-wert">
                 {blattDaten && blattDaten.stueckzeit_s
                   ? stueckzeitText(blattDaten.stueckzeit_s)
-                  : <Leer>{mitTyp ? "antippen und eintragen" : (programmGrund || "—")}</Leer>}
+                  : <Leer>{mitTyp ? (laenge ? "Stückzeit fehlt" : "antippen und eintragen") : (programmGrund || "—")}</Leer>}
               </span>
+              {mitTyp && laenge && <span className="pad-artinfo-laenge" data-laenge={laenge.mm || ""}>
+                {laenge.mm ? "Länge " + laengeText(laenge.mm) + (laenge.sicher ? "" : " · prüfen") : "Länge fehlt"}</span>}
             </div>
           </div>
         </div>

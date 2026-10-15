@@ -7,7 +7,8 @@ import { useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { teilLaden, pdfHochladen } from "./daten.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
-import { stueckzeitText, stueckzeitFragen, stueckzeitSetzen } from "../daten/stueckzahl.js";
+import { stueckzeitText, stueckzeitFragen, stueckzeitSetzen, laengeText, laengeSetzen, artInfoFragen }
+  from "../daten/stueckzahl.js";
 
 const sicher = (name) => name.replace(/[^A-Za-z0-9.\-]/g, "_");
 
@@ -58,6 +59,16 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
     const s = await stueckzeitFragen("Stückzeit " + e.name, "Sekunden pro Stück für " + t.hoco_nr + ":", e.zeit);
     if (s === null) return;
     try { await stueckzeitSetzen(t.hoco_nr, e.typId, s || null); meldung(s ? "Stückzeit gespeichert." : "Stückzeit entfernt."); neu(); }
+    catch (f) { fehler(f); }
+  };
+  // Länge des Fertigteils (Wunsch Patrick 15. Oktober 2026): die zuletzt
+  // erfasste steht hier bei den Stammdaten, ändern wie im Pad
+  const mitLaenge = !alt.istExtern() && "teil_laenge_mm" in t;
+  const laengeBearbeiten = async () => {
+    const w = await artInfoFragen({ titel: "Länge " + t.hoco_nr, mitLaenge: true,
+      laenge: { mm: t.teil_laenge_mm ? Number(t.teil_laenge_mm) : null, sicher: !!t.teil_mass_bestaetigt } });
+    if (!w || !w.laenge) return;
+    try { await laengeSetzen(t.hoco_nr, w.laenge, "von Hand"); fertig("Länge gespeichert."); }
     catch (f) { fehler(f); }
   };
   // Eine Rückfrage, mit Rückgängig; die Aufgabe holt beim nächsten
@@ -113,6 +124,12 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
         {/* Die Artikelbezeichnung ebenso (Wunsch 8. Oktober 2026) */}
         <div className="hocoteil__angaben">
           <span className="hocoteil__angabe"><small>Material</small><b>{t.material || "—"}</b></span>
+          {mitLaenge && <span className="hocoteil__angabe" data-hocolaenge={t.teil_laenge_mm || ""}>
+            <small>Länge</small>
+            {darf
+              ? <button className="knopf knopf--klein" onClick={laengeBearbeiten}>
+                  {t.teil_laenge_mm ? laengeText(t.teil_laenge_mm) + (t.teil_mass_bestaetigt ? "" : " · prüfen") : "eintragen"}</button>
+              : <b>{t.teil_laenge_mm ? laengeText(t.teil_laenge_mm) : "—"}</b>}</span>}
           <span className="hocoteil__angabe"><small>Maschinentypen</small><b>{typenGenutzt.length}</b></span>
           <span className="hocoteil__angabe"><small>FA Nummern</small><b>{faListe.length}</b></span>
         </div>

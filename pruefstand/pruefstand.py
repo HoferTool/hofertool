@@ -108,3 +108,20 @@ if __name__ == "__main__":
     print("--- Meldungen ---")
     for z in f[:15]:
         print(" ", z[:160])
+
+
+# Fenster „Art. Info“ (seit 1.68.0, vorher Zifferblock „Stückzeit“):
+# Stückzeit und Länge eintragen und bestätigen oder abbrechen.
+def art_info(pg, zeit=None, laenge=None, ok=True):
+    pg.wait_for_selector(".dialog-huelle h2:has-text('Art. Info')", timeout=8000)
+    for name, w in (("zeit", zeit), ("laenge", laenge)):
+        f = pg.locator(f".dialog-huelle input[id$='-{name}']")
+        if w is not None and f.count(): f.fill(str(w))
+    pg.click(".dialog-huelle [data-ja]" if ok else ".dialog-huelle [data-nein]")
+
+
+# „Rest Material?“ nach dem Beenden (seit 1.67.0) mit „Kein Rest“ schliessen
+def kein_rest(pg, warten=1500):
+    try: pg.wait_for_selector(".mat-dialog", timeout=warten)
+    except Exception: return
+    pg.locator(".mat-dialog button:has-text('Kein Rest')").first.click(); pg.wait_for_timeout(800)

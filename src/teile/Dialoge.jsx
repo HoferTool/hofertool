@@ -7,7 +7,8 @@
 //    auswahlDialog(titel, [{ wert, text }], text?) → wert oder null
 //    dialogFelder({ titel, text, felder, bestaetigen, gefahr })
 //      felder: [{ name, label, typ, wert, platzhalter, pflicht,
-//                 hinweis, auswahl: [[wert, text]], ziffern, fett }]
+//                 hinweis, auswahl: [[wert, text]], ziffern, dezimal, fett }]
+//      dezimal: true zeigt die Zahlentastatur mit Komma, etwa für Millimeter
 //      mehrfach: [[wert, text]] zeigt Häkchen, wert ist dann eine Liste
 //      und das Ergebnis auch
 //      fett: true gibt einem Textfeld die Knöpfe Fett, Kursiv, Unterstrichen,
@@ -104,9 +105,9 @@ function Feld({ f, id, erstes }) {
   return (
     <label className="feld"><span>{f.label}</span>
       <input id={id} type={f.typ || "text"} defaultValue={leer(f.wert)} placeholder={f.platzhalter || ""}
-        inputMode={zahl || f.ziffern ? "numeric" : undefined}
+        inputMode={f.dezimal ? "decimal" : (zahl || f.ziffern ? "numeric" : undefined)}
         min={zahl ? 0 : undefined} step={zahl ? 1 : undefined}
-        pattern={f.ziffern ? "[0-9]*" : undefined} autoComplete={f.ziffern ? "off" : undefined}
+        pattern={f.ziffern ? "[0-9]*" : undefined} autoComplete={f.ziffern || f.dezimal ? "off" : undefined}
         data-fokus={erstes ? "" : undefined} />{hinweis}</label>
   );
 }

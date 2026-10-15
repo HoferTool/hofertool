@@ -8033,3 +8033,6 @@ body.dunkel .mat-ampel--rot  { background: #3d1d1b; color: #ef7b72; }
   .mat-tabelle td { border: none; padding: 2px 12px; }
   .mat-tabelle td:last-child { padding-top: 6px; }
 }
+
+/* ---------- Art. Info im Pad (seit 1.68.0) ---------- */
+.pad-artinfo-laenge { display: block; margin-top: .25em; font-size: .95em; font-weight: 600; color: #d2caf5; }

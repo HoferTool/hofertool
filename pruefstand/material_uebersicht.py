@@ -4,7 +4,7 @@
 # ganz oben in der Schnellvorschau der Planwand und „Rest Material?“
 # beim Beenden im Pad.
 import time
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import art_info, server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -122,10 +122,10 @@ with sync_playwright() as p:
     pg.wait_for_selector("#pad [data-padstatus]"); pg.wait_for_timeout(500)
     pg.click("#pad [data-padstatus]"); pg.wait_for_selector(".dialog-huelle [data-w='fertig']")
     pg.click(".dialog-huelle [data-w='fertig']"); pg.wait_for_selector(".dialog-huelle [data-ja]")
-    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_selector(".zifferblock [data-zbja]")
+    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(700)
     if pg.locator(".zifferblock h2:has-text('Letzte Stückzahl')").count():
-        pg.click(".zifferblock [data-zbnein]"); pg.wait_for_selector(".zifferblock h2:has-text('Stückzeit')")
-    pg.click(".zifferblock [data-zbja]")
+        pg.click(".zifferblock [data-zbnein]")
+    art_info(pg, laenge=7)
     pg.wait_for_selector(".mat-dialog", timeout=6000)
     pruefe("Rest Material? erscheint", "Rest Material?" in pg.inner_text(".mat-dialog"))
     pruefe("Material vorgegeben", "X14CrMoS17 rd 024 mm h9" in pg.inner_text(".mat-gewaehlt"))
