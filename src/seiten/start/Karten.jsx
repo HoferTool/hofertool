@@ -18,10 +18,18 @@ async function abfrage(anfrage, ms, name) {
 
 // Lädt die Startseite selbst und gibt die Liste an die Karte.
 // Leere Texte zählen nicht als Problem.
+// Jede Person sieht nur Probleme aus ihren Parks, also denselben, die
+// sie in der Produktion sieht (Wunsch Patrick 15. Oktober 2026: „dem
+// Langdreher kann es egal sein, was beim Kurz für Probleme sind“).
+// Admins und Planwand sehen alle. Aufträge ohne Park sehen alle.
 export async function problemeLaden() {
-  const data = await abfrage(alt.db.from("planwand").select("*").not("problem", "is", null)
-    .order("problem_at", { ascending: false }), 10000, "Probleme");
-  return data.filter((j) => String(j.problem || "").trim());
+  const [data, parks] = await Promise.all([
+    abfrage(alt.db.from("planwand").select("*").not("problem", "is", null)
+      .order("problem_at", { ascending: false }), 10000, "Probleme"),
+    alt.ladeParks(true)]);
+  const meine = new Set((parks || []).map((p) => p.id));
+  return data.filter((j) => String(j.problem || "").trim()
+    && (!j.park_id || meine.has(j.park_id)));
 }
 
 export function Probleme({ liste, fehler, neu }) {
