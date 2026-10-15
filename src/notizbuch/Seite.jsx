@@ -121,7 +121,7 @@ function istTextfeld(el) {
     || (el.tagName === "INPUT" && !/^(color|button|checkbox|radio|range|file)$/i.test(el.type || ""))));
 }
 
-export default function Seite({ id, darf, onTitel, huelle }) {
+export default function Seite({ id, darf, onTitel, huelle, laden }) {
   const [inhalt, setInhalt] = useState(null);
   const [titel, setTitel] = useState("");
   const [werkzeug, setWerkzeug] = useState(merk.werkzeug);
@@ -171,7 +171,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   // ---------- Laden ----------
   useEffect(() => {
     let weg = false;
-    seiteLaden(id).then((d) => {
+    (laden ? laden(id) : seiteLaden(id)).then((d) => {
       if (weg) return;
       const liste = Array.isArray(d && d.inhalt) ? d.inhalt : [];
       const t = (d && d.titel) || "";

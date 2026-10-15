@@ -11,7 +11,9 @@ F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
   "daten.notizbuecher = [{ id: 'nbA', name: 'Werkstatt', farbe: '#2e7d32', reihenfolge: 1, parks: [], erstellt_am: '2026-10-07T08:00:00Z' },"
   " { id: 'nbB', name: 'Büro', farbe: '#1f5fbf', reihenfolge: 2, parks: [], erstellt_am: '2026-10-07T08:00:00Z' }];"
   " daten.notizbuch_seiten = [{ id: 'sA', buch_id: 'nbA', titel: 'Spannmittel', reihenfolge: 1, inhalt: [] },"
-  " { id: 'sB', buch_id: 'nbB', titel: 'Geheim', reihenfolge: 1, inhalt: [] }];\n"
+  " { id: 'sB', buch_id: 'nbB', titel: 'Geheim', reihenfolge: 1, inhalt: [] }];"
+  " TEST.rpc.notizbuch_pad_seiten = (a) => { const b = daten.notizbuecher.find(x => x.id === a.p_buch);"
+  " return b && (b.parks || []).includes(a.p_park) ? daten.notizbuch_seiten.filter(s => s.buch_id === a.p_buch) : []; };\n"
   "if (typeof window !== \"undefined\") window.TEST = TEST;")
 BILD = os.environ.get("NB_BILDER", ".")
 fehler = []
@@ -53,6 +55,8 @@ with sync_playwright() as p:
     pruefe(b["parks"] == ["p-lang"] and b["name"] == "Werkstatt", "Park gespeichert: %s" % b["parks"])
     pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
 
+    # Das Buch ist mit Passwort gesperrt: im Pad trotzdem ohne Passwort lesbar
+    pg.evaluate("() => { TEST.daten.notizbuecher.find(b => b.id === 'nbA').gesperrt = true; }")
     # Pad Langdreher: Kachel mit dem Buch
     zumPad(pg, "Lang")
     k = pg.locator("[data-padfeld='notizen']")
@@ -66,6 +70,8 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-nb='buch-neu'], [data-nb='seite-neu'], [data-nbbuchbearb], [data-nbbuchpw], [data-nbbuchweg], [data-nbseiteweg], [data-nbumschalten]").count() == 0,
            "keine Knöpfe zum Bearbeiten")
     pruefe(pg.locator(".nb-nurlesen").count() == 1, "Schild „Nur lesen“")
+    pruefe(pg.locator("[data-nbpasswort]").count() == 0, "gesperrtes Buch: kein Passwort im Pad")
+    pruefe(pg.locator("[data-nbseite]").count() == 1 and pg.locator("[data-nbtitel]").input_value() == "Spannmittel", "Seite ohne Passwort zu sehen")
     t = pg.locator("[data-nbtitel]")
     pruefe(t.count() == 1 and t.get_attribute("readonly") is not None, "Titel nur lesen")
     pg.screenshot(path=os.path.join(BILD, "pad-notizbuch-fenster.png"))

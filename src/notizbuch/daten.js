@@ -36,6 +36,10 @@ export const seitenLaden = (buchId) => antwort(alt.db.from(SEITEN)
   .select("id, buch_id, titel, reihenfolge, erstellt_am, geaendert_am").eq("buch_id", buchId)
   .order("reihenfolge", { ascending: true }).order("erstellt_am", { ascending: true }), "Seiten");
 
+// Pad Mode: Seiten eines dem Park zugewiesenen Buchs samt Inhalt, nur
+// zum Lesen und ohne Passwort (sql/notizbuch-pad-lesen.sql)
+export const padSeitenLaden = (buchId, parkId) => rpc("notizbuch_pad_seiten", { p_buch: buchId, p_park: parkId });
+
 export const seiteLaden = (id) => antwort(alt.db.from(SEITEN)
   .select("id, titel, inhalt").eq("id", id).maybeSingle(), "Seite");
 

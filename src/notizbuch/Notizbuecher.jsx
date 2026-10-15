@@ -19,7 +19,7 @@ import { wiederOeffner, teilMerken } from "../teile/wiederherstellen.js";
 import { Symbol, EIMER, GROSS, KLEIN } from "../teile/zeichnen.jsx";
 import Seite from "./Seite.jsx";
 import { buecherLaden, seitenLaden, fehltTabelle, BUCHFARBEN, BUECHER, SEITEN,
-  buchOeffnen, passwortSetzen, buecherZu, passwortText, fehltFunktion } from "./daten.js";
+  buchOeffnen, passwortSetzen, buecherZu, passwortText, fehltFunktion, padSeitenLaden } from "./daten.js";
 
 export const BUCH = "M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3M9 7h6";
 const STIFT = "M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1z";
@@ -201,7 +201,11 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
   };
   // Mit dem Passwort geöffnete Bücher (für die Anzeige)
   const [offene, setOffene] = useState(() => [...offeneBuecher]);
-  const istZu = (b) => !!(b && b.gesperrt && offene.indexOf(b.id) === -1);
+  // Im Pad Mode (park) braucht ein zugewiesenes Buch kein Passwort
+  // (Wunsch Patrick 15. Oktober 2026); ohne sql/notizbuch-pad-lesen.sql
+  // bleibt es gesperrt wie bisher
+  const [padOhneSql, setPadOhneSql] = useState(false);
+  const istZu = (b) => !!(b && b.gesperrt && offene.indexOf(b.id) === -1 && (!park || padOhneSql));
   const [spalten, setSpalten] = useState(spaltenLesen);
   const spaltenRef = useRef(spalten);
   spaltenRef.current = spalten;
@@ -254,7 +258,14 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
   const seitenNeu = useCallback(async (waehlen) => {
     if (!buchId || buchZu) { setSeiten([]); return; }
     try {
-      const l = (await seitenLaden(buchId)) || [];
+      let l = null;
+      if (park && !padOhneSql) {
+        try { l = (await padSeitenLaden(buchId, park)) || []; } catch (f) {
+          if (!fehltFunktion(f) && !/notizbuch_pad_seiten/i.test(String(f && f.message))) throw f;
+          setPadOhneSql(true); return;
+        }
+      }
+      if (!l) l = (await seitenLaden(buchId)) || [];
       setSeiten(l);
       setSeiteId((alt0) => {
         const w = waehlen || alt0;
@@ -264,7 +275,7 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
       alt.meldung("Seiten nicht geladen: " + alt.fehlertext(e), "fehler");
       setSeiten([]);
     }
-  }, [buchId, buchZu]);
+  }, [buchId, buchZu, park, padOhneSql]);
   useEffect(() => { setSeiten(null); seitenNeu(); }, [seitenNeu]);
   useEffect(() => { if (buchId) merken({ buch: buchId, seite: seiteId }); }, [buchId, seiteId]);
 
@@ -455,8 +466,9 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
   } else if (buecher && !buecher.length) {
     haupt = <div className="nb-fehlt"><p>Noch kein Notizbuch.</p>
       {darf && <button type="button" className="knopf knopf--haupt" onClick={buchNeu}>Erstes Notizbuch anlegen</button>}</div>;
-  } else if (seiteId) {
-    haupt = <Seite key={seiteId} id={seiteId} darf={darf} onTitel={titelGeaendert} huelle={huelle()} />;
+  } else if (seiteId && (!park || padOhneSql || (seiten || []).some((x) => x.id === seiteId))) {
+    haupt = <Seite key={seiteId} id={seiteId} darf={darf} onTitel={titelGeaendert} huelle={huelle()}
+      laden={park && !padOhneSql ? (id) => Promise.resolve((seiten || []).find((s) => s.id === id) || null) : undefined} />;
   } else if (seiten && !seiten.length) {
     haupt = <div className="nb-fehlt"><p>Dieses Buch hat noch keine Seite.</p>
       {darf && <button type="button" className="knopf knopf--haupt" onClick={seiteNeu}>Seite anlegen</button>}</div>;
