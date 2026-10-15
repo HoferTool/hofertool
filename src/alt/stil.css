@@ -7802,8 +7802,8 @@ body:has(.schutzpflicht-huelle) .push-hinweis { display: none; }
 #pad .pad-ak { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px;
   display: grid; gap: 6px; grid-template-columns: repeat(var(--ak-spalten, 1), minmax(0, 1fr));
   grid-auto-rows: minmax(0, 1fr); align-content: stretch; }
-#pad .pad-ak--rollt { grid-auto-rows: 50px; align-content: start; }
-#pad .pad-ak--zwei.pad-ak--rollt { grid-auto-rows: 92px; }
+#pad .pad-ak--rollt { grid-auto-rows: 46px; align-content: start; }
+#pad .pad-ak--zwei.pad-ak--rollt { grid-auto-rows: 84px; }
 #pad .pad-ak__karte { container-type: size; min-width: 0; min-height: 0; position: relative;
   border-radius: 9px; overflow: hidden;
   background: linear-gradient(160deg, #142441, #0e1a2e); border: 1px solid rgba(255,255,255,.1); }
@@ -7863,3 +7863,21 @@ body:has(.schutzpflicht-huelle) .push-hinweis { display: none; }
 #pad .pad-ak__dok.pad-knopf--zeichnung { background: linear-gradient(140deg, #1d4f8c, #12365f); }
 #pad .pad-ak__dok.pad-knopf--wbg { background: linear-gradient(140deg, #4a3480, #2d1f55); }
 #pad .pad-ak--zwei .pad-ak__doks, #pad .pad-ak--zwei .pad-ak__zustaende { align-self: stretch; grid-template-rows: minmax(0, 1fr); }
+/* Seit 1.62.0: Karte in der Werkstofffarbe, HOCO Nr. als Knopf zum Auftragsfenster */
+#pad .pad-ak__karte[style*="--ak-grund"] { background: var(--ak-grund); border-color: rgba(0,0,0,.35); }
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__nr,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__zahl b { color: var(--ak-schrift); }
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__name,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__zahl { color: var(--ak-schrift); opacity: .8; }
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__balken { background: rgba(0,0,0,.28); }
+#pad .pad-ak__karte::before { width: .35em; box-shadow: 1px 0 0 rgba(0,0,0,.35); }
+#pad .pad-ak__auftrag { justify-content: center; }
+#pad .pad-ak__hoco { appearance: none; cursor: pointer; padding: .35em .55em; border-radius: .45em; max-width: 100%;
+  font: inherit; font-size: 1.12em; font-weight: 700; color: #fff; line-height: 1.05;
+  background: rgba(10,18,32,.82); border: 1px solid rgba(255,255,255,.25);
+  box-shadow: 0 1px 3px rgba(0,0,0,.35); overflow: hidden; text-overflow: ellipsis;
+  transition: transform .12s ease; }
+#pad .pad-ak__hoco:active { transform: scale(.95); }
+@media (hover: hover) { #pad .pad-ak__hoco:hover { background: rgba(20,40,70,.95); border-color: rgba(255,255,255,.5); } }
+/* Leere Zeichnung und WBG nicht durchscheinend, sonst färbt sie die Werkstofffarbe */
+#pad .pad-ak__dok.pad-ak__dok--leer { opacity: 1; background: #1a2333; color: #5d6b80; }

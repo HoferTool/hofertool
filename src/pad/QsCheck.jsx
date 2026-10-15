@@ -35,6 +35,9 @@ export async function qsLaden() {
       .not("planned_from", "is", null).order("planned_from")
       .then((r) => (r && r.data) || []),
   ]);
+  // Das Auftragsfenster nimmt seine Maschinenliste von dort; im Pad
+  // ist sie leer, wenn man vorher nicht auf der Planwand war
+  if (!(alt.prod.maschinen || []).length) alt.prod.maschinen = maschinen;
   // Je Maschine der früheste noch geplante Auftrag
   const naechster = {};
   offen.forEach((j) => {
@@ -96,10 +99,10 @@ async function wechseln(j, wahl) {
 // Wie viele Spalten? Jede Karte will etwa 44 × 4,5 Schriftgrössen
 // breit und hoch (eine Zeile), schmal 25 × 8 (zwei Zeilen). Gewählt
 // wird, was die Schrift am grössten macht; so füllen die Karten jeden
-// Bildschirm. Wird die Schrift kleiner als 11 Pixel, rollt die Liste.
+// Bildschirm. Wird die Schrift kleiner als 10 Pixel, rollt die Liste.
 const FORMEN = [{ zwei: false, b: 44, h: 4.5 }, { zwei: true, b: 25, h: 8 }];
 const LUECKE = 6;
-const MIN_SCHRIFT = 11;
+const MIN_SCHRIFT = 10;
 function rasterWaehlen(breite, hoehe, n) {
   let best = null;
   for (const f of FORMEN) {
@@ -136,18 +139,17 @@ function useRaster(n) {
   return [ref, raster];
 }
 
-// Material als Feld in der Werkstofffarbe, wie die Kachel im Dashboard
-function MaterialFeld({ bez }) {
-  if (!bez) return <span className="pad-ak__mat pad-ak__mat--leer">Material fehlt</span>;
-  const g = alt.werkstoffErkennen(bez);
+// Die ganze Karte in der Werkstofffarbe, ohne Bezeichnung; die steht
+// im Auftragsfenster (Wunsch Patrick, 15. Oktober 2026)
+function materialStil(bez) {
+  const g = bez ? alt.werkstoffErkennen(bez) : null;
   const f = g ? alt.farbeVon(g.farbe) : null;
-  return (
-    <span className="pad-ak__mat" title={bez}
-      style={f ? { background: f.hex, color: alt.schriftZu(f.hex) } : undefined}>
-      {g && <b>{g.name}</b>}<span>{bez}</span>
-    </span>
-  );
+  return f ? { "--ak-grund": f.hex, "--ak-schrift": alt.schriftZu(f.hex) } : undefined;
 }
+
+// Die HOCO Nr. öffnet das Auftragsfenster wie auf der Planwand; nach dem
+// Speichern zeichnet sich das Pad neu statt der Planwand
+const PAD_ZIEL = { nachPlanAenderung: () => padZeichnen() };
 
 // Stückzahl: „1'200 von 5'000“ mit Balken
 function Fortschritt({ j }) {
@@ -180,7 +182,9 @@ export default function QsCheck({ zeilen, teile }) {
           const zeichnung = j ? (j.drawing_url || teil.zeichnung_url || "") : "";
           const wbg = j ? (j.wbg_url || "") : "";
           return (
-            <div key={m.id} className={"pad-ak__karte" + (st ? " pad-ak__karte--" + st : "")} data-qsmaschine={m.id}>
+            <div key={m.id} data-qsmaschine={m.id}
+              style={j ? materialStil(j.material_bez || teil.material || "") : undefined}
+              className={"pad-ak__karte" + (st ? " pad-ak__karte--" + st : "")}>
               <div className="pad-ak__innen">
                 <div className="pad-ak__kopf">
                   <span className="pad-ak__nr">{m.machine_number || "—"}</span>
@@ -189,8 +193,8 @@ export default function QsCheck({ zeilen, teile }) {
                 {j ? (
                   <>
                     <div className="pad-ak__auftrag">
-                      <span className="pad-ak__hoco">{j.job_number}</span>
-                      <MaterialFeld bez={j.material_bez || teil.material || ""} />
+                      <button className="pad-ak__hoco" data-qsauftrag={j.id}
+                        onClick={() => alt.planAuftragDialog(j, PAD_ZIEL)}>{j.job_number}</button>
                     </div>
                     <Fortschritt j={j} />
                     <div className="pad-ak__doks">

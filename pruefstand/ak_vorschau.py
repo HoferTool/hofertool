@@ -80,7 +80,21 @@ with sync_playwright() as p:
         if r["ueber"]: fehler.append(f"{name}: {r['ueber']} Karten zu eng")
         t = pg.inner_text("#pad .pad-ak")
         if " von " not in t: fehler.append(name + ": kein „von“")
+        # Karte in der Werkstofffarbe (V2A rot), keine Bezeichnung mehr
+        hg = pg.evaluate("getComputedStyle(document.querySelector('#pad [data-qsmaschine] [data-qsauftrag]').closest('.pad-ak__karte')).backgroundColor")
+        if hg in ("rgba(0, 0, 0, 0)", ""): fehler.append(name + ": Karte ohne Farbe " + hg)
+        if "X10CrNiS" in t or "1.4305" in t: fehler.append(name + ": Materialbezeichnung noch da")
         if BILDER: pg.screenshot(path=f"{BILDER}/anlagen-check-{name}.png", full_page=False)
+        # HOCO Nr. öffnet das Auftragsfenster
+        knopf = pg.locator("#pad [data-qsauftrag]").first
+        nr = knopf.inner_text(); knopf.click()
+        try:
+            pg.wait_for_selector(".dialog--auftrag", timeout=5000)
+            if nr not in pg.inner_text(".dialog--auftrag"): fehler.append(name + ": falscher Auftrag im Fenster")
+            pg.wait_for_timeout(800)
+            if BILDER and name == "ipad-quer": pg.screenshot(path=f"{BILDER}/anlagen-check-fenster.png")
+        except Exception:
+            fehler.append(name + ": Auftragsfenster ging nicht auf")
         pg.context.close()
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")
