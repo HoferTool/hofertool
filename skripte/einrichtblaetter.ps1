@@ -107,18 +107,24 @@ function StandSichern {
 
 # Ist die Excel-Datei ein Einrichtblatt? Im selben Ordner liegen auch
 # Toleranzen, Plattenwechsel, Werkzeugkosten usw. mit derselben HOCO Nr.
-#   1 = Werkzeugprotokoll im Namen (auch vertippt: Werkzeuprotokoll …)
-#   2 = sonst nur HOCO Nr., Typ, Ziffern oder "Nr"
+#   1 = Werkzeugprotokoll im Namen (auch vertippt: Werkzeuprotokoll,
+#       Werkzeugprotkoll …), Einrichtblatt oder Werkzeugwechselblatt
+#   2 = sonst nur HOCO Nr., Typ, Maschine (C100), Ziffern oder "Nr"
 #   0 = ein anderes Wort im Namen: kein Einrichtblatt, bleibt weg
 function Rang([string]$name, [string]$typName) {
   $ohne = [regex]::Replace([IO.Path]::GetFileNameWithoutExtension($name), '\d{4,6}\s?-\s?\d{3,5}', ' ')
+  # Maschinenbezeichnungen wie "C100" oder "G200" gehören zum Typ, nicht
+  # als fremdes Wort ("10007-0026 Index C100.xlsx", Patrick 15.10.2026)
+  $ohne = [regex]::Replace($ohne, '(?i)(?<![a-zäöü])[a-z]{1,3}\d+', ' ')
   $typWoerter = @(($typName.ToLower() -split '[^a-zäöüß]+') | Where-Object { $_ })
   $fremd = @()
   $prot = $false
   foreach ($w in (($ohne.ToLower() -split '[^a-zäöüß]+') | Where-Object { $_ })) {
     # Alte Fassungen und Kopien nie, auch nicht als Werkzeugprotokoll
     if (@('alt', 'old', 'kopie', 'copy') -contains $w) { return @{ rang = 0; fremd = $w } }
-    if ($w -match 'protokol') { $prot = $true; continue }
+    # Werkzeugprotokoll auch vertippt (Werkzeugprotkoll), Einrichtblatt und
+    # Werkzeugwechselblatt sind dasselbe (Patrick 15. Oktober 2026)
+    if ($w -match 'prot[a-z]*k' -or $w -match '^einrichte?blat' -or $w -match '^werkzeugwechsel(blatt)?$') { $prot = $true; continue }
     if ($typWoerter -contains $w -or $w -eq 'sw' -or $w -eq 'nr') { continue }
     $fremd += $w
   }
