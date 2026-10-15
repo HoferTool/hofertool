@@ -142,7 +142,8 @@ export async function teilLaden(t, darf) {
       // Nur die Maschinen-Nr., der Name ist ohnehin der Typ (Wunsch Patrick
       // 15. Oktober 2026); neueste zuerst, weil maschinenlauf so sortiert ist
       const bez = String(m.machine_number || m.name || "");
-      if (e.maschinen.indexOf(bez) === -1) e.maschinen.push(bez);
+      // Höchstens die letzten vier (Wunsch Patrick 15. Oktober 2026)
+      if (e.maschinen.length < 4 && e.maschinen.indexOf(bez) === -1) e.maschinen.push(bez);
     });
     (typen || []).forEach((t2) => { const e = sammlung[t2.id]; if (e) e.vorlage = t2.blatt_url || null; });
     ((sheets && sheets.data) || []).forEach((s) => { const e = dazu(s.type_id); if (e) { e.eigenes = s.blatt_url || null; e.zeit = s.stueckzeit_s ? Number(s.stueckzeit_s) : null; } });

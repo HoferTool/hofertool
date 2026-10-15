@@ -24,13 +24,21 @@ with sync_playwright() as p:
         const j = TEST.daten.jobs.find(x => x.job_number && x.machine_id
             && (TEST.daten.machines.find(m => m.id === x.machine_id) || {}).type_id);
         const m = TEST.daten.machines.find(m => m.id === j.machine_id);
-        return { hoco: j.job_number, nr: m.machine_number }; }""")
+        // Dazu jüngere Aufträge auf allen Maschinen desselben Typs, damit
+        // es mehr als vier sind; die jüngste Maschine muss vorne stehen
+        const gleiche = TEST.daten.machines.filter(x => x.type_id === m.type_id);
+        gleiche.forEach((x, i) => TEST.daten.jobs.push({ id: 'mx' + i, job_number: j.job_number,
+            machine_id: x.id, planned_from: '2027-0' + (1 + (i % 9)) + '-01', plan_status: 'geplant' }));
+        const neueste = gleiche[Math.min(gleiche.length, 9) - 1];
+        return { hoco: j.job_number, nr: neueste.machine_number, anzahl: gleiche.length }; }""")
     pg.locator("#pw-hoco").click(); pg.wait_for_timeout(1200)
     pg.fill("#hoco-such", info["hoco"]); pg.wait_for_timeout(500)
     pg.locator(f"[data-hoco-auf='{info['hoco']}']").first.click(); pg.wait_for_timeout(1500)
     chips = pg.locator(".hocoteil__maschine").all_inner_texts()
     pruefe("Maschinen-Nr. " + info["nr"] + " steht da: " + str(chips), info["nr"] in chips)
     pruefe("nur die Nummer, ohne Name", all(" " not in c for c in chips))
+    pruefe("höchstens vier bei " + str(info["anzahl"]) + " Maschinen", len(chips) == min(4, info["anzahl"]))
+    pruefe("neueste vorne", chips[:1] == [info["nr"]])
     sel = pg.evaluate("""() => TEST.protokoll.filter(x => JSON.stringify(x).includes('planned_from')
         && JSON.stringify(x).includes('stand')).length""")
     pruefe("keine Abfrage mit Spalte stand", sel == 0)
