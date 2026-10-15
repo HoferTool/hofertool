@@ -3,7 +3,8 @@
 //  Stammdaten mit Zeichnung, je Maschinentyp Einrichtblatt und Stückzeit („Produktionsanlage“) und die FA Nummern
 //  mit ihren Anhängen (WBG, Werkzeugwechsel).
 // =================================================================
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { laengeFehlt, laengeVersuchen } from "../daten/material.js";
 import { alt, useDaten } from "../bruecke.jsx";
 import { teilLaden, pdfHochladen } from "./daten.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
@@ -21,6 +22,13 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
   // Teil kommt dabei als neues Objekt und lädt sich darum selbst neu.
   const fertig = (text) => { meldung(text); nachAenderung(); };
   const fehler = (f) => meldung(fehlertext(f), "fehler");
+
+  // Fehlt die Länge, still im Einrichtblatt nachsehen (Wunsch Patrick
+  // 15. Oktober 2026: „soll überall versuchen“)
+  useEffect(() => {
+    if (darf && !alt.istExtern() && "teil_laenge_mm" in t && laengeFehlt(t))
+      laengeVersuchen(t.hoco_nr).then((g) => { if (g) nachAenderung(); }).catch(() => {});
+  }, [t]);
 
   if (!daten) return <div className="laedt">Wird geladen …</div>;
   const { faListe, vomAuftrag, typenGenutzt } = daten;

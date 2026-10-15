@@ -19,6 +19,7 @@
 import { alt } from "../bruecke.jsx";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { zifferblock } from "../pad/Zifferblock.jsx";
+import { laengeVersuchen } from "./material.js";
 
 const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
@@ -197,8 +198,9 @@ export async function artInfoFragen(o) {
   const l = o.laenge;
   if (o.mitLaenge && l) felder.push({ name: "laenge", label: "Länge des Teils in mm", dezimal: true,
     wert: l.mm ? String(l.mm).replace(".", ",") : "", pflicht: !!o.pflicht,
-    hinweis: l.mm && !l.sicher ? "Aus dem Einrichtblatt gelesen, bitte prüfen."
-      : "Länge des fertigen Teils. Den Durchmesser nimmt die App vom Material." });
+    // Auf einen Zehntel genau (Wunsch Patrick 15. Oktober 2026)
+    hinweis: l.mm && !l.sicher ? "Aus dem Einrichtblatt gelesen, bitte prüfen. Auf einen Zehntel genau, etwa 7,5."
+      : "Länge des fertigen Teils, auf einen Zehntel genau, etwa 7,5. Den Durchmesser nimmt die App vom Material." });
   if (!felder.length) return { zeit: 0, laenge: 0 };
   for (;;) {
     const w = await alt.dialogFelder({ titel: o.titel, text: o.text, felder,
@@ -241,6 +243,11 @@ export async function stueckzeitVorDemBeenden(j) {
   if (!alt.istExtern()) { try { laenge = await laengeLaden(j.job_number); } catch (f) { laenge = null; } }
   const mitLaenge = !!laenge;
   if (!mitZeit && !mitLaenge) return;
+  // Fehlt die Länge, zuerst selbst im Einrichtblatt nachsehen
+  if (mitLaenge && !laenge.mm) {
+    const g = await alt.zeitlimit(laengeVersuchen(j.job_number, maschine.type_id), 6000, "Länge").catch(() => null);
+    if (g) Object.assign(laenge, { mm: g.mm, sicher: false });
+  }
   const auf = (maschine.name || "dieser Maschine");
   const vollstaendig = (!mitZeit || da > 0) && (!mitLaenge || (laenge.mm > 0 && laenge.sicher));
   const w = await artInfoFragen({ hoco: j.job_number, auf, zeit: da, laenge, mitZeit, mitLaenge, pflicht: true,

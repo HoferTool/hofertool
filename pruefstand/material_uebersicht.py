@@ -22,6 +22,11 @@ with sync_playwright() as p:
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
+    # Ein Einrichtblatt mit „Art. Bez.: Getriebedeckel 17 x 7.00“ (seit 1.70.0 liest die App selbst)
+    import os
+    blatt = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "laenge-test.xlsx"), "rb").read()
+    pg.route("**://blatt.test/**", lambda r: r.fulfill(status=200, body=blatt,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt")
 
@@ -45,7 +50,8 @@ with sync_playwright() as p:
         material_bez: 'CuNi7Zn39Pb3Mn2 rd 017 mm h9', planned_from: '2026-11-03' });
       D.planwand = D.jobs;
       D.hoco_type_data = D.hoco_type_data.filter(x => x.hoco_nr !== '10555-0001');
-      D.hoco_type_data.push({ hoco_nr: '10555-0001', type_id: 't1', stueckzeit_s: 30 });
+      D.hoco_type_data.push({ hoco_nr: '10555-0001', type_id: 't1', stueckzeit_s: 30, blatt_url: 'https://blatt.test/10555-0001.xlsx' });
+      D.hoco_parts.push({ hoco_nr: '10555-0001', teil_laenge_mm: null, teil_mass_bestaetigt: false, teil_mass_quelle: null });
       D.hoco_parts.push({ hoco_nr: '10555-0002', teil_d_mm: 24, teil_laenge_mm: 30, teil_mass_bestaetigt: false,
         teil_mass_quelle: 'Einrichtblatt: Deckel 24 x 30' });
       D.hoco_parts.push({ hoco_nr: '10555-0003', teil_d_mm: 24, teil_laenge_mm: 30, teil_mass_bestaetigt: true });
@@ -93,10 +99,11 @@ with sync_playwright() as p:
     # An Lager und Längen
     pg.click("[data-matreiter='lager']"); pg.wait_for_selector("[data-ort='Restelager']")
     pruefe("An Lager nach Ort", pg.locator("[data-ort='Aussenlager Nord']").count() == 1)
-    pg.click("[data-matreiter='laengen']"); pg.wait_for_selector("[data-hoco='10555-0002']")
-    pg.click("[data-hoco='10555-0002'] button:has-text('Stimmt')"); pg.wait_for_timeout(1000)
-    pruefe("Länge bestätigt", pg.evaluate("TEST.daten.hoco_parts.find(h => h.hoco_nr === '10555-0002').teil_mass_bestaetigt") is True)
-    pg.screenshot(path="/tmp/material_laengen.png", full_page=True)
+    # Seit 1.70.0 kein Reiter „Längen“ mehr; die App liest selbst
+    pruefe("Kein Reiter Längen", pg.locator("[data-matreiter='laengen']").count() == 0)
+    l = pg.evaluate("TEST.daten.hoco_parts.find(h => h.hoco_nr === '10555-0001')")
+    pruefe("Länge selbst aus dem Einrichtblatt gelesen (7, unbestätigt)",
+           l.get("teil_laenge_mm") == 7 and l.get("teil_mass_bestaetigt") is False and "Getriebedeckel" in (l.get("teil_mass_quelle") or ""))
 
     # Schnellvorschau: Material ganz oben
     pg.evaluate("location.hash='#planwand'")

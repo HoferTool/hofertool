@@ -25,6 +25,7 @@ import { mahnBilder } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
 import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitSetzen, artInfoFragen, laengeText,
   laengeSetzen } from "../daten/stueckzahl.js";
+import { laengeVersuchen } from "../daten/material.js";
 import {
   holeWetterTage, wetterZeichen, tagesmengen, letzteTage, schnitte,
   schnittTage, schnittLang, prognose,
@@ -186,6 +187,11 @@ function teilLaenge(teil) {
 async function artInfoBearbeiten(j, m, blattDaten, teil) {
   const da = blattDaten && blattDaten.stueckzeit_s ? Number(blattDaten.stueckzeit_s) : 0;
   const laenge = teilLaenge(teil);
+  // Fehlt die Länge, zuerst selbst im Einrichtblatt nachsehen
+  if (laenge && !laenge.mm) {
+    const g = await alt.zeitlimit(laengeVersuchen(j.job_number, m.type_id), 6000, "Länge").catch(() => null);
+    if (g) Object.assign(laenge, { mm: g.mm, sicher: false });
+  }
   const w = await artInfoFragen({ titel: "Art. Info " + j.job_number, auf: m.name, zeit: da, laenge,
     mitZeit: true, mitLaenge: !!laenge });
   if (!w) return;

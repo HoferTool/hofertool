@@ -198,12 +198,76 @@ export async function materialFuerPlanwand(auftraege) {
   try {
     const d = await materialDatenLaden(auftraege);
     stand = d ? materialRechnen(auftraege, d) : null;
+    // Fehlende Längen still nachholen, gezählt wird beim nächsten Laden
+    if (d) setTimeout(() => laengenNachholen(d.teile), 5000);
   } catch (f) {
     console.warn("Material:", f.message);
   }
   return stand;
 }
 export const materialStand = () => stand;
+
+// ---------- Längen selbst nachholen ----------
+// (Wunsch Patrick 15. Oktober 2026: „soll überall versuchen, wir
+// bestätigen ja immer wieder, irgendwann ist alles bestätigt“) Fehlt
+// bei einer HOCO Nr. die Länge, liest die App sie still aus dem
+// Einrichtblatt, legt sie unbestätigt ab und merkt sich sonst den Grund.
+// Jede Nummer wird so nur einmal gelesen (je Fassung des Lesens, damit
+// ein besseres Lesen es nochmals versucht). Bestätigt wird beim Beenden.
+const LESEN_FASSUNG = "L2";
+const versucht = new Set();
+
+export function laengeFehlt(t) {
+  if (!t || t.teil_laenge_mm) return false;
+  return !String(t.teil_mass_quelle || "").startsWith("Nicht gefunden (" + LESEN_FASSUNG + ")");
+}
+
+// Liest die Länge einer HOCO Nr.; das Blatt vom Typ typId zuerst.
+// → { mm, sicher: false, text } oder null
+export async function laengeVersuchen(nr, typId) {
+  if (!nr || versucht.has(nr)) return null;
+  versucht.add(nr);
+  const r = await alt.db.from("hoco_type_data").select("hoco_nr, type_id, blatt_url").eq("hoco_nr", nr);
+  if (r.error) return null;
+  const blaetter = (r.data || []).filter((b) => b.blatt_url)
+    .sort((a, b) => (b.type_id === typId) - (a.type_id === typId));
+  let grund = blaetter.length ? "" : "kein Einrichtblatt vorhanden";
+  for (const b of blaetter) {
+    let m = null;
+    try { m = await massAusEinrichtblatt(b.blatt_url); } catch (f) { m = { grund: "Excel nicht lesbar" }; }
+    // Nicht erreichbar heisst meist: kein Netz. Dann später nochmals.
+    if (m && m.grund === "Einrichtblatt nicht erreichbar") { versucht.delete(nr); return null; }
+    if (m && m.laenge) {
+      // Nie eine schon eingetragene Länge überschreiben
+      await alt.db.from("hoco_parts").update({ teil_d_mm: m.d, teil_laenge_mm: m.laenge,
+        teil_mass_bestaetigt: false, teil_mass_quelle: "Einrichtblatt: " + m.text.slice(0, 120) })
+        .eq("hoco_nr", nr).is("teil_laenge_mm", null);
+      return { mm: m.laenge, sicher: false, text: m.text };
+    }
+    if (m && !grund) grund = m.grund + (m.text ? ": " + m.text : "");
+  }
+  await alt.db.from("hoco_parts").update({ teil_mass_quelle:
+    ("Nicht gefunden (" + LESEN_FASSUNG + "): " + (grund || "keine Länge im Blatt")).slice(0, 160) })
+    .eq("hoco_nr", nr).is("teil_laenge_mm", null);
+  return null;
+}
+
+// Im Hintergrund für alle offenen Nummern ohne Länge, zwei gleichzeitig.
+// fertig(n) kommt am Schluss mit der Zahl der gefundenen Längen.
+export async function laengenNachholen(teile, fertig) {
+  if (!alt.darfSchreiben || !alt.darfSchreiben() || (alt.istExtern && alt.istExtern())
+    || (alt.istArchiv && alt.istArchiv())) return;
+  const warte = Object.keys(teile || {}).filter((nr) => laengeFehlt(teile[nr]) && !versucht.has(nr));
+  if (!warte.length) return;
+  let gefunden = 0;
+  await Promise.all([1, 2].map(async () => {
+    while (warte.length) {
+      const nr = warte.shift();
+      try { if (await laengeVersuchen(nr, null)) gefunden++; } catch (f) { /* nächste */ }
+    }
+  }));
+  if (fertig) fertig(gefunden);
+}
 
 // ---------- Wann ein Auftrag wirklich drankommt ----------
 // Auf der Planwand steht der laufende Auftrag nicht immer genau beim
