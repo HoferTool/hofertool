@@ -9,7 +9,7 @@
 //  Nummern, die bisher nur auf der Planwand stehen, erscheinen mit
 //  „noch nicht hinterlegt“, bis jemand Stammdaten anlegt.
 // =================================================================
-import { useReducer, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { hocoLaden, kundeVon, bereichVon } from "./daten.js";
 import HocoTeil from "./HocoTeil.jsx";
@@ -20,6 +20,18 @@ export default function Hoco() {
   const [, zeichnen] = useReducer((x) => x + 1, 0);
   const { daten, fehler, neu } = useDaten(() => hocoLaden(darf), []);
   const [suche, setSuche] = useState(prod.hocoSuche || "");
+  // Beim Öffnen steht die Schreibmarke gleich im Suchfeld (Wunsch Patrick
+  // 15. Oktober 2026). Nur mit Maus: auf Tablet und Handy würde sonst die
+  // Tastatur aufspringen und die Ordner verdecken.
+  const suchfeld = useRef(null);
+  const schonFokus = useRef(false);
+  useEffect(() => {
+    const el = suchfeld.current;
+    if (!el || schonFokus.current) return;
+    schonFokus.current = true;
+    if (!window.matchMedia || !window.matchMedia("(pointer: fine)").matches) return;
+    el.focus({ preventScroll: true });
+  });
 
   // Wohin man geht, merkt sich prod; danach frisch laden, wie bisher
   const gehe = (aenderung) => { Object.assign(prod, aenderung); neu(); zeichnen(); };
@@ -198,7 +210,7 @@ export default function Hoco() {
           {darf && <div className="karte__aktionen">
             <button className="knopf knopf--klein" id="hoco-neu" onClick={aktionen.neu}>+ HOCO Nr.</button></div>}
         </div>
-        <div className="suchleiste"><input type="text" id="hoco-such" placeholder="Suchen" autoComplete="off"
+        <div className="suchleiste"><input ref={suchfeld} type="text" id="hoco-such" placeholder="Suchen" autoComplete="off"
           value={suche} onChange={(e) => suchen(e.target.value)} onKeyDown={enter} /></div>
         {inhalt}
       </section>
