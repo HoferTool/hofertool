@@ -31,8 +31,11 @@
 #     entfernen" im Betrachter oder bei der HOCO Nr.), kommt beim
 #     nächsten Durchlauf die nächste Excel-Datei dieser Nummer im Ordner.
 #     Die weggenommene steht in einrichtblaetter-stand.json unter
-#     "abgelehnt" und kommt nie wieder. Gibt es keine andere mehr, bleibt
-#     die Nummer ohne Blatt.
+#     "abgelehnt" (mit Grösse und Änderungszeit) und kommt nicht wieder,
+#     solange sie nicht geändert wird. Wird sie im Ordner neu gespeichert,
+#     zählt sie wieder (Patrick 15. Oktober 2026: bei der Index lag das
+#     geänderte Werkzeugprotokoll so fest). Gibt es keine andere mehr,
+#     bleibt die Nummer ohne Blatt.
 #   - Ein Blatt, das nicht von diesem Programm stammt (in der App von Hand
 #     hinterlegt), ist Master und wird nie ersetzt. Woran man das erkennt:
 #     Die Adresse in hoco_type_data.blatt_url ist nicht die, die das
@@ -135,6 +138,20 @@ function Rang([string]$name, [string]$typName) {
   if ($fremd.Count -gt 0) { return @{ rang = 0; fremd = ($fremd -join " ") } }
   if ($prot) { return @{ rang = 1; fremd = "" } }
   return @{ rang = 2; fremd = "" }
+}
+
+# In der App weggenommen? Eingetragen ist die Kennung (Pfad, Zeit,
+# Grösse), also zählt die Datei wieder, sobald sie geändert wird. Ältere
+# Einträge haben nur den Pfad: Die gelten für die Datei, solange sie
+# nicht nach dem Wechsel auf diese Regel gespeichert wurde.
+$abgelehntRegelAb = [datetime]::Parse("2026-10-15T15:00:00Z").ToUniversalTime()
+function IstAbgelehnt($d, $liste) {
+  foreach ($e in $liste) {
+    if (-not $e) { continue }
+    if ($e.Contains("|")) { if ($e -eq (Kennung $d)) { return $true } }
+    elseif ($e -eq $d.FullName -and $d.LastWriteTimeUtc -lt $abgelehntRegelAb) { return $true }
+  }
+  return $false
 }
 
 # Wurde so ein Blatt (Toleranzen usw.) früher schon hochgeladen, als die
@@ -271,7 +288,7 @@ try {
       # Das eigene Blatt ist in der App weggenommen worden: diese Datei
       # kommt nie wieder, die nächste ist dran
       if (-not $jetzt -and $stand.dateien[$schluessel]) {
-        $weg = ([string]$stand.dateien[$schluessel]).Split("|")[0]
+        $weg = [string]$stand.dateien[$schluessel]
         if ($weg) {
           if (-not $stand.abgelehnt[$schluessel]) { $stand.abgelehnt[$schluessel] = @() }
           if ($stand.abgelehnt[$schluessel] -notcontains $weg) { $stand.abgelehnt[$schluessel] += $weg }
@@ -279,10 +296,10 @@ try {
         $stand.dateien.Remove($schluessel); $stand.adressen.Remove($schluessel)
         StandSichern
         $status.abgelehnt++
-        Schreibe ("Einrichtblatt von " + $h + " auf " + $typ.name + " in der App entfernt, nächste Datei: " + $weg)
+        Schreibe ("Einrichtblatt von " + $h + " auf " + $typ.name + " in der App entfernt, nächste Datei: " + $weg.Split("|")[0])
       }
 
-      $gruppe = @($jeNr[$h] | Where-Object { @($stand.abgelehnt[$schluessel]) -notcontains $_.FullName } |
+      $gruppe = @($jeNr[$h] | Where-Object { -not (IstAbgelehnt $_ @($stand.abgelehnt[$schluessel])) } |
         Sort-Object @{ Expression = { $_.HoferRang } }, @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true })
       if ($gruppe.Count -eq 0) { $status.keineMehr++; Eintrag $oi "" $h "alle Dateien in der App entfernt, bleibt ohne Blatt"; continue }
       $d = $gruppe[0]
