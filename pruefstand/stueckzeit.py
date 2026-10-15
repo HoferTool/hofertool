@@ -82,7 +82,8 @@ with sync_playwright() as p:
     if balken[-2:] != ["600", "400"]: fehler.append("Balken falsch: " + str(balken))
 
     # Stückzeit-Kachel neben dem Vorsprung
-    if not pg.locator("#pad .pad-reihe2 .pad-karte2--verzug").count(): fehler.append("Vorsprung nicht in der Reihe")
+    # Seit 1.63.0 steht dort die Kachel Notizbücher statt dem Vorsprung
+    if not pg.locator("#pad .pad-reihe2 .pad-karte2--notiz").count(): fehler.append("Notizbücher nicht in der Reihe")
     zeit = pg.locator("#pad [data-padfeld='stueckzeit']")
     if not zeit.count(): fehler.append("Stückzeit-Kachel fehlt")
     pg.screenshot(path="stueckzeit-pad.png")

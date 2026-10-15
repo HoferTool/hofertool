@@ -18,6 +18,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
+import { notizbuecherFuerPark, buecherFuerPark, BUCH } from "../notizbuch/Notizbuecher.jsx";
 import Bildschirmschoner from "./Bildschirmschoner.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
 import { mahnBilder } from "../daten/mahnbilder.js";
@@ -404,6 +405,31 @@ function Fortschritt({ j }) {
   );
 }
 
+// Notizbücher des Parks: ersetzt die Kachel Vorsprung (Wunsch Patrick
+// 15. Oktober 2026). Zu sehen sind nur Bücher, die beim Buch diesem
+// Park zugewiesen sind, und nur zum Lesen.
+function Notizen({ m }) {
+  const [buecher, setBuecher] = useState(null);
+  useEffect(() => {
+    let weg = false;
+    buecherFuerPark(m.park_id).then((l) => { if (!weg) setBuecher(l); });
+    return () => { weg = true; };
+  }, [m.park_id]);
+  const da = !!(buecher && buecher.length);
+  return (
+    <div className={"pad-karte2 pad-karte2--notiz" + (da ? "" : " pad-karte2--notizleer")} data-padfeld="notizen"
+      onClick={da ? () => notizbuecherFuerPark(m.park_id) : undefined}>
+      <span className="pad-name">Notizbücher{da ? " · antippen" : ""}</span>
+      <span className="pad-wert pad-nbuch">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d={BUCH} /></svg>
+        {buecher === null ? <Leer>…</Leer>
+          : (da ? <span className="pad-nbuch__namen">{buecher.map((b) => b.name).join(" · ")}</span>
+            : <Leer>Keine Notizen</Leer>)}
+      </span>
+    </div>
+  );
+}
+
 // Material und Werkstoff: eigene Kachel, Farbe der Werkstoffgruppe
 function Material({ j, teil, ort }) {
   const bez = (j && j.material_bez) || (teil && teil.material) || "";
@@ -638,9 +664,13 @@ export default function Maschine({ d }) {
               </a>}
           </div>
 
-          {/* Vorsprung und Stückzeit teilen sich die Reihe (Wunsch 8. Oktober 2026) */}
+          {/* Vorsprung und Stückzeit teilen sich die Reihe (Wunsch 8. Oktober 2026).
+              Statt Vorsprung stehen seit 1.63.0 die Notizbücher des Parks da
+              (Wunsch Patrick 15. Oktober 2026); Externe behalten den Vorsprung. */}
           <div className="pad-reihe2">
-            <div className="pad-karte2 pad-karte2--verzug"><Fortschritt j={j} /></div>
+            {alt.istExtern()
+              ? <div className="pad-karte2 pad-karte2--verzug"><Fortschritt j={j} /></div>
+              : <Notizen m={m} />}
             {/* Fehlt die Stückzeit, pulsiert die Kachel absichtlich lästig,
                 bis sie eingetragen ist (Wunsch Patrick, 12. Oktober 2026) */}
             <div className={"pad-karte2 pad-karte2--zeit" + (zeitFehlt ? " pad-karte2--zeitfehlt pad-karte2--nervt" : "")}

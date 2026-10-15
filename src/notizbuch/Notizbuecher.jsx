@@ -92,6 +92,27 @@ export function notizbuecherOeffnen() {
   grossOeffnen();
 }
 
+// Pad Mode: nur die Bücher, die dem Park der Maschine zugewiesen sind,
+// nur zum Lesen (Wunsch Patrick 15. Oktober 2026). Kein kleines
+// Fenster und kein Merken für nach dem Neuladen.
+export function notizbuecherFuerPark(parkId, titel) {
+  let huelle = null;
+  fensterOeffnen((zu0) => <Notizbuecher zu={zu0} huelle={() => huelle} park={parkId} titel={titel} />,
+  () => allesZu(), "nb-huelle nb-huelle--pad");
+  const alle = document.querySelectorAll(".dialog-huelle.nb-huelle");
+  huelle = alle[alle.length - 1];
+}
+
+// Bücher eines Parks für die Kachel im Pad; ohne SQL einfach keine
+export async function buecherFuerPark(parkId) {
+  if (!parkId) return [];
+  try {
+    return ((await buecherLaden()) || []).filter((b) => Array.isArray(b.parks) && b.parks.indexOf(parkId) !== -1);
+  } catch (e) {
+    return [];
+  }
+}
+
 // Nach dem Neuladen wieder offen, gross oder klein, mit demselben Buch
 // und derselben Seite (MERKEN). Bücher mit Passwort sind dann wieder zu.
 wiederOeffner("notizbuch", () => notizbuecherOeffnen());
@@ -132,8 +153,9 @@ function spaltenLesen() {
   return [gut(t[0]), gut(t[1])];
 }
 
-function Notizbuecher({ zu, huelle, schwebend, umschalten }) {
-  const darf = !(alt.istExtern && alt.istExtern());
+function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
+  // Mit park (Pad Mode) nur lesen
+  const darf = !park && !(alt.istExtern && alt.istExtern());
   const [rahmen, setRahmen] = useState(() => (schwebend ? rahmenLesen() : null));
   const rahmenRef = useRef(rahmen);
   rahmenRef.current = rahmen;
@@ -213,7 +235,8 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten }) {
 
   const buecherNeu = useCallback(async (waehlen) => {
     try {
-      const l = await buecherLaden();
+      let l = await buecherLaden();
+      if (park) l = (l || []).filter((b) => Array.isArray(b.parks) && b.parks.indexOf(park) !== -1);
       setBuecher(l || []);
       setBuchId((alt0) => {
         const w = waehlen || alt0;
@@ -246,21 +269,39 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten }) {
   useEffect(() => { if (buchId) merken({ buch: buchId, seite: seiteId }); }, [buchId, seiteId]);
 
   // ---------- Bücher ----------
-  const buchDialog = (b) => alt.dialogFelder({
+  // Parks, in denen das Buch im Pad Mode an jeder Maschine zu sehen
+  // ist (Wunsch Patrick 15. Oktober 2026, sql/notizbuch-parks.sql)
+  const buchDialog = async (b) => {
+    let parks = [];
+    try { parks = (await alt.ladeParks(false, true)) || []; } catch (f) { /* ohne Parks */ }
+    return alt.dialogFelder({
     titel: b ? "Notizbuch bearbeiten" : "Neues Notizbuch",
     felder: [
       { name: "name", label: "Name", wert: b ? b.name : "", pflicht: true, platzhalter: "z. B. Besprechungen" },
       // Farbwähler des Geräts mit Pipette statt einer Liste (Wunsch Patrick 7. Oktober 2026)
       { name: "farbe", label: "Farbe", typ: "color",
-        wert: b ? b.farbe : BUCHFARBEN[(buecher || []).length % BUCHFARBEN.length][0] }],
+        wert: b ? b.farbe : BUCHFARBEN[(buecher || []).length % BUCHFARBEN.length][0] },
+      { name: "parks", label: "Im Pad Mode zeigen bei", mehrfach: parks.map((p) => [p.id, p.name]),
+        wert: (b && b.parks) || [], hinweis: "Nur lesen, an allen Maschinen der gewählten Parks." }],
     bestaetigen: b ? "Speichern" : "Anlegen" });
+  };
+  // Ohne sql/notizbuch-parks.sql gibt es die Spalte noch nicht: dann
+  // ohne Parks noch einmal, mit Hinweis
+  const fehltParks = (e) => /parks/i.test(String((e && (e.message || e.details)) || ""));
+  const ohneParksHinweis = () => alt.meldung("Parks zuweisen geht, sobald die Datei notizbuch-parks.sql "
+    + "in Supabase ausgeführt ist.", "warn");
+  const mitParks = (daten, w) => ({ ...daten, parks: w.parks || [] });
 
   const buchNeu = async () => {
     const w = await buchDialog(null);
     if (!w) return;
     const reihenfolge = (buecher || []).reduce((m, b) => Math.max(m, b.reihenfolge || 0), 0) + 1;
-    const { data, error } = await alt.db.from(BUECHER)
-      .insert({ name: w.name, farbe: w.farbe, reihenfolge }).select("id");
+    let { data, error } = await alt.db.from(BUECHER)
+      .insert(mitParks({ name: w.name, farbe: w.farbe, reihenfolge }, w)).select("id");
+    if (error && fehltParks(error)) {
+      ohneParksHinweis();
+      ({ data, error } = await alt.db.from(BUECHER).insert({ name: w.name, farbe: w.farbe, reihenfolge }).select("id"));
+    }
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     const id = data && data[0] && data[0].id;
     if (!id) return;
@@ -274,10 +315,17 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten }) {
   const buchBearbeiten = async (b) => {
     const w = await buchDialog(b);
     if (!w) return;
-    const { error } = await alt.db.from(BUECHER).update({ name: w.name, farbe: w.farbe,
-      geaendert_am: new Date().toISOString() }).eq("id", b.id);
+    const daten = { name: w.name, farbe: w.farbe, geaendert_am: new Date().toISOString() };
+    let { error } = await alt.db.from(BUECHER).update(mitParks(daten, w)).eq("id", b.id);
+    let mit = true;
+    if (error && fehltParks(error)) {
+      ohneParksHinweis(); mit = false;
+      ({ error } = await alt.db.from(BUECHER).update(daten).eq("id", b.id));
+    }
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
-    alt.merkeSchritt("Notizbuch umbenennen", alt.rueckSetz(BUECHER, { name: b.name, farbe: b.farbe }, { id: b.id }));
+    const vorher = { name: b.name, farbe: b.farbe };
+    alt.merkeSchritt("Notizbuch bearbeiten", alt.rueckSetz(BUECHER,
+      mit ? mitParks(vorher, { parks: b.parks }) : vorher, { id: b.id }));
     buecherNeu();
   };
 
@@ -402,6 +450,8 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten }) {
   } else if (fehlt) {
     haupt = <div className="nb-fehlt"><p><b>Notizbücher sind noch nicht eingerichtet.</b></p>
       <p>Sie gehen, sobald die Datei notizbuecher.sql in Supabase ausgeführt ist.</p></div>;
+  } else if (buecher && !buecher.length && park) {
+    haupt = <div className="nb-fehlt"><p>Keine Notizen.</p></div>;
   } else if (buecher && !buecher.length) {
     haupt = <div className="nb-fehlt"><p>Noch kein Notizbuch.</p>
       {darf && <button type="button" className="knopf knopf--haupt" onClick={buchNeu}>Erstes Notizbuch anlegen</button>}</div>;
@@ -424,7 +474,8 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten }) {
       <div className="nb-kopf" onPointerDown={schwebend ? (e) => rahmenZiehen(e, null) : undefined}
         title={schwebend ? "Am Kopf ziehen zum Verschieben" : undefined}>
         <span className="nb-kopf__zeichen"><Symbol d={BUCH} /></span>
-        <h2>{buch ? buch.name : "Notizbücher"}</h2>
+        <h2>{buch ? buch.name : "Notizbücher"}{park && titel ? <small className="nb-kopf__park"> · {titel}</small> : null}</h2>
+        {park && <span className="nb-nurlesen">Nur lesen</span>}
         {umschalten && <button type="button" className="nb-zu nb-zu--klein" data-nbumschalten=""
           aria-label={schwebend ? "Vergrössern" : "Verkleinern"}
           title={schwebend ? "Wieder gross machen" : "Verkleinern: bleibt als kleines Fenster offen, auch auf anderen Seiten"}
