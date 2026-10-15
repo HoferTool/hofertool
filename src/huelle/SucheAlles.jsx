@@ -1,6 +1,6 @@
 // =================================================================
 //  SUCHE ÜBER ALLES (Fenster)
-//  Ein Feld für Aufträge, HOCO Nr., Maschinen, Artikel und Lieferanten.
+//  Ein Feld für die HOCO Nummern (seit 1.59.0 nur noch diese).
 //  Öffnet über die Lupe in der Kopfzeile oder mit Strg + K. Die Daten
 //  holt und merkt das alte Programm (sucheAllesDaten), die Treffer
 //  rechnet sucheTreffer; getippt wird ohne Anfrage an den Server.
@@ -72,7 +72,7 @@ function SucheAlles({ zu }) {
       <div className="suche-alles__feld">
         <span className="suche-alles__lupe">⌕</span>
         <input type="search" id="suche-alles-feld" autoComplete="off" data-fokus=""
-          placeholder="HOCO Nr., FA Nr., Material, Werkzeug, Lieferant, Maschine …"
+          placeholder="HOCO Nr. oder Material …"
           value={text} onChange={(e) => { setText(e.target.value); setMarkiert(null); }} onKeyDown={taste} />
         <kbd>Esc</kbd>
       </div>

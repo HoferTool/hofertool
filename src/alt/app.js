@@ -149,7 +149,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.58.1";
+const APP_VERSION = "1.59.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4905,8 +4905,8 @@ function sucheImZeitraum(j) {
 // ausgelöst, die auch der Suchknopf benutzt.
 // =================================================================
 //  SUCHE ÜBER ALLES
-//  Ein Feld für alles: Aufträge (HOCO Nr., FA Nr., Material, Notiz),
-//  HOCO Stammdaten, Artikel, Lieferanten und Maschinen. Öffnet sich
+//  Ein Feld für die HOCO Nummern (seit 1.59.0 nur noch diese; Aufträge
+//  sucht man auf der Planwand mit Strg + F). Öffnet sich
 //  über die Lupe in der Kopfzeile oder mit Strg + K. Die Daten werden
 //  beim ersten Öffnen geholt und gemerkt, das Tippen fragt nichts mehr
 //  beim Server nach.
@@ -4935,16 +4935,12 @@ async function sucheAllesHolen() {
 }
 
 async function sucheAllesHolenJetzt() {
-  const [auftraege, hoco, maschinen, artikel, lieferanten] = await Promise.all([
-    ladePlanAuftraege(true).catch(() => plan.auftraege || []),
-    ladeHoco("").catch(() => []),
-    ladeMaschinen(true).catch(() => []),
-    zeitlimit(db.from("articles").select("id, article_number, name, supplier_id")
-      .limit(3000), 8000, "Artikel").then((r) => r.data || []).catch(() => []),
-    zeitlimit(db.from("suppliers").select("id, name").limit(1000), 8000, "Lieferanten")
-      .then((r) => r.data || []).catch(() => []),
-  ]);
-  sucheAlles.daten = { auftraege, hoco, maschinen, artikel, lieferanten };
+  // Nur noch die HOCO Nummern (Wunsch Patrick 15. Oktober 2026: „Strg + K
+  // nur für die HOCO-Datenbank, keine Aufträge; die sucht man auf der
+  // Planwand mit Strg + F“). Maschinen, Artikel und Lieferanten sind
+  // damit auch weg; sucheSpringen kann sie weiterhin, falls sie zurückkommen.
+  const hoco = await ladeHoco("").catch(() => []);
+  sucheAlles.daten = { hoco };
   sucheAlles.zeit = Date.now();
   return sucheAlles.daten;
 }
@@ -4953,42 +4949,10 @@ function sucheTreffer(d, text) {
   const t = text.trim().toLowerCase();
   if (t.length < 2) return [];
   const passt = (...felder) => felder.some((f) => String(f || "").toLowerCase().includes(t));
-  const raus = [];
-
-  // Aufträge: die laufenden und künftigen zuerst, dann die neueren
-  const heute = isoDatum(new Date());
-  (d.auftraege || [])
-    .filter((j) => passt(j.job_number, j.fa_nr, j.material_bez, j.plan_note, j.maschine))
-    .sort((a, b) => {
-      const aa = a.ended_at ? 1 : 0, bb = b.ended_at ? 1 : 0;
-      if (aa !== bb) return aa - bb;
-      return String(b.planned_from || "").localeCompare(String(a.planned_from || ""));
-    })
-    .slice(0, 12)
-    .forEach((j) => raus.push({ art: "auftrag", titel: j.job_number,
-      zeile: [j.maschine, j.planned_from ? "ab " + kurzDatum(j.planned_from) : "",
-              (PLANSTATUS[j.plan_status] || {}).name, j.fa_nr ? "FA " + j.fa_nr : ""]
-        .filter(Boolean).join(" · "),
-      daten: j, spaeter: (j.planned_from || "") >= heute }));
-
   // Ohne Artikelbezeichnung (Wunsch 8. Oktober 2026)
-  (d.hoco || []).filter((h) => passt(h.hoco_nr, h.material))
-    .slice(0, 8)
-    .forEach((h) => raus.push({ art: "hoco", titel: h.hoco_nr,
-      zeile: h.material || "", daten: h }));
-
-  (d.maschinen || []).filter((m) => passt(m.name, m.machine_number)).slice(0, 6)
-    .forEach((m) => raus.push({ art: "maschine",
-      titel: (m.machine_number ? m.machine_number + " " : "") + m.name, zeile: "", daten: m }));
-
-  (d.artikel || []).filter((a) => passt(a.article_number, a.name)).slice(0, 8)
-    .forEach((a) => raus.push({ art: "artikel", titel: a.article_number || a.name,
-      zeile: a.article_number ? a.name : "", daten: a }));
-
-  (d.lieferanten || []).filter((l) => passt(l.name)).slice(0, 6)
-    .forEach((l) => raus.push({ art: "lieferant", titel: l.name, zeile: "", daten: l }));
-
-  return raus;
+  return (d.hoco || []).filter((h) => passt(h.hoco_nr, h.material))
+    .slice(0, 30)
+    .map((h) => ({ art: "hoco", titel: h.hoco_nr, zeile: h.material || "", daten: h }));
 }
 
 // Schon laden, bevor jemand auf Suchen klickt (Kopfzeile, beim Darüberfahren)
