@@ -29,7 +29,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { alt } from "../bruecke.jsx";
 import { FettText, alsHtml, stilWert } from "../teile/FettText.jsx";
 import { rund, strichZeichnen, getroffen, Symbol, RADIERER, ZURUECK, TEXT, EIMER } from "../teile/zeichnen.jsx";
-import { seiteLaden, seiteSpeichern, bildEinfuegen, pdfEinfuegen, istPdf, istBild, SEITEN } from "./daten.js";
+import { seiteLaden, seiteSpeichern, bildEinfuegen, pdfEinfuegen, pdfAlsDatei, istPdf, istBild, SEITEN } from "./daten.js";
 
 // Höhe des leeren Blatts (A4 hochkant) und Platz unter dem Inhalt
 const A4 = 1.414;
@@ -681,6 +681,14 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
       aendern(liste);
     }
   };
+  // Verweis in einem PDF-Ausdruck: zur Zielseite desselben PDF auf
+  // diesem Blatt rollen; fehlt sie dort, geht das PDF im Betrachter auf
+  const zuPdfSeite = (s, z) => {
+    const ziel = inhaltRef.current.find((x) => istBildEl(x) && x.q === s.q && x.s === z && !x.d);
+    const r = rolle.current;
+    if (ziel && r) r.scrollTo({ top: blattOben() + ziel.y * (wRef.current || 1) - 12, behavior: "smooth" });
+    else alt.betrachter(s.q, s.n || "PDF", true);
+  };
   const bildWeg = (i) => { setWahl(-1); aendern(inhaltRef.current.filter((_, n) => n !== i)); };
 
   // ---------- Bilder und PDFs einfügen ----------
@@ -695,13 +703,29 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
     const x = ort ? ort.x : 0.04;
     const neu = [];
     let ersteY = y;
+    // PDF: als Ausdruck (jede Seite aufs Blatt) oder als Datei, die im
+    // Betrachter aufgeht (Wunsch Patrick 15. Oktober 2026)
+    let pdfArt = "ausdruck";
+    if (liste.some(istPdf)) {
+      pdfArt = await alt.auswahlDialog("PDF einfügen", [
+        { wert: "ausdruck", text: "Als Ausdruck" },
+        { wert: "datei", text: "Als Datei" }],
+      "Ausdruck: jede Seite kommt aufs Blatt. Datei: ein Feld, das antippen im Betrachter öffnet.");
+      if (!pdfArt) return;
+    }
     try {
       for (const d of liste) {
         setLaeuft("Wird eingefügt: " + d.name);
-        if (istPdf(d)) {
+        if (istPdf(d) && pdfArt === "datei") {
+          const r = await pdfAlsDatei(d);
+          const b = Math.min(0.32, 1 - x);
+          neu.push({ t: "bild", d: 1, u: r.u, q: r.q, n: d.name, x: rund(x), y: rund(y), b: rund(b), v: rund(r.v), p: [] });
+          y += b * r.v + 0.03;
+        } else if (istPdf(d)) {
           const r = await pdfEinfuegen(d, (i, n) => setLaeuft("PDF " + d.name + ": Seite " + i + " von " + n));
           r.seiten.forEach((s) => {
-            neu.push({ t: "bild", u: s.u, q: s.q, s: s.s, n: d.name, x: rund(x), y: rund(y), b: rund(Math.min(0.92, 1 - x)), v: rund(s.v), p: [] });
+            neu.push(Object.assign({ t: "bild", u: s.u, q: s.q, s: s.s, n: d.name, x: rund(x), y: rund(y), b: rund(Math.min(0.92, 1 - x)), v: rund(s.v), p: [] },
+              s.l ? { l: s.l } : {}));
             y += Math.min(0.92, 1 - x) * s.v + 0.03;
           });
           if (r.alle > r.seiten.length) {
@@ -853,7 +877,7 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
       <Symbol d={d} /></button>);
 
   return (
-    <div className={"nb-seite nb-seite--" + werkzeug}>
+    <div className={"nb-seite nb-seite--" + werkzeug + (darf ? "" : " nb-seite--lesen")}>
       {darf &&
         <div className="nb-leiste" role="toolbar" aria-label="Werkzeuge">
           <button type="button" className={"nb-knopf" + (werkzeug === "text" ? " aktiv" : "")} data-nbwerkzeug="text"
@@ -900,11 +924,21 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
                 onPointerDown={(e) => greifen(e, i, "bild")} onPointerMove={ziehBewegen}
                 onPointerUp={loslassen} onPointerCancel={loslassen}>
                 <img src={s.u} alt={s.n || "Bild"} draggable={false} loading="lazy" />
+                {s.d ? <button type="button" className="nb-datei" data-nbpdfdatei="" title="Im Betrachter öffnen"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => alt.betrachter(s.q, s.n || "PDF", true)}>
+                    <b>PDF</b><span>{s.n || "Datei"}</span><i>Öffnen</i></button> : null}
+                {!s.d && Array.isArray(s.l) && wahl !== i && s.l.map((l, k) => (
+                  <button key={k} type="button" className="nb-link" data-nblink={l.z} aria-label={"Zu Seite " + l.z}
+                    title={"Zu Seite " + l.z}
+                    style={{ left: l.x * 100 + "%", top: l.y * 100 + "%", width: l.w * 100 + "%", height: l.h * 100 + "%" }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => zuPdfSeite(s, l.z)} />))}
                 {wahl === i && darf && <>
                   <button type="button" className="nb-bild__weg" data-nbbildweg="" aria-label="Bild entfernen"
                     title="Entfernen" onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => bildWeg(i)}>×</button>
-                  {s.q && <button type="button" className="nb-bild__pdf" title="PDF öffnen"
+                  {s.q && !s.d && <button type="button" className="nb-bild__pdf" title="PDF öffnen"
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => alt.betrachter(s.q, s.n || "PDF", true)}>PDF öffnen</button>}
                   <span className="nb-bild__griff" data-nbgriff="" aria-label="Grösse ändern"

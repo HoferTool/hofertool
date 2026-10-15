@@ -182,6 +182,8 @@ with sync_playwright() as p:
     pg.locator("[data-nbdatei]").set_input_files([
         {"name": "foto.png", "mimeType": "image/png", "buffer": PNG},
         {"name": "zeichnung.pdf", "mimeType": "application/pdf", "buffer": pdf}])
+    # Seit 1.64.0 fragt das Notizbuch: Ausdruck oder Datei
+    pg.locator(".dialog [data-w='ausdruck']").click(timeout=10000)
     pg.wait_for_function("() => !document.querySelector('.nb-laeuft')", timeout=30000)
     s = seite(pg)[0]["inhalt"]
     bilder = [e for e in s if e.get("t") == "bild"]

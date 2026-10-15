@@ -5,7 +5,7 @@
 //  das, und das Fenster zeigt einen Hinweis statt abzustürzen.
 // =================================================================
 import { alt } from "../bruecke.jsx";
-import { pdfjs } from "../teile/PdfAnsicht.jsx";
+import { pdfjs, seitenLinks } from "../teile/PdfAnsicht.jsx";
 
 export const ABLAGE = "notizbuecher";
 export const BUECHER = "notizbuecher";
@@ -161,10 +161,39 @@ export async function pdfEinfuegen(datei, fortschritt) {
       g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
       await seite.render({ canvasContext: g, viewport: v }).promise;
       const u = await hochladen(await alsJpeg(c, c.width, c.height), "jpg", "image/jpeg");
-      seiten.push({ u, v: c.height / c.width, q, s: i });
+      // Verweise (Inhaltsverzeichnis) springen später zur Seite im Ausdruck
+      const l = await seitenLinks(doc, seite).catch(() => []);
+      seiten.push(Object.assign({ u, v: c.height / c.width, q, s: i }, l.length ? { l } : {}));
       c.width = 1; c.height = 1;   // Speicher gleich freigeben (iPad)
     }
     return { seiten, alle: doc.numPages };
+  } finally {
+    aufgabe.destroy();
+  }
+}
+
+// PDF als Datei: das Original in die Ablage, dazu die erste Seite als
+// kleines Vorschaubild. Antippen öffnet es im Betrachter (Wunsch
+// Patrick 15. Oktober 2026: „fragen, ob Ausdruck oder Datei“).
+export async function pdfAlsDatei(datei) {
+  const daten = new Uint8Array(await datei.arrayBuffer());
+  const lib = await pdfjs();
+  const aufgabe = lib.getDocument({ data: daten.slice(), isEvalSupported: false });
+  const doc = await aufgabe.promise;
+  try {
+    const q = await hochladen(new Blob([daten], { type: "application/pdf" }), "pdf", "application/pdf");
+    const seite = await doc.getPage(1);
+    const v1 = seite.getViewport({ scale: 1 });
+    const v = seite.getViewport({ scale: Math.min(3, 700 / v1.width) });
+    const c = document.createElement("canvas");
+    c.width = Math.round(v.width); c.height = Math.round(v.height);
+    const g = c.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    await seite.render({ canvasContext: g, viewport: v }).promise;
+    const u = await hochladen(await alsJpeg(c, c.width, c.height), "jpg", "image/jpeg");
+    const v0 = c.height / c.width;
+    c.width = 1; c.height = 1;
+    return { u, q, v: v0, alle: doc.numPages };
   } finally {
     aufgabe.destroy();
   }

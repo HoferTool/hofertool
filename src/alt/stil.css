@@ -7922,3 +7922,19 @@ body:has(.schutzpflicht-huelle) .push-hinweis { display: none; }
 /* Notizbücher im Pad Mode: nur lesen */
 .nb-nurlesen { margin-left: auto; margin-right: 8px; padding: 3px 10px; border-radius: 999px;
   font-size: .8rem; font-weight: 600; background: var(--flaeche2, rgba(127,127,127,.15)); color: var(--gedaempft); }
+/* Verweise in PDFs (Inhaltsverzeichnis): antippen springt zur Seite,
+   im Betrachter und im Ausdruck im Notizbuch (seit 1.64.0) */
+.pdfansicht__flaeche { position: relative; margin: auto; }
+.pdf-link, .nb-link { position: absolute; padding: 0; border: 0; border-radius: 2px; background: transparent;
+  cursor: pointer; pointer-events: auto; min-width: 0; min-height: 0; }
+.pdf-link:hover, .nb-link:hover { background: rgba(31, 95, 191, .16); outline: 1px solid rgba(31, 95, 191, .5); }
+.pdf-link:active, .nb-link:active { background: rgba(31, 95, 191, .3); }
+.nb-seite--lesen .nb-leinwand { pointer-events: none; }
+.nb-seite--lesen .nb-bild { pointer-events: auto; }
+/* PDF als Datei im Notizbuch: Vorschau der ersten Seite mit Leiste */
+.nb-datei { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 0; border-radius: 0 0 4px 4px; background: rgba(16, 22, 29, .86); color: #fff !important;
+  font: inherit; font-size: .85rem; cursor: pointer; pointer-events: auto; text-align: left; }
+.nb-datei b { flex: none; padding: 2px 6px; border-radius: 4px; background: #c62828; font-size: .72rem; letter-spacing: .04em; }
+.nb-datei span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-datei i { flex: none; font-style: normal; font-weight: 700; color: #9fd0ff; }
