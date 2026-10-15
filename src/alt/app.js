@@ -32,6 +32,9 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
+import { materialFuerPlanwand, materialStand, ampelText, AMPEL, postenLaden, materialZerlegen } from "../daten/material.js";
+import { postenFenster } from "../material/PostenFenster.jsx";
+import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
 import { planArchivWaechter } from "../teile/planwandArchiv.js";
 import { archivVerbindung } from "../archiv/archivDb.js";
@@ -149,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.66.0";
+const APP_VERSION = "1.67.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2807,6 +2810,8 @@ const ROLLEN = {
 // Produktion, dort nur das Erfassen der Stückzahlen.
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
+  // Das Dienstkonto braucht keine Material-Seite
+  if (pfad === "material" && meineRolle() === "dienst") return false;
   if (!istExtern()) return true;
   return pfad === "planwand" || pfad === "produktion";
 }
@@ -4115,8 +4120,18 @@ async function ladePlanAuftraege(alle) {
     }
   }
   await standsNachtragen(liste.filter((j) => !j.ended_at));
+  // Material-Übersicht still mitladen: Zeichen auf dem Balken. Dauert
+  // es zu lange, steht die Wand ohne sie da (seit 1.67.0)
+  await zeitlimit(materialFuerPlanwand(liste), 4000, "Material").catch(() => null);
   return liste;
 }
+
+// Ampel der Material-Übersicht für einen Auftrag, oder null
+function materialAmpel(j) {
+  const st = materialStand();
+  return st && j ? st.ampelVon[j.id] || null : null;
+}
+
 
 // Der Stand eines Auftrags ist der jüngste Zählerstand, der für genau
 // diesen Auftrag erfasst wurde — egal ob in der Produktion oder im
@@ -4758,6 +4773,11 @@ function balkenInfoVerhalten() {
       fenster.innerHTML = '<div class="pw-info__kopf">'
         + '<span class="pw-info__nr">' + esc(j.job_number) + '</span>'
         + '<span class="siegel-reihe">' + siegelHtml(j.geplant_von) + '</span></div>'
+        // Was die Material-Übersicht weiss, ganz oben (Wunsch Patrick
+        // 15. Oktober 2026: „nur in der Schnellvorschau zuoberst“; kein
+        // eigenes Zeichen auf dem Balken, dort bleibt das rote M)
+        + (materialAmpel(j) ? zeile(esc(ampelText(materialAmpel(j))),
+            "material pw-info__zeile--mat-" + (AMPEL[materialAmpel(j).ampel] || {}).klasse) : "")
         + zeile(j.target_quantity
             ? zahlText(j.stand || 0) + ' / ' + zahlText(j.target_quantity) + ' Stück'
             : "Keine Fertigungsmenge hinterlegt")
@@ -6337,6 +6357,25 @@ function wischVerhalten(b) {
 // Endzeitpunkt. Genau daran hing es bisher: der Zustand stand auf
 // "läuft", aber der Endzeitpunkt blieb, und damit galt er weiter als
 // abgeschlossen und tauchte nirgends mehr auf.
+// Beim Beenden: „Rest Material?“ mit Menge und Ort, dazu die Posten
+// dieses Materials zum Abhaken als aufgebraucht (Wunsch Patrick
+// 15. Oktober 2026). Ohne Material am Auftrag, für Externe und ohne die
+// Tabelle in der Datenbank kommt keine Frage.
+async function restMaterialFragen(j) {
+  if (ARCHIV || istExtern() || !String(j.material_bez || "").trim()) return;
+  try {
+    const posten = await postenLaden();
+    if (posten === null) return;
+    const z = materialZerlegen(j.material_bez);
+    const vorhandene = posten.filter((p) => p.art !== "bestellt" && z
+      && (materialZerlegen(p.material) || {}).schluessel === z.schluessel);
+    await postenFenster({ rest: true, material: j.material_bez, auftrag: j, vorhandene,
+      text: j.job_number + " ist fertig. Bleibt Material übrig? Ungefähr genügt." });
+  } catch (f) {
+    console.warn("Rest Material:", f.message);
+  }
+}
+
 async function zustandSetzen(j, neu) {
   if (!j || !neu) return { ok: false };
   // Beenden nur mit Stückzeit (Wunsch 8. Oktober 2026). Alle Wege zum
@@ -6347,6 +6386,8 @@ async function zustandSetzen(j, neu) {
   const beendet = neu === "fertig" && j.plan_status !== "fertig" && !j.ended_at;
   if (beendet) await letzteStueckzahlFragen(j);
   if (beendet) await stueckzeitVorDemBeenden(j);
+  // Was vom Material übrig bleibt, geht ins Lager (seit 1.67.0)
+  if (beendet) await restMaterialFragen(j);
   const jetzt = new Date().toISOString();
   let hinweis = "";
   let naechster = null;
@@ -9479,6 +9520,10 @@ SYM.rechner = svg('<path d="M3 19.5h18"/><path d="M3 19.5L17 5"/>'
   + ' fill="currentColor" stroke="none"/>');
 
 // Temp: Ordner mit Pfeil nach oben (vom Handy hinein)
+// Material: Stangen im Bund
+SYM.material = svg('<circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><circle cx="12" cy="17" r="3"/>'
+  + '<circle cx="7" cy="9" r=".6"/><circle cx="17" cy="9" r=".6"/><circle cx="12" cy="17" r=".6"/>');
+
 SYM.temp = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
   + '<path d="M12 16v-5"/><path d="M9.5 13.5L12 11l2.5 2.5"/>');
 
@@ -9577,6 +9622,8 @@ const SEITEN = [
   { pfad: "produktion",   titel: "Produktion",   zeichen: SYM.produktion, zeige: seiteProduktion },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: reactSeite(Einkauf) },
+  // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
+  { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
   // Eigener Ordner je Person, vor Google (Wunsch Patrick, 12. Oktober 2026)
   { pfad: "temp",         titel: "Temp",         zeichen: SYM.temp, zeige: reactSeite(Temp) },

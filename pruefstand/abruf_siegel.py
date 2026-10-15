@@ -64,6 +64,8 @@ def lauf(br, spalte, titel):
     pruefe(titel + ": HOCO Nr. oben", pg.locator(".pw-info .pw-info__kopf .pw-info__nr").inner_text() == nr)
     pruefe(titel + ": Siegel neben HOCO Nr.", pg.locator(".pw-info .pw-info__kopf .siegel").inner_text() == "S.H")
     zeilen = pg.evaluate("[...document.querySelectorAll('.pw-info > div')].map(d => d.className + '|' + d.textContent)")
+    # Die Materialzeile steht seit 1.67.0 zuoberst unter dem Kopf, sie zählt hier nicht mit
+    zeilen = [z for z in zeilen if "pw-info__zeile--mat-" not in z.split("|")[0]]
     pruefe(titel + ": zweite Zeile Fertigungsmenge", "Stück" in zeilen[1] or "Fertigungsmenge" in zeilen[1])
     if spalte:
         pruefe(titel + ": dritte Zeile Abruf", "KW 44" in zeilen[2])

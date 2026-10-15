@@ -14,8 +14,8 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `production_records` | Zählerstände | `machine_id`, `job_id`, `record_date`, `quantity` = **Gesamtzähler seit Auftragsbeginn**, nicht Tagesmenge |
 | `machines` | Maschinen | `park_id`, `name`, `machine_number`, `type_id`, `sort_order`, `is_active` |
 | `machine_parks` | Bereiche (Langdreher, Kurzdreher, Extern) | `name`, `sort_order` |
-| `machine_types` | Maschinentypen (z. B. SW-20) | `name`, `blatt_url` (Einrichtblatt-Vorlage) |
-| `hoco_parts` | Stammdaten je HOCO Nr. | PK `hoco_nr`, `bezeichnung`, `material`, `zeichnungs_nr`, `zeichnung_url`, `waschgebinde`, `infos` (seit 111.54.0 nicht mehr in der App, Daten bleiben) |
+| `machine_types` | Maschinentypen (z. B. SW-20) | `name`, `blatt_url` (Einrichtblatt-Vorlage), `stangen_mm` (3000), `stumpen_mm` (Rest-Stumpen, 250; 1.67.0) |
+| `hoco_parts` | Stammdaten je HOCO Nr. | PK `hoco_nr`, `bezeichnung`, `material`, `zeichnungs_nr`, `zeichnung_url`, `waschgebinde`, `infos` (seit 111.54.0 nicht mehr in der App, Daten bleiben), `teil_d_mm`, `teil_laenge_mm`, `teil_mass_bestaetigt`, `teil_mass_quelle` (Fertigteil für die Mindestmenge, 1.67.0) |
 | `hoco_type_data` | Daten je HOCO Nr. **und** Typ | eindeutig (`hoco_nr`, `type_id`), `programm_nr`, `stueckzeit_s` (Sekunden pro Stück, Pflicht vor dem Beenden seit 111.101.0), `blatt_url`, `abend_stk`, `pad_info` (Info an der Maschine). Eine Zeile je Typ, auf dem die Nummer gerüstet, gelaufen oder fertig wurde: trägt der Auslöser `jobs_typ_merken` selbst ein (`sql/hoco-typen.sql`) |
 | `pad_skizzen` | Skizze im Pad Mode, eine je Auftrag | PK `job_id` (→ `jobs`, wird mitgelöscht), `striche` (jsonb: Liste von `{f: Farbe, d: Dicke, p: [x, y, …]}`, Punkte und Dicke geteilt durch die Breite der Fläche), `geaendert_am`, `geaendert_von`. Der Auslöser `jobs_skizze_weg` löscht die Zeile, sobald der Auftrag auf `fertig` geht (`sql/pad-skizze.sql`) |
 | `notizbuecher` | Notizbücher (Startseite, Buch-Knopf bei den Notizen, 111.80.0) | `id`, `name`, `farbe` (#hex), `reihenfolge`, `erstellt_am`, `erstellt_von`, `geaendert_am`, `gesperrt` (Schloss, ändert nur `notizbuch_passwort`; Auslöser `notizbuecher_schloss`). Alle ausser Externen lesen und schreiben (`sql/notizbuecher.sql`) |
@@ -38,6 +38,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `designations` | Bezeichnungen | |
 | `shopping_items` | Einkaufsliste | `text`, `menge`, `laden`, `prio` (1–4), `is_done` |
 | `storage_locations`, `stock_movements`, `stock_balances` | Lager (derzeit ungenutzt) | |
+| `material_posten` | Material-Übersicht (1.67.0) | `material` (Bezeichnung wie `jobs.material_bez`), `menge`, `einheit` (`kg`, `stg`), `ort`, `art` (`lager`, `bestellt`), `be_nr`, `lieferant`, `termin`, `notiz`, `job_id` (Rest aus diesem Auftrag), `erstellt_*`, `geaendert_*` (Auslöser), `weg_am`/`weg_von` (aufgebraucht, leer = noch da). Alle ausser Externen und Dienst lesen und schreiben (`sql/material-uebersicht.sql`) |
 
 ## Personen, Kommunikation, Sonstiges
 
