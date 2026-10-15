@@ -227,6 +227,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const extern = alt.istExtern();
   const maschinen = alt.prod.maschinen || [];
   const [w, setW] = useState(() => anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer));
+  // Stand beim Öffnen: ohne Planungsrecht wird die Notiz nur gespeichert,
+  // wenn sie wirklich geändert wurde
+  const anfang = useRef(w);
   const setze = (feld, wert) => setW((x) => ({ ...x, [feld]: wert }));
   const waschprog = useWaschprog(typeof w.wbg === "string" ? w.wbg : "");
   const aktuell = useRef(w);
@@ -422,12 +425,19 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     if (!darf && auftrag) {
       zu();
       try {
+        // Mit dem Häkchen „Materialplatz bearbeiten“ auch die Notiz
+        // (Wunsch Patrick 15. Oktober 2026), beides in einem Zug
         const platzNeu = (w.matOrt || "").trim();
-        if (darfPlatz && platzNeu !== alt.materialPlatz(auftrag).trim()) {
-          await alt.aendernOhneUnbekannte("jobs", alt.materialPlatzSpalte()
-            ? { material_platz: platzNeu || null }
-            : { plan_note: alt.notizZusammen(alt.notizTrennen(auftrag.plan_note).notiz, platzNeu) },
-            "id", auftrag.id);
+        const platzAlt = alt.materialPlatz(auftrag).trim();
+        const notizAlt = alt.notizTrennen(auftrag.plan_note || "").notiz;
+        const notizNeu = darfPlatz && w.notiz !== anfang.current.notiz ? w.notiz : notizAlt;
+        const platz = darfPlatz ? platzNeu : platzAlt;
+        if (darfPlatz && (platzNeu !== platzAlt || notizNeu !== notizAlt)) {
+          const spalte = alt.materialPlatzSpalte();
+          const aenderung = {};
+          if (spalte && platzNeu !== platzAlt) aenderung.material_platz = platzNeu || null;
+          if (!spalte || notizNeu !== notizAlt) aenderung.plan_note = alt.notizZusammen(notizNeu, spalte ? "" : platz);
+          await alt.aendernOhneUnbekannte("jobs", aenderung, "id", auftrag.id);
         }
         const r = await alt.zustandSetzen(auftrag, w.zustand);
         alt.meldung("Zustand geändert." + (r.hinweis ? " " + r.hinweis : ""));
@@ -686,7 +696,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
 
           {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
           <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>
-            <textarea id="pl-notiz" ref={notizFeld} readOnly={!darf} value={w.notiz}
+            <textarea id="pl-notiz" ref={notizFeld} readOnly={!darf && !darfPlatz} value={w.notiz}
               onChange={(e) => notizAendern(e.target.value)} /></label>
         </div>
 
