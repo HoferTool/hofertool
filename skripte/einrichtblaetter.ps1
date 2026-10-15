@@ -17,8 +17,9 @@
 #     10844-0049 neu.xlsm                  Ordners
 #
 #  Hat der Name ausser HOCO Nr., Typ und "Werkzeugprotokoll" noch ein
-#  anderes Wort (Toleranzen, Plattenwechsel, Werkzeugkosten …), ist es
-#  kein Einrichtblatt und bleibt weg. Gibt es für eine HOCO Nr. mehrere,
+#  anderes Wort (Toleranzen, Werkzeugwechsel, Einrichtblatt, Werkzeugkosten …),
+#  ist es kein Einrichtblatt und bleibt weg; war es schon hochgeladen,
+#  nimmt das Programm es in der App wieder weg. Gibt es für eine HOCO Nr. mehrere,
 #  zählt das Werkzeugprotokoll, sonst die zuletzt geänderte Datei. Eine Datei wird nur hochgeladen, wenn
 #  sie neu ist oder sich seit dem letzten Mal geändert hat.
 #
@@ -107,30 +108,33 @@ function StandSichern {
 
 # Ist die Excel-Datei ein Einrichtblatt? Im selben Ordner liegen auch
 # Toleranzen, Plattenwechsel, Werkzeugkosten usw. mit derselben HOCO Nr.
-#   1 = Werkzeugprotokoll im Namen (auch vertippt: Werkzeuprotokoll,
-#       Werkzeugprotkoll …), Einrichtblatt oder Werkzeugwechselblatt
-#   2 = sonst nur HOCO Nr., Typ, Maschine (C100), Ziffern oder "Nr"
-#   0 = ein anderes Wort im Namen: kein Einrichtblatt, bleibt weg
+#   1 = HOCO Nr. und "Werkzeugprotokoll" (auch vertippt: Werkzeuprotokoll,
+#       Werkzeugprotkoll, Werkzeug Protokoll, WZ-Protokoll)
+#   2 = nur HOCO Nr. (dazu höchstens Typ, Maschine wie C100, "SW", "Nr")
+#   0 = jedes andere Wort im Namen: kein Einrichtblatt, bleibt weg. Auch
+#       Werkzeugwechsel(protokoll), Einrichtblatt, Teileprotokoll und
+#       "Werkzeugprotokoll Toleranzen" (Wunsch Patrick 15. Oktober 2026:
+#       "nur Werkzeugprotokoll mit HOCO Nr., Wechsel und Toleranzen und
+#       alles andere nicht")
 function Rang([string]$name, [string]$typName) {
   $ohne = [regex]::Replace([IO.Path]::GetFileNameWithoutExtension($name), '\d{4,6}\s?-\s?\d{3,5}', ' ')
-  # Maschinenbezeichnungen wie "C100" oder "G200" gehören zum Typ, nicht
-  # als fremdes Wort ("10007-0026 Index C100.xlsx", Patrick 15.10.2026)
+  # Maschinenbezeichnungen wie "C100" gehören zum Typ, nicht als fremdes
+  # Wort ("10007-0026 Index C100.xlsx")
   $ohne = [regex]::Replace($ohne, '(?i)(?<![a-zäöü])[a-z]{1,3}\d+', ' ')
   $typWoerter = @(($typName.ToLower() -split '[^a-zäöüß]+') | Where-Object { $_ })
   $fremd = @()
   $prot = $false
   foreach ($w in (($ohne.ToLower() -split '[^a-zäöüß]+') | Where-Object { $_ })) {
-    # Alte Fassungen und Kopien nie, auch nicht als Werkzeugprotokoll
-    if (@('alt', 'old', 'kopie', 'copy') -contains $w) { return @{ rang = 0; fremd = $w } }
-    # Werkzeugprotokoll auch vertippt (Werkzeugprotkoll), Einrichtblatt und
-    # Werkzeugwechselblatt sind dasselbe (Patrick 15. Oktober 2026)
-    if ($w -match 'prot[a-z]*k' -or $w -match '^einrichte?blat' -or $w -match '^werkzeugwechsel(blatt)?$') { $prot = $true; continue }
-    if ($typWoerter -contains $w -or $w -eq 'sw' -or $w -eq 'nr') { continue }
+    # Werkzeugprotokoll, auch vertippt, aber nie ein Wechselprotokoll
+    if ($w -notmatch 'wech' -and ($w -match '^werkz[a-z]*prot[a-z]*k' -or $w -match '^prot[a-z]*k[a-z]*l')) { $prot = $true; continue }
+    # "WZ-Protokoll", "Aut.308" (Automat) und einzelne Buchstaben
+    # (SB-16E) sind kein fremdes Wort
+    if ($typWoerter -contains $w -or $w.Length -eq 1 -or @('sw', 'nr', 'werkzeug', 'wz', 'aut', 'automat') -contains $w) { continue }
     $fremd += $w
   }
+  if ($fremd.Count -gt 0) { return @{ rang = 0; fremd = ($fremd -join " ") } }
   if ($prot) { return @{ rang = 1; fremd = "" } }
-  if ($fremd.Count -eq 0) { return @{ rang = 2; fremd = "" } }
-  return @{ rang = 0; fremd = ($fremd -join " ") }
+  return @{ rang = 2; fremd = "" }
 }
 
 # Wurde so ein Blatt (Toleranzen usw.) früher schon hochgeladen, als die
