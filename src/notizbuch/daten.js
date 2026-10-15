@@ -172,6 +172,27 @@ export async function pdfEinfuegen(datei, fortschritt) {
   }
 }
 
+// Verweise für schon eingefügte Ausdrucke nachholen: lädt das Original
+// aus der Ablage, gibt je Seitennummer die Verweise zurück (auch leer)
+export async function pdfLinksHolen(url, nummern) {
+  const antwort = await fetch(url);
+  if (!antwort.ok) throw new Error("PDF nicht gefunden");
+  const daten = new Uint8Array(await antwort.arrayBuffer());
+  const lib = await pdfjs();
+  const aufgabe = lib.getDocument({ data: daten, isEvalSupported: false });
+  const doc = await aufgabe.promise;
+  try {
+    const aus = new Map();
+    for (const nr of new Set(nummern)) {
+      if (nr < 1 || nr > doc.numPages) continue;
+      aus.set(nr, await seitenLinks(doc, await doc.getPage(nr)).catch(() => []));
+    }
+    return aus;
+  } finally {
+    aufgabe.destroy();
+  }
+}
+
 // PDF als Datei: das Original in die Ablage, dazu die erste Seite als
 // kleines Vorschaubild. Antippen öffnet es im Betrachter (Wunsch
 // Patrick 15. Oktober 2026: „fragen, ob Ausdruck oder Datei“).

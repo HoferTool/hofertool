@@ -24,6 +24,9 @@ import { buecherLaden, seitenLaden, fehltTabelle, BUCHFARBEN, BUECHER, SEITEN,
 export const BUCH = "M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3M9 7h6";
 const STIFT = "M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1z";
 const PLUS = "M12 5v14M5 12h14";
+// Fenster mit Leiste links: mit Strich = Leiste da, ohne = ganze Breite
+const SPALTEN_WEG = "M4 5h16v14H4zM10 5v14M15 10l-2 2 2 2";
+const SPALTEN_ZEIGEN = "M4 5h16v14H4zM10 5v14M13 10l2 2-2 2";
 const SCHLOSS = "M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5zM12 15v2";
 
 // Zuletzt offenes Buch und Seite, nur als Bequemlichkeit auf dem Gerät
@@ -207,6 +210,8 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
   const [padOhneSql, setPadOhneSql] = useState(false);
   const istZu = (b) => !!(b && b.gesperrt && offene.indexOf(b.id) === -1 && (!park || padOhneSql));
   const [spalten, setSpalten] = useState(spaltenLesen);
+  // Vollbild: Bücher und Seiten links weg, die Seite bekommt die ganze Breite
+  const [vollbild, setVollbild] = useState(false);
   const spaltenRef = useRef(spalten);
   spaltenRef.current = spalten;
   const spalteZiehen = (e, nr) => {
@@ -481,13 +486,17 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
   // Schmal: Bücher und Seiten als Leisten oben, wie auf dem Handy
   const schmal = rahmen && rahmen.w < 760;
   return (
-    <div className={"dialog nb" + (schwebend ? " nb--klein" : "") + (schmal ? " nb--schmal" : "")}
+    <div className={"dialog nb" + (schwebend ? " nb--klein" : "") + (schmal ? " nb--schmal" : "") + (vollbild ? " nb--vollbild" : "")}
       role="dialog" aria-label="Notizbücher" style={stil}>
       <div className="nb-kopf" onPointerDown={schwebend ? (e) => rahmenZiehen(e, null) : undefined}
         title={schwebend ? "Am Kopf ziehen zum Verschieben" : undefined}>
         <span className="nb-kopf__zeichen"><Symbol d={BUCH} /></span>
         <h2>{buch ? buch.name : "Notizbücher"}{park && titel ? <small className="nb-kopf__park"> · {titel}</small> : null}</h2>
         {park && <span className="nb-nurlesen">Nur lesen</span>}
+        <button type="button" className={"nb-zu nb-zu--klein" + (vollbild ? " aktiv" : "")} data-nbvollbild=""
+          aria-pressed={vollbild} aria-label={vollbild ? "Vollbild verlassen" : "Vollbild"}
+          title={vollbild ? "Vollbild verlassen: Bücher und Seiten wieder zeigen" : "Vollbild: Bücher und Seiten ausblenden"}
+          onClick={() => setVollbild((v) => !v)}><Symbol d={vollbild ? SPALTEN_ZEIGEN : SPALTEN_WEG} /></button>
         {umschalten && <button type="button" className="nb-zu nb-zu--klein" data-nbumschalten=""
           aria-label={schwebend ? "Vergrössern" : "Verkleinern"}
           title={schwebend ? "Wieder gross machen" : "Verkleinern: bleibt als kleines Fenster offen, auch auf anderen Seiten"}

@@ -29,12 +29,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { alt } from "../bruecke.jsx";
 import { FettText, alsHtml, stilWert } from "../teile/FettText.jsx";
 import { rund, strichZeichnen, getroffen, Symbol, RADIERER, ZURUECK, TEXT, EIMER } from "../teile/zeichnen.jsx";
-import { seiteLaden, seiteSpeichern, bildEinfuegen, pdfEinfuegen, pdfAlsDatei, istPdf, istBild, SEITEN } from "./daten.js";
+import { seiteLaden, seiteSpeichern, bildEinfuegen, pdfEinfuegen, pdfAlsDatei, pdfLinksHolen, istPdf, istBild, SEITEN } from "./daten.js";
 
 // Höhe des leeren Blatts (A4 hochkant) und Platz unter dem Inhalt
 const A4 = 1.414;
 const RAND_UNTEN = 0.45;
 const BLATT_MAX = 1100;
+const ZOOM_MIN = 1, ZOOM_MAX = 4;
 // Dicke und Schrift in Bildpunkten bei 1000 px Breite
 const DICKEN = [["duenn", 2.5], ["mittel", 5], ["dick", 11]];
 const SCHRIFTEN = [["klein", "Klein", 16], ["mittel", "Mittel", 22], ["gross", "Gross", 32],
@@ -130,7 +131,12 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
   const dunkelRef = useRef(dunkel);
   dunkelRef.current = dunkel;
   const [dicke, setDicke] = useState(merk.dicke);
-  const [w, setW] = useState(0);              // Breite des Blatts in px
+  const [basis, setBasis] = useState(0);      // Breite des Blatts ohne Zoom
+  // Zoom (Wunsch Patrick 15. Oktober 2026): zwei Finger auseinander,
+  // Strg + Mausrad oder die Knöpfe unten rechts. Alles auf dem Blatt
+  // rechnet in Blattbreiten, darum genügt es, die Breite zu ändern.
+  const [zoom, setZoom] = useState(1);
+  const w = basis ? Math.floor(basis * zoom) : 0;  // Breite des Blatts in px
   const [sicht, setSicht] = useState({ oben: 0, hoehe: 0 });
   const [wahl, setWahl] = useState(-1);       // gewähltes Bild (Hand)
   const [zieh, setZieh] = useState(null);     // Element, das gerade verschoben wird
@@ -164,6 +170,8 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
   const offen = useRef(null);
   const wRef = useRef(0);
   wRef.current = w;
+  const linksGeholt = useRef(false);
+  const speichernRef = useRef(() => {});
   const sichtRef = useRef(sicht);
   sichtRef.current = sicht;
   const darfZeichnen = darf && inhalt !== null;
@@ -186,6 +194,39 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
     return () => { weg = true; };
   }, [id]);
 
+  // Ausdrucke von vor 1.64.0 haben noch keine Verweise: einmal aus dem
+  // PDF nachholen (Patrick hatte sein PDF nicht neu eingefügt). Danach
+  // steht bei jeder Seite „l“, auch leer, damit es nur einmal geschieht.
+  useEffect(() => {
+    if (!inhalt) return;
+    const fehlen = inhalt.filter((x) => istBildEl(x) && x.q && x.s && !x.d && !Array.isArray(x.l));
+    if (!fehlen.length || linksGeholt.current) return;
+    linksGeholt.current = true;
+    let weg = false;
+    const quellen = [...new Set(fehlen.map((x) => x.q))];
+    (async () => {
+      const gefunden = new Map();
+      for (const q of quellen) {
+        try {
+          const l = await pdfLinksHolen(q, fehlen.filter((x) => x.q === q).map((x) => x.s));
+          l.forEach((v, nr) => gefunden.set(q + "#" + nr, v));
+        } catch (f) { /* PDF weg oder kaputt: dann eben ohne Verweise */ }
+      }
+      if (weg || !gefunden.size) return;
+      let neu = false;
+      const liste = inhaltRef.current.map((x) => {
+        const v = istBildEl(x) && !x.d && !Array.isArray(x.l) ? gefunden.get(x.q + "#" + x.s) : null;
+        if (!v) return x;
+        neu = true;
+        return { ...x, l: v };
+      });
+      if (!neu) return;
+      inhaltRef.current = liste; setInhalt(liste);
+      if (darf) speichernRef.current();
+    })();
+    return () => { weg = true; };
+  }, [inhalt, darf]);
+
   // ---------- Speichern ----------
   const senden = useCallback(async () => {
     offen.current = null;
@@ -199,6 +240,7 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
     clearTimeout(offen.current);
     offen.current = setTimeout(senden, 600);
   }, [senden]);
+  speichernRef.current = speichern;
 
   // Beim Wechseln der Seite oder Schliessen: Wartendes sofort senden und
   // für das Rückgängig der App den Stand von vorher ablegen
@@ -239,7 +281,7 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
       // Auf dem Handy mindestens 560 px breit (dann seitlich rollen),
       // sonst wäre normale Schrift kaum mehr lesbar
       const breite = Math.max(560, Math.min(BLATT_MAX, r.clientWidth - (r.clientWidth > 700 ? 48 : 16)));
-      setW(Math.floor(breite));
+      setBasis(Math.floor(breite));
       setSicht({ oben: r.scrollTop, hoehe: r.clientHeight });
     };
     messen();
@@ -257,16 +299,81 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
   // Oberkante des Blatts im Rollbereich (es hat oben etwas Abstand)
   const blattOben = () => (blatt.current ? blatt.current.offsetTop : 0);
 
+  // ---------- Zoom ----------
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+  const anker = useRef(null);     // Punkt, der beim Zoomen unter Finger oder Maus bleibt
+  const zwei = useRef(null);      // laufendes Zoomen mit zwei Fingern
+  const zoomSetzen = useCallback((z, mx, my) => {
+    const b = blatt.current, r = rolle.current;
+    z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+    if (!b || !r || Math.abs(z - zoomRef.current) < 0.001) return;
+    if (mx == null) { const rr = r.getBoundingClientRect(); mx = rr.left + rr.width / 2; my = rr.top + rr.height / 2; }
+    const br = b.getBoundingClientRect();
+    anker.current = { fx: (mx - br.left) / br.width, fy: (my - br.top) / br.width, mx, my };
+    zoomRef.current = z;
+    setZoom(z);
+  }, []);
+  useLayoutEffect(() => {
+    const a = anker.current, b = blatt.current, r = rolle.current;
+    anker.current = null;
+    if (!a || !b || !r) return;
+    const br = b.getBoundingClientRect();
+    r.scrollLeft += br.left + a.fx * br.width - a.mx;
+    r.scrollTop += br.top + a.fy * br.width - a.my;
+  }, [w]);
+  useEffect(() => {
+    const r = rolle.current;
+    if (!r) return;
+    const rad = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      zoomSetzen(zoomRef.current * Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY);
+    };
+    const abstand = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const mittelpunkt = (t) => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
+    const start = (e) => {
+      if (e.touches.length !== 2) { zwei.current = null; return; }
+      const [mx, my] = mittelpunkt(e.touches);
+      zwei.current = { d: abstand(e.touches), z: zoomRef.current, mx, my };
+    };
+    const zug = (e) => {
+      const p = zwei.current;
+      if (!p || e.touches.length !== 2) return;
+      e.preventDefault();
+      const [mx, my] = mittelpunkt(e.touches);
+      // Mitschieben wie mit zwei Fingern rollen, dazu zoomen um die Mitte
+      r.scrollLeft -= mx - p.mx; r.scrollTop -= my - p.my;
+      p.mx = mx; p.my = my;
+      zoomSetzen(p.z * abstand(e.touches) / (p.d || 1), mx, my);
+    };
+    const ende = (e) => { if (e.touches.length < 2) zwei.current = null; };
+    r.addEventListener("wheel", rad, { passive: false });
+    r.addEventListener("touchstart", start, { passive: true, capture: true });
+    r.addEventListener("touchmove", zug, { passive: false, capture: true });
+    r.addEventListener("touchend", ende, { capture: true });
+    r.addEventListener("touchcancel", ende, { capture: true });
+    return () => {
+      r.removeEventListener("wheel", rad);
+      r.removeEventListener("touchstart", start, { capture: true });
+      r.removeEventListener("touchmove", zug, { capture: true });
+      r.removeEventListener("touchend", ende, { capture: true });
+      r.removeEventListener("touchcancel", ende, { capture: true });
+    };
+  }, [inhalt !== null, zoomSetzen]);
+
   // ---------- Zeichnen ----------
   const allesZeichnen = useCallback(() => {
     const cv = leinwand.current;
     if (!cv || !wRef.current) return;
     const breite = wRef.current;
     const { oben, hoehe } = sichtRef.current;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     // Die Fläche deckt nur den sichtbaren Teil des Blatts
     const ab = Math.max(0, oben - blattOben());
     const h = Math.max(1, Math.round(hoehe));
+    // Gezoomt wird die Fläche breit: Safari zeichnet über rund 16 Mio.
+    // Pixel gar nichts mehr, darum dann lieber etwas weicher
+    const dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(12e6 / (breite * h)));
     if (cv.width !== Math.round(breite * dpr) || cv.height !== Math.round(h * dpr)) {
       cv.width = Math.round(breite * dpr); cv.height = Math.round(h * dpr);
       cv.style.width = breite + "px"; cv.style.height = h + "px";
@@ -332,6 +439,7 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
     e.preventDefault();
     zeiger.current.set(e.pointerId, { y: e.clientY });
     if (rollen.current !== null) {
+      if (zwei.current) return;   // zwei Finger: das Zoomen rollt schon mit
       const m = mitte();
       rolle.current.scrollTop -= m - rollen.current;
       rollen.current = m;
@@ -725,7 +833,7 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
           const r = await pdfEinfuegen(d, (i, n) => setLaeuft("PDF " + d.name + ": Seite " + i + " von " + n));
           r.seiten.forEach((s) => {
             neu.push(Object.assign({ t: "bild", u: s.u, q: s.q, s: s.s, n: d.name, x: rund(x), y: rund(y), b: rund(Math.min(0.92, 1 - x)), v: rund(s.v), p: [] },
-              s.l ? { l: s.l } : {}));
+              { l: s.l || [] }));
             y += Math.min(0.92, 1 - x) * s.v + 0.03;
           });
           if (r.alle > r.seiten.length) {
@@ -1006,6 +1114,14 @@ export default function Seite({ id, darf, onTitel, huelle, laden }) {
               Bilder und PDFs mit dem Bild-Knopf einfügen oder hierher ziehen.</span>}
         </div>
       </div>
+      {inhalt !== null && <div className="nb-zoom" data-nbzoom="">
+        <button type="button" aria-label="Verkleinern" title="Verkleinern (Strg + Mausrad)" disabled={zoom <= ZOOM_MIN}
+          onClick={() => zoomSetzen(zoom <= 1.25 ? 1 : zoom / 1.25)}>−</button>
+        <button type="button" className="nb-zoom__wert" title="Zurück auf ganze Breite" data-nbzoomwert=""
+          onClick={() => zoomSetzen(1)}>{Math.round(zoom * 100)} %</button>
+        <button type="button" aria-label="Vergrössern" title="Vergrössern (Strg + Mausrad)" disabled={zoom >= ZOOM_MAX}
+          onClick={() => zoomSetzen(zoom * 1.25)}>+</button>
+      </div>}
     </div>
   );
 }

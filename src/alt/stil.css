@@ -7938,3 +7938,20 @@ body:has(.schutzpflicht-huelle) .push-hinweis { display: none; }
 .nb-datei b { flex: none; padding: 2px 6px; border-radius: 4px; background: #c62828; font-size: .72rem; letter-spacing: .04em; }
 .nb-datei span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nb-datei i { flex: none; font-style: normal; font-weight: 700; color: #9fd0ff; }
+
+/* Notizbuch: Zoom unten rechts auf der Seite (seit 1.65.0) */
+.nb-zoom { position: absolute; right: 16px; bottom: 14px; z-index: 6; display: flex; align-items: center;
+  background: var(--flaeche); border: 1px solid var(--linie); border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .12); overflow: hidden; }
+.nb-zoom button { border: 0; background: none; height: 34px; min-width: 34px; padding: 0 8px; cursor: pointer;
+  font: inherit; font-size: 1.15rem; color: var(--tinte); }
+.nb-zoom button:hover:not(:disabled) { background: var(--grund); }
+.nb-zoom button:disabled { opacity: .35; cursor: default; }
+.nb-zoom .nb-zoom__wert { font-size: .82rem; font-weight: 600; min-width: 56px; color: var(--gedaempft);
+  border-left: 1px solid var(--linie); border-right: 1px solid var(--linie); }
+.nb--klein .nb-zoom { right: 10px; bottom: 10px; }
+
+/* Notizbuch im Vollbild: Bücher und Seiten links weg (seit 1.65.0) */
+.nb--vollbild .nb-koerper { grid-template-columns: minmax(0, 1fr); }
+.nb--vollbild .nb-buecher, .nb--vollbild .nb-seiten { display: none; }
+.nb-zu.aktiv { background: var(--grund); color: var(--marke); }
