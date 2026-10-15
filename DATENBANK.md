@@ -35,7 +35,9 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 |---|---|---|
 | `order_items` | Bestellpositionen | `article_id`, `supplier_id`, `quantity`, `status` (`offen`, `bestellt`, `teilweise_geliefert`, `geliefert`), `status_am` (Zeitpunkt des letzten Statuswechsels), `ordered_at`, `delivered_at`, `completed_at`, `geliefert_menge`, `ziel_art`, `ziel_text`, `needed_by` |
 | `articles` | Artikel | `article_number`, `name`, `unit`, `supplier_id` |
-| `artikel_bild` | Bild des Artikels auf dem Einrichtblatt | `article_id` (Schlüssel), `bild` (Name der Zeichnung aus `src/einrichtblatt/bilder.js`). `sql/einrichtblatt-bilder.sql` |
+| `artikel_bild` | Bild des Artikels auf dem Einrichtblatt | `article_id` (Schlüssel), `bild` (`eigen:<id>` aus `eb_bilder`). `sql/einrichtblatt-bilder.sql` |
+| `eb_bilder` | Hochgeladene Bilder für das Einrichtblatt | `name`, `url`, `pfad` (Ablage `zeichnungen`, `einrichtblatt/bilder/`). `sql/einrichtblatt-bilder.sql` |
+| `eb_spezial` | Spezialwerkzeuge auf dem Einrichtblatt, kein Artikel | `name`, `hersteller`, `bild`. `sql/einrichtblatt-bilder.sql` |
 | `suppliers` | Lieferanten | `name`, `email`, `website`, `bestellweg` (`website` oder `mail`), `logo_url` (leer = Symbol der Website, `keins` = Buchstaben, sonst Bild; `sql/lieferant-logo.sql`) |
 | `designations` | Bezeichnungen | |
 | `shopping_items` | Einkaufsliste | `text`, `menge`, `laden`, `prio` (1–4), `is_done` |

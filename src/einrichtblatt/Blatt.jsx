@@ -17,16 +17,14 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
 import { blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, artikelBildSetzen,
   STAMM_FELDER, WASCHGEBINDE, prgNummern } from "./daten.js";
-import { BILDER, NACHFRAGE, bildDaten, platzBild, eigeneBilder } from "./bilder.js";
-import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
+import { bildDaten, platzBild, eigeneBilder, bildSchluesselVon } from "./bilder.js";
+import { eigenesBildHochladen, eigenesBildLoeschen, spezialLaden, spezialAnlegen, spezialBildSetzen } from "./daten.js";
 
-// Eine Zeichnung aus der Bibliothek (eigene Daten im Code, kein fremdes Markup)
+// Ein hochgeladenes Bild aus der Bibliothek
 export function BildZeichnung({ schluessel, className }) {
   const b = bildDaten(schluessel);
-  if (b && b.url) return <span className={"eba-svg eba-svg--foto " + (className || "")} data-bild={schluessel} title={b.name}>
-    <img src={b.url} alt="" /></span>;
-  return b ? <span className={"eba-svg " + (className || "")} data-bild={schluessel} title={b.name}
-    dangerouslySetInnerHTML={{ __html: b.svg }} /> : null;
+  return b && b.url ? <span className={"eba-svg eba-svg--foto " + (className || "")} data-bild={schluessel} title={b.name}>
+    <img src={b.url} alt="" /></span> : null;
 }
 
 // Farben der Paths wie im Excel: Path 1 orange, 2 blau, 3 grün
@@ -156,17 +154,40 @@ async function artikelLaden() {
 function PlatzFenster({ nr, pfad, wert, setzen, zu, artikelBilder, artikelBildNeu }) {
   const [p, setP] = useState(Object.assign({}, wert));
   const [artikel, setArtikel] = useState([]);
+  const [spezial, setSpezial] = useState([]);
   const [suche, setSuche] = useState(false);
   const [bildWahl, setBildWahl] = useState(false);
-  useEffect(() => { artikelLaden().then(setArtikel).catch(() => {}); }, []);
+  const [bildGewaehlt, setBildGewaehlt] = useState(false);
+  useEffect(() => { artikelLaden().then(setArtikel).catch(() => {}); spezialLaden().then(setSpezial); }, []);
   const f = (feld) => (e) => setP(Object.assign({}, p, { [feld]: e.target.value }));
   const q = String(p.werkzeug || "").toLowerCase().trim();
   const treffer = suche && q.length >= 2
     ? artikel.filter((a) => (a.nr + " " + a.name + " " + a.lieferant).toLowerCase().includes(q)).slice(0, 6) : [];
+  const trefferSpezial = suche && q.length >= 2
+    ? spezial.filter((x) => (x.name + " " + (x.hersteller || "")).toLowerCase().includes(q)).slice(0, 4) : [];
   const nehmen = (a) => {
-    setP(Object.assign({}, p, { werkzeug: a.nr, article_id: a.id, hersteller: a.lieferant || p.hersteller || "",
+    setP(Object.assign({}, p, { werkzeug: a.nr, article_id: a.id, spezial_id: null, hersteller: a.lieferant || p.hersteller || "",
       bild: (artikelBilder[a.id] || p.bild || null) }));
     setSuche(false);
+  };
+  const nehmenSpezial = (x) => {
+    setP(Object.assign({}, p, { werkzeug: x.name, spezial_id: x.id, article_id: null, hersteller: x.hersteller || p.hersteller || "",
+      bild: (artikelBilder["s:" + x.id] || p.bild || null) }));
+    setSuche(false);
+  };
+  // Spezialwerkzeug: füllt den Platz, wird aber kein Artikel
+  const neuSpezial = async () => {
+    setSuche(false);
+    const w = await alt.dialogFelder({ titel: "Spezialwerkzeug anlegen",
+      text: "Wird kein Artikel und erscheint nicht beim Bestellen. Es lässt sich auf jedem Blatt wieder wählen.",
+      felder: [{ name: "name", label: "Werkzeug", wert: p.werkzeug || "" }, { name: "hersteller", label: "Hersteller", wert: p.hersteller || "" }],
+      bestaetigen: "Anlegen" });
+    if (!w || !String(w.name || "").trim()) return;
+    try {
+      const x = await spezialAnlegen(String(w.name).trim(), String(w.hersteller || "").trim());
+      setSpezial((l) => l.concat([x]));
+      nehmenSpezial(x);
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
   const neuerArtikel = async () => {
     setSuche(false);
@@ -176,8 +197,10 @@ function PlatzFenster({ nr, pfad, wert, setzen, zu, artikelBilder, artikelBildNe
     artikelLaden().then(setArtikel).catch(() => {});
     nehmen({ id: a.id, nr: a.article_number || "", name: a.name || "", lieferant: a.supplier_name || "" });
   };
-  const artikelName = p.article_id && (artikel.find((a) => a.id === p.article_id) || {}).name;
-  const bild = platzBild(p, Object.assign({}, artikelBilder, p.article_id && p.bild ? { [p.article_id]: p.bild } : {}));
+  const artikelName = p.article_id ? (artikel.find((a) => a.id === p.article_id) || {}).name
+    : p.spezial_id ? "Spezialwerkzeug" : "";
+  const merkKey = bildSchluesselVon(p);
+  const bild = platzBild(p, Object.assign({}, artikelBilder, merkKey && bildGewaehlt ? { [merkKey]: p.bild } : {}));
 
   const fertig = async () => {
     const z = {};
@@ -186,11 +209,17 @@ function PlatzFenster({ nr, pfad, wert, setzen, zu, artikelBilder, artikelBildNe
     ["taetigkeit", "mass", "hersteller", "werkzeug"].forEach((k) => { const w = String(p[k] || "").trim(); if (w) z[k] = w; });
     if (p.hd) z.hd = true;
     if (p.article_id && z.werkzeug) z.article_id = p.article_id;
+    else if (p.spezial_id && z.werkzeug) z.spezial_id = p.spezial_id;
     if (p.bild) z.bild = p.bild;
-    // Am Artikel merken, damit jeder andere Platz mit diesem Artikel es bekommt
-    if (z.article_id && p.bild && artikelBilder[z.article_id] !== p.bild) {
-      try { await artikelBildSetzen(z.article_id, p.bild); artikelBildNeu(z.article_id, p.bild); }
-      catch (x) { alt.meldung(alt.fehlertext(x), "warn"); }
+    // Am Artikel oder Spezialwerkzeug merken, sobald jemand ein Bild wählt:
+    // jeder andere Platz damit bekommt es von selbst
+    const k = bildSchluesselVon(z);
+    if (k && bildGewaehlt && (artikelBilder[k] || null) !== (p.bild || null)) {
+      try {
+        if (z.article_id) await artikelBildSetzen(z.article_id, p.bild || null);
+        else await spezialBildSetzen(z.spezial_id, p.bild || null);
+        artikelBildNeu(k, p.bild || null);
+      } catch (x) { alt.meldung(alt.fehlertext(x), "warn"); }
     }
     setzen(z); zu();
   };
@@ -201,7 +230,7 @@ function PlatzFenster({ nr, pfad, wert, setzen, zu, artikelBilder, artikelBildNe
       <div className="eba-pf-oben">
         <button className="eba-pf-bildknopf" data-pf-bild="" onClick={() => setBildWahl(!bildWahl)} title="Bild wählen">
           {bild ? <BildZeichnung schluessel={bild.schluessel} /> : <span className="eba-plus">Bild<br />wählen</span>}
-          <small>{!bild ? "" : bild.art === "artikel" ? "vom Artikel" : bild.art === "vorschlag" ? "Vorschlag" : "gewählt"}</small>
+          <small>{!bild ? "" : bild.art === "gemerkt" ? "gemerkt" : "gewählt"}</small>
         </button>
         <div className="eba-pf-felder">
           <label className="feld"><span>Tätigkeit</span><input data-pf="taetigkeit" value={p.taetigkeit || ""} onChange={f("taetigkeit")} /></label>
@@ -209,14 +238,17 @@ function PlatzFenster({ nr, pfad, wert, setzen, zu, artikelBilder, artikelBildNe
         </div>
       </div>
       {bildWahl && <Bibliothek aktiv={bild && bild.schluessel}
-        waehlen={(k) => { setP(Object.assign({}, p, { bild: k })); setBildWahl(false); }} />}
+        waehlen={(k) => { setP(Object.assign({}, p, { bild: k })); setBildWahl(false); setBildGewaehlt(true); }} />}
       <label className="feld eba-pf-such"><span>Werkzeug (Artikel){artikelName ? " · " + artikelName : ""}</span>
         <input data-pf="werkzeug" value={p.werkzeug || ""} placeholder="Artikel suchen oder Text"
-          onChange={(e) => { setP(Object.assign({}, p, { werkzeug: e.target.value, article_id: null })); setSuche(true); }} />
+          onChange={(e) => { setP(Object.assign({}, p, { werkzeug: e.target.value, article_id: null, spezial_id: null })); setSuche(true); }} />
         {suche && q.length >= 2 && <div className="eba-pf-liste">
           {treffer.map((a) => <button key={a.id} className="eba-pf-treffer" data-artikel={a.id} onClick={() => nehmen(a)}>
             <b>{a.nr}</b><span>{[a.name, a.lieferant].filter(Boolean).join(" · ")}</span></button>)}
+          {trefferSpezial.map((x) => <button key={x.id} className="eba-pf-treffer" data-spezial={x.id} onClick={() => nehmenSpezial(x)}>
+            <b>{x.name}</b><span>{["Spezialwerkzeug", x.hersteller].filter(Boolean).join(" · ")}</span></button>)}
           <button className="eba-pf-treffer eba-pf-frei" data-pf-neuartikel="" onClick={neuerArtikel}>+ „{p.werkzeug}“ als neuen Artikel anlegen</button>
+          <button className="eba-pf-treffer eba-pf-frei" data-pf-spezial="" onClick={neuSpezial}>+ „{p.werkzeug}“ als Spezialwerkzeug anlegen (kein Artikel)</button>
           <button className="eba-pf-treffer eba-pf-frei" onClick={() => setSuche(false)}>„{p.werkzeug}“ nur als Text nehmen</button>
         </div>}
       </label>
@@ -236,19 +268,13 @@ function PlatzFenster({ nr, pfad, wert, setzen, zu, artikelBilder, artikelBildNe
   );
 }
 
-// Auswahl der Bilder: nur Bilder, keine Beschriftung (Wunsch Patrick,
-// 13. Oktober 2026). Beim Bohrer fragt ein kleines Fenster nach normal
-// oder flach. Am Ende die eigenen, hochgeladenen Bilder und „+“.
+// Auswahl der Bilder: nur hochgeladene Bilder ohne Beschriftung, dazu
+// „+“ zum Hochladen und „—“ für kein Bild (Wunsch Patrick, 13. und
+// 15. Oktober 2026)
 function Bibliothek({ aktiv, waehlen }) {
   const [, neu] = useState(0);
   const [laedt, setLaedt] = useState(false);
   const darf = alt.darfSchreiben() && !alt.istExtern();
-  const nehmen = async (k) => {
-    const n = NACHFRAGE[k];
-    if (!n) { waehlen(k); return; }
-    const w = await alt.auswahlDialog(n.titel, n.wahl.map(([wert, text]) => ({ wert, text })));
-    if (w) waehlen(w);
-  };
   const hoch = async (e) => {
     const d = (e.target.files || [])[0];
     e.target.value = "";
@@ -264,13 +290,10 @@ function Bibliothek({ aktiv, waehlen }) {
     try { await eigenesBildLoeschen(b.id); neu((x) => x + 1); }
     catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
-  const an = (k) => aktiv === k || (NACHFRAGE[k] && NACHFRAGE[k].wahl.some(([w]) => w === aktiv));
   return (
     <div className="eba-pf-bibliothek" data-pf-bibliothek="">
-      {BILDER.filter((b) => !b[3]).map(([k, name]) => <button key={k} className={"eba-pf-bib" + (an(k) ? " eba-pf-bib--an" : "")}
-        data-bib={k} title={name} onClick={() => nehmen(k)}><BildZeichnung schluessel={k} /></button>)}
       {eigeneBilder().map((b) => <button key={b.schluessel} className={"eba-pf-bib" + (aktiv === b.schluessel ? " eba-pf-bib--an" : "")}
-        data-bib={b.schluessel} title={b.name} onClick={() => nehmen(b.schluessel)}><BildZeichnung schluessel={b.schluessel} />
+        data-bib={b.schluessel} title={b.name} onClick={() => waehlen(b.schluessel)}><BildZeichnung schluessel={b.schluessel} />
         {darf && <span className="eba-pf-bib-weg" data-bib-weg={b.id} onClick={(ev) => weg(b, ev)}>✕</span>}</button>)}
       {darf && <label className="eba-pf-bib eba-pf-bib--hoch" title="Eigenes Bild hochladen">{laedt ? "…" : "+"}
         <input type="file" accept="image/*" hidden data-bib-hoch="" onChange={hoch} /></label>}

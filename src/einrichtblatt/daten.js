@@ -131,24 +131,49 @@ export async function stammSpeichern(hocoNr, alteWerte, neueWerte) {
   return true;
 }
 
-// Bild je Artikel (sql/einrichtblatt-bilder.sql): { article_id: Schlüssel }.
-// Fehlt die Tabelle, gibt es eben noch keine.
+// Gemerkte Bilder (sql/einrichtblatt-bilder.sql): { article_id: Schlüssel,
+// "s:<Spezialwerkzeug>": Schlüssel }. Fehlt die Tabelle, gibt es eben keine.
 export async function artikelBilderLaden() {
+  const aus = {};
   try {
     const r = await alt.db.from("artikel_bild").select("article_id, bild");
-    if (r.error) return {};
-    return Object.fromEntries((r.data || []).map((z) => [z.article_id, z.bild]));
-  } catch (f) { return {}; }
+    if (!r.error) (r.data || []).forEach((z) => { aus[z.article_id] = z.bild; });
+  } catch (f) { /* keine */ }
+  (await spezialLaden()).forEach((s) => { if (s.bild) aus["s:" + s.id] = s.bild; });
+  return aus;
+}
+
+// Spezialwerkzeuge: füllen einen Platz wie ein Artikel, sind aber kein
+// Artikel und erscheinen nicht beim Bestellen (Wunsch Patrick,
+// 15. Oktober 2026). Tabelle eb_spezial.
+const spezialFehlt = (f) => /eb_spezial|does not exist|schema cache/i.test(String((f && f.message) || f || ""));
+export async function spezialLaden() {
+  try {
+    const r = await alt.db.from("eb_spezial").select("id, name, hersteller, bild").order("name");
+    return r.error ? [] : (r.data || []);
+  } catch (f) { return []; }
+}
+export async function spezialAnlegen(name, hersteller) {
+  const r = await alt.db.from("eb_spezial").insert([{ name, hersteller: hersteller || null }]).select();
+  if (r.error) {
+    if (spezialFehlt(r.error)) throw new Error("Die Datenbank kennt die Spezialwerkzeuge noch nicht (sql/einrichtblatt-bilder.sql).");
+    throw r.error;
+  }
+  return (r.data || [])[0];
+}
+export async function spezialBildSetzen(id, bild) {
+  const r = await alt.db.from("eb_spezial").update({ bild: bild || null }).eq("id", id);
+  if (r.error) throw r.error;
 }
 
 // Eigene Bilder der Bibliothek (Tabelle eb_bilder, Wunsch Patrick
 // 13. Oktober 2026: „soll auch die Option haben, weitere Bilder per App
-// hochzuladen“). Fehlt die Tabelle, gibt es eben nur die gezeichneten.
+// hochzuladen“). Fehlt die Tabelle, gibt es eben keine.
 export async function eigeneBilderLaden() {
   try {
     const r = await alt.db.from("eb_bilder").select("id, name, url").order("erstellt_am");
     if (!r.error) eigeneBilderSetzen(r.data || []);
-  } catch (f) { /* nur die gezeichneten */ }
+  } catch (f) { /* dann keine */ }
 }
 
 // Verkleinert auf höchstens 480 Pixel, damit das Blatt schnell lädt

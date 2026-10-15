@@ -24,7 +24,7 @@ with sync_playwright() as p:
     pg.wait_for_selector(".pw-tafel"); pg.wait_for_timeout(1200)
     pg.evaluate("""(XL) => {
       TEST.daten.hoco_type_data.push({ hoco_nr: '10000-0301', type_id: 't1', blatt_url: XL, stueckzeit_s: null });
-      TEST.daten.einrichtblatt_app = []; TEST.daten.artikel_bild = []; TEST.daten.eb_bilder = [];
+      TEST.daten.einrichtblatt_app = []; TEST.daten.artikel_bild = []; TEST.daten.eb_bilder = []; TEST.daten.eb_spezial = [];
     }""", XL)
     pg.locator("#pw-hoco").click(); pg.wait_for_timeout(1000)
     pg.locator("[data-bereich='10000']").click(); pg.wait_for_timeout(600)
@@ -53,12 +53,10 @@ with sync_playwright() as p:
     pruefe("Stückzeit ergänzt", td.get("stueckzeit_s") == 33)
     s = pg.inner_text("[data-eba-seite]")
     pruefe("Blatt zeigt Kopf", "Werkzeug- Protokoll-Star SR32J" in s and "O1111" in s and "10000-0301" in s and "Deckel" in s)
-    pruefe("Vorschlag-Bild aus Tätigkeit", pg.locator("[data-platz='T100'] [data-bild='stechen']").count() == 1
-           and pg.locator("[data-platz='T200'] [data-bild='bohren']").count() == 1
-           and pg.locator("[data-platz='T3100'] [data-bild='gewindebohren']").count() == 1)
+    pruefe("Keine Bilder von selbst", pg.locator("[data-eba-seite] [data-bild]").count() == 0)
     pg.screenshot(path="einrichtblatt_app_ansicht.png")
 
-    # Bearbeiten: Platz T200, Bild wählen, HD ein, Standzeit
+    # Bearbeiten: Platz T200, Artikel, HD ein, Standzeit, Bild hochladen
     pg.click("[data-eba-bearbeiten]"); pg.wait_for_timeout(300)
     pg.click("[data-platz='T200']"); pg.wait_for_selector("[data-platzfenster='T200']")
     pf = pg.locator("[data-platzfenster='T200']")
@@ -66,33 +64,44 @@ with sync_playwright() as p:
     pf.locator("[data-pf='standzeit']").fill("2500")
     pf.locator("[data-pf='werkzeug']").fill("MTEC")
     pg.wait_for_timeout(300)
-    pruefe("Artikel-Vorschlag", pf.locator("[data-artikel='a1']").count() == 1 and pf.locator("[data-pf-neuartikel]").count() == 1)
+    pruefe("Artikel-Vorschlag", pf.locator("[data-artikel='a1']").count() == 1 and pf.locator("[data-pf-neuartikel]").count() == 1
+           and pf.locator("[data-pf-spezial]").count() == 1)
     pf.locator("[data-artikel='a1']").click()
     pf.locator("[data-pf-bild]").click()
-    pruefe("Bibliothek offen, ohne Beschriftung", pf.locator("[data-bib]").count() >= 15 and pf.locator("[data-bib='bohren_flach']").count() == 0
-           and pf.locator("[data-pf-bibliothek]").inner_text().strip() in ("+—", "+\n—", "+ —"))
-    pg.screenshot(path="einrichtblatt_app_platz.png")
-    pf.locator("[data-bib='bohren']").click(); pg.wait_for_selector(".dialog-huelle [data-w='bohren_flach']")
-    pg.locator(".dialog-huelle [data-w='bohren_flach']").click(); pg.wait_for_timeout(300)
-    pruefe("Flachbohrer gewählt", pf.locator("[data-pf-bild] [data-bild='bohren_flach']").count() == 1)
-    # Eigenes Bild hochladen
-    pf.locator("[data-pf-bild]").click()
+    pruefe("Bibliothek ohne gezeichnete Bilder", pf.locator("[data-pf-bibliothek] [data-bib]").count() == 1
+           and pf.locator("[data-bib-hoch]").count() == 1)
     PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
     pf.locator("[data-bib-hoch]").set_input_files({"name": "mein-werkzeug.png", "mimeType": "image/png", "buffer": PNG})
     pg.wait_for_timeout(1200)
     eb = pg.evaluate("TEST.daten.eb_bilder")
-    pruefe("Eigenes Bild in der Bibliothek", len(eb) == 1 and eb[0]["name"] == "mein-werkzeug" and pf.locator("[data-pf-bild] .eba-svg--foto").count() == 1)
-    pf.locator("[data-pf-bild]").click()
-    pf.locator("[data-bib='bohren']").click(); pg.wait_for_selector(".dialog-huelle [data-w='bohren_flach']")
-    pg.locator(".dialog-huelle [data-w='bohren_flach']").click(); pg.wait_for_timeout(300)
+    pruefe("Eigenes Bild hochgeladen und gewählt", len(eb) == 1 and eb[0]["name"] == "mein-werkzeug" and pf.locator("[data-pf-bild] .eba-svg--foto").count() == 1)
+    pg.screenshot(path="einrichtblatt_app_platz.png")
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(500)
-    pruefe("Bild am Artikel gemerkt", pg.evaluate("TEST.daten.artikel_bild.find(x => x.article_id === 'a1')?.bild") == "bohren_flach")
-    pruefe("T100 bekommt das Artikelbild auch", pg.locator("[data-platz='T100'] [data-bild='bohren_flach']").count() == 1)
+    schl = "eigen:" + eb[0]["id"]
+    pruefe("Bild am Artikel gemerkt", pg.evaluate("TEST.daten.artikel_bild.find(x => x.article_id === 'a1')?.bild") == schl)
+    pruefe("T100 bekommt das Artikelbild auch", pg.locator(f"[data-platz='T100'] [data-bild='{schl}']").count() == 1)
+
+    # Spezialwerkzeug: füllt den Platz, wird kein Artikel
+    artikel_vorher = pg.evaluate("TEST.daten.articles.length")
+    pg.click("[data-platz='T3100']"); pg.wait_for_selector("[data-platzfenster='T3100']")
+    pf = pg.locator("[data-platzfenster='T3100']")
+    pf.locator("[data-pf='werkzeug']").fill("Sonderhalter XY")
+    pg.wait_for_timeout(300)
+    pf.locator("[data-pf-spezial]").click(); pg.wait_for_selector(".dialog-huelle [data-ja]")
+    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(600)
+    sp = pg.evaluate("TEST.daten.eb_spezial")
+    pruefe("Spezialwerkzeug angelegt, kein Artikel", len(sp) == 1 and sp[0]["name"] == "Sonderhalter XY"
+           and pg.evaluate("TEST.daten.articles.length") == artikel_vorher)
+    pf.locator("[data-pf-bild]").click()
+    pf.locator(f"[data-bib='{schl}']").click(); pg.wait_for_timeout(200)
+    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(500)
+    pruefe("Bild am Spezialwerkzeug gemerkt", pg.evaluate("TEST.daten.eb_spezial[0].bild") == schl)
     pg.click("[data-eba-speichern]"); pg.wait_for_timeout(800)
     b = pg.evaluate("TEST.daten.einrichtblatt_app[0]")
     t2 = b["plaetze"]["T200"]
     pruefe("T200 gespeichert", t2.get("hd") is True and t2.get("standzeit") == 2500 and t2.get("article_id") == "a1" and t2.get("werkzeug") == "MTEC-452410")
     pruefe("HD auf dem Blatt", pg.locator("[data-platz='T200'] [data-hd]").count() == 1)
+    pruefe("T3100 mit Spezialwerkzeug", b["plaetze"]["T3100"].get("spezial_id") == sp[0]["id"] and not b["plaetze"]["T3100"].get("article_id"))
 
     # Blatt ist gut: Excel weg
     pg.click("[data-eba-gut]"); pg.wait_for_selector(".dialog-huelle [data-ja]")
