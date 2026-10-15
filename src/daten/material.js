@@ -35,6 +35,12 @@ import { alleBestellungenLesen } from "./materialBestellung.js";
 export const ORTE_STANDARD = ["Restelager", "Aussenlager Nord", "Aussenlager Nord-Nord", "Halle",
   "Bei Zurbrügg", "Beim Lieferanten"];
 const STANGE_MM = 3000, STUMPEN_MM = 250, PLANIEREN_MM = 0.5;
+// Ab hier arbeitet die Firma mit der Übersicht (Wunsch Patrick
+// 15. Oktober 2026: „alles was morgen kommen soll, nicht als ist da,
+// alles andere schon“). Bestellungen aus den Aufträgen mit Termin vor
+// diesem Tag, oder ohne Termin in einem Auftrag von vorher, gelten als
+// geliefert. Was später kommt, bestätigt man mit „Ist da“.
+export const STICHTAG = "2026-10-16";
 
 // g/cm³ je Werkstoffgruppe aus werkstoffErkennen
 const DICHTE = { stahl: 7.85, v2a: 7.9, v4a: 8.0, chrom: 7.7, alu: 2.7, messing: 8.5,
@@ -372,6 +378,21 @@ export function bedarfRechnen(j, teil, maschine) {
     sicher: !!teil.teil_mass_bestaetigt };
 }
 
+// Wer braucht dieses Material sonst noch? Für die Frage „Rest
+// Material?“ beim Beenden (Wunsch Patrick 15. Oktober 2026): gleichzeitig
+// an einer anderen Maschine oder später geplant, nach Start sortiert.
+export function nochGebraucht(j, auftraege) {
+  const z = materialZerlegen(j.material_bez);
+  if (!z) return [];
+  const geschaetzt = startSchaetzen(auftraege || []);
+  return (auftraege || [])
+    .filter((x) => x.id !== j.id && istOffen(x) && (materialZerlegen(x.material_bez) || {}).schluessel === z.schluessel)
+    .map((x) => ({ auftrag: x, jetzt: AN_MASCHINE.has(x.plan_status || "geplant"),
+      start: (geschaetzt[x.id] || {}).start || x.planned_from || null,
+      maschine: [x.maschine, x.maschine_nr].filter(Boolean).join(" ") }))
+    .sort((a, b) => (b.jetzt - a.jetzt) || String(a.start || "9").localeCompare(String(b.start || "9")));
+}
+
 // Gruppen je Material mit allem, was dazu gehört, und je Auftrag eine
 // Ampel: gut (da), bestellt, fehlt, unklar (nur Text im Auftrag)
 export function materialRechnen(auftraege, d) {
@@ -413,13 +434,22 @@ export function materialRechnen(auftraege, d) {
       const mg = mengeLesen(b.menge);
       const termin = terminDatum(b.termin, b.nr.slice(0, 4))
         || (j.material_liefertermin ? terminDatum(j.material_liefertermin, b.nr.slice(0, 4)) : null);
+      // Bei einem Rahmenauftrag gehört jede Bestellung zum Rahmen, bis
+      // keiner seiner Aufträge mehr offen ist (Wunsch Patrick 15. Oktober 2026)
       const p = { id: "be-" + b.nr, aus_notiz: true, material: j.material_bez, art: "bestellt", be_nr: b.nr,
-        lieferant: b.lieferant || "", termin, menge: mg.menge, einheit: mg.einheit, job: j };
-      g.bestellt.push({ ...p, kg: postenKg(p) });
+        lieferant: b.lieferant || "", termin, menge: mg.menge, einheit: mg.einheit, job: j,
+        fuer_hoco: istRahmen(j) ? j.job_number : null };
+      const alt_ = termin ? termin < STICHTAG : !j.created_at || String(j.created_at).slice(0, 10) < STICHTAG;
+      if (alt_) g.lager.push({ ...p, art: "lager", ort: "", angenommen: true, kg: postenKg(p) });
+      else g.bestellt.push({ ...p, kg: postenKg(p) });
     }
-    const bedarf = bedarfRechnen(j, d.teile[j.job_number], m);
+    // Ein Rahmen gilt als unendlich (Wunsch Patrick 15. Oktober 2026):
+    // keine Mengenrechnung, alles Zugewiesene gehört ihm, am Schluss
+    // zählt nur der Rest beim Beenden
+    const rahmen = istRahmen(j);
+    const bedarf = rahmen ? null : bedarfRechnen(j, d.teile[j.job_number], m);
     const s = geschaetzt[j.id] || { start: j.planned_from, versatz: 0 };
-    g.auftraege.push({ auftrag: j, maschine: m, bedarf, teil: d.teile[j.job_number] || null,
+    g.auftraege.push({ auftrag: j, maschine: m, bedarf, rahmen, teil: d.teile[j.job_number] || null,
       start: s.start, versatz: s.versatz });
   }
 
@@ -441,22 +471,40 @@ export function materialRechnen(auftraege, d) {
     g.bedarfBekannt = g.auftraege.filter((a) => a.bedarf).length;
     g.bedarfSicher = g.auftraege.every((a) => !a.bedarf || a.bedarf.sicher);
     g.aehnlich = (jeGrund.get(g.grund) || []).filter((x) => x !== g && x.lager.length);
-    // Der Reihe nach verteilen: zuerst was da ist, dann was kommt
-    let da = kgDa.kg, kommt = kgBestellt.kg;
-    const daUnbekannt = kgDa.unbekannt > 0, kommtUnbekannt = kgBestellt.unbekannt > 0;
+    // Der Reihe nach verteilen: zuerst was diesem Auftrag (oder seinem
+    // Rahmen) zugewiesen ist, dann das Freie; je zuerst was da ist, dann
+    // was kommt. Zugewiesenes bekommt kein anderer Auftrag.
+    const toepfe = new Map();
+    const topf = (k) => { if (!toepfe.has(k)) toepfe.set(k, neuerTopf()); return toepfe.get(k); };
+    const frei = neuerTopf();
+    const offenId = new Set([...g.auftraege, ...g.maschine].map((a) => a.auftrag.id));
+    const offenNr = new Set([...g.auftraege, ...g.maschine].map((a) => a.auftrag.job_number));
+    for (const p of g.lager.concat(g.bestellt)) {
+      p.fuer = p.fuer_hoco && offenNr.has(p.fuer_hoco) ? "h:" + p.fuer_hoco
+        : p.job_id && offenId.has(p.job_id) ? "j:" + p.job_id : null;
+      if (p.fuer) p.fuerNr = p.fuer_hoco || [...g.auftraege, ...g.maschine].find((a) => a.auftrag.id === p.job_id)?.auftrag.job_number;
+      const t = p.fuer ? topf(p.fuer) : frei;
+      const bestellt = p.art === "bestellt";
+      if (p.kg === null || p.kg === undefined) t[bestellt ? "kommtU" : "daU"]++;
+      else { t[bestellt ? "kommt" : "da"] += p.kg; t[bestellt ? "kommtB" : "daB"]++; }
+    }
     let fehltKg = 0;
     for (const a of g.auftraege) {
       const kg = a.bedarf ? a.bedarf.kg : null;
+      const quellen = ["j:" + a.auftrag.id, "h:" + a.auftrag.job_number].filter((k) => toepfe.has(k))
+        .map((k) => toepfe.get(k)).concat([frei]);
       let ampel;
       if (kg !== null) {
-        if (kg <= da + 0.001 || (daUnbekannt && !g.lager.some((p) => p.kg !== null))) { da -= kg; ampel = "gut"; }
-        else {
-          const rest = kg - Math.max(0, da); da = 0;
-          if (rest <= kommt + 0.001 || kommtUnbekannt) { kommt -= rest; ampel = "bestellt"; }
-          else { const f = rest - Math.max(0, kommt); kommt = 0; fehltKg += f; a.fehltKg = f; ampel = "fehlt"; }
+        let rest = kg, kamBestellt = false;
+        for (const t of quellen) {
+          if (rest <= 0.001) break;
+          const r = nehmen(t, rest);
+          rest = r.rest; kamBestellt = kamBestellt || r.bestellt;
         }
-      } else if (g.lager.length) ampel = "gut";
-      else if (g.bestellt.length) ampel = "bestellt";
+        if (rest > 0.001) { fehltKg += rest; a.fehltKg = rest; ampel = "fehlt"; }
+        else ampel = kamBestellt ? "bestellt" : "gut";
+      } else if (quellen.some((t) => t.daB || t.daU)) ampel = "gut";
+      else if (quellen.some((t) => t.kommtB || t.kommtU)) ampel = "bestellt";
       else if (String(a.auftrag.material_menge || "").trim()) ampel = "unklar";
       else ampel = "fehlt";
       a.ampel = ampel;
@@ -470,6 +518,23 @@ export function materialRechnen(auftraege, d) {
     g.erster = g.auftraege[0] ? g.auftraege[0].start : null;
   }
   return { gruppen: [...gruppen.values()], ampelVon };
+}
+
+// Ein Rahmenauftrag: in der Abrufinformation steht „Rahmen“
+export const istRahmen = (j) => /rahmen/i.test(String((j && j.abruf_info) || ""));
+
+function neuerTopf() { return { da: 0, kommt: 0, daB: 0, kommtB: 0, daU: 0, kommtU: 0 }; }
+
+// Nimmt kg aus einem Topf. Posten ohne Menge reichen nur, wenn im Topf
+// keine Menge bekannt ist (wie bisher). → { rest, bestellt }
+function nehmen(t, kg) {
+  let rest = kg;
+  if (t.daU && !t.daB) return { rest: 0, bestellt: false };
+  const a = Math.min(rest, Math.max(0, t.da)); t.da -= a; rest -= a;
+  if (rest <= 0.001) return { rest: 0, bestellt: false };
+  if (t.kommtU && !t.kommtB) return { rest: 0, bestellt: true };
+  const b = Math.min(rest, Math.max(0, t.kommt)); t.kommt -= b; rest -= b;
+  return { rest: Math.max(0, rest), bestellt: b > 0 };
 }
 
 function summe(liste) {

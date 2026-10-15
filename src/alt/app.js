@@ -32,7 +32,7 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
-import { materialFuerPlanwand, materialStand, ampelText, AMPEL, postenLaden, materialZerlegen } from "../daten/material.js";
+import { materialFuerPlanwand, materialStand, ampelText, AMPEL, postenLaden, materialZerlegen, nochGebraucht } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
@@ -152,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.70.0";
+const APP_VERSION = "1.71.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6369,7 +6369,13 @@ async function restMaterialFragen(j) {
     const z = materialZerlegen(j.material_bez);
     const vorhandene = posten.filter((p) => p.art !== "bestellt" && z
       && (materialZerlegen(p.material) || {}).schluessel === z.schluessel);
-    await postenFenster({ rest: true, material: j.material_bez, auftrag: j, vorhandene,
+    // Braucht ein anderer Auftrag dasselbe Material, steht es im Fenster
+    let gebraucht = [];
+    try {
+      const r = await zeitlimit(db.from("planwand").select("*").is("ended_at", null), 8000, "Aufträge");
+      if (!r.error) gebraucht = nochGebraucht(j, r.data || []);
+    } catch (f) { /* ohne Hinweis weiter */ }
+    await postenFenster({ rest: true, material: j.material_bez, auftrag: j, vorhandene, gebraucht,
       text: j.job_number + " ist fertig. Bleibt Material übrig? Ungefähr genügt." });
   } catch (f) {
     console.warn("Rest Material:", f.message);

@@ -46,6 +46,13 @@ with sync_playwright() as p:
         planned_from: '2026-10-20', material_menge: '680 kg · Notz 2026008261', material_liefertermin: '24.10.26' });
       D.jobs.push({ ...basis, id: 'mC', job_number: '10555-0003', plan_status: 'geplant', material_bez: mat,
         planned_from: '2026-10-27', plan_note: 'Mat ab Rahmen Notz 2026008261' });
+      // Rahmenauftrag: ohne Mengenrechnung
+      D.jobs.push({ ...basis, id: 'mF', job_number: '10555-0006', plan_status: 'geplant', material_bez: mat,
+        planned_from: '2026-11-17', abruf_info: 'Neuer Rahmen 50000 Stk.' });
+      // Bestellt mit Termin vor dem Stichtag: gilt als geliefert
+      D.jobs.push({ ...basis, id: 'mE', job_number: '10555-0005', plan_status: 'geplant',
+        material_bez: 'X10CrNiS18-9 rd 016 mm h8', planned_from: '2026-11-10',
+        material_menge: '300 kg · Notz 2026009999', material_liefertermin: '10.10.26' });
       D.jobs.push({ ...basis, id: 'mD', job_number: '10555-0004', plan_status: 'geplant',
         material_bez: 'CuNi7Zn39Pb3Mn2 rd 017 mm h9', planned_from: '2026-11-03' });
       D.planwand = D.jobs;
@@ -60,29 +67,60 @@ with sync_playwright() as p:
     }""")
 
     pg.evaluate("location.hash='#material'")
-    pg.wait_for_selector("#mat-tabelle", timeout=8000); pg.wait_for_timeout(500)
+    pg.wait_for_selector("#mat-bestellen", timeout=8000); pg.wait_for_timeout(500)
+    pruefe("Reiter Zu bestellen, Bestellt, Alle Materialien, An Lager",
+           pg.locator("[data-matreiter]").all_inner_texts()[:1] and pg.locator("[data-matreiter]").count() == 4)
     pruefe("Knopf Material im Menü", pg.locator("a[href='#/material'], [data-pfad='material'], a:has-text('Material')").count() >= 1)
     best = pg.inner_text("#mat-bestellen")
     pruefe("Zu bestellen nennt Neusilber ohne alles", "CuNi7Zn39Pb3Mn2" in best and "nichts da, nichts bestellt" in best)
     pruefe("Zu bestellen: Chromstahl fehlt (2 × 575 kg, nur 680 bestellt)", "X14CrMoS17" in best and "fehlt ca." in best)
+    pruefe("Vor dem Stichtag bestellt gilt als da", "X10CrNiS18-9" not in best)
+    # Bestellt: jede Lieferung einmal
+    pg.click("[data-matreiter='bestellt']"); pg.wait_for_selector("#mat-bestellt")
+    bt = pg.inner_text("#mat-bestellt")
+    pruefe("Bestellt zeigt 2026008261 einmal mit Termin", bt.count("2026008261") == 1 and "kommt 24.10" in bt)
+    pruefe("Bestellt ohne die alte 2026009999", "2026009999" not in bt)
+    pg.click("[data-matreiter='auftraege']"); pg.wait_for_selector("#mat-tabelle")
     zeile = pg.locator(".mat-zeile[data-material='X14CrMoS17 rd 024 mm h9']")
     t = zeile.inner_text()
+    zx = pg.locator(".mat-zeile[data-material='X10CrNiS18-9 rd 016 mm h8']")
+    zx.click(); pg.wait_for_timeout(300)
+    pruefe("Angenommen da sichtbar", "da, angenommen" in pg.inner_text(".mat-mehr"))
+    zx.click(); pg.wait_for_timeout(200)
     pruefe("Bestellung aus der Notiz einmal gezählt", t.count("2026008261") == 1 and "680 kg" in t)
     pruefe("Laufender Auftrag an der Maschine", "an " in t)
     import re
     pruefe("Mindestmenge mit Abstecher 2,5 + 0,5 mm, nicht sicher", re.search(r"mind\. ca\. 1.275 kg", t) and "nicht bestätigt" in t)
     pruefe("Ähnlich an Lager (h8)", "ähnlich an Lager: h8" in t)
+    zeile.click(); pg.wait_for_timeout(300)
+    pruefe("Rahmen ohne Mengenrechnung", "Rahmen, ohne Mengenrechnung" in pg.inner_text(".mat-mehr"))
+    zeile.click(); pg.wait_for_timeout(200)
     pg.screenshot(path="/tmp/material_seite.png", full_page=True)
 
-    # Ist da: aus der Bestellung wird ein Posten an Lager
-    zeile.click(); pg.wait_for_selector(".mat-mehr")
-    pg.click(".mat-mehr button:has-text('Ist da')"); pg.wait_for_selector(".mat-dialog")
+    # Zuweisen: die Bestellung gehört 10555-0002, mit genauem Platz
+    pg.click("[data-matreiter='bestellt']"); pg.wait_for_selector("#mat-bestellt")
+    pg.click("#mat-bestellt button:has-text('Zuweisen')"); pg.wait_for_selector(".mat-dialog #mat-fuer")
+    pg.click(".mat-dialog [data-fuer='10555-0006']"); pg.wait_for_timeout(150)
+    pruefe("Rahmen vorgewählt bei Rahmenauftrag", pg.is_checked("#mat-rahmen"))
+    pg.click(".mat-dialog [data-fuer='10555-0002']"); pg.wait_for_timeout(150)
+    pruefe("Kein Rahmen bei normalem Auftrag", not pg.is_checked("#mat-rahmen"))
     pg.click(".mat-dialog button:has-text('Aussenlager Nord')")
+    pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(500)
+    pruefe("Ohne Platz nicht gespeichert", pg.locator(".mat-dialog").count() == 1)
+    pg.fill("#mat-platz", "Regal 3 unten")
     pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(1200)
     neu = pg.evaluate("TEST.daten.material_posten.find(p => p.be_nr === '2026008261')")
-    pruefe("Ist da legt Posten an", bool(neu) and neu["art"] == "lager" and neu["ort"] == "Aussenlager Nord" and neu["menge"] == 680)
+    pruefe("Zuweisung gespeichert", bool(neu) and neu["art"] == "bestellt" and neu.get("job_id") == "mB" and neu.get("platz") == "Regal 3 unten")
+    bt = pg.inner_text("#mat-bestellt")
+    pruefe("Bestellt zeigt Zuweisung", "zugewiesen 10555-0002, Regal 3 unten" in bt and bt.count("2026008261") == 1)
+    # Ist da mit einem Klick, ohne Fenster
+    pg.click("#mat-bestellt .mat-istda"); pg.wait_for_timeout(1000)
+    pruefe("Kein Fenster bei Ist da", pg.locator(".mat-dialog").count() == 0)
+    neu = pg.evaluate("TEST.daten.material_posten.find(p => p.be_nr === '2026008261')")
+    pruefe("Ist da: Posten an Lager", neu["art"] == "lager" and neu["ort"] == "Aussenlager Nord" and neu["menge"] == 680)
+    pg.click("[data-matreiter='auftraege']"); pg.wait_for_selector("#mat-tabelle")
     t = pg.locator(".mat-zeile[data-material='X14CrMoS17 rd 024 mm h9']").inner_text()
-    pruefe("danach an Lager statt bestellt", "680 kg" in t and "Aussenlager Nord" in t and t.count("2026008261") == 0)
+    pruefe("danach an Lager statt bestellt", "680 kg" in t and "Aussenlager Nord" in t)
 
     # Erfassen mit Suche
     pg.click("#mat-neu"); pg.wait_for_selector(".mat-dialog #mat-suche")
@@ -94,6 +132,7 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/material_erfassen.png")
     pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(1200)
     pruefe("Erfasst", pg.evaluate("TEST.daten.material_posten.some(p => p.material.startsWith('CuNi7') && p.menge === 500)"))
+    pg.click("[data-matreiter='bestellen']"); pg.wait_for_selector("#mat-bestellen")
     pruefe("Neusilber nicht mehr zu bestellen", "CuNi7Zn39Pb3Mn2" not in pg.inner_text("#mat-bestellen"))
 
     # An Lager und Längen
@@ -135,6 +174,9 @@ with sync_playwright() as p:
     art_info(pg, laenge=7)
     pg.wait_for_selector(".mat-dialog", timeout=6000)
     pruefe("Rest Material? erscheint", "Rest Material?" in pg.inner_text(".mat-dialog"))
+    g = pg.inner_text("#mat-gebraucht")
+    pruefe("Rest-Hinweis nennt Aufträge, die es noch brauchen: " + g.replace(chr(10), " | "),
+           "noch gebraucht" in g and "10555-0002" in g and "10555-0003" in g)
     pruefe("Material vorgegeben", "X14CrMoS17 rd 024 mm h9" in pg.inner_text(".mat-gewaehlt"))
     pruefe("Posten zum Abhaken (680 kg Aussenlager)", pg.locator(".mat-leer label:has-text('680 kg')").count() == 1)
     pg.click(".mat-leer label:has-text('680 kg') input")

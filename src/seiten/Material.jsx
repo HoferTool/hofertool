@@ -4,7 +4,9 @@
 //  bestellt werden muss. Oben „Zu bestellen“: jedes fehlende Material
 //  einmal, zusammengezählt über alle Aufträge. Darunter alle Materialien
 //  der offenen Aufträge mit Lager, Bestellungen und Bedarf.
-//  Reiter „An Lager“: alles, was herumliegt, nach Ort.
+//  Reiter (seit 1.71.0, Wunsch Patrick 15. Oktober 2026): „Zu bestellen“,
+//  „Bestellt“ (jede Lieferung mit einem Klick auf „Ist da“ bestätigen),
+//  „Alle Materialien“ und „An Lager“ (alles, was herumliegt, nach Ort).
 //  Die Längen der Fertigteile liest die App selbst aus den
 //  Einrichtblättern (laengenNachholen), bestätigt werden sie im Pad bei
 //  „Art. Info“ und beim Beenden. Der Reiter „Längen“ ist seit 1.70.0 weg
@@ -15,10 +17,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { materialDatenLaden, materialRechnen, AMPEL, kgText, mengeText, laengenNachholen,
-  orteLaden, orteSpeichern, materialZerlegen } from "../daten/material.js";
+  orteLaden, orteSpeichern, materialZerlegen, STICHTAG, istOffen } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 
-const gemerkt = { reiter: "auftraege", suche: "" };
+const gemerkt = { reiter: "bestellen", suche: "" };
+const REITER = [["bestellen", "Zu bestellen"], ["bestellt", "Bestellt"], ["auftraege", "Alle Materialien"], ["lager", "An Lager"]];
 
 const REIHENFOLGE = { fehlt: 0, unklar: 1, bestellt: 2, gut: 3, maschine: 4, lager: 5 };
 
@@ -35,12 +38,16 @@ async function laden() {
 const kurz = (iso) => (iso ? alt.kurzDatum(iso) : "");
 
 export default function Material({ auffrischen }) {
-  const [reiter, setReiter] = useState(gemerkt.reiter === "laengen" ? "auftraege" : gemerkt.reiter);
+  const [reiter, setReiter] = useState(REITER.some(([w]) => w === gemerkt.reiter) ? gemerkt.reiter : "bestellen");
   const [suche, setSuche] = useState(gemerkt.suche);
   useGemerkt(gemerkt, { reiter, suche });
   const { daten, fehler, neu } = useDaten(laden, [auffrischen]);
 
-  const erfassen = async (o) => { if (await postenFenster(o || {})) neu(); };
+  // Offene Aufträge zum Zuweisen; das Fenster zeigt nur die mit diesem Material
+  const erfassen = async (o) => {
+    const auftraege = daten && daten.auftraege ? daten.auftraege.filter(istOffen) : [];
+    if (await postenFenster({ auftraege, ...(o || {}) })) neu();
+  };
   // Fehlende Längen im Hintergrund aus den Einrichtblättern holen; was
   // gefunden wird, rechnet danach mit (unbestätigt, „nicht sicher“)
   useEffect(() => {
@@ -56,9 +63,11 @@ export default function Material({ auffrischen }) {
           placeholder="Suchen: Material, HOCO Nr., Ort" onChange={(e) => setSuche(e.target.value)} />
       </div>
       <div className="reiter reiter--fein" id="mat-reiter">
-        {[["auftraege", "Für Aufträge"], ["lager", "An Lager"]].map(([w, t]) => (
-          <button key={w} className={"reiter__knopf" + (reiter === w ? " aktiv" : "")} data-matreiter={w}
-            onClick={() => setReiter(w)}>{t}</button>))}
+        {REITER.map(([w, t]) => {
+          const n = daten && !daten.fehlt ? (w === "bestellen" ? zuBestellen(daten).length : w === "bestellt" ? alleBestellungen(daten).length : null) : null;
+          return <button key={w} className={"reiter__knopf" + (reiter === w ? " aktiv" : "")} data-matreiter={w}
+            onClick={() => setReiter(w)}>{t}{n ? <span className="mat-reiterzahl">{n}</span> : null}</button>;
+        })}
       </div>
       {fehler && !daten
         ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>
@@ -69,7 +78,11 @@ export default function Material({ auffrischen }) {
                 eingerichtet. Dafür einmal <b>sql/material-uebersicht.sql</b> im Supabase SQL Editor ausführen.</p></div>
             : reiter === "lager"
               ? <Lager d={daten} suche={suche} neu={neu} erfassen={erfassen} />
-              : <Auftraege d={daten} suche={suche} neu={neu} erfassen={erfassen} />}
+              : reiter === "bestellen"
+                ? <ZuBestellen d={daten} suche={suche} erfassen={erfassen} />
+                : reiter === "bestellt"
+                  ? <Bestellt d={daten} suche={suche} neu={neu} erfassen={erfassen} />
+                  : <Auftraege d={daten} suche={suche} neu={neu} erfassen={erfassen} />}
     </>
   );
 }
@@ -94,22 +107,34 @@ function Punkt({ bez }) {
 
 // ---------- Für Aufträge ----------
 
-function Auftraege({ d, suche, neu, erfassen }) {
-  const [offen, setOffen] = useState(null);
-  const gruppen = useMemo(() => d.gruppen
+function gruppenMitAuftrag(d) {
+  return d.gruppen
     .filter((g) => g.auftraege.length || g.maschine.length)
     .sort((a, b) => (REIHENFOLGE[a.ampel] - REIHENFOLGE[b.ampel])
-      || String(a.erster || "9").localeCompare(String(b.erster || "9"))), [d]);
-  const sichtbar = gruppen.filter((g) => gruppePasst(g, suche));
-  const zuBestellen = sichtbar.filter((g) => g.ampel === "fehlt");
+      || String(a.erster || "9").localeCompare(String(b.erster || "9")));
+}
+const zuBestellen = (d) => gruppenMitAuftrag(d).filter((g) => g.ampel === "fehlt");
 
+// Alle offenen Bestellungen, jede einmal, nach Termin
+function alleBestellungen(d) {
+  const gesehen = new Set();
+  const raus = [];
+  for (const g of d.gruppen) for (const p of g.bestellt) {
+    if (gesehen.has(p.id)) continue;
+    gesehen.add(p.id);
+    raus.push({ p, g });
+  }
+  return raus.sort((a, b) => String(a.p.termin || "9").localeCompare(String(b.p.termin || "9")));
+}
+
+function ZuBestellen({ d, suche, erfassen }) {
+  const liste = zuBestellen(d).filter((g) => gruppePasst(g, suche));
   return (
-    <>
       <section className="karte mat-bestellen" id="mat-bestellen">
-        <div className="karte__kopf"><h2>Zu bestellen</h2><span className="klein">{zuBestellen.length}</span></div>
-        {zuBestellen.length
+        <div className="karte__kopf"><h2>Zu bestellen</h2><span className="klein">{liste.length}</span></div>
+        {liste.length
           ? <div className="mat-bestellliste">
-              {zuBestellen.map((g) => (
+              {liste.map((g) => (
                 <div key={g.schluessel} className="mat-bestellzeile">
                   <div className="mat-name"><Punkt bez={g.material} />{g.material}</div>
                   <div className="mat-bestellzeile__was">
@@ -125,7 +150,77 @@ function Auftraege({ d, suche, neu, erfassen }) {
             </div>
           : <p className="klein">Für alle offenen Aufträge ist Material da oder bestellt.</p>}
       </section>
+  );
+}
 
+// Bestellt: jede Lieferung, die noch kommt. „Ist da“ bestätigt mit
+// einem Klick, ohne Fenster; den Ort trägt man bei Bedarf unter
+// „An Lager“ mit „Ändern“ nach.
+function Bestellt({ d, suche, neu, erfassen }) {
+  const heute = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const s = suche.trim().toLowerCase();
+  const liste = alleBestellungen(d).filter(({ p, g }) => !s || s.split(/\s+/).every((w) =>
+    [p.material, p.lieferant || "", p.be_nr || "", ...g.auftraege.map((a) => a.auftrag.job_number)]
+      .some((t) => String(t).toLowerCase().includes(w))));
+  return (
+    <section className="karte" id="mat-bestellt">
+      <div className="karte__kopf"><h2>Bestellt</h2><span className="klein">{liste.length}</span></div>
+      {liste.length
+        ? <div className="mat-bestellliste">
+            {liste.map(({ p, g }) => {
+              const faellig = p.termin && p.termin <= heute;
+              return (
+                <div key={p.id} className="mat-bestellzeile" data-be={p.be_nr || ""}>
+                  <div className="mat-name"><Punkt bez={p.material} />{p.material}</div>
+                  <div className="mat-bestellzeile__was">
+                    <b>{p.menge !== null && p.menge !== undefined ? mengeText(p.menge, p.einheit) : "Menge?"}
+                      {p.lieferant ? " bei " + p.lieferant : ""}{p.be_nr ? " · " + p.be_nr : ""}</b>
+                    <span className={"klein" + (faellig ? " mat-faellig" : "")}>{p.termin
+                      ? (p.termin < heute ? "sollte seit " + kurz(p.termin) + " da sein" : p.termin === heute ? "kommt heute" : "kommt " + kurz(p.termin))
+                      : "ohne Termin"}</span>
+                    {p.fuerNr
+                      ? <span className="klein mat-fuer">{p.fuer_hoco ? "Rahmen " : "zugewiesen "}{p.fuerNr}{p.platz ? ", " + p.platz : ""}</span>
+                      : g.auftraege.length > 0 && <span className="klein">Material für {g.auftraege.map((a) => a.auftrag.job_number).join(", ")}</span>}
+                  </div>
+                  <span className="mat-posten__knoepfe">
+                    <button className="knopf knopf--klein" onClick={() => erfassen({ posten: p, titel: "Bestellung zuweisen" })}>Zuweisen</button>
+                    <button className="knopf knopf--klein knopf--haupt mat-istda" onClick={() => istDa(p, neu)}>Ist da</button>
+                  </span>
+                </div>);
+            })}
+          </div>
+        : <p className="klein">{s ? "Nichts gefunden." : "Keine offenen Bestellungen."}</p>}
+    </section>
+  );
+}
+
+async function istDa(p, neu) {
+  try {
+    if (p.aus_notiz) {
+      // Aus der Notiz: ein Posten an Lager mit derselben Nummer, dann
+      // zählt die Notiz nicht mehr als bestellt
+      const r = await alt.db.from("material_posten").insert({ material: p.material, menge: p.menge ?? null,
+        einheit: p.einheit || "kg", art: "lager", be_nr: p.be_nr, lieferant: p.lieferant || null,
+        ...(p.fuer_hoco ? { fuer_hoco: p.fuer_hoco } : {}) }).select().single();
+      if (r.error) throw r.error;
+      alt.merkeSchritt("Lieferung ist da", alt.rueckWeg("material_posten", { id: r.data.id }));
+    } else {
+      const r = await alt.db.from("material_posten").update({ art: "lager" }).eq("id", p.id);
+      if (r.error) throw r.error;
+      alt.merkeSchritt("Lieferung ist da", alt.rueckSetz("material_posten", { art: "bestellt" }, { id: p.id }));
+    }
+    alt.meldung("Als da vermerkt.", "gut");
+    neu();
+  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+}
+
+function Auftraege({ d, suche, neu, erfassen }) {
+  const [offen, setOffen] = useState(null);
+  const gruppen = useMemo(() => gruppenMitAuftrag(d), [d]);
+  const sichtbar = gruppen.filter((g) => gruppePasst(g, suche));
+
+  return (
+    <>
       <section className="karte karte--raster">
         <div className="tabelle-rolle">
           <table className="tabelle mat-tabelle" id="mat-tabelle">
@@ -167,8 +262,9 @@ function maschineName(x) {
 
 function bedarfText(g) {
   if (!g.auftraege.length) return "";
-  if (!g.bedarfBekannt) return "Menge noch unbekannt";
-  const teil = g.bedarfBekannt < g.auftraege.length ? " (" + g.bedarfBekannt + " von " + g.auftraege.length + " gerechnet)" : "";
+  if (!g.bedarfBekannt) return g.auftraege.every((a) => a.rahmen) ? "Rahmen, ohne Mengenrechnung" : "Menge noch unbekannt";
+  const zuRechnen = g.auftraege.filter((a) => !a.rahmen).length;
+  const teil = g.bedarfBekannt < zuRechnen ? " (" + g.bedarfBekannt + " von " + zuRechnen + " gerechnet)" : "";
   return "mind. " + kgText(g.kgBedarf) + teil + (g.bedarfSicher ? "" : ", nicht sicher: Länge nicht bestätigt");
 }
 
@@ -188,13 +284,13 @@ function Gruppe({ g, neu, erfassen }) {
             <span className="klein">{a.bedarf
               ? "mind. " + kgText(a.bedarf.kg) + " (" + a.bedarf.stangen + " Stangen à " + a.bedarf.jeStange + " Stk."
                 + (a.bedarf.abstecher ? "" : ", ohne Abstecher") + ")" + (a.bedarf.sicher ? "" : ", Länge nicht bestätigt")
-              : "Länge fehlt"}</span>
+              : a.rahmen ? "Rahmen, ohne Mengenrechnung" : "Länge fehlt"}</span>
             <Ampel ampel={a.ampel} text={a.ampel === "fehlt" && a.fehltKg ? "fehlt " + kgText(a.fehltKg) : null} />
           </div>))}
       </div>}
       <div className="mat-gruppe__teil">
         <h3>Da und bestellt</h3>
-        {g.lager.concat(g.bestellt).map((p) => <PostenZeile key={p.id} p={p} neu={neu} />)}
+        {g.lager.concat(g.bestellt).map((p) => <PostenZeile key={p.id} p={p} neu={neu} erfassen={erfassen} />)}
         {!g.lager.length && !g.bestellt.length && <p className="klein">Nichts erfasst.</p>}
         <button className="knopf knopf--klein" onClick={() => erfassen({ material: g.material })}>+ Hier erfassen</button>
       </div>
@@ -210,14 +306,10 @@ async function aufgebraucht(p, neu) {
   neu();
 }
 
-function PostenZeile({ p, neu, mitMaterial }) {
+function PostenZeile({ p, neu, mitMaterial, erfassen }) {
   const bestellt = p.art === "bestellt";
   // Ist da: aus einer Bestellung wird ein Posten an Lager (aus der Notiz
   // ein neuer mit derselben Nummer, dann verschwindet der aus der Notiz)
-  const istDa = async () => {
-    const vorlage = { ...p, art: "lager", ort: "" };
-    if (await postenFenster({ posten: vorlage, titel: "Lieferung ist da" })) neu();
-  };
   return (
     <div className={"mat-posten" + (bestellt ? " mat-posten--bestellt" : "")}>
       <span className="mat-posten__menge">{p.menge !== null && p.menge !== undefined ? mengeText(p.menge, p.einheit) : "Menge?"}</span>
@@ -226,12 +318,16 @@ function PostenZeile({ p, neu, mitMaterial }) {
         {bestellt
           ? <>bestellt{p.lieferant ? " bei " + p.lieferant : ""}{p.be_nr ? " · " + p.be_nr : ""}{p.termin ? " · kommt " + kurz(p.termin) : ""}
               {p.aus_notiz ? <span className="klein"> (aus Auftrag {p.job.job_number})</span> : null}</>
-          : <>{p.ort || "ohne Ort"}{p.be_nr ? <span className="klein"> · {p.be_nr}</span> : null}</>}
+          : p.angenommen
+            ? <>da, angenommen{p.be_nr ? " · " + p.be_nr : ""}<span className="klein"> (bestellt vor {kurz(STICHTAG)}, aus Auftrag {p.job.job_number})</span></>
+            : <>{p.ort || "ohne Ort"}{p.be_nr ? <span className="klein"> · {p.be_nr}</span> : null}</>}
         {p.notiz ? <span className="klein"> · {p.notiz}</span> : null}
+        {p.fuerNr ? <span className="mat-fuer"> · {p.fuer_hoco ? "Rahmen " : "für "}{p.fuerNr}{p.platz ? ", " + p.platz : ""}</span> : null}
       </span>
       <span className="mat-posten__knoepfe">
-        {bestellt && <button className="knopf knopf--klein knopf--haupt" onClick={istDa}>Ist da</button>}
-        {!p.aus_notiz && <button className="knopf knopf--klein" onClick={async () => { if (await postenFenster({ posten: p })) neu(); }}>Ändern</button>}
+        {bestellt && <button className="knopf knopf--klein knopf--haupt" onClick={() => istDa(p, neu)}>Ist da</button>}
+        {erfassen && <button className="knopf knopf--klein" onClick={() => erfassen({ posten: p,
+          titel: p.aus_notiz ? "Bestellung zuweisen" : null })}>{p.aus_notiz ? "Zuweisen" : "Ändern"}</button>}
         {!p.aus_notiz && <button className="knopf knopf--klein" onClick={() => aufgebraucht(p, neu)}>{bestellt ? "Weg" : "Aufgebraucht"}</button>}
       </span>
     </div>
@@ -240,10 +336,12 @@ function PostenZeile({ p, neu, mitMaterial }) {
 
 // ---------- An Lager ----------
 
-function Lager({ d, suche, neu }) {
+function Lager({ d, suche, neu, erfassen }) {
   const brauchen = new Set(d.gruppen.filter((g) => g.auftraege.length).map((g) => g.schluessel));
   const s = suche.trim().toLowerCase();
-  const liste = d.posten.filter((p) => p.art !== "bestellt")
+  // Die gerechneten Posten wissen, wofür sie zugewiesen sind
+  const gerechnet = new Map(d.gruppen.flatMap((g) => g.lager.map((p) => [p.id, p])));
+  const liste = d.posten.filter((p) => p.art !== "bestellt").map((p) => gerechnet.get(p.id) || p)
     .filter((p) => !s || s.split(/\s+/).every((w) => (p.material + " " + (p.ort || "") + " " + (p.notiz || "")).toLowerCase().includes(w)));
   const jeOrt = new Map();
   liste.forEach((p) => {
@@ -272,7 +370,7 @@ function Lager({ d, suche, neu }) {
             return (
               <div key={p.id} className="mat-lagerzeile">
                 <Punkt bez={p.material} />
-                <PostenZeile p={p} neu={neu} mitMaterial />
+                <PostenZeile p={p} neu={neu} erfassen={erfassen} mitMaterial />
                 {z && !brauchen.has(z.schluessel) && <span className="mat-ampel mat-ampel--grau">kein Auftrag</span>}
               </div>);
           })}
