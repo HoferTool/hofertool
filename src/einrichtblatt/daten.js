@@ -59,30 +59,26 @@ export async function blattLaden(hocoNr, typId) {
       if (!r.error) typ.blatt_aufbau = ((r.data || [])[0] || {}).blatt_aufbau || null;
     } catch (f) { /* ohne Aufbau ordnet die App selbst */ }
   }
-  return { blatt, typ, paths: paths || [], teil: teil || { hoco_nr: hocoNr }, typDaten: typDaten || {}, artikelBilder,
-    langdreher: await istLangdreherTyp(typId) };
+  return { blatt, typ, paths: paths || [], teil: teil || { hoco_nr: hocoNr }, typDaten: typDaten || {}, artikelBilder };
 }
 
-// Steht der Typ bei den Langdrehern? Erkannt am Namen des Parks seiner
-// Maschinen, wie bei den Rollen (meineParks in app.js).
-async function istLangdreherTyp(typId) {
-  try {
-    const m = await alt.db.from("machines").select("park_id").eq("type_id", typId);
-    const ids = [...new Set((m.data || []).map((x) => x.park_id).filter(Boolean))];
-    if (!ids.length) return false;
-    const p = await alt.db.from("machine_parks").select("id, name").in("id", ids);
-    return (p.data || []).some((x) => /lang/i.test(x.name || ""));
-  } catch (f) { return false; }
-}
-
-const LANG = {};
-const langdreherGemerkt = (typId) => (LANG[typId] = LANG[typId] || istLangdreherTyp(typId));
-
-// Programm-Nr. bei den Langdrehern: fix die letzten drei Ziffern der
-// HOCO Nr. (Patrick, 15. Oktober 2026), z. B. 10841-0009 → 009
-export function prgAusHoco(hocoNr) {
-  const z = String(hocoNr || "").replace(/\D/g, "");
-  return z.length >= 3 ? z.slice(-3) : "";
+// Programm-Nr.: die letzten drei Ziffern der Programme im Werkzeug-
+// protokoll (Patrick, 15. Oktober 2026: SW 1236, 2236, 3236 für die Paths
+// und 4236 für die Geometriedaten, andere 0236 und 1236, Prg.-Nr. 236).
+// Jeder Typ zählt eigen, mit der HOCO Nr. hat sie nichts zu tun. Selten
+// hat eine HOCO Nr. auf demselben Typ zwei, dann stehen beide da.
+// Gespeichert unter programme.nr; fehlt sie, kommt sie aus den Programmen.
+export function prgNummern(blatt) {
+  const pr = (blatt && blatt.programme) || {};
+  if (pr.nr) return String(pr.nr);
+  const quellen = Object.entries(pr).filter(([k]) => k !== "nr").map(([, v]) => v)
+    .concat(blatt && blatt.geometrie ? [blatt.geometrie] : []);
+  const nummern = [];
+  quellen.forEach((v) => (String(v || "").match(/\d{3,}/g) || []).forEach((z) => {
+    const n = z.slice(-3);
+    if (nummern.indexOf(n) === -1) nummern.push(n);
+  }));
+  return nummern.join(", ");
 }
 
 // Ein leeres Blatt für die HOCO Nr. auf diesem Typ
@@ -269,15 +265,9 @@ export async function ausExcelEinlesen(hocoNr, typ, excelUrl, { ueberschreiben, 
     if (Object.keys(z).length) plaetze[nr] = z;
   }
 
-  // Langdreher: Programm-Nr. sind fix die letzten drei Ziffern der HOCO Nr.
-  // Fehlt sie im Excel, kommt sie daher; weicht sie ab, ein Hinweis.
+  // Die Prg.-Nr. liest prgNummern jedes Mal aus den Programmen, gespeichert
+  // wird sie nur, wenn jemand sie bei den Stammdaten ändert
   const programme = Object.assign({}, e.kopf.programme);
-  if (await langdreherGemerkt(typ.id)) {
-    const soll = prgAusHoco(hocoNr);
-    if (!Object.keys(programme).length && soll) programme["1"] = soll;
-    else if (soll && !Object.values(programme).some((x) => String(x).replace(/\D/g, "").endsWith(soll)))
-      hinweise.push("Programm-Nr. im Excel „" + Object.values(programme).join(", ") + "“, erwartet " + soll);
-  }
   const blatt = await blattSpeichern({ hoco_nr: hocoNr, type_id: typ.id, programme,
     geometrie: e.kopf.geometrie, maschine_nr: e.kopf.maschine_nr, bemerkung: e.kopf.bemerkung,
     plaetze, excel_url: excelUrl }, null);

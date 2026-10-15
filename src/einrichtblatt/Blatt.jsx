@@ -16,7 +16,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
 import { blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, artikelBildSetzen,
-  STAMM_FELDER, WASCHGEBINDE, prgAusHoco } from "./daten.js";
+  STAMM_FELDER, WASCHGEBINDE, prgNummern } from "./daten.js";
 import { BILDER, NACHFRAGE, bildDaten, platzBild, eigeneBilder } from "./bilder.js";
 import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
 
@@ -117,6 +117,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
           {mitGeometrie && <div className="eba-prg"><span style={{ background: "#FF0000" }}>Geometriedaten:</span><b>{blatt.geometrie || ""}</b></div>}
           <table className="eba-tab"><tbody>
             <tr><th>Ho&amp;Co. Nr:</th><td>{blatt.hoco_nr}</td></tr>
+            <tr><th>Programm-Nr:</th><td data-eba-prgnr="">{prgNummern(blatt)}</td></tr>
             <tr><th>Artikel Bezeich:</th><td>{stamm(teil.bezeichnung)}</td></tr>
             <tr><th>Zeichnungs Nr:</th><td>{stamm(teil.zeichnungs_nr)}</td></tr>
             <tr><th>Index:</th><td>{stamm(teil.index_nr)}</td></tr>
@@ -317,7 +318,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
     felder.push({ name: "bemerkung", label: "Weitere Angaben", typ: "textarea", wert: entwurf.bemerkung || "", platzhalter: "z. B. Abgreifen mit Schnabelzange Ø20.00" });
     const w = await alt.dialogFelder({ titel: "Kopf des Einrichtblatts", felder, bestaetigen: "Übernehmen" });
     if (!w) return;
-    const programme = {};
+    const programme = (entwurf.programme || {}).nr ? { nr: entwurf.programme.nr } : {};
     paths.forEach((p) => { const x = (w["prg" + p.nummer] || "").trim(); if (x) programme[p.nummer] = x; });
     setEntwurf(Object.assign({}, entwurf, { programme, geometrie: w.geometrie === undefined ? entwurf.geometrie : (w.geometrie || null),
       maschine_nr: w.maschine_nr || null, bemerkung: w.bemerkung || null }));
@@ -326,7 +327,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
     const st = await stammdatenBestaetigen(hocoNr, teil, true, daten);
     if (!st) return;
     const d = await neuLaden();
-    if (!d.blatt || bearbeiten) setEntwurf(Object.assign({}, entwurf, { programme: st.programme }));
+    if (!d.blatt || bearbeiten) setEntwurf(Object.assign({}, entwurf, { programme: mitPrgNr(entwurf.programme, st.nr) }));
   };
   const gut = async () => {
     const ok = await alt.nachfragen({ titel: "Blatt ist gut",
@@ -391,39 +392,41 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
 
 // Stammdaten der HOCO Nr. bestätigen oder korrigieren. Gibt true
 // zurück, wenn bestätigt (geändert oder nicht), false bei Abbrechen.
-// Die Programm-Nr. je Path steht mit bei den Stammdaten (Wunsch Patrick,
-// 15. Oktober 2026). Leer bei einem Langdreher-Typ: Vorschlag aus den
-// letzten drei Ziffern der HOCO Nr. Gibt die Programme zurück, damit ein
-// noch nicht gespeichertes Blatt sie übernimmt.
+// Die Programm-Nr. steht mit bei den Stammdaten (Wunsch Patrick,
+// 15. Oktober 2026), aus dem Werkzeugprotokoll gelesen, nur für diesen
+// Typ. Gibt die Programme zurück, damit ein noch nicht gespeichertes Blatt
+// sie übernimmt.
 export async function stammdatenBestaetigen(hocoNr, teil, nurAendern, daten) {
   const t = teil || {};
   const felder = STAMM_FELDER.map(([f, label]) => (f === "waschgebinde"
     ? { name: f, label, wert: t[f] || "",
         auswahl: [["", "—"]].concat([...new Set(WASCHGEBINDE.concat(t[f] ? [t[f]] : []))].map((x) => [x, x])) }
     : { name: f, label, wert: t[f] || "" }));
-  const paths = daten ? [...(daten.paths || [])].sort((a, b) => (a.nummer || 0) - (b.nummer || 0)) : [];
-  const bisher = (daten && daten.blatt && daten.blatt.programme) || {};
-  const vorschlag = daten && daten.langdreher ? prgAusHoco(hocoNr) : "";
-  paths.forEach((p) => felder.push({ name: "prg" + p.nummer,
-    label: "Programm-Nr." + (paths.length > 1 ? " Path " + p.nummer : "") + (daten.typ && daten.typ.name ? " (" + daten.typ.name + ")" : ""),
-    wert: bisher[p.nummer] || vorschlag }));
+  const blatt = daten && daten.blatt;
+  if (daten) felder.push({ name: "prg_nr", label: "Programm-Nr." + (daten.typ && daten.typ.name ? " (" + daten.typ.name + ")" : ""),
+    wert: prgNummern(blatt), platzhalter: "z. B. 236, bei zwei: 236, 241" });
   const w = await alt.dialogFelder({
     titel: (nurAendern ? "Stammdaten " : "Stimmen die Stammdaten? ") + hocoNr,
     text: (nurAendern ? "" : "Bitte prüfen und wenn nötig korrigieren oder ergänzen. ")
-      + "Gilt für die HOCO Nr. auf allen Typen" + (paths.length ? ", die Programm-Nr. nur für diesen Typ." : "."),
+      + "Gilt für die HOCO Nr. auf allen Typen" + (daten ? ", die Programm-Nr. nur für diesen Typ." : "."),
     felder, bestaetigen: nurAendern ? "Speichern" : "Stimmt so" });
   if (!w) return false;
   try { if (await stammSpeichern(hocoNr, t, w)) alt.meldung("Stammdaten von " + hocoNr + " gespeichert.", "gut"); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
-  const programme = {};
-  paths.forEach((p) => { const x = (w["prg" + p.nummer] || "").trim(); if (x) programme[p.nummer] = x; });
-  // Ein gespeichertes Blatt bekommt die Programme gleich; ohne Blatt
+  const nr = String(w.prg_nr || "").trim();
+  // Ein gespeichertes Blatt bekommt die Nummer gleich; ohne Blatt
   // übernimmt sie das neue Blatt beim ersten Speichern
-  if (daten && daten.blatt && paths.length && JSON.stringify(programme) !== JSON.stringify(bisher)) {
-    try { await blattSpeichern(Object.assign({}, daten.blatt, { programme }), "Programm-Nr. " + hocoNr); }
+  if (blatt && daten && nr !== prgNummern(blatt)) {
+    try { await blattSpeichern(Object.assign({}, blatt, { programme: mitPrgNr(blatt.programme, nr) }), "Programm-Nr. " + hocoNr); }
     catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   }
-  return { programme };
+  return { nr };
+}
+// Programme mit neuer Prg.-Nr. (leer: weg, dann zählt wieder das Gelesene)
+function mitPrgNr(programme, nr) {
+  const p = Object.assign({}, programme || {});
+  if (nr) p.nr = nr; else delete p.nr;
+  return p;
 }
 
 // Öffnen: zuerst die Stammdaten bestätigen (wer schreiben darf), dann das Blatt
@@ -434,9 +437,8 @@ export async function einrichtblattAppOeffnen(hocoNr, typId) {
   if (alt.darfSchreiben() && !alt.istExtern()) {
     const st = await stammdatenBestaetigen(hocoNr, daten.teil, false, daten);
     if (!st) return;
-    const programme = st.programme;
     try { daten = await blattLaden(hocoNr, typId); } catch (f) { /* dann mit dem Stand von eben */ }
-    if (!daten.blatt) daten = Object.assign({}, daten, { neuProgramme: programme });
+    if (!daten.blatt && st.nr) daten = Object.assign({}, daten, { neuProgramme: { nr: st.nr } });
   }
   fensterOeffnen((zu) => <BlattFenster hocoNr={hocoNr} typId={typId} daten={daten} zu={zu} />,
     null, "betrachter-huelle eba-huelle");
