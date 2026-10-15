@@ -159,7 +159,7 @@ function Fortschritt({ j }) {
   return (
     <div className="pad-ak__fort">
       <span className="pad-ak__zahl">
-        <b>{alt.zahlText(stand)}</b>{ziel ? <> von {alt.zahlText(ziel)}</> : " Stk"}
+        <b>{alt.zahlText(stand)}</b><span>{ziel ? "von " + alt.zahlText(ziel) : "Stk"}</span>
       </span>
       <span className="pad-ak__balken"><i style={{ width: prozent + "%" }} /></span>
     </div>
@@ -173,7 +173,7 @@ export default function QsCheck({ zeilen, teile }) {
     + (raster && raster.rollt ? " pad-ak--rollt" : "");
   return (
     <>
-      <PadKopf titel="Anlagen Check" zurueck />
+      <PadKopf titel="QS Check" zurueck />
       <div ref={ref} className={klasse} style={{ "--ak-spalten": raster ? raster.spalten : 1 }}>
         {!zeilen.length && <p className="pad__leer">Keine Maschinen.</p>}
         {raster && zeilen.map(({ m, j }) => {

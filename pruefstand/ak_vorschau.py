@@ -1,4 +1,4 @@
-# Anlagen Check 1.62.0: alle Maschinen zusammen über die ganze Fläche,
+# QS Check (früher Anlagen Check) 1.62.0: alle Maschinen zusammen über die ganze Fläche,
 # Material in Werkstofffarbe und Stückzahl „von“ (Wunsch Patrick,
 # 15. Oktober 2026). Bilder für iPad quer, PC, Handy.
 import time, os
@@ -74,12 +74,17 @@ with sync_playwright() as p:
         r = pg.evaluate("""() => { const a = document.querySelector('#pad .pad-ak').getBoundingClientRect();
           const k = [...document.querySelectorAll('#pad .pad-ak__karte')].map(x => x.getBoundingClientRect());
           return { unten: Math.max(...k.map(x => x.bottom)), ende: a.bottom, rechts: Math.max(...k.map(x => x.right)), breite: a.right,
-            ueber: [...document.querySelectorAll('#pad .pad-ak__innen')].filter(x => x.scrollWidth > x.clientWidth + 1).length }; }""")
+            ueber: [...document.querySelectorAll('#pad .pad-ak__innen')].filter(x => x.scrollWidth > x.clientWidth + 1).length,
+            wer: [...document.querySelectorAll('#pad .pad-ak__innen > *')].filter(x => x.getBoundingClientRect().right > x.parentElement.getBoundingClientRect().right + 1 || x.scrollWidth > x.clientWidth + 1).map(x => x.className + ' ' + Math.round(x.scrollWidth) + '/' + Math.round(x.clientWidth)).slice(0, 3) }; }""")
         if not mobil and (r["ende"] - r["unten"] > 20): fehler.append(f"{name}: unten frei {r}")
         if r["breite"] - r["rechts"] > 20: fehler.append(f"{name}: rechts frei {r}")
-        if r["ueber"]: fehler.append(f"{name}: {r['ueber']} Karten zu eng")
+        if r["ueber"]: fehler.append(f"{name}: {r['ueber']} Karten zu eng {r['wer']}")
         t = pg.inner_text("#pad .pad-ak")
-        if " von " not in t: fehler.append(name + ": kein „von“")
+        if "QS Check" not in pg.inner_text("#pad"): fehler.append(name + ": Titel nicht QS Check")
+        # HOCO Nr. ganz lesbar, nicht abgeschnitten
+        ab = pg.evaluate("[...document.querySelectorAll('#pad .pad-ak__hoco')].filter(e => e.scrollWidth > e.clientWidth + 1).length")
+        if ab: fehler.append(f"{name}: {ab} HOCO Nr. abgeschnitten")
+        if "von " not in t: fehler.append(name + ": kein „von“")
         # Karte in der Werkstofffarbe (V2A rot), keine Bezeichnung mehr
         hg = pg.evaluate("getComputedStyle(document.querySelector('#pad [data-qsmaschine] [data-qsauftrag]').closest('.pad-ak__karte')).backgroundColor")
         if hg in ("rgba(0, 0, 0, 0)", ""): fehler.append(name + ": Karte ohne Farbe " + hg)
@@ -91,6 +96,9 @@ with sync_playwright() as p:
         try:
             pg.wait_for_selector(".dialog--auftrag", timeout=5000)
             if nr not in pg.inner_text(".dialog--auftrag"): fehler.append(name + ": falscher Auftrag im Fenster")
+            # Quer und gross wie auf der Planwand, nicht schmal wie die Pad-Fenster
+            bw = pg.evaluate("(() => { const r = document.querySelector('.dialog--auftrag').getBoundingClientRect(); return [r.width, r.height, innerWidth]; })()")
+            if not mobil and ((bw[0] < bw[1] and bw[2] > 1000) or bw[0] < 0.8 * min(bw[2], 1180)): fehler.append(f"{name}: Auftragsfenster nicht quer und gross {bw}")
             pg.wait_for_timeout(800)
             if BILDER and name == "ipad-quer": pg.screenshot(path=f"{BILDER}/anlagen-check-fenster.png")
         except Exception:

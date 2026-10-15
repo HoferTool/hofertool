@@ -129,7 +129,7 @@ async function typenLaden(p) {
 
 async function sichtLaden(p) {
   if (p.wo === "parks") {
-    // Mit der Zahl der Maschinen je Park, wie beim Anlagen Check
+    // Mit der Zahl der Maschinen je Park, wie beim QS Check
     // (Wunsch Patrick, 10. Oktober 2026)
     const [parks, maschinen] = await Promise.all([alt.ladeParks(false), alt.ladeAlleMaschinen()]);
     const anzahl = {};
@@ -236,7 +236,7 @@ function Start() {
           </button>
           <button className="pad-kachel pad-kachel--qs" data-padwo="qs"
             onClick={() => gehe((p) => { p.wo = "qs"; })}>
-            <span className="pad-kachel__zeichen">🔍</span><span>Anlagen Check</span>
+            <span className="pad-kachel__zeichen">🔍</span><span>QS Check</span>
           </button>
         </div>
       </div>
