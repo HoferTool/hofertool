@@ -39,6 +39,8 @@ with sync_playwright() as p:
     d = pg.locator(".dialog-huelle .dialog").last
     pruefe("Stammdaten-Frage", "Stimmen die Stammdaten" in d.inner_text())
     pruefe("Waschgebinde-Auswahl", d.locator("select").count() == 1)
+    pruefe("Programm-Nr. bei den Stammdaten", d.locator("input[id$='prg1']").input_value() == "O1111"
+           and d.locator("input[id$='prg3']").input_value() == "O3333")
     d.locator("[data-ja]").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(600)
     b = pg.evaluate("TEST.daten.einrichtblatt_app[0]")
     print(json.dumps(b, ensure_ascii=False)[:600])
