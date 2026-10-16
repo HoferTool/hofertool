@@ -147,6 +147,8 @@ with sync_playwright() as p:
     pruefe("Mat. info. ganz unten vor Letzte Änderung (mB): " + (zz[i] if i >= 0 else "fehlt"),
            i >= 0 and (i == len(zz) - 1 or zz[i + 1].startswith("Letzte Änderung")) and "kg / " in zz[i] and zz[i].endswith("(✗L)"))
     pruefe("Notiz ohne „aus infoBoard“ in der Schnellvorschau", not any("infoBoard" in t for t in zz))
+    pruefe("Werkstoffnummer in der Schnellvorschau: " + next((t for t in zz if "1.4104" in t), "fehlt"),
+           any(t.startswith("1.4104 · ") for t in zz))
     zz = vorschau("mC")
     pruefe("Bestätigt ohne ✗L (mC): " + next((t for t in zz if t.startswith("Mat.")), "fehlt"),
            any(t.startswith("Mat. info.: min.") and "✗L" not in t for t in zz))
@@ -194,7 +196,7 @@ with sync_playwright() as p:
     pg.click(".mat-dialog button:has-text('Stangen')")
     pg.fill("#mat-menge", "2,5")
     u = pg.inner_text("#mat-umrechnung")
-    pruefe("Stangen zeigen kg: " + u, "kg" in u and "ca." in u)
+    pruefe("Stangen zeigen kg und Werkstoffnummer: " + u, "kg" in u and "ca." in u and "1.4104" in u)
     pg.click(".mat-dialog .mat-knoepfe button:text-is('kg')")
     kg = pg.input_value("#mat-menge")
     pruefe("Umschalten rechnet um: " + kg + " / " + pg.inner_text("#mat-umrechnung"), "," in kg and "Stangen" in pg.inner_text("#mat-umrechnung"))

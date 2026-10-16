@@ -33,7 +33,7 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
-import { materialFuerPlanwand, matInfo, postenLaden, materialZerlegen, nochGebraucht } from "../daten/material.js";
+import { materialFuerPlanwand, matInfo, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.81.0";
+const APP_VERSION = "1.82.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4758,8 +4758,10 @@ function balkenInfoVerhalten() {
 
         + luecke
         + zeile(esc(j.material_bez || "Kein Material eingetragen"))
+        // Vorne die Werkstoffnummer, die die App aus der Bezeichnung
+        // erkennt (X8CrNiS18-9 → 1.4305, Wunsch Patrick 16. Oktober 2026)
         + (g ? zeile('<span class="ws-farbe" style="background:' + auftragFarbe(j).hex + '"></span>'
-              + esc(werkstoffText(g)), "klein") : "")
+              + esc([(werkstoffGenau(j.material_bez) || {}).nr, werkstoffText(g)].filter(Boolean).join(" · ")), "klein") : "")
         + zeile(String(j.material_menge || "").trim()
             ? '<span class="pw-info__was">Menge</span> ' + esc(j.material_menge)
             : "Keine Materialmenge")

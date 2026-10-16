@@ -76,12 +76,68 @@ export function materialZerlegen(bez) {
   return { roh, werkstoff, form, d, innen, tol, grund, schluessel: grund + "|" + tol };
 }
 
+// Genaue Dichte je Werkstoff (Wunsch Patrick 16. Oktober 2026: „von
+// X8CrNiS18-9 zur Nummer selber checken“): Kurzname oder Nummer in der
+// Bezeichnung → Werkstoffnummer und Dichte in g/cm³ (Werte aus den
+// Normblättern, z.B. EN 10088-1). Nur wenn nichts passt, gilt die
+// Dichte der Gruppe aus DICHTE.
+const WERKSTOFFE = [
+  // Rostfrei ohne Molybdän
+  ["1.4301", 7.9, "x5crni18-10"], ["1.4303", 7.9, "x4crni18-12"], ["1.4305", 7.9, "x8crnis18-9", "x10crnis18-9"],
+  ["1.4306", 7.9, "x2crni19-11"], ["1.4307", 7.9, "x2crni18-9"], ["1.4310", 7.9, "x10crni18-8"],
+  ["1.4311", 7.9, "x2crnin18-10"], ["1.4541", 7.9, "x6crniti18-10"], ["1.4550", 7.9, "x6crninb18-10"],
+  ["1.4567", 7.9, "x3crnicu18-9-4"], ["1.4568", 7.8, "x7crnial17-7"],
+  // Rostfrei mit Molybdän
+  ["1.4401", 8.0, "x5crnimo17-12-2"], ["1.4404", 8.0, "x2crnimo17-12-2"], ["1.4432", 8.0, "x2crnimo17-12-3"],
+  ["1.4435", 8.0, "x2crnimo18-14-3"], ["1.4436", 8.0, "x3crnimo17-13-3"], ["1.4439", 8.0, "x2crnimon17-13-5"],
+  ["1.4571", 8.0, "x6crnimoti17-12-2"], ["1.4580", 8.0, "x6crnimonb17-12-2"], ["1.4539", 8.0, "x1nicrmocu25-20-5"],
+  ["1.4547", 8.0, "x1crnimocun20-18-7"], ["1.4578", 7.9, "x3crnicumo17-11-3-2"], ["1.4462", 7.8, "x2crnimon22-5-3"],
+  // Chromstahl und härtbare
+  ["1.4005", 7.7, "x12crs13"], ["1.4016", 7.7, "x6cr17"], ["1.4021", 7.7, "x20cr13"], ["1.4028", 7.7, "x30cr13"],
+  ["1.4034", 7.7, "x46cr13"], ["1.4057", 7.7, "x17crni16-2"], ["1.4104", 7.7, "x14crmos17"], ["1.4105", 7.7, "x6crmos17"],
+  ["1.4112", 7.7, "x90crmov18"], ["1.4122", 7.7, "x39crmo17-1"], ["1.4125", 7.7, "x105crmo17"], ["1.4313", 7.7, "x3crnimo13-4"],
+  ["1.4418", 7.7, "x4crnimo16-5-1"], ["1.4512", 7.7, "x2crti12"], ["1.4542", 7.8, "x5crnicunb16-4"],
+  // Automatenstahl
+  ["1.0715", 7.85, "11smn30"], ["1.0718", 7.85, "11smnpb30"], ["1.0736", 7.85, "11smn37"], ["1.0737", 7.85, "11smnpb37"],
+  // Messing und Neusilber
+  ["CW614N", 8.47, "cuzn39pb3"], ["CW617N", 8.43, "cuzn40pb2"], ["CW603N", 8.5, "cuzn36pb3"], ["CW724R", 8.3, "cuzn21si3p"],
+  ["CW400J", 8.5, "cuni7zn39pb3mn2"], ["CW408J", 8.7, "cuni18zn19pb1"], ["CW409J", 8.7, "cuni18zn20"], ["CW403J", 8.7, "cuni12zn24"],
+  // Aluminium
+  ["EN AW-6082", 2.70, "aw-6082", "aw6082", "almgsi1"], ["EN AW-6061", 2.70, "aw-6061", "aw6061"],
+  ["EN AW-6026", 2.72, "aw-6026", "aw6026"], ["EN AW-6012", 2.75, "aw-6012", "aw6012", "almgsipb"],
+  ["EN AW-2007", 2.85, "aw-2007", "aw2007", "alcu4pbmgmn"], ["EN AW-2011", 2.84, "aw-2011", "aw2011", "alcu6bipb"],
+  ["EN AW-7075", 2.81, "aw-7075", "aw7075", "alzn5,5mgcu"], ["EN AW-5083", 2.66, "aw-5083", "aw5083", "almg4,5mn"],
+  // Titan
+  ["3.7035", 4.51, "grade2", "grade 2"], ["3.7165", 4.43, "grade5", "grade 5", "tial6v4"],
+  // Kunststoff
+  ["PEEK", 1.31, "peek"], ["POM", 1.41, "pom", "pom-c"], ["PTFE", 2.17, "ptfe"], ["PA6", 1.14, "pa6"],
+  ["PVDF", 1.78, "pvdf"], ["PE-HD", 0.95, "pe-hd", "pehd"], ["PP", 0.91, "pp"], ["PET", 1.38, "pet"], ["PVC", 1.40, "pvc"],
+];
+const NUR_BUCHSTABEN = /^[a-z-]+$/;
+// → { nr, dichte } oder null
+export function werkstoffGenau(bez) {
+  const t = " " + String(bez || "").toLowerCase().replace(/[()|;\/]/g, " ").replace(/\s+/g, " ") + " ";
+  const kompakt = t.replace(/\s+/g, "");
+  for (const [nr, dichte, ...namen] of WERKSTOFFE) {
+    for (const n of [nr.toLowerCase(), ...namen]) {
+      // Kurze Wörter (pp, pet) nur als ganzes Wort, sonst auch ohne Leerzeichen
+      const ganz = NUR_BUCHSTABEN.test(n.replace(/\d/g, "")) && n.length <= 5;
+      const treffer = ganz || /^\d\.\d{4}$/.test(n)
+        ? new RegExp("[\\s]" + n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?=[\\s,]|$)").test(t)
+        : kompakt.includes(n.replace(/\s+/g, ""));
+      if (treffer) return { nr, dichte };
+    }
+  }
+  return null;
+}
+
 // Kilo je Meter Stange, oder null, wenn Mass oder Dichte fehlt
 export function kgJeMeter(bez) {
   const z = materialZerlegen(bez);
   if (!z || !z.d) return null;
-  const w = alt.werkstoffErkennen ? alt.werkstoffErkennen(bez) : null;
-  const dichte = w && DICHTE[w.key];
+  const genau = werkstoffGenau(bez);
+  const w = genau ? null : alt.werkstoffErkennen ? alt.werkstoffErkennen(bez) : null;
+  const dichte = genau ? genau.dichte : w && DICHTE[w.key];
   if (!dichte) return null;
   let flaeche;
   if (z.form === "rohr" && z.innen && z.innen < z.d) flaeche = Math.PI / 4 * (z.d * z.d - z.innen * z.innen);
