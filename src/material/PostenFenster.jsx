@@ -4,7 +4,9 @@
 //  der Maschine schnell geht (Wunsch Patrick 15. Oktober 2026: „soll
 //  so einfach wie möglich sein und zugänglich für alle“):
 //    Material   tippen und antippen, aus den Bezeichnungen der Aufträge
-//    Wie viel   ungefähr, kg oder Stangen
+//    Wie viel   ungefähr, in kg oder Stangen eingetippt, mit Komma;
+//               gespeichert und gezeigt in kg (Wunsch Patrick 16. Oktober
+//               2026), keine vorgegebenen Zahlen
 //    Wo         Knöpfe mit den Orten, oder ein eigener Ort
 //  Bei „Bestellt“ kommen Lieferant, Bestellnummer und Termin dazu.
 //
@@ -17,10 +19,11 @@
 import { useMemo, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { materialZerlegen, mengeText, orteLaden, istRahmen } from "../daten/material.js";
+import { materialZerlegen, postenMengeText, orteLaden, orteSpeichern, istRahmen, kgJeStange } from "../daten/material.js";
 
-const MENGEN_KG = [20, 50, 100, 200, 500];
-const MENGEN_STG = [1, 2, 5, 10, 20];
+// „12,5“ und „1'200“ → Zahl; leer → null; Unsinn → NaN
+const zahlLesen = (t) => (String(t).trim() === "" ? null : Number(String(t).trim().replace(",", ".").replace(/'/g, "")));
+const zahlZeigen = (n) => String(Math.round(n * 10) / 10).replace(".", ",");
 
 // Alle bekannten Bezeichnungen: aus offenen Aufträgen und Posten,
 // gleiche nur einmal (häufigste Schreibweise zuerst)
@@ -85,7 +88,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
   const [suche, setSuche] = useState("");
   const [waehlen, setWaehlen] = useState(!(p.material || o.material));
   const [einheit, setEinheit] = useState(p.einheit || "kg");
-  const [menge, setMenge] = useState(p.menge !== undefined && p.menge !== null ? String(p.menge) : "");
+  const [menge, setMenge] = useState(p.menge !== undefined && p.menge !== null ? String(p.menge).replace(".", ",") : "");
   const [ort, setOrt] = useState(p.ort || (o.rest ? orte[0] : ""));
   const [eigenerOrt, setEigenerOrt] = useState(p.ort && !orte.includes(p.ort) ? p.ort : "");
   const [art, setArt] = useState(p.art || o.art || "lager");
@@ -105,8 +108,20 @@ function PostenDialog({ o, orte, liste, fertig }) {
 
   const treffer = useMemo(() => (suche.trim() ? liste.filter((b) => passt(b, suche)) : liste).slice(0, 8),
     [suche, liste]);
-  const vorschlaege = einheit === "stg" ? MENGEN_STG : MENGEN_KG;
   const ortWert = ort === "__eigen" ? eigenerOrt.trim() : ort;
+  // Umrechnen über Dichte und Querschnitt des Materials, Stange 3 m
+  const jeStange = kgJeStange(waehlen ? suche : material);
+  const n = zahlLesen(menge);
+  const umrechnung = n === null || !(n >= 0) ? ""
+    : !jeStange ? "Umrechnen geht nicht: Werkstoff oder Durchmesser nicht erkannt."
+    : einheit === "stg" ? "= ca. " + zahlZeigen(n * jeStange) + " kg"
+    : "= ca. " + zahlZeigen(n / jeStange) + " Stangen à 3 m";
+  // Beim Umschalten die Zahl in die andere Einheit umrechnen
+  const wechsle = (neu) => {
+    if (neu === einheit) return;
+    if (n !== null && n >= 0 && jeStange) setMenge(zahlZeigen(neu === "stg" ? n / jeStange : n * jeStange));
+    setEinheit(neu);
+  };
   const vorhandene = (o.vorhandene || []).filter((x) => x.art !== "bestellt");
   const schluessel = (materialZerlegen(waehlen ? suche : material) || {}).schluessel;
   const zurWahl = (o.auftraege || []).filter((j) => schluessel && (materialZerlegen(j.material_bez) || {}).schluessel === schluessel)
@@ -120,10 +135,15 @@ function PostenDialog({ o, orte, liste, fertig }) {
     const anMaschine = fuerJob && ["ruesten", "laeuft"].includes(fuerJob.plan_status);
     const ortFertig = ortWert || (anMaschine && !o.rest ? "An der Maschine" : "");
     if (art === "lager" && !ortFertig) { alt.meldung("Wo liegt es?", "warn"); return; }
-    const zahl = menge.trim() === "" ? null : Number(menge.replace(",", ".").replace(/'/g, ""));
+    let zahl = zahlLesen(menge);
     if (zahl !== null && !(zahl >= 0)) { alt.meldung("Die Menge ist keine Zahl.", "warn"); return; }
+    // Stangen werden als kg gespeichert, wenn sich das Gewicht rechnen
+    // lässt; sonst bleiben es Stangen
+    let einheitFertig = einheit;
+    const jeStgMat = kgJeStange(mat);
+    if (zahl !== null && einheit === "stg" && jeStgMat) { zahl = Math.round(zahl * jeStgMat * 10) / 10; einheitFertig = "kg"; }
     setSpeichert(true);
-    const daten = { material: mat, menge: zahl, einheit, ort: ortFertig || null, art,
+    const daten = { material: mat, menge: zahl, einheit: einheitFertig, ort: ortFertig || null, art,
       lieferant: art === "bestellt" || p.be_nr ? lieferant.trim() || null : null,
       be_nr: beNr.trim() || null, termin: art === "bestellt" && termin ? termin : null,
       notiz: notiz.trim() || null };
@@ -157,6 +177,10 @@ function PostenDialog({ o, orte, liste, fertig }) {
         if (r2.error) throw r2.error;
         alt.merkeSchritt("Material aufgebraucht",
           leer.map((id) => alt.rueckSetz("material_posten", { weg_am: null }, { id })));
+      }
+      // Ein neuer Ort kommt gleich in die Liste der Orte
+      if (ort === "__eigen" && ortWert && !orte.includes(ortWert)) {
+        try { await orteSpeichern(orte.concat([ortWert])); } catch (f) { /* bleibt nur am Posten */ }
       }
       alt.meldung("Gespeichert.", "gut");
       fertig(r.data);
@@ -224,17 +248,16 @@ function PostenDialog({ o, orte, liste, fertig }) {
         <span className="mat-feld__name">Wie viel, ungefähr</span>
         <div className="mat-knoepfe">
           <button type="button" className={"knopf knopf--klein" + (einheit === "kg" ? " knopf--haupt" : "")}
-            onClick={() => setEinheit("kg")}>kg</button>
+            onClick={() => wechsle("kg")}>kg</button>
           <button type="button" className={"knopf knopf--klein" + (einheit === "stg" ? " knopf--haupt" : "")}
-            onClick={() => setEinheit("stg")}>Stangen</button>
+            onClick={() => wechsle("stg")}>Stangen</button>
         </div>
         <div className="mat-knoepfe">
-          {vorschlaege.map((n) => (
-            <button key={n} type="button" className={"knopf" + (menge === String(n) ? " knopf--haupt" : "")}
-              onClick={() => setMenge(String(n))}>{mengeText(n, einheit)}</button>))}
           <input className="mat-eingabe mat-eingabe--zahl" id="mat-menge" inputMode="decimal" value={menge}
-            placeholder="Zahl" onChange={(e) => setMenge(e.target.value)} />
+            placeholder={einheit === "stg" ? "Stangen" : "kg"} onChange={(e) => setMenge(e.target.value)} />
         </div>
+        {/* Die andere Einheit gleich daneben, damit man beides sieht */}
+        <span className="klein" id="mat-umrechnung">{umrechnung}</span>
       </div>
 
       {!o.rest && (
@@ -300,7 +323,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
             <label key={x.id} className="feld-haken">
               <input type="checkbox" checked={leer.includes(x.id)}
                 onChange={(e) => setLeer(e.target.checked ? leer.concat([x.id]) : leer.filter((y) => y !== x.id))} />
-              <span>{mengeText(x.menge, x.einheit)} · {x.ort || "ohne Ort"}</span></label>))}
+              <span>{postenMengeText(x)} · {x.ort || "ohne Ort"}</span></label>))}
         </fieldset>
       )}
 

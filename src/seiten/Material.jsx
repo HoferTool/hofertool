@@ -14,7 +14,7 @@
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
-import { materialDatenLaden, materialRechnen, mengeText, laengenNachholen,
+import { materialDatenLaden, materialRechnen, postenMengeText, laengenNachholen,
   orteLaden, orteSpeichern, istOffen } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 
@@ -109,7 +109,7 @@ async function aufgebraucht(p, neu) {
 function PostenZeile({ p, neu, mitMaterial, erfassen }) {
   return (
     <div className="mat-posten">
-      <span className="mat-posten__menge">{p.menge !== null && p.menge !== undefined ? mengeText(p.menge, p.einheit) : "Menge?"}</span>
+      <span className="mat-posten__menge">{postenMengeText(p)}</span>
       <span className="mat-posten__wo">
         {mitMaterial && <b>{p.material} </b>}
         {p.ort || "ohne Ort"}{p.be_nr ? <span className="klein"> · {p.be_nr}</span> : null}
@@ -164,7 +164,8 @@ function Lager({ d, suche, neu, erfassen }) {
           })}
         </section>))}
       {!liste.length && <div className="karte karte--hinweis"><p>{s ? "Nichts gefunden." : "Noch nichts erfasst. Reste kommen von selbst dazu, wenn Aufträge beendet werden, oder mit „+ Material erfassen“."}</p></div>}
-      {alt.istAdmin() && <button className="linkknopf" id="mat-orte" onClick={orteAendern}>Orte bearbeiten</button>}
+      {/* Orte dürfen alle ändern (Wunsch Patrick 16. Oktober 2026, sql/material-orte-alle.sql) */}
+      {!alt.istExtern() && <button className="linkknopf" id="mat-orte" onClick={orteAendern}>Orte bearbeiten</button>}
     </>
   );
 }
