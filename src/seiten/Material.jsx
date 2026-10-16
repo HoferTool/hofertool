@@ -15,7 +15,7 @@
 import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { materialDatenLaden, materialRechnen, mengeText, laengenNachholen,
-  orteLaden, orteSpeichern, materialZerlegen, istOffen } from "../daten/material.js";
+  orteLaden, orteSpeichern, istOffen } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 
 const gemerkt = { suche: "" };
@@ -127,7 +127,6 @@ function PostenZeile({ p, neu, mitMaterial, erfassen }) {
 // ---------- An Lager ----------
 
 function Lager({ d, suche, neu, erfassen }) {
-  const brauchen = new Set(d.gruppen.filter((g) => g.auftraege.length).map((g) => g.schluessel));
   const s = suche.trim().toLowerCase();
   // Die gerechneten Posten wissen, wofür sie zugewiesen sind
   const gerechnet = new Map(d.gruppen.flatMap((g) => g.lager.map((p) => [p.id, p])));
@@ -157,12 +156,10 @@ function Lager({ d, suche, neu, erfassen }) {
         <section key={ort} className="karte" data-ort={ort}>
           <div className="karte__kopf"><h2>{ort}</h2><span className="klein">{posten.length}</span></div>
           {posten.sort((a, b) => a.material.localeCompare(b.material)).map((p) => {
-            const z = materialZerlegen(p.material);
             return (
               <div key={p.id} className="mat-lagerzeile">
                 <Punkt p={p} auftraege={d.auftraege} jeWerkstoff={jeWerkstoff} />
                 <PostenZeile p={p} neu={neu} erfassen={erfassen} mitMaterial />
-                {z && !brauchen.has(z.schluessel) && <span className="mat-ampel mat-ampel--grau">kein Auftrag</span>}
               </div>);
           })}
         </section>))}
