@@ -56,9 +56,14 @@ end $$;
 
 -- Zustand „QS Check“ gibt es nicht mehr
 update public.jobs set plan_status = 'ruesten' where plan_status = 'qs';
-alter table public.jobs drop constraint if exists jobs_plan_status_check;
-alter table public.jobs add constraint jobs_plan_status_check
-  check (plan_status = any (array['geplant', 'ruesten', 'laeuft', 'fertig']));
+-- Eine zusätzliche Sperre statt die alte Regel zu ersetzen: so kommt
+-- niemand mehr auf „qs“, auch nicht aus einer alten Fassung der App
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'jobs_plan_status_ohne_qs') then
+    alter table public.jobs add constraint jobs_plan_status_ohne_qs check (plan_status is distinct from 'qs');
+  end if;
+end $$;
 
 notify pgrst, 'reload schema';
 
