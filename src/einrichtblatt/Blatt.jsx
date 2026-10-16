@@ -116,7 +116,6 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
           <table className="eba-tab"><tbody>
             <tr><th>Ho&amp;Co. Nr:</th><td>{blatt.hoco_nr}</td></tr>
             <tr><th>Programm-Nr:</th><td data-eba-prgnr="">{prgNummern(blatt)}</td></tr>
-            <tr><th>Artikel Bezeich:</th><td>{stamm(teil.bezeichnung)}</td></tr>
             <tr><th>Zeichnungs Nr:</th><td>{stamm(teil.zeichnungs_nr)}</td></tr>
             <tr><th>Index:</th><td>{stamm(teil.index_nr)}</td></tr>
             <tr><th>Autom.-Typ / Nr:</th><td>{typ.name}{blatt.maschine_nr ? "   " + blatt.maschine_nr : ""}</td></tr>
@@ -421,7 +420,9 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
 // sie übernimmt.
 export async function stammdatenBestaetigen(hocoNr, teil, nurAendern, daten) {
   const t = teil || {};
-  const felder = STAMM_FELDER.map(([f, label]) => (f === "waschgebinde"
+  // Die Artikel-Bezeichnung braucht das Blatt nicht (Patrick, 16. Oktober
+  // 2026: „gibt mehr Platz für anderes“); sie bleibt bei der HOCO Nr.
+  const felder = STAMM_FELDER.filter(([f]) => f !== "bezeichnung").map(([f, label]) => (f === "waschgebinde"
     ? { name: f, label, wert: t[f] || "",
         auswahl: [["", "—"]].concat([...new Set(WASCHGEBINDE.concat(t[f] ? [t[f]] : []))].map((x) => [x, x])) }
     : { name: f, label, wert: t[f] || "" }));

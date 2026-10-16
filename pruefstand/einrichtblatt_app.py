@@ -52,7 +52,7 @@ with sync_playwright() as p:
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
     pruefe("Stückzeit ergänzt", td.get("stueckzeit_s") == 33)
     s = pg.inner_text("[data-eba-seite]")
-    pruefe("Blatt zeigt Kopf", "Werkzeug- Protokoll-Star SR32J" in s and "O1111" in s and "10000-0301" in s and "Deckel" in s)
+    pruefe("Blatt zeigt Kopf", "Werkzeug- Protokoll-Star SR32J" in s and "O1111" in s and "10000-0301" in s and "Artikel Bezeich" not in s)
     pruefe("Keine Bilder von selbst", pg.locator("[data-eba-seite] [data-bild]").count() == 0)
     pg.screenshot(path="einrichtblatt_app_ansicht.png")
 

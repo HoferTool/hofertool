@@ -115,6 +115,7 @@ export async function blattSpeichern(blatt, text) {
 export async function stammSpeichern(hocoNr, alteWerte, neueWerte) {
   const neu = {};
   STAMM_FELDER.forEach(([f]) => {
+    if (neueWerte[f] === undefined) return;          // nicht gefragt: bleibt
     const w = (neueWerte[f] || "").trim() || null;
     if (w !== ((alteWerte && alteWerte[f]) || null)) neu[f] = w;
   });
