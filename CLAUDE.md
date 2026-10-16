@@ -151,6 +151,7 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alle
 8. Offene Entscheide: infoBoard-Echtstart, ob der Park „Extern" für interne Rollen sichtbar ist, Lieferantenferien im Ferienblock. ~~Doppelte Namen in den Ferien~~ erledigt am 6. Oktober 2026 (spielt keine Rolle mehr).
 9. Kameras später neu überlegen. Das alte Modul ist entfernt.
 10. ~~`sql/abruf-siegel.sql` ausführen~~ erledigt am 8. Oktober 2026.
+11. **Beim nächsten SQL zuerst erledigen** (Wunsch Patrick 16. Oktober 2026): Sobald wieder ein SQL eingespielt werden muss und Patrick am PC ist (dann sieht er die Freigabe für `drop`), über die Supabase-Verbindung auch `sql/push-weg.sql` (Push-Tabellen und -Funktionen löschen) und `sql/tipp-ohne-pin-weg.sql` einspielen, Probe muss `ok` zeigen, und die Server-Funktion `push-senden` löschen (geht nicht über die Verbindung: Patrick im Dashboard unter Edge Functions → push-senden → Delete). Danach diesen Punkt durchstreichen und Patrick im Thread „Push-Nachrichten entfernen“ melden, dass es erledigt ist (er hat dort darum gebeten).
 
 ## Sicherheit
 
