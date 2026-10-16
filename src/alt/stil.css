@@ -8196,3 +8196,6 @@ body.dunkel .qs-fort__text { color: var(--tinte); }
   border: 1px solid var(--linie-stark); background: var(--flaeche); color: var(--tinte); }
 .qsf__feld input { font-size: 2rem; font-weight: 700; max-width: 260px; font-variant-numeric: tabular-nums; }
 .qsf .dialog__knoepfe .knopf { min-height: 52px; min-width: 130px; font-size: 1.05rem; }
+
+/* Material: wer erfasst und geändert hat, eigene Zeile unter dem Ort (1.81.0) */
+.mat-posten__werwann { display: block; opacity: .75; margin-top: 2px; }

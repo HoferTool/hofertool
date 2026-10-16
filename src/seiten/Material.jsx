@@ -28,7 +28,11 @@ async function laden() {
   await alt.standsNachtragen(auftraege);
   const d = await materialDatenLaden(auftraege);
   if (!d) return { fehlt: true };
-  return { ...materialRechnen(auftraege, d), ...d, auftraege };
+  // Namen für „erfasst von“ und „geändert von“; ohne sie steht nur die Zeit
+  const leute = await alt.zeitlimit(alt.db.from("profiles").select("id, full_name, email"), 8000, "Personen")
+    .then((x) => x.data || [], () => []);
+  const personen = new Map(leute.map((u) => [u.id, alt.personName(u)]));
+  return { ...materialRechnen(auftraege, d), ...d, auftraege, personen };
 }
 
 
@@ -105,8 +109,23 @@ async function aufgebraucht(p, neu) {
   neu();
 }
 
+// Wer den Posten erfasst und wer ihn zuletzt geändert hat, mit Datum
+// und Zeit (Wunsch Patrick 16. Oktober 2026, seit 1.81.0). Die
+// Datenbank trägt beides selbst ein (erstellt_von als Vorgabe,
+// geaendert_von im Auslöser material_posten_geaendert).
+function WerWann({ p, personen }) {
+  const wer = (id) => (id && personen && personen.get(id)) || "";
+  const teil = (was, am, von) => was + " " + alt.datumZeitKurz(am) + (wer(von) ? " · " + wer(von) : "");
+  if (!p.erstellt_am && !p.geaendert_am) return null;
+  return (
+    <span className="mat-posten__werwann klein">
+      {p.erstellt_am ? teil("Erfasst", p.erstellt_am, p.erstellt_von) : null}
+      {p.geaendert_am ? (p.erstellt_am ? " — " : "") + teil("geändert", p.geaendert_am, p.geaendert_von) : null}
+    </span>);
+}
+
 // Ein Posten Restmaterial: Menge, Ort, Zuweisung; Ändern und Aufgebraucht
-function PostenZeile({ p, neu, mitMaterial, erfassen }) {
+function PostenZeile({ p, neu, mitMaterial, erfassen, personen }) {
   return (
     <div className="mat-posten">
       <span className="mat-posten__menge">{postenMengeText(p)}</span>
@@ -115,6 +134,7 @@ function PostenZeile({ p, neu, mitMaterial, erfassen }) {
         {p.ort || "ohne Ort"}{p.be_nr ? <span className="klein"> · {p.be_nr}</span> : null}
         {p.notiz ? <span className="klein"> · {p.notiz}</span> : null}
         {p.fuerNr ? <span className="mat-fuer"> · {p.fuer_hoco ? "Rahmen " : "für "}{p.fuerNr}{p.platz ? ", " + p.platz : ""}</span> : null}
+        <WerWann p={p} personen={personen} />
       </span>
       <span className="mat-posten__knoepfe">
         {erfassen && <button className="knopf knopf--klein" onClick={() => erfassen({ posten: p })}>Ändern</button>}
@@ -159,7 +179,7 @@ function Lager({ d, suche, neu, erfassen }) {
             return (
               <div key={p.id} className="mat-lagerzeile">
                 <Punkt p={p} auftraege={d.auftraege} jeWerkstoff={jeWerkstoff} />
-                <PostenZeile p={p} neu={neu} erfassen={erfassen} mitMaterial />
+                <PostenZeile p={p} neu={neu} erfassen={erfassen} personen={d.personen} mitMaterial />
               </div>);
           })}
         </section>))}

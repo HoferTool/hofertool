@@ -64,7 +64,8 @@ with sync_playwright() as p:
         teil_mass_quelle: 'Einrichtblatt: Deckel 24 x 30' });
       D.hoco_parts.push({ hoco_nr: '10555-0003', teil_d_mm: 24, teil_laenge_mm: 30, teil_mass_bestaetigt: true });
       D.material_posten = [{ id: 'p1', material: 'X14CrMoS17 rd 024 mm h8', menge: 200, einheit: 'kg',
-        ort: 'Restelager', art: 'lager', weg_am: null, erstellt_am: '2026-10-01T08:00:00Z' }];
+        ort: 'Restelager', art: 'lager', weg_am: null, erstellt_am: '2026-10-01T08:00:00Z',
+        erstellt_von: 'u1', geaendert_am: '2026-10-02T13:05:00Z', geaendert_von: 'u1' }];
     }""")
 
     pg.evaluate("location.hash='#material'")
@@ -72,6 +73,11 @@ with sync_playwright() as p:
     pruefe("Nur Restmaterial, keine Reiter", pg.locator("[data-matreiter]").count() == 0 and pg.locator("#mat-bestellen, #mat-bestellt").count() == 0)
     pruefe("Knopf Material im Menü", pg.locator("a[href='#/material'], [data-pfad='material'], a:has-text('Material')").count() >= 1)
     pg.screenshot(path="/tmp/material_seite.png", full_page=True)
+    # Wer und wann (1.81.0, Wunsch Patrick 16. Oktober 2026)
+    ww = pg.locator("[data-ort='Restelager'] .mat-posten__werwann").first.inner_text()
+    print("     " + ww)
+    pruefe("Erfasst mit Datum, Zeit und Person", "Erfasst 01.10. 10:00" in ww and "saheesan.hudson" in ww)
+    pruefe("Geändert mit Datum, Zeit und Person", "geändert 02.10. 15:05 · saheesan.hudson" in ww)
 
     # Erfassen mit Zuweisen: 200 kg für 10555-0002, mit genauem Platz
     pg.click("#mat-neu"); pg.wait_for_selector(".mat-dialog #mat-suche")
