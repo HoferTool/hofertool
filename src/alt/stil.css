@@ -7732,20 +7732,42 @@ body.dunkel .hocoteil__marke--thema, body.dunkel .hocoteil__zustand--geplant
   .handymenue__schleier { position: fixed; inset: 0; z-index: 45;
     background: rgba(10, 20, 40, .3); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
     animation: hm-schleier .25s ease-out both; }
-  .handymenue__fenster { position: fixed; z-index: 46; left: 50%;
-    bottom: calc(84px + env(safe-area-inset-bottom));
-    width: min(calc(100% - 32px), 420px); box-sizing: border-box; transform: translateX(-50%);
-    display: grid; gap: 4px; padding: 14px 8px 10px; border-radius: 24px;
-    background: var(--flaeche); transform-origin: 50% 100%;
-    box-shadow: 0 22px 60px rgba(0, 20, 60, .32), 0 0 0 1px var(--linie-stark);
-    animation: hm-fenster-auf .42s cubic-bezier(.34, 1.4, .64, 1) backwards; }
+  .handymenue__fenster { position: fixed; z-index: 48; left: 50%;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    width: min(calc(100% - 32px), 420px); transform: translateX(-50%);
+    filter: drop-shadow(0 18px 40px rgba(0, 20, 60, .3)); }
+  /* Seit 1.79.0 wächst das Fenster aus dem Knopf: zu Beginn ist nur der
+     unterste Streifen in Knopfgrösse sichtbar (der Schliessen-Knopf liegt
+     genau dort, wo der Menüknopf war), dann zieht die Fläche nach oben auf. */
+  .handymenue__flaeche { box-sizing: border-box; display: grid; gap: 4px;
+    padding: 14px 8px 0; border-radius: 26px 26px 29px 29px;
+    background: var(--flaeche); border: 1px solid var(--linie-stark);
+    animation: hm-wachsen .46s cubic-bezier(.2, .9, .25, 1) backwards; }
+  .handymenue__schliessen {
+    all: unset; box-sizing: border-box; cursor: pointer; position: relative; overflow: hidden;
+    margin: 8px -9px -1px; height: 58px; border-radius: 29px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 600; font-size: 1.02rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--marke) 82%, #fff) 0%, var(--marke) 55%,
+                color-mix(in srgb, var(--marke) 86%, #000) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .18s cubic-bezier(.34, 1.56, .64, 1); }
+  .handymenue__schliessen:active { transform: scale(.97); }
+  .handymenue__schliessen:focus-visible { outline: 3px solid color-mix(in srgb, var(--marke) 50%, #fff); outline-offset: -4px; }
+  .handymenue__schliessentext { position: relative; animation: hm-text-rein .3s ease-out .12s backwards; }
+  /* Der Menüknopf liegt unter dem Fenster; solange es offen ist, nicht antippbar */
+  .handymenue--offen .handymenue__knopf, .handymenue--schliesst .handymenue__knopf {
+    visibility: hidden; transition: none; }
   .handymenue__zeile { display: flex; justify-content: center; }
   .handymenue__punkt { width: 25%; box-sizing: border-box; display: grid; justify-items: center; gap: 6px;
     padding: 10px 2px 8px; border-radius: 16px; text-decoration: none; color: var(--tinte);
     font-size: .74rem; -webkit-tap-highlight-color: transparent;
     animation: hm-punkt-rein .45s cubic-bezier(.34, 1.56, .64, 1) backwards;
     animation-delay: calc(var(--nr) * 28ms + 60ms); }
-  .handymenue__text { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Lange Namen wie „Qualitätssicherung“ trennen auf zwei Zeilen (seit 1.79.0) */
+  .handymenue__text { width: 100%; text-align: center; line-height: 1.15;
+    -webkit-hyphens: auto; hyphens: auto; overflow-wrap: break-word; }
   .handymenue__zeichen { width: 50px; height: 50px; border-radius: 16px; display: grid; place-items: center;
     background: var(--marke-hell); color: var(--marke);
     transition: transform .2s cubic-bezier(.34, 1.56, .64, 1), background-color .2s, box-shadow .2s; }
@@ -7758,10 +7780,13 @@ body.dunkel .hocoteil__marke--thema, body.dunkel .hocoteil__zustand--geplant
 
   /* Zugehen: alles kurz zurück in den Knopf */
   .handymenue--schliesst .handymenue__schleier { animation: hm-schleier .2s ease-in reverse both; }
-  .handymenue--schliesst .handymenue__fenster { animation: hm-fenster-zu .2s ease-in both; }
+  .handymenue--schliesst .handymenue__flaeche { animation: hm-schrumpfen .28s cubic-bezier(.5, 0, .75, 0) both; }
+  .handymenue--schliesst .handymenue__zeile { animation: hm-inhalt-weg .16s ease-in both; }
+  .handymenue--schliesst .handymenue__schliessentext { animation: hm-inhalt-weg .14s ease-in both; }
 
   /* Im dunklen Modus ist sonst alle Schrift weiss (body.dunkel *) */
-  body.dunkel .handymenue__knopf, body.dunkel .handymenue__knopf * { color: #0b1a33 !important; }
+  body.dunkel .handymenue__knopf, body.dunkel .handymenue__knopf *,
+  body.dunkel .handymenue__schliessen, body.dunkel .handymenue__schliessen * { color: #0b1a33 !important; }
   body.dunkel .handymenue__menue { background: rgba(0, 0, 0, .12); }
   body.dunkel .handymenue__zeichen, body.dunkel .handymenue__zeichen * { color: var(--marke) !important; }
   body.dunkel .handymenue__punkt.aktiv .handymenue__zeichen,
@@ -7772,12 +7797,15 @@ body.dunkel .hocoteil__marke--thema, body.dunkel .hocoteil__zustand--geplant
   @keyframes hm-knopf-rein { from { opacity: 0; transform: translateX(-50%) translateY(30px) scale(.9); } }
   @keyframes hm-glanz { 0% { transform: translateX(-120%); } 14%, 100% { transform: translateX(120%); } }
   @keyframes hm-schleier { from { opacity: 0; } }
-  @keyframes hm-fenster-auf { from { opacity: 0; transform: translateX(-50%) translateY(26px) scale(.86); } }
-  @keyframes hm-fenster-zu { to { opacity: 0; transform: translateX(-50%) translateY(18px) scale(.92); } }
+  @keyframes hm-wachsen { from { clip-path: inset(calc(100% - 58px) 0 0 0 round 29px); } to { clip-path: inset(0 round 26px 26px 29px 29px); } }
+  @keyframes hm-schrumpfen { from { clip-path: inset(0 round 26px 26px 29px 29px); } to { clip-path: inset(calc(100% - 58px) 0 0 0 round 29px); } }
+  @keyframes hm-inhalt-weg { to { opacity: 0; } }
+  @keyframes hm-text-rein { from { opacity: 0; transform: translateY(4px); } }
   @keyframes hm-punkt-rein { from { opacity: 0; transform: translateY(14px) scale(.7); } }
   @keyframes hm-tipp { 40% { transform: scale(1.18); } }
   @media (prefers-reduced-motion: reduce) {
     .handymenue__knopf, .handymenue__glanz, .handymenue__schleier, .handymenue__fenster,
+    .handymenue__flaeche, .handymenue__zeile, .handymenue__schliessentext,
     .handymenue__punkt, .handymenue__zeichen { animation: none !important; transition: none !important; }
     .handymenue__glanz { display: none; }
   }

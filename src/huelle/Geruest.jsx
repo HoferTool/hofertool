@@ -203,6 +203,11 @@ export function menueZeilen(n) {
   return Array.from({ length: zeilen }, (_, i) => basis + (i < mehr ? 1 : 0));
 }
 
+// Im Menü ist ein Feld nur ein Viertel breit: lange Namen bekommen eine
+// weiche Trennstelle, nicht jeder Browser trennt Deutsch von selbst
+const TRENNSTELLEN = { "Qualitätssicherung": "Qualitäts\u00ADsicherung" };
+const trennbar = (t) => TRENNSTELLEN[t] || t;
+
 // Menü am Handy (Wunsch Patrick 14. Oktober 2026): unten ein breiter
 // Knopf mit der offenen Seite, ein Tipp öffnet ein kleines Fenster mit
 // allen Symbolen. Ab Tablet-Breite blendet CSS es aus, dort bleibt die
@@ -215,7 +220,7 @@ function HandyMenue({ aktiv }) {
   const schliessen = () => setZustand((z) => (z === "offen" ? "schliesst" : z));
   useEffect(() => {
     if (zustand !== "schliesst") return;
-    const t = setTimeout(() => setZustand("zu"), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 220);
+    const t = setTimeout(() => setZustand("zu"), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 300);
     return () => clearTimeout(t);
   }, [zustand]);
   // Seitenwechsel von woanders (Suche, Zurück) schliesst es auch
@@ -265,7 +270,12 @@ function HandyMenue({ aktiv }) {
     <div className={"handymenue handymenue--" + zustand}>
       {zustand !== "zu" && <>
         <div className="handymenue__schleier" onClick={schliessen} />
+        {/* Das Fenster wächst aus dem Menüknopf heraus: der Knopf wird zum
+            Schliessen-Knopf unten, darüber zieht die Fläche hoch (seit 1.79.0,
+            Wunsch Patrick 16. Oktober 2026). Der Schatten liegt aussen, damit
+            ihn das Beschneiden innen nicht wegnimmt. */}
         <div className="handymenue__fenster" role="dialog" aria-label="Menü">
+          <div className="handymenue__flaeche">
           {zeilen.map((zeile, z) => (
             <div key={z} className="handymenue__zeile">
               {zeile.map((p) => (
@@ -274,11 +284,16 @@ function HandyMenue({ aktiv }) {
                   {...(p.web ? { target: "_blank", rel: "noopener" } : {})}
                   onClick={(e) => waehlen(e, p)}>
                   {p.zeichen}
-                  <span className="handymenue__text">{p.titel}</span>
+                  <span className="handymenue__text">{trennbar(p.titel)}</span>
                 </a>
               ))}
             </div>
           ))}
+          <button type="button" className="handymenue__schliessen" onClick={schliessen}>
+            <span className="handymenue__glanz" aria-hidden="true" />
+            <span className="handymenue__schliessentext">Schliessen</span>
+          </button>
+          </div>
         </div>
       </>}
       <button type="button" className="handymenue__knopf" aria-expanded={offen}

@@ -39,7 +39,7 @@ export async function qsSpeichern(j, m, stueckRoh, notizRoh) {
     erstellt_name: alt.personName(alt.profil, "") || null };
   const { data, error } = await alt.db.from(TABELLE).insert(zeile).select("id");
   if (error) {
-    alt.meldung(tabelleFehlt(error) ? "Die Datenbank kennt die QS-Meldungen noch nicht (sql/qs-meldungen.sql)."
+    alt.meldung(tabelleFehlt(error) ? "Die Datenbank kennt die Meldungen der Qualitätssicherung noch nicht (sql/qs-meldungen.sql)."
       : alt.fehlertext(error), "fehler");
     return false;
   }
@@ -53,7 +53,7 @@ export async function qsSpeichern(j, m, stueckRoh, notizRoh) {
 export async function qsQuittieren(meldung) {
   const { error } = await alt.db.from(TABELLE).delete().eq("id", meldung.id);
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return false; }
-  alt.merkeSchritt("QS-Meldung quittieren", alt.rueckRein(TABELLE, meldung));
+  alt.merkeSchritt("Meldung der Qualitätssicherung quittieren", alt.rueckRein(TABELLE, meldung));
   alt.meldung("Quittiert.", "gut");
   return true;
 }

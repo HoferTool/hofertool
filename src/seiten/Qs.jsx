@@ -65,7 +65,7 @@ export default function Qs({ auffrischen }) {
   // (syncTabellen „qs“ in app.js)
 
   if (!daten) {
-    return <><h1 className="seitentitel">QS</h1>
+    return <><h1 className="seitentitel">Qualitätssicherung</h1>
       <p className="klein">{fehler ? alt.fehlertext(fehler) : "Wird geladen …"}</p></>;
   }
   const { maschinen, zeilen, meldungen, fehlt } = daten;
@@ -75,10 +75,10 @@ export default function Qs({ auffrischen }) {
 
   return (
     <>
-      <h1 className="seitentitel">QS</h1>
+      <h1 className="seitentitel">Qualitätssicherung</h1>
       <p className="klein qs-erklaerung">Wurden Ausschussteile aussortiert, hier melden. Die Meldung steht im Pad Mode
         der Maschine anstelle des Wetters, bis jemand quittiert. Abgezogen wird nichts von selbst.</p>
-      {fehlt && <p className="qs-fehlt">Die Datenbank kennt die QS-Meldungen noch nicht. Bitte sql/qs-meldungen.sql ausführen.</p>}
+      {fehlt && <p className="qs-fehlt">Die Datenbank kennt die Meldungen der Qualitätssicherung noch nicht. Bitte sql/qs-meldungen.sql ausführen.</p>}
 
       <h2 className="qs-titel">Offene Meldungen{meldungen.length ? " (" + meldungen.length + ")" : ""}</h2>
       {meldungen.length
