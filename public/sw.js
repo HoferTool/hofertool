@@ -39,6 +39,14 @@ self.addEventListener("activate", (e) => {
       .filter((n) => (n.startsWith(VORSILBE) && n !== HUELLE)
         || (!IST_VORSCHAU && n.startsWith("hofer-huelle-")))
       .map((n) => caches.delete(n)));
+    // Push-Mitteilungen sind seit 1.83.0 weg (Wunsch Patrick 16. Oktober
+    // 2026): ein altes Abo auf dem Gerät abmelden, damit nichts mehr kommt.
+    if (!IST_VORSCHAU && self.registration.pushManager) {
+      try {
+        const abo = await self.registration.pushManager.getSubscription();
+        if (abo) await abo.unsubscribe();
+      } catch (f) { /* egal */ }
+    }
     await self.clients.claim();
   })());
 });
@@ -92,28 +100,3 @@ self.addEventListener("fetch", (e) => {
   }
 });
 
-// Push-Mitteilungen (seit 1.35.0): Ein Admin schickt eine Nachricht über
-// die Server-Funktion push-senden, der Push-Dienst des Geräts weckt dieses
-// Skript, auch wenn die App zu ist.
-self.addEventListener("push", (e) => {
-  let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch (f) { d = { text: e.data ? e.data.text() : "" }; }
-  e.waitUntil(self.registration.showNotification(d.titel || "Hofer Tool", {
-    body: d.text || "",
-    icon: "icon-192.png",
-    badge: "icon-192.png",
-    tag: "hofer-" + Date.now(),
-  }));
-});
-
-// Antippen öffnet die App, oder holt sie nach vorne, wenn sie schon offen ist
-self.addEventListener("notificationclick", (e) => {
-  e.notification.close();
-  e.waitUntil((async () => {
-    const offen = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    for (const c of offen) {
-      if (c.url.startsWith(self.registration.scope) && !c.url.includes("/vorschau/") && !c.url.includes("/test/") && "focus" in c) return c.focus();
-    }
-    return self.clients.openWindow(self.registration.scope);
-  })());
-});
