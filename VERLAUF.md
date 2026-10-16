@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.72.1** QS Check im Pad: Schrift auf der Werkstofffarbe immer weiss mit dünnem schwarzem Rand, auch auf Weiss lesbar (Wunsch Patrick, 16. Oktober 2026: „weisse Schrift auf weisser Materialfarbe, mit dünner schwarzer Linie umrahmen“).
 - **1.72.0** Material: nur noch Restmaterial (Wunsch Patrick, 16. Oktober 2026: „Material bestellt und das andere bringt nichts, soll nur Restmaterial sein, wo dort reinkommt und rausgeht“). Reiter Zu bestellen und Bestellt weg, im Fenster keine Wahl Ist da / Bestellt. Fenster „Material erfassen“ am Computer grösser und zweispaltig, mit Feldern als Karten; am Handy wie bisher.
 - **1.71.1** Material: Reiter „Alle Materialien“ entfernt (Wunsch Patrick, 16. Oktober 2026). Es bleiben Zu bestellen, Bestellt und An Lager.
 - **1.71.0** **Material: Reiter, Zuweisen, Rahmen** (Wunsch Patrick, 15. Oktober 2026). Reiter Zu bestellen, Bestellt, Alle Materialien, An Lager; „Ist da“ bestätigt mit einem Klick. Bestellungen mit Termin vor dem 16. Oktober 2026 (oder ohne Termin aus älteren Aufträgen) gelten als geliefert. Posten lassen sich einem Auftrag zuweisen, mit genauem Platz als Pflicht; Rahmenaufträge (Abrufinformation mit „Rahmen“) ohne Mengenrechnung, alles Gelieferte gehört dem Rahmen. „Rest Material?“ zeigt, welche Aufträge das Material noch brauchen. `sql/material-zuweisen.sql` (ausgeführt).

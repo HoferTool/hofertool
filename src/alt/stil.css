@@ -8063,3 +8063,16 @@ body.dunkel .mat-ampel--rot  { background: #3d1d1b; color: #ef7b72; }
 @media (min-width: 820px) {
   .mat-dialog { max-height: 94vh; }
 }
+
+/* QS Check: Schrift auf der Werkstofffarbe immer weiss mit dünnem schwarzem
+   Rand, so ist sie auf jeder Farbe lesbar, auch auf Weiss oder Gelb
+   (Wunsch Patrick, 16. Oktober 2026). Mit Schatten statt text-stroke, weil
+   das iPad den Rand sonst in die Buchstaben hinein malt. */
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__nr,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__name,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__zahl,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__zahl b,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__leer {
+  color: #fff; opacity: 1;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000; }
