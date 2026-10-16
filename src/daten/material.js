@@ -139,14 +139,54 @@ export function kgJeMeter(bez) {
   const w = genau ? null : alt.werkstoffErkennen ? alt.werkstoffErkennen(bez) : null;
   const dichte = genau ? genau.dichte : w && DICHTE[w.key];
   if (!dichte) return null;
-  let flaeche;
-  if (z.form === "rohr" && z.innen && z.innen < z.d) flaeche = Math.PI / 4 * (z.d * z.d - z.innen * z.innen);
-  else if (z.form === "6kt") flaeche = Math.sqrt(3) / 2 * z.d * z.d;
-  else if (z.form === "4kt") flaeche = z.d * z.d;
-  else if (z.form === "fl" && z.innen) flaeche = z.d * z.innen;
-  else flaeche = Math.PI / 4 * z.d * z.d;
-  return flaeche * dichte / 1000;
+  return querschnittMm2(z.form, z.d, z.innen) * dichte / 1000;
 }
+
+// Querschnitt in mm² je Form; beim Sechs- und Vierkant ist d die
+// Schlüsselweite
+export function querschnittMm2(form, d, innen) {
+  if (form === "rohr" && innen && innen < d) return Math.PI / 4 * (d * d - innen * innen);
+  if (form === "6kt") return Math.sqrt(3) / 2 * d * d;
+  if (form === "4kt") return d * d;
+  if (form === "fl" && innen) return d * innen;
+  return Math.PI / 4 * d * d;
+}
+
+// Für den Rechner auf der Planwand: alle Werkstoffe mit Nummer und
+// Dichte, dazu die Gruppen für alles, was keine Nummer hat
+const GRUPPEN_NAME = { stahl: "Automatenstahl", v2a: "V2A", v4a: "V4A", chrom: "Chromstahl", alu: "Aluminium",
+  messing: "Messing", messing_ohne_pb: "Messing ohne Blei", neusilber: "Neusilber", titan: "Titan", kunststoff: "Kunststoff" };
+const ZWEI = ["cr", "ni", "mo", "ti", "nb", "cu", "mn", "al", "si", "zn", "pb", "mg", "bi"];
+// „x8crnis18-9“ → „X8CrNiS18-9“; null, wenn es kein Kurzname aus
+// Element-Zeichen ist (wie „aw-6082“)
+function kurznameSchoen(n) {
+  let fehl = false;
+  const t = n.replace(/[a-z]+/g, (lauf) => {
+    let raus = "", i = 0;
+    while (i < lauf.length) {
+      if (ZWEI.includes(lauf.slice(i, i + 2))) { raus += lauf[i].toUpperCase() + lauf[i + 1]; i += 2; }
+      else if ("cnsvpx".includes(lauf[i])) { raus += lauf[i].toUpperCase(); i += 1; }
+      else { fehl = true; return lauf; }
+    }
+    return raus;
+  });
+  return fehl ? null : t;
+}
+export const WERKSTOFF_WAHL = {
+  nummern: WERKSTOFFE.map(([nr, dichte, ...namen]) => {
+    const name = namen.map(kurznameSchoen).find((x) => x && x.toLowerCase() !== nr.toLowerCase());
+    return { wert: "nr:" + nr, nr, name: name || "", dichte };
+  }),
+  gruppen: Object.keys(DICHTE).map((key) => ({ wert: "gr:" + key, key, name: GRUPPEN_NAME[key] || key, dichte: DICHTE[key] })),
+};
+// Bezeichnung → Wert der Auswahl („nr:1.4305“ oder „gr:v2a“), oder ""
+export function werkstoffWahlVon(bez) {
+  const genau = werkstoffGenau(bez);
+  if (genau) return "nr:" + genau.nr;
+  const w = alt.werkstoffErkennen ? alt.werkstoffErkennen(bez) : null;
+  return w && DICHTE[w.key] ? "gr:" + w.key : "";
+}
+export const STANGE_STANDARD_MM = STANGE_MM, STUMPEN_STANDARD_MM = STUMPEN_MM, PLANIEREN_STANDARD_MM = PLANIEREN_MM;
 
 // Menge eines Postens in kg (Stangen über das Gewicht je Stange)
 export function postenKg(p, stangeMm) {

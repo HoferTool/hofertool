@@ -8207,3 +8207,17 @@ body.dunkel .qs-fort__text { color: var(--tinte); }
 
 /* Material: wer erfasst und geändert hat, eigene Zeile unter dem Ort (1.81.0) */
 .mat-posten__werwann { display: block; opacity: .75; margin-top: 2px; }
+
+/* ---------- Materialrechner auf der Planwand (seit 1.84.0) ---------- */
+.dialog.dialog--matrechner { width: min(580px, 96vw); max-width: 580px; }
+.mr { display: flex; flex-direction: column; gap: 10px; }
+.mr .feld { margin: 0; }
+.mr .feld select, .mr .feld input { width: 100%; }
+.mr-wahl { display: grid; grid-template-columns: repeat(3, 1fr); margin: 2px 0 0; }
+.mr-wahl .moduswahl__knopf { padding: 10px 6px; }
+.mr-reihe { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mr-reihe--drei { grid-template-columns: 1fr 1fr 1fr; }
+.mr-hoco-info { margin: -4px 0 0; }
+.mr-ergebnis { margin: 4px 0 0; }
+.mr-ergebnis .hinweis { margin: 4px 0 0; }
+@media (max-width: 520px) { .mr-reihe, .mr-reihe--drei { grid-template-columns: 1fr; } }

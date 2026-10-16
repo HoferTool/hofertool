@@ -143,15 +143,11 @@ with sync_playwright() as p:
         bb.scroll_into_view_if_needed(); bb.hover(); pg.wait_for_timeout(600)
         return [z.inner_text() for z in pg.locator(".pw-info .pw-info__zeile").all()]
     zz = vorschau("mB")
-    i = next((k for k, t in enumerate(zz) if t.startswith("Mat. info.:")), -1)
-    pruefe("Mat. info. ganz unten vor Letzte Änderung (mB): " + (zz[i] if i >= 0 else "fehlt"),
-           i >= 0 and (i == len(zz) - 1 or zz[i + 1].startswith("Letzte Änderung")) and "kg / " in zz[i] and zz[i].endswith("(✗L)"))
+    # Seit 1.83.0 nicht mehr in der Schnellvorschau, nur im Auftragsfenster
+    pruefe("Keine Mat. info. in der Schnellvorschau (mB)", len(zz) > 3 and not any(t.startswith("Mat. info.") for t in zz))
     pruefe("Notiz ohne „aus infoBoard“ in der Schnellvorschau", not any("infoBoard" in t for t in zz))
     pruefe("Werkstoffnummer in der Schnellvorschau: " + next((t for t in zz if "1.4104" in t), "fehlt"),
            any(t.startswith("1.4104 · ") for t in zz))
-    zz = vorschau("mC")
-    pruefe("Bestätigt ohne ✗L (mC): " + next((t for t in zz if t.startswith("Mat.")), "fehlt"),
-           any(t.startswith("Mat. info.: min.") and "✗L" not in t for t in zz))
     pg.screenshot(path="/tmp/matinfo_vorschau.png")
     pg.mouse.move(5, 5)
     pg.locator(".pw-balken[data-auftrag='mB']").first.dblclick()
@@ -166,8 +162,7 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/matinfo_fenster.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     zz = vorschau("mA")
-    pruefe("Auch wenn er läuft (mA): " + next((t for t in zz if t.startswith("Mat.")), "fehlt"),
-           any(t.startswith("Mat. info.: min.") for t in zz))
+    pruefe("Auch beim laufenden (mA) keine Mat. info. in der Schnellvorschau", len(zz) > 3 and not any(t.startswith("Mat.") for t in zz))
 
     # Beenden im Pad fragt nach dem Rest
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)

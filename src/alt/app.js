@@ -33,7 +33,7 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
-import { materialFuerPlanwand, matInfo, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau } from "../daten/material.js";
+import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.83.0";
+const APP_VERSION = "1.84.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4744,7 +4744,7 @@ function balkenInfoVerhalten() {
         + '<span class="siegel-reihe">' + siegelHtml(j.geplant_von) + '</span></div>'
         // Die Zeile „Material: da / bestellt …“ ganz oben ist seit 1.76.0
         // weg (Wunsch Patrick 16. Oktober 2026: „verwirrt, soll
-        // übersichtlich sein“); unten steht nur noch „Mat. info.“
+        // übersichtlich sein“)
         + zeile(j.target_quantity
             ? zahlText(j.stand || 0) + ' / ' + zahlText(j.target_quantity) + ' Stück'
             : "Keine Fertigungsmenge hinterlegt")
@@ -4772,11 +4772,9 @@ function balkenInfoVerhalten() {
         + zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz"))
         + (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : "")
 
-        // Kurz die Mindestmenge, immer, ganz unten vor der letzten
-        // Änderung (Wunsch Patrick 16. Oktober 2026, seit 1.76.0),
-        // ✗L = Länge nicht bestätigt
-        + (matInfo(j) ? zeile('<span class="pw-info__was">Mat. info.:</span> ' + esc(matInfo(j).text)
-            + (matInfo(j).sicher === false ? ' <span class="mat-info__l">(✗L)</span>' : ""), "matinfo") : "")
+        // „Mat. info.“ steht seit 1.84.0 nicht mehr hier, nur noch im
+        // Auftragsfenster; zum Rechnen gibt es den Rechner oben auf der
+        // Planwand (Wunsch Patrick 16. Oktober 2026)
         + (j.geaendert_am
             ? zeile("Letzte Änderung " + esc(datumZeitKurz(j.geaendert_am))
               + (j.geaendert_von && personVoll(j.geaendert_von)

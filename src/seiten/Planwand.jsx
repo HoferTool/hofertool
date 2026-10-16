@@ -15,6 +15,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { symboleFensterOeffnen } from "../einstellungen/Symbole.jsx";
+import { materialRechnerOeffnen } from "../planwand/MaterialRechner.jsx";
 import { standLesen, standMerken } from "../daten/planwandStand.js";
 
 // Strg + F öffnet die Suche, solange die Planwand offen ist. Einmal
@@ -294,6 +295,17 @@ function Kopfleiste({ b, mobil }) {
             strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9" />
             <path d="M8 14.5c1 1.5 2.4 2.2 4 2.2s3-.7 4-2.2" />
             <circle cx="9" cy="10" r=".9" fill="currentColor" /><circle cx="15" cy="10" r=".9" fill="currentColor" /></svg>
+        </button>}
+        {/* Material von Stangen, kg und Teilen rechnen (Wunsch Patrick
+            16. Oktober 2026); Externe vorerst nicht */}
+        {!alt.istExtern() && !(alt.istArchiv && alt.istArchiv()) && <button className="knopf knopf--klein pw-eck pw-eck--plus" id="pw-matrechner"
+          title="Material rechnen" aria-label="Material rechnen" onClick={materialRechnerOeffnen}>
+          <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"
+            strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="3" width="14" height="18" rx="2.5" /><rect x="8" y="6" width="8" height="3.5" rx=".8" />
+            <circle cx="9" cy="13" r=".9" fill="currentColor" /><circle cx="12" cy="13" r=".9" fill="currentColor" />
+            <circle cx="15" cy="13" r=".9" fill="currentColor" /><circle cx="9" cy="17" r=".9" fill="currentColor" />
+            <circle cx="12" cy="17" r=".9" fill="currentColor" /><circle cx="15" cy="17" r=".9" fill="currentColor" /></svg>
         </button>}
         {/* Zu heute springen, mit zwei Wochen Rückblick */}
         <button className="knopf knopf--klein pw-eck" id="pw-heute"
