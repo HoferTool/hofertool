@@ -131,8 +131,17 @@ with sync_playwright() as p:
           const r = w ? parseFloat((getComputedStyle(w).clipPath.match(/circle\(([\d.]+)px/) || [])[1] || 0) : 0;
           const oben = w ? r >= innerHeight / 2 + 24 : false;
           window._lauf.push({ t: performance.now(), oben, klasse: document.documentElement.className,
-            leiste: document.querySelector('meta[name="theme-color"]').content });
+            leiste: document.querySelector('meta[name="theme-color"]').content,
+            // 1.82.1: Safari nimmt die Farbe oben von dem festen Element
+            // 4 px unter dem Rand, wenn es höher als 10 px ist
+            buehne: !!document.querySelector('.login__buehne'),
+            safari: (() => { const e = document.elementFromPoint(innerWidth / 2, 4);
+              if (!e) return null; const st = getComputedStyle(e);
+              return { kappe: e.classList.contains('login__kappe'), fest: st.position === 'fixed',
+                hoch: e.getBoundingClientRect().height, farbe: st.backgroundColor }; })() });
           if (document.querySelector('.login')) requestAnimationFrame(mess); })();""")
+        # Safari prüft ohne Rücksicht auf pointer-events, der Browser hier nicht
+        pg.add_style_tag(content=".login__buehne, .login__buehne * { pointer-events: auto !important; }")
         pg.locator(".login__kachel", has_text="Beat").click()
         pg.wait_for_timeout(5000)
         lauf = pg.evaluate("window._lauf")
@@ -144,6 +153,13 @@ with sync_playwright() as p:
         t_leiste = next((x["t"] for x in lauf if x["leiste"] == soll), None)
         pruefe(name + ": Fensterleiste wechselt mit der Welle", t_leiste and t_oben and abs(t_leiste - t_oben) < 150)
         pruefe(name + ": vor der Welle blau", lauf[0]["leiste"] == "#003884")
+        auf = [x for x in lauf if x["buehne"]]
+        pruefe(name + ": Safari findet oben den Streifen (fest, höher als 10 px)",
+               auf and all(x["safari"] and x["safari"]["kappe"] and x["safari"]["fest"] and x["safari"]["hoch"] > 10 for x in auf))
+        rgb = {"#ffffff": "rgb(255, 255, 255)", "#1c2229": "rgb(28, 34, 41)"}[soll]
+        print(name, "Streifen am Anfang:", auf and auf[0]["safari"]["farbe"], "am Ende:", auf and auf[-1]["safari"]["farbe"])
+        pruefe(name + ": Streifen am Anfang blau oder dunkel", auf and auf[0]["safari"]["farbe"] in ("rgb(0, 56, 132)", "rgb(14, 20, 28)"))
+        pruefe(name + ": Streifen am Ende wie die Kopfzeile", auf and auf[-1]["safari"]["farbe"] == rgb)
         nachher = pg.evaluate("document.querySelector('meta[name=\"theme-color\"]').content")
         pruefe(name + ": Fensterleiste nach dem Start gleich (" + nachher + ")", nachher == soll)
         fehler += f; pg.close()

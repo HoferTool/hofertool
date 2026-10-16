@@ -7604,13 +7604,38 @@ html.login-oben-hell:has(.login), html.login-oben-hell:has(.login) body { backgr
 html.login-oben-dunkel:has(.login), html.login-oben-dunkel:has(.login) body { background: #1c2229 !important; }
 /* Streifen ganz oben auf der Bühne (1.54.5): Safari am Handy färbt den
    Rand bei Uhr und Akku nach einem festen Element, das oben anliegt.
-   Er wechselt mit der Welle, wie Grund und Fensterleiste. */
+   Er wechselt mit der Welle, wie Grund und Fensterleiste.
+   Seit 1.82.1 (Patrick 16. Oktober 2026: „oberer Balken beim Anmelden am
+   Handy nur blau, macht beim Übergang nicht mit“): Safari prüft die
+   Stelle 4 px unter dem oberen Rand und nimmt die Hintergrundfarbe nur
+   von einem festen Element, das höher als 10 px ist. Der Streifen war
+   nur 1 px hoch, darum fand Safari die bildschirmgrosse Bühne und behält
+   bei der für immer die Farbe vom Anfang (blau). Jetzt ist er mindestens
+   14 px hoch. Sichtbar ist das Bild (gleiche Verläufe wie darunter, damit
+   kein Streifen auffällt); die Farbe darunter liest nur Safari. */
 .login__kappe { position: fixed; top: 0; left: 0; right: 0; z-index: 2;
-  height: max(1px, env(safe-area-inset-top, 0px)); pointer-events: none;
-  background-color: #003884; transition: background-color .6s ease; }
-body.dunkel .login__kappe { background-color: #0e141c; }
-html.login-oben-hell .login__kappe { background-color: #ffffff; }
-html.login-oben-dunkel .login__kappe { background-color: #1c2229; }
+  height: max(14px, env(safe-area-inset-top, 0px)); pointer-events: none;
+  background-size: 100vw 100vh; background-position: 0 0; background-repeat: no-repeat;
+  background-color: #003884; transition: background-color .6s ease;
+  background-image:
+    radial-gradient(circle at 50% calc(50% + 24px), rgba(255,255,255,.16) 0, rgba(255,255,255,0) 32vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.55) 100%),
+    linear-gradient(#003884, #003884); }
+body.dunkel .login__kappe { background-color: #0e141c;
+  background-image:
+    radial-gradient(circle at 50% calc(50% + 24px), rgba(255,255,255,.16) 0, rgba(255,255,255,0) 32vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.55) 100%),
+    linear-gradient(#0e141c, #0e141c); }
+html.login-oben-hell .login__kappe { background-color: #ffffff;
+  background-image:
+    radial-gradient(circle at 50% calc(50vh + 24px), #fff 0, #fff 30vmin, rgba(255,255,255,0) 90vmax),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 40%, rgba(0,30,70,.08) 100%),
+    linear-gradient(#f2f5f9, #f2f5f9); }
+html.login-oben-dunkel .login__kappe { background-color: #1c2229;
+  background-image:
+    radial-gradient(circle at 50% calc(50vh + 24px), rgba(255,255,255,.1) 0, rgba(255,255,255,0) 30vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 100%),
+    linear-gradient(#0e141c, #0e141c); }
 /* Safari am Handy nimmt die Farbe oben vom Inhalt, der dort liegt, und
    das ist die Anmeldeseite selbst, nicht der Grund (1.54.6). Sie wechselt
    darum mit derselben Welle; die Welle deckt sie dort ohnehin schon zu. */
