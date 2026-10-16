@@ -32,7 +32,7 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
-import { materialFuerPlanwand, materialStand, ampelText, AMPEL, matInfo, postenLaden, materialZerlegen, nochGebraucht } from "../daten/material.js";
+import { materialFuerPlanwand, matInfo, postenLaden, materialZerlegen, nochGebraucht } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.75.2";
+const APP_VERSION = "1.76.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4103,12 +4103,6 @@ async function ladePlanAuftraege(alle) {
   return liste;
 }
 
-// Ampel der Material-Übersicht für einen Auftrag, oder null
-function materialAmpel(j) {
-  const st = materialStand();
-  return st && j ? st.ampelVon[j.id] || null : null;
-}
-
 
 // Der Stand eines Auftrags ist der jüngste Zählerstand, der für genau
 // diesen Auftrag erfasst wurde — egal ob in der Produktion oder im
@@ -4750,11 +4744,9 @@ function balkenInfoVerhalten() {
       fenster.innerHTML = '<div class="pw-info__kopf">'
         + '<span class="pw-info__nr">' + esc(j.job_number) + '</span>'
         + '<span class="siegel-reihe">' + siegelHtml(j.geplant_von) + '</span></div>'
-        // Was die Material-Übersicht weiss, ganz oben (Wunsch Patrick
-        // 15. Oktober 2026: „nur in der Schnellvorschau zuoberst“; kein
-        // eigenes Zeichen auf dem Balken, dort bleibt das rote M)
-        + (materialAmpel(j) ? zeile(esc(ampelText(materialAmpel(j))),
-            "material pw-info__zeile--mat-" + (AMPEL[materialAmpel(j).ampel] || {}).klasse) : "")
+        // Die Zeile „Material: da / bestellt …“ ganz oben ist seit 1.76.0
+        // weg (Wunsch Patrick 16. Oktober 2026: „verwirrt, soll
+        // übersichtlich sein“); unten steht nur noch „Mat. info.“
         + zeile(j.target_quantity
             ? zahlText(j.stand || 0) + ' / ' + zahlText(j.target_quantity) + ' Stück'
             : "Keine Fertigungsmenge hinterlegt")
@@ -4774,16 +4766,17 @@ function balkenInfoVerhalten() {
         + (materialPlatz(j) ? zeile("📦 " + esc(materialPlatz(j))) : "")
 
         + luecke
-        // Kurz die Mindestmenge, immer direkt über dem Zustand (Wunsch
-        // Patrick 16. Oktober 2026), ✗L = Länge nicht bestätigt
-        + (matInfo(j) ? zeile('<span class="pw-info__was">Mat. info.:</span> ' + esc(matInfo(j).text)
-            + (matInfo(j).sicher === false ? ' <span class="mat-info__l">(✗L)</span>' : ""), "matinfo") : "")
         + zeile(zustand.zeichen + " " + esc(zustand.name))
         + zeile(esc(j.maschine || "–") + (j.maschine_nr ? " · " + esc(j.maschine_nr) : ""))
         + zeile(String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden")
         + zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz"))
         + (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : "")
 
+        // Kurz die Mindestmenge, immer, ganz unten vor der letzten
+        // Änderung (Wunsch Patrick 16. Oktober 2026, seit 1.76.0),
+        // ✗L = Länge nicht bestätigt
+        + (matInfo(j) ? zeile('<span class="pw-info__was">Mat. info.:</span> ' + esc(matInfo(j).text)
+            + (matInfo(j).sicher === false ? ' <span class="mat-info__l">(✗L)</span>' : ""), "matinfo") : "")
         + (j.geaendert_am
             ? zeile("Letzte Änderung " + esc(datumZeitKurz(j.geaendert_am))
               + (j.geaendert_von && personVoll(j.geaendert_von)
@@ -7337,6 +7330,11 @@ function notizTrennen(text) {
   // Stand sie doppelt drin, blieb die zweite in der Notiz und kam beim
   // Speichern zur ersten dazu, also immer wieder doppelt.
   zeilen.forEach((z) => {
+    // „(aus infoBoard)“ vom Import im Oktober 2026 zeigt die App nirgends
+    // mehr (Wunsch Patrick 16. Oktober 2026: „ist uns schon bewusst“);
+    // speichert jemand die Notiz, ist es auch in der Datenbank weg.
+    z = z.replace(/\s*\(?aus infoBoard\)?/gi, "").replace(/\s*\|\s*$/, "");
+    if (!z.trim() && /infoboard/i.test(String(text))) return;
     const t = z.match(MATERIALZEILE);
     if (t) { if (!ort) ort = t[1].trim(); }
     else rest.push(z);

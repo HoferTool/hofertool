@@ -59,7 +59,7 @@ with sync_playwright() as p:
     pg.locator(f".pw-balken[data-auftrag='{jid}']").first.dblclick(); pg.wait_for_selector(".dialog--auftrag")
     if pg.input_value("#pl-menge-mat") != "150 kg · Notz 2026008351": fehler.append("Beim Öffnen nicht gefüllt: " + pg.input_value("#pl-menge-mat"))
     if pg.input_value("#pl-liefer") != "30.04.26": fehler.append("Termin beim Öffnen: " + pg.input_value("#pl-liefer"))
-    if pg.input_value("#pl-notiz") != "für 0002+0003\n(aus infoBoard)": fehler.append("Notiz beim Öffnen doppelt: " + repr(pg.input_value("#pl-notiz")))
+    if pg.input_value("#pl-notiz") != "für 0002+0003": fehler.append("Notiz beim Öffnen doppelt: " + repr(pg.input_value("#pl-notiz")))
     pg.click("#pl-nein"); pg.wait_for_timeout(400)
 
     # 3. Startseite: Notiz mit HOCO Nr. geht in den Auftrag

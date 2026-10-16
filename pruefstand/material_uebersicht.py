@@ -43,7 +43,8 @@ with sync_playwright() as p:
       D.jobs.push({ ...basis, id: 'mA', job_number: '10555-0001', plan_status: 'laeuft', material_bez: mat,
         planned_from: '2026-10-05', stand: 1000 });
       D.jobs.push({ ...basis, id: 'mB', job_number: '10555-0002', plan_status: 'geplant', material_bez: mat,
-        planned_from: '2026-10-20', material_menge: '680 kg · Notz 2026008261', material_liefertermin: '24.10.26' });
+        planned_from: '2026-10-20', material_menge: '680 kg · Notz 2026008261', material_liefertermin: '24.10.26',
+        plan_note: 'Teile dringend\\nMat. Lager Süd\\n(aus infoBoard)', geaendert_am: '2026-10-12T08:00:00Z' });
       D.jobs.push({ ...basis, id: 'mC', job_number: '10555-0003', plan_status: 'geplant', material_bez: mat,
         planned_from: '2026-10-27', plan_note: 'Mat ab Rahmen Notz 2026008261' });
       // Rahmenauftrag: ohne Mengenrechnung
@@ -119,7 +120,7 @@ with sync_playwright() as p:
         b.scroll_into_view_if_needed(); b.hover(); pg.wait_for_timeout(700)
         info = pg.locator(".pw-info")
         z = info.locator(".pw-info__zeile").first.inner_text() if info.count() else ""
-        pruefe("Schnellvorschau zuoberst Material: " + z, z.startswith("Material: "))
+        pruefe("Oben keine Zeile Material da/bestellt mehr: " + z, not z.startswith("Material: "))
         pg.screenshot(path="/tmp/material_vorschau.png")
     else:
         pruefe("Balken mB sichtbar", False)
@@ -137,9 +138,9 @@ with sync_playwright() as p:
         return [z.inner_text() for z in pg.locator(".pw-info .pw-info__zeile").all()]
     zz = vorschau("mB")
     i = next((k for k, t in enumerate(zz) if t.startswith("Mat. info.:")), -1)
-    pruefe("Mat. info. direkt über dem Zustand (mB): " + (zz[i] if i >= 0 else "fehlt"),
-           i >= 0 and zz[i + 1].startswith("○") and "kg / " in zz[i] and zz[i].endswith("(✗L)"))
-    pruefe("keine doppelte Mindestmenge in der obersten Zeile", "mind." not in zz[0])
+    pruefe("Mat. info. ganz unten vor Letzte Änderung (mB): " + (zz[i] if i >= 0 else "fehlt"),
+           i >= 0 and (i == len(zz) - 1 or zz[i + 1].startswith("Letzte Änderung")) and "kg / " in zz[i] and zz[i].endswith("(✗L)"))
+    pruefe("Notiz ohne „aus infoBoard“ in der Schnellvorschau", not any("infoBoard" in t for t in zz))
     zz = vorschau("mC")
     pruefe("Bestätigt ohne ✗L (mC): " + next((t for t in zz if t.startswith("Mat.")), "fehlt"),
            any(t.startswith("Mat. info.: min.") and "✗L" not in t for t in zz))
@@ -150,6 +151,8 @@ with sync_playwright() as p:
     txt = pg.inner_text("#pl-matinfo")
     lage = pg.evaluate("[document.querySelector('#pl-matinfo').getBoundingClientRect().bottom, document.querySelector('#pl-zustand').getBoundingClientRect().top]")
     pruefe("Auftragsfenster: Mat. info. über dem Zustand: " + txt, txt.startswith("Mat. info.: min.") and "(✗L)" in txt and lage[0] <= lage[1])
+    notiz = pg.evaluate("[...document.querySelectorAll('.dialog-huelle textarea, .fenster textarea')].map(t => t.value).join('|')")
+    pruefe("Auftragsfenster: Notiz ohne „aus infoBoard“: " + notiz.replace(chr(10), " / "), "Teile dringend" in notiz and "infoBoard" not in notiz)
     pg.click("#pl-matinfo .mat-info__l"); pg.wait_for_timeout(300)
     pruefe("✗L antippen erklärt es", "Länge des Fertigteils" in pg.inner_text("body"))
     pg.screenshot(path="/tmp/matinfo_fenster.png")
