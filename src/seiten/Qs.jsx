@@ -8,7 +8,8 @@
 //  Externe (seiteSichtbar).
 // =================================================================
 import { alt, useDaten } from "../bruecke.jsx";
-import { qsMeldungenLaden, qsMelden, qsQuittieren, tabelleFehlt, wannText } from "../daten/qs.js";
+import { qsFenster } from "../teile/QsFenster.jsx";
+import { qsMeldungenLaden, qsQuittieren, tabelleFehlt, wannText } from "../daten/qs.js";
 
 const nachNummer = (a, b) => String(a.machine_number || "").localeCompare(
   String(b.machine_number || ""), "de", { numeric: true });
@@ -41,6 +42,19 @@ export function MeldungKarte({ me, maschine, nachher }) {
       <button className="knopf knopf--haupt qs-meldung__quittieren" data-qsquittieren={me.id}
         onClick={quittieren}>Quittieren</button>
     </div>
+  );
+}
+
+// Stand „1'200 von 5'000“ mit Balken, wie im QS Check des Pad Mode
+export function QsFortschritt({ j }) {
+  const stand = Number(j.stand) || 0;
+  const ziel = Number(j.target_quantity) || 0;
+  const prozent = ziel ? Math.min(100, Math.round(stand / ziel * 100)) : 0;
+  return (
+    <span className="qs-fort__inhalt">
+      <span className="qs-fort__zahl"><b>{alt.zahlText(stand)}</b> {ziel ? "von " + alt.zahlText(ziel) : "Stk"}</span>
+      <span className="qs-fort__balken"><i style={{ width: prozent + "%" }} /></span>
+    </span>
   );
 }
 
@@ -88,8 +102,10 @@ export default function Qs({ auffrischen }) {
                     {!!offenJe[m.id] && <span className="qs-maschine__offen">
                       {offenJe[m.id] === 1 ? "1 offene Meldung" : offenJe[m.id] + " offene Meldungen"}</span>}
                   </div>
-                  <button className="knopf qs-maschine__melden" data-qsmelden={m.id} disabled={fehlt}
-                    onClick={async () => { if (await qsMelden(j, m)) neu(); }}>Ausschuss melden</button>
+                  {/* Der Fortschritt ist der Knopf: er öffnet das grosse Fenster zum Auftrag (seit 1.78.0) */}
+                  <button className="qs-fort" data-qsmelden={m.id} disabled={fehlt}
+                    onClick={async () => { if (await qsFenster(j, m)) neu(); }}>
+                    <QsFortschritt j={j} /><span className="qs-fort__text">Ausschuss melden</span></button>
                 </div>
               );
             })}

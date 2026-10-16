@@ -99,6 +99,30 @@ with sync_playwright() as p:
     if pg.evaluate("TEST.daten.qs_meldungen.length") != 0: fehler.append("Seite: Quittieren hat nicht gelöscht")
     if not pg.locator("#qs-keine").count(): fehler.append("Seite nach Quittieren nicht leer")
 
+    # Pad, QS Check: der Fortschritt ist ein Knopf und öffnet das grosse Fenster (1.78.0)
+    pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(700)
+    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
+    pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector(f"#pad [data-qsfort='{mid}']")
+    pg.click(f"#pad [data-qsfort='{mid}']"); pg.wait_for_selector("#qs-fenster")
+    t = pg.inner_text("#qs-fenster")
+    nr = pg.evaluate(f"TEST.daten.jobs.find(j => j.machine_id === '{mid}' && !j.ended_at && ['laeuft','ruesten'].includes(j.plan_status)).job_number")
+    if nr not in t: fehler.append("Grosses Fenster ohne HOCO Nr.: " + t[:200])
+    if "Stück am Counter abziehen" not in t: fehler.append("Fenster ohne Stückfeld")
+    pg.fill("#qsf-stueck", "44"); pg.fill("#qsf-notiz", "Durchmesser zu gross")
+    pg.wait_for_timeout(900)
+    if BILDER: pg.screenshot(path=BILDER + "/qs-fenster-pad.png")
+    pg.click("#qs-fenster [data-ja]"); pg.wait_for_timeout(1000)
+    if pg.locator("#qs-fenster").count(): fehler.append("Fenster nach Melden noch offen")
+    d = pg.evaluate("TEST.daten.qs_meldungen.map(x => ({...x}))")
+    if len(d) != 1 or d[0].get("stueck") != 44 or d[0].get("machine_id") != mid: fehler.append("Pad-Meldung falsch: " + str(d))
+    # Nochmals öffnen: die offene Meldung steht im Fenster und lässt sich quittieren
+    pg.click(f"#pad [data-qsfort='{mid}']"); pg.wait_for_selector("#qs-fenster [data-qsfquittieren]")
+    if BILDER: pg.screenshot(path=BILDER + "/qs-fenster-offen.png")
+    pg.click("#qs-fenster [data-qsfquittieren]"); pg.wait_for_timeout(800)
+    if pg.evaluate("TEST.daten.qs_meldungen.length") != 0: fehler.append("Im Fenster nicht quittiert")
+    pg.click("#qs-fenster .qsf__zu"); pg.wait_for_timeout(400)
+    pg.click("#pad [data-padzu]"); pg.wait_for_timeout(700)
+
     # Handy
     if BILDER:
         h = seite(br, 390, 844, True)

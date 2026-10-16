@@ -26,23 +26,16 @@ export async function qsMeldungenLaden(maschineId) {
   return r.data || [];
 }
 
-// Fenster zum Melden. Gibt true zurück, wenn gespeichert wurde.
-export async function qsMelden(j, m) {
+// Speichert eine Meldung; das grosse Fenster dazu ist src/teile/QsFenster.jsx.
+// Gibt true zurück, wenn gespeichert wurde.
+export async function qsSpeichern(j, m, stueckRoh, notizRoh) {
   const name = alt.maschineZielText(m);
-  const w = await alt.dialogFelder({
-    titel: "Ausschuss melden",
-    text: (j.job_number || "Auftrag") + " auf " + name
-      + ". Die Meldung erscheint im Pad Mode dieser Maschine, bis jemand quittiert. Abgezogen wird nichts von selbst.",
-    felder: [
-      { name: "stueck", label: "Stück am Counter abziehen", ziffern: true, pflicht: true },
-      { name: "notiz", label: "Notiz", typ: "textarea", pflicht: true,
-        hinweis: "Was wurde aussortiert und warum?" }],
-    bestaetigen: "Melden" });
-  if (!w) return false;
-  const stueck = parseInt(String(w.stueck).replace(/[^0-9]/g, ""), 10);
+  const stueck = parseInt(String(stueckRoh || "").replace(/[^0-9]/g, ""), 10);
   if (!(stueck > 0)) { alt.meldung("Bitte eine Stückzahl grösser als 0 eintragen.", "warn"); return false; }
+  const notiz = String(notizRoh || "").trim();
+  if (!notiz) { alt.meldung("Notiz wird benötigt.", "warn"); return false; }
   const zeile = { job_id: j.id, machine_id: m.id, hoco_nr: j.job_number || null, stueck,
-    notiz: String(w.notiz || "").trim(), erstellt_von: alt.profil && alt.profil.id,
+    notiz, erstellt_von: alt.profil && alt.profil.id,
     erstellt_name: alt.personName(alt.profil, "") || null };
   const { data, error } = await alt.db.from(TABELLE).insert(zeile).select("id");
   if (error) {

@@ -22,6 +22,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { PadKopf, padZeichnen } from "./Pad.jsx";
+import { qsFenster } from "../teile/QsFenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 
 // Die Zustände in der Reihenfolge, in der ein Auftrag sie durchläuft
@@ -151,18 +152,23 @@ function materialStil(j, bez) {
 // Speichern zeichnet sich das Pad neu statt der Planwand
 const PAD_ZIEL = { nachPlanAenderung: () => padZeichnen() };
 
-// Stückzahl: „1'200 von 5'000“ mit Balken
-function Fortschritt({ j }) {
+// Stückzahl: „1'200 von 5'000“ mit Balken. Seit 1.78.0 ein Knopf, der
+// das grosse Fenster zum Ausschuss melden öffnet (nicht für Externe,
+// die haben die QS-Meldungen noch nicht)
+function Fortschritt({ j, m }) {
   const stand = Number(j.stand) || 0;
   const ziel = Number(j.target_quantity) || 0;
   const prozent = ziel ? Math.min(100, Math.round(stand / ziel * 100)) : 0;
+  const inhalt = <>
+    <span className="pad-ak__zahl">
+      <b>{alt.zahlText(stand)}</b><span>{ziel ? "von " + alt.zahlText(ziel) : "Stk"}</span>
+    </span>
+    <span className="pad-ak__balken"><i style={{ width: prozent + "%" }} /></span>
+  </>;
+  if (alt.istExtern()) return <div className="pad-ak__fort">{inhalt}</div>;
   return (
-    <div className="pad-ak__fort">
-      <span className="pad-ak__zahl">
-        <b>{alt.zahlText(stand)}</b><span>{ziel ? "von " + alt.zahlText(ziel) : "Stk"}</span>
-      </span>
-      <span className="pad-ak__balken"><i style={{ width: prozent + "%" }} /></span>
-    </div>
+    <button type="button" className="pad-ak__fort pad-ak__fort--knopf" data-qsfort={m.id}
+      title="Ausschuss melden" onClick={async () => { if (await qsFenster(j, m)) padZeichnen(); }}>{inhalt}</button>
   );
 }
 
@@ -196,7 +202,7 @@ export default function QsCheck({ zeilen, teile }) {
                       <button className="pad-ak__hoco" data-qsauftrag={j.id}
                         onClick={() => alt.planAuftragDialog(j, PAD_ZIEL)}>{j.job_number}</button>
                     </div>
-                    <Fortschritt j={j} />
+                    <Fortschritt j={j} m={m} />
                     <div className="pad-ak__doks">
                       {[["zeichnung", "Zeichnung", zeichnung], ["wbg", "WBG", wbg]].map(([art, text, adresse]) => (
                         <button key={art} data-qsdok={art} onClick={() => dokOeffnen(art, j, adresse)}

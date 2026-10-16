@@ -8119,3 +8119,52 @@ button.mat-info__l:hover { text-decoration: underline dotted; }
                           50% { box-shadow: 0 0 18px 2px rgba(255, 176, 32, .55); } }
 @media (prefers-reduced-motion: reduce) { #pad .pad-qsm__karte { animation: none; } }
 .qs-nb { white-space: nowrap; }
+
+/* ---------- Fortschritt als Knopf und grosses QS-Fenster (1.78.0) ---------- */
+#pad .pad-ak__fort--knopf { font: inherit; color: inherit; text-align: left; cursor: pointer;
+  background: rgba(0, 0, 0, .22); border: 1px solid rgba(255, 255, 255, .45); border-radius: .5em;
+  padding: .35em .5em; -webkit-tap-highlight-color: transparent; }
+#pad .pad-ak__fort--knopf:active { transform: scale(.98); background: rgba(0, 0, 0, .35); }
+@media (hover: hover) { #pad .pad-ak__fort--knopf:hover { border-color: #fff; background: rgba(0, 0, 0, .3); } }
+
+.qs-fort { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 150px;
+  min-height: 52px; padding: 6px 10px; font: inherit; color: var(--tinte); cursor: pointer; text-align: left;
+  background: var(--marke-hell); border: 1px solid var(--linie-stark); border-radius: var(--radius); }
+.qs-fort:hover { border-color: var(--marke); }
+.qs-fort__inhalt { display: flex; flex-direction: column; gap: 4px; }
+.qs-fort__zahl { font-size: .9rem; white-space: nowrap; }
+.qs-fort__balken, .qsf__balken { display: block; height: 8px; border-radius: 99px; background: var(--linie); overflow: hidden; }
+.qs-fort__balken i, .qsf__balken i { display: block; height: 100%; background: var(--marke); border-radius: inherit; }
+.qs-fort__text { font-size: .8rem; font-weight: 650; color: var(--marke); }
+body.dunkel .qs-fort { background: var(--flaeche); }
+body.dunkel .qs-fort__text { color: var(--tinte); }
+
+.qsf-huelle .qsf { position: relative; width: min(760px, 96vw); max-width: none; display: flex;
+  flex-direction: column; gap: 12px; padding: 22px 24px; }
+.qsf__zu { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--gedaempft); font-size: 1.3rem; cursor: pointer; }
+.qsf__zu:hover { background: var(--linie); color: var(--tinte); }
+.qsf__maschine { font-size: 1.05rem; font-weight: 600; color: var(--gedaempft); padding-right: 48px; }
+.qsf__hoco { font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 750; letter-spacing: .02em; line-height: 1.1;
+  padding: 10px 16px; border-radius: 10px; background: var(--marke-hell); border: 1px solid rgba(0,0,0,.18);
+  font-variant-numeric: tabular-nums; }
+.qsf__angaben { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 1.05rem; }
+.qsf__angaben span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.qsf__angaben small { color: var(--gedaempft); font-size: .78rem; }
+.qsf__fort { display: flex; flex-direction: column; gap: 6px; }
+.qsf__zahl { font-size: 1.15rem; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.qsf__zahl b { font-size: 1.9rem; }
+.qsf__prozent { margin-left: auto; color: var(--gedaempft); }
+.qsf__balken { height: 14px; }
+.qsf__offen { border: 1px solid var(--warnung); border-radius: 8px; padding: 10px 12px; }
+.qsf__offen h3, .qsf__titel { margin: 0; font-size: 1.05rem; }
+.qsf__meldung { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 0;
+  border-top: 1px solid var(--linie); }
+.qsf__meldung:first-of-type { border-top: 0; }
+.qsf__meldung small { color: var(--gedaempft); }
+.qsf__notiz { white-space: pre-wrap; overflow-wrap: anywhere; }
+.qsf__feld { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.qsf__feld input, .qsf__feld textarea { font: inherit; font-weight: 400; padding: 10px 12px; border-radius: var(--radius);
+  border: 1px solid var(--linie-stark); background: var(--flaeche); color: var(--tinte); }
+.qsf__feld input { font-size: 2rem; font-weight: 700; max-width: 260px; font-variant-numeric: tabular-nums; }
+.qsf .dialog__knoepfe .knopf { min-height: 52px; min-width: 130px; font-size: 1.05rem; }
