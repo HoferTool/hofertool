@@ -17,6 +17,7 @@ import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { materialDatenLaden, materialRechnen, postenMengeText, laengenNachholen,
   orteLaden, orteSpeichern, istOffen } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
+import { materialHistorieOeffnen } from "../material/Historie.jsx";
 
 const gemerkt = { suche: "" };
 
@@ -61,6 +62,9 @@ export default function Material({ auffrischen }) {
         <button className="knopf knopf--haupt" id="mat-neu" onClick={() => erfassen()}>+ Material erfassen</button>
         <input className="mat-sucheingabe" id="mat-filter" type="search" value={suche}
           placeholder="Suchen: Material, Ort" onChange={(e) => setSuche(e.target.value)} />
+        {/* Die letzten 100 Änderungen (Wunsch Patrick 16. Oktober 2026) */}
+        <button className="knopf" id="mat-historie-knopf" disabled={!daten || daten.fehlt}
+          onClick={() => materialHistorieOeffnen(daten && daten.personen)}>Historie</button>
       </div>
       {fehler && !daten
         ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>

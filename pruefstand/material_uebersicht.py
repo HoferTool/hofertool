@@ -71,6 +71,14 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#material'")
     pg.wait_for_selector("[data-ort='Restelager']", timeout=8000); pg.wait_for_timeout(500)
     pruefe("Nur Restmaterial, keine Reiter", pg.locator("[data-matreiter]").count() == 0 and pg.locator("#mat-bestellen, #mat-bestellt").count() == 0)
+    pg.evaluate("""TEST.daten.material_verlauf = [
+      { id: 2, posten_id: 'p1', was: 'geaendert', material: 'X14CrMoS17 rd 024 mm h8', menge: 200, einheit: 'kg', ort: 'Aussenlager Nord', vorher: 'Menge 150 kg', am: '2026-10-16T10:00:00Z' },
+      { id: 1, posten_id: 'p1', was: 'erfasst', material: 'X14CrMoS17 rd 024 mm h8', menge: 150, einheit: 'kg', ort: 'Aussenlager Nord', am: '2026-10-15T09:00:00Z' }]""")
+    pg.wait_for_selector("#mat-historie-knopf:not([disabled])", timeout=8000)
+    pg.click("#mat-historie-knopf"); pg.wait_for_selector("#mat-historie", timeout=5000)
+    h = pg.inner_text("#mat-historie")
+    pruefe("Historie im Fenster: " + h.replace(chr(10), " | ")[:160], "Geändert" in h and "vorher: Menge 150 kg" in h and "Erfasst" in h and "200 kg" in h)
+    pg.click("#mat-historie [data-zu]"); pg.wait_for_timeout(300)
     pruefe("Knopf Material im Menü", pg.locator("a[href='#/material'], [data-pfad='material'], a:has-text('Material')").count() >= 1)
     pg.screenshot(path="/tmp/material_seite.png", full_page=True)
     # Wer und wann (1.81.0, Wunsch Patrick 16. Oktober 2026)
