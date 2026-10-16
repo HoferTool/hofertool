@@ -6,6 +6,10 @@
 //  Oben stehen die offenen Meldungen zum Quittieren, darunter die
 //  Maschinen mit ihrem Auftrag. Daten in src/daten/qs.js. Nicht für
 //  Externe (seiteSichtbar).
+//  Seit 1.85.0 nur die eigenen Parks (Wunsch Patrick 16. Oktober 2026:
+//  „nur für seinen Park, ausser Admin“): Maschinen wie in der
+//  Produktion (ladeMaschinen), Meldungen nur zu diesen Maschinen. Die
+//  Datenbank prüft dasselbe (sql/qs-meldungen-park.sql), auch im Pad.
 // =================================================================
 import { alt, useDaten } from "../bruecke.jsx";
 import { qsFenster } from "../teile/QsFenster.jsx";
@@ -15,10 +19,15 @@ const nachNummer = (a, b) => String(a.machine_number || "").localeCompare(
   String(b.machine_number || ""), "de", { numeric: true });
 
 async function laden() {
-  const [maschinen, laufend] = await Promise.all([alt.ladeAlleMaschinen(), alt.ladeLaufendeAuftraege()]);
+  // Parks zuerst: ohne ihre Namen weiss parkErlaubt nicht, welcher Park
+  // zu Kurz- oder Langdrehern gehört
+  await alt.ladeParks(false);
+  const [maschinen, laufend] = await Promise.all([alt.ladeMaschinen(false), alt.ladeLaufendeAuftraege()]);
   let meldungen = [], fehlt = false;
   try { meldungen = await qsMeldungenLaden(); }
   catch (f) { if (tabelleFehlt(f)) fehlt = true; else throw f; }
+  const meine = new Set(maschinen.map((m) => m.id));
+  if (!alt.istAdmin()) meldungen = meldungen.filter((me) => meine.has(me.machine_id));
   const zeilen = maschinen.filter((m) => laufend[m.id]).sort(nachNummer)
     .map((m) => ({ m, j: laufend[m.id] }));
   return { maschinen, zeilen, meldungen, fehlt };
