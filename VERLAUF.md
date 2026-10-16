@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.74.2** QS Check im Pad: nur noch die Maschinennummer, ohne Maschinenname wie „Star SR-20“ (Wunsch Patrick, 16. Oktober 2026: „braucht es hier nicht“).
 - **1.74.0** Mat. info. (Wunsch Patrick, 16. Oktober 2026): im Auftragsfenster über dem Zustand und in der Schnellvorschau über der Zustandszeile kurz „Mat. info.: min. … kg / … Stangen“, immer, egal welcher Zustand oder ob bestellt; „(✗L)“ = Länge nicht bestätigt, Antippen erklärt es. Meldung zum Laden in `/mnt/project-files/meldungen/Meldung-Mat-info.json`. Test in `material_uebersicht.py`.
 - **1.73.1** Auftragsfenster ohne Farbwahl (Wunsch Patrick, 16. Oktober 2026: „Die Option Farben auszuwählen kannst du rausnehmen“). Beim Speichern gilt immer die Farbe des erkannten Werkstoffs; nur wenn die App den Werkstoff nicht erkennt, bleibt die bisherige Farbe.
 - **1.73.0** **Laufen lassen bei Stück am Abend** (Wunsch Patrick, 16. Oktober 2026: „bei Stückzahl am Abend soll es auch einen Knopf geben für laufen lassen“). Im Zifferblock von „Stück am Abend“ im Pad Mode steht neu der Knopf „Laufen lassen“; die Kachel zeigt dann „Laufen lassen“ statt einer Stückzahl. Gespeichert als -1 in `hoco_type_data.abend_stk`, keine neue Spalte. Zifferblock kann einen Zusatzknopf (`extra`). Seit 1.74.1 auch für Externe (Entscheid Patrick 16. Oktober 2026). Test `pruefstand/abend_laufen.py`.

@@ -187,8 +187,8 @@ export default function QsCheck({ zeilen, teile }) {
               className={"pad-ak__karte" + (st ? " pad-ak__karte--" + st : "")}>
               <div className="pad-ak__innen">
                 <div className="pad-ak__kopf">
+                  {/* Nur die Nummer, der Typ wie „Star SR-20“ braucht es hier nicht (Wunsch Patrick, 16. Oktober 2026) */}
                   <span className="pad-ak__nr">{m.machine_number || "—"}</span>
-                  <span className="pad-ak__name">{m.name}</span>
                 </div>
                 {j ? (
                   <>
