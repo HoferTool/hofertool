@@ -420,9 +420,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
 // sie übernimmt.
 export async function stammdatenBestaetigen(hocoNr, teil, nurAendern, daten) {
   const t = teil || {};
-  // Die Artikel-Bezeichnung braucht das Blatt nicht (Patrick, 16. Oktober
-  // 2026: „gibt mehr Platz für anderes“); sie bleibt bei der HOCO Nr.
-  const felder = STAMM_FELDER.filter(([f]) => f !== "bezeichnung").map(([f, label]) => (f === "waschgebinde"
+  const felder = STAMM_FELDER.map(([f, label]) => (f === "waschgebinde"
     ? { name: f, label, wert: t[f] || "",
         auswahl: [["", "—"]].concat([...new Set(WASCHGEBINDE.concat(t[f] ? [t[f]] : []))].map((x) => [x, x])) }
     : { name: f, label, wert: t[f] || "" }));

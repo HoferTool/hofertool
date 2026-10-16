@@ -15,8 +15,9 @@ export const TABELLE = "einrichtblatt_app";
 
 // Die Felder eines Platzes, in dieser Reihenfolge auf dem Blatt
 export const PLATZ_FELDER = ["standzeit", "taetigkeit", "mass", "hersteller", "werkzeug"];
+// Ohne Artikel-Bezeichnung: bei Hofer redet man von der Nummer
+// (Patrick, 16. Oktober 2026: „ganz weg die Bez“), auch nicht aus dem Excel
 export const STAMM_FELDER = [
-  ["bezeichnung", "Artikel-Bezeichnung"],
   ["zeichnungs_nr", "Zeichnungs-Nr."],
   ["index_nr", "Index"],
   ["waschgebinde", "Waschgebinde"],

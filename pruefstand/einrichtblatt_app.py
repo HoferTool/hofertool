@@ -49,6 +49,8 @@ with sync_playwright() as p:
     pruefe("Artikel aus Werkzeugtext erkannt", b["plaetze"]["T100"].get("article_id") == "a1")
     pruefe("Keine Fotos aus dem Excel", all("bild" not in v for v in b["plaetze"].values()))
     pruefe("Maschinen-Nr.", b["maschine_nr"] == "Nr.7")
+    hp = pg.evaluate("TEST.daten.hoco_parts.find(x => x.hoco_nr === '10000-0301') || {}")
+    pruefe("Bezeichnung nicht aus dem Excel übernommen", hp.get("bezeichnung") != "Deckel Muster")
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
     pruefe("Stückzeit ergänzt", td.get("stueckzeit_s") == 33)
     s = pg.inner_text("[data-eba-seite]")

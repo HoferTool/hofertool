@@ -138,7 +138,7 @@ const KOPF = [
   [/^programmpath(\d+)/, "programm"],
   [/^geometrie/, "geometrie"],
   [/^ho&?co(nr)?/, "hoco"],
-  [/^artikelbez/, "bezeichnung"],
+  [/^artikelbez/, "bezeichnung"],       // erkannt, aber nicht übernommen
   [/^zeichnungs?n(r|ummer)/, "zeichnungs_nr"],
   [/^index/, "index_nr"],
   [/^autom/, "autom"],
