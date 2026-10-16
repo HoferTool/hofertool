@@ -270,7 +270,7 @@ function StandFeld({ maschine, datum, staende, neu }) {
   const j = alt.prod.auftraege[maschine.id];
   const eintrag = staende.proSchluessel[maschine.id + "|" + datum];
   // Zahlen erfassen geht nur, solange der Auftrag wirklich läuft —
-  // nicht schon bei Geplant, Rüsten oder QS Check. Ohne laufenden
+  // nicht schon bei Geplant oder Rüsten. Ohne laufenden
   // Auftrag lässt sich nur ein vorhandener Eintrag aus der
   // Vergangenheit noch korrigieren.
   const laeuftJetzt = j && j.plan_status === "laeuft";

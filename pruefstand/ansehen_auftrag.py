@@ -58,7 +58,7 @@ with sync_playwright() as p:
     pg.locator("#pl-menge").click(); pg.keyboard.type("999"); pg.wait_for_timeout(100)
     pruefe("Menge bleibt", pg.input_value("#pl-menge") == ("" if vorher.get("target_quantity") is None else str(vorher["target_quantity"])))
 
-    neu = "qs" if vorher.get("plan_status") != "qs" else "ruesten"
+    neu = "geplant" if vorher.get("plan_status") != "geplant" else "ruesten"
     pg.select_option("#pl-zustand", neu); pg.click("#pl-ja"); pg.wait_for_timeout(1200)
     nachher = pg.evaluate("(id) => JSON.parse(JSON.stringify(TEST.daten.planwand.find(j => j.id === id)))", jid)
     pruefe("Zustand gespeichert", nachher.get("plan_status") == neu)

@@ -14,7 +14,7 @@
 //     24.10.26“) in Menge oder Notiz eines offenen Auftrags ist ein
 //     Posten „bestellt“. Drückt jemand „Ist da“, wird daraus ein echter
 //     Posten mit derselben Nummer, und der aus der Notiz verschwindet.
-//   - An der Maschine: was auf Rüsten, QS oder läuft steht, hat sein
+//   - An der Maschine: was auf Rüsten oder läuft steht, hat sein
 //     Material dort.
 //
 //  Gleich ist Material, wenn Werkstoff, Form, Masse und Toleranz
@@ -131,8 +131,8 @@ function terminDatum(t, jahrDerBestellung) {
   return null;
 }
 
-const OFFEN = new Set(["geplant", "ruesten", "qs", "laeuft"]);
-const AN_MASCHINE = new Set(["ruesten", "qs", "laeuft"]);
+const OFFEN = new Set(["geplant", "ruesten", "laeuft"]);
+const AN_MASCHINE = new Set(["ruesten", "laeuft"]);
 export const istOffen = (j) => !j.ended_at && OFFEN.has(j.plan_status || "geplant");
 
 // ---------- Laden ----------

@@ -117,7 +117,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
   const speichern = async () => {
     const mat = (waehlen ? suche : material).trim();
     if (!mat) { alt.meldung("Welches Material?", "warn"); return; }
-    const anMaschine = fuerJob && ["ruesten", "qs", "laeuft"].includes(fuerJob.plan_status);
+    const anMaschine = fuerJob && ["ruesten", "laeuft"].includes(fuerJob.plan_status);
     const ortFertig = ortWert || (anMaschine && !o.rest ? "An der Maschine" : "");
     if (art === "lager" && !ortFertig) { alt.meldung("Wo liegt es?", "warn"); return; }
     const zahl = menge.trim() === "" ? null : Number(menge.replace(",", ".").replace(/'/g, ""));
@@ -277,7 +277,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
               <button key={j.id} type="button" data-fuer={j.job_number}
                 className={"knopf knopf--klein" + (fuer === j.id ? " knopf--haupt" : "")} onClick={() => waehleFuer(j)}>
                 {j.job_number}{j.maschine ? " · " + [j.maschine, j.maschine_nr].filter(Boolean).join(" ") : ""}
-                {["ruesten", "qs", "laeuft"].includes(j.plan_status) ? " · an der Maschine" : j.planned_from ? " · " + alt.kurzDatum(j.planned_from) : ""}</button>))}
+                {["ruesten", "laeuft"].includes(j.plan_status) ? " · an der Maschine" : j.planned_from ? " · " + alt.kurzDatum(j.planned_from) : ""}</button>))}
           </div>
           {fuerJob && <>
             <label className="feld-haken"><input type="checkbox" id="mat-rahmen" checked={rahmen}

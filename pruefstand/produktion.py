@@ -51,10 +51,12 @@ with sync_playwright() as p:
     # Zustand ändern
     knopf = pg.locator("[data-auftrag-status]").first
     jid = knopf.get_attribute("data-auftrag-status")
-    knopf.click(); pg.wait_for_selector(".dialog-huelle [data-w='qs']"); pg.click(".dialog-huelle [data-w='qs']")
+    knopf.click(); pg.wait_for_selector(".dialog-huelle [data-w='geplant']")
+    if pg.locator(".dialog-huelle [data-w='qs']").count(): fehler.append("QS Check noch wählbar")
+    pg.click(".dialog-huelle [data-w='geplant']")
     pg.wait_for_timeout(900)
     zustand = pg.evaluate(f"TEST.daten.jobs.find(j => j.id === '{jid}').plan_status")
-    if zustand != "qs": fehler.append("Zustand nicht gesetzt: " + str(zustand))
+    if zustand != "geplant": fehler.append("Zustand nicht gesetzt: " + str(zustand))
     pg.screenshot(path="produktion.png")
 
     # Alte Reiter

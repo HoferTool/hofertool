@@ -74,11 +74,5 @@ with sync_playwright() as p:
     # Im Pad steht jetzt der gerüstete Auftrag an der Maschine
     pg.click("#pad [data-padzu]"); pg.wait_for_timeout(600)
 
-    # Steht der Nächste schon auf QS, bleibt er dort
-    pg.reload(wait_until="domcontentloaded"); pg.wait_for_selector("#inhalt")
-    aufbauen("qs")
-    beendenImPad()
-    if zustand("tB") != "qs": fehler.append("QS wurde überschrieben: " + zustand("tB"))
-    if zustand("tC") != "geplant": fehler.append("Übernächster bei QS verändert: " + zustand("tC"))
     br.close()
 print("Nächster auf Rüsten | Fehler:", "; ".join(fehler) if fehler else "keine")

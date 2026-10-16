@@ -42,7 +42,7 @@ def seite(br, b, h, mobil=False):
           D.machines.push({ id, park_id: pk, name: 'Citizen L20-' + i, machine_number: vor + '-' + (3000 + i),
             is_active: true, sort_order: 100 + i, type_id: null });
           D.jobs.push({ id: 'jx' + id, machine_id: id, job_number: '10' + (500 + i) + '-0' + (100 + i),
-            plan_status: ['laeuft', 'ruesten', 'qs', 'geplant'][i % 4], ended_at: null,
+            plan_status: ['laeuft', 'ruesten', 'laeuft', 'geplant'][i % 4], ended_at: null,
             planned_from: '2026-10-0' + (1 + i % 9), started_at: '2026-10-01T04:00:00Z', target_quantity: 1200 });
         }
       }
@@ -88,10 +88,12 @@ with sync_playwright() as p:
         fehler.append("Rüsten nicht hervorgehoben")
     if BILDER: pg.screenshot(path=BILDER + "/qs-liste.png")
 
-    z.locator("[data-qszustand='qs']").click(); pg.wait_for_timeout(1200)
-    if zustand(pg, "qA") != "qs": fehler.append("QS nicht gesetzt: " + zustand(pg, "qA"))
+    # „QS Check“ als Zustand ist seit 1.77.0 weg
+    if z.locator("[data-qszustand='qs']").count(): fehler.append("Zustand QS Check noch da")
+    z.locator("[data-qszustand='geplant']").click(); pg.wait_for_timeout(1200)
+    if zustand(pg, "qA") != "geplant": fehler.append("Geplant nicht gesetzt: " + zustand(pg, "qA"))
     z = pg.locator("#pad [data-qsmaschine='m-k1']")
-    if "pad-zustand--qs" not in (z.locator("[data-qszustand='qs']").get_attribute("class") or ""):
+    if "pad-zustand--geplant" not in (z.locator("[data-qszustand='geplant']").get_attribute("class") or ""):
         fehler.append("Liste nach Wechsel nicht neu")
     z.locator("[data-qszustand='laeuft']").click(); pg.wait_for_timeout(1200)
     if zustand(pg, "qA") != "laeuft": fehler.append("Läuft nicht gesetzt")

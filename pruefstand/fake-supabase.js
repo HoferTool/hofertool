@@ -158,7 +158,7 @@ const daten = {
     pad_info: "Kühlmittel prüfen, Zange nach 20'000 Stk", abend_stk: 150 }], setup_sheets: [], setup_sheet_slots: [],
   werkzeugwechsel: [],
   einrichtblaetter: [],
-  todos: [], shopping_items: [], materialausgabe: [],
+  todos: [], shopping_items: [], materialausgabe: [], qs_meldungen: [],
   suppliers: [
     { id: "s1", name: "Vischer & Bolli AG", website: "https://vb.ch",
       email: "v@vb.ch", adresse: "Kanalstrasse 17", bestellweg: "mail" },
@@ -358,6 +358,7 @@ function bauer(tabelle) {
               if (z.is_done === undefined) z.is_done = false;
               if (!z.created_at) z.created_at = new Date().toISOString();
             }
+            if (tabelle === "qs_meldungen" && !z.erstellt_am) z.erstellt_am = new Date().toISOString();
             if (tabelle === "materialausgabe") {
               if (!z.raus_am) z.raus_am = new Date().toISOString();
               if (z.rein_am === undefined) { z.rein_am = null; z.rein_von = null; }

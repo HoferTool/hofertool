@@ -25,7 +25,7 @@ import { PadKopf, padZeichnen } from "./Pad.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 
 // Die Zustände in der Reihenfolge, in der ein Auftrag sie durchläuft
-const ABLAUF = ["geplant", "ruesten", "qs", "laeuft", "fertig"];
+const ABLAUF = ["geplant", "ruesten", "laeuft", "fertig"];
 
 export async function qsLaden() {
   const [maschinen, laufend, offen] = await Promise.all([

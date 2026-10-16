@@ -11,6 +11,7 @@ import { alt, reactSeite, reactAufraeumen } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
+import Qs from "../seiten/Qs.jsx";
 import Temp from "../seiten/Temp.jsx";
 import { tempAufraeumenRegelmaessig } from "../daten/temp.js";
 import Einkauf from "../seiten/Einkauf.jsx";
@@ -130,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.76.1";
+const APP_VERSION = "1.77.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2785,7 +2786,7 @@ const ROLLEN = {
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
-  if (pfad === "material" && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "qs") && meineRolle() === "dienst") return false;
   if (!istExtern()) return true;
   return pfad === "planwand" || pfad === "produktion";
 }
@@ -3064,9 +3065,9 @@ async function ladeLaufendeAuftraege() {
   // und buchte die Stückzahl auf ihn.
   // An der Maschine ist, was läuft, gerüstet oder geprüft wird. Nur
   // "geplant" zählt nicht — sonst wanderte ein Auftrag aus der
-  // Produktion, sobald man ihn auf Rüsten oder QS setzt.
-  // Gibt es mehrere, hat "läuft" Vorrang, dann Rüsten, dann QS.
-  const RANG = { laeuft: 3, ruesten: 2, qs: 1 };
+  // Produktion, sobald man ihn auf Rüsten setzt.
+  // Gibt es mehrere, hat "läuft" Vorrang, dann Rüsten.
+  const RANG = { laeuft: 3, ruesten: 2 };
   const karte = {};
   (data || []).forEach((j) => {
     const rang = RANG[j.plan_status] || 0;
@@ -3242,11 +3243,12 @@ const PLANFARBEN = [
 // Wird beim Start geladen.
 let FARBZUTEILUNG = {};
 
-// Zustand eines Auftrags auf der Planwand
+// Zustand eines Auftrags auf der Planwand. „QS Check“ gibt es seit
+// 1.77.0 nicht mehr (Wunsch Patrick 16. Oktober 2026: „braucht man
+// nicht“); Ausschuss meldet man stattdessen auf der Seite QS.
 const PLANSTATUS = {
   geplant: { name: "Geplant",  zeichen: "○" },
   ruesten: { name: "Rüsten",   zeichen: "🔧" },
-  qs:      { name: "QS Check", zeichen: "🔍" },
   laeuft:  { name: "Läuft",    zeichen: "▶" },
   fertig:  { name: "Fertig",   zeichen: "✔" },
 };
@@ -5262,7 +5264,7 @@ function balkenKlick(auftrag, b) {
   }, DOPPELKLICK_MS) };
 }
 
-// Den Zustand (Geplant/Rüsten/QS Check/Läuft/Fertig) darf jeder
+// Den Zustand (Geplant/Rüsten/Läuft/Fertig) darf jeder
 // ändern, unabhängig vom sonstigen Bearbeitungsrecht — direkt über
 // das grosse Symbol am Balken, ohne das ganze Fenster zu öffnen.
 function statusSchnellVerhalten(b) {
@@ -9533,6 +9535,10 @@ SYM.material = svg('<circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><
 SYM.temp = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
   + '<path d="M12 16v-5"/><path d="M9.5 13.5L12 11l2.5 2.5"/>');
 
+// QS: Lupe mit Häkchen, wie Prüfen
+SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
+  + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
+
 // Einstellungen: Schieberegler
 SYM.einstellungen = svg('<line x1="4" y1="7" x2="20" y2="7"/>'
   + '<line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>'
@@ -9626,6 +9632,8 @@ const SEITEN = [
   { pfad: "dashboard",    titel: "Start",        zeichen: SYM.start, zeige: seiteDashboard },
   { pfad: "planwand",     titel: "Planwand",     zeichen: SYM.planwand, zeige: seitePlanwand },
   { pfad: "produktion",   titel: "Produktion",   zeichen: SYM.produktion, zeige: seiteProduktion },
+  // Ausschuss melden statt Zustand „QS Check“ (seit 1.77.0)
+  { pfad: "qs",           titel: "QS",           zeichen: SYM.qs, zeige: reactSeite(Qs) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: reactSeite(Einkauf) },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
@@ -9781,6 +9789,7 @@ function syncTabellen(pfad) {
   if (pfad === "bestellungen") return ["order_items", "articles", "suppliers", "designations"];
   if (pfad === "einkauf") return ["shopping_items"];
   if (pfad === "einstellungen") return ["profiles", "people"];
+  if (pfad === "qs") return ["qs_meldungen", "jobs"];
   return [];
 }
 

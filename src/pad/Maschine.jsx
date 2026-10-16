@@ -23,6 +23,7 @@ import Bildschirmschoner from "./Bildschirmschoner.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
+import { useQsMeldungen, QsMeldungen } from "./QsMeldung.jsx";
 import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitSetzen, artInfoFragen, laengeText,
   laengeSetzen } from "../daten/stueckzahl.js";
 import { laengeVersuchen } from "../daten/material.js";
@@ -516,17 +517,21 @@ function useJetzt() {
 // 8. Oktober 2026). Die Tage stehen nebeneinander, damit die Skizze
 // darunter Platz hat. Ein Tipp aufs Wetter öffnet das Wetterfenster mit
 // Stunden und mehr (Wunsch Patrick 9. Oktober 2026).
-function Saeule({ wetter }) {
+// Eine offene QS-Meldung der Maschine steht anstelle des Wetters, bis
+// jemand quittiert (seit 1.77.0, src/pad/QsMeldung.jsx).
+function Saeule({ wetter, maschineId }) {
   const jetzt = useJetzt();
   const heute = alt.isoDatum(jetzt);
-  const tage = wetter ? wetter.tage.filter((x) => x.datum >= heute).slice(0, 6) : [];
+  const [qs, qsWeg] = useQsMeldungen(maschineId);
+  const mitQs = qs.length > 0;
+  const tage = wetter && !mitQs ? wetter.tage.filter((x) => x.datum >= heute).slice(0, 6) : [];
   return (
     <div className="pad-karte2 pad-karte2--saeule">
       <div className="pad-uhrblock">
         <div><span className="pad-wtag">{alt.WOCHENTAGE[(jetzt.getDay() + 6) % 7]}</span>
           <div className="pad-uhr" id="pad-uhr"><Ziffern text={zweistellig(jetzt.getHours()) + ":" + zweistellig(jetzt.getMinutes())} /></div>
           <span className="pad-wdatum">{alt.kurzDatum(heute)} · KW {alt.kalenderwoche(heute)}</span></div>
-        {wetter
+        {mitQs ? null : wetter
           ? <div className="pad-wetterblock pad-wetterknopf" role="button" tabIndex={0} data-wetteroeffnen=""
               onClick={wetterFensterOeffnen} title="Mehr Wetter">
               <span className="pad-wzeichen">{wetterZeichen(wetter.code)}</span>
@@ -536,6 +541,7 @@ function Saeule({ wetter }) {
           : <span className="pad-ort">Wetter nicht verfügbar</span>}
       </div>
 
+      {mitQs && <QsMeldungen liste={qs} weg={qsWeg} />}
       {tage.length > 0 && <>
         <div className="pad-stunden pad-stunden--regen pad-wetterknopf" data-padtage="" role="button"
           onClick={wetterFensterOeffnen} title="Mehr Wetter">
@@ -764,7 +770,7 @@ export default function Maschine({ d }) {
         </div>
 
         {/* ----- rechte Säule ----- */}
-        <div className="pad-spalte pad-spalte--rechts"><Saeule wetter={wetter} />
+        <div className="pad-spalte pad-spalte--rechts"><Saeule wetter={wetter} maschineId={m.id} />
           {/* Der Rest der Spalte ist zum Zeichnen da (Wunsch Patrick 5. Oktober 2026) */}
           <Skizze key={j ? j.id : "ohne"} j={j} /></div>
       </div>

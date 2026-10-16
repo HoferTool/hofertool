@@ -7815,7 +7815,7 @@ body.dunkel .hocoteil__marke--thema, body.dunkel .hocoteil__zustand--geplant
 #pad .pad-ak--zwei .pad-ak__auftrag { grid-area: auf; }
 #pad .pad-ak--zwei .pad-ak__fort { grid-area: fort; }
 #pad .pad-ak--zwei .pad-ak__doks { grid-area: doks; }
-#pad .pad-ak--zwei .pad-ak__zustaende { grid-area: zust; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+#pad .pad-ak--zwei .pad-ak__zustaende { grid-area: zust; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 #pad .pad-ak__kopf { display: flex; flex-direction: column; min-width: 0; line-height: 1.05; }
 #pad .pad-ak__nr { font-size: 1.7em; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
 #pad .pad-ak__name { font-size: .62em; color: #9fb3cf; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -7835,7 +7835,7 @@ body.dunkel .hocoteil__marke--thema, body.dunkel .hocoteil__zustand--geplant
 #pad .pad-ak__balken i { display: block; height: 100%; border-radius: inherit;
   background: linear-gradient(90deg, #2fb46a, #6be39b); }
 #pad .pad-ak__doks { display: grid; grid-template-columns: repeat(2, 3.7em); gap: .25em; }
-#pad .pad-ak__zustaende { display: grid; grid-template-columns: repeat(5, 3.2em); gap: .25em; }
+#pad .pad-ak__zustaende { display: grid; grid-template-columns: repeat(4, 3.2em); gap: .25em; }
 #pad .pad-ak__dok, #pad .pad-ak__knopf { height: 3.5em; padding: 0 .1em; border-radius: .45em; font-size: inherit;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1em;
   font-weight: 700; line-height: 1.05; color: #c9d6ea; background: #1a2333;
@@ -8078,3 +8078,44 @@ body.dunkel .mat-ampel--rot  { background: #3d1d1b; color: #ef7b72; }
   padding: 0; cursor: help; }
 button.mat-info__l:hover { text-decoration: underline dotted; }
 .pw-info__zeile--matinfo { font-weight: 600; }
+
+/* ---------- Seite QS und QS-Meldung im Pad (1.77.0) ---------- */
+.qs-erklaerung { max-width: 760px; }
+.qs-fehlt { color: var(--gefahr); font-weight: 600; }
+.qs-titel { font-size: 1.1rem; margin: 18px 0 8px; }
+.qs-meldungen { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 10px; }
+.qs-meldung { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 8px;
+              background: var(--flaeche); border: 1px solid var(--linie); border-left: 5px solid var(--warnung); }
+.qs-meldung__kopf { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; }
+.qs-meldung__wo { font-weight: 650; }
+.qs-meldung__wann { color: var(--gedaempft); font-size: .85rem; }
+.qs-meldung__zahl b { font-size: 1.5rem; color: var(--gefahr); margin-right: 4px; }
+.qs-meldung__notiz { white-space: pre-wrap; overflow-wrap: anywhere; }
+.qs-meldung__quittieren { align-self: flex-start; min-height: 44px; }
+.qs-maschinen { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 8px; }
+.qs-maschine { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+               background: var(--flaeche); border: 1px solid var(--linie); }
+.qs-maschine__farbe { width: 10px; align-self: stretch; flex: none; border-radius: 3px;
+                      background: var(--linie); border: 1px solid rgba(0,0,0,.2); }
+.qs-maschine__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.qs-maschine__text span { color: var(--gedaempft); font-size: .9rem; }
+.qs-maschine__text .qs-maschine__offen { color: var(--warnung); font-weight: 600; }
+.qs-maschine__melden { flex: none; min-height: 44px; }
+
+/* Im Pad anstelle des Wetters: gut sichtbar, bis quittiert */
+#pad .pad-qsm { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
+#pad .pad-qsm__karte { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px;
+  background: linear-gradient(150deg, #8a5a00, #5c3a00); color: #fff; border: 2px solid #ffb020;
+  animation: pad-qsm-puls 2.4s ease-in-out infinite; }
+#pad .pad-qsm__titel { font-weight: 700; font-size: 1.05rem; letter-spacing: .02em; color: #ffd27a; }
+#pad .pad-qsm__zahl { font-size: 1.1rem; }
+#pad .pad-qsm__zahl b { font-size: 2.2rem; margin-right: 6px; }
+#pad .pad-qsm__notiz { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1rem; }
+#pad .pad-qsm__fuss { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: .85rem; opacity: .95; }
+#pad .pad-qsm__quittieren { min-height: 52px; padding: 0 22px; border-radius: 10px; border: 0; font: inherit;
+  font-weight: 700; font-size: 1.05rem; background: #fff; color: #5c3a00; cursor: pointer; }
+@keyframes pad-qsm-puls { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 176, 32, .0); }
+                          50% { box-shadow: 0 0 18px 2px rgba(255, 176, 32, .55); } }
+@media (prefers-reduced-motion: reduce) { #pad .pad-qsm__karte { animation: none; } }
+.qs-nb { white-space: nowrap; }

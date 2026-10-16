@@ -12,8 +12,8 @@
 import { alt } from "../bruecke.jsx";
 
 const TAG = 86400000;
-// Echte Starts: läuft, QS oder fertig. Rüsten setzt kein started_at.
-const GELAUFEN = ["laeuft", "qs", "fertig"];
+// Echte Starts: läuft oder fertig. Rüsten setzt kein started_at.
+const GELAUFEN = ["laeuft", "fertig"];
 
 const zweistellig = (n) => String(n).padStart(2, "0");
 // Uhrzeit in der Zeit des Geräts, nicht in UTC wie in der Datenbank

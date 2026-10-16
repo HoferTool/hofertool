@@ -28,7 +28,7 @@ DATEN = """() => {
   D.machines.forEach((m, i) => {
     if (ohne.has(m.id) || i === 9) return;
     const ziel = [5000, 1200, 800, 20000, 3500, 10000][i % 6];
-    const st = ['laeuft', 'laeuft', 'ruesten', 'laeuft', 'qs', 'geplant', 'laeuft'][i % 7];
+    const st = ['laeuft', 'laeuft', 'ruesten', 'laeuft', 'ruesten', 'geplant', 'laeuft'][i % 7];
     D.jobs.push({ id: 'jk' + i, machine_id: m.id, job_number: (10000 + i * 37) + '-0' + (300 + i),
       plan_status: st, ended_at: null, planned_from: '2026-10-0' + (1 + i % 9),
       started_at: '2026-10-01T04:00:00Z', target_quantity: ziel, material_bez: i === 4 ? '' : MAT[i % MAT.length],
