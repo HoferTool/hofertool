@@ -10,9 +10,10 @@
 //  → Farben und Material änderbar; Querschnitt je Form, Stange 3 m.
 //  Stück wie die Mindestmenge (bedarfRechnen): je Stück Länge +
 //  Abstecher + 0,5 mm fürs Planieren, je Stange (Stange − Stumpen) /
-//  das, ganze Stangen. Ergebnis: kg (Stangen), darunter nur Stangen und
-//  Stück pro Stange (Wunsch Patrick 16. Oktober 2026). Nichts wird
-//  gespeichert. Externe bekommen den Knopf nicht (bis Patrick entscheidet).
+//  das, ganze Stangen. kg oder Stangen → Stück oder Stück → kg, die
+//  andere Einheit in Klammern, darunter nur „Stück pro Stange“ (Wunsch
+//  Patrick 16. Oktober 2026). Nichts wird gespeichert. Externe bekommen
+//  den Knopf nicht (Entscheid Patrick 16. Oktober 2026: „Externe nö“).
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -30,10 +31,10 @@ const zeigen = (n, stellen) => {
 };
 
 const FORMEN = [["rd", "Rund"], ["4kt", "Vierkant"], ["6kt", "Sechskant"]];
-// Nur Stangen oder Stück; wie viele Stangen es sind, steht beim
-// Ergebnis in Klammern (Wunsch Patrick 16. Oktober 2026, „kg → Stangen“
-// braucht es darum nicht)
-const ARTEN = [["stangen", "Stangen → kg"], ["teile", "Stück → kg"]];
+// Zwei Richtungen (Wunsch Patrick 16. Oktober 2026: „von kg/Stange zu
+// Stück oder umgekehrt“): Menge in kg oder Stangen → wie viele Stück,
+// oder Stück → kg; die andere Einheit steht beim Ergebnis in Klammern
+const ARTEN = [["menge", "kg / Stangen → Stück"], ["teile", "Stück → kg"]];
 
 function dichteAus(wahlListe, wahl) {
   const e = [...wahlListe.nummern, ...wahlListe.gruppen].find((x) => x.wert === wahl);
@@ -78,7 +79,8 @@ export function materialRechnerOeffnen() {
 export default function MaterialRechner() {
   const [hoco, setHoco] = useState("");
   const [hocoInfo, setHocoInfo] = useState(null);
-  const [art, setArt] = useState("stangen");
+  const [art, setArt] = useState("menge");
+  const [einheit, setEinheit] = useState("stg");
   const [form, setForm] = useState("rd");
   const [werkstoff, setWerkstoff] = useState("gr:v2a");
   const [d, setD] = useState("");
@@ -129,24 +131,36 @@ export default function MaterialRechner() {
   const stangeMm = zahlLesen(stange) || STANGE_STANDARD_MM;
   const kgStange = kgm ? kgm * stangeMm / 1000 : null;
   const n = zahlLesen(menge);
+  const stangenText = (x) => zeigen(x, 2) + (x === 1 ? " Stange" : " Stangen");
+
+  // Stück je Stange wie die Mindestmenge: Länge + Abstecher + 0,5 mm
+  const l = zahlLesen(laenge);
+  const jeTeil = l > 0 ? l + (zahlLesen(abstecher) || 0) + PLANIEREN_STANDARD_MM : null;
+  const stumpenMm = zahlLesen(stumpen) ?? STUMPEN_STANDARD_MM;
+  const jeStange = jeTeil ? Math.floor((stangeMm - stumpenMm) / jeTeil) : null;
 
   let ergebnis = null;
   if (kgm && n !== null && n >= 0) {
-    if (art === "stangen") ergebnis = { gross: zeigen(n * kgStange, 1), stangen: n };
-    else {
-      const l = zahlLesen(laenge);
-      if (l > 0) {
-        const jeTeil = l + (zahlLesen(abstecher) || 0) + PLANIEREN_STANDARD_MM;
-        const nutz = stangeMm - (zahlLesen(stumpen) ?? STUMPEN_STANDARD_MM);
-        const jeStange = Math.floor(nutz / jeTeil);
-        if (jeStange < 1) ergebnis = { fehler: "Das Stück ist länger als eine Stange." };
-        else {
-          const stangen = Math.ceil(n / jeStange);
-          // Darunter nur Stangen und Stück pro Stange (Wunsch Patrick)
-          ergebnis = { gross: zeigen(stangen * kgStange, 1), stangen,
-            zusatz: zeigen(stangen) + (stangen === 1 ? " Stange" : " Stangen") + " · " + zeigen(jeStange) + " Stück pro Stange" };
-        }
+    if (jeTeil && jeStange < 1) ergebnis = { fehler: "Das Stück ist länger als eine Stange." };
+    else if (art === "menge") {
+      const stangen = einheit === "kg" ? n / kgStange : n;
+      const kg = einheit === "kg" ? n : n * kgStange;
+      const andere = einheit === "kg" ? stangenText(stangen) : zeigen(kg, 1) + " kg";
+      if (!jeTeil) ergebnis = { gross: einheit === "kg" ? zeigen(stangen, 2) : zeigen(kg, 1),
+        einheit: einheit === "kg" ? "Stangen" : "kg", hinweis: "Länge Fertigteil eintragen, dann stehen hier die Stück." };
+      else {
+        // Ganze Stangen voll, vom Anbruch nur was nach dem Reststück bleibt
+        const ganz = Math.floor(stangen + 1e-9);
+        const rest = (stangen - ganz) * stangeMm - stumpenMm;
+        const stueck = ganz * jeStange + Math.max(0, Math.floor(rest / jeTeil));
+        ergebnis = { gross: zeigen(stueck), einheit: "Stück (" + andere + ")", zusatz: zeigen(jeStange) + " Stück pro Stange" };
       }
+    } else if (!jeTeil) ergebnis = { hinweis: "Länge Fertigteil eintragen." };
+    else {
+      const stangen = Math.ceil(n / jeStange);
+      // Darunter nur Stück pro Stange (Wunsch Patrick)
+      ergebnis = { gross: zeigen(stangen * kgStange, 1), einheit: "kg (" + stangenText(stangen) + ")",
+        zusatz: zeigen(jeStange) + " Stück pro Stange" };
     }
   }
 
@@ -204,33 +218,38 @@ export default function MaterialRechner() {
 
       <div className="mr-reihe">
         <label className="feld">
-          <span>{art === "stangen" ? "Anzahl Stangen" : "Anzahl Stück"}</span>
+          <span>{art === "teile" ? "Anzahl Stück" : einheit === "kg" ? "Menge in kg" : "Anzahl Stangen"}</span>
           <input type="text" id="mr-menge" inputMode="decimal" value={menge} onChange={(e) => setMenge(e.target.value)} />
         </label>
-        {art === "teile" && <label className="feld">
+        <label className="feld">
           <span>Länge Fertigteil in mm</span>
           <input type="text" id="mr-laenge" inputMode="decimal" value={laenge} onChange={(e) => setLaenge(e.target.value)} />
-        </label>}
-        {art !== "teile" && <label className="feld"><span>Stangenlänge mm</span>
-          <input type="text" id="mr-stange" inputMode="decimal" value={stange} onChange={(e) => setStange(e.target.value)} /></label>}
+        </label>
       </div>
-      {art === "teile" && <div className="mr-reihe mr-reihe--drei">
+      {art === "menge" && <div className="moduswahl mr-wahl mr-wahl--zwei mr-einheit">
+        {[["stg", "Stangen"], ["kg", "kg"]].map(([wert, text]) => (
+          <button key={wert} type="button" className={"moduswahl__knopf" + (einheit === wert ? " aktiv" : "")}
+            data-einheit={wert} onClick={() => setEinheit(wert)}>{text}</button>
+        ))}
+      </div>}
+      <div className="mr-reihe mr-reihe--drei">
         <label className="feld"><span>Abstecher mm</span>
           <input type="text" id="mr-abstecher" inputMode="decimal" value={abstecher} placeholder="0" onChange={(e) => setAbstecher(e.target.value)} /></label>
         <label className="feld"><span>Stange mm</span>
           <input type="text" id="mr-stange" inputMode="decimal" value={stange} onChange={(e) => setStange(e.target.value)} /></label>
         <label className="feld"><span>Reststück mm</span>
           <input type="text" id="mr-stumpen" inputMode="decimal" value={stumpen} onChange={(e) => setStumpen(e.target.value)} /></label>
-      </div>}
+      </div>
 
       <section className="karte karte--ergebnis mr-ergebnis" id="mr-ergebnis">
         <div className="ergebnis">
-          <div className="ergebnis__titel">Gewicht</div>
+          <div className="ergebnis__titel">{art === "teile" ? "Gewicht" : "Stück"}</div>
           <div className="ergebnis__wert">{ergebnis && ergebnis.gross ? ergebnis.gross : "–"}
-            {ergebnis && ergebnis.gross && <span>{"kg (" + zeigen(ergebnis.stangen, 2) + (ergebnis.stangen === 1 ? " Stange)" : " Stangen)")}</span>}</div>
+            {ergebnis && ergebnis.gross && <span>{ergebnis.einheit}</span>}</div>
         </div>
         {ergebnis && ergebnis.zusatz && <p className="hinweis mr-zusatz">{ergebnis.zusatz}</p>}
         {ergebnis && ergebnis.fehler && <p className="hinweis">{ergebnis.fehler}</p>}
+        {ergebnis && ergebnis.hinweis && <p className="hinweis">{ergebnis.hinweis}</p>}
         {!kgm && <p className="hinweis">{"Werkstoff und " + masName + " eintragen."}</p>}
       </section>
     </div>

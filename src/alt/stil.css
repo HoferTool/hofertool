@@ -8227,3 +8227,6 @@ body.dunkel .qs-fort__text { color: var(--tinte); }
 .dichte-gruppe td { background: var(--flaeche-2, transparent); }
 .mr-zusatz { font-size: 1rem; }
 .mr-wahl.mr-wahl--zwei { grid-template-columns: 1fr 1fr; }
+/* kg oder Stangen gehört zum Mengenfeld darüber (1.87.0) */
+.mr-einheit { width: calc(50% - 5px); margin-top: -4px; }
+@media (max-width: 520px) { .mr-einheit { width: 100%; } }

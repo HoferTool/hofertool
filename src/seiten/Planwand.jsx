@@ -297,7 +297,7 @@ function Kopfleiste({ b, mobil }) {
             <circle cx="9" cy="10" r=".9" fill="currentColor" /><circle cx="15" cy="10" r=".9" fill="currentColor" /></svg>
         </button>}
         {/* Material von Stangen, kg und Teilen rechnen (Wunsch Patrick
-            16. Oktober 2026); Externe vorerst nicht */}
+            16. Oktober 2026); Externe nicht (Entscheid Patrick 16. Oktober 2026) */}
         {!alt.istExtern() && !(alt.istArchiv && alt.istArchiv()) && <button className="knopf knopf--klein pw-eck pw-eck--plus" id="pw-matrechner"
           title="Material rechnen" aria-label="Material rechnen" onClick={materialRechnerOeffnen}>
           <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"

@@ -57,10 +57,20 @@ with sync_playwright() as p:
     pg.click("[data-form='6kt']"); pg.wait_for_timeout(120)
     # √3/2 · 400 = 346,4 mm² · 7,9 / 1000 · 6 = 16,42
     pruefe("Sechskant 20 = 16,4 kg: " + wert(pg), wert(pg).startswith("16,4"))
-    pruefe("Nur Stangen und Stück zum Umschalten", pg.locator("[data-art]").count() == 2 and pg.locator("[data-art='kg']").count() == 0
-           and "Stück → kg" in pg.inner_text(".dialog--matrechner"))
-    pruefe("Stangen in Klammern beim Ergebnis: " + wert(pg), "kg (2 Stangen)" in wert(pg))
+    pruefe("Umschalten kg / Stangen → Stück und Stück → kg", pg.locator("[data-art]").count() == 2
+           and "kg / Stangen → Stück" in pg.inner_text(".dialog--matrechner") and "Stück → kg" in pg.inner_text(".dialog--matrechner"))
+    pruefe("Ohne Länge: Hinweis", "Länge Fertigteil eintragen" in pg.inner_text("#mr-ergebnis"))
+    tippe(pg, "#mr-laenge", "10")
+    # 10 + 0,5 mm → (3000 − 250) / 10,5 = 261 je Stange, 2 Stangen = 522 Stück
+    pruefe("2 Stangen → 522 Stück (16,4 kg): " + wert(pg), wert(pg).startswith("522") and "(16,4 kg)" in wert(pg))
+    pruefe("Darunter nur Stück pro Stange: " + pg.inner_text("#mr-ergebnis .mr-zusatz"), pg.inner_text("#mr-ergebnis .mr-zusatz") == "261 Stück pro Stange")
+    pg.click("[data-einheit='kg']"); tippe(pg, "#mr-menge", "20")
+    import math
+    kgst = math.sqrt(3) / 2 * 400 * 7.9 / 1000 * 3; st = 20 / kgst
+    soll = math.floor(st) * 261 + max(0, math.floor(((st - math.floor(st)) * 3000 - 250) / 10.5))
+    pruefe("20 kg → %d Stück: %s" % (soll, wert(pg)), wert(pg).replace("'", "").startswith(str(soll)) and "Stangen)" in wert(pg))
     pruefe("Keine Erklärzeile 1 m = …", "1 m =" not in pg.inner_text("#mr-ergebnis"))
+    pg.click("[data-einheit='stg']")
     pg.screenshot(path="/tmp/rechner_kg.png")
 
     # HOCO Nr.: Material des Auftrags, Länge, Teile → kg
@@ -80,7 +90,7 @@ with sync_playwright() as p:
     zz = pg.inner_text("#mr-ergebnis .mr-zusatz")
     pruefe("1000 Stück → %s kg (%d Stangen, %d Stück pro Stange): %s / %s" % (soll_t, stangen, je, wert(pg), zz),
            wert(pg).replace("'", "").startswith(soll_t) and ("(%d Stangen)" % stangen) in wert(pg)
-           and zz == "%d Stangen · %d Stück pro Stange" % (stangen, je) and "Teil" not in pg.inner_text("#mr-ergebnis"))
+           and zz == "%d Stück pro Stange" % je and "Teil" not in pg.inner_text("#mr-ergebnis"))
     pg.click("[data-form='rd']"); pg.wait_for_timeout(150)
     pruefe("Trotz HOCO Nr. auf Rund umschaltbar, Ergebnis ändert sich: " + wert(pg),
            "aktiv" in pg.get_attribute("[data-form='rd']", "class") and not wert(pg).replace("'", "").startswith(soll_t))
@@ -107,6 +117,7 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pg.click("#pw-matrechner"); pg.wait_for_selector(".dialog--matrechner"); pg.wait_for_timeout(300)
     pg.select_option("#mr-werkstoff", "gr:v2a"); tippe(pg, "#mr-d", "20"); tippe(pg, "#mr-menge", "2")
+    pg.wait_for_timeout(300)
     pruefe("Rechner nimmt den Faktor 8: " + wert(pg), wert(pg).startswith("15,1"))
     pruefe("Auswahl zeigt V2A · 8", "V2A · 8 g/cm³" in pg.inner_text("#mr-werkstoff"))
     br.close()
