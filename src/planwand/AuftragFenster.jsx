@@ -234,7 +234,6 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const waschprog = useWaschprog(typeof w.wbg === "string" ? w.wbg : "");
   const aktuell = useRef(w);
   aktuell.current = w;
-  const farbeVonHand = useRef(false);
   const tageVonHand = useRef(false);
   const [hocoInfo, setHocoInfo] = useState("");
   const [pdfStand, setPdfStand] = useState("");
@@ -328,16 +327,15 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   });
 
   // ----- Werkstoff erkennen -----
-  // Gruppe unter dem Feld, Farbe dazu — ausser die Farbe wurde in
-  // diesem Fenster von Hand gewählt. Beim Öffnen nur bei einem neuen
-  // Auftrag auch die Farbe.
+  // Gruppe unter dem Feld, Farbe dazu. Beim Öffnen nur bei einem neuen
+  // Auftrag auch die Farbe; gespeichert wird immer die Farbe des Werkstoffs.
   const matRuhig = useVerzoegert(w.matBez, 250);
   const ersterLauf = useRef(true);
   const gruppe = w.matBez.trim() ? alt.werkstoffErkennen(w.matBez) : null;
   useEffect(() => {
     const farbeSetzen = !ersterLauf.current || !auftrag;
     ersterLauf.current = false;
-    if (!farbeSetzen || farbeVonHand.current || !matRuhig.trim()) return;
+    if (!farbeSetzen || !matRuhig.trim()) return;
     const g = alt.werkstoffErkennen(matRuhig);
     if (g && aktuell.current.farbe !== g.farbe) setze("farbe", g.farbe);
   }, [matRuhig, auftrag]);
@@ -402,8 +400,6 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     return () => { gueltig = false; };
   }, [nrRuhig, auftrag]);
 
-  const farbeWaehlen = (wert) => { farbeVonHand.current = true; setze("farbe", wert); };
-
   // Eigene Farben gibt es nicht mehr (111.37.0). Hat ein alter Auftrag
   // noch eine, schlägt das Fenster beim Bearbeiten die nächstliegende
   // Palettenfarbe vor; gespeichert wird sie erst mit "Speichern".
@@ -467,7 +463,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       drawing_url: w.pdf,
       wbg_url: w.wbg,
       plan_status: w.zustand,
-      color: w.farbe,
+      // Erkennt die App den Werkstoff, gilt immer seine Farbe; nur sonst
+      // bleibt die bisherige des Auftrags
+      color: gruppe ? gruppe.farbe : w.farbe,
       geplant_von: w.planer.length ? w.planer.join("/") : null,
       // FA gilt als erstellt, sobald eine FA Nr. dasteht, Material als
       // da, sobald eine Menge eingetragen ist
@@ -489,8 +487,6 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   };
 
   const titelZeichnung = "Zeichnung " + ((auftrag && auftrag.job_number) || "");
-  const freieFarbe = /^#/.test(w.farbe);
-  const zuteilung = alt.FARBZUTEILUNG;
   const planerListe = alt.PLANER;
   // Kürzel, die am Auftrag stehen oder einem selbst gehören, aber nicht
   // in der Planerliste sind: trotzdem als Knopf zeigen
@@ -672,26 +668,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           {w.ausNotiz && <span className="feldhinweis auf-ausnotiz" id="pl-ausnotiz">
             Aus der Notiz übernommen: {[w.ausNotiz.lieferant, w.ausNotiz.nr].filter(Boolean).join(" ")}
             {darf ? " · wird beim Speichern eingetragen" : ""}</span>}
-          <div className="feld"><span className="feldlabel">Farbe und Material
-            {/* Das Material zur Farbe steht gleich daneben, spart eine Zeile */}
-            <span className="auf-farbname" id="pl-farbmaterial">
-              {[zuteilung[w.farbe] ? zuteilung[w.farbe].material : "",
-                vorschlag && w.farbe === vorschlag ? "eigene Farbe ersetzt durch " + alt.farbeVon(w.farbe).name
-                  + ", gilt nach dem Speichern" : ""].filter((x) => x).join(" · ")}</span></span>
-            <div className="farbwahl">
-              {alt.farbenZurWahl().map((f) => {
-                const z = zuteilung[f.wert];
-                return <button key={f.wert} type="button" data-plfarbe={f.wert}
-                  className={"farbknopf" + (w.farbe === f.wert ? " aktiv" : "")}
-                  style={{ background: f.hex, color: f.schrift }}
-                  title={z ? z.material + " (" + f.name + ")" : f.name}
-                  disabled={nurLesen} onClick={() => farbeWaehlen(f.wert)}>{z ? (z.buchstabe || "") : ""}</button>;
-              })}
-              {/* Ein alter Auftrag mit eigener Farbe: nur zum Ansehen */}
-              {freieFarbe && <span className="farbknopf farbknopf--alt aktiv" title="Eigene Farbe (alt)"
-                style={{ background: w.farbe }} />}
-            </div>
-          </div>
+          {/* Keine Farbwahl mehr: die Farbe kommt nur vom Material (Wunsch
+              Patrick 16. Oktober 2026: „Die Option Farben auszuwählen kannst
+              du rausnehmen“) */}
 
 
           {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
