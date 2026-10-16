@@ -178,8 +178,8 @@ async function abendBearbeiten(j, m, blattDaten) {
     hinweis: "Wie viele Stück sind am Abend einzutragen?",
     wert: alt_ > 0 ? alt_ : "",
     schritte: [50, 100, 500],
-    // Externe bekommen den Knopf nicht von selbst (Patrick fragen)
-    extra: alt.istExtern() ? undefined : { text: "Laufen lassen", wert: "laufen" } });
+    // Auch Externe (Entscheid Patrick 16. Oktober 2026)
+    extra: { text: "Laufen lassen", wert: "laufen" } });
   if (zahl === "laufen") blattFeldSetzen(j, m, "abend_stk", LAUFEN_LASSEN);
   else if (zahl !== null) blattFeldSetzen(j, m, "abend_stk", zahl ? Math.round(zahl) : null);
 }
