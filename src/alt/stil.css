@@ -8076,3 +8076,7 @@ body.dunkel .mat-ampel--rot  { background: #3d1d1b; color: #ef7b72; }
   color: #fff; opacity: 1;
   text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
     0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000; }
+
+/* „Laufen lassen“ bei Stück am Abend: eigene Zeile über Abbrechen und
+   Eintragen, damit er mit Handschuhen gut zu treffen ist (1.73.0) */
+.zb-knoepfe [data-zbextra] { grid-column: 1 / -1; }

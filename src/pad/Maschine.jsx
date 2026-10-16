@@ -167,12 +167,21 @@ async function infoBearbeiten(j, m, blattDaten) {
   if (w) blattFeldSetzen(j, m, "pad_info", infoZusammen(w.schrift, (w.text || "").trim()) || null);
 }
 
+// „Laufen lassen“ (Wunsch Patrick 16. Oktober 2026): keine Stückzahl,
+// die Maschine läuft über Nacht einfach weiter. Gespeichert als -1 in
+// abend_stk, damit keine neue Spalte nötig ist.
+const LAUFEN_LASSEN = -1;
+
 async function abendBearbeiten(j, m, blattDaten) {
+  const alt_ = blattDaten && blattDaten.abend_stk;
   const zahl = await alt.zifferblock({ titel: "Stück am Abend",
     hinweis: "Wie viele Stück sind am Abend einzutragen?",
-    wert: (blattDaten && blattDaten.abend_stk) || "",
-    schritte: [50, 100, 500] });
-  if (zahl !== null) blattFeldSetzen(j, m, "abend_stk", zahl ? Math.round(zahl) : null);
+    wert: alt_ > 0 ? alt_ : "",
+    schritte: [50, 100, 500],
+    // Externe bekommen den Knopf nicht von selbst (Patrick fragen)
+    extra: alt.istExtern() ? undefined : { text: "Laufen lassen", wert: "laufen" } });
+  if (zahl === "laufen") blattFeldSetzen(j, m, "abend_stk", LAUFEN_LASSEN);
+  else if (zahl !== null) blattFeldSetzen(j, m, "abend_stk", zahl ? Math.round(zahl) : null);
 }
 
 // Art. Info (Wunsch Patrick 15. Oktober 2026, vorher nur „Stückzeit“):
@@ -674,7 +683,9 @@ export default function Maschine({ d }) {
               onClick={mitTyp ? () => abendBearbeiten(j, m, blattDaten) : undefined}>
               <span className="pad-name">Stück am Abend{mitTyp ? " · antippen" : ""}</span>
               <span className="pad-wert">
-                {blattDaten && blattDaten.abend_stk
+                {blattDaten && blattDaten.abend_stk === LAUFEN_LASSEN
+                  ? "Laufen lassen"
+                  : blattDaten && blattDaten.abend_stk
                   ? zahlText(blattDaten.abend_stk) + " Stk"
                   : <Leer>{mitTyp ? "antippen und eintragen" : (programmGrund || "—")}</Leer>}
               </span>
