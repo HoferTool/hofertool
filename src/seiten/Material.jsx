@@ -6,7 +6,8 @@
 //  der offenen Aufträge mit Lager, Bestellungen und Bedarf.
 //  Reiter (seit 1.71.0, Wunsch Patrick 15. Oktober 2026): „Zu bestellen“,
 //  „Bestellt“ (jede Lieferung mit einem Klick auf „Ist da“ bestätigen),
-//  „Alle Materialien“ und „An Lager“ (alles, was herumliegt, nach Ort).
+//  und „An Lager“ (alles, was herumliegt, nach Ort). „Alle Materialien“
+//  ist seit 1.71.1 weg (Wunsch Patrick 16. Oktober 2026).
 //  Die Längen der Fertigteile liest die App selbst aus den
 //  Einrichtblättern (laengenNachholen), bestätigt werden sie im Pad bei
 //  „Art. Info“ und beim Beenden. Der Reiter „Längen“ ist seit 1.70.0 weg
@@ -14,14 +15,14 @@
 //  Rechnen und Laden in src/daten/material.js, Erfassen in
 //  src/material/PostenFenster.jsx. Nicht für Externe.
 // =================================================================
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
-import { materialDatenLaden, materialRechnen, AMPEL, kgText, mengeText, laengenNachholen,
+import { materialDatenLaden, materialRechnen, kgText, mengeText, laengenNachholen,
   orteLaden, orteSpeichern, materialZerlegen, STICHTAG, istOffen } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 
 const gemerkt = { reiter: "bestellen", suche: "" };
-const REITER = [["bestellen", "Zu bestellen"], ["bestellt", "Bestellt"], ["auftraege", "Alle Materialien"], ["lager", "An Lager"]];
+const REITER = [["bestellen", "Zu bestellen"], ["bestellt", "Bestellt"], ["lager", "An Lager"]];
 
 const REIHENFOLGE = { fehlt: 0, unklar: 1, bestellt: 2, gut: 3, maschine: 4, lager: 5 };
 
@@ -80,9 +81,7 @@ export default function Material({ auffrischen }) {
               ? <Lager d={daten} suche={suche} neu={neu} erfassen={erfassen} />
               : reiter === "bestellen"
                 ? <ZuBestellen d={daten} suche={suche} erfassen={erfassen} />
-                : reiter === "bestellt"
-                  ? <Bestellt d={daten} suche={suche} neu={neu} erfassen={erfassen} />
-                  : <Auftraege d={daten} suche={suche} neu={neu} erfassen={erfassen} />}
+                : <Bestellt d={daten} suche={suche} neu={neu} erfassen={erfassen} />}
     </>
   );
 }
@@ -93,11 +92,6 @@ function gruppePasst(g, suche) {
   const texte = [g.material, ...g.auftraege.map((a) => a.auftrag.job_number), ...g.maschine.map((a) => a.auftrag.job_number),
     ...g.lager.map((p) => p.ort || ""), ...g.bestellt.map((p) => (p.lieferant || "") + " " + (p.be_nr || ""))];
   return s.split(/\s+/).every((w) => texte.some((t) => String(t).toLowerCase().includes(w)));
-}
-
-function Ampel({ ampel, text }) {
-  const a = AMPEL[ampel] || AMPEL.lager;
-  return <span className={"mat-ampel mat-ampel--" + a.klasse}>{text || a.text}</span>;
 }
 
 function Punkt({ bez }) {
@@ -214,88 +208,12 @@ async function istDa(p, neu) {
   } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
 }
 
-function Auftraege({ d, suche, neu, erfassen }) {
-  const [offen, setOffen] = useState(null);
-  const gruppen = useMemo(() => gruppenMitAuftrag(d), [d]);
-  const sichtbar = gruppen.filter((g) => gruppePasst(g, suche));
-
-  return (
-    <>
-      <section className="karte karte--raster">
-        <div className="tabelle-rolle">
-          <table className="tabelle mat-tabelle" id="mat-tabelle">
-            <thead><tr><th>Material</th><th>Da (wo)</th><th>Bestellt</th><th>Brauchen</th><th>Stand</th></tr></thead>
-            <tbody>
-              {sichtbar.map((g) => {
-                const auf = offen === g.schluessel;
-                return [
-                  <tr key={g.schluessel} className={"mat-zeile" + (auf ? " offen" : "")} data-material={g.material}
-                    onClick={() => setOffen(auf ? null : g.schluessel)}>
-                    <td><div className="mat-name"><Punkt bez={g.material} />{g.material}</div>
-                      {g.aehnlich.length > 0 && <div className="klein mat-aehnlich">ähnlich an Lager: {g.aehnlich.map((x) => x.tol || "ohne Toleranz").join(", ")}</div>}</td>
-                    <td>{g.lager.map((p) => <div key={p.id}>{mengeText(p.menge, p.einheit)} <span className="klein">{p.ort}</span></div>)}
-                      {g.maschine.length > 0 && <div className="klein">an {[...new Set(g.maschine.map(maschineName))].join(", ")}</div>}
-                      {!g.lager.length && !g.maschine.length && <span className="klein">nichts</span>}</td>
-                    <td>{g.bestellt.map((p) => <div key={p.id}>{p.menge !== null && p.menge !== undefined ? mengeText(p.menge, p.einheit) : "?"} <span className="klein">{[p.lieferant, p.be_nr].filter(Boolean).join(" ")}{p.termin ? ", " + kurz(p.termin) : ""}</span></div>)}
-                      {!g.bestellt.length && <span className="klein">nichts</span>}</td>
-                    <td>{g.auftraege.length ? <>{g.auftraege.length === 1 ? "1 Auftrag" : g.auftraege.length + " Aufträge"}{g.erster ? ", ab " + kurz(g.erster) : ""}</> : <span className="klein">läuft</span>}
-                      <div className="klein">{bedarfText(g)}</div></td>
-                    <td><Ampel ampel={g.ampel} text={g.ampel === "fehlt" && g.fehltKg ? "fehlt " + kgText(g.fehltKg) : null} /></td>
-                  </tr>,
-                  auf && <tr key={g.schluessel + "-mehr"} className="mat-mehr"><td colSpan={5}>
-                    <Gruppe g={g} neu={neu} erfassen={erfassen} /></td></tr>,
-                ];
-              })}
-            </tbody>
-          </table>
-        </div>
-        {!sichtbar.length && <p className="leer">Nichts gefunden.</p>}
-      </section>
-    </>
-  );
-}
-
-function maschineName(x) {
-  const m = x.maschine;
-  return m ? m.name + (m.machine_number ? " " + m.machine_number : "") : (x.auftrag.maschine || "Maschine");
-}
-
 function bedarfText(g) {
   if (!g.auftraege.length) return "";
   if (!g.bedarfBekannt) return g.auftraege.every((a) => a.rahmen) ? "Rahmen, ohne Mengenrechnung" : "Menge noch unbekannt";
   const zuRechnen = g.auftraege.filter((a) => !a.rahmen).length;
   const teil = g.bedarfBekannt < zuRechnen ? " (" + g.bedarfBekannt + " von " + zuRechnen + " gerechnet)" : "";
   return "mind. " + kgText(g.kgBedarf) + teil + (g.bedarfSicher ? "" : ", nicht sicher: Länge nicht bestätigt");
-}
-
-// Aufgeklappt: Aufträge und Posten mit Knöpfen
-function Gruppe({ g, neu, erfassen }) {
-  return (
-    <div className="mat-gruppe">
-      {g.auftraege.length > 0 && <div className="mat-gruppe__teil">
-        <h3>Aufträge</h3>
-        {g.auftraege.map((a) => (
-          <div key={a.auftrag.id} className="mat-auftrag">
-            <b>{a.auftrag.job_number}</b>
-            <span>{maschineName(a)}</span>
-            <span>{a.start ? "ab " + kurz(a.start) : "ohne Start"}
-              {a.versatz ? <span className="klein"> (Planwand {kurz(a.auftrag.planned_from)}, Maschine {a.versatz > 0 ? a.versatz + " Tage hinten" : -a.versatz + " Tage voraus"})</span> : null}</span>
-            <span className="zahl">{alt.zahlText(Math.max(0, (Number(a.auftrag.target_quantity) || 0) - (Number(a.auftrag.stand) || 0)))} Stk.</span>
-            <span className="klein">{a.bedarf
-              ? "mind. " + kgText(a.bedarf.kg) + " (" + a.bedarf.stangen + " Stangen à " + a.bedarf.jeStange + " Stk."
-                + (a.bedarf.abstecher ? "" : ", ohne Abstecher") + ")" + (a.bedarf.sicher ? "" : ", Länge nicht bestätigt")
-              : a.rahmen ? "Rahmen, ohne Mengenrechnung" : "Länge fehlt"}</span>
-            <Ampel ampel={a.ampel} text={a.ampel === "fehlt" && a.fehltKg ? "fehlt " + kgText(a.fehltKg) : null} />
-          </div>))}
-      </div>}
-      <div className="mat-gruppe__teil">
-        <h3>Da und bestellt</h3>
-        {g.lager.concat(g.bestellt).map((p) => <PostenZeile key={p.id} p={p} neu={neu} erfassen={erfassen} />)}
-        {!g.lager.length && !g.bestellt.length && <p className="klein">Nichts erfasst.</p>}
-        <button className="knopf knopf--klein" onClick={() => erfassen({ material: g.material })}>+ Hier erfassen</button>
-      </div>
-    </div>
-  );
 }
 
 async function aufgebraucht(p, neu) {

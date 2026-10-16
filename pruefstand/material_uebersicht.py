@@ -68,8 +68,7 @@ with sync_playwright() as p:
 
     pg.evaluate("location.hash='#material'")
     pg.wait_for_selector("#mat-bestellen", timeout=8000); pg.wait_for_timeout(500)
-    pruefe("Reiter Zu bestellen, Bestellt, Alle Materialien, An Lager",
-           pg.locator("[data-matreiter]").all_inner_texts()[:1] and pg.locator("[data-matreiter]").count() == 4)
+    pruefe("Reiter Zu bestellen, Bestellt, An Lager", pg.locator("[data-matreiter]").count() == 3)
     pruefe("Knopf Material im Menü", pg.locator("a[href='#/material'], [data-pfad='material'], a:has-text('Material')").count() >= 1)
     best = pg.inner_text("#mat-bestellen")
     pruefe("Zu bestellen nennt Neusilber ohne alles", "CuNi7Zn39Pb3Mn2" in best and "nichts da, nichts bestellt" in best)
@@ -80,21 +79,10 @@ with sync_playwright() as p:
     bt = pg.inner_text("#mat-bestellt")
     pruefe("Bestellt zeigt 2026008261 einmal mit Termin", bt.count("2026008261") == 1 and "kommt 24.10" in bt)
     pruefe("Bestellt ohne die alte 2026009999", "2026009999" not in bt)
-    pg.click("[data-matreiter='auftraege']"); pg.wait_for_selector("#mat-tabelle")
-    zeile = pg.locator(".mat-zeile[data-material='X14CrMoS17 rd 024 mm h9']")
-    t = zeile.inner_text()
-    zx = pg.locator(".mat-zeile[data-material='X10CrNiS18-9 rd 016 mm h8']")
-    zx.click(); pg.wait_for_timeout(300)
-    pruefe("Angenommen da sichtbar", "da, angenommen" in pg.inner_text(".mat-mehr"))
-    zx.click(); pg.wait_for_timeout(200)
-    pruefe("Bestellung aus der Notiz einmal gezählt", t.count("2026008261") == 1 and "680 kg" in t)
-    pruefe("Laufender Auftrag an der Maschine", "an " in t)
+    pruefe("Kein Reiter Alle Materialien", pg.locator("[data-matreiter='auftraege']").count() == 0)
     import re
-    pruefe("Mindestmenge mit Abstecher 2,5 + 0,5 mm, nicht sicher", re.search(r"mind\. ca\. 1.275 kg", t) and "nicht bestätigt" in t)
-    pruefe("Ähnlich an Lager (h8)", "ähnlich an Lager: h8" in t)
-    zeile.click(); pg.wait_for_timeout(300)
-    pruefe("Rahmen ohne Mengenrechnung", "Rahmen, ohne Mengenrechnung" in pg.inner_text(".mat-mehr"))
-    zeile.click(); pg.wait_for_timeout(200)
+    pruefe("Mindestmenge mit Abstecher 2,5 + 0,5 mm, nicht sicher", re.search(r"mind\. ca\. 1.275 kg", best) and "nicht bestätigt" in best)
+    pruefe("Ähnlich an Lager (h8)", "Ähnlich an Lager: X14CrMoS17 rd 024 mm h8" in best)
     pg.screenshot(path="/tmp/material_seite.png", full_page=True)
 
     # Zuweisen: die Bestellung gehört 10555-0002, mit genauem Platz
@@ -118,9 +106,7 @@ with sync_playwright() as p:
     pruefe("Kein Fenster bei Ist da", pg.locator(".mat-dialog").count() == 0)
     neu = pg.evaluate("TEST.daten.material_posten.find(p => p.be_nr === '2026008261')")
     pruefe("Ist da: Posten an Lager", neu["art"] == "lager" and neu["ort"] == "Aussenlager Nord" and neu["menge"] == 680)
-    pg.click("[data-matreiter='auftraege']"); pg.wait_for_selector("#mat-tabelle")
-    t = pg.locator(".mat-zeile[data-material='X14CrMoS17 rd 024 mm h9']").inner_text()
-    pruefe("danach an Lager statt bestellt", "680 kg" in t and "Aussenlager Nord" in t)
+    pruefe("Nicht mehr bei Bestellt", "2026008261" not in pg.inner_text("#mat-bestellt"))
 
     # Erfassen mit Suche
     pg.click("#mat-neu"); pg.wait_for_selector(".mat-dialog #mat-suche")
@@ -138,6 +124,8 @@ with sync_playwright() as p:
     # An Lager und Längen
     pg.click("[data-matreiter='lager']"); pg.wait_for_selector("[data-ort='Restelager']")
     pruefe("An Lager nach Ort", pg.locator("[data-ort='Aussenlager Nord']").count() == 1)
+    pruefe("Gelieferte Bestellung an Lager mit Zuweisung", "680 kg" in pg.inner_text("[data-ort='Aussenlager Nord']")
+           and "für 10555-0002" in pg.inner_text("[data-ort='Aussenlager Nord']"))
     # Seit 1.70.0 kein Reiter „Längen“ mehr; die App liest selbst
     pruefe("Kein Reiter Längen", pg.locator("[data-matreiter='laengen']").count() == 0)
     l = pg.evaluate("TEST.daten.hoco_parts.find(h => h.hoco_nr === '10555-0001')")
