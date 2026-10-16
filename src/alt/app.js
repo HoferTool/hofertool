@@ -53,7 +53,6 @@ import { maschinenkopf } from "../seiten/rechner/kopf.jsx";
 import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
 import { pushNachAnmeldung, pushHinweisWeg } from "../teile/push.jsx";
 import { meldungenNachAnmeldung, meldungenWeg } from "../teile/anmeldeMeldungen.jsx";
-import { schutzPflicht, schutzWeg } from "../teile/schutzPflicht.jsx";
 import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 
 const BOOT = document.getElementById("boot");
@@ -106,27 +105,6 @@ async function pinAnmelden(email, pin) {
   return { status: "ok" };
 }
 
-// Konten ohne Passwort und ohne PIN (Entscheid 3. Oktober 2026): Ein
-// Tipp auf die Kachel genügt, wie vor 111.12.0. Ob das Konto noch offen
-// ist, entscheidet der Server, nicht der Code hier. Antwort "ok" heisst
-// angemeldet, "pin" oder "passwort" heisst: danach fragen.
-async function offenAnmelden(email) {
-  let antwort;
-  try {
-    antwort = await zeitlimit(db.functions.invoke("pin-anmelden",
-      { body: { email: email, offen: true } }), 15000, "Anmeldung");
-  } catch (f) {
-    return { status: "fehler", text: fehlertext(f) };
-  }
-  const d = antwort && antwort.data;
-  if (!d || antwort.error) return { status: "fehler", text: "nicht eingerichtet" };
-  if (d.status !== "ok") return d;
-  let r = await db.auth.verifyOtp({ token_hash: d.token_hash, type: "email" });
-  if (r.error) r = await db.auth.verifyOtp({ token_hash: d.token_hash, type: "magiclink" });
-  if (r.error) return { status: "fehler", text: fehlertext(r.error) };
-  return { status: "ok" };
-}
-
 // Was die Person nach einem PIN-Versuch zu lesen bekommt
 function pinMeldung(e) {
   if (e.status === "falsch") {
@@ -152,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.74.2";
+const APP_VERSION = "1.75.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1554,16 +1532,12 @@ async function profilLaden(frisch) {
       sitzungMerken(profil.email, s.refresh_token);
     }
     lebenszeichenStarten();
-    // Ohne Passwort und ohne PIN geht nichts, bis eins gesetzt ist
-    // (1.56.0). Erst danach Meldungen beim Anmelden (1.44.0), die über
-    // allem liegen, bis die Person „Gelesen“ tippt, und Push-Mitteilungen
-    // (1.35.0), etwas später, damit die Seite zuerst steht.
-    const fuer = data;
-    setTimeout(async () => {
-      if (!(await schutzPflicht()) || profil !== fuer) return;
-      meldungenNachAnmeldung();
-      setTimeout(pushNachAnmeldung, 1400);
-    }, 600);
+    // Push-Mitteilungen nach der Einstellung dieser Person (1.35.0).
+    // Etwas später, damit die Seite zuerst steht.
+    setTimeout(pushNachAnmeldung, 2000);
+    // Meldungen beim Anmelden (1.44.0): was noch nicht gelesen ist, liegt
+    // über allem, bis die Person „Gelesen“ tippt
+    setTimeout(meldungenNachAnmeldung, 600);
   } catch (f) {
     console.warn("Profil nicht ladbar:", f.message);
     profil = { id: s.user.id, email: s.user.email, full_name: null,
@@ -9707,7 +9681,7 @@ Object.assign(alt, {
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
   FEHLER_SCHLUESSEL, themaJetzt, themaSetzen, fensterleisteFaerben, einstellungSetzen,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE, bestellmailVorschau,
-  APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, offenAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
+  APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
   sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung, istAndererNutzer,
   istExternGeraet, profilLaden, zeichneGeruest, fassungPruefen,
 });
@@ -10165,7 +10139,6 @@ function zeichneGeruest() {
     profil = null;
     pushHinweisWeg();
     meldungenWeg();
-    schutzWeg();
     // Auch das kleine Notizbuch geht beim Abmelden zu
     document.querySelectorAll(".dialog-huelle, .nb-schwebend [data-zu]").forEach((el) =>
       (el.classList.contains("dialog-huelle") ? el.remove() : el.click()));

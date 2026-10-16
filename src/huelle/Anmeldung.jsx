@@ -232,9 +232,8 @@ function Anmeldung() {
   };
 
   // Tipp auf eine Kachel: Sie schwebt los. Kennt das Gerät die Person
-  // schon, oder hat das Konto kein Passwort, wartet sie in der Mitte mit
-  // Ladezeichen, bis die Anmeldung steht. Braucht es PIN oder Passwort,
-  // landet sie oben im Anmeldefeld.
+  // schon, wartet sie in der Mitte mit Ladezeichen, bis die Anmeldung
+  // steht. Sonst landet sie oben im Anmeldefeld, für PIN oder Passwort.
   const kontoWaehlen = async (konto, ev) => {
     if (beschaeftigt.current) return;
     beschaeftigt.current = true;
@@ -243,7 +242,7 @@ function Anmeldung() {
     const von = quelle ? quelle.getBoundingClientRect() : null;
     const gemerkt = alt.sitzungGemerkt(konto.email);
 
-    if (!gemerkt && !konto.ohne_passwort) return insFeld(konto, false, "", von);
+    if (!gemerkt) return insFeld(konto, !!konto.ohne_passwort, "", von);
 
     flushSync(() => { setFlieger({ konto, laedt: true }); setKarteWeg(true); });
     const flug = fliegerRef.current ? fliegen(fliegerRef.current, von, mitteRechteck()) : Promise.resolve();
@@ -272,15 +271,10 @@ function Anmeldung() {
     };
     try {
       if (gemerkt && await alt.gemerktAnmelden(konto.email)) return await hinein();
-      let mitPin = !!konto.ohne_passwort;
-      if (mitPin) {
-        const e = await alt.offenAnmelden(konto.email);
-        if (e.status === "ok") return await hinein();
-        // "pin", oder der Server ist nicht erreichbar: PIN-Feld wie bisher
-        if (e.status === "passwort") mitPin = false;
-      }
+      // Ein Tipp ohne PIN geht seit 1.75.0 nicht mehr (Wunsch Patrick
+      // 14. Oktober 2026): ohne_passwort heisst jetzt immer „mit PIN“
       await flug;
-      return insFeld(konto, mitPin, "", null);
+      return insFeld(konto, !!konto.ohne_passwort, "", null);
     } catch (f) {
       // Etwas ging schief: Kachelwand wieder zeigen, Grund darunter
       await flug;
@@ -366,7 +360,7 @@ function Anmeldung() {
                 onClick={(ev) => kontoWaehlen(u, ev)}>
                 <Bildchen konto={u} className={"login__kachel-bild" + (u.bild_url ? "" : " login__kachel-buchstabe")} />
                 <span className="login__kachel-name">{alt.personName(u)}</span>
-                {u.ohne_passwort && <span className="login__offen" title="Ohne Passwort oder mit PIN">•</span>}
+                {u.ohne_passwort && <span className="login__offen" title="Mit PIN">•</span>}
               </button>
             ))}
           </div>

@@ -7683,16 +7683,6 @@ body.dunkel .hocoteil__marke--thema, body.dunkel .hocoteil__zustand--geplant
   .hocoteil__fa td:nth-child(2) { display: none; }
 }
 
-/* Passwort oder PIN ist Pflicht (1.56.0, src/teile/schutzPflicht.jsx) */
-.dialog.schutzpflicht { width: min(520px, 100%); max-width: none; padding: 28px 30px 22px;
-  box-shadow: 0 18px 50px rgba(0,0,0,.35); border-top: 5px solid var(--marke); text-align: left; }
-.schutzpflicht__zeichen { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center;
-  background: color-mix(in srgb, var(--marke) 14%, transparent); color: var(--marke); margin-bottom: 14px; }
-.dialog.schutzpflicht h2 { font-size: 1.4rem; margin: 0 0 10px; text-wrap: balance; }
-.dialog.schutzpflicht p { font-size: 16px; line-height: 1.5; margin: 0 0 10px; }
-.schutzpflicht__knoepfe { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
-body:has(.schutzpflicht-huelle) .push-hinweis { display: none; }
-
 /* ---------- Menü am Handy (seit 1.57.0) ----------
    Wunsch Patrick 14. Oktober 2026: statt der Leiste unten ein breiter
    Knopf, ein Tipp öffnet ein kleines Fenster mit allen Symbolen.

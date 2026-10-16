@@ -1,4 +1,4 @@
-# Anmeldung wie vor 111.12.0: offene Konten ohne Eingabe, PIN mit Ziffernblock, sonst Passwort
+# Anmeldung: PIN mit Ziffernblock, sonst Passwort; ein Tipp ohne PIN geht seit 1.75.0 nicht mehr
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -38,17 +38,14 @@ fehler = []
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
 
-    # 1. Offenes Konto: ein Tipp, drin
+    # 1. Ein Tipp allein reicht nie mehr: kein Aufruf „offen“, PIN-Feld
     pg, f = seite(br)
-    pg.locator(".login__kachel", has_text="Beat").click(); pg.wait_for_timeout(700)
-    mitte = pg.evaluate("""(() => { const e = document.querySelector('.login__flieger');
-      if (!e) return null; const r = e.getBoundingClientRect();
-      return [Math.round(r.left + r.width / 2 - innerWidth / 2), !!document.querySelector('.login__ring')]; })()""")
-    print("Beat schwebt in der Mitte:", mitte)
-    if not mitte or abs(mitte[0]) > 3 or not mitte[1]: fehler.append("Kachel schwebt nicht in die Mitte")
-    pg.wait_for_timeout(2200)
-    print("Beat angemeldet:", angemeldet(pg), pg.evaluate("window._aufrufe"))
-    if not angemeldet(pg): fehler.append("offenes Konto kommt nicht rein")
+    kachel(pg, "Beat")
+    feld = pg.evaluate("document.getElementById('lp') && document.getElementById('lp').placeholder")
+    print("Beat: Feld", feld, "| angemeldet", angemeldet(pg), "| Aufrufe", pg.evaluate("window._aufrufe"))
+    if angemeldet(pg): fehler.append("ein Tipp meldet noch an")
+    if feld != "PIN": fehler.append("kein PIN-Feld")
+    if any('offen' in a for a in pg.evaluate("window._aufrufe")): fehler.append("App fragt noch offen an")
     fehler += f; pg.close()
 
     # 2. Konto mit PIN: PIN-Feld mit Ziffernblock, Eingabe über die Tasten

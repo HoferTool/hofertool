@@ -613,10 +613,15 @@ export function createClient(_url, _key, optionen) {
         if (!(TEST.schluessel || []).includes(a.refresh_token)) {
           return Promise.resolve({ data: { session: null }, error: { message: "Invalid Refresh Token" } });
         }
-        window.SCHLUESSEL_NR = (window.SCHLUESSEL_NR || 1) + 1;
-        window.OHNE_SITZUNG = false;
-        return Promise.resolve({ data: { session: { refresh_token: "r-" + window.SCHLUESSEL_NR,
-          user: { id: "u1", email: window.SITZUNG_MAIL || "saheesan.hudson@hoferco.ch" } } }, error: null });
+        // Tests können den Server langsam machen (window._refreshWarten)
+        // und beim Anmelden etwas tun (window._beiRefresh)
+        return new Promise((ok) => setTimeout(() => {
+          window.SCHLUESSEL_NR = (window.SCHLUESSEL_NR || 1) + 1;
+          window.OHNE_SITZUNG = false;
+          if (window._beiRefresh) window._beiRefresh(a);
+          ok({ data: { session: { refresh_token: "r-" + window.SCHLUESSEL_NR,
+            user: { id: "u1", email: window.SITZUNG_MAIL || "saheesan.hudson@hoferco.ch" } } }, error: null });
+        }, window._refreshWarten || 0));
       },
       stopAutoRefresh: () => {},
       updateUser: () => Promise.resolve({ data: {}, error: null }),

@@ -12,8 +12,12 @@ K = """daten.login_kacheln = [
   { email: 'saheesan.hudson@hoferco.ch', full_name: 'Marco Steiner', role: 'langdreher' }];
 // Der Nachbau hat keinen Sitzungsspeicher: Die Marke im sessionStorage
 // steht für die Sitzung, die bei der echten Supabase das Neuladen übersteht
-TEST.funktionen['pin-anmelden'] = (b) => { if (b.offen) sessionStorage.setItem('fake.sitzung', '1');
-  return b.offen ? { status: 'ok', token_hash: 'offen' } : { status: 'falsch', rest: 4 }; };
+// Seit 1.75.0 kommt ohne PIN nur noch ein gemerktes Gerät mit einem Tipp hinein
+TEST.schluessel = { includes: (k) => !!k };
+try { const _g = JSON.parse(localStorage.getItem('hofer.geraet.sitzungen') || '{}');
+  if (!('andrea@hoferco.ch' in _g)) _g['andrea@hoferco.ch'] = 'g-1';
+  localStorage.setItem('hofer.geraet.sitzungen', JSON.stringify(_g)); } catch (_f) {}
+window._beiRefresh = () => sessionStorage.setItem('fake.sitzung', '1');
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 NEU = open("../dist/index.html", encoding="utf-8").read().replace("assets/index-", "assets/index-NEU")

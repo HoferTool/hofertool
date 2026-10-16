@@ -102,15 +102,10 @@ with sync_playwright() as p:
     pw = pg.evaluate("TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'passwort_setzen').map(x => x.args)")
     print("passwort_setzen:", pw)
     if pw != [{"p_passwort": "NeuesPasswort1", "p_ziel": "u3"}]: fehler.append("passwort_setzen nicht aufgerufen")
-    # 8. Admin entfernt Passwort und PIN (seit 1.13.0), bei jeder Rolle ausser Extern und Dienst
+    # 8. „Passwort und PIN entfernen“ gibt es seit 1.75.0 nicht mehr
     pg.locator(".nutzerfenster [data-zu]").click(); pg.wait_for_timeout(700)
     pg.click("[data-bearbeiten='u2']"); pg.wait_for_selector(".nutzerfenster")
-    pg.locator("[data-ohnepw='u2']").click(); pg.wait_for_timeout(500)
-    pg.locator(".dialog-huelle .knopf--haupt, .dialog-huelle .knopf--gefahr").last.click(); pg.wait_for_timeout(900)
-    weg = pg.evaluate("TEST.protokoll.filter(x => x.art === 'rpc' && x.name === 'ohne_passwort_fuer').map(x => x.args)")
-    print("ohne_passwort_fuer:", weg, "| Text:", pg.evaluate("document.querySelector('.nutzerfenster .es-gruppe__text:last-of-type') && [...document.querySelectorAll('.nutzerfenster p')].map(x => x.textContent).join(' / ')"))
-    if weg != [{"p_ziel": "u2"}]: fehler.append("ohne_passwort_fuer nicht aufgerufen")
-    if pg.evaluate("!!document.querySelector('[data-ohnepw]')"): fehler.append("Knopf bleibt nach dem Entfernen")
+    if pg.evaluate("!!document.querySelector('[data-ohnepw]')"): fehler.append("Knopf Passwort und PIN entfernen noch da")
     pg.locator(".nutzerfenster [data-zu]").click(); pg.wait_for_timeout(700)
     pg.evaluate("TEST.daten.profiles.find(x => x.id === 'u1').role = 'extern'")
     pg.click("[data-bearbeiten='u1']"); pg.wait_for_selector(".nutzerfenster")

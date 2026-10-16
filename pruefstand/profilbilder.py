@@ -54,7 +54,12 @@ with sync_playwright() as p:
       { id: 'u9', email: 'planwand@hoferco.ch', full_name: 'Planwand', role: 'kurzdreher', ohne_passwort: true,
         bild_url: 'https://bilder.test/weiss.png' },
       { id: 'u8', email: 'zora@hoferco.ch', full_name: 'Zora Keller', role: 'kurzdreher' }];
-    TEST.funktionen['pin-anmelden'] = () => new Promise((ok) => setTimeout(() => ok({ status: 'ok', token_hash: 'x' }), 3000));
+    // Seit 1.75.0 kommt ohne PIN nur noch ein gemerktes Gerät mit einem Tipp hinein
+    TEST.schluessel = { includes: (k) => !!k };
+    try { const _g = JSON.parse(localStorage.getItem('hofer.geraet.sitzungen') || '{}');
+      if (!('planwand@hoferco.ch' in _g)) _g['planwand@hoferco.ch'] = 'g-1';
+      localStorage.setItem('hofer.geraet.sitzungen', JSON.stringify(_g)); } catch (_f) {}
+    window._refreshWarten = 3000;
     """
     pg = br.new_context(viewport={"width":1440,"height":900}).new_page()
     pg.on("pageerror", lambda e: f.append(str(e)[:200]))

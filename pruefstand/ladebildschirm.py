@@ -11,7 +11,12 @@ K = """daten.login_kacheln = [
 // Langsamer Server: so bleibt der Ladebildschirm zum Anschauen stehen
 // Profil-Einstellungen für den Farbwechsel (1.53.0)
 if (window._einst) daten.profiles.forEach((p) => { p.einstellungen = window._einst; });
-TEST.funktionen['pin-anmelden'] = (b) => new Promise((ok) => setTimeout(() => ok({ status: 'ok', token_hash: 'offen' }), window._warten || 0));
+// Seit 1.75.0 kommt ohne PIN nur noch ein gemerktes Gerät mit einem Tipp hinein
+TEST.schluessel = { includes: (k) => !!k };
+try { const _g = JSON.parse(localStorage.getItem('hofer.geraet.sitzungen') || '{}');
+  if (!('beat@hoferco.ch' in _g)) _g['beat@hoferco.ch'] = 'g-1';
+  localStorage.setItem('hofer.geraet.sitzungen', JSON.stringify(_g)); } catch (_f) {}
+Object.defineProperty(window, '_refreshWarten', { get: () => window._warten || 0, configurable: true });
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 
