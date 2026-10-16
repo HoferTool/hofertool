@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.76.1** Excel-Einrichtblätter wie in Excel (Patrick, 16. Oktober 2026, 10332-0706: „DNMU110404 MF1“ lief über „Utilis (R0.8)“): Text in ausgeblendeten Zeilen und Spalten (auch Höhe 0) zeigt die Ansicht nicht mehr, und „An Zellgrösse anpassen“ (`shrinkToFit`) macht die Schrift kleiner, statt den Text abzuschneiden. Test in `excel_ansicht.py`.
 - **1.76.0** Schnellvorschau übersichtlicher (Wunsch Patrick, 16. Oktober 2026): Zeile „Material: da / bestellt …“ oben weg, „Mat. info.“ ganz unten vor „Letzte Änderung“. „(aus infoBoard)“ in Notizen zeigt die App nirgends mehr (`notizTrennen`).
 - **1.75.2** Werkzeugwechsel im Pad: Die Reihenfolge Path 1, Path 3, Path 2 gilt nur noch für SW-Typen (z. B. SW-20); alle anderen wie Index zeigen 1, 2, 3 (Wunsch Patrick, 16. Oktober 2026).
 - **1.75.1** Kunststoff (POM) ist weiss statt türkis, wie im Betrieb gewählt. Dazu in der Datenbank: X2CrNiMo18-4-13 und X2CrNiMoN22-5-3 gelten unter Farben und Material von Hand als V4A, und die Farbe von 7 offenen Aufträgen mit von Hand gewählter Farbe ist aufs Material gesetzt (Wunsch Patrick, 16. Oktober 2026).

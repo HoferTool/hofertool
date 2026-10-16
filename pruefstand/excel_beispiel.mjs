@@ -54,6 +54,13 @@ ws.getCell("C12").value = { richText: [{ text: "6.80 ", font: { bold: true, size
   { text: "+0.05", font: { bold: true, size: 12, vertAlign: "superscript" } },
   { text: " -0.10", font: { bold: true, size: 12, vertAlign: "subscript" } }] };
 ws.getCell("A14").value = { richText: [{ text: "Achtung: ", font: { bold: true, color: { argb: "FFC00000" } } }, { text: "Masse nach Zeichnung prüfen" }] };
+// Ausgeblendete Zeile mit altem Text: darf nirgends erscheinen
+// (10332-0706: „DNMU110404 MF1“ lief über „Utilis (R0.8)“)
+ws.getCell("B13").value = "DNMU110404 MF1"; ws.getCell("B13").alignment = { horizontal: "center" };
+ws.getRow(13).hidden = true;
+// „An Zellgrösse anpassen“: langer Text wird kleiner statt abgeschnitten
+ws.getCell("D4").value = "DNMG 110408EN-M50 CTCP125-P";
+ws.getCell("D4").alignment = { horizontal: "center", shrinkToFit: true };
 const bild = wb.addImage({ buffer: readFileSync("public/logo.png"), extension: "png" });
 ws.addImage(bild, { tl: { col: 4, row: 3 }, br: { col: 6, row: 5.5 }, editAs: "oneCell" });
 

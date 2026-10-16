@@ -59,6 +59,7 @@ with sync_playwright() as p:
         pruefe(name + ": Nachkommastellen", "0.080" in t and "0.035" in t)
         pruefe(name + ": Datum", "05.10.2026" in t)
         if "Achtung" not in t or "Masse nach" not in t: print(repr(t[-200:]))
+        pruefe(name + ": ausgeblendete Zeile unsichtbar", "DNMU110404" not in t)
         pruefe(name + ": Text mit zwei Schriften", "Achtung: Masse nach Zeichnung prüfen" in t)
         s = pg.evaluate("""() => {
           const els = [...document.querySelectorAll('[data-excelblatt] div')];
@@ -122,6 +123,14 @@ with sync_playwright() as p:
         }""")
         pruefe(name + ": Hoch/tief in der Zelle ganz sichtbar", bool(ht and ht['drin'] and ht['hoeher'] and ht['tiefer'] and ht['kleiner']))
         if not ht or not (ht['drin'] and ht['hoeher'] and ht['tiefer'] and ht['kleiner']): print(ht)
+        kl = pg.evaluate("""() => {
+            const d = [...document.querySelectorAll('[data-excelblatt] div')].find(e => e.textContent === 'DNMG 110408EN-M50 CTCP125-P');
+            if (!d) return null;
+            const r = document.createRange(); r.selectNodeContents(d);
+            const z = d.getBoundingClientRect(), t = r.getBoundingClientRect();
+            return { drin: t.left >= z.left - 1 && t.right <= z.right + 1, fs: parseFloat(getComputedStyle(d).fontSize) };
+        }""")
+        pruefe(name + ": An Zellgrösse anpassen", bool(kl and kl["drin"]))
         pruefe(name + ": Zeilenumbruch", s["langUmbruch"] == "pre-wrap")
         pruefe(name + ": Rahmenlinien", s["striche"] >= 20)
         pruefe(name + ": Bild geladen", bool(s["bild"] and s["bild"]["ok"] and s["bild"]["b"] > 50))
