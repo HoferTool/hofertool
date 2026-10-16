@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.75.0";
+const APP_VERSION = "1.75.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3727,7 +3727,10 @@ const WERKSTOFFGRUPPEN = {
                 zusatz: "unbedingt separat halten",
                 spaene: "1499 MS ohne Pb", schrott: "1499 MS ohne Pb" },
   titan:      { name: "Titan",          farbe: "violett", zusatz: "" },
-  kunststoff: { name: "Kunststoff",     farbe: "tuerkis", zusatz: "" },
+  // Kunststoff weiss, wie im Betrieb bei POM gewählt; Türkis steht in
+  // keiner Zuteilung (16. Oktober 2026, seit die Farbe nur noch vom
+  // Werkstoff kommt)
+  kunststoff: { name: "Kunststoff",     farbe: "weiss",   zusatz: "" },
 };
 
 // Aus euren Tabellen, Werkstoffnummer und Bezeichnung
