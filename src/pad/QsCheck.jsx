@@ -139,12 +139,12 @@ function useRaster(n) {
   return [ref, raster];
 }
 
-// Die ganze Karte in der Werkstofffarbe, ohne Bezeichnung; die steht
-// im Auftragsfenster (Wunsch Patrick, 15. Oktober 2026)
-function materialStil(bez) {
-  const g = bez ? alt.werkstoffErkennen(bez) : null;
-  const f = g ? alt.farbeVon(g.farbe) : null;
-  return f ? { "--ak-grund": f.hex, "--ak-schrift": alt.schriftZu(f.hex) } : undefined;
+// Die ganze Karte in der Farbe des Balkens auf der Planwand, ohne
+// Bezeichnung; die steht im Auftragsfenster (Wunsch Patrick, 15. und
+// 16. Oktober 2026)
+function materialStil(j, bez) {
+  const f = alt.auftragFarbe(j, bez);
+  return f ? { "--ak-grund": f.hex, "--ak-schrift": f.schrift } : undefined;
 }
 
 // Die HOCO Nr. öffnet das Auftragsfenster wie auf der Planwand; nach dem
@@ -183,7 +183,7 @@ export default function QsCheck({ zeilen, teile }) {
           const wbg = j ? (j.wbg_url || "") : "";
           return (
             <div key={m.id} data-qsmaschine={m.id}
-              style={j ? materialStil(j.material_bez || teil.material || "") : undefined}
+              style={j ? materialStil(j, j.material_bez || teil.material || "") : undefined}
               className={"pad-ak__karte" + (st ? " pad-ak__karte--" + st : "")}>
               <div className="pad-ak__innen">
                 <div className="pad-ak__kopf">

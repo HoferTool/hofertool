@@ -152,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.72.1";
+const APP_VERSION = "1.72.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4787,7 +4787,7 @@ function balkenInfoVerhalten() {
 
         + luecke
         + zeile(esc(j.material_bez || "Kein Material eingetragen"))
-        + (g ? zeile('<span class="ws-farbe" style="background:' + farbeVon(g.farbe).hex + '"></span>'
+        + (g ? zeile('<span class="ws-farbe" style="background:' + auftragFarbe(j).hex + '"></span>'
               + esc(werkstoffText(g)), "klein") : "")
         + zeile(String(j.material_menge || "").trim()
             ? '<span class="pw-info__was">Menge</span> ' + esc(j.material_menge)
@@ -6038,6 +6038,27 @@ function zeichnePlanwand(b) {
   statusSchnellVerhalten(b);
   sucheHervorheben();
   if (planZug) planZug.nachZeichnen();
+}
+
+// Die Farbe eines Auftrags genau so, wie sein Balken sie zeigt: die im
+// Auftragsfenster gewählte Farbe, Palettenfarben leuchtend, freie Farben
+// unverändert. Pad, QS Check, Schnellvorschau und Material nehmen sie
+// von hier, damit dasselbe Material nicht an einer Stelle anders aussieht
+// als auf der Planwand (Wunsch Patrick 16. Oktober 2026). Ohne Farbe am
+// Auftrag die Farbe der erkannten Werkstoffgruppe.
+function auftragFarbe(j, bez) {
+  let wert = j && j.color;
+  if (!wert) {
+    const g = werkstoffErkennen(bez || (j && j.material_bez) || "");
+    if (!g) return null;
+    wert = g.farbe;
+  }
+  if (/^#[0-9a-f]{6}$/i.test(String(wert))) {
+    const hex = String(wert).toLowerCase();
+    return { hex: hex, schrift: schriftZu(hex) };
+  }
+  const t = leuchtend(farbeVon(wert).hex);
+  return { hex: t.hg, schrift: t.vg };
 }
 
 // ---------- Ein einzelner Auftragsbalken ----------
@@ -9659,7 +9680,7 @@ Object.assign(alt, {
   pad, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
   notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, abrufSpalte, spalteDa, abrufPflicht,
-  siegelListe, siegelName, siegelHtml, standsNachtragen, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
+  siegelListe, siegelName, siegelHtml, standsNachtragen, werkstoffErkennen, farbeVon, schriftZu, auftragFarbe, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
   werkzeugWechselDialog, zifferblock,
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,

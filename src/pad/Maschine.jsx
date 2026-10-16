@@ -454,15 +454,17 @@ function Notizen({ m }) {
   );
 }
 
-// Material und Werkstoff: eigene Kachel, Farbe der Werkstoffgruppe
+// Material und Werkstoff: eigene Kachel in der Farbe des Balkens auf
+// der Planwand (Wunsch Patrick 16. Oktober 2026, vorher die Farbe der
+// Werkstoffgruppe, die vom Auftrag abweichen konnte)
 function Material({ j, teil, ort }) {
   const bez = (j && j.material_bez) || (teil && teil.material) || "";
   const g = alt.werkstoffErkennen(bez);
-  const f = g ? alt.farbeVon(g.farbe) : null;
+  const f = alt.auftragFarbe(j, bez);
   const menge = j && j.material_menge ? String(j.material_menge) : "";
   return (
     <div className={"pad-karte2 pad-karte2--material" + (f ? " pad-karte2--gefuellt" : "")}
-      style={f ? { "--wf": f.hex, "--wfs": alt.schriftZu(f.hex) } : undefined}>
+      style={f ? { "--wf": f.hex, "--wfs": f.schrift } : undefined}>
       <span className="pad-name">Material</span>
       <div className="pad-mat-zeile">
         <span className="pad-mat-bez">{bez || <Leer>nicht erfasst</Leer>}</span>

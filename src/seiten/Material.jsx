@@ -70,9 +70,29 @@ export default function Material({ auffrischen }) {
   );
 }
 
-function Punkt({ bez }) {
-  const g = alt.werkstoffErkennen(bez);
-  return <span className="mat-punkt" style={{ background: g ? alt.farbeVon(g.farbe).hex : "transparent" }} />;
+// Punkt in der Farbe, die dieses Material auf der Planwand hat: bei
+// einem zugewiesenen Posten die seines Auftrags, sonst die häufigste
+// unter den offenen Aufträgen mit diesem Werkstoff, sonst die der
+// Werkstoffgruppe (Wunsch Patrick 16. Oktober 2026)
+function farbeJeWerkstoff(auftraege) {
+  const zaehler = new Map();
+  (auftraege || []).forEach((j) => {
+    if (!j.color || !j.material_bez) return;
+    const k = alt.werkstoffSchluessel(j.material_bez);
+    const z = zaehler.get(k) || new Map();
+    z.set(j.color, (z.get(j.color) || 0) + 1);
+    zaehler.set(k, z);
+  });
+  const ergebnis = new Map();
+  zaehler.forEach((z, k) => ergebnis.set(k, [...z.entries()].sort((a, b) => b[1] - a[1])[0][0]));
+  return ergebnis;
+}
+
+function Punkt({ p, auftraege, jeWerkstoff }) {
+  const eigener = p.job_id && (auftraege || []).find((j) => j.id === p.job_id);
+  const color = (eigener && eigener.color) || jeWerkstoff.get(alt.werkstoffSchluessel(p.material));
+  const f = alt.auftragFarbe(color ? { color } : null, p.material);
+  return <span className="mat-punkt" style={{ background: f ? f.hex : "transparent" }} />;
 }
 
 // ---------- Für Aufträge ----------
@@ -113,6 +133,7 @@ function Lager({ d, suche, neu, erfassen }) {
   const gerechnet = new Map(d.gruppen.flatMap((g) => g.lager.map((p) => [p.id, p])));
   const liste = d.posten.filter((p) => p.art !== "bestellt").map((p) => gerechnet.get(p.id) || p)
     .filter((p) => !s || s.split(/\s+/).every((w) => (p.material + " " + (p.ort || "") + " " + (p.notiz || "")).toLowerCase().includes(w)));
+  const jeWerkstoff = farbeJeWerkstoff(d.auftraege);
   const jeOrt = new Map();
   liste.forEach((p) => {
     const o = p.ort || "Ohne Ort";
@@ -139,7 +160,7 @@ function Lager({ d, suche, neu, erfassen }) {
             const z = materialZerlegen(p.material);
             return (
               <div key={p.id} className="mat-lagerzeile">
-                <Punkt bez={p.material} />
+                <Punkt p={p} auftraege={d.auftraege} jeWerkstoff={jeWerkstoff} />
                 <PostenZeile p={p} neu={neu} erfassen={erfassen} mitMaterial />
                 {z && !brauchen.has(z.schluessel) && <span className="mat-ampel mat-ampel--grau">kein Auftrag</span>}
               </div>);

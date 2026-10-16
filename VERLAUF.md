@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.72.2** Materialfarbe überall wie der Balken (Wunsch Patrick, 16. Oktober 2026: „Material Farbe soll die Farbe vom Fenster nehmen als Anzeigefarbe als Balken, zum Teil verschieden“). QS Check, Materialkachel im Pad, Punkt in der Schnellvorschau und Punkte auf der Seite Material nehmen die im Auftragsfenster gewählte Farbe, genau so kräftig wie auf dem Balken, statt der Farbe der Werkstoffgruppe (`auftragFarbe`). Auf der Seite Material: zugewiesener Auftrag, sonst die häufigste Farbe der offenen Aufträge mit diesem Werkstoff.
 - **1.72.1** QS Check im Pad: Schrift auf der Werkstofffarbe immer weiss mit dünnem schwarzem Rand, auch auf Weiss lesbar (Wunsch Patrick, 16. Oktober 2026: „weisse Schrift auf weisser Materialfarbe, mit dünner schwarzer Linie umrahmen“).
 - **1.72.0** Material: nur noch Restmaterial (Wunsch Patrick, 16. Oktober 2026: „Material bestellt und das andere bringt nichts, soll nur Restmaterial sein, wo dort reinkommt und rausgeht“). Reiter Zu bestellen und Bestellt weg, im Fenster keine Wahl Ist da / Bestellt. Fenster „Material erfassen“ am Computer grösser und zweispaltig, mit Feldern als Karten; am Handy wie bisher.
 - **1.71.1** Material: Reiter „Alle Materialien“ entfernt (Wunsch Patrick, 16. Oktober 2026). Es bleiben Zu bestellen, Bestellt und An Lager.
