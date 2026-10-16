@@ -113,6 +113,33 @@ const WERKSTOFFE = [
   ["PEEK", 1.31, "peek"], ["POM", 1.41, "pom", "pom-c"], ["PTFE", 2.17, "ptfe"], ["PA6", 1.14, "pa6"],
   ["PVDF", 1.78, "pvdf"], ["PE-HD", 0.95, "pe-hd", "pehd"], ["PP", 0.91, "pp"], ["PET", 1.38, "pet"], ["PVC", 1.40, "pvc"],
 ];
+// Eigene Dichten („Faktor“) aus Einstellungen → Farben und Material
+// (Wunsch Patrick 16. Oktober 2026), in app_config.material_dichte als
+// { "gr:v2a": 7.93, "nr:1.4305": 7.9 }; leer heisst Normwert von hier
+let eigeneDichte = {};
+let dichteGeladen = 0;
+export const dichteVon = (wert, standard) => {
+  const n = Number(eigeneDichte[wert]);
+  return n > 0 ? n : standard;
+};
+export const eigeneDichten = () => ({ ...eigeneDichte });
+export async function dichtenLaden(frisch) {
+  if (!frisch && Date.now() - dichteGeladen < 5 * 60000) return eigeneDichte;
+  try {
+    const r = await alt.db.from("app_config").select("wert").eq("schluessel", "material_dichte").maybeSingle();
+    const w = r && r.data && r.data.wert ? JSON.parse(r.data.wert) : {};
+    eigeneDichte = w && typeof w === "object" ? w : {};
+    dichteGeladen = Date.now();
+  } catch (f) { /* ohne: Normwerte */ }
+  return eigeneDichte;
+}
+export async function dichtenSpeichern(neu) {
+  const { error } = await alt.db.from("app_config").upsert(
+    [{ schluessel: "material_dichte", wert: JSON.stringify(neu) }], { onConflict: "schluessel" });
+  if (error) throw error;
+  eigeneDichte = { ...neu };
+  dichteGeladen = Date.now();
+}
 const NUR_BUCHSTABEN = /^[a-z-]+$/;
 // → { nr, dichte } oder null
 export function werkstoffGenau(bez) {
@@ -125,7 +152,7 @@ export function werkstoffGenau(bez) {
       const treffer = ganz || /^\d\.\d{4}$/.test(n)
         ? new RegExp("[\\s]" + n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?=[\\s,]|$)").test(t)
         : kompakt.includes(n.replace(/\s+/g, ""));
-      if (treffer) return { nr, dichte };
+      if (treffer) return { nr, dichte: dichteVon("nr:" + nr, dichte) };
     }
   }
   return null;
@@ -137,7 +164,7 @@ export function kgJeMeter(bez) {
   if (!z || !z.d) return null;
   const genau = werkstoffGenau(bez);
   const w = genau ? null : alt.werkstoffErkennen ? alt.werkstoffErkennen(bez) : null;
-  const dichte = genau ? genau.dichte : w && DICHTE[w.key];
+  const dichte = genau ? genau.dichte : w && DICHTE[w.key] && dichteVon("gr:" + w.key, DICHTE[w.key]);
   if (!dichte) return null;
   return querschnittMm2(z.form, z.d, z.innen) * dichte / 1000;
 }
@@ -172,13 +199,17 @@ function kurznameSchoen(n) {
   });
   return fehl ? null : t;
 }
-export const WERKSTOFF_WAHL = {
-  nummern: WERKSTOFFE.map(([nr, dichte, ...namen]) => {
-    const name = namen.map(kurznameSchoen).find((x) => x && x.toLowerCase() !== nr.toLowerCase());
-    return { wert: "nr:" + nr, nr, name: name || "", dichte };
-  }),
-  gruppen: Object.keys(DICHTE).map((key) => ({ wert: "gr:" + key, key, name: GRUPPEN_NAME[key] || key, dichte: DICHTE[key] })),
-};
+// Mit „standard“ = Normwert und „dichte“ = was gerechnet wird
+export function werkstoffWahl() {
+  return {
+    nummern: WERKSTOFFE.map(([nr, dichte, ...namen]) => {
+      const name = namen.map(kurznameSchoen).find((x) => x && x.toLowerCase() !== nr.toLowerCase());
+      return { wert: "nr:" + nr, nr, name: name || "", standard: dichte, dichte: dichteVon("nr:" + nr, dichte) };
+    }),
+    gruppen: Object.keys(DICHTE).map((key) => ({ wert: "gr:" + key, key, name: GRUPPEN_NAME[key] || key,
+      standard: DICHTE[key], dichte: dichteVon("gr:" + key, DICHTE[key]) })),
+  };
+}
 // Bezeichnung → Wert der Auswahl („nr:1.4305“ oder „gr:v2a“), oder ""
 export function werkstoffWahlVon(bez) {
   const genau = werkstoffGenau(bez);
@@ -253,6 +284,7 @@ let stand = null;          // zuletzt geladen, für die Planwand
 let fehlt = false;         // Tabelle noch nicht da: still nichts zeigen
 
 export async function postenLaden(mitWeg) {
+  await dichtenLaden();
   let a = alt.db.from("material_posten").select("*").order("erstellt_am", { ascending: false });
   if (!mitWeg) a = a.is("weg_am", null);
   const r = await alt.zeitlimit(a, 10000, "Material");
@@ -294,6 +326,7 @@ export async function orteSpeichern(liste) {
 
 // Alles, was die Rechnung braucht, in einem Zug
 export async function materialDatenLaden(auftraege) {
+  await dichtenLaden();
   const offene = (auftraege || []).filter(istOffen);
   const [posten, teile, maschinen, typen] = await Promise.all([
     postenLaden(),

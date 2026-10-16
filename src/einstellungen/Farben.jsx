@@ -7,6 +7,7 @@
 import { useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Gruppe } from "./teile.jsx";
+import { werkstoffWahl, dichtenLaden, dichtenSpeichern, eigeneDichten } from "../daten/material.js";
 
 export default function Farben() {
   return (
@@ -20,6 +21,11 @@ export default function Farben() {
       <Gruppe titel="Werkstofferkennung"
         text={"Nicht erkannte Werkstoffe stehen oben: einmal zuordnen, die App merkt es sich."}>
         <div id="werkstoffliste"><Werkstoffe /></div>
+      </Gruppe>
+      <Gruppe titel="Faktor (Dichte) für kg"
+        text={"Damit rechnet die App Stangen in kg um: im Materialrechner der Planwand, bei der Mat. info. und auf der Seite Material. "
+          + "In g/cm³, mit Komma. Leer heisst Normwert (grau). Gespeichert wird beim Verlassen des Felds."}>
+        <div id="dichteliste"><Dichten /></div>
       </Gruppe>
     </>
   );
@@ -178,5 +184,59 @@ function Werkstoffe() {
         ))}</tbody>
       </table></div>
     </>
+  );
+}
+
+// ---------- Faktor (Dichte) je Werkstoff ----------
+// Wunsch Patrick 16. Oktober 2026: „Der Faktor soll in den Einstellungen
+// bei Material eingebbar sein“. Gespeichert in app_config.material_dichte,
+// nur was vom Normwert abweicht.
+
+async function dichtenHolen() {
+  await dichtenLaden(true);
+  return { liste: werkstoffWahl(), eigene: eigeneDichten() };
+}
+
+function Dichten() {
+  const { daten } = useDaten(dichtenHolen, []);
+  if (!daten) return <div className="laedt">Wird geladen …</div>;
+  const zeilen = [...daten.liste.gruppen.map((g) => ({ ...g, titel: g.name, gruppe: true })),
+    ...daten.liste.nummern.map((w) => ({ ...w, titel: w.nr + (w.name ? " · " + w.name : "") }))];
+  return (
+    <div className="tabellenrolle"><table className="tabelle dichte-tabelle">
+      <thead><tr><th>Werkstoff</th><th className="rechts">Faktor g/cm³</th></tr></thead>
+      <tbody>{zeilen.map((z) => <DichteZeile key={z.wert} z={z} eigen={daten.eigene[z.wert]} />)}</tbody>
+    </table></div>
+  );
+}
+
+const komma = (n) => String(n).replace(".", ",");
+
+function DichteZeile({ z, eigen }) {
+  const [wert, setWert] = useState(eigen ? komma(eigen) : "");
+  const gemerkt = useRef(eigen ? komma(eigen) : "");
+  const speichern = async () => {
+    const t = wert.trim();
+    if (t === gemerkt.current) return;
+    const n = Number(t.replace(",", "."));
+    if (t && !(n > 0 && n < 30)) { alt.meldung("Bitte eine Zahl wie 7,9 eintragen.", "warn"); return; }
+    try {
+      await dichtenLaden(true);
+      const neu = eigeneDichten();
+      if (t) neu[z.wert] = n; else delete neu[z.wert];
+      await dichtenSpeichern(neu);
+      gemerkt.current = t;
+      alt.meldung(t ? "Faktor gespeichert." : "Wieder Normwert.", "gut");
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
+  return (
+    <tr className={z.gruppe ? "dichte-gruppe" : undefined}>
+      <td>{z.gruppe ? <strong>{z.titel}</strong> : z.titel}</td>
+      <td className="rechts">
+        <input type="text" inputMode="decimal" className="dichte-feld" data-dichte={z.wert} value={wert}
+          placeholder={komma(z.standard)} onChange={(e) => setWert(e.target.value)} onBlur={speichern}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+      </td>
+    </tr>
   );
 }

@@ -2,20 +2,22 @@
 //  MATERIALRECHNER (Knopf oben auf der Planwand, neben den Symbolen)
 //  Wunsch Patrick 16. Oktober 2026: von Stangen zu kg rechnen, für
 //  Rund, Vierkant und Sechskant, Werkstoff wählbar; dazu eine HOCO Nr.
-//  eingeben, die Zahl der Teile, und am Schluss stehen die kg. Die Form
+//  eingeben, die Zahl der Stück, und am Schluss stehen die kg. Die Form
 //  bleibt auch mit HOCO Nr. wählbar, Standard ist Rund.
 //
 //  Gerechnet wird wie überall beim Material (daten/material.js):
-//  Dichte je Werkstoffnummer oder Gruppe, Querschnitt je Form, Stange
-//  3 m. Teile wie die Mindestmenge (bedarfRechnen): je Teil Länge +
+//  Dichte („Faktor“) je Werkstoffnummer oder Gruppe, unter Einstellungen
+//  → Farben und Material änderbar; Querschnitt je Form, Stange 3 m.
+//  Stück wie die Mindestmenge (bedarfRechnen): je Stück Länge +
 //  Abstecher + 0,5 mm fürs Planieren, je Stange (Stange − Stumpen) /
-//  das, ganze Stangen. Nichts wird gespeichert.
-//  Externe bekommen den Knopf nicht (bis Patrick entscheidet).
+//  das, ganze Stangen. Ergebnis: kg (Stangen), darunter nur Stangen und
+//  Stück pro Stange (Wunsch Patrick 16. Oktober 2026). Nichts wird
+//  gespeichert. Externe bekommen den Knopf nicht (bis Patrick entscheidet).
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { materialZerlegen, querschnittMm2, WERKSTOFF_WAHL, werkstoffWahlVon,
+import { materialZerlegen, querschnittMm2, werkstoffWahl, werkstoffWahlVon, dichtenLaden,
   STANGE_STANDARD_MM, STUMPEN_STANDARD_MM, PLANIEREN_STANDARD_MM } from "../daten/material.js";
 
 const zahlLesen = (t) => { const n = Number(String(t ?? "").trim().replace(",", ".").replace(/'/g, "")); return String(t ?? "").trim() !== "" && isFinite(n) ? n : null; };
@@ -28,10 +30,13 @@ const zeigen = (n, stellen) => {
 };
 
 const FORMEN = [["rd", "Rund"], ["4kt", "Vierkant"], ["6kt", "Sechskant"]];
-const ARTEN = [["stangen", "Stangen → kg"], ["kg", "kg → Stangen"], ["teile", "Teile → kg"]];
+// Nur Stangen oder Stück; wie viele Stangen es sind, steht beim
+// Ergebnis in Klammern (Wunsch Patrick 16. Oktober 2026, „kg → Stangen“
+// braucht es darum nicht)
+const ARTEN = [["stangen", "Stangen → kg"], ["teile", "Stück → kg"]];
 
-function dichteVon(wahl) {
-  const e = [...WERKSTOFF_WAHL.nummern, ...WERKSTOFF_WAHL.gruppen].find((x) => x.wert === wahl);
+function dichteAus(wahlListe, wahl) {
+  const e = [...wahlListe.nummern, ...wahlListe.gruppen].find((x) => x.wert === wahl);
   return e ? e.dichte : null;
 }
 
@@ -78,6 +83,9 @@ export default function MaterialRechner() {
   const [werkstoff, setWerkstoff] = useState("gr:v2a");
   const [d, setD] = useState("");
   const [menge, setMenge] = useState("");
+  // Eigene Dichten aus den Einstellungen holen, dann neu rechnen
+  const [wahlListe, setWahlListe] = useState(werkstoffWahl);
+  useEffect(() => { dichtenLaden(true).then(() => setWahlListe(werkstoffWahl())); }, []);
   const [laenge, setLaenge] = useState("");
   const [abstecher, setAbstecher] = useState("");
   const [stange, setStange] = useState(String(STANGE_STANDARD_MM));
@@ -115,7 +123,7 @@ export default function MaterialRechner() {
     return () => { weg = true; clearTimeout(zeit); };
   }, [hoco]);
 
-  const dichte = dichteVon(werkstoff);
+  const dichte = dichteAus(wahlListe, werkstoff);
   const dm = zahlLesen(d);
   const kgm = dichte && dm > 0 ? querschnittMm2(form, dm) * dichte / 1000 : null;
   const stangeMm = zahlLesen(stange) || STANGE_STANDARD_MM;
@@ -124,21 +132,19 @@ export default function MaterialRechner() {
 
   let ergebnis = null;
   if (kgm && n !== null && n >= 0) {
-    if (art === "stangen") ergebnis = { gross: zeigen(n * kgStange, 1), einheit: "kg" };
-    else if (art === "kg") ergebnis = { gross: zeigen(n / kgStange, 2), einheit: "Stangen",
-      zusatz: "Aufgerundet " + zeigen(Math.ceil(n / kgStange - 1e-9)) + " ganze Stangen = " + zeigen(Math.ceil(n / kgStange - 1e-9) * kgStange, 1) + " kg" };
+    if (art === "stangen") ergebnis = { gross: zeigen(n * kgStange, 1), stangen: n };
     else {
       const l = zahlLesen(laenge);
       if (l > 0) {
         const jeTeil = l + (zahlLesen(abstecher) || 0) + PLANIEREN_STANDARD_MM;
         const nutz = stangeMm - (zahlLesen(stumpen) ?? STUMPEN_STANDARD_MM);
         const jeStange = Math.floor(nutz / jeTeil);
-        if (jeStange < 1) ergebnis = { fehler: "Das Teil ist länger als eine Stange." };
+        if (jeStange < 1) ergebnis = { fehler: "Das Stück ist länger als eine Stange." };
         else {
           const stangen = Math.ceil(n / jeStange);
-          ergebnis = { gross: zeigen(stangen * kgStange, 1), einheit: "kg",
-            zusatz: zeigen(stangen) + (stangen === 1 ? " Stange" : " Stangen") + " zu " + zeigen(jeStange) + " Teilen"
-              + " · nur die Teile ohne Rest: " + zeigen(n * jeTeil / 1000 * kgm, 1) + " kg" };
+          // Darunter nur Stangen und Stück pro Stange (Wunsch Patrick)
+          ergebnis = { gross: zeigen(stangen * kgStange, 1), stangen,
+            zusatz: zeigen(stangen) + (stangen === 1 ? " Stange" : " Stangen") + " · " + zeigen(jeStange) + " Stück pro Stange" };
         }
       }
     }
@@ -174,11 +180,11 @@ export default function MaterialRechner() {
           <span>Werkstoff</span>
           <select id="mr-werkstoff" value={werkstoff} onChange={(e) => setWerkstoff(e.target.value)}>
             <optgroup label="Gruppe">
-              {WERKSTOFF_WAHL.gruppen.map((g) => <option key={g.wert} value={g.wert}>
+              {wahlListe.gruppen.map((g) => <option key={g.wert} value={g.wert}>
                 {g.name + " · " + zahlFeld(g.dichte) + " g/cm³"}</option>)}
             </optgroup>
             <optgroup label="Werkstoffnummer">
-              {WERKSTOFF_WAHL.nummern.map((w) => <option key={w.wert} value={w.wert}>
+              {wahlListe.nummern.map((w) => <option key={w.wert} value={w.wert}>
                 {w.nr + (w.name ? " · " + w.name : "") + " · " + zahlFeld(w.dichte) + " g/cm³"}</option>)}
             </optgroup>
           </select>
@@ -189,7 +195,7 @@ export default function MaterialRechner() {
         </label>
       </div>
 
-      <div className="moduswahl mr-wahl">
+      <div className="moduswahl mr-wahl mr-wahl--zwei">
         {ARTEN.map(([wert, text]) => (
           <button key={wert} type="button" className={"moduswahl__knopf" + (art === wert ? " aktiv" : "")}
             data-art={wert} onClick={() => setArt(wert)}>{text}</button>
@@ -198,7 +204,7 @@ export default function MaterialRechner() {
 
       <div className="mr-reihe">
         <label className="feld">
-          <span>{art === "stangen" ? "Anzahl Stangen" : art === "kg" ? "Gewicht in kg" : "Anzahl Teile"}</span>
+          <span>{art === "stangen" ? "Anzahl Stangen" : "Anzahl Stück"}</span>
           <input type="text" id="mr-menge" inputMode="decimal" value={menge} onChange={(e) => setMenge(e.target.value)} />
         </label>
         {art === "teile" && <label className="feld">
@@ -219,17 +225,13 @@ export default function MaterialRechner() {
 
       <section className="karte karte--ergebnis mr-ergebnis" id="mr-ergebnis">
         <div className="ergebnis">
-          <div className="ergebnis__titel">{art === "kg" ? "Stangen" : "Gewicht"}</div>
+          <div className="ergebnis__titel">Gewicht</div>
           <div className="ergebnis__wert">{ergebnis && ergebnis.gross ? ergebnis.gross : "–"}
-            {ergebnis && ergebnis.gross && <span>{ergebnis.einheit}</span>}</div>
+            {ergebnis && ergebnis.gross && <span>{"kg (" + zeigen(ergebnis.stangen, 2) + (ergebnis.stangen === 1 ? " Stange)" : " Stangen)")}</span>}</div>
         </div>
-        {ergebnis && ergebnis.zusatz && <p className="hinweis">{ergebnis.zusatz}</p>}
+        {ergebnis && ergebnis.zusatz && <p className="hinweis mr-zusatz">{ergebnis.zusatz}</p>}
         {ergebnis && ergebnis.fehler && <p className="hinweis">{ergebnis.fehler}</p>}
-        <p className="hinweis">
-          {kgm ? "1 m = " + zeigen(kgm, 3) + " kg · 1 Stange (" + zeigen(stangeMm / 1000, 2) + " m) = " + zeigen(kgStange, 2) + " kg"
-            : "Werkstoff und " + masName + " eintragen."}
-          {art === "teile" && kgm ? " · je Teil Länge + Abstecher + 0,5 mm Planieren" : ""}
-        </p>
+        {!kgm && <p className="hinweis">{"Werkstoff und " + masName + " eintragen."}</p>}
       </section>
     </div>
   );
