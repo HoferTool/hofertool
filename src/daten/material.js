@@ -203,7 +203,8 @@ export async function materialFuerPlanwand(auftraege) {
   if (fehlt || (alt.istExtern && alt.istExtern()) || (alt.istArchiv && alt.istArchiv())) { stand = null; return null; }
   try {
     const d = await materialDatenLaden(auftraege);
-    stand = d ? materialRechnen(auftraege, d) : null;
+    // Die Daten bleiben dabei, für die Zeile „Mat. info.“ (matInfo)
+    stand = d ? { ...materialRechnen(auftraege, d), daten: d } : null;
     // Fehlende Längen still nachholen, gezählt wird beim nächsten Laden
     if (d) setTimeout(() => laengenNachholen(d.teile), 5000);
   } catch (f) {
@@ -566,11 +567,36 @@ export function ampelText(eintrag) {
   else if (ampel === "unklar") teile.push("nicht erfasst, im Auftrag steht nur Text");
   const zahlen = [];
   if (a.start && a.versatz) zahlen.push("voraussichtlich ab " + alt.kurzDatum(a.start));
-  if (a.bedarf) zahlen.push("dieser Auftrag mind. " + kgText(a.bedarf.kg) + (a.bedarf.sicher ? "" : " (Länge nicht bestätigt)"));
+  // Die Mindestmenge steht kurz in der eigenen Zeile „Mat. info.“ (seit 1.74.0)
   if (g.lager.length) zahlen.push("da " + (g.kgDa.kg ? kgText(g.kgDa.kg) : g.lager.length + " Posten"));
   if (g.bestellt.length) zahlen.push("bestellt " + (g.kgBestellt.kg ? kgText(g.kgBestellt.kg) : g.bestellt.length + "×"));
   if (g.aehnlich.length) zahlen.push("ähnlich an Lager: " + g.aehnlich.map((x) => x.tol || "ohne Toleranz").join(", "));
   return "Material: " + teile.join("") + (zahlen.length ? " (" + zahlen.join(", ") + ")" : "");
+}
+
+// Kurze Zeile „Mat. info.: min. 120 kg / 8 Stangen (✗L)“ für
+// Auftragsfenster und Schnellvorschau (Wunsch Patrick 16. Oktober 2026:
+// „immer, egal was für Status oder schon Material bestellt, so kurz wie
+// möglich“). Gerechnet wie bei der Material-Übersicht (bedarfRechnen),
+// für die noch offenen Stück. ✗L heisst: Länge nicht bestätigt.
+// → { text, kg, stangen, sicher } oder null (nichts geladen, Externe,
+// abgeschlossener Auftrag)
+export const MAT_INFO_ERKLAERUNG = "✗L heisst: Die Länge des Fertigteils ist noch nicht bestätigt, "
+  + "die Menge ist darum nur geschätzt. Bestätigt wird sie beim Beenden im Fenster „Art. Info“ "
+  + "oder im Pad Mode mit der Kachel „Art. Info“.";
+export function matInfo(j) {
+  if (!stand || !stand.daten || !j || !istOffen(j)) return null;
+  if (istRahmen(j)) return { text: "Rahmen, keine Mengenrechnung" };
+  if (!String(j.material_bez || "").trim()) return { text: "kein Material eingetragen" };
+  if (!kgJeMeter(j.material_bez)) return { text: "Material nicht erkannt" };
+  const teil = stand.daten.teile[j.job_number];
+  if (!teil || !Number(teil.teil_laenge_mm)) return { text: "Länge des Fertigteils fehlt" };
+  const b = bedarfRechnen(j, teil, stand.daten.maschineVon[j.machine_id]);
+  if (!b) return { text: "nicht berechenbar" };
+  const kg = Math.ceil(b.kg);
+  const z = (n) => (alt.zahlText ? alt.zahlText(n) : String(n));
+  return { text: "min. " + z(kg) + " kg / " + z(b.stangen) + (b.stangen === 1 ? " Stange" : " Stangen"),
+    kg, stangen: b.stangen, sicher: b.sicher };
 }
 
 // ---------- Länge aus dem Einrichtblatt ----------

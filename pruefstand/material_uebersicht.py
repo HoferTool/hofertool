@@ -125,6 +125,39 @@ with sync_playwright() as p:
         pruefe("Balken mB sichtbar", False)
     pruefe("kein neues Zeichen auf dem Balken", pg.locator(".pw-mat").count() == 0)
 
+    # Mat. info. (1.73.0): kurz über dem Zustand, immer, ✗L ohne bestätigte Länge
+    def vorschau(id_):
+        pg.mouse.move(5, 5); pg.wait_for_timeout(300)
+        bb = pg.locator(".pw-balken[data-auftrag='%s']" % id_).first
+        if not bb.count():
+            # Liegt ausserhalb der gezeichneten Tage: über die Suche hin
+            pg.keyboard.press("h"); pg.wait_for_timeout(500)
+        if not bb.count(): return ["Balken %s nicht gezeichnet" % id_]
+        bb.scroll_into_view_if_needed(); bb.hover(); pg.wait_for_timeout(600)
+        return [z.inner_text() for z in pg.locator(".pw-info .pw-info__zeile").all()]
+    zz = vorschau("mB")
+    i = next((k for k, t in enumerate(zz) if t.startswith("Mat. info.:")), -1)
+    pruefe("Mat. info. direkt über dem Zustand (mB): " + (zz[i] if i >= 0 else "fehlt"),
+           i >= 0 and zz[i + 1].startswith("○") and "kg / " in zz[i] and zz[i].endswith("(✗L)"))
+    pruefe("keine doppelte Mindestmenge in der obersten Zeile", "mind." not in zz[0])
+    zz = vorschau("mC")
+    pruefe("Bestätigt ohne ✗L (mC): " + next((t for t in zz if t.startswith("Mat.")), "fehlt"),
+           any(t.startswith("Mat. info.: min.") and "✗L" not in t for t in zz))
+    pg.screenshot(path="/tmp/matinfo_vorschau.png")
+    pg.mouse.move(5, 5)
+    pg.locator(".pw-balken[data-auftrag='mB']").first.dblclick()
+    pg.wait_for_selector("#pl-matinfo", timeout=5000)
+    txt = pg.inner_text("#pl-matinfo")
+    lage = pg.evaluate("[document.querySelector('#pl-matinfo').getBoundingClientRect().bottom, document.querySelector('#pl-zustand').getBoundingClientRect().top]")
+    pruefe("Auftragsfenster: Mat. info. über dem Zustand: " + txt, txt.startswith("Mat. info.: min.") and "(✗L)" in txt and lage[0] <= lage[1])
+    pg.click("#pl-matinfo .mat-info__l"); pg.wait_for_timeout(300)
+    pruefe("✗L antippen erklärt es", "Länge des Fertigteils" in pg.inner_text("body"))
+    pg.screenshot(path="/tmp/matinfo_fenster.png")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    zz = vorschau("mA")
+    pruefe("Auch wenn er läuft (mA): " + next((t for t in zz if t.startswith("Mat.")), "fehlt"),
+           any(t.startswith("Mat. info.: min.") for t in zz))
+
     # Beenden im Pad fragt nach dem Rest
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)
     pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")

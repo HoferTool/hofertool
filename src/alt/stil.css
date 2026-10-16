@@ -8080,3 +8080,11 @@ body.dunkel .mat-ampel--rot  { background: #3d1d1b; color: #ef7b72; }
 /* „Laufen lassen“ bei Stück am Abend: eigene Zeile über Abbrechen und
    Eintragen, damit er mit Handschuhen gut zu treffen ist (1.73.0) */
 .zb-knoepfe [data-zbextra] { grid-column: 1 / -1; }
+
+/* Zeile „Mat. info.“ im Auftragsfenster und in der Schnellvorschau
+   (seit 1.74.0): kurz die Mindestmenge, ✗L = Länge nicht bestätigt */
+.mat-info { margin: 0 0 6px; font-size: .92rem; }
+.mat-info__l { font: inherit; font-weight: 700; color: var(--gefahr); background: none; border: 0;
+  padding: 0; cursor: help; }
+button.mat-info__l:hover { text-decoration: underline dotted; }
+.pw-info__zeile--matinfo { font-weight: 600; }

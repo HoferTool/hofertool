@@ -32,7 +32,7 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
-import { materialFuerPlanwand, materialStand, ampelText, AMPEL, postenLaden, materialZerlegen, nochGebraucht } from "../daten/material.js";
+import { materialFuerPlanwand, materialStand, ampelText, AMPEL, matInfo, postenLaden, materialZerlegen, nochGebraucht } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
@@ -152,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.73.1";
+const APP_VERSION = "1.74.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4797,6 +4797,10 @@ function balkenInfoVerhalten() {
         + (materialPlatz(j) ? zeile("📦 " + esc(materialPlatz(j))) : "")
 
         + luecke
+        // Kurz die Mindestmenge, immer direkt über dem Zustand (Wunsch
+        // Patrick 16. Oktober 2026), ✗L = Länge nicht bestätigt
+        + (matInfo(j) ? zeile('<span class="pw-info__was">Mat. info.:</span> ' + esc(matInfo(j).text)
+            + (matInfo(j).sicher === false ? ' <span class="mat-info__l">(✗L)</span>' : ""), "matinfo") : "")
         + zeile(zustand.zeichen + " " + esc(zustand.name))
         + zeile(esc(j.maschine || "–") + (j.maschine_nr ? " · " + esc(j.maschine_nr) : ""))
         + zeile(String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden")

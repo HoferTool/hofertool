@@ -29,6 +29,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { PfadKopieren } from "../daten/zeichnungPfad.jsx";
 import { wiederOeffner } from "../teile/wiederherstellen.js";
 import { useWaschprog } from "../daten/waschprog.js";
+import { matInfo, MAT_INFO_ERKLAERUNG } from "../daten/material.js";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
@@ -555,6 +556,14 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 onChange={(e) => setze("nr", e.target.value)} /></label>
             <p className="klein" id="pl-hoco-info">{hocoInfo}</p>
           </>}
+          {/* Mindestmenge kurz über dem Zustand, immer, egal welcher
+              Zustand oder ob schon bestellt (Wunsch Patrick 16. Oktober
+              2026). ✗L antippen oder darüberfahren erklärt das Zeichen. */}
+          {auftrag && matInfo(auftrag) && <p className="mat-info" id="pl-matinfo">
+            <b>Mat. info.:</b> {matInfo(auftrag).text}
+            {matInfo(auftrag).sicher === false && <> <button type="button" className="mat-info__l"
+              title={MAT_INFO_ERKLAERUNG} aria-label={MAT_INFO_ERKLAERUNG}
+              onClick={() => alt.meldung(MAT_INFO_ERKLAERUNG)}>(✗L)</button></>}</p>}
           {/* Zustand als ein Auswahlfeld statt fünf Knöpfe: braucht
               eine Zeile statt drei. Auch ohne Planrecht wählbar. */}
           <div className="auf-dreier auf-dreier--gleich">
