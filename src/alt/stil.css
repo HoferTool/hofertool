@@ -8045,3 +8045,21 @@ body.dunkel .mat-ampel--rot  { background: #3d1d1b; color: #ef7b72; }
 .mat-gebraucht--ja { background: rgba(230, 160, 0, .16); border-left: 4px solid #e6a000; }
 .mat-faellig { color: #c0392b; font-weight: 600; }
 .mat-fuer { color: var(--akzent, #1d5fbf); font-weight: 600; }
+
+/* Fenster „Material erfassen“: am Computer grösser und in zwei Spalten
+   (1.72.0, Wunsch Patrick 16. Oktober 2026), am Handy wie bisher */
+.mat-spalten { display: grid; gap: 14px; }
+.mat-spalte { display: grid; gap: 14px; align-content: start; }
+.mat-erklaerung { margin: -4px 0 12px; }
+@media (min-width: 820px) {
+  .mat-dialog { width: min(1040px, 94vw); max-width: none; padding: 26px 28px; gap: 18px; }
+  .mat-dialog h2 { font-size: 1.45rem; }
+  .mat-spalten { grid-template-columns: 1fr 1fr; gap: 18px; }
+  .mat-feld--karte { padding: 14px 16px; border: 1px solid var(--linie); border-radius: var(--radius);
+    background: var(--flaeche-2, rgba(127, 127, 127, .05)); }
+  .mat-dialog .mat-knoepfe .knopf { min-height: 42px; padding-inline: 14px; }
+  .mat-vorschlaege { max-height: 300px; overflow: auto; }
+}
+@media (min-width: 820px) {
+  .mat-dialog { max-height: 94vh; }
+}

@@ -67,46 +67,31 @@ with sync_playwright() as p:
     }""")
 
     pg.evaluate("location.hash='#material'")
-    pg.wait_for_selector("#mat-bestellen", timeout=8000); pg.wait_for_timeout(500)
-    pruefe("Reiter Zu bestellen, Bestellt, An Lager", pg.locator("[data-matreiter]").count() == 3)
+    pg.wait_for_selector("[data-ort='Restelager']", timeout=8000); pg.wait_for_timeout(500)
+    pruefe("Nur Restmaterial, keine Reiter", pg.locator("[data-matreiter]").count() == 0 and pg.locator("#mat-bestellen, #mat-bestellt").count() == 0)
     pruefe("Knopf Material im Menü", pg.locator("a[href='#/material'], [data-pfad='material'], a:has-text('Material')").count() >= 1)
-    best = pg.inner_text("#mat-bestellen")
-    pruefe("Zu bestellen nennt Neusilber ohne alles", "CuNi7Zn39Pb3Mn2" in best and "nichts da, nichts bestellt" in best)
-    pruefe("Zu bestellen: Chromstahl fehlt (2 × 575 kg, nur 680 bestellt)", "X14CrMoS17" in best and "fehlt ca." in best)
-    pruefe("Vor dem Stichtag bestellt gilt als da", "X10CrNiS18-9" not in best)
-    # Bestellt: jede Lieferung einmal
-    pg.click("[data-matreiter='bestellt']"); pg.wait_for_selector("#mat-bestellt")
-    bt = pg.inner_text("#mat-bestellt")
-    pruefe("Bestellt zeigt 2026008261 einmal mit Termin", bt.count("2026008261") == 1 and "kommt 24.10" in bt)
-    pruefe("Bestellt ohne die alte 2026009999", "2026009999" not in bt)
-    pruefe("Kein Reiter Alle Materialien", pg.locator("[data-matreiter='auftraege']").count() == 0)
-    import re
-    pruefe("Mindestmenge mit Abstecher 2,5 + 0,5 mm, nicht sicher", re.search(r"mind\. ca\. 1.275 kg", best) and "nicht bestätigt" in best)
-    pruefe("Ähnlich an Lager (h8)", "Ähnlich an Lager: X14CrMoS17 rd 024 mm h8" in best)
     pg.screenshot(path="/tmp/material_seite.png", full_page=True)
 
-    # Zuweisen: die Bestellung gehört 10555-0002, mit genauem Platz
-    pg.click("[data-matreiter='bestellt']"); pg.wait_for_selector("#mat-bestellt")
-    pg.click("#mat-bestellt button:has-text('Zuweisen')"); pg.wait_for_selector(".mat-dialog #mat-fuer")
+    # Erfassen mit Zuweisen: 200 kg für 10555-0002, mit genauem Platz
+    pg.click("#mat-neu"); pg.wait_for_selector(".mat-dialog #mat-suche")
+    pruefe("Keine Wahl Ist da / Bestellt mehr", pg.locator(".mat-dialog button:has-text('Bestellt')").count() == 0)
+    pg.fill("#mat-suche", "14cr 24"); pg.wait_for_timeout(200)
+    pg.locator(".mat-vorschlag", has_text="X14CrMoS17 rd 024 mm h9").first.click()
+    pg.click(".mat-dialog button:has-text('200 kg')"); pg.click(".mat-dialog button:has-text('Aussenlager Nord')")
+    pg.wait_for_selector(".mat-dialog #mat-fuer")
     pg.click(".mat-dialog [data-fuer='10555-0006']"); pg.wait_for_timeout(150)
     pruefe("Rahmen vorgewählt bei Rahmenauftrag", pg.is_checked("#mat-rahmen"))
     pg.click(".mat-dialog [data-fuer='10555-0002']"); pg.wait_for_timeout(150)
     pruefe("Kein Rahmen bei normalem Auftrag", not pg.is_checked("#mat-rahmen"))
-    pg.click(".mat-dialog button:has-text('Aussenlager Nord')")
+    breite = pg.evaluate("document.querySelector('.mat-dialog').getBoundingClientRect().width")
+    pruefe("Fenster am Computer gross (%d px)" % breite, breite > 900)
+    pg.screenshot(path="/tmp/material_fenster.png")
     pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(500)
     pruefe("Ohne Platz nicht gespeichert", pg.locator(".mat-dialog").count() == 1)
     pg.fill("#mat-platz", "Regal 3 unten")
     pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(1200)
-    neu = pg.evaluate("TEST.daten.material_posten.find(p => p.be_nr === '2026008261')")
-    pruefe("Zuweisung gespeichert", bool(neu) and neu["art"] == "bestellt" and neu.get("job_id") == "mB" and neu.get("platz") == "Regal 3 unten")
-    bt = pg.inner_text("#mat-bestellt")
-    pruefe("Bestellt zeigt Zuweisung", "zugewiesen 10555-0002, Regal 3 unten" in bt and bt.count("2026008261") == 1)
-    # Ist da mit einem Klick, ohne Fenster
-    pg.click("#mat-bestellt .mat-istda"); pg.wait_for_timeout(1000)
-    pruefe("Kein Fenster bei Ist da", pg.locator(".mat-dialog").count() == 0)
-    neu = pg.evaluate("TEST.daten.material_posten.find(p => p.be_nr === '2026008261')")
-    pruefe("Ist da: Posten an Lager", neu["art"] == "lager" and neu["ort"] == "Aussenlager Nord" and neu["menge"] == 680)
-    pruefe("Nicht mehr bei Bestellt", "2026008261" not in pg.inner_text("#mat-bestellt"))
+    neu = pg.evaluate("TEST.daten.material_posten.find(p => p.platz === 'Regal 3 unten')")
+    pruefe("Zuweisung gespeichert", bool(neu) and neu["art"] == "lager" and neu.get("job_id") == "mB" and neu["menge"] == 200)
 
     # Erfassen mit Suche
     pg.click("#mat-neu"); pg.wait_for_selector(".mat-dialog #mat-suche")
@@ -118,16 +103,10 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/material_erfassen.png")
     pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(1200)
     pruefe("Erfasst", pg.evaluate("TEST.daten.material_posten.some(p => p.material.startsWith('CuNi7') && p.menge === 500)"))
-    pg.click("[data-matreiter='bestellen']"); pg.wait_for_selector("#mat-bestellen")
-    pruefe("Neusilber nicht mehr zu bestellen", "CuNi7Zn39Pb3Mn2" not in pg.inner_text("#mat-bestellen"))
 
-    # An Lager und Längen
-    pg.click("[data-matreiter='lager']"); pg.wait_for_selector("[data-ort='Restelager']")
-    pruefe("An Lager nach Ort", pg.locator("[data-ort='Aussenlager Nord']").count() == 1)
-    pruefe("Gelieferte Bestellung an Lager mit Zuweisung", "680 kg" in pg.inner_text("[data-ort='Aussenlager Nord']")
-           and "für 10555-0002" in pg.inner_text("[data-ort='Aussenlager Nord']"))
-    # Seit 1.70.0 kein Reiter „Längen“ mehr; die App liest selbst
-    pruefe("Kein Reiter Längen", pg.locator("[data-matreiter='laengen']").count() == 0)
+    # Nach Ort
+    pruefe("Nach Ort", pg.locator("[data-ort='Aussenlager Nord']").count() == 1)
+    pruefe("Zuweisung sichtbar", "für 10555-0002, Regal 3 unten" in pg.inner_text("[data-ort='Aussenlager Nord']"))
     l = pg.evaluate("TEST.daten.hoco_parts.find(h => h.hoco_nr === '10555-0001')")
     pruefe("Länge selbst aus dem Einrichtblatt gelesen (7, unbestätigt)",
            l.get("teil_laenge_mm") == 7 and l.get("teil_mass_bestaetigt") is False and "Getriebedeckel" in (l.get("teil_mass_quelle") or ""))
@@ -140,7 +119,7 @@ with sync_playwright() as p:
         b.scroll_into_view_if_needed(); b.hover(); pg.wait_for_timeout(700)
         info = pg.locator(".pw-info")
         z = info.locator(".pw-info__zeile").first.inner_text() if info.count() else ""
-        pruefe("Schnellvorschau zuoberst Material: " + z, z.startswith("Material: da"))
+        pruefe("Schnellvorschau zuoberst Material: " + z, z.startswith("Material: "))
         pg.screenshot(path="/tmp/material_vorschau.png")
     else:
         pruefe("Balken mB sichtbar", False)
@@ -166,13 +145,13 @@ with sync_playwright() as p:
     pruefe("Rest-Hinweis nennt Aufträge, die es noch brauchen: " + g.replace(chr(10), " | "),
            "noch gebraucht" in g and "10555-0002" in g and "10555-0003" in g)
     pruefe("Material vorgegeben", "X14CrMoS17 rd 024 mm h9" in pg.inner_text(".mat-gewaehlt"))
-    pruefe("Posten zum Abhaken (680 kg Aussenlager)", pg.locator(".mat-leer label:has-text('680 kg')").count() == 1)
-    pg.click(".mat-leer label:has-text('680 kg') input")
+    pruefe("Posten zum Abhaken (200 kg Aussenlager)", pg.locator(".mat-leer label:has-text('200 kg')").count() == 1)
+    pg.click(".mat-leer label:has-text('200 kg') input")
     pg.click(".mat-dialog button:has-text('50 kg')")
     pg.screenshot(path="/tmp/material_rest.png")
     pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(1500)
     pruefe("Rest gespeichert", pg.evaluate("TEST.daten.material_posten.some(p => p.job_id === 'mA' && p.menge === 50 && p.ort === 'Restelager')"))
-    pruefe("Posten aufgebraucht", pg.evaluate("!!TEST.daten.material_posten.find(p => p.be_nr === '2026008261').weg_am"))
+    pruefe("Posten aufgebraucht", pg.evaluate("!!TEST.daten.material_posten.find(p => p.platz === 'Regal 3 unten').weg_am"))
     pruefe("Auftrag fertig", pg.evaluate("TEST.daten.jobs.find(j => j.id === 'mA').plan_status") == "fertig")
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:12])

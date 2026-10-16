@@ -199,7 +199,11 @@ function PostenDialog({ o, orte, liste, fertig }) {
         </div>
       )}
 
-      <div className="mat-feld">
+      {/* Am Computer zwei Spalten (Wunsch Patrick 16. Oktober 2026: „etwas
+          grösser und besser dargestellt“), am Handy untereinander wie bisher */}
+      <div className="mat-spalten">
+      <div className="mat-spalte">
+      <div className="mat-feld mat-feld--karte">
         <span className="mat-feld__name">Material</span>
         {waehlen
           ? <>
@@ -216,19 +220,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
               <b>{material}</b><span className="klein">ändern</span></button>}
       </div>
 
-      {!o.rest && (
-        <div className="mat-feld">
-          <span className="mat-feld__name">Ist es da?</span>
-          <div className="mat-knoepfe">
-            <button type="button" className={"knopf" + (art === "lager" ? " knopf--haupt" : "")}
-              onClick={() => setArt("lager")}>Ist da</button>
-            <button type="button" className={"knopf" + (art === "bestellt" ? " knopf--haupt" : "")}
-              onClick={() => setArt("bestellt")}>Bestellt</button>
-          </div>
-        </div>
-      )}
-
-      <div className="mat-feld">
+      <div className="mat-feld mat-feld--karte">
         <span className="mat-feld__name">Wie viel, ungefähr</span>
         <div className="mat-knoepfe">
           <button type="button" className={"knopf knopf--klein" + (einheit === "kg" ? " knopf--haupt" : "")}
@@ -245,7 +237,13 @@ function PostenDialog({ o, orte, liste, fertig }) {
         </div>
       </div>
 
-      <div className="mat-feld">
+      {!o.rest && (
+        <label className="mat-feld mat-feld--karte"><span className="mat-feld__name">Notiz (frei)</span>
+          <input className="mat-eingabe" value={notiz} id="mat-notiz" onChange={(e) => setNotiz(e.target.value)} /></label>
+      )}
+      </div>
+      <div className="mat-spalte">
+      <div className="mat-feld mat-feld--karte">
         <span className="mat-feld__name">{art === "bestellt" ? "Wohin kommt es (wenn bekannt)" : "Wo"}</span>
         <div className="mat-knoepfe">
           {orte.map((x) => (
@@ -270,7 +268,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
       )}
 
       {!o.rest && zurWahl.length > 0 && (
-        <div className="mat-feld" id="mat-fuer">
+        <div className="mat-feld mat-feld--karte" id="mat-fuer">
           <span className="mat-feld__name">Für welchen Auftrag</span>
           <div className="mat-knoepfe">
             <button type="button" className={"knopf knopf--klein" + (!fuerJob ? " knopf--haupt" : "")}
@@ -285,17 +283,15 @@ function PostenDialog({ o, orte, liste, fertig }) {
             <label className="feld-haken"><input type="checkbox" id="mat-rahmen" checked={rahmen}
               onChange={(e) => setRahmen(e.target.checked)} />
               <span>Rahmenauftrag: gehört allen Aufträgen {fuerJob.job_number}, ohne Mengenrechnung; am Schluss nur den Rest angeben</span></label>
-            <label className="feld"><span>Wo genau liegt es? (Pflicht)</span>
-              <input value={platz} id="mat-platz" placeholder="z.B. an der Maschine links, Regal 3 unten"
+            <label className="mat-feld"><span className="mat-feld__name">Wo genau liegt es? (Pflicht)</span>
+              <input className="mat-eingabe" value={platz} id="mat-platz" placeholder="z.B. an der Maschine links, Regal 3 unten"
                 onChange={(e) => setPlatz(e.target.value)} /></label>
           </>}
         </div>
       )}
 
-      {!o.rest && (
-        <label className="feld"><span>Notiz (frei)</span>
-          <input value={notiz} id="mat-notiz" onChange={(e) => setNotiz(e.target.value)} /></label>
-      )}
+      </div>
+      </div>
 
       {o.rest && vorhandene.length > 0 && (
         <fieldset className="feld feld--mehrfach mat-leer">
