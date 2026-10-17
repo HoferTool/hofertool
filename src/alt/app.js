@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.91.0";
+const APP_VERSION = "1.92.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3826,7 +3826,7 @@ function werkstoffErkennen(bez) {
   }
   // Stähle: Automatenstähle, Werkstoffnummern 1.0–1.8, gängige Namen
   if (/\d+s(mn|mnpb|pb)\d*|\betg\s?\d+|automatenstahl|steeltec|\b1\.[0-35-8]\d{3}\b|\bc\d{2}\b|\b\d{2,3}(mncr|crmo|nicr|crnimo|mnsi|cr\d)/.test(ganz)
-      || /\bs235|\bs355|\b11smn|\b9smn/.test(ganz)) return mit("stahl");
+      || /\bs235|\bs355|\be235|\b11smn|\b9smn/.test(ganz)) return mit("stahl");
 
   return null;
 }

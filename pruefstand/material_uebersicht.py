@@ -199,7 +199,7 @@ with sync_playwright() as p:
     pg.click(".mat-dialog button:has-text('Stangen')")
     pg.fill("#mat-menge", "2,5")
     u = pg.inner_text("#mat-umrechnung")
-    pruefe("Stangen zeigen kg und Werkstoffnummer: " + u, "kg" in u and "ca." in u and "1.4104" in u)
+    pruefe("Stangen zeigen kg und Faktor der Farbe: " + u, "kg" in u and "ca." in u and "Rostfrei Chromstahl, 7,8 g/cm³" in u)
     pg.click(".mat-dialog .mat-knoepfe button:text-is('kg')")
     kg = pg.input_value("#mat-menge")
     pruefe("Umschalten rechnet um: " + kg + " / " + pg.inner_text("#mat-umrechnung"), "," in kg and "Stangen" in pg.inner_text("#mat-umrechnung"))

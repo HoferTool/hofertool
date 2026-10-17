@@ -22,6 +22,10 @@ def zusatz(extern):
   daten.jobs.push({ id: 'jr1', job_number: '10000-0301', machine_id: daten.machines[0].id, planned_from: arbeitstagPlus(montag, 200),
     planned_days: 3, plan_status: 'geplant', target_quantity: 500, color: '#ff0000',
     material_bez: 'X8CrNiS18-9 6kt 012 mm h9' });
+  daten.jobs.push({ id: 'jr2', job_number: '10000-0302', machine_id: daten.machines[0].id, planned_from: arbeitstagPlus(montag, -200),
+    planned_days: 1, plan_status: 'fertig', material_bez: 'X10CrNiS18-9 Ø18h8 Notz 213.6kg' });
+  daten.jobs.push({ id: 'jr3', job_number: '10000-0303', machine_id: daten.machines[0].id, planned_from: arbeitstagPlus(montag, -210),
+    planned_days: 1, plan_status: 'fertig', material_bez: 'ETG 100 Ø12h6 steeltec 54kg' });
 })();
 """ % ("daten.profiles[0].role = 'extern';" if extern else "")
 
@@ -49,7 +53,7 @@ with sync_playwright() as p:
         "document.querySelector('#pw-symbole').nextElementSibling.id") == "pw-matrechner")
     pg.click("#pw-matrechner"); pg.wait_for_selector(".dialog--matrechner")
     pruefe("Standard ist Rund", "aktiv" in pg.get_attribute("[data-form='rd']", "class"))
-    pg.select_option("#mr-werkstoff", "gr:v2a")
+    pg.select_option("#mr-werkstoff", "kat:v2a")
     # Seit 1.90.0 nur noch Stück → Bestellmenge, keine Richtungs- oder Einheitenwahl
     pruefe("Keine Richtungs- und Einheitenwahl", pg.locator("[data-art], [data-einheit]").count() == 0)
     pruefe("Titel Bestellen", pg.inner_text("#mr-ergebnis .ergebnis__titel") == "Bestellen")
@@ -75,7 +79,7 @@ with sync_playwright() as p:
     tippe(pg, "#mr-hoco", "10000-0301"); pg.wait_for_timeout(1200)
     info = pg.inner_text("#mr-hoco-info")
     pruefe("HOCO Nr. gefunden: " + info, "X8CrNiS18-9" in info and "Länge 10 mm" in info)
-    pruefe("Werkstoff 1.4305 gewählt", pg.input_value("#mr-werkstoff") == "nr:1.4305")
+    pruefe("Werkstoff Rostfrei V2A gewählt", pg.input_value("#mr-werkstoff") == "kat:v2a")
     pruefe("Sechskant aus dem Material, 12 mm", "aktiv" in pg.get_attribute("[data-form='6kt']", "class") and pg.input_value("#mr-d") == "12")
     pruefe("Länge 10", pg.input_value("#mr-laenge") == "10")
     tippe(pg, "#mr-menge", "1000")
@@ -117,19 +121,28 @@ with sync_playwright() as p:
 
     # Faktor in den Einstellungen: V2A auf 8,0 → 2 Stangen Rund 20 = 15,1 kg
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(600)
-    pg.locator("[data-einst='farben']").click(); pg.wait_for_selector("[data-dichte='gr:v2a']", timeout=8000)
-    pruefe("Faktor-Feld zeigt Normwert 7,9", pg.get_attribute("[data-dichte='gr:v2a']", "placeholder") == "7,9")
-    pg.fill("[data-dichte='gr:v2a']", "8"); pg.keyboard.press("Enter"); pg.wait_for_timeout(600)
+    pg.locator("[data-einst='farben']").click(); pg.wait_for_selector("[data-dichte='kat:v2a']", timeout=8000)
+    # Seit 1.92.0 ein Faktor je Farbe, keine Werkstoffnummern mehr
+    pruefe("Faktor nur je Farbe (9 Zeilen): %d" % pg.locator("[data-dichte]").count(),
+        pg.locator("[data-dichte]").count() == 9 and pg.locator("[data-dichte^='nr:']").count() == 0)
+    pruefe("Messing 8,5, Neusilber 8,7, Alu 2,85", pg.get_attribute("[data-dichte='kat:messing']", "placeholder") == "8,5"
+        and pg.get_attribute("[data-dichte='kat:neusilber']", "placeholder") == "8,7" and pg.get_attribute("[data-dichte='kat:alu']", "placeholder") == "2,85")
+    ws = pg.inner_text("#werkstoffliste")
+    pruefe("Werkstoffliste ohne kg-Angaben", "kg" not in ws)
+    pruefe("1.4305 einmal, alle Schreibweisen zusammen", ws.count("1.4305 · X8CrNiS18-9") == 1 and "X10CrNiS18" not in ws)
+    pruefe("ETG 100 als ETG100", "ETG100" in ws)
+    pruefe("Faktor-Feld zeigt Normwert 7,9", pg.get_attribute("[data-dichte='kat:v2a']", "placeholder") == "7,9")
+    pg.fill("[data-dichte='kat:v2a']", "8"); pg.keyboard.press("Enter"); pg.wait_for_timeout(600)
     gesp = pg.evaluate("(TEST.daten.app_config.find(c => c.schluessel === 'material_dichte') || {}).wert")
-    pruefe("Faktor gespeichert: " + str(gesp), gesp and '"gr:v2a":8' in gesp)
+    pruefe("Faktor gespeichert: " + str(gesp), gesp and '"kat:v2a":8' in gesp)
     pg.screenshot(path="/tmp/rechner_faktor.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pg.click("#pw-matrechner"); pg.wait_for_selector(".dialog--matrechner"); pg.wait_for_timeout(300)
-    pg.select_option("#mr-werkstoff", "gr:v2a"); tippe(pg, "#mr-d", "20"); tippe(pg, "#mr-menge", "600"); tippe(pg, "#mr-laenge", "10")
+    pg.select_option("#mr-werkstoff", "kat:v2a"); tippe(pg, "#mr-d", "20"); tippe(pg, "#mr-menge", "600"); tippe(pg, "#mr-laenge", "10")
     pg.wait_for_timeout(300)
     # 314,16 · 8 / 1000 · 3 · 3 = 22,62
     pruefe("Rechner nimmt den Faktor 8: " + wert(pg), wert(pg).startswith("22,6 kg"))
-    pruefe("Auswahl zeigt V2A · 8", "V2A · 8 g/cm³" in pg.inner_text("#mr-werkstoff"))
+    pruefe("Auswahl zeigt Rostfrei V2A · 8", "Rostfrei V2A · 8 g/cm³" in pg.inner_text("#mr-werkstoff"))
     br.close()
 
     br, pg = seite(p, True)

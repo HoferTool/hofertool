@@ -7,7 +7,7 @@
 import { useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Gruppe } from "./teile.jsx";
-import { werkstoffWahl, dichtenLaden, dichtenSpeichern, eigeneDichten } from "../daten/material.js";
+import { kategorienListe, dichtenLaden, dichtenSpeichern, eigeneDichten, werkstoffAnzeige } from "../daten/material.js";
 
 export default function Farben() {
   return (
@@ -19,12 +19,12 @@ export default function Farben() {
         <div id="farbliste"><FarbListe /></div>
       </Gruppe>
       <Gruppe titel="Werkstofferkennung"
-        text={"Nicht erkannte Werkstoffe stehen oben: einmal zuordnen, die App merkt es sich."}>
+        text={"Gleiche Werkstoffe stehen zusammen, ohne Mengen und Lieferanten. Nicht erkannte stehen oben: einmal zuordnen, die App merkt es sich."}>
         <div id="werkstoffliste"><Werkstoffe /></div>
       </Gruppe>
       <Gruppe titel="Faktor (Dichte) für kg"
-        text={"Damit rechnet die App Stangen in kg um: im Materialrechner der Planwand, bei der Mat. info. und auf der Seite Material. "
-          + "In g/cm³, mit Komma. Leer heisst Normwert (grau). Gespeichert wird beim Verlassen des Felds."}>
+        text={"Ein Faktor je Farbe, immer der höchste Wert der Werkstoffe darin, damit sicher genug bestellt wird. Damit rechnet die App Stangen in kg um: im Materialrechner der Planwand, bei der Mat. info. und auf der Seite Material. "
+          + "In g/cm³, mit Komma. Leer heisst Vorgabe (grau). Gespeichert wird beim Verlassen des Felds."}>
         <div id="dichteliste"><Dichten /></div>
       </Gruppe>
     </>
@@ -129,17 +129,29 @@ async function werkstoffeLaden() {
     alle.push(...(r.data || []));
     if (!r.data || r.data.length < 1000) break;
   }
-  // Je Werkstoff einmal, mit Anzahl
+  // Je Werkstoff einmal, mit Anzahl: zuerst je Bezeichnung ohne Masse,
+  // dann Gleiches zusammen (gleiche Werkstoffnummer oder gleicher Name
+  // ohne Mengen und Lieferanten, Wunsch Patrick 17. Oktober 2026)
   const jeKern = new Map();
   alle.forEach(({ material_bez: b }) => {
     const k = alt.werkstoffKern(b);
     if (!k || k.length < 2) return;
     const s = alt.werkstoffSchluessel(b);
-    const e = jeKern.get(s) || { kern: k, beispiel: b, n: 0 };
+    const e = jeKern.get(s) || { beispiel: b, n: 0 };
     e.n++; jeKern.set(s, e);
   });
-  // Nicht Erkanntes zuerst, sonst die häufigsten oben
-  return [...jeKern.values()].map((e) => Object.assign(e, { g: alt.werkstoffErkennen(e.beispiel) }))
+  const jeWerkstoff = new Map();
+  jeKern.forEach((e) => {
+    const a = werkstoffAnzeige(e.beispiel);
+    const w = jeWerkstoff.get(a.schluessel) || { titel: a.titel, beispiele: [], n: 0, oben: e };
+    w.beispiele.push(e.beispiel);
+    w.n += e.n;
+    if (e.n > w.oben.n) w.oben = e;
+    jeWerkstoff.set(a.schluessel, w);
+  });
+  // Erkannt wie die häufigste Schreibweise; nicht Erkanntes zuerst,
+  // sonst die häufigsten oben
+  return [...jeWerkstoff.values()].map((w) => Object.assign(w, { beispiel: w.oben.beispiel, g: alt.werkstoffErkennen(w.oben.beispiel) }))
     .sort((a, b) => (a.g ? 1 : 0) - (b.g ? 1 : 0) || b.n - a.n);
 }
 
@@ -150,9 +162,10 @@ function Werkstoffe() {
   const gruppen = alt.WERKSTOFFGRUPPEN;
   const offen = zeilen.filter((z) => !z.g).length;
 
-  const zuordnen = async (bez, gruppe) => {
+  // Für alle Schreibweisen dieses Werkstoffs
+  const zuordnen = async (beispiele, gruppe) => {
     try {
-      await alt.werkstoffZuordnen(bez, gruppe || null);
+      for (const bez of beispiele) await alt.werkstoffZuordnen(bez, gruppe || null);
       alt.meldung(gruppe ? "Zugeordnet." : "Zuordnung entfernt.");
       neu();
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
@@ -167,7 +180,7 @@ function Werkstoffe() {
         <thead><tr><th>Werkstoff</th><th className="rechts">Aufträge</th><th>Gruppe</th><th>Von Hand</th></tr></thead>
         <tbody>{zeilen.map((z) => (
           <tr key={z.beispiel} className={z.g ? undefined : "ws-offen"}>
-            <td><strong>{z.kern}</strong></td>
+            <td><strong>{z.titel}</strong></td>
             <td className="rechts">{z.n}</td>
             <td>{z.g
               ? <><span className="ws-farbe" style={{ background: alt.farbeVon(z.g.farbe).hex }} />
@@ -175,7 +188,7 @@ function Werkstoffe() {
               : <span className="gedaempft">nicht erkannt</span>}</td>
             <td>
               <select data-werkstoff={z.beispiel} value={z.g && z.g.gelernt ? z.g.key : ""}
-                onChange={(e) => zuordnen(z.beispiel, e.target.value)}>
+                onChange={(e) => zuordnen(z.beispiele, e.target.value)}>
                 <option value="">{z.g && !z.g.gelernt ? "automatisch" : "— nicht zugeordnet —"}</option>
                 {Object.keys(gruppen).map((k) => <option key={k} value={k}>{gruppen[k].name}</option>)}
               </select>
@@ -187,25 +200,25 @@ function Werkstoffe() {
   );
 }
 
-// ---------- Faktor (Dichte) je Werkstoff ----------
+// ---------- Faktor (Dichte) je Farbe ----------
 // Wunsch Patrick 16. Oktober 2026: „Der Faktor soll in den Einstellungen
-// bei Material eingebbar sein“. Gespeichert in app_config.material_dichte,
-// nur was vom Normwert abweicht.
+// bei Material eingebbar sein“; seit 1.92.0 nur noch einer je Farbe
+// (Kategorie), nicht je Werkstoffnummer (Wunsch Patrick 17. Oktober
+// 2026). Gespeichert in app_config.material_dichte, nur was von der
+// Vorgabe abweicht.
 
 async function dichtenHolen() {
   await dichtenLaden(true);
-  return { liste: werkstoffWahl(), eigene: eigeneDichten() };
+  return { liste: kategorienListe(), eigene: eigeneDichten() };
 }
 
 function Dichten() {
   const { daten } = useDaten(dichtenHolen, []);
   if (!daten) return <div className="laedt">Wird geladen …</div>;
-  const zeilen = [...daten.liste.gruppen.map((g) => ({ ...g, titel: g.name, gruppe: true })),
-    ...daten.liste.nummern.map((w) => ({ ...w, titel: w.nr + (w.name ? " · " + w.name : "") }))];
   return (
     <div className="tabellenrolle"><table className="tabelle dichte-tabelle">
-      <thead><tr><th>Werkstoff</th><th className="rechts">Faktor g/cm³</th></tr></thead>
-      <tbody>{zeilen.map((z) => <DichteZeile key={z.wert} z={z} eigen={daten.eigene[z.wert]} />)}</tbody>
+      <thead><tr><th>Farbe</th><th>Höchster Wert bei</th><th className="rechts">Faktor g/cm³</th></tr></thead>
+      <tbody>{daten.liste.map((z) => <DichteZeile key={z.wert} z={z} eigen={daten.eigene[z.wert]} />)}</tbody>
     </table></div>
   );
 }
@@ -230,8 +243,9 @@ function DichteZeile({ z, eigen }) {
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
   return (
-    <tr className={z.gruppe ? "dichte-gruppe" : undefined}>
-      <td>{z.gruppe ? <strong>{z.titel}</strong> : z.titel}</td>
+    <tr>
+      <td><span className="ws-farbe" style={{ background: alt.farbeVon(z.farbe).hex }} /><strong>{z.name}</strong></td>
+      <td className="gedaempft">{z.hoechster}</td>
       <td className="rechts">
         <input type="text" inputMode="decimal" className="dichte-feld" data-dichte={z.wert} value={wert}
           placeholder={komma(z.standard)} onChange={(e) => setWert(e.target.value)} onBlur={speichern}

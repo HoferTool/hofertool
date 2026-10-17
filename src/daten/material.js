@@ -42,9 +42,28 @@ const STANGE_MM = 3000, STUMPEN_MM = 250, PLANIEREN_MM = 0.5;
 // geliefert. Was später kommt, bestätigt man mit „Ist da“.
 export const STICHTAG = "2026-10-16";
 
-// g/cm³ je Werkstoffgruppe aus werkstoffErkennen
-const DICHTE = { stahl: 7.85, v2a: 7.9, v4a: 8.0, chrom: 7.7, alu: 2.7, messing: 8.5,
-  messing_ohne_pb: 8.4, neusilber: 8.6, titan: 4.5, kunststoff: 1.41 };
+// Faktor (Dichte, g/cm³) je Kategorie, also je Balkenfarbe: immer der
+// höchste Wert der Werkstoffe darin, damit sicher genug Material
+// bestellt wird (Wunsch Patrick 17. Oktober 2026: „für jede Kategorie
+// Farbe den höchsten Wert nehmen“). Vorher galt die genaue Dichte je
+// Werkstoffnummer (1.82.0–1.91.0). Ecobrass zählt zum Messing (gleiche
+// Farbe); Kunststoff bleibt trotz weisser Farbe getrennt vom Alu, sonst
+// käme für POM fast das Doppelte heraus. „hoechster“ nennt den
+// Werkstoff mit dem höchsten Wert, für die Einstellungen.
+export const KATEGORIEN = [
+  { key: "stahl", farbe: "blau", name: "Eisen", dichte: 7.85, hoechster: "Automatenstahl, ETG, S235" },
+  { key: "v2a", farbe: "rot", name: "Rostfrei V2A", dichte: 7.9, hoechster: "1.4301, 1.4305" },
+  { key: "v4a", farbe: "grau", name: "Rostfrei V4A", dichte: 8.0, hoechster: "1.4404, 1.4571" },
+  { key: "chrom", farbe: "rosa", name: "Rostfrei Chromstahl", dichte: 7.8, hoechster: "1.4542 (17-4 PH)" },
+  { key: "messing", farbe: "orange", name: "Messing", dichte: 8.5, hoechster: "CuZn36Pb3", auch: ["messing_ohne_pb"] },
+  { key: "neusilber", farbe: "gelb", name: "Neusilber", dichte: 8.7, hoechster: "CuNi12Zn24, CuNi18Zn20" },
+  { key: "alu", farbe: "weiss", name: "Aluminium", dichte: 2.85, hoechster: "EN AW-2007" },
+  { key: "titan", farbe: "violett", name: "Titan", dichte: 4.51, hoechster: "Grade 2" },
+  { key: "kunststoff", farbe: "weiss", name: "Kunststoff", dichte: 2.17, hoechster: "PTFE" },
+];
+// Werkstoffgruppe aus werkstoffErkennen → Kategorie
+const KAT_VON_GRUPPE = {};
+KATEGORIEN.forEach((k) => { [k.key, ...(k.auch || [])].forEach((g) => { KAT_VON_GRUPPE[g] = k; }); });
 
 const zahl = (t) => { const n = Number(String(t).replace(",", ".")); return isFinite(n) ? n : null; };
 
@@ -76,46 +95,47 @@ export function materialZerlegen(bez) {
   return { roh, werkstoff, form, d, innen, tol, grund, schluessel: grund + "|" + tol };
 }
 
-// Genaue Dichte je Werkstoff (Wunsch Patrick 16. Oktober 2026: „von
-// X8CrNiS18-9 zur Nummer selber checken“): Kurzname oder Nummer in der
-// Bezeichnung → Werkstoffnummer und Dichte in g/cm³ (Werte aus den
-// Normblättern, z.B. EN 10088-1). Nur wenn nichts passt, gilt die
-// Dichte der Gruppe aus DICHTE.
+// Werkstoffnummer aus Kurzname oder Nummer in der Bezeichnung (Wunsch
+// Patrick 16. Oktober 2026: „von X8CrNiS18-9 zur Nummer selber
+// checken“). Seit 1.92.0 nur noch für die Anzeige und um in den
+// Einstellungen Gleiches zusammenzufassen; gerechnet wird mit dem
+// Faktor der Kategorie. Frühere Schreibweisen aus den Aufträgen stehen
+// als weitere Namen dabei.
 const WERKSTOFFE = [
   // Rostfrei ohne Molybdän
-  ["1.4301", 7.9, "x5crni18-10"], ["1.4303", 7.9, "x4crni18-12"], ["1.4305", 7.9, "x8crnis18-9", "x10crnis18-9"],
-  ["1.4306", 7.9, "x2crni19-11"], ["1.4307", 7.9, "x2crni18-9"], ["1.4310", 7.9, "x10crni18-8"],
-  ["1.4311", 7.9, "x2crnin18-10"], ["1.4541", 7.9, "x6crniti18-10"], ["1.4550", 7.9, "x6crninb18-10"],
-  ["1.4567", 7.9, "x3crnicu18-9-4"], ["1.4568", 7.8, "x7crnial17-7"],
+  ["1.4301", "x5crni18-10"], ["1.4303", "x4crni18-12"], ["1.4305", "x8crnis18-9", "x10crnis18-9", "x10crnis18"],
+  ["1.4306", "x2crni19-11"], ["1.4307", "x2crni18-9"], ["1.4310", "x10crni18-8"],
+  ["1.4311", "x2crnin18-10"], ["1.4541", "x6crniti18-10"], ["1.4550", "x6crninb18-10"],
+  ["1.4567", "x3crnicu18-9-4"], ["1.4568", "x7crnial17-7"],
   // Rostfrei mit Molybdän
-  ["1.4401", 8.0, "x5crnimo17-12-2"], ["1.4404", 8.0, "x2crnimo17-12-2"], ["1.4432", 8.0, "x2crnimo17-12-3"],
-  ["1.4435", 8.0, "x2crnimo18-14-3"], ["1.4436", 8.0, "x3crnimo17-13-3"], ["1.4439", 8.0, "x2crnimon17-13-5"],
-  ["1.4571", 8.0, "x6crnimoti17-12-2"], ["1.4580", 8.0, "x6crnimonb17-12-2"], ["1.4539", 8.0, "x1nicrmocu25-20-5"],
-  ["1.4547", 8.0, "x1crnimocun20-18-7"], ["1.4578", 7.9, "x3crnicumo17-11-3-2"], ["1.4462", 7.8, "x2crnimon22-5-3"],
+  ["1.4401", "x5crnimo17-12-2"], ["1.4404", "x2crnimo17-12-2"], ["1.4432", "x2crnimo17-12-3"],
+  ["1.4435", "x2crnimo18-14-3"], ["1.4436", "x3crnimo17-13-3"], ["1.4439", "x2crnimon17-13-5"],
+  ["1.4571", "x6crnimoti17-12-2"], ["1.4580", "x6crnimonb17-12-2"], ["1.4539", "x1nicrmocu25-20-5"],
+  ["1.4547", "x1crnimocun20-18-7"], ["1.4578", "x3crnicumo17-11-3-2"], ["1.4462", "x2crnimon22-5-3"],
   // Chromstahl und härtbare
-  ["1.4005", 7.7, "x12crs13"], ["1.4016", 7.7, "x6cr17"], ["1.4021", 7.7, "x20cr13"], ["1.4028", 7.7, "x30cr13"],
-  ["1.4034", 7.7, "x46cr13"], ["1.4057", 7.7, "x17crni16-2"], ["1.4104", 7.7, "x14crmos17"], ["1.4105", 7.7, "x6crmos17"],
-  ["1.4112", 7.7, "x90crmov18"], ["1.4122", 7.7, "x39crmo17-1"], ["1.4125", 7.7, "x105crmo17"], ["1.4313", 7.7, "x3crnimo13-4"],
-  ["1.4418", 7.7, "x4crnimo16-5-1"], ["1.4512", 7.7, "x2crti12"], ["1.4542", 7.8, "x5crnicunb16-4"],
+  ["1.4005", "x12crs13"], ["1.4016", "x6cr17"], ["1.4021", "x20cr13"], ["1.4028", "x30cr13"],
+  ["1.4035", "x46crs13", "x46cr13+s", "x46cr13s"], ["1.4034", "x46cr13"], ["1.4057", "x17crni16-2", "x17crni16-02"], ["1.4104", "x14crmos17"], ["1.4105", "x6crmos17"],
+  ["1.4112", "x90crmov18"], ["1.4108", "x30crmon15-1"], ["1.4534", "x3crnimoal13-8-2"], ["1.4122", "x39crmo17-1"], ["1.4125", "x105crmo17"], ["1.4313", "x3crnimo13-4"],
+  ["1.4418", "x4crnimo16-5-1"], ["1.4512", "x2crti12"], ["1.4542", "x5crnicunb16-4", "x5crnicunb17-4-4"],
   // Automatenstahl
-  ["1.0715", 7.85, "11smn30"], ["1.0718", 7.85, "11smnpb30"], ["1.0736", 7.85, "11smn37"], ["1.0737", 7.85, "11smnpb37"],
+  ["1.0308", "e235"], ["1.0715", "11smn30"], ["1.0758", "60spb20"], ["1.7139", "16mncrs5"], ["1.7227", "42crmos4"], ["1.6582", "34crnimo6"], ["1.3505", "100cr6"], ["1.5752", "15nicr13"], ["1.8519", "31crmov9"], ["1.0718", "11smnpb30"], ["1.0736", "11smn37"], ["1.0737", "11smnpb37"],
   // Messing und Neusilber
-  ["CW614N", 8.47, "cuzn39pb3"], ["CW617N", 8.43, "cuzn40pb2"], ["CW603N", 8.5, "cuzn36pb3"], ["CW724R", 8.3, "cuzn21si3p"],
-  ["CW400J", 8.5, "cuni7zn39pb3mn2"], ["CW408J", 8.7, "cuni18zn19pb1"], ["CW409J", 8.7, "cuni18zn20"], ["CW403J", 8.7, "cuni12zn24"],
+  ["CW614N", "cuzn39pb3"], ["CW617N", "cuzn40pb2"], ["CW603N", "cuzn36pb3"], ["CW724R", "cuzn21si3p", "cuzn21si3", "ecobrass"], ["CW713R", "cuzn37mn3al2pbsi"], ["CW608N", "cuzn38pb2"], ["CW508L", "cuzn37"],
+  ["CW400J", "cuni7zn39pb3mn2", "cuni7zn39mn2pb3"], ["CW408J", "cuni18zn19pb1"], ["CW409J", "cuni18zn20"], ["CW403J", "cuni12zn24"],
   // Aluminium
-  ["EN AW-6082", 2.70, "aw-6082", "aw6082", "almgsi1"], ["EN AW-6061", 2.70, "aw-6061", "aw6061"],
-  ["EN AW-6026", 2.72, "aw-6026", "aw6026"], ["EN AW-6012", 2.75, "aw-6012", "aw6012", "almgsipb"],
-  ["EN AW-2007", 2.85, "aw-2007", "aw2007", "alcu4pbmgmn"], ["EN AW-2011", 2.84, "aw-2011", "aw2011", "alcu6bipb"],
-  ["EN AW-7075", 2.81, "aw-7075", "aw7075", "alzn5,5mgcu"], ["EN AW-5083", 2.66, "aw-5083", "aw5083", "almg4,5mn"],
+  ["EN AW-6082", "aw-6082", "aw6082", "almgsi1"], ["EN AW-6061", "aw-6061", "aw6061"],
+  ["EN AW-6026", "aw-6026", "aw6026", "aw 6026", "alu6026", "almgsimnbi", "almgsibi"], ["EN AW-6023", "aw-6023", "aw6023", "alu6023", "almgsisnbi"], ["EN AW-6012", "aw-6012", "aw6012", "almgsipb"],
+  ["EN AW-2007", "aw-2007", "aw2007", "alcu4pbmgmn"], ["EN AW-2011", "aw-2011", "aw2011", "alcu6bipb"],
+  ["EN AW-7075", "aw-7075", "aw7075", "alzn5,5mgcu"], ["EN AW-5083", "aw-5083", "aw5083", "almg4,5mn"],
   // Titan
-  ["3.7035", 4.51, "grade2", "grade 2"], ["3.7165", 4.43, "grade5", "grade 5", "tial6v4"],
+  ["3.7035", "grade2", "grade 2"], ["3.7165", "grade5", "grade 5", "tial6v4", "ti6al-4v"],
   // Kunststoff
-  ["PEEK", 1.31, "peek"], ["POM", 1.41, "pom", "pom-c"], ["PTFE", 2.17, "ptfe"], ["PA6", 1.14, "pa6"],
-  ["PVDF", 1.78, "pvdf"], ["PE-HD", 0.95, "pe-hd", "pehd"], ["PP", 0.91, "pp"], ["PET", 1.38, "pet"], ["PVC", 1.40, "pvc"],
+  ["PEEK", "peek"], ["POM", "pom", "pom-c", "pomc"], ["PTFE", "ptfe"], ["PA6", "pa6"],
+  ["PVDF", "pvdf"], ["PE-HD", "pe-hd", "pehd"], ["PP", "pp"], ["PET", "pet"], ["PVC", "pvc"],
 ];
-// Eigene Dichten („Faktor“) aus Einstellungen → Farben und Material
-// (Wunsch Patrick 16. Oktober 2026), in app_config.material_dichte als
-// { "gr:v2a": 7.93, "nr:1.4305": 7.9 }; leer heisst Normwert von hier
+// Eigene Faktoren aus Einstellungen → Farben und Material (Wunsch
+// Patrick 16. Oktober 2026), in app_config.material_dichte als
+// { "kat:v2a": 7.93 }; leer heisst der Wert aus KATEGORIEN
 let eigeneDichte = {};
 let dichteGeladen = 0;
 export const dichteVon = (wert, standard) => {
@@ -141,32 +161,41 @@ export async function dichtenSpeichern(neu) {
   dichteGeladen = Date.now();
 }
 const NUR_BUCHSTABEN = /^[a-z-]+$/;
-// → { nr, dichte } oder null
+// → { nr, name } oder null
 export function werkstoffGenau(bez) {
-  const t = " " + String(bez || "").toLowerCase().replace(/[()|;\/]/g, " ").replace(/\s+/g, " ") + " ";
+  const t = " " + String(bez || "").toLowerCase().replace(/[()|;\/!]/g, " ").replace(/\s+/g, " ") + " ";
   const kompakt = t.replace(/\s+/g, "");
-  for (const [nr, dichte, ...namen] of WERKSTOFFE) {
+  for (const [nr, ...namen] of WERKSTOFFE) {
     for (const n of [nr.toLowerCase(), ...namen]) {
       // Kurze Wörter (pp, pet) nur als ganzes Wort, sonst auch ohne Leerzeichen
       const ganz = NUR_BUCHSTABEN.test(n.replace(/\d/g, "")) && n.length <= 5;
       const treffer = ganz || /^\d\.\d{4}$/.test(n)
-        ? new RegExp("[\\s]" + n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?=[\\s,]|$)").test(t)
+        ? new RegExp("[\\s]" + n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?=[\\s,-]|$)").test(t)
         : kompakt.includes(n.replace(/\s+/g, ""));
-      if (treffer) return { nr, dichte: dichteVon("nr:" + nr, dichte) };
+      if (treffer) return { nr, name: namen.map(kurznameSchoen).find((x) => x && x.toLowerCase() !== nr.toLowerCase()) || "" };
     }
   }
   return null;
 }
 
-// Kilo je Meter Stange, oder null, wenn Mass oder Dichte fehlt
+// Kategorie (Farbe) einer Bezeichnung mit dem Faktor, der gerechnet
+// wird → { key, farbe, name, dichte, standard } oder null
+export function kategorieVon(bez) {
+  const w = alt.werkstoffErkennen ? alt.werkstoffErkennen(bez) : null;
+  const k = w && KAT_VON_GRUPPE[w.key];
+  return k ? kategorieMitFaktor(k) : null;
+}
+const kategorieMitFaktor = (k) => ({ ...k, wert: "kat:" + k.key, standard: k.dichte, dichte: dichteVon("kat:" + k.key, k.dichte) });
+// Alle Kategorien mit dem Faktor, der gerechnet wird (Rechner, Einstellungen)
+export const kategorienListe = () => KATEGORIEN.map(kategorieMitFaktor);
+
+// Kilo je Meter Stange, oder null, wenn Mass oder Werkstoff fehlt
 export function kgJeMeter(bez) {
   const z = materialZerlegen(bez);
   if (!z || !z.d) return null;
-  const genau = werkstoffGenau(bez);
-  const w = genau ? null : alt.werkstoffErkennen ? alt.werkstoffErkennen(bez) : null;
-  const dichte = genau ? genau.dichte : w && DICHTE[w.key] && dichteVon("gr:" + w.key, DICHTE[w.key]);
-  if (!dichte) return null;
-  return querschnittMm2(z.form, z.d, z.innen) * dichte / 1000;
+  const k = kategorieVon(bez);
+  if (!k) return null;
+  return querschnittMm2(z.form, z.d, z.innen) * k.dichte / 1000;
 }
 
 // Querschnitt in mm² je Form; beim Sechs- und Vierkant ist d die
@@ -179,10 +208,6 @@ export function querschnittMm2(form, d, innen) {
   return Math.PI / 4 * d * d;
 }
 
-// Für den Rechner auf der Planwand: alle Werkstoffe mit Nummer und
-// Dichte, dazu die Gruppen für alles, was keine Nummer hat
-const GRUPPEN_NAME = { stahl: "Automatenstahl", v2a: "V2A", v4a: "V4A", chrom: "Chromstahl", alu: "Aluminium",
-  messing: "Messing", messing_ohne_pb: "Messing ohne Blei", neusilber: "Neusilber", titan: "Titan", kunststoff: "Kunststoff" };
 const ZWEI = ["cr", "ni", "mo", "ti", "nb", "cu", "mn", "al", "si", "zn", "pb", "mg", "bi"];
 // „x8crnis18-9“ → „X8CrNiS18-9“; null, wenn es kein Kurzname aus
 // Element-Zeichen ist (wie „aw-6082“)
@@ -199,23 +224,30 @@ function kurznameSchoen(n) {
   });
   return fehl ? null : t;
 }
-// Mit „standard“ = Normwert und „dichte“ = was gerechnet wird
-export function werkstoffWahl() {
-  return {
-    nummern: WERKSTOFFE.map(([nr, dichte, ...namen]) => {
-      const name = namen.map(kurznameSchoen).find((x) => x && x.toLowerCase() !== nr.toLowerCase());
-      return { wert: "nr:" + nr, nr, name: name || "", standard: dichte, dichte: dichteVon("nr:" + nr, dichte) };
-    }),
-    gruppen: Object.keys(DICHTE).map((key) => ({ wert: "gr:" + key, key, name: GRUPPEN_NAME[key] || key,
-      standard: DICHTE[key], dichte: dichteVon("gr:" + key, DICHTE[key]) })),
-  };
-}
-// Bezeichnung → Wert der Auswahl („nr:1.4305“ oder „gr:v2a“), oder ""
-export function werkstoffWahlVon(bez) {
+
+// Für die Werkstofferkennung in den Einstellungen: Gleiches zusammen,
+// ohne Mengen, Lieferanten und Daten (Wunsch Patrick 17. Oktober 2026:
+// „alles was so komisch ist weg, kg-Angaben und so“). Mit Nummer:
+// „1.4305 · X8CrNiS18-9“; sonst nur der Werkstoff aus der Bezeichnung.
+const VORSPANN = /^(?:mat\.?\s*von\s+\d{5}-\d{4}|mat\.|material|achtung|neu|aus|bei|spez\.?|version|steeltec|\d{5}-\d{4},?|[\d.,]+\s?kg)(?:\s+|$)/i;
+export function werkstoffAnzeige(bez) {
   const genau = werkstoffGenau(bez);
-  if (genau) return "nr:" + genau.nr;
-  const w = alt.werkstoffErkennen ? alt.werkstoffErkennen(bez) : null;
-  return w && DICHTE[w.key] ? "gr:" + w.key : "";
+  if (genau) return { schluessel: "nr:" + genau.nr, titel: genau.nr + (genau.name ? " · " + genau.name : "") };
+  let t = String(bez || "").replace(/[()|!]+/g, " ").replace(/\s+/g, " ").trim();
+  for (let i = 0; i < 6 && VORSPANN.test(t); i++) t = t.replace(VORSPANN, "");
+  // „ETG 100“ wie „ETG100“
+  t = t.replace(/^etg\s+(?=\d)/i, "ETG");
+  t = t.split(/\s?[Øø]|\s(?:rd|sw|6kt|4kt|vk|fl|rohr|pf|rundstab)\b|\s\d+(?:[.,]\d+)?\s?(?:mm|kg)\b|\s\d+(?:[.,]\d+)?h\d|\s-(?:\s|$)|\s\d{3}\s/i)[0].trim();
+  // Zustand wie „+C“ oder „+C3000C“ gehört nicht zum Werkstoff
+  t = t.replace(/\+.*$/, "").trim();
+  if (!t) t = String(bez || "").trim();
+  return { schluessel: "k:" + t.toLowerCase().replace(/\s+/g, ""), titel: t };
+}
+
+// Bezeichnung → Wert der Auswahl im Rechner („kat:v2a“), oder ""
+export function werkstoffWahlVon(bez) {
+  const k = kategorieVon(bez);
+  return k ? k.wert : "";
 }
 export const STANGE_STANDARD_MM = STANGE_MM, STUMPEN_STANDARD_MM = STUMPEN_MM, PLANIEREN_STANDARD_MM = PLANIEREN_MM;
 

@@ -6,8 +6,8 @@
 //  bleibt auch mit HOCO Nr. wählbar, Standard ist Rund.
 //
 //  Gerechnet wird wie überall beim Material (daten/material.js):
-//  Dichte („Faktor“) je Werkstoffnummer oder Gruppe, unter Einstellungen
-//  → Farben und Material änderbar; Querschnitt je Form, Stange 3 m.
+//  Faktor (Dichte) je Kategorie, also Farbe, immer der höchste Wert
+//  darin (seit 1.92.0), unter Einstellungen → Farben und Material änderbar; Querschnitt je Form, Stange 3 m.
 //  Stück wie die Mindestmenge (bedarfRechnen): je Stück Länge +
 //  Abstecher + 0,5 mm fürs Planieren, je Stange (Stange − Stumpen) /
 //  das, ganze Stangen. kg oder Stangen → Stück oder Stück → kg, die
@@ -22,7 +22,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { materialZerlegen, querschnittMm2, werkstoffWahl, werkstoffWahlVon, dichtenLaden,
+import { materialZerlegen, querschnittMm2, kategorienListe, werkstoffWahlVon, dichtenLaden,
   STANGE_STANDARD_MM, STUMPEN_STANDARD_MM, PLANIEREN_STANDARD_MM } from "../daten/material.js";
 
 const zahlLesen = (t) => { const n = Number(String(t ?? "").trim().replace(",", ".").replace(/'/g, "")); return String(t ?? "").trim() !== "" && isFinite(n) ? n : null; };
@@ -36,7 +36,7 @@ const zeigen = (n, stellen) => {
 
 const FORMEN = [["rd", "Rund"], ["4kt", "Vierkant"], ["6kt", "Sechskant"]];
 function dichteAus(wahlListe, wahl) {
-  const e = [...wahlListe.nummern, ...wahlListe.gruppen].find((x) => x.wert === wahl);
+  const e = wahlListe.find((x) => x.wert === wahl);
   return e ? e.dichte : null;
 }
 
@@ -79,12 +79,12 @@ export default function MaterialRechner() {
   const [hoco, setHoco] = useState("");
   const [hocoInfo, setHocoInfo] = useState(null);
   const [form, setForm] = useState("rd");
-  const [werkstoff, setWerkstoff] = useState("gr:v2a");
+  const [werkstoff, setWerkstoff] = useState("kat:v2a");
   const [d, setD] = useState("");
   const [menge, setMenge] = useState("");
   // Eigene Dichten aus den Einstellungen holen, dann neu rechnen
-  const [wahlListe, setWahlListe] = useState(werkstoffWahl);
-  useEffect(() => { dichtenLaden(true).then(() => setWahlListe(werkstoffWahl())); }, []);
+  const [wahlListe, setWahlListe] = useState(kategorienListe);
+  useEffect(() => { dichtenLaden(true).then(() => setWahlListe(kategorienListe())); }, []);
   const [laenge, setLaenge] = useState("");
   const [abstecher, setAbstecher] = useState("");
   const [stange, setStange] = useState(String(STANGE_STANDARD_MM));
@@ -180,14 +180,8 @@ export default function MaterialRechner() {
         <label className="feld">
           <span>Werkstoff</span>
           <select id="mr-werkstoff" value={werkstoff} onChange={(e) => setWerkstoff(e.target.value)}>
-            <optgroup label="Gruppe">
-              {wahlListe.gruppen.map((g) => <option key={g.wert} value={g.wert}>
-                {g.name + " · " + zahlFeld(g.dichte) + " g/cm³"}</option>)}
-            </optgroup>
-            <optgroup label="Werkstoffnummer">
-              {wahlListe.nummern.map((w) => <option key={w.wert} value={w.wert}>
-                {w.nr + (w.name ? " · " + w.name : "") + " · " + zahlFeld(w.dichte) + " g/cm³"}</option>)}
-            </optgroup>
+            {wahlListe.map((k) => <option key={k.wert} value={k.wert}>
+              {k.name + " · " + zahlFeld(k.dichte) + " g/cm³"}</option>)}
           </select>
         </label>
         <label className="feld">

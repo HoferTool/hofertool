@@ -19,7 +19,7 @@
 import { useMemo, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { materialZerlegen, postenMengeText, orteLaden, orteSpeichern, istRahmen, kgJeStange, werkstoffGenau } from "../daten/material.js";
+import { materialZerlegen, postenMengeText, orteLaden, orteSpeichern, istRahmen, kgJeStange, kategorieVon } from "../daten/material.js";
 
 // „12,5“ und „1'200“ → Zahl; leer → null; Unsinn → NaN
 const zahlLesen = (t) => (String(t).trim() === "" ? null : Number(String(t).trim().replace(",", ".").replace(/'/g, "")));
@@ -113,8 +113,8 @@ function PostenDialog({ o, orte, liste, fertig }) {
   const jeStange = kgJeStange(waehlen ? suche : material);
   const n = zahlLesen(menge);
   // Welcher Werkstoff genau gerechnet wird, damit man es prüfen kann
-  const genau = werkstoffGenau(waehlen ? suche : material);
-  const womit = genau ? " (" + genau.nr + ", " + String(genau.dichte).replace(".", ",") + " g/cm³)" : "";
+  const kat = kategorieVon(waehlen ? suche : material);
+  const womit = kat ? " (" + kat.name + ", " + String(kat.dichte).replace(".", ",") + " g/cm³)" : "";
   const umrechnung = n === null || !(n >= 0) ? ""
     : !jeStange ? "Umrechnen geht nicht: Werkstoff oder Durchmesser nicht erkannt."
     : (einheit === "stg" ? "= ca. " + zahlZeigen(n * jeStange) + " kg"
