@@ -14,6 +14,10 @@
 //  andere Einheit in Klammern, darunter nur „Stück pro Stange“ (Wunsch
 //  Patrick 16. Oktober 2026). Nichts wird gespeichert. Externe bekommen
 //  den Knopf nicht (Entscheid Patrick 16. Oktober 2026: „Externe nö“).
+//  Seit 1.90.0 nur noch eine Richtung: Stück eingeben → wie viel man
+//  bestellen muss, in kg und ganzen Stangen (Wunsch Patrick 17. Oktober
+//  2026: „nur so, dass man Stückzahl eingeben kann, um zu wissen, wie
+//  viel man bestellen muss“).
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -31,34 +35,6 @@ const zeigen = (n, stellen) => {
 };
 
 const FORMEN = [["rd", "Rund"], ["4kt", "Vierkant"], ["6kt", "Sechskant"]];
-// Zwei Richtungen (Wunsch Patrick 16. Oktober 2026: „von kg/Stange zu
-// Stück oder umgekehrt“): Stück → kg oder Menge in kg oder Stangen →
-// wie viele Stück; die andere Einheit steht beim Ergebnis in Klammern.
-// Die Knöpfe zeigen nur ein Bild, kein Wort (Wunsch Patrick 17. Oktober
-// 2026): Waage mit Stangen für kg, Schraubenhaufen für Stück
-const BILD_KG = (
-  <svg viewBox="0 0 48 36" width="44" height="33" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
-    <rect x="10" y="2" width="28" height="4.5" rx="2.2" />
-    <rect x="5" y="6.5" width="19" height="4.5" rx="2.2" />
-    <rect x="24" y="6.5" width="19" height="4.5" rx="2.2" />
-    <path d="M3 13h42" strokeWidth="2.5" />
-    <path d="M24 13v3M9 34l3-18h24l3 18z" />
-    <circle cx="24" cy="25" r="5" />
-    <path d="M24 25l3-3" />
-  </svg>
-);
-// Schraube waagrecht: Kopf links, Schaft mit Gewinde, Spitze rechts
-const SCHRAUBE = "M-10-3.5h4v7h-4zM-6-1.8h12l3 1.8-3 1.8h-12zM-3-1.8l-1 3.6M0-1.8l-1 3.6M3-1.8l-1 3.6M6-1.8l-1 3.6";
-const BILD_STUECK = (
-  <svg viewBox="0 0 48 36" width="44" height="33" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
-    <path d="M3 34h42" strokeWidth="2" />
-    {[[13, 29, 4], [35, 29, 176], [17, 21, -12], [32, 21, 196], [24, 12, 18]].map(([x, y, w], i) => (
-      <path key={i} d={SCHRAUBE} transform={`translate(${x} ${y}) rotate(${w})`} />
-    ))}
-  </svg>
-);
-const ARTEN = [["teile", BILD_KG, "Stück → kg und Stangen"], ["menge", BILD_STUECK, "kg oder Stangen → Stück"]];
-
 function dichteAus(wahlListe, wahl) {
   const e = [...wahlListe.nummern, ...wahlListe.gruppen].find((x) => x.wert === wahl);
   return e ? e.dichte : null;
@@ -102,8 +78,6 @@ export function materialRechnerOeffnen() {
 export default function MaterialRechner() {
   const [hoco, setHoco] = useState("");
   const [hocoInfo, setHocoInfo] = useState(null);
-  const [art, setArt] = useState("menge");
-  const [einheit, setEinheit] = useState("stg");
   const [form, setForm] = useState("rd");
   const [werkstoff, setWerkstoff] = useState("gr:v2a");
   const [d, setD] = useState("");
@@ -140,7 +114,6 @@ export default function MaterialRechner() {
           if (Number(h.typ.stangen_mm)) setStange(String(h.typ.stangen_mm));
           if (h.typ.stumpen_mm !== null && h.typ.stumpen_mm !== undefined) setStumpen(String(h.typ.stumpen_mm));
         }
-        setArt("teile");
       } catch (f) {
         if (!weg) setHocoInfo({ fehler: alt.fehlertext ? alt.fehlertext(f) : f.message });
       }
@@ -169,23 +142,10 @@ export default function MaterialRechner() {
   let ergebnis = null;
   if (kgm && n !== null && n >= 0) {
     if (jeTeil && jeStange < 1) ergebnis = { fehler: "Das Stück ist länger als eine Stange." };
-    else if (art === "menge") {
-      const stangen = einheit === "kg" ? n / kgStange : n;
-      const kg = einheit === "kg" ? n : n * kgStange;
-      const andere = einheit === "kg" ? stangenText(stangen) : zeigen(kg, 1) + " kg";
-      if (!jeTeil) ergebnis = { gross: einheit === "kg" ? zeigen(stangen, 2) : zeigen(kg, 1),
-        einheit: einheit === "kg" ? "Stangen" : "kg", hinweis: "Länge Fertigteil eintragen, dann stehen hier die Stück." };
-      else {
-        // Ganze Stangen voll, vom Anbruch nur was nach dem Reststück bleibt
-        const ganz = Math.floor(stangen + 1e-9);
-        const rest = (stangen - ganz) * stangeMm - stumpenMm;
-        const stueck = ganz * jeStange + Math.max(0, Math.floor(rest / jeTeil));
-        ergebnis = { gross: zeigen(stueck), einheit: "Stück", klammer: andere, ca, zusatz: zeigen(jeStange) + " Stück pro Stange" };
-      }
-    } else if (!jeTeil) ergebnis = { hinweis: "Länge Fertigteil eintragen." };
+    else if (!jeTeil) ergebnis = { hinweis: "Länge Fertigteil eintragen." };
     else {
+      // Ganze Stangen bestellen, darunter nur Stück pro Stange (Wunsch Patrick)
       const stangen = Math.ceil(n / jeStange);
-      // Darunter nur Stück pro Stange (Wunsch Patrick)
       ergebnis = { gross: zeigen(stangen * kgStange, 1), einheit: "kg", klammer: stangenText(stangen), ca,
         zusatz: zeigen(jeStange) + " Stück pro Stange" };
     }
@@ -236,16 +196,9 @@ export default function MaterialRechner() {
         </label>
       </div>
 
-      <div className="moduswahl mr-wahl mr-wahl--zwei">
-        {ARTEN.map(([wert, bild, text]) => (
-          <button key={wert} type="button" className={"moduswahl__knopf mr-bild" + (art === wert ? " aktiv" : "")}
-            data-art={wert} title={text} aria-label={text} onClick={() => setArt(wert)}><span className="mr-pfeil">→</span>{bild}</button>
-        ))}
-      </div>
-
       <div className="mr-reihe">
         <label className="feld">
-          <span>{art === "teile" ? "Anzahl Stück" : einheit === "kg" ? "Menge in kg" : "Anzahl Stangen"}</span>
+          <span>Anzahl Stück</span>
           <input type="text" id="mr-menge" inputMode="decimal" value={menge} onChange={(e) => setMenge(e.target.value)} />
         </label>
         <label className="feld">
@@ -253,12 +206,6 @@ export default function MaterialRechner() {
           <input type="text" id="mr-laenge" inputMode="decimal" value={laenge} onChange={(e) => setLaenge(e.target.value)} />
         </label>
       </div>
-      {art === "menge" && <div className="moduswahl mr-wahl mr-wahl--zwei mr-einheit">
-        {[["stg", "Stangen"], ["kg", "kg"]].map(([wert, text]) => (
-          <button key={wert} type="button" className={"moduswahl__knopf" + (einheit === wert ? " aktiv" : "")}
-            data-einheit={wert} onClick={() => setEinheit(wert)}>{text}</button>
-        ))}
-      </div>}
       <div className="mr-reihe mr-reihe--drei">
         <label className="feld"><span>Abstecher mm</span>
           <input type="text" id="mr-abstecher" inputMode="decimal" value={abstecher} placeholder="0" onChange={(e) => setAbstecher(e.target.value)} /></label>
@@ -270,7 +217,7 @@ export default function MaterialRechner() {
 
       <section className="karte karte--ergebnis mr-ergebnis" id="mr-ergebnis">
         <div className="ergebnis">
-          <div className="ergebnis__titel">{art === "teile" ? "Gewicht" : "Stück"}</div>
+          <div className="ergebnis__titel">Bestellen</div>
           {/* Wert mit Einheit gross, die andere Einheit klein daneben
               (Wunsch Patrick 17. Oktober 2026: „kg ist das Entscheidende“) */}
           <div className="ergebnis__wert mr-wert">{ergebnis && ergebnis.gross

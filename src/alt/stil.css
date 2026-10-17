@@ -8231,11 +8231,7 @@ body.dunkel .qs-fort__text { color: var(--tinte); }
 .mr-einheit { width: calc(50% - 5px); margin-top: -4px; }
 @media (max-width: 520px) { .mr-einheit { width: 100%; } }
 
-/* Materialrechner ab 1.89.0: Richtung als Bild (Waage mit Stangen,
-   Schraubenhaufen), Ergebnis mit Einheit gross, andere Einheit klein */
-.mr-bild { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px !important; }
-.mr-bild svg { display: block; width: 56px; height: 42px; }
-.mr-pfeil { font-size: 1.3rem; font-weight: 600; opacity: .7; }
+/* Materialrechner ab 1.89.0: Ergebnis mit Einheit gross, andere Einheit klein */
 .mr-wert { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
 .mr-wert .mr-ca { font-size: 1.4rem; font-weight: 600; opacity: 1; margin: 0; }
 .mr-wert .mr-klammer { font-size: 1rem; font-weight: 400; opacity: .75; margin: 0; }
