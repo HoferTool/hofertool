@@ -14,6 +14,9 @@ const SCHLUESSEL = "pad_mahnbilder";
 export const MAHN_ARTEN = [
   ["stueckzeit", "Stückzeit fehlt"],
   ["stueckzahl", "Heute noch keine Stückzahl"],
+  // GIF über der Zeichnung im Auftragsfenster bei „Material im Haus“
+  // (seit 1.91.0, Wunsch Patrick 17. Oktober 2026), liegt in der Ablage
+  ["material", "Material im Haus (Auftragsfenster)"],
 ];
 
 export async function mahnKonfLesen() {

@@ -29,7 +29,9 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { PfadKopieren } from "../daten/zeichnungPfad.jsx";
 import { wiederOeffner } from "../teile/wiederherstellen.js";
 import { useWaschprog } from "../daten/waschprog.js";
-import { matInfo, MAT_INFO_ERKLAERUNG } from "../daten/material.js";
+import { matInfo, MAT_INFO_ERKLAERUNG, materialImHaus } from "../daten/material.js";
+import { ImHausEinblendung } from "./MaterialImHaus.jsx";
+import { mahnBilder } from "../daten/mahnbilder.js";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
@@ -285,6 +287,28 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     if (ro) ro.observe(f);
     return () => { window.removeEventListener("resize", messen); if (ro) ro.disconnect(); };
   }, [w.notiz]);
+
+  // ----- Material im Haus -----
+  // Steht auf dem Balken das rote M (geplant, keine Menge eingetragen
+  // oder „M trotzdem zeigen“) und liegt passendes Restmaterial im Haus,
+  // steht beim Öffnen die Einblendung über der Zeichnung (Wunsch Patrick
+  // 17. Oktober 2026). Nicht für Externe (neue Funktion, nicht gefragt)
+  // und nicht im Archiv.
+  const [imHaus, setImHaus] = useState(null);
+  useEffect(() => {
+    const j = auftrag;
+    if (!j || !j.id || extern || (alt.istArchiv && alt.istArchiv())) return;
+    const mZeigen = !String(j.material_menge || "").trim() || !!j.material_m_trotzdem;
+    if ((j.plan_status || "geplant") !== "geplant" || !mZeigen) return;
+    let gueltig = true;
+    (async () => {
+      const treffer = await materialImHaus(j);
+      if (!gueltig || !treffer.length) return;
+      const bild = (await mahnBilder().catch(() => ({}))).material || null;
+      if (gueltig) setImHaus({ treffer, bild });
+    })().catch((f) => console.warn("Material im Haus:", f.message));
+    return () => { gueltig = false; };
+  }, []);
 
   // ----- Zeichnung der HOCO Nr. -----
   // Hängt am Auftrag noch keine Zeichnung, die HOCO Nr. hat aber eine,
@@ -693,7 +717,14 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
         {/* Rechts: Zeichnung quer, darunter die Dokumente */}
         <div className="auf-spalte auf-spalte--zeichnung">
           <div className="feld auf-zeichnung">
-            <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} /></div>
+            <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} />
+            {imHaus && <ImHausEinblendung treffer={imHaus.treffer} bild={imHaus.bild} weg={() => setImHaus(null)}
+              // Eintragen nur, wer das Feld ändern darf; gespeichert wird mit Speichern
+              nutzen={nurLesen ? null : (text) => {
+                const bisher = String(aktuell.current.matMenge || "").trim();
+                setze("matMenge", bisher ? bisher + " + " + text : text);
+                alt.meldung("Bei „Menge vorhanden oder bestellt“ eingetragen. Zum Behalten Speichern drücken.", "gut");
+              }} />}</div>
           {/* Dokumente direkt unter der Zeichnung, nebeneinander */}
           <div className="auf-dokumente">
             <div className="auf-dok"><span className="feldlabel">Zeichnung <PfadKopieren adresse={w.pdf} /></span>

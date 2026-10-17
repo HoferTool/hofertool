@@ -8241,3 +8241,28 @@ body.dunkel .qs-fort__text { color: var(--tinte); }
    Öffnen nur das Wort wechselt */
 .handymenue__knopf { justify-content: center; padding: 0 20px; }
 .handymenue__knopf .handymenue__knopftext { position: relative; }
+
+/* Material im Haus (seit 1.91.0, Wunsch Patrick 17. Oktober 2026): kein
+   eigenes Fenster, sondern über der Zeichnung im Auftragsfenster
+   eingeblendet, damit man im Auftrag weiterarbeiten kann. Das GIF kommt
+   aus der Ablage (Einstellungen → Symbole). */
+.auf-zeichnung { position: relative; }
+.imhaus { position: absolute; left: 8px; right: 8px; top: 8px; z-index: 5; display: flex; gap: 14px;
+  align-items: center; padding: 10px 14px 10px 10px; border-radius: 14px; background: var(--flaeche);
+  border: 2px solid var(--marke); box-shadow: 0 10px 28px rgba(0,0,0,.28);
+  animation: imhaus-rein .35s cubic-bezier(.2,1.4,.4,1) both; }
+.imhaus__gif { flex: 0 0 auto; height: 180px; width: auto; max-width: 45%; object-fit: contain; border-radius: 10px; }
+.imhaus__ersatz { flex: 0 0 auto; font-size: 90px; line-height: 1; }
+.imhaus__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.imhaus__titel { font-size: 1.15rem; line-height: 1.25; }
+.imhaus__frage { font-weight: 600; }
+.imhaus__knoepfe { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.imhaus-liste { margin: 2px 0; padding-left: 20px; max-height: 96px; overflow: auto; }
+.imhaus-liste li { margin: 2px 0; }
+.imhaus-aehnlich { color: var(--gedaempft); font-size: .9em; }
+@keyframes imhaus-rein { from { transform: translateY(-12px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 640px) {
+  .imhaus { flex-direction: column; align-items: stretch; text-align: left; }
+  .imhaus__gif { height: 140px; max-width: 100%; align-self: center; }
+}
+@media (prefers-reduced-motion: reduce) { .imhaus { animation: none; } }

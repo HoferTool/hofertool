@@ -11,7 +11,7 @@ import { zuschneiden } from "../teile/Zuschnitt.jsx";
 import { Gruppe } from "./teile.jsx";
 import { MAHN_ARTEN, mahnKonfLesen, mahnKonfSpeichern, mahnBilder } from "../daten/mahnbilder.js";
 
-async function bildWaehlen() {
+async function bildWaehlen(art) {
   const eingabe = document.createElement("input");
   eingabe.type = "file";
   eingabe.accept = "image/*";
@@ -20,6 +20,16 @@ async function bildWaehlen() {
     eingabe.click();
   });
   if (!datei) return null;
+  // „Material im Haus“ ist ein GIF, das sich bewegt: unverändert in die
+  // Ablage, denn Zuschneiden würde nur das erste Bild behalten
+  if (art === "material") {
+    const endung = (datei.name.split(".").pop() || "gif").toLowerCase();
+    const pfad = "meldungen/material-im-haus-" + Date.now() + "." + endung;
+    const r = await alt.zeitlimit(alt.db.storage.from("zeichnungen").upload(pfad, datei,
+      { contentType: datei.type || "image/gif" }), 60000, "Bild hochladen");
+    if (r.error) throw r.error;
+    return alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
+  }
   return zuschneiden(datei, { kante: 160, ganz: true, format: "image/jpeg", alsText: true });
 }
 
@@ -50,13 +60,16 @@ export default function MahnBilder() {
   return (
     <Gruppe titel="Bilder im Pad Mode" id="mahnbilder"
       text={"Fehlt im Pad die Stückzeit oder wurde heute noch keine Stückzahl gemeldet, blinkt die Kachel "
-        + "und zeigt dieses Bild. Auf dem Tablet erscheint ein neues Bild nach „Neu laden“."}>
+        + "und zeigt dieses Bild. Auf dem Tablet erscheint ein neues Bild nach „Neu laden“. "
+        + "„Material im Haus“ ist das GIF, das im Auftragsfenster über der Zeichnung erscheint; es wird unverändert gespeichert."}>
       <div className="sym-liste">
         {MAHN_ARTEN.map(([art, name]) => (
           <div className="sym-zeile" key={art} data-mahnbild={art}>
             <button type="button" className="sym-bild" title="Bild wählen" disabled={beschaeftigt}
               onClick={async () => {
-                const b = await bildWaehlen();
+                let b = null;
+                try { b = await bildWaehlen(art); }
+                catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
                 if (b) setzen(art, { bild: b }, "Bild gespeichert.");
               }}>
               {bilder[art] ? <img src={bilder[art]} alt="" /> : <span>Bild wählen</span>}</button>

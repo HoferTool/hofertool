@@ -746,6 +746,25 @@ export function matInfo(j) {
   return { text: "min. " + (b.sicher ? "" : "ca. ") + rest, rest, kg, stangen: b.stangen, sicher: b.sicher };
 }
 
+// Restmaterial im Haus, das zu diesem Auftrag passt (Wunsch Patrick
+// 17. Oktober 2026: Auftrag mit rotem M → „Hey, wir haben noch Material
+// im Haus“). Gleicher Werkstoff, gleiche Form und gleiches Mass; andere
+// Toleranz zählt als „ähnlich“. Was einem anderen Auftrag gehört, nicht.
+// → [{ posten, aehnlich }], exakte zuerst
+export async function materialImHaus(j) {
+  const z = j && materialZerlegen(j.material_bez);
+  if (!z || !z.d) return [];
+  let posten = stand && stand.daten ? stand.daten.posten : null;
+  if (!posten) posten = (await postenLaden()) || [];
+  return posten
+    .filter((p) => p.art !== "bestellt" && !p.weg_am
+      && (!p.job_id || p.job_id === j.id) && (!p.fuer_hoco || p.fuer_hoco === j.job_number))
+    .map((p) => ({ posten: p, z: materialZerlegen(p.material) }))
+    .filter((x) => x.z && x.z.grund === z.grund)
+    .map((x) => ({ posten: x.posten, aehnlich: x.z.schluessel !== z.schluessel }))
+    .sort((a, b) => a.aehnlich - b.aehnlich);
+}
+
 // ---------- Länge aus dem Einrichtblatt ----------
 
 // Sucht im Excel die Zeile „Artikel Bez.“ und darin „17 x 7.00“
