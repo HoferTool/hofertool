@@ -60,7 +60,7 @@ with sync_playwright() as p:
           "| Fenster offen:", sichtbar(pg, ".handymenue__fenster"))
     if "planwand" not in pg.evaluate("location.hash"): fehler.append("Seite nicht gewechselt")
     if sichtbar(pg, ".handymenue__fenster"): fehler.append("Menü bleibt offen")
-    if pg.locator(".handymenue__knopftext").text_content() != "Planwand": fehler.append("Knopf zeigt nicht die Seite")
+    if pg.locator(".handymenue__knopftext").text_content() != "Menü": fehler.append("Knopf zeigt nicht nur Menü")
 
     # 5. Daneben tippen schliesst
     pg.locator(".handymenue__knopf").click(); pg.wait_for_timeout(600)

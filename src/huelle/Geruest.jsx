@@ -209,7 +209,7 @@ const TRENNSTELLEN = { "Qualitätssicherung": "Qualitäts\u00ADsicherung" };
 const trennbar = (t) => TRENNSTELLEN[t] || t;
 
 // Menü am Handy (Wunsch Patrick 14. Oktober 2026): unten ein breiter
-// Knopf mit der offenen Seite, ein Tipp öffnet ein kleines Fenster mit
+// Knopf „Menü“, ein Tipp öffnet ein kleines Fenster mit
 // allen Symbolen. Ab Tablet-Breite blendet CSS es aus, dort bleibt die
 // Leiste links.
 function HandyMenue({ aktiv }) {
@@ -247,7 +247,6 @@ function HandyMenue({ aktiv }) {
     ...WEBSEITEN.map((w) => ({ schluessel: "web-" + w.name, titel: w.name, href: w.url, web: w,
       zeichen: <span className="handymenue__zeichen" aria-hidden="true">{w.zeichen}</span> })),
   ];
-  const jetzt = seiten.find((s) => s.pfad === aktiv) || seiten[0];
 
   // Zeilen aus der Verteilung bauen; die laufende Nummer steuert das
   // gestaffelte Einblenden
@@ -299,16 +298,9 @@ function HandyMenue({ aktiv }) {
       <button type="button" className="handymenue__knopf" aria-expanded={offen}
         onClick={() => setZustand(offen ? "schliesst" : "offen")}>
         <span className="handymenue__glanz" aria-hidden="true" />
-        <span className="handymenue__seite">
-          {jetzt && <span className="handymenue__knopfzeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: jetzt.zeichen }} />}
-          <span className="handymenue__knopftext">{jetzt ? jetzt.titel : "Menü"}</span>
-        </span>
-        <span className="handymenue__menue">
-          <span>{offen ? "Schliessen" : "Menü"}</span>
-          <svg className="handymenue__pfeil" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M6 15l6-6 6 6" /></svg>
-        </span>
+        {/* Zugeklappt steht nur gross „Menü“, nicht die offene Seite
+            (seit 1.89.1, Wunsch Patrick 17. Oktober 2026) */}
+        <span className="handymenue__knopftext">Menü</span>
       </button>
     </div>
   );
