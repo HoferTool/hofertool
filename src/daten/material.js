@@ -726,7 +726,7 @@ export function ampelText(eintrag) {
 // für die noch offenen Stück. ✗L heisst: Länge nicht bestätigt.
 // → { text, kg, stangen, sicher } oder null (nichts geladen, Externe,
 // abgeschlossener Auftrag)
-export const MAT_INFO_ERKLAERUNG = "✗L heisst: Die Länge des Fertigteils ist noch nicht bestätigt, "
+export const MAT_INFO_ERKLAERUNG = "ca. heisst: Die Länge des Fertigteils ist noch nicht bestätigt, "
   + "die Menge ist darum nur geschätzt. Bestätigt wird sie beim Beenden im Fenster „Art. Info“ "
   + "oder im Pad Mode mit der Kachel „Art. Info“.";
 export function matInfo(j) {
@@ -740,8 +740,10 @@ export function matInfo(j) {
   if (!b) return { text: "nicht berechenbar" };
   const kg = Math.ceil(b.kg);
   const z = (n) => (alt.zahlText ? alt.zahlText(n) : String(n));
-  return { text: "min. " + z(kg) + " kg / " + z(b.stangen) + (b.stangen === 1 ? " Stange" : " Stangen"),
-    kg, stangen: b.stangen, sicher: b.sicher };
+  // Länge nicht bestätigt: „ca.“ davor, sonst die Zahl genau (Wunsch
+  // Patrick 17. Oktober 2026, vorher das Zeichen ✗L dahinter)
+  const rest = z(kg) + " kg / " + z(b.stangen) + (b.stangen === 1 ? " Stange" : " Stangen");
+  return { text: "min. " + (b.sicher ? "" : "ca. ") + rest, rest, kg, stangen: b.stangen, sicher: b.sicher };
 }
 
 // ---------- Länge aus dem Einrichtblatt ----------

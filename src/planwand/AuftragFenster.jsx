@@ -558,12 +558,14 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           </>}
           {/* Mindestmenge kurz über dem Zustand, immer, egal welcher
               Zustand oder ob schon bestellt (Wunsch Patrick 16. Oktober
-              2026). ✗L antippen oder darüberfahren erklärt das Zeichen. */}
+              2026). Ist die Länge nicht bestätigt, steht „ca.“ vor der
+              Zahl (seit 1.89.0); antippen oder darüberfahren erklärt es. */}
           {auftrag && matInfo(auftrag) && <p className="mat-info" id="pl-matinfo">
-            <b>Mat. info.:</b> {matInfo(auftrag).text}
-            {matInfo(auftrag).sicher === false && <> <button type="button" className="mat-info__l"
-              title={MAT_INFO_ERKLAERUNG} aria-label={MAT_INFO_ERKLAERUNG}
-              onClick={() => alt.meldung(MAT_INFO_ERKLAERUNG)}>(✗L)</button></>}</p>}
+            <b>Mat. info.:</b> {matInfo(auftrag).sicher === false && matInfo(auftrag).rest
+              ? <>min. <button type="button" className="mat-info__l"
+                  title={MAT_INFO_ERKLAERUNG} aria-label={MAT_INFO_ERKLAERUNG}
+                  onClick={() => alt.meldung(MAT_INFO_ERKLAERUNG)}>ca.</button> {matInfo(auftrag).rest}</>
+              : matInfo(auftrag).text}</p>}
           {/* Zustand als ein Auswahlfeld statt fünf Knöpfe: braucht
               eine Zeile statt drei. Auch ohne Planrecht wählbar. */}
           <div className="auf-dreier auf-dreier--gleich">

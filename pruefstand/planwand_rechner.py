@@ -2,7 +2,8 @@
 #  Stangen → kg und Stück → kg (seit 1.86.0 ohne kg → Stangen), Ergebnis kg (Stangen);
 #  Faktor (Dichte) unter Einstellungen → Farben und Material (1.86.0); Form Rund (Standard),
 #  Vierkant, Sechskant; Werkstoff wählbar; HOCO Nr. füllt alles aus,
-#  die Form bleibt wählbar. Externe sehen den Knopf nicht.
+#  die Form bleibt wählbar. Externe sehen den Knopf nicht. Seit 1.89.0 Richtung als
+#  Bild, Ergebnis gross mit kleiner Klammer, „ca.“ bei nicht bestätigter Länge.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -57,8 +58,9 @@ with sync_playwright() as p:
     pg.click("[data-form='6kt']"); pg.wait_for_timeout(120)
     # √3/2 · 400 = 346,4 mm² · 7,9 / 1000 · 6 = 16,42
     pruefe("Sechskant 20 = 16,4 kg: " + wert(pg), wert(pg).startswith("16,4"))
-    pruefe("Umschalten kg / Stangen → Stück und Stück → kg", pg.locator("[data-art]").count() == 2
-           and "kg / Stangen → Stück" in pg.inner_text(".dialog--matrechner") and "Stück → kg" in pg.inner_text(".dialog--matrechner"))
+    # Seit 1.89.0 Bilder statt Wörter: Waage (→ kg) zuerst, Schraubenhaufen (→ Stück)
+    arten = pg.evaluate("[...document.querySelectorAll('[data-art]')].map(b => b.dataset.art + ':' + b.innerText.trim() + ':' + !!b.querySelector('svg'))")
+    pruefe("Richtung als Bild ohne Wort: " + str(arten), arten == ["teile:→:true", "menge:→:true"])
     pruefe("Ohne Länge: Hinweis", "Länge Fertigteil eintragen" in pg.inner_text("#mr-ergebnis"))
     tippe(pg, "#mr-laenge", "10")
     # 10 + 0,5 mm → (3000 − 250) / 10,5 = 261 je Stange, 2 Stangen = 522 Stück
@@ -96,6 +98,17 @@ with sync_playwright() as p:
            "aktiv" in pg.get_attribute("[data-form='rd']", "class") and not wert(pg).replace("'", "").startswith(soll_t))
     pg.click("[data-form='6kt']"); pg.wait_for_timeout(150)
     pg.screenshot(path="/tmp/rechner_hoco.png")
+    pruefe("Bestätigte Länge: ohne ca.", "ca." not in pg.inner_text("#mr-ergebnis"))
+    # Länge nicht bestätigt → ca. vor Ergebnis und Stück pro Stange (1.89.0)
+    pg.evaluate("TEST.daten.hoco_parts[0].teil_mass_bestaetigt = false")
+    tippe(pg, "#mr-hoco", ""); pg.wait_for_timeout(600); tippe(pg, "#mr-hoco", "10000-0301"); pg.wait_for_timeout(1200)
+    zz = pg.inner_text("#mr-ergebnis .mr-zusatz")
+    pruefe("Nicht bestätigt: ca. %s / %s" % (wert(pg), zz), wert(pg).startswith("ca.") and zz.startswith("ca. ") and pg.locator(".mr-wert .mr-klammer").count() == 1)
+    gr = pg.evaluate("[parseFloat(getComputedStyle(document.querySelector('.mr-wert')).fontSize), parseFloat(getComputedStyle(document.querySelector('.mr-klammer')).fontSize)]")
+    pruefe("kg gross, Klammer klein: " + str(gr), gr[0] > gr[1] * 1.5)
+    pg.screenshot(path="/tmp/rechner_ca.png")
+    tippe(pg, "#mr-laenge", "11")
+    pruefe("Selbst eingetippte Länge: ohne ca. " + wert(pg), "ca." not in pg.inner_text("#mr-ergebnis"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pruefe("Escape schliesst", pg.locator(".dialog--matrechner").count() == 0)
 

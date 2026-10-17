@@ -32,9 +32,32 @@ const zeigen = (n, stellen) => {
 
 const FORMEN = [["rd", "Rund"], ["4kt", "Vierkant"], ["6kt", "Sechskant"]];
 // Zwei Richtungen (Wunsch Patrick 16. Oktober 2026: „von kg/Stange zu
-// Stück oder umgekehrt“): Menge in kg oder Stangen → wie viele Stück,
-// oder Stück → kg; die andere Einheit steht beim Ergebnis in Klammern
-const ARTEN = [["menge", "kg / Stangen → Stück"], ["teile", "Stück → kg"]];
+// Stück oder umgekehrt“): Stück → kg oder Menge in kg oder Stangen →
+// wie viele Stück; die andere Einheit steht beim Ergebnis in Klammern.
+// Die Knöpfe zeigen nur ein Bild, kein Wort (Wunsch Patrick 17. Oktober
+// 2026): Waage mit Stangen für kg, Schraubenhaufen für Stück
+const BILD_KG = (
+  <svg viewBox="0 0 48 36" width="44" height="33" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
+    <rect x="10" y="2" width="28" height="4.5" rx="2.2" />
+    <rect x="5" y="6.5" width="19" height="4.5" rx="2.2" />
+    <rect x="24" y="6.5" width="19" height="4.5" rx="2.2" />
+    <path d="M3 13h42" strokeWidth="2.5" />
+    <path d="M24 13v3M9 34l3-18h24l3 18z" />
+    <circle cx="24" cy="25" r="5" />
+    <path d="M24 25l3-3" />
+  </svg>
+);
+// Schraube waagrecht: Kopf links, Schaft mit Gewinde, Spitze rechts
+const SCHRAUBE = "M-10-3.5h4v7h-4zM-6-1.8h12l3 1.8-3 1.8h-12zM-3-1.8l-1 3.6M0-1.8l-1 3.6M3-1.8l-1 3.6M6-1.8l-1 3.6";
+const BILD_STUECK = (
+  <svg viewBox="0 0 48 36" width="44" height="33" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
+    <path d="M3 34h42" strokeWidth="2" />
+    {[[13, 29, 4], [35, 29, 176], [17, 21, -12], [32, 21, 196], [24, 12, 18]].map(([x, y, w], i) => (
+      <path key={i} d={SCHRAUBE} transform={`translate(${x} ${y}) rotate(${w})`} />
+    ))}
+  </svg>
+);
+const ARTEN = [["teile", BILD_KG, "Stück → kg und Stangen"], ["menge", BILD_STUECK, "kg oder Stangen → Stück"]];
 
 function dichteAus(wahlListe, wahl) {
   const e = [...wahlListe.nummern, ...wahlListe.gruppen].find((x) => x.wert === wahl);
@@ -132,6 +155,10 @@ export default function MaterialRechner() {
   const kgStange = kgm ? kgm * stangeMm / 1000 : null;
   const n = zahlLesen(menge);
   const stangenText = (x) => zeigen(x, 2) + (x === 1 ? " Stange" : " Stangen");
+  // „ca.“, solange die Länge aus der HOCO Nr. kommt und nicht bestätigt
+  // ist (Wunsch Patrick 17. Oktober 2026); selbst eingetippt gilt sie
+  const teilLaenge = hocoInfo && hocoInfo.teil ? Number(hocoInfo.teil.teil_laenge_mm) : 0;
+  const ca = !!(teilLaenge && !hocoInfo.teil.teil_mass_bestaetigt && zahlLesen(laenge) === teilLaenge);
 
   // Stück je Stange wie die Mindestmenge: Länge + Abstecher + 0,5 mm
   const l = zahlLesen(laenge);
@@ -153,13 +180,13 @@ export default function MaterialRechner() {
         const ganz = Math.floor(stangen + 1e-9);
         const rest = (stangen - ganz) * stangeMm - stumpenMm;
         const stueck = ganz * jeStange + Math.max(0, Math.floor(rest / jeTeil));
-        ergebnis = { gross: zeigen(stueck), einheit: "Stück (" + andere + ")", zusatz: zeigen(jeStange) + " Stück pro Stange" };
+        ergebnis = { gross: zeigen(stueck), einheit: "Stück", klammer: andere, ca, zusatz: zeigen(jeStange) + " Stück pro Stange" };
       }
     } else if (!jeTeil) ergebnis = { hinweis: "Länge Fertigteil eintragen." };
     else {
       const stangen = Math.ceil(n / jeStange);
       // Darunter nur Stück pro Stange (Wunsch Patrick)
-      ergebnis = { gross: zeigen(stangen * kgStange, 1), einheit: "kg (" + stangenText(stangen) + ")",
+      ergebnis = { gross: zeigen(stangen * kgStange, 1), einheit: "kg", klammer: stangenText(stangen), ca,
         zusatz: zeigen(jeStange) + " Stück pro Stange" };
     }
   }
@@ -210,9 +237,9 @@ export default function MaterialRechner() {
       </div>
 
       <div className="moduswahl mr-wahl mr-wahl--zwei">
-        {ARTEN.map(([wert, text]) => (
-          <button key={wert} type="button" className={"moduswahl__knopf" + (art === wert ? " aktiv" : "")}
-            data-art={wert} onClick={() => setArt(wert)}>{text}</button>
+        {ARTEN.map(([wert, bild, text]) => (
+          <button key={wert} type="button" className={"moduswahl__knopf mr-bild" + (art === wert ? " aktiv" : "")}
+            data-art={wert} title={text} aria-label={text} onClick={() => setArt(wert)}><span className="mr-pfeil">→</span>{bild}</button>
         ))}
       </div>
 
@@ -244,10 +271,14 @@ export default function MaterialRechner() {
       <section className="karte karte--ergebnis mr-ergebnis" id="mr-ergebnis">
         <div className="ergebnis">
           <div className="ergebnis__titel">{art === "teile" ? "Gewicht" : "Stück"}</div>
-          <div className="ergebnis__wert">{ergebnis && ergebnis.gross ? ergebnis.gross : "–"}
-            {ergebnis && ergebnis.gross && <span>{ergebnis.einheit}</span>}</div>
+          {/* Wert mit Einheit gross, die andere Einheit klein daneben
+              (Wunsch Patrick 17. Oktober 2026: „kg ist das Entscheidende“) */}
+          <div className="ergebnis__wert mr-wert">{ergebnis && ergebnis.gross
+            ? <>{ergebnis.ca && <span className="mr-ca" title="Länge des Fertigteils noch nicht bestätigt">ca.</span>}{ergebnis.gross + " " + ergebnis.einheit}
+                {ergebnis.klammer && <span className="mr-klammer">{"(" + ergebnis.klammer + ")"}</span>}</>
+            : "–"}</div>
         </div>
-        {ergebnis && ergebnis.zusatz && <p className="hinweis mr-zusatz">{ergebnis.zusatz}</p>}
+        {ergebnis && ergebnis.zusatz && <p className="hinweis mr-zusatz">{(ergebnis.ca ? "ca. " : "") + ergebnis.zusatz}</p>}
         {ergebnis && ergebnis.fehler && <p className="hinweis">{ergebnis.fehler}</p>}
         {ergebnis && ergebnis.hinweis && <p className="hinweis">{ergebnis.hinweis}</p>}
         {!kgm && <p className="hinweis">{"Werkstoff und " + masName + " eintragen."}</p>}
