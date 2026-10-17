@@ -8240,6 +8240,8 @@ body.dunkel .qs-fort__text { color: var(--tinte); }
 .mr-wert .mr-ca { font-size: 1.4rem; font-weight: 600; opacity: 1; margin: 0; }
 .mr-wert .mr-klammer { font-size: 1rem; font-weight: 400; opacity: .75; margin: 0; }
 
-/* Menüknopf am Handy: zugeklappt nur gross „Menü“ in der Mitte (seit 1.89.1) */
+/* Menüknopf am Handy: zugeklappt nur „Menü“ in der Mitte (seit 1.89.1), in
+   derselben Schrift und Grösse wie „Schliessen“ (seit 1.89.2), damit beim
+   Öffnen nur das Wort wechselt */
 .handymenue__knopf { justify-content: center; padding: 0 20px; }
-.handymenue__knopf .handymenue__knopftext { position: relative; font-size: 1.25rem; font-weight: 700; letter-spacing: .04em; }
+.handymenue__knopf .handymenue__knopftext { position: relative; }
