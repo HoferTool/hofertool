@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
+import { zifferblock } from "../pad/Zifferblock.jsx";
 import { qsSpeichern, qsQuittieren, qsMeldungenLaden, wannText } from "../daten/qs.js";
 
 function QsFenster({ j, m, zu, fertig }) {
@@ -19,6 +20,7 @@ function QsFenster({ j, m, zu, fertig }) {
   const [notiz, setNotiz] = useState("");
   const [offen, setOffen] = useState([]);
   const [sendet, setSendet] = useState(false);
+  const touch = typeof matchMedia === "function" && matchMedia("(hover: none) and (pointer: coarse)").matches;
   useEffect(() => {
     qsMeldungenLaden(m.id).then(setOffen).catch(() => {});
   }, [m.id]);
@@ -35,6 +37,14 @@ function QsFenster({ j, m, zu, fertig }) {
     const ok = await qsSpeichern(j, m, stueck, notiz);
     setSendet(false);
     if (ok) { fertig(true); zu(); }
+  };
+  // Am iPad gibt es keine reine Zifferntastatur, inputMode="numeric"
+  // bringt dort die volle Tastatur. Darum öffnet ein Tipp aufs Feld den
+  // Zifferblock der App (Wunsch Patrick 18. Oktober 2026: „automatisch
+  // das Numpad, unten dann normal“); die Notiz bleibt normale Tastatur.
+  const stueckTippen = async () => {
+    const zahl = await zifferblock({ titel: "Stück am Counter abziehen", wert: stueck, ersetzen: true });
+    if (zahl != null) setStueck(String(zahl));
   };
   const quittieren = async (me) => {
     if (await qsQuittieren(me)) setOffen((l) => l.filter((x) => x.id !== me.id));
@@ -69,7 +79,8 @@ function QsFenster({ j, m, zu, fertig }) {
 
       <h3 className="qsf__titel">Ausschuss melden</h3>
       <label className="qsf__feld">Stück am Counter abziehen
-        <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" data-fokus=""
+        <input type="text" inputMode={touch ? "none" : "numeric"} pattern="[0-9]*" autoComplete="off"
+          data-fokus={touch ? undefined : ""} readOnly={touch} onClick={touch ? stueckTippen : undefined}
           id="qsf-stueck" value={stueck} onChange={(e) => setStueck(e.target.value.replace(/[^0-9]/g, ""))}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); document.getElementById("qsf-notiz").focus(); } }} />
       </label>

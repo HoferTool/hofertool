@@ -8149,8 +8149,13 @@ button.mat-info__l:hover { text-decoration: underline dotted; }
 #pad .pad-qsm__notiz { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1rem; }
 #pad .pad-qsm__fuss { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
   font-size: .85rem; opacity: .95; }
-#pad .pad-qsm__quittieren { min-height: 52px; padding: 0 22px; border-radius: 10px; border: 0; font: inherit;
-  font-weight: 700; font-size: 1.05rem; background: #fff; color: #5c3a00; cursor: pointer; }
+/* Dunkler Knopf mit weisser Schrift wie der Rest der Karte: am iPad blieb
+   die dunkle Schrift auf Weiss unsichtbar (Bildschirmfoto Patrick 18. Oktober 2026) */
+#pad .pad-qsm__quittieren { min-height: 52px; padding: 0 22px; border-radius: 10px; border: 2px solid #ffd27a;
+  -webkit-appearance: none; appearance: none; font-family: inherit; line-height: 1.2;
+  font-weight: 700; font-size: 1.15rem; background: rgba(0, 0, 0, .35); color: #fff;
+  -webkit-text-fill-color: #fff; cursor: pointer; }
+#pad .pad-qsm__quittieren:active { background: rgba(0, 0, 0, .55); }
 @keyframes pad-qsm-puls { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 176, 32, .0); }
                           50% { box-shadow: 0 0 18px 2px rgba(255, 176, 32, .55); } }
 @media (prefers-reduced-motion: reduce) { #pad .pad-qsm__karte { animation: none; } }

@@ -38,7 +38,13 @@ def zumPad(pg):
 
 def melden(pg, mid, stk, notiz):
     pg.click(f"[data-qsmelden='{mid}']"); pg.wait_for_selector(".dialog-huelle [data-ja]")
-    pg.locator(".dialog-huelle input").first.fill(stk)
+    feld = pg.locator(".dialog-huelle input").first
+    if feld.get_attribute("readonly") is None: feld.fill(stk)
+    else:
+        # Touch-Gerät: Tipp aufs Feld öffnet den Zifferblock (1.92.1)
+        feld.click(); pg.wait_for_selector(".zifferblock")
+        for z in stk: pg.click(f".zifferblock [data-zb='{z}']")
+        pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(400)
     pg.locator(".dialog-huelle textarea").first.fill(notiz)
     pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(1000)
 
@@ -122,6 +128,30 @@ with sync_playwright() as p:
     if pg.evaluate("TEST.daten.qs_meldungen.length") != 0: fehler.append("Im Fenster nicht quittiert")
     pg.click("#qs-fenster .qsf__zu"); pg.wait_for_timeout(400)
     pg.click("#pad [data-padzu]"); pg.wait_for_timeout(700)
+
+    # iPad mit Finger: Stück über den Zifferblock der App, keine Tastatur;
+    # Quittieren-Knopf mit heller Schrift auf dunklem Grund (1.92.1)
+    ip = seite(br, 820, 1180, True)
+    ip.evaluate("location.hash='#qs'"); ip.wait_for_selector(f"[data-qsmelden='{mid}']")
+    ip.click(f"[data-qsmelden='{mid}']"); ip.wait_for_selector("#qsf-stueck")
+    if ip.get_attribute("#qsf-stueck", "inputmode") != "none": fehler.append("iPad: Stückfeld holt Tastatur")
+    if ip.get_attribute("#qsf-notiz", "inputmode") not in (None, "text"): fehler.append("iPad: Notiz ohne normale Tastatur")
+    ip.click("#qsf-stueck"); ip.wait_for_selector(".zifferblock")
+    for z in "17": ip.click(f".zifferblock [data-zb='{z}']")
+    ip.click(".zifferblock [data-zbja]"); ip.wait_for_timeout(400)
+    if ip.input_value("#qsf-stueck") != "17": fehler.append("iPad: Zifferblock trägt nicht ein")
+    if not ip.locator("#qs-fenster").count(): fehler.append("iPad: Fenster nach Zifferblock zu")
+    ip.fill("#qsf-notiz", "Grat"); ip.click("#qs-fenster [data-ja]"); ip.wait_for_timeout(1000)
+    d = ip.evaluate("TEST.daten.qs_meldungen.map(x => ({...x}))")
+    if len(d) != 1 or d[0].get("stueck") != 17: fehler.append("iPad: Meldung über Zifferblock falsch: " + str(d))
+    zumPad(ip); ip.wait_for_selector("#pad [data-padqsquittieren]", timeout=8000)
+    farbe = ip.evaluate("""() => { const c = getComputedStyle(document.querySelector('#pad [data-padqsquittieren]'));
+        return [c.color, c.webkitTextFillColor, c.backgroundColor]; }""")
+    if farbe[0] != "rgb(255, 255, 255)" or farbe[1] != "rgb(255, 255, 255)" or farbe[2].startswith("rgb(255"):
+        fehler.append("Quittieren-Knopf schlecht lesbar: " + str(farbe))
+    if BILDER: ip.screenshot(path=BILDER + "/qs-pad-ipad.png")
+    ip.click("#pad [data-padqsquittieren]"); ip.wait_for_timeout(900)
+    if ip.evaluate("TEST.daten.qs_meldungen.length") != 0: fehler.append("iPad: nicht quittiert")
 
     # Handy
     if BILDER:

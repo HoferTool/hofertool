@@ -40,7 +40,7 @@ export function QsMeldungen({ liste, weg }) {
           <div className="pad-qsm__fuss">
             <span>{me.hoco_nr ? me.hoco_nr + " · " : ""}{wannText(me.erstellt_am)}{me.erstellt_name ? " · " + me.erstellt_name : ""}</span>
             <button className="pad-qsm__quittieren" data-padqsquittieren={me.id}
-              onClick={async () => { if (await qsQuittieren(me)) weg(me.id); }}>Quittieren</button>
+              onClick={async () => { if (await qsQuittieren(me)) weg(me.id); }}>✓ Quittieren</button>
           </div>
         </div>
       ))}
