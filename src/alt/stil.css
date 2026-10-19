@@ -8326,3 +8326,15 @@ body.dunkel .pw-tafel .pw-balken--angewaehlt { outline-color: #5aa9ff !important
 .nb--schmal .nb-baum { display: none; }
 .nb--schmal .nb-abschnitte-leiste { display: flex; align-items: center; flex: none; border-bottom: 1px solid var(--linie); }
 .nb--vollbild .nb-abschnitte-leiste { display: none; }
+
+/* Markierter Balken deutlicher (1.102.1, Wunsch Patrick 19. Oktober 2026:
+   „damit man sieht, wo man war“): auf blauen Balken ging der dünne blaue
+   Rahmen unter. Jetzt weisser Ring, darum ein dicker dunkelblauer und ein
+   Leuchten, auf jeder Werkstofffarbe zu sehen. Die Auswahl ist so
+   genau, dass sie den dünnen grauen Rahmen aller Balken schlägt; beim
+   Darüberfahren gilt weiter dessen Rand. */
+body .pw-tafel .pw-balken.pw-balken--angewaehlt { outline: none !important;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px #0a3d91, 0 0 16px 7px rgba(31, 122, 224, .75) !important;
+  z-index: 6; }
+body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
+  box-shadow: 0 0 0 3px #0b0f14, 0 0 0 6px #5aa9ff, 0 0 18px 8px rgba(90, 169, 255, .7) !important; }

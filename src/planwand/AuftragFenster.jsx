@@ -35,6 +35,10 @@ import { mahnBilder } from "../daten/mahnbilder.js";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
+  // Wer einen Auftrag öffnet, egal von wo, soll ihn danach markiert
+  // wiederfinden (Wunsch Patrick 19. Oktober 2026: „damit man sieht,
+  // wo man war“). Die Tafel zeigt es beim nächsten Zeichnen.
+  if (auftrag && auftrag.id) alt.plan.angewaehlt = auftrag.id;
   fensterOeffnen((zu) => (
     <AuftragFenster auftrag={auftrag || null} b={b} vorgabeMaschine={vorgabeMaschine}
       vorgabeDatum={vorgabeDatum} vorlage={vorlage || null} leer={!auftrag && !vorlage && !!leer} zu={zu} />

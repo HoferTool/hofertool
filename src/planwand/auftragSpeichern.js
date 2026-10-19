@@ -134,6 +134,8 @@ export async function auftragSpeichern({ auftrag, daten, geaendert, nr, b, zu })
       plan.auftraege.push(Object.assign({}, daten, { id: neuerSatz.id,
         created_at: neuerSatz.created_at || new Date().toISOString() }));
       festId = neuerSatz.id;
+      // Der neue Balken ist danach der markierte (Wunsch Patrick 19. Oktober 2026)
+      plan.angewaehlt = neuerSatz.id;
       // Für eine neue HOCO Nr. gleich einen Stammdatenplatz anlegen,
       // sonst findet das Einrichtblatt nichts
       try {
