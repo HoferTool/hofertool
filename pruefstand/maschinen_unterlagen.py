@@ -59,6 +59,21 @@ with sync_playwright() as p:
     pg.locator(".dialog-huelle").last.locator("input").first.fill("Schaltplan K-2001")
     pg.locator(".dialog-huelle").last.locator(".dialog__knoepfe button").last.click(); pg.wait_for_timeout(800)
     pruefe("Schaltplan K-2001" in pg.locator("#unterlagen").inner_text(), "umbenannt")
+    # Gilt für ändern: von „nur diese Maschine“ auf „alle vom Typ“ und zurück
+    pg.locator(f"[data-unterlage-aendern='{el[0]['id']}']").click(); pg.wait_for_timeout(400)
+    sel = pg.locator(".dialog-huelle").last.locator("select")
+    pruefe(sel.count() == 2 and sel.nth(1).input_value() == "maschine", "Ändern zeigt „Gilt für“")
+    sel.nth(1).select_option("typ")
+    pg.locator(".dialog-huelle").last.locator(".dialog__knoepfe button").last.click(); pg.wait_for_timeout(800)
+    u = pg.evaluate("(id) => TEST.daten.maschinen_unterlagen.find(x => x.id === id)", el[0]["id"])
+    pruefe(u["type_id"] and not u["machine_id"], "jetzt für alle vom Typ")
+    pg.locator(f"[data-unterlage-aendern='{el[0]['id']}']").click(); pg.wait_for_timeout(400)
+    sel = pg.locator(".dialog-huelle").last.locator("select")
+    pruefe(sel.nth(1).input_value() == "typ", "Ändern zeigt „alle vom Typ“")
+    sel.nth(1).select_option("maschine")
+    pg.locator(".dialog-huelle").last.locator(".dialog__knoepfe button").last.click(); pg.wait_for_timeout(800)
+    u = pg.evaluate("(id) => TEST.daten.maschinen_unterlagen.find(x => x.id === id)", el[0]["id"])
+    pruefe(u["machine_id"] == mid and not u["type_id"], "wieder nur diese Maschine")
 
     # Öffnen im Betrachter
     pg.locator(".unterlagen__oeffnen").first.click(); pg.wait_for_timeout(1000)

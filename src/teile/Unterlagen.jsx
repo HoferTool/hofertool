@@ -110,6 +110,10 @@ function UnterlagenFenster({ m, typ, zu }) {
   };
   useEffect(() => { laden(); }, []);
 
+  const giltFuerAuswahl = () => [
+    ["maschine", "Nur diese Maschine (" + (m.machine_number || m.name) + ")"],
+    ["typ", "Alle Maschinen vom Typ " + (typ || "dieser Maschine")]];
+
   const hochladen = async (dateien) => {
     for (const datei of dateien) {
       const vorschlag = datei.name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim();
@@ -120,9 +124,7 @@ function UnterlagenFenster({ m, typ, zu }) {
             hinweis: datei.name + " · " + groesseText(datei.size) },
           { name: "art", label: "Art", auswahl: UNTERLAGEN_ARTEN, wert: artErraten(datei.name) },
           ...(m.type_id
-            ? [{ name: "fuer", label: "Gilt für", wert: "maschine",
-                 auswahl: [["maschine", "Nur diese Maschine (" + (m.machine_number || m.name) + ")"],
-                           ["typ", "Alle Maschinen vom Typ " + (typ || "dieser Maschine")]] }]
+            ? [{ name: "fuer", label: "Gilt für", wert: "maschine", auswahl: giltFuerAuswahl() }]
             : []),
         ],
         bestaetigen: "Hochladen" });
@@ -154,14 +156,28 @@ function UnterlagenFenster({ m, typ, zu }) {
     laden();
   };
 
+  // Auch „Gilt für“ lässt sich ändern (Wunsch Patrick 19. Oktober 2026),
+  // mit denselben Möglichkeiten wie beim Hochladen. Die Datei bleibt, wo
+  // sie liegt; es ändert sich nur, bei welchen Maschinen sie erscheint.
   const umbenennen = async (u) => {
+    const fuerVorher = u.type_id ? "typ" : "maschine";
     const w = await alt.dialogFelder({ titel: "Unterlage ändern",
       felder: [{ name: "titel", label: "Titel", wert: u.titel, pflicht: true },
-               { name: "art", label: "Art", auswahl: UNTERLAGEN_ARTEN, wert: u.art }] });
-    if (!w || (w.titel === u.titel && w.art === u.art)) return;
+               { name: "art", label: "Art", auswahl: UNTERLAGEN_ARTEN, wert: u.art },
+               ...(m.type_id
+                 ? [{ name: "fuer", label: "Gilt für", wert: fuerVorher,
+                      auswahl: giltFuerAuswahl() }]
+                 : [])] });
+    const fuer = (w && w.fuer) || fuerVorher;
+    if (!w || (w.titel === u.titel && w.art === u.art && fuer === fuerVorher)) return;
+    const daten = { titel: w.titel.trim(), art: w.art };
+    if (fuer !== fuerVorher) {
+      daten.machine_id = fuer === "typ" ? null : m.id;
+      daten.type_id = fuer === "typ" ? m.type_id : null;
+    }
     const vorher = await alt.rueckSichern("maschinen_unterlagen", { id: u.id });
     const { error } = await alt.db.from("maschinen_unterlagen")
-      .update({ titel: w.titel.trim(), art: w.art }).eq("id", u.id);
+      .update(daten).eq("id", u.id);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     alt.merkeSchritt("Ändern von " + u.titel, alt.rueckRein("maschinen_unterlagen", vorher));
     laden();
