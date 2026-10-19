@@ -70,7 +70,9 @@ def lauf(br, spalte, titel):
     if spalte:
         pruefe(titel + ": dritte Zeile Abruf", "KW 44" in zeilen[2])
         pruefe(titel + ": dann Lücke", "luecke" in zeilen[3])
-    pruefe(titel + ": zuletzt die Änderung", "Letzte Änderung" in zeilen[-1])
+    # Seit 1.95.0 steht ganz unten die Mat. info., direkt davor die Änderung
+    ende = [z for z in zeilen if "|Mat. info." not in z]
+    pruefe(titel + ": zuletzt die Änderung", "Letzte Änderung" in ende[-1])
     if spalte: pg.screenshot(path="/tmp/schnellvorschau.png", clip={"x": 0, "y": 0, "width": 1600, "height": 950})
     pg.mouse.move(5, 5); pg.wait_for_timeout(200)
 
