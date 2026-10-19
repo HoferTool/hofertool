@@ -8347,3 +8347,50 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .mat-m--leer { opacity: .55; }
 .mat-wo__posten { margin: 4px 0 8px; }
 .mat-wo__nr { font-weight: 700; font-size: 1.05em; }
+
+/* ---------- Unterlagen zu den Maschinen (1.105.0) ----------
+   Grosse Zeilen zum Antippen, auch an der Maschine mit Handschuhen */
+.dialog.unterlagen, body.pad-offen .dialog.unterlagen:not(.dialog--auftrag):not(.nb) {
+  width: min(900px, calc(100vw - 24px)) !important; max-width: none !important;
+  max-height: calc(100vh - 40px); display: flex; flex-direction: column; }
+.unterlagen .blatt__kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.unterlagen .blatt__kopf h2 { margin: 0; flex: 1 1 auto; }
+.unterlagen__rolle { overflow: auto; flex: 1 1 auto; min-height: 120px; padding-right: 2px; }
+.unterlagen__gruppe h3 { margin: 14px 0 6px; font-size: .9rem; color: var(--gedaempft);
+  text-transform: uppercase; letter-spacing: .04em; }
+.unterlagen__gruppe ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.unterlagen__zeile { display: flex; align-items: center; gap: 8px; }
+.unterlagen__oeffnen { flex: 1 1 auto; display: flex; align-items: center; gap: 12px; min-height: 56px;
+  padding: 8px 12px; border: 1px solid var(--linie); border-radius: 10px; background: var(--flaeche);
+  color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.unterlagen__oeffnen:hover, .unterlagen__oeffnen:focus-visible { border-color: var(--marke);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--marke) 25%, transparent); }
+.unterlagen__symbol { flex: none; width: 46px; height: 46px; border-radius: 8px; display: grid;
+  place-items: center; font-size: .72rem; font-weight: 750; color: #fff; background: #b3261e; }
+.unterlagen__gruppe[data-art="elektro"] .unterlagen__symbol { background: #c98a00; }
+.unterlagen__gruppe[data-art="hydraulik"] .unterlagen__symbol { background: #1f7ae0; }
+.unterlagen__gruppe[data-art="ersatzteile"] .unterlagen__symbol { background: #4b7f3a; }
+.unterlagen__gruppe[data-art="wartung"] .unterlagen__symbol { background: #6b4fb3; }
+.unterlagen__gruppe[data-art="sonstiges"] .unterlagen__symbol { background: #6e747c; }
+.unterlagen__text { display: flex; flex-direction: column; min-width: 0; }
+.unterlagen__text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.02rem; }
+.unterlagen__knoepfe { display: flex; gap: 6px; flex: none; }
+.unterlagen__leer { padding: 24px 4px; color: var(--gedaempft); }
+.unterlagen__laedt { margin: 4px 0; color: var(--marke); font-weight: 600; }
+@media (max-width: 560px) {
+  .unterlagen__zeile { flex-wrap: wrap; }
+  .unterlagen__knoepfe { width: 100%; justify-content: flex-end; }
+}
+/* Knopf „Unterlagen“ oben im Pad, gleich hoch wie Neu laden und Schliessen */
+#pad .pad__unterlagen { flex: none; height: 58px; display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 18px; border-radius: 16px; color: #f2f4f7; cursor: pointer; font: inherit;
+  font-size: 1.1rem; font-weight: 700; background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.16); }
+#pad .pad__unterlagen:active { background: rgba(255,255,255,.18); }
+#pad .pad__unterlagen svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 760px) { #pad .pad__unterlagen { height: 38px; padding: 0 10px; font-size: .85rem; }
+  #pad .pad__unterlagen svg { width: 18px; height: 18px; } }
+.unterlagen .blatt__kopf { display: flex !important; flex-wrap: wrap; align-items: center; }
+.unterlagen .blatt__kopf .knopf { width: auto !important; flex: none; margin: 0 !important; }
+.unterlagen .blatt__kopf h2 { flex: 1 1 0 !important; min-width: 0; }

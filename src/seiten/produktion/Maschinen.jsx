@@ -13,6 +13,7 @@ import { useEffect, useReducer } from "react";
 import { alt } from "../../bruecke.jsx";
 import Typen from "./Typen.jsx";
 import { Uebergang } from "../../teile/Reiter.jsx";
+import { unterlagenOeffnen } from "../../teile/Unterlagen.jsx";
 
 // Was die Datenbank meldet, kommt als Meldung unten rechts
 // rueck: optional der Schritt für Rückgängig, [Text, Schritte]
@@ -195,13 +196,18 @@ function ParkKarte({ park: p, darf, neuLaden }) {
                   <span className={"mliste__typ" + (typ ? "" : " mliste__typ--leer")}>{typ ? typ.name : "kein Typ"}</span>
                   <span className={"mliste__zustand" + (m.is_active ? " mliste__zustand--an" : "")}>
                     {m.is_active ? "aktiv" : "aus"}</span>
-                  {darf && <div className="mliste__knoepfe">
+                  {(darf || !alt.istExtern()) && <div className="mliste__knoepfe">
+                    {/* Handbücher, Schemas … ansehen darf jeder ausser Externen */}
+                    {!alt.istExtern() && <button className="knopf knopf--klein" data-masch-unterlagen={m.id}
+                      onClick={() => unterlagenOeffnen(m)}>Unterlagen</button>}
+                    {darf && <>
                     <button className="knopf knopf--klein" data-masch-um={m.id}
                       onClick={() => aktion.maschineBearbeiten(m, neuLaden)}>Bearbeiten</button>
                     <button className="knopf knopf--klein" data-masch-aktiv={m.id}
                       onClick={() => aktion.maschineAktiv(m, neuLaden)}>{m.is_active ? "Aus" : "Ein"}</button>
                     <button className="knopf knopf--klein knopf--gefahr-leise" data-masch-weg={m.id}
                       onClick={() => aktion.maschineLoeschen(m, neuLaden)}>Löschen</button>
+                    </>}
                   </div>}
                 </li>
               );

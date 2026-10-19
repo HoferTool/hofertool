@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck, PadNeuLadenKnopf } from "./Pad.jsx";
+import { unterlagenOeffnen } from "../teile/Unterlagen.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
@@ -630,6 +631,12 @@ export default function Maschine({ d }) {
         {m.name}{m.machine_number && <> <span className="pad__nr">{m.machine_number}</span></>}
       </span>
       <div className="pad__sprunge">
+        {/* Handbücher, Elektroschemas … dieser Maschine (Wunsch Patrick
+            19. Oktober 2026); Externe vorerst nicht */}
+        {!datei && !alt.istExtern() &&
+          <button className="pad__unterlagen" data-padunterlagen="" onClick={() => unterlagenOeffnen(m)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z" />
+              <path d="M4 19V5M8 7h6M8 11h6" /></svg>Unterlagen</button>}
         {datei && <>
           <button className="pad-sprung" data-paddruck="" onClick={druck}>Drucken</button>
           <button className="pad-sprung" data-padspeichern="" onClick={speichern}>Speichern</button>
