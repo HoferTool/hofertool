@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.93.0";
+const APP_VERSION = "1.94.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5241,6 +5241,7 @@ async function balkenZeichnung(j) {
 // der stille Abgleich den Balken zwischen zwei Klicks neu zeichnen kann.
 const DOPPELKLICK_MS = 320;
 function balkenKlick(auftrag, b) {
+  angewaehltSetzen(auftrag.id);
   const w = plan.klickWarten;
   if (w) clearTimeout(w.zeit);
   plan.klickWarten = null;
@@ -5258,6 +5259,25 @@ function balkenKlick(auftrag, b) {
     if (document.querySelector(".dialog-huelle")) return;
     balkenZeichnung((plan.auftraege || []).find((x) => x.id === auftrag.id) || auftrag);
   }, DOPPELKLICK_MS) };
+}
+
+// Der zuletzt angeklickte Balken bleibt markiert, auch nach dem
+// Schliessen von Zeichnung oder Auftragsfenster und nach dem Neuzeichnen,
+// damit man ihn nicht wieder suchen muss (Wunsch Patrick 19. Oktober
+// 2026). Erst ein Klick auf einen anderen Balken nimmt die Markierung.
+// Gemerkt in plan, weil der stille Abgleich die Balken neu zeichnet.
+// Externe vorerst nicht (neue Funktion, Patrick gefragt).
+function angewaehltSetzen(id) {
+  if (istExtern()) return;
+  plan.angewaehlt = id || null;
+  angewaehltHervorheben();
+}
+function angewaehltHervorheben() {
+  const tafel = document.querySelector(".pw-tafel");
+  if (!tafel) return;
+  tafel.querySelectorAll("[data-auftrag]").forEach((el) => {
+    el.classList.toggle("pw-balken--angewaehlt", !!plan.angewaehlt && el.dataset.auftrag === plan.angewaehlt);
+  });
 }
 
 // Den Zustand (Geplant/Rüsten/Läuft/Fertig) darf jeder
@@ -6009,6 +6029,7 @@ function zeichnePlanwand(b) {
   if (!darfPlanen()) balkenAnsehenVerhalten(b);
   statusSchnellVerhalten(b);
   sucheHervorheben();
+  angewaehltHervorheben();
   if (planZug) planZug.nachZeichnen();
 }
 
@@ -8534,6 +8555,7 @@ function felderSetzen(o, felder, z) { felder.forEach((k) => { if (k in z) o[k] =
 teilMerken("prod", () => felderLesen(prod, MERKEN_PROD), (z) => felderSetzen(prod, MERKEN_PROD, z));
 teilMerken("best", () => felderLesen(best, MERKEN_BEST), (z) => felderSetzen(best, MERKEN_BEST, z));
 teilMerken("einst", () => einst.reiter, (w) => { einst.reiter = w; });
+teilMerken("planAngewaehlt", () => plan.angewaehlt || null, (id) => { plan.angewaehlt = id; });
 teilMerken("plan", () => (plan.start ? { tag: isoDatum(new Date()), start: plan.start } : null),
   (z) => { if (z.tag === isoDatum(new Date()) && z.start) plan.start = z.start; });
 
