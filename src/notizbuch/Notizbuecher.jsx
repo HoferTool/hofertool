@@ -101,9 +101,12 @@ export function notizbuecherOeffnen() {
 // Pad Mode: nur die Bücher, die dem Park der Maschine zugewiesen sind,
 // nur zum Lesen (Wunsch Patrick 15. Oktober 2026). Kein kleines
 // Fenster und kein Merken für nach dem Neuladen.
-export function notizbuecherFuerPark(parkId, titel) {
+// maschine: das Buch geht beim Abschnitt dieser Maschine auf, wenn es
+// einen gibt, der ihre Nummer oder ihren Namen trägt (Wunsch Patrick
+// 19. Oktober 2026: Handbücher und Schemas auch in den Notizbüchern).
+export function notizbuecherFuerPark(parkId, titel, maschine) {
   let huelle = null;
-  fensterOeffnen((zu0) => <Notizbuecher zu={zu0} huelle={() => huelle} park={parkId} titel={titel} />,
+  fensterOeffnen((zu0) => <Notizbuecher zu={zu0} huelle={() => huelle} park={parkId} titel={titel} maschine={maschine} />,
   () => allesZu(), "nb-huelle nb-huelle--pad");
   const alle = document.querySelectorAll(".dialog-huelle.nb-huelle");
   huelle = alle[alle.length - 1];
@@ -159,7 +162,20 @@ function spaltenLesen() {
   return [gut(t[0]), gut(t[1])];
 }
 
-function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
+// Gehört der Abschnitt zu dieser Maschine? Vergleich ohne Leerzeichen,
+// Striche und Gross-/Kleinschreibung: „K-2001“ passt zu „k 2001 Elektro“.
+// Zuerst die Nummer, dann der Name.
+const flach = (t) => String(t || "").toLowerCase().replace(/[\s._\-–]+/g, "");
+function abschnittFuerMaschine(abschnitte, m) {
+  const proben = [m.machine_number, m.name].map(flach).filter((x) => x.length >= 2);
+  for (const p of proben) {
+    const a = (abschnitte || []).find((x) => flach(x.name).includes(p));
+    if (a) return a;
+  }
+  return null;
+}
+
+function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel, maschine }) {
   // Mit park (Pad Mode) nur lesen
   const darf = !park && !(alt.istExtern && alt.istExtern());
   const [rahmen, setRahmen] = useState(() => (schwebend ? rahmenLesen() : null));
@@ -251,14 +267,26 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
   const [abschnittId, setAbschnittId] = useState(() => gemerkt().abschnitt || null);
   const wahlRef = useRef({});
   wahlRef.current = { seite: seiteId, abschnitt: abschnittId };
+  // Pad an einer Maschine: einmal zu ihrem Abschnitt springen
+  const zielAb = useRef(null);
 
   const buecherNeu = useCallback(async (waehlen) => {
     try {
       let l = await buecherLaden();
       if (park) l = (l || []).filter((b) => Array.isArray(b.parks) && b.parks.indexOf(park) !== -1);
+      let maschinenBuch = null;
+      if (park && maschine && !waehlen) {
+        for (const b of (l || [])) {
+          const p0 = await padAbschnitteLaden(b.id, park);
+          let ab = p0 && p0.abschnitte;
+          if (!ab) { try { ab = await abschnitteLaden(b.id); } catch (f) { ab = null; } }
+          const a = abschnittFuerMaschine(ab, maschine);
+          if (a) { maschinenBuch = b.id; zielAb.current = a.id; break; }
+        }
+      }
       setBuecher(l || []);
       setBuchId((alt0) => {
-        const w = waehlen || alt0;
+        const w = maschinenBuch || waehlen || alt0;
         return (l || []).some((b) => b.id === w) ? w : ((l && l[0] && l[0].id) || null);
       });
     } catch (e) {
@@ -302,7 +330,8 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
       let abNeu = null;
       if (ab) {
         const w = l.find((x) => x.id === waehlen);
-        const vorher = abWaehlen || wahlRef.current.abschnitt;
+        const vorher = abWaehlen || zielAb.current || wahlRef.current.abschnitt;
+        zielAb.current = null;
         abNeu = w ? abVon(w) : (ab.some((a0) => a0.id === vorher) ? vorher : ab[0].id);
       }
       const drin = ab ? l.filter((x) => abVon(x) === abNeu) : l;

@@ -453,7 +453,8 @@ function Notizen({ m }) {
   const da = !!(buecher && buecher.length);
   return (
     <div className={"pad-karte2 pad-karte2--notiz" + (da ? "" : " pad-karte2--notizleer")} data-padfeld="notizen"
-      onClick={da ? () => notizbuecherFuerPark(m.park_id) : undefined}>
+      onClick={da ? () => notizbuecherFuerPark(m.park_id, undefined,
+        { machine_number: m.machine_number, name: m.name }) : undefined}>
       <span className="pad-name">Notizbücher{da ? " · antippen" : ""}</span>
       <span className="pad-wert pad-nbuch">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={BUCH} /></svg>
