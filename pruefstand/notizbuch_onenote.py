@@ -48,7 +48,7 @@ with sync_playwright() as p:
     pg.locator("#notizbuch-knopf").click(); pg.wait_for_timeout(1000)
     buecher = lambda: pg.evaluate("() => TEST.daten.notizbuecher.map(b => b.name)")
     seiten = lambda: pg.evaluate("() => TEST.daten.notizbuch_seiten.slice().sort((a, b) => a.reihenfolge - b.reihenfolge)"
-                                 ".map(s => ({ buch: s.buch_id, titel: s.titel, n: (s.inhalt || []).length, s: (s.inhalt || []).map(e => e.s) }))")
+                                 ".map(s => ({ buch: s.buch_id, ab: ((TEST.daten.notizbuch_abschnitte || []).find(a => a.id === s.abschnitt_id) || {}).name, titel: s.titel, n: (s.inhalt || []).length, s: (s.inhalt || []).map(e => e.s) }))")
 
     def waehlen(dateien):
         with pg.expect_file_chooser() as fc:
@@ -100,9 +100,12 @@ with sync_playwright() as p:
     s = seiten()
     print("  Seiten:", s)
     pruefe(buecher() == ["Werkstatt"], "kein neues Buch")
-    pruefe([x["titel"] for x in s[3:]] == ["Abschnitt A · Erste Seite", "Abschnitt A · Zweite Seite", "Abschnitt B · Dritte Seite"],
-           "Lesezeichen: Abschnitt · Seite")
-    pruefe(pg.locator(".nb-eintrag.aktiv [data-nbseite]").inner_text() == "Abschnitt A · Erste Seite", "erste übernommene Seite offen")
+    pruefe([(x["ab"], x["titel"]) for x in s[3:]] == [("Abschnitt A", "Erste Seite"), ("Abschnitt A", "Zweite Seite"), ("Abschnitt B", "Dritte Seite")],
+           "Lesezeichen: Abschnitte und Seiten")
+    pruefe(all(x["ab"] == "Werkstatt" for x in s[:3]), "Seiten ohne Lesezeichen im Abschnitt mit dem Dateinamen")
+    pruefe(pg.locator(".nb-eintrag.aktiv [data-nbseite]").inner_text() == "Erste Seite"
+           and pg.locator(".nb-eintrag.aktiv [data-nbabschnitt]").inner_text() == "Abschnitt A", "erste übernommene Seite offen, in ihrem Abschnitt")
+    pruefe(pg.locator("[data-nbabschnitt]").count() == 3, "drei Abschnitte unter dem Buch")
     pg.screenshot(path=os.path.join(BILD, "onenote-lesezeichen.png"))
     br.close()
 print("Fehler:", "keine" if not fehler and not f else (fehler + f))

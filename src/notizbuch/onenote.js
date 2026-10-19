@@ -70,8 +70,9 @@ export function oneNoteKopf(zeilen) {
   return null;
 }
 
-// Lesezeichen der PDF flach: [{ titel, seite }] nach Seite, die
-// Abschnitte vorne am Titel („Abschnitt · Seite“)
+// Lesezeichen der PDF flach: [{ titel, abschnitt, seite }] nach Seite.
+// Die oberste Ebene sind die Abschnitte; ist dort nur ein Eintrag mit
+// Kindern (das Notizbuch selbst), zählt die Ebene darunter.
 async function lesezeichen(doc) {
   let baum = null;
   try { baum = await doc.getOutline(); } catch (f) { return []; }
@@ -92,10 +93,14 @@ async function lesezeichen(doc) {
       if (kinder.length) await gehen(kinder, vorne.concat(titel ? [titel] : []));
       else {
         const s = await seiteVon(e.dest);
-        if (s) aus.push({ titel: vorne.concat(titel ? [titel] : []).join(" · "), seite: s });
+        // Abschnitt = oberste Ebene, Titel = der Rest
+        const pfad = vorne.concat(titel ? [titel] : []);
+        if (s) aus.push(vorne.length ? { abschnitt: pfad[0], titel: pfad.slice(1).join(" · "), seite: s }
+          : { abschnitt: null, titel: pfad.join(" · "), seite: s });
       }
     }
   };
+  while (baum.length === 1 && (baum[0].items || []).length) baum = baum[0].items;
   await gehen(baum, []);
   aus.sort((a, b) => a.seite - b.seite);
   // Mehrere Zeichen auf derselben PDF-Seite: das erste gilt
@@ -107,8 +112,8 @@ export async function oneNoteSeiten(doc, n) {
   const zeichen = await lesezeichen(doc);
   if (zeichen.length) {
     const aus = [];
-    if (zeichen[0].seite > 1) aus.push({ titel: "", von: 1 });
-    zeichen.forEach((z) => { if (z.seite <= n) aus.push({ titel: z.titel, von: z.seite }); });
+    if (zeichen[0].seite > 1) aus.push({ titel: "", abschnitt: zeichen[0].abschnitt, von: 1 });
+    zeichen.forEach((z) => { if (z.seite <= n) aus.push({ titel: z.titel, abschnitt: z.abschnitt, von: z.seite }); });
     return grenzen(aus, n);
   }
   const aus = [];
@@ -137,13 +142,15 @@ function grenzen(liste, n) {
     const bis = i + 1 < liste.length ? liste[i + 1].von - 1 : n;
     // Zu lange Seiten in Stücke
     for (let a = s.von, teil = 1; a <= bis; a += MAX_JE_BLATT, teil++) {
-      aus.push({ titel: s.titel + (teil > 1 ? " (" + teil + ")" : ""), von: a, bis: Math.min(bis, a + MAX_JE_BLATT - 1) });
+      aus.push({ titel: s.titel + (teil > 1 ? " (" + teil + ")" : ""), abschnitt: s.abschnitt || null,
+        von: a, bis: Math.min(bis, a + MAX_JE_BLATT - 1) });
     }
   });
   return aus;
 }
 
-// Eine PDF übernehmen. blatt(titel, inhalt) legt eine Seite an (wird
+// Eine PDF übernehmen. blatt(titel, inhalt, abschnitt) legt eine Seite
+// an (abschnitt: Name aus den Lesezeichen oder null) (wird
 // für jede OneNote-Seite gleich aufgerufen, damit bei einem Abbruch
 // das Fertige bleibt). → { blaetter, seiten, alle }
 export async function oneNoteUebernehmen(datei, blatt, fortschritt) {
@@ -170,7 +177,7 @@ export async function oneNoteUebernehmen(datei, blatt, fortschritt) {
           b: 0.92, v: Math.round(s.v * 10000) / 10000, l, p: [] });
         y += 0.92 * s.v + 0.03;
       }
-      await blatt(t.titel || "", inhalt);
+      await blatt(t.titel || "", inhalt, t.abschnitt || null);
     }
     return { blaetter: teile.length, seiten: n, alle: doc.numPages };
   } finally {

@@ -10,6 +10,8 @@ import { pdfjs, seitenLinks } from "../teile/PdfAnsicht.jsx";
 export const ABLAGE = "notizbuecher";
 export const BUECHER = "notizbuecher";
 export const SEITEN = "notizbuch_seiten";
+// Abschnitte wie in OneNote: Buch → Abschnitt → Seite (sql/notizbuch-abschnitte.sql)
+export const ABSCHNITTE = "notizbuch_abschnitte";
 
 // Farben für den Rücken der Bücher, wie die Reiter in OneNote
 export const BUCHFARBEN = [["#1f5fbf", "Blau"], ["#7b3fb3", "Violett"], ["#c2185b", "Rosa"],
@@ -32,9 +34,41 @@ export const buecherLaden = () => antwort(alt.db.from(BUECHER)
   .select("*")
   .order("reihenfolge", { ascending: true }).order("erstellt_am", { ascending: true }), "Notizbücher");
 
-export const seitenLaden = (buchId) => antwort(alt.db.from(SEITEN)
-  .select("id, buch_id, titel, reihenfolge, erstellt_am, geaendert_am").eq("buch_id", buchId)
-  .order("reihenfolge", { ascending: true }).order("erstellt_am", { ascending: true }), "Seiten");
+const SEITEN_SPALTEN = "id, buch_id, titel, reihenfolge, erstellt_am, geaendert_am";
+// Ohne Inhalt (der kommt erst mit der einzelnen Seite). abschnitt_id gibt
+// es erst mit sql/notizbuch-abschnitte.sql; fehlt sie, ohne
+export async function seitenLaden(buchId) {
+  const laden = (spalten) => antwort(alt.db.from(SEITEN).select(spalten).eq("buch_id", buchId)
+    .order("reihenfolge", { ascending: true }).order("erstellt_am", { ascending: true }), "Seiten");
+  try {
+    return await laden(SEITEN_SPALTEN + ", abschnitt_id");
+  } catch (e) {
+    if (/abschnitt_id|42703|PGRST204/i.test(String((e && (e.message || e.code)) || ""))) return laden(SEITEN_SPALTEN);
+    throw e;
+  }
+}
+
+// Abschnitte eines Buchs; null, solange das SQL fehlt (dann ohne Abschnitte)
+export async function abschnitteLaden(buchId) {
+  try {
+    return (await antwort(alt.db.from(ABSCHNITTE).select("*").eq("buch_id", buchId)
+      .order("reihenfolge", { ascending: true }).order("erstellt_am", { ascending: true }), "Abschnitte")) || [];
+  } catch (e) {
+    if (fehltTabelle(e)) return null;
+    throw e;
+  }
+}
+
+// Pad Mode mit Abschnitten: null, solange das SQL fehlt
+export async function padAbschnitteLaden(buchId, parkId) {
+  try {
+    const ab = await rpc("notizbuch_pad_abschnitte", { p_buch: buchId, p_park: parkId });
+    const s = ab ? await rpc("notizbuch_pad_seiten_ab", { p_buch: buchId, p_park: parkId }) : null;
+    return ab && s ? { abschnitte: ab, seiten: s } : null;
+  } catch (e) {
+    return null;
+  }
+}
 
 // Pad Mode: Seiten eines dem Park zugewiesenen Buchs samt Inhalt, nur
 // zum Lesen und ohne Passwort (sql/notizbuch-pad-lesen.sql)
