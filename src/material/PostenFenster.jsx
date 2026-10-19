@@ -16,9 +16,10 @@
 //  Material?“), mit „Kein Rest“ statt Abbrechen und den Posten dieses
 //  Materials, die man als aufgebraucht abhaken kann.
 // =================================================================
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { bestellFotoLesen } from "../daten/bestellFoto.js";
 import { materialZerlegen, postenMengeText, orteLaden, orteSpeichern, kgJeStange, kategorieVon } from "../daten/material.js";
 
 // „12,5“ und „1'200“ → Zahl; leer → null; Unsinn → NaN
@@ -98,6 +99,10 @@ function PostenDialog({ o, orte, liste, fertig }) {
   const [notiz, setNotiz] = useState(p.notiz || "");
   const [leer, setLeer] = useState([]);
   const [speichert, setSpeichert] = useState(false);
+  // Foto einer Bestellung lesen (seit 1.107.0): null, { liest, text }
+  // oder { ergebnis }
+  const [foto, setFoto] = useState(null);
+  const fotoFeld = useRef(null);
 
   const treffer = useMemo(() => (suche.trim() ? liste.filter((b) => passt(b, suche)) : liste).slice(0, 8),
     [suche, liste]);
@@ -118,6 +123,30 @@ function PostenDialog({ o, orte, liste, fertig }) {
     if (n !== null && n >= 0 && jeStange) setMenge(zahlZeigen(neu === "stg" ? n / jeStange : n * jeStange));
     setEinheit(neu);
   };
+  // Foto wählen oder aufnehmen, lesen, Felder füllen. Das Foto selbst
+  // wird nicht gespeichert (Wunsch Patrick 19. Oktober 2026: „nur
+  // erkennen und gut ist“).
+  const fotoGewaehlt = async (e) => {
+    const datei = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!datei) return;
+    setFoto({ liest: true, text: "Texterkennung wird geladen …" });
+    try {
+      const r = await bestellFotoLesen(datei, (status, anteil) => {
+        const lesen = /recogniz/.test(status || "");
+        setFoto({ liest: true, text: lesen ? "Foto wird gelesen … " + Math.round(anteil * 100) + " %"
+          : "Texterkennung wird geladen …" });
+      });
+      if (r.material) { setMaterial(r.material); setWaehlen(false); }
+      else if (r.d) { setSuche((r.form && r.form !== "rd" ? r.form : "rd") + " " + String(r.d).replace(".", ",")); setWaehlen(true); }
+      if (r.kg) { setEinheit("kg"); setMenge(zahlZeigen(r.kg)); }
+      setFoto({ ergebnis: r });
+    } catch (f) {
+      setFoto({ fehler: "Das Foto liess sich nicht lesen. Ohne Internet geht es beim ersten Mal nicht. " + (alt.fehlertext ? alt.fehlertext(f) : "") });
+    }
+  };
+  const fotoErgebnis = foto && foto.ergebnis;
+
   const vorhandene = (o.vorhandene || []).filter((x) => x.art !== "bestellt");
 
   const speichern = async () => {
@@ -193,6 +222,27 @@ function PostenDialog({ o, orte, liste, fertig }) {
     <div className="dialog mat-dialog" role="dialog" aria-modal="true">
       <h2>{o.titel || (o.rest ? "Rest Material?" : p.id ? "Material ändern" : "Material erfassen")}</h2>
       {o.text && <p className="dialog__text">{o.text}</p>}
+      {!o.rest && (
+        <div className="mat-foto" id="mat-foto">
+          <input ref={fotoFeld} type="file" accept="image/*" hidden id="mat-foto-datei" onChange={fotoGewaehlt} />
+          <button type="button" className="knopf" id="mat-foto-knopf" disabled={!!(foto && foto.liest)}
+            onClick={() => fotoFeld.current && fotoFeld.current.click()}>📷 Foto der Bestellung lesen</button>
+          {foto && foto.liest && <span className="klein" id="mat-foto-stand">{foto.text}</span>}
+          {foto && foto.fehler && <span className="klein mat-foto__fehler">{foto.fehler}</span>}
+          {fotoErgebnis && (
+            <div className="mat-foto__ergebnis" id="mat-foto-ergebnis">
+              {fotoErgebnis.material || fotoErgebnis.kg || fotoErgebnis.d
+                ? <span className="klein"><b>Aus dem Foto:</b>{" "}
+                    {[fotoErgebnis.material || (fotoErgebnis.d ? "Ø " + String(fotoErgebnis.d).replace(".", ",") + " mm, Werkstoff nicht erkannt" : "Material nicht erkannt"),
+                      fotoErgebnis.kg ? zahlZeigen(fotoErgebnis.kg) + " kg" : "Gewicht nicht erkannt"].join(" · ")}
+                    . Bitte prüfen.</span>
+                : <span className="klein mat-foto__fehler">Auf dem Foto nichts erkannt. Gerade und nah fotografieren, gutes Licht.</span>}
+              <details><summary className="klein">Gelesener Text</summary>
+                <pre className="mat-foto__text">{fotoErgebnis.text}</pre></details>
+            </div>
+          )}
+        </div>
+      )}
       {o.rest && o.gebraucht && (
         <div className={"mat-gebraucht" + (o.gebraucht.length ? " mat-gebraucht--ja" : "")} id="mat-gebraucht">
           {o.gebraucht.length

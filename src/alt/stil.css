@@ -8394,3 +8394,10 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .unterlagen .blatt__kopf { display: flex !important; flex-wrap: wrap; align-items: center; }
 .unterlagen .blatt__kopf .knopf { width: auto !important; flex: none; margin: 0 !important; }
 .unterlagen .blatt__kopf h2 { flex: 1 1 0 !important; min-width: 0; }
+
+/* Foto der Bestellung lesen im Fenster „Material erfassen“ (seit 1.107.0) */
+.mat-foto { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 12px; }
+.mat-foto__ergebnis { width: 100%; }
+.mat-foto__fehler { color: var(--gefahr); }
+.mat-foto__text { max-height: 180px; overflow: auto; white-space: pre-wrap; font-size: 12px;
+  background: var(--grund); padding: 8px; border-radius: 6px; margin: 4px 0 0; }
