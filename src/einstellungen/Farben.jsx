@@ -12,20 +12,21 @@ import { kategorienListe, dichtenLaden, dichtenSpeichern, eigeneDichten, werksto
 export default function Farben() {
   return (
     <>
+      {/* Farbe, Material, Kürzel und Faktor (Dichte) in einer Liste
+          (Wunsch Patrick 19. Oktober 2026: „kann beides am selben Ort
+          stehen“; vorher eigener Abschnitt ganz unten). */}
       <Gruppe titel="Farben und Material"
         text={"Hier stehen die verwendeten Farben. Neue Farbe: unter „Weitere Farben“ bei einer freien Farbe das Material eintragen. Nur Farben mit einem Material "
           + "erscheinen im Auftragsfenster, neue Farben gibt es nur hier. Das Kürzel steht auf dem Balken, "
-          + "mehrere Angaben mit Schrägstrich, zum Beispiel E/N. Gespeichert wird beim Verlassen des Felds."}>
+          + "mehrere Angaben mit Schrägstrich, zum Beispiel E/N. "
+          + "Der Faktor (Dichte in g/cm³, mit Komma) rechnet Stangen in kg um: im Materialrechner, bei der Mat. info. und auf der Seite Material. "
+          + "Einer je Farbe, immer der höchste Wert der Werkstoffe darin, damit sicher genug bestellt wird; leer heisst Vorgabe (grau). "
+          + "Gespeichert wird beim Verlassen des Felds."}>
         <div id="farbliste"><FarbListe /></div>
       </Gruppe>
       <Gruppe titel="Werkstofferkennung"
         text={"Gleiche Werkstoffe stehen zusammen, ohne Mengen und Lieferanten. Nicht erkannte stehen oben: einmal zuordnen, die App merkt es sich."}>
         <div id="werkstoffliste"><Werkstoffe /></div>
-      </Gruppe>
-      <Gruppe titel="Faktor (Dichte) für kg"
-        text={"Ein Faktor je Farbe, immer der höchste Wert der Werkstoffe darin, damit sicher genug bestellt wird. Damit rechnet die App Stangen in kg um: im Materialrechner der Planwand, bei der Mat. info. und auf der Seite Material. "
-          + "In g/cm³, mit Komma. Leer heisst Vorgabe (grau). Gespeichert wird beim Verlassen des Felds."}>
-        <div id="dichteliste"><Dichten /></div>
       </Gruppe>
     </>
   );
@@ -34,15 +35,16 @@ export default function Farben() {
 // ---------- Farben ----------
 
 async function farbenLaden() {
-  await alt.farbzuteilungLaden();
+  await Promise.all([alt.farbzuteilungLaden(), dichtenLaden(true)]);
   // Eine Kopie: Die Felder starten mit dem gespeicherten Stand
-  return JSON.parse(JSON.stringify(alt.FARBZUTEILUNG || {}));
+  return { zuteilung: JSON.parse(JSON.stringify(alt.FARBZUTEILUNG || {})),
+    kategorien: kategorienListe(), eigene: eigeneDichten() };
 }
 
 function FarbListe() {
-  const { daten: zuteilung, neu } = useDaten(farbenLaden, []);
-  if (!zuteilung) return <div className="laedt">Wird geladen …</div>;
-  return <FarbZeilen zuteilung={zuteilung} neu={neu} />;
+  const { daten, neu } = useDaten(farbenLaden, []);
+  if (!daten) return <div className="laedt">Wird geladen …</div>;
+  return <FarbZeilen {...daten} neu={neu} />;
 }
 
 // Nur die Farben, die ein Material haben, also verwendet werden (Wunsch
@@ -50,9 +52,11 @@ function FarbListe() {
 // Farben“, denn nur dort lässt sich eine neue Farbe anlegen. Welche
 // gezeigt werden, steht beim Öffnen fest: Wer ein Material löscht oder
 // einträgt, behält die Zeile vor Augen, bis der Reiter neu geladen ist.
-function FarbZeilen({ zuteilung, neu }) {
-  const [verwendet] = useState(() => new Set(Object.keys(zuteilung)
-    .filter((k) => String(zuteilung[k].material || "").trim())));
+function FarbZeilen({ zuteilung, kategorien, eigene, neu }) {
+  // Farben mit einem Faktor zählen auch als verwendet, sonst wäre ihr
+  // Faktor versteckt
+  const [verwendet] = useState(() => new Set([...Object.keys(zuteilung)
+    .filter((k) => String(zuteilung[k].material || "").trim()), ...kategorien.map((k) => k.farbe)]));
   const [alle, setAlle] = useState(() => verwendet.size === 0);
   const liste = alt.PLANFARBEN.map((f, nr) => ({ f, nr }))
     .filter(({ f }) => alle || verwendet.has(f.wert));
@@ -60,11 +64,15 @@ function FarbZeilen({ zuteilung, neu }) {
   return (
     <>
       <div className="farbzeilen">
+        {/* Spaltenköpfe, je einer über jeder der zwei Spalten */}
+        {[0, 1].map((i) => <div key={"k" + i} className="farbkopf" aria-hidden="true">
+          <span>Farbe</span><span>Material</span><span>Kürzel</span><span>Faktor g/cm³</span></div>)}
         {liste.map(({ f, nr }) => (
           // Der Schlüssel bleibt nach dem Speichern gleich: Wer schon im
           // nächsten Feld tippt, verliert sonst, was er dort eingibt
           <FarbZeile key={f.wert} f={f} nr={nr}
-            zu={zuteilung[f.wert] || {}} gespeichert={neu} />
+            zu={zuteilung[f.wert] || {}} gespeichert={neu}
+            kats={kategorien.filter((k) => k.farbe === f.wert)} eigene={eigene} />
         ))}
       </div>
       {weitere > 0 && verwendet.size > 0 && (
@@ -77,7 +85,7 @@ function FarbZeilen({ zuteilung, neu }) {
   );
 }
 
-function FarbZeile({ f, nr, zu, gespeichert }) {
+function FarbZeile({ f, nr, zu, gespeichert, kats, eigene }) {
   const [material, setMaterial] = useState(zu.material || "");
   const [kuerzel, setKuerzel] = useState(zu.buchstabe || "");
   // Was zuletzt gespeichert ist. Unverändert verlassen speichert nicht.
@@ -114,6 +122,10 @@ function FarbZeile({ f, nr, zu, gespeichert }) {
       <input type="text" className="farbzeile__kuerzel" data-fkuerzel={f.wert} value={kuerzel} placeholder="Kürzel"
         onChange={(e) => setKuerzel(e.target.value)} onBlur={() => speichern(material, kuerzel)}
         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+      <span className="farbzeile__faktor">
+        {/* Weiss hat zwei: Aluminium und Kunststoff, darum dort mit Namen */}
+        {kats.map((k) => <DichteFeld key={k.wert} z={k} eigen={eigene[k.wert]} mitName={kats.length > 1} />)}
+      </span>
     </div>
   );
 }
@@ -200,32 +212,16 @@ function Werkstoffe() {
   );
 }
 
-// ---------- Faktor (Dichte) je Farbe ----------
+// ---------- Faktor (Dichte) je Farbe, in der Zeile der Farbe ----------
 // Wunsch Patrick 16. Oktober 2026: „Der Faktor soll in den Einstellungen
 // bei Material eingebbar sein“; seit 1.92.0 nur noch einer je Farbe
 // (Kategorie), nicht je Werkstoffnummer (Wunsch Patrick 17. Oktober
 // 2026). Gespeichert in app_config.material_dichte, nur was von der
 // Vorgabe abweicht.
 
-async function dichtenHolen() {
-  await dichtenLaden(true);
-  return { liste: kategorienListe(), eigene: eigeneDichten() };
-}
-
-function Dichten() {
-  const { daten } = useDaten(dichtenHolen, []);
-  if (!daten) return <div className="laedt">Wird geladen …</div>;
-  return (
-    <div className="tabellenrolle"><table className="tabelle dichte-tabelle">
-      <thead><tr><th>Farbe</th><th>Höchster Wert bei</th><th className="rechts">Faktor g/cm³</th></tr></thead>
-      <tbody>{daten.liste.map((z) => <DichteZeile key={z.wert} z={z} eigen={daten.eigene[z.wert]} />)}</tbody>
-    </table></div>
-  );
-}
-
 const komma = (n) => String(n).replace(".", ",");
 
-function DichteZeile({ z, eigen }) {
+function DichteFeld({ z, eigen, mitName }) {
   const [wert, setWert] = useState(eigen ? komma(eigen) : "");
   const gemerkt = useRef(eigen ? komma(eigen) : "");
   const speichern = async () => {
@@ -243,14 +239,11 @@ function DichteZeile({ z, eigen }) {
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
   return (
-    <tr>
-      <td><span className="ws-farbe" style={{ background: alt.farbeVon(z.farbe).hex }} /><strong>{z.name}</strong></td>
-      <td className="gedaempft">{z.hoechster}</td>
-      <td className="rechts">
-        <input type="text" inputMode="decimal" className="dichte-feld" data-dichte={z.wert} value={wert}
-          placeholder={komma(z.standard)} onChange={(e) => setWert(e.target.value)} onBlur={speichern}
-          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
-      </td>
-    </tr>
+    <label className="farbzeile__dichte" title={z.name + ", höchster Wert bei " + z.hoechster}>
+      {mitName && <span>{z.name}</span>}
+      <input type="text" inputMode="decimal" className="dichte-feld" data-dichte={z.wert} value={wert}
+        placeholder={komma(z.standard)} aria-label={"Faktor " + z.name} onChange={(e) => setWert(e.target.value)} onBlur={speichern}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+    </label>
   );
 }
