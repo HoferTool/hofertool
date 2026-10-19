@@ -45,6 +45,7 @@ with sync_playwright() as p:
     bildseite = ctx.new_page(); bildseite.set_content(BESTELLUNG)
     bild = bildseite.screenshot(full_page=True); bildseite.close()
     pg = ctx.new_page()
+    pg.expose_function("HOFER_FOTO_PROBE", lambda x: print("     Bild:", x))
     pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:200]))
     pg.route("**/cdn.jsdelivr.net/**", cdn)
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
@@ -70,6 +71,21 @@ with sync_playwright() as p:
         pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(600)
         neu = pg.evaluate("TEST.daten.material_posten[0] || null")
         pruefe("Posten gespeichert", bool(neu) and neu["menge"] == 1245.5 and neu["material"] == "X8CrNiS18-9 rd 24 mm h9")
+        # Echte Fotos (nicht im Repository, enthalten Namen): Ordner in
+        # BESTELL_FOTOS, Datei „…__erwartet.jpg“ nicht nötig, es wird nur
+        # gezeigt, was herauskommt, und geprüft, dass etwas kommt
+        ordner = os.environ.get("BESTELL_FOTOS", "")
+        for f in sorted(os.listdir(ordner)) if ordner else []:
+            pg.click("#mat-neu"); pg.wait_for_selector(".mat-dialog #mat-foto-datei", state="attached")
+            t0 = time.time()
+            pg.set_input_files("#mat-foto-datei", os.path.join(ordner, f))
+            pg.wait_for_selector("#mat-foto-ergebnis", timeout=120000)
+            mat = pg.locator(".mat-gewaehlt b").inner_text() if pg.locator(".mat-gewaehlt b").count() else "-"
+            print(f"     {f}: {mat} | {pg.input_value('#mat-menge')} kg | {time.time()-t0:.1f}s")
+            for z in pg.text_content(".mat-foto__text").split("\n"):
+                if " mm" in z.lower() or "kg" in z: print("        | " + z)
+            pruefe("Foto " + f + " gelesen", mat != "-" and pg.input_value("#mat-menge") != "")
+            pg.click(".mat-dialog [data-nein]"); pg.wait_for_timeout(300)
     else:
         print("     (ohne TESS_DEU: Texterkennung übersprungen)")
     br.close()

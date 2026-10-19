@@ -25,6 +25,7 @@ import { materialZerlegen, postenMengeText, orteLaden, orteSpeichern, kgJeStange
 // „12,5“ und „1'200“ → Zahl; leer → null; Unsinn → NaN
 const zahlLesen = (t) => (String(t).trim() === "" ? null : Number(String(t).trim().replace(",", ".").replace(/'/g, "")));
 const zahlZeigen = (n) => String(Math.round(n * 10) / 10).replace(".", ",");
+const kgFoto = (n) => String(Math.round(n * 100) / 100).replace(".", ",");
 
 // Alle bekannten Bezeichnungen: aus offenen Aufträgen und Posten,
 // gleiche nur einmal (häufigste Schreibweise zuerst)
@@ -139,7 +140,8 @@ function PostenDialog({ o, orte, liste, fertig }) {
       });
       if (r.material) { setMaterial(r.material); setWaehlen(false); }
       else if (r.d) { setSuche((r.form && r.form !== "rd" ? r.form : "rd") + " " + String(r.d).replace(".", ",")); setWaehlen(true); }
-      if (r.kg) { setEinheit("kg"); setMenge(zahlZeigen(r.kg)); }
+      // Auf der Bestellung stehen kg mit vier Stellen (7.2500 kg): zwei behalten
+      if (r.kg) { setEinheit("kg"); setMenge(kgFoto(r.kg)); }
       setFoto({ ergebnis: r });
     } catch (f) {
       setFoto({ fehler: "Das Foto liess sich nicht lesen. Ohne Internet geht es beim ersten Mal nicht. " + (alt.fehlertext ? alt.fehlertext(f) : "") });
@@ -234,7 +236,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
               {fotoErgebnis.material || fotoErgebnis.kg || fotoErgebnis.d
                 ? <span className="klein"><b>Aus dem Foto:</b>{" "}
                     {[fotoErgebnis.material || (fotoErgebnis.d ? "Ø " + String(fotoErgebnis.d).replace(".", ",") + " mm, Werkstoff nicht erkannt" : "Material nicht erkannt"),
-                      fotoErgebnis.kg ? zahlZeigen(fotoErgebnis.kg) + " kg" : "Gewicht nicht erkannt"].join(" · ")}
+                      fotoErgebnis.kg ? kgFoto(fotoErgebnis.kg) + " kg" : "Gewicht nicht erkannt"].join(" · ")}
                     . Bitte prüfen.</span>
                 : <span className="klein mat-foto__fehler">Auf dem Foto nichts erkannt. Gerade und nah fotografieren, gutes Licht.</span>}
               <details><summary className="klein">Gelesener Text</summary>

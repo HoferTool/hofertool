@@ -34,7 +34,12 @@ async function workerHolen() {
 }
 
 // Handyfotos sind 12 Megapixel und mehr: auf höchstens 2400 Pixel
-// verkleinern, das reicht für den Text und geht viel schneller
+// verkleinern, das reicht für den Text und geht viel schneller.
+// Dann nur den Rotanteil nehmen und den Kontrast strecken: Der rosa
+// oder gelbe Leuchtstift auf der Bestellung wird damit fast weiss,
+// die schwarze Schrift bleibt schwarz (mit Graustufen las die Erkennung
+// „X90CrMoV18“ unter rosa Leuchtstift als „WXSGEMOVIE1d“).
+// Liegt der Zettel schräg, wird das Bild gerade gedreht.
 async function bildVorbereiten(datei) {
   const max = 2400;
   try {
@@ -43,15 +48,101 @@ async function bildVorbereiten(datei) {
     const c = document.createElement("canvas");
     c.width = Math.round(bild.width * f);
     c.height = Math.round(bild.height * f);
-    const ctx = c.getContext("2d");
-    // Graustufen mit etwas mehr Kontrast hilft bei Fotos mit Schatten
-    ctx.filter = "grayscale(1) contrast(1.3)";
+    const ctx = c.getContext("2d", { willReadFrequently: true });
     ctx.drawImage(bild, 0, 0, c.width, c.height);
     if (bild.close) bild.close();
-    return c;
+    const daten = ctx.getImageData(0, 0, c.width, c.height);
+    const px = daten.data;
+    // Kontrast: die dunkelsten und hellsten 0,5 % als Schwarz und Weiss;
+    // bei einem fast leeren weissen Blatt nicht übertreiben
+    const hist = new Uint32Array(256);
+    for (let i = 0; i < px.length; i += 4) hist[px[i]]++;
+    const n = px.length / 4;
+    let lo = 0, hi = 255, summe = 0;
+    while (lo < 255 && (summe += hist[lo]) < n * 0.005) lo++;
+    summe = 0;
+    while (hi > 0 && (summe += hist[hi]) < n * 0.005) hi--;
+    lo = Math.min(lo, 80);
+    hi = Math.max(hi, 170);
+    const spanne = Math.max(1, hi - lo);
+    for (let i = 0; i < px.length; i += 4) {
+      const v = Math.max(0, Math.min(255, ((px[i] - lo) * 255) / spanne));
+      px[i] = px[i + 1] = px[i + 2] = v;
+    }
+    ctx.putImageData(daten, 0, 0);
+    const winkel = schraegeSchaetzen(px, c.width, c.height);
+    if (window.HOFER_FOTO_PROBE) window.HOFER_FOTO_PROBE({ winkel, lo, hi });
+    return { winkel, drehen: (w) => gedreht(c, w) };
   } catch (f) {
-    return datei;
+    return { winkel: [0], drehen: () => datei };
   }
+}
+
+// Gerade drehen, Rand weiss; unter 2 Grad lohnt es nicht
+function gedreht(c, winkel) {
+  if (Math.abs(winkel) < 2) return c;
+  const rad = (-winkel * Math.PI) / 180;
+  const sin = Math.abs(Math.sin(rad)), cos = Math.abs(Math.cos(rad));
+  const g = document.createElement("canvas");
+  g.width = Math.round(c.width * cos + c.height * sin);
+  g.height = Math.round(c.width * sin + c.height * cos);
+  const gtx = g.getContext("2d");
+  gtx.fillStyle = "#fff";
+  gtx.fillRect(0, 0, g.width, g.height);
+  gtx.translate(g.width / 2, g.height / 2);
+  gtx.rotate(rad);
+  gtx.drawImage(c, -c.width / 2, -c.height / 2);
+  return g;
+}
+
+// Schräglage der Textzeilen in Grad (−50 bis 50), bis zu vier
+// Möglichkeiten, die wahrscheinlichste zuerst: An jedem Übergang von
+// dunkel zu hell (Kanten der Buchstaben; grosse dunkle Flächen zählen
+// so nur am Rand) einen Punkt nehmen und für jeden Winkel schauen, wie
+// stark sich die Punkte auf wenige Zeilen häufen. Beim richtigen Winkel
+// liegen sie genau auf den Textzeilen. Mehrere, weil auch Stangen im
+// Hintergrund solche Linien bilden.
+export function schraegeSchaetzen(px, breite, hoehe) {
+  const schritt = Math.max(1, Math.round(Math.max(breite, hoehe) / 900));
+  const xs = [], ys = [];
+  for (let y = 0; y < hoehe; y += schritt) {
+    for (let x = 0; x + schritt < breite; x += schritt) {
+      const i = (y * breite + x) * 4;
+      // Nur dünne dunkle Striche (Buchstaben), nicht breite Schatten
+      const v = px[i], hell = v + 50;
+      if (v < 150 && px[i + schritt * 4] > hell && x >= 3 * schritt
+        && (px[i - schritt * 4] > hell || px[i - schritt * 8] > hell || px[i - schritt * 12] > hell)) {
+        xs.push(x / schritt); ys.push(y / schritt);
+      }
+    }
+  }
+  if (xs.length < 200) return [0];
+  const diag = Math.ceil(Math.hypot(breite, hoehe) / schritt) + 2;
+  const zeilen = new Float64Array(diag * 2);
+  const wert = (grad) => {
+    const r = (grad * Math.PI) / 180, s = Math.sin(r), k = Math.cos(r);
+    zeilen.fill(0);
+    for (let j = 0; j < xs.length; j++) zeilen[Math.round(ys[j] * k - xs[j] * s) + diag]++;
+    let w = 0;
+    for (let j = 0; j < zeilen.length; j++) w += zeilen[j] * zeilen[j];
+    return w;
+  };
+  const kurve = [];
+  for (let g = -50; g <= 50; g += 1) kurve.push([g, wert(g)]);
+  // Spitzen der Kurve, mindestens 8 Grad auseinander
+  const spitzen = kurve.filter(([, w], i) => (i === 0 || w >= kurve[i - 1][1]) && (i === kurve.length - 1 || w >= kurve[i + 1][1]))
+    .sort((a, b) => b[1] - a[1]);
+  const gewaehlt = [];
+  for (const [g] of spitzen) {
+    if (gewaehlt.every((x) => Math.abs(x - g) >= 8)) gewaehlt.push(g);
+    if (gewaehlt.length === 4) break;
+  }
+  // Fein auf einen Viertelgrad
+  return gewaehlt.map((grob) => {
+    let best = grob, bestWert = -1;
+    for (let g = grob - 1; g <= grob + 1; g += 0.25) { const w = wert(g); if (w > bestWert) { bestWert = w; best = g; } }
+    return best;
+  });
 }
 
 // → { text, material, kg, d, werkstoff }
@@ -60,9 +151,17 @@ export async function bestellFotoLesen(datei, fortschritt) {
   try {
     const w = await workerHolen();
     const bild = await bildVorbereiten(datei);
-    const r = await w.recognize(bild);
-    const text = (r && r.data && r.data.text) || "";
-    return { text, ...bestellungAuswerten(text) };
+    // Die wahrscheinlichste Schräglage zuerst; findet sich dort keine
+    // Benennung mit Mass, die nächste (höchstens vier Versuche)
+    let erstes = null;
+    for (const winkel of bild.winkel) {
+      const r = await w.recognize(bild.drehen(winkel));
+      const text = (r && r.data && r.data.text) || "";
+      const e = { text, ...bestellungAuswerten(text) };
+      if (e.material && e.d) return e;
+      if (!erstes) erstes = e;
+    }
+    return erstes;
   } finally {
     melden = null;
   }
@@ -131,17 +230,57 @@ function massFinden(z) {
 
 function zahlKurz(n) { return String(Math.round(n * 100) / 100).replace(".", ","); }
 
+// Die Bestellungen von Hofer + Co. (Fotos von Patrick, 19. Oktober
+// 2026) haben unter „BENENNUNG“ eine Zeile genau wie bei den Aufträgen:
+// „7.2500 kg X30CrMoN15-1 rd 007 mm h6“, darunter „Stangenlänge
+// 3000 mm“ und „Werkst. Nr. : 1.4108“. Diese Zeile wird übernommen,
+// mit dem Werkstoff in richtiger Schreibweise und dem Mass, wie es
+// dasteht (007), damit sie zu den Aufträgen passt.
+const MASS_ZEILE = /\b(rd|rund|6-?kt|sw|sechskant|4-?kt|vk|vierkant|rohr)\b\.?\s*ø?\s*([\dOo]{1,4}(?:[.,]\d+)?)\s*(?:[x×\/]\s*([\dOo]{1,4}(?:[.,]\d+)?)\s*)?mm\b\s*(\S+)?/i;
+const FORM_KURZ = { rund: "rd", sw: "6kt", sechskant: "6kt", "6-kt": "6kt", vk: "4kt", vierkant: "4kt", "4-kt": "4kt" };
+// Toleranz nach „mm“: „h6“, von der Erkennung oft als „16“ oder „lı9“
+// gelesen
+function toleranzLesen(t) {
+  const m = String(t || "").match(/^([hgfkHGFK]|[1lI|])(\d{1,2})\b/);
+  if (!m) return "";
+  return (/[hgfk]/i.test(m[1]) ? m[1].toLowerCase() : "h") + m[2];
+}
+const ziffern = (t) => String(t || "").replace(/[Oo]/g, "0");
+
 export function bestellungAuswerten(text) {
   const zeilen = String(text || "").split(/\r?\n/).map((z) => z.replace(/\s+/g, " ").trim()).filter(Boolean);
-  // Die Zeile mit dem Material: Werkstoff zählt am meisten, ein Mass
-  // dazu, und Zeilen gleich darunter dürfen das Mass liefern (oft steht
-  // die Abmessung auf der nächsten Zeile)
+  const kg = gewichtFinden(zeilen);
+
+  // 1. Die Benennung mit Form und Mass in mm (nicht die Stangenlänge)
+  const mi = zeilen.findIndex((z) => MASS_ZEILE.test(z) && !/stangenl|länge|laenge/i.test(z));
+  if (mi >= 0) {
+    const z = zeilen[mi];
+    const m = z.match(MASS_ZEILE);
+    const form = FORM_KURZ[m[1].toLowerCase()] || m[1].toLowerCase();
+    const aussen = ziffern(m[2]), innen = m[3] ? ziffern(m[3]) : "";
+    // Werkstoff aus der Zeile, sonst aus „Werkst. Nr.“, sonst irgendwo
+    const w = werkstoffGenau(z.slice(0, m.index))
+      || zeilen.slice(mi + 1, mi + 6).map((x) => (/werkst/i.test(x) ? werkstoffGenau(x) : null)).find(Boolean)
+      || zeilen.map((x) => werkstoffGenau(x)).find(Boolean) || null;
+    // Ohne erkannten Werkstoff das Wort vor dem Mass, wie es dasteht
+    const vorher = z.slice(0, m.index).replace(/^.*?\bkg\b/i, "").trim().split(" ").pop() || "";
+    const name = w ? w.name || w.nr : vorher;
+    const tol = toleranzLesen(m[4]);
+    const d = zahlAusText(aussen);
+    if (d > 0) {
+      const material = [name, form, aussen + (innen ? "/" + innen : ""), "mm", tol].filter(Boolean).join(" ");
+      return { material: materialZerlegen(material) ? material : "", werkstoff: w, d, form,
+        kg, werkstoffUnsicher: !w };
+    }
+  }
+
+  // 2. Sonst: irgendeine Zeile mit Werkstoff, das Mass dort oder darunter
   let best = null;
   zeilen.forEach((z, i) => {
     const w = werkstoffGenau(z);
     if (!w) return;
     let mass = massFinden(z);
-    if (!mass || !(mass.d > 0)) mass = (zeilen[i + 1] && massFinden(zeilen[i + 1])) || null;
+    if (!mass || !(mass.d > 0)) mass = (zeilen[i + 1] && !/stangenl|länge/i.test(zeilen[i + 1]) && massFinden(zeilen[i + 1])) || null;
     const punkte = 3 + (mass && mass.d > 0 ? 2 : 0) + (/\b[hgfk]\d{1,2}\b/i.test(z) ? 1 : 0);
     if (!best || punkte > best.punkte) best = { z, i, w, mass, punkte };
   });
@@ -149,9 +288,11 @@ export function bestellungAuswerten(text) {
   // der Durchmesser kommt
   let mass = best ? best.mass : null;
   if (!mass) {
-    for (const z of zeilen) { const m = massFinden(z); if (m && m.d > 0 && !/kg/i.test(z)) { mass = m; break; } }
+    for (const z of zeilen) {
+      const m = massFinden(z);
+      if (m && m.d > 0 && !/kg|stangenl|länge/i.test(z)) { mass = m; break; }
+    }
   }
-  const kg = gewichtFinden(zeilen);
 
   let material = "";
   if (best) {
