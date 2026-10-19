@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.94.0";
+const APP_VERSION = "1.94.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5266,9 +5266,8 @@ function balkenKlick(auftrag, b) {
 // damit man ihn nicht wieder suchen muss (Wunsch Patrick 19. Oktober
 // 2026). Erst ein Klick auf einen anderen Balken nimmt die Markierung.
 // Gemerkt in plan, weil der stille Abgleich die Balken neu zeichnet.
-// Externe vorerst nicht (neue Funktion, Patrick gefragt).
+// Auch für Externe (Entscheid Patrick 19. Oktober 2026).
 function angewaehltSetzen(id) {
-  if (istExtern()) return;
   plan.angewaehlt = id || null;
   angewaehltHervorheben();
 }
