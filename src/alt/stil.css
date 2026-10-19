@@ -8401,3 +8401,21 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .mat-foto__fehler { color: var(--gefahr); }
 .mat-foto__text { max-height: 180px; overflow: auto; white-space: pre-wrap; font-size: 12px;
   background: var(--grund); padding: 8px; border-radius: 6px; margin: 4px 0 0; }
+
+/* Artikel per Foto (1.109.0) */
+.pd-foto { margin: 0 0 10px; }
+.pd-foto .pd-zeile { margin-top: 4px; }
+.pd-foto .pd-zeile .bs-chip { margin-left: 8px; padding: 1px 8px; font-size: .74rem; }
+.pd-zeile--gewaehlt { border-color: var(--marke); box-shadow: inset 0 0 0 1px var(--marke); }
+.pd-foto__neu { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 4px; }
+.pd-foto__neu .knopf--klein { min-height: 34px; padding: 5px 10px; }
+.af-dialog { width: min(640px, 96vw); }
+.af-bilder { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 14px 0 4px;
+  max-height: 50vh; overflow: auto; }
+.af-bild { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.af-bild__knopf { padding: 0; border: 1px solid var(--linie); border-radius: 8px; overflow: hidden; background: none;
+  cursor: zoom-in; width: 100%; aspect-ratio: 4 / 3; }
+.af-bild__knopf img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.af-gelesen { margin-top: 8px; }
+.af-zahl { align-self: center; min-width: 18px; padding: 0 5px; border-radius: 9px; font-size: .72rem; line-height: 18px;
+  text-align: center; background: var(--marke); color: #fff; }

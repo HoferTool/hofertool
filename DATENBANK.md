@@ -35,7 +35,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | Tabelle | Zweck | Wichtige Spalten |
 |---|---|---|
 | `order_items` | Bestellpositionen | `article_id`, `supplier_id`, `quantity`, `status` (`offen`, `bestellt`, `teilweise_geliefert`, `geliefert`), `status_am` (Zeitpunkt des letzten Statuswechsels), `ordered_at`, `delivered_at`, `completed_at`, `geliefert_menge`, `ziel_art`, `ziel_text`, `needed_by` |
-| `articles` | Artikel | `article_number`, `name`, `unit`, `supplier_id` |
+| `articles` | Artikel | `article_number`, `name`, `unit`, `supplier_id`, `foto_merkmale` (gelernte Codes und Nummern der Verpackung), `foto_bilder` (Beispielfotos `[{url, pfad, am, von}]`, Ablage `zeichnungen/artikel/`; beide `sql/artikel-foto.sql`, 1.109.0) |
 | `suppliers` | Lieferanten | `name`, `email`, `website`, `bestellweg` (`website` oder `mail`), `logo_url` (leer = Symbol der Website, `keins` = Buchstaben, sonst Bild; `sql/lieferant-logo.sql`) |
 | `designations` | Bezeichnungen | |
 | `shopping_items` | Einkaufsliste | `text`, `menge`, `laden`, `prio` (1–4), `is_done` |

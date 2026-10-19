@@ -145,6 +145,17 @@ export function schraegeSchaetzen(px, breite, hoehe) {
   });
 }
 
+// Für andere Fotos (Artikel, seit 1.109.0): dieselbe Texterkennung,
+// fn bekommt den Worker
+export async function mitTexterkennung(fortschritt, fn) {
+  melden = fortschritt || null;
+  try {
+    return await fn(await workerHolen());
+  } finally {
+    melden = null;
+  }
+}
+
 // → { text, material, kg, d, werkstoff }
 export async function bestellFotoLesen(datei, fortschritt) {
   melden = fortschritt || null;
