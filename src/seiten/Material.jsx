@@ -15,9 +15,10 @@
 import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { materialDatenLaden, materialRechnen, postenMengeText, laengenNachholen,
-  orteLaden, orteSpeichern, istOffen, werkstoffSuchtext } from "../daten/material.js";
+  orteLaden, orteSpeichern, werkstoffSuchtext } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import { materialHistorieOeffnen } from "../material/Historie.jsx";
+import { MKnopf } from "../material/WoEinsetzen.jsx";
 
 const gemerkt = { suche: "" };
 
@@ -42,10 +43,10 @@ export default function Material({ auffrischen }) {
   useGemerkt(gemerkt, { suche });
   const { daten, fehler, neu } = useDaten(laden, [auffrischen]);
 
-  // Offene Aufträge zum Zuweisen; das Fenster zeigt nur die mit diesem Material
+  // Restmaterial gehört keinem Auftrag (seit 1.104.0); wo es passt,
+  // zeigt das rote M beim Posten
   const erfassen = async (o) => {
-    const auftraege = daten && daten.auftraege ? daten.auftraege.filter(istOffen) : [];
-    if (await postenFenster({ auftraege, ...(o || {}) })) neu();
+    if (await postenFenster({ ...(o || {}) })) neu();
   };
   // Fehlende Längen im Hintergrund aus den Einrichtblättern holen; was
   // gefunden wird, rechnet danach mit (unbestätigt, „nicht sicher“)
@@ -78,10 +79,9 @@ export default function Material({ auffrischen }) {
   );
 }
 
-// Punkt in der Farbe, die dieses Material auf der Planwand hat: bei
-// einem zugewiesenen Posten die seines Auftrags, sonst die häufigste
-// unter den offenen Aufträgen mit diesem Werkstoff, sonst die der
-// Werkstoffgruppe (Wunsch Patrick 16. Oktober 2026)
+// Punkt in der Farbe, die dieses Material auf der Planwand hat: die
+// häufigste unter den offenen Aufträgen mit diesem Werkstoff, sonst die
+// der Werkstoffgruppe (Wunsch Patrick 16. Oktober 2026)
 function farbeJeWerkstoff(auftraege) {
   const zaehler = new Map();
   (auftraege || []).forEach((j) => {
@@ -96,9 +96,8 @@ function farbeJeWerkstoff(auftraege) {
   return ergebnis;
 }
 
-function Punkt({ p, auftraege, jeWerkstoff }) {
-  const eigener = p.job_id && (auftraege || []).find((j) => j.id === p.job_id);
-  const color = (eigener && eigener.color) || jeWerkstoff.get(alt.werkstoffSchluessel(p.material));
+function Punkt({ p, jeWerkstoff }) {
+  const color = jeWerkstoff.get(alt.werkstoffSchluessel(p.material));
   const f = alt.auftragFarbe(color ? { color } : null, p.material);
   return <span className="mat-punkt" style={{ background: f ? f.hex : "transparent" }} />;
 }
@@ -128,8 +127,10 @@ function WerWann({ p, personen }) {
     </span>);
 }
 
-// Ein Posten Restmaterial: Menge, Ort, Zuweisung; Ändern und Aufgebraucht
-function PostenZeile({ p, neu, mitMaterial, erfassen, personen }) {
+// Ein Posten Restmaterial: Menge, Ort; rotes M (wo einsetzen), Ändern
+// und Aufgebraucht. Ohne „für …“: Restmaterial gehört keinem Auftrag
+// (Wunsch Patrick 19. Oktober 2026)
+function PostenZeile({ p, neu, mitMaterial, erfassen, personen, auftraege }) {
   return (
     <div className="mat-posten">
       <span className="mat-posten__menge">{postenMengeText(p)}</span>
@@ -137,10 +138,10 @@ function PostenZeile({ p, neu, mitMaterial, erfassen, personen }) {
         {mitMaterial && <b>{p.material} </b>}
         {p.ort || "ohne Ort"}{p.be_nr ? <span className="klein"> · {p.be_nr}</span> : null}
         {p.notiz ? <span className="klein"> · {p.notiz}</span> : null}
-        {p.fuerNr ? <span className="mat-fuer"> · {p.fuer_hoco ? "Rahmen " : "für "}{p.fuerNr}{p.platz ? ", " + p.platz : ""}</span> : null}
         <WerWann p={p} personen={personen} />
       </span>
       <span className="mat-posten__knoepfe">
+        <MKnopf p={p} auftraege={auftraege} neu={neu} />
         {erfassen && <button className="knopf knopf--klein" onClick={() => erfassen({ posten: p })}>Ändern</button>}
         <button className="knopf knopf--klein" onClick={() => aufgebraucht(p, neu)}>Aufgebraucht</button>
       </span>
@@ -152,9 +153,7 @@ function PostenZeile({ p, neu, mitMaterial, erfassen, personen }) {
 
 function Lager({ d, suche, neu, erfassen }) {
   const s = suche.trim().toLowerCase();
-  // Die gerechneten Posten wissen, wofür sie zugewiesen sind
-  const gerechnet = new Map(d.gruppen.flatMap((g) => g.lager.map((p) => [p.id, p])));
-  const liste = d.posten.filter((p) => p.art !== "bestellt").map((p) => gerechnet.get(p.id) || p)
+  const liste = d.posten.filter((p) => p.art !== "bestellt")
     .filter((p) => !s || s.split(/\s+/).every((w) => (p.material + " " + werkstoffSuchtext(p.material) + " " + (p.ort || "") + " " + (p.notiz || "")).toLowerCase().includes(w)));
   const jeWerkstoff = farbeJeWerkstoff(d.auftraege);
   const jeOrt = new Map();
@@ -182,8 +181,8 @@ function Lager({ d, suche, neu, erfassen }) {
           {posten.sort((a, b) => a.material.localeCompare(b.material)).map((p) => {
             return (
               <div key={p.id} className="mat-lagerzeile">
-                <Punkt p={p} auftraege={d.auftraege} jeWerkstoff={jeWerkstoff} />
-                <PostenZeile p={p} neu={neu} erfassen={erfassen} personen={d.personen} mitMaterial />
+                <Punkt p={p} jeWerkstoff={jeWerkstoff} />
+                <PostenZeile p={p} neu={neu} erfassen={erfassen} personen={d.personen} auftraege={d.auftraege} mitMaterial />
               </div>);
           })}
         </section>))}

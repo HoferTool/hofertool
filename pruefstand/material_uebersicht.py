@@ -92,26 +92,37 @@ with sync_playwright() as p:
     pruefe("Erfasst mit Datum, Zeit und Person", "Erfasst 01.10. 10:00" in ww and "saheesan.hudson" in ww)
     pruefe("Geändert mit Datum, Zeit und Person", "geändert 02.10. 15:05 · saheesan.hudson" in ww)
 
-    # Erfassen mit Zuweisen: 200 kg für 10555-0002, mit genauem Platz
+    # Erfassen: Restmaterial gehört keinem Auftrag (1.104.0, Wunsch Patrick 19. Oktober 2026)
     pg.click("#mat-neu"); pg.wait_for_selector(".mat-dialog #mat-suche")
     pruefe("Keine Wahl Ist da / Bestellt mehr", pg.locator(".mat-dialog button:has-text('Bestellt')").count() == 0)
     pg.fill("#mat-suche", "14cr 24"); pg.wait_for_timeout(200)
     pg.locator(".mat-vorschlag", has_text="X14CrMoS17 rd 024 mm h9").first.click()
     pg.fill("#mat-menge", "200"); pg.click(".mat-dialog button:has-text('Aussenlager Nord')")
-    pg.wait_for_selector(".mat-dialog #mat-fuer")
-    pg.click(".mat-dialog [data-fuer='10555-0006']"); pg.wait_for_timeout(150)
-    pruefe("Rahmen vorgewählt bei Rahmenauftrag", pg.is_checked("#mat-rahmen"))
-    pg.click(".mat-dialog [data-fuer='10555-0002']"); pg.wait_for_timeout(150)
-    pruefe("Kein Rahmen bei normalem Auftrag", not pg.is_checked("#mat-rahmen"))
+    pg.fill("#mat-notiz", "Regal 3 unten"); pg.wait_for_timeout(200)
+    pruefe("Keine Wahl „Für welchen Auftrag“", pg.locator(".mat-dialog #mat-fuer, .mat-dialog [data-fuer], #mat-platz").count() == 0)
     breite = pg.evaluate("document.querySelector('.mat-dialog').getBoundingClientRect().width")
     pruefe("Fenster am Computer gross (%d px)" % breite, breite > 900)
     pg.screenshot(path="/tmp/material_fenster.png")
-    pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(500)
-    pruefe("Ohne Platz nicht gespeichert", pg.locator(".mat-dialog").count() == 1)
-    pg.fill("#mat-platz", "Regal 3 unten")
     pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(1200)
-    neu = pg.evaluate("TEST.daten.material_posten.find(p => p.platz === 'Regal 3 unten')")
-    pruefe("Zuweisung gespeichert", bool(neu) and neu["art"] == "lager" and neu.get("job_id") == "mB" and neu["menge"] == 200)
+    neu = pg.evaluate("TEST.daten.material_posten.find(p => p.notiz === 'Regal 3 unten')")
+    pruefe("Gespeichert ohne Auftrag", bool(neu) and neu["art"] == "lager" and not neu.get("job_id") and not neu.get("fuer_hoco") and neu["menge"] == 200)
+
+    # Rotes M: wo einsetzen? Geplant mit rotem M und gleichem Material: mC und mF;
+    # mB hat eine Menge (kein M), mA läuft
+    m = pg.locator("[data-ort='Aussenlager Nord'] .mat-m").first
+    pruefe("Rotes M beim Posten mit Zahl 2", m.count() == 1 and m.get_attribute("data-m") == "2")
+    m.click(); pg.wait_for_selector("#mat-wo", timeout=5000)
+    w = pg.inner_text("#mat-wo")
+    pruefe("Fenster zeigt 10555-0003 und 10555-0006: " + w.replace(chr(10), " | ")[:200],
+           "10555-0003" in w and "10555-0006" in w and "10555-0002" not in w and "10555-0001" not in w)
+    pg.wait_for_timeout(700); pg.screenshot(path="/tmp/material_wo.png")
+    pg.click("#mat-wo [data-wo='10555-0003'] button"); pg.wait_for_timeout(800)
+    pruefe("HOCO Nr. öffnet das Auftragsfenster", pg.locator(".dialog--auftrag").count() == 1 and pg.locator("#mat-wo").count() == 0)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    # Andere Toleranz zählt als ähnlich
+    pg.locator("[data-ort='Restelager'] .mat-m").first.click(); pg.wait_for_selector("#mat-wo", timeout=5000)
+    pruefe("Andere Toleranz als ähnlich", "ähnlich" in pg.inner_text("#mat-wo"))
+    pg.click("#mat-wo [data-zu]"); pg.wait_for_timeout(300)
 
     # Erfassen mit Suche
     pg.click("#mat-neu"); pg.wait_for_selector(".mat-dialog #mat-suche")
@@ -126,7 +137,7 @@ with sync_playwright() as p:
 
     # Nach Ort
     pruefe("Nach Ort", pg.locator("[data-ort='Aussenlager Nord']").count() == 1)
-    pruefe("Zuweisung sichtbar", "für 10555-0002, Regal 3 unten" in pg.inner_text("[data-ort='Aussenlager Nord']"))
+    pruefe("Kein „für …“ beim Restmaterial", "für 10555" not in pg.inner_text("#inhalt"))
     l = pg.evaluate("TEST.daten.hoco_parts.find(h => h.hoco_nr === '10555-0001')")
     pruefe("Länge selbst aus dem Einrichtblatt gelesen (7, unbestätigt)",
            l.get("teil_laenge_mm") == 7 and l.get("teil_mass_bestaetigt") is False and "Getriebedeckel" in (l.get("teil_mass_quelle") or ""))
@@ -216,8 +227,8 @@ with sync_playwright() as p:
     pg.fill("#mat-menge", "2,5")
     pg.screenshot(path="/tmp/material_rest.png")
     pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(1500)
-    pruefe("Rest gespeichert", pg.evaluate("TEST.daten.material_posten.some(p => p.job_id === 'mA' && p.einheit === 'kg' && p.menge > 20 && p.menge < 30 && p.ort === 'Restelager')"))
-    pruefe("Posten aufgebraucht", pg.evaluate("!!TEST.daten.material_posten.find(p => p.platz === 'Regal 3 unten').weg_am"))
+    pruefe("Rest gespeichert", pg.evaluate("TEST.daten.material_posten.some(p => !p.job_id && p.einheit === 'kg' && p.menge > 20 && p.menge < 30 && p.ort === 'Restelager')"))
+    pruefe("Posten aufgebraucht", pg.evaluate("!!TEST.daten.material_posten.find(p => p.notiz === 'Regal 3 unten').weg_am"))
     pruefe("Auftrag fertig", pg.evaluate("TEST.daten.jobs.find(j => j.id === 'mA').plan_status") == "fertig")
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:12])

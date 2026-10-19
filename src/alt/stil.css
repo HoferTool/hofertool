@@ -8335,3 +8335,15 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
   box-shadow: 0 0 0 3px #0b0f14, 0 0 18px 8px rgba(90, 169, 255, .65) !important;
   outline-color: #5aa9ff; }
 @keyframes pw-angewaehlt-blinken { 50% { outline-color: transparent; } }
+
+/* Rotes M beim Restmaterial: wo einsetzen? (seit 1.104.0, Wunsch Patrick 19. Oktober 2026) */
+.mat-m { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 5px; border-radius: 8px;
+  border: 1px solid var(--rand, rgba(0,0,0,.2)); background: var(--karte, #fff); color: inherit; cursor: pointer;
+  font: inherit; font-weight: 650; line-height: 1; }
+.mat-m:hover { border-color: #e3141b; }
+.mat-m__zeichen { display: block; font-size: 22px; }
+.mat-m__zeichen .pw-msymbol { width: .78em; height: .9em; }
+.mat-m__zahl { font-variant-numeric: tabular-nums; min-width: 1ch; }
+.mat-m--leer { opacity: .55; }
+.mat-wo__posten { margin: 4px 0 8px; }
+.mat-wo__nr { font-weight: 700; font-size: 1.05em; }

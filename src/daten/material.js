@@ -827,6 +827,25 @@ export async function materialImHaus(j) {
     .sort((a, b) => a.aehnlich - b.aehnlich);
 }
 
+// Umgekehrt: Wo liesse sich ein Posten Restmaterial einsetzen? Geplante,
+// offene Aufträge mit dem roten M (keine Menge eingetragen oder „M
+// trotzdem zeigen“) und demselben Werkstoff, derselben Form und demselben
+// Mass; andere Toleranz als „ähnlich“ (Wunsch Patrick 19. Oktober 2026:
+// „bei jedem Material das rote M anklicken und sehen, wo man es einsetzen
+// könnte“). → [{ auftrag, aehnlich }], exakte zuerst, dann nach Start
+export function auftraegeMitM(p, auftraege) {
+  const z = p && materialZerlegen(p.material);
+  if (!z) return [];
+  return (auftraege || [])
+    .filter((j) => istOffen(j) && (j.plan_status || "geplant") === "geplant"
+      && (!String(j.material_menge || "").trim() || !!j.material_m_trotzdem))
+    .map((j) => ({ auftrag: j, z: materialZerlegen(j.material_bez) }))
+    .filter((x) => x.z && x.z.grund === z.grund)
+    .map((x) => ({ auftrag: x.auftrag, aehnlich: x.z.schluessel !== z.schluessel }))
+    .sort((a, b) => (a.aehnlich - b.aehnlich)
+      || String(a.auftrag.planned_from || "9").localeCompare(String(b.auftrag.planned_from || "9")));
+}
+
 // ---------- Länge aus dem Einrichtblatt ----------
 
 // Sucht im Excel die Zeile „Artikel Bez.“ und darin „17 x 7.00“

@@ -19,7 +19,7 @@
 import { useMemo, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { materialZerlegen, postenMengeText, orteLaden, orteSpeichern, istRahmen, kgJeStange, kategorieVon } from "../daten/material.js";
+import { materialZerlegen, postenMengeText, orteLaden, orteSpeichern, kgJeStange, kategorieVon } from "../daten/material.js";
 
 // „12,5“ und „1'200“ → Zahl; leer → null; Unsinn → NaN
 const zahlLesen = (t) => (String(t).trim() === "" ? null : Number(String(t).trim().replace(",", ".").replace(/'/g, "")));
@@ -97,13 +97,6 @@ function PostenDialog({ o, orte, liste, fertig }) {
   const [termin, setTermin] = useState(p.termin || "");
   const [notiz, setNotiz] = useState(p.notiz || "");
   const [leer, setLeer] = useState([]);
-  // Zuweisen (seit 1.71.0): für welchen Auftrag, bei einem Rahmen für
-  // alle Aufträge der HOCO Nr., dazu der genaue Platz
-  const [fuer, setFuer] = useState(p.fuer_hoco
-    ? ((o.auftraege || []).find((j) => j.job_number === p.fuer_hoco) || {}).id || ""
-    : p.job_id && (o.auftraege || []).some((j) => j.id === p.job_id) ? p.job_id : "");
-  const [rahmen, setRahmen] = useState(!!p.fuer_hoco);
-  const [platz, setPlatz] = useState(p.platz || "");
   const [speichert, setSpeichert] = useState(false);
 
   const treffer = useMemo(() => (suche.trim() ? liste.filter((b) => passt(b, suche)) : liste).slice(0, 8),
@@ -126,17 +119,11 @@ function PostenDialog({ o, orte, liste, fertig }) {
     setEinheit(neu);
   };
   const vorhandene = (o.vorhandene || []).filter((x) => x.art !== "bestellt");
-  const schluessel = (materialZerlegen(waehlen ? suche : material) || {}).schluessel;
-  const zurWahl = (o.auftraege || []).filter((j) => schluessel && (materialZerlegen(j.material_bez) || {}).schluessel === schluessel)
-    .sort((a, b) => String(a.planned_from || "9").localeCompare(String(b.planned_from || "9")));
-  const fuerJob = zurWahl.find((j) => j.id === fuer) || null;
-  const waehleFuer = (j) => { setFuer(j ? j.id : ""); setRahmen(!!j && istRahmen(j)); };
 
   const speichern = async () => {
     const mat = (waehlen ? suche : material).trim();
     if (!mat) { alt.meldung("Welches Material?", "warn"); return; }
-    const anMaschine = fuerJob && ["ruesten", "laeuft"].includes(fuerJob.plan_status);
-    const ortFertig = ortWert || (anMaschine && !o.rest ? "An der Maschine" : "");
+    const ortFertig = ortWert;
     if (art === "lager" && !ortFertig) { alt.meldung("Wo liegt es?", "warn"); return; }
     let zahl = zahlLesen(menge);
     if (zahl !== null && !(zahl >= 0)) { alt.meldung("Die Menge ist keine Zahl.", "warn"); return; }
@@ -150,17 +137,12 @@ function PostenDialog({ o, orte, liste, fertig }) {
       lieferant: art === "bestellt" || p.be_nr ? lieferant.trim() || null : null,
       be_nr: beNr.trim() || null, termin: art === "bestellt" && termin ? termin : null,
       notiz: notiz.trim() || null };
-    if (!o.rest && fuerJob && !platz.trim()) { setSpeichert(false); alt.meldung("Wo genau liegt es? Den Platz eintragen.", "warn"); return; }
-    if (!o.rest && (o.auftraege || []).length) {
-      daten.job_id = fuerJob ? fuerJob.id : null;
-      daten.fuer_hoco = fuerJob && rahmen ? fuerJob.job_number : null;
-      daten.platz = fuerJob ? platz.trim() : null;
-    } else if (!p.id && o.auftrag) daten.job_id = o.auftrag.id;
-    // Rest eines Rahmenauftrags bleibt beim Rahmen, solange noch ein
-    // Auftrag dieser HOCO Nr. offen ist
-    if (o.rest && o.auftrag && (o.gebraucht || []).some((x) => x.auftrag.job_number === o.auftrag.job_number)) {
-      daten.fuer_hoco = o.auftrag.job_number;
-    }
+    // Restmaterial gehört keinem Auftrag (Wunsch Patrick 19. Oktober
+    // 2026: „soll nicht mit einem Auftrag stehen“). Wo es passt, zeigt
+    // das rote M beim Posten. Alte Zuweisungen fallen beim Ändern weg.
+    daten.job_id = null;
+    daten.fuer_hoco = null;
+    daten.platz = null;
     try {
       let r;
       if (p.id && !p.aus_notiz) {
@@ -290,29 +272,6 @@ function PostenDialog({ o, orte, liste, fertig }) {
             <input value={beNr} inputMode="numeric" onChange={(e) => setBeNr(e.target.value)} /></label>
           <label className="feld"><span>Termin</span>
             <input type="date" value={termin || ""} onChange={(e) => setTermin(e.target.value)} /></label>
-        </div>
-      )}
-
-      {!o.rest && zurWahl.length > 0 && (
-        <div className="mat-feld mat-feld--karte" id="mat-fuer">
-          <span className="mat-feld__name">Für welchen Auftrag</span>
-          <div className="mat-knoepfe">
-            <button type="button" className={"knopf knopf--klein" + (!fuerJob ? " knopf--haupt" : "")}
-              onClick={() => waehleFuer(null)}>Frei</button>
-            {zurWahl.map((j) => (
-              <button key={j.id} type="button" data-fuer={j.job_number}
-                className={"knopf knopf--klein" + (fuer === j.id ? " knopf--haupt" : "")} onClick={() => waehleFuer(j)}>
-                {j.job_number}{j.maschine ? " · " + [j.maschine, j.maschine_nr].filter(Boolean).join(" ") : ""}
-                {["ruesten", "laeuft"].includes(j.plan_status) ? " · an der Maschine" : j.planned_from ? " · " + alt.kurzDatum(j.planned_from) : ""}</button>))}
-          </div>
-          {fuerJob && <>
-            <label className="feld-haken"><input type="checkbox" id="mat-rahmen" checked={rahmen}
-              onChange={(e) => setRahmen(e.target.checked)} />
-              <span>Rahmenauftrag: gehört allen Aufträgen {fuerJob.job_number}, ohne Mengenrechnung; am Schluss nur den Rest angeben</span></label>
-            <label className="mat-feld"><span className="mat-feld__name">Wo genau liegt es? (Pflicht)</span>
-              <input className="mat-eingabe" value={platz} id="mat-platz" placeholder="z.B. an der Maschine links, Regal 3 unten"
-                onChange={(e) => setPlatz(e.target.value)} /></label>
-          </>}
         </div>
       )}
 
