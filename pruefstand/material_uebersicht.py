@@ -151,11 +151,9 @@ with sync_playwright() as p:
         bb.scroll_into_view_if_needed(); bb.hover(); pg.wait_for_timeout(600)
         return [z.inner_text() for z in pg.locator(".pw-info .pw-info__zeile").all()]
     zz = vorschau("mB")
-    # Seit 1.95.0 wieder in der Schnellvorschau, letzte Materialzeile direkt über dem Zustand
-    mi = next((i for i, t in enumerate(zz) if t.startswith("Mat. info.")), -1)
-    zi = next((i for i, t in enumerate(zz) if "Geplant" in t), -1)
-    pruefe("Mat. info. in der Schnellvorschau über dem Zustand (mB): " + (zz[mi] if mi >= 0 else "fehlt"),
-           mi >= 0 and zi > mi and "min. ca." in zz[mi])
+    # Seit 1.95.0 wieder in der Schnellvorschau, ganz unten
+    pruefe("Mat. info. ganz unten in der Schnellvorschau (mB): " + (zz[-1] if zz else "leer"),
+           bool(zz) and zz[-1].startswith("Mat. info.") and "min. ca." in zz[-1])
     pruefe("Notiz ohne „aus infoBoard“ in der Schnellvorschau", not any("infoBoard" in t for t in zz))
     pruefe("Werkstoffnummer in der Schnellvorschau: " + next((t for t in zz if "1.4104" in t), "fehlt"),
            any(t.startswith("1.4104 · ") for t in zz))

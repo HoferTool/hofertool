@@ -4764,17 +4764,6 @@ function balkenInfoVerhalten() {
         + (String(j.material_liefertermin || "").trim()
             ? zeile('<span class="pw-info__was">Liefertermin</span> ' + esc(j.material_liefertermin)) : "")
         + (materialPlatz(j) ? zeile("📦 " + esc(materialPlatz(j))) : "")
-        // „Mat. info.“ als letzte Materialzeile, direkt über dem Zustand
-        // (1.84.0–1.94.1 nur im Auftragsfenster; wieder hier seit 1.95.0, nicht für Externe,
-        // Wunsch Patrick 19. Oktober 2026). „ca.“ rot wie im Fenster.
-        + (() => {
-            const m = !istExtern() && matInfo(j);
-            if (!m) return "";
-            return zeile('<span class="pw-info__was">Mat. info.</span> '
-              + (m.sicher === false && m.rest
-                  ? 'min. <span class="mat-info__l">ca.</span> ' + esc(m.rest)
-                  : esc(m.text)));
-          })()
 
         + luecke
         + zeile(zustand.zeichen + " " + esc(zustand.name))
@@ -4787,7 +4776,19 @@ function balkenInfoVerhalten() {
             ? zeile("Letzte Änderung " + esc(datumZeitKurz(j.geaendert_am))
               + (j.geaendert_von && personVoll(j.geaendert_von)
                   ? " · " + esc(personVoll(j.geaendert_von)) : ""), "klein pw-info__zeile--schluss")
-            : "");
+            : "")
+        // „Mat. info.“ ganz unten, unter der letzten Änderung (1.84.0–1.94.1
+        // nur im Auftragsfenster; wieder hier seit 1.95.0, nicht für
+        // Externe, Wunsch Patrick 19. Oktober 2026: „ganz nach unten“).
+        // „ca.“ rot wie im Fenster.
+        + (() => {
+            const m = !istExtern() && matInfo(j);
+            if (!m) return "";
+            return zeile('<span class="pw-info__was">Mat. info.</span> '
+              + (m.sicher === false && m.rest
+                  ? 'min. <span class="mat-info__l">ca.</span> ' + esc(m.rest)
+                  : esc(m.text)));
+          })();
 
       document.body.appendChild(fenster);
       platzieren();
