@@ -143,6 +143,25 @@ with sync_playwright() as p:
     # 314,16 · 8 / 1000 · 3 · 3 = 22,62
     pruefe("Rechner nimmt den Faktor 8: " + wert(pg), wert(pg).startswith("22,6 kg"))
     pruefe("Auswahl zeigt Rostfrei V2A · 8", "Rostfrei V2A · 8 g/cm³" in pg.inner_text("#mr-werkstoff"))
+
+    # Material frei eintippen (1.98.0): Nummer, Kurzname, Gruppe oder ganze Bezeichnung
+    def erkannt(t):
+        tippe(pg, "#mr-material", t); pg.wait_for_timeout(600)
+        return pg.inner_text("#mr-erkannt") if pg.locator("#mr-erkannt").count() else "–"
+    for eingabe, soll, kat in [("1.4305", "1.4305", "kat:v2a"), ("X8CrNiS18-9", "1.4305", "kat:v2a"),
+                               ("1.4404", "V4A", "kat:v4a"), ("Messing", "Messing", "kat:messing"),
+                               ("CuZn39Pb3", "Messing", "kat:messing"), ("V2A", "V2A", "kat:v2a")]:
+        e = erkannt(eingabe)
+        pruefe(eingabe + " → " + e, soll in e and pg.input_value("#mr-werkstoff") == kat)
+    e = erkannt("X14CrMoS17 rd 024 mm h9")
+    pruefe("Ganze Bezeichnung füllt Werkstoff und Mass: " + e,
+           "Chromstahl" in e and pg.input_value("#mr-d") == "24" and "aktiv" in pg.get_attribute("[data-form='rd']", "class"))
+    e = erkannt("1.4305 sw 12")
+    pruefe("Sechskant aus der Bezeichnung: " + e, pg.input_value("#mr-d") == "12" and "aktiv" in pg.get_attribute("[data-form='6kt']", "class"))
+    e = erkannt("Holz")
+    pruefe("Unbekanntes sagt es: " + e, "nicht erkannt" in e)
+    tippe(pg, "#mr-material", "1.4305 rd 20"); pg.wait_for_timeout(600)
+    pg.screenshot(path="/tmp/rechner_material.png")
     br.close()
 
     br, pg = seite(p, True)

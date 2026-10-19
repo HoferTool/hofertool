@@ -8287,3 +8287,7 @@ body.dunkel .qs-fort__text { color: var(--tinte); }
   box-shadow: 0 0 0 1px #fff, 0 0 10px 2px rgba(31, 122, 224, .55) !important; z-index: 4; }
 body.dunkel .pw-tafel .pw-balken--angewaehlt { outline-color: #5aa9ff !important;
   box-shadow: 0 0 0 1px #0b0f14, 0 0 12px 3px rgba(90, 169, 255, .6) !important; }
+
+/* Materialrechner: was die App aus dem eingetippten Material versteht (1.98.0) */
+.mr-erkannt { margin: -4px 0 0; }
+.mr-erkannt--nein { color: var(--gefahr); }

@@ -22,7 +22,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { materialZerlegen, querschnittMm2, kategorienListe, werkstoffWahlVon, dichtenLaden,
+import { materialZerlegen, querschnittMm2, kategorienListe, werkstoffWahlVon, werkstoffGenau, dichtenLaden,
   STANGE_STANDARD_MM, STUMPEN_STANDARD_MM, PLANIEREN_STANDARD_MM } from "../daten/material.js";
 
 const zahlLesen = (t) => { const n = Number(String(t ?? "").trim().replace(",", ".").replace(/'/g, "")); return String(t ?? "").trim() !== "" && isFinite(n) ? n : null; };
@@ -35,6 +35,19 @@ const zeigen = (n, stellen) => {
 };
 
 const FORMEN = [["rd", "Rund"], ["4kt", "Vierkant"], ["6kt", "Sechskant"]];
+
+// Kurze Gruppennamen, die die Werkstofferkennung allein nicht kennt
+// (sie erwartet eine Bezeichnung wie beim Auftrag): „V2A“, „Stahl“ …
+const GRUPPEN_WORTE = [[/\bv2a\b/, "kat:v2a"], [/\bv4a\b/, "kat:v4a"], [/chromstahl/, "kat:chrom"],
+  [/neusilber/, "kat:neusilber"], [/messing|ecobrass/, "kat:messing"], [/\balu(minium)?\b/, "kat:alu"],
+  [/titan/, "kat:titan"], [/kunststoff/, "kat:kunststoff"], [/\b(stahl|eisen|automatenstahl|etg)\b/, "kat:stahl"]];
+function werkstoffAusText(t) {
+  const w = werkstoffWahlVon(t);
+  if (w) return w;
+  const klein = t.toLowerCase();
+  const g = GRUPPEN_WORTE.find(([re]) => re.test(klein));
+  return g ? g[1] : "";
+}
 function dichteAus(wahlListe, wahl) {
   const e = wahlListe.find((x) => x.wert === wahl);
   return e ? e.dichte : null;
@@ -80,6 +93,12 @@ export default function MaterialRechner() {
   const [hocoInfo, setHocoInfo] = useState(null);
   const [form, setForm] = useState("rd");
   const [werkstoff, setWerkstoff] = useState("kat:v2a");
+  // Material frei eintippen: Werkstoffnummer (1.4305), Kurzname
+  // (X8CrNiS18-9), Gruppe (V2A, Messing) oder ganze Bezeichnung wie beim
+  // Auftrag (X14CrMoS17 rd 024 mm h9); die App versteht, was sie kann,
+  // und füllt Werkstoff, Form und Mass (Wunsch Patrick 19. Oktober 2026)
+  const [matText, setMatText] = useState("");
+  const [matErkannt, setMatErkannt] = useState(null);
   const [d, setD] = useState("");
   const [menge, setMenge] = useState("");
   // Eigene Dichten aus den Einstellungen holen, dann neu rechnen
@@ -103,6 +122,7 @@ export default function MaterialRechner() {
         if (weg) return;
         setHocoInfo(h);
         if (!h.gefunden) return;
+        if (h.material) setMatText(h.material);
         const z = materialZerlegen(h.material);
         if (z && z.d) setD(zahlFeld(z.d));
         setForm(z && (z.form === "4kt" || z.form === "6kt") ? z.form : "rd");
@@ -120,6 +140,26 @@ export default function MaterialRechner() {
     }, 450);
     return () => { weg = true; clearTimeout(zeit); };
   }, [hoco]);
+
+  // Eingetipptes Material verstehen, sobald man kurz aufhört zu tippen
+  useEffect(() => {
+    const t = matText.trim();
+    if (!t) { setMatErkannt(null); return; }
+    const zeit = setTimeout(() => {
+      const w = werkstoffAusText(t);
+      const genau = werkstoffGenau(t);
+      // „sw 12“ (Schlüsselweite) ist Sechskant
+      const z = materialZerlegen(t.replace(/\bsw\b\.?/i, "6kt"));
+      if (w) setWerkstoff(w);
+      if (z && z.d) {
+        setD(zahlFeld(z.d));
+        setForm(z.form === "4kt" || z.form === "6kt" ? z.form : "rd");
+      }
+      const k = w ? kategorienListe().find((x) => x.wert === w) : null;
+      setMatErkannt({ k, genau, d: z && z.d ? z.d : null, form: z && z.d ? z.form : null });
+    }, 350);
+    return () => clearTimeout(zeit);
+  }, [matText]);
 
   const dichte = dichteAus(wahlListe, werkstoff);
   const dm = zahlLesen(d);
@@ -167,6 +207,21 @@ export default function MaterialRechner() {
               {hocoInfo.teil && Number(hocoInfo.teil.teil_laenge_mm)
                 ? " · Länge " + zeigen(Number(hocoInfo.teil.teil_laenge_mm), 2) + " mm" + (hocoInfo.teil.teil_mass_bestaetigt ? "" : " (nicht bestätigt)")
                 : " · keine Länge hinterlegt"}</>}
+      </p>}
+
+      <label className="feld">
+        <span>Material: Nummer oder Bezeichnung</span>
+        <input type="text" id="mr-material" value={matText} autoComplete="off"
+          placeholder="z.B. 1.4305, X8CrNiS18-9, Messing oder X14CrMoS17 rd 024"
+          onChange={(e) => setMatText(e.target.value)} />
+      </label>
+      {matErkannt && <p className={"hinweis mr-erkannt" + (matErkannt.k ? "" : " mr-erkannt--nein")} id="mr-erkannt">
+        {matErkannt.k
+          ? "Erkannt: " + [matErkannt.genau ? [matErkannt.genau.nr, matErkannt.genau.name].filter(Boolean).join(" ") : "",
+              matErkannt.k.name + " (Faktor " + zahlFeld(matErkannt.k.dichte) + ")",
+              matErkannt.d ? (matErkannt.form === "4kt" ? "Vierkant " : matErkannt.form === "6kt" ? "Sechskant " : "Ø ") + zahlFeld(matErkannt.d) + " mm" : ""]
+              .filter(Boolean).join(" · ")
+          : "Werkstoff nicht erkannt, bitte unten wählen."}
       </p>}
 
       <div className="moduswahl mr-wahl">
