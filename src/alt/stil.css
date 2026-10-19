@@ -8281,12 +8281,6 @@ body.dunkel .qs-fort__text { color: var(--tinte); }
   background: var(--flaeche); border: 1px solid var(--linie); box-shadow: 0 6px 24px rgba(0,0,0,.18);
   font-size: .9rem; max-width: calc(100% - 32px); }
 .nb-holt span { color: var(--gedaempft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Zuletzt angeklickter Balken bleibt markiert (seit 1.94.0): kräftiger
-   blauer Rahmen mit hellem Saum, anders als das Gelb der Suche */
-.pw-tafel .pw-balken--angewaehlt { outline: 3px solid #1f7ae0 !important; outline-offset: 1px;
-  box-shadow: 0 0 0 1px #fff, 0 0 10px 2px rgba(31, 122, 224, .55) !important; z-index: 4; }
-body.dunkel .pw-tafel .pw-balken--angewaehlt { outline-color: #5aa9ff !important;
-  box-shadow: 0 0 0 1px #0b0f14, 0 0 12px 3px rgba(90, 169, 255, .6) !important; }
 
 /* Materialrechner: was die App aus dem eingetippten Material versteht (1.98.0) */
 .mr-erkannt { margin: -4px 0 0; }
@@ -8327,14 +8321,17 @@ body.dunkel .pw-tafel .pw-balken--angewaehlt { outline-color: #5aa9ff !important
 .nb--schmal .nb-abschnitte-leiste { display: flex; align-items: center; flex: none; border-bottom: 1px solid var(--linie); }
 .nb--vollbild .nb-abschnitte-leiste { display: none; }
 
-/* Markierter Balken deutlicher (1.102.1, Wunsch Patrick 19. Oktober 2026:
-   „damit man sieht, wo man war“): auf blauen Balken ging der dünne blaue
-   Rahmen unter. Jetzt weisser Ring, darum ein dicker dunkelblauer und ein
-   Leuchten, auf jeder Werkstofffarbe zu sehen. Die Auswahl ist so
-   genau, dass sie den dünnen grauen Rahmen aller Balken schlägt; beim
-   Darüberfahren gilt weiter dessen Rand. */
-body .pw-tafel .pw-balken.pw-balken--angewaehlt { outline: none !important;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 6px #0a3d91, 0 0 16px 7px rgba(31, 122, 224, .75) !important;
-  z-index: 6; }
+/* Markierter Balken (seit 1.94.0, deutlicher seit 1.102.1, blinkt seit
+   1.103.0; Wunsch Patrick 19. Oktober 2026: „damit man sieht, wo man war“,
+   „der Rand soll blinken“): weisser Ring und Leuchten fest, darum ein
+   dicker dunkelblauer Rand, der blinkt. Der Rand ist ein outline ohne
+   !important, sonst könnte die Animation ihn nicht ändern; der weisse
+   Ring muss mit !important den dünnen grauen Rahmen aller Balken schlagen. */
+body .pw-tafel .pw-balken.pw-balken--angewaehlt {
+  box-shadow: 0 0 0 3px #fff, 0 0 16px 7px rgba(31, 122, 224, .7) !important;
+  outline: 4px solid #0a3d91; outline-offset: 3px;
+  animation: pw-angewaehlt-blinken 1s ease-in-out infinite; z-index: 6; }
 body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
-  box-shadow: 0 0 0 3px #0b0f14, 0 0 0 6px #5aa9ff, 0 0 18px 8px rgba(90, 169, 255, .7) !important; }
+  box-shadow: 0 0 0 3px #0b0f14, 0 0 18px 8px rgba(90, 169, 255, .65) !important;
+  outline-color: #5aa9ff; }
+@keyframes pw-angewaehlt-blinken { 50% { outline-color: transparent; } }
