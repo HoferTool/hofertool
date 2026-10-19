@@ -33,7 +33,7 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
-import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau } from "../daten/material.js";
+import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.94.1";
+const APP_VERSION = "1.95.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4764,6 +4764,17 @@ function balkenInfoVerhalten() {
         + (String(j.material_liefertermin || "").trim()
             ? zeile('<span class="pw-info__was">Liefertermin</span> ' + esc(j.material_liefertermin)) : "")
         + (materialPlatz(j) ? zeile("📦 " + esc(materialPlatz(j))) : "")
+        // „Mat. info.“ als letzte Materialzeile, direkt über dem Zustand
+        // (1.84.0–1.94.1 nur im Auftragsfenster; wieder hier seit 1.95.0, nicht für Externe,
+        // Wunsch Patrick 19. Oktober 2026). „ca.“ rot wie im Fenster.
+        + (() => {
+            const m = !istExtern() && matInfo(j);
+            if (!m) return "";
+            return zeile('<span class="pw-info__was">Mat. info.</span> '
+              + (m.sicher === false && m.rest
+                  ? 'min. <span class="mat-info__l">ca.</span> ' + esc(m.rest)
+                  : esc(m.text)));
+          })()
 
         + luecke
         + zeile(zustand.zeichen + " " + esc(zustand.name))
@@ -4772,9 +4783,6 @@ function balkenInfoVerhalten() {
         + zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz"))
         + (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : "")
 
-        // „Mat. info.“ steht seit 1.84.0 nicht mehr hier, nur noch im
-        // Auftragsfenster; zum Rechnen gibt es den Rechner oben auf der
-        // Planwand (Wunsch Patrick 16. Oktober 2026)
         + (j.geaendert_am
             ? zeile("Letzte Änderung " + esc(datumZeitKurz(j.geaendert_am))
               + (j.geaendert_von && personVoll(j.geaendert_von)

@@ -112,10 +112,10 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pruefe("Escape schliesst", pg.locator(".dialog--matrechner").count() == 0)
 
-    # Schnellvorschau ohne Mat. info.
+    # Schnellvorschau (Mat. info. seit 1.95.0 wieder drin, geprüft in material_uebersicht.py)
     b = pg.locator(".pw-balken").first
     b.hover(); pg.wait_for_timeout(600)
-    pruefe("Schnellvorschau ohne Mat. info.", pg.locator(".pw-info").count() == 1 and "Mat. info" not in pg.inner_text(".pw-info"))
+    pruefe("Schnellvorschau geht auf", pg.locator(".pw-info").count() == 1)
     pg.mouse.move(5, 5)
 
 

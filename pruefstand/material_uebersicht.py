@@ -151,8 +151,11 @@ with sync_playwright() as p:
         bb.scroll_into_view_if_needed(); bb.hover(); pg.wait_for_timeout(600)
         return [z.inner_text() for z in pg.locator(".pw-info .pw-info__zeile").all()]
     zz = vorschau("mB")
-    # Seit 1.83.0 nicht mehr in der Schnellvorschau, nur im Auftragsfenster
-    pruefe("Keine Mat. info. in der Schnellvorschau (mB)", len(zz) > 3 and not any(t.startswith("Mat. info.") for t in zz))
+    # Seit 1.95.0 wieder in der Schnellvorschau, letzte Materialzeile direkt über dem Zustand
+    mi = next((i for i, t in enumerate(zz) if t.startswith("Mat. info.")), -1)
+    zi = next((i for i, t in enumerate(zz) if "Geplant" in t), -1)
+    pruefe("Mat. info. in der Schnellvorschau über dem Zustand (mB): " + (zz[mi] if mi >= 0 else "fehlt"),
+           mi >= 0 and zi > mi and "min. ca." in zz[mi])
     pruefe("Notiz ohne „aus infoBoard“ in der Schnellvorschau", not any("infoBoard" in t for t in zz))
     pruefe("Werkstoffnummer in der Schnellvorschau: " + next((t for t in zz if "1.4104" in t), "fehlt"),
            any(t.startswith("1.4104 · ") for t in zz))
@@ -170,7 +173,7 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/matinfo_fenster.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     zz = vorschau("mA")
-    pruefe("Auch beim laufenden (mA) keine Mat. info. in der Schnellvorschau", len(zz) > 3 and not any(t.startswith("Mat.") for t in zz))
+    pruefe("Auch beim laufenden (mA) Mat. info. in der Schnellvorschau", any(t.startswith("Mat. info.") for t in zz))
 
     # Beenden im Pad fragt nach dem Rest
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)
