@@ -1,5 +1,5 @@
 -- =================================================================
---  Materialrechner: Form je HOCO Nr. merken (seit 1.101.0)
+--  Materialrechner: Form je HOCO Nr. merken (seit 1.102.0)
 --  Rechnet jemand im Materialrechner eine HOCO Nr. als Rohr (mit
 --  Innendurchmesser), Sechskant oder Vierkant, merkt sich die App das
 --  beim Teil. Beim nächsten Mal steht die Form schon da, und die

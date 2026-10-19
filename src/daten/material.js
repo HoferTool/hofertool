@@ -207,7 +207,7 @@ export const kategorienListe = () => KATEGORIEN.map(kategorieMitFaktor);
 // Kilo je Meter Stange, oder null, wenn Mass oder Werkstoff fehlt
 // Mit teil: die im Materialrechner für diese HOCO Nr. gemerkte Form
 // (Rohr mit Innendurchmesser, Sechs- oder Vierkant) gilt vor der Form
-// aus der Bezeichnung (seit 1.101.0, Wunsch Patrick 19. Oktober 2026)
+// aus der Bezeichnung (seit 1.102.0, Wunsch Patrick 19. Oktober 2026)
 export function kgJeMeter(bez, teil) {
   const z = materialZerlegen(bez);
   if (!z || !z.d) return null;

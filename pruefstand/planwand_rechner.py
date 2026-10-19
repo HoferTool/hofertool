@@ -110,7 +110,7 @@ with sync_playwright() as p:
     tippe(pg, "#mr-laenge", "11")
     pruefe("Selbst eingetippte Länge: ohne ca. " + wert(pg), "ca." not in pg.inner_text("#mr-ergebnis"))
 
-    # Rohr mit Innendurchmesser, je HOCO Nr. gemerkt (1.101.0)
+    # Rohr mit Innendurchmesser, je HOCO Nr. gemerkt (1.102.0)
     tippe(pg, "#mr-d", "20"); pg.click("[data-form='rd']"); pg.wait_for_timeout(200)
     voll = wert(pg)
     pg.click("[data-form='rohr']"); pg.wait_for_timeout(200)

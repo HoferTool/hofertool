@@ -18,7 +18,8 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { wiederOeffner, teilMerken } from "../teile/wiederherstellen.js";
 import { Symbol, EIMER, GROSS, KLEIN } from "../teile/zeichnen.jsx";
 import Seite from "./Seite.jsx";
-import { buecherLaden, seitenLaden, fehltTabelle, BUCHFARBEN, BUECHER, SEITEN,
+import { buecherLaden, seitenLaden, fehltTabelle, BUCHFARBEN, BUECHER, SEITEN, ABSCHNITTE,
+  abschnitteLaden, padAbschnitteLaden,
   buchOeffnen, passwortSetzen, buecherZu, passwortText, fehltFunktion, padSeitenLaden, istPdf } from "./daten.js";
 import { oneNoteUebernehmen, istOneNoteDatei } from "./onenote.js";
 
@@ -243,6 +244,13 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
   const [buchId, setBuchId] = useState(() => gemerkt().buch || null);
   const [seiten, setSeiten] = useState(null);
   const [seiteId, setSeiteId] = useState(() => gemerkt().seite || null);
+  // Abschnitte wie in OneNote (Wunsch Patrick 19. Oktober 2026): Buch →
+  // Abschnitt → Seite. null heisst ohne Abschnitte (sql/notizbuch-
+  // abschnitte.sql fehlt), dann alles wie vorher.
+  const [abschnitte, setAbschnitte] = useState(null);
+  const [abschnittId, setAbschnittId] = useState(() => gemerkt().abschnitt || null);
+  const wahlRef = useRef({});
+  wahlRef.current = { seite: seiteId, abschnitt: abschnittId };
 
   const buecherNeu = useCallback(async (waehlen) => {
     try {
@@ -262,29 +270,66 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
   useEffect(() => { buecherNeu(); }, [buecherNeu]);
 
   const buchZu = istZu((buecher || []).find((b) => b.id === buchId));
-  const seitenNeu = useCallback(async (waehlen) => {
-    if (!buchId || buchZu) { setSeiten([]); return; }
+  // Lädt Abschnitte und Seiten des Buchs. waehlen: diese Seite zeigen
+  // (samt ihrem Abschnitt), abWaehlen: diesen Abschnitt
+  const seitenNeu = useCallback(async (waehlen, abWaehlen) => {
+    if (!buchId || buchZu) { setSeiten([]); setAbschnitte(null); return; }
     try {
-      let l = null;
+      let l = null, ab;
       if (park && !padOhneSql) {
-        try { l = (await padSeitenLaden(buchId, park)) || []; } catch (f) {
-          if (!fehltFunktion(f) && !/notizbuch_pad_seiten/i.test(String(f && f.message))) throw f;
-          setPadOhneSql(true); return;
+        const p0 = await padAbschnitteLaden(buchId, park);
+        if (p0) { ab = p0.abschnitte; l = p0.seiten; }
+        else {
+          ab = null;
+          try { l = (await padSeitenLaden(buchId, park)) || []; } catch (f) {
+            if (!fehltFunktion(f) && !/notizbuch_pad_seiten/i.test(String(f && f.message))) throw f;
+            setPadOhneSql(true); return;
+          }
         }
       }
       if (!l) l = (await seitenLaden(buchId)) || [];
+      if (ab === undefined) ab = await abschnitteLaden(buchId);
+      // Ein Buch ohne Abschnitt (von einer älteren Fassung angelegt)
+      // bekommt einen mit seinem Namen, wie beim Umstellen
+      if (ab && !ab.length && darf) {
+        const b0 = (buecher || []).find((x) => x.id === buchId);
+        const r = await alt.db.from(ABSCHNITTE).insert({ buch_id: buchId, name: (b0 && b0.name) || "Neuer Abschnitt",
+          farbe: (b0 && b0.farbe) || null, reihenfolge: 1 }).select("*");
+        if (!r.error && r.data && r.data[0]) ab = [r.data[0]];
+      }
+      if (ab && !ab.length) ab = null;
+      const abVon = (x) => (!ab ? null : (ab.some((a0) => a0.id === x.abschnitt_id) ? x.abschnitt_id : ab[0].id));
+      let abNeu = null;
+      if (ab) {
+        const w = l.find((x) => x.id === waehlen);
+        const vorher = abWaehlen || wahlRef.current.abschnitt;
+        abNeu = w ? abVon(w) : (ab.some((a0) => a0.id === vorher) ? vorher : ab[0].id);
+      }
+      const drin = ab ? l.filter((x) => abVon(x) === abNeu) : l;
+      const sw = waehlen || wahlRef.current.seite;
+      setAbschnitte(ab);
+      setAbschnittId(abNeu);
       setSeiten(l);
-      setSeiteId((alt0) => {
-        const w = waehlen || alt0;
-        return l.some((s) => s.id === w) ? w : ((l[0] && l[0].id) || null);
-      });
+      setSeiteId(drin.some((x) => x.id === sw) ? sw : ((drin[0] && drin[0].id) || null));
     } catch (e) {
       alt.meldung("Seiten nicht geladen: " + alt.fehlertext(e), "fehler");
       setSeiten([]);
     }
+    // buecher nur für den Namen eines nachträglichen Abschnitts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buchId, buchZu, park, padOhneSql]);
+  // Seite gehört zu: ohne passende abschnitt_id zum ersten Abschnitt
+  const abschnittVon = (x) => (!abschnitte ? null
+    : (abschnitte.some((a0) => a0.id === x.abschnitt_id) ? x.abschnitt_id : abschnitte[0].id));
+  const sichtbar = (seiten || []).filter((x) => !abschnitte || abschnittVon(x) === abschnittId);
+  const abschnittWaehlen = (id) => {
+    if (id === abschnittId) return;
+    const drin = (seiten || []).filter((x) => abschnittVon(x) === id);
+    setAbschnittId(id);
+    setSeiteId((drin[0] && drin[0].id) || null);
+  };
   useEffect(() => { setSeiten(null); seitenNeu(); }, [seitenNeu]);
-  useEffect(() => { if (buchId) merken({ buch: buchId, seite: seiteId }); }, [buchId, seiteId]);
+  useEffect(() => { if (buchId) merken({ buch: buchId, abschnitt: abschnittId, seite: seiteId }); }, [buchId, abschnittId, seiteId]);
 
   // ---------- Bücher ----------
   // Parks, in denen das Buch im Pad Mode an jeder Maschine zu sehen
@@ -323,9 +368,15 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     const id = data && data[0] && data[0].id;
     if (!id) return;
-    alt.merkeSchritt("Neues Notizbuch", alt.rueckWeg(BUECHER, { id }));
-    // Ein neues Buch hat gleich eine leere Seite, wie in OneNote
-    const s = await alt.db.from(SEITEN).insert({ buch_id: id, titel: "", reihenfolge: 1 }).select("id");
+    alt.merkeSchritt("Neues Notizbuch", [alt.rueckWeg(SEITEN, { buch_id: id }),
+      alt.rueckWeg(ABSCHNITTE, { buch_id: id }), alt.rueckWeg(BUECHER, { id })]);
+    // Ein neues Buch hat gleich einen Abschnitt mit einer leeren Seite,
+    // wie in OneNote (ohne SQL nur die Seite)
+    const a = await alt.db.from(ABSCHNITTE).insert({ buch_id: id, name: "Neuer Abschnitt 1", farbe: w.farbe, reihenfolge: 1 }).select("id");
+    const abId = !a.error && a.data && a.data[0] ? a.data[0].id : null;
+    const s = await alt.db.from(SEITEN).insert(Object.assign({ buch_id: id, titel: "", reihenfolge: 1 },
+      abId ? { abschnitt_id: abId } : {})).select("id");
+    setAbschnittId(abId);
     setSeiteId((s.data && s.data[0] && s.data[0].id) || null);
     await buecherNeu(id);
   };
@@ -354,11 +405,13 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
     // Für Rückgängig: Buch und alle Seiten samt Inhalt sichern
     const buch = await alt.rueckSichern(BUECHER, { id: b.id });
     const blaetter = await alt.rueckSichern(SEITEN, { buch_id: b.id });
+    const teile = abschnitte ? await alt.rueckSichern(ABSCHNITTE, { buch_id: b.id }) : [];
     const { error } = await alt.db.from(BUECHER).delete().eq("id", b.id);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     // Die Seiten gehen in der Datenbank mit; ausdrücklich, falls nicht
     await alt.db.from(SEITEN).delete().eq("buch_id", b.id);
-    alt.merkeSchritt("Notizbuch löschen", [alt.rueckRein(BUECHER, buch), alt.rueckRein(SEITEN, blaetter)]);
+    alt.merkeSchritt("Notizbuch löschen", [alt.rueckRein(BUECHER, buch),
+      ...(teile.length ? [alt.rueckRein(ABSCHNITTE, teile)] : []), alt.rueckRein(SEITEN, blaetter)]);
     alt.meldung("Gelöscht.");
     setSeiteId(null);
     buecherNeu();
@@ -423,7 +476,7 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
     if (!buchId) return;
     const reihenfolge = (seiten || []).reduce((m, s) => Math.max(m, s.reihenfolge || 0), 0) + 1;
     const { data, error } = await alt.db.from(SEITEN)
-      .insert({ buch_id: buchId, titel: "", reihenfolge }).select("id");
+      .insert(Object.assign({ buch_id: buchId, titel: "", reihenfolge }, abschnittId ? { abschnitt_id: abschnittId } : {})).select("id");
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     const id = data && data[0] && data[0].id;
     if (!id) return;
@@ -436,7 +489,7 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
       text: "„" + seitenName(s) + "“ wird gelöscht.", bestaetigen: "Löschen", gefahr: true });
     if (!ok) return;
     // Erst wegwechseln, damit die offene Seite ihren Stand noch speichert
-    const rest = (seiten || []).filter((x) => x.id !== s.id);
+    const rest = sichtbar.filter((x) => x.id !== s.id);
     setSeiteId(rest[0] ? rest[0].id : null);
     await new Promise((r) => setTimeout(r, 50));
     const sicherung = await alt.rueckSichern(SEITEN, { id: s.id });
@@ -445,6 +498,64 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
     alt.merkeSchritt("Notizbuch-Seite löschen", alt.rueckRein(SEITEN, sicherung));
     alt.meldung("Gelöscht.");
     seitenNeu();
+  };
+
+  // ---------- Abschnitte ----------
+  const abschnittDialog = (a) => alt.dialogFelder({
+    titel: a ? "Abschnitt bearbeiten" : "Neuer Abschnitt",
+    felder: [
+      { name: "name", label: "Name", wert: a ? a.name : "", pflicht: true, platzhalter: "z. B. Rüsten" },
+      { name: "farbe", label: "Farbe", typ: "color",
+        wert: (a && a.farbe) || BUCHFARBEN[((abschnitte || []).length + 1) % BUCHFARBEN.length][0] }],
+    bestaetigen: a ? "Speichern" : "Anlegen" });
+
+  const abschnittNeu = async () => {
+    if (!buchId || !abschnitte) return;
+    const w = await abschnittDialog(null);
+    if (!w) return;
+    const reihenfolge = abschnitte.reduce((m, a) => Math.max(m, a.reihenfolge || 0), 0) + 1;
+    const r = await alt.db.from(ABSCHNITTE).insert({ buch_id: buchId, name: w.name, farbe: w.farbe, reihenfolge }).select("id");
+    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
+    const id = r.data && r.data[0] && r.data[0].id;
+    if (!id) return;
+    // Ein neuer Abschnitt hat gleich eine leere Seite, wie in OneNote
+    const sr = (seiten || []).reduce((m, x) => Math.max(m, x.reihenfolge || 0), 0) + 1;
+    const s0 = await alt.db.from(SEITEN).insert({ buch_id: buchId, abschnitt_id: id, titel: "", reihenfolge: sr }).select("id");
+    alt.merkeSchritt("Neuer Abschnitt", [alt.rueckWeg(SEITEN, { abschnitt_id: id }), alt.rueckWeg(ABSCHNITTE, { id })]);
+    await seitenNeu((s0.data && s0.data[0] && s0.data[0].id) || null, id);
+  };
+
+  const abschnittBearbeiten = async (a) => {
+    const w = await abschnittDialog(a);
+    if (!w) return;
+    const { error } = await alt.db.from(ABSCHNITTE)
+      .update({ name: w.name, farbe: w.farbe, geaendert_am: new Date().toISOString() }).eq("id", a.id);
+    if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+    alt.merkeSchritt("Abschnitt bearbeiten", alt.rueckSetz(ABSCHNITTE, { name: a.name, farbe: a.farbe }, { id: a.id }));
+    seitenNeu();
+  };
+
+  const abschnittLoeschen = async (a) => {
+    const n = (seiten || []).filter((x) => abschnittVon(x) === a.id).length;
+    const ok = await alt.nachfragen({ titel: "Abschnitt löschen?",
+      text: "„" + (a.name || "Ohne Name") + "“" + (n ? (n === 1 ? " mit 1 Seite" : " mit allen " + n + " Seiten") : "") + " wird gelöscht.",
+      bestaetigen: "Löschen", gefahr: true });
+    if (!ok) return;
+    const rest = abschnitte.filter((x) => x.id !== a.id);
+    // Erst wegwechseln, damit die offene Seite ihren Stand noch speichert
+    setSeiteId(null);
+    await new Promise((r) => setTimeout(r, 50));
+    const teil = await alt.rueckSichern(ABSCHNITTE, { id: a.id });
+    // Seiten ohne passende abschnitt_id zeigt der erste Abschnitt: die gehen mit
+    const ids = (seiten || []).filter((x) => abschnittVon(x) === a.id).map((x) => x.id);
+    const blaetter = [];
+    for (const id of ids) blaetter.push(...(await alt.rueckSichern(SEITEN, { id })));
+    const { error } = await alt.db.from(ABSCHNITTE).delete().eq("id", a.id);
+    if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+    for (const id of ids) await alt.db.from(SEITEN).delete().eq("id", id);
+    alt.merkeSchritt("Abschnitt löschen", [alt.rueckRein(ABSCHNITTE, teil), ...(blaetter.length ? [alt.rueckRein(SEITEN, blaetter)] : [])]);
+    alt.meldung("Gelöscht.");
+    seitenNeu(null, rest[0] && rest[0].id);
   };
 
   // ---------- Aus OneNote übernehmen (src/notizbuch/onenote.js) ----------
@@ -483,6 +594,24 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
     let letztesBuch = null, ersteSeite = null, blaetter = 0;
     const schritte = [];
     let reihe = (buecher || []).reduce((m, b) => Math.max(m, b.reihenfolge || 0), 0);
+    // Abschnitte: aus den Lesezeichen der PDF, sonst einer mit dem
+    // Namen der Datei (wie beim Umstellen der alten Bücher)
+    let ohneAb = false;
+    const abHolen = async (id, liste, name) => {
+      if (ohneAb) return null;
+      if (liste.has(name)) return liste.get(name);
+      const reihenfolge = liste.size + 1 + (ziel === "hier" && abschnitte ? abschnitte.length : 0);
+      const r = await alt.db.from(ABSCHNITTE).insert({ buch_id: id, name, reihenfolge,
+        farbe: BUCHFARBEN[(reihenfolge - 1) % BUCHFARBEN.length][0] }).select("id");
+      if (r.error) {
+        if (fehltTabelle(r.error)) { ohneAb = true; return null; }
+        throw r.error;
+      }
+      const aid = r.data && r.data[0] && r.data[0].id;
+      liste.set(name, aid);
+      if (ziel === "hier") schritte.push(alt.rueckWeg(SEITEN, { abschnitt_id: aid }), alt.rueckWeg(ABSCHNITTE, { id: aid }));
+      return aid;
+    };
     try {
       for (const d of pdfs) {
         let id = buchId, rf = (seiten || []).reduce((m, x) => Math.max(m, x.reihenfolge || 0), 0);
@@ -493,15 +622,19 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
           if (r.error) throw r.error;
           id = r.data && r.data[0] && r.data[0].id;
           if (!id) throw new Error("Notizbuch nicht angelegt");
-          schritte.push(alt.rueckWeg(SEITEN, { buch_id: id }), alt.rueckWeg(BUECHER, { id }));
+          schritte.push(alt.rueckWeg(SEITEN, { buch_id: id }), alt.rueckWeg(ABSCHNITTE, { buch_id: id }), alt.rueckWeg(BUECHER, { id }));
           rf = 0;
         }
         letztesBuch = id;
-        const r = await oneNoteUebernehmen(d, async (titel, inhalt) => {
-          const a = await alt.db.from(SEITEN).insert({ buch_id: id, titel, reihenfolge: ++rf, inhalt }).select("id");
+        const dateiName = d.name.replace(/\.pdf$/i, "").trim() || "OneNote";
+        const liste = new Map();
+        const r = await oneNoteUebernehmen(d, async (titel, inhalt, abschnitt) => {
+          const aid = await abHolen(id, liste, abschnitt || dateiName);
+          const a = await alt.db.from(SEITEN).insert(Object.assign({ buch_id: id, titel, reihenfolge: ++rf, inhalt },
+            aid ? { abschnitt_id: aid } : {})).select("id");
           if (a.error) throw a.error;
           const sid = a.data && a.data[0] && a.data[0].id;
-          if (sid && ziel === "hier") schritte.push(alt.rueckWeg(SEITEN, { id: sid }));
+          if (sid && ziel === "hier" && !aid) schritte.push(alt.rueckWeg(SEITEN, { id: sid }));
           if (!ersteSeite) ersteSeite = sid;
           blaetter++;
         }, (t) => setHolt(d.name + ": " + t));
@@ -517,7 +650,7 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
     if (schritte.length) alt.merkeSchritt("Aus OneNote übernommen", schritte);
     if (!letztesBuch) return;
     // Zum Übernommenen wechseln: neues Buch mit seiner ersten Seite
-    if (ziel === "neu") { setSeiteId(null); await buecherNeu(letztesBuch); }
+    if (ziel === "neu") { setSeiteId(ersteSeite); setAbschnittId(null); await buecherNeu(letztesBuch); }
     else await seitenNeu(ersteSeite);
   };
 
@@ -527,6 +660,31 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
   }, []);
 
   const buch = (buecher || []).find((b) => b.id === buchId);
+
+  // Abschnitte als Liste: im Baum unter dem Buch (breit) oder als Leiste
+  // oben (schmal, Handy); attr unterscheidet die beiden für die Tests
+  const abschnittListe = (attr) => {
+    const b = buch;
+    return <>
+      {(abschnitte || []).map((a) => {
+        const aktiv = a.id === abschnittId;
+        return <div key={a.id} className={"nb-eintrag nb-eintrag--ab" + (aktiv ? " aktiv" : "")}
+          style={{ "--f": a.farbe || (b && b.farbe) || "var(--marke)" }}>
+          <button type="button" className="nb-eintrag__name" {...{ ["data-" + attr]: a.id }}
+            onClick={() => abschnittWaehlen(a.id)}>
+            <span className="nb-reiter" /><span className="nb-eintrag__text">{a.name || "Ohne Name"}</span></button>
+          {darf && aktiv && <>
+            <button type="button" className="nb-mini" aria-label="Abschnitt bearbeiten" title="Umbenennen, Farbe"
+              data-nbabbearb="" onClick={() => abschnittBearbeiten(a)}><Symbol d={STIFT} /></button>
+            {abschnitte.length > 1 && <button type="button" className="nb-mini nb-mini--weg" aria-label="Abschnitt löschen"
+              title="Abschnitt mit allen Seiten löschen" data-nbabweg="" onClick={() => abschnittLoeschen(a)}><Symbol d={EIMER} /></button>}
+          </>}
+        </div>;
+      })}
+      {darf && <button type="button" className="nb-ab-neu" data-nb={attr === "nbabschnitt" ? "abschnitt-neu" : "abschnitt-neu-l"}
+        title="Neuer Abschnitt" onClick={abschnittNeu}><Symbol d={PLUS} /><span>Abschnitt</span></button>}
+    </>;
+  };
 
   let haupt;
   if (!fehlt && istZu(buch)) {
@@ -550,8 +708,8 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
   } else if (seiteId && (!park || padOhneSql || (seiten || []).some((x) => x.id === seiteId))) {
     haupt = <Seite key={seiteId} id={seiteId} darf={darf} onTitel={titelGeaendert} huelle={huelle()}
       laden={park && !padOhneSql ? (id) => Promise.resolve((seiten || []).find((s) => s.id === id) || null) : undefined} />;
-  } else if (seiten && !seiten.length) {
-    haupt = <div className="nb-fehlt"><p>Dieses Buch hat noch keine Seite.</p>
+  } else if (seiten && !sichtbar.length) {
+    haupt = <div className="nb-fehlt"><p>{abschnitte ? "Dieser Abschnitt hat noch keine Seite." : "Dieses Buch hat noch keine Seite."}</p>
       {darf && <button type="button" className="knopf knopf--haupt" onClick={seiteNeu}>Seite anlegen</button>}</div>;
   } else {
     haupt = <div className="nb-fehlt"><p>Wird geladen …</p></div>;
@@ -590,11 +748,11 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
               <button type="button" className="nb-plus" data-nb="buch-neu" aria-label="Neues Notizbuch"
                 title="Neues Notizbuch" onClick={buchNeu}><Symbol d={PLUS} /></button></span>}</div>
           <div className="nb-liste">
-            {(buecher || []).map((b) => (
+            {(buecher || []).map((b) => ([
               <div key={b.id} className={"nb-eintrag nb-eintrag--buch" + (b.id === buchId ? " aktiv" : "")}
                 style={{ "--f": b.farbe }}>
                 <button type="button" className="nb-eintrag__name" data-nbbuch={b.id}
-                  onClick={() => { if (b.id !== buchId) { setSeiteId(null); setBuchId(b.id); } }}>
+                  onClick={() => { if (b.id !== buchId) { setSeiteId(null); setAbschnittId(null); setBuchId(b.id); } }}>
                   <span className="nb-ruecken" /><span className="nb-eintrag__text">{b.name}</span>
                   {b.gesperrt && (b.id !== buchId || !darf) && <span className={"nb-schlosschen" + (istZu(b) ? "" : " offen")}
                     title={istZu(b) ? "Gesperrt" : "Mit Passwort geöffnet"}><Symbol d={SCHLOSS} /></span>}</button>
@@ -606,17 +764,22 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
                   {!istZu(b) && <button type="button" className="nb-mini nb-mini--weg" aria-label="Notizbuch löschen" title="Löschen"
                     data-nbbuchweg="" onClick={() => buchLoeschen(b)}><Symbol d={EIMER} /></button>}
                 </>}
-              </div>))}
+              </div>,
+              // Die Abschnitte des offenen Buchs darunter, eingerückt wie in OneNote
+              b.id === buchId && abschnitte && !istZu(b) && <div key={b.id + "-ab"} className="nb-baum" role="group"
+                aria-label={"Abschnitte von " + b.name}>{abschnittListe("nbabschnitt")}</div>]))}
           </div>
           <span className="nb-teiler" data-nbteiler="0" role="separator" aria-orientation="vertical"
             aria-label="Breite der Bücher" title="Breite ziehen" onPointerDown={(e) => spalteZiehen(e, 0)} />
         </nav>
+        {abschnitte && !buchZu && <nav className="nb-abschnitte-leiste" aria-label="Abschnitte">
+          <div className="nb-liste">{abschnittListe("nbabschnittl")}</div></nav>}
         <nav className="nb-seiten" aria-label="Seiten">
           <div className="nb-spaltenkopf">Seiten
             {darf && buchId && !fehlt && !buchZu && <button type="button" className="nb-plus" data-nb="seite-neu" aria-label="Neue Seite"
               title="Neue Seite" onClick={seiteNeu}><Symbol d={PLUS} /></button>}</div>
           <div className="nb-liste">
-            {(seiten || []).map((s) => (
+            {sichtbar.map((s) => (
               <div key={s.id} className={"nb-eintrag" + (s.id === seiteId ? " aktiv" : "")}>
                 <button type="button" className="nb-eintrag__name" data-nbseite={s.id}
                   onClick={() => setSeiteId(s.id)}>{seitenName(s)}</button>

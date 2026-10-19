@@ -34,7 +34,7 @@ const zeigen = (n, stellen) => {
   return (alt.zahlText ? alt.zahlText(Number(ganz)) : ganz) + (rest ? "," + rest : "");
 };
 
-// Rohr mit Aussen- und Innendurchmesser seit 1.101.0 (Wunsch Patrick
+// Rohr mit Aussen- und Innendurchmesser seit 1.102.0 (Wunsch Patrick
 // 19. Oktober 2026)
 const FORMEN = [["rd", "Rund"], ["4kt", "Vierkant"], ["6kt", "Sechskant"], ["rohr", "Rohr"]];
 const formAus = (z) => (z && ["4kt", "6kt", "rohr"].includes(z.form) ? z.form : "rd");
