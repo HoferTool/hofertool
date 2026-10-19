@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.95.1";
+const APP_VERSION = "1.96.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2933,6 +2933,18 @@ function langDatum(text) {
   return p2(d.getDate()) + "." + p2(d.getMonth() + 1) + "." + d.getFullYear();
 }
 
+// „Mo 20.10. – Fr 24.10.2026 · 5 Arbeitstage“ für die Vorschau beim
+// Darüberfahren über Aufträge und Ferien (Wunsch Patrick 19. Oktober 2026:
+// „auch anzeigen von wann bis wann“)
+function zeitraumText(von, tage) {
+  if (!von) return "";
+  const n = Math.max(1, Number(tage) || 1);
+  const bis = letzterArbeitstag(von, n);
+  const tag = (t) => WT_KURZ[(ausIso(t).getDay() + 6) % 7] + " " + kurzDatum(t);
+  return tag(von) + (bis !== von ? " – " + tag(bis) : "") + ausIso(bis).getFullYear()
+    + " · " + n + (n === 1 ? " Arbeitstag" : " Arbeitstage");
+}
+
 function kurzDatum(text) {
   const d = ausIso(text);
   return String(d.getDate()).padStart(2, "0") + "." + String(d.getMonth() + 1).padStart(2, "0") + ".";
@@ -4816,6 +4828,7 @@ function balkenInfoVerhalten() {
         + luecke
         + zeile(zustand.zeichen + " " + esc(zustand.name))
         + zeile(esc(j.maschine || "–") + (j.maschine_nr ? " · " + esc(j.maschine_nr) : ""))
+        + (j.planned_from ? zeile("📅 " + esc(zeitraumText(j.planned_from, j.planned_days))) : "")
         + zeile(String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden")
         + zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz"))
         + (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : "")
@@ -4921,6 +4934,52 @@ function balkenInfoVerhalten() {
   }
 }
 let vorschauTippDa = false;
+
+// Ferien: beim Darüberfahren der ganze Name, die Notiz und von wann
+// bis wann, weil der Balken bei kurzen Ferien den Text abschneidet
+// (Wunsch Patrick 19. Oktober 2026). Gleiches Fenster wie bei Aufträgen.
+function ferienInfoVerhalten() {
+  const tafel = document.querySelector(".pw-tafel");
+  if (!tafel) return;
+  let fenster = null, halten = null;
+  const weg = () => { document.querySelectorAll(".pw-info--ferien").forEach((x) => x.remove()); fenster = null; };
+  weg();
+  const platzieren = (x, y) => {
+    if (!fenster) return;
+    const b = fenster.offsetWidth, h = fenster.offsetHeight;
+    const oben = y - 14 - h >= 8;
+    fenster.style.left = Math.max(8, Math.min(window.innerWidth - b - 8, x - b / 2)) + "px";
+    fenster.style.top = (oben ? y - 14 - h : Math.min(window.innerHeight - h - 8, y + 20)) + "px";
+  };
+  const zeigen = (el, x, y) => {
+    const f = (plan.ferien || []).find((v) => String(v.id) === el.dataset.ferien);
+    if (!f) return;
+    weg();
+    const notiz = String(f.note || "").trim();
+    fenster = document.createElement("div");
+    fenster.className = "pw-info pw-info--ferien";
+    fenster.innerHTML = '<div class="pw-info__kopf"><span class="pw-info__nr">' + esc(f.person || "") + '</span></div>'
+      + '<div class="pw-info__zeile">📅 ' + esc(zeitraumText(f.von, f.tage)) + '</div>'
+      + (notiz ? '<div class="pw-info__zeile">✎ ' + esc(notiz) + '</div>' : "");
+    document.body.appendChild(fenster);
+    platzieren(x, y);
+  };
+  tafel.querySelectorAll("[data-ferien]").forEach((el) => {
+    el.addEventListener("mouseenter", (e) => zeigen(el, e.clientX, e.clientY));
+    el.addEventListener("mousemove", (e) => platzieren(e.clientX, e.clientY));
+    el.addEventListener("mouseleave", weg);
+    el.addEventListener("mousedown", weg);
+    // Am Tablet: lange drücken, wie bei den Aufträgen
+    el.addEventListener("touchstart", (e) => {
+      const t = e.touches[0];
+      clearTimeout(halten);
+      halten = setTimeout(() => zeigen(el, t.clientX, t.clientY), 450);
+    }, { passive: true });
+    el.addEventListener("touchmove", () => { clearTimeout(halten); weg(); }, { passive: true });
+    el.addEventListener("touchend", () => clearTimeout(halten));
+    el.addEventListener("touchcancel", () => { clearTimeout(halten); weg(); });
+  });
+}
 
 // Alles, was ein Auftrag an Angaben trägt, als ein Suchtext
 function auftragText(j) {
@@ -6070,6 +6129,7 @@ function zeichnePlanwand(b) {
   ferienVerhalten(b);
   ferienGriffe(b);
   balkenInfoVerhalten();
+  ferienInfoVerhalten();
   zeitWischen(b);
 
   // Kam der Aufruf von der Startseite, gleich danach suchen
