@@ -205,12 +205,21 @@ const kategorieMitFaktor = (k) => ({ ...k, wert: "kat:" + k.key, standard: k.dic
 export const kategorienListe = () => KATEGORIEN.map(kategorieMitFaktor);
 
 // Kilo je Meter Stange, oder null, wenn Mass oder Werkstoff fehlt
-export function kgJeMeter(bez) {
+// Mit teil: die im Materialrechner für diese HOCO Nr. gemerkte Form
+// (Rohr mit Innendurchmesser, Sechs- oder Vierkant) gilt vor der Form
+// aus der Bezeichnung (seit 1.101.0, Wunsch Patrick 19. Oktober 2026)
+export function kgJeMeter(bez, teil) {
   const z = materialZerlegen(bez);
   if (!z || !z.d) return null;
   const k = kategorieVon(bez);
   if (!k) return null;
-  return querschnittMm2(z.form, z.d, z.innen) * k.dichte / 1000;
+  const f = formFuerTeil(z, teil);
+  return querschnittMm2(f.form, z.d, f.innen) * k.dichte / 1000;
+}
+export function formFuerTeil(z, teil) {
+  const f = teil && teil.rechner_form;
+  if (!f || !["rd", "4kt", "6kt", "rohr"].includes(f)) return { form: z.form, innen: z.innen };
+  return { form: f, innen: f === "rohr" ? Number(teil.rechner_innen_mm) || null : null };
 }
 
 // Querschnitt in mm² je Form; beim Sechs- und Vierkant ist d die
@@ -349,9 +358,11 @@ export async function teileLaden(nummern) {
   const liste = [...new Set(nummern.filter(Boolean))];
   const raus = {};
   for (let i = 0; i < liste.length; i += 200) {
-    const r = await alt.zeitlimit(alt.db.from("hoco_parts")
-      .select("hoco_nr, teil_d_mm, teil_laenge_mm, teil_mass_bestaetigt, teil_mass_quelle")
+    const holen = (spalten) => alt.zeitlimit(alt.db.from("hoco_parts").select(spalten)
       .in("hoco_nr", liste.slice(i, i + 200)), 10000, "HOCO Nummern");
+    let r = await holen("hoco_nr, teil_d_mm, teil_laenge_mm, teil_mass_bestaetigt, teil_mass_quelle, rechner_form, rechner_innen_mm");
+    // Ohne sql/rechner-form.sql: ohne gemerkte Form
+    if (r.error) r = await holen("hoco_nr, teil_d_mm, teil_laenge_mm, teil_mass_bestaetigt, teil_mass_quelle");
     if (r.error) return raus;    // Spalten noch nicht da: ohne Längen
     (r.data || []).forEach((t) => { raus[t.hoco_nr] = t; });
   }
@@ -552,7 +563,7 @@ export function startSchaetzen(auftraege, heute) {
 
 // Mindestmenge eines Auftrags in kg, mit „sicher“ = Länge bestätigt
 export function bedarfRechnen(j, teil, maschine, ganzeMenge) {
-  const kgm = kgJeMeter(j.material_bez);
+  const kgm = kgJeMeter(j.material_bez, teil);
   const laenge = teil && Number(teil.teil_laenge_mm);
   if (!kgm || !laenge || laenge <= 0) return null;
   const typ = maschine && maschine.typ;

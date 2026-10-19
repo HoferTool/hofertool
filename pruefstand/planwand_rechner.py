@@ -109,6 +109,25 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/rechner_ca.png")
     tippe(pg, "#mr-laenge", "11")
     pruefe("Selbst eingetippte Länge: ohne ca. " + wert(pg), "ca." not in pg.inner_text("#mr-ergebnis"))
+
+    # Rohr mit Innendurchmesser, je HOCO Nr. gemerkt (1.101.0)
+    tippe(pg, "#mr-d", "20"); pg.click("[data-form='rd']"); pg.wait_for_timeout(200)
+    voll = wert(pg)
+    pg.click("[data-form='rohr']"); pg.wait_for_timeout(200)
+    pruefe("Rohr: Feld Innendurchmesser", pg.locator("#mr-innen").count() == 1 and "Aussen-Ø" in pg.inner_text(".dialog--matrechner"))
+    pruefe("Rohr ohne Innen: Hinweis", "Innen-Ø eintragen" in pg.inner_text("#mr-ergebnis"))
+    tippe(pg, "#mr-innen", "16"); pg.wait_for_timeout(1200)
+    # Ring 20/16 = 113,1 mm², Rund 20 = 314,2 mm²: weniger kg
+    kg = lambda t: float(t.split(" kg")[0].replace("ca.", "").replace("'", "").replace(",", ".").strip())
+    pruefe("Rohr 20/16 leichter als Rund 20: %s / %s" % (wert(pg), voll), kg(wert(pg)) < kg(voll) * 0.5)
+    teil = pg.evaluate("TEST.daten.hoco_parts.find(t => t.hoco_nr === '10000-0301')")
+    pruefe("Rohr bei der HOCO Nr. gemerkt: %s %s" % (teil.get("rechner_form"), teil.get("rechner_innen_mm")),
+           teil.get("rechner_form") == "rohr" and teil.get("rechner_innen_mm") == 16 and pg.locator("#mr-gemerkt").count() == 1)
+    tippe(pg, "#mr-hoco", ""); pg.wait_for_timeout(600); tippe(pg, "#mr-hoco", "10000-0301"); pg.wait_for_timeout(1500)
+    pruefe("Wieder geöffnet: Rohr innen 16", "aktiv" in pg.get_attribute("[data-form='rohr']", "class") and pg.input_value("#mr-innen") == "16")
+    pg.screenshot(path="/mnt/project-files/bilder/materialrechner/rechner-rohr.png")
+    pg.click("[data-form='6kt']"); pg.wait_for_timeout(1200)
+    pruefe("Sechskant gemerkt, Innen weg", pg.evaluate("(t => t.rechner_form === '6kt' && t.rechner_innen_mm === null)(TEST.daten.hoco_parts.find(t => t.hoco_nr === '10000-0301'))"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pruefe("Escape schliesst", pg.locator(".dialog--matrechner").count() == 0)
 

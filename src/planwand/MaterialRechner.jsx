@@ -19,10 +19,10 @@
 //  2026: „nur so, dass man Stückzahl eingeben kann, um zu wissen, wie
 //  viel man bestellen muss“).
 // =================================================================
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { materialZerlegen, querschnittMm2, kategorienListe, werkstoffWahlVon, werkstoffGenau, dichtenLaden,
+import { materialZerlegen, querschnittMm2, formFuerTeil, kategorienListe, werkstoffWahlVon, werkstoffGenau, dichtenLaden,
   STANGE_STANDARD_MM, STUMPEN_STANDARD_MM, PLANIEREN_STANDARD_MM } from "../daten/material.js";
 
 const zahlLesen = (t) => { const n = Number(String(t ?? "").trim().replace(",", ".").replace(/'/g, "")); return String(t ?? "").trim() !== "" && isFinite(n) ? n : null; };
@@ -34,7 +34,10 @@ const zeigen = (n, stellen) => {
   return (alt.zahlText ? alt.zahlText(Number(ganz)) : ganz) + (rest ? "," + rest : "");
 };
 
-const FORMEN = [["rd", "Rund"], ["4kt", "Vierkant"], ["6kt", "Sechskant"]];
+// Rohr mit Aussen- und Innendurchmesser seit 1.101.0 (Wunsch Patrick
+// 19. Oktober 2026)
+const FORMEN = [["rd", "Rund"], ["4kt", "Vierkant"], ["6kt", "Sechskant"], ["rohr", "Rohr"]];
+const formAus = (z) => (z && ["4kt", "6kt", "rohr"].includes(z.form) ? z.form : "rd");
 
 // Kurze Gruppennamen, die die Werkstofferkennung allein nicht kennt
 // (sie erwartet eine Bezeichnung wie beim Auftrag): „V2A“, „Stahl“ …
@@ -57,7 +60,7 @@ function dichteAus(wahlListe, wahl) {
 // was der Maschinentyp dieses Auftrags vorgibt
 async function hocoLaden(nr) {
   const [teil, auftrag] = await Promise.all([
-    alt.db.from("hoco_parts").select("hoco_nr, teil_laenge_mm, teil_mass_bestaetigt").eq("hoco_nr", nr).maybeSingle(),
+    alt.db.from("hoco_parts").select("*").eq("hoco_nr", nr).maybeSingle(),
     alt.db.from("jobs").select("material_bez, machine_id, planned_from").eq("job_number", nr)
       .not("material_bez", "is", null).order("planned_from", { ascending: false }).limit(1),
   ]);
@@ -100,6 +103,12 @@ export default function MaterialRechner() {
   const [matText, setMatText] = useState("");
   const [matErkannt, setMatErkannt] = useState(null);
   const [d, setD] = useState("");
+  const [innen, setInnen] = useState("");
+  // Form oder Innendurchmesser von Hand geändert: dann bei der HOCO Nr.
+  // merken (hoco_parts.rechner_form, Wunsch Patrick 19. Oktober 2026:
+  // „soll es sich merken“), sonst nicht
+  const vonHand = useRef(false);
+  const [gemerkt, setGemerkt] = useState("");
   const [menge, setMenge] = useState("");
   // Eigene Dichten aus den Einstellungen holen, dann neu rechnen
   const [wahlListe, setWahlListe] = useState(kategorienListe);
@@ -122,10 +131,15 @@ export default function MaterialRechner() {
         if (weg) return;
         setHocoInfo(h);
         if (!h.gefunden) return;
+        vonHand.current = false;
+        setGemerkt("");
         if (h.material) setMatText(h.material);
         const z = materialZerlegen(h.material);
         if (z && z.d) setD(zahlFeld(z.d));
-        setForm(z && (z.form === "4kt" || z.form === "6kt") ? z.form : "rd");
+        // Eine gemerkte Form gilt vor der aus der Bezeichnung
+        const f = formFuerTeil(z || { form: "rd", innen: null }, h.teil);
+        setForm(formAus(f));
+        setInnen(f.form === "rohr" && f.innen ? zahlFeld(f.innen) : "");
         const w = werkstoffWahlVon(h.material);
         if (w) setWerkstoff(w);
         if (h.teil && Number(h.teil.teil_laenge_mm)) setLaenge(zahlFeld(Number(h.teil.teil_laenge_mm)));
@@ -151,19 +165,45 @@ export default function MaterialRechner() {
       // „sw 12“ (Schlüsselweite) ist Sechskant
       const z = materialZerlegen(t.replace(/\bsw\b\.?/i, "6kt"));
       if (w) setWerkstoff(w);
+      // Die gemerkte Form der HOCO Nr. bleibt, wenn die Bezeichnung
+      // dieselbe ist wie beim Auftrag
+      const gemerkteForm = hocoInfo && hocoInfo.teil && hocoInfo.teil.rechner_form && t === (hocoInfo.material || "").trim();
       if (z && z.d) {
         setD(zahlFeld(z.d));
-        setForm(z.form === "4kt" || z.form === "6kt" ? z.form : "rd");
+        if (!gemerkteForm) {
+          setForm(formAus(z));
+          if (z.form === "rohr" && z.innen) setInnen(zahlFeld(z.innen));
+        }
       }
       const k = w ? kategorienListe().find((x) => x.wert === w) : null;
-      setMatErkannt({ k, genau, d: z && z.d ? z.d : null, form: z && z.d ? z.form : null });
+      setMatErkannt({ k, genau, d: z && z.d ? z.d : null, form: z && z.d ? z.form : null, innen: z && z.innen });
     }, 350);
     return () => clearTimeout(zeit);
   }, [matText]);
 
+  // Form und Innendurchmesser bei der HOCO Nr. merken, kurz nachdem man
+  // sie von Hand geändert hat
+  useEffect(() => {
+    if (!vonHand.current || !hocoInfo || !hocoInfo.gefunden || !hocoInfo.teil) return;
+    const nr = hocoInfo.teil.hoco_nr;
+    const innenMm = form === "rohr" ? zahlLesen(innen) : null;
+    if (form === "rohr" && !(innenMm > 0)) return;
+    const zeit = setTimeout(async () => {
+      const r = await alt.db.from("hoco_parts").update({ rechner_form: form, rechner_innen_mm: innenMm }).eq("hoco_nr", nr);
+      if (r && r.error) { setGemerkt("Form konnte nicht gemerkt werden."); return; }
+      hocoInfo.teil.rechner_form = form;
+      hocoInfo.teil.rechner_innen_mm = innenMm;
+      setGemerkt((FORMEN.find((x) => x[0] === form) || [, ""])[1]
+        + (innenMm ? " innen " + zahlFeld(innenMm) + " mm" : "") + " für " + nr + " gemerkt.");
+    }, 700);
+    return () => clearTimeout(zeit);
+  }, [form, innen]);
+
   const dichte = dichteAus(wahlListe, werkstoff);
   const dm = zahlLesen(d);
-  const kgm = dichte && dm > 0 ? querschnittMm2(form, dm) * dichte / 1000 : null;
+  const innenMm = form === "rohr" ? zahlLesen(innen) : null;
+  const rohrFehlt = form === "rohr" && !(innenMm > 0 && innenMm < dm);
+  const kgm = dichte && dm > 0 && !rohrFehlt ? querschnittMm2(form, dm, innenMm) * dichte / 1000 : null;
   const stangeMm = zahlLesen(stange) || STANGE_STANDARD_MM;
   const kgStange = kgm ? kgm * stangeMm / 1000 : null;
   const n = zahlLesen(menge);
@@ -191,7 +231,7 @@ export default function MaterialRechner() {
     }
   }
 
-  const masName = form === "rd" ? "Durchmesser" : "Schlüsselweite";
+  const masName = form === "rd" ? "Durchmesser" : form === "rohr" ? "Aussen-Ø" : "Schlüsselweite";
   return (
     <div className="mr">
       <label className="feld">
@@ -219,7 +259,9 @@ export default function MaterialRechner() {
         {matErkannt.k
           ? "Erkannt: " + [matErkannt.genau ? [matErkannt.genau.nr, matErkannt.genau.name].filter(Boolean).join(" ") : "",
               matErkannt.k.name + " (Faktor " + zahlFeld(matErkannt.k.dichte) + ")",
-              matErkannt.d ? (matErkannt.form === "4kt" ? "Vierkant " : matErkannt.form === "6kt" ? "Sechskant " : "Ø ") + zahlFeld(matErkannt.d) + " mm" : ""]
+              matErkannt.d ? (matErkannt.form === "4kt" ? "Vierkant " : matErkannt.form === "6kt" ? "Sechskant "
+                : matErkannt.form === "rohr" ? "Rohr Ø " : "Ø ") + zahlFeld(matErkannt.d)
+                + (matErkannt.form === "rohr" && matErkannt.innen ? "/" + zahlFeld(matErkannt.innen) : "") + " mm" : ""]
               .filter(Boolean).join(" · ")
           : "Werkstoff nicht erkannt, bitte unten wählen."}
       </p>}
@@ -227,11 +269,11 @@ export default function MaterialRechner() {
       <div className="moduswahl mr-wahl">
         {FORMEN.map(([wert, text]) => (
           <button key={wert} type="button" className={"moduswahl__knopf" + (form === wert ? " aktiv" : "")}
-            data-form={wert} onClick={() => setForm(wert)}>{text}</button>
+            data-form={wert} onClick={() => { vonHand.current = true; setForm(wert); }}>{text}</button>
         ))}
       </div>
 
-      <div className="mr-reihe">
+      <div className={"mr-reihe" + (form === "rohr" ? " mr-reihe--drei" : "")}>
         <label className="feld">
           <span>Werkstoff</span>
           <select id="mr-werkstoff" value={werkstoff} onChange={(e) => setWerkstoff(e.target.value)}>
@@ -243,7 +285,13 @@ export default function MaterialRechner() {
           <span>{masName} in mm</span>
           <input type="text" id="mr-d" inputMode="decimal" value={d} onChange={(e) => setD(e.target.value)} />
         </label>
+        {form === "rohr" && <label className="feld">
+          <span>Innen-Ø in mm</span>
+          <input type="text" id="mr-innen" inputMode="decimal" value={innen}
+            onChange={(e) => { vonHand.current = true; setInnen(e.target.value); }} />
+        </label>}
       </div>
+      {gemerkt && <p className="hinweis mr-gemerkt" id="mr-gemerkt">{gemerkt}</p>}
 
       <div className="mr-reihe">
         <label className="feld">
@@ -277,7 +325,9 @@ export default function MaterialRechner() {
         {ergebnis && ergebnis.zusatz && <p className="hinweis mr-zusatz">{(ergebnis.ca ? "ca. " : "") + ergebnis.zusatz}</p>}
         {ergebnis && ergebnis.fehler && <p className="hinweis">{ergebnis.fehler}</p>}
         {ergebnis && ergebnis.hinweis && <p className="hinweis">{ergebnis.hinweis}</p>}
-        {!kgm && <p className="hinweis">{"Werkstoff und " + masName + " eintragen."}</p>}
+        {!kgm && <p className="hinweis">{rohrFehlt && dichte && dm > 0
+          ? "Innen-Ø eintragen, kleiner als aussen."
+          : "Werkstoff und " + masName + " eintragen."}</p>}
       </section>
     </div>
   );
