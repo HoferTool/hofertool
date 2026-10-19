@@ -19,11 +19,13 @@ import { wiederOeffner, teilMerken } from "../teile/wiederherstellen.js";
 import { Symbol, EIMER, GROSS, KLEIN } from "../teile/zeichnen.jsx";
 import Seite from "./Seite.jsx";
 import { buecherLaden, seitenLaden, fehltTabelle, BUCHFARBEN, BUECHER, SEITEN,
-  buchOeffnen, passwortSetzen, buecherZu, passwortText, fehltFunktion, padSeitenLaden } from "./daten.js";
+  buchOeffnen, passwortSetzen, buecherZu, passwortText, fehltFunktion, padSeitenLaden, istPdf } from "./daten.js";
+import { oneNoteUebernehmen, istOneNoteDatei } from "./onenote.js";
 
 export const BUCH = "M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3M9 7h6";
 const STIFT = "M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1z";
 const PLUS = "M12 5v14M5 12h14";
+const HOLEN = "M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14";
 // Fenster mit Leiste links: mit Strich = Leiste da, ohne = ganze Breite
 const SPALTEN_WEG = "M4 5h16v14H4zM10 5v14M15 10l-2 2 2 2";
 const SPALTEN_ZEIGEN = "M4 5h16v14H4zM10 5v14M13 10l2 2-2 2";
@@ -445,6 +447,80 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
     seitenNeu();
   };
 
+  // ---------- Aus OneNote übernehmen (src/notizbuch/onenote.js) ----------
+  const [holt, setHolt] = useState("");
+  const SO_EXPORTIEREN = "In OneNote am Computer: Datei → Exportieren → Notizbuch (oder Abschnitt) → PDF → Exportieren. "
+    + "Diese PDF hier wählen.";
+  // Das Dateifeld entsteht erst beim Tippen, damit im Fenster kein
+  // verstecktes Feld vor den anderen steht
+  const oneNoteWaehlen = () => {
+    const feld = document.createElement("input");
+    feld.type = "file"; feld.multiple = true;
+    feld.accept = "application/pdf,.pdf,.one,.onepkg";
+    feld.onchange = oneNoteGewaehlt;
+    feld.click();
+  };
+  const oneNoteGewaehlt = async (e) => {
+    const dateien = Array.from((e.target && e.target.files) || []);
+    if (e.target) e.target.value = "";
+    if (!dateien.length || holt) return;
+    const pdfs = dateien.filter(istPdf);
+    if (!pdfs.length) {
+      await alt.auswahlDialog("Diese Datei geht nicht", [{ wert: "ok", text: "OK" }],
+        (dateien.some(istOneNoteDatei) ? "OneNote-Dateien (.one, .onepkg) kann der Browser nicht lesen. "
+          : "Es geht nur PDF. ") + SO_EXPORTIEREN);
+      return;
+    }
+    // Wohin: neues Buch (Name aus der Datei) oder ins offene Buch
+    let ziel = "neu";
+    if (buch && !istZu(buch)) {
+      ziel = await alt.auswahlDialog("Aus OneNote übernehmen", [
+        { wert: "neu", text: pdfs.length > 1 ? "Je ein neues Notizbuch" : "Als neues Notizbuch" },
+        { wert: "hier", text: "In „" + buch.name + "“" }],
+      "Jede OneNote-Seite wird eine Seite, ihr Inhalt kommt als Ausdruck darauf.");
+      if (!ziel) return;
+    }
+    let letztesBuch = null, ersteSeite = null, blaetter = 0;
+    const schritte = [];
+    let reihe = (buecher || []).reduce((m, b) => Math.max(m, b.reihenfolge || 0), 0);
+    try {
+      for (const d of pdfs) {
+        let id = buchId, rf = (seiten || []).reduce((m, x) => Math.max(m, x.reihenfolge || 0), 0);
+        if (ziel === "neu") {
+          const name = d.name.replace(/\.pdf$/i, "").trim() || "OneNote";
+          const farbe = BUCHFARBEN[(reihe) % BUCHFARBEN.length][0];
+          const r = await alt.db.from(BUECHER).insert({ name, farbe, reihenfolge: ++reihe }).select("id");
+          if (r.error) throw r.error;
+          id = r.data && r.data[0] && r.data[0].id;
+          if (!id) throw new Error("Notizbuch nicht angelegt");
+          schritte.push(alt.rueckWeg(SEITEN, { buch_id: id }), alt.rueckWeg(BUECHER, { id }));
+          rf = 0;
+        }
+        letztesBuch = id;
+        const r = await oneNoteUebernehmen(d, async (titel, inhalt) => {
+          const a = await alt.db.from(SEITEN).insert({ buch_id: id, titel, reihenfolge: ++rf, inhalt }).select("id");
+          if (a.error) throw a.error;
+          const sid = a.data && a.data[0] && a.data[0].id;
+          if (sid && ziel === "hier") schritte.push(alt.rueckWeg(SEITEN, { id: sid }));
+          if (!ersteSeite) ersteSeite = sid;
+          blaetter++;
+        }, (t) => setHolt(d.name + ": " + t));
+        if (r.alle > r.seiten) alt.meldung("Nur die ersten " + r.seiten + " von " + r.alle + " PDF-Seiten übernommen.", "warn");
+      }
+      alt.meldung(blaetter === 1 ? "1 Seite übernommen." : blaetter + " Seiten übernommen.", "gut");
+    } catch (f) {
+      alt.fehlerMerken && alt.fehlerMerken("OneNote übernehmen", alt.fehlertext(f));
+      alt.meldung("Übernehmen ging nicht: " + alt.fehlertext(f), "fehler");
+    } finally {
+      setHolt("");
+    }
+    if (schritte.length) alt.merkeSchritt("Aus OneNote übernommen", schritte);
+    if (!letztesBuch) return;
+    // Zum Übernommenen wechseln: neues Buch mit seiner ersten Seite
+    if (ziel === "neu") { setSeiteId(null); await buecherNeu(letztesBuch); }
+    else await seitenNeu(ersteSeite);
+  };
+
   // Der Titel steht auf der Seite selbst; die Liste zieht mit
   const titelGeaendert = useCallback((id, titel) => {
     setSeiten((l) => (l || []).map((s) => (s.id === id ? { ...s, titel } : s)));
@@ -507,8 +583,12 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
       <div className="nb-koerper" style={{ "--nb-b": spalten[0] + "px", "--nb-s": spalten[1] + "px" }}>
         <nav className="nb-buecher" aria-label="Notizbücher">
           <div className="nb-spaltenkopf">Bücher
-            {darf && !fehlt && <button type="button" className="nb-plus" data-nb="buch-neu" aria-label="Neues Notizbuch"
-              title="Neues Notizbuch" onClick={buchNeu}><Symbol d={PLUS} /></button>}</div>
+            {darf && !fehlt && <span className="nb-knoepfe">
+              <button type="button" className="nb-plus" data-nb="onenote" aria-label="Aus OneNote übernehmen"
+                title={"Aus OneNote übernehmen (PDF). " + SO_EXPORTIEREN} disabled={!!holt}
+                onClick={oneNoteWaehlen}><Symbol d={HOLEN} /></button>
+              <button type="button" className="nb-plus" data-nb="buch-neu" aria-label="Neues Notizbuch"
+                title="Neues Notizbuch" onClick={buchNeu}><Symbol d={PLUS} /></button></span>}</div>
           <div className="nb-liste">
             {(buecher || []).map((b) => (
               <div key={b.id} className={"nb-eintrag nb-eintrag--buch" + (b.id === buchId ? " aktiv" : "")}
@@ -548,7 +628,8 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel }) {
           <span className="nb-teiler" data-nbteiler="1" role="separator" aria-orientation="vertical"
             aria-label="Breite der Seiten" title="Breite ziehen" onPointerDown={(e) => spalteZiehen(e, 1)} />
         </nav>
-        <main className="nb-haupt">{haupt}</main>
+        <main className="nb-haupt">{haupt}
+          {holt && <div className="nb-holt" role="status" data-nbholt=""><b>Aus OneNote übernehmen</b><span>{holt}</span></div>}</main>
       </div>
       {schwebend && RAENDER.map((r) => <span key={r} className={"nb-rand nb-rand--" + r} data-nbrand={r}
         onPointerDown={(e) => rahmenZiehen(e, r)} />)}

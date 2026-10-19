@@ -137,6 +137,29 @@ export async function bildEinfuegen(datei) {
   return { u, v: h / b, px: b };
 }
 
+// Eine Seite eines geöffneten PDFs als Bild in die Ablage
+// → { u, v: Höhe/Breite, q: Adresse des PDFs, s: Seitennummer, l: Verweise }
+export async function pdfSeiteHochladen(doc, i, q) {
+  const seite = await doc.getPage(i);
+  const v1 = seite.getViewport({ scale: 1 });
+  const massstab = Math.min(4, 1600 / v1.width);
+  const v = seite.getViewport({ scale: massstab });
+  const c = document.createElement("canvas");
+  c.width = Math.round(v.width); c.height = Math.round(v.height);
+  const g = c.getContext("2d");
+  g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+  await seite.render({ canvasContext: g, viewport: v }).promise;
+  const u = await hochladen(await alsJpeg(c, c.width, c.height), "jpg", "image/jpeg");
+  // Verweise (Inhaltsverzeichnis) springen später zur Seite im Ausdruck
+  const l = await seitenLinks(doc, seite).catch(() => []);
+  const aus = Object.assign({ u, v: c.height / c.width, q, s: i }, l.length ? { l } : {});
+  c.width = 1; c.height = 1;   // Speicher gleich freigeben (iPad)
+  seite.cleanup();
+  return aus;
+}
+
+export const pdfHochladen = (daten) => hochladen(new Blob([daten], { type: "application/pdf" }), "pdf", "application/pdf");
+
 // PDF: das Original kommt in die Ablage (zum Öffnen), jede Seite als
 // Bild auf die Notizbuch-Seite, wie ein „Ausdruck“ in OneNote. So kann
 // man darauf zeichnen und schreiben.
@@ -151,20 +174,7 @@ export async function pdfEinfuegen(datei, fortschritt) {
     const seiten = [];
     for (let i = 1; i <= n; i++) {
       if (fortschritt) fortschritt(i, n);
-      const seite = await doc.getPage(i);
-      const v1 = seite.getViewport({ scale: 1 });
-      const massstab = Math.min(4, 1600 / v1.width);
-      const v = seite.getViewport({ scale: massstab });
-      const c = document.createElement("canvas");
-      c.width = Math.round(v.width); c.height = Math.round(v.height);
-      const g = c.getContext("2d");
-      g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
-      await seite.render({ canvasContext: g, viewport: v }).promise;
-      const u = await hochladen(await alsJpeg(c, c.width, c.height), "jpg", "image/jpeg");
-      // Verweise (Inhaltsverzeichnis) springen später zur Seite im Ausdruck
-      const l = await seitenLinks(doc, seite).catch(() => []);
-      seiten.push(Object.assign({ u, v: c.height / c.width, q, s: i }, l.length ? { l } : {}));
-      c.width = 1; c.height = 1;   // Speicher gleich freigeben (iPad)
+      seiten.push(await pdfSeiteHochladen(doc, i, q));
     }
     return { seiten, alle: doc.numPages };
   } finally {

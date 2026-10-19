@@ -8271,3 +8271,13 @@ body.dunkel .qs-fort__text { color: var(--tinte); }
   .imhaus__gif { height: 140px; max-width: 100%; align-self: center; }
 }
 @media (prefers-reduced-motion: reduce) { .imhaus { animation: none; } }
+
+/* Notizbuch: Aus OneNote übernehmen (seit 1.93.0) */
+.nb-knoepfe { display: inline-flex; gap: 6px; }
+.nb-plus:disabled { opacity: .5; cursor: progress; }
+.nb-haupt { position: relative; }
+.nb-holt { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); z-index: 5;
+  display: flex; flex-direction: column; gap: 2px; padding: 10px 16px; border-radius: 10px;
+  background: var(--flaeche); border: 1px solid var(--linie); box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  font-size: .9rem; max-width: calc(100% - 32px); }
+.nb-holt span { color: var(--gedaempft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
