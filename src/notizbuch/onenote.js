@@ -16,6 +16,12 @@
 //       darunter Datum mit Jahr und Uhrzeit. Folgeseiten einer langen
 //       OneNote-Seite haben diesen Kopf nicht.
 //    3. sonst jede PDF-Seite für sich
+//
+//  Abschnitte: Exportiert man das ganze Notizbuch, schreibt OneNote die
+//  Abschnitte nicht in die PDF (keine Lesezeichen, kein Name auf der
+//  Seite; so bei Patricks Export vom 19. Oktober 2026). Darum geht
+//  jeder Abschnitt als eigene PDF, alle zusammen gewählt, und jede PDF
+//  wird ein Abschnitt mit ihrem Dateinamen.
 // =================================================================
 import { pdfjs } from "../teile/PdfAnsicht.jsx";
 import { pdfSeiteHochladen, pdfHochladen } from "./daten.js";
@@ -179,7 +185,7 @@ export async function oneNoteUebernehmen(datei, blatt, fortschritt) {
       }
       await blatt(t.titel || "", inhalt, t.abschnitt || null);
     }
-    return { blaetter: teile.length, seiten: n, alle: doc.numPages };
+    return { blaetter: teile.length, seiten: n, alle: doc.numPages, abschnitte: teile.some((t) => t.abschnitt) };
   } finally {
     aufgabe.destroy();
   }

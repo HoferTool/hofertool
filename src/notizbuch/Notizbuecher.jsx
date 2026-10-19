@@ -589,8 +589,12 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel, maschine
 
   // ---------- Aus OneNote übernehmen (src/notizbuch/onenote.js) ----------
   const [holt, setHolt] = useState("");
-  const SO_EXPORTIEREN = "In OneNote am Computer: Datei → Exportieren → Notizbuch (oder Abschnitt) → PDF → Exportieren. "
-    + "Diese PDF hier wählen.";
+  const SO_EXPORTIEREN = "In OneNote am Computer: Datei → Exportieren → Abschnitt → PDF → Exportieren, für jeden Abschnitt. "
+    + "Dann alle PDFs zusammen hier wählen, jede wird ein Abschnitt.";
+  const OHNE_ABSCHNITTE = "In der PDF stehen keine Abschnitte, darum ist alles in einem Abschnitt. "
+    + "OneNote schreibt sie nicht in die PDF, wenn man das ganze Notizbuch exportiert. "
+    + "So kommen die Abschnitte mit: in OneNote jeden Abschnitt einzeln exportieren "
+    + "(Datei → Exportieren → Abschnitt → PDF), dann hier alle PDFs zusammen wählen.";
   // Das Dateifeld entsteht erst beim Tippen, damit im Fenster kein
   // verstecktes Feld vor den anderen steht
   const oneNoteWaehlen = () => {
@@ -612,24 +616,34 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel, maschine
       return;
     }
     // Wohin: neues Buch (Name aus der Datei) oder ins offene Buch
-    let ziel = "neu";
-    if (buch && !istZu(buch)) {
-      ziel = await alt.auswahlDialog("Aus OneNote übernehmen", [
-        { wert: "neu", text: pdfs.length > 1 ? "Je ein neues Notizbuch" : "Als neues Notizbuch" },
-        { wert: "hier", text: "In „" + buch.name + "“" }],
+    // Mehrere PDFs (ein Abschnitt je PDF): zuerst ein neues Buch mit
+    // allen als Abschnitte
+    let ziel = pdfs.length > 1 ? "eins" : "neu";
+    if (pdfs.length > 1 || (buch && !istZu(buch))) {
+      ziel = await alt.auswahlDialog("Aus OneNote übernehmen", [].concat(
+        pdfs.length > 1 ? [{ wert: "eins", text: "Ein neues Notizbuch, jede PDF ein Abschnitt" }] : [],
+        [{ wert: "neu", text: pdfs.length > 1 ? "Je ein neues Notizbuch" : "Als neues Notizbuch" }],
+        buch && !istZu(buch) ? [{ wert: "hier", text: "In „" + buch.name + "“" + (pdfs.length > 1 ? ", jede PDF ein Abschnitt" : "") }] : []),
       "Jede OneNote-Seite wird eine Seite, ihr Inhalt kommt als Ausdruck darauf.");
       if (!ziel) return;
     }
-    let letztesBuch = null, ersteSeite = null, blaetter = 0;
+    let einsName = "";
+    if (ziel === "eins") {
+      const w = await alt.dialogFelder({ titel: "Name des Notizbuchs",
+        felder: [{ name: "name", label: "Name", wert: "OneNote", pflicht: true }], bestaetigen: "Übernehmen" });
+      if (!w) return;
+      einsName = String(w.name || "").trim() || "OneNote";
+    }
+    let letztesBuch = null, ersteSeite = null, blaetter = 0, rfEins = 0;
     const schritte = [];
     let reihe = (buecher || []).reduce((m, b) => Math.max(m, b.reihenfolge || 0), 0);
     // Abschnitte: aus den Lesezeichen der PDF, sonst einer mit dem
     // Namen der Datei (wie beim Umstellen der alten Bücher)
-    let ohneAb = false;
+    let ohneAb = false, abZahl = 0, keineAbschnitte = false;
     const abHolen = async (id, liste, name) => {
       if (ohneAb) return null;
       if (liste.has(name)) return liste.get(name);
-      const reihenfolge = liste.size + 1 + (ziel === "hier" && abschnitte ? abschnitte.length : 0);
+      const reihenfolge = ++abZahl + (ziel === "hier" && abschnitte ? abschnitte.length : 0);
       const r = await alt.db.from(ABSCHNITTE).insert({ buch_id: id, name, reihenfolge,
         farbe: BUCHFARBEN[(reihenfolge - 1) % BUCHFARBEN.length][0] }).select("id");
       if (r.error) {
@@ -644,15 +658,17 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel, maschine
     try {
       for (const d of pdfs) {
         let id = buchId, rf = (seiten || []).reduce((m, x) => Math.max(m, x.reihenfolge || 0), 0);
-        if (ziel === "neu") {
-          const name = d.name.replace(/\.pdf$/i, "").trim() || "OneNote";
+        // Weitere PDFs ins selbe Buch: Reihenfolge weiterzählen
+        if (ziel !== "neu" && letztesBuch) { id = letztesBuch; rf = rfEins; }
+        else if (ziel === "neu" || ziel === "eins") {
+          const name = ziel === "eins" ? einsName : (d.name.replace(/\.pdf$/i, "").trim() || "OneNote");
           const farbe = BUCHFARBEN[(reihe) % BUCHFARBEN.length][0];
           const r = await alt.db.from(BUECHER).insert({ name, farbe, reihenfolge: ++reihe }).select("id");
           if (r.error) throw r.error;
           id = r.data && r.data[0] && r.data[0].id;
           if (!id) throw new Error("Notizbuch nicht angelegt");
           schritte.push(alt.rueckWeg(SEITEN, { buch_id: id }), alt.rueckWeg(ABSCHNITTE, { buch_id: id }), alt.rueckWeg(BUECHER, { id }));
-          rf = 0;
+          rf = 0; abZahl = 0;
         }
         letztesBuch = id;
         const dateiName = d.name.replace(/\.pdf$/i, "").trim() || "OneNote";
@@ -667,6 +683,8 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel, maschine
           if (!ersteSeite) ersteSeite = sid;
           blaetter++;
         }, (t) => setHolt(d.name + ": " + t));
+        rfEins = rf;
+        if (pdfs.length === 1 && !r.abschnitte) keineAbschnitte = true;
         if (r.alle > r.seiten) alt.meldung("Nur die ersten " + r.seiten + " von " + r.alle + " PDF-Seiten übernommen.", "warn");
       }
       alt.meldung(blaetter === 1 ? "1 Seite übernommen." : blaetter + " Seiten übernommen.", "gut");
@@ -679,8 +697,9 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel, maschine
     if (schritte.length) alt.merkeSchritt("Aus OneNote übernommen", schritte);
     if (!letztesBuch) return;
     // Zum Übernommenen wechseln: neues Buch mit seiner ersten Seite
-    if (ziel === "neu") { setSeiteId(ersteSeite); setAbschnittId(null); await buecherNeu(letztesBuch); }
+    if (ziel !== "hier") { setSeiteId(ersteSeite); setAbschnittId(null); await buecherNeu(letztesBuch); }
     else await seitenNeu(ersteSeite);
+    if (keineAbschnitte) await alt.auswahlDialog("Ohne Abschnitte", [{ wert: "ok", text: "OK" }], OHNE_ABSCHNITTE);
   };
 
   // Der Titel steht auf der Seite selbst; die Liste zieht mit
