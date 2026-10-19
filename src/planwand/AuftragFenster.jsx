@@ -460,8 +460,13 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           if (!spalte || notizNeu !== notizAlt) aenderung.plan_note = alt.notizZusammen(notizNeu, spalte ? "" : platz);
           await alt.aendernOhneUnbekannte("jobs", aenderung, "id", auftrag.id);
         }
-        const r = await alt.zustandSetzen(auftrag, w.zustand);
-        alt.meldung("Zustand geändert." + (r.hinweis ? " " + r.hinweis : ""));
+        // Nur einen hier gewählten Zustand schreiben: sonst setzte ein
+        // offenes Fenster den Zustand zurück, den inzwischen ein anderes
+        // Gerät gesetzt hat (Wunsch Patrick 19. Oktober 2026)
+        if (w.zustand !== anfang.current.zustand) {
+          const r = await alt.zustandSetzen(auftrag, w.zustand);
+          alt.meldung("Zustand geändert." + (r.hinweis ? " " + r.hinweis : ""));
+        } else alt.meldung("Gespeichert.");
         alt.planAktualisieren(b);
       } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
       return;
@@ -476,38 +481,54 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     // Mit eigener Spalte steht der Materialplatz nicht mehr in der Notiz
     const platzSpalte = alt.materialPlatzSpalte();
     // Ohne Recht bleibt der Materialplatz, wie er war
-    const platzWert = darfPlatz ? (w.matOrt || "") : (auftrag ? alt.materialPlatz(auftrag) : "");
-    const daten = {
-      planned_from: w.von || null,
-      planned_days: Math.max(1, Math.round(Number(w.tage) || 1)),
-      target_quantity: w.menge === "" ? null : Math.max(0, Math.round(Number(w.menge))),
-      // Eine eben eingetippte Bestellung steht nach dem Speichern nur
-      // noch in Menge und Liefertermin, nicht doppelt in der Notiz
-      plan_note: alt.notizZusammen(materialAusNotizEntfernen(w.notiz, w.matMenge, w.liefer),
-        platzSpalte ? "" : platzWert),
-      drawing_url: w.pdf,
-      wbg_url: w.wbg,
-      plan_status: w.zustand,
-      // Erkennt die App den Werkstoff, gilt immer seine Farbe; nur sonst
-      // bleibt die bisherige des Auftrags
-      color: gruppe ? gruppe.farbe : w.farbe,
-      geplant_von: w.planer.length ? w.planer.join("/") : null,
-      // FA gilt als erstellt, sobald eine FA Nr. dasteht, Material als
-      // da, sobald eine Menge eingetragen ist
-      fa_erstellt: !!w.faNr.trim(),
-      material_ok: !!w.matMenge.trim(),
-      material_bez: w.matBez.trim() || null,
-      material_menge: w.matMenge.trim() || null,
-      material_liefertermin: w.liefer || null,
-      // Bei jedem Durchlauf eine andere — gehört an den Auftrag
-      fa_nr: w.faNr.trim() || null,
-      machine_id: w.maschine,
+    const datenAus = (w) => {
+      const gruppe = w.matBez.trim() ? alt.werkstoffErkennen(w.matBez) : null;
+      const platzWert = darfPlatz ? (w.matOrt || "") : (auftrag ? alt.materialPlatz(auftrag) : "");
+      const daten = {
+        planned_from: w.von || null,
+        planned_days: Math.max(1, Math.round(Number(w.tage) || 1)),
+        target_quantity: w.menge === "" ? null : Math.max(0, Math.round(Number(w.menge))),
+        // Eine eben eingetippte Bestellung steht nach dem Speichern nur
+        // noch in Menge und Liefertermin, nicht doppelt in der Notiz
+        plan_note: alt.notizZusammen(materialAusNotizEntfernen(w.notiz, w.matMenge, w.liefer),
+          platzSpalte ? "" : platzWert),
+        drawing_url: w.pdf,
+        wbg_url: w.wbg,
+        plan_status: w.zustand,
+        // Erkennt die App den Werkstoff, gilt immer seine Farbe; nur sonst
+        // bleibt die bisherige des Auftrags
+        color: gruppe ? gruppe.farbe : w.farbe,
+        geplant_von: w.planer.length ? w.planer.join("/") : null,
+        // FA gilt als erstellt, sobald eine FA Nr. dasteht, Material als
+        // da, sobald eine Menge eingetragen ist
+        fa_erstellt: !!w.faNr.trim(),
+        material_ok: !!w.matMenge.trim(),
+        material_bez: w.matBez.trim() || null,
+        material_menge: w.matMenge.trim() || null,
+        material_liefertermin: w.liefer || null,
+        // Bei jedem Durchlauf eine andere — gehört an den Auftrag
+        fa_nr: w.faNr.trim() || null,
+        machine_id: w.maschine,
+      };
+      if (abrufDa) daten.abruf_info = w.abruf.trim() || null;
+      if (mSpalte) daten.material_m_trotzdem = !!w.mTrotzdem;
+      if (platzSpalte && darfPlatz) daten.material_platz = platzWert.trim() || null;
+      return daten;
     };
-    if (abrufDa) daten.abruf_info = w.abruf.trim() || null;
-    if (mSpalte) daten.material_m_trotzdem = !!w.mTrotzdem;
-    if (platzSpalte && darfPlatz) daten.material_platz = platzWert.trim() || null;
+    const daten = datenAus(w);
+    // Mit demselben Konto auf zwei Geräten (Wunsch Patrick 19. Oktober
+    // 2026): nur schreiben, was in diesem Fenster geändert wurde. Sonst
+    // überschrieb ein länger offenes Fenster beim Speichern, was das
+    // andere Gerät inzwischen gespeichert hatte, und es sah aus, als
+    // hätte das nicht gespeichert.
+    const vorher = auftrag ? datenAus(anfang.current) : null;
+    const geaendert = vorher
+      ? Object.keys(daten).filter((k) => JSON.stringify(daten[k]) !== JSON.stringify(vorher[k])
+        // Die Farbe des erkannten Werkstoffs gilt immer (seit 1.73.1)
+        || (k === "color" && daten.color !== auftrag.color))
+      : null;
     setBeschaeftigt(true);
-    try { await auftragSpeichern({ auftrag, daten, nr: w.nr.trim(), b, zu }); }
+    try { await auftragSpeichern({ auftrag, daten, geaendert, nr: w.nr.trim(), b, zu }); }
     finally { setBeschaeftigt(false); }
   };
 

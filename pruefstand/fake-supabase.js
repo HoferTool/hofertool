@@ -257,7 +257,14 @@ daten.solar_werte = (() => {
 })();
 
 daten.login_kacheln = [];
-TEST.rpc = {};
+TEST.rpc = {
+  // Wie sql/einstellung-setzen.sql: nur den einen Wert am eigenen Konto
+  einstellung_setzen: (a) => {
+    const p = (TEST.daten.profiles || []).find((x) => x.id === "u1");
+    if (p) p.einstellungen = Object.assign({}, p.einstellungen || {}, { [a.p_name]: a.p_wert });
+    return null;
+  },
+};
 TEST.funktionen = {};
 TEST.daten = daten;
 if (typeof window !== "undefined") window.TEST = TEST;
@@ -607,7 +614,7 @@ export function createClient(_url, _key, optionen) {
         window.OHNE_SITZUNG = false;
         return Promise.resolve({ data: {}, error: null });
       },
-      signOut: () => { TEST.protokoll.push({ art: "signOut" }); return Promise.resolve({ error: null }); },
+      signOut: (o) => { const sc = (o && o.scope) || "global"; TEST.protokoll.push({ art: "signOut", scope: sc }); try { sessionStorage.setItem("test.signOut", (sessionStorage.getItem("test.signOut") || "") + sc + ","); } catch (f) { /* egal */ } return Promise.resolve({ error: null }); },
       // Gemerkte Anmeldung: gültig sind nur Schlüssel in TEST.schluessel
       refreshSession: (a) => {
         TEST.protokoll.push({ art: "refreshSession", a });

@@ -80,6 +80,10 @@ with sync_playwright() as p:
     if gemerkt(pg): fehler.append("trotz fehlendem Häkchen gemerkt")
     print("Frage:", abmelden(pg))
     if not pg.evaluate("TEST.protokoll.filter(x => x.art === 'signOut').length"): fehler.append("signOut fehlt ohne Merken")
+    # Nur dieses Gerät: ein zweites Gerät mit demselben Konto bleibt angemeldet
+    so = pg.evaluate("TEST.protokoll.filter(x => x.art === 'signOut').map(x => x.scope)")
+    print("signOut:", so)
+    if any(x != "local" for x in so): fehler.append("Abmelden meldet auch andere Geräte ab")
     fehler += f; pg.close()
     br.close()
 

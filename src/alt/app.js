@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.95.0";
+const APP_VERSION = "1.95.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -976,7 +976,33 @@ try {
     } catch (f) { /* nichts zu geben */ }
     if (Object.keys(antwort).length) sitzungKanal.postMessage({ sitzung: antwort });
   };
+  // Hat ein anderer Tab die Sitzung erneuert, gilt der alte Schlüssel
+  // hier nicht mehr. Erneuerte dieser Tab später mit dem alten, hielte
+  // Supabase das für gestohlen und beendete die Sitzung in allen Tabs.
+  // Darum den neuen übernehmen, aber nur für dieselbe Sitzung.
+  sitzungKanal.addEventListener("message", (e) => {
+    const neu = e.data && e.data.erneuert;
+    if (!neu || typeof neu !== "object") return;
+    Object.keys(neu).forEach((k) => {
+      if (!SITZUNG_MUSTER.test(k) || typeof neu[k] !== "string") return;
+      try {
+        const jetzt = sessionStorage.getItem(k);
+        if (jetzt && sitzungsKennung(jetzt) && sitzungsKennung(jetzt) === sitzungsKennung(neu[k])) {
+          sessionStorage.setItem(k, neu[k]);
+        }
+      } catch (f) { /* egal */ }
+    });
+  });
+
 } catch (f) { sitzungKanal = null; }
+
+// Welche Sitzung (Person) hinter einem abgelegten Eintrag steckt
+function sitzungsKennung(text) {
+  try {
+    const j = JSON.parse(text);
+    return (j && j.user && j.user.id) || null;
+  } catch (f) { return null; }
+}
 
 function sitzungVonAnderemTab() {
   if (!sitzungKanal || sitzungSchluessel().length) return Promise.resolve(false);
@@ -1004,10 +1030,19 @@ function sitzungVonAnderemTab() {
 // Personen, die sich auf diesem Gerät merken lassen.
 function sitzungenVerfolgen(client) {
   try {
-    client.auth.onAuthStateChange((_art, s) => {
+    client.auth.onAuthStateChange((art, s) => {
       if (s && s.user && s.refresh_token && sitzungGemerkt(s.user.email)) {
         sitzungMerken(s.user.email, s.refresh_token);
       }
+      // Den anderen Tabs den neuen Schlüssel geben (siehe oben)
+      if (art === "TOKEN_REFRESHED" && sitzungKanal) setTimeout(() => {
+        const neu = {};
+        try {
+          Object.keys(sessionStorage).filter((k) => SITZUNG_MUSTER.test(k))
+            .forEach((k) => { neu[k] = sessionStorage.getItem(k); });
+        } catch (f) { /* nichts zu geben */ }
+        if (Object.keys(neu).length) try { sitzungKanal.postMessage({ erneuert: neu }); } catch (f) { /* egal */ }
+      }, 0);
     });
   } catch (f) { /* ohne geht es auch, dann eben jedes Mal anmelden */ }
 }
@@ -1247,11 +1282,20 @@ function einstellungAblegen(name, wert) {
   profil.einstellungen = profil.einstellungen || {};
   profil.einstellungen[name] = wert;
 
-  db.from("profiles").update({ einstellungen: profil.einstellungen })
-    .eq("id", profil.id)
+  // Nur diesen einen Wert ändern (sql/einstellung-setzen.sql). Die ganze
+  // Liste zu schreiben überschrieb, was ein zweites Gerät mit demselben
+  // Konto eben gespeichert hatte (Wunsch Patrick 19. Oktober 2026).
+  const fertig = (r) => {
+    // Sichtbar im Fehlerprotokoll, nicht nur in der Entwicklerkonsole
+    if (r && r.error) fehlerMerken("Einstellung nicht am Konto gespeichert", name + ": " + r.error.message);
+  };
+  db.rpc("einstellung_setzen", { p_name: name, p_wert: wert === undefined ? null : wert })
     .then((r) => {
-      // Sichtbar im Fehlerprotokoll, nicht nur in der Entwicklerkonsole
-      if (r && r.error) fehlerMerken("Einstellung nicht am Konto gespeichert", name + ": " + r.error.message);
+      if (!r || !r.error) return;
+      // Ohne das SQL wie früher die ganze Liste
+      if (/einstellung_setzen/.test(String(r.error.message || ""))) {
+        db.from("profiles").update({ einstellungen: profil.einstellungen }).eq("id", profil.id).then(fertig);
+      } else fertig(r);
     });
 }
 
@@ -1480,7 +1524,11 @@ async function abmelden() {
   rueckLeeren();
   const s = await sitzung();
   if (!s || !sitzungGemerkt(s.user && s.user.email)) {
-    try { await db.auth.signOut(); } catch (f) { /* lokal ist trotzdem weg */ }
+    // Nur dieses Gerät: signOut() ohne scope meldet die Person überall
+    // ab, dann flog das andere Gerät mit demselben Konto raus und konnte
+    // nichts mehr speichern (Wunsch Patrick 19. Oktober 2026: mit einem
+    // Konto auf zwei Geräten arbeiten)
+    try { await db.auth.signOut({ scope: "local" }); } catch (f) { /* lokal ist trotzdem weg */ }
     return;
   }
   sitzungMerken(s.user.email, s.refresh_token);
@@ -10272,7 +10320,7 @@ try {
     if (zuLange) setTimeout(() =>
       meldung("Automatische Abmeldung nach 4 Stunden ohne Bedienung."), 400);
   } else if (p.is_active === false) {
-    await db.auth.signOut();
+    await db.auth.signOut({ scope: "local" });
     profil = null;
     zeigeLogin();
     meldung("Dieses Konto ist deaktiviert. Bitte an den Besitzer wenden.", "fehler");
