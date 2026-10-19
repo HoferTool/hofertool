@@ -71,6 +71,11 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#material'")
     pg.wait_for_selector("[data-ort='Restelager']", timeout=8000); pg.wait_for_timeout(500)
     pruefe("Nur Restmaterial, keine Reiter", pg.locator("[data-matreiter]").count() == 0 and pg.locator("#mat-bestellen, #mat-bestellt").count() == 0)
+    # Suche nach Werkstoffnummer findet auch den Kurznamen (1.99.0)
+    for wort, soll in (("1.4104", 1), ("x14crmos17", 1), ("1.4305", 0)):
+        pg.fill("#mat-filter", wort); pg.wait_for_timeout(300)
+        pruefe("Suche " + wort + " → " + str(soll), pg.locator("[data-ort='Restelager']").count() == soll)
+    pg.fill("#mat-filter", ""); pg.wait_for_timeout(300)
     pg.evaluate("""TEST.daten.material_verlauf = [
       { id: 2, posten_id: 'p1', was: 'geaendert', material: 'X14CrMoS17 rd 024 mm h8', menge: 200, einheit: 'kg', ort: 'Aussenlager Nord', vorher: 'Menge 150 kg', am: '2026-10-16T10:00:00Z' },
       { id: 1, posten_id: 'p1', was: 'erfasst', material: 'X14CrMoS17 rd 024 mm h8', menge: 150, einheit: 'kg', ort: 'Aussenlager Nord', am: '2026-10-15T09:00:00Z' }]""")

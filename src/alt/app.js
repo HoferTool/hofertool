@@ -33,7 +33,7 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
-import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo } from "../daten/material.js";
+import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo, werkstoffSuchtext } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
@@ -130,7 +130,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.98.0";
+const APP_VERSION = "1.99.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4988,6 +4988,8 @@ function auftragText(j) {
     j.plan_note, j.problem, j.color,
     (PLANSTATUS[j.plan_status || "geplant"] || {}).name,
     j.material_bez, j.material_menge, j.material_liefertermin,
+    // Nummer und Kurzname des Werkstoffs: „1.4305“ findet auch „X8CrNiS18-9“
+    werkstoffSuchtext(j.material_bez),
     j.target_quantity, j.stand, j.planned_from,
     j.fa_nr ? "FA vorhanden" : "Kein FA vorhanden",
     j.material_menge ? "Material vorhanden" : "Keine Materialmenge",
@@ -7612,7 +7614,7 @@ async function ladeHoco(suche) {
   const alle = await stammGemerkt("hoco:alle", () => ladeHocoFrisch(""));
   const t = (suche || "").trim().toLowerCase();
   if (!t) return alle;
-  return alle.filter((x) => [x.hoco_nr, x.bezeichnung, x.material]
+  return alle.filter((x) => [x.hoco_nr, x.bezeichnung, x.material, werkstoffSuchtext(x.material)]
     .some((f) => String(f || "").toLowerCase().includes(t)));
 }
 

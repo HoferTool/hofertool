@@ -15,7 +15,7 @@
 import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { materialDatenLaden, materialRechnen, postenMengeText, laengenNachholen,
-  orteLaden, orteSpeichern, istOffen } from "../daten/material.js";
+  orteLaden, orteSpeichern, istOffen, werkstoffSuchtext } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import { materialHistorieOeffnen } from "../material/Historie.jsx";
 
@@ -155,7 +155,7 @@ function Lager({ d, suche, neu, erfassen }) {
   // Die gerechneten Posten wissen, wofür sie zugewiesen sind
   const gerechnet = new Map(d.gruppen.flatMap((g) => g.lager.map((p) => [p.id, p])));
   const liste = d.posten.filter((p) => p.art !== "bestellt").map((p) => gerechnet.get(p.id) || p)
-    .filter((p) => !s || s.split(/\s+/).every((w) => (p.material + " " + (p.ort || "") + " " + (p.notiz || "")).toLowerCase().includes(w)));
+    .filter((p) => !s || s.split(/\s+/).every((w) => (p.material + " " + werkstoffSuchtext(p.material) + " " + (p.ort || "") + " " + (p.notiz || "")).toLowerCase().includes(w)));
   const jeWerkstoff = farbeJeWerkstoff(d.auftraege);
   const jeOrt = new Map();
   liste.forEach((p) => {

@@ -178,6 +178,21 @@ export function werkstoffGenau(bez) {
   return null;
 }
 
+// Werkstoffnummer und Kurzname als Suchtext, damit die Suche nach
+// „1.4305“ auch „X8CrNiS18-9 …“ findet und umgekehrt (Wunsch Patrick
+// 19. Oktober 2026). Gemerkt je Bezeichnung, weil die Planwand-Suche
+// tausende Aufträge durchgeht.
+const suchtextGemerkt = new Map();
+export function werkstoffSuchtext(bez) {
+  const k = String(bez || "");
+  if (!k) return "";
+  if (!suchtextGemerkt.has(k)) {
+    const w = werkstoffGenau(k);
+    suchtextGemerkt.set(k, w ? (w.nr + " " + w.name).toLowerCase() : "");
+  }
+  return suchtextGemerkt.get(k);
+}
+
 // Kategorie (Farbe) einer Bezeichnung mit dem Faktor, der gerechnet
 // wird → { key, farbe, name, dichte, standard } oder null
 export function kategorieVon(bez) {
