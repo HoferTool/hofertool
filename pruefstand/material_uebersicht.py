@@ -171,7 +171,10 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/matinfo_fenster.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     zz = vorschau("mA")
-    pruefe("Auch beim laufenden (mA) Mat. info. in der Schnellvorschau", any(t.startswith("Mat. info.") for t in zz))
+    mia = next((t for t in zz if t.startswith("Mat. info.")), "fehlt")
+    # Seit 1.97.0 auf die ganze Fertigungsmenge: Länge 7 + 2,5 + 0,5 = 10 mm, 275 je Stange,
+    # 5'000 → 19 Stangen (auf die offenen 4'000 wären es 15)
+    pruefe("Laufender Auftrag (mA, 1'000 von 5'000 gemacht): Mat. info. auf die ganze Menge: " + mia, mia.startswith("Mat. info.") and "/ 19 Stangen" in mia.replace("\n", " "))
 
     # Beenden im Pad fragt nach dem Rest
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)

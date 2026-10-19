@@ -536,7 +536,7 @@ export function startSchaetzen(auftraege, heute) {
 // ---------- Rechnen ----------
 
 // Mindestmenge eines Auftrags in kg, mit „sicher“ = Länge bestätigt
-export function bedarfRechnen(j, teil, maschine) {
+export function bedarfRechnen(j, teil, maschine, ganzeMenge) {
   const kgm = kgJeMeter(j.material_bez);
   const laenge = teil && Number(teil.teil_laenge_mm);
   if (!kgm || !laenge || laenge <= 0) return null;
@@ -549,7 +549,10 @@ export function bedarfRechnen(j, teil, maschine) {
   const jeTeil = laenge + abstecher + PLANIEREN_MM;
   const jeStange = Math.floor((stange - stumpen) / jeTeil);
   if (jeStange < 1) return null;
-  const stueck = Math.max(0, (Number(j.target_quantity) || 0) - (Number(j.stand) || 0));
+  // ganzeMenge: die ganze Fertigungsmenge, ohne das schon Produzierte
+  // abzuziehen (Mat. info., Wunsch Patrick 19. Oktober 2026)
+  const stueck = ganzeMenge ? Math.max(0, Number(j.target_quantity) || 0)
+    : Math.max(0, (Number(j.target_quantity) || 0) - (Number(j.stand) || 0));
   if (!stueck) return { kg: 0, stangen: 0, sicher: !!teil.teil_mass_bestaetigt };
   const stangen = Math.ceil(stueck / jeStange);
   return { kg: stangen * stange / 1000 * kgm, stangen, jeStange, stange, stumpen, laenge, abstecher, jeTeil,
@@ -755,7 +758,8 @@ export function ampelText(eintrag) {
 // Auftragsfenster und Schnellvorschau (Wunsch Patrick 16. Oktober 2026:
 // „immer, egal was für Status oder schon Material bestellt, so kurz wie
 // möglich“). Gerechnet wie bei der Material-Übersicht (bedarfRechnen),
-// für die noch offenen Stück. ✗L heisst: Länge nicht bestätigt.
+// für die ganze Fertigungsmenge (seit 1.97.0, vorher nur die noch
+// offenen Stück). ✗L heisst: Länge nicht bestätigt.
 // → { text, kg, stangen, sicher } oder null (nichts geladen, Externe,
 // abgeschlossener Auftrag)
 export const MAT_INFO_ERKLAERUNG = "ca. heisst: Die Länge des Fertigteils ist noch nicht bestätigt, "
@@ -768,7 +772,7 @@ export function matInfo(j) {
   if (!kgJeMeter(j.material_bez)) return { text: "Material nicht erkannt" };
   const teil = stand.daten.teile[j.job_number];
   if (!teil || !Number(teil.teil_laenge_mm)) return { text: "Länge des Fertigteils fehlt" };
-  const b = bedarfRechnen(j, teil, stand.daten.maschineVon[j.machine_id]);
+  const b = bedarfRechnen(j, teil, stand.daten.maschineVon[j.machine_id], true);
   if (!b) return { text: "nicht berechenbar" };
   const kg = Math.ceil(b.kg);
   const z = (n) => (alt.zahlText ? alt.zahlText(n) : String(n));
