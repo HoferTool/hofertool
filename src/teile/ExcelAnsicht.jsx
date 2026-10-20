@@ -236,7 +236,7 @@ export function ExcelAnsicht({ daten, beiFehler }) {
 // Eine Papierseite: weiss, mit den Rändern aus Excel. Darin ein
 // Fenster auf den Teil des Blattes, der auf diese Seite kommt, mit
 // transform verkleinert, damit die Schrift genau wie das Blatt mitgeht.
-function Seite({ b, s, w, bildUrls }) {
+export function Seite({ b, s, w, bildUrls }) {
   const hoehe = w.y1 - w.y0;
   return (
     <div className="excelansicht__papier" data-excelseite="" style={{

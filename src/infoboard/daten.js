@@ -11,8 +11,9 @@
 //
 //  aufbau = { reihen: [{ format: "a4" (drei A4) | "a3l" (A3 links, A4 rechts)
 //                       | "a3r" (A4 links, A3 rechts), felder: [feld, feld, feld] }, …] }
-//  feld   = { id, art: "leer" | "datei" | "skizze",
-//             datei: { url, pfad, name, typ: "pdf" | "bild" | "video" },
+//  feld   = { id, art: "leer" | "datei" | "text" | "skizze" (alt),
+//             datei: { url, pfad, name, typ: "pdf" | "bild" | "video" | "excel" },
+//             html (bei art "text": Text wie in Word, TextFeld.jsx),
 //             sekunden: Seitenwechsel bei PDFs mit mehreren Seiten }
 //  Eine Reihe behält immer drei Felder; mit A3 zeigt sie nur die ersten
 //  zwei, das dritte kommt zurück, wenn man wieder auf drei A4 schaltet.
@@ -77,6 +78,10 @@ export function dateiTyp(name, mime) {
   if (m === "application/pdf" || /\.pdf$/.test(n)) return "pdf";
   if (m.startsWith("image/") || /\.(png|jpe?g|gif|webp|svg)$/.test(n)) return "bild";
   if (m.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/.test(n)) return "video";
+  // Excel zeigt die Tafel als Blatt wie ausgedruckt; Word wird zu Text
+  // (TextFeld.jsx), damit man ihn danach noch ändern kann
+  if (/\.(xlsx|xlsm|xls|ods)$/.test(n) || /spreadsheet|ms-excel/.test(m)) return "excel";
+  if (/\.docx$/.test(n) || /wordprocessingml/.test(m)) return "word";
   return "";
 }
 
@@ -85,7 +90,7 @@ export function dateiTyp(name, mime) {
 // Bildschirm sicher frisch laden lässt.
 export async function dateiHochladen(datei) {
   const typ = dateiTyp(datei.name, datei.type);
-  if (!typ) throw new Error("Nur PDF, Bilder oder Videos.");
+  if (!typ || typ === "word") throw new Error("Nur PDF, Bilder, Videos oder Excel.");
   const sauber = String(datei.name || "datei").normalize("NFD").replace(/[̀-ͯ]/g, "")
     .replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").slice(-80);
   const pfad = "infoboard/" + Date.now() + "-" + sauber;

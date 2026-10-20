@@ -4,8 +4,9 @@
 //  50 Zoll, hochkant) und die Anzeige über den ganzen Bildschirm
 //  (Wunsch Patrick 20. Oktober 2026). Links die Tafel genau wie am
 //  Bildschirm, rechts je Reihe „3 × A4“, „A3 + A4“ oder „A4 + A3“ und was im
-//  angetippten Bereich steht: eine Datei (PDF, Bild, Video) oder eine
-//  Fläche zum Zeichnen und Schreiben. Dateien lassen sich auch direkt auf
+//  angetippten Bereich steht: eine Datei (PDF, Bild, Video) oder Text
+//  wie in Word (TextFeld.jsx; früher die Zeichenfläche, die alte Felder
+//  noch zeigen). Dateien lassen sich auch direkt auf
 //  ein Feld ziehen, Felder aufeinander gezogen tauschen den Inhalt.
 //
 //  Gestalten dürfen nur Admins (auch in der Datenbank). Gerätekonten
@@ -17,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { Tafel, felderLage } from "./Tafel.jsx";
+import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
   istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN } from "./daten.js";
 
@@ -71,9 +73,18 @@ export default function Infoboard() {
   // Computer direkt auf das Feld gezogen (Wunsch Patrick 20. Oktober 2026)
   const dateiInFeld = async (feld, d) => {
     if (!d || !feld) return;
-    if (!dateiTyp(d.name, d.type)) { alt.meldung("Nur PDF, Bilder oder Videos.", "warn"); return; }
+    const typ = dateiTyp(d.name, d.type);
+    if (!typ) { alt.meldung("Nur PDF, Bilder, Videos, Excel oder Word (.docx).", "warn"); return; }
     setLaedt(d.name);
     try {
+      if (typ === "word") {
+        // Word wird Text auf der Tafel, danach mit „Text bearbeiten“ änderbar
+        const html = sauber(await wordLesen(d));
+        const id = feld.art === "text" ? feld.id : neueId();
+        await feldSetzen(feld.id, { id, art: "text", html });
+        setGewaehlt(id);
+        return;
+      }
       const neu = await dateiHochladen(d);
       const id = neueId();
       await feldSetzen(feld.id, { id, art: "datei", datei: neu, sekunden: feld.sekunden || SEKUNDEN });
@@ -105,10 +116,16 @@ export default function Infoboard() {
     else tauschen(d.feldId, feld.id);
   };
 
-  const skizzeSetzen = () => {
-    if (!wahl) return;
-    const id = neueId();
-    feldSetzen(wahl.feld.id, { id, art: "skizze" });
+  // Text wie in Word statt der Zeichenfläche (Wunsch Patrick 20. Oktober
+  // 2026). Bestehende Zeichenflächen bleiben, neue gibt es nicht mehr.
+  const textOeffnen = async (l) => {
+    if (!l) return;
+    const html = await textBearbeiten({ html: l.feld.art === "text" ? l.feld.html : "", format: l.format,
+      seitenVerhaeltnis: l.height / l.width,
+      titel: "Text · Reihe " + REIHEN[l.reihe] + " · " + (l.breit === 2 ? "A3" : "A4 " + SPALTE[l.spalte]) });
+    if (html == null) return;
+    const id = l.feld.art === "text" ? l.feld.id : neueId();
+    await feldSetzen(l.feld.id, { id, art: "text", html });
     setGewaehlt(id);
   };
 
@@ -116,6 +133,7 @@ export default function Infoboard() {
     if (!wahl || wahl.feld.art === "leer") return;
     const ok = await alt.nachfragen({ titel: "Bereich leeren?",
       text: wahl.feld.art === "skizze" ? "Die Zeichenfläche und alles darauf verschwindet vom Infoboard."
+        : wahl.feld.art === "text" ? "Der Text verschwindet vom Infoboard."
         : "Die Datei verschwindet vom Infoboard.", bestaetigen: "Leeren", gefahr: true });
     if (!ok) return;
     const id = neueId();
@@ -128,8 +146,8 @@ export default function Infoboard() {
 
   const geraetUmschalten = (an) => { infoboardGeraetSetzen(an); setGeraet(an); };
 
-  const inhaltText = (f) => f.art === "skizze" ? "Zeichenfläche"
-    : f.art === "datei" && f.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video" }[f.datei.typ] || "Datei") + ": " + (f.datei.name || "")
+  const inhaltText = (f) => f.art === "skizze" ? "Zeichenfläche" : f.art === "text" ? "Text"
+    : f.art === "datei" && f.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video", excel: "Excel" }[f.datei.typ] || "Datei") + ": " + (f.datei.name || "")
     : "Leer";
 
   return (
@@ -143,7 +161,8 @@ export default function Infoboard() {
       <div className="ib-gestalten__teile">
         <div className="ib-gestalten__vorschau">
           <Tafel aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt}
-            ablegen={admin && !laedt ? ablegen : null} />
+            ablegen={admin && !laedt ? ablegen : null}
+            doppelt={admin ? (id) => { const l = lage.find((x) => x.feld.id === id); if (l && l.feld.art === "text") textOeffnen(l); } : null} />
         </div>
         <div className="ib-gestalten__seite">
           {admin && <>
@@ -169,21 +188,23 @@ export default function Infoboard() {
                   <button type="button" className="knopf" data-ib="datei" disabled={!!laedt}
                     onClick={() => datei.current && datei.current.click()}>
                     {laedt ? "Lädt " + laedt + " …" : wahl.feld.art === "datei" ? "Andere Datei …" : "Datei wählen …"}</button>
-                  {wahl.feld.art !== "skizze" &&
-                    <button type="button" className="knopf knopf--still" data-ib="skizze" onClick={skizzeSetzen}>
-                      Zeichenfläche</button>}
+                  <button type="button" className="knopf knopf--still" data-ib="text" onClick={() => textOeffnen(wahl)}>
+                    {wahl.feld.art === "text" ? "Text bearbeiten" : "Text schreiben"}</button>
                   {wahl.feld.art !== "leer" &&
                     <button type="button" className="knopf knopf--gefahr" data-ib="leeren" onClick={leeren}>
                       Leeren</button>}
                 </div>
-                <input ref={datei} type="file" hidden accept="application/pdf,image/*,video/*" onChange={dateiGewaehlt} />
-                {wahl.feld.art === "datei" && wahl.feld.datei && wahl.feld.datei.typ === "pdf" &&
+                <input ref={datei} type="file" hidden onChange={dateiGewaehlt}
+                  accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
+                {wahl.feld.art === "datei" && wahl.feld.datei && (wahl.feld.datei.typ === "pdf" || wahl.feld.datei.typ === "excel") &&
                   <label className="feld">Mehrere Seiten wechseln alle
                     <select value={wahl.feld.sekunden || SEKUNDEN} data-ib="sekunden"
                       onChange={(e) => feldSetzen(wahl.feld.id, { ...wahl.feld, sekunden: Number(e.target.value) })}>
                       {WECHSEL.map(([w, t]) => <option key={w} value={w}>{t}</option>)}
                     </select></label>}
-                <p className="klein">PDF, Bild oder Video. Ein PDF zeigt die ganze Seite; antippen am Bildschirm zeigt die nächste.</p>
+                <p className="klein">PDF, Bild, Video oder Excel. PDF und Excel zeigen die ganze Seite wie ausgedruckt;
+                  antippen am Bildschirm zeigt die nächste. Eine Word-Datei wird zu Text, den man danach noch ändern kann.
+                  Doppelklick auf ein Textfeld öffnet es.</p>
               </div>}
           </>}
           <label className="ib-geraet">

@@ -8457,36 +8457,15 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .ib-rahmen { position: relative; width: 100%; height: 100%; overflow: hidden; }
 .ib-blatt { position: absolute; left: 50%; top: 50%; transform-origin: center center;
   background: #0b1626; color: #f2f4f7; overflow: hidden; }
-.ib-kopf { position: absolute; overflow: hidden; border-radius: 18px; padding: 0 !important; margin: 0; }
-.ib-kopf__innen { transform-origin: top left; padding: 14px 26px 10px; box-sizing: border-box; }
-/* Logo links, Uhr und Wetter rechts, darunter die Solaranlage ohne eigene Karte */
-.ib-kopf__zeile { display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  position: relative; z-index: 2; margin-bottom: 8px; }
-.ib-kopf__logo { height: 80px; width: auto; display: block; }
-.ib-kopf__rechts { display: flex; align-items: center; gap: 28px; text-align: right; }
-.ib-kopf .uhr { font-size: 2.7rem; }
-.ib-kopf .kopfkarte__datum { font-size: 1rem; margin-top: 4px; }
-.ib-kopf .kopfkarte__wetter { padding-left: 24px; border-left: 1px solid rgba(255,255,255,.18); }
-.ib-kopf .wetter__grad { font-size: 2.2rem; }
-.ib-kopf .wetter__text, .ib-kopf .wetter__rand { font-size: .95rem; }
-.ib-kopf .sol-kopf { margin-bottom: 4px; }
-.ib-kopf .solar { background: none !important; box-shadow: none !important; border-radius: 0; margin: 0; padding: 0 !important; overflow: visible; }
-.ib-kopf .solar::after { display: none; }
-.ib-kopf .sol-kopf__titel { font-size: .95rem; }
-.ib-kopf .sol-kopf__stand { font-size: .85rem; }
-/* Die Startseite richtet Reihe, Ring und Verlauf nach der Breite des
-   Fensters; auf der Tafel ist die Breite immer dieselbe, darum hier fest */
+/* Kopf wie auf der Startseite (1.122.0): gleiche Teile, gleiche Regeln.
+   Nur was bei schmalem Fenster auf der Startseite umbricht, bleibt hier
+   wie am Computer, weil die Tafel immer 1080 Punkte breit ist. */
+.ib-kopf { position: absolute; overflow: hidden; }
+.ib-kopf__innen { position: absolute; top: 0; transform-origin: top left; }
+.ib-kopf .kopfkarte { margin-top: 0 !important; }
+.ib-kopf .kopfkarte__logo { display: block !important; }
 .ib-kopf .sol-reihe { grid-template-columns: repeat(3, 1fr) auto !important; }
-.ib-kopf .sol-zahl__name { font-size: .85rem; }
-.ib-kopf .sol-zahl__wert { font-size: 1.9rem; }
-.ib-kopf .sol-zahl { padding: 2px 10px; }
-.ib-kopf .sol-ring { width: 76px !important; height: 76px !important; margin: 0 !important; grid-column: auto !important; }
-.ib-kopf .sol-ring__zahl { font-size: 1.3rem !important; }
-.ib-kopf .sol-verlauf { margin: 12px 0 4px; }
-.ib-kopf .sol-verlauf svg { height: 72px !important; }
-.ib-kopf .sol-verlauf__achse { font-size: .8rem; }
-.ib-kopf .solar-tag { margin-top: 4px !important; }
-.ib-kopf .solar-tag div { font-size: .95rem !important; padding: 5px 12px !important; }
+.ib-kopf .sol-ring { grid-column: auto !important; margin: 0 !important; }
 .ib-feld { position: absolute; overflow: hidden; border-radius: 10px; background: #fff; }
 .ib-feld--leer, .ib-feld--skizze { background: #10233a; }
 .ib-blatt--bearbeiten .ib-feld--leer { background: rgba(255,255,255,.05); border: 3px dashed rgba(255,255,255,.25); }
@@ -8683,3 +8662,52 @@ body.ib-offen { overflow: hidden; }
 .ib-feld--ziel { box-shadow: 0 0 0 6px #fff, 0 0 0 12px #2fb67c; }
 .ib-feld--ziel .ib-feld__wahl { background: rgba(47,182,124,.22) !important; }
 .ib-feld__wahl[draggable="true"] { cursor: grab; }
+
+/* Infoboard: Text wie in Word (1.122.0). Das Blatt hat echte Masse
+   (mm, pt) und wird als Ganzes auf das Feld verkleinert. */
+.ib-feld--text { background: #fff; }
+.ib-text { position: absolute; inset: 0; overflow: hidden; background: #fff; }
+.ib-text__blatt { position: absolute; left: 0; top: 0; transform-origin: top left; box-sizing: border-box;
+  overflow: hidden; color: #111; background: #fff; line-height: 1.25; outline: none;
+  font-family: Aptos, Calibri, Carlito, "Segoe UI", Arial, sans-serif; overflow-wrap: break-word; cursor: default; }
+.ib-text__blatt[contenteditable] { cursor: text; }
+.ib-text__blatt p, .ib-text__blatt h1, .ib-text__blatt h2, .ib-text__blatt h3, .ib-text__blatt h4 { margin: 0 0 .35em; }
+.ib-text__blatt h1 { font-size: 2em; font-weight: 700; }
+.ib-text__blatt h2 { font-size: 1.5em; font-weight: 700; }
+.ib-text__blatt h3 { font-size: 1.2em; font-weight: 700; }
+.ib-text__blatt ul, .ib-text__blatt ol { margin: 0 0 .35em; padding-left: 1.4em; }
+.ib-text__blatt table { border-collapse: collapse; margin: 0 0 .5em; }
+.ib-text__blatt td, .ib-text__blatt th { border: 1px solid #888; padding: 2px 6px; vertical-align: top; }
+.ib-text__blatt td p { margin: 0; }
+
+.ib-texteditor-huelle { z-index: 90; }
+.dialog.ib-te { width: min(1100px, 100%); max-width: none; height: calc(100vh - 40px); max-height: none; overflow: hidden; display: flex; flex-direction: column;
+  gap: 10px; padding: 16px 18px; box-sizing: border-box; }
+.ib-te__kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ib-te__kopf h2 { margin: 0; font-size: 1.1rem; }
+.ib-te__kopf .knopf { white-space: nowrap; }
+.ib-te__leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px;
+  border: 1px solid var(--linie-stark); border-radius: var(--radius); background: var(--flaeche-2, rgba(0,0,0,.03)); }
+.ib-te__knopf { min-width: 36px; height: 34px; padding: 0 8px; border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: inherit; font: inherit; font-size: 1rem; cursor: pointer; }
+.ib-te__knopf:hover { background: rgba(47,124,246,.1); }
+.ib-te__knopf.aktiv { background: rgba(47,124,246,.18); border-color: #2f7cf6; }
+.ib-te__groesse { height: 34px; }
+.ib-te__trenner { width: 1px; height: 24px; background: var(--linie-stark); margin: 0 4px; }
+.ib-te__farbe { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #999;
+  padding: 0; cursor: pointer; position: relative; overflow: hidden; display: inline-block; }
+.ib-te__farbe--frei { background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
+.ib-te__farbe--frei input { position: absolute; inset: -4px; opacity: 0; cursor: pointer; }
+.ib-te__platz { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center;
+  background: #5b6675; border-radius: var(--radius); }
+.ib-te__seite { position: relative; box-shadow: 0 4px 24px rgba(0,0,0,.35); }
+.ib-te__seite .ib-text { position: relative; inset: auto; }
+.ib-te__seite--voll { box-shadow: 0 0 0 3px #e53935, 0 4px 24px rgba(0,0,0,.35); }
+.ib-te__fuss { display: flex; align-items: center; gap: 10px; }
+.ib-te__fuss .klein { flex: 1 1 auto; }
+.ib-te__warnung { color: #c62828; font-weight: 600; }
+/* Excel auf dem Infoboard: Blatt wie ausgedruckt, ohne Schatten (1.122.0) */
+.ib-excel { background: #fff; }
+.ib-excel__seite { position: relative; overflow: hidden; }
+.ib-excel .excelansicht__papier { box-shadow: none !important; }
+

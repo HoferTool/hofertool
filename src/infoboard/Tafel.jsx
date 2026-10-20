@@ -9,11 +9,14 @@
 //  Oben der Kopf mit Logo, Uhr, Wetter und Solaranlage, darunter drei
 //  Reihen mit drei A4 oder einem A3 und einem A4.
 // =================================================================
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { Uhr, Wetter, Solaranlage } from "../seiten/Start.jsx";
 import { pdfjs } from "../teile/PdfAnsicht.jsx";
 import Skizze from "../pad/Skizze.jsx";
+import { TextBlatt } from "./TextFeld.jsx";
+import { Seite as ExcelSeite, seitenRechnen } from "../teile/ExcelAnsicht.jsx";
+import { excelLesen } from "../teile/excelLesen.js";
 import { BREITE, HOEHE, LUECKE, FELD_B, FELD_H, KOPF_H, BLATT, SEKUNDEN } from "./daten.js";
 
 // Welche Spalten jedes Feld einer Reihe belegt: [erste Spalte, Breite]
@@ -52,7 +55,7 @@ function useMassstab(rahmen) {
 
 const ZIEH_ART = "application/x-hofer-ibfeld";
 
-export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, ablegen }) {
+export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, ablegen, doppelt }) {
   const rahmen = useRef(null);
   const k = useMassstab(rahmen);
   const lage = felderLage(aufbau);
@@ -92,10 +95,12 @@ export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, ablege
             + (gewaehlt === l.feld.id ? " ib-feld--gewaehlt" : "") + (ziel === l.feld.id ? " ib-feld--ziel" : "")}
             data-ibfeld={l.reihe + "-" + l.platz}
             style={{ left: l.left, top: l.top, width: l.width, height: l.height }}>
-            <FeldInhalt feld={l.feld} format={l.format} bearbeiten={bearbeiten} grossZiel={grossZiel} />
+            <FeldInhalt feld={l.feld} format={l.format} bearbeiten={bearbeiten} grossZiel={grossZiel}
+              breite={l.width} hoehe={l.height} />
             {bearbeiten &&
               <button type="button" className="ib-feld__wahl" aria-label="Bereich wählen"
-                onClick={() => waehlen && waehlen(l.feld.id)} {...ziehen(l)} />}
+                onClick={() => waehlen && waehlen(l.feld.id)}
+                onDoubleClick={() => doppelt && doppelt(l.feld.id)} {...ziehen(l)} />}
           </div>
         ))}
       </div>}
@@ -103,12 +108,12 @@ export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, ablege
   );
 }
 
-// Der Kopf ist eine einzige Karte über die ganze Breite: die Solaranlage
-// mit dem Logo darin, Uhr und Wetter oben rechts (Wunsch Patrick
-// 20. Oktober 2026: „Solaranlage über die volle Breite, das Logo
-// integriert“). Ist der Inhalt höher als der Platz über den Feldern
-// (etwa mit Feiertag beim Wetter), wird er etwas verkleinert, statt in
-// die Felder zu ragen.
+// Der Kopf ist genau der Kopf der Startseite (Uhr, Logo, Wetter und
+// darunter die Solaranlage), nur über die ganze Breite der Tafel
+// (Wunsch Patrick 20. Oktober 2026: „genau so wie in der Startseite,
+// einfach über die volle Breite“). Ist er höher als der Platz über den
+// Feldern, wird er als Ganzes etwas verkleinert, statt in die Felder zu
+// ragen.
 function Kopf() {
   const innen = useRef(null);
   const [k, setK] = useState(1);
@@ -125,24 +130,24 @@ function Kopf() {
     ro.observe(el);
     return () => ro.disconnect();
   }, [hoehe]);
+  const breite = BREITE - 2 * LUECKE;
   return (
-    <div className="ib-kopf solar" style={{ height: hoehe, top: LUECKE, left: LUECKE, width: BREITE - 2 * LUECKE }}>
+    <div className="ib-kopf" style={{ height: hoehe, top: LUECKE, left: LUECKE, width: breite }}>
       <div className="ib-kopf__innen" ref={innen}
-        style={{ transform: k < 1 ? "scale(" + k + ")" : undefined, width: k < 1 ? 100 / k + "%" : undefined }}>
-        <div className="ib-kopf__zeile">
-          <img className="ib-kopf__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
-          <div className="ib-kopf__rechts">
-            <Uhr ohneId />
-            <Wetter ohneId />
-          </div>
-        </div>
+        style={{ transform: k < 1 ? "scale(" + k + ")" : undefined, width: k < 1 ? breite / k : breite }}>
+        <section className="kopfkarte">
+          <Uhr ohneId />
+          <img className="kopfkarte__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
+          <Wetter ohneId />
+        </section>
         <Solaranlage ohneId />
       </div>
     </div>
   );
 }
 
-function FeldInhalt({ feld, format, bearbeiten, grossZiel }) {
+function FeldInhalt({ feld, format, bearbeiten, grossZiel, breite, hoehe }) {
+  if (feld.art === "text") return <TextBlatt html={feld.html} format={format} breite={breite} hoehe={hoehe} />;
   if (feld.art === "skizze") {
     return (
       <div className="ib-skizze">
@@ -157,6 +162,7 @@ function FeldInhalt({ feld, format, bearbeiten, grossZiel }) {
     const d = feld.datei;
     if (d.typ === "pdf") return <PdfFlaeche url={d.url} sekunden={feld.sekunden || SEKUNDEN} />;
     if (d.typ === "bild") return <img className="ib-bild" src={d.url} alt={d.name || ""} />;
+    if (d.typ === "excel") return <ExcelFlaeche url={d.url} sekunden={feld.sekunden || SEKUNDEN} />;
     if (d.typ === "video") return <video className="ib-bild" src={d.url} autoPlay muted loop playsInline />;
   }
   return bearbeiten ? <div className="ib-leer">{format === "a3" ? "A3" : "A4"}<br />leer</div> : null;
@@ -242,3 +248,74 @@ function PdfFlaeche({ url, sekunden }) {
     </div>
   );
 }
+
+// Ein Excel-Blatt wie ausgedruckt (dieselbe Seite wie im Betrachter),
+// ganz ins Feld eingepasst. Alle Seiten aller Blätter wechseln wie beim PDF.
+function ExcelFlaeche({ url, sekunden }) {
+  const box = useRef(null);
+  const [blaetter, setBlaetter] = useState(null);
+  const [fehler, setFehler] = useState("");
+  const [nr, setNr] = useState(0);
+  const [mass, setMass] = useState(null);
+
+  useEffect(() => {
+    let gueltig = true;
+    setBlaetter(null); setFehler(""); setNr(0);
+    (async () => {
+      try {
+        const antwort = await fetch(url);
+        if (!antwort.ok) throw new Error("Datei nicht erreichbar (" + antwort.status + ")");
+        const b = await excelLesen(new Uint8Array(await antwort.arrayBuffer()));
+        if (gueltig) setBlaetter(b);
+      } catch (e) { if (gueltig) setFehler(alt.fehlertext(e)); }
+    })();
+    return () => { gueltig = false; };
+  }, [url]);
+
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const messen = () => setMass({ b: el.clientWidth, h: el.clientHeight });
+    messen();
+    const ro = new ResizeObserver(messen);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const seiten = useMemo(() => {
+    if (!blaetter) return [];
+    const aus = [];
+    blaetter.forEach((b) => {
+      const s = seitenRechnen(b);
+      s.fenster.forEach((w) => aus.push({ b, s, w }));
+    });
+    return aus;
+  }, [blaetter]);
+  const bildUrls = useMemo(() => (blaetter || []).map((b) =>
+    b.bilder.map((x) => (x.blob ? URL.createObjectURL(x.blob) : null))), [blaetter]);
+  useEffect(() => () => bildUrls.forEach((l) => l.forEach((u) => u && URL.revokeObjectURL(u))), [bildUrls]);
+
+  useEffect(() => {
+    if (seiten.length < 2) return;
+    const t = setInterval(() => setNr((n) => (n + 1) % seiten.length), Math.max(3, sekunden) * 1000);
+    return () => clearInterval(t);
+  }, [seiten.length, sekunden]);
+
+  const p = seiten[Math.min(nr, seiten.length - 1)];
+  const k = p && mass ? Math.min(mass.b / p.s.papier.b, mass.h / p.s.papier.h) : 0;
+  const weiter = () => seiten.length > 1 && setNr((n) => (n + 1) % seiten.length);
+  return (
+    <div className="ib-pdf ib-excel" ref={box} onClick={weiter}>
+      {p && k > 0 &&
+        <div className="ib-excel__seite" style={{ width: p.s.papier.b * k, height: p.s.papier.h * k }}>
+          <div style={{ transform: "scale(" + k + ")", transformOrigin: "0 0", width: p.s.papier.b }}>
+            <ExcelSeite b={p.b} s={p.s} w={p.w} bildUrls={bildUrls[blaetter.indexOf(p.b)] || []} />
+          </div>
+        </div>}
+      {!blaetter && !fehler && <div className="ib-leer">Excel wird geladen …</div>}
+      {fehler && <div className="ib-leer">Excel nicht lesbar<br /><small>{fehler}</small></div>}
+      {seiten.length > 1 && <span className="ib-pdf__nr">{nr + 1} / {seiten.length}</span>}
+    </div>
+  );
+}
+
