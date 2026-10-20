@@ -131,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.110.0";
+const APP_VERSION = "1.110.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4834,7 +4834,8 @@ function balkenInfoVerhalten() {
         // Zeichnungsnummer (Wunsch Patrick 20. Oktober 2026): aus dem
         // Dateinamen der Zeichnung, sonst aus der WBG. Was noch gelesen
         // werden muss, steht erst als „…“; ohne Nummer fällt die Zeile weg.
-        + (zeichnungNrSofort(j) !== ""
+        // Externe vorerst nicht (Neues nur nach Rückfrage bei Patrick)
+        + (!istExtern() && zeichnungNrSofort(j) !== ""
             ? zeile('<span class="pw-info__was">Zeichn. Nr.</span> <span data-wbg-znr>'
               + esc(zeichnungNrSofort(j) || "…") + '</span>', "znr")
             : "")
@@ -4861,7 +4862,7 @@ function balkenInfoVerhalten() {
 
       document.body.appendChild(fenster);
       platzieren();
-      if (zeichnungNrSofort(j) === undefined) {
+      if (!istExtern() && zeichnungNrSofort(j) === undefined) {
         const offen = fenster;
         zeichnungNrHolen(j).then((nr) => {
           if (fenster !== offen) return;
