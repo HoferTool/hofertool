@@ -103,6 +103,10 @@ with sync_playwright() as p:
     pruefe(nr.count() == 1 and nr.inner_text().strip() == "1 / 2", "PDF zeigt Seite 1 / 2")
     w = pg.evaluate("() => document.querySelector('#infoboard .ib-pdf__seite').width")
     pruefe(w > 100, "PDF-Seite gezeichnet: %d" % w)
+    sb = pg.locator("#infoboard .ib-pdf__seite").first.bounding_box()
+    fb = pg.locator("#infoboard [data-ibfeld='0-0']").bounding_box()
+    pruefe(sb["width"] > fb["width"] * 0.95 or sb["height"] > fb["height"] * 0.95,
+           "PDF füllt das Feld: %.0f×%.0f in %.0f×%.0f" % (sb["width"], sb["height"], fb["width"], fb["height"]))
     pg.locator("#infoboard .ib-pdf").first.click(); pg.wait_for_timeout(300)
     pruefe(nr.inner_text().strip() == "2 / 2", "antippen zeigt die nächste Seite")
     # Zeichnen auf der Fläche

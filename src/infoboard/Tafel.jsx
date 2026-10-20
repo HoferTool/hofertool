@@ -212,13 +212,20 @@ function PdfFlaeche({ url, sekunden }) {
       try {
         const p = await doc.getPage(Math.min(seite, doc.numPages));
         if (!gueltig) return;
-        const r = box.current.getBoundingClientRect();
+        // Die Tafel ist als Ganzes verkleinert oder vergrössert: Grösse
+        // im Feld aus clientWidth (ungezoomt), Schärfe aus der echten
+        // Grösse am Bildschirm. Ohne feste CSS-Grösse stand das Blatt in
+        // der Gestaltung nur halb so gross im Feld (1.120.2).
+        const el = box.current;
         const v1 = p.getViewport({ scale: 1 });
-        const dpr = Math.min(window.devicePixelRatio || 1, 3);
-        const s = Math.min(r.width / v1.width, r.height / v1.height) * dpr;
-        const v = p.getViewport({ scale: s });
+        const passt = Math.min(el.clientWidth / v1.width, el.clientHeight / v1.height);
+        const zoom = el.clientWidth ? el.getBoundingClientRect().width / el.clientWidth : 1;
+        const dpr = Math.min((window.devicePixelRatio || 1) * zoom, 3);
+        const v = p.getViewport({ scale: passt * dpr });
         const cv = leinwand.current;
         cv.width = Math.floor(v.width); cv.height = Math.floor(v.height);
+        cv.style.width = Math.floor(v1.width * passt) + "px";
+        cv.style.height = Math.floor(v1.height * passt) + "px";
         zeichnen = p.render({ canvasContext: cv.getContext("2d"), viewport: v });
         await zeichnen.promise;
       } catch (e) { /* abgebrochen oder Seite kaputt: das Bild bleibt */ }
