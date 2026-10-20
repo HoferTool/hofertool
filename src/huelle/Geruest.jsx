@@ -128,6 +128,36 @@ function useZuklappend(aktiv) {
   return zu;
 }
 
+// Ein- und Ausklappen der Seitenleiste mit Auftritt (seit 1.114.0,
+// Wunsch Patrick 20. Oktober 2026: „mehr Emotionen, man macht es ja
+// selten“). Auf: die Leiste schnellt über ihr Ziel hinaus und federt
+// zurück, ein Lichtstreifen fährt durch, die Zeichen drehen sich ein und
+// die Namen fliegen nacheinander scharf herein. Zu: die Namen verwehen,
+// die Leiste schnurrt zusammen, erst dann wird sie schmal und die Zeichen
+// springen an ihren Platz. Der Inhalt rückt nur einmal, nicht bei jedem
+// Bild, damit die Planwand nicht laufend neu rechnet.
+const KLAPP_AUF_MS = 950, KLAPP_ZU_MS = 720, KLAPP_ZU_SCHMAL_MS = 330;
+let klappUhren = [];
+function klappenZeigen(schmal) {
+  const b = document.body;
+  klappUhren.forEach(clearTimeout);
+  klappUhren = [];
+  b.classList.remove("nav--klappt-auf", "nav--klappt-zu");
+  const ruhig = matchMedia("(prefers-reduced-motion: reduce)").matches || innerWidth < 780;
+  if (ruhig) { b.classList.toggle("nav--schmal", schmal); return; }
+  void b.offsetWidth; // Animation neu starten, auch bei schnellem Doppelklick
+  if (schmal) {
+    b.classList.remove("nav--schmal");
+    b.classList.add("nav--klappt-zu");
+    klappUhren.push(setTimeout(() => b.classList.add("nav--schmal"), KLAPP_ZU_SCHMAL_MS));
+    klappUhren.push(setTimeout(() => b.classList.remove("nav--klappt-zu"), KLAPP_ZU_MS));
+  } else {
+    b.classList.remove("nav--schmal");
+    b.classList.add("nav--klappt-auf");
+    klappUhren.push(setTimeout(() => b.classList.remove("nav--klappt-auf"), KLAPP_AUF_MS));
+  }
+}
+
 function Geruest() {
   const profil = alt.profil;
   const [aktiv, setAktiv] = useState(null);
@@ -136,10 +166,12 @@ function Geruest() {
   const zuklappend = useZuklappend(aktiv);
 
   const anzeige = (profil && (profil.full_name || profil.email)) || "";
+  const navSeiten = alt.SEITEN.filter((s) => alt.seiteSichtbar(s.pfad));
   const klappen = () => {
-    const schmal = !document.body.classList.contains("nav--schmal");
-    document.body.classList.toggle("nav--schmal", schmal);
+    const b = document.body;
+    const schmal = !b.classList.contains("nav--schmal") || b.classList.contains("nav--klappt-zu");
     alt.einstellungSetzenWert("navschmal", schmal ? "1" : "0");
+    klappenZeigen(schmal);
   };
   // Die Suche schon beim Darüberfahren laden — bis zum Klick ist sie meist da
   const vorladen = () => {
@@ -186,10 +218,10 @@ function Geruest() {
       </header>
       <div className="rahmen">
         <nav className="nav" aria-label="Hauptnavigation">
-          {alt.SEITEN.filter((s) => alt.seiteSichtbar(s.pfad)).map((s) => (
+          {navSeiten.map((s, i) => (
             <Fragment key={s.pfad}>
               <a className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}
-                data-nav={s.pfad} href={"#/" + s.pfad}>
+                data-nav={s.pfad} href={"#/" + s.pfad} style={{ "--n": i }}>
                 {/* Die Zeichen sind fest eingebaute SVG aus dem Programm */}
                 <span className="nav__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} />
                 <span className="nav__text">{s.titel}</span>
@@ -199,8 +231,8 @@ function Geruest() {
             </Fragment>
           ))}
           {/* Externe sehen die Webseiten-Knöpfe nicht */}
-          {!alt.istExtern() && WEBSEITEN.map((w) => (
-            <a key={w.name} className={"nav__punkt nav__punkt--web nav__punkt--" + w.name.toLowerCase().replace(/\W/g, "")}
+          {!alt.istExtern() && WEBSEITEN.map((w, i) => (
+            <a key={w.name} style={{ "--n": navSeiten.length + i }} className={"nav__punkt nav__punkt--web nav__punkt--" + w.name.toLowerCase().replace(/\W/g, "")}
               href={w.url} target="_blank" rel="noopener" title={w.titel}
               onClick={(e) => webseiteOeffnen(e, w)}>
               <span className="nav__zeichen" aria-hidden="true">{w.zeichen}</span>
