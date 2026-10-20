@@ -4834,7 +4834,7 @@ function balkenInfoVerhalten() {
         // Zeichnungsnummer (Wunsch Patrick 20. Oktober 2026): aus dem
         // Dateinamen der Zeichnung, sonst aus der WBG. Was noch gelesen
         // werden muss, steht erst als „…“; ohne Nummer fällt die Zeile weg.
-        // Externe vorerst nicht (Neues nur nach Rückfrage bei Patrick)
+        // Nicht für Externe (Entscheid Patrick 20. Oktober 2026)
         + (!istExtern() && zeichnungNrSofort(j) !== ""
             ? zeile('<span class="pw-info__was">Zeichn. Nr.</span> <span data-wbg-znr>'
               + esc(zeichnungNrSofort(j) || "…") + '</span>', "znr")
