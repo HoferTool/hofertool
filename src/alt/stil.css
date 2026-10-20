@@ -8550,77 +8550,149 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .ib-voll__fehler { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 6;
   padding: 10px 18px; border-radius: 12px; background: #7a1c1c; color: #fff; }
 body.ib-offen { overflow: hidden; }
-/* ---------- Seitenleiste ein- und ausklappen (seit 1.114.0, weich seit 1.116.0) ----------
-   Wunsch Patrick 20. Oktober 2026: zuerst „mehr Emotionen“, dann „kein
-   Hin und Her, blitzartig, sondern smooth, kein Spiegeleffekt“. Darum
-   gleitet die Breite ohne Überschwingen, die Namen blenden weich ein und
-   aus; die Emotion kommt von den Bildchen aus klappFx.js. Die Klassen
-   setzt klappenZeigen() in Geruest.jsx nur für die Dauer der Bewegung.
-   Die Leiste ist fest positioniert und liegt über dem Inhalt: der
-   Inhalt rückt einmal, die Leiste gleitet darüber. */
+/* ---------- Seitenleiste ein- und ausklappen mit Auftritt (seit 1.114.0) ----------
+   Wunsch Patrick 20. Oktober 2026: „mehr Emotionen, man macht es ja
+   selten“. Die weiche Fassung mit Spänen, Huhn, Eiern, Welle und
+   Maschinenschrift (1.116.0 bis 1.117.0) ist wieder weg, Patrick: „mach
+   es wie ganz am Anfang mit dem Blitz“. Die Klassen setzt klappenZeigen() in Geruest.jsx nur für die
+   Dauer der Bewegung. Die Leiste ist fest positioniert und liegt über
+   dem Inhalt: der Inhalt rückt einmal, die Leiste bewegt sich darüber. */
 @media (min-width: 780px) {
   body.nav--klappt-auf .nav, body.nav--klappt-zu .nav { overflow: hidden; }
   body.nav--klappt-zu .rahmen { grid-template-columns: 62px 1fr; }
   body.nav--klappt-auf .nav__text, body.nav--klappt-zu .nav__text { white-space: nowrap; }
 
-  body.nav--klappt-auf .nav { animation: nav-breit-auf .62s cubic-bezier(.4, 0, .2, 1) both; }
+  /* Lichtstreifen und Leuchten am Rand, über beiden Richtungen */
+  body.nav--klappt-auf .nav::after, body.nav--klappt-zu .nav::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
+    background: linear-gradient(100deg, transparent 30%,
+      color-mix(in srgb, var(--marke) 22%, transparent) 45%,
+      rgba(255, 255, 255, .55) 50%,
+      color-mix(in srgb, var(--marke) 22%, transparent) 55%, transparent 70%);
+    background-size: 300% 100%; mix-blend-mode: plus-lighter; }
+  body.nav--klappt-auf .nav::after { animation: nav-licht-auf .8s cubic-bezier(.3, .6, .3, 1) .05s both; }
+  body.nav--klappt-zu .nav::after { animation: nav-licht-zu .5s cubic-bezier(.5, 0, .5, 1) both; }
+
+  /* Auf: über das Ziel hinaus, zurückfedern, Rand leuchtet auf */
+  body.nav--klappt-auf .nav { animation: nav-breit-auf .75s cubic-bezier(.2, .8, .2, 1) both; }
+  body.nav--klappt-auf .nav__zeichen {
+    animation: nav-zeichen-auf .7s cubic-bezier(.34, 1.7, .5, 1) both;
+    animation-delay: calc(var(--n, 0) * 35ms + 40ms); }
   body.nav--klappt-auf .nav__text {
     display: inline-block;
-    animation: nav-text-auf .5s cubic-bezier(.25, .1, .25, 1) both;
-    animation-delay: calc(var(--n, 0) * 30ms + 160ms); }
-  body.nav--klappt-auf .nav__unter { animation-delay: .25s; }
+    animation: nav-text-auf .6s cubic-bezier(.16, 1, .3, 1) both;
+    animation-delay: calc(var(--n, 0) * 45ms + 140ms); }
 
-  body.nav--klappt-zu .nav { animation: nav-breit-zu .56s cubic-bezier(.4, 0, .2, 1) both; }
+  /* Zu: Namen verwehen von unten nach oben, die Leiste schnurrt zusammen,
+     zuletzt springen die Zeichen an ihren Platz in der Mitte */
+  body.nav--klappt-zu .nav { animation: nav-breit-zu .56s cubic-bezier(.6, 0, .3, 1) both; }
   body.nav--klappt-zu:not(.nav--schmal) .nav__text {
     display: inline-block;
-    animation: nav-text-zu .28s cubic-bezier(.4, 0, 1, 1) both;
-    animation-delay: calc(var(--n, 0) * 15ms); }
-  body.nav--klappt-zu:not(.nav--schmal) .nav__unter { animation: nav-text-zu .22s ease-in both; }
+    animation: nav-text-zu .26s cubic-bezier(.5, 0, .9, .4) both;
+    animation-delay: calc((8 - var(--n, 0)) * 12ms); }
+  body.nav--klappt-zu:not(.nav--schmal) .nav__unter { animation: nav-text-zu .2s ease-in both; }
+  body.nav--klappt-zu.nav--schmal .nav__zeichen {
+    animation: nav-zeichen-zu .42s cubic-bezier(.34, 1.8, .5, 1) both;
+    animation-delay: calc(var(--n, 0) * 25ms); }
 
-  /* Der Knopf ☰ dreht sich einmal ruhig um eine Vierteldrehung */
-  body.nav--klappt-auf .kopf__klapp, body.nav--klappt-zu .kopf__klapp {
-    animation: nav-knopf .6s cubic-bezier(.4, 0, .2, 1); }
+  /* Der Knopf ☰ dreht sich mit und leuchtet */
+  body.nav--klappt-auf .kopf__klapp { animation: nav-knopf-auf .7s cubic-bezier(.34, 1.56, .64, 1); }
+  body.nav--klappt-zu .kopf__klapp { animation: nav-knopf-zu .6s cubic-bezier(.34, 1.56, .64, 1); }
 
-  @keyframes nav-breit-auf { from { width: 62px; } to { width: 208px; } }
-  @keyframes nav-breit-zu { from { width: 208px; } to { width: 62px; } }
-  @keyframes nav-text-auf { from { opacity: 0; transform: translateX(-10px); } }
-  @keyframes nav-text-zu { to { opacity: 0; transform: translateX(-8px); } }
-  @keyframes nav-knopf { 50% { transform: rotate(90deg); } }
+  @keyframes nav-breit-auf {
+    0%   { width: 62px; box-shadow: 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); }
+    45%  { width: 232px; box-shadow: 10px 0 40px color-mix(in srgb, var(--marke) 45%, transparent),
+                                     inset -3px 0 0 var(--marke); }
+    70%  { width: 202px; }
+    85%  { width: 211px; }
+    100% { width: 208px; box-shadow: 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); } }
+  @keyframes nav-breit-zu {
+    0%   { width: 208px; }
+    20%  { width: 216px; }
+    62%  { width: 52px; box-shadow: 6px 0 30px color-mix(in srgb, var(--marke) 40%, transparent),
+                                    inset -3px 0 0 var(--marke); }
+    82%  { width: 66px; }
+    100% { width: 62px; box-shadow: 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); } }
+  @keyframes nav-licht-auf { from { background-position: 100% 0; } to { background-position: 0 0; } }
+  @keyframes nav-licht-zu { from { background-position: 0 0; } to { background-position: 100% 0; } }
+  @keyframes nav-zeichen-auf {
+    0%   { transform: rotate(-200deg) scale(.3); opacity: 0; }
+    60%  { transform: rotate(12deg) scale(1.25); opacity: 1; }
+    100% { transform: none; } }
+  @keyframes nav-zeichen-zu {
+    0%   { transform: scale(.4); }
+    55%  { transform: scale(1.3) rotate(-8deg); }
+    100% { transform: none; } }
+  @keyframes nav-text-auf {
+    0%   { opacity: 0; transform: translateX(-28px) skewX(-12deg); filter: blur(8px); letter-spacing: .25em; }
+    60%  { opacity: 1; filter: blur(0); }
+    100% { transform: none; letter-spacing: normal; } }
+  @keyframes nav-text-zu { to { opacity: 0; transform: translateX(-24px) skewX(10deg); filter: blur(6px); } }
+  @keyframes nav-knopf-auf {
+    0% { transform: none; } 50% { transform: rotate(180deg) scale(1.25);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--marke) 25%, transparent); } 100% { transform: rotate(360deg); } }
+  @keyframes nav-knopf-zu {
+    0% { transform: none; } 50% { transform: rotate(-180deg) scale(.8);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--marke) 25%, transparent); } 100% { transform: rotate(-360deg); } }
   @media (prefers-reduced-motion: reduce) {
     body.nav--klappt-auf *, body.nav--klappt-zu * { animation: none !important; }
   }
 }
 
-/* ---------- Wirkung beim Klappen: Welle und Maschinenschrift (seit 1.117.0) ----------
-   Späne, Huhn und Eier aus 1.116.0 sind wieder weg (Patrick: „mach was
-   Neues“). Die Art wechselt je Klick, klappFx.js setzt sie in
-   body[data-klapp-art]. */
-.kfx-welle { position: fixed; z-index: 21; width: 90px; pointer-events: none; }
-.kfx-welle svg { display: block; overflow: visible; filter: drop-shadow(4px 0 10px rgba(0, 20, 60, .12)); }
-@media (min-width: 780px) {
-  /* Welle: die Namen klappen nacheinander wie Karten auf, ruhig. Nur die
-     Namen, nicht der ganze Punkt: dessen Einblenden beim Laden der Seite
-     (effekte.css) liefe sonst am Ende noch einmal ab. */
-  body[data-klapp-art="welle"].nav--klappt-auf .nav__punkt,
-  body[data-klapp-art="welle"].nav--klappt-zu .nav__punkt { perspective: 500px; }
-  body[data-klapp-art="welle"].nav--klappt-auf .nav__text {
-    transform-origin: left center;
-    animation: kfx-karte-auf .55s cubic-bezier(.25, .8, .3, 1) both;
-    animation-delay: calc(var(--n, 0) * 40ms + 80ms); }
-  body[data-klapp-art="welle"].nav--klappt-zu:not(.nav--schmal) .nav__text {
-    transform-origin: left center;
-    animation: kfx-karte-zu .3s cubic-bezier(.5, 0, .9, .5) both;
-    animation-delay: calc(var(--n, 0) * 18ms); }
-  @keyframes kfx-karte-auf { from { opacity: 0; transform: rotateY(-75deg); } }
-  @keyframes kfx-karte-zu { to { opacity: 0; transform: rotateY(-75deg); } }
+/* ---------- Handy-Menü mit Auftritt wie die Seitenleiste (seit 1.119.0) ----------
+   Wunsch Patrick 20. Oktober 2026: „soll bei Handy auch so ähnlich sein
+   beim Menü-Button“ wie das Klappen der Seitenleiste am Computer: das
+   Fenster schnellt beim Aufgehen etwas über seine Höhe und federt zurück,
+   ein Lichtstreifen fährt hindurch, der Rand leuchtet in der Themenfarbe,
+   die Zeichen drehen sich ein und die Namen fliegen nacheinander scharf
+   herein. Beim Zugehen verwehen die Namen, bevor das Fenster in den
+   Knopf zurückschrumpft. */
+@media (max-width: 779px) {
+  .handymenue--offen .handymenue__flaeche {
+    position: relative; transform-origin: bottom center;
+    animation: hm-wachsen .46s cubic-bezier(.2, .9, .25, 1) backwards,
+               hm-federn .8s cubic-bezier(.2, .8, .2, 1) backwards,
+               hm-leuchten 1s ease-out backwards; }
+  .handymenue--offen .handymenue__flaeche::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3;
+    background: linear-gradient(200deg, transparent 30%,
+      color-mix(in srgb, var(--marke) 22%, transparent) 45%,
+      rgba(255, 255, 255, .6) 50%,
+      color-mix(in srgb, var(--marke) 22%, transparent) 55%, transparent 70%);
+    background-size: 100% 300%; mix-blend-mode: plus-lighter;
+    animation: hm-licht .85s cubic-bezier(.3, .6, .3, 1) .12s both; }
+  .handymenue--offen .handymenue__punkt { animation: none; }
+  .handymenue--offen .handymenue__punkt:not(.handymenue__punkt--tipp) .handymenue__zeichen {
+    animation: hm-zeichen-auf .7s cubic-bezier(.34, 1.7, .5, 1) both;
+    animation-delay: calc(var(--nr) * 35ms + 90ms); }
+  .handymenue--offen .handymenue__text {
+    animation: hm-text-auf .6s cubic-bezier(.16, 1, .3, 1) both;
+    animation-delay: calc(var(--nr) * 40ms + 180ms); }
+  .handymenue--schliesst .handymenue__zeile { animation: hm-verwehen .18s cubic-bezier(.5, 0, .9, .4) both; }
 
-  /* Maschinenschrift: die laufenden Zeichen liegen über dem echten Namen */
-  .nav__text[data-fx] { position: relative; -webkit-text-fill-color: transparent; }
-  .nav__text[data-fx]::after { content: attr(data-fx); position: absolute; left: 0; top: 0;
-    white-space: nowrap; -webkit-text-fill-color: currentColor;
-    font-variant-numeric: tabular-nums; }
-  body[data-klapp-art="schrift"].nav--klappt-auf .nav__text {
-    animation: kfx-schrift-rein .2s linear both; animation-delay: calc(var(--n, 0) * 55ms + 120ms); }
-  @keyframes kfx-schrift-rein { from { opacity: 0; } }
+  @keyframes hm-federn {
+    0%   { transform: none; }
+    45%  { transform: scaleY(1.045); }
+    70%  { transform: scaleY(.985); }
+    85%  { transform: scaleY(1.008); }
+    100% { transform: none; } }
+  @keyframes hm-leuchten {
+    0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); }
+    40%  { box-shadow: 0 0 0 3px var(--marke), 0 0 40px color-mix(in srgb, var(--marke) 55%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); } }
+  @keyframes hm-licht { from { background-position: 0 100%; opacity: 1; } 90% { opacity: 1; }
+    to { background-position: 0 0; opacity: 0; } }
+  @keyframes hm-zeichen-auf {
+    0%   { transform: rotate(-200deg) scale(.3); opacity: 0; }
+    60%  { transform: rotate(12deg) scale(1.2); opacity: 1; }
+    100% { transform: none; } }
+  @keyframes hm-text-auf {
+    0%   { opacity: 0; transform: translateY(8px); filter: blur(6px); letter-spacing: .2em; }
+    60%  { opacity: 1; filter: blur(0); }
+    100% { transform: none; letter-spacing: normal; } }
+  @keyframes hm-verwehen { to { opacity: 0; transform: translateY(10px); filter: blur(5px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .handymenue__flaeche::after { display: none; }
+    .handymenue__text { animation: none !important; }
+  }
 }
-@media (prefers-reduced-motion: reduce) { .kfx-welle { display: none; } }

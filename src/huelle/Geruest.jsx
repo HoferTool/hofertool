@@ -13,7 +13,6 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
-import { klappBildchen } from "./klappFx.js";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen } from "./unterreiter.js";
 
 // Knöpfe zu Webseiten unten im Menü (Wunsch Patrick, 9. Oktober 2026).
@@ -129,15 +128,15 @@ function useZuklappend(aktiv) {
   return zu;
 }
 
-// Ein- und Ausklappen der Seitenleiste (seit 1.114.0, Wunsch Patrick
-// 20. Oktober 2026: „mehr Emotionen, man macht es ja selten“; seit
-// 1.116.0 „kein Hin und Her, blitzartig, sondern smooth, kein
-// Spiegeleffekt“): Die Breite gleitet weich, die Namen blenden
-// nacheinander ein und aus, dazu abwechselnd eine weiche Welle am Rand
-// oder Maschinenschrift (klappFx.js, seit 1.117.0). Erst am Ende wird die Leiste schmal. Der Inhalt rückt
-// nur einmal, nicht bei jedem Bild, damit die Planwand nicht laufend
-// neu rechnet.
-const KLAPP_AUF_MS = 900, KLAPP_ZU_MS = 620, KLAPP_ZU_SCHMAL_MS = 560;
+// Ein- und Ausklappen der Seitenleiste mit Auftritt (seit 1.114.0,
+// Wunsch Patrick 20. Oktober 2026: „mehr Emotionen, man macht es ja
+// selten“). Auf: die Leiste schnellt über ihr Ziel hinaus und federt
+// zurück, ein Lichtstreifen fährt durch, die Zeichen drehen sich ein und
+// die Namen fliegen nacheinander scharf herein. Zu: die Namen verwehen,
+// die Leiste schnurrt zusammen, erst dann wird sie schmal und die Zeichen
+// springen an ihren Platz. Der Inhalt rückt nur einmal, nicht bei jedem
+// Bild, damit die Planwand nicht laufend neu rechnet.
+const KLAPP_AUF_MS = 950, KLAPP_ZU_MS = 720, KLAPP_ZU_SCHMAL_MS = 330;
 let klappUhren = [];
 function klappenZeigen(schmal) {
   const b = document.body;
@@ -147,7 +146,6 @@ function klappenZeigen(schmal) {
   const ruhig = matchMedia("(prefers-reduced-motion: reduce)").matches || innerWidth < 780;
   if (ruhig) { b.classList.toggle("nav--schmal", schmal); return; }
   void b.offsetWidth; // Animation neu starten, auch bei schnellem Doppelklick
-  klappBildchen(schmal);
   if (schmal) {
     b.classList.remove("nav--schmal");
     b.classList.add("nav--klappt-zu");
