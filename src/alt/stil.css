@@ -8470,7 +8470,7 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .ib-kopf .wetter__grad { font-size: 2.2rem; }
 .ib-kopf .wetter__text, .ib-kopf .wetter__rand { font-size: .95rem; }
 .ib-kopf .sol-kopf { margin-bottom: 4px; }
-.ib-kopf .solar { background: none; box-shadow: none; border-radius: 0; margin: 0; padding: 0 !important; overflow: visible; }
+.ib-kopf .solar { background: none !important; box-shadow: none !important; border-radius: 0; margin: 0; padding: 0 !important; overflow: visible; }
 .ib-kopf .solar::after { display: none; }
 .ib-kopf .sol-kopf__titel { font-size: .95rem; }
 .ib-kopf .sol-kopf__stand { font-size: .85rem; }
