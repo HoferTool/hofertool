@@ -63,6 +63,10 @@ function knotenText(knoten) {
       if (f && /^#?\w+$/.test(f)) stil.push("color: " + f);
       tag = "span";
     }
+    // Die Farbe auch als --tf: Im dunklen Modus macht die App sonst
+    // alle Schrift weiss (body.dunkel * mit !important), siehe stil.css
+    const farbe = stil.find((x) => x.startsWith("color: "));
+    if (farbe) stil.push("--tf: " + farbe.slice(7));
     const at = [];
     if (stil.length) at.push('style="' + escAttr(stil.join("; ")) + '"');
     for (const a of ["colspan", "rowspan"]) {
@@ -72,6 +76,15 @@ function knotenText(knoten) {
     aus += "<" + tag + (at.length ? " " + at.join(" ") : "") + ">" + innen + "</" + tag + ">";
   });
   return aus;
+}
+
+// Farben, die der Browser beim Bearbeiten setzt, auch als --tf merken
+function farbenMerken(el) {
+  el.querySelectorAll("[style]").forEach((k) => {
+    const f = k.style.color;
+    if (f) { if (k.style.getPropertyValue("--tf") !== f) k.style.setProperty("--tf", f); }
+    else if (k.style.getPropertyValue("--tf")) k.style.removeProperty("--tf");
+  });
 }
 
 // ---------- Anzeige ----------
@@ -135,6 +148,7 @@ function TextEditor({ html, format, verhaeltnis, titel, zu }) {
 
   const pruefen = () => {
     const el = blatt.current;
+    if (el) farbenMerken(el);
     if (el) setZuViel(el.scrollHeight > el.clientHeight + 2);
     neu((n) => n + 1);
   };

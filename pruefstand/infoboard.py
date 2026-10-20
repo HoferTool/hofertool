@@ -113,6 +113,23 @@ with sync_playwright() as p:
     pruefe("Achtung Stapler" in h and ("#c00000" in h.lower() or "rgb(192, 0, 0)" in h) and "28pt" in h and "text-align: center" in h
            and "<i>langsam</i>" in h and "<td>" in h, "Word übernommen: %s" % h[:200])
     pruefe(t["id"] == skid, "Text behält seine Kennung")
+    # Im dunklen Modus bleibt die Schrift schwarz oder in ihrer Farbe (1.122.1)
+    pg.evaluate("document.body.classList.add('dunkel')"); pg.wait_for_timeout(200)
+    f = pg.evaluate("""() => { const b = document.querySelector(".ib-gestalten [data-ibfeld='1-0'] .ib-text__blatt");
+      const rot = [...b.querySelectorAll('span')].find(x => x.textContent.includes('Stapler'));
+      const p = [...b.querySelectorAll('p')].find(x => x.textContent.includes('langsam'));
+      return [getComputedStyle(p).color, getComputedStyle(rot).color]; }""")
+    pruefe(f == ["rgb(17, 17, 17)", "rgb(192, 0, 0)"], "dunkler Modus: Schrift schwarz und rot: %s" % f)
+    pg.locator("[data-ibfeld='1-0'] .ib-feld__wahl").dblclick(); pg.wait_for_selector(".ib-te .ib-text__blatt")
+    pg.locator(".ib-te .ib-text__blatt").click(); pg.keyboard.press("Control+End"); pg.keyboard.press("Enter")
+    pg.keyboard.type("Neu im Dunkeln")
+    f = pg.evaluate("""() => { const b = document.querySelector('.ib-te .ib-text__blatt');
+      const w = document.createTreeWalker(b, NodeFilter.SHOW_TEXT); let n, z = null;
+      while ((n = w.nextNode())) if (n.nodeValue.includes('Neu im Dunkeln')) z = n.parentElement;
+      return getComputedStyle(z).color; }""")
+    pruefe(f != "rgb(255, 255, 255)", "dunkler Modus: Schreiben nicht weiss: %s" % f)
+    pg.click(".ib-te .knopf--still >> text=Abbrechen"); pg.wait_for_timeout(300)
+    pg.evaluate("document.body.classList.remove('dunkel')")
 
     # Ziehen und Ablegen (1.120.0): Datei vom Computer auf unten links
     pg.evaluate("""() => {

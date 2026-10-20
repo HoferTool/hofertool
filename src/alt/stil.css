@@ -8671,6 +8671,10 @@ body.ib-offen { overflow: hidden; }
   overflow: hidden; color: #111; background: #fff; line-height: 1.25; outline: none;
   font-family: Aptos, Calibri, Carlito, "Segoe UI", Arial, sans-serif; overflow-wrap: break-word; cursor: default; }
 .ib-text__blatt[contenteditable] { cursor: text; }
+/* Das Blatt ist immer weiss wie Papier: Schrift schwarz oder in ihrer
+   Farbe (--tf), auch im dunklen Modus, der sonst alles weiss macht
+   (1.122.1, Patrick: „es schreibt immer weiss“) */
+body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important; }
 .ib-text__blatt p, .ib-text__blatt h1, .ib-text__blatt h2, .ib-text__blatt h3, .ib-text__blatt h4 { margin: 0 0 .35em; }
 .ib-text__blatt h1 { font-size: 2em; font-weight: 700; }
 .ib-text__blatt h2 { font-size: 1.5em; font-weight: 700; }
