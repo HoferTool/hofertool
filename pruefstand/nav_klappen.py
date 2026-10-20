@@ -1,5 +1,6 @@
 # Seitenleiste ein- und ausklappen mit Auftritt (seit 1.114.0):
 # Ablauf als Bilder, hell und dunkel, und am Ende sauberer Zustand.
+# Seit 1.116.0 weich, dazu abwechselnd Späne, Huhn und Eier (klappFx.js).
 import sys, time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -20,13 +21,17 @@ with sync_playwright() as p:
     def breite(): return pg.evaluate("document.querySelector('.nav').getBoundingClientRect().width")
     for modus in ["hell", "dunkel"]:
         if modus == "dunkel": pg.evaluate("document.body.classList.add('dunkel')")
-        for richtung, zeiten in [("zu", [0, 90, 200, 330, 450, 800]), ("auf", [0, 120, 250, 380, 520, 1000])]:
+        for richtung, zeiten in [("zu", [150, 400, 700, 1000, 1400, 2000]), ("auf", [150, 400, 700, 1000, 1400, 2000]),
+                                 ("zu", [150, 400, 700, 1000, 1400, 2000]), ("auf", [150, 400, 700, 1000, 1400, 2000])]:
             pg.click("#nav-klapp"); t0 = time.time()
+            art = pg.evaluate("document.querySelector('.kfx')?.dataset.art || ''")
+            if art not in ("spaene", "huhn", "eier"): fehler.append("Bildchen fehlt: " + str(art))
             for i, ms in enumerate(zeiten):
                 warte = ms/1000 - (time.time() - t0)
                 if warte > 0: time.sleep(warte)
-                if ZIEL: pg.screenshot(path=f"{ZIEL}/k-{modus}-{richtung}-{i}.png", clip={"x":0,"y":0,"width":300,"height":560})
-            pg.wait_for_timeout(300)
+                if ZIEL: pg.screenshot(path=f"{ZIEL}/k-{modus}-{art}-{i}.png", clip={"x":0,"y":0,"width":400,"height":800})
+            pg.wait_for_timeout(900)
+            if pg.locator(".kfx").count(): fehler.append("Bildchen bleibt liegen")
             schmal = pg.evaluate("document.body.classList.contains('nav--schmal')")
             rest = pg.evaluate("[...document.body.classList].filter(c => c.startsWith('nav--klappt'))")
             if rest: fehler.append(f"{richtung}: Klasse bleibt {rest}")
