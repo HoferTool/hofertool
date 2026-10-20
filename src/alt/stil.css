@@ -8696,7 +8696,11 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
   background: transparent; color: inherit; font: inherit; font-size: 1rem; cursor: pointer; }
 .ib-te__knopf:hover { background: rgba(47,124,246,.1); }
 .ib-te__knopf.aktiv { background: rgba(47,124,246,.18); border-color: #2f7cf6; }
-.ib-te__groesse { height: 34px; }
+.ib-te__groesse, .ib-te__schrift { height: 34px; width: auto !important; flex: none; }
+.ib-te__schrift { max-width: 170px; }
+.ib-te__bild { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: var(--radius);
+  background: rgba(47,124,246,.1); }
+.ib-text__blatt img { max-width: 100%; height: auto; vertical-align: bottom; }
 .ib-te__trenner { width: 1px; height: 24px; background: var(--linie-stark); margin: 0 4px; }
 .ib-te__farbe { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #999;
   padding: 0; cursor: pointer; position: relative; overflow: hidden; display: inline-block; }

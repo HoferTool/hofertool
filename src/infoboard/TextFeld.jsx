@@ -9,6 +9,8 @@
 //  ein echtes Blatt, 12 pt sieht also aus wie ausgedruckt.
 //
 //  Bearbeitet wird in einem grossen Fenster mit Knöpfen wie in Word.
+//  Bilder lassen sich einfügen (Ablage wie die anderen Dateien) und die
+//  Schriftart wählen (1.123.0, Wunsch Patrick 20. Oktober 2026).
 //  Eine Word-Datei (.docx) lässt sich dort einlesen: Text, Fett,
 //  Kursiv, Unterstrichen, Farbe, Grösse, Ausrichtung, Aufzählungen und
 //  Tabellen kommen mit, Bilder nicht (Fotos und PDFs gehören in ein
@@ -19,6 +21,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import JSZip from "jszip";
+import { dateiHochladen } from "./daten.js";
 
 // Blatt in CSS-Pixeln (96 je Zoll): 210 mm = 793,7 px
 const MM = 96 / 25.4;
@@ -31,9 +34,29 @@ const FARBEN = ["#000000", "#1f3a63", "#2f7cf6", "#c62828", "#e65100", "#2e7d32"
 
 // ---------- Sicheres HTML ----------
 const TAGS = new Set(["p", "div", "br", "span", "b", "strong", "i", "em", "u", "s", "strike", "del",
-  "ul", "ol", "li", "h1", "h2", "h3", "h4", "table", "thead", "tbody", "tr", "td", "th", "sup", "sub", "font"]);
+  "ul", "ol", "li", "h1", "h2", "h3", "h4", "table", "thead", "tbody", "tr", "td", "th", "sup", "sub", "font", "img"]);
 const STILE = ["color", "background-color", "font-size", "font-weight", "font-style", "text-decoration",
-  "text-decoration-line", "text-align", "width", "border", "padding", "vertical-align"];
+  "text-decoration-line", "text-align", "width", "border", "padding", "vertical-align", "font-family"];
+// Bilder nur aus der Ablage (https) oder als eingebettetes Bild
+const BILD_SRC = /^(https?:\/\/|data:image\/(png|jpe?g|gif|webp);base64,)/i;
+
+// Schriftarten, die auf Windows (der Bildschirm am Infoboard) da sind;
+// die erste ist die Vorgabe des Blatts
+export const SCHRIFTEN = [
+  ["Aptos, Calibri, Carlito, sans-serif", "Aptos / Calibri"],
+  ["Arial, Helvetica, sans-serif", "Arial"],
+  ["'Arial Black', Arial, sans-serif", "Arial Black"],
+  ["Verdana, sans-serif", "Verdana"],
+  ["Tahoma, sans-serif", "Tahoma"],
+  ["'Segoe UI', sans-serif", "Segoe UI"],
+  ["'Times New Roman', Times, serif", "Times New Roman"],
+  ["Georgia, serif", "Georgia"],
+  ["Cambria, serif", "Cambria"],
+  ["'Courier New', monospace", "Courier New"],
+  ["Consolas, monospace", "Consolas"],
+  ["Impact, sans-serif", "Impact"],
+  ["'Comic Sans MS', cursive", "Comic Sans MS"],
+];
 
 const escHtml = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const escAttr = (t) => escHtml(t).replace(/"/g, "&quot;");
@@ -52,12 +75,23 @@ function knotenText(knoten) {
     const innen = knotenText(k);
     if (!TAGS.has(tag)) { aus += innen; return; }
     if (tag === "br") { aus += "<br>"; return; }
+    if (tag === "img") {
+      const src = k.getAttribute("src") || "";
+      const b = k.style && k.style.width;
+      if (BILD_SRC.test(src) && !/["<>\s]/.test(src.slice(0, 200)))
+        aus += '<img src="' + escAttr(src) + '"' + (b && /^\d+(\.\d+)?(%|px)$/.test(b) ? ' style="width: ' + b + '"' : "") + ">";
+      return;
+    }
     const stil = [];
     for (const n of STILE) {
       const w = k.style && k.style.getPropertyValue(n);
-      // Nur einfache Werte: keine url(), kein expression()
-      if (w && /^[#\w\s.,%()-]+$/.test(w) && !/url|expression/i.test(w)) stil.push(n + ": " + w);
+      // Nur einfache Werte: keine url(), kein expression(); Schriftnamen
+      // dürfen Anführungszeichen haben („Times New Roman“)
+      const muster = n === "font-family" ? /^[\w\s,"'-]+$/ : /^[#\w\s.,%()-]+$/;
+      if (w && muster.test(w) && !/url|expression/i.test(w)) stil.push(n + ": " + w);
     }
+    if (tag === "font" && k.getAttribute("face") && /^[\w\s,"'-]+$/.test(k.getAttribute("face")))
+      stil.push("font-family: " + k.getAttribute("face"));
     if (tag === "font") {
       const f = k.getAttribute("color");
       if (f && /^#?\w+$/.test(f)) stil.push("color: " + f);
@@ -196,6 +230,52 @@ function TextEditor({ html, format, verhaeltnis, titel, zu }) {
     pruefen();
   };
 
+  const schrift = (familie) => {
+    blatt.current.focus();
+    try { document.execCommand("styleWithCSS", false, true); } catch (f) { /* egal */ }
+    document.execCommand("fontName", false, familie);
+    pruefen();
+  };
+
+  // Bild an der Schreibmarke einfügen: die Stelle merken, bevor das
+  // Fenster zum Wählen der Datei den Fokus nimmt
+  const stelle = useRef(null);
+  const bildDatei = useRef(null);
+  const [bild, setBild] = useState(null);
+  const stelleMerken = () => {
+    const sel = window.getSelection();
+    stelle.current = sel.rangeCount && blatt.current.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
+  };
+  const bildLaden = async (e) => {
+    const d = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!d) return;
+    if (!/^image\//.test(d.type) && !/\.(png|jpe?g|gif|webp)$/i.test(d.name)) { setMeldung("Nur Bilder (JPG, PNG, GIF)."); return; }
+    setMeldung("Bild wird hochgeladen …");
+    try {
+      const neu = await dateiHochladen(d);
+      blatt.current.focus();
+      const sel = window.getSelection();
+      if (stelle.current) { sel.removeAllRanges(); sel.addRange(stelle.current); }
+      else { const r = document.createRange(); r.selectNodeContents(blatt.current); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+      document.execCommand("insertHTML", false, '<img src="' + escAttr(neu.url) + '" style="width: 50%">');
+      setMeldung("Bild eingefügt. Antippen, um die Grösse zu wählen.");
+      pruefen();
+    } catch (f) { setMeldung("Bild ging nicht: " + ((f && f.message) || f)); }
+  };
+  // Ein Bild antippen wählt es: Grösse 25 bis 100 % oder entfernen
+  const blattKlick = (e) => {
+    if (bild) bild.style.outline = "";
+    if (e.target.tagName === "IMG" && blatt.current.contains(e.target)) {
+      e.target.style.outline = "4px solid #2f7cf6";   // sauber() speichert nur die Breite
+      setBild(e.target);
+      return;
+    }
+    setBild(null);
+  };
+  const bildBreite = (p) => { if (bild) { bild.style.width = p + "%"; pruefen(); } };
+  const bildWeg = () => { if (bild) { bild.remove(); setBild(null); pruefen(); } };
+
   const aktiv = (name) => { try { return document.queryCommandState(name); } catch (f) { return false; } };
   const aussen = (e) => e.preventDefault();   // Markierung beim Knopfdruck behalten
 
@@ -231,6 +311,11 @@ function TextEditor({ html, format, verhaeltnis, titel, zu }) {
           <option value="" disabled>Grösse</option>
           {GROESSEN.map((g) => <option key={g} value={g}>{g} pt</option>)}
         </select>
+        <select className="ib-te__schrift" data-ibte="schrift" defaultValue="" title="Schriftart"
+          onChange={(e) => { if (e.target.value) schrift(e.target.value); e.target.value = ""; }}>
+          <option value="" disabled>Schriftart</option>
+          {SCHRIFTEN.map(([w, t]) => <option key={t} value={w} style={{ fontFamily: w }}>{t}</option>)}
+        </select>
         <span className="ib-te__trenner" />
         <K was="bold" t={<b>F</b>} titel="Fett (Strg + B)" an={aktiv("bold")} />
         <K was="italic" t={<i>K</i>} titel="Kursiv (Strg + I)" an={aktiv("italic")} />
@@ -253,11 +338,24 @@ function TextEditor({ html, format, verhaeltnis, titel, zu }) {
         <K was="insertUnorderedList" t="• Liste" titel="Aufzählung" an={aktiv("insertUnorderedList")} />
         <K was="insertOrderedList" t="1. Liste" titel="Nummerierung" an={aktiv("insertOrderedList")} />
         <span className="ib-te__trenner" />
+        <button type="button" className="ib-te__knopf" title="Bild einfügen" data-ibte="bild"
+          onMouseDown={(e) => { e.preventDefault(); stelleMerken(); }}
+          onClick={() => bildDatei.current.click()}>🖼 Bild</button>
+        <input ref={bildDatei} type="file" hidden accept="image/*" onChange={bildLaden} />
+        <span className="ib-te__trenner" />
         <K was="undo" t="↶" titel="Rückgängig (Strg + Z)" />
         <K was="redo" t="↷" titel="Wiederholen (Strg + Y)" />
         <K was="removeFormat" t="Tx" titel="Formatierung entfernen" />
       </div>
-      <div className="ib-te__platz" ref={platz}>
+      {bild && bild.isConnected &&
+        <div className="ib-te__bild" data-ibte="bildleiste">
+          <span>Bild:</span>
+          {[25, 50, 75, 100].map((p) => (
+            <button key={p} type="button" className="ib-te__knopf" data-ibte={"bild" + p}
+              onClick={() => bildBreite(p)}>{p} %</button>))}
+          <button type="button" className="ib-te__knopf" onClick={bildWeg}>Entfernen</button>
+        </div>}
+      <div className="ib-te__platz" ref={platz} onClick={blattKlick}>
         {mass[0] > 0 &&
           <div className={"ib-te__seite" + (zuViel ? " ib-te__seite--voll" : "")}>
             <TextBlatt html={start} format={format} breite={mass[0]} hoehe={mass[1]} bearbeiten

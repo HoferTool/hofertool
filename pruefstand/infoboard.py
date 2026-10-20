@@ -80,6 +80,18 @@ with sync_playwright() as p:
     pg.select_option("[data-ibte='groesse']", "36")
     pg.keyboard.press("End"); pg.keyboard.press("Enter")
     pg.keyboard.type("Zweite Zeile")
+    # Schriftart und Bild (1.123.0)
+    pg.keyboard.press("Shift+Home")
+    pg.select_option("[data-ibte='schrift']", label="Times New Roman")
+    pg.keyboard.press("End"); pg.keyboard.press("Enter")
+    with pg.expect_file_chooser() as fc:
+        pg.click("[data-ibte='bild']")
+    fc.value.set_files(files=[{"name": "Logo.png", "mimeType": "image/png", "buffer": bytes.fromhex(
+        "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+        "1f15c4890000000d49444154789c63f8cfc0f01f0005000201e221bc330000000049454e44ae426082")}])
+    pg.wait_for_timeout(800)
+    pg.locator(".ib-te .ib-text__blatt img").click()
+    pg.click("[data-ibte='bild75']")
     pg.screenshot(path=os.path.join(BILD, "infoboard-text.png"))
     pg.click("[data-ibte='fertig']"); pg.wait_for_timeout(800)
     pruefe(pg.locator(".ib-te").count() == 0, "Speichern schliesst das Fenster")
@@ -89,6 +101,8 @@ with sync_playwright() as p:
            "A3 mit Text gespeichert")
     pruefe("<b>" in t["html"] or "font-weight" in t["html"], "fett gespeichert: %s" % t["html"][:160])
     pruefe("36pt" in t["html"], "Grösse 36 pt gespeichert")
+    pruefe("Times New Roman" in t["html"], "Schriftart gespeichert")
+    pruefe('<img src="' in t["html"] and 'width: 75%' in t["html"] and "outline" not in t["html"], "Bild mit 75 %% gespeichert")
     skid = t["id"]
     # Word-Datei einlesen: Doppelklick öffnet das Textfeld wieder
     W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
