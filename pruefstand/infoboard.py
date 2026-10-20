@@ -37,7 +37,7 @@ with sync_playwright() as p:
     pruefe(felder.count() == 4, "vier A4-Bereiche am Anfang: %d" % felder.count())
     b = felder.first.bounding_box()
     pruefe(abs(b["height"] / b["width"] - 1.414) < 0.02, "Bereich ist A4 hoch: %.3f" % (b["height"] / b["width"]))
-    kopf = pg.locator(".ib-gestalten .ib-kopf .kopfkarte__logo")
+    kopf = pg.locator(".ib-gestalten .ib-kopf .ib-kopf__logo")
     pruefe(kopf.count() == 1, "Logo oben in der Tafel")
     pruefe(pg.locator(".ib-gestalten .ib-kopf .solar").count() == 1, "Solaranlage oben in der Tafel")
 

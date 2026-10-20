@@ -76,32 +76,39 @@ export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel }) {
   );
 }
 
-// Der Kopf ist so hoch wie der Platz über den Feldern. Ist sein Inhalt
-// höher (etwa mit Feiertag beim Wetter), wird er etwas verkleinert,
-// statt in die Felder zu ragen.
+// Der Kopf ist eine einzige Karte über die ganze Breite: die Solaranlage
+// mit dem Logo darin, Uhr und Wetter oben rechts (Wunsch Patrick
+// 20. Oktober 2026: „Solaranlage über die volle Breite, das Logo
+// integriert“). Ist der Inhalt höher als der Platz über den Feldern
+// (etwa mit Feiertag beim Wetter), wird er etwas verkleinert, statt in
+// die Felder zu ragen.
 function Kopf() {
   const innen = useRef(null);
   const [k, setK] = useState(1);
+  const hoehe = KOPF_H - LUECKE;
   useLayoutEffect(() => {
     const el = innen.current;
     if (!el) return;
     const rechnen = () => {
       const h = el.offsetHeight;
-      setK(h > KOPF_H - LUECKE ? (KOPF_H - LUECKE) / h : 1);
+      setK(h > hoehe ? hoehe / h : 1);
     };
     rechnen();
     const ro = new ResizeObserver(rechnen);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [hoehe]);
   return (
-    <div className="ib-kopf" style={{ height: KOPF_H - LUECKE, top: LUECKE, left: LUECKE, width: BREITE - 2 * LUECKE }}>
-      <div className="ib-kopf__innen" ref={innen} style={{ transform: k < 1 ? "scale(" + k + ")" : undefined }}>
-        <section className="kopfkarte">
-          <Uhr ohneId />
-          <img className="kopfkarte__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
-          <Wetter ohneId />
-        </section>
+    <div className="ib-kopf solar" style={{ height: hoehe, top: LUECKE, left: LUECKE, width: BREITE - 2 * LUECKE }}>
+      <div className="ib-kopf__innen" ref={innen}
+        style={{ transform: k < 1 ? "scale(" + k + ")" : undefined, width: k < 1 ? 100 / k + "%" : undefined }}>
+        <div className="ib-kopf__zeile">
+          <img className="ib-kopf__logo" src={alt.LOGO_WEISS} alt="Hofer + Co." />
+          <div className="ib-kopf__rechts">
+            <Uhr ohneId />
+            <Wetter ohneId />
+          </div>
+        </div>
         <Solaranlage ohneId />
       </div>
     </div>
