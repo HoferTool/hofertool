@@ -8448,3 +8448,86 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .af-gelesen { margin-top: 8px; }
 .af-zahl { align-self: center; min-width: 18px; padding: 0 5px; border-radius: 9px; font-size: .72rem; line-height: 18px;
   text-align: center; background: var(--marke); color: #fff; }
+
+/* ---------- Infoboard (seit 1.113.0, Wunsch Patrick 20. Oktober 2026) ----------
+   Die Tafel ist immer 1080 × 1920 Punkte gross und wird als Ganzes in
+   ihren Rahmen eingepasst, in der Gestaltung wie am Bildschirm. */
+.ib-rahmen { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.ib-blatt { position: absolute; left: 50%; top: 50%; transform-origin: center center;
+  background: #0b1626; color: #f2f4f7; overflow: hidden; }
+.ib-kopf { position: absolute; overflow: hidden; }
+.ib-kopf__innen { transform-origin: top center; }
+.ib-kopf .kopfkarte { margin-bottom: 12px; padding: 26px 30px; border-radius: 18px; }
+.ib-kopf .uhr { font-size: 4.2rem; }
+.ib-kopf .kopfkarte__datum { font-size: 1.15rem; }
+/* Die Startseite richtet Logo und Ring nach der Breite des Fensters;
+   auf der Tafel ist die Breite immer dieselbe, darum hier fest */
+.ib-kopf .kopfkarte__logo { display: block !important; height: 104px !important; top: 22px; }
+.ib-kopf .kopfkarte:has(.kopfkarte__logo) { min-height: 150px !important; }
+.ib-kopf .sol-ring { width: 104px !important; height: 104px !important; }
+.ib-kopf .wetter__grad { font-size: 3rem; }
+.ib-kopf .wetter__text, .ib-kopf .wetter__rand { font-size: 1.05rem; }
+.ib-kopf .solar { margin: 0; }
+.ib-feld { position: absolute; overflow: hidden; border-radius: 10px; background: #fff; }
+.ib-feld--leer, .ib-feld--skizze { background: #10233a; }
+.ib-blatt--bearbeiten .ib-feld--leer { background: rgba(255,255,255,.05); border: 3px dashed rgba(255,255,255,.25); }
+.ib-feld--gewaehlt { box-shadow: 0 0 0 6px #fff, 0 0 0 12px #2f7cf6; }
+.ib-feld__wahl { position: absolute; inset: 0; z-index: 5; background: transparent; border: 0;
+  cursor: pointer; padding: 0; }
+.ib-blatt--bearbeiten .ib-feld__wahl:hover { background: rgba(47,124,246,.12); }
+.ib-leer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  text-align: center; font-size: 2.4rem; font-weight: 600; color: rgba(255,255,255,.45); line-height: 1.3; }
+.ib-leer small { font-size: 1rem; font-weight: 400; }
+.ib-feld--datei .ib-leer { color: #6b7a90; }
+.ib-bild { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.ib-pdf { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.ib-pdf__seite { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }
+.ib-pdf__nr { position: absolute; right: 10px; bottom: 10px; padding: 4px 12px; border-radius: 999px;
+  background: rgba(11,22,38,.7); color: #fff; font-size: 1.1rem; font-weight: 600; }
+.ib-skizze { position: absolute; inset: 0; display: flex; }
+.ib-skizze > .pad-karte2--skizze { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0;
+  border-radius: 10px; }
+.ib-skizze .pad-skizze__kopf { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.ib-skizze .pad-skizze__leiste { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+.ib-skizze .pad-skizze__leiste .pad-skizze__knopf { min-width: 46px; height: 46px; }
+.ib-skizze .pad-skizze__farbe--waehler { width: 46px !important; height: 46px !important; }
+.ib-skizze .pad-skizze__raum { display: flex; align-items: center; justify-content: center; }
+.ib-skizze .pad-skizze__flaeche { background: #fff; }
+.ib-skizze .pad-skizze__hinweis { font-size: 1.3rem; color: #7f8ea3; }
+
+/* Die Seite zum Gestalten: links die Tafel, rechts die Knöpfe */
+.ib-gestalten__kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.ib-gestalten__kopf h2 { margin: 0; }
+.ib-gestalten__teile { display: flex; gap: 24px; align-items: flex-start; }
+.ib-gestalten__vorschau { flex: none; height: min(78vh, 980px); aspect-ratio: 9 / 16; border-radius: 14px;
+  overflow: hidden; background: #050b14; box-shadow: 0 0 0 8px #1b1f26, 0 18px 40px rgba(0,0,0,.25); }
+.ib-gestalten__seite { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 16px; max-width: 460px; }
+.ib-reihe { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ib-reihe__name { font-weight: 600; }
+.ib-umschalter { display: inline-flex; border: 1px solid var(--linie-stark); border-radius: 999px; padding: 3px; gap: 3px; }
+.ib-umschalter__knopf { border: 0; background: transparent; color: var(--tinte); padding: 7px 14px;
+  border-radius: 999px; cursor: pointer; font: inherit; font-size: .9rem; }
+.ib-umschalter__knopf.aktiv { background: var(--akzent, #1f5fbf); color: #fff; }
+.ib-wahl { border: 1px solid var(--linie-stark); border-radius: var(--radius); padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px; }
+.ib-wahl h3 { margin: 0; font-size: 1rem; }
+.ib-wahl__inhalt { margin: 0; font-weight: 600; word-break: break-word; }
+.ib-wahl__knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
+.ib-geraet { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.ib-geraet input { margin-top: 4px; }
+.ib-geraet small { display: block; color: var(--tinte-leise, #6b7280); margin-top: 2px; }
+@media (max-width: 760px) {
+  .ib-gestalten__teile { flex-direction: column; align-items: stretch; }
+  .ib-gestalten__vorschau { height: auto; width: 100%; }
+  .ib-gestalten__seite { max-width: none; }
+}
+
+/* Die Anzeige über den ganzen Bildschirm */
+.ib-voll { position: fixed; inset: 0; z-index: 72; background: #050b14; }
+.ib-voll__innen { position: absolute; inset: 0; }
+.ib-voll__zu { position: absolute; top: 14px; right: 14px; z-index: 6; padding: 12px 22px; border-radius: 999px;
+  border: 0; background: #fff; color: #0b1626; font: inherit; font-weight: 700; font-size: 1.05rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4); cursor: pointer; }
+.ib-voll__fehler { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 6;
+  padding: 10px 18px; border-radius: 12px; background: #7a1c1c; color: #fff; }
+body.ib-offen { overflow: hidden; }

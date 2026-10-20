@@ -13,6 +13,8 @@ import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
 import Temp from "../seiten/Temp.jsx";
+import Infoboard, { infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
+import { istInfoboardGeraet } from "../infoboard/daten.js";
 import { tempAufraeumenRegelmaessig } from "../daten/temp.js";
 import Einkauf from "../seiten/Einkauf.jsx";
 import Bestellungen from "../seiten/Bestellungen.jsx";
@@ -131,7 +133,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.112.0";
+const APP_VERSION = "1.113.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2832,6 +2834,7 @@ function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
   if ((pfad === "material" || pfad === "qs") && meineRolle() === "dienst") return false;
+  if (pfad === "infoboard") return infoboardSichtbar();
   if (!istExtern()) return true;
   return pfad === "planwand" || pfad === "produktion";
 }
@@ -9693,6 +9696,11 @@ SYM.material = svg('<circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><
 SYM.temp = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
   + '<path d="M12 16v-5"/><path d="M9.5 13.5L12 11l2.5 2.5"/>');
 
+// Infoboard: Bildschirm hochkant mit Kopf und zwei Reihen Blätter
+SYM.infoboard = svg('<rect x="5" y="2.5" width="14" height="19" rx="2"/>'
+  + '<path d="M8 6.5h8"/><rect x="8" y="9.5" width="3.3" height="4.5" rx=".6"/>'
+  + '<rect x="12.7" y="9.5" width="3.3" height="4.5" rx=".6"/><rect x="8" y="15.5" width="8" height="3" rx=".6"/>');
+
 // QS: Lupe mit Häkchen, wie Prüfen
 SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
   + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
@@ -9799,6 +9807,9 @@ const SEITEN = [
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
   // Eigener Ordner je Person, vor Google (Wunsch Patrick, 12. Oktober 2026)
   { pfad: "temp",         titel: "Temp",         zeichen: SYM.temp, zeige: reactSeite(Temp) },
+  // Grosser Bildschirm hochkant (Wunsch Patrick 20. Oktober 2026), nur
+  // für Admins und Gerätekonten
+  { pfad: "infoboard",    titel: "Infoboard",    zeichen: SYM.infoboard, zeige: reactSeite(Infoboard) },
 ];
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
@@ -10303,6 +10314,7 @@ function zeichneGeruest() {
     if (vonSelbst === true) zustandFuerSpaeter();
     zustandVergessen();
     if (typeof padSchliessen === "function") padSchliessen();
+    infoboardSchliessen();
     await abmelden();
     profil = null;
     meldungenWeg();
@@ -10348,6 +10360,8 @@ function zeichneGeruest() {
   Promise.all([farbzuteilungLaden(), planerLaden(), symboleLaden()]).then(() => {
     if (!padWiederOeffnen()) zeichneSeite();
     nachher();
+    // Am Bildschirm im Gang geht das Infoboard von selbst wieder auf
+    if (!ARCHIV && istInfoboardGeraet() && infoboardSichtbar()) infoboardOeffnen();
   });
   if (ARCHIV) archivMarkeEinbauen(); else padKnopfEinbauen();
   if (!window._escZurueck) { window._escZurueck = true; escapeZurueck(); }

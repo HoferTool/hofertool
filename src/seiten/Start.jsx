@@ -56,7 +56,9 @@ export default function Start({ auffrischen }) {
   );
 }
 
-function Uhr() {
+// Uhr, Wetter und Solaranlage stehen auch oben auf dem Infoboard;
+// dort ohne die ids, die die Startseite darunter schon trägt
+export function Uhr({ ohneId }) {
   const [jetzt, setJetzt] = useState(() => new Date());
   useEffect(() => {
     const takt = setInterval(() => setJetzt(new Date()), 20000);
@@ -65,14 +67,14 @@ function Uhr() {
   const p = (n) => String(n).padStart(2, "0");
   return (
     <div className="kopfkarte__zeit">
-      <div className="uhr" id="uhr"><Ziffern text={p(jetzt.getHours()) + ":" + p(jetzt.getMinutes())} /></div>
-      <div className="kopfkarte__datum" id="datum">{jetzt.toLocaleDateString("de-CH",
+      <div className="uhr" id={ohneId ? undefined : "uhr"}><Ziffern text={p(jetzt.getHours()) + ":" + p(jetzt.getMinutes())} /></div>
+      <div className="kopfkarte__datum" id={ohneId ? undefined : "datum"}>{jetzt.toLocaleDateString("de-CH",
         { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
     </div>
   );
 }
 
-function Wetter() {
+export function Wetter({ ohneId }) {
   const [wetter, setWetter] = useState(null);   // null = lädt, false = nicht verfügbar
   useEffect(() => {
     let gueltig = true;
@@ -89,7 +91,7 @@ function Wetter() {
   const feiertag = feiText && <div className="wetter__feiertag">{feiText}</div>;
 
   return (
-    <div className="kopfkarte__wetter" id="wetter">
+    <div className="kopfkarte__wetter" id={ohneId ? undefined : "wetter"}>
       {wetter === null && <span className="klein">Wetter wird geladen …</span>}
       {wetter === false && <><span className="klein">Wetter nicht verfügbar</span>{feiertag}</>}
       {wetter && <>
@@ -105,7 +107,7 @@ function Wetter() {
 // Die Kachel der Solaranlage zeichnet noch das alte Programm. Die
 // Werte ändern sich laufend, darum jede Minute neu, ausser während
 // ein Fenster offen ist. Stört den Rest nicht, wenn es sie nicht gibt.
-function Solaranlage() {
+export function Solaranlage({ ohneId }) {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
@@ -120,5 +122,5 @@ function Solaranlage() {
     }, 60000);
     return () => clearInterval(takt);
   }, []);
-  return <div id="db-solar" className="kopfkarte__solar" ref={ref} />;
+  return <div id={ohneId ? undefined : "db-solar"} className="kopfkarte__solar" ref={ref} />;
 }

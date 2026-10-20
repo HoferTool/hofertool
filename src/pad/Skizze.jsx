@@ -50,7 +50,7 @@ const DICKEN = [["duenn", 3], ["mittel", 7], ["dick", 14]];
 const NACHLADEN_MS = 15000;
 // Höhe des Blatts im Verhältnis zur Breite (16:10, wie die grosse
 // Skizze auf dem iPad quer)
-const BLATT = 0.625;
+const BLATT_PAD = 0.625;
 // Textfelder werden auf einem gedachten Blatt dieser Breite gesetzt und
 // als Ganzes skaliert, damit sie klein genau so umbrechen wie gross
 const TEXTBLATT = 1000;
@@ -76,11 +76,18 @@ function farbHex(wert) {
 
 function fehltTabelle(e) {
   const t = String((e && (e.message || e.code)) || "");
-  return /pad_skizzen|PGRST205|42P01|does not exist|schema cache/i.test(t);
+  return /pad_skizzen|infoboard_skizzen|PGRST205|42P01|does not exist|schema cache/i.test(t);
 }
 
-export default function Skizze({ j }) {
-  const jobId = j ? j.id : null;
+// Das Infoboard braucht dieselbe Fläche, aber gespeichert je Bereich
+// statt je Auftrag und mit dem Blatt im Format des Bereichs (A4 hoch
+// oder A3 quer): speicher = { tabelle, spalte, wert, hinweis, loeschenText },
+// blatt = Höhe durch Breite, grossZiel = wohin die grosse Skizze kommt.
+export default function Skizze({ j, speicher, blatt, grossZiel }) {
+  const jobId = speicher ? speicher.wert : (j ? j.id : null);
+  const TABELLE = speicher ? speicher.tabelle : "pad_skizzen";
+  const SPALTE = speicher ? speicher.spalte : "job_id";
+  const BLATT = blatt || BLATT_PAD;
   const darf = !!(jobId && alt.darfSchreiben && alt.darfSchreiben());
   const [striche, setStriche] = useState([]);
   const [farbe, setFarbe] = useState(() => farbHex(alt.pad.skizzeFarbe || "#ffffff"));
@@ -166,7 +173,7 @@ export default function Skizze({ j }) {
     c.drawImage(b.cv, 0, 0);
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (aktuell.current) strichZeichnen(c, aktuell.current, w * k);
-  }, []);
+  }, [BLATT]);
 
   useLayoutEffect(() => { allesZeichnen(); }, [striche, allesZeichnen]);
 
@@ -175,12 +182,16 @@ export default function Skizze({ j }) {
     const el = flaeche.current, cv = leinwand.current, rm = raum.current;
     if (!el || !cv || !rm) return;
     const anpassen = () => {
-      // Das grösste Blatt 16:10, das in den Platz passt
-      const r = rm.getBoundingClientRect();
+      // Das grösste Blatt 16:10, das in den Platz passt. Gemessen ohne
+      // Verkleinerung von aussen: Das Infoboard zeichnet die ganze Tafel
+      // verkleinert oder vergrössert (transform), das zählt nur für die
+      // Bildpunkte der Leinwand.
+      const r = { width: rm.clientWidth, height: rm.clientHeight };
+      const skal = r.width ? rm.getBoundingClientRect().width / r.width : 1;
       const w = Math.max(1, Math.floor(Math.min(r.width, r.height / BLATT)));
       const h = Math.max(1, Math.round(w * BLATT));
       el.style.width = w + "px"; el.style.height = h + "px";
-      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      const dpr = Math.min((window.devicePixelRatio || 1) * Math.max(skal, 0.5), 4);
       breite.current = w;
       cv.width = Math.round(w * dpr);
       cv.height = Math.round(h * dpr);
@@ -215,8 +226,8 @@ export default function Skizze({ j }) {
   const laden = useCallback(async (still) => {
     if (!jobId) { setZustand("bereit"); return; }
     try {
-      const r = await alt.zeitlimit(alt.db.from("pad_skizzen")
-        .select("striche, geaendert_am").eq("job_id", jobId).maybeSingle(), 8000, "Skizze");
+      const r = await alt.zeitlimit(alt.db.from(TABELLE)
+        .select("striche, geaendert_am").eq(SPALTE, jobId).maybeSingle(), 8000, "Skizze");
       if (r && r.error) throw r.error;
       // Während jemand hier zeichnet oder noch gespeichert wird, nichts überschreiben
       if (zeiger.current !== null || offen.current) return;
@@ -232,7 +243,7 @@ export default function Skizze({ j }) {
       if (fehltTabelle(e)) setZustand("fehlt");
       else { setZustand("bereit"); if (!still) alt.fehlerMerken && alt.fehlerMerken("Skizze laden", alt.fehlertext(e)); }
     }
-  }, [jobId]);
+  }, [jobId, TABELLE, SPALTE]);
 
   useEffect(() => {
     setStriche([]); stand.current = ""; verlauf.current = []; setZustand("laedt");
@@ -250,8 +261,8 @@ export default function Skizze({ j }) {
     auftrag.t = setTimeout(async () => {
       const jetzt = new Date().toISOString();
       try {
-        const r = await alt.zeitlimit(alt.db.from("pad_skizzen")
-          .upsert({ job_id: jobId, striche: liste, geaendert_am: jetzt }, { onConflict: "job_id" }),
+        const r = await alt.zeitlimit(alt.db.from(TABELLE)
+          .upsert({ [SPALTE]: jobId, striche: liste, geaendert_am: jetzt }, { onConflict: SPALTE }),
           8000, "Skizze speichern");
         if (r && r.error) throw r.error;
         stand.current = jetzt;
@@ -265,17 +276,17 @@ export default function Skizze({ j }) {
         if (offen.current === auftrag) offen.current = null;
       }
     }, 500);
-  }, [jobId]);
+  }, [jobId, TABELLE, SPALTE]);
 
   // Beim Verlassen nichts verlieren: wartendes Speichern sofort senden
   useEffect(() => () => {
     if (offen.current && jobId) {
       clearTimeout(offen.current.t);
       offen.current = null;
-      alt.db.from("pad_skizzen").upsert({ job_id: jobId, striche: strichRef.current,
-        geaendert_am: new Date().toISOString() }, { onConflict: "job_id" }).then(() => {}, () => {});
+      alt.db.from(TABELLE).upsert({ [SPALTE]: jobId, striche: strichRef.current,
+        geaendert_am: new Date().toISOString() }, { onConflict: SPALTE }).then(() => {}, () => {});
     }
-  }, [jobId]);
+  }, [jobId, TABELLE, SPALTE]);
 
   // Jede Änderung merkt sich die Fassung davor, damit Rückgängig auch
   // Verschieben, Bearbeiten und Löschen zurücknimmt
@@ -495,7 +506,7 @@ export default function Skizze({ j }) {
   const loeschen = async () => {
     if (!striche.length) return;
     const ok = await alt.nachfragen({ titel: "Skizze löschen?",
-      text: "Die ganze Zeichnung verschwindet auf allen Pads dieser Maschine.",
+      text: (speicher && speicher.loeschenText) || "Die ganze Zeichnung verschwindet auf allen Pads dieser Maschine.",
       bestaetigen: "Ja, löschen", gefahr: true });
     if (ok) aendern([]);
   };
@@ -503,10 +514,11 @@ export default function Skizze({ j }) {
   const leer = !striche.length && !aktuell.current;
   const kannZurueck = !!(striche.length || verlauf.current.length);
   const hinweis = !jobId ? "Kein Auftrag: nichts zum Zeichnen."
-    : zustand === "fehlt" ? "Zeichnen geht, sobald die Datei pad-skizze.sql in Supabase ausgeführt ist."
+    : zustand === "fehlt" ? "Zeichnen geht, sobald die Datei " + (speicher ? "infoboard" : "pad-skizze")
+      + ".sql in Supabase ausgeführt ist."
     : zustand === "laedt" ? "Wird geladen …"
     : !darf ? "Keine Zeichnung."
-    : "Mit dem Finger zeichnen. Bleibt, bis der Auftrag fertig ist.";
+    : (speicher && speicher.hinweis) || "Mit dem Finger zeichnen. Bleibt, bis der Auftrag fertig ist.";
 
   const grossKnopf = jobId && zustand !== "fehlt" &&
     <button type="button" data-skizze="gross" className="pad-skizze__knopf pad-skizze__gross"
@@ -597,7 +609,7 @@ export default function Skizze({ j }) {
   if (!gross) return karte;
   // Gross liegt die Skizze über dem ganzen Pad; in der Spalte bleibt
   // eine leere Kachel, damit sich das Dashboard darunter nicht verschiebt
-  const ziel = document.getElementById("pad") || document.body;
+  const ziel = grossZiel || document.getElementById("pad") || document.body;
   return (
     <>
       <div className="pad-karte2 pad-karte2--skizze" aria-hidden="true" />
