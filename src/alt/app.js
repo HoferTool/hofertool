@@ -33,6 +33,7 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
+import { zeichnungNrSofort, zeichnungNrHolen } from "../daten/zeichnungNr.js";
 import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo, werkstoffSuchtext } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
@@ -130,7 +131,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.109.1";
+const APP_VERSION = "1.110.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4830,6 +4831,13 @@ function balkenInfoVerhalten() {
         + zeile(esc(j.maschine || "–") + (j.maschine_nr ? " · " + esc(j.maschine_nr) : ""))
         + (j.planned_from ? zeile("📅 " + esc(zeitraumText(j.planned_from, j.planned_days))) : "")
         + zeile(String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden")
+        // Zeichnungsnummer (Wunsch Patrick 20. Oktober 2026): aus dem
+        // Dateinamen der Zeichnung, sonst aus der WBG. Was noch gelesen
+        // werden muss, steht erst als „…“; ohne Nummer fällt die Zeile weg.
+        + (zeichnungNrSofort(j) !== ""
+            ? zeile('<span class="pw-info__was">Zeichn. Nr.</span> <span data-wbg-znr>'
+              + esc(zeichnungNrSofort(j) || "…") + '</span>', "znr")
+            : "")
         + zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz"))
         + (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : "")
 
@@ -4853,6 +4861,17 @@ function balkenInfoVerhalten() {
 
       document.body.appendChild(fenster);
       platzieren();
+      if (zeichnungNrSofort(j) === undefined) {
+        const offen = fenster;
+        zeichnungNrHolen(j).then((nr) => {
+          if (fenster !== offen) return;
+          const feld = offen.querySelector("[data-wbg-znr]");
+          if (!feld) return;
+          if (nr) feld.textContent = nr;
+          else feld.closest(".pw-info__zeile").remove();
+          platzieren();
+        });
+      }
     };
 
     // Das Fenster sitzt genau über dem Mauszeiger — passt es oben nicht
