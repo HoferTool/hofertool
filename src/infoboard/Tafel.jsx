@@ -7,7 +7,7 @@
 //  die Gestaltung genau aus wie nachher der Bildschirm.
 //
 //  Oben der Kopf mit Logo, Uhr, Wetter und Solaranlage, darunter drei
-//  Reihen mit zwei Feldern oder einem breiten.
+//  Reihen mit drei A4 oder einem A3 und einem A4.
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -16,18 +16,18 @@ import { pdfjs } from "../teile/PdfAnsicht.jsx";
 import Skizze from "../pad/Skizze.jsx";
 import { BREITE, HOEHE, LUECKE, FELD_B, FELD_H, KOPF_H, BLATT, SEKUNDEN } from "./daten.js";
 
+// Welche Spalten jedes Feld einer Reihe belegt: [erste Spalte, Breite]
+const SPALTEN_JE_FORMAT = { a4: [[0, 1], [1, 1], [2, 1]], a3l: [[0, 2], [2, 1]], a3r: [[0, 1], [1, 2]] };
+
 // Lage jedes sichtbaren Felds auf dem Blatt
 export function felderLage(aufbau) {
   const aus = [];
   aufbau.reihen.forEach((r, ri) => {
-    const top = KOPF_H + LUECKE + ri * (FELD_H + LUECKE);
-    if (r.format === "a3") {
-      aus.push({ feld: r.felder[0], reihe: ri, platz: 0, format: "a3",
-        left: LUECKE, top, width: BREITE - 2 * LUECKE, height: FELD_H });
-    } else {
-      r.felder.forEach((f, pi) => aus.push({ feld: f, reihe: ri, platz: pi, format: "a4",
-        left: LUECKE + pi * (FELD_B + LUECKE), top, width: FELD_B, height: FELD_H }));
-    }
+    const top = KOPF_H + ri * (FELD_H + LUECKE);
+    (SPALTEN_JE_FORMAT[r.format] || SPALTEN_JE_FORMAT.a4).forEach(([sp, breit], pi) => {
+      aus.push({ feld: r.felder[pi], reihe: ri, platz: pi, spalte: sp, breit, format: breit === 2 ? "a3" : "a4",
+        left: LUECKE + sp * (FELD_B + LUECKE), top, width: breit * FELD_B + (breit - 1) * LUECKE, height: FELD_H });
+    });
   });
   return aus;
 }
@@ -85,7 +85,7 @@ export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel }) {
 function Kopf() {
   const innen = useRef(null);
   const [k, setK] = useState(1);
-  const hoehe = KOPF_H - LUECKE;
+  const hoehe = KOPF_H - 2 * LUECKE;
   useLayoutEffect(() => {
     const el = innen.current;
     if (!el) return;
@@ -132,7 +132,7 @@ function FeldInhalt({ feld, format, bearbeiten, grossZiel }) {
     if (d.typ === "bild") return <img className="ib-bild" src={d.url} alt={d.name || ""} />;
     if (d.typ === "video") return <video className="ib-bild" src={d.url} autoPlay muted loop playsInline />;
   }
-  return bearbeiten ? <div className="ib-leer">{format === "a3" ? "Ganze Breite" : "Halbe Breite"}<br />leer</div> : null;
+  return bearbeiten ? <div className="ib-leer">{format === "a3" ? "A3" : "A4"}<br />leer</div> : null;
 }
 
 // Ein PDF füllt sein Feld mit der ganzen Seite. Hat es mehrere Seiten,

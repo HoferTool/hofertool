@@ -20,7 +20,7 @@ import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, f
   istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN } from "./daten.js";
 
 const REIHEN = ["oben", "Mitte", "unten"];
-const PLATZ = ["links", "rechts"];
+const SPALTE = ["links", "Mitte", "rechts"];
 const WECHSEL = [[10, "10 Sekunden"], [20, "20 Sekunden"], [30, "30 Sekunden"], [60, "1 Minute"], [120, "2 Minuten"]];
 
 export function infoboardSichtbar() {
@@ -125,7 +125,7 @@ export default function Infoboard() {
               <div key={name} className="ib-reihe">
                 <span className="ib-reihe__name">Reihe {name}</span>
                 <div className="ib-umschalter">
-                  {[["a4", "2 nebeneinander"], ["a3", "1 breit"]].map(([w, t]) => (
+                  {[["a4", "3 × A4"], ["a3l", "A3 + A4"], ["a3r", "A4 + A3"]].map(([w, t]) => (
                     <button key={w} type="button" data-ibformat={ri + "-" + w}
                       className={"ib-umschalter__knopf" + (aufbau.reihen[ri].format === w ? " aktiv" : "")}
                       onClick={() => formatSetzen(ri, w)}>{t}</button>
@@ -136,7 +136,7 @@ export default function Infoboard() {
             {!wahl && <p className="klein">Tippe links auf einen Bereich, um ihn zu füllen.</p>}
             {wahl &&
               <div className="ib-wahl" data-ibwahl={wahl.reihe + "-" + wahl.platz}>
-                <h3>{"Reihe " + REIHEN[wahl.reihe] + (wahl.format === "a3" ? " · ganze Breite" : " " + PLATZ[wahl.platz])}</h3>
+                <h3>{"Reihe " + REIHEN[wahl.reihe] + " · " + (wahl.breit === 2 ? "A3 " + (wahl.spalte === 0 ? "links" : "rechts") : "A4 " + SPALTE[wahl.spalte])}</h3>
                 <p className="ib-wahl__inhalt">{inhaltText(wahl.feld)}</p>
                 <div className="ib-wahl__knoepfe">
                   <button type="button" className="knopf" data-ib="datei" disabled={!!laedt}

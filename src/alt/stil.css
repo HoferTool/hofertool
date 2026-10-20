@@ -8462,7 +8462,7 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 /* Logo links, Uhr und Wetter rechts, darunter die Solaranlage ohne eigene Karte */
 .ib-kopf__zeile { display: flex; align-items: center; justify-content: space-between; gap: 24px;
   position: relative; z-index: 2; margin-bottom: 8px; }
-.ib-kopf__logo { height: 70px; width: auto; display: block; }
+.ib-kopf__logo { height: 80px; width: auto; display: block; }
 .ib-kopf__rechts { display: flex; align-items: center; gap: 28px; text-align: right; }
 .ib-kopf .uhr { font-size: 2.7rem; }
 .ib-kopf .kopfkarte__datum { font-size: 1rem; margin-top: 4px; }
@@ -8482,8 +8482,8 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .ib-kopf .sol-zahl { padding: 2px 10px; }
 .ib-kopf .sol-ring { width: 76px !important; height: 76px !important; margin: 0 !important; grid-column: auto !important; }
 .ib-kopf .sol-ring__zahl { font-size: 1.3rem !important; }
-.ib-kopf .sol-verlauf { margin: 10px 0 2px; }
-.ib-kopf .sol-verlauf svg { height: 34px !important; }
+.ib-kopf .sol-verlauf { margin: 12px 0 4px; }
+.ib-kopf .sol-verlauf svg { height: 72px !important; }
 .ib-kopf .sol-verlauf__achse { font-size: .8rem; }
 .ib-kopf .solar-tag { margin-top: 4px !important; }
 .ib-kopf .solar-tag div { font-size: .95rem !important; padding: 5px 12px !important; }

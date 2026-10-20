@@ -3,18 +3,20 @@
 //  Der Aufbau des grossen Bildschirms (50 Zoll, hochkant; zuerst
 //  war ein 43-Zoll-Bildschirm geplant) steht als eine Zeile in der Tabelle infoboard
 //  (sql/infoboard.sql). Unter dem Kopf mit Logo und Solaranlage gibt
-//  es drei Reihen; jede Reihe ist entweder zwei Felder nebeneinander
-//  oder eines über die ganze Breite (Wunsch Patrick 20. Oktober 2026:
-//  zuerst „A4 oder wenn doppelt A3“ in zwei Reihen, dann „drei Reihen
-//  Dokumente, auch wenn es nicht ganz für A4 reicht“). Die Felder sind
-//  darum etwas weniger hoch als A4; ein PDF wird ganz eingepasst.
+//  es drei Reihen mit je drei Feldern genau im Format A4 hochkant,
+//  oder ein A3 quer (zwei Felder breit) und ein A4 daneben (Wunsch
+//  Patrick 20. Oktober 2026: zuerst „A4 oder wenn doppelt A3“, dann
+//  „drei Reihen Dokumente“, dann drei A4 nebeneinander „wäre mir
+//  lieber“). Der Kopf nimmt, was über den drei Reihen frei bleibt.
 //
-//  aufbau = { reihen: [{ format: "a4" (zwei) | "a3" (eines breit), felder: [feld, feld] }, …] }
+//  aufbau = { reihen: [{ format: "a4" (drei A4) | "a3l" (A3 links, A4 rechts)
+//                       | "a3r" (A4 links, A3 rechts), felder: [feld, feld, feld] }, …] }
 //  feld   = { id, art: "leer" | "datei" | "skizze",
 //             datei: { url, pfad, name, typ: "pdf" | "bild" | "video" },
 //             sekunden: Seitenwechsel bei PDFs mit mehreren Seiten }
-//  Eine Reihe behält immer zwei Felder; breit zeigt sie nur das erste,
-//  das zweite kommt zurück, wenn man wieder auf zwei schaltet.
+//  Eine Reihe behält immer drei Felder; mit A3 zeigt sie nur die ersten
+//  zwei, das dritte kommt zurück, wenn man wieder auf drei A4 schaltet.
+//  Das frühere „a3“ (eines über die ganze Breite) gilt als „a3l“.
 // =================================================================
 import { alt } from "../bruecke.jsx";
 
@@ -23,14 +25,15 @@ export const BOARD = "haupt";
 export const BREITE = 1080, HOEHE = 1920;
 export const LUECKE = 12;
 export const REIHEN = 3;
-// Kopf mit Logo, Uhr, Wetter und Solaranlage
-export const KOPF_H = 360;
-// Ein Feld: halbe Breite, ein Drittel der Höhe unter dem Kopf
-export const FELD_B = (BREITE - 3 * LUECKE) / 2;                               // 522
-export const FELD_H = Math.floor((HOEHE - KOPF_H - REIHEN * LUECKE) / REIHEN); // 508
-// Höhe durch Breite für die Zeichenfläche je Format („a4“ = halbe
-// Breite, „a3“ = ganze Breite; die Namen bleiben wegen der gespeicherten Daten)
-export const BLATT = { a4: FELD_H / FELD_B, a3: FELD_H / (BREITE - 2 * LUECKE) };
+export const SPALTEN = 3;
+// Ein Feld: ein Drittel der Breite, Höhe genau wie A4 (Wurzel 2)
+export const FELD_B = (BREITE - (SPALTEN + 1) * LUECKE) / SPALTEN;   // 344
+export const FELD_H = Math.round(FELD_B * Math.SQRT2);              // 486
+// Kopf mit Logo, Uhr, Wetter und Solaranlage: der Rest oben
+export const KOPF_H = HOEHE - REIHEN * (FELD_H + LUECKE);           // 426
+// Höhe durch Breite für die Zeichenfläche: A4 hochkant, A3 quer
+export const BLATT = { a4: FELD_H / FELD_B, a3: FELD_H / (2 * FELD_B + LUECKE) };
+export const FORMATE = ["a4", "a3l", "a3r"];
 export const SEKUNDEN = 20;
 
 export const neueId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -41,9 +44,10 @@ export function aufbauOrdnen(a) {
   return {
     reihen: Array.from({ length: REIHEN }, (_, i) => {
       const r = reihen[i] || {};
-      const felder = Array.isArray(r.felder) ? r.felder.slice(0, 2) : [];
-      while (felder.length < 2) felder.push(leeresFeld());
-      return { format: r.format === "a3" ? "a3" : "a4", felder: felder.map((f) => (f && f.id ? f : leeresFeld())) };
+      const felder = Array.isArray(r.felder) ? r.felder.slice(0, SPALTEN) : [];
+      while (felder.length < SPALTEN) felder.push(leeresFeld());
+      const format = r.format === "a3" ? "a3l" : FORMATE.includes(r.format) ? r.format : "a4";
+      return { format, felder: felder.map((f) => (f && f.id ? f : leeresFeld())) };
     }),
   };
 }

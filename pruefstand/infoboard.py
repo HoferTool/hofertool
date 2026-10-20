@@ -1,6 +1,6 @@
 # Infoboard (1.113.0, Wunsch Patrick 20. Oktober 2026): Seite zum
-# Gestalten des 43-Zoll-Bildschirms hochkant. Kopf mit Logo und Solar-
-# anlage, darunter zwei Reihen „2 × A4“ oder „1 × A3 quer“, Bereiche mit
+# Gestalten des 50-Zoll-Bildschirms hochkant. Kopf mit Logo und Solar-
+# anlage, darunter drei Reihen „3 × A4“ oder „A3 + A4“ (1.118.0), Bereiche mit
 # PDF (blättert von selbst) oder Zeichenfläche; Anzeige über den ganzen
 # Bildschirm, öffnet sich auf dem Bildschirm-Gerät nach dem Neuladen.
 import time, os
@@ -34,9 +34,9 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-nav='infoboard']").count() > 0, "Infoboard im Menü für Admins")
     pg.evaluate("location.hash='#/infoboard'"); pg.wait_for_selector(".ib-gestalten"); pg.wait_for_timeout(800)
     felder = pg.locator(".ib-gestalten .ib-feld")
-    pruefe(felder.count() == 6, "drei Reihen mit je zwei Bereichen: %d" % felder.count())
+    pruefe(felder.count() == 9, "drei Reihen mit je drei Bereichen: %d" % felder.count())
     b = felder.first.bounding_box()
-    pruefe(abs(b["height"] / b["width"] - 508 / 522) < 0.02, "Bereich halbe Breite, ein Drittel hoch: %.3f" % (b["height"] / b["width"]))
+    pruefe(abs(b["height"] / b["width"] - 2 ** 0.5) < 0.02, "Bereich genau A4 hochkant: %.3f" % (b["height"] / b["width"]))
     kopf = pg.locator(".ib-gestalten .ib-kopf .ib-kopf__logo")
     pruefe(kopf.count() == 1, "Logo oben in der Tafel")
     pruefe(pg.locator(".ib-gestalten .ib-kopf .solar").count() == 1, "Solaranlage oben in der Tafel")
@@ -55,15 +55,20 @@ with sync_playwright() as p:
     up = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'upload').map(x => x.pfad)")
     pruefe(any(x.startswith("infoboard/") for x in up), "Datei in infoboard/: %s" % up)
 
-    # Reihe unten als A3 quer, dort die Zeichenfläche
-    pg.click("[data-ibformat='1-a3']"); pg.wait_for_timeout(600)
-    pruefe(pg.locator(".ib-gestalten .ib-feld").count() == 5, "Mitte nur noch ein Bereich")
+    # Reihe Mitte als A3 + A4, im A3 die Zeichenfläche
+    pg.click("[data-ibformat='1-a3l']"); pg.wait_for_timeout(600)
+    pruefe(pg.locator(".ib-gestalten .ib-feld").count() == 8, "Mitte nur noch zwei Bereiche")
     b = pg.locator("[data-ibfeld='1-0']").bounding_box()
-    pruefe(abs(b["width"] / b["height"] - 1056 / 508) < 0.03, "Mitte ganze Breite: %.3f" % (b["width"] / b["height"]))
+    pruefe(abs(b["width"] / b["height"] - 700 / 486) < 0.03, "Mitte links A3 quer: %.3f" % (b["width"] / b["height"]))
+    b2 = pg.locator("[data-ibfeld='1-1']").bounding_box()
+    pruefe(abs(b2["height"] / b2["width"] - 2 ** 0.5) < 0.02 and b2["x"] > b["x"] + b["width"], "daneben rechts ein A4")
+    unten = pg.locator("[data-ibfeld='2-2']").bounding_box()
+    blatt = pg.locator(".ib-gestalten .ib-blatt").bounding_box()
+    pruefe(unten["y"] + unten["height"] <= blatt["y"] + blatt["height"] + 1, "unterste Reihe ganz auf dem Blatt")
     pg.locator("[data-ibfeld='1-0'] .ib-feld__wahl").click(); pg.wait_for_selector("[data-ibwahl='1-0']")
     pg.click("[data-ib='skizze']"); pg.wait_for_timeout(800)
     a = pg.evaluate("() => TEST.daten.infoboard[0].aufbau")
-    pruefe(a["reihen"][1]["format"] == "a3" and a["reihen"][1]["felder"][0]["art"] == "skizze", "A3 mit Zeichenfläche gespeichert")
+    pruefe(a["reihen"][1]["format"] == "a3l" and a["reihen"][1]["felder"][0]["art"] == "skizze", "A3 mit Zeichenfläche gespeichert")
     skid = a["reihen"][1]["felder"][0]["id"]
     # Das PDF auf eine Adresse, die der Prüfstand ausliefert
     pg.evaluate("(u) => { TEST.daten.infoboard[0].aufbau.reihen[0].felder[0].datei.url = u; "
@@ -73,7 +78,7 @@ with sync_playwright() as p:
     # Anzeige über den ganzen Bildschirm
     pg.set_viewport_size({"width": 540, "height": 960})
     pg.click("[data-ib='anzeige']"); pg.wait_for_selector("#infoboard .ib-blatt"); pg.wait_for_timeout(2000)
-    pruefe(pg.locator("#infoboard .ib-feld").count() == 5, "Anzeige mit fünf Bereichen")
+    pruefe(pg.locator("#infoboard .ib-feld").count() == 8, "Anzeige mit acht Bereichen")
     nr = pg.locator("#infoboard .ib-pdf__nr")
     pruefe(nr.count() == 1 and nr.inner_text().strip() == "1 / 2", "PDF zeigt Seite 1 / 2")
     w = pg.evaluate("() => document.querySelector('#infoboard .ib-pdf__seite').width")
