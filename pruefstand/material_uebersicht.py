@@ -111,6 +111,13 @@ with sync_playwright() as p:
     # mB hat eine Menge (kein M), mA läuft
     m = pg.locator("[data-ort='Aussenlager Nord'] .mat-m").first
     pruefe("Rotes M beim Posten mit „2 Aufträge“", m.count() == 1 and m.get_attribute("data-m") == "2" and "2 Aufträge" in m.inner_text())
+    # Im dunklen Modus lesbar: dunkler Grund, helle Schrift (1.114.1, Bild Patrick)
+    pg.evaluate("document.body.classList.add('dunkel')"); pg.wait_for_timeout(200)
+    farben = m.evaluate("e => [getComputedStyle(e).backgroundColor, getComputedStyle(e).color]")
+    m.screenshot(path="/tmp/material_m_dunkel.png")
+    pg.locator("[data-ort='Aussenlager Nord'] .mat-posten").first.screenshot(path="/tmp/material_posten_dunkel.png")
+    pruefe("M-Knopf dunkel lesbar: " + str(farben), farben[0] != "rgb(255, 255, 255)" and farben[1] != farben[0])
+    pg.evaluate("document.body.classList.remove('dunkel')"); pg.wait_for_timeout(200)
     m.click(); pg.wait_for_selector("#mat-wo", timeout=5000)
     w = pg.inner_text("#mat-wo")
     pruefe("Fenster zeigt 10555-0003 und 10555-0006: " + w.replace(chr(10), " | ")[:200],

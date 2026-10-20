@@ -8367,7 +8367,9 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 
 /* Rotes M beim Restmaterial: wo einsetzen? (seit 1.104.0, Wunsch Patrick 19. Oktober 2026) */
 .mat-m { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 5px; border-radius: 8px;
-  border: 1px solid var(--rand, rgba(0,0,0,.2)); background: var(--karte, #fff); color: inherit; cursor: pointer;
+  /* Farben wie .knopf: --rand und --karte gibt es nicht, darum war der
+     Knopf im dunklen Modus weiss mit heller Schrift (1.115.1) */
+  border: 1px solid var(--linie-stark); background: var(--flaeche); color: var(--tinte); cursor: pointer;
   font: inherit; font-weight: 650; line-height: 1; }
 .mat-m:hover { border-color: #e3141b; }
 .mat-m__zeichen { display: block; font-size: 22px; }
