@@ -156,6 +156,32 @@ function klappenZeigen(schmal) {
     b.classList.add("nav--klappt-auf");
     klappUhren.push(setTimeout(() => b.classList.remove("nav--klappt-auf"), KLAPP_AUF_MS));
   }
+  inhaltMitziehen();
+}
+
+// Die Seite gleitet mit dem Rand der Leiste mit, statt beim Klappen auf
+// einmal dahinter zu stehen (seit 1.121.0, Wunsch Patrick 20. Oktober
+// 2026: „die Seite soll mit der Menüleiste mitgehen, dass es sauber
+// ist“). Die Spalte wechselt weiterhin nur einmal, sonst rechnete der
+// Browser bei jedem Bild die ganze Planwand neu; verschoben wird nur
+// das fertige Bild, jedes Bild genau um den Abstand zum Rand der Leiste.
+let mitziehBild = 0;
+function inhaltMitziehen() {
+  cancelAnimationFrame(mitziehBild);
+  const nav = document.querySelector(".nav"), inhalt = document.getElementById("inhalt");
+  if (!nav || !inhalt) return;
+  const b = document.body;
+  const schritt = () => {
+    if (!b.classList.contains("nav--klappt-auf") && !b.classList.contains("nav--klappt-zu")) {
+      inhalt.style.transform = "";
+      return;
+    }
+    const spalte = b.classList.contains("nav--klappt-zu") || b.classList.contains("nav--schmal") ? 62 : 208;
+    const versatz = nav.getBoundingClientRect().width - spalte;
+    inhalt.style.transform = Math.abs(versatz) < .5 ? "" : `translateX(${versatz.toFixed(1)}px)`;
+    mitziehBild = requestAnimationFrame(schritt);
+  };
+  schritt();
 }
 
 function Geruest() {

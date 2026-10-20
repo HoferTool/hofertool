@@ -8560,6 +8560,9 @@ body.ib-offen { overflow: hidden; }
 @media (min-width: 780px) {
   body.nav--klappt-auf .nav, body.nav--klappt-zu .nav { overflow: hidden; }
   body.nav--klappt-zu .rahmen { grid-template-columns: 62px 1fr; }
+  /* Die Seite gleitet mit (inhaltMitziehen): was dabei rechts übersteht, abschneiden */
+  body.nav--klappt-auf .rahmen, body.nav--klappt-zu .rahmen { overflow-x: clip; }
+  body.nav--klappt-auf .inhalt, body.nav--klappt-zu .inhalt { will-change: transform; }
   body.nav--klappt-auf .nav__text, body.nav--klappt-zu .nav__text { white-space: nowrap; }
 
   /* Den Lichtstreifen gibt es seit 1.120.1 nicht mehr (Patrick: „lass die

@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.121.0** Seitenleiste: Die Seite gleitet beim Ein- und Ausklappen mit dem Rand der Leiste mit, statt auf einmal dahinter zu stehen (Wunsch Patrick, 20. Oktober 2026: „die Seite soll mit der Menüleiste mitgehen, dass es sauber ist“). Die Spalte wechselt weiter nur einmal, verschoben wird nur das fertige Bild (`inhaltMitziehen` in `src/huelle/Geruest.jsx`), damit die Planwand nicht bei jedem Bild neu rechnet. Test in `nav_klappen.py`.
 - **1.120.2** Infoboard: PDFs füllen ihr Feld ganz (Patrick, 20. Oktober 2026: „warum wird das PDF so klein angezeigt?“). Die Seite wurde in der Grösse gezeichnet, die das Feld nach dem Verkleinern der ganzen Tafel hat, und dann nochmals verkleinert; in der Gestaltung stand sie darum nur etwa halb so gross im Feld. Jetzt feste Grösse im Feld, Schärfe nach der echten Grösse am Bildschirm.
 - **1.120.1** Seitenleiste und Handy-Menü ohne Lichtstreifen (Patrick, 20. Oktober 2026: „lass die Animation, aber nimm den Blitz weg“). Federn, Leuchten am Rand, drehende Zeichen und hereinfliegende Namen bleiben.
 - **1.120.0** Infoboard mit **Ziehen und Ablegen** (Wunsch Patrick, 20. Oktober 2026: „drag and drop für den Inhalt“): Eine Datei (PDF, Bild, Video) vom Computer direkt auf ein Feld der Tafel ziehen lädt sie dort hoch; ein Feld auf ein anderes ziehen tauscht die beiden, eine Zeichenfläche wandert samt Zeichnung mit. Das Ziel leuchtet grün. Nur für Admins in der Gestaltung.
