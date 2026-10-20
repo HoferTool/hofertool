@@ -1,9 +1,9 @@
 // =================================================================
 //  INFOBOARD
-//  Seite zum Gestalten des grossen Bildschirms (Samsung QM43B-T,
-//  43 Zoll, hochkant) und die Anzeige über den ganzen Bildschirm
+//  Seite zum Gestalten des grossen Bildschirms (Samsung, zuerst 43, jetzt
+//  50 Zoll, hochkant) und die Anzeige über den ganzen Bildschirm
 //  (Wunsch Patrick 20. Oktober 2026). Links die Tafel genau wie am
-//  Bildschirm, rechts je Reihe „2 × A4“ oder „1 × A3 quer“ und was im
+//  Bildschirm, rechts je Reihe „2 nebeneinander“ oder „1 breit“ und was im
 //  angetippten Bereich steht: eine Datei (PDF, Bild, Video) oder eine
 //  Fläche zum Zeichnen und Schreiben.
 //
@@ -19,7 +19,7 @@ import { Tafel, felderLage } from "./Tafel.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
   istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN } from "./daten.js";
 
-const REIHEN = ["oben", "unten"];
+const REIHEN = ["oben", "Mitte", "unten"];
 const PLATZ = ["links", "rechts"];
 const WECHSEL = [[10, "10 Sekunden"], [20, "20 Sekunden"], [30, "30 Sekunden"], [60, "1 Minute"], [120, "2 Minuten"]];
 
@@ -125,7 +125,7 @@ export default function Infoboard() {
               <div key={name} className="ib-reihe">
                 <span className="ib-reihe__name">Reihe {name}</span>
                 <div className="ib-umschalter">
-                  {[["a4", "2 × A4"], ["a3", "1 × A3 quer"]].map(([w, t]) => (
+                  {[["a4", "2 nebeneinander"], ["a3", "1 breit"]].map(([w, t]) => (
                     <button key={w} type="button" data-ibformat={ri + "-" + w}
                       className={"ib-umschalter__knopf" + (aufbau.reihen[ri].format === w ? " aktiv" : "")}
                       onClick={() => formatSetzen(ri, w)}>{t}</button>
@@ -136,7 +136,7 @@ export default function Infoboard() {
             {!wahl && <p className="klein">Tippe links auf einen Bereich, um ihn zu füllen.</p>}
             {wahl &&
               <div className="ib-wahl" data-ibwahl={wahl.reihe + "-" + wahl.platz}>
-                <h3>{"Reihe " + REIHEN[wahl.reihe] + (wahl.format === "a3" ? " · A3 quer" : " " + PLATZ[wahl.platz] + " · A4")}</h3>
+                <h3>{"Reihe " + REIHEN[wahl.reihe] + (wahl.format === "a3" ? " · ganze Breite" : " " + PLATZ[wahl.platz])}</h3>
                 <p className="ib-wahl__inhalt">{inhaltText(wahl.feld)}</p>
                 <div className="ib-wahl__knoepfe">
                   <button type="button" className="knopf" data-ib="datei" disabled={!!laedt}

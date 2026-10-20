@@ -8456,17 +8456,18 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .ib-blatt { position: absolute; left: 50%; top: 50%; transform-origin: center center;
   background: #0b1626; color: #f2f4f7; overflow: hidden; }
 .ib-kopf { position: absolute; overflow: hidden; border-radius: 18px; padding: 0 !important; margin: 0; }
-.ib-kopf__innen { transform-origin: top left; padding: 22px 28px 16px; box-sizing: border-box; }
+.ib-kopf__innen { transform-origin: top left; padding: 14px 26px 10px; box-sizing: border-box; }
 /* Logo links, Uhr und Wetter rechts, darunter die Solaranlage ohne eigene Karte */
 .ib-kopf__zeile { display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  position: relative; z-index: 2; margin-bottom: 14px; }
-.ib-kopf__logo { height: 96px; width: auto; display: block; }
+  position: relative; z-index: 2; margin-bottom: 8px; }
+.ib-kopf__logo { height: 70px; width: auto; display: block; }
 .ib-kopf__rechts { display: flex; align-items: center; gap: 28px; text-align: right; }
-.ib-kopf .uhr { font-size: 3.6rem; }
-.ib-kopf .kopfkarte__datum { font-size: 1.05rem; }
+.ib-kopf .uhr { font-size: 2.7rem; }
+.ib-kopf .kopfkarte__datum { font-size: 1rem; margin-top: 4px; }
 .ib-kopf .kopfkarte__wetter { padding-left: 24px; border-left: 1px solid rgba(255,255,255,.18); }
-.ib-kopf .wetter__grad { font-size: 2.6rem; }
-.ib-kopf .wetter__text, .ib-kopf .wetter__rand { font-size: 1rem; }
+.ib-kopf .wetter__grad { font-size: 2.2rem; }
+.ib-kopf .wetter__text, .ib-kopf .wetter__rand { font-size: .95rem; }
+.ib-kopf .sol-kopf { margin-bottom: 4px; }
 .ib-kopf .solar { background: none; box-shadow: none; border-radius: 0; margin: 0; padding: 0 !important; overflow: visible; }
 .ib-kopf .solar::after { display: none; }
 .ib-kopf .sol-kopf__titel { font-size: .95rem; }
@@ -8475,13 +8476,15 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
    Fensters; auf der Tafel ist die Breite immer dieselbe, darum hier fest */
 .ib-kopf .sol-reihe { grid-template-columns: repeat(3, 1fr) auto !important; }
 .ib-kopf .sol-zahl__name { font-size: .85rem; }
-.ib-kopf .sol-zahl__wert { font-size: 2.1rem; }
-.ib-kopf .sol-ring { width: 92px !important; height: 92px !important; margin: 0 !important; grid-column: auto !important; }
+.ib-kopf .sol-zahl__wert { font-size: 1.9rem; }
+.ib-kopf .sol-zahl { padding: 2px 10px; }
+.ib-kopf .sol-ring { width: 76px !important; height: 76px !important; margin: 0 !important; grid-column: auto !important; }
 .ib-kopf .sol-ring__zahl { font-size: 1.3rem !important; }
-.ib-kopf .sol-verlauf { margin: 18px 0 4px; }
-.ib-kopf .sol-verlauf svg { height: 60px !important; }
+.ib-kopf .sol-verlauf { margin: 10px 0 2px; }
+.ib-kopf .sol-verlauf svg { height: 34px !important; }
 .ib-kopf .sol-verlauf__achse { font-size: .8rem; }
-.ib-kopf .solar-tag div { font-size: 1rem !important; padding: 7px 12px !important; }
+.ib-kopf .solar-tag { margin-top: 4px !important; }
+.ib-kopf .solar-tag div { font-size: .95rem !important; padding: 5px 12px !important; }
 .ib-feld { position: absolute; overflow: hidden; border-radius: 10px; background: #fff; }
 .ib-feld--leer, .ib-feld--skizze { background: #10233a; }
 .ib-blatt--bearbeiten .ib-feld--leer { background: rgba(255,255,255,.05); border: 3px dashed rgba(255,255,255,.25); }

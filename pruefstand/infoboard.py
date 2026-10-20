@@ -34,12 +34,14 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-nav='infoboard']").count() > 0, "Infoboard im Menü für Admins")
     pg.evaluate("location.hash='#/infoboard'"); pg.wait_for_selector(".ib-gestalten"); pg.wait_for_timeout(800)
     felder = pg.locator(".ib-gestalten .ib-feld")
-    pruefe(felder.count() == 4, "vier A4-Bereiche am Anfang: %d" % felder.count())
+    pruefe(felder.count() == 6, "drei Reihen mit je zwei Bereichen: %d" % felder.count())
     b = felder.first.bounding_box()
-    pruefe(abs(b["height"] / b["width"] - 1.414) < 0.02, "Bereich ist A4 hoch: %.3f" % (b["height"] / b["width"]))
+    pruefe(abs(b["height"] / b["width"] - 508 / 522) < 0.02, "Bereich halbe Breite, ein Drittel hoch: %.3f" % (b["height"] / b["width"]))
     kopf = pg.locator(".ib-gestalten .ib-kopf .ib-kopf__logo")
     pruefe(kopf.count() == 1, "Logo oben in der Tafel")
     pruefe(pg.locator(".ib-gestalten .ib-kopf .solar").count() == 1, "Solaranlage oben in der Tafel")
+    k = pg.evaluate("() => { const i = document.querySelector('.ib-gestalten .ib-kopf__innen'); return [i.offsetHeight, i.style.transform]; }")
+    pruefe(not k[1], "Kopf passt ohne Verkleinern: %s" % k)
 
     # Oben links ein PDF
     pg.locator("[data-ibfeld='0-0'] .ib-feld__wahl").click(); pg.wait_for_selector("[data-ibwahl='0-0']")
@@ -55,9 +57,9 @@ with sync_playwright() as p:
 
     # Reihe unten als A3 quer, dort die Zeichenfläche
     pg.click("[data-ibformat='1-a3']"); pg.wait_for_timeout(600)
-    pruefe(pg.locator(".ib-gestalten .ib-feld").count() == 3, "unten nur noch ein Bereich")
+    pruefe(pg.locator(".ib-gestalten .ib-feld").count() == 5, "Mitte nur noch ein Bereich")
     b = pg.locator("[data-ibfeld='1-0']").bounding_box()
-    pruefe(abs(b["width"] / b["height"] - 1.414) < 0.02, "unten A3 quer: %.3f" % (b["width"] / b["height"]))
+    pruefe(abs(b["width"] / b["height"] - 1056 / 508) < 0.03, "Mitte ganze Breite: %.3f" % (b["width"] / b["height"]))
     pg.locator("[data-ibfeld='1-0'] .ib-feld__wahl").click(); pg.wait_for_selector("[data-ibwahl='1-0']")
     pg.click("[data-ib='skizze']"); pg.wait_for_timeout(800)
     a = pg.evaluate("() => TEST.daten.infoboard[0].aufbau")
@@ -71,7 +73,7 @@ with sync_playwright() as p:
     # Anzeige über den ganzen Bildschirm
     pg.set_viewport_size({"width": 540, "height": 960})
     pg.click("[data-ib='anzeige']"); pg.wait_for_selector("#infoboard .ib-blatt"); pg.wait_for_timeout(2000)
-    pruefe(pg.locator("#infoboard .ib-feld").count() == 3, "Anzeige mit drei Bereichen")
+    pruefe(pg.locator("#infoboard .ib-feld").count() == 5, "Anzeige mit fünf Bereichen")
     nr = pg.locator("#infoboard .ib-pdf__nr")
     pruefe(nr.count() == 1 and nr.inner_text().strip() == "1 / 2", "PDF zeigt Seite 1 / 2")
     w = pg.evaluate("() => document.querySelector('#infoboard .ib-pdf__seite').width")

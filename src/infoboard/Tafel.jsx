@@ -6,27 +6,27 @@
 //  neben den Knöpfen, am Bildschirm über die ganze Fläche. So sieht
 //  die Gestaltung genau aus wie nachher der Bildschirm.
 //
-//  Oben der Kopf wie auf der Startseite (Uhr, Logo, Wetter und die
-//  Solaranlage), darunter zwei Reihen mit A4- oder A3-Feldern.
+//  Oben der Kopf mit Logo, Uhr, Wetter und Solaranlage, darunter drei
+//  Reihen mit zwei Feldern oder einem breiten.
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { Uhr, Wetter, Solaranlage } from "../seiten/Start.jsx";
 import { pdfjs } from "../teile/PdfAnsicht.jsx";
 import Skizze from "../pad/Skizze.jsx";
-import { BREITE, HOEHE, LUECKE, A4_B, A4_H, KOPF_H, BLATT, SEKUNDEN } from "./daten.js";
+import { BREITE, HOEHE, LUECKE, FELD_B, FELD_H, KOPF_H, BLATT, SEKUNDEN } from "./daten.js";
 
 // Lage jedes sichtbaren Felds auf dem Blatt
 export function felderLage(aufbau) {
   const aus = [];
   aufbau.reihen.forEach((r, ri) => {
-    const top = KOPF_H + LUECKE + ri * (A4_H + LUECKE);
+    const top = KOPF_H + LUECKE + ri * (FELD_H + LUECKE);
     if (r.format === "a3") {
       aus.push({ feld: r.felder[0], reihe: ri, platz: 0, format: "a3",
-        left: LUECKE, top, width: BREITE - 2 * LUECKE, height: A4_H });
+        left: LUECKE, top, width: BREITE - 2 * LUECKE, height: FELD_H });
     } else {
       r.felder.forEach((f, pi) => aus.push({ feld: f, reihe: ri, platz: pi, format: "a4",
-        left: LUECKE + pi * (A4_B + LUECKE), top, width: A4_B, height: A4_H }));
+        left: LUECKE + pi * (FELD_B + LUECKE), top, width: FELD_B, height: FELD_H }));
     }
   });
   return aus;
@@ -132,7 +132,7 @@ function FeldInhalt({ feld, format, bearbeiten, grossZiel }) {
     if (d.typ === "bild") return <img className="ib-bild" src={d.url} alt={d.name || ""} />;
     if (d.typ === "video") return <video className="ib-bild" src={d.url} autoPlay muted loop playsInline />;
   }
-  return bearbeiten ? <div className="ib-leer">{format === "a3" ? "A3 quer" : "A4"}<br />leer</div> : null;
+  return bearbeiten ? <div className="ib-leer">{format === "a3" ? "Ganze Breite" : "Halbe Breite"}<br />leer</div> : null;
 }
 
 // Ein PDF füllt sein Feld mit der ganzen Seite. Hat es mehrere Seiten,

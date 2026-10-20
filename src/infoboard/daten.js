@@ -1,19 +1,20 @@
 // =================================================================
 //  INFOBOARD: DATEN
-//  Der Aufbau des grossen Bildschirms (Samsung QM43B-T, 43 Zoll,
-//  hochkant) steht als eine Zeile in der Tabelle infoboard
+//  Der Aufbau des grossen Bildschirms (50 Zoll, hochkant; zuerst
+//  war ein 43-Zoll-Bildschirm geplant) steht als eine Zeile in der Tabelle infoboard
 //  (sql/infoboard.sql). Unter dem Kopf mit Logo und Solaranlage gibt
-//  es zwei Reihen; jede Reihe ist entweder zwei A4 hoch nebeneinander
-//  oder ein A3 quer (Wunsch Patrick 20. Oktober 2026: „A4 oder wenn
-//  doppelt A3“). Auf 1080 × 1920 passen genau zwei A4-Reihen unter
-//  einen Kopf von gut 400 Punkten.
+//  es drei Reihen; jede Reihe ist entweder zwei Felder nebeneinander
+//  oder eines über die ganze Breite (Wunsch Patrick 20. Oktober 2026:
+//  zuerst „A4 oder wenn doppelt A3“ in zwei Reihen, dann „drei Reihen
+//  Dokumente, auch wenn es nicht ganz für A4 reicht“). Die Felder sind
+//  darum etwas weniger hoch als A4; ein PDF wird ganz eingepasst.
 //
-//  aufbau = { reihen: [{ format: "a4" | "a3", felder: [feld, feld] }, …] }
+//  aufbau = { reihen: [{ format: "a4" (zwei) | "a3" (eines breit), felder: [feld, feld] }, …] }
 //  feld   = { id, art: "leer" | "datei" | "skizze",
 //             datei: { url, pfad, name, typ: "pdf" | "bild" | "video" },
 //             sekunden: Seitenwechsel bei PDFs mit mehreren Seiten }
-//  Eine Reihe behält immer zwei Felder; bei A3 zeigt sie nur das erste,
-//  das zweite kommt zurück, wenn man wieder auf zwei A4 schaltet.
+//  Eine Reihe behält immer zwei Felder; breit zeigt sie nur das erste,
+//  das zweite kommt zurück, wenn man wieder auf zwei schaltet.
 // =================================================================
 import { alt } from "../bruecke.jsx";
 
@@ -21,12 +22,15 @@ export const BOARD = "haupt";
 // Das Blatt, auf dem gestaltet wird, in Punkten des Bildschirms hochkant
 export const BREITE = 1080, HOEHE = 1920;
 export const LUECKE = 12;
-// A4 hoch: Breite aus zwei Feldern nebeneinander, Höhe im Verhältnis √2
-export const A4_B = (BREITE - 3 * LUECKE) / 2;          // 522
-export const A4_H = Math.round(A4_B * Math.SQRT2);      // 738
-export const KOPF_H = HOEHE - 2 * A4_H - 3 * LUECKE;    // 408
-// Höhe durch Breite für die Zeichenfläche je Format
-export const BLATT = { a4: Math.SQRT2, a3: 1 / Math.SQRT2 };
+export const REIHEN = 3;
+// Kopf mit Logo, Uhr, Wetter und Solaranlage
+export const KOPF_H = 360;
+// Ein Feld: halbe Breite, ein Drittel der Höhe unter dem Kopf
+export const FELD_B = (BREITE - 3 * LUECKE) / 2;                               // 522
+export const FELD_H = Math.floor((HOEHE - KOPF_H - REIHEN * LUECKE) / REIHEN); // 508
+// Höhe durch Breite für die Zeichenfläche je Format („a4“ = halbe
+// Breite, „a3“ = ganze Breite; die Namen bleiben wegen der gespeicherten Daten)
+export const BLATT = { a4: FELD_H / FELD_B, a3: FELD_H / (BREITE - 2 * LUECKE) };
 export const SEKUNDEN = 20;
 
 export const neueId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -35,7 +39,7 @@ const leeresFeld = () => ({ id: neueId(), art: "leer" });
 export function aufbauOrdnen(a) {
   const reihen = Array.isArray(a && a.reihen) ? a.reihen : [];
   return {
-    reihen: [0, 1].map((i) => {
+    reihen: Array.from({ length: REIHEN }, (_, i) => {
       const r = reihen[i] || {};
       const felder = Array.isArray(r.felder) ? r.felder.slice(0, 2) : [];
       while (felder.length < 2) felder.push(leeresFeld());
