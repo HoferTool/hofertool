@@ -203,6 +203,19 @@ function starten() {
   document.addEventListener("transitionend", (e) => {
     if (e.target.classList && e.target.classList.contains("nav")) spaeter();
   });
+  // Klappen die Reiter unter einem Punkt auf oder zu (seit 1.112.0)
+  // oder die ganze Leiste (seit 1.114.0),
+  // wandern die Punkte darunter: die Markierung folgt ihnen Bild für
+  // Bild, sonst gleitet sie an eine Stelle, die gleich nicht mehr stimmt
+  let klappend = 0;
+  const folgen = () => { markierungenSetzen(); if (klappend > 0) requestAnimationFrame(folgen); };
+  const unterKlappen = (e) => /^nav-(unter|breit)-(auf|zu)$/.test(e.animationName);
+  document.addEventListener("animationstart", (e) => {
+    if (unterKlappen(e) && klappend++ === 0) requestAnimationFrame(folgen);
+  });
+  const fertig = (e) => { if (unterKlappen(e)) { klappend = Math.max(0, klappend - 1); spaeter(); } };
+  document.addEventListener("animationend", fertig);
+  document.addEventListener("animationcancel", fertig);
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", starten);

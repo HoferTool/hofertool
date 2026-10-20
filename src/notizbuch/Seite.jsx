@@ -29,12 +29,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { alt } from "../bruecke.jsx";
 import { FettText, alsHtml, stilWert } from "../teile/FettText.jsx";
 import { rund, strichZeichnen, getroffen, Symbol, RADIERER, ZURUECK, TEXT, EIMER } from "../teile/zeichnen.jsx";
-import { seiteLaden, seiteSpeichern, bildEinfuegen, pdfEinfuegen, istPdf, istBild, SEITEN } from "./daten.js";
+import { seiteLaden, seiteSpeichern, bildEinfuegen, pdfEinfuegen, pdfAlsDatei, pdfLinksHolen, istPdf, istBild, SEITEN } from "./daten.js";
 
 // Höhe des leeren Blatts (A4 hochkant) und Platz unter dem Inhalt
 const A4 = 1.414;
 const RAND_UNTEN = 0.45;
 const BLATT_MAX = 1100;
+const ZOOM_MIN = 1, ZOOM_MAX = 4;
 // Dicke und Schrift in Bildpunkten bei 1000 px Breite
 const DICKEN = [["duenn", 2.5], ["mittel", 5], ["dick", 11]];
 const SCHRIFTEN = [["klein", "Klein", 16], ["mittel", "Mittel", 22], ["gross", "Gross", 32],
@@ -121,7 +122,7 @@ function istTextfeld(el) {
     || (el.tagName === "INPUT" && !/^(color|button|checkbox|radio|range|file)$/i.test(el.type || ""))));
 }
 
-export default function Seite({ id, darf, onTitel, huelle }) {
+export default function Seite({ id, darf, onTitel, huelle, laden }) {
   const [inhalt, setInhalt] = useState(null);
   const [titel, setTitel] = useState("");
   const [werkzeug, setWerkzeug] = useState(merk.werkzeug);
@@ -130,7 +131,12 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   const dunkelRef = useRef(dunkel);
   dunkelRef.current = dunkel;
   const [dicke, setDicke] = useState(merk.dicke);
-  const [w, setW] = useState(0);              // Breite des Blatts in px
+  const [basis, setBasis] = useState(0);      // Breite des Blatts ohne Zoom
+  // Zoom (Wunsch Patrick 15. Oktober 2026): zwei Finger auseinander,
+  // Strg + Mausrad oder die Knöpfe unten rechts. Alles auf dem Blatt
+  // rechnet in Blattbreiten, darum genügt es, die Breite zu ändern.
+  const [zoom, setZoom] = useState(1);
+  const w = basis ? Math.floor(basis * zoom) : 0;  // Breite des Blatts in px
   const [sicht, setSicht] = useState({ oben: 0, hoehe: 0 });
   const [wahl, setWahl] = useState(-1);       // gewähltes Bild (Hand)
   const [zieh, setZieh] = useState(null);     // Element, das gerade verschoben wird
@@ -164,6 +170,8 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   const offen = useRef(null);
   const wRef = useRef(0);
   wRef.current = w;
+  const linksGeholt = useRef(false);
+  const speichernRef = useRef(() => {});
   const sichtRef = useRef(sicht);
   sichtRef.current = sicht;
   const darfZeichnen = darf && inhalt !== null;
@@ -171,7 +179,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   // ---------- Laden ----------
   useEffect(() => {
     let weg = false;
-    seiteLaden(id).then((d) => {
+    (laden ? laden(id) : seiteLaden(id)).then((d) => {
       if (weg) return;
       const liste = Array.isArray(d && d.inhalt) ? d.inhalt : [];
       const t = (d && d.titel) || "";
@@ -186,6 +194,39 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     return () => { weg = true; };
   }, [id]);
 
+  // Ausdrucke von vor 1.64.0 haben noch keine Verweise: einmal aus dem
+  // PDF nachholen (Patrick hatte sein PDF nicht neu eingefügt). Danach
+  // steht bei jeder Seite „l“, auch leer, damit es nur einmal geschieht.
+  useEffect(() => {
+    if (!inhalt) return;
+    const fehlen = inhalt.filter((x) => istBildEl(x) && x.q && x.s && !x.d && !Array.isArray(x.l));
+    if (!fehlen.length || linksGeholt.current) return;
+    linksGeholt.current = true;
+    let weg = false;
+    const quellen = [...new Set(fehlen.map((x) => x.q))];
+    (async () => {
+      const gefunden = new Map();
+      for (const q of quellen) {
+        try {
+          const l = await pdfLinksHolen(q, fehlen.filter((x) => x.q === q).map((x) => x.s));
+          l.forEach((v, nr) => gefunden.set(q + "#" + nr, v));
+        } catch (f) { /* PDF weg oder kaputt: dann eben ohne Verweise */ }
+      }
+      if (weg || !gefunden.size) return;
+      let neu = false;
+      const liste = inhaltRef.current.map((x) => {
+        const v = istBildEl(x) && !x.d && !Array.isArray(x.l) ? gefunden.get(x.q + "#" + x.s) : null;
+        if (!v) return x;
+        neu = true;
+        return { ...x, l: v };
+      });
+      if (!neu) return;
+      inhaltRef.current = liste; setInhalt(liste);
+      if (darf) speichernRef.current();
+    })();
+    return () => { weg = true; };
+  }, [inhalt, darf]);
+
   // ---------- Speichern ----------
   const senden = useCallback(async () => {
     offen.current = null;
@@ -199,6 +240,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     clearTimeout(offen.current);
     offen.current = setTimeout(senden, 600);
   }, [senden]);
+  speichernRef.current = speichern;
 
   // Beim Wechseln der Seite oder Schliessen: Wartendes sofort senden und
   // für das Rückgängig der App den Stand von vorher ablegen
@@ -239,7 +281,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
       // Auf dem Handy mindestens 560 px breit (dann seitlich rollen),
       // sonst wäre normale Schrift kaum mehr lesbar
       const breite = Math.max(560, Math.min(BLATT_MAX, r.clientWidth - (r.clientWidth > 700 ? 48 : 16)));
-      setW(Math.floor(breite));
+      setBasis(Math.floor(breite));
       setSicht({ oben: r.scrollTop, hoehe: r.clientHeight });
     };
     messen();
@@ -257,16 +299,81 @@ export default function Seite({ id, darf, onTitel, huelle }) {
   // Oberkante des Blatts im Rollbereich (es hat oben etwas Abstand)
   const blattOben = () => (blatt.current ? blatt.current.offsetTop : 0);
 
+  // ---------- Zoom ----------
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+  const anker = useRef(null);     // Punkt, der beim Zoomen unter Finger oder Maus bleibt
+  const zwei = useRef(null);      // laufendes Zoomen mit zwei Fingern
+  const zoomSetzen = useCallback((z, mx, my) => {
+    const b = blatt.current, r = rolle.current;
+    z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+    if (!b || !r || Math.abs(z - zoomRef.current) < 0.001) return;
+    if (mx == null) { const rr = r.getBoundingClientRect(); mx = rr.left + rr.width / 2; my = rr.top + rr.height / 2; }
+    const br = b.getBoundingClientRect();
+    anker.current = { fx: (mx - br.left) / br.width, fy: (my - br.top) / br.width, mx, my };
+    zoomRef.current = z;
+    setZoom(z);
+  }, []);
+  useLayoutEffect(() => {
+    const a = anker.current, b = blatt.current, r = rolle.current;
+    anker.current = null;
+    if (!a || !b || !r) return;
+    const br = b.getBoundingClientRect();
+    r.scrollLeft += br.left + a.fx * br.width - a.mx;
+    r.scrollTop += br.top + a.fy * br.width - a.my;
+  }, [w]);
+  useEffect(() => {
+    const r = rolle.current;
+    if (!r) return;
+    const rad = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      zoomSetzen(zoomRef.current * Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY);
+    };
+    const abstand = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const mittelpunkt = (t) => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
+    const start = (e) => {
+      if (e.touches.length !== 2) { zwei.current = null; return; }
+      const [mx, my] = mittelpunkt(e.touches);
+      zwei.current = { d: abstand(e.touches), z: zoomRef.current, mx, my };
+    };
+    const zug = (e) => {
+      const p = zwei.current;
+      if (!p || e.touches.length !== 2) return;
+      e.preventDefault();
+      const [mx, my] = mittelpunkt(e.touches);
+      // Mitschieben wie mit zwei Fingern rollen, dazu zoomen um die Mitte
+      r.scrollLeft -= mx - p.mx; r.scrollTop -= my - p.my;
+      p.mx = mx; p.my = my;
+      zoomSetzen(p.z * abstand(e.touches) / (p.d || 1), mx, my);
+    };
+    const ende = (e) => { if (e.touches.length < 2) zwei.current = null; };
+    r.addEventListener("wheel", rad, { passive: false });
+    r.addEventListener("touchstart", start, { passive: true, capture: true });
+    r.addEventListener("touchmove", zug, { passive: false, capture: true });
+    r.addEventListener("touchend", ende, { capture: true });
+    r.addEventListener("touchcancel", ende, { capture: true });
+    return () => {
+      r.removeEventListener("wheel", rad);
+      r.removeEventListener("touchstart", start, { capture: true });
+      r.removeEventListener("touchmove", zug, { capture: true });
+      r.removeEventListener("touchend", ende, { capture: true });
+      r.removeEventListener("touchcancel", ende, { capture: true });
+    };
+  }, [inhalt !== null, zoomSetzen]);
+
   // ---------- Zeichnen ----------
   const allesZeichnen = useCallback(() => {
     const cv = leinwand.current;
     if (!cv || !wRef.current) return;
     const breite = wRef.current;
     const { oben, hoehe } = sichtRef.current;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     // Die Fläche deckt nur den sichtbaren Teil des Blatts
     const ab = Math.max(0, oben - blattOben());
     const h = Math.max(1, Math.round(hoehe));
+    // Gezoomt wird die Fläche breit: Safari zeichnet über rund 16 Mio.
+    // Pixel gar nichts mehr, darum dann lieber etwas weicher
+    const dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(12e6 / (breite * h)));
     if (cv.width !== Math.round(breite * dpr) || cv.height !== Math.round(h * dpr)) {
       cv.width = Math.round(breite * dpr); cv.height = Math.round(h * dpr);
       cv.style.width = breite + "px"; cv.style.height = h + "px";
@@ -332,6 +439,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     e.preventDefault();
     zeiger.current.set(e.pointerId, { y: e.clientY });
     if (rollen.current !== null) {
+      if (zwei.current) return;   // zwei Finger: das Zoomen rollt schon mit
       const m = mitte();
       rolle.current.scrollTop -= m - rollen.current;
       rollen.current = m;
@@ -681,6 +789,14 @@ export default function Seite({ id, darf, onTitel, huelle }) {
       aendern(liste);
     }
   };
+  // Verweis in einem PDF-Ausdruck: zur Zielseite desselben PDF auf
+  // diesem Blatt rollen; fehlt sie dort, geht das PDF im Betrachter auf
+  const zuPdfSeite = (s, z) => {
+    const ziel = inhaltRef.current.find((x) => istBildEl(x) && x.q === s.q && x.s === z && !x.d);
+    const r = rolle.current;
+    if (ziel && r) r.scrollTo({ top: blattOben() + ziel.y * (wRef.current || 1) - 12, behavior: "smooth" });
+    else alt.betrachter(s.q, s.n || "PDF", true);
+  };
   const bildWeg = (i) => { setWahl(-1); aendern(inhaltRef.current.filter((_, n) => n !== i)); };
 
   // ---------- Bilder und PDFs einfügen ----------
@@ -695,13 +811,29 @@ export default function Seite({ id, darf, onTitel, huelle }) {
     const x = ort ? ort.x : 0.04;
     const neu = [];
     let ersteY = y;
+    // PDF: als Ausdruck (jede Seite aufs Blatt) oder als Datei, die im
+    // Betrachter aufgeht (Wunsch Patrick 15. Oktober 2026)
+    let pdfArt = "ausdruck";
+    if (liste.some(istPdf)) {
+      pdfArt = await alt.auswahlDialog("PDF einfügen", [
+        { wert: "ausdruck", text: "Als Ausdruck" },
+        { wert: "datei", text: "Als Datei" }],
+      "Ausdruck: jede Seite kommt aufs Blatt. Datei: ein Feld, das antippen im Betrachter öffnet.");
+      if (!pdfArt) return;
+    }
     try {
       for (const d of liste) {
         setLaeuft("Wird eingefügt: " + d.name);
-        if (istPdf(d)) {
+        if (istPdf(d) && pdfArt === "datei") {
+          const r = await pdfAlsDatei(d);
+          const b = Math.min(0.32, 1 - x);
+          neu.push({ t: "bild", d: 1, u: r.u, q: r.q, n: d.name, x: rund(x), y: rund(y), b: rund(b), v: rund(r.v), p: [] });
+          y += b * r.v + 0.03;
+        } else if (istPdf(d)) {
           const r = await pdfEinfuegen(d, (i, n) => setLaeuft("PDF " + d.name + ": Seite " + i + " von " + n));
           r.seiten.forEach((s) => {
-            neu.push({ t: "bild", u: s.u, q: s.q, s: s.s, n: d.name, x: rund(x), y: rund(y), b: rund(Math.min(0.92, 1 - x)), v: rund(s.v), p: [] });
+            neu.push(Object.assign({ t: "bild", u: s.u, q: s.q, s: s.s, n: d.name, x: rund(x), y: rund(y), b: rund(Math.min(0.92, 1 - x)), v: rund(s.v), p: [] },
+              { l: s.l || [] }));
             y += Math.min(0.92, 1 - x) * s.v + 0.03;
           });
           if (r.alle > r.seiten.length) {
@@ -853,7 +985,7 @@ export default function Seite({ id, darf, onTitel, huelle }) {
       <Symbol d={d} /></button>);
 
   return (
-    <div className={"nb-seite nb-seite--" + werkzeug}>
+    <div className={"nb-seite nb-seite--" + werkzeug + (darf ? "" : " nb-seite--lesen")}>
       {darf &&
         <div className="nb-leiste" role="toolbar" aria-label="Werkzeuge">
           <button type="button" className={"nb-knopf" + (werkzeug === "text" ? " aktiv" : "")} data-nbwerkzeug="text"
@@ -900,11 +1032,21 @@ export default function Seite({ id, darf, onTitel, huelle }) {
                 onPointerDown={(e) => greifen(e, i, "bild")} onPointerMove={ziehBewegen}
                 onPointerUp={loslassen} onPointerCancel={loslassen}>
                 <img src={s.u} alt={s.n || "Bild"} draggable={false} loading="lazy" />
+                {s.d ? <button type="button" className="nb-datei" data-nbpdfdatei="" title="Im Betrachter öffnen"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => alt.betrachter(s.q, s.n || "PDF", true)}>
+                    <b>PDF</b><span>{s.n || "Datei"}</span><i>Öffnen</i></button> : null}
+                {!s.d && Array.isArray(s.l) && wahl !== i && s.l.map((l, k) => (
+                  <button key={k} type="button" className="nb-link" data-nblink={l.z} aria-label={"Zu Seite " + l.z}
+                    title={"Zu Seite " + l.z}
+                    style={{ left: l.x * 100 + "%", top: l.y * 100 + "%", width: l.w * 100 + "%", height: l.h * 100 + "%" }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => zuPdfSeite(s, l.z)} />))}
                 {wahl === i && darf && <>
                   <button type="button" className="nb-bild__weg" data-nbbildweg="" aria-label="Bild entfernen"
                     title="Entfernen" onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => bildWeg(i)}>×</button>
-                  {s.q && <button type="button" className="nb-bild__pdf" title="PDF öffnen"
+                  {s.q && !s.d && <button type="button" className="nb-bild__pdf" title="PDF öffnen"
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => alt.betrachter(s.q, s.n || "PDF", true)}>PDF öffnen</button>}
                   <span className="nb-bild__griff" data-nbgriff="" aria-label="Grösse ändern"
@@ -972,6 +1114,14 @@ export default function Seite({ id, darf, onTitel, huelle }) {
               Bilder und PDFs mit dem Bild-Knopf einfügen oder hierher ziehen.</span>}
         </div>
       </div>
+      {inhalt !== null && <div className="nb-zoom" data-nbzoom="">
+        <button type="button" aria-label="Verkleinern" title="Verkleinern (Strg + Mausrad)" disabled={zoom <= ZOOM_MIN}
+          onClick={() => zoomSetzen(zoom <= 1.25 ? 1 : zoom / 1.25)}>−</button>
+        <button type="button" className="nb-zoom__wert" title="Zurück auf ganze Breite" data-nbzoomwert=""
+          onClick={() => zoomSetzen(1)}>{Math.round(zoom * 100)} %</button>
+        <button type="button" aria-label="Vergrössern" title="Vergrössern (Strg + Mausrad)" disabled={zoom >= ZOOM_MAX}
+          onClick={() => zoomSetzen(zoom * 1.25)}>+</button>
+      </div>}
     </div>
   );
 }

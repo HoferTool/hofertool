@@ -3083,22 +3083,22 @@ body.dunkel .kopfkarte__solar .solar { background: linear-gradient(180deg, #1b27
    Während der Pad Mode offen ist, gelten grössere Knöpfe — auch in
    jedem Fenster, das sich darüber öffnet (Zustand, Stückzahl,
    Rückfragen). Richtwert: mindestens 56 Pixel hoch. */
-body.pad-offen .dialog { font-size: 1.08rem; padding: 26px 26px 22px;
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) { font-size: 1.08rem; padding: 26px 26px 22px;
                          width: min(560px, 94vw); border-radius: 18px; }
-body.pad-offen .dialog h2 { font-size: 1.45rem; margin-bottom: 14px; }
-body.pad-offen .dialog .knopf { min-height: 58px; padding: 0 26px;
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) h2 { font-size: 1.45rem; margin-bottom: 14px; }
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) .knopf { min-height: 58px; padding: 0 26px;
                                 font-size: 1.15rem; border-radius: 14px; }
-body.pad-offen .dialog__knoepfe { gap: 12px; margin-top: 18px; }
-body.pad-offen .dialog__knoepfe .knopf { flex: 1 1 0; }
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) .dialog__knoepfe { gap: 12px; margin-top: 18px; }
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) .dialog__knoepfe .knopf { flex: 1 1 0; }
 body.pad-offen .statuswahl { display: grid; gap: 10px; }
 body.pad-offen .statuswahl .knopf { min-height: 64px; font-size: 1.2rem;
                                     justify-content: flex-start; text-align: left;
                                     padding: 0 22px; }
-body.pad-offen .dialog input,
-body.pad-offen .dialog select,
-body.pad-offen .dialog textarea { min-height: 60px; font-size: 1.45rem;
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) input,
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) select,
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) textarea { min-height: 60px; font-size: 1.45rem;
                                   padding: 10px 16px; border-radius: 12px; }
-body.pad-offen .dialog .feld > span { font-size: 1rem; }
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) .feld > span { font-size: 1rem; }
 
 /* Die Knöpfe im Pad selbst */
 .pad-sprungkachel { min-height: 88px; font-size: 1.22rem !important;
@@ -3111,8 +3111,10 @@ body.pad-offen .dialog .feld > span { font-size: 1rem; }
 @media (max-width: 900px) {
   .pad-sprungkachel { min-height: 76px; font-size: 1.1rem !important; }
 }
-/* Im Pad Mode: breite Fenster, Auswahl untereinander */
-body.pad-offen .dialog { width: min(600px, 94vw) !important;
+/* Im Pad Mode: breite Fenster, Auswahl untereinander. Das Auftragsfenster
+   (aus dem QS Check) geht quer und gross auf wie auf der Planwand
+   (Wunsch Patrick, 15. Oktober 2026), darum nimmt es keine Pad-Grösse an. */
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) { width: min(600px, 94vw) !important;
                          max-width: min(600px, 94vw) !important; }
 body.pad-offen .statuswahl { grid-template-columns: 1fr !important;
                              display: grid !important; }
@@ -5175,21 +5177,50 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
    eingeklappter Seitenleiste ist kein Platz dafür. */
 .nav__unter { display: none; }
 @media (min-width: 780px) {
-  .nav__unter { display: grid; padding: 2px 0 6px; position: relative; z-index: 1;
-                animation: nav-unter-auf .3s cubic-bezier(.16, 1, .3, 1); }
+  /* Seit 1.112.0 klappt die Gruppe auf statt nur einzublenden: die Höhe
+     wächst über grid-template-rows (0fr → 1fr), ein Ast in der
+     Themenfarbe zieht von oben durch die Punkte nach unten, die Reiter
+     gleiten nacheinander von links hinein und ihr Punkt springt auf. */
+  .nav__unter { display: grid; grid-template-rows: 1fr; position: relative; z-index: 1;
+                animation: nav-unter-auf .42s cubic-bezier(.16, 1, .3, 1) both; }
+  .nav__unterinnen { min-height: 0; overflow: hidden; display: grid; padding: 2px 0 6px; position: relative; }
+  .nav__unterinnen::before { content: ""; position: absolute; left: 52px; top: 14px; bottom: 21px; width: 1.5px;
+    border-radius: 1px; transform-origin: top; pointer-events: none;
+    background: linear-gradient(180deg, var(--marke), color-mix(in srgb, var(--marke) 25%, transparent));
+    opacity: .55; animation: nav-ast .5s cubic-bezier(.65, 0, .35, 1) .05s both; }
   body.nav--schmal .nav__unter { display: none; }
-  .nav__unterpunkt { all: unset; box-sizing: border-box; display: flex; align-items: center;
+  .nav__unterpunkt { all: unset; box-sizing: border-box; display: flex; align-items: center; position: relative;
                      gap: 8px; min-height: 32px; padding: 3px 16px 3px 47px; cursor: pointer;
                      color: var(--gedaempft); font-size: .86rem; border-left: 3px solid transparent;
-                     transition: color .15s, background-color .15s; }
+                     transition: color .15s, background-color .15s, gap .2s cubic-bezier(.34, 1.56, .64, 1);
+                     animation: nav-unterpunkt-rein .45s cubic-bezier(.22, 1.2, .36, 1) both;
+                     animation-delay: calc(var(--i, 0) * 55ms + 90ms); }
   .nav__unterpunkt::before { content: ""; width: 5px; height: 5px; border-radius: 50%;
-                             background: currentColor; opacity: .45; flex: none; }
-  .nav__unterpunkt:hover { color: var(--tinte); background: var(--marke-hell); }
+                             background: currentColor; opacity: .45; flex: none;
+                             transition: box-shadow .2s, opacity .2s;
+                             animation: nav-unterpunkt-punkt .4s cubic-bezier(.34, 1.8, .64, 1) both;
+                             animation-delay: calc(var(--i, 0) * 55ms + 160ms); }
+  .nav__unterpunkt:hover { color: var(--tinte); background: var(--marke-hell); gap: 11px; }
   .nav__unterpunkt:focus-visible { outline: 2px solid var(--marke); outline-offset: -2px; }
   .nav__unterpunkt.aktiv { color: var(--marke); font-weight: 600; }
-  .nav__unterpunkt.aktiv::before { opacity: 1; }
-  @keyframes nav-unter-auf { from { opacity: 0; transform: translateY(-6px); } }
-  @media (prefers-reduced-motion: reduce) { .nav__unter { animation: none; } }
+  .nav__unterpunkt.aktiv::before { opacity: 1; background: var(--marke);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--marke) 22%, transparent),
+                0 0 8px color-mix(in srgb, var(--marke) 60%, transparent); }
+  /* Zuklappen beim Seitenwechsel: kurz und ohne Staffel */
+  .nav__unter--zu { animation: nav-unter-zu .3s cubic-bezier(.5, 0, .75, 0) both; pointer-events: none; }
+  .nav__unter--zu .nav__unterpunkt { animation: nav-unterpunkt-weg .18s ease-in both; }
+  .nav__unter--zu .nav__unterpunkt::before { animation: none; }
+  .nav__unter--zu .nav__unterinnen::before { animation: nav-ast-weg .25s ease-in both; }
+  @keyframes nav-unter-auf { from { grid-template-rows: 0fr; } to { grid-template-rows: 1fr; } }
+  @keyframes nav-unter-zu { from { grid-template-rows: 1fr; } to { grid-template-rows: 0fr; } }
+  @keyframes nav-ast { from { transform: scaleY(0); } }
+  @keyframes nav-ast-weg { to { transform: scaleY(0); opacity: 0; } }
+  @keyframes nav-unterpunkt-rein { from { opacity: 0; transform: translateX(-14px); } }
+  @keyframes nav-unterpunkt-weg { to { opacity: 0; transform: translateX(-8px); } }
+  @keyframes nav-unterpunkt-punkt { from { transform: scale(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .nav__unter, .nav__unterinnen::before, .nav__unterpunkt, .nav__unterpunkt::before { animation: none; }
+  }
 }
 
 /* =================================================================
@@ -7210,23 +7241,6 @@ body.pw-seite .su-leiste { bottom: 40px; }
 .aw-knoepfe .aw-knopf { padding-left: 9px; padding-right: 9px; }
 @media (max-width: 1300px) { .aw-knoepfe { gap: 5px; } .aw-knoepfe .aw-knopf { padding-left: 6px; padding-right: 6px; } }
 
-/* Push-Mitteilungen: kleines Feld unten nach der Anmeldung (1.35.0) */
-.push-hinweis {
-  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%); z-index: 9000;
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  width: min(560px, calc(100vw - 32px)); box-sizing: border-box;
-  padding: 14px 16px; border-radius: 14px;
-  background: var(--flaeche); color: var(--tinte);
-  border: 1px solid var(--linie);
-  box-shadow: 0 12px 32px rgba(0,0,0,.22);
-}
-.push-hinweis__text { flex: 1 1 240px; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
-.push-hinweis__text span { color: var(--gedaempft); }
-.push-hinweis__knoepfe { display: flex; gap: 8px; margin-left: auto; }
-.push-knoepfe { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.push-historie__text { white-space: pre-wrap; }
-
 /* ---------- Temp-Ordner (1.38.0, src/seiten/Temp.jsx) ---------- */
 .temp { max-width: 900px; position: relative; }
 .temp__hinweis { color: var(--gedaempft); margin: -4px 0 14px; }
@@ -7273,6 +7287,1336 @@ body.pw-seite .su-leiste { bottom: 40px; }
 .aw-letzter-weg { display: block; margin: 2px 0 4px; font-size: 12px; color: var(--gedaempft); text-align: left; }
 .aw-letzter-weg:hover { color: #c62828; }
 
+/* Meldungen beim Anmelden (1.44.0): liegt über allem, bis „Gelesen“.
+   Über dem Pad (70) und den Fenstern (80), unter der Abmelde-Warnung (200). */
+.anmeldemeldung-huelle { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center;
+  padding: 20px; background: rgba(15, 18, 21, .72); backdrop-filter: blur(3px); }
+.anmeldemeldung-huelle--unten { z-index: 70; }
+body:has(.anmeldemeldung-huelle) .toast-bereich { z-index: 160; }
+.dialog.anmeldemeldung { width: min(980px, 100%); max-width: none; min-height: min(420px, 80vh); max-height: 94vh;
+  display: flex; flex-direction: column; overflow: hidden; padding: 26px 30px 22px; box-shadow: 0 18px 50px rgba(0,0,0,.35);
+  border-top: 5px solid var(--marke); }
+.anmeldemeldung__kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  margin-bottom: 8px; flex-wrap: wrap; }
+.anmeldemeldung__marke { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--marke); }
+.anmeldemeldung__datum { font-size: 12px; color: var(--gedaempft); font-variant-numeric: tabular-nums; }
+.dialog.anmeldemeldung h2 { font-size: 1.55rem; margin: 0 0 12px; text-wrap: balance; }
+.anmeldemeldung__text { flex: 1 1 auto; min-height: 0; font-size: 17px; line-height: 1.55; overflow-wrap: anywhere;
+  overflow-y: auto; margin-bottom: 18px; display: flex; flex-direction: column; gap: 14px; }
+.anmeldemeldung__bild { display: block; }
+.anmeldemeldung__bild img { display: block; max-width: 100%; max-height: min(36vh, 340px); margin: 0 auto; border-radius: var(--radius);
+  outline: 1px solid rgba(0,0,0,.1); outline-offset: -1px; }
+.anmeldemeldung__knoepfe { justify-content: space-between; margin-top: auto; }
+.anmeldemeldung__knoepfe .knopf--haupt { min-width: 160px; }
+@media (max-width: 640px) { .dialog.anmeldemeldung { padding: 20px 18px 16px; min-height: 0; }
+  .dialog.anmeldemeldung h2 { font-size: 1.3rem; } .anmeldemeldung__text { font-size: 16px; } }
+
+/* Meldung bearbeiten: Titel, Text, Bilder */
+.dialog.anmeldemeldung-bearbeiten { width: min(760px, 100%); max-width: none; }
+.anmeldemeldung-bearbeiten input.fehlt { border-color: var(--gefahr); }
+.anmeldemeldung-bearbeiten .feld-fehler { color: var(--gefahr); font-size: 13px; margin: -8px 0 12px; }
+.anmeldemeldung-bearbeiten .stilfeld { min-height: 140px; }
+.anmeldemeldung-bearbeiten #am-vorschau { margin-right: auto; }
+.am-bilder { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.am-bilder__eins { position: relative; width: 150px; height: 110px; border: 1px solid var(--linie); border-radius: var(--radius);
+  overflow: hidden; background: var(--grund); display: grid; place-items: center; font-size: 13px; color: var(--gedaempft); }
+.am-bilder__eins img { width: 100%; height: 100%; object-fit: cover; }
+.am-bilder__knoepfe { position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; }
+.am-bilder__knoepfe .knopf { padding: 2px 8px; min-height: 0; background: var(--flaeche); color: var(--tinte);
+  border: 1px solid var(--linie-stark); }
+.am-bilder__knoepfe .am-bilder__weg { color: var(--gefahr); font-weight: 700; }
+.am-bilder__dazu { width: 150px; height: 110px; border: 2px dashed var(--linie-stark); border-radius: var(--radius);
+  background: none; color: var(--gedaempft); font: inherit; font-size: 14px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.am-bilder__dazu span { font-size: 28px; line-height: 1; }
+.am-bilder__dazu:hover { border-color: var(--marke); color: var(--marke); }
+
+/* Einstellungen → Meldungen beim Anmelden verwalten */
+.anmeldemeldungen { max-width: 720px; }
+.anmeldemeldungen__liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.anmeldemeldungen__eintrag { border: 1px solid var(--linie, #d6dbe3); border-radius: var(--radius); padding: 10px 12px; }
+.anmeldemeldungen__eintrag.aus { opacity: .6; }
+.anmeldemeldungen__zeile { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.anmeldemeldungen__was { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.anmeldemeldungen__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.anmeldemeldungen__knoepfe .linkknopf { margin-left: auto; }
+.anmeldemeldungen__leser { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--linie, #d6dbe3); font-size: 14px; }
+.anmeldemeldungen__leser ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* ---------- Pad Mode: Bildschirmschoner mit dem Einrichtblatt (1.46.0) ----------
+   Über dem ganzen Pad, unter Fenstern und Meldungen. Das Blatt füllt die
+   Fläche (ganze Seite sichtbar); Reiter und Zoom der Excel-Ansicht sind
+   weg, ein Tipp irgendwohin führt zurück. */
+.pad-schoner { position: fixed; inset: 0; z-index: 79; background: #0f1216; color: #f2f4f7; }
+.pad-schoner__blatt { position: absolute; inset: 0; }
+.pad-schoner .excelansicht__leiste, .pad-schoner .pdfansicht__zoom { display: none; }
+.pad-schoner__deckel { position: absolute; inset: 0; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; touch-action: none; }
+.pad-schoner__hinweis { position: absolute; left: 50%; bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%); pointer-events: none; padding: 6px 16px; border-radius: 999px;
+  background: rgba(15, 18, 22, .72); color: #c9d1da; font-size: .9rem; white-space: nowrap;
+  animation: pad-schoner-hinweis 6s ease forwards; }
+@keyframes pad-schoner-hinweis { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Vorschau einer Meldung am PC und am Handy (1.47.0) */
+.dialog.am-vorschau { width: auto; max-width: calc(100vw - 32px); max-height: none; overflow: visible;
+  display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.am-vorschau__kopf { display: flex; align-items: center; gap: 14px; width: 100%; }
+.am-vorschau__kopf h2 { margin: 0; flex: 1 1 auto; }
+.am-vorschau__wahl { display: flex; gap: 6px; }
+.am-vorschau__buehne { position: relative; overflow: hidden; border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--linie-stark), 0 10px 30px rgba(0,0,0,.25); }
+.am-vorschau__fuss { margin: 0; text-align: center; }
+.am-geraet { position: absolute; left: 0; top: 0; transform-origin: 0 0; background: var(--grund); overflow: hidden; }
+.am-geraet__huelle { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px;
+  background: rgba(15, 18, 21, .72); }
+.am-geraet .dialog.anmeldemeldung { max-height: 90%; }
+.am-geraet--pc .dialog.anmeldemeldung { min-height: min(420px, 80%); }
+/* Handy: dieselben Regeln wie die Bildschirmbreite bis 640 Pixel */
+.am-geraet--handy .am-geraet__huelle { padding: 16px; }
+.am-geraet--handy .dialog.anmeldemeldung { padding: 20px 18px 16px; min-height: 0; }
+.am-geraet--handy .dialog.anmeldemeldung h2 { font-size: 1.3rem; }
+.am-geraet--handy .anmeldemeldung__text { font-size: 16px; }
+.am-geraet--pc .anmeldemeldung__bild img { max-height: 324px; }
+.am-geraet--handy .anmeldemeldung__bild img { max-height: 303px; }
+.am-geraet .am-abmelden, .am-geraet #am-gelesen { pointer-events: none; }
+
+/* Bilder an ihrem Platz im Text (1.48.0) */
+.am-bilder__nr { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,.65); color: #fff;
+  font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 3px; }
+.am-bilder__eins .am-bilder__intext { position: absolute; right: 4px; bottom: 4px; padding: 2px 8px; min-height: 0;
+  background: var(--flaeche); color: var(--tinte); border: 1px solid var(--linie-stark); font-size: 12px; }
+
+
+/* Meldungen mit Seiten (1.49.0) */
+.anmeldemeldung__rolle { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin-bottom: 14px; }
+.anmeldemeldung__rolle .anmeldemeldung__text { overflow: visible; margin-bottom: 0; }
+.anmeldemeldung__ueber { margin: 0; font-size: 1.15rem; }
+.anmeldemeldung__seiten { display: flex; align-items: center; gap: 12px; margin: -4px 0 14px; flex-wrap: wrap; }
+.anmeldemeldung__seitenzahl { font-size: 13px; font-weight: 600; color: var(--gedaempft); font-variant-numeric: tabular-nums; }
+.anmeldemeldung__punkte { display: flex; gap: 6px; }
+.anmeldemeldung__punkte i { width: 22px; height: 5px; border-radius: 3px; background: var(--linie); }
+.anmeldemeldung__punkte i.war { background: color-mix(in srgb, var(--marke) 45%, var(--linie)); }
+.anmeldemeldung__punkte i.an { background: var(--marke); }
+.anmeldemeldung__knoepfe .am-abmelden { flex: 0 1 auto; margin-right: auto; }
+.anmeldemeldung__knoepfe .knopf--haupt, .anmeldemeldung__knoepfe [data-am-zurueck] { flex: 0 1 180px; }
+@media (max-width: 640px) { .anmeldemeldung__knoepfe .knopf { flex: 1 1 auto !important; min-width: 0; }
+  .anmeldemeldung__knoepfe .am-abmelden { order: 3; flex-basis: 100% !important; } }
+.am-geraet--handy .anmeldemeldung__knoepfe .knopf { flex: 1 1 auto !important; min-width: 0; }
+.am-geraet--handy .anmeldemeldung__knoepfe .am-abmelden { order: 3; flex-basis: 100% !important; }
+
+.anmeldemeldung-bearbeiten .am-seite { border: 1px solid var(--linie); border-left: 4px solid var(--marke);
+  border-radius: var(--radius); padding: 12px 14px 14px; margin: 0 0 12px; display: grid; gap: 8px; }
+.am-seite__kopf { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.am-seite__knoepfe { display: flex; align-items: center; gap: 6px; }
+.am-seite__knoepfe .linkknopf { margin-left: 6px; }
+.am-seite__ueber { font-weight: 600; }
+.anmeldemeldung-bearbeiten .am-seite .stilfeld { min-height: 90px; }
+.am-seite .am-bilder { margin-top: 0; }
+.am-seite .am-bilder__eins, .am-seite .am-bilder__dazu { width: 130px; height: 96px; }
+.am-seite-dazu { width: 100%; padding: 12px; border: 2px dashed var(--linie-stark); border-radius: var(--radius);
+  background: none; color: var(--gedaempft); font: inherit; font-weight: 600; cursor: pointer; margin-bottom: 6px; }
+.am-seite-dazu:hover { border-color: var(--marke); color: var(--marke); }
+.anmeldemeldung__bilder { display: grid; gap: 12px; }
+.anmeldemeldung__bilder.mehrere { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start; }
+.anmeldemeldung__bilder.mehrere .anmeldemeldung__bild img { max-height: 300px; }
+.am-geraet--handy .anmeldemeldung__bilder.mehrere { grid-template-columns: 1fr; }
+
+/* Planwand ohne Aufblitzen (1.48.1, Wunsch Patrick 13. Oktober 2026):
+   Der Zeitregler bleibt weg, solange keine Tafel steht (display: flex
+   überstimmte sonst hidden), und „wird geladen“ zeigt sich erst nach
+   einem Augenblick, bei schnellem Netz also gar nicht. */
+.pw-zeitschicht[hidden] { display: none !important; }
+.laedt--spaet { animation: laedtSpaet .2s ease .7s both; }
+@keyframes laedtSpaet { from { opacity: 0; } to { opacity: 1; } }
+
+/* Meldung aus Datei laden (1.50.0) */
+.am-ausdatei { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -4px 0 12px;
+  padding: 8px 10px; border: 1px dashed var(--linie-stark); border-radius: var(--radius); }
+.am-ausdatei .hinweis { margin: 0; }
+/* Viele Seiten (12 und mehr) passen auch am Handy: die Striche werden schmaler statt über den Rand zu laufen */
+.anmeldemeldung__punkte { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+.anmeldemeldung__punkte i { flex: 0 1 22px; min-width: 6px; }
+
+/* Knöpfe der Meldung an fester Stelle (1.50.1, Wunsch Patrick 13. Oktober 2026):
+   Mit Seiten ist das Fenster immer gleich hoch, der Text rollt darin, und
+   Zurück hält seinen Platz auch auf Seite 1. So stehen Weiter und Gelesen auf
+   jeder Seite genau an derselben Stelle. */
+.dialog.anmeldemeldung--seiten { height: min(860px, 94vh); }
+.anmeldemeldung__knoepfe .am-unsichtbar { visibility: hidden; }
+.anmeldemeldung__knoepfe .am-haupt, .anmeldemeldung__knoepfe .am-zurueck-knopf { flex: 0 0 180px; }
+@media (max-width: 640px) {
+  .dialog.anmeldemeldung--seiten { height: calc(100dvh - 40px); max-height: none; }
+  .anmeldemeldung__knoepfe { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .anmeldemeldung__knoepfe .knopf { width: 100%; margin: 0 !important; }
+  .anmeldemeldung__knoepfe .am-zurueck-knopf { grid-column: 1; grid-row: 1; }
+  .anmeldemeldung__knoepfe .am-haupt { grid-column: 2; grid-row: 1; }
+  .anmeldemeldung__knoepfe .am-abmelden { grid-column: 1 / -1; grid-row: 2; }
+  .anmeldemeldung__knoepfe .am-haupt:only-child, .anmeldemeldung__knoepfe .am-abmelden + .am-haupt { grid-column: 1 / -1; }
+}
+.am-geraet--handy .dialog.anmeldemeldung--seiten { height: calc(844px - 32px); max-height: none; }
+.am-geraet--handy .anmeldemeldung__knoepfe { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; }
+.am-geraet--handy .anmeldemeldung__knoepfe .knopf { width: 100%; margin: 0 !important; }
+.am-geraet--handy .anmeldemeldung__knoepfe .am-zurueck-knopf { grid-column: 1; grid-row: 1; }
+.am-geraet--handy .anmeldemeldung__knoepfe .am-haupt { grid-column: 2; grid-row: 1; }
+.am-geraet--handy .anmeldemeldung__knoepfe .am-abmelden { grid-column: 1 / -1; grid-row: 2; }
+.am-geraet--handy .anmeldemeldung__knoepfe .am-abmelden + .am-haupt { grid-column: 1 / -1; }
+
+/* ---------- Ladebildschirm nach dem Anmelden (1.51.0) ----------
+   Wunsch Patrick 13. Oktober 2026: „cooler“. Die Kachel wartet in der
+   Mitte auf einer Bühne: Rand abgedunkelt, Licht hinter der Kachel,
+   Wellen wie die Kreise im Logo-Band, ein Lichtbogen läuft um die
+   Kachel statt des Drehkreises, darunter Gruss und Name, oben das Logo.
+   Alles nur transform und opacity, die Wartezeit bleibt dieselbe. */
+@property --login-winkel { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.login__buehne { position: fixed; inset: 0; z-index: 299; pointer-events: none;
+  background:
+    radial-gradient(circle at 50% calc(50% + 24px), rgba(255,255,255,.16) 0, rgba(255,255,255,0) 32vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.55) 100%);
+  animation: loginBuehne .5s ease both; }
+@keyframes loginBuehne { from { opacity: 0; } to { opacity: 1; } }
+/* Logo oben, wo es auch auf der Anmeldekarte stand (Wunsch Patrick,
+   14. Oktober 2026: „Hoferlogo soll oben bleiben“), nahe am oberen Rand;
+   die Kachel steht dafür tiefer, damit die Wellen das Logo nicht
+   berühren (Wunsch Patrick, 14. Oktober 2026, 1.52.3) */
+.login__buehne-logo { position: absolute; left: 50%; top: max(24px, 5vh); translate: -50% 0;
+  width: min(300px, 62vw); height: auto; opacity: 0;
+  animation: loginLogo .6s ease .45s forwards; }
+@keyframes loginLogo { from { opacity: 0; transform: translateY(-8px); } to { opacity: .95; transform: none; } }
+
+/* Wellen: drei Kreise gehen ruhig von der Kachel weg und verblassen */
+.login__wellen { position: absolute; inset: 0; z-index: -1; display: grid; place-items: center; }
+.login__wellen i { position: absolute; width: 112%; height: 112%; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,.55); opacity: 0;
+  animation: loginWelle 2.7s cubic-bezier(.2,.6,.3,1) infinite; }
+.login__wellen i:nth-child(1) { animation-delay: .5s; }
+.login__wellen i:nth-child(2) { animation-delay: 1.4s; }
+.login__wellen i:nth-child(3) { animation-delay: 2.3s; }
+@keyframes loginWelle { 0% { transform: scale(.9); opacity: .55; }
+                        100% { transform: scale(2.5); opacity: 0; } }
+
+/* Lichtbogen um die Kachel: ein heller Schweif läuft im Kreis */
+.login__flieger--laedt .login__ring { position: absolute; inset: -9px; display: block;
+  width: auto; height: auto; margin: 0; border: 0; border-radius: 20%; padding: 3px;
+  background: conic-gradient(from var(--login-winkel),
+    rgba(255,255,255,0) 0deg, rgba(255,255,255,0) 200deg,
+    rgba(160,205,255,.55) 290deg, #fff 355deg, rgba(255,255,255,0) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  filter: drop-shadow(0 0 6px rgba(170,210,255,.8));
+  opacity: 0; animation: loginBogen 1.15s linear infinite, loginEinblenden .35s ease .45s forwards; }
+@keyframes loginBogen { to { --login-winkel: 360deg; } }
+
+/* Die ganze Kachel samt Bogen und Wellen schwebt auf und ab. Über
+   translate statt transform, das gehört dem Flug (fliegen()). */
+.login__flieger--laedt { animation: loginSchwebenGanz 2.6s ease-in-out .55s infinite; }
+@keyframes loginSchwebenGanz { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+.login__flieger--laedt .login__flieger-bild { animation: none; }
+/* Bild: mit sanftem Leuchten statt hartem Schatten */
+.login__flieger--laedt .login__flieger-bild {
+  box-shadow: 0 18px 50px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.18), 0 0 60px rgba(140,190,255,.35); }
+
+/* Dunkler Modus färbt sonst alles weiss (!important), auch den
+   Buchstaben auf der hellen Kachel: dann war er kaum zu sehen */
+body.dunkel .login__flieger-bild.login__buchstabe { color: #0f1620 !important; }
+/* Gruss klein über dem Namen */
+.login__flieger--laedt .login__flieger-name { top: calc(100% + 30px); font-size: 1.35rem;
+  letter-spacing: .01em; text-shadow: 0 2px 12px rgba(0,0,0,.35); }
+.login__gruss { display: block; margin-bottom: 4px; font-size: .78rem; font-weight: 600;
+  letter-spacing: .16em; text-transform: uppercase; opacity: .7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .login__buehne, .login__buehne-logo, .login__wellen i, .login__flieger--laedt { animation: none !important; }
+  .login__buehne-logo { opacity: .95; }
+  .login__wellen { display: none; }
+  .login__flieger--laedt .login__ring { opacity: 1; animation: loginBogen 3s linear infinite !important; }
+}
+
+/* ---------- Ladebildschirm: Farbwechsel von der Mitte aus (1.53.0–1.53.2) ----------
+   Keine Themenfarbe, nur hell oder dunkel (Wunsch Patrick, 14. Oktober
+   2026: „nur dark oder weiss als Effekt, auch ohne Dark Mode soll der
+   Bildschirm von blau weiss werden“): Sobald das Profil da ist, wächst
+   von der Kachel aus ein Kreis mit leuchtendem Saum über den ganzen
+   Bildschirm, weiss oder fast schwarz. Auf Weiss kommt mit derselben
+   Welle ein dunkles Logo, Gruss, Name und Wellen werden dunkel.
+   2,2 s wie FARBWELLE in Anmeldung.jsx („langsamer und cooler“). */
+.login__buehne { --welle-mitte-y: calc(50vh + 24px); --welle-zeit: 2.2s;
+  --welle-kurve: cubic-bezier(.7,0,.3,1); }
+.login__farbwelle { position: absolute; inset: 0;
+  --mitte: 50% var(--welle-mitte-y);
+  background:
+    radial-gradient(circle at var(--mitte), #fff 0, #fff 30vmin, rgba(255,255,255,0) 90vmax),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 40%, rgba(0,30,70,.08) 100%),
+    #f2f5f9;
+  clip-path: circle(0 at var(--mitte));
+  animation: loginFarbwelle var(--welle-zeit) var(--welle-kurve) forwards; }
+.login__farbwelle--dunkel {
+  background:
+    radial-gradient(circle at var(--mitte), rgba(255,255,255,.1) 0, rgba(255,255,255,0) 30vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 100%),
+    #0e141c; }
+@keyframes loginFarbwelle { to { clip-path: circle(150vmax at var(--mitte)); } }
+/* Der Saum: ein leuchtender Ring genau an der Kante der Welle */
+.login__farbwelle-saum { position: absolute; left: 50%; top: var(--welle-mitte-y);
+  width: 0; height: 0; translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  border: 2px solid rgba(255,255,255,.7);
+  box-shadow: 0 0 28px 8px rgba(140,190,255,.4), inset 0 0 28px 8px rgba(140,190,255,.3);
+  animation: loginFarbSaum var(--welle-zeit) var(--welle-kurve) forwards; }
+@keyframes loginFarbSaum {
+  0% { width: 0; height: 0; opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: .8; }
+  100% { width: 300vmax; height: 300vmax; opacity: 0; } }
+/* Dunkles Logo auf Weiss: dieselbe Form als Maske, abgeschnitten von
+   genau demselben Kreis wie die Welle (Mitte von der Logo-Ecke aus
+   gerechnet), so wird es genau dort dunkel, wo die Welle schon ist */
+.login__logo-dunkel { aspect-ratio: 643 / 240; opacity: 1; animation: none;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  background: var(--stahl);
+  --logo-mitte: 50% calc(var(--welle-mitte-y) - max(24px, 5vh));
+  clip-path: circle(0 at var(--logo-mitte));
+  animation: loginLogoDunkel var(--welle-zeit) var(--welle-kurve) forwards; }
+@keyframes loginLogoDunkel { to { clip-path: circle(150vmax at var(--logo-mitte)); } }
+/* Gruss, Name, Wellen und Bogen werden auf Weiss dunkel, sobald die
+   Welle bei ihnen ist (sie liegen nahe der Mitte) */
+.login__flieger--hell .login__flieger-name { color: var(--stahl); text-shadow: none;
+  transition: color .6s ease .35s, text-shadow .6s ease .35s; }
+.login__flieger--hell .login__wellen i { border-color: rgba(0,56,132,.35);
+  transition: border-color .6s ease .35s; }
+.login__flieger--hell .login__flieger-bild {
+  box-shadow: 0 18px 50px rgba(0,30,70,.25), 0 0 0 1px rgba(0,56,132,.12), 0 0 60px rgba(0,80,180,.18); }
+.login__flieger--laedt.login__flieger--hell .login__ring {
+  background: conic-gradient(from var(--login-winkel),
+    rgba(0,56,132,0) 0deg, rgba(0,56,132,0) 200deg,
+    rgba(40,110,210,.5) 290deg, #0b4fb3 355deg, rgba(0,56,132,0) 360deg);
+  filter: drop-shadow(0 0 6px rgba(40,110,210,.45)); }
+@media (prefers-reduced-motion: reduce) {
+  .login__farbwelle, .login__logo-dunkel { animation: none; clip-path: none; }
+  .login__farbwelle-saum { display: none; }
+}
+
+/* ---------- Anmeldeseite: Grund hinter der Seite blau (1.54.3) ----------
+   Safari am iPhone färbt den Rand oben (Uhr, Akku) mit dem Grund der
+   ganzen Seite, nicht mit der blauen Anmeldekarte. Der Grund war hell,
+   darum stand oben ein weisser Streifen (Wunsch Patrick, 14. Oktober
+   2026: „fixe, dass es nicht weiss sein soll“). Solange die Anmeldung
+   da ist, ist der Grund darum so blau wie sie, im dunklen Modus dunkel. */
+html:has(.login) { background: #003884; }
+html:has(.login) body { background: var(--stahl); }
+html:has(body.dunkel .login), html:has(body.dunkel .login) body { background: #0e141c; }
+/* Wechsel des Grunds, sobald die Welle oben ankommt (1.54.4): weich
+   auf das Weiss oder Dunkel der App-Kopfzeile, damit danach nichts
+   mehr springt (Wunsch Patrick, 14. Oktober 2026) */
+html:has(.login), html:has(.login) body { transition: background-color .6s ease; }
+html.login-oben-hell:has(.login), html.login-oben-hell:has(.login) body { background: #ffffff !important; }
+html.login-oben-dunkel:has(.login), html.login-oben-dunkel:has(.login) body { background: #1c2229 !important; }
+/* Streifen ganz oben auf der Bühne (1.54.5): Safari am Handy färbt den
+   Rand bei Uhr und Akku nach einem festen Element, das oben anliegt.
+   Er wechselt mit der Welle, wie Grund und Fensterleiste.
+   Seit 1.82.1 (Patrick 16. Oktober 2026: „oberer Balken beim Anmelden am
+   Handy nur blau, macht beim Übergang nicht mit“): Safari prüft die
+   Stelle 4 px unter dem oberen Rand und nimmt die Hintergrundfarbe nur
+   von einem festen Element, das höher als 10 px ist. Der Streifen war
+   nur 1 px hoch, darum fand Safari die bildschirmgrosse Bühne und behält
+   bei der für immer die Farbe vom Anfang (blau). Jetzt ist er mindestens
+   14 px hoch. Sichtbar ist das Bild (gleiche Verläufe wie darunter, damit
+   kein Streifen auffällt); die Farbe darunter liest nur Safari. */
+.login__kappe { position: fixed; top: 0; left: 0; right: 0; z-index: 2;
+  height: max(14px, env(safe-area-inset-top, 0px)); pointer-events: none;
+  background-size: 100vw 100vh; background-position: 0 0; background-repeat: no-repeat;
+  background-color: #003884; transition: background-color .6s ease;
+  background-image:
+    radial-gradient(circle at 50% calc(50% + 24px), rgba(255,255,255,.16) 0, rgba(255,255,255,0) 32vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.55) 100%),
+    linear-gradient(#003884, #003884); }
+body.dunkel .login__kappe { background-color: #0e141c;
+  background-image:
+    radial-gradient(circle at 50% calc(50% + 24px), rgba(255,255,255,.16) 0, rgba(255,255,255,0) 32vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,10,30,.55) 100%),
+    linear-gradient(#0e141c, #0e141c); }
+html.login-oben-hell .login__kappe { background-color: #ffffff;
+  background-image:
+    radial-gradient(circle at 50% calc(50vh + 24px), #fff 0, #fff 30vmin, rgba(255,255,255,0) 90vmax),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 40%, rgba(0,30,70,.08) 100%),
+    linear-gradient(#f2f5f9, #f2f5f9); }
+html.login-oben-dunkel .login__kappe { background-color: #1c2229;
+  background-image:
+    radial-gradient(circle at 50% calc(50vh + 24px), rgba(255,255,255,.1) 0, rgba(255,255,255,0) 30vmin),
+    radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 30%, rgba(0,0,0,.55) 100%),
+    linear-gradient(#0e141c, #0e141c); }
+/* Safari am Handy nimmt die Farbe oben vom Inhalt, der dort liegt, und
+   das ist die Anmeldeseite selbst, nicht der Grund (1.54.6). Sie wechselt
+   darum mit derselben Welle; die Welle deckt sie dort ohnehin schon zu. */
+.login { transition: background .6s ease; }
+html.login-oben-hell .login { background: #ffffff !important; }
+html.login-oben-dunkel .login { background: #1c2229 !important; }
+
+/* ---------- Ein HOCO-Teil (Wunsch Patrick 14. Oktober 2026: „farbiger“,
+   dann „alles als Knopf und weniger Themenfarbe, aber schon ein
+   bisschen“). Themenfarbe nur als Tönung und Strich, aus --marke, damit
+   jede Themenfarbe und der dunkle Modus von selbst passen. ---------- */
+.hocoteil { --ht-tint: color-mix(in srgb, var(--marke) 7%, var(--flaeche)); }
+.hocoteil #hoco-zurueck { margin-bottom: 12px; }
+.hocoteil .karte { border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+.hocoteil__kopf { background: var(--ht-tint); border-left: 5px solid var(--marke); padding: 16px 18px; }
+.hocoteil__kopf .karte__kopf { align-items: flex-start; }
+.hocoteil__titel small { display: block; font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gedaempft); }
+.hocoteil__kopf h2.hoco-teilnr { font-size: 1.6rem; font-weight: 700; margin: 2px 0 0; letter-spacing: -.01em; color: var(--marke); }
+.hocoteil__angaben { display: flex; flex-wrap: wrap; gap: 8px 26px; margin: 12px 0 14px;
+  padding-top: 12px; border-top: 1px solid var(--linie); }
+.hocoteil__angabe small { display: block; font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--gedaempft); }
+.hocoteil__angabe b { font-size: 1.05rem; font-weight: 650; }
+.hocoteil__pdf { gap: 8px; }
+.hocoteil .bildknopf { flex: 0 0 auto; min-width: 0; }
+/* Der wichtigste Knopf je Bereich in der Themenfarbe */
+.hocoteil .knopf.hocoteil__haupt { background: var(--marke); color: #fff; border-color: var(--marke); }
+.hocoteil .knopf.hocoteil__haupt:hover { background: var(--marke-dunkel); }
+body.dunkel .hocoteil .knopf.hocoteil__haupt { background: color-mix(in srgb, var(--marke) 55%, #000); }
+
+.hocoteil__karte > .karte__kopf h2 { padding-left: 10px; border-left: 3px solid var(--marke); }
+.hocoteil__tabelle thead th { background: var(--grund); border-bottom: none; }
+.hocoteil__tabelle thead th:first-child { border-radius: 6px 0 0 6px; }
+.hocoteil__tabelle thead th:last-child { border-radius: 0 6px 6px 0; }
+.hocoteil__tabelle td { vertical-align: middle; }
+.hocoteil__tabelle tbody tr:hover td { background: var(--ht-tint); }
+.hocoteil__tabelle td.rechts > * + * { margin-left: 4px; }
+.hocoteil__maschinen { display: flex; flex-wrap: wrap; gap: 4px; }
+.hocoteil__maschine { font-size: .78rem; padding: 2px 8px; border-radius: 999px;
+  background: var(--grund); border: 1px solid var(--linie); white-space: nowrap; }
+/* Marken (nicht anklickbar) für Einrichtblatt und Zustand */
+.hocoteil__marke, .hocoteil__zustand { display: inline-block; font-size: .78rem; font-weight: 600;
+  padding: 3px 10px; border-radius: 999px; border: 1px solid var(--linie);
+  background: var(--grund); color: var(--gedaempft); white-space: nowrap; }
+.hocoteil__marke--gut, .hocoteil__zustand--laeuft
+  { background: color-mix(in srgb, var(--gut) 13%, var(--flaeche)); color: var(--gut);
+    border-color: color-mix(in srgb, var(--gut) 35%, var(--flaeche)); }
+.hocoteil__marke--thema, .hocoteil__zustand--geplant
+  { background: var(--ht-tint); color: var(--marke); border-color: color-mix(in srgb, var(--marke) 25%, var(--flaeche)); }
+.hocoteil__zustand--ruesten, .hocoteil__zustand--qs
+  { background: color-mix(in srgb, var(--warnung) 13%, var(--flaeche)); color: var(--warnung);
+    border-color: color-mix(in srgb, var(--warnung) 38%, var(--flaeche)); }
+/* Stückzeit fehlt: Knopf mit orangem Rand */
+.hocoteil .knopf.hocoteil__fehlt { border-color: var(--warnung); color: var(--warnung); }
+/* Anhänge der FA: Knöpfe mit farbigem Punkt davor */
+.hocoteil__anhaenge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hocoteil__anhang::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 7px; background: var(--marke); }
+.hocoteil__anhang--wz::before { background: #8a4fd0; }
+/* Im dunklen Modus ist alle Schrift weiss (body.dunkel *), Farbe kommt
+   dort nur über Flächen und Ränder */
+body.dunkel .hocoteil { --ht-tint: color-mix(in srgb, var(--marke) 14%, var(--flaeche)); }
+body.dunkel .hocoteil__marke--gut, body.dunkel .hocoteil__zustand--laeuft
+  { background: color-mix(in srgb, var(--gut) 40%, var(--flaeche)); border-color: var(--gut); }
+body.dunkel .hocoteil__zustand--ruesten, body.dunkel .hocoteil__zustand--qs
+  { background: color-mix(in srgb, var(--warnung) 40%, var(--flaeche)); border-color: var(--warnung); }
+body.dunkel .hocoteil__marke--thema, body.dunkel .hocoteil__zustand--geplant
+  { background: color-mix(in srgb, var(--marke) 25%, var(--flaeche)); border-color: var(--marke); }
+@media (max-width: 640px) {
+  .hocoteil__kopf h2.hoco-teilnr { font-size: 1.35rem; }
+  .hocoteil__fa td:nth-child(2) { display: none; }
+}
+
+/* ---------- Menü am Handy (seit 1.57.0) ----------
+   Wunsch Patrick 14. Oktober 2026: statt der Leiste unten ein breiter
+   Knopf, ein Tipp öffnet ein kleines Fenster mit allen Symbolen.
+   Externe (ohne .nav--menue) behalten die Leiste. */
+.handymenue { display: none; }
+@media (max-width: 779px) {
+  body.nav--menue { --navhoehe: 78px; }
+  body.nav--menue .nav { display: none; }
+  .handymenue { display: block; }
+  body.archiv .handymenue { display: none; }
+
+  .handymenue__knopf {
+    all: unset; box-sizing: border-box; cursor: pointer;
+    position: fixed; z-index: 47; left: 50%;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    width: min(calc(100% - 32px), 420px); height: 58px; transform: translateX(-50%);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 0 18px 0 20px; border-radius: 29px; overflow: hidden;
+    color: #fff; font-weight: 600; font-size: 1.02rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--marke) 82%, #fff) 0%, var(--marke) 55%,
+                color-mix(in srgb, var(--marke) 86%, #000) 100%);
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--marke) 45%, transparent),
+                0 2px 6px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .28);
+    -webkit-tap-highlight-color: transparent;
+    animation: hm-knopf-rein .55s cubic-bezier(.34, 1.56, .64, 1) backwards;
+    transition: transform .18s cubic-bezier(.34, 1.56, .64, 1), box-shadow .25s;
+  }
+  .handymenue__knopf:active { transform: translateX(-50%) scale(.96); }
+  .handymenue__knopf:focus-visible { outline: 3px solid color-mix(in srgb, var(--marke) 50%, #fff); outline-offset: 3px; }
+  .handymenue--offen .handymenue__knopf {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--marke) 18%, transparent),
+                0 14px 36px color-mix(in srgb, var(--marke) 55%, transparent), inset 0 1px 0 rgba(255, 255, 255, .28);
+  }
+  /* Ein Lichtstreifen fährt ab und zu über den Knopf */
+  .handymenue__glanz { position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .38) 50%, transparent 65%);
+    transform: translateX(-120%); animation: hm-glanz 7s ease-in-out 1.2s infinite; }
+  .handymenue__seite, .handymenue__menue { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .handymenue__knopftext { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .handymenue__knopfzeichen { display: flex; }
+  .handymenue__knopfzeichen .navsym { width: 23px; height: 23px; }
+  .handymenue__menue { font-size: .82rem; font-weight: 600; letter-spacing: .03em; opacity: .92;
+    padding: 6px 10px 6px 12px; border-radius: 16px; background: rgba(255, 255, 255, .16); }
+  .handymenue__pfeil { width: 18px; height: 18px; transition: transform .35s cubic-bezier(.34, 1.56, .64, 1); }
+  .handymenue--offen .handymenue__pfeil { transform: rotate(180deg); }
+
+  .handymenue__schleier { position: fixed; inset: 0; z-index: 45;
+    background: rgba(10, 20, 40, .3); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+    animation: hm-schleier .25s ease-out both; }
+  .handymenue__fenster { position: fixed; z-index: 48; left: 50%;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    width: min(calc(100% - 32px), 420px); transform: translateX(-50%);
+    filter: drop-shadow(0 18px 40px rgba(0, 20, 60, .3)); }
+  /* Seit 1.79.0 wächst das Fenster aus dem Knopf: zu Beginn ist nur der
+     unterste Streifen in Knopfgrösse sichtbar (der Schliessen-Knopf liegt
+     genau dort, wo der Menüknopf war), dann zieht die Fläche nach oben auf. */
+  .handymenue__flaeche { box-sizing: border-box; display: grid; gap: 4px;
+    padding: 14px 8px 0; border-radius: 26px 26px 29px 29px;
+    background: var(--flaeche); border: 1px solid var(--linie-stark);
+    animation: hm-wachsen .46s cubic-bezier(.2, .9, .25, 1) backwards; }
+  .handymenue__schliessen {
+    all: unset; box-sizing: border-box; cursor: pointer; position: relative; overflow: hidden;
+    margin: 8px -9px -1px; height: 58px; border-radius: 29px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 600; font-size: 1.02rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--marke) 82%, #fff) 0%, var(--marke) 55%,
+                color-mix(in srgb, var(--marke) 86%, #000) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .18s cubic-bezier(.34, 1.56, .64, 1); }
+  .handymenue__schliessen:active { transform: scale(.97); }
+  .handymenue__schliessen:focus-visible { outline: 3px solid color-mix(in srgb, var(--marke) 50%, #fff); outline-offset: -4px; }
+  .handymenue__schliessentext { position: relative; animation: hm-text-rein .3s ease-out .12s backwards; }
+  /* Der Menüknopf liegt unter dem Fenster; solange es offen ist, nicht antippbar */
+  .handymenue--offen .handymenue__knopf, .handymenue--schliesst .handymenue__knopf {
+    visibility: hidden; transition: none; }
+  .handymenue__zeile { display: flex; justify-content: center; }
+  .handymenue__punkt { width: 25%; box-sizing: border-box; display: grid; justify-items: center; gap: 6px;
+    padding: 10px 2px 8px; border-radius: 16px; text-decoration: none; color: var(--tinte);
+    font-size: .74rem; -webkit-tap-highlight-color: transparent;
+    animation: hm-punkt-rein .45s cubic-bezier(.34, 1.56, .64, 1) backwards;
+    animation-delay: calc(var(--nr) * 28ms + 60ms); }
+  /* Lange Namen wie „Qualitätssicherung“ trennen auf zwei Zeilen (seit 1.79.0) */
+  .handymenue__text { width: 100%; text-align: center; line-height: 1.15;
+    -webkit-hyphens: auto; hyphens: auto; overflow-wrap: break-word; }
+  .handymenue__zeichen { width: 50px; height: 50px; border-radius: 16px; display: grid; place-items: center;
+    background: var(--marke-hell); color: var(--marke);
+    transition: transform .2s cubic-bezier(.34, 1.56, .64, 1), background-color .2s, box-shadow .2s; }
+  .handymenue__zeichen .navsym { width: 25px; height: 25px; }
+  .handymenue__punkt:active .handymenue__zeichen { transform: scale(.9); }
+  .handymenue__punkt.aktiv { color: var(--marke); font-weight: 700; }
+  .handymenue__punkt.aktiv .handymenue__zeichen { background: var(--marke); color: #fff;
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--marke) 45%, transparent); }
+  .handymenue__punkt--tipp .handymenue__zeichen { animation: hm-tipp .35s cubic-bezier(.34, 1.56, .64, 1); }
+
+  /* Zugehen: alles kurz zurück in den Knopf */
+  .handymenue--schliesst .handymenue__schleier { animation: hm-schleier .2s ease-in reverse both; }
+  .handymenue--schliesst .handymenue__flaeche { animation: hm-schrumpfen .28s cubic-bezier(.5, 0, .75, 0) both; }
+  .handymenue--schliesst .handymenue__zeile { animation: hm-inhalt-weg .16s ease-in both; }
+  .handymenue--schliesst .handymenue__schliessentext { animation: hm-inhalt-weg .14s ease-in both; }
+
+  /* Im dunklen Modus ist sonst alle Schrift weiss (body.dunkel *) */
+  body.dunkel .handymenue__knopf, body.dunkel .handymenue__knopf *,
+  body.dunkel .handymenue__schliessen, body.dunkel .handymenue__schliessen * { color: #0b1a33 !important; }
+  body.dunkel .handymenue__menue { background: rgba(0, 0, 0, .12); }
+  body.dunkel .handymenue__zeichen, body.dunkel .handymenue__zeichen * { color: var(--marke) !important; }
+  body.dunkel .handymenue__punkt.aktiv .handymenue__zeichen,
+  body.dunkel .handymenue__punkt.aktiv .handymenue__zeichen * { color: #0b1a33 !important; }
+  body.dunkel .handymenue__punkt.aktiv .handymenue__text { color: var(--marke) !important; }
+  body.dunkel .handymenue__schleier { background: rgba(0, 0, 0, .45); }
+
+  @keyframes hm-knopf-rein { from { opacity: 0; transform: translateX(-50%) translateY(30px) scale(.9); } }
+  @keyframes hm-glanz { 0% { transform: translateX(-120%); } 14%, 100% { transform: translateX(120%); } }
+  @keyframes hm-schleier { from { opacity: 0; } }
+  @keyframes hm-wachsen { from { clip-path: inset(calc(100% - 58px) 0 0 0 round 29px); } to { clip-path: inset(0 round 26px 26px 29px 29px); } }
+  @keyframes hm-schrumpfen { from { clip-path: inset(0 round 26px 26px 29px 29px); } to { clip-path: inset(calc(100% - 58px) 0 0 0 round 29px); } }
+  @keyframes hm-inhalt-weg { to { opacity: 0; } }
+  @keyframes hm-text-rein { from { opacity: 0; transform: translateY(4px); } }
+  @keyframes hm-punkt-rein { from { opacity: 0; transform: translateY(14px) scale(.7); } }
+  @keyframes hm-tipp { 40% { transform: scale(1.18); } }
+  @media (prefers-reduced-motion: reduce) {
+    .handymenue__knopf, .handymenue__glanz, .handymenue__schleier, .handymenue__fenster,
+    .handymenue__flaeche, .handymenue__zeile, .handymenue__schliessentext,
+    .handymenue__punkt, .handymenue__zeichen { animation: none !important; transition: none !important; }
+    .handymenue__glanz { display: none; }
+  }
+}
+
+/* Einstellungen → Farben: Knopf für die nicht verwendeten Farben */
+.farb-weitere { margin-top: 12px; }
+
+/* ---------- Anlagen Check seit 1.62.0: alle Maschinen zusammen, ganze Fläche ----------
+   Die Spaltenzahl rechnet QsCheck.jsx aus (rasterWaehlen), die Reihen
+   teilen sich die Höhe. Jede Karte ist ein Container: Alles darin ist
+   in em und die Schrift folgt der Kartengrösse, so wächst der Inhalt
+   auf grossen Bildschirmen mit, statt Leerraum zu lassen. */
+#pad .pad-ak { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px;
+  display: grid; gap: 6px; grid-template-columns: repeat(var(--ak-spalten, 1), minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr); align-content: stretch; }
+#pad .pad-ak--rollt { grid-auto-rows: 46px; align-content: start; }
+#pad .pad-ak--zwei.pad-ak--rollt { grid-auto-rows: 84px; }
+#pad .pad-ak__karte { container-type: size; min-width: 0; min-height: 0; position: relative;
+  border-radius: 9px; overflow: hidden;
+  background: linear-gradient(160deg, #142441, #0e1a2e); border: 1px solid rgba(255,255,255,.1); }
+/* Links ein schmaler Streifen in der Farbe des Zustands */
+#pad .pad-ak__karte::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: #3b4a60; }
+#pad .pad-ak__karte--laeuft::before { background: #2fb46a; }
+#pad .pad-ak__karte--ruesten::before { background: #e0951f; }
+#pad .pad-ak__karte--qs::before { background: #9a5ce6; }
+#pad .pad-ak__innen { height: 100%; box-sizing: border-box; padding: 0 .45em 0 .7em;
+  font-size: clamp(9px, min(100cqw / 50, 100cqh / 4.5), 26px);
+  display: grid; grid-template-columns: 5.2em minmax(0, 1fr) 7.6em auto auto; gap: .45em; align-items: center; }
+#pad .pad-ak--zwei .pad-ak__innen { font-size: clamp(9px, min(100cqw / 25, 100cqh / 8), 26px);
+  grid-template-columns: 4.6em 2.8em minmax(0, 1fr) 7em; grid-template-rows: minmax(0, 1fr) minmax(3.5em, 1.2fr);
+  grid-template-areas: "kopf auf auf fort" "doks doks zust zust"; padding: .3em .4em .35em .6em; row-gap: .25em; }
+#pad .pad-ak--zwei .pad-ak__kopf { grid-area: kopf; }
+#pad .pad-ak--zwei .pad-ak__auftrag { grid-area: auf; }
+#pad .pad-ak--zwei .pad-ak__fort { grid-area: fort; }
+#pad .pad-ak--zwei .pad-ak__doks { grid-area: doks; }
+#pad .pad-ak--zwei .pad-ak__zustaende { grid-area: zust; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#pad .pad-ak__kopf { display: flex; flex-direction: column; min-width: 0; line-height: 1.05; }
+#pad .pad-ak__nr { font-size: 1.7em; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+#pad .pad-ak__name { font-size: .62em; color: #9fb3cf; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pad .pad-ak__auftrag { display: flex; flex-direction: column; align-items: flex-start; gap: .25em; min-width: 0; }
+#pad .pad-ak__hoco { font-size: 1.12em; font-weight: 700; color: #fff; white-space: nowrap;
+  font-variant-numeric: tabular-nums; line-height: 1.05; }
+#pad .pad-ak__mat { display: inline-flex; align-items: baseline; gap: .4em; max-width: 100%;
+  padding: .12em .5em; border-radius: .35em; font-size: .7em; line-height: 1.25;
+  background: #2a3446; color: #e6edf7; box-shadow: 0 0 0 1px rgba(0,0,0,.25) inset;
+  white-space: nowrap; overflow: hidden; }
+#pad .pad-ak__mat > span { overflow: hidden; text-overflow: ellipsis; opacity: .85; }
+#pad .pad-ak__mat--leer { background: transparent; color: #7d8ca3; font-style: italic; box-shadow: none; padding-left: 0; }
+#pad .pad-ak__fort { display: flex; flex-direction: column; gap: .3em; min-width: 0; }
+#pad .pad-ak__zahl { font-size: .72em; color: #9fb3cf; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#pad .pad-ak__zahl b { font-size: 1.3em; color: #fff; }
+#pad .pad-ak__balken { display: block; height: .38em; border-radius: 1em; background: rgba(255,255,255,.12); overflow: hidden; }
+#pad .pad-ak__balken i { display: block; height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, #2fb46a, #6be39b); }
+#pad .pad-ak__doks { display: grid; grid-template-columns: repeat(2, 3.7em); gap: .25em; }
+#pad .pad-ak__zustaende { display: grid; grid-template-columns: repeat(4, 3.2em); gap: .25em; }
+#pad .pad-ak__dok, #pad .pad-ak__knopf { height: 3.5em; padding: 0 .1em; border-radius: .45em; font-size: inherit;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1em;
+  font-weight: 700; line-height: 1.05; color: #c9d6ea; background: #1a2333;
+  border: 1px solid rgba(255,255,255,.12); cursor: pointer; white-space: nowrap; overflow: hidden;
+  transition: transform .12s ease; }
+#pad .pad-ak--zwei .pad-ak__dok, #pad .pad-ak--zwei .pad-ak__knopf { height: 100%; }
+#pad .pad-ak__dok { font-size: .62em; height: 5.6em; }
+#pad .pad-ak--zwei .pad-ak__dok { height: 100%; }
+#pad .pad-ak__dok--leer { opacity: .45; }
+#pad .pad-ak__knopf:active, #pad .pad-ak__dok:active { transform: scale(.94); }
+#pad .pad-ak__knopf:disabled { cursor: default; opacity: .55; }
+#pad .pad-ak__knopf--an { color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.6) inset; opacity: 1 !important; }
+#pad .pad-ak__knopf.pad-zustand--fertig { background: linear-gradient(160deg, #2a6d8a, #1b4a5e) !important; }
+#pad .pad-ak__zeichen { font-size: 1.05em; line-height: 1; }
+#pad .pad-ak__wort { font-size: .55em; }
+#pad .pad-ak__leer { grid-column: 2 / -1; color: #7d8ca3; font-style: italic; font-size: .9em; }
+#pad .pad-ak__dok.pad-knopf--zeichnung { background: linear-gradient(140deg, #1d4f8c, #12365f); }
+#pad .pad-ak__dok.pad-knopf--wbg { background: linear-gradient(140deg, #4a3480, #2d1f55); }
+#pad .pad-ak--zwei .pad-ak__doks, #pad .pad-ak--zwei .pad-ak__zustaende { align-self: stretch; grid-template-rows: minmax(0, 1fr); }
+/* Seit 1.62.0: Karte in der Werkstofffarbe, HOCO Nr. als Knopf zum Auftragsfenster */
+#pad .pad-ak__karte[style*="--ak-grund"] { background: var(--ak-grund); border-color: rgba(0,0,0,.35); }
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__nr,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__zahl b { color: var(--ak-schrift); }
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__name,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__zahl { color: var(--ak-schrift); opacity: .8; }
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__balken { background: rgba(0,0,0,.28); }
+#pad .pad-ak__karte::before { width: .35em; box-shadow: 1px 0 0 rgba(0,0,0,.35); }
+#pad .pad-ak__auftrag { justify-content: center; }
+#pad .pad-ak__hoco { appearance: none; cursor: pointer; padding: .35em .55em; border-radius: .45em; max-width: 100%;
+  font: inherit; font-size: 1.12em; font-weight: 700; color: #fff; line-height: 1.05;
+  background: rgba(10,18,32,.82); border: 1px solid rgba(255,255,255,.25);
+  box-shadow: 0 1px 3px rgba(0,0,0,.35); overflow: hidden; text-overflow: ellipsis;
+  transition: transform .12s ease; }
+#pad .pad-ak__hoco:active { transform: scale(.95); }
+@media (hover: hover) { #pad .pad-ak__hoco:hover { background: rgba(20,40,70,.95); border-color: rgba(255,255,255,.5); } }
+/* Leere Zeichnung und WBG nicht durchscheinend, sonst färbt sie die Werkstofffarbe */
+#pad .pad-ak__dok.pad-ak__dok--leer { opacity: 1; background: #1a2333; color: #5d6b80; }
+/* Kein Zustandsstreifen links mehr, der Zustand steht in den Tasten (Wunsch Patrick, 15. Oktober 2026) */
+#pad .pad-ak__karte::before { display: none; }
+#pad .pad-ak__innen { padding-left: .5em; }
+/* Stückzahl grösser, sie füllt die freie Fläche der Karte (Wunsch Patrick, 15. Oktober 2026) */
+#pad .pad-ak__innen { grid-template-columns: 5.2em minmax(7.5em, .8fr) minmax(9em, 1.2fr) auto auto; }
+#pad .pad-ak--zwei .pad-ak__innen { grid-template-columns: 4.6em 2.8em minmax(5em, .8fr) minmax(7.5em, 1.2fr);
+  grid-template-areas: "kopf auf auf fort" "doks doks zust zust"; }
+#pad .pad-ak__fort { gap: .35em; align-self: center; }
+#pad .pad-ak__zahl { font-size: 1em; line-height: 1.1; }
+#pad .pad-ak__zahl b { font-size: 1.45em; }
+#pad .pad-ak__balken { height: .6em; }
+/* Reicht die Breite nicht, rutscht „von …“ unter die Zahl statt hinaus */
+#pad .pad-ak__zahl { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .3em; white-space: nowrap; }
+#pad .pad-ak__hoco { font-size: 1.05em; padding: .32em .45em; }
+
+/* Pad Mode: Kachel Notizbücher statt Vorsprung (seit 1.63.0, Wunsch
+   Patrick 15. Oktober 2026). Gleicher Platz wie vorher der Vorsprung. */
+.pad-karte2--notiz { flex: none; flex-grow: 1 !important; justify-content: center; cursor: pointer;
+  color: #fff; background: linear-gradient(140deg, #6a4a1c, #33230d) !important;
+  border-color: rgba(240,200,130,.22) !important; }
+.pad-karte2--notiz .pad-name { color: #f0dcb8; }
+.pad-karte2--notiz:active { filter: brightness(1.15); }
+.pad-karte2--notizleer { cursor: default; background: linear-gradient(140deg, #24364f, #142236) !important;
+  border-color: rgba(255,255,255,.08) !important; }
+.pad-karte2--notizleer .pad-name { color: #c4d5ec; }
+.pad-nbuch { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pad-nbuch svg { width: 1.35em; height: 1.35em; flex: none; fill: none;
+  stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.pad-nbuch__namen { min-width: 0; font-size: .8em; line-height: 1.15; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* Häkchen-Liste in Dialogen (dialogFelder mit mehrfach) */
+.feld--mehrfach { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+.feld--mehrfach legend { padding: 0; margin-bottom: 6px; font-size: .85rem; font-weight: 600; color: var(--gedaempft); }
+.feld-haken { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; }
+.feld-haken input { width: 18px; height: 18px; margin: 0; flex: none; }
+.feld--mehrfach .feldhinweis { display: block; margin-top: 4px; }
+/* Notizbücher im Pad Mode: nur lesen */
+.nb-nurlesen { margin-left: auto; margin-right: 8px; padding: 3px 10px; border-radius: 999px;
+  font-size: .8rem; font-weight: 600; background: var(--flaeche2, rgba(127,127,127,.15)); color: var(--gedaempft); }
+/* Verweise in PDFs (Inhaltsverzeichnis): antippen springt zur Seite,
+   im Betrachter und im Ausdruck im Notizbuch (seit 1.64.0) */
+.pdfansicht__flaeche { position: relative; margin: auto; }
+.pdf-link, .nb-link { position: absolute; padding: 0; border: 0; border-radius: 2px; background: transparent;
+  cursor: pointer; pointer-events: auto; min-width: 0; min-height: 0; }
+.pdf-link:hover, .nb-link:hover { background: rgba(31, 95, 191, .16); outline: 1px solid rgba(31, 95, 191, .5); }
+.pdf-link:active, .nb-link:active { background: rgba(31, 95, 191, .3); }
+.nb-seite--lesen .nb-leinwand { pointer-events: none; }
+.nb-seite--lesen .nb-bild { pointer-events: auto; }
+/* PDF als Datei im Notizbuch: Vorschau der ersten Seite mit Leiste */
+.nb-datei { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 0; border-radius: 0 0 4px 4px; background: rgba(16, 22, 29, .86); color: #fff !important;
+  font: inherit; font-size: .85rem; cursor: pointer; pointer-events: auto; text-align: left; }
+.nb-datei b { flex: none; padding: 2px 6px; border-radius: 4px; background: #c62828; font-size: .72rem; letter-spacing: .04em; }
+.nb-datei span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-datei i { flex: none; font-style: normal; font-weight: 700; color: #9fd0ff; }
+
+/* Notizbuch: Zoom unten rechts auf der Seite (seit 1.65.0) */
+.nb-zoom { position: absolute; right: 16px; bottom: 14px; z-index: 6; display: flex; align-items: center;
+  background: var(--flaeche); border: 1px solid var(--linie); border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .12); overflow: hidden; }
+.nb-zoom button { border: 0; background: none; height: 34px; min-width: 34px; padding: 0 8px; cursor: pointer;
+  font: inherit; font-size: 1.15rem; color: var(--tinte); }
+.nb-zoom button:hover:not(:disabled) { background: var(--grund); }
+.nb-zoom button:disabled { opacity: .35; cursor: default; }
+.nb-zoom .nb-zoom__wert { font-size: .82rem; font-weight: 600; min-width: 56px; color: var(--gedaempft);
+  border-left: 1px solid var(--linie); border-right: 1px solid var(--linie); }
+.nb--klein .nb-zoom { right: 10px; bottom: 10px; }
+
+/* Notizbuch im Vollbild: Bücher und Seiten links weg (seit 1.65.0) */
+.nb--vollbild .nb-koerper { grid-template-columns: minmax(0, 1fr); }
+.nb--vollbild .nb-buecher, .nb--vollbild .nb-seiten { display: none; }
+.nb-zu.aktiv { background: var(--grund); color: var(--marke); }
+
+/* ---------- Material-Übersicht (seit 1.67.0) ---------- */
+.pw-info__zeile--mat-gut  { color: var(--gut); font-weight: 600; }
+.pw-info__zeile--mat-warn { color: var(--warnung); font-weight: 600; }
+.pw-info__zeile--mat-rot  { color: var(--gefahr); font-weight: 650; }
+
+.mat-kopf { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.mat-sucheingabe { flex: 1 1 220px; min-width: 0; min-height: 44px; padding: 8px 12px; font: inherit;
+                   border: 1px solid var(--linie-stark); border-radius: var(--radius);
+                   background: var(--flaeche); color: var(--tinte); }
+.mat-name { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.mat-punkt { width: 12px; height: 12px; flex: none; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); }
+.mat-ampel { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 650;
+             font-size: .82rem; white-space: nowrap; }
+.mat-ampel--gut  { background: #e3f2ea; color: #1f7a4d; }
+.mat-ampel--warn { background: #fbf0dc; color: #8a560c; }
+.mat-ampel--rot  { background: #fbe6e4; color: #b3261e; }
+.mat-ampel--grau { background: var(--grund); color: var(--gedaempft); border: 1px solid var(--linie); }
+.mat-aehnlich { color: var(--warnung); }
+.mat-bestellen { border-left: 4px solid var(--gefahr); }
+.mat-bestellliste { display: grid; gap: 10px; }
+.mat-bestellzeile { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto; gap: 10px;
+                    align-items: center; padding: 8px 0; border-top: 1px solid var(--linie); }
+.mat-bestellzeile:first-child { border-top: none; }
+.mat-bestellzeile__was { display: grid; gap: 2px; min-width: 0; }
+.mat-bestellzeile__was b { color: var(--gefahr); }
+@media (max-width: 700px) { .mat-bestellzeile { grid-template-columns: minmax(0, 1fr) auto; }
+                            .mat-bestellzeile__was { grid-column: 1 / -1; grid-row: 2; } }
+.mat-tabelle { width: 100%; min-width: 720px; }
+.mat-tabelle td { vertical-align: top; }
+.mat-zeile { cursor: pointer; }
+.mat-zeile:hover td, .mat-zeile.offen td { background: var(--marke-hell); }
+.mat-mehr td { background: var(--grund); }
+.mat-gruppe { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; padding: 6px 0; }
+.mat-gruppe__teil { display: grid; gap: 6px; align-content: start; }
+.mat-gruppe__teil h3 { margin: 0; font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; color: var(--gedaempft); }
+.mat-auftrag { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; padding: 6px 0;
+               border-bottom: 1px solid var(--linie); }
+.mat-posten { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 0;
+              border-bottom: 1px solid var(--linie); flex: 1; min-width: 0; }
+.mat-posten--bestellt .mat-posten__menge { color: var(--warnung); }
+.mat-posten__menge { font-weight: 650; min-width: 80px; font-variant-numeric: tabular-nums; }
+.mat-posten__wo { flex: 1 1 180px; min-width: 0; }
+.mat-posten__knoepfe { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.mat-lagerzeile { display: flex; gap: 10px; align-items: center; }
+.mat-laenge { display: grid; grid-template-columns: 110px minmax(0, 1.4fr) 140px minmax(0, 1fr) auto auto;
+              gap: 6px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--linie); }
+@media (max-width: 800px) { .mat-laenge { grid-template-columns: 1fr auto; } }
+
+/* Fenster „Material erfassen“: grosse Knöpfe zum Antippen */
+.mat-dialog { width: min(640px, 96vw); display: grid; gap: 14px; }
+.mat-feld { display: grid; gap: 6px; }
+.mat-feld--reihe { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.mat-feld__name { font-size: .8rem; font-weight: 650; color: var(--gedaempft); text-transform: uppercase; letter-spacing: .03em; }
+.mat-knoepfe { display: flex; flex-wrap: wrap; gap: 6px; }
+.mat-eingabe { min-height: 44px; padding: 8px 12px; font: inherit; border: 1px solid var(--linie-stark);
+               border-radius: var(--radius); background: var(--flaeche); color: var(--tinte); width: 100%; box-sizing: border-box; }
+.mat-eingabe--zahl { width: 110px; }
+.mat-vorschlaege { display: grid; border: 1px solid var(--linie); border-radius: var(--radius); overflow: hidden;
+                   max-height: 260px; overflow-y: auto; }
+.mat-vorschlag { text-align: left; padding: 10px 12px; font: inherit; background: var(--flaeche); color: var(--tinte);
+                 border: none; border-bottom: 1px solid var(--linie); cursor: pointer; }
+.mat-vorschlag:hover, .mat-vorschlag:focus-visible { background: var(--marke-hell); }
+.mat-gewaehlt { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px;
+                font: inherit; text-align: left; background: var(--marke-hell); color: var(--tinte);
+                border: 1px solid var(--marke); border-radius: var(--radius); cursor: pointer; }
+body.dunkel .mat-ampel--gut  { background: #173426; color: #5cc58e; }
+body.dunkel .mat-ampel--warn { background: #3a2c14; color: #e3a54a; }
+body.dunkel .mat-ampel--rot  { background: #3d1d1b; color: #ef7b72; }
+/* Am Handy: jede Zeile als Block statt Tabelle */
+@media (max-width: 700px) {
+  .mat-tabelle { min-width: 0; }
+  .mat-tabelle thead { display: none; }
+  .mat-tabelle, .mat-tabelle tbody, .mat-tabelle tr, .mat-tabelle td { display: block; width: auto; }
+  .mat-tabelle tr { padding: 8px 0; border-bottom: 1px solid var(--linie); }
+  .mat-tabelle td { border: none; padding: 2px 12px; }
+  .mat-tabelle td:last-child { padding-top: 6px; }
+}
+
+/* ---------- Art. Info im Pad (seit 1.68.0) ---------- */
+.pad-artinfo-laenge { display: block; margin-top: .25em; font-size: .95em; font-weight: 600; color: #d2caf5; }
+
+/* Material: Reiter mit Zahl, Hinweis beim Rest, Zuweisung (1.71.0) */
+.mat-reiterzahl { display: inline-block; min-width: 1.4em; margin-left: .4em; padding: 0 .35em; border-radius: 1em;
+  background: var(--akzent, #1d5fbf); color: #fff; font-size: .78em; line-height: 1.4; text-align: center; }
+.mat-gebraucht { display: flex; flex-direction: column; gap: .15em; margin: 0 0 .8em; padding: .6em .8em;
+  border-radius: 8px; background: rgba(120, 120, 120, .12); }
+.mat-gebraucht--ja { background: rgba(230, 160, 0, .16); border-left: 4px solid #e6a000; }
+.mat-faellig { color: #c0392b; font-weight: 600; }
+.mat-fuer { color: var(--akzent, #1d5fbf); font-weight: 600; }
+
+/* Fenster „Material erfassen“: am Computer grösser und in zwei Spalten
+   (1.72.0, Wunsch Patrick 16. Oktober 2026), am Handy wie bisher */
+.mat-spalten { display: grid; gap: 14px; }
+.mat-spalte { display: grid; gap: 14px; align-content: start; }
+.mat-erklaerung { margin: -4px 0 12px; }
+@media (min-width: 820px) {
+  .mat-dialog { width: min(1040px, 94vw); max-width: none; padding: 26px 28px; gap: 18px; }
+  .mat-dialog h2 { font-size: 1.45rem; }
+  .mat-spalten { grid-template-columns: 1fr 1fr; gap: 18px; }
+  .mat-feld--karte { padding: 14px 16px; border: 1px solid var(--linie); border-radius: var(--radius);
+    background: var(--flaeche-2, rgba(127, 127, 127, .05)); }
+  .mat-dialog .mat-knoepfe .knopf { min-height: 42px; padding-inline: 14px; }
+  .mat-vorschlaege { max-height: 300px; overflow: auto; }
+}
+@media (min-width: 820px) {
+  .mat-dialog { max-height: 94vh; }
+}
+
+/* QS Check: Schrift auf der Werkstofffarbe immer weiss mit dünnem schwarzem
+   Rand, so ist sie auf jeder Farbe lesbar, auch auf Weiss oder Gelb
+   (Wunsch Patrick, 16. Oktober 2026). Mit Schatten statt text-stroke, weil
+   das iPad den Rand sonst in die Buchstaben hinein malt. */
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__nr,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__name,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__zahl,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__zahl b,
+#pad .pad-ak__karte[style*="--ak-grund"] .pad-ak__leer {
+  color: #fff; opacity: 1;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000,
+    0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000; }
+
+/* „Laufen lassen“ bei Stück am Abend: eigene Zeile über Abbrechen und
+   Eintragen, damit er mit Handschuhen gut zu treffen ist (1.73.0) */
+.zb-knoepfe [data-zbextra] { grid-column: 1 / -1; }
+
+/* Zeile „Mat. info.“ im Auftragsfenster und in der Schnellvorschau
+   (seit 1.74.0): kurz die Mindestmenge, ✗L = Länge nicht bestätigt */
+.mat-info { margin: 0 0 6px; font-size: .92rem; }
+.mat-info__l { font: inherit; font-weight: 700; color: var(--gefahr); background: none; border: 0;
+  padding: 0; cursor: help; }
+button.mat-info__l:hover { text-decoration: underline dotted; }
+.pw-info__zeile--matinfo { font-weight: 600; }
+
+/* ---------- Seite QS und QS-Meldung im Pad (1.77.0) ---------- */
+.qs-erklaerung { max-width: 760px; }
+.qs-fehlt { color: var(--gefahr); font-weight: 600; }
+.qs-titel { font-size: 1.1rem; margin: 18px 0 8px; }
+.qs-meldungen { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 10px; }
+.qs-meldung { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 8px;
+              background: var(--flaeche); border: 1px solid var(--linie); border-left: 5px solid var(--warnung); }
+.qs-meldung__kopf { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; }
+.qs-meldung__wo { font-weight: 650; }
+.qs-meldung__wann { color: var(--gedaempft); font-size: .85rem; }
+.qs-meldung__zahl b { font-size: 1.5rem; color: var(--gefahr); margin-right: 4px; }
+.qs-meldung__notiz { white-space: pre-wrap; overflow-wrap: anywhere; }
+.qs-meldung__quittieren { align-self: flex-start; min-height: 44px; }
+.qs-maschinen { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 8px; }
+.qs-maschine { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+               background: var(--flaeche); border: 1px solid var(--linie); }
+.qs-maschine__farbe { width: 10px; align-self: stretch; flex: none; border-radius: 3px;
+                      background: var(--linie); border: 1px solid rgba(0,0,0,.2); }
+.qs-maschine__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.qs-maschine__text span { color: var(--gedaempft); font-size: .9rem; }
+.qs-maschine__text .qs-maschine__offen { color: var(--warnung); font-weight: 600; }
+.qs-maschine__melden { flex: none; min-height: 44px; }
+
+/* Im Pad anstelle des Wetters: gut sichtbar, bis quittiert */
+#pad .pad-qsm { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
+#pad .pad-qsm__karte { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px;
+  background: linear-gradient(150deg, #8a5a00, #5c3a00); color: #fff; border: 2px solid #ffb020;
+  animation: pad-qsm-puls 2.4s ease-in-out infinite; }
+#pad .pad-qsm__titel { font-weight: 700; font-size: 1.05rem; letter-spacing: .02em; color: #ffd27a; }
+#pad .pad-qsm__zahl { font-size: 1.1rem; }
+#pad .pad-qsm__zahl b { font-size: 2.2rem; margin-right: 6px; }
+#pad .pad-qsm__notiz { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1rem; }
+#pad .pad-qsm__fuss { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: .85rem; opacity: .95; }
+/* Dunkler Knopf mit weisser Schrift wie der Rest der Karte: am iPad blieb
+   die dunkle Schrift auf Weiss unsichtbar (Bildschirmfoto Patrick 18. Oktober 2026) */
+#pad .pad-qsm__quittieren { min-height: 52px; padding: 0 22px; border-radius: 10px; border: 2px solid #ffd27a;
+  -webkit-appearance: none; appearance: none; font-family: inherit; line-height: 1.2;
+  font-weight: 700; font-size: 1.15rem; background: rgba(0, 0, 0, .35); color: #fff;
+  -webkit-text-fill-color: #fff; cursor: pointer; }
+#pad .pad-qsm__quittieren:active { background: rgba(0, 0, 0, .55); }
+@keyframes pad-qsm-puls { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 176, 32, .0); }
+                          50% { box-shadow: 0 0 18px 2px rgba(255, 176, 32, .55); } }
+@media (prefers-reduced-motion: reduce) { #pad .pad-qsm__karte { animation: none; } }
+.qs-nb { white-space: nowrap; }
+
+/* ---------- Fortschritt als Knopf und grosses QS-Fenster (1.78.0) ---------- */
+#pad .pad-ak__fort--knopf { font: inherit; color: inherit; text-align: left; cursor: pointer;
+  background: rgba(0, 0, 0, .22); border: 1px solid rgba(255, 255, 255, .45); border-radius: .5em;
+  padding: .35em .5em; -webkit-tap-highlight-color: transparent; }
+#pad .pad-ak__fort--knopf:active { transform: scale(.98); background: rgba(0, 0, 0, .35); }
+@media (hover: hover) { #pad .pad-ak__fort--knopf:hover { border-color: #fff; background: rgba(0, 0, 0, .3); } }
+
+.qs-fort { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 150px;
+  min-height: 52px; padding: 6px 10px; font: inherit; color: var(--tinte); cursor: pointer; text-align: left;
+  background: var(--marke-hell); border: 1px solid var(--linie-stark); border-radius: var(--radius); }
+.qs-fort:hover { border-color: var(--marke); }
+.qs-fort__inhalt { display: flex; flex-direction: column; gap: 4px; }
+.qs-fort__zahl { font-size: .9rem; white-space: nowrap; }
+.qs-fort__balken, .qsf__balken { display: block; height: 8px; border-radius: 99px; background: var(--linie); overflow: hidden; }
+.qs-fort__balken i, .qsf__balken i { display: block; height: 100%; background: var(--marke); border-radius: inherit; }
+.qs-fort__text { font-size: .8rem; font-weight: 650; color: var(--marke); }
+body.dunkel .qs-fort { background: var(--flaeche); }
+body.dunkel .qs-fort__text { color: var(--tinte); }
+
+.qsf-huelle .qsf { position: relative; width: min(760px, 96vw); max-width: none; display: flex;
+  flex-direction: column; gap: 12px; padding: 22px 24px; }
+.qsf__zu { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--gedaempft); font-size: 1.3rem; cursor: pointer; }
+.qsf__zu:hover { background: var(--linie); color: var(--tinte); }
+.qsf__maschine { font-size: 1.05rem; font-weight: 600; color: var(--gedaempft); padding-right: 48px; }
+.qsf__hoco { font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 750; letter-spacing: .02em; line-height: 1.1;
+  padding: 10px 16px; border-radius: 10px; background: var(--marke-hell); border: 1px solid rgba(0,0,0,.18);
+  font-variant-numeric: tabular-nums; }
+.qsf__angaben { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 1.05rem; }
+.qsf__angaben span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.qsf__angaben small { color: var(--gedaempft); font-size: .78rem; }
+.qsf__fort { display: flex; flex-direction: column; gap: 6px; }
+.qsf__zahl { font-size: 1.15rem; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.qsf__zahl b { font-size: 1.9rem; }
+.qsf__prozent { margin-left: auto; color: var(--gedaempft); }
+.qsf__balken { height: 14px; }
+.qsf__offen { border: 1px solid var(--warnung); border-radius: 8px; padding: 10px 12px; }
+.qsf__offen h3, .qsf__titel { margin: 0; font-size: 1.05rem; }
+.qsf__meldung { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 0;
+  border-top: 1px solid var(--linie); }
+.qsf__meldung:first-of-type { border-top: 0; }
+.qsf__meldung small { color: var(--gedaempft); }
+.qsf__notiz { white-space: pre-wrap; overflow-wrap: anywhere; }
+.qsf__feld { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.qsf__feld input, .qsf__feld textarea { font: inherit; font-weight: 400; padding: 10px 12px; border-radius: var(--radius);
+  border: 1px solid var(--linie-stark); background: var(--flaeche); color: var(--tinte); }
+.qsf__feld input { font-size: 2rem; font-weight: 700; max-width: 260px; font-variant-numeric: tabular-nums; }
+.qsf .dialog__knoepfe .knopf { min-height: 52px; min-width: 130px; font-size: 1.05rem; }
+
+/* Material: wer erfasst und geändert hat, eigene Zeile unter dem Ort (1.81.0) */
+.mat-posten__werwann { display: block; opacity: .75; margin-top: 2px; }
+
+/* ---------- Materialrechner auf der Planwand (seit 1.84.0) ---------- */
+.dialog.dialog--matrechner { width: min(580px, 96vw); max-width: 580px; }
+.mr { display: flex; flex-direction: column; gap: 10px; }
+.mr .feld { margin: 0; }
+.mr .feld select, .mr .feld input { width: 100%; }
+.mr-wahl { display: grid; grid-template-columns: repeat(4, 1fr); margin: 2px 0 0; }
+.mr-wahl .moduswahl__knopf { padding: 10px 6px; }
+.mr-reihe { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mr-reihe--drei { grid-template-columns: 1fr 1fr 1fr; }
+.mr-hoco-info { margin: -4px 0 0; }
+.mr-ergebnis { margin: 4px 0 0; }
+.mr-ergebnis .hinweis { margin: 4px 0 0; }
+@media (max-width: 520px) { .mr-reihe, .mr-reihe--drei { grid-template-columns: 1fr; } }
+/* Faktor (Dichte) je Werkstoff unter Einstellungen → Farben und Material (1.86.0) */
+.dichte-tabelle td { vertical-align: middle; }
+.dichte-tabelle .dichte-feld { width: 110px; min-height: 36px; padding: 6px 10px; text-align: right; }
+.dichte-gruppe td { background: var(--flaeche-2, transparent); }
+.mr-zusatz { font-size: 1rem; }
+.mr-wahl.mr-wahl--zwei { grid-template-columns: 1fr 1fr; }
+/* kg oder Stangen gehört zum Mengenfeld darüber (1.87.0) */
+.mr-einheit { width: calc(50% - 5px); margin-top: -4px; }
+@media (max-width: 520px) { .mr-einheit { width: 100%; } }
+
+/* Materialrechner ab 1.89.0: Ergebnis mit Einheit gross, andere Einheit klein */
+.mr-wert { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.mr-wert .mr-ca { font-size: 1.4rem; font-weight: 600; opacity: 1; margin: 0; }
+.mr-wert .mr-klammer { font-size: 1rem; font-weight: 400; opacity: .75; margin: 0; }
+
+/* Menüknopf am Handy: zugeklappt nur „Menü“ in der Mitte (seit 1.89.1), in
+   derselben Schrift und Grösse wie „Schliessen“ (seit 1.89.2), damit beim
+   Öffnen nur das Wort wechselt */
+.handymenue__knopf { justify-content: center; padding: 0 20px; }
+.handymenue__knopf .handymenue__knopftext { position: relative; }
+
+/* Material im Haus (seit 1.91.0, Wunsch Patrick 17. Oktober 2026): kein
+   eigenes Fenster, sondern über der Zeichnung im Auftragsfenster
+   eingeblendet, damit man im Auftrag weiterarbeiten kann. Das GIF kommt
+   aus der Ablage (Einstellungen → Symbole). */
+.auf-zeichnung { position: relative; }
+.imhaus { position: absolute; left: 8px; right: 8px; top: 8px; z-index: 5; display: flex; gap: 14px;
+  align-items: center; padding: 10px 14px 10px 10px; border-radius: 14px; background: var(--flaeche);
+  border: 2px solid var(--marke); box-shadow: 0 10px 28px rgba(0,0,0,.28);
+  animation: imhaus-rein .35s cubic-bezier(.2,1.4,.4,1) both; }
+.imhaus__gif { flex: 0 0 auto; height: 180px; width: auto; max-width: 45%; object-fit: contain; border-radius: 10px; }
+.imhaus__ersatz { flex: 0 0 auto; font-size: 90px; line-height: 1; }
+.imhaus__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.imhaus__titel { font-size: 1.15rem; line-height: 1.25; }
+.imhaus__frage { font-weight: 600; }
+.imhaus__knoepfe { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.imhaus-liste { margin: 2px 0; padding-left: 20px; max-height: 96px; overflow: auto; }
+.imhaus-liste li { margin: 2px 0; }
+.imhaus-aehnlich { color: var(--gedaempft); font-size: .9em; }
+@keyframes imhaus-rein { from { transform: translateY(-12px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 640px) {
+  .imhaus { flex-direction: column; align-items: stretch; text-align: left; }
+  .imhaus__gif { height: 140px; max-width: 100%; align-self: center; }
+}
+@media (prefers-reduced-motion: reduce) { .imhaus { animation: none; } }
+
+/* Notizbuch: Aus OneNote übernehmen (seit 1.93.0) */
+.nb-knoepfe { display: inline-flex; gap: 6px; }
+.nb-plus:disabled { opacity: .5; cursor: progress; }
+.nb-haupt { position: relative; }
+.nb-holt { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); z-index: 5;
+  display: flex; flex-direction: column; gap: 2px; padding: 10px 16px; border-radius: 10px;
+  background: var(--flaeche); border: 1px solid var(--linie); box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  font-size: .9rem; max-width: calc(100% - 32px); }
+.nb-holt span { color: var(--gedaempft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Materialrechner: was die App aus dem eingetippten Material versteht (1.98.0) */
+.mr-erkannt { margin: -4px 0 0; }
+.mr-erkannt--nein { color: var(--gefahr); }
+
+/* Faktor (Dichte) als letzte Spalte der Farbzeile (seit 1.100.0) */
+.farbzeile, .es .farbzeile { grid-template-columns: 30px 92px minmax(0, 1fr) 70px 64px; }
+.farbzeile__faktor { display: flex; flex-direction: column; gap: 4px; }
+.farbzeile__dichte { display: flex; flex-direction: column; gap: 1px; }
+.farbzeile__dichte span { font-size: .68rem; color: var(--gedaempft); line-height: 1.1; }
+.farbzeile .dichte-feld { width: 100%; min-width: 0; text-align: right; }
+.farbkopf { display: grid; grid-template-columns: 30px 92px minmax(0, 1fr) 70px 64px; gap: 8px;
+  font-size: .72rem; color: var(--gedaempft); }
+.farbkopf span:first-child { grid-column: 1 / 3; }
+@media (max-width: 820px) {
+  .farbkopf { grid-template-columns: 30px minmax(0, 1fr) 70px 60px; }
+  .farbkopf span:first-child { grid-column: 1 / 2; }
+  .farbkopf + .farbkopf { display: none; }
+}
+@media (max-width: 820px) {
+  .farbzeile, .es .farbzeile { grid-template-columns: 30px minmax(0, 1fr) 70px 60px; }
+}
+/* Notizbuch: Abschnitte wie in OneNote (seit 1.101.0). Breit stehen sie
+   eingerückt unter dem offenen Buch, schmal als eigene Leiste oben. */
+.nb-baum { margin: 0 0 6px 14px; padding-left: 6px; border-left: 2px solid var(--linie); }
+.nb-eintrag--ab .nb-eintrag__name { padding: 6px 8px; font-size: .92rem; }
+.nb-reiter { width: 12px; height: 12px; border-radius: 3px; background: var(--f); flex: none; }
+.nb-ab-neu { display: flex; align-items: center; gap: 6px; border: 0; background: none; font: inherit;
+  font-size: .85rem; color: var(--gedaempft); padding: 6px 8px; border-radius: 8px; cursor: pointer; flex: none; }
+.nb-ab-neu svg { width: 14px; height: 14px; }
+.nb-ab-neu:hover { color: var(--marke); background: rgba(127, 140, 160, .12); }
+.nb-abschnitte-leiste { display: none; }
+@media (max-width: 820px) {
+  .nb-baum { display: none; }
+  .nb-abschnitte-leiste { display: flex; align-items: center; flex: none; border-bottom: 1px solid var(--linie); }
+}
+.nb--schmal .nb-baum { display: none; }
+.nb--schmal .nb-abschnitte-leiste { display: flex; align-items: center; flex: none; border-bottom: 1px solid var(--linie); }
+.nb--vollbild .nb-abschnitte-leiste { display: none; }
+
+/* Markierter Balken (seit 1.94.0, deutlicher seit 1.102.1, blinkt seit
+   1.103.0; Wunsch Patrick 19. Oktober 2026: „damit man sieht, wo man war“,
+   „der Rand soll blinken“): weisser Ring und Leuchten fest, darum ein
+   dicker dunkelblauer Rand, der blinkt. Der Rand ist ein outline ohne
+   !important, sonst könnte die Animation ihn nicht ändern; der weisse
+   Ring muss mit !important den dünnen grauen Rahmen aller Balken schlagen. */
+body .pw-tafel .pw-balken.pw-balken--angewaehlt {
+  box-shadow: 0 0 0 3px #fff, 0 0 16px 7px rgba(31, 122, 224, .7) !important;
+  outline: 4px solid #0a3d91; outline-offset: 3px;
+  animation: pw-angewaehlt-blinken 1s ease-in-out infinite; z-index: 6; }
+body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
+  box-shadow: 0 0 0 3px #0b0f14, 0 0 18px 8px rgba(90, 169, 255, .65) !important;
+  outline-color: #5aa9ff; }
+@keyframes pw-angewaehlt-blinken { 50% { outline-color: transparent; } }
+
+/* Rotes M beim Restmaterial: wo einsetzen? (seit 1.104.0, Wunsch Patrick 19. Oktober 2026) */
+.mat-m { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 5px; border-radius: 8px;
+  border: 1px solid var(--rand, rgba(0,0,0,.2)); background: var(--karte, #fff); color: inherit; cursor: pointer;
+  font: inherit; font-weight: 650; line-height: 1; }
+.mat-m:hover { border-color: #e3141b; }
+.mat-m__zeichen { display: block; font-size: 22px; }
+.mat-m__zeichen .pw-msymbol { width: .78em; height: .9em; }
+.mat-m__zahl { font-variant-numeric: tabular-nums; min-width: 1ch; }
+.mat-m--leer { opacity: .55; }
+.mat-wo__posten { margin: 4px 0 8px; }
+.mat-wo__nr { font-weight: 700; font-size: 1.05em; }
+
+/* ---------- Unterlagen zu den Maschinen (1.105.0) ----------
+   Grosse Zeilen zum Antippen, auch an der Maschine mit Handschuhen */
+.dialog.unterlagen, body.pad-offen .dialog.unterlagen:not(.dialog--auftrag):not(.nb) {
+  width: min(900px, calc(100vw - 24px)) !important; max-width: none !important;
+  max-height: calc(100vh - 40px); display: flex; flex-direction: column; }
+.unterlagen .blatt__kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.unterlagen .blatt__kopf h2 { margin: 0; flex: 1 1 auto; }
+.unterlagen__rolle { overflow: auto; flex: 1 1 auto; min-height: 120px; padding-right: 2px; }
+.unterlagen__gruppe h3 { margin: 14px 0 6px; font-size: .9rem; color: var(--gedaempft);
+  text-transform: uppercase; letter-spacing: .04em; }
+.unterlagen__gruppe ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.unterlagen__zeile { display: flex; align-items: center; gap: 8px; }
+.unterlagen__oeffnen { flex: 1 1 auto; display: flex; align-items: center; gap: 12px; min-height: 56px;
+  padding: 8px 12px; border: 1px solid var(--linie); border-radius: 10px; background: var(--flaeche);
+  color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.unterlagen__oeffnen:hover, .unterlagen__oeffnen:focus-visible { border-color: var(--marke);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--marke) 25%, transparent); }
+.unterlagen__symbol { flex: none; width: 46px; height: 46px; border-radius: 8px; display: grid;
+  place-items: center; font-size: .72rem; font-weight: 750; color: #fff; background: #b3261e; }
+.unterlagen__gruppe[data-art="elektro"] .unterlagen__symbol { background: #c98a00; }
+.unterlagen__gruppe[data-art="hydraulik"] .unterlagen__symbol { background: #1f7ae0; }
+.unterlagen__gruppe[data-art="ersatzteile"] .unterlagen__symbol { background: #4b7f3a; }
+.unterlagen__gruppe[data-art="wartung"] .unterlagen__symbol { background: #6b4fb3; }
+.unterlagen__gruppe[data-art="sonstiges"] .unterlagen__symbol { background: #6e747c; }
+.unterlagen__text { display: flex; flex-direction: column; min-width: 0; }
+.unterlagen__text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.02rem; }
+.unterlagen__knoepfe { display: flex; gap: 6px; flex: none; }
+.unterlagen__leer { padding: 24px 4px; color: var(--gedaempft); }
+.unterlagen__laedt { margin: 4px 0; color: var(--marke); font-weight: 600; }
+@media (max-width: 560px) {
+  .unterlagen__zeile { flex-wrap: wrap; }
+  .unterlagen__knoepfe { width: 100%; justify-content: flex-end; }
+}
+/* Knopf „Unterlagen“ oben im Pad, gleich hoch wie Neu laden und Schliessen */
+#pad .pad__unterlagen { flex: none; height: 58px; display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 18px; border-radius: 16px; color: #f2f4f7; cursor: pointer; font: inherit;
+  font-size: 1.1rem; font-weight: 700; background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.16); }
+#pad .pad__unterlagen:active { background: rgba(255,255,255,.18); }
+#pad .pad__unterlagen svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 760px) { #pad .pad__unterlagen { height: 38px; padding: 0 10px; font-size: .85rem; }
+  #pad .pad__unterlagen svg { width: 18px; height: 18px; } }
+.unterlagen .blatt__kopf { display: flex !important; flex-wrap: wrap; align-items: center; }
+.unterlagen .blatt__kopf .knopf { width: auto !important; flex: none; margin: 0 !important; }
+.unterlagen .blatt__kopf h2 { flex: 1 1 0 !important; min-width: 0; }
+
+/* Foto der Bestellung lesen im Fenster „Material erfassen“ (seit 1.107.0) */
+.mat-foto { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 12px; }
+.mat-foto__ergebnis { width: 100%; }
+.mat-foto__fehler { color: var(--gefahr); }
+.mat-foto__text { max-height: 180px; overflow: auto; white-space: pre-wrap; font-size: 12px;
+  background: var(--grund); padding: 8px; border-radius: 6px; margin: 4px 0 0; }
+
+/* Artikel per Foto (1.109.0) */
+.pd-foto { margin: 0 0 10px; }
+.pd-foto .pd-zeile { margin-top: 4px; }
+.pd-foto .pd-zeile .bs-chip { margin-left: 8px; padding: 1px 8px; font-size: .74rem; }
+.pd-zeile--gewaehlt { border-color: var(--marke); box-shadow: inset 0 0 0 1px var(--marke); }
+.pd-foto__neu { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 4px; }
+.pd-foto__neu .knopf--klein { min-height: 34px; padding: 5px 10px; }
+.af-dialog { width: min(640px, 96vw); }
+.af-bilder { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 14px 0 4px;
+  max-height: 50vh; overflow: auto; }
+.af-bild { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.af-bild__knopf { padding: 0; border: 1px solid var(--linie); border-radius: 8px; overflow: hidden; background: none;
+  cursor: zoom-in; width: 100%; aspect-ratio: 4 / 3; }
+.af-bild__knopf img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.af-gelesen { margin-top: 8px; }
+.af-zahl { align-self: center; min-width: 18px; padding: 0 5px; border-radius: 9px; font-size: .72rem; line-height: 18px;
+  text-align: center; background: var(--marke); color: #fff; }
+
+/* ---------- Infoboard (seit 1.113.0, Wunsch Patrick 20. Oktober 2026) ----------
+   Die Tafel ist immer 1080 × 1920 Punkte gross und wird als Ganzes in
+   ihren Rahmen eingepasst, in der Gestaltung wie am Bildschirm. */
+.ib-rahmen { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.ib-blatt { position: absolute; left: 50%; top: 50%; transform-origin: center center;
+  background: #0b1626; color: #f2f4f7; overflow: hidden; }
+.ib-kopf { position: absolute; overflow: hidden; }
+.ib-kopf__innen { transform-origin: top center; }
+.ib-kopf .kopfkarte { margin-bottom: 12px; padding: 26px 30px; border-radius: 18px; }
+.ib-kopf .uhr { font-size: 4.2rem; }
+.ib-kopf .kopfkarte__datum { font-size: 1.15rem; }
+/* Die Startseite richtet Logo und Ring nach der Breite des Fensters;
+   auf der Tafel ist die Breite immer dieselbe, darum hier fest */
+.ib-kopf .kopfkarte__logo { display: block !important; height: 104px !important; top: 22px; }
+.ib-kopf .kopfkarte:has(.kopfkarte__logo) { min-height: 150px !important; }
+.ib-kopf .sol-ring { width: 104px !important; height: 104px !important; }
+.ib-kopf .wetter__grad { font-size: 3rem; }
+.ib-kopf .wetter__text, .ib-kopf .wetter__rand { font-size: 1.05rem; }
+.ib-kopf .solar { margin: 0; }
+.ib-feld { position: absolute; overflow: hidden; border-radius: 10px; background: #fff; }
+.ib-feld--leer, .ib-feld--skizze { background: #10233a; }
+.ib-blatt--bearbeiten .ib-feld--leer { background: rgba(255,255,255,.05); border: 3px dashed rgba(255,255,255,.25); }
+.ib-feld--gewaehlt { box-shadow: 0 0 0 6px #fff, 0 0 0 12px #2f7cf6; }
+.ib-feld__wahl { position: absolute; inset: 0; z-index: 5; background: transparent; border: 0;
+  cursor: pointer; padding: 0; }
+.ib-blatt--bearbeiten .ib-feld__wahl:hover { background: rgba(47,124,246,.12); }
+.ib-leer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  text-align: center; font-size: 2.4rem; font-weight: 600; color: rgba(255,255,255,.45); line-height: 1.3; }
+.ib-leer small { font-size: 1rem; font-weight: 400; }
+.ib-feld--datei .ib-leer { color: #6b7a90; }
+.ib-bild { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+.ib-pdf { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.ib-pdf__seite { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }
+.ib-pdf__nr { position: absolute; right: 10px; bottom: 10px; padding: 4px 12px; border-radius: 999px;
+  background: rgba(11,22,38,.7); color: #fff; font-size: 1.1rem; font-weight: 600; }
+.ib-skizze { position: absolute; inset: 0; display: flex; }
+.ib-skizze > .pad-karte2--skizze { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0;
+  border-radius: 10px; }
+.ib-skizze .pad-skizze__kopf { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.ib-skizze .pad-skizze__leiste { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+.ib-skizze .pad-skizze__leiste .pad-skizze__knopf { min-width: 46px; height: 46px; }
+.ib-skizze .pad-skizze__farbe--waehler { width: 46px !important; height: 46px !important; }
+.ib-skizze .pad-skizze__raum { display: flex; align-items: center; justify-content: center; }
+.ib-skizze .pad-skizze__flaeche { background: #fff; }
+.ib-skizze .pad-skizze__hinweis { font-size: 1.3rem; color: #7f8ea3; }
+
+/* Die Seite zum Gestalten: links die Tafel, rechts die Knöpfe */
+.ib-gestalten__kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.ib-gestalten__kopf h2 { margin: 0; }
+.ib-gestalten__teile { display: flex; gap: 24px; align-items: flex-start; }
+.ib-gestalten__vorschau { flex: none; height: min(78vh, 980px); aspect-ratio: 9 / 16; border-radius: 14px;
+  overflow: hidden; background: #050b14; box-shadow: 0 0 0 8px #1b1f26, 0 18px 40px rgba(0,0,0,.25); }
+.ib-gestalten__seite { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 16px; max-width: 460px; }
+.ib-reihe { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ib-reihe__name { font-weight: 600; }
+.ib-umschalter { display: inline-flex; border: 1px solid var(--linie-stark); border-radius: 999px; padding: 3px; gap: 3px; }
+.ib-umschalter__knopf { border: 0; background: transparent; color: var(--tinte); padding: 7px 14px;
+  border-radius: 999px; cursor: pointer; font: inherit; font-size: .9rem; }
+.ib-umschalter__knopf.aktiv { background: var(--akzent, #1f5fbf); color: #fff; }
+.ib-wahl { border: 1px solid var(--linie-stark); border-radius: var(--radius); padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px; }
+.ib-wahl h3 { margin: 0; font-size: 1rem; }
+.ib-wahl__inhalt { margin: 0; font-weight: 600; word-break: break-word; }
+.ib-wahl__knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
+.ib-geraet { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.ib-geraet input { margin-top: 4px; }
+.ib-geraet small { display: block; color: var(--tinte-leise, #6b7280); margin-top: 2px; }
+@media (max-width: 760px) {
+  .ib-gestalten__teile { flex-direction: column; align-items: stretch; }
+  .ib-gestalten__vorschau { height: auto; width: 100%; }
+  .ib-gestalten__seite { max-width: none; }
+}
+
+/* Die Anzeige über den ganzen Bildschirm */
+.ib-voll { position: fixed; inset: 0; z-index: 72; background: #050b14; }
+.ib-voll__innen { position: absolute; inset: 0; }
+.ib-voll__zu { position: absolute; top: 14px; right: 14px; z-index: 6; padding: 12px 22px; border-radius: 999px;
+  border: 0; background: #fff; color: #0b1626; font: inherit; font-weight: 700; font-size: 1.05rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4); cursor: pointer; }
+.ib-voll__fehler { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 6;
+  padding: 10px 18px; border-radius: 12px; background: #7a1c1c; color: #fff; }
+body.ib-offen { overflow: hidden; }
+/* ---------- Seitenleiste ein- und ausklappen mit Auftritt (seit 1.114.0) ----------
+   Wunsch Patrick 20. Oktober 2026: „mehr Emotionen, man macht es ja
+   selten“. Die Klassen setzt klappenZeigen() in Geruest.jsx nur für die
+   Dauer der Bewegung. Die Leiste ist fest positioniert und liegt über
+   dem Inhalt: der Inhalt rückt einmal, die Leiste bewegt sich darüber. */
+@media (min-width: 780px) {
+  body.nav--klappt-auf .nav, body.nav--klappt-zu .nav { overflow: hidden; }
+  body.nav--klappt-zu .rahmen { grid-template-columns: 62px 1fr; }
+  body.nav--klappt-auf .nav__text, body.nav--klappt-zu .nav__text { white-space: nowrap; }
+
+  /* Lichtstreifen und Leuchten am Rand, über beiden Richtungen */
+  body.nav--klappt-auf .nav::after, body.nav--klappt-zu .nav::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
+    background: linear-gradient(100deg, transparent 30%,
+      color-mix(in srgb, var(--marke) 22%, transparent) 45%,
+      rgba(255, 255, 255, .55) 50%,
+      color-mix(in srgb, var(--marke) 22%, transparent) 55%, transparent 70%);
+    background-size: 300% 100%; mix-blend-mode: plus-lighter; }
+  body.nav--klappt-auf .nav::after { animation: nav-licht-auf .8s cubic-bezier(.3, .6, .3, 1) .05s both; }
+  body.nav--klappt-zu .nav::after { animation: nav-licht-zu .5s cubic-bezier(.5, 0, .5, 1) both; }
+
+  /* Auf: über das Ziel hinaus, zurückfedern, Rand leuchtet auf */
+  body.nav--klappt-auf .nav { animation: nav-breit-auf .75s cubic-bezier(.2, .8, .2, 1) both; }
+  body.nav--klappt-auf .nav__zeichen {
+    animation: nav-zeichen-auf .7s cubic-bezier(.34, 1.7, .5, 1) both;
+    animation-delay: calc(var(--n, 0) * 35ms + 40ms); }
+  body.nav--klappt-auf .nav__text {
+    display: inline-block;
+    animation: nav-text-auf .6s cubic-bezier(.16, 1, .3, 1) both;
+    animation-delay: calc(var(--n, 0) * 45ms + 140ms); }
+
+  /* Zu: Namen verwehen von unten nach oben, die Leiste schnurrt zusammen,
+     zuletzt springen die Zeichen an ihren Platz in der Mitte */
+  body.nav--klappt-zu .nav { animation: nav-breit-zu .56s cubic-bezier(.6, 0, .3, 1) both; }
+  body.nav--klappt-zu:not(.nav--schmal) .nav__text {
+    display: inline-block;
+    animation: nav-text-zu .26s cubic-bezier(.5, 0, .9, .4) both;
+    animation-delay: calc((8 - var(--n, 0)) * 12ms); }
+  body.nav--klappt-zu:not(.nav--schmal) .nav__unter { animation: nav-text-zu .2s ease-in both; }
+  body.nav--klappt-zu.nav--schmal .nav__zeichen {
+    animation: nav-zeichen-zu .42s cubic-bezier(.34, 1.8, .5, 1) both;
+    animation-delay: calc(var(--n, 0) * 25ms); }
+
+  /* Der Knopf ☰ dreht sich mit und leuchtet */
+  body.nav--klappt-auf .kopf__klapp { animation: nav-knopf-auf .7s cubic-bezier(.34, 1.56, .64, 1); }
+  body.nav--klappt-zu .kopf__klapp { animation: nav-knopf-zu .6s cubic-bezier(.34, 1.56, .64, 1); }
+
+  @keyframes nav-breit-auf {
+    0%   { width: 62px; box-shadow: 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); }
+    45%  { width: 232px; box-shadow: 10px 0 40px color-mix(in srgb, var(--marke) 45%, transparent),
+                                     inset -3px 0 0 var(--marke); }
+    70%  { width: 202px; }
+    85%  { width: 211px; }
+    100% { width: 208px; box-shadow: 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); } }
+  @keyframes nav-breit-zu {
+    0%   { width: 208px; }
+    20%  { width: 216px; }
+    62%  { width: 52px; box-shadow: 6px 0 30px color-mix(in srgb, var(--marke) 40%, transparent),
+                                    inset -3px 0 0 var(--marke); }
+    82%  { width: 66px; }
+    100% { width: 62px; box-shadow: 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); } }
+  @keyframes nav-licht-auf { from { background-position: 100% 0; } to { background-position: 0 0; } }
+  @keyframes nav-licht-zu { from { background-position: 0 0; } to { background-position: 100% 0; } }
+  @keyframes nav-zeichen-auf {
+    0%   { transform: rotate(-200deg) scale(.3); opacity: 0; }
+    60%  { transform: rotate(12deg) scale(1.25); opacity: 1; }
+    100% { transform: none; } }
+  @keyframes nav-zeichen-zu {
+    0%   { transform: scale(.4); }
+    55%  { transform: scale(1.3) rotate(-8deg); }
+    100% { transform: none; } }
+  @keyframes nav-text-auf {
+    0%   { opacity: 0; transform: translateX(-28px) skewX(-12deg); filter: blur(8px); letter-spacing: .25em; }
+    60%  { opacity: 1; filter: blur(0); }
+    100% { transform: none; letter-spacing: normal; } }
+  @keyframes nav-text-zu { to { opacity: 0; transform: translateX(-24px) skewX(10deg); filter: blur(6px); } }
+  @keyframes nav-knopf-auf {
+    0% { transform: none; } 50% { transform: rotate(180deg) scale(1.25);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--marke) 25%, transparent); } 100% { transform: rotate(360deg); } }
+  @keyframes nav-knopf-zu {
+    0% { transform: none; } 50% { transform: rotate(-180deg) scale(.8);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--marke) 25%, transparent); } 100% { transform: rotate(-360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    body.nav--klappt-auf *, body.nav--klappt-zu * { animation: none !important; }
+  }
+}
 /* ---------- Einrichtblatt in der App (1.43.0, Test) ----------
    Wie das Excel „Werkzeug-Protokoll“ des SW-20: weisses A4 quer,
    schwarze Linien, Farbe je Path, alle Plätze gleich aufgebaut. */

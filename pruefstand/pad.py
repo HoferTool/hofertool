@@ -49,10 +49,14 @@ with sync_playwright() as p:
     pg.click("#pad [data-stkansicht='tag']"); pg.wait_for_timeout(300)
     if pg.locator("#pad .pad-tag").count() != 7: fehler.append("Tage zeigen nicht 7 Balken")
     # Zustand ändern
-    pg.click("#pad [data-padstatus]"); pg.wait_for_selector(".dialog-huelle [data-w='qs']")
-    pg.click(".dialog-huelle [data-w='qs']"); pg.wait_for_timeout(1500)
-    if pg.evaluate(f"TEST.daten.jobs.find(j => j.id === '{jid}').plan_status") != "qs": fehler.append("Zustand nicht gesetzt")
-    if "QS" not in pg.inner_text("#pad [data-padstatus]").upper(): fehler.append("Zustandsknopf nicht aufgefrischt")
+    # „QS Check“ gibt es seit 1.77.0 nicht mehr
+    vorher = pg.evaluate(f"TEST.daten.jobs.find(j => j.id === '{jid}').plan_status")
+    ziel, wort = ("laeuft", "LÄUFT") if vorher == "ruesten" else ("ruesten", "RÜSTEN")
+    pg.click("#pad [data-padstatus]"); pg.wait_for_selector(f".dialog-huelle [data-w='{ziel}']")
+    if pg.locator(".dialog-huelle [data-w='qs']").count(): fehler.append("QS Check noch wählbar")
+    pg.click(f".dialog-huelle [data-w='{ziel}']"); pg.wait_for_timeout(1500)
+    if pg.evaluate(f"TEST.daten.jobs.find(j => j.id === '{jid}').plan_status") != ziel: fehler.append("Zustand nicht gesetzt")
+    if wort not in pg.inner_text("#pad [data-padstatus]").upper(): fehler.append("Zustandsknopf nicht aufgefrischt")
     pg.screenshot(path="pad.png")
     # Zurück Schritt für Schritt, dann Schliessen
     pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad .pad-kachel--maschine")

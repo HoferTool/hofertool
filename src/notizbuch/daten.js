@@ -5,11 +5,13 @@
 //  das, und das Fenster zeigt einen Hinweis statt abzustürzen.
 // =================================================================
 import { alt } from "../bruecke.jsx";
-import { pdfjs } from "../teile/PdfAnsicht.jsx";
+import { pdfjs, seitenLinks } from "../teile/PdfAnsicht.jsx";
 
 export const ABLAGE = "notizbuecher";
 export const BUECHER = "notizbuecher";
 export const SEITEN = "notizbuch_seiten";
+// Abschnitte wie in OneNote: Buch → Abschnitt → Seite (sql/notizbuch-abschnitte.sql)
+export const ABSCHNITTE = "notizbuch_abschnitte";
 
 // Farben für den Rücken der Bücher, wie die Reiter in OneNote
 export const BUCHFARBEN = [["#1f5fbf", "Blau"], ["#7b3fb3", "Violett"], ["#c2185b", "Rosa"],
@@ -32,9 +34,45 @@ export const buecherLaden = () => antwort(alt.db.from(BUECHER)
   .select("*")
   .order("reihenfolge", { ascending: true }).order("erstellt_am", { ascending: true }), "Notizbücher");
 
-export const seitenLaden = (buchId) => antwort(alt.db.from(SEITEN)
-  .select("id, buch_id, titel, reihenfolge, erstellt_am, geaendert_am").eq("buch_id", buchId)
-  .order("reihenfolge", { ascending: true }).order("erstellt_am", { ascending: true }), "Seiten");
+const SEITEN_SPALTEN = "id, buch_id, titel, reihenfolge, erstellt_am, geaendert_am";
+// Ohne Inhalt (der kommt erst mit der einzelnen Seite). abschnitt_id gibt
+// es erst mit sql/notizbuch-abschnitte.sql; fehlt sie, ohne
+export async function seitenLaden(buchId) {
+  const laden = (spalten) => antwort(alt.db.from(SEITEN).select(spalten).eq("buch_id", buchId)
+    .order("reihenfolge", { ascending: true }).order("erstellt_am", { ascending: true }), "Seiten");
+  try {
+    return await laden(SEITEN_SPALTEN + ", abschnitt_id");
+  } catch (e) {
+    if (/abschnitt_id|42703|PGRST204/i.test(String((e && (e.message || e.code)) || ""))) return laden(SEITEN_SPALTEN);
+    throw e;
+  }
+}
+
+// Abschnitte eines Buchs; null, solange das SQL fehlt (dann ohne Abschnitte)
+export async function abschnitteLaden(buchId) {
+  try {
+    return (await antwort(alt.db.from(ABSCHNITTE).select("*").eq("buch_id", buchId)
+      .order("reihenfolge", { ascending: true }).order("erstellt_am", { ascending: true }), "Abschnitte")) || [];
+  } catch (e) {
+    if (fehltTabelle(e)) return null;
+    throw e;
+  }
+}
+
+// Pad Mode mit Abschnitten: null, solange das SQL fehlt
+export async function padAbschnitteLaden(buchId, parkId) {
+  try {
+    const ab = await rpc("notizbuch_pad_abschnitte", { p_buch: buchId, p_park: parkId });
+    const s = ab ? await rpc("notizbuch_pad_seiten_ab", { p_buch: buchId, p_park: parkId }) : null;
+    return ab && s ? { abschnitte: ab, seiten: s } : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Pad Mode: Seiten eines dem Park zugewiesenen Buchs samt Inhalt, nur
+// zum Lesen und ohne Passwort (sql/notizbuch-pad-lesen.sql)
+export const padSeitenLaden = (buchId, parkId) => rpc("notizbuch_pad_seiten", { p_buch: buchId, p_park: parkId });
 
 export const seiteLaden = (id) => antwort(alt.db.from(SEITEN)
   .select("id, titel, inhalt").eq("id", id).maybeSingle(), "Seite");
@@ -133,6 +171,29 @@ export async function bildEinfuegen(datei) {
   return { u, v: h / b, px: b };
 }
 
+// Eine Seite eines geöffneten PDFs als Bild in die Ablage
+// → { u, v: Höhe/Breite, q: Adresse des PDFs, s: Seitennummer, l: Verweise }
+export async function pdfSeiteHochladen(doc, i, q) {
+  const seite = await doc.getPage(i);
+  const v1 = seite.getViewport({ scale: 1 });
+  const massstab = Math.min(4, 1600 / v1.width);
+  const v = seite.getViewport({ scale: massstab });
+  const c = document.createElement("canvas");
+  c.width = Math.round(v.width); c.height = Math.round(v.height);
+  const g = c.getContext("2d");
+  g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+  await seite.render({ canvasContext: g, viewport: v }).promise;
+  const u = await hochladen(await alsJpeg(c, c.width, c.height), "jpg", "image/jpeg");
+  // Verweise (Inhaltsverzeichnis) springen später zur Seite im Ausdruck
+  const l = await seitenLinks(doc, seite).catch(() => []);
+  const aus = Object.assign({ u, v: c.height / c.width, q, s: i }, l.length ? { l } : {});
+  c.width = 1; c.height = 1;   // Speicher gleich freigeben (iPad)
+  seite.cleanup();
+  return aus;
+}
+
+export const pdfHochladen = (daten) => hochladen(new Blob([daten], { type: "application/pdf" }), "pdf", "application/pdf");
+
 // PDF: das Original kommt in die Ablage (zum Öffnen), jede Seite als
 // Bild auf die Notizbuch-Seite, wie ein „Ausdruck“ in OneNote. So kann
 // man darauf zeichnen und schreiben.
@@ -147,20 +208,57 @@ export async function pdfEinfuegen(datei, fortschritt) {
     const seiten = [];
     for (let i = 1; i <= n; i++) {
       if (fortschritt) fortschritt(i, n);
-      const seite = await doc.getPage(i);
-      const v1 = seite.getViewport({ scale: 1 });
-      const massstab = Math.min(4, 1600 / v1.width);
-      const v = seite.getViewport({ scale: massstab });
-      const c = document.createElement("canvas");
-      c.width = Math.round(v.width); c.height = Math.round(v.height);
-      const g = c.getContext("2d");
-      g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
-      await seite.render({ canvasContext: g, viewport: v }).promise;
-      const u = await hochladen(await alsJpeg(c, c.width, c.height), "jpg", "image/jpeg");
-      seiten.push({ u, v: c.height / c.width, q, s: i });
-      c.width = 1; c.height = 1;   // Speicher gleich freigeben (iPad)
+      seiten.push(await pdfSeiteHochladen(doc, i, q));
     }
     return { seiten, alle: doc.numPages };
+  } finally {
+    aufgabe.destroy();
+  }
+}
+
+// Verweise für schon eingefügte Ausdrucke nachholen: lädt das Original
+// aus der Ablage, gibt je Seitennummer die Verweise zurück (auch leer)
+export async function pdfLinksHolen(url, nummern) {
+  const antwort = await fetch(url);
+  if (!antwort.ok) throw new Error("PDF nicht gefunden");
+  const daten = new Uint8Array(await antwort.arrayBuffer());
+  const lib = await pdfjs();
+  const aufgabe = lib.getDocument({ data: daten, isEvalSupported: false });
+  const doc = await aufgabe.promise;
+  try {
+    const aus = new Map();
+    for (const nr of new Set(nummern)) {
+      if (nr < 1 || nr > doc.numPages) continue;
+      aus.set(nr, await seitenLinks(doc, await doc.getPage(nr)).catch(() => []));
+    }
+    return aus;
+  } finally {
+    aufgabe.destroy();
+  }
+}
+
+// PDF als Datei: das Original in die Ablage, dazu die erste Seite als
+// kleines Vorschaubild. Antippen öffnet es im Betrachter (Wunsch
+// Patrick 15. Oktober 2026: „fragen, ob Ausdruck oder Datei“).
+export async function pdfAlsDatei(datei) {
+  const daten = new Uint8Array(await datei.arrayBuffer());
+  const lib = await pdfjs();
+  const aufgabe = lib.getDocument({ data: daten.slice(), isEvalSupported: false });
+  const doc = await aufgabe.promise;
+  try {
+    const q = await hochladen(new Blob([daten], { type: "application/pdf" }), "pdf", "application/pdf");
+    const seite = await doc.getPage(1);
+    const v1 = seite.getViewport({ scale: 1 });
+    const v = seite.getViewport({ scale: Math.min(3, 700 / v1.width) });
+    const c = document.createElement("canvas");
+    c.width = Math.round(v.width); c.height = Math.round(v.height);
+    const g = c.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    await seite.render({ canvasContext: g, viewport: v }).promise;
+    const u = await hochladen(await alsJpeg(c, c.width, c.height), "jpg", "image/jpeg");
+    const v0 = c.height / c.width;
+    c.width = 1; c.height = 1;
+    return { u, q, v: v0, alle: doc.numPages };
   } finally {
     aufgabe.destroy();
   }

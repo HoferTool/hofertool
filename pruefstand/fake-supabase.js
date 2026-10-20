@@ -158,7 +158,7 @@ const daten = {
     pad_info: "Kühlmittel prüfen, Zange nach 20'000 Stk", abend_stk: 150 }], setup_sheets: [], setup_sheet_slots: [],
   werkzeugwechsel: [],
   einrichtblaetter: [],
-  todos: [], shopping_items: [], materialausgabe: [],
+  todos: [], shopping_items: [], materialausgabe: [], qs_meldungen: [],
   suppliers: [
     { id: "s1", name: "Vischer & Bolli AG", website: "https://vb.ch",
       email: "v@vb.ch", adresse: "Kanalstrasse 17", bestellweg: "mail" },
@@ -257,7 +257,14 @@ daten.solar_werte = (() => {
 })();
 
 daten.login_kacheln = [];
-TEST.rpc = {};
+TEST.rpc = {
+  // Wie sql/einstellung-setzen.sql: nur den einen Wert am eigenen Konto
+  einstellung_setzen: (a) => {
+    const p = (TEST.daten.profiles || []).find((x) => x.id === "u1");
+    if (p) p.einstellungen = Object.assign({}, p.einstellungen || {}, { [a.p_name]: a.p_wert });
+    return null;
+  },
+};
 TEST.funktionen = {};
 TEST.daten = daten;
 if (typeof window !== "undefined") window.TEST = TEST;
@@ -358,6 +365,7 @@ function bauer(tabelle) {
               if (z.is_done === undefined) z.is_done = false;
               if (!z.created_at) z.created_at = new Date().toISOString();
             }
+            if (tabelle === "qs_meldungen" && !z.erstellt_am) z.erstellt_am = new Date().toISOString();
             if (tabelle === "materialausgabe") {
               if (!z.raus_am) z.raus_am = new Date().toISOString();
               if (z.rein_am === undefined) { z.rein_am = null; z.rein_von = null; }
@@ -521,7 +529,7 @@ function bauer(tabelle) {
         fertig(zustand.einzeln
           ? { data: treffer[0] || null, error: treffer.length ? null : { message: "keine Zeile" } }
           : { data: treffer, error: null });
-      }, 1);
+      }, (TEST.verzoegerung && TEST.verzoegerung[tabelle]) || 1);   // Tests machen das Netz langsam
     });
   }
 
@@ -542,8 +550,9 @@ export function createClient(_url, _key, optionen) {
     functions: { invoke: (name, opt) => {
       TEST.protokoll.push({ art: "funktion", name, body: opt && opt.body });
       const f = TEST.funktionen && TEST.funktionen[name];
-      return Promise.resolve(f ? { data: f(opt && opt.body), error: null }
-        : { data: null, error: { message: "nicht eingerichtet" } });
+      // Eine Funktion darf auch ein Promise liefern (langsamer Server)
+      if (!f) return Promise.resolve({ data: null, error: { message: "nicht eingerichtet" } });
+      return Promise.resolve(f(opt && opt.body)).then((data) => ({ data, error: null }));
     } },
     channel: () => ({ on() { return this; }, subscribe() { return this; } }),
     removeChannel: () => {},
@@ -605,17 +614,22 @@ export function createClient(_url, _key, optionen) {
         window.OHNE_SITZUNG = false;
         return Promise.resolve({ data: {}, error: null });
       },
-      signOut: () => { TEST.protokoll.push({ art: "signOut" }); return Promise.resolve({ error: null }); },
+      signOut: (o) => { const sc = (o && o.scope) || "global"; TEST.protokoll.push({ art: "signOut", scope: sc }); try { sessionStorage.setItem("test.signOut", (sessionStorage.getItem("test.signOut") || "") + sc + ","); } catch (f) { /* egal */ } return Promise.resolve({ error: null }); },
       // Gemerkte Anmeldung: gültig sind nur Schlüssel in TEST.schluessel
       refreshSession: (a) => {
         TEST.protokoll.push({ art: "refreshSession", a });
         if (!(TEST.schluessel || []).includes(a.refresh_token)) {
           return Promise.resolve({ data: { session: null }, error: { message: "Invalid Refresh Token" } });
         }
-        window.SCHLUESSEL_NR = (window.SCHLUESSEL_NR || 1) + 1;
-        window.OHNE_SITZUNG = false;
-        return Promise.resolve({ data: { session: { refresh_token: "r-" + window.SCHLUESSEL_NR,
-          user: { id: "u1", email: window.SITZUNG_MAIL || "saheesan.hudson@hoferco.ch" } } }, error: null });
+        // Tests können den Server langsam machen (window._refreshWarten)
+        // und beim Anmelden etwas tun (window._beiRefresh)
+        return new Promise((ok) => setTimeout(() => {
+          window.SCHLUESSEL_NR = (window.SCHLUESSEL_NR || 1) + 1;
+          window.OHNE_SITZUNG = false;
+          if (window._beiRefresh) window._beiRefresh(a);
+          ok({ data: { session: { refresh_token: "r-" + window.SCHLUESSEL_NR,
+            user: { id: "u1", email: window.SITZUNG_MAIL || "saheesan.hudson@hoferco.ch" } } }, error: null });
+        }, window._refreshWarten || 0));
       },
       stopAutoRefresh: () => {},
       updateUser: () => Promise.resolve({ data: {}, error: null }),

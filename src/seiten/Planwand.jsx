@@ -15,6 +15,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { symboleFensterOeffnen } from "../einstellungen/Symbole.jsx";
+import { materialRechnerOeffnen } from "../planwand/MaterialRechner.jsx";
+import { standLesen, standMerken } from "../daten/planwandStand.js";
 
 // Strg + F öffnet die Suche, solange die Planwand offen ist. Einmal
 // angemeldet für die ganze Sitzung, der Behälter kommt aus plan.
@@ -29,6 +31,47 @@ function suchTasteAnmelden() {
       alt.sucheDialog(alt.plan.behaelter);
     }
   });
+}
+
+// Was auf der Tafel steht, für das nächste Öffnen merken
+function standAblegen() {
+  const plan = alt.plan;
+  if (!plan.auftraege) return;
+  standMerken(alt.meineProfilId(), {
+    parks: alt.prod.parks, maschinen: alt.prod.maschinen, parksAlle: plan.parksAlle,
+    auftraege: plan.auftraege, ferien: plan.ferien, geladenAb: plan.geladenAb,
+  });
+}
+
+// Den gemerkten Stand sofort zeichnen, dann still den frischen holen:
+// Zeitraum und Bildlauf bleiben dabei, wie sie sind.
+async function tafelAusStand(b, inhalt, stammFrisch) {
+  try {
+    alt.zeichnePlanwand(b);
+    alt.planSyncStarten(b);
+  } catch (f) {
+    console.warn("Planwand aus dem gemerkten Stand:", f);
+  }
+  try { await stammFrisch; } catch (f) { /* die alten Parks bleiben stehen */ }
+  if (!inhalt.isConnected) return;
+  await alt.planAktualisieren(b);
+  if (!inhalt.isConnected) return;
+  standAblegen();
+  await stammdatenErgaenzen(b, inhalt);
+}
+
+async function stammdatenErgaenzen(b, inhalt) {
+  // Aufträge, die nur mit einer HOCO Nr. angelegt wurden, holen
+  // sich Material, Grösse und Zeichnung aus den Stammdaten. Erst nach
+  // dem Zeichnen, damit die Wand nicht auf diese Abfrage warten muss.
+  try {
+    const wieViele = await alt.stammdatenAufPlanwand();
+    if (wieViele && inhalt.isConnected && document.querySelector(".pw-tafel")) {
+      alt.meldung(wieViele + (wieViele === 1 ? " Auftrag" : " Aufträge")
+        + " aus den Stammdaten ergänzt.");
+      alt.neuZeichnen(b);
+    }
+  } catch (g) { /* Beiwerk, die Wand steht auch ohne */ }
 }
 
 // Aufträge, Ferien und Stempel holen, dann die Tafel zeichnen
@@ -66,18 +109,8 @@ async function tafelLaden(b, inhalt) {
     console.error("Planwand zeichnen:", f);
     return;
   }
-
-  // Aufträge, die nur mit einer HOCO Nr. angelegt wurden, holen
-  // sich Material, Grösse und Zeichnung aus den Stammdaten. Erst nach
-  // dem Zeichnen, damit die Wand nicht auf diese Abfrage warten muss.
-  try {
-    const wieViele = await alt.stammdatenAufPlanwand();
-    if (wieViele && inhalt.isConnected && document.querySelector(".pw-tafel")) {
-      alt.meldung(wieViele + (wieViele === 1 ? " Auftrag" : " Aufträge")
-        + " aus den Stammdaten ergänzt.");
-      alt.neuZeichnen(b);
-    }
-  } catch (g) { /* Beiwerk, die Wand steht auch ohne */ }
+  standAblegen();
+  await stammdatenErgaenzen(b, inhalt);
 }
 
 // Zeitregler: rückwärts so weit, wie Aufträge eingeplant sind,
@@ -263,6 +296,17 @@ function Kopfleiste({ b, mobil }) {
             <path d="M8 14.5c1 1.5 2.4 2.2 4 2.2s3-.7 4-2.2" />
             <circle cx="9" cy="10" r=".9" fill="currentColor" /><circle cx="15" cy="10" r=".9" fill="currentColor" /></svg>
         </button>}
+        {/* Material von Stangen, kg und Teilen rechnen (Wunsch Patrick
+            16. Oktober 2026); Externe nicht (Entscheid Patrick 16. Oktober 2026) */}
+        {!alt.istExtern() && !(alt.istArchiv && alt.istArchiv()) && <button className="knopf knopf--klein pw-eck pw-eck--plus" id="pw-matrechner"
+          title="Material rechnen" aria-label="Material rechnen" onClick={materialRechnerOeffnen}>
+          <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"
+            strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="5" y="3" width="14" height="18" rx="2.5" /><rect x="8" y="6" width="8" height="3.5" rx=".8" />
+            <circle cx="9" cy="13" r=".9" fill="currentColor" /><circle cx="12" cy="13" r=".9" fill="currentColor" />
+            <circle cx="15" cy="13" r=".9" fill="currentColor" /><circle cx="9" cy="17" r=".9" fill="currentColor" />
+            <circle cx="12" cy="17" r=".9" fill="currentColor" /><circle cx="15" cy="17" r=".9" fill="currentColor" /></svg>
+        </button>}
         {/* Zu heute springen, mit zwei Wochen Rückblick */}
         <button className="knopf knopf--klein pw-eck" id="pw-heute"
           title="Zu heute, mit zwei Wochen Rückblick — Taste H" onClick={() => alt.zuHeute(b)}>
@@ -347,27 +391,53 @@ export default function Planwand({ auffrischen, behaelter: b }) {
     suchTasteAnmelden();
 
     let weg = false;
+    // Parks und Maschinen gleich frisch holen; der gemerkte Stand
+    // überbrückt nur die Zeit bis dahin
+    const stammFrisch = (async () => {
+      const parks = await alt.ladeParks(false, true);
+      const maschinen = await alt.ladeMaschinen(false, true);
+      if (weg) return;
+      alt.prod.parks = parks;
+      alt.prod.maschinen = maschinen;
+    })();
+    stammFrisch.catch(() => {});
     (async () => {
+      const s = await standLesen(alt.meineProfilId());
+      if (weg) return;
+      if (s) {
+        alt.prod.parks = s.parks;
+        alt.prod.maschinen = s.maschinen;
+        if (s.parksAlle) plan.parksAlle = s.parksAlle;
+        plan.auftraege = s.auftraege;
+        plan.ferien = s.ferien || [];
+        plan.geladenAb = s.geladenAb;
+        setStand({ art: "bereit", stammFrisch });
+        return;
+      }
       try {
-        alt.prod.parks = await alt.ladeParks(false, true);
-        alt.prod.maschinen = await alt.ladeMaschinen(false, true);
+        await stammFrisch;
         if (!weg) setStand({ art: "bereit" });
       } catch (f) {
         if (!weg) setStand({ art: "fehler", text: alt.fehlertext(f) });
       }
     })();
-    return () => { weg = true; };
+    return () => { weg = true; standAblegen(); };
   }, [b, plan]);
 
   // Sobald die Bühne steht: Tafel laden und zeichnen
   useEffect(() => {
     if (stand.art !== "bereit") return;
     const inhalt = inhaltRef.current;
-    inhalt.innerHTML = '<div class="laedt">Planung wird geladen …</div>';
-    tafelLaden(b, inhalt).catch((f) => {
+    // Mit gemerktem Stand gleich die Tafel, sonst ein Hinweis, der erst
+    // nach einem Augenblick sichtbar wird (laedt--spaet), damit bei
+    // schnellem Netz nichts aufblitzt
+    const laden = stand.stammFrisch ? tafelAusStand(b, inhalt, stand.stammFrisch)
+      : (inhalt.innerHTML = '<div class="laedt laedt--spaet">Planung wird geladen …</div>', tafelLaden(b, inhalt));
+    laden.catch((f) => {
       console.error("Planwand:", f);
       setStand({ art: "kaputt", text: f && f.message ? f.message : String(f) });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stand.art, b]);
 
   // Der laufende Abgleich ruft die Seite erneut auf: still nachladen,
@@ -377,7 +447,7 @@ export default function Planwand({ auffrischen, behaelter: b }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auffrischen]);
 
-  if (stand.art === "laedt") return <div id="pw-seite"><div className="laedt">Wird geladen …</div></div>;
+  if (stand.art === "laedt") return <div id="pw-seite"><div className="laedt laedt--spaet">Wird geladen …</div></div>;
   if (stand.art === "fehler") return <div id="pw-seite"><FehlerKarte text={stand.text} /></div>;
   if (stand.art === "kaputt") {
     return <div id="pw-seite"><FehlerKarte titel="Die Planwand konnte nicht aufgebaut werden" text={stand.text} /></div>;

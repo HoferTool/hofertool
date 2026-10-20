@@ -11,14 +11,18 @@
 import { useEffect, useState } from "react";
 import { pdfjs } from "../teile/PdfAnsicht.jsx";
 
-const SCHLUESSEL = "hofer.waschprog";
+// Seit 1.110.0 auch die Zeichnungsnummer („Z-Nr.“, Wunsch Patrick
+// 20. Oktober 2026: in der Schnellvorschau der Planwand). Gemerkt wird
+// darum je Adresse beides, unter neuem Namen; die alte Liste ohne
+// Zeichnungsnummer wird nicht mehr gelesen, jede WBG also einmal neu.
+const SCHLUESSEL = "hofer.wbgfelder";
 const MAX_GEMERKT = 400;
 const gemerkt = new Map();
 const unterwegs = new Map();
 
 try {
   const alt = JSON.parse(localStorage.getItem(SCHLUESSEL) || "[]");
-  if (Array.isArray(alt)) alt.forEach(([a, w]) => gemerkt.set(a, w));
+  if (Array.isArray(alt)) alt.forEach(([a, w]) => { if (w && typeof w === "object") gemerkt.set(a, w); });
 } catch (f) { /* ohne Speicher eben jedes Mal lesen */ }
 
 function merken(adresse, wert) {
@@ -29,9 +33,8 @@ function merken(adresse, wert) {
 }
 
 // Aus den Textstücken einer Seite die Zeilen bauen (gleiche Höhe auf
-// dem Blatt, links nach rechts) und den Wert hinter „Waschprog-Nr.:“
-// nehmen. Eine leere Zeile auf der WBG gibt "".
-export function waschprogAusText(stuecke) {
+// dem Blatt, links nach rechts)
+function zeilenAusText(stuecke) {
   const zeilen = [];
   for (const s of stuecke) {
     if (!s.str || !s.str.trim()) continue;
@@ -40,15 +43,32 @@ export function waschprogAusText(stuecke) {
     if (!z) { z = { y, teile: [] }; zeilen.push(z); }
     z.teile.push({ x, text: s.str });
   }
-  for (const z of zeilen) {
-    const text = z.teile.sort((a, b) => a.x - b.x).map((t) => t.text.trim()).join(" ");
+  return zeilen.map((z) => z.teile.sort((a, b) => a.x - b.x).map((t) => t.text.trim()).join(" "));
+}
+
+// Der Wert hinter „Waschprog-Nr.:“. Eine leere Zeile auf der WBG gibt "".
+export function waschprogAusText(stuecke) {
+  for (const text of zeilenAusText(stuecke)) {
     const m = /wasch\s*prog[^:]*:?\s*(.*)$/i.exec(text);
     if (m) return m[1].trim();
   }
   return null;
 }
 
-export function waschprogLesen(adresse) {
+// „Z-Nr.:“, „Zeichn.-Nr.:“, „Zeichnungs-Nr.:“ oder „Zeichnungsnummer:“.
+// Steht in derselben Zeile danach ein weiteres Feld („Index: B“), endet
+// der Wert davor.
+export function zeichnungNrAusText(stuecke) {
+  for (const text of zeilenAusText(stuecke)) {
+    const m = /(?:^|\s)(?:z|zeichn(?:ungs?)?)\.?\s*-?\s*(?:nr|nummer)\.?\s*:\s*(.*)$/i.exec(text)
+      || /(?:^|\s)zeichnungsnummer\s*:?\s*(.*)$/i.exec(text);
+    if (m) return m[1].split(/\s+[A-Za-zÄÖÜäöü][\wÄÖÜäöü.\-]*:(?:\s|$)/)[0].trim();
+  }
+  return null;
+}
+
+// Liest beide Felder einer WBG: { wasch, znr }, je "" wenn nicht da
+export function wbgFelderLesen(adresse) {
   if (!adresse) return Promise.resolve(null);
   if (gemerkt.has(adresse)) return Promise.resolve(gemerkt.get(adresse));
   if (unterwegs.has(adresse)) return unterwegs.get(adresse);
@@ -64,7 +84,8 @@ export function waschprogLesen(adresse) {
       const inhalt = await seite.getTextContent();
       // Nicht gefunden (etwa eine eingescannte WBG ohne Text) heisst
       // einfach: nichts anzeigen. Auch das wird gemerkt.
-      const wert = waschprogAusText(inhalt.items) || "";
+      const wert = { wasch: waschprogAusText(inhalt.items) || "",
+        znr: zeichnungNrAusText(inhalt.items) || "" };
       merken(adresse, wert);
       return wert;
     } finally { aufgabe.destroy(); }
@@ -73,12 +94,18 @@ export function waschprogLesen(adresse) {
   return p;
 }
 
+export const waschprogLesen = (adresse) => wbgFelderLesen(adresse).then((w) => (w ? w.wasch : null));
+export const zeichnungNrLesen = (adresse) => wbgFelderLesen(adresse).then((w) => (w ? w.znr : null));
+// Sofort, ohne zu lesen: was schon gemerkt ist, sonst undefined
+export const zeichnungNrGemerkt = (adresse) => (gemerkt.has(adresse) ? gemerkt.get(adresse).znr : undefined);
+
 // Für React: der Wert zur WBG-Adresse, solange er unterwegs ist null
 export function useWaschprog(adresse) {
-  const [wert, setWert] = useState(() => (adresse && gemerkt.has(adresse) ? gemerkt.get(adresse) : null));
+  const sofort = () => (adresse && gemerkt.has(adresse) ? gemerkt.get(adresse).wasch : null);
+  const [wert, setWert] = useState(sofort);
   useEffect(() => {
     let weg = false;
-    setWert(adresse && gemerkt.has(adresse) ? gemerkt.get(adresse) : null);
+    setWert(sofort());
     if (adresse && !gemerkt.has(adresse)) waschprogLesen(adresse).then((w) => { if (!weg) setWert(w); });
     return () => { weg = true; };
   }, [adresse]);

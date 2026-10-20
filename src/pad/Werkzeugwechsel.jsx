@@ -16,13 +16,18 @@ import { auswahlDialog } from "../teile/Dialoge.jsx";
 const anzahlText = (n) => n + (n === 1 ? " Werkzeug" : " Werkzeuge");
 
 export async function werkzeugWechselDialog(maschine, auftrag) {
-  // Alle Werkzeugplätze des Typs, nach Path sortiert. Path 2 kommt
-  // zuletzt, so wie die Plätze an der Maschine liegen.
-  let paths = [];
-  try { paths = await alt.ladeTypAufbau(maschine.type_id); }
+  // Alle Werkzeugplätze des Typs, nach Path sortiert. Nur bei SW-Typen
+  // kommt Path 2 zuletzt (1, 3, 2), so wie die Plätze an der Maschine
+  // liegen; alle anderen wie Index bleiben 1, 2, 3 (Wunsch Patrick
+  // 16. Oktober 2026).
+  let paths = [], typen = [];
+  try { [paths, typen] = await Promise.all([alt.ladeTypAufbau(maschine.type_id), alt.ladeTypen()]); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
+  const typ = typen.find((t) => t.id === maschine.type_id);
+  const path2Zuletzt = /^\s*sw/i.test((typ && typ.name) || "");
+  const rang = (p) => (path2Zuletzt && p.nummer === 2 ? 99 : p.nummer);
   const reihen = paths
-    .sort((x, y) => (x.nummer === 2 ? 99 : x.nummer) - (y.nummer === 2 ? 99 : y.nummer))
+    .sort((x, y) => rang(x) - rang(y))
     .map((p) => ({ id: p.id, name: p.name, plaetze: (p.type_slots || []).filter((s) => s.tool_nr) }))
     .filter((p) => p.plaetze.length);
   if (!reihen.length) {

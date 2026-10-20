@@ -16,11 +16,13 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { bildHell } from "../teile/profilbilder.js";
+import { planwandVorladenHoechstens } from "../daten/planwandStand.js";
 
 let wurzel = null;
 
 export function anmeldungZeigen(ziel) {
   anmeldungAbbauen();
+  obenZuruecksetzen();
   ziel.innerHTML = "";
   const huelle = document.createElement("div");
   huelle.className = "react-seite";
@@ -42,17 +44,28 @@ export function anmeldungAbbauen() {
 const REIN = 260;
 // So lange schwebt die gewählte Kachel in die Mitte oder ins Feld
 const FLUG = 520;
-// So lange bleibt sie mit Ladezeichen in der Mitte, auch wenn es schneller ginge
-const HALT = 650;
+// So lange bleibt sie mit Ladezeichen in der Mitte, auch wenn es schneller
+// ginge. Seit 1.52.0 eine Sekunde länger, dafür lädt die Planwand in der
+// Zeit schon vor (Wunsch Patrick, 14. Oktober 2026)
+const HALT = 1650;
+// Länger als so wartet die Anmeldung nicht auf das Vorladen
+const VORLADEN_MAX = 2500;
+// Mit Passwort oder PIN gibt es keinen Ladebildschirm, nur den Knopf:
+// dort höchstens eine Sekunde zusätzlich
+const VORLADEN_MAX_KNOPF = 1000;
 const SCHWUNG = "cubic-bezier(.2,.8,.2,1)";
 
 const wenigBewegung = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// Wo die schwebende Kachel in der Mitte stehen bleibt: etwas über der
-// Bildschirmmitte, damit Name und Ladezeichen darunter Platz haben.
+// Wo die schwebende Kachel in der Mitte stehen bleibt: etwas unter der
+// Bildschirmmitte, damit die Wellen nicht ins Logo oben laufen
+// (Wunsch Patrick, 14. Oktober 2026). Name und Gruss passen darunter.
+const MITTE_TIEFER = 24;
+// Dauer der Farbwelle (wie loginFarbwelle in stil.css)
+const FARBWELLE = 2200;
 function mitteRechteck() {
   const g = Math.round(Math.min(132, Math.max(96, window.innerWidth * 0.28)));
-  return { left: (window.innerWidth - g) / 2, top: window.innerHeight / 2 - g / 2 - 36, width: g, height: g };
+  return { left: (window.innerWidth - g) / 2, top: window.innerHeight / 2 - g / 2 + MITTE_TIEFER, width: g, height: g };
 }
 
 // Die schwebende Kachel von einem Rechteck zum anderen bringen. Das
@@ -67,6 +80,53 @@ function fliegen(el, von, nach) {
     { transform: `translate(${von.left - nach.left}px, ${von.top - nach.top}px) scale(${s})` },
     { transform: "none" }], { duration: FLUG, easing: SCHWUNG });
   return a.finished.catch(() => {});
+}
+
+// Farbwechsel, sobald das Profil da ist (Wunsch Patrick, 14. Oktober
+// 2026: „keine Themenfarbe, nur dunkel oder weiss als Effekt; auch ohne
+// Dark Mode soll der Bildschirm von blau weiss werden, gleich wie bei
+// Dark Mode“): Von der Kachel aus wächst ein Kreis über den ganzen
+// Bildschirm, weiss oder im dunklen Modus fast schwarz. Logo, Gruss und
+// Name werden dabei auf Weiss dunkel.
+function farbwechselZiel() {
+  return { dunkel: !!alt.einstellung("dunkel") };
+}
+
+// Der Rand ganz oben (am iPhone bei Uhr und Akku) nimmt Safari aus dem
+// Grund der Seite. Er wechselt genau dann weich auf Weiss oder Dunkel,
+// wenn die Welle oben ankommt, statt nach der Anmeldung zu springen
+// (Wunsch Patrick, 14. Oktober 2026). Der Zeitpunkt folgt aus der Kurve
+// der Welle in stil.css (cubic-bezier(.7,0,.3,1), FARBWELLE, Radius bis
+// 150vmax, Mitte 24px unter der Bildschirmmitte).
+const OBEN_KLASSEN = ["login-oben-hell", "login-oben-dunkel"];
+function obenZuruecksetzen() {
+  document.documentElement.classList.remove(...OBEN_KLASSEN);
+}
+function welleObenNach() {
+  const b = (s, p1, p2) => 3 * (1 - s) * (1 - s) * s * p1 + 3 * (1 - s) * s * s * p2 + s * s * s;
+  const anteil = (innerHeight / 2 + MITTE_TIEFER) / (1.5 * Math.max(innerWidth, innerHeight));
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const m = (lo + hi) / 2;
+    if (b(m, 0, 1) < anteil) lo = m; else hi = m;
+  }
+  return b(lo, 0.7, 0.3) * FARBWELLE;
+}
+function obenWechseln(ziel) {
+  const klasse = ziel.dunkel ? "login-oben-dunkel" : "login-oben-hell";
+  setTimeout(() => {
+    obenZuruecksetzen();
+    document.documentElement.classList.add(klasse);
+    // Leiste oben (Fenster am PC, Handy) im selben Moment wie der Grund
+    const m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute("content", ziel.dunkel ? "#1c2229" : "#ffffff");
+  }, wenigBewegung() ? 0 : welleObenNach());
+}
+
+// Gruss über dem Namen, während die Anmeldung läuft
+function gruss() {
+  const h = new Date().getHours();
+  return h < 5 ? "Gute Nacht" : h < 11 ? "Guten Morgen" : h < 17 ? "Guten Tag" : h < 22 ? "Guten Abend" : "Gute Nacht";
 }
 
 function Bildchen({ konto, className }) {
@@ -172,9 +232,8 @@ function Anmeldung() {
   };
 
   // Tipp auf eine Kachel: Sie schwebt los. Kennt das Gerät die Person
-  // schon, oder hat das Konto kein Passwort, wartet sie in der Mitte mit
-  // Ladezeichen, bis die Anmeldung steht. Braucht es PIN oder Passwort,
-  // landet sie oben im Anmeldefeld.
+  // schon, wartet sie in der Mitte mit Ladezeichen, bis die Anmeldung
+  // steht. Sonst landet sie oben im Anmeldefeld, für PIN oder Passwort.
   const kontoWaehlen = async (konto, ev) => {
     if (beschaeftigt.current) return;
     beschaeftigt.current = true;
@@ -183,7 +242,7 @@ function Anmeldung() {
     const von = quelle ? quelle.getBoundingClientRect() : null;
     const gemerkt = alt.sitzungGemerkt(konto.email);
 
-    if (!gemerkt && !konto.ohne_passwort) return insFeld(konto, false, "", von);
+    if (!gemerkt) return insFeld(konto, !!konto.ohne_passwort, "", von);
 
     flushSync(() => { setFlieger({ konto, laedt: true }); setKarteWeg(true); });
     const flug = fliegerRef.current ? fliegen(fliegerRef.current, von, mitteRechteck()) : Promise.resolve();
@@ -197,22 +256,25 @@ function Anmeldung() {
       alt.geraetKontoMerken(konto.email);
       // Neue Fassung auf dem Server? Dann lädt die Seite neu, und die
       // Anmeldung bleibt (Wunsch Patrick, 8. Oktober 2026)
-      const fassung = alt.fassungPruefen();
-      await Promise.all([alt.profilLaden(), angekommen]);
-      if (await fassung) return;
+      const fassung = alt.fassungPruefen(true);
+      // Erst das Profil (Rechte, Extern), dann die Planwand vorladen,
+      // während die Kachel noch schwebt
+      await alt.profilLaden(true);
+      const ziel = farbwechselZiel();
+      if (ziel) { setFlieger((f) => (f ? { ...f, farbe: ziel } : f)); obenWechseln(ziel); }
+      // Antwortet der Server spät, soll die Farbwelle trotzdem fertig
+      // laufen, statt mitten im Verlauf abzubrechen
+      const welle = !wenigBewegung() ? new Promise((ok) => setTimeout(ok, FARBWELLE)) : null;
+      await Promise.all([angekommen, welle, planwandVorladenHoechstens(VORLADEN_MAX)]);
+      if (await fassung) { location.reload(); return; }
       alt.zeichneGeruest();
     };
     try {
       if (gemerkt && await alt.gemerktAnmelden(konto.email)) return await hinein();
-      let mitPin = !!konto.ohne_passwort;
-      if (mitPin) {
-        const e = await alt.offenAnmelden(konto.email);
-        if (e.status === "ok") return await hinein();
-        // "pin", oder der Server ist nicht erreichbar: PIN-Feld wie bisher
-        if (e.status === "passwort") mitPin = false;
-      }
+      // Ein Tipp ohne PIN geht seit 1.75.0 nicht mehr (Wunsch Patrick
+      // 14. Oktober 2026): ohne_passwort heisst jetzt immer „mit PIN“
       await flug;
-      return insFeld(konto, mitPin, "", null);
+      return insFeld(konto, !!konto.ohne_passwort, "", null);
     } catch (f) {
       // Etwas ging schief: Kachelwand wieder zeigen, Grund darunter
       await flug;
@@ -298,7 +360,7 @@ function Anmeldung() {
                 onClick={(ev) => kontoWaehlen(u, ev)}>
                 <Bildchen konto={u} className={"login__kachel-bild" + (u.bild_url ? "" : " login__kachel-buchstabe")} />
                 <span className="login__kachel-name">{alt.personName(u)}</span>
-                {u.ohne_passwort && <span className="login__offen" title="Ohne Passwort oder mit PIN">•</span>}
+                {u.ohne_passwort && <span className="login__offen" title="Mit PIN">•</span>}
               </button>
             ))}
           </div>
@@ -334,13 +396,38 @@ function Anmeldung() {
           </div>
         )}
       </div>
+      {flieger && flieger.laedt && (
+        // Bühne hinter der wartenden Kachel: dunkler Rand, Licht in der
+        // Mitte, unten klein das Logo (Wunsch Patrick 13. Oktober 2026:
+        // „Ladebildschirm soll cooler sein“). Nur CSS, verzögert nichts.
+        <div className="login__buehne" aria-hidden="true">
+          {flieger.farbe && (<>
+            <div className={"login__farbwelle" + (flieger.farbe.dunkel ? " login__farbwelle--dunkel" : "")} />
+            <div className="login__farbwelle-saum" />
+          </>)}
+          {/* Schmaler fester Streifen ganz oben: Safari am Handy nimmt die
+              Farbe des Rands bei Uhr und Akku von so einem Streifen */}
+          <div className="login__kappe" />
+          <img className="login__buehne-logo" src="./logo-weiss.svg" alt="" />
+          {flieger.farbe && !flieger.farbe.dunkel && (
+            // Auf Weiss ein dunkles Logo, das mit derselben Welle kommt
+            <div className="login__buehne-logo login__logo-dunkel"
+              style={{ WebkitMaskImage: "url(./logo-weiss.svg)", maskImage: "url(./logo-weiss.svg)" }} />
+          )}
+        </div>
+      )}
       {flieger && (
-        <div className={"login__flieger" + (flieger.laedt ? " login__flieger--laedt" : "")} ref={fliegerRef}>
+        <div className={"login__flieger" + (flieger.laedt ? " login__flieger--laedt" : "")
+          + (flieger.farbe && !flieger.farbe.dunkel ? " login__flieger--hell" : "")} ref={fliegerRef}>
+          {flieger.laedt && (<>
+            <span className="login__wellen" aria-hidden="true"><i /><i /><i /></span>
+            <span className="login__ring" aria-hidden="true" />
+          </>)}
           <Bildchen konto={flieger.konto} className="login__flieger-bild" />
           {flieger.laedt && (
             <div className="login__flieger-name" role="status">
+              <span className="login__gruss">{gruss()}</span>
               {alt.personName(flieger.konto)}<span className="login__sr"> wird angemeldet</span>
-              <span className="login__ring" aria-hidden="true" />
             </div>
           )}
         </div>
@@ -419,9 +506,10 @@ function useAnmelden(vorgabeMail, aufPasswort, hinweis, immerMerken) {
       const merken = immerMerken || (merkRef.current && merkRef.current.checked);
       alt.sitzungMerken(email, merken && s ? s.refresh_token : null);
       // Neue Fassung auf dem Server? Dann neu laden, auch ohne Häkchen
-      const fassung = alt.fassungPruefen();
-      await alt.profilLaden();
-      if (await fassung) return;
+      const fassung = alt.fassungPruefen(true);
+      await alt.profilLaden(true);
+      await planwandVorladenHoechstens(VORLADEN_MAX_KNOPF);
+      if (await fassung) { location.reload(); return; }
       alt.zeichneGeruest();
     } catch (f) {
       nochmal(alt.fehlertext(f));

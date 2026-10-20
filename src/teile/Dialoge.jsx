@@ -7,7 +7,10 @@
 //    auswahlDialog(titel, [{ wert, text }], text?) → wert oder null
 //    dialogFelder({ titel, text, felder, bestaetigen, gefahr })
 //      felder: [{ name, label, typ, wert, platzhalter, pflicht,
-//                 hinweis, auswahl: [[wert, text]], ziffern, fett }]
+//                 hinweis, auswahl: [[wert, text]], ziffern, dezimal, fett }]
+//      dezimal: true zeigt die Zahlentastatur mit Komma, etwa für Millimeter
+//      mehrfach: [[wert, text]] zeigt Häkchen, wert ist dann eine Liste
+//      und das Ergebnis auch
 //      fett: true gibt einem Textfeld die Knöpfe Fett, Kursiv, Unterstrichen,
 //      durch: true dazu Durchgestrichen
 //      → Objekt mit den Werten oder null bei Abbruch
@@ -68,6 +71,20 @@ let dialogZaehler = 0;
 function Feld({ f, id, erstes }) {
   const leer = (x) => (x === null || x === undefined ? "" : x);
   const hinweis = f.hinweis && <span className="feldhinweis">{f.hinweis}</span>;
+  if (f.mehrfach) {
+    const an = (f.wert || []).map(String);
+    return (
+      <fieldset className="feld feld--mehrfach" id={id} data-mehrfach="">
+        <legend>{f.label}</legend>
+        {f.mehrfach.length
+          ? f.mehrfach.map(([wert, text]) => (
+              <label key={wert} className="feld-haken">
+                <input type="checkbox" value={wert} defaultChecked={an.indexOf(String(wert)) !== -1} />
+                <span>{text}</span></label>))
+          : <span className="feldhinweis">Keine Auswahl vorhanden.</span>}
+        {hinweis}</fieldset>
+    );
+  }
   if (f.auswahl) {
     return (
       <label className="feld"><span>{f.label}</span>
@@ -88,9 +105,9 @@ function Feld({ f, id, erstes }) {
   return (
     <label className="feld"><span>{f.label}</span>
       <input id={id} type={f.typ || "text"} defaultValue={leer(f.wert)} placeholder={f.platzhalter || ""}
-        inputMode={zahl || f.ziffern ? "numeric" : undefined}
+        inputMode={f.dezimal ? "decimal" : (zahl || f.ziffern ? "numeric" : undefined)}
         min={zahl ? 0 : undefined} step={zahl ? 1 : undefined}
-        pattern={f.ziffern ? "[0-9]*" : undefined} autoComplete={f.ziffern ? "off" : undefined}
+        pattern={f.ziffern ? "[0-9]*" : undefined} autoComplete={f.ziffern || f.dezimal ? "off" : undefined}
         data-fokus={erstes ? "" : undefined} />{hinweis}</label>
   );
 }
@@ -110,7 +127,7 @@ export function dialogFelder(o) {
   const nr = "d" + (++dialogZaehler) + "-";
   const felder = o.felder || [];
   // Das erste Eingabefeld bekommt den Fokus (keine Auswahlliste)
-  const erstesFeld = felder.find((f) => !f.auswahl);
+  const erstesFeld = felder.find((f) => !f.auswahl && !f.mehrfach);
 
   return fensterMitWert(null, (fertig) => {
     const absenden = (e) => {
@@ -118,6 +135,10 @@ export function dialogFelder(o) {
       const ergebnis = {};
       for (const f of felder) {
         const el = document.getElementById(nr + f.name);
+        if (f.mehrfach) {
+          ergebnis[f.name] = el ? [...el.querySelectorAll("input:checked")].map((h) => h.value) : [];
+          continue;
+        }
         const wert = el && el.dataset.stilfeld !== undefined ? stilWert(el)
           : ((el && el.value) || "").trim();
         if (f.pflicht && !wert) {

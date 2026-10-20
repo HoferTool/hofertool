@@ -3,7 +3,7 @@
 # dran ist, Zustand am Ende der Zeile direkt wechseln. Dazu Bilder am
 # Computer, auf dem iPad und am Handy.
 import time, os
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import art_info, server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -42,7 +42,7 @@ def seite(br, b, h, mobil=False):
           D.machines.push({ id, park_id: pk, name: 'Citizen L20-' + i, machine_number: vor + '-' + (3000 + i),
             is_active: true, sort_order: 100 + i, type_id: null });
           D.jobs.push({ id: 'jx' + id, machine_id: id, job_number: '10' + (500 + i) + '-0' + (100 + i),
-            plan_status: ['laeuft', 'ruesten', 'qs', 'geplant'][i % 4], ended_at: null,
+            plan_status: ['laeuft', 'ruesten', 'laeuft', 'geplant'][i % 4], ended_at: null,
             planned_from: '2026-10-0' + (1 + i % 9), started_at: '2026-10-01T04:00:00Z', target_quantity: 1200 });
         }
       }
@@ -68,13 +68,13 @@ with sync_playwright() as p:
     if "20 Maschinen" not in t: fehler.append("Maschinen-Parks ohne Anzahl: " + t)
     if BILDER: pg.screenshot(path=BILDER + "/maschinen-parks.png")
     pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad [data-padwo='qs']")
-    pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector("#pad [data-qspark]")
-    if BILDER: pg.screenshot(path=BILDER + "/qs-parks.png")
-    pg.click("#pad [data-qspark='p-kurz']"); pg.wait_for_selector("#pad .pad-qs__zeile")
+    # Seit 1.62.0 ohne Parkwahl: alle Maschinen zusammen
+    pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector("#pad .pad-ak__karte")
     pg.wait_for_timeout(600)
-    n = pg.locator("#pad .pad-qs__zeile").count()
+    if pg.locator("#pad [data-qspark]").count(): fehler.append("Parkwahl noch da")
+    n = pg.locator("#pad .pad-ak__karte").count()
     nm = pg.evaluate("TEST.daten.machines.filter(m => m.is_active !== false).length")
-    if n != 6: fehler.append(f"Kurzdreher sollte 6 Zeilen haben: {n}")
+    if n != nm: fehler.append(f"Alle {nm} Maschinen erwartet: {n}")
     # Zeichnung und WBG öffnen den Betrachter
     pg.locator("#pad [data-qsmaschine='m-k1'] [data-qsdok='zeichnung']").click()
     pg.wait_for_selector(".betrachter"); t = pg.inner_text(".betrachter__titel")
@@ -88,10 +88,12 @@ with sync_playwright() as p:
         fehler.append("Rüsten nicht hervorgehoben")
     if BILDER: pg.screenshot(path=BILDER + "/qs-liste.png")
 
-    z.locator("[data-qszustand='qs']").click(); pg.wait_for_timeout(1200)
-    if zustand(pg, "qA") != "qs": fehler.append("QS nicht gesetzt: " + zustand(pg, "qA"))
+    # „QS Check“ als Zustand ist seit 1.77.0 weg
+    if z.locator("[data-qszustand='qs']").count(): fehler.append("Zustand QS Check noch da")
+    z.locator("[data-qszustand='geplant']").click(); pg.wait_for_timeout(1200)
+    if zustand(pg, "qA") != "geplant": fehler.append("Geplant nicht gesetzt: " + zustand(pg, "qA"))
     z = pg.locator("#pad [data-qsmaschine='m-k1']")
-    if "pad-zustand--qs" not in (z.locator("[data-qszustand='qs']").get_attribute("class") or ""):
+    if "pad-zustand--geplant" not in (z.locator("[data-qszustand='geplant']").get_attribute("class") or ""):
         fehler.append("Liste nach Wechsel nicht neu")
     z.locator("[data-qszustand='laeuft']").click(); pg.wait_for_timeout(1200)
     if zustand(pg, "qA") != "laeuft": fehler.append("Läuft nicht gesetzt")
@@ -99,12 +101,11 @@ with sync_playwright() as p:
     # Beenden: Rückfrage, Stückzeit, nächster auf Rüsten und in der Zeile
     pg.locator("#pad [data-qsmaschine='m-k1'] [data-qszustand='fertig']").click()
     pg.wait_for_selector(".dialog-huelle [data-ja]"); pg.click(".dialog-huelle [data-ja]")
-    pg.wait_for_selector(".zifferblock [data-zbja]")
-    # Letzte Stückzahl (seit 1.25.0) überspringen, dann die Stückzeit
+    pg.wait_for_timeout(700)
+    # Letzte Stückzahl (seit 1.25.0) überspringen, dann Art. Info
     if pg.locator(".zifferblock h2:has-text('Letzte Stückzahl')").count():
-        pg.click(".zifferblock [data-zbnein]"); pg.wait_for_selector(".zifferblock h2:has-text('Stückzeit')")
-    pg.locator(".zifferblock").get_by_text("3", exact=True).first.click()
-    pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(1500)
+        pg.click(".zifferblock [data-zbnein]")
+    art_info(pg, 3, 7); pg.wait_for_timeout(1500)
     if zustand(pg, "qA") != "fertig": fehler.append("nicht beendet: " + zustand(pg, "qA"))
     if zustand(pg, "qB") != "ruesten": fehler.append("Nächster nicht auf Rüsten: " + zustand(pg, "qB"))
     if "10444-0002" not in pg.locator("#pad [data-qsmaschine='m-k1']").inner_text():
@@ -114,24 +115,22 @@ with sync_playwright() as p:
     with pg.expect_navigation():
         pg.click("#pad [data-padneu]")
     pg.wait_for_selector("#pad [data-qsmaschine='m-k1']", timeout=15000)
-    pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad [data-qspark]")
     pg.click("#pad [data-padzurueck]"); pg.wait_for_selector("#pad [data-padwo='qs']")
 
     for name, b, h, mob in [("ipad", 1180, 820, True), ("ipad10", 1080, 810, True), ("ipad13", 1366, 1024, True), ("ipad-hoch", 820, 1180, True), ("handy", 390, 844, True)]:
         q = seite(br, b, h, mob)
-        q.click("#pad [data-padwo='qs']"); q.wait_for_selector("#pad [data-qspark]")
-        q.click("#pad [data-qspark='p-lang']"); q.wait_for_selector("#pad .pad-qs__zeile"); q.wait_for_timeout(700)
-        if q.locator("#pad .pad-qs__zeile").count() != 20: fehler.append(name + ": Langdreher nicht 20 Zeilen")
-        breit = q.evaluate("document.querySelector('#pad .pad-qs').scrollWidth - document.querySelector('#pad .pad-qs').clientWidth")
+        q.click("#pad [data-padwo='qs']"); q.wait_for_selector("#pad .pad-ak__karte"); q.wait_for_timeout(700)
+        if q.locator("#pad .pad-ak__karte").count() != nm: fehler.append(name + ": nicht alle Maschinen")
+        breit = q.evaluate("document.querySelector('#pad .pad-ak').scrollWidth - document.querySelector('#pad .pad-ak').clientWidth")
         if breit > 1: fehler.append(f"{name}: ragt seitlich {breit}px heraus")
         # Kein Text in den Tasten abgeschnitten
-        ab = q.evaluate("[...document.querySelectorAll('#pad .pad-qs__knopf span:last-child, #pad .pad-qs__dok')].filter(e => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().width > e.closest('button').getBoundingClientRect().width + 1).length")
+        ab = q.evaluate("[...document.querySelectorAll('#pad .pad-ak__knopf span:last-child, #pad .pad-ak__dok')].filter(e => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().width > e.closest('button').getBoundingClientRect().width + 1).length")
         if ab: fehler.append(f"{name}: {ab} Tasten mit abgeschnittenem Text")
-        hb = q.evaluate("[...document.querySelectorAll('#pad .pad-qs__hoco, #pad .pad-qs__nr')].filter(e => e.scrollWidth > e.clientWidth + 1).length")
+        hb = q.evaluate("[...document.querySelectorAll('#pad .pad-ak__hoco, #pad .pad-ak__nr')].filter(e => e.scrollWidth > e.clientWidth + 1).length")
         if hb: fehler.append(f"{name}: {hb} HOCO- oder Maschinen-Nr. abgeschnitten")
         if name.startswith("ipad") and name != "ipad-hoch":
-            hoch = q.evaluate("(() => { const e = document.querySelector('#pad .pad-qs'); return e.scrollHeight - e.clientHeight; })()")
-            if hoch > 1: fehler.append(f"iPad quer, Langdreher: nicht alles auf einem Bildschirm, {hoch}px zu viel")
+            hoch = q.evaluate("(() => { const e = document.querySelector('#pad .pad-ak'); return e.scrollHeight - e.clientHeight; })()")
+            if hoch > 1: fehler.append(f"iPad quer: nicht alles auf einem Bildschirm, {hoch}px zu viel")
         if BILDER: q.screenshot(path=f"{BILDER}/qs-{name}.png")
         q.context.close()
     br.close()

@@ -369,6 +369,29 @@ const SENK = { top: "flex-start", middle: "center", center: "center", bottom: "f
   justify: "flex-start", distributed: "center" };
 
 function Feld({ f, gitter }) {
+  // „An Zellgrösse anpassen“: Schrift so weit verkleinern, bis der Text
+  // in die Zelle passt, wie Excel es tut
+  const el = useRef(null);
+  useLayoutEffect(() => {
+    const d = el.current;
+    if (!f.kleiner || !d) return;
+    // Alle Schriftgrössen (Zelle und einzelne Textteile) zurück auf Excel
+    const teile = [d, ...d.querySelectorAll("span")];
+    teile.forEach((t) => { if (t.dataset.fs != null) t.style.fontSize = t.dataset.fs; });
+    const r = document.createRange();
+    r.selectNodeContents(d);
+    // Die Seite ist verkleinert (scale); Breiten in Zellmass umrechnen
+    const sk = d.getBoundingClientRect().width / (d.offsetWidth || 1) || 1;
+    const frei = d.clientWidth - 6, noetig = r.getBoundingClientRect().width / sk;
+    if (frei <= 0 || noetig <= frei) return;
+    const faktor = frei / noetig;
+    teile.forEach((t) => {
+      if (t !== d && !t.style.fontSize) return;
+      if (t.dataset.fs == null) t.dataset.fs = t.style.fontSize;
+      const gross = parseFloat(getComputedStyle(t).fontSize) || 14;
+      t.style.fontSize = Math.max(4, Math.floor(gross * faktor * 10) / 10) + "px";
+    });
+  }, [f]);
   const stil = {
     position: "absolute", left: f.x, top: f.y, width: f.b, height: f.h, boxSizing: "border-box",
     display: "flex", alignItems: SENK[f.v] || "flex-end", justifyContent: WAAG[f.ha] || "flex-start",
@@ -389,7 +412,7 @@ function Feld({ f, gitter }) {
   const inhalt = f.runs
     ? <span>{f.runs.map((r, i) => <span key={i} style={r.stil}>{r.text}</span>)}</span>
     : f.text;
-  return <div style={stil}>{innen ? <span style={innen}>{inhalt}</span>
+  return <div ref={el} style={stil}>{innen ? <span style={innen}>{inhalt}</span>
     : f.umbruch ? <span style={{ width: "100%" }}>{inhalt}</span> : inhalt}</div>;
 }
 

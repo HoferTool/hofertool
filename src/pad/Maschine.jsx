@@ -14,14 +14,20 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck, PadNeuLadenKnopf } from "./Pad.jsx";
+import { unterlagenOeffnen } from "../teile/Unterlagen.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
+import { notizbuecherFuerPark, buecherFuerPark, BUCH } from "../notizbuch/Notizbuecher.jsx";
+import Bildschirmschoner from "./Bildschirmschoner.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
-import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitFragen } from "../daten/stueckzahl.js";
+import { useQsMeldungen, QsMeldungen } from "./QsMeldung.jsx";
+import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitSetzen, artInfoFragen, laengeText,
+  laengeSetzen } from "../daten/stueckzahl.js";
+import { laengeVersuchen } from "../daten/material.js";
 import {
   holeWetterTage, wetterZeichen, tagesmengen, letzteTage, schnitte,
   schnittTage, schnittLang, prognose,
@@ -163,29 +169,60 @@ async function infoBearbeiten(j, m, blattDaten) {
   if (w) blattFeldSetzen(j, m, "pad_info", infoZusammen(w.schrift, (w.text || "").trim()) || null);
 }
 
+// „Laufen lassen“ (Wunsch Patrick 16. Oktober 2026): keine Stückzahl,
+// die Maschine läuft über Nacht einfach weiter. Gespeichert als -1 in
+// abend_stk, damit keine neue Spalte nötig ist.
+const LAUFEN_LASSEN = -1;
+
 async function abendBearbeiten(j, m, blattDaten) {
+  const alt_ = blattDaten && blattDaten.abend_stk;
   const zahl = await alt.zifferblock({ titel: "Stück am Abend",
     hinweis: "Wie viele Stück sind am Abend einzutragen?",
-    wert: (blattDaten && blattDaten.abend_stk) || "",
-    schritte: [50, 100, 500] });
-  if (zahl !== null) blattFeldSetzen(j, m, "abend_stk", zahl ? Math.round(zahl) : null);
+    wert: alt_ > 0 ? alt_ : "",
+    schritte: [50, 100, 500],
+    // Auch Externe (Entscheid Patrick 16. Oktober 2026)
+    extra: { text: "Laufen lassen", wert: "laufen" } });
+  if (zahl === "laufen") blattFeldSetzen(j, m, "abend_stk", LAUFEN_LASSEN);
+  else if (zahl !== null) blattFeldSetzen(j, m, "abend_stk", zahl ? Math.round(zahl) : null);
 }
 
-// Die Stückzeit in Sekunden steht rechts neben dem Vorsprung und
-// gehört wie die Info zu HOCO Nr. und Maschinentyp (Wunsch 8. Oktober 2026)
-async function zeitBearbeiten(j, m, blattDaten) {
-  const da = blattDaten && blattDaten.stueckzeit_s;
-  const s = await stueckzeitFragen("Stückzeit", "Sekunden pro Stück auf " + (m.name || "dieser Maschine") + ":",
-    da, true);
-  if (s === "loeschen") {
+// Art. Info (Wunsch Patrick 15. Oktober 2026, vorher nur „Stückzeit“):
+// ein Fenster mit Stückzeit (je HOCO Nr. und Maschinentyp) und Länge
+// des Fertigteils (je HOCO Nr.). Eine Stückzeit leeren fragt einmal.
+// Externe sehen nur die Stückzeit, Material ist nichts für sie.
+function teilLaenge(teil) {
+  if (alt.istExtern() || !teil || !("teil_laenge_mm" in teil)) return null;
+  return { mm: teil.teil_laenge_mm ? Number(teil.teil_laenge_mm) : null, sicher: !!teil.teil_mass_bestaetigt };
+}
+
+async function artInfoBearbeiten(j, m, blattDaten, teil) {
+  const da = blattDaten && blattDaten.stueckzeit_s ? Number(blattDaten.stueckzeit_s) : 0;
+  const laenge = teilLaenge(teil);
+  // Fehlt die Länge, zuerst selbst im Einrichtblatt nachsehen
+  if (laenge && !laenge.mm) {
+    const g = await alt.zeitlimit(laengeVersuchen(j.job_number, m.type_id), 6000, "Länge").catch(() => null);
+    if (g) Object.assign(laenge, { mm: g.mm, sicher: false });
+  }
+  const w = await artInfoFragen({ titel: "Art. Info " + j.job_number, auf: m.name, zeit: da, laenge,
+    mitZeit: true, mitLaenge: !!laenge });
+  if (!w) return;
+  if (da && !w.zeit) {
     // Eine Rückfrage, dann ist sie weg (Wunsch 6. Oktober 2026)
     const ja = await alt.nachfragen({ titel: "Stückzeit löschen?",
       text: "Die Stückzeit " + stueckzeitText(da) + " von " + j.job_number + " auf " + (m.name || "dieser Maschine")
         + " wird entfernt.", bestaetigen: "Löschen", gefahr: true });
-    if (ja) blattFeldSetzen(j, m, "stueckzeit_s", null);
-    return;
+    if (!ja) return;
   }
-  if (s !== null) blattFeldSetzen(j, m, "stueckzeit_s", s || null);
+  try {
+    if (w.zeit !== da) await stueckzeitSetzen(j.job_number, m.type_id, w.zeit || null);
+    if (laenge && w.laenge && (w.laenge !== Number(laenge.mm || 0) || !laenge.sicher))
+      await laengeSetzen(j.job_number, w.laenge);
+    alt.meldung("Gespeichert.");
+  } catch (f) {
+    alt.meldung(/stueckzeit_s/.test(f.message || "") ? "Dafür fehlt noch die Spalte stueckzeit_s in der Datenbank."
+      : alt.fehlertext(f), "fehler");
+  }
+  padZeichnen();
 }
 
 async function standEintragen(j, m) {
@@ -403,15 +440,43 @@ function Fortschritt({ j }) {
   );
 }
 
-// Material und Werkstoff: eigene Kachel, Farbe der Werkstoffgruppe
+// Notizbücher des Parks: ersetzt die Kachel Vorsprung (Wunsch Patrick
+// 15. Oktober 2026). Zu sehen sind nur Bücher, die beim Buch diesem
+// Park zugewiesen sind, und nur zum Lesen.
+function Notizen({ m }) {
+  const [buecher, setBuecher] = useState(null);
+  useEffect(() => {
+    let weg = false;
+    buecherFuerPark(m.park_id).then((l) => { if (!weg) setBuecher(l); });
+    return () => { weg = true; };
+  }, [m.park_id]);
+  const da = !!(buecher && buecher.length);
+  return (
+    <div className={"pad-karte2 pad-karte2--notiz" + (da ? "" : " pad-karte2--notizleer")} data-padfeld="notizen"
+      onClick={da ? () => notizbuecherFuerPark(m.park_id, undefined,
+        { machine_number: m.machine_number, name: m.name }) : undefined}>
+      <span className="pad-name">Notizbücher{da ? " · antippen" : ""}</span>
+      <span className="pad-wert pad-nbuch">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d={BUCH} /></svg>
+        {buecher === null ? <Leer>…</Leer>
+          : (da ? <span className="pad-nbuch__namen">{buecher.map((b) => b.name).join(" · ")}</span>
+            : <Leer>Keine Notizen</Leer>)}
+      </span>
+    </div>
+  );
+}
+
+// Material und Werkstoff: eigene Kachel in der Farbe des Balkens auf
+// der Planwand (Wunsch Patrick 16. Oktober 2026, vorher die Farbe der
+// Werkstoffgruppe, die vom Auftrag abweichen konnte)
 function Material({ j, teil, ort }) {
   const bez = (j && j.material_bez) || (teil && teil.material) || "";
   const g = alt.werkstoffErkennen(bez);
-  const f = g ? alt.farbeVon(g.farbe) : null;
+  const f = alt.auftragFarbe(j, bez);
   const menge = j && j.material_menge ? String(j.material_menge) : "";
   return (
     <div className={"pad-karte2 pad-karte2--material" + (f ? " pad-karte2--gefuellt" : "")}
-      style={f ? { "--wf": f.hex, "--wfs": alt.schriftZu(f.hex) } : undefined}>
+      style={f ? { "--wf": f.hex, "--wfs": f.schrift } : undefined}>
       <span className="pad-name">Material</span>
       <div className="pad-mat-zeile">
         <span className="pad-mat-bez">{bez || <Leer>nicht erfasst</Leer>}</span>
@@ -454,17 +519,21 @@ function useJetzt() {
 // 8. Oktober 2026). Die Tage stehen nebeneinander, damit die Skizze
 // darunter Platz hat. Ein Tipp aufs Wetter öffnet das Wetterfenster mit
 // Stunden und mehr (Wunsch Patrick 9. Oktober 2026).
-function Saeule({ wetter }) {
+// Eine offene QS-Meldung der Maschine steht anstelle des Wetters, bis
+// jemand quittiert (seit 1.77.0, src/pad/QsMeldung.jsx).
+function Saeule({ wetter, maschineId }) {
   const jetzt = useJetzt();
   const heute = alt.isoDatum(jetzt);
-  const tage = wetter ? wetter.tage.filter((x) => x.datum >= heute).slice(0, 6) : [];
+  const [qs, qsWeg] = useQsMeldungen(maschineId);
+  const mitQs = qs.length > 0;
+  const tage = wetter && !mitQs ? wetter.tage.filter((x) => x.datum >= heute).slice(0, 6) : [];
   return (
     <div className="pad-karte2 pad-karte2--saeule">
       <div className="pad-uhrblock">
         <div><span className="pad-wtag">{alt.WOCHENTAGE[(jetzt.getDay() + 6) % 7]}</span>
           <div className="pad-uhr" id="pad-uhr"><Ziffern text={zweistellig(jetzt.getHours()) + ":" + zweistellig(jetzt.getMinutes())} /></div>
           <span className="pad-wdatum">{alt.kurzDatum(heute)} · KW {alt.kalenderwoche(heute)}</span></div>
-        {wetter
+        {mitQs ? null : wetter
           ? <div className="pad-wetterblock pad-wetterknopf" role="button" tabIndex={0} data-wetteroeffnen=""
               onClick={wetterFensterOeffnen} title="Mehr Wetter">
               <span className="pad-wzeichen">{wetterZeichen(wetter.code)}</span>
@@ -474,6 +543,7 @@ function Saeule({ wetter }) {
           : <span className="pad-ort">Wetter nicht verfügbar</span>}
       </div>
 
+      {mitQs && <QsMeldungen liste={qs} weg={qsWeg} />}
       {tage.length > 0 && <>
         <div className="pad-stunden pad-stunden--regen pad-wetterknopf" data-padtage="" role="button"
           onClick={wetterFensterOeffnen} title="Mehr Wetter">
@@ -509,7 +579,10 @@ export default function Maschine({ d }) {
   // genau einer FA Nr., deshalb gibt es dort keine Ausweichsuche.
   const zeichnung = (j && j.drawing_url) || (teil && teil.zeichnung_url) || "";
   const wbg = (j && j.wbg_url) || "";
-  const zeitFehlt = mitTyp && !(blattDaten && blattDaten.stueckzeit_s);
+  // Die Kachel mahnt, solange Stückzeit oder bestätigte Länge fehlen
+  const laenge = teilLaenge(teil);
+  const laengeFehlt = mitTyp && !!laenge && !(laenge.mm && laenge.sicher);
+  const zeitFehlt = mitTyp && (!(blattDaten && blattDaten.stueckzeit_s) || laengeFehlt);
   const stkFehlt = heuteKeineStueckzahl(j, jeTag);
   const stkBild = useMahnBild("stueckzahl", stkFehlt);
   const mahnFoto = useMahnBild("stueckzeit", zeitFehlt);
@@ -559,6 +632,12 @@ export default function Maschine({ d }) {
         {m.name}{m.machine_number && <> <span className="pad__nr">{m.machine_number}</span></>}
       </span>
       <div className="pad__sprunge">
+        {/* Handbücher, Elektroschemas … dieser Maschine (Wunsch Patrick
+            19. Oktober 2026); Externe vorerst nicht */}
+        {!datei && !alt.istExtern() &&
+          <button className="pad__unterlagen" data-padunterlagen="" onClick={() => unterlagenOeffnen(m)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z" />
+              <path d="M4 19V5M8 7h6M8 11h6" /></svg>Unterlagen</button>}
         {datei && <>
           <button className="pad-sprung" data-paddruck="" onClick={druck}>Drucken</button>
           <button className="pad-sprung" data-padspeichern="" onClick={speichern}>Speichern</button>
@@ -579,6 +658,8 @@ export default function Maschine({ d }) {
   return (
     <>
       {kopf}
+      {/* Nach einer Minute ohne Berührung das Einrichtblatt gross (Wunsch Patrick, 13. Oktober 2026) */}
+      <Bildschirmschoner hoco={j ? j.job_number : null} typId={m.type_id || null} />
       {!j && <p className="pad__hinweis">Auf dieser Maschine läuft gerade kein Auftrag.</p>}
       <div className="pad-flaeche">
 
@@ -616,7 +697,9 @@ export default function Maschine({ d }) {
               onClick={mitTyp ? () => abendBearbeiten(j, m, blattDaten) : undefined}>
               <span className="pad-name">Stück am Abend{mitTyp ? " · antippen" : ""}</span>
               <span className="pad-wert">
-                {blattDaten && blattDaten.abend_stk
+                {blattDaten && blattDaten.abend_stk === LAUFEN_LASSEN
+                  ? "Laufen lassen"
+                  : blattDaten && blattDaten.abend_stk
                   ? zahlText(blattDaten.abend_stk) + " Stk"
                   : <Leer>{mitTyp ? "antippen und eintragen" : (programmGrund || "—")}</Leer>}
               </span>
@@ -635,22 +718,28 @@ export default function Maschine({ d }) {
               </a>}
           </div>
 
-          {/* Vorsprung und Stückzeit teilen sich die Reihe (Wunsch 8. Oktober 2026) */}
+          {/* Vorsprung und Stückzeit teilen sich die Reihe (Wunsch 8. Oktober 2026).
+              Statt Vorsprung stehen seit 1.63.0 die Notizbücher des Parks da
+              (Wunsch Patrick 15. Oktober 2026); Externe behalten den Vorsprung. */}
           <div className="pad-reihe2">
-            <div className="pad-karte2 pad-karte2--verzug"><Fortschritt j={j} /></div>
+            {alt.istExtern()
+              ? <div className="pad-karte2 pad-karte2--verzug"><Fortschritt j={j} /></div>
+              : <Notizen m={m} />}
             {/* Fehlt die Stückzeit, pulsiert die Kachel absichtlich lästig,
                 bis sie eingetragen ist (Wunsch Patrick, 12. Oktober 2026) */}
             <div className={"pad-karte2 pad-karte2--zeit" + (zeitFehlt ? " pad-karte2--zeitfehlt pad-karte2--nervt" : "")}
               data-padfeld={mitTyp ? "stueckzeit" : ""}
-              onClick={mitTyp ? () => zeitBearbeiten(j, m, blattDaten) : undefined}>
-              <span className="pad-name">Stückzeit{mitTyp ? " · antippen" : ""}</span>
+              onClick={mitTyp ? () => artInfoBearbeiten(j, m, blattDaten, teil) : undefined}>
+              <span className="pad-name">{laenge ? "Art. Info" : "Stückzeit"}{mitTyp ? " · antippen" : ""}</span>
               {/* Dazu ein kleines Foto (Wunsch Patrick, 12. Oktober 2026) */}
               {zeitFehlt && mahnFoto && <img className="pad-zeit-foto" src={mahnFoto} alt="" />}
               <span className="pad-wert">
                 {blattDaten && blattDaten.stueckzeit_s
                   ? stueckzeitText(blattDaten.stueckzeit_s)
-                  : <Leer>{mitTyp ? "antippen und eintragen" : (programmGrund || "—")}</Leer>}
+                  : <Leer>{mitTyp ? (laenge ? "Stückzeit fehlt" : "antippen und eintragen") : (programmGrund || "—")}</Leer>}
               </span>
+              {mitTyp && laenge && <span className="pad-artinfo-laenge" data-laenge={laenge.mm || ""}>
+                {laenge.mm ? "Länge " + laengeText(laenge.mm) + (laenge.sicher ? "" : " · prüfen") : "Länge fehlt"}</span>}
             </div>
           </div>
         </div>
@@ -689,7 +778,7 @@ export default function Maschine({ d }) {
         </div>
 
         {/* ----- rechte Säule ----- */}
-        <div className="pad-spalte pad-spalte--rechts"><Saeule wetter={wetter} />
+        <div className="pad-spalte pad-spalte--rechts"><Saeule wetter={wetter} maschineId={m.id} />
           {/* Der Rest der Spalte ist zum Zeichnen da (Wunsch Patrick 5. Oktober 2026) */}
           <Skizze key={j ? j.id : "ohne"} j={j} /></div>
       </div>

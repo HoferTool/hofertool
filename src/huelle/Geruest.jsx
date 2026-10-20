@@ -16,16 +16,10 @@ import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen } from "./unterreiter.js";
 
 // Knöpfe zu Webseiten unten im Menü (Wunsch Patrick, 9. Oktober 2026).
+// Google ist seit 1.55.3 weg (Wunsch Patrick 14. Oktober 2026).
 // Diese Seiten lassen sich nicht innerhalb der App anzeigen (sie
 // verbieten das), darum je ein eigenes Browserfenster.
 const WEBSEITEN = [
-  { name: "Google", url: "https://www.google.ch/", titel: "Google-Suche in eigenem Fenster",
-    // Original-G von Google, einfarbig wie die anderen Menüzeichen (Wunsch Patrick, 9. Oktober 2026)
-    zeichen: <svg viewBox="0 0 48 48" className="navsym" aria-hidden="true">
-      <path fill="currentColor" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-      <path fill="currentColor" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-      <path fill="currentColor" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-      <path fill="currentColor" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" /></svg> },
   // Original-Logo von Just Eat (Haus mit Besteck), aus Simple Icons, einfarbig
   { name: "Just Eat", url: "https://www.just-eat.ch/", titel: "Just Eat in eigenem Fenster",
     zeichen: <svg viewBox="0 0 24 24" className="navsym" aria-hidden="true">
@@ -94,21 +88,74 @@ function Logo() {
 
 // Die Reiter der offenen Seite unter ihrem Punkt in der Seitenleiste.
 // Nur ab Tablet-Breite sichtbar (CSS); unten in der Leiste wäre kein Platz.
-function Unterreiter({ seite }) {
+// Seit 1.112.0 klappt die Gruppe weich auf: die Höhe wächst, ein Ast
+// zieht von der Seite nach unten und die Reiter gleiten nacheinander
+// hinein; beim Seitenwechsel klappt die alte Gruppe wieder zu
+// (Wunsch Patrick 20. Oktober 2026: „cooler, mit den Reitern“).
+function Unterreiter({ seite, zu }) {
   const u = UNTERREITER[seite];
   const [, zeichnen] = useState(0);
   useEffect(() => reiterBeobachten(() => zeichnen((x) => x + 1)), []);
   const aktiv = reiterAktiv(seite);
   return (
-    <div className="nav__unter" role="group">
-      {u.liste().map(([wert, text]) => (
-        <button key={wert} type="button"
-          className={"nav__unterpunkt" + (aktiv === wert ? " aktiv" : "")}
-          data-unter={seite + "/" + wert}
-          onClick={() => reiterWaehlen(seite, wert, true)}>{text}</button>
-      ))}
+    <div className={"nav__unter" + (zu ? " nav__unter--zu" : "")} role="group" aria-hidden={zu || undefined}>
+      <div className="nav__unterinnen">
+        {u.liste().map(([wert, text], i) => (
+          <button key={wert} type="button" style={{ "--i": i }} tabIndex={zu ? -1 : undefined}
+            className={"nav__unterpunkt" + (aktiv === wert ? " aktiv" : "")}
+            {...(zu ? {} : { "data-unter": seite + "/" + wert })}
+            onClick={() => reiterWaehlen(seite, wert, true)}>{text}</button>
+        ))}
+      </div>
     </div>
   );
+}
+
+// Merkt sich die zuletzt offene Seite mit Reitern, damit ihre Gruppe
+// noch kurz zuklappen darf, statt schlagartig zu verschwinden
+function useZuklappend(aktiv) {
+  const [zu, setZu] = useState(null);
+  const vorher = useRef(null);
+  useEffect(() => {
+    const alteSeite = vorher.current;
+    vorher.current = aktiv;
+    if (!alteSeite || alteSeite === aktiv || !UNTERREITER[alteSeite]) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setZu(alteSeite);
+    const t = setTimeout(() => setZu(null), 320);
+    return () => { clearTimeout(t); setZu(null); };
+  }, [aktiv]);
+  return zu;
+}
+
+// Ein- und Ausklappen der Seitenleiste mit Auftritt (seit 1.114.0,
+// Wunsch Patrick 20. Oktober 2026: „mehr Emotionen, man macht es ja
+// selten“). Auf: die Leiste schnellt über ihr Ziel hinaus und federt
+// zurück, ein Lichtstreifen fährt durch, die Zeichen drehen sich ein und
+// die Namen fliegen nacheinander scharf herein. Zu: die Namen verwehen,
+// die Leiste schnurrt zusammen, erst dann wird sie schmal und die Zeichen
+// springen an ihren Platz. Der Inhalt rückt nur einmal, nicht bei jedem
+// Bild, damit die Planwand nicht laufend neu rechnet.
+const KLAPP_AUF_MS = 950, KLAPP_ZU_MS = 720, KLAPP_ZU_SCHMAL_MS = 330;
+let klappUhren = [];
+function klappenZeigen(schmal) {
+  const b = document.body;
+  klappUhren.forEach(clearTimeout);
+  klappUhren = [];
+  b.classList.remove("nav--klappt-auf", "nav--klappt-zu");
+  const ruhig = matchMedia("(prefers-reduced-motion: reduce)").matches || innerWidth < 780;
+  if (ruhig) { b.classList.toggle("nav--schmal", schmal); return; }
+  void b.offsetWidth; // Animation neu starten, auch bei schnellem Doppelklick
+  if (schmal) {
+    b.classList.remove("nav--schmal");
+    b.classList.add("nav--klappt-zu");
+    klappUhren.push(setTimeout(() => b.classList.add("nav--schmal"), KLAPP_ZU_SCHMAL_MS));
+    klappUhren.push(setTimeout(() => b.classList.remove("nav--klappt-zu"), KLAPP_ZU_MS));
+  } else {
+    b.classList.remove("nav--schmal");
+    b.classList.add("nav--klappt-auf");
+    klappUhren.push(setTimeout(() => b.classList.remove("nav--klappt-auf"), KLAPP_AUF_MS));
+  }
 }
 
 function Geruest() {
@@ -116,12 +163,15 @@ function Geruest() {
   const [aktiv, setAktiv] = useState(null);
   useLayoutEffect(() => { aktivSetzen = setAktiv; }, []);
   const sucheVorgeladen = useRef(false);
+  const zuklappend = useZuklappend(aktiv);
 
   const anzeige = (profil && (profil.full_name || profil.email)) || "";
+  const navSeiten = alt.SEITEN.filter((s) => alt.seiteSichtbar(s.pfad));
   const klappen = () => {
-    const schmal = !document.body.classList.contains("nav--schmal");
-    document.body.classList.toggle("nav--schmal", schmal);
+    const b = document.body;
+    const schmal = !b.classList.contains("nav--schmal") || b.classList.contains("nav--klappt-zu");
     alt.einstellungSetzenWert("navschmal", schmal ? "1" : "0");
+    klappenZeigen(schmal);
   };
   // Die Suche schon beim Darüberfahren laden — bis zum Klick ist sie meist da
   const vorladen = () => {
@@ -168,20 +218,21 @@ function Geruest() {
       </header>
       <div className="rahmen">
         <nav className="nav" aria-label="Hauptnavigation">
-          {alt.SEITEN.filter((s) => alt.seiteSichtbar(s.pfad)).map((s) => (
+          {navSeiten.map((s, i) => (
             <Fragment key={s.pfad}>
               <a className={"nav__punkt" + (aktiv === s.pfad ? " aktiv" : "")}
-                data-nav={s.pfad} href={"#/" + s.pfad}>
+                data-nav={s.pfad} href={"#/" + s.pfad} style={{ "--n": i }}>
                 {/* Die Zeichen sind fest eingebaute SVG aus dem Programm */}
                 <span className="nav__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} />
                 <span className="nav__text">{s.titel}</span>
               </a>
-              {aktiv === s.pfad && UNTERREITER[s.pfad] && <Unterreiter seite={s.pfad} />}
+              {aktiv === s.pfad && UNTERREITER[s.pfad] && <Unterreiter key="offen" seite={s.pfad} />}
+              {zuklappend === s.pfad && aktiv !== s.pfad && <Unterreiter key="zu" seite={s.pfad} zu />}
             </Fragment>
           ))}
           {/* Externe sehen die Webseiten-Knöpfe nicht */}
-          {!alt.istExtern() && WEBSEITEN.map((w) => (
-            <a key={w.name} className={"nav__punkt nav__punkt--web nav__punkt--" + w.name.toLowerCase().replace(/\W/g, "")}
+          {!alt.istExtern() && WEBSEITEN.map((w, i) => (
+            <a key={w.name} style={{ "--n": navSeiten.length + i }} className={"nav__punkt nav__punkt--web nav__punkt--" + w.name.toLowerCase().replace(/\W/g, "")}
               href={w.url} target="_blank" rel="noopener" title={w.titel}
               onClick={(e) => webseiteOeffnen(e, w)}>
               <span className="nav__zeichen" aria-hidden="true">{w.zeichen}</span>
@@ -189,8 +240,125 @@ function Geruest() {
             </a>
           ))}
         </nav>
+        {/* Am Handy statt der Leiste unten ein Knopf mit Fenster (seit 1.57.0).
+            Externe behalten die Leiste, sie haben nur zwei Punkte. */}
+        {!alt.istExtern() && <HandyMenue aktiv={aktiv} />}
         <main className="inhalt" id="inhalt" />
       </div>
     </>
+  );
+}
+
+// Die Symbole in möglichst gleich vollen Zeilen, höchstens vier je
+// Zeile: 8 → 4 4, 7 → 4 3, 6 → 3 3, 5 → 3 2, 10 → 4 3 3. Eine kürzere
+// Zeile steht in der Mitte (Wunsch Patrick 14. Oktober 2026: „gleich
+// viele pro Zeile, sonst so symmetrisch wie möglich“).
+export function menueZeilen(n) {
+  if (n <= 0) return [];
+  const zeilen = Math.ceil(n / 4);
+  const basis = Math.floor(n / zeilen), mehr = n % zeilen;
+  return Array.from({ length: zeilen }, (_, i) => basis + (i < mehr ? 1 : 0));
+}
+
+// Im Menü ist ein Feld nur ein Viertel breit: lange Namen bekommen eine
+// weiche Trennstelle, nicht jeder Browser trennt Deutsch von selbst
+const TRENNSTELLEN = { "Qualitätssicherung": "Qualitäts\u00ADsicherung" };
+const trennbar = (t) => TRENNSTELLEN[t] || t;
+
+// Menü am Handy (Wunsch Patrick 14. Oktober 2026): unten ein breiter
+// Knopf „Menü“, ein Tipp öffnet ein kleines Fenster mit
+// allen Symbolen. Ab Tablet-Breite blendet CSS es aus, dort bleibt die
+// Leiste links.
+function HandyMenue({ aktiv }) {
+  // zu → offen → schliesst (Ausblenden läuft) → zu
+  const [zustand, setZustand] = useState("zu");
+  const offen = zustand === "offen";
+
+  const schliessen = () => setZustand((z) => (z === "offen" ? "schliesst" : z));
+  useEffect(() => {
+    if (zustand !== "schliesst") return;
+    const t = setTimeout(() => setZustand("zu"), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 300);
+    return () => clearTimeout(t);
+  }, [zustand]);
+  // Seitenwechsel von woanders (Suche, Zurück) schliesst es auch
+  useEffect(() => { schliessen(); }, [aktiv]);
+  useEffect(() => {
+    document.body.classList.add("nav--menue");
+    return () => document.body.classList.remove("nav--menue");
+  }, []);
+  useEffect(() => {
+    if (!offen) return;
+    // Escape schliesst nur dieses Fenster, sonst nichts (wie überall)
+    const taste = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault(); e.stopPropagation(); schliessen();
+    };
+    document.addEventListener("keydown", taste, true);
+    return () => document.removeEventListener("keydown", taste, true);
+  }, [offen]);
+
+  const seiten = alt.SEITEN.filter((s) => alt.seiteSichtbar(s.pfad));
+  const punkte = [
+    ...seiten.map((s) => ({ schluessel: s.pfad, titel: s.titel, href: "#/" + s.pfad,
+      zeichen: <span className="handymenue__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} /> })),
+    ...WEBSEITEN.map((w) => ({ schluessel: "web-" + w.name, titel: w.name, href: w.url, web: w,
+      zeichen: <span className="handymenue__zeichen" aria-hidden="true">{w.zeichen}</span> })),
+  ];
+
+  // Zeilen aus der Verteilung bauen; die laufende Nummer steuert das
+  // gestaffelte Einblenden
+  const zeilen = [];
+  let nr = 0;
+  for (const anzahl of menueZeilen(punkte.length)) {
+    zeilen.push(punkte.slice(nr, nr + anzahl).map((p, i) => ({ ...p, nr: nr + i })));
+    nr += anzahl;
+  }
+
+  const waehlen = (e, p) => {
+    // Das Symbol hüpft kurz, dann geht das Fenster zu
+    const k = e.currentTarget;
+    k.classList.remove("handymenue__punkt--tipp"); void k.offsetWidth; k.classList.add("handymenue__punkt--tipp");
+    if (p.web) webseiteOeffnen(e, p.web);
+    setTimeout(schliessen, 120);
+  };
+
+  return (
+    <div className={"handymenue handymenue--" + zustand}>
+      {zustand !== "zu" && <>
+        <div className="handymenue__schleier" onClick={schliessen} />
+        {/* Das Fenster wächst aus dem Menüknopf heraus: der Knopf wird zum
+            Schliessen-Knopf unten, darüber zieht die Fläche hoch (seit 1.79.0,
+            Wunsch Patrick 16. Oktober 2026). Der Schatten liegt aussen, damit
+            ihn das Beschneiden innen nicht wegnimmt. */}
+        <div className="handymenue__fenster" role="dialog" aria-label="Menü">
+          <div className="handymenue__flaeche">
+          {zeilen.map((zeile, z) => (
+            <div key={z} className="handymenue__zeile">
+              {zeile.map((p) => (
+                <a key={p.schluessel} href={p.href} style={{ "--nr": p.nr }}
+                  className={"handymenue__punkt" + (p.schluessel === aktiv ? " aktiv" : "")}
+                  {...(p.web ? { target: "_blank", rel: "noopener" } : {})}
+                  onClick={(e) => waehlen(e, p)}>
+                  {p.zeichen}
+                  <span className="handymenue__text">{trennbar(p.titel)}</span>
+                </a>
+              ))}
+            </div>
+          ))}
+          <button type="button" className="handymenue__schliessen" onClick={schliessen}>
+            <span className="handymenue__glanz" aria-hidden="true" />
+            <span className="handymenue__schliessentext">Schliessen</span>
+          </button>
+          </div>
+        </div>
+      </>}
+      <button type="button" className="handymenue__knopf" aria-expanded={offen}
+        onClick={() => setZustand(offen ? "schliesst" : "offen")}>
+        <span className="handymenue__glanz" aria-hidden="true" />
+        {/* Zugeklappt steht nur gross „Menü“, nicht die offene Seite
+            (seit 1.89.1, Wunsch Patrick 17. Oktober 2026) */}
+        <span className="handymenue__knopftext">Menü</span>
+      </button>
+    </div>
   );
 }

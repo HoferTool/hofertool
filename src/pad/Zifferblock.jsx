@@ -15,19 +15,21 @@ const TASTEN = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "C", "0", "⌫"];
 // loeschen: Text für einen roten Knopf, der statt einer Zahl "loeschen"
 // liefert (Stückzeit wieder entfernen, Wunsch Patrick 12. Oktober 2026).
 // abbrechen: anderer Text für „Abbrechen“, etwa „Überspringen“.
-export function zifferblock({ titel, hinweis, wert, schritte, ersetzen, loeschen, abbrechen }) {
+// extra: { text, wert } für einen zusätzlichen Knopf, der statt einer
+// Zahl diesen Wert liefert (etwa „Laufen lassen“ bei Stück am Abend).
+export function zifferblock({ titel, hinweis, wert, schritte, ersetzen, loeschen, abbrechen, extra }) {
   return new Promise((fertig) => {
     let ergebnis = null;
     // Abbrechen, Escape und Tippen daneben schliessen über das Fenster;
     // das Ergebnis steht dann noch auf null
     fensterOeffnen((zu) => (
-      <Zifferblock titel={titel} hinweis={hinweis} wert={wert} schritte={schritte} ersetzen={ersetzen} loeschen={loeschen} abbrechen={abbrechen}
+      <Zifferblock titel={titel} hinweis={hinweis} wert={wert} schritte={schritte} ersetzen={ersetzen} loeschen={loeschen} abbrechen={abbrechen} extra={extra}
         fertig={(zahl) => { ergebnis = zahl; zu(); }} zu={zu} />
     ), () => fertig(ergebnis));
   });
 }
 
-function Zifferblock({ titel, hinweis, wert, schritte, ersetzen, loeschen, abbrechen, fertig, zu }) {
+function Zifferblock({ titel, hinweis, wert, schritte, ersetzen, loeschen, abbrechen, extra, fertig, zu }) {
   const [eingabe, setEingabe] = useState(String(wert == null ? "" : wert).replace(/\D/g, ""));
   const frisch = useRef(!!ersetzen);
   const tippen = (t) => {
@@ -76,6 +78,8 @@ function Zifferblock({ titel, hinweis, wert, schritte, ersetzen, loeschen, abbre
       <div className="zb-knoepfe">
         {loeschen && <button type="button" className="knopf knopf--gefahr" data-zbloeschen=""
           onClick={() => fertig("loeschen")}>{loeschen}</button>}
+        {extra && <button type="button" className="knopf" data-zbextra=""
+          onClick={() => fertig(extra.wert)}>{extra.text}</button>}
         <button type="button" className="knopf knopf--still" data-zbnein="" data-nein="" onClick={zu}>{abbrechen || "Abbrechen"}</button>
         <button type="button" className="knopf knopf--haupt" data-zbja="" onClick={() => eintragen(eingabe)}>Eintragen</button>
       </div>

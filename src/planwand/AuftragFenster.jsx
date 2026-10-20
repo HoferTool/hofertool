@@ -29,9 +29,16 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { PfadKopieren } from "../daten/zeichnungPfad.jsx";
 import { wiederOeffner } from "../teile/wiederherstellen.js";
 import { useWaschprog } from "../daten/waschprog.js";
+import { matInfo, MAT_INFO_ERKLAERUNG, materialImHaus } from "../daten/material.js";
+import { ImHausEinblendung } from "./MaterialImHaus.jsx";
+import { mahnBilder } from "../daten/mahnbilder.js";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
+  // Wer einen Auftrag öffnet, egal von wo, soll ihn danach markiert
+  // wiederfinden (Wunsch Patrick 19. Oktober 2026: „damit man sieht,
+  // wo man war“). Die Tafel zeigt es beim nächsten Zeichnen.
+  if (auftrag && auftrag.id) alt.plan.angewaehlt = auftrag.id;
   fensterOeffnen((zu) => (
     <AuftragFenster auftrag={auftrag || null} b={b} vorgabeMaschine={vorgabeMaschine}
       vorgabeDatum={vorgabeDatum} vorlage={vorlage || null} leer={!auftrag && !vorlage && !!leer} zu={zu} />
@@ -227,11 +234,13 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   const extern = alt.istExtern();
   const maschinen = alt.prod.maschinen || [];
   const [w, setW] = useState(() => anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer));
+  // Stand beim Öffnen: ohne Planungsrecht wird die Notiz nur gespeichert,
+  // wenn sie wirklich geändert wurde
+  const anfang = useRef(w);
   const setze = (feld, wert) => setW((x) => ({ ...x, [feld]: wert }));
   const waschprog = useWaschprog(typeof w.wbg === "string" ? w.wbg : "");
   const aktuell = useRef(w);
   aktuell.current = w;
-  const farbeVonHand = useRef(false);
   const tageVonHand = useRef(false);
   const [hocoInfo, setHocoInfo] = useState("");
   const [pdfStand, setPdfStand] = useState("");
@@ -283,6 +292,28 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     return () => { window.removeEventListener("resize", messen); if (ro) ro.disconnect(); };
   }, [w.notiz]);
 
+  // ----- Material im Haus -----
+  // Steht auf dem Balken das rote M (geplant, keine Menge eingetragen
+  // oder „M trotzdem zeigen“) und liegt passendes Restmaterial im Haus,
+  // steht beim Öffnen die Einblendung über der Zeichnung (Wunsch Patrick
+  // 17. Oktober 2026). Nicht für Externe (neue Funktion, nicht gefragt)
+  // und nicht im Archiv.
+  const [imHaus, setImHaus] = useState(null);
+  useEffect(() => {
+    const j = auftrag;
+    if (!j || !j.id || extern || (alt.istArchiv && alt.istArchiv())) return;
+    const mZeigen = !String(j.material_menge || "").trim() || !!j.material_m_trotzdem;
+    if ((j.plan_status || "geplant") !== "geplant" || !mZeigen) return;
+    let gueltig = true;
+    (async () => {
+      const treffer = await materialImHaus(j);
+      if (!gueltig || !treffer.length) return;
+      const bild = (await mahnBilder().catch(() => ({}))).material || null;
+      if (gueltig) setImHaus({ treffer, bild });
+    })().catch((f) => console.warn("Material im Haus:", f.message));
+    return () => { gueltig = false; };
+  }, []);
+
   // ----- Zeichnung der HOCO Nr. -----
   // Hängt am Auftrag noch keine Zeichnung, die HOCO Nr. hat aber eine,
   // wird sie beim Öffnen gleich angeheftet (Wunsch Patrick 5. Oktober
@@ -325,16 +356,15 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   });
 
   // ----- Werkstoff erkennen -----
-  // Gruppe unter dem Feld, Farbe dazu — ausser die Farbe wurde in
-  // diesem Fenster von Hand gewählt. Beim Öffnen nur bei einem neuen
-  // Auftrag auch die Farbe.
+  // Gruppe unter dem Feld, Farbe dazu. Beim Öffnen nur bei einem neuen
+  // Auftrag auch die Farbe; gespeichert wird immer die Farbe des Werkstoffs.
   const matRuhig = useVerzoegert(w.matBez, 250);
   const ersterLauf = useRef(true);
   const gruppe = w.matBez.trim() ? alt.werkstoffErkennen(w.matBez) : null;
   useEffect(() => {
     const farbeSetzen = !ersterLauf.current || !auftrag;
     ersterLauf.current = false;
-    if (!farbeSetzen || farbeVonHand.current || !matRuhig.trim()) return;
+    if (!farbeSetzen || !matRuhig.trim()) return;
     const g = alt.werkstoffErkennen(matRuhig);
     if (g && aktuell.current.farbe !== g.farbe) setze("farbe", g.farbe);
   }, [matRuhig, auftrag]);
@@ -399,8 +429,6 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     return () => { gueltig = false; };
   }, [nrRuhig, auftrag]);
 
-  const farbeWaehlen = (wert) => { farbeVonHand.current = true; setze("farbe", wert); };
-
   // Eigene Farben gibt es nicht mehr (111.37.0). Hat ein alter Auftrag
   // noch eine, schlägt das Fenster beim Bearbeiten die nächstliegende
   // Palettenfarbe vor; gespeichert wird sie erst mit "Speichern".
@@ -422,15 +450,27 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     if (!darf && auftrag) {
       zu();
       try {
+        // Mit dem Häkchen „Materialplatz bearbeiten“ auch die Notiz
+        // (Wunsch Patrick 15. Oktober 2026), beides in einem Zug
         const platzNeu = (w.matOrt || "").trim();
-        if (darfPlatz && platzNeu !== alt.materialPlatz(auftrag).trim()) {
-          await alt.aendernOhneUnbekannte("jobs", alt.materialPlatzSpalte()
-            ? { material_platz: platzNeu || null }
-            : { plan_note: alt.notizZusammen(alt.notizTrennen(auftrag.plan_note).notiz, platzNeu) },
-            "id", auftrag.id);
+        const platzAlt = alt.materialPlatz(auftrag).trim();
+        const notizAlt = alt.notizTrennen(auftrag.plan_note || "").notiz;
+        const notizNeu = darfPlatz && w.notiz !== anfang.current.notiz ? w.notiz : notizAlt;
+        const platz = darfPlatz ? platzNeu : platzAlt;
+        if (darfPlatz && (platzNeu !== platzAlt || notizNeu !== notizAlt)) {
+          const spalte = alt.materialPlatzSpalte();
+          const aenderung = {};
+          if (spalte && platzNeu !== platzAlt) aenderung.material_platz = platzNeu || null;
+          if (!spalte || notizNeu !== notizAlt) aenderung.plan_note = alt.notizZusammen(notizNeu, spalte ? "" : platz);
+          await alt.aendernOhneUnbekannte("jobs", aenderung, "id", auftrag.id);
         }
-        const r = await alt.zustandSetzen(auftrag, w.zustand);
-        alt.meldung("Zustand geändert." + (r.hinweis ? " " + r.hinweis : ""));
+        // Nur einen hier gewählten Zustand schreiben: sonst setzte ein
+        // offenes Fenster den Zustand zurück, den inzwischen ein anderes
+        // Gerät gesetzt hat (Wunsch Patrick 19. Oktober 2026)
+        if (w.zustand !== anfang.current.zustand) {
+          const r = await alt.zustandSetzen(auftrag, w.zustand);
+          alt.meldung("Zustand geändert." + (r.hinweis ? " " + r.hinweis : ""));
+        } else alt.meldung("Gespeichert.");
         alt.planAktualisieren(b);
       } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
       return;
@@ -445,42 +485,58 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     // Mit eigener Spalte steht der Materialplatz nicht mehr in der Notiz
     const platzSpalte = alt.materialPlatzSpalte();
     // Ohne Recht bleibt der Materialplatz, wie er war
-    const platzWert = darfPlatz ? (w.matOrt || "") : (auftrag ? alt.materialPlatz(auftrag) : "");
-    const daten = {
-      planned_from: w.von || null,
-      planned_days: Math.max(1, Math.round(Number(w.tage) || 1)),
-      target_quantity: w.menge === "" ? null : Math.max(0, Math.round(Number(w.menge))),
-      // Eine eben eingetippte Bestellung steht nach dem Speichern nur
-      // noch in Menge und Liefertermin, nicht doppelt in der Notiz
-      plan_note: alt.notizZusammen(materialAusNotizEntfernen(w.notiz, w.matMenge, w.liefer),
-        platzSpalte ? "" : platzWert),
-      drawing_url: w.pdf,
-      wbg_url: w.wbg,
-      plan_status: w.zustand,
-      color: w.farbe,
-      geplant_von: w.planer.length ? w.planer.join("/") : null,
-      // FA gilt als erstellt, sobald eine FA Nr. dasteht, Material als
-      // da, sobald eine Menge eingetragen ist
-      fa_erstellt: !!w.faNr.trim(),
-      material_ok: !!w.matMenge.trim(),
-      material_bez: w.matBez.trim() || null,
-      material_menge: w.matMenge.trim() || null,
-      material_liefertermin: w.liefer || null,
-      // Bei jedem Durchlauf eine andere — gehört an den Auftrag
-      fa_nr: w.faNr.trim() || null,
-      machine_id: w.maschine,
+    const datenAus = (w) => {
+      const gruppe = w.matBez.trim() ? alt.werkstoffErkennen(w.matBez) : null;
+      const platzWert = darfPlatz ? (w.matOrt || "") : (auftrag ? alt.materialPlatz(auftrag) : "");
+      const daten = {
+        planned_from: w.von || null,
+        planned_days: Math.max(1, Math.round(Number(w.tage) || 1)),
+        target_quantity: w.menge === "" ? null : Math.max(0, Math.round(Number(w.menge))),
+        // Eine eben eingetippte Bestellung steht nach dem Speichern nur
+        // noch in Menge und Liefertermin, nicht doppelt in der Notiz
+        plan_note: alt.notizZusammen(materialAusNotizEntfernen(w.notiz, w.matMenge, w.liefer),
+          platzSpalte ? "" : platzWert),
+        drawing_url: w.pdf,
+        wbg_url: w.wbg,
+        plan_status: w.zustand,
+        // Erkennt die App den Werkstoff, gilt immer seine Farbe; nur sonst
+        // bleibt die bisherige des Auftrags
+        color: gruppe ? gruppe.farbe : w.farbe,
+        geplant_von: w.planer.length ? w.planer.join("/") : null,
+        // FA gilt als erstellt, sobald eine FA Nr. dasteht, Material als
+        // da, sobald eine Menge eingetragen ist
+        fa_erstellt: !!w.faNr.trim(),
+        material_ok: !!w.matMenge.trim(),
+        material_bez: w.matBez.trim() || null,
+        material_menge: w.matMenge.trim() || null,
+        material_liefertermin: w.liefer || null,
+        // Bei jedem Durchlauf eine andere — gehört an den Auftrag
+        fa_nr: w.faNr.trim() || null,
+        machine_id: w.maschine,
+      };
+      if (abrufDa) daten.abruf_info = w.abruf.trim() || null;
+      if (mSpalte) daten.material_m_trotzdem = !!w.mTrotzdem;
+      if (platzSpalte && darfPlatz) daten.material_platz = platzWert.trim() || null;
+      return daten;
     };
-    if (abrufDa) daten.abruf_info = w.abruf.trim() || null;
-    if (mSpalte) daten.material_m_trotzdem = !!w.mTrotzdem;
-    if (platzSpalte && darfPlatz) daten.material_platz = platzWert.trim() || null;
+    const daten = datenAus(w);
+    // Mit demselben Konto auf zwei Geräten (Wunsch Patrick 19. Oktober
+    // 2026): nur schreiben, was in diesem Fenster geändert wurde. Sonst
+    // überschrieb ein länger offenes Fenster beim Speichern, was das
+    // andere Gerät inzwischen gespeichert hatte, und es sah aus, als
+    // hätte das nicht gespeichert.
+    const vorher = auftrag ? datenAus(anfang.current) : null;
+    const geaendert = vorher
+      ? Object.keys(daten).filter((k) => JSON.stringify(daten[k]) !== JSON.stringify(vorher[k])
+        // Die Farbe des erkannten Werkstoffs gilt immer (seit 1.73.1)
+        || (k === "color" && daten.color !== auftrag.color))
+      : null;
     setBeschaeftigt(true);
-    try { await auftragSpeichern({ auftrag, daten, nr: w.nr.trim(), b, zu }); }
+    try { await auftragSpeichern({ auftrag, daten, geaendert, nr: w.nr.trim(), b, zu }); }
     finally { setBeschaeftigt(false); }
   };
 
   const titelZeichnung = "Zeichnung " + ((auftrag && auftrag.job_number) || "");
-  const freieFarbe = /^#/.test(w.farbe);
-  const zuteilung = alt.FARBZUTEILUNG;
   const planerListe = alt.PLANER;
   // Kürzel, die am Auftrag stehen oder einem selbst gehören, aber nicht
   // in der Planerliste sind: trotzdem als Knopf zeigen
@@ -549,6 +605,16 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 onChange={(e) => setze("nr", e.target.value)} /></label>
             <p className="klein" id="pl-hoco-info">{hocoInfo}</p>
           </>}
+          {/* Mindestmenge kurz über dem Zustand, immer, egal welcher
+              Zustand oder ob schon bestellt (Wunsch Patrick 16. Oktober
+              2026). Ist die Länge nicht bestätigt, steht „ca.“ vor der
+              Zahl (seit 1.89.0); antippen oder darüberfahren erklärt es. */}
+          {auftrag && matInfo(auftrag) && <p className="mat-info" id="pl-matinfo">
+            <b>Mat. info.:</b> {matInfo(auftrag).sicher === false && matInfo(auftrag).rest
+              ? <>min. <button type="button" className="mat-info__l"
+                  title={MAT_INFO_ERKLAERUNG} aria-label={MAT_INFO_ERKLAERUNG}
+                  onClick={() => alt.meldung(MAT_INFO_ERKLAERUNG)}>ca.</button> {matInfo(auftrag).rest}</>
+              : matInfo(auftrag).text}</p>}
           {/* Zustand als ein Auswahlfeld statt fünf Knöpfe: braucht
               eine Zeile statt drei. Auch ohne Planrecht wählbar. */}
           <div className="auf-dreier auf-dreier--gleich">
@@ -662,38 +728,28 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           {w.ausNotiz && <span className="feldhinweis auf-ausnotiz" id="pl-ausnotiz">
             Aus der Notiz übernommen: {[w.ausNotiz.lieferant, w.ausNotiz.nr].filter(Boolean).join(" ")}
             {darf ? " · wird beim Speichern eingetragen" : ""}</span>}
-          <div className="feld"><span className="feldlabel">Farbe und Material
-            {/* Das Material zur Farbe steht gleich daneben, spart eine Zeile */}
-            <span className="auf-farbname" id="pl-farbmaterial">
-              {[zuteilung[w.farbe] ? zuteilung[w.farbe].material : "",
-                vorschlag && w.farbe === vorschlag ? "eigene Farbe ersetzt durch " + alt.farbeVon(w.farbe).name
-                  + ", gilt nach dem Speichern" : ""].filter((x) => x).join(" · ")}</span></span>
-            <div className="farbwahl">
-              {alt.farbenZurWahl().map((f) => {
-                const z = zuteilung[f.wert];
-                return <button key={f.wert} type="button" data-plfarbe={f.wert}
-                  className={"farbknopf" + (w.farbe === f.wert ? " aktiv" : "")}
-                  style={{ background: f.hex, color: f.schrift }}
-                  title={z ? z.material + " (" + f.name + ")" : f.name}
-                  disabled={nurLesen} onClick={() => farbeWaehlen(f.wert)}>{z ? (z.buchstabe || "") : ""}</button>;
-              })}
-              {/* Ein alter Auftrag mit eigener Farbe: nur zum Ansehen */}
-              {freieFarbe && <span className="farbknopf farbknopf--alt aktiv" title="Eigene Farbe (alt)"
-                style={{ background: w.farbe }} />}
-            </div>
-          </div>
+          {/* Keine Farbwahl mehr: die Farbe kommt nur vom Material (Wunsch
+              Patrick 16. Oktober 2026: „Die Option Farben auszuwählen kannst
+              du rausnehmen“) */}
 
 
           {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
           <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>
-            <textarea id="pl-notiz" ref={notizFeld} readOnly={!darf} value={w.notiz}
+            <textarea id="pl-notiz" ref={notizFeld} readOnly={!darf && !darfPlatz} value={w.notiz}
               onChange={(e) => notizAendern(e.target.value)} /></label>
         </div>
 
         {/* Rechts: Zeichnung quer, darunter die Dokumente */}
         <div className="auf-spalte auf-spalte--zeichnung">
           <div className="feld auf-zeichnung">
-            <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} /></div>
+            <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} />
+            {imHaus && <ImHausEinblendung treffer={imHaus.treffer} bild={imHaus.bild} weg={() => setImHaus(null)}
+              // Eintragen nur, wer das Feld ändern darf; gespeichert wird mit Speichern
+              nutzen={nurLesen ? null : (text) => {
+                const bisher = String(aktuell.current.matMenge || "").trim();
+                setze("matMenge", bisher ? bisher + " + " + text : text);
+                alt.meldung("Bei „Menge vorhanden oder bestellt“ eingetragen. Zum Behalten Speichern drücken.", "gut");
+              }} />}</div>
           {/* Dokumente direkt unter der Zeichnung, nebeneinander */}
           <div className="auf-dokumente">
             <div className="auf-dok"><span className="feldlabel">Zeichnung <PfadKopieren adresse={w.pdf} /></span>

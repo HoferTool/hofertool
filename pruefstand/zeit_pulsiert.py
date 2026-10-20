@@ -3,7 +3,7 @@
 # Die Bilder setzt ein Admin unter Einstellungen → Symbole (1.29.0).
 # Ebenso die Kachel Stückzahl, solange heute keine Stückzahl gemeldet ist (1.28.0).
 import time
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import art_info, server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -69,17 +69,12 @@ with sync_playwright() as p:
                and pg.evaluate(f"document.querySelector('{s} .pad-zeit-foto').naturalWidth") > 0)
     pg.wait_for_timeout(400); pg.screenshot(path="/tmp/zeit-pulsiert.png")
     # Zeit eintragen: Kachel antippen, Zahl, Eintragen
-    pg.locator(k).click(force=True); pg.wait_for_timeout(600)
-    pg.wait_for_selector(".zifferblock [data-zbja]")
-    pg.keyboard.type("42"); pg.wait_for_timeout(200)
-    pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(1500)
+    pg.locator(k).click(force=True); art_info(pg, 42); pg.wait_for_timeout(1500)
     print("     Kachel:", pg.inner_text(k).replace("\n", " | "))
     pruefe("nach dem Eintragen ruhig", pg.locator(k + ".pad-karte2--zeitfehlt").count() == 0)
     pruefe("Foto wieder weg", pg.locator(k + " .pad-zeit-foto").count() == 0)
-    # Stückzeit wieder löschen (1.28.0): Knopf im Zifferblock, eine Rückfrage
-    pg.locator(k).click(force=True); pg.wait_for_selector(".zifferblock [data-zbloeschen]")
-    pg.wait_for_timeout(800); pg.screenshot(path="/tmp/zeit-loeschen.png")
-    pg.click(".zifferblock [data-zbloeschen]"); pg.wait_for_timeout(500)
+    # Stückzeit wieder löschen (1.28.0): seit 1.68.0 das Feld leeren, eine Rückfrage
+    pg.locator(k).click(force=True); art_info(pg, ""); pg.wait_for_timeout(500)
     pg.locator(".dialog-huelle button:has-text('Löschen')").last.click(); pg.wait_for_timeout(1500)
     pruefe("Stückzeit gelöscht, Kachel mahnt wieder", pg.locator(k + ".pad-karte2--zeitfehlt").count() == 1
            and "42" not in pg.inner_text(k))

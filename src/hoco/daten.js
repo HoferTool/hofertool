@@ -99,8 +99,9 @@ export async function teilLaden(t, darf) {
   const maschinenlauf = [];
   try {
     const h = await db.from("jobs")
-      .select("id, fa_nr, machine_id, planned_from, ended_at, plan_status,"
-        + " target_quantity, stand, machines(name, machine_number)")
+      // Nur Spalten, die es in jobs gibt: eine unbekannte (früher „stand“)
+      // lässt die ganze Abfrage scheitern, dann blieb „Maschinen“ leer
+      .select("id, machine_id, planned_from")
       .eq("job_number", t.hoco_nr)
       .order("planned_from", { ascending: false })
       .limit(400);
@@ -138,8 +139,11 @@ export async function teilLaden(t, darf) {
       const m = (maschinen || []).find((x) => x.id === j.machine_id);
       const e = m && dazu(m.type_id);
       if (!e) return;
-      const bez = (m.machine_number ? m.machine_number + " " : "") + (m.name || "");
-      if (e.maschinen.indexOf(bez) === -1) e.maschinen.push(bez);
+      // Nur die Maschinen-Nr., der Name ist ohnehin der Typ (Wunsch Patrick
+      // 15. Oktober 2026); neueste zuerst, weil maschinenlauf so sortiert ist
+      const bez = String(m.machine_number || m.name || "");
+      // Höchstens die letzten vier (Wunsch Patrick 15. Oktober 2026)
+      if (e.maschinen.length < 4 && e.maschinen.indexOf(bez) === -1) e.maschinen.push(bez);
     });
     (typen || []).forEach((t2) => { const e = sammlung[t2.id]; if (e) e.vorlage = t2.blatt_url || null; });
     ((sheets && sheets.data) || []).forEach((s) => { const e = dazu(s.type_id); if (e) { e.eigenes = s.blatt_url || null; e.zeit = s.stueckzeit_s ? Number(s.stueckzeit_s) : null; } });

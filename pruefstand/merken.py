@@ -58,7 +58,7 @@ with sync_playwright() as p:
 
     # 3. Ein Tipp auf die Kachel genügt
     pg, f = seite(br, "localStorage.setItem('hofer.geraet.sitzungen', JSON.stringify({'saheesan.hudson@hoferco.ch': 'r-1'}));")
-    pg.locator(".login__kachel").nth(1).click(); pg.wait_for_timeout(1500)
+    pg.locator(".login__kachel").nth(1).click(); pg.wait_for_timeout(2600)
     print("refreshSession:", pg.evaluate("TEST.protokoll.filter(x => x.art === 'refreshSession').map(x => x.a.refresh_token)"),
           "| Passwortfeld:", pg.evaluate("!!document.getElementById('lp')"), "| gemerkt:", gemerkt(pg))
     if pg.evaluate("!!document.getElementById('lp') || !!document.getElementById('lg-auswahl')"): fehler.append("nicht direkt angemeldet")
@@ -80,6 +80,10 @@ with sync_playwright() as p:
     if gemerkt(pg): fehler.append("trotz fehlendem Häkchen gemerkt")
     print("Frage:", abmelden(pg))
     if not pg.evaluate("TEST.protokoll.filter(x => x.art === 'signOut').length"): fehler.append("signOut fehlt ohne Merken")
+    # Nur dieses Gerät: ein zweites Gerät mit demselben Konto bleibt angemeldet
+    so = pg.evaluate("TEST.protokoll.filter(x => x.art === 'signOut').map(x => x.scope)")
+    print("signOut:", so)
+    if any(x != "local" for x in so): fehler.append("Abmelden meldet auch andere Geräte ab")
     fehler += f; pg.close()
     br.close()
 

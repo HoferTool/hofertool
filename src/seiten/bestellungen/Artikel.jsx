@@ -4,6 +4,7 @@
 //  tippen. Filter nach Bezeichnung und Lieferant als Auswahllisten.
 // =================================================================
 import { alt, useDaten, useVerzoegert, useSpeicherWert } from "../../bruecke.jsx";
+import { artikelFotosOeffnen } from "./ArtikelFotos.jsx";
 import { Leiste, NeuKnopf, Karte, Symbolknopf, Zeichen, Leer, Laedt, Fehler } from "./teile.jsx";
 
 export default function Artikel({ auffrischen, behaelter }) {
@@ -93,6 +94,12 @@ function Liste({ liste, sucht, schreiben, behaelter }) {
               : "–"}</div>
             <span className="bs-pos__aktionen">
               {schreiben && <>
+                {/* Verpackung fotografieren, damit das Foto bei der neuen
+                    Bestellposition den Artikel findet (seit 1.109.0) */}
+                <Symbolknopf zeichen="kamera" data-arfoto={a.id}
+                  text={a.foto_anzahl ? "Verpackung: " + a.foto_anzahl + " Fotos gelernt" : "Verpackung lernen"}
+                  onClick={() => artikelFotosOeffnen(a, () => alt.seiteBestellungen(behaelter))} />
+                {a.foto_anzahl > 0 && <span className="af-zahl" title="Gelernte Fotos der Verpackung">{a.foto_anzahl}</span>}
                 <Symbolknopf zeichen="stift" text="Bearbeiten" data-arbearb={a.id}
                   onClick={() => alt.artikelBearbeiten(a, behaelter)} />
                 <Symbolknopf zeichen="muell" text="Löschen" gefahr data-arweg={a.id}

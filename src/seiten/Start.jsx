@@ -15,6 +15,9 @@ import Notizen from "./start/Notizen.jsx";
 import Materialausgabe from "./start/Materialausgabe.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 
+// Ohne Adminrecht wird gar nicht erst nach Problemen gefragt
+const keineProbleme = async () => [];
+
 export default function Start({ auffrischen }) {
   const profil = alt.profil;
   const name = (profil && (profil.full_name || profil.email.split("@")[0])) || "";
@@ -23,8 +26,11 @@ export default function Start({ auffrischen }) {
   const kinder = geburtstageAufbereiten(geb.daten).filter((m) => m.tage === 0);
   const fest = kinder.length > 0;
   // Statt der Vorbereitung steht hier immer die Problemkarte (Wunsch
-  // 4. Oktober 2026), meistens mit „Keine Probleme gemeldet“.
-  const prob = useDaten(problemeLaden, [auffrischen]);
+  // 4. Oktober 2026), meistens mit „Keine Probleme gemeldet“. Seit
+  // 1.111.0 nur noch für Admins (Wunsch Patrick 20. Oktober 2026), alle
+  // anderen sehen die Probleme weiter auf der Planwand am Balken.
+  const admin = alt.istAdmin();
+  const prob = useDaten(admin ? problemeLaden : keineProbleme, [auffrischen, admin]);
   return (
     <>
       <section className={"kopfkarte" + (fest ? " kopfkarte--geburtstag" : "")}>
@@ -37,7 +43,7 @@ export default function Start({ auffrischen }) {
       </section>
       <Solaranlage />
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
-      <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />
+      {admin && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
       {/* Reihenfolge nach Wunsch 4. Oktober 2026: Probleme, Bestellungen,
           Notizen, Einkaufsliste, am Schluss die Geburtstage. Über den
           Notizen die Materialausgabe Extern (Wunsch 8. Oktober 2026). */}
@@ -50,7 +56,9 @@ export default function Start({ auffrischen }) {
   );
 }
 
-function Uhr() {
+// Uhr, Wetter und Solaranlage stehen auch oben auf dem Infoboard;
+// dort ohne die ids, die die Startseite darunter schon trägt
+export function Uhr({ ohneId }) {
   const [jetzt, setJetzt] = useState(() => new Date());
   useEffect(() => {
     const takt = setInterval(() => setJetzt(new Date()), 20000);
@@ -59,14 +67,14 @@ function Uhr() {
   const p = (n) => String(n).padStart(2, "0");
   return (
     <div className="kopfkarte__zeit">
-      <div className="uhr" id="uhr"><Ziffern text={p(jetzt.getHours()) + ":" + p(jetzt.getMinutes())} /></div>
-      <div className="kopfkarte__datum" id="datum">{jetzt.toLocaleDateString("de-CH",
+      <div className="uhr" id={ohneId ? undefined : "uhr"}><Ziffern text={p(jetzt.getHours()) + ":" + p(jetzt.getMinutes())} /></div>
+      <div className="kopfkarte__datum" id={ohneId ? undefined : "datum"}>{jetzt.toLocaleDateString("de-CH",
         { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
     </div>
   );
 }
 
-function Wetter() {
+export function Wetter({ ohneId }) {
   const [wetter, setWetter] = useState(null);   // null = lädt, false = nicht verfügbar
   useEffect(() => {
     let gueltig = true;
@@ -83,7 +91,7 @@ function Wetter() {
   const feiertag = feiText && <div className="wetter__feiertag">{feiText}</div>;
 
   return (
-    <div className="kopfkarte__wetter" id="wetter">
+    <div className="kopfkarte__wetter" id={ohneId ? undefined : "wetter"}>
       {wetter === null && <span className="klein">Wetter wird geladen …</span>}
       {wetter === false && <><span className="klein">Wetter nicht verfügbar</span>{feiertag}</>}
       {wetter && <>
@@ -99,7 +107,7 @@ function Wetter() {
 // Die Kachel der Solaranlage zeichnet noch das alte Programm. Die
 // Werte ändern sich laufend, darum jede Minute neu, ausser während
 // ein Fenster offen ist. Stört den Rest nicht, wenn es sie nicht gibt.
-function Solaranlage() {
+export function Solaranlage({ ohneId }) {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
@@ -114,5 +122,5 @@ function Solaranlage() {
     }, 60000);
     return () => clearInterval(takt);
   }, []);
-  return <div id="db-solar" className="kopfkarte__solar" ref={ref} />;
+  return <div id={ohneId ? undefined : "db-solar"} className="kopfkarte__solar" ref={ref} />;
 }

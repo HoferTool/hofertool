@@ -5,7 +5,7 @@
 #   fragt die App beim abgelösten nach dem Zählerstand.
 # Die Uhr steht fest auf Dienstag, 13. Oktober 2026, 14:00 in Zürich.
 import time
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import art_info, kein_rest, server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -62,10 +62,8 @@ with sync_playwright() as p:
         for z in "1250": pg.click(f".zifferblock [data-zb='{z}']")
         pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(800)
     # Danach kommt die Stückzeit
-    if not pg.locator(".zifferblock h2:has-text('Stückzeit')").count(): fehler.append("Pad: Stückzeit kommt nicht danach")
-    else:
-        for z in "40": pg.click(f".zifferblock [data-zb='{z}']")
-        pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(1200)
+    try: art_info(pg, 40, 7); kein_rest(pg); pg.wait_for_timeout(800)
+    except Exception: fehler.append("Pad: Stückzeit kommt nicht danach")
     if "2026-10-13=1250" not in staende("tT"): fehler.append("Pad: Stand nicht gespeichert: " + str(staende("tT")))
     if pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tT').plan_status") != "fertig": fehler.append("Pad: nicht beendet")
     pg.click("#pad [data-padzu]"); pg.wait_for_timeout(600)
@@ -87,10 +85,8 @@ with sync_playwright() as p:
     else:
         if "300" not in pg.inner_text(".zifferblock"): fehler.append("Produktion: bisher 300 fehlt")
         pg.click(".zifferblock [data-zbnein]"); pg.wait_for_timeout(700)
-    if pg.locator(".zifferblock h2:has-text('Stückzeit')").count():
-        for z in "30": pg.click(f".zifferblock [data-zb='{z}']")
-        pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(1200)
-    else: fehler.append("Produktion: Stückzeit kommt nicht")
+    try: art_info(pg, 30, 7); kein_rest(pg); pg.wait_for_timeout(800)
+    except Exception: fehler.append("Produktion: Stückzeit kommt nicht")
     if staende("tU") != ["2026-10-13=300"]: fehler.append("Produktion: Überspringen hat etwas geändert: " + str(staende("tU")))
     if pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tU').plan_status") != "fertig": fehler.append("Produktion: nicht beendet " + pg.inner_text("body")[-300:])
     br.close()

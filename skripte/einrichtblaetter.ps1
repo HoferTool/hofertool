@@ -14,13 +14,19 @@
 #
 #     10844-0049.xlsx                    → Einrichtblatt der HOCO Nr.
 #     Werkzeugprotokoll 10844-0049.xlsx    10844-0049 auf dem Typ des
-#     10844-0049 neu.xlsm                  Ordners
+#     10844-0049 Index C100.xlsm           Ordners
 #
-#  Hat der Name ausser HOCO Nr., Typ und "Werkzeugprotokoll" noch ein
-#  anderes Wort (Toleranzen, Plattenwechsel, Werkzeugkosten …), ist es
-#  kein Einrichtblatt und bleibt weg. Gibt es für eine HOCO Nr. mehrere,
-#  zählt das Werkzeugprotokoll, sonst die zuletzt geänderte Datei. Eine Datei wird nur hochgeladen, wenn
-#  sie neu ist oder sich seit dem letzten Mal geändert hat.
+#  Steht im Namen "Protokoll" (Werkzeugprotokoll, WZ-Protokoll …), ist
+#  es ein Einrichtblatt, egal was sonst noch im Namen steht und in welcher
+#  Reihenfolge (Wunsch Patrick 16. Oktober 2026). Ohne "Protokoll" zählt
+#  die Datei nur, wenn ausser HOCO Nr. und Typ nichts im Namen steht.
+#  Werkzeugwechsel und Toleranzen sind nie ein Einrichtblatt; war so eins
+#  schon hochgeladen, nimmt das Programm es in der App wieder weg. Gibt es
+#  für eine HOCO Nr. mehrere, zählt das Werkzeugprotokoll, sonst die
+#  zuletzt geänderte Datei. Lässt sich die Datei nicht lesen (leer,
+#  kaputt, kein Excel), ist die nächste dran; geht keine, bleibt die
+#  Nummer ohne neues Blatt. Eine Datei wird nur hochgeladen, wenn sie neu
+#  ist oder sich seit dem letzten Mal geändert hat.
 #
 #  Regel wie bei den Zeichnungen (Wunsch Patrick, 9. Oktober 2026: "WBGs
 #  und Einrichtblätter kann jeder löschen; wenn man löscht, soll es eine
@@ -30,8 +36,11 @@
 #     entfernen" im Betrachter oder bei der HOCO Nr.), kommt beim
 #     nächsten Durchlauf die nächste Excel-Datei dieser Nummer im Ordner.
 #     Die weggenommene steht in einrichtblaetter-stand.json unter
-#     "abgelehnt" und kommt nie wieder. Gibt es keine andere mehr, bleibt
-#     die Nummer ohne Blatt.
+#     "abgelehnt" (mit Grösse und Änderungszeit) und kommt nicht wieder,
+#     solange sie nicht geändert wird. Wird sie im Ordner neu gespeichert,
+#     zählt sie wieder (Patrick 15. Oktober 2026: bei der Index lag das
+#     geänderte Werkzeugprotokoll so fest). Gibt es keine andere mehr,
+#     bleibt die Nummer ohne Blatt.
 #   - Ein Blatt, das nicht von diesem Programm stammt (in der App von Hand
 #     hinterlegt), ist Master und wird nie ersetzt. Woran man das erkennt:
 #     Die Adresse in hoco_type_data.blatt_url ist nicht die, die das
@@ -107,24 +116,76 @@ function StandSichern {
 
 # Ist die Excel-Datei ein Einrichtblatt? Im selben Ordner liegen auch
 # Toleranzen, Plattenwechsel, Werkzeugkosten usw. mit derselben HOCO Nr.
-#   1 = Werkzeugprotokoll im Namen (auch vertippt: Werkzeuprotokoll …)
-#   2 = sonst nur HOCO Nr., Typ, Ziffern oder "Nr"
-#   0 = ein anderes Wort im Namen: kein Einrichtblatt, bleibt weg
+#   1 = HOCO Nr. und "Protokoll" im Namen (Werkzeugprotokoll, auch
+#       vertippt, WZ-Protokoll, Protokoll allein). Was sonst noch im Namen
+#       steht und in welcher Reihenfolge, spielt keine Rolle (Wunsch
+#       Patrick 16. Oktober 2026: bei der Index heissen sie mal
+#       "10841-0017 Werkzeugprotokoll Index C100", mal anders, und
+#       manche kamen nicht hoch).
+#   2 = HOCO Nr. und ein anderes Protokoll (Teileprotokoll, Messprotokoll)
+#   3 = nur HOCO Nr. (dazu höchstens Typ, Maschine wie C100, "SW", "Nr");
+#       so heissen die Blätter der meisten anderen Maschinen
+#   0 = kein Einrichtblatt, bleibt weg: Werkzeugwechsel(protokoll) und
+#       Toleranzen, auch zusammen mit "Protokoll" (Wunsch Patrick
+#       15. Oktober 2026), und ohne Protokoll jedes andere Wort im Namen
 function Rang([string]$name, [string]$typName) {
   $ohne = [regex]::Replace([IO.Path]::GetFileNameWithoutExtension($name), '\d{4,6}\s?-\s?\d{3,5}', ' ')
+  # Maschinenbezeichnungen wie "C100" gehören zum Typ, nicht als fremdes
+  # Wort ("10007-0026 Index C100.xlsx")
+  $ohne = [regex]::Replace($ohne, '(?i)(?<![a-zäöü])[a-z]{1,3}\d+', ' ')
+  $woerter = @(($ohne.ToLower() -split '[^a-zäöüß]+') | Where-Object { $_ })
+  # Wechsel (auch "Werkzeugwechelsprotokoll") und Toleranzen nie
+  $nie = @($woerter | Where-Object { $_ -match 'wech|toleranz' })
+  if ($nie.Count -gt 0) { return @{ rang = 0; fremd = ($nie -join " ") } }
+  $prot = 0
+  foreach ($w in $woerter) {
+    if ($w -match 'prot[o]?k') {
+      if ($w -match '^(werkz[a-z]*|wz)?prot') { $prot = 1 } elseif ($prot -eq 0) { $prot = 2 }
+    }
+  }
+  if ($prot -gt 0) { return @{ rang = $prot; fremd = "" } }
   $typWoerter = @(($typName.ToLower() -split '[^a-zäöüß]+') | Where-Object { $_ })
   $fremd = @()
-  $prot = $false
-  foreach ($w in (($ohne.ToLower() -split '[^a-zäöüß]+') | Where-Object { $_ })) {
-    # Alte Fassungen und Kopien nie, auch nicht als Werkzeugprotokoll
-    if (@('alt', 'old', 'kopie', 'copy') -contains $w) { return @{ rang = 0; fremd = $w } }
-    if ($w -match 'protokol') { $prot = $true; continue }
-    if ($typWoerter -contains $w -or $w -eq 'sw' -or $w -eq 'nr') { continue }
+  foreach ($w in $woerter) {
+    # "Werkzeug", "WZ", "Aut.308" (Automat) und einzelne Buchstaben (SB-16E) sind kein
+    # fremdes Wort
+    if ($typWoerter -contains $w -or $w.Length -eq 1 -or @('sw', 'nr', 'werkzeug', 'wz', 'aut', 'automat') -contains $w) { continue }
     $fremd += $w
   }
-  if ($prot) { return @{ rang = 1; fremd = "" } }
-  if ($fremd.Count -eq 0) { return @{ rang = 2; fremd = "" } }
-  return @{ rang = 0; fremd = ($fremd -join " ") }
+  if ($fremd.Count -gt 0) { return @{ rang = 0; fremd = ($fremd -join " ") } }
+  return @{ rang = 3; fremd = "" }
+}
+
+# Lässt sich die Datei als Excel lesen? Leere oder kaputte Dateien und
+# solche, die nur .xlsx heissen, haben vorne nicht die Kennung von Excel
+# (xlsx/xlsm sind ZIP: "PK", xls: D0 CF 11 E0). Dann kommt die nächste
+# Datei derselben HOCO Nr. dran (Wunsch Patrick 16. Oktober 2026).
+function Lesbar($d) {
+  if ($d.Length -lt 8) { return $false }
+  try {
+    $f = [IO.File]::Open($d.FullName, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+    try {
+      $b = New-Object byte[] 4
+      if ($f.Read($b, 0, 4) -lt 4) { return $false }
+    } finally { $f.Close() }
+  } catch { return $false }
+  if ($b[0] -eq 0x50 -and $b[1] -eq 0x4B) { return $true }
+  if ($b[0] -eq 0xD0 -and $b[1] -eq 0xCF -and $b[2] -eq 0x11 -and $b[3] -eq 0xE0) { return $true }
+  return $false
+}
+
+# In der App weggenommen? Eingetragen ist die Kennung (Pfad, Zeit,
+# Grösse), also zählt die Datei wieder, sobald sie geändert wird. Ältere
+# Einträge haben nur den Pfad: Die gelten für die Datei, solange sie
+# nicht nach dem Wechsel auf diese Regel gespeichert wurde.
+$abgelehntRegelAb = [datetime]::Parse("2026-10-15T15:00:00Z").ToUniversalTime()
+function IstAbgelehnt($d, $liste) {
+  foreach ($e in $liste) {
+    if (-not $e) { continue }
+    if ($e.Contains("|")) { if ($e -eq (Kennung $d)) { return $true } }
+    elseif ($e -eq $d.FullName -and $d.LastWriteTimeUtc -lt $abgelehntRegelAb) { return $true }
+  }
+  return $false
 }
 
 # Wurde so ein Blatt (Toleranzen usw.) früher schon hochgeladen, als die
@@ -154,7 +215,7 @@ function FalschesEntfernen($d, [string]$h, $typ) {
 $jetztIso = (Get-Date).ToUniversalTime().ToString("o")
 $status = @{ immer = $true; zeit = $jetztIso; gesehen = $jetztIso; rechner = $env:COMPUTERNAME;
              scharf = $false; ordner = @(); excel = 0; neu = 0; ersetzt = 0; gleich = 0; rest = 0;
-             ohneNr = 0; fremd = 0; aelter = 0; hochgeladen = 0; manuell = 0; abgelehnt = 0; keineMehr = 0;
+             ohneNr = 0; fremd = 0; aelter = 0; unlesbar = 0; hochgeladen = 0; manuell = 0; abgelehnt = 0; keineMehr = 0;
              fehler = $null; liste = @() }
 function Eintrag($o, [string]$datei, [string]$hoco, [string]$was) {
   if ($status.liste.Count -lt $listeHoechstens) {
@@ -222,8 +283,8 @@ try {
     $info.excel = $alle.Count
     $status.excel += $alle.Count
 
-    # Je HOCO Nr. das Werkzeugprotokoll, sonst die Datei nur mit Nummer;
-    # bei mehreren davon die zuletzt geänderte
+    # Je HOCO Nr. das Werkzeugprotokoll, sonst ein anderes Protokoll,
+    # sonst die Datei nur mit Nummer; bei mehreren die zuletzt geänderte
     $jeNr = @{}
     foreach ($d in $alle) {
       $h = HocoAusName $d.Name
@@ -261,7 +322,7 @@ try {
       # Das eigene Blatt ist in der App weggenommen worden: diese Datei
       # kommt nie wieder, die nächste ist dran
       if (-not $jetzt -and $stand.dateien[$schluessel]) {
-        $weg = ([string]$stand.dateien[$schluessel]).Split("|")[0]
+        $weg = [string]$stand.dateien[$schluessel]
         if ($weg) {
           if (-not $stand.abgelehnt[$schluessel]) { $stand.abgelehnt[$schluessel] = @() }
           if ($stand.abgelehnt[$schluessel] -notcontains $weg) { $stand.abgelehnt[$schluessel] += $weg }
@@ -269,16 +330,36 @@ try {
         $stand.dateien.Remove($schluessel); $stand.adressen.Remove($schluessel)
         StandSichern
         $status.abgelehnt++
-        Schreibe ("Einrichtblatt von " + $h + " auf " + $typ.name + " in der App entfernt, nächste Datei: " + $weg)
+        Schreibe ("Einrichtblatt von " + $h + " auf " + $typ.name + " in der App entfernt, nächste Datei: " + $weg.Split("|")[0])
       }
 
-      $gruppe = @($jeNr[$h] | Where-Object { @($stand.abgelehnt[$schluessel]) -notcontains $_.FullName } |
+      $gruppe = @($jeNr[$h] | Where-Object { -not (IstAbgelehnt $_ @($stand.abgelehnt[$schluessel])) } |
         Sort-Object @{ Expression = { $_.HoferRang } }, @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true })
       if ($gruppe.Count -eq 0) { $status.keineMehr++; Eintrag $oi "" $h "alle Dateien in der App entfernt, bleibt ohne Blatt"; continue }
-      $d = $gruppe[0]
-      foreach ($x in ($gruppe | Select-Object -Skip 1)) {
-        $status.aelter++; Eintrag $oi $x.Name $h ("weiteres Blatt, es zählt " + $d.Name)
+      # Die beste Datei ist schon in der App und unverändert: nichts zu
+      # tun, auch nichts zu öffnen
+      if ($jetzt -and $stand.dateien[$schluessel] -eq (Kennung $gruppe[0])) {
+        $status.gleich++
+        foreach ($x in ($gruppe | Select-Object -Skip 1)) { $status.aelter++; Eintrag $oi $x.Name $h ("weiteres Blatt, es zählt " + $gruppe[0].Name) }
+        continue
       }
+
+      # Sonst die erste Datei, die sich lesen lässt; lässt sich eine
+      # nicht lesen, ist die nächste dran. Geht keine, bleibt die Nummer
+      # wie sie ist, die App zeigt dann "Kein Einrichtblatt vorhanden".
+      $d = $null; $kopie = $null
+      foreach ($x in $gruppe) {
+        if ($d) { $status.aelter++; Eintrag $oi $x.Name $h ("weiteres Blatt, es zählt " + $d.Name); continue }
+        if (-not (Lesbar $x)) { $status.unlesbar++; Eintrag $oi $x.Name $h "lässt sich nicht lesen, nächste Datei"; continue }
+        # Im Probelauf und wenn die Datei schon drin ist, nicht kopieren
+        if ($scharf -and $nochFrei -gt 0 -and -not ($jetzt -and $stand.dateien[$schluessel] -eq (Kennung $x))) {
+          try { $kopie = LesendKopieren $x } catch {
+            $status.unlesbar++; Eintrag $oi $x.Name $h ("lässt sich nicht lesen (" + $_.Exception.Message + "), nächste Datei"); continue
+          }
+        }
+        $d = $x
+      }
+      if (-not $d) { $status.keineMehr++; Eintrag $oi "" $h "keine Datei lesbar, bleibt wie es ist"; continue }
       $kennung = Kennung $d
       if ($jetzt -and $stand.dateien[$schluessel] -eq $kennung) { $status.gleich++; continue }
 
@@ -288,9 +369,7 @@ try {
       if (-not $scharf) { Eintrag $oi $d.Name $h ("würde hochladen: " + $was); Schreibe ("Probe: " + $d.FullName + "  →  " + $h + " auf " + $typ.name + ", " + $was); continue }
       if ($nochFrei -le 0) { $status.rest++; Eintrag $oi $d.Name $h "kommt beim nächsten Durchlauf"; continue }
 
-      $kopie = $null
       try {
-        $kopie = LesendKopieren $d
         $z = @{ hoco = $h; typ = $typ; art = "einrichtblatt"; titel = $h; fa = $null; auftrag = $null; grund = ""; passt = $true }
         $script:letzteAdresse = $null
         Hochladen $kopie $z "eb-ordner"

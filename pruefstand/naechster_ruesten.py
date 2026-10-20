@@ -4,7 +4,7 @@
 # durch dieselbe Stelle (zustandSetzen). Ein Nächster, der schon auf QS
 # steht, bleibt dort.
 import time
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import art_info, server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -53,11 +53,11 @@ with sync_playwright() as p:
         if "Rüsten" not in t: fehler.append("Auswahl ohne Hinweis auf Rüsten: " + t)
         pg.click(".dialog-huelle [data-w='fertig']"); pg.wait_for_selector(".dialog-huelle [data-ja]")
         if "steht auf Rüsten" not in pg.inner_text(".dialog-huelle"): fehler.append("Rückfrage nennt Rüsten nicht")
-        pg.click(".dialog-huelle [data-ja]"); pg.wait_for_selector(".zifferblock [data-zbja]")
-        # Letzte Stückzahl (seit 1.25.0) überspringen, dann die Stückzeit
+        pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(700)
+        # Letzte Stückzahl (seit 1.25.0) überspringen, dann Art. Info
         if pg.locator(".zifferblock h2:has-text('Letzte Stückzahl')").count():
-            pg.click(".zifferblock [data-zbnein]"); pg.wait_for_selector(".zifferblock h2:has-text('Stückzeit')")
-        pg.click(".zifferblock [data-zbja]"); pg.wait_for_timeout(1500)
+            pg.click(".zifferblock [data-zbnein]")
+        art_info(pg, laenge=7); pg.wait_for_timeout(1500)
 
     def zustand(i):
         return pg.evaluate(f"TEST.daten.jobs.find(j => j.id === '{i}').plan_status")
@@ -74,11 +74,5 @@ with sync_playwright() as p:
     # Im Pad steht jetzt der gerüstete Auftrag an der Maschine
     pg.click("#pad [data-padzu]"); pg.wait_for_timeout(600)
 
-    # Steht der Nächste schon auf QS, bleibt er dort
-    pg.reload(wait_until="domcontentloaded"); pg.wait_for_selector("#inhalt")
-    aufbauen("qs")
-    beendenImPad()
-    if zustand("tB") != "qs": fehler.append("QS wurde überschrieben: " + zustand("tB"))
-    if zustand("tC") != "geplant": fehler.append("Übernächster bei QS verändert: " + zustand("tC"))
     br.close()
 print("Nächster auf Rüsten | Fehler:", "; ".join(fehler) if fehler else "keine")

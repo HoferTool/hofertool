@@ -44,6 +44,7 @@ def gesperrt(br, fake, titel):
     pruefe(titel + ": Fenster offen", pg.locator(".dialog--auftrag").count() == 1)
     pruefe(titel + ": Platz sichtbar", pg.input_value("#pl-matort") == "Regal 1")
     pruefe(titel + ": Feld gesperrt", pg.evaluate("document.querySelector('#pl-matort').readOnly"))
+    pruefe(titel + ": Notiz gesperrt", pg.evaluate("document.querySelector('#pl-notiz').readOnly"))
     # Auch von Hand ins Feld geschrieben wird nichts gespeichert
     pg.evaluate("""() => { const e = document.querySelector('#pl-matort');
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(e, 'Anderswo');
@@ -82,6 +83,9 @@ def lauf(br, fake, spalte, titel):
     lab = pg.locator("#pl-ortfeld > span").first.inner_text() if pg.locator("#pl-ortfeld").count() else ""
     pruefe(titel + ": Feld heisst Materialplatz", lab.strip() == "Materialplatz")
     pg.fill("#pl-matort", "Regal 4 oben")
+    # Mit dem Häkchen auch die Notiz (1.60.0)
+    pruefe(titel + ": Notiz offen", not pg.evaluate("document.querySelector('#pl-notiz').readOnly"))
+    if spalte: pg.fill("#pl-notiz", "Spannzange prüfen\nNeue Zeile")
     if titel.startswith("admin"): pg.screenshot(path="/tmp/materialplatz.png")
     pg.click("#pl-ja"); pg.wait_for_timeout(1300)
     j = pg.evaluate("(id) => JSON.parse(JSON.stringify(TEST.daten.planwand.find(x => x.id === id)))", jid)
@@ -90,6 +94,7 @@ def lauf(br, fake, spalte, titel):
         pruefe(titel + ": in Spalte gespeichert", j.get("material_platz") == "Regal 4 oben")
         pruefe(titel + ": Notiz ohne Materialzeile", "Material:" not in note)
         pruefe(titel + ": Notiz bleibt", "Spannzange prüfen" in note)
+        pruefe(titel + ": Notiz geändert", "Neue Zeile" in note)
     else:
         pruefe(titel + ": in Notiz gespeichert", "Material: Regal 4 oben" in note)
     # Wieder öffnen zeigt den Platz

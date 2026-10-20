@@ -369,12 +369,13 @@ function blattAusExcelJS(ws, wb, thema, eigeneBilder) {
   const spalten = [];
   for (let c = 1; c <= letzteS; c++) {
     const col = ws.getColumn(c);
-    spalten.push(col.hidden ? 0 : col.width ? Math.round(col.width * 7) : stdBreite);
+    spalten.push(col.hidden ? 0 : col.width != null ? Math.round(col.width * 7) : stdBreite);
   }
   const zeilen = [];
   for (let r = 1; r <= letzteZ; r++) {
     const row = ws.findRow(r);
-    zeilen.push(row && row.hidden ? 0 : row && row.height ? Math.round(row.height * PX_JE_PT) : stdHoehe);
+    // Höhe 0 heisst ausgeblendet, nicht Standardhöhe
+    zeilen.push(row && row.hidden ? 0 : row && row.height != null ? Math.round(row.height * PX_JE_PT) : stdHoehe);
   }
 
   const zelle = (r, c) => zellen.get(r + "," + c);
@@ -405,6 +406,8 @@ function blattAusExcelJS(ws, wb, thema, eigeneBilder) {
         umbruch: !!a.wrapText || a.horizontal === "justify" || a.vertical === "justify",
         einzug: a.indent || 0,
         drehung: a.textRotation,
+        // „An Zellgrösse anpassen“: Excel macht die Schrift kleiner, bis der Text passt
+        kleiner: !!a.shrinkToFit && !a.wrapText,
       };
     },
     rahmen: (z, seite) => {
@@ -519,12 +522,16 @@ function modellBauen({ name, spalten, zeilen, gitter, merges, alle, zelle, stil,
     const [r, c] = key.split(",").map(Number);
     if (verdeckt.has(key) || r > nZ || c > nS) continue;
     const m = anfang.get(key) || { rs: 1, cs: 1 };
+    // Ausgeblendete Zeilen und Spalten (Höhe oder Breite 0) zeigt Excel
+    // gar nicht. Hier lief ihr Text sonst sichtbar über die Nachbarn
+    // (Patrick 16. Oktober 2026: „DNMU110404 MF1“ über „Utilis (R0.8)“)
+    if (y[r - 1 + m.rs] - y[r - 1] <= 0 || x[c - 1 + m.cs] - x[c - 1] <= 0) continue;
     const s = stil(roh);
     const hatText = (s.text != null && s.text !== "") || (s.runs && s.runs.length);
     if (!hatText && !s.fill && m.rs === 1 && m.cs === 1) continue;
     // Text darf wie in Excel in leere Nachbarzellen hinauslaufen
     let ueber = false;
-    if (hatText && !s.umbruch && m.cs === 1 && !s.drehung) {
+    if (hatText && !s.umbruch && !s.kleiner && m.cs === 1 && !s.drehung) {
       const rechts = s.ha === "left" || s.ha === "center" ? leer(r, c + 1) : true;
       const links = s.ha === "right" || s.ha === "center" ? c === 1 || leer(r, c - 1) : true;
       ueber = rechts && links;

@@ -11,7 +11,10 @@ import { alt, reactSeite, reactAufraeumen } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
+import Qs from "../seiten/Qs.jsx";
 import Temp from "../seiten/Temp.jsx";
+import Infoboard, { infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
+import { istInfoboardGeraet } from "../infoboard/daten.js";
 import { tempAufraeumenRegelmaessig } from "../daten/temp.js";
 import Einkauf from "../seiten/Einkauf.jsx";
 import Bestellungen from "../seiten/Bestellungen.jsx";
@@ -34,6 +37,10 @@ import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
 import { blattSuchen as appBlattSuchen, ausExcelEinlesen } from "../einrichtblatt/daten.js";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
+import { zeichnungNrSofort, zeichnungNrHolen } from "../daten/zeichnungNr.js";
+import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo, werkstoffSuchtext } from "../daten/material.js";
+import { postenFenster } from "../material/PostenFenster.jsx";
+import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
 import { planArchivWaechter } from "../teile/planwandArchiv.js";
 import { archivVerbindung } from "../archiv/archivDb.js";
@@ -50,7 +57,7 @@ import { hocoFenster } from "../planwand/HocoFenster.jsx";
 import Hoco from "../hoco/Hoco.jsx";
 import { maschinenkopf } from "../seiten/rechner/kopf.jsx";
 import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
-import { pushNachAnmeldung, pushHinweisWeg } from "../teile/push.jsx";
+import { meldungenNachAnmeldung, meldungenWeg } from "../teile/anmeldeMeldungen.jsx";
 import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 
 const BOOT = document.getElementById("boot");
@@ -103,27 +110,6 @@ async function pinAnmelden(email, pin) {
   return { status: "ok" };
 }
 
-// Konten ohne Passwort und ohne PIN (Entscheid 3. Oktober 2026): Ein
-// Tipp auf die Kachel genügt, wie vor 111.12.0. Ob das Konto noch offen
-// ist, entscheidet der Server, nicht der Code hier. Antwort "ok" heisst
-// angemeldet, "pin" oder "passwort" heisst: danach fragen.
-async function offenAnmelden(email) {
-  let antwort;
-  try {
-    antwort = await zeitlimit(db.functions.invoke("pin-anmelden",
-      { body: { email: email, offen: true } }), 15000, "Anmeldung");
-  } catch (f) {
-    return { status: "fehler", text: fehlertext(f) };
-  }
-  const d = antwort && antwort.data;
-  if (!d || antwort.error) return { status: "fehler", text: "nicht eingerichtet" };
-  if (d.status !== "ok") return d;
-  let r = await db.auth.verifyOtp({ token_hash: d.token_hash, type: "email" });
-  if (r.error) r = await db.auth.verifyOtp({ token_hash: d.token_hash, type: "magiclink" });
-  if (r.error) return { status: "fehler", text: fehlertext(r.error) };
-  return { status: "ok" };
-}
-
 // Was die Person nach einem PIN-Versuch zu lesen bekommt
 function pinMeldung(e) {
   if (e.status === "falsch") {
@@ -149,7 +135,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.43.0";
+const APP_VERSION = "1.115.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -187,6 +173,17 @@ function escapeZurueck() {
     }
     if (wo === "bestellungen" && best.ansicht && best.ansicht !== "offen") {
       best.ansicht = "offen"; zeichneSeite(); return;
+    }
+
+    // Nichts mehr offen, keine Ebene zurück: dann fragt Escape, ob man
+    // sich abmelden will; Enter bestätigt (Wunsch Patrick 13. Oktober
+    // 2026). Nicht im Archiv, nicht für Externe (neue Funktionen nur
+    // auf Nachfrage) und nicht, solange das kleine Notizbuch schwebt.
+    if (ARCHIV || !profil || istExtern() || !document.getElementById("inhalt")) return;
+    if (document.querySelector("#pad, .nb-schwebend")) return;
+    if (typeof window.abmeldenFragen === "function") {
+      e.preventDefault();
+      window.abmeldenFragen();
     }
   });
 }
@@ -984,7 +981,33 @@ try {
     } catch (f) { /* nichts zu geben */ }
     if (Object.keys(antwort).length) sitzungKanal.postMessage({ sitzung: antwort });
   };
+  // Hat ein anderer Tab die Sitzung erneuert, gilt der alte Schlüssel
+  // hier nicht mehr. Erneuerte dieser Tab später mit dem alten, hielte
+  // Supabase das für gestohlen und beendete die Sitzung in allen Tabs.
+  // Darum den neuen übernehmen, aber nur für dieselbe Sitzung.
+  sitzungKanal.addEventListener("message", (e) => {
+    const neu = e.data && e.data.erneuert;
+    if (!neu || typeof neu !== "object") return;
+    Object.keys(neu).forEach((k) => {
+      if (!SITZUNG_MUSTER.test(k) || typeof neu[k] !== "string") return;
+      try {
+        const jetzt = sessionStorage.getItem(k);
+        if (jetzt && sitzungsKennung(jetzt) && sitzungsKennung(jetzt) === sitzungsKennung(neu[k])) {
+          sessionStorage.setItem(k, neu[k]);
+        }
+      } catch (f) { /* egal */ }
+    });
+  });
+
 } catch (f) { sitzungKanal = null; }
+
+// Welche Sitzung (Person) hinter einem abgelegten Eintrag steckt
+function sitzungsKennung(text) {
+  try {
+    const j = JSON.parse(text);
+    return (j && j.user && j.user.id) || null;
+  } catch (f) { return null; }
+}
 
 function sitzungVonAnderemTab() {
   if (!sitzungKanal || sitzungSchluessel().length) return Promise.resolve(false);
@@ -1012,10 +1035,19 @@ function sitzungVonAnderemTab() {
 // Personen, die sich auf diesem Gerät merken lassen.
 function sitzungenVerfolgen(client) {
   try {
-    client.auth.onAuthStateChange((_art, s) => {
+    client.auth.onAuthStateChange((art, s) => {
       if (s && s.user && s.refresh_token && sitzungGemerkt(s.user.email)) {
         sitzungMerken(s.user.email, s.refresh_token);
       }
+      // Den anderen Tabs den neuen Schlüssel geben (siehe oben)
+      if (art === "TOKEN_REFRESHED" && sitzungKanal) setTimeout(() => {
+        const neu = {};
+        try {
+          Object.keys(sessionStorage).filter((k) => SITZUNG_MUSTER.test(k))
+            .forEach((k) => { neu[k] = sessionStorage.getItem(k); });
+        } catch (f) { /* nichts zu geben */ }
+        if (Object.keys(neu).length) try { sitzungKanal.postMessage({ erneuert: neu }); } catch (f) { /* egal */ }
+      }, 0);
     });
   } catch (f) { /* ohne geht es auch, dann eben jedes Mal anmelden */ }
 }
@@ -1061,12 +1093,17 @@ function eigeneFassung() {
 // Gibt true zurück, wenn neu geladen wird. Länger als zweieinhalb
 // Sekunden wartet niemand darauf: Dann geht es ohne weiter, und die
 // Antwort vom Server lädt die Seite eben später neu.
-function fassungPruefen() {
-  const lauf = fassungHolen().catch(() => false);
+// spaeter: nicht selbst neu laden, nur melden. Bei der Anmeldung lädt
+// die Seite erst neu, wenn die Animation ganz durch ist; vorher sprang
+// sie nach langer Pause mitten im Ladebildschirm in die App (Wunsch
+// Patrick, 14. Oktober 2026: „erst einloggen, wenn die Animation
+// durchgeführt wurde“)
+function fassungPruefen(spaeter) {
+  const lauf = fassungHolen(spaeter).catch(() => false);
   return Promise.race([lauf, new Promise((ok) => setTimeout(() => ok(false), 2500))]);
 }
 
-async function fassungHolen() {
+async function fassungHolen(spaeter) {
   const eigene = eigeneFassung();
   if (!eigene || navigator.onLine === false) return false;
   let html;
@@ -1081,7 +1118,7 @@ async function fassungHolen() {
     if (sessionStorage.getItem(FASSUNG_NEULADEN) === m[1]) return false;
     sessionStorage.setItem(FASSUNG_NEULADEN, m[1]);
   } catch (f) { /* ohne Speicher trotzdem einmal neu laden */ }
-  location.reload();
+  if (!spaeter) location.reload();
   return true;
 }
 
@@ -1250,11 +1287,20 @@ function einstellungAblegen(name, wert) {
   profil.einstellungen = profil.einstellungen || {};
   profil.einstellungen[name] = wert;
 
-  db.from("profiles").update({ einstellungen: profil.einstellungen })
-    .eq("id", profil.id)
+  // Nur diesen einen Wert ändern (sql/einstellung-setzen.sql). Die ganze
+  // Liste zu schreiben überschrieb, was ein zweites Gerät mit demselben
+  // Konto eben gespeichert hatte (Wunsch Patrick 19. Oktober 2026).
+  const fertig = (r) => {
+    // Sichtbar im Fehlerprotokoll, nicht nur in der Entwicklerkonsole
+    if (r && r.error) fehlerMerken("Einstellung nicht am Konto gespeichert", name + ": " + r.error.message);
+  };
+  db.rpc("einstellung_setzen", { p_name: name, p_wert: wert === undefined ? null : wert })
     .then((r) => {
-      // Sichtbar im Fehlerprotokoll, nicht nur in der Entwicklerkonsole
-      if (r && r.error) fehlerMerken("Einstellung nicht am Konto gespeichert", name + ": " + r.error.message);
+      if (!r || !r.error) return;
+      // Ohne das SQL wie früher die ganze Liste
+      if (/einstellung_setzen/.test(String(r.error.message || ""))) {
+        db.from("profiles").update({ einstellungen: profil.einstellungen }).eq("id", profil.id).then(fertig);
+      } else fertig(r);
     });
 }
 
@@ -1281,26 +1327,31 @@ function themaAnwenden() {
   const w = themaJetzt();
   if (w === "blau") document.body.removeAttribute("data-thema");
   else document.body.setAttribute("data-thema", w);
-  fensterleisteFaerben(w);
+  fensterleisteFaerben();
 }
 
-// Die Leiste oben am installierten App-Fenster (Windows, Tablet) nimmt
-// ihre Farbe aus <meta name="theme-color">. Ohne das bliebe sie immer
-// blau, egal welche Themenfarbe gewählt ist. Bewusst die kräftige
-// Farbe des hellen Modus: Die hellen Töne des dunklen Modus wären mit
-// der weissen Schrift in der Leiste kaum lesbar.
+// Die Leiste oben am installierten App-Fenster (Windows, Tablet) und
+// am Handy der Rand bei Uhr und Akku nehmen ihre Farbe aus
+// <meta name="theme-color">. Auf der Anmeldeseite blau, in der App wie
+// die Kopfzeile weiss oder im dunklen Modus dunkel (Wunsch Patrick,
+// 14. Oktober 2026: „System heisst weiss oder Dark Mode“). Beim Anmelden
+// wechselt sie mit der Welle (obenWechseln in Anmeldung.jsx), damit
+// danach nichts mehr springt. LEISTENFARBE bleibt für Druckblätter.
 const LEISTENFARBE = {
   blau: "#003884", rot: "#a4231c", gruen: "#1c6b42", gelb: "#8a6608",
   rosa: "#a4256e", violett: "#5b2a9e", orange: "#9c4a0c",
 };
-function fensterleisteFaerben(thema) {
+const KOPFFARBE = { hell: "#ffffff", dunkel: "#1c2229", anmeldung: "#003884" };
+function fensterleisteFaerben(art) {
   let m = document.querySelector('meta[name="theme-color"]');
   if (!m) {
     m = document.createElement("meta");
     m.name = "theme-color";
     document.head.appendChild(m);
   }
-  m.setAttribute("content", LEISTENFARBE[thema] || LEISTENFARBE.blau);
+  const farbe = art === "anmeldung" ? KOPFFARBE.anmeldung
+    : document.body.classList.contains("dunkel") ? KOPFFARBE.dunkel : KOPFFARBE.hell;
+  m.setAttribute("content", farbe);
 }
 
 // Symbol für den Home-Bildschirm (iPhone, iPad): Das iPhone nimmt das
@@ -1478,7 +1529,11 @@ async function abmelden() {
   rueckLeeren();
   const s = await sitzung();
   if (!s || !sitzungGemerkt(s.user && s.user.email)) {
-    try { await db.auth.signOut(); } catch (f) { /* lokal ist trotzdem weg */ }
+    // Nur dieses Gerät: signOut() ohne scope meldet die Person überall
+    // ab, dann flog das andere Gerät mit demselben Konto raus und konnte
+    // nichts mehr speichern (Wunsch Patrick 19. Oktober 2026: mit einem
+    // Konto auf zwei Geräten arbeiten)
+    try { await db.auth.signOut({ scope: "local" }); } catch (f) { /* lokal ist trotzdem weg */ }
     return;
   }
   sitzungMerken(s.user.email, s.refresh_token);
@@ -1499,7 +1554,8 @@ async function sitzung() {
   }
 }
 
-async function profilLaden() {
+// frisch: direkt nach einer Anmeldung, dann beginnen die 4 Stunden neu
+async function profilLaden(frisch) {
   // Gemerkte Parks, Maschinen und Typen gehören zur vorherigen Sitzung
   stammVergessen();
   const s = await sitzung();
@@ -1520,6 +1576,7 @@ async function profilLaden() {
     }
     if (error || !data) throw error || new Error("kein Profil");
     profil = data;
+    if (frisch === true) zuletztSchreiben(true);
     // Andere Nutzer bleiben auf diesem Gerät angemeldet, egal wie sie
     // hereingekommen sind (Tipp, PIN oder Passwort ohne Häkchen) und
     // auch, wenn sie schon vor diesem Stand angemeldet waren: Der
@@ -1528,9 +1585,9 @@ async function profilLaden() {
       sitzungMerken(profil.email, s.refresh_token);
     }
     lebenszeichenStarten();
-    // Push-Mitteilungen nach der Einstellung dieser Person (1.35.0).
-    // Etwas später, damit die Seite zuerst steht.
-    setTimeout(pushNachAnmeldung, 2000);
+    // Meldungen beim Anmelden (1.44.0): was noch nicht gelesen ist, liegt
+    // über allem, bis die Person „Gelesen“ tippt
+    setTimeout(meldungenNachAnmeldung, 600);
   } catch (f) {
     console.warn("Profil nicht ladbar:", f.message);
     profil = { id: s.user.id, email: s.user.email, full_name: null,
@@ -1571,7 +1628,7 @@ function zeigeLogin() {
   // Immer im gewohnten Blau, egal was die letzte Person eingestellt hatte
   document.body.classList.remove("dunkel", "nav--schmal", "rolle-extern");
   document.body.removeAttribute("data-thema");
-  fensterleisteFaerben("blau");
+  fensterleisteFaerben("anmeldung");
   einstellungenNeuLesen();
   anmeldungZeigen(WURZEL);
 }
@@ -2122,7 +2179,8 @@ async function dokHochladen(datei, zuordnung, quelle) {
 // =================================================================
 //  WBG AUFRÄUMEN
 //  Eine WBG bleibt, solange ihr Auftrag läuft, und noch fünf Tage
-//  danach. Dann verschwinden Datei und Eintrag. Läuft einmal am Tag,
+//  danach. Dann verschwinden Datei und Eintrag. Ebenso die
+//  Werkzeugwechsel-Historie am Auftrag. Läuft einmal am Tag,
 //  sobald jemand mit Schreibrecht die App öffnet.
 // =================================================================
 
@@ -2150,6 +2208,17 @@ async function wbgAufraeumen(sofort) {
       await db.from("jobs").update({ wbg_url: null }).in("id", alt.map((j) => j.id));
       await ablageLoeschen(adressen);
       weg += alt.length;
+    }
+    // 1b. Werkzeugwechsel-Historie genauso: fünf Tage nach dem Ende weg
+    // (Wunsch Patrick 14. Oktober 2026). Jede Datei gehört nur zu einem
+    // Auftrag, darum ohne Prüfung auf andere Aufträge.
+    const h = await db.from("jobs").select("id, wz_historie_url")
+      .not("wz_historie_url", "is", null).lt("ended_at", grenze).limit(500);
+    const hist = (h && !h.error && h.data) || [];
+    if (hist.length) {
+      await db.from("jobs").update({ wz_historie_url: null }).in("id", hist.map((j) => j.id));
+      await ablageLoeschen(hist.map((j) => j.wz_historie_url));
+      weg += hist.length;
     }
     // 2. WBG in den Dokumenten, zu denen kein offener Auftrag mehr läuft
     const d = await db.from("dokumente").select("id, hoco_nr, datei_url, erstellt_am").eq("art", "wbg");
@@ -2709,6 +2778,7 @@ function parkErlaubt(parkId) {
 }
 
 function meineRolle() { return (profil && profil.role) || "produktion"; }
+function meineProfilId() { return (profil && profil.id) || null; }
 function istAdmin() { return meineRolle() === "admin"; }
 
 // „Andere Nutzer“ sind Gerätekonten wie Planwand, Pad Mode oder Päckli
@@ -2764,6 +2834,9 @@ const ROLLEN = {
 // Produktion, dort nur das Erfassen der Stückzahlen.
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
+  // Das Dienstkonto braucht keine Material-Seite
+  if ((pfad === "material" || pfad === "qs") && meineRolle() === "dienst") return false;
+  if (pfad === "infoboard") return infoboardSichtbar();
   if (!istExtern()) return true;
   return pfad === "planwand" || pfad === "produktion";
 }
@@ -2864,6 +2937,18 @@ function langDatum(text) {
   const d = ausIso(text);
   const p2 = (n) => String(n).padStart(2, "0");
   return p2(d.getDate()) + "." + p2(d.getMonth() + 1) + "." + d.getFullYear();
+}
+
+// „Mo 20.10. – Fr 24.10.2026 · 5 Arbeitstage“ für die Vorschau beim
+// Darüberfahren über Aufträge und Ferien (Wunsch Patrick 19. Oktober 2026:
+// „auch anzeigen von wann bis wann“)
+function zeitraumText(von, tage) {
+  if (!von) return "";
+  const n = Math.max(1, Number(tage) || 1);
+  const bis = letzterArbeitstag(von, n);
+  const tag = (t) => WT_KURZ[(ausIso(t).getDay() + 6) % 7] + " " + kurzDatum(t);
+  return tag(von) + (bis !== von ? " – " + tag(bis) : "") + ausIso(bis).getFullYear()
+    + " · " + n + (n === 1 ? " Arbeitstag" : " Arbeitstage");
 }
 
 function kurzDatum(text) {
@@ -3042,9 +3127,9 @@ async function ladeLaufendeAuftraege() {
   // und buchte die Stückzahl auf ihn.
   // An der Maschine ist, was läuft, gerüstet oder geprüft wird. Nur
   // "geplant" zählt nicht — sonst wanderte ein Auftrag aus der
-  // Produktion, sobald man ihn auf Rüsten oder QS setzt.
-  // Gibt es mehrere, hat "läuft" Vorrang, dann Rüsten, dann QS.
-  const RANG = { laeuft: 3, ruesten: 2, qs: 1 };
+  // Produktion, sobald man ihn auf Rüsten setzt.
+  // Gibt es mehrere, hat "läuft" Vorrang, dann Rüsten.
+  const RANG = { laeuft: 3, ruesten: 2 };
   const karte = {};
   (data || []).forEach((j) => {
     const rang = RANG[j.plan_status] || 0;
@@ -3220,11 +3305,12 @@ const PLANFARBEN = [
 // Wird beim Start geladen.
 let FARBZUTEILUNG = {};
 
-// Zustand eines Auftrags auf der Planwand
+// Zustand eines Auftrags auf der Planwand. „QS Check“ gibt es seit
+// 1.77.0 nicht mehr (Wunsch Patrick 16. Oktober 2026: „braucht man
+// nicht“); Ausschuss meldet man stattdessen auf der Seite QS.
 const PLANSTATUS = {
   geplant: { name: "Geplant",  zeichen: "○" },
   ruesten: { name: "Rüsten",   zeichen: "🔧" },
-  qs:      { name: "QS Check", zeichen: "🔍" },
   laeuft:  { name: "Läuft",    zeichen: "▶" },
   fertig:  { name: "Fertig",   zeichen: "✔" },
 };
@@ -3699,11 +3785,16 @@ const WERKSTOFFGRUPPEN = {
                 spaene: "1608 Neusilber Späne Pb", schrott: "1606 Neusilber Schrott Pb" },
   messing:    { name: "Messing",        farbe: "orange", zusatz: "",
                 spaene: "1427 MS 58 Späne", schrott: "1414 MS 58 Schrott" },
-  messing_ohne_pb: { name: "Messing ohne Blei", farbe: "senf",
+  // Ecobrass auf der Planwand gleich wie Messing (Wunsch Patrick
+  // 15. Oktober 2026, vorher Senf); getrennt bleibt es bei den Spänen
+  messing_ohne_pb: { name: "Messing ohne Blei", farbe: "orange",
                 zusatz: "unbedingt separat halten",
                 spaene: "1499 MS ohne Pb", schrott: "1499 MS ohne Pb" },
   titan:      { name: "Titan",          farbe: "violett", zusatz: "" },
-  kunststoff: { name: "Kunststoff",     farbe: "tuerkis", zusatz: "" },
+  // Kunststoff weiss, wie im Betrieb bei POM gewählt; Türkis steht in
+  // keiner Zuteilung (16. Oktober 2026, seit die Farbe nur noch vom
+  // Werkstoff kommt)
+  kunststoff: { name: "Kunststoff",     farbe: "weiss",   zusatz: "" },
 };
 
 // Aus euren Tabellen, Werkstoffnummer und Bezeichnung
@@ -3801,7 +3892,7 @@ function werkstoffErkennen(bez) {
   }
   // Stähle: Automatenstähle, Werkstoffnummern 1.0–1.8, gängige Namen
   if (/\d+s(mn|mnpb|pb)\d*|\betg\s?\d+|automatenstahl|steeltec|\b1\.[0-35-8]\d{3}\b|\bc\d{2}\b|\b\d{2,3}(mncr|crmo|nicr|crnimo|mnsi|cr\d)/.test(ganz)
-      || /\bs235|\bs355|\b11smn|\b9smn/.test(ganz)) return mit("stahl");
+      || /\bs235|\bs355|\be235|\b11smn|\b9smn/.test(ganz)) return mit("stahl");
 
   return null;
 }
@@ -4070,8 +4161,12 @@ async function ladePlanAuftraege(alle) {
     }
   }
   await standsNachtragen(liste.filter((j) => !j.ended_at));
+  // Material-Übersicht still mitladen: Zeichen auf dem Balken. Dauert
+  // es zu lange, steht die Wand ohne sie da (seit 1.67.0)
+  await zeitlimit(materialFuerPlanwand(liste), 4000, "Material").catch(() => null);
   return liste;
 }
+
 
 // Der Stand eines Auftrags ist der jüngste Zählerstand, der für genau
 // diesen Auftrag erfasst wurde — egal ob in der Produktion oder im
@@ -4713,6 +4808,9 @@ function balkenInfoVerhalten() {
       fenster.innerHTML = '<div class="pw-info__kopf">'
         + '<span class="pw-info__nr">' + esc(j.job_number) + '</span>'
         + '<span class="siegel-reihe">' + siegelHtml(j.geplant_von) + '</span></div>'
+        // Die Zeile „Material: da / bestellt …“ ganz oben ist seit 1.76.0
+        // weg (Wunsch Patrick 16. Oktober 2026: „verwirrt, soll
+        // übersichtlich sein“)
         + zeile(j.target_quantity
             ? zahlText(j.stand || 0) + ' / ' + zahlText(j.target_quantity) + ' Stück'
             : "Keine Fertigungsmenge hinterlegt")
@@ -4722,8 +4820,10 @@ function balkenInfoVerhalten() {
 
         + luecke
         + zeile(esc(j.material_bez || "Kein Material eingetragen"))
-        + (g ? zeile('<span class="ws-farbe" style="background:' + farbeVon(g.farbe).hex + '"></span>'
-              + esc(werkstoffText(g)), "klein") : "")
+        // Vorne die Werkstoffnummer, die die App aus der Bezeichnung
+        // erkennt (X8CrNiS18-9 → 1.4305, Wunsch Patrick 16. Oktober 2026)
+        + (g ? zeile('<span class="ws-farbe" style="background:' + auftragFarbe(j).hex + '"></span>'
+              + esc([(werkstoffGenau(j.material_bez) || {}).nr, werkstoffText(g)].filter(Boolean).join(" · ")), "klein") : "")
         + zeile(String(j.material_menge || "").trim()
             ? '<span class="pw-info__was">Menge</span> ' + esc(j.material_menge)
             : "Keine Materialmenge")
@@ -4734,7 +4834,16 @@ function balkenInfoVerhalten() {
         + luecke
         + zeile(zustand.zeichen + " " + esc(zustand.name))
         + zeile(esc(j.maschine || "–") + (j.maschine_nr ? " · " + esc(j.maschine_nr) : ""))
+        + (j.planned_from ? zeile("📅 " + esc(zeitraumText(j.planned_from, j.planned_days))) : "")
         + zeile(String(j.fa_nr || "").trim() ? "FA " + esc(j.fa_nr) : "Kein FA vorhanden")
+        // Zeichnungsnummer (Wunsch Patrick 20. Oktober 2026): aus dem
+        // Dateinamen der Zeichnung, sonst aus der WBG. Was noch gelesen
+        // werden muss, steht erst als „…“; ohne Nummer fällt die Zeile weg.
+        // Nicht für Externe (Entscheid Patrick 20. Oktober 2026)
+        + (!istExtern() && zeichnungNrSofort(j) !== ""
+            ? zeile('<span class="pw-info__was">Zeichn. Nr.</span> <span data-wbg-znr>'
+              + esc(zeichnungNrSofort(j) || "…") + '</span>', "znr")
+            : "")
         + zeile("✎ " + (auftragNotiz(j) ? esc(auftragNotiz(j)) : "keine Notiz"))
         + (j.problem ? zeile("⚠ " + esc(j.problem), "warn") : "")
 
@@ -4742,10 +4851,33 @@ function balkenInfoVerhalten() {
             ? zeile("Letzte Änderung " + esc(datumZeitKurz(j.geaendert_am))
               + (j.geaendert_von && personVoll(j.geaendert_von)
                   ? " · " + esc(personVoll(j.geaendert_von)) : ""), "klein pw-info__zeile--schluss")
-            : "");
+            : "")
+        // „Mat. info.“ ganz unten, unter der letzten Änderung (1.84.0–1.94.1
+        // nur im Auftragsfenster; wieder hier seit 1.95.0, nicht für
+        // Externe, Wunsch Patrick 19. Oktober 2026: „ganz nach unten“).
+        // „ca.“ rot wie im Fenster.
+        + (() => {
+            const m = !istExtern() && matInfo(j);
+            if (!m) return "";
+            return zeile('<span class="pw-info__was">Mat. info.</span> '
+              + (m.sicher === false && m.rest
+                  ? 'min. <span class="mat-info__l">ca.</span> ' + esc(m.rest)
+                  : esc(m.text)));
+          })();
 
       document.body.appendChild(fenster);
       platzieren();
+      if (!istExtern() && zeichnungNrSofort(j) === undefined) {
+        const offen = fenster;
+        zeichnungNrHolen(j).then((nr) => {
+          if (fenster !== offen) return;
+          const feld = offen.querySelector("[data-wbg-znr]");
+          if (!feld) return;
+          if (nr) feld.textContent = nr;
+          else feld.closest(".pw-info__zeile").remove();
+          platzieren();
+        });
+      }
     };
 
     // Das Fenster sitzt genau über dem Mauszeiger — passt es oben nicht
@@ -4828,6 +4960,52 @@ function balkenInfoVerhalten() {
 }
 let vorschauTippDa = false;
 
+// Ferien: beim Darüberfahren der ganze Name, die Notiz und von wann
+// bis wann, weil der Balken bei kurzen Ferien den Text abschneidet
+// (Wunsch Patrick 19. Oktober 2026). Gleiches Fenster wie bei Aufträgen.
+function ferienInfoVerhalten() {
+  const tafel = document.querySelector(".pw-tafel");
+  if (!tafel) return;
+  let fenster = null, halten = null;
+  const weg = () => { document.querySelectorAll(".pw-info--ferien").forEach((x) => x.remove()); fenster = null; };
+  weg();
+  const platzieren = (x, y) => {
+    if (!fenster) return;
+    const b = fenster.offsetWidth, h = fenster.offsetHeight;
+    const oben = y - 14 - h >= 8;
+    fenster.style.left = Math.max(8, Math.min(window.innerWidth - b - 8, x - b / 2)) + "px";
+    fenster.style.top = (oben ? y - 14 - h : Math.min(window.innerHeight - h - 8, y + 20)) + "px";
+  };
+  const zeigen = (el, x, y) => {
+    const f = (plan.ferien || []).find((v) => String(v.id) === el.dataset.ferien);
+    if (!f) return;
+    weg();
+    const notiz = String(f.note || "").trim();
+    fenster = document.createElement("div");
+    fenster.className = "pw-info pw-info--ferien";
+    fenster.innerHTML = '<div class="pw-info__kopf"><span class="pw-info__nr">' + esc(f.person || "") + '</span></div>'
+      + '<div class="pw-info__zeile">📅 ' + esc(zeitraumText(f.von, f.tage)) + '</div>'
+      + (notiz ? '<div class="pw-info__zeile">✎ ' + esc(notiz) + '</div>' : "");
+    document.body.appendChild(fenster);
+    platzieren(x, y);
+  };
+  tafel.querySelectorAll("[data-ferien]").forEach((el) => {
+    el.addEventListener("mouseenter", (e) => zeigen(el, e.clientX, e.clientY));
+    el.addEventListener("mousemove", (e) => platzieren(e.clientX, e.clientY));
+    el.addEventListener("mouseleave", weg);
+    el.addEventListener("mousedown", weg);
+    // Am Tablet: lange drücken, wie bei den Aufträgen
+    el.addEventListener("touchstart", (e) => {
+      const t = e.touches[0];
+      clearTimeout(halten);
+      halten = setTimeout(() => zeigen(el, t.clientX, t.clientY), 450);
+    }, { passive: true });
+    el.addEventListener("touchmove", () => { clearTimeout(halten); weg(); }, { passive: true });
+    el.addEventListener("touchend", () => clearTimeout(halten));
+    el.addEventListener("touchcancel", () => { clearTimeout(halten); weg(); });
+  });
+}
+
 // Alles, was ein Auftrag an Angaben trägt, als ein Suchtext
 function auftragText(j) {
   return [
@@ -4835,6 +5013,8 @@ function auftragText(j) {
     j.plan_note, j.problem, j.color,
     (PLANSTATUS[j.plan_status || "geplant"] || {}).name,
     j.material_bez, j.material_menge, j.material_liefertermin,
+    // Nummer und Kurzname des Werkstoffs: „1.4305“ findet auch „X8CrNiS18-9“
+    werkstoffSuchtext(j.material_bez),
     j.target_quantity, j.stand, j.planned_from,
     j.fa_nr ? "FA vorhanden" : "Kein FA vorhanden",
     j.material_menge ? "Material vorhanden" : "Keine Materialmenge",
@@ -4862,8 +5042,8 @@ function sucheImZeitraum(j) {
 // ausgelöst, die auch der Suchknopf benutzt.
 // =================================================================
 //  SUCHE ÜBER ALLES
-//  Ein Feld für alles: Aufträge (HOCO Nr., FA Nr., Material, Notiz),
-//  HOCO Stammdaten, Artikel, Lieferanten und Maschinen. Öffnet sich
+//  Ein Feld für die HOCO Nummern (seit 1.59.0 nur noch diese; Aufträge
+//  sucht man auf der Planwand mit Strg + F). Öffnet sich
 //  über die Lupe in der Kopfzeile oder mit Strg + K. Die Daten werden
 //  beim ersten Öffnen geholt und gemerkt, das Tippen fragt nichts mehr
 //  beim Server nach.
@@ -4892,16 +5072,12 @@ async function sucheAllesHolen() {
 }
 
 async function sucheAllesHolenJetzt() {
-  const [auftraege, hoco, maschinen, artikel, lieferanten] = await Promise.all([
-    ladePlanAuftraege(true).catch(() => plan.auftraege || []),
-    ladeHoco("").catch(() => []),
-    ladeMaschinen(true).catch(() => []),
-    zeitlimit(db.from("articles").select("id, article_number, name, supplier_id")
-      .limit(3000), 8000, "Artikel").then((r) => r.data || []).catch(() => []),
-    zeitlimit(db.from("suppliers").select("id, name").limit(1000), 8000, "Lieferanten")
-      .then((r) => r.data || []).catch(() => []),
-  ]);
-  sucheAlles.daten = { auftraege, hoco, maschinen, artikel, lieferanten };
+  // Nur noch die HOCO Nummern (Wunsch Patrick 15. Oktober 2026: „Strg + K
+  // nur für die HOCO-Datenbank, keine Aufträge; die sucht man auf der
+  // Planwand mit Strg + F“). Maschinen, Artikel und Lieferanten sind
+  // damit auch weg; sucheSpringen kann sie weiterhin, falls sie zurückkommen.
+  const hoco = await ladeHoco("").catch(() => []);
+  sucheAlles.daten = { hoco };
   sucheAlles.zeit = Date.now();
   return sucheAlles.daten;
 }
@@ -4910,42 +5086,10 @@ function sucheTreffer(d, text) {
   const t = text.trim().toLowerCase();
   if (t.length < 2) return [];
   const passt = (...felder) => felder.some((f) => String(f || "").toLowerCase().includes(t));
-  const raus = [];
-
-  // Aufträge: die laufenden und künftigen zuerst, dann die neueren
-  const heute = isoDatum(new Date());
-  (d.auftraege || [])
-    .filter((j) => passt(j.job_number, j.fa_nr, j.material_bez, j.plan_note, j.maschine))
-    .sort((a, b) => {
-      const aa = a.ended_at ? 1 : 0, bb = b.ended_at ? 1 : 0;
-      if (aa !== bb) return aa - bb;
-      return String(b.planned_from || "").localeCompare(String(a.planned_from || ""));
-    })
-    .slice(0, 12)
-    .forEach((j) => raus.push({ art: "auftrag", titel: j.job_number,
-      zeile: [j.maschine, j.planned_from ? "ab " + kurzDatum(j.planned_from) : "",
-              (PLANSTATUS[j.plan_status] || {}).name, j.fa_nr ? "FA " + j.fa_nr : ""]
-        .filter(Boolean).join(" · "),
-      daten: j, spaeter: (j.planned_from || "") >= heute }));
-
   // Ohne Artikelbezeichnung (Wunsch 8. Oktober 2026)
-  (d.hoco || []).filter((h) => passt(h.hoco_nr, h.material))
-    .slice(0, 8)
-    .forEach((h) => raus.push({ art: "hoco", titel: h.hoco_nr,
-      zeile: h.material || "", daten: h }));
-
-  (d.maschinen || []).filter((m) => passt(m.name, m.machine_number)).slice(0, 6)
-    .forEach((m) => raus.push({ art: "maschine",
-      titel: (m.machine_number ? m.machine_number + " " : "") + m.name, zeile: "", daten: m }));
-
-  (d.artikel || []).filter((a) => passt(a.article_number, a.name)).slice(0, 8)
-    .forEach((a) => raus.push({ art: "artikel", titel: a.article_number || a.name,
-      zeile: a.article_number ? a.name : "", daten: a }));
-
-  (d.lieferanten || []).filter((l) => passt(l.name)).slice(0, 6)
-    .forEach((l) => raus.push({ art: "lieferant", titel: l.name, zeile: "", daten: l }));
-
-  return raus;
+  return (d.hoco || []).filter((h) => passt(h.hoco_nr, h.material))
+    .slice(0, 30)
+    .map((h) => ({ art: "hoco", titel: h.hoco_nr, zeile: h.material || "", daten: h }));
 }
 
 // Schon laden, bevor jemand auf Suchen klickt (Kopfzeile, beim Darüberfahren)
@@ -5044,6 +5188,8 @@ async function balkenZeigenAusfuehren(b) {
   }
   if (el) {
     el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+    // Ein Treffer bleibt danach markiert wie ein angeklickter Balken
+    angewaehltSetzen(id);
     el.classList.add("pw-balken--gezeigt");
     setTimeout(() => el.classList.remove("pw-balken--gezeigt"), 3600);
   }
@@ -5240,6 +5386,7 @@ async function balkenZeichnung(j) {
 // der stille Abgleich den Balken zwischen zwei Klicks neu zeichnen kann.
 const DOPPELKLICK_MS = 320;
 function balkenKlick(auftrag, b) {
+  angewaehltSetzen(auftrag.id);
   const w = plan.klickWarten;
   if (w) clearTimeout(w.zeit);
   plan.klickWarten = null;
@@ -5259,7 +5406,25 @@ function balkenKlick(auftrag, b) {
   }, DOPPELKLICK_MS) };
 }
 
-// Den Zustand (Geplant/Rüsten/QS Check/Läuft/Fertig) darf jeder
+// Der zuletzt angeklickte Balken bleibt markiert, auch nach dem
+// Schliessen von Zeichnung oder Auftragsfenster und nach dem Neuzeichnen,
+// damit man ihn nicht wieder suchen muss (Wunsch Patrick 19. Oktober
+// 2026). Erst ein Klick auf einen anderen Balken nimmt die Markierung.
+// Gemerkt in plan, weil der stille Abgleich die Balken neu zeichnet.
+// Auch für Externe (Entscheid Patrick 19. Oktober 2026).
+function angewaehltSetzen(id) {
+  plan.angewaehlt = id || null;
+  angewaehltHervorheben();
+}
+function angewaehltHervorheben() {
+  const tafel = document.querySelector(".pw-tafel");
+  if (!tafel) return;
+  tafel.querySelectorAll("[data-auftrag]").forEach((el) => {
+    el.classList.toggle("pw-balken--angewaehlt", !!plan.angewaehlt && el.dataset.auftrag === plan.angewaehlt);
+  });
+}
+
+// Den Zustand (Geplant/Rüsten/Läuft/Fertig) darf jeder
 // ändern, unabhängig vom sonstigen Bearbeitungsrecht — direkt über
 // das grosse Symbol am Balken, ohne das ganze Fenster zu öffnen.
 function statusSchnellVerhalten(b) {
@@ -5993,6 +6158,7 @@ function zeichnePlanwand(b) {
   ferienVerhalten(b);
   ferienGriffe(b);
   balkenInfoVerhalten();
+  ferienInfoVerhalten();
   zeitWischen(b);
 
   // Kam der Aufruf von der Startseite, gleich danach suchen
@@ -6008,7 +6174,29 @@ function zeichnePlanwand(b) {
   if (!darfPlanen()) balkenAnsehenVerhalten(b);
   statusSchnellVerhalten(b);
   sucheHervorheben();
+  angewaehltHervorheben();
   if (planZug) planZug.nachZeichnen();
+}
+
+// Die Farbe eines Auftrags genau so, wie sein Balken sie zeigt: die im
+// Auftragsfenster gewählte Farbe, Palettenfarben leuchtend, freie Farben
+// unverändert. Pad, QS Check, Schnellvorschau und Material nehmen sie
+// von hier, damit dasselbe Material nicht an einer Stelle anders aussieht
+// als auf der Planwand (Wunsch Patrick 16. Oktober 2026). Ohne Farbe am
+// Auftrag die Farbe der erkannten Werkstoffgruppe.
+function auftragFarbe(j, bez) {
+  let wert = j && j.color;
+  if (!wert) {
+    const g = werkstoffErkennen(bez || (j && j.material_bez) || "");
+    if (!g) return null;
+    wert = g.farbe;
+  }
+  if (/^#[0-9a-f]{6}$/i.test(String(wert))) {
+    const hex = String(wert).toLowerCase();
+    return { hex: hex, schrift: schriftZu(hex) };
+  }
+  const t = leuchtend(farbeVon(wert).hex);
+  return { hex: t.hg, schrift: t.vg };
 }
 
 // ---------- Ein einzelner Auftragsbalken ----------
@@ -6328,6 +6516,31 @@ function wischVerhalten(b) {
 // Endzeitpunkt. Genau daran hing es bisher: der Zustand stand auf
 // "läuft", aber der Endzeitpunkt blieb, und damit galt er weiter als
 // abgeschlossen und tauchte nirgends mehr auf.
+// Beim Beenden: „Rest Material?“ mit Menge und Ort, dazu die Posten
+// dieses Materials zum Abhaken als aufgebraucht (Wunsch Patrick
+// 15. Oktober 2026). Ohne Material am Auftrag, für Externe und ohne die
+// Tabelle in der Datenbank kommt keine Frage.
+async function restMaterialFragen(j) {
+  if (ARCHIV || istExtern() || !String(j.material_bez || "").trim()) return;
+  try {
+    const posten = await postenLaden();
+    if (posten === null) return;
+    const z = materialZerlegen(j.material_bez);
+    const vorhandene = posten.filter((p) => p.art !== "bestellt" && z
+      && (materialZerlegen(p.material) || {}).schluessel === z.schluessel);
+    // Braucht ein anderer Auftrag dasselbe Material, steht es im Fenster
+    let gebraucht = [];
+    try {
+      const r = await zeitlimit(db.from("planwand").select("*").is("ended_at", null), 8000, "Aufträge");
+      if (!r.error) gebraucht = nochGebraucht(j, r.data || []);
+    } catch (f) { /* ohne Hinweis weiter */ }
+    await postenFenster({ rest: true, material: j.material_bez, auftrag: j, vorhandene, gebraucht,
+      text: j.job_number + " ist fertig. Bleibt Material übrig? Ungefähr genügt." });
+  } catch (f) {
+    console.warn("Rest Material:", f.message);
+  }
+}
+
 async function zustandSetzen(j, neu) {
   if (!j || !neu) return { ok: false };
   // Beenden nur mit Stückzeit (Wunsch 8. Oktober 2026). Alle Wege zum
@@ -6338,6 +6551,8 @@ async function zustandSetzen(j, neu) {
   const beendet = neu === "fertig" && j.plan_status !== "fertig" && !j.ended_at;
   if (beendet) await letzteStueckzahlFragen(j);
   if (beendet) await stueckzeitVorDemBeenden(j);
+  // Was vom Material übrig bleibt, geht ins Lager (seit 1.67.0)
+  if (beendet) await restMaterialFragen(j);
   const jetzt = new Date().toISOString();
   let hinweis = "";
   let naechster = null;
@@ -7130,6 +7345,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape" || !plan.zwischenablage) return;
   // Escape hat schon ein Fenster geschlossen: das Einfügen bleibt
   if (e.defaultPrevented || document.querySelector(".dialog-huelle")) return;
+  // Verbraucht: Escape fragt dann nicht noch nach dem Abmelden
+  e.preventDefault();
   zwischenablageLeeren();
 });
 
@@ -7277,6 +7494,11 @@ function notizTrennen(text) {
   // Stand sie doppelt drin, blieb die zweite in der Notiz und kam beim
   // Speichern zur ersten dazu, also immer wieder doppelt.
   zeilen.forEach((z) => {
+    // „(aus infoBoard)“ vom Import im Oktober 2026 zeigt die App nirgends
+    // mehr (Wunsch Patrick 16. Oktober 2026: „ist uns schon bewusst“);
+    // speichert jemand die Notiz, ist es auch in der Datenbank weg.
+    z = z.replace(/\s*\(?aus infoBoard\)?/gi, "").replace(/\s*\|\s*$/, "");
+    if (!z.trim() && /infoboard/i.test(String(text))) return;
     const t = z.match(MATERIALZEILE);
     if (t) { if (!ort) ort = t[1].trim(); }
     else rest.push(z);
@@ -7419,7 +7641,7 @@ async function ladeHoco(suche) {
   const alle = await stammGemerkt("hoco:alle", () => ladeHocoFrisch(""));
   const t = (suche || "").trim().toLowerCase();
   if (!t) return alle;
-  return alle.filter((x) => [x.hoco_nr, x.bezeichnung, x.material]
+  return alle.filter((x) => [x.hoco_nr, x.bezeichnung, x.material, werkstoffSuchtext(x.material)]
     .some((f) => String(f || "").toLowerCase().includes(t)));
 }
 
@@ -7508,10 +7730,49 @@ const pad = { wo: "start", parkId: null, maschineId: null, daten: {} };
 // und 20 Sekunden)
 const LEERLAUF_MS = 60 * 1000;
 const WARNUNG_MS = 10 * 1000;
-let leerlauf = { letzte: Date.now(), takt: null, abmelden: null, hinweis: null };
+let leerlauf = { letzte: Date.now(), echt: Date.now(), takt: null, abmelden: null, hinweis: null };
+
+// Nach 4 Stunden ohne Bedienung wird immer abgemeldet, auch mit
+// „Angemeldet bleiben“ und im Pad Mode (Wunsch Patrick, 14. Oktober
+// 2026: „egal was man eingestellt hat“). Nur die Gerätekonten („Andere
+// Nutzer“) bleiben angemeldet. Die letzte Bedienung je Person liegt im
+// localStorage, damit es auch nach geschlossenem Tab oder schlafendem
+// Rechner greift und Bedienung in einem anderen Tab mitzählt.
+const LEERLAUF_MAX_MS = 4 * 60 * 60 * 1000;
+const ZULETZT_SCHLUESSEL = "hofer.zuletztAktiv";
+let zuletztGeschrieben = 0;
+
+function zuletztLesen(id) {
+  try {
+    const alle = JSON.parse(localStorage.getItem(ZULETZT_SCHLUESSEL) || "{}");
+    return +alle[id] || 0;
+  } catch (f) { return 0; }
+}
+
+function zuletztSchreiben(sofort) {
+  if (!profil || !profil.id) return;
+  const jetzt = Date.now();
+  // Höchstens alle 30 Sekunden, bei jedem Tastendruck wäre zu viel
+  if (!sofort && jetzt - zuletztGeschrieben < 30000) return;
+  zuletztGeschrieben = jetzt;
+  try {
+    const alle = JSON.parse(localStorage.getItem(ZULETZT_SCHLUESSEL) || "{}");
+    alle[profil.id] = jetzt;
+    localStorage.setItem(ZULETZT_SCHLUESSEL, JSON.stringify(alle));
+  } catch (f) { /* ohne Speicher zählt nur dieser Tab */ }
+}
+
+// Beim Start mit noch gültiger Sitzung: war die Person zu lange weg?
+function zuLangeWeg(p) {
+  if (!p || !p.id || istAndererNutzer(p)) return false;
+  const zuletzt = zuletztLesen(p.id);
+  return zuletzt > 0 && Date.now() - zuletzt >= LEERLAUF_MAX_MS;
+}
 
 function leerlaufAktiv() {
   leerlauf.letzte = Date.now();
+  leerlauf.echt = leerlauf.letzte;
+  zuletztSchreiben();
   if (leerlauf.hinweis) { leerlauf.hinweis.remove(); leerlauf.hinweis = null; }
 }
 
@@ -7519,6 +7780,10 @@ function leerlaufStarten(abmelden) {
   leerlaufStoppen();
   leerlauf.abmelden = abmelden;
   leerlauf.letzte = Date.now();
+  // Die 4 Stunden laufen über das stündliche Neuladen hinweg weiter;
+  // nur eine Anmeldung (profilLaden(true)) setzt sie neu
+  leerlauf.echt = (profil && zuletztLesen(profil.id)) || leerlauf.letzte;
+  if (leerlauf.echt === leerlauf.letzte) zuletztSchreiben(true);
   ["pointerdown", "keydown", "wheel", "touchstart", "input"].forEach((art) =>
     document.addEventListener(art, leerlaufAktiv, { capture: true, passive: true }));
   // Mausbewegung zählt auch, aber nur alle paar Sekunden — sonst wird
@@ -7547,6 +7812,20 @@ function leerlaufStoppen() {
 
 function leerlaufPruefen() {
   if (!leerlauf.takt || !profil) return;
+  // Obergrenze 4 Stunden vor allen Ausnahmen; nur Gerätekonten und ein
+  // laufendes Hochladen im Temp-Ordner halten sie auf
+  if (!istAndererNutzer() && !document.querySelector(".temp__liste--laeuft")) {
+    const zuletzt = Math.max(leerlauf.echt, zuletztLesen(profil.id));
+    if (Date.now() - zuletzt >= LEERLAUF_MAX_MS) {
+      const abmelden = leerlauf.abmelden;
+      leerlaufStoppen();
+      if (abmelden) {
+        abmelden(true).then(() => setTimeout(() =>
+          meldung("Automatische Abmeldung nach 4 Stunden ohne Bedienung."), 400));
+      }
+      return;
+    }
+  }
   // Wer den Haken "Angemeldet bleiben" gesetzt hat, wird nicht
   // abgemeldet — wie bisher.
   if (einstellung("angemeldetbleiben")) {
@@ -8438,6 +8717,7 @@ function felderSetzen(o, felder, z) { felder.forEach((k) => { if (k in z) o[k] =
 teilMerken("prod", () => felderLesen(prod, MERKEN_PROD), (z) => felderSetzen(prod, MERKEN_PROD, z));
 teilMerken("best", () => felderLesen(best, MERKEN_BEST), (z) => felderSetzen(best, MERKEN_BEST, z));
 teilMerken("einst", () => einst.reiter, (w) => { einst.reiter = w; });
+teilMerken("planAngewaehlt", () => plan.angewaehlt || null, (id) => { plan.angewaehlt = id; });
 teilMerken("plan", () => (plan.start ? { tag: isoDatum(new Date()), start: plan.start } : null),
   (z) => { if (z.tag === isoDatum(new Date()) && z.start) plan.start = z.start; });
 
@@ -9428,8 +9708,21 @@ SYM.rechner = svg('<path d="M3 19.5h18"/><path d="M3 19.5L17 5"/>'
   + ' fill="currentColor" stroke="none"/>');
 
 // Temp: Ordner mit Pfeil nach oben (vom Handy hinein)
+// Material: Stangen im Bund
+SYM.material = svg('<circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><circle cx="12" cy="17" r="3"/>'
+  + '<circle cx="7" cy="9" r=".6"/><circle cx="17" cy="9" r=".6"/><circle cx="12" cy="17" r=".6"/>');
+
 SYM.temp = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
   + '<path d="M12 16v-5"/><path d="M9.5 13.5L12 11l2.5 2.5"/>');
+
+// Infoboard: Bildschirm hochkant mit Kopf und zwei Reihen Blätter
+SYM.infoboard = svg('<rect x="5" y="2.5" width="14" height="19" rx="2"/>'
+  + '<path d="M8 6.5h8"/><rect x="8" y="9.5" width="3.3" height="4.5" rx=".6"/>'
+  + '<rect x="12.7" y="9.5" width="3.3" height="4.5" rx=".6"/><rect x="8" y="15.5" width="8" height="3" rx=".6"/>');
+
+// QS: Lupe mit Häkchen, wie Prüfen
+SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
+  + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
 
 // Einstellungen: Schieberegler
 SYM.einstellungen = svg('<line x1="4" y1="7" x2="20" y2="7"/>'
@@ -9524,15 +9817,23 @@ const SEITEN = [
   { pfad: "dashboard",    titel: "Start",        zeichen: SYM.start, zeige: seiteDashboard },
   { pfad: "planwand",     titel: "Planwand",     zeichen: SYM.planwand, zeige: seitePlanwand },
   { pfad: "produktion",   titel: "Produktion",   zeichen: SYM.produktion, zeige: seiteProduktion },
+  // Ausschuss melden statt Zustand „QS Check“ (seit 1.77.0)
+  { pfad: "qs",           titel: "Qualitätssicherung", zeichen: SYM.qs, zeige: reactSeite(Qs) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: reactSeite(Einkauf) },
+  // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
+  { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
   // Eigener Ordner je Person, vor Google (Wunsch Patrick, 12. Oktober 2026)
   { pfad: "temp",         titel: "Temp",         zeichen: SYM.temp, zeige: reactSeite(Temp) },
+  // Grosser Bildschirm hochkant (Wunsch Patrick 20. Oktober 2026), nur
+  // für Admins und Gerätekonten
+  { pfad: "infoboard",    titel: "Infoboard",    zeichen: SYM.infoboard, zeige: reactSeite(Infoboard) },
 ];
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
+  meineProfilId,
   zeitlimit, meldung, nachfragen, fehlertext, dialogFelder, auswahlDialog,
   merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,
   reiterUebergang,
@@ -9541,11 +9842,11 @@ Object.assign(alt, {
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, esc,
   darfPlanen, darfMaterialplatz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
   arbeitstagePlus, ausIso, ladeTodos, loeschen,
-  planArchivDaten, istArchiv,
+  planArchivDaten, istArchiv, bildVerkleinern,
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, ladePlanAuftraege,
   istExtern, einstellung, rollenMerken, produktionAlteAnsicht, seiteProduktion,
   ladeZaehlerstaende, speichereStand, wochenStart, plusTage, wochentagName, WT_KURZ,
-  PLANSTATUS, zustandSetzen, einrichtblattPdfOeffnen, BESTELLSTATUS,
+  PLANSTATUS, zustandSetzen, einrichtblattPdfOeffnen, blattPdfSuchen, BESTELLSTATUS,
   ladeBestellungen, stammVergessen, statusDaten, statusZeit, statusZeitText,
   bestStatusDialog, bestellungDrucken, artikelBearbeiten,
   ladeAlleMaschinen, maschineZielText, parallelSenden,
@@ -9554,7 +9855,7 @@ Object.assign(alt, {
   pad, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
   notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, abrufSpalte, spalteDa, abrufPflicht,
-  siegelListe, siegelName, siegelHtml, werkstoffErkennen, farbeVon, schriftZu, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
+  siegelListe, siegelName, siegelHtml, standsNachtragen, werkstoffErkennen, farbeVon, schriftZu, auftragFarbe, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
   werkzeugWechselDialog, zifferblock,
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
   letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,
@@ -9575,9 +9876,9 @@ Object.assign(alt, {
   farbzuteilungLaden, werkstoffKern, werkstoffSchluessel, werkstoffZuordnen, WERKSTOFFGRUPPEN,
   DOK_ARTEN, dokErkennen, dokZielSuchen, dokZielText,
   dokWaehlen, dokHochladen, dokLoeschen, wbgAufraeumen, personenLaden, fehlerAlsDatei,
-  FEHLER_SCHLUESSEL, themaJetzt, themaSetzen, einstellungSetzen,
+  FEHLER_SCHLUESSEL, themaJetzt, themaSetzen, fensterleisteFaerben, einstellungSetzen,
   bestellmailText, bestellmailSetzen, BESTELLMAIL_VORGABE, bestellmailVorschau,
-  APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, offenAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
+  APP_UNTERTITEL, LOGIN_ENDUNG, pinAnmelden, pinMeldung, geraetKontoMerken, geraetKonten,
   sitzungGemerkt, sitzungMerken, gemerktAnmelden, sitzung, istAndererNutzer,
   istExternGeraet, profilLaden, zeichneGeruest, fassungPruefen,
 });
@@ -9676,6 +9977,7 @@ function syncTabellen(pfad) {
   if (pfad === "bestellungen") return ["order_items", "articles", "suppliers", "designations"];
   if (pfad === "einkauf") return ["shopping_items"];
   if (pfad === "einstellungen") return ["profiles", "people"];
+  if (pfad === "qs") return ["qs_meldungen", "jobs"];
   return [];
 }
 
@@ -10031,9 +10333,10 @@ function zeichneGeruest() {
     if (vonSelbst === true) zustandFuerSpaeter();
     zustandVergessen();
     if (typeof padSchliessen === "function") padSchliessen();
+    infoboardSchliessen();
     await abmelden();
     profil = null;
-    pushHinweisWeg();
+    meldungenWeg();
     // Auch das kleine Notizbuch geht beim Abmelden zu
     document.querySelectorAll(".dialog-huelle, .nb-schwebend [data-zu]").forEach((el) =>
       (el.classList.contains("dialog-huelle") ? el.remove() : el.click()));
@@ -10076,6 +10379,8 @@ function zeichneGeruest() {
   Promise.all([farbzuteilungLaden(), planerLaden(), symboleLaden()]).then(() => {
     if (!padWiederOeffnen()) zeichneSeite();
     nachher();
+    // Am Bildschirm im Gang geht das Infoboard von selbst wieder auf
+    if (!ARCHIV && istInfoboardGeraet() && infoboardSichtbar()) infoboardOeffnen();
   });
   if (ARCHIV) archivMarkeEinbauen(); else padKnopfEinbauen();
   if (!window._escZurueck) { window._escZurueck = true; escapeZurueck(); }
@@ -10111,16 +10416,28 @@ try {
   // Nebenbei: Liegt auf dem Server eine neuere Fassung, lädt die Seite
   // gleich neu, bevor jemand anfängt zu arbeiten
   const fassung = fassungPruefen();
-  const p = await profilLaden();
+  let p = await profilLaden();
   if (await fassung) throw new Error("__neuladen__");
+  // Seit über 4 Stunden nicht mehr bedient (Tab zu, Rechner im
+  // Ruhezustand): Sitzung beenden statt weitermachen
+  let zuLange = false;
+  if (p && zuLangeWeg(p)) {
+    zuLange = true;
+    zustandVergessen();
+    await abmelden();
+    profil = null;
+    p = null;
+  }
 
   BOOT.hidden = true;
   WURZEL.hidden = false;
 
   if (!p) {
     zeigeLogin();
+    if (zuLange) setTimeout(() =>
+      meldung("Automatische Abmeldung nach 4 Stunden ohne Bedienung."), 400);
   } else if (p.is_active === false) {
-    await db.auth.signOut();
+    await db.auth.signOut({ scope: "local" });
     profil = null;
     zeigeLogin();
     meldung("Dieses Konto ist deaktiviert. Bitte an den Besitzer wenden.", "fehler");

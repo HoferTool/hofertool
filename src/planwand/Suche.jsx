@@ -114,6 +114,8 @@ function tasteAnmelden() {
     if (e.defaultPrevented || document.querySelector(".dialog-huelle")) return;
     const a = document.activeElement;
     if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+    // Verbraucht: Escape fragt dann nicht noch nach dem Abmelden
+    e.preventDefault();
     alt.sucheBeenden();
   }, true);
 }

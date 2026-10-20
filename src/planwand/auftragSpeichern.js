@@ -65,7 +65,11 @@ async function stammdatenNachziehen(hocoNummer, daten) {
 
 // zu() schliesst das Fenster, sobald gespeichert ist. Scheitert etwas,
 // bleibt es offen und behält die Eingaben.
-export async function auftragSpeichern({ auftrag, daten, nr, b, zu }) {
+// geaendert: bei einem bestehenden Auftrag die Felder, die im Fenster
+// geändert wurden. Nur die werden geschrieben, damit ein zweites Gerät
+// mit demselben Konto nichts zurücksetzt, was das andere inzwischen
+// gespeichert hat (Wunsch Patrick 19. Oktober 2026).
+export async function auftragSpeichern({ auftrag, daten, geaendert, nr, b, zu }) {
   const db = alt.db, plan = alt.plan;
   if (!(await faNrFrei(daten.fa_nr, auftrag))) return;
 
@@ -91,13 +95,22 @@ export async function auftragSpeichern({ auftrag, daten, nr, b, zu }) {
     // über dieselbe Stelle wie Produktion und Pad Mode — nur so
     // rückt beim Beenden der nächste nach und bleibt je Maschine
     // höchstens einer auf "läuft".
-    const neuerZustand = daten.plan_status;
+    const neu = (k) => !geaendert || geaendert.includes(k);
+    const neuerZustand = neu("plan_status") ? daten.plan_status : null;
     delete daten.plan_status;
-    try { await alt.aendernOhneUnbekannte("jobs", daten, "id", auftrag.id); }
-    catch (f) { fehler = f; }
-    if (!fehler && neuerZustand && neuerZustand !== auftrag.plan_status) {
+    const schreiben = {};
+    Object.keys(daten).forEach((k) => { if (neu(k)) schreiben[k] = daten[k]; });
+    // Was hier nicht geändert wurde, gilt so, wie es jetzt in der
+    // Datenbank steht (vielleicht eben vom anderen Gerät gesetzt)
+    const jetzt = vorherSelbst || auftrag;
+    Object.keys(daten).forEach((k) => { if (!neu(k) && k in jetzt) daten[k] = jetzt[k]; });
+    if (Object.keys(schreiben).length) {
+      try { await alt.aendernOhneUnbekannte("jobs", schreiben, "id", auftrag.id); }
+      catch (f) { fehler = f; }
+    }
+    if (!fehler && neuerZustand && neuerZustand !== jetzt.plan_status) {
       try {
-        const rz = await alt.zustandSetzen(Object.assign({}, auftrag,
+        const rz = await alt.zustandSetzen(Object.assign({}, auftrag, vorherSelbst || {},
           { machine_id: daten.machine_id || auftrag.machine_id }), neuerZustand);
         if (rz.hinweis) alt.meldung(rz.hinweis);
       } catch (fz) { fehler = fz; }
@@ -121,6 +134,8 @@ export async function auftragSpeichern({ auftrag, daten, nr, b, zu }) {
       plan.auftraege.push(Object.assign({}, daten, { id: neuerSatz.id,
         created_at: neuerSatz.created_at || new Date().toISOString() }));
       festId = neuerSatz.id;
+      // Der neue Balken ist danach der markierte (Wunsch Patrick 19. Oktober 2026)
+      plan.angewaehlt = neuerSatz.id;
       // Für eine neue HOCO Nr. gleich einen Stammdatenplatz anlegen,
       // sonst findet das Einrichtblatt nichts
       try {
@@ -144,8 +159,9 @@ export async function auftragSpeichern({ auftrag, daten, nr, b, zu }) {
   // Neue Zeichnung ersetzt die alte für die ganze Nummer, eine neue WBG
   // die alte — was nicht mehr gebraucht wird, verschwindet aus der Ablage
   if (festId) {
-    const altZ = auftrag && auftrag.drawing_url, neuZ = daten.drawing_url;
-    const altW = auftrag && auftrag.wbg_url, neuW = daten.wbg_url;
+    const vor = vorherSelbst || auftrag;
+    const altZ = vor && vor.drawing_url, neuZ = daten.drawing_url;
+    const altW = vor && vor.wbg_url, neuW = daten.wbg_url;
     try {
       if (neuZ && neuZ !== altZ && hocoNummer) await alt.zeichnungErsetzen(hocoNummer, neuZ, altZ);
       if (altW && altW !== neuW) await alt.ablageLoeschen([altW]);

@@ -30,6 +30,38 @@ export function pdfjs() {
   return pdfjsLaden;
 }
 
+// Verweise innerhalb des PDF (etwa Seitenzahlen im Inhaltsverzeichnis):
+// je Seite die Felder als Anteil der Seite und die Zielseite (ab 1).
+// Wunsch Patrick 15. Oktober 2026: draufdrücken springt dorthin.
+export async function seitenLinks(doc, seite) {
+  const v = seite.getViewport({ scale: 1 });
+  let ann = [];
+  try { ann = await seite.getAnnotations(); } catch (f) { return []; }
+  const r3 = (n) => Math.round(n * 10000) / 10000;
+  const aus = [];
+  for (const a of ann) {
+    if (a.subtype !== "Link" || !a.rect) continue;
+    let z = null;
+    try {
+      let dest = a.dest;
+      if (typeof dest === "string") dest = await doc.getDestination(dest);
+      if (Array.isArray(dest) && dest[0] != null) {
+        z = typeof dest[0] === "object" ? (await doc.getPageIndex(dest[0])) + 1
+          : (Number.isInteger(dest[0]) ? dest[0] + 1 : null);
+      }
+    } catch (f) { z = null; }
+    if (!z) continue;
+    // Ecken mit der Matrix der Ansicht umrechnen (dreht und spiegelt die
+    // PDF-Koordinaten, die unten links beginnen)
+    const t = v.transform, pt = (x, y) => [t[0] * x + t[2] * y + t[4], t[1] * x + t[3] * y + t[5]];
+    const p1 = pt(a.rect[0], a.rect[1]), p2 = pt(a.rect[2], a.rect[3]);
+    const r = [p1[0], p1[1], p2[0], p2[1]];
+    aus.push({ x: r3(Math.min(r[0], r[2]) / v.width), y: r3(Math.min(r[1], r[3]) / v.height),
+      w: r3(Math.abs(r[2] - r[0]) / v.width), h: r3(Math.abs(r[3] - r[1]) / v.height), z });
+  }
+  return aus;
+}
+
 const ZOOM_MIN = 1, ZOOM_MAX = 6;
 // Safari verweigert zu grosse Zeichenflächen. Darüber wird die Seite
 // lieber etwas weicher als gar nicht gezeichnet.
@@ -161,6 +193,12 @@ export function PdfAnsicht({ daten, beiFehler }) {
     };
   }, []);
 
+  // Verweis im PDF: zur Zielseite rollen
+  const springen = (nr) => {
+    const el = buehne.current, ziel = el && el.querySelector('[data-pdfseite="' + nr + '"]');
+    if (ziel) el.scrollTo({ top: ziel.offsetTop, behavior: "smooth" });
+  };
+
   // Doppeltipp/Doppelklick: vergrössern, beim zweiten Mal zurück
   const doppelt = (e) => {
     const r = buehne.current.getBoundingClientRect();
@@ -175,7 +213,7 @@ export function PdfAnsicht({ daten, beiFehler }) {
           {doc && flaeche && masse.map((m, i) => (
             <Seite key={i} doc={doc} nr={i + 1}
               breite={m.b * passend(m) * zoom} hoehe={m.h * passend(m) * zoom}
-              massstab={passend(m) * zoom} flaeche={flaeche} />
+              massstab={passend(m) * zoom} flaeche={flaeche} springen={springen} />
           ))}
         </div>
         {!doc && <div className="pdfansicht__laden">PDF wird geladen …</div>}
@@ -192,8 +230,14 @@ export function PdfAnsicht({ daten, beiFehler }) {
   );
 }
 
-function Seite({ doc, nr, breite, hoehe, massstab, flaeche }) {
+function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen }) {
   const leinwand = useRef(null);
+  const [links, setLinks] = useState([]);
+  useEffect(() => {
+    let weg = false;
+    doc.getPage(nr).then((s) => seitenLinks(doc, s)).then((l) => { if (!weg) setLinks(l); }).catch(() => {});
+    return () => { weg = true; };
+  }, [doc, nr]);
   useEffect(() => {
     let weg = false, aufgabe = null;
     const t = setTimeout(async () => {
@@ -218,8 +262,16 @@ function Seite({ doc, nr, breite, hoehe, massstab, flaeche }) {
     return () => { weg = true; clearTimeout(t); if (aufgabe) aufgabe.cancel(); };
   }, [doc, nr, massstab]);
   return (
-    <div className="pdfansicht__seite" style={{ minHeight: flaeche.h }}>
-      <canvas ref={leinwand} style={{ width: breite, height: hoehe }} />
+    <div className="pdfansicht__seite" data-pdfseite={nr} style={{ minHeight: flaeche.h }}>
+      <div className="pdfansicht__flaeche" style={{ width: breite, height: hoehe }}>
+        <canvas ref={leinwand} style={{ width: breite, height: hoehe }} />
+        {links.map((l, i) => (
+          <button key={i} type="button" className="pdf-link" data-pdflink={l.z} aria-label={"Zu Seite " + l.z}
+            title={"Zu Seite " + l.z}
+            style={{ left: l.x * 100 + "%", top: l.y * 100 + "%", width: l.w * 100 + "%", height: l.h * 100 + "%" }}
+            onClick={(e) => { e.stopPropagation(); springen(l.z); }}
+            onDoubleClick={(e) => e.stopPropagation()} />))}
+      </div>
     </div>
   );
 }

@@ -49,5 +49,12 @@ with sync_playwright() as p:
     pg.fill("#su-text", "88888-0001"); pg.locator("#su-ja").click(); pg.wait_for_timeout(2500)
     pruefe("ein Treffer gefunden", "von 1" in pg.evaluate("(document.querySelector('.su-leiste__text') || {}).textContent || ''"))
     pruefe("kein Auftragsfenster", pg.locator(".dialog--auftrag").count() == 0)
+    # Werkstoffnummer findet den Kurznamen in der Bezeichnung (1.99.0)
+    pg.evaluate("() => { TEST.daten.planwand.forEach(x => { if (/1\\.4104|x14crmos17/i.test(x.material_bez || '')) x.material_bez = 'Messing'; });"
+                " TEST.daten.planwand.find(x => x.id === 'alt0').material_bez = 'X14CrMoS17 rd 012 mm h9'; }")
+    pg.locator("#su-ende").click(); pg.wait_for_timeout(300)
+    pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(500)
+    pg.fill("#su-text", "1.4104"); pg.locator("#su-ja").click(); pg.wait_for_timeout(2500)
+    pruefe("1.4104 findet X14CrMoS17", "von 1" in pg.evaluate("(document.querySelector('.su-leiste__text') || {}).textContent || ''"))
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:12])

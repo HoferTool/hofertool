@@ -157,3 +157,47 @@ export function materialAusNotizEntfernen(notiz, menge, termin) {
   });
   return raus.join("\n").replace(/\s+$/, "");
 }
+
+// Der Lieferant steht direkt vor der Nummer: das letzte Wort davor,
+// das ein Name sein kann
+function lieferantVor(text) {
+  const woerter = text.replace(MAT_BE, " ").replace(/[:+()|,·]/g, " ").split(/\s+/).filter(Boolean).reverse();
+  for (const w of woerter) {
+    const rein = w.replace(/\.$/, "");
+    if (!/^[A-Za-zÄÖÜäöüé][A-Za-zÄÖÜäöüé\-]+$/.test(rein)) continue;
+    if (KEIN_LIEFERANT.has(rein.toLowerCase())) continue;
+    return rein;
+  }
+  return "";
+}
+
+// Alle Bestellungen in einem Text, nicht nur die wichtigste: für die
+// Material-Übersicht, wo jeder Abruf aus einem Rahmen ein eigener
+// Posten ist (Wunsch Patrick 15. Oktober 2026). Auch ohne Menge und
+// Termin („Mat ab Rahmen Notz 2026008635“). Gibt eine Liste von
+// { nr, lieferant, menge, termin } zurück, jede Nummer einmal.
+export function alleBestellungenLesen(text) {
+  const zeilen = String(text || "").split(/\r?\n/);
+  const raus = [];
+  const gesehen = new Set();
+  zeilen.forEach((zeile, i) => {
+    const treffer = [...zeile.matchAll(new RegExp(BE_NR.source, "g"))];
+    treffer.forEach((m, k) => {
+      const nr = m[1];
+      if (gesehen.has(nr)) return;
+      gesehen.add(nr);
+      // Das Stück der Zeile von der vorigen bis zur nächsten Nummer
+      const ab = m.index + m[0].indexOf(nr);
+      const vorher = k > 0 ? treffer[k - 1].index + treffer[k - 1][0].length : 0;
+      const bis = k + 1 < treffer.length ? treffer[k + 1].index : zeile.length;
+      const stueck = zeile.slice(vorher, bis);
+      const vor = zeile.slice(vorher, ab);
+      const naechste = zeilen[i + 1] && !BE_NR.test(zeilen[i + 1]) ? zeilen[i + 1] : "";
+      const jahr = nr.slice(0, 4);
+      raus.push({ nr, lieferant: lieferantVor(vor),
+        menge: mengeIn(stueck) || (k + 1 === treffer.length ? mengeIn(naechste) : ""),
+        termin: terminIn(stueck, jahr) || (k + 1 === treffer.length ? terminIn(naechste, jahr) : "") });
+    });
+  });
+  return raus;
+}

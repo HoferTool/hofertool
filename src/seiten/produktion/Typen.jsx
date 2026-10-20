@@ -142,11 +142,34 @@ export default function Typen({ geladen, neuLaden: aussen }) {
     const w = await alt.dialogFelder({ titel: "Maschinentyp bearbeiten",
       felder: [
         { name: "name", label: "Name", wert: t.name, pflicht: true },
-        { name: "text", label: "Beschreibung", wert: t.beschreibung || "" }] });
+        { name: "text", label: "Beschreibung", wert: t.beschreibung || "" }]
+        // Für die Mindestmenge in der Material-Übersicht (seit 1.67.0,
+        // Wunsch Patrick: „rechne mit 250 mm Rest-Stumpen, soll bei Typ
+        // definiert werden“). Erst da, wenn die Datenbank die Spalten kennt.
+        .concat("stangen_mm" in t ? [
+          { name: "stange", label: "Stangenlänge in mm", wert: t.stangen_mm, ziffern: true },
+          { name: "stumpen", label: "Rest-Stumpen in mm", wert: t.stumpen_mm, ziffern: true }] : [])
+        // Abstecherbreite (seit 1.69.0, Wunsch Patrick 15. Oktober 2026),
+        // nur für die Materialmenge: je Teil Länge + Abstecher + 0,5 mm
+        .concat("abstecher_mm" in t ? [
+          { name: "abstecher", label: "Abstecherbreite in mm", wert: t.abstecher_mm ?? "", dezimal: true,
+            hinweis: "Nur für die Materialmenge: je Teil Länge + Abstecher + 0,5 mm fürs Planieren." }] : []) });
     if (!w) return;
-    senden(alt.db.from("machine_types").update({ name: w.name, beschreibung: w.text || null }).eq("id", t.id),
+    const daten = { name: w.name, beschreibung: w.text || null };
+    const vorher = { name: t.name, beschreibung: t.beschreibung || null };
+    if ("stangen_mm" in t) {
+      daten.stangen_mm = Number(w.stange) > 0 ? Math.round(Number(w.stange)) : 3000;
+      daten.stumpen_mm = Number(w.stumpen) >= 0 && w.stumpen !== "" ? Math.round(Number(w.stumpen)) : 250;
+      vorher.stangen_mm = t.stangen_mm; vorher.stumpen_mm = t.stumpen_mm;
+    }
+    if ("abstecher_mm" in t) {
+      const ab = Number(String(w.abstecher || "").replace(",", "."));
+      daten.abstecher_mm = w.abstecher !== "" && ab >= 0 && ab < 50 ? ab : null;
+      vorher.abstecher_mm = t.abstecher_mm;
+    }
+    senden(alt.db.from("machine_types").update(daten).eq("id", t.id),
       "Gespeichert.", neuLaden, ["Ändern von " + t.name,
-        alt.rueckSetz("machine_types", { name: t.name, beschreibung: t.beschreibung || null }, { id: t.id })]);
+        alt.rueckSetz("machine_types", vorher, { id: t.id })]);
   };
   const loeschen = async (t) => {
     const ok = await einmalFragen("Typ löschen",
@@ -170,6 +193,8 @@ export default function Typen({ geladen, neuLaden: aussen }) {
                   <span className="tkarte__zahl">{anzahl === 1 ? "1 Maschine" : anzahl + " Maschinen"}</span>
                 </div>
                 <p className="tkarte__text">{t.beschreibung || "\u00a0"}</p>
+                {"stangen_mm" in t && <p className="tkarte__text klein">Stange {alt.zahlText(t.stangen_mm)} mm, Rest {alt.zahlText(t.stumpen_mm)} mm
+                  {"abstecher_mm" in t && (t.abstecher_mm ? ", Abstecher " + String(t.abstecher_mm).replace(".", ",") + " mm" : ", Abstecher fehlt")}</p>}
                 <div className="tkarte__knoepfe">
                   <button className="knopf knopf--klein knopf--haupt" data-typ-auf={t.id}
                     onClick={() => oeffnen(t.id)}>Aufbau</button>

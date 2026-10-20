@@ -1,13 +1,15 @@
 // =================================================================
 //  EIN HOCO-TEIL
 //  Stammdaten mit Zeichnung, je Maschinentyp Einrichtblatt und Stückzeit („Produktionsanlage“) und die FA Nummern
-//  mit ihren Anhängen (WBG, Zeichnung, Werkzeugwechsel).
+//  mit ihren Anhängen (WBG, Werkzeugwechsel).
 // =================================================================
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { laengeFehlt, laengeVersuchen } from "../daten/material.js";
 import { alt, useDaten } from "../bruecke.jsx";
 import { teilLaden, pdfHochladen } from "./daten.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
-import { stueckzeitText, stueckzeitFragen, stueckzeitSetzen } from "../daten/stueckzahl.js";
+import { stueckzeitText, stueckzeitFragen, stueckzeitSetzen, laengeText, laengeSetzen, artInfoFragen }
+  from "../daten/stueckzahl.js";
 
 const sicher = (name) => name.replace(/[^A-Za-z0-9.\-]/g, "_");
 
@@ -20,6 +22,13 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
   // Teil kommt dabei als neues Objekt und lädt sich darum selbst neu.
   const fertig = (text) => { meldung(text); nachAenderung(); };
   const fehler = (f) => meldung(fehlertext(f), "fehler");
+
+  // Fehlt die Länge, still im Einrichtblatt nachsehen (Wunsch Patrick
+  // 15. Oktober 2026: „soll überall versuchen“)
+  useEffect(() => {
+    if (darf && !alt.istExtern() && "teil_laenge_mm" in t && laengeFehlt(t))
+      laengeVersuchen(t.hoco_nr).then((g) => { if (g) nachAenderung(); }).catch(() => {});
+  }, [t]);
 
   if (!daten) return <div className="laedt">Wird geladen …</div>;
   const { faListe, vomAuftrag, typenGenutzt } = daten;
@@ -60,6 +69,16 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
     try { await stueckzeitSetzen(t.hoco_nr, e.typId, s || null); meldung(s ? "Stückzeit gespeichert." : "Stückzeit entfernt."); neu(); }
     catch (f) { fehler(f); }
   };
+  // Länge des Fertigteils (Wunsch Patrick 15. Oktober 2026): die zuletzt
+  // erfasste steht hier bei den Stammdaten, ändern wie im Pad
+  const mitLaenge = !alt.istExtern() && "teil_laenge_mm" in t;
+  const laengeBearbeiten = async () => {
+    const w = await artInfoFragen({ titel: "Länge " + t.hoco_nr, mitLaenge: true,
+      laenge: { mm: t.teil_laenge_mm ? Number(t.teil_laenge_mm) : null, sicher: !!t.teil_mass_bestaetigt } });
+    if (!w || !w.laenge) return;
+    try { await laengeSetzen(t.hoco_nr, w.laenge, "von Hand"); fertig("Länge gespeichert."); }
+    catch (f) { fehler(f); }
+  };
   // Eine Rückfrage, mit Rückgängig; die Aufgabe holt beim nächsten
   // Durchlauf die nächste Excel-Datei aus dem Ordner, wenn es eine gibt
   const blattEntfernen = async (typId) => {
@@ -85,24 +104,46 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
   const ansehen = (url, titel) => alt.betrachter(url, titel, true);
   const leer = <span className="gedaempft">—</span>;
 
+  // Zustand als farbige Marke, wie die Zeichen auf der Planwand
+  const zustand = (x) => {
+    const z = x.plan_status || "geplant";
+    return <span className={"hocoteil__zustand hocoteil__zustand--" + z}>
+      {(alt.PLANSTATUS[z] || {}).name || ""}</span>;
+  };
+
+  // Gestaltung (Wunsch Patrick 14. Oktober 2026: „sieht tot aus, kann
+  // farbiger sein“, dann „alles als Knopf, nicht Text zum Anklicken, und
+  // weniger Themenfarbe, aber schon ein bisschen“): Kopf leicht getönt mit
+  // Strich in der Themenfarbe, alles Anklickbare als Knopf, Einrichtblatt
+  // und Zustand als farbige Marken.
   return (
-    <>
-      <button className="linkknopf" id="hoco-zurueck" onClick={zurueck}>‹ alle HOCO Nr.</button>
-      <section className="karte">
-        <div className="karte__kopf"><h2 className="hoco-teilnr">{t.hoco_nr}</h2>
+    <div className="hocoteil">
+      <button className="knopf knopf--klein" id="hoco-zurueck" onClick={zurueck}>‹ alle HOCO Nr.</button>
+      <section className="karte hocoteil__kopf">
+        <div className="karte__kopf">
+          <div className="hocoteil__titel">
+            <small>HOCO Nr.</small>
+            <h2 className="hoco-teilnr">{t.hoco_nr}</h2>
+          </div>
           {darf && <div className="karte__aktionen">
-            <button className="linkknopf" id="hoco-bearb" onClick={bearbeiten}>Bearbeiten</button></div>}
+            <button className="knopf knopf--klein" id="hoco-bearb" onClick={bearbeiten}>Bearbeiten</button></div>}
         </div>
-        <table className="tabelle"><tbody>
-          {/* „Allgemeine Infos“ ist weg (Wunsch 5. Oktober 2026), die Spalte bleibt */}
-          {/* Die Artikelbezeichnung ebenso (Wunsch 8. Oktober 2026) */}
-          {[["Material", t.material]].map(([k, v]) => (
-            <tr key={k}><td className="klein">{k}</td><td>{v || leer}</td></tr>
-          ))}
-        </tbody></table>
-        <div className="pdfreihe">
+        {/* „Allgemeine Infos“ ist weg (Wunsch 5. Oktober 2026), die Spalte bleibt */}
+        {/* Die Artikelbezeichnung ebenso (Wunsch 8. Oktober 2026) */}
+        <div className="hocoteil__angaben">
+          <span className="hocoteil__angabe"><small>Material</small><b>{t.material || "—"}</b></span>
+          {mitLaenge && <span className="hocoteil__angabe" data-hocolaenge={t.teil_laenge_mm || ""}>
+            <small>Länge</small>
+            {darf
+              ? <button className="knopf knopf--klein" onClick={laengeBearbeiten}>
+                  {t.teil_laenge_mm ? laengeText(t.teil_laenge_mm) + (t.teil_mass_bestaetigt ? "" : " · prüfen") : "eintragen"}</button>
+              : <b>{t.teil_laenge_mm ? laengeText(t.teil_laenge_mm) : "—"}</b>}</span>}
+          <span className="hocoteil__angabe"><small>Maschinentypen</small><b>{typenGenutzt.length}</b></span>
+          <span className="hocoteil__angabe"><small>FA Nummern</small><b>{faListe.length}</b></span>
+        </div>
+        <div className="pdfreihe hocoteil__pdf">
           {/* Schaut dabei im Zeichnungs-Ordner nach Neuerem, auch ohne Zeichnung */}
-          <button className="knopf knopf--klein" data-zeichnung={t.zeichnung_url || ""}
+          <button className="knopf knopf--klein hocoteil__haupt" data-zeichnung={t.zeichnung_url || ""}
             onClick={() => dokZeigen({ art: "zeichnung", titel: "Zeichnung " + t.hoco_nr, adresse: t.zeichnung_url,
               hoco: t.hoco_nr, neu: () => nachAenderung() })}>Zeichnung ansehen</button>
           {darf && <label className="knopf knopf--klein bildknopf">
@@ -114,27 +155,32 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
         {darf && <span className="feldhinweis" id="hoco-pdfstand">{pdfStand}</span>}
       </section>
 
-      <section className="karte">
+      <section className="karte hocoteil__karte">
         <div className="karte__kopf"><h2>Produktionsanlage</h2><span className="klein">je Maschinentyp</span></div>
         {typenGenutzt.length
-          ? <table className="tabelle">
+          ? <table className="tabelle hocoteil__tabelle">
               <thead><tr><th>Maschinentyp</th><th>Maschinen</th><th>Einrichtblatt</th><th>Stückzeit</th><th /></tr></thead>
               <tbody>{typenGenutzt.map((e) => (
                 <tr key={e.typId}>
                   <td><strong>{e.name}</strong></td>
-                  <td className="klein">{e.maschinen.join(", ") || "—"}</td>
-                  <td className="klein">{e.eigenes ? "eigenes hinterlegt"
-                    : (e.vorlage ? "Vorlage vom Typ" : <span className="gedaempft">noch keines</span>)}</td>
+                  <td>{e.maschinen.length
+                    ? <span className="hocoteil__maschinen">{e.maschinen.map((m) =>
+                        <span key={m} className="hocoteil__maschine">{m}</span>)}</span>
+                    : "—"}</td>
+                  <td>{e.eigenes ? <span className="hocoteil__marke hocoteil__marke--gut">eigenes hinterlegt</span>
+                    : e.vorlage ? <span className="hocoteil__marke hocoteil__marke--thema">Vorlage vom Typ</span>
+                    : <span className="hocoteil__marke hocoteil__marke--leer">noch keines</span>}</td>
                   <td className="nowrap">{darf
-                    ? <button className="linkknopf" data-stueckzeit={e.typId} onClick={() => zeitBearbeiten(e)}>
+                    ? <button className={"knopf knopf--klein" + (e.zeit ? "" : " hocoteil__fehlt")}
+                        data-stueckzeit={e.typId} onClick={() => zeitBearbeiten(e)}>
                         {e.zeit ? stueckzeitText(e.zeit) : "eintragen"}</button>
-                    : (e.zeit ? stueckzeitText(e.zeit) : leer)}</td>
+                    : (e.zeit ? <span className="hocoteil__marke hocoteil__marke--thema">{stueckzeitText(e.zeit)}</span> : leer)}</td>
                   <td className="rechts nowrap">
-                    {(e.eigenes || e.vorlage) && <><button className="knopf knopf--klein" data-blatt-typ={e.typId}
+                    {(e.eigenes || e.vorlage) && <><button className="knopf knopf--klein hocoteil__haupt" data-blatt-typ={e.typId}
                       onClick={() => blattAnsehen(e.typId)}>Ansehen</button>{" "}</>}
-                    {darf && <button className="linkknopf" data-blatt-pdf={e.typId}
+                    {darf && <button className="knopf knopf--klein" data-blatt-pdf={e.typId}
                       onClick={() => blattHinterlegen(e.typId)}>{e.eigenes ? "Ersetzen" : "Datei hinterlegen"}</button>}
-                    {darf && e.eigenes && <>{" "}<button className="linkknopf linkknopf--gefahr" data-blatt-weg={e.typId}
+                    {darf && e.eigenes && <>{" "}<button className="knopf knopf--klein knopf--gefahr-leise" data-blatt-weg={e.typId}
                       onClick={() => blattEntfernen(e.typId)}>Entfernen</button></>}
                   </td>
                 </tr>
@@ -145,33 +191,33 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
       </section>
 
       {/* „Gelaufen auf“ ist weg (Wunsch 8. Oktober 2026) */}
-      {faListe.length > 0 && <section className="karte">
+      {faListe.length > 0 && <section className="karte hocoteil__karte">
         <div className="karte__kopf"><h2>FA Nummern</h2><span className="marke">{faListe.length}</span></div>
-        <table className="tabelle"><tbody>{faListe.map((x) => (
+        <table className="tabelle hocoteil__tabelle hocoteil__fa"><tbody>{faListe.map((x) => (
           <tr key={x.id}>
             <td><strong>{x.fa_nr}</strong></td>
             <td className="klein">{x.planned_from ? alt.kurzDatum(x.planned_from) : ""}</td>
             {/* Die Anhänge des Auftrags: das Warenbegleitblatt gehört zum
-                Durchlauf, ist also je FA Nr. ein anderes */}
+                Durchlauf, ist also je FA Nr. ein anderes. Die Zeichnung
+                steht hier nicht mehr, sie gilt für die ganze HOCO Nr. und
+                steht oben (Wunsch Patrick 14. Oktober 2026). Das Protokoll
+                der Werkzeugwechsel heisst kurz „Protokoll WW“ (ebenso). */}
             <td className="nowrap">
-              <button className="linkknopf" data-fadatei={x.wbg_url || ""}
-                onClick={() => dokZeigen({ art: "wbg", titel: "WBG " + x.fa_nr, adresse: x.wbg_url, hoco: t.hoco_nr,
-                  auftragId: x.id, fa: x.fa_nr, neu: () => neu() })}>WBG</button>
-              {x.drawing_url && <>{" "}<button className="linkknopf" data-fadatei={x.drawing_url}
-                onClick={() => ansehen(x.drawing_url, "Zeichnung " + x.fa_nr)}>Zeichnung</button></>}
-              {x.wz_historie_url && <>{" "}<button className="linkknopf" data-fadatei={x.wz_historie_url}
-                onClick={() => ansehen(x.wz_historie_url, "Werkzeugwechsel " + x.fa_nr)}>Wechsel</button></>}
-              {darf && <>{" "}<label className="linkknopf bildknopf">{x.wbg_url ? "WBG ersetzen" : "WBG wählen"}
-                <input type="file" accept="application/pdf" hidden data-wbgauftrag={x.id}
-                  onChange={(e) => wbgWaehlen(x.id, e)} /></label></>}
-              {/* Hier stand ein zweiter Knopf „Wechsel“ für ein Blatt aller
-                  Werkzeugwechsel der FA. Die Funktion dahinter gab es nie, der
-                  Klick lief ins Leere. Kommt mit der Auswertung der Standzeiten. */}
+              <span className="hocoteil__anhaenge">
+                <button className="knopf knopf--klein hocoteil__anhang hocoteil__anhang--wbg" data-fadatei={x.wbg_url || ""}
+                  onClick={() => dokZeigen({ art: "wbg", titel: "WBG " + x.fa_nr, adresse: x.wbg_url, hoco: t.hoco_nr,
+                    auftragId: x.id, fa: x.fa_nr, neu: () => neu() })}>WBG</button>
+                {x.wz_historie_url && <button className="knopf knopf--klein hocoteil__anhang hocoteil__anhang--wz" data-fadatei={x.wz_historie_url}
+                  onClick={() => ansehen(x.wz_historie_url, "Protokoll WW " + x.fa_nr)}>Protokoll WW</button>}
+                {darf && <label className="knopf knopf--klein bildknopf">{x.wbg_url ? "WBG ersetzen" : "WBG wählen"}
+                  <input type="file" accept="application/pdf" hidden data-wbgauftrag={x.id}
+                    onChange={(e) => wbgWaehlen(x.id, e)} /></label>}
+              </span>
             </td>
-            <td className="klein rechts">{(alt.PLANSTATUS[x.plan_status || "geplant"] || {}).name || ""}</td>
+            <td className="rechts">{zustand(x)}</td>
           </tr>
         ))}</tbody></table>
       </section>}
-    </>
+    </div>
   );
 }

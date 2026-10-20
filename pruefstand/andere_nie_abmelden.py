@@ -15,9 +15,10 @@ K = """daten.login_kacheln = [
 // Das angemeldete Profil u1 ist je nach Test ein anderer Nutzer oder eine Person
 if (window.PROFIL_ANDERE) { daten.profiles[0].andere_nutzer = true; daten.profiles[0].email = window.SITZUNG_MAIL; }
 if (window.PROFIL_OHNE_SPALTE) { daten.profiles[0].role = 'planwand'; daten.profiles[0].email = window.SITZUNG_MAIL; }
-TEST.funktionen['pin-anmelden'] = (b) => b.offen
-  ? (b.email === 'planwand@hoferco.ch' ? { status: 'ok', token_hash: 'offen' } : { status: 'passwort' })
-  : { status: 'falsch', rest: 4 };
+TEST.funktionen['pin-anmelden'] = (b) => ({ status: 'falsch', rest: 4 });
+// Seit 1.75.0 kommt ohne PIN nur noch ein gemerktes Gerät mit einem Tipp hinein
+TEST.schluessel = { includes: (k) => !!k };
+if (window.PLANWAND_GEMERKT) localStorage.setItem('hofer.geraet.sitzungen', JSON.stringify({ 'planwand@hoferco.ch': 'g-1' }));
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 
@@ -49,12 +50,12 @@ def pruefe(name, ok):
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
 
-    # 1. Planwand, offenes Konto: ein Tipp, drin, und der Schlüssel bleibt auf dem Gerät
-    pg, f = seite(br, "window.OHNE_SITZUNG = true; window.SITZUNG_MAIL = 'planwand@hoferco.ch'; window.PROFIL_ANDERE = true;", uhr=True)
+    # 1. Planwand, gemerktes Gerät: ein Tipp, drin, und der Schlüssel bleibt auf dem Gerät
+    pg, f = seite(br, "window.OHNE_SITZUNG = true; window.SITZUNG_MAIL = 'planwand@hoferco.ch'; window.PROFIL_ANDERE = true; window.PLANWAND_GEMERKT = true;", uhr=True)
     andere_oeffnen(pg)
     pg.locator(".login__kachel", has_text="Planwand").click(); pg.wait_for_timeout(2500)
     pruefe("Planwand: mit einem Tipp angemeldet", angemeldet(pg))
-    pruefe("Planwand: Schlüssel auf dem Gerät aufgehoben", gemerkt(pg).get("planwand@hoferco.ch") == "r-1")
+    pruefe("Planwand: Schlüssel auf dem Gerät aufgehoben", str(gemerkt(pg).get("planwand@hoferco.ch") or "").startswith("r-"))
 
     # 2. Sechs Minuten ohne Bedienung: keine Warnung, keine Abmeldung
     pg.clock.fast_forward(6 * 60 * 1000); pg.wait_for_timeout(800)
@@ -87,12 +88,12 @@ with sync_playwright() as p:
 
     # 5. Schon angemeldet vor diesem Stand (Sitzung da, nichts gemerkt): beim Start wird der Schlüssel aufgehoben
     pg, f = seite(br, "window.OHNE_SITZUNG = false; window.SITZUNG_MAIL = 'planwand@hoferco.ch'; window.PROFIL_ANDERE = true;")
-    pruefe("Alte Sitzung: Schlüssel beim Start aufgehoben", gemerkt(pg).get("planwand@hoferco.ch") == "r-1")
+    pruefe("Alte Sitzung: Schlüssel beim Start aufgehoben", str(gemerkt(pg).get("planwand@hoferco.ch") or "").startswith("r-"))
     fehler += f; pg.close()
 
     # 6. Ohne sql/andere-nutzer.sql (Profil kennt das Häkchen nicht): Rolle Planwand zählt
     pg, f = seite(br, "window.OHNE_SITZUNG = false; window.SITZUNG_MAIL = 'planwand@hoferco.ch'; window.PROFIL_OHNE_SPALTE = true;", uhr=True)
-    pruefe("Ohne Spalte: Rolle Planwand gemerkt", gemerkt(pg).get("planwand@hoferco.ch") == "r-1")
+    pruefe("Ohne Spalte: Rolle Planwand gemerkt", str(gemerkt(pg).get("planwand@hoferco.ch") or "").startswith("r-"))
     pg.clock.fast_forward(6 * 60 * 1000); pg.wait_for_timeout(800)
     pruefe("Ohne Spalte: nach 6 Minuten noch angemeldet", angemeldet(pg))
     fehler += f; pg.close()
