@@ -8591,60 +8591,36 @@ body.ib-offen { overflow: hidden; }
   }
 }
 
-/* ---------- Bildchen beim Klappen: Späne, Huhn, Eier (seit 1.116.0) ---------- */
-.kfx { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; pointer-events: none; overflow: hidden; }
+/* ---------- Wirkung beim Klappen: Welle und Maschinenschrift (seit 1.117.0) ----------
+   Späne, Huhn und Eier aus 1.116.0 sind wieder weg (Patrick: „mach was
+   Neues“). Die Art wechselt je Klick, klappFx.js setzt sie in
+   body[data-klapp-art]. */
+.kfx-welle { position: fixed; z-index: 21; width: 90px; pointer-events: none; }
+.kfx-welle svg { display: block; overflow: visible; filter: drop-shadow(4px 0 10px rgba(0, 20, 60, .12)); }
+@media (min-width: 780px) {
+  /* Welle: die Namen klappen nacheinander wie Karten auf, ruhig. Nur die
+     Namen, nicht der ganze Punkt: dessen Einblenden beim Laden der Seite
+     (effekte.css) liefe sonst am Ende noch einmal ab. */
+  body[data-klapp-art="welle"].nav--klappt-auf .nav__punkt,
+  body[data-klapp-art="welle"].nav--klappt-zu .nav__punkt { perspective: 500px; }
+  body[data-klapp-art="welle"].nav--klappt-auf .nav__text {
+    transform-origin: left center;
+    animation: kfx-karte-auf .55s cubic-bezier(.25, .8, .3, 1) both;
+    animation-delay: calc(var(--n, 0) * 40ms + 80ms); }
+  body[data-klapp-art="welle"].nav--klappt-zu:not(.nav--schmal) .nav__text {
+    transform-origin: left center;
+    animation: kfx-karte-zu .3s cubic-bezier(.5, 0, .9, .5) both;
+    animation-delay: calc(var(--n, 0) * 18ms); }
+  @keyframes kfx-karte-auf { from { opacity: 0; transform: rotateY(-75deg); } }
+  @keyframes kfx-karte-zu { to { opacity: 0; transform: rotateY(-75deg); } }
 
-.kfx-span { position: absolute; animation: kfx-span-x 1.5s cubic-bezier(.2, .6, .4, 1) var(--warte) both; }
-.kfx-span__y { animation: kfx-span-y 1.5s linear var(--warte) both; }
-.kfx-span__bild { display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .35));
-  animation: kfx-span-dreh 1.5s ease-out var(--warte) both; }
-@keyframes kfx-span-x { from { transform: translateX(0); } to { transform: translateX(var(--dx)); } }
-@keyframes kfx-span-y {
-  0%   { transform: translateY(0); animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
-  30%  { transform: translateY(var(--hoch)); animation-timing-function: cubic-bezier(.5, 0, .9, .5); }
-  100% { transform: translateY(var(--fall)); } }
-@keyframes kfx-span-dreh {
-  0% { transform: scale(.2) rotate(0); opacity: 0; }
-  10% { transform: scale(1) rotate(calc(var(--dreh) * .1)); opacity: 1; }
-  80% { opacity: 1; }
-  100% { transform: scale(.9) rotate(var(--dreh)); opacity: 0; } }
-
-.kfx-huhn { position: absolute; width: 86px; height: 80px;
-  animation: kfx-huhn-lauf 1.7s cubic-bezier(.45, 0, .55, 1) both; }
-.kfx-huhn--links .kfx-huhn__lauf { transform: scaleX(-1); }
-.kfx-huhn__bild { display: block; overflow: visible; filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .2));
-  animation: kfx-huhn-wippen .22s ease-in-out infinite alternate; }
-.kfx-huhn__bein { transform-box: fill-box; transform-origin: top center;
-  animation: kfx-huhn-bein .22s ease-in-out infinite alternate; }
-.kfx-huhn__bein--b { animation-direction: alternate-reverse; }
-.kfx-gack { position: absolute; left: 44px; top: -24px; padding: 3px 9px; border-radius: 12px;
-  background: #fff; color: #1b2a3e !important; font: 700 .8rem/1.2 system-ui, sans-serif; white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .18); animation: kfx-gack 1.7s ease both; }
-/* Im dunklen Modus ist sonst alle Schrift weiss (body.dunkel *) */
-body.dunkel .kfx .kfx-gack { color: #1b2a3e !important; }
-@keyframes kfx-huhn-lauf {
-  0% { transform: translateX(0); opacity: 0; } 8% { opacity: 1; }
-  92% { opacity: 1; } 100% { transform: translateX(var(--weg)); opacity: 0; } }
-@keyframes kfx-huhn-wippen { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-3px) rotate(2deg); } }
-@keyframes kfx-huhn-bein { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
-@keyframes kfx-gack { 0%, 45% { opacity: 0; transform: translateY(6px) scale(.8); }
-  55%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; } }
-
-.kfx-ei { position: absolute; width: 26px; height: 33px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-  background: radial-gradient(circle at 35% 30%, #fffaf0 0%, #f1dfbd 45%, #c9a874 100%);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, .3), inset 0 0 0 1px rgba(120, 85, 40, .25); }
-.kfx-ei--gold { background: radial-gradient(circle at 35% 30%, #fff6c9 0%, #f3c63e 45%, #b8861a 100%); }
-.kfx-ei--gelegt { animation: kfx-ei-gelegt 2.6s ease both; animation-delay: .85s; }
-.kfx-ei--faellt { animation: kfx-ei-fall 2.2s both; animation-delay: var(--warte); }
-@keyframes kfx-ei-gelegt {
-  0% { transform: scale(0); opacity: 0; } 10% { transform: scale(1); opacity: 1; }
-  20% { transform: rotate(-10deg); } 30% { transform: rotate(8deg); } 40% { transform: rotate(-4deg); }
-  50% { transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes kfx-ei-fall {
-  0%   { transform: translateY(0) rotate(0); opacity: 0; animation-timing-function: cubic-bezier(.5, 0, .9, .5); }
-  5%   { opacity: 1; animation-timing-function: cubic-bezier(.5, 0, .9, .5); }
-  40%  { transform: translateY(var(--boden)) rotate(40deg) scale(1.1, .88); animation-timing-function: cubic-bezier(.2, .6, .4, 1); }
-  48%  { transform: translateY(var(--boden)) rotate(60deg); }
-  75%  { transform: translate(var(--roll), var(--boden)) rotate(160deg); opacity: 1; }
-  100% { transform: translate(var(--roll), var(--boden)) rotate(170deg); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .kfx { display: none; } }
+  /* Maschinenschrift: die laufenden Zeichen liegen über dem echten Namen */
+  .nav__text[data-fx] { position: relative; -webkit-text-fill-color: transparent; }
+  .nav__text[data-fx]::after { content: attr(data-fx); position: absolute; left: 0; top: 0;
+    white-space: nowrap; -webkit-text-fill-color: currentColor;
+    font-variant-numeric: tabular-nums; }
+  body[data-klapp-art="schrift"].nav--klappt-auf .nav__text {
+    animation: kfx-schrift-rein .2s linear both; animation-delay: calc(var(--n, 0) * 55ms + 120ms); }
+  @keyframes kfx-schrift-rein { from { opacity: 0; } }
+}
+@media (prefers-reduced-motion: reduce) { .kfx-welle { display: none; } }

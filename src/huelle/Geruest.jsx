@@ -133,8 +133,8 @@ function useZuklappend(aktiv) {
 // 20. Oktober 2026: „mehr Emotionen, man macht es ja selten“; seit
 // 1.116.0 „kein Hin und Her, blitzartig, sondern smooth, kein
 // Spiegeleffekt“): Die Breite gleitet weich, die Namen blenden
-// nacheinander ein und aus, dazu abwechselnd Späne, Huhn oder Eier
-// (klappFx.js). Erst am Ende wird die Leiste schmal. Der Inhalt rückt
+// nacheinander ein und aus, dazu abwechselnd eine weiche Welle am Rand
+// oder Maschinenschrift (klappFx.js, seit 1.117.0). Erst am Ende wird die Leiste schmal. Der Inhalt rückt
 // nur einmal, nicht bei jedem Bild, damit die Planwand nicht laufend
 // neu rechnet.
 const KLAPP_AUF_MS = 900, KLAPP_ZU_MS = 620, KLAPP_ZU_SCHMAL_MS = 560;
