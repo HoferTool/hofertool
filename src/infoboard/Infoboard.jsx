@@ -3,9 +3,10 @@
 //  Seite zum Gestalten des grossen Bildschirms (Samsung, zuerst 43, jetzt
 //  50 Zoll, hochkant) und die Anzeige über den ganzen Bildschirm
 //  (Wunsch Patrick 20. Oktober 2026). Links die Tafel genau wie am
-//  Bildschirm, rechts je Reihe „2 nebeneinander“ oder „1 breit“ und was im
+//  Bildschirm, rechts je Reihe „3 × A4“, „A3 + A4“ oder „A4 + A3“ und was im
 //  angetippten Bereich steht: eine Datei (PDF, Bild, Video) oder eine
-//  Fläche zum Zeichnen und Schreiben.
+//  Fläche zum Zeichnen und Schreiben. Dateien lassen sich auch direkt auf
+//  ein Feld ziehen, Felder aufeinander gezogen tauschen den Inhalt.
 //
 //  Gestalten dürfen nur Admins (auch in der Datenbank). Gerätekonten
 //  („Andere Nutzer“) sehen die Seite auch, damit man am Bildschirm
@@ -66,18 +67,42 @@ export default function Infoboard() {
     aendern({ reihen: aufbau.reihen.map((r, i) => (i === ri ? { ...r, format } : r)) });
   };
 
-  const dateiGewaehlt = async (e) => {
-    const d = e.target.files && e.target.files[0];
-    e.target.value = "";
-    if (!d || !wahl) return;
+  // Eine Datei in ein Feld legen: über „Datei wählen …“ oder vom
+  // Computer direkt auf das Feld gezogen (Wunsch Patrick 20. Oktober 2026)
+  const dateiInFeld = async (feld, d) => {
+    if (!d || !feld) return;
     if (!dateiTyp(d.name, d.type)) { alt.meldung("Nur PDF, Bilder oder Videos.", "warn"); return; }
     setLaedt(d.name);
     try {
       const neu = await dateiHochladen(d);
-      await feldSetzen(wahl.feld.id, { id: neueId(), art: "datei", datei: neu, sekunden: wahl.feld.sekunden || SEKUNDEN });
-      setGewaehlt(null);
+      const id = neueId();
+      await feldSetzen(feld.id, { id, art: "datei", datei: neu, sekunden: feld.sekunden || SEKUNDEN });
+      setGewaehlt(id);
     } catch (f) { alt.meldung("Hochladen ging nicht: " + alt.fehlertext(f), "fehler"); }
     finally { setLaedt(""); }
+  };
+
+  const dateiGewaehlt = (e) => {
+    const d = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (wahl) dateiInFeld(wahl.feld, d);
+  };
+
+  // Zwei Felder tauschen ihren Inhalt. Die Felder behalten ihre Kennung,
+  // so wandert eine Zeichenfläche samt allem darauf mit.
+  const tauschen = (vonId, nachId) => {
+    if (!vonId || vonId === nachId) return;
+    const alle = aufbau.reihen.flatMap((r) => r.felder);
+    const von = alle.find((f) => f.id === vonId), nach = alle.find((f) => f.id === nachId);
+    if (!von || !nach) return;
+    aendern({ reihen: aufbau.reihen.map((r) => ({ ...r,
+      felder: r.felder.map((f) => (f.id === vonId ? nach : f.id === nachId ? von : f)) })) });
+    setGewaehlt(vonId);
+  };
+
+  const ablegen = (feld, d) => {
+    if (d.datei) dateiInFeld(feld, d.datei);
+    else tauschen(d.feldId, feld.id);
   };
 
   const skizzeSetzen = () => {
@@ -117,7 +142,8 @@ export default function Infoboard() {
       {fehler && <p className="hinweis">{fehler}</p>}
       <div className="ib-gestalten__teile">
         <div className="ib-gestalten__vorschau">
-          <Tafel aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt} />
+          <Tafel aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt}
+            ablegen={admin && !laedt ? ablegen : null} />
         </div>
         <div className="ib-gestalten__seite">
           {admin && <>
@@ -133,7 +159,8 @@ export default function Infoboard() {
                 </div>
               </div>
             ))}
-            {!wahl && <p className="klein">Tippe links auf einen Bereich, um ihn zu füllen.</p>}
+            {!wahl && <p className="klein">Tippe links auf einen Bereich, um ihn zu füllen. Du kannst auch eine Datei vom Computer direkt auf einen Bereich ziehen oder einen Bereich auf einen anderen ziehen, dann tauschen die beiden.</p>}
+            {laedt && <p className="klein">Lädt {laedt} …</p>}
             {wahl &&
               <div className="ib-wahl" data-ibwahl={wahl.reihe + "-" + wahl.platz}>
                 <h3>{"Reihe " + REIHEN[wahl.reihe] + " · " + (wahl.breit === 2 ? "A3 " + (wahl.spalte === 0 ? "links" : "rechts") : "A4 " + SPALTE[wahl.spalte])}</h3>

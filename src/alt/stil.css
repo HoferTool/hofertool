@@ -8696,3 +8696,8 @@ body.ib-offen { overflow: hidden; }
     .handymenue__text { animation: none !important; }
   }
 }
+
+/* Infoboard: Ziel beim Ziehen und Ablegen (1.120.0) */
+.ib-feld--ziel { box-shadow: 0 0 0 6px #fff, 0 0 0 12px #2fb67c; }
+.ib-feld--ziel .ib-feld__wahl { background: rgba(47,182,124,.22) !important; }
+.ib-feld__wahl[draggable="true"] { cursor: grab; }

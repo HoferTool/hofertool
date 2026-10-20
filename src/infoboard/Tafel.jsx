@@ -50,25 +50,52 @@ function useMassstab(rahmen) {
   return k;
 }
 
-export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel }) {
+const ZIEH_ART = "application/x-hofer-ibfeld";
+
+export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, ablegen }) {
   const rahmen = useRef(null);
   const k = useMassstab(rahmen);
   const lage = felderLage(aufbau);
+  const [ziel, setZiel] = useState(null);
+  // Ziehen und Ablegen in der Gestaltung: eine Datei vom Computer auf ein
+  // Feld oder ein Feld auf ein anderes (dann tauschen sie)
+  const ziehen = (l) => !ablegen ? {} : {
+    draggable: l.feld.art !== "leer",
+    onDragStart: (e) => { e.dataTransfer.setData(ZIEH_ART, l.feld.id); e.dataTransfer.effectAllowed = "move"; },
+    onDragOver: (e) => {
+      const t = e.dataTransfer.types;
+      if (!t || (!Array.from(t).includes("Files") && !Array.from(t).includes(ZIEH_ART))) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = Array.from(t).includes("Files") ? "copy" : "move";
+      if (ziel !== l.feld.id) setZiel(l.feld.id);
+    },
+    onDragLeave: () => setZiel((z) => (z === l.feld.id ? null : z)),
+    onDragEnd: () => setZiel(null),
+    onDrop: (e) => {
+      e.preventDefault(); setZiel(null);
+      const datei = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (datei) ablegen(l.feld, { datei });
+      else ablegen(l.feld, { feldId: e.dataTransfer.getData(ZIEH_ART) });
+    },
+  };
   return (
-    <div className="ib-rahmen" ref={rahmen}>
+    <div className="ib-rahmen" ref={rahmen}
+      // Daneben fallen gelassen öffnet der Browser die Datei sonst selbst
+      onDragOver={ablegen ? (e) => e.preventDefault() : undefined}
+      onDrop={ablegen ? (e) => e.preventDefault() : undefined}>
       {k > 0 &&
       <div className={"ib-blatt" + (bearbeiten ? " ib-blatt--bearbeiten" : "")}
         style={{ width: BREITE, height: HOEHE, transform: "translate(-50%, -50%) scale(" + k + ")" }}>
         <Kopf />
         {lage.map((l) => (
           <div key={l.feld.id} className={"ib-feld ib-feld--" + l.format + " ib-feld--" + l.feld.art
-            + (gewaehlt === l.feld.id ? " ib-feld--gewaehlt" : "")}
+            + (gewaehlt === l.feld.id ? " ib-feld--gewaehlt" : "") + (ziel === l.feld.id ? " ib-feld--ziel" : "")}
             data-ibfeld={l.reihe + "-" + l.platz}
             style={{ left: l.left, top: l.top, width: l.width, height: l.height }}>
             <FeldInhalt feld={l.feld} format={l.format} bearbeiten={bearbeiten} grossZiel={grossZiel} />
             {bearbeiten &&
               <button type="button" className="ib-feld__wahl" aria-label="Bereich wählen"
-                onClick={() => waehlen && waehlen(l.feld.id)} />}
+                onClick={() => waehlen && waehlen(l.feld.id)} {...ziehen(l)} />}
           </div>
         ))}
       </div>}

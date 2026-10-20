@@ -70,6 +70,26 @@ with sync_playwright() as p:
     a = pg.evaluate("() => TEST.daten.infoboard[0].aufbau")
     pruefe(a["reihen"][1]["format"] == "a3l" and a["reihen"][1]["felder"][0]["art"] == "skizze", "A3 mit Zeichenfläche gespeichert")
     skid = a["reihen"][1]["felder"][0]["id"]
+
+    # Ziehen und Ablegen (1.120.0): Datei vom Computer auf unten links
+    pg.evaluate("""() => {
+      const dt = new DataTransfer();
+      dt.items.add(new File([new Uint8Array([37,80,68,70])], 'Plan unten.pdf', { type: 'application/pdf' }));
+      const el = document.querySelector("[data-ibfeld='2-0'] .ib-feld__wahl");
+      el.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true }));
+      el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    }""")
+    pg.wait_for_timeout(1000)
+    a = pg.evaluate("() => TEST.daten.infoboard[0].aufbau")
+    f20 = a["reihen"][2]["felder"][0]
+    pruefe(f20["art"] == "datei" and f20["datei"]["name"] == "Plan unten.pdf", "Datei auf ein Feld gezogen")
+    # Feld auf ein anderes ziehen: die beiden tauschen
+    pg.drag_and_drop("[data-ibfeld='2-0'] .ib-feld__wahl", "[data-ibfeld='2-2'] .ib-feld__wahl"); pg.wait_for_timeout(800)
+    a = pg.evaluate("() => TEST.daten.infoboard[0].aufbau")
+    r2 = a["reihen"][2]["felder"]
+    pruefe(r2[2]["art"] == "datei" and r2[2]["datei"]["name"] == "Plan unten.pdf" and r2[0]["art"] == "leer",
+           "Feld auf ein anderes gezogen: getauscht")
+    pruefe(a["reihen"][1]["felder"][0]["id"] == skid, "Zeichenfläche bleibt, wo sie war")
     # Das PDF auf eine Adresse, die der Prüfstand ausliefert
     pg.evaluate("(u) => { TEST.daten.infoboard[0].aufbau.reihen[0].felder[0].datei.url = u; "
                 "TEST.daten.infoboard[0].geaendert_am = new Date().toISOString(); }", PDF_URL)
@@ -83,7 +103,7 @@ with sync_playwright() as p:
     pruefe(nr.count() == 1 and nr.inner_text().strip() == "1 / 2", "PDF zeigt Seite 1 / 2")
     w = pg.evaluate("() => document.querySelector('#infoboard .ib-pdf__seite').width")
     pruefe(w > 100, "PDF-Seite gezeichnet: %d" % w)
-    pg.locator("#infoboard .ib-pdf").click(); pg.wait_for_timeout(300)
+    pg.locator("#infoboard .ib-pdf").first.click(); pg.wait_for_timeout(300)
     pruefe(nr.inner_text().strip() == "2 / 2", "antippen zeigt die nächste Seite")
     # Zeichnen auf der Fläche
     cv = pg.locator("#infoboard .pad-skizze__leinwand").bounding_box()
