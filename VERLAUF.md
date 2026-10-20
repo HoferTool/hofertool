@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.111.0** Startseite: Die Karte „Gemeldete Probleme“ sehen nur noch Admins (Wunsch Patrick, 20. Oktober 2026). Alle anderen sehen Probleme weiter auf der Planwand am Balken, in der Schnellvorschau und im Auftragsfenster. Test in `probleme_park.py`.
 - **1.110.1** Die Zeichnungsnummer in der Schnellvorschau sehen Externe vorerst nicht (neue Funktionen bekommen sie nur nach Rückfrage, Patrick gefragt).
 - **1.110.0** Planwand: Die Schnellvorschau zeigt unter der FA Nr. die **Zeichnungsnummer** (Wunsch Patrick, 20. Oktober 2026). Zuerst aus dem Dateinamen der Zeichnung vom Pool-Rechner (`hoco_parts.zeichnung_quelle`; „T04.514.13 Kunde.pdf“ → T04.514.13, was vor „Kunde“ oder „Hofer“ steht), weil die fast immer da ist; sonst aus der WBG, Zeile „Z-Nr.:“ (auch „Zeichnungs-Nr.“, aus dem PDF-Text gelesen wie die Waschprog-Nr., je Gerät einmal gemerkt, `hofer.wbgfelder`). Ohne beides fehlt die Zeile. `src/daten/zeichnungNr.js`, Test in `waschprog.py`.
 - **1.109.1** Seite Material: Neben dem roten M steht „2 Aufträge“ (bzw. „1 Auftrag“) statt nur die Zahl (Wunsch Patrick, 20. Oktober 2026).

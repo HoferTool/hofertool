@@ -15,6 +15,9 @@ import Notizen from "./start/Notizen.jsx";
 import Materialausgabe from "./start/Materialausgabe.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 
+// Ohne Adminrecht wird gar nicht erst nach Problemen gefragt
+const keineProbleme = async () => [];
+
 export default function Start({ auffrischen }) {
   const profil = alt.profil;
   const name = (profil && (profil.full_name || profil.email.split("@")[0])) || "";
@@ -23,8 +26,11 @@ export default function Start({ auffrischen }) {
   const kinder = geburtstageAufbereiten(geb.daten).filter((m) => m.tage === 0);
   const fest = kinder.length > 0;
   // Statt der Vorbereitung steht hier immer die Problemkarte (Wunsch
-  // 4. Oktober 2026), meistens mit „Keine Probleme gemeldet“.
-  const prob = useDaten(problemeLaden, [auffrischen]);
+  // 4. Oktober 2026), meistens mit „Keine Probleme gemeldet“. Seit
+  // 1.111.0 nur noch für Admins (Wunsch Patrick 20. Oktober 2026), alle
+  // anderen sehen die Probleme weiter auf der Planwand am Balken.
+  const admin = alt.istAdmin();
+  const prob = useDaten(admin ? problemeLaden : keineProbleme, [auffrischen, admin]);
   return (
     <>
       <section className={"kopfkarte" + (fest ? " kopfkarte--geburtstag" : "")}>
@@ -37,7 +43,7 @@ export default function Start({ auffrischen }) {
       </section>
       <Solaranlage />
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
-      <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />
+      {admin && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
       {/* Reihenfolge nach Wunsch 4. Oktober 2026: Probleme, Bestellungen,
           Notizen, Einkaufsliste, am Schluss die Geburtstage. Über den
           Notizen die Materialausgabe Extern (Wunsch 8. Oktober 2026). */}
