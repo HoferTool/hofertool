@@ -88,21 +88,44 @@ function Logo() {
 
 // Die Reiter der offenen Seite unter ihrem Punkt in der Seitenleiste.
 // Nur ab Tablet-Breite sichtbar (CSS); unten in der Leiste wäre kein Platz.
-function Unterreiter({ seite }) {
+// Seit 1.112.0 klappt die Gruppe weich auf: die Höhe wächst, ein Ast
+// zieht von der Seite nach unten und die Reiter gleiten nacheinander
+// hinein; beim Seitenwechsel klappt die alte Gruppe wieder zu
+// (Wunsch Patrick 20. Oktober 2026: „cooler, mit den Reitern“).
+function Unterreiter({ seite, zu }) {
   const u = UNTERREITER[seite];
   const [, zeichnen] = useState(0);
   useEffect(() => reiterBeobachten(() => zeichnen((x) => x + 1)), []);
   const aktiv = reiterAktiv(seite);
   return (
-    <div className="nav__unter" role="group">
-      {u.liste().map(([wert, text]) => (
-        <button key={wert} type="button"
-          className={"nav__unterpunkt" + (aktiv === wert ? " aktiv" : "")}
-          data-unter={seite + "/" + wert}
-          onClick={() => reiterWaehlen(seite, wert, true)}>{text}</button>
-      ))}
+    <div className={"nav__unter" + (zu ? " nav__unter--zu" : "")} role="group" aria-hidden={zu || undefined}>
+      <div className="nav__unterinnen">
+        {u.liste().map(([wert, text], i) => (
+          <button key={wert} type="button" style={{ "--i": i }} tabIndex={zu ? -1 : undefined}
+            className={"nav__unterpunkt" + (aktiv === wert ? " aktiv" : "")}
+            {...(zu ? {} : { "data-unter": seite + "/" + wert })}
+            onClick={() => reiterWaehlen(seite, wert, true)}>{text}</button>
+        ))}
+      </div>
     </div>
   );
+}
+
+// Merkt sich die zuletzt offene Seite mit Reitern, damit ihre Gruppe
+// noch kurz zuklappen darf, statt schlagartig zu verschwinden
+function useZuklappend(aktiv) {
+  const [zu, setZu] = useState(null);
+  const vorher = useRef(null);
+  useEffect(() => {
+    const alteSeite = vorher.current;
+    vorher.current = aktiv;
+    if (!alteSeite || alteSeite === aktiv || !UNTERREITER[alteSeite]) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setZu(alteSeite);
+    const t = setTimeout(() => setZu(null), 320);
+    return () => { clearTimeout(t); setZu(null); };
+  }, [aktiv]);
+  return zu;
 }
 
 function Geruest() {
@@ -110,6 +133,7 @@ function Geruest() {
   const [aktiv, setAktiv] = useState(null);
   useLayoutEffect(() => { aktivSetzen = setAktiv; }, []);
   const sucheVorgeladen = useRef(false);
+  const zuklappend = useZuklappend(aktiv);
 
   const anzeige = (profil && (profil.full_name || profil.email)) || "";
   const klappen = () => {
@@ -170,7 +194,8 @@ function Geruest() {
                 <span className="nav__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} />
                 <span className="nav__text">{s.titel}</span>
               </a>
-              {aktiv === s.pfad && UNTERREITER[s.pfad] && <Unterreiter seite={s.pfad} />}
+              {aktiv === s.pfad && UNTERREITER[s.pfad] && <Unterreiter key="offen" seite={s.pfad} />}
+              {zuklappend === s.pfad && aktiv !== s.pfad && <Unterreiter key="zu" seite={s.pfad} zu />}
             </Fragment>
           ))}
           {/* Externe sehen die Webseiten-Knöpfe nicht */}

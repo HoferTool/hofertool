@@ -5177,21 +5177,50 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
    eingeklappter Seitenleiste ist kein Platz dafür. */
 .nav__unter { display: none; }
 @media (min-width: 780px) {
-  .nav__unter { display: grid; padding: 2px 0 6px; position: relative; z-index: 1;
-                animation: nav-unter-auf .3s cubic-bezier(.16, 1, .3, 1); }
+  /* Seit 1.112.0 klappt die Gruppe auf statt nur einzublenden: die Höhe
+     wächst über grid-template-rows (0fr → 1fr), ein Ast in der
+     Themenfarbe zieht von oben durch die Punkte nach unten, die Reiter
+     gleiten nacheinander von links hinein und ihr Punkt springt auf. */
+  .nav__unter { display: grid; grid-template-rows: 1fr; position: relative; z-index: 1;
+                animation: nav-unter-auf .42s cubic-bezier(.16, 1, .3, 1) both; }
+  .nav__unterinnen { min-height: 0; overflow: hidden; display: grid; padding: 2px 0 6px; position: relative; }
+  .nav__unterinnen::before { content: ""; position: absolute; left: 52px; top: 14px; bottom: 21px; width: 1.5px;
+    border-radius: 1px; transform-origin: top; pointer-events: none;
+    background: linear-gradient(180deg, var(--marke), color-mix(in srgb, var(--marke) 25%, transparent));
+    opacity: .55; animation: nav-ast .5s cubic-bezier(.65, 0, .35, 1) .05s both; }
   body.nav--schmal .nav__unter { display: none; }
-  .nav__unterpunkt { all: unset; box-sizing: border-box; display: flex; align-items: center;
+  .nav__unterpunkt { all: unset; box-sizing: border-box; display: flex; align-items: center; position: relative;
                      gap: 8px; min-height: 32px; padding: 3px 16px 3px 47px; cursor: pointer;
                      color: var(--gedaempft); font-size: .86rem; border-left: 3px solid transparent;
-                     transition: color .15s, background-color .15s; }
+                     transition: color .15s, background-color .15s, gap .2s cubic-bezier(.34, 1.56, .64, 1);
+                     animation: nav-unterpunkt-rein .45s cubic-bezier(.22, 1.2, .36, 1) both;
+                     animation-delay: calc(var(--i, 0) * 55ms + 90ms); }
   .nav__unterpunkt::before { content: ""; width: 5px; height: 5px; border-radius: 50%;
-                             background: currentColor; opacity: .45; flex: none; }
-  .nav__unterpunkt:hover { color: var(--tinte); background: var(--marke-hell); }
+                             background: currentColor; opacity: .45; flex: none;
+                             transition: box-shadow .2s, opacity .2s;
+                             animation: nav-unterpunkt-punkt .4s cubic-bezier(.34, 1.8, .64, 1) both;
+                             animation-delay: calc(var(--i, 0) * 55ms + 160ms); }
+  .nav__unterpunkt:hover { color: var(--tinte); background: var(--marke-hell); gap: 11px; }
   .nav__unterpunkt:focus-visible { outline: 2px solid var(--marke); outline-offset: -2px; }
   .nav__unterpunkt.aktiv { color: var(--marke); font-weight: 600; }
-  .nav__unterpunkt.aktiv::before { opacity: 1; }
-  @keyframes nav-unter-auf { from { opacity: 0; transform: translateY(-6px); } }
-  @media (prefers-reduced-motion: reduce) { .nav__unter { animation: none; } }
+  .nav__unterpunkt.aktiv::before { opacity: 1; background: var(--marke);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--marke) 22%, transparent),
+                0 0 8px color-mix(in srgb, var(--marke) 60%, transparent); }
+  /* Zuklappen beim Seitenwechsel: kurz und ohne Staffel */
+  .nav__unter--zu { animation: nav-unter-zu .3s cubic-bezier(.5, 0, .75, 0) both; pointer-events: none; }
+  .nav__unter--zu .nav__unterpunkt { animation: nav-unterpunkt-weg .18s ease-in both; }
+  .nav__unter--zu .nav__unterpunkt::before { animation: none; }
+  .nav__unter--zu .nav__unterinnen::before { animation: nav-ast-weg .25s ease-in both; }
+  @keyframes nav-unter-auf { from { grid-template-rows: 0fr; } to { grid-template-rows: 1fr; } }
+  @keyframes nav-unter-zu { from { grid-template-rows: 1fr; } to { grid-template-rows: 0fr; } }
+  @keyframes nav-ast { from { transform: scaleY(0); } }
+  @keyframes nav-ast-weg { to { transform: scaleY(0); opacity: 0; } }
+  @keyframes nav-unterpunkt-rein { from { opacity: 0; transform: translateX(-14px); } }
+  @keyframes nav-unterpunkt-weg { to { opacity: 0; transform: translateX(-8px); } }
+  @keyframes nav-unterpunkt-punkt { from { transform: scale(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .nav__unter, .nav__unterinnen::before, .nav__unterpunkt, .nav__unterpunkt::before { animation: none; }
+  }
 }
 
 /* =================================================================
