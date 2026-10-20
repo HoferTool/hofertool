@@ -21,7 +21,8 @@ export function MKnopf({ p, auftraege, neu }) {
       title={liste.length ? "Wo einsetzen? " + liste.length + " geplante Aufträge mit rotem M" : "Kein geplanter Auftrag mit rotem M braucht das"}
       onClick={() => woEinsetzenOeffnen(p, liste, neu)}>
       <span className="mat-m__zeichen" dangerouslySetInnerHTML={{ __html: M_SYMBOL }} />
-      <span className="mat-m__zahl">{liste.length}</span>
+      {/* „2 Aufträge“ statt nur der Zahl (Wunsch Patrick 20. Oktober 2026) */}
+      <span className="mat-m__zahl">{liste.length} {liste.length === 1 ? "Auftrag" : "Aufträge"}</span>
     </button>);
 }
 

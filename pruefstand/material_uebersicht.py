@@ -110,7 +110,7 @@ with sync_playwright() as p:
     # Rotes M: wo einsetzen? Geplant mit rotem M und gleichem Material: mC und mF;
     # mB hat eine Menge (kein M), mA läuft
     m = pg.locator("[data-ort='Aussenlager Nord'] .mat-m").first
-    pruefe("Rotes M beim Posten mit Zahl 2", m.count() == 1 and m.get_attribute("data-m") == "2")
+    pruefe("Rotes M beim Posten mit „2 Aufträge“", m.count() == 1 and m.get_attribute("data-m") == "2" and "2 Aufträge" in m.inner_text())
     m.click(); pg.wait_for_selector("#mat-wo", timeout=5000)
     w = pg.inner_text("#mat-wo")
     pruefe("Fenster zeigt 10555-0003 und 10555-0006: " + w.replace(chr(10), " | ")[:200],
