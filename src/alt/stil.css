@@ -8562,17 +8562,8 @@ body.ib-offen { overflow: hidden; }
   body.nav--klappt-zu .rahmen { grid-template-columns: 62px 1fr; }
   body.nav--klappt-auf .nav__text, body.nav--klappt-zu .nav__text { white-space: nowrap; }
 
-  /* Lichtstreifen und Leuchten am Rand, über beiden Richtungen */
-  body.nav--klappt-auf .nav::after, body.nav--klappt-zu .nav::after {
-    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
-    background: linear-gradient(100deg, transparent 30%,
-      color-mix(in srgb, var(--marke) 22%, transparent) 45%,
-      rgba(255, 255, 255, .55) 50%,
-      color-mix(in srgb, var(--marke) 22%, transparent) 55%, transparent 70%);
-    background-size: 300% 100%; mix-blend-mode: plus-lighter; }
-  body.nav--klappt-auf .nav::after { animation: nav-licht-auf .8s cubic-bezier(.3, .6, .3, 1) .05s both; }
-  body.nav--klappt-zu .nav::after { animation: nav-licht-zu .5s cubic-bezier(.5, 0, .5, 1) both; }
-
+  /* Den Lichtstreifen gibt es seit 1.120.1 nicht mehr (Patrick: „lass die
+     Animation, aber nimm den Blitz weg“) */
   /* Auf: über das Ziel hinaus, zurückfedern, Rand leuchtet auf */
   body.nav--klappt-auf .nav { animation: nav-breit-auf .75s cubic-bezier(.2, .8, .2, 1) both; }
   body.nav--klappt-auf .nav__zeichen {
@@ -8613,8 +8604,6 @@ body.ib-offen { overflow: hidden; }
                                     inset -3px 0 0 var(--marke); }
     82%  { width: 66px; }
     100% { width: 62px; box-shadow: 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); } }
-  @keyframes nav-licht-auf { from { background-position: 100% 0; } to { background-position: 0 0; } }
-  @keyframes nav-licht-zu { from { background-position: 0 0; } to { background-position: 100% 0; } }
   @keyframes nav-zeichen-auf {
     0%   { transform: rotate(-200deg) scale(.3); opacity: 0; }
     60%  { transform: rotate(12deg) scale(1.25); opacity: 1; }
@@ -8643,7 +8632,8 @@ body.ib-offen { overflow: hidden; }
    Wunsch Patrick 20. Oktober 2026: „soll bei Handy auch so ähnlich sein
    beim Menü-Button“ wie das Klappen der Seitenleiste am Computer: das
    Fenster schnellt beim Aufgehen etwas über seine Höhe und federt zurück,
-   ein Lichtstreifen fährt hindurch, der Rand leuchtet in der Themenfarbe,
+   der Rand leuchtet in der Themenfarbe (den Lichtstreifen gibt es seit
+   1.120.1 nicht mehr, Patrick: „nimm den Blitz weg“),
    die Zeichen drehen sich ein und die Namen fliegen nacheinander scharf
    herein. Beim Zugehen verwehen die Namen, bevor das Fenster in den
    Knopf zurückschrumpft. */
@@ -8653,14 +8643,6 @@ body.ib-offen { overflow: hidden; }
     animation: hm-wachsen .46s cubic-bezier(.2, .9, .25, 1) backwards,
                hm-federn .8s cubic-bezier(.2, .8, .2, 1) backwards,
                hm-leuchten 1s ease-out backwards; }
-  .handymenue--offen .handymenue__flaeche::after {
-    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3;
-    background: linear-gradient(200deg, transparent 30%,
-      color-mix(in srgb, var(--marke) 22%, transparent) 45%,
-      rgba(255, 255, 255, .6) 50%,
-      color-mix(in srgb, var(--marke) 22%, transparent) 55%, transparent 70%);
-    background-size: 100% 300%; mix-blend-mode: plus-lighter;
-    animation: hm-licht .85s cubic-bezier(.3, .6, .3, 1) .12s both; }
   .handymenue--offen .handymenue__punkt { animation: none; }
   .handymenue--offen .handymenue__punkt:not(.handymenue__punkt--tipp) .handymenue__zeichen {
     animation: hm-zeichen-auf .7s cubic-bezier(.34, 1.7, .5, 1) both;
@@ -8680,8 +8662,6 @@ body.ib-offen { overflow: hidden; }
     0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); }
     40%  { box-shadow: 0 0 0 3px var(--marke), 0 0 40px color-mix(in srgb, var(--marke) 55%, transparent); }
     100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--marke) 0%, transparent); } }
-  @keyframes hm-licht { from { background-position: 0 100%; opacity: 1; } 90% { opacity: 1; }
-    to { background-position: 0 0; opacity: 0; } }
   @keyframes hm-zeichen-auf {
     0%   { transform: rotate(-200deg) scale(.3); opacity: 0; }
     60%  { transform: rotate(12deg) scale(1.2); opacity: 1; }
@@ -8692,7 +8672,6 @@ body.ib-offen { overflow: hidden; }
     100% { transform: none; letter-spacing: normal; } }
   @keyframes hm-verwehen { to { opacity: 0; transform: translateY(10px); filter: blur(5px); } }
   @media (prefers-reduced-motion: reduce) {
-    .handymenue__flaeche::after { display: none; }
     .handymenue__text { animation: none !important; }
   }
 }
