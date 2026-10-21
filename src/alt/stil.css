@@ -8777,7 +8777,9 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
 /* ---------- Kopfkarte: das Licht ist ein Huhn (seit 1.125.0) ----------
    Wunsch Patrick 21. Oktober 2026: „hühner Form, mal hin, mal her, so
    erkennbar wie möglich, aber ohne Kanten“, seit 1.126.0 „grösser, Eier
-   legen, rennen, stehen bleiben und drehen“. Statt des runden Scheins
+   legen, rennen, stehen bleiben und drehen“, seit 1.126.1 „viel grösser,
+   fast so hoch wie das Band, weniger ersichtlich, die Kontur knapp
+   sichtbar, das Ei nach dem Legen immer mehr verblassen“. Statt des runden Scheins
    läuft ein leuchtendes Huhn in der Lichtfarbe unten durch die Karte.
    Ein Durchgang dauert 36 s: hereinspazieren, picken, sich umschauen,
    losrennen, stehen bleiben und ein Ei legen, umdrehen, zurückgehen,
@@ -8794,10 +8796,10 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
 @media (prefers-reduced-motion: no-preference) {
   .kopfkarte:not(.kopfkarte--geburtstag)::before {
     inset: auto; left: -30%; bottom: 0; top: auto;
-    height: min(96%, 160px); aspect-ratio: 124 / 114; width: auto;
+    height: min(100%, 280px); aspect-ratio: 124 / 114; width: auto; opacity: .55;
     background: var(--licht, rgba(120, 175, 255, .32));
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='1.2'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3Ccircle cx='75' cy='26' r='2.6' fill='%23000'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='7'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='1.2'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3Ccircle cx='75' cy='26' r='2.6' fill='%23000'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='7'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='3.2'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3Ccircle cx='75' cy='26' r='2.6' fill='%23000'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='7'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='3.2'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3Ccircle cx='75' cy='26' r='2.6' fill='%23000'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='7'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
     -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
     -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
     transform: none; transform-origin: 50% 100%;
@@ -8805,7 +8807,7 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
                huhn-picken 36s ease-in-out infinite; }
   .kopfkarte:not(.kopfkarte--geburtstag)::after {
     content: ""; position: absolute; z-index: -1; pointer-events: none;
-    bottom: 3px; left: 0; width: 26px; height: 33px; opacity: 0;
+    bottom: 4px; left: 0; width: 38px; height: 48px; opacity: 0;
     background: radial-gradient(50% 50% at 50% 55%, var(--licht, rgba(120, 175, 255, .32)) 60%, transparent 100%),
                 radial-gradient(50% 50% at 50% 55%, var(--licht, rgba(120, 175, 255, .32)) 45%, transparent 90%);
     border-radius: 50% 50% 48% 48% / 60% 60% 40% 40%;
@@ -8829,9 +8831,9 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
     56%  { left: 105%; scale: 1 1; }   /* rechts hinausrennen */
     58%  { left: 105%; scale: -1 1; }
     72%  { left: 64%;  scale: -1 1; }  /* von rechts wiederkommen */
-    82%  { left: 64%;  scale: -1 1; }  /* stehen, zweites Ei */
-    83%  { left: 64%;  scale: 1 1; }   /* nach dem Ei schauen */
-    85%  { left: 64%;  scale: 1 1; }
+    73.5% { left: 64%; scale: 1 1; }   /* umdrehen, Schwanz nach links */
+    83%  { left: 64%;  scale: 1 1; }   /* stehen, zweites Ei */
+    84.5% { left: 64%; scale: -1 1; }
     86%  { left: 64%;  scale: -1 1; }
     93%  { left: -30%; scale: -1 1; }  /* links hinausrennen */
     99%  { left: -30%; scale: -1 1; }
@@ -8840,21 +8842,19 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
   @keyframes huhn-picken {
     0%, 12.5%, 15.5%, 73%, 76%, 100% { rotate: 0deg; }
     13.3%, 14.7%, 74%, 75% { rotate: 24deg; } }
-  /* Ei unter dem Schwanz: rechts schauend liegt der Schwanz links im
-     Bild, nach links schauend rechts. Beim zweiten Ei steht der Schwanz
-     rund 98 px rechts vom linken Rand des Huhns (Karte etwa 125 px
-     hoch, Huhn 96 % davon, Breite = Höhe × 124/114). */
+  /* Ei unter dem Schwanz: beide Male schaut das Huhn beim Legen nach
+     rechts, der Schwanz liegt also links im Bild, gleich weit vom linken
+     Rand des Huhns, egal wie gross es ist. Nach dem Legen verblasst das
+     Ei Stück für Stück, bis es weg ist. */
   @keyframes huhn-ei {
-    0%, 28.9% { opacity: 0; left: calc(52% + 8px); scale: .2; }
-    29.5% { opacity: 1; left: calc(52% + 8px); scale: 1.25; }
-    30.5% { opacity: 1; left: calc(52% + 8px); scale: 1; }
-    62%   { opacity: 1; left: calc(52% + 8px); scale: 1; }
-    66%   { opacity: 0; left: calc(52% + 8px); scale: 1; }
-    66.1%, 76.9% { opacity: 0; left: calc(64% + 98px); scale: .2; }
-    77.5% { opacity: 1; left: calc(64% + 98px); scale: 1.25; }
-    78.5% { opacity: 1; left: calc(64% + 98px); scale: 1; }
-    97%   { opacity: 1; left: calc(64% + 98px); scale: 1; }
-    100%  { opacity: 0; left: calc(64% + 98px); scale: 1; } }
+    0%, 28.9% { opacity: 0; left: calc(52% - 6px); scale: .2; }
+    29.5% { opacity: .45; left: calc(52% - 6px); scale: 1.2; }
+    30.5% { opacity: .4; left: calc(52% - 6px); scale: 1; }
+    62%   { opacity: 0; left: calc(52% - 6px); scale: 1; }
+    62.1%, 76.9% { opacity: 0; left: calc(64% - 6px); scale: .2; }
+    77.5% { opacity: .45; left: calc(64% - 6px); scale: 1.2; }
+    78.5% { opacity: .4; left: calc(64% - 6px); scale: 1; }
+    100%  { opacity: 0; left: calc(64% - 6px); scale: 1; } }
 }
 @media (prefers-reduced-motion: reduce) {
   .kopfkarte:not(.kopfkarte--geburtstag)::before,
