@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.124.1** Startseite: Das wandernde Licht in der Kopfkarte läuft unten weich aus statt mit harter Kante über der Solaranlage (Patrick, 21. Oktober 2026: „keine Kante, so verblassen“).
 - **1.124.0** Handy-Menü geht mit Auftritt zu (Wunsch Patrick, 21. Oktober 2026: „Handy einklappen auch ein wenig Animation“): die Zeichen drehen sich von hinten nach vorn klein und weg, die Namen verwehen unscharf, die Fläche zuckt kurz hoch und leuchtet in der Themenfarbe, dann schrumpft sie in den Knopf; Dauer 580 ms statt 300 ms.
 - **1.123.0** Infoboard-Texteditor mit **Bildern** und **Schriftart** (Wunsch Patrick, 20. Oktober 2026). Knopf „Bild“ lädt ein Foto in die Ablage (`infoboard/`) und setzt es an die Schreibmarke, antippen wählt es: 25, 50, 75 oder 100 % breit oder Entfernen. Auswahl „Schriftart“ mit Schriften, die Windows hat (Aptos/Calibri, Arial, Verdana, Times New Roman, Georgia, Courier New, Impact, Comic Sans MS …).
 - **1.122.1** Infoboard: Text im dunklen Modus nicht mehr weiss auf weiss (Patrick, 20. Oktober 2026: „es schreibt immer weiss“). Der dunkle Modus macht alle Schrift weiss (`body.dunkel *` mit !important); das Blatt hat jetzt eigene Schriftfarbe, gewählte Farben stehen zusätzlich als `--tf` am Text.

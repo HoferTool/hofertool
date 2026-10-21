@@ -8763,3 +8763,13 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
     .handymenue--schliesst .handymenue__flaeche { animation: none !important; }
   }
 }
+
+/* ---------- Kopfkarte: Licht läuft unten weich aus (seit 1.124.1) ----------
+   Patrick 21. Oktober 2026: „dort keine Kante, so verblassen“. Das
+   wandernde Licht reichte unter den Rand der Kopfkarte und wurde dort,
+   wo die Solaranlage anschliesst, hart abgeschnitten. Die Maske blendet
+   es vorher aus; der Rand der Karte liegt bei 72 % der Lichtfläche
+   (inset -60 % oben und unten). */
+.kopfkarte:not(.kopfkarte--geburtstag)::before {
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 42%, transparent 70%);
+          mask-image: linear-gradient(180deg, #000 0%, #000 42%, transparent 70%); }
