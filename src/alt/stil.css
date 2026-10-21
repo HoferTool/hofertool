@@ -8464,6 +8464,11 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .ib-kopf__innen { position: absolute; top: 0; transform-origin: top left; }
 .ib-kopf .kopfkarte { margin-top: 0 !important; }
 .ib-kopf .kopfkarte__logo { display: block !important; }
+/* Logo im Infoboard gross, unabhängig von der Fensterbreite: Die Regeln der
+   Startseite verkleinern es bei schmalem Fenster, der Bildschirm hochkant ist
+   aber nur 1080 breit (Wunsch Patrick 21. Oktober 2026: „Logo grösser“). */
+.ib-kopf .kopfkarte__logo { height: 150px !important; top: 14px !important; }
+.ib-kopf .kopfkarte:has(.kopfkarte__logo) { min-height: 178px !important; }
 .ib-kopf .sol-reihe { grid-template-columns: repeat(3, 1fr) auto !important; }
 .ib-kopf .sol-ring { grid-column: auto !important; margin: 0 !important; }
 .ib-feld { position: absolute; overflow: hidden; border-radius: 10px; background: #fff; }
