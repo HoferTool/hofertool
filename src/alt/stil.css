@@ -8776,38 +8776,87 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
 
 /* ---------- Kopfkarte: das Licht ist ein Huhn (seit 1.125.0) ----------
    Wunsch Patrick 21. Oktober 2026: „hühner Form, mal hin, mal her, so
-   erkennbar wie möglich, aber ohne Kanten“. Statt des runden Scheins
-   läuft ein leuchtendes Huhn in der Lichtfarbe unten durch die Karte,
-   wendet am Rand und läuft zurück, nickt beim Gehen und pickt ab und
-   zu. Die Form kommt aus zwei weich gezeichneten Masken: eine fast
-   scharfe für die Umrisse und eine breite für den Schein drumherum,
-   so hat es nirgends eine harte Kante. Gelaufen wird mit „left“, das
-   Wenden mit „scale“ und das Nicken mit „translate“/„rotate“, damit
-   sich die drei Bewegungen nicht gegenseitig überschreiben. */
+   erkennbar wie möglich, aber ohne Kanten“, seit 1.126.0 „grösser, Eier
+   legen, rennen, stehen bleiben und drehen“. Statt des runden Scheins
+   läuft ein leuchtendes Huhn in der Lichtfarbe unten durch die Karte.
+   Ein Durchgang dauert 36 s: hereinspazieren, picken, sich umschauen,
+   losrennen, stehen bleiben und ein Ei legen, umdrehen, zurückgehen,
+   hinausrennen, von rechts wiederkommen, ein zweites Ei legen und links
+   hinausrennen. Rennen sind einfach steilere Abschnitte in „left“, das
+   Drehen ist „scale“ von 1 nach -1 (dabei wird es kurz schmal wie bei
+   einer echten Drehung), das Nicken „translate“ und das Picken
+   „rotate“, damit sich die Bewegungen nicht überschreiben. Die Eier sind
+   ::after: dasselbe Ei taucht zweimal an der Stelle auf, wo das Huhn
+   gerade steht, bleibt eine Weile liegen und verblasst.
+   Die Form kommt aus zwei weich gezeichneten Masken: eine fast scharfe
+   für die Umrisse und eine breite für den Schein drumherum, so hat es
+   nirgends eine harte Kante. */
 @media (prefers-reduced-motion: no-preference) {
   .kopfkarte:not(.kopfkarte--geburtstag)::before {
-    inset: auto; left: -20%; bottom: 2px; top: auto;
-    height: min(78%, 120px); aspect-ratio: 124 / 114; width: auto;
+    inset: auto; left: -30%; bottom: 0; top: auto;
+    height: min(96%, 160px); aspect-ratio: 124 / 114; width: auto;
     background: var(--licht, rgba(120, 175, 255, .32));
-    background-color: color-mix(in srgb, var(--licht, rgba(120, 175, 255, .32)) 100%, rgba(255, 255, 255, .22));
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='1.2'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3Ccircle cx='75' cy='26' r='2.6' fill='%23000'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='7'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
             mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='1.2'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3Ccircle cx='75' cy='26' r='2.6' fill='%23000'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-14 -14 124 114'%3E%3Cdefs%3E%3Cfilter id='w' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeGaussianBlur stdDeviation='7'/%3E%3C/filter%3E%3Cmask id='m'%3E%3Crect x='-14' y='-14' width='124' height='114' fill='%23fff'/%3E%3C/mask%3E%3C/defs%3E%3Cg filter='url(%23w)' mask='url(%23m)'%3E%3Cg fill='%23fff'%3E%3Cpath d='M22 50 L5 24 L15 33 L11 15 L23 32 L24 17 L31 38 Z'/%3E%3Cellipse cx='46' cy='54' rx='30' ry='21'/%3E%3Cellipse cx='67' cy='40' rx='11' ry='15'/%3E%3Ccircle cx='72' cy='28' r='12'/%3E%3Ccircle cx='67' cy='15' r='4.5'/%3E%3Ccircle cx='73.5' cy='13.5' r='4.5'/%3E%3Ccircle cx='79.5' cy='16.5' r='4'/%3E%3Cpath d='M82 25 L96 30 L82 35 Z'/%3E%3Cellipse cx='80' cy='40' rx='3.2' ry='5.5'/%3E%3Crect x='39' y='72' width='3.5' height='12'/%3E%3Crect x='51' y='72' width='3.5' height='12'/%3E%3Crect x='34' y='82.5' width='11' height='3'/%3E%3Crect x='47' y='82.5' width='11' height='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
     -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
     -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
     transform: none; transform-origin: 50% 100%;
-    animation: huhn-laufen 26s linear infinite, huhn-nicken .5s ease-in-out infinite alternate,
-               huhn-picken 26s ease-in-out infinite; }
+    animation: huhn-laufen 36s linear infinite, huhn-nicken .45s ease-in-out infinite alternate,
+               huhn-picken 36s ease-in-out infinite; }
+  .kopfkarte:not(.kopfkarte--geburtstag)::after {
+    content: ""; position: absolute; z-index: -1; pointer-events: none;
+    bottom: 3px; left: 0; width: 26px; height: 33px; opacity: 0;
+    background: radial-gradient(50% 50% at 50% 55%, var(--licht, rgba(120, 175, 255, .32)) 60%, transparent 100%),
+                radial-gradient(50% 50% at 50% 55%, var(--licht, rgba(120, 175, 255, .32)) 45%, transparent 90%);
+    border-radius: 50% 50% 48% 48% / 60% 60% 40% 40%;
+    filter: blur(1px);
+    transform-origin: 50% 100%;
+    animation: huhn-ei 36s linear infinite; }
+  /* Das Huhn schaut bei scale 1 nach rechts. */
   @keyframes huhn-laufen {
-    0%   { left: -20%; scale: 1 1; }
-    46%  { left: 100%; scale: 1 1; }
-    50%  { left: 100%; scale: -1 1; }
-    96%  { left: -20%; scale: -1 1; }
-    100% { left: -20%; scale: 1 1; } }
-  @keyframes huhn-nicken { from { translate: 0 0; } to { translate: 0 -3px; } }
+    0%   { left: -30%; scale: 1 1; }
+    12%  { left: 12%;  scale: 1 1; }   /* gemütlich herein */
+    16%  { left: 12%;  scale: 1 1; }   /* picken */
+    17%  { left: 12%;  scale: -1 1; }  /* umschauen */
+    19%  { left: 12%;  scale: -1 1; }
+    20%  { left: 12%;  scale: 1 1; }
+    25%  { left: 52%;  scale: 1 1; }   /* losrennen */
+    35%  { left: 52%;  scale: 1 1; }   /* stehen, Ei legen */
+    37%  { left: 52%;  scale: -1 1; }  /* umdrehen */
+    46%  { left: 30%;  scale: -1 1; }  /* zurückgehen */
+    48%  { left: 30%;  scale: -1 1; }
+    49%  { left: 30%;  scale: 1 1; }   /* doch wieder umdrehen */
+    56%  { left: 105%; scale: 1 1; }   /* rechts hinausrennen */
+    58%  { left: 105%; scale: -1 1; }
+    72%  { left: 64%;  scale: -1 1; }  /* von rechts wiederkommen */
+    82%  { left: 64%;  scale: -1 1; }  /* stehen, zweites Ei */
+    83%  { left: 64%;  scale: 1 1; }   /* nach dem Ei schauen */
+    85%  { left: 64%;  scale: 1 1; }
+    86%  { left: 64%;  scale: -1 1; }
+    93%  { left: -30%; scale: -1 1; }  /* links hinausrennen */
+    99%  { left: -30%; scale: -1 1; }
+    100% { left: -30%; scale: 1 1; } }
+  @keyframes huhn-nicken { from { translate: 0 0; } to { translate: 0 -4px; } }
   @keyframes huhn-picken {
-    0%, 18%, 27%, 68%, 77%, 100% { rotate: 0deg; }
-    21%, 24%, 71%, 74% { rotate: 22deg; } }
+    0%, 12.5%, 15.5%, 73%, 76%, 100% { rotate: 0deg; }
+    13.3%, 14.7%, 74%, 75% { rotate: 24deg; } }
+  /* Ei unter dem Schwanz: rechts schauend liegt der Schwanz links im
+     Bild, nach links schauend rechts. Beim zweiten Ei steht der Schwanz
+     rund 98 px rechts vom linken Rand des Huhns (Karte etwa 125 px
+     hoch, Huhn 96 % davon, Breite = Höhe × 124/114). */
+  @keyframes huhn-ei {
+    0%, 28.9% { opacity: 0; left: calc(52% + 8px); scale: .2; }
+    29.5% { opacity: 1; left: calc(52% + 8px); scale: 1.25; }
+    30.5% { opacity: 1; left: calc(52% + 8px); scale: 1; }
+    62%   { opacity: 1; left: calc(52% + 8px); scale: 1; }
+    66%   { opacity: 0; left: calc(52% + 8px); scale: 1; }
+    66.1%, 76.9% { opacity: 0; left: calc(64% + 98px); scale: .2; }
+    77.5% { opacity: 1; left: calc(64% + 98px); scale: 1.25; }
+    78.5% { opacity: 1; left: calc(64% + 98px); scale: 1; }
+    97%   { opacity: 1; left: calc(64% + 98px); scale: 1; }
+    100%  { opacity: 0; left: calc(64% + 98px); scale: 1; } }
 }
 @media (prefers-reduced-motion: reduce) {
-  .kopfkarte:not(.kopfkarte--geburtstag)::before { display: none; }
+  .kopfkarte:not(.kopfkarte--geburtstag)::before,
+  .kopfkarte:not(.kopfkarte--geburtstag)::after { display: none; }
 }
