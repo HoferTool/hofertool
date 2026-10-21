@@ -14,6 +14,7 @@ import { GeburtstagMitte, Konfetti } from "./start/Geburtstag.jsx";
 import Notizen from "./start/Notizen.jsx";
 import Materialausgabe from "./start/Materialausgabe.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
+import Huehner from "./start/Huehner.jsx";
 
 // Ohne Adminrecht wird gar nicht erst nach Problemen gefragt
 const keineProbleme = async () => [];
@@ -34,7 +35,7 @@ export default function Start({ auffrischen }) {
   return (
     <>
       <section className={"kopfkarte" + (fest ? " kopfkarte--geburtstag" : "")}>
-        {fest && <Konfetti />}
+        {fest ? <Konfetti /> : <Huehner />}
         <Uhr />
         {fest
           ? <GeburtstagMitte kinder={kinder} />
