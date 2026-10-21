@@ -160,9 +160,9 @@ function FeldInhalt({ feld, format, bearbeiten, grossZiel, breite, hoehe }) {
   }
   if (feld.art === "datei" && feld.datei && feld.datei.url) {
     const d = feld.datei;
-    if (d.typ === "pdf") return <PdfFlaeche url={d.url} sekunden={feld.sekunden || SEKUNDEN} />;
+    if (d.typ === "pdf") return <PdfFlaeche url={d.url} sekunden={feld.sekunden ?? SEKUNDEN} />;
     if (d.typ === "bild") return <img className="ib-bild" src={d.url} alt={d.name || ""} />;
-    if (d.typ === "excel") return <ExcelFlaeche url={d.url} sekunden={feld.sekunden || SEKUNDEN} />;
+    if (d.typ === "excel") return <ExcelFlaeche url={d.url} sekunden={feld.sekunden ?? SEKUNDEN} />;
     if (d.typ === "video") return <video className="ib-bild" src={d.url} autoPlay muted loop playsInline />;
   }
   return bearbeiten ? <div className="ib-leer">{format === "a3" ? "A3" : "A4"}<br />leer</div> : null;
@@ -206,7 +206,7 @@ function PdfFlaeche({ url, sekunden }) {
   }, []);
 
   useEffect(() => {
-    if (!doc || doc.numPages < 2) return;
+    if (!doc || doc.numPages < 2 || !(sekunden > 0)) return;
     const t = setInterval(() => setSeite((s) => (s % doc.numPages) + 1), Math.max(3, sekunden) * 1000);
     return () => clearInterval(t);
   }, [doc, sekunden]);
@@ -296,7 +296,7 @@ function ExcelFlaeche({ url, sekunden }) {
   useEffect(() => () => bildUrls.forEach((l) => l.forEach((u) => u && URL.revokeObjectURL(u))), [bildUrls]);
 
   useEffect(() => {
-    if (seiten.length < 2) return;
+    if (seiten.length < 2 || !(sekunden > 0)) return;
     const t = setInterval(() => setNr((n) => (n + 1) % seiten.length), Math.max(3, sekunden) * 1000);
     return () => clearInterval(t);
   }, [seiten.length, sekunden]);

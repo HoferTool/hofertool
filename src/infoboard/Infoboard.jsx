@@ -24,7 +24,9 @@ import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, f
 
 const REIHEN = ["oben", "Mitte", "unten"];
 const SPALTE = ["links", "Mitte", "rechts"];
-const WECHSEL = [[10, "10 Sekunden"], [20, "20 Sekunden"], [30, "30 Sekunden"], [60, "1 Minute"], [120, "2 Minuten"]];
+// 0 = nicht von selbst blättern, die Seite wechselt nur beim Antippen
+// (Wunsch Patrick 21. Oktober 2026).
+const WECHSEL = [[0, "Nicht selber blättern"], [10, "alle 10 Sekunden"], [20, "alle 20 Sekunden"], [30, "alle 30 Sekunden"], [60, "jede Minute"], [120, "alle 2 Minuten"]];
 
 export function infoboardSichtbar() {
   return !alt.istExtern() && (alt.istAdmin() || alt.istAndererNutzer());
@@ -87,7 +89,7 @@ export default function Infoboard() {
       }
       const neu = await dateiHochladen(d);
       const id = neueId();
-      await feldSetzen(feld.id, { id, art: "datei", datei: neu, sekunden: feld.sekunden || SEKUNDEN });
+      await feldSetzen(feld.id, { id, art: "datei", datei: neu, sekunden: feld.sekunden ?? SEKUNDEN });
       setGewaehlt(id);
     } catch (f) { alt.meldung("Hochladen ging nicht: " + alt.fehlertext(f), "fehler"); }
     finally { setLaedt(""); }
@@ -197,8 +199,8 @@ export default function Infoboard() {
                 <input ref={datei} type="file" hidden onChange={dateiGewaehlt}
                   accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
                 {wahl.feld.art === "datei" && wahl.feld.datei && (wahl.feld.datei.typ === "pdf" || wahl.feld.datei.typ === "excel") &&
-                  <label className="feld">Mehrere Seiten wechseln alle
-                    <select value={wahl.feld.sekunden || SEKUNDEN} data-ib="sekunden"
+                  <label className="feld">Mehrere Seiten wechseln
+                    <select value={wahl.feld.sekunden ?? SEKUNDEN} data-ib="sekunden"
                       onChange={(e) => feldSetzen(wahl.feld.id, { ...wahl.feld, sekunden: Number(e.target.value) })}>
                       {WECHSEL.map(([w, t]) => <option key={w} value={w}>{t}</option>)}
                     </select></label>}

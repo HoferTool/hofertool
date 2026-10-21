@@ -59,6 +59,11 @@ with sync_playwright() as p:
     pruefe(f00 and f00["art"] == "datei" and f00["datei"]["typ"] == "pdf", "PDF im Bereich oben links gespeichert")
     up = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'upload').map(x => x.pfad)")
     pruefe(any(x.startswith("infoboard/") for x in up), "Datei in infoboard/: %s" % up)
+    # Mehrere Seiten: auch „Nicht selber blättern“ (Wunsch Patrick 21. Oktober 2026)
+    pg.select_option("[data-ib='sekunden']", "0"); pg.wait_for_timeout(500)
+    f00 = pg.evaluate("() => TEST.daten.infoboard[0].aufbau.reihen[0].felder[0]")
+    pruefe(f00.get("sekunden") == 0, "nicht selber blättern gespeichert: %s" % f00.get("sekunden"))
+    pruefe(pg.locator("[data-ib='sekunden']").input_value() == "0", "Auswahl bleibt auf nicht blättern")
 
     # Reihe Mitte als A3 + A4, im A3 ein Text
     pg.click("[data-ibformat='1-a3l']"); pg.wait_for_timeout(600)
@@ -193,6 +198,8 @@ with sync_playwright() as p:
     pruefe(pg.locator("#infoboard .ib-feld").count() == 8, "Anzeige mit acht Bereichen")
     nr = pg.locator("#infoboard [data-ibfeld='0-0'] .ib-pdf__nr")
     pruefe(nr.count() == 1 and nr.inner_text().strip() == "1 / 2", "PDF zeigt Seite 1 / 2")
+    pg.wait_for_timeout(3500)
+    pruefe(nr.inner_text().strip() == "1 / 2", "blättert nicht von selbst")
     w = pg.evaluate("() => document.querySelector('#infoboard .ib-pdf__seite').width")
     pruefe(w > 100, "PDF-Seite gezeichnet: %d" % w)
     sb = pg.locator("#infoboard .ib-pdf__seite").first.bounding_box()
