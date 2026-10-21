@@ -303,7 +303,7 @@ function HandyMenue({ aktiv }) {
   const schliessen = () => setZustand((z) => (z === "offen" ? "schliesst" : z));
   useEffect(() => {
     if (zustand !== "schliesst") return;
-    const t = setTimeout(() => setZustand("zu"), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 300);
+    const t = setTimeout(() => setZustand("zu"), matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 580);
     return () => clearTimeout(t);
   }, [zustand]);
   // Seitenwechsel von woanders (Suche, Zurück) schliesst es auch
@@ -357,7 +357,7 @@ function HandyMenue({ aktiv }) {
             Wunsch Patrick 16. Oktober 2026). Der Schatten liegt aussen, damit
             ihn das Beschneiden innen nicht wegnimmt. */}
         <div className="handymenue__fenster" role="dialog" aria-label="Menü">
-          <div className="handymenue__flaeche">
+          <div className="handymenue__flaeche" style={{ "--anzahl": punkte.length }}>
           {zeilen.map((zeile, z) => (
             <div key={z} className="handymenue__zeile">
               {zeile.map((p) => (
