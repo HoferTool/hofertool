@@ -74,7 +74,7 @@ export function batterieText(info) {
 // Für die Startseite: alle Maschinen mit fälligen Batterien
 export async function faelligeBatterien() {
   const r = await alt.zeitlimit(alt.db.from("maschinen_info")
-    .select("machine_id, batterie_faellig, batterie_hinweis, batterie_gewechselt")
+    .select("*")
     .not("batterie_faellig", "is", null), 10000, "Batterien");
   if (r.error) {
     if (fehltSql(r.error)) return [];
@@ -127,3 +127,38 @@ export async function anhangHochladen(maschineId, datei) {
 
 export const istPdf = (a) => /pdf/i.test(a.typ || "") || /\.pdf$/i.test(a.name || a.url || "");
 export const istBild = (a) => /^image\//.test(a.typ || "") || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name || "");
+
+// Welche Batterien drin sind (seit 1.135.0, Wunsch Patrick 21. Oktober
+// 2026: „die meisten haben die dicken, zum Teil komische, aber selten“).
+// Gespeichert als Text: die gewählte Art, bei „Andere“ die eigene
+// Bezeichnung, sonst Art · Zusatz.
+export const BATTERIE_ARTEN = [
+  "Mono D (LR20, die dicken)",
+  "Baby C (LR14)",
+  "Mignon AA (LR6)",
+  "Micro AAA (LR03)",
+  "9-Volt-Block",
+  "Lithium 3,6 V (z. B. ER6V)",
+  "Knopfzelle (z. B. CR2032)",
+];
+
+export function batterieArtTeilen(text) {
+  const t = String(text || "");
+  const art = BATTERIE_ARTEN.find((a) => t === a || t.indexOf(a + " · ") === 0);
+  if (art) return { art, zusatz: t.slice(art.length + 3) };
+  return { art: t ? "andere" : "", zusatz: t };
+}
+
+export function batterieArtZusammen(art, zusatz) {
+  const z = String(zusatz || "").trim();
+  if (!art || art === "andere") return z || null;
+  return z ? art + " · " + z : art;
+}
+
+export function batterienText(info) {
+  if (!info) return "";
+  const n = info.batterie_anzahl;
+  const art = info.batterie_art || "";
+  if (!n && !art) return "";
+  return (n ? n + " × " : "") + (art || (n === 1 ? "Batterie" : "Batterien"));
+}

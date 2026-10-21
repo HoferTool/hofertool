@@ -98,6 +98,26 @@ with sync_playwright() as p:
     pruefe(len(w) == 1 and "Batterien" in w[0]["text"], "Eintrag in der Wartung")
     pg.wait_for_timeout(500)
     pruefe("Backup-Batterien gewechselt" in pg.locator("#mseite-wartung").inner_text(), "Wartung zeigt den Eintrag")
+    # Anzahl und Art
+    pg.click("#mseite-batterie-termin"); pg.wait_for_selector(".dialog-huelle select")
+    d = pg.locator(".dialog-huelle").last
+    d.locator("input[inputmode=numeric]").fill("3")
+    d.locator("select").select_option(index=1)
+    d.locator("[data-ja]").click(); pg.wait_for_timeout(900)
+    inf = pg.evaluate("() => TEST.daten.maschinen_info[0]")
+    pruefe(inf.get("batterie_anzahl") == 3 and inf.get("batterie_art", "").startswith("Mono D"), "Anzahl und Art: %s %s" % (inf.get("batterie_anzahl"), inf.get("batterie_art")))
+    pruefe("3 × Mono D" in pg.locator("#mseite-batterie-art").inner_text(), "Batterien angezeigt")
+    # Andere Art mit eigener Bezeichnung
+    pg.click("#mseite-batterie-termin"); pg.wait_for_selector(".dialog-huelle select")
+    d = pg.locator(".dialog-huelle").last
+    d.locator("select").select_option("andere"); d.locator("input[type=text]").last.fill("Sonnenschein SL-360")
+    d.locator("[data-ja]").click(); pg.wait_for_timeout(900)
+    pruefe(pg.evaluate("() => TEST.daten.maschinen_info[0].batterie_art") == "Sonnenschein SL-360", "andere Art gespeichert")
+    pg.click("#mseite-batterie-termin"); pg.wait_for_selector(".dialog-huelle select")
+    d = pg.locator(".dialog-huelle").last
+    pruefe(d.locator("select").input_value() == "andere", "andere Art wieder gewählt")
+    d.locator("select").select_option(index=1); d.locator("input[type=text]").last.fill("")
+    d.locator("[data-ja]").click(); pg.wait_for_timeout(900)
 
     # Wartung mit Bild und PDF
     pg.click("#wartung-neu"); pg.wait_for_selector("#wartung-fenster")
@@ -135,10 +155,15 @@ with sync_playwright() as p:
       TEST.daten.maschinen_info[0].batterie_faellig = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }""")
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(1200)
     k = pg.locator("#db-batterien")
-    pruefe(k.count() == 1 and "L-1001" in k.inner_text(), "Batterie-Hinweis auf der Startseite")
+    pruefe(k.count() == 1 and "1 Maschine" in k.inner_text() and "L-1001" not in k.inner_text(), "Startseite: nur Anzahl")
     pg.screenshot(path=os.path.join(BILD, "maschinen-start-hinweis.png"))
+    pg.click("#db-batterien-liste"); pg.wait_for_selector("#batterie-fenster")
+    pruefe("L-1001" in pg.locator("#batterie-fenster").inner_text()
+           and "3 × Mono D" in pg.locator("#batterie-fenster").inner_text(), "Liste im Fenster mit Batterien")
+    pg.screenshot(path=os.path.join(BILD, "maschinen-start-liste.png"))
     # Klick führt zur Maschine
     pg.click("[data-batterie='m-l1']"); pg.wait_for_timeout(1000)
+    pruefe(pg.locator("#batterie-fenster").count() == 0, "Fenster zu")
     pruefe(pg.locator(".mseite-maschine[data-maschine='m-l1']").count() == 1, "Hinweis führt zur Maschine")
     # Hinweis ausschalten
     pg.uncheck("#mseite-batterie-hinweis"); pg.wait_for_timeout(800)

@@ -16,7 +16,8 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { betrachter } from "../../teile/Betrachter.jsx";
 import { UnterlagenListe } from "../../teile/Unterlagen.jsx";
 import { infoLaden, infoSetzen, wartungLaden, anhangHochladen, plusJahre, batterieFaellig,
-  batterieText, tageBis, fehltSql, SQL_FEHLT, BATTERIE_JAHRE, istPdf, istBild } from "../../daten/maschinenInfo.js";
+  batterieText, tageBis, fehltSql, SQL_FEHLT, BATTERIE_JAHRE, istPdf, istBild,
+  BATTERIE_ARTEN, batterieArtTeilen, batterieArtZusammen, batterienText } from "../../daten/maschinenInfo.js";
 
 const langDatum = (iso) => iso ? alt.kurzDatum(iso) + iso.slice(0, 4) : "";
 
@@ -154,16 +155,32 @@ function Batterien({ m, info, darf, neu }) {
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
 
+  // Termin, dazu wie viele und welche Batterien (nur wenn der Hinweis an ist)
   const terminAendern = async () => {
-    const w = await alt.dialogFelder({ titel: "Termin Backup-Batterien",
+    const teile = batterieArtTeilen(info && info.batterie_art);
+    const w = await alt.dialogFelder({ titel: "Backup-Batterien",
       felder: [
         { name: "zuletzt", label: "Zuletzt gewechselt", typ: "date", wert: (info && info.batterie_gewechselt) || "" },
         { name: "naechst", label: "Nächster Wechsel", typ: "date", wert: (info && info.batterie_faellig) || "",
-          hinweis: "Leer lassen, wenn es keinen Termin gibt." }],
+          hinweis: "Leer lassen, wenn es keinen Termin gibt." },
+        ...(hinweis ? [
+          { name: "anzahl", label: "Anzahl Batterien", ziffern: true, wert: (info && info.batterie_anzahl) || "",
+            platzhalter: "z. B. 3" },
+          { name: "art", label: "Art", wert: teile.art,
+            auswahl: [["", "— nicht angegeben —"]].concat(BATTERIE_ARTEN.map((a) => [a, a]), [["andere", "Andere …"]]) },
+          { name: "zusatz", label: "Genaue Bezeichnung", wert: teile.zusatz,
+            platzhalter: "bei „Andere“ oder als Zusatz, z. B. Varta 4020", hinweis: "kann leer bleiben" },
+        ] : [])],
       bestaetigen: "Speichern" });
     if (!w) return;
     const naechst = w.naechst || (w.zuletzt && !(info && info.batterie_faellig) ? plusJahre(w.zuletzt, BATTERIE_JAHRE) : null);
-    setzen({ batterie_gewechselt: w.zuletzt || null, batterie_faellig: naechst || null }, "Termin Batterien " + wer);
+    const felder = { batterie_gewechselt: w.zuletzt || null, batterie_faellig: naechst || null };
+    if (hinweis) {
+      const n = parseInt(w.anzahl, 10);
+      felder.batterie_anzahl = n > 0 ? n : null;
+      felder.batterie_art = batterieArtZusammen(w.art, w.zusatz);
+    }
+    setzen(felder, "Backup-Batterien " + wer);
   };
 
   return (
@@ -183,11 +200,13 @@ function Batterien({ m, info, darf, neu }) {
         <dd className={t !== null && t < 0 ? "mseite-rot" : ""}>{info && info.batterie_faellig
           ? langDatum(info.batterie_faellig) + " · " + (t < 0 ? "überfällig" : t <= 30 ? batterieText(info) : "in " + t + " Tagen")
           : "kein Termin"}</dd>
+        {hinweis && <><dt>Batterien</dt>
+          <dd id="mseite-batterie-art">{batterienText(info) || <span className="klein">nicht angegeben</span>}</dd></>}
       </dl>
       {!hinweis && <p className="klein">Hinweis ausgeschaltet: Diese Maschine erscheint nicht auf der Startseite.</p>}
       {darf && <div className="karte__aktionen">
         <button className="knopf knopf--haupt" id="mseite-batterie-gewechselt" onClick={gewechselt}>Batterien gewechselt</button>
-        <button className="knopf" id="mseite-batterie-termin" onClick={terminAendern}>Termin ändern</button>
+        <button className="knopf" id="mseite-batterie-termin" onClick={terminAendern}>Ändern</button>
       </div>}
     </section>
   );

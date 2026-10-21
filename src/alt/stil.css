@@ -8944,3 +8944,13 @@ td.zelle--fremd .menge, td.zelle--fremd .zelle__leistung { opacity: .45; }
   box-shadow: 0 14px 34px rgba(0, 20, 60, .22); }
 .ziehliste__zeile.zieh--aktiv .ziehliste__griff { cursor: grabbing; color: var(--marke); }
 body.zieh-laeuft, body.zieh-laeuft * { user-select: none !important; -webkit-user-select: none !important; cursor: grabbing !important; }
+.batteriekarte__zeile { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.batteriekarte__zeile h2 { margin: 0; }
+.batteriekarte__anzahl { font-weight: 600; }
+.batteriekarte__zeile .knopf { margin-left: auto; }
+.batteriefenster__liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px;
+  max-height: 65vh; overflow: auto; }
+.batteriefenster__zeile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
+  text-align: left; padding: 10px 14px; border: 1px solid var(--linie-stark); border-radius: var(--radius);
+  background: var(--flaeche); color: var(--tinte); font: inherit; cursor: pointer; }
+.batteriefenster__zeile:hover { border-color: var(--marke); }

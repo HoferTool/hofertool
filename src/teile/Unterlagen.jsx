@@ -11,7 +11,7 @@
 //
 //  Tabelle maschinen_unterlagen (sql/maschinen-unterlagen.sql), Dateien
 //  in der Ablage „zeichnungen“ unter maschinen/. Lesen alle ausser
-//  Externen, hochladen, umbenennen und löschen nur Admins (auch in
+//  Externen, hochladen, umbenennen und löschen alle mit Schreibrecht (seit 1.135.0, vorher nur Admins; auch in
 //  der Datenbank so geregelt).
 // =================================================================
 import { useEffect, useRef, useState } from "react";
@@ -116,7 +116,8 @@ export function UnterlagenListe({ m, typ, zu }) {
   const [fehler, setFehler] = useState("");
   const [laedt, setLaedt] = useState("");
   const wahl = useRef(null);
-  const admin = alt.istAdmin();
+  // Seit 1.135.0 alle mit Schreibrecht, nicht mehr nur Admins (Entscheid Patrick 21. Oktober 2026)
+  const darf = alt.darfSchreiben() && !alt.istExtern();
 
   const laden = async () => {
     try { setListe(await unterlagenLaden(m)); setFehler(""); }
@@ -251,12 +252,12 @@ export function UnterlagenListe({ m, typ, zu }) {
         {zu ? <h2>Unterlagen · {m.name}{m.machine_number ? " " + m.machine_number : ""}</h2>
           : <h2>Bedienungsanleitungen und Unterlagen</h2>}
         {typ && zu && <span className="klein">Typ {typ}</span>}
-        {admin && <button className="knopf knopf--haupt" id="unterlagen-neu" disabled={!!laedt}
+        {darf && <button className="knopf knopf--haupt" id="unterlagen-neu" disabled={!!laedt}
           onClick={() => wahl.current && wahl.current.click()}>+ Datei</button>}
-        {admin && <button className="knopf" id="unterlagen-link" onClick={linkNeu}>+ Link</button>}
+        {darf && <button className="knopf" id="unterlagen-link" onClick={linkNeu}>+ Link</button>}
         {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}
       </div>
-      {admin && <input ref={wahl} type="file" multiple hidden id="unterlagen-datei"
+      {darf && <input ref={wahl} type="file" multiple hidden id="unterlagen-datei"
         onChange={(e) => { const d = [...e.target.files]; e.target.value = ""; if (d.length) hochladen(d); }} />}
       {laedt && <p className="unterlagen__laedt">Lädt hoch: {laedt} …</p>}
       {fehler && <p className="fehlertext">{fehler}</p>}
@@ -265,7 +266,7 @@ export function UnterlagenListe({ m, typ, zu }) {
           ? <p className="klein">Lädt …</p>
           : !gruppen.length
           ? <p className="unterlagen__leer">Noch keine Unterlagen für diese Maschine.
-              {admin ? " Mit „+ Datei“ ein Handbuch oder Schema hochladen oder mit „+ Link“ verlinken." : ""}</p>
+              {darf ? " Mit „+ Datei“ ein Handbuch oder Schema hochladen oder mit „+ Link“ verlinken." : ""}</p>
           : gruppen.map(([art, name, teile]) => (
               <section key={art} className="unterlagen__gruppe" data-art={art}>
                 <h3>{name}</h3>
@@ -282,7 +283,7 @@ export function UnterlagenListe({ m, typ, zu }) {
                             {u.groesse ? " · " + groesseText(u.groesse) : ""}</span>
                         </span>
                       </button>
-                      {admin && <div className="unterlagen__knoepfe">
+                      {darf && <div className="unterlagen__knoepfe">
                         <button className="knopf knopf--klein" data-unterlage-aendern={u.id}
                           onClick={() => umbenennen(u)}>Ändern</button>
                         <button className="knopf knopf--klein knopf--gefahr-leise" data-unterlage-weg={u.id}

@@ -103,3 +103,17 @@ union all
 select 'Regeln (8)',
        case when (select count(*) from pg_policies where schemaname = 'public'
          and tablename in ('maschinen_info', 'maschinen_wartung')) >= 8 then 'ok' else 'FEHLT' end;
+
+-- ---------- Nachtrag 1.135.0 (21. Oktober 2026) ----------
+-- Anzahl und Art der Backup-Batterien; Unterlagen (Anleitungen) dürfen
+-- alle mit Schreibrecht hochladen, ändern und löschen (Entscheid Patrick).
+alter table public.maschinen_info add column if not exists batterie_anzahl integer;
+alter table public.maschinen_info add column if not exists batterie_art text;
+alter policy "unterlagen anlegen" on public.maschinen_unterlagen
+  with check ((select public.darf_schreiben()) and not (select public.ist_extern()));
+alter policy "unterlagen aendern" on public.maschinen_unterlagen
+  using ((select public.darf_schreiben()) and not (select public.ist_extern()))
+  with check ((select public.darf_schreiben()) and not (select public.ist_extern()));
+alter policy "unterlagen loeschen" on public.maschinen_unterlagen
+  using ((select public.darf_schreiben()) and not (select public.ist_extern()));
+notify pgrst, 'reload schema';
