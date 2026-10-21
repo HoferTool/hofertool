@@ -268,6 +268,17 @@ export function infoboardSchliessen() {
 
 const NACHSEHEN_MS = 30000;
 
+// Zeigt, wie fein der Browser des Bildschirms zeichnet: meldet er bei
+// einem 4K-Bildschirm nur 1080 Punkte mit Faktor 1, vergrössert das
+// Display selbst und die App kann nicht schärfer werden
+function aufloesungText() {
+  const f = window.devicePixelRatio || 1;
+  const s = window.screen || {};
+  return "Browser " + window.innerWidth + " × " + window.innerHeight + ", Faktor " +
+    Math.round(f * 100) / 100 + " = " + Math.round(window.innerWidth * f) + " × " +
+    Math.round(window.innerHeight * f) + " Pixel · Bildschirm " + (s.width || "?") + " × " + (s.height || "?");
+}
+
 function Anzeige({ huelle }) {
   const [aufbau, setAufbau] = useState(null);
   const [fehler, setFehler] = useState("");
@@ -322,6 +333,7 @@ function Anzeige({ huelle }) {
       {fehler && <div className="ib-voll__fehler">{fehler}</div>}
       {zu && <button type="button" className="ib-voll__zu" data-ib="schliessen"
         onClick={() => infoboardSchliessen()}>Schliessen</button>}
+      {zu && <div className="ib-voll__aufloesung">{aufloesungText()}</div>}
     </div>
   );
 }

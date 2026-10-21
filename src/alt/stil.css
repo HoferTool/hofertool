@@ -8832,3 +8832,6 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
 .stand-doppel__teil--alt .menge, .menge--alt { opacity: .75; }
 .stand-doppel__teil--alt + .stand-doppel__teil { border-top: 1px dashed var(--linie); padding-top: 6px; }
 td.zelle--fremd .menge, td.zelle--fremd .zelle__leistung { opacity: .45; }
+/* Infoboard: Auflösung des Browsers neben „Schliessen“ (seit 1.130.3) */
+.ib-voll__aufloesung { position: absolute; top: 18px; left: 14px; z-index: 6; padding: 10px 16px; border-radius: 12px;
+  background: rgba(0,0,0,.75); color: #fff; font: 600 20px/1.3 system-ui, sans-serif; }

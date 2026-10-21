@@ -228,7 +228,9 @@ function PdfFlaeche({ url, sekunden }) {
         const v1 = p.getViewport({ scale: 1 });
         const passt = Math.min(el.clientWidth / v1.width, el.clientHeight / v1.height);
         const zoom = el.clientWidth ? el.getBoundingClientRect().width / el.clientWidth : 1;
-        const dpr = Math.min((window.devicePixelRatio || 1) * zoom, 3);
+        // Mindestens doppelt so fein zeichnen: Bildschirme wie das Samsung-
+        // Display melden oft Faktor 1, verkleinert wirkt die Schrift ruhiger
+        const dpr = Math.min(Math.max((window.devicePixelRatio || 1) * zoom, 2), 3);
         const v = p.getViewport({ scale: passt * dpr });
         const cv = leinwand.current;
         cv.width = Math.floor(v.width); cv.height = Math.floor(v.height);
