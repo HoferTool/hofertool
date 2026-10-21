@@ -95,7 +95,10 @@ function Block({ block, posten, schreiben, neu, behaelter, heute, einziger }) {
     (gruppen[name] = gruppen[name] || { lief: null, lief0: lief, website: null, weg: null, posten: [] }).posten.push(z);
     if (lief && lief.website) gruppen[name].website = lief.website;
     if (lief && lief.bestellweg) gruppen[name].weg = lief.bestellweg;
-    if (lief && lief.bestellweg === "mail") gruppen[name].lief = lief;
+    // PDF gibt es bei jedem Lieferanten, auch wenn sonst über die Website
+    // bestellt wird (seit 1.133.0, Wunsch Patrick 21. Oktober 2026:
+    // „kann man nicht beide Optionen haben?“)
+    if (lief) gruppen[name].lief = lief;
   });
 
   // Lieferanten mit Überfälligem zuerst, sonst nach Namen
