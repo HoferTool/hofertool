@@ -59,7 +59,8 @@ export async function auftragswechselLaden(maschinenIds, von, bis) {
     });
     const k = j.machine_id + "|" + alt.isoDatum(start);
     (raus[k] = raus[k] || []).push({ zeit: j.started_at, uhr: uhrzeit(j.started_at),
-      neu: j.job_number || "", vorher: vorher ? vorher.job_number || "" : "" });
+      neu: j.job_number || "", vorher: vorher ? vorher.job_number || "" : "",
+      neuId: j.id, vorherId: vorher ? vorher.id : null });
   });
   Object.values(raus).forEach((l) => l.sort((a, b) => String(a.zeit).localeCompare(String(b.zeit))));
   return raus;

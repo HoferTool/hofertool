@@ -124,7 +124,7 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
     // Die Auftragswechsel sind Beiwerk: fehlen sie, gehen die Zahlen vor
     () => Promise.all([alt.ladeZaehlerstaende(von, bis, ids),
       auftragswechselLaden(ids, von, bis).catch(() => ({}))])
-      .then(([st, wechsel]) => ({ ...st, wechsel })),
+      .then(async ([st, wechsel]) => ({ ...st, wechsel, nummern: await nummernLaden(st, von, bis) })),
     [von, bis, ids.join(","), geladen]);
 
   if (fehler && !staende) {
@@ -142,9 +142,35 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
     return e && Number.isFinite(e.leistung) ? e.leistung : null;
   };
   const wechsel = (mid, datum) => (staende.wechsel && staende.wechsel[mid + "|" + datum]) || [];
-  const feld = (m, datum) => (
-    <StandFeld maschine={m} datum={datum} staende={staende} neu={neu} behaelter={behaelter} />
-  );
+  // Je Tag ein Feld je Auftrag: am Wechseltag oben der alte, unten der
+  // neue (Wunsch Patrick 21. Oktober 2026). Externe behalten vorerst
+  // das eine Feld, bis Patrick entschieden hat.
+  const jeAuftrag = !alt.istExtern();
+  const feld = (m, datum, mitLeistung) => {
+    const felder = jeAuftrag ? feldAuftraege(m, datum, staende, wechsel(m.id, datum)) : null;
+    // Vor dem Start des laufenden Auftrags und ohne Zahl: kein Feld
+    if (felder && !felder.length) return <><div className="kein-feld">–</div>{mitLeistung(null)}</>;
+    if (!felder || felder.length < 2) {
+      const f = felder && felder[0];
+      return <>
+        <StandFeld maschine={m} datum={datum} staende={staende} neu={neu}
+          auftragId={f ? f.id : undefined} istAlt={f ? f.alt : false} bisher={f ? f.bisher : null} />
+        {mitLeistung(f ? f.leistung : leistung(m.id, datum))}
+      </>;
+    }
+    return (
+      <div className="stand-doppel" data-doppel={m.id}>
+        {felder.map((f) => (
+          <div key={f.id} className={"stand-doppel__teil" + (f.alt ? " stand-doppel__teil--alt" : "")}>
+            <span className="stand-doppel__nr">{f.alt ? "alt " : "neu "}{f.nr}</span>
+            <StandFeld maschine={m} datum={datum} staende={staende} neu={neu}
+              auftragId={f.id} istAlt={f.alt} bisher={f.bisher} />
+            {mitLeistung(f.leistung)}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   // Tag: je Maschine eine Karte im Stil der Woche. Oben Zustand, Nummer
   // und Balken, in der Mitte gross das Feld für den Zählerstand mit der
@@ -154,15 +180,16 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
       <div className="mkarten mkarten--tag">
         {maschinen.map((m) => {
           const j = prod.auftraege[m.id];
-          const l = leistung(m.id, prod.tag);
           const w = wechsel(m.id, prod.tag);
           const eingabe = (
             <div className="mk-eingabe">
               <div className="mkarte__label">Zählerstand<span>gesamt seit Auftragsbeginn</span></div>
               <div className="mk-feld">
-                {feld(m, prod.tag)}
-                <span className="zelle__leistung">
-                  {l !== null ? leistungText(l) + (prod.tag === alt.isoDatum(new Date()) ? " heute" : " am Tag") : ""}</span>
+                {feld(m, prod.tag, (x) => (
+                  <span className="zelle__leistung">
+                    {x !== null && x !== undefined
+                      ? leistungText(x) + (prod.tag === alt.isoDatum(new Date()) ? " heute" : " am Tag") : ""}</span>
+                ))}
               </div>
               {w.map((x) => (
                 <div key={x.zeit} className="mk-wechsel" data-wechsel={m.id}>
@@ -200,9 +227,19 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
           <tbody>
             {maschinen.map((m) => {
               const j = prod.auftraege[m.id];
+              // Die Woche zählt nur den Auftrag, der jetzt an der Maschine
+              // ist: Kam er am Mittwoch, zählen Mittwoch bis Freitag
+              // (Wunsch Patrick 21. Oktober 2026). Ohne Auftrag der, der
+              // in dieser Woche zuletzt Zahlen hatte.
               let summe = 0, erfasst = false;
-              const leistungen = tage.map((t) => leistung(m.id, t));
-              leistungen.forEach((l) => {
+              const sj = jeAuftrag ? summenAuftrag(m.id, j, tage, staende) : null;
+              tage.forEach((t) => {
+                let l;
+                if (!jeAuftrag) l = leistung(m.id, t);
+                else {
+                  const e = sj ? staende.proSchluessel[m.id + "|" + t + "|" + sj] : null;
+                  l = e && Number.isFinite(e.leistung) ? e.leistung : null;
+                }
                 if (l !== null) { summe += l; erfasst = true; }
               });
               return (
@@ -211,15 +248,21 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
                     <AuftragsBlock maschine={m} aktionen={aktionen}
                       stand={j ? aktuellerStand(m.id, staende) : null} letzter={letzterEintrag(m.id, staende)} />
                   </th>
-                  {tage.map((t, i) => {
-                    const l = leistungen[i];
+                  {tage.map((t) => {
                     const w = wechsel(m.id, t);
+                    // Tage eines früheren Auftrags stehen blass da: Sie
+                    // zählen nicht zur Woche
+                    const fremd = jeAuftrag && sj && !staende.proSchluessel[m.id + "|" + t + "|" + sj]
+                      && (staende.proSchluessel[m.id + "|" + t] || {}).job_id
+                      && staende.proSchluessel[m.id + "|" + t].job_id !== sj;
                     return (
-                      <td key={t} className={t === heute ? "heute" : ""}>{feld(m, t)}
+                      <td key={t} className={(t === heute ? "heute" : "") + (fremd ? " zelle--fremd" : "")}>
                         {/* Die Zeile darunter steht immer da, auch leer, damit
                             alle Felder einer Reihe auf gleicher Höhe bleiben */}
-                        <span className="zelle__leistung">
-                          {l !== null ? leistungText(l) : ""}</span>
+                        {feld(m, t, (x) => (
+                          <span className="zelle__leistung">
+                            {x !== null && x !== undefined ? leistungText(x) : ""}</span>
+                        ))}
                         {w.length > 0 &&
                           <span className="zelle__wechsel" data-wechsel={m.id}
                             title={"Auftragswechsel " + w.map(wechselText).join(", ")}>
@@ -236,7 +279,9 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
         </table>
       </div></div>
       <p className="hinweis">Die grosse Zahl ist der Zählerstand seit Auftragsbeginn.
-        {" "}Darunter steht die daraus errechnete Tagesleistung, ganz rechts die Summe der Woche.
+        {" "}Darunter steht die daraus errechnete Tagesleistung, ganz rechts die Summe der Woche
+        {" "}für den Auftrag, der jetzt an der Maschine ist. Blasse Tage gehören zu einem früheren Auftrag.
+        {" "}Am Tag eines Wechsels steht oben der alte und unten der neue Auftrag.
         {" "}Links stehen Stand und Ziel des laufenden Auftrags.
         {" "}Ein Tag zählt von 00:00 bis 00:00. ⇄ zeigt einen Auftragswechsel an diesem Tag.</p>
     </>
@@ -245,6 +290,72 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
 
 function leistungText(n) {
   return (n > 0 ? "+" : "") + alt.zahlText(n);
+}
+
+// HOCO Nr. der Aufträge, die im Zeitraum Zahlen haben, aber nicht mehr
+// an der Maschine sind; für die Anschrift „alt …“ am Wechseltag
+async function nummernLaden(st, von, bis) {
+  const ids = new Set();
+  Object.values(st.proMaschine || {}).forEach((l) => l.forEach((z) => {
+    if (z.job_id && z.record_date >= von && z.record_date <= bis) ids.add(z.job_id);
+  }));
+  Object.values(alt.prod.auftraege || {}).forEach((j) => ids.delete(j.id));
+  if (!ids.size) return {};
+  try {
+    const { data } = await alt.db.from("jobs").select("id, job_number").in("id", [...ids]);
+    const raus = {};
+    (data || []).forEach((j) => { raus[j.id] = j.job_number; });
+    return raus;
+  } catch (f) { return {}; }
+}
+
+// Welche Aufträge an diesem Tag ein Feld bekommen: jeder mit einer Zahl
+// an dem Tag, der alte vom Wechsel an dem Tag (auch noch ohne Zahl,
+// damit man seinen letzten Stand nachtragen kann) und der laufende ab
+// seinem Start. Alte oben, der laufende zuletzt.
+function feldAuftraege(m, datum, staende, wechsel) {
+  const j = alt.prod.auftraege[m.id];
+  const laeuft = j && j.plan_status === "laeuft" ? j : null;
+  const liste = (staende.proMaschine && staende.proMaschine[m.id]) || [];
+  const reihe = [];
+  const dazu = (id) => { if (id && !reihe.includes(id)) reihe.push(id); };
+  liste.filter((z) => z.record_date === datum)
+    .sort((a, b) => String(a.updated_at || "").localeCompare(String(b.updated_at || "")))
+    .forEach((z) => dazu(z.job_id));
+  wechsel.forEach((w) => dazu(w.vorherId));
+  const start = laeuft && laeuft.started_at ? alt.isoDatum(new Date(laeuft.started_at)) : null;
+  if (laeuft && (!start || datum >= start)) dazu(laeuft.id);
+  // Der laufende Auftrag steht immer unten
+  if (laeuft && reihe.includes(laeuft.id)) { reihe.splice(reihe.indexOf(laeuft.id), 1); reihe.push(laeuft.id); }
+
+  return reihe.map((id) => {
+    const e = staende.proSchluessel[m.id + "|" + datum + "|" + id];
+    // Ohne Zahl an dem Tag steht der letzte Stand davor als Hinweis im Feld
+    let bisher = null;
+    if (!e) {
+      for (let i = liste.length - 1; i >= 0; i--) {
+        if (liste[i].job_id === id && liste[i].record_date < datum) { bisher = liste[i].quantity; break; }
+      }
+    }
+    const w = wechsel.find((x) => x.vorherId === id);
+    return {
+      id, alt: !laeuft || id !== laeuft.id, eintrag: e || null, bisher,
+      leistung: e && Number.isFinite(e.leistung) ? e.leistung : null,
+      nr: (laeuft && id === laeuft.id ? laeuft.job_number : null)
+        || (w && w.vorher) || (staende.nummern && staende.nummern[id]) || "",
+    };
+  });
+}
+
+// Der Auftrag, dessen Stück die Woche zählt: der an der Maschine, sonst
+// der mit der jüngsten Zahl in dieser Woche
+function summenAuftrag(mid, j, tage, staende) {
+  if (j) return j.id;
+  for (let i = tage.length - 1; i >= 0; i--) {
+    const e = staende.proSchluessel[mid + "|" + tage[i]];
+    if (e) return e.job_id;
+  }
+  return null;
 }
 
 // Letzter erfasster Eintrag des laufenden Auftrags (oder null)
@@ -266,9 +377,15 @@ function aktuellerStand(maschineId, staende) {
 
 // ---------- Ein Eingabefeld für den Zählerstand ----------
 
-function StandFeld({ maschine, datum, staende, neu }) {
+function StandFeld({ maschine, datum, staende, neu, auftragId: fuer, istAlt, bisher }) {
   const j = alt.prod.auftraege[maschine.id];
-  const eintrag = staende.proSchluessel[maschine.id + "|" + datum];
+  // Mit fuer gehört das Feld genau einem Auftrag (zwei Felder am
+  // Wechseltag); ohne gilt wie bisher der Eintrag des Tages
+  const eintrag = fuer
+    ? staende.proSchluessel[maschine.id + "|" + datum + "|" + fuer]
+    : staende.proSchluessel[maschine.id + "|" + datum];
+  if (fuer && istAlt) return <AltFeld maschine={maschine} datum={datum} eintrag={eintrag}
+    auftragId={fuer} bisher={bisher} neu={neu} staende={staende} />;
   // Zahlen erfassen geht nur, solange der Auftrag wirklich läuft —
   // nicht schon bei Geplant oder Rüsten. Ohne laufenden
   // Auftrag lässt sich nur ein vorhandener Eintrag aus der
@@ -277,7 +394,7 @@ function StandFeld({ maschine, datum, staende, neu }) {
   const istVergangenheit = datum < alt.isoDatum(new Date());
   if (!laeuftJetzt && !(istVergangenheit && eintrag)) return <div className="kein-feld">–</div>;
 
-  const auftragId = laeuftJetzt ? j.id : eintrag.job_id;
+  const auftragId = fuer || (laeuftJetzt ? j.id : eintrag.job_id);
   const wert = eintrag ? String(eintrag.quantity) : "";
 
   const speichern = async (e) => {
@@ -328,6 +445,49 @@ function StandFeld({ maschine, datum, staende, neu }) {
       data-maschine={maschine.id} data-datum={datum} data-auftrag={auftragId}
       // Externe dürfen sonst nichts ändern, aber ihre Stückzahlen melden
       disabled={!(alt.darfSchreiben() || alt.istExtern())}
+      defaultValue={wert}
+      onFocus={(e) => e.target.select()}
+      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } }}
+      onChange={() => {}}
+      onBlur={speichern} />
+  );
+}
+
+// Feld eines Auftrags, der nicht mehr läuft: korrigiert seine Zahl an
+// dem Tag oder trägt am Wechseltag seinen letzten Stand nach. Ohne
+// Frage „Wurde heute schon produziert?“: Der Tag steht ja fest.
+function AltFeld({ maschine, datum, eintrag, auftragId, bisher, neu }) {
+  const wert = eintrag ? String(eintrag.quantity) : "";
+  const speichern = async (e) => {
+    const el = e.target;
+    const roh = el.value.trim();
+    if (roh === "") return;
+    const stand = Math.max(0, Math.round(Number(roh)));
+    if (!Number.isFinite(stand)) { alt.meldung("Bitte eine Zahl eingeben.", "warn"); return; }
+    if (eintrag && eintrag.quantity === stand) return;
+    el.classList.add("menge--speichert");
+    try {
+      await alt.speichereStand(maschine.id, datum, stand, auftragId);
+      alt.merkeSchritt("Zählerstand vom " + alt.kurzDatum(datum), !eintrag
+        ? alt.rueckWeg("production_records", { machine_id: maschine.id, record_date: datum, job_id: auftragId })
+        : alt.rueckStand(maschine.id, datum, eintrag.quantity, auftragId));
+      el.classList.remove("menge--speichert");
+      el.classList.add("menge--gespeichert");
+      setTimeout(() => el.classList.remove("menge--gespeichert"), 900);
+      neu();
+    } catch (f) {
+      el.classList.remove("menge--speichert");
+      el.classList.add("menge--fehler");
+      el.value = wert;
+      alt.meldung(alt.fehlertext(f), "fehler");
+    }
+  };
+  return (
+    <input key={wert} className="menge menge--alt" type="number" inputMode="numeric" min="0" step="1"
+      aria-label={"Stückzahl alter Auftrag " + (maschine.name || "") + " " + alt.kurzDatum(datum)}
+      data-maschine={maschine.id} data-datum={datum} data-auftrag={auftragId}
+      disabled={!(alt.darfSchreiben() || alt.istExtern())}
+      placeholder={bisher !== null && bisher !== undefined ? "bisher " + alt.zahlText(bisher) : ""}
       defaultValue={wert}
       onFocus={(e) => e.target.select()}
       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } }}

@@ -8860,3 +8860,13 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
   .kopfkarte:not(.kopfkarte--geburtstag)::before,
   .kopfkarte:not(.kopfkarte--geburtstag)::after { display: none; }
 }
+
+/* Erfassen: am Tag eines Auftragswechsels zwei Felder, oben der alte,
+   unten der neue Auftrag (Wunsch Patrick 21. Oktober 2026). Tage eines
+   früheren Auftrags zählen nicht zur Woche und stehen blass da. */
+.stand-doppel { display: flex; flex-direction: column; gap: 6px; }
+.stand-doppel__teil { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.stand-doppel__nr { font-size: 11px; line-height: 1.2; color: var(--gedaempft); white-space: nowrap; }
+.stand-doppel__teil--alt .menge, .menge--alt { opacity: .75; }
+.stand-doppel__teil--alt + .stand-doppel__teil { border-top: 1px dashed var(--linie); padding-top: 6px; }
+td.zelle--fremd .menge, td.zelle--fremd .zelle__leistung { opacity: .45; }
