@@ -133,7 +133,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.124.1";
+const APP_VERSION = "1.124.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7997,7 +7997,9 @@ function historieBlatt(maschine, auftrag, runden, titel) {
   // Je Werkzeug: wie oft gewechselt und wie lange es gehalten hat
   const jeWz = {};
   alle.forEach((z) => {
-    const w = jeWz[z.tool_nr] || (jeWz[z.tool_nr] = { nr: z.tool_nr, anzahl: 0, stk: [], zuletzt: null });
+    // Je Platz: T1 auf Revolver 1 und auf Revolver 2 sind zwei Werkzeuge
+    const nr = z.tool_nr + (z.bezeichnung ? " · " + z.bezeichnung : "");
+    const w = jeWz[nr] || (jeWz[nr] = { nr, anzahl: 0, stk: [], zuletzt: null });
     w.anzahl++;
     if (!leer(z.gehalten_stk)) w.stk.push(z.gehalten_stk);
     if (!w.zuletzt || z.gewechselt_am > w.zuletzt) w.zuletzt = z.gewechselt_am;
@@ -8028,6 +8030,7 @@ function historieBlatt(maschine, auftrag, runden, titel) {
       + '<td class="uhr">' + (r.wann ? esc(zeitText(r.wann)) : "") + '</td>'
       + '<td class="stk">' + (leer(r.stk) ? "—" : zahlText(r.stk)) + '<small>Stk</small></td>'
       + '<td>' + r.zeilen.map((z) => '<span class="wz"><b>' + esc(z.tool_nr) + '</b>'
+          + (z.bezeichnung ? ' <small>' + esc(z.bezeichnung) + '</small>' : "")
           + (leer(z.gehalten_stk) ? "" : '<i>' + zahlText(z.gehalten_stk) + ' Stk</i>') + '</span>').join("")
       + (r.notiz ? '<div class="notiz">' + esc(r.notiz) + '</div>' : "") + '</td>'
       + '</tr>';

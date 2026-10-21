@@ -30,7 +30,7 @@ with sync_playwright() as p:
     pg.wait_for_selector("#pad .pad-stk-zahl")
 
     # Zifferblock: Tasten, Tastatur, Rücktaste
-    pg.click("#pad [data-padfeld='stand']"); pg.wait_for_selector("[data-zbja]")
+    pg.click("#pad [data-padfeld='stand']", force=True); pg.wait_for_selector("[data-zbja]")
     pg.click("[data-zb='C']")
     pruefe("Leer zeigt 0", pg.inner_text("#zb-anzeige") == "0" and pg.locator(".zb-anzeige--leer").count() == 1)
     for t in "12": pg.click(f"[data-zb='{t}']")
@@ -42,12 +42,13 @@ with sync_playwright() as p:
     pruefe("Pad bleibt auf der Maschine", pg.locator("#pad .pad-stk-zahl").count() == 1)
     pruefe("Nichts gespeichert", not pg.evaluate("TEST.daten.production_records.some(z => z.quantity === 1234)"))
     # Enter trägt ein
-    pg.click("#pad [data-padfeld='stand']"); pg.wait_for_selector("[data-zbja]")
+    pg.click("#pad [data-padfeld='stand']", force=True); pg.wait_for_selector("[data-zbja]")
     pg.click("[data-zb='C']"); pg.keyboard.type("777"); pg.keyboard.press("Enter"); pg.wait_for_timeout(600); pg.locator(".dialog-huelle [data-w='ja']").click() if pg.locator(".dialog-huelle [data-w='ja']").count() else None; pg.wait_for_timeout(1500)
     pruefe("Enter trägt ein", pg.locator("[data-zbja]").count() == 0
            and pg.evaluate("TEST.daten.production_records.some(z => z.quantity === 777)"))
 
-    # Werkzeugwechsel
+    # Werkzeugwechsel: dieselbe Nummer auf zwei Paths (wie bei Index)
+    pg.evaluate("TEST.daten.type_slots.push({ id: 'sl9', path_id: 'pa2', bezeichnung: 'Drehstahl R2', kind_id: 'k1', platz_nr: 2, tool_nr: 'T100', werkzeuge: 1, sortierung: 2 })")
     pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-tool]")
     werkzeuge = pg.locator("[data-tool]")
     pruefe("Werkzeugplätze da", werkzeuge.count() >= 2)
@@ -55,12 +56,16 @@ with sync_playwright() as p:
     pruefe("Weiter erst nach Auswahl", weiter.is_disabled())
     werkzeuge.nth(0).click(); werkzeuge.nth(1).click(); werkzeuge.nth(1).click(); werkzeuge.nth(1).click()
     pruefe("Auswahl zählt", weiter.inner_text() == "Weiter · 2" and pg.locator(".wz-platz--an").count() == 2)
+    pruefe("T100 nur auf einem Path an", pg.locator("[data-tool='T100']").count() == 2
+           and pg.locator("[data-tool='T100'].wz-platz--an").count() == 1)
     tools = [werkzeuge.nth(0).get_attribute("data-tool"), werkzeuge.nth(1).get_attribute("data-tool")]
     weiter.click(); pg.wait_for_selector(".dialog-huelle input")
     pg.locator(".dialog-huelle input").first.fill("5000"); pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(900)
     zeilen = pg.evaluate("(TEST.daten.tool_changes || []).map(z => z.tool_nr + ':' + z.stueckzahl)")
     print("Wechsel:", zeilen)
     pruefe("Wechsel eingetragen", sorted(zeilen) == sorted([t + ":5000" for t in tools]))
+    pruefe("Path mitgespeichert", pg.evaluate("TEST.daten.tool_changes.find(z => z.tool_nr === 'T100').bezeichnung") == "Path 1")
+    pg.evaluate("TEST.daten.type_slots = TEST.daten.type_slots.filter(s => s.id !== 'sl9')")
     pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-wzhistorie]")
     pg.click("[data-wzhistorie]"); pg.wait_for_timeout(900)
     pruefe("Historie offen", "Werkzeugwechsel ·" in pg.inner_text(".dialog-huelle"))
