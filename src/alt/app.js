@@ -133,7 +133,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.128.0";
+const APP_VERSION = "1.129.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10364,7 +10364,11 @@ function zeichneGeruest() {
     if (!padWiederOeffnen()) zeichneSeite();
     nachher();
     // Am Bildschirm im Gang geht das Infoboard von selbst wieder auf
-    if (!ARCHIV && istInfoboardGeraet() && infoboardSichtbar()) infoboardOeffnen();
+    // Ebenso beim Konto „Infoboard“ (Vermerk infoboardBildschirm am Konto,
+    // sql/infoboard-konto.sql), ohne Häkchen auf dem Gerät (Wunsch Patrick
+    // 21. Oktober 2026: „dann soll direkt die Vollbildanzeige starten“)
+    const ibKonto = !!(profil && profil.einstellungen && profil.einstellungen.infoboardBildschirm);
+    if (!ARCHIV && (istInfoboardGeraet() || ibKonto) && infoboardSichtbar()) infoboardOeffnen();
   });
   if (ARCHIV) archivMarkeEinbauen(); else padKnopfEinbauen();
   if (!window._escZurueck) { window._escZurueck = true; escapeZurueck(); }

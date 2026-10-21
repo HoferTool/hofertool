@@ -242,6 +242,15 @@ with sync_playwright() as p:
     pg.click("[data-ib='schliessen']"); pg.wait_for_timeout(300)
     pruefe(pg.locator("#infoboard").count() == 0, "Schliessen schliesst")
 
+    # Konto „Infoboard“ (1.129.0): ohne Häkchen am Gerät, nur mit dem Vermerk
+    # am Konto, geht die Anzeige nach dem Laden von selbst auf
+    pg.evaluate("() => localStorage.removeItem('hofer.infoboard.geraet')")
+    pg.unroute("**/cdn.jsdelivr.net/**")
+    PATCH = FAKE + ";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { infoboardBildschirm: true };\n"
+    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=PATCH))
+    pg.reload(wait_until="domcontentloaded"); pg.wait_for_timeout(3000)
+    pruefe(pg.locator("#infoboard .ib-blatt").count() == 1, "Konto Infoboard: Anzeige von selbst offen")
+
     br.close()
 
 pruefe(not pf, "keine Seitenfehler: %s" % pf)
