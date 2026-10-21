@@ -100,17 +100,19 @@ with sync_playwright() as p:
         fehler.append("Maschine nicht ausgeschaltet")
     if pg.locator(f"[data-masch-aktiv='{mid}']").inner_text() != "Ein": fehler.append("Knopf zeigt nicht Ein")
     pg.locator(f"[data-masch-aktiv='{mid}']").click(); pg.wait_for_timeout(1200)
-    # Zweiter Park als Unterreiter
+    # Zweiter Park als Unterreiter; Typen sind seit 1.136.0 ein eigener Reiter
+    if pg.locator("[data-parkreiter='typen']").count(): fehler.append("Typen noch unter den Parks")
     zweiter = pg.locator("[data-parkreiter]").nth(1)
-    if zweiter.get_attribute("data-parkreiter") != "typen":
+    if zweiter.count():
         zweiter.click(); pg.wait_for_timeout(500)
         if not pg.locator("#park-inhalt .karte").count(): fehler.append("Zweiter Park leer")
-    pg.locator("[data-parkreiter='typen']").click(); pg.wait_for_timeout(800)
-    if not pg.locator("[data-parkreiter='typen'].aktiv").count(): fehler.append("Typen-Unterreiter nicht aktiv")
+    pg.click("[data-unter='maschinen/typen']"); pg.wait_for_timeout(800)
+    if not pg.locator("[data-mansicht='typen'].aktiv").count(): fehler.append("Reiter Typen nicht aktiv")
+    if pg.locator("#park-reiter").count(): fehler.append("Reiter Typen zeigt Parkreiter")
     if pg.locator("[data-typ-auf]").count():
         pg.locator("[data-typ-auf]").first.click(); pg.wait_for_selector("#typ-zurueck")
         if pg.locator("#park-reiter").count(): fehler.append("Geöffneter Typ zeigt noch die Parkreiter")
-        pg.click("#typ-zurueck"); pg.wait_for_selector("[data-parkreiter='typen'].aktiv")
+        pg.click("#typ-zurueck"); pg.wait_for_selector("[data-mansicht='typen'].aktiv", state="attached"); pg.wait_for_selector("[data-typ-auf]")
     else: fehler.append("Keine Typen im Prüfstand")
     if pg.locator("#mseite").count() != 1: fehler.append("mseite nicht genau einmal")
     pg.locator("h1").click(); pg.keyboard.press("Escape"); pg.wait_for_timeout(800)

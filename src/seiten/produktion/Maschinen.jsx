@@ -1,8 +1,8 @@
 // =================================================================
 //  MASCHINEN UND TYPEN
-//  Seit 1.134.0 der Reiter „Parks und Typen“ auf der Seite Maschinen
-//  (src/seiten/Maschinen.jsx), nicht mehr in der Produktion.
-//  Unterreiter: je Maschinenpark einer, dazu die Typen. So bleibt
+//  Seit 1.134.0 auf der Seite Maschinen (src/seiten/Maschinen.jsx),
+//  nicht mehr in der Produktion; seit 1.136.0 als zwei Reiter Parks
+//  und Typen (`nur`). Bei Parks je Maschinenpark ein Unterreiter. So bleibt
 //  die Seite kurz, statt alle Parks untereinander zu stapeln.
 //  Parks und Maschinen verwalten ist in React, die Maschinentypen
 //  mit ihrem Werkzeugaufbau laufen noch im alten Programm.
@@ -223,7 +223,9 @@ function ParkKarte({ park: p, darf, neuLaden }) {
   );
 }
 
-export default function Maschinen({ geladen, behaelter, neuLaden: aussen }) {
+// nur: "parks" (Unterreiter je Park) oder "typen" (die Typen allein);
+// ohne Angabe wie früher beides zusammen
+export default function Maschinen({ geladen, behaelter, neuLaden: aussen, nur }) {
   const prod = alt.prod;
   const darf = alt.darfSchreiben();
   const [, zeichnen] = useReducer((x) => x + 1, 0);
@@ -244,15 +246,17 @@ export default function Maschinen({ geladen, behaelter, neuLaden: aussen }) {
     </div>
   );
 
+  if (nur === "typen") return typenTeil;
   // Ist ein Typ geöffnet, zählt nur er
-  if (prod.typOffen) return typenTeil;
+  if (prod.typOffen && nur !== "parks") return typenTeil;
 
   const parks = prod.parks || [];
-  if (![...parks.map((p) => p.id), "typen"].includes(prod.parkReiter)) {
-    prod.parkReiter = parks.length ? parks[0].id : "typen";
+  const mitTypen = nur !== "parks";
+  if (![...parks.map((p) => p.id), ...(mitTypen ? ["typen"] : [])].includes(prod.parkReiter)) {
+    prod.parkReiter = parks.length ? parks[0].id : mitTypen ? "typen" : null;
   }
   const waehlen = (wert) => { prod.parkReiter = wert; zeichnen(); };
-  const reiter = parks.map((p) => [p.id, p.name]).concat([["typen", "Typen"]]);
+  const reiter = parks.map((p) => [p.id, p.name]).concat(mitTypen ? [["typen", "Typen"]] : []);
   const park = parks.find((p) => p.id === prod.parkReiter);
 
   return (
@@ -264,7 +268,7 @@ export default function Maschinen({ geladen, behaelter, neuLaden: aussen }) {
         ))}
       </div>
       <Uebergang key={prod.parkReiter}>
-        {prod.parkReiter === "typen"
+        {prod.parkReiter === "typen" && mitTypen
           ? typenTeil
           : <div id="park-inhalt">
               {park && <ParkKarte park={park} darf={darf} neuLaden={neuLaden} />}

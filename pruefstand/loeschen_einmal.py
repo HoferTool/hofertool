@@ -63,7 +63,7 @@ with sync_playwright() as p:
     park = pg.locator("[data-park-weg]").first.get_attribute("data-park-weg")
     einmal(pg, f"[data-park-weg='{park}']", "Park")
     pruefe("Park gelöscht", pg.evaluate(f"!TEST.daten.machine_parks.some(m => m.id === '{park}')"))
-    pg.locator("[data-parkreiter='typen']").click(); pg.wait_for_selector("[data-typ-weg]")
+    pg.click("[data-unter='maschinen/typen']"); pg.wait_for_selector("[data-typ-weg]")
     tid = pg.locator("[data-typ-weg]").first.get_attribute("data-typ-weg")
     einmal(pg, f"[data-typ-weg='{tid}']", "Maschinentyp")
     pruefe("Typ gelöscht", pg.evaluate(f"!TEST.daten.machine_types.some(t => t.id === '{tid}')"))

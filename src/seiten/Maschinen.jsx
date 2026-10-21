@@ -2,14 +2,16 @@
 //  MASCHINEN (seit 1.134.0, Wunsch Patrick 21. Oktober 2026: „nimm aus
 //  Produktion Maschinen und Typen raus und mach einen Reiter dafür“)
 //
-//  Eigene Seite mit zwei Reitern:
+//  Eigene Seite mit drei Reitern:
 //   - Maschinen: zuerst den Park, dann den Typ, dann die Maschine.
 //     Man sieht nur die eigenen Parks (wie in der Produktion; Admins und
 //     Planwand alle). Die Reihenfolge ist dieselbe wie auf der Planwand
 //     (sort_order der Maschinen) und lässt sich hier durch Ziehen
 //     ändern: Typen als Block, Maschinen innerhalb ihres Typs.
 //   - Parks und Typen: das bisherige „Maschinen und Typen“ aus der
-//     Produktion (anlegen, bearbeiten, Werkzeugaufbau der Typen).
+//     Produktion, seit 1.136.0 als zwei eigene Reiter (Wunsch Patrick
+//     21. Oktober 2026: „Parks und Typen splitten“): Parks mit ihren
+//     Maschinen anlegen und bearbeiten, Typen mit dem Werkzeugaufbau.
 //  Die Seite einer Maschine ist in src/seiten/maschinen/Maschine.jsx.
 //  Nicht für Externe (Entscheid offen, Patrick gefragt).
 // =================================================================
@@ -21,7 +23,9 @@ import Verwalten from "./produktion/Maschinen.jsx";
 import MaschineSeite from "./maschinen/Maschine.jsx";
 import { ZiehListe } from "../teile/ZiehListe.jsx";
 
-export const REITER = [["uebersicht", "Maschinen"], ["verwalten", "Parks und Typen"]];
+// „verwalten“ heisst seit der Trennung nur noch Parks; der Schlüssel
+// bleibt, damit gemerkte Stände und der Sprung aus der Produktion gehen
+export const REITER = [["uebersicht", "Maschinen"], ["verwalten", "Parks"], ["typen", "Typen"]];
 
 // Wo man gerade ist; übersteht Neuladen wie die anderen Seiten
 export const ms = { ansicht: "uebersicht", parkId: null, typId: null, maschineId: null };
@@ -205,10 +209,11 @@ export default function Maschinen({ auffrischen, behaelter }) {
   const [, zeichnen] = useReducer((x) => x + 1, 0);
   zeichnenAussen = zeichnen;
   if (!REITER.some(([w]) => w === ms.ansicht)) ms.ansicht = "uebersicht";
-  const verwalten = ms.ansicht === "verwalten";
+  const verwalten = ms.ansicht !== "uebersicht";
   const { daten: geladen, fehler, neu } = useDaten(() => grunddatenLaden(verwalten), [verwalten, auffrischen]);
   const neuLaden = () => { alt.stammVergessen(); neu(); };
-  const waehlen = (w) => { ms.ansicht = w; zeichnen(); };
+  // Ein offener Typ gehört zum Reiter Typen und schliesst beim Wechsel
+  const waehlen = (w) => { ms.ansicht = w; alt.prod.typOffen = null; zeichnen(); };
 
   return (
     <>
@@ -221,7 +226,8 @@ export default function Maschinen({ auffrischen, behaelter }) {
             : !geladen
               ? <div className="laedt">Wird geladen …</div>
               : verwalten
-                ? <Verwalten geladen={geladen} behaelter={behaelter} neuLaden={neuLaden} />
+                ? <Verwalten geladen={geladen} behaelter={behaelter} neuLaden={neuLaden}
+                    nur={ms.ansicht === "typen" ? "typen" : "parks"} />
                 : <Uebersicht geladen={geladen} zeichnen={zeichnen} neuLaden={neuLaden} />}
         </div>
       </Uebergang>

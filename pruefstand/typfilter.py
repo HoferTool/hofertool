@@ -58,7 +58,7 @@ with sync_playwright() as p:
     pruefe("Ohne Typ markiert", pg.locator(".mliste__typ--leer").count() == 1)
     pruefe("Knöpfe da", pg.locator("[data-masch-um]").count() >= 6 and pg.locator("[data-masch-weg]").count() >= 6)
     pg.screenshot(path="/tmp/claude-0/maschinen-d.png")
-    pg.click("[data-parkreiter='typen']"); pg.wait_for_selector(".tkarte")
+    pg.click("[data-unter='maschinen/typen']"); pg.wait_for_selector(".tkarte")
     pruefe("Typen als Karten", pg.locator(".tkarte").count() == 2)
     pruefe("Zahl der Maschinen", "8 Maschinen" in pg.inner_text(".tkarten"))
     pg.screenshot(path="/tmp/claude-0/typen-d.png")
