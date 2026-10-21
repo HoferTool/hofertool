@@ -14,6 +14,7 @@ import { alt } from "../bruecke.jsx";
 import { REITER as PROD_REITER } from "../seiten/Produktion.jsx";
 import { REITER as BEST_REITER } from "../seiten/Bestellungen.jsx";
 import { REITER as RECH_REITER, rechnerAnsicht } from "../seiten/Rechner.jsx";
+import { REITER as MASCH_REITER, ms as maschinenStand } from "../seiten/Maschinen.jsx";
 
 // liste(): Reiter, die die Person sieht. merken(wert): Reiter für das
 // nächste Öffnen der Seite setzen. gemerkt(): der zuletzt gewählte.
@@ -22,6 +23,11 @@ export const UNTERREITER = {
     liste: () => PROD_REITER.filter(([w]) => !alt.istExtern() || w === "erfassen"),
     merken: (w) => { alt.prod.ansicht = w; },
     gemerkt: () => alt.prod.ansicht,
+  },
+  maschinen: {
+    liste: () => MASCH_REITER,
+    merken: (w) => { maschinenStand.ansicht = w; },
+    gemerkt: () => maschinenStand.ansicht,
   },
   bestellungen: {
     liste: () => BEST_REITER,

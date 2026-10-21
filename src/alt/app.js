@@ -13,6 +13,7 @@ import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
 import Temp from "../seiten/Temp.jsx";
+import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Infoboard, { infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
 import { istInfoboardGeraet } from "../infoboard/daten.js";
 import { tempAufraeumenRegelmaessig } from "../daten/temp.js";
@@ -133,7 +134,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.133.0";
+const APP_VERSION = "1.134.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -166,6 +167,8 @@ function escapeZurueck() {
 
     // Sonst: von einem Unterreiter zurück auf den ersten
     const wo = location.hash.replace(/^#\/?/, "").split("/")[0];
+    // Seite Maschinen: von der Maschine zum Typ, zum Park
+    if (wo === "maschinen" && maschinenZurueck()) return;
     if (wo === "produktion" && prod.ansicht && prod.ansicht !== "erfassen") {
       prod.ansicht = "erfassen"; zeichneSeite(); return;
     }
@@ -2833,7 +2836,7 @@ const ROLLEN = {
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
-  if ((pfad === "material" || pfad === "qs") && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "qs" || pfad === "maschinen") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard") return infoboardSichtbar();
   if (!istExtern()) return true;
   return pfad === "planwand" || pfad === "produktion";
@@ -9679,6 +9682,11 @@ SYM.produktion = svg('<circle cx="12" cy="12" r="3.2"/>'
   + '<path d="M12 2.6v2.6M12 18.8v2.6M4.4 12H1.8M22.2 12h-2.6'
   + 'M6.3 6.3 4.5 4.5M19.5 19.5l-1.8-1.8M17.7 6.3l1.8-1.8M4.5 19.5l1.8-1.8"/>');
 
+// Maschinen: Drehmaschine von der Seite, mit Schraubenschlüssel davor
+SYM.maschinen = svg('<rect x="2.5" y="6" width="19" height="11" rx="1.6"/>'
+  + '<path d="M2.5 17v3.2M21.5 17v3.2"/><rect x="5" y="8.6" width="4.5" height="5.8" rx=".8"/>'
+  + '<path d="M9.5 11.5h9"/><circle cx="17" cy="11.5" r="1.3"/>');
+
 // Bestellungen: Lieferschein mit Haken
 SYM.bestellungen = svg('<path d="M6 2.8h9l4 4v14.4H6z"/><path d="M15 2.8v4h4"/>'
   + '<path d="M9 13l1.8 1.8L14.5 11"/><line x1="9" y1="17.6" x2="15" y2="17.6"/>');
@@ -9802,6 +9810,9 @@ const SEITEN = [
   { pfad: "dashboard",    titel: "Start",        zeichen: SYM.start, zeige: seiteDashboard },
   { pfad: "planwand",     titel: "Planwand",     zeichen: SYM.planwand, zeige: seitePlanwand },
   { pfad: "produktion",   titel: "Produktion",   zeichen: SYM.produktion, zeige: seiteProduktion },
+  // Parks, Typen und jede Maschine mit Infos, Wartung und Batterien,
+  // vorher in der Produktion (Wunsch Patrick 21. Oktober 2026)
+  { pfad: "maschinen",    titel: "Maschinen",    zeichen: SYM.maschinen, zeige: reactSeite(MaschinenSeite) },
   // Ausschuss melden statt Zustand „QS Check“ (seit 1.77.0)
   { pfad: "qs",           titel: "Qualitätssicherung", zeichen: SYM.qs, zeige: reactSeite(Qs) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
@@ -9837,7 +9848,7 @@ Object.assign(alt, {
   ladeAlleMaschinen, maschineZielText, parallelSenden,
   aendernOhneUnbekannte, zielZeichen, kurzDatum, zahlText, isoDatum,
   fortschrittRechnen, planAuftragDialog, ladeTypen,
-  pad, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
+  pad, padOeffnen, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
   notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, abrufSpalte, spalteDa, abrufPflicht,
   siegelListe, siegelName, siegelHtml, standsNachtragen, werkstoffErkennen, farbeVon, schriftZu, auftragFarbe, pdfGanz, betrachter, dateiAnsehen, dokZeigen,

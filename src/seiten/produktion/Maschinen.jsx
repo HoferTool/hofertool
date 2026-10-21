@@ -1,5 +1,7 @@
 // =================================================================
 //  MASCHINEN UND TYPEN
+//  Seit 1.134.0 der Reiter „Parks und Typen“ auf der Seite Maschinen
+//  (src/seiten/Maschinen.jsx), nicht mehr in der Produktion.
 //  Unterreiter: je Maschinenpark einer, dazu die Typen. So bleibt
 //  die Seite kurz, statt alle Parks untereinander zu stapeln.
 //  Parks und Maschinen verwalten ist in React, die Maschinentypen
@@ -221,13 +223,14 @@ function ParkKarte({ park: p, darf, neuLaden }) {
   );
 }
 
-export default function Maschinen({ geladen, behaelter }) {
+export default function Maschinen({ geladen, behaelter, neuLaden: aussen }) {
   const prod = alt.prod;
   const darf = alt.darfSchreiben();
   const [, zeichnen] = useReducer((x) => x + 1, 0);
   // Stammdaten sind gemerkt; nach einer Änderung frisch holen. Die
   // Produktion lädt dann still neu und zeichnet diese Ansicht mit.
-  const neuLaden = () => { alt.stammVergessen(); alt.seiteProduktion(behaelter); };
+  // Seit 1.134.0 auf der eigenen Seite Maschinen, die das Neuladen mitgibt
+  const neuLaden = aussen || (() => { alt.stammVergessen(); alt.seiteProduktion(behaelter); });
 
   // Die Typen braucht die Dokumentenerkennung. Einmal holen und merken.
   useEffect(() => {

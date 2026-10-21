@@ -26,7 +26,7 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#produktion'")
     pg.wait_for_selector("#raster .menge, #raster .kein-feld"); pg.wait_for_timeout(500)
-    pg.click("[data-unter='produktion/maschinen']"); pg.wait_for_selector("#park-reiter")
+    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.click("[data-unter='maschinen/verwalten']"); pg.wait_for_selector("#park-reiter")
     pg.locator("[data-parkreiter='typen']").click(); pg.wait_for_selector("[data-typ-auf]")
     vorlage = zahlen(pg, "t1")
     print("Vorlage t1:", vorlage)
@@ -34,7 +34,7 @@ with sync_playwright() as p:
 
     # In den leeren Typ t2 übernehmen
     pg.locator("[data-typ-auf='t2']").click(); pg.wait_for_selector("#typ-uebernehmen"); pg.wait_for_timeout(400)
-    pruefe("Hinweis nennt Aufbau übernehmen", "Aufbau übernehmen" in pg.inner_text("#prod-inhalt"))
+    pruefe("Hinweis nennt Aufbau übernehmen", "Aufbau übernehmen" in pg.inner_text("#mseite"))
     pg.click("#typ-uebernehmen"); wahl(pg, "t1"); pg.wait_for_timeout(900)
     pruefe("Kopie hat gleich viele Paths und Plätze", zahlen(pg, "t2") == vorlage)
     pruefe("Kopie sichtbar", pg.locator("[data-path-um]").count() == vorlage[0])
@@ -55,7 +55,7 @@ with sync_playwright() as p:
     pruefe("Rückgängig nach Dazunehmen", zahlen(pg, "t2") == vorlage)
     # Ersetzen: danach wieder genau die Vorlage, ohne T777
     pg.click("#typ-uebernehmen"); wahl(pg, "t1"); wahl(pg, "ersetzen"); pg.wait_for_timeout(900)
-    pruefe("Ersetzen gibt genau die Vorlage", zahlen(pg, "t2") == vorlage and "T777" not in pg.inner_text("#prod-inhalt"))
+    pruefe("Ersetzen gibt genau die Vorlage", zahlen(pg, "t2") == vorlage and "T777" not in pg.inner_text("#mseite"))
     pg.locator("h1").first.click(); pg.keyboard.press("Control+z"); pg.wait_for_timeout(1500)
     pruefe("Rückgängig nach Ersetzen bringt T777 zurück", zahlen(pg, "t2") == vorlage
         and pg.evaluate("TEST.daten.type_slots.some(s => s.tool_nr === 'T777')"))

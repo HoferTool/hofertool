@@ -83,7 +83,7 @@ with sync_playwright() as p:
     if pg.locator("#prod-inhalt .pw-rolle, #prod-inhalt .pw-balken").count(): fehler.append("Planwand im Fortschritt gezeichnet")
     if pg.locator(".fo-zeile").count() != alle: fehler.append("Fortschritt nach Speichern falsch")
     if pg.locator(".dialog-huelle").count(): fehler.append("Auftragsfenster bleibt offen")
-    pg.click("[data-unter='produktion/maschinen']"); pg.wait_for_selector("#park-reiter"); pg.wait_for_timeout(500)
+    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.click("[data-unter='maschinen/verwalten']"); pg.wait_for_selector("#park-reiter"); pg.wait_for_timeout(500)
     # Maschine bearbeiten: neuer Name kommt an und steht in der Liste
     knopf = pg.locator("[data-masch-um]").first
     mid = knopf.get_attribute("data-masch-um")
@@ -112,8 +112,8 @@ with sync_playwright() as p:
         if pg.locator("#park-reiter").count(): fehler.append("Geöffneter Typ zeigt noch die Parkreiter")
         pg.click("#typ-zurueck"); pg.wait_for_selector("[data-parkreiter='typen'].aktiv")
     else: fehler.append("Keine Typen im Prüfstand")
-    if pg.locator("#prod-inhalt").count() != 1: fehler.append("prod-inhalt nicht genau einmal")
+    if pg.locator("#mseite").count() != 1: fehler.append("mseite nicht genau einmal")
     pg.locator("h1").click(); pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
-    if not pg.locator("[data-ansicht='erfassen'].aktiv").count(): fehler.append("Escape springt nicht auf Erfassen")
+    if not pg.locator("[data-mansicht='uebersicht'].aktiv").count(): fehler.append("Escape springt nicht auf Maschinen")
     br.close()
 print("Produktion | Fehler: " + ("keine" if not fehler else " | ".join(fehler)))

@@ -8874,3 +8874,73 @@ td.zelle--fremd .menge, td.zelle--fremd .zelle__leistung { opacity: .45; }
   color: #fff; font-size: 34px; font-weight: 700; }
 .ib-blatt--ziel { outline: 16px dashed #2fb67c; outline-offset: -16px; }
 .ib-wahl__mass { margin: 0 0 8px; }
+
+/* ---------- Seite Maschinen (seit 1.134.0) ---------- */
+.mseite-frage { font-size: 1.05rem; margin: 14px 0 10px; color: var(--gedaempft); font-weight: 600; }
+.mseite-pfad { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; margin: 10px 0 4px; font-size: .95rem; }
+.mseite-pfad__trenn { margin: 0 8px; color: var(--gedaempft); }
+.mseite-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.mseite-kachel { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left;
+  padding: 16px 18px; border: 1px solid var(--linie-stark); border-radius: var(--radius); background: var(--flaeche);
+  color: var(--tinte); font: inherit; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; min-width: 0; }
+.mseite-kachel b { font-size: 1.1rem; }
+.mseite-kachel span { color: var(--gedaempft); font-size: .88rem; overflow-wrap: anywhere; }
+.mseite-kachel:hover { border-color: var(--marke); box-shadow: 0 4px 14px rgba(0, 0, 0, .08); }
+.mseite-kachel:active { transform: scale(.99); }
+.mseite-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-width: 760px; }
+.mseite-zeile { display: flex; align-items: center; gap: 10px; }
+.mseite-zeile .mliste__sort { flex: none; }
+.mseite-kachel--zeile { flex: 1; padding: 12px 16px; }
+.mseite-maschine { display: flex; flex-direction: column; gap: 14px; max-width: 980px; margin-top: 8px; }
+.mseite-maschine > .karte { margin: 0; }
+.mseite-kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.mseite-kopf h2 { margin: 0; font-size: 1.5rem; }
+.mseite-kopf__name { font-weight: 400; color: var(--gedaempft); font-size: 1.1rem; }
+.mseite-info textarea { width: 100%; box-sizing: border-box; min-height: calc(4 * 1.45em + 18px); resize: vertical;
+  font: inherit; line-height: 1.45; padding: 8px 10px; border: 1px solid var(--linie-stark); border-radius: 6px;
+  background: var(--flaeche); color: var(--tinte); overflow: hidden; }
+.mseite-info textarea[readonly] { background: transparent; }
+.mseite-stand { color: var(--gut); }
+.mseite-werwann { margin: 4px 0 0; }
+.mseite-schalter { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; cursor: pointer; }
+.mseite-batterie__werte { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 4px 0 10px; }
+.mseite-batterie__werte dt { color: var(--gedaempft); }
+.mseite-batterie__werte dd { margin: 0; font-weight: 600; }
+.mseite-rot { color: var(--gefahr); font-weight: 600; }
+.wartung-liste { list-style: none; margin: 0; padding: 0; }
+.wartung-eintrag { padding: 10px 0; border-top: 1px solid var(--linie); }
+.wartung-eintrag:first-child { border-top: 0; }
+.wartung-eintrag__kopf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wartung-eintrag__knoepfe { margin-left: auto; display: flex; gap: 6px; }
+.wartung-eintrag__text { white-space: pre-wrap; margin-top: 4px; }
+.wartung-anhaenge { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.wartung-anhang { position: relative; }
+.wartung-anhang__knopf { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 96px; padding: 4px;
+  border: 1px solid var(--linie); border-radius: 6px; background: var(--flaeche); color: var(--tinte); cursor: pointer; font: inherit; }
+.wartung-anhang__knopf img { width: 86px; height: 64px; object-fit: cover; border-radius: 4px; }
+.wartung-anhang__pdf { width: 86px; height: 64px; display: flex; align-items: center; justify-content: center;
+  background: #c62828; color: #fff; font-weight: 700; border-radius: 4px; }
+.wartung-anhang__name { font-size: .72rem; max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wartung-anhang__weg { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%;
+  border: 0; background: var(--gefahr); color: #fff; cursor: pointer; line-height: 22px; padding: 0; }
+.wartung-fenster textarea { width: 100%; box-sizing: border-box; }
+.wartung-fenster__knoepfe { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.unterlagen--seite .blatt__kopf h2 { font-size: 1.15rem; }
+.batteriekarte--ueber { border-left-color: var(--gefahr); }
+@media (max-width: 640px) {
+  .mseite-kacheln { grid-template-columns: 1fr; }
+  .mseite-kopf .knopf { width: 100%; }
+}
+
+/* Umsortieren mit Ziehen (src/teile/ZiehListe.jsx) */
+.ziehliste__zeile { display: flex; align-items: stretch; gap: 8px; position: relative; will-change: transform; }
+.ziehliste__griff { flex: none; display: flex; align-items: center; justify-content: center; width: 30px;
+  border-radius: 8px; color: var(--gedaempft); font-size: 1.25rem; cursor: grab; touch-action: none;
+  user-select: none; -webkit-user-select: none; transition: background .15s, color .15s; }
+.ziehliste__griff:hover { background: var(--linie); color: var(--tinte); }
+.ziehliste__zeile--darf > .mseite-kachel { cursor: pointer; }
+.ziehliste__zeile.zieh--aktiv { z-index: 5; }
+.ziehliste__zeile.zieh--aktiv > .mseite-kachel { border-color: var(--marke);
+  box-shadow: 0 14px 34px rgba(0, 20, 60, .22); }
+.ziehliste__zeile.zieh--aktiv .ziehliste__griff { cursor: grabbing; color: var(--marke); }
+body.zieh-laeuft, body.zieh-laeuft * { user-select: none !important; -webkit-user-select: none !important; cursor: grabbing !important; }

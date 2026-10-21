@@ -57,6 +57,12 @@ const BILD = ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"];
 // PDF, Excel und Bilder zeigt der Betrachter der App; alles andere
 // (Word, DWG, ZIP …) kann der Browser nicht anzeigen, also herunterladen
 function zeigen(u) {
+  // Verlinkt statt hochgeladen (seit 1.134.0): einfach die Seite öffnen
+  if (istLink(u)) {
+    const w = window.open(u.url, "_blank", "noopener");
+    if (!w) alt.meldung("Das Fenster wurde blockiert. Bitte Pop-ups erlauben.", "warn");
+    return;
+  }
   const endung = endungVon(u.dateiname || u.url.split(/[?#]/)[0]);
   if (endung === "pdf") return betrachter(u.url, u.titel, true);
   if (istExcel(u.dateiname || u.url)) return betrachter(u.url, u.titel, false, "excel", endung);
@@ -64,6 +70,9 @@ function zeigen(u) {
   const w = window.open(u.url, "_blank");
   if (!w) alt.meldung("Das Fenster wurde blockiert. Bitte Pop-ups erlauben.", "warn");
 }
+
+// Ein Link hat keine Datei in der Ablage
+const istLink = (u) => !u.pfad && !u.dateiname;
 
 // Dateinamen für die Ablage: ohne Umlaute und Sonderzeichen
 function ablageName(name) {
@@ -93,6 +102,16 @@ export async function unterlagenOeffnen(m) {
 wiederOeffner("unterlagen", (d) => unterlagenOeffnen(d.m));
 
 function UnterlagenFenster({ m, typ, zu }) {
+  return (
+    <div className="dialog dialog--breit unterlagen" id="unterlagen">
+      <UnterlagenListe m={m} typ={typ} zu={zu} />
+    </div>
+  );
+}
+
+// Die Liste selbst, im Fenster oder eingebettet auf der Seite einer
+// Maschine (Seite Maschinen, seit 1.134.0). Ohne zu kein Schliessen.
+export function UnterlagenListe({ m, typ, zu }) {
   const [liste, setListe] = useState(null);
   const [fehler, setFehler] = useState("");
   const [laedt, setLaedt] = useState("");
@@ -156,6 +175,30 @@ function UnterlagenFenster({ m, typ, zu }) {
     laden();
   };
 
+  // Statt einer Datei eine Adresse, etwa das Handbuch beim Hersteller
+  // (Wunsch Patrick 21. Oktober 2026: „verlinken oder hochladen“)
+  const linkNeu = async () => {
+    const w = await alt.dialogFelder({ titel: "Link hinzufügen",
+      felder: [
+        { name: "url", label: "Adresse", pflicht: true, platzhalter: "https://…" },
+        { name: "titel", label: "Titel", pflicht: true, platzhalter: "z. B. Bedienungsanleitung Star SR-20" },
+        { name: "art", label: "Art", auswahl: UNTERLAGEN_ARTEN, wert: "handbuch" },
+        ...(m.type_id ? [{ name: "fuer", label: "Gilt für", wert: "maschine", auswahl: giltFuerAuswahl() }] : []),
+      ],
+      bestaetigen: "Hinzufügen" });
+    if (!w) return;
+    let url = w.url.trim();
+    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+    const fuerTyp = w.fuer === "typ" && m.type_id;
+    const ein = await alt.db.from("maschinen_unterlagen").insert({
+      machine_id: fuerTyp ? null : m.id, type_id: fuerTyp ? m.type_id : null,
+      art: w.art || "handbuch", titel: w.titel.trim(), url, pfad: null, dateiname: null }).select("id");
+    if (ein.error) { alt.meldung(alt.fehlertext(ein.error), "fehler"); return; }
+    const neuId = ((ein.data || [])[0] || {}).id;
+    if (neuId) alt.merkeSchritt("Link " + w.titel.trim(), alt.rueckWeg("maschinen_unterlagen", { id: neuId }));
+    laden();
+  };
+
   // Auch „Gilt für“ lässt sich ändern (Wunsch Patrick 19. Oktober 2026),
   // mit denselben Möglichkeiten wie beim Hochladen. Die Datei bleibt, wo
   // sie liegt; es ändert sich nur, bei welchen Maschinen sie erscheint.
@@ -203,13 +246,15 @@ function UnterlagenFenster({ m, typ, zu }) {
     .filter((g) => g[2].length);
 
   return (
-    <div className="dialog dialog--breit unterlagen" id="unterlagen">
+    <>
       <div className="blatt__kopf">
-        <h2>Unterlagen · {m.name}{m.machine_number ? " " + m.machine_number : ""}</h2>
-        {typ && <span className="klein">Typ {typ}</span>}
+        {zu ? <h2>Unterlagen · {m.name}{m.machine_number ? " " + m.machine_number : ""}</h2>
+          : <h2>Bedienungsanleitungen und Unterlagen</h2>}
+        {typ && zu && <span className="klein">Typ {typ}</span>}
         {admin && <button className="knopf knopf--haupt" id="unterlagen-neu" disabled={!!laedt}
-          onClick={() => wahl.current && wahl.current.click()}>+ Unterlage</button>}
-        <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
+          onClick={() => wahl.current && wahl.current.click()}>+ Datei</button>}
+        {admin && <button className="knopf" id="unterlagen-link" onClick={linkNeu}>+ Link</button>}
+        {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}
       </div>
       {admin && <input ref={wahl} type="file" multiple hidden id="unterlagen-datei"
         onChange={(e) => { const d = [...e.target.files]; e.target.value = ""; if (d.length) hochladen(d); }} />}
@@ -220,7 +265,7 @@ function UnterlagenFenster({ m, typ, zu }) {
           ? <p className="klein">Lädt …</p>
           : !gruppen.length
           ? <p className="unterlagen__leer">Noch keine Unterlagen für diese Maschine.
-              {admin ? " Mit „+ Unterlage“ ein Handbuch oder Schema hochladen." : ""}</p>
+              {admin ? " Mit „+ Datei“ ein Handbuch oder Schema hochladen oder mit „+ Link“ verlinken." : ""}</p>
           : gruppen.map(([art, name, teile]) => (
               <section key={art} className="unterlagen__gruppe" data-art={art}>
                 <h3>{name}</h3>
@@ -228,7 +273,8 @@ function UnterlagenFenster({ m, typ, zu }) {
                   {teile.map((u) => (
                     <li key={u.id} className="unterlagen__zeile" data-unterlage={u.id}>
                       <button className="unterlagen__oeffnen" onClick={() => zeigen(u)}>
-                        <span className="unterlagen__symbol">{endungVon(u.dateiname || u.url).toUpperCase().slice(0, 4) || "DATEI"}</span>
+                        <span className="unterlagen__symbol">{istLink(u) ? "LINK"
+                          : endungVon(u.dateiname || u.url).toUpperCase().slice(0, 4) || "DATEI"}</span>
                         <span className="unterlagen__text">
                           <b>{u.titel}</b>
                           <span className="klein">
@@ -246,7 +292,7 @@ function UnterlagenFenster({ m, typ, zu }) {
                 </ul>
               </section>))}
       </div>
-    </div>
+    </>
   );
 }
 

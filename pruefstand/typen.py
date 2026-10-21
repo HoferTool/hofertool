@@ -20,7 +20,7 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#produktion'")
     pg.wait_for_selector("#raster .menge, #raster .kein-feld"); pg.wait_for_timeout(500)
-    pg.click("[data-unter='produktion/maschinen']"); pg.wait_for_selector("#park-reiter")
+    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.click("[data-unter='maschinen/verwalten']"); pg.wait_for_selector("#park-reiter")
     pg.locator("[data-parkreiter='typen']").click(); pg.wait_for_selector("[data-typ-auf]")
     pruefe("Liste mit beiden Typen", pg.locator("[data-typ-auf]").count() == 2 and "Star SR-32J" in pg.inner_text("#park-inhalt"))
 
@@ -72,7 +72,7 @@ with sync_playwright() as p:
     pg.locator("h1").first.click(); pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
     pruefe("Escape geht zur Typenliste", pg.locator("[data-typ-auf]").count() == 2 and pg.locator("#typ-zurueck").count() == 0)
     pg.locator("[data-typ-auf='t2']").click(); pg.wait_for_selector("#typ-zurueck"); pg.wait_for_timeout(500)
-    pruefe("Leerer Typ zeigt Hinweis", "Noch kein Path" in pg.inner_text("#prod-inhalt"))
+    pruefe("Leerer Typ zeigt Hinweis", "Noch kein Path" in pg.inner_text("#mseite"))
     pg.click("#typ-zurueck"); pg.wait_for_selector("[data-parkreiter='typen'].aktiv"); pg.wait_for_timeout(800)
     print("Typen nach Zurück:", pg.locator("[data-typ-auf]").count())
     pruefe("Zurück zur Liste", pg.locator("[data-typ-auf]").count() == 2)
