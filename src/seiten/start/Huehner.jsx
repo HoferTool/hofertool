@@ -40,19 +40,27 @@ export default function Huehner() {
       const e = document.createElement("div");
       e.className = "huhn-ei";
       e.style.left = x - 19 + "px";
-      e.style.bottom = boden + 4 + "px";
       hof.appendChild(e);
+      // Das Ei kommt am Schwanz heraus, fällt auf den Boden der Karte,
+      // hüpft kurz und bleibt dort liegen, bis es verblasst ist
+      // (Wunsch Patrick: „Eier und Federn auf den Grund“).
+      const dauer = zufall(16000, 22000), t = (ms) => Math.min(.5, ms / dauer);
+      const hoch = `translateY(${-boden}px)`;
       const a = e.animate([
-        { opacity: 0, transform: "scale(.2)" },
-        { opacity: .45, transform: "scale(1.2)", offset: .03 },
-        { opacity: .4, transform: "scale(1)", offset: .06 },
-        { opacity: 0, transform: "scale(1)" },
-      ], { duration: zufall(16000, 22000), easing: "linear", fill: "forwards" });
+        { opacity: 0, transform: `${hoch} scale(.2)` },
+        { opacity: .45, transform: `${hoch} scale(1.2)`, offset: t(300) },
+        { opacity: .45, transform: `${hoch} scale(1)`, offset: t(500) },
+        { opacity: .45, transform: "translateY(0) scale(1.1,.9)", offset: t(500 + Math.sqrt(boden) * 45), easing: "ease-out" },
+        { opacity: .43, transform: `translateY(${-Math.min(14, boden * .2)}px) scale(1)`, offset: t(650 + Math.sqrt(boden) * 45), easing: "ease-in" },
+        { opacity: .4, transform: "translateY(0) scale(1)", offset: t(800 + Math.sqrt(boden) * 45) },
+        { opacity: 0, transform: "translateY(0) scale(1)" },
+      ], { duration: dauer, easing: "ease-in", fill: "forwards" });
       a.onfinish = () => e.remove();
     };
 
-    // Fällt bis zu den Füssen des Huhns, nicht bis zum Rand der Karte
-    const feder = (x, y, boden) => {
+    // Schwebt hin und her bis auf den Boden der Karte, bleibt dort kurz
+    // flach liegen und verblasst
+    const feder = (x, y) => {
       const f = document.createElement("div");
       f.className = "huhn-feder";
       const g = zufall(14, 26);
@@ -61,13 +69,17 @@ export default function Huehner() {
       f.style.left = x + "px";
       f.style.bottom = y + "px";
       hof.appendChild(f);
-      const dx = zufall(-60, 60), fall = y - boden + zufall(0, 10), dr = zufall(-200, 200);
+      // Flach liegend ist sie nur 0,4 so hoch, darum so weit hinunter
+      const dx = zufall(-60, 60), fall = y + g * .3 - 1;
+      const liegt = (Math.random() < .5 ? 90 : -90) + zufall(-12, 12);
       const a = f.animate([
         { opacity: 0, transform: "translate(0,0) rotate(0deg)" },
-        { opacity: .6, transform: `translate(${dx * .2}px,${-zufall(10, 30)}px) rotate(${dr * .2}deg)`, offset: .15 },
-        { opacity: .5, transform: `translate(${dx * .6}px,${fall * .5}px) rotate(${dr * .6}deg)`, offset: .55 },
-        { opacity: 0, transform: `translate(${dx}px,${fall}px) rotate(${dr}deg)` },
-      ], { duration: zufall(3000, 5000), easing: "ease-out", fill: "forwards" });
+        { opacity: .6, transform: `translate(${dx * .2}px,${-zufall(10, 30)}px) rotate(${zufall(-40, 40)}deg)`, offset: .12 },
+        { opacity: .55, transform: `translate(${dx * .6}px,${fall * .45}px) rotate(${liegt * .4 + zufall(-50, 50)}deg)`, offset: .4 },
+        { opacity: .5, transform: `translate(${dx}px,${fall}px) rotate(${liegt}deg)`, offset: .65 },
+        { opacity: .45, transform: `translate(${dx}px,${fall}px) rotate(${liegt}deg)`, offset: .82 },
+        { opacity: 0, transform: `translate(${dx}px,${fall}px) rotate(${liegt}deg)` },
+      ], { duration: zufall(5000, 8000), easing: "ease-in-out", fill: "forwards" });
       a.onfinish = () => f.remove();
     };
 
@@ -108,7 +120,7 @@ export default function Huehner() {
       const federn = (n) => {
         const r = huhn.getBoundingClientRect(), hr = hof.getBoundingClientRect();
         for (let i = 0; i < n; i++)
-          feder(r.left - hr.left + w * zufall(.2, .8), boden + h * zufall(.25, .65), boden);
+          feder(r.left - hr.left + w * zufall(.2, .8), boden + h * zufall(.25, .65));
       };
 
       const gehen = async (ziel, tempo, rennt) => {
