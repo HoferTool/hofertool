@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.125.0** Startseite: Das wandernde Licht in der Kopfkarte ist ein leuchtendes Huhn in der Lichtfarbe statt eines runden Scheins (Wunsch Patrick, 21. Oktober 2026: „hühner Form, mal hin, mal her, gut erkennbar, nicht störend, ohne Kanten“). Es läuft unten durch die Karte, wendet am Rand, nickt beim Gehen und pickt ab und zu; weiche Masken mit Schein, keine harten Kanten. Mit „weniger Bewegung“ am Gerät kein Licht.
 - **1.124.2** Pad Mode, Werkzeugwechsel: Jedes Werkzeug wird je Revolver (Path) einzeln gewählt. Vorher ging mit T1 auf Revolver 1 auch T1 auf allen anderen an (Patrick, 21. Oktober 2026: „will alles einzeln wählen, ist z. B. bei Index der Fall“). Bei mehreren Paths steht der Name in `tool_changes.bezeichnung`; Historie, PDF und Standzeit (`gehalten_stk`) trennen danach, ältere Einträge ohne Path zählen für jeden.
 - **1.124.1** Startseite: Das wandernde Licht in der Kopfkarte läuft unten weich aus statt mit harter Kante über der Solaranlage (Patrick, 21. Oktober 2026: „keine Kante, so verblassen“).
 - **1.124.0** Handy-Menü geht mit Auftritt zu (Wunsch Patrick, 21. Oktober 2026: „Handy einklappen auch ein wenig Animation“): die Zeichen drehen sich von hinten nach vorn klein und weg, die Namen verwehen unscharf, die Fläche zuckt kurz hoch und leuchtet in der Themenfarbe, dann schrumpft sie in den Knopf; Dauer 580 ms statt 300 ms.
