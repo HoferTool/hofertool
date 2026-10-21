@@ -15,26 +15,29 @@ import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { artikelFotoLesen, artikelFuerFoto, artikelFinden, artikelLernen } from "../../daten/artikelFoto.js";
 
-// fertig: wird nach dem Speichern aufgerufen, damit die Liste neu lädt
-export function positionOeffnen(fertig) {
-  fensterOeffnen((zu) => <PositionFenster zu={zu} fertig={fertig} />);
+// fertig: wird nach dem Speichern aufgerufen, damit die Liste neu lädt.
+// vorgabe: { artikel, maschine, notiz } schon eingetragen, etwa beim
+// Nachbestellen eines Spezialwerkzeugs (seit 1.131.0)
+export function positionOeffnen(fertig, vorgabe) {
+  fensterOeffnen((zu) => <PositionFenster zu={zu} fertig={fertig} vorgabe={vorgabe || {}} />);
 }
 
 const ZIELE = [["lager", "Lager"], ["maschine", "Maschine"], ["person", "Person"], ["andere", "Anderes"]];
 
-function PositionFenster({ zu, fertig }) {
+function PositionFenster({ zu, fertig, vorgabe }) {
   const [suche, setSuche] = useState("");
   const [treffer, setTreffer] = useState(null);     // null: noch nichts gesucht
   const [sucht, setSucht] = useState(false);
   const [suchFehler, setSuchFehler] = useState(null);
-  const [gewaehlt, setGewaehlt] = useState(null);
+  const [gewaehlt, setGewaehlt] = useState(vorgabe.artikel || null);
   const [menge, setMenge] = useState("1");
   const [frist, setFrist] = useState("");
-  const [notiz, setNotiz] = useState("");
+  const [notiz, setNotiz] = useState(vorgabe.notiz || "");
   // Lager ist der Normalfall und deshalb vorgewählt. Es wird nicht
   // verbucht, sondern steht wie jedes andere Ziel in der Historie.
-  const [zielArt, setZielArt] = useState("lager");
-  const [zielWahl, setZielWahl] = useState("");
+  // Kommt die Bestellung von einer Maschine, geht sie dorthin
+  const [zielArt, setZielArt] = useState(vorgabe.maschine ? "maschine" : "lager");
+  const [zielWahl, setZielWahl] = useState(vorgabe.maschine ? alt.maschineZielText(vorgabe.maschine) : "");
   const [zielFrei, setZielFrei] = useState("");
   const [maschinen, setMaschinen] = useState(
     (alt.best.alleMaschinen && alt.best.alleMaschinen.length) ? alt.best.alleMaschinen : null);
@@ -49,6 +52,11 @@ function PositionFenster({ zu, fertig }) {
   const fotoFeld = useRef(null);
 
   useEffect(() => () => clearTimeout(taste.current), []);
+  // Maschinen für die Auswahl, wenn die Maschine schon vorgegeben ist
+  useEffect(() => {
+    if (!vorgabe.maschine || maschinen) return;
+    alt.ladeAlleMaschinen().then((liste) => { alt.best.alleMaschinen = liste; setMaschinen(liste); }, () => {});
+  }, []);
 
   const suchen = async (text) => {
     const t = text.trim();
@@ -261,6 +269,8 @@ function PositionFenster({ zu, fertig }) {
                       <option key={m.id} value={alt.maschineZielText(m)}>
                         {m.name}{m.machine_number ? " · " + m.machine_number : ""}</option>
                     ))}
+                    {zielWahl && !(maschinen || []).some((m) => alt.maschineZielText(m) === zielWahl) &&
+                      <option value={zielWahl}>{zielWahl}</option>}
                   </>
                 : <>
                     <option value="">{personen === null ? "Wird geladen …"

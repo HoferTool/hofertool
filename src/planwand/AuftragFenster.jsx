@@ -32,6 +32,8 @@ import { useWaschprog } from "../daten/waschprog.js";
 import { matInfo, MAT_INFO_ERKLAERUNG, materialImHaus } from "../daten/material.js";
 import { ImHausEinblendung } from "./MaterialImHaus.jsx";
 import { mahnBilder } from "../daten/mahnbilder.js";
+import { spezialAnzahl } from "../daten/spezialwerkzeuge.js";
+import { spezialwerkzeugeOeffnen } from "../teile/Spezialwerkzeuge.jsx";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
@@ -243,6 +245,15 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   aktuell.current = w;
   const tageVonHand = useRef(false);
   const [hocoInfo, setHocoInfo] = useState("");
+  // Wie viele Spezialwerkzeuge die HOCO Nr. hat (seit 1.131.0)
+  const [spezialZahl, setSpezialZahl] = useState(0);
+  const spezialHoco = auftrag && auftrag.job_number;
+  useEffect(() => {
+    if (extern || !spezialHoco) return;
+    let gueltig = true;
+    spezialAnzahl(spezialHoco).then((n) => { if (gueltig) setSpezialZahl(n); });
+    return () => { gueltig = false; };
+  }, [spezialHoco]);
   const [pdfStand, setPdfStand] = useState("");
   const [wbgStand, setWbgStand] = useState("");
   const [beschaeftigt, setBeschaeftigt] = useState(false);
@@ -783,6 +794,17 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                     (Wunsch Patrick, 12. Oktober 2026) */}
                 {waschprog && <span className="auf-waschprog" id="pl-waschprog">
                   Waschprog-Nr.: <b>{waschprog}</b></span>}</div></div>
+
+            {/* Spezialwerkzeuge der HOCO Nr. mit Nachbestellen (Wunsch
+                Patrick 21. Oktober 2026); Externe nicht */}
+            {!extern && spezialHoco && <div className="auf-dok"><span className="feldlabel">Spezialwerkzeuge</span>
+              <div className="auf-dok__knoepfe">
+                <div className="pdfreihe">
+                  <button type="button" className="knopf knopf--klein pdflink" id="pl-spezial"
+                    onClick={() => spezialwerkzeugeOeffnen({ hoco: spezialHoco,
+                      maschine: maschinen.find((x) => x.id === w.maschine) || null })}>
+                    {spezialZahl ? "Ansehen (" + spezialZahl + ")" : "Ansehen"}</button></div>
+                {!spezialZahl && <span className="feldhinweis">keine hinterlegt</span>}</div></div>}
           </div>
         </div>
       </div>
