@@ -8534,6 +8534,9 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .ib-voll__fehler { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 6;
   padding: 10px 18px; border-radius: 12px; background: #7a1c1c; color: #fff; }
 body.ib-offen { overflow: hidden; }
+/* Keine Bildlaufleiste am Bildschirm, auch nicht am Rand der ganzen Seite */
+html:has(body.ib-offen) { overflow: hidden; scrollbar-width: none; }
+html:has(body.ib-offen)::-webkit-scrollbar, body.ib-offen::-webkit-scrollbar { display: none; }
 /* ---------- Seitenleiste ein- und ausklappen mit Auftritt (seit 1.114.0) ----------
    Wunsch Patrick 20. Oktober 2026: „mehr Emotionen, man macht es ja
    selten“. Die weiche Fassung mit Spänen, Huhn, Eiern, Welle und

@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.129.1** Infoboard: Öffnet die Anzeige von selbst (Konto Infoboard oder Bildschirm-Gerät), holt der **erste Tipp, Klick oder Tastendruck das Vollbild** nach, wie bei „Anzeige öffnen“; Adressleiste und Bildlaufleiste verschwinden. Ohne Tipp lässt der Browser kein Vollbild zu. Keine Bildlaufleiste mehr am Seitenrand. Patrick, 21. Oktober 2026.
 - **1.129.0** Infoboard: eigenes **Konto „Infoboard“** für den Bildschirm (infoboard@hoferco.ch, `sql/infoboard-konto.sql`, eingespielt): steht bei „Andere Nutzer“, wird nie von selbst abgemeldet, Rolle mitarbeiter. Nach dem Anmelden startet sofort die Vollbildanzeige (Vermerk `infoboardBildschirm` am Konto), auch ohne Häkchen am Gerät. Wunsch Patrick, 21. Oktober 2026.
 - **1.128.0** Infoboard: Bei mehrseitigen PDF und Excel gibt es unter „Mehrere Seiten wechseln“ neu **„Nicht selber blättern“**: Die Anzeige bleibt auf der ersten Seite, die nächste kommt nur beim Antippen (Wunsch Patrick, 21. Oktober 2026). Gespeichert als `sekunden: 0`.
 - **1.127.1** Infoboard: Das **Hofer-Logo im Kopf ist grösser** (150 statt 66 Punkte hoch; die Startseite verkleinert es bei schmalem Fenster, der Bildschirm hochkant ist nur 1080 breit). Wunsch Patrick, 21. Oktober 2026.

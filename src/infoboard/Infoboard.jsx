@@ -233,15 +233,33 @@ export function infoboardOeffnen(vonHand) {
   const wurzel = createRoot(huelle);
   offen = { huelle, wurzel };
   wurzel.render(<Anzeige huelle={huelle} />);
-  // Vollbild geht nur nach einem Tipp; beim Start von selbst läuft der
-  // Browser am Bildschirm ohnehin über die ganze Fläche
-  if (vonHand && huelle.requestFullscreen) huelle.requestFullscreen().catch(() => {});
+  // Vollbild erlaubt der Browser nur nach einem Tipp oder Klick. Beim Start
+  // von selbst (Konto Infoboard, Bildschirm-Gerät) holt darum der erste
+  // Tipp, Klick oder Tastendruck irgendwo das Vollbild nach, damit Adress-
+  // leiste und Bildlaufleiste verschwinden wie bei „Anzeige öffnen“
+  // (Wunsch Patrick 21. Oktober 2026). Klappt es schon ohne, umso besser.
+  vollbild(huelle);
+  if (!vonHand) {
+    const nachholen = () => { if (offen && offen.huelle === huelle) vollbild(huelle); };
+    for (const art of ["pointerdown", "keydown", "touchend"]) document.addEventListener(art, nachholen, true);
+    offen.weg = () => { for (const art of ["pointerdown", "keydown", "touchend"]) document.removeEventListener(art, nachholen, true); };
+  }
+}
+
+function vollbild(el) {
+  try {
+    if (document.fullscreenElement) return;
+    const f = el.requestFullscreen || el.webkitRequestFullscreen;
+    const p = f && f.call(el);
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) { /* ohne Tipp verweigert, der nächste Tipp versucht es wieder */ }
 }
 
 export function infoboardSchliessen() {
   if (!offen) return;
-  const { huelle, wurzel } = offen;
+  const { huelle, wurzel, weg } = offen;
   offen = null;
+  if (weg) weg();
   try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch (f) { /* egal */ }
   wurzel.unmount();
   huelle.remove();
