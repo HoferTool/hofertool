@@ -8852,3 +8852,25 @@ td.zelle--fremd .menge, td.zelle--fremd .zelle__leistung { opacity: .45; }
   .spezial__zeile { flex-wrap: wrap; }
   .spezial__zeile .unterlagen__knoepfe { width: 100%; justify-content: flex-end; }
 }
+/* ---------- Infoboard frei (1.132.0) ----------
+   Jedes Teil liegt frei auf der Tafel und dreht um seine Mitte. Die
+   Griffe sind in Punkten der Tafel gross, weil die Tafel in der
+   Gestaltung stark verkleinert ist. */
+.ib-teil { position: absolute; transform-origin: center center; z-index: 1; }
+.ib-teil > .ib-feld { inset: 0; width: 100%; height: 100%; }
+.ib-teil__griff { position: absolute; inset: 0; z-index: 5; cursor: move; touch-action: none; }
+.ib-blatt--bearbeiten .ib-teil:hover .ib-teil__griff { background: rgba(47,124,246,.10); }
+.ib-teil--gewaehlt > .ib-feld { box-shadow: 0 0 0 6px #fff, 0 0 0 12px #2f7cf6; }
+.ib-teil--gewaehlt { z-index: 2; }
+.ib-teil__ecke { position: absolute; right: -28px; bottom: -28px; width: 56px; height: 56px; z-index: 7;
+  border-radius: 12px; background: #2f7cf6; border: 6px solid #fff; cursor: nwse-resize; touch-action: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.4); }
+.ib-teil__stiel { position: absolute; left: 50%; top: -90px; width: 6px; height: 90px; margin-left: -3px;
+  background: #fff; z-index: 6; pointer-events: none; }
+.ib-teil__drehen { position: absolute; left: 50%; top: -150px; width: 64px; height: 64px; margin-left: -32px;
+  z-index: 7; border-radius: 50%; background: #2f7cf6; border: 6px solid #fff; cursor: grab; touch-action: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.4); }
+.ib-teil__drehen::after { content: "↻"; position: absolute; inset: 0; display: grid; place-items: center;
+  color: #fff; font-size: 34px; font-weight: 700; }
+.ib-blatt--ziel { outline: 16px dashed #2fb67c; outline-offset: -16px; }
+.ib-wahl__mass { margin: 0 0 8px; }

@@ -18,6 +18,14 @@
 //  Eine Reihe behält immer drei Felder; mit A3 zeigt sie nur die ersten
 //  zwei, das dritte kommt zurück, wenn man wieder auf drei A4 schaltet.
 //  Das frühere „a3“ (eines über die ganze Breite) gilt als „a3l“.
+//
+//  Seit 1.132.0 ohne Raster (Wunsch Patrick 21. Oktober 2026: „Dokumente
+//  reinziehen und selber frei positionieren, Grösse über die Ecke, frei
+//  drehen“): aufbau = { frei: true, teile: [teil, …] }, hinten zuerst,
+//  teil = feld + { x, y, w, h, drehung } in Punkten der Tafel (oben links
+//  vor dem Drehen, gedreht wird um die Mitte, in Grad). Ein Aufbau mit
+//  Reihen wird beim Laden umgewandelt: jedes gefüllte Feld wird ein Teil
+//  an seinem bisherigen Platz; gespeichert wird er so beim nächsten Ändern.
 // =================================================================
 import { alt } from "../bruecke.jsx";
 
@@ -40,7 +48,85 @@ export const SEKUNDEN = 20;
 export const neueId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const leeresFeld = () => ({ id: neueId(), art: "leer" });
 
+// Welche Spalten jedes Feld einer Reihe belegt: [erste Spalte, Breite]
+const SPALTEN_JE_FORMAT = { a4: [[0, 1], [1, 1], [2, 1]], a3l: [[0, 2], [2, 1]], a3r: [[0, 1], [1, 2]] };
+
+// Lage jedes sichtbaren Felds eines alten Aufbaus mit Reihen
+export function felderLage(aufbau) {
+  const aus = [];
+  aufbau.reihen.forEach((r, ri) => {
+    const top = KOPF_H + ri * (FELD_H + LUECKE);
+    (SPALTEN_JE_FORMAT[r.format] || SPALTEN_JE_FORMAT.a4).forEach(([sp, breit], pi) => {
+      aus.push({ feld: r.felder[pi], reihe: ri, platz: pi, spalte: sp, breit, format: breit === 2 ? "a3" : "a4",
+        left: LUECKE + sp * (FELD_B + LUECKE), top, width: breit * FELD_B + (breit - 1) * LUECKE, height: FELD_H });
+    });
+  });
+  return aus;
+}
+
+export const MIN_GROESSE = 60;
+const zahl = (v, standard) => (Number.isFinite(Number(v)) ? Number(v) : standard);
+
+function teilOrdnen(t) {
+  const w = Math.max(MIN_GROESSE, zahl(t.w, FELD_B)), h = Math.max(MIN_GROESSE, zahl(t.h, FELD_H));
+  return { ...t, x: zahl(t.x, LUECKE), y: zahl(t.y, KOPF_H), w, h, drehung: zahl(t.drehung, 0) };
+}
+
 export function aufbauOrdnen(a) {
+  if (a && a.frei && Array.isArray(a.teile)) {
+    return { frei: true, teile: a.teile.filter((t) => t && t.id && t.art && t.art !== "leer").map(teilOrdnen) };
+  }
+  const reihen = reihenOrdnen(a);
+  return { frei: true, teile: felderLage(reihen).filter((l) => l.feld.art !== "leer")
+    .map((l) => teilOrdnen({ ...l.feld, x: l.left, y: l.top, w: l.width, h: l.height, drehung: 0 })) };
+}
+
+// Höhe durch Breite des Inhalts, damit ein neues Teil gleich passt:
+// Bild und Video wie sie sind, PDF wie die erste Seite, sonst A4 hochkant
+export async function verhaeltnisLesen(datei, typ) {
+  const mitFrist = (p) => Promise.race([p, new Promise((_, nein) => setTimeout(() => nein(new Error("Zeit")), 6000))]);
+  try {
+    if (typ === "bild") {
+      const b = await mitFrist(createImageBitmap(datei));
+      const v = b.height / b.width; b.close && b.close();
+      if (v > 0) return v;
+    }
+    if (typ === "video") {
+      const url = URL.createObjectURL(datei);
+      try {
+        const v = await mitFrist(new Promise((ja, nein) => {
+          const el = document.createElement("video");
+          el.preload = "metadata"; el.muted = true;
+          el.onloadedmetadata = () => ja(el.videoHeight / el.videoWidth);
+          el.onerror = nein; el.src = url;
+        }));
+        if (v > 0) return v;
+      } finally { URL.revokeObjectURL(url); }
+    }
+    if (typ === "pdf") {
+      const { pdfjs } = await import("../teile/PdfAnsicht.jsx");
+      const lib = await pdfjs();
+      const doc = await mitFrist(lib.getDocument({ data: new Uint8Array(await datei.arrayBuffer()), isEvalSupported: false }).promise);
+      const vp = (await doc.getPage(1)).getViewport({ scale: 1 });
+      doc.destroy();
+      if (vp.width > 0) return vp.height / vp.width;
+    }
+  } catch (f) { /* dann eben A4 */ }
+  return Math.SQRT2;
+}
+
+// Ein neues Teil: so breit wie ein A4-Feld (quer wie ein A3), höchstens
+// so hoch wie zwei Felder, mit der Mitte an der gewünschten Stelle
+export function neuesTeil(feld, verhaeltnis, mitte) {
+  let w = verhaeltnis < 1 ? 2 * FELD_B + LUECKE : FELD_B;
+  let h = w * verhaeltnis;
+  if (h > 2 * FELD_H) { h = 2 * FELD_H; w = h / verhaeltnis; }
+  const m = mitte || { x: BREITE / 2, y: KOPF_H + (HOEHE - KOPF_H) / 2 };
+  const x = Math.min(Math.max(m.x - w / 2, 0), BREITE - w), y = Math.min(Math.max(m.y - h / 2, 0), HOEHE - h);
+  return { ...feld, id: feld.id || neueId(), x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), drehung: 0 };
+}
+
+function reihenOrdnen(a) {
   const reihen = Array.isArray(a && a.reihen) ? a.reihen : [];
   return {
     reihen: Array.from({ length: REIHEN }, (_, i) => {

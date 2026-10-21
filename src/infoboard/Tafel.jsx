@@ -6,8 +6,9 @@
 //  neben den Knöpfen, am Bildschirm über die ganze Fläche. So sieht
 //  die Gestaltung genau aus wie nachher der Bildschirm.
 //
-//  Oben der Kopf mit Logo, Uhr, Wetter und Solaranlage, darunter drei
-//  Reihen mit drei A4 oder einem A3 und einem A4.
+//  Oben der Kopf mit Logo, Uhr, Wetter und Solaranlage, darauf frei
+//  verschiebbare, vergrösserbare und drehbare Teile (seit 1.132.0;
+//  vorher drei Reihen mit drei A4 oder einem A3 und einem A4).
 // =================================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -18,23 +19,7 @@ import Skizze from "../pad/Skizze.jsx";
 import { TextBlatt } from "./TextFeld.jsx";
 import { Seite as ExcelSeite, seitenRechnen } from "../teile/ExcelAnsicht.jsx";
 import { excelLesen } from "../teile/excelLesen.js";
-import { BREITE, HOEHE, LUECKE, FELD_B, FELD_H, KOPF_H, BLATT, SEKUNDEN } from "./daten.js";
-
-// Welche Spalten jedes Feld einer Reihe belegt: [erste Spalte, Breite]
-const SPALTEN_JE_FORMAT = { a4: [[0, 1], [1, 1], [2, 1]], a3l: [[0, 2], [2, 1]], a3r: [[0, 1], [1, 2]] };
-
-// Lage jedes sichtbaren Felds auf dem Blatt
-export function felderLage(aufbau) {
-  const aus = [];
-  aufbau.reihen.forEach((r, ri) => {
-    const top = KOPF_H + ri * (FELD_H + LUECKE);
-    (SPALTEN_JE_FORMAT[r.format] || SPALTEN_JE_FORMAT.a4).forEach(([sp, breit], pi) => {
-      aus.push({ feld: r.felder[pi], reihe: ri, platz: pi, spalte: sp, breit, format: breit === 2 ? "a3" : "a4",
-        left: LUECKE + sp * (FELD_B + LUECKE), top, width: breit * FELD_B + (breit - 1) * LUECKE, height: FELD_H });
-    });
-  });
-  return aus;
-}
+import { BREITE, HOEHE, LUECKE, KOPF_H, BLATT, SEKUNDEN, MIN_GROESSE } from "./daten.js";
 
 // Das Blatt passt sich ganz in den Platz ein, hochkant mittig
 function useMassstab(rahmen) {
@@ -54,56 +39,127 @@ function useMassstab(rahmen) {
   return k;
 }
 
-const ZIEH_ART = "application/x-hofer-ibfeld";
+// Punkt am Bildschirm → Punkt auf der Tafel
+function tafelPunkt(blatt, k, e) {
+  const r = blatt.getBoundingClientRect();
+  return { x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k };
+}
+const RAD = Math.PI / 180;
+// Auf 0, 90, 180 und 270 Grad schnappt die Drehung ein, sonst ganze Grad
+function drehungRunden(g) {
+  let d = ((Math.round(g) % 360) + 360) % 360;
+  for (const z of [0, 90, 180, 270, 360]) if (Math.abs(d - z) <= 4) d = z % 360;
+  return d;
+}
 
-export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, ablegen, doppelt }) {
+// Die Tafel: Kopf oben fest, darauf frei liegende Teile. In der
+// Gestaltung verschiebt man ein Teil durch Ziehen, die Ecke unten rechts
+// ändert die Grösse (Seitenverhältnis bleibt, damit nichts verzerrt), der
+// runde Griff oben dreht es (Wunsch Patrick 21. Oktober 2026). Erst beim
+// Loslassen wird gespeichert.
+export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAendern, ablegen, doppelt }) {
   const rahmen = useRef(null);
+  const blatt = useRef(null);
   const k = useMassstab(rahmen);
-  const lage = felderLage(aufbau);
-  const [ziel, setZiel] = useState(null);
-  // Ziehen und Ablegen in der Gestaltung: eine Datei vom Computer auf ein
-  // Feld oder ein Feld auf ein anderes (dann tauschen sie)
-  const ziehen = (l) => !ablegen ? {} : {
-    draggable: l.feld.art !== "leer",
-    onDragStart: (e) => { e.dataTransfer.setData(ZIEH_ART, l.feld.id); e.dataTransfer.effectAllowed = "move"; },
+  const [zug, setZug] = useState(null);       // { id, x, y, w, h, drehung } während des Ziehens
+  const [ziel, setZiel] = useState(false);
+
+  const greifen = (e, t, art) => {
+    if (!bearbeiten || e.button > 0) return;
+    e.stopPropagation(); e.preventDefault();
+    if (waehlen) waehlen(t.id);
+    if (!teilAendern) return;
+    const start = tafelPunkt(blatt.current, k, e);
+    const vorher = { x: t.x, y: t.y, w: t.w, h: t.h, drehung: t.drehung || 0 };
+    const mitte = { x: t.x + t.w / 2, y: t.y + t.h / 2 };
+    let jetzt = { id: t.id, ...vorher };
+    const el = e.currentTarget;
+    try { el.setPointerCapture(e.pointerId); } catch (f) { /* egal */ }
+    const bewegen = (ev) => {
+      const p = tafelPunkt(blatt.current, k, ev);
+      const dx = p.x - start.x, dy = p.y - start.y;
+      if (art === "schieben") {
+        jetzt = { ...jetzt, x: Math.round(vorher.x + dx), y: Math.round(vorher.y + dy) };
+      } else if (art === "drehen") {
+        jetzt = { ...jetzt, drehung: drehungRunden(Math.atan2(p.y - mitte.y, p.x - mitte.x) / RAD + 90) };
+      } else {
+        // Grösse: die Ecke oben links bleibt, wo sie ist, auch gedreht.
+        // Gerechnet im gedrehten Teil, damit die Ecke dem Finger folgt.
+        const c = Math.cos(vorher.drehung * RAD), sn = Math.sin(vorher.drehung * RAD);
+        const lx = dx * c + dy * sn, ly = -dx * sn + dy * c;
+        const f = Math.max(MIN_GROESSE / Math.min(vorher.w, vorher.h), (vorher.w + lx) / vorher.w, (vorher.h + ly) / vorher.h);
+        const w = vorher.w * f, h = vorher.h * f;
+        const ecke = { x: mitte.x - (vorher.w / 2) * c + (vorher.h / 2) * sn, y: mitte.y - (vorher.w / 2) * sn - (vorher.h / 2) * c };
+        const m = { x: ecke.x + (w / 2) * c - (h / 2) * sn, y: ecke.y + (w / 2) * sn + (h / 2) * c };
+        jetzt = { ...jetzt, w: Math.round(w), h: Math.round(h), x: Math.round(m.x - w / 2), y: Math.round(m.y - h / 2) };
+      }
+      setZug(jetzt);
+    };
+    const los = () => {
+      el.removeEventListener("pointermove", bewegen);
+      el.removeEventListener("pointerup", los);
+      el.removeEventListener("pointercancel", los);
+      setZug(null);
+      const { id, ...neu } = jetzt;
+      if (Object.keys(neu).some((key) => neu[key] !== vorher[key])) teilAendern(id, neu);
+    };
+    el.addEventListener("pointermove", bewegen);
+    el.addEventListener("pointerup", los);
+    el.addEventListener("pointercancel", los);
+  };
+
+  // Eine Datei vom Computer irgendwo auf die Tafel ziehen: dort entsteht
+  // ein neues Teil
+  const dateiZiehen = !ablegen ? {} : {
     onDragOver: (e) => {
-      const t = e.dataTransfer.types;
-      if (!t || (!Array.from(t).includes("Files") && !Array.from(t).includes(ZIEH_ART))) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = Array.from(t).includes("Files") ? "copy" : "move";
-      if (ziel !== l.feld.id) setZiel(l.feld.id);
+      if (!Array.from(e.dataTransfer.types || []).includes("Files")) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = "copy"; if (!ziel) setZiel(true);
     },
-    onDragLeave: () => setZiel((z) => (z === l.feld.id ? null : z)),
-    onDragEnd: () => setZiel(null),
+    onDragLeave: (e) => { if (e.currentTarget === e.target) setZiel(false); },
     onDrop: (e) => {
-      e.preventDefault(); setZiel(null);
-      const datei = e.dataTransfer.files && e.dataTransfer.files[0];
-      if (datei) ablegen(l.feld, { datei });
-      else ablegen(l.feld, { feldId: e.dataTransfer.getData(ZIEH_ART) });
+      e.preventDefault(); setZiel(false);
+      const dateien = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+      if (dateien.length && blatt.current) ablegen(dateien, tafelPunkt(blatt.current, k, e));
     },
   };
+
   return (
     <div className="ib-rahmen" ref={rahmen}
       // Daneben fallen gelassen öffnet der Browser die Datei sonst selbst
       onDragOver={ablegen ? (e) => e.preventDefault() : undefined}
       onDrop={ablegen ? (e) => e.preventDefault() : undefined}>
       {k > 0 &&
-      <div className={"ib-blatt" + (bearbeiten ? " ib-blatt--bearbeiten" : "")}
-        style={{ width: BREITE, height: HOEHE, transform: "translate(-50%, -50%) scale(" + k + ")" }}>
+      <div ref={blatt} className={"ib-blatt" + (bearbeiten ? " ib-blatt--bearbeiten" : "") + (ziel ? " ib-blatt--ziel" : "")}
+        style={{ width: BREITE, height: HOEHE, transform: "translate(-50%, -50%) scale(" + k + ")" }}
+        onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>
         <Kopf />
-        {lage.map((l) => (
-          <div key={l.feld.id} className={"ib-feld ib-feld--" + l.format + " ib-feld--" + l.feld.art
-            + (gewaehlt === l.feld.id ? " ib-feld--gewaehlt" : "") + (ziel === l.feld.id ? " ib-feld--ziel" : "")}
-            data-ibfeld={l.reihe + "-" + l.platz}
-            style={{ left: l.left, top: l.top, width: l.width, height: l.height }}>
-            <FeldInhalt feld={l.feld} format={l.format} bearbeiten={bearbeiten} grossZiel={grossZiel}
-              breite={l.width} hoehe={l.height} />
-            {bearbeiten &&
-              <button type="button" className="ib-feld__wahl" aria-label="Bereich wählen"
-                onClick={() => waehlen && waehlen(l.feld.id)}
-                onDoubleClick={() => doppelt && doppelt(l.feld.id)} {...ziehen(l)} />}
-          </div>
-        ))}
+        {aufbau.teile.map((t0) => {
+          const t = zug && zug.id === t0.id ? { ...t0, ...zug } : t0;
+          const format = t.w > t.h ? "a3" : "a4";
+          const an = bearbeiten && gewaehlt === t.id;
+          return (
+            <div key={t.id} className={"ib-teil" + (an ? " ib-teil--gewaehlt" : "")} data-ibteil={t.id}
+              style={{ left: t.x, top: t.y, width: t.w, height: t.h,
+                transform: t.drehung ? "rotate(" + t.drehung + "deg)" : undefined }}>
+              <div className={"ib-feld ib-feld--" + format + " ib-feld--" + t.art}>
+                <FeldInhalt feld={t} format={format} bearbeiten={bearbeiten} grossZiel={grossZiel}
+                  breite={t.w} hoehe={t.h} />
+              </div>
+              {bearbeiten && <>
+                <div className="ib-teil__griff" aria-label="Verschieben"
+                  onPointerDown={(e) => greifen(e, t, "schieben")}
+                  onDoubleClick={() => doppelt && doppelt(t.id)} />
+                {an && teilAendern && <>
+                  <div className="ib-teil__ecke" data-ibecke="" aria-label="Grösse ändern"
+                    onPointerDown={(e) => greifen(e, t, "groesse")} />
+                  <div className="ib-teil__stiel" />
+                  <div className="ib-teil__drehen" data-ibdrehen="" aria-label="Drehen"
+                    onPointerDown={(e) => greifen(e, t, "drehen")} />
+                </>}
+              </>}
+            </div>
+          );
+        })}
       </div>}
     </div>
   );
