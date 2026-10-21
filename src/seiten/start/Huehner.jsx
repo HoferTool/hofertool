@@ -36,10 +36,11 @@ export default function Huehner() {
     // Im versteckten Tab laufen keine Hühner los
     const wach = async () => { while (!aus && document.hidden) await warte(1000); };
 
-    const ei = (x) => {
+    const ei = (x, boden) => {
       const e = document.createElement("div");
       e.className = "huhn-ei";
       e.style.left = x - 19 + "px";
+      e.style.bottom = boden + 4 + "px";
       hof.appendChild(e);
       const a = e.animate([
         { opacity: 0, transform: "scale(.2)" },
@@ -50,7 +51,8 @@ export default function Huehner() {
       a.onfinish = () => e.remove();
     };
 
-    const feder = (x, y) => {
+    // Fällt bis zu den Füssen des Huhns, nicht bis zum Rand der Karte
+    const feder = (x, y, boden) => {
       const f = document.createElement("div");
       f.className = "huhn-feder";
       const g = zufall(14, 26);
@@ -59,7 +61,7 @@ export default function Huehner() {
       f.style.left = x + "px";
       f.style.bottom = y + "px";
       hof.appendChild(f);
-      const dx = zufall(-60, 60), fall = y + zufall(0, 10), dr = zufall(-200, 200);
+      const dx = zufall(-60, 60), fall = y - boden + zufall(0, 10), dr = zufall(-200, 200);
       const a = f.animate([
         { opacity: 0, transform: "translate(0,0) rotate(0deg)" },
         { opacity: .6, transform: `translate(${dx * .2}px,${-zufall(10, 30)}px) rotate(${dr * .2}deg)`, offset: .15 },
@@ -74,12 +76,18 @@ export default function Huehner() {
       const breit = hof.clientWidth, hoch = hof.clientHeight;
       if (!breit || !hoch) return;
       const gross = Math.random();
-      const h = Math.min(hoch, 280) * (.6 + gross * .4);
+      // Verschieden gross und auf verschiedener Höhe (Wunsch Patrick:
+      // „von der Höhe spielen, aber nichts abschneiden“): die Füsse
+      // stehen irgendwo zwischen dem unteren Rand und so hoch, dass der
+      // Kopf samt Nicken (4 px) noch ganz in der Karte bleibt.
+      const h = Math.min(hoch, 280) * (.45 + gross * .45);
       const w = h * 124 / 114;
+      const boden = zufall(0, Math.max(0, hoch - h - 6));
       const huhn = document.createElement("div");
       huhn.className = "huhn";
       huhn.style.width = w + "px";
       huhn.style.height = h + "px";
+      huhn.style.bottom = boden + "px";
       huhn.style.opacity = (.35 + gross * .25).toFixed(2);
       huhn.style.zIndex = String(Math.round(gross * 10));
       const dreh = document.createElement("div");
@@ -96,6 +104,12 @@ export default function Huehner() {
       const schauen = (r) => { rechts = r; dreh.style.transform = r ? "scaleX(1)" : "scaleX(-1)"; };
       schauen(rechts);
       setzen();
+      // Federn fliegen aus dem Körper, ein paar auf einmal
+      const federn = (n) => {
+        const r = huhn.getBoundingClientRect(), hr = hof.getBoundingClientRect();
+        for (let i = 0; i < n; i++)
+          feder(r.left - hr.left + w * zufall(.2, .8), boden + h * zufall(.25, .65), boden);
+      };
 
       const gehen = async (ziel, tempo, rennt) => {
         if (ziel !== x) schauen(ziel > x);
@@ -103,15 +117,13 @@ export default function Huehner() {
         const dauer = Math.abs(ziel - x) / tempo * 1000;
         if (rennt) koerper.classList.add("huhn__koerper--rennt");
         let federUhr = null;
-        if (rennt) {
-          const los = () => {
-            if (aus) return;
-            const r = huhn.getBoundingClientRect(), hr = hof.getBoundingClientRect();
-            feder(r.left - hr.left + w * (rechts ? .25 : .75), h * zufall(.3, .6));
-            federUhr = setTimeout(los, zufall(250, 700));
-          };
-          federUhr = setTimeout(los, zufall(100, 400));
-        }
+        // Rennend dauernd Federn, gehend ab und zu eine
+        const los = () => {
+          if (aus) return;
+          federn(rennt ? ganz(1, 3) : 1);
+          federUhr = setTimeout(los, rennt ? zufall(120, 350) : zufall(1200, 3500));
+        };
+        federUhr = setTimeout(los, rennt ? zufall(80, 250) : zufall(600, 2500));
         const a = huhn.animate([{ transform: `translateX(${x}px)` }, { transform: `translateX(${ziel}px)` }],
           { duration: dauer, easing: rennt ? "ease-in-out" : "linear", fill: "forwards" });
         await warte(dauer);
@@ -124,6 +136,7 @@ export default function Huehner() {
       const picken = async () => {
         for (let i = ganz(1, 3); i > 0 && !aus; i--) {
           koerper.classList.add("huhn__koerper--pickt");
+          if (Math.random() < .4) federn(1);
           await warte(260);
           koerper.classList.remove("huhn__koerper--pickt");
           await warte(zufall(220, 500));
@@ -131,7 +144,8 @@ export default function Huehner() {
       };
       const legen = async () => {
         await warte(zufall(600, 1400));
-        ei(x + w * (rechts ? .12 : .88));
+        ei(x + w * (rechts ? .12 : .88), boden);
+        federn(ganz(2, 4));
         await warte(zufall(800, 1600));
       };
 
@@ -142,7 +156,7 @@ export default function Huehner() {
         if (wahl < .3) await gehen(zufall(0, breit - w * .6), zufall(35, 60), false);
         else if (wahl < .5) await gehen(zufall(0, breit - w * .6), zufall(140, 220), true);
         else if (wahl < .62) await warte(zufall(800, 3000));
-        else if (wahl < .74) { schauen(!rechts); await warte(zufall(500, 1200)); schauen(!rechts); await warte(zufall(300, 900)); }
+        else if (wahl < .74) { federn(ganz(1, 2)); schauen(!rechts); await warte(zufall(500, 1200)); schauen(!rechts); await warte(zufall(300, 900)); }
         else if (wahl < .88) await picken();
         else await legen();
       }
