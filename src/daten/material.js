@@ -300,11 +300,14 @@ export function kgJeStange(material) {
 const eineStelle = (n) => (alt.zahlText ? alt.zahlText(Math.round(n * 10) / 10) : String(Math.round(n * 10) / 10));
 // Restmaterial immer in kg (Wunsch Patrick 16. Oktober 2026); in
 // Stangen Erfasstes zusätzlich klein mit der Zahl der Stangen
+// Geschätzte Mengen („ca.“, Spalte material_posten.ca) stehen überall
+// mit „ca.“ davor (Wunsch Patrick 22. Oktober 2026)
 export function postenMengeText(p) {
   if (!p || p.menge === null || p.menge === undefined || p.menge === "") return "Menge?";
+  const ca = p.ca ? "ca. " : "";
   const kg = postenKg(p);
-  if (kg === null) return mengeText(p.menge, p.einheit);
-  return eineStelle(kg) + " kg" + (p.einheit === "stg" ? " (" + mengeText(p.menge, "stg") + ")" : "");
+  if (kg === null) return ca + mengeText(p.menge, p.einheit);
+  return ca + eineStelle(kg) + " kg" + (p.einheit === "stg" ? " (" + mengeText(p.menge, "stg") + ")" : "");
 }
 export const kgText = (kg) => kg === null || kg === undefined ? "" : "ca. " + (alt.zahlText ? alt.zahlText(Math.round(kg)) : Math.round(kg)) + " kg";
 

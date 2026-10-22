@@ -9042,3 +9042,12 @@ body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
 .spezial__reiter { margin: -4px 0 12px; }
 .spezial__reiter .reiter { font-size: .92em; }
 .spezial__wandert { color: #b26a00; font-weight: 600; }
+
+/* Material: Menge „ca.“ (geschätzt), seit 1.143.0 */
+.mat-menge__kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.mat-ca { padding: 0; font-size: .95rem; font-weight: 600; }
+.mat-ca input { width: 20px; height: 20px; }
+/* „ca.“ liegt links im Feld, in derselben Rasterzelle wie die Zahl */
+.mat-menge__feld .mat-eingabe, .mat-menge__ca { grid-row: 2; grid-column: 1; }
+.mat-menge__ca { align-self: center; justify-self: start; margin-left: 12px; font-style: normal; font-size: 1.1rem;
+  font-weight: 750; color: #d62828; pointer-events: none; }

@@ -121,7 +121,14 @@ let bezeichnungen = null;
 // Ohne sql/material-zuweisen.sql kennt die Datenbank fuer_hoco und
 // platz nicht: dann ohne sie speichern statt gar nicht
 async function ohneNeueSpalten(daten, senden) {
-  const r = await senden(daten);
+  let r = await senden(daten);
+  // Ohne sql/material-ca.sql kennt die Datenbank „ca“ noch nicht
+  if (r.error && /\bca\b/.test(r.error.message || "")) {
+    const { ca, ...ohne } = daten;
+    if (ca) alt.meldung("„ca.“ geht erst nach sql/material-ca.sql, die Menge ist ohne gespeichert.", "warn");
+    daten = ohne;
+    r = await senden(daten);
+  }
   if (r.error && /fuer_hoco|platz/.test(r.error.message || "")) {
     const { fuer_hoco, platz, ...rest } = daten;
     if (fuer_hoco || platz) alt.meldung("Zuweisen geht erst nach sql/material-zuweisen.sql.", "warn");
@@ -158,6 +165,9 @@ function PostenDialog({ o, orte, liste, fertig }) {
   const [stgText, setStgText] = useState(p.einheit === "stg" ? mengeAnfang : "");
   // Welches Feld zuletzt getippt wurde, das andere ist gerechnet
   const [zuletzt, setZuletzt] = useState(p.einheit === "stg" ? "stg" : "kg");
+  // Nur geschätzt? Dann steht überall „ca.“ vor der Menge (Wunsch
+  // Patrick 22. Oktober 2026: „ca. möglich, wenn man schätzen muss“)
+  const [ca, setCa] = useState(!!p.ca);
   const [ort, setOrt] = useState(p.ort || (o.rest ? orte[0] : ""));
   const [eigenerOrt, setEigenerOrt] = useState(p.ort && !orte.includes(p.ort) ? p.ort : "");
   const [art, setArt] = useState(p.art || o.art || "lager");
@@ -243,7 +253,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
     } else if (kgZahl !== null) zahl = kgZahl;
     else if (stgZahl !== null) { zahl = stgZahl; einheitFertig = "stg"; }
     setSpeichert(true);
-    const daten = { material: mat, menge: zahl, einheit: einheitFertig, ort: ortFertig || null, art,
+    const daten = { material: mat, menge: zahl, einheit: einheitFertig, ca: zahl !== null && ca, ort: ortFertig || null, art,
       lieferant: art === "bestellt" || p.be_nr ? lieferant.trim() || null : null,
       be_nr: beNr.trim() || null, termin: art === "bestellt" && termin ? termin : null,
       notiz: notiz.trim() || null };
@@ -349,14 +359,21 @@ function PostenDialog({ o, orte, liste, fertig }) {
       </div>
 
       <div className="mat-feld mat-feld--karte">
-        <span className="mat-feld__name">Menge, ungefähr</span>
+        <div className="mat-menge__kopf">
+          <span className="mat-feld__name">Menge</span>
+          <label className="feld-haken mat-ca" id="mat-ca-feld">
+            <input type="checkbox" id="mat-ca" checked={ca} onChange={(e) => setCa(e.target.checked)} />
+            <span>ca. (geschätzt)</span></label>
+        </div>
         <div className="mat-menge">
           <label className="mat-menge__feld"><span>Stangen</span>
             <input className="mat-eingabe" id="mat-stangen" inputMode="decimal" value={stgText}
-              placeholder="0" onChange={(e) => rechne(e.target.value, "stg", jeStange)} /></label>
+              placeholder="0" onChange={(e) => rechne(e.target.value, "stg", jeStange)} />
+            {ca && <i className="mat-menge__ca">ca.</i>}</label>
           <label className="mat-menge__feld"><span>kg</span>
             <input className="mat-eingabe" id="mat-menge" inputMode="decimal" value={kgText}
-              placeholder="0" onChange={(e) => rechne(e.target.value, "kg", jeStange)} /></label>
+              placeholder="0" onChange={(e) => rechne(e.target.value, "kg", jeStange)} />
+            {ca && <i className="mat-menge__ca">ca.</i>}</label>
         </div>
         <span className="klein" id="mat-umrechnung">{umrechnung}</span>
       </div>

@@ -103,6 +103,10 @@ with sync_playwright() as p:
     pruefe("Stangen gerechnet: " + pg.input_value("#mat-stangen"), pg.input_value("#mat-stangen") not in ("", "0"))
     pg.click("#mat-mehr summary"); pg.click(".mat-dialog button:has-text('Aussenlager Nord')")
     pg.fill("#mat-notiz", "Regal 3 unten"); pg.wait_for_timeout(200)
+    # Geschätzt: „ca.“ (1.143.0, Wunsch Patrick 22. Oktober 2026)
+    pruefe("Häkchen ca. aus", not pg.is_checked("#mat-ca"))
+    pg.check("#mat-ca"); pg.wait_for_timeout(150)
+    pruefe("ca. in beiden Mengenfeldern", pg.locator(".mat-menge__ca").count() == 2)
     pruefe("Keine Wahl „Für welchen Auftrag“", pg.locator(".mat-dialog #mat-fuer, .mat-dialog [data-fuer], #mat-platz").count() == 0)
     breite = pg.evaluate("document.querySelector('.mat-dialog').getBoundingClientRect().width")
     pruefe("Fenster kurz in einer Spalte (%d px)" % breite, 600 < breite < 760)
@@ -110,6 +114,10 @@ with sync_playwright() as p:
     pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(1200)
     neu = pg.evaluate("TEST.daten.material_posten.find(p => p.notiz === 'Regal 3 unten')")
     pruefe("Gespeichert ohne Auftrag", bool(neu) and neu["art"] == "lager" and not neu.get("job_id") and not neu.get("fuer_hoco") and neu["menge"] == 200)
+    pruefe("Gespeichert als ca.", bool(neu) and neu.get("ca") is True)
+    pg.wait_for_timeout(500)
+    mt = pg.locator("[data-ort='Aussenlager Nord']").first.inner_text()
+    pruefe("Liste zeigt „ca. 200 kg“", "ca. 200 kg" in mt)
 
     # Rotes M: wo einsetzen? Geplant mit rotem M und gleichem Material: mC und mF;
     # mB hat eine Menge (kein M), mA läuft
