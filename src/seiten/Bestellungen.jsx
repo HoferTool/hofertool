@@ -32,7 +32,8 @@ export default function Bestellungen({ auffrischen, behaelter }) {
 
   return (
     <>
-      <h1 className="seitentitel">Bestellungen</h1>
+      {/* Die Spezialwerkzeuge sind ein eigener Bereich (seit 1.142.0) */}
+      <h1 className="seitentitel">{best.ansicht === "spezial" ? "Spezialwerkzeuge" : "Bestellungen"}</h1>
       <Reiter reiter={REITER} aktiv={best.ansicht} waehlen={waehlen} merkmal="best" seite="bestellungen" />
       {!alt.darfSchreiben() &&
         <div className="nurlesen">Du kannst hier alles ansehen, aber nichts ändern.</div>}

@@ -17,7 +17,9 @@ import { artikelFotoLesen, artikelFuerFoto, artikelFinden, artikelLernen } from 
 
 // fertig: wird nach dem Speichern aufgerufen, damit die Liste neu lädt.
 // vorgabe: { artikel, maschine, notiz } schon eingetragen, etwa beim
-// Nachbestellen eines Spezialwerkzeugs (seit 1.131.0)
+// Nachbestellen eines Spezialwerkzeugs (seit 1.131.0).
+// vorgabe.spezial: die Position gehört zu den Spezialwerkzeugen, gesucht
+// und angelegt werden nur solche (seit 1.142.0); sonst nur normale Artikel
 export function positionOeffnen(fertig, vorgabe) {
   fensterOeffnen((zu) => <PositionFenster zu={zu} fertig={fertig} vorgabe={vorgabe || {}} />);
 }
@@ -64,7 +66,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
     const nr = ++suchNr.current;
     setSucht(true);
     try {
-      const liste = await alt.sucheArtikel(t);
+      const liste = await alt.sucheArtikel(t, { spezial: !!vorgabe.spezial });
       // Nur das Ergebnis der letzten Suche zählt
       if (nr !== suchNr.current) return;
       setTreffer(liste); setSuchFehler(null);
@@ -83,8 +85,9 @@ function PositionFenster({ zu, fertig, vorgabe }) {
     setTimeout(() => mengeFeld.current && mengeFeld.current.focus(), 0);
   };
 
-  const neuAnlegen = async (vorgabe) => {
-    const a = await alt.artikelSchnellAnlegen(typeof vorgabe === "string" ? vorgabe : suche.trim());
+  const spezial = !!vorgabe.spezial;
+  const neuAnlegen = async (nummer) => {
+    const a = await alt.artikelSchnellAnlegen(typeof nummer === "string" ? nummer : suche.trim(), null, !!spezial);
     if (a) waehlen(a);
   };
 
@@ -100,7 +103,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
           setFoto({ liest: true, text: lesen ? "Foto wird gelesen … " + Math.round(anteil * 100) + " %"
             : "Texterkennung wird geladen …" });
         }),
-        artikelFuerFoto(),
+        artikelFuerFoto().then((l) => l.filter((a) => !!a.spezial === spezial)),
       ]);
       const treffer = artikelFinden(lesung, artikel);
       setFoto({ lesung, treffer });
@@ -171,7 +174,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   const schreiben = alt.darfSchreiben();
 
   return (
-    <div className="dialog"><h2>Neue Bestellposition</h2>
+    <div className="dialog"><h2>{spezial ? "Spezialwerkzeug bestellen" : "Neue Bestellposition"}</h2>
       <div className="suchleiste">
         <input type="text" id="pd-such" placeholder="Suchen" autoComplete="off" data-fokus="" value={suche}
           onChange={(e) => {

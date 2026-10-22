@@ -7,6 +7,12 @@
 //  Auftrag und im Pad sieht und gleich nachbestellen kann. Bestellt
 //  wird wie jede andere Position (order_items), mit Lieferant.
 //  Datenbank: sql/spezialwerkzeuge.sql. Nicht für Externe.
+//
+//  Seit 1.142.0 (Wunsch Patrick 22. Oktober 2026: „dort alles
+//  separat“) sind Spezialwerkzeuge Artikel mit articles.spezial. Sie
+//  und ihre Bestellungen stehen nur unter Bestellungen →
+//  Spezialwerkzeuge, die Lieferanten bleiben gemeinsam
+//  (sql/spezialwerkzeuge-getrennt.sql).
 // =================================================================
 import { alt } from "../bruecke.jsx";
 
@@ -50,12 +56,21 @@ export async function spezialLaden(hoco) {
     if (a.error) throw a.error;
     artikel = a.data || [];
   }
-  const offen = await offeneBestellungen(ids);
+  // Ohne HOCO Nr.: auch Spezialwerkzeuge, die noch keiner zugeordnet sind
+  let frei = [];
+  if (!hoco) {
+    const f = await alt.zeitlimit(alt.db.from("artikel_uebersicht").select("*").eq("spezial", true), 10000, "Artikel");
+    if (!f.error) frei = (f.data || []).filter((a) => !ids.includes(a.id));
+  }
+  const offen = await offeneBestellungen(ids.concat(frei.map((a) => a.id)));
   return zeilen.map((z) => Object.assign({}, z, {
     artikel: artikel.find((a) => a.id === z.article_id) || null,
     offen: offen[z.article_id] || [],
-  })).filter((z) => z.artikel)
-    .sort((x, y) => String(x.hoco_nr).localeCompare(String(y.hoco_nr), "de", { numeric: true })
+  })).concat(frei.map((a) => ({ id: null, article_id: a.id, hoco_nr: "", notiz: null,
+    artikel: a, offen: offen[a.id] || [] })))
+    .filter((z) => z.artikel)
+    // Ohne HOCO Nr. ganz unten
+    .sort((x, y) => (!x.hoco_nr) - (!y.hoco_nr) || String(x.hoco_nr).localeCompare(String(y.hoco_nr), "de", { numeric: true })
       || String(x.artikel.article_number).localeCompare(String(y.artikel.article_number), "de", { numeric: true }));
 }
 
@@ -77,14 +92,26 @@ export async function spezialZuordnen(artikel, hocoNrs, notiz) {
   if (vorhanden.error) throw vorhanden.error;
   const schon = new Set((vorhanden.data || []).map((z) => z.hoco_nr));
   const neu = nrs.filter((n) => !schon.has(n));
-  if (!neu.length) return 0;
+  // Ein normaler Artikel wird damit zum Spezialwerkzeug und verschwindet
+  // samt seinen Bestellungen aus den normalen Bestellungen
+  const zurueck = [];
+  if (!artikel.spezial) {
+    const u = await alt.db.from("articles").update({ spezial: true }).eq("id", artikel.id);
+    if (u.error && !/spezial/.test(alt.fehlertext(u.error))) throw u.error;
+    if (!u.error) zurueck.push(alt.rueckSetz("articles", { spezial: false }, { id: artikel.id }));
+    artikel.spezial = true;
+  }
+  if (!neu.length) {
+    if (zurueck.length) alt.merkeSchritt("Artikel " + (artikel.article_number || "") + " zu den Spezialwerkzeugen", zurueck);
+    return 0;
+  }
   const r = await alt.db.from("spezialwerkzeuge")
     .insert(neu.map((n) => ({ article_id: artikel.id, hoco_nr: n, notiz: (notiz || "").trim() || null })))
     .select("id");
   if (r.error) throw r.error;
   const ids = (r.data || []).map((z) => z.id);
-  if (ids.length) alt.merkeSchritt("Spezialwerkzeug " + (artikel.article_number || "") + " zuordnen",
-    ids.map((id) => alt.rueckWeg("spezialwerkzeuge", { id })));
+  if (ids.length || zurueck.length) alt.merkeSchritt("Spezialwerkzeug " + (artikel.article_number || "") + " zuordnen",
+    ids.map((id) => alt.rueckWeg("spezialwerkzeuge", { id })).concat(zurueck));
   return neu.length;
 }
 

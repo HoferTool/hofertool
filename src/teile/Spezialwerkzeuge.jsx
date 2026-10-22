@@ -36,7 +36,8 @@ export function nachbestellen(z, maschine, fertig) {
   positionOeffnen(fertig, {
     artikel: z.artikel,
     maschine: maschine || null,
-    notiz: "Spezialwerkzeug für " + z.hoco_nr,
+    notiz: z.hoco_nr ? "Spezialwerkzeug für " + z.hoco_nr : "",
+    spezial: true,
   });
 }
 
@@ -90,7 +91,7 @@ export function SpezialZeile({ z, schreiben, bestellen, entfernen, mitHoco }) {
   const a = z.artikel;
   const unterwegs = offenText(z.offen);
   return (
-    <li className="spezial__zeile" data-spezial={z.id}>
+    <li className="spezial__zeile" data-spezial={z.id || z.article_id}>
       <div className="spezial__text">
         {mitHoco && <span className="spezial__hoco">{z.hoco_nr}</span>}
         <b>{a.article_number}</b> <span>{a.name}</span>
@@ -102,7 +103,7 @@ export function SpezialZeile({ z, schreiben, bestellen, entfernen, mitHoco }) {
       <div className="unterlagen__knoepfe">
         {schreiben && <button className="knopf knopf--haupt" data-spezial-bestellen={z.id}
           onClick={bestellen}>Nachbestellen</button>}
-        {schreiben && <button className="knopf knopf--klein knopf--gefahr-leise" data-spezial-weg={z.id}
+        {schreiben && z.id && <button className="knopf knopf--klein knopf--gefahr-leise" data-spezial-weg={z.id}
           onClick={entfernen}>Entfernen</button>}
       </div>
     </li>
@@ -137,7 +138,7 @@ function ZuordnenFenster({ hoco, zu, fertig }) {
   };
 
   const neuAnlegen = async () => {
-    const a = await alt.artikelSchnellAnlegen(suche.trim());
+    const a = await alt.artikelSchnellAnlegen(suche.trim(), null, true);
     if (a) { setGewaehlt(a); setTreffer(null); setSuche(""); }
   };
 
@@ -168,6 +169,8 @@ function ZuordnenFenster({ hoco, zu, fertig }) {
           ? <div className="pd-gewaehlt" id="sz-gewaehlt">
               <strong>{gewaehlt.article_number}</strong> {gewaehlt.name}
               <div className="klein">Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}</div>
+              {gewaehlt.spezial === false && <div className="klein spezial__wandert">Dieser Artikel und seine Bestellungen
+                stehen danach nur noch bei den Spezialwerkzeugen.</div>}
               <button type="button" className="knopf knopf--klein knopf--still" onClick={() => setGewaehlt(null)}>
                 Anderen wählen</button>
             </div>
@@ -186,7 +189,10 @@ function ZuordnenFenster({ hoco, zu, fertig }) {
                   <button key={a.id} className="pd-zeile" data-w={a.id}
                     onClick={() => { setGewaehlt(a); setTreffer(null); setSuche(""); }}>
                     <strong>{a.article_number}</strong> {a.name}
-                    <span className="klein"> {a.supplier_name || "ohne Lieferant"}</span></button>))}
+                    <span className="klein"> {a.supplier_name || "ohne Lieferant"}</span>
+                    {/* Ein normaler Artikel wandert beim Zuordnen zu den Spezialwerkzeugen */}
+                    {a.spezial === false && <span className="klein spezial__wandert"> · kommt aus den Bestellungen hierher</span>}
+                  </button>))}
                 {treffer && !treffer.length && <p className="hinweis">Kein Artikel gefunden.</p>}
                 <button className="pd-zeile pd-zeile--neu" data-neuartikel="" onClick={neuAnlegen}>
                   + {suche.trim() ? "Artikel „" + suche.trim() + "“ neu anlegen" : "Neuen Artikel anlegen"}</button>

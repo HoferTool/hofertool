@@ -134,7 +134,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.141.0";
+const APP_VERSION = "1.142.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8664,19 +8664,31 @@ async function ladeLieferanten() {
   return (data || []).filter((l) => l.is_active !== false);
 }
 
-// filter: { bez, lief } — Bezeichnung und Lieferant fragt schon die
-// Datenbank ab, sonst fehlen Treffer jenseits der ersten 50
+// filter: { bez, lief, spezial } — Bezeichnung und Lieferant fragt schon die
+// Datenbank ab, sonst fehlen Treffer jenseits der ersten 50.
+// spezial true: nur Spezialwerkzeuge, false: nur normale Artikel,
+// weggelassen: alle (seit 1.142.0, Wunsch Patrick 22. Oktober 2026:
+// Spezialwerkzeuge stehen nur unter Spezialwerkzeuge)
 async function sucheArtikel(text, filter) {
   const t = (text || "").trim();
-  let abfrage = db.from("artikel_uebersicht").select("*");
-  if (filter && filter.bez) abfrage = abfrage.eq("name", filter.bez);
-  if (filter && filter.lief) abfrage = abfrage.eq("supplier_name", filter.lief);
-  if (t) {
-    abfrage = abfrage.or("article_number.ilike.%" + t + "%,name.ilike.%" + t
-      + "%,supplier_name.ilike.%" + t + "%");
+  const abfragen = (mitSpezial) => {
+    let abfrage = db.from("artikel_uebersicht").select("*");
+    if (filter && filter.bez) abfrage = abfrage.eq("name", filter.bez);
+    if (filter && filter.lief) abfrage = abfrage.eq("supplier_name", filter.lief);
+    if (mitSpezial && filter && typeof filter.spezial === "boolean") abfrage = abfrage.eq("spezial", filter.spezial);
+    if (t) {
+      abfrage = abfrage.or("article_number.ilike.%" + t + "%,name.ilike.%" + t
+        + "%,supplier_name.ilike.%" + t + "%");
+    }
+    return zeitlimit(abfrage.order("article_number").limit(50), 12000, "Artikelsuche");
+  };
+  let { data, error } = await abfragen(true);
+  // Kennt die Datenbank die Spalte noch nicht (sql/spezialwerkzeuge-getrennt.sql),
+  // ist jeder Artikel ein normaler
+  if (error && /spezial/.test(String(error.message || ""))) {
+    if (filter && filter.spezial === true) return [];
+    ({ data, error } = await abfragen(false));
   }
-  const { data, error } = await zeitlimit(abfrage.order("article_number").limit(50),
-    12000, "Artikelsuche");
   if (error) throw error;
   return data || [];
 }
@@ -8711,6 +8723,13 @@ const best = {
   artikelBez: "",
   artikelLief: "",
   spezialSuche: "",
+  // Spezialwerkzeuge haben ihre eigenen Reiter und Suchen (seit 1.142.0)
+  spezialAnsicht: "hoco",
+  spezialOffenSuche: "",
+  spezialHistorieSuche: "",
+  spezialArtikelSuche: "",
+  spezialArtikelBez: "",
+  spezialArtikelLief: "",
   lieferantId: null,
   offenSuche: "",
   historieSuche: "",
@@ -8848,11 +8867,11 @@ async function ladeBestellungen(offen) {
     () => ladeBestellungenFrisch(offen));
 }
 
-async function ladeBestellungenFrisch(offen) {
+async function ladeBestellungenFrisch(offen, mitSpezial = true) {
   let a = db.from("order_items")
     // suppliers(*) statt fester Spalten, damit logo_url mitkommt, sobald
     // sql/lieferant-logo.sql gelaufen ist, und vorher nichts fehlschlägt
-    .select("*, articles(article_number, name, unit, supplier_id, description, suppliers(*)), suppliers(*), profiles!order_items_created_by_fkey(full_name, email)")
+    .select("*, articles(" + (mitSpezial ? "spezial, " : "") + "article_number, name, unit, supplier_id, description, suppliers(*)), suppliers(*), profiles!order_items_created_by_fkey(full_name, email)")
     .order("needed_by", { ascending: true, nullsFirst: false })
     .order("created_at");
   if (offen) a = a.in("status", OFFENE_STATUS);
@@ -8863,6 +8882,8 @@ async function ladeBestellungenFrisch(offen) {
   const leuteAnfrage = db.from("profiles").select("id, full_name, email").then((r) => r, () => ({}));
   const [{ data, error }, leute] = await Promise.all([
     zeitlimit(a, 12000, "Bestellungen"), leuteAnfrage]);
+  // Ohne sql/spezialwerkzeuge-getrennt.sql noch einmal ohne die Spalte
+  if (error && mitSpezial && /spezial/.test(String(error.message || ""))) return ladeBestellungenFrisch(offen, false);
   if (error) throw error;
   const liste = data || [];
   liste.forEach((z) => {
@@ -8906,13 +8927,14 @@ async function lieferungEinlagern(z, b) {
 // lieferantVorgabe: ist der Lieferant schon gewählt — etwa im
 // Einrichtblatt, wo man zuerst den Hersteller aussucht —, wird er
 // nicht noch einmal abgefragt.
-async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe) {
+// spezial: der neue Artikel ist ein Spezialwerkzeug (seit 1.142.0)
+async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe, spezial) {
   let lieferanten = [], bezeichnungen = [];
   try { lieferanten = await ladeLieferanten(); } catch (f) { /* geht auch ohne */ }
   try { bezeichnungen = await ladeBezeichnungen(); } catch (f) { /* geht auch ohne */ }
 
   const w = await dialogFelder({
-    titel: "Neuen Artikel anlegen",
+    titel: spezial ? "Neues Spezialwerkzeug anlegen" : "Neuen Artikel anlegen",
     felder: [
       { name: "nummer", label: "Artikelnummer", pflicht: true, wert: vorgabe || "" },
       { name: "beschreibung", label: "Beschreibung", typ: "textarea",
@@ -8973,6 +8995,7 @@ async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe) {
     article_number: w.nummer, name: w.name,
     description: (w.beschreibung || "").trim() || null,
     unit: "Stück", supplier_id: lieferantId,
+    ...(spezial ? { spezial: true } : {}),
   }).select().single();
 
   if (error) {
@@ -9000,8 +9023,13 @@ async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe) {
         }
 
         const lief2 = lieferanten.find((l) => l.id === alt.data.supplier_id);
+        // Gehört er zur anderen Seite (Spezialwerkzeug oder normal), wandert er mit
+        if (alt.data.spezial !== undefined && !!alt.data.spezial !== !!spezial) {
+          await db.from("articles").update({ spezial: !!spezial }).eq("id", alt.data.id);
+        }
+
         return { id: alt.data.id, article_number: alt.data.article_number,
-                 name: alt.data.name, supplier_id: alt.data.supplier_id,
+                 name: alt.data.name, supplier_id: alt.data.supplier_id, spezial: !!spezial,
                  supplier_name: lief2 ? lief2.name : null, unit: "Stück" };
       }
     }
@@ -9013,7 +9041,7 @@ async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe) {
   const lief = lieferanten.find((l) => l.id === lieferantId);
   return { id: data.id, article_number: data.article_number, name: data.name,
            supplier_id: data.supplier_id, supplier_name: lief ? lief.name : null,
-           unit: data.unit, gesamtbestand: 0 };
+           unit: data.unit, gesamtbestand: 0, spezial: !!data.spezial };
 }
 
 // Einfache Auswahl aus einer Liste. Gibt den gewählten Wert zurück.

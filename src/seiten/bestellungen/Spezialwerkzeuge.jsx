@@ -4,13 +4,50 @@
 //  Alle Spezialwerkzeuge nach HOCO Nr. Ein Spezialwerkzeug ist ein
 //  normaler Artikel mit Lieferant; nachbestellt wird wie jede andere
 //  Position. Zuordnen und Fenster in src/teile/Spezialwerkzeuge.jsx.
+//
+//  Seit 1.142.0 ein eigener Bereich (Wunsch Patrick 22. Oktober 2026:
+//  „dort alles separat“): eigene Reiter Nach HOCO Nr., Offen, Bestellt,
+//  Geliefert und Artikel. Spezialwerkzeuge und ihre Bestellungen stehen
+//  nur hier, die übrigen Reiter der Bestellungen zeigen sie nicht. Die
+//  Lieferanten sind gemeinsam.
 // =================================================================
+import { useReducer } from "react";
 import { alt, useDaten, useVerzoegert, useSpeicherWert } from "../../bruecke.jsx";
+import { Reiter, Uebergang } from "../../teile/Reiter.jsx";
+import Offen from "./Offen.jsx";
+import Historie from "./Historie.jsx";
+import Artikel from "./Artikel.jsx";
 import { spezialLaden, spezialEntfernen, fehltTabelle, FEHLT_TEXT } from "../../daten/spezialwerkzeuge.js";
 import { zuordnenOeffnen, nachbestellen, SpezialZeile } from "../../teile/Spezialwerkzeuge.jsx";
 import { Leiste, NeuKnopf, Karte, Leer, Laedt } from "./teile.jsx";
 
-export default function Spezialwerkzeuge({ auffrischen, behaelter }) {
+const UNTER = [["hoco", "Nach HOCO Nr."], ["offen", "Offen"], ["bestellt", "Bestellt"],
+  ["historie", "Geliefert"], ["artikel", "Artikel"]];
+
+export default function Spezialwerkzeuge(props) {
+  const best = alt.best;
+  const [, zeichnen] = useReducer((x) => x + 1, 0);
+  const ansicht = UNTER.some(([w]) => w === best.spezialAnsicht) ? best.spezialAnsicht : "hoco";
+  const waehlen = (w) => { best.spezialAnsicht = w; zeichnen(); };
+  return (
+    <>
+      <div className="spezial__reiter">
+        <Reiter reiter={UNTER} aktiv={ansicht} waehlen={waehlen} merkmal="spezial-reiter" />
+      </div>
+      <Uebergang key={ansicht}>
+        {ansicht === "offen" || ansicht === "bestellt"
+          ? <Offen bereich={ansicht} spezial {...props} />
+          : ansicht === "historie"
+            ? <Historie spezial {...props} />
+            : ansicht === "artikel"
+              ? <Artikel spezial {...props} />
+              : <NachHoco {...props} />}
+      </Uebergang>
+    </>
+  );
+}
+
+function NachHoco({ auffrischen, behaelter }) {
   const best = alt.best;
   const [suche, setSuche] = useSpeicherWert(best, "spezialSuche", auffrischen);
   const ruhig = useVerzoegert(suche, 200);
@@ -52,8 +89,8 @@ export default function Spezialwerkzeuge({ auffrischen, behaelter }) {
             : !gruppen.length
               ? <Leer text={t ? "Nichts gefunden." : "Noch keine Spezialwerkzeuge zugeordnet. Mit „Spezialwerkzeug zuordnen“ einen Artikel einer HOCO Nr. zuordnen."} />
               : gruppen.map((g) => (
-                  <Karte key={g.hoco} titel={g.hoco} zahl={g.zeilen.length} className="spezial-karte"
-                    aktionen={schreiben && <button className="knopf knopf--klein" data-sw-plus={g.hoco}
+                  <Karte key={g.hoco || "ohne"} titel={g.hoco || "Ohne HOCO Nr."} zahl={g.zeilen.length} className="spezial-karte"
+                    aktionen={schreiben && g.hoco && <button className="knopf knopf--klein" data-sw-plus={g.hoco}
                       onClick={() => zuordnenOeffnen(g.hoco, neu)}>+ Werkzeug</button>}>
                     <ul className="spezial__liste">
                       {g.zeilen.map((z) => <SpezialZeile key={z.id} z={z} schreiben={schreiben}

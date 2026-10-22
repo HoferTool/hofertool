@@ -9037,3 +9037,8 @@ body.dunkel .pd-gewaehlt {
   box-shadow: inset 0 0 0 1px var(--marke); }
 body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
   background: color-mix(in srgb, var(--marke) 28%, var(--flaeche)); }
+
+/* Spezialwerkzeuge als eigener Bereich mit eigenen Reitern (seit 1.142.0) */
+.spezial__reiter { margin: -4px 0 12px; }
+.spezial__reiter .reiter { font-size: .92em; }
+.spezial__wandert { color: #b26a00; font-weight: 600; }

@@ -53,6 +53,33 @@ with sync_playwright() as p:
     pg.wait_for_timeout(500)
     pruefe("Schon in Bestellung" in pg.inner_text("#sw-liste"), "Offene Bestellung wird angezeigt")
 
+    # Getrennt (1.142.0): der Artikel ist jetzt ein Spezialwerkzeug, er und
+    # seine Bestellungen stehen nur noch unter Spezialwerkzeuge
+    pruefe(pg.evaluate("TEST.daten.articles.find(a => a.id === 'a1').spezial") is True, "Artikel als Spezialwerkzeug markiert")
+    pg.click("[data-spezial-reiter='offen']"); pg.wait_for_timeout(800)
+    t = pg.inner_text("#best-inhalt")
+    pruefe("MTEC-452410" in t and "Hoffmann" in t or "MTEC-452410" in t, "Spezial · Offen zeigt die Positionen: " + t[:200].replace("\n", " | "))
+    pg.screenshot(path=os.path.join(BILD, "spezial-offen.png"))
+    pg.click("[data-spezial-reiter='artikel']"); pg.wait_for_timeout(800)
+    pruefe("MTEC-452410" in pg.inner_text("#ar-liste"), "Spezial · Artikel zeigt das Werkzeug")
+    pg.click("[data-unter='bestellungen/offen']"); pg.wait_for_timeout(800)
+    pruefe("MTEC-452410" not in pg.inner_text("#best-inhalt"), "Normale Bestellungen zeigen es nicht")
+    pg.click("[data-unter='bestellungen/artikel']"); pg.wait_for_timeout(800)
+    pruefe("MTEC-452410" not in pg.inner_text("#best-inhalt"), "Normale Artikel zeigen es nicht")
+    # Neue Position in den normalen Bestellungen findet das Spezialwerkzeug nicht
+    pg.click("[data-unter='bestellungen/offen']"); pg.wait_for_timeout(500)
+    pg.click("#b-neu"); pg.wait_for_selector("#pd-such")
+    pg.type("#pd-such", "MTEC"); pg.wait_for_timeout(900)
+    pruefe(pg.locator("#pd-treffer [data-w]").count() == 0, "Neue Position findet kein Spezialwerkzeug")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    # Neues Spezialwerkzeug anlegen: Lieferanten sind dieselben
+    pg.click("[data-unter='bestellungen/spezial']"); pg.wait_for_timeout(500)
+    pg.click("[data-spezial-reiter='artikel']"); pg.wait_for_timeout(500)
+    pg.click("#ar-neu"); pg.wait_for_timeout(500)
+    pg.screenshot(path=os.path.join(BILD, "spezial-neu.png"))
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click("[data-spezial-reiter='hoco']"); pg.wait_for_timeout(500)
+
     # Auftragsfenster auf der Planwand
     pg.evaluate("location.hash='#planwand'"); pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(800)
     jid = pg.evaluate(f"TEST.daten.jobs.find(j => j.job_number === '{hoco}' && !j.ended_at).id")
