@@ -22,6 +22,18 @@ const anzahlText = (n) => n + (n === 1 ? " Werkzeug" : " Werkzeuge");
 const gleicherPath = (z, path) => !z.bezeichnung || !path || z.bezeichnung === path;
 const wzText = (z) => z.tool_nr + (z.bezeichnung ? " · " + z.bezeichnung : "");
 
+// Werkzeuge immer nach Revolver bzw. Path, darin nach Nummer klein zu
+// gross, als Zahl gelesen: T2 vor T10 (Wunsch Patrick 22. Oktober 2026).
+// Bei SW-Typen kommt Path 2 zuletzt (1, 3, 2), wie an der Maschine.
+const nachZahl = (a, b) => String(a || "").localeCompare(String(b || ""), "de", { numeric: true });
+const istSw = (typ) => /^\s*sw/i.test((typ && typ.name) || "");
+const pathRang = (nummer, sw) => (sw && nummer === 2 ? 99 : nummer);
+// In der Historie steht nur der Name des Path, die Nummer steckt darin
+const nameRang = (name, sw) => {
+  const m = String(name || "").match(/\d+/);
+  return m ? pathRang(Number(m[0]), sw) : 0;
+};
+
 export async function werkzeugWechselDialog(maschine, auftrag) {
   // Alle Werkzeugplätze des Typs, nach Path sortiert. Nur bei SW-Typen
   // kommt Path 2 zuletzt (1, 3, 2), so wie die Plätze an der Maschine
@@ -31,11 +43,12 @@ export async function werkzeugWechselDialog(maschine, auftrag) {
   try { [paths, typen] = await Promise.all([alt.ladeTypAufbau(maschine.type_id), alt.ladeTypen()]); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
   const typ = typen.find((t) => t.id === maschine.type_id);
-  const path2Zuletzt = /^\s*sw/i.test((typ && typ.name) || "");
-  const rang = (p) => (path2Zuletzt && p.nummer === 2 ? 99 : p.nummer);
+  const sw = istSw(typ);
+  const rang = (p) => pathRang(p.nummer, sw);
   const reihen = paths
     .sort((x, y) => rang(x) - rang(y))
-    .map((p) => ({ id: p.id, name: p.name, plaetze: (p.type_slots || []).filter((s) => s.tool_nr) }))
+    .map((p) => ({ id: p.id, name: p.name, plaetze: (p.type_slots || []).filter((s) => s.tool_nr)
+      .sort((a, b) => nachZahl(a.tool_nr, b.tool_nr)) }))
     .filter((p) => p.plaetze.length);
   if (!reihen.length) {
     alt.meldung("Für diesen Maschinentyp sind noch keine Werkzeugplätze angelegt.", "warn");
@@ -154,12 +167,15 @@ async function historieLaden(maschine) {
       liste.forEach((z) => { if (z.gehalten_stk === undefined) z.gehalten_stk = nachId[z.id]; });
     } catch (f) { /* dann bleibt die Zahl leer */ }
   }
-  return rundenBilden(liste);
+  let sw = false;
+  try { sw = istSw((await alt.ladeTypen()).find((t) => t.id === maschine.type_id)); }
+  catch (f) { /* dann einfach 1, 2, 3 */ }
+  return rundenBilden(liste, sw);
 }
 
 // Nach Runden gruppieren: Alle Zeilen einer Runde teilen sich
 // Zeitpunkt und Stückzahl
-function rundenBilden(liste) {
+function rundenBilden(liste, sw) {
   const runden = [];
   liste.forEach((z) => {
     const schluessel = z.gewechselt_am + "|" + (z.stueckzahl === null ? "" : z.stueckzahl);
@@ -171,6 +187,8 @@ function rundenBilden(liste) {
     }
     r.zeilen.push(z);
   });
+  runden.forEach((r) => r.zeilen.sort((a, b) => (nameRang(a.bezeichnung, sw) - nameRang(b.bezeichnung, sw))
+    || nachZahl(a.bezeichnung, b.bezeichnung) || nachZahl(a.tool_nr, b.tool_nr)));
   return runden;
 }
 
