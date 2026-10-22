@@ -76,13 +76,16 @@ with sync_playwright() as p:
     tippe(pg, "#mr-menge", "262")
     pruefe("262 Stück = 2 Stangen (immer aufgerundet): " + wert(pg), "(2 Stangen)" in wert(pg))
     pruefe("Keine Erklärzeile 1 m = …", "1 m =" not in pg.inner_text("#mr-ergebnis"))
-    pruefe("Ohne Ausschuss keine Ausschusszeile", pg.locator("#mr-ausschuss-info").count() == 0)
-    # Mit 10 %: zuerst 261 ganze Teile je Stange, dann 500 + 10 % = 550 Stück → 3 Stangen (ohne: 2)
+    # Mit 10 %: 261 ganze Teile je Stange, 500 Stück = 2 Stangen, ganz am Schluss + 10 % = 2,2 Stangen
     tippe(pg, "#mr-ausschuss", "10"); tippe(pg, "#mr-menge", "500"); pg.click("[data-form='rd']"); pg.wait_for_timeout(150)
-    pruefe("500 Stück + 10 %% = 3 Stangen, 22,3 kg: %s / %s" % (wert(pg), pg.inner_text("#mr-ausschuss-info")),
-           wert(pg).startswith("22,3 kg") and "(3 Stangen)" in wert(pg) and pg.inner_text("#mr-ausschuss-info") == "550 Stück mit 10 % Ausschuss")
-    tippe(pg, "#mr-ausschuss", "4,4")
-    pruefe("4,4 %: 522 Stück, 2 Stangen: " + wert(pg), "(2 Stangen)" in wert(pg) and pg.inner_text("#mr-ausschuss-info") == "522 Stück mit 4,4 % Ausschuss")
+    # 2 · 7,445 · 1,1 = 16,38
+    pruefe("500 Stück + 10 %% = 16,4 kg (2,2 Stangen): %s" % wert(pg), wert(pg).startswith("16,4 kg") and "(2,2 Stangen)" in wert(pg))
+    pruefe("Keine Ausschusszeile", "Ausschuss" not in pg.inner_text("#mr-ergebnis"))
+    # Planieren als Feld (1.146.1): 0,5 vorgegeben; 10 + 1 mm → 2750 / 11 = 250 je Stange
+    pruefe("Planieren 0,5 vorgegeben", pg.input_value("#mr-planieren") == "0,5")
+    tippe(pg, "#mr-planieren", "1")
+    pruefe("Planieren 1 mm: 250 Stück pro Stange", pg.inner_text("#mr-ergebnis .mr-zusatz") == "250 Stück pro Stange")
+    tippe(pg, "#mr-planieren", "0,5")
     pg.screenshot(path="/tmp/rechner_ausschuss.png")
     tippe(pg, "#mr-ausschuss", "0"); pg.click("[data-form='6kt']"); tippe(pg, "#mr-menge", "262")
     pg.screenshot(path="/tmp/rechner_kg.png")
@@ -99,12 +102,12 @@ with sync_playwright() as p:
     ab = float(pg.input_value("#mr-abstecher").replace(",", ".") or 0)
     st = float(pg.input_value("#mr-stange")); stu = float(pg.input_value("#mr-stumpen"))
     import math
-    je = math.floor((st - stu) / (10 + ab + 0.5)); stangen = math.ceil(1100 / je)
+    je = math.floor((st - stu) / (10 + ab + 0.5)); stangen = math.ceil(1000 / je) * 1.1
     soll = stangen * st / 1000 * (math.sqrt(3) / 2 * 144 * 7.9 / 1000)
     soll_t = ("%.1f" % soll).replace(".", ",").replace(",0", "")
     zz = pg.inner_text("#mr-ergebnis .mr-zusatz")
-    pruefe("1000 Stück → %s kg (%d Stangen, %d Stück pro Stange): %s / %s" % (soll_t, stangen, je, wert(pg), zz),
-           wert(pg).replace("'", "").startswith(soll_t) and ("(%d Stangen)" % stangen) in wert(pg)
+    pruefe("1000 Stück → %s kg (%s Stangen, %d Stück pro Stange): %s / %s" % (soll_t, stangen, je, wert(pg), zz),
+           wert(pg).replace("'", "").startswith(soll_t) and ("(%s Stangen)" % ("%g" % round(stangen, 2)).replace(".", ",")) in wert(pg)
            and zz == "%d Stück pro Stange" % je and "Teil" not in pg.inner_text("#mr-ergebnis"))
     pg.click("[data-form='rd']"); pg.wait_for_timeout(150)
     pruefe("Trotz HOCO Nr. auf Rund umschaltbar, Ergebnis ändert sich: " + wert(pg),
@@ -176,7 +179,7 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pg.click("#pw-matrechner"); pg.wait_for_selector(".dialog--matrechner"); pg.wait_for_timeout(300)
     pg.select_option("#mr-werkstoff", "kat:v2a"); tippe(pg, "#mr-d", "20"); tippe(pg, "#mr-menge", "600"); tippe(pg, "#mr-laenge", "10")
-    pg.wait_for_timeout(300)
+    tippe(pg, "#mr-ausschuss", "0"); pg.wait_for_timeout(300)
     # 314,16 · 8 / 1000 · 3 · 3 = 22,62
     pruefe("Rechner nimmt den Faktor 8: " + wert(pg), wert(pg).startswith("22,6 kg"))
     pruefe("Auswahl zeigt Rostfrei V2A · 8", "Rostfrei V2A · 8 g/cm³" in pg.inner_text("#mr-werkstoff"))

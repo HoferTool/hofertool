@@ -9051,3 +9051,7 @@ body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
 .mat-menge__feld .mat-eingabe, .mat-menge__ca { grid-row: 2; grid-column: 1; }
 .mat-menge__ca { align-self: center; justify-self: start; margin-left: 12px; font-style: normal; font-size: 1.1rem;
   font-weight: 750; color: #d62828; pointer-events: none; }
+
+/* Materialrechner: vier Felder Abstecher, Planieren, Stange, Reststück (seit 1.146.1) */
+.mr-reihe--vier { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 520px) { .mr-reihe--vier { grid-template-columns: 1fr 1fr; } }

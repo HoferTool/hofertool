@@ -19,11 +19,12 @@
 //  2026: „nur so, dass man Stückzahl eingeben kann, um zu wissen, wie
 //  viel man bestellen muss“).
 //  Seit 1.137.0 Ausschuss in Prozent (Standard 10 %, je HOCO Nr. gemerkt
-//  wie die Form, hoco_parts.rechner_ausschuss_pct). Gerechnet wird in
-//  dieser Reihenfolge (Wunsch Patrick 22. Oktober 2026): zuerst, wie
-//  viele ganze Teile wirklich aus einer Stange gehen (was nicht aufgeht,
-//  bleibt als längeres Reststück liegen), dann Stück plus Ausschuss,
-//  daraus ganze Stangen und kg.
+//  wie die Form, hoco_parts.rechner_ausschuss_pct). Zuerst, wie viele
+//  ganze Teile wirklich aus einer Stange gehen (was nicht aufgeht, bleibt
+//  als längeres Reststück liegen), daraus ganze Stangen und kg, und ganz
+//  am Schluss der Ausschuss auf Stangen und kg (seit 1.137.1, Wunsch
+//  Patrick 22. Oktober 2026: „einfach ganz am Schluss auf die Stangen und
+//  kg 10 % rechnen“), ohne Zusatzzeile.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -124,6 +125,8 @@ export default function MaterialRechner() {
   useEffect(() => { dichtenLaden(true).then(() => setWahlListe(kategorienListe())); }, []);
   const [laenge, setLaenge] = useState("");
   const [abstecher, setAbstecher] = useState("");
+  // 0,5 mm fürs Planieren je Stück als Feld (Wunsch Patrick 22. Oktober 2026)
+  const [planieren, setPlanieren] = useState(zahlFeld(PLANIEREN_STANDARD_MM));
   const [stange, setStange] = useState(String(STANGE_STANDARD_MM));
   const [stumpen, setStumpen] = useState(String(STUMPEN_STANDARD_MM));
 
@@ -243,7 +246,7 @@ export default function MaterialRechner() {
 
   // Stück je Stange wie die Mindestmenge: Länge + Abstecher + 0,5 mm
   const l = zahlLesen(laenge);
-  const jeTeil = l > 0 ? l + (zahlLesen(abstecher) || 0) + PLANIEREN_STANDARD_MM : null;
+  const jeTeil = l > 0 ? l + (zahlLesen(abstecher) || 0) + (zahlLesen(planieren) ?? PLANIEREN_STANDARD_MM) : null;
   const stumpenMm = zahlLesen(stumpen) ?? STUMPEN_STANDARD_MM;
   const jeStange = jeTeil ? Math.floor((stangeMm - stumpenMm) / jeTeil) : null;
 
@@ -252,14 +255,12 @@ export default function MaterialRechner() {
     if (jeTeil && jeStange < 1) ergebnis = { fehler: "Das Stück ist länger als eine Stange." };
     else if (!jeTeil) ergebnis = { hinweis: "Länge Fertigteil eintragen." };
     else {
-      // Erst die ganzen Teile je Stange (oben), dann Stück plus Ausschuss,
-      // daraus ganze Stangen bestellen (Wunsch Patrick 22. Oktober 2026)
+      // Erst die ganzen Teile je Stange (oben), daraus ganze Stangen, dann
+      // ganz am Schluss der Ausschuss auf Stangen und kg
       const prozent = Math.max(0, zahlLesen(ausschuss) ?? AUSSCHUSS_STANDARD);
-      const stueck = Math.ceil(n * (1 + prozent / 100) - 1e-9);
-      const stangen = Math.ceil(stueck / jeStange);
+      const stangen = Math.ceil(n / jeStange) * (1 + prozent / 100);
       ergebnis = { gross: zeigen(stangen * kgStange, 1), einheit: "kg", klammer: stangenText(stangen), ca,
-        zusatz: zeigen(jeStange) + " Stück pro Stange",
-        ausschuss: prozent > 0 ? zeigen(stueck) + " Stück mit " + zeigen(prozent, 2) + " % Ausschuss" : "" };
+        zusatz: zeigen(jeStange) + " Stück pro Stange" };
     }
   }
 
@@ -340,9 +341,11 @@ export default function MaterialRechner() {
             onChange={(e) => { ausschussVonHand.current = true; setAusschuss(e.target.value); }} />
         </label>
       </div>
-      <div className="mr-reihe mr-reihe--drei">
+      <div className="mr-reihe mr-reihe--vier">
         <label className="feld"><span>Abstecher mm</span>
           <input type="text" id="mr-abstecher" inputMode="decimal" value={abstecher} placeholder="0" onChange={(e) => setAbstecher(e.target.value)} /></label>
+        <label className="feld"><span>Planieren mm</span>
+          <input type="text" id="mr-planieren" inputMode="decimal" value={planieren} placeholder={zahlFeld(PLANIEREN_STANDARD_MM)} onChange={(e) => setPlanieren(e.target.value)} /></label>
         <label className="feld"><span>Stange mm</span>
           <input type="text" id="mr-stange" inputMode="decimal" value={stange} onChange={(e) => setStange(e.target.value)} /></label>
         <label className="feld"><span>Reststück mm</span>
@@ -360,7 +363,6 @@ export default function MaterialRechner() {
             : "–"}</div>
         </div>
         {ergebnis && ergebnis.zusatz && <p className="hinweis mr-zusatz">{(ergebnis.ca ? "ca. " : "") + ergebnis.zusatz}</p>}
-        {ergebnis && ergebnis.ausschuss && <p className="hinweis mr-ausschuss-zeile" id="mr-ausschuss-info">{ergebnis.ausschuss}</p>}
         {ergebnis && ergebnis.fehler && <p className="hinweis">{ergebnis.fehler}</p>}
         {ergebnis && ergebnis.hinweis && <p className="hinweis">{ergebnis.hinweis}</p>}
         {!kgm && <p className="hinweis">{rohrFehlt && dichte && dm > 0
