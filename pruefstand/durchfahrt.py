@@ -1,5 +1,5 @@
-# Startseite: Statt der Hühner fährt abwechselnd ein Ferrari und (seit
-# 1.151.0) ein Jetski mit Jviano durchs Band oben (Wunsch Patrick 22. Oktober 2026).
+# Startseite: Statt der Hühner fährt Jiviano auf dem Jetski über das Wasser
+# im Band oben (Wunsch Patrick 22. Oktober 2026, seit 1.153.0 nur noch er).
 # Die Wartezeit zwischen den Fahrten wird hier verkürzt, damit beide
 # im Test vorkommen. Seit 1.151.1 fährt statt des gezeichneten Jetskis
 # das Foto aus app_config „durchfahrt_bild“; das echte Foto liegt nicht
@@ -35,24 +35,31 @@ with sync_playwright() as p:
         # Seit 1.152.0 immer Wasser im Band, auch ohne Jetski
         if pg.locator(".kopfkarte .fahrt-meer .fahrt-meer__welle").count() != 2: fehler.append(f"{name}: kein Wasser im Band")
         if "mario" in pg.content().lower() and pg.locator(".fahrt--mario").count(): fehler.append("Mario noch da")
+        # Seit 1.153.0 nur noch der Jetski (kein Ferrari, keine Sprechblase),
+        # mit der Spitze voran nach links, auf dem Wasser
         gesehen = []
-        for i in range(400):
-            art = pg.evaluate("() => { const f = document.querySelector('.fahrt'); if (!f) return null;"
-                " const r = f.getBoundingClientRect(), k = document.querySelector('.kopfkarte').getBoundingClientRect();"
-                " return (r.left > k.left + 20 && r.right < k.right - 20) ? f.className : null }")
-            if art:
-                welcher = "ferrari" if "ferrari" in art else "jetski"
-                if not gesehen or gesehen[-1] != welcher:
-                    gesehen.append(welcher)
-                    if welcher == "jetski" and not pg.locator(".fahrt--foto img").count(): fehler.append(f"{name}: Jetski ohne Foto")
-                    if welcher == "jetski" and not pg.locator(".fahrt--foto .fahrt__reiter .fahrt-blase").count(): fehler.append(f"{name}: keine Sprechblase")
-                    if welcher == "jetski" and "fahrt--links" not in art: fehler.append(f"{name}: Foto fährt nicht nach links")
-                    pg.locator(".kopfkarte").screenshot(path=f"durchfahrt_{name}_{welcher}_{len(gesehen)}.png")
-                if len(gesehen) >= 3: break
+        letzte = None
+        for i in range(600):
+            info = pg.evaluate("""() => { const f = document.querySelector('.fahrt'); if (!f) return null;
+                const r = f.getBoundingClientRect(), k = document.querySelector('.kopfkarte').getBoundingClientRect();
+                return { innen: r.left > k.left + 20 && r.right < k.right - 20, links: r.left, unten: k.bottom - r.bottom,
+                         hoch: k.height, el: f.dataset.n || (f.dataset.n = String(Math.random())) } }""")
+            if info and info["innen"]:
+                if info["el"] not in gesehen:
+                    gesehen.append(info["el"])
+                    letzte = None
+                    if not pg.locator(".fahrt--foto img").count(): fehler.append(f"{name}: Jetski ohne Foto")
+                    if pg.locator(".fahrt--ferrari, .fahrt-blase").count(): fehler.append(f"{name}: Ferrari oder Sprechblase noch da")
+                    if not (0 <= info["unten"] <= info["hoch"] * .3): fehler.append(f"{name}: Jetski nicht auf dem Wasser ({info['unten']:.0f})")
+                    pg.wait_for_timeout(300)
+                    pg.locator(".kopfkarte").screenshot(path=f"durchfahrt_{name}_{len(gesehen)}.png")
+                    if not pg.locator(".fahrt-tropfen").count(): fehler.append(f"{name}: keine Gischt")
+                elif letzte is not None and info["links"] > letzte + 1: fehler.append(f"{name}: fährt nicht nach links")
+                letzte = info["links"]
+                if len(gesehen) >= 2: break
             pg.wait_for_timeout(100)
-        if len(gesehen) < 3: fehler.append(f"{name}: zu wenige Fahrten: {gesehen}")
-        elif any(gesehen[i] == gesehen[i+1] for i in range(len(gesehen)-1)): fehler.append(f"{name}: nicht abwechselnd: {gesehen}")
-        print(name, gesehen)
+        if len(gesehen) < 2: fehler.append(f"{name}: zu wenige Fahrten: {len(gesehen)}")
+        print(name, len(gesehen), 'Fahrten')
         pg.context.close()
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")

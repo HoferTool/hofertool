@@ -1,134 +1,25 @@
 // =================================================================
-//  FERRARI UND JETSKI IM BAND OBEN
-//  Wunsch Patrick 22. Oktober 2026: „an Stelle der Hühner abwechslungs-
-//  weise einen Ferrari und Super Mario mit einer Lasagne durch das Bild
-//  fahren“. Die Hühner (1.130.0 bis 1.149.0) sind weg. Jetzt fährt
-//  immer wieder einer durch: zuerst ein roter Sportwagen, flott und mit
-//  Fahrtwind, dann ein Klempner mit roter Mütze im Go-Kart, der eine
-//  dampfende Lasagne in den Händen hält, gemütlich und holpernd, mit
-//  Rauchwölkchen hinten. Beide selbst gezeichnet (SVG), keine Bilder
-//  von aussen. Gesteuert mit Zeitgebern und el.animate statt React-
-//  Zustand, damit die Startseite dafür nie neu zeichnet.
-//  Seit 1.151.0 (Wunsch Patrick 22. Oktober 2026: „Nimm den Mario weg
-//  und ersetze ihn mit dem Jetski“) fährt statt Mario ein Jetski im
-//  Ferrari-Kleid, schaukelnd auf einer Welle, mit Gischt. Seit 1.151.1
-//  („Lass genau den durchfahren, ohne den Text“) fährt Jiviano Ferrari
-//  selbst auf seinem Jetski, ausgeschnitten aus dem Bild zu seinem
-//  Jubiläum auf dem Infoboard. Das Foto steht nur in der Datenbank
-//  (app_config „durchfahrt_bild“ als data:-Bild), nie im öffentlichen
-//  Repository; fehlt es, fährt der gezeichnete Jetski.
+//  JETSKI IM BAND OBEN
+//  Geschichte (alles Wunsch Patrick, 22. Oktober 2026): 1.130.0 bis
+//  1.149.0 liefen hier Hühner, 1.150.0 abwechselnd ein Ferrari und
+//  Super Mario mit Lasagne, 1.151.0 ein gezeichneter Jetski statt Mario,
+//  1.151.1 Jiviano Ferrari auf seinem Jetski als Foto, 1.152.0 mit
+//  Wasser im ganzen Band, Sprüngen und Sprechblase.
+//  Seit 1.153.0 („kein Auto mehr, die Animation etwas realer, sieht so
+//  komisch aus, Sprechblase weg“): nur noch Jiviano. Unten liegt immer
+//  Wasser mit zwei Wellenschichten, und der Jetski fährt genau auf der
+//  vorderen Welle: Höhe und Neigung rechnet jedes Bild aus der Wasser-
+//  oberfläche unter Bug und Heck, mit etwas Trägheit. Wasser (seit
+//  1.153.0, „die Wassereffekte vom Jetski besser“): Schaum am Rumpf,
+//  Heckfontäne aus Tropfen und Nebel, Bugspritzer beim Eintauchen und
+//  Kielwasser, das liegen bleibt und breit ausläuft. Das Foto steht nur
+//  in der Datenbank (app_config „durchfahrt_bild“ als data:-Bild), nie
+//  im öffentlichen Repository; fehlt es, gibt es nur die Wellen.
 // =================================================================
 import { useEffect, useRef } from "react";
 import { alt } from "../../bruecke.jsx";
 
 const zufall = (a, b) => a + Math.random() * (b - a);
-
-// Rad mit Speichen; die Gruppe dreht sich in der CSS-Animation
-const rad = (cx, cy, r) => `
-  <g class="fahrt__rad" style="transform-origin:${cx}px ${cy}px">
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="#161616"/>
-    <circle cx="${cx}" cy="${cy}" r="${r * .62}" fill="#c9ccd1"/>
-    <circle cx="${cx}" cy="${cy}" r="${r * .5}" fill="#8d9299"/>
-    ${[0, 72, 144, 216, 288].map((w) => `<rect x="${cx - 1.6}" y="${cy - r * .58}" width="3.2" height="${r * .58}" rx="1.4" fill="#e3e5e8" transform="rotate(${w} ${cx} ${cy})"/>`).join("")}
-    <circle cx="${cx}" cy="${cy}" r="${r * .14}" fill="#e3e5e8"/>
-  </g>`;
-
-// Roter Sportwagen von der Seite, Front rechts
-const FERRARI = `
-<svg viewBox="0 0 250 84" xmlns="http://www.w3.org/2000/svg">
-  <g class="fahrt__wind" stroke="#fff" stroke-linecap="round" opacity=".55">
-    <line x1="-40" y1="30" x2="-6" y2="30" stroke-width="2.5"/>
-    <line x1="-60" y1="44" x2="-14" y2="44" stroke-width="3"/>
-    <line x1="-34" y1="58" x2="-4" y2="58" stroke-width="2.5"/>
-  </g>
-  <ellipse cx="125" cy="78" rx="112" ry="5" fill="#000" opacity=".25"/>
-  <circle cx="58" cy="62" r="19" fill="#5e0a0a"/>
-  <circle cx="196" cy="62" r="19" fill="#5e0a0a"/>
-  <path d="M8 40 L8 31 L34 31 L36 37 Z" fill="#b30f0f"/>
-  <path d="M10 54 C10 45 16 40 32 38 L74 34 C90 26 106 23 128 23 C148 23 162 27 176 34 L220 38
-           C234 40 242 47 242 56 L242 62 C242 65 239 67 236 67 L216 67 A20 20 0 0 0 176 67 L78 67
-           A20 20 0 0 0 38 67 L14 67 C11 67 10 65 10 62 Z" fill="#d81b1b"/>
-  <path d="M26 46 C70 41 160 40 236 47" stroke="#ff6b5e" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-  <path d="M90 35 C100 29 110 27 124 27 L125 35 Z" fill="#1f2a36"/>
-  <path d="M130 27 C146 27 156 30 166 35 L130 35 Z" fill="#1f2a36"/>
-  <path d="M97 32 C103 30 108 29 114 28.5" stroke="#7fa6c9" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <path d="M96 50 L132 49 C126 55 112 58 98 57 Z" fill="#7a0c0c"/>
-  <rect x="219" y="41" width="7" height="9" rx="1.6" fill="#ffd21f"/>
-  <path d="M222.5 43 L221.2 48 L223.8 48 Z" fill="#111"/>
-  <path d="M232 45 C237 46 240 49 241 52 L229 50 Z" fill="#fff4c2"/>
-  <rect x="9" y="47" width="7" height="5" rx="1.5" fill="#5e0a0a"/>
-  ${rad(58, 64, 15)}
-  ${rad(196, 64, 15)}
-</svg>`;
-
-// Ersatz, solange das Foto fehlt: Jetski im Kleid eines roten Ferrari
-// (wie die Supercar-Jetskis aus Miami) mit Fahrer. Fahrt nach rechts,
-// Front rechts
-const JETSKI = `
-<svg viewBox="0 0 250 120" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="fahrt-wasser" x1="0" x2="1" y1="0" y2="0">
-      <stop offset="0" stop-color="#7fc4f0" stop-opacity="0"/>
-      <stop offset=".2" stop-color="#7fc4f0" stop-opacity=".85"/>
-      <stop offset=".8" stop-color="#7fc4f0" stop-opacity=".85"/>
-      <stop offset="1" stop-color="#7fc4f0" stop-opacity="0"/>
-    </linearGradient>
-  </defs>
-  <g class="fahrt__gischt" fill="#fff">
-    <path d="M30 100 C14 92 0 80 -14 66 C-2 84 -6 92 -26 96 C-6 100 10 104 30 104 Z" opacity=".75"/>
-    <circle cx="-8" cy="62" r="3.5" opacity=".8"/>
-    <circle cx="-26" cy="74" r="2.6" opacity=".7"/>
-    <circle cx="4" cy="54" r="2.2" opacity=".7"/>
-    <circle cx="-38" cy="86" r="3" opacity=".6"/>
-  </g>
-  <g class="fahrt__schaukeln">
-    <g class="fahrt__fahrer">
-      <path d="M96 54 C92 40 98 30 110 28 L118 28 C122 36 122 48 118 58 Z" fill="#111"/>
-      <path d="M108 30 L136 46" stroke="#111" stroke-width="9" stroke-linecap="round"/>
-      <path d="M104 56 L132 58 L138 72" stroke="#1f2a36" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <rect x="100" y="34" width="18" height="18" rx="4" fill="#ffd21f"/>
-      <circle cx="114" cy="16" r="12" fill="#e8b48c"/>
-      <path d="M102 15 C100 4 110 0 118 2 C124 3 127 7 126 11 L112 10 L106 18 Z" fill="#2a1a10"/>
-      <path d="M113 13 L127 13 L126 17 L114 17 Z" fill="#111"/>
-      <path d="M118 23 C121 24 124 23 125 21" stroke="#8a4a32" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-    </g>
-    <path d="M140 44 L150 40" stroke="#333" stroke-width="4" stroke-linecap="round"/>
-    <path d="M134 50 L142 42" stroke="#333" stroke-width="4" stroke-linecap="round"/>
-    <path d="M14 82 C14 74 20 70 34 68 L74 64 C88 56 104 54 124 54 C142 54 156 58 170 64 L222 70
-             C236 72 244 78 246 86 L240 94 C200 100 80 102 26 98 C18 96 14 90 14 82 Z" fill="#d81b1b"/>
-    <path d="M10 70 L10 62 L32 62 L34 68 Z" fill="#b30f0f"/>
-    <path d="M28 76 C70 71 160 70 238 78" stroke="#ff6b5e" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-    <path d="M90 66 C120 64 150 66 166 70 L92 72 Z" fill="#7a0c0c"/>
-    <rect x="214" y="72" width="7" height="9" rx="1.6" fill="#ffd21f"/>
-    <path d="M217.5 74 L216.2 79 L218.8 79 Z" fill="#111"/>
-    <path d="M232 76 C237 77 241 80 242 83 L229 81 Z" fill="#fff4c2"/>
-    <path d="M26 98 C80 102 200 100 240 94 L236 100 C190 106 70 106 30 102 Z" fill="#5e0a0a"/>
-  </g>
-  <path class="fahrt__welle" d="M-40 104 Q-25 98 -10 104 T20 104 T50 104 T80 104 T110 104 T140 104 T170 104 T200 104 T230 104 T260 104 T290 104 L290 120 L-40 120 Z" fill="url(#fahrt-wasser)"/>
-  <path d="M-40 110 Q-25 106 -10 110 T20 110 T50 110 T80 110 T110 110 T140 110 T170 110 T200 110 T230 110 T260 110 T290 110" stroke="url(#fahrt-wasser)" stroke-width="2" fill="none"/>
-</svg>`;
-
-// Wasser und Gischt unter dem Foto, gezeichnet für Fahrt nach rechts
-// (Gischt links); das Foto schaut nach links, darum fährt es immer nach
-// links und die Ebene wird mit fahrt--links gespiegelt.
-const WASSER = `
-<svg class="fahrt__wasser" viewBox="0 0 250 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="fahrt-wasser2" x1="0" x2="1" y1="0" y2="0">
-      <stop offset="0" stop-color="#7fc4f0" stop-opacity="0"/>
-      <stop offset=".2" stop-color="#7fc4f0" stop-opacity=".9"/>
-      <stop offset=".8" stop-color="#7fc4f0" stop-opacity=".9"/>
-      <stop offset="1" stop-color="#7fc4f0" stop-opacity="0"/>
-    </linearGradient>
-  </defs>
-  <g class="fahrt__gischt" fill="#fff">
-    <path d="M40 24 C24 16 10 4 -4 -10 C8 8 4 16 -16 20 C4 24 20 28 40 28 Z" opacity=".75"/>
-    <circle cx="2" cy="-14" r="3.5" opacity=".8"/>
-    <circle cx="-16" cy="-2" r="2.6" opacity=".7"/>
-    <circle cx="14" cy="-22" r="2.2" opacity=".7"/>
-  </g>
-  <path class="fahrt__welle" d="M-40 16 Q-25 10 -10 16 T20 16 T50 16 T80 16 T110 16 T140 16 T170 16 T200 16 T230 16 T260 16 T290 16 L290 40 L-40 40 Z" fill="url(#fahrt-wasser2)"/>
-</svg>`;
 
 // Das Foto aus der Datenbank, einmal je Seite
 let fotoLaden = null;
@@ -146,60 +37,21 @@ const jetskiFoto = () => {
   return fotoLaden;
 };
 
-// Wasser über die ganze Breite unten im Band, immer da, auch ohne
-// Jetski (Wunsch Patrick 22. Oktober 2026: „konstant Wasser, auch leere
-// Wellen ohne Jetski“). Zwei Wellenschichten laufen verschieden schnell;
-// die hintere liegt hinter dem Jetski, die vordere davor, so taucht er
-// ins Wasser ein. Ein Wellenbild wiederholt sich alle 160 Punkte.
-const welleBild = (farbe, schaum) => `url("data:image/svg+xml,${encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 40' preserveAspectRatio='none'>` +
-  `<path d='M0 14 Q20 2 40 14 T80 14 T120 14 T160 14 V40 H0 Z' fill='${farbe}'/>` +
-  `<path d='M0 14 Q20 2 40 14 T80 14 T120 14 T160 14' fill='none' stroke='${schaum}' stroke-width='2.5'/></svg>`)}")`;
-const meerBauen = (band) => {
-  const meer = document.createElement("div");
-  meer.className = "fahrt-meer";
-  for (const [art, farbe, schaum] of [["hinten", "rgba(110,180,240,.45)", "rgba(255,255,255,.35)"],
-                                      ["vorne", "rgba(70,150,225,.75)", "rgba(255,255,255,.8)"]]) {
-    const w = document.createElement("div");
-    w.className = "fahrt-meer__welle fahrt-meer__welle--" + art;
-    w.style.backgroundImage = welleBild(farbe, schaum);
-    meer.appendChild(w);
+// Eine Wellenschicht als Sinus mit genauen Massen in Punkten, damit
+// die Oberfläche an jeder Stelle rechenbar ist: Mitte c, Höhe A,
+// Wellenlänge l, Schicht h hoch. Das Bild wiederholt sich alle l Punkte.
+const welleBild = ({ l, h, c, A }, oben, unten, schaum) => {
+  let d = `M0 ${c}`;
+  for (let i = 1; i <= 48; i++) {
+    const x = l * i / 48;
+    d += ` L${x.toFixed(1)} ${(c - A * Math.sin(2 * Math.PI * x / l)).toFixed(2)}`;
   }
-  band.appendChild(meer);
-};
-
-// Wie der Jetski die Wellen reitet: auf und ab mit der Spitze voran in
-// die Welle, dazu ein bis zwei Sprünge mit Landung in der Gischt. Als
-// Keyframes für el.animate, damit nichts je Bild in JS läuft.
-// Rückgabe: Keyframes und die Zeitpunkte der Landungen (0…1).
-const wellenRitt = (dauer, hoch) => {
-  const welle = hoch * zufall(.07, .1), periode = zufall(1100, 1500);
-  const spruenge = [];
-  const anzahl = dauer > 6000 ? 2 : 1;
-  for (let i = 0; i < anzahl; i++) {
-    const lang = zufall(700, 950) / dauer;
-    const ab = zufall(.15, .75 - lang) + i * .35;
-    if (ab + lang < .97) spruenge.push({ ab, lang, h: hoch * zufall(.15, .2) });
-  }
-  const schritte = 90, frames = [];
-  const yBei = (t) => {
-    const ms = t * dauer;
-    let y = -welle * Math.sin(2 * Math.PI * ms / periode);
-    for (const s of spruenge) if (t >= s.ab && t <= s.ab + s.lang) {
-      const u = (t - s.ab) / s.lang;
-      y -= s.h * 4 * u * (1 - u);
-    }
-    return y;
-  };
-  for (let k = 0; k <= schritte; k++) {
-    const t = k / schritte;
-    const y = yBei(t);
-    // Neigung aus der Steigung: steigt er, hebt sich die Spitze (links)
-    const d = (yBei(Math.min(1, t + .004)) - yBei(Math.max(0, t - .004))) / (.008 * dauer) * 1000;
-    const dreh = Math.max(-16, Math.min(16, -d * .35));
-    frames.push({ offset: t, transform: `translateY(${y.toFixed(1)}px) rotate(${dreh.toFixed(1)}deg)` });
-  }
-  return { frames, landungen: spruenge.map((s) => s.ab + s.lang) };
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${l}' height='${h}' viewBox='0 0 ${l} ${h}'>` +
+    `<defs><linearGradient id='g' x1='0' x2='0' y1='0' y2='1'><stop offset='0' stop-color='${oben}'/>` +
+    `<stop offset='1' stop-color='${unten}'/></linearGradient></defs>` +
+    `<path d='${d} V${h} H0 Z' fill='url(#g)'/>` +
+    `<path d='${d}' fill='none' stroke='${schaum}' stroke-width='1.6'/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 };
 
 export default function Durchfahrt() {
@@ -216,111 +68,196 @@ export default function Durchfahrt() {
     });
     // Im versteckten Tab fährt niemand los
     const wach = async () => { while (!aus && document.hidden) await warte(1000); };
-    meerBauen(band);
 
-    // Gischt-Tropfen: fliegen hoch und fallen zurück ins Wasser
-    const tropfen = (x, y, anzahl, kraft) => {
-      for (let i = 0; i < anzahl; i++) {
-        const t = document.createElement("div");
-        t.className = "fahrt-tropfen";
-        const g = zufall(3, 7);
-        t.style.left = x + "px";
-        t.style.bottom = y + "px";
-        t.style.width = t.style.height = g + "px";
-        band.appendChild(t);
-        const dx = zufall(-1, 1) * kraft, hoch = zufall(.5, 1) * kraft;
-        const a = t.animate([
-          { transform: "translate(0,0)", opacity: .95 },
-          { transform: `translate(${dx * .6}px,${-hoch}px)`, opacity: .9, offset: .45 },
-          { transform: `translate(${dx}px,${hoch * .3}px)`, opacity: 0 },
-        ], { duration: zufall(600, 1000), easing: "ease-out", fill: "forwards" });
-        a.onfinish = () => t.remove();
-      }
+    // Wasser: zwei Schichten, hinten lang und ruhig, vorne kürzer. Beide
+    // laufen langsam nach rechts, der Jetski fährt dagegen.
+    const meer = document.createElement("div");
+    meer.className = "fahrt-meer";
+    band.appendChild(meer);
+    let schichten = [];
+    const meerBauen = () => {
+      const hoch = band.clientHeight || 120;
+      meer.replaceChildren();
+      schichten.forEach((s) => s.anim.cancel());
+      schichten = [
+        { art: "hinten", l: Math.round(hoch * 3.2), h: Math.round(hoch * .3), A: hoch * .035, dauer: 9000,
+          farben: ["rgba(120,185,240,.55)", "rgba(40,110,200,.55)", "rgba(255,255,255,.25)"] },
+        { art: "vorne", l: Math.round(hoch * 2.3), h: Math.round(hoch * .2), A: hoch * .045, dauer: 6000,
+          farben: ["rgba(80,160,230,.85)", "rgba(20,80,170,.95)", "rgba(255,255,255,.55)"] },
+      ].map((s) => {
+        s.c = s.A + 2;
+        const el = document.createElement("div");
+        el.className = "fahrt-meer__welle fahrt-meer__welle--" + s.art;
+        el.style.height = s.h + "px";
+        el.style.width = `calc(100% + ${s.l}px)`;
+        el.style.left = -s.l + "px";
+        el.style.backgroundSize = `${s.l}px ${s.h}px`;
+        el.style.backgroundImage = welleBild(s, ...s.farben);
+        meer.appendChild(el);
+        s.anim = el.animate([{ transform: "translateX(0)" }, { transform: `translateX(${s.l}px)` }],
+          { duration: s.dauer, iterations: Infinity });
+        return s;
+      });
+    };
+    meerBauen();
+    // Ändert sich die Höhe des Bands, passen die Wellen sich an
+    let hoeheVorher = band.clientHeight;
+    const wo = new ResizeObserver(() => {
+      if (band.clientHeight !== hoeheVorher) { hoeheVorher = band.clientHeight; meerBauen(); }
+    });
+    wo.observe(band);
+
+    // Höhe der vorderen Wasseroberfläche über dem Bandboden an Stelle x
+    const oberflaeche = (x) => {
+      const s = schichten[1];
+      const t = s.anim.currentTime || 0;
+      const versatz = -s.l + s.l * ((t % s.dauer) / s.dauer);
+      const u = x - versatz;
+      return s.h - (s.c - s.A * Math.sin(2 * Math.PI * u / s.l));
     };
 
-    const fahren = async (welcher) => {
+    // Gischt-Tropfen im Wurfbogen, fallen zurück ins Wasser
+    const tropfen = (x, y, vx, vy, g, dauer = zufall(450, 800)) => {
+      const t = document.createElement("div");
+      t.className = "fahrt-tropfen";
+      t.style.left = x + "px";
+      t.style.bottom = y + "px";
+      t.style.width = t.style.height = g + "px";
+      band.appendChild(t);
+      const frames = [];
+      for (let k = 0; k <= 6; k++) {
+        const s = k / 6 * dauer / 1000;
+        frames.push({ transform: `translate(${(vx * s).toFixed(1)}px,${(-(vy * s - 320 * s * s)).toFixed(1)}px)`,
+          opacity: k === 6 ? 0 : .9 - k * .08 });
+      }
+      const a = t.animate(frames, { duration: dauer, fill: "forwards" });
+      a.onfinish = () => t.remove();
+    };
+    // Sprühnebel: weiche Wolke, die nach hinten weht, aufgeht und vergeht
+    const nebel = (x, y, g, vx, vy) => {
+      const n = document.createElement("div");
+      n.className = "fahrt-nebel";
+      n.style.left = x - g / 2 + "px";
+      n.style.bottom = y - g / 2 + "px";
+      n.style.width = n.style.height = g + "px";
+      band.appendChild(n);
+      const a = n.animate([
+        { transform: "translate(0,0) scale(.35)", opacity: .75 },
+        { transform: `translate(${vx * .5}px,${-vy * .5}px) scale(1.2)`, opacity: .45, offset: .45 },
+        { transform: `translate(${vx}px,${-vy * .6}px) scale(2)`, opacity: 0 },
+      ], { duration: zufall(700, 1100), easing: "ease-out", fill: "forwards" });
+      a.onfinish = () => n.remove();
+    };
+    // Schaumspur: bleibt auf dem Wasser liegen, läuft breit und vergeht
+    const schaum = (x, y, b) => {
+      const f = document.createElement("div");
+      f.className = "fahrt-schaum";
+      f.style.left = x + "px";
+      f.style.bottom = y + "px";
+      f.style.width = b + "px";
+      f.style.height = Math.max(3, b * .14) + "px";
+      band.appendChild(f);
+      const a = f.animate([{ opacity: .8, transform: "scale(.5,1)" }, { opacity: .35, transform: "scale(1.3,1.4)", offset: .4 },
+        { opacity: 0, transform: "scale(1.9,1.8)" }],
+        { duration: zufall(2000, 2800), easing: "ease-out", fill: "forwards" });
+      a.onfinish = () => f.remove();
+    };
+
+    const fahren = async () => {
       const breit = band.clientWidth, hoch = band.clientHeight;
       if (!breit || !hoch) return;
-      const ferrari = welcher === "ferrari";
-      // So hoch, dass er gut zu sehen ist, aber unten im Band bleibt
-      const foto = ferrari ? null : await jetskiFoto();
-      if (aus) return;
-      const h = Math.max(36, Math.min(ferrari ? 100 : foto ? 130 : 120, hoch * (ferrari ? .5 : foto ? .62 : .56)));
-      const w = h * (ferrari ? 250 / 84 : foto ? 300 / 204 : 250 / 120);
+      const foto = await jetskiFoto();
+      if (aus || !foto) return;
+      const h = Math.max(36, Math.min(130, hoch * .58));
+      const w = h * 300 / 204;
       const el = document.createElement("div");
-      el.className = "fahrt fahrt--" + welcher;
+      el.className = "fahrt fahrt--foto";
       el.style.width = w + "px";
       el.style.height = h + "px";
-      if (foto) {
-        el.classList.add("fahrt--foto");
-        el.innerHTML = WASSER;
-        const bild = document.createElement("img");
-        bild.alt = "";
-        bild.src = foto;
-        el.prepend(bild);
-      } else el.innerHTML = ferrari ? FERRARI : JETSKI;
-      // Beide kommen mal von links, mal von rechts; das Foto immer mit
-      // der Spitze voran nach links
-      const nachRechts = foto ? false : Math.random() < .5;
-      if (!nachRechts) el.classList.add("fahrt--links");
-      // Der Jetski liegt zwischen den Wellen und sitzt im Wasser
-      // (Reihenfolge über z-index: hintere Welle, Jetski, vordere Welle)
-      if (!ferrari) el.style.bottom = hoch * .07 + "px";
+      const reiter = document.createElement("div");
+      reiter.className = "fahrt__reiter";
+      const bild = document.createElement("img");
+      bild.alt = "";
+      bild.src = foto;
+      reiter.appendChild(bild);
+      el.appendChild(reiter);
       band.appendChild(el);
-      const von = nachRechts ? -w - 20 : breit + 20, bis = nachRechts ? breit + 20 : -w - 20;
-      // Der Ferrari braust in gut 3 Sekunden durch, der Jetski etwas gemütlicher
-      const dauer = (ferrari ? zufall(2600, 3600) : zufall(5000, 7000)) * Math.max(1, breit / 1400);
-      const a = el.animate([{ transform: `translateX(${von}px)` }, { transform: `translateX(${bis}px)` }],
-        { duration: dauer, easing: ferrari ? "cubic-bezier(.3,.05,.7,.95)" : "linear", fill: "forwards" });
-      const uhrenFahrt = [];
-      if (!ferrari) {
-        // Innen reitet er die Wellen, aussen fährt er quer durchs Band
-        const reiter = document.createElement("div");
-        reiter.className = "fahrt__reiter";
-        reiter.append(...el.childNodes);
-        el.appendChild(reiter);
-        // Sprechblase mit italienischem Essen (Wunsch Patrick 22. Oktober
-        // 2026), Emojis statt Bilder, damit nichts geladen werden muss
-        if (foto) {
-          const blase = document.createElement("div");
-          blase.className = "fahrt-blase";
-          blase.textContent = "🍝🍕🇮🇹";
-          blase.style.fontSize = Math.max(11, hoch * .13) + "px";
-          reiter.appendChild(blase);
-        }
-        const ritt = wellenRitt(dauer, hoch);
-        reiter.animate(ritt.frames, { duration: dauer, fill: "forwards" });
-        const wo = () => {
-          const r = el.getBoundingClientRect(), br = band.getBoundingClientRect();
-          return r.left - br.left;
+      // Mit der Spitze voran nach links, gleichmässig wie auf dem Wasser
+      const von = breit + 20, bis = -w - 20;
+      const dauer = zufall(7000, 9000) * Math.max(1, breit / 1400);
+      const start = performance.now();
+      // Bug und Heck im Foto (Anteil der Breite), Eintauchtiefe des Rumpfs
+      const bug = .1, heck = .88, tief = h * .1;
+      let y = null, dreh = 0, gischtNaechste = 0, nebelNaechste = 0, bugNaechste = 0, schaumNaechste = 0, bild2 = 0;
+      const kontakt = document.createElement("div");
+      kontakt.className = "fahrt-kontakt";
+      kontakt.style.height = h * .14 + "px";
+      band.appendChild(kontakt);
+      await new Promise((fertig) => {
+        const schritt = (jetzt) => {
+          if (aus) return fertig();
+          const p = Math.min(1, (jetzt - start) / dauer);
+          const x = von + (bis - von) * p;
+          const yb = oberflaeche(x + w * bug), yh = oberflaeche(x + w * heck);
+          const ziel = (yb + yh) / 2 - tief;
+          // Neigung aus der Oberfläche: steigt das Wasser am Bug, hebt
+          // sich die Spitze; leicht verzögert, damit er Gewicht hat
+          const zielDreh = Math.atan2(yb - yh, w * (heck - bug)) * 180 / Math.PI;
+          y = y === null ? ziel : y + (ziel - y) * .18;
+          dreh += (zielDreh - dreh) * .12;
+          // Leichtes Zittern vom Motor
+          const zittern = Math.sin(jetzt / 45) * .6;
+          el.style.transform = `translate(${x.toFixed(1)}px, ${(-(y + zittern)).toFixed(1)}px)`;
+          reiter.style.transform = `rotate(${dreh.toFixed(2)}deg)`;
+          const sichtbar = x < breit + 10 && x + w > -10;
+          // Weisser Schaum, wo der Rumpf das Wasser berührt
+          const kx = x + w * .12, kb = w * .8;
+          kontakt.style.transform = `translate(${kx.toFixed(1)}px, ${(-((yb + yh) / 2 - h * .07)).toFixed(1)}px)`;
+          kontakt.style.width = kb + "px";
+          kontakt.style.opacity = (.7 + Math.sin(jetzt / 70) * .15).toFixed(2);
+          // Heckfontäne: der Wasserstrahl der Düse wirft einen Bogen aus
+          // Tropfen und Nebel nach hinten oben
+          if (sichtbar && jetzt > gischtNaechste) {
+            const hx = x + w * heck, hy = yh - 1;
+            for (let i = 0; i < 5; i++)
+              tropfen(hx + zufall(-4, 8), hy + zufall(-2, 3), zufall(40, 230), zufall(70, 230), zufall(1.2, 3.6), zufall(500, 1000));
+            gischtNaechste = jetzt + zufall(25, 45);
+          }
+          if (sichtbar && jetzt > nebelNaechste) {
+            nebel(x + w * (heck + .04), yh + h * .08, h * zufall(.3, .45), zufall(70, 140), zufall(35, 70));
+            nebelNaechste = jetzt + zufall(60, 110);
+          }
+          // Bugwelle: taucht die Spitze ins Wasser, spritzt es vorne
+          if (sichtbar && jetzt > bugNaechste) {
+            const n = zielDreh < -1.5 ? 6 : 2;
+            for (let i = 0; i < n; i++)
+              tropfen(x + w * (bug + zufall(.02, .12)), yb, zufall(-50, 30), zufall(50, zielDreh < -1.5 ? 170 : 90), zufall(1.5, 3));
+            if (zielDreh < -1.5) nebel(x + w * (bug + .06), yb, h * .2, zufall(10, 40), zufall(10, 25));
+            bugNaechste = jetzt + zufall(50, 110);
+          }
+          // Kielwasser: Schaum bleibt hinter ihm auf der Oberfläche liegen
+          if (sichtbar && jetzt > schaumNaechste) {
+            const sx = x + w * zufall(.7, .95);
+            schaum(sx, oberflaeche(sx) - 2, w * zufall(.3, .5));
+            schaumNaechste = jetzt + zufall(50, 90);
+          }
+          if (p >= 1) return fertig();
+          bild2 = requestAnimationFrame(schritt);
         };
-        // Bei jeder Landung spritzt es
-        for (const l of ritt.landungen) uhrenFahrt.push(setTimeout(() => {
-          if (!aus) tropfen(wo() + w * .5, hoch * .12, 16, hoch * .5);
-        }, l * dauer));
-        // Hinten fliegt laufend Gischt weg
-        const spritzen = () => {
-          if (aus) return;
-          tropfen(wo() + w * (nachRechts ? .05 : .9), hoch * .12, 3, hoch * .3);
-          uhrenFahrt.push(setTimeout(spritzen, zufall(90, 200)));
-        };
-        uhrenFahrt.push(setTimeout(spritzen, 150));
-      }
-      await warte(dauer);
-      uhrenFahrt.forEach(clearTimeout);
-      a.cancel();
+        bild2 = requestAnimationFrame(schritt);
+        aufraeumen.add(() => cancelAnimationFrame(bild2));
+      });
       el.remove();
+      kontakt.remove();
     };
+    const aufraeumen = new Set();
 
     (async () => {
-      // Abwechselnd, wer zuerst kommt, ist Zufall
-      let ferrari = Math.random() < .5;
       await warte(zufall(1500, 4000));
       while (!aus) {
         await wach();
         if (aus) return;
-        await fahren(ferrari ? "ferrari" : "jetski");
-        ferrari = !ferrari;
+        await fahren();
         await warte(zufall(15000, 35000));
       }
     })();
@@ -329,6 +266,9 @@ export default function Durchfahrt() {
       aus = true;
       uhren.forEach(clearTimeout);
       uhren.clear();
+      aufraeumen.forEach((f) => f());
+      wo.disconnect();
+      schichten.forEach((s) => s.anim.cancel());
       band.replaceChildren();
     };
   }, []);

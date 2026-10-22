@@ -8782,58 +8782,34 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
   -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 42%, transparent 70%);
           mask-image: linear-gradient(180deg, #000 0%, #000 42%, transparent 70%); }
 
-/* ---------- Kopfkarte: Ferrari und Jetski im Band (seit 1.150.0, Jetski seit 1.151.0) ----------
+/* ---------- Kopfkarte: Jetski im Band (seit 1.150.0 Durchfahrten) ----------
    Wunsch Patrick 22. Oktober 2026: statt der Hühner (1.125.0 bis
-   1.149.0) fährt abwechselnd ein Ferrari und Super Mario mit einer
-   Lasagne durch. Gesteuert von src/seiten/start/Durchfahrt.jsx, hier
-   nur Lage und die kleinen Bewegungen (Räder, Holpern, Dampf, Wind).
+   1.149.0) fährt etwas durch, seit 1.153.0 nur noch Jiviano auf dem
+   Jetski. Gesteuert von src/seiten/start/Durchfahrt.jsx.
    Der runde Schein von früher bleibt aus. */
 .kopfkarte:not(.kopfkarte--geburtstag)::before,
 .kopfkarte:not(.kopfkarte--geburtstag)::after { content: none; animation: none; }
 .durchfahrt { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
-.fahrt { position: absolute; left: 0; bottom: 2px; will-change: transform; opacity: .9; }
-.fahrt svg { width: 100%; height: 100%; display: block; overflow: visible; }
-.fahrt--links svg { transform: scaleX(-1); }
-.fahrt__rad { animation: fahrt-rad .25s linear infinite; }
-.fahrt--ferrari .fahrt__rad { animation-duration: .12s; }
-@keyframes fahrt-rad { to { transform: rotate(360deg); } }
-.fahrt__wind { animation: fahrt-wind .3s linear infinite; }
-@keyframes fahrt-wind { from { transform: translateX(10px); opacity: .2; } to { transform: translateX(-14px); opacity: .6; } }
-/* Jetski statt Mario (seit 1.151.0): schaukelt auf der Welle, Gischt hinten */
-.fahrt__schaukeln { transform-origin: 130px 96px; animation: fahrt-schaukeln .9s ease-in-out infinite alternate; }
-@keyframes fahrt-schaukeln { from { transform: translateY(0) rotate(-1.5deg); } to { transform: translateY(-4px) rotate(2deg); } }
-.fahrt__welle { animation: fahrt-welle .6s linear infinite; }
-@keyframes fahrt-welle { from { transform: translateX(0); } to { transform: translateX(30px); } }
-.fahrt__gischt { transform-origin: 30px 100px; animation: fahrt-gischt .25s ease-in-out infinite alternate; }
-/* Wasser über das ganze Band, Wellenritt, Gischt und Sprechblase
-   (seit 1.152.0, Wunsch Patrick 22. Oktober 2026: „mehr Wasser und mehr
-   Emotionen, Welle hoch und runter reiten, konstant Wasser“). Die
-   Wellen laufen per transform, nur ein Streifen von 160 Punkten wird
-   verschoben und wiederholt sich. */
-.fahrt-meer { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; pointer-events: none; }
-.fahrt-meer__welle { position: absolute; left: 0; bottom: 0; width: calc(100% + 160px);
-  background-repeat: repeat-x; background-size: 160px 100%; will-change: transform; }
-.fahrt-meer__welle--hinten { height: 100%; z-index: 1; animation: meer-zieh 5s linear infinite; }
-.fahrt-meer__welle--vorne { height: 62%; z-index: 3; animation: meer-zieh 2.6s linear infinite reverse; }
-@keyframes meer-zieh { from { transform: translateX(0); } to { transform: translateX(-160px); } }
-.fahrt { z-index: 4; }
-.fahrt--jetski { z-index: 2; }
-.fahrt__reiter { position: absolute; inset: 0; transform-origin: 50% 85%; will-change: transform; }
-.fahrt-tropfen { position: absolute; z-index: 3; border-radius: 50%; background: rgba(255, 255, 255, .9); pointer-events: none; }
-.fahrt-blase { position: absolute; left: 30%; bottom: 102%; padding: .25em .5em; border-radius: 1em;
-  background: #fff; white-space: nowrap; line-height: 1.1; box-shadow: 0 2px 6px rgba(0,0,0,.25);
-  animation: blase-wackeln 1.2s ease-in-out infinite alternate; transform-origin: 70% 100%; }
-.fahrt-blase::after { content: ""; position: absolute; right: 18%; top: 100%; border: .4em solid transparent;
-  border-top-color: #fff; border-bottom: 0; }
-@keyframes blase-wackeln { from { transform: rotate(-4deg) scale(1); } to { transform: rotate(4deg) scale(1.08); } }
-/* Foto von Jiviano auf dem Jetski (seit 1.151.1): Bild schaukelt, darunter
-   Welle und Gischt als eigene Ebene, die über den unteren Rand des Fotos geht */
-.fahrt--foto { opacity: 1; }
-.fahrt--foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
-  transform-origin: 50% 90%; }
-.fahrt__wasser .fahrt__gischt { transform-origin: 30px 24px; }
-.fahrt--foto svg.fahrt__wasser { position: absolute; left: -12%; width: 124%; bottom: -4%; height: 26%; }
-@keyframes fahrt-gischt { from { transform: scale(.85); opacity: .7; } to { transform: scale(1.1); opacity: 1; } }
+/* Wasser über das ganze Band und Jiviano auf dem Jetski (1.152.0,
+   seit 1.153.0 realer: Wellen als echte Sinusschichten, deren Masse
+   Durchfahrt.jsx setzt und für die Fahrt auf der Oberfläche nutzt).
+   Reihenfolge: hintere Welle, Schaum, Jetski, vordere Welle, Tropfen. */
+.fahrt-meer { position: absolute; inset: 0; pointer-events: none; }
+.fahrt-meer__welle { position: absolute; bottom: 0; background-repeat: repeat-x; will-change: transform; }
+.fahrt-meer__welle--hinten { z-index: 1; }
+.fahrt-meer__welle--vorne { z-index: 4; }
+.fahrt { position: absolute; left: 0; bottom: 0; z-index: 3; will-change: transform; }
+.fahrt__reiter { position: absolute; inset: 0; transform-origin: 50% 92%; will-change: transform; }
+.fahrt--foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.fahrt-schaum { position: absolute; z-index: 5; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,.85) 0%, rgba(235,245,255,.5) 45%, rgba(255,255,255,0) 72%); }
+.fahrt-tropfen { position: absolute; z-index: 6; border-radius: 50%; pointer-events: none; filter: blur(.5px);
+  background: radial-gradient(circle at 35% 35%, #fff 0%, rgba(225,240,255,.85) 60%, rgba(200,225,250,.4) 100%); }
+.fahrt-nebel { position: absolute; z-index: 6; border-radius: 50%; pointer-events: none; filter: blur(3px);
+  background: radial-gradient(circle, rgba(255,255,255,.8) 0%, rgba(235,245,255,.4) 45%, rgba(255,255,255,0) 70%); }
+.fahrt-kontakt { position: absolute; left: 0; bottom: 0; z-index: 5; border-radius: 50%; pointer-events: none;
+  filter: blur(1.5px); will-change: transform, opacity;
+  background: radial-gradient(ellipse at 60% 50%, rgba(255,255,255,.95) 0%, rgba(240,248,255,.6) 40%, rgba(255,255,255,0) 70%); }
 @media (prefers-reduced-motion: reduce) { .durchfahrt { display: none; } }
 
 /* Erfassen: am Tag eines Auftragswechsels zwei Felder, oben der alte,
