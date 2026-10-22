@@ -17,7 +17,8 @@
 //  im öffentlichen Repository; fehlt es, gibt es nur die Wellen.
 //  Seit 1.156.0 („soll etwas mehr vorkommen und hinter ihm Geld
 //  herausfliegen“): Pause nur noch 4 bis 9 Sekunden, und hinter dem
-//  Fahrer flattern Hunderternoten davon.
+//  Fahrer flattern Hunderternoten davon. Seit 1.157.0 hat das Wasser
+//  den Ton der gewählten Themenfarbe.
 // =================================================================
 import { useEffect, useRef } from "react";
 import { alt } from "../../bruecke.jsx";
@@ -43,6 +44,19 @@ const jetskiFoto = () => {
 // Eine Wellenschicht als Sinus mit genauen Massen in Punkten, damit
 // die Oberfläche an jeder Stelle rechenbar ist: Mitte c, Höhe A,
 // Wellenlänge l, Schicht h hoch. Das Bild wiederholt sich alle l Punkte.
+// Farbton des Wassers je Themenfarbe (Wunsch Patrick 22. Oktober 2026:
+// „soll passend zur gewählten Themenfarbe mitwechseln“). Blau ist der
+// bisherige Ton, die anderen haben dieselbe Helligkeit im eigenen Ton.
+// Dazu ein Faktor für die Sättigung, damit Grün nicht grell wirkt.
+const WASSER_TON = { blau: [210, 1], rot: [0, 1], gruen: [152, .6], gelb: [44, .9], rosa: [325, 1], violett: [268, 1], orange: [24, 1] };
+const wasserFarben = (art) => {
+  const [t, f] = WASSER_TON[document.body.getAttribute("data-thema")] ?? WASSER_TON.blau;
+  const s = (n) => Math.round(n * f) + "%";
+  return art === "hinten"
+    ? [`hsla(${t - 2},${s(80)},71%,.55)`, `hsla(${t + 4},${s(67)},47%,.55)`, "rgba(255,255,255,.25)"]
+    : [`hsla(${t - 2},${s(76)},61%,.85)`, `hsla(${t + 6},${s(79)},37%,.95)`, "rgba(255,255,255,.55)"];
+};
+
 const welleBild = ({ l, h, c, A }, oben, unten, schaum) => {
   let d = `M0 ${c}`;
   for (let i = 1; i <= 48; i++) {
@@ -83,10 +97,8 @@ export default function Durchfahrt() {
       meer.replaceChildren();
       schichten.forEach((s) => s.anim.cancel());
       schichten = [
-        { art: "hinten", l: Math.round(hoch * 3.2), h: Math.round(hoch * .3), A: hoch * .035, dauer: 9000,
-          farben: ["rgba(120,185,240,.55)", "rgba(40,110,200,.55)", "rgba(255,255,255,.25)"] },
-        { art: "vorne", l: Math.round(hoch * 2.3), h: Math.round(hoch * .2), A: hoch * .045, dauer: 6000,
-          farben: ["rgba(80,160,230,.85)", "rgba(20,80,170,.95)", "rgba(255,255,255,.55)"] },
+        { art: "hinten", l: Math.round(hoch * 3.2), h: Math.round(hoch * .3), A: hoch * .035, dauer: 9000 },
+        { art: "vorne", l: Math.round(hoch * 2.3), h: Math.round(hoch * .2), A: hoch * .045, dauer: 6000 },
       ].map((s) => {
         s.c = s.A + 2;
         const el = document.createElement("div");
@@ -95,7 +107,8 @@ export default function Durchfahrt() {
         el.style.width = `calc(100% + ${s.l}px)`;
         el.style.left = -s.l + "px";
         el.style.backgroundSize = `${s.l}px ${s.h}px`;
-        el.style.backgroundImage = welleBild(s, ...s.farben);
+        s.el = el;
+        el.style.backgroundImage = welleBild(s, ...wasserFarben(s.art));
         meer.appendChild(el);
         s.anim = el.animate([{ transform: "translateX(0)" }, { transform: `translateX(${s.l}px)` }],
           { duration: s.dauer, iterations: Infinity });
@@ -103,6 +116,12 @@ export default function Durchfahrt() {
       });
     };
     meerBauen();
+    // Wechselt die Themenfarbe, wechselt das Wasser mit, ohne dass die
+    // Wellen neu anfangen
+    const themaWo = new MutationObserver(() => schichten.forEach((s) => {
+      s.el.style.backgroundImage = welleBild(s, ...wasserFarben(s.art));
+    }));
+    themaWo.observe(document.body, { attributes: true, attributeFilter: ["data-thema"] });
     // Ändert sich die Höhe des Bands, passen die Wellen sich an
     let hoeheVorher = band.clientHeight;
     const wo = new ResizeObserver(() => {
@@ -305,6 +324,7 @@ export default function Durchfahrt() {
       uhren.clear();
       aufraeumen.forEach((f) => f());
       wo.disconnect();
+      themaWo.disconnect();
       schichten.forEach((s) => s.anim.cancel());
       band.replaceChildren();
     };
