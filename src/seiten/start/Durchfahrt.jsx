@@ -11,9 +11,15 @@
 //  Zustand, damit die Startseite dafür nie neu zeichnet.
 //  Seit 1.151.0 (Wunsch Patrick 22. Oktober 2026: „Nimm den Mario weg
 //  und ersetze ihn mit dem Jetski“) fährt statt Mario ein Jetski im
-//  Ferrari-Kleid mit Jviano als Fahrer, schaukelnd auf einer Welle, mit Gischt.
+//  Ferrari-Kleid, schaukelnd auf einer Welle, mit Gischt. Seit 1.151.1
+//  („Lass genau den durchfahren, ohne den Text“) fährt Jiviano Ferrari
+//  selbst auf seinem Jetski, ausgeschnitten aus dem Bild zu seinem
+//  Jubiläum auf dem Infoboard. Das Foto steht nur in der Datenbank
+//  (app_config „durchfahrt_bild“ als data:-Bild), nie im öffentlichen
+//  Repository; fehlt es, fährt der gezeichnete Jetski.
 // =================================================================
 import { useEffect, useRef } from "react";
+import { alt } from "../../bruecke.jsx";
 
 const zufall = (a, b) => a + Math.random() * (b - a);
 
@@ -55,9 +61,9 @@ const FERRARI = `
   ${rad(196, 64, 15)}
 </svg>`;
 
-// Jetski im Kleid eines roten Ferrari (wie die Supercar-Jetskis aus
-// Miami), Jviano fährt (Wunsch Patrick: „inkl. Jviano“), sein Name steht
-// auf der Seite. Fahrt nach rechts, Front rechts
+// Ersatz, solange das Foto fehlt: Jetski im Kleid eines roten Ferrari
+// (wie die Supercar-Jetskis aus Miami) mit Fahrer. Fahrt nach rechts,
+// Front rechts
 const JETSKI = `
 <svg viewBox="0 0 250 120" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -96,12 +102,49 @@ const JETSKI = `
     <rect x="214" y="72" width="7" height="9" rx="1.6" fill="#ffd21f"/>
     <path d="M217.5 74 L216.2 79 L218.8 79 Z" fill="#111"/>
     <path d="M232 76 C237 77 241 80 242 83 L229 81 Z" fill="#fff4c2"/>
-    <text class="fahrt__name" x="150" y="92" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="800" font-style="italic" fill="#fff">JVIANO</text>
     <path d="M26 98 C80 102 200 100 240 94 L236 100 C190 106 70 106 30 102 Z" fill="#5e0a0a"/>
   </g>
   <path class="fahrt__welle" d="M-40 104 Q-25 98 -10 104 T20 104 T50 104 T80 104 T110 104 T140 104 T170 104 T200 104 T230 104 T260 104 T290 104 L290 120 L-40 120 Z" fill="url(#fahrt-wasser)"/>
   <path d="M-40 110 Q-25 106 -10 110 T20 110 T50 110 T80 110 T110 110 T140 110 T170 110 T200 110 T230 110 T260 110 T290 110" stroke="url(#fahrt-wasser)" stroke-width="2" fill="none"/>
 </svg>`;
+
+// Wasser und Gischt unter dem Foto, gezeichnet für Fahrt nach rechts
+// (Gischt links); das Foto schaut nach links, darum fährt es immer nach
+// links und die Ebene wird mit fahrt--links gespiegelt.
+const WASSER = `
+<svg class="fahrt__wasser" viewBox="0 0 250 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fahrt-wasser2" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#7fc4f0" stop-opacity="0"/>
+      <stop offset=".2" stop-color="#7fc4f0" stop-opacity=".9"/>
+      <stop offset=".8" stop-color="#7fc4f0" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#7fc4f0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <g class="fahrt__gischt" fill="#fff">
+    <path d="M40 24 C24 16 10 4 -4 -10 C8 8 4 16 -16 20 C4 24 20 28 40 28 Z" opacity=".75"/>
+    <circle cx="2" cy="-14" r="3.5" opacity=".8"/>
+    <circle cx="-16" cy="-2" r="2.6" opacity=".7"/>
+    <circle cx="14" cy="-22" r="2.2" opacity=".7"/>
+  </g>
+  <path class="fahrt__welle" d="M-40 16 Q-25 10 -10 16 T20 16 T50 16 T80 16 T110 16 T140 16 T170 16 T200 16 T230 16 T260 16 T290 16 L290 40 L-40 40 Z" fill="url(#fahrt-wasser2)"/>
+</svg>`;
+
+// Das Foto aus der Datenbank, einmal je Seite
+let fotoLaden = null;
+const jetskiFoto = () => {
+  if (!fotoLaden) {
+    fotoLaden = (async () => {
+      const r = await alt.db.from("app_config").select("wert").eq("schluessel", "durchfahrt_bild").maybeSingle();
+      const url = r && r.data && r.data.wert;
+      if (!url) return null;
+      // Erst fahren lassen, wenn das Bild wirklich geht
+      await new Promise((ok, nein) => { const i = new Image(); i.onload = ok; i.onerror = nein; i.src = url; });
+      return url;
+    })().catch(() => null);
+  }
+  return fotoLaden;
+};
 
 export default function Durchfahrt() {
   const ref = useRef(null);
@@ -123,15 +166,26 @@ export default function Durchfahrt() {
       if (!breit || !hoch) return;
       const ferrari = welcher === "ferrari";
       // So hoch, dass er gut zu sehen ist, aber unten im Band bleibt
-      const h = Math.max(36, Math.min(ferrari ? 100 : 120, hoch * (ferrari ? .5 : .56)));
-      const w = h * (ferrari ? 250 / 84 : 250 / 120);
+      const foto = ferrari ? null : await jetskiFoto();
+      if (aus) return;
+      const h = Math.max(36, Math.min(ferrari ? 100 : foto ? 130 : 120, hoch * (ferrari ? .5 : foto ? .62 : .56)));
+      const w = h * (ferrari ? 250 / 84 : foto ? 300 / 204 : 250 / 120);
       const el = document.createElement("div");
       el.className = "fahrt fahrt--" + welcher;
       el.style.width = w + "px";
       el.style.height = h + "px";
-      el.innerHTML = ferrari ? FERRARI : JETSKI;
-      // Beide kommen mal von links, mal von rechts
-      const nachRechts = Math.random() < .5;
+      if (foto) {
+        el.classList.add("fahrt--foto");
+        el.innerHTML = WASSER;
+        const bild = document.createElement("img");
+        bild.className = "fahrt__schaukeln";
+        bild.alt = "";
+        bild.src = foto;
+        el.prepend(bild);
+      } else el.innerHTML = ferrari ? FERRARI : JETSKI;
+      // Beide kommen mal von links, mal von rechts; das Foto immer mit
+      // der Spitze voran nach links
+      const nachRechts = foto ? false : Math.random() < .5;
       if (!nachRechts) el.classList.add("fahrt--links");
       band.appendChild(el);
       const von = nachRechts ? -w - 20 : breit + 20, bis = nachRechts ? breit + 20 : -w - 20;

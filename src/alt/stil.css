@@ -8805,8 +8805,13 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
 .fahrt__welle { animation: fahrt-welle .6s linear infinite; }
 @keyframes fahrt-welle { from { transform: translateX(0); } to { transform: translateX(30px); } }
 .fahrt__gischt { transform-origin: 30px 100px; animation: fahrt-gischt .25s ease-in-out infinite alternate; }
-/* Der Name bleibt lesbar, wenn der Jetski nach links fährt */
-.fahrt--links .fahrt__name { transform-box: fill-box; transform-origin: center; transform: scaleX(-1); }
+/* Foto von Jiviano auf dem Jetski (seit 1.151.1): Bild schaukelt, darunter
+   Welle und Gischt als eigene Ebene, die über den unteren Rand des Fotos geht */
+.fahrt--foto { opacity: 1; }
+.fahrt--foto > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+  transform-origin: 50% 90%; }
+.fahrt__wasser .fahrt__gischt { transform-origin: 30px 24px; }
+.fahrt--foto > svg.fahrt__wasser { position: absolute; left: -12%; width: 124%; bottom: -4%; height: 26%; }
 @keyframes fahrt-gischt { from { transform: scale(.85); opacity: .7; } to { transform: scale(1.1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .durchfahrt { display: none; } }
 
