@@ -213,7 +213,7 @@ export function PdfAnsicht({ daten, beiFehler }) {
           {doc && flaeche && masse.map((m, i) => (
             <Seite key={i} doc={doc} nr={i + 1}
               breite={m.b * passend(m) * zoom} hoehe={m.h * passend(m) * zoom}
-              massstab={passend(m) * zoom} flaeche={flaeche} springen={springen} />
+              massstab={passend(m) * zoom} flaeche={flaeche} springen={springen} buehne={buehne} />
           ))}
         </div>
         {!doc && <div className="pdfansicht__laden">PDF wird geladen …</div>}
@@ -230,15 +230,38 @@ export function PdfAnsicht({ daten, beiFehler }) {
   );
 }
 
-function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen }) {
+// Gezeichnet werden nur Seiten in der Nähe des sichtbaren Bereichs, weiter
+// entfernte geben ihre Zeichenfläche wieder frei. Ein Handbuch mit
+// Hunderten Seiten hat sonst auf dem iPad den Speicher gesprengt und
+// Safari hat die App neu geladen (Patrick 22. Oktober 2026: „grosse
+// Dokumente werden auf den Pads nicht angezeigt“).
+function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen, buehne }) {
   const leinwand = useRef(null);
+  const huelle = useRef(null);
+  const [nah, setNah] = useState(nr <= 2);
   const [links, setLinks] = useState([]);
+  useEffect(() => {
+    const el = huelle.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setNah(true); return; }
+    const io = new IntersectionObserver((e) => setNah(e.some((x) => x.isIntersecting)),
+      { root: buehne && buehne.current, rootMargin: "100% 50%" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  // Weit weg: Zeichenfläche freigeben (Safari gibt den Speicher erst so zurück)
+  useEffect(() => {
+    if (nah || !leinwand.current) return;
+    const c = leinwand.current;
+    c.width = 0; c.height = 0;
+    delete c.dataset.fertig;
+  }, [nah]);
   useEffect(() => {
     let weg = false;
     doc.getPage(nr).then((s) => seitenLinks(doc, s)).then((l) => { if (!weg) setLinks(l); }).catch(() => {});
     return () => { weg = true; };
   }, [doc, nr]);
   useEffect(() => {
+    if (!nah) return;
     let weg = false, aufgabe = null;
     const t = setTimeout(async () => {
       const seite = await doc.getPage(nr);
@@ -252,17 +275,20 @@ function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen }) {
       const neu = document.createElement("canvas");
       neu.width = Math.floor(v.width); neu.height = Math.floor(v.height);
       aufgabe = seite.render({ canvasContext: neu.getContext("2d"), viewport: v, canvas: neu });
-      try { await aufgabe.promise; } catch (f) { return; }
-      if (weg || !leinwand.current) return;
+      const frei = () => { neu.width = 0; neu.height = 0; };
+      try { await aufgabe.promise; } catch (f) { frei(); return; }
+      if (weg || !leinwand.current) { frei(); return; }
       const alt = leinwand.current;
       alt.width = neu.width; alt.height = neu.height;
       alt.getContext("2d").drawImage(neu, 0, 0);
+      frei();
+      seite.cleanup();
       alt.dataset.fertig = "1";
     }, 60);
     return () => { weg = true; clearTimeout(t); if (aufgabe) aufgabe.cancel(); };
-  }, [doc, nr, massstab]);
+  }, [doc, nr, massstab, nah]);
   return (
-    <div className="pdfansicht__seite" data-pdfseite={nr} style={{ minHeight: flaeche.h }}>
+    <div className="pdfansicht__seite" ref={huelle} data-pdfseite={nr} style={{ minHeight: flaeche.h }}>
       <div className="pdfansicht__flaeche" style={{ width: breite, height: hoehe }}>
         <canvas ref={leinwand} style={{ width: breite, height: hoehe }} />
         {links.map((l, i) => (
