@@ -1,4 +1,4 @@
-# Suche im PDF-Betrachter (seit 1.134.0): Lupe öffnet ein Suchfeld,
+# Suche im PDF-Betrachter (seit 1.139.0): Lupe öffnet ein Suchfeld,
 # Treffer werden markiert, Weiter/Zurück springt zur Stelle.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -12,7 +12,11 @@ def pdf_mit_text(seiten, texte):
     kids = []
     for i in range(seiten):
         t = texte.get(i + 1, f"Seite {i + 1}")
-        inhalt = f"BT /F1 24 Tf 72 700 Td ({t}) Tj ET"
+        if t.startswith("*"):
+            # Jeder Buchstabe einzeln gesetzt, wie in vielen echten Handbüchern
+            inhalt = "BT /F1 24 Tf 72 700 Td " + " ".join(f"({ch}) Tj 14 0 Td" for ch in t[1:]) + " ET"
+        else:
+            inhalt = f"BT /F1 24 Tf 72 700 Td ({t}) Tj ET"
         obj.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents {len(obj) + 2} 0 R >>")
         kids.append(f"{len(obj)} 0 R")
         obj.append(f"<< /Length {len(inhalt)} >>\nstream\n{inhalt}\nendstream")
@@ -25,7 +29,7 @@ def pdf_mit_text(seiten, texte):
     aus += f"trailer\n<< /Size {len(obj) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF"
     return aus.encode("latin-1")
 
-PDF = pdf_mit_text(60, {12: "Spindel schmieren", 47: "Reitstock und SPINDEL pruefen"})
+PDF = pdf_mit_text(60, {12: "Spindel schmieren", 47: "Reitstock und SPINDEL pruefen", 55: "*Kuehlmittelpumpe"})
 K = """daten.dokumente = [
  { id: 'd1', art: 'zeichnung', hoco_nr: '10844-0049', type_id: null, titel: 'Handbuch', dateiname: 'h.pdf', datei_url: 'https://x.invalid/h.pdf', erstellt_am: '2026-09-30T08:00:00Z' }];"""
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
@@ -70,6 +74,12 @@ with sync_playwright() as p:
            (pg.wait_for_selector("[data-pdfseite='47'] canvas[data-fertig]", timeout=5000) is not None))
     pg.locator("[data-pdfzurueck]").click(); pg.wait_for_timeout(600)
     pruefe("Zurück: wieder Seite 12", pg.evaluate(f"({SICHTBAR})(12)"))
+    # Buchstabe für Buchstabe gesetzter Text wird auch gefunden
+    pg.locator("[data-pdfsuchfeld]").fill("kuehlmittel")
+    pg.wait_for_function("() => /^1 \\/ 1$/.test(document.querySelector('[data-pdfsuchstand]').textContent.trim())", timeout=15000)
+    pg.wait_for_timeout(600)
+    pruefe("einzelne Buchstaben gefunden (Seite 55)", pg.evaluate(f"({SICHTBAR})(55)"))
+    pruefe("Markierung über mehrere Buchstaben", pg.locator("[data-pdfseite='55'] .pdf-treffer--aktiv").count() >= 2)
     pg.locator("[data-pdfsuchfeld]").fill("gibtsnicht")
     pg.wait_for_function("() => document.querySelector('[data-pdfsuchstand]').textContent.includes('Nichts gefunden')", timeout=15000)
     pruefe("Nichts gefunden", True)

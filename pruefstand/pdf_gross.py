@@ -1,6 +1,6 @@
 # Grosse PDF (Handbuch mit vielen Seiten): Der Betrachter zeichnet nur
 # Seiten in der Nähe des sichtbaren Bereichs und gibt weit entfernte
-# wieder frei, sonst stürzt Safari auf dem iPad ab (seit 1.133.1).
+# wieder frei, sonst stürzt Safari auf dem iPad ab (seit 1.138.1).
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -53,6 +53,11 @@ with sync_playwright() as p:
     pg.evaluate("() => { document.querySelector('.pdfansicht__buehne').scrollTop = 0; }")
     pg.wait_for_function("() => document.querySelector('[data-pdfseite=\"1\"] canvas').dataset.fertig === '1'", timeout=10000)
     pruefe("Seite 1 wieder gezeichnet", 1 in pg.evaluate(GEZEICHNET))
+    # Ohne Text (wie eingescannt): die Suche sagt es
+    pg.locator("[data-pdfsuche]").click()
+    pg.locator("[data-pdfsuchfeld]").fill("spindel")
+    pg.wait_for_function("() => document.querySelector('[data-pdfsuchstand]').textContent.includes('eingescannt')", timeout=20000)
+    pruefe("Hinweis: eingescannt, kein Text", True)
     pruefe("keine Skriptfehler", not f)
     if f: print(f)
     br.close()

@@ -8875,7 +8875,7 @@ td.zelle--fremd .menge, td.zelle--fremd .zelle__leistung { opacity: .45; }
 .ib-blatt--ziel { outline: 16px dashed #2fb67c; outline-offset: -16px; }
 .ib-wahl__mass { margin: 0 0 8px; }
 
-/* ---------- Seite Maschinen (seit 1.134.0) ---------- */
+/* ---------- Seite Maschinen (seit 1.139.0) ---------- */
 .mseite-frage { font-size: 1.05rem; margin: 14px 0 10px; color: var(--gedaempft); font-weight: 600; }
 .mseite-pfad { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; margin: 10px 0 4px; font-size: .95rem; }
 .mseite-pfad__trenn { margin: 0 8px; color: var(--gedaempft); }
@@ -9007,7 +9007,7 @@ body.zieh-laeuft, body.zieh-laeuft * { user-select: none !important; -webkit-use
   .mat-foto__text, .mat-foto__quelle { font-size: 11px; }
 }
 
-/* PDF-Betrachter: Suche im Text (seit 1.134.0) */
+/* PDF-Betrachter: Suche im Text (seit 1.139.0) */
 .pdfansicht__suche { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 3;
   display: flex; align-items: center; gap: 6px; width: min(560px, calc(100% - 20px)); padding: 6px;
   border-radius: 10px; background: rgba(29, 36, 48, .92); box-shadow: 0 2px 10px rgba(0, 0, 0, .3); }

@@ -62,45 +62,66 @@ export async function seitenLinks(doc, seite) {
   return aus;
 }
 
-// Suche im Text des PDF (seit 1.134.0, Wunsch Patrick 22. Oktober 2026:
+// Suche im Text des PDF (seit 1.139.0, Wunsch Patrick 22. Oktober 2026:
 // „nicht alle Anleitungen haben Inhaltsverzeichnisse“). Je Seite einmal
 // den Text holen und merken, Treffer als Anteil der Seite wie bei den
 // Verweisen. Gross/klein und Akzente zählen nicht. Gescannte PDFs ohne
 // Text finden nichts, das sagt die Leiste dann.
 const suchForm = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+// Viele PDFs liefern den Text nicht wortweise, sondern Buchstabe für
+// Buchstabe oder in Stücken ohne Leerschlag dazwischen. Darum wird je
+// Seite alles zu einer Zeichenfolge ohne Leerraum zusammengehängt und
+// darin gesucht; jedes Zeichen weiss, aus welchem Stück es kommt
+// (Patrick 22. Oktober 2026: „egal was ich eingebe, nichts gefunden“).
 async function seitenText(doc, nr) {
   const seite = await doc.getPage(nr);
   const v = seite.getViewport({ scale: 1 });
   const inhalt = await seite.getTextContent();
-  const teile = [];
+  const stuecke = [];
+  let kompakt = "";
+  const herkunft = [];
   for (const it of inhalt.items) {
-    if (!it.str || !it.str.trim() || !it.transform) continue;
+    if (!it.str || !it.transform) continue;
+    const text = suchForm(it.str);
+    if (!text.trim()) continue;
     const [, , c, d, e, f] = it.transform;
     const hoch = Math.hypot(c, d) || it.height || 10;
     const t = v.transform, pt = (x, y) => [t[0] * x + t[2] * y + t[4], t[1] * x + t[3] * y + t[5]];
     const p1 = pt(e, f - hoch * 0.25), p2 = pt(e + (it.width || 0), f + hoch * 0.9);
-    const r = [p1[0], p1[1], p2[0], p2[1]];
-    const x = Math.min(r[0], r[2]), y = Math.min(r[1], r[3]);
-    teile.push({ text: suchForm(it.str), x: x / v.width, y: y / v.height,
-      w: Math.abs(r[2] - r[0]) / v.width, h: Math.abs(r[3] - r[1]) / v.height });
-  }
-  seite.cleanup();
-  return teile;
-}
-
-function trefferAufSeite(teile, q) {
-  const aus = [];
-  for (const t of teile) {
-    let i = t.text.indexOf(q);
-    while (i >= 0) {
-      // Innerhalb des Textstücks nach Anteil der Zeichen eingrenzen
-      const n = t.text.length || 1;
-      aus.push({ x: t.x + t.w * i / n, y: t.y, w: Math.max(t.w * q.length / n, 0.004), h: t.h });
-      i = t.text.indexOf(q, i + q.length);
+    const x = Math.min(p1[0], p2[0]), y = Math.min(p1[1], p2[1]);
+    const si = stuecke.length;
+    stuecke.push({ n: text.length, x: x / v.width, y: y / v.height,
+      w: Math.abs(p2[0] - p1[0]) / v.width, h: Math.abs(p2[1] - p1[1]) / v.height });
+    for (let k = 0; k < text.length; k++) {
+      if (/\s/.test(text[k])) continue;
+      kompakt += text[k]; herkunft.push(si, k);
     }
   }
-  return aus.sort((a, b) => a.y - b.y || a.x - b.x);
+  return { kompakt, herkunft, stuecke };
+}
+
+function trefferAufSeite(seite, q) {
+  const aus = [];
+  if (!seite || !q) return aus;
+  let i = seite.kompakt.indexOf(q);
+  while (i >= 0) {
+    // Je Stück, das der Treffer berührt, ein Feld vom ersten bis zum
+    // letzten getroffenen Zeichen
+    const je = new Map();
+    for (let p = i; p < i + q.length; p++) {
+      const si = seite.herkunft[2 * p], k = seite.herkunft[2 * p + 1];
+      const b = je.get(si);
+      if (!b) je.set(si, [k, k]); else b[1] = k;
+    }
+    const felder = [...je].map(([si, [k1, k2]]) => {
+      const st = seite.stuecke[si], n = st.n || 1;
+      return { x: st.x + st.w * k1 / n, y: st.y, w: Math.max(st.w * (k2 - k1 + 1) / n, 0.004), h: st.h };
+    });
+    aus.push({ ...felder[0], felder });
+    i = seite.kompakt.indexOf(q, i + q.length);
+  }
+  return aus;
 }
 
 const ZOOM_MIN = 1, ZOOM_MAX = 6;
@@ -124,6 +145,7 @@ export function PdfAnsicht({ daten, beiFehler }) {
   const [treffer, setTreffer] = useState([]);   // [{ nr, x, y, w, h }]
   const [aktiv, setAktiv] = useState(0);
   const [sucht, setSucht] = useState(null);     // { seite, von } während der Suche
+  const [ohneText, setOhneText] = useState(false); // eingescannt: kein Text im PDF
   const texte = useRef({});
   const suchLauf = useRef(0);
   const suchFeld = useRef(null);
@@ -132,7 +154,12 @@ export function PdfAnsicht({ daten, beiFehler }) {
   useEffect(() => {
     let weg = false, aufgabe = null;
     pdfjs().then(async (lib) => {
-      aufgabe = lib.getDocument({ data: daten.slice(), isEvalSupported: false });
+      // Zeichentabellen und Standardschriften von pdf.js: ohne sie fehlt
+      // bei manchen PDFs (asiatische Schriften, Schriften nicht
+      // eingebettet) der Text für die Suche. Geholt nur, wenn ein PDF sie braucht.
+      const quelle = "https://cdn.jsdelivr.net/npm/pdfjs-dist@" + lib.version + "/";
+      aufgabe = lib.getDocument({ data: daten.slice(), isEvalSupported: false,
+        cMapUrl: quelle + "cmaps/", cMapPacked: true, standardFontDataUrl: quelle + "standard_fonts/" });
       const d = await aufgabe.promise;
       const m = [];
       for (let i = 1; i <= d.numPages; i++) {
@@ -244,22 +271,24 @@ export function PdfAnsicht({ daten, beiFehler }) {
 
   // Treffer suchen, Seite für Seite; ein neuer Suchtext bricht den alten Lauf ab
   const suchen = async (text) => {
-    const q = suchForm(text).trim();
+    const q = suchForm(text).replace(/\s+/g, "");
     const lauf = ++suchLauf.current;
-    setTreffer([]); setAktiv(0);
+    setTreffer([]); setAktiv(0); setOhneText(false);
     if (!doc || q.length < 2) { setSucht(null); return; }
     const alle = [];
-    let gezeigt = false;
+    let gezeigt = false, zeichen = 0;
     for (let nr = 1; nr <= doc.numPages; nr++) {
       if (lauf !== suchLauf.current) return;
       if (!texte.current[nr]) {
-        try { texte.current[nr] = await seitenText(doc, nr); } catch (f) { texte.current[nr] = []; }
+        try { texte.current[nr] = await seitenText(doc, nr); } catch (f) { texte.current[nr] = null; }
       }
+      zeichen += texte.current[nr] ? texte.current[nr].kompakt.length : 0;
       trefferAufSeite(texte.current[nr], q).forEach((t) => alle.push({ nr, ...t }));
       if (nr % 10 === 0 || nr === doc.numPages) {
         if (lauf !== suchLauf.current) return;
         setSucht(nr < doc.numPages ? { seite: nr, von: doc.numPages } : null);
         setTreffer(alle.slice());
+        if (nr === doc.numPages && !zeichen) setOhneText(true);
         // Den ersten Treffer gleich zeigen, nicht erst am Ende
         if (!gezeigt && alle.length) { gezeigt = true; zuTreffer(alle[0]); }
       }
@@ -337,6 +366,7 @@ export function PdfAnsicht({ daten, beiFehler }) {
           {suchForm(suche).trim().length < 2 ? ""
             : treffer.length ? (aktiv + 1) + " / " + treffer.length + (sucht ? " …" : "")
             : sucht ? "Sucht … Seite " + sucht.seite + " / " + sucht.von
+            : ohneText ? "Dieses PDF ist eingescannt und hat keinen Text"
             : "Nichts gefunden"}
         </span>
         <button className="knopf knopf--klein" aria-label="Vorheriger Treffer" data-pdfzurueck=""
@@ -423,9 +453,9 @@ function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen, buehne, tr
     <div className="pdfansicht__seite" ref={huelle} data-pdfseite={nr} style={{ minHeight: flaeche.h }}>
       <div className="pdfansicht__flaeche" style={{ width: breite, height: hoehe }}>
         <canvas ref={leinwand} style={{ width: breite, height: hoehe }} />
-        {treffer && treffer.filter((t) => t.nr === nr).map((t, i) => (
-          <span key={i} className={"pdf-treffer" + (t === aktiv ? " pdf-treffer--aktiv" : "")} data-pdftreffer=""
-            style={{ left: t.x * 100 + "%", top: t.y * 100 + "%", width: t.w * 100 + "%", height: t.h * 100 + "%" }} />))}
+        {treffer && treffer.filter((t) => t.nr === nr).flatMap((t, i) => (t.felder || [t]).map((f, j) => (
+          <span key={i + "-" + j} className={"pdf-treffer" + (t === aktiv ? " pdf-treffer--aktiv" : "")} data-pdftreffer=""
+            style={{ left: f.x * 100 + "%", top: f.y * 100 + "%", width: f.w * 100 + "%", height: f.h * 100 + "%" }} />)))}
         {links.map((l, i) => (
           <button key={i} type="button" className="pdf-link" data-pdflink={l.z} aria-label={"Zu Seite " + l.z}
             title={"Zu Seite " + l.z}
