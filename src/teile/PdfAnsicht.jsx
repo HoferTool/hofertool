@@ -62,6 +62,47 @@ export async function seitenLinks(doc, seite) {
   return aus;
 }
 
+// Suche im Text des PDF (seit 1.134.0, Wunsch Patrick 22. Oktober 2026:
+// „nicht alle Anleitungen haben Inhaltsverzeichnisse“). Je Seite einmal
+// den Text holen und merken, Treffer als Anteil der Seite wie bei den
+// Verweisen. Gross/klein und Akzente zählen nicht. Gescannte PDFs ohne
+// Text finden nichts, das sagt die Leiste dann.
+const suchForm = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+async function seitenText(doc, nr) {
+  const seite = await doc.getPage(nr);
+  const v = seite.getViewport({ scale: 1 });
+  const inhalt = await seite.getTextContent();
+  const teile = [];
+  for (const it of inhalt.items) {
+    if (!it.str || !it.str.trim() || !it.transform) continue;
+    const [, , c, d, e, f] = it.transform;
+    const hoch = Math.hypot(c, d) || it.height || 10;
+    const t = v.transform, pt = (x, y) => [t[0] * x + t[2] * y + t[4], t[1] * x + t[3] * y + t[5]];
+    const p1 = pt(e, f - hoch * 0.25), p2 = pt(e + (it.width || 0), f + hoch * 0.9);
+    const r = [p1[0], p1[1], p2[0], p2[1]];
+    const x = Math.min(r[0], r[2]), y = Math.min(r[1], r[3]);
+    teile.push({ text: suchForm(it.str), x: x / v.width, y: y / v.height,
+      w: Math.abs(r[2] - r[0]) / v.width, h: Math.abs(r[3] - r[1]) / v.height });
+  }
+  seite.cleanup();
+  return teile;
+}
+
+function trefferAufSeite(teile, q) {
+  const aus = [];
+  for (const t of teile) {
+    let i = t.text.indexOf(q);
+    while (i >= 0) {
+      // Innerhalb des Textstücks nach Anteil der Zeichen eingrenzen
+      const n = t.text.length || 1;
+      aus.push({ x: t.x + t.w * i / n, y: t.y, w: Math.max(t.w * q.length / n, 0.004), h: t.h });
+      i = t.text.indexOf(q, i + q.length);
+    }
+  }
+  return aus.sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
 const ZOOM_MIN = 1, ZOOM_MAX = 6;
 // Safari verweigert zu grosse Zeichenflächen. Darüber wird die Seite
 // lieber etwas weicher als gar nicht gezeichnet.
@@ -78,6 +119,14 @@ export function PdfAnsicht({ daten, beiFehler }) {
   zoomRef.current = zoom;
   // Nach einem Zoom soll derselbe Punkt unter den Fingern bleiben
   const anker = useRef(null);
+  // Suche
+  const [suche, setSuche] = useState(null);     // null = zu, sonst Text im Feld
+  const [treffer, setTreffer] = useState([]);   // [{ nr, x, y, w, h }]
+  const [aktiv, setAktiv] = useState(0);
+  const [sucht, setSucht] = useState(null);     // { seite, von } während der Suche
+  const texte = useRef({});
+  const suchLauf = useRef(0);
+  const suchFeld = useRef(null);
 
   // Laden
   useEffect(() => {
@@ -193,6 +242,64 @@ export function PdfAnsicht({ daten, beiFehler }) {
     };
   }, []);
 
+  // Treffer suchen, Seite für Seite; ein neuer Suchtext bricht den alten Lauf ab
+  const suchen = async (text) => {
+    const q = suchForm(text).trim();
+    const lauf = ++suchLauf.current;
+    setTreffer([]); setAktiv(0);
+    if (!doc || q.length < 2) { setSucht(null); return; }
+    const alle = [];
+    let gezeigt = false;
+    for (let nr = 1; nr <= doc.numPages; nr++) {
+      if (lauf !== suchLauf.current) return;
+      if (!texte.current[nr]) {
+        try { texte.current[nr] = await seitenText(doc, nr); } catch (f) { texte.current[nr] = []; }
+      }
+      trefferAufSeite(texte.current[nr], q).forEach((t) => alle.push({ nr, ...t }));
+      if (nr % 10 === 0 || nr === doc.numPages) {
+        if (lauf !== suchLauf.current) return;
+        setSucht(nr < doc.numPages ? { seite: nr, von: doc.numPages } : null);
+        setTreffer(alle.slice());
+        // Den ersten Treffer gleich zeigen, nicht erst am Ende
+        if (!gezeigt && alle.length) { gezeigt = true; zuTreffer(alle[0]); }
+      }
+    }
+  };
+  useEffect(() => {
+    if (suche === null) { suchLauf.current++; setTreffer([]); setSucht(null); return; }
+    const t = setTimeout(() => suchen(suche), 350);
+    return () => clearTimeout(t);
+  }, [suche, doc]);
+
+  const zuTreffer = (t) => {
+    const el = buehne.current, seite = el && el.querySelector('[data-pdfseite="' + t.nr + '"]');
+    if (!seite) return;
+    const f = seite.firstElementChild.getBoundingClientRect(), b = el.getBoundingClientRect();
+    const top = el.scrollTop + f.top - b.top + t.y * f.height;
+    const links = el.scrollLeft + f.left - b.left + t.x * f.width;
+    el.scrollTo({ top: Math.max(0, top - el.clientHeight / 3), left: Math.max(0, links - el.clientWidth / 3) });
+  };
+  const blaettern = (schritt) => {
+    if (!treffer.length) return;
+    const n = (aktiv + schritt + treffer.length) % treffer.length;
+    setAktiv(n); zuTreffer(treffer[n]);
+  };
+  const sucheZu = () => setSuche(null);
+  useEffect(() => { if (suche !== null && suchFeld.current) suchFeld.current.focus(); }, [suche === null]);
+  // Escape schliesst zuerst nur die Suche, nicht den Betrachter. Die
+  // Fenster hören schon in der Einfangphase am document, darum hier noch
+  // früher am window.
+  useEffect(() => {
+    if (suche === null) return;
+    const taste = (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      sucheZu();
+    };
+    window.addEventListener("keydown", taste, true);
+    return () => window.removeEventListener("keydown", taste, true);
+  }, [suche === null]);
+
   // Verweis im PDF: zur Zielseite rollen
   const springen = (nr) => {
     const el = buehne.current, ziel = el && el.querySelector('[data-pdfseite="' + nr + '"]');
@@ -213,12 +320,37 @@ export function PdfAnsicht({ daten, beiFehler }) {
           {doc && flaeche && masse.map((m, i) => (
             <Seite key={i} doc={doc} nr={i + 1}
               breite={m.b * passend(m) * zoom} hoehe={m.h * passend(m) * zoom}
-              massstab={passend(m) * zoom} flaeche={flaeche} springen={springen} buehne={buehne} />
+              massstab={passend(m) * zoom} flaeche={flaeche} springen={springen} buehne={buehne}
+              treffer={treffer} aktiv={treffer[aktiv]} />
           ))}
         </div>
         {!doc && <div className="pdfansicht__laden">PDF wird geladen …</div>}
       </div>
+      {doc && suche !== null && <div className="pdfansicht__suche" data-pdfsuchleiste="">
+        <input ref={suchFeld} type="search" data-pdfsuchfeld="" placeholder="Im Dokument suchen"
+          value={suche} enterKeyHint="search"
+          onChange={(e) => setSuche(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); blaettern(e.shiftKey ? -1 : 1); }
+          }} />
+        <span className="pdfansicht__suchstand" data-pdfsuchstand="">
+          {suchForm(suche).trim().length < 2 ? ""
+            : treffer.length ? (aktiv + 1) + " / " + treffer.length + (sucht ? " …" : "")
+            : sucht ? "Sucht … Seite " + sucht.seite + " / " + sucht.von
+            : "Nichts gefunden"}
+        </span>
+        <button className="knopf knopf--klein" aria-label="Vorheriger Treffer" data-pdfzurueck=""
+          disabled={!treffer.length} onClick={() => blaettern(-1)}>▲</button>
+        <button className="knopf knopf--klein" aria-label="Nächster Treffer" data-pdfweiter=""
+          disabled={!treffer.length} onClick={() => blaettern(1)}>▼</button>
+        <button className="knopf knopf--klein" aria-label="Suche schliessen" data-pdfsuchezu=""
+          onClick={sucheZu}>✕</button>
+      </div>}
       {doc && <div className="pdfansicht__zoom">
+        <button className="knopf knopf--klein" aria-label="Suchen" title="Im Dokument suchen" data-pdfsuche=""
+          onClick={() => setSuche(suche === null ? "" : null)}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
+            strokeLinecap="round"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" /></svg></button>
         <button className="knopf knopf--klein" aria-label="Verkleinern" data-kleiner=""
           onClick={() => zoomSetzen(zoom / 1.4)} disabled={zoom <= ZOOM_MIN}>−</button>
         <button className="knopf knopf--klein" data-einpassen="" title="Ganze Seite"
@@ -235,7 +367,7 @@ export function PdfAnsicht({ daten, beiFehler }) {
 // Hunderten Seiten hat sonst auf dem iPad den Speicher gesprengt und
 // Safari hat die App neu geladen (Patrick 22. Oktober 2026: „grosse
 // Dokumente werden auf den Pads nicht angezeigt“).
-function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen, buehne }) {
+function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen, buehne, treffer, aktiv }) {
   const leinwand = useRef(null);
   const huelle = useRef(null);
   const [nah, setNah] = useState(nr <= 2);
@@ -291,6 +423,9 @@ function Seite({ doc, nr, breite, hoehe, massstab, flaeche, springen, buehne }) 
     <div className="pdfansicht__seite" ref={huelle} data-pdfseite={nr} style={{ minHeight: flaeche.h }}>
       <div className="pdfansicht__flaeche" style={{ width: breite, height: hoehe }}>
         <canvas ref={leinwand} style={{ width: breite, height: hoehe }} />
+        {treffer && treffer.filter((t) => t.nr === nr).map((t, i) => (
+          <span key={i} className={"pdf-treffer" + (t === aktiv ? " pdf-treffer--aktiv" : "")} data-pdftreffer=""
+            style={{ left: t.x * 100 + "%", top: t.y * 100 + "%", width: t.w * 100 + "%", height: t.h * 100 + "%" }} />))}
         {links.map((l, i) => (
           <button key={i} type="button" className="pdf-link" data-pdflink={l.z} aria-label={"Zu Seite " + l.z}
             title={"Zu Seite " + l.z}

@@ -9006,3 +9006,19 @@ body.zieh-laeuft, body.zieh-laeuft * { user-select: none !important; -webkit-use
   .mat-foto__punkt b { font-size: .9rem; }
   .mat-foto__text, .mat-foto__quelle { font-size: 11px; }
 }
+
+/* PDF-Betrachter: Suche im Text (seit 1.134.0) */
+.pdfansicht__suche { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 3;
+  display: flex; align-items: center; gap: 6px; width: min(560px, calc(100% - 20px)); padding: 6px;
+  border-radius: 10px; background: rgba(29, 36, 48, .92); box-shadow: 0 2px 10px rgba(0, 0, 0, .3); }
+.pdfansicht__suche input { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid #47505c; background: #fff; color: #111; font-size: 16px; }
+.pdfansicht__suchstand { color: #dfe5ec; font-size: .85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pdfansicht__suche .knopf { background: transparent; border-color: #47505c; color: #fff; min-width: 40px;
+  min-height: 40px; justify-content: center; }
+.pdfansicht__suche .knopf:disabled { opacity: .4; }
+.pdf-treffer { position: absolute; pointer-events: none; border-radius: 2px; background: rgba(255, 214, 0, .4);
+  mix-blend-mode: multiply; }
+.pdf-treffer--aktiv { background: rgba(255, 140, 0, .55); outline: 2px solid #ff7a00; }
+.pad-schoner .pdfansicht__suche { display: none; }
+@media (max-width: 640px) { .pdfansicht__suchstand { font-size: .75rem; } }
