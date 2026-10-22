@@ -194,15 +194,25 @@ export function zahlAusText(t) {
   return isFinite(n) ? n : null;
 }
 
-const ZAHL = "(\\d{1,3}(?:['’ ]\\d{3})+(?:[.,]\\d+)?|\\d+(?:[.,]\\d+)?)";
+// Tausender nur mit Apostroph, nicht mit Leerzeichen, und nie mitten
+// in einer Zahl beginnen: Aus „Termin 11.11.2024 100,0000 kg“ las die
+// Erkennung sonst „024 100,0000“ = 24'100 kg, aus dem Datum also die
+// Menge (Patrick 22. Oktober 2026). Ebenso „1 100.0000 kg“ (Position 1).
+// (ohne Rückblick ?<!, den Safari 16 nicht kennt: das Zeichen davor
+// wird mitgenommen, die Zahl bleibt die erste Klammer)
+const ZAHL = "(?:^|[^\\d.,'’])(\\d{1,3}(?:['’]\\d{3})+(?:[.,]\\d+)?|\\d+(?:[.,]\\d+)?)";
 const KG = new RegExp(ZAHL + "\\s*kg\\b(?!\\s*\\/\\s*m)", "gi");
+// Datum (07.11.2024, 7.11.24, 07/11/2024) und Uhrzeit (06:52) vor der
+// Suche nach kg entfernen, damit sie nie als Menge gelten
+const DATUM = /\b\d{1,2}[./]\d{1,2}[./](?:\d{4}|\d{2})\b|\b\d{1,2}:\d{2}\b/g;
 const GEWICHT_WORT = /gewicht|netto|menge|total|liefermenge|bestellmenge|gesamt/i;
 // Vor der Zahl ein Betrag: dann ist es ein Preis, kein Gewicht
 const PREIS_DAVOR = /(chf|fr\.?|eur|€|preis)\s*:?\s*$/i;
 
 function gewichtFinden(zeilen) {
   const kandidaten = [];
-  zeilen.forEach((z, i) => {
+  zeilen.forEach((roh, i) => {
+    const z = roh.replace(DATUM, " ");
     for (const m of z.matchAll(KG)) {
       const n = zahlAusText(m[1]);
       if (!(n > 0)) continue;
