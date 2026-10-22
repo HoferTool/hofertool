@@ -134,7 +134,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.139.2";
+const APP_VERSION = "1.140.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5385,9 +5385,31 @@ async function balkenZeichnung(j) {
 // Klick kurz, ob noch ein zweiter kommt — sonst läge der Betrachter
 // schon über dem Balken. Gemerkt wird in plan statt am Balken, weil
 // der stille Abgleich den Balken zwischen zwei Klicks neu zeichnen kann.
+//
+// Seit 1.140.0 zeigt ein einzelner Klick die Zeichnung nur noch am
+// Handy; am Computer und Tablet markiert er nur den Balken (Wunsch
+// Patrick 22. Oktober 2026: „Einmal Klick für Zeichnung nur Handy“).
 const DOPPELKLICK_MS = 320;
+// Handy hochkant bis 720 Pixel breit, quer bis 500 Pixel hoch, wie im Pad
+function istHandyGeraet() {
+  return isMobil()
+    || ((navigator.maxTouchPoints || 0) > 0 && window.matchMedia("(max-height: 500px)").matches);
+}
 function balkenKlick(auftrag, b) {
   angewaehltSetzen(auftrag.id);
+  if (!istHandyGeraet()) {
+    // Ohne Zeichnung beim Einzelklick braucht es kein Warten
+    const w = plan.klickWarten;
+    plan.klickWarten = null;
+    if (w && w.id === auftrag.id && Date.now() - w.am < DOPPELKLICK_MS) {
+      const auswahl = window.getSelection && window.getSelection();
+      if (auswahl) auswahl.removeAllRanges();
+      planAuftragDialog(auftrag, b);
+      return;
+    }
+    plan.klickWarten = { id: auftrag.id, am: Date.now() };
+    return;
+  }
   const w = plan.klickWarten;
   if (w) clearTimeout(w.zeit);
   plan.klickWarten = null;
