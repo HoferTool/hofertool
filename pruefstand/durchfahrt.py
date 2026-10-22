@@ -1,5 +1,5 @@
-# Startseite: Statt der Hühner fährt abwechselnd ein Ferrari und Mario
-# mit Lasagne durchs Band oben (Wunsch Patrick 22. Oktober 2026).
+# Startseite: Statt der Hühner fährt abwechselnd ein Ferrari und (seit
+# 1.151.0) ein Jetski mit Jviano durchs Band oben (Wunsch Patrick 22. Oktober 2026).
 # Die Wartezeit zwischen den Fahrten wird hier verkürzt, damit beide
 # im Test vorkommen.
 import time
@@ -23,13 +23,14 @@ with sync_playwright() as p:
         pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
         pg.wait_for_selector(".kopfkarte .durchfahrt")
         if pg.locator(".huhn, .huehner").count(): fehler.append("Hühner noch da")
+        if "mario" in pg.content().lower() and pg.locator(".fahrt--mario").count(): fehler.append("Mario noch da")
         gesehen = []
         for i in range(400):
             art = pg.evaluate("() => { const f = document.querySelector('.fahrt'); if (!f) return null;"
                 " const r = f.getBoundingClientRect(), k = document.querySelector('.kopfkarte').getBoundingClientRect();"
                 " return (r.left > k.left + 20 && r.right < k.right - 20) ? f.className : null }")
             if art:
-                welcher = "ferrari" if "ferrari" in art else "mario"
+                welcher = "ferrari" if "ferrari" in art else "jetski"
                 if not gesehen or gesehen[-1] != welcher:
                     gesehen.append(welcher)
                     pg.locator(".kopfkarte").screenshot(path=f"durchfahrt_{name}_{welcher}_{len(gesehen)}.png")

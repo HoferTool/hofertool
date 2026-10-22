@@ -8782,7 +8782,7 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
   -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 42%, transparent 70%);
           mask-image: linear-gradient(180deg, #000 0%, #000 42%, transparent 70%); }
 
-/* ---------- Kopfkarte: Ferrari und Mario im Band (seit 1.150.0) ----------
+/* ---------- Kopfkarte: Ferrari und Jetski im Band (seit 1.150.0, Jetski seit 1.151.0) ----------
    Wunsch Patrick 22. Oktober 2026: statt der Hühner (1.125.0 bis
    1.149.0) fährt abwechselnd ein Ferrari und Super Mario mit einer
    Lasagne durch. Gesteuert von src/seiten/start/Durchfahrt.jsx, hier
@@ -8799,13 +8799,15 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
 @keyframes fahrt-rad { to { transform: rotate(360deg); } }
 .fahrt__wind { animation: fahrt-wind .3s linear infinite; }
 @keyframes fahrt-wind { from { transform: translateX(10px); opacity: .2; } to { transform: translateX(-14px); opacity: .6; } }
-.fahrt--mario svg > g.fahrt__fahrer, .fahrt--mario svg > g.fahrt__lasagne { animation: fahrt-holpern .34s ease-in-out infinite alternate; }
-@keyframes fahrt-holpern { from { transform: translateY(0); } to { transform: translateY(-3px); } }
-.fahrt__dampf path { animation: fahrt-dampf 1.6s ease-in-out infinite; }
-.fahrt__dampf path:nth-child(2) { animation-delay: -.55s; }
-.fahrt__dampf path:nth-child(3) { animation-delay: -1.1s; }
-@keyframes fahrt-dampf { 0% { opacity: 0; transform: translateY(8px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
-.fahrt-rauch { position: absolute; border-radius: 50%; background: rgba(230, 236, 245, .8); filter: blur(2px); }
+/* Jetski statt Mario (seit 1.151.0): schaukelt auf der Welle, Gischt hinten */
+.fahrt__schaukeln { transform-origin: 130px 96px; animation: fahrt-schaukeln .9s ease-in-out infinite alternate; }
+@keyframes fahrt-schaukeln { from { transform: translateY(0) rotate(-1.5deg); } to { transform: translateY(-4px) rotate(2deg); } }
+.fahrt__welle { animation: fahrt-welle .6s linear infinite; }
+@keyframes fahrt-welle { from { transform: translateX(0); } to { transform: translateX(30px); } }
+.fahrt__gischt { transform-origin: 30px 100px; animation: fahrt-gischt .25s ease-in-out infinite alternate; }
+/* Der Name bleibt lesbar, wenn der Jetski nach links fährt */
+.fahrt--links .fahrt__name { transform-box: fill-box; transform-origin: center; transform: scaleX(-1); }
+@keyframes fahrt-gischt { from { transform: scale(.85); opacity: .7; } to { transform: scale(1.1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .durchfahrt { display: none; } }
 
 /* Erfassen: am Tag eines Auftragswechsels zwei Felder, oben der alte,

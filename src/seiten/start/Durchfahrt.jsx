@@ -1,5 +1,5 @@
 // =================================================================
-//  FERRARI UND MARIO IM BAND OBEN
+//  FERRARI UND JETSKI IM BAND OBEN
 //  Wunsch Patrick 22. Oktober 2026: „an Stelle der Hühner abwechslungs-
 //  weise einen Ferrari und Super Mario mit einer Lasagne durch das Bild
 //  fahren“. Die Hühner (1.130.0 bis 1.149.0) sind weg. Jetzt fährt
@@ -9,6 +9,9 @@
 //  Rauchwölkchen hinten. Beide selbst gezeichnet (SVG), keine Bilder
 //  von aussen. Gesteuert mit Zeitgebern und el.animate statt React-
 //  Zustand, damit die Startseite dafür nie neu zeichnet.
+//  Seit 1.151.0 (Wunsch Patrick 22. Oktober 2026: „Nimm den Mario weg
+//  und ersetze ihn mit dem Jetski“) fährt statt Mario ein Jetski im
+//  Ferrari-Kleid mit Jviano als Fahrer, schaukelnd auf einer Welle, mit Gischt.
 // =================================================================
 import { useEffect, useRef } from "react";
 
@@ -52,51 +55,52 @@ const FERRARI = `
   ${rad(196, 64, 15)}
 </svg>`;
 
-// Klempner im Go-Kart mit Lasagne, Fahrt nach rechts
-const MARIO = `
-<svg viewBox="0 0 220 160" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="108" cy="154" rx="92" ry="5" fill="#000" opacity=".25"/>
-  <g class="fahrt__dampf" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7">
-    <path d="M150 52 C144 44 156 38 150 30 C144 22 156 16 150 8"/>
-    <path d="M168 54 C162 46 174 40 168 32 C162 24 174 18 168 10"/>
-    <path d="M186 52 C180 44 192 38 186 30 C180 22 192 16 186 8"/>
+// Jetski im Kleid eines roten Ferrari (wie die Supercar-Jetskis aus
+// Miami), Jviano fährt (Wunsch Patrick: „inkl. Jviano“), sein Name steht
+// auf der Seite. Fahrt nach rechts, Front rechts
+const JETSKI = `
+<svg viewBox="0 0 250 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fahrt-wasser" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#7fc4f0" stop-opacity="0"/>
+      <stop offset=".2" stop-color="#7fc4f0" stop-opacity=".85"/>
+      <stop offset=".8" stop-color="#7fc4f0" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#7fc4f0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <g class="fahrt__gischt" fill="#fff">
+    <path d="M30 100 C14 92 0 80 -14 66 C-2 84 -6 92 -26 96 C-6 100 10 104 30 104 Z" opacity=".75"/>
+    <circle cx="-8" cy="62" r="3.5" opacity=".8"/>
+    <circle cx="-26" cy="74" r="2.6" opacity=".7"/>
+    <circle cx="4" cy="54" r="2.2" opacity=".7"/>
+    <circle cx="-38" cy="86" r="3" opacity=".6"/>
   </g>
-  <g class="fahrt__fahrer">
-    <path d="M70 96 C70 80 80 74 96 74 C112 74 120 82 120 98 L120 118 L70 118 Z" fill="#1d4fd6"/>
-    <circle cx="84" cy="88" r="3.4" fill="#ffd21f"/>
-    <circle cx="108" cy="88" r="3.4" fill="#ffd21f"/>
-    <path d="M78 76 C90 70 104 70 114 76 L112 84 L80 84 Z" fill="#e52521"/>
-    <path d="M108 80 C122 78 134 72 144 66" stroke="#e52521" stroke-width="11" stroke-linecap="round" fill="none"/>
-    <circle cx="96" cy="50" r="22" fill="#f6c49b"/>
-    <path d="M74 50 C74 58 78 64 84 66 L86 54 Z" fill="#5a3418"/>
-    <path d="M73 46 C72 28 84 20 98 20 C112 20 120 30 120 40 L74 44 Z" fill="#e52521"/>
-    <path d="M110 40 C122 38 132 40 136 44 C130 46 120 46 110 45 Z" fill="#c01a17"/>
-    <circle cx="97" cy="31" r="7.5" fill="#fff"/>
-    <path d="M93 35 L93 27 L97 31.5 L101 27 L101 35" fill="none" stroke="#e52521" stroke-width="2.2" stroke-linejoin="round"/>
-    <ellipse cx="108" cy="49" rx="2.4" ry="3.8" fill="#1a1a1a"/>
-    <circle cx="117" cy="56" r="7" fill="#f2a97f"/>
-    <path d="M100 62 C104 58 110 60 113 62 C117 60 123 59 126 63 C122 68 116 66 113 65 C109 68 103 67 100 62 Z" fill="#3b2412"/>
-    <path d="M84 60 C82 63 82 66 85 68" stroke="#e8ab82" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <g class="fahrt__schaukeln">
+    <g class="fahrt__fahrer">
+      <path d="M96 54 C92 40 98 30 110 28 L118 28 C122 36 122 48 118 58 Z" fill="#111"/>
+      <path d="M108 30 L136 46" stroke="#111" stroke-width="9" stroke-linecap="round"/>
+      <path d="M104 56 L132 58 L138 72" stroke="#1f2a36" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <rect x="100" y="34" width="18" height="18" rx="4" fill="#ffd21f"/>
+      <circle cx="114" cy="16" r="12" fill="#e8b48c"/>
+      <path d="M102 15 C100 4 110 0 118 2 C124 3 127 7 126 11 L112 10 L106 18 Z" fill="#2a1a10"/>
+      <path d="M113 13 L127 13 L126 17 L114 17 Z" fill="#111"/>
+      <path d="M118 23 C121 24 124 23 125 21" stroke="#8a4a32" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    </g>
+    <path d="M140 44 L150 40" stroke="#333" stroke-width="4" stroke-linecap="round"/>
+    <path d="M134 50 L142 42" stroke="#333" stroke-width="4" stroke-linecap="round"/>
+    <path d="M14 82 C14 74 20 70 34 68 L74 64 C88 56 104 54 124 54 C142 54 156 58 170 64 L222 70
+             C236 72 244 78 246 86 L240 94 C200 100 80 102 26 98 C18 96 14 90 14 82 Z" fill="#d81b1b"/>
+    <path d="M10 70 L10 62 L32 62 L34 68 Z" fill="#b30f0f"/>
+    <path d="M28 76 C70 71 160 70 238 78" stroke="#ff6b5e" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <path d="M90 66 C120 64 150 66 166 70 L92 72 Z" fill="#7a0c0c"/>
+    <rect x="214" y="72" width="7" height="9" rx="1.6" fill="#ffd21f"/>
+    <path d="M217.5 74 L216.2 79 L218.8 79 Z" fill="#111"/>
+    <path d="M232 76 C237 77 241 80 242 83 L229 81 Z" fill="#fff4c2"/>
+    <text class="fahrt__name" x="150" y="92" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="800" font-style="italic" fill="#fff">JVIANO</text>
+    <path d="M26 98 C80 102 200 100 240 94 L236 100 C190 106 70 106 30 102 Z" fill="#5e0a0a"/>
   </g>
-  <g class="fahrt__lasagne">
-    <path d="M136 60 L200 60 L196 80 L140 80 Z" fill="#9aa3ad"/>
-    <rect x="140" y="64" width="56" height="5" fill="#f3cf6b"/>
-    <rect x="140" y="69" width="56" height="4" fill="#c8361d"/>
-    <rect x="140" y="73" width="56" height="4" fill="#f3cf6b"/>
-    <path d="M139 64 C146 58 154 63 160 59 C168 56 174 62 182 58 C188 56 194 60 197 64 Z" fill="#f0a73a"/>
-    <circle cx="152" cy="61" r="2" fill="#a8551b"/>
-    <circle cx="172" cy="60" r="1.8" fill="#a8551b"/>
-    <circle cx="186" cy="61" r="2" fill="#a8551b"/>
-    <path d="M136 60 L200 60" stroke="#6f7781" stroke-width="2.5" stroke-linecap="round"/>
-    <circle cx="140" cy="70" r="6.5" fill="#fff" stroke="#d9d9d9" stroke-width="1"/>
-    <circle cx="198" cy="70" r="6.5" fill="#fff" stroke="#d9d9d9" stroke-width="1"/>
-  </g>
-  <path d="M18 112 L36 112 L42 120 L190 120 C200 120 206 124 206 130 L206 136 L18 136 Z" fill="#f2b705"/>
-  <path d="M18 112 L30 112 L30 104 L18 104 Z" fill="#c78f00"/>
-  <rect x="24" y="126" width="174" height="5" rx="2" fill="#c78f00"/>
-  <path d="M196 120 L208 112" stroke="#555" stroke-width="4" stroke-linecap="round"/>
-  ${rad(44, 138, 17)}
-  ${rad(176, 138, 17)}
+  <path class="fahrt__welle" d="M-40 104 Q-25 98 -10 104 T20 104 T50 104 T80 104 T110 104 T140 104 T170 104 T200 104 T230 104 T260 104 T290 104 L290 120 L-40 120 Z" fill="url(#fahrt-wasser)"/>
+  <path d="M-40 110 Q-25 106 -10 110 T20 110 T50 110 T80 110 T110 110 T140 110 T170 110 T200 110 T230 110 T260 110 T290 110" stroke="url(#fahrt-wasser)" stroke-width="2" fill="none"/>
 </svg>`;
 
 export default function Durchfahrt() {
@@ -114,55 +118,28 @@ export default function Durchfahrt() {
     // Im versteckten Tab fährt niemand los
     const wach = async () => { while (!aus && document.hidden) await warte(1000); };
 
-    // Rauchwölkchen hinter dem Kart, steigen auf und verblassen
-    const woelkchen = (x, y, g) => {
-      const w = document.createElement("div");
-      w.className = "fahrt-rauch";
-      w.style.left = x - g / 2 + "px";
-      w.style.bottom = y + "px";
-      w.style.width = w.style.height = g + "px";
-      band.appendChild(w);
-      const a = w.animate([
-        { opacity: .55, transform: "translate(0,0) scale(.5)" },
-        { opacity: 0, transform: `translate(${-zufall(20, 50)}px,${-zufall(15, 35)}px) scale(1.6)` },
-      ], { duration: zufall(900, 1500), easing: "ease-out", fill: "forwards" });
-      a.onfinish = () => w.remove();
-    };
-
     const fahren = async (welcher) => {
       const breit = band.clientWidth, hoch = band.clientHeight;
       if (!breit || !hoch) return;
       const ferrari = welcher === "ferrari";
       // So hoch, dass er gut zu sehen ist, aber unten im Band bleibt
-      const h = Math.max(36, Math.min(ferrari ? 100 : 140, hoch * (ferrari ? .5 : .62)));
-      const w = h * (ferrari ? 250 / 84 : 220 / 160);
+      const h = Math.max(36, Math.min(ferrari ? 100 : 120, hoch * (ferrari ? .5 : .56)));
+      const w = h * (ferrari ? 250 / 84 : 250 / 120);
       const el = document.createElement("div");
       el.className = "fahrt fahrt--" + welcher;
       el.style.width = w + "px";
       el.style.height = h + "px";
-      el.innerHTML = ferrari ? FERRARI : MARIO;
-      // Der Ferrari kommt mal von links, mal von rechts, Mario immer von
-      // links, sonst stünde das M auf der Mütze verkehrt
-      const nachRechts = ferrari ? Math.random() < .5 : true;
+      el.innerHTML = ferrari ? FERRARI : JETSKI;
+      // Beide kommen mal von links, mal von rechts
+      const nachRechts = Math.random() < .5;
       if (!nachRechts) el.classList.add("fahrt--links");
       band.appendChild(el);
       const von = nachRechts ? -w - 20 : breit + 20, bis = nachRechts ? breit + 20 : -w - 20;
-      // Der Ferrari braust in gut 3 Sekunden durch, Mario lässt sich Zeit
-      const dauer = ferrari ? zufall(2600, 3600) * Math.max(1, breit / 1400) : zufall(9000, 12000) * Math.max(1, breit / 1400);
+      // Der Ferrari braust in gut 3 Sekunden durch, der Jetski etwas gemütlicher
+      const dauer = (ferrari ? zufall(2600, 3600) : zufall(5000, 7000)) * Math.max(1, breit / 1400);
       const a = el.animate([{ transform: `translateX(${von}px)` }, { transform: `translateX(${bis}px)` }],
         { duration: dauer, easing: ferrari ? "cubic-bezier(.3,.05,.7,.95)" : "linear", fill: "forwards" });
-      let rauchUhr = null;
-      if (!ferrari) {
-        const rauch = () => {
-          if (aus) return;
-          const r = el.getBoundingClientRect(), br = band.getBoundingClientRect();
-          woelkchen(r.left - br.left + w * .06, h * .2, h * zufall(.12, .2));
-          rauchUhr = setTimeout(rauch, zufall(180, 420));
-        };
-        rauchUhr = setTimeout(rauch, 200);
-      }
       await warte(dauer);
-      clearTimeout(rauchUhr);
       a.cancel();
       el.remove();
     };
@@ -174,7 +151,7 @@ export default function Durchfahrt() {
       while (!aus) {
         await wach();
         if (aus) return;
-        await fahren(ferrari ? "ferrari" : "mario");
+        await fahren(ferrari ? "ferrari" : "jetski");
         ferrari = !ferrari;
         await warte(zufall(15000, 35000));
       }
