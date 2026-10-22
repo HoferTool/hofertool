@@ -247,5 +247,16 @@ with sync_playwright() as p:
     pruefe("Rest gespeichert", pg.evaluate("TEST.daten.material_posten.some(p => !p.job_id && p.einheit === 'kg' && p.menge > 20 && p.menge < 30 && p.ort === 'Restelager')"))
     pruefe("Posten aufgebraucht", pg.evaluate("!!TEST.daten.material_posten.find(p => p.notiz === 'Regal 3 unten').weg_am"))
     pruefe("Auftrag fertig", pg.evaluate("TEST.daten.jobs.find(j => j.id === 'mA').plan_status") == "fertig")
+
+    # Löschen für jeden (1.144.0, Wunsch Patrick 22. Oktober 2026)
+    pg.evaluate("location.hash = '#/material'"); pg.wait_for_selector(".mat-loeschen", timeout=8000)
+    vorher = pg.evaluate("TEST.daten.material_posten.length")
+    pg.locator(".mat-loeschen").first.click(); pg.wait_for_selector(".dialog-huelle [data-ja]")
+    t = pg.inner_text(".dialog-huelle")
+    pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(1000)
+    pruefe("Eintrag gelöscht nach einer Rückfrage: " + t.replace(chr(10), " | ")[:120],
+           pg.evaluate("TEST.daten.material_posten.length") == vorher - 1)
+    pg.keyboard.press("Control+z"); pg.wait_for_timeout(1200)
+    pruefe("Rückgängig holt ihn zurück", pg.evaluate("TEST.daten.material_posten.length") == vorher)
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:12])
