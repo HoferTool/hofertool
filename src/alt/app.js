@@ -37,6 +37,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
 import { zeichnungNrSofort, zeichnungNrHolen } from "../daten/zeichnungNr.js";
+import { waschprogGemerkt } from "../daten/waschprog.js";
 import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo, werkstoffSuchtext } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
@@ -134,7 +135,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.145.0";
+const APP_VERSION = "1.146.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5007,16 +5008,37 @@ function ferienInfoVerhalten() {
   });
 }
 
-// Alles, was ein Auftrag an Angaben trägt, als ein Suchtext
+// Alles, was ein Auftrag an Angaben trägt, als ein Suchtext.
+// Seit 1.146.0 jedes Feld des Auftrags, nicht nur eine feste Liste
+// (Wunsch Patrick 22. Oktober 2026: „in irgendeinem Feld, sei es Notiz
+// oder sonst wo im Fenster“): Abrufinformation, Materialplatz, Siegel,
+// Zeichnungsnummer, Waschprog-Nr. … Weggelassen werden nur Kennungen,
+// Adressen und Zeitstempel, weil eine gesuchte Zahl sonst mitten in
+// einer Kennung oder Uhrzeit Treffer liefert, die niemand sieht.
+const SUCHE_OHNE = /^(id|symbole|color)$|_id$|_url$|_at$/;
+// Externe vorerst wie bisher, bis Patrick entschieden hat (Regel:
+// Neues bekommen sie nicht von selbst)
+const SUCHE_EXTERN = ["job_number", "fa_nr", "maschine", "maschine_nr", "park",
+  "material_bez", "plan_note", "problem", "material_menge", "material_liefertermin",
+  "target_quantity", "stand", "planned_from"];
 function auftragText(j) {
+  const felder = istExtern()
+    ? SUCHE_EXTERN.map((k) => j[k])
+    : Object.keys(j).filter((k) => !SUCHE_OHNE.test(k)).map((k) => j[k])
+        .filter((x) => typeof x === "string" || typeof x === "number");
   return [
-    j.job_number, j.fa_nr, j.maschine, j.maschine_nr, j.park, j.material_bez,
-    j.plan_note, j.problem, j.color,
+    ...felder,
     (PLANSTATUS[j.plan_status || "geplant"] || {}).name,
-    j.material_bez, j.material_menge, j.material_liefertermin,
     // Nummer und Kurzname des Werkstoffs: „1.4305“ findet auch „X8CrNiS18-9“
     werkstoffSuchtext(j.material_bez),
-    j.target_quantity, j.stand, j.planned_from,
+    // Stückzahlen auch so, wie sie im Fenster stehen: „1'200“
+    ...(istExtern() ? [] : [
+      j.target_quantity ? zahlText(j.target_quantity) : "",
+      j.stand ? zahlText(j.stand) : "",
+      // Zeichnungsnummer und Waschprog-Nr., soweit schon bekannt
+      zeichnungNrSofort(j) || "",
+      j.wbg_url ? waschprogGemerkt(j.wbg_url) || "" : "",
+    ]),
     j.fa_nr ? "FA vorhanden" : "Kein FA vorhanden",
     j.material_menge ? "Material vorhanden" : "Keine Materialmenge",
   ].map((x) => String(x === null || x === undefined ? "" : x).toLowerCase()).join(" ");
@@ -5233,6 +5255,9 @@ async function sucheStarten(text, b) {
   if (!t) return;
 
   let aeltere = [];
+  // Zeichnungsnummern aus den Dateinamen einmal holen, damit die
+  // Suche sie kennt, auch ohne vorher über einen Balken zu fahren
+  if (!istExtern()) { try { await zeitlimit(zeichnungNrHolen({}), 8000, "Zeichnungsnummern"); } catch (e) { /* dann ohne */ } }
   try { aeltere = await sucheAeltereHolen(); }
   catch (e) {
     fehlerMerken("Suche: ältere Aufträge", fehlertext(e));

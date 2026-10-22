@@ -98,6 +98,7 @@ export const waschprogLesen = (adresse) => wbgFelderLesen(adresse).then((w) => (
 export const zeichnungNrLesen = (adresse) => wbgFelderLesen(adresse).then((w) => (w ? w.znr : null));
 // Sofort, ohne zu lesen: was schon gemerkt ist, sonst undefined
 export const zeichnungNrGemerkt = (adresse) => (gemerkt.has(adresse) ? gemerkt.get(adresse).znr : undefined);
+export const waschprogGemerkt = (adresse) => (gemerkt.has(adresse) ? gemerkt.get(adresse).wasch : undefined);
 
 // Für React: der Wert zur WBG-Adresse, solange er unterwegs ist null
 export function useWaschprog(adresse) {
