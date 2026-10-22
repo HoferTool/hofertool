@@ -69,6 +69,22 @@ with sync_playwright() as p:
     pruefe("Wechsel eingetragen", sorted(zeilen) == sorted([t + ":5000" for t in tools]))
     pruefe("Path mitgespeichert", pg.evaluate("TEST.daten.tool_changes.find(z => z.tool_nr === 'T100').bezeichnung") == "Path 1")
     pg.evaluate("TEST.daten.type_slots = TEST.daten.type_slots.filter(s => s.id !== 'sl9')")
+    # PDF der Historie: Je Werkzeug nach Path, darin Nummern klein zu gross
+    pg.evaluate("""(() => { const v = TEST.daten.tool_changes[0];
+      [['T10', 'Path 3'], ['T2', 'Path 3'], ['T20', 'Path 1']].forEach(([nr, p], i) =>
+        TEST.daten.tool_changes.push(Object.assign({}, v, { id: 'extra' + i, tool_nr: nr, bezeichnung: p,
+          gewechselt_am: '2026-10-01T08:00:00Z', stueckzahl: 100 }))); })()""")
+    pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-wzhistorie]")
+    pg.click("[data-wzhistorie]"); pg.wait_for_timeout(900)
+    with pg.context.expect_page() as neu_info:
+        pg.click("[data-wzpdf]")
+    blatt = neu_info.value; blatt.wait_for_timeout(500)
+    je_wz = blatt.evaluate("[...document.querySelectorAll('.uebersicht .nr')].map(t => t.textContent)")
+    print("PDF je Werkzeug:", je_wz)
+    pruefe("PDF nach Path und Nummer", je_wz == ["T20 · Path 1", "T100 · Path 1", "T200 · Path 1", "T2 · Path 3", "T10 · Path 3"])
+    blatt.close(); pg.wait_for_timeout(600)
+    pg.evaluate("TEST.daten.tool_changes = TEST.daten.tool_changes.filter(z => !String(z.id).startsWith('extra'))")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-wzhistorie]")
     pg.click("[data-wzhistorie]"); pg.wait_for_timeout(900)
     pruefe("Historie offen", "Werkzeugwechsel ·" in pg.inner_text(".dialog-huelle"))

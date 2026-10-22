@@ -134,7 +134,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.140.1";
+const APP_VERSION = "1.140.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8017,7 +8017,7 @@ window.addEventListener("resize", () => {
 // Kennzahlen, eine Übersicht je Werkzeug und alle Wechsel nach Tagen.
 // Die Farbe kommt aus LEISTENFARBE, weil die Töne des dunklen Modus auf
 // weissem Papier zu blass wären.
-function historieBlatt(maschine, auftrag, runden, titel) {
+function historieBlatt(maschine, auftrag, runden, titel, vergleich) {
   const farbe = LEISTENFARBE[themaJetzt()] || LEISTENFARBE.blau;
   const leer = (x) => x === null || x === undefined;
   const alle = runden.flatMap((r) => r.zeilen);
@@ -8030,13 +8030,17 @@ function historieBlatt(maschine, auftrag, runden, titel) {
   alle.forEach((z) => {
     // Je Platz: T1 auf Revolver 1 und auf Revolver 2 sind zwei Werkzeuge
     const nr = z.tool_nr + (z.bezeichnung ? " · " + z.bezeichnung : "");
-    const w = jeWz[nr] || (jeWz[nr] = { nr, anzahl: 0, stk: [], zuletzt: null });
+    const w = jeWz[nr] || (jeWz[nr] = { nr, tool_nr: z.tool_nr, bezeichnung: z.bezeichnung, anzahl: 0, stk: [], zuletzt: null });
     w.anzahl++;
     if (!leer(z.gehalten_stk)) w.stk.push(z.gehalten_stk);
     if (!w.zuletzt || z.gewechselt_am > w.zuletzt) w.zuletzt = z.gewechselt_am;
   });
+  // Gleiche Reihenfolge wie in der App: nach Revolver bzw. Path (bei
+  // SW 1, 3, 2), darin die Nummern klein zu gross (Wunsch Patrick
+  // 22. Oktober 2026). Die Regel kommt aus Werkzeugwechsel.jsx mit.
+  const nachZahl = (a, b) => String(a || "").localeCompare(String(b || ""), "de", { numeric: true });
   const werkzeuge = Object.values(jeWz)
-    .sort((x, y) => String(x.nr).localeCompare(String(y.nr), "de", { numeric: true }));
+    .sort(vergleich || ((x, y) => nachZahl(x.bezeichnung, y.bezeichnung) || nachZahl(x.tool_nr, y.tool_nr)));
   const groesster = Math.max(1, ...werkzeuge.map((w) => schnitt(w.stk) || 0));
 
   const tagText = (iso) => new Date(iso).toLocaleDateString("de-CH",
@@ -8164,14 +8168,14 @@ function historieBlatt(maschine, auftrag, runden, titel) {
     + '</div></body></html>';
 }
 
-async function historieAblegen(maschine, auftrag, runden) {
+async function historieAblegen(maschine, auftrag, runden, vergleich) {
   const fenster = window.open("", "_blank");
   if (!fenster) { meldung("Das Fenster wurde blockiert.", "warn"); return; }
 
   const titel = "Werkzeugwechsel_"
     + (auftrag && auftrag.fa_nr ? auftrag.fa_nr : maschine.name).replace(/[^A-Za-z0-9]+/g, "_")
     + "_" + isoDatum(new Date());
-  fenster.document.write(historieBlatt(maschine, auftrag, runden, titel));
+  fenster.document.write(historieBlatt(maschine, auftrag, runden, titel, vergleich));
   fenster.document.close();
 
   // Zusätzlich in der Ablage hinterlegen, damit die Historie später

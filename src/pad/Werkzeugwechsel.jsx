@@ -34,6 +34,9 @@ const nameRang = (name, sw) => {
   return m ? pathRang(Number(m[0]), sw) : 0;
 };
 
+const werkzeugVergleich = (a, b, sw) => (nameRang(a.bezeichnung, sw) - nameRang(b.bezeichnung, sw))
+  || nachZahl(a.bezeichnung, b.bezeichnung) || nachZahl(a.tool_nr, b.tool_nr);
+
 export async function werkzeugWechselDialog(maschine, auftrag) {
   // Alle Werkzeugplätze des Typs, nach Path sortiert. Nur bei SW-Typen
   // kommt Path 2 zuletzt (1, 3, 2), so wie die Plätze an der Maschine
@@ -170,7 +173,10 @@ async function historieLaden(maschine) {
   let sw = false;
   try { sw = istSw((await alt.ladeTypen()).find((t) => t.id === maschine.type_id)); }
   catch (f) { /* dann einfach 1, 2, 3 */ }
-  return rundenBilden(liste, sw);
+  const runden = rundenBilden(liste, sw);
+  // Dieselbe Reihenfolge braucht das PDF für „Je Werkzeug“
+  runden.vergleich = (a, b) => werkzeugVergleich(a, b, sw);
+  return runden;
 }
 
 // Nach Runden gruppieren: Alle Zeilen einer Runde teilen sich
@@ -187,8 +193,7 @@ function rundenBilden(liste, sw) {
     }
     r.zeilen.push(z);
   });
-  runden.forEach((r) => r.zeilen.sort((a, b) => (nameRang(a.bezeichnung, sw) - nameRang(b.bezeichnung, sw))
-    || nachZahl(a.bezeichnung, b.bezeichnung) || nachZahl(a.tool_nr, b.tool_nr)));
+  runden.forEach((r) => r.zeilen.sort((a, b) => werkzeugVergleich(a, b, sw)));
   return runden;
 }
 
@@ -283,7 +288,7 @@ function Historie({ maschine, auftrag, anfang, zu }) {
     <div className="dialog dialog--breit">
       <div className="blatt__kopf"><h2>Werkzeugwechsel · {maschine.name}</h2>
         {runden.length > 0 && <button className="knopf knopf--klein" data-wzpdf=""
-          onClick={() => alt.historieAblegen(maschine, auftrag, runden)}>Als PDF ablegen</button>}
+          onClick={() => alt.historieAblegen(maschine, auftrag, runden, runden.vergleich)}>Als PDF ablegen</button>}
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
       {runden.length
         ? <table className="tabelle">
