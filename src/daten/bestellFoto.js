@@ -223,13 +223,13 @@ function gewichtFinden(zeilen) {
       if (GEWICHT_WORT.test(z)) punkte += 2;
       if (i > 0 && GEWICHT_WORT.test(zeilen[i - 1]) && !/kg/i.test(zeilen[i - 1])) punkte += 1;
       if (/brutto/i.test(z)) punkte -= 2;
-      kandidaten.push({ n, punkte });
+      kandidaten.push({ n, punkte, zeile: roh });
     }
   });
-  if (!kandidaten.length) return null;
+  if (!kandidaten.length) return { n: null, zeile: null };
   // Bei gleichen Punkten die grösste Zahl: Totale stehen meist unten
   kandidaten.sort((a, b) => b.punkte - a.punkte || b.n - a.n);
-  return kandidaten[0].n;
+  return kandidaten[0];
 }
 
 // Mass in einer Zeile: „rd 24“, „Ø 24“, „Rund 24“, „Durchmesser 24“,
@@ -270,7 +270,10 @@ const ziffern = (t) => String(t || "").replace(/[Oo]/g, "0");
 
 export function bestellungAuswerten(text) {
   const zeilen = String(text || "").split(/\r?\n/).map((z) => z.replace(/\s+/g, " ").trim()).filter(Boolean);
-  const kg = gewichtFinden(zeilen);
+  // Die Zeilen, aus denen gelesen wurde, zeigt das Fenster markiert
+  // (Wunsch Patrick 22. Oktober 2026: „besser sehen, was es gelesen hat“)
+  const gew = gewichtFinden(zeilen);
+  const kg = gew.n, zeileKg = gew.zeile;
 
   // 1. Die Benennung mit Form und Mass in mm (nicht die Stangenlänge)
   const mi = zeilen.findIndex((z) => MASS_ZEILE.test(z) && !/stangenl|länge|laenge/i.test(z));
@@ -291,7 +294,7 @@ export function bestellungAuswerten(text) {
     if (d > 0) {
       const material = [name, form, aussen + (innen ? "/" + innen : ""), "mm", tol].filter(Boolean).join(" ");
       return { material: materialZerlegen(material) ? material : "", werkstoff: w, d, form,
-        kg, werkstoffUnsicher: !w };
+        kg, werkstoffUnsicher: !w, zeileMaterial: z, zeileKg };
     }
   }
 
@@ -334,5 +337,7 @@ export function bestellungAuswerten(text) {
     d: mass && mass.d > 0 ? mass.d : null,
     form: mass ? mass.form : null,
     kg,
+    zeileMaterial: best ? best.z : null,
+    zeileKg,
   };
 }

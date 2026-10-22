@@ -8430,7 +8430,7 @@ body.dunkel .pw-tafel .pw-balken.pw-balken--angewaehlt {
 .mat-foto { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0 0 12px; }
 .mat-foto__ergebnis { width: 100%; }
 .mat-foto__fehler { color: var(--gefahr); }
-.mat-foto__text { max-height: 180px; overflow: auto; white-space: pre-wrap; font-size: 12px;
+.mat-foto__text { max-height: 220px; overflow: auto; white-space: pre-wrap; font-size: 12px;
   background: var(--grund); padding: 8px; border-radius: 6px; margin: 4px 0 0; }
 
 /* Artikel per Foto (1.109.0) */
@@ -8957,3 +8957,52 @@ body.zieh-laeuft, body.zieh-laeuft * { user-select: none !important; -webkit-use
 
 /* Materialrechner: Zeile „110 Stück mit 10 % Ausschuss“ (seit 1.137.0) */
 .mr-ausschuss-zeile { font-size: 1rem; }
+
+/* Ergebnis vom Foto der Bestellung deutlicher (1.138.0, Wunsch Patrick
+   22. Oktober 2026): Foto, Punkte mit ✓/✗, benutzte Zeilen markiert */
+.mat-foto__ergebnis { border: 1px solid var(--linie-stark); border-radius: var(--radius); padding: 10px;
+  background: var(--flaeche); }
+.mat-foto__kopf { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.mat-foto__bild { flex: none; width: 110px; padding: 0; border: 1px solid var(--linie-stark); border-radius: 6px;
+  overflow: hidden; background: #fff; cursor: zoom-in; }
+.mat-foto__bild img { display: block; width: 100%; height: auto; }
+.mat-foto__bild--gross { width: 100%; cursor: zoom-out; }
+.mat-foto__punkte { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.mat-foto__punkt { display: grid; grid-template-columns: 22px 116px 1fr; align-items: baseline; gap: 4px;
+  font-size: 1rem; color: var(--tinte-leise, inherit); }
+.mat-foto__punkt b { font-size: 1.05rem; overflow-wrap: anywhere; }
+.mat-foto__zeichen { font-weight: 700; text-align: center; }
+.mat-foto__punkt--ja .mat-foto__zeichen { color: #1e9e4a; }
+.mat-foto__punkt--ja b { color: var(--tinte); }
+.mat-foto__punkt--nein .mat-foto__zeichen, .mat-foto__punkt--nein b { color: var(--gefahr); }
+.mat-foto__punkt--nein b { font-weight: 600; }
+.mat-foto__zeile { padding: 1px 4px; border-radius: 3px; }
+.mat-foto__zeile--material { background: #ffe66d; color: #111; font-weight: 700; }
+.mat-foto__zeile--kg { background: #9ee6a8; color: #111; font-weight: 700; }
+.mat-foto__quelle { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 2px; font-size: 13px; }
+.mat-foto__quelle .mat-foto__zeile { overflow-wrap: anywhere; }
+
+/* Fenster „Material erfassen“ kurz in einer Spalte (1.138.0, Wunsch
+   Patrick 22. Oktober 2026): Material, darunter Stangen und kg
+   nebeneinander, Ort und Notiz zum Aufklappen. Am Handy wie am PC. */
+.mat-dialog .mat-spalte { gap: 12px; }
+@media (min-width: 820px) {
+  .mat-dialog { width: min(720px, 94vw); }
+}
+.mat-menge { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mat-menge__feld { display: grid; gap: 4px; min-width: 0; }
+.mat-menge__feld span { font-size: .85rem; font-weight: 600; color: var(--gedaempft); }
+.mat-menge__feld .mat-eingabe { font-size: 1.25rem; font-weight: 650; text-align: right; }
+.mat-mehr { border: 1px solid var(--linie); border-radius: var(--radius); padding: 8px 12px; }
+.mat-mehr > summary { cursor: pointer; font-weight: 600; color: var(--gedaempft); padding: 4px 0; }
+.mat-mehr[open] > summary { margin-bottom: 10px; }
+.mat-dialog .dialog__knoepfe { justify-content: flex-end; }
+@media (max-width: 600px) {
+  .mat-foto__kopf { flex-wrap: nowrap; gap: 8px; }
+  .mat-foto__bild { width: 64px; }
+  .mat-foto__bild--gross { position: fixed; inset: 10px; width: auto; z-index: 50; overflow: auto; }
+  .mat-foto__punkte { flex-basis: 0; flex-grow: 1; }
+  .mat-foto__punkt { grid-template-columns: 14px 92px 1fr; gap: 3px; font-size: .86rem; }
+  .mat-foto__punkt b { font-size: .9rem; }
+  .mat-foto__text, .mat-foto__quelle { font-size: 11px; }
+}

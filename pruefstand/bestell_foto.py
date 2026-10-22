@@ -61,12 +61,18 @@ with sync_playwright() as p:
     if mit_ocr:
         pg.set_input_files("#mat-foto-datei", files=[{"name": "bestellung.png", "mimeType": "image/png", "buffer": bild}])
         pg.wait_for_selector("#mat-foto-ergebnis", timeout=120000)
-        print("     " + pg.inner_text("#mat-foto-ergebnis .klein").replace("\n", " "))
+        print("     " + pg.inner_text(".mat-foto__punkte").replace("\n", " "))
+        # Seit 1.138.0: Punkte mit ✓, Foto daneben, benutzte Zeilen markiert
+        pruefe("Punkte mit Haken", pg.locator(".mat-foto__punkt--ja").count() >= 4)
+        pruefe("Foto daneben", pg.locator(".mat-foto__bild img").count() == 1)
+        pruefe("Zeile Material markiert", "X8CrNiS18-9" in pg.text_content(".mat-foto__text .mat-foto__zeile--material"))
+        pruefe("Zeile Gewicht markiert", "1'245,5" in pg.text_content(".mat-foto__text .mat-foto__zeile--kg"))
         pruefe("Material gefüllt", "X8CrNiS18-9 rd 24 mm h9" in pg.inner_text(".mat-gewaehlt"))
         pruefe("kg gefüllt", pg.input_value("#mat-menge") == "1245,5")
-        pruefe("Umrechnung steht", "Stangen" in pg.inner_text("#mat-umrechnung"))
+        pruefe("Stangen gerechnet", pg.input_value("#mat-stangen") not in ("", "0"))
         pg.locator(".mat-dialog").screenshot(path=os.path.join(HIER, "bestell_foto.png"))
         # Speichern legt den Posten mit genau diesen Angaben an
+        pg.click("#mat-mehr summary")
         pg.click("[data-ort], .mat-dialog .mat-knoepfe .knopf >> text=Restelager")
         pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(600)
         neu = pg.evaluate("TEST.daten.material_posten[0] || null")
@@ -84,6 +90,13 @@ with sync_playwright() as p:
             print(f"     {f}: {mat} | {pg.input_value('#mat-menge')} kg | {time.time()-t0:.1f}s")
             for z in pg.text_content(".mat-foto__text").split("\n"):
                 if " mm" in z.lower() or "kg" in z: print("        | " + z)
+            if os.environ.get("BESTELL_BILDER") and f.startswith("7f"):
+                pg.set_viewport_size({"width": 390, "height": 844}); pg.wait_for_timeout(300)
+                pg.screenshot(path=os.path.join(os.environ["BESTELL_BILDER"], "handy.png"), full_page=True)
+                pg.set_viewport_size({"width": 1500, "height": 950}); pg.wait_for_timeout(300)
+            if os.environ.get("BESTELL_BILDER"):
+                pg.locator("#mat-foto-ergebnis details").evaluate("d => d.open = true")
+                pg.locator(".mat-dialog").screenshot(path=os.path.join(os.environ["BESTELL_BILDER"], f + ".png"))
             pruefe("Foto " + f + " gelesen", mat != "-" and pg.input_value("#mat-menge") != "")
             pg.click(".mat-dialog [data-nein]"); pg.wait_for_timeout(300)
     else:

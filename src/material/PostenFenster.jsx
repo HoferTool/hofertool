@@ -16,7 +16,7 @@
 //  Material?“), mit „Kein Rest“ statt Abbrechen und den Posten dieses
 //  Materials, die man als aufgebraucht abhaken kann.
 // =================================================================
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { bestellFotoLesen } from "../daten/bestellFoto.js";
@@ -26,6 +26,66 @@ import { materialZerlegen, postenMengeText, orteLaden, orteSpeichern, kgJeStange
 const zahlLesen = (t) => (String(t).trim() === "" ? null : Number(String(t).trim().replace(",", ".").replace(/'/g, "")));
 const zahlZeigen = (n) => String(Math.round(n * 10) / 10).replace(".", ",");
 const kgFoto = (n) => String(Math.round(n * 100) / 100).replace(".", ",");
+const FORM_NAME = { rd: "Rund", "6kt": "Sechskant", "4kt": "Vierkant", rohr: "Rohr" };
+
+// Was aus dem Foto kam, Punkt für Punkt mit ✓ oder ✗, daneben das Foto
+// und darunter der gelesene Text mit den benutzten Zeilen markiert
+// (Wunsch Patrick 22. Oktober 2026: „Ansicht besser, dass man besser
+// sehen kann, was es gelesen hat“). Das Foto bleibt nur im Fenster.
+function FotoErgebnis({ r, bild }) {
+  const [gross, setGross] = useState(false);
+  const w = r.werkstoff;
+  const tol = (r.material || "").match(/\b([hgfk]\d{1,2})$/i);
+  const zahl = (n) => String(n).replace(".", ",");
+  const punkte = [
+    ["Werkstoff", w ? [w.name, w.nr].filter(Boolean).join(" · ") : null],
+    ["Form", r.form ? FORM_NAME[r.form] || r.form : null],
+    ["Durchmesser", r.d ? zahl(r.d) + " mm" : null],
+    ["Toleranz", tol ? tol[1].toLowerCase() : null, true],
+    ["Gewicht", r.kg ? kgFoto(r.kg) + " kg" : null],
+  ];
+  const nichts = !r.material && !r.kg && !r.d;
+  const zeilen = String(r.text || "").split(/\r?\n/).filter((z) => z.trim());
+  const norm = (z) => String(z || "").replace(/\s+/g, " ").trim();
+  const markM = norm(r.zeileMaterial), markK = norm(r.zeileKg);
+  return (
+    <div className="mat-foto__ergebnis" id="mat-foto-ergebnis">
+      <div className="mat-foto__kopf">
+        {bild && <button type="button" className={"mat-foto__bild" + (gross ? " mat-foto__bild--gross" : "")}
+          title={gross ? "Verkleinern" : "Grösser"} onClick={() => setGross(!gross)}>
+          <img src={bild} alt="Foto der Bestellung" /></button>}
+        <div className="mat-foto__punkte">
+          {nichts
+            ? <span className="mat-foto__fehler">Auf dem Foto nichts erkannt. Gerade und nah fotografieren, gutes Licht.</span>
+            : <>
+                {punkte.map(([name, wert, freiwillig]) => (
+                  <div key={name} className={"mat-foto__punkt" + (wert ? " mat-foto__punkt--ja" : freiwillig ? "" : " mat-foto__punkt--nein")}>
+                    <span className="mat-foto__zeichen">{wert ? "✓" : freiwillig ? "–" : "✗"}</span>
+                    <span className="mat-foto__name">{name}</span>
+                    <b>{wert || "nicht erkannt"}</b>
+                  </div>))}
+                {(markM || markK) && <div className="mat-foto__quelle">
+                  <span className="klein">Gelesen aus diesen Zeilen:</span>
+                  {markM && <div className="mat-foto__zeile mat-foto__zeile--material">{markM}</div>}
+                  {markK && markK !== markM && <div className="mat-foto__zeile mat-foto__zeile--kg">{markK}</div>}
+                </div>}
+                <span className="klein">Ist alles richtig eingetragen? Sonst unten ändern.</span>
+              </>}
+        </div>
+      </div>
+      {zeilen.length > 0 && (
+        <details open={nichts}><summary className="klein">Gelesener Text (gelb = Material, grün = Gewicht)</summary>
+          <div className="mat-foto__text">
+            {zeilen.map((z, i) => {
+              const n = norm(z);
+              const art = n && n === markM ? " mat-foto__zeile--material" : n && n === markK ? " mat-foto__zeile--kg" : "";
+              return <div key={i} className={"mat-foto__zeile" + art}>{z}</div>;
+            })}
+          </div></details>
+      )}
+    </div>
+  );
+}
 
 // Alle bekannten Bezeichnungen: aus offenen Aufträgen und Posten,
 // gleiche nur einmal (häufigste Schreibweise zuerst)
@@ -89,8 +149,15 @@ function PostenDialog({ o, orte, liste, fertig }) {
   const [material, setMaterial] = useState(p.material || o.material || "");
   const [suche, setSuche] = useState("");
   const [waehlen, setWaehlen] = useState(!(p.material || o.material));
-  const [einheit, setEinheit] = useState(p.einheit || "kg");
-  const [menge, setMenge] = useState(p.menge !== undefined && p.menge !== null ? String(p.menge).replace(".", ",") : "");
+  // Menge in zwei Feldern nebeneinander, Stangen und kg (Wunsch Patrick
+  // 22. Oktober 2026: „zweite Zeile Menge so gesplittet, Stangen und
+  // kg“): Tippen im einen rechnet das andere um, gespeichert wird kg,
+  // wenn es rechenbar ist
+  const mengeAnfang = p.menge !== undefined && p.menge !== null ? String(p.menge).replace(".", ",") : "";
+  const [kgText, setKgText] = useState(p.einheit === "stg" ? "" : mengeAnfang);
+  const [stgText, setStgText] = useState(p.einheit === "stg" ? mengeAnfang : "");
+  // Welches Feld zuletzt getippt wurde, das andere ist gerechnet
+  const [zuletzt, setZuletzt] = useState(p.einheit === "stg" ? "stg" : "kg");
   const [ort, setOrt] = useState(p.ort || (o.rest ? orte[0] : ""));
   const [eigenerOrt, setEigenerOrt] = useState(p.ort && !orte.includes(p.ort) ? p.ort : "");
   const [art, setArt] = useState(p.art || o.art || "lager");
@@ -104,26 +171,31 @@ function PostenDialog({ o, orte, liste, fertig }) {
   // oder { ergebnis }
   const [foto, setFoto] = useState(null);
   const fotoFeld = useRef(null);
+  // Das Foto nur zum Anschauen im Fenster, als Adresse im Speicher
+  const [fotoBild, setFotoBild] = useState(null);
 
   const treffer = useMemo(() => (suche.trim() ? liste.filter((b) => passt(b, suche)) : liste).slice(0, 8),
     [suche, liste]);
   const ortWert = ort === "__eigen" ? eigenerOrt.trim() : ort;
   // Umrechnen über Dichte und Querschnitt des Materials, Stange 3 m
   const jeStange = kgJeStange(waehlen ? suche : material);
-  const n = zahlLesen(menge);
+  const kgZahl = zahlLesen(kgText), stgZahl = zahlLesen(stgText);
   // Welcher Werkstoff genau gerechnet wird, damit man es prüfen kann
   const kat = kategorieVon(waehlen ? suche : material);
   const womit = kat ? " (" + kat.name + ", " + String(kat.dichte).replace(".", ",") + " g/cm³)" : "";
-  const umrechnung = n === null || !(n >= 0) ? ""
-    : !jeStange ? "Umrechnen geht nicht: Werkstoff oder Durchmesser nicht erkannt."
-    : (einheit === "stg" ? "= ca. " + zahlZeigen(n * jeStange) + " kg"
-      : "= ca. " + zahlZeigen(n / jeStange) + " Stangen à 3 m") + womit;
-  // Beim Umschalten die Zahl in die andere Einheit umrechnen
-  const wechsle = (neu) => {
-    if (neu === einheit) return;
-    if (n !== null && n >= 0 && jeStange) setMenge(zahlZeigen(neu === "stg" ? n / jeStange : n * jeStange));
-    setEinheit(neu);
+  const rechne = (wert, von, jeStg) => {
+    const z = zahlLesen(wert);
+    const anders = z === null || !(z >= 0) || !jeStg ? "" : zahlZeigen(von === "kg" ? z / jeStg : z * jeStg);
+    if (von === "kg") { setKgText(wert); setStgText(anders); } else { setStgText(wert); setKgText(anders); }
+    setZuletzt(von);
   };
+  // Ändert sich das Material, das gerechnete Feld nachziehen
+  useEffect(() => {
+    rechne(zuletzt === "kg" ? kgText : stgText, zuletzt, jeStange);
+  }, [jeStange]); // eslint-disable-line react-hooks/exhaustive-deps
+  const umrechnung = (kgZahl === null && stgZahl === null) ? ""
+    : !jeStange ? "Umrechnen geht nicht: Werkstoff oder Durchmesser nicht erkannt."
+    : "Stange 3 m" + womit;
   // Foto wählen oder aufnehmen, lesen, Felder füllen. Das Foto selbst
   // wird nicht gespeichert (Wunsch Patrick 19. Oktober 2026: „nur
   // erkennen und gut ist“).
@@ -131,6 +203,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
     const datei = e.target.files && e.target.files[0];
     e.target.value = "";
     if (!datei) return;
+    setFotoBild((vorher) => { if (vorher) URL.revokeObjectURL(vorher); return URL.createObjectURL(datei); });
     setFoto({ liest: true, text: "Texterkennung wird geladen …" });
     try {
       const r = await bestellFotoLesen(datei, (status, anteil) => {
@@ -141,7 +214,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
       if (r.material) { setMaterial(r.material); setWaehlen(false); }
       else if (r.d) { setSuche((r.form && r.form !== "rd" ? r.form : "rd") + " " + String(r.d).replace(".", ",")); setWaehlen(true); }
       // Auf der Bestellung stehen kg mit vier Stellen (7.2500 kg): zwei behalten
-      if (r.kg) { setEinheit("kg"); setMenge(kgFoto(r.kg)); }
+      if (r.kg) rechne(kgFoto(r.kg), "kg", kgJeStange(r.material || ""));
       setFoto({ ergebnis: r });
     } catch (f) {
       setFoto({ fehler: "Das Foto liess sich nicht lesen. Ohne Internet geht es beim ersten Mal nicht. " + (alt.fehlertext ? alt.fehlertext(f) : "") });
@@ -155,14 +228,20 @@ function PostenDialog({ o, orte, liste, fertig }) {
     const mat = (waehlen ? suche : material).trim();
     if (!mat) { alt.meldung("Welches Material?", "warn"); return; }
     const ortFertig = ortWert;
-    if (art === "lager" && !ortFertig) { alt.meldung("Wo liegt es?", "warn"); return; }
-    let zahl = zahlLesen(menge);
-    if (zahl !== null && !(zahl >= 0)) { alt.meldung("Die Menge ist keine Zahl.", "warn"); return; }
+    // Kein „Wo liegt es?“ mehr (Wunsch Patrick 22. Oktober 2026: „soll
+    // nicht fragen, wohin damit“), ohne Ort steht es unter „Ohne Ort“
+    if ((kgZahl !== null && !(kgZahl >= 0)) || (stgZahl !== null && !(stgZahl >= 0))) {
+      alt.meldung("Die Menge ist keine Zahl.", "warn"); return;
+    }
     // Stangen werden als kg gespeichert, wenn sich das Gewicht rechnen
     // lässt; sonst bleiben es Stangen
-    let einheitFertig = einheit;
+    let zahl = null, einheitFertig = "kg";
     const jeStgMat = kgJeStange(mat);
-    if (zahl !== null && einheit === "stg" && jeStgMat) { zahl = Math.round(zahl * jeStgMat * 10) / 10; einheitFertig = "kg"; }
+    if (zuletzt === "stg" && stgZahl !== null) {
+      if (jeStgMat) zahl = Math.round(stgZahl * jeStgMat * 10) / 10;
+      else { zahl = stgZahl; einheitFertig = "stg"; }
+    } else if (kgZahl !== null) zahl = kgZahl;
+    else if (stgZahl !== null) { zahl = stgZahl; einheitFertig = "stg"; }
     setSpeichert(true);
     const daten = { material: mat, menge: zahl, einheit: einheitFertig, ort: ortFertig || null, art,
       lieferant: art === "bestellt" || p.be_nr ? lieferant.trim() || null : null,
@@ -231,18 +310,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
             onClick={() => fotoFeld.current && fotoFeld.current.click()}>📷 Foto der Bestellung lesen</button>
           {foto && foto.liest && <span className="klein" id="mat-foto-stand">{foto.text}</span>}
           {foto && foto.fehler && <span className="klein mat-foto__fehler">{foto.fehler}</span>}
-          {fotoErgebnis && (
-            <div className="mat-foto__ergebnis" id="mat-foto-ergebnis">
-              {fotoErgebnis.material || fotoErgebnis.kg || fotoErgebnis.d
-                ? <span className="klein"><b>Aus dem Foto:</b>{" "}
-                    {[fotoErgebnis.material || (fotoErgebnis.d ? "Ø " + String(fotoErgebnis.d).replace(".", ",") + " mm, Werkstoff nicht erkannt" : "Material nicht erkannt"),
-                      fotoErgebnis.kg ? kgFoto(fotoErgebnis.kg) + " kg" : "Gewicht nicht erkannt"].join(" · ")}
-                    . Bitte prüfen.</span>
-                : <span className="klein mat-foto__fehler">Auf dem Foto nichts erkannt. Gerade und nah fotografieren, gutes Licht.</span>}
-              <details><summary className="klein">Gelesener Text</summary>
-                <pre className="mat-foto__text">{fotoErgebnis.text}</pre></details>
-            </div>
-          )}
+          {fotoErgebnis && <FotoErgebnis r={fotoErgebnis} bild={fotoBild} />}
         </div>
       )}
       {o.rest && o.gebraucht && (
@@ -260,9 +328,8 @@ function PostenDialog({ o, orte, liste, fertig }) {
         </div>
       )}
 
-      {/* Am Computer zwei Spalten (Wunsch Patrick 16. Oktober 2026: „etwas
-          grösser und besser dargestellt“), am Handy untereinander wie bisher */}
-      <div className="mat-spalten">
+      {/* Eine Spalte, kurz: Material, darunter die Menge (Wunsch Patrick
+          22. Oktober 2026, ersetzt die zwei Spalten von 1.72.0) */}
       <div className="mat-spalte">
       <div className="mat-feld mat-feld--karte">
         <span className="mat-feld__name">Material</span>
@@ -282,28 +349,24 @@ function PostenDialog({ o, orte, liste, fertig }) {
       </div>
 
       <div className="mat-feld mat-feld--karte">
-        <span className="mat-feld__name">Wie viel, ungefähr</span>
-        <div className="mat-knoepfe">
-          <button type="button" className={"knopf knopf--klein" + (einheit === "kg" ? " knopf--haupt" : "")}
-            onClick={() => wechsle("kg")}>kg</button>
-          <button type="button" className={"knopf knopf--klein" + (einheit === "stg" ? " knopf--haupt" : "")}
-            onClick={() => wechsle("stg")}>Stangen</button>
+        <span className="mat-feld__name">Menge, ungefähr</span>
+        <div className="mat-menge">
+          <label className="mat-menge__feld"><span>Stangen</span>
+            <input className="mat-eingabe" id="mat-stangen" inputMode="decimal" value={stgText}
+              placeholder="0" onChange={(e) => rechne(e.target.value, "stg", jeStange)} /></label>
+          <label className="mat-menge__feld"><span>kg</span>
+            <input className="mat-eingabe" id="mat-menge" inputMode="decimal" value={kgText}
+              placeholder="0" onChange={(e) => rechne(e.target.value, "kg", jeStange)} /></label>
         </div>
-        <div className="mat-knoepfe">
-          <input className="mat-eingabe mat-eingabe--zahl" id="mat-menge" inputMode="decimal" value={menge}
-            placeholder={einheit === "stg" ? "Stangen" : "kg"} onChange={(e) => setMenge(e.target.value)} />
-        </div>
-        {/* Die andere Einheit gleich daneben, damit man beides sieht */}
         <span className="klein" id="mat-umrechnung">{umrechnung}</span>
       </div>
 
-      {!o.rest && (
-        <label className="mat-feld mat-feld--karte"><span className="mat-feld__name">Notiz (frei)</span>
-          <input className="mat-eingabe" value={notiz} id="mat-notiz" onChange={(e) => setNotiz(e.target.value)} /></label>
-      )}
       </div>
+      {/* Ort und Notiz nur auf Wunsch: das Fenster bleibt kurz */}
+      <details className="mat-mehr" id="mat-mehr" open={!!(p.ort || p.notiz || o.rest)}>
+      <summary>Ort und Notiz (freiwillig){ortWert ? ": " + ortWert : ""}</summary>
       <div className="mat-spalte">
-      <div className="mat-feld mat-feld--karte">
+      <div className="mat-feld">
         <span className="mat-feld__name">{art === "bestellt" ? "Wohin kommt es (wenn bekannt)" : "Wo"}</span>
         <div className="mat-knoepfe">
           {orte.map((x) => (
@@ -315,6 +378,11 @@ function PostenDialog({ o, orte, liste, fertig }) {
         {ort === "__eigen" && <input className="mat-eingabe" id="mat-ort" value={eigenerOrt} autoFocus
           placeholder="Ort" onChange={(e) => setEigenerOrt(e.target.value)} />}
       </div>
+
+      {!o.rest && (
+        <label className="mat-feld"><span className="mat-feld__name">Notiz (frei)</span>
+          <input className="mat-eingabe" value={notiz} id="mat-notiz" onChange={(e) => setNotiz(e.target.value)} /></label>
+      )}
 
       {art === "bestellt" && (
         <div className="mat-feld mat-feld--reihe">
@@ -328,7 +396,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
       )}
 
       </div>
-      </div>
+      </details>
 
       {o.rest && vorhandene.length > 0 && (
         <fieldset className="feld feld--mehrfach mat-leer">
