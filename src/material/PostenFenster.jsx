@@ -13,7 +13,8 @@
 //  postenFenster({ posten, material, art, titel, rest, auftrag, gebraucht })
 //    → Promise mit dem gespeicherten Posten oder null
 //  rest: true ist die Frage beim Beenden eines Auftrags („Rest
-//  Material?“), mit „Kein Rest“ statt Abbrechen und den Posten dieses
+//  Material?“, erst nach „Ja“ in einer Frage davor), mit „Doch kein
+//  Rest“ und den Posten dieses
 //  Materials, die man als aufgebraucht abhaken kann.
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -240,6 +241,10 @@ function PostenDialog({ o, orte, liste, fertig }) {
     const ortFertig = ortWert;
     // Kein „Wo liegt es?“ mehr (Wunsch Patrick 22. Oktober 2026: „soll
     // nicht fragen, wohin damit“), ohne Ort steht es unter „Ohne Ort“
+    // Zurückbuchen ohne Menge ergibt keinen brauchbaren Posten
+    if (o.rest && kgZahl === null && stgZahl === null) {
+      alt.meldung("Wie viel ist übrig? Stangen oder kg eintippen.", "warn"); return;
+    }
     if ((kgZahl !== null && !(kgZahl >= 0)) || (stgZahl !== null && !(stgZahl >= 0))) {
       alt.meldung("Die Menge ist keine Zahl.", "warn"); return;
     }
@@ -368,6 +373,7 @@ function PostenDialog({ o, orte, liste, fertig }) {
         <div className="mat-menge">
           <label className="mat-menge__feld"><span>Stangen</span>
             <input className="mat-eingabe" id="mat-stangen" inputMode="decimal" value={stgText}
+              data-fokus={o.rest && !waehlen ? "" : undefined}
               placeholder="0" onChange={(e) => rechne(e.target.value, "stg", jeStange)} />
             {ca && <i className="mat-menge__ca">ca.</i>}</label>
           <label className="mat-menge__feld"><span>kg</span>
@@ -428,8 +434,9 @@ function PostenDialog({ o, orte, liste, fertig }) {
 
       <div className="dialog__knoepfe">
         <button className="knopf knopf--still" data-nein="" onClick={() => (o.rest ? keinRest() : fertig(null))}>
-          {o.rest ? "Kein Rest" : "Abbrechen"}</button>
-        <button className="knopf knopf--haupt" data-ja="" disabled={speichert} onClick={speichern}>Speichern</button>
+          {o.rest ? "Doch kein Rest" : "Abbrechen"}</button>
+        <button className="knopf knopf--haupt" data-ja="" disabled={speichert} onClick={speichern}>
+          {o.rest ? "Ins Lager" : "Speichern"}</button>
       </div>
     </div>
   );

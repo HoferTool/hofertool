@@ -226,8 +226,18 @@ with sync_playwright() as p:
     if pg.locator(".zifferblock h2:has-text('Letzte Stückzahl')").count():
         pg.click(".zifferblock [data-zbnein]")
     art_info(pg, laenge=7)
+    # Seit 1.142.0 zuerst nur Ja oder Nein (Wunsch Patrick 22. Oktober 2026)
+    pg.wait_for_selector(".dialog h2:has-text('Material übrig?')", timeout=6000)
+    frage = pg.inner_text(".dialog:has(h2:has-text('Material übrig?'))")
+    pruefe("Frage Material übrig? mit Ja und Nein: " + frage.replace(chr(10), " | "),
+           "Ja, zurückbuchen" in frage and "Nein" in frage and pg.locator(".mat-dialog").count() == 0)
+    pg.screenshot(path="/tmp/material_frage.png")
+    pg.click(".dialog:has(h2:has-text('Material übrig?')) [data-ja]")
     pg.wait_for_selector(".mat-dialog", timeout=6000)
-    pruefe("Rest Material? erscheint", "Rest Material?" in pg.inner_text(".mat-dialog"))
+    pruefe("Danach: Wie viel Material zurück?", "Wie viel Material zurück?" in pg.inner_text(".mat-dialog"))
+    pruefe("Stangen-Feld hat den Fokus", pg.evaluate("document.activeElement && document.activeElement.id") == "mat-stangen")
+    pg.click(".mat-dialog [data-ja]"); pg.wait_for_timeout(500)
+    pruefe("Ohne Menge nicht gespeichert", pg.locator(".mat-dialog").count() == 1)
     g = pg.inner_text("#mat-gebraucht")
     pruefe("Rest-Hinweis nennt Aufträge, die es noch brauchen: " + g.replace(chr(10), " | "),
            "noch gebraucht" in g and "10555-0002" in g and "10555-0003" in g)

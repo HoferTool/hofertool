@@ -134,7 +134,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.144.0";
+const APP_VERSION = "1.145.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6549,11 +6549,21 @@ function wischVerhalten(b) {
 // dieses Materials zum Abhaken als aufgebraucht (Wunsch Patrick
 // 15. Oktober 2026). Ohne Material am Auftrag, für Externe und ohne die
 // Tabelle in der Datenbank kommt keine Frage.
+// Zuerst nur Ja oder Nein, erst bei Ja die Menge (Wunsch Patrick
+// 22. Oktober 2026: „nach jedem Beenden nachfragen, ob es noch Material
+// hat zum Zurückbuchen, wenn ja fragen wie viel“). Auch ohne Material am
+// Auftrag, dann wählt man es im Fenster.
 async function restMaterialFragen(j) {
-  if (ARCHIV || istExtern() || !String(j.material_bez || "").trim()) return;
+  if (ARCHIV || istExtern()) return;
   try {
     const posten = await postenLaden();
     if (posten === null) return;
+    const bez = String(j.material_bez || "").trim();
+    const ja = await nachfragen({ titel: "Material übrig?",
+      text: (j.job_number || "Der Auftrag") + " ist fertig. Ist noch Material übrig, das zurück ins Lager kommt?"
+        + (bez ? " (" + bez + ")" : ""),
+      bestaetigen: "Ja, zurückbuchen", abbrechen: "Nein" });
+    if (!ja) return;
     const z = materialZerlegen(j.material_bez);
     const vorhandene = posten.filter((p) => p.art !== "bestellt" && z
       && (materialZerlegen(p.material) || {}).schluessel === z.schluessel);
@@ -6564,7 +6574,7 @@ async function restMaterialFragen(j) {
       if (!r.error) gebraucht = nochGebraucht(j, r.data || []);
     } catch (f) { /* ohne Hinweis weiter */ }
     await postenFenster({ rest: true, material: j.material_bez, auftrag: j, vorhandene, gebraucht,
-      text: j.job_number + " ist fertig. Bleibt Material übrig? Ungefähr genügt." });
+      titel: "Wie viel Material zurück?", text: "Ungefähr genügt, in Stangen oder kg." });
   } catch (f) {
     console.warn("Rest Material:", f.message);
   }
