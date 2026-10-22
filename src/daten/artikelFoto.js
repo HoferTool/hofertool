@@ -52,23 +52,65 @@ export function merkmaleAusText(text) {
   return [...raus].slice(0, 30);
 }
 
-// Codes über die Kamera-Schnittstelle des Browsers, wo es sie gibt.
+// Strich- und 2D-Codes (EAN, Code 128, Data Matrix, QR …). Zuerst die
+// eingebaute Erkennung des Browsers (Chrome), sonst und zusätzlich der
+// eigene Codeleser zxing-wasm, der auch auf iPad und iPhone geht
+// (seit 1.147.0, Wunsch Patrick 22. Oktober 2026: „Strichcode lesen
+// von jeglichen Herstellern“). Er läuft im Gerät; das Programm (rund
+// 1 MB) kommt beim ersten Mal von jsdelivr und bleibt dann im Gerät.
 // GS1-Codes (Data Matrix der Werkzeughersteller) tragen Los und Datum
 // mit: dann nur die Artikelnummer (GTIN, „01“ + 14 Ziffern).
-async function codesLesen(bild) {
-  try {
-    if (typeof window === "undefined" || !("BarcodeDetector" in window)) return [];
-    const formate = await window.BarcodeDetector.getSupportedFormats();
-    if (!formate || !formate.length) return [];
-    const funde = await new window.BarcodeDetector({ formats: formate }).detect(bild);
-    return [...new Set(funde.map((f) => {
-      const roh = String(f.rawValue || "");
-      const gtin = roh.replace(/\x1d/g, "").match(/^\(?01\)?(\d{14})/);
-      return "CODE:" + (gtin ? gtin[1] : vergleichbar(roh));
-    }).filter((c) => c.length > 8))];
-  } catch (f) {
-    return [];
+// → [{ code: "CODE:…", roh: lesbarer Inhalt }]
+function codeEintrag(roh) {
+  // Trennzeichen FNC1 kommt als Zeichen 29 oder als Text „<GS>“
+  const r = String(roh || "").replace(/<GS>|\x1d/g, " ").trim();
+  const gs1 = r.replace(/\s/g, "").match(/^(?:\]d2|\]C1)?\(?01\)?(\d{14})/);
+  // GTIN-14 mit führender 0 ist die EAN-13 auf der Schachtel
+  const gtin = gs1 ? gs1[1].replace(/^0(?=\d{13}$)/, "") : null;
+  const code = "CODE:" + (gtin || vergleichbar(r));
+  return code.length > 8 ? { code, roh: gtin || r } : null;
+}
+
+let zxing = null;
+async function zxingHolen() {
+  if (!zxing) {
+    zxing = import("zxing-wasm/reader").then(async (m) => {
+      m.prepareZXingModule({
+        overrides: {
+          locateFile: (pfad, vorne) => (pfad.endsWith(".wasm")
+            ? "https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.4/dist/reader/zxing_reader.wasm" : vorne + pfad),
+        },
+        fireImmediately: true,
+      });
+      return m;
+    }).catch((f) => { zxing = null; throw f; });
   }
+  return zxing;
+}
+
+export async function codesLesen(bild, datei) {
+  const funde = [];
+  try {
+    if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+      const formate = await window.BarcodeDetector.getSupportedFormats();
+      if (formate && formate.length) {
+        for (const f of await new window.BarcodeDetector({ formats: formate }).detect(bild)) funde.push(f.rawValue);
+      }
+    }
+  } catch (f) { /* dann nur der eigene Leser */ }
+  if (!funde.length) {
+    try {
+      const m = await zxingHolen();
+      // Das Foto in voller Grösse: kleine Codes gehen beim Verkleinern verloren
+      const r = await m.readBarcodes(datei || bild, {
+        tryHarder: true, tryRotate: true, tryInvert: true, tryDownscale: true, maxNumberOfSymbols: 8,
+      });
+      for (const x of r || []) if (x.isValid && x.text) funde.push(x.text);
+    } catch (f) { /* ohne Code, der Text reicht oft */ }
+  }
+  const raus = new Map();
+  for (const roh of funde) { const e = codeEintrag(roh); if (e) raus.set(e.code, e); }
+  return [...raus.values()];
 }
 
 // Verkleinern (höchstens 2000 Pixel), Graustufen mit gestrecktem
@@ -82,7 +124,7 @@ async function bildVorbereiten(datei) {
   c.height = Math.round(bild.height * f);
   const ctx = c.getContext("2d", { willReadFrequently: true });
   ctx.drawImage(bild, 0, 0, c.width, c.height);
-  const codes = await codesLesen(bild);
+  const codes = await codesLesen(bild, datei);
   if (bild.close) bild.close();
   // Das Beispielfoto zum Ablegen: farbig, höchstens 1600 Pixel
   const g = Math.min(1, 1600 / Math.max(c.width, c.height));
@@ -116,14 +158,18 @@ async function bildVorbereiten(datei) {
   return { c, codes, jpg };
 }
 
-// → { text, codes, merkmale, nummern, jpg }
+// → { text, codes, codeTexte, merkmale, nummern, jpg }
 export async function artikelFotoLesen(datei, fortschritt) {
   return mitTexterkennung(fortschritt, async (w) => {
-    let c = datei, codes = [], jpg = null;
-    try { ({ c, codes, jpg } = await bildVorbereiten(datei)); } catch (f) { /* dann das Foto, wie es ist */ }
+    let c = datei, gefunden = [], jpg = null;
+    try { ({ c, codes: gefunden, jpg } = await bildVorbereiten(datei)); } catch (f) { /* dann das Foto, wie es ist */ }
     const r = await w.recognize(c);
     const text = (r && r.data && r.data.text) || "";
-    return { text, codes, merkmale: codes.concat(merkmaleAusText(text)), nummern: nummernVorschlagen(text), jpg };
+    const codes = gefunden.map((x) => x.code);
+    // Ein Code, der keine EAN/GTIN ist, ist oft die Artikelnummer selbst
+    const ausCode = gefunden.map((x) => x.roh).filter((t) => !/^\d{8,14}$/.test(t) && t.length <= 40);
+    const nummern = [...new Set(ausCode.concat(nummernVorschlagen(text)))].slice(0, 6);
+    return { text, codes, codeTexte: gefunden.map((x) => x.roh), merkmale: codes.concat(merkmaleAusText(text)), nummern, jpg };
   });
 }
 

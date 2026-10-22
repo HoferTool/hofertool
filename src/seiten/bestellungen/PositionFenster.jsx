@@ -221,6 +221,8 @@ function PositionFenster({ zu, fertig, vorgabe }) {
               </div>
             )}
             <span className="klein">Beim Hinzufügen merkt sich die App die Verpackung für das nächste Foto.</span>
+            {fotoLesung.codeTexte && fotoLesung.codeTexte.length > 0 &&
+              <span className="klein" id="pd-foto-codes">Strichcode: {fotoLesung.codeTexte.join(", ")}</span>}
             <details><summary className="klein">Gelesener Text</summary>
               <pre className="mat-foto__text">{fotoLesung.text}</pre></details>
           </div>

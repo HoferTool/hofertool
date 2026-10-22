@@ -22,7 +22,8 @@ def cdn(route):
     u = route.request.url
     for stueck, ordner in (("/tesseract.js@v7.0.0/dist/", os.path.join(NM, "tesseract.js", "dist")),
                            ("/tesseract.js-core@v7.0.0/", os.path.join(NM, "tesseract.js-core")),
-                           ("/@tesseract.js-data/deu/4.0.0_best_int/", DEU)):
+                           ("/@tesseract.js-data/deu/4.0.0_best_int/", DEU),
+                           ("/zxing-wasm@3.1.4/dist/", os.path.join(NM, "zxing-wasm", "dist"))):
         if stueck in u:
             pfad = os.path.join(ordner, u.split(stueck, 1)[1].split("?")[0])
             if os.path.exists(pfad):
@@ -40,6 +41,12 @@ def packung(zeilen, farbe="#ffd400"):
 P1 = packung(["<b>VB Präzisionswerkzeuge</b>", "Wendeplatte", "Art.-Nr. MTEC-452410", "EAN 7612345678901", "LOT X7Z5512A  10 Stk."])
 # Dieselbe Packung ohne lesbare Nummer, nur EAN und Los
 P2 = packung(["<b>VB Präzisionswerkzeuge</b>", "Wendeplatte", "EAN 7612345678901", "LOT X7Z5512A"], "#e8f4ff")
+# Nur Strichcodes, kein lesbarer Text (eigener Codeleser, 1.147.0)
+CODES = os.path.join(HIER, "codes")
+def nur_code(name, drehen=0):
+    svg = open(os.path.join(CODES, name + ".svg")).read()
+    return f"""<html><body style="margin:0;background:#fff;padding:60px"><div style="display:inline-block;padding:30px;
+      background:#fff;transform:rotate({drehen}deg)">{svg}</div></body></html>"""
 # Unbekannt
 P3 = packung(["<b>SECO</b>", "DNMU 110404-MF1 TM2510", "10 pcs", "Made in Sweden"], "#ffffff")
 
@@ -47,7 +54,7 @@ with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     ctx = br.new_context(viewport={"width": 1400, "height": 950}, timezone_id="Europe/Zurich")
     bilder = []
-    for h in (P1, P2, P3):
+    for h in (P1, P2, P3, nur_code("ean"), nur_code("ean", 90), nur_code("code128"), nur_code("dm")):
         s = ctx.new_page(); s.set_content(h); bilder.append(s.screenshot(full_page=True)); s.close()
     pg = ctx.new_page()
     pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:200]))
@@ -99,6 +106,35 @@ with sync_playwright() as p:
         pruefe("Neuer Artikel: Nummer übernommen", pg.locator(".dialog-huelle input").last.input_value() == knopf
                or knopf in [pg.locator(".dialog-huelle input").nth(i).input_value() for i in range(pg.locator(".dialog-huelle input").count())])
         pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+
+    if mit_ocr:
+        # Strichcode ohne Text: gelesen, gelernt, wiedererkannt
+        pg.click("#b-neu"); pg.wait_for_selector("#pd-such")
+        foto(3)
+        codes = pg.inner_text("#pd-foto-codes") if pg.locator("#pd-foto-codes").count() else ""
+        print("     " + codes)
+        pruefe("EAN gelesen", "7612345678900" in codes)
+        pg.type("#pd-such", "MTEC"); pg.wait_for_selector("#pd-treffer [data-w]"); pg.click("#pd-treffer [data-w=a1]")
+        pg.click("#pd-ja"); pg.wait_for_timeout(1200)
+        pruefe("EAN gelernt", "CODE:7612345678900" in pg.evaluate("TEST.daten.articles.find(a => a.id === 'a1').foto_merkmale || []"))
+        pg.click("#b-neu"); pg.wait_for_selector("#pd-such")
+        foto(4)
+        pruefe("Gedrehter Strichcode findet den Artikel", pg.locator("[data-fotow=a1] .bs-chip").count() == 1
+               and pg.inner_text("[data-fotow=a1] .bs-chip") == "passt")
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+        pg.click("#b-neu"); pg.wait_for_selector("#pd-such")
+        foto(5)
+        nummern = pg.eval_on_selector_all("[data-fotonr]", "e => e.map(x => x.dataset.fotonr)")
+        print("     Code 128:", nummern)
+        pruefe("Code 128 als Nummer vorgeschlagen", "SCMT 120408" in nummern)
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+        pg.click("#b-neu"); pg.wait_for_selector("#pd-such")
+        foto(6)
+        codes = pg.inner_text("#pd-foto-codes") if pg.locator("#pd-foto-codes").count() else ""
+        print("     Data Matrix: " + codes)
+        pruefe("Data Matrix gelesen, GTIN herausgenommen", "7612345678900" in codes and "LOT" not in codes)
+        pruefe("Data Matrix findet den Artikel", pg.locator("[data-fotow=a1]").count() == 1)
         pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
 
     # Bestellungen → Artikel: Verpackung lernen
