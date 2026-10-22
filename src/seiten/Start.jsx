@@ -14,7 +14,7 @@ import { GeburtstagMitte, Konfetti } from "./start/Geburtstag.jsx";
 import Notizen from "./start/Notizen.jsx";
 import Materialausgabe from "./start/Materialausgabe.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
-import Huehner from "./start/Huehner.jsx";
+import Durchfahrt from "./start/Durchfahrt.jsx";
 import Batterien from "./start/Batterien.jsx";
 
 // Ohne Adminrecht wird gar nicht erst nach Problemen gefragt
@@ -36,7 +36,7 @@ export default function Start({ auffrischen }) {
   return (
     <>
       <section className={"kopfkarte" + (fest ? " kopfkarte--geburtstag" : "")}>
-        {fest ? <Konfetti /> : <Huehner />}
+        {fest ? <Konfetti /> : <Durchfahrt />}
         <Uhr />
         {fest
           ? <GeburtstagMitte kinder={kinder} />
