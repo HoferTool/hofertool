@@ -100,7 +100,8 @@ export default function CAchse() {
           <Feld name="zustellung" text="Zustellung je Schnitt" wert={c.zustellung} setze={setze} />
           <Feld name="zStart" text="Z an der Stirnfläche" wert={c.zStart} setze={setze} />
           <Feld name="sicher" text="Sicherheitsabstand" wert={c.sicher} setze={setze} />
-          <Feld name="vorschub" text="Vorschub mm/min" wert={c.vorschub} setze={setze} schritt="1" />
+          <Feld name="vorschub" text="Vorschub Eintauchen in Z mm/min" wert={c.vorschub} setze={setze} schritt="1" />
+          <Feld name="vorschubC" text="Vorschub C-Achse mm/min" wert={c.vorschubC} setze={setze} schritt="1" />
           <Feld name="drehzahl" text="Drehzahl Fräser" wert={c.drehzahl} setze={setze} schritt="50" />
           <label className="feld"><span>Fräsrichtung</span>
             <select data-cax="richtung" value={c.richtung} onChange={(e) => setze("richtung", e.target.value)}>

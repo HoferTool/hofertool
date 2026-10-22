@@ -25,13 +25,16 @@ export const GRAVUR_VORGABE = {
   zStart: 0,
   tiefe: 0.2,
   schnitte: 1,
-  vorschub: 80,
+  vorschub: 80,      // Eintauchen
+  vorschubC: 80,     // Bahn mit der C-Achse
   eilgang: 1,        // Abhebehöhe zwischen den Zügen
   drehzahl: 6000,
   werkzeug: 0.4,     // Spitzendurchmesser, nur für die Warnung
   glaetten: 0.02,    // Toleranz beim Vereinfachen in mm
   art: "stichel",    // stichel oder fraeser
   ausraeumen: false, // beim Fräser die Buchstaben ganz ausräumen
+  spiegelnX: false,  // Schrift links und rechts tauschen
+  spiegelnY: false,  // Schrift oben und unten tauschen
 };
 
 export const GRAVUR_SCHRIFTEN = [
@@ -149,7 +152,10 @@ export function gravurKonturen(gv) {
     minY = Math.min(minY, y); maxY = Math.max(maxY, y);
   }));
   const mx = (minX + maxX) / 2, my = (minY + maxY) / 2;
-  const mittig = fein.map((z) => z.map(([x, y]) => [x - mx, y - my]));
+  // Gespiegelt wird um die Mitte des Texts, etwa für einen Stempel.
+  // Danach kommen Drehung und Lage wie beim ungespiegelten Text.
+  const sx = gv.spiegelnX ? -1 : 1, sy = gv.spiegelnY ? -1 : 1;
+  const mittig = fein.map((z) => z.map(([x, y]) => [(x - mx) * sx, (y - my) * sy]));
 
   return { zuege: mittig, breite: maxX - minX, hoehe: maxY - minY };
 }
@@ -178,7 +184,11 @@ export function gravurGcode(gv, roh) {
   if (!zuege.length) return "( Kein Text )";
 
   const z = [];
-  const f = gv.vorschub;
+  // Eintauchen und die Bahn mit der C-Achse haben je einen eigenen
+  // Vorschub. F ist modal, darum steht er nach jedem Eintauchen
+  // wieder an der ersten Bewegung des Zugs.
+  const fZ = gv.vorschub;
+  const fC = gv.vorschubC > 0 ? gv.vorschubC : gv.vorschub;
   const mantel = gv.flaeche === "mantel";
   const rad = gv.dm / 2;
 
@@ -225,18 +235,18 @@ export function gravurGcode(gv, roh) {
       if (mantel) {
         z.push("G0X" + (gv.dm + 2 * gv.eilgang).toFixed(3));
         z.push("G0C" + erst.a.toFixed(3) + "Z" + (gv.zStart + erst.b).toFixed(3));
-        z.push("G1X" + (gv.dm - 2 * tiefe).toFixed(3) + "F" + f);
+        z.push("G1X" + (gv.dm - 2 * tiefe).toFixed(3) + "F" + fZ);
       } else {
         z.push("G0Z" + (gv.zStart + gv.eilgang).toFixed(3));
         z.push("G0X" + (erst.a * 2).toFixed(3) + "C" + erst.b.toFixed(3));
-        z.push("G1Z" + (gv.zStart - tiefe).toFixed(3) + "F" + f);
+        z.push("G1Z" + (gv.zStart - tiefe).toFixed(3) + "F" + fZ);
       }
 
-      zug.slice(1).forEach((p) => {
+      zug.slice(1).forEach((p, k) => {
         const q = lage(p);
-        z.push(mantel
+        z.push((mantel
           ? "G1C" + q.a.toFixed(3) + "Z" + (gv.zStart + q.b).toFixed(3)
-          : "G1X" + (q.a * 2).toFixed(3) + "C" + q.b.toFixed(3));
+          : "G1X" + (q.a * 2).toFixed(3) + "C" + q.b.toFixed(3)) + (k === 0 ? "F" + fC : ""));
       });
 
       // Zug schliessen

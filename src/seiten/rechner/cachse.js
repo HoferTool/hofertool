@@ -18,7 +18,8 @@ export const CACHSE_VORGABE = {
   fraeser: 8,        // Fräserdurchmesser
   tiefeZ: 6,         // Frästiefe in Z
   zustellung: 1.5,   // je Schnitt
-  vorschub: 60,      // mm/min
+  vorschub: 60,      // mm/min, Eintauchen in Z
+  vorschubC: 60,     // mm/min, Bahn mit der C-Achse
   drehzahl: 2000,    // Fräser
   sicher: 2,         // Sicherheitsabstand
   zStart: 0,         // Stirnfläche
@@ -142,7 +143,11 @@ export function cachsePasst(c) {
 export function cachseGcode(c) {
   const { bahn, aussen } = cachseBahn(c);
   const z = [];
-  const f = c.vorschub;
+  // Eintauchen in Z und die Bahn mit der C-Achse haben je einen
+  // eigenen Vorschub. F ist modal, darum steht er nach jedem
+  // Eintauchen wieder an der ersten Bewegung der Bahn.
+  const fZ = c.vorschub;
+  const fC = c.vorschubC > 0 ? c.vorschubC : c.vorschub;
   const anfahrt = aussen + c.sicher;
   const gegen = c.richtung === "gegen";
 
@@ -160,18 +165,19 @@ export function cachseGcode(c) {
   for (let s = 1; s <= schnitte; s++) {
     const tiefe = Math.min(c.tiefeZ, s * c.zustellung);
     z.push("( Schnitt " + s + " von " + schnitte + ", Z-" + tiefe.toFixed(2) + " )");
-    z.push("G0Z" + (c.zStart - tiefe).toFixed(3));
+    z.push("G1Z" + (c.zStart - tiefe).toFixed(3) + "F" + fZ);
 
     if (bahn[0].art === "punkte") {
       const p = bahn[0].punkte;
-      z.push("G0X" + (p[0][0] * 2).toFixed(3) + "C" + p[0][1].toFixed(3));
-      p.slice(1).forEach((q) => z.push("G1X" + (q[0] * 2).toFixed(3) + "C" + q[1].toFixed(3) + "F" + f));
+      // Angefahren wird im Vorschub, der Weg geht durchs Rohmaterial
+      z.push("G1X" + (p[0][0] * 2).toFixed(3) + "C" + p[0][1].toFixed(3) + "F" + fC);
+      p.slice(1).forEach((q) => z.push("G1X" + (q[0] * 2).toFixed(3) + "C" + q[1].toFixed(3)));
     } else {
       const erst = bahn[0];
-      z.push("G0X" + (erst.von[0] * 2).toFixed(3) + "C" + erst.von[1].toFixed(3));
+      z.push("G1X" + (erst.von[0] * 2).toFixed(3) + "C" + erst.von[1].toFixed(3) + "F" + fC);
       bahn.forEach((st, i) => {
         if (st.art === "gerade") {
-          z.push("G1X" + (st.bis[0] * 2).toFixed(3) + "C" + st.bis[1].toFixed(3) + (i === 0 ? "F" + f : ""));
+          z.push("G1X" + (st.bis[0] * 2).toFixed(3) + "C" + st.bis[1].toFixed(3));
         } else {
           const naechste = bahn[(i + 1) % bahn.length];
           // Aussenecke: die Fräsermitte fährt einen Bogen um die Ecke
