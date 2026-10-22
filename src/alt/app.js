@@ -13,7 +13,6 @@ import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
 import Temp from "../seiten/Temp.jsx";
-import Lehrlinge from "../seiten/Lehrlinge.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Infoboard, { infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
 import { istInfoboardGeraet } from "../infoboard/daten.js";
@@ -136,7 +135,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.153.0";
+const APP_VERSION = "1.154.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9809,10 +9808,6 @@ SYM.infoboard = svg('<rect x="5" y="2.5" width="14" height="19" rx="2"/>'
   + '<path d="M8 6.5h8"/><rect x="8" y="9.5" width="3.3" height="4.5" rx=".6"/>'
   + '<rect x="12.7" y="9.5" width="3.3" height="4.5" rx=".6"/><rect x="8" y="15.5" width="8" height="3" rx=".6"/>');
 
-// Lehrlinge: Doktorhut
-SYM.lehrlinge = svg('<path d="M2.5 9.5L12 5l9.5 4.5L12 14z"/><path d="M6.5 11.5v4.2c0 1.5 2.5 2.8 5.5 2.8s5.5-1.3 5.5-2.8v-4.2"/>'
-  + '<path d="M21.5 9.5v5"/>');
-
 // QS: Lupe mit Häkchen, wie Prüfen
 SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
   + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
@@ -9921,8 +9916,6 @@ const SEITEN = [
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
   // Eigener Ordner je Person, vor Google (Wunsch Patrick, 12. Oktober 2026)
-  // Nachschlagewerk für Lernende (Wunsch Patrick, 22. Oktober 2026)
-  { pfad: "lehrlinge",    titel: "Lehrlinge",    zeichen: SYM.lehrlinge, zeige: reactSeite(Lehrlinge) },
   { pfad: "temp",         titel: "Temp",         zeichen: SYM.temp, zeige: reactSeite(Temp) },
   // Grosser Bildschirm hochkant (Wunsch Patrick 20. Oktober 2026), nur
   // für Admins und Gerätekonten
