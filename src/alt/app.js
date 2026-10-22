@@ -135,7 +135,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.154.0";
+const APP_VERSION = "1.155.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9777,10 +9777,15 @@ SYM.produktion = svg('<circle cx="12" cy="12" r="3.2"/>'
   + '<path d="M12 2.6v2.6M12 18.8v2.6M4.4 12H1.8M22.2 12h-2.6'
   + 'M6.3 6.3 4.5 4.5M19.5 19.5l-1.8-1.8M17.7 6.3l1.8-1.8M4.5 19.5l1.8-1.8"/>');
 
-// Maschinen: Drehmaschine von der Seite, mit Schraubenschlüssel davor
-SYM.maschinen = svg('<rect x="2.5" y="6" width="19" height="11" rx="1.6"/>'
-  + '<path d="M2.5 17v3.2M21.5 17v3.2"/><rect x="5" y="8.6" width="4.5" height="5.8" rx=".8"/>'
-  + '<path d="M9.5 11.5h9"/><circle cx="17" cy="11.5" r="1.3"/>');
+// Maschinen: Drehmaschine von der Seite: Spindelstock mit Futter,
+// eingespannte Stange, Reitstock mit Spitze, Bett auf zwei Füssen
+// (seit 1.155.0, Wunsch Patrick 22. Oktober 2026: „Symbol für
+// Maschinen besser machen“; vorher ein Kasten, der kaum zu erkennen war)
+SYM.maschinen = svg('<path d="M2.5 18h19"/><path d="M4.5 18v2.5M19.5 18v2.5"/>'
+  + '<rect x="2.5" y="5" width="6.5" height="13" rx="1.2"/><path d="M5.7 8v3"/>'
+  + '<rect x="9" y="8.6" width="2.3" height="6" rx=".5" fill="currentColor" stroke="none"/>'
+  + '<path d="M11.3 11.6h5.4" stroke-width="2.4"/><path d="M18.2 9.6h3.3V18h-3.3z"/>'
+  + '<path d="M16.7 11.6l1.5-.9v1.8z" fill="currentColor"/>');
 
 // Bestellungen: Lieferschein mit Haken
 SYM.bestellungen = svg('<path d="M6 2.8h9l4 4v14.4H6z"/><path d="M15 2.8v4h4"/>'
