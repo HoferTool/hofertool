@@ -9055,3 +9055,49 @@ body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
 /* Materialrechner: vier Felder Abstecher, Planieren, Stange, Reststück (seit 1.146.1) */
 .mr-reihe--vier { grid-template-columns: repeat(4, 1fr); }
 @media (max-width: 520px) { .mr-reihe--vier { grid-template-columns: 1fr 1fr; } }
+
+/* Seite Lehrlinge: KI-Lernhilfe (1.148.0) */
+.lehr { display: flex; flex-direction: column; max-width: 980px; margin: 0 auto; min-height: calc(100dvh - var(--kopfhoehe) - 48px); }
+.lehr__kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.lehr__hinweis { background: var(--marke-hell); border-left: 4px solid var(--marke); padding: 10px 14px; border-radius: var(--radius); font-size: .92rem; line-height: 1.45; margin: 4px 0 14px; }
+.lehr__verlauf { flex: 1; display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; }
+.lehr__leer p { color: var(--gedaempft); margin: 4px 0 12px; }
+.lehr__themen { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.lehr__thema { text-align: left; background: var(--flaeche); border: 1px solid var(--linie); border-radius: 8px; padding: 10px 12px; cursor: pointer; color: var(--tinte); font: inherit; display: flex; flex-direction: column; gap: 4px; transition: border-color .15s, transform .15s; }
+.lehr__thema:hover { border-color: var(--marke); transform: translateY(-1px); }
+.lehr__thema b { color: var(--marke); font-size: .95rem; }
+.lehr__thema span { font-size: .85rem; color: var(--gedaempft); line-height: 1.35; }
+.lehr__ich { align-self: flex-end; max-width: 80%; background: var(--marke); color: #fff; padding: 9px 13px; border-radius: 14px 14px 4px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lehr__ich--fehler { opacity: .6; }
+.lehr__bild { display: block; max-width: 240px; max-height: 240px; border-radius: 8px; margin-bottom: 6px; }
+.lehr__bildweg { font-size: .8rem; opacity: .8; }
+.lehr__ki { align-self: flex-start; max-width: 92%; background: var(--flaeche); border: 1px solid var(--linie); padding: 4px 15px; border-radius: 14px 14px 14px 4px; overflow-wrap: anywhere; }
+.lehr__text { line-height: 1.5; }
+.lehr__text p { margin: 8px 0; }
+.lehr__text h4 { margin: 12px 0 4px; font-size: 1rem; }
+.lehr__text ul, .lehr__text ol { margin: 6px 0; padding-left: 22px; }
+.lehr__text li { margin: 2px 0; }
+.lehr__text code { background: var(--grund); border-radius: 3px; padding: 0 4px; font-size: .9em; }
+.lehr__text pre { background: #10161d; color: #e6edf3; padding: 10px 12px; border-radius: 6px; overflow-x: auto; font-size: .88rem; line-height: 1.4; }
+.lehr__text pre code { background: none; padding: 0; color: inherit; }
+.lehr-tabelle { overflow-x: auto; margin: 8px 0; }
+.lehr-tabelle table { border-collapse: collapse; font-size: .9rem; }
+.lehr-tabelle th, .lehr-tabelle td { border: 1px solid var(--linie); padding: 4px 8px; text-align: left; }
+.lehr-tabelle th { background: var(--grund); }
+.lehr__denkt { display: flex; gap: 5px; padding: 12px 0; }
+.lehr__denkt i { width: 8px; height: 8px; border-radius: 50%; background: var(--gedaempft); animation: lehr-punkt 1.2s infinite ease-in-out; }
+.lehr__denkt i:nth-child(2) { animation-delay: .15s; }
+.lehr__denkt i:nth-child(3) { animation-delay: .3s; }
+@keyframes lehr-punkt { 0%, 80%, 100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: scale(1); } }
+.lehr__fehler { color: var(--gefahr); background: var(--flaeche); border: 1px solid var(--gefahr); border-radius: 8px; padding: 8px 12px; }
+.lehr__eingabe { position: sticky; bottom: 0; background: var(--grund); padding: 10px 0 12px; border-top: 1px solid var(--linie); }
+.lehr__anhang { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.lehr__anhang img { height: 64px; border-radius: 6px; }
+.lehr__zeile { display: flex; gap: 8px; align-items: flex-end; }
+.lehr__feld { flex: 1; resize: vertical; min-height: 44px; max-height: 40vh; font: inherit; padding: 9px 11px; border: 1px solid var(--linie-stark); border-radius: 8px; background: var(--flaeche); color: var(--tinte); }
+.lehr__foto { padding: 8px 10px; display: inline-flex; align-items: center; }
+@media (max-width: 640px) {
+  .lehr__ich { max-width: 90%; }
+  .lehr__ki { max-width: 100%; }
+  .lehr__themen { grid-template-columns: 1fr; }
+}

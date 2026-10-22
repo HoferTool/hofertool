@@ -602,7 +602,7 @@ export function createClient(_url, _key, optionen) {
     auth: {
       getSession: () => Promise.resolve({
         data: { session: (window.OHNE_SITZUNG ? null
-          : { refresh_token: "r-" + (window.SCHLUESSEL_NR || 1),
+          : { access_token: "t-test", refresh_token: "r-" + (window.SCHLUESSEL_NR || 1),
               user: { id: "u1", email: window.SITZUNG_MAIL || "saheesan.hudson@hoferco.ch" } }) },
         error: null }),
       getUser: () => Promise.resolve({
