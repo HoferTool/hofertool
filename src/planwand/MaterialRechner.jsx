@@ -18,6 +18,12 @@
 //  bestellen muss, in kg und ganzen Stangen (Wunsch Patrick 17. Oktober
 //  2026: „nur so, dass man Stückzahl eingeben kann, um zu wissen, wie
 //  viel man bestellen muss“).
+//  Seit 1.137.0 Ausschuss in Prozent (Standard 10 %, je HOCO Nr. gemerkt
+//  wie die Form, hoco_parts.rechner_ausschuss_pct). Gerechnet wird in
+//  dieser Reihenfolge (Wunsch Patrick 22. Oktober 2026): zuerst, wie
+//  viele ganze Teile wirklich aus einer Stange gehen (was nicht aufgeht,
+//  bleibt als längeres Reststück liegen), dann Stück plus Ausschuss,
+//  daraus ganze Stangen und kg.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -25,6 +31,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { materialZerlegen, querschnittMm2, formFuerTeil, kategorienListe, werkstoffWahlVon, werkstoffGenau, dichtenLaden,
   STANGE_STANDARD_MM, STUMPEN_STANDARD_MM, PLANIEREN_STANDARD_MM } from "../daten/material.js";
 
+const AUSSCHUSS_STANDARD = 10;
 const zahlLesen = (t) => { const n = Number(String(t ?? "").trim().replace(",", ".").replace(/'/g, "")); return String(t ?? "").trim() !== "" && isFinite(n) ? n : null; };
 const zahlFeld = (n) => (n === null || n === undefined ? "" : String(Math.round(n * 100) / 100).replace(".", ","));
 const zeigen = (n, stellen) => {
@@ -110,6 +117,8 @@ export default function MaterialRechner() {
   const vonHand = useRef(false);
   const [gemerkt, setGemerkt] = useState("");
   const [menge, setMenge] = useState("");
+  const [ausschuss, setAusschuss] = useState(String(AUSSCHUSS_STANDARD));
+  const ausschussVonHand = useRef(false);
   // Eigene Dichten aus den Einstellungen holen, dann neu rechnen
   const [wahlListe, setWahlListe] = useState(kategorienListe);
   useEffect(() => { dichtenLaden(true).then(() => setWahlListe(kategorienListe())); }, []);
@@ -142,6 +151,9 @@ export default function MaterialRechner() {
         setInnen(f.form === "rohr" && f.innen ? zahlFeld(f.innen) : "");
         const w = werkstoffWahlVon(h.material);
         if (w) setWerkstoff(w);
+        ausschussVonHand.current = false;
+        const gemerktProzent = h.teil ? zahlLesen(h.teil.rechner_ausschuss_pct) : null;
+        setAusschuss(zahlFeld(gemerktProzent !== null ? gemerktProzent : AUSSCHUSS_STANDARD));
         if (h.teil && Number(h.teil.teil_laenge_mm)) setLaenge(zahlFeld(Number(h.teil.teil_laenge_mm)));
         if (h.typ) {
           if (Number(h.typ.abstecher_mm)) setAbstecher(zahlFeld(Number(h.typ.abstecher_mm)));
@@ -199,6 +211,22 @@ export default function MaterialRechner() {
     return () => clearTimeout(zeit);
   }, [form, innen]);
 
+  // Ausschuss bei der HOCO Nr. merken, wie die Form (Wunsch Patrick
+  // 22. Oktober 2026: „merken wie Form“)
+  useEffect(() => {
+    if (!ausschussVonHand.current || !hocoInfo || !hocoInfo.gefunden || !hocoInfo.teil) return;
+    const nr = hocoInfo.teil.hoco_nr;
+    const prozent = zahlLesen(ausschuss);
+    if (prozent === null || prozent < 0) return;
+    const zeit = setTimeout(async () => {
+      const r = await alt.db.from("hoco_parts").update({ rechner_ausschuss_pct: prozent }).eq("hoco_nr", nr);
+      if (r && r.error) { setGemerkt("Ausschuss konnte nicht gemerkt werden."); return; }
+      hocoInfo.teil.rechner_ausschuss_pct = prozent;
+      setGemerkt("Ausschuss " + zahlFeld(prozent) + " % für " + nr + " gemerkt.");
+    }, 700);
+    return () => clearTimeout(zeit);
+  }, [ausschuss]);
+
   const dichte = dichteAus(wahlListe, werkstoff);
   const dm = zahlLesen(d);
   const innenMm = form === "rohr" ? zahlLesen(innen) : null;
@@ -224,10 +252,14 @@ export default function MaterialRechner() {
     if (jeTeil && jeStange < 1) ergebnis = { fehler: "Das Stück ist länger als eine Stange." };
     else if (!jeTeil) ergebnis = { hinweis: "Länge Fertigteil eintragen." };
     else {
-      // Ganze Stangen bestellen, darunter nur Stück pro Stange (Wunsch Patrick)
-      const stangen = Math.ceil(n / jeStange);
+      // Erst die ganzen Teile je Stange (oben), dann Stück plus Ausschuss,
+      // daraus ganze Stangen bestellen (Wunsch Patrick 22. Oktober 2026)
+      const prozent = Math.max(0, zahlLesen(ausschuss) ?? AUSSCHUSS_STANDARD);
+      const stueck = Math.ceil(n * (1 + prozent / 100) - 1e-9);
+      const stangen = Math.ceil(stueck / jeStange);
       ergebnis = { gross: zeigen(stangen * kgStange, 1), einheit: "kg", klammer: stangenText(stangen), ca,
-        zusatz: zeigen(jeStange) + " Stück pro Stange" };
+        zusatz: zeigen(jeStange) + " Stück pro Stange",
+        ausschuss: prozent > 0 ? zeigen(stueck) + " Stück mit " + zeigen(prozent, 2) + " % Ausschuss" : "" };
     }
   }
 
@@ -293,7 +325,7 @@ export default function MaterialRechner() {
       </div>
       {gemerkt && <p className="hinweis mr-gemerkt" id="mr-gemerkt">{gemerkt}</p>}
 
-      <div className="mr-reihe">
+      <div className="mr-reihe mr-reihe--drei">
         <label className="feld">
           <span>Anzahl Stück</span>
           <input type="text" id="mr-menge" inputMode="decimal" value={menge} onChange={(e) => setMenge(e.target.value)} />
@@ -301,6 +333,11 @@ export default function MaterialRechner() {
         <label className="feld">
           <span>Länge Fertigteil in mm</span>
           <input type="text" id="mr-laenge" inputMode="decimal" value={laenge} onChange={(e) => setLaenge(e.target.value)} />
+        </label>
+        <label className="feld">
+          <span>Ausschuss %</span>
+          <input type="text" id="mr-ausschuss" inputMode="decimal" value={ausschuss} placeholder={String(AUSSCHUSS_STANDARD)}
+            onChange={(e) => { ausschussVonHand.current = true; setAusschuss(e.target.value); }} />
         </label>
       </div>
       <div className="mr-reihe mr-reihe--drei">
@@ -323,6 +360,7 @@ export default function MaterialRechner() {
             : "–"}</div>
         </div>
         {ergebnis && ergebnis.zusatz && <p className="hinweis mr-zusatz">{(ergebnis.ca ? "ca. " : "") + ergebnis.zusatz}</p>}
+        {ergebnis && ergebnis.ausschuss && <p className="hinweis mr-ausschuss-zeile" id="mr-ausschuss-info">{ergebnis.ausschuss}</p>}
         {ergebnis && ergebnis.fehler && <p className="hinweis">{ergebnis.fehler}</p>}
         {ergebnis && ergebnis.hinweis && <p className="hinweis">{ergebnis.hinweis}</p>}
         {!kgm && <p className="hinweis">{rohrFehlt && dichte && dm > 0

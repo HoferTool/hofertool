@@ -57,6 +57,9 @@ with sync_playwright() as p:
     # Seit 1.90.0 nur noch Stück → Bestellmenge, keine Richtungs- oder Einheitenwahl
     pruefe("Keine Richtungs- und Einheitenwahl", pg.locator("[data-art], [data-einheit]").count() == 0)
     pruefe("Titel Bestellen", pg.inner_text("#mr-ergebnis .ergebnis__titel") == "Bestellen")
+    # Ausschuss % (1.137.0): Standard 10; für die alten Proben erst auf 0
+    pruefe("Ausschuss Standard 10: " + pg.input_value("#mr-ausschuss"), pg.input_value("#mr-ausschuss") == "10")
+    tippe(pg, "#mr-ausschuss", "0")
     tippe(pg, "#mr-d", "20"); tippe(pg, "#mr-menge", "600")
     pruefe("Ohne Länge: Hinweis", "Länge Fertigteil eintragen" in pg.inner_text("#mr-ergebnis"))
     tippe(pg, "#mr-laenge", "10")
@@ -73,6 +76,15 @@ with sync_playwright() as p:
     tippe(pg, "#mr-menge", "262")
     pruefe("262 Stück = 2 Stangen (immer aufgerundet): " + wert(pg), "(2 Stangen)" in wert(pg))
     pruefe("Keine Erklärzeile 1 m = …", "1 m =" not in pg.inner_text("#mr-ergebnis"))
+    pruefe("Ohne Ausschuss keine Ausschusszeile", pg.locator("#mr-ausschuss-info").count() == 0)
+    # Mit 10 %: zuerst 261 ganze Teile je Stange, dann 500 + 10 % = 550 Stück → 3 Stangen (ohne: 2)
+    tippe(pg, "#mr-ausschuss", "10"); tippe(pg, "#mr-menge", "500"); pg.click("[data-form='rd']"); pg.wait_for_timeout(150)
+    pruefe("500 Stück + 10 %% = 3 Stangen, 22,3 kg: %s / %s" % (wert(pg), pg.inner_text("#mr-ausschuss-info")),
+           wert(pg).startswith("22,3 kg") and "(3 Stangen)" in wert(pg) and pg.inner_text("#mr-ausschuss-info") == "550 Stück mit 10 % Ausschuss")
+    tippe(pg, "#mr-ausschuss", "4,4")
+    pruefe("4,4 %: 522 Stück, 2 Stangen: " + wert(pg), "(2 Stangen)" in wert(pg) and pg.inner_text("#mr-ausschuss-info") == "522 Stück mit 4,4 % Ausschuss")
+    pg.screenshot(path="/tmp/rechner_ausschuss.png")
+    tippe(pg, "#mr-ausschuss", "0"); pg.click("[data-form='6kt']"); tippe(pg, "#mr-menge", "262")
     pg.screenshot(path="/tmp/rechner_kg.png")
 
     # HOCO Nr.: Material des Auftrags, Länge, Teile → kg
@@ -82,11 +94,12 @@ with sync_playwright() as p:
     pruefe("Werkstoff Rostfrei V2A gewählt", pg.input_value("#mr-werkstoff") == "kat:v2a")
     pruefe("Sechskant aus dem Material, 12 mm", "aktiv" in pg.get_attribute("[data-form='6kt']", "class") and pg.input_value("#mr-d") == "12")
     pruefe("Länge 10", pg.input_value("#mr-laenge") == "10")
+    pruefe("HOCO Nr. ohne gemerkten Ausschuss: 10", pg.input_value("#mr-ausschuss") == "10")
     tippe(pg, "#mr-menge", "1000")
     ab = float(pg.input_value("#mr-abstecher").replace(",", ".") or 0)
     st = float(pg.input_value("#mr-stange")); stu = float(pg.input_value("#mr-stumpen"))
     import math
-    je = math.floor((st - stu) / (10 + ab + 0.5)); stangen = math.ceil(1000 / je)
+    je = math.floor((st - stu) / (10 + ab + 0.5)); stangen = math.ceil(1100 / je)
     soll = stangen * st / 1000 * (math.sqrt(3) / 2 * 144 * 7.9 / 1000)
     soll_t = ("%.1f" % soll).replace(".", ",").replace(",0", "")
     zz = pg.inner_text("#mr-ergebnis .mr-zusatz")
@@ -99,9 +112,14 @@ with sync_playwright() as p:
     pg.click("[data-form='6kt']"); pg.wait_for_timeout(150)
     pg.screenshot(path="/tmp/rechner_hoco.png")
     pruefe("Bestätigte Länge: ohne ca.", "ca." not in pg.inner_text("#mr-ergebnis"))
+    # Ausschuss je HOCO Nr. merken wie die Form
+    tippe(pg, "#mr-ausschuss", "15"); pg.wait_for_timeout(1000)
+    gm = pg.evaluate("TEST.daten.hoco_parts[0].rechner_ausschuss_pct")
+    pruefe("Ausschuss 15 gemerkt: %s / %s" % (gm, pg.inner_text("#mr-gemerkt")), gm == 15 and "Ausschuss 15 % für 10000-0301 gemerkt" in pg.inner_text("#mr-gemerkt"))
     # Länge nicht bestätigt → ca. vor Ergebnis und Stück pro Stange (1.89.0)
     pg.evaluate("TEST.daten.hoco_parts[0].teil_mass_bestaetigt = false")
     tippe(pg, "#mr-hoco", ""); pg.wait_for_timeout(600); tippe(pg, "#mr-hoco", "10000-0301"); pg.wait_for_timeout(1200)
+    pruefe("Gemerkter Ausschuss kommt wieder: " + pg.input_value("#mr-ausschuss"), pg.input_value("#mr-ausschuss") == "15")
     zz = pg.inner_text("#mr-ergebnis .mr-zusatz")
     pruefe("Nicht bestätigt: ca. %s / %s" % (wert(pg), zz), wert(pg).startswith("ca.") and zz.startswith("ca. ") and pg.locator(".mr-wert .mr-klammer").count() == 1)
     gr = pg.evaluate("[parseFloat(getComputedStyle(document.querySelector('.mr-wert')).fontSize), parseFloat(getComputedStyle(document.querySelector('.mr-klammer')).fontSize)]")

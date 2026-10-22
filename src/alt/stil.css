@@ -8954,3 +8954,6 @@ body.zieh-laeuft, body.zieh-laeuft * { user-select: none !important; -webkit-use
   text-align: left; padding: 10px 14px; border: 1px solid var(--linie-stark); border-radius: var(--radius);
   background: var(--flaeche); color: var(--tinte); font: inherit; cursor: pointer; }
 .batteriefenster__zeile:hover { border-color: var(--marke); }
+
+/* Materialrechner: Zeile „110 Stück mit 10 % Ausschuss“ (seit 1.137.0) */
+.mr-ausschuss-zeile { font-size: 1rem; }
