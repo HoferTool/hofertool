@@ -1,66 +1,69 @@
 // =================================================================
-//  KI FÜR DIE LEHRLINGE (1.148.0, Wunsch Patrick 22. Oktober 2026)
-//  Fragen gehen an die Server-Funktion „lehrlinge-ki“
-//  (supabase/functions/lehrlinge-ki), die den geheimen Schlüssel der KI
-//  kennt. Die Antwort kommt Stück für Stück als Text zurück.
-//  Das Gespräch bleibt nur auf diesem Gerät, je Person (localStorage),
-//  ohne Bilder, damit der Speicher nicht vollläuft.
+//  LEHRLINGE: NACHSCHLAGEWERK (1.149.0, Wunsch Patrick 22. Oktober 2026)
+//  Kapitel, Unterkapitel und häufige Fragen mit Antworten für
+//  Polymechaniker und Produktionsmechaniker in Ausbildung. Statt einer
+//  KI (1.148.0), weil die pro Frage Geld kostet (Patrick: „Lösch es,
+//  wenn es nicht kostenlos möglich ist“). Die Texte stehen in
+//  src/daten/lehrlinge/*.md, je Datei ein Kapitel:
+//    # Kapitel          (die Zeile danach ist die Kurzbeschreibung)
+//    ## Unterkapitel
+//    ### Frage          (alles bis zur nächsten Frage ist die Antwort)
+//  Neue Fragen kommen einfach dort hinein; Claude schreibt sie.
 // =================================================================
 import { alt } from "../bruecke.jsx";
 
-const MAX_GEMERKT = 60;
-const schluessel = () => "hofer.lehrlinge." + (alt.meineProfilId() || "x");
+const DATEIEN = import.meta.glob("./lehrlinge/*.md", { query: "?raw", import: "default", eager: true });
 
-export function gespraechLaden() {
-  try { return JSON.parse(localStorage.getItem(schluessel()) || "[]"); } catch { return []; }
-}
-
-export function gespraechMerken(liste) {
-  // Bilder nicht ablegen, nur vermerken, dass eins dabei war
-  const ohne = liste.slice(-MAX_GEMERKT).map((n) => n.bild ? { ...n, bild: undefined, hatteBild: true } : n);
-  try { localStorage.setItem(schluessel(), JSON.stringify(ohne)); } catch { /* voll oder gesperrt */ }
-}
-
-// Foto verkleinern und als Base64 für die KI
-export async function bildVorbereiten(datei) {
-  const blob = await alt.bildVerkleinern(datei, 1568);
-  const daten = await new Promise((fertig, fehl) => {
-    const l = new FileReader();
-    l.onload = () => fertig(String(l.result).split(",")[1]);
-    l.onerror = fehl;
-    l.readAsDataURL(blob);
-  });
-  return { typ: "image/jpeg", daten, vorschau: URL.createObjectURL(blob) };
-}
-
-// Fragt die KI. stueck(text) bekommt jeden neuen Teil der Antwort.
-export async function kiFragen(nachrichten, stueck, abbruch) {
-  const { data } = await alt.db.auth.getSession();
-  const token = data && data.session && data.session.access_token;
-  if (!token) throw new Error("Nicht angemeldet");
-  const senden = nachrichten.map((n) => ({ rolle: n.rolle, text: n.text,
-    bild: n.bild ? { typ: n.bild.typ, daten: n.bild.daten } : undefined }));
-  const r = await fetch(alt.SUPABASE_URL + "/functions/v1/lehrlinge-ki", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token, apikey: alt.SUPABASE_KEY },
-    body: JSON.stringify({ nachrichten: senden }),
-    signal: abbruch,
-  });
-  if (!r.ok) {
-    let f = "";
-    try { f = (await r.json()).fehler || ""; } catch { /* kein JSON */ }
-    if (f === "schluessel_fehlt") throw new Error("Die KI ist noch nicht eingerichtet: Der Schlüssel fehlt auf dem Server.");
-    if (r.status === 404) throw new Error("Die KI ist noch nicht eingerichtet (Server-Funktion fehlt).");
-    if (r.status === 403) throw new Error("Kein Zugriff auf die KI.");
-    throw new Error(f || "Die KI ist gerade nicht erreichbar (" + r.status + ").");
+function kapitelLesen(text, datei) {
+  const kap = { id: datei.replace(/^.*\/|\.md$/g, ""), titel: "", text: "", einleitung: "", unter: [] };
+  let unter = null, frage = null, imCode = false, nachTitel = false;
+  for (const z of String(text).split("\n")) {
+    if (/^```/.test(z)) imCode = !imCode;
+    const k = !imCode && z.match(/^(#{1,3})\s+(.*)$/);
+    if (k && k[1] === "#") { kap.titel = k[2].trim(); nachTitel = true; continue; }
+    if (k && k[1] === "##") {
+      unter = { titel: k[2].trim(), fragen: [] };
+      kap.unter.push(unter); frage = null; nachTitel = false;
+      continue;
+    }
+    if (k && k[1] === "###") {
+      if (!unter) { unter = { titel: "Allgemein", fragen: [] }; kap.unter.push(unter); }
+      frage = { f: k[2].trim(), a: "" };
+      unter.fragen.push(frage); nachTitel = false;
+      continue;
+    }
+    if (frage) frage.a += z + "\n";
+    // Erste Zeile nach dem Titel: Kurzbeschreibung für die Karte,
+    // weitere Zeilen: Einleitung oben im Kapitel
+    else if (nachTitel && z.trim()) {
+      if (!kap.text) kap.text = z.trim();
+      else kap.einleitung += (kap.einleitung ? " " : "") + z.trim();
+    }
   }
-  const leser = r.body.getReader();
-  const dekoder = new TextDecoder();
-  for (;;) {
-    const { value, done } = await leser.read();
-    if (done) break;
-    stueck(dekoder.decode(value, { stream: true }));
+  kap.unter.forEach((u) => u.fragen.forEach((f) => { f.a = f.a.trim(); }));
+  return kap;
+}
+
+export const KAPITEL = Object.keys(DATEIEN).sort().map((d) => kapitelLesen(DATEIEN[d], d));
+
+export const anzahlFragen = (kap) => kap.unter.reduce((s, u) => s + u.fragen.length, 0);
+
+// Für die Suche: klein, ohne Akzente und Zeichen der Darstellung
+const flach = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+  .replace(/[*`#|]/g, " ");
+
+// Alle Wörter müssen vorkommen; Treffer in der Frage zählen mehr
+export function suchen(begriff) {
+  const woerter = flach(begriff).split(/\s+/).filter((w) => w.length > 1);
+  if (!woerter.length) return [];
+  const treffer = [];
+  for (const kap of KAPITEL) for (const u of kap.unter) for (const f of u.fragen) {
+    const frage = flach(f.f), alles = frage + " " + flach(u.titel) + " " + flach(f.a);
+    if (!woerter.every((w) => alles.includes(w))) continue;
+    const punkte = woerter.filter((w) => frage.includes(w)).length;
+    treffer.push({ kap, unter: u, frage: f, punkte });
   }
+  return treffer.sort((a, b) => b.punkte - a.punkte);
 }
 
 // Einfache Darstellung der Antwort: Überschriften, fett, kursiv, Code,

@@ -136,7 +136,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.148.0";
+const APP_VERSION = "1.149.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9921,7 +9921,7 @@ const SEITEN = [
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
   // Eigener Ordner je Person, vor Google (Wunsch Patrick, 12. Oktober 2026)
-  // KI-Lernhilfe für Lernende (Wunsch Patrick, 22. Oktober 2026)
+  // Nachschlagewerk für Lernende (Wunsch Patrick, 22. Oktober 2026)
   { pfad: "lehrlinge",    titel: "Lehrlinge",    zeichen: SYM.lehrlinge, zeige: reactSeite(Lehrlinge) },
   { pfad: "temp",         titel: "Temp",         zeichen: SYM.temp, zeige: reactSeite(Temp) },
   // Grosser Bildschirm hochkant (Wunsch Patrick 20. Oktober 2026), nur
@@ -9981,7 +9981,6 @@ Object.assign(alt, {
   istExternGeraet, profilLaden, zeichneGeruest, fassungPruefen,
 });
 // Datenbank und angemeldete Person ändern sich zur Laufzeit
-Object.assign(alt, { SUPABASE_URL, SUPABASE_KEY });
 Object.defineProperty(alt, "db", { get: () => db });
 Object.defineProperty(alt, "profil", { get: () => profil });
 Object.defineProperty(alt, "PLANER", { get: () => PLANER });
