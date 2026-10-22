@@ -54,6 +54,7 @@ with sync_playwright() as p:
                     pg.wait_for_timeout(300)
                     pg.locator(".kopfkarte").screenshot(path=f"durchfahrt_{name}_{len(gesehen)}.png")
                     if not pg.locator(".fahrt-tropfen").count(): fehler.append(f"{name}: keine Gischt")
+                    if not pg.locator(".fahrt-geld").count(): fehler.append(f"{name}: kein Geld hinter dem Jetski")
                 elif letzte is not None and info["links"] > letzte + 1: fehler.append(f"{name}: fährt nicht nach links")
                 letzte = info["links"]
                 if len(gesehen) >= 2: break

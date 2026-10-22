@@ -15,6 +15,9 @@
 //  Kielwasser, das liegen bleibt und breit ausläuft. Das Foto steht nur
 //  in der Datenbank (app_config „durchfahrt_bild“ als data:-Bild), nie
 //  im öffentlichen Repository; fehlt es, gibt es nur die Wellen.
+//  Seit 1.156.0 („soll etwas mehr vorkommen und hinter ihm Geld
+//  herausfliegen“): Pause nur noch 4 bis 9 Sekunden, und hinter dem
+//  Fahrer flattern Hunderternoten davon.
 // =================================================================
 import { useEffect, useRef } from "react";
 import { alt } from "../../bruecke.jsx";
@@ -163,6 +166,34 @@ export default function Durchfahrt() {
       a.onfinish = () => f.remove();
     };
 
+    // Geldschein: fliegt hinten aus dem Jetski hoch, flattert nach
+    // rechts davon und segelt dabei langsam abwärts
+    const geld = (x, y, g) => {
+      const n = document.createElement("div");
+      n.className = "fahrt-geld";
+      n.style.left = x + "px";
+      n.style.bottom = y + "px";
+      n.style.width = g + "px";
+      n.style.height = g * .5 + "px";
+      n.style.fontSize = g * .28 + "px";
+      n.textContent = "100";
+      band.appendChild(n);
+      const vx = zufall(60, 200), hoch1 = zufall(20, 55), fall = zufall(20, 60);
+      const d0 = zufall(-40, 40), d1 = d0 + zufall(200, 540) * (Math.random() < .5 ? -1 : 1);
+      const bilder = [];
+      for (let i = 0; i <= 8; i++) {
+        const t = i / 8;
+        // Hoch im Bogen, dann langsam segeln
+        const dy = hoch1 * Math.sin(Math.min(1, t * 1.6) * Math.PI / 2) - fall * Math.max(0, t - .45) * 2;
+        const dx = vx * t + Math.sin(t * 9) * 6;
+        const kipp = Math.cos(t * 11) * 70;
+        bilder.push({ transform: `translate(${dx.toFixed(1)}px, ${(-dy).toFixed(1)}px) rotate(${(d0 + (d1 - d0) * t).toFixed(0)}deg) rotateX(${kipp.toFixed(0)}deg)`,
+          opacity: t < .7 ? 1 : 1 - (t - .7) / .3 });
+      }
+      const a = n.animate(bilder, { duration: zufall(1600, 2400), easing: "linear", fill: "forwards" });
+      a.onfinish = () => n.remove();
+    };
+
     const fahren = async () => {
       const breit = band.clientWidth, hoch = band.clientHeight;
       if (!breit || !hoch) return;
@@ -188,7 +219,7 @@ export default function Durchfahrt() {
       const start = performance.now();
       // Bug und Heck im Foto (Anteil der Breite), Eintauchtiefe des Rumpfs
       const bug = .1, heck = .88, tief = h * .1;
-      let y = null, dreh = 0, gischtNaechste = 0, nebelNaechste = 0, bugNaechste = 0, schaumNaechste = 0, bild2 = 0;
+      let y = null, dreh = 0, gischtNaechste = 0, nebelNaechste = 0, bugNaechste = 0, schaumNaechste = 0, geldNaechste = 0, bild2 = 0;
       const kontakt = document.createElement("div");
       kontakt.className = "fahrt-kontakt";
       kontakt.style.height = h * .14 + "px";
@@ -241,6 +272,11 @@ export default function Durchfahrt() {
             schaum(sx, oberflaeche(sx) - 2, w * zufall(.3, .5));
             schaumNaechste = jetzt + zufall(50, 90);
           }
+          // Geldscheine fliegen hinter dem Fahrer raus
+          if (sichtbar && jetzt > geldNaechste) {
+            geld(x + w * zufall(.6, .75), y + h * zufall(.45, .6), h * zufall(.3, .4));
+            geldNaechste = jetzt + zufall(180, 380);
+          }
           if (p >= 1) return fertig();
           bild2 = requestAnimationFrame(schritt);
         };
@@ -253,12 +289,13 @@ export default function Durchfahrt() {
     const aufraeumen = new Set();
 
     (async () => {
-      await warte(zufall(1500, 4000));
+      await warte(zufall(1000, 2500));
       while (!aus) {
         await wach();
         if (aus) return;
         await fahren();
-        await warte(zufall(15000, 35000));
+        // Kommt oft vorbei, mit kurzer Pause dazwischen
+        await warte(zufall(4000, 9000));
       }
     })();
 
