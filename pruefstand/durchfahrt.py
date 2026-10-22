@@ -32,6 +32,8 @@ with sync_playwright() as p:
               g.fillRect(180, 40, 50, 80); return c.toDataURL(); }""")
         pg.evaluate("(b) => TEST.daten.app_config.push({ schluessel: 'durchfahrt_bild', wert: b })", bild)
         if pg.locator(".huhn, .huehner").count(): fehler.append("Hühner noch da")
+        # Seit 1.152.0 immer Wasser im Band, auch ohne Jetski
+        if pg.locator(".kopfkarte .fahrt-meer .fahrt-meer__welle").count() != 2: fehler.append(f"{name}: kein Wasser im Band")
         if "mario" in pg.content().lower() and pg.locator(".fahrt--mario").count(): fehler.append("Mario noch da")
         gesehen = []
         for i in range(400):
@@ -43,6 +45,7 @@ with sync_playwright() as p:
                 if not gesehen or gesehen[-1] != welcher:
                     gesehen.append(welcher)
                     if welcher == "jetski" and not pg.locator(".fahrt--foto img").count(): fehler.append(f"{name}: Jetski ohne Foto")
+                    if welcher == "jetski" and not pg.locator(".fahrt--foto .fahrt__reiter .fahrt-blase").count(): fehler.append(f"{name}: keine Sprechblase")
                     if welcher == "jetski" and "fahrt--links" not in art: fehler.append(f"{name}: Foto fährt nicht nach links")
                     pg.locator(".kopfkarte").screenshot(path=f"durchfahrt_{name}_{welcher}_{len(gesehen)}.png")
                 if len(gesehen) >= 3: break
