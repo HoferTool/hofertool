@@ -134,7 +134,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.140.0";
+const APP_VERSION = "1.140.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6138,10 +6138,16 @@ function zeichnePlanwand(b) {
 
   // Wie viel Platz über der Tafel weggeht — Kopfzeile, Regler,
   // Reiter. Daraus ergibt sich die Höhe bis zum Fensterrand.
+  // Gemessen ab dem Anfang der Seite, nicht ab dem Fensterrand: Ist die
+  // Seite ein Stück nach unten gerollt, stünde die Tafel sonst scheinbar
+  // höher, würde um genau so viel länger, die Seite liesse sich weiter
+  // rollen, und bei jedem stillen Auffrischen wuchs der Rollbalken
+  // (Wunsch Patrick 22. Oktober 2026).
+  const pwOben = (rolle) => Math.round(rolle.getBoundingClientRect().top + (window.scrollY || 0));
   const messen = () => {
     const rolle = document.querySelector(".pw-rolle");
     if (!rolle) return;
-    const oben = Math.round(rolle.getBoundingClientRect().top);
+    const oben = pwOben(rolle);
     plan.pwOben = oben;
     rolle.style.setProperty("--pw-oben", oben + "px");
   };
@@ -6154,7 +6160,7 @@ function zeichnePlanwand(b) {
     window.addEventListener("resize", () => {
       const r = document.querySelector(".pw-rolle");
       if (r) r.style.setProperty("--pw-oben",
-        Math.round(r.getBoundingClientRect().top) + "px");
+        Math.round(r.getBoundingClientRect().top + (window.scrollY || 0)) + "px");
     });
   }
 
