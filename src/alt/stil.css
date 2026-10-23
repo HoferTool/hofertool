@@ -9171,6 +9171,17 @@ body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
   .mseite-mzeile { flex-wrap: wrap; }
   .mseite-mzeile .mseite-kachel--zeile { flex-basis: 100%; }
 }
+
+/* Statistik: Zurück-Knopf gut sichtbar und beim Rollen immer oben
+   (1.162.0, Wunsch Patrick 23. Oktober 2026) */
+.st-kopf { position: sticky; top: var(--kopfhoehe); z-index: 5; background: var(--grund);
+  padding: 8px 0; margin-top: -8px; }
+.st-zurueck { font-size: 1rem; font-weight: 600; padding: 10px 18px; min-height: 44px; display: inline-flex;
+  align-items: center; gap: 8px; }
+.st-zurueck span { font-size: 1.2rem; line-height: 1; }
+/* Am Handy macht overflow-x: hidden an html und body den body zum
+   Rollbereich, dann klebt nichts; clip schneidet genauso ab, ohne das */
+html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
 /* ---------- Einrichtblatt in der App (1.43.0, Test) ----------
    Wie das Excel „Werkzeug-Protokoll“ des SW-20: weisses A4 quer,
    schwarze Linien, Farbe je Path, alle Plätze gleich aufgebaut. */

@@ -15,7 +15,7 @@
 --    plaetze      je Werkzeugplatz (T100, T200 …): Tätigkeit, Mass,
 --                 Hersteller, Werkzeug, Artikel, HD, Standzeit, Bild
 --    kopf         was nur auf diesem Blatt steht: FA Nr., N1000 (Star),
---                 Festanschlag und Anschlag (Index); seit 1.163.0
+--                 Festanschlag und Anschlag (Index); seit 1.164.0
 --    excel_url    das Excel, aus dem das Blatt eingelesen wurde
 --    gut_am       wann jemand „Blatt ist gut“ gedrückt hat; danach ist
 --                 das Excel weg und die Aufgabe „HoferTool“ lädt für

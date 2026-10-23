@@ -70,6 +70,7 @@ export function zustandVergessen() {
 // auch ein Neuladen bei der Anmeldung (neue Fassung) übersteht. Er
 // gehört genau einer Person und gilt nur am selben Tag.
 const NACH_ABMELDUNG = "hofer.nachAbmeldung";
+const LANGE_WEG = 4 * 60 * 60 * 1000;
 
 function heute() {
   const d = new Date();
@@ -81,7 +82,7 @@ export function zustandFuerSpaeter() {
   zustandSichern();
   try {
     const z = JSON.parse(sessionStorage.getItem(SCHLUESSEL) || "null");
-    if (z) localStorage.setItem(NACH_ABMELDUNG, JSON.stringify(Object.assign(z, { tag: heute() })));
+    if (z) localStorage.setItem(NACH_ABMELDUNG, JSON.stringify(Object.assign(z, { tag: heute(), um: Date.now() })));
   } catch (f) { /* dann eben Startseite */ }
 }
 
@@ -93,7 +94,10 @@ export function zustandNachAnmeldung(id) {
   let z = null;
   try { z = JSON.parse(localStorage.getItem(NACH_ABMELDUNG) || "null"); } catch (f) { z = null; }
   if (!z || !id) return null;
-  if (z.tag !== heute()) { try { localStorage.removeItem(NACH_ABMELDUNG); } catch (f) { /* egal */ } return null; }
+  // Neuer Tag oder länger als 4 Stunden weg: wieder auf der Startseite
+  // (Wunsch Patrick 23. Oktober 2026: „wenn neuer Tag oder nach langem
+  // automatischem Abmelden soll man immer mit Start beginnen“)
+  if (z.tag !== heute() || !(Date.now() - (z.um || 0) < LANGE_WEG)) { try { localStorage.removeItem(NACH_ABMELDUNG); } catch (f) { /* egal */ } return null; }
   if (z.nutzer !== id) return null;
   try {
     localStorage.removeItem(NACH_ABMELDUNG);

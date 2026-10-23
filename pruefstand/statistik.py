@@ -88,7 +88,11 @@ with sync_playwright() as p:
     zeile = pg.inner_text("#st-uebergaenge tbody tr")
     if "10111-0001" not in zeile or "10222-0002" not in zeile: fehler.append("Übergang ohne Aufträge: " + zeile)
     saeulen = pg.locator("#st-zeit-tag .dg-saeule").count()
-    if saeulen != 30: fehler.append(f"{saeulen} Säulen statt 30")
+    # Gezählt wird erst ab 19. Oktober 2026, davor gibt es keine Säulen
+    import datetime as _dt
+    soll = min(30, (_dt.date.today() - _dt.date(2026, 10, 19)).days + 1)
+    if saeulen != soll: fehler.append(f"{saeulen} Säulen statt {soll}")
+    if "ab 19.10.2026" not in pg.inner_text("#st-ab"): fehler.append("Hinweis „ab 19.10.“ fehlt: " + pg.inner_text("#st-ab"))
     hoch = pg.evaluate("""[...document.querySelectorAll('#st-zeit-tag .dg-saeule')].map(e => e.style.height).filter(h => h !== '0%')""")
     if len(hoch) != 2: fehler.append("Produktionszeit: Säulen " + str(hoch))
     if not pg.locator("#st-zeit-tag .dg-ziel").count(): fehler.append("Keine 10-h-Linie")
@@ -109,6 +113,29 @@ with sync_playwright() as p:
         if "Tornos M1" not in pg.inner_text("#st-artikel-maschinen"): fehler.append("Artikel: Maschine fehlt")
         pg.screenshot(path="statistik-artikel.png", full_page=True)
 
+        # Zurück (1.162.0): gut sichtbar, bleibt beim Rollen oben, geht dorthin, wo man herkam
+        k = pg.locator("[data-stzurueck]")
+        if "Zurück zu allen Artikeln" not in k.inner_text(): fehler.append("Zurück-Knopf Artikel: " + k.inner_text())
+        pg.evaluate("window.scrollTo(0, 5000)"); pg.wait_for_timeout(200)
+        box = k.bounding_box()
+        if not box or box["y"] < 0 or box["y"] > 200: fehler.append(f"Zurück-Knopf beim Rollen nicht oben: {box}")
+        k.click(); pg.wait_for_selector("#st-artikel-tabelle"); pg.wait_for_timeout(300)
+        if pg.locator("#st-artikel-name").count(): fehler.append("Zurück führt nicht zur Liste")
+        # Maschine → Artikel → zurück zur Maschine
+        pg.evaluate("document.querySelector('#inhalt [data-streiter=maschinen]').click()"); pg.wait_for_selector("#st-maschine-name"); pg.wait_for_timeout(300)
+        pg.click("#st-maschine-artikel [data-dgzeile='10111-0001']"); pg.wait_for_selector("#st-artikel-name"); pg.wait_for_timeout(300)
+        if pg.evaluate("window.scrollY") > 5: fehler.append("Artikel öffnet nicht oben")
+        t = pg.inner_text("[data-stzurueck]")
+        if "Zurück zu Tornos M1" not in t: fehler.append("Zurück-Knopf nennt die Maschine nicht: " + t)
+        pg.screenshot(path="statistik-zurueck.png")
+        pg.click("[data-stzurueck]"); pg.wait_for_timeout(400)
+        if not pg.locator("#st-maschine-name").count(): fehler.append("Zurück führt nicht zur Maschine")
+        # Escape: eine Ebene zurück zur Liste der Maschinen
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+        if pg.locator("#st-maschine-name").count() or not pg.locator("#st-auslastung").count(): fehler.append("Escape geht nicht zur Liste")
+        if pg.locator(".dialog-huelle").count(): fehler.append("Escape fragt nach Abmelden statt zurück")
+        pg.click("#st-auslastung [data-dgzeile='m-k1']"); pg.wait_for_selector("#st-maschine-name"); pg.wait_for_timeout(300)
+
     # Werkzeug
     pg.evaluate("document.querySelector('#inhalt [data-streiter=werkzeug]').click()"); pg.wait_for_selector("#st-wz-artikel"); pg.wait_for_timeout(500)
     w = pg.locator("[data-stwz='a9']")
@@ -120,6 +147,9 @@ with sync_playwright() as p:
     pg.evaluate("document.querySelector('#inhalt [data-streiter=maschinen]').click()"); pg.wait_for_timeout(300)
     pg.click("[data-stzeit='365']"); pg.wait_for_timeout(1500)
     if pg.locator("#st-ausstoss-tag .dg-saeule").count() > 60: fehler.append("12 Monate nicht je Woche")
+    if "19.10.2026 –" not in pg.inner_text(".st-zeit__text"): fehler.append("12 Monate nicht ab 19.10.: " + pg.inner_text(".st-zeit__text"))
+    pg.click("[data-stzeit='frei']"); pg.wait_for_timeout(300)
+    if pg.get_attribute("[data-stvon]", "min") != "2026-10-19": fehler.append("Von–bis erlaubt Daten vor 19.10.")
 
     # Handy und dunkel
     h = neu(br, breite=390, hoehe=844, dunkel=True)
@@ -128,6 +158,13 @@ with sync_playwright() as p:
     breit = h.evaluate("document.documentElement.scrollWidth")
     if breit > 392: fehler.append(f"Handy: Seite {breit} px breit")
     h.screenshot(path="statistik-handy-dunkel.png", full_page=True)
+    h.evaluate("document.querySelector('#inhalt [data-streiter=artikel]').click()"); h.wait_for_selector("#st-artikel-tabelle"); h.wait_for_timeout(400)
+    h.click("[data-startikel='10111-0001']"); h.wait_for_selector("#st-artikel-name"); h.wait_for_timeout(300)
+    h.evaluate("window.scrollTo(0, 5000)"); h.wait_for_timeout(200)
+    box = h.locator("[data-stzurueck]").bounding_box()
+    if not box or box["y"] < 0 or box["y"] > 200: fehler.append(f"Handy: Zurück-Knopf nicht oben: {box}")
+    h.screenshot(path="statistik-handy-zurueck.png")
+    h.click("[data-stzurueck]"); h.wait_for_selector("#st-artikel-tabelle"); h.wait_for_timeout(200)
 
     # Extern: kein Menüpunkt, die Adresse führt nicht hin
     e = neu(br, rolle="extern"); e.wait_for_timeout(1500)

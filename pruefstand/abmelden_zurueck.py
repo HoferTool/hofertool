@@ -78,6 +78,15 @@ with sync_playwright() as p:
     pruefe("neuer Tag: Startseite (" + pg.evaluate("location.hash") + ")", "dashboard" in pg.evaluate("location.hash"))
     pruefe("neuer Tag: Stand verworfen", pg.evaluate("localStorage.getItem('hofer.nachAbmeldung')") is None)
 
+    # 3b. Länger als 4 Stunden weg, selber Tag: auch Startseite (1.163.0)
+    pg.evaluate("location.hash = '#/bestellungen'"); pg.wait_for_timeout(800)
+    pg.clock.fast_forward(70 * 1000); pg.wait_for_timeout(1500)
+    pruefe("3b abgemeldet", not angemeldet(pg))
+    pg.evaluate("""(() => { const z = JSON.parse(localStorage.getItem('hofer.nachAbmeldung'));
+      z.um = Date.now() - 5 * 3600 * 1000; localStorage.setItem('hofer.nachAbmeldung', JSON.stringify(z)); })()""")
+    wieder_anmelden(pg)
+    pruefe("nach 5 Stunden: Startseite (" + pg.evaluate("location.hash") + ")", "dashboard" in pg.evaluate("location.hash"))
+
     # 4. Abmelden von Hand merkt sich nichts
     pg.evaluate("location.hash = '#/einkauf'"); pg.wait_for_timeout(800)
     pg.evaluate("setTimeout(() => window.abmeldenFragen(), 0)"); pg.wait_for_timeout(800)

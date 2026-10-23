@@ -12,7 +12,7 @@ import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
-import Statistik from "../seiten/Statistik.jsx";
+import Statistik, { statistikZurueck } from "../seiten/Statistik.jsx";
 import Temp from "../seiten/Temp.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Infoboard, { infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
@@ -138,7 +138,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.163.0";
+const APP_VERSION = "1.164.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -173,11 +173,37 @@ function escapeZurueck() {
     const wo = location.hash.replace(/^#\/?/, "").split("/")[0];
     // Seite Maschinen: von der Maschine zum Typ, zum Park
     if (wo === "maschinen" && maschinenZurueck()) return;
+    // Statistik: vom Artikel oder der Maschine dorthin, wo man herkam
+    if (wo === "statistik" && statistikZurueck()) return;
     if (wo === "produktion" && prod.ansicht && prod.ansicht !== "erfassen") {
       prod.ansicht = "erfassen"; zeichneSeite(); return;
     }
     if (wo === "bestellungen" && best.ansicht && best.ansicht !== "offen") {
       best.ansicht = "offen"; zeichneSeite(); return;
+    }
+
+    // Escape geht überall Schritt für Schritt zurück bis zum Abmelden
+    // (Wunsch Patrick 23. Oktober 2026: „mit Esc immer einen Schritt
+    // zurück bis schlussendlich abmelden“): erst auf den ersten Reiter
+    // der Seite, dann auf die Startseite, erst dort kommt „Abmelden?“.
+    // Nicht im Archiv, im Pad und für Externe (dort wie bisher).
+    const inhalt = document.getElementById("inhalt");
+    if (!ARCHIV && profil && !istExtern() && inhalt && !document.querySelector("#pad")) {
+      // Innerste Reiterleiste zuerst (Spezialwerkzeuge in Bestellungen)
+      const leisten = [...inhalt.querySelectorAll(".reiter")].reverse();
+      for (const l of leisten) {
+        const knoepfe = l.querySelectorAll(".reiter__knopf");
+        if (knoepfe.length > 1 && !knoepfe[0].classList.contains("aktiv") && l.querySelector(".reiter__knopf.aktiv")) {
+          e.preventDefault();
+          knoepfe[0].click();
+          return;
+        }
+      }
+      if (wo !== "dashboard" && seiteSichtbar("dashboard")) {
+        e.preventDefault();
+        location.hash = "#/dashboard";
+        return;
+      }
     }
 
     // Nichts mehr offen, keine Ebene zurück: dann fragt Escape, ob man
@@ -7907,7 +7933,9 @@ function leerlaufPruefen() {
       const abmelden = leerlauf.abmelden;
       leerlaufStoppen();
       if (abmelden) {
-        abmelden(true).then(() => setTimeout(() =>
+        // Nach so langer Zeit beginnt man wieder auf der Startseite,
+        // nicht dort, wo man war (Wunsch Patrick 23. Oktober 2026)
+        abmelden(false).then(() => setTimeout(() =>
           meldung("Automatische Abmeldung nach 4 Stunden ohne Bedienung."), 400));
       }
       return;
