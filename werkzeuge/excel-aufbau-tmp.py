@@ -8,8 +8,9 @@ LABEL = re.compile(r"^(T\d{2,4}|.{1,40}:|HD|Werkzeugwechsel|Werkzeug.?Protokoll.
 
 def maske(t):
     t = str(t).strip()
-    if LABEL.match(t): return t
+    if LABEL.match(t) or re.fullmatch(r"T\d{1,4}", t): return t
     if re.fullmatch(r"[\d'.,]+", t): return "#"
+    if not re.search(r"\d", t) and len(t) <= 40: return t
     return "~" + str(len(t))
 
 def xlsx(pfad):
@@ -18,7 +19,7 @@ def xlsx(pfad):
     for ws in wb.worksheets:
         print("  BLATT", ws.title, ws.sheet_state, ws.dimensions)
         if ws.sheet_state != "visible": continue
-        print("  Verbunden:", " ".join(str(m) for m in list(ws.merged_cells.ranges)[:80]))
+        pass
         for row in ws.iter_rows():
             teile = []
             for c in row:
