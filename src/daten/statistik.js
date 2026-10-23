@@ -15,6 +15,15 @@
 //    zum Ausstoss, aber nicht zur Zeit; die Seite sagt, wie viele.
 //  - Auslastung: Produktionszeit geteilt durch 10 h je Arbeitstag
 //    (Mo–Fr bis heute), 10 h = 100 % (Vorgabe Patrick).
+//  - Startmengen (1.160.0, Wunsch Patrick 23. Oktober 2026: „Es kann
+//    keine höhere Auslastung als 240 % geben“): Als das HoferTool Ende
+//    September startete, liefen viele Aufträge schon; ihr erster
+//    Zählerstand war der Stand seit Wochen, kein Tagesausstoss. Der
+//    erste Eintrag eines Auftrags zählt darum nur, wenn der Auftrag am
+//    selben oder am Arbeitstag davor angefangen hat, sonst ist er die
+//    Startmenge. Ein Eintrag, der mehr Stunden ergibt, als seit dem
+//    vorherigen Eintrag Zeit war (24 h je Tag), zählt auch nicht. Und
+//    eine Maschine kann an einem Tag höchstens 24 h laufen (240 %).
 //  - Übergang: vom Beenden eines Auftrags (ended_at) bis der nächste
 //    Auftrag derselben Maschine auf „läuft“ geht (started_at). Rüsten
 //    setzt kein started_at, die Rüstzeit steckt also im Übergang.
@@ -33,6 +42,8 @@ const MINUTE = 60000;
 // Längere Lücken sind keine Übergänge mehr, sondern Stillstand oder
 // alte Daten aus dem Import
 const UEBERGANG_MAX = 14 * TAG;
+// Mehr kann eine Maschine an einem Tag nicht laufen
+export const STUNDEN_MAX = 24;
 
 const LAUFEN = new Set(["laeuft", "fertig"]);
 
@@ -168,17 +179,23 @@ export function statistikRechnen(d) {
   const arbeitstage = arbeitstageZaehlen(von, bis);
 
   // Tagesmengen je Auftrag
-  const eintraege = [];
+  const eintraege = [], ausgelassen = [];
   const letzter = {};
+  const vorArbeitstag = (t) => {
+    let x = alt.plusTage(t, -1);
+    while ([0, 6].includes(alt.ausIso(x).getDay())) x = alt.plusTage(x, -1);
+    return x;
+  };
+  const tageZwischen = (a, b) => Math.round((alt.ausIso(b) - alt.ausIso(a)) / TAG);
   records.slice().sort((a, b) => String(a.record_date).localeCompare(String(b.record_date)))
     .forEach((z) => {
       const k = z.machine_id + "|" + (z.job_id || "");
       const vorher = letzter[k];
-      letzter[k] = z;
       const q = Number(z.quantity);
       // -1 = „Laufen lassen“ gehört nicht hierher, aber sicher ist sicher
       if (!Number.isFinite(q) || q < 0) return;
-      let stk = vorher && Number(vorher.quantity) >= 0 ? q - Number(vorher.quantity) : q;
+      letzter[k] = z;
+      let stk = vorher ? q - Number(vorher.quantity) : q;
       // Zähler zurückgestellt: dann ist der neue Stand die Menge
       if (stk < 0) stk = q;
       if (z.record_date < von || z.record_date > bis) return;
@@ -187,9 +204,32 @@ export function statistikRechnen(d) {
       const j = jobVon.get(z.job_id) || null;
       const hoco = hocoNormal(j && j.job_number);
       const s = hoco ? stueckzeit.get(hoco + "|" + m.type_id) : undefined;
-      eintraege.push({ mid: m.id, datum: z.record_date, jobId: z.job_id, hoco, stk,
-        sek: s || null, h: s ? stk * s / 3600 : null });
+      const e = { mid: m.id, datum: z.record_date, jobId: z.job_id, hoco, stk,
+        sek: s || null, h: s ? stk * s / 3600 : null };
+      let grund = "";
+      if (!vorher) {
+        const start = j && j.started_at ? alt.isoDatum(new Date(j.started_at)) : "";
+        if (!start || start < vorArbeitstag(z.record_date) || start > z.record_date) grund = "start";
+      }
+      // Mehr Stunden, als seit dem letzten Eintrag (oder Start) Zeit war
+      if (!grund && e.h !== null) {
+        const ab = vorher ? vorher.record_date : alt.isoDatum(new Date(j.started_at));
+        if (e.h > STUNDEN_MAX * Math.max(1, tageZwischen(ab, z.record_date))) grund = "zuviel";
+      }
+      if (grund) { if (stk) ausgelassen.push({ ...e, grund }); return; }
+      eintraege.push(e);
     });
+  // Höchstens 24 h je Maschine und Tag: ein Nachtrag über mehrere Tage
+  // wird auf den Tag gekürzt, die Stück bleiben
+  const jeMaschineTag = {};
+  eintraege.forEach((e) => {
+    if (e.h === null) return;
+    (jeMaschineTag[e.mid + "|" + e.datum] = jeMaschineTag[e.mid + "|" + e.datum] || []).push(e);
+  });
+  Object.values(jeMaschineTag).forEach((l) => {
+    const summe = l.reduce((s, e) => s + e.h, 0);
+    if (summe > STUNDEN_MAX) l.forEach((e) => { e.hVoll = e.h; e.h = e.h * STUNDEN_MAX / summe; });
+  });
 
   // Ausschuss aus der Qualitätssicherung
   const ausschussListe = [];
@@ -237,7 +277,7 @@ export function statistikRechnen(d) {
 
   // Zusammenfassen
   const leer = () => ({ stk: 0, h: 0, stkOhneZeit: 0, tage: new Set(), jeTag: {}, auftraege: new Set(),
-    maschinen: new Set(), artikel: new Set(), ueb: [], aus: 0, ausListe: [] });
+    maschinen: new Set(), artikel: new Set(), ueb: [], aus: 0, ausListe: [], stkStart: 0 });
   const dazu = (z, e) => {
     z.stk += e.stk;
     if (e.h !== null) z.h += e.h; else if (e.stk) z.stkOhneZeit += e.stk;
@@ -253,6 +293,10 @@ export function statistikRechnen(d) {
   eintraege.forEach((e) => {
     dazu(ms[e.mid], e); dazu(alle, e);
     if (e.hoco) dazu(art[e.hoco] = art[e.hoco] || leer(), e);
+  });
+  ausgelassen.forEach((e) => {
+    ms[e.mid].stkStart += e.stk; alle.stkStart += e.stk;
+    if (e.hoco && art[e.hoco]) art[e.hoco].stkStart += e.stk;
   });
   const ausDazu = (z, a) => {
     z.aus += a.stk; z.ausListe.push(a);
@@ -270,7 +314,7 @@ export function statistikRechnen(d) {
 
   const mittel = (l) => l.length ? l.reduce((s, u) => s + u.ms, 0) / l.length : NaN;
   const fertig = (z, nMaschinen) => ({
-    stk: z.stk, h: z.h, stkOhneZeit: z.stkOhneZeit,
+    stk: z.stk, h: z.h, stkOhneZeit: z.stkOhneZeit, stkStart: z.stkStart,
     produktionsTage: z.tage.size,
     stkJeTag: z.tage.size ? z.stk / z.tage.size : NaN,
     hJeTag: arbeitstage ? z.h / arbeitstage : NaN,
@@ -299,7 +343,7 @@ export function statistikRechnen(d) {
     von, bis, tage, arbeitstage, ausschussFehlt: ausschuss === null,
     gesamt: fertig(alle, maschinen.length),
     maschinen: maschinenListe, artikel: artikelListe,
-    maschineVon, jobVon, eintraege,
+    maschineVon, jobVon, eintraege, ausgelassen,
   };
 }
 

@@ -19,17 +19,22 @@ DATEN = """(() => {
   const vorlage = D.jobs.find(j => j.machine_id === 'm-k1');
   D.jobs.forEach(j => { if (j.machine_id === 'm-k1') { j.started_at = null; j.ended_at = null; j.plan_status = 'geplant'; } });
   D.jobs.push({ ...vorlage, id: 'sA', job_number: '10111-0001', plan_status: 'fertig',
-    started_at: um(new Date(vor.getTime() - 5 * 864e5), 7), ended_at: um(d, 10), target_quantity: 800 });
+    started_at: um(vor, 7), ended_at: um(d, 10), target_quantity: 800 });
+  // Lief schon vor dem ersten Eintrag: dessen Stand ist die Startmenge (1.160.0)
+  D.jobs.push({ ...vorlage, id: 'sC', job_number: '10333-0003', plan_status: 'fertig',
+    started_at: um(new Date(vor.getTime() - 30 * 864e5), 7), ended_at: um(new Date(vor.getTime() - 20 * 864e5), 6), target_quantity: 90000 });
   D.jobs.push({ ...vorlage, id: 'sB', job_number: '10222-0002', plan_status: 'laeuft',
     started_at: um(d, 12), ended_at: null, target_quantity: 1000 });
   D.production_records = D.production_records.filter(z => z.machine_id !== 'm-k1');
   D.production_records.push(
     { id: 's1', machine_id: 'm-k1', job_id: 'sA', record_date: iso(vor), quantity: 500 },
     { id: 's2', machine_id: 'm-k1', job_id: 'sA', record_date: iso(d), quantity: 800 },
-    { id: 's3', machine_id: 'm-k1', job_id: 'sB', record_date: iso(d), quantity: 200 });
+    { id: 's3', machine_id: 'm-k1', job_id: 'sB', record_date: iso(d), quantity: 200 },
+    { id: 's0', machine_id: 'm-k1', job_id: 'sC', record_date: iso(vor), quantity: 50000 });
   // 72 s und 36 s: Vortag 500 × 72 = 10 h, Tag 300 × 72 + 200 × 36 = 8 h
   D.hoco_type_data.push({ hoco_nr: '10111-0001', type_id: 't2', stueckzeit_s: 72 },
-                        { hoco_nr: '10222-0002', type_id: 't2', stueckzeit_s: 36 });
+                        { hoco_nr: '10222-0002', type_id: 't2', stueckzeit_s: 36 },
+                        { hoco_nr: '10333-0003', type_id: 't2', stueckzeit_s: 60 });
   D.articles.push({ id: 'a9', article_number: 'BOHR-42', name: 'Bohrer 4.2', unit: 'Stück', supplier_id: 's1', is_active: true });
   D.order_items.push({ id: 'o9', article_id: 'a9', supplier_id: 's1', quantity: 12, status: 'bestellt',
     ziel_art: 'maschine', ziel_text: 'Tornos M1 K-2001', created_at: um(vor, 8), ordered_at: um(d, 9) });
@@ -67,11 +72,14 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#/statistik'")
     pg.wait_for_selector("#st-auslastung", timeout=15000); pg.wait_for_timeout(600)
     pg.screenshot(path="statistik-maschinen.png", full_page=True)
+    if not pg.locator("#st-startmengen").count(): fehler.append("Kein Hinweis zu den Startmengen")
+    if pg.locator("[data-startikel='10333-0003']").count(): fehler.append("Startmenge als Artikel gezählt")
 
     # Eine Maschine: 1'000 Stk, 18 h, Übergang 2 h
     pg.click("#st-auslastung [data-dgzeile='m-k1']"); pg.wait_for_selector("#st-maschine-name"); pg.wait_for_timeout(400)
     aus = pg.inner_text("#st-k-ausstoss"); zeit = pg.inner_text("#st-k-zeit"); ueb = pg.inner_text("#st-k-uebergang")
     if "1'000" not in aus: fehler.append("Ausstoss m-k1 falsch: " + aus)
+    if "50'000 Stk Startmengen" not in aus: fehler.append("Startmenge nicht genannt: " + aus)
     if "18,0 h" not in zeit: fehler.append("Produktionszeit m-k1 falsch: " + zeit)
     if "2,0 h" not in ueb: fehler.append("Übergang m-k1 falsch: " + ueb)
     aus2 = pg.inner_text("#st-k-ausschuss")

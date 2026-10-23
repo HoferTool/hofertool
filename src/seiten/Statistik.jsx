@@ -16,7 +16,7 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { Saeulen, Balken, Kennzahl } from "../teile/Diagramm.jsx";
 import { statistikLaden, statistikRechnen, werkzeugLaden, dauerText, stundenText, prozentText, kommaText,
-  STUNDEN_VOLL } from "../daten/statistik.js";
+  STUNDEN_VOLL, STUNDEN_MAX } from "../daten/statistik.js";
 
 export const st = { reiter: "maschinen", zeitraum: "30", von: null, bis: null, maschine: null, artikel: null, suche: "" };
 const FELDER = Object.keys(st);
@@ -108,11 +108,12 @@ function Kennzahlen({ z, mitAuslastung }) {
   return (
     <div className="dg-kennzahlen">
       <Kennzahl id="st-k-ausstoss" titel="Ausstoss" wert={stkText(z.stk)}
-        unter={z.produktionsTage ? "Ø " + stk(z.stkJeTag) + " Stk pro Produktionstag" : "keine Stückzahlen"} />
+        unter={(z.produktionsTage ? "Ø " + stk(z.stkJeTag) + " Stk pro Produktionstag" : "keine Stückzahlen")
+          + (z.stkStart ? " · " + stk(z.stkStart) + " Stk Startmengen nicht gezählt" : "")} />
       <Kennzahl id="st-k-zeit" titel="Produktionszeit" wert={stundenText(z.h)}
         unter={z.stkOhneZeit ? stk(z.stkOhneZeit) + " Stk ohne Stückzeit nicht mitgezählt" : "Ø " + stundenText(z.hJeTag) + " pro Arbeitstag"} />
       {mitAuslastung && <Kennzahl id="st-k-auslastung" titel="Auslastung" wert={prozentText(z.auslastung)}
-        unter={STUNDEN_VOLL + " h am Tag = 100 %"} />}
+        unter={STUNDEN_VOLL + " h am Tag = 100 %, höchstens " + STUNDEN_MAX + " h"} />}
       <Kennzahl id="st-k-ausschuss" titel="Ausschuss" wert={stkText(z.ausschuss)}
         unter={z.ausschussMeldungen.length ? quoteText(z.ausschussQuote) + " vom Ausstoss · " + z.ausschussMeldungen.length
           + (z.ausschussMeldungen.length === 1 ? " Meldung" : " Meldungen") : "keine Meldung der QS"} />
@@ -261,6 +262,9 @@ function Maschinen({ r, setze }) {
         </div>
         {liste.some((m) => m.stkOhneZeit) && <p className="klein">* Ein Teil der Stück hat keine Stückzeit und fehlt in der Produktionszeit.
           Die Stückzeit kommt beim Beenden eines Auftrags oder über Art. Info im Pad Mode.</p>}
+        {g.stkStart > 0 && <p className="klein" id="st-startmengen">Nicht gezählt: der erste Zählerstand von Aufträgen, die schon vor dem
+          ersten Eintrag liefen (Stand seit Beginn, kein Tagesausstoss), und Einträge mit mehr Stunden, als seit dem letzten Eintrag Zeit war.
+          Eine Maschine zählt höchstens {STUNDEN_MAX} h am Tag.</p>}
       </Karte>
       <Karte id="st-wechsel" titel="Übergänge von Auftrag zu Auftrag"
         unter="Vom Beenden eines Auftrags, bis der nächste auf derselben Maschine läuft (Rüsten eingeschlossen). Samstag und Sonntag zählen nicht.">
