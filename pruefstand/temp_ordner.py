@@ -1,4 +1,4 @@
-# Temp-Ordner (1.35.0): Reiter vor Just Eat (Google seit 1.55.3 weg), nur der eigene Ordner,
+# Temp-Ordner (1.35.0): Reiter im Menü (Just Eat seit 1.160.2 weg), nur der eigene Ordner,
 # hochladen, herunterladen, löschen; am Handy Foto und Video.
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -30,9 +30,9 @@ def seite(p, breite, hoehe, mobil):
 
 with sync_playwright() as p:
     br, pg = seite(p, 1300, 900, False)
-    # Reihenfolge im Menü: Temp direkt vor Just Eat
+    # Temp steht im Menü, Just Eat ist seit 1.160.2 weg
     namen = pg.eval_on_selector_all(".nav .nav__punkt .nav__text", "e => e.map(x => x.textContent)")
-    if "Temp" not in namen or "Just Eat" not in namen or namen.index("Temp") + 1 != namen.index("Just Eat"):
+    if "Temp" not in namen or "Just Eat" in namen:
         fehler.append("Reihenfolge im Menü: %s" % namen)
     text = pg.inner_text("#temp-seite")
     if "Messprotokoll.pdf" not in text: fehler.append("eigene Datei fehlt")

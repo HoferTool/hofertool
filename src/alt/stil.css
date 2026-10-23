@@ -7160,7 +7160,7 @@ body.dunkel .login__karte #lk * { color: #003884; }
    Was dort nichts tun kann, ist weg; an der Stelle von „Pad Mode“ steht,
    von wann das Backup ist. */
 body.archiv #rueck-knopf, body.archiv #kopf-suche, body.archiv #kopf-einstellungen,
-body.archiv .kopf__benutzer, body.archiv .nav__punkt--web,
+body.archiv .kopf__benutzer,
 body.archiv #pw-hoco, body.archiv #pw-symbole { display: none !important; }
 .archiv-marke { cursor: default; white-space: nowrap; }
 
