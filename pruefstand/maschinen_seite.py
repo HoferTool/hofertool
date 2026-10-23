@@ -1,5 +1,5 @@
 # Seite Maschinen (1.134.0, Wunsch Patrick 21. Oktober 2026): Park → Typ →
-# Maschine, Reihenfolge mit ↑ ↓ wie auf der Planwand, Seite der Maschine
+# Maschine, seit 1.161.0 Typen als Ordner im Park samt Verwaltung der Parks, Reihenfolge mit ↑ ↓ wie auf der Planwand, Seite der Maschine
 # mit Infos, Pad Mode, Batterien, Wartung mit Anhängen, Unterlagen mit
 # Link, Hinweis der Batterien auf der Startseite. Produktion ohne den
 # alten Reiter.
@@ -43,7 +43,9 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#produktion'"); pg.wait_for_timeout(800)
     pruefe(pg.locator("[data-ansicht='maschinen']").count() == 0, "Produktion ohne Reiter Maschinen")
     pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(900)
-    pruefe(pg.locator("[data-unter='maschinen/verwalten']").count() == 1, "Seite Maschinen in der Navigation")
+    pruefe(pg.locator("[data-unter='maschinen/uebersicht']").count() == 1
+           and pg.locator("[data-unter='maschinen/verwalten']").count() == 0, "Seite Maschinen ohne Reiter Parks")
+    pruefe(pg.locator("#park-neu").count() == 1, "+ Maschinenpark bei den Parks")
     pruefe(pg.locator("[data-mpark]").count() == 2, "zwei Parks zur Wahl")
     pg.screenshot(path=os.path.join(BILD, "maschinen-parks.png"))
     pg.click("[data-mpark='p1']" if pg.locator("[data-mpark='p1']").count() else "[data-mpark]:has-text('Langdreher')")
@@ -51,6 +53,14 @@ with sync_playwright() as p:
     typen = pg.locator("[data-mtyp]")
     pruefe(typen.count() == 2, "zwei Typen im Park")
     pruefe(typen.first.get_attribute("data-mtyp") == "t1", "Star zuerst (wie Planwand)")
+    pruefe(pg.locator("[data-mtyp='t1'] [data-mmaschine]").count() == 5
+           and pg.locator("[data-mtyp='t2'] [data-mmaschine]").count() == 2, "Maschinen im Ordner ihres Typs")
+    pruefe(pg.locator("[data-park-um]").count() == 1 and pg.locator("[data-masch-neu]").count() == 1, "Park verwalten im Park")
+    # Ordner zu- und wieder aufklappen
+    pg.click("[data-mtyp-auf='t2']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-mtyp='t2'] [data-mmaschine]").count() == 0, "Ordner zugeklappt")
+    pg.click("[data-mtyp-auf='t2']"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-mtyp='t2'] [data-mmaschine]").count() == 2, "Ordner wieder offen")
     pg.screenshot(path=os.path.join(BILD, "maschinen-typen.png"))
     # Typ Tornos nach oben
     ziehen(pg, "[data-griff='t2']", "[data-mtyp='t1']", True)
@@ -66,16 +76,25 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#start'"); pg.wait_for_timeout(500)
     pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(900)
     if pg.locator("[data-mpark]").count(): pg.locator("[data-mpark]").first.click(); pg.wait_for_timeout(500)
-    pg.click("[data-mtyp='t1']"); pg.wait_for_timeout(600)
-    pruefe(pg.locator("[data-mmaschine]").count() == 5, "fünf Star-Maschinen")
+    pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-mtyp='t1'] [data-mmaschine]").count() == 5, "fünf Star-Maschinen")
     # Mit der Maus auf der ganzen Zeile ziehen, ohne dass sie aufgeht
     ziehen(pg, "[data-mmaschine='m-l1']", "[data-mmaschine='m-l2']", False)
     pruefe(pg.locator(".mseite-maschine").count() == 0, "Ziehen öffnet die Maschine nicht")
-    pruefe(pg.locator("[data-mmaschine]").first.get_attribute("data-mmaschine") == "m-l2", "L-1001 eine Stufe runter")
+    pruefe(pg.locator("[data-mtyp='t1'] [data-mmaschine]").first.get_attribute("data-mmaschine") == "m-l2", "L-1001 eine Stufe runter")
+    pruefe(pg.locator("[data-mtyp]").first.get_attribute("data-mtyp") == "t1", "Ordner bleiben, wo sie sind")
     so = pg.evaluate("() => Object.fromEntries(TEST.daten.machines.filter(m => m.id.startsWith('m-l')).map(m => [m.id, m.sort_order]))")
     pruefe(so["m-l2"] == 1 and so["m-l1"] == 2, "sort_order geändert: %s" % so)
     ziehen(pg, "[data-griff='m-l1']", "[data-mmaschine='m-l2']", True)
-    pruefe(pg.locator("[data-mmaschine]").first.get_attribute("data-mmaschine") == "m-l1", "am Griff zurückgezogen")
+    pruefe(pg.locator("[data-mtyp='t1'] [data-mmaschine]").first.get_attribute("data-mmaschine") == "m-l1", "am Griff zurückgezogen")
+    pg.screenshot(path=os.path.join(BILD, "maschinen-ordner.png"))
+    # Neue Maschine mit Typ Tornos kommt hinter die letzte Tornos
+    pg.click("[data-masch-neu]"); pg.wait_for_selector(".dialog-huelle select")
+    d = pg.locator(".dialog-huelle").last
+    d.locator("input").nth(0).fill("Neue Tornos"); d.locator("select").select_option("t2")
+    d.locator("[data-ja]").click(); pg.wait_for_timeout(1200)
+    ids = pg.evaluate("() => [...document.querySelectorAll(\"[data-mtyp='t2'] [data-mmaschine]\")].map(e => e.textContent)")
+    pruefe(len(ids) == 3 and "Neue Tornos" in ids[-1], "neue Maschine im Ordner Tornos zuletzt: %s" % ids)
 
     # Maschine öffnen
     pg.click("[data-mmaschine='m-l1']"); pg.wait_for_selector(".mseite-maschine"); pg.wait_for_timeout(600)

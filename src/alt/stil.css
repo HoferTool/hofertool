@@ -9134,3 +9134,40 @@ body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
   .dg-x--handy-weg { display: none; }
   .st-tabelle td { white-space: nowrap; }
 }
+
+/* Seite Maschinen: Park mit Typen als Ordner (seit 1.161.0) */
+.mseite-parkkopf { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px;
+  flex-wrap: wrap; max-width: 760px; margin: 10px 0 12px; }
+.mseite-parkkopf h2 { margin: 0; font-size: 1.4rem; }
+.mseite-parkkopf__knoepfe, .mseite-mzeile__knoepfe { display: flex; gap: 6px; flex-wrap: wrap; }
+.mseite-baum > .ziehliste__zeile > .mseite-ordner { flex: 1; min-width: 0; }
+.mseite-ordner { border: 1px solid var(--linie-stark); border-radius: var(--radius); background: var(--flaeche);
+  transition: border-color .15s, box-shadow .15s; }
+.mseite-ordner__kopf { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px;
+  border: 0; background: none; color: var(--tinte); font: inherit; text-align: left; cursor: pointer;
+  border-radius: var(--radius); }
+.mseite-ordner__kopf:hover { background: var(--marke-hell); }
+.mseite-ordner__kopf b { font-size: 1.1rem; }
+.mseite-ordner__pfeil { color: var(--gedaempft); transition: transform .18s; display: inline-block; width: 12px; }
+.mseite-ordner--offen .mseite-ordner__pfeil { transform: rotate(90deg); }
+.mseite-ordner__symbol { font-size: 1.15rem; }
+.mseite-ordner__zahl { color: var(--gedaempft); font-size: .88rem; overflow-wrap: anywhere; min-width: 0; }
+.mseite-ordner__inhalt { padding: 0 12px 12px 34px; }
+.mseite-ordner__inhalt .mseite-liste { gap: 6px; }
+.mseite-mzeile { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mseite-mzeile .mseite-kachel--zeile { flex-direction: row; align-items: baseline; gap: 12px; padding: 9px 14px; }
+.mseite-mzeile .mseite-kachel--zeile b { font-size: 1.02rem; }
+/* Griff des Ordners auf Höhe seines Kopfs, nicht in der Mitte */
+.mseite-baum > .ziehliste__zeile > .ziehliste__griff { align-self: flex-start; height: 50px; }
+.mseite-mzeile--aus .mseite-kachel { opacity: .6; }
+.mseite-kachel--aus { opacity: .65; }
+.ziehliste__zeile--darf > .mseite-mzeile > .mseite-kachel, .ziehliste__zeile--darf > .mseite-ordner > .mseite-ordner__kopf { cursor: pointer; }
+.ziehliste__zeile.zieh--aktiv > .mseite-ordner, .ziehliste__zeile.zieh--aktiv > .mseite-mzeile > .mseite-kachel {
+  border-color: var(--marke); box-shadow: 0 14px 34px rgba(0, 20, 60, .22); }
+.mseite-neu { margin-top: 12px; }
+#park-neu { margin-top: 14px; }
+@media (max-width: 640px) {
+  .mseite-ordner__inhalt { padding: 0 8px 10px 12px; }
+  .mseite-mzeile { flex-wrap: wrap; }
+  .mseite-mzeile .mseite-kachel--zeile { flex-basis: 100%; }
+}

@@ -55,7 +55,7 @@ export default function Produktion({ auffrischen, behaelter }) {
   const waehlen = (wert) => { prod.ansicht = wert; zeichnen(); };
   const { daten: geladen, fehler, neu } = useDaten(() => grunddatenLaden(), [auffrischen]);
   // Maschinen einrichten geht seit 1.134.0 auf der Seite Maschinen
-  const zuMaschinen = () => { ms.ansicht = "verwalten"; location.hash = "#/maschinen"; };
+  const zuMaschinen = () => { ms.ansicht = "uebersicht"; location.hash = "#/maschinen"; };
 
   const reiter = REITER.filter(([w]) => !alt.istExtern() || w === "erfassen");
 

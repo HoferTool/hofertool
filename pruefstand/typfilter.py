@@ -52,10 +52,12 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/claude-0/typfilter-d.png")
 
     # Maschinen und Typen
-    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.click("[data-unter='maschinen/verwalten']"); pg.wait_for_selector(".mliste")
-    pruefe("Maschinen als Zeilen mit Typ", pg.locator(".mliste__zeile").count() >= 6 and pg.locator(".mliste__typ").count() >= 6)
-    pg.click("[data-parkreiter='p-kurz']"); pg.wait_for_timeout(500)
-    pruefe("Ohne Typ markiert", pg.locator(".mliste__typ--leer").count() == 1)
+    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.wait_for_selector("[data-mpark]")
+    pg.click("[data-mpark='p-lang']"); pg.wait_for_selector("[data-mtyp]")
+    pruefe("Maschinen in Typ-Ordnern", pg.locator("[data-mmaschine]").count() >= 6 and pg.locator("[data-mtyp]").count() >= 1)
+    pg.click("[data-pfad='0']"); pg.wait_for_timeout(400)
+    pg.click("[data-mpark='p-kurz']"); pg.wait_for_timeout(500)
+    pruefe("Ohne Typ als Ordner", pg.locator("[data-mtyp='__ohne']").count() == 1)
     pruefe("Knöpfe da", pg.locator("[data-masch-um]").count() >= 6 and pg.locator("[data-masch-weg]").count() >= 6)
     pg.screenshot(path="/tmp/claude-0/maschinen-d.png")
     pg.click("[data-unter='maschinen/typen']"); pg.wait_for_selector(".tkarte")
