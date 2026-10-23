@@ -1,5 +1,5 @@
-# Einmalig: Aufbau der Excel-Einrichtblätter je Typ ansehen (nur
-# Beschriftungen, Inhalte maskiert). Wird gleich wieder entfernt.
+# Einmalig: Aufbau der Excel-Einrichtblätter je Typ zusammenfassen (nur
+# Platz-Nummern und Beschriftungen). Wird gleich wieder entfernt. (3)
 name: Excel-Aufbau
 on:
   push:
@@ -12,8 +12,6 @@ jobs:
       - uses: actions/checkout@v4
       - run: pip install -q openpyxl xlrd
       - run: |
-          mkdir x && cd x
-          for p in Index:1792045280931-4f1170.xls Index:1792045238897-36576e.xlsx Index:1792045246164-8766c2.xlsx SB-16C_113:1791820790939-712a84.xls SB-16C_113:1791820791668-bef90d.xlsx SB-16C_115:1791820807904-bfcd1a.xlsx SB-16C_115:1791820816429-54d41c.xlsx SB-16D_117:1791821126239-5c6d90.xlsx SB-16D_117:1791821130392-238ca0.xlsx SB-16E_114:1791826208358-c69219.xlsx SB-16E_114:1791826233130-bda797.xlsx SB-16E_114:1791826538335-af699b.xls SB-20RG:1791817202818-c4e4c6.xlsx SB-20RG:1791817218294-f7302b.xlsx SR-10:1791821698493-671a88.xlsx SR-10:1792076835908-9b9bea.xls SR-32:1791821745812-e2f907.xlsx SR-32:1791822004595-8d796e.xlsx; do
-            n=${p%%:*}; f=${p#*:}; curl -sS -o "$n-$f" "https://lzhqwbxfwqamauntehof.supabase.co/storage/v1/object/public/zeichnungen/dok/$f"
-          done
-          python ../werkzeuge/excel-aufbau-tmp.py * 2>&1 | grep -v UserWarning | grep -v "warn(msg)"
+          mkdir x
+          cut -d' ' -f2 werkzeuge/excel-liste-tmp.txt | xargs -P 12 -I{} curl -sS -o x/{} https://lzhqwbxfwqamauntehof.supabase.co/storage/v1/object/public/zeichnungen/dok/{}
+          python werkzeuge/excel-sammeln-tmp.py werkzeuge/excel-liste-tmp.txt 2>&1 | grep -v "UserWarning\|warn(msg)"
