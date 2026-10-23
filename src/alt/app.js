@@ -12,7 +12,7 @@ import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
-import Statistik from "../seiten/Statistik.jsx";
+import Statistik, { statistikZurueck } from "../seiten/Statistik.jsx";
 import Temp from "../seiten/Temp.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Infoboard, { infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
@@ -136,7 +136,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.161.1";
+const APP_VERSION = "1.162.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -171,6 +171,8 @@ function escapeZurueck() {
     const wo = location.hash.replace(/^#\/?/, "").split("/")[0];
     // Seite Maschinen: von der Maschine zum Typ, zum Park
     if (wo === "maschinen" && maschinenZurueck()) return;
+    // Statistik: vom Artikel oder der Maschine dorthin, wo man herkam
+    if (wo === "statistik" && statistikZurueck()) return;
     if (wo === "produktion" && prod.ansicht && prod.ansicht !== "erfassen") {
       prod.ansicht = "erfassen"; zeichneSeite(); return;
     }

@@ -18,7 +18,7 @@ import { Saeulen, Balken, Kennzahl } from "../teile/Diagramm.jsx";
 import { statistikLaden, statistikRechnen, werkzeugLaden, dauerText, stundenText, prozentText, kommaText,
   STUNDEN_VOLL, STUNDEN_MAX } from "../daten/statistik.js";
 
-export const st = { reiter: "maschinen", zeitraum: "30", von: null, bis: null, maschine: null, artikel: null, suche: "" };
+export const st = { reiter: "maschinen", zeitraum: "30", von: null, bis: null, maschine: null, artikel: null, suche: "", verlauf: [] };
 const FELDER = Object.keys(st);
 teilMerken("statistik", () => Object.fromEntries(FELDER.map((k) => [k, st[k]])),
   (z) => FELDER.forEach((k) => { if (k in z) st[k] = z[k]; }));
@@ -30,6 +30,57 @@ const MONATE_KURZ = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "S
 // Erst ab diesem Tag sind die Zahlen verlässlich erfasst; Älteres zählt
 // nie, auch wenn der Zeitraum weiter zurückreicht (Wunsch Patrick 23. Oktober 2026)
 export const STATISTIK_AB = "2026-10-19";
+
+// Zurück geht genau dorthin, wo man herkam: von einem Artikel, der von
+// einer Maschine aus geöffnet wurde, wieder zur Maschine, sonst zur Liste,
+// und dort an dieselbe Stelle der Liste (Wunsch Patrick 23. Oktober 2026:
+// „Man kommt von den Artikeln nicht zurück“)
+const ansicht = () => ({ reiter: st.reiter, maschine: st.maschine, artikel: st.artikel, y: window.scrollY });
+let zeichnenAussen = null;
+function oeffnen(o) {
+  st.verlauf = [...st.verlauf.slice(-19), ansicht()];
+  Object.assign(st, o);
+  zeichnenAussen && zeichnenAussen();
+  // Wer weit unten in der Tabelle antippt, sieht sonst den Kopf mit
+  // dem Zurück-Knopf nicht
+  requestAnimationFrame(() => window.scrollTo(0, 0));
+}
+function zurueckZiel() {
+  const v = st.verlauf[st.verlauf.length - 1];
+  if (v) return v;
+  if (st.reiter === "artikel" && st.artikel) return { reiter: "artikel", maschine: st.maschine, artikel: null, y: 0 };
+  if (st.reiter === "maschinen" && st.maschine) return { reiter: "maschinen", maschine: null, artikel: st.artikel, y: 0 };
+  return null;
+}
+// Auch aus app.js mit Escape gerufen. true = eine Ebene zurück gegangen
+export function statistikZurueck() {
+  const z = zurueckZiel();
+  if (!z) return false;
+  if (st.verlauf.length) st.verlauf = st.verlauf.slice(0, -1);
+  const { y, ...o } = z;
+  Object.assign(st, o);
+  if (zeichnenAussen) zeichnenAussen(); else alt.zeichneSeite();
+  requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y || 0)));
+  return true;
+}
+function zurueckText(r) {
+  const z = zurueckZiel();
+  if (!z) return "Zurück";
+  if (z.reiter === "maschinen" && z.maschine) {
+    const m = r.maschinen.find((x) => x.id === z.maschine);
+    return "Zurück zu " + (m ? m.name : "der Maschine");
+  }
+  if (z.reiter === "artikel" && z.artikel) return "Zurück zu " + z.artikel;
+  return z.reiter === "artikel" ? "Zurück zu allen Artikeln" : "Zurück zu allen Maschinen";
+}
+
+function ZurueckKnopf({ r }) {
+  return (
+    <button className="knopf knopf--haupt st-zurueck" data-stzurueck onClick={statistikZurueck}>
+      <span aria-hidden="true">←</span> {zurueckText(r)}
+    </button>
+  );
+}
 
 function zeitraum() {
   const heute = alt.isoDatum(new Date());
@@ -70,11 +121,12 @@ export default function Statistik({ auffrischen }) {
   const { daten, fehler } = useDaten(() => statistikLaden(von, bis), [auffrischen, von, bis]);
   const r = useMemo(() => (daten ? statistikRechnen(daten) : null), [daten]);
   const setze = (o) => { Object.assign(st, o); zeichnen(); };
+  zeichnenAussen = zeichnen;
 
   return (
     <>
       <h1 className="seitentitel">Statistik</h1>
-      <Reiter reiter={REITER} aktiv={st.reiter} waehlen={(w) => setze({ reiter: w })} merkmal="streiter" seite="statistik" />
+      <Reiter reiter={REITER} aktiv={st.reiter} waehlen={(w) => setze({ reiter: w, verlauf: [] })} merkmal="streiter" seite="statistik" />
       <div className="st-zeit" id="st-zeit">
         {ZEITRAEUME.map(([w, t]) => (
           <button key={w} className={"st-chip" + (st.zeitraum === w ? " aktiv" : "")} data-stzeit={w}
@@ -215,7 +267,7 @@ function Maschinen({ r, setze }) {
         unter={"Produktionszeit aus Stückzahl × Stückzeit, " + STUNDEN_VOLL + " h je Arbeitstag = 100 %. Antippen zeigt die Maschine."}>
         <Balken zeilen={liste.map((m) => ({ key: m.id, label: m.name, unter: m.typ, wert: m.auslastung || 0,
           text: <>{prozentText(m.auslastung)} <small>{stundenText(m.h)}</small></> }))}
-          ziel={1} zielText="100 %" waehlen={(id) => setze({ maschine: id })} />
+          ziel={1} zielText="100 %" waehlen={(id) => oeffnen({ maschine: id })} />
       </Karte>
       <div className="st-zwei">
         <Karte id="st-ausstoss-tag" titel="Ausstoss pro Tag" unter="Alle Maschinen zusammen">
@@ -232,7 +284,7 @@ function Maschinen({ r, setze }) {
           <Balken zeilen={r.maschinen.filter((m) => m.ausschuss).sort((a, b) => b.ausschuss - a.ausschuss)
             .map((m) => ({ key: m.id, label: m.name, wert: m.ausschuss,
               text: <>{stkText(m.ausschuss)} <small>{quoteText(m.ausschussQuote)}</small></> }))}
-            waehlen={(id) => setze({ maschine: id })} />
+            waehlen={(id) => oeffnen({ maschine: id })} />
         </Karte>
         <Karte id="st-ausschuss-tag" titel="Ausschuss pro Tag" unter="Alle Maschinen zusammen">
           <Saeulen werte={mitTip(jeZeit(g.jeTag, "aus"), stkText)} format={stk} />
@@ -247,7 +299,7 @@ function Maschinen({ r, setze }) {
               <th className="zahl">Wechsel</th><th className="zahl">Ø Übergang</th></tr></thead>
             <tbody>
               {liste.map((m) => (
-                <tr key={m.id} className="st-klick" data-stmaschine={m.id} onClick={() => setze({ maschine: m.id })}>
+                <tr key={m.id} className="st-klick" data-stmaschine={m.id} onClick={() => oeffnen({ maschine: m.id })}>
                   <td><b>{m.name}</b> <span className="klein">{m.typ}</span></td>
                   <td className="zahl">{stk(m.stk)}</td>
                   <td className="zahl">{m.produktionsTage ? stk(m.stkJeTag) : "–"}</td>
@@ -290,7 +342,7 @@ function EineMaschine({ m, r, setze }) {
   return (
     <>
       <div className="st-kopf">
-        <button className="knopf" data-stzurueck onClick={() => setze({ maschine: null })}>← Alle Maschinen</button>
+        <ZurueckKnopf r={r} />
         <h2 className="st-kopf__titel" id="st-maschine-name">{m.name} <span className="klein">{m.typ}</span></h2>
       </div>
       <Kennzahlen z={m} mitAuslastung />
@@ -311,7 +363,7 @@ function EineMaschine({ m, r, setze }) {
       <Karte id="st-maschine-artikel" titel="Artikel auf dieser Maschine" unter="Antippen zeigt den Artikel.">
         <Balken zeilen={artikel.map(([k, z]) => ({ key: k, label: k, wert: z.stk,
           text: <>{stkText(z.stk)} <small>{stundenText(z.h)}</small></> }))}
-          waehlen={(k) => { if (k !== "ohne HOCO Nr.") setze({ reiter: "artikel", artikel: k }); }} />
+          waehlen={(k) => { if (k !== "ohne HOCO Nr.") oeffnen({ reiter: "artikel", artikel: k }); }} />
       </Karte>
       <Karte id="st-wechsel" titel="Übergänge von Auftrag zu Auftrag" unter="Samstag und Sonntag zählen nicht.">
         <Uebergaenge liste={m.uebergaenge} r={r} ohneMaschine />
@@ -334,7 +386,7 @@ function Artikel({ r, setze }) {
       <Kennzahlen z={r.gesamt} />
       <Karte id="st-artikel-top" titel="Ausstoss je Artikel" unter={liste.length > 15 ? "Die 15 grössten. Antippen zeigt den Artikel." : "Antippen zeigt den Artikel."}>
         <Balken zeilen={liste.slice(0, 15).map((a) => ({ key: a.hoco, label: a.hoco, wert: a.stk,
-          text: <>{stkText(a.stk)} <small>{stundenText(a.h)}</small></> }))} waehlen={(k) => setze({ artikel: k })} />
+          text: <>{stkText(a.stk)} <small>{stundenText(a.h)}</small></> }))} waehlen={(k) => oeffnen({ artikel: k })} />
       </Karte>
       <Karte id="st-artikel-tabelle" titel="Alle Artikel">
         <input className="st-suche" placeholder="HOCO Nr. suchen" value={st.suche} data-stsuche
@@ -347,7 +399,7 @@ function Artikel({ r, setze }) {
               <th className="zahl">Aufträge</th><th className="zahl">Ø Übergang</th></tr></thead>
             <tbody>
               {liste.map((a) => (
-                <tr key={a.hoco} className="st-klick" data-startikel={a.hoco} onClick={() => setze({ artikel: a.hoco })}>
+                <tr key={a.hoco} className="st-klick" data-startikel={a.hoco} onClick={() => oeffnen({ artikel: a.hoco })}>
                   <td><b>{a.hoco}</b></td>
                   <td className="zahl">{stk(a.stk)}</td>
                   <td className="zahl">{a.produktionsTage ? stk(a.stkJeTag) : "–"}</td>
@@ -380,7 +432,7 @@ function EinArtikel({ a, r, setze }) {
   return (
     <>
       <div className="st-kopf">
-        <button className="knopf" data-stzurueck onClick={() => setze({ artikel: null })}>← Alle Artikel</button>
+        <ZurueckKnopf r={r} />
         <h2 className="st-kopf__titel" id="st-artikel-name">{a.hoco}</h2>
         {a.stueckzeiten.length > 0 && <span className="klein">Stückzeit {a.stueckzeiten.map((s) => alt.zahlText(s) + " s").join(" / ")}</span>}
       </div>
@@ -393,7 +445,7 @@ function EinArtikel({ a, r, setze }) {
           const m = r.maschineVon.get(mid);
           return { key: mid, label: m ? alt.maschineZielText(m) : "Maschine", wert: z.stk,
             text: <>{stkText(z.stk)} <small>Ø {stk(z.tage.size ? z.stk / z.tage.size : 0)}/Tag · {stundenText(z.h)}</small></> };
-        })} waehlen={(mid) => setze({ reiter: "maschinen", maschine: mid })} />
+        })} waehlen={(mid) => oeffnen({ reiter: "maschinen", maschine: mid })} />
       </Karte>
       <Karte id="st-artikel-ausschuss" titel="Ausschuss" unter="Aus den Meldungen der Qualitätssicherung">
         <AusschussListe liste={a.ausschussMeldungen} r={r} />
