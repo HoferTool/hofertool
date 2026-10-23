@@ -45,9 +45,19 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
     pruefe("Suche beendet, keine Abmelde-Frage", pg.locator(".su-leiste").count() == 0 and fenster() == 0)
 
-    # Nichts offen: Escape, dann Enter meldet ab
+    # Nichts offen auf der Planwand: Escape geht zur Startseite (1.163.0),
+    # erst dort fragt es nach dem Abmelden
+    leer(); pg.keyboard.press("Escape"); pg.wait_for_timeout(1200)
+    pruefe("Escape auf der Planwand führt zur Startseite", fenster() == 0 and "dashboard" in pg.evaluate("location.hash"))
+    # Bestellungen, Reiter Artikel: erst erster Reiter, dann Startseite
+    pg.evaluate("location.hash='#/bestellungen'"); pg.wait_for_timeout(1200)
+    pg.evaluate("document.querySelector('#inhalt [data-best=artikel]').click()"); pg.wait_for_timeout(800)
+    leer(); pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
+    pruefe("Escape: zurück auf den ersten Reiter", pg.evaluate("document.querySelector('#inhalt [data-best].aktiv')?.dataset.best") == "offen" and "bestellungen" in pg.evaluate("location.hash"))
+    leer(); pg.keyboard.press("Escape"); pg.wait_for_timeout(1200)
+    pruefe("Escape: dann Startseite", "dashboard" in pg.evaluate("location.hash") and fenster() == 0)
     leer(); pg.keyboard.press("Escape"); pg.wait_for_timeout(700)
-    pruefe("Frage erscheint auf der Planwand", titel() == "Abmelden")
+    pruefe("Frage erscheint auf der Startseite", titel() == "Abmelden")
     pg.keyboard.press("Enter"); pg.wait_for_timeout(2000)
     pruefe("Enter meldet ab (Anmeldeseite)", pg.locator("#inhalt").count() == 0 and fenster() == 0)
     # Auf der Anmeldeseite fragt Escape nichts
