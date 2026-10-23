@@ -9048,3 +9048,89 @@ body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
 /* Materialrechner: vier Felder Abstecher, Planieren, Stange, Reststück (seit 1.146.1) */
 .mr-reihe--vier { grid-template-columns: repeat(4, 1fr); }
 @media (max-width: 520px) { .mr-reihe--vier { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Statistik (1.159.0) ---------- */
+.st-zeit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 16px; }
+.st-chip {
+  font: inherit; font-weight: 600; font-size: .9rem; padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--linie-stark); background: var(--flaeche); color: var(--tinte); cursor: pointer;
+}
+.st-chip.aktiv { background: var(--marke); border-color: var(--marke); color: #fff; }
+.st-frei { display: inline-flex; align-items: center; gap: 6px; }
+.st-frei input, .st-suche {
+  font: inherit; padding: 7px 10px; border: 1px solid var(--linie-stark); border-radius: 8px;
+  background: var(--flaeche); color: var(--tinte);
+}
+.st-suche { width: 100%; max-width: 320px; margin-bottom: 10px; }
+.st-zeit__text { margin-left: auto; }
+.st-hinweis { margin: 0 0 14px; max-width: 900px; }
+.st-karte__titel { font-size: 1.05rem; margin: 0 0 2px; }
+.st-karte__unter { margin: 0 0 12px; }
+.st-zwei { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 0 14px; }
+.st-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 14px; }
+.st-kopf__titel { margin: 0; font-size: 1.3rem; }
+.st-tabelle-huelle { overflow-x: auto; }
+.st-tabelle { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.st-tabelle th { text-align: left; font-weight: 600; color: var(--gedaempft); font-size: .8rem;
+  padding: 6px 8px; border-bottom: 1px solid var(--linie-stark); white-space: nowrap; }
+.st-tabelle td { padding: 7px 8px; border-bottom: 1px solid var(--linie); vertical-align: top; }
+.st-tabelle .zahl { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.st-klick { cursor: pointer; }
+.st-klick:hover td { background: var(--marke-hell); }
+.st-warn { color: var(--warnung); font-weight: 700; }
+.st-marke { margin-left: 6px; font-size: .72rem; padding: 1px 6px; border-radius: 6px;
+  background: var(--marke-hell); color: var(--marke); font-weight: 600; }
+
+.dg-kennzahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.dg-kennzahl { background: var(--flaeche); border: 1px solid var(--linie); border-radius: var(--radius);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+.dg-kennzahl__titel { font-size: .82rem; color: var(--gedaempft); font-weight: 600; }
+.dg-kennzahl__wert { font-size: 1.7rem; line-height: 1.2; color: var(--tinte); font-variant-numeric: tabular-nums; }
+.dg-kennzahl__unter { font-size: .8rem; color: var(--gedaempft); }
+.dg-leer { margin: 6px 0; }
+
+.dg-saeulen { display: flex; gap: 6px; padding-bottom: 22px; }
+.dg-achse { position: relative; width: 52px; height: var(--dg-h); flex: none; }
+.dg-achse span { position: absolute; right: 4px; transform: translateY(50%); font-size: .72rem;
+  color: var(--gedaempft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dg-flaeche { position: relative; flex: 1; min-width: 0; height: var(--dg-h); border-bottom: 1px solid var(--linie-stark); }
+.dg-gitter { position: absolute; left: 0; right: 0; border-top: 1px solid var(--linie); }
+.dg-ziel { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--tinte); opacity: .55; z-index: 1; pointer-events: none; }
+.dg-ziel b { position: absolute; right: 0; bottom: 2px; font-size: .7rem; font-weight: 600; }
+.dg-spalten { position: absolute; inset: 0; display: flex; align-items: flex-end; }
+.dg-spalte { position: relative; flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end;
+  justify-content: center; cursor: default; }
+.dg-spalte--blass { background: color-mix(in srgb, var(--linie) 45%, transparent); }
+.dg-saeule { display: block; width: 72%; max-width: 34px; min-height: 0; background: var(--marke);
+  border-radius: 4px 4px 0 0; transition: height .35s ease; }
+.dg-spalte.aktiv .dg-saeule { filter: brightness(1.25); }
+.dg-x { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
+  font-size: .68rem; color: var(--gedaempft); white-space: nowrap; }
+.dg-tip { position: absolute; top: -6px; transform: translate(-50%, -100%); background: var(--tinte); color: var(--flaeche);
+  font-size: .8rem; padding: 5px 9px; border-radius: 6px; white-space: nowrap; pointer-events: none; z-index: 3; }
+
+.dg-balken { display: flex; flex-direction: column; gap: 4px; }
+.dg-zeile { display: grid; grid-template-columns: minmax(110px, 200px) 1fr minmax(90px, auto); align-items: center; gap: 10px;
+  padding: 4px 6px; border-radius: 8px; font: inherit; color: inherit; background: none; border: 0; text-align: left; }
+.dg-zeile--knopf { cursor: pointer; }
+.dg-zeile--knopf:hover { background: var(--marke-hell); }
+.dg-name { font-weight: 600; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-name small { display: block; font-weight: 400; color: var(--gedaempft); font-size: .74rem; }
+.dg-bahn { position: relative; height: 16px; background: color-mix(in srgb, var(--linie) 50%, transparent); border-radius: 4px; }
+.dg-balken__wert { position: absolute; left: 0; top: 0; bottom: 0; background: var(--marke); border-radius: 4px;
+  transition: width .35s ease; }
+.dg-ziel--senkrecht { top: -3px; bottom: -3px; left: auto; right: auto; width: 0; border-top: 0; border-left: 2px dashed var(--tinte); }
+.dg-text { font-size: .88rem; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dg-text small { font-weight: 400; color: var(--gedaempft); margin-left: 4px; }
+
+@media (max-width: 640px) {
+  .st-zwei { grid-template-columns: 1fr; }
+  .st-zeit__text { margin-left: 0; width: 100%; }
+  .dg-zeile { grid-template-columns: 96px 1fr; }
+  .dg-text { grid-column: 2; }
+  .dg-achse { width: 40px; }
+  .dg-kennzahlen { grid-template-columns: 1fr 1fr; }
+  .dg-kennzahl__wert { font-size: 1.3rem; }
+  .dg-x--handy-weg { display: none; }
+  .st-tabelle td { white-space: nowrap; }
+}

@@ -12,6 +12,7 @@ import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
+import Statistik from "../seiten/Statistik.jsx";
 import Temp from "../seiten/Temp.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Infoboard, { infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
@@ -135,7 +136,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.158.1";
+const APP_VERSION = "1.159.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2854,7 +2855,7 @@ const ROLLEN = {
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
-  if ((pfad === "material" || pfad === "qs" || pfad === "maschinen") && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "qs" || pfad === "maschinen" || pfad === "statistik") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard") return infoboardSichtbar();
   if (!istExtern()) return true;
   return pfad === "planwand" || pfad === "produktion";
@@ -9837,6 +9838,13 @@ SYM.infoboard = svg('<rect x="5" y="2.5" width="14" height="19" rx="2"/>'
 SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
   + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
 
+// Statistik: Säulen auf einer Grundlinie, eine Kurve darüber
+SYM.statistik = svg('<path d="M3 20.5h18"/>'
+  + '<rect x="5" y="12" width="3" height="6" rx="0.8" fill="currentColor" stroke="none"/>'
+  + '<rect x="10.5" y="8.5" width="3" height="9.5" rx="0.8" fill="currentColor" stroke="none"/>'
+  + '<rect x="16" y="10.5" width="3" height="7.5" rx="0.8" fill="currentColor" stroke="none"/>'
+  + '<path d="M4.5 8.5 9.5 5l4 2.5 6-4.5"/>');
+
 // Einstellungen: Schieberegler
 SYM.einstellungen = svg('<line x1="4" y1="7" x2="20" y2="7"/>'
   + '<line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>'
@@ -9935,6 +9943,8 @@ const SEITEN = [
   { pfad: "maschinen",    titel: "Maschinen",    zeichen: SYM.maschinen, zeige: reactSeite(MaschinenSeite) },
   // Ausschuss melden statt Zustand „QS Check“ (seit 1.77.0)
   { pfad: "qs",           titel: "Qualitätssicherung", zeichen: SYM.qs, zeige: reactSeite(Qs) },
+  // Produktionsdaten je Maschine und Artikel (Wunsch Patrick 23. Oktober 2026)
+  { pfad: "statistik",    titel: "Statistik",    zeichen: SYM.statistik, zeige: reactSeite(Statistik) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: reactSeite(Einkauf) },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
