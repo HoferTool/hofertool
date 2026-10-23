@@ -159,7 +159,7 @@ Altes Projekt `yvbtgiqtndxqqxhjshnl` und altes Repository `syshen69/hofer`. Alle
 9. Kameras später neu überlegen. Das alte Modul ist entfernt.
 10. ~~`sql/abruf-siegel.sql` ausführen~~ erledigt am 8. Oktober 2026.
 11. **Beim nächsten SQL zuerst erledigen** (Wunsch Patrick 16. Oktober 2026): Sobald wieder ein SQL eingespielt werden muss und Patrick am PC ist (dann sieht er die Freigabe für `drop`), über die Supabase-Verbindung auch `sql/push-weg.sql` (Push-Tabellen und -Funktionen löschen) und `sql/tipp-ohne-pin-weg.sql` einspielen, Probe muss `ok` zeigen, und die Server-Funktion `push-senden` löschen (geht nicht über die Verbindung: Patrick im Dashboard unter Edge Functions → push-senden → Delete). Danach diesen Punkt durchstreichen und Patrick im Thread „Push-Nachrichten entfernen“ melden, dass es erledigt ist (er hat dort darum gebeten).
-12. **Einrichtblatt in der App** (Test, Zweig `claude/project-thread-au2n7k`, Adresse …/hofertool/test/): zuerst SW-20 testen, danach die anderen Typen (Star: 2 Paths, 2 Programm-Nr.). **Geometriedaten** (bisher nur SW-20) später genauer anschauen (Wunsch Patrick, 13. Oktober 2026).
+12. **Einrichtblatt in der App** (Test, Zweig `claude/project-thread-au2n7k`, Adresse …/hofertool/test/): seit 1.163.0 für alle Typen nach ihren Excel (Star, Index, SW-20; Vorlagen in `src/einrichtblatt/vorlagen.js`), Kopf direkt im Blatt, Werkzeuge nur wählen (auch Spezialwerkzeuge), Hinweis im Pad beim Auftragsstart. Offen: Bilder (kommt später, Patrick 23. Oktober 2026), Path-Farben bei Star, ob Externe den Pad-Hinweis bekommen. **Geometriedaten** (bisher nur SW-20) später genauer anschauen (Wunsch Patrick, 13. Oktober 2026).
 
 ## Sicherheit
 

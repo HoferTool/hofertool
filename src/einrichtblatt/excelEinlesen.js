@@ -19,10 +19,15 @@
 //  Zeile des Platzes.
 //  Links unten der Kopf mit Bezeichnungen in der ersten Spalte und
 //  dem Wert rechts daneben.
+//
+//  Star hat dieselben Plätze (T100 …), Index dreimal T1 bis T10, je
+//  einmal für Revolver 1, 2 und 3 untereinander; die werden zu „R1-T1“,
+//  „R2-T1“ und „R3-T1“ (Patrick, 23. Oktober 2026: Blatt für alle Typen).
 // =================================================================
 import JSZip from "jszip";
 
-const PLATZ = /^T\d{3,4}$/;
+const PLATZ = /^T\d{1,4}$/;
+const REVOLVER_PLATZ = /^T\d{1,2}$/;
 const R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
 function xml(text) { return new DOMParser().parseFromString(text, "application/xml"); }
@@ -138,7 +143,12 @@ const KOPF = [
   [/^programmpath(\d+)/, "programm"],
   [/^geometrie/, "geometrie"],
   [/^ho&?co(nr)?/, "hoco"],
-  [/^artikelbez/, "bezeichnung"],       // erkannt, aber nicht übernommen
+  [/^programm(nr|nummer)/, "prgnr"],
+  [/^fabrik/, "fa_nr"],
+  [/^artikelbez/, "bezeichnung"],
+  [/^n1000/, "n1000"],
+  [/^festanschlag/, "festanschlag"],
+  [/^anschlag/, "anschlag_von"],
   [/^zeichnungs?n(r|ummer)/, "zeichnungs_nr"],
   [/^index/, "index_nr"],
   [/^autom/, "autom"],
@@ -161,15 +171,25 @@ export function blattAusExcel(roh) {
   const koepfe = liste.filter((c) => PLATZ.test(c.text)).sort((a, b) => a.z - b.z || a.s - b.s);
   const benutzt = new Set();
   const plaetze = {};
+  const revolverZaehler = {};
   for (const k of koepfe) {
     benutzt.add(k.z + ":" + k.s);
+    // Index: das wievielte T1 von oben, so viel Revolver
+    let name = k.text;
+    if (REVOLVER_PLATZ.test(name)) {
+      revolverZaehler[name] = (revolverZaehler[name] || 0) + 1;
+      name = "R" + revolverZaehler[name] + "-" + name;
+    }
     const darunter = koepfe.filter((x) => x.s === k.s && x.z > k.z).map((x) => x.z);
     const ende = darunter.length ? Math.min(...darunter) : Math.min(maxZeile + 1, k.z + 8);
+    // Zwei Spalten breit, ausser der nächste Platz steht gleich daneben
+    const nachbar = koepfe.filter((x) => x.z === k.z && x.s > k.s).map((x) => x.s);
+    const breite = nachbar.length ? Math.max(1, Math.min(2, Math.min(...nachbar) - k.s)) : 2;
     const text = (z) => {
       if (z >= ende) return "";
-      const a = bei(z, k.s), b = bei(z, k.s + 1);
-      for (const x of [a, b]) if (x) benutzt.add(x.z + ":" + x.s);
-      return [a, b].filter(Boolean).map((x) => x.text).join(" ").trim();
+      const zellen = [bei(z, k.s), breite > 1 ? bei(z, k.s + 1) : null].filter(Boolean);
+      for (const x of zellen) benutzt.add(x.z + ":" + x.s);
+      return zellen.map((x) => x.text).join(" ").trim();
     };
     const p = {};
     const zahl = text(k.z + 1);
@@ -183,11 +203,11 @@ export function blattAusExcel(roh) {
     if (rest.length > 1) p.hersteller = rest[rest.length - 2];
     if (rest.length > 2) hinweise.push(k.text + ": mehr Zeilen als erwartet, „" + rest.slice(0, -2).join(" / ") + "“ fehlt");
     if (p.taetigkeit_vor) { hinweise.push(k.text + ": „" + p.taetigkeit_vor + "“ unter dem Platz ist keine Standzeit"); delete p.taetigkeit_vor; }
-    p.hd = felder.some((f) => /^HD$/i.test(f.text) && f.z >= k.z - 1 && f.z <= k.z && f.s >= k.s && f.s <= k.s + 1);
+    p.hd = felder.some((f) => /^HD$/i.test(f.text) && f.z >= k.z - 1 && f.z <= k.z && f.s >= k.s && f.s <= k.s + breite - 1);
     p._ende = ende;
     p._s = k.s; p._z = k.z;
-    if (plaetze[k.text]) hinweise.push(k.text + " steht zweimal im Blatt, der erste zählt");
-    else plaetze[k.text] = p;
+    if (plaetze[name]) hinweise.push(name + " steht zweimal im Blatt, der erste zählt");
+    else plaetze[name] = p;
   }
 
   // Bilder: das erste, dessen Ecke im Platz liegt
@@ -200,7 +220,7 @@ export function blattAusExcel(roh) {
   }
 
   // Kopf
-  const kopf = { programme: {}, geometrie: null, maschine_nr: null, bemerkung: null };
+  const kopf = { programme: {}, geometrie: null, maschine_nr: null, bemerkung: null, felder: {} };
   const stamm = {};
   const typDaten = {};
   let hoco = null, autom = null;
@@ -224,6 +244,8 @@ export function blattAusExcel(roh) {
     if (art === "programm") { if (wert) kopf.programme[treffer[0].exec(k)[1]] = wert; }
     else if (art === "geometrie") kopf.geometrie = wert || null;
     else if (art === "hoco") hoco = wert || null;
+    else if (art === "prgnr") { if (wert) kopf.programme.nr = wert; }
+    else if (["fa_nr", "n1000", "festanschlag", "anschlag_von"].includes(art)) { if (wert) kopf.felder[art] = wert; }
     else if (art === "autom") {
       autom = werte[0] || null;
       const nr = werte.slice(1).join(" ").trim() || (/\bnr\.?\s*\S+/i.exec(wert) || [])[0];
@@ -248,6 +270,10 @@ export function blattAusExcel(roh) {
     if (zeilen.length) kopf.bemerkung = zeilen.join("\n");
   }
 
-  if (!Object.keys(plaetze).length) hinweise.push("Keine Werkzeugplätze (T100 …) gefunden");
+  if (!Object.keys(plaetze).length) {
+    // Bei Index liegen auch Kalkulationen im Ordner der Einrichtblätter
+    hinweise.push(liste.some((c) => /kalkulation/i.test(c.text))
+      ? "Das ist eine Kalkulation, kein Einrichtblatt" : "Keine Werkzeugplätze (T100 …) gefunden");
+  }
   return { hoco, autom, kopf, stamm, typDaten, plaetze, hinweise };
 }

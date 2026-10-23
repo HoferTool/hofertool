@@ -1,24 +1,27 @@
 // =================================================================
 //  EINRICHTBLATT IN DER APP
 //  Das Blatt wird beim Öffnen aus den gespeicherten Angaben gezeichnet,
-//  im Aussehen wie das bisherige Excel „Werkzeug-Protokoll“ des SW-20
-//  (Wunsch Patrick, 12. Oktober 2026: „SW-20 als Vorlage, je Typ eine
-//  Version“). Die Plätze kommen aus dem Aufbau des Typs (Produktion →
-//  Maschinentypen), ihre Lage aus machine_types.blatt_aufbau; ohne
-//  Aufbau ordnet die App sie nach Path.
+//  im Aussehen wie das bisherige Excel „Werkzeug-Protokoll“ des Typs.
+//  Jeder Typ hat seine Hofer-Version (vorlagen.js), abgeleitet aus
+//  seinen bisherigen Excel-Blättern (Wunsch Patrick, 23. Oktober 2026:
+//  „baue die Testseite für alle Maschinen, nicht nur SW-20“).
 //
-//  Vor dem Blatt bestätigt man jedes Mal die Stammdaten der HOCO Nr.
-//  oder korrigiert sie (Wunsch Patrick, 13. Oktober 2026).
+//  Im Bearbeiten füllt man den Kopf direkt im Blatt aus. Was zur HOCO
+//  Nr. gehört, geht in die Stammdaten, Stückzeit und Laufzeit zur HOCO
+//  Nr. und dem Typ, der Rest ans Blatt. Werkzeuge schreibt man nicht,
+//  man wählt sie wie beim Bestellen (neu anlegen geht dort auch).
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
-import { blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, artikelBildSetzen,
-  STAMM_FELDER, WASCHGEBINDE, prgNummern } from "./daten.js";
+import { werkzeugWaehlen } from "../seiten/bestellungen/PositionFenster.jsx";
+import { blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
+  artikelHolen, STAMM_FELDER, WASCHGEBINDE, prgNummern } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, bildSchluesselVon } from "./bilder.js";
-import { eigenesBildHochladen, eigenesBildLoeschen, spezialLaden, spezialAnlegen, spezialBildSetzen } from "./daten.js";
+import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
+import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
 
 // Ein hochgeladenes Bild aus der Bibliothek
 export function BildZeichnung({ schluessel, className }) {
@@ -27,32 +30,18 @@ export function BildZeichnung({ schluessel, className }) {
     <img src={b.url} alt="" /></span> : null;
 }
 
-// Farben der Paths wie im Excel: Path 1 orange, 2 blau, 3 grün
+// Farben der Paths für Typen ohne eigene Farben in der Vorlage
 const PFADFARBE = { 1: "#FFC000", 2: "#00B0F0", 3: "#00B050", 4: "#B4A7D6", 5: "#F4B183", 6: "#A9D18E" };
-const SPALTEN = 6;
+const GRAU = "#d0d0d0";
 
-// Reihen des Blatts: je Reihe sechs Zellen mit Platz-Nr. oder null.
-// Ab der dritten Reihe stehen links zwei Spalten lang der Kopf.
-export function blattReihen(typ, paths) {
-  const alle = [];
-  [...paths].sort((a, b) => (a.nummer || 0) - (b.nummer || 0) || (a.sortierung || 0) - (b.sortierung || 0))
-    .forEach((p) => (p.type_slots || []).forEach((s) => { if (s.tool_nr && !alle.includes(s.tool_nr)) alle.push(s.tool_nr); }));
-  const vorgabe = typ && typ.blatt_aufbau && Array.isArray(typ.blatt_aufbau.reihen) ? typ.blatt_aufbau.reihen : null;
-  let reihen;
-  if (vorgabe) {
-    reihen = vorgabe.map((r) => Array.from({ length: SPALTEN }, (_, i) => r[i] || null));
-    // Plätze, die im Aufbau des Typs dazugekommen sind, hinten anhängen
-    const drin = new Set(reihen.flat().filter(Boolean));
-    const rest = alle.filter((n) => !drin.has(n));
-    while (rest.length) reihen.push([null, null].concat(Array.from({ length: SPALTEN - 2 }, () => rest.shift() || null)));
-  } else {
-    const rest = alle.slice();
-    reihen = [];
-    for (let i = 0; i < 2; i++) reihen.push(Array.from({ length: SPALTEN }, () => rest.shift() || null));
-    do { reihen.push([null, null].concat(Array.from({ length: SPALTEN - 2 }, () => rest.shift() || null))); }
-    while (rest.length || reihen.length < 5);
+// Die Vorlage des Typs; beim SW-20 gilt ein Aufbau, den jemand beim Typ
+// hinterlegt hat (machine_types.blatt_aufbau), wie bisher
+export function blattVorlage(typ, paths) {
+  const v = vorlageFuer(typ, paths);
+  if (v.art === "sw" && typ && typ.blatt_aufbau && Array.isArray(typ.blatt_aufbau.reihen)) {
+    v.reihen = typ.blatt_aufbau.reihen.map((r) => Array.from({ length: v.spalten }, (_, i) => r[i] || null));
   }
-  return reihen;
+  return v;
 }
 
 function pfadVonPlatz(paths) {
@@ -61,70 +50,111 @@ function pfadVonPlatz(paths) {
   return k;
 }
 
-const sek = (s) => (s ? String(Math.round(Number(s) * 10) / 10).replace(".", ".") + " Sek./Stk." : "");
 const heute = () => { const d = new Date(); return String(d.getDate()).padStart(2, "0") + "." + String(d.getMonth() + 1).padStart(2, "0") + "." + String(d.getFullYear()).slice(2); };
+const leer = (w) => w === undefined || w === null ? "" : w;
+
+// Wert eines Kopffelds, je nachdem, wo es gespeichert ist
+function feldWert(f, d) {
+  if (f.art === "fest") return d.blatt.hoco_nr;
+  if (f.art === "stamm") return leer(d.teil[f.feld]);
+  if (f.art === "typ") return leer(d.typDaten[f.feld]);
+  if (f.art === "prg") {
+    const pr = d.blatt.programme || {};
+    return f.feld === "nr" ? (pr.nr !== undefined ? pr.nr : prgNummern(d.blatt)) : leer(pr[f.feld]);
+  }
+  if (f.art === "blatt") return leer(d.blatt[f.feld]);
+  if (f.art === "kopf") return leer((d.blatt.kopf || {})[f.feld]);
+  return "";
+}
+
+// So steht es auf dem Blatt
+function feldText(f, w, d) {
+  if (f.feld === "material") return [w, d.teil.material_groesse].filter(Boolean).join(" ");
+  if (f.typVorne) return (d.typ.name || "") + (w ? "   " + w : "");
+  if (f.einheit) {
+    if (w === "" || isNaN(Number(w))) return w;
+    return (f.feld === "stueckzeit_s" ? Math.round(Number(w) * 10) / 10 : w) + " " + f.einheit;
+  }
+  return w;
+}
+
+// Ein Eingabefeld im Kopf
+function KopfEingabe({ f, wert, aendern, d }) {
+  const id = f.art + ":" + f.feld;
+  if (f.art === "fest") return <span>{wert}</span>;
+  if (f.auswahl === "waschgebinde") {
+    const liste = [...new Set(WASCHGEBINDE.concat(wert ? [wert] : []))];
+    return <select className="eba-ein" data-eba-feld={id} value={wert} onChange={(e) => aendern(f, e.target.value)}>
+      <option value="">—</option>{liste.map((x) => <option key={x} value={x}>{x}</option>)}</select>;
+  }
+  const feld = <input className="eba-ein" data-eba-feld={id} value={wert} inputMode={f.zahl ? "decimal" : undefined}
+    placeholder={f.platzhalter || ""} onChange={(e) => aendern(f, e.target.value)} />;
+  if (f.feld === "material") {
+    return <span className="eba-ein-zwei">{feld}
+      <input className="eba-ein eba-ein--kurz" data-eba-feld="stamm:material_groesse" placeholder="Mass"
+        value={leer(d.teil.material_groesse)} onChange={(e) => aendern({ art: "stamm", feld: "material_groesse" }, e.target.value)} /></span>;
+  }
+  if (f.typVorne) return <span className="eba-ein-zwei"><span>{d.typ.name}</span>{feld}</span>;
+  if (f.einheit) return <span className="eba-ein-zwei">{feld}<small>{f.einheit}</small></span>;
+  return feld;
+}
 
 // ---------------- Das Blatt selbst ----------------
-export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, kopfWahl, aktiv, artikelBilder }) {
-  const reihen = useMemo(() => blattReihen(typ, paths), [typ, paths]);
+// teil und typDaten sind im Bearbeiten die Entwürfe; aendern(f, wert)
+// ändert ein Kopffeld
+export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder }) {
+  const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
+  const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
-  const pfadeSortiert = [...paths].sort((a, b) => (a.nummer || 0) - (b.nummer || 0));
   const plaetze = blatt.plaetze || {};
-  const programme = blatt.programme || {};
-  const mitGeometrie = !!(typ.blatt_aufbau && typ.blatt_aufbau.geometrie) || !!blatt.geometrie;
-  const kopfAb = 2;
-  const kopfBis = reihen.length;
-  const titelTyp = String(typ.name || "").replace(/-/g, "");
+  const { kopfAb, kopfBreite } = vorlage;
+  const d = { blatt, teil, typDaten, typ };
+  // Geometriedaten nur, wo die Vorlage sie hat oder schon etwas steht
+  const felder = vorlage.felder.filter((f) => f.feld !== "geometrie" || vorlage.art === "sw" || blatt.geometrie);
 
+  const farbeVon = (nr) => (vorlage.farben && vorlage.farben[nr]) || (pfad[nr] ? PFADFARBE[pfad[nr].nummer] || GRAU : GRAU);
   const zelle = (nr, ri, si) => {
     const p = plaetze[nr] || {};
-    const pf = pfad[nr];
-    const farbe = pf ? PFADFARBE[pf.nummer] || "#ccc" : "#d0d0d0";
     const bild = platzBild(p, artikelBilder);
     return (
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")}
         style={{ gridRow: ri + 1, gridColumn: si + 1 }} data-platz={nr}
         onClick={bearbeiten ? () => platzWahl(nr) : undefined}>
-        <div className="eba-tk" style={{ background: farbe }}>{nr}{p.hd && <span className="eba-hd" data-hd="">HD</span>}</div>
+        <div className="eba-tk" style={{ background: farbeVon(nr) }}>{platzName(nr)}{p.hd && <span className="eba-hd" data-hd="">HD</span>}</div>
         <div className="eba-wert">{p.standzeit ? alt.zahlText(p.standzeit) : ""}</div>
         <div className="eba-tat">{p.taetigkeit || ""}</div>
         <div className="eba-mass">{p.mass || ""}</div>
         <div className="eba-bild">{bild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her">{p.hersteller || ""}</div>
-        <div className="eba-wz">{p.werkzeug || ""}</div>
+        <div className={"eba-wz" + (p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}</div>
       </div>
     );
   };
 
-  const material = [teil.material, teil.material_groesse].filter(Boolean).join(" ");
-  const stamm = (w) => (bearbeiten ? <span className="eba-stamm">{w || " "}</span> : w);
+  const zeile = (f) => {
+    const w = feldWert(f, d);
+    const inhalt = bearbeiten ? <KopfEingabe f={f} wert={w} aendern={aendern} d={d} /> : feldText(f, w, d);
+    if (f.farbe) return <div key={f.art + f.feld} className="eba-prg"><span style={{ background: f.farbe }}>{f.label}</span><b>{inhalt}</b></div>;
+    return <tr key={f.art + f.feld} data-eba-zeile={f.feld}><th>{f.label}</th><td>{inhalt}</td></tr>;
+  };
   return (
-    <div className="eba-seite" data-eba-seite="">
-      <div className="eba-titel"><span /><b>Werkzeug- Protokoll-{titelTyp}</b><span className="eba-datum">{heute()}</span></div>
+    <div className="eba-seite" data-eba-seite="" data-eba-vorlage={vorlage.art}>
+      <div className="eba-titel"><span /><b>{vorlage.titel}</b><span className="eba-datum">{heute()}</span></div>
       <div className="eba-raster" style={{ gridTemplateRows: "repeat(" + reihen.length + ", auto)" }}>
         {reihen.map((r, ri) => r.map((nr, si) => (nr ? zelle(nr, ri, si)
-          : (ri >= kopfAb && si < 2) ? null
+          : (ri >= kopfAb && si < kopfBreite) ? null
           : <div key={"l" + ri + "-" + si} className="eba-zelle eba-leer" style={{ gridRow: ri + 1, gridColumn: si + 1 }} />)))}
         <div className={"eba-zelle eba-kopf" + (bearbeiten ? " eba-kopf--bearbeiten" : "")}
-          style={{ gridRow: (kopfAb + 1) + " / " + (kopfBis + 1), gridColumn: "1 / 3" }}
-          data-eba-kopf="" onClick={bearbeiten ? kopfWahl : undefined}>
-          {pfadeSortiert.map((p) => (
-            <div key={p.id} className="eba-prg">
-              <span style={{ background: PFADFARBE[p.nummer] || "#ccc" }}>Programm Path {p.nummer}:</span>
-              <b>{programme[p.nummer] || ""}</b></div>))}
-          {mitGeometrie && <div className="eba-prg"><span style={{ background: "#FF0000" }}>Geometriedaten:</span><b>{blatt.geometrie || ""}</b></div>}
-          <table className="eba-tab"><tbody>
-            <tr><th>Ho&amp;Co. Nr:</th><td>{blatt.hoco_nr}</td></tr>
-            <tr><th>Programm-Nr:</th><td data-eba-prgnr="">{prgNummern(blatt)}</td></tr>
-            <tr><th>Zeichnungs Nr:</th><td>{stamm(teil.zeichnungs_nr)}</td></tr>
-            <tr><th>Index:</th><td>{stamm(teil.index_nr)}</td></tr>
-            <tr><th>Autom.-Typ / Nr:</th><td>{typ.name}{blatt.maschine_nr ? "   " + blatt.maschine_nr : ""}</td></tr>
-            <tr><th>Material:</th><td>{material}</td></tr>
-            <tr><th>Prod.- Zeit:</th><td>{sek(typDaten.stueckzeit_s)}</td></tr>
-            <tr><th>Waschgebinde:</th><td>{stamm(teil.waschgebinde)}</td></tr>
-            <tr><th>Masch.- Laufzeit:</th><td>{typDaten.abend_stk ? typDaten.abend_stk + " Stk. am Abend" : ""}</td></tr>
-          </tbody></table>
-          {blatt.bemerkung && <div className="eba-bem">{blatt.bemerkung}</div>}
+          style={{ gridRow: (kopfAb + 1) + " / " + (reihen.length + 1), gridColumn: "1 / " + (kopfBreite + 1) }}
+          data-eba-kopf="" onClick={(e) => e.stopPropagation()}>
+          {felder.filter((f) => f.farbe).map(zeile)}
+          <table className="eba-tab"><tbody>{felder.filter((f) => !f.farbe).map(zeile)}</tbody></table>
+          {bearbeiten
+            ? <textarea className="eba-ein eba-bem-ein" data-eba-feld="blatt:bemerkung" rows={4} placeholder="Weitere Angaben, z. B. Abgreifen mit Schnabelzange"
+                value={leer(blatt.bemerkung)} onChange={(e) => aendern({ art: "blatt", feld: "bemerkung" }, e.target.value)} />
+            : blatt.bemerkung && <div className="eba-bem">{blatt.bemerkung}</div>}
+          {vorlage.legende && <div className="eba-legende">{vorlage.legende.map(([t, f]) =>
+            <span key={t} style={{ background: f }}>{t}</span>)}</div>}
         </div>
       </div>
     </div>
@@ -132,99 +162,48 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
 }
 
 // ---------------- Ein Platz bearbeiten ----------------
-let artikelGemerkt = null;
-async function artikelLaden() {
-  if (artikelGemerkt) return artikelGemerkt;
-  const [a, l] = await Promise.all([
-    alt.db.from("articles").select("id, article_number, name, supplier_id, is_active"),
-    alt.db.from("suppliers").select("id, name"),
-  ]);
-  const lief = {}; (l.data || []).forEach((x) => { lief[x.id] = x.name; });
-  artikelGemerkt = (a.data || []).filter((x) => x.is_active !== false)
-    .map((x) => ({ id: x.id, nr: x.article_number || "", name: x.name || "", lieferant: lief[x.supplier_id] || "" }));
-  return artikelGemerkt;
-}
-
-// Ein Fenster je Werkzeugplatz: Tätigkeit, Mass, Werkzeug als Artikel
-// aus den Bestellungen (oder neu angelegt, dann schlägt ihn auch das
-// Bestellen vor), Hersteller, HD ein oder aus, Standzeit wenn man will,
-// und das Bild aus der Bibliothek. Das Bild merkt sich der Artikel
-// (Wunsch Patrick, 13. Oktober 2026).
-function PlatzFenster({ nr, pfad, wert, setzen, zu, artikelBilder, artikelBildNeu }) {
+// Ein Fenster je Werkzeugplatz: Tätigkeit, Mass, HD, Standzeit und das
+// Werkzeug. Das Werkzeug wird nur gewählt, nicht geschrieben, im selben
+// Fenster wie beim Bestellen, mit dem Knopf „Spezialwerkzeuge“ (Wunsch
+// Patrick, 23. Oktober 2026). Der Hersteller ist der Lieferant des
+// Artikels. Das Bild merkt sich der Artikel (Wunsch Patrick,
+// 13. Oktober 2026).
+function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildNeu }) {
   const [p, setP] = useState(Object.assign({}, wert));
-  const [artikel, setArtikel] = useState([]);
-  const [spezial, setSpezial] = useState([]);
-  const [suche, setSuche] = useState(false);
+  const [artikel, setArtikel] = useState(null);
   const [bildWahl, setBildWahl] = useState(false);
   const [bildGewaehlt, setBildGewaehlt] = useState(false);
-  useEffect(() => { artikelLaden().then(setArtikel).catch(() => {}); spezialLaden().then(setSpezial); }, []);
+  useEffect(() => { if (wert.article_id) artikelHolen(wert.article_id).then(setArtikel); }, []);
   const f = (feld) => (e) => setP(Object.assign({}, p, { [feld]: e.target.value }));
-  const q = String(p.werkzeug || "").toLowerCase().trim();
-  const treffer = suche && q.length >= 2
-    ? artikel.filter((a) => (a.nr + " " + a.name + " " + a.lieferant).toLowerCase().includes(q)).slice(0, 6) : [];
-  const trefferSpezial = suche && q.length >= 2
-    ? spezial.filter((x) => (x.name + " " + (x.hersteller || "")).toLowerCase().includes(q)).slice(0, 4) : [];
-  const nehmen = (a) => {
-    setP(Object.assign({}, p, { werkzeug: a.nr, article_id: a.id, spezial_id: null, hersteller: a.lieferant || p.hersteller || "",
-      bild: (artikelBilder[a.id] || p.bild || null) }));
-    setSuche(false);
-  };
-  const nehmenSpezial = (x) => {
-    setP(Object.assign({}, p, { werkzeug: x.name, spezial_id: x.id, article_id: null, hersteller: x.hersteller || p.hersteller || "",
-      bild: (artikelBilder["s:" + x.id] || p.bild || null) }));
-    setSuche(false);
-  };
-  // Spezialwerkzeug: füllt den Platz, wird aber kein Artikel
-  const neuSpezial = async () => {
-    setSuche(false);
-    const w = await alt.dialogFelder({ titel: "Spezialwerkzeug anlegen",
-      text: "Wird kein Artikel und erscheint nicht beim Bestellen. Es lässt sich auf jedem Blatt wieder wählen.",
-      felder: [{ name: "name", label: "Werkzeug", wert: p.werkzeug || "" }, { name: "hersteller", label: "Hersteller", wert: p.hersteller || "" }],
-      bestaetigen: "Anlegen" });
-    if (!w || !String(w.name || "").trim()) return;
-    try {
-      const x = await spezialAnlegen(String(w.name).trim(), String(w.hersteller || "").trim());
-      setSpezial((l) => l.concat([x]));
-      nehmenSpezial(x);
-    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
-  };
-  const neuerArtikel = async () => {
-    setSuche(false);
-    const a = await alt.artikelSchnellAnlegen(p.werkzeug || "");
-    if (!a) return;
-    artikelGemerkt = null;
-    artikelLaden().then(setArtikel).catch(() => {});
-    nehmen({ id: a.id, nr: a.article_number || "", name: a.name || "", lieferant: a.supplier_name || "" });
-  };
-  const artikelName = p.article_id ? (artikel.find((a) => a.id === p.article_id) || {}).name
-    : p.spezial_id ? "Spezialwerkzeug" : "";
   const merkKey = bildSchluesselVon(p);
   const bild = platzBild(p, Object.assign({}, artikelBilder, merkKey && bildGewaehlt ? { [merkKey]: p.bild } : {}));
 
+  const waehlen = async () => {
+    const a = await werkzeugWaehlen({ suche: p.article_id ? "" : (p.werkzeug || ""), spezial: !!(artikel && artikel.spezial) });
+    if (!a) return;
+    setArtikel(a);
+    setP(Object.assign({}, p, { article_id: a.id, werkzeug: a.article_number || a.name || "", hersteller: a.supplier_name || "",
+      spezial_id: null, bild: artikelBilder[a.id] || p.bild || null }));
+  };
   const fertig = async () => {
     const z = {};
-    const sz = String(p.standzeit === undefined || p.standzeit === null ? "" : p.standzeit).replace(/'/g, "").trim();
+    const sz = String(leer(p.standzeit)).replace(/'/g, "").trim();
     if (sz !== "" && !isNaN(Number(sz))) z.standzeit = Number(sz);
     ["taetigkeit", "mass", "hersteller", "werkzeug"].forEach((k) => { const w = String(p[k] || "").trim(); if (w) z[k] = w; });
     if (p.hd) z.hd = true;
     if (p.article_id && z.werkzeug) z.article_id = p.article_id;
-    else if (p.spezial_id && z.werkzeug) z.spezial_id = p.spezial_id;
     if (p.bild) z.bild = p.bild;
-    // Am Artikel oder Spezialwerkzeug merken, sobald jemand ein Bild wählt:
-    // jeder andere Platz damit bekommt es von selbst
-    const k = bildSchluesselVon(z);
-    if (k && bildGewaehlt && (artikelBilder[k] || null) !== (p.bild || null)) {
-      try {
-        if (z.article_id) await artikelBildSetzen(z.article_id, p.bild || null);
-        else await spezialBildSetzen(z.spezial_id, p.bild || null);
-        artikelBildNeu(k, p.bild || null);
-      } catch (x) { alt.meldung(alt.fehlertext(x), "warn"); }
+    // Am Artikel merken, sobald jemand ein Bild wählt: jeder andere Platz
+    // damit bekommt es von selbst
+    if (z.article_id && bildGewaehlt && (artikelBilder[z.article_id] || null) !== (p.bild || null)) {
+      try { await artikelBildSetzen(z.article_id, p.bild || null); artikelBildNeu(z.article_id, p.bild || null); }
+      catch (x) { alt.meldung(alt.fehlertext(x), "warn"); }
     }
     setzen(z); zu();
   };
   return (
     <div className="eba-platzfenster" data-platzfenster={nr} onClick={(e) => e.stopPropagation()}>
-      <div className="eba-pf-kopf"><b>{nr}{pfad ? " · " + pfad.name : ""}</b>
+      <div className="eba-pf-kopf"><b>{platzName(nr)}{titel ? " · " + titel : ""}</b>
         <button className="knopf knopf--klein knopf--still" data-pf-zu="" onClick={zu}>✕</button></div>
       <div className="eba-pf-oben">
         <button className="eba-pf-bildknopf" data-pf-bild="" onClick={() => setBildWahl(!bildWahl)} title="Bild wählen">
@@ -238,26 +217,27 @@ function PlatzFenster({ nr, pfad, wert, setzen, zu, artikelBilder, artikelBildNe
       </div>
       {bildWahl && <Bibliothek aktiv={bild && bild.schluessel}
         waehlen={(k) => { setP(Object.assign({}, p, { bild: k })); setBildWahl(false); setBildGewaehlt(true); }} />}
-      <label className="feld eba-pf-such"><span>Werkzeug (Artikel){artikelName ? " · " + artikelName : ""}</span>
-        <input data-pf="werkzeug" value={p.werkzeug || ""} placeholder="Artikel suchen oder Text"
-          onChange={(e) => { setP(Object.assign({}, p, { werkzeug: e.target.value, article_id: null, spezial_id: null })); setSuche(true); }} />
-        {suche && q.length >= 2 && <div className="eba-pf-liste">
-          {treffer.map((a) => <button key={a.id} className="eba-pf-treffer" data-artikel={a.id} onClick={() => nehmen(a)}>
-            <b>{a.nr}</b><span>{[a.name, a.lieferant].filter(Boolean).join(" · ")}</span></button>)}
-          {trefferSpezial.map((x) => <button key={x.id} className="eba-pf-treffer" data-spezial={x.id} onClick={() => nehmenSpezial(x)}>
-            <b>{x.name}</b><span>{["Spezialwerkzeug", x.hersteller].filter(Boolean).join(" · ")}</span></button>)}
-          <button className="eba-pf-treffer eba-pf-frei" data-pf-neuartikel="" onClick={neuerArtikel}>+ „{p.werkzeug}“ als neuen Artikel anlegen</button>
-          <button className="eba-pf-treffer eba-pf-frei" data-pf-spezial="" onClick={neuSpezial}>+ „{p.werkzeug}“ als Spezialwerkzeug anlegen (kein Artikel)</button>
-          <button className="eba-pf-treffer eba-pf-frei" onClick={() => setSuche(false)}>„{p.werkzeug}“ nur als Text nehmen</button>
-        </div>}
-      </label>
-      <label className="feld"><span>Hersteller</span><input data-pf="hersteller" value={p.hersteller || ""} onChange={f("hersteller")} /></label>
+      <div className="eba-pf-werkzeug" data-pf-werkzeug="">
+        <span className="eba-pf-titel">Werkzeug</span>
+        {p.article_id
+          ? <div className="eba-pf-artikel"><b>{p.werkzeug}</b>
+              <span>{[artikel && artikel.spezial ? "Spezialwerkzeug" : "", artikel && artikel.name, p.hersteller].filter(Boolean).join(" · ")}</span></div>
+          : p.werkzeug
+            ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-frei=""><b>„{p.werkzeug}“</b>
+                <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ""}. Bitte das Werkzeug wählen.</span></div>
+            : <div className="eba-pf-artikel"><span>Noch kein Werkzeug</span></div>}
+        <div className="eba-pf-wknoepfe">
+          <button className="knopf knopf--klein" data-pf-waehlen="" onClick={waehlen}>{p.werkzeug ? "Anderes Werkzeug wählen" : "Werkzeug wählen"}</button>
+          {p.werkzeug && <button className="knopf knopf--klein knopf--still" data-pf-wzweg=""
+            onClick={() => setP(Object.assign({}, p, { werkzeug: "", hersteller: "", article_id: null, spezial_id: null }))}>Entfernen</button>}
+        </div>
+      </div>
       <div className="eba-pf-zeile">
         <button className={"eba-pf-hd" + (p.hd ? " eba-pf-hd--an" : "")} data-pf="hd" aria-pressed={!!p.hd}
           onClick={() => setP(Object.assign({}, p, { hd: !p.hd }))}>HD {p.hd ? "ein" : "aus"}</button>
         <label className="feld"><span>Standzeit (Stk.), wenn bekannt</span>
           <input data-pf="standzeit" inputMode="numeric" placeholder="leer lassen"
-            value={p.standzeit === undefined || p.standzeit === null ? "" : p.standzeit} onChange={f("standzeit")} /></label>
+            value={leer(p.standzeit)} onChange={f("standzeit")} /></label>
       </div>
       <div className="eba-pf-fuss">
         <button className="knopf knopf--klein" data-pf-leeren="" onClick={() => setP({})}>Platz leeren</button>
@@ -305,8 +285,9 @@ function Bibliothek({ aktiv, waehlen }) {
 function BlattFenster({ hocoNr, typId, zu, daten: start }) {
   const [daten, setDaten] = useState(start);
   const [bearbeiten, setBearbeiten] = useState(!start.blatt);
-  const [entwurf, setEntwurf] = useState(start.blatt
-    || Object.assign(leeresBlatt(hocoNr, typId), start.neuProgramme ? { programme: start.neuProgramme } : {}));
+  const [entwurf, setEntwurf] = useState(start.blatt || leeresBlatt(hocoNr, typId));
+  const [teilE, setTeilE] = useState(Object.assign({}, start.teil));
+  const [typE, setTypE] = useState(Object.assign({}, start.typDaten));
   const [platz, setPlatz] = useState(null);
   const [laeuft, setLaeuft] = useState(false);
   const [artikelBilder, setArtikelBilder] = useState(start.artikelBilder || {});
@@ -315,14 +296,22 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
   const { typ, paths, teil, typDaten } = daten;
   const excel = typDaten.blatt_url || null;
   const blatt = bearbeiten ? entwurf : (daten.blatt || entwurf);
+  const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
+  const hatPlaetze = vorlage.reihen.some((r) => r.some(Boolean)) || Object.keys(blatt.plaetze || {}).length > 0;
 
   const neuLaden = async () => { const d = await blattLaden(hocoNr, typId); setDaten(d); setArtikelBilder(d.artikelBilder || {}); return d; };
+  const anfangen = (d) => {
+    setEntwurf(d.blatt || leeresBlatt(hocoNr, typId));
+    setTeilE(Object.assign({}, d.teil)); setTypE(Object.assign({}, d.typDaten));
+  };
   const speichern = async () => {
     setLaeuft(true);
     try {
       await blattSpeichern(entwurf, "Einrichtblatt " + hocoNr + " " + (typ.name || ""));
+      await stammSpeichern(hocoNr, teil, Object.fromEntries(STAMM_FELDER.map(([f]) => [f, leer(teilE[f])])));
+      await typSpeichern(hocoNr, typId, typDaten, typE);
       const d = await neuLaden();
-      setEntwurf(d.blatt || entwurf);
+      anfangen(d);
       setBearbeiten(false); setPlatz(null);
       alt.meldung("Einrichtblatt gespeichert.", "gut");
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
@@ -330,26 +319,23 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
   };
   const abbrechen = () => {
     if (!daten.blatt) { zu(); return; }
-    setEntwurf(daten.blatt); setBearbeiten(false); setPlatz(null);
+    anfangen(daten); setBearbeiten(false); setPlatz(null);
   };
-  const kopf = async () => {
-    const felder = [...paths].sort((a, b) => (a.nummer || 0) - (b.nummer || 0))
-      .map((p) => ({ name: "prg" + p.nummer, label: "Programm Path " + p.nummer, wert: (entwurf.programme || {})[p.nummer] || "" }));
-    if ((typ.blatt_aufbau && typ.blatt_aufbau.geometrie) || entwurf.geometrie) felder.push({ name: "geometrie", label: "Geometriedaten", wert: entwurf.geometrie || "" });
-    felder.push({ name: "maschine_nr", label: "Nr. hinter dem Typ", wert: entwurf.maschine_nr || "", platzhalter: "z. B. Nr.122" });
-    felder.push({ name: "bemerkung", label: "Weitere Angaben", typ: "textarea", wert: entwurf.bemerkung || "", platzhalter: "z. B. Abgreifen mit Schnabelzange Ø20.00" });
-    const w = await alt.dialogFelder({ titel: "Kopf des Einrichtblatts", felder, bestaetigen: "Übernehmen" });
-    if (!w) return;
-    const programme = (entwurf.programme || {}).nr ? { nr: entwurf.programme.nr } : {};
-    paths.forEach((p) => { const x = (w["prg" + p.nummer] || "").trim(); if (x) programme[p.nummer] = x; });
-    setEntwurf(Object.assign({}, entwurf, { programme, geometrie: w.geometrie === undefined ? entwurf.geometrie : (w.geometrie || null),
-      maschine_nr: w.maschine_nr || null, bemerkung: w.bemerkung || null }));
-  };
-  const stammAendern = async () => {
-    const st = await stammdatenBestaetigen(hocoNr, teil, true, daten);
-    if (!st) return;
-    const d = await neuLaden();
-    if (!d.blatt || bearbeiten) setEntwurf(Object.assign({}, entwurf, { programme: mitPrgNr(entwurf.programme, st.nr) }));
+  // Ein Kopffeld ändern, dort, wo es hingehört
+  const aendern = (f, w) => {
+    if (f.art === "stamm") setTeilE((t) => Object.assign({}, t, { [f.feld]: w }));
+    else if (f.art === "typ") setTypE((t) => Object.assign({}, t, { [f.feld]: w }));
+    else if (f.art === "prg") setEntwurf((b) => {
+      const pr = Object.assign({}, b.programme || {});
+      if (String(w).trim()) pr[f.feld] = w; else delete pr[f.feld];
+      return Object.assign({}, b, { programme: pr });
+    });
+    else if (f.art === "kopf") setEntwurf((b) => {
+      const k = Object.assign({}, b.kopf || {});
+      if (String(w).trim()) k[f.feld] = w; else delete k[f.feld];
+      return Object.assign({}, b, { kopf: k });
+    });
+    else if (f.art === "blatt") setEntwurf((b) => Object.assign({}, b, { [f.feld]: String(w).trim() ? w : null }));
   };
   const gut = async () => {
     const ok = await alt.nachfragen({ titel: "Blatt ist gut",
@@ -376,6 +362,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
     setEntwurf(Object.assign({}, entwurf, { plaetze }));
   };
   const pfad = pfadVonPlatz(paths);
+  const platzTitel = (nr) => platzGruppe(nr) || (pfad[nr] ? pfad[nr].name : "");
 
   return (
     <div className="betrachter eba-fenster">
@@ -384,13 +371,12 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
         <div className="betrachter__knoepfe">
           {bearbeiten
             ? <>
-                <span className="eba-hinweis">Grau hinterlegt: Stammdaten der HOCO Nr., gelten überall</span>
-                <button className="knopf knopf--klein" data-eba-stamm="" onClick={stammAendern}>Stammdaten</button>
+                <span className="eba-hinweis">Kopf direkt ausfüllen, Platz antippen für Werkzeug</span>
                 <button className="knopf knopf--klein" data-eba-abbrechen="" onClick={abbrechen}>Abbrechen</button>
                 <button className="knopf knopf--klein knopf--haupt" data-eba-speichern="" disabled={laeuft} onClick={speichern}>Speichern</button>
               </>
             : <>
-                {darf && <button className="knopf knopf--klein" data-eba-bearbeiten="" onClick={() => { setEntwurf(daten.blatt); setBearbeiten(true); }}>Bearbeiten</button>}
+                {darf && <button className="knopf knopf--klein" data-eba-bearbeiten="" onClick={() => { anfangen(daten); setBearbeiten(true); }}>Bearbeiten</button>}
                 {excel && <button className="knopf knopf--klein" data-eba-excel="" onClick={() => dokZeigen({ art: "einrichtblatt", titel: "Excel " + hocoNr, adresse: excel })}>Excel ansehen</button>}
                 {excel && darf && daten.blatt && <button className="knopf knopf--klein" data-eba-gut="" disabled={laeuft} onClick={gut}>Blatt ist gut</button>}
                 <button className="knopf knopf--klein" data-eba-drucken="" onClick={drucken}>Drucken</button>
@@ -399,69 +385,25 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
         </div>
       </div>
       <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => setPlatz(null)}>
-        <BlattSeite typ={typ} paths={paths} teil={teil} typDaten={typDaten} blatt={blatt}
-          bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} kopfWahl={(e) => { e.stopPropagation(); kopf(); }}
+        <BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt}
+          bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern}
           platzWahl={(nr) => setTimeout(() => setPlatz(nr), 0)} />
-        {bearbeiten && platz && <PlatzFenster key={platz} nr={platz} pfad={pfad[platz]}
+        {bearbeiten && platz && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
           artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))} />}
-        {!paths.length && <div className="abruf-leer"><b>Für {typ.name} sind noch keine Werkzeugplätze angelegt.</b>
-          <p>Unter Produktion → Maschinentypen → {typ.name} → Aufbau anlegen, etwa mit „Aufbau übernehmen“ vom SW-20.</p></div>}
+        {!hatPlaetze && <div className="abruf-leer"><b>Für {typ.name} sind noch keine Werkzeugplätze angelegt.</b>
+          <p>Unter Produktion → Maschinentypen → {typ.name} → Aufbau anlegen.</p></div>}
       </div>
     </div>
   );
 }
 
-// Stammdaten der HOCO Nr. bestätigen oder korrigieren. Gibt true
-// zurück, wenn bestätigt (geändert oder nicht), false bei Abbrechen.
-// Die Programm-Nr. steht mit bei den Stammdaten (Wunsch Patrick,
-// 15. Oktober 2026), aus dem Werkzeugprotokoll gelesen, nur für diesen
-// Typ. Gibt die Programme zurück, damit ein noch nicht gespeichertes Blatt
-// sie übernimmt.
-export async function stammdatenBestaetigen(hocoNr, teil, nurAendern, daten) {
-  const t = teil || {};
-  const felder = STAMM_FELDER.map(([f, label]) => (f === "waschgebinde"
-    ? { name: f, label, wert: t[f] || "",
-        auswahl: [["", "—"]].concat([...new Set(WASCHGEBINDE.concat(t[f] ? [t[f]] : []))].map((x) => [x, x])) }
-    : { name: f, label, wert: t[f] || "" }));
-  const blatt = daten && daten.blatt;
-  if (daten) felder.push({ name: "prg_nr", label: "Programm-Nr." + (daten.typ && daten.typ.name ? " (" + daten.typ.name + ")" : ""),
-    wert: prgNummern(blatt), platzhalter: "z. B. 236, bei zwei: 236, 241" });
-  const w = await alt.dialogFelder({
-    titel: (nurAendern ? "Stammdaten " : "Stimmen die Stammdaten? ") + hocoNr,
-    text: (nurAendern ? "" : "Bitte prüfen und wenn nötig korrigieren oder ergänzen. ")
-      + "Gilt für die HOCO Nr. auf allen Typen" + (daten ? ", die Programm-Nr. nur für diesen Typ." : "."),
-    felder, bestaetigen: nurAendern ? "Speichern" : "Stimmt so" });
-  if (!w) return false;
-  try { if (await stammSpeichern(hocoNr, t, w)) alt.meldung("Stammdaten von " + hocoNr + " gespeichert.", "gut"); }
-  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
-  const nr = String(w.prg_nr || "").trim();
-  // Ein gespeichertes Blatt bekommt die Nummer gleich; ohne Blatt
-  // übernimmt sie das neue Blatt beim ersten Speichern
-  if (blatt && daten && nr !== prgNummern(blatt)) {
-    try { await blattSpeichern(Object.assign({}, blatt, { programme: mitPrgNr(blatt.programme, nr) }), "Programm-Nr. " + hocoNr); }
-    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
-  }
-  return { nr };
-}
-// Programme mit neuer Prg.-Nr. (leer: weg, dann zählt wieder das Gelesene)
-function mitPrgNr(programme, nr) {
-  const p = Object.assign({}, programme || {});
-  if (nr) p.nr = nr; else delete p.nr;
-  return p;
-}
-
-// Öffnen: zuerst die Stammdaten bestätigen (wer schreiben darf), dann das Blatt
+// Öffnen: gleich das Blatt. Den Kopf samt Stammdaten füllt man direkt
+// darin aus, die frühere Frage „Stimmen die Stammdaten?“ ist weg.
 export async function einrichtblattAppOeffnen(hocoNr, typId) {
   let daten;
   try { daten = await blattLaden(hocoNr, typId); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
-  if (alt.darfSchreiben() && !alt.istExtern()) {
-    const st = await stammdatenBestaetigen(hocoNr, daten.teil, false, daten);
-    if (!st) return;
-    try { daten = await blattLaden(hocoNr, typId); } catch (f) { /* dann mit dem Stand von eben */ }
-    if (!daten.blatt && st.nr) daten = Object.assign({}, daten, { neuProgramme: { nr: st.nr } });
-  }
   fensterOeffnen((zu) => <BlattFenster hocoNr={hocoNr} typId={typId} daten={daten} zu={zu} />,
     null, "betrachter-huelle eba-huelle");
 }

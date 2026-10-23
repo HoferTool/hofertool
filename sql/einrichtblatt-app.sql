@@ -14,6 +14,8 @@
 --    bemerkung    freie Zeilen unten im Kopf, z. B. „Abgreifen mit …“
 --    plaetze      je Werkzeugplatz (T100, T200 …): Tätigkeit, Mass,
 --                 Hersteller, Werkzeug, Artikel, HD, Standzeit, Bild
+--    kopf         was nur auf diesem Blatt steht: FA Nr., N1000 (Star),
+--                 Festanschlag und Anschlag (Index); seit 1.163.0
 --    excel_url    das Excel, aus dem das Blatt eingelesen wurde
 --    gut_am       wann jemand „Blatt ist gut“ gedrückt hat; danach ist
 --                 das Excel weg und die Aufgabe „HoferTool“ lädt für
@@ -50,6 +52,7 @@ create table if not exists public.einrichtblatt_app (
 );
 
 alter table public.machine_types add column if not exists blatt_aufbau jsonb;
+alter table public.einrichtblatt_app add column if not exists kopf jsonb not null default '{}'::jsonb;
 
 -- Wer zuletzt geändert hat, kommt von selbst
 create or replace function public.einrichtblatt_app_geaendert()
@@ -101,6 +104,10 @@ union all
 select 'Spalte machine_types.blatt_aufbau',
        case when exists (select 1 from information_schema.columns where table_schema = 'public'
          and table_name = 'machine_types' and column_name = 'blatt_aufbau') then 'ok' else 'FEHLT' end
+union all
+select 'Spalte einrichtblatt_app.kopf',
+       case when exists (select 1 from information_schema.columns where table_schema = 'public'
+         and table_name = 'einrichtblatt_app' and column_name = 'kopf') then 'ok' else 'FEHLT' end
 union all
 select 'Aufbau SW-20',
        case when exists (select 1 from public.machine_types where name = 'SW-20' and blatt_aufbau is not null)

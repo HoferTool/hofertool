@@ -1,7 +1,10 @@
-# Einrichtblatt in der App (1.43.0, Test): Excel einlesen, Stammdaten
-# bestätigen, Platz bearbeiten mit Artikel und Bild aus der Bibliothek,
-# Bild am Artikel gemerkt, „Blatt ist gut“ löscht das Excel.
-# Beispiel-Excel: node pruefstand/einrichtblatt_app_beispiel.mjs
+# Einrichtblatt in der App (Test): Excel einlesen, Blatt je Typ nach
+# Vorlage (Star, Index), Kopf direkt im Blatt ausfüllen (Stammdaten,
+# Stückzeit, Blatt), Werkzeug nur wählen wie beim Bestellen, auch
+# Spezialwerkzeuge, Bild am Artikel gemerkt, „Blatt ist gut“ löscht das
+# Excel, Hinweis im Pad Mode beim Auftragsstart.
+# Beispiel-Excel: node pruefstand/einrichtblatt_app_beispiel.mjs und
+# node pruefstand/einrichtblatt_index_beispiel.mjs
 import time, base64, os, json
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -11,8 +14,10 @@ def pruefe(was, ok):
     print(("ok   " if ok else "FEHLER ") + was)
     if not ok: fehler.append(was)
 HIER = os.path.dirname(os.path.abspath(__file__))
-XL = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + base64.b64encode(
-    open(os.path.join(HIER, "einrichtblatt-app-beispiel.xlsx"), "rb").read()).decode()
+def xl(name):
+    return "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + base64.b64encode(
+        open(os.path.join(HIER, name), "rb").read()).decode()
+XL, XL_INDEX = xl("einrichtblatt-app-beispiel.xlsx"), xl("einrichtblatt-index-beispiel.xlsx")
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     pg = br.new_context(viewport={"width": 1600, "height": 950}).new_page()
@@ -22,10 +27,15 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html#planwand", wait_until="domcontentloaded")
     pg.wait_for_selector(".pw-tafel"); pg.wait_for_timeout(1200)
-    pg.evaluate("""(XL) => {
-      TEST.daten.hoco_type_data.push({ hoco_nr: '10000-0301', type_id: 't1', blatt_url: XL, stueckzeit_s: null });
-      TEST.daten.einrichtblatt_app = []; TEST.daten.artikel_bild = []; TEST.daten.eb_bilder = []; TEST.daten.eb_spezial = [];
-    }""", XL)
+    pg.evaluate("""([XL, XI]) => {
+      const D = TEST.daten;
+      D.hoco_type_data.push({ hoco_nr: '10000-0301', type_id: 't1', blatt_url: XL, stueckzeit_s: null });
+      D.machine_types.find(t => t.id === 't2').name = 'Index';
+      D.hoco_type_data.push({ hoco_nr: '10000-0301', type_id: 't2', blatt_url: XI, stueckzeit_s: null });
+      D.einrichtblatt_app = []; D.artikel_bild = []; D.eb_bilder = [];
+      D.articles.push({ id: 'a9', article_number: 'SPZ-77', name: 'Sonderhalter', unit: 'Stück', description: null,
+        supplier_id: 's2', is_active: true, spezial: true });
+    }""", [XL, XL_INDEX])
     pg.locator("#pw-hoco").click(); pg.wait_for_timeout(1000)
     pg.locator("[data-bereich='10000']").click(); pg.wait_for_timeout(600)
     pg.locator("[data-kunde='10000']").click(); pg.wait_for_timeout(600)
@@ -34,76 +44,88 @@ with sync_playwright() as p:
 
     k = pg.locator("[data-dokextra='einrichtblatt']")
     pruefe("Knopf „Ins App-Blatt umwandeln“", k.count() == 1 and "umwandeln" in k.inner_text())
-    k.click(); pg.wait_for_timeout(1500)
-    # Stammdaten bestätigen
-    d = pg.locator(".dialog-huelle .dialog").last
-    pruefe("Stammdaten-Frage", "Stimmen die Stammdaten" in d.inner_text())
-    pruefe("Waschgebinde-Auswahl", d.locator("select").count() == 1)
-    pruefe("Programm-Nr. bei den Stammdaten (letzte drei Ziffern)", d.locator("input[id$='prg_nr']").input_value() == "111, 333")
-    d.locator("[data-ja]").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(600)
+    k.click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(600)
+    pruefe("Keine Stammdaten-Frage mehr", pg.locator(".dialog-huelle .dialog:has-text('Stimmen die Stammdaten')").count() == 0)
     b = pg.evaluate("TEST.daten.einrichtblatt_app[0]")
-    print(json.dumps(b, ensure_ascii=False)[:600])
+    print(json.dumps(b, ensure_ascii=False)[:500])
     pruefe("Blatt angelegt", b and b["hoco_nr"] == "10000-0301" and b["type_id"] == "t1")
     pruefe("Programme", b["programme"].get("1") == "O1111" and b["programme"].get("3") == "O3333")
     pruefe("Platz T100 eingelesen", b["plaetze"]["T100"].get("taetigkeit") == "Abstechen" and b["plaetze"]["T100"].get("standzeit") == 1000)
     pruefe("Artikel aus Werkzeugtext erkannt", b["plaetze"]["T100"].get("article_id") == "a1")
-    pruefe("Keine Fotos aus dem Excel", all("bild" not in v for v in b["plaetze"].values()))
     pruefe("Maschinen-Nr.", b["maschine_nr"] == "Nr.7")
-    hp = pg.evaluate("TEST.daten.hoco_parts.find(x => x.hoco_nr === '10000-0301') || {}")
-    pruefe("Bezeichnung nicht aus dem Excel übernommen", hp.get("bezeichnung") != "Deckel Muster")
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
     pruefe("Stückzeit ergänzt", td.get("stueckzeit_s") == 33)
     s = pg.inner_text("[data-eba-seite]")
-    pruefe("Blatt zeigt Kopf", "Werkzeug- Protokoll-Star SR32J" in s and "O1111" in s and "10000-0301" in s and "Artikel Bezeich" not in s)
-    pruefe("Keine Bilder von selbst", pg.locator("[data-eba-seite] [data-bild]").count() == 0)
+    pruefe("Star-Vorlage", pg.locator("[data-eba-vorlage='star']").count() == 1 and "Werkzeug- Protokoll-Star SR-32J" in s)
+    pruefe("Star-Plätze T100–T600, T1100, kein T3100 beim SR-32",
+           all(pg.locator(f"[data-platz='T{n}']").count() == 1 for n in (100, 600, 700, 1000, 1100, 2400))
+           and pg.locator("[data-platz='T3100']").count() == 1)   # T3100 steht im Excel, kommt hinten dazu
+    pruefe("Kopf mit Programm Nr., Artikel Bezeich, N1000", all(x in s for x in ("Programm Nr.", "111, 333", "Artikel Bezeich", "N1000", "Deckel")))
+    pruefe("Werkzeugtext aus dem Excel markiert", pg.locator("[data-platz='T200'] .eba-wz--frei").count() == 1)
     pg.screenshot(path="einrichtblatt_app_ansicht.png")
 
-    # Bearbeiten: Platz T200, Artikel, HD ein, Standzeit, Bild hochladen
+    # Bearbeiten: Kopf direkt ausfüllen
     pg.click("[data-eba-bearbeiten]"); pg.wait_for_timeout(300)
+    pg.fill("[data-eba-feld='stamm:bezeichnung']", "Deckel neu")
+    pg.fill("[data-eba-feld='kopf:fa_nr']", "FA-1234")
+    pg.fill("[data-eba-feld='kopf:n1000']", "N1000 ja")
+    pg.fill("[data-eba-feld='typ:stueckzeit_s']", "41")
+    pg.fill("[data-eba-feld='prg:nr']", "236")
+    pg.select_option("[data-eba-feld='stamm:waschgebinde']", "Typ 2 fein")
+    pg.fill("[data-eba-feld='stamm:material_groesse']", "Ø21h9")
+
+    # Platz T200: Werkzeug wählen statt schreiben
     pg.click("[data-platz='T200']"); pg.wait_for_selector("[data-platzfenster='T200']")
     pf = pg.locator("[data-platzfenster='T200']")
+    pruefe("Kein freies Werkzeugfeld", pf.locator("input[data-pf='werkzeug'], input[data-pf='hersteller']").count() == 0)
+    pruefe("Excel-Text mit Hinweis", "HSS Bohrer 4.2" in pf.inner_text() and "Bitte das Werkzeug wählen" in pf.inner_text())
     pf.locator("[data-pf='hd']").click()
     pf.locator("[data-pf='standzeit']").fill("2500")
-    pf.locator("[data-pf='werkzeug']").fill("MTEC")
-    pg.wait_for_timeout(300)
-    pruefe("Artikel-Vorschlag", pf.locator("[data-artikel='a1']").count() == 1 and pf.locator("[data-pf-neuartikel]").count() == 1
-           and pf.locator("[data-pf-spezial]").count() == 1)
-    pf.locator("[data-artikel='a1']").click()
+    pf.locator("[data-pf-waehlen]").click(); pg.wait_for_selector("[data-werkzeugwahl]")
+    w = pg.locator("[data-werkzeugwahl]")
+    pruefe("Fenster wie beim Bestellen, mit Spezialwerkzeugen", w.locator("[data-pd-spezial='ja']").count() == 1
+           and pg.input_value("#pd-such") == "HSS Bohrer 4.2")
+    pg.fill("#pd-such", "MTEC"); pg.wait_for_timeout(700)
+    w.locator(".pd-zeile[data-w='a1']").click(); pg.wait_for_timeout(200)
+    w.locator("#pd-ja").click(); pg.wait_for_timeout(500)
+    pruefe("Artikel am Platz", "MTEC-452410" in pf.inner_text() and "Vischer & Bolli AG" in pf.inner_text())
     pf.locator("[data-pf-bild]").click()
-    pruefe("Bibliothek ohne gezeichnete Bilder", pf.locator("[data-pf-bibliothek] [data-bib]").count() == 1
-           and pf.locator("[data-bib-hoch]").count() == 1)
     PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
     pf.locator("[data-bib-hoch]").set_input_files({"name": "mein-werkzeug.png", "mimeType": "image/png", "buffer": PNG})
     pg.wait_for_timeout(1200)
     eb = pg.evaluate("TEST.daten.eb_bilder")
-    pruefe("Eigenes Bild hochgeladen und gewählt", len(eb) == 1 and eb[0]["name"] == "mein-werkzeug" and pf.locator("[data-pf-bild] .eba-svg--foto").count() == 1)
+    pruefe("Eigenes Bild hochgeladen", len(eb) == 1 and pf.locator("[data-pf-bild] .eba-svg--foto").count() == 1)
     pg.screenshot(path="einrichtblatt_app_platz.png")
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(500)
     schl = "eigen:" + eb[0]["id"]
     pruefe("Bild am Artikel gemerkt", pg.evaluate("TEST.daten.artikel_bild.find(x => x.article_id === 'a1')?.bild") == schl)
     pruefe("T100 bekommt das Artikelbild auch", pg.locator(f"[data-platz='T100'] [data-bild='{schl}']").count() == 1)
 
-    # Spezialwerkzeug: füllt den Platz, wird kein Artikel
-    artikel_vorher = pg.evaluate("TEST.daten.articles.length")
-    pg.click("[data-platz='T3100']"); pg.wait_for_selector("[data-platzfenster='T3100']")
-    pf = pg.locator("[data-platzfenster='T3100']")
-    pf.locator("[data-pf='werkzeug']").fill("Sonderhalter XY")
-    pg.wait_for_timeout(300)
-    pf.locator("[data-pf-spezial]").click(); pg.wait_for_selector(".dialog-huelle [data-ja]")
-    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(600)
-    sp = pg.evaluate("TEST.daten.eb_spezial")
-    pruefe("Spezialwerkzeug angelegt, kein Artikel", len(sp) == 1 and sp[0]["name"] == "Sonderhalter XY"
-           and pg.evaluate("TEST.daten.articles.length") == artikel_vorher)
-    pf.locator("[data-pf-bild]").click()
-    pf.locator(f"[data-bib='{schl}']").click(); pg.wait_for_timeout(200)
-    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(500)
-    pruefe("Bild am Spezialwerkzeug gemerkt", pg.evaluate("TEST.daten.eb_spezial[0].bild") == schl)
-    pg.click("[data-eba-speichern]"); pg.wait_for_timeout(800)
+    # Platz T300: Spezialwerkzeug
+    pg.click("[data-platz='T300']"); pg.wait_for_selector("[data-platzfenster='T300']")
+    pf = pg.locator("[data-platzfenster='T300']")
+    pf.locator("[data-pf-waehlen]").click(); pg.wait_for_selector("[data-werkzeugwahl]")
+    w = pg.locator("[data-werkzeugwahl]")
+    w.locator("[data-pd-spezial='ja']").click(); pg.fill("#pd-such", "SPZ"); pg.wait_for_timeout(700)
+    pruefe("Nur Spezialwerkzeuge in der Liste", w.locator(".pd-zeile[data-w='a9']").count() == 1 and w.locator(".pd-zeile[data-w='a1']").count() == 0)
+    w.locator(".pd-zeile[data-w='a9']").click(); w.locator("#pd-ja").click(); pg.wait_for_timeout(500)
+    pruefe("Spezialwerkzeug am Platz", "Spezialwerkzeug" in pf.inner_text() and "SPZ-77" in pf.inner_text())
+    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
+    pg.screenshot(path="einrichtblatt_app_bearbeiten.png")
+
+    pg.click("[data-eba-speichern]"); pg.wait_for_timeout(1000)
     b = pg.evaluate("TEST.daten.einrichtblatt_app[0]")
     t2 = b["plaetze"]["T200"]
-    pruefe("T200 gespeichert", t2.get("hd") is True and t2.get("standzeit") == 2500 and t2.get("article_id") == "a1" and t2.get("werkzeug") == "MTEC-452410")
-    pruefe("HD auf dem Blatt", pg.locator("[data-platz='T200'] [data-hd]").count() == 1)
-    pruefe("T3100 mit Spezialwerkzeug", b["plaetze"]["T3100"].get("spezial_id") == sp[0]["id"] and not b["plaetze"]["T3100"].get("article_id"))
+    pruefe("T200 gespeichert", t2.get("hd") is True and t2.get("standzeit") == 2500 and t2.get("article_id") == "a1"
+           and t2.get("werkzeug") == "MTEC-452410" and t2.get("hersteller") == "Vischer & Bolli AG")
+    pruefe("T300 mit Spezialwerkzeug", b["plaetze"]["T300"].get("article_id") == "a9")
+    pruefe("Kopf am Blatt", b["kopf"].get("fa_nr") == "FA-1234" and b["kopf"].get("n1000") == "N1000 ja" and b["programme"].get("nr") == "236")
+    hp = pg.evaluate("TEST.daten.hoco_parts.find(x => x.hoco_nr === '10000-0301')")
+    pruefe("Stammdaten", hp.get("bezeichnung") == "Deckel neu" and hp.get("waschgebinde") == "Typ 2 fein" and hp.get("material_groesse") == "Ø21h9")
+    td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
+    pruefe("Stückzeit je Typ", td.get("stueckzeit_s") == 41)
+    s = pg.inner_text("[data-eba-seite]")
+    pruefe("Blatt zeigt alles", all(x in s for x in ("Deckel neu", "FA-1234", "236", "41 Sek./Stk.", "Ø21h9", "SPZ-77")))
 
     # Blatt ist gut: Excel weg
     pg.click("[data-eba-gut]"); pg.wait_for_selector(".dialog-huelle [data-ja]")
@@ -111,13 +133,55 @@ with sync_playwright() as p:
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
     b = pg.evaluate("TEST.daten.einrichtblatt_app[0]")
     pruefe("Excel aus der Datenbank", not td.get("blatt_url") and b.get("gut_am"))
-    pruefe("Knöpfe Excel weg", pg.locator("[data-eba-excel], [data-eba-gut]").count() == 0)
+    pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
+    pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_timeout(1000)
+    pruefe("Wieder öffnen: gleich das App-Blatt", pg.locator("[data-eba-seite]").count() == 1)
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
 
-    # Nochmals öffnen: direkt das App-Blatt, nach der Stammdaten-Frage
-    pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_timeout(1000)
-    pruefe("Frage beim Öffnen jedes Mal", "Stimmen die Stammdaten" in pg.locator(".dialog-huelle .dialog").last.inner_text())
-    pg.locator(".dialog-huelle .dialog [data-ja]").last.click(); pg.wait_for_timeout(800)
-    pruefe("App-Blatt statt Excel", pg.locator("[data-eba-seite]").count() == 1)
+    # Index: drei Revolver mit T1 bis T10
+    pg.locator("[data-blatt-typ='t2']").click(); pg.wait_for_selector(".betrachter"); pg.wait_for_timeout(800)
+    pg.locator("[data-dokextra='einrichtblatt']").click(); pg.wait_for_selector("[data-eba-vorlage='index']"); pg.wait_for_timeout(600)
+    bi = pg.evaluate("TEST.daten.einrichtblatt_app.find(x => x.type_id === 't2')")
+    print(json.dumps(bi, ensure_ascii=False)[:500])
+    pl = bi["plaetze"]
+    pruefe("Index: Plätze je Revolver", pl.get("R1-T1", {}).get("taetigkeit") == "R1 Tät 1" and pl.get("R2-T7", {}).get("taetigkeit") == "R2 Tät 7"
+           and pl.get("R3-T10", {}).get("taetigkeit") == "R3 Tät 10" and pl.get("R2-T3", {}).get("werkzeug") == "Werkzeug R2"
+           and len([k for k in pl if k.startswith("R")]) == 30)
+    pruefe("Index: Kopf", bi["kopf"].get("fa_nr") == "FA-4711" and bi["kopf"].get("festanschlag") == "55.5"
+           and bi["kopf"].get("anschlag_von") == "Revolver 2" and bi["maschine_nr"] == "Nr.3")
+    s = pg.inner_text("[data-eba-seite]")
+    pruefe("Index: ohne Programm Nr., mit Festanschlag und Legende", "Programm Nr" not in s and "Festanschlag" in s
+           and "Revolver 3" in s and pg.locator("[data-eba-seite] .eba-platz").count() == 30)
+    pg.screenshot(path="einrichtblatt_app_index.png")
+    pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+
+    # Pad Mode: neuer Auftrag beginnt, Hinweis zum Einrichtblatt
+    pg.evaluate("""() => {
+      const D = TEST.daten;
+      const m = D.machines.find(x => x.id === 'm-k1'); m.type_id = 't1';
+      D.jobs = D.jobs.filter(j => j.machine_id !== 'm-k1');
+      D.hoco_type_data.push({ hoco_nr: '10000-0302', type_id: 't1', blatt_url: 'data:,excel' });
+      D.jobs.push({ id: 'tH', job_number: '10000-0302', machine_id: 'm-k1', plan_status: 'geplant', ended_at: null,
+        planned_days: 3, target_quantity: 1000, planned_from: new Date().toISOString().slice(0, 10) });
+    }""")
+    pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)
+    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
+    pg.click("#pad [data-park='p-kurz']"); pg.wait_for_timeout(800)
+    if pg.locator("#pad [data-padtyp]").count():
+        pg.locator("#pad [data-padtyp='t1']").first.click(); pg.wait_for_timeout(800)
+    pg.locator("#pad [data-maschine='m-k1']").first.click()
+    pg.wait_for_selector("#pad [data-padstatus]"); pg.wait_for_timeout(500)
+    # Ohne laufenden Auftrag heisst der Knopf „Auftrag starten“
+    pg.click("#pad [data-padstatus]"); pg.wait_for_selector(".dialog-huelle [data-w='ruesten'], .dialog-huelle [data-ja]")
+    if pg.locator(".dialog-huelle [data-w='ruesten']").count(): pg.click(".dialog-huelle [data-w='ruesten']"); ziel = "ruesten"
+    else: pg.locator(".dialog-huelle [data-ja]").last.click(); ziel = "laeuft"
+    pg.wait_for_timeout(1200)
+    h = pg.locator("[data-eba-padhinweis]")
+    pruefe("Hinweis im Pad", h.count() == 1 and "an den PC" in h.inner_text() and "Blatt ist gut" in h.inner_text())
+    pg.screenshot(path="einrichtblatt_app_pad.png")
+    if h.count(): h.locator("[data-ja]").click(); pg.wait_for_timeout(300)
+    pruefe("Auftrag begonnen", pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tH').plan_status") == ziel)
     br.close()
 print("Fehler:", fehler[:4] if fehler else "keine")

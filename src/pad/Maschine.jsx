@@ -23,6 +23,7 @@ import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
 import { notizbuecherFuerPark, buecherFuerPark, BUCH } from "../notizbuch/Notizbuecher.jsx";
 import Bildschirmschoner from "./Bildschirmschoner.jsx";
+import { einrichtblattHinweis } from "../einrichtblatt/PadHinweis.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
@@ -117,9 +118,12 @@ async function zustandWechseln(m, j) {
         });
         if (!ok) return;
       }
+      const vorher = j.plan_status || "geplant";
       const r = await alt.zustandSetzen(j, wahl);
       alt.meldung((wahl === "fertig" ? "Auftrag beendet." : "Zustand geändert.")
         + (r.hinweis ? " " + r.hinweis : ""));
+      if (wahl === "fertig") { if (r.naechster && r.hinweis) await einrichtblattHinweis(r.naechster, r.naechster.plan_status); }
+      else if (vorher === "geplant") await einrichtblattHinweis(j, wahl);
     } else {
       const n = await alt.db.from("jobs").select("*").eq("machine_id", m.id)
         .is("ended_at", null).not("planned_from", "is", null)
@@ -135,8 +139,10 @@ async function zustandWechseln(m, j) {
         bestaetigen: "Starten",
       });
       if (!ok) return;
+      const vorher = naechster.plan_status || "geplant";
       const r = await alt.zustandSetzen(naechster, "laeuft");
       alt.meldung(naechster.job_number + " läuft." + (r.hinweis ? " " + r.hinweis : ""));
+      if (vorher === "geplant") await einrichtblattHinweis(naechster, "laeuft");
     }
     try { alt.prod.auftraege = await alt.ladeLaufendeAuftraege(); } catch (g) { /* egal */ }
     padZeichnen();

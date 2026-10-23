@@ -2,10 +2,12 @@
 //  EINRICHTBLATT IN DER APP: Daten
 //  Ein Blatt je HOCO Nr. und Maschinentyp in einrichtblatt_app
 //  (sql/einrichtblatt-app.sql). Was zur HOCO Nr. gehört (Artikel-
-//  Bezeichnung, Zeichnungs-Nr., Index, Waschgebinde) steht in den
-//  Stammdaten hoco_parts, Stückzeit und Stück am Abend je Typ in
-//  hoco_type_data; das Blatt zeigt sie nur (Wunsch Patrick, 12. Oktober
-//  2026: „Infos zu Stammdaten hinzufügen, der Rest typspezifisch“).
+//  Bezeichnung, Zeichnungs-Nr., Index, Material, Waschgebinde) steht in
+//  den Stammdaten hoco_parts, Stückzeit und Stück am Abend je Typ in
+//  hoco_type_data, der Rest am Blatt (Wunsch Patrick, 12. und
+//  23. Oktober 2026: „alles was zu Stammdaten kann, wird zu Stammdaten
+//  hinzugefügt, der Rest ist typspezifisch“). Ausgefüllt wird alles
+//  direkt im Blatt.
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { excelRoh, blattAusExcel } from "./excelEinlesen.js";
@@ -15,10 +17,13 @@ export const TABELLE = "einrichtblatt_app";
 
 // Die Felder eines Platzes, in dieser Reihenfolge auf dem Blatt
 export const PLATZ_FELDER = ["standzeit", "taetigkeit", "mass", "hersteller", "werkzeug"];
-// Ohne Artikel-Bezeichnung: bei Hofer redet man von der Nummer
-// (Patrick, 16. Oktober 2026: „ganz weg die Bez“), auch nicht aus dem Excel
+// Die Artikel-Bezeichnung ist wieder dabei (Patrick, 23. Oktober 2026:
+// „die Infos bez. Prg. Nr., Art. Bez. und so … normal ausfüllen“)
 export const STAMM_FELDER = [
+  ["bezeichnung", "Artikel-Bezeichnung"],
   ["zeichnungs_nr", "Zeichnungs-Nr."],
+  ["material", "Material"],
+  ["material_groesse", "Material-Mass"],
   ["index_nr", "Index"],
   ["waschgebinde", "Waschgebinde"],
 ];
@@ -85,10 +90,11 @@ export function prgNummern(blatt) {
 // Ein leeres Blatt für die HOCO Nr. auf diesem Typ
 export function leeresBlatt(hocoNr, typId) {
   return { hoco_nr: hocoNr, type_id: typId, programme: {}, geometrie: null, maschine_nr: null,
-    bemerkung: null, plaetze: {}, excel_url: null, gut_am: null };
+    bemerkung: null, plaetze: {}, kopf: {}, excel_url: null, gut_am: null };
 }
 
-const SPALTEN = ["programme", "geometrie", "maschine_nr", "bemerkung", "plaetze", "excel_url", "gut_am", "gut_von"];
+// kopf: was nur auf diesem Blatt steht (FA, N1000, Festanschlag …)
+const SPALTEN = ["programme", "geometrie", "maschine_nr", "bemerkung", "plaetze", "kopf", "excel_url", "gut_am", "gut_von"];
 
 // Speichern mit Rückgängig. Gibt die gespeicherte Zeile zurück.
 export async function blattSpeichern(blatt, text) {
@@ -133,39 +139,49 @@ export async function stammSpeichern(hocoNr, alteWerte, neueWerte) {
   return true;
 }
 
-// Gemerkte Bilder (sql/einrichtblatt-bilder.sql): { article_id: Schlüssel,
-// "s:<Spezialwerkzeug>": Schlüssel }. Fehlt die Tabelle, gibt es eben keine.
+// Stückzeit und Stück am Abend je HOCO Nr. und Typ (nur Geändertes)
+export const TYP_FELDER = ["stueckzeit_s", "abend_stk"];
+export async function typSpeichern(hocoNr, typId, alteWerte, neueWerte) {
+  const neu = {};
+  TYP_FELDER.forEach((f) => {
+    if (neueWerte[f] === undefined) return;
+    const t = String(neueWerte[f] === null ? "" : neueWerte[f]).replace(/'/g, "").replace(",", ".").trim();
+    const w = t === "" || isNaN(Number(t)) ? null : (f === "abend_stk" ? Math.round(Number(t)) : Number(t));
+    const vorher = alteWerte && alteWerte[f] !== undefined && alteWerte[f] !== null ? Number(alteWerte[f]) : null;
+    if (w !== vorher) neu[f] = w;
+  });
+  if (!Object.keys(neu).length) return false;
+  const vorher = await alt.rueckSichern("hoco_type_data", { hoco_nr: hocoNr, type_id: typId });
+  const r = vorher.length
+    ? await alt.db.from("hoco_type_data").update(neu).eq("hoco_nr", hocoNr).eq("type_id", typId)
+    : await alt.db.from("hoco_type_data").insert([Object.assign({ hoco_nr: hocoNr, type_id: typId }, neu)]);
+  if (r.error) throw r.error;
+  alt.merkeSchritt("Stückzeit " + hocoNr, vorher.length
+    ? alt.rueckSetz("hoco_type_data", Object.fromEntries(Object.keys(neu).map((f) => [f, vorher[0][f] === undefined ? null : vorher[0][f]])),
+        { hoco_nr: hocoNr, type_id: typId })
+    : alt.rueckWeg("hoco_type_data", { hoco_nr: hocoNr, type_id: typId }));
+  return true;
+}
+
+// Gemerkte Bilder am Artikel (sql/einrichtblatt-bilder.sql): { article_id:
+// Schlüssel }. Spezialwerkzeuge sind seit 1.142.0 auch Artikel (mit
+// spezial), darum gilt das für sie genauso. Fehlt die Tabelle, keine.
 export async function artikelBilderLaden() {
   const aus = {};
   try {
     const r = await alt.db.from("artikel_bild").select("article_id, bild");
     if (!r.error) (r.data || []).forEach((z) => { aus[z.article_id] = z.bild; });
   } catch (f) { /* keine */ }
-  (await spezialLaden()).forEach((s) => { if (s.bild) aus["s:" + s.id] = s.bild; });
   return aus;
 }
 
-// Spezialwerkzeuge: füllen einen Platz wie ein Artikel, sind aber kein
-// Artikel und erscheinen nicht beim Bestellen (Wunsch Patrick,
-// 15. Oktober 2026). Tabelle eb_spezial.
-const spezialFehlt = (f) => /eb_spezial|does not exist|schema cache/i.test(String((f && f.message) || f || ""));
-export async function spezialLaden() {
+// Ein Artikel mit Lieferant, für die Anzeige am Platz
+export async function artikelHolen(id) {
+  if (!id) return null;
   try {
-    const r = await alt.db.from("eb_spezial").select("id, name, hersteller, bild").order("name");
-    return r.error ? [] : (r.data || []);
-  } catch (f) { return []; }
-}
-export async function spezialAnlegen(name, hersteller) {
-  const r = await alt.db.from("eb_spezial").insert([{ name, hersteller: hersteller || null }]).select();
-  if (r.error) {
-    if (spezialFehlt(r.error)) throw new Error("Die Datenbank kennt die Spezialwerkzeuge noch nicht (sql/einrichtblatt-bilder.sql).");
-    throw r.error;
-  }
-  return (r.data || [])[0];
-}
-export async function spezialBildSetzen(id, bild) {
-  const r = await alt.db.from("eb_spezial").update({ bild: bild || null }).eq("id", id);
-  if (r.error) throw r.error;
+    const r = await alt.db.from("artikel_uebersicht").select("*").eq("id", id).limit(1);
+    return r.error ? null : ((r.data || [])[0] || null);
+  } catch (f) { return null; }
 }
 
 // Eigene Bilder der Bibliothek (Tabelle eb_bilder, Wunsch Patrick
@@ -297,19 +313,21 @@ export async function ausExcelEinlesen(hocoNr, typ, excelUrl, { ueberschreiben, 
   const programme = Object.assign({}, e.kopf.programme);
   const blatt = await blattSpeichern({ hoco_nr: hocoNr, type_id: typ.id, programme,
     geometrie: e.kopf.geometrie, maschine_nr: e.kopf.maschine_nr, bemerkung: e.kopf.bemerkung,
-    plaetze, excel_url: excelUrl }, null);
+    kopf: e.kopf.felder || {}, plaetze, excel_url: excelUrl }, null);
 
   // Stammdaten: leere Felder füllen, Abweichungen melden (die Person
-  // bestätigt sie beim Öffnen sowieso jedes Mal)
+  // kontrolliert das Blatt beim Start des Auftrags am PC)
   const teil = await db.from("hoco_parts").select("*").eq("hoco_nr", hocoNr).limit(1).then((r) => (r.data || [])[0] || null);
   const fuellen = {};
   for (const [f, name] of STAMM_FELDER) {
+    if (f === "material" || f === "material_groesse") continue;   // eine Zeile im Excel, unten verglichen
     const x = e.stamm[f];
     if (!x) continue;
     const jetzt = teil && teil[f];
     if (!jetzt) fuellen[f] = x;
     else if (String(jetzt).trim() !== x) hinweise.push(name + ": App „" + jetzt + "“, Excel „" + x + "“");
   }
+  if (e.stamm.material && !(teil && teil.material)) fuellen.material = e.stamm.material;
   if (Object.keys(fuellen).length) {
     const r = teil ? await db.from("hoco_parts").update(fuellen).eq("hoco_nr", hocoNr)
       : await db.from("hoco_parts").insert([Object.assign({ hoco_nr: hocoNr }, fuellen)]);

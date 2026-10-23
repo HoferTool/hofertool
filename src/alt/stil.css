@@ -9277,3 +9277,23 @@ body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
 .eba-pf-bib--keins { font-size: 1.2rem; color: var(--gedaempft); }
 .eba-pf-bib-weg { position: absolute; top: 2px; right: 3px; font-size: .7rem; color: var(--gefahr);
                   background: #fff; border-radius: 50%; width: 16px; height: 16px; line-height: 16px; }
+
+/* Einrichtblatt für alle Typen (Test): Kopf direkt im Blatt ausfüllen,
+   Werkzeug nur wählen, Legende der Revolver beim Index */
+.eba-ein { font: inherit; font-size: 12px; width: 100%; box-sizing: border-box; border: 1px solid #9aa5b1;
+  border-radius: 3px; padding: 1px 4px; background: #fffbe6; color: #000; min-width: 0; }
+.eba-ein-zwei { display: flex; gap: 4px; align-items: center; }
+.eba-ein-zwei > span, .eba-ein-zwei > small { white-space: nowrap; }
+.eba-ein--kurz { width: 70px; flex: none; }
+.eba-bem-ein { margin-top: 8px; resize: vertical; }
+.eba-kopf--bearbeiten { cursor: default; }
+.eba-kopf--bearbeiten:hover { background: none; }
+.eba-legende { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
+.eba-legende span { border: 1px solid #000; padding: 1px 6px; font-weight: 700; font-size: 12px; }
+.eba-wz--frei { color: #b03030; font-style: italic; }
+.eba-pf-werkzeug { border: 1px solid var(--linie-stark); border-radius: 6px; padding: 8px; margin: 8px 0 12px; }
+.eba-pf-titel { display: block; font-size: .75rem; color: var(--gedaempft); margin-bottom: 4px; }
+.eba-pf-artikel b { display: block; }
+.eba-pf-artikel span { display: block; font-size: .78rem; color: var(--gedaempft); }
+.eba-pf-artikel--frei b { color: #b03030; }
+.eba-pf-wknoepfe { display: flex; gap: 8px; margin-top: 8px; }
