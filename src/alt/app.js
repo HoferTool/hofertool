@@ -35,7 +35,7 @@ import { stueckzeitVorDemBeenden, letzteStueckzahlFragen } from "../daten/stueck
 import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
-  symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
+  symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick, symbolAnwendenEnde } from "../daten/symbole.js";
 import { zeichnungNrSofort, zeichnungNrHolen } from "../daten/zeichnungNr.js";
 import { waschprogGemerkt } from "../daten/waschprog.js";
 import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo, werkstoffSuchtext } from "../daten/material.js";
@@ -135,7 +135,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.158.0";
+const APP_VERSION = "1.158.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1627,12 +1627,29 @@ function lebenszeichenStarten() {
 // Die Kachelwand und das Anmeldefeld sind in src/huelle/Anmeldung.jsx.
 function zeigeLogin() {
   geruestAbbauen();
+  vorschauenWeg();
   // Immer im gewohnten Blau, egal was die letzte Person eingestellt hatte
   document.body.classList.remove("dunkel", "nav--schmal", "rolle-extern");
   document.body.removeAttribute("data-thema");
   fensterleisteFaerben("anmeldung");
   einstellungenNeuLesen();
   anmeldungZeigen(WURZEL);
+}
+
+// Schwebende Vorschauen der Planwand (Balken, Ferien, Symbol) hängen
+// direkt am Seitenende, nicht in der Seite. Beim Abmelden blieben sie darum teils über der Anmeldung stehen (Wunsch
+// Patrick 23. Oktober 2026: „nach auslogen immer wegmachen“).
+function vorschauenWeg() {
+  document.querySelectorAll(".pw-info").forEach((x) => x.remove());
+  symbolInfoWeg();
+}
+
+// Eine Vorschau nur zeigen, solange jemand angemeldet ist und der Balken
+// noch auf dem Bildschirm steht. Sonst kann ein verspätetes langes
+// Drücken oder eine Maus über der alten Tafel sie nach dem Abmelden
+// wieder hinstellen.
+function vorschauErlaubt(el) {
+  return (!!profil || istArchiv()) && !!el && el.isConnected && !document.querySelector(".login");
 }
 
 // -----------------------------------------------------------------
@@ -4788,6 +4805,7 @@ function balkenInfoVerhalten() {
     const zeigen = () => {
       // Über einem Symbol steht dessen Erklärung, nicht die Vorschau
       if (symbolInfoOffen()) return;
+      if (!vorschauErlaubt(el)) return;
       const id = el.dataset.auftrag;
       const j = (plan.auftraege || []).find((x) => x.id === id);
       if (!j) return;
@@ -4932,6 +4950,7 @@ function balkenInfoVerhalten() {
         // Wer plant, hebt mit langem Drücken den Balken an. Dann soll
         // nicht noch das Infofenster mitten ins Verschieben springen.
         if (plan.zugInGeste || document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return;
+        if (!vorschauErlaubt(el)) return;
         if (s) { symbolInfoZeigen(s, startX, startY); return; }
         zeigen();
       }, 450);
@@ -4979,6 +4998,7 @@ function ferienInfoVerhalten() {
     fenster.style.top = (oben ? y - 14 - h : Math.min(window.innerHeight - h - 8, y + 20)) + "px";
   };
   const zeigen = (el, x, y) => {
+    if (!vorschauErlaubt(el)) return;
     const f = (plan.ferien || []).find((v) => String(v.id) === el.dataset.ferien);
     if (!f) return;
     weg();
@@ -10426,6 +10446,11 @@ function zeichneGeruest() {
   // landet wieder dort.
   async function jetztAbmelden(vonSelbst) {
     leerlaufStoppen();
+    vorschauenWeg();
+    // Auch die Leiste der Planwand-Suche und das Symbol-Anwenden hängen
+    // am Seitenende und blieben sonst über der Anmeldung stehen
+    sucheBeenden();
+    if (plan.symbolWahl) symbolAnwendenEnde();
     if (vonSelbst === true) zustandFuerSpaeter();
     zustandVergessen();
     if (typeof padSchliessen === "function") padSchliessen();
