@@ -17,12 +17,13 @@ export function rundesMax(v) {
 }
 
 // werte: [{ key, label, wert, tip, blass }]; format(zahl) für Achse und
-// Fenster; ziel: Höhe der gestrichelten Linie mit zielText
-export function Saeulen({ werte, format, ziel, zielText, hoehe = 190, id }) {
+// Fenster; ziel: Höhe der gestrichelten Linie mit zielText; deckel: feste
+// Obergrenze der Achse (etwa 24 h), höhere Werte stehen bis zum Rand
+export function Saeulen({ werte, format, ziel, zielText, hoehe = 190, id, deckel }) {
   const [zeig, setZeig] = useState(null);
   const groesster = Math.max(0, ...werte.map((w) => w.wert || 0));
   // Die Ziellinie soll sichtbar unter dem oberen Rand liegen
-  const max = Math.max(rundesMax(groesster * 1.05), (ziel || 0) * 1.2);
+  const max = deckel || Math.max(rundesMax(groesster * 1.05), (ziel || 0) * 1.2);
   const schritt = Math.max(1, Math.ceil(werte.length / 12));
   const f = format || ((n) => String(Math.round(n)));
   const aktiv = zeig !== null ? werte[zeig] : null;

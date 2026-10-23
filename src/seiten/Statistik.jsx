@@ -297,7 +297,8 @@ function EineMaschine({ m, r, setze }) {
         </Karte>
         <Karte id="st-zeit-tag" titel="Produktionszeit pro Tag" unter={STUNDEN_VOLL + " h = 100 % Auslastung"}>
           <Saeulen werte={mitTip(jeZeit(m.jeTag, "h"), stundenText)} format={(h) => Math.round(h) + " h"}
-            ziel={m.jeTag.length <= 62 ? STUNDEN_VOLL : 0} zielText={STUNDEN_VOLL + " h"} />
+            ziel={m.jeTag.length <= 62 ? STUNDEN_VOLL : 0} zielText={STUNDEN_VOLL + " h"}
+            deckel={m.jeTag.length <= 62 ? 24 : 0} />
         </Karte>
       </div>
       <Karte id="st-ausschuss-tag" titel="Ausschuss pro Tag" unter="Aus den Meldungen der Qualitätssicherung">

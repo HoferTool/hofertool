@@ -92,6 +92,8 @@ with sync_playwright() as p:
     hoch = pg.evaluate("""[...document.querySelectorAll('#st-zeit-tag .dg-saeule')].map(e => e.style.height).filter(h => h !== '0%')""")
     if len(hoch) != 2: fehler.append("Produktionszeit: Säulen " + str(hoch))
     if not pg.locator("#st-zeit-tag .dg-ziel").count(): fehler.append("Keine 10-h-Linie")
+    achse = pg.inner_text("#st-zeit-tag .dg-achse")
+    if "24 h" not in achse or "12 h" not in achse: fehler.append("Achse nicht bei 24 h gedeckelt: " + achse)
     pg.hover("#st-zeit-tag .dg-spalte:nth-last-child(1)"); pg.wait_for_timeout(200)
     if not pg.locator("#st-zeit-tag .dg-tip").count(): fehler.append("Kein Fenster beim Darüberfahren")
     pg.screenshot(path="statistik-maschine.png", full_page=True)
