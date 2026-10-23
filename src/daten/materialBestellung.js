@@ -2,7 +2,11 @@
 //  MATERIAL-BESTELLUNG AUS DER NOTIZ LESEN
 //  In der Notiz eines Auftrags steht oft, wann Material kommt, am
 //  besten so:  „Mat BE: Metalix 2025007893 500kg 24.09.26“.
-//  Daraus füllt die App „Menge“ und „Liefertermin“ im Auftrag.
+//  Daraus füllte die App bis 1.157.0 „Menge“ und „Liefertermin“ im
+//  Auftrag. Seit 1.158.0 nicht mehr (Wunsch Patrick 23. Oktober 2026:
+//  „die Phase ist durch“, auch der Auslöser in der Datenbank ist aus,
+//  sql/notiz-material-aus.sql). Gelesen wird die Notiz nur noch, damit
+//  schon Übernommenes nicht doppelt dasteht und für die Material-Übersicht.
 //
 //  Erkannt wird eine Zeile mit einer Bestellnummer (zehn Ziffern,
 //  beginnt mit 20, also Jahr + Nummer). Menge und Termin dürfen in

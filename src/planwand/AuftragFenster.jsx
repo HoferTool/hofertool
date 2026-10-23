@@ -24,7 +24,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt, useVerzoegert } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
-import { materialBestellungLesen, materialAusNotizEntfernen } from "../daten/materialBestellung.js";
+import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { PfadKopieren } from "../daten/zeichnungPfad.jsx";
 import { wiederOeffner } from "../teile/wiederherstellen.js";
@@ -97,12 +97,10 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer) {
     if (eigene) planer = [eigene];
   }
 
-  // Steht in der Notiz eine Material-Bestellung („Mat BE: Metalix
-  // 2025007893 500kg 24.09.26“), füllt sie leere Felder gleich aus.
-  // So kommen auch Aufträge aus infoBoard zu Menge und Termin.
-  const be = materialBestellungLesen(quelle.plan_note);
-  const matMenge = quelle.material_menge || (be && be.mengeText) || "";
-  const liefer = quelle.material_liefertermin || (be && be.termin) || "";
+  // Die Notiz füllt Menge und Liefertermin nicht mehr aus (seit 1.158.0,
+  // Wunsch Patrick 23. Oktober 2026: „die Phase ist durch“)
+  const matMenge = quelle.material_menge || "";
+  const liefer = quelle.material_liefertermin || "";
 
   return {
     nr: v ? (v.job_number || "") : "",
@@ -122,8 +120,6 @@ function anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer) {
     // 12. Oktober 2026); gehört zum Auftrag, nicht in die Kopie
     mTrotzdem: !!(auftrag && auftrag.material_m_trotzdem),
     liefer,
-    ausNotiz: be && ((!quelle.material_menge && be.mengeText) || (!quelle.material_liefertermin && be.termin))
-      ? be : null,
     farbe: (auftrag && auftrag.color) || (v && v.color) || "blau",
     zustand: (auftrag && auftrag.plan_status) || "geplant",
     // Die Zeile "Material: …" steht im eigenen Feld Materialplatz. Stand
@@ -340,19 +336,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     return () => { gueltig = false; };
   }, [auftrag]);
 
-  // ----- Notiz: eine neue Material-Bestellung füllt Menge und Termin -----
-  // Nur wenn sich die erkannte Bestellung ändert, sonst bliebe nichts
-  // von Hand Geändertes stehen, sobald man in der Notiz weitertippt.
-  const notizAendern = (neu) => setW((x) => {
-    const r = materialBestellungLesen(neu);
-    const vorher = materialBestellungLesen(x.notiz);
-    const schluessel = (k) => (k ? k.mengeText + "|" + k.termin : "");
-    if (!r || schluessel(r) === schluessel(vorher)) return { ...x, notiz: neu };
-    return { ...x, notiz: neu,
-      matMenge: r.mengeText || x.matMenge,
-      liefer: r.termin || x.liefer,
-      ausNotiz: r };
-  });
+  // ----- Notiz: bleibt, wie sie geschrieben wird -----
+  const notizAendern = (neu) => setze("notiz", neu);
 
   // ----- Von, Bis und Dauer im Gleichklang -----
   const vonAendern = (von) => setW((x) => ({ ...x, von,
@@ -736,9 +721,6 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
               <input id="pl-liefer" type="text" readOnly={nurLesen} value={w.liefer}
                 onChange={(e) => setze("liefer", e.target.value)} /></label>
           </div>
-          {w.ausNotiz && <span className="feldhinweis auf-ausnotiz" id="pl-ausnotiz">
-            Aus der Notiz übernommen: {[w.ausNotiz.lieferant, w.ausNotiz.nr].filter(Boolean).join(" ")}
-            {darf ? " · wird beim Speichern eingetragen" : ""}</span>}
           {/* Keine Farbwahl mehr: die Farbe kommt nur vom Material (Wunsch
               Patrick 16. Oktober 2026: „Die Option Farben auszuwählen kannst
               du rausnehmen“) */}

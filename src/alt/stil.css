@@ -5372,7 +5372,6 @@ body.dunkel .bs-logo { background: #f2f4f7; border-color: #3a444f; }
 .farbwahl--neu { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 
 /* Auftragsfenster: Hinweis, dass Menge und Termin aus der Notiz kommen (111.39.0) */
-.auf-ausnotiz { display: block; margin: -2px 0 10px; }
 
 /* Zuschneiden von Nutzerbildern und Lieferanten-Logos (111.40.0) */
 .zuschnitt-fenster { max-width: 420px; text-align: center; }

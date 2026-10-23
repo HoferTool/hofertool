@@ -9,7 +9,6 @@ import { notizbuecherOeffnen, BUCH } from "../../notizbuch/Notizbuecher.jsx";
 import { Symbol } from "../../teile/zeichnen.jsx";
 
 const PLUS = "M12 5v14M5 12h14";
-import { materialBestellungLesen, materialAusNotizEntfernen } from "../../daten/materialBestellung.js";
 
 export default function Notizen({ auffrischen }) {
   const { daten: todos, fehler, neu } = useDaten(() => alt.ladeTodos(), [auffrischen]);
@@ -77,7 +76,7 @@ async function neueNotiz(neu) {
     .insert({ text: w.text, due_date: w.frist || null }).select("id");
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
   if (Array.isArray(data) && data[0]) alt.merkeSchritt("Neue Notiz", alt.rueckWeg("todos", { id: data[0].id }));
-  alt.meldung("Notiz gespeichert."); neu(); materialInsAuftrag(w.text);
+  alt.meldung("Notiz gespeichert."); neu();
 }
 
 async function bearbeiten(t, neu) {
@@ -92,7 +91,7 @@ async function bearbeiten(t, neu) {
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
   alt.merkeSchritt("Notiz bearbeiten",
     alt.rueckSetz("todos", { text: t.text, due_date: t.due_date || null }, { id: t.id }));
-  alt.meldung("Gespeichert."); neu(); if (w.text !== t.text) materialInsAuftrag(w.text);
+  alt.meldung("Gespeichert."); neu();
 }
 
 async function abhaken(e, t, neu) {
@@ -111,45 +110,3 @@ async function abhaken(e, t, neu) {
   neu();
 }
 
-// Steht in einer Notiz eine HOCO Nr. und eine Material-Bestellung,
-// etwa „10844-0049 Mat BE: Metalix 2025007893 500kg 24.09.26“, kommt
-// sie rüber in den nächsten geplanten Auftrag dieser Nummer: Menge und
-// Liefertermin werden eingetragen. In seine Notiz kommt sie nicht, und
-// stand sie dort schon, fällt sie weg: sonst stünde alles doppelt da.
-async function materialInsAuftrag(text) {
-  if (!alt.darfSchreiben()) return;
-  const hoco = String(text || "").match(/(?:^|\D)(\d{5})\s?-\s?(\d{4})(?!\d)/);
-  const be = materialBestellungLesen(text);
-  if (!hoco || !be) return;
-  const nr = hoco[1] + "-" + hoco[2];
-  try {
-    const { data, error } = await alt.db.from("jobs")
-      .select("id, plan_status, planned_from, plan_note")
-      .eq("job_number", nr).neq("plan_status", "fertig")
-      .order("planned_from", { ascending: true });
-    if (error) throw error;
-    // Der nächste, der noch nicht läuft; sonst der laufende
-    const offen = data || [];
-    const ziel = offen.find((j) => j.plan_status === "geplant") || offen[0];
-    if (!ziel) {
-      alt.meldung("Material-Bestellung erkannt, aber kein offener Auftrag " + nr + " auf der Planwand.", "warn");
-      return;
-    }
-    const notiz = String(ziel.plan_note || "");
-    const notizNeu = materialAusNotizEntfernen(notiz, be.mengeText, be.termin);
-    const daten = {
-      material_liefertermin: be.termin || undefined,
-      material_menge: be.mengeText || undefined,
-      material_ok: be.mengeText ? true : undefined,
-      plan_note: notizNeu !== notiz ? notizNeu : undefined,
-    };
-    Object.keys(daten).forEach((k) => daten[k] === undefined && delete daten[k]);
-    const r = await alt.aendernOhneUnbekannte("jobs", daten, "id", ziel.id);
-    if (!r.ok) throw r.error || new Error("Speichern ging nicht");
-    alt.meldung("Material für Auftrag " + nr + " eingetragen: "
-      + [be.menge, be.termin].filter(Boolean).join(", ") + ".", "gut");
-  } catch (f) {
-    alt.fehlerMerken && alt.fehlerMerken("Material aus Notiz", alt.fehlertext(f));
-    alt.meldung("Material konnte nicht in den Auftrag " + nr + " übernommen werden: " + alt.fehlertext(f), "fehler");
-  }
-}
