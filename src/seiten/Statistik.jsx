@@ -27,13 +27,15 @@ const ZEITRAEUME = [["7", "7 Tage"], ["30", "30 Tage"], ["90", "3 Monate"], ["36
 const REITER = [["maschinen", "Maschinen"], ["artikel", "Artikel"], ["werkzeug", "Werkzeug"]];
 const MONATE_KURZ = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
+// Erst ab diesem Tag sind die Zahlen verlässlich erfasst; Älteres zählt
+// nie, auch wenn der Zeitraum weiter zurückreicht (Wunsch Patrick 23. Oktober 2026)
+export const STATISTIK_AB = "2026-10-19";
+
 function zeitraum() {
   const heute = alt.isoDatum(new Date());
-  if (st.zeitraum === "frei" && st.von && st.bis) {
-    return st.von <= st.bis ? [st.von, st.bis] : [st.bis, st.von];
-  }
-  const n = Number(st.zeitraum) || 30;
-  return [alt.plusTage(heute, -(n - 1)), heute];
+  let [von, bis] = [alt.plusTage(heute, -((Number(st.zeitraum) || 30) - 1)), heute];
+  if (st.zeitraum === "frei" && st.von && st.bis) [von, bis] = st.von <= st.bis ? [st.von, st.bis] : [st.bis, st.von];
+  return [von < STATISTIK_AB ? STATISTIK_AB : von, bis < STATISTIK_AB ? STATISTIK_AB : bis];
 }
 
 const quoteText = (q) => Number.isFinite(q) ? kommaText(q * 100) + " %" : "–";
@@ -79,12 +81,13 @@ export default function Statistik({ auffrischen }) {
             onClick={() => setze(w === "frei" ? { zeitraum: w, von: st.von || von, bis: st.bis || bis } : { zeitraum: w })}>{t}</button>
         ))}
         {st.zeitraum === "frei" && <span className="st-frei">
-          <input type="date" value={von} max={bis} data-stvon onChange={(e) => e.target.value && setze({ von: e.target.value })} />
+          <input type="date" value={von} min={STATISTIK_AB} max={bis} data-stvon onChange={(e) => e.target.value && setze({ von: e.target.value })} />
           <span>bis</span>
           <input type="date" value={bis} min={von} data-stbis onChange={(e) => e.target.value && setze({ bis: e.target.value })} />
         </span>}
         <span className="klein st-zeit__text">{alt.kurzDatum(von)}{von.slice(0, 4)} – {alt.kurzDatum(bis)}{bis.slice(0, 4)}
           {r ? " · " + r.arbeitstage + " Arbeitstage" : ""}</span>
+        <span className="klein st-zeit__text" id="st-ab">Gezählt wird erst ab {alt.kurzDatum(STATISTIK_AB)}{STATISTIK_AB.slice(0, 4)}.</span>
       </div>
       <Uebergang key={st.reiter}>
         {st.reiter === "werkzeug"

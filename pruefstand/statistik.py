@@ -88,7 +88,11 @@ with sync_playwright() as p:
     zeile = pg.inner_text("#st-uebergaenge tbody tr")
     if "10111-0001" not in zeile or "10222-0002" not in zeile: fehler.append("Übergang ohne Aufträge: " + zeile)
     saeulen = pg.locator("#st-zeit-tag .dg-saeule").count()
-    if saeulen != 30: fehler.append(f"{saeulen} Säulen statt 30")
+    # Gezählt wird erst ab 19. Oktober 2026, davor gibt es keine Säulen
+    import datetime as _dt
+    soll = min(30, (_dt.date.today() - _dt.date(2026, 10, 19)).days + 1)
+    if saeulen != soll: fehler.append(f"{saeulen} Säulen statt {soll}")
+    if "ab 19.10.2026" not in pg.inner_text("#st-ab"): fehler.append("Hinweis „ab 19.10.“ fehlt: " + pg.inner_text("#st-ab"))
     hoch = pg.evaluate("""[...document.querySelectorAll('#st-zeit-tag .dg-saeule')].map(e => e.style.height).filter(h => h !== '0%')""")
     if len(hoch) != 2: fehler.append("Produktionszeit: Säulen " + str(hoch))
     if not pg.locator("#st-zeit-tag .dg-ziel").count(): fehler.append("Keine 10-h-Linie")
@@ -120,6 +124,9 @@ with sync_playwright() as p:
     pg.evaluate("document.querySelector('#inhalt [data-streiter=maschinen]').click()"); pg.wait_for_timeout(300)
     pg.click("[data-stzeit='365']"); pg.wait_for_timeout(1500)
     if pg.locator("#st-ausstoss-tag .dg-saeule").count() > 60: fehler.append("12 Monate nicht je Woche")
+    if "19.10.2026 –" not in pg.inner_text(".st-zeit__text"): fehler.append("12 Monate nicht ab 19.10.: " + pg.inner_text(".st-zeit__text"))
+    pg.click("[data-stzeit='frei']"); pg.wait_for_timeout(300)
+    if pg.get_attribute("[data-stvon]", "min") != "2026-10-19": fehler.append("Von–bis erlaubt Daten vor 19.10.")
 
     # Handy und dunkel
     h = neu(br, breite=390, hoehe=844, dunkel=True)
