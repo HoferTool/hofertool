@@ -249,9 +249,6 @@ input, select, textarea { transition: border-color .18s ease, box-shadow .18s ea
     .nav__punkt:hover .nav__text { transform: translateX(3px); }
   }
   .nav__punkt.aktiv .nav__zeichen { animation: fx-zeichen .5s var(--fx-kurve); }
-  /* Google und Just Eat werden nie „aktiv“ (eigenes Fenster), darum
-     hüpft ihr Zeichen beim Klick (Wunsch Patrick, 9. Oktober 2026) */
-  .nav__punkt--web.nav__punkt--hupft .nav__zeichen { animation: fx-zeichen .5s var(--fx-kurve); }
 
   /* Reiter: der Text hebt sich unter der Maus */
   .reiter__knopf { transition: color .15s ease, transform .2s var(--fx-kurve); }

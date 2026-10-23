@@ -54,8 +54,9 @@ with sync_playwright() as p:
         for teil in ["Auftragswechsel", "09:30", "10111-0001", "10222-0002"]:
             if teil not in t: fehler.append(f"Tag: '{teil}' fehlt im Hinweis: {t}")
     karte = pg.locator(".mkarte--tag").filter(has=pg.locator(".mk-wechsel")).first
-    leist = karte.locator(".zelle__leistung").inner_text()
-    if "+450" not in leist: fehler.append("Tag: Leistung nicht über beide Aufträge: " + leist)
+    # Seit 1.126.0 zwei Felder: oben der alte (+300), unten der neue (+150)
+    leist = " ".join(karte.locator(".zelle__leistung").all_inner_texts())
+    if "+300" not in leist or "+150" not in leist: fehler.append("Tag: Leistung nicht je Auftrag: " + leist)
     andere = pg.locator(".mk-wechsel").count()
     if andere != 1: fehler.append(f"Tag: {andere} Hinweise statt 1")
     pg.screenshot(path="auftragswechsel-tag.png")

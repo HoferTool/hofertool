@@ -1,11 +1,13 @@
 // =================================================================
 //  INFOBOARD
-//  Seite zum Gestalten des grossen Bildschirms (Samsung QM43B-T,
-//  43 Zoll, hochkant) und die Anzeige über den ganzen Bildschirm
+//  Seite zum Gestalten des grossen Bildschirms (Samsung, zuerst 43, jetzt
+//  50 Zoll, hochkant) und die Anzeige über den ganzen Bildschirm
 //  (Wunsch Patrick 20. Oktober 2026). Links die Tafel genau wie am
-//  Bildschirm, rechts je Reihe „2 × A4“ oder „1 × A3 quer“ und was im
-//  angetippten Bereich steht: eine Datei (PDF, Bild, Video) oder eine
-//  Fläche zum Zeichnen und Schreiben.
+//  Bildschirm, rechts Knöpfe für neue Dateien und Texte und für das
+//  angetippte Teil: eine Datei (PDF, Bild, Video, Excel) oder Text wie
+//  in Word (TextFeld.jsx; früher die Zeichenfläche, die alte Teile noch
+//  zeigen). Seit 1.132.0 ohne Raster: Dateien auf die Tafel ziehen, frei
+//  verschieben, an der Ecke vergrössern, oben drehen (Tafel.jsx).
 //
 //  Gestalten dürfen nur Admins (auch in der Datenbank). Gerätekonten
 //  („Andere Nutzer“) sehen die Seite auch, damit man am Bildschirm
@@ -15,13 +17,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
-import { Tafel, felderLage } from "./Tafel.jsx";
+import { Tafel } from "./Tafel.jsx";
+import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
-  istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN } from "./daten.js";
+  istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil } from "./daten.js";
 
-const REIHEN = ["oben", "unten"];
-const PLATZ = ["links", "rechts"];
-const WECHSEL = [[10, "10 Sekunden"], [20, "20 Sekunden"], [30, "30 Sekunden"], [60, "1 Minute"], [120, "2 Minuten"]];
+// 0 = nicht von selbst blättern, die Seite wechselt nur beim Antippen
+// (Wunsch Patrick 21. Oktober 2026).
+const WECHSEL = [[0, "Nicht selber blättern"], [10, "alle 10 Sekunden"], [20, "alle 20 Sekunden"], [30, "alle 30 Sekunden"], [60, "jede Minute"], [120, "alle 2 Minuten"]];
 
 export function infoboardSichtbar() {
   return !alt.istExtern() && (alt.istAdmin() || alt.istAndererNutzer());
@@ -35,6 +38,10 @@ export default function Infoboard() {
   const [laedt, setLaedt] = useState("");
   const [geraet, setGeraet] = useState(istInfoboardGeraet);
   const datei = useRef(null);
+  // Wohin „Datei wählen“ die Datei legt: neues Teil oder dieses ersetzen
+  const dateiZiel = useRef(null);
+  const stand = useRef(null);
+  stand.current = aufbau;
 
   useEffect(() => {
     aufbauLaden().then((d) => setAufbau(d.aufbau), (e) => {
@@ -45,66 +52,99 @@ export default function Infoboard() {
 
   if (!aufbau) return <section className="karte"><p className="hinweis">Infoboard wird geladen …</p></section>;
 
-  const aendern = async (neu) => {
-    const vorher = aufbau;
+  // Immer vom neusten Stand aus ändern: mehrere Dateien auf einmal kommen
+  // nacheinander an, jede soll die vorherigen behalten
+  const aendern = async (machen) => {
+    const vorher = stand.current;
+    const neu = { frei: true, teile: machen(vorher.teile) };
+    stand.current = neu;
     setAufbau(neu);
     try { await aufbauSpeichern(neu); setFehler(""); }
     catch (e) {
-      setAufbau(vorher);
+      stand.current = vorher; setAufbau(vorher);
       alt.meldung("Nicht gespeichert: " + (fehltTabelle(e) ? "infoboard.sql fehlt in Supabase." : alt.fehlertext(e)), "fehler");
     }
   };
+  const teilAendern = (id, patch) => aendern((teile) => teile.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const wahl = aufbau.teile.find((t) => t.id === gewaehlt) || null;
 
-  const lage = felderLage(aufbau);
-  const wahl = lage.find((l) => l.feld.id === gewaehlt) || null;
-
-  const feldSetzen = (id, neu) => aendern({ reihen: aufbau.reihen.map((r) => ({ ...r,
-    felder: r.felder.map((f) => (f.id === id ? neu : f)) })) });
-
-  const formatSetzen = (ri, format) => {
-    if (aufbau.reihen[ri].format === format) return;
-    aendern({ reihen: aufbau.reihen.map((r, i) => (i === ri ? { ...r, format } : r)) });
-  };
-
-  const dateiGewaehlt = async (e) => {
-    const d = e.target.files && e.target.files[0];
-    e.target.value = "";
-    if (!d || !wahl) return;
-    if (!dateiTyp(d.name, d.type)) { alt.meldung("Nur PDF, Bilder oder Videos.", "warn"); return; }
-    setLaedt(d.name);
-    try {
-      const neu = await dateiHochladen(d);
-      await feldSetzen(wahl.feld.id, { id: neueId(), art: "datei", datei: neu, sekunden: wahl.feld.sekunden || SEKUNDEN });
-      setGewaehlt(null);
-    } catch (f) { alt.meldung("Hochladen ging nicht: " + alt.fehlertext(f), "fehler"); }
-    finally { setLaedt(""); }
-  };
-
-  const skizzeSetzen = () => {
-    if (!wahl) return;
-    const id = neueId();
-    feldSetzen(wahl.feld.id, { id, art: "skizze" });
-    setGewaehlt(id);
-  };
-
-  const leeren = async () => {
-    if (!wahl || wahl.feld.art === "leer") return;
-    const ok = await alt.nachfragen({ titel: "Bereich leeren?",
-      text: wahl.feld.art === "skizze" ? "Die Zeichenfläche und alles darauf verschwindet vom Infoboard."
-        : "Die Datei verschwindet vom Infoboard.", bestaetigen: "Leeren", gefahr: true });
-    if (!ok) return;
-    const id = neueId();
-    if (wahl.feld.art === "skizze") {
-      alt.db.from("infoboard_skizzen").delete().eq("bereich", wahl.feld.id).then(() => {}, () => {});
+  // Dateien auf die Tafel legen: über „Datei hinzufügen …“ oder vom
+  // Computer an die gewünschte Stelle gezogen. Ersetzt ein Teil seine
+  // Datei, bleiben Platz und Breite, die Höhe passt sich dem Inhalt an.
+  const dateienAblegen = async (dateien, mitte, ersetzen) => {
+    for (const d of dateien) {
+      const typ = dateiTyp(d.name, d.type);
+      if (!typ) { alt.meldung("Nur PDF, Bilder, Videos, Excel oder Word (.docx).", "warn"); continue; }
+      setLaedt(d.name);
+      try {
+        let feld;
+        if (typ === "word") feld = { art: "text", html: sauber(await wordLesen(d)) };
+        else {
+          const [neu, v] = await Promise.all([dateiHochladen(d), verhaeltnisLesen(d, typ)]);
+          feld = { art: "datei", datei: neu, sekunden: ersetzen ? ersetzen.sekunden ?? SEKUNDEN : SEKUNDEN, verhaeltnis: v };
+        }
+        const v = feld.verhaeltnis || Math.SQRT2;
+        delete feld.verhaeltnis;
+        const id = neueId();
+        if (ersetzen) {
+          await aendern((teile) => teile.map((t) => (t.id === ersetzen.id
+            ? { ...feld, id, x: t.x, y: t.y, w: t.w, h: Math.round(t.w * v), drehung: t.drehung } : t)));
+          ersetzen = null;
+        } else {
+          const t = neuesTeil({ ...feld, id }, v, mitte);
+          await aendern((teile) => [...teile, t]);
+          // Mehrere Dateien auf einmal: leicht versetzt, nicht genau übereinander
+          if (mitte) mitte = { x: mitte.x + 40, y: mitte.y + 40 };
+        }
+        setGewaehlt(id);
+      } catch (f) { alt.meldung("Hochladen ging nicht: " + alt.fehlertext(f), "fehler"); }
+      finally { setLaedt(""); }
     }
-    await feldSetzen(wahl.feld.id, { id, art: "leer" });
-    setGewaehlt(id);
   };
+
+  const dateiGewaehlt = (e) => {
+    const d = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (d.length) dateienAblegen(d, null, dateiZiel.current);
+  };
+  const dateiWaehlen = (ersetzen) => { dateiZiel.current = ersetzen || null; datei.current && datei.current.click(); };
+
+  // Text wie in Word (Wunsch Patrick 20. Oktober 2026). Neu ein A4 in der Mitte.
+  const textOeffnen = async (t) => {
+    const format = t && t.w > t.h ? "a3" : "a4";
+    const html = await textBearbeiten({ html: t && t.art === "text" ? t.html : "", format,
+      seitenVerhaeltnis: t ? t.h / t.w : Math.SQRT2, titel: t ? "Text bearbeiten" : "Neuer Text" });
+    if (html == null) return;
+    if (t && t.art === "text") { await teilAendern(t.id, { html }); return; }
+    const neu = neuesTeil({ id: neueId(), art: "text", html }, Math.SQRT2, null);
+    await aendern((teile) => [...teile, neu]);
+    setGewaehlt(neu.id);
+  };
+
+  const entfernen = async () => {
+    if (!wahl) return;
+    const ok = await alt.nachfragen({ titel: "Vom Infoboard entfernen?",
+      text: wahl.art === "skizze" ? "Die Zeichenfläche und alles darauf verschwindet vom Infoboard."
+        : wahl.art === "text" ? "Der Text verschwindet vom Infoboard."
+        : "Die Datei verschwindet vom Infoboard.", bestaetigen: "Entfernen", gefahr: true });
+    if (!ok) return;
+    if (wahl.art === "skizze") {
+      alt.db.from("infoboard_skizzen").delete().eq("bereich", wahl.id).then(() => {}, () => {});
+    }
+    await aendern((teile) => teile.filter((t) => t.id !== wahl.id));
+    setGewaehlt(null);
+  };
+
+  // Reihenfolge: was hinten in der Liste steht, liegt oben
+  const ebene = (nachVorne) => wahl && aendern((teile) => {
+    const rest = teile.filter((t) => t.id !== wahl.id);
+    return nachVorne ? [...rest, wahl] : [wahl, ...rest];
+  });
 
   const geraetUmschalten = (an) => { infoboardGeraetSetzen(an); setGeraet(an); };
 
-  const inhaltText = (f) => f.art === "skizze" ? "Zeichenfläche"
-    : f.art === "datei" && f.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video" }[f.datei.typ] || "Datei") + ": " + (f.datei.name || "")
+  const inhaltText = (f) => f.art === "skizze" ? "Zeichenfläche" : f.art === "text" ? "Text"
+    : f.art === "datei" && f.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video", excel: "Excel" }[f.datei.typ] || "Datei") + ": " + (f.datei.name || "")
     : "Leer";
 
   return (
@@ -117,46 +157,51 @@ export default function Infoboard() {
       {fehler && <p className="hinweis">{fehler}</p>}
       <div className="ib-gestalten__teile">
         <div className="ib-gestalten__vorschau">
-          <Tafel aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt} />
+          <Tafel aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt}
+            teilAendern={admin ? teilAendern : null}
+            ablegen={admin && !laedt ? (dateien, punkt) => dateienAblegen(dateien, punkt, null) : null}
+            doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); } : null} />
         </div>
         <div className="ib-gestalten__seite">
           {admin && <>
-            {REIHEN.map((name, ri) => (
-              <div key={name} className="ib-reihe">
-                <span className="ib-reihe__name">Reihe {name}</span>
-                <div className="ib-umschalter">
-                  {[["a4", "2 × A4"], ["a3", "1 × A3 quer"]].map(([w, t]) => (
-                    <button key={w} type="button" data-ibformat={ri + "-" + w}
-                      className={"ib-umschalter__knopf" + (aufbau.reihen[ri].format === w ? " aktiv" : "")}
-                      onClick={() => formatSetzen(ri, w)}>{t}</button>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {!wahl && <p className="klein">Tippe links auf einen Bereich, um ihn zu füllen.</p>}
+            <div className="ib-wahl__knoepfe">
+              <button type="button" className="knopf knopf--haupt" data-ib="neu-datei" disabled={!!laedt}
+                onClick={() => dateiWaehlen(null)}>{laedt ? "Lädt " + laedt + " …" : "Datei hinzufügen …"}</button>
+              <button type="button" className="knopf" data-ib="neu-text" onClick={() => textOeffnen(null)}>
+                Text hinzufügen</button>
+            </div>
+            <input ref={datei} type="file" hidden multiple onChange={dateiGewaehlt}
+              accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
+            {!wahl && <p className="klein">Dateien vom Computer einfach auf die Tafel ziehen, dorthin, wo sie hin sollen.
+              Antippen wählt ein Teil: ziehen verschiebt es, die Ecke unten rechts ändert die Grösse,
+              der runde Griff oben dreht es.</p>}
             {wahl &&
-              <div className="ib-wahl" data-ibwahl={wahl.reihe + "-" + wahl.platz}>
-                <h3>{"Reihe " + REIHEN[wahl.reihe] + (wahl.format === "a3" ? " · A3 quer" : " " + PLATZ[wahl.platz] + " · A4")}</h3>
-                <p className="ib-wahl__inhalt">{inhaltText(wahl.feld)}</p>
+              <div className="ib-wahl" data-ibwahl={wahl.id}>
+                <h3>{inhaltText(wahl)}</h3>
+                <p className="klein ib-wahl__mass">{Math.round(wahl.w)} × {Math.round(wahl.h)} Punkte
+                  {wahl.drehung ? " · gedreht um " + wahl.drehung + "°" : ""}</p>
                 <div className="ib-wahl__knoepfe">
-                  <button type="button" className="knopf" data-ib="datei" disabled={!!laedt}
-                    onClick={() => datei.current && datei.current.click()}>
-                    {laedt ? "Lädt " + laedt + " …" : wahl.feld.art === "datei" ? "Andere Datei …" : "Datei wählen …"}</button>
-                  {wahl.feld.art !== "skizze" &&
-                    <button type="button" className="knopf knopf--still" data-ib="skizze" onClick={skizzeSetzen}>
-                      Zeichenfläche</button>}
-                  {wahl.feld.art !== "leer" &&
-                    <button type="button" className="knopf knopf--gefahr" data-ib="leeren" onClick={leeren}>
-                      Leeren</button>}
+                  {wahl.art === "text"
+                    ? <button type="button" className="knopf" data-ib="text" onClick={() => textOeffnen(wahl)}>Text bearbeiten</button>
+                    : wahl.art === "datei" &&
+                      <button type="button" className="knopf" data-ib="datei" disabled={!!laedt}
+                        onClick={() => dateiWaehlen(wahl)}>Andere Datei …</button>}
+                  {wahl.drehung ? <button type="button" className="knopf knopf--still" data-ib="gerade"
+                    onClick={() => teilAendern(wahl.id, { drehung: 0 })}>Gerade stellen</button> : null}
+                  <button type="button" className="knopf knopf--still" data-ib="vorne" onClick={() => ebene(true)}>Nach vorne</button>
+                  <button type="button" className="knopf knopf--still" data-ib="hinten" onClick={() => ebene(false)}>Nach hinten</button>
+                  <button type="button" className="knopf knopf--gefahr" data-ib="leeren" onClick={entfernen}>Entfernen</button>
                 </div>
-                <input ref={datei} type="file" hidden accept="application/pdf,image/*,video/*" onChange={dateiGewaehlt} />
-                {wahl.feld.art === "datei" && wahl.feld.datei && wahl.feld.datei.typ === "pdf" &&
-                  <label className="feld">Mehrere Seiten wechseln alle
-                    <select value={wahl.feld.sekunden || SEKUNDEN} data-ib="sekunden"
-                      onChange={(e) => feldSetzen(wahl.feld.id, { ...wahl.feld, sekunden: Number(e.target.value) })}>
+                <Drehung key={wahl.id} wert={wahl.drehung || 0} setzen={(g) => teilAendern(wahl.id, { drehung: g })} />
+                {wahl.art === "datei" && wahl.datei && (wahl.datei.typ === "pdf" || wahl.datei.typ === "excel") &&
+                  <label className="feld">Mehrere Seiten wechseln
+                    <select value={wahl.sekunden ?? SEKUNDEN} data-ib="sekunden"
+                      onChange={(e) => teilAendern(wahl.id, { sekunden: Number(e.target.value) })}>
                       {WECHSEL.map(([w, t]) => <option key={w} value={w}>{t}</option>)}
                     </select></label>}
-                <p className="klein">PDF, Bild oder Video. Ein PDF zeigt die ganze Seite; antippen am Bildschirm zeigt die nächste.</p>
+                <p className="klein">PDF, Bild, Video oder Excel. PDF und Excel zeigen die ganze Seite wie ausgedruckt;
+                  antippen am Bildschirm zeigt die nächste. Eine Word-Datei wird zu Text, den man danach noch ändern kann.
+                  Doppelklick auf einen Text öffnet ihn.</p>
               </div>}
           </>}
           <label className="ib-geraet">
@@ -167,6 +212,26 @@ export default function Infoboard() {
         </div>
       </div>
     </section>
+  );
+}
+
+// Drehen auch mit einem Schieber: der runde Griff kann beim Rand der
+// Tafel ausserhalb liegen. Gespeichert wird kurz nach dem letzten Zug.
+function Drehung({ wert, setzen }) {
+  const [g, setG] = useState(wert > 180 ? wert - 360 : wert);
+  const uhr = useRef(null);
+  useEffect(() => { setG(wert > 180 ? wert - 360 : wert); }, [wert]);
+  useEffect(() => () => clearTimeout(uhr.current), []);
+  const neu = (x) => {
+    setG(x);
+    clearTimeout(uhr.current);
+    uhr.current = setTimeout(() => setzen(((x % 360) + 360) % 360), 400);
+  };
+  return (
+    <label className="feld ib-drehung">Drehung: {g}°
+      <input type="range" min="-180" max="180" step="1" value={g} data-ib="drehung"
+        onChange={(e) => neu(Number(e.target.value))} />
+    </label>
   );
 }
 
@@ -183,15 +248,33 @@ export function infoboardOeffnen(vonHand) {
   const wurzel = createRoot(huelle);
   offen = { huelle, wurzel };
   wurzel.render(<Anzeige huelle={huelle} />);
-  // Vollbild geht nur nach einem Tipp; beim Start von selbst läuft der
-  // Browser am Bildschirm ohnehin über die ganze Fläche
-  if (vonHand && huelle.requestFullscreen) huelle.requestFullscreen().catch(() => {});
+  // Vollbild erlaubt der Browser nur nach einem Tipp oder Klick. Beim Start
+  // von selbst (Konto Infoboard, Bildschirm-Gerät) holt darum der erste
+  // Tipp, Klick oder Tastendruck irgendwo das Vollbild nach, damit Adress-
+  // leiste und Bildlaufleiste verschwinden wie bei „Anzeige öffnen“
+  // (Wunsch Patrick 21. Oktober 2026). Klappt es schon ohne, umso besser.
+  vollbild(huelle);
+  if (!vonHand) {
+    const nachholen = () => { if (offen && offen.huelle === huelle) vollbild(huelle); };
+    for (const art of ["pointerdown", "keydown", "touchend"]) document.addEventListener(art, nachholen, true);
+    offen.weg = () => { for (const art of ["pointerdown", "keydown", "touchend"]) document.removeEventListener(art, nachholen, true); };
+  }
+}
+
+function vollbild(el) {
+  try {
+    if (document.fullscreenElement) return;
+    const f = el.requestFullscreen || el.webkitRequestFullscreen;
+    const p = f && f.call(el);
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) { /* ohne Tipp verweigert, der nächste Tipp versucht es wieder */ }
 }
 
 export function infoboardSchliessen() {
   if (!offen) return;
-  const { huelle, wurzel } = offen;
+  const { huelle, wurzel, weg } = offen;
   offen = null;
+  if (weg) weg();
   try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch (f) { /* egal */ }
   wurzel.unmount();
   huelle.remove();
@@ -199,6 +282,17 @@ export function infoboardSchliessen() {
 }
 
 const NACHSEHEN_MS = 30000;
+
+// Zeigt, wie fein der Browser des Bildschirms zeichnet: meldet er bei
+// einem 4K-Bildschirm nur 1080 Punkte mit Faktor 1, vergrössert das
+// Display selbst und die App kann nicht schärfer werden
+function aufloesungText() {
+  const f = window.devicePixelRatio || 1;
+  const s = window.screen || {};
+  return "Browser " + window.innerWidth + " × " + window.innerHeight + ", Faktor " +
+    Math.round(f * 100) / 100 + " = " + Math.round(window.innerWidth * f) + " × " +
+    Math.round(window.innerHeight * f) + " Pixel · Bildschirm " + (s.width || "?") + " × " + (s.height || "?");
+}
 
 function Anzeige({ huelle }) {
   const [aufbau, setAufbau] = useState(null);
@@ -254,6 +348,7 @@ function Anzeige({ huelle }) {
       {fehler && <div className="ib-voll__fehler">{fehler}</div>}
       {zu && <button type="button" className="ib-voll__zu" data-ib="schliessen"
         onClick={() => infoboardSchliessen()}>Schliessen</button>}
+      {zu && <div className="ib-voll__aufloesung">{aufloesungText()}</div>}
     </div>
   );
 }

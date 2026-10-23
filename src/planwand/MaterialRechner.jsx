@@ -18,6 +18,13 @@
 //  bestellen muss, in kg und ganzen Stangen (Wunsch Patrick 17. Oktober
 //  2026: „nur so, dass man Stückzahl eingeben kann, um zu wissen, wie
 //  viel man bestellen muss“).
+//  Seit 1.137.0 Ausschuss in Prozent (Standard 10 %, je HOCO Nr. gemerkt
+//  wie die Form, hoco_parts.rechner_ausschuss_pct). Zuerst, wie viele
+//  ganze Teile wirklich aus einer Stange gehen (was nicht aufgeht, bleibt
+//  als längeres Reststück liegen), daraus ganze Stangen und kg, und ganz
+//  am Schluss der Ausschuss auf Stangen und kg (seit 1.137.1, Wunsch
+//  Patrick 22. Oktober 2026: „einfach ganz am Schluss auf die Stangen und
+//  kg 10 % rechnen“), ohne Zusatzzeile.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -25,6 +32,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { materialZerlegen, querschnittMm2, formFuerTeil, kategorienListe, werkstoffWahlVon, werkstoffGenau, dichtenLaden,
   STANGE_STANDARD_MM, STUMPEN_STANDARD_MM, PLANIEREN_STANDARD_MM } from "../daten/material.js";
 
+const AUSSCHUSS_STANDARD = 10;
 const zahlLesen = (t) => { const n = Number(String(t ?? "").trim().replace(",", ".").replace(/'/g, "")); return String(t ?? "").trim() !== "" && isFinite(n) ? n : null; };
 const zahlFeld = (n) => (n === null || n === undefined ? "" : String(Math.round(n * 100) / 100).replace(".", ","));
 const zeigen = (n, stellen) => {
@@ -110,11 +118,15 @@ export default function MaterialRechner() {
   const vonHand = useRef(false);
   const [gemerkt, setGemerkt] = useState("");
   const [menge, setMenge] = useState("");
+  const [ausschuss, setAusschuss] = useState(String(AUSSCHUSS_STANDARD));
+  const ausschussVonHand = useRef(false);
   // Eigene Dichten aus den Einstellungen holen, dann neu rechnen
   const [wahlListe, setWahlListe] = useState(kategorienListe);
   useEffect(() => { dichtenLaden(true).then(() => setWahlListe(kategorienListe())); }, []);
   const [laenge, setLaenge] = useState("");
   const [abstecher, setAbstecher] = useState("");
+  // 0,5 mm fürs Planieren je Stück als Feld (Wunsch Patrick 22. Oktober 2026)
+  const [planieren, setPlanieren] = useState(zahlFeld(PLANIEREN_STANDARD_MM));
   const [stange, setStange] = useState(String(STANGE_STANDARD_MM));
   const [stumpen, setStumpen] = useState(String(STUMPEN_STANDARD_MM));
 
@@ -142,6 +154,9 @@ export default function MaterialRechner() {
         setInnen(f.form === "rohr" && f.innen ? zahlFeld(f.innen) : "");
         const w = werkstoffWahlVon(h.material);
         if (w) setWerkstoff(w);
+        ausschussVonHand.current = false;
+        const gemerktProzent = h.teil ? zahlLesen(h.teil.rechner_ausschuss_pct) : null;
+        setAusschuss(zahlFeld(gemerktProzent !== null ? gemerktProzent : AUSSCHUSS_STANDARD));
         if (h.teil && Number(h.teil.teil_laenge_mm)) setLaenge(zahlFeld(Number(h.teil.teil_laenge_mm)));
         if (h.typ) {
           if (Number(h.typ.abstecher_mm)) setAbstecher(zahlFeld(Number(h.typ.abstecher_mm)));
@@ -199,6 +214,22 @@ export default function MaterialRechner() {
     return () => clearTimeout(zeit);
   }, [form, innen]);
 
+  // Ausschuss bei der HOCO Nr. merken, wie die Form (Wunsch Patrick
+  // 22. Oktober 2026: „merken wie Form“)
+  useEffect(() => {
+    if (!ausschussVonHand.current || !hocoInfo || !hocoInfo.gefunden || !hocoInfo.teil) return;
+    const nr = hocoInfo.teil.hoco_nr;
+    const prozent = zahlLesen(ausschuss);
+    if (prozent === null || prozent < 0) return;
+    const zeit = setTimeout(async () => {
+      const r = await alt.db.from("hoco_parts").update({ rechner_ausschuss_pct: prozent }).eq("hoco_nr", nr);
+      if (r && r.error) { setGemerkt("Ausschuss konnte nicht gemerkt werden."); return; }
+      hocoInfo.teil.rechner_ausschuss_pct = prozent;
+      setGemerkt("Ausschuss " + zahlFeld(prozent) + " % für " + nr + " gemerkt.");
+    }, 700);
+    return () => clearTimeout(zeit);
+  }, [ausschuss]);
+
   const dichte = dichteAus(wahlListe, werkstoff);
   const dm = zahlLesen(d);
   const innenMm = form === "rohr" ? zahlLesen(innen) : null;
@@ -215,7 +246,7 @@ export default function MaterialRechner() {
 
   // Stück je Stange wie die Mindestmenge: Länge + Abstecher + 0,5 mm
   const l = zahlLesen(laenge);
-  const jeTeil = l > 0 ? l + (zahlLesen(abstecher) || 0) + PLANIEREN_STANDARD_MM : null;
+  const jeTeil = l > 0 ? l + (zahlLesen(abstecher) || 0) + (zahlLesen(planieren) ?? PLANIEREN_STANDARD_MM) : null;
   const stumpenMm = zahlLesen(stumpen) ?? STUMPEN_STANDARD_MM;
   const jeStange = jeTeil ? Math.floor((stangeMm - stumpenMm) / jeTeil) : null;
 
@@ -224,8 +255,10 @@ export default function MaterialRechner() {
     if (jeTeil && jeStange < 1) ergebnis = { fehler: "Das Stück ist länger als eine Stange." };
     else if (!jeTeil) ergebnis = { hinweis: "Länge Fertigteil eintragen." };
     else {
-      // Ganze Stangen bestellen, darunter nur Stück pro Stange (Wunsch Patrick)
-      const stangen = Math.ceil(n / jeStange);
+      // Erst die ganzen Teile je Stange (oben), daraus ganze Stangen, dann
+      // ganz am Schluss der Ausschuss auf Stangen und kg
+      const prozent = Math.max(0, zahlLesen(ausschuss) ?? AUSSCHUSS_STANDARD);
+      const stangen = Math.ceil(n / jeStange) * (1 + prozent / 100);
       ergebnis = { gross: zeigen(stangen * kgStange, 1), einheit: "kg", klammer: stangenText(stangen), ca,
         zusatz: zeigen(jeStange) + " Stück pro Stange" };
     }
@@ -293,7 +326,7 @@ export default function MaterialRechner() {
       </div>
       {gemerkt && <p className="hinweis mr-gemerkt" id="mr-gemerkt">{gemerkt}</p>}
 
-      <div className="mr-reihe">
+      <div className="mr-reihe mr-reihe--drei">
         <label className="feld">
           <span>Anzahl Stück</span>
           <input type="text" id="mr-menge" inputMode="decimal" value={menge} onChange={(e) => setMenge(e.target.value)} />
@@ -302,10 +335,17 @@ export default function MaterialRechner() {
           <span>Länge Fertigteil in mm</span>
           <input type="text" id="mr-laenge" inputMode="decimal" value={laenge} onChange={(e) => setLaenge(e.target.value)} />
         </label>
+        <label className="feld">
+          <span>Ausschuss %</span>
+          <input type="text" id="mr-ausschuss" inputMode="decimal" value={ausschuss} placeholder={String(AUSSCHUSS_STANDARD)}
+            onChange={(e) => { ausschussVonHand.current = true; setAusschuss(e.target.value); }} />
+        </label>
       </div>
-      <div className="mr-reihe mr-reihe--drei">
+      <div className="mr-reihe mr-reihe--vier">
         <label className="feld"><span>Abstecher mm</span>
           <input type="text" id="mr-abstecher" inputMode="decimal" value={abstecher} placeholder="0" onChange={(e) => setAbstecher(e.target.value)} /></label>
+        <label className="feld"><span>Planieren mm</span>
+          <input type="text" id="mr-planieren" inputMode="decimal" value={planieren} placeholder={zahlFeld(PLANIEREN_STANDARD_MM)} onChange={(e) => setPlanieren(e.target.value)} /></label>
         <label className="feld"><span>Stange mm</span>
           <input type="text" id="mr-stange" inputMode="decimal" value={stange} onChange={(e) => setStange(e.target.value)} /></label>
         <label className="feld"><span>Reststück mm</span>

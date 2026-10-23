@@ -1,10 +1,9 @@
-# Material-Bestellung aus der Notiz (111.37.0): Tippt man im
-# Auftragsfenster „Mat BE: Metalix 2025007893 500kg 24.09.26“ in die
-# Notiz, stehen Menge und Liefertermin sofort in ihren Feldern und
-# werden gespeichert. Eine Startseiten-Notiz mit HOCO Nr. trägt die
-# Bestellung in den nächsten geplanten Auftrag dieser Nummer ein.
-# Seit 111.55.0 steht, was in Menge und Liefertermin übernommen ist,
-# nicht mehr doppelt in der Notiz.
+# Material-Bestellung aus der Notiz: Von 111.37.0 bis 1.157.0 füllte
+# „Mat BE: Metalix 2025007893 500kg 24.09.26“ in der Notiz Menge und
+# Liefertermin aus. Seit 1.158.0 nicht mehr (Wunsch Patrick 23. Oktober
+# 2026: „die Phase ist durch“): Notiz bleibt, wie sie ist, Felder leer,
+# schon Eingetragenes bleibt. Eine schon übernommene Bestellung steht
+# weiter nicht doppelt in der Notiz.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -25,44 +24,43 @@ with sync_playwright() as p:
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#planwand'")
     pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(800)
 
-    # 1. Auftragsfenster: Notiz tippen füllt Menge und Termin
+    # 1. Auftragsfenster: Notiz tippen füllt nichts mehr aus (seit 1.158.0)
     balken = pg.locator(".pw-balken[data-auftrag]").first
     jid = balken.get_attribute("data-auftrag")
     pg.evaluate(f"(() => {{ const j = TEST.daten.jobs.find(x => x.id === '{jid}'); j.material_menge = null; j.material_liefertermin = null; j.plan_note = null; }})()")
     balken.dblclick(); pg.wait_for_selector(".dialog--auftrag")
-    pg.fill("#pl-notiz", "1. Los 5'000Stk.\nMat BE: Metalix 2025007893 500kg 24.09.26")
+    text = "1. Los 5'000Stk.\nMat BE: Metalix 2025007893 500kg 24.09.26"
+    pg.fill("#pl-notiz", text)
     pg.wait_for_timeout(200)
-    if pg.input_value("#pl-menge-mat") != "500 kg · Metalix 2025007893":
-        fehler.append("Menge nicht aus Notiz: " + pg.input_value("#pl-menge-mat"))
-    if pg.input_value("#pl-liefer") != "24.09.26":
-        fehler.append("Termin nicht aus Notiz: " + pg.input_value("#pl-liefer"))
-    if not pg.locator("#pl-ausnotiz").count(): fehler.append("Kein Hinweis 'aus der Notiz'")
-    # Weitertippen ohne neue Bestellung lässt Handgeändertes stehen
-    pg.fill("#pl-liefer", "KW40")
-    pg.fill("#pl-notiz", "1. Los 5'000Stk.\nMat BE: Metalix 2025007893 500kg 24.09.26\neilt")
-    pg.wait_for_timeout(200)
-    if pg.input_value("#pl-liefer") != "KW40": fehler.append("Hand-Termin überschrieben")
+    if pg.input_value("#pl-menge-mat") != "": fehler.append("Menge aus Notiz gefüllt: " + pg.input_value("#pl-menge-mat"))
+    if pg.input_value("#pl-liefer") != "": fehler.append("Termin aus Notiz gefüllt: " + pg.input_value("#pl-liefer"))
+    if pg.locator("#pl-ausnotiz").count(): fehler.append("Hinweis 'aus der Notiz' noch da")
     pg.screenshot(path="notiz_material.png")
     pg.click("#pl-ja"); pg.wait_for_timeout(1500)
     for _ in range(2):
         if pg.locator(".dialog-huelle [data-nein]").count():
             pg.locator(".dialog-huelle [data-nein]").last.click(); pg.wait_for_timeout(800)
     j = pg.evaluate(f"TEST.daten.jobs.find(x => x.id === '{jid}')")
-    if j["material_menge"] != "500 kg · Metalix 2025007893": fehler.append("Menge nicht gespeichert: " + str(j["material_menge"]))
-    if j["material_liefertermin"] != "KW40": fehler.append("Termin nicht gespeichert: " + str(j["material_liefertermin"]))
-    # Menge steht im Feld, also weg aus der Notiz; der Termin wurde von
-    # Hand geändert, darum bleibt das Datum in der Notiz
-    if j["plan_note"] != "1. Los 5'000Stk.\n24.09.26\neilt": fehler.append("Notiz doppelt: " + repr(j["plan_note"]))
+    if j["material_menge"]: fehler.append("Menge gespeichert: " + str(j["material_menge"]))
+    if j["material_liefertermin"]: fehler.append("Termin gespeichert: " + str(j["material_liefertermin"]))
+    if j["plan_note"] != text: fehler.append("Notiz verändert: " + repr(j["plan_note"]))
 
-    # 2. Beim Öffnen: leere Felder aus vorhandener Notiz (infoBoard)
-    pg.evaluate(f"(() => {{ const j = TEST.daten.jobs.find(x => x.id === '{jid}'); j.material_menge = null; j.material_liefertermin = null; j.plan_note = 'Notz 2026008351 150kg für 0002+0003\\n30.04.26\\n(aus infoBoard)'; }})()")
+    # 2. Beim Öffnen: Bestellung in der Notiz füllt leere Felder nicht
+    pg.evaluate(f"(() => {{ const j = TEST.daten.jobs.find(x => x.id === '{jid}'); j.material_menge = null; j.material_liefertermin = null; j.plan_note = 'Notz 2026008351 150kg für 0002+0003\\n30.04.26'; }})()")
     pg.locator(f".pw-balken[data-auftrag='{jid}']").first.dblclick(); pg.wait_for_selector(".dialog--auftrag")
-    if pg.input_value("#pl-menge-mat") != "150 kg · Notz 2026008351": fehler.append("Beim Öffnen nicht gefüllt: " + pg.input_value("#pl-menge-mat"))
-    if pg.input_value("#pl-liefer") != "30.04.26": fehler.append("Termin beim Öffnen: " + pg.input_value("#pl-liefer"))
-    if pg.input_value("#pl-notiz") != "für 0002+0003": fehler.append("Notiz beim Öffnen doppelt: " + repr(pg.input_value("#pl-notiz")))
+    if pg.input_value("#pl-menge-mat") != "": fehler.append("Beim Öffnen gefüllt: " + pg.input_value("#pl-menge-mat"))
+    if pg.input_value("#pl-liefer") != "": fehler.append("Termin beim Öffnen: " + pg.input_value("#pl-liefer"))
+    if "2026008351" not in pg.input_value("#pl-notiz"): fehler.append("Notiz beim Öffnen gekürzt: " + repr(pg.input_value("#pl-notiz")))
     pg.click("#pl-nein"); pg.wait_for_timeout(400)
 
-    # 3. Startseite: Notiz mit HOCO Nr. geht in den Auftrag
+    # 3. Schon Eingetragenes bleibt: Menge und Termin stehen weiter da
+    pg.evaluate(f"(() => {{ const j = TEST.daten.jobs.find(x => x.id === '{jid}'); j.material_menge = '500 kg · Metalix 2025007893'; j.material_liefertermin = '24.09.26'; j.plan_note = 'eilt'; }})()")
+    pg.locator(f".pw-balken[data-auftrag='{jid}']").first.dblclick(); pg.wait_for_selector(".dialog--auftrag")
+    if pg.input_value("#pl-menge-mat") != "500 kg · Metalix 2025007893": fehler.append("Alte Menge weg: " + pg.input_value("#pl-menge-mat"))
+    if pg.input_value("#pl-liefer") != "24.09.26": fehler.append("Alter Termin weg: " + pg.input_value("#pl-liefer"))
+    pg.click("#pl-nein"); pg.wait_for_timeout(400)
+
+    # 4. Startseite: Notiz mit HOCO Nr. trägt nichts mehr in den Auftrag ein
     ziel = pg.evaluate("""(() => { const j = TEST.daten.jobs.find(x => x.plan_status === 'geplant' && x.job_number);
         j.material_menge = null; j.material_liefertermin = null; j.plan_note = 'alt'; return { id: j.id, nr: j.job_number }; })()""")
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_selector("#notiz-neu")
@@ -70,13 +68,11 @@ with sync_playwright() as p:
     pg.fill(".dialog-huelle textarea", ziel["nr"] + " Mat BE: SWS 10kg 2026008657 KW41")
     pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(1500)
     j = pg.evaluate(f"TEST.daten.jobs.find(x => x.id === '{ziel['id']}')")
-    if j["material_menge"] != "10 kg · SWS 2026008657": fehler.append("Startseiten-Notiz: Menge " + str(j["material_menge"]))
-    if j["material_liefertermin"] != "KW41": fehler.append("Startseiten-Notiz: Termin " + str(j["material_liefertermin"]))
-    if j["plan_note"] != "alt": fehler.append("Zeile doppelt in Auftragsnotiz: " + repr(j["plan_note"]))
+    if j["material_menge"] or j["material_liefertermin"]: fehler.append("Startseiten-Notiz füllt Auftrag: " + str(j["material_menge"]) + " " + str(j["material_liefertermin"]))
     toasts = pg.evaluate("[...document.querySelectorAll('.toast')].map(t=>t.textContent).join(' ')")
-    if "Material für Auftrag" not in toasts: fehler.append("Keine Meldung: " + toasts[:200])
+    if "Material für Auftrag" in toasts: fehler.append("Meldung noch da: " + toasts[:200])
 
-    # 4. Planwand: Notiz, die nur aus der übernommenen Bestellung besteht,
+    # 5. Planwand: Notiz, die nur aus der übernommenen Bestellung besteht,
     # zeigt kein ✎ mehr und im Infofenster „keine Notiz“
     pg.evaluate(f"""(() => {{ const j = TEST.daten.jobs.find(x => x.id === '{jid}');
         j.plan_note = 'Mat BE: Metalix 2025007893 500kg 24.09.26 |';

@@ -49,7 +49,8 @@ export default function Dxf() {
     return () => cancelAnimationFrame(bild);
   }, [laeuft]);
 
-  const konturen = useMemo(() => dxfSkalieren(d.roh, d.massstab), [d.roh, d.massstab]);
+  const konturen = useMemo(() => dxfSkalieren(d.roh, d.massstab, d.spiegelnX, d.spiegelnY),
+    [d.roh, d.massstab, d.spiegelnX, d.spiegelnY]);
   const kontur = konturen[d.gewaehlt];
   const bahn = useMemo(() => dxfBahn(d, kontur), [d, kontur]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -124,6 +125,11 @@ export default function Dxf() {
                   <option key={i} value={i}>Kontur {i + 1} · {k.punkte.length} Punkte{k.geschlossen ? "" : " · offen"}</option>
                 ))}
               </select></label>
+            <div className="feld"><span className="feldlabel">Spiegeln</span>
+              <label className="schalter schalter--eng"><input type="checkbox" data-dxf="spiegelnX" checked={d.spiegelnX}
+                onChange={(e) => aendern({ spiegelnX: e.target.checked })} /><span>Links ↔ rechts</span></label>
+              <label className="schalter schalter--eng"><input type="checkbox" data-dxf="spiegelnY" checked={d.spiegelnY}
+                onChange={(e) => aendern({ spiegelnY: e.target.checked })} /><span>Oben ↕ unten</span></label></div>
           </>}
           <label className="feld"><span>Seite</span>
             <select data-dxf="seite" value={d.seite} onChange={(e) => aendern({ seite: e.target.value })}>
@@ -135,7 +141,8 @@ export default function Dxf() {
           <Feld name="zustellung" text="Zustellung je Schnitt" wert={d.zustellung} setze={setze} />
           <Feld name="zStart" text="Z an der Fläche" wert={d.zStart} setze={setze} />
           <Feld name="sicher" text="Sicherheitsabstand" wert={d.sicher} setze={setze} />
-          <Feld name="vorschub" text="Vorschub mm/min" wert={d.vorschub} setze={setze} schritt="1" />
+          <Feld name="vorschub" text="Vorschub Eintauchen in Z mm/min" wert={d.vorschub} setze={setze} schritt="1" />
+          <Feld name="vorschubC" text="Vorschub C-Achse mm/min" wert={d.vorschubC} setze={setze} schritt="1" />
           <Feld name="drehzahl" text="Drehzahl Fräser" wert={d.drehzahl} setze={setze} schritt="50" />
           <Feld name="glaetten" text="Glättung in mm" wert={d.glaetten} setze={setze} schritt="0.005" />
         </div>
@@ -209,7 +216,8 @@ function Bild({ konturen, gewaehlt, bahn, fraeser, schritt, waehlen }) {
   return (
     <svg viewBox="0 0 460 320" className="cax-bild" id="dxf-bild">
       {konturen.map((k, i) => (
-        <polyline key={i} points={k.punkte.map(p).join(" ")} data-dxfk={i}
+        // Geschlossene Konturen ohne doppelten Endpunkt: die letzte Kante dazu
+        <polyline key={i} points={(k.geschlossen ? k.punkte.concat([k.punkte[0]]) : k.punkte).map(p).join(" ")} data-dxfk={i}
           className={"dxf-kontur" + (i === gewaehlt ? " dxf-kontur--an" : "")} onClick={() => waehlen(i)} />
       ))}
       {bahn && <polygon points={bahn.map(p).join(" ")} className="dxf-bahn" />}

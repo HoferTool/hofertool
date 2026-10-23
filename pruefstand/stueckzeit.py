@@ -139,7 +139,7 @@ with sync_playwright() as p:
     l = pg.evaluate("(TEST.daten.hoco_parts.find(z => z.hoco_nr === '10333-0003') || {})")
     if l.get("teil_laenge_mm") != 7.5 or not l.get("teil_mass_bestaetigt"): fehler.append("Länge nicht gespeichert: " + str(l))
     # Danach fragt seit 1.67.0 „Rest Material?“
-    if pg.locator(".mat-dialog").count(): pg.locator(".mat-dialog button:has-text('Kein Rest')").first.click(); pg.wait_for_timeout(1200)
+    if pg.locator(".dialog h2:has-text('Material übrig?')").count(): pg.locator(".dialog:has(h2:has-text('Material übrig?')) [data-nein]").first.click(); pg.wait_for_timeout(1200)
     if pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tT').plan_status") != "fertig": fehler.append("Mit Stückzeit nicht beendet")
     pg.click("#pad [data-padzu]", force=True); pg.wait_for_timeout(600)
 

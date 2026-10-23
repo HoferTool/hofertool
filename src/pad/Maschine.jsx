@@ -15,6 +15,8 @@ import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck, PadNeuLadenKnopf } from "./Pad.jsx";
 import { unterlagenOeffnen } from "../teile/Unterlagen.jsx";
+import { spezialwerkzeugeOeffnen } from "../teile/Spezialwerkzeuge.jsx";
+import { spezialAnzahl } from "../daten/spezialwerkzeuge.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
@@ -588,6 +590,15 @@ export default function Maschine({ d }) {
   const mahnFoto = useMahnBild("stueckzeit", zeitFehlt);
   // Aus der WBG gelesen (Wunsch Patrick, 12. Oktober 2026)
   const waschprog = useWaschprog(wbg);
+  // Spezialwerkzeuge der HOCO Nr. (seit 1.131.0); Externe nicht
+  const spezialHoco = !alt.istExtern() && j && j.job_number ? j.job_number : "";
+  const [spezialZahl, setSpezialZahl] = useState(0);
+  useEffect(() => {
+    if (!spezialHoco) { setSpezialZahl(0); return; }
+    let gueltig = true;
+    spezialAnzahl(spezialHoco).then((n) => { if (gueltig) setSpezialZahl(n); });
+    return () => { gueltig = false; };
+  }, [spezialHoco]);
   const datei = pad.reiter === "zeichnung" ? zeichnung : (pad.reiter === "wbg" ? wbg : "");
   const kontext = { m, j, zeichnung, wbg };
 
@@ -638,6 +649,12 @@ export default function Maschine({ d }) {
           <button className="pad__unterlagen" data-padunterlagen="" onClick={() => unterlagenOeffnen(m)}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z" />
               <path d="M4 19V5M8 7h6M8 11h6" /></svg>Unterlagen</button>}
+        {/* Spezialwerkzeuge des laufenden Auftrags, mit Nachbestellen
+            (Wunsch Patrick 21. Oktober 2026) */}
+        {!datei && spezialHoco &&
+          <button className="pad__unterlagen" data-padspezial="" onClick={() => spezialwerkzeugeOeffnen({ hoco: spezialHoco, maschine: m })}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z" /></svg>
+            Spezialwerkzeuge{spezialZahl ? <span className="pad__zahl">{spezialZahl}</span> : null}</button>}
         {datei && <>
           <button className="pad-sprung" data-paddruck="" onClick={druck}>Drucken</button>
           <button className="pad-sprung" data-padspeichern="" onClick={speichern}>Speichern</button>

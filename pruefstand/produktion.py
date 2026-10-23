@@ -83,7 +83,10 @@ with sync_playwright() as p:
     if pg.locator("#prod-inhalt .pw-rolle, #prod-inhalt .pw-balken").count(): fehler.append("Planwand im Fortschritt gezeichnet")
     if pg.locator(".fo-zeile").count() != alle: fehler.append("Fortschritt nach Speichern falsch")
     if pg.locator(".dialog-huelle").count(): fehler.append("Auftragsfenster bleibt offen")
-    pg.click("[data-unter='produktion/maschinen']"); pg.wait_for_selector("#park-reiter"); pg.wait_for_timeout(500)
+    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.click("[data-unter='maschinen/uebersicht']"); pg.wait_for_timeout(500)
+    # Seit 1.161.0 Parks und Maschinen in einem: Park wählen, dann Ordner je Typ
+    if pg.locator("[data-mpark]").count(): pg.locator("[data-mpark]").first.click()
+    pg.wait_for_selector("[data-masch-um]"); pg.wait_for_timeout(500)
     # Maschine bearbeiten: neuer Name kommt an und steht in der Liste
     knopf = pg.locator("[data-masch-um]").first
     mid = knopf.get_attribute("data-masch-um")
@@ -92,7 +95,7 @@ with sync_playwright() as p:
     feld.fill("Prüfmaschine 99"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(1200)
     if pg.evaluate(f"TEST.daten.machines.find(m => m.id === '{mid}').name") != "Prüfmaschine 99":
         fehler.append("Maschine nicht umbenannt")
-    if "Prüfmaschine 99" not in pg.inner_text("#park-inhalt"): fehler.append("Neuer Maschinenname nicht sichtbar")
+    if "Prüfmaschine 99" not in pg.inner_text("#mseite"): fehler.append("Neuer Maschinenname nicht sichtbar")
     # Ausschalten fragt nach und blendet die Zeile aus
     pg.locator(f"[data-masch-aktiv='{mid}']").click(); pg.wait_for_selector(".dialog-huelle [data-ja]")
     pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(1200)
@@ -100,20 +103,17 @@ with sync_playwright() as p:
         fehler.append("Maschine nicht ausgeschaltet")
     if pg.locator(f"[data-masch-aktiv='{mid}']").inner_text() != "Ein": fehler.append("Knopf zeigt nicht Ein")
     pg.locator(f"[data-masch-aktiv='{mid}']").click(); pg.wait_for_timeout(1200)
-    # Zweiter Park als Unterreiter
-    zweiter = pg.locator("[data-parkreiter]").nth(1)
-    if zweiter.get_attribute("data-parkreiter") != "typen":
-        zweiter.click(); pg.wait_for_timeout(500)
-        if not pg.locator("#park-inhalt .karte").count(): fehler.append("Zweiter Park leer")
-    pg.locator("[data-parkreiter='typen']").click(); pg.wait_for_timeout(800)
-    if not pg.locator("[data-parkreiter='typen'].aktiv").count(): fehler.append("Typen-Unterreiter nicht aktiv")
+    if pg.locator("[data-unter='maschinen/verwalten']").count(): fehler.append("Reiter Parks noch da")
+    pg.click("[data-unter='maschinen/typen']"); pg.wait_for_timeout(800)
+    if not pg.locator("[data-mansicht='typen'].aktiv").count(): fehler.append("Reiter Typen nicht aktiv")
+    if pg.locator("#park-reiter").count(): fehler.append("Reiter Typen zeigt Parkreiter")
     if pg.locator("[data-typ-auf]").count():
         pg.locator("[data-typ-auf]").first.click(); pg.wait_for_selector("#typ-zurueck")
         if pg.locator("#park-reiter").count(): fehler.append("Geöffneter Typ zeigt noch die Parkreiter")
-        pg.click("#typ-zurueck"); pg.wait_for_selector("[data-parkreiter='typen'].aktiv")
+        pg.click("#typ-zurueck"); pg.wait_for_selector("[data-mansicht='typen'].aktiv", state="attached"); pg.wait_for_selector("[data-typ-auf]")
     else: fehler.append("Keine Typen im Prüfstand")
-    if pg.locator("#prod-inhalt").count() != 1: fehler.append("prod-inhalt nicht genau einmal")
+    if pg.locator("#mseite").count() != 1: fehler.append("mseite nicht genau einmal")
     pg.locator("h1").click(); pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
-    if not pg.locator("[data-ansicht='erfassen'].aktiv").count(): fehler.append("Escape springt nicht auf Erfassen")
+    if not pg.locator("[data-mansicht='uebersicht'].aktiv").count(): fehler.append("Escape springt nicht auf Maschinen")
     br.close()
 print("Produktion | Fehler: " + ("keine" if not fehler else " | ".join(fehler)))

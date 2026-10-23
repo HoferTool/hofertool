@@ -5,6 +5,7 @@
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { passt } from "../../teile/Suchfeld.jsx";
+import { istSpezial } from "./Offen.jsx";
 import { Leiste, Karte, Status, Ziel, Leer, Laedt, Fehler } from "./teile.jsx";
 
 const lieferzeit = (z) => String(z.delivered_at || z.completed_at || z.created_at || "");
@@ -13,13 +14,14 @@ const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
                 "August", "September", "Oktober", "November", "Dezember"];
 const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
-export default function Historie({ auffrischen, behaelter }) {
+// spezial: nur die Spezialwerkzeuge, sonst nur die anderen (seit 1.142.0)
+export default function Historie({ auffrischen, behaelter, spezial }) {
   const best = alt.best;
-  const [suche, setSuche] = useSpeicherWert(best, "historieSuche", auffrischen);
+  const [suche, setSuche] = useSpeicherWert(best, spezial ? "spezialHistorieSuche" : "historieSuche", auffrischen);
   const { daten: liste, fehler } = useDaten(() => {
     alt.stammVergessen();
-    return alt.ladeBestellungen(false);
-  }, [auffrischen]);
+    return alt.ladeBestellungen(false).then((l) => l.filter((z) => istSpezial(z) === !!spezial));
+  }, [auffrischen, spezial]);
 
   const leiste = <Leiste suchId="bh-suche" suche={suche} setSuche={setSuche}
     platzhalter="Artikel, Lieferant, Person oder Ziel suchen" />;

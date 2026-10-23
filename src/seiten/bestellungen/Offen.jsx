@@ -3,6 +3,8 @@
 //  Positionen nach Lieferant gruppiert. In „Offen“ steht nur wirklich
 //  Offenes; was bestellt oder teilweise geliefert ist, steht in
 //  „Bestellt“. Die Suche filtert sofort, ohne neu zu laden.
+//  Mit spezial (seit 1.142.0) dieselben Reiter für die
+//  Spezialwerkzeuge: dort nur ihre Positionen, hier nur die anderen.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
@@ -33,14 +35,17 @@ function fristArt(z, heute) {
   return "normal";
 }
 
-export default function Offen({ bereich, auffrischen, behaelter }) {
+// Gehört die Position zu den Spezialwerkzeugen? Am Artikel entschieden
+export const istSpezial = (z) => !!(z.articles && z.articles.spezial);
+
+export default function Offen({ bereich, auffrischen, behaelter, spezial }) {
   const best = alt.best;
-  const [suche, setSuche] = useSpeicherWert(best, "offenSuche", auffrischen);
+  const [suche, setSuche] = useSpeicherWert(best, spezial ? "spezialOffenSuche" : "offenSuche", auffrischen);
   const { daten: liste, fehler, neu } = useDaten(() => {
     // Nach jeder Änderung frisch holen, nicht aus dem Gedächtnis
     alt.stammVergessen();
-    return alt.ladeBestellungen(true);
-  }, [auffrischen]);
+    return alt.ladeBestellungen(true).then((l) => l.filter((z) => istSpezial(z) === !!spezial));
+  }, [auffrischen, spezial]);
 
   const schreiben = alt.darfSchreiben();
   // Neue Positionen entstehen im Reiter Offen. In Bestellt und
@@ -49,7 +54,7 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
     <Leiste suchId="bo-suche" suche={suche} setSuche={setSuche}
       platzhalter="Artikel, Lieferant oder Person suchen"
       knopf={schreiben && bereich === "offen" &&
-        <NeuKnopf id="b-neu" text="Neue Position" onClick={() => positionOeffnen(neu)} />} />
+        <NeuKnopf id="b-neu" text="Neue Position" onClick={() => positionOeffnen(neu, spezial ? { spezial: true } : undefined)} />} />
   );
 
   if (fehler && !liste) return <>{leiste}<Fehler fehler={fehler} /></>;
@@ -78,7 +83,7 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
 
       {!imBereich.length &&
         <Leer text={sucht ? 'Nichts gefunden zu "' + suche + '".'
-          : bereich === "offen" ? "Keine offenen Bestellpositionen."
+          : bereich === "offen" ? (spezial ? "Keine offenen Spezialwerkzeuge." : "Keine offenen Bestellpositionen.")
           : "Nichts bestellt, das noch aussteht."} />}
     </>
   );
@@ -95,7 +100,10 @@ function Block({ block, posten, schreiben, neu, behaelter, heute, einziger }) {
     (gruppen[name] = gruppen[name] || { lief: null, lief0: lief, website: null, weg: null, posten: [] }).posten.push(z);
     if (lief && lief.website) gruppen[name].website = lief.website;
     if (lief && lief.bestellweg) gruppen[name].weg = lief.bestellweg;
-    if (lief && lief.bestellweg === "mail") gruppen[name].lief = lief;
+    // PDF gibt es bei jedem Lieferanten, auch wenn sonst über die Website
+    // bestellt wird (seit 1.133.0, Wunsch Patrick 21. Oktober 2026:
+    // „kann man nicht beide Optionen haben?“)
+    if (lief) gruppen[name].lief = lief;
   });
 
   // Lieferanten mit Überfälligem zuerst, sonst nach Namen

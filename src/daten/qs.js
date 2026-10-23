@@ -49,8 +49,12 @@ export async function qsSpeichern(j, m, stueckRoh, notizRoh) {
 }
 
 // Quittieren = löschen, ohne Rückfrage: es ist ein Abhaken, und
-// Rückgängig holt die Meldung zurück
+// Rückgängig holt die Meldung zurück. Vorher quittiert_am setzen: so
+// bleibt die Menge in qs_ausschuss für die Statistik (seit 1.159.0,
+// sql/qs-ausschuss.sql); ein Löschen ohne das ist ein Rückgängig und
+// nimmt sie auch dort weg. Fehlt die Spalte noch, geht es ohne.
 export async function qsQuittieren(meldung) {
+  await alt.db.from(TABELLE).update({ quittiert_am: new Date().toISOString() }).eq("id", meldung.id);
   const { error } = await alt.db.from(TABELLE).delete().eq("id", meldung.id);
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return false; }
   alt.merkeSchritt("Meldung der Qualitätssicherung quittieren", alt.rueckRein(TABELLE, meldung));

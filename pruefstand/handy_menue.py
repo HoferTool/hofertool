@@ -49,7 +49,7 @@ with sync_playwright() as p:
     pg.screenshot(path=f"{BILD}/handymenue-offen.png")
 
     # 3. Escape schliesst nur das Menü
-    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
     if sichtbar(pg, ".handymenue__fenster"): fehler.append("Escape schliesst nicht")
     if pg.locator(".dialog-huelle").count(): fehler.append("Escape hat zusätzlich etwas geöffnet")
 
@@ -64,7 +64,7 @@ with sync_playwright() as p:
 
     # 5. Daneben tippen schliesst
     pg.locator(".handymenue__knopf").click(); pg.wait_for_timeout(600)
-    pg.mouse.click(195, 150); pg.wait_for_timeout(400)
+    pg.mouse.click(195, 150); pg.wait_for_timeout(800)
     if sichtbar(pg, ".handymenue__fenster"): fehler.append("Tipp daneben schliesst nicht")
     pg.close()
 

@@ -33,7 +33,7 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("location.hash='#produktion'"); pg.wait_for_timeout(800)
-    pg.click("[data-unter='produktion/maschinen']"); pg.wait_for_selector("#park-reiter")
+    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.click("[data-unter='maschinen/verwalten']"); pg.wait_for_selector("#park-reiter")
     knopf = pg.locator("[data-masch-unterlagen]")
     pruefe(knopf.count() > 0, "Knopf Unterlagen bei den Maschinen")
     mid = knopf.first.get_attribute("data-masch-unterlagen")

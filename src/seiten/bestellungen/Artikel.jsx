@@ -7,16 +7,17 @@ import { alt, useDaten, useVerzoegert, useSpeicherWert } from "../../bruecke.jsx
 import { artikelFotosOeffnen } from "./ArtikelFotos.jsx";
 import { Leiste, NeuKnopf, Karte, Symbolknopf, Zeichen, Leer, Laedt, Fehler } from "./teile.jsx";
 
-export default function Artikel({ auffrischen, behaelter }) {
+// spezial: nur die Spezialwerkzeuge, sonst nur die normalen Artikel (seit 1.142.0)
+export default function Artikel({ auffrischen, behaelter, spezial }) {
   const best = alt.best;
-  const [suche, setSuche] = useSpeicherWert(best, "artikelSuche", auffrischen);
-  const [bez, setBez] = useSpeicherWert(best, "artikelBez", auffrischen);
-  const [lief, setLief] = useSpeicherWert(best, "artikelLief", auffrischen);
+  const [suche, setSuche] = useSpeicherWert(best, spezial ? "spezialArtikelSuche" : "artikelSuche", auffrischen);
+  const [bez, setBez] = useSpeicherWert(best, spezial ? "spezialArtikelBez" : "artikelBez", auffrischen);
+  const [lief, setLief] = useSpeicherWert(best, spezial ? "spezialArtikelLief" : "artikelLief", auffrischen);
   const ruhig = useVerzoegert(suche, 300);
   const schreiben = alt.darfSchreiben();
 
-  const { daten: liste, fehler } = useDaten(() => alt.sucheArtikel(ruhig, { bez, lief }),
-    [ruhig, bez, lief, auffrischen]);
+  const { daten: liste, fehler } = useDaten(() => alt.sucheArtikel(ruhig, { bez, lief, spezial: !!spezial }),
+    [ruhig, bez, lief, auffrischen, spezial]);
   // Bezeichnungen und Lieferanten für die Filter; sie sind Beiwerk, ohne geht es auch
   const { daten: bezeichnungen } = useDaten(
     () => alt.ladeBezeichnungen().catch(() => []), [auffrischen]);
@@ -48,8 +49,8 @@ export default function Artikel({ auffrischen, behaelter }) {
               <option value={lief}>{lief}</option>}
           </select>
         </>}
-        knopf={schreiben && <NeuKnopf id="ar-neu" text="Neuer Artikel" onClick={async () => {
-          const a = await alt.artikelSchnellAnlegen("");
+        knopf={schreiben && <NeuKnopf id="ar-neu" text={spezial ? "Neues Spezialwerkzeug" : "Neuer Artikel"} onClick={async () => {
+          const a = await alt.artikelSchnellAnlegen("", null, !!spezial);
           if (a) alt.seiteBestellungen(behaelter);
         }} />} />
       <div id="ar-liste">
@@ -57,16 +58,16 @@ export default function Artikel({ auffrischen, behaelter }) {
           ? <Fehler fehler={fehler} />
           : !gefiltert
             ? <Laedt />
-            : <Liste liste={gefiltert} sucht={!!suche || !!bez || !!lief} schreiben={schreiben} behaelter={behaelter} />}
+            : <Liste spezial={spezial} liste={gefiltert} sucht={!!suche || !!bez || !!lief} schreiben={schreiben} behaelter={behaelter} />}
       </div>
     </>
   );
 }
 
-function Liste({ liste, sucht, schreiben, behaelter }) {
-  if (!liste.length) return <Leer text={sucht ? "Kein Artikel gefunden." : "Noch keine Artikel angelegt."} />;
+function Liste({ liste, sucht, schreiben, behaelter, spezial }) {
+  if (!liste.length) return <Leer text={sucht ? "Kein Artikel gefunden." : (spezial ? "Noch keine Spezialwerkzeuge angelegt." : "Noch keine Artikel angelegt.")} />;
   return (
-    <Karte titel="Artikel" zahl={liste.length}
+    <Karte titel={spezial ? "Spezialwerkzeuge" : "Artikel"} zahl={liste.length}
       unter={liste.length >= 50 ? "Die ersten 50. Mit der Suche findest du jeden." : undefined}>
       {/* Wieder als Liste (Wunsch Patrick, 6. Oktober 2026: „Artikel wieder zu
           einer Liste“): je Artikel eine Zeile, Spalten Nummer, Bezeichnung,

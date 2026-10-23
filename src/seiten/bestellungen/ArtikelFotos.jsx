@@ -79,6 +79,8 @@ function ArtikelFotos({ a, zu }) {
         onClick={() => feld.current && feld.current.click()}>📷 Foto hinzufügen</button>
       {stand && stand.text && <p className="klein" id="af-stand">{stand.text}</p>}
       {stand && stand.fehler && <p className="klein mat-foto__fehler">{stand.fehler}</p>}
+      {gelesen && gelesen.codeTexte && gelesen.codeTexte.length > 0 &&
+        <p className="klein" id="af-codes">Strichcode gelesen: {gelesen.codeTexte.join(", ")}</p>}
       {gelesen && <details className="af-gelesen"><summary className="klein">Gelesen auf dem letzten Foto</summary>
         <pre className="mat-foto__text">{gelesen.text}</pre></details>}
       <div className="af-bilder" id="af-bilder">

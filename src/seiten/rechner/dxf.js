@@ -13,7 +13,10 @@ export const DXF_VORGABE = {
   fraeser: 3,
   tiefeZ: 2,
   zustellung: 1,
-  vorschub: 60,
+  vorschub: 60,      // Eintauchen in Z
+  vorschubC: 60,     // Bahn mit der C-Achse
+  spiegelnX: false,  // links und rechts tauschen
+  spiegelnY: false,  // oben und unten tauschen
   drehzahl: 3000,
   zStart: 0,
   sicher: 1,
@@ -164,12 +167,14 @@ function verketten(stuecke, glaetten) {
     .sort((a, b) => Math.abs(zugFlaeche(b.punkte)) - Math.abs(zugFlaeche(a.punkte)));
 }
 
-// Die Konturen im gewählten Massstab. Die Werte aus der Datei
+// Die Konturen im gewählten Massstab und auf Wunsch gespiegelt, an
+// der Drehachse (Nullpunkt der Zeichnung). Die Werte aus der Datei
 // bleiben unangetastet, damit mehrfaches Ändern nicht aufsummiert.
-export function dxfSkalieren(roh, massstab) {
+export function dxfSkalieren(roh, massstab, spiegelnX, spiegelnY) {
   const k = massstab / 100;
+  const kx = spiegelnX ? -k : k, ky = spiegelnY ? -k : k;
   return (roh || []).map((z) => ({
-    punkte: z.punkte.map(([x, y]) => [x * k, y * k]),
+    punkte: z.punkte.map(([x, y]) => [x * kx, y * ky]),
     geschlossen: z.geschlossen,
   }));
 }
@@ -199,7 +204,10 @@ export function dxfGcode(d, name, bahn) {
   if (!bahn) return "( Keine Kontur gewählt )";
 
   const z = [];
-  const f = d.vorschub;
+  // Eintauchen in Z und die Bahn mit der C-Achse haben je einen
+  // eigenen Vorschub; F steht nach jedem Eintauchen wieder da.
+  const fZ = d.vorschub;
+  const fC = d.vorschubC > 0 ? d.vorschubC : d.vorschub;
   const weit = Math.max(...bahn.map((p) => Math.hypot(p[0], p[1]))) + d.sicher;
 
   z.push("( DXF " + (name || "Kontur") + " )");
@@ -215,8 +223,8 @@ export function dxfGcode(d, name, bahn) {
     const tiefe = Math.min(d.tiefeZ, s * d.zustellung);
     z.push("( Schnitt " + s + " von " + schnitte + " )");
     z.push("G0X" + (bahn[0][0] * 2).toFixed(3) + "C" + bahn[0][1].toFixed(3));
-    z.push("G1Z" + (d.zStart - tiefe).toFixed(3) + "F" + f);
-    bahn.slice(1).forEach((p) => z.push("G1X" + (p[0] * 2).toFixed(3) + "C" + p[1].toFixed(3)));
+    z.push("G1Z" + (d.zStart - tiefe).toFixed(3) + "F" + fZ);
+    bahn.slice(1).forEach((p, k) => z.push("G1X" + (p[0] * 2).toFixed(3) + "C" + p[1].toFixed(3) + (k === 0 ? "F" + fC : "")));
     z.push("G1X" + (bahn[0][0] * 2).toFixed(3) + "C" + bahn[0][1].toFixed(3));
     z.push("G0Z" + (d.zStart + d.sicher).toFixed(3));
   }

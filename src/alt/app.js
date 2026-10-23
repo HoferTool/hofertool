@@ -12,7 +12,9 @@ import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
+import Statistik from "../seiten/Statistik.jsx";
 import Temp from "../seiten/Temp.jsx";
+import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Infoboard, { infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
 import { istInfoboardGeraet } from "../infoboard/daten.js";
 import { tempAufraeumenRegelmaessig } from "../daten/temp.js";
@@ -36,8 +38,9 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
 import { blattSuchen as appBlattSuchen, ausExcelEinlesen } from "../einrichtblatt/daten.js";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
-  symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick } from "../daten/symbole.js";
+  symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick, symbolAnwendenEnde } from "../daten/symbole.js";
 import { zeichnungNrSofort, zeichnungNrHolen } from "../daten/zeichnungNr.js";
+import { waschprogGemerkt } from "../daten/waschprog.js";
 import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo, werkstoffSuchtext } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
@@ -135,7 +138,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.115.0";
+const APP_VERSION = "1.162.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -168,6 +171,8 @@ function escapeZurueck() {
 
     // Sonst: von einem Unterreiter zurück auf den ersten
     const wo = location.hash.replace(/^#\/?/, "").split("/")[0];
+    // Seite Maschinen: von der Maschine zum Typ, zum Park
+    if (wo === "maschinen" && maschinenZurueck()) return;
     if (wo === "produktion" && prod.ansicht && prod.ansicht !== "erfassen") {
       prod.ansicht = "erfassen"; zeichneSeite(); return;
     }
@@ -1625,12 +1630,29 @@ function lebenszeichenStarten() {
 // Die Kachelwand und das Anmeldefeld sind in src/huelle/Anmeldung.jsx.
 function zeigeLogin() {
   geruestAbbauen();
+  vorschauenWeg();
   // Immer im gewohnten Blau, egal was die letzte Person eingestellt hatte
   document.body.classList.remove("dunkel", "nav--schmal", "rolle-extern");
   document.body.removeAttribute("data-thema");
   fensterleisteFaerben("anmeldung");
   einstellungenNeuLesen();
   anmeldungZeigen(WURZEL);
+}
+
+// Schwebende Vorschauen der Planwand (Balken, Ferien, Symbol) hängen
+// direkt am Seitenende, nicht in der Seite. Beim Abmelden blieben sie darum teils über der Anmeldung stehen (Wunsch
+// Patrick 23. Oktober 2026: „nach auslogen immer wegmachen“).
+function vorschauenWeg() {
+  document.querySelectorAll(".pw-info").forEach((x) => x.remove());
+  symbolInfoWeg();
+}
+
+// Eine Vorschau nur zeigen, solange jemand angemeldet ist und der Balken
+// noch auf dem Bildschirm steht. Sonst kann ein verspätetes langes
+// Drücken oder eine Maus über der alten Tafel sie nach dem Abmelden
+// wieder hinstellen.
+function vorschauErlaubt(el) {
+  return (!!profil || istArchiv()) && !!el && el.isConnected && !document.querySelector(".login");
 }
 
 // -----------------------------------------------------------------
@@ -2835,7 +2857,7 @@ const ROLLEN = {
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
-  if ((pfad === "material" || pfad === "qs") && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "qs" || pfad === "maschinen" || pfad === "statistik") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard") return infoboardSichtbar();
   if (!istExtern()) return true;
   return pfad === "planwand" || pfad === "produktion";
@@ -4786,6 +4808,7 @@ function balkenInfoVerhalten() {
     const zeigen = () => {
       // Über einem Symbol steht dessen Erklärung, nicht die Vorschau
       if (symbolInfoOffen()) return;
+      if (!vorschauErlaubt(el)) return;
       const id = el.dataset.auftrag;
       const j = (plan.auftraege || []).find((x) => x.id === id);
       if (!j) return;
@@ -4930,6 +4953,7 @@ function balkenInfoVerhalten() {
         // Wer plant, hebt mit langem Drücken den Balken an. Dann soll
         // nicht noch das Infofenster mitten ins Verschieben springen.
         if (plan.zugInGeste || document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return;
+        if (!vorschauErlaubt(el)) return;
         if (s) { symbolInfoZeigen(s, startX, startY); return; }
         zeigen();
       }, 450);
@@ -4977,6 +5001,7 @@ function ferienInfoVerhalten() {
     fenster.style.top = (oben ? y - 14 - h : Math.min(window.innerHeight - h - 8, y + 20)) + "px";
   };
   const zeigen = (el, x, y) => {
+    if (!vorschauErlaubt(el)) return;
     const f = (plan.ferien || []).find((v) => String(v.id) === el.dataset.ferien);
     if (!f) return;
     weg();
@@ -5006,16 +5031,37 @@ function ferienInfoVerhalten() {
   });
 }
 
-// Alles, was ein Auftrag an Angaben trägt, als ein Suchtext
+// Alles, was ein Auftrag an Angaben trägt, als ein Suchtext.
+// Seit 1.146.0 jedes Feld des Auftrags, nicht nur eine feste Liste
+// (Wunsch Patrick 22. Oktober 2026: „in irgendeinem Feld, sei es Notiz
+// oder sonst wo im Fenster“): Abrufinformation, Materialplatz, Siegel,
+// Zeichnungsnummer, Waschprog-Nr. … Weggelassen werden nur Kennungen,
+// Adressen und Zeitstempel, weil eine gesuchte Zahl sonst mitten in
+// einer Kennung oder Uhrzeit Treffer liefert, die niemand sieht.
+const SUCHE_OHNE = /^(id|symbole|color)$|_id$|_url$|_at$/;
+// Externe vorerst wie bisher, bis Patrick entschieden hat (Regel:
+// Neues bekommen sie nicht von selbst)
+const SUCHE_EXTERN = ["job_number", "fa_nr", "maschine", "maschine_nr", "park",
+  "material_bez", "plan_note", "problem", "material_menge", "material_liefertermin",
+  "target_quantity", "stand", "planned_from"];
 function auftragText(j) {
+  const felder = istExtern()
+    ? SUCHE_EXTERN.map((k) => j[k])
+    : Object.keys(j).filter((k) => !SUCHE_OHNE.test(k)).map((k) => j[k])
+        .filter((x) => typeof x === "string" || typeof x === "number");
   return [
-    j.job_number, j.fa_nr, j.maschine, j.maschine_nr, j.park, j.material_bez,
-    j.plan_note, j.problem, j.color,
+    ...felder,
     (PLANSTATUS[j.plan_status || "geplant"] || {}).name,
-    j.material_bez, j.material_menge, j.material_liefertermin,
     // Nummer und Kurzname des Werkstoffs: „1.4305“ findet auch „X8CrNiS18-9“
     werkstoffSuchtext(j.material_bez),
-    j.target_quantity, j.stand, j.planned_from,
+    // Stückzahlen auch so, wie sie im Fenster stehen: „1'200“
+    ...(istExtern() ? [] : [
+      j.target_quantity ? zahlText(j.target_quantity) : "",
+      j.stand ? zahlText(j.stand) : "",
+      // Zeichnungsnummer und Waschprog-Nr., soweit schon bekannt
+      zeichnungNrSofort(j) || "",
+      j.wbg_url ? waschprogGemerkt(j.wbg_url) || "" : "",
+    ]),
     j.fa_nr ? "FA vorhanden" : "Kein FA vorhanden",
     j.material_menge ? "Material vorhanden" : "Keine Materialmenge",
   ].map((x) => String(x === null || x === undefined ? "" : x).toLowerCase()).join(" ");
@@ -5232,6 +5278,9 @@ async function sucheStarten(text, b) {
   if (!t) return;
 
   let aeltere = [];
+  // Zeichnungsnummern aus den Dateinamen einmal holen, damit die
+  // Suche sie kennt, auch ohne vorher über einen Balken zu fahren
+  if (!istExtern()) { try { await zeitlimit(zeichnungNrHolen({}), 8000, "Zeichnungsnummern"); } catch (e) { /* dann ohne */ } }
   try { aeltere = await sucheAeltereHolen(); }
   catch (e) {
     fehlerMerken("Suche: ältere Aufträge", fehlertext(e));
@@ -5384,9 +5433,31 @@ async function balkenZeichnung(j) {
 // Klick kurz, ob noch ein zweiter kommt — sonst läge der Betrachter
 // schon über dem Balken. Gemerkt wird in plan statt am Balken, weil
 // der stille Abgleich den Balken zwischen zwei Klicks neu zeichnen kann.
+//
+// Seit 1.140.0 zeigt ein einzelner Klick die Zeichnung nur noch am
+// Handy; am Computer und Tablet markiert er nur den Balken (Wunsch
+// Patrick 22. Oktober 2026: „Einmal Klick für Zeichnung nur Handy“).
 const DOPPELKLICK_MS = 320;
+// Handy hochkant bis 720 Pixel breit, quer bis 500 Pixel hoch, wie im Pad
+function istHandyGeraet() {
+  return isMobil()
+    || ((navigator.maxTouchPoints || 0) > 0 && window.matchMedia("(max-height: 500px)").matches);
+}
 function balkenKlick(auftrag, b) {
   angewaehltSetzen(auftrag.id);
+  if (!istHandyGeraet()) {
+    // Ohne Zeichnung beim Einzelklick braucht es kein Warten
+    const w = plan.klickWarten;
+    plan.klickWarten = null;
+    if (w && w.id === auftrag.id && Date.now() - w.am < DOPPELKLICK_MS) {
+      const auswahl = window.getSelection && window.getSelection();
+      if (auswahl) auswahl.removeAllRanges();
+      planAuftragDialog(auftrag, b);
+      return;
+    }
+    plan.klickWarten = { id: auftrag.id, am: Date.now() };
+    return;
+  }
   const w = plan.klickWarten;
   if (w) clearTimeout(w.zeit);
   plan.klickWarten = null;
@@ -6115,10 +6186,16 @@ function zeichnePlanwand(b) {
 
   // Wie viel Platz über der Tafel weggeht — Kopfzeile, Regler,
   // Reiter. Daraus ergibt sich die Höhe bis zum Fensterrand.
+  // Gemessen ab dem Anfang der Seite, nicht ab dem Fensterrand: Ist die
+  // Seite ein Stück nach unten gerollt, stünde die Tafel sonst scheinbar
+  // höher, würde um genau so viel länger, die Seite liesse sich weiter
+  // rollen, und bei jedem stillen Auffrischen wuchs der Rollbalken
+  // (Wunsch Patrick 22. Oktober 2026).
+  const pwOben = (rolle) => Math.round(rolle.getBoundingClientRect().top + (window.scrollY || 0));
   const messen = () => {
     const rolle = document.querySelector(".pw-rolle");
     if (!rolle) return;
-    const oben = Math.round(rolle.getBoundingClientRect().top);
+    const oben = pwOben(rolle);
     plan.pwOben = oben;
     rolle.style.setProperty("--pw-oben", oben + "px");
   };
@@ -6131,7 +6208,7 @@ function zeichnePlanwand(b) {
     window.addEventListener("resize", () => {
       const r = document.querySelector(".pw-rolle");
       if (r) r.style.setProperty("--pw-oben",
-        Math.round(r.getBoundingClientRect().top) + "px");
+        Math.round(r.getBoundingClientRect().top + (window.scrollY || 0)) + "px");
     });
   }
 
@@ -6520,11 +6597,21 @@ function wischVerhalten(b) {
 // dieses Materials zum Abhaken als aufgebraucht (Wunsch Patrick
 // 15. Oktober 2026). Ohne Material am Auftrag, für Externe und ohne die
 // Tabelle in der Datenbank kommt keine Frage.
+// Zuerst nur Ja oder Nein, erst bei Ja die Menge (Wunsch Patrick
+// 22. Oktober 2026: „nach jedem Beenden nachfragen, ob es noch Material
+// hat zum Zurückbuchen, wenn ja fragen wie viel“). Auch ohne Material am
+// Auftrag, dann wählt man es im Fenster.
 async function restMaterialFragen(j) {
-  if (ARCHIV || istExtern() || !String(j.material_bez || "").trim()) return;
+  if (ARCHIV || istExtern()) return;
   try {
     const posten = await postenLaden();
     if (posten === null) return;
+    const bez = String(j.material_bez || "").trim();
+    const ja = await nachfragen({ titel: "Material übrig?",
+      text: (j.job_number || "Der Auftrag") + " ist fertig. Ist noch Material übrig, das zurück ins Lager kommt?"
+        + (bez ? " (" + bez + ")" : ""),
+      bestaetigen: "Ja, zurückbuchen", abbrechen: "Nein" });
+    if (!ja) return;
     const z = materialZerlegen(j.material_bez);
     const vorhandene = posten.filter((p) => p.art !== "bestellt" && z
       && (materialZerlegen(p.material) || {}).schluessel === z.schluessel);
@@ -6535,7 +6622,7 @@ async function restMaterialFragen(j) {
       if (!r.error) gebraucht = nochGebraucht(j, r.data || []);
     } catch (f) { /* ohne Hinweis weiter */ }
     await postenFenster({ rest: true, material: j.material_bez, auftrag: j, vorhandene, gebraucht,
-      text: j.job_number + " ist fertig. Bleibt Material übrig? Ungefähr genügt." });
+      titel: "Wie viel Material zurück?", text: "Ungefähr genügt, in Stangen oder kg." });
   } catch (f) {
     console.warn("Rest Material:", f.message);
   }
@@ -7988,7 +8075,7 @@ window.addEventListener("resize", () => {
 // Kennzahlen, eine Übersicht je Werkzeug und alle Wechsel nach Tagen.
 // Die Farbe kommt aus LEISTENFARBE, weil die Töne des dunklen Modus auf
 // weissem Papier zu blass wären.
-function historieBlatt(maschine, auftrag, runden, titel) {
+function historieBlatt(maschine, auftrag, runden, titel, vergleich) {
   const farbe = LEISTENFARBE[themaJetzt()] || LEISTENFARBE.blau;
   const leer = (x) => x === null || x === undefined;
   const alle = runden.flatMap((r) => r.zeilen);
@@ -7999,13 +8086,19 @@ function historieBlatt(maschine, auftrag, runden, titel) {
   // Je Werkzeug: wie oft gewechselt und wie lange es gehalten hat
   const jeWz = {};
   alle.forEach((z) => {
-    const w = jeWz[z.tool_nr] || (jeWz[z.tool_nr] = { nr: z.tool_nr, anzahl: 0, stk: [], zuletzt: null });
+    // Je Platz: T1 auf Revolver 1 und auf Revolver 2 sind zwei Werkzeuge
+    const nr = z.tool_nr + (z.bezeichnung ? " · " + z.bezeichnung : "");
+    const w = jeWz[nr] || (jeWz[nr] = { nr, tool_nr: z.tool_nr, bezeichnung: z.bezeichnung, anzahl: 0, stk: [], zuletzt: null });
     w.anzahl++;
     if (!leer(z.gehalten_stk)) w.stk.push(z.gehalten_stk);
     if (!w.zuletzt || z.gewechselt_am > w.zuletzt) w.zuletzt = z.gewechselt_am;
   });
+  // Gleiche Reihenfolge wie in der App: nach Revolver bzw. Path (bei
+  // SW 1, 3, 2), darin die Nummern klein zu gross (Wunsch Patrick
+  // 22. Oktober 2026). Die Regel kommt aus Werkzeugwechsel.jsx mit.
+  const nachZahl = (a, b) => String(a || "").localeCompare(String(b || ""), "de", { numeric: true });
   const werkzeuge = Object.values(jeWz)
-    .sort((x, y) => String(x.nr).localeCompare(String(y.nr), "de", { numeric: true }));
+    .sort(vergleich || ((x, y) => nachZahl(x.bezeichnung, y.bezeichnung) || nachZahl(x.tool_nr, y.tool_nr)));
   const groesster = Math.max(1, ...werkzeuge.map((w) => schnitt(w.stk) || 0));
 
   const tagText = (iso) => new Date(iso).toLocaleDateString("de-CH",
@@ -8030,6 +8123,7 @@ function historieBlatt(maschine, auftrag, runden, titel) {
       + '<td class="uhr">' + (r.wann ? esc(zeitText(r.wann)) : "") + '</td>'
       + '<td class="stk">' + (leer(r.stk) ? "—" : zahlText(r.stk)) + '<small>Stk</small></td>'
       + '<td>' + r.zeilen.map((z) => '<span class="wz"><b>' + esc(z.tool_nr) + '</b>'
+          + (z.bezeichnung ? ' <small>' + esc(z.bezeichnung) + '</small>' : "")
           + (leer(z.gehalten_stk) ? "" : '<i>' + zahlText(z.gehalten_stk) + ' Stk</i>') + '</span>').join("")
       + (r.notiz ? '<div class="notiz">' + esc(r.notiz) + '</div>' : "") + '</td>'
       + '</tr>';
@@ -8132,14 +8226,14 @@ function historieBlatt(maschine, auftrag, runden, titel) {
     + '</div></body></html>';
 }
 
-async function historieAblegen(maschine, auftrag, runden) {
+async function historieAblegen(maschine, auftrag, runden, vergleich) {
   const fenster = window.open("", "_blank");
   if (!fenster) { meldung("Das Fenster wurde blockiert.", "warn"); return; }
 
   const titel = "Werkzeugwechsel_"
     + (auftrag && auftrag.fa_nr ? auftrag.fa_nr : maschine.name).replace(/[^A-Za-z0-9]+/g, "_")
     + "_" + isoDatum(new Date());
-  fenster.document.write(historieBlatt(maschine, auftrag, runden, titel));
+  fenster.document.write(historieBlatt(maschine, auftrag, runden, titel, vergleich));
   fenster.document.close();
 
   // Zusätzlich in der Ablage hinterlegen, damit die Historie später
@@ -8645,19 +8739,31 @@ async function ladeLieferanten() {
   return (data || []).filter((l) => l.is_active !== false);
 }
 
-// filter: { bez, lief } — Bezeichnung und Lieferant fragt schon die
-// Datenbank ab, sonst fehlen Treffer jenseits der ersten 50
+// filter: { bez, lief, spezial } — Bezeichnung und Lieferant fragt schon die
+// Datenbank ab, sonst fehlen Treffer jenseits der ersten 50.
+// spezial true: nur Spezialwerkzeuge, false: nur normale Artikel,
+// weggelassen: alle (seit 1.142.0, Wunsch Patrick 22. Oktober 2026:
+// Spezialwerkzeuge stehen nur unter Spezialwerkzeuge)
 async function sucheArtikel(text, filter) {
   const t = (text || "").trim();
-  let abfrage = db.from("artikel_uebersicht").select("*");
-  if (filter && filter.bez) abfrage = abfrage.eq("name", filter.bez);
-  if (filter && filter.lief) abfrage = abfrage.eq("supplier_name", filter.lief);
-  if (t) {
-    abfrage = abfrage.or("article_number.ilike.%" + t + "%,name.ilike.%" + t
-      + "%,supplier_name.ilike.%" + t + "%");
+  const abfragen = (mitSpezial) => {
+    let abfrage = db.from("artikel_uebersicht").select("*");
+    if (filter && filter.bez) abfrage = abfrage.eq("name", filter.bez);
+    if (filter && filter.lief) abfrage = abfrage.eq("supplier_name", filter.lief);
+    if (mitSpezial && filter && typeof filter.spezial === "boolean") abfrage = abfrage.eq("spezial", filter.spezial);
+    if (t) {
+      abfrage = abfrage.or("article_number.ilike.%" + t + "%,name.ilike.%" + t
+        + "%,supplier_name.ilike.%" + t + "%");
+    }
+    return zeitlimit(abfrage.order("article_number").limit(50), 12000, "Artikelsuche");
+  };
+  let { data, error } = await abfragen(true);
+  // Kennt die Datenbank die Spalte noch nicht (sql/spezialwerkzeuge-getrennt.sql),
+  // ist jeder Artikel ein normaler
+  if (error && /spezial/.test(String(error.message || ""))) {
+    if (filter && filter.spezial === true) return [];
+    ({ data, error } = await abfragen(false));
   }
-  const { data, error } = await zeitlimit(abfrage.order("article_number").limit(50),
-    12000, "Artikelsuche");
   if (error) throw error;
   return data || [];
 }
@@ -8691,6 +8797,14 @@ const best = {
   artikelSuche: "",
   artikelBez: "",
   artikelLief: "",
+  spezialSuche: "",
+  // Spezialwerkzeuge haben ihre eigenen Reiter und Suchen (seit 1.142.0)
+  spezialAnsicht: "hoco",
+  spezialOffenSuche: "",
+  spezialHistorieSuche: "",
+  spezialArtikelSuche: "",
+  spezialArtikelBez: "",
+  spezialArtikelLief: "",
   lieferantId: null,
   offenSuche: "",
   historieSuche: "",
@@ -8828,11 +8942,11 @@ async function ladeBestellungen(offen) {
     () => ladeBestellungenFrisch(offen));
 }
 
-async function ladeBestellungenFrisch(offen) {
+async function ladeBestellungenFrisch(offen, mitSpezial = true) {
   let a = db.from("order_items")
     // suppliers(*) statt fester Spalten, damit logo_url mitkommt, sobald
     // sql/lieferant-logo.sql gelaufen ist, und vorher nichts fehlschlägt
-    .select("*, articles(article_number, name, unit, supplier_id, description, suppliers(*)), suppliers(*), profiles!order_items_created_by_fkey(full_name, email)")
+    .select("*, articles(" + (mitSpezial ? "spezial, " : "") + "article_number, name, unit, supplier_id, description, suppliers(*)), suppliers(*), profiles!order_items_created_by_fkey(full_name, email)")
     .order("needed_by", { ascending: true, nullsFirst: false })
     .order("created_at");
   if (offen) a = a.in("status", OFFENE_STATUS);
@@ -8843,6 +8957,8 @@ async function ladeBestellungenFrisch(offen) {
   const leuteAnfrage = db.from("profiles").select("id, full_name, email").then((r) => r, () => ({}));
   const [{ data, error }, leute] = await Promise.all([
     zeitlimit(a, 12000, "Bestellungen"), leuteAnfrage]);
+  // Ohne sql/spezialwerkzeuge-getrennt.sql noch einmal ohne die Spalte
+  if (error && mitSpezial && /spezial/.test(String(error.message || ""))) return ladeBestellungenFrisch(offen, false);
   if (error) throw error;
   const liste = data || [];
   liste.forEach((z) => {
@@ -8886,13 +9002,14 @@ async function lieferungEinlagern(z, b) {
 // lieferantVorgabe: ist der Lieferant schon gewählt — etwa im
 // Einrichtblatt, wo man zuerst den Hersteller aussucht —, wird er
 // nicht noch einmal abgefragt.
-async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe) {
+// spezial: der neue Artikel ist ein Spezialwerkzeug (seit 1.142.0)
+async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe, spezial) {
   let lieferanten = [], bezeichnungen = [];
   try { lieferanten = await ladeLieferanten(); } catch (f) { /* geht auch ohne */ }
   try { bezeichnungen = await ladeBezeichnungen(); } catch (f) { /* geht auch ohne */ }
 
   const w = await dialogFelder({
-    titel: "Neuen Artikel anlegen",
+    titel: spezial ? "Neues Spezialwerkzeug anlegen" : "Neuen Artikel anlegen",
     felder: [
       { name: "nummer", label: "Artikelnummer", pflicht: true, wert: vorgabe || "" },
       { name: "beschreibung", label: "Beschreibung", typ: "textarea",
@@ -8953,6 +9070,7 @@ async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe) {
     article_number: w.nummer, name: w.name,
     description: (w.beschreibung || "").trim() || null,
     unit: "Stück", supplier_id: lieferantId,
+    ...(spezial ? { spezial: true } : {}),
   }).select().single();
 
   if (error) {
@@ -8980,8 +9098,13 @@ async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe) {
         }
 
         const lief2 = lieferanten.find((l) => l.id === alt.data.supplier_id);
+        // Gehört er zur anderen Seite (Spezialwerkzeug oder normal), wandert er mit
+        if (alt.data.spezial !== undefined && !!alt.data.spezial !== !!spezial) {
+          await db.from("articles").update({ spezial: !!spezial }).eq("id", alt.data.id);
+        }
+
         return { id: alt.data.id, article_number: alt.data.article_number,
-                 name: alt.data.name, supplier_id: alt.data.supplier_id,
+                 name: alt.data.name, supplier_id: alt.data.supplier_id, spezial: !!spezial,
                  supplier_name: lief2 ? lief2.name : null, unit: "Stück" };
       }
     }
@@ -8993,7 +9116,7 @@ async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe) {
   const lief = lieferanten.find((l) => l.id === lieferantId);
   return { id: data.id, article_number: data.article_number, name: data.name,
            supplier_id: data.supplier_id, supplier_name: lief ? lief.name : null,
-           unit: data.unit, gesamtbestand: 0 };
+           unit: data.unit, gesamtbestand: 0, spezial: !!data.spezial };
 }
 
 // Einfache Auswahl aus einer Liste. Gibt den gewählten Wert zurück.
@@ -9621,7 +9744,7 @@ async function lieferantDialog(lieferant, b) {
       { name: "bestellweg", label: "Bestellt wird",
         auswahl: [["website", "über die Website"], ["mail", "per E-Mail"]],
         wert: lieferant ? (lieferant.bestellweg || "website") : "website",
-        hinweis: "Bei E-Mail erscheint in der offenen Liste ein PDF-Knopf." },
+        hinweis: "Steht nur als Hinweis in der Liste. Link zur Website und PDF-Knopf gibt es bei jedem Lieferanten." },
     ],
     bestaetigen: "Speichern",
   });
@@ -9694,6 +9817,16 @@ SYM.produktion = svg('<circle cx="12" cy="12" r="3.2"/>'
   + '<path d="M12 2.6v2.6M12 18.8v2.6M4.4 12H1.8M22.2 12h-2.6'
   + 'M6.3 6.3 4.5 4.5M19.5 19.5l-1.8-1.8M17.7 6.3l1.8-1.8M4.5 19.5l1.8-1.8"/>');
 
+// Maschinen: Drehmaschine von der Seite: Spindelstock mit Futter,
+// eingespannte Stange, Reitstock mit Spitze, Bett auf zwei Füssen
+// (seit 1.155.0, Wunsch Patrick 22. Oktober 2026: „Symbol für
+// Maschinen besser machen“; vorher ein Kasten, der kaum zu erkennen war)
+SYM.maschinen = svg('<path d="M2.5 18h19"/><path d="M4.5 18v2.5M19.5 18v2.5"/>'
+  + '<rect x="2.5" y="5" width="6.5" height="13" rx="1.2"/><path d="M5.7 8v3"/>'
+  + '<rect x="9" y="8.6" width="2.3" height="6" rx=".5" fill="currentColor" stroke="none"/>'
+  + '<path d="M11.3 11.6h5.4" stroke-width="2.4"/><path d="M18.2 9.6h3.3V18h-3.3z"/>'
+  + '<path d="M16.7 11.6l1.5-.9v1.8z" fill="currentColor"/>');
+
 // Bestellungen: Lieferschein mit Haken
 SYM.bestellungen = svg('<path d="M6 2.8h9l4 4v14.4H6z"/><path d="M15 2.8v4h4"/>'
   + '<path d="M9 13l1.8 1.8L14.5 11"/><line x1="9" y1="17.6" x2="15" y2="17.6"/>');
@@ -9723,6 +9856,13 @@ SYM.infoboard = svg('<rect x="5" y="2.5" width="14" height="19" rx="2"/>'
 // QS: Lupe mit Häkchen, wie Prüfen
 SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
   + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
+
+// Statistik: Säulen auf einer Grundlinie, eine Kurve darüber
+SYM.statistik = svg('<path d="M3 20.5h18"/>'
+  + '<rect x="5" y="12" width="3" height="6" rx="0.8" fill="currentColor" stroke="none"/>'
+  + '<rect x="10.5" y="8.5" width="3" height="9.5" rx="0.8" fill="currentColor" stroke="none"/>'
+  + '<rect x="16" y="10.5" width="3" height="7.5" rx="0.8" fill="currentColor" stroke="none"/>'
+  + '<path d="M4.5 8.5 9.5 5l4 2.5 6-4.5"/>');
 
 // Einstellungen: Schieberegler
 SYM.einstellungen = svg('<line x1="4" y1="7" x2="20" y2="7"/>'
@@ -9817,8 +9957,13 @@ const SEITEN = [
   { pfad: "dashboard",    titel: "Start",        zeichen: SYM.start, zeige: seiteDashboard },
   { pfad: "planwand",     titel: "Planwand",     zeichen: SYM.planwand, zeige: seitePlanwand },
   { pfad: "produktion",   titel: "Produktion",   zeichen: SYM.produktion, zeige: seiteProduktion },
+  // Parks, Typen und jede Maschine mit Infos, Wartung und Batterien,
+  // vorher in der Produktion (Wunsch Patrick 21. Oktober 2026)
+  { pfad: "maschinen",    titel: "Maschinen",    zeichen: SYM.maschinen, zeige: reactSeite(MaschinenSeite) },
   // Ausschuss melden statt Zustand „QS Check“ (seit 1.77.0)
   { pfad: "qs",           titel: "Qualitätssicherung", zeichen: SYM.qs, zeige: reactSeite(Qs) },
+  // Produktionsdaten je Maschine und Artikel (Wunsch Patrick 23. Oktober 2026)
+  { pfad: "statistik",    titel: "Statistik",    zeichen: SYM.statistik, zeige: reactSeite(Statistik) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: reactSeite(Einkauf) },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
@@ -9852,7 +9997,7 @@ Object.assign(alt, {
   ladeAlleMaschinen, maschineZielText, parallelSenden,
   aendernOhneUnbekannte, zielZeichen, kurzDatum, zahlText, isoDatum,
   fortschrittRechnen, planAuftragDialog, ladeTypen,
-  pad, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
+  pad, padOeffnen, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,
   notizTrennen, auftragNotiz, materialPlatz, materialPlatzSpalte, abrufSpalte, spalteDa, abrufPflicht,
   siegelListe, siegelName, siegelHtml, standsNachtragen, werkstoffErkennen, farbeVon, schriftZu, auftragFarbe, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
@@ -10330,6 +10475,11 @@ function zeichneGeruest() {
   // landet wieder dort.
   async function jetztAbmelden(vonSelbst) {
     leerlaufStoppen();
+    vorschauenWeg();
+    // Auch die Leiste der Planwand-Suche und das Symbol-Anwenden hängen
+    // am Seitenende und blieben sonst über der Anmeldung stehen
+    sucheBeenden();
+    if (plan.symbolWahl) symbolAnwendenEnde();
     if (vonSelbst === true) zustandFuerSpaeter();
     zustandVergessen();
     if (typeof padSchliessen === "function") padSchliessen();
@@ -10380,7 +10530,11 @@ function zeichneGeruest() {
     if (!padWiederOeffnen()) zeichneSeite();
     nachher();
     // Am Bildschirm im Gang geht das Infoboard von selbst wieder auf
-    if (!ARCHIV && istInfoboardGeraet() && infoboardSichtbar()) infoboardOeffnen();
+    // Ebenso beim Konto „Infoboard“ (Vermerk infoboardBildschirm am Konto,
+    // sql/infoboard-konto.sql), ohne Häkchen auf dem Gerät (Wunsch Patrick
+    // 21. Oktober 2026: „dann soll direkt die Vollbildanzeige starten“)
+    const ibKonto = !!(profil && profil.einstellungen && profil.einstellungen.infoboardBildschirm);
+    if (!ARCHIV && (istInfoboardGeraet() || ibKonto) && infoboardSichtbar()) infoboardOeffnen();
   });
   if (ARCHIV) archivMarkeEinbauen(); else padKnopfEinbauen();
   if (!window._escZurueck) { window._escZurueck = true; escapeZurueck(); }

@@ -68,7 +68,7 @@ export default function Gravur() {
 
   const roh = useMemo(() => gravurKonturen(g),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [g.text, g.schrift, g.fett, g.kursiv, g.hoehe, g.laufweite, g.glaetten]);
+    [g.text, g.schrift, g.fett, g.kursiv, g.hoehe, g.laufweite, g.glaetten, g.spiegelnX, g.spiegelnY]);
   const zuege = useMemo(() => gravurBahnen(g, roh.zuege), [g, roh]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const gcode = useMemo(() => gravurGcode(g, roh), [g, roh, kopfStand]);
@@ -117,6 +117,11 @@ export default function Gravur() {
               onChange={(e) => setze("fett", e.target.checked)} /><span>Fett</span></label>
             <label className="schalter schalter--eng"><input type="checkbox" data-grav="kursiv" checked={g.kursiv}
               onChange={(e) => setze("kursiv", e.target.checked)} /><span>Kursiv</span></label></div>
+          <div className="feld"><span className="feldlabel">Spiegeln</span>
+            <label className="schalter schalter--eng"><input type="checkbox" data-grav="spiegelnX" checked={g.spiegelnX}
+              onChange={(e) => setze("spiegelnX", e.target.checked)} /><span>Links ↔ rechts</span></label>
+            <label className="schalter schalter--eng"><input type="checkbox" data-grav="spiegelnY" checked={g.spiegelnY}
+              onChange={(e) => setze("spiegelnY", e.target.checked)} /><span>Oben ↕ unten</span></label></div>
           <Feld name="hoehe" text="Zeichenhöhe in mm" wert={g.hoehe} setze={setze} />
           <Feld name="laufweite" text="Laufweite in mm" wert={g.laufweite} setze={setze} schritt="0.05" />
           <label className="feld"><span>Fläche</span>
@@ -132,7 +137,8 @@ export default function Gravur() {
           <Feld name="zStart" text="Z an der Fläche" wert={g.zStart} setze={setze} />
           <Feld name="tiefe" text="Gravurtiefe" wert={g.tiefe} setze={setze} schritt="0.05" />
           <Feld name="schnitte" text="Schnitte" wert={g.schnitte} setze={setze} schritt="1" />
-          <Feld name="vorschub" text="Vorschub mm/min" wert={g.vorschub} setze={setze} schritt="1" />
+          <Feld name="vorschub" text={mantel ? "Vorschub Eintauchen in X mm/min" : "Vorschub Eintauchen in Z mm/min"} wert={g.vorschub} setze={setze} schritt="1" />
+          <Feld name="vorschubC" text="Vorschub C-Achse mm/min" wert={g.vorschubC} setze={setze} schritt="1" />
           <Feld name="drehzahl" text="Drehzahl Stichel" wert={g.drehzahl} setze={setze} schritt="100" />
           <Feld name="eilgang" text="Abhebehöhe" wert={g.eilgang} setze={setze} schritt="0.5" />
           <label className="feld"><span>Werkzeug</span>

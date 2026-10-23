@@ -14,6 +14,8 @@ import { GeburtstagMitte, Konfetti } from "./start/Geburtstag.jsx";
 import Notizen from "./start/Notizen.jsx";
 import Materialausgabe from "./start/Materialausgabe.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
+import Durchfahrt from "./start/Durchfahrt.jsx";
+import Batterien from "./start/Batterien.jsx";
 
 // Ohne Adminrecht wird gar nicht erst nach Problemen gefragt
 const keineProbleme = async () => [];
@@ -34,7 +36,7 @@ export default function Start({ auffrischen }) {
   return (
     <>
       <section className={"kopfkarte" + (fest ? " kopfkarte--geburtstag" : "")}>
-        {fest && <Konfetti />}
+        {fest ? <Konfetti /> : <Durchfahrt />}
         <Uhr />
         {fest
           ? <GeburtstagMitte kinder={kinder} />
@@ -44,6 +46,8 @@ export default function Start({ auffrischen }) {
       <Solaranlage />
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
       {admin && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
+      {/* Fällige Backup-Batterien für alle (Wunsch Patrick 21. Oktober 2026) */}
+      <Batterien auffrischen={auffrischen} />
       {/* Reihenfolge nach Wunsch 4. Oktober 2026: Probleme, Bestellungen,
           Notizen, Einkaufsliste, am Schluss die Geburtstage. Über den
           Notizen die Materialausgabe Extern (Wunsch 8. Oktober 2026). */}

@@ -112,6 +112,23 @@ async function aufgebraucht(p, neu) {
   neu();
 }
 
+// Löschen darf jeder ausser Externen und Dienst (Wunsch Patrick
+// 22. Oktober 2026: „Eintrag auch löschbar machen, für jeden“), etwa
+// für falsch Erfasstes; einmal nachfragen, mit Rückgängig. Die
+// Historie vermerkt es als „Gelöscht“.
+async function loeschen(p, neu) {
+  const ok = await alt.nachfragen({ titel: "Eintrag löschen",
+    text: (p.material || "Material") + ", " + postenMengeText(p) + " wirklich löschen?",
+    bestaetigen: "Löschen", gefahr: true });
+  if (!ok) return;
+  const vorher = await alt.rueckSichern("material_posten", { id: p.id });
+  const r = await alt.db.from("material_posten").delete().eq("id", p.id);
+  if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
+  if (vorher.length) alt.merkeSchritt("Material löschen", alt.rueckRein("material_posten", vorher));
+  alt.meldung("Gelöscht.", "gut");
+  neu();
+}
+
 // Wer den Posten erfasst und wer ihn zuletzt geändert hat, mit Datum
 // und Zeit (Wunsch Patrick 16. Oktober 2026, seit 1.81.0). Die
 // Datenbank trägt beides selbst ein (erstellt_von als Vorgabe,
@@ -128,7 +145,7 @@ function WerWann({ p, personen }) {
 }
 
 // Ein Posten Restmaterial: Menge, Ort; rotes M (wo einsetzen), Ändern
-// und Aufgebraucht. Ohne „für …“: Restmaterial gehört keinem Auftrag
+// Aufgebraucht und Löschen. Ohne „für …“: Restmaterial gehört keinem Auftrag
 // (Wunsch Patrick 19. Oktober 2026)
 function PostenZeile({ p, neu, mitMaterial, erfassen, personen, auftraege }) {
   return (
@@ -144,6 +161,8 @@ function PostenZeile({ p, neu, mitMaterial, erfassen, personen, auftraege }) {
         <MKnopf p={p} auftraege={auftraege} neu={neu} />
         {erfassen && <button className="knopf knopf--klein" onClick={() => erfassen({ posten: p })}>Ändern</button>}
         <button className="knopf knopf--klein" onClick={() => aufgebraucht(p, neu)}>Aufgebraucht</button>
+        <button className="knopf knopf--klein knopf--gefahr mat-loeschen" title="Eintrag löschen"
+          onClick={() => loeschen(p, neu)}>Löschen</button>
       </span>
     </div>
   );

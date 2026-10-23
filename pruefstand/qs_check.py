@@ -3,7 +3,7 @@
 # dran ist, Zustand am Ende der Zeile direkt wechseln. Dazu Bilder am
 # Computer, auf dem iPad und am Handy.
 import time, os
-from pruefstand import art_info, server_starten, FAKE, CH, PORT
+from pruefstand import art_info, kein_rest, server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -105,7 +105,7 @@ with sync_playwright() as p:
     # Letzte Stückzahl (seit 1.25.0) überspringen, dann Art. Info
     if pg.locator(".zifferblock h2:has-text('Letzte Stückzahl')").count():
         pg.click(".zifferblock [data-zbnein]")
-    art_info(pg, 3, 7); pg.wait_for_timeout(1500)
+    art_info(pg, 3, 7); kein_rest(pg); pg.wait_for_timeout(1500)
     if zustand(pg, "qA") != "fertig": fehler.append("nicht beendet: " + zustand(pg, "qA"))
     if zustand(pg, "qB") != "ruesten": fehler.append("Nächster nicht auf Rüsten: " + zustand(pg, "qB"))
     if "10444-0002" not in pg.locator("#pad [data-qsmaschine='m-k1']").inner_text():

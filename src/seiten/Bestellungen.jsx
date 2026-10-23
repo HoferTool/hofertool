@@ -14,12 +14,13 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Offen from "./bestellungen/Offen.jsx";
 import Historie from "./bestellungen/Historie.jsx";
 import Artikel from "./bestellungen/Artikel.jsx";
+import Spezialwerkzeuge from "./bestellungen/Spezialwerkzeuge.jsx";
 import Bezeichnungen from "./bestellungen/Bezeichnungen.jsx";
 import Lieferanten from "./bestellungen/Lieferanten.jsx";
 
 export const REITER = [
   ["offen", "Offen"], ["bestellt", "Bestellt"], ["historie", "Historie"],
-  ["artikel", "Artikel"], ["bezeichnungen", "Bezeichnungen"], ["lieferanten", "Lieferanten"],
+  ["artikel", "Artikel"], ["spezial", "Spezialwerkzeuge"], ["bezeichnungen", "Bezeichnungen"], ["lieferanten", "Lieferanten"],
 ];
 
 export default function Bestellungen({ auffrischen, behaelter }) {
@@ -31,7 +32,8 @@ export default function Bestellungen({ auffrischen, behaelter }) {
 
   return (
     <>
-      <h1 className="seitentitel">Bestellungen</h1>
+      {/* Die Spezialwerkzeuge sind ein eigener Bereich (seit 1.142.0) */}
+      <h1 className="seitentitel">{best.ansicht === "spezial" ? "Spezialwerkzeuge" : "Bestellungen"}</h1>
       <Reiter reiter={REITER} aktiv={best.ansicht} waehlen={waehlen} merkmal="best" seite="bestellungen" />
       {!alt.darfSchreiben() &&
         <div className="nurlesen">Du kannst hier alles ansehen, aber nichts ändern.</div>}
@@ -47,6 +49,7 @@ export default function Bestellungen({ auffrischen, behaelter }) {
 function Inhalt({ ansicht, ...weiter }) {
   if (ansicht === "historie") return <Historie {...weiter} />;
   if (ansicht === "artikel") return <Artikel {...weiter} />;
+  if (ansicht === "spezial") return <Spezialwerkzeuge {...weiter} />;
   if (ansicht === "bezeichnungen") return <Bezeichnungen {...weiter} />;
   if (ansicht === "lieferanten") return <Lieferanten {...weiter} />;
   return <Offen bereich={ansicht === "bestellt" ? "bestellt" : "offen"} {...weiter} />;

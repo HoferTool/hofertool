@@ -120,8 +120,8 @@ def art_info(pg, zeit=None, laenge=None, ok=True):
     pg.click(".dialog-huelle [data-ja]" if ok else ".dialog-huelle [data-nein]")
 
 
-# „Rest Material?“ nach dem Beenden (seit 1.67.0) mit „Kein Rest“ schliessen
+# „Material übrig?“ nach dem Beenden (seit 1.142.0 zuerst Ja oder Nein) mit „Nein“ schliessen
 def kein_rest(pg, warten=1500):
-    try: pg.wait_for_selector(".mat-dialog", timeout=warten)
+    try: pg.wait_for_selector(".dialog-huelle h2:has-text('Material übrig?')", timeout=warten)
     except Exception: return
-    pg.locator(".mat-dialog button:has-text('Kein Rest')").first.click(); pg.wait_for_timeout(800)
+    pg.locator(".dialog:has(h2:has-text('Material übrig?')) [data-nein]").first.click(); pg.wait_for_timeout(800)

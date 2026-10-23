@@ -515,8 +515,8 @@ function bauer(tabelle) {
             return Object.assign({}, a, {
               supplier_name: l ? l.name : null,
               supplier_website: l ? l.website : null,
-              gesamtbestand: 0, unter_mindestbestand: false });
-          });
+              gesamtbestand: 0, unter_mindestbestand: false, spezial: !!a.spezial });
+          }).filter((z) => zustand.filter.every((f) => passt(z, f)));
         }
         if (tabelle === "setup_sheet_slots") {
           treffer = treffer.map((z) => Object.assign({}, z, {

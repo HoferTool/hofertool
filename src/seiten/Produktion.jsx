@@ -1,9 +1,10 @@
 // =================================================================
 //  PRODUKTION
-//  Hülle mit den Reitern Erfassen, Fortschritt sowie Maschinen und
-//  Typen. Erfassen, Fortschritt und die Maschinenparks sind in React
-//  (src/seiten/produktion/). Die Maschinentypen und HOCO laufen noch
-//  im alten Programm und hängen über AltTeil darin.
+//  Hülle mit den Reitern Erfassen und Fortschritt, in React
+//  (src/seiten/produktion/). „Maschinen und Typen“ ist seit 1.134.0
+//  die eigene Seite Maschinen (src/seiten/Maschinen.jsx, Wunsch
+//  Patrick 21. Oktober 2026). HOCO läuft noch im alten Programm und
+//  hängt über AltTeil darin.
 //
 //  Die Grunddaten (Parks, Maschinen, laufende Aufträge) liegen wie
 //  bisher in prod.* im alten Programm, weil viele alte Stellen sie
@@ -15,18 +16,17 @@ import { alt, AltTeil, useDaten } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Erfassen from "./produktion/Erfassen.jsx";
 import Fortschritt from "./produktion/Fortschritt.jsx";
-import Maschinen from "./produktion/Maschinen.jsx";
+import { ms } from "./Maschinen.jsx";
 
-export const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"],
-                ["maschinen", "Maschinen und Typen"]];
+export const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"]];
 
 let ladeNr = 0;
 
-// Was jede Ansicht braucht. Bei „Maschinen“ auch die ausgeblendeten.
-async function grunddatenLaden(auchInaktive) {
+// Was jede Ansicht braucht
+async function grunddatenLaden() {
   const prod = alt.prod;
-  prod.parks = await alt.ladeParks(auchInaktive);
-  prod.maschinen = await alt.ladeMaschinen(auchInaktive);
+  prod.parks = await alt.ladeParks(false);
+  prod.maschinen = await alt.ladeMaschinen(false);
   prod.auftraege = await alt.ladeLaufendeAuftraege();
   // Für die Typknöpfe beim Erfassen; ohne Typen geht es auch
   try { prod.typen = await alt.ladeTypen(); } catch (f) { prod.typen = prod.typen || []; }
@@ -45,8 +45,7 @@ function vorgabenSetzen(prod) {
     prod.vonDatum = alt.isoDatum(new Date(h.getFullYear(), h.getMonth(), 1));
   }
   // Alte Verweise auf Reiter, die es nicht mehr gibt
-  if (prod.ansicht === "typen") prod.ansicht = "maschinen";
-  if (prod.ansicht === "uebersicht") prod.ansicht = "erfassen";
+  if (["typen", "maschinen", "uebersicht"].includes(prod.ansicht)) prod.ansicht = "erfassen";
 }
 
 export default function Produktion({ auffrischen, behaelter }) {
@@ -54,10 +53,9 @@ export default function Produktion({ auffrischen, behaelter }) {
   vorgabenSetzen(prod);
   const [, zeichnen] = useReducer((x) => x + 1, 0);
   const waehlen = (wert) => { prod.ansicht = wert; zeichnen(); };
-  const maschinenAnsicht = prod.ansicht === "maschinen";
-
-  const { daten: geladen, fehler, neu } = useDaten(
-    () => grunddatenLaden(maschinenAnsicht), [maschinenAnsicht, auffrischen]);
+  const { daten: geladen, fehler, neu } = useDaten(() => grunddatenLaden(), [auffrischen]);
+  // Maschinen einrichten geht seit 1.134.0 auf der Seite Maschinen
+  const zuMaschinen = () => { ms.ansicht = "uebersicht"; location.hash = "#/maschinen"; };
 
   const reiter = REITER.filter(([w]) => !alt.istExtern() || w === "erfassen");
 
@@ -75,13 +73,11 @@ export default function Produktion({ auffrischen, behaelter }) {
             : prod.ansicht === "erfassen"
               ? <div id="prod-inhalt">
                   <Erfassen geladen={geladen} neuLaden={neu} behaelter={behaelter}
-                    zuMaschinen={() => waehlen("maschinen")} />
+                    zuMaschinen={zuMaschinen} />
                 </div>
               : prod.ansicht === "fortschritt"
                 ? <div id="prod-inhalt"><Fortschritt key={geladen.nr} neuLaden={neu} /></div>
-                : prod.ansicht === "maschinen"
-                  ? <div id="prod-inhalt"><Maschinen geladen={geladen} behaelter={behaelter} /></div>
-                  : <AltTeil key={prod.ansicht + geladen.nr} id="prod-inhalt"
+                : <AltTeil key={prod.ansicht + geladen.nr} id="prod-inhalt"
                     zeichne={(el) => alteAnsicht(el, behaelter)} />}
       </Uebergang>
     </>

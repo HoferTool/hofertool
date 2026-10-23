@@ -1,6 +1,6 @@
-# Planwand für Planer: Ein Klick auf den Balken zeigt die Zeichnung (wie
-# für alle ohne Planrecht), Doppelklick bzw. Doppeltipp öffnet das
-# Auftragsfenster. Maus und Tablet.
+# Planwand: Ein Klick auf den Balken zeigt die Zeichnung nur am Handy
+# (seit 1.140.0), am Computer und Tablet tut er nichts ausser markieren.
+# Doppelklick bzw. Doppeltipp öffnet das Auftragsfenster. Maus, Tablet, Handy.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -8,7 +8,8 @@ server_starten(); time.sleep(0.4)
 fehler = []
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])
-    for breite, hoehe, tablet in ((1600, 950, False), (1180, 820, True)):
+    for breite, hoehe, tablet in ((1600, 950, False), (1180, 820, True), (390, 844, True)):
+        handy = breite < 700
         ctx = br.new_context(viewport={"width": breite, "height": hoehe}, has_touch=tablet)
         pg = ctx.new_page()
         pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
@@ -25,14 +26,18 @@ with sync_playwright() as p:
                            "betrachter": pg.locator(".betrachter").count(),
                            "warnung": pg.evaluate("[...document.querySelectorAll('.toast')].map(m => m.innerText).join(' ')")}
         def zu():
-            for _ in range(3): pg.keyboard.press("Escape"); pg.wait_for_timeout(250)
+            # Nur solange etwas offen ist, sonst fragt Escape „Abmelden?“
+            for _ in range(3):
+                if not pg.locator(".dialog-huelle, .betrachter").count(): break
+                pg.keyboard.press("Escape"); pg.wait_for_timeout(250)
             pg.wait_for_timeout(1500)
 
         def tippen(sel, mal):
             el = pg.locator(sel).first
             el.scroll_into_view_if_needed()
             for _ in range(mal):
-                if tablet: el.tap()
+                # Rechts im Balken, links sitzt am Handy das Zustandszeichen
+                if tablet: el.tap(position={"x": el.bounding_box()["width"] - 10, "y": 8})
                 else: el.click()
                 pg.wait_for_timeout(80)
             pg.wait_for_timeout(900)
@@ -46,7 +51,10 @@ with sync_playwright() as p:
         else:
             sel = f".pw-balken[data-auftrag='{jid}']"
             tippen(sel, 1); z = zustand(); print(breite, "ein Klick:", z["auftrag"], z["betrachter"])
-            if z["betrachter"] == 0: fehler.append(f"{breite}: ein Klick zeigt keine Zeichnung")
+            if handy and z["betrachter"] == 0: fehler.append(f"{breite}: ein Klick zeigt keine Zeichnung")
+            if not handy and z["betrachter"]: fehler.append(f"{breite}: ein Klick zeigt die Zeichnung (nur Handy)")
+            if pg.evaluate("document.querySelector('.pw-balken--angewaehlt') ? 1 : 0") == 0 and not z["betrachter"]:
+                fehler.append(f"{breite}: ein Klick markiert den Balken nicht")
             if z["auftrag"]: fehler.append(f"{breite}: ein Klick öffnet das Auftragsfenster")
             zu()
             tippen(sel, 2); z = zustand(); print(breite, "Doppelklick:", z["auftrag"], z["betrachter"])
@@ -58,7 +66,7 @@ with sync_playwright() as p:
             zu()
         # Auftrag ohne Zeichnung: ein Klick → Fenster „Keine Zeichnung vorhanden“
         jid2 = pg.evaluate(mit, False)
-        if jid2:
+        if jid2 and handy:
             tippen(f".pw-balken[data-auftrag='{jid2}']", 1); z = zustand()
             pg.wait_for_timeout(600)
             t = pg.evaluate("(document.querySelector('.betrachter') || {}).innerText || ''")

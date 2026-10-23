@@ -72,7 +72,10 @@ export function symbolInfoWeg() {
   fenster = null;
 }
 
-export function symbolInfoOffen() { return !!fenster; }
+// Auch weg, wenn jemand anders das Fenster aus der Seite genommen hat
+// (Seitenwechsel, Escape, Abmelden): sonst hielte die Vorschau der Balken
+// es für offen und ginge nicht mehr auf
+export function symbolInfoOffen() { return !!fenster && fenster.isConnected; }
 
 export function symbolInfoZeigen(el, x, y) {
   const s = liste.find((z) => z.id === el.dataset.plsymbol);
