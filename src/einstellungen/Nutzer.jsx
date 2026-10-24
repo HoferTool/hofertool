@@ -198,6 +198,8 @@ function BenutzerListe({ leute, parks, mitPin, status, bin, neu }) {
         if (istAndererNutzer(u)) merkmale.push("Andere Nutzer");
         if (u.darf_materialplatz && u.role !== "admin") merkmale.push("Materialplatz");
         if (u.ist_planer && u.initialen) merkmale.push("plant als " + u.initialen);
+        const start = u.startseite && (alt.SEITEN || []).find((x) => x.pfad === u.startseite);
+        if (start && u.role !== "extern") merkmale.push("startet mit " + start.titel);
         if (bin && mitPin) merkmale.push(mitPin.has(u.id) ? "mit PIN" : "mit Passwort");
         return (
           <div key={u.id} className={"nutzerzeile" + (u.is_active ? "" : " nutzerzeile--inaktiv")} data-nutzer={u.id}>
@@ -245,6 +247,18 @@ function NutzerInfos({ u, status, bin }) {
 
 // Fenster für eine Person: speichert jede Änderung sofort, die Liste
 // dahinter lädt beim Schliessen neu.
+// Seiten, die diese Person sehen darf, als Wahl für ihre Startseite
+// (Wunsch Patrick 24. Oktober 2026). Gleiche Regeln wie seiteSichtbar,
+// nur für die gewählte Person statt für die angemeldete.
+function startSeiten(u) {
+  return (alt.SEITEN || []).filter((x) => {
+    if (x.pfad === "dashboard") return false;
+    if (u.role === "dienst" && ["material", "qs", "maschinen", "statistik"].includes(x.pfad)) return false;
+    if (x.pfad === "infoboard") return u.role === "admin" || istAndererNutzer(u);
+    return true;
+  });
+}
+
 function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
   const [u, setU] = useState(person);
   const [mitPin, setMitPin] = useState(() => !!(pinAnfang && pinAnfang.has(person.id)));
@@ -263,7 +277,9 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
       alt.meldung("andere_nutzer" in felder && /andere_nutzer/.test(error.message || "")
         ? "Dafür fehlt noch sql/andere-nutzer.sql in der Datenbank."
         : "darf_materialplatz" in felder && /darf_materialplatz/.test(error.message || "")
-          ? "Dafür fehlt noch sql/materialplatz-recht.sql in der Datenbank." : alt.fehlertext(error), "fehler");
+          ? "Dafür fehlt noch sql/materialplatz-recht.sql in der Datenbank."
+          : "startseite" in felder && /startseite/.test(error.message || "")
+            ? "Dafür fehlt noch sql/startseite.sql in der Datenbank." : alt.fehlertext(error), "fehler");
       setU((x) => ({ ...x, ...zurueck }));
       return false;
     }
@@ -374,6 +390,13 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
         <label className="feld"><span>Geburtstag</span>
           <input type="date" className="gebfeld" data-geb={u.id} value={u.geburtstag || ""}
             onChange={(e) => aendern({ geburtstag: e.target.value || null }, "Geburtstag gespeichert.")} /></label>
+        {u.role !== "extern" && (
+          <label className="feld"><span>Startseite nach dem Anmelden</span>
+            <select className="auswahl" data-startseite={u.id} value={u.startseite || ""}
+              onChange={(e) => aendern({ startseite: e.target.value || null }, "Startseite gespeichert.")}>
+              <option value="">Start (wie bisher)</option>
+              {startSeiten(u).map((x) => <option key={x.pfad} value={x.pfad}>{x.titel}</option>)}
+            </select></label>)}
         <label className="feld"><span>Kürzel auf dem Balken</span>
           <Feld className="kuerzelfeld" data-plan-kuerzel={u.id} maxLength={4} gross wert={u.initialen}
             speichern={(k) => aendern({ initialen: k || null }, "Kürzel gespeichert.")} /></label>

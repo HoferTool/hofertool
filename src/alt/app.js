@@ -136,7 +136,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.165.1";
+const APP_VERSION = "1.166.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1594,12 +1594,12 @@ async function profilLaden(frisch) {
     const spalten = "id, email, full_name, role, is_active, geburtstag, "
       + "bild_url, parks, darf_bearbeiten, ist_planer, initialen, ohne_passwort, einstellungen";
     let { data, error } = await zeitlimit(
-      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz")
+      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz, startseite")
         .eq("id", s.user.id).single(), 10000, "Profil");
     // Ohne sql/andere-nutzer.sql oder sql/materialplatz-recht.sql kennt die
     // Datenbank das Häkchen nicht: dann ohne die Spalten lesen, statt ohne
     // Profil dazustehen
-    if (error && /andere_nutzer|darf_materialplatz/.test(String(error.message || ""))) {
+    if (error && /andere_nutzer|darf_materialplatz|startseite/.test(String(error.message || ""))) {
       ({ data, error } = await zeitlimit(
         db.from("profiles").select(spalten).eq("id", s.user.id).single(), 10000, "Profil"));
     }
@@ -10532,6 +10532,13 @@ function zeichneGeruest() {
   if (!ARCHIV && profil) {
     const vorher = zustandNachAnmeldung(profil.id);
     if (vorher && !location.hash) location.hash = vorher;
+  }
+  // Sonst die Seite, die ein Admin unter Einstellungen → Nutzer als
+  // Startseite gewählt hat (Wunsch Patrick 24. Oktober 2026: „P. Ruch will
+  // nach dem Login direkt die Planwand“), aber nur, wenn die Person sie sehen darf
+  const eigeneStart = !ARCHIV && profil && profil.startseite;
+  if (!location.hash && eigeneStart && SEITEN.some((s) => s.pfad === eigeneStart) && seiteSichtbar(eigeneStart)) {
+    location.hash = "#/" + eigeneStart;
   }
   if (!location.hash) location.hash = ARCHIV ? "#/planwand" : "#/dashboard";
   document.body.classList.toggle("archiv", !!ARCHIV);
