@@ -102,7 +102,8 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
   // Firmennetz nicht, der Pool-Rechner schon (Wunsch Patrick, 9. Oktober 2026).
   const [pool, setPool] = useState(null);      // { drucker, excel } oder null
   const [wahl, setWahl] = useState(false);     // Auswahl offen?
-  // Der Knopf heisst nur „Planbüro“: der volle Name des Druckers
+  // Der Knopf heisst „Nur WBGs drucken“ (seit 1.167.1, Wunsch Patrick
+  // 24. Oktober 2026, vorher „Planbüro“): der volle Name des Druckers
   // (\\hof-chso-fs01\SHARP … Planbüro) machte die Auswahl so breit, dass
   // sie im Pad über den Rand ragte. Kopien stehen bei jedem Öffnen der
   // Auswahl wieder auf 1, mehr nur, wenn man hochzählt (Wunsch Patrick,
@@ -234,7 +235,7 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
             <button className="knopf knopf--klein" data-drucken="" onClick={knopfDrucken} disabled={druckt}
               aria-expanded={poolGeht ? wahl : undefined}>{druckt ? "Druckt …" : "Drucken"}</button>
             {wahl && <div className="druckwahl" data-druckwahl="" role="menu">
-              <button className="knopf knopf--haupt" data-pooldruck="" onClick={anPool}>Planbüro</button>
+              <button className="knopf knopf--haupt" data-pooldruck="" onClick={anPool}>Nur WBGs drucken</button>
               <div className="druckwahl__kopien">
                 <span>Kopien</span>
                 <button className="knopf knopf--klein" aria-label="Weniger" data-kopienweniger=""
