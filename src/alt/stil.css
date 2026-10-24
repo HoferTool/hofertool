@@ -9440,7 +9440,10 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
    dem Inhalt über den Bildschirm hinaus */
 .eba-huelle { grid-template-rows: minmax(0, 1fr); }
 .ri .ri-eingabe { width: auto; min-height: 38px; padding: 6px 10px; border-radius: 8px; font: inherit;
-                  border: 1px solid var(--rand, #c8d0da); background: var(--feld, #fff); color: inherit; }
+                  border: 1px solid var(--linie-stark); background: var(--flaeche); color: var(--tinte); }
+/* Im dunklen Modus war das Feld weiss mit weisser Schrift (--feld gibt es
+   nicht); color-scheme dunkel, damit auch die Auswahlliste am iPad dunkel ist */
+body.dunkel .ri .ri-eingabe { color-scheme: dark; }
 .ri-suche input.ri-eingabe { flex: 1 1 220px; max-width: 320px; }
 .ri-suche select.ri-eingabe, .ri-kopf select.ri-eingabe { flex: 0 1 260px; }
 .ri-kopf { margin-bottom: 4px; }

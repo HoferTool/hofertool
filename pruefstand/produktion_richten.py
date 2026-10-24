@@ -39,6 +39,13 @@ with sync_playwright() as p:
     pruefe("Maschine mit Auftrag und Stand", "10000-0301" in z.inner_text() and "Nur Excel" in z.inner_text())
     pruefe("Nicht bestätigtes Blatt in der Liste", pg.locator("[data-richten-offen='10000-0999']").count() == 1)
     pg.screenshot(path="produktion_richten.png")
+    # Dunkler Modus: Auswahlfelder dunkel mit heller Schrift (war weiss auf weiss)
+    pg.evaluate("document.body.classList.add('dunkel')"); pg.wait_for_timeout(200)
+    f = pg.evaluate("""() => { const s = getComputedStyle(document.querySelector('[data-richten-typ]'));
+      return [s.backgroundColor, s.color]; }""")
+    pruefe("Dunkel: Auswahlfeld lesbar " + str(f), f[0] != "rgb(255, 255, 255)" and f[1] == "rgb(255, 255, 255)")
+    pg.screenshot(path="produktion_richten_dunkel.png")
+    pg.evaluate("document.body.classList.remove('dunkel')")
 
     z.locator("[data-richten-bearbeiten]").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(800)
     pruefe("Excel eingelesen", pg.evaluate("TEST.daten.einrichtblatt_app.some(b => b.hoco_nr === '10000-0301' && b.type_id === 't1')"))
