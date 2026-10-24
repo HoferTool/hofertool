@@ -163,7 +163,7 @@ export async function dichtenSpeichern(neu) {
 const NUR_BUCHSTABEN = /^[a-z-]+$/;
 
 // Von Hand eingetragene Werkstoffnummern für Bezeichnungen, die die
-// Liste nicht kennt (seit 1.171.0, Wunsch Patrick 24. Oktober 2026:
+// Liste nicht kennt (seit 1.172.0, Wunsch Patrick 24. Oktober 2026:
 // „bei denen, wo es die Bez nicht gefunden hat, manuell eintragbar“).
 // app_config.werkstoff_nummern = { "k:<kern>": { nr, name } }, der
 // Schlüssel wie bei werkstoffAnzeige ohne Nummer.

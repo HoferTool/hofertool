@@ -1,4 +1,4 @@
-# Werkstoffnummer von Hand (seit 1.171.0, Wunsch Patrick 24. Oktober 2026):
+# Werkstoffnummer von Hand (seit 1.172.0, Wunsch Patrick 24. Oktober 2026):
 # in den Einstellungen bei einem nicht erkannten Werkstoff eintragen,
 # danach findet die Suche ihn unter Nummer und Name und zeigt beides.
 # Reiter Farben und Material auch mit dem Häkchen „Materialplatz bearbeiten“.

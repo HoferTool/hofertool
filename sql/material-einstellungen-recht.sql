@@ -1,6 +1,6 @@
 -- =================================================================
 --  Farben und Material auch für „Materialplatz bearbeiten“
---  (Wunsch Patrick 24. Oktober 2026, seit 1.171.0)
+--  (Wunsch Patrick 24. Oktober 2026, seit 1.172.0)
 --
 --  Wer unter Einstellungen → Nutzer das Häkchen „Materialplatz
 --  bearbeiten“ hat, sieht jetzt auch den Reiter „Farben und Material“

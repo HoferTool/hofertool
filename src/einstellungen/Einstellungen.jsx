@@ -57,7 +57,7 @@ function Einstellungen({ zu }) {
   // am selben Gerät angemeldet war —, geht es auf den ersten zurück.
   const dok = alt.darfDokumenteUndSicherung();
   // Farben und Material auch für alle mit dem Häkchen „Materialplatz
-  // bearbeiten“ (seit 1.171.0, Wunsch Patrick 24. Oktober 2026)
+  // bearbeiten“ (seit 1.172.0, Wunsch Patrick 24. Oktober 2026)
   const mat = alt.darfMaterialplatz();
   const reiter = REITER.filter(([, , wer]) => !wer || bin || (wer === "dok" && dok) || (wer === "mat" && mat));
   if (!reiter.some(([w]) => w === alt.einst.reiter)) alt.einst.reiter = reiter[0][0];

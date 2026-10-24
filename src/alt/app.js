@@ -139,7 +139,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.171.0";
+const APP_VERSION = "1.172.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5166,7 +5166,7 @@ function sucheTreffer(d, text) {
   if (t.length < 2) return [];
   const passt = (...felder) => felder.some((f) => String(f || "").toLowerCase().includes(t));
   // Ohne Artikelbezeichnung (Wunsch 8. Oktober 2026)
-  // Werkstoffnummer und Kurzname finden und zeigen (seit 1.171.0)
+  // Werkstoffnummer und Kurzname finden und zeigen (seit 1.172.0)
   return (d.hoco || []).filter((h) => passt(h.hoco_nr, h.material, werkstoffSuchtext(h.material)))
     .slice(0, 30)
     .map((h) => ({ art: "hoco", titel: h.hoco_nr, daten: h,
