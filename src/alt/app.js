@@ -41,7 +41,8 @@ import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInf
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick, symbolAnwendenEnde } from "../daten/symbole.js";
 import { zeichnungNrSofort, zeichnungNrHolen } from "../daten/zeichnungNr.js";
 import { waschprogGemerkt } from "../daten/waschprog.js";
-import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo, werkstoffSuchtext } from "../daten/material.js";
+import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, werkstoffGenau, matInfo, werkstoffSuchtext,
+  werkstoffNummernLaden, werkstoffBeide } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
@@ -4082,6 +4083,8 @@ async function farbzuteilungLaden() {
     (data || []).forEach((z) => { FARBZUTEILUNG[z.farbe] = z; });
   } catch (f) { /* ohne Zuteilung bleibt die ganze Palette nutzbar */ }
   await werkstoffeGelerntLaden();
+  // Von Hand eingetragene Werkstoffnummern (Suche, Schnellvorschau)
+  await werkstoffNummernLaden();
   await bestellmailTextLaden();
   // Alte WBG wegräumen, einmal am Tag, im Hintergrund
   setTimeout(() => { wbgAufraeumen().catch(() => {}); }, 4000);
@@ -5163,9 +5166,11 @@ function sucheTreffer(d, text) {
   if (t.length < 2) return [];
   const passt = (...felder) => felder.some((f) => String(f || "").toLowerCase().includes(t));
   // Ohne Artikelbezeichnung (Wunsch 8. Oktober 2026)
-  return (d.hoco || []).filter((h) => passt(h.hoco_nr, h.material))
+  // Werkstoffnummer und Kurzname finden und zeigen (seit 1.171.0)
+  return (d.hoco || []).filter((h) => passt(h.hoco_nr, h.material, werkstoffSuchtext(h.material)))
     .slice(0, 30)
-    .map((h) => ({ art: "hoco", titel: h.hoco_nr, zeile: h.material || "", daten: h }));
+    .map((h) => ({ art: "hoco", titel: h.hoco_nr, daten: h,
+      zeile: [h.material, werkstoffBeide(h.material)].filter(Boolean).join(" · ") }));
 }
 
 // Schon laden, bevor jemand auf Suchen klickt (Kopfzeile, beim Darüberfahren)

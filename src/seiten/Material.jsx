@@ -15,7 +15,7 @@
 import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { materialDatenLaden, materialRechnen, postenMengeText, laengenNachholen,
-  orteLaden, orteSpeichern, werkstoffSuchtext } from "../daten/material.js";
+  orteLaden, orteSpeichern, werkstoffSuchtext, werkstoffBeide } from "../daten/material.js";
 import { postenFenster } from "../material/PostenFenster.jsx";
 import { materialHistorieOeffnen } from "../material/Historie.jsx";
 import { MKnopf } from "../material/WoEinsetzen.jsx";
@@ -52,7 +52,8 @@ export default function Material({ auffrischen }) {
     name: "Material", platzhalter: "Material, Werkstoffnummer, Ort oder Notiz …",
     eintraege: () => ((daten && daten.posten) || []).filter((p) => p.art !== "bestellt").map((p) => ({
       gruppe: p.ort || "Ohne Ort", zeichen: "▥", titel: p.material || "Material",
-      zeile: postenMengeText(p) + " · " + (p.ort || "ohne Ort") + (p.notiz ? " · " + p.notiz : ""),
+      // Werkstoffnummer und Kurzname dazu, wo bekannt (Wunsch Patrick 24. Oktober 2026)
+      zeile: [werkstoffBeide(p.material), postenMengeText(p), p.ort || "ohne Ort", p.notiz].filter(Boolean).join(" · "),
       such: werkstoffSuchtext(p.material) + " " + (p.be_nr || ""), id: p.id })),
     springen: (x) => { setSuche(""); hinzeigen('[data-posten="' + x.id + '"]'); },
   });

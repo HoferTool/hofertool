@@ -7,7 +7,8 @@
 import { useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Gruppe } from "./teile.jsx";
-import { kategorienListe, dichtenLaden, dichtenSpeichern, eigeneDichten, werkstoffAnzeige } from "../daten/material.js";
+import { kategorienListe, dichtenLaden, dichtenSpeichern, eigeneDichten, werkstoffAnzeige,
+  werkstoffNummernLaden, werkstoffNummerSpeichern, nummerAusText } from "../daten/material.js";
 
 export default function Farben() {
   return (
@@ -25,7 +26,9 @@ export default function Farben() {
         <div id="farbliste"><FarbListe /></div>
       </Gruppe>
       <Gruppe titel="Werkstofferkennung"
-        text={"Gleiche Werkstoffe stehen zusammen, ohne Mengen und Lieferanten. Nicht erkannte stehen oben: einmal zuordnen, die App merkt es sich."}>
+        text={"Gleiche Werkstoffe stehen zusammen, ohne Mengen und Lieferanten. Nicht erkannte stehen oben: einmal zuordnen, die App merkt es sich. "
+          + "Fehlt die Werkstoffnummer, lässt sie sich in der Spalte „Nummer“ eintragen, etwa „1.4305“ oder „1.4305 X8CrNiS18-9“; "
+          + "die Suche findet den Werkstoff dann unter beidem."}>
         <div id="werkstoffliste"><Werkstoffe /></div>
       </Gruppe>
     </>
@@ -133,6 +136,7 @@ function FarbZeile({ f, nr, zu, gespeichert, kats, eigene }) {
 // ---------- Werkstofferkennung ----------
 
 async function werkstoffeLaden() {
+  const eigene = await werkstoffNummernLaden(true);
   const alle = [];
   for (let von = 0; von < 20000; von += 1000) {
     const r = await alt.zeitlimit(alt.db.from("jobs").select("material_bez")
@@ -155,7 +159,8 @@ async function werkstoffeLaden() {
   const jeWerkstoff = new Map();
   jeKern.forEach((e) => {
     const a = werkstoffAnzeige(e.beispiel);
-    const w = jeWerkstoff.get(a.schluessel) || { titel: a.titel, beispiele: [], n: 0, oben: e };
+    const w = jeWerkstoff.get(a.schluessel) || { titel: a.titel, schluessel: a.schluessel,
+      vonHand: eigene[a.schluessel] || null, beispiele: [], n: 0, oben: e };
     w.beispiele.push(e.beispiel);
     w.n += e.n;
     if (e.n > w.oben.n) w.oben = e;
@@ -189,10 +194,13 @@ function Werkstoffe() {
         ? <span className="es-marke es-marke--warn">{offen} nicht erkannt</span>
         : <span className="es-marke es-marke--gut">alle erkannt</span>}</p>
       <div className="tabellenrolle"><table className="tabelle ws-tabelle">
-        <thead><tr><th>Werkstoff</th><th className="rechts">Aufträge</th><th>Gruppe</th><th>Von Hand</th></tr></thead>
+        <thead><tr><th>Werkstoff</th><th>Nummer</th><th className="rechts">Aufträge</th><th>Gruppe</th><th>Von Hand</th></tr></thead>
         <tbody>{zeilen.map((z) => (
           <tr key={z.beispiel} className={z.g ? undefined : "ws-offen"}>
             <td><strong>{z.titel}</strong></td>
+            <td>{z.schluessel.startsWith("nr:")
+              ? <span className="gedaempft">erkannt</span>
+              : <NummerFeld z={z} />}</td>
             <td className="rechts">{z.n}</td>
             <td>{z.g
               ? <><span className="ws-farbe" style={{ background: alt.farbeVon(z.g.farbe).hex }} />
@@ -210,6 +218,28 @@ function Werkstoffe() {
       </table></div>
     </>
   );
+}
+
+// Werkstoffnummer von Hand für eine Bezeichnung, die die Liste nicht
+// kennt; gespeichert beim Verlassen des Felds, leer nimmt sie weg
+function NummerFeld({ z }) {
+  const anfang = z.vonHand ? [z.vonHand.nr, z.vonHand.name].filter(Boolean).join(" ") : "";
+  const [wert, setWert] = useState(anfang);
+  const gemerkt = useRef(anfang);
+  const speichern = async () => {
+    const t = wert.trim();
+    if (t === gemerkt.current) return;
+    const w = nummerAusText(t);
+    try {
+      await werkstoffNummerSpeichern(z.schluessel, w);
+      gemerkt.current = t;
+      if (w) setWert([w.nr, w.name].filter(Boolean).join(" "));
+      alt.meldung(w ? "Nummer gespeichert." : "Nummer entfernt.");
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
+  return <input type="text" className="ws-nummer" data-wsnummer={z.schluessel} value={wert}
+    placeholder="z. B. 1.4305" onChange={(e) => setWert(e.target.value)} onBlur={speichern}
+    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />;
 }
 
 // ---------- Faktor (Dichte) je Farbe, in der Zeile der Farbe ----------

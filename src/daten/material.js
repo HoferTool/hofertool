@@ -161,8 +161,55 @@ export async function dichtenSpeichern(neu) {
   dichteGeladen = Date.now();
 }
 const NUR_BUCHSTABEN = /^[a-z-]+$/;
-// → { nr, name } oder null
+
+// Von Hand eingetragene Werkstoffnummern für Bezeichnungen, die die
+// Liste nicht kennt (seit 1.171.0, Wunsch Patrick 24. Oktober 2026:
+// „bei denen, wo es die Bez nicht gefunden hat, manuell eintragbar“).
+// app_config.werkstoff_nummern = { "k:<kern>": { nr, name } }, der
+// Schlüssel wie bei werkstoffAnzeige ohne Nummer.
+let eigeneNummern = {};
+let nummernGeladen = 0;
+export async function werkstoffNummernLaden(frisch) {
+  if (!frisch && Date.now() - nummernGeladen < 5 * 60000) return eigeneNummern;
+  try {
+    const r = await alt.db.from("app_config").select("wert").eq("schluessel", "werkstoff_nummern").maybeSingle();
+    const w = r && r.data && r.data.wert ? JSON.parse(r.data.wert) : {};
+    eigeneNummern = w && typeof w === "object" ? w : {};
+    nummernGeladen = Date.now();
+    suchtextGemerkt.clear();
+  } catch (f) { /* ohne: nur die Liste */ }
+  return eigeneNummern;
+}
+// Text wie „1.4305“, „1.4305 X8CrNiS18-9“ oder „X8CrNiS18-9“ → { nr, name };
+// eine bekannte Nummer oder ein bekannter Name ergänzt das andere
+export function nummerAusText(text) {
+  const t = String(text || "").trim();
+  if (!t) return null;
+  const bekannt = werkstoffAusListe(t);
+  if (bekannt) return bekannt;
+  const m = t.match(/^(\d\.\d{4})\s*(?:·\s*)?(.*)$/);
+  return m ? { nr: m[1], name: m[2].trim() } : { nr: "", name: t };
+}
+export async function werkstoffNummerSpeichern(schluessel, wert) {
+  await werkstoffNummernLaden(true);
+  const neu = { ...eigeneNummern };
+  if (wert) neu[schluessel] = wert; else delete neu[schluessel];
+  const { error } = await alt.db.from("app_config").upsert(
+    [{ schluessel: "werkstoff_nummern", wert: JSON.stringify(neu) }], { onConflict: "schluessel" });
+  if (error) throw error;
+  eigeneNummern = neu;
+  nummernGeladen = Date.now();
+  suchtextGemerkt.clear();
+}
+
+// → { nr, name } oder null; von Hand Eingetragenes mit vonHand: true
 export function werkstoffGenau(bez) {
+  const w = werkstoffAusListe(bez);
+  if (w) return w;
+  const e = eigeneNummern[anzeigeOhneNummer(bez).schluessel];
+  return e && (e.nr || e.name) ? { nr: e.nr || "", name: e.name || "", vonHand: true } : null;
+}
+function werkstoffAusListe(bez) {
   const t = " " + String(bez || "").toLowerCase().replace(/[()|;\/!]/g, " ").replace(/\s+/g, " ") + " ";
   const kompakt = t.replace(/\s+/g, "");
   for (const [nr, ...namen] of WERKSTOFFE) {
@@ -188,7 +235,7 @@ export function werkstoffSuchtext(bez) {
   if (!k) return "";
   if (!suchtextGemerkt.has(k)) {
     const w = werkstoffGenau(k);
-    suchtextGemerkt.set(k, w ? (w.nr + " " + w.name).toLowerCase() : "");
+    suchtextGemerkt.set(k, w ? (w.nr + " " + w.name).trim().toLowerCase() : "");
   }
   return suchtextGemerkt.get(k);
 }
@@ -255,8 +302,18 @@ function kurznameSchoen(n) {
 // „1.4305 · X8CrNiS18-9“; sonst nur der Werkstoff aus der Bezeichnung.
 const VORSPANN = /^(?:mat\.?\s*von\s+\d{5}-\d{4}|mat\.|material|achtung|neu|aus|bei|spez\.?|version|steeltec|\d{5}-\d{4},?|[\d.,]+\s?kg)(?:\s+|$)/i;
 export function werkstoffAnzeige(bez) {
-  const genau = werkstoffGenau(bez);
+  const genau = werkstoffAusListe(bez);
   if (genau) return { schluessel: "nr:" + genau.nr, titel: genau.nr + (genau.name ? " · " + genau.name : "") };
+  return anzeigeOhneNummer(bez);
+}
+// Nummer und Kurzname zusammen, wo bekannt („1.4305 · X8CrNiS18-9“),
+// sonst leer; für Suchtreffer (Wunsch Patrick 24. Oktober 2026: „beide
+// Varianten, wenn möglich“)
+export function werkstoffBeide(bez) {
+  const w = werkstoffGenau(bez);
+  return w ? [w.nr, w.name].filter(Boolean).join(" · ") : "";
+}
+function anzeigeOhneNummer(bez) {
   let t = String(bez || "").replace(/[()|!]+/g, " ").replace(/\s+/g, " ").trim();
   for (let i = 0; i < 6 && VORSPANN.test(t); i++) t = t.replace(VORSPANN, "");
   // „ETG 100“ wie „ETG100“

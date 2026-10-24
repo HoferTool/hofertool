@@ -31,9 +31,10 @@ import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 // alles machen können wie Admin“), erkannt an darfDokumenteUndSicherung().
 // Seit 1.12.3 wieder nur Allgemein, Dokumente und Backup (Wunsch Patrick,
 // 9. Oktober 2026: „Planwand soll nur allgemein dokumente backup sehen“).
-// Nutzer (Passwörter anderer, PINs anderer, Rollen) bleibt bei Admins. true = nur Admins, "dok" = Admins und Planwand.
+// Nutzer (Passwörter anderer, PINs anderer, Rollen) bleibt bei Admins. true = nur Admins, "dok" = Admins und Planwand,
+// "mat" = Admins und wer „Materialplatz bearbeiten“ hat.
 const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente", "dok"], ["backup", "Backup", "dok"],
-                ["fehler", "Fehlerprotokoll", true], ["farben", "Farben und Material", true],
+                ["fehler", "Fehlerprotokoll", true], ["farben", "Farben und Material", "mat"],
                 ["symbole", "Symbole", true],
                 ["nutzer", "Nutzer", true]];
 
@@ -55,7 +56,10 @@ function Einstellungen({ zu }) {
   // den diese Person nicht sehen darf — etwa weil vorher ein Admin
   // am selben Gerät angemeldet war —, geht es auf den ersten zurück.
   const dok = alt.darfDokumenteUndSicherung();
-  const reiter = REITER.filter(([, , wer]) => !wer || bin || (wer === "dok" && dok));
+  // Farben und Material auch für alle mit dem Häkchen „Materialplatz
+  // bearbeiten“ (seit 1.171.0, Wunsch Patrick 24. Oktober 2026)
+  const mat = alt.darfMaterialplatz();
+  const reiter = REITER.filter(([, , wer]) => !wer || bin || (wer === "dok" && dok) || (wer === "mat" && mat));
   if (!reiter.some(([w]) => w === alt.einst.reiter)) alt.einst.reiter = reiter[0][0];
   const [offen, setOffen] = useState(alt.einst.reiter);
   const waehlen = (w) => { alt.einst.reiter = w; setOffen(w); };
