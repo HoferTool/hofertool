@@ -259,7 +259,8 @@ function Maschinen({ r, setze }) {
   const gewaehlt = st.maschine && r.maschinen.find((m) => m.id === st.maschine);
   if (gewaehlt) return <EineMaschine m={gewaehlt} r={r} setze={setze} />;
   const g = r.gesamt;
-  const liste = r.maschinen.slice().sort((a, b) => (b.auslastung || 0) - (a.auslastung || 0) || b.stk - a.stk);
+  // Reihenfolge wie auf der Planwand (Wunsch Patrick 24. Oktober 2026)
+  const liste = r.maschinen;
   return (
     <>
       <Kennzahlen z={g} mitAuslastung />
@@ -282,7 +283,7 @@ function Maschinen({ r, setze }) {
       <AusschussFehlt r={r} />
       <div className="st-zwei">
         <Karte id="st-ausschuss-maschinen" titel="Ausschuss je Maschine" unter="Aus den Meldungen der Qualitätssicherung, Quote = Anteil am Ausstoss">
-          <Balken zeilen={r.maschinen.filter((m) => m.ausschuss).sort((a, b) => b.ausschuss - a.ausschuss)
+          <Balken zeilen={r.maschinen.filter((m) => m.ausschuss)
             .map((m) => ({ key: m.id, label: m.name, wert: m.ausschuss,
               text: <>{stkText(m.ausschuss)} <small>{quoteText(m.ausschussQuote)}</small></> }))}
             waehlen={(id) => oeffnen({ maschine: id })} />
@@ -430,7 +431,8 @@ function EinArtikel({ a, r, setze }) {
     const z = (jeMaschine[e.mid] = jeMaschine[e.mid] || { stk: 0, h: 0, tage: new Set() });
     z.stk += e.stk; z.h += e.h || 0; if (e.stk) z.tage.add(e.datum);
   });
-  const zeilen = Object.entries(jeMaschine).sort((x, y) => y[1].stk - x[1].stk);
+  const platz = new Map(r.maschinen.map((m, i) => [m.id, i]));
+  const zeilen = Object.entries(jeMaschine).sort((x, y) => (platz.get(x[0]) ?? 1e6) - (platz.get(y[0]) ?? 1e6));
   return (
     <>
       <div className="st-kopf">

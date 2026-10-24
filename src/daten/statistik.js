@@ -112,12 +112,23 @@ export function hocoNormal(nr) {
   return String(nr || "").trim().replace(/\s+/g, "");
 }
 
+// Maschinen in der Reihenfolge der Planwand: zuerst nach Park (wie
+// ladeParks sie liefert, externe zuletzt), im Park nach sort_order.
+// ladeMaschinen sortiert schon nach sort_order und Name; sort ist
+// stabil, darum genügt der Park.
+export function planwandReihe(maschinen, parks) {
+  const platz = new Map((parks || []).map((p, i) => [p.id, i]));
+  const von = (m) => (platz.has(m.park_id) ? platz.get(m.park_id) : 1e6);
+  return maschinen.slice().sort((a, b) => von(a) - von(b));
+}
+
 // ---------------------------------------------------------------
 //  Laden
 // ---------------------------------------------------------------
 export async function statistikLaden(von, bis) {
-  await alt.ladeParks(false);
-  const maschinen = await alt.ladeMaschinen(false);
+  const parks = await alt.ladeParks(false);
+  // Reihenfolge wie auf der Planwand: Park für Park, darin sort_order
+  const maschinen = planwandReihe(await alt.ladeMaschinen(false), parks);
   let typen = [];
   try { typen = await alt.ladeTypen(); } catch (f) { /* ohne Typnamen geht es auch */ }
   const ids = maschinen.map((m) => m.id);
@@ -384,6 +395,11 @@ function maschineFinden(text, maschinen) {
     || null;
 }
 
+function platzIn(maschinen, id) {
+  const i = maschinen.findIndex((m) => m.id === id);
+  return i < 0 ? 1e6 : i;
+}
+
 export function werkzeugRechnen(positionen, artikel, maschinen, von, bis) {
   const jeArtikel = {}, jeMaschine = {}, jeMonat = {};
   let stk = 0;
@@ -420,7 +436,9 @@ export function werkzeugRechnen(positionen, artikel, maschinen, von, bis) {
     positionen: positionen.length, stk,
     artikel: Object.values(jeArtikel).map((a) => ({ ...a, maschinen: [...a.maschinen] }))
       .sort((a, b) => b.stk - a.stk || b.pos - a.pos),
-    maschinen: Object.values(jeMaschine).sort((a, b) => b.stk - a.stk),
+    // wie auf der Planwand, Maschinen nur als Text zuletzt
+    maschinen: Object.values(jeMaschine).sort((a, b) => platzIn(maschinen, a.id) - platzIn(maschinen, b.id)
+      || b.stk - a.stk),
     monate,
   };
 }

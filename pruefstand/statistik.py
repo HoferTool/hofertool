@@ -75,6 +75,22 @@ with sync_playwright() as p:
     if not pg.locator("#st-startmengen").count(): fehler.append("Kein Hinweis zu den Startmengen")
     if pg.locator("[data-startikel='10333-0003']").count(): fehler.append("Startmenge als Artikel gezählt")
 
+    # Reihenfolge wie auf der Planwand (1.164.1): Park für Park, darin sort_order
+    soll = pg.evaluate("""(() => {
+      const D = TEST.daten;
+      const ext = p => /extern|lohn|fremd/i.test(p.name || '') ? 1 : 0;
+      const parks = D.machine_parks.filter(p => p.is_active !== false)
+        .sort((a, b) => ext(a) - ext(b) || String(a.name).localeCompare(String(b.name), 'de')).map(p => p.id);
+      return D.machines.filter(m => m.is_active !== false && parks.includes(m.park_id))
+        .sort((a, b) => parks.indexOf(a.park_id) - parks.indexOf(b.park_id) || (a.sort_order || 0) - (b.sort_order || 0)
+          || String(a.name).localeCompare(String(b.name)))
+        .map(m => m.id);
+    })()""")
+    ist = pg.evaluate("[...document.querySelectorAll('#st-maschinen-tabelle tr[data-stmaschine]')].map(t => t.dataset.stmaschine)")
+    balken = pg.evaluate("[...document.querySelectorAll('#st-auslastung [data-dgzeile]')].map(t => t.dataset.dgzeile)")
+    if ist != soll: fehler.append("Tabelle nicht wie Planwand: " + str(ist) + " statt " + str(soll))
+    if balken != soll: fehler.append("Auslastung nicht wie Planwand: " + str(balken) + " statt " + str(soll))
+
     # Eine Maschine: 1'000 Stk, 18 h, Übergang 2 h
     pg.click("#st-auslastung [data-dgzeile='m-k1']"); pg.wait_for_selector("#st-maschine-name"); pg.wait_for_timeout(400)
     aus = pg.inner_text("#st-k-ausstoss"); zeit = pg.inner_text("#st-k-zeit"); ueb = pg.inner_text("#st-k-uebergang")
