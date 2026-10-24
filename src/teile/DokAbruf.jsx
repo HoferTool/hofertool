@@ -44,7 +44,7 @@ export function dokZeigen({ art, titel, adresse, hoco, auftragId, typId, neu, ex
         onClick={async () => { try { await extra.tu(zu); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); } }}>{extra.text}</button>
     : null);
   fensterOeffnen((zu) => adresse
-    ? <Betrachter adresse={adresse} titel={titel} art={artDerDatei(adresse)} zu={zu}
+    ? <Betrachter adresse={adresse} titel={titel} art={artDerDatei(adresse)} zu={zu} wbg={art === "wbg"}
         knoepfe={<>{extraKnopf(zu)}{entfernen ? <button className="knopf knopf--klein knopf--gefahr" data-zeichnungweg={hoco || auftragId || ""} data-dokweg={art}
           onClick={async () => {
             try {

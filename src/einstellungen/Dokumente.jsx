@@ -309,7 +309,7 @@ function PoolDrucker() {
   return (
     <Gruppe titel="Drucker am Pool-Rechner" id="pool-drucker"
       text={"iPad und Handy im WLAN Hofer&Co kommen nicht an den Drucker im Firmennetz. Ist hier ein Drucker gewählt, "
-        + "fragt „Drucken“ im Betrachter (Zeichnung, WBG, Einrichtblatt), ob über den Pool-Rechner gedruckt werden soll. "
+        + "fragt „Drucken“ bei einer WBG, ob über den Pool-Rechner gedruckt werden soll. "
         + "Der Pool-Rechner schaut alle paar Sekunden nach und druckt."}>
       {daten ? <DruckerFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>

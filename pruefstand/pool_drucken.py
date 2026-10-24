@@ -78,7 +78,7 @@ def ins_pad(pg):
 def oeffnen(pg, adresse, reiter, mobil=True):
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
-    if adresse: pg.evaluate("(a) => { for (const j of TEST.daten.jobs) j.drawing_url = a; }", adresse)
+    if adresse: pg.evaluate("(a) => { for (const j of TEST.daten.jobs) { j.drawing_url = a; j.wbg_url = a; } }", adresse)
     ins_pad(pg)
     tippen(pg, f"#pad [data-padreiter='{reiter}']", mobil)
     pg.wait_for_selector(".betrachter-huelle")
@@ -111,7 +111,7 @@ with sync_playwright() as p:
     br, pg, f = browser(p, True, MIT)
 
     # PDF mit zwei Seiten, zwei Kopien
-    oeffnen(pg, "https://x.invalid/hoch.pdf", "zeichnung")
+    oeffnen(pg, "https://x.invalid/hoch.pdf", "wbg")
     tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(300)
     pruefe("Drucken öffnet die Auswahl", pg.locator("[data-druckwahl]").count() == 1)
     pruefe("Knopf heisst Nur WBGs drucken", pg.inner_text("[data-pooldruck]").strip() == "Nur WBGs drucken")
@@ -131,7 +131,7 @@ with sync_playwright() as p:
            and u["pfad"].startswith(a["id"] + "/") and u["groesse"] > 1000 for u in ups)
            and sorted(u["pfad"].split("/")[1] for u in ups) == ["1.jpg", "2.jpg"])
     pruefe("Auftrag: bilder, 2 Seiten, 2 Kopien, Drucker, Titel, wer", a["art"] == "bilder" and a["seiten"] == 2
-           and a["kopien"] == 2 and a["drucker"] == "SHARP MX-3061" and a["titel"].startswith("Zeichnung") and a["wer"])
+           and a["kopien"] == 2 and a["drucker"] == "SHARP MX-3061" and a["titel"].startswith("WBG") and a["wer"])
     pruefe("Auswahl zu, Knopf wieder normal", pg.locator("[data-druckwahl]").count() == 0
            and pg.inner_text(".betrachter [data-drucken]") == "Drucken")
     pruefe("Meldung: geht an den Drucker", any("Geht ans Planbüro" in m for m in meldungen(pg)))
@@ -165,7 +165,7 @@ with sync_playwright() as p:
     pruefe("Tipp daneben schliesst die Auswahl", pg.locator("[data-druckwahl]").count() == 0)
 
     # Foto
-    oeffnen(pg, "https://x.invalid/foto.png", "zeichnung")
+    oeffnen(pg, "https://x.invalid/foto.png", "wbg")
     tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(200)
     tippen(pg, "[data-pooldruck]", True)
     pg.wait_for_function("TEST.daten.druckauftraege.length === 1", timeout=15000)
@@ -173,15 +173,17 @@ with sync_playwright() as p:
     pruefe("Foto: eine JPG-Seite", len(ups) == 1 and ups[0]["typ"] == "image/jpeg"
            and pg.evaluate("TEST.daten.druckauftraege[0].seiten") == 1)
 
-    # Excel-Einrichtblatt: nur die Adresse
+    # Seit 1.171.0 nur bei WBGs: Zeichnung und Einrichtblatt drucken gleich auf dem Gerät
+    oeffnen(pg, "https://x.invalid/hoch.pdf", "zeichnung")
+    tippen(pg, ".betrachter [data-drucken]", True)
+    pg.wait_for_function("document.getElementById('druckdatei') && window.__prints > 0", timeout=15000)
+    pruefe("Zeichnung: keine Auswahl, gleich auf dem Gerät", pg.locator("[data-druckwahl]").count() == 0
+           and pg.evaluate("TEST.daten.druckauftraege.length") == 0)
+    pg.evaluate("window.dispatchEvent(new Event('afterprint'))"); pg.wait_for_timeout(200)
     oeffnen(pg, "", "blatt")
-    tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(200)
-    pruefe("Excel: Auswahl da", pg.locator("[data-pooldruck]").count() == 1)
-    tippen(pg, "[data-pooldruck]", True)
-    pg.wait_for_function("TEST.daten.druckauftraege.length === 1", timeout=15000)
-    a = pg.evaluate("TEST.daten.druckauftraege[0]")
-    pruefe("Excel: Auftrag mit Adresse, ohne Seiten", a["art"] == "excel" and a["quelle"] == "https://x.invalid/eb.xlsx"
-           and a["seiten"] == 0 and not pg.evaluate("TEST.protokoll.some(x => x.art === 'upload')"))
+    tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(600)
+    pruefe("Einrichtblatt: keine Auswahl", pg.locator("[data-druckwahl]").count() == 0
+           and pg.evaluate("TEST.daten.druckauftraege.length") == 0)
     pruefe("iPad: keine Seitenfehler", not f)
     if f: print(f)
 

@@ -50,7 +50,7 @@ export function dateiAnsehen(datei) {
 
 // Auch für dokZeigen (DokAbruf.jsx): „hinweis“ steht klein neben dem Titel
 // knoepfe: weitere Knöpfe im Kopf, vor „Schliessen“ (etwa „Zeichnung entfernen“)
-export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }) {
+export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe, wbg }) {
   // Aufrufer, die „PDF“ annehmen, bekommen für .html die Seite
   if (art === "pdf" && istHtml(adresse)) art = "html";
   const istPdf = art === "pdf", istXl = art === "excel", istSeite = art === "html";
@@ -103,7 +103,7 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
   const [pool, setPool] = useState(null);      // { drucker, excel } oder null
   const [wahl, setWahl] = useState(false);     // Auswahl offen?
   // Der Knopf heisst „Nur WBGs drucken“ (seit 1.167.1, Wunsch Patrick
-  // 24. Oktober 2026, vorher „Planbüro“): der volle Name des Druckers
+  // 24. Oktober 2026, vorher „Planbüro“, seit 1.171.0 nur bei WBGs): der volle Name des Druckers
   // (\\hof-chso-fs01\SHARP … Planbüro) machte die Auswahl so breit, dass
   // sie im Pad über den Rand ragte. Kopien stehen bei jedem Öffnen der
   // Auswahl wieder auf 1, mehr nur, wenn man hochzählt (Wunsch Patrick,
@@ -125,7 +125,10 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe }
   }, [wahl]);
   // Excel druckt der Pool-Rechner aus der Datei selbst, die muss also
   // in der Ablage liegen (nicht eine Datei nur auf diesem Gerät)
-  const poolGeht = !!pool && (istXl ? pool.excel && /^https?:/i.test(adresse) : true);
+  // Ins Planbüro nur bei WBGs (seit 1.171.0, Wunsch Patrick 24. Oktober
+  // 2026: „soll nur bei WBG stehen, sonst nicht nötig“); alles andere
+  // druckt „Drucken“ gleich auf diesem Gerät.
+  const poolGeht = !!wbg && !!pool && (istXl ? pool.excel && /^https?:/i.test(adresse) : true);
   const knopfDrucken = () => {
     if (druckt) return;
     if (poolGeht) { if (!wahl) setKopien(1); setWahl((w) => !w); return; }
