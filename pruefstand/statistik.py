@@ -75,6 +75,22 @@ with sync_playwright() as p:
     if not pg.locator("#st-startmengen").count(): fehler.append("Kein Hinweis zu den Startmengen")
     if pg.locator("[data-startikel='10333-0003']").count(): fehler.append("Startmenge als Artikel gezählt")
 
+    # Reihenfolge wie auf der Planwand (1.164.1): Park für Park, darin sort_order
+    soll = pg.evaluate("""(() => {
+      const D = TEST.daten;
+      const ext = p => /extern|lohn|fremd/i.test(p.name || '') ? 1 : 0;
+      const parks = D.machine_parks.filter(p => p.is_active !== false)
+        .sort((a, b) => ext(a) - ext(b) || String(a.name).localeCompare(String(b.name), 'de')).map(p => p.id);
+      return D.machines.filter(m => m.is_active !== false && parks.includes(m.park_id))
+        .sort((a, b) => parks.indexOf(a.park_id) - parks.indexOf(b.park_id) || (a.sort_order || 0) - (b.sort_order || 0)
+          || String(a.name).localeCompare(String(b.name)))
+        .map(m => m.id);
+    })()""")
+    ist = pg.evaluate("[...document.querySelectorAll('#st-maschinen-tabelle tr[data-stmaschine]')].map(t => t.dataset.stmaschine)")
+    balken = pg.evaluate("[...document.querySelectorAll('#st-auslastung [data-dgzeile]')].map(t => t.dataset.dgzeile)")
+    if ist != soll: fehler.append("Tabelle nicht wie Planwand: " + str(ist) + " statt " + str(soll))
+    if balken != soll: fehler.append("Auslastung nicht wie Planwand: " + str(balken) + " statt " + str(soll))
+
     # Eine Maschine: 1'000 Stk, 18 h, Übergang 2 h
     pg.click("#st-auslastung [data-dgzeile='m-k1']"); pg.wait_for_selector("#st-maschine-name"); pg.wait_for_timeout(400)
     aus = pg.inner_text("#st-k-ausstoss"); zeit = pg.inner_text("#st-k-zeit"); ueb = pg.inner_text("#st-k-uebergang")
@@ -98,6 +114,16 @@ with sync_playwright() as p:
     if not pg.locator("#st-zeit-tag .dg-ziel").count(): fehler.append("Keine 10-h-Linie")
     achse = pg.inner_text("#st-zeit-tag .dg-achse")
     if "24 h" not in achse or "12 h" not in achse: fehler.append("Achse nicht bei 24 h gedeckelt: " + achse)
+    # Werte an den Säulen ohne Darüberfahren (1.164.0)
+    wh = pg.evaluate("""[...document.querySelectorAll('#st-zeit-tag .dg-wert')].map(e => e.textContent)""")
+    if sorted(wh) != ["10,0 h", "8,0 h"]: fehler.append("Stunden an den Säulen: " + str(wh))
+    ws = pg.evaluate("""[...document.querySelectorAll('#st-ausstoss-tag .dg-wert')].map(e => e.textContent)""")
+    if sorted(ws) != ["500", "500"]: fehler.append("Stück an den Säulen: " + str(ws))
+    # Nichts ragt über die Fläche hinaus
+    raus = pg.evaluate("""[...document.querySelectorAll('.dg-wert')].filter(e => {
+      const f = e.closest('.dg-flaeche').getBoundingClientRect(), b = e.getBoundingClientRect();
+      return b.top < f.top - 1 || b.bottom > f.bottom + 1; }).map(e => e.textContent)""")
+    if raus: fehler.append("Wert ragt aus dem Diagramm: " + str(raus))
     pg.hover("#st-zeit-tag .dg-spalte:nth-last-child(1)"); pg.wait_for_timeout(200)
     if not pg.locator("#st-zeit-tag .dg-tip").count(): fehler.append("Kein Fenster beim Darüberfahren")
     pg.screenshot(path="statistik-maschine.png", full_page=True)
@@ -157,6 +183,7 @@ with sync_playwright() as p:
     h.evaluate("location.hash='#/statistik'"); h.wait_for_selector("#st-auslastung", timeout=15000); h.wait_for_timeout(600)
     breit = h.evaluate("document.documentElement.scrollWidth")
     if breit > 392: fehler.append(f"Handy: Seite {breit} px breit")
+    if not h.locator("#st-ausstoss-tag .dg-wert").count(): fehler.append("Handy: keine Werte an den Säulen")
     h.screenshot(path="statistik-handy-dunkel.png", full_page=True)
     h.evaluate("document.querySelector('#inhalt [data-streiter=artikel]').click()"); h.wait_for_selector("#st-artikel-tabelle"); h.wait_for_timeout(400)
     h.click("[data-startikel='10111-0001']"); h.wait_for_selector("#st-artikel-name"); h.wait_for_timeout(300)

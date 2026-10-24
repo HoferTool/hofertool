@@ -114,7 +114,7 @@ with sync_playwright() as p:
     oeffnen(pg, "https://x.invalid/hoch.pdf", "zeichnung")
     tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(300)
     pruefe("Drucken öffnet die Auswahl", pg.locator("[data-druckwahl]").count() == 1)
-    pruefe("Knopf heisst Planbüro", pg.inner_text("[data-pooldruck]").strip() == "Planbüro")
+    pruefe("Knopf heisst Nur WBGs drucken", pg.inner_text("[data-pooldruck]").strip() == "Nur WBGs drucken")
     pruefe("Kopien starten bei 1", pg.inner_text("[data-kopien]") == "1")
     bx = pg.locator("[data-druckwahl]").bounding_box()
     pruefe("Auswahl ganz im Bild", bx["x"] >= 0 and bx["x"] + bx["width"] <= pg.viewport_size["width"])

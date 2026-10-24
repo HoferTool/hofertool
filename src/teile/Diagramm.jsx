@@ -4,7 +4,9 @@
 //  Bibliothek, aus HTML und CSS, damit sie mit Themenfarbe und dunklem
 //  Modus von selbst stimmen. Eine Reihe je Diagramm, eine Achse; eine
 //  gestrichelte Linie zeigt das Ziel (10 h, 100 %). Darüberfahren oder
-//  Antippen zeigt den Wert in einem kleinen Fenster.
+//  Antippen zeigt den Wert in einem kleinen Fenster. Seit 1.164.0 steht
+//  der Wert auch ohne Darüberfahren an jeder Säule (h oder Stück), bei
+//  schmalen Säulen senkrecht, bei hohen innen in der Säule.
 // =================================================================
 import { useState } from "react";
 
@@ -18,14 +20,16 @@ export function rundesMax(v) {
 
 // werte: [{ key, label, wert, tip, blass }]; format(zahl) für Achse und
 // Fenster; ziel: Höhe der gestrichelten Linie mit zielText; deckel: feste
-// Obergrenze der Achse (etwa 24 h), höhere Werte stehen bis zum Rand
-export function Saeulen({ werte, format, ziel, zielText, hoehe = 190, id, deckel }) {
+// Obergrenze der Achse (etwa 24 h), höhere Werte stehen bis zum Rand;
+// wertText(zahl) für die Anschrift an der Säule (sonst format)
+export function Saeulen({ werte, format, wertText, ziel, zielText, hoehe = 190, id, deckel }) {
   const [zeig, setZeig] = useState(null);
   const groesster = Math.max(0, ...werte.map((w) => w.wert || 0));
   // Die Ziellinie soll sichtbar unter dem oberen Rand liegen
   const max = deckel || Math.max(rundesMax(groesster * 1.05), (ziel || 0) * 1.2);
   const schritt = Math.max(1, Math.ceil(werte.length / 12));
   const f = format || ((n) => String(Math.round(n)));
+  const wt = wertText || f;
   const aktiv = zeig !== null ? werte[zeig] : null;
   return (
     <div className="dg-saeulen" id={id} style={{ "--dg-h": hoehe + "px" }}
@@ -42,6 +46,7 @@ export function Saeulen({ werte, format, ziel, zielText, hoehe = 190, id, deckel
             <div key={w.key} className={"dg-spalte" + (w.blass ? " dg-spalte--blass" : "") + (zeig === i ? " aktiv" : "")}
               onMouseEnter={() => setZeig(i)} onClick={() => setZeig(zeig === i ? null : i)}>
               <i className="dg-saeule" style={{ height: Math.min(100, (w.wert || 0) / max * 100) + "%" }} />
+              {w.wert > 0 && <WertAnschrift anteil={Math.min(1, w.wert / max)} text={wt(w.wert)} />}
               <span className={"dg-x" + (i % (2 * schritt) ? " dg-x--handy-weg" : "")}>{i % schritt === 0 ? w.label : ""}</span>
             </div>
           ))}
@@ -51,6 +56,14 @@ export function Saeulen({ werte, format, ziel, zielText, hoehe = 190, id, deckel
       </div>
     </div>
   );
+}
+
+// Über der Säule; reicht sie fast nach oben, innen in der Säule, damit
+// nichts über den Rand des Diagramms ragt
+function WertAnschrift({ anteil, text }) {
+  const innen = anteil > 0.72;
+  return <span className={"dg-wert" + (innen ? " dg-wert--innen" : "")}
+    style={innen ? { top: (1 - anteil) * 100 + "%" } : { bottom: anteil * 100 + "%" }}>{text}</span>;
 }
 
 // Am Rand nicht über die Karte hinaus: links bündig, rechts bündig

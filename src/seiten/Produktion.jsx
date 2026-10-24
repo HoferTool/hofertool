@@ -17,6 +17,7 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Erfassen from "./produktion/Erfassen.jsx";
 import Fortschritt from "./produktion/Fortschritt.jsx";
 import { ms } from "./Maschinen.jsx";
+import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 
 export const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"]];
 
@@ -56,6 +57,24 @@ export default function Produktion({ auffrischen, behaelter }) {
   const { daten: geladen, fehler, neu } = useDaten(() => grunddatenLaden(), [auffrischen]);
   // Maschinen einrichten geht seit 1.134.0 auf der Seite Maschinen
   const zuMaschinen = () => { ms.ansicht = "uebersicht"; location.hash = "#/maschinen"; };
+
+  // Strg + K sucht Maschinen und was gerade auf ihnen läuft (seit 1.169.0);
+  // ein Treffer wählt Park und Erfassen und zeigt die Maschine
+  useSeitenSuche({
+    name: "Produktion", platzhalter: "Maschine, Nummer, HOCO Nr. oder FA Nr. …",
+    eintraege: () => !geladen ? [] : (prod.maschinen || []).map((m) => {
+      const j = (prod.auftraege || {})[m.id];
+      const park = (prod.parks || []).find((p) => p.id === m.park_id);
+      return { gruppe: "Maschinen", zeichen: "⚙", titel: m.name + (m.machine_number ? " " + m.machine_number : ""),
+        zeile: [j ? j.job_number : "kein Auftrag", park && park.name].filter(Boolean).join(" · "),
+        such: j ? [j.fa_nr, j.material_bez].filter(Boolean).join(" ") : "", m };
+    }),
+    springen: (x) => {
+      Object.assign(prod, { ansicht: "erfassen", parkId: x.m.park_id, typFilter: null });
+      zeichnen();
+      hinzeigen('[data-msuche="' + x.m.id + '"]');
+    },
+  });
 
   const reiter = REITER.filter(([w]) => !alt.istExtern() || w === "erfassen");
 

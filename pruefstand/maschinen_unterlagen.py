@@ -33,12 +33,13 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("location.hash='#produktion'"); pg.wait_for_timeout(800)
-    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.click("[data-unter='maschinen/verwalten']"); pg.wait_for_selector("#park-reiter")
-    knopf = pg.locator("[data-masch-unterlagen]")
-    pruefe(knopf.count() > 0, "Knopf Unterlagen bei den Maschinen")
-    mid = knopf.first.get_attribute("data-masch-unterlagen")
-    knopf.first.click(); pg.wait_for_selector("#unterlagen"); pg.wait_for_timeout(500)
-    pruefe("Noch keine Unterlagen" in pg.locator("#unterlagen").inner_text(), "leer am Anfang")
+    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.wait_for_selector("[data-mpark]")
+    # Seit 1.161.0: Park → Maschine, die Unterlagen stehen auf ihrer Seite
+    pg.locator("[data-mpark]:has-text('Kurz')").first.click(); pg.wait_for_selector("[data-mmaschine]")
+    knopf = pg.locator("[data-mmaschine]")
+    mid = knopf.first.get_attribute("data-mmaschine")
+    knopf.first.click(); pg.wait_for_selector(".unterlagen--seite"); pg.wait_for_timeout(500)
+    pruefe("Noch keine Unterlagen" in pg.locator(".unterlagen--seite").inner_text(), "leer am Anfang")
 
     hochladen(pg, "SR20_Bedienungsanleitung.pdf", "typ")
     hochladen(pg, "Elektroschema_K2001.pdf", None)
@@ -50,7 +51,7 @@ with sync_playwright() as p:
     pruefe(el and el[0]["machine_id"] == mid and not el[0]["type_id"], "Schema nur für diese Maschine, Art erraten")
     up = pg.evaluate("() => TEST.protokoll.filter(x => x.art === 'upload').map(x => x.pfad)")
     pruefe(len(up) == 2 and all(x.startswith("maschinen/") for x in up), "Dateien in maschinen/: %s" % up)
-    t = pg.locator("#unterlagen").inner_text().lower()
+    t = pg.locator(".unterlagen--seite").inner_text().lower()
     pruefe("handbuch" in t and "elektroschema" in t and "nur diese maschine" in t, "Liste nach Art gruppiert")
     pg.screenshot(path=os.path.join(BILD, "unterlagen-produktion.png"))
 
@@ -58,7 +59,7 @@ with sync_playwright() as p:
     pg.locator(f"[data-unterlage-aendern='{el[0]['id']}']").click(); pg.wait_for_timeout(400)
     pg.locator(".dialog-huelle").last.locator("input").first.fill("Schaltplan K-2001")
     pg.locator(".dialog-huelle").last.locator(".dialog__knoepfe button").last.click(); pg.wait_for_timeout(800)
-    pruefe("Schaltplan K-2001" in pg.locator("#unterlagen").inner_text(), "umbenannt")
+    pruefe("Schaltplan K-2001" in pg.locator(".unterlagen--seite").inner_text(), "umbenannt")
     # Gilt für ändern: von „nur diese Maschine“ auf „alle vom Typ“ und zurück
     pg.locator(f"[data-unterlage-aendern='{el[0]['id']}']").click(); pg.wait_for_timeout(400)
     sel = pg.locator(".dialog-huelle").last.locator("select")

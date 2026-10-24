@@ -14,6 +14,7 @@ import { useMemo, useReducer } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { teilMerken } from "../teile/wiederherstellen.js";
+import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { Saeulen, Balken, Kennzahl } from "../teile/Diagramm.jsx";
 import { statistikLaden, statistikRechnen, werkzeugLaden, dauerText, stundenText, prozentText, kommaText,
   STUNDEN_VOLL, STUNDEN_MAX } from "../daten/statistik.js";
@@ -122,6 +123,20 @@ export default function Statistik({ auffrischen }) {
   const r = useMemo(() => (daten ? statistikRechnen(daten) : null), [daten]);
   const setze = (o) => { Object.assign(st, o); zeichnen(); };
   zeichnenAussen = zeichnen;
+
+  // Strg + K sucht Maschinen und Artikel und öffnet sie (seit 1.169.0)
+  useSeitenSuche({
+    name: "Statistik", platzhalter: "Maschine oder HOCO Nr. …",
+    eintraege: () => !r ? [] : [
+      ...r.maschinen.map((m) => ({ gruppe: "Maschinen", zeichen: "⚙", titel: m.name,
+        zeile: [m.typ, m.stk ? alt.zahlText(m.stk) + " Stk" : ""].filter(Boolean).join(" · "), maschine: m.id })),
+      ...r.artikel.map((a) => ({ gruppe: "Artikel", zeichen: "▣", titel: a.hoco,
+        zeile: a.stk ? alt.zahlText(a.stk) + " Stk" : "", artikel: a.hoco })),
+    ],
+    springen: (x) => oeffnen(x.maschine
+      ? { reiter: "maschinen", maschine: x.maschine, artikel: null }
+      : { reiter: "artikel", artikel: x.artikel, maschine: null }),
+  });
 
   return (
     <>
@@ -259,7 +274,8 @@ function Maschinen({ r, setze }) {
   const gewaehlt = st.maschine && r.maschinen.find((m) => m.id === st.maschine);
   if (gewaehlt) return <EineMaschine m={gewaehlt} r={r} setze={setze} />;
   const g = r.gesamt;
-  const liste = r.maschinen.slice().sort((a, b) => (b.auslastung || 0) - (a.auslastung || 0) || b.stk - a.stk);
+  // Reihenfolge wie auf der Planwand (Wunsch Patrick 24. Oktober 2026)
+  const liste = r.maschinen;
   return (
     <>
       <Kennzahlen z={g} mitAuslastung />
@@ -275,13 +291,14 @@ function Maschinen({ r, setze }) {
         </Karte>
         <Karte id="st-zeit-tag" titel="Auslastung pro Tag" unter={"Alle " + r.maschinen.length + " Maschinen zusammen, 100 % = " + r.maschinen.length * STUNDEN_VOLL + " h"}>
           <Saeulen werte={mitTip(jeZeit(g.jeTag.map((t) => ({ ...t, p: r.maschinen.length ? t.h / (r.maschinen.length * STUNDEN_VOLL) : 0 })), "p"),
-            prozentText)} format={prozentText} ziel={g.jeTag.length <= 62 ? 1 : 0} zielText="100 %" />
+            prozentText)} format={prozentText} wertText={(p) => kommaText(p * r.maschinen.length * STUNDEN_VOLL) + " h"}
+            ziel={g.jeTag.length <= 62 ? 1 : 0} zielText="100 %" />
         </Karte>
       </div>
       <AusschussFehlt r={r} />
       <div className="st-zwei">
         <Karte id="st-ausschuss-maschinen" titel="Ausschuss je Maschine" unter="Aus den Meldungen der Qualitätssicherung, Quote = Anteil am Ausstoss">
-          <Balken zeilen={r.maschinen.filter((m) => m.ausschuss).sort((a, b) => b.ausschuss - a.ausschuss)
+          <Balken zeilen={r.maschinen.filter((m) => m.ausschuss)
             .map((m) => ({ key: m.id, label: m.name, wert: m.ausschuss,
               text: <>{stkText(m.ausschuss)} <small>{quoteText(m.ausschussQuote)}</small></> }))}
             waehlen={(id) => oeffnen({ maschine: id })} />
@@ -352,6 +369,7 @@ function EineMaschine({ m, r, setze }) {
         </Karte>
         <Karte id="st-zeit-tag" titel="Produktionszeit pro Tag" unter={STUNDEN_VOLL + " h = 100 % Auslastung"}>
           <Saeulen werte={mitTip(jeZeit(m.jeTag, "h"), stundenText)} format={(h) => Math.round(h) + " h"}
+            wertText={(h) => kommaText(h) + " h"}
             ziel={m.jeTag.length <= 62 ? STUNDEN_VOLL : 0} zielText={STUNDEN_VOLL + " h"}
             deckel={m.jeTag.length <= 62 ? 24 : 0} />
         </Karte>
@@ -428,7 +446,8 @@ function EinArtikel({ a, r, setze }) {
     const z = (jeMaschine[e.mid] = jeMaschine[e.mid] || { stk: 0, h: 0, tage: new Set() });
     z.stk += e.stk; z.h += e.h || 0; if (e.stk) z.tage.add(e.datum);
   });
-  const zeilen = Object.entries(jeMaschine).sort((x, y) => y[1].stk - x[1].stk);
+  const platz = new Map(r.maschinen.map((m, i) => [m.id, i]));
+  const zeilen = Object.entries(jeMaschine).sort((x, y) => (platz.get(x[0]) ?? 1e6) - (platz.get(y[0]) ?? 1e6));
   return (
     <>
       <div className="st-kopf">

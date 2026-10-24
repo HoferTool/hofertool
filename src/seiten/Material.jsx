@@ -19,6 +19,7 @@ import { materialDatenLaden, materialRechnen, postenMengeText, laengenNachholen,
 import { postenFenster } from "../material/PostenFenster.jsx";
 import { materialHistorieOeffnen } from "../material/Historie.jsx";
 import { MKnopf } from "../material/WoEinsetzen.jsx";
+import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 
 const gemerkt = { suche: "" };
 
@@ -45,6 +46,17 @@ export default function Material({ auffrischen }) {
 
   // Restmaterial gehört keinem Auftrag (seit 1.104.0); wo es passt,
   // zeigt das rote M beim Posten
+  // Strg + K sucht hier das Restmaterial (seit 1.169.0): ein Treffer
+  // nimmt den Filter weg und zeigt den Posten
+  useSeitenSuche({
+    name: "Material", platzhalter: "Material, Werkstoffnummer, Ort oder Notiz …",
+    eintraege: () => ((daten && daten.posten) || []).filter((p) => p.art !== "bestellt").map((p) => ({
+      gruppe: p.ort || "Ohne Ort", zeichen: "▥", titel: p.material || "Material",
+      zeile: postenMengeText(p) + " · " + (p.ort || "ohne Ort") + (p.notiz ? " · " + p.notiz : ""),
+      such: werkstoffSuchtext(p.material) + " " + (p.be_nr || ""), id: p.id })),
+    springen: (x) => { setSuche(""); hinzeigen('[data-posten="' + x.id + '"]'); },
+  });
+
   const erfassen = async (o) => {
     if (await postenFenster({ ...(o || {}) })) neu();
   };
@@ -199,7 +211,7 @@ function Lager({ d, suche, neu, erfassen }) {
           <div className="karte__kopf"><h2>{ort}</h2><span className="klein">{posten.length}</span></div>
           {posten.sort((a, b) => a.material.localeCompare(b.material)).map((p) => {
             return (
-              <div key={p.id} className="mat-lagerzeile">
+              <div key={p.id} className="mat-lagerzeile" data-posten={p.id}>
                 <Punkt p={p} jeWerkstoff={jeWerkstoff} />
                 <PostenZeile p={p} neu={neu} erfassen={erfassen} personen={d.personen} auftraege={d.auftraege} mitMaterial />
               </div>);

@@ -9324,3 +9324,46 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
 .eba-pf-artikel span { display: block; font-size: .78rem; color: var(--gedaempft); }
 .eba-pf-artikel--frei b { color: #b03030; }
 .eba-pf-wknoepfe { display: flex; gap: 8px; margin-top: 8px; }
+
+/* Statistik (1.164.0): Wert an jeder Säule, ohne Darüberfahren. Die Säule
+   misst sich selbst (container), damit die Anschrift bei schmalen Säulen
+   (30 Tage, Handy) senkrecht steht statt über die Nachbarn zu laufen. */
+.dg-spalte { container-type: inline-size; }
+.dg-wert { position: absolute; left: 50%; transform: translateX(-50%); margin-bottom: 2px;
+  font-size: .66rem; font-weight: 600; line-height: 1; color: var(--tinte); white-space: nowrap;
+  font-variant-numeric: tabular-nums; pointer-events: none; z-index: 2; }
+.dg-wert--innen { margin: 3px 0 0; color: #fff; text-shadow: 0 0 2px rgba(0,0,0,.45); }
+@container (max-width: 30px) {
+  .dg-wert { writing-mode: vertical-rl; transform: translateX(-50%) rotate(180deg); font-size: .62rem; }
+}
+
+/* Seite Maschinen: Knopf „⚙ Typ“ im Kopf des Typ-Ordners öffnet die
+   Einstellungen des Typs als Fenster (1.167.0) */
+.mseite-ordner__zeile { display: flex; align-items: center; gap: 8px; padding-right: 12px; }
+.mseite-ordner__zeile > .mseite-ordner__kopf { flex: 1; min-width: 0; }
+.mseite-ordner__typ { flex: none; white-space: nowrap; }
+.dialog--typ { width: min(1100px, 96vw); max-width: 1100px; max-height: 92vh; display: flex; flex-direction: column; }
+.dialog--typ .dialog__kopfzeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-right: 0; margin-bottom: 12px; }
+.dialog--typ .dialog__kopfzeile h2 { margin: 0; }
+.dialog--typ__inhalt { overflow: auto; min-height: 0; flex: 1; }
+
+/* Auftragsfenster unter dem Kopf der Planwand (1.168.0, Wunsch Patrick
+   24. Oktober 2026): oben bleiben KW und Tag frei und ungetrübt, das
+   Fenster reicht bis ganz unten. Ein Klick auf den Kopf oder neben das
+   Fenster schliesst es. */
+.dialog-huelle.auftrag-huelle--unten {
+  place-items: start center; padding: calc(var(--auf-oben) + 4px) 20px 6px;
+  background: linear-gradient(transparent 0 var(--auf-oben), rgba(15, 18, 21, .6) var(--auf-oben));
+  backdrop-filter: none; -webkit-backdrop-filter: none; }
+.auftrag-huelle--unten > .dialog--auftrag { height: 100% !important; max-height: none !important; }
+
+/* ---------- Suche je Seite (seit 1.169.0) ---------- */
+.suche-alles__wo { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                   padding: 6px 16px; font-size: .8rem; color: var(--gedaempft);
+                   border-bottom: 1px solid var(--linie); }
+.suche-alles__wo .linkknopf { font-size: .8rem; }
+.such-blitz { animation: such-blitz 1.4s ease-in-out 2; border-radius: 8px; }
+@keyframes such-blitz {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 201, 64, 0); }
+  40% { box-shadow: 0 0 0 4px #ffc940, 0 0 18px 4px rgba(255, 201, 64, .55); }
+}

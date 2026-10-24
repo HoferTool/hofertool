@@ -138,7 +138,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.164.0";
+const APP_VERSION = "1.170.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1596,12 +1596,12 @@ async function profilLaden(frisch) {
     const spalten = "id, email, full_name, role, is_active, geburtstag, "
       + "bild_url, parks, darf_bearbeiten, ist_planer, initialen, ohne_passwort, einstellungen";
     let { data, error } = await zeitlimit(
-      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz")
+      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz, startseite")
         .eq("id", s.user.id).single(), 10000, "Profil");
     // Ohne sql/andere-nutzer.sql oder sql/materialplatz-recht.sql kennt die
     // Datenbank das Häkchen nicht: dann ohne die Spalten lesen, statt ohne
     // Profil dazustehen
-    if (error && /andere_nutzer|darf_materialplatz/.test(String(error.message || ""))) {
+    if (error && /andere_nutzer|darf_materialplatz|startseite/.test(String(error.message || ""))) {
       ({ data, error } = await zeitlimit(
         db.from("profiles").select(spalten).eq("id", s.user.id).single(), 10000, "Profil"));
     }
@@ -4929,32 +4929,18 @@ function balkenInfoVerhalten() {
       }
     };
 
-    // Das Fenster sitzt genau über dem Mauszeiger — passt es oben nicht
-    // hin, darunter. Waagrecht mittig zum Zeiger, am Rand eingefangen.
-    let mausX = null, mausY = null;
-    const platzieren = () => {
-      if (!fenster) return;
-      const r = el.getBoundingClientRect();
-      const x = mausX !== null ? mausX : r.left + Math.min(r.width, 200) / 2;
-      const y = mausY !== null ? mausY : r.top + r.height / 2;
-      const b = fenster.offsetWidth, h = fenster.offsetHeight;
-      const abstand = 14;
-      const oben = y - abstand - h >= 8;
-      fenster.style.left = Math.max(8, Math.min(window.innerWidth - b - 8, x - b / 2)) + "px";
-      fenster.style.top = (oben ? y - abstand - h
-        : Math.min(window.innerHeight - h - 8, y + abstand + 6)) + "px";
-    };
+    // Fest links neben der Spalte mit den Maschinen, senkrecht mittig
+    // (vorschauPlatzieren).
+    const platzieren = () => vorschauPlatzieren(fenster);
 
-    // Am Computer beim Darüberfahren — und es folgt dem Zeiger
+    // Am Computer beim Darüberfahren
     // Über einem Symbol: dessen Fenster statt der Vorschau
     const symbolUnter = (e) => (e.target && e.target.closest ? e.target.closest("[data-plsymbol]") : null);
     el.addEventListener("mouseenter", (e) => {
-      mausX = e.clientX; mausY = e.clientY;
       const s = symbolUnter(e);
       if (s) symbolInfoZeigen(s, e.clientX, e.clientY); else zeigen();
     });
     el.addEventListener("mousemove", (e) => {
-      mausX = e.clientX; mausY = e.clientY;
       const s = symbolUnter(e);
       if (s) {
         if (!symbolInfoOffen()) { weg(); symbolInfoZeigen(s, e.clientX, e.clientY); }
@@ -4962,7 +4948,6 @@ function balkenInfoVerhalten() {
         return;
       }
       if (symbolInfoOffen()) { symbolInfoWeg(); zeigen(); }
-      if (fenster) requestAnimationFrame(platzieren);
     });
     el.addEventListener("mouseleave", () => { symbolInfoWeg(); weg(); });
     el.addEventListener("mousedown", () => { symbolInfoWeg(); weg(); });
@@ -5010,6 +4995,32 @@ function balkenInfoVerhalten() {
 }
 let vorschauTippDa = false;
 
+// Die Vorschau (Auftrag und Ferien) steht fest links neben der Spalte
+// mit den Maschinennamen, senkrecht mittig, über der Seitenleiste, damit
+// sie weder die Planwand noch die Namen verdeckt und nicht mit dem
+// Zeiger herumspringt (Wunsch Patrick 24. Oktober 2026: „nicht über der
+// Planwand, links neben den Maschinen“; 1.165.0 stand sie rechts davon).
+// Ist links davon kein Platz (Handy, eingeklappte Seitenleiste), steht
+// sie wie in 1.165.0 rechts neben den Namen.
+function vorschauPlatzieren(fenster) {
+  if (!fenster) return;
+  const namen = document.querySelector(".pw-tafel .pw-name");
+  const r = namen ? namen.getBoundingClientRect() : { left: 0, right: 0 };
+  const linksFrei = r.left - 16;
+  let links;
+  if (linksFrei >= 180) {
+    fenster.style.width = linksFrei < 250 ? linksFrei + "px" : "";
+    links = r.left - 8 - fenster.offsetWidth;
+  } else {
+    // Am Handy wird sie dafür schmaler, solange mindestens 180 Pixel bleiben
+    const frei = window.innerWidth - r.right - 16;
+    fenster.style.width = frei < 250 && frei >= 180 ? frei + "px" : "";
+    links = Math.max(8, Math.min(window.innerWidth - fenster.offsetWidth - 8, r.right + 8));
+  }
+  fenster.style.left = links + "px";
+  fenster.style.top = Math.max(8, (window.innerHeight - fenster.offsetHeight) / 2) + "px";
+}
+
 // Ferien: beim Darüberfahren der ganze Name, die Notiz und von wann
 // bis wann, weil der Balken bei kurzen Ferien den Text abschneidet
 // (Wunsch Patrick 19. Oktober 2026). Gleiches Fenster wie bei Aufträgen.
@@ -5019,13 +5030,7 @@ function ferienInfoVerhalten() {
   let fenster = null, halten = null;
   const weg = () => { document.querySelectorAll(".pw-info--ferien").forEach((x) => x.remove()); fenster = null; };
   weg();
-  const platzieren = (x, y) => {
-    if (!fenster) return;
-    const b = fenster.offsetWidth, h = fenster.offsetHeight;
-    const oben = y - 14 - h >= 8;
-    fenster.style.left = Math.max(8, Math.min(window.innerWidth - b - 8, x - b / 2)) + "px";
-    fenster.style.top = (oben ? y - 14 - h : Math.min(window.innerHeight - h - 8, y + 20)) + "px";
-  };
+  const platzieren = () => vorschauPlatzieren(fenster);
   const zeigen = (el, x, y) => {
     if (!vorschauErlaubt(el)) return;
     const f = (plan.ferien || []).find((v) => String(v.id) === el.dataset.ferien);
@@ -5038,11 +5043,10 @@ function ferienInfoVerhalten() {
       + '<div class="pw-info__zeile">📅 ' + esc(zeitraumText(f.von, f.tage)) + '</div>'
       + (notiz ? '<div class="pw-info__zeile">✎ ' + esc(notiz) + '</div>' : "");
     document.body.appendChild(fenster);
-    platzieren(x, y);
+    platzieren();
   };
   tafel.querySelectorAll("[data-ferien]").forEach((el) => {
     el.addEventListener("mouseenter", (e) => zeigen(el, e.clientX, e.clientY));
-    el.addEventListener("mousemove", (e) => platzieren(e.clientX, e.clientY));
     el.addEventListener("mouseleave", weg);
     el.addEventListener("mousedown", weg);
     // Am Tablet: lange drücken, wie bei den Aufträgen
@@ -5212,7 +5216,8 @@ function sucheSpringen(x) {
   }
 }
 
-// Strg + K öffnet die Suche überall
+// Strg + K öffnet die Suche überall; seit 1.169.0 sucht sie, was die
+// offene Seite anbietet (src/teile/seitenSuche.js), sonst HOCO Nummern
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
     if (typeof profil === "undefined" || !profil) return;
@@ -10547,6 +10552,13 @@ function zeichneGeruest() {
   if (!ARCHIV && profil) {
     const vorher = zustandNachAnmeldung(profil.id);
     if (vorher && !location.hash) location.hash = vorher;
+  }
+  // Sonst die Seite, die ein Admin unter Einstellungen → Nutzer als
+  // Startseite gewählt hat (Wunsch Patrick 24. Oktober 2026: „P. Ruch will
+  // nach dem Login direkt die Planwand“), aber nur, wenn die Person sie sehen darf
+  const eigeneStart = !ARCHIV && profil && profil.startseite;
+  if (!location.hash && eigeneStart && SEITEN.some((s) => s.pfad === eigeneStart) && seiteSichtbar(eigeneStart)) {
+    location.hash = "#/" + eigeneStart;
   }
   if (!location.hash) location.hash = ARCHIV ? "#/planwand" : "#/dashboard";
   document.body.classList.toggle("archiv", !!ARCHIV);

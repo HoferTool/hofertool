@@ -13,6 +13,7 @@
 // =================================================================
 import { alt, useDaten } from "../bruecke.jsx";
 import { qsFenster } from "../teile/QsFenster.jsx";
+import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { qsMeldungenLaden, qsQuittieren, tabelleFehlt, wannText } from "../daten/qs.js";
 
 const nachNummer = (a, b) => String(a.machine_number || "").localeCompare(
@@ -69,6 +70,18 @@ export function QsFortschritt({ j }) {
 
 export default function Qs({ auffrischen }) {
   const { daten, fehler, neu } = useDaten(laden, [auffrischen]);
+
+  // Strg + K sucht die laufenden Aufträge; ein Treffer öffnet das
+  // Fenster zum Ausschuss melden (seit 1.169.0)
+  useSeitenSuche({
+    name: "Qualitätssicherung", platzhalter: "Maschine, HOCO Nr. oder FA Nr. …",
+    eintraege: () => (daten ? daten.zeilen : []).map(({ m, j }) => ({
+      gruppe: "Laufende Aufträge", zeichen: "⚙", titel: (j.job_number || "ohne HOCO Nr.") + " · " + m.name
+        + (m.machine_number ? " " + m.machine_number : ""),
+      zeile: [(alt.PLANSTATUS[j.plan_status] || {}).name, j.material_bez].filter(Boolean).join(" · "),
+      such: j.fa_nr || "", m, j })),
+    springen: async (x) => { if (!daten.fehlt && await qsFenster(x.j, x.m)) neu(); },
+  });
 
   // Meldungen von anderen Geräten kommen über den laufenden Abgleich
   // (syncTabellen „qs“ in app.js)

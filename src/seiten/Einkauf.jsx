@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { PRIO } from "../daten/einkauf.js";
+import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 
 const gemerkt = { zeigeErledigte: false };
 
@@ -25,6 +26,16 @@ export default function Einkauf({ auffrischen }) {
   useGemerkt(gemerkt, { zeigeErledigte });
   const { daten: liste, fehler, neu } = useDaten(
     () => listeLaden(zeigeErledigte), [zeigeErledigte, auffrischen]);
+
+  // Strg + K sucht auf der Liste (seit 1.169.0); Erledigtes nur, wenn es gezeigt wird
+  useSeitenSuche({
+    name: "Einkaufsliste", platzhalter: "Was, Laden oder Person …",
+    eintraege: () => (liste || []).map((z) => ({
+      gruppe: (PRIO[z.prio] || PRIO[3]).text, zeichen: "✓", titel: z.text,
+      zeile: [z.menge, z.laden && "bei " + z.laden, "von " + alt.personName(z.profiles)].filter(Boolean).join(" · "),
+      id: z.id })),
+    springen: (x) => hinzeigen('[data-ek="' + x.id + '"]'),
+  });
 
   return (
     <>
@@ -110,7 +121,7 @@ function Eintrag({ z, erledigte, neu }) {
   };
 
   return (
-    <label className="notiz">
+    <label className="notiz" data-ek={z.id}>
       {erledigte
         ? <span className="hakenfertig">✓</span>
         : <input type="checkbox" data-ekfertig={z.id} onChange={abhaken} />}
