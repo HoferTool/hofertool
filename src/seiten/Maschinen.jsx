@@ -20,6 +20,7 @@ import { alt, useDaten } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import Verwalten, { aktion } from "./produktion/Maschinen.jsx";
+import { typFensterOeffnen } from "./produktion/Typen.jsx";
 import MaschineSeite from "./maschinen/Maschine.jsx";
 import { ZiehListe } from "../teile/ZiehListe.jsx";
 
@@ -119,13 +120,20 @@ function Pfad({ teile }) {
 function TypOrdner({ k, name, liste, darf, offen, umschalten, oeffnen, ordnen, neuLaden }) {
   return (
     <div className={"mseite-ordner" + (offen ? " mseite-ordner--offen" : "")} data-mtyp={k}>
-      <button className="mseite-ordner__kopf" data-mtyp-auf={k} aria-expanded={offen} onClick={umschalten}>
-        <span className="mseite-ordner__pfeil" aria-hidden="true">▸</span>
-        <span className="mseite-ordner__symbol" aria-hidden="true">{offen ? "📂" : "📁"}</span>
-        <b>{name}</b>
-        <span className="mseite-ordner__zahl">{liste.length} {liste.length === 1 ? "Maschine" : "Maschinen"}
-          {!offen && <> · {liste.map((m) => m.machine_number || m.name).join(", ")}</>}</span>
-      </button>
+      <div className="mseite-ordner__zeile">
+        <button className="mseite-ordner__kopf" data-mtyp-auf={k} aria-expanded={offen} onClick={umschalten}>
+          <span className="mseite-ordner__pfeil" aria-hidden="true">▸</span>
+          <span className="mseite-ordner__symbol" aria-hidden="true">{offen ? "📂" : "📁"}</span>
+          <b>{name}</b>
+          <span className="mseite-ordner__zahl">{liste.length} {liste.length === 1 ? "Maschine" : "Maschinen"}
+            {!offen && <> · {liste.map((m) => m.machine_number || m.name).join(", ")}</>}</span>
+        </button>
+        {/* Einstellungen des Typs (Paths, Plätze, Einrichtblatt) als
+            Fenster; ziehen soll der Knopf nicht */}
+        {k !== OHNE && <button className="knopf knopf--klein mseite-ordner__typ" data-mtyp-einst={k}
+          title="Einstellungen des Typs" onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => typFensterOeffnen(k, neuLaden)}>⚙ Typ</button>}
+      </div>
       {offen &&
         // Mit der Maus im Ordner zieht nur die innere Liste, nicht der Ordner
         <div className="mseite-ordner__inhalt" onPointerDown={(e) => e.stopPropagation()}>

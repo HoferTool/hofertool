@@ -62,6 +62,22 @@ with sync_playwright() as p:
     pg.click("[data-mtyp-auf='t2']"); pg.wait_for_timeout(300)
     pruefe(pg.locator("[data-mtyp='t2'] [data-mmaschine]").count() == 2, "Ordner wieder offen")
     pg.screenshot(path=os.path.join(BILD, "maschinen-typen.png"))
+    # Knopf „⚙ Typ“ öffnet die Einstellungen des Typs als Fenster (1.167.0)
+    pruefe(pg.locator("[data-mtyp-einst]").count() == 2, "Knopf Typ bei jedem Ordner")
+    pg.click("[data-mtyp-einst='t1']"); pg.wait_for_timeout(900)
+    pruefe(pg.locator("#typ-fenster").count() == 1, "Fenster Typ geht auf")
+    pruefe(pg.locator("#typ-fenster #path-neu").count() == 1 and pg.locator("#typ-fenster #typ-blatt").count() == 1,
+           "im Fenster Paths und Einrichtblatt")
+    pruefe(pg.locator("#typ-fenster #typ-zurueck").count() == 0, "im Fenster kein ‹ alle Typen")
+    pruefe(pg.locator("#typ-fenster .typ-path, #typ-fenster [data-path]").count() > 0
+           or "Path" in pg.inner_text("#typ-fenster"), "Paths des Typs im Fenster")
+    pg.screenshot(path=os.path.join(BILD, "maschinen-typ-fenster.png"))
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pruefe(pg.locator("#typ-fenster").count() == 0 and pg.locator("[data-mtyp='t1']").count() == 1,
+           "Escape schliesst nur das Fenster")
+    pg.click("[data-mtyp-einst='t2']"); pg.wait_for_timeout(700)
+    pg.click("#typ-fenster-zu"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("#typ-fenster").count() == 0, "X schliesst das Fenster")
     # Typ Tornos nach oben
     ziehen(pg, "[data-griff='t2']", "[data-mtyp='t1']", True)
     pruefe(pg.locator("[data-mtyp]").first.get_attribute("data-mtyp") == "t2", "Tornos jetzt oben")

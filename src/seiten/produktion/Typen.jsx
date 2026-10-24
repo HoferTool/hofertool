@@ -8,8 +8,9 @@
 //  eine Ebene zurück). Nach jeder Änderung lädt die Produktion still
 //  neu und zeichnet diese Ansicht mit (neuLaden kommt von Maschinen).
 // =================================================================
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useReducer, useRef } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
+import { fensterOeffnen } from "../../teile/Fenster.jsx";
 
 let ladeNr = 0;
 
@@ -217,13 +218,42 @@ async function aufbauLaden(typ) {
   return { paths, nr: ++ladeNr };
 }
 
-function Aufbau({ typ, darf, geladen, neuLaden, typen }) {
+// Einstellungen eines Typs als Fenster, vom Typ-Ordner auf der Seite
+// Maschinen aus (1.167.0, Wunsch Patrick 24. Oktober 2026: „Typ-
+// Einstellungen als Button beim Typ, der als Fenster aufgeht“). Dasselbe
+// wie der Typ im Reiter Typen, nur ohne „‹ alle Typen“.
+export function typFensterOeffnen(typId, nachher) {
+  fensterOeffnen((zu) => <TypFenster typId={typId} zu={zu} />, () => { if (nachher) nachher(); });
+}
+
+function TypFenster({ typId, zu }) {
+  const [nr, neu] = useReducer((x) => x + 1, 0);
+  const neuLaden = () => { alt.prod.typen = null; alt.stammVergessen(); neu(); };
+  const { daten: typen, fehler } = useDaten(() => alt.ladeTypen(), [nr]);
+  const typ = typen && typen.find((x) => x.id === typId);
+  return (
+    <div className="dialog dialog--breit dialog--typ" id="typ-fenster">
+      <div className="dialog__kopfzeile">
+        <h2>{typ ? typ.name : "Maschinentyp"}</h2>
+        <button type="button" className="dialog__schliessen-inline" id="typ-fenster-zu" title="Schliessen" aria-label="Schliessen" data-zu="" onClick={zu}>✕</button>
+      </div>
+      <div className="dialog--typ__inhalt">
+        {fehler && !typen ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>
+          : !typen ? <div className="laedt">Wird geladen …</div>
+            : !typ ? <p className="hinweis">Diesen Typ gibt es nicht mehr.</p>
+              : <Aufbau typ={typ} typen={typen} darf={alt.darfSchreiben()} geladen={{ nr }} neuLaden={neuLaden} imFenster />}
+      </div>
+    </div>
+  );
+}
+
+function Aufbau({ typ, darf, geladen, neuLaden, typen, imFenster }) {
   const prod = alt.prod;
   const { daten, fehler } = useDaten(() => aufbauLaden(typ), [typ.id, geladen.nr]);
   const db = alt.db;
 
   const zurueck = () => { prod.typOffen = null; neuLaden(); };
-  const kopf = <button className="linkknopf" id="typ-zurueck" onClick={zurueck}>‹ alle Typen</button>;
+  const kopf = imFenster ? null : <button className="linkknopf" id="typ-zurueck" onClick={zurueck}>‹ alle Typen</button>;
   if (fehler && !daten) return <>{kopf}<div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div></>;
   if (!daten) return <>{kopf}<div className="laedt">Wird geladen …</div></>;
   const { paths } = daten;
@@ -304,7 +334,7 @@ function Aufbau({ typ, darf, geladen, neuLaden, typen }) {
     <>
       {kopf}
       <section className="karte">
-        <div className="karte__kopf"><h2>{typ.name}</h2>
+        <div className="karte__kopf">{imFenster ? <span /> : <h2>{typ.name}</h2>}
           {darf && <div className="karte__aktionen">
             <button className="knopf knopf--klein" id="typ-uebernehmen" onClick={uebernehmen}>Aufbau übernehmen</button>
             <button className="knopf knopf--klein" id="typ-blatt" onClick={blatt}>Einrichtblatt (Excel)</button>

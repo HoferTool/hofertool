@@ -9194,3 +9194,13 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
 @container (max-width: 30px) {
   .dg-wert { writing-mode: vertical-rl; transform: translateX(-50%) rotate(180deg); font-size: .62rem; }
 }
+
+/* Seite Maschinen: Knopf „⚙ Typ“ im Kopf des Typ-Ordners öffnet die
+   Einstellungen des Typs als Fenster (1.167.0) */
+.mseite-ordner__zeile { display: flex; align-items: center; gap: 8px; padding-right: 12px; }
+.mseite-ordner__zeile > .mseite-ordner__kopf { flex: 1; min-width: 0; }
+.mseite-ordner__typ { flex: none; white-space: nowrap; }
+.dialog--typ { width: min(1100px, 96vw); max-width: 1100px; max-height: 92vh; display: flex; flex-direction: column; }
+.dialog--typ .dialog__kopfzeile { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-right: 0; margin-bottom: 12px; }
+.dialog--typ .dialog__kopfzeile h2 { margin: 0; }
+.dialog--typ__inhalt { overflow: auto; min-height: 0; flex: 1; }
