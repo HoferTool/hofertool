@@ -1,5 +1,6 @@
-# Vorschau der Planwand fest links, senkrecht mittig, rechts neben den
-# Maschinennamen (1.165.0, Wunsch Patrick 24. Oktober 2026).
+# Vorschau der Planwand fest links neben den Maschinennamen über der
+# Seitenleiste, senkrecht mittig; ohne Platz dort (Handy) rechts neben den
+# Namen (1.165.1, Wunsch Patrick 24. Oktober 2026).
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -37,12 +38,13 @@ def lauf(br, name, vp, touch):
             pg.mouse.move(z["x"], z["y"]); pg.wait_for_timeout(400)
         r = pg.evaluate("""() => { const f = document.querySelector('.pw-info'); if (!f) return null;
           const a = f.getBoundingClientRect(); const n = document.querySelector('.pw-tafel .pw-name').getBoundingClientRect();
-          return {l: a.left, t: a.top, b: a.bottom, w: a.width, namen: n.right, h: innerHeight, vw: innerWidth}; }""")
+          return {l: a.left, r: a.right, t: a.top, b: a.bottom, w: a.width, namen: n.right, nl: n.left, h: innerHeight, vw: innerWidth}; }""")
         pruefe(name + ": Vorschau offen", bool(r))
         if not r: continue
         orte.append(round(r["l"]))
-        platz = r["vw"] - r["namen"] - 16 >= r["w"]
-        if platz: pruefe(name + ": rechts neben den Maschinennamen", abs(r["l"] - (r["namen"] + 8)) < 2)
+        if r["nl"] - 16 >= 180:
+            pruefe(name + ": links neben den Maschinennamen", abs(r["r"] - (r["nl"] - 8)) < 2 and r["l"] >= 7)
+        elif r["vw"] - r["namen"] - 16 >= r["w"]: pruefe(name + ": rechts neben den Maschinennamen", abs(r["l"] - (r["namen"] + 8)) < 2)
         else: pruefe(name + ": im Bildschirm (zu wenig Platz)", r["l"] >= 8 and r["l"] + r["w"] <= r["vw"] - 7)
         pruefe(name + ": senkrecht mittig", abs((r["t"] + r["b"]) / 2 - r["h"] / 2) < 2 or r["t"] == 8)
         if BILD and len(orte) == 1: pg.screenshot(path=f"{BILD}/vorschau-{name}.png")
@@ -54,5 +56,6 @@ with sync_playwright() as p:
     lauf(br, "pc", {"width": 1600, "height": 950}, False)
     lauf(br, "tablet", {"width": 1180, "height": 820}, True)
     lauf(br, "handy", {"width": 390, "height": 844}, True)
+    lauf(br, "handy-quer", {"width": 844, "height": 390}, True)
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
