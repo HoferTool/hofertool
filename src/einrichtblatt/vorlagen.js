@@ -41,13 +41,15 @@ const F = {
   zeit: { art: "typ", feld: "stueckzeit_s", label: "Prod.- Zeit:", zahl: true, einheit: "Sek./Stk." },
   wasch: { art: "stamm", feld: "waschgebinde", label: "Waschgebinde:", auswahl: "waschgebinde" },
   laufzeit: { art: "typ", feld: "abend_stk", label: "Masch.- Laufzeit:", zahl: true, einheit: "Stk. am Abend" },
-  prgNr: { art: "prg", feld: "nr", label: "Programm Nr.:" },
+  // Bei allen ausser Index heisst das Programm „Path 1“ (Wunsch Patrick,
+  // 24. Oktober 2026)
+  prgNr: { art: "prg", feld: "nr", label: "Path 1:" },
   n1000: { art: "kopf", feld: "n1000", label: "N1000:" },
   geometrie: { art: "blatt", feld: "geometrie", label: "Geometriedaten:", farbe: "#FF0000" },
   festanschlag: { art: "kopf", feld: "festanschlag", label: "Festanschlag Länge:" },
   anschlag: { art: "kopf", feld: "anschlag_von", label: "Anschlag von:" },
 };
-const pfad = (n, farbe) => ({ art: "prg", feld: String(n), label: "Programm Path " + n + ":", farbe });
+const pfad = (n, farbe) => ({ art: "prg", feld: String(n), label: "Path " + n + ":", farbe });
 
 const T = (von, bis, schritt) => {
   const l = [];

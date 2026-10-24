@@ -9209,9 +9209,11 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
 .eba-platz > .eba-tk { height: 18px; line-height: 18px; }
 .eba-tk b { text-decoration: underline; }
 .eba-tk-rechts { position: absolute; right: 2px; top: 1px; display: flex; gap: 2px; align-items: center; }
+/* Standzeit immer links, HD rechts (Wunsch Patrick, 24. Oktober 2026) */
+.eba-tk-links { position: absolute; left: 3px; top: 1px; display: flex; align-items: center; }
 .eba-hd { background: #fff; border: 1.5px solid #e03030; font-weight: 700;
           font-size: 10px; line-height: 12px; padding: 0 4px; }
-.eba-wert { color: #7030A0; font-weight: 700; font-size: 10.5px; line-height: 14px; background: #fff; padding: 0 2px; }
+.eba-wert { color: #000; font-weight: 700; font-size: 10.5px; line-height: 14px; background: #fff; padding: 0 2px; }
 .eba-tat, .eba-mass { font-weight: 700; font-size: 12.5px; }
 .eba-platz > .eba-bild { flex: 1 1 0; min-height: 0; height: auto; display: flex; align-items: center;
                          justify-content: center; padding: 2px 0; }
@@ -9224,17 +9226,18 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
 /* Kopf: Angaben oben in natürlicher Höhe, den Rest füllen die Bemerkungen */
 .eba-kopf { font-size: 14px; display: flex; flex-direction: column; }
 .eba-prgs { flex: none; }
-.eba-prg { display: grid; grid-template-columns: 150px minmax(0, 1fr); line-height: 21px; }
+.eba-prg { display: grid; grid-template-columns: 118px minmax(0, 1fr); line-height: 21px; }
 .eba-prg span { font-weight: 700; padding: 0 4px; white-space: nowrap; overflow: hidden; }
 .eba-prg b { font-weight: 400; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .eba-tab { flex: none; padding: 2px 0; }
-.eba-kz { display: grid; grid-template-columns: 150px minmax(0, 1fr); line-height: 21px; }
+.eba-kz { display: grid; grid-template-columns: 118px minmax(0, 1fr); line-height: 21px; }
+.eba-kz > span, .eba-prg span { font-size: 13px; }
 .eba-kz > span { font-weight: 700; padding: 0 4px; white-space: nowrap; }
 .eba-kz > b { font-weight: 400; padding: 0 4px; overflow-wrap: anywhere; }
 /* Schmaler Kopf (Index): Bezeichnung über dem Wert */
 .eba-kopf--schmal .eba-kz { grid-template-columns: minmax(0, 1fr); line-height: 17px; padding: 1px 0; }
 .eba-kopf--schmal .eba-kz > span { font-size: 12px; }
-.eba-bem { flex: 1; min-height: 0; overflow: hidden; border-top: 1px solid #000; padding: 4px; white-space: pre-wrap;
+.eba-bem { flex: 1; min-height: 0; overflow: hidden; padding: 6px 4px 4px; white-space: pre-wrap;
            font-size: 13px; line-height: 18px; }
 .eba-stamm { background: #e6e9ee; border-radius: 3px; padding: 0 3px; }
 
@@ -9317,7 +9320,7 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
 .eba-kopf--bearbeiten:hover { background: none; }
 .eba-legende { flex: none; display: flex; flex-direction: column; gap: 2px; margin: 4px 4px; }
 .eba-legende span { border: 1px solid #000; padding: 0 6px; font-weight: 700; font-size: 12px; }
-.eba-wz--frei { color: #b03030; font-style: italic; }
+.eba-wz--frei { color: #000; text-decoration: underline dotted #b03030; }
 .eba-pf-werkzeug { border: 1px solid var(--linie-stark); border-radius: 6px; padding: 8px; margin: 8px 0 12px; }
 .eba-pf-titel { display: block; font-size: .75rem; color: var(--gedaempft); margin-bottom: 4px; }
 .eba-pf-artikel b { display: block; }
@@ -9367,3 +9370,77 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 201, 64, 0); }
   40% { box-shadow: 0 0 0 4px #ffc940, 0 0 18px 4px rgba(255, 201, 64, .55); }
 }
+
+/* Einrichtblatt: Geo-Offset im Bildfeld eines Platzes (1.170.0) */
+.eba-platz > .eba-bild--geo { flex-direction: column; justify-content: flex-start; gap: 1px; }
+.eba-geo { flex: none; max-width: 100%; white-space: pre-wrap; font-size: 10.5px; line-height: 12px; text-align: left;
+           font-family: Consolas, "Courier New", monospace; overflow: hidden; }
+.eba-bild--geo .eba-svg { flex: 1 1 0; min-height: 0; height: auto; }
+.eba-platzfenster .feld textarea { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; font-size: .9rem;
+  border: 1px solid var(--linie-stark); border-radius: 6px; background: var(--flaeche); color: var(--tinte); resize: vertical; }
+.eba-pf-check { display: flex; gap: 6px; align-items: center; font-size: .85rem; margin: 2px 0 8px; }
+/* ---------- Einrichtblatt: weitere Seiten (1.170.0) ----------
+   Hinter dem Werkzeugblatt Seiten wie in Word, unten Reiter wie die
+   Blätter in Excel (Wunsch Patrick, 24. Oktober 2026) */
+.eba-zseite { position: relative; margin: 0 auto; background: #fff; color: #000; flex: none;
+              box-shadow: 0 2px 12px rgba(0, 0, 0, .25); color-scheme: light; }
+.eba-zseite--bearbeiten { cursor: text; outline: 2px dashed #f0b400; outline-offset: 2px; }
+.eba-zseite-leer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+                   padding: 40px; text-align: center; color: #8a94a0; font-size: 18px; pointer-events: none; }
+.eba-zseite-leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: center;
+                     margin: 0 auto 10px; max-width: 900px; }
+.eba-zseite-leiste label { display: flex; align-items: center; gap: 6px; font-size: .85rem; }
+.eba-zseite-name { width: 180px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--rand, #c8d0da);
+                   background: var(--feld, #fff); color: inherit; font: inherit; }
+.eba-zseite-format { display: inline-flex; gap: 4px; }
+.eba-reiter { flex: none; display: flex; gap: 2px; overflow-x: auto; padding: 0 10px; align-items: flex-start;
+              border-top: 1px solid rgba(127, 127, 127, .35); background: rgba(127, 127, 127, .12); }
+.eba-reiter__r { flex: none; padding: 7px 16px 8px; border: none; border-radius: 0 0 8px 8px; cursor: pointer;
+                 background: transparent; color: inherit; font: inherit; font-size: .9rem; white-space: nowrap; }
+.eba-reiter__r:hover { background: rgba(127, 127, 127, .18); }
+.eba-reiter__r--an { background: #fff; color: #000; font-weight: 600; box-shadow: 0 2px 4px rgba(0, 0, 0, .15); }
+.eba-reiter__neu { color: var(--akzent, #1f5fbf); }
+.eba-offen { color: #e06c00; font-weight: 600; font-size: .85em; margin-left: 6px; }
+/* Bildschirmschoner im Pad: das Blatt eingepasst */
+.eba-anzeige { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+               overflow: hidden; background: #fff; }
+.eba-zseite--druck { box-shadow: none; outline: none; margin: 0; }
+/* ---------- Produktion → Infos zum Richten (1.170.0) ---------- */
+.ri { display: flex; flex-direction: column; gap: 14px; }
+.ri-erklaerung { margin: 0; color: var(--text-leise, #6b7785); }
+.ri-karte h2 { margin: 0 0 10px; font-size: 1.05rem; }
+.ri-kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ri-kopf h2 { margin: 0 0 10px; }
+.ri-suche { display: flex; gap: 8px; flex-wrap: wrap; }
+.ri-suche input { flex: 1 1 200px; min-width: 0; }
+.ri-suche select, .ri-kopf select { min-height: 38px; }
+.ri-liste { display: flex; flex-direction: column; }
+.ri-zeile { display: grid; grid-template-columns: minmax(140px, 1.2fr) minmax(120px, 1fr) minmax(150px, 1fr) auto;
+            gap: 10px; align-items: center; padding: 7px 4px; border-top: 1px solid rgba(127, 127, 127, .2); }
+.ri-zeile--kurz { grid-template-columns: minmax(160px, 1.4fr) 1fr auto; }
+.ri-zeile small { display: block; color: var(--text-leise, #6b7785); font-size: .78rem; }
+.ri-maschine small, .ri-auftrag small { display: inline; margin-left: 6px; }
+.ri-knopf { text-align: right; }
+.ri-stand { font-size: .85rem; }
+.ri-stand--gut { color: #1d8a3a; font-weight: 600; }
+.ri-stand--offen { color: #e06c00; font-weight: 600; }
+.ri-stand--keins { color: var(--text-leise, #6b7785); }
+.ri-leer { margin: 6px 4px; color: var(--text-leise, #6b7785); }
+@media (max-width: 640px) {
+  .ri-zeile { grid-template-columns: 1fr auto; }
+  .ri-zeile > span:nth-child(3) { grid-column: 1; }
+}
+/* Der Betrachter ist immer dunkel: Reiter und Leiste hell beschriften,
+   die Bühne darf schrumpfen, damit die Reiter unten ganz sichtbar sind */
+.eba-buehne { min-height: 0; }
+.eba-reiter, .eba-zseite-leiste label { color: #dfe6ee; }
+.eba-reiter__neu { color: #8fb8ff; }
+.eba-zseite-leiste .eba-zseite-name { color: #000; background: #fff; }
+/* Die Hülle ist ein Raster: ohne feste Zeile wüchse das Fenster mit
+   dem Inhalt über den Bildschirm hinaus */
+.eba-huelle { grid-template-rows: minmax(0, 1fr); }
+.ri .ri-eingabe { width: auto; min-height: 38px; padding: 6px 10px; border-radius: 8px; font: inherit;
+                  border: 1px solid var(--rand, #c8d0da); background: var(--feld, #fff); color: inherit; }
+.ri-suche input.ri-eingabe { flex: 1 1 220px; max-width: 320px; }
+.ri-suche select.ri-eingabe, .ri-kopf select.ri-eingabe { flex: 0 1 260px; }
+.ri-kopf { margin-bottom: 4px; }

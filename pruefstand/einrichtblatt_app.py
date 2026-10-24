@@ -63,7 +63,7 @@ with sync_playwright() as p:
     pruefe("Star-Plätze T100–T600, T1100, kein T3100 beim SR-32",
            all(pg.locator(f"[data-platz='T{n}']").count() == 1 for n in (100, 600, 700, 1000, 1100, 2400))
            and pg.locator("[data-platz='T3100']").count() == 1)   # T3100 steht im Excel, kommt hinten dazu
-    pruefe("Kopf mit Programm Nr., Artikel Bezeich, N1000", all(x in s for x in ("Programm Nr.", "111, 333", "Artikel Bezeich", "N1000", "Deckel")))
+    pruefe("Kopf mit Path 1, Artikel Bezeich, N1000", all(x in s for x in ("Path 1:", "111, 333", "Artikel Bezeich", "N1000", "Deckel")))
     pruefe("Werkzeugtext aus dem Excel nur im Bearbeiten markiert", pg.locator("[data-platz='T200'] .eba-wz--frei").count() == 0)
     pg.screenshot(path="einrichtblatt_app_ansicht.png")
     # Immer ein A4 quer, alle Werkzeugfelder gleich hoch, nichts ragt
@@ -127,8 +127,37 @@ with sync_playwright() as p:
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
     pg.screenshot(path="einrichtblatt_app_bearbeiten.png")
 
+    # Geo-Offset von Hand, Bild daneben kleiner
+    pg.click("[data-platz='T100']"); pg.wait_for_selector("[data-platzfenster='T100']")
+    pf = pg.locator("[data-platzfenster='T100']")
+    pf.locator("[data-pf='geo']").fill("X 0.12\nZ -0.05")
+    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
+    pruefe("Geo-Offset im Feld", "X 0.12" in pg.inner_text("[data-platz='T100'] .eba-geo"))
+    hd = pg.evaluate("""() => { const t = document.querySelector('[data-platz="T200"] .eba-tk');
+      const l = t.querySelector('.eba-tk-links').getBoundingClientRect(), r = t.querySelector('.eba-tk-rechts').getBoundingClientRect();
+      return l.left < r.left; }""")
+    pruefe("Standzeit links, HD rechts", hd)
+
+    # Weitere Seite wie in Word, unten als Reiter
+    pg.click("[data-eba-seite-neu]"); pg.wait_for_selector("[data-eba-zseite]")
+    pg.fill("[data-eba-seite-name]", "Geo-Offset")
+    pg.click("[data-eba-seite-quer]"); pg.wait_for_timeout(200)
+    z = pg.evaluate("(() => { const r = document.querySelector('[data-eba-zseite]').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })()")
+    pruefe("Seite quer: " + str(z), z == [1123, 794])
+    pg.click("[data-eba-seite-inhalt]"); pg.wait_for_selector(".ib-te__seite .ib-text__blatt")
+    pg.click(".ib-te__seite .ib-text__blatt"); pg.keyboard.type("Offset T100 X 0.12")
+    pg.click("[data-ibte='fertig']"); pg.wait_for_timeout(400)
+    pruefe("Inhalt auf der Seite", "Offset T100" in pg.inner_text("[data-eba-zseite]"))
+    pruefe("Reiter mit Namen", "Geo-Offset" in pg.inner_text("[data-eba-reiter]"))
+    pg.screenshot(path="einrichtblatt_app_seite.png")
+    pg.click("[data-eba-seite-nr='0']"); pg.wait_for_timeout(200)
+
     pg.click("[data-eba-speichern]"); pg.wait_for_timeout(1000)
     b = pg.evaluate("TEST.daten.einrichtblatt_app[0]")
+    pruefe("Seite gespeichert", len(b.get("seiten") or []) == 1 and b["seiten"][0]["name"] == "Geo-Offset"
+           and b["seiten"][0]["quer"] is True and "Offset T100" in b["seiten"][0]["html"])
+    pg.locator("[data-eba-seite]").screenshot(path="einrichtblatt_app_geo.png")
+    pruefe("Geo gespeichert", "X 0.12" in (b["plaetze"]["T100"].get("geo") or ""))
     t2 = b["plaetze"]["T200"]
     pruefe("T200 gespeichert", t2.get("hd") is True and t2.get("standzeit") == 2500 and t2.get("article_id") == "a1"
            and t2.get("werkzeug") == "MTEC-452410" and t2.get("hersteller") == "Vischer & Bolli AG")
@@ -164,7 +193,7 @@ with sync_playwright() as p:
     pruefe("Index: Kopf", "fa_nr" not in bi["kopf"] and bi["kopf"].get("festanschlag") == "55.5"
            and bi["kopf"].get("anschlag_von") == "Revolver 2" and bi["maschine_nr"] == "Nr.3")
     s = pg.inner_text("[data-eba-seite]")
-    pruefe("Index: ohne Programm Nr., mit Festanschlag und Legende", "Programm Nr" not in s and "Festanschlag" in s
+    pruefe("Index: ohne Path 1, mit Festanschlag und Legende", "Path 1" not in s and "Festanschlag" in s
            and "Revolver 3" in s and pg.locator("[data-eba-seite] .eba-platz").count() == 30)
     pg.screenshot(path="einrichtblatt_app_index.png")
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
@@ -197,5 +226,23 @@ with sync_playwright() as p:
     pg.screenshot(path="einrichtblatt_app_pad.png")
     if h.count(): h.locator("[data-ja]").click(); pg.wait_for_timeout(300)
     pruefe("Auftrag begonnen", pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tH').plan_status") == ziel)
+
+    # Im Pad: App-Blatt erst nach „Blatt ist gut“, und nur zum Lesen
+    pg.evaluate("""() => TEST.daten.einrichtblatt_app.push({ id: 'eb2', hoco_nr: '10000-0302', type_id: 't1', programme: {},
+      plaetze: { T100: { taetigkeit: 'Pad-Test' } }, kopf: {}, seiten: [{ name: 'Notizen', quer: false, html: '<p>Hallo Pad</p>' }],
+      gut_am: null })""")
+    pg.click("#pad [data-padreiter='blatt']"); pg.wait_for_timeout(1200)
+    pruefe("Pad: nicht bestätigt → Excel, kein App-Blatt", pg.locator("[data-eba-seite]").count() == 0
+           and pg.locator("[data-dokextra='einrichtblatt']").count() == 0)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pg.evaluate("TEST.daten.einrichtblatt_app.find(x => x.id === 'eb2').gut_am = new Date().toISOString()")
+    pg.click("#pad [data-padreiter='blatt']"); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(500)
+    pruefe("Pad: bestätigt → App-Blatt", "Pad-Test" in pg.inner_text("[data-eba-seite]"))
+    pruefe("Pad: nur lesen", pg.locator("[data-eba-bearbeiten], [data-eba-gut], [data-eba-excel], [data-eba-seite-neu]").count() == 0)
+    pg.click("[data-eba-seite-nr='1']"); pg.wait_for_timeout(300)
+    pruefe("Pad: weitere Seite lesbar", "Hallo Pad" in pg.inner_text("[data-eba-zseite]")
+           and pg.locator(".eba-zseite--bearbeiten").count() == 0)
+    pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(300)
+
     br.close()
 print("Fehler:", fehler[:4] if fehler else "keine")

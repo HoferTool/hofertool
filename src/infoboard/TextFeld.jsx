@@ -25,7 +25,8 @@ import { dateiHochladen } from "./daten.js";
 
 // Blatt in CSS-Pixeln (96 je Zoll): 210 mm = 793,7 px
 const MM = 96 / 25.4;
-export const BLATT_MM = { a4: [210, 297], a3: [420, 297] };
+// a4q: A4 quer, für die weiteren Seiten des Einrichtblatts
+export const BLATT_MM = { a4: [210, 297], a3: [420, 297], a4q: [297, 210] };
 const RAND_MM = 12;
 
 export const GROESSEN = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];

@@ -22,6 +22,7 @@ import { blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, t
 import { bildDaten, platzBild, eigeneBilder, bildSchluesselVon } from "./bilder.js";
 import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
+import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 
 // Ein hochgeladenes Bild aus der Bibliothek
 export function BildZeichnung({ schluessel, className }) {
@@ -129,12 +130,17 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")}
         style={{ gridRow: ri + 1, gridColumn: si + 1 }} data-platz={nr}
         onClick={bearbeiten ? () => platzWahl(nr) : undefined}>
-        <div className="eba-tk" style={{ background: farbeVon(nr) }}><b>{platzName(nr)}</b>
-          <span className="eba-tk-rechts">{p.hd && <span className="eba-hd" data-hd="">HD</span>}
-            {p.standzeit ? <span className="eba-wert">{alt.zahlText(p.standzeit)}</span> : null}</span></div>
+        <div className="eba-tk" style={{ background: farbeVon(nr) }}>
+          {p.standzeit ? <span className="eba-tk-links"><span className="eba-wert">{alt.zahlText(p.standzeit)}</span></span> : null}
+          <b>{platzName(nr)}</b>
+          {p.hd && <span className="eba-tk-rechts"><span className="eba-hd" data-hd="">HD</span></span>}</div>
         <div className="eba-tat">{p.taetigkeit || ""}</div>
         <div className="eba-mass">{p.mass || ""}</div>
-        <div className="eba-bild">{bild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
+        {/* Geo-Offset nur, wo nötig: steht über dem Bild, das Bild wird
+            kleiner oder fällt ganz weg (Wunsch Patrick, 24. Oktober 2026) */}
+        <div className={"eba-bild" + (p.geo ? " eba-bild--geo" : "")}>
+          {p.geo ? <span className="eba-geo" data-geo="">{p.geo}</span> : null}
+          {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her">{p.hersteller || ""}</div>
         <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}</div>
       </div>
@@ -202,6 +208,9 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     if (sz !== "" && !isNaN(Number(sz))) z.standzeit = Number(sz);
     ["taetigkeit", "mass", "hersteller", "werkzeug"].forEach((k) => { const w = String(p[k] || "").trim(); if (w) z[k] = w; });
     if (p.hd) z.hd = true;
+    const geo = String(p.geo || "").replace(/\s+$/, "");
+    if (geo.trim()) z.geo = geo;
+    if (p.ohneBild) z.ohneBild = true;
     if (p.article_id && z.werkzeug) z.article_id = p.article_id;
     if (p.bild) z.bild = p.bild;
     // Am Artikel merken, sobald jemand ein Bild wählt: jeder andere Platz
@@ -243,6 +252,10 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
             onClick={() => setP(Object.assign({}, p, { werkzeug: "", hersteller: "", article_id: null, spezial_id: null }))}>Entfernen</button>}
         </div>
       </div>
+      <label className="feld"><span>Geo-Offset, nur wenn nötig (steht über dem Bild)</span>
+        <textarea data-pf="geo" rows={2} value={p.geo || ""} onChange={f("geo")} placeholder="z. B. X 0.12  Z -0.05" /></label>
+      <label className="eba-pf-check"><input type="checkbox" data-pf="ohneBild" checked={!!p.ohneBild}
+        onChange={(e) => setP(Object.assign({}, p, { ohneBild: e.target.checked }))} /> Kein Bild auf dem Blatt</label>
       <div className="eba-pf-zeile">
         <button className={"eba-pf-hd" + (p.hd ? " eba-pf-hd--an" : "")} data-pf="hd" aria-pressed={!!p.hd}
           onClick={() => setP(Object.assign({}, p, { hd: !p.hd }))}>HD {p.hd ? "ein" : "aus"}</button>
@@ -292,23 +305,64 @@ function Bibliothek({ aktiv, waehlen }) {
   );
 }
 
+// ---------------- Weitere Seiten ----------------
+// Hinter dem Werkzeugblatt beliebig viele Seiten, unten wie die Blätter
+// in Excel, je mit Namen und hoch oder quer, Inhalt wie in Word: Text,
+// Tabellen (auch aus Excel hineinkopiert, etwa Geo-Offset-Daten) und
+// Bilder (Wunsch Patrick, 24. Oktober 2026). Im Pad nur zum Lesen.
+const A4 = [794, 1123];
+function seitenMass(seite) { return seite && seite.quer ? [A4[1], A4[0]] : A4; }
+
+function ZusatzSeite({ seite, bearbeiten, inhaltBearbeiten }) {
+  const [w, h] = seitenMass(seite);
+  return (
+    <div className={"eba-zseite" + (bearbeiten ? " eba-zseite--bearbeiten" : "")} data-eba-zseite=""
+      style={{ width: w, height: h }} onClick={bearbeiten ? inhaltBearbeiten : undefined}
+      title={bearbeiten ? "Antippen, um den Inhalt zu bearbeiten" : undefined}>
+      <TextBlatt html={seite.html || ""} format={seite.quer ? "a4q" : "a4"} breite={w} hoehe={h} />
+      {bearbeiten && !seite.html && <div className="eba-zseite-leer">Antippen und schreiben, Tabellen aus Excel
+        hineinkopieren oder Bilder einfügen</div>}
+    </div>
+  );
+}
+
+// Unten die Reiter: das Werkzeugblatt und die weiteren Seiten
+function SeitenReiter({ seiten, aktiv, waehlen, bearbeiten, neu }) {
+  if (!seiten.length && !bearbeiten) return null;
+  return (
+    <div className="eba-reiter" data-eba-reiter="">
+      <button className={"eba-reiter__r" + (aktiv === 0 ? " eba-reiter__r--an" : "")} data-eba-seite-nr="0"
+        onClick={() => waehlen(0)}>Werkzeuge</button>
+      {seiten.map((x, i) => (
+        <button key={i} className={"eba-reiter__r" + (aktiv === i + 1 ? " eba-reiter__r--an" : "")}
+          data-eba-seite-nr={i + 1} onClick={() => waehlen(i + 1)}>{x.name || "Seite " + (i + 2)}</button>))}
+      {bearbeiten && <button className="eba-reiter__r eba-reiter__neu" data-eba-seite-neu="" onClick={neu}>+ Seite</button>}
+    </div>
+  );
+}
+
 // ---------------- Das Fenster ----------------
-function BlattFenster({ hocoNr, typId, zu, daten: start }) {
+// nurLesen: im Pad Mode und für alle ohne Schreibrecht
+function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbeiten }) {
   const [daten, setDaten] = useState(start);
-  const [bearbeiten, setBearbeiten] = useState(!start.blatt);
+  const darf = !nurLesen && alt.darfSchreiben() && !alt.istExtern();
+  const [bearbeiten, setBearbeiten] = useState(darf && (!start.blatt || !!gleichBearbeiten));
   const [entwurf, setEntwurf] = useState(start.blatt || leeresBlatt(hocoNr, typId));
   const [teilE, setTeilE] = useState(Object.assign({}, start.teil));
   const [typE, setTypE] = useState(Object.assign({}, start.typDaten));
   const [platz, setPlatz] = useState(null);
   const [laeuft, setLaeuft] = useState(false);
+  const [seiteNr, setSeiteNr] = useState(0);
   const [artikelBilder, setArtikelBilder] = useState(start.artikelBilder || {});
   const seite = useRef(null);
-  const darf = alt.darfSchreiben() && !alt.istExtern();
   const { typ, paths, teil, typDaten } = daten;
   const excel = typDaten.blatt_url || null;
   const blatt = bearbeiten ? entwurf : (daten.blatt || entwurf);
+  const seiten = Array.isArray(blatt.seiten) ? blatt.seiten : [];
+  const zseite = seiteNr > 0 ? seiten[seiteNr - 1] : null;
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const hatPlaetze = vorlage.reihen.some((r) => r.some(Boolean)) || Object.keys(blatt.plaetze || {}).length > 0;
+  useEffect(() => { if (seiteNr > seiten.length) setSeiteNr(seiten.length); }, [seiten.length]);
 
   const neuLaden = async () => { const d = await blattLaden(hocoNr, typId); setDaten(d); setArtikelBilder(d.artikelBilder || {}); return d; };
   const anfangen = (d) => {
@@ -348,23 +402,30 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
     });
     else if (f.art === "blatt") setEntwurf((b) => Object.assign({}, b, { [f.feld]: String(w).trim() ? w : null }));
   };
+  // Erst nach „Blatt ist gut“ zeigt der Pad Mode das Blatt aus der App
+  // (Wunsch Patrick, 24. Oktober 2026); ein Excel dazu wird gelöscht
   const gut = async () => {
     const ok = await alt.nachfragen({ titel: "Blatt ist gut",
-      text: "Stimmt das Blatt? Dann wird das bisherige Excel-Einrichtblatt von " + hocoNr + " auf " + typ.name
-        + " aus der Datenbank gelöscht, und die Aufgabe „HoferTool“ lädt dafür kein Excel mehr hoch.",
-      bestaetigen: "Excel löschen", gefahr: true });
+      text: excel
+        ? "Stimmt das Blatt? Dann gilt es ab jetzt auch im Pad Mode. Das bisherige Excel-Einrichtblatt von " + hocoNr + " auf "
+          + typ.name + " wird aus der Datenbank gelöscht, und die Aufgabe „HoferTool“ lädt dafür kein Excel mehr hoch."
+        : "Stimmt das Blatt? Dann gilt es ab jetzt auch im Pad Mode.",
+      bestaetigen: excel ? "Gut, Excel löschen" : "Blatt ist gut", gefahr: !!excel });
     if (!ok) return;
     setLaeuft(true);
-    try { await blattIstGut(daten.blatt); await neuLaden(); alt.meldung("Das Excel ist gelöscht, es gilt das Blatt in der App.", "gut"); }
-    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+    try {
+      await blattIstGut(daten.blatt); await neuLaden();
+      alt.meldung(excel ? "Das Excel ist gelöscht, es gilt das Blatt in der App." : "Das Blatt gilt jetzt auch im Pad Mode.", "gut");
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
     finally { setLaeuft(false); }
   };
   const drucken = () => {
-    const k = seite.current && seite.current.querySelector("[data-eba-seite]");
+    const k = seite.current && seite.current.querySelector(zseite ? "[data-eba-zseite]" : "[data-eba-seite]");
     if (!k) return;
     const kopie = k.cloneNode(true);
-    kopie.classList.add("eba-seite--druck");
-    try { inDerAppDrucken([kopie], { quer: true, titel: "Einrichtblatt " + hocoNr + " " + (typ.name || ""), rand: "8mm" }); }
+    kopie.classList.add(zseite ? "eba-zseite--druck" : "eba-seite--druck");
+    if (zseite) kopie.classList.toggle("eba-zseite--quer", !!zseite.quer);
+    try { inDerAppDrucken([kopie], { quer: zseite ? !!zseite.quer : true, titel: "Einrichtblatt " + hocoNr + " " + (typ.name || ""), rand: zseite ? "0" : "8mm" }); }
     catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
   const platzSetzen = (nr, z) => {
@@ -372,51 +433,119 @@ function BlattFenster({ hocoNr, typId, zu, daten: start }) {
     if (Object.keys(z).length) plaetze[nr] = z; else delete plaetze[nr];
     setEntwurf(Object.assign({}, entwurf, { plaetze }));
   };
+  const seitenSetzen = (liste) => setEntwurf((b) => Object.assign({}, b, { seiten: liste }));
+  const seiteAendern = (i, z) => seitenSetzen(seiten.map((x, j) => (j === i ? Object.assign({}, x, z) : x)));
+  const neueSeite = () => {
+    seitenSetzen(seiten.concat([{ name: "Seite " + (seiten.length + 2), quer: false, html: "" }]));
+    setSeiteNr(seiten.length + 1);
+  };
+  const seiteWeg = async (i) => {
+    if (!(await alt.nachfragen({ titel: "Seite löschen", text: "Die Seite „" + (seiten[i].name || "") + "“ löschen?",
+      bestaetigen: "Löschen", gefahr: true }))) return;
+    seitenSetzen(seiten.filter((_, j) => j !== i)); setSeiteNr(i);
+  };
+  const inhaltBearbeiten = async (i) => {
+    const x = seiten[i];
+    const [w, h] = seitenMass(x);
+    const html = await textBearbeiten({ html: x.html || "", format: x.quer ? "a4q" : "a4", seitenVerhaeltnis: h / w,
+      titel: (x.name || "Seite") + " · " + hocoNr });
+    if (html !== null) seiteAendern(i, { html });
+  };
   const pfad = pfadVonPlatz(paths);
   const platzTitel = (nr) => platzGruppe(nr) || (pfad[nr] ? pfad[nr].name : "");
 
   return (
     <div className="betrachter eba-fenster">
       <div className="betrachter__kopf">
-        <span className="betrachter__titel">Einrichtblatt {hocoNr} · {typ.name}</span>
+        <span className="betrachter__titel">Einrichtblatt {hocoNr} · {typ.name}
+          {daten.blatt && !daten.blatt.gut_am && <span className="eba-offen" data-eba-offen=""> noch nicht bestätigt</span>}</span>
         <div className="betrachter__knoepfe">
           {bearbeiten
             ? <>
-                <span className="eba-hinweis">Kopf direkt ausfüllen, Platz antippen für Werkzeug</span>
+                <span className="eba-hinweis">{zseite ? "Seite antippen zum Schreiben" : "Kopf direkt ausfüllen, Platz antippen für Werkzeug"}</span>
                 <button className="knopf knopf--klein" data-eba-abbrechen="" onClick={abbrechen}>Abbrechen</button>
                 <button className="knopf knopf--klein knopf--haupt" data-eba-speichern="" disabled={laeuft} onClick={speichern}>Speichern</button>
               </>
             : <>
                 {darf && <button className="knopf knopf--klein" data-eba-bearbeiten="" onClick={() => { anfangen(daten); setBearbeiten(true); }}>Bearbeiten</button>}
-                {excel && <button className="knopf knopf--klein" data-eba-excel="" onClick={() => dokZeigen({ art: "einrichtblatt", titel: "Excel " + hocoNr, adresse: excel })}>Excel ansehen</button>}
-                {excel && darf && daten.blatt && <button className="knopf knopf--klein" data-eba-gut="" disabled={laeuft} onClick={gut}>Blatt ist gut</button>}
+                {excel && !nurLesen && <button className="knopf knopf--klein" data-eba-excel="" onClick={() => dokZeigen({ art: "einrichtblatt", titel: "Excel " + hocoNr, adresse: excel })}>Excel ansehen</button>}
+                {darf && daten.blatt && !daten.blatt.gut_am && <button className="knopf knopf--klein" data-eba-gut="" disabled={laeuft} onClick={gut}>Blatt ist gut</button>}
                 <button className="knopf knopf--klein" data-eba-drucken="" onClick={drucken}>Drucken</button>
                 <button className="knopf knopf--klein" data-zu="" onClick={zu}>Schliessen</button>
               </>}
         </div>
       </div>
       <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => setPlatz(null)}>
-        <BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt}
-          bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern}
-          platzWahl={(nr) => setTimeout(() => setPlatz(nr), 0)} />
-        {bearbeiten && platz && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
+        {zseite && bearbeiten && <div className="eba-zseite-leiste" onClick={(e) => e.stopPropagation()}>
+          <label>Name <input className="eba-zseite-name" data-eba-seite-name="" value={zseite.name || ""}
+            onChange={(e) => seiteAendern(seiteNr - 1, { name: e.target.value })} /></label>
+          <span className="eba-zseite-format">
+            <button className={"knopf knopf--klein" + (!zseite.quer ? " knopf--haupt" : "")} data-eba-seite-hoch=""
+              onClick={() => seiteAendern(seiteNr - 1, { quer: false })}>Hochformat</button>
+            <button className={"knopf knopf--klein" + (zseite.quer ? " knopf--haupt" : "")} data-eba-seite-quer=""
+              onClick={() => seiteAendern(seiteNr - 1, { quer: true })}>Querformat</button></span>
+          <button className="knopf knopf--klein" data-eba-seite-inhalt="" onClick={() => inhaltBearbeiten(seiteNr - 1)}>Inhalt bearbeiten</button>
+          <button className="knopf knopf--klein knopf--gefahr-leise" data-eba-seite-weg="" onClick={() => seiteWeg(seiteNr - 1)}>Seite löschen</button>
+        </div>}
+        {zseite
+          ? <ZusatzSeite seite={zseite} bearbeiten={bearbeiten} inhaltBearbeiten={() => inhaltBearbeiten(seiteNr - 1)} />
+          : <BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt}
+              bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern}
+              platzWahl={(nr) => setTimeout(() => setPlatz(nr), 0)} />}
+        {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
           artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))} />}
-        {!hatPlaetze && <div className="abruf-leer"><b>Für {typ.name} sind noch keine Werkzeugplätze angelegt.</b>
-          <p>Unter Produktion → Maschinentypen → {typ.name} → Aufbau anlegen.</p></div>}
+        {!hatPlaetze && !zseite && <div className="abruf-leer"><b>Für {typ.name} sind noch keine Werkzeugplätze angelegt.</b>
+          <p>Unter Maschinen → Typen → {typ.name} → Aufbau anlegen.</p></div>}
       </div>
+      <SeitenReiter seiten={seiten} aktiv={seiteNr} waehlen={setSeiteNr} bearbeiten={bearbeiten} neu={neueSeite} />
     </div>
   );
 }
 
 // Öffnen: gleich das Blatt. Den Kopf samt Stammdaten füllt man direkt
-// darin aus, die frühere Frage „Stimmen die Stammdaten?“ ist weg.
-export async function einrichtblattAppOeffnen(hocoNr, typId) {
+// darin aus. { nurLesen } im Pad Mode, { bearbeiten } gleich zum Ändern
+// (Produktion → Infos zum Richten)
+export async function einrichtblattAppOeffnen(hocoNr, typId, { nurLesen, bearbeiten } = {}) {
   let daten;
   try { daten = await blattLaden(hocoNr, typId); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
-  fensterOeffnen((zu) => <BlattFenster hocoNr={hocoNr} typId={typId} daten={daten} zu={zu} />,
+  fensterOeffnen((zu) => <BlattFenster hocoNr={hocoNr} typId={typId} daten={daten} zu={zu}
+    nurLesen={!!nurLesen} gleichBearbeiten={!!bearbeiten} />,
     null, "betrachter-huelle eba-huelle");
+}
+
+// Nur das Werkzeugblatt, eingepasst in den Platz darum (Bildschirmschoner
+// im Pad Mode)
+export function BlattAnzeige({ hocoNr, typId }) {
+  const [daten, setDaten] = useState(null);
+  const [k, setK] = useState(1);
+  const platz = useRef(null);
+  useEffect(() => {
+    let weg = false;
+    blattLaden(hocoNr, typId).then((d) => { if (!weg) setDaten(d); }).catch(() => {});
+    return () => { weg = true; };
+  }, [hocoNr, typId]);
+  useEffect(() => {
+    const el = platz.current;
+    if (!el) return undefined;
+    const rechnen = () => setK(Math.min(el.clientWidth / 1123, el.clientHeight / 794) || 1);
+    rechnen();
+    const ro = new ResizeObserver(rechnen);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [daten]);
+  if (!daten || !daten.blatt) return <div className="pdfansicht__laden">Einrichtblatt wird geladen …</div>;
+  return (
+    <div className="eba-anzeige" ref={platz} data-eba-anzeige="">
+      <div style={{ width: 1123 * k, height: 794 * k }}>
+        <div style={{ transform: "scale(" + k + ")", transformOrigin: "top left", width: 1123 }}>
+          <BlattSeite typ={daten.typ} paths={daten.paths} teil={daten.teil} typDaten={daten.typDaten} blatt={daten.blatt}
+            artikelBilder={daten.artikelBilder || {}} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Schild der Test-Fassung unter .../test/, damit niemand sie mit der

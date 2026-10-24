@@ -90,11 +90,12 @@ export function prgNummern(blatt) {
 // Ein leeres Blatt für die HOCO Nr. auf diesem Typ
 export function leeresBlatt(hocoNr, typId) {
   return { hoco_nr: hocoNr, type_id: typId, programme: {}, geometrie: null, maschine_nr: null,
-    bemerkung: null, plaetze: {}, kopf: {}, excel_url: null, gut_am: null };
+    bemerkung: null, plaetze: {}, kopf: {}, seiten: [], excel_url: null, gut_am: null };
 }
 
-// kopf: was nur auf diesem Blatt steht (FA, N1000, Festanschlag …)
-const SPALTEN = ["programme", "geometrie", "maschine_nr", "bemerkung", "plaetze", "kopf", "excel_url", "gut_am", "gut_von"];
+// kopf: was nur auf diesem Blatt steht (N1000, Festanschlag …);
+// seiten: weitere Seiten wie Geo Offset (sql/einrichtblatt-seiten.sql)
+const SPALTEN = ["programme", "geometrie", "maschine_nr", "bemerkung", "plaetze", "kopf", "seiten", "excel_url", "gut_am", "gut_von"];
 
 // Speichern mit Rückgängig. Gibt die gespeicherte Zeile zurück.
 export async function blattSpeichern(blatt, text) {

@@ -8386,8 +8386,15 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
       + "Den trägst du unter Produktion → Maschinen ein.", "warn");
     return;
   }
-  // Gibt es das Blatt schon in der App, gilt es (Test seit 1.43.0)
-  if (hocoNr && await appBlattSuchen(hocoNr, typId)) { await einrichtblattAppOeffnen(hocoNr, typId); return; }
+  // Gibt es das Blatt in der App, gilt es. Im Pad Mode erst, wenn es
+  // jemand mit „Blatt ist gut“ bestätigt hat, und dort nur zum Lesen;
+  // bis dahin zeigt das Pad das Excel (Wunsch Patrick, 24. Oktober 2026)
+  const imPad = document.body.classList.contains("pad-offen");
+  const app = hocoNr ? await appBlattSuchen(hocoNr, typId) : null;
+  if (app && (!imPad || app.gut_am)) {
+    await einrichtblattAppOeffnen(hocoNr, typId, { nurLesen: imPad || istExtern() || !darfSchreiben() });
+    return;
+  }
   let gefunden;
   try { gefunden = await blattPdfSuchen(hocoNr, typId); }
   catch (f) { meldung(fehlertext(f), "fehler"); return; }
@@ -8395,7 +8402,7 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
   // Ins Blatt in der App: das eigene Excel der Nummer einlesen, sonst
   // ein leeres Blatt anfangen. Nicht aus der Vorlage des Typs, die ist
   // für keine bestimmte Nummer.
-  const appBlatt = !hocoNr || !darfSchreiben() || istExtern() ? null
+  const appBlatt = !hocoNr || imPad || app || !darfSchreiben() || istExtern() ? null
     : gefunden.eigenes
       ? { text: "Ins App-Blatt umwandeln", tu: async (zu) => {
           const typ = ((await ladeTypen()) || []).find((t) => t.id === typId) || { id: typId, name: "" };
