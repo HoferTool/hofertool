@@ -24,7 +24,7 @@ import Start from "../seiten/Start.jsx";
 import Produktion from "../seiten/Produktion.jsx";
 import Planwand from "../seiten/Planwand.jsx";
 import { PRIO } from "../daten/einkauf.js";
-import { padZeichnen, padAbbauen } from "../pad/Pad.jsx";
+import { padZeichnen, padAbbauen, padGeraetZustand } from "../pad/Pad.jsx";
 import { planAuftragDialog } from "../planwand/AuftragFenster.jsx";
 import { nachfragen, dialogFelder, auswahlDialog } from "../teile/Dialoge.jsx";
 import { geruestZeichnen, geruestAbbauen, navAktiv } from "../huelle/Geruest.jsx";
@@ -139,7 +139,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.172.1";
+const APP_VERSION = "1.173.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8023,6 +8023,9 @@ function padOeffnen(zustand) {
   if (inhalt) inhalt.innerHTML = "";
   if (typeof syncStoppen === "function") syncStoppen();
   pad.wo = "start";
+  // Konto Pad Mode: gleich auf die Maschine dieses iPads, oder zuerst
+  // die Frage, welche Maschine es ist (Wunsch Patrick 24. Oktober 2026)
+  if (!zustand) zustand = padGeraetZustand();
   if (zustand) Object.assign(pad, zustand);
   padZeichnen();
 }
@@ -10579,7 +10582,12 @@ function zeichneGeruest() {
   // Ebenso Reiter, Fenster und Bildlauf von vor dem Neuladen
   const nachher = zustandVorher(profil && profil.id);
   Promise.all([farbzuteilungLaden(), planerLaden(), symboleLaden()]).then(() => {
-    if (!padWiederOeffnen()) zeichneSeite();
+    if (!padWiederOeffnen()) {
+      // Die iPads an den Maschinen (Konto Pad Mode) starten direkt im
+      // Pad auf ihrer Maschine, auch nach einem Neustart des iPads
+      if (!ARCHIV && padGeraetZustand()) padOeffnen();
+      else zeichneSeite();
+    }
     nachher();
     // Am Bildschirm im Gang geht das Infoboard von selbst wieder auf
     // Ebenso beim Konto „Infoboard“ (Vermerk infoboardBildschirm am Konto,

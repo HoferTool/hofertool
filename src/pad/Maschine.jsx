@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { padZeichnen, padZurueck, PadNeuLadenKnopf } from "./Pad.jsx";
+import { GeraetMarke } from "./geraet.jsx";
 import { unterlagenOeffnen } from "../teile/Unterlagen.jsx";
 import { spezialwerkzeugeOeffnen } from "../teile/Spezialwerkzeuge.jsx";
 import { spezialAnzahl } from "../daten/spezialwerkzeuge.js";
@@ -667,6 +668,7 @@ export default function Maschine({ d }) {
           <button className="pad-sprung" data-padtab="" onClick={neuerTab}>Neuer Tab</button>
         </>}
       </div>
+      <GeraetMarke />
       <PadNeuLadenKnopf />
       <button className="pad__zu" data-padzu="" onClick={() => alt.padSchliessen()}
         aria-label="Schliessen">✕<span className="pad__zutext"> Schliessen</span></button>

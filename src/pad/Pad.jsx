@@ -20,6 +20,8 @@ import { createRoot } from "react-dom/client";
 import { alt, reactAufraeumen } from "../bruecke.jsx";
 import Maschine, { maschineLaden } from "./Maschine.jsx";
 import QsCheck, { qsLaden } from "./QsCheck.jsx";
+import { padGeraet, geraetSetzen, istPadKonto, GeraetMarke } from "./geraet.jsx";
+export { padGeraetZustand } from "./geraet.jsx";
 
 let wurzel = null, huelle = null, zaehler = 0;
 
@@ -79,6 +81,7 @@ export function PadKopf({ titel, zurueck }) {
         ? <button className="pad__zurueck" data-padzurueck="" onClick={padZurueck}>‹ Zurück</button>
         : <span className="pad__zurueck pad__zurueck--leer" />}
       <span className="pad__titel">{titel}</span>
+      <GeraetMarke />
       <PadNeuLadenKnopf />
       <button className="pad__zu" data-padzu="" onClick={() => alt.padSchliessen()}
         aria-label="Schliessen">✕<span className="pad__zutext"> Schliessen</span></button>
@@ -144,6 +147,10 @@ async function sichtLaden(p) {
     p.wo = "maschinen";
     return maschinenLaden(p);
   }
+  if (p.wo === "geraet") {
+    const [parks, maschinen] = await Promise.all([alt.ladeParks(false), alt.ladeAlleMaschinen()]);
+    return { art: "geraet", parks, maschinen };
+  }
   if (p.wo === "qsparks") p.wo = "qs"; // gemerkt von vor 1.62.0
   if (p.wo === "qs") return qsLaden(p);
   if (p.wo === "planwand") return { art: "planwand" };
@@ -206,6 +213,7 @@ function Pad({ h, auffrischen }) {
   if (!d) return <div className="pad__laedt">Wird geladen …</div>;
 
   if (d.art === "start") return <Start />;
+  if (d.art === "geraet") return <Geraet parks={d.parks} maschinen={d.maschinen} />;
   if (d.art === "parks") return <Parks parks={d.parks} anzahl={d.anzahl} />;
   if (d.art === "typen") return <Typen gruppen={d.gruppen} alle={d.alle} />;
   if (d.art === "maschinen") return <Maschinen eigene={d.eigene} laufend={d.laufend} />;
@@ -239,6 +247,64 @@ function Start() {
             <span className="pad-kachel__zeichen">🔍</span><span>QS Check</span>
           </button>
         </div>
+        {istPadKonto() && <GeraetZeile />}
+      </div>
+    </>
+  );
+}
+
+// Auf der Startseite des Pads: welche Maschine dieses iPad ist, mit
+// „Ändern“, falls es an eine andere Maschine kommt
+function GeraetZeile() {
+  const g = padGeraet();
+  const text = !g ? "Noch keine Maschine gewählt"
+    : g.maschineId ? "Dieses iPad: " + [g.nr, g.name].filter(Boolean).join(" ") : "Dieses iPad: ohne feste Maschine";
+  return (
+    <div className="pad-geraet__zeile">
+      <span>{text}</span>
+      <button className="pad-geraet__aendern" data-padgeraet=""
+        onClick={() => gehe((p) => { p.wo = "geraet"; })}>Ändern</button>
+    </div>
+  );
+}
+
+function Geraet({ parks, maschinen }) {
+  const g = padGeraet();
+  const waehlen = (m) => {
+    geraetSetzen(m ? { maschineId: m.id, parkId: m.park_id, nr: m.machine_number || "", name: m.name || "" } : { keine: true });
+    alt.meldung(m ? "Dieses iPad ist jetzt " + [m.machine_number, m.name].filter(Boolean).join(" ") : "Dieses iPad hat keine feste Maschine", "gut");
+    gehe((p) => {
+      if (m) { p.maschineId = m.id; p.parkId = m.park_id; p.typId = null; p.wo = "maschine"; p.reiter = "uebersicht"; }
+      else p.wo = "start";
+    });
+  };
+  // Nach Park wie auf der Planwand, Maschinen ohne Park am Schluss
+  const gruppen = parks.map((pk) => ({ id: pk.id, name: pk.name, liste: maschinen.filter((m) => m.park_id === pk.id) }));
+  const ohne = maschinen.filter((m) => !parks.some((pk) => pk.id === m.park_id));
+  if (ohne.length) gruppen.push({ id: "__ohne", name: "Weitere", liste: ohne });
+  return (
+    <>
+      <PadKopf titel="Welche Maschine ist dieses iPad?" zurueck={!!g} />
+      <div className="pad__wahl pad-geraet">
+        <p className="pad-geraet__text">Einmal antippen. Das iPad merkt sich die Maschine und geht danach
+          immer gleich auf ihr Dashboard. Ändern geht im Pad Mode auf der Startseite.</p>
+        {gruppen.filter((gr) => gr.liste.length).map((gr) => (
+          <div key={gr.id} className="pad-geraet__park">
+            <h3>{gr.name}</h3>
+            <div className="pad-geraet__liste">
+              {gr.liste.map((m) => (
+                <button key={m.id} data-geraetwahl={m.id}
+                  className={"pad-kachel pad-geraet__maschine" + (g && g.maschineId === m.id ? " pad-geraet__maschine--an" : "")}
+                  onClick={() => waehlen(m)}>
+                  <span className="pad-kachel__nr">{m.machine_number || ""}</span>
+                  <span>{m.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <button className="pad-geraet__keine" data-geraetkeine="" onClick={() => waehlen(null)}>
+          Keine feste Maschine (etwa für den QS Check)</button>
       </div>
     </>
   );

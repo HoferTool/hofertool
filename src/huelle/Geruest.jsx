@@ -13,6 +13,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
+import { GeraetMarke } from "../pad/geraet.jsx";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen } from "./unterreiter.js";
 
 let wurzel = null;
@@ -199,6 +200,8 @@ function Geruest() {
             <path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>
           <b>Rückgängig</b></button>
         <span className="kopf__luecke" />
+        {/* Konto Pad Mode: welche Maschine dieses iPad ist */}
+        <GeraetMarke />
         <button className="kopf__suche" id="kopf-suche" title="Suchen (Strg + K)"
           onClick={() => alt.sucheOeffnen()} onMouseEnter={vorladen} onFocus={vorladen}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

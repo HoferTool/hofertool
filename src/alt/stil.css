@@ -9447,3 +9447,25 @@ body.dunkel .ri .ri-eingabe { color-scheme: dark; }
 .ri-suche input.ri-eingabe { flex: 1 1 220px; max-width: 320px; }
 .ri-suche select.ri-eingabe, .ri-kopf select.ri-eingabe { flex: 0 1 260px; }
 .ri-kopf { margin-bottom: 4px; }
+
+/* Welche Maschine ist dieses iPad? (Konto Pad Mode, seit 1.173.0) */
+#pad .pad-geraet { justify-content: flex-start; gap: 22px; }
+.pad-geraet__text { margin: 0; max-width: 760px; text-align: center; font-size: 1.1rem; opacity: .8; }
+.pad-geraet__park { width: min(1180px, 100%); }
+.pad-geraet__park h3 { margin: 0 0 10px; font-size: 1rem; text-transform: uppercase; letter-spacing: .1em; opacity: .7; }
+.pad-geraet__liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+#pad .pad-geraet__maschine { min-height: 92px; padding: 12px 8px; font-size: 1.1rem; gap: 4px; }
+#pad .pad-geraet__maschine .pad-kachel__nr { font-size: 1.6rem; font-weight: 700; opacity: 1; }
+#pad .pad-geraet__maschine--an { outline: 3px solid var(--pakzent, #4da3ff); outline-offset: 2px; }
+.pad-geraet__keine, .pad-geraet__aendern { font: inherit; color: inherit; cursor: pointer;
+  background: transparent; border: 1px solid currentColor; border-radius: 12px; padding: 12px 20px; opacity: .8; }
+.pad-geraet__zeile { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 14px;
+  font-size: 1.1rem; opacity: .85; }
+.pad-geraet__aendern { padding: 8px 16px; }
+/* Klein oben im Balken: welche Maschine dieses iPad ist */
+.geraet-marke { flex: 0 0 auto; font-size: .78rem; font-weight: 600; letter-spacing: .02em;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; opacity: .65;
+  white-space: nowrap; line-height: 1.5; }
+.kopf .geraet-marke { margin-right: 8px; }
+#pad .geraet-marke { color: var(--ptext, #fff); }
+@media (max-width: 700px) { #pad .pad__kopf--dash .geraet-marke { display: none; } }
