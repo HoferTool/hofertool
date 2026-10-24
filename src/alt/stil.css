@@ -9187,41 +9187,55 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
    schwarze Linien, Farbe je Path, alle Plätze gleich aufgebaut. */
 .eba-buehne { display: block; position: relative; padding: 14px; overflow: auto; }
 .eba-hinweis { color: #9aa5b1; font-size: .75rem; align-self: center; }
-.eba-seite { background: #fff; color: #000; width: 1123px; margin: 0 auto; padding: 16px 24px 22px;
-             box-sizing: border-box; font-family: Calibri, Carlito, Arial, sans-serif; }
-.eba-titel { display: grid; grid-template-columns: 1fr auto 1fr; border: 1.5px solid #000; border-bottom: none;
-             font-size: 15px; padding: 2px 6px; }
+/* Das Blatt ist immer genau ein A4 quer (297 × 210 mm = 1123 × 794 Punkte),
+   am Bildschirm wie auf dem Papier, alle Reihen gleich hoch, nichts ragt
+   unten hinaus (Wunsch Patrick, 24. Oktober 2026) */
+.eba-seite { background: #fff; color: #000; width: 1123px; height: 794px; margin: 0 auto; padding: 30px;
+             box-sizing: border-box; font-family: Calibri, Carlito, Arial, sans-serif;
+             display: flex; flex-direction: column; color-scheme: light; }
+.eba-titel { flex: none; display: grid; grid-template-columns: 1fr auto 1fr; border: 1.5px solid #000; border-bottom: none;
+             font-size: 15px; line-height: 20px; padding: 1px 6px; }
 .eba-titel b { text-align: center; }
 .eba-datum { text-align: right; font-size: 13px; }
-.eba-raster { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+.eba-raster { flex: 1; min-height: 0; display: grid;
               border-left: 1.5px solid #000; border-top: 1.5px solid #000; }
-.eba-zelle { border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; min-width: 0; }
+.eba-zelle { border-right: 1.5px solid #000; border-bottom: 1.5px solid #000; min-width: 0; min-height: 0; overflow: hidden; }
+/* Ein Werkzeugfeld: Platz, zwei Zeilen Aufgabe, Bild, Lieferant, Artikel-Nr. */
 .eba-platz { display: flex; flex-direction: column; text-align: center; font-size: 12px; }
-.eba-platz > div { border-bottom: 1px solid #000; min-height: 17px; line-height: 17px;
+.eba-platz > div { flex: none; border-bottom: 1px solid #000; height: 16px; line-height: 16px; box-sizing: content-box;
                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 3px; }
 .eba-platz > div:last-child { border-bottom: none; }
-.eba-tk { font-weight: 700; text-decoration: underline; font-size: 13px; position: relative; }
-.eba-hd { position: absolute; right: 4px; top: 1px; background: #fff; border: 1.5px solid #e03030;
-          font-size: 11px; line-height: 13px; padding: 0 5px; text-decoration: none; }
-.eba-wert { color: #7030A0; font-weight: 700; font-size: 11px; text-align: right; }
-.eba-tat, .eba-mass { font-weight: 700; font-size: 13px; }
-.eba-platz > .eba-bild { height: 84px; display: flex; align-items: center; justify-content: center; padding: 2px 0; }
+.eba-tk { position: relative; font-size: 13px; }
+.eba-platz > .eba-tk { height: 18px; line-height: 18px; }
+.eba-tk b { text-decoration: underline; }
+.eba-tk-rechts { position: absolute; right: 2px; top: 1px; display: flex; gap: 2px; align-items: center; }
+.eba-hd { background: #fff; border: 1.5px solid #e03030; font-weight: 700;
+          font-size: 10px; line-height: 12px; padding: 0 4px; }
+.eba-wert { color: #7030A0; font-weight: 700; font-size: 10.5px; line-height: 14px; background: #fff; padding: 0 2px; }
+.eba-tat, .eba-mass { font-weight: 700; font-size: 12.5px; }
+.eba-platz > .eba-bild { flex: 1 1 0; min-height: 0; height: auto; display: flex; align-items: center;
+                         justify-content: center; padding: 2px 0; }
 .eba-svg { display: inline-flex; height: 100%; }
 .eba-svg svg { height: 100%; width: auto; max-width: 100%; display: block; }
-.eba-her, .eba-wz { font-size: 10.5px; }
+.eba-platz > .eba-her, .eba-platz > .eba-wz { font-size: 10.5px; height: 14px; line-height: 14px; }
 .eba-platz--bearbeiten { cursor: pointer; }
 .eba-platz--bearbeiten:hover { background: #f4f8ff; }
 .eba-platz--aktiv { outline: 3px solid #1f6feb; outline-offset: -2px; }
-.eba-kopf { font-size: 13px; }
-.eba-kopf--bearbeiten { cursor: pointer; }
-.eba-kopf--bearbeiten:hover { background: #f4f8ff; }
-.eba-prg { display: grid; grid-template-columns: 140px 1fr; }
-.eba-prg span { font-weight: 700; padding: 1px 4px; }
-.eba-prg b { font-weight: 400; padding: 1px 4px; }
-.eba-tab { border-collapse: collapse; margin-top: 2px; }
-.eba-tab th { text-align: left; padding: 0 4px; width: 132px; font-weight: 700; }
-.eba-tab td { padding: 0 4px; }
-.eba-bem { padding: 10px 4px 4px; white-space: pre-wrap; }
+/* Kopf: Angaben oben in natürlicher Höhe, den Rest füllen die Bemerkungen */
+.eba-kopf { font-size: 14px; display: flex; flex-direction: column; }
+.eba-prgs { flex: none; }
+.eba-prg { display: grid; grid-template-columns: 150px minmax(0, 1fr); line-height: 21px; }
+.eba-prg span { font-weight: 700; padding: 0 4px; white-space: nowrap; overflow: hidden; }
+.eba-prg b { font-weight: 400; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eba-tab { flex: none; padding: 2px 0; }
+.eba-kz { display: grid; grid-template-columns: 150px minmax(0, 1fr); line-height: 21px; }
+.eba-kz > span { font-weight: 700; padding: 0 4px; white-space: nowrap; }
+.eba-kz > b { font-weight: 400; padding: 0 4px; overflow-wrap: anywhere; }
+/* Schmaler Kopf (Index): Bezeichnung über dem Wert */
+.eba-kopf--schmal .eba-kz { grid-template-columns: minmax(0, 1fr); line-height: 17px; padding: 1px 0; }
+.eba-kopf--schmal .eba-kz > span { font-size: 12px; }
+.eba-bem { flex: 1; min-height: 0; overflow: hidden; border-top: 1px solid #000; padding: 4px; white-space: pre-wrap;
+           font-size: 13px; line-height: 18px; }
 .eba-stamm { background: #e6e9ee; border-radius: 3px; padding: 0 3px; }
 
 /* Fenster je Platz: rechts über dem Blatt, damit man das Blatt noch sieht */
@@ -9269,8 +9283,7 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
 .eba-einlesen-liste { max-height: 40vh; overflow: auto; font-size: .8rem; padding-left: 18px; }
 
 /* Druck: das Blatt allein auf A4 quer */
-.eba-seite--druck { width: 100%; padding: 0; margin: 0; }
-.eba-seite--druck .eba-platz > .eba-bild { height: 70px; }
+.eba-seite--druck { width: 281mm; height: 194mm; padding: 0; margin: 0; }
 
 @media (max-width: 1160px) {
   .eba-buehne { padding: 6px; }
@@ -9291,16 +9304,19 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
 
 /* Einrichtblatt für alle Typen (Test): Kopf direkt im Blatt ausfüllen,
    Werkzeug nur wählen, Legende der Revolver beim Index */
-.eba-ein { font: inherit; font-size: 12px; width: 100%; box-sizing: border-box; border: 1px solid #9aa5b1;
-  border-radius: 3px; padding: 1px 4px; background: #fffbe6; color: #000; min-width: 0; }
+.eba-seite .eba-ein { font: inherit; font-size: 13px; width: 100%; box-sizing: border-box; border: 1px solid #9aa5b1;
+  border-radius: 3px; padding: 0 4px; height: 19px; line-height: 17px; background: #fffbe6; color: #000; min-width: 0;
+  color-scheme: light; box-shadow: none; }
+.eba-seite select.eba-ein { min-height: 0; padding: 0 2px; height: 19px; }
 .eba-ein-zwei { display: flex; gap: 4px; align-items: center; }
 .eba-ein-zwei > span, .eba-ein-zwei > small { white-space: nowrap; }
-.eba-ein--kurz { width: 70px; flex: none; }
-.eba-bem-ein { margin-top: 8px; resize: vertical; }
+.eba-seite .eba-ein--kurz { width: 70px; flex: none; }
+.eba-kz > b:has(.eba-ein), .eba-prg b:has(.eba-ein) { overflow: visible; }
+.eba-seite .eba-bem-ein { flex: 1; min-height: 40px; height: auto; margin: 4px 0 0; resize: none; line-height: 18px; padding: 4px; }
 .eba-kopf--bearbeiten { cursor: default; }
 .eba-kopf--bearbeiten:hover { background: none; }
-.eba-legende { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
-.eba-legende span { border: 1px solid #000; padding: 1px 6px; font-weight: 700; font-size: 12px; }
+.eba-legende { flex: none; display: flex; flex-direction: column; gap: 2px; margin: 4px 4px; }
+.eba-legende span { border: 1px solid #000; padding: 0 6px; font-weight: 700; font-size: 12px; }
 .eba-wz--frei { color: #b03030; font-style: italic; }
 .eba-pf-werkzeug { border: 1px solid var(--linie-stark); border-radius: 6px; padding: 8px; margin: 8px 0 12px; }
 .eba-pf-titel { display: block; font-size: .75rem; color: var(--gedaempft); margin-bottom: 4px; }

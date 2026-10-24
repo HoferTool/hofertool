@@ -194,14 +194,22 @@ export function blattAusExcel(roh) {
     const p = {};
     const zahl = text(k.z + 1);
     if (zahl) { const n = zahlDarin(zahl); if (n !== null) p.standzeit = n; else p.taetigkeit_vor = zahl; }
-    const taet = text(k.z + 2), mass = text(k.z + 3);
-    if (taet) p.taetigkeit = taet;
-    if (mass) p.mass = mass;
-    const rest = [];
-    for (let z = k.z + 4; z < ende; z++) { const t = text(z); if (t) rest.push(t); }
-    if (rest.length) p.werkzeug = rest[rest.length - 1];
-    if (rest.length > 1) p.hersteller = rest[rest.length - 2];
-    if (rest.length > 2) hinweise.push(k.text + ": mehr Zeilen als erwartet, „" + rest.slice(0, -2).join(" / ") + "“ fehlt");
+    // Unten stehen Lieferant und Artikel-Nr. (zwei Zeilen direkt
+    // untereinander), oben die Aufgabe. Im Excel stehen dazwischen oft
+    // Leerzeilen („Bohren“, leer, „Ø 3.50“), darum zählen nur Zeilen mit
+    // Text. Bei nur zwei Zeilen ist die untere die Artikel-Nr., wenn sie
+    // ganz unten steht oder Platz fürs Bild dazwischen ist.
+    const L = [];
+    for (let z = k.z + 2; z < ende; z++) { const t = text(z); if (t) L.push({ z, t }); }
+    const unten = [];
+    if (L.length >= 3 || (L.length === 2 && (L[1].z >= ende - 2 || L[1].z - L[0].z > 2))) {
+      unten.unshift(L.pop());
+      if (L.length >= 2 && L[L.length - 1].z === unten[0].z - 1) unten.unshift(L.pop());
+    }
+    if (L[0]) p.taetigkeit = L[0].t;
+    if (L.length > 1) p.mass = L.slice(1).map((x) => x.t).join(" ");
+    if (unten.length === 2) p.hersteller = unten[0].t;
+    if (unten.length) p.werkzeug = unten[unten.length - 1].t;
     if (p.taetigkeit_vor) { hinweise.push(k.text + ": „" + p.taetigkeit_vor + "“ unter dem Platz ist keine Standzeit"); delete p.taetigkeit_vor; }
     p.hd = felder.some((f) => /^HD$/i.test(f.text) && f.z >= k.z - 1 && f.z <= k.z && f.s >= k.s && f.s <= k.s + breite - 1);
     p._ende = ende;
@@ -245,7 +253,9 @@ export function blattAusExcel(roh) {
     else if (art === "geometrie") kopf.geometrie = wert || null;
     else if (art === "hoco") hoco = wert || null;
     else if (art === "prgnr") { if (wert) kopf.programme.nr = wert; }
-    else if (["fa_nr", "n1000", "festanschlag", "anschlag_von"].includes(art)) { if (wert) kopf.felder[art] = wert; }
+    // Die FA Nr. gehört nicht ins Blatt (Wunsch Patrick, 24. Oktober 2026)
+    else if (art === "fa_nr") continue;
+    else if (["n1000", "festanschlag", "anschlag_von"].includes(art)) { if (wert) kopf.felder[art] = wert; }
     else if (art === "autom") {
       autom = werte[0] || null;
       const nr = werte.slice(1).join(" ").trim() || (/\bnr\.?\s*\S+/i.exec(wert) || [])[0];

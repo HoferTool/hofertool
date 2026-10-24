@@ -16,6 +16,10 @@
 //  - SW-20: wie bisher, drei Paths in Orange, Blau und Grün und die
 //    Geometriedaten.
 //
+//  Autom.-Nr. und FA Nr. stehen nicht mehr im Blatt (Wunsch Patrick,
+//  24. Oktober 2026): das Blatt gilt für HOCO Nr. und Typ, nicht für
+//  eine Maschine oder einen Auftrag.
+//
 //  Ein Feld im Kopf gehört entweder zur HOCO Nr. (Stammdaten, gilt auf
 //  allen Typen), zu HOCO Nr. und Typ (Stückzeit, Laufzeit) oder nur zu
 //  diesem Blatt.
@@ -30,11 +34,9 @@
 //  fest   nur angezeigt (HOCO Nr., Typ)
 const F = {
   hoco: { art: "fest", feld: "hoco", label: "Ho&Co. Nr:" },
-  fa: { art: "kopf", feld: "fa_nr", label: "Fabrik.-Auftr. Nr.:" },
   bez: { art: "stamm", feld: "bezeichnung", label: "Artikel Bezeich:" },
   zeichnung: { art: "stamm", feld: "zeichnungs_nr", label: "Zeichnungs Nr:" },
   index: { art: "stamm", feld: "index_nr", label: "Index:" },
-  autom: { art: "blatt", feld: "maschine_nr", label: "Autom.-Typ / Nr:", typVorne: true, platzhalter: "Nr." },
   material: { art: "stamm", feld: "material", label: "Material:" },
   zeit: { art: "typ", feld: "stueckzeit_s", label: "Prod.- Zeit:", zahl: true, einheit: "Sek./Stk." },
   wasch: { art: "stamm", feld: "waschgebinde", label: "Waschgebinde:", auswahl: "waschgebinde" },
@@ -63,7 +65,7 @@ function star(name, { mitT700 = true, mitT3100 = true, mitT3400 = false } = {}) 
   if (mitT3100) reihen.push(vier(T(3100, mitT3400 ? 3400 : 3300, 100)));
   return {
     art: "star", titel: "Werkzeug- Protokoll-" + name, spalten: 6, kopfBreite: 2, kopfAb: 1, reihen,
-    felder: [F.prgNr, F.hoco, F.fa, F.bez, F.zeichnung, F.index, F.autom, F.material, F.n1000, F.zeit, F.wasch, F.laufzeit],
+    felder: [F.prgNr, F.hoco, F.bez, F.zeichnung, F.index, F.material, F.n1000, F.zeit, F.wasch, F.laufzeit],
     prgNr: true,
   };
 }
@@ -80,8 +82,10 @@ function index(name) {
   REVOLVER.forEach(([r, f]) => T(1, 10, 1).forEach((t) => { farben["R" + r + "-" + t] = f; }));
   return {
     art: "index", titel: "Werkzeug- Protokoll-" + name, spalten: 6, kopfBreite: 1, kopfAb: 0, reihen, farben,
+    // Im Excel ist der Kopf etwas breiter als ein Platz
+    breiten: "1.3fr repeat(5, minmax(0, 1fr))",
     legende: REVOLVER.map(([r, f]) => ["Revolver " + r, f]),
-    felder: [F.hoco, F.fa, F.bez, F.zeichnung, F.index, F.autom, F.material, F.zeit, F.wasch, F.laufzeit, F.festanschlag, F.anschlag],
+    felder: [F.hoco, F.bez, F.zeichnung, F.index, F.material, F.zeit, F.wasch, F.laufzeit, F.festanschlag, F.anschlag],
     prgNr: false,
   };
 }
@@ -103,8 +107,8 @@ function sw(name) {
   });
   return {
     art: "sw", titel: "Werkzeug- Protokoll-" + name.replace(/-/g, ""), spalten: 6, kopfBreite: 2, kopfAb: 2, reihen, farben,
-    felder: [pfad(1, SW_FARBE[1]), pfad(2, SW_FARBE[2]), pfad(3, SW_FARBE[3]), F.geometrie, F.hoco, F.fa, F.bez, F.zeichnung,
-      F.index, F.autom, F.material, F.zeit, F.wasch, F.laufzeit],
+    felder: [pfad(1, SW_FARBE[1]), pfad(2, SW_FARBE[2]), pfad(3, SW_FARBE[3]), F.geometrie, F.hoco, F.bez, F.zeichnung,
+      F.index, F.material, F.zeit, F.wasch, F.laufzeit],
     prgNr: true,
   };
 }
@@ -120,7 +124,7 @@ function allgemein(name, paths) {
   while (reihen.length < 5) reihen.push(vier([]));
   return {
     art: "allgemein", titel: "Werkzeug- Protokoll-" + name, spalten: 6, kopfBreite: 2, kopfAb: 1, reihen: reihen.map((r) => r.concat([]).slice(0, 6)),
-    felder: [F.prgNr, F.hoco, F.fa, F.bez, F.zeichnung, F.index, F.autom, F.material, F.zeit, F.wasch, F.laufzeit],
+    felder: [F.prgNr, F.hoco, F.bez, F.zeichnung, F.index, F.material, F.zeit, F.wasch, F.laufzeit],
     prgNr: true,
   };
 }

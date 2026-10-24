@@ -51,6 +51,9 @@ with sync_playwright() as p:
     pruefe("Blatt angelegt", b and b["hoco_nr"] == "10000-0301" and b["type_id"] == "t1")
     pruefe("Programme", b["programme"].get("1") == "O1111" and b["programme"].get("3") == "O3333")
     pruefe("Platz T100 eingelesen", b["plaetze"]["T100"].get("taetigkeit") == "Abstechen" and b["plaetze"]["T100"].get("standzeit") == 1000)
+    t4 = b["plaetze"].get("T400", {})
+    pruefe("Mass nach Leerzeile, Lieferant und Artikel-Nr. unten", t4.get("taetigkeit") == "Bohren" and t4.get("mass") == "Ø 3.50"
+           and t4.get("hersteller") == "Muster AG" and t4.get("werkzeug") == "HYP-HP-3D Ø3.50")
     pruefe("Artikel aus Werkzeugtext erkannt", b["plaetze"]["T100"].get("article_id") == "a1")
     pruefe("Maschinen-Nr.", b["maschine_nr"] == "Nr.7")
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
@@ -61,13 +64,24 @@ with sync_playwright() as p:
            all(pg.locator(f"[data-platz='T{n}']").count() == 1 for n in (100, 600, 700, 1000, 1100, 2400))
            and pg.locator("[data-platz='T3100']").count() == 1)   # T3100 steht im Excel, kommt hinten dazu
     pruefe("Kopf mit Programm Nr., Artikel Bezeich, N1000", all(x in s for x in ("Programm Nr.", "111, 333", "Artikel Bezeich", "N1000", "Deckel")))
-    pruefe("Werkzeugtext aus dem Excel markiert", pg.locator("[data-platz='T200'] .eba-wz--frei").count() == 1)
+    pruefe("Werkzeugtext aus dem Excel nur im Bearbeiten markiert", pg.locator("[data-platz='T200'] .eba-wz--frei").count() == 0)
     pg.screenshot(path="einrichtblatt_app_ansicht.png")
+    # Immer ein A4 quer, alle Werkzeugfelder gleich hoch, nichts ragt
+    # hinaus (Wunsch Patrick, 24. Oktober 2026)
+    m = pg.evaluate("""() => { const s = document.querySelector('[data-eba-seite]').getBoundingClientRect();
+      const h = [...document.querySelectorAll('.eba-platz')].map(e => Math.round(e.getBoundingClientRect().height));
+      const voll = [...document.querySelectorAll('.eba-kopf, .eba-platz')].filter(e => e.scrollHeight > e.clientHeight + 1).length;
+      return { b: Math.round(s.width), h: Math.round(s.height), hoehen: [...new Set(h)], voll }; }""")
+    pruefe("Blatt A4 quer: " + str(m), m["b"] == 1123 and m["h"] == 794)
+    pruefe("Werkzeugfelder gleich hoch", max(m["hoehen"]) - min(m["hoehen"]) <= 1)
+    pruefe("Nichts abgeschnitten", m["voll"] == 0)
+    pruefe("Kein Autom.-Nr. und keine FA Nr. im Blatt", "Autom" not in s and "Fabrik" not in s)
 
     # Bearbeiten: Kopf direkt ausfüllen
     pg.click("[data-eba-bearbeiten]"); pg.wait_for_timeout(300)
+    pruefe("Werkzeugtext aus dem Excel markiert", pg.locator("[data-platz='T200'] .eba-wz--frei").count() == 1)
     pg.fill("[data-eba-feld='stamm:bezeichnung']", "Deckel neu")
-    pg.fill("[data-eba-feld='kopf:fa_nr']", "FA-1234")
+    pruefe("Keine FA Nr. und keine Autom.-Nr. im Kopf", pg.locator("[data-eba-feld='kopf:fa_nr'], [data-eba-feld='blatt:maschine_nr']").count() == 0)
     pg.fill("[data-eba-feld='kopf:n1000']", "N1000 ja")
     pg.fill("[data-eba-feld='typ:stueckzeit_s']", "41")
     pg.fill("[data-eba-feld='prg:nr']", "236")
@@ -119,13 +133,13 @@ with sync_playwright() as p:
     pruefe("T200 gespeichert", t2.get("hd") is True and t2.get("standzeit") == 2500 and t2.get("article_id") == "a1"
            and t2.get("werkzeug") == "MTEC-452410" and t2.get("hersteller") == "Vischer & Bolli AG")
     pruefe("T300 mit Spezialwerkzeug", b["plaetze"]["T300"].get("article_id") == "a9")
-    pruefe("Kopf am Blatt", b["kopf"].get("fa_nr") == "FA-1234" and b["kopf"].get("n1000") == "N1000 ja" and b["programme"].get("nr") == "236")
+    pruefe("Kopf am Blatt", "fa_nr" not in b["kopf"] and b["kopf"].get("n1000") == "N1000 ja" and b["programme"].get("nr") == "236")
     hp = pg.evaluate("TEST.daten.hoco_parts.find(x => x.hoco_nr === '10000-0301')")
     pruefe("Stammdaten", hp.get("bezeichnung") == "Deckel neu" and hp.get("waschgebinde") == "Typ 2 fein" and hp.get("material_groesse") == "Ø21h9")
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
     pruefe("Stückzeit je Typ", td.get("stueckzeit_s") == 41)
     s = pg.inner_text("[data-eba-seite]")
-    pruefe("Blatt zeigt alles", all(x in s for x in ("Deckel neu", "FA-1234", "236", "41 Sek./Stk.", "Ø21h9", "SPZ-77")))
+    pruefe("Blatt zeigt alles", all(x in s for x in ("Deckel neu", "236", "41 Sek./Stk.", "Ø21h9", "SPZ-77")))
 
     # Blatt ist gut: Excel weg
     pg.click("[data-eba-gut]"); pg.wait_for_selector(".dialog-huelle [data-ja]")
@@ -147,7 +161,7 @@ with sync_playwright() as p:
     pruefe("Index: Plätze je Revolver", pl.get("R1-T1", {}).get("taetigkeit") == "R1 Tät 1" and pl.get("R2-T7", {}).get("taetigkeit") == "R2 Tät 7"
            and pl.get("R3-T10", {}).get("taetigkeit") == "R3 Tät 10" and pl.get("R2-T3", {}).get("werkzeug") == "Werkzeug R2"
            and len([k for k in pl if k.startswith("R")]) == 30)
-    pruefe("Index: Kopf", bi["kopf"].get("fa_nr") == "FA-4711" and bi["kopf"].get("festanschlag") == "55.5"
+    pruefe("Index: Kopf", "fa_nr" not in bi["kopf"] and bi["kopf"].get("festanschlag") == "55.5"
            and bi["kopf"].get("anschlag_von") == "Revolver 2" and bi["maschine_nr"] == "Nr.3")
     s = pg.inner_text("[data-eba-seite]")
     pruefe("Index: ohne Programm Nr., mit Festanschlag und Legende", "Programm Nr" not in s and "Festanschlag" in s

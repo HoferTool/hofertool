@@ -14,6 +14,9 @@ const platz = (zelle, w) => {
 platz("A3", { nr: "T100", standzeit: 1000, taetigkeit: "Abstechen", hersteller: "Vischer & Bolli AG", werkzeug: "Art.MTEC-452410" });
 platz("C3", { nr: "T200", taetigkeit: "Bohren", mass: "Ø4.20", hersteller: "Muster AG", werkzeug: "HSS Bohrer 4.2" });
 platz("E3", { nr: "T3100", taetigkeit: "Gewinde formen", mass: "M5", werkzeug: "Former M5" });
+// Wie im SW-20-Excel: Leerzeile zwischen Aufgabe und Mass, Lieferant
+// und Artikel-Nr. ganz unten
+["T400", null, "Bohren", null, "Ø 3.50", null, "Muster AG", "HYP-HP-3D Ø3.50"].forEach((v, i) => { if (v) ws.getCell(3 + i, 7).value = v; });
 const kopf = [["Programm Path 1:", "O1111"], ["Programm Path 3:", "O3333"], ["Ho&Co. Nr:", "10000-0301"],
   ["Artikel Bezeich:", "Deckel Muster"], ["Zeichnungs Nr:", "416.4638.01"], ["Index:", "B"],
   ["Autom.-Typ / Nr:", "SR32J", "Nr.7"], ["Material:", "CW400J Ø20h9"], ["Prod.- Zeit:", "33 Sek./Stk."],

@@ -100,6 +100,13 @@ function KopfEingabe({ f, wert, aendern, d }) {
 }
 
 // ---------------- Das Blatt selbst ----------------
+// Immer genau ein A4 quer, am Bildschirm wie auf dem Papier. Alle Reihen
+// gleich hoch, jedes Werkzeugfeld bei allen Typen gleich aufgebaut
+// (Wunsch Patrick, 24. Oktober 2026): Platz mit HD und Standzeit, zwei
+// Zeilen Aufgabe („Bohren“ / „Ø 3.50“), Platz fürs Bild, Lieferant und
+// Artikel-Nr. Was nicht passt, wird abgeschnitten statt das Blatt zu
+// sprengen. Der Kopf nimmt so viel Platz, wie der Typ Angaben hat, der
+// Rest darunter gehört den Bemerkungen.
 // teil und typDaten sind im Bearbeiten die Entwürfe; aendern(f, wert)
 // ändert ein Kopffeld
 export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder }) {
@@ -111,6 +118,8 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
   const d = { blatt, teil, typDaten, typ };
   // Geometriedaten nur, wo die Vorlage sie hat oder schon etwas steht
   const felder = vorlage.felder.filter((f) => f.feld !== "geometrie" || vorlage.art === "sw" || blatt.geometrie);
+  // Die FA Nr. gehört nicht mehr ins Blatt, auch nicht in die Bemerkung
+  const bemerkung = String(blatt.bemerkung || "").split("\n").filter((z) => !/^\s*fabrik/i.test(z)).join("\n").trim();
 
   const farbeVon = (nr) => (vorlage.farben && vorlage.farben[nr]) || (pfad[nr] ? PFADFARBE[pfad[nr].nummer] || GRAU : GRAU);
   const zelle = (nr, ri, si) => {
@@ -120,13 +129,14 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")}
         style={{ gridRow: ri + 1, gridColumn: si + 1 }} data-platz={nr}
         onClick={bearbeiten ? () => platzWahl(nr) : undefined}>
-        <div className="eba-tk" style={{ background: farbeVon(nr) }}>{platzName(nr)}{p.hd && <span className="eba-hd" data-hd="">HD</span>}</div>
-        <div className="eba-wert">{p.standzeit ? alt.zahlText(p.standzeit) : ""}</div>
+        <div className="eba-tk" style={{ background: farbeVon(nr) }}><b>{platzName(nr)}</b>
+          <span className="eba-tk-rechts">{p.hd && <span className="eba-hd" data-hd="">HD</span>}
+            {p.standzeit ? <span className="eba-wert">{alt.zahlText(p.standzeit)}</span> : null}</span></div>
         <div className="eba-tat">{p.taetigkeit || ""}</div>
         <div className="eba-mass">{p.mass || ""}</div>
         <div className="eba-bild">{bild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her">{p.hersteller || ""}</div>
-        <div className={"eba-wz" + (p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}</div>
+        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}</div>
       </div>
     );
   };
@@ -135,26 +145,27 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
     const w = feldWert(f, d);
     const inhalt = bearbeiten ? <KopfEingabe f={f} wert={w} aendern={aendern} d={d} /> : feldText(f, w, d);
     if (f.farbe) return <div key={f.art + f.feld} className="eba-prg"><span style={{ background: f.farbe }}>{f.label}</span><b>{inhalt}</b></div>;
-    return <tr key={f.art + f.feld} data-eba-zeile={f.feld}><th>{f.label}</th><td>{inhalt}</td></tr>;
+    return <div key={f.art + f.feld} className="eba-kz" data-eba-zeile={f.feld}><span>{f.label}</span><b>{inhalt}</b></div>;
   };
   return (
     <div className="eba-seite" data-eba-seite="" data-eba-vorlage={vorlage.art}>
       <div className="eba-titel"><span /><b>{vorlage.titel}</b><span className="eba-datum">{heute()}</span></div>
-      <div className="eba-raster" style={{ gridTemplateRows: "repeat(" + reihen.length + ", auto)" }}>
+      <div className="eba-raster" style={{ gridTemplateRows: "repeat(" + reihen.length + ", minmax(0, 1fr))",
+        gridTemplateColumns: vorlage.breiten || "repeat(" + vorlage.spalten + ", minmax(0, 1fr))" }}>
         {reihen.map((r, ri) => r.map((nr, si) => (nr ? zelle(nr, ri, si)
           : (ri >= kopfAb && si < kopfBreite) ? null
           : <div key={"l" + ri + "-" + si} className="eba-zelle eba-leer" style={{ gridRow: ri + 1, gridColumn: si + 1 }} />)))}
-        <div className={"eba-zelle eba-kopf" + (bearbeiten ? " eba-kopf--bearbeiten" : "")}
+        <div className={"eba-zelle eba-kopf" + (kopfBreite < 2 ? " eba-kopf--schmal" : "") + (bearbeiten ? " eba-kopf--bearbeiten" : "")}
           style={{ gridRow: (kopfAb + 1) + " / " + (reihen.length + 1), gridColumn: "1 / " + (kopfBreite + 1) }}
           data-eba-kopf="" onClick={(e) => e.stopPropagation()}>
-          {felder.filter((f) => f.farbe).map(zeile)}
-          <table className="eba-tab"><tbody>{felder.filter((f) => !f.farbe).map(zeile)}</tbody></table>
-          {bearbeiten
-            ? <textarea className="eba-ein eba-bem-ein" data-eba-feld="blatt:bemerkung" rows={4} placeholder="Weitere Angaben, z. B. Abgreifen mit Schnabelzange"
-                value={leer(blatt.bemerkung)} onChange={(e) => aendern({ art: "blatt", feld: "bemerkung" }, e.target.value)} />
-            : blatt.bemerkung && <div className="eba-bem">{blatt.bemerkung}</div>}
+          {felder.filter((f) => f.farbe).length > 0 && <div className="eba-prgs">{felder.filter((f) => f.farbe).map(zeile)}</div>}
+          <div className="eba-tab">{felder.filter((f) => !f.farbe).map(zeile)}</div>
           {vorlage.legende && <div className="eba-legende">{vorlage.legende.map(([t, f]) =>
             <span key={t} style={{ background: f }}>{t}</span>)}</div>}
+          {bearbeiten
+            ? <textarea className="eba-ein eba-bem-ein" data-eba-feld="blatt:bemerkung" placeholder="Bemerkungen, z. B. Abgreifen mit Schnabelzange"
+                value={leer(blatt.bemerkung)} onChange={(e) => aendern({ art: "blatt", feld: "bemerkung" }, e.target.value)} />
+            : <div className="eba-bem" data-eba-bem="">{bemerkung}</div>}
         </div>
       </div>
     </div>
