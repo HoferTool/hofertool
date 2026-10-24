@@ -98,6 +98,16 @@ with sync_playwright() as p:
     if not pg.locator("#st-zeit-tag .dg-ziel").count(): fehler.append("Keine 10-h-Linie")
     achse = pg.inner_text("#st-zeit-tag .dg-achse")
     if "24 h" not in achse or "12 h" not in achse: fehler.append("Achse nicht bei 24 h gedeckelt: " + achse)
+    # Werte an den Säulen ohne Darüberfahren (1.164.0)
+    wh = pg.evaluate("""[...document.querySelectorAll('#st-zeit-tag .dg-wert')].map(e => e.textContent)""")
+    if sorted(wh) != ["10,0 h", "8,0 h"]: fehler.append("Stunden an den Säulen: " + str(wh))
+    ws = pg.evaluate("""[...document.querySelectorAll('#st-ausstoss-tag .dg-wert')].map(e => e.textContent)""")
+    if sorted(ws) != ["500", "500"]: fehler.append("Stück an den Säulen: " + str(ws))
+    # Nichts ragt über die Fläche hinaus
+    raus = pg.evaluate("""[...document.querySelectorAll('.dg-wert')].filter(e => {
+      const f = e.closest('.dg-flaeche').getBoundingClientRect(), b = e.getBoundingClientRect();
+      return b.top < f.top - 1 || b.bottom > f.bottom + 1; }).map(e => e.textContent)""")
+    if raus: fehler.append("Wert ragt aus dem Diagramm: " + str(raus))
     pg.hover("#st-zeit-tag .dg-spalte:nth-last-child(1)"); pg.wait_for_timeout(200)
     if not pg.locator("#st-zeit-tag .dg-tip").count(): fehler.append("Kein Fenster beim Darüberfahren")
     pg.screenshot(path="statistik-maschine.png", full_page=True)
@@ -157,6 +167,7 @@ with sync_playwright() as p:
     h.evaluate("location.hash='#/statistik'"); h.wait_for_selector("#st-auslastung", timeout=15000); h.wait_for_timeout(600)
     breit = h.evaluate("document.documentElement.scrollWidth")
     if breit > 392: fehler.append(f"Handy: Seite {breit} px breit")
+    if not h.locator("#st-ausstoss-tag .dg-wert").count(): fehler.append("Handy: keine Werte an den Säulen")
     h.screenshot(path="statistik-handy-dunkel.png", full_page=True)
     h.evaluate("document.querySelector('#inhalt [data-streiter=artikel]').click()"); h.wait_for_selector("#st-artikel-tabelle"); h.wait_for_timeout(400)
     h.click("[data-startikel='10111-0001']"); h.wait_for_selector("#st-artikel-name"); h.wait_for_timeout(300)

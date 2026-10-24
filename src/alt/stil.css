@@ -9182,3 +9182,15 @@ body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
 /* Am Handy macht overflow-x: hidden an html und body den body zum
    Rollbereich, dann klebt nichts; clip schneidet genauso ab, ohne das */
 html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
+
+/* Statistik (1.164.0): Wert an jeder Säule, ohne Darüberfahren. Die Säule
+   misst sich selbst (container), damit die Anschrift bei schmalen Säulen
+   (30 Tage, Handy) senkrecht steht statt über die Nachbarn zu laufen. */
+.dg-spalte { container-type: inline-size; }
+.dg-wert { position: absolute; left: 50%; transform: translateX(-50%); margin-bottom: 2px;
+  font-size: .66rem; font-weight: 600; line-height: 1; color: var(--tinte); white-space: nowrap;
+  font-variant-numeric: tabular-nums; pointer-events: none; z-index: 2; }
+.dg-wert--innen { margin: 3px 0 0; color: #fff; text-shadow: 0 0 2px rgba(0,0,0,.45); }
+@container (max-width: 30px) {
+  .dg-wert { writing-mode: vertical-rl; transform: translateX(-50%) rotate(180deg); font-size: .62rem; }
+}

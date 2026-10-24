@@ -275,7 +275,8 @@ function Maschinen({ r, setze }) {
         </Karte>
         <Karte id="st-zeit-tag" titel="Auslastung pro Tag" unter={"Alle " + r.maschinen.length + " Maschinen zusammen, 100 % = " + r.maschinen.length * STUNDEN_VOLL + " h"}>
           <Saeulen werte={mitTip(jeZeit(g.jeTag.map((t) => ({ ...t, p: r.maschinen.length ? t.h / (r.maschinen.length * STUNDEN_VOLL) : 0 })), "p"),
-            prozentText)} format={prozentText} ziel={g.jeTag.length <= 62 ? 1 : 0} zielText="100 %" />
+            prozentText)} format={prozentText} wertText={(p) => kommaText(p * r.maschinen.length * STUNDEN_VOLL) + " h"}
+            ziel={g.jeTag.length <= 62 ? 1 : 0} zielText="100 %" />
         </Karte>
       </div>
       <AusschussFehlt r={r} />
@@ -352,6 +353,7 @@ function EineMaschine({ m, r, setze }) {
         </Karte>
         <Karte id="st-zeit-tag" titel="Produktionszeit pro Tag" unter={STUNDEN_VOLL + " h = 100 % Auslastung"}>
           <Saeulen werte={mitTip(jeZeit(m.jeTag, "h"), stundenText)} format={(h) => Math.round(h) + " h"}
+            wertText={(h) => kommaText(h) + " h"}
             ziel={m.jeTag.length <= 62 ? STUNDEN_VOLL : 0} zielText={STUNDEN_VOLL + " h"}
             deckel={m.jeTag.length <= 62 ? 24 : 0} />
         </Karte>
