@@ -41,16 +41,40 @@ export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vor
   // wiederfinden (Wunsch Patrick 19. Oktober 2026: „damit man sieht,
   // wo man war“). Die Tafel zeigt es beim nächsten Zeichnen.
   if (auftrag && auftrag.id) alt.plan.angewaehlt = auftrag.id;
+  let lageWeg = null;
   fensterOeffnen((zu) => (
     <AuftragFenster auftrag={auftrag || null} b={b} vorgabeMaschine={vorgabeMaschine}
       vorgabeDatum={vorgabeDatum} vorlage={vorlage || null} leer={!auftrag && !vorlage && !!leer} zu={zu} />
-  ), () => { alt.plan.imDialog = false; }, null,
+  ), () => { alt.plan.imDialog = false; if (lageWeg) lageWeg(); }, "auftrag-huelle",
   // Nur ein bestehender Auftrag auf der Planwand geht nach dem Neuladen
   // wieder auf, frisch aus der Datenbank. Was im Fenster eingetippt,
   // aber nicht gespeichert war, ist dann weg; ein neuer Auftrag oder
   // eine Kopie gehen gar nicht wieder auf.
   // Aus dem Fortschritt (b.nachPlanAenderung) nicht: Dort fehlt die Tafel.
   auftrag && auftrag.id && !(b && b.nachPlanAenderung) ? { art: "auftrag", daten: { id: auftrag.id } } : null);
+  const huellen = document.querySelectorAll(".auftrag-huelle");
+  lageWeg = unterKopfLegen(huellen[huellen.length - 1]);
+}
+
+// Auf der Planwand reicht das Fenster vom Kopf mit KW und Tag bis ganz
+// nach unten, der Kopf bleibt hell und lesbar (Wunsch Patrick
+// 24. Oktober 2026: „so weit wie möglich nach unten, so dass man knapp
+// noch die KW und Tag sieht“). Ein Klick daneben schliesst wie immer
+// (dialogSchliessen). Ohne Planwand-Kopf (Pad, Fortschritt) und am
+// Handy bleibt das Fenster in der Mitte.
+function unterKopfLegen(huelle) {
+  if (!huelle) return null;
+  const legen = () => {
+    const kopf = document.querySelector("#inhalt .pw-zeile--kopf");
+    const r = kopf ? kopf.getBoundingClientRect() : null;
+    const passt = r && r.height && !document.body.classList.contains("pad-offen")
+      && innerWidth >= 720 && innerHeight - r.bottom >= 420;
+    huelle.classList.toggle("auftrag-huelle--unten", !!passt);
+    if (passt) huelle.style.setProperty("--auf-oben", Math.round(r.bottom) + "px");
+  };
+  legen();
+  addEventListener("resize", legen);
+  return () => removeEventListener("resize", legen);
 }
 
 // Warten, bis die Planwand ihre Aufträge hat; höchstens 20 Sekunden
