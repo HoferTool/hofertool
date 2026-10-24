@@ -136,7 +136,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.164.1";
+const APP_VERSION = "1.165.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4927,32 +4927,18 @@ function balkenInfoVerhalten() {
       }
     };
 
-    // Das Fenster sitzt genau über dem Mauszeiger — passt es oben nicht
-    // hin, darunter. Waagrecht mittig zum Zeiger, am Rand eingefangen.
-    let mausX = null, mausY = null;
-    const platzieren = () => {
-      if (!fenster) return;
-      const r = el.getBoundingClientRect();
-      const x = mausX !== null ? mausX : r.left + Math.min(r.width, 200) / 2;
-      const y = mausY !== null ? mausY : r.top + r.height / 2;
-      const b = fenster.offsetWidth, h = fenster.offsetHeight;
-      const abstand = 14;
-      const oben = y - abstand - h >= 8;
-      fenster.style.left = Math.max(8, Math.min(window.innerWidth - b - 8, x - b / 2)) + "px";
-      fenster.style.top = (oben ? y - abstand - h
-        : Math.min(window.innerHeight - h - 8, y + abstand + 6)) + "px";
-    };
+    // Seit 1.165.0 fest am linken Rand, senkrecht mittig, gleich rechts
+    // neben der Spalte mit den Maschinen (vorschauPlatzieren).
+    const platzieren = () => vorschauPlatzieren(fenster);
 
-    // Am Computer beim Darüberfahren — und es folgt dem Zeiger
+    // Am Computer beim Darüberfahren
     // Über einem Symbol: dessen Fenster statt der Vorschau
     const symbolUnter = (e) => (e.target && e.target.closest ? e.target.closest("[data-plsymbol]") : null);
     el.addEventListener("mouseenter", (e) => {
-      mausX = e.clientX; mausY = e.clientY;
       const s = symbolUnter(e);
       if (s) symbolInfoZeigen(s, e.clientX, e.clientY); else zeigen();
     });
     el.addEventListener("mousemove", (e) => {
-      mausX = e.clientX; mausY = e.clientY;
       const s = symbolUnter(e);
       if (s) {
         if (!symbolInfoOffen()) { weg(); symbolInfoZeigen(s, e.clientX, e.clientY); }
@@ -4960,7 +4946,6 @@ function balkenInfoVerhalten() {
         return;
       }
       if (symbolInfoOffen()) { symbolInfoWeg(); zeigen(); }
-      if (fenster) requestAnimationFrame(platzieren);
     });
     el.addEventListener("mouseleave", () => { symbolInfoWeg(); weg(); });
     el.addEventListener("mousedown", () => { symbolInfoWeg(); weg(); });
@@ -5008,6 +4993,24 @@ function balkenInfoVerhalten() {
 }
 let vorschauTippDa = false;
 
+// Die Vorschau (Auftrag und Ferien) steht immer am linken Rand,
+// senkrecht mittig, direkt rechts neben den Maschinennamen, damit sie
+// die Namen nie verdeckt und nicht mit dem Zeiger herumspringt
+// (Wunsch Patrick 24. Oktober 2026). Reicht der Platz rechts davon
+// nicht (Handy hochkant), rückt sie erst danach nach links.
+function vorschauPlatzieren(fenster) {
+  if (!fenster) return;
+  const namen = document.querySelector(".pw-tafel .pw-name");
+  const rechts = namen ? namen.getBoundingClientRect().right : 0;
+  // Am Handy wird sie dafür schmaler, solange mindestens 180 Pixel bleiben
+  const frei = window.innerWidth - rechts - 16;
+  fenster.style.width = frei < 250 && frei >= 180 ? frei + "px" : "";
+  const b = fenster.offsetWidth, h = fenster.offsetHeight;
+  const links = Math.max(8, Math.min(window.innerWidth - b - 8, rechts + 8));
+  fenster.style.left = links + "px";
+  fenster.style.top = Math.max(8, (window.innerHeight - h) / 2) + "px";
+}
+
 // Ferien: beim Darüberfahren der ganze Name, die Notiz und von wann
 // bis wann, weil der Balken bei kurzen Ferien den Text abschneidet
 // (Wunsch Patrick 19. Oktober 2026). Gleiches Fenster wie bei Aufträgen.
@@ -5017,13 +5020,7 @@ function ferienInfoVerhalten() {
   let fenster = null, halten = null;
   const weg = () => { document.querySelectorAll(".pw-info--ferien").forEach((x) => x.remove()); fenster = null; };
   weg();
-  const platzieren = (x, y) => {
-    if (!fenster) return;
-    const b = fenster.offsetWidth, h = fenster.offsetHeight;
-    const oben = y - 14 - h >= 8;
-    fenster.style.left = Math.max(8, Math.min(window.innerWidth - b - 8, x - b / 2)) + "px";
-    fenster.style.top = (oben ? y - 14 - h : Math.min(window.innerHeight - h - 8, y + 20)) + "px";
-  };
+  const platzieren = () => vorschauPlatzieren(fenster);
   const zeigen = (el, x, y) => {
     if (!vorschauErlaubt(el)) return;
     const f = (plan.ferien || []).find((v) => String(v.id) === el.dataset.ferien);
@@ -5036,11 +5033,10 @@ function ferienInfoVerhalten() {
       + '<div class="pw-info__zeile">📅 ' + esc(zeitraumText(f.von, f.tage)) + '</div>'
       + (notiz ? '<div class="pw-info__zeile">✎ ' + esc(notiz) + '</div>' : "");
     document.body.appendChild(fenster);
-    platzieren(x, y);
+    platzieren();
   };
   tafel.querySelectorAll("[data-ferien]").forEach((el) => {
     el.addEventListener("mouseenter", (e) => zeigen(el, e.clientX, e.clientY));
-    el.addEventListener("mousemove", (e) => platzieren(e.clientX, e.clientY));
     el.addEventListener("mouseleave", weg);
     el.addEventListener("mousedown", weg);
     // Am Tablet: lange drücken, wie bei den Aufträgen
