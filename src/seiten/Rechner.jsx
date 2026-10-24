@@ -5,6 +5,7 @@
 // =================================================================
 import { useState } from "react";
 import { useGemerkt } from "../bruecke.jsx";
+import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
@@ -47,6 +48,12 @@ const zahl = (n) => Math.round(n).toLocaleString("de-CH");
 export default function Rechner() {
   const [ansicht, setAnsicht] = useState(gemerkt.ansicht);
   useGemerkt(gemerkt, { ansicht });
+  // Strg + K findet die Rechner (seit 1.169.0)
+  useSeitenSuche({
+    name: "Rechner", platzhalter: "Drehzahl, Winkel, G-Code, Gravur …",
+    eintraege: REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: w })),
+    springen: (x) => setAnsicht(x.wert),
+  });
 
   const Inhalt = INHALT[ansicht] || Drehzahl;
   return (

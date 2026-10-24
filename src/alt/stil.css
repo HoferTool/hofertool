@@ -9214,3 +9214,14 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
   background: linear-gradient(transparent 0 var(--auf-oben), rgba(15, 18, 21, .6) var(--auf-oben));
   backdrop-filter: none; -webkit-backdrop-filter: none; }
 .auftrag-huelle--unten > .dialog--auftrag { height: 100% !important; max-height: none !important; }
+
+/* ---------- Suche je Seite (seit 1.169.0) ---------- */
+.suche-alles__wo { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+                   padding: 6px 16px; font-size: .8rem; color: var(--gedaempft);
+                   border-bottom: 1px solid var(--linie); }
+.suche-alles__wo .linkknopf { font-size: .8rem; }
+.such-blitz { animation: such-blitz 1.4s ease-in-out 2; border-radius: 8px; }
+@keyframes such-blitz {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 201, 64, 0); }
+  40% { box-shadow: 0 0 0 4px #ffc940, 0 0 18px 4px rgba(255, 201, 64, .55); }
+}

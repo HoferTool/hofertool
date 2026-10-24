@@ -136,7 +136,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.168.0";
+const APP_VERSION = "1.169.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5214,7 +5214,8 @@ function sucheSpringen(x) {
   }
 }
 
-// Strg + K öffnet die Suche überall
+// Strg + K öffnet die Suche überall; seit 1.169.0 sucht sie, was die
+// offene Seite anbietet (src/teile/seitenSuche.js), sonst HOCO Nummern
 document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
     if (typeof profil === "undefined" || !profil) return;

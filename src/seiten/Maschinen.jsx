@@ -23,6 +23,7 @@ import Verwalten, { aktion } from "./produktion/Maschinen.jsx";
 import { typFensterOeffnen } from "./produktion/Typen.jsx";
 import MaschineSeite from "./maschinen/Maschine.jsx";
 import { ZiehListe } from "../teile/ZiehListe.jsx";
+import { useSeitenSuche } from "../teile/seitenSuche.js";
 
 // Den Reiter Parks gibt es seit 1.161.0 nicht mehr, er steckt in
 // Maschinen; ein gemerktes „verwalten“ landet dort
@@ -266,6 +267,36 @@ export default function Maschinen({ auffrischen, behaelter }) {
   const neuLaden = () => { alt.stammVergessen(); neu(); };
   // Ein offener Typ gehört zum Reiter Typen und schliesst beim Wechsel
   const waehlen = (w) => { ms.ansicht = w; alt.prod.typOffen = null; zeichnen(); };
+
+  // Strg + K sucht Maschinen, Typen und Parks (seit 1.169.0)
+  useSeitenSuche({
+    name: "Maschinen", platzhalter: "Maschine, Nummer, Typ oder Park …",
+    eintraege: () => {
+      if (!geladen) return [];
+      const { parks, maschinen, typen } = geladen;
+      const darf = alt.darfSchreiben();
+      const parkVon = (id) => parks.find((p) => p.id === id);
+      const typVon = (id) => typen.find((t) => t.id === id);
+      return [
+        ...maschinen.filter((m) => (darf || m.is_active !== false) && parkVon(m.park_id)).map((m) => ({
+          gruppe: "Maschinen", zeichen: "⚙", titel: m.name + (m.machine_number ? " " + m.machine_number : ""),
+          zeile: [(typVon(m.type_id) || {}).name, parkVon(m.park_id).name].filter(Boolean).join(" · "), m })),
+        ...typen.map((t) => ({ gruppe: "Typen", zeichen: "▦", titel: t.name,
+          zeile: maschinen.filter((m) => m.type_id === t.id).length + " Maschinen", typ: t })),
+        ...parks.filter((p) => darf || p.is_active !== false).map((p) => ({ gruppe: "Parks", zeichen: "▣", titel: p.name,
+          zeile: maschinen.filter((m) => m.park_id === p.id).length + " Maschinen", park: p })),
+      ];
+    },
+    springen: (x) => {
+      if (x.typ) { typFensterOeffnen(x.typ.id, neuLaden); return; }
+      alt.prod.typOffen = null;
+      Object.assign(ms, x.m
+        ? { ansicht: "uebersicht", parkId: x.m.park_id, typId: typSchluessel(x.m), maschineId: x.m.id }
+        : { ansicht: "uebersicht", parkId: x.park.id, typId: null, maschineId: null });
+      zeichnen();
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+    },
+  });
 
   return (
     <>

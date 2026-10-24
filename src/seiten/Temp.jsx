@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
+import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 import { TEMP_STUNDEN, wegAm, TEMP_MAX, TEMP_MAX_MB, tempListe, tempHochladen, tempLoeschen, tempAdresse, tempVorschauen } from "../daten/temp.js";
 
 const ruehrbar = () => window.matchMedia("(hover: none) and (pointer: coarse)").matches;
@@ -105,6 +106,14 @@ export default function Temp({ auffrischen }) {
       herunterladen(d);
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
+
+  // Strg + K sucht die eigenen Dateien und öffnet sie (seit 1.169.0)
+  useSeitenSuche({
+    name: "Temp", platzhalter: "Dateiname …",
+    eintraege: () => (liste || []).map((d) => ({ gruppe: "Dateien", zeichen: "▤", titel: d.name,
+      zeile: groesseText(d.groesse) + " · " + alt.datumZeitKurz(d.am), d })),
+    springen: (x) => { hinzeigen('[data-temp="' + CSS.escape(x.d.name) + '"]'); ansehen(x.d); },
+  });
 
   const herunterladen = async (d) => {
     try {

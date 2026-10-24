@@ -199,7 +199,7 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
             </div>
           );
           return (
-            <div className="mkarte mkarte--tag" key={m.id}>
+            <div className="mkarte mkarte--tag" key={m.id} data-msuche={m.id}>
               <AuftragsBlock maschine={m} aktionen={aktionen} mitte={eingabe}
                 stand={j ? aktuellerStand(m.id, staende) : null} letzter={letzterEintrag(m.id, staende)} />
             </div>
@@ -244,7 +244,7 @@ function Raster({ maschinen, von, bis, istWoche, tageProWoche, geladen, neuLaden
               });
               return (
                 <tr key={m.id}>
-                  <th className="fest fest--voll fest--woche">
+                  <th className="fest fest--voll fest--woche" data-msuche={m.id}>
                     <AuftragsBlock maschine={m} aktionen={aktionen}
                       stand={j ? aktuellerStand(m.id, staende) : null} letzter={letzterEintrag(m.id, staende)} />
                   </th>

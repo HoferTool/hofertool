@@ -14,6 +14,7 @@ import { useMemo, useReducer } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { teilMerken } from "../teile/wiederherstellen.js";
+import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { Saeulen, Balken, Kennzahl } from "../teile/Diagramm.jsx";
 import { statistikLaden, statistikRechnen, werkzeugLaden, dauerText, stundenText, prozentText, kommaText,
   STUNDEN_VOLL, STUNDEN_MAX } from "../daten/statistik.js";
@@ -122,6 +123,20 @@ export default function Statistik({ auffrischen }) {
   const r = useMemo(() => (daten ? statistikRechnen(daten) : null), [daten]);
   const setze = (o) => { Object.assign(st, o); zeichnen(); };
   zeichnenAussen = zeichnen;
+
+  // Strg + K sucht Maschinen und Artikel und öffnet sie (seit 1.169.0)
+  useSeitenSuche({
+    name: "Statistik", platzhalter: "Maschine oder HOCO Nr. …",
+    eintraege: () => !r ? [] : [
+      ...r.maschinen.map((m) => ({ gruppe: "Maschinen", zeichen: "⚙", titel: m.name,
+        zeile: [m.typ, m.stk ? alt.zahlText(m.stk) + " Stk" : ""].filter(Boolean).join(" · "), maschine: m.id })),
+      ...r.artikel.map((a) => ({ gruppe: "Artikel", zeichen: "▣", titel: a.hoco,
+        zeile: a.stk ? alt.zahlText(a.stk) + " Stk" : "", artikel: a.hoco })),
+    ],
+    springen: (x) => oeffnen(x.maschine
+      ? { reiter: "maschinen", maschine: x.maschine, artikel: null }
+      : { reiter: "artikel", artikel: x.artikel, maschine: null }),
+  });
 
   return (
     <>
