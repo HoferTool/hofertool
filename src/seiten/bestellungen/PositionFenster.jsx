@@ -24,10 +24,25 @@ export function positionOeffnen(fertig, vorgabe) {
   fensterOeffnen((zu) => <PositionFenster zu={zu} fertig={fertig} vorgabe={vorgabe || {}} />);
 }
 
+// Werkzeug fürs Einrichtblatt wählen: dasselbe Fenster wie beim
+// Bestellen, nur ohne Menge und Ziel, dazu der Knopf „Spezialwerkzeuge“,
+// weil die getrennt geführt werden (Wunsch Patrick, 23. Oktober 2026:
+// „Werkzeuge nur auswählen, wenn nicht vorhanden erstellen wie bei
+// bestellen, mit einem Button für Spezialwerkzeuge“). Gibt den Artikel
+// aus artikel_uebersicht zurück oder null.
+export function werkzeugWaehlen(vorgabe) {
+  return new Promise((fertig) => {
+    let erledigt = false;
+    const ende = (a) => { if (!erledigt) { erledigt = true; fertig(a || null); } };
+    fensterOeffnen((zu) => <PositionFenster zu={() => { ende(null); zu(); }} fertig={null}
+      vorgabe={Object.assign({}, vorgabe || {}, { waehlen: (a) => { ende(a); zu(); } })} />, () => ende(null));
+  });
+}
+
 const ZIELE = [["lager", "Lager"], ["maschine", "Maschine"], ["person", "Person"], ["andere", "Anderes"]];
 
 function PositionFenster({ zu, fertig, vorgabe }) {
-  const [suche, setSuche] = useState("");
+  const [suche, setSuche] = useState(vorgabe.suche || "");
   const [treffer, setTreffer] = useState(null);     // null: noch nichts gesucht
   const [sucht, setSucht] = useState(false);
   const [suchFehler, setSuchFehler] = useState(null);
@@ -49,11 +64,14 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   const mengeFeld = useRef(null);
   const freiFeld = useRef(null);
   const suchNr = useRef(0);
+  const spezialRef = useRef(!!vorgabe.spezial);
   // Foto: null, { liest, text }, { fehler } oder { lesung, treffer }
   const [foto, setFoto] = useState(null);
   const fotoFeld = useRef(null);
 
   useEffect(() => () => clearTimeout(taste.current), []);
+  // Mit Vorgabe (etwa der Text aus dem alten Excel) gleich suchen
+  useEffect(() => { if (vorgabe.suche) suchen(vorgabe.suche); }, []);
   // Maschinen für die Auswahl, wenn die Maschine schon vorgegeben ist
   useEffect(() => {
     if (!vorgabe.maschine || maschinen) return;
@@ -66,7 +84,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
     const nr = ++suchNr.current;
     setSucht(true);
     try {
-      const liste = await alt.sucheArtikel(t, { spezial: !!vorgabe.spezial });
+      const liste = await alt.sucheArtikel(t, { spezial: !!spezialRef.current });
       // Nur das Ergebnis der letzten Suche zählt
       if (nr !== suchNr.current) return;
       setTreffer(liste); setSuchFehler(null);
@@ -85,7 +103,8 @@ function PositionFenster({ zu, fertig, vorgabe }) {
     setTimeout(() => mengeFeld.current && mengeFeld.current.focus(), 0);
   };
 
-  const spezial = !!vorgabe.spezial;
+  const nurWaehlen = typeof vorgabe.waehlen === "function";
+  const [spezial, setSpezial] = useState(!!vorgabe.spezial);
   const neuAnlegen = async (nummer) => {
     const a = await alt.artikelSchnellAnlegen(typeof nummer === "string" ? nummer : suche.trim(), null, !!spezial);
     if (a) waehlen(a);
@@ -174,7 +193,17 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   const schreiben = alt.darfSchreiben();
 
   return (
-    <div className="dialog"><h2>{spezial ? "Spezialwerkzeug bestellen" : "Neue Bestellposition"}</h2>
+    <div className="dialog" data-werkzeugwahl={nurWaehlen ? "" : undefined}>
+      <h2>{nurWaehlen ? "Werkzeug wählen" : spezial ? "Spezialwerkzeug bestellen" : "Neue Bestellposition"}</h2>
+      {nurWaehlen && <div className="moduswahl" id="pd-art">
+        {[[false, "Artikel"], [true, "Spezialwerkzeuge"]].map(([w, t]) => (
+          <button key={t} type="button" className={"moduswahl__knopf" + (spezial === w ? " aktiv" : "")}
+            data-pd-spezial={w ? "ja" : "nein"} onClick={() => {
+              if (spezial === w) return;
+              spezialRef.current = w; setSpezial(w); setGewaehlt(null); setFoto(null);
+              if (suche.trim()) suchen(suche);
+            }}>{t}</button>))}
+      </div>}
       <div className="suchleiste">
         <input type="text" id="pd-such" placeholder="Suchen" autoComplete="off" data-fokus="" value={suche}
           onChange={(e) => {
@@ -241,11 +270,15 @@ function PositionFenster({ zu, fertig, vorgabe }) {
             : <p className="hinweis">Kein Artikel gefunden.</p>}
           {schreiben && suche.trim() &&
             <button className="pd-zeile pd-zeile--neu" data-neuartikel="" onClick={neuAnlegen}>
-              + Artikel "{suche.trim()}" neu anlegen</button>}
+              + {spezial ? "Spezialwerkzeug" : "Artikel"} "{suche.trim()}" neu anlegen</button>}
         </>}
       </div>
 
-      {gewaehlt && <div id="pd-rest">
+      {gewaehlt && nurWaehlen && <div className="pd-gewaehlt" id="pd-gewaehlt">
+        <strong>{gewaehlt.article_number}</strong> {gewaehlt.name}
+        <div className="klein">{spezial ? "Spezialwerkzeug · " : ""}Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}</div>
+      </div>}
+      {gewaehlt && !nurWaehlen && <div id="pd-rest">
         <div className="pd-gewaehlt" id="pd-gewaehlt">
           <strong>{gewaehlt.article_number}</strong> {gewaehlt.name}
           <div className="klein">Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}
@@ -292,8 +325,12 @@ function PositionFenster({ zu, fertig, vorgabe }) {
 
       <div className="dialog__knoepfe">
         <button className="knopf knopf--still" id="pd-nein" data-nein="" onClick={zu}>Abbrechen</button>
-        <button className="knopf knopf--haupt" id="pd-ja" disabled={!gewaehlt || speichert} onClick={hinzufuegen}>
-          Hinzufügen</button>
+        {nurWaehlen
+          ? <button className="knopf knopf--haupt" id="pd-ja" disabled={!gewaehlt}
+              onClick={() => { if (fotoLesung) artikelLernen(gewaehlt.id, fotoLesung).catch(() => {});
+                vorgabe.waehlen(Object.assign({}, gewaehlt, { spezial })); }}>Übernehmen</button>
+          : <button className="knopf knopf--haupt" id="pd-ja" disabled={!gewaehlt || speichert} onClick={hinzufuegen}>
+              Hinzufügen</button>}
       </div>
     </div>
   );

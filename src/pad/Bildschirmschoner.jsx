@@ -9,8 +9,8 @@
 //  (eigenes Blatt der HOCO Nr. für diesen Typ, sonst die Vorlage des
 //  Typs, alt.blattPdfSuchen). Ohne Auftrag, ohne Typ oder ohne Blatt
 //  kommt kein Bildschirmschoner. Die Anzeige selbst ist die Excel- bzw.
-//  PDF-Ansicht des Betrachters; kommt später eine neue Einrichtblatt-
-//  Ansicht, wird nur „Blatt“ unten ausgetauscht.
+//  PDF-Ansicht des Betrachters. Ist das Blatt in der App mit „Blatt ist
+//  gut“ bestätigt, zeigt der Schoner dieses (seit 1.170.0).
 //
 //  Abgemeldet wird im Pad Mode nie (leerlaufPruefen in app.js), darum
 //  kommen sich Bildschirmschoner und Abmeldung nicht in die Quere.
@@ -21,6 +21,8 @@ import { alt } from "../bruecke.jsx";
 import { ExcelAnsicht } from "../teile/ExcelAnsicht.jsx";
 import { PdfAnsicht } from "../teile/PdfAnsicht.jsx";
 import { istExcel } from "../teile/excelLesen.js";
+import { blattSuchen } from "../einrichtblatt/daten.js";
+import { BlattAnzeige } from "../einrichtblatt/Blatt.jsx";
 
 export const SCHONER_NACH_MS = 60 * 1000;
 
@@ -89,8 +91,9 @@ export default function Bildschirmschoner({ hoco, typId }) {
     setAdresse(null);
     if (!hoco || !typId) return;
     let weg = false;
-    alt.blattPdfSuchen(hoco, typId)
-      .then((g) => { if (!weg) setAdresse((g && g.adresse) || null); })
+    blattSuchen(hoco, typId)
+      .then((b) => (b && b.gut_am ? "app:" : alt.blattPdfSuchen(hoco, typId).then((g) => (g && g.adresse) || null)))
+      .then((a) => { if (!weg) setAdresse(a); })
       .catch(() => { /* dann eben kein Schoner */ });
     return () => { weg = true; };
   }, [hoco, typId]);
@@ -102,7 +105,7 @@ export default function Bildschirmschoner({ hoco, typId }) {
     const takt = setInterval(() => {
       if (Date.now() - letzte >= SCHONER_NACH_MS && stoertNicht()) {
         // Schon vorher holen, damit das Blatt gleich da ist
-        dateiHolen(adresse).catch(() => {});
+        if (adresse !== "app:") dateiHolen(adresse).catch(() => {});
         setZeigen(true);
       }
     }, 1000);
@@ -130,7 +133,8 @@ export default function Bildschirmschoner({ hoco, typId }) {
   // Zoomen oder Doppeltipp der Ansicht greifen hier nicht.
   return createPortal(
     <div className="pad-schoner" data-padschoner="">
-      <div className="pad-schoner__blatt"><Blatt adresse={adresse} /></div>
+      <div className="pad-schoner__blatt">
+        {adresse === "app:" ? <BlattAnzeige hocoNr={hoco} typId={typId} /> : <Blatt adresse={adresse} />}</div>
       <div className="pad-schoner__deckel" data-padschonerzu=""
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setZeigen(false); }} />
       <div className="pad-schoner__hinweis">Tippen, um zum Dashboard zurückzukehren</div>

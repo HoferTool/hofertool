@@ -35,6 +35,8 @@ import { zifferblock } from "../pad/Zifferblock.jsx";
 import { stueckzeitVorDemBeenden, letzteStueckzahlFragen } from "../daten/stueckzahl.js";
 import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
+import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
+import { blattSuchen as appBlattSuchen, ausExcelEinlesen } from "../einrichtblatt/daten.js";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick, symbolAnwendenEnde } from "../daten/symbole.js";
 import { zeichnungNrSofort, zeichnungNrHolen } from "../daten/zeichnungNr.js";
@@ -136,7 +138,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.169.0";
+const APP_VERSION = "1.170.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8384,16 +8386,40 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
       + "Den trägst du unter Produktion → Maschinen ein.", "warn");
     return;
   }
+  // Gibt es das Blatt in der App, gilt es. Im Pad Mode erst, wenn es
+  // jemand mit „Blatt ist gut“ bestätigt hat, und dort nur zum Lesen;
+  // bis dahin zeigt das Pad das Excel (Wunsch Patrick, 24. Oktober 2026)
+  const imPad = document.body.classList.contains("pad-offen");
+  const app = hocoNr ? await appBlattSuchen(hocoNr, typId) : null;
+  if (app && (!imPad || app.gut_am)) {
+    await einrichtblattAppOeffnen(hocoNr, typId, { nurLesen: imPad || istExtern() || !darfSchreiben() });
+    return;
+  }
   let gefunden;
   try { gefunden = await blattPdfSuchen(hocoNr, typId); }
   catch (f) { meldung(fehlertext(f), "fehler"); return; }
+
+  // Ins Blatt in der App: das eigene Excel der Nummer einlesen, sonst
+  // ein leeres Blatt anfangen. Nicht aus der Vorlage des Typs, die ist
+  // für keine bestimmte Nummer.
+  const appBlatt = !hocoNr || imPad || app || !darfSchreiben() || istExtern() ? null
+    : gefunden.eigenes
+      ? { text: "Ins App-Blatt umwandeln", tu: async (zu) => {
+          const typ = ((await ladeTypen()) || []).find((t) => t.id === typId) || { id: typId, name: "" };
+          meldung("Einrichtblatt wird eingelesen …");
+          const e = await ausExcelEinlesen(hocoNr, typ, gefunden.eigenes);
+          if (e.hinweise.length) meldung("Eingelesen. Bitte prüfen: " + e.hinweise.join(" · "), "warn");
+          zu();
+          await einrichtblattAppOeffnen(hocoNr, typId);
+        } }
+      : { text: "Neues Einrichtblatt in der App", tu: async (zu) => { zu(); await einrichtblattAppOeffnen(hocoNr, typId); } };
 
   // Im gemeinsamen Betrachter wie Zeichnung und WBG: ohne Blatt steht
   // dort „Kein Einrichtblatt vorhanden“, mit eigenem Blatt der Knopf
   // „Einrichtblatt entfernen“ (Wunsch Patrick, 9. Oktober 2026). Die
   // Vorlage vom Typ lässt sich hier nicht entfernen, nur beim Typ.
   dokZeigen({ art: "einrichtblatt", titel: "Einrichtblatt " + (titel || hocoNr || ""), adresse: gefunden.adresse,
-    hoco: gefunden.eigenes ? hocoNr : null, typId });
+    hoco: gefunden.eigenes ? hocoNr : null, typId, extra: appBlatt });
 }
 
 function istExcelDatei(name) { return /\.(xlsx|xlsm|xls)$/i.test(String(name || "")); }

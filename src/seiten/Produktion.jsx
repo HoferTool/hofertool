@@ -16,10 +16,12 @@ import { alt, AltTeil, useDaten } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Erfassen from "./produktion/Erfassen.jsx";
 import Fortschritt from "./produktion/Fortschritt.jsx";
+import Richten from "./produktion/Richten.jsx";
 import { ms } from "./Maschinen.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 
-export const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"]];
+// „Infos zum Richten“ seit 1.170.0: Einrichtblätter in der App ändern
+export const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"], ["richten", "Infos zum Richten"]];
 
 let ladeNr = 0;
 
@@ -96,6 +98,8 @@ export default function Produktion({ auffrischen, behaelter }) {
                 </div>
               : prod.ansicht === "fortschritt"
                 ? <div id="prod-inhalt"><Fortschritt key={geladen.nr} neuLaden={neu} /></div>
+                : prod.ansicht === "richten"
+                ? <div id="prod-inhalt"><Richten key={geladen.nr} /></div>
                 : <AltTeil key={prod.ansicht + geladen.nr} id="prod-inhalt"
                     zeichne={(el) => alteAnsicht(el, behaelter)} />}
       </Uebergang>

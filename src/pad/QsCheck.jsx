@@ -23,6 +23,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { PadKopf, padZeichnen } from "./Pad.jsx";
 import { qsFenster } from "../teile/QsFenster.jsx";
+import { einrichtblattHinweis } from "../einrichtblatt/PadHinweis.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 
 // Die Zustände in der Reihenfolge, in der ein Auftrag sie durchläuft
@@ -89,9 +90,12 @@ async function wechseln(j, wahl) {
       });
       if (!ok) return;
     }
+    const vorher = j.plan_status || "geplant";
     const r = await alt.zustandSetzen(j, wahl);
     alt.meldung(j.job_number + ": " + (wahl === "fertig" ? "beendet." : alt.PLANSTATUS[wahl].name + ".")
       + (r.hinweis ? " " + r.hinweis : ""), "gut");
+    if (wahl === "fertig") { if (r.naechster && r.hinweis) await einrichtblattHinweis(r.naechster, r.naechster.plan_status); }
+    else if (vorher === "geplant") await einrichtblattHinweis(j, wahl);
     try { alt.prod.auftraege = await alt.ladeLaufendeAuftraege(); } catch (g) { /* egal */ }
     padZeichnen();
   } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
