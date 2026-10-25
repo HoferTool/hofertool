@@ -9,12 +9,13 @@
 //  Suche hin, die meisten werden nach HOCO Nr. suchen“): oben ein
 //  grosses Suchfeld. Es findet jede HOCO Nr. mit allen Typen, für die
 //  es ein Blatt in der App oder ein Excel gibt, und daneben „Neu für
-//  Typ …“; die Maschinen darunter schrumpfen auf die passenden. Ohne
-//  Suche stehen die Maschinen nach Park, darin nach Typ, mit dem
-//  Auftrag, der dran ist (läuft oder Rüsten, sonst der nächste
-//  geplante), und wie es um sein Blatt steht. Die Liste „Noch nicht
-//  bestätigt“ ist weg: bestätigt wird erst, wenn der Artikel auf eine
-//  Maschine kommt, und die Suche zeigt den Stand ohnehin.
+//  Typ …“. Darunter seit 1.182.0 statt der Maschinen die zuletzt
+//  bearbeiteten Blätter (Patrick: „an den Maschinen braucht es gar
+//  nicht, die letzten“), nach Park und darin nach Typ, nur Typen aus
+//  den eigenen Parks. Was die App nur aus dem Excel eingelesen hat und
+//  niemand angefasst hat, zählt nicht als bearbeitet. Die Liste
+//  „Noch nicht bestätigt“ ist weg: bestätigt wird erst, wenn der
+//  Artikel auf eine Maschine kommt, und die Suche zeigt den Stand.
 //  Gibt es noch kein Blatt in der App, aber ein Excel, wird das zuerst
 //  eingelesen. Nicht für Externe.
 // =================================================================
@@ -47,18 +48,19 @@ function muster(q) {
   return "%" + kern + "%";
 }
 
-async function staendeLaden(paare) {
-  const db = alt.db;
-  const nummern = [...new Set(paare.map((p) => p.hoco))];
-  if (!nummern.length) return { apps: new Map(), excel: new Map() };
-  const [app, typ] = await Promise.all([
-    db.from("einrichtblatt_app").select("hoco_nr,type_id,gut_am").in("hoco_nr", nummern),
-    db.from("hoco_type_data").select("hoco_nr,type_id,blatt_url").in("hoco_nr", nummern),
-  ]);
-  return {
-    apps: new Map((app.data || []).map((b) => [schl(b.hoco_nr, b.type_id), b])),
-    excel: new Map((typ.data || []).filter((x) => x.blatt_url).map((x) => [schl(x.hoco_nr, x.type_id), x.blatt_url])),
-  };
+const JE_TYP = 6;
+
+// Zuletzt bearbeitete Blätter. Das Einlesen im Hintergrund legt Blätter
+// mit erstellt_am = geaendert_am an; erst ein Speichern von Hand oder
+// „EB OK“ macht daraus ein bearbeitetes.
+async function letzteLaden(typIds) {
+  if (!typIds.length) return [];
+  const r = await alt.db.from("einrichtblatt_app").select("hoco_nr,type_id,gut_am,erstellt_am,geaendert_am")
+    .in("type_id", typIds).order("geaendert_am", { ascending: false }).range(0, 999);
+  if (r.error) throw r.error;
+  const bearbeitet = (b) => b.gut_am || !b.erstellt_am
+    || new Date(b.geaendert_am) - new Date(b.erstellt_am) > 5000;
+  return (r.data || []).filter(bearbeitet);
 }
 
 // HOCO Nummern zur Suche, je mit allen Typen, die ein Blatt haben
@@ -103,24 +105,14 @@ async function oeffnen(hoco, typId) {
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
 }
 
-// Maschinen nach Park (Reihenfolge wie in der Produktion), darin nach
-// Typ als Block in der Reihenfolge der Planwand
-function gruppieren(zeilen, parks, typName) {
-  const ergebnis = [];
-  const parkReihe = [...parks.map((p) => p.id), null];
-  for (const pid of parkReihe) {
-    const inPark = zeilen.filter((z) => (pid === null ? !parks.some((p) => p.id === z.m.park_id) : z.m.park_id === pid));
-    if (!inPark.length) continue;
+// Parks wie in der Produktion (nur die eigenen), darin die Typen ihrer
+// Maschinen als Block in der Reihenfolge der Planwand
+function parkTypen(parks, maschinen) {
+  return parks.map((p) => {
     const typen = [];
-    for (const z of inPark) {
-      let t = typen.find((x) => x.id === (z.m.type_id || ""));
-      if (!t) { t = { id: z.m.type_id || "", name: typName(z.m.type_id) || "Ohne Typ", zeilen: [] }; typen.push(t); }
-      t.zeilen.push(z);
-    }
-    const park = parks.find((p) => p.id === pid);
-    ergebnis.push({ id: pid || "ohne", name: park ? park.name : "Ohne Park", typen });
-  }
-  return ergebnis;
+    for (const m of maschinen) if (m.park_id === p.id && m.type_id && !typen.includes(m.type_id)) typen.push(m.type_id);
+    return { id: p.id, name: p.name, typen };
+  }).filter((p) => p.typen.length);
 }
 
 export default function Richten() {
@@ -136,46 +128,23 @@ export default function Richten() {
   const typName = (id) => ((typen.find((t) => t.id === id) || {}).name || "");
   const darf = alt.darfSchreiben();
 
-  const alle = (prod.maschinen || []).map((m) => ({ m, j: auftragDran(m) }));
+  const maschinen = prod.maschinen || [];
+  const gruppen = parkTypen(prod.parks || [], maschinen);
+  const typIds = [...new Set(gruppen.flatMap((p) => p.typen))];
+  const { daten: letzte, neu } = useDaten(() => letzteLaden(typIds), [typIds.join(",")]);
   const q = roh(frage);
-  const zeilen = !q ? alle : alle.filter(({ m, j }) =>
-    roh([m.name, m.machine_number].join(" ")).includes(q) || (j && roh(j.job_number).includes(q))
-    || roh(typName(m.type_id)).includes(q));
-  const paare = alle.filter((z) => z.j && z.m.type_id).map((z) => ({ hoco: z.j.job_number, typ: z.m.type_id }));
-  const schluessel = paare.map((p) => p.hoco + p.typ).join(",");
-  const { daten: st, neu } = useDaten(() => staendeLaden(paare), [schluessel]);
   const { daten: treffer, neu: sucheNeu, laedt: sucheLaedt } = useDaten(() => sucheLaden(frage), [frage]);
 
-  // Nach dem Schliessen des Blatts den Stand neu holen
+  // Nach dem Schliessen des Blatts die Listen neu holen
   const bearbeiten = async (h, t) => {
     await oeffnen(h, t);
     const takt = setInterval(() => {
       if (!document.querySelector(".eba-huelle")) { clearInterval(takt); neu(); sucheNeu(); }
     }, 800);
   };
-  const st0 = st || { apps: new Map(), excel: new Map() };
-  const gruppen = gruppieren(zeilen, prod.parks || [], typName);
-  // Wo läuft eine HOCO Nr. gerade? Steht bei den Treffern dabei
-  const anMaschine = (h, t) => alle.filter((z) => z.j && z.j.job_number === h && z.m.type_id === t)
-    .map((z) => z.m.machine_number || z.m.name).join(", ");
-
-  const maschinenZeile = ({ m, j }) => {
-    const k = j && m.type_id ? schl(j.job_number, m.type_id) : null;
-    const app = k ? st0.apps.get(k) : null;
-    const excel = k ? st0.excel.get(k) : null;
-    return (
-      <div key={m.id} className="ri-zeile" data-richten-maschine={m.id}>
-        <span className="ri-maschine"><b>{m.name}</b> {m.machine_number || ""}</span>
-        <span className="ri-auftrag">{j ? <><b>{j.job_number}</b>
-          <small>{j.plan_status === "geplant" ? "als Nächstes" : j.plan_status === "ruesten" ? "Rüsten" : "läuft"}</small></>
-          : <small>kein Auftrag</small>}</span>
-        <span>{j && m.type_id && (st ? <Stand app={app} excel={excel} /> : <small>…</small>)}</span>
-        <span className="ri-knopf">{j && m.type_id && (app || darf) &&
-          <button className="knopf knopf--klein" data-richten-bearbeiten={j.job_number}
-            onClick={() => bearbeiten(j.job_number, m.type_id)}>{knopfText(darf, app, excel)}</button>}</span>
-      </div>
-    );
-  };
+  // Wo läuft eine HOCO Nr. gerade? Steht bei Treffern und Letzten dabei
+  const anMaschine = (h, t) => maschinen.filter((m) => m.type_id === t && (auftragDran(m) || {}).job_number === h)
+    .map((m) => m.machine_number || m.name).join(", ");
 
   return (
     <div className="ri" data-richten="">
@@ -187,7 +156,7 @@ export default function Richten() {
         {suche && <button className="ri-leeren" aria-label="Suche leeren" onClick={() => { setSuche(""); feld.current && feld.current.focus(); }}>✕</button>}
       </div>
 
-      {q.length >= 2 && (
+      {q.length >= 2 ? (
         <div className="karte ri-karte" data-richten-treffer="">
           <h2>HOCO Nr.</h2>
           <div className="ri-liste">
@@ -199,23 +168,41 @@ export default function Richten() {
             {!treffer && <p className="ri-leer">Wird gesucht …</p>}
           </div>
         </div>
-      )}
-
-      {(!q || gruppen.length > 0) && <div className="karte ri-karte">
-        <h2>{q ? "Passende Maschinen" : "An den Maschinen"}</h2>
-        {gruppen.map((p) => (
-          <div key={p.id} className="ri-park" data-richten-park={p.id}>
-            <h3 className="ri-park__name">{p.name}</h3>
-            {p.typen.map((t) => (
-              <div key={t.id} className="ri-typ" data-richten-typ-gruppe={t.id}>
-                <h4 className="ri-typ__name">{t.name}</h4>
-                <div className="ri-liste">{t.zeilen.map(maschinenZeile)}</div>
+      ) : (
+        <div className="karte ri-karte" data-richten-letzte="">
+          <h2>Zuletzt bearbeitet</h2>
+          {!letzte && <p className="ri-leer">Wird geladen …</p>}
+          {letzte && gruppen.map((p) => {
+            const typenMit = p.typen.map((t) => ({ t, liste: letzte.filter((b) => b.type_id === t).slice(0, JE_TYP) }))
+              .filter((x) => x.liste.length);
+            if (!typenMit.length) return null;
+            return (
+              <div key={p.id} className="ri-park" data-richten-park={p.id}>
+                <h3 className="ri-park__name">{p.name}</h3>
+                {typenMit.map(({ t, liste }) => (
+                  <div key={t} className="ri-typ" data-richten-typ-gruppe={t}>
+                    <h4 className="ri-typ__name">{typName(t)}</h4>
+                    <div className="ri-liste">{liste.map((b) => {
+                      const wo = anMaschine(b.hoco_nr, t);
+                      return (
+                        <div key={b.hoco_nr} className="ri-zeile ri-zeile--letzte" data-richten-letzt={b.hoco_nr}>
+                          <span className="ri-auftrag"><b>{b.hoco_nr}</b>{wo && <small>läuft auf {wo}</small>}</span>
+                          <span><Stand app={b} /></span>
+                          <span><small>{alt.datumZeitKurz(b.geaendert_am)}</small></span>
+                          <span className="ri-knopf"><button className="knopf knopf--klein" data-richten-bearbeiten={b.hoco_nr}
+                            onClick={() => bearbeiten(b.hoco_nr, t)}>{darf ? "Bearbeiten" : "Ansehen"}</button></span>
+                        </div>
+                      );
+                    })}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ))}
-        {!gruppen.length && <p className="ri-leer">Keine Maschinen.</p>}
-      </div>}
+            );
+          })}
+          {letzte && !letzte.some((b) => typIds.includes(b.type_id)) &&
+            <p className="ri-leer">Noch kein Blatt bearbeitet. Such oben nach der HOCO Nr.</p>}
+        </div>
+      )}
 
       <p className="ri-erklaerung">Hier änderst du die Einrichtblätter in der App. Im Pad Mode sind sie nur zum Lesen
         und erscheinen dort erst, wenn jemand „EB OK“ gedrückt hat.</p>

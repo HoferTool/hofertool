@@ -9596,3 +9596,6 @@ body.dunkel .mseite-park__zahl, body.dunkel .mseite-park__leer, body.dunkel .mse
   .mseite-parks { grid-template-columns: 1fr; gap: 12px; }
   .mseite-park { min-height: 0; padding: 16px 18px 14px; }
 }
+/* Infos zum Richten: zuletzt bearbeitete Blätter (seit 1.182.0) */
+.ri-zeile--letzte { grid-template-columns: minmax(170px, 1.2fr) minmax(170px, 1fr) minmax(110px, auto) auto; }
+@media (max-width: 640px) { .ri-zeile--letzte > span:nth-child(3) { display: none; } }
