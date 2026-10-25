@@ -139,7 +139,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.173.0";
+const APP_VERSION = "1.174.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5413,7 +5413,7 @@ function sucheBeenden() {
   sucheHervorheben();
 }
 
-// Ohne Bearbeitungsrecht: Ein Klick zeigt die Zeichnung, ein Doppelklick
+// Ohne Bearbeitungsrecht: Ein Klick markiert den Balken, ein Doppelklick
 // öffnet das Auftragsfenster zum Ansehen (Wunsch 4. Oktober 2026). Dort
 // lässt sich nur ändern, was vorher schon ging: Zustand und Problem.
 function balkenAnsehenVerhalten(b) {
@@ -5448,69 +5448,27 @@ async function zeichnungAnheften(j) {
   return adresse;
 }
 
-// Zeigt die Zeichnung sofort, wenn eine da ist, und lässt den
-// Pool-Rechner im Zeichnungs-Ordner nach einer neueren schauen
-// (Wunsch Patrick 8. Oktober 2026). Ohne Zeichnung wartet das Fenster
-// darauf und zeigt sonst „Keine Zeichnung vorhanden“.
-async function balkenZeichnung(j) {
-  const adresse = j.drawing_url || await zeichnungAnheften(j);
-  if (!j.job_number) {
-    if (adresse) betrachter(adresse, "Zeichnung", true);
-    else meldung("Ohne HOCO Nr. gibt es keine Zeichnung.", "warn");
-    return;
-  }
-  dokZeigen({ art: "zeichnung", titel: "Zeichnung " + j.job_number, adresse, hoco: j.job_number,
-    neu: (a) => { j.drawing_url = a; } });
-}
-
-// Wer planen darf: Ein Klick auf den Balken zeigt die Zeichnung, wie
-// für alle anderen. Ein Doppelklick, am Tablet Doppeltipp, öffnet das
-// Auftragsfenster (Wunsch 3. Oktober 2026). Darum wartet der einzelne
-// Klick kurz, ob noch ein zweiter kommt — sonst läge der Betrachter
-// schon über dem Balken. Gemerkt wird in plan statt am Balken, weil
-// der stille Abgleich den Balken zwischen zwei Klicks neu zeichnen kann.
-//
-// Seit 1.140.0 zeigt ein einzelner Klick die Zeichnung nur noch am
-// Handy; am Computer und Tablet markiert er nur den Balken (Wunsch
-// Patrick 22. Oktober 2026: „Einmal Klick für Zeichnung nur Handy“).
+// Ein Klick auf den Balken markiert ihn nur, ein Doppelklick, am
+// Tablet und Handy Doppeltipp, öffnet das Auftragsfenster (Wunsch
+// 3. Oktober 2026). Die Zeichnung öffnet ein Klick nirgends mehr, auch
+// am Handy nicht (seit 1.174.0, Wunsch Patrick 25. Oktober 2026:
+// „Zeichnung anschauen überall weg per Klick auf Balken“; von 1.140.0
+// bis 1.173.x nur noch am Handy). Sie bleibt im Auftragsfenster.
+// Gemerkt wird in plan statt am Balken, weil der stille Abgleich den
+// Balken zwischen zwei Klicks neu zeichnen kann.
 const DOPPELKLICK_MS = 320;
-// Handy hochkant bis 720 Pixel breit, quer bis 500 Pixel hoch, wie im Pad
-function istHandyGeraet() {
-  return isMobil()
-    || ((navigator.maxTouchPoints || 0) > 0 && window.matchMedia("(max-height: 500px)").matches);
-}
 function balkenKlick(auftrag, b) {
   angewaehltSetzen(auftrag.id);
-  if (!istHandyGeraet()) {
-    // Ohne Zeichnung beim Einzelklick braucht es kein Warten
-    const w = plan.klickWarten;
-    plan.klickWarten = null;
-    if (w && w.id === auftrag.id && Date.now() - w.am < DOPPELKLICK_MS) {
-      const auswahl = window.getSelection && window.getSelection();
-      if (auswahl) auswahl.removeAllRanges();
-      planAuftragDialog(auftrag, b);
-      return;
-    }
-    plan.klickWarten = { id: auftrag.id, am: Date.now() };
-    return;
-  }
   const w = plan.klickWarten;
-  if (w) clearTimeout(w.zeit);
   plan.klickWarten = null;
-  if (w && w.id === auftrag.id) {
+  if (w && w.id === auftrag.id && Date.now() - w.am < DOPPELKLICK_MS) {
     // Der Doppelklick markiert sonst Text auf dem Balken
     const auswahl = window.getSelection && window.getSelection();
     if (auswahl) auswahl.removeAllRanges();
     planAuftragDialog(auftrag, b);
     return;
   }
-  plan.klickWarten = { id: auftrag.id, zeit: setTimeout(() => {
-    plan.klickWarten = null;
-    // Inzwischen ist vielleicht ein Fenster offen (Taste, Suche) —
-    // dann nicht noch den Betrachter darüberlegen
-    if (document.querySelector(".dialog-huelle")) return;
-    balkenZeichnung((plan.auftraege || []).find((x) => x.id === auftrag.id) || auftrag);
-  }, DOPPELKLICK_MS) };
+  plan.klickWarten = { id: auftrag.id, am: Date.now() };
 }
 
 // Der zuletzt angeklickte Balken bleibt markiert, auch nach dem
