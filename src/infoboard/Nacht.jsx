@@ -11,9 +11,14 @@
 //  verschieden gross, mit schlagenden Flügeln, und verlieren ab und zu
 //  eine Feder. Gesteuert mit Zeitgebern und el.animate statt React-
 //  Zustand, damit die Tafel dafür nie neu zeichnet.
+//
+//  Seit 1.180.0 verkleiden sich die Hühner je nach Fest und Jahreszeit
+//  von selbst (feste.js): Halloween, Weihnachten, Silvester, Fasnacht,
+//  Valentinstag, Ostern, 1. August, sonst Frühling, Sommer, Herbst, Winter.
 // =================================================================
 import { useEffect, useRef } from "react";
 import { BREITE, HOEHE, KOPF_H } from "./daten.js";
+import { festFuer, teilchen } from "./feste.js";
 
 // Die Fläche unter dem Kopf, in Punkten der Tafel
 const FLAECHE_H = HOEHE - KOPF_H;
@@ -25,7 +30,7 @@ export function istNacht(d = new Date()) {
   return min >= 23 * 60 || min < 5 * 60 + 30;
 }
 
-// Ein Halloween-Huhn von der Seite, Blick nach rechts (Wunsch Patrick
+// Ein Halloween-Huhn von der Seite (feste.js: Fest „halloween“), Blick nach rechts (Wunsch Patrick
 // 25. Oktober 2026: „Halloween-Versionen, etwas düster und furcht-
 // erregend“): schwarz-zerzaust mit Rippen, glühenden Augen, Reisszähnen,
 // tropfendem Kamm, Krallen und Fledermausflügel. Der Flügel ist eine
@@ -85,25 +90,38 @@ export default function Huehnerhimmel() {
       uhren.add(t);
     });
 
-    // Eine Feder trudelt langsam nach unten und verblasst
-    const feder = (x, y) => {
+    // Das Fest des Tages; vor jedem Flug neu, damit es um Mitternacht wechselt
+    let jetzt = null;
+    const festHolen = () => {
+      const f = festFuer(new Date());
+      if (!jetzt || jetzt.name !== f.name) {
+        hof.style.background = f.himmel;
+        hof.dataset.fest = f.name;
+      }
+      jetzt = f;
+      return f;
+    };
+    festHolen();
+
+    // Ein Teilchen (Feder, Schneeflocke, Ei …) trudelt nach unten und verblasst
+    const fallen = (art, x, y, fall, dauer, g) => {
+      const farbe = jetzt.farben[ganz(0, jetzt.farben.length - 1)];
+      const t = teilchen(art, farbe, g);
       const f = document.createElement("div");
       f.className = "ib-huhn-feder";
-      const g = zufall(18, 32);
-      f.style.width = g * 0.4 + "px";
-      f.style.height = g + "px";
-      f.style.left = x + "px";
-      f.style.top = y + "px";
+      f.style.cssText = `width:${t.w}px;height:${t.h}px;left:${x}px;top:${y}px;${t.stil || ""}`;
+      f.innerHTML = t.html;
       hof.appendChild(f);
-      const dx = zufall(-80, 80), fall = zufall(160, 380);
+      const dx = zufall(-80, 80);
       const a = f.animate([
         { opacity: 0, transform: "translate(0,0) rotate(0deg)" },
-        { opacity: 0.8, transform: `translate(${dx * 0.3}px,${fall * 0.2}px) rotate(${zufall(-60, 60)}deg)`, offset: 0.15 },
-        { opacity: 0.6, transform: `translate(${dx * 0.7}px,${fall * 0.6}px) rotate(${zufall(-120, 120)}deg)`, offset: 0.6 },
+        { opacity: 0.85, transform: `translate(${dx * 0.3}px,${fall * 0.2}px) rotate(${zufall(-60, 60)}deg)`, offset: 0.15 },
+        { opacity: 0.65, transform: `translate(${dx * 0.7}px,${fall * 0.6}px) rotate(${zufall(-120, 120)}deg)`, offset: 0.6 },
         { opacity: 0, transform: `translate(${dx}px,${fall}px) rotate(${zufall(-180, 180)}deg)` },
-      ], { duration: zufall(4000, 7000), easing: "ease-in-out", fill: "forwards" });
+      ], { duration: dauer, easing: "ease-in-out", fill: "forwards" });
       a.onfinish = () => f.remove();
     };
+    const feder = (x, y) => fallen(jetzt.faellt, x, y, zufall(160, 380), zufall(4000, 7000), zufall(18, 32));
 
     // Ein Flug quer über die Tafel, in Wellen auf und ab
     const flug = async () => {
@@ -112,7 +130,9 @@ export default function Huehnerhimmel() {
       const rechts = Math.random() < 0.5;
       const huhn = document.createElement("div");
       huhn.className = "ib-huhn";
-      huhn.innerHTML = HUHN;
+      const fest = festHolen();
+      huhn.innerHTML = fest.huhn || HUHN;
+      huhn.style.filter = fest.leuchten;
       huhn.style.width = w + "px";
       huhn.style.height = h + "px";
       huhn.style.zIndex = String(Math.round(gross * 10));
@@ -161,6 +181,16 @@ export default function Huehnerhimmel() {
       }
     };
     for (let i = 0; i < GLEICHZEITIG; i++) leben(i);
+    // Dazu fällt je nach Fest leise etwas vom Himmel (Schnee, Blüten …)
+    const regen = async () => {
+      while (!aus) {
+        await warte(zufall(500, 1100));
+        if (aus) return;
+        const art = festHolen().regen;
+        if (art) fallen(art, zufall(0, BREITE), zufall(-30, FLAECHE_H * 0.4), zufall(500, 900), zufall(9000, 15000), zufall(12, 26));
+      }
+    };
+    regen();
     return () => {
       aus = true;
       uhren.forEach(clearTimeout);

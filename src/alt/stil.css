@@ -9502,3 +9502,10 @@ body.archiv:has(#pw-inhalt) #kopf-suche { display: inline-flex; }
   background: linear-gradient(180deg, #4a3d52, #141117); box-shadow: 0 0 6px rgba(150, 60, 190, .6); }
 /* Unten ein schwacher Nebel in Orange, wie Kürbislicht */
 .ib-nacht { background: radial-gradient(120% 40% at 50% 105%, rgba(255, 110, 20, .14), transparent 70%), #000; }
+
+/* ---------- Infoboard: Hühner je Fest und Jahreszeit (seit 1.180.0) ----------
+   Himmel und Leuchten setzt Nacht.jsx aus feste.js; die Teilchen tragen
+   ihr Bild selbst (SVG) oder ihre Farbe im Stil. */
+.ib-huhn { filter: drop-shadow(0 0 10px rgba(255, 255, 255, .14)); }
+.ib-huhn-feder { background: none; box-shadow: none; border-radius: 0; }
+.ib-huhn-feder svg { width: 100%; height: 100%; display: block; overflow: visible; }

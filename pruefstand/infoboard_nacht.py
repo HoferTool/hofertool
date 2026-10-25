@@ -53,4 +53,26 @@ with sync_playwright() as p:
         br, pg = oeffnen(p, zeit)
         pruefe(nacht(pg) == soll and tafel(pg) != soll and kopf(pg), text + (": Schoner" if soll else ": Tafel"))
         br.close()
+    # Seit 1.180.0: Verkleidung je Fest und Jahreszeit
+    ordner = os.environ.get("BILDER", "")
+    for zeit, soll in [("2026-10-25T21:00:00+01:00", "halloween"),
+                       ("2026-12-20T21:00:00+01:00", "weihnachten"),
+                       ("2026-12-31T23:30:00+01:00", "silvester"),
+                       ("2027-02-07T12:00:00+01:00", "fasnacht"),
+                       ("2027-02-14T12:00:00+01:00", "valentinstag"),
+                       ("2027-03-28T12:00:00+02:00", "ostern"),
+                       ("2027-05-09T12:00:00+02:00", "fruehling"),
+                       ("2026-08-01T23:30:00+02:00", "august"),
+                       ("2027-07-11T12:00:00+02:00", "sommer"),
+                       ("2026-11-15T12:00:00+01:00", "herbst"),
+                       ("2027-01-17T12:00:00+01:00", "winter")]:
+        br, pg = oeffnen(p, zeit)
+        pg.wait_for_timeout(2500)
+        fest = pg.locator("#infoboard .ib-nacht").get_attribute("data-fest")
+        pruefe(fest == soll, "%s: %s (ist %s)" % (zeit[:10], soll, fest))
+        pruefe(pg.locator("#infoboard .ib-huhn").count() >= 1, soll + ": Hühner fliegen")
+        if ordner:
+            pg.wait_for_timeout(4000)
+            pg.screenshot(path=os.path.join(ordner, "fest-" + soll + ".png"))
+        br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
