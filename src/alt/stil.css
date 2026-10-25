@@ -9509,3 +9509,42 @@ body.archiv:has(#pw-inhalt) #kopf-suche { display: inline-flex; }
 .ib-huhn { filter: drop-shadow(0 0 10px rgba(255, 255, 255, .14)); }
 .ib-huhn-feder { background: none; box-shadow: none; border-radius: 0; }
 .ib-huhn-feder svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+/* Infos zum Richten: Suche oben, Maschinen nach Park und Typ (seit 1.181.0) */
+.ri-suchkopf { position: relative; }
+.ri .ri-eingabe.ri-suchfeld { width: 100%; min-height: 52px; font-size: 1.2rem; padding: 10px 46px 10px 16px;
+  border-radius: 12px; border-width: 2px; box-sizing: border-box; }
+.ri .ri-suchfeld:focus { outline: none; border-color: var(--akzent, #1f5fbf); }
+.ri-suchfeld::-webkit-search-cancel-button { display: none; }
+.ri-leeren { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px;
+  border: 0; border-radius: 50%; background: rgba(127, 127, 127, .18); color: inherit; font-size: 1rem; cursor: pointer; }
+.ri-park + .ri-park { margin-top: 16px; }
+.ri-park__name { margin: 0 0 6px; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-leise, #6b7785); }
+.ri-typ { margin: 0 0 10px 0; }
+.ri-typ__name { margin: 8px 0 2px; font-size: .95rem; }
+.ri-treffer { padding: 8px 4px 10px; border-top: 1px solid rgba(127, 127, 127, .2); }
+.ri-treffer:first-child { border-top: 0; }
+.ri-treffer__kopf { font-size: 1.1rem; margin-bottom: 2px; }
+.ri-treffer__kopf small { margin-left: 10px; font-size: .85rem; color: var(--text-leise, #6b7785); }
+.ri-zeile--treffer { grid-template-columns: minmax(160px, 1.4fr) minmax(150px, 1fr) auto; border-top: 0; padding: 4px 4px 4px 14px; }
+.ri-treffer__neu { padding: 4px 4px 0 14px; }
+.ri-treffer__neu select.ri-eingabe, .ri-leer select.ri-eingabe { min-height: 34px; font-size: .9rem; }
+.ri-karte h2 + .ri-park { margin-top: 0; }
+
+/* Einrichtblatt im dunklen Modus (seit 1.181.0): body.dunkel * färbt sonst
+   alles weiss, auf dem weissen Blatt war nichts zu lesen (Bild Patrick
+   25. Oktober 2026). Das Blatt bleibt wie Papier: schwarz, die Schrift der
+   Platzköpfe aus der Vorlage über --eba-schrift. */
+body.dunkel .eba-seite, body.dunkel .eba-zseite { color: #000 !important; }
+body.dunkel .eba-seite *, body.dunkel .eba-zseite * { color: inherit !important; }
+body.dunkel .eba-seite .eba-tk, body.dunkel .eba-seite .eba-legende span { color: var(--eba-schrift, #000) !important; }
+body.dunkel .eba-seite .eba-hd, body.dunkel .eba-seite .eba-wert { color: #000 !important; }
+body.dunkel .eba-seite .eba-ein { background: #fffbe6; color: #000 !important; -webkit-text-fill-color: #000; }
+body.dunkel .eba-seite .eba-ein::placeholder { color: #8a96a3 !important; -webkit-text-fill-color: #8a96a3; }
+body.dunkel .eba-vorgelesen, body.dunkel .eba-vorgelesen * { color: #5a4300 !important; }
+body.dunkel .eba-vorgelesen--fehler, body.dunkel .eba-vorgelesen--fehler * { color: #7a1f1f !important; }
+body.dunkel .eba-reiter__r--an, body.dunkel .eba-reiter__r--an * { color: #000 !important; }
+.eba-tk, .eba-legende span { color: var(--eba-schrift, #000); }
+/* Das Blatt füllt den Platz (zoom aus BlattFenster), mittig */
+.eba-zoom { width: max-content; margin: 0 auto; }

@@ -1,7 +1,7 @@
 # Produktion → Infos zum Richten: Maschinen mit dem Auftrag, der dran
 # ist, Stand des Einrichtblatts, Bearbeiten öffnet das Blatt gleich zum
 # Ändern, ein Excel wird vorher eingelesen, andere HOCO Nr. öffnen,
-# Liste der nicht bestätigten Blätter.
+# seit 1.181.0 Suche oben nach HOCO Nr., Maschinen nach Park und Typ.
 import time, base64, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -37,11 +37,26 @@ with sync_playwright() as p:
     pg.click("[data-unter='produktion/richten']"); pg.wait_for_selector("[data-richten]"); pg.wait_for_timeout(1000)
     z = pg.locator("[data-richten-maschine='m-k1']")
     pruefe("Maschine mit Auftrag und Stand", "10000-0301" in z.inner_text() and "Nur Excel" in z.inner_text())
-    pruefe("Nicht bestätigtes Blatt in der Liste", pg.locator("[data-richten-offen='10000-0999']").count() == 1)
+    pruefe("Keine Liste „Noch nicht bestätigt“ mehr", "Noch nicht bestätigt" not in pg.inner_text("[data-richten]"))
+    pruefe("Suche ganz oben", pg.evaluate("document.querySelector('[data-richten]').firstElementChild.querySelector('[data-richten-suche]') !== null"))
+    pruefe("Maschinen nach Park und Typ", pg.locator("[data-richten-park] [data-richten-typ-gruppe='t1'] [data-richten-maschine='m-k1']").count() == 1)
+    # Suche ohne Bindestrich findet die HOCO Nr. mit ihren Blättern
+    pg.fill("[data-richten-suche]", "10000 0999"); pg.wait_for_timeout(900)
+    t = pg.locator("[data-richten-hoco-treffer='10000-0999']")
+    pruefe("Suche findet HOCO Nr. mit Blatt", t.count() == 1 and "noch nicht bestätigt" in t.inner_text())
+    pruefe("Maschinen schrumpfen auf passende", pg.locator("[data-richten-maschine]").count() == 0)
+    pg.screenshot(path="produktion_richten_suche.png")
+    pg.fill("[data-richten-suche]", "0301"); pg.wait_for_timeout(900)
+    t = pg.locator("[data-richten-hoco-treffer='10000-0301']")
+    pruefe("Treffer zeigt Maschine und Excel", t.count() == 1 and "Nur Excel" in t.inner_text() and "läuft auf" in t.inner_text())
+    pruefe("Passende Maschine bleibt", pg.locator("[data-richten-maschine='m-k1']").count() == 1)
+    pg.focus("[data-richten-suche]"); pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+    pruefe("Escape leert die Suche " + pg.evaluate("location.hash"), pg.input_value("[data-richten-suche]") == "" and pg.locator("[data-richten]").count() == 1)
+    pg.wait_for_timeout(500)
     pg.screenshot(path="produktion_richten.png")
     # Dunkler Modus: Auswahlfelder dunkel mit heller Schrift (war weiss auf weiss)
     pg.evaluate("document.body.classList.add('dunkel')"); pg.wait_for_timeout(200)
-    f = pg.evaluate("""() => { const s = getComputedStyle(document.querySelector('[data-richten-typ]'));
+    f = pg.evaluate("""() => { const s = getComputedStyle(document.querySelector('[data-richten-suche]'));
       return [s.backgroundColor, s.color]; }""")
     pruefe("Dunkel: Auswahlfeld lesbar " + str(f), f[0] != "rgb(255, 255, 255)" and f[1] == "rgb(255, 255, 255)")
     pg.screenshot(path="produktion_richten_dunkel.png")
@@ -56,9 +71,9 @@ with sync_playwright() as p:
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(1500)
     pruefe("Stand neu: in der App, nicht bestätigt", "noch nicht bestätigt" in pg.inner_text("[data-richten-maschine='m-k1']"))
 
-    # Andere HOCO Nr. ohne Blatt: leeres Blatt zum Ausfüllen
-    pg.fill("[data-richten-hoco]", "10000-0302"); pg.select_option("[data-richten-typ]", "t1")
-    pg.click("[data-richten-oeffnen]"); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(500)
+    # Andere HOCO Nr. ohne Blatt: über die Suche ein leeres Blatt zum Ausfüllen
+    pg.fill("[data-richten-suche]", "10000-0302"); pg.wait_for_timeout(900)
+    pg.select_option("[data-richten-neu='10000-0302']", "t1"); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(500)
     pruefe("Andere HOCO Nr.: neues Blatt im Bearbeiten", "10000-0302" in pg.inner_text(".eba-fenster .betrachter__titel")
            and pg.locator("[data-eba-speichern]").count() == 1)
     br.close()

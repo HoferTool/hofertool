@@ -80,7 +80,7 @@ with sync_playwright() as p:
       const h = [...document.querySelectorAll('.eba-platz')].map(e => Math.round(e.getBoundingClientRect().height));
       const voll = [...document.querySelectorAll('.eba-kopf, .eba-platz')].filter(e => e.scrollHeight > e.clientHeight + 1).length;
       return { b: Math.round(s.width), h: Math.round(s.height), hoehen: [...new Set(h)], voll }; }""")
-    pruefe("Blatt A4 quer: " + str(m), m["b"] == 1123 and m["h"] == 794)
+    pruefe("Blatt A4 quer, eingepasst: " + str(m), abs(m["b"] / m["h"] - 1123 / 794) < 0.01 and m["b"] >= 1123)
     pruefe("Werkzeugfelder gleich hoch", max(m["hoehen"]) - min(m["hoehen"]) <= 1)
     pruefe("Nichts abgeschnitten", m["voll"] == 0)
     pruefe("Kein Autom.-Nr. und keine FA Nr. im Blatt", "Autom" not in s and "Fabrik" not in s)

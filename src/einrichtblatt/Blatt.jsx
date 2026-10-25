@@ -134,7 +134,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")}
         style={{ gridRow: ri + 1, gridColumn: si + 1 }} data-platz={nr}
         onClick={bearbeiten ? () => platzWahl(nr) : undefined}>
-        <div className="eba-tk" style={{ background: farbeVon(nr), color: vorlage.schrift }}>
+        <div className="eba-tk" style={{ background: farbeVon(nr), "--eba-schrift": vorlage.schrift }}>
           {p.standzeit ? <span className="eba-tk-links"><span className="eba-wert">{alt.zahlText(p.standzeit)}</span></span> : null}
           <b>{platzName(nr)}</b>
           {p.hd && <span className="eba-tk-rechts"><span className="eba-hd" data-hd="">HD</span></span>}</div>
@@ -171,7 +171,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
           {felder.filter((f) => f.farbe).length > 0 && <div className="eba-prgs">{felder.filter((f) => f.farbe).map(zeile)}</div>}
           {/* Die Revolver stehen im Index-Excel über dem Kopf */}
           {vorlage.legende && <div className="eba-legende">{vorlage.legende.map(([t, f]) =>
-            <span key={t} style={{ background: f, color: vorlage.schrift }}>{t}</span>)}</div>}
+            <span key={t} style={{ background: f, "--eba-schrift": vorlage.schrift }}>{t}</span>)}</div>}
           <div className="eba-tab">{felder.filter((f) => !f.farbe).map(zeile)}</div>
           {bearbeiten
             ? <textarea className="eba-ein eba-bem-ein" data-eba-feld="blatt:bemerkung" placeholder="Bemerkungen, z. B. Abgreifen mit Schnabelzange"
@@ -370,6 +370,22 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const hatPlaetze = vorlage.reihen.some((r) => r.some(Boolean)) || Object.keys(blatt.plaetze || {}).length > 0;
   useEffect(() => { if (seiteNr > seiten.length) setSeiteNr(seiten.length); }, [seiten.length]);
+  // Das Blatt füllt den Platz, so gross es geht (Wunsch Patrick 25. Oktober
+  // 2026: „etwas grösser, die Schrift ist nicht lesbar“). Am Handy bleibt
+  // es in echter Grösse und rollt, verkleinert wäre es nicht lesbar.
+  const [zoom, setZoom] = useState(1);
+  useEffect(() => {
+    const el = seite.current;
+    if (!el || zseite) return undefined;
+    const rechnen = () => {
+      const k = Math.min((el.clientWidth - 28) / 1123, (el.clientHeight - 28) / 794);
+      setZoom(k > 0 && (k >= 1 || el.clientWidth >= 800) ? Math.round(k * 100) / 100 : 1);
+    };
+    rechnen();
+    const ro = new ResizeObserver(rechnen);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [!!zseite]);
 
   // Beim Bearbeiten versucht die App zuerst selbst, das Blatt aus dem
   // Excel zu füllen, man passt danach nur noch an (Wunsch Patrick,
@@ -538,9 +554,9 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         </div>}
         {zseite
           ? <ZusatzSeite seite={zseite} bearbeiten={bearbeiten} inhaltBearbeiten={() => inhaltBearbeiten(seiteNr - 1)} />
-          : <BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt}
+          : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt}
               bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern}
-              platzWahl={(nr) => setTimeout(() => setPlatz(nr), 0)} />}
+              platzWahl={(nr) => setTimeout(() => setPlatz(nr), 0)} /></div>}
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
           artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))} />}
