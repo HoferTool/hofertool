@@ -8,13 +8,12 @@
 //  Oben jede Maschine mit dem Auftrag, der dran ist (läuft oder Rüsten,
 //  sonst der nächste geplante), und wie es um sein Blatt steht. Darunter
 //  ein Feld für jede andere HOCO Nr. und die Blätter, die noch niemand
-//  mit „Blatt ist gut“ bestätigt hat. Gibt es noch kein Blatt in der
+//  mit „EB OK“ bestätigt hat. Gibt es noch kein Blatt in der
 //  App, aber ein Excel, wird das zuerst eingelesen.
 //  Nicht für Externe.
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
-import { ausExcelEinlesen } from "../../einrichtblatt/daten.js";
 import { einrichtblattAppOeffnen } from "../../einrichtblatt/Blatt.jsx";
 
 const gemerkt = { park: "alle", hoco: "", typ: "" };
@@ -49,19 +48,12 @@ function Stand({ app, excel }) {
   return <span className="ri-stand ri-stand--keins">Kein Einrichtblatt</span>;
 }
 
-// Öffnen zum Bearbeiten; ohne Blatt in der App vorher das Excel einlesen
-async function oeffnen(hoco, typId, excel) {
+// Öffnen zum Bearbeiten; ohne Blatt in der App liest es sich dort selbst
+// aus dem Excel vor (seit 1.178.0)
+async function oeffnen(hoco, typId) {
   if (!hoco || !typId) return;
-  try {
-    const da = await alt.db.from("einrichtblatt_app").select("id").eq("hoco_nr", hoco).eq("type_id", typId).limit(1);
-    if (!(da.data || []).length && excel && alt.darfSchreiben()) {
-      const typ = ((await alt.ladeTypen()) || []).find((t) => t.id === typId) || { id: typId, name: "" };
-      alt.meldung("Das Excel wird eingelesen …");
-      const e = await ausExcelEinlesen(hoco, typ, excel);
-      if (e.hinweise && e.hinweise.length) alt.meldung("Eingelesen. Bitte prüfen: " + e.hinweise.join(" · "), "warn");
-    }
-    await einrichtblattAppOeffnen(hoco, typId, { bearbeiten: true });
-  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  try { await einrichtblattAppOeffnen(hoco, typId, { bearbeiten: true }); }
+  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
 }
 
 export default function Richten() {
@@ -82,7 +74,7 @@ export default function Richten() {
 
   // Nach dem Schliessen des Blatts den Stand neu holen
   const bearbeiten = async (h, t, excel) => {
-    await oeffnen(h, t, excel);
+    await oeffnen(h, t);
     const takt = setInterval(() => {
       if (!document.querySelector(".eba-huelle")) { clearInterval(takt); neu(); }
     }, 800);
@@ -95,7 +87,7 @@ export default function Richten() {
   return (
     <div className="ri" data-richten="">
       <p className="ri-erklaerung">Hier änderst du die Einrichtblätter in der App. Im Pad Mode sind sie nur zum Lesen
-        und erscheinen dort erst, wenn jemand „Blatt ist gut“ gedrückt hat.</p>
+        und erscheinen dort erst, wenn jemand „EB OK“ gedrückt hat.</p>
 
       <div className="karte ri-karte">
         <div className="ri-kopf">

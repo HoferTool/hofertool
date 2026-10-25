@@ -3,7 +3,7 @@
 //  Beginnt im Pad ein neuer Auftrag (Rüsten oder läuft, auch der
 //  nächste, der beim Beenden auf Rüsten rückt), kommt die Meldung, am PC
 //  das Einrichtblatt in der App zu kontrollieren und wenn nötig
-//  anzupassen. Mit „Blatt ist gut“ dort ist das Excel gelöscht und wird
+//  anzupassen. Mit „EB OK“ dort ist das Excel gelöscht und wird
 //  nicht mehr hochgeladen (Wunsch Patrick, 23. Oktober 2026). Ist das
 //  Blatt schon als gut bestätigt, kommt nichts, ebenso wenn es weder ein
 //  Excel noch ein Blatt in der App gibt (dann gibt es nichts zu prüfen).
@@ -41,7 +41,7 @@ export async function einrichtblattHinweis(j, neu) {
       <h2>Einrichtblatt am PC kontrollieren</h2>
       <p><b>{j.job_number}</b> auf {m.name}{typName ? " (" + typName + ")" : ""} beginnt.</p>
       <p>Bitte an den PC gehen und das Einrichtblatt in der App kontrollieren und wenn nötig anpassen.</p>
-      <p>Stimmt es, dort <b>„Blatt ist gut“</b> drücken: Dann wird das alte Excel gelöscht und nicht mehr hochgeladen.</p>
+      <p>Stimmt es, dort <b>„EB OK“</b> drücken: Dann wird das alte Excel gelöscht und nicht mehr hochgeladen.</p>
       <div className="dialog__knoepfe">
         <button className="knopf knopf--haupt" data-ja="" data-fokus="" onClick={zu}>Verstanden</button>
       </div>

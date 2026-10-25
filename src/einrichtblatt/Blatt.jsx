@@ -17,7 +17,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
 import { werkzeugWaehlen } from "../seiten/bestellungen/PositionFenster.jsx";
-import { blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
+import { excelVorlesen, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
   artikelHolen, STAMM_FELDER, WASCHGEBINDE, prgNummern } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, bildSchluesselVon } from "./bilder.js";
 import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
@@ -359,6 +359,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const [laeuft, setLaeuft] = useState(false);
   const [seiteNr, setSeiteNr] = useState(0);
   const [artikelBilder, setArtikelBilder] = useState(start.artikelBilder || {});
+  // Was beim Bearbeiten aus dem Excel vorgelesen wurde: { liest } oder { hinweise }
+  const [vorgelesen, setVorgelesen] = useState(null);
   const seite = useRef(null);
   const { typ, paths, teil, typDaten } = daten;
   const excel = typDaten.blatt_url || null;
@@ -368,6 +370,41 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const hatPlaetze = vorlage.reihen.some((r) => r.some(Boolean)) || Object.keys(blatt.plaetze || {}).length > 0;
   useEffect(() => { if (seiteNr > seiten.length) setSeiteNr(seiten.length); }, [seiten.length]);
+
+  // Beim Bearbeiten versucht die App zuerst selbst, das Blatt aus dem
+  // Excel zu füllen, man passt danach nur noch an (Wunsch Patrick,
+  // 25. Oktober 2026: „kurz selber versuchen, dann passen wir es so an,
+  // dass es stimmt“). Nur solange in der App noch kein Werkzeug steht,
+  // und nur in leere Felder; gespeichert wird erst mit Speichern.
+  const vorlesen = async (d) => {
+    const url = d.typDaten && d.typDaten.blatt_url;
+    if (!url || /\.(pdf|xls)(\?|#|$)/i.test(String(url))) return;   // nur .xlsx und .xlsm lassen sich lesen
+    if (d.blatt && Object.keys(d.blatt.plaetze || {}).length) return;
+    setVorgelesen({ liest: true });
+    try {
+      const v = await excelVorlesen(hocoNr, d.typ, url);
+      const leer0 = (x) => x === undefined || x === null || x === "" || (typeof x === "object" && !Object.keys(x).length);
+      setEntwurf((b) => {
+        const n = Object.assign({}, b);
+        Object.entries(v.blatt).forEach(([k, w]) => { if (leer0(n[k]) && !leer0(w)) n[k] = w; });
+        return n;
+      });
+      setTeilE((t) => {
+        const n = Object.assign({}, t);
+        STAMM_FELDER.forEach(([f]) => { if (f !== "material_groesse" && v.stamm[f] && leer0(n[f])) n[f] = v.stamm[f]; });
+        return n;
+      });
+      setTypE((t) => {
+        const n = Object.assign({}, t);
+        ["stueckzeit_s", "abend_stk"].forEach((f) => { if (v.typDaten[f] && leer0(n[f])) n[f] = v.typDaten[f]; });
+        return n;
+      });
+      setVorgelesen({ hinweise: v.hinweise });
+    } catch (f) {
+      setVorgelesen({ fehler: alt.fehlertext(f) });
+    }
+  };
+  useEffect(() => { if (bearbeiten) vorlesen(start); }, []);
 
   const neuLaden = async () => { const d = await blattLaden(hocoNr, typId); setDaten(d); setArtikelBilder(d.artikelBilder || {}); return d; };
   const anfangen = (d) => {
@@ -382,14 +419,14 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       await typSpeichern(hocoNr, typId, typDaten, typE);
       const d = await neuLaden();
       anfangen(d);
-      setBearbeiten(false); setPlatz(null);
+      setBearbeiten(false); setPlatz(null); setVorgelesen(null);
       alt.meldung("Einrichtblatt gespeichert.", "gut");
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
     finally { setLaeuft(false); }
   };
   const abbrechen = () => {
     if (!daten.blatt) { zu(); return; }
-    anfangen(daten); setBearbeiten(false); setPlatz(null);
+    anfangen(daten); setBearbeiten(false); setPlatz(null); setVorgelesen(null);
   };
   // Ein Kopffeld ändern, dort, wo es hingehört
   const aendern = (f, w) => {
@@ -407,15 +444,15 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     });
     else if (f.art === "blatt") setEntwurf((b) => Object.assign({}, b, { [f.feld]: String(w).trim() ? w : null }));
   };
-  // Erst nach „Blatt ist gut“ zeigt der Pad Mode das Blatt aus der App
+  // Erst nach „EB OK“ (bis 1.177.0 „Blatt ist gut“) zeigt der Pad Mode das Blatt aus der App
   // (Wunsch Patrick, 24. Oktober 2026); ein Excel dazu wird gelöscht
   const gut = async () => {
-    const ok = await alt.nachfragen({ titel: "Blatt ist gut",
+    const ok = await alt.nachfragen({ titel: "EB OK",
       text: excel
         ? "Stimmt das Blatt? Dann gilt es ab jetzt auch im Pad Mode. Das bisherige Excel-Einrichtblatt von " + hocoNr + " auf "
           + typ.name + " wird aus der Datenbank gelöscht, und die Aufgabe „HoferTool“ lädt dafür kein Excel mehr hoch."
         : "Stimmt das Blatt? Dann gilt es ab jetzt auch im Pad Mode.",
-      bestaetigen: excel ? "Gut, Excel löschen" : "Blatt ist gut", gefahr: !!excel });
+      bestaetigen: excel ? "EB OK, Excel löschen" : "EB OK", gefahr: !!excel });
     if (!ok) return;
     setLaeuft(true);
     try {
@@ -472,14 +509,21 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
                 <button className="knopf knopf--klein knopf--haupt" data-eba-speichern="" disabled={laeuft} onClick={speichern}>Speichern</button>
               </>
             : <>
-                {darf && <button className="knopf knopf--klein" data-eba-bearbeiten="" onClick={() => { anfangen(daten); setBearbeiten(true); }}>Bearbeiten</button>}
+                {darf && <button className="knopf knopf--klein" data-eba-bearbeiten="" onClick={() => { anfangen(daten); setBearbeiten(true); vorlesen(daten); }}>Bearbeiten</button>}
                 {excel && !nurLesen && <button className="knopf knopf--klein" data-eba-excel="" onClick={() => dokZeigen({ art: "einrichtblatt", titel: "Excel " + hocoNr, adresse: excel })}>Excel ansehen</button>}
-                {darf && daten.blatt && !daten.blatt.gut_am && <button className="knopf knopf--klein" data-eba-gut="" disabled={laeuft} onClick={gut}>Blatt ist gut</button>}
+                {darf && daten.blatt && !daten.blatt.gut_am && <button className="knopf knopf--klein" data-eba-gut="" disabled={laeuft} onClick={gut}>EB OK</button>}
                 <button className="knopf knopf--klein" data-eba-drucken="" onClick={drucken}>Drucken</button>
                 <button className="knopf knopf--klein" data-zu="" onClick={zu}>Schliessen</button>
               </>}
         </div>
       </div>
+      {bearbeiten && vorgelesen && <div className={"eba-vorgelesen" + (vorgelesen.fehler ? " eba-vorgelesen--fehler" : "")} data-eba-vorgelesen="">
+        {vorgelesen.liest ? <span>Lese das Excel …</span>
+          : vorgelesen.fehler ? <span>Excel nicht gelesen: {vorgelesen.fehler}</span>
+          : <span><b>Aus dem Excel vorgelesen.</b> Bitte prüfen und anpassen, dann Speichern.
+              {vorgelesen.hinweise.length > 0 && <> Achtung: {vorgelesen.hinweise.join(" · ")}</>}</span>}
+        {!vorgelesen.liest && <button className="linkknopf" data-eba-vorgelesen-zu="" onClick={() => setVorgelesen(null)}>✕</button>}
+      </div>}
       <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => setPlatz(null)}>
         {zseite && bearbeiten && <div className="eba-zseite-leiste" onClick={(e) => e.stopPropagation()}>
           <label>Name <input className="eba-zseite-name" data-eba-seite-name="" value={zseite.name || ""}

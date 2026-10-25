@@ -9479,3 +9479,8 @@ body.archiv:has(#pw-inhalt) #kopf-suche { display: inline-flex; }
 /* Seite Maschinen: Typen ohne Maschine als kleine Knöpfe (seit 1.177.0) */
 .mseite-leertypen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
 .typ-einst { margin-bottom: 12px; }
+/* Einrichtblatt: Hinweis „Aus dem Excel vorgelesen“ beim Bearbeiten (seit 1.178.0) */
+.eba-vorgelesen { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between;
+  padding: 6px 12px; background: #fff4d6; color: #5a4300; font-size: .85rem; border-bottom: 1px solid #e8d08a; }
+.eba-vorgelesen--fehler { background: #fde3e3; color: #7a1f1f; border-bottom-color: #e8a3a3; }
+.eba-vorgelesen .linkknopf { color: inherit; flex: none; }

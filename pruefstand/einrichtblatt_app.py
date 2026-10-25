@@ -45,6 +45,14 @@ with sync_playwright() as p:
     k = pg.locator("[data-dokextra='einrichtblatt']")
     pruefe("Knopf „Ins App-Blatt umwandeln“", k.count() == 1 and "umwandeln" in k.inner_text())
     k.click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(600)
+    # Seit 1.178.0: das Blatt geht zum Bearbeiten auf, liest sich selbst aus
+    # dem Excel vor und wird erst mit Speichern gespeichert
+    pg.wait_for_selector("[data-eba-vorgelesen]:has-text('Aus dem Excel vorgelesen')")
+    pruefe("Vorgelesen, noch nichts gespeichert", pg.evaluate("TEST.daten.einrichtblatt_app.length") == 0
+           and pg.locator("[data-eba-speichern]").count() == 1)
+    pruefe("Programm im Entwurf", "O1111" in pg.inner_text("[data-eba-seite]") or pg.locator("[data-eba-feld^='prg:']").count() > 0)
+    pg.screenshot(path="einrichtblatt_app_vorgelesen.png")
+    pg.click("[data-eba-speichern]"); pg.wait_for_timeout(1000)
     pruefe("Keine Stammdaten-Frage mehr", pg.locator(".dialog-huelle .dialog:has-text('Stimmen die Stammdaten')").count() == 0)
     b = pg.evaluate("TEST.daten.einrichtblatt_app[0]")
     print(json.dumps(b, ensure_ascii=False)[:500])
@@ -171,6 +179,7 @@ with sync_playwright() as p:
     pruefe("Blatt zeigt alles", all(x in s for x in ("Deckel neu", "236", "41 Sek./Stk.", "Ø21h9", "SPZ-77")))
 
     # Blatt ist gut: Excel weg
+    pruefe("Knopf heisst EB OK", pg.inner_text("[data-eba-gut]").strip() == "EB OK")
     pg.click("[data-eba-gut]"); pg.wait_for_selector(".dialog-huelle [data-ja]")
     pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(900)
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
@@ -183,7 +192,9 @@ with sync_playwright() as p:
 
     # Index: drei Revolver mit T1 bis T10
     pg.locator("[data-blatt-typ='t2']").click(); pg.wait_for_selector(".betrachter"); pg.wait_for_timeout(800)
-    pg.locator("[data-dokextra='einrichtblatt']").click(); pg.wait_for_selector("[data-eba-vorlage='index']"); pg.wait_for_timeout(600)
+    pg.locator("[data-dokextra='einrichtblatt']").click(); pg.wait_for_selector("[data-eba-vorlage='index']")
+    pg.wait_for_selector("[data-eba-vorgelesen]:has-text('Aus dem Excel vorgelesen')")
+    pg.click("[data-eba-speichern]"); pg.wait_for_timeout(1000)
     bi = pg.evaluate("TEST.daten.einrichtblatt_app.find(x => x.type_id === 't2')")
     print(json.dumps(bi, ensure_ascii=False)[:500])
     pl = bi["plaetze"]
@@ -222,7 +233,7 @@ with sync_playwright() as p:
     else: pg.locator(".dialog-huelle [data-ja]").last.click(); ziel = "laeuft"
     pg.wait_for_timeout(1200)
     h = pg.locator("[data-eba-padhinweis]")
-    pruefe("Hinweis im Pad", h.count() == 1 and "an den PC" in h.inner_text() and "Blatt ist gut" in h.inner_text())
+    pruefe("Hinweis im Pad", h.count() == 1 and "an den PC" in h.inner_text() and "EB OK" in h.inner_text())
     pg.screenshot(path="einrichtblatt_app_pad.png")
     if h.count(): h.locator("[data-ja]").click(); pg.wait_for_timeout(300)
     pruefe("Auftrag begonnen", pg.evaluate("TEST.daten.jobs.find(j => j.id === 'tH').plan_status") == ziel)

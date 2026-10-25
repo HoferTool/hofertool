@@ -275,13 +275,13 @@ export async function artikelFuerText() {
   };
 }
 
-export async function ausExcelEinlesen(hocoNr, typ, excelUrl, { ueberschreiben, artikel } = {}) {
+// Das Excel nur lesen, nichts speichern: gibt die Felder des Blatts, die
+// Stammdaten und die Typ-Daten aus dem Excel zurück. Braucht auch das
+// Bearbeiten eines einzelnen Blatts, das zuerst selbst aus dem Excel
+// vorliest (Wunsch Patrick, 25. Oktober 2026: „kurz selber versuchen,
+// dann passen wir es so an, dass es stimmt“).
+export async function excelVorlesen(hocoNr, typ, excelUrl, { artikel } = {}) {
   const hinweise = [];
-  const db = alt.db;
-  if (!ueberschreiben) {
-    const da = await blattSuchen(hocoNr, typ.id);
-    if (da) return { ok: true, hoco: hocoNr, schon: true, hinweise: ["schon in der App, nicht neu eingelesen"] };
-  }
   const antwort = await fetch(excelUrl);
   if (!antwort.ok) throw new Error("Excel nicht erreichbar (" + antwort.status + ")");
   const roh = await excelRoh(new Uint8Array(await antwort.arrayBuffer()));
@@ -308,13 +308,27 @@ export async function ausExcelEinlesen(hocoNr, typ, excelUrl, { ueberschreiben, 
     }
     if (Object.keys(z).length) plaetze[nr] = z;
   }
-
   // Die Prg.-Nr. liest prgNummern jedes Mal aus den Programmen, gespeichert
   // wird sie nur, wenn jemand sie bei den Stammdaten ändert
-  const programme = Object.assign({}, e.kopf.programme);
-  const blatt = await blattSpeichern({ hoco_nr: hocoNr, type_id: typ.id, programme,
+  const blatt = { hoco_nr: hocoNr, type_id: typ.id, programme: Object.assign({}, e.kopf.programme),
     geometrie: e.kopf.geometrie, maschine_nr: e.kopf.maschine_nr, bemerkung: e.kopf.bemerkung,
-    kopf: e.kopf.felder || {}, plaetze, excel_url: excelUrl }, null);
+    kopf: e.kopf.felder || {}, plaetze, excel_url: excelUrl };
+  return { blatt, stamm: e.stamm || {}, typDaten: e.typDaten || {}, hinweise };
+}
+
+// nurMitPlaetzen: ohne ein einziges Werkzeug nichts speichern (im
+// Hintergrund; rund die Hälfte der Index-„Einrichtblätter“ sind Kalkulationen)
+export async function ausExcelEinlesen(hocoNr, typ, excelUrl, { ueberschreiben, artikel, nurMitPlaetzen } = {}) {
+  const db = alt.db;
+  if (!ueberschreiben) {
+    const da = await blattSuchen(hocoNr, typ.id);
+    if (da) return { ok: true, hoco: hocoNr, schon: true, hinweise: ["schon in der App, nicht neu eingelesen"] };
+  }
+  const v = await excelVorlesen(hocoNr, typ, excelUrl, { artikel });
+  const hinweise = v.hinweise;
+  const e = { stamm: v.stamm, typDaten: v.typDaten };
+  if (nurMitPlaetzen && !Object.keys(v.blatt.plaetze).length) return { ok: false, leer: true, hoco: hocoNr, hinweise: ["keine Werkzeuge im Excel"] };
+  const blatt = await blattSpeichern(v.blatt, null);
 
   // Stammdaten: leere Felder füllen, Abweichungen melden (die Person
   // kontrolliert das Blatt beim Start des Auftrags am PC)
@@ -352,7 +366,7 @@ export async function ausExcelEinlesen(hocoNr, typ, excelUrl, { ueberschreiben, 
   return { ok: true, hoco: hocoNr, hinweise, blatt };
 }
 
-// „Blatt ist gut“: das Excel ist ab jetzt überflüssig und kommt weg,
+// „EB OK“: das Excel ist ab jetzt überflüssig und kommt weg,
 // aus hoco_type_data, den Dokumenten und der Ablage (Wunsch Patrick,
 // 13. Oktober 2026: „wenn man sagt, das Einrichtblatt ist gut, soll das
 // andere nicht mehr auf der Datenbank sein“). Die Aufgabe „HoferTool“

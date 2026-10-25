@@ -47,10 +47,12 @@ with sync_playwright() as p:
     pg.screenshot(path="produktion_richten_dunkel.png")
     pg.evaluate("document.body.classList.remove('dunkel')")
 
-    z.locator("[data-richten-bearbeiten]").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(800)
-    pruefe("Excel eingelesen", pg.evaluate("TEST.daten.einrichtblatt_app.some(b => b.hoco_nr === '10000-0301' && b.type_id === 't1')"))
+    z.locator("[data-richten-bearbeiten]").click(); pg.wait_for_selector("[data-eba-seite]")
+    # Seit 1.178.0 liest das Blatt das Excel selbst vor, gespeichert wird mit Speichern
+    pg.wait_for_selector("[data-eba-vorgelesen]:has-text('Aus dem Excel vorgelesen')")
     pruefe("Gleich im Bearbeiten", pg.locator("[data-eba-speichern]").count() == 1)
-    pg.click("[data-eba-abbrechen]"); pg.wait_for_timeout(300)
+    pg.click("[data-eba-speichern]"); pg.wait_for_timeout(1000)
+    pruefe("Excel eingelesen", pg.evaluate("TEST.daten.einrichtblatt_app.some(b => b.hoco_nr === '10000-0301' && b.type_id === 't1')"))
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(1500)
     pruefe("Stand neu: in der App, nicht bestätigt", "noch nicht bestätigt" in pg.inner_text("[data-richten-maschine='m-k1']"))
 

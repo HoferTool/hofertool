@@ -5,7 +5,7 @@
 //  im Tool“). Läuft im Browser der Reihe nach, damit die Datenbank nicht
 //  mit Hunderten gleichzeitigen Anfragen überrollt wird. Blätter, die
 //  schon in der App sind, bleiben unverändert. Das Excel bleibt, bis
-//  jemand beim einzelnen Blatt „Blatt ist gut“ drückt.
+//  jemand beim einzelnen Blatt „EB OK“ drückt.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -69,7 +69,7 @@ export async function alleEinlesen(typ) {
   if (!liste.length) { alt.meldung("Für " + typ.name + " ist kein Excel-Einrichtblatt hinterlegt.", "warn"); return; }
   const ok = await alt.nachfragen({ titel: "Einrichtblätter einlesen",
     text: alt.zahlText(liste.length) + " Excel-Einrichtblätter von " + typ.name + " werden in die App übernommen. "
-      + "Blätter, die schon in der App sind, bleiben. Die Excel-Dateien bleiben, bis beim Blatt „Blatt ist gut“ gedrückt wird.",
+      + "Blätter, die schon in der App sind, bleiben. Die Excel-Dateien bleiben, bis beim Blatt „EB OK“ gedrückt wird.",
     bestaetigen: "Einlesen" });
   if (!ok) return;
   fensterOeffnen((zu) => <EinlesenFenster typ={typ} liste={liste} zu={zu} />);

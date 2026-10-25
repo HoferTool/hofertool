@@ -36,7 +36,7 @@ import { stueckzeitVorDemBeenden, letzteStueckzahlFragen } from "../daten/stueck
 import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
-import { blattSuchen as appBlattSuchen, ausExcelEinlesen } from "../einrichtblatt/daten.js";
+import { blattSuchen as appBlattSuchen } from "../einrichtblatt/daten.js";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick, symbolAnwendenEnde } from "../daten/symbole.js";
 import { zeichnungNrSofort, zeichnungNrHolen } from "../daten/zeichnungNr.js";
@@ -46,6 +46,7 @@ import { materialFuerPlanwand, postenLaden, materialZerlegen, nochGebraucht, wer
 import { postenFenster } from "../material/PostenFenster.jsx";
 import Material from "../seiten/Material.jsx";
 import { sicherungWaechter } from "../teile/sicherung.js";
+import { einlesenWaechter } from "../einrichtblatt/vorlesen.js";
 import { planArchivWaechter } from "../teile/planwandArchiv.js";
 import { archivVerbindung } from "../archiv/archivDb.js";
 
@@ -139,7 +140,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.177.0";
+const APP_VERSION = "1.178.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4091,7 +4092,7 @@ async function farbzuteilungLaden() {
   // Tägliche Sicherung, wenn dieses Gerät das Sicherungsgerät ist (src/teile/sicherung.js)
   // und tägliche Planwand-Datei zum Nachschauen (src/teile/planwandArchiv.js);
   // beides nicht in einer Backup-Datei
-  if (!ARCHIV) { sicherungWaechter(); planArchivWaechter(); }
+  if (!ARCHIV) { sicherungWaechter(); planArchivWaechter(); einlesenWaechter(); }
   // Abgelaufenes in den Temp-Ordnern aller wegräumen, höchstens stündlich je Gerät
   if (!ARCHIV && !istExtern()) tempAufraeumenRegelmaessig();
 }
@@ -8360,7 +8361,7 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
     return;
   }
   // Gibt es das Blatt in der App, gilt es. Im Pad Mode erst, wenn es
-  // jemand mit „Blatt ist gut“ bestätigt hat, und dort nur zum Lesen;
+  // jemand mit „EB OK“ bestätigt hat, und dort nur zum Lesen;
   // bis dahin zeigt das Pad das Excel (Wunsch Patrick, 24. Oktober 2026)
   const imPad = document.body.classList.contains("pad-offen");
   const app = hocoNr ? await appBlattSuchen(hocoNr, typId) : null;
@@ -8377,14 +8378,9 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
   // für keine bestimmte Nummer.
   const appBlatt = !hocoNr || imPad || app || !darfSchreiben() || istExtern() ? null
     : gefunden.eigenes
-      ? { text: "Ins App-Blatt umwandeln", tu: async (zu) => {
-          const typ = ((await ladeTypen()) || []).find((t) => t.id === typId) || { id: typId, name: "" };
-          meldung("Einrichtblatt wird eingelesen …");
-          const e = await ausExcelEinlesen(hocoNr, typ, gefunden.eigenes);
-          if (e.hinweise.length) meldung("Eingelesen. Bitte prüfen: " + e.hinweise.join(" · "), "warn");
-          zu();
-          await einrichtblattAppOeffnen(hocoNr, typId);
-        } }
+      // Das Blatt geht zum Bearbeiten auf und liest sich selbst aus dem
+      // Excel vor; gespeichert wird erst mit Speichern (seit 1.178.0)
+      ? { text: "Ins App-Blatt umwandeln", tu: async (zu) => { zu(); await einrichtblattAppOeffnen(hocoNr, typId, { bearbeiten: true }); } }
       : { text: "Neues Einrichtblatt in der App", tu: async (zu) => { zu(); await einrichtblattAppOeffnen(hocoNr, typId); } };
 
   // Im gemeinsamen Betrachter wie Zeichnung und WBG: ohne Blatt steht
