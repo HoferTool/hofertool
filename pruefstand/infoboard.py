@@ -6,6 +6,7 @@
 # Zeichenfläche, alte bleiben); Anzeige über den ganzen
 # Bildschirm, öffnet sich auf dem Bildschirm-Gerät nach dem Neuladen.
 import time, os, io, zipfile
+from datetime import datetime, timedelta
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
@@ -29,6 +30,10 @@ with sync_playwright() as p:
     ctx = br.new_context(viewport={"width": 1400, "height": 1000})
     pg = ctx.new_page()
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:200]))
+    # Werktag tagsüber, sonst zeigt die Anzeige den Bildschirmschoner
+    # (nachts und sonntags, infoboard_nacht.py)
+    heute = datetime.now()
+    pg.clock.set_system_time(datetime(heute.year, heute.month, heute.day, 10, 0) + timedelta(days=(2 - heute.weekday()) % 7))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     pg.route("**/ib-probe.pdf", lambda r: r.fulfill(status=200, content_type="application/pdf", body=PDF))
     pg.route("**/ib-probe.xlsx", lambda r: r.fulfill(status=200, content_type="application/octet-stream", body=XLSX))

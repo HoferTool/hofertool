@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { Tafel } from "./Tafel.jsx";
+import Nacht, { istNacht } from "./Nacht.jsx";
 import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
   istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil } from "./daten.js";
@@ -282,6 +283,7 @@ export function infoboardSchliessen() {
 }
 
 const NACHSEHEN_MS = 30000;
+const WACH_MS = 60000;
 
 // Zeigt, wie fein der Browser des Bildschirms zeichnet: meldet er bei
 // einem 4K-Bildschirm nur 1080 Punkte mit Faktor 1, vergrössert das
@@ -299,6 +301,18 @@ function Anzeige({ huelle }) {
   const [fehler, setFehler] = useState("");
   const [zu, setZu] = useState(false);
   const stand = useRef("");
+  // Bildschirmschoner (Nacht.jsx): nachts und sonntags nur die
+  // Solaranlage mit Hühnern. Ein Tipp holt die Tafel für eine Minute.
+  const [nacht, setNacht] = useState(istNacht);
+  const [wachBis, setWachBis] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => {
+      setNacht(istNacht());
+      setWachBis((w) => (w && Date.now() > w ? 0 : w));
+    }, 15000);
+    return () => clearInterval(t);
+  }, []);
+  const schoner = nacht && !wachBis;
 
   useEffect(() => {
     let gueltig = true;
@@ -338,13 +352,14 @@ function Anzeige({ huelle }) {
   }, [zu]);
 
   const kopfTipp = (e) => {
+    if (schoner) { setWachBis(Date.now() + WACH_MS); return; }
     const r = huelle.getBoundingClientRect();
     if (e.clientY - r.top < r.height * 0.2) setZu(true);
   };
 
   return (
     <div className="ib-voll__innen" onPointerDown={kopfTipp}>
-      {aufbau && <Tafel aufbau={aufbau} grossZiel={huelle} />}
+      {schoner ? <Nacht /> : aufbau && <Tafel aufbau={aufbau} grossZiel={huelle} />}
       {fehler && <div className="ib-voll__fehler">{fehler}</div>}
       {zu && <button type="button" className="ib-voll__zu" data-ib="schliessen"
         onClick={() => infoboardSchliessen()}>Schliessen</button>}
