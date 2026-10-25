@@ -39,6 +39,17 @@ with sync_playwright() as p:
     pruefe("Keine Liste „Noch nicht bestätigt“ mehr", "Noch nicht bestätigt" not in pg.inner_text("[data-richten]"))
     pruefe("Suche ganz oben", pg.evaluate("document.querySelector('[data-richten]').firstElementChild.querySelector('[data-richten-suche]') !== null"))
     pruefe("Zuletzt bearbeitet nach Park und Typ", pg.locator("[data-richten-letzte] [data-richten-park] [data-richten-typ-gruppe='t1'] [data-richten-letzt='10000-0999']").count() >= 1)
+    # Filter nach Typ (1.183.0)
+    knoepfe = pg.eval_on_selector_all("[data-richten-typfilter]", "l => l.map(e => e.dataset.richtenTypfilter)")
+    pruefe("Typfilter da " + str(knoepfe), "t1" in knoepfe and len(knoepfe) >= 3)
+    anderer = [k for k in knoepfe if k and k != "t1"][0]
+    pg.click(f"[data-richten-typfilter='{anderer}']"); pg.wait_for_timeout(300)
+    pruefe("Anderer Typ blendet t1 aus", pg.locator("[data-richten-letzt='10000-0999']").count() == 0)
+    pg.click("[data-richten-typfilter='t1']"); pg.wait_for_timeout(300)
+    pruefe("Typ t1 zeigt sein Blatt", pg.locator("[data-richten-letzt='10000-0999']").count() >= 1
+           and pg.locator(f"[data-richten-typ-gruppe='{anderer}']").count() == 0)
+    pg.screenshot(path="produktion_richten_typ.png")
+    pg.click("[data-richten-typfilter='']"); pg.wait_for_timeout(300)
     # Suche ohne Bindestrich findet die HOCO Nr. mit ihren Blättern
     pg.fill("[data-richten-suche]", "10000 0999"); pg.wait_for_timeout(900)
     t = pg.locator("[data-richten-hoco-treffer='10000-0999']")

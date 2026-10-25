@@ -9599,3 +9599,5 @@ body.dunkel .mseite-park__zahl, body.dunkel .mseite-park__leer, body.dunkel .mse
 /* Infos zum Richten: zuletzt bearbeitete Blätter (seit 1.182.0) */
 .ri-zeile--letzte { grid-template-columns: minmax(170px, 1.2fr) minmax(170px, 1fr) minmax(110px, auto) auto; }
 @media (max-width: 640px) { .ri-zeile--letzte > span:nth-child(3) { display: none; } }
+/* Infos zum Richten: Filter nach Typ (seit 1.183.0) */
+.ri-typwahl { margin: 0; }

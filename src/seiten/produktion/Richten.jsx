@@ -23,7 +23,7 @@ import { useEffect, useRef, useState } from "react";
 import { alt, useDaten, useVerzoegert } from "../../bruecke.jsx";
 import { einrichtblattAppOeffnen } from "../../einrichtblatt/Blatt.jsx";
 
-const gemerkt = { suche: "" };
+const gemerkt = { suche: "", typ: null };
 
 // Was an der Maschine dran ist
 function auftragDran(m) {
@@ -118,9 +118,11 @@ function parkTypen(parks, maschinen) {
 export default function Richten() {
   const prod = alt.prod;
   const [suche, setSuche] = useState(gemerkt.suche);
+  // Filter nach Typ (seit 1.183.0, Wunsch Patrick 25. Oktober 2026)
+  const [typWahl, setTypWahl] = useState(gemerkt.typ);
   const frage = useVerzoegert(suche, 250);
   const feld = useRef(null);
-  useEffect(() => { gemerkt.suche = suche; }, [suche]);
+  useEffect(() => { Object.assign(gemerkt, { suche, typ: typWahl }); }, [suche, typWahl]);
   // Am Computer gleich ins Suchfeld tippen; am Tablet nicht, sonst
   // springt die Tastatur auf
   useEffect(() => { if (feld.current && matchMedia("(pointer: fine)").matches) feld.current.focus(); }, []);
@@ -131,6 +133,8 @@ export default function Richten() {
   const maschinen = prod.maschinen || [];
   const gruppen = parkTypen(prod.parks || [], maschinen);
   const typIds = [...new Set(gruppen.flatMap((p) => p.typen))];
+  const filter = typIds.includes(typWahl) ? typWahl : null;
+  const passt = (t) => !filter || t === filter;
   const { daten: letzte, neu } = useDaten(() => letzteLaden(typIds), [typIds.join(",")]);
   const q = roh(frage);
   const { daten: treffer, neu: sucheNeu, laedt: sucheLaedt } = useDaten(() => sucheLaden(frage), [frage]);
@@ -155,12 +159,19 @@ export default function Richten() {
           onKeyDown={(e) => { if (e.key === "Escape" && suche) { e.preventDefault(); setSuche(""); } }} />
         {suche && <button className="ri-leeren" aria-label="Suche leeren" onClick={() => { setSuche(""); feld.current && feld.current.focus(); }}>✕</button>}
       </div>
+      {typIds.length >= 2 && <div className="typwahl ri-typwahl" role="group" aria-label="Nach Maschinentyp filtern">
+        <button className={"typwahl__knopf" + (!filter ? " aktiv" : "")} data-richten-typfilter=""
+          aria-pressed={!filter} onClick={() => setTypWahl(null)}>Alle</button>
+        {[...typIds].sort((a, b) => typName(a).localeCompare(typName(b), "de", { numeric: true })).map((t) => (
+          <button key={t} className={"typwahl__knopf" + (filter === t ? " aktiv" : "")} data-richten-typfilter={t}
+            aria-pressed={filter === t} onClick={() => setTypWahl(filter === t ? null : t)}>{typName(t)}</button>))}
+      </div>}
 
       {q.length >= 2 ? (
         <div className="karte ri-karte" data-richten-treffer="">
           <h2>HOCO Nr.</h2>
           <div className="ri-liste">
-            {(treffer || []).map((t) => <Treffer key={t.hoco} t={t} typen={typen} typName={typName} darf={darf}
+            {(treffer || []).map((t) => <Treffer key={t.hoco} t={t} typen={typen} typName={typName} darf={darf} passt={passt}
               anMaschine={anMaschine} bearbeiten={bearbeiten} />)}
             {treffer && !treffer.length && !sucheLaedt && <p className="ri-leer">Keine HOCO Nr. gefunden.
               {darf && /^\d{5}-?\d{4}$/.test(frage.trim()) && <> Neu anlegen: <NeuFuerTyp hoco={frage.trim().replace(/^(\d{5})-?/, "$1-")}
@@ -173,7 +184,7 @@ export default function Richten() {
           <h2>Zuletzt bearbeitet</h2>
           {!letzte && <p className="ri-leer">Wird geladen …</p>}
           {letzte && gruppen.map((p) => {
-            const typenMit = p.typen.map((t) => ({ t, liste: letzte.filter((b) => b.type_id === t).slice(0, JE_TYP) }))
+            const typenMit = p.typen.filter(passt).map((t) => ({ t, liste: letzte.filter((b) => b.type_id === t).slice(0, filter ? 30 : JE_TYP) }))
               .filter((x) => x.liste.length);
             if (!typenMit.length) return null;
             return (
@@ -199,7 +210,7 @@ export default function Richten() {
               </div>
             );
           })}
-          {letzte && !letzte.some((b) => typIds.includes(b.type_id)) &&
+          {letzte && !letzte.some((b) => typIds.includes(b.type_id) && passt(b.type_id)) &&
             <p className="ri-leer">Noch kein Blatt bearbeitet. Such oben nach der HOCO Nr.</p>}
         </div>
       )}
@@ -211,8 +222,8 @@ export default function Richten() {
 }
 
 // Eine HOCO Nr. mit allen ihren Blättern
-function Treffer({ t, typen, typName, darf, anMaschine, bearbeiten }) {
-  const liste = [...t.typen.entries()].sort((a, b) => typName(a[0]).localeCompare(typName(b[0]), "de"));
+function Treffer({ t, typen, typName, darf, passt, anMaschine, bearbeiten }) {
+  const liste = [...t.typen.entries()].filter(([typId]) => passt(typId)).sort((a, b) => typName(a[0]).localeCompare(typName(b[0]), "de"));
   return (
     <div className="ri-treffer" data-richten-hoco-treffer={t.hoco}>
       <div className="ri-treffer__kopf"><b>{t.hoco}</b>{t.bez && <small>{t.bez}</small>}</div>
