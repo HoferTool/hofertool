@@ -140,7 +140,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.183.0";
+const APP_VERSION = "1.183.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7738,8 +7738,7 @@ async function ladeHocoFrisch(suche) {
   let abfrage = db.from("hoco_parts").select("*");
   const t = (suche || "").trim();
   if (t) {
-    abfrage = abfrage.or("hoco_nr.ilike.%" + t + "%,bezeichnung.ilike.%" + t
-      + "%,material.ilike.%" + t + "%");
+    abfrage = orSuche(abfrage, ["hoco_nr", "bezeichnung", "material"], t);
   }
   // Seitenweise alles holen. Eine feste Grenze von 200 hat bei
   // vielen Nummern einfach den Rest weggelassen.
@@ -8748,6 +8747,19 @@ async function ladeLieferanten() {
   return (data || []).filter((l) => l.is_active !== false);
 }
 
+// Suchtext für or(): Komma, Klammern und Anführungszeichen trennen dort die
+// Bedingungen, darum steht jedes Wort in Anführungszeichen. Komma und
+// Leerzeichen trennen Wörter; jedes Wort muss in einer der Spalten stehen
+// („DCMT11304-F1 ,TP2501“ brach vorher mit „failed to parse logic tree“ ab).
+function orSuche(abfrage, spalten, text) {
+  const woerter = String(text || "").split(/[\s,]+/).filter(Boolean);
+  for (const w of woerter) {
+    const wert = '"%' + w.replace(/[\\"]/g, (z) => "\\" + z) + '%"';
+    abfrage = abfrage.or(spalten.map((s) => s + ".ilike." + wert).join(","));
+  }
+  return abfrage;
+}
+
 // filter: { bez, lief, spezial } — Bezeichnung und Lieferant fragt schon die
 // Datenbank ab, sonst fehlen Treffer jenseits der ersten 50.
 // spezial true: nur Spezialwerkzeuge, false: nur normale Artikel,
@@ -8761,8 +8773,7 @@ async function sucheArtikel(text, filter) {
     if (filter && filter.lief) abfrage = abfrage.eq("supplier_name", filter.lief);
     if (mitSpezial && filter && typeof filter.spezial === "boolean") abfrage = abfrage.eq("spezial", filter.spezial);
     if (t) {
-      abfrage = abfrage.or("article_number.ilike.%" + t + "%,name.ilike.%" + t
-        + "%,supplier_name.ilike.%" + t + "%");
+      abfrage = orSuche(abfrage, ["article_number", "name", "supplier_name"], t);
     }
     return zeitlimit(abfrage.order("article_number").limit(50), 12000, "Artikelsuche");
   };
