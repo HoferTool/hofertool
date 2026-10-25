@@ -9548,3 +9548,51 @@ body.dunkel .eba-reiter__r--an, body.dunkel .eba-reiter__r--an * { color: #000 !
 .eba-tk, .eba-legende span { color: var(--eba-schrift, #000); }
 /* Das Blatt füllt den Platz (zoom aus BlattFenster), mittig */
 .eba-zoom { width: max-content; margin: 0 auto; }
+
+/* ---------- Seite Maschinen: Parkkarten (seit 1.182.0) ----------
+   Grosse Karten mit Symbol, Anzahl und Typen; Akzent in der Themenfarbe.
+   Farben der Schrift im dunklen Modus erzwingt body.dunkel weiss, darum
+   färben Symbol und Linien über stroke und Flächen, nicht über color. */
+.mseite-parks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; max-width: 1200px; }
+.mseite-park { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 12px;
+  min-height: 170px; padding: 20px 22px 18px; text-align: left; font: inherit; color: var(--tinte); cursor: pointer;
+  border: 1px solid var(--linie-stark); border-radius: 14px; overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--marke) 9%, var(--flaeche)) 0%, var(--flaeche) 60%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.mseite-park::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--marke); opacity: .85; }
+.mseite-park:hover { transform: translateY(-3px); border-color: var(--marke);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--marke) 22%, transparent); }
+.mseite-park:active { transform: translateY(-1px) scale(.995); }
+.mseite-park:focus-visible { outline: 3px solid color-mix(in srgb, var(--marke) 55%, transparent); outline-offset: 2px; }
+.mseite-park__kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mseite-park__symbol { display: grid; place-items: center; width: 54px; height: 54px; flex: none; border-radius: 12px;
+  background: color-mix(in srgb, var(--marke) 15%, transparent); }
+.mseite-park__symbol svg { width: 36px; height: 36px; stroke: var(--marke); }
+.mseite-park__zahl { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05;
+  font-size: .8rem; color: var(--gedaempft); }
+.mseite-park__zahl b { font-size: 2.1rem; font-weight: 800; color: var(--tinte); font-variant-numeric: tabular-nums; }
+.mseite-park__name { font-size: 1.25rem; font-weight: 700; overflow-wrap: anywhere; }
+.mseite-park__typen { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-right: 26px; }
+.mseite-park__typ { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; font-size: .78rem;
+  border-radius: 999px; border: 1px solid var(--linie-stark); background: var(--flaeche); white-space: nowrap; }
+.mseite-park__typ i { font-style: normal; font-weight: 700; min-width: 20px; padding: 0 6px; text-align: center;
+  border-radius: 999px; background: color-mix(in srgb, var(--marke) 16%, transparent); }
+.mseite-park__leer { font-size: .82rem; color: var(--gedaempft); opacity: .8; }
+.mseite-park__pfeil { position: absolute; right: 18px; bottom: 14px; font-size: 1.3rem; font-weight: 700;
+  opacity: .35; transition: transform .18s ease, opacity .18s ease; }
+.mseite-park:hover .mseite-park__pfeil { opacity: 1; transform: translateX(4px); }
+.mseite-park--aus { opacity: .6; }
+.mseite-park--aus::before { background: var(--linie-stark); }
+.mseite-park--neu { align-items: center; justify-content: center; gap: 8px; border: 2px dashed var(--linie-stark);
+  background: transparent; box-shadow: none; font-weight: 600; color: var(--gedaempft); }
+.mseite-park--neu::before { display: none; }
+.mseite-park--neu:hover { border-style: solid; background: color-mix(in srgb, var(--marke) 7%, transparent); }
+.mseite-park__plus { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%;
+  font-size: 1.8rem; font-weight: 400; line-height: 1; background: color-mix(in srgb, var(--marke) 15%, transparent); }
+body.dunkel .mseite-park { box-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
+body.dunkel .mseite-park__zahl, body.dunkel .mseite-park__leer, body.dunkel .mseite-park--neu { opacity: .9; }
+@media (max-width: 640px) {
+  .mseite-parks { grid-template-columns: 1fr; gap: 12px; }
+  .mseite-park { min-height: 0; padding: 16px 18px 14px; }
+}
