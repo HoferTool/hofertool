@@ -18,11 +18,11 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html#planwand", wait_until="domcontentloaded")
     pg.wait_for_selector(".pw-tafel"); pg.wait_for_timeout(1500)
     # Escape im Suchfenster schliesst nur das Fenster
-    pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(400)
+    pg.locator("#kopf-suche").click(); pg.wait_for_timeout(400)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pruef(not pg.query_selector(".dialog-huelle") and not pg.query_selector(".su-leiste"), "Escape schliesst das Suchfenster")
     # Suche starten, dann Escape
-    pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(400)
+    pg.locator("#kopf-suche").click(); pg.wait_for_timeout(400)
     pg.fill("#su-text", "Star SR3"); pg.locator("#su-ja").click(); pg.wait_for_timeout(1500)
     pruef(bool(pg.query_selector(".su-leiste")) and bool(pg.query_selector(".pw-balken--treffer")), "Suche läuft mit Leiste")
     pg.locator("#su-weiter").click(); pg.wait_for_timeout(800)   # Fokus liegt danach auf einem Knopf

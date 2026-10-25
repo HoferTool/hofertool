@@ -27,7 +27,7 @@ with sync_playwright() as p:
     # Produktion: auf den Unterreiter Fortschritt, dann Fenster auf und Esc
     pg.get_by_text("Fortschritt", exact=True).first.click(); pg.wait_for_timeout(800)
     vorher = reiter_text()
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(700)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(700)
     pruefe("Suche über alles ist offen", fenster() >= 1)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
     pruefe("Fenster zu", fenster() == 0)

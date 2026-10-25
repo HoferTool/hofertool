@@ -48,7 +48,7 @@ const zahl = (n) => Math.round(n).toLocaleString("de-CH");
 export default function Rechner() {
   const [ansicht, setAnsicht] = useState(gemerkt.ansicht);
   useGemerkt(gemerkt, { ansicht });
-  // Strg + K findet die Rechner (seit 1.169.0)
+  // Strg + F findet die Rechner (seit 1.169.0)
   useSeitenSuche({
     name: "Rechner", platzhalter: "Drehzahl, Winkel, G-Code, Gravur …",
     eintraege: REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: w })),

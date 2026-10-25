@@ -25,7 +25,7 @@ with sync_playwright() as p:
     leer = lambda: pg.locator("body").click(position={"x": 700, "y": 5})
 
     # Fenster offen: Escape schliesst nur, fragt nicht
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(700)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(700)
     pruefe("Suche über alles offen", fenster() >= 1)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(700)
     pruefe("Fenster zu, keine Abmelde-Frage", fenster() == 0)
@@ -38,7 +38,7 @@ with sync_playwright() as p:
 
     # Planwand mit laufender Suche: Escape beendet nur die Suche
     pg.evaluate("location.hash='#planwand'"); pg.wait_for_selector(".pw-tafel"); pg.wait_for_timeout(1500)
-    pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(400)
+    pg.locator("#kopf-suche").click(); pg.wait_for_timeout(400)
     pg.fill("#su-text", "Star SR3"); pg.locator("#su-ja").click(); pg.wait_for_timeout(1500)
     pruefe("Suche läuft mit Leiste", pg.locator(".su-leiste").count() == 1)
     pg.locator("#su-weiter").click(); pg.wait_for_timeout(800)

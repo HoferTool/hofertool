@@ -71,7 +71,7 @@ export function QsFortschritt({ j }) {
 export default function Qs({ auffrischen }) {
   const { daten, fehler, neu } = useDaten(laden, [auffrischen]);
 
-  // Strg + K sucht die laufenden Aufträge; ein Treffer öffnet das
+  // Strg + F sucht die laufenden Aufträge; ein Treffer öffnet das
   // Fenster zum Ausschuss melden (seit 1.169.0)
   useSeitenSuche({
     name: "Qualitätssicherung", platzhalter: "Maschine, HOCO Nr. oder FA Nr. …",

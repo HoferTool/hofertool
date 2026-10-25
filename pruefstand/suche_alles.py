@@ -18,8 +18,8 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html#dashboard", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
 
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(500)
-    pruefe("Strg + K öffnet die Suche", pg.locator(".suche-alles").count() == 1)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(500)
+    pruefe("Strg + F öffnet die Suche", pg.locator(".suche-alles").count() == 1)
     pruefe("Feld hat den Fokus", pg.evaluate("document.activeElement && document.activeElement.id") == "suche-alles-feld")
     pg.keyboard.type("1"); pg.wait_for_timeout(300)
     pruefe("ein Zeichen: Hinweis", "zwei Zeichen" in pg.inner_text("#suche-alles-liste"))
@@ -30,7 +30,7 @@ with sync_playwright() as p:
     # Seit 1.59.0 nur HOCO Nummern (Wunsch Patrick 15. Oktober 2026)
     pruefe("nur Gruppe HOCO Nr.", "hoco nr." in liste and "aufträge" not in liste and "maschinen" not in liste)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(400)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(400)
     auftrag = pg.evaluate("TEST.daten.planwand.find(j => j.fa_nr) ? TEST.daten.planwand.find(j => j.fa_nr).fa_nr : ''")
     pg.keyboard.type("Tornos"); pg.wait_for_timeout(300)
     pruefe("Maschine Tornos nicht mehr gefunden", "Nichts gefunden" in pg.inner_text("#suche-alles-liste"))
@@ -45,14 +45,21 @@ with sync_playwright() as p:
     while pg.locator(".dialog-huelle").count():
         pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
 
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(400)
+    # Auf der Planwand öffnet Strg + F das Suchfenster der Planwand (seit 1.176.0)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(400)
+    pruefe("Planwand: Strg + F öffnet die Planwand-Suche", pg.locator("#su-text").count() == 1)
+    pruefe("Knopf Suchen auf der Planwand weg", pg.locator("#pw-suche-los").count() == 0)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pg.evaluate("location.hash = '#dashboard'"); pg.wait_for_timeout(1200)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(400)
     pg.keyboard.type("xyzxyz"); pg.wait_for_timeout(300)
     pruefe("nichts gefunden", "Nichts gefunden" in pg.inner_text("#suche-alles-liste"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pruefe("Escape schliesst", pg.locator(".suche-alles").count() == 0)
 
     # Suche auf der Planwand mit Zeitraum „Ab Datum“
-    pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(400)
+    pg.evaluate("location.hash = '#planwand'"); pg.wait_for_selector("#pw-inhalt"); pg.wait_for_timeout(1200)
+    pg.locator("#kopf-suche").click(); pg.wait_for_timeout(400)
     pruefe("Planwand-Suche offen, Fokus im Feld", pg.evaluate("document.activeElement && document.activeElement.id") == "su-text")
     pg.locator("[data-suzeit='datum']").click(); pg.wait_for_timeout(150)
     pruefe("Datum erscheint mit heute", pg.is_visible("#su-datum") and pg.input_value("#su-datum") != "")

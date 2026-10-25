@@ -202,11 +202,11 @@ function Geruest() {
         <span className="kopf__luecke" />
         {/* Konto Pad Mode: welche Maschine dieses iPad ist */}
         <GeraetMarke />
-        <button className="kopf__suche" id="kopf-suche" title="Suchen (Strg + K)"
+        <button className="kopf__suche" id="kopf-suche" title="Suchen (Strg + F)"
           onClick={() => alt.sucheOeffnen()} onMouseEnter={vorladen} onFocus={vorladen}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-          <span>Suchen</span><kbd>Strg K</kbd>
+          <span>Suchen</span><kbd>Strg F</kbd>
         </button>
         {/* Das Bild ganz rechts führt in die Einstellungen */}
         <span className="kopf__benutzer" data-benutzername="">{anzeige}</span>

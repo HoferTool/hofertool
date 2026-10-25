@@ -12,7 +12,7 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html#planwand", wait_until="domcontentloaded"); pg.wait_for_selector(".pw-tafel"); pg.wait_for_timeout(1500)
     folgen = {}
     for reihe in ("neu", "alt"):
-        pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(500)
+        pg.locator("#kopf-suche").click(); pg.wait_for_timeout(500)
         pg.locator(f"[data-sureihe='{reihe}']").click()
         pg.fill("#su-text", "Star SR3"); pg.locator("#su-ja").click(); pg.wait_for_timeout(1200)
         anzahl = int(pg.evaluate("document.querySelector('.su-leiste__text').textContent").split(" von ")[1].split(" ")[0])

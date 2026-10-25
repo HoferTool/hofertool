@@ -18,21 +18,6 @@ import { symboleFensterOeffnen } from "../einstellungen/Symbole.jsx";
 import { materialRechnerOeffnen } from "../planwand/MaterialRechner.jsx";
 import { standLesen, standMerken } from "../daten/planwandStand.js";
 
-// Strg + F öffnet die Suche, solange die Planwand offen ist. Einmal
-// angemeldet für die ganze Sitzung, der Behälter kommt aus plan.
-let suchTasteDa = false;
-function suchTasteAnmelden() {
-  if (suchTasteDa) return;
-  suchTasteDa = true;
-  document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f"
-        && document.getElementById("pw-inhalt")) {
-      e.preventDefault();
-      alt.sucheDialog(alt.plan.behaelter);
-    }
-  });
-}
-
 // Was auf der Tafel steht, für das nächste Öffnen merken
 function standAblegen() {
   const plan = alt.plan;
@@ -316,13 +301,6 @@ function Kopfleiste({ b, mobil }) {
             <circle cx="12" cy="14.5" r="1.8" fill="currentColor" /></svg>
           <span>Heute</span><kbd className="pw-taste">H</kbd>
         </button>
-        <button className="knopf knopf--klein pw-eck" id="pw-suche-los" title="Suchen"
-          onClick={() => alt.sucheDialog(b)}>
-          <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" />
-            <path d="M16.5 16.5L21 21" /></svg>
-          <span>Suchen</span>
-        </button>
         {/* Die HOCO Nummern liegen gleich daneben — von der Planwand aus
             schaut man am häufigsten dort nach. */}
         <button className="knopf knopf--klein pw-eck" id="pw-hoco" title="HOCO Nr."
@@ -388,7 +366,6 @@ export default function Planwand({ auffrischen, behaelter: b }) {
     alt.masseBerechnen(b);
     if (!plan.start) plan.start = alt.naechsterArbeitstag(alt.wochenStart(alt.isoDatum(new Date())));
     plan.zeitreglerEl = null;
-    suchTasteAnmelden();
 
     let weg = false;
     // Parks und Maschinen gleich frisch holen; der gemerkte Stand

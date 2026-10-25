@@ -67,7 +67,10 @@ with sync_playwright() as p:
     pruefe("aus der Liste weg", pg.locator("[data-hoco-weg='10990-0001']").count() == 0)
     pg.locator(".dialog-huelle [data-zu]").first.click(); pg.wait_for_timeout(400)
 
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(400)
+    # Die HOCO-Suche gibt es auf der Startseite; auf der Planwand öffnet
+    # Strg + F seit 1.176.0 die Suche der Planwand
+    pg.evaluate("location.hash = '#dashboard'"); pg.wait_for_timeout(1200)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(400)
     pg.keyboard.type(erste); pg.wait_for_timeout(400)
     knopf = pg.locator(".suche-alles__treffer", has_text=erste).last
     pruefe("Treffer HOCO in der Suche", knopf.count() == 1)

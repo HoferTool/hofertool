@@ -30,7 +30,7 @@ with sync_playwright() as p:
 
     def oeffnen(seite):
         pg.evaluate("h => location.hash = h", "#/" + seite); pg.wait_for_timeout(1500)
-        pg.keyboard.press("Control+k"); pg.wait_for_timeout(700)
+        pg.keyboard.press("Control+f"); pg.wait_for_timeout(700)
 
     def wo():
         return pg.evaluate("(document.querySelector('#suche-alles-wo')||{}).innerText || ''")
@@ -43,7 +43,9 @@ with sync_playwright() as p:
 
     # Planwand: wie bisher
     oeffnen("planwand")
-    pruefe("Planwand: HOCO wie bisher", wo() == "" and "HOCO" in pg.get_attribute("#suche-alles-feld", "placeholder"))
+    # Seit 1.176.0 öffnet Strg + F dort das Suchfenster der Planwand
+    pruefe("Planwand: Suchfenster der Planwand", pg.locator("#su-text").count() == 1
+           and pg.locator(".suche-alles").count() == 0)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
 
     # Material
@@ -55,7 +57,7 @@ with sync_playwright() as p:
     pruefe("Werkstoffnummer findet X8CrNiS18-9", "X8CrNiS18-9" in liste and "CuZn" not in liste)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pg.fill("#mat-filter", "CuZn"); pg.wait_for_timeout(300)
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(500)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(500)
     pg.keyboard.type("S235 rd 069"); pg.wait_for_timeout(300)
     pg.keyboard.press("Enter"); pg.wait_for_timeout(1500)
     pruefe("Material: Filter weg", pg.input_value("#mat-filter") == "")
@@ -63,7 +65,7 @@ with sync_playwright() as p:
     y = pg.evaluate("document.querySelector('[data-posten=\"px39\"]').getBoundingClientRect().top")
     pruefe("Material: Posten sichtbar (" + str(int(y)) + ")", 0 < y < 900)
     # Umschalten auf HOCO und zurück
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(500)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(500)
     pg.click("#suche-alles-umschalten"); pg.wait_for_timeout(500)
     pruefe("Umschalten: HOCO Nummern", "HOCO" in wo() and "HOCO" in pg.get_attribute("#suche-alles-feld", "placeholder"))
     pg.keyboard.type("10000-0301"); pg.wait_for_timeout(400)
@@ -80,7 +82,7 @@ with sync_playwright() as p:
     pruefe("Position und Artikel gefunden", "POSITIONEN" in liste.upper() and "ARTIKEL" in liste.upper())
     pg.locator("[data-treffer]").filter(has_text="Wendeplatte").last.click(); pg.wait_for_timeout(1500)
     pruefe("Reiter Artikel, gefiltert", pg.evaluate("alt => 1", None) == 1 and pg.input_value("#ar-suche") == "MTEC-452410")
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(700)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(700)
     pg.keyboard.type("Vischer"); pg.wait_for_timeout(1000)
     pg.locator("[data-treffer]").filter(has_text="Vischer").last.click(); pg.wait_for_timeout(1500)
     pruefe("Lieferanten gefiltert", pg.locator("#lf-suche").count() == 1 and "Vischer" in pg.input_value("#lf-suche"))
@@ -91,7 +93,7 @@ with sync_playwright() as p:
     pg.keyboard.type("K-2003"); pg.wait_for_timeout(400)
     pg.keyboard.press("Enter"); pg.wait_for_timeout(1500)
     pruefe("Seite der Maschine offen", "K-2003" in pg.inner_text(".mseite-pfad"))
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(500)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(500)
     pg.keyboard.type("Swiss GT"); pg.wait_for_timeout(400)
     import re
     pg.locator("[data-treffer]").filter(has_text=re.compile(r"\d+ Maschinen")).first.click(); pg.wait_for_timeout(1500)

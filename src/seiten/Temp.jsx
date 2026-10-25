@@ -107,7 +107,7 @@ export default function Temp({ auffrischen }) {
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
 
-  // Strg + K sucht die eigenen Dateien und öffnet sie (seit 1.169.0)
+  // Strg + F sucht die eigenen Dateien und öffnet sie (seit 1.169.0)
   useSeitenSuche({
     name: "Temp", platzhalter: "Dateiname …",
     eintraege: () => (liste || []).map((d) => ({ gruppe: "Dateien", zeichen: "▤", titel: d.name,

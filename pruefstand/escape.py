@@ -27,7 +27,7 @@ with sync_playwright() as p:
     probe("Auftrag", lambda: pg.locator(".pw-balken").first.dblclick())
     probe("HOCO Nr.", lambda: pg.locator("#pw-hoco").click())
     probe("Suchen (Planwand)", lambda: pg.locator("#pw-suchen, [id*=suche]").first.click() if pg.locator("#pw-suchen").count() else None)
-    probe("Suche über alles", lambda: pg.keyboard.press("Control+k"))
+    probe("Suche über alles", lambda: pg.keyboard.press("Control+f"))
     probe("Ferien eintragen", lambda: pg.locator("[data-fzelle]").nth(3).click())
     print("Fehler:", f[:3] if f else "keine")
     br.close()

@@ -4,7 +4,7 @@
 //  bisher, bei Material kann nach Material gesucht werden und so weiter“)
 //
 //  Eine Seite meldet mit useSeitenSuche an, was man auf ihr suchen
-//  kann. Strg + K und die Lupe oben öffnen dann dieses Suchfenster
+//  kann. Strg + F und die Lupe oben öffnen dann dieses Suchfenster
 //  (src/huelle/SucheAlles.jsx) statt der HOCO Nummern. Seiten ohne
 //  Anmeldung (Start, Planwand, Infoboard) suchen wie bisher HOCO Nummern.
 //

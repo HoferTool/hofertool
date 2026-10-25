@@ -37,7 +37,7 @@ with sync_playwright() as p:
             pg.close(); continue
 
         # Suche über alles: ganze HOCO Nr. + Enter öffnet das Teil
-        pg.keyboard.press("Control+k"); pg.wait_for_timeout(400)
+        pg.keyboard.press("Control+f"); pg.wait_for_timeout(400)
         pg.keyboard.type("10000-0301"); pg.wait_for_timeout(400)
         pruefe("HOCO-Treffer ist markiert", "▣" in pg.inner_text(".suche-alles__treffer.aktiv"))
         pg.keyboard.press("Enter"); pg.wait_for_timeout(2500)
@@ -52,7 +52,7 @@ with sync_playwright() as p:
 
         # HOCO Nummern: zurück zur Übersicht, Nummer eintippen, Enter
         if pg.locator("#hoco-zurueck").count() == 0:
-            pg.keyboard.press("Control+k"); pg.wait_for_timeout(400)
+            pg.keyboard.press("Control+f"); pg.wait_for_timeout(400)
             pg.keyboard.type("10000-0301"); pg.wait_for_timeout(300)
             pg.keyboard.press("Enter"); pg.wait_for_timeout(2000)
         pg.click("#hoco-zurueck"); pg.wait_for_timeout(500)
@@ -66,11 +66,11 @@ with sync_playwright() as p:
         # Planwand-Suche: ein einziger Treffer öffnet das Auftragsfenster
         jid = pg.evaluate("""() => { const j = TEST.daten.planwand.find(j => j.planned_from);
           j.plan_note = 'Einzigartig4711'; return j.id; }""")
-        pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(400)
+        pg.locator("#kopf-suche").click(); pg.wait_for_timeout(400)
         pg.fill("#su-text", "Einzigartig4711"); pg.press("#su-text", "Enter"); pg.wait_for_timeout(1500)
         pruefe("ein Treffer: Auftragsfenster offen", pg.locator(".dialog--auftrag").count() == 1)
         pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
-        pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(400)
+        pg.locator("#kopf-suche").click(); pg.wait_for_timeout(400)
         pg.fill("#su-text", "Tornos"); pg.press("#su-text", "Enter"); pg.wait_for_timeout(1500)
         pruefe("mehrere Treffer: kein Fenster, Leiste", pg.locator(".dialog--auftrag").count() == 0
                and "Treffer 1 von" in pg.inner_text(".su-leiste__text"))

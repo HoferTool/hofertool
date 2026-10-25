@@ -22,6 +22,12 @@ const ARTEN = {
 };
 
 export function sucheOeffnen() {
+  // Auf der Planwand genau das Suchfenster der Planwand, das in jedem
+  // Feld der Aufträge sucht (Wunsch Patrick 25. Oktober 2026)
+  if (document.getElementById("pw-inhalt")) {
+    if (!document.getElementById("su-text")) alt.sucheDialog(alt.plan.behaelter);
+    return;
+  }
   if (document.querySelector(".suche-alles")) return;
   fensterOeffnen((zu) => <SucheAlles zu={zu} />, null, "suche-huelle");
 }

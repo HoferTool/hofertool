@@ -46,7 +46,7 @@ export default function Material({ auffrischen }) {
 
   // Restmaterial gehört keinem Auftrag (seit 1.104.0); wo es passt,
   // zeigt das rote M beim Posten
-  // Strg + K sucht hier das Restmaterial (seit 1.169.0): ein Treffer
+  // Strg + F sucht hier das Restmaterial (seit 1.169.0): ein Treffer
   // nimmt den Filter weg und zeigt den Posten
   useSeitenSuche({
     name: "Material", platzhalter: "Material, Werkstoffnummer, Ort oder Notiz …",

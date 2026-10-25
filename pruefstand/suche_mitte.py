@@ -30,7 +30,7 @@ with sync_playwright() as p:
             gut = r["regler"] and r["unterTafel"] and r["unten"] is not None and r["unten"] < 30 and not r["imKopf"]
             print("ok " if gut else "FEHLT", name, "Zeitregler ganz unten", r)
             if not gut: f.append(name + ": Regler")
-        pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(500)
+        pg.locator("#kopf-suche").click(); pg.wait_for_timeout(500)
         pg.fill("#su-text", "Star SR3"); pg.locator("#su-ja").click(); pg.wait_for_timeout(1500)
         for schritt in range(3):
             m = pg.evaluate("""() => { const el = document.querySelector('.pw-balken--treffer');

@@ -26,7 +26,7 @@ with sync_playwright() as p:
         ended_at: d + 'T16:00:00Z', fa_nr: null, problem: null }))); }""")
     pruefe("vorher nicht geladen", pg.evaluate("!alt_geladen()") if False else
            pg.locator(".pw-balken[data-auftrag='alt0']").count() == 0)
-    pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(500)
+    pg.locator("#kopf-suche").click(); pg.wait_for_timeout(500)
     pg.locator("[data-sureihe='neu']").click()
     pg.fill("#su-text", "99999-0001"); pg.locator("#su-ja").click(); pg.wait_for_timeout(2500)
     leiste = pg.evaluate("(document.querySelector('.su-leiste__text') || {}).textContent || ''")
@@ -39,13 +39,13 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/suche_alt.png")
     # Normale Suche geht weiter
     pg.locator("#su-ende").click(); pg.wait_for_timeout(300)
-    pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(500)
+    pg.locator("#kopf-suche").click(); pg.wait_for_timeout(500)
     pg.fill("#su-text", "Star SR3"); pg.locator("#su-ja").click(); pg.wait_for_timeout(1500)
     pruefe("normale Suche findet weiter", "Treffer 1 von" in pg.evaluate("(document.querySelector('.su-leiste__text') || {}).textContent || ''"))
     # Ein einziger Treffer: nur hinführen, kein Auftragsfenster (seit 1.24.2)
     pg.evaluate("() => { const j = TEST.daten.planwand.find(x => x.id === 'alt0'); j.job_number = '88888-0001'; }")
     pg.locator("#su-ende").click(); pg.wait_for_timeout(300)
-    pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(500)
+    pg.locator("#kopf-suche").click(); pg.wait_for_timeout(500)
     pg.fill("#su-text", "88888-0001"); pg.locator("#su-ja").click(); pg.wait_for_timeout(2500)
     pruefe("ein Treffer gefunden", "von 1" in pg.evaluate("(document.querySelector('.su-leiste__text') || {}).textContent || ''"))
     pruefe("kein Auftragsfenster", pg.locator(".dialog--auftrag").count() == 0)
@@ -53,7 +53,7 @@ with sync_playwright() as p:
     pg.evaluate("() => { TEST.daten.planwand.forEach(x => { if (/1\\.4104|x14crmos17/i.test(x.material_bez || '')) x.material_bez = 'Messing'; });"
                 " TEST.daten.planwand.find(x => x.id === 'alt0').material_bez = 'X14CrMoS17 rd 012 mm h9'; }")
     pg.locator("#su-ende").click(); pg.wait_for_timeout(300)
-    pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(500)
+    pg.locator("#kopf-suche").click(); pg.wait_for_timeout(500)
     pg.fill("#su-text", "1.4104"); pg.locator("#su-ja").click(); pg.wait_for_timeout(2500)
     pruefe("1.4104 findet X14CrMoS17", "von 1" in pg.evaluate("(document.querySelector('.su-leiste__text') || {}).textContent || ''"))
     br.close()

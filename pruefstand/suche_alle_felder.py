@@ -14,7 +14,7 @@ with sync_playwright() as p:
     nr = pg.evaluate("""() => { const j = TEST.daten.jobs.find(x => x.planned_from && !x.ended_at);
       j.abruf_info = 'Abruf Zebrafisch 77'; j.material_platz = 'Regal Kolibri'; return j.job_number; }""")
     def suchen(wort):
-        pg.locator("#pw-suche-los").click(); pg.wait_for_timeout(500)
+        pg.locator("#kopf-suche").click(); pg.wait_for_timeout(500)
         pg.fill("#su-text", wort); pg.locator("#su-ja").click(); pg.wait_for_timeout(1200)
         t = pg.evaluate("(document.querySelector('.su-leiste__text')||{}).textContent || ''")
         if pg.locator("#su-ende").count(): pg.locator("#su-ende").click(); pg.wait_for_timeout(300)

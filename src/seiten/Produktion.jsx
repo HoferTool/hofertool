@@ -60,7 +60,7 @@ export default function Produktion({ auffrischen, behaelter }) {
   // Maschinen einrichten geht seit 1.134.0 auf der Seite Maschinen
   const zuMaschinen = () => { ms.ansicht = "uebersicht"; location.hash = "#/maschinen"; };
 
-  // Strg + K sucht Maschinen und was gerade auf ihnen läuft (seit 1.169.0);
+  // Strg + F sucht Maschinen und was gerade auf ihnen läuft (seit 1.169.0);
   // ein Treffer wählt Park und Erfassen und zeigt die Maschine
   useSeitenSuche({
     name: "Produktion", platzhalter: "Maschine, Nummer, HOCO Nr. oder FA Nr. …",

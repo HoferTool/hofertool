@@ -37,7 +37,7 @@ with sync_playwright() as p:
         pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
 
     pg.evaluate("location.hash = '#/material'"); pg.wait_for_timeout(1800)
-    pg.keyboard.press("Control+k"); pg.wait_for_timeout(600)
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(600)
     pg.keyboard.type("Sonderguss"); pg.wait_for_timeout(400)
     liste = pg.inner_text("#suche-alles-liste")
     pruefe("Treffer zeigt Nummer und Name", "1.4305 · X8CrNiS18-9" in liste)

@@ -35,7 +35,7 @@ export default function Bestellungen({ auffrischen, behaelter }) {
   // den gesetzten Suchtext übernimmt, auch wenn er schon offen war
   const [sprung, setSprung] = useState(0);
 
-  // Strg + K sucht Positionen, Artikel und Lieferanten (seit 1.169.0);
+  // Strg + F sucht Positionen, Artikel und Lieferanten (seit 1.169.0);
   // ein Treffer öffnet den passenden Reiter, gefiltert auf ihn
   useSeitenSuche({
     name: "Bestellungen", platzhalter: "Artikel, Nummer, Lieferant …",
@@ -80,7 +80,7 @@ function Inhalt({ ansicht, ...weiter }) {
   return <Offen bereich={ansicht === "bestellt" ? "bestellt" : "offen"} {...weiter} />;
 }
 
-// Alles, was Strg + K auf dieser Seite findet. Fehlt ein Teil, gehen die anderen.
+// Alles, was Strg + F auf dieser Seite findet. Fehlt ein Teil, gehen die anderen.
 async function bestellSuchListe() {
   const lieferant = (z) => ((z.articles && z.articles.suppliers) || z.suppliers || {}).name || "";
   const [positionen, artikel, lieferanten] = await Promise.all([

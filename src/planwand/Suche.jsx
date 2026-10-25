@@ -43,8 +43,9 @@ function SucheFenster({ b, zu }) {
   return (
     <div className="dialog">
       <h2>Auf der Planwand suchen</h2>
-      <p className="klein">Gesucht wird in allem: Nummer, Maschine, Notiz, Material,
-        Menge, Farbe, Zustand, Problem, FA und Material vorhanden.</p>
+      <p className="klein">Gesucht wird in jedem Feld der Aufträge: HOCO Nr., FA Nr.,
+        Maschine, Abrufinformation, Notiz, Material und Werkstoffnummer, Materialplatz,
+        Menge, Zustand, Problem, Siegel, Zeichnungsnummer, Waschprog-Nr. und mehr.</p>
       <label className="feld"><span>Suchbegriff</span>
         <input type="text" id="su-text" data-fokus="" value={text}
           onChange={(e) => setText(e.target.value)}

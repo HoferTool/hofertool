@@ -268,7 +268,7 @@ export default function Maschinen({ auffrischen, behaelter }) {
   // Ein offener Typ gehört zum Reiter Typen und schliesst beim Wechsel
   const waehlen = (w) => { ms.ansicht = w; alt.prod.typOffen = null; zeichnen(); };
 
-  // Strg + K sucht Maschinen, Typen und Parks (seit 1.169.0)
+  // Strg + F sucht Maschinen, Typen und Parks (seit 1.169.0)
   useSeitenSuche({
     name: "Maschinen", platzhalter: "Maschine, Nummer, Typ oder Park …",
     eintraege: () => {

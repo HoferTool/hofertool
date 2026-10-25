@@ -124,7 +124,7 @@ export default function Statistik({ auffrischen }) {
   const setze = (o) => { Object.assign(st, o); zeichnen(); };
   zeichnenAussen = zeichnen;
 
-  // Strg + K sucht Maschinen und Artikel und öffnet sie (seit 1.169.0)
+  // Strg + F sucht Maschinen und Artikel und öffnet sie (seit 1.169.0)
   useSeitenSuche({
     name: "Statistik", platzhalter: "Maschine oder HOCO Nr. …",
     eintraege: () => !r ? [] : [

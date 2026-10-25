@@ -27,7 +27,7 @@ export default function Einkauf({ auffrischen }) {
   const { daten: liste, fehler, neu } = useDaten(
     () => listeLaden(zeigeErledigte), [zeigeErledigte, auffrischen]);
 
-  // Strg + K sucht auf der Liste (seit 1.169.0); Erledigtes nur, wenn es gezeigt wird
+  // Strg + F sucht auf der Liste (seit 1.169.0); Erledigtes nur, wenn es gezeigt wird
   useSeitenSuche({
     name: "Einkaufsliste", platzhalter: "Was, Laden oder Person …",
     eintraege: () => (liste || []).map((z) => ({

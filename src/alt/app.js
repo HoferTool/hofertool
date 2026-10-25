@@ -139,7 +139,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.175.0";
+const APP_VERSION = "1.176.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5123,7 +5123,7 @@ function sucheImZeitraum(j) {
 //  SUCHE ÜBER ALLES
 //  Ein Feld für die HOCO Nummern (seit 1.59.0 nur noch diese; Aufträge
 //  sucht man auf der Planwand mit Strg + F). Öffnet sich
-//  über die Lupe in der Kopfzeile oder mit Strg + K. Die Daten werden
+//  über die Lupe in der Kopfzeile oder mit Strg + F. Die Daten werden
 //  beim ersten Öffnen geholt und gemerkt, das Tippen fragt nichts mehr
 //  beim Server nach.
 // =================================================================
@@ -5221,10 +5221,17 @@ function sucheSpringen(x) {
   }
 }
 
-// Strg + K öffnet die Suche überall; seit 1.169.0 sucht sie, was die
-// offene Seite anbietet (src/teile/seitenSuche.js), sonst HOCO Nummern
+// Strg + F öffnet die Suche überall (bis 1.174.0 Strg + K, Wunsch Patrick
+// 25. Oktober 2026); seit 1.169.0 sucht sie, was die offene Seite anbietet
+// (src/teile/seitenSuche.js), sonst HOCO Nummern. Auf der Planwand das
+// Suchfenster der Planwand, auch für Externe und im Archiv wie bisher.
 document.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "f") {
+    if (document.getElementById("pw-inhalt")) {
+      e.preventDefault();
+      sucheOeffnen();
+      return;
+    }
     if (typeof profil === "undefined" || !profil) return;
     if (istExtern()) return;
     e.preventDefault();

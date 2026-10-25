@@ -9469,3 +9469,9 @@ body.dunkel .ri .ri-eingabe { color-scheme: dark; }
 .kopf .geraet-marke { margin-right: 8px; }
 #pad .geraet-marke { color: var(--ptext, #fff); }
 @media (max-width: 700px) { #pad .pad__kopf--dash .geraet-marke { display: none; } }
+
+/* Seit 1.176.0 gibt es auf der Planwand keinen eigenen Knopf „Suchen“
+   mehr; die Lupe oben öffnet dort das Suchfenster der Planwand. Externe
+   und das Archiv brauchen sie darum auf der Planwand weiterhin. */
+body.rolle-extern:has(#pw-inhalt) #kopf-suche,
+body.archiv:has(#pw-inhalt) #kopf-suche { display: inline-flex; }
