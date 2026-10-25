@@ -20,21 +20,32 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#produktion'")
     pg.wait_for_selector("#raster .menge, #raster .kein-feld"); pg.wait_for_timeout(500)
-    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.click("[data-unter='maschinen/typen']"); pg.wait_for_selector("[data-typ-auf]")
-    pruefe("Liste mit beiden Typen", pg.locator("[data-typ-auf]").count() == 2 and "Star SR-32J" in pg.inner_text("#park-inhalt"))
+    # Seit 1.175.0 kein Reiter Typen mehr: alles im Fenster „⚙ Typ“
+    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700)
+    pruefe("kein Reiter Typen", pg.locator("[data-unter='maschinen/typen'], [data-mansicht]").count() == 0)
+    pg.wait_for_selector("[data-mpark]"); print("Parks:", pg.locator("[data-mpark]").evaluate_all("l => l.map(x => x.dataset.mpark)"))
+    pg.locator("[data-mpark='p-lang']").click()
+    pg.wait_for_selector("[data-mtyp-einst='t1']"); pg.wait_for_timeout(400)
 
-    # Neuer Typ, dann umbenennen
-    pg.click("#typ-neu"); pg.locator(".dialog-huelle input").first.fill("Citizen L20"); ja(pg); pg.wait_for_timeout(800)
+    # Neuer Typ geht gleich als Fenster auf, dann umbenennen und Längen
+    pg.click("#typ-neu"); pg.locator(".dialog-huelle input").first.fill("Citizen L20"); ja(pg); pg.wait_for_timeout(1000)
     neu = pg.evaluate("(TEST.daten.machine_types.find(t => t.name === 'Citizen L20') || {}).id")
-    pruefe("Typ angelegt und sichtbar", bool(neu) and "Citizen L20" in pg.inner_text("#park-inhalt"))
-    pg.locator(f"[data-typ-um='{neu}']").click(); pg.locator(".dialog-huelle input").first.fill("Citizen L20 VIII"); ja(pg); pg.wait_for_timeout(800)
-    pruefe("Typ umbenannt", "Citizen L20 VIII" in pg.inner_text("#park-inhalt"))
-    pruefe("Typen-Reiter bleibt aktiv", pg.locator("[data-mansicht='typen'].aktiv").count() == 1)
-    pg.locator(f"[data-typ-weg='{neu}']").click(); ja(pg); pg.wait_for_timeout(800)
-    pruefe("Typ gelöscht", pg.evaluate(f"!TEST.daten.machine_types.some(t => t.id === '{neu}')") and pg.locator(f"[data-typ-auf='{neu}']").count() == 0)
+    pruefe("Typ angelegt, Fenster offen", bool(neu) and pg.locator("#typ-fenster").count() == 1 and "Citizen L20" in pg.inner_text("#typ-fenster"))
+    pg.click("#typ-bearbeiten"); pg.wait_for_selector(".dialog-huelle [data-ja]")
+    pruefe("Bearbeiten fragt nach Längen", pg.locator(".dialog-huelle").last.inner_text().count("mm") >= 2 or not pg.evaluate("'stangen_mm' in TEST.daten.machine_types[0]"))
+    pg.locator(".dialog-huelle").last.locator("input").first.fill("Citizen L20 VIII")
+    if pg.evaluate("'stangen_mm' in TEST.daten.machine_types[0]"):
+        pg.locator(".dialog-huelle").last.locator("input").nth(2).fill("3200")
+    ja(pg); pg.wait_for_timeout(900)
+    pruefe("Typ umbenannt", "Citizen L20 VIII" in pg.inner_text("#typ-fenster"))
+    if pg.evaluate("'stangen_mm' in TEST.daten.machine_types[0]"):
+        pruefe("Stangenlänge gespeichert", pg.evaluate(f"TEST.daten.machine_types.find(t => t.id === '{neu}').stangen_mm") == 3200
+               and "3'200" in pg.inner_text("#typ-laengen"))
+    pg.click("#typ-loeschen"); ja(pg); pg.wait_for_timeout(900)
+    pruefe("Typ gelöscht, Fenster zu", pg.evaluate(f"!TEST.daten.machine_types.some(t => t.id === '{neu}')") and pg.locator("#typ-fenster").count() == 0)
 
     # Aufbau von Star SR-32J
-    pg.locator("[data-typ-auf='t1']").click(); pg.wait_for_selector("#typ-zurueck"); pg.wait_for_timeout(600)
+    pg.locator("[data-mtyp-einst='t1']").click(); pg.wait_for_selector("#typ-fenster #path-neu"); pg.wait_for_timeout(600)
     pruefe("Aufbau ohne Parkreiter", pg.locator("#park-reiter").count() == 0)
     pruefe("Beide Paths mit Plätzen", pg.locator("[data-path-um]").count() == 2 and pg.locator("[data-platz='sl1']").count() == 1)
     pruefe("Plätze zeigen Toolnummer", "T100" in pg.inner_text("[data-platz='sl1']"))
@@ -44,7 +55,7 @@ with sync_playwright() as p:
     pg.click("#path-neu"); pg.locator(".dialog-huelle input").first.fill("Path 9"); ja(pg); pg.wait_for_timeout(900)
     path = pg.evaluate("(TEST.daten.type_paths.find(p => p.name === 'Path 9') || {}).id")
     pruefe("Path angelegt und sichtbar", bool(path) and pg.locator(f"[data-platz-neu='{path}']").count() == 1)
-    pruefe("Typ bleibt offen", pg.locator("#typ-zurueck").count() == 1)
+    pruefe("Typ bleibt offen", pg.locator("#typ-fenster").count() == 1)
     # Platz anlegen
     pg.locator(f"[data-platz-neu='{path}']").click(); pg.locator(".dialog-huelle input").first.fill("T900"); ja(pg); pg.wait_for_timeout(900)
     platz = pg.evaluate(f"(TEST.daten.type_slots.find(s => s.path_id === '{path}' && s.tool_nr === 'T900') || {{}}).id")
@@ -67,14 +78,12 @@ with sync_playwright() as p:
     pg.locator(f"[data-path-weg='{path}']").click(); ja(pg); pg.wait_for_timeout(900)
     pruefe("Path gelöscht", pg.locator(f"[data-platz-neu='{path}']").count() == 0)
 
-    # Escape und Zurück
-    pg.locator("h1").first.click(); pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
-    pruefe("Escape geht zur Typenliste", pg.locator("[data-typ-auf]").count() == 2 and pg.locator("#typ-zurueck").count() == 0)
-    pg.locator("[data-typ-auf='t2']").click(); pg.wait_for_selector("#typ-zurueck"); pg.wait_for_timeout(500)
-    pruefe("Leerer Typ zeigt Hinweis", "Noch kein Path" in pg.inner_text("#mseite"))
-    pg.click("#typ-zurueck"); pg.wait_for_selector("[data-mansicht='typen'].aktiv", state="attached"); pg.wait_for_timeout(800)
-    print("Typen nach Zurück:", pg.locator("[data-typ-auf]").count())
-    pruefe("Zurück zur Liste", pg.locator("[data-typ-auf]").count() == 2)
+    # Escape schliesst nur das Fenster
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
+    pruefe("Escape schliesst das Fenster", pg.locator("#typ-fenster").count() == 0 and pg.locator("[data-mtyp='t1']").count() == 1)
+    pg.click("[data-pfad='0']"); pg.wait_for_timeout(400); pg.click("[data-mpark='p-kurz']")
+    pg.locator("[data-mtyp-einst='t2']").click(); pg.wait_for_selector("#typ-fenster"); pg.wait_for_timeout(500)
+    pruefe("Leerer Typ zeigt Hinweis", "Noch kein Path" in pg.inner_text("#typ-fenster"))
     fehler += f
     br.close()
 print("Fehler:", fehler[:3] if fehler else "keine")

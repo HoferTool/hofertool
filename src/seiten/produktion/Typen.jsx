@@ -96,28 +96,16 @@ const aufbauText = (k) => (k.pfade === 1 ? "1 Path" : k.pfade + " Paths") + " mi
 const einmalFragen = (titel, text) => alt.nachfragen(
   { titel, text, bestaetigen: "Löschen", gefahr: true });
 
-export default function Typen({ geladen, neuLaden: aussen }) {
-  const prod = alt.prod;
-  const darf = alt.darfSchreiben();
-  const neuLaden = () => { prod.typen = null; aussen(); };
-  const { daten: typen, fehler } = useDaten(() => alt.ladeTypen(), [geladen.nr]);
-
-  if (fehler && !typen) {
-    return (
-      <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p>
-        <p className="klein">Wurde das SQL für die Einrichtblätter schon ausgeführt?</p></div>
-    );
-  }
-  if (!typen) return <div className="laedt">Wird geladen …</div>;
-
-  if (prod.typOffen) {
-    const typ = typen.find((x) => x.id === prod.typOffen);
-    if (typ) return <Aufbau typ={typ} typen={typen} darf={darf} geladen={geladen} neuLaden={neuLaden} />;
-    prod.typOffen = null;
-  }
-
-  const oeffnen = (id) => { prod.typOffen = id; neuLaden(); };
-  const neu = async () => {
+// Anlegen, Bearbeiten und Löschen eines Typs. Seit 1.177.0 gibt es den
+// Reiter Typen nicht mehr (Wunsch Patrick 25. Oktober 2026: „bringt
+// nichts, dass man Maschinen und Typ splittet, fusioniere es“): Alles
+// steckt im Fenster „⚙ Typ“ beim Typ-Ordner auf der Seite Maschinen,
+// auch die Längen (Stange, Rest-Stumpen, Abstecher).
+// nachher(neuerTyp?) lädt die Seite neu.
+export const typAktion = {
+  async neu(nachher) {
+    let typen = [];
+    try { typen = await alt.ladeTypen(); } catch (f) { /* geht auch ohne */ }
     const w = await alt.dialogFelder({ titel: "Neuer Maschinentyp",
       felder: [
         { name: "name", label: "Name", pflicht: true, platzhalter: "z. B. Star SR-32J" },
@@ -126,9 +114,9 @@ export default function Typen({ geladen, neuLaden: aussen }) {
           auswahl: [["", "— leer anfangen —"]].concat(typen.map((t) => [t.id, t.name])),
           hinweis: "Paths und Werkzeugplätze werden kopiert, danach anpassen, was anders ist" }] : []),
       bestaetigen: "Anlegen" });
-    if (!w) return;
+    if (!w) return null;
     const r = await alt.db.from("machine_types").insert({ name: w.name, beschreibung: w.text || null }).select();
-    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
+    if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return null; }
     const angelegt = (r.data || [])[0];
     if (w.vorlage && angelegt) {
       try {
@@ -137,9 +125,12 @@ export default function Typen({ geladen, neuLaden: aussen }) {
       } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
     } else alt.meldung("Typ angelegt.");
     if (angelegt) alt.merkeSchritt("Neuer Typ " + w.name, alt.rueckWeg("machine_types", { id: angelegt.id }));
-    neuLaden();
-  };
-  const bearbeiten = async (t) => {
+    alt.prod.typen = null;
+    if (nachher) nachher(angelegt);
+    return angelegt || null;
+  },
+
+  async bearbeiten(t, nachher) {
     const w = await alt.dialogFelder({ titel: "Maschinentyp bearbeiten",
       felder: [
         { name: "name", label: "Name", wert: t.name, pflicht: true },
@@ -169,49 +160,26 @@ export default function Typen({ geladen, neuLaden: aussen }) {
       vorher.abstecher_mm = t.abstecher_mm;
     }
     senden(alt.db.from("machine_types").update(daten).eq("id", t.id),
-      "Gespeichert.", neuLaden, ["Ändern von " + t.name,
+      "Gespeichert.", nachher, ["Ändern von " + t.name,
         alt.rueckSetz("machine_types", vorher, { id: t.id })]);
-  };
-  const loeschen = async (t) => {
+  },
+
+  async loeschen(t, anzahl, nachher) {
     const ok = await einmalFragen("Typ löschen",
       'Soll der Typ "' + t.name + '" gelöscht werden? Paths, Plätze und Werkzeuge gehen mit. '
-      + "Maschinen mit diesem Typ bleiben erhalten, stehen danach aber ohne Typ da.");
-    if (!ok) return;
+      + (anzahl ? (anzahl === 1 ? "1 Maschine steht" : anzahl + " Maschinen stehen") + " danach ohne Typ da."
+        : "Keine Maschine hat diesen Typ."));
+    if (!ok) return false;
     const rueck = await typSichern(t);
-    senden(alt.db.from("machine_types").delete().eq("id", t.id), "Typ gelöscht.", neuLaden, rueck);
-  };
+    return senden(alt.db.from("machine_types").delete().eq("id", t.id), "Typ gelöscht.", nachher, rueck);
+  },
+};
 
-  return (
-    <section className="karte">
-      <div className="karte__kopf"><h2>Maschinentypen</h2></div>
-      {typen.length
-        ? <div className="tkarten">{typen.map((t) => {
-            const anzahl = (prod.maschinen || []).filter((m) => m.type_id === t.id).length;
-            return (
-              <article key={t.id} className="tkarte">
-                <div className="tkarte__kopf">
-                  <strong className="tkarte__name">{t.name}</strong>
-                  <span className="tkarte__zahl">{anzahl === 1 ? "1 Maschine" : anzahl + " Maschinen"}</span>
-                </div>
-                <p className="tkarte__text">{t.beschreibung || "\u00a0"}</p>
-                {"stangen_mm" in t && <p className="tkarte__text klein">Stange {alt.zahlText(t.stangen_mm)} mm, Rest {alt.zahlText(t.stumpen_mm)} mm
-                  {"abstecher_mm" in t && (t.abstecher_mm ? ", Abstecher " + String(t.abstecher_mm).replace(".", ",") + " mm" : ", Abstecher fehlt")}</p>}
-                <div className="tkarte__knoepfe">
-                  <button className="knopf knopf--klein knopf--haupt" data-typ-auf={t.id}
-                    onClick={() => oeffnen(t.id)}>Aufbau</button>
-                  {darf && <>
-                    <button className="knopf knopf--klein" data-typ-um={t.id} onClick={() => bearbeiten(t)}>Bearbeiten</button>
-                    <button className="knopf knopf--klein knopf--gefahr-leise" data-typ-weg={t.id} data-name={t.name}
-                      onClick={() => loeschen(t)}>Löschen</button>
-                  </>}
-                </div>
-              </article>
-            );
-          })}</div>
-        : <p className="hinweis">Noch kein Typ angelegt.</p>}
-      {darf && <button className="knopf knopf--klein" id="typ-neu" onClick={neu}>+ Maschinentyp</button>}
-    </section>
-  );
+// Kurz, was am Typ für die Materialmenge eingestellt ist
+function laengenText(t) {
+  if (!("stangen_mm" in t)) return "";
+  return "Stange " + alt.zahlText(t.stangen_mm) + " mm, Rest-Stumpen " + alt.zahlText(t.stumpen_mm) + " mm"
+    + ("abstecher_mm" in t ? (t.abstecher_mm ? ", Abstecher " + String(t.abstecher_mm).replace(".", ",") + " mm" : ", Abstecher fehlt") : "");
 }
 
 async function aufbauLaden(typ) {
@@ -232,6 +200,9 @@ function TypFenster({ typId, zu }) {
   const neuLaden = () => { alt.prod.typen = null; alt.stammVergessen(); neu(); };
   const { daten: typen, fehler } = useDaten(() => alt.ladeTypen(), [nr]);
   const typ = typen && typen.find((x) => x.id === typId);
+  const darf = alt.darfSchreiben();
+  const anzahl = (alt.prod.maschinen || []).filter((m) => m.type_id === typId).length;
+  const weg = async () => { if (await typAktion.loeschen(typ, anzahl, neuLaden)) zu(); };
   return (
     <div className="dialog dialog--breit dialog--typ" id="typ-fenster">
       <div className="dialog__kopfzeile">
@@ -242,7 +213,22 @@ function TypFenster({ typId, zu }) {
         {fehler && !typen ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>
           : !typen ? <div className="laedt">Wird geladen …</div>
             : !typ ? <p className="hinweis">Diesen Typ gibt es nicht mehr.</p>
-              : <Aufbau typ={typ} typen={typen} darf={alt.darfSchreiben()} geladen={{ nr }} neuLaden={neuLaden} imFenster />}
+              : <>
+                  {/* Name, Beschreibung und Längen gleich oben im Fenster */}
+                  <section className="karte typ-einst" id="typ-einst">
+                    <div className="karte__kopf"><h2>Einstellungen</h2>
+                      {darf && <div className="karte__aktionen">
+                        <button className="knopf knopf--klein" id="typ-bearbeiten" data-typ-um={typ.id}
+                          onClick={() => typAktion.bearbeiten(typ, neuLaden)}>Bearbeiten</button>
+                        <button className="knopf knopf--klein knopf--gefahr-leise" id="typ-loeschen" data-typ-weg={typ.id}
+                          onClick={weg}>Typ löschen</button></div>}
+                    </div>
+                    {typ.beschreibung && <p className="klein">{typ.beschreibung}</p>}
+                    {laengenText(typ) && <p className="klein" id="typ-laengen">{laengenText(typ)}</p>}
+                    <p className="klein">{anzahl === 1 ? "1 Maschine" : anzahl + " Maschinen"} mit diesem Typ</p>
+                  </section>
+                  <Aufbau typ={typ} typen={typen} darf={darf} geladen={{ nr }} neuLaden={neuLaden} imFenster />
+                </>}
       </div>
     </div>
   );
@@ -343,7 +329,7 @@ function Aufbau({ typ, darf, geladen, neuLaden, typen, imFenster }) {
               onClick={() => alleEinlesen(typ).catch((f) => alt.meldung(alt.fehlertext(f), "fehler"))}>Einrichtblätter einlesen</button>}
             <button className="knopf knopf--klein" id="path-neu" onClick={pathNeu}>+ Path</button></div>}
         </div>
-        {typ.beschreibung && <p className="klein">{typ.beschreibung}</p>}
+        {!imFenster && typ.beschreibung && <p className="klein">{typ.beschreibung}</p>}
         {!paths.length && <p className="hinweis">Noch kein Path angelegt. Die meisten Maschinen haben zwei oder drei.
           {darf && " Mit „Aufbau übernehmen“ kopierst du den Aufbau eines anderen Typs."}</p>}
       </section>

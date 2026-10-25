@@ -26,14 +26,16 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#produktion'")
     pg.wait_for_selector("#raster .menge, #raster .kein-feld"); pg.wait_for_timeout(500)
-    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700); pg.click("[data-unter='maschinen/typen']"); pg.wait_for_selector("[data-typ-auf]")
+    pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(700)
+    if pg.locator("[data-mpark]").count(): pg.locator("[data-mpark]").first.click()
+    pg.wait_for_selector("[data-mtyp-einst='t2']")
     vorlage = zahlen(pg, "t1")
     print("Vorlage t1:", vorlage)
     pruefe("Vorlage hat Paths und Plätze", vorlage[0] > 0 and vorlage[1] > 0)
 
     # In den leeren Typ t2 übernehmen
-    pg.locator("[data-typ-auf='t2']").click(); pg.wait_for_selector("#typ-uebernehmen"); pg.wait_for_timeout(400)
-    pruefe("Hinweis nennt Aufbau übernehmen", "Aufbau übernehmen" in pg.inner_text("#mseite"))
+    pg.locator("[data-mtyp-einst='t2']").click(); pg.wait_for_selector("#typ-uebernehmen"); pg.wait_for_timeout(400)
+    pruefe("Hinweis nennt Aufbau übernehmen", "Aufbau übernehmen" in pg.inner_text("#typ-fenster"))
     pg.click("#typ-uebernehmen"); wahl(pg, "t1"); pg.wait_for_timeout(900)
     pruefe("Kopie hat gleich viele Paths und Plätze", zahlen(pg, "t2") == vorlage)
     pruefe("Kopie sichtbar", pg.locator("[data-path-um]").count() == vorlage[0])
@@ -50,19 +52,22 @@ with sync_playwright() as p:
     pg.click("#typ-uebernehmen"); wahl(pg, "t1"); wahl(pg, "dazu"); pg.wait_for_timeout(900)
     pruefe("Dazunehmen verdoppelt", zahlen(pg, "t2") == [vorlage[0] * 2, vorlage[1] * 2])
     # Rückgängig nimmt die zweite Kopie wieder weg
-    pg.locator("h1").first.click(); pg.keyboard.press("Control+z"); pg.wait_for_timeout(1200)
+    pg.click("#typ-fenster-zu"); pg.wait_for_timeout(300); pg.locator("h1").first.click(); pg.keyboard.press("Control+z"); pg.wait_for_timeout(1200)
     pruefe("Rückgängig nach Dazunehmen", zahlen(pg, "t2") == vorlage)
+    pg.locator("[data-mtyp-einst='t2']").click(); pg.wait_for_selector("#typ-uebernehmen"); pg.wait_for_timeout(400)
     # Ersetzen: danach wieder genau die Vorlage, ohne T777
     pg.click("#typ-uebernehmen"); wahl(pg, "t1"); wahl(pg, "ersetzen"); pg.wait_for_timeout(900)
-    pruefe("Ersetzen gibt genau die Vorlage", zahlen(pg, "t2") == vorlage and "T777" not in pg.inner_text("#mseite"))
-    pg.locator("h1").first.click(); pg.keyboard.press("Control+z"); pg.wait_for_timeout(1500)
+    pruefe("Ersetzen gibt genau die Vorlage", zahlen(pg, "t2") == vorlage and "T777" not in pg.inner_text("#typ-fenster"))
+    pg.click("#typ-fenster-zu"); pg.wait_for_timeout(300); pg.locator("h1").first.click(); pg.keyboard.press("Control+z"); pg.wait_for_timeout(1500)
     pruefe("Rückgängig nach Ersetzen bringt T777 zurück", zahlen(pg, "t2") == vorlage
         and pg.evaluate("TEST.daten.type_slots.some(s => s.tool_nr === 'T777')"))
 
     # Neuer Typ mit Vorlage
-    pg.click("#typ-zurueck"); pg.wait_for_selector("#typ-neu"); pg.wait_for_timeout(500)
+    pg.wait_for_selector("#typ-neu"); pg.wait_for_timeout(500)
     pg.click("#typ-neu"); pg.locator(".dialog-huelle input").first.fill("Citizen L20")
     pg.locator(".dialog-huelle select").last.select_option("t1"); ja(pg); pg.wait_for_timeout(900)
+    pruefe("Neuer Typ öffnet sein Fenster", pg.locator("#typ-fenster").count() == 1)
+    pg.click("#typ-fenster-zu"); pg.wait_for_timeout(400)
     neu = pg.evaluate("(TEST.daten.machine_types.find(t => t.name === 'Citizen L20') || {}).id")
     pruefe("Neuer Typ mit kopiertem Aufbau", bool(neu) and zahlen(pg, neu) == vorlage)
     # Neuer Typ ohne Vorlage bleibt leer

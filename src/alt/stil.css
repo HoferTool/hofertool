@@ -9164,7 +9164,7 @@ body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
 .ziehliste__zeile--darf > .mseite-mzeile > .mseite-kachel, .ziehliste__zeile--darf > .mseite-ordner > .mseite-ordner__kopf { cursor: pointer; }
 .ziehliste__zeile.zieh--aktiv > .mseite-ordner, .ziehliste__zeile.zieh--aktiv > .mseite-mzeile > .mseite-kachel {
   border-color: var(--marke); box-shadow: 0 14px 34px rgba(0, 20, 60, .22); }
-.mseite-neu { margin-top: 12px; }
+.mseite-neu { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
 #park-neu { margin-top: 14px; }
 @media (max-width: 640px) {
   .mseite-ordner__inhalt { padding: 0 8px 10px 12px; }
@@ -9475,3 +9475,7 @@ body.dunkel .ri .ri-eingabe { color-scheme: dark; }
    und das Archiv brauchen sie darum auf der Planwand weiterhin. */
 body.rolle-extern:has(#pw-inhalt) #kopf-suche,
 body.archiv:has(#pw-inhalt) #kopf-suche { display: inline-flex; }
+
+/* Seite Maschinen: Typen ohne Maschine als kleine Knöpfe (seit 1.177.0) */
+.mseite-leertypen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.typ-einst { margin-bottom: 12px; }

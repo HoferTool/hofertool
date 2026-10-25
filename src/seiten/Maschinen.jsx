@@ -2,8 +2,11 @@
 //  MASCHINEN (seit 1.134.0, Wunsch Patrick 21. Oktober 2026: „nimm aus
 //  Produktion Maschinen und Typen raus und mach einen Reiter dafür“)
 //
-//  Eigene Seite mit zwei Reitern:
-//   - Maschinen: zuerst den Park, darin die Typen als Ordner mit ihren
+//  Seit 1.177.0 ohne Reiter (Wunsch Patrick 25. Oktober 2026: „bringt
+//  nichts, dass man Maschinen und Typ splittet, fusioniere es“). Die
+//  Typen mit Aufbau, Längen, Anlegen und Löschen stecken im Fenster
+//  „⚙ Typ“ beim Typ-Ordner; „+ Maschinentyp“ steht bei „+ Maschine“.
+//   - zuerst den Park, darin die Typen als Ordner mit ihren
 //     Maschinen, dann die Seite der Maschine. Man sieht nur die eigenen
 //     Parks (wie in der Produktion; Admins und Planwand alle). Die
 //     Reihenfolge ist dieselbe wie überall (sort_order der Maschinen)
@@ -11,23 +14,18 @@
 //     Maschinen innerhalb ihres Typs. Seit 1.161.0 steckt hier auch,
 //     was der Reiter Parks war: Parks und Maschinen anlegen, umbenennen,
 //     ein- und ausschalten, löschen.
-//   - Typen: die Maschinentypen mit dem Werkzeugaufbau.
 //  Die Seite einer Maschine ist in src/seiten/maschinen/Maschine.jsx.
 //  Nicht für Externe (Entscheid offen, Patrick gefragt).
 // =================================================================
 import { useReducer } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
-import { Reiter, Uebergang } from "../teile/Reiter.jsx";
+import { Uebergang } from "../teile/Reiter.jsx";
 import { teilMerken } from "../teile/wiederherstellen.js";
-import Verwalten, { aktion } from "./produktion/Maschinen.jsx";
-import { typFensterOeffnen } from "./produktion/Typen.jsx";
+import { aktion } from "./produktion/Maschinen.jsx";
+import { typFensterOeffnen, typAktion } from "./produktion/Typen.jsx";
 import MaschineSeite from "./maschinen/Maschine.jsx";
 import { ZiehListe } from "../teile/ZiehListe.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
-
-// Den Reiter Parks gibt es seit 1.161.0 nicht mehr, er steckt in
-// Maschinen; ein gemerktes „verwalten“ landet dort
-export const REITER = [["uebersicht", "Maschinen"], ["typen", "Typen"]];
 
 // Wo man gerade ist; übersteht Neuladen wie die anderen Seiten
 // zu: die zugeklappten Typ-Ordner
@@ -46,8 +44,7 @@ export function maschineZeigen(m) {
 let zeichnenAussen = null;
 export function maschinenZurueck() {
   if (alt.prod.typOffen) return false;  // das erledigt app.js
-  if (ms.ansicht !== "uebersicht") { ms.ansicht = "uebersicht"; }
-  else if (ms.maschineId) { ms.maschineId = null; ms.typId = null; }
+  if (ms.maschineId) { ms.maschineId = null; ms.typId = null; }
   else if (ms.parkId && !nurEinPark) ms.parkId = null;
   else return false;
   if (zeichnenAussen) zeichnenAussen(); else alt.zeichneSeite();
@@ -226,6 +223,7 @@ function Uebersicht({ geladen, zeichnen, neuLaden }) {
     reihenfolgeSchreiben(eigene, reihe, neuJe, neuLaden);
   };
   const anzahl = maschinen.filter((x) => x.park_id === park.id).length;
+  const leer = typen.filter((t) => !maschinen.some((x) => x.type_id === t.id));
   return (
     <>
       <Pfad teile={pfad} />
@@ -247,8 +245,17 @@ function Uebersicht({ geladen, zeichnen, neuLaden }) {
           <TypOrdner k={k} name={typName(k)} liste={je[k]} darf={darf} offen={!zu.has(k)}
             umschalten={umschalten(k)} oeffnen={(x) => gehe({ typId: typSchluessel(x), maschineId: x.id })()}
             ordnen={ordnenIn(k)} neuLaden={neuLaden} /> }))} />
-      {darf && <button className="knopf knopf--klein mseite-neu" data-masch-neu={park.id}
-        onClick={() => aktion.maschineNeu(park.id, neuLaden, eigene)}>+ Maschine</button>}
+      {darf && <div className="mseite-neu">
+        <button className="knopf knopf--klein" data-masch-neu={park.id}
+          onClick={() => aktion.maschineNeu(park.id, neuLaden, eigene)}>+ Maschine</button>
+        {/* Ein neuer Typ geht gleich als Fenster auf, dort Aufbau und Längen */}
+        <button className="knopf knopf--klein" id="typ-neu"
+          onClick={() => typAktion.neu((t) => { neuLaden(); if (t) typFensterOeffnen(t.id, neuLaden); })}>+ Maschinentyp</button>
+      </div>}
+      {/* Typen ohne eine einzige Maschine hätten sonst keinen Ordner */}
+      {leer.length > 0 && <p className="klein mseite-leertypen">Typen ohne Maschine:{" "}
+        {leer.map((t) => <button key={t.id} className="knopf knopf--klein" data-mtyp-einst={t.id}
+          onClick={() => typFensterOeffnen(t.id, neuLaden)}>⚙ {t.name}</button>)}</p>}
       {darf && reihe.length > 0 &&
         <p className="klein">Ordner (Typen) und Maschinen darin zum Umsortieren ziehen. Die Reihenfolge gilt
           überall in der App, auch auf der Planwand.</p>}
@@ -256,17 +263,15 @@ function Uebersicht({ geladen, zeichnen, neuLaden }) {
   );
 }
 
-export default function Maschinen({ auffrischen, behaelter }) {
+export default function Maschinen({ auffrischen }) {
   const [, zeichnen] = useReducer((x) => x + 1, 0);
   zeichnenAussen = zeichnen;
-  if (!REITER.some(([w]) => w === ms.ansicht)) ms.ansicht = "uebersicht";
-  const verwalten = ms.ansicht !== "uebersicht";
+  // Gemerkt „typen“ von vorher: den Reiter gibt es nicht mehr
+  ms.ansicht = "uebersicht";
   // Wer schreiben darf, verwaltet auch ausgeschaltete Parks und Maschinen
-  const auchInaktive = verwalten || alt.darfSchreiben();
+  const auchInaktive = alt.darfSchreiben();
   const { daten: geladen, fehler, neu } = useDaten(() => grunddatenLaden(auchInaktive), [auchInaktive, auffrischen]);
   const neuLaden = () => { alt.stammVergessen(); neu(); };
-  // Ein offener Typ gehört zum Reiter Typen und schliesst beim Wechsel
-  const waehlen = (w) => { ms.ansicht = w; alt.prod.typOffen = null; zeichnen(); };
 
   // Strg + F sucht Maschinen, Typen und Parks (seit 1.169.0)
   useSeitenSuche({
@@ -301,16 +306,13 @@ export default function Maschinen({ auffrischen, behaelter }) {
   return (
     <>
       <h1 className="seitentitel">Maschinen</h1>
-      <Reiter reiter={REITER} aktiv={ms.ansicht} waehlen={waehlen} merkmal="mansicht" seite="maschinen" />
-      <Uebergang key={ms.ansicht}>
+      <Uebergang>
         <div id="mseite">
           {fehler && !geladen
             ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>
             : !geladen
               ? <div className="laedt">Wird geladen …</div>
-              : verwalten
-                ? <Verwalten geladen={geladen} behaelter={behaelter} neuLaden={neuLaden} nur="typen" />
-                : <Uebersicht geladen={geladen} zeichnen={zeichnen} neuLaden={neuLaden} />}
+              : <Uebersicht geladen={geladen} zeichnen={zeichnen} neuLaden={neuLaden} />}
         </div>
       </Uebergang>
     </>

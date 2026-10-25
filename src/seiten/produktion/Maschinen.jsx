@@ -1,17 +1,15 @@
 // =================================================================
 //  MASCHINEN UND TYPEN
 //  Seit 1.134.0 auf der Seite Maschinen (src/seiten/Maschinen.jsx),
-//  nicht mehr in der Produktion. Seit 1.161.0 zeigt diese Datei nur
-//  noch den Reiter Typen; die Aktionen für Parks und Maschinen
-//  (`aktion`) nutzt der Reiter Maschinen, der die Parks mitverwaltet.
+//  nicht mehr in der Produktion. Seit 1.177.0 nur noch die Aktionen
+//  für Parks und Maschinen (`aktion`); den Reiter Typen gibt es nicht
+//  mehr, die Typen stecken im Fenster „⚙ Typ“ (Typen.jsx).
 //
 //  Die Grunddaten kommen aus der Produktion (prod.parks und
 //  prod.maschinen, hier auch die ausgeblendeten). Nach jeder
 //  Änderung wird das Stammdaten-Gedächtnis verworfen und neu geladen.
 // =================================================================
-import { useEffect } from "react";
 import { alt } from "../../bruecke.jsx";
-import Typen from "./Typen.jsx";
 
 // Was die Datenbank meldet, kommt als Meldung unten rechts
 // rueck: optional der Schritt für Rückgängig, [Text, Schritte]
@@ -158,22 +156,3 @@ export const aktion = {
       "maschine_hart_loeschen", { p_machine_id: m.id }, neuLaden);
   },
 };
-
-// Seit 1.161.0 nur noch die Typen; Parks und Maschinen verwaltet der
-// Reiter Maschinen (src/seiten/Maschinen.jsx) mit den Aktionen oben
-export default function Maschinen({ geladen, behaelter, neuLaden: aussen }) {
-  const prod = alt.prod;
-  // Stammdaten sind gemerkt; nach einer Änderung frisch holen
-  const neuLaden = aussen || (() => { alt.stammVergessen(); alt.seiteProduktion(behaelter); });
-
-  // Die Typen braucht die Dokumentenerkennung. Einmal holen und merken.
-  useEffect(() => {
-    if (!prod.typen) alt.ladeTypen().then((t) => { prod.typen = t; }, () => { prod.typen = []; });
-  }, [prod]);
-
-  return (
-    <div id={prod.typOffen ? undefined : "park-inhalt"}>
-      <Typen geladen={geladen} neuLaden={neuLaden} />
-    </div>
-  );
-}

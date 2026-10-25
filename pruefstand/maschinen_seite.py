@@ -43,8 +43,7 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#produktion'"); pg.wait_for_timeout(800)
     pruefe(pg.locator("[data-ansicht='maschinen']").count() == 0, "Produktion ohne Reiter Maschinen")
     pg.evaluate("location.hash='#maschinen'"); pg.wait_for_timeout(900)
-    pruefe(pg.locator("[data-unter='maschinen/uebersicht']").count() == 1
-           and pg.locator("[data-unter='maschinen/verwalten']").count() == 0, "Seite Maschinen ohne Reiter Parks")
+    pruefe(pg.locator("[data-unter^='maschinen/']").count() == 0, "Seite Maschinen ohne Reiter")
     pruefe(pg.locator("#park-neu").count() == 1, "+ Maschinenpark bei den Parks")
     pruefe(pg.locator("[data-mpark]").count() == 2, "zwei Parks zur Wahl")
     pg.screenshot(path=os.path.join(BILD, "maschinen-parks.png"))

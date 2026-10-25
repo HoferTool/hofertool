@@ -60,12 +60,12 @@ with sync_playwright() as p:
     pruefe("Ohne Typ als Ordner", pg.locator("[data-mtyp='__ohne']").count() == 1)
     pruefe("Knöpfe da", pg.locator("[data-masch-um]").count() >= 6 and pg.locator("[data-masch-weg]").count() >= 6)
     pg.screenshot(path="/tmp/claude-0/maschinen-d.png")
-    pg.click("[data-unter='maschinen/typen']"); pg.wait_for_selector(".tkarte")
-    pruefe("Typen als Karten", pg.locator(".tkarte").count() == 2)
-    pruefe("Zahl der Maschinen", "8 Maschinen" in pg.inner_text(".tkarten"))
-    pg.screenshot(path="/tmp/claude-0/typen-d.png")
-    pg.click("[data-typ-auf='t1']"); pg.wait_for_selector("#typ-zurueck")
-    pruefe("Aufbau öffnet", pg.locator("#typ-zurueck").count() == 1)
+    # Seit 1.175.0 kein Reiter Typen: das Fenster „⚙ Typ“ zeigt die Zahl der Maschinen
+    pg.click("[data-pfad='0']"); pg.wait_for_timeout(400)
+    pg.click("[data-mpark='p-lang']"); pg.wait_for_selector("[data-mtyp-einst='t1']")
+    pg.click("[data-mtyp-einst='t1']"); pg.wait_for_selector("#typ-fenster #typ-einst")
+    pruefe("Fenster zeigt Zahl der Maschinen", "Maschinen mit diesem Typ" in pg.inner_text("#typ-einst"))
+    pruefe("Aufbau im Fenster", pg.locator("#typ-fenster #path-neu").count() == 1)
     fehler += f
     br.close()
 print("Fehler:", fehler[:3] if fehler else "keine")
