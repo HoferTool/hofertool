@@ -123,6 +123,15 @@ with sync_playwright() as p:
     pruefe("Bild am Artikel gemerkt", pg.evaluate("TEST.daten.artikel_bild.find(x => x.article_id === 'a1')?.bild") == schl)
     pruefe("T100 bekommt das Artikelbild auch", pg.locator(f"[data-platz='T100'] [data-bild='{schl}']").count() == 1)
 
+    # Sinnbilder der Norm in der Bibliothek (1.184.0)
+    pg.click("[data-platz='T400']"); pg.wait_for_selector("[data-platzfenster='T400']")
+    pf = pg.locator("[data-platzfenster='T400']")
+    pf.locator("[data-pf-bild]").click(); pg.wait_for_timeout(200)
+    pruefe("Sinnbilder in der Auswahl", pf.locator(".eba-pf-bib--norm").count() >= 16)
+    pf.locator("[data-bib='gewinde']").click(); pg.wait_for_timeout(200)
+    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(400)
+    pruefe("Sinnbild Gewinde am Platz", pg.locator("[data-platz='T400'] [data-bild='gewinde'] svg").count() == 1)
+
     # Platz T300: Spezialwerkzeug
     pg.click("[data-platz='T300']"); pg.wait_for_selector("[data-platzfenster='T300']")
     pf = pg.locator("[data-platzfenster='T300']")

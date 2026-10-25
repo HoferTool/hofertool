@@ -1,9 +1,11 @@
 // =================================================================
 //  BILDER DER WERKZEUGE
-//  Nur Bilder, die jemand in der App hochlädt (Tabelle eb_bilder,
-//  Schlüssel „eigen:<id>“). Gezeichnete Bilder und Vorschläge nach der
-//  Tätigkeit gibt es nicht mehr (Patrick, 15. Oktober 2026: „mach es so,
-//  dass nirgends Bilder kommen“); die Zeichnungen liegen im Git-Verlauf.
+//  Die Sinnbilder der Norm (sinnbilder.js, seit 1.184.0, Wunsch Patrick
+//  25. Oktober 2026) und Bilder, die jemand in der App hochlädt (Tabelle
+//  eb_bilder, Schlüssel „eigen:<id>“). Vorschläge nach der Tätigkeit gibt
+//  es weiterhin nicht (Patrick, 15. Oktober 2026: „mach es so, dass
+//  nirgends Bilder kommen“); ein Sinnbild kommt nur von Hand oder beim
+//  Einlesen dort, wo das Excel ein Bild hatte.
 //
 //  Ein gewähltes Bild hängt am Artikel (Tabelle artikel_bild) oder am
 //  Spezialwerkzeug (eb_spezial): wo dieser Artikel oder dieses Werkzeug
@@ -11,13 +13,18 @@
 //  sich nur der Platz sein Bild.
 // =================================================================
 
+import { SINNBILDER } from "./sinnbilder.js";
+
+const NORM = Object.fromEntries(SINNBILDER.map(([k, name, svg]) => [k, { name, svg }]));
+export const sinnbilder = () => SINNBILDER.map(([k, name, svg]) => ({ schluessel: k, name, svg }));
+
 let EIGENE = {};
 // Die hochgeladenen Bilder: [{ id, name, url }]
 export function eigeneBilderSetzen(liste) {
   EIGENE = Object.fromEntries((liste || []).map((b) => ["eigen:" + b.id, { name: b.name || "Eigenes Bild", url: b.url, id: b.id }]));
 }
 export const eigeneBilder = () => Object.entries(EIGENE).map(([k, b]) => Object.assign({ schluessel: k }, b));
-export const bildDaten = (k) => EIGENE[k] || null;
+export const bildDaten = (k) => NORM[k] || EIGENE[k] || null;
 
 // Woran sich das Bild merkt: Artikel oder Spezialwerkzeug („s:<id>“)
 export const bildSchluesselVon = (p) => (p && p.article_id) || (p && p.spezial_id ? "s:" + p.spezial_id : null);

@@ -12,6 +12,7 @@
 import { alt } from "../bruecke.jsx";
 import { excelRoh, blattAusExcel } from "./excelEinlesen.js";
 import { eigeneBilderSetzen } from "./bilder.js";
+import { sinnbildFuerBild } from "./sinnbilder.js";
 
 export const TABELLE = "einrichtblatt_app";
 
@@ -292,12 +293,16 @@ export async function excelVorlesen(hocoNr, typ, excelUrl, { artikel } = {}) {
   if (e.autom && !typKurz(typ.name).includes(typKurz(e.autom)) && !typKurz(e.autom).includes(typKurz(typ.name))) hinweise.push("Im Blatt steht Typ " + e.autom);
 
   // Plätze: nur die Felder des Blatts. Die Fotos aus dem Excel kommen
-  // bewusst nicht mit (verpixelt), das Bild kommt aus der Bibliothek.
+  // bewusst nicht mit (verpixelt); wo eins war, setzt das Einlesen seit
+  // 1.184.0 das passende Sinnbild der Norm, wenn das Foto bekannt ist.
   const plaetze = {};
   for (const [nr, p] of Object.entries(e.plaetze)) {
     const z = {};
     PLATZ_FELDER.forEach((f) => { if (p[f] !== undefined && p[f] !== "") z[f] = p[f]; });
     if (p.hd) z.hd = true;
+    if (p._bild && p._bild.lesen) {
+      try { const k = await sinnbildFuerBild(await p._bild.lesen()); if (k) z.bild = k; } catch (f) { /* ohne Bild */ }
+    }
     if (z.werkzeug) {
       try {
         const gemerkt = artikel || {};

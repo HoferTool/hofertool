@@ -19,15 +19,17 @@ import { inDerAppDrucken } from "../teile/drucken.js";
 import { werkzeugWaehlen } from "../seiten/bestellungen/PositionFenster.jsx";
 import { excelVorlesen, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
   artikelHolen, STAMM_FELDER, WASCHGEBINDE, prgNummern } from "./daten.js";
-import { bildDaten, platzBild, eigeneBilder, bildSchluesselVon } from "./bilder.js";
+import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
 import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
 
-// Ein hochgeladenes Bild aus der Bibliothek
+// Ein Bild aus der Bibliothek: Sinnbild der Norm oder hochgeladen
 export function BildZeichnung({ schluessel, className }) {
   const b = bildDaten(schluessel);
+  if (b && b.svg) return <span className={"eba-svg " + (className || "")} data-bild={schluessel} title={b.name}
+    dangerouslySetInnerHTML={{ __html: b.svg }} />;
   return b && b.url ? <span className={"eba-svg eba-svg--foto " + (className || "")} data-bild={schluessel} title={b.name}>
     <img src={b.url} alt="" /></span> : null;
 }
@@ -301,6 +303,8 @@ function Bibliothek({ aktiv, waehlen }) {
   };
   return (
     <div className="eba-pf-bibliothek" data-pf-bibliothek="">
+      {sinnbilder().map((b) => <button key={b.schluessel} className={"eba-pf-bib eba-pf-bib--norm" + (aktiv === b.schluessel ? " eba-pf-bib--an" : "")}
+        data-bib={b.schluessel} title={b.name} onClick={() => waehlen(b.schluessel)}><BildZeichnung schluessel={b.schluessel} /></button>)}
       {eigeneBilder().map((b) => <button key={b.schluessel} className={"eba-pf-bib" + (aktiv === b.schluessel ? " eba-pf-bib--an" : "")}
         data-bib={b.schluessel} title={b.name} onClick={() => waehlen(b.schluessel)}><BildZeichnung schluessel={b.schluessel} />
         {darf && <span className="eba-pf-bib-weg" data-bib-weg={b.id} onClick={(ev) => weg(b, ev)}>✕</span>}</button>)}
