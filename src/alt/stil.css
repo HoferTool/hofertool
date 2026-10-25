@@ -9486,16 +9486,19 @@ body.archiv:has(#pw-inhalt) #kopf-suche { display: inline-flex; }
 .eba-vorgelesen .linkknopf { color: inherit; flex: none; }
 
 /* ---------- Infoboard: Bildschirmschoner in der Nacht (seit 1.179.0) ----------
-   Wunsch Patrick 25. Oktober 2026: 23:00 bis 05:30 und sonntags nur die
-   Solaranlage auf Schwarz, dazu fliegende Hühner (src/infoboard/Nacht.jsx). */
-.ib-nacht { background: #000; }
-.ib-nacht__blatt { background: #000; overflow: hidden; }
-.ib-nacht__solar { top: 50%; transform: translateY(-50%); z-index: 2; height: auto; overflow: visible; }
-.ib-nacht__himmel { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-.ib-huhn { position: absolute; left: 0; top: 0; will-change: transform; filter: drop-shadow(0 0 10px rgba(255,255,255,.12)); }
+   Wunsch Patrick 25. Oktober 2026: 23:00 bis 05:30 und sonntags bleibt
+   der Kopf, darunter statt der Dokumente Schwarz mit fliegenden Hühnern
+   (src/infoboard/Nacht.jsx, seit 1.179.1; 1.179.0 nur die Solaranlage). */
+.ib-nacht { position: absolute; left: 0; right: 0; background: #000; overflow: hidden; pointer-events: none; }
+/* Halloween (1.179.1): düsteres Leuchten in Violett und Orange, damit die
+   schwarzen Hühner auf Schwarz zu sehen sind */
+.ib-huhn { position: absolute; left: 0; top: 0; will-change: transform;
+  filter: drop-shadow(0 0 6px rgba(150, 60, 190, .55)) drop-shadow(0 0 18px rgba(255, 90, 20, .22)); }
 .ib-huhn svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .ib-huhn__fluegel { transform-box: fill-box; transform-origin: 85% 80%;
   animation: ib-huhn-flattern .25s ease-in-out infinite alternate; }
 @keyframes ib-huhn-flattern { from { transform: rotate(-35deg) scaleY(1.1); } to { transform: rotate(25deg) scaleY(.7); } }
 .ib-huhn-feder { position: absolute; opacity: 0; border-radius: 50% 50% 45% 45% / 70% 70% 30% 30%;
-  background: linear-gradient(180deg, #f4f1ea, #cfc8b8); }
+  background: linear-gradient(180deg, #4a3d52, #141117); box-shadow: 0 0 6px rgba(150, 60, 190, .6); }
+/* Unten ein schwacher Nebel in Orange, wie Kürbislicht */
+.ib-nacht { background: radial-gradient(120% 40% at 50% 105%, rgba(255, 110, 20, .14), transparent 70%), #000; }

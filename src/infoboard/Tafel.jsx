@@ -14,6 +14,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { Uhr, Wetter, Solaranlage } from "../seiten/Start.jsx";
 import Durchfahrt from "../seiten/start/Durchfahrt.jsx";
+import Huehnerhimmel from "./Nacht.jsx";
 import { pdfjs } from "../teile/PdfAnsicht.jsx";
 import Skizze from "../pad/Skizze.jsx";
 import { TextBlatt } from "./TextFeld.jsx";
@@ -57,7 +58,8 @@ function drehungRunden(g) {
 // ändert die Grösse (Seitenverhältnis bleibt, damit nichts verzerrt), der
 // runde Griff oben dreht es (Wunsch Patrick 21. Oktober 2026). Erst beim
 // Loslassen wird gespeichert.
-export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAendern, ablegen, doppelt }) {
+// nacht: Bildschirmschoner, statt der Teile fliegen Hühner (Nacht.jsx)
+export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAendern, ablegen, doppelt, nacht }) {
   const rahmen = useRef(null);
   const blatt = useRef(null);
   const k = useMassstab(rahmen);
@@ -133,7 +135,8 @@ export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAe
         style={{ width: BREITE, height: HOEHE, transform: "translate(-50%, -50%) scale(" + k + ")" }}
         onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>
         <Kopf />
-        {aufbau.teile.map((t0) => {
+        {nacht && <Huehnerhimmel />}
+        {!nacht && aufbau.teile.map((t0) => {
           const t = zug && zug.id === t0.id ? { ...t0, ...zug } : t0;
           const format = t.w > t.h ? "a3" : "a4";
           const an = bearbeiten && gewaehlt === t.id;

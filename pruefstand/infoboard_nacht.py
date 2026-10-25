@@ -1,6 +1,7 @@
 # Infoboard: Bildschirmschoner (1.179.0, Wunsch Patrick 25. Oktober 2026).
-# Von 23:00 bis 05:30 und sonntags den ganzen Tag nur die Solaranlage auf
-# Schwarz, mit fliegenden Hühnern. Ein Tipp zeigt die Tafel für eine Minute.
+# Von 23:00 bis 05:30 und sonntags den ganzen Tag bleibt der Kopf, darunter
+# statt der Dokumente Schwarz mit fliegenden Halloween-Hühnern (1.179.1).
+# Ein Tipp darunter zeigt die Dokumente für eine Minute.
 import os, time
 from datetime import datetime
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -22,33 +23,34 @@ def oeffnen(p, zeit):
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(800)
+    pg.evaluate("""() => { TEST.daten.infoboard = [{ id: 'haupt', geaendert_am: '2026-10-20T10:00:00Z', aufbau: { frei: true, teile: [
+      { id: 'probe', art: 'text', html: '<p>Probe</p>', x: 12, y: 500, w: 344, h: 486, drehung: 0 }] } }]; }""")
     pg.evaluate("location.hash='#/infoboard'"); pg.wait_for_selector("[data-ib='anzeige']")
     pg.click("[data-ib='anzeige']"); pg.wait_for_selector("#infoboard"); pg.wait_for_timeout(2500)
     return br, pg
 
 nacht = lambda pg: pg.locator("#infoboard [data-ib='nacht']").count() == 1
-tafel = lambda pg: pg.locator("#infoboard .ib-kopf .kopfkarte").count() == 1
+kopf = lambda pg: pg.locator("#infoboard .ib-kopf .kopfkarte").count() == 1 and pg.locator("#infoboard .ib-kopf .solar").count() == 1
+tafel = lambda pg: pg.locator("#infoboard .ib-teil").count() == 1
 
 with sync_playwright() as p:
     # Mittwoch 23:30: Schoner
     br, pg = oeffnen(p, "2026-10-21T23:30:00+02:00")
-    pruefe(nacht(pg) and not tafel(pg), "Mittwoch 23:30: Bildschirmschoner statt Tafel")
-    pruefe(pg.locator("#infoboard .ib-nacht .solar").count() == 1, "Solaranlage sichtbar")
+    pruefe(nacht(pg) and not tafel(pg), "Mittwoch 23:30: Hühner statt Dokumente")
+    pruefe(kopf(pg), "Kopf mit Uhr, Logo, Wetter und Solaranlage bleibt")
     pg.wait_for_timeout(2500)
     pruefe(pg.locator("#infoboard .ib-huhn").count() >= 1, "Hühner fliegen: %d" % pg.locator("#infoboard .ib-huhn").count())
-    farbe = pg.evaluate("getComputedStyle(document.querySelector('.ib-nacht__blatt')).backgroundColor")
-    pruefe(farbe == "rgb(0, 0, 0)", "Rest schwarz: " + farbe)
-    s = pg.locator("#infoboard .ib-nacht .solar").bounding_box()
-    pruefe(s and abs(s["y"] + s["height"] / 2 - 480) < 60, "Solaranlage in der Mitte: %s" % s)
+    k = pg.locator("#infoboard .ib-kopf").bounding_box(); n = pg.locator("#infoboard .ib-nacht").bounding_box()
+    pruefe(n["y"] >= k["y"] + k["height"] - 2 and n["y"] + n["height"] > 940, "Schwarz erst unter dem Kopf bis unten: %s %s" % (k, n))
     pg.screenshot(path=os.environ.get("BILD", "/tmp/infoboard-nacht.png"))
     pg.mouse.click(270, 700); pg.wait_for_timeout(1200)
-    pruefe(tafel(pg) and not nacht(pg), "Tipp zeigt die Tafel")
+    pruefe(tafel(pg) and not nacht(pg) and kopf(pg), "Tipp zeigt die Dokumente")
     br.close()
     for zeit, soll, text in [("2026-10-22T05:20:00+02:00", True, "Donnerstag 05:20"),
                              ("2026-10-22T05:40:00+02:00", False, "Donnerstag 05:40"),
                              ("2026-10-22T12:00:00+02:00", False, "Donnerstag Mittag"),
                              ("2026-10-25T12:00:00+01:00", True, "Sonntag Mittag")]:
         br, pg = oeffnen(p, zeit)
-        pruefe(nacht(pg) == soll and tafel(pg) != soll, text + (": Schoner" if soll else ": Tafel"))
+        pruefe(nacht(pg) == soll and tafel(pg) != soll and kopf(pg), text + (": Schoner" if soll else ": Tafel"))
         br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
