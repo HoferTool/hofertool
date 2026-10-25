@@ -11,8 +11,8 @@
 //    T2100–T2400 und, wo vorhanden, T3100–T3400. Kopf mit
 //    „Programm Nr.“ und „N1000“.
 //  - Index: drei Revolver mit je T1 bis T10 in zwei Reihen zu fünf,
-//    Revolver 1 weiss, 2 grün, 3 blau; links der Kopf, ohne Programm-Nr.
-//    (Patrick: „Index hat keine Nr.“), dafür Festanschlag und Anschlag.
+//    Revolver 1 olivbraun, 2 grün, 3 blau; links der Kopf, ohne Programm-Nr.
+//    (Patrick: „Index hat keine Nr.“), dafür die Festanschlag-Länge.
 //  - SW-20: wie bisher, drei Paths in Orange, Blau und Grün und die
 //    Geometriedaten.
 //
@@ -47,7 +47,6 @@ const F = {
   n1000: { art: "kopf", feld: "n1000", label: "N1000:" },
   geometrie: { art: "blatt", feld: "geometrie", label: "Geometriedaten:", farbe: "#FF0000" },
   festanschlag: { art: "kopf", feld: "festanschlag", label: "Festanschlag Länge:" },
-  anschlag: { art: "kopf", feld: "anschlag_von", label: "Anschlag von:" },
 };
 const pfad = (n, farbe) => ({ art: "prg", feld: String(n), label: "Path " + n + ":", farbe });
 
@@ -59,21 +58,32 @@ const T = (von, bis, schritt) => {
 const vier = (l) => [null, null].concat(l, [null, null, null, null]).slice(0, 6);
 
 // ---------------- Star ----------------
-function star(name, { mitT700 = true, mitT3100 = true, mitT3400 = false } = {}) {
+// Abgleich mit je 25 Excel-Blättern je Typ (25. Oktober 2026): Die
+// Plätze in Gebrauch haben im Excel eine Farbe je Typ, keine je Path
+// (SB-16C blau, SB-16D, SB-16E und SB-20 grün, SR-32 hellgrün, SR-10
+// gelb), leere Plätze keine. Die zweite Reihe im Excel trägt je nach
+// Blatt T700–T1000 oder T3100–T3300, darum stehen die beiden Reihen hier
+// nebeneinander; beim SB-20 steht T3100–T3400 an zweiter Stelle.
+const STAR_FARBE = { sb16c: "#00B0F0", sb16d: "#92D050", sb16e: "#92D050", sb20: "#92D050", sr32: "#99CC00", sr10: "#FFFF00" };
+function star(name, art, { mitT700 = true, mitT3100 = true, mitT3400 = false } = {}) {
   const reihen = [T(100, 600, 100)];
+  const t3100 = vier(T(3100, mitT3400 ? 3400 : 3300, 100));
   if (mitT700) reihen.push(vier(T(700, 1000, 100)));
+  if (mitT3100) reihen.push(t3100);
   reihen.push(vier(T(1100, 1400, 100)));
   reihen.push(vier(T(2100, 2400, 100)));
-  if (mitT3100) reihen.push(vier(T(3100, mitT3400 ? 3400 : 3300, 100)));
   return {
     art: "star", titel: "Werkzeug- Protokoll-" + name, spalten: 6, kopfBreite: 2, kopfAb: 1, reihen,
+    typFarbe: STAR_FARBE[art] || null,
     felder: [F.prgNr, F.hoco, F.bez, F.zeichnung, F.index, F.material, F.n1000, F.zeit, F.wasch, F.laufzeit],
     prgNr: true,
   };
 }
 
 // ---------------- Index ----------------
-const REVOLVER = [["1", "#FFFFFF"], ["2", "#92D050"], ["3", "#00B0F0"]];
+// Revolver 1 im Excel olivbraun (Designfarbe „Hintergrund 2, dunkler 50 %“),
+// die Platznummern darauf weiss
+const REVOLVER = [["1", "#948A54"], ["2", "#92D050"], ["3", "#00B0F0"]];
 function index(name) {
   const reihen = [];
   REVOLVER.forEach(([r]) => {
@@ -83,11 +93,15 @@ function index(name) {
   const farben = {};
   REVOLVER.forEach(([r, f]) => T(1, 10, 1).forEach((t) => { farben["R" + r + "-" + t] = f; }));
   return {
-    art: "index", titel: "Werkzeug- Protokoll-" + name, spalten: 6, kopfBreite: 1, kopfAb: 0, reihen, farben,
+    art: "index", titel: "Werkzeug- Protokoll-" + name + " C100", spalten: 6, kopfBreite: 1, kopfAb: 0, reihen, farben,
+    schrift: "#FFFFFF",
     // Im Excel ist der Kopf etwas breiter als ein Platz
     breiten: "1.3fr repeat(5, minmax(0, 1fr))",
     legende: REVOLVER.map(([r, f]) => ["Revolver " + r, f]),
-    felder: [F.hoco, F.bez, F.zeichnung, F.index, F.material, F.zeit, F.wasch, F.laufzeit, F.festanschlag, F.anschlag],
+    // Im Excel kein „Masch.- Laufzeit“; es bleibt, weil Stück am Abend
+    // dieselbe Zahl wie im Pad ist. „Anschlag Länge“ und „Festanschlag
+    // Länge“ sind im Excel dasselbe Feld
+    felder: [F.hoco, F.bez, F.zeichnung, F.index, F.material, F.zeit, F.wasch, F.laufzeit, F.festanschlag],
     prgNr: false,
   };
 }
@@ -141,9 +155,10 @@ export function vorlageFuer(typ, paths) {
   const n = kurz(name).replace(/^star/, "");
   if (/^sw/.test(n)) return sw(name);
   if (/^index/.test(n)) return index(name);
-  if (/^sr32/.test(n)) return star(name, { mitT3100: false });
-  if (/^sb20/.test(n)) return star(name, { mitT700: false, mitT3400: true });
-  if (/^(sb|sr)\d/.test(n)) return star(name);
+  const st = (/^(sb16[cde]|sb20|sr32|sr10)/.exec(n) || [])[1];
+  if (st === "sr32") return star(name, st, { mitT3100: false });
+  if (st === "sb20") return star(name, st, { mitT700: false, mitT3400: true });
+  if (/^(sb|sr)\d/.test(n)) return star(name, st);
   return allgemein(name, paths);
 }
 

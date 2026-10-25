@@ -122,7 +122,11 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
   // Die FA Nr. gehört nicht mehr ins Blatt, auch nicht in die Bemerkung
   const bemerkung = String(blatt.bemerkung || "").split("\n").filter((z) => !/^\s*fabrik/i.test(z)).join("\n").trim();
 
-  const farbeVon = (nr) => (vorlage.farben && vorlage.farben[nr]) || (pfad[nr] ? PFADFARBE[pfad[nr].nummer] || GRAU : GRAU);
+  // Star wie im Excel: Plätze in Gebrauch in der Farbe des Typs, leere grau
+  const inGebrauch = (p) => ["taetigkeit", "mass", "werkzeug", "hersteller", "standzeit", "hd", "geo"].some((k) => p[k]);
+  const farbeVon = (nr) => (vorlage.farben && vorlage.farben[nr])
+    || (vorlage.typFarbe ? (inGebrauch(plaetze[nr] || {}) ? vorlage.typFarbe : GRAU)
+      : pfad[nr] ? PFADFARBE[pfad[nr].nummer] || GRAU : GRAU);
   const zelle = (nr, ri, si) => {
     const p = plaetze[nr] || {};
     const bild = platzBild(p, artikelBilder);
@@ -130,7 +134,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")}
         style={{ gridRow: ri + 1, gridColumn: si + 1 }} data-platz={nr}
         onClick={bearbeiten ? () => platzWahl(nr) : undefined}>
-        <div className="eba-tk" style={{ background: farbeVon(nr) }}>
+        <div className="eba-tk" style={{ background: farbeVon(nr), color: vorlage.schrift }}>
           {p.standzeit ? <span className="eba-tk-links"><span className="eba-wert">{alt.zahlText(p.standzeit)}</span></span> : null}
           <b>{platzName(nr)}</b>
           {p.hd && <span className="eba-tk-rechts"><span className="eba-hd" data-hd="">HD</span></span>}</div>
@@ -165,9 +169,10 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
           style={{ gridRow: (kopfAb + 1) + " / " + (reihen.length + 1), gridColumn: "1 / " + (kopfBreite + 1) }}
           data-eba-kopf="" onClick={(e) => e.stopPropagation()}>
           {felder.filter((f) => f.farbe).length > 0 && <div className="eba-prgs">{felder.filter((f) => f.farbe).map(zeile)}</div>}
-          <div className="eba-tab">{felder.filter((f) => !f.farbe).map(zeile)}</div>
+          {/* Die Revolver stehen im Index-Excel über dem Kopf */}
           {vorlage.legende && <div className="eba-legende">{vorlage.legende.map(([t, f]) =>
-            <span key={t} style={{ background: f }}>{t}</span>)}</div>}
+            <span key={t} style={{ background: f, color: vorlage.schrift }}>{t}</span>)}</div>}
+          <div className="eba-tab">{felder.filter((f) => !f.farbe).map(zeile)}</div>
           {bearbeiten
             ? <textarea className="eba-ein eba-bem-ein" data-eba-feld="blatt:bemerkung" placeholder="Bemerkungen, z. B. Abgreifen mit Schnabelzange"
                 value={leer(blatt.bemerkung)} onChange={(e) => aendern({ art: "blatt", feld: "bemerkung" }, e.target.value)} />

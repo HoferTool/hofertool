@@ -148,6 +148,8 @@ const KOPF = [
   [/^artikelbez/, "bezeichnung"],
   [/^n1000/, "n1000"],
   [/^festanschlag/, "festanschlag"],
+  // „Anschlag Länge“ ist im Index-Excel dasselbe wie „Festanschlag Länge“
+  [/^anschlagl/, "festanschlag"],
   [/^anschlag/, "anschlag_von"],
   [/^zeichnungs?n(r|ummer)/, "zeichnungs_nr"],
   [/^index/, "index_nr"],
@@ -181,6 +183,13 @@ export function blattAusExcel(roh) {
       name = "R" + revolverZaehler[name] + "-" + name;
     }
     const darunter = koepfe.filter((x) => x.s === k.s && x.z > k.z).map((x) => x.z);
+    // Beim Star steht der Kopf oft gleich unter T100 und T200 („Programm
+    // Nr. :“ eine Zeile höher als sonst, sein Wert unter T200): eine
+    // Kopfzeile beendet den Platz
+    for (let z = k.z + 1; z < k.z + 9; z++) {
+      if ([bei(z, k.s), bei(z, k.s + 1)].some((x) => x && /:|laufzeit/i.test(x.text) && KOPF.some(([re]) => re.test(schluessel(x.text))))
+        || [k.s - 3, k.s - 2, k.s - 1].map((s) => bei(z, s)).some((x) => x && /^programm(nr|nummer)/.test(schluessel(x.text)))) { darunter.push(z); break; }
+    }
     const ende = darunter.length ? Math.min(...darunter) : Math.min(maxZeile + 1, k.z + 8);
     // Zwei Spalten breit, ausser der nächste Platz steht gleich daneben
     const nachbar = koepfe.filter((x) => x.z === k.z && x.s > k.s).map((x) => x.s);
@@ -193,13 +202,17 @@ export function blattAusExcel(roh) {
     };
     const p = {};
     const zahl = text(k.z + 1);
-    if (zahl) { const n = zahlDarin(zahl); if (n !== null) p.standzeit = n; else p.taetigkeit_vor = zahl; }
+    // Standzeit nur, wenn dort bloss eine Zahl steht; beim SB-16C steht
+    // in dieser Zeile oft schon die Aufgabe („Zeichen Ø8.4“)
+    const nurZahl = /^[\d'’.,\s]+(stk\.?|stück)?$/i.test(zahl);
+    if (zahl && nurZahl) { const n = zahlDarin(zahl); if (n !== null) p.standzeit = n; }
     // Unten stehen Lieferant und Artikel-Nr. (zwei Zeilen direkt
     // untereinander), oben die Aufgabe. Im Excel stehen dazwischen oft
     // Leerzeilen („Bohren“, leer, „Ø 3.50“), darum zählen nur Zeilen mit
     // Text. Bei nur zwei Zeilen ist die untere die Artikel-Nr., wenn sie
     // ganz unten steht oder Platz fürs Bild dazwischen ist.
     const L = [];
+    if (zahl && !nurZahl) L.push({ z: k.z + 1, t: zahl });
     for (let z = k.z + 2; z < ende; z++) { const t = text(z); if (t) L.push({ z, t }); }
     const unten = [];
     if (L.length >= 3 || (L.length === 2 && (L[1].z >= ende - 2 || L[1].z - L[0].z > 2))) {
@@ -210,7 +223,6 @@ export function blattAusExcel(roh) {
     if (L.length > 1) p.mass = L.slice(1).map((x) => x.t).join(" ");
     if (unten.length === 2) p.hersteller = unten[0].t;
     if (unten.length) p.werkzeug = unten[unten.length - 1].t;
-    if (p.taetigkeit_vor) { hinweise.push(k.text + ": „" + p.taetigkeit_vor + "“ unter dem Platz ist keine Standzeit"); delete p.taetigkeit_vor; }
     p.hd = felder.some((f) => /^HD$/i.test(f.text) && f.z >= k.z - 1 && f.z <= k.z && f.s >= k.s && f.s <= k.s + breite - 1);
     p._ende = ende;
     p._s = k.s; p._z = k.z;
@@ -245,6 +257,19 @@ export function blattAusExcel(roh) {
       const w = bei(c.z, s);
       if (!w || benutzt.has(w.z + ":" + w.s) || PLATZ.test(w.text)) continue;
       werte.push(w.text); benutzt.add(w.z + ":" + w.s);
+    }
+    // Beim Index steht der Wert oft in derselben Zelle („Prod.- Zeit: 109 sek.“)
+    const inZelle = (/:\s*(.+)$/.exec(c.text) || [])[1];
+    if (!werte.length && inZelle && inZelle.trim()) werte.push(inZelle.trim());
+    // Die zweite Zeile beim Material (Mass wie „Ø16.0 h11“) steht im
+    // Excel ohne Bezeichnung darunter
+    const naechste = bei(c.z + 1, c.s);
+    if (treffer[1] === "material" && (!naechste || benutzt.has(naechste.z + ":" + naechste.s))) {
+      for (let s = c.s + 1; s <= c.s + 3; s++) {
+        const w = bei(c.z + 1, s);
+        if (!w || benutzt.has(w.z + ":" + w.s) || PLATZ.test(w.text)) continue;
+        werte.push(w.text); benutzt.add(w.z + ":" + w.s);
+      }
     }
     kopfZeilen.push(c.z);
     const wert = werte.join(" ").trim();
