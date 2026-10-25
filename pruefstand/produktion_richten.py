@@ -30,7 +30,7 @@ with sync_playwright() as p:
         planned_days: 3, target_quantity: 1000, planned_from: new Date().toISOString().slice(0, 10) });
       D.hoco_type_data.push({ hoco_nr: '10000-0301', type_id: 't1', blatt_url: XL, stueckzeit_s: null });
       D.einrichtblatt_app = [{ id: 'eo', hoco_nr: '10000-0999', type_id: 't1', programme: {}, plaetze: {}, kopf: {},
-        seiten: [], gut_am: null, geaendert_am: new Date().toISOString() }];
+        seiten: [], bemerkung: 'Fabrik-Auftr. Nr.: 2023/5189\\nAbgreifen mit Zange', gut_am: null, geaendert_am: new Date().toISOString() }];
       D.artikel_bild = []; D.eb_bilder = [];
     }""", XL)
     pg.evaluate("location.hash='#produktion'"); pg.wait_for_timeout(1200)
@@ -83,6 +83,13 @@ with sync_playwright() as p:
     pg.fill("[data-richten-suche]", ""); pg.wait_for_timeout(900)
     pruefe("Gespeichertes Blatt bei den letzten", pg.locator("[data-richten-letzt='10000-0301']").count() >= 1)
 
+    # Die FA-Zeile fällt beim Bearbeiten aus der Bemerkung (1.183.1)
+    pg.locator("[data-richten-letzt='10000-0999'] [data-richten-bearbeiten]").first.click(); pg.wait_for_selector("[data-eba-seite]")
+    v = pg.input_value("[data-eba-feld='blatt:bemerkung']")
+    pruefe("Bemerkung ohne FA: " + repr(v), v == "Abgreifen mit Zange")
+    pg.click("[data-eba-abbrechen]"); pg.wait_for_timeout(300)
+    if pg.locator(".eba-fenster [data-zu]").count(): pg.click(".eba-fenster [data-zu]")
+    pg.wait_for_timeout(1200)
     # Andere HOCO Nr. ohne Blatt: über die Suche ein leeres Blatt zum Ausfüllen
     pg.fill("[data-richten-suche]", "10000-0302"); pg.wait_for_timeout(900)
     pg.select_option("[data-richten-neu='10000-0302']", "t1"); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(500)

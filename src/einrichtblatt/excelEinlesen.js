@@ -302,7 +302,8 @@ export function blattAusExcel(roh) {
     const jeZeile = {};
     frei.forEach((c) => { (jeZeile[c.z] = jeZeile[c.z] || []).push(c.text); benutzt.add(c.z + ":" + c.s); });
     const zeilen = Object.keys(jeZeile).sort((a, b) => a - b).map((z) => jeZeile[z].join(" "));
-    if (zeilen.length) kopf.bemerkung = zeilen.join("\n");
+    const bem = ohneFa(zeilen.join("\n"));
+    if (bem) kopf.bemerkung = bem;
   }
 
   if (!Object.keys(plaetze).length) {
@@ -311,4 +312,11 @@ export function blattAusExcel(roh) {
       ? "Das ist eine Kalkulation, kein Einrichtblatt" : "Keine Werkzeugplätze (T100 …) gefunden");
   }
   return { hoco, autom, kopf, stamm, typDaten, plaetze, hinweise };
+}
+
+// Die FA Nr. gehört nicht ins Einrichtblatt: es gilt für die HOCO Nr.,
+// nicht für einen Fabrikauftrag (Patrick 25. Oktober 2026: „FA kann
+// immer weg, das Dokument ist nicht an den FA gebunden“)
+export function ohneFa(text) {
+  return String(text || "").split("\n").filter((z) => !/^\s*(fabrik|fa[\s.\-]*nr)/i.test(z)).join("\n").trim();
 }

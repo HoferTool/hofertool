@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.183.2** Einrichtblatt: die Zeile „Fabrik-Auftr. Nr.“ fällt auch beim Bearbeiten und beim Einlesen aus der Bemerkung (`ohneFa` in `excelEinlesen.js`; Patrick 25. Oktober 2026: „FA kann immer weg, das Dokument ist nicht an den FA gebunden“).
 - **1.183.1** Suche bei Bestellungen → Artikel (und HOCO in der Datenbank) bricht bei Komma, Klammern oder Anführungszeichen nicht mehr mit „failed to parse logic tree“ ab (Patrick 25. Oktober 2026: „DCMT11304-F1 ,TP2501“). Komma und Leerzeichen trennen Wörter, jedes Wort muss in Artikelnummer, Bezeichnung oder Lieferant stehen (`orSuche` in `app.js`).
 - **1.183.0** Infos zum Richten: Knöpfe **nach Typ filtern** unter der Suche (Typen aus den eigenen Parks, ab zwei Typen), wirken auf Suche und „Zuletzt bearbeitet“, mit Filter je Typ bis 30 Blätter (Wunsch Patrick 25. Oktober 2026: „man soll nach Typ filtern können“).
 - **1.182.0** Infos zum Richten: statt „An den Maschinen“ die **zuletzt bearbeiteten Blätter** nach Park und Typ, nur Typen aus den eigenen Parks, je Typ die sechs neusten (Wunsch Patrick 25. Oktober 2026: „an den Maschinen braucht es gar nicht, die letzten, je nach Parkzuweisung“). Nur aus dem Excel eingelesene, nie angefasste Blätter zählen nicht (`erstellt_am` = `geaendert_am`). Während der Suche steht nur die Suche.

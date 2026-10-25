@@ -23,6 +23,7 @@ import { bildDaten, platzBild, eigeneBilder, bildSchluesselVon } from "./bilder.
 import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
+import { ohneFa } from "./excelEinlesen.js";
 
 // Ein hochgeladenes Bild aus der Bibliothek
 export function BildZeichnung({ schluessel, className }) {
@@ -120,7 +121,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
   // Geometriedaten nur, wo die Vorlage sie hat oder schon etwas steht
   const felder = vorlage.felder.filter((f) => f.feld !== "geometrie" || vorlage.art === "sw" || blatt.geometrie);
   // Die FA Nr. gehört nicht mehr ins Blatt, auch nicht in die Bemerkung
-  const bemerkung = String(blatt.bemerkung || "").split("\n").filter((z) => !/^\s*fabrik/i.test(z)).join("\n").trim();
+  const bemerkung = ohneFa(blatt.bemerkung);
 
   // Star wie im Excel: Plätze in Gebrauch in der Farbe des Typs, leere grau
   const inGebrauch = (p) => ["taetigkeit", "mass", "werkzeug", "hersteller", "standzeit", "hd", "geo"].some((k) => p[k]);
@@ -348,11 +349,16 @@ function SeitenReiter({ seiten, aktiv, waehlen, bearbeiten, neu }) {
 
 // ---------------- Das Fenster ----------------
 // nurLesen: im Pad Mode und für alle ohne Schreibrecht
+// Beim Bearbeiten fällt die FA-Zeile aus der Bemerkung gleich weg
+function entwurfVon(b) {
+  return b.bemerkung && ohneFa(b.bemerkung) !== b.bemerkung ? Object.assign({}, b, { bemerkung: ohneFa(b.bemerkung) || null }) : b;
+}
+
 function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbeiten }) {
   const [daten, setDaten] = useState(start);
   const darf = !nurLesen && alt.darfSchreiben() && !alt.istExtern();
   const [bearbeiten, setBearbeiten] = useState(darf && (!start.blatt || !!gleichBearbeiten));
-  const [entwurf, setEntwurf] = useState(start.blatt || leeresBlatt(hocoNr, typId));
+  const [entwurf, setEntwurf] = useState(() => entwurfVon(start.blatt || leeresBlatt(hocoNr, typId)));
   const [teilE, setTeilE] = useState(Object.assign({}, start.teil));
   const [typE, setTypE] = useState(Object.assign({}, start.typDaten));
   const [platz, setPlatz] = useState(null);
@@ -424,7 +430,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
 
   const neuLaden = async () => { const d = await blattLaden(hocoNr, typId); setDaten(d); setArtikelBilder(d.artikelBilder || {}); return d; };
   const anfangen = (d) => {
-    setEntwurf(d.blatt || leeresBlatt(hocoNr, typId));
+    setEntwurf(entwurfVon(d.blatt || leeresBlatt(hocoNr, typId)));
     setTeilE(Object.assign({}, d.teil)); setTypE(Object.assign({}, d.typDaten));
   };
   const speichern = async () => {
