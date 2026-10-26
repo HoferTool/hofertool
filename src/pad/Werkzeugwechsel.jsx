@@ -240,6 +240,75 @@ async function wechselHistorie(maschine, auftrag) {
 
 const leerOder = (x) => x === null || x === undefined;
 
+// ---------- Spalten des Blatts ----------
+
+// Das PDF ist ein Blatt wie das Excel „Plattenwechsel“ (Wunsch Patrick
+// 26. Oktober 2026): je Werkzeug eine schmale Spalte, die Kopfzeile
+// farbig je Gruppe. Gezeigt werden die Werkzeuge, die das Teil braucht:
+// die belegten Plätze im Einrichtblatt der App und alles, was schon
+// gewechselt wurde. Gibt es beides nicht, alle Plätze des Typs.
+const GRUPPENFARBEN = [
+  ["#ffff00", "#000"], ["#00b050", "#fff"], ["#e46c0a", "#fff"], ["#0070c0", "#fff"],
+  ["#7030a0", "#fff"], ["#c00000", "#fff"],
+];
+const tausender = (nr) => { const m = String(nr || "").match(/\d+/); return m ? Math.floor(Number(m[0]) / 1000) : 0; };
+
+async function blattSpalten(maschine, auftrag, runden) {
+  let paths = [], typen = [];
+  try { [paths, typen] = await Promise.all([alt.ladeTypAufbau(maschine.type_id), alt.ladeTypen()]); }
+  catch (f) { /* dann nur aus der Historie */ }
+  const typ = (typen || []).find((t) => t.id === maschine.type_id);
+  const sw = istSw(typ);
+  const mitPath = paths.filter((p) => (p.type_slots || []).some((s) => s.tool_nr)).length > 1;
+  const alle = [];
+  paths.slice().sort((x, y) => pathRang(x.nummer, sw) - pathRang(y.nummer, sw)).forEach((p) => {
+    (p.type_slots || []).filter((s) => s.tool_nr).sort((a, b) => nachZahl(a.tool_nr, b.tool_nr)).forEach((s) => {
+      if (!alle.some((c) => c.tool_nr === s.tool_nr && c.nummer === p.nummer)) {
+        alle.push({ tool_nr: s.tool_nr, path: mitPath ? p.name || null : null, nummer: p.nummer || 0 });
+      }
+    });
+  });
+
+  // Belegte Plätze im Einrichtblatt: beim Index heissen sie R1-T1
+  const blatt = auftrag && auftrag.job_number ? await blattSuchen(auftrag.job_number, maschine.type_id) : null;
+  const plaetze = (blatt && blatt.plaetze) || {};
+  const imBlatt = (c) => platzInGebrauch(plaetze[c.tool_nr]) || platzInGebrauch(plaetze["R" + c.nummer + "-" + c.tool_nr]);
+  // Typ ohne angelegte Plätze (etwa Star): dann die Plätze des Blatts
+  if (!alle.length) {
+    Object.keys(plaetze).filter((k) => platzInGebrauch(plaetze[k])).forEach((k) => {
+      const g = platzGruppe(k);
+      alle.push({ tool_nr: platzName(k), path: g || null, nummer: g ? Number(g.replace(/\D/g, "")) : 0 });
+    });
+  }
+  const gewechselt = runden.flatMap((r) => r.zeilen);
+  const inHistorie = (c) => gewechselt.some((z) => z.tool_nr === c.tool_nr && gleicherPath(z, c.path));
+  let spalten = alle.filter((c) => imBlatt(c) || inHistorie(c));
+  if (!spalten.length) spalten = alle;
+  // Gewechselte Werkzeuge, die der Typ nicht (mehr) kennt, kommen hinten dazu
+  gewechselt.forEach((z) => {
+    if (!spalten.some((c) => c.tool_nr === z.tool_nr && gleicherPath(z, c.path))) {
+      spalten.push({ tool_nr: z.tool_nr, path: z.bezeichnung || null, nummer: nameRang(z.bezeichnung, false) });
+    }
+  });
+
+  spalten.sort((a, b) => (pathRang(a.nummer, sw) - pathRang(b.nummer, sw)) || nachZahl(a.tool_nr, b.tool_nr));
+
+  // Farbe wie im Excel: bei Star nach Tausender (T100 gelb, T1100 grün,
+  // T2100 orange, T3100 blau), sonst je Revolver bzw. Path
+  const jeTausend = new Set(spalten.map((c) => tausender(c.tool_nr))).size > 1;
+  const gruppen = [];
+  spalten.forEach((c) => {
+    const g = jeTausend ? tausender(c.tool_nr) : (c.path || "");
+    let i = jeTausend ? g : gruppen.indexOf(g);
+    if (!jeTausend && i < 0) { gruppen.push(g); i = gruppen.length - 1; }
+    [c.farbe, c.schrift] = GRUPPENFARBEN[i % GRUPPENFARBEN.length];
+    // Dieselbe Nummer auf mehreren Revolvern: R1, R2 … davor
+    c.text = spalten.filter((x) => x.tool_nr === c.tool_nr).length > 1 && c.nummer
+      ? (/revolver/i.test(c.path || "") ? "R" : "P") + c.nummer + " " + c.tool_nr : c.tool_nr;
+  });
+  return { spalten, typ: typ ? typ.name : "" };
+}
+
 // Löschen: Wer schreiben darf (Admin, Planwand, Lang- und Kurzdreher),
 // darf auch einen falsch eingetragenen Wechsel entfernen. Das deckt
 // sich mit der Regel "loeschen" auf tool_changes in der Datenbank.
@@ -322,7 +391,7 @@ function Historie({ maschine, auftrag, anfang, zu }) {
     <div className="dialog dialog--breit">
       <div className="blatt__kopf"><h2>Werkzeugwechsel · {maschine.name}</h2>
         {runden.length > 0 && <button className="knopf knopf--klein" data-wzpdf=""
-          onClick={() => alt.historieAblegen(maschine, auftrag, runden, runden.vergleich)}>Als PDF ablegen</button>}
+          onClick={() => alt.historieAblegen(maschine, auftrag, runden, () => blattSpalten(maschine, auftrag, runden))}>Als PDF ablegen</button>}
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
       {runden.length
         ? <table className="tabelle">

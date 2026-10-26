@@ -79,9 +79,19 @@ with sync_playwright() as p:
     with pg.context.expect_page() as neu_info:
         pg.click("[data-wzpdf]")
     blatt = neu_info.value; blatt.wait_for_timeout(500)
-    je_wz = blatt.evaluate("[...document.querySelectorAll('.uebersicht .nr')].map(t => t.textContent)")
-    print("PDF je Werkzeug:", je_wz)
-    pruefe("PDF nach Path und Nummer", je_wz == ["T20 · Path 1", "T100 · Path 1", "T200 · Path 1", "T2 · Path 3", "T10 · Path 3"])
+    blatt.wait_for_selector(".wzblatt")
+    kopf = blatt.evaluate("[...document.querySelectorAll('.wzblatt thead th.wz')].map(t => t.textContent)")
+    print("PDF Spalten:", kopf)
+    pruefe("PDF wie Plattenwechsel: Spalten nach Path und Nummer", kopf == ["T20", "T100", "T200", "T2", "T10"])
+    pruefe("PDF: Datum, Stück, Bemerkung, Visum", blatt.evaluate(
+        "[...document.querySelectorAll('.wzblatt thead th:not(.wz)')].map(t => t.textContent).join('|')")
+        == "Datum:|Stück:|Bemerkung:|Visum:")
+    xe = blatt.evaluate("[...document.querySelectorAll('.wzblatt tbody tr')].map(r => [...r.querySelectorAll('td.wz')].map(t => t.textContent).join(''))")
+    pruefe("PDF: Wechsel als X", xe[0] == "XXX" and xe[1] == "XX")
+    pruefe("PDF: leere Zeilen zum Ausfüllen", len(xe) == 36 and xe[-1] == "")
+    pruefe("PDF: HOCO Nr. oben", blatt.locator(".hoco").count() == 1)
+    import os
+    if os.environ.get("WZ_BLATT_PDF"): blatt.pdf(path=os.environ["WZ_BLATT_PDF"], prefer_css_page_size=True, print_background=True)
     blatt.close(); pg.wait_for_timeout(600)
     pg.evaluate("TEST.daten.tool_changes = TEST.daten.tool_changes.filter(z => !String(z.id).startsWith('extra'))")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
