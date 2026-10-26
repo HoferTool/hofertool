@@ -9754,3 +9754,7 @@ body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a
 .ek__logo--ziehbar { cursor: grab; touch-action: none; position: relative; z-index: 3; }
 .ek__logo--ziehbar:hover { outline: 2px dashed rgba(29, 66, 128, .5); outline-offset: 6px; }
 .ek__logo--ziehbar:active { cursor: grabbing; }
+
+/* Material im Einrichtblatt immer auf einer Zeile (seit 1.210.0) */
+.eba-eine-zeile { display: inline-block; white-space: nowrap; }
+.eba-eine-zeile { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }

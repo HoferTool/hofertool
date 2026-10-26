@@ -66,6 +66,8 @@ with sync_playwright() as p:
            and t4.get("hersteller") == "Muster AG" and t4.get("werkzeug") == "HYP-HP-3D Ø3.50")
     pruefe("Artikel aus Werkzeugtext erkannt", b["plaetze"]["T100"].get("article_id") == "a1")
     pruefe("Maschinen-Nr.", b["maschine_nr"] == "Nr.7")
+    pruefe("Material auf einer Zeile", pg.evaluate("""() => { const e = document.querySelector('[data-eba-eine-zeile]');
+      return !!e && e.getBoundingClientRect().height < 30 && e.scrollWidth <= e.parentElement.clientWidth; }"""))
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
     pruefe("Stückzeit ergänzt", td.get("stueckzeit_s") == 33)
     s = pg.inner_text("[data-eba-seite]")
@@ -96,7 +98,8 @@ with sync_playwright() as p:
     pg.fill("[data-eba-feld='typ:stueckzeit_s']", "41")
     pg.fill("[data-eba-feld='prg:nr']", "236")
     pg.select_option("[data-eba-feld='stamm:waschgebinde']", "Typ 2 fein")
-    pg.fill("[data-eba-feld='stamm:material_groesse']", "Ø21h9")
+    pruefe("Material nur ein Feld", pg.locator("[data-eba-feld='stamm:material_groesse']").count() == 0)
+    pg.fill("[data-eba-feld='stamm:material']", "1.4305 X8CrNiS18-9 rd Ø21h9 gezogen, Stange 3 m, Debrunner")
 
     # Platz T200: Werkzeug wählen statt schreiben
     pg.click("[data-platz='T200']"); pg.wait_for_selector("[data-platzfenster='T200']")
@@ -244,8 +247,10 @@ with sync_playwright() as p:
            and t2.get("werkzeug") == "MTEC-452410" and t2.get("hersteller") == "Vischer & Bolli AG")
     pruefe("T300 mit Spezialwerkzeug", b["plaetze"]["T300"].get("article_id") == "a9")
     pruefe("Kopf am Blatt", "fa_nr" not in b["kopf"] and b["kopf"].get("n1000") == "N1000 ja" and b["programme"].get("nr") == "236")
+    pruefe("Langes Material auf einer Zeile", pg.evaluate("""() => { const e = document.querySelector('[data-eba-eine-zeile]');
+      return !!e && e.textContent.includes('Debrunner') && e.getBoundingClientRect().height < 30 && e.scrollWidth <= e.clientWidth && !!e.style.fontSize; }"""))
     hp = pg.evaluate("TEST.daten.hoco_parts.find(x => x.hoco_nr === '10000-0301')")
-    pruefe("Stammdaten", hp.get("bezeichnung") == "Deckel neu" and hp.get("waschgebinde") == "Typ 2 fein" and hp.get("material_groesse") == "Ø21h9")
+    pruefe("Stammdaten", hp.get("bezeichnung") == "Deckel neu" and hp.get("waschgebinde") == "Typ 2 fein" and hp.get("material") == "1.4305 X8CrNiS18-9 rd Ø21h9 gezogen, Stange 3 m, Debrunner" and not hp.get("material_groesse"))
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
     pruefe("Stückzeit je Typ", td.get("stueckzeit_s") == 41)
     s = pg.inner_text("[data-eba-seite]")

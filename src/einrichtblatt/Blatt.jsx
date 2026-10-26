@@ -82,6 +82,22 @@ function feldText(f, w, d) {
   return w;
 }
 
+// Text, der immer auf einer Zeile bleibt: passt er nicht, wird die
+// Schrift kleiner statt umzubrechen (Material mit Mass, Wunsch Patrick
+// 26. Oktober 2026)
+function EineZeile({ text }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.fontSize = "";
+    const voll = parseFloat(getComputedStyle(el).fontSize) || 14;
+    const breit = el.parentElement ? el.parentElement.clientWidth - 8 : 0;
+    if (breit > 0 && el.scrollWidth > breit) el.style.fontSize = Math.max(7, Math.floor(voll * breit / el.scrollWidth * 10) / 10) + "px";
+  }, [text]);
+  return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="">{text}</span>;
+}
+
 // Ein Eingabefeld im Kopf
 function KopfEingabe({ f, wert, aendern, d }) {
   const id = f.art + ":" + f.feld;
@@ -93,10 +109,13 @@ function KopfEingabe({ f, wert, aendern, d }) {
   }
   const feld = <input className="eba-ein" data-eba-feld={id} value={wert} inputMode={f.zahl ? "decimal" : undefined}
     placeholder={f.platzhalter || ""} onChange={(e) => aendern(f, e.target.value)} />;
+  // Material ist ein einziges Feld mit allem, auch dem Mass (Wunsch
+  // Patrick 26. Oktober 2026: „nur eine Zeile mit allem, also Mass und
+  // so“). Ein bisher getrennt gespeichertes Mass steht vorne mit drin und
+  // wandert beim ersten Ändern ins Material.
   if (f.feld === "material") {
-    return <span className="eba-ein-zwei">{feld}
-      <input className="eba-ein eba-ein--kurz" data-eba-feld="stamm:material_groesse" placeholder="Mass"
-        value={leer(d.teil.material_groesse)} onChange={(e) => aendern({ art: "stamm", feld: "material_groesse" }, e.target.value)} /></span>;
+    return <input className="eba-ein" data-eba-feld={id} value={feldText(f, wert, d)}
+      onChange={(e) => { aendern(f, e.target.value); if (d.teil.material_groesse) aendern({ art: "stamm", feld: "material_groesse" }, ""); }} />;
   }
   if (f.typVorne) return <span className="eba-ein-zwei"><span>{d.typ.name}</span>{feld}</span>;
   if (f.einheit) return <span className="eba-ein-zwei">{feld}<small>{f.einheit}</small></span>;
@@ -163,7 +182,8 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
 
   const zeile = (f) => {
     const w = feldWert(f, d);
-    const inhalt = bearbeiten ? <KopfEingabe f={f} wert={w} aendern={aendern} d={d} /> : feldText(f, w, d);
+    const inhalt = bearbeiten ? <KopfEingabe f={f} wert={w} aendern={aendern} d={d} />
+      : f.feld === "material" ? <EineZeile text={feldText(f, w, d)} /> : feldText(f, w, d);
     if (f.farbe) return <div key={f.art + f.feld} className="eba-prg"><span style={{ background: f.farbe }}>{f.label}</span><b>{inhalt}</b></div>;
     return <div key={f.art + f.feld} className="eba-kz" data-eba-zeile={f.feld}><span>{f.label}</span><b>{inhalt}</b></div>;
   };
