@@ -123,9 +123,11 @@ with sync_playwright() as p:
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(500)
     schl = "eigen:" + eb[0]["id"]
     pruefe("Bild am Artikel gemerkt", pg.evaluate("TEST.daten.artikel_bild.find(x => x.article_id === 'a1')?.bild") == schl)
-    # Zuerst die Artikel-Nr., dahinter nur die Beschreibung (1.207.1)
-    wz = pg.inner_text("[data-platz='T200'] .eba-wz")
-    pruefe("Blatt: Artikel-Nr. und nur Beschreibung", wz.replace("\n", " ").strip() == "MTEC-452410 R0.40 CCMT")
+    # Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (1.209.0)
+    t200 = "[data-platz='T200'] "
+    zeilen = [pg.inner_text(t200 + k).strip() for k in (".eba-her", ".eba-wz", ".eba-wz-bez")]
+    pruefe("Blatt: Lieferant, Artikel-Nr., Beschreibung je eine Zeile", zeilen == ["Vischer & Bolli AG", "MTEC-452410", "R0.40 CCMT"])
+    pruefe("Zeilen in dieser Reihenfolge", pg.evaluate("""[...document.querySelector("[data-platz='T200']").children].slice(-3).map(e => e.className).join(' ')""") == "eba-her eba-wz eba-wz-bez")
     pruefe("T100 bekommt das Artikelbild auch", pg.locator(f"[data-platz='T100'] [data-bild='{schl}']").count() == 1)
 
     # Sinnbilder der Norm in der Bibliothek (1.184.0)

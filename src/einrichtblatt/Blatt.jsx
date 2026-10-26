@@ -152,12 +152,11 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
           {p.geo ? <span className="eba-geo" data-geo="">{p.geo}</span> : null}
           {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her">{p.hersteller || ""}</div>
-        {/* Zuerst die Artikel-Nr., dahinter die Bezeichnung (Wunsch
+        {/* Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (Wunsch
             Patrick, 26. Oktober 2026); ein nur selbst zugeordneter Artikel
-            zeigt weiter den Text aus dem Excel */}
-        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}
-          {p.werkzeug && p.article_id && !p.ungeprueft && p.bezeichnung
-            ? <span className="eba-wz-bez" data-wz-bez="">{" " + p.bezeichnung}</span> : null}</div>
+            zeigt weiter nur den Text aus dem Excel */}
+        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}</div>
+        <div className="eba-wz-bez" data-wz-bez="">{p.werkzeug && p.article_id && !p.ungeprueft && p.bezeichnung ? p.bezeichnung : ""}</div>
       </div>
     );
   };

@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.209.0** Einrichtblatt: jedes Werkzeug steht in **drei Zeilen**, zuerst der Lieferant, dann die Artikel-Nr., dann die Beschreibung (Wunsch Patrick 26. Oktober 2026: „werkzeugzeilen sollen drei sein“). Vorher stand die Beschreibung hinter der Artikel-Nr. Test `einrichtblatt_app.py`.
 - **1.208.0** (26. Oktober 2026): Bereich Empfang nur noch für Patrick Ruch und Michel Bolinger (Vermerk `empfangSehen` am Konto, `sql/empfang-sehen.sql`).
 - **1.205.1** Empfang: Logo **zoomen** (Wunsch Patrick 26. Oktober 2026: „kann ich es auch zoomen?“), Schieber „Grösse des Logos“ 30 bis 250 % und Mausrad auf dem Logo, gespeichert als `logo.s`; „Logo wie am Anfang“ setzt Ort und Grösse zurück.
 - **1.205.0** Empfang: **Logo verschiebbar** (Wunsch Patrick 26. Oktober 2026: „ich will das Logo verschieben können“). Beim Gestalten das Logo im Kopf mit der Maus ziehen, gespeichert beim Loslassen als Versatz unter `logo` im Aufbau; „Logo zurück in die Mitte“ setzt es zurück.
