@@ -286,6 +286,8 @@ with sync_playwright() as p:
     s = pg.inner_text("[data-eba-seite]")
     pruefe("Index: ohne Path 1, mit Festanschlag und Legende", "Path 1" not in s and "Festanschlag" in s
            and "Revolver 3" in s and pg.locator("[data-eba-seite] .eba-platz").count() == 30)
+    farbe = pg.evaluate("getComputedStyle(document.querySelector('.eba-tk')).color")
+    pruefe("Index: Platznummern schwarz", farbe == "rgb(0, 0, 0)")
     pg.screenshot(path="einrichtblatt_app_index.png")
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)

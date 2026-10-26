@@ -82,7 +82,7 @@ function star(name, art, { mitT700 = true, mitT3100 = true, mitT3400 = false } =
 
 // ---------------- Index ----------------
 // Revolver 1 im Excel olivbraun (Designfarbe „Hintergrund 2, dunkler 50 %“),
-// die Platznummern darauf weiss
+// die Platznummern darauf schwarz (seit 1.210.1, Wunsch Patrick 26. Oktober 2026)
 const REVOLVER = [["1", "#948A54"], ["2", "#92D050"], ["3", "#00B0F0"]];
 function index(name) {
   const reihen = [];
@@ -94,7 +94,7 @@ function index(name) {
   REVOLVER.forEach(([r, f]) => T(1, 10, 1).forEach((t) => { farben["R" + r + "-" + t] = f; }));
   return {
     art: "index", titel: "Werkzeug- Protokoll-" + name + " C100", spalten: 6, kopfBreite: 1, kopfAb: 0, reihen, farben,
-    schrift: "#FFFFFF",
+    schrift: "#000000",
     // Im Excel ist der Kopf etwas breiter als ein Platz
     breiten: "1.3fr repeat(5, minmax(0, 1fr))",
     legende: REVOLVER.map(([r, f]) => ["Revolver " + r, f]),
