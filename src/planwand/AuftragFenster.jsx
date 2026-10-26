@@ -34,6 +34,7 @@ import { ImHausEinblendung } from "./MaterialImHaus.jsx";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { spezialAnzahl } from "../daten/spezialwerkzeuge.js";
 import { spezialwerkzeugeOeffnen } from "../teile/Spezialwerkzeuge.jsx";
+import { inEigenesFenster } from "../teile/eigenesFenster.js";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
@@ -65,6 +66,7 @@ export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vor
 function unterKopfLegen(huelle) {
   if (!huelle) return null;
   const legen = () => {
+    if (huelle.classList.contains("dialog-huelle--eigen")) return;
     const kopf = document.querySelector("#inhalt .pw-zeile--kopf");
     const r = kopf ? kopf.getBoundingClientRect() : null;
     const passt = r && r.height && !document.body.classList.contains("pad-offen")
@@ -75,6 +77,80 @@ function unterKopfLegen(huelle) {
   legen();
   addEventListener("resize", legen);
   return () => removeEventListener("resize", legen);
+}
+
+// Verschieben (Wunsch Patrick 26. Oktober 2026: „muss im geöffneten
+// Zustand verschoben werden können, auch über das HoferTool hinaus,
+// z.B. auf einen anderen Bildschirm“): Am Kopf ziehen verschiebt das
+// Fenster in der App; zieht man es über den Rand des Browsers hinaus,
+// wird es dort ein eigenes Browserfenster (src/teile/eigenesFenster.js),
+// das man auf jeden Bildschirm stellen kann. Dasselbe tut der Knopf ⧉.
+// Nur am Computer mit Maus: auf iPad und Handy wäre es nur ein Tab.
+export const eigenesFensterMoeglich = () => !alt.isMobil()
+  && !document.body.classList.contains("pad-offen")
+  && !(alt.istArchiv && alt.istArchiv())
+  && window.matchMedia("(pointer: fine)").matches;
+
+function auftragTitel(auftrag) {
+  return (auftrag && auftrag.job_number ? "Auftrag " + auftrag.job_number : "Auftrag") + " – HoferTool";
+}
+
+function eigenesFensterOeffnen(kopf, zu, auftrag, lage) {
+  const huelle = kopf && kopf.closest(".dialog-huelle");
+  if (!huelle || huelle.classList.contains("dialog-huelle--eigen")) return false;
+  const ok = inEigenesFenster(huelle, zu, { titel: auftragTitel(auftrag), lage });
+  // Die Planwand dahinter soll weiter mitlaufen und bedienbar sein
+  if (ok) alt.plan.imDialog = false;
+  return ok;
+}
+
+function useZiehen(kopfRef, zu, auftrag, extern) {
+  useEffect(() => {
+    const kopf = kopfRef.current;
+    if (!kopf || !eigenesFensterMoeglich()) return;
+    kopf.classList.add("auf-kopf--ziehbar");
+    const runter = (e) => {
+      if (e.button !== 0 || e.pointerType !== "mouse") return;
+      if (e.target.closest("button, a, input, select, textarea, label")) return;
+      const huelle = kopf.closest(".dialog-huelle");
+      const dialog = kopf.closest(".dialog");
+      if (!huelle || !dialog || huelle.classList.contains("dialog-huelle--eigen")) return;
+      e.preventDefault();
+      const [x0, y0] = (dialog.dataset.verschoben || "0,0").split(",").map(Number);
+      const r = dialog.getBoundingClientRect();
+      const griff = { x: e.clientX - r.left, y: e.clientY - r.top };
+      const sx = e.clientX, sy = e.clientY;
+      kopf.setPointerCapture(e.pointerId);
+      kopf.classList.add("auf-kopf--zieht");
+      const ende = () => {
+        kopf.removeEventListener("pointermove", zieh);
+        kopf.removeEventListener("pointerup", ende);
+        kopf.removeEventListener("lostpointercapture", ende);
+        kopf.classList.remove("auf-kopf--zieht");
+      };
+      const zieh = (ev) => {
+        const draussen = ev.clientX <= 0 || ev.clientY <= 0
+          || ev.clientX >= innerWidth - 1 || ev.clientY >= innerHeight - 1;
+        // Externe vorerst ohne eigenes Fenster (neue Funktion, Patrick gefragt)
+        if (draussen && !extern) {
+          ende();
+          dialog.style.transform = ""; delete dialog.dataset.verschoben;
+          // Dort hin, wo die Maus ist, mit dem Kopf unter dem Zeiger
+          eigenesFensterOeffnen(kopf, zu, auftrag,
+            { x: ev.screenX - griff.x, y: ev.screenY - griff.y - 30 });
+          return;
+        }
+        const dx = x0 + ev.clientX - sx, dy = y0 + ev.clientY - sy;
+        dialog.style.transform = `translate(${dx}px, ${dy}px)`;
+        dialog.dataset.verschoben = dx + "," + dy;
+      };
+      kopf.addEventListener("pointermove", zieh);
+      kopf.addEventListener("pointerup", ende);
+      kopf.addEventListener("lostpointercapture", ende);
+    };
+    kopf.addEventListener("pointerdown", runter);
+    return () => kopf.removeEventListener("pointerdown", runter);
+  }, []);
 }
 
 // Warten, bis die Planwand ihre Aufträge hat; höchstens 20 Sekunden
@@ -254,6 +330,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   // (Wunsch Patrick, 9. Oktober 2026)
   const darfPlatz = alt.darfMaterialplatz();
   const extern = alt.istExtern();
+  const kopfRef = useRef(null);
+  useZiehen(kopfRef, zu, auftrag, extern);
   const maschinen = alt.prod.maschinen || [];
   const [w, setW] = useState(() => anfangswerte(auftrag, v, vorgabeMaschine, vorgabeDatum, leer));
   // Stand beim Öffnen: ohne Planungsrecht wird die Notiz nur gespeichert,
@@ -569,7 +647,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   return (
     <div className="dialog dialog--auftrag">
       {/* ---------- Kopfzeile ---------- */}
-      <div className="auf-kopf">
+      <div className="auf-kopf" ref={kopfRef}>
         <div className="auf-kopf__titel">
           {auftrag
             ? <>
@@ -596,6 +674,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
         <div className="auf-kopf__knoepfe">
           {auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--warnung" id="pl-problem-eigen"
             onClick={() => { zu(); alt.problemMelden(b, auftrag); }}>Problem</button>}
+          {!extern && eigenesFensterMoeglich() && <button type="button" className="dialog__schliessen-inline auf-kopf__eigen"
+            id="pl-eigen" title="In eigenem Fenster öffnen, zum Verschieben auf einen anderen Bildschirm"
+            aria-label="In eigenem Fenster öffnen"
+            onClick={() => eigenesFensterOeffnen(kopfRef.current, zu, auftrag)}>⧉</button>}
           <button type="button" className="dialog__schliessen-inline" id="pl-nein" title="Schliessen"
             aria-label="Schliessen" data-zu="" onClick={zu}>✕</button>
         </div>

@@ -63,6 +63,7 @@ import Hoco from "../hoco/Hoco.jsx";
 import { maschinenkopf } from "../seiten/rechner/kopf.jsx";
 import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
 import { meldungenNachAnmeldung, meldungenWeg } from "../teile/anmeldeMeldungen.jsx";
+import { eigeneFensterOffen, eigeneFensterZu } from "../teile/eigenesFenster.js";
 import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 
 const BOOT = document.getElementById("boot");
@@ -140,7 +141,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.189.0";
+const APP_VERSION = "1.190.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1178,6 +1179,7 @@ const NEULADEN_FENSTER_RUHIG = ["betrachter", "dok", "wetter", "hoco"];
 function neuladenRuhig() {
   if (document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return false;
   if (document.querySelector(".temp__liste--laeuft")) return false; // Temp-Ordner lädt hoch
+  if (eigeneFensterOffen()) return false; // Auftragsfenster auf einem anderen Bildschirm
   const fenster = Array.from(document.querySelectorAll(".dialog-huelle"));
   if (fenster.some((h) => !NEULADEN_FENSTER_RUHIG.includes(fensterArt(h)))) return false;
   const a = document.activeElement;
@@ -10023,7 +10025,7 @@ Object.assign(alt, {
   siegelListe, siegelName, siegelHtml, standsNachtragen, werkstoffErkennen, farbeVon, schriftZu, auftragFarbe, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
   werkzeugWechselDialog, zifferblock,
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
-  letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen,
+  letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen, leerlaufAktiv,
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, zeichnungEntfernen, wbgEntfernen, einrichtblattEntfernen, ablageLoeschen,
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert, einstellungWert,
@@ -10507,6 +10509,7 @@ function zeichneGeruest() {
     await abmelden();
     profil = null;
     meldungenWeg();
+    eigeneFensterZu();
     // Auch das kleine Notizbuch geht beim Abmelden zu
     document.querySelectorAll(".dialog-huelle, .nb-schwebend [data-zu]").forEach((el) =>
       (el.classList.contains("dialog-huelle") ? el.remove() : el.click()));

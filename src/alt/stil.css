@@ -9656,3 +9656,18 @@ body.dunkel .heuteoffen--nervt .heuteoffen__maschine { background: #fff; color: 
    gezogene Datei bekommt, leuchtet in der Themenfarbe auf */
 .datei-ablegen-ziel { outline: 3px dashed var(--akzent, #1f5fbf) !important; outline-offset: 2px;
   background-color: rgba(31, 95, 191, .08) !important; }
+
+/* ---------- Auftragsfenster verschieben (seit 1.190.0) ----------
+   Am Kopf ziehen verschiebt es, über den Rand des Browsers hinaus wird
+   es ein eigenes Browserfenster (src/teile/eigenesFenster.js). Dort
+   füllt es das ganze Fenster, ohne Abdunkeln. */
+.auf-kopf--ziehbar { cursor: grab; user-select: none; }
+.auf-kopf--zieht { cursor: grabbing; }
+.auf-kopf__eigen { font-size: 1.15rem; }
+.dialog-huelle--eigen { padding: 0; place-items: stretch; background: var(--flaeche);
+  backdrop-filter: none; -webkit-backdrop-filter: none; }
+.dialog-huelle--eigen > .dialog--auftrag { width: 100%; max-width: none; height: 100vh;
+  max-height: none !important; border-radius: 0; transform: none !important; }
+.dialog-huelle--eigen .auf-kopf { cursor: default; }
+.dialog-huelle--eigen .auf-kopf__eigen { display: none; }
+body:has(> .dialog-huelle--eigen) { overflow: hidden; margin: 0; background: var(--flaeche); }
