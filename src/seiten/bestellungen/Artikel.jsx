@@ -103,6 +103,10 @@ function Liste({ liste, sucht, schreiben, behaelter, spezial }) {
                 {a.foto_anzahl > 0 && <span className="af-zahl" title="Gelernte Fotos der Verpackung">{a.foto_anzahl}</span>}
                 <Symbolknopf zeichen="stift" text="Bearbeiten" data-arbearb={a.id}
                   onClick={() => alt.artikelBearbeiten(a, behaelter)} />
+                {/* Kopieren: alles ausgefüllt, nur ändern, was anders ist
+                    (Wunsch Patrick 26. Oktober 2026) */}
+                <Symbolknopf zeichen="kopie" text="Kopieren" data-arkopie={a.id}
+                  onClick={() => alt.artikelBearbeiten(a, behaelter, true)} />
                 <Symbolknopf zeichen="muell" text="Löschen" gefahr data-arweg={a.id}
                   data-nr={a.article_number} onClick={() => loeschen(a, behaelter)} />
               </>}

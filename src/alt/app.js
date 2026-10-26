@@ -145,7 +145,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.206.0";
+const APP_VERSION = "1.207.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9139,7 +9139,11 @@ function auswahlSuchen(titel, optionen, mindestens) {
 
 // Reiter Artikel: src/seiten/bestellungen/Artikel.jsx
 
-async function artikelBearbeiten(artikel, b) {
+// kopie: dasselbe Fenster, alles schon ausgefüllt, Speichern legt einen
+// neuen Artikel an; so ändert man nur, was anders ist, etwa die Nummer
+// (Wunsch Patrick 26. Oktober 2026: „Artikel kopieren und einfach einen
+// Teil umbenennen“)
+async function artikelBearbeiten(artikel, b, kopie) {
   if (!artikel) return;
 
   let lieferanten = [], bezeichnungen = [];
@@ -9149,7 +9153,8 @@ async function artikelBearbeiten(artikel, b) {
   const huelle = document.createElement("div");
   huelle.className = "dialog-huelle";
   huelle.innerHTML = '<div class="dialog">'
-    + '<h2>Artikel bearbeiten</h2>'
+    + '<h2>' + (kopie ? "Artikel kopieren" : "Artikel bearbeiten") + '</h2>'
+    + (kopie ? '<p class="hinweis">Ändere, was beim neuen Artikel anders ist, und speichere. Der bisherige bleibt, wie er ist.</p>' : "")
 
     + '<label class="feld"><span>Artikelnummer</span>'
     + '<input type="text" id="ab-nr" autocapitalize="characters" value="'
@@ -9179,9 +9184,9 @@ async function artikelBearbeiten(artikel, b) {
     + esc(artikel.description || "") + '</textarea></label>' 
 
     + '<div class="dialog__knoepfe">'
-    + '<button class="knopf knopf--gefahr" id="ab-weg">Löschen</button>'
+    + (kopie ? "" : '<button class="knopf knopf--gefahr" id="ab-weg">Löschen</button>')
     + '<button class="knopf knopf--still" id="ab-nein">Abbrechen</button>'
-    + '<button class="knopf knopf--haupt" id="ab-ja">Speichern</button>'
+    + '<button class="knopf knopf--haupt" id="ab-ja">' + (kopie ? "Als neuen Artikel speichern" : "Speichern") + '</button>'
     + '</div></div>';
   document.body.appendChild(huelle);
   plan.imDialog = true;
@@ -9249,6 +9254,31 @@ async function artikelBearbeiten(artikel, b) {
     const lieferantNeu = liefFeld.value;
     const lieferantAlt = artikel.supplier_id || null;
 
+    if (kopie) {
+      if (nummer === (artikel.article_number || "").trim()) {
+        meldung("Die Artikelnummer ist noch dieselbe. Bitte die neue Nummer eintragen.", "warn");
+        $("ab-nr").focus();
+        return;
+      }
+      const neu = { article_number: nummer, name: name,
+        description: ($("ab-beschreibung").value || "").trim() || null,
+        unit: artikel.unit || "Stück", supplier_id: lieferantNeu };
+      if (artikel.spezial) neu.spezial = true;
+      const k = await db.from("articles").insert(neu).select();
+      if (k.error) {
+        const m = String(k.error.message || "").toLowerCase();
+        meldung(m.includes("duplicate") || m.includes("unique")
+          ? "Diese Artikelnummer gibt es schon." : fehlertext(k.error), "fehler");
+        return;
+      }
+      const id = ((k.data || [])[0] || {}).id;
+      if (id) merkeSchritt("Artikel kopiert", [rueckWeg("articles", { id })]);
+      zu();
+      meldung("Kopie gespeichert: " + nummer);
+      seiteBestellungen(b);
+      return;
+    }
+
     const r = await db.from("articles").update({
       article_number: nummer,
       name: name,
@@ -9286,7 +9316,7 @@ async function artikelBearbeiten(artikel, b) {
     }
   };
 
-  $("ab-weg").onclick = async () => {
+  if (!kopie) $("ab-weg").onclick = async () => {
     const ok = await nachfragen({
       titel: "Artikel löschen",
       text: '"' + artikel.article_number + '" wird gelöscht. Bestellpositionen, '
