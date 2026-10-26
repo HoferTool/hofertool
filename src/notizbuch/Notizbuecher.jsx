@@ -790,7 +790,7 @@ function Notizbuecher({ zu, huelle, schwebend, umschalten, park, titel, maschine
         <nav className="nb-buecher" aria-label="Notizbücher">
           <div className="nb-spaltenkopf">Bücher
             {darf && !fehlt && <span className="nb-knoepfe">
-              <button type="button" className="nb-plus" data-nb="onenote" aria-label="Aus OneNote übernehmen"
+              <button type="button" className="nb-plus" data-nb="onenote" data-ablegen="" aria-label="Aus OneNote übernehmen"
                 title={"Aus OneNote übernehmen (PDF). " + SO_EXPORTIEREN} disabled={!!holt}
                 onClick={oneNoteWaehlen}><Symbol d={HOLEN} /></button>
               <button type="button" className="nb-plus" data-nb="buch-neu" aria-label="Neues Notizbuch"

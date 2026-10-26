@@ -65,7 +65,7 @@ export default function MahnBilder() {
       <div className="sym-liste">
         {MAHN_ARTEN.map(([art, name]) => (
           <div className="sym-zeile" key={art} data-mahnbild={art}>
-            <button type="button" className="sym-bild" title="Bild wählen" disabled={beschaeftigt}
+            <button type="button" className="sym-bild" title="Bild wählen" data-ablegen="" disabled={beschaeftigt}
               onClick={async () => {
                 let b = null;
                 try { b = await bildWaehlen(art); }

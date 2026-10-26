@@ -178,7 +178,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
                   <td className="rechts nowrap">
                     {(e.eigenes || e.vorlage) && <><button className="knopf knopf--klein hocoteil__haupt" data-blatt-typ={e.typId}
                       onClick={() => blattAnsehen(e.typId)}>Ansehen</button>{" "}</>}
-                    {darf && <button className="knopf knopf--klein" data-blatt-pdf={e.typId}
+                    {darf && <button className="knopf knopf--klein" data-blatt-pdf={e.typId} data-ablegen=""
                       onClick={() => blattHinterlegen(e.typId)}>{e.eigenes ? "Ersetzen" : "Datei hinterlegen"}</button>}
                     {darf && e.eigenes && <>{" "}<button className="knopf knopf--klein knopf--gefahr-leise" data-blatt-weg={e.typId}
                       onClick={() => blattEntfernen(e.typId)}>Entfernen</button></>}

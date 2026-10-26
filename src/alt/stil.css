@@ -9651,3 +9651,8 @@ body.dunkel .heuteoffen--nervt .heuteoffen__maschine { background: #fff; color: 
 @media (prefers-reduced-motion: reduce) {
   .heuteoffen--nervt, .heuteoffen--nervt::after { animation: none; }
 }
+
+/* Dateien ablegen (seit 1.189.0, Wunsch Tristan): die Stelle, die die
+   gezogene Datei bekommt, leuchtet in der Themenfarbe auf */
+.datei-ablegen-ziel { outline: 3px dashed var(--akzent, #1f5fbf) !important; outline-offset: 2px;
+  background-color: rgba(31, 95, 191, .08) !important; }

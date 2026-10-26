@@ -8,6 +8,8 @@ import "./alt/stil.css";
 import "./alt/app.js";
 // Profilbilder grau, sehr helle mässig umgekehrt
 import "./teile/profilbilder.js";
+// Dateien vom Computer in jedes Dateifeld ziehen
+import "./teile/dateiAblegen.js";
 // Mehr Bewegung: gleitende Markierungen, Licht, Welle, Seitenwechsel
 import "./effekte/effekte.css";
 import "./effekte/effekte.js";

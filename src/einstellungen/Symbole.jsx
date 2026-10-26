@@ -93,7 +93,7 @@ export default function Symbole({ anwenden }) {
             }} />)}
         </div>
         <div className="sym-neu" id="sym-neu">
-          <button type="button" className="sym-bild" id="sym-neu-bild" title="Bild wählen"
+          <button type="button" className="sym-bild" id="sym-neu-bild" title="Bild wählen" data-ablegen=""
             onClick={async () => { const b = await bildWaehlen(); if (b) setNeuBild(b); }}>
             {neuBild ? <img src={neuBild} alt="" /> : <span>Bild wählen</span>}</button>
           <input type="text" id="sym-neu-text" maxLength={80} placeholder="Erklärung, z. B. Kack Teili"
@@ -119,7 +119,7 @@ function SymbolZeile({ s, aendern, loeschen, beschaeftigt, anwenden }) {
   };
   return (
     <div className="sym-zeile" data-symbol={s.id}>
-      <button type="button" className="sym-bild" title="Anderes Bild wählen" disabled={beschaeftigt}
+      <button type="button" className="sym-bild" title="Anderes Bild wählen" data-ablegen="" disabled={beschaeftigt}
         onClick={async () => { const b = await bildWaehlen(); if (b) aendern({ bild: b }); }}>
         <img src={s.bild} alt="" /></button>
       <input type="text" maxLength={80} value={text} onChange={(e) => setText(e.target.value)}

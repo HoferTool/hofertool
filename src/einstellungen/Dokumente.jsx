@@ -636,9 +636,9 @@ function Letzte({ stand, hochladen }) {
         {/* Nur ansehen, ohne hochzuladen: etwa ein Einrichtblatt als
             Excel vom Stick oder aus dem Mail */}
         <label className="knopf knopf--klein" id="dok-ansehen">Datei ansehen
-          <input type="file" hidden accept={"application/pdf,image/*,.xlsx,.xlsm,.xls"}
+          <input type="file" hidden data-ablegen="direkt" accept={"application/pdf,image/*,.xlsx,.xlsm,.xls"}
             onChange={(e) => { const d = e.target.files && e.target.files[0]; e.target.value = ""; alt.dateiAnsehen(d); }} /></label>{" "}
-        <button className="knopf knopf--klein" id="dok-neu" onClick={hochladen}>Dateien hochladen</button>
+        <button className="knopf knopf--klein" id="dok-neu" data-ablegen="" onClick={hochladen}>Dateien hochladen</button>
       </>}>
       <Suchfeld id="dok-letzte-suche" wert={suche} setzen={setSuche} platzhalter="Datei, HOCO Nr. oder Art suchen" />
       <div id="dok-letzte">{inhalt}</div>

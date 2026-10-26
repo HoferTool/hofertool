@@ -7,7 +7,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Test:** https://hofertool.github.io/hofertool/test/ — genauso der Zweig `claude/project-thread-au2n7k` (Thread „Einrichtblatt in der App“) im Ordner `test/`, mit echten Daten, oben das Schild „Test“. `sw.js` lässt auch `/test/` in Ruhe. Das Einrichtblatt in der App ist seit 1.170.0 live in `main`. Die Aufgabe „HoferTool“ lädt kein Excel mehr für HOCO Nr. und Typ, deren Blatt in der App als gut bestätigt ist (`einrichtblatt_app.gut_am`).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 1.188.0 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
+- **Stand:** Version 1.189.0 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
 
 ## Mit wem du arbeitest
 
@@ -68,6 +68,7 @@ RÜCKGÄNGIG · OFFLINE · EXTERNE GERÄTE · FEHLERPROTOKOLL · STARTSEITE · D
 | Abgleich | `syncPruefen()`, `serverStempel(tabellen)`, `dashboardTeile(b, still)`, `stillNeuZeichnen(id, fn)` |
 | Dokumente | `dokErkennen(name, typen)`, `dokHochladen(datei, zuordnung, quelle)`, `DOK_REGELN` |
 | Logo | `LOGO_WEISS` (eingebettetes PNG) |
+| Dateien ablegen | `src/teile/dateiAblegen.js` (seit 1.189.0, Wunsch Tristan): Ziehen und Ablegen füllt von selbst das nächste `<input type="file">`; Knöpfe, die ihr Feld erst beim Antippen bauen, bekommen `data-ablegen`, Felder nur für den eigenen Knopf `data-ablegen="direkt"`. Neue Dateifelder brauchen nichts weiter. |
 | Bewegung | `planFliessenAnmelden(id)` vor dem Neuzeichnen der Planwand lässt verschobene Balken gleiten; `bewegungFenster`, `bewegungPad`, `wenigBewegung()` |
 | Anmeldung mit PIN | `pinAnmelden(email, pin)` ruft die Server-Funktion `pin-anmelden` (Quelle in `supabase/functions/`), `pinMeldung(e)` macht den Text daraus. In der Datenbank: `pin_setzen`, `passwort_setzen` (Admin setzt anderen ein Passwort, ohne das alte zu kennen), `pin_entfernen`, `pin_vorhanden`, `pin_pruefen` (nur Server). Dialogfelder mit `ziffern: true` zeigen die Zifferntastatur. |
 
