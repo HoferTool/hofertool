@@ -141,7 +141,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.198.1";
+const APP_VERSION = "1.199.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4925,7 +4925,11 @@ function balkenInfoVerhalten() {
             return zeile('<span class="pw-info__was">Mat. info.</span> '
               + (m.sicher === false && m.rest
                   ? 'min. <span class="mat-info__l">ca.</span> ' + esc(m.rest)
-                  : esc(m.text)));
+                  : esc(m.text)))
+              // Darunter der Bedarf für die noch offenen Stück (seit 1.199.0)
+              + (m.offen ? zeile(m.offen.stueck && m.sicher === false
+                  ? '<span class="mat-info__l">ca.</span> ' + esc(m.offen.text.replace(/^ca\. /, ""))
+                  : esc(m.offen.text), "mat-info__offen") : "");
           })();
 
       document.body.appendChild(fenster);

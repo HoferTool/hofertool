@@ -9681,3 +9681,8 @@ body.dunkel .eba-seite .eba-ein option { background: #fff; color: #000; -webkit-
 }
 .pd-schonda b { display: block; margin-bottom: 2px; }
 body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a6220; }
+
+/* Mat. info. über der Zeichnung mit zweiter Zeile für die noch offenen
+   Stück (seit 1.199.0, Wunsch Patrick 26. Oktober 2026) */
+.auf-spalte--zeichnung .mat-info { margin: 0; flex: 0 0 auto; }
+.mat-info__offen { font-size: .92em; }

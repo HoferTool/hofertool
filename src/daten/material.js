@@ -865,7 +865,17 @@ export function matInfo(j) {
   // Länge nicht bestätigt: „ca.“ davor, sonst die Zahl genau (Wunsch
   // Patrick 17. Oktober 2026, vorher das Zeichen ✗L dahinter)
   const rest = z(kg) + " kg / " + z(b.stangen) + (b.stangen === 1 ? " Stange" : " Stangen");
-  return { text: "min. " + (b.sicher ? "" : "ca. ") + rest, rest, kg, stangen: b.stangen, sicher: b.sicher };
+  // Darunter, was für die noch offenen Stück nötig ist (Wunsch Patrick
+  // 26. Oktober 2026: „unten dran noch … kg (… Stangen) notwendig für
+  // restliche Stückzahl, welche offen ist“)
+  const o = bedarfRechnen(j, teil, stand.daten.maschineVon[j.machine_id], false);
+  const offenStk = Math.max(0, (Number(j.target_quantity) || 0) - (Number(j.stand) || 0));
+  const offen = o ? { stueck: offenStk, rest: z(Math.ceil(o.kg)) + " kg (" + z(o.stangen)
+    + (o.stangen === 1 ? " Stange)" : " Stangen)"), text: "" } : null;
+  if (offen) offen.text = offenStk
+    ? (b.sicher ? "" : "ca. ") + offen.rest + " notwendig für " + z(offenStk) + " offene Stück"
+    : "keine offenen Stück mehr";
+  return { text: "min. " + (b.sicher ? "" : "ca. ") + rest, rest, kg, stangen: b.stangen, sicher: b.sicher, offen };
 }
 
 // Restmaterial im Haus, das zu diesem Auftrag passt (Wunsch Patrick

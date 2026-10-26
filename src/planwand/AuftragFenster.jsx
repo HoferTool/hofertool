@@ -723,16 +723,6 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 onChange={(e) => setze("nr", e.target.value)} /></label>
             <p className="klein" id="pl-hoco-info">{hocoInfo}</p>
           </>}
-          {/* Mindestmenge kurz über dem Zustand, immer, egal welcher
-              Zustand oder ob schon bestellt (Wunsch Patrick 16. Oktober
-              2026). Ist die Länge nicht bestätigt, steht „ca.“ vor der
-              Zahl (seit 1.89.0); antippen oder darüberfahren erklärt es. */}
-          {auftrag && matInfo(auftrag) && <p className="mat-info" id="pl-matinfo">
-            <b>Mat. info.:</b> {matInfo(auftrag).sicher === false && matInfo(auftrag).rest
-              ? <>min. <button type="button" className="mat-info__l"
-                  title={MAT_INFO_ERKLAERUNG} aria-label={MAT_INFO_ERKLAERUNG}
-                  onClick={() => alt.meldung(MAT_INFO_ERKLAERUNG)}>ca.</button> {matInfo(auftrag).rest}</>
-              : matInfo(auftrag).text}</p>}
           {/* Zustand als ein Auswahlfeld statt fünf Knöpfe: braucht
               eine Zeile statt drei. Auch ohne Planrecht wählbar. */}
           <div className="auf-dreier auf-dreier--gleich">
@@ -856,6 +846,23 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
 
         {/* Rechts: Zeichnung quer, darunter die Dokumente */}
         <div className="auf-spalte auf-spalte--zeichnung">
+          {/* Mindestmenge für die ganze Fertigungsmenge und darunter für
+              die noch offenen Stück, über der Zeichnung, genau wie in der
+              Schnellvorschau (Wunsch Patrick 26. Oktober 2026; vorher
+              über dem Zustand). Ist die Länge nicht bestätigt, steht
+              „ca.“ vor der Zahl; antippen oder darüberfahren erklärt es. */}
+          {auftrag && matInfo(auftrag) && (() => {
+            const m = matInfo(auftrag);
+            const ca = <button type="button" className="mat-info__l"
+              title={MAT_INFO_ERKLAERUNG} aria-label={MAT_INFO_ERKLAERUNG}
+              onClick={() => alt.meldung(MAT_INFO_ERKLAERUNG)}>ca.</button>;
+            return <div className="mat-info" id="pl-matinfo">
+              <div><b>Mat. info.:</b> {m.sicher === false && m.rest ? <>min. {ca} {m.rest}</> : m.text}</div>
+              {m.offen && <div className="mat-info__offen" id="pl-matinfo-offen">
+                {m.offen.stueck && m.sicher === false
+                  ? <>{ca} {m.offen.text.replace(/^ca\. /, "")}</> : m.offen.text}</div>}
+            </div>;
+          })()}
           <div className="feld auf-zeichnung">
             <Vorschau adresse={w.pdf || ""} titel={titelZeichnung} />
             {imHaus && <ImHausEinblendung treffer={imHaus.treffer} bild={imHaus.bild} weg={() => setImHaus(null)}

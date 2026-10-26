@@ -188,8 +188,11 @@ with sync_playwright() as p:
         return [z.inner_text() for z in pg.locator(".pw-info .pw-info__zeile").all()]
     zz = vorschau("mB")
     # Seit 1.95.0 wieder in der Schnellvorschau, ganz unten
-    pruefe("Mat. info. ganz unten in der Schnellvorschau (mB): " + (zz[-1] if zz else "leer"),
-           bool(zz) and zz[-1].startswith("Mat. info.") and "min. ca." in zz[-1])
+    pruefe("Mat. info. ganz unten in der Schnellvorschau (mB): " + (zz[-2] if len(zz) > 1 else "leer"),
+           len(zz) > 1 and zz[-2].startswith("Mat. info.") and "min. ca." in zz[-2])
+    # Seit 1.199.0 darunter der Bedarf für die offenen Stück
+    pruefe("Darunter die offenen Stück (mB): " + (zz[-1] if zz else "leer"),
+           bool(zz) and zz[-1].startswith("ca. ") and "notwendig für" in zz[-1] and "offene Stück" in zz[-1])
     pruefe("Notiz ohne „aus infoBoard“ in der Schnellvorschau", not any("infoBoard" in t for t in zz))
     pruefe("Werkstoffnummer in der Schnellvorschau: " + next((t for t in zz if "1.4104" in t), "fehlt"),
            any(t.startswith("1.4104 · ") for t in zz))
@@ -198,8 +201,11 @@ with sync_playwright() as p:
     pg.locator(".pw-balken[data-auftrag='mB']").first.dblclick()
     pg.wait_for_selector("#pl-matinfo", timeout=5000)
     txt = pg.inner_text("#pl-matinfo")
-    lage = pg.evaluate("[document.querySelector('#pl-matinfo').getBoundingClientRect().bottom, document.querySelector('#pl-zustand').getBoundingClientRect().top]")
-    pruefe("Auftragsfenster: Mat. info. über dem Zustand: " + txt, txt.startswith("Mat. info.: min.") and "min. ca." in txt and "✗L" not in txt and lage[0] <= lage[1])
+    lage = pg.evaluate("[document.querySelector('#pl-matinfo').getBoundingClientRect().bottom, document.querySelector('.auf-zeichnung').getBoundingClientRect().top]")
+    # Seit 1.199.0 über der Zeichnung, zwei Zeilen wie in der Schnellvorschau
+    pruefe("Auftragsfenster: Mat. info. über der Zeichnung: " + txt.replace(chr(10), " / "), txt.startswith("Mat. info.: min.") and "min. ca." in txt and "✗L" not in txt and lage[0] <= lage[1])
+    gleich = [z for z in txt.split(chr(10)) if z.strip()]
+    pruefe("Auftragsfenster genau wie Schnellvorschau", len(gleich) == 2 and gleich[1] == zz[-1] and gleich[0].replace("Mat. info.:", "Mat. info.") == zz[-2])
     notiz = pg.evaluate("[...document.querySelectorAll('.dialog-huelle textarea, .fenster textarea')].map(t => t.value).join('|')")
     pruefe("Auftragsfenster: Notiz ohne „aus infoBoard“: " + notiz.replace(chr(10), " / "), "Teile dringend" in notiz and "infoBoard" not in notiz)
     pg.click("#pl-matinfo .mat-info__l"); pg.wait_for_timeout(300)
@@ -211,6 +217,8 @@ with sync_playwright() as p:
     # Seit 1.97.0 auf die ganze Fertigungsmenge: Länge 7 + 2,5 + 0,5 = 10 mm, 275 je Stange,
     # 5'000 → 19 Stangen (auf die offenen 4'000 wären es 15)
     pruefe("Laufender Auftrag (mA, 1'000 von 5'000 gemacht): Mat. info. auf die ganze Menge: " + mia, mia.startswith("Mat. info.") and "/ 19 Stangen" in mia.replace("\n", " "))
+    ofa = next((t for t in zz if "notwendig für" in t), "fehlt")
+    pruefe("mA: offene 4'000 Stück brauchen 15 Stangen: " + ofa, "(15 Stangen) notwendig für 4'000 offene Stück" in ofa)
 
     # Beenden im Pad fragt nach dem Rest
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)
