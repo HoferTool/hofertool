@@ -9688,3 +9688,11 @@ body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a
 .mat-info__offen { font-size: .92em; }
 /* Einrichtblätter als PDF: Freigabe-Knopf über dem des Planwand-Archivs (1.200.0) */
 .eb-pdf-freigeben { bottom: 100px; }
+
+/* Empfang (seit 1.201.0): Bildschirm quer, die Tafel über die ganze Breite
+   der Seite, die Knöpfe darunter */
+.ib-gestalten--empfang .ib-gestalten__teile { flex-direction: column; align-items: stretch; }
+.ib-gestalten--empfang .ib-gestalten__vorschau { height: auto; width: 100%; max-width: calc(72vh * 16 / 9);
+  aspect-ratio: 16 / 9; }
+.ib-gestalten--empfang .ib-gestalten__seite { max-width: none; }
+.ib-gestalten--empfang .ib-gestalten__kopf .klein { margin-right: auto; }

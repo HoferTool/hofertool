@@ -15,8 +15,11 @@ import Qs from "../seiten/Qs.jsx";
 import Statistik, { statistikZurueck } from "../seiten/Statistik.jsx";
 import Temp from "../seiten/Temp.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
-import Infoboard, { infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
-import { istInfoboardGeraet } from "../infoboard/daten.js";
+import Infoboard, { Empfang, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
+import { bildschirmDiesesGeraets, TAFELN } from "../infoboard/daten.js";
+// Gleich beim Start lesen, ob die Adresse ?bildschirm=… trägt (App-Paket
+// für Samsung), damit das Gerät es sich auch vor dem Anmelden merkt
+bildschirmDiesesGeraets();
 import { tempAufraeumenRegelmaessig } from "../daten/temp.js";
 import Einkauf from "../seiten/Einkauf.jsx";
 import Bestellungen from "../seiten/Bestellungen.jsx";
@@ -142,7 +145,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.200.0";
+const APP_VERSION = "1.201.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2897,7 +2900,7 @@ function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
   if ((pfad === "material" || pfad === "qs" || pfad === "maschinen" || pfad === "statistik") && meineRolle() === "dienst") return false;
-  if (pfad === "infoboard") return infoboardSichtbar();
+  if (pfad === "infoboard" || pfad === "empfang") return infoboardSichtbar();
   if (!istExtern()) return true;
   return pfad === "planwand" || pfad === "produktion";
 }
@@ -9821,6 +9824,10 @@ SYM.infoboard = svg('<rect x="5" y="2.5" width="14" height="19" rx="2"/>'
   + '<path d="M8 6.5h8"/><rect x="8" y="9.5" width="3.3" height="4.5" rx=".6"/>'
   + '<rect x="12.7" y="9.5" width="3.3" height="4.5" rx=".6"/><rect x="8" y="15.5" width="8" height="3" rx=".6"/>');
 
+// Empfang: Bildschirm quer auf einem Fuss
+SYM.empfang = svg('<rect x="2.5" y="4" width="19" height="12" rx="2"/><path d="M12 16v4"/><path d="M8 20.5h8"/>'
+  + '<path d="M5.5 7.5h6"/><rect x="5.5" y="9.5" width="5" height="4" rx=".6"/><rect x="12.5" y="7.5" width="6" height="6" rx=".6"/>');
+
 // QS: Lupe mit Häkchen, wie Prüfen
 SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
   + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
@@ -9942,6 +9949,8 @@ const SEITEN = [
   // Grosser Bildschirm hochkant (Wunsch Patrick 20. Oktober 2026), nur
   // für Admins und Gerätekonten
   { pfad: "infoboard",    titel: "Infoboard",    zeichen: SYM.infoboard, zeige: reactSeite(Infoboard) },
+  // Bildschirm quer am Empfang (Wunsch Patrick 26. Oktober 2026), gleiche Rechte
+  { pfad: "empfang",      titel: "Empfang",      zeichen: SYM.empfang, zeige: reactSeite(Empfang) },
 ];
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
@@ -10514,8 +10523,11 @@ function zeichneGeruest() {
     // Ebenso beim Konto „Infoboard“ (Vermerk infoboardBildschirm am Konto,
     // sql/infoboard-konto.sql), ohne Häkchen auf dem Gerät (Wunsch Patrick
     // 21. Oktober 2026: „dann soll direkt die Vollbildanzeige starten“)
+    // Ein Gerät, das sich als Empfang gemerkt hat, zeigt den Empfang, auch
+    // mit dem Konto „Infoboard“ (seit 1.201.0)
     const ibKonto = !!(profil && profil.einstellungen && profil.einstellungen.infoboardBildschirm);
-    if (!ARCHIV && (istInfoboardGeraet() || ibKonto) && infoboardSichtbar()) infoboardOeffnen();
+    const bildschirm = bildschirmDiesesGeraets() || (ibKonto ? TAFELN.haupt : null);
+    if (!ARCHIV && bildschirm && infoboardSichtbar()) infoboardOeffnen(false, bildschirm);
   });
   if (ARCHIV) archivMarkeEinbauen(); else padKnopfEinbauen();
   if (!window._escZurueck) { window._escZurueck = true; escapeZurueck(); }

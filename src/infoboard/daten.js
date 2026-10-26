@@ -27,6 +27,7 @@
 //  Reihen wird beim Laden umgewandelt: jedes gefüllte Feld wird ein Teil
 //  an seinem bisherigen Platz; gespeichert wird er so beim nächsten Ändern.
 // =================================================================
+import { createContext, useContext } from "react";
 import { alt } from "../bruecke.jsx";
 
 export const BOARD = "haupt";
@@ -44,6 +45,20 @@ export const KOPF_H = HOEHE - REIHEN * (FELD_H + LUECKE);           // 426
 export const BLATT = { a4: FELD_H / FELD_B, a3: FELD_H / (2 * FELD_B + LUECKE) };
 export const FORMATE = ["a4", "a3l", "a3r"];
 export const SEKUNDEN = 20;
+
+// Die Bildschirme: das Infoboard im Gang (hochkant) und seit 1.201.0 der
+// Bildschirm am Empfang (quer, Wunsch Patrick 26. Oktober 2026). Jeder hat
+// seine Zeile in der Tabelle infoboard. Der Empfang ist genau 1920 × 1080
+// Punkte gross, weil der Browser der Samsung-Bildschirme höchstens Full HD
+// zeichnet: so ist jeder Punkt ein Pixel und nichts wird unscharf verkleinert.
+export const TAFELN = {
+  haupt: { id: "haupt", name: "Infoboard", seite: "infoboard", breite: BREITE, hoehe: HOEHE, kopf: KOPF_H,
+    geraet: "hofer.infoboard.geraet" },
+  empfang: { id: "empfang", name: "Empfang", seite: "empfang", breite: 1920, hoehe: 1080, kopf: 300,
+    geraet: "hofer.empfang.geraet" },
+};
+export const TafelMass = createContext(TAFELN.haupt);
+export const useTafelMass = () => useContext(TafelMass);
 
 export const neueId = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const leeresFeld = () => ({ id: neueId(), art: "leer" });
@@ -117,12 +132,14 @@ export async function verhaeltnisLesen(datei, typ) {
 
 // Ein neues Teil: so breit wie ein A4-Feld (quer wie ein A3), höchstens
 // so hoch wie zwei Felder, mit der Mitte an der gewünschten Stelle
-export function neuesTeil(feld, verhaeltnis, mitte) {
+export function neuesTeil(feld, verhaeltnis, mitte, mass = TAFELN.haupt) {
+  // Quer ist unter dem Kopf weniger hoch: dort höchstens so hoch wie der Platz
+  const hMax = Math.min(2 * FELD_H, mass.hoehe - mass.kopf - 2 * LUECKE);
   let w = verhaeltnis < 1 ? 2 * FELD_B + LUECKE : FELD_B;
   let h = w * verhaeltnis;
-  if (h > 2 * FELD_H) { h = 2 * FELD_H; w = h / verhaeltnis; }
-  const m = mitte || { x: BREITE / 2, y: KOPF_H + (HOEHE - KOPF_H) / 2 };
-  const x = Math.min(Math.max(m.x - w / 2, 0), BREITE - w), y = Math.min(Math.max(m.y - h / 2, 0), HOEHE - h);
+  if (h > hMax) { h = hMax; w = h / verhaeltnis; }
+  const m = mitte || { x: mass.breite / 2, y: mass.kopf + (mass.hoehe - mass.kopf) / 2 };
+  const x = Math.min(Math.max(m.x - w / 2, 0), mass.breite - w), y = Math.min(Math.max(m.y - h / 2, 0), mass.hoehe - h);
   return { ...feld, id: feld.id || neueId(), x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), drehung: 0 };
 }
 
@@ -144,17 +161,17 @@ export function fehltTabelle(e) {
   return /infoboard|PGRST205|42P01|does not exist|schema cache/i.test(t);
 }
 
-export async function aufbauLaden() {
+export async function aufbauLaden(board = BOARD) {
   const r = await alt.zeitlimit(alt.db.from("infoboard").select("aufbau, geaendert_am")
-    .eq("id", BOARD).maybeSingle(), 10000, "Infoboard");
+    .eq("id", board).maybeSingle(), 10000, "Infoboard");
   if (r.error) throw r.error;
   return { aufbau: aufbauOrdnen(r.data && r.data.aufbau), stand: String((r.data && r.data.geaendert_am) || "") };
 }
 
-export async function aufbauSpeichern(aufbau) {
+export async function aufbauSpeichern(aufbau, board = BOARD) {
   const jetzt = new Date().toISOString();
   const r = await alt.zeitlimit(alt.db.from("infoboard")
-    .upsert({ id: BOARD, aufbau, geaendert_am: jetzt }, { onConflict: "id" }), 10000, "Infoboard speichern");
+    .upsert({ id: board, aufbau, geaendert_am: jetzt }, { onConflict: "id" }), 10000, "Infoboard speichern");
   if (r.error) throw r.error;
   return jetzt;
 }
@@ -189,10 +206,24 @@ export async function dateiHochladen(datei) {
 
 // Dieses Gerät ist der Bildschirm: nach dem Anmelden und nach jedem
 // Neuladen geht das Infoboard von selbst über den ganzen Bildschirm auf
-const GERAET = "hofer.infoboard.geraet";
-export function istInfoboardGeraet() {
-  try { return localStorage.getItem(GERAET) === "1"; } catch (f) { return false; }
+export function istInfoboardGeraet(mass = TAFELN.haupt) {
+  try { return localStorage.getItem(mass.geraet) === "1"; } catch (f) { return false; }
 }
-export function infoboardGeraetSetzen(an) {
-  try { if (an) localStorage.setItem(GERAET, "1"); else localStorage.removeItem(GERAET); } catch (f) { /* egal */ }
+export function infoboardGeraetSetzen(an, mass = TAFELN.haupt) {
+  try { if (an) localStorage.setItem(mass.geraet, "1"); else localStorage.removeItem(mass.geraet); } catch (f) { /* egal */ }
+}
+// Welcher Bildschirm dieses Gerät ist. Der Empfang geht vor: das App-Paket
+// für Samsung öffnet die App mit ?bildschirm=empfang (siehe
+// public/samsung/), dann merkt sich das Gerät das von selbst, ohne Häkchen.
+export function bildschirmDiesesGeraets() {
+  try {
+    const w = new URLSearchParams(location.search).get("bildschirm");
+    if (w && TAFELN[w === "infoboard" ? "haupt" : w]) {
+      for (const t of Object.values(TAFELN)) localStorage.removeItem(t.geraet);
+      localStorage.setItem(TAFELN[w === "infoboard" ? "haupt" : w].geraet, "1");
+    }
+  } catch (f) { /* ohne Speicher eben nicht */ }
+  if (istInfoboardGeraet(TAFELN.empfang)) return TAFELN.empfang;
+  if (istInfoboardGeraet(TAFELN.haupt)) return TAFELN.haupt;
+  return null;
 }

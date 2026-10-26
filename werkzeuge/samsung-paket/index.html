@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hofer Empfang</title>
+<style>html,body{margin:0;height:100%;background:#0b3a7a;color:#fff;font:28px sans-serif;display:flex;align-items:center;justify-content:center}</style>
+</head>
+<body>
+<p id="t">HoferTool wird geladen …</p>
+<script>
+// Das App-Paket für den URL Launcher der Samsung-Bildschirme öffnet nur
+// die App mit dem Vermerk ?bildschirm=empfang. Die App merkt sich dann,
+// dass dieses Gerät der Bildschirm am Empfang ist, und zeigt ihn nach
+// dem Anmelden von selbst. Ohne Netz alle 20 Sekunden neu versuchen.
+var ZIEL = "https://hofertool.github.io/hofertool/?bildschirm=empfang";
+function los() {
+  if (navigator.onLine === false) {
+    document.getElementById("t").textContent = "Kein WLAN, neuer Versuch in 20 Sekunden …";
+    setTimeout(los, 20000);
+    return;
+  }
+  location.replace(ZIEL);
+}
+los();
+</script>
+</body>
+</html>

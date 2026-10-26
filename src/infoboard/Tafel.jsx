@@ -20,23 +20,23 @@ import Skizze from "../pad/Skizze.jsx";
 import { TextBlatt } from "./TextFeld.jsx";
 import { Seite as ExcelSeite, seitenRechnen } from "../teile/ExcelAnsicht.jsx";
 import { excelLesen } from "../teile/excelLesen.js";
-import { BREITE, HOEHE, LUECKE, KOPF_H, BLATT, SEKUNDEN, MIN_GROESSE } from "./daten.js";
+import { LUECKE, BLATT, SEKUNDEN, MIN_GROESSE, TAFELN, TafelMass, useTafelMass } from "./daten.js";
 
 // Das Blatt passt sich ganz in den Platz ein, hochkant mittig
-function useMassstab(rahmen) {
+function useMassstab(rahmen, mass) {
   const [k, setK] = useState(0);
   useLayoutEffect(() => {
     const el = rahmen.current;
     if (!el) return;
     const rechnen = () => {
       const w = el.clientWidth, h = el.clientHeight;
-      setK(w && h ? Math.min(w / BREITE, h / HOEHE) : 0);
+      setK(w && h ? Math.min(w / mass.breite, h / mass.hoehe) : 0);
     };
     rechnen();
     const ro = new ResizeObserver(rechnen);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [rahmen]);
+  }, [rahmen, mass]);
   return k;
 }
 
@@ -59,10 +59,11 @@ function drehungRunden(g) {
 // runde Griff oben dreht es (Wunsch Patrick 21. Oktober 2026). Erst beim
 // Loslassen wird gespeichert.
 // nacht: Bildschirmschoner, statt der Teile fliegen Hühner (Nacht.jsx)
-export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAendern, ablegen, doppelt, nacht }) {
+// mass: welcher Bildschirm (TAFELN in daten.js), hochkant im Gang oder quer am Empfang
+export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAendern, ablegen, doppelt, nacht }) {
   const rahmen = useRef(null);
   const blatt = useRef(null);
-  const k = useMassstab(rahmen);
+  const k = useMassstab(rahmen, mass);
   const [zug, setZug] = useState(null);       // { id, x, y, w, h, drehung } während des Ziehens
   const [ziel, setZiel] = useState(false);
 
@@ -126,13 +127,15 @@ export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAe
   };
 
   return (
+    <TafelMass.Provider value={mass}>
     <div className="ib-rahmen" ref={rahmen}
       // Daneben fallen gelassen öffnet der Browser die Datei sonst selbst
       onDragOver={ablegen ? (e) => e.preventDefault() : undefined}
       onDrop={ablegen ? (e) => e.preventDefault() : undefined}>
       {k > 0 &&
       <div ref={blatt} className={"ib-blatt" + (bearbeiten ? " ib-blatt--bearbeiten" : "") + (ziel ? " ib-blatt--ziel" : "")}
-        style={{ width: BREITE, height: HOEHE, transform: "translate(-50%, -50%) scale(" + k + ")" }}
+        data-ibtafel={mass.id}
+        style={{ width: mass.breite, height: mass.hoehe, transform: "translate(-50%, -50%) scale(" + k + ")" }}
         onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>
         <Kopf />
         {nacht && <Huehnerhimmel />}
@@ -165,6 +168,7 @@ export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAe
         })}
       </div>}
     </div>
+    </TafelMass.Provider>
   );
 }
 
@@ -175,9 +179,10 @@ export function Tafel({ aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAe
 // Feldern, wird er als Ganzes etwas verkleinert, statt in die Felder zu
 // ragen.
 function Kopf() {
+  const mass = useTafelMass();
   const innen = useRef(null);
   const [k, setK] = useState(1);
-  const hoehe = KOPF_H - 2 * LUECKE;
+  const hoehe = mass.kopf - 2 * LUECKE;
   useLayoutEffect(() => {
     const el = innen.current;
     if (!el) return;
@@ -190,7 +195,7 @@ function Kopf() {
     ro.observe(el);
     return () => ro.disconnect();
   }, [hoehe]);
-  const breite = BREITE - 2 * LUECKE;
+  const breite = mass.breite - 2 * LUECKE;
   return (
     <div className="ib-kopf" style={{ height: hoehe, top: LUECKE, left: LUECKE, width: breite }}>
       <div className="ib-kopf__innen" ref={innen}

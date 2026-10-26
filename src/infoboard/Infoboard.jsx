@@ -21,7 +21,7 @@ import { Tafel } from "./Tafel.jsx";
 import { istNacht } from "./Nacht.jsx";
 import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
-  istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil } from "./daten.js";
+  istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil, TAFELN } from "./daten.js";
 
 // 0 = nicht von selbst blättern, die Seite wechselt nur beim Antippen
 // (Wunsch Patrick 21. Oktober 2026).
@@ -31,13 +31,20 @@ export function infoboardSichtbar() {
   return !alt.istExtern() && (alt.istAdmin() || alt.istAndererNutzer());
 }
 
-export default function Infoboard() {
+export default function Infoboard() { return <Gestalten mass={TAFELN.haupt} />; }
+
+// Der Bildschirm am Empfang, quer, 1920 × 1080 (Wunsch Patrick 26. Oktober
+// 2026: „einen neuen Bereich, um das Empfangsdisplay zu gestalten“). Gleich
+// wie das Infoboard, nur eigene Zeile in der Tabelle und eigenes Gerät.
+export function Empfang() { return <Gestalten mass={TAFELN.empfang} />; }
+
+function Gestalten({ mass }) {
   const admin = alt.istAdmin();
   const [aufbau, setAufbau] = useState(null);
   const [fehler, setFehler] = useState("");
   const [gewaehlt, setGewaehlt] = useState(null);
   const [laedt, setLaedt] = useState("");
-  const [geraet, setGeraet] = useState(istInfoboardGeraet);
+  const [geraet, setGeraet] = useState(() => istInfoboardGeraet(mass));
   const datei = useRef(null);
   // Wohin „Datei wählen“ die Datei legt: neues Teil oder dieses ersetzen
   const dateiZiel = useRef(null);
@@ -45,13 +52,13 @@ export default function Infoboard() {
   stand.current = aufbau;
 
   useEffect(() => {
-    aufbauLaden().then((d) => setAufbau(d.aufbau), (e) => {
+    aufbauLaden(mass.id).then((d) => setAufbau(d.aufbau), (e) => {
       setFehler(fehltTabelle(e) ? "Das Infoboard braucht noch die Datei infoboard.sql in Supabase." : alt.fehlertext(e));
       setAufbau(aufbauOrdnen(null));
     });
-  }, []);
+  }, [mass]);
 
-  if (!aufbau) return <section className="karte"><p className="hinweis">Infoboard wird geladen …</p></section>;
+  if (!aufbau) return <section className="karte"><p className="hinweis">{mass.name} wird geladen …</p></section>;
 
   // Immer vom neusten Stand aus ändern: mehrere Dateien auf einmal kommen
   // nacheinander an, jede soll die vorherigen behalten
@@ -60,7 +67,7 @@ export default function Infoboard() {
     const neu = { frei: true, teile: machen(vorher.teile) };
     stand.current = neu;
     setAufbau(neu);
-    try { await aufbauSpeichern(neu); setFehler(""); }
+    try { await aufbauSpeichern(neu, mass.id); setFehler(""); }
     catch (e) {
       stand.current = vorher; setAufbau(vorher);
       alt.meldung("Nicht gespeichert: " + (fehltTabelle(e) ? "infoboard.sql fehlt in Supabase." : alt.fehlertext(e)), "fehler");
@@ -92,7 +99,7 @@ export default function Infoboard() {
             ? { ...feld, id, x: t.x, y: t.y, w: t.w, h: Math.round(t.w * v), drehung: t.drehung } : t)));
           ersetzen = null;
         } else {
-          const t = neuesTeil({ ...feld, id }, v, mitte);
+          const t = neuesTeil({ ...feld, id }, v, mitte, mass);
           await aendern((teile) => [...teile, t]);
           // Mehrere Dateien auf einmal: leicht versetzt, nicht genau übereinander
           if (mitte) mitte = { x: mitte.x + 40, y: mitte.y + 40 };
@@ -117,14 +124,14 @@ export default function Infoboard() {
       seitenVerhaeltnis: t ? t.h / t.w : Math.SQRT2, titel: t ? "Text bearbeiten" : "Neuer Text" });
     if (html == null) return;
     if (t && t.art === "text") { await teilAendern(t.id, { html }); return; }
-    const neu = neuesTeil({ id: neueId(), art: "text", html }, Math.SQRT2, null);
+    const neu = neuesTeil({ id: neueId(), art: "text", html }, Math.SQRT2, null, mass);
     await aendern((teile) => [...teile, neu]);
     setGewaehlt(neu.id);
   };
 
   const entfernen = async () => {
     if (!wahl) return;
-    const ok = await alt.nachfragen({ titel: "Vom Infoboard entfernen?",
+    const ok = await alt.nachfragen({ titel: "Vom " + mass.name + " entfernen?",
       text: wahl.art === "skizze" ? "Die Zeichenfläche und alles darauf verschwindet vom Infoboard."
         : wahl.art === "text" ? "Der Text verschwindet vom Infoboard."
         : "Die Datei verschwindet vom Infoboard.", bestaetigen: "Entfernen", gefahr: true });
@@ -142,23 +149,28 @@ export default function Infoboard() {
     return nachVorne ? [...rest, wahl] : [wahl, ...rest];
   });
 
-  const geraetUmschalten = (an) => { infoboardGeraetSetzen(an); setGeraet(an); };
+  // Ein Gerät ist höchstens ein Bildschirm
+  const geraetUmschalten = (an) => {
+    if (an) for (const t of Object.values(TAFELN)) infoboardGeraetSetzen(false, t);
+    infoboardGeraetSetzen(an, mass); setGeraet(an);
+  };
 
   const inhaltText = (f) => f.art === "skizze" ? "Zeichenfläche" : f.art === "text" ? "Text"
     : f.art === "datei" && f.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video", excel: "Excel" }[f.datei.typ] || "Datei") + ": " + (f.datei.name || "")
     : "Leer";
 
   return (
-    <section className="karte ib-gestalten">
+    <section className={"karte ib-gestalten ib-gestalten--" + mass.id}>
       <div className="ib-gestalten__kopf">
-        <h2>Infoboard</h2>
-        <button type="button" className="knopf" data-ib="anzeige" onClick={() => infoboardOeffnen(true)}>
+        <h2>{mass.id === "empfang" ? "Empfang" : "Infoboard"}</h2>
+        {mass.id === "empfang" && <span className="klein">Bildschirm quer, genau 1920 × 1080 Punkte</span>}
+        <button type="button" className="knopf" data-ib="anzeige" onClick={() => infoboardOeffnen(true, mass)}>
           Anzeige öffnen</button>
       </div>
       {fehler && <p className="hinweis">{fehler}</p>}
       <div className="ib-gestalten__teile">
         <div className="ib-gestalten__vorschau">
-          <Tafel aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt}
+          <Tafel mass={mass} aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt}
             teilAendern={admin ? teilAendern : null}
             ablegen={admin && !laedt ? (dateien, punkt) => dateienAblegen(dateien, punkt, null) : null}
             doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); } : null} />
@@ -207,7 +219,7 @@ export default function Infoboard() {
           </>}
           <label className="ib-geraet">
             <input type="checkbox" checked={geraet} data-ib="geraet" onChange={(e) => geraetUmschalten(e.target.checked)} />
-            <span>Dieses Gerät ist der Infoboard-Bildschirm<small>Nach dem Anmelden und nach jedem Neuladen geht die Anzeige
+            <span>{mass.id === "empfang" ? "Dieses Gerät ist der Bildschirm am Empfang" : "Dieses Gerät ist der Infoboard-Bildschirm"}<small>Nach dem Anmelden und nach jedem Neuladen geht die Anzeige
               von selbst über den ganzen Bildschirm auf.</small></span>
           </label>
         </div>
@@ -239,16 +251,16 @@ function Drehung({ wert, setzen }) {
 // ---------- Anzeige über den ganzen Bildschirm ----------
 let offen = null;
 
-export function infoboardOeffnen(vonHand) {
+export function infoboardOeffnen(vonHand, mass = TAFELN.haupt) {
   if (offen) return;
   const huelle = document.createElement("div");
-  huelle.className = "ib-voll";
+  huelle.className = "ib-voll ib-voll--" + mass.id;
   huelle.id = "infoboard";
   document.body.appendChild(huelle);
   document.body.classList.add("ib-offen");
   const wurzel = createRoot(huelle);
   offen = { huelle, wurzel };
-  wurzel.render(<Anzeige huelle={huelle} />);
+  wurzel.render(<Anzeige huelle={huelle} mass={mass} />);
   // Vollbild erlaubt der Browser nur nach einem Tipp oder Klick. Beim Start
   // von selbst (Konto Infoboard, Bildschirm-Gerät) holt darum der erste
   // Tipp, Klick oder Tastendruck irgendwo das Vollbild nach, damit Adress-
@@ -296,7 +308,7 @@ function aufloesungText() {
     Math.round(window.innerHeight * f) + " Pixel · Bildschirm " + (s.width || "?") + " × " + (s.height || "?");
 }
 
-function Anzeige({ huelle }) {
+function Anzeige({ huelle, mass }) {
   const [aufbau, setAufbau] = useState(null);
   const [fehler, setFehler] = useState("");
   const [zu, setZu] = useState(false);
@@ -316,7 +328,7 @@ function Anzeige({ huelle }) {
 
   useEffect(() => {
     let gueltig = true;
-    const holen = () => aufbauLaden().then((d) => {
+    const holen = () => aufbauLaden(mass.id).then((d) => {
       if (!gueltig) return;
       setFehler("");
       if (d.stand !== stand.current || !stand.current) { stand.current = d.stand; setAufbau(d.aufbau); }
@@ -359,7 +371,7 @@ function Anzeige({ huelle }) {
 
   return (
     <div className="ib-voll__innen" onPointerDown={kopfTipp}>
-      {aufbau && <Tafel aufbau={aufbau} grossZiel={huelle} nacht={schoner} />}
+      {aufbau && <Tafel mass={mass} aufbau={aufbau} grossZiel={huelle} nacht={schoner} />}
       {fehler && <div className="ib-voll__fehler">{fehler}</div>}
       {zu && <button type="button" className="ib-voll__zu" data-ib="schliessen"
         onClick={() => infoboardSchliessen()}>Schliessen</button>}

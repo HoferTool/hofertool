@@ -17,11 +17,10 @@
 //  Valentinstag, Ostern, 1. August, sonst Frühling, Sommer, Herbst, Winter.
 // =================================================================
 import { useEffect, useRef } from "react";
-import { BREITE, HOEHE, KOPF_H } from "./daten.js";
+import { useTafelMass } from "./daten.js";
 import { festFuer, teilchen } from "./feste.js";
 
 // Die Fläche unter dem Kopf, in Punkten der Tafel
-const FLAECHE_H = HOEHE - KOPF_H;
 
 // Nacht: 23:00 bis 05:30, sonntags den ganzen Tag
 export function istNacht(d = new Date()) {
@@ -79,6 +78,9 @@ const GLEICHZEITIG = 6;
 
 export default function Huehnerhimmel() {
   const himmel = useRef(null);
+  // Fläche unter dem Kopf, je nach Bildschirm hochkant oder quer
+  const mass = useTafelMass();
+  const BREITE = mass.breite, FLAECHE_H = mass.hoehe - mass.kopf;
 
   useEffect(() => {
     const hof = himmel.current;
@@ -198,8 +200,8 @@ export default function Huehnerhimmel() {
       hof.getAnimations({ subtree: true }).forEach((a) => a.cancel());
       hof.replaceChildren();
     };
-  }, []);
+  }, [BREITE, FLAECHE_H]);
 
   return <div className="ib-nacht" ref={himmel} data-ib="nacht" aria-hidden="true"
-    style={{ top: KOPF_H, height: FLAECHE_H }} />;
+    style={{ top: mass.kopf, height: FLAECHE_H }} />;
 }

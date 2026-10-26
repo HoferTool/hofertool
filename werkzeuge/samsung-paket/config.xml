@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://hofertool.github.io/hofertool/samsung" version="1.0.0" viewmodes="maximized">
+  <tizen:application id="HoferEmpfa.Empfang" package="HoferEmpfa" required_version="2.3"/>
+  <access origin="*" subdomains="true"/>
+  <content src="index.html"/>
+  <feature name="http://tizen.org/feature/screen.size.all"/>
+  <name>Hofer Empfang</name>
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <tizen:profile name="tv-samsung"/>
+  <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+  <tizen:allow-navigation>*</tizen:allow-navigation>
+</widget>
