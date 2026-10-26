@@ -128,7 +128,9 @@ export function planwandReihe(maschinen, parks) {
 export async function statistikLaden(von, bis) {
   const parks = await alt.ladeParks(false);
   // Reihenfolge wie auf der Planwand: Park für Park, darin sort_order
-  const maschinen = planwandReihe(await alt.ladeMaschinen(false), parks);
+  // ohne Maschinen externer Parks (Wunsch Patrick 26. Oktober 2026)
+  const maschinen = planwandReihe((await alt.ladeMaschinen(false))
+    .filter((m) => !alt.parkIstExtern(m.park_id)), parks);
   let typen = [];
   try { typen = await alt.ladeTypen(); } catch (f) { /* ohne Typnamen geht es auch */ }
   const ids = maschinen.map((m) => m.id);

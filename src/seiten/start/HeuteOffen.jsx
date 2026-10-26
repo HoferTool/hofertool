@@ -29,7 +29,8 @@ export async function heuteOffenLaden() {
   // zu Kurz- oder Langdrehern gehört
   await alt.ladeParks(false);
   const [maschinen, laufend] = await Promise.all([alt.ladeMaschinen(false), alt.ladeLaufendeAuftraege()]);
-  const zeilen = maschinen.filter((m) => laufend[m.id]).map((m) => ({ m, j: laufend[m.id] }));
+  // Maschinen externer Parks mahnt die Karte nicht (Wunsch Patrick 26. Oktober 2026)
+  const zeilen = maschinen.filter((m) => laufend[m.id] && !alt.parkIstExtern(m.park_id)).map((m) => ({ m, j: laufend[m.id] }));
   if (!zeilen.length) return { stk: [], zeit: [] };
 
   const jetzt = new Date();

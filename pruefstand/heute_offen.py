@@ -18,6 +18,13 @@ K = """(() => {
   daten.hoco_type_data.push({ hoco_nr: b.job_number, type_id: "t1", stueckzeit_s: 42 });
   const bild = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><circle cx="40" cy="40" r="40" fill="#4a7"/></svg>');
   daten.app_config.push({ schluessel: "pad_mahnbilder", wert: JSON.stringify({ stueckzahl: { bild }, stueckzeit: { bild } }) });
+  // m-k2 steht in einem externen Park und läuft ohne Stand und Stückzeit:
+  // die Karte nennt sie trotzdem nicht (1.192.0)
+  daten.machine_parks.push({ id: "p-ext", name: "Extern", is_active: true });
+  const x = daten.jobs.find((j) => j.machine_id === "m-k2");
+  daten.machines.forEach((m) => { if (m.id === "m-k2") { m.park_id = "p-ext"; m.type_id = "t1"; } });
+  x.plan_status = "laeuft";
+  daten.production_records = daten.production_records.filter((r) => r.machine_id !== "m-k2");
   window.A = a.job_number; window.B = b.job_number;
 })();
 """
@@ -39,6 +46,7 @@ with sync_playwright() as p:
         zeit = pg.evaluate("[...document.querySelectorAll('[data-heuteoffen=zeit]')].map(b => b.dataset.maschine)")
         print(name, "Stückzahl fehlt:", stk, "Stückzeit fehlt:", zeit)
         if werktag and ("m-k1" not in stk or "m-l1" in stk): fehler.append(f"{name}: Stückzahl {stk}")
+        if "m-k2" in stk or "m-k2" in zeit: fehler.append(f"{name}: externe Maschine m-k2 steht da")
         if "m-k1" not in zeit or "m-l1" in zeit: fehler.append(f"{name}: Stückzeit {zeit}")
         n = pg.evaluate("document.querySelectorAll('#db-heuteoffen [data-mahnbild]').length")
         blinkt = pg.evaluate("getComputedStyle(document.querySelector('#db-heuteoffen'), '::after').animationName")

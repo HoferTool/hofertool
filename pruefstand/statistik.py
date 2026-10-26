@@ -50,9 +50,13 @@ def neu(br, rolle=None, breite=1500, hoehe=950, dunkel=False):
     pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
     pg.on("console", lambda m: fehler.append(m.type + ": " + m.text[:160])
           if m.type == "error" and "Failed to load resource" not in m.text else None)
-    body = FAKE
+    # m-l2 steht in einem externen Park: die Statistik lässt sie weg (1.192.0)
+    body = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
+        "daten.machine_parks.push({ id: 'p-ext', name: 'Extern', is_active: true });\n"
+        "daten.machines.find(m => m.id === 'm-l2').park_id = 'p-ext';\n"
+        "if (typeof window !== \"undefined\") window.TEST = TEST;")
     if rolle:
-        body = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
+        body = body.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
             "daten.profiles[0].role = '" + rolle + "';\nif (typeof window !== \"undefined\") window.TEST = TEST;")
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=body))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**",
@@ -80,7 +84,8 @@ with sync_playwright() as p:
       const D = TEST.daten;
       const ext = p => /extern|lohn|fremd/i.test(p.name || '') ? 1 : 0;
       const parks = D.machine_parks.filter(p => p.is_active !== false)
-        .sort((a, b) => ext(a) - ext(b) || String(a.name).localeCompare(String(b.name), 'de')).map(p => p.id);
+        .filter(p => !ext(p))
+        .sort((a, b) => String(a.name).localeCompare(String(b.name), 'de')).map(p => p.id);
       return D.machines.filter(m => m.is_active !== false && parks.includes(m.park_id))
         .sort((a, b) => parks.indexOf(a.park_id) - parks.indexOf(b.park_id) || (a.sort_order || 0) - (b.sort_order || 0)
           || String(a.name).localeCompare(String(b.name)))
@@ -88,6 +93,7 @@ with sync_playwright() as p:
     })()""")
     ist = pg.evaluate("[...document.querySelectorAll('#st-maschinen-tabelle tr[data-stmaschine]')].map(t => t.dataset.stmaschine)")
     balken = pg.evaluate("[...document.querySelectorAll('#st-auslastung [data-dgzeile]')].map(t => t.dataset.dgzeile)")
+    if 'm-l2' in ist or 'm-l2' in balken: fehler.append("Externe Maschine m-l2 in der Statistik")
     if ist != soll: fehler.append("Tabelle nicht wie Planwand: " + str(ist) + " statt " + str(soll))
     if balken != soll: fehler.append("Auslastung nicht wie Planwand: " + str(balken) + " statt " + str(soll))
 
