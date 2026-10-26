@@ -54,7 +54,7 @@ with sync_playwright() as p:
     zeilen = pg.evaluate("() => TEST.daten.infoboard.map(z => [z.id, (z.aufbau.teile || []).length])")
     pruefe(sorted(zeilen) == [["empfang", 1], ["haupt", 1]], "eigene Zeile empfang, Infoboard unverändert: %s" % zeilen)
     t = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.teile[0]")
-    pruefe(t["x"] >= 0 and t["x"] + t["w"] <= 1920 and t["y"] >= 270 and t["y"] + t["h"] <= 1080,
+    pruefe(t["x"] >= 0 and t["x"] + t["w"] <= 1920 and t["y"] >= 330 and t["y"] + t["h"] <= 1080,
            "neues Teil liegt unter dem Kopf auf der Tafel: %s" % {k2: t[k2] for k2 in "xywh"})
 
     # Text ohne Hintergrund: frei platziert, breit und flach, ohne Blatt
@@ -78,6 +78,15 @@ with sync_playwright() as p:
     pruefe(pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.teile.find(t => t.art === 'text').ohneGrund") is False,
            "Häkchen schaltet den Hintergrund wieder ein")
     pg.check("[data-ib='ohne-grund']"); pg.wait_for_timeout(500)
+    # Freigestelltes PNG (1.203.1): kein weisses Feld dahinter
+    import base64
+    PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+    with pg.expect_file_chooser() as fc:
+        pg.click("[data-ib='neu-datei']")
+    fc.value.set_files(files=[{"name": "Logo.png", "mimeType": "image/png", "buffer": PNG}])
+    pg.wait_for_timeout(1500)
+    gr = pg.evaluate("() => { const f = document.querySelector('.ib-gestalten .ib-feld--bild'); return f && getComputedStyle(f).backgroundColor; }")
+    pruefe(gr == "rgba(0, 0, 0, 0)", "Bild ohne weissen Hintergrund: %s" % gr)
     pg.screenshot(path=os.path.join(BILD, "empfang-gestalten.png"))
 
     pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)
@@ -91,7 +100,7 @@ with sync_playwright() as p:
     # Nachts keine Hühner am Empfang, die Dokumente bleiben
     pg.clock.set_system_time(datetime(heute.year, heute.month, heute.day, 23, 30))
     pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)
-    pruefe(pg.locator("#infoboard [data-ib='nacht']").count() == 0 and pg.locator("#infoboard .ib-teil").count() == 2,
+    pruefe(pg.locator("#infoboard [data-ib='nacht']").count() == 0 and pg.locator("#infoboard .ib-teil").count() == 3,
            "nachts keine Hühner, Dokumente bleiben")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
 

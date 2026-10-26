@@ -9701,7 +9701,7 @@ body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a
 .ib-blatt[data-ibtafel="empfang"] { background: #f4efe7; color: #23344f; }
 .ib-voll--empfang, .ib-gestalten--empfang .ib-gestalten__vorschau { background: #f4efe7; }
 .ib-gestalten--empfang .ib-gestalten__vorschau { box-shadow: 0 0 0 8px #d9d2c6, 0 18px 40px rgba(0,0,0,.18); }
-.ek { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;
+.ek { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; gap: 34px;
   padding: 16px 44px 16px; border-radius: 32px; background: #fffdf9; color: #23344f;
   box-shadow: 0 10px 34px rgba(80, 60, 30, .10), 0 0 0 1px rgba(80, 60, 30, .06); font-family: inherit; }
 .ek__oben { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; flex: none; }
@@ -9737,3 +9737,8 @@ body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a
 .ib-feld--ohne-grund { border-radius: 0; overflow: visible; }
 .ib-text--ohne-grund .ib-text__blatt { overflow: visible; }
 .ib-blatt--bearbeiten .ib-feld--ohne-grund { outline: 2px dashed rgba(120, 130, 150, .55); outline-offset: 2px; }
+/* Bilder ohne weisses Feld (1.203.1): ein freigestelltes PNG soll auf der
+   Tafel freigestellt bleiben (Wunsch Patrick 26. Oktober 2026). Beim Gestalten
+   zeigt ein gestrichelter Rahmen, wo das Teil liegt. */
+.ib-feld--bild { background: transparent; border-radius: 0; }
+.ib-blatt--bearbeiten .ib-feld--bild { outline: 2px dashed rgba(120, 130, 150, .55); outline-offset: 2px; }

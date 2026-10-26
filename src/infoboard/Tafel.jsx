@@ -156,7 +156,8 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
             <div key={t.id} className={"ib-teil" + (an ? " ib-teil--gewaehlt" : "")} data-ibteil={t.id}
               style={{ left: t.x, top: t.y, width: t.w, height: t.h,
                 transform: t.drehung ? "rotate(" + t.drehung + "deg)" : undefined }}>
-              <div className={"ib-feld ib-feld--" + format + " ib-feld--" + t.art + (t.art === "text" && t.ohneGrund ? " ib-feld--ohne-grund" : "")}>
+              <div className={"ib-feld ib-feld--" + format + " ib-feld--" + t.art + (t.art === "text" && t.ohneGrund ? " ib-feld--ohne-grund" : "")
+                + (t.art === "datei" && t.datei && t.datei.typ === "bild" ? " ib-feld--bild" : "")}>
                 <FeldInhalt feld={t} format={format} bearbeiten={bearbeiten} grossZiel={grossZiel}
                   breite={t.w} hoehe={t.h} />
               </div>
