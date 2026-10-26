@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.203.2** Empfang: Logo in echten Farben (blau, Schrift grau) aus der Vorlage von Patrick, freigestellt als `public/logo-empfang.png` (Wunsch Patrick 26. Oktober 2026: „bitte dieses Logo verwenden“).
 - **1.203.1** Infoboard und Empfang: Bilder ohne weisses Feld, ein freigestelltes PNG bleibt freigestellt (Wunsch Patrick 26. Oktober 2026), beim Gestalten zeigt ein gestrichelter Rahmen das Teil (`ib-feld--bild`). Kopf des Empfangs wieder höher (330 statt 270 Punkte), mehr Abstand zwischen Logo und Solaranlage (Wunsch Patrick: „wirkt zusammengedrückt“).
 - **1.203.0** Infoboard und Empfang: **Text ohne Hintergrund** (Wunsch Patrick 26. Oktober 2026: „den Text ohne Hintergrund direkt platzieren können“). Knopf „Text ohne Hintergrund“ neben „Text hinzufügen“ legt einen breiten, flachen Text ohne weisses Blatt und ohne Rand auf die Tafel; das Häkchen „Ohne Hintergrund“ beim gewählten Text schaltet um (`ohneGrund` am Teil). So ein Text lässt sich an der Ecke frei breiter oder höher ziehen, die Schrift richtet sich nach der Breite; im Textfenster steht er auf der Farbe der Tafel. Dazu am Empfang der Trennstrich über den Solarzahlen weg (Wunsch Patrick: „lass den Trennstrich weg“).
 - **1.202.1** Empfang: Logo grösser, Solarzahlen kleiner (ohne Zusatzzeile), Kopf nur noch 270 statt 330 Punkte hoch (Wunsch Patrick 26. Oktober 2026: „Logo grösser und die Solaranlagendaten etwas kleiner, die Gesamthöhe des Kopfbereichs etwas kleiner“).

@@ -9708,8 +9708,7 @@ body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a
 .ek__uhr { font-size: 72px; font-weight: 300; line-height: 1; letter-spacing: -1px; color: #23344f;
   font-variant-numeric: tabular-nums; }
 .ek__datum { margin-top: 6px; font-size: 24px; color: #7a6f60; }
-.ek__logo { width: 380px; height: 142px; background: #1d4280; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-  -webkit-mask-size: contain; mask-size: contain; -webkit-mask-position: center; mask-position: center; }
+.ek__logo { height: 150px; width: auto; display: block; }
 .ek__wetter { display: flex; justify-content: flex-end; align-items: center; gap: 18px; text-align: right; }
 .ek__grad { font-size: 76px; font-weight: 300; line-height: 1; color: #23344f; }
 .ek__wettertext { font-size: 26px; line-height: 1.3; color: #23344f; }

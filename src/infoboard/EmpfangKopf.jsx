@@ -101,8 +101,9 @@ export default function EmpfangKopf({ hoehe, breite, top, left }) {
           <div className="ek__uhr">{zwei(jetzt.getHours())}:{zwei(jetzt.getMinutes())}</div>
           <div className="ek__datum">{jetzt.toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
         </div>
-        <div className="ek__logo" role="img" aria-label="Hofer + Co."
-          style={{ WebkitMaskImage: "url(" + alt.LOGO_WEISS + ")", maskImage: "url(" + alt.LOGO_WEISS + ")" }} />
+        {/* Das Logo in seinen echten Farben, blau mit grauer Schrift (Wunsch
+            Patrick 26. Oktober 2026: „bitte dieses Logo verwenden“) */}
+        <img className="ek__logo" src={import.meta.env.BASE_URL + "logo-empfang.png"} alt="Hofer + Co." />
         <div className="ek__wetter">
           {wetter && <>
             <div className="ek__grad">{wetter.temperatur}°</div>
