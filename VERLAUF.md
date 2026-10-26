@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.205.0** Einrichtblätter als PDF: gesichert werden **nur noch Blätter mit „EB OK“** (Wunsch Patrick 26. Oktober 2026: „es soll erst anfangen speichern nach EB OK, die Excel sind ja schon gesichert“). PDFs, die schon im Ordner liegen, bleiben. Test `eb_pdf.py`.
 - **1.204.0** Empfang: **Farben einstellbar** (Wunsch Patrick 26. Oktober 2026: „ich möchte es einstellen können“), Farbwähler für Kopf und Hintergrund mit „Tauschen“ und „Wie am Anfang“ (`farben` im Aufbau, `tafelFarben`); Vorgabe getauscht (1.203.3: Kopf Sandton, Fläche hell). Logo wieder einfarbig dunkelblau, jetzt aus dem Vektor-Logo `logo-weiss.svg`, scharf in jeder Grösse; das farbige PNG aus 1.203.2 ist weg.
 - **1.203.2** Empfang: Logo in echten Farben (blau, Schrift grau) aus der Vorlage von Patrick, freigestellt als `public/logo-empfang.png` (Wunsch Patrick 26. Oktober 2026: „bitte dieses Logo verwenden“).
 - **1.203.1** Infoboard und Empfang: Bilder ohne weisses Feld, ein freigestelltes PNG bleibt freigestellt (Wunsch Patrick 26. Oktober 2026), beim Gestalten zeigt ein gestrichelter Rahmen das Teil (`ib-feld--bild`). Kopf des Empfangs wieder höher (330 statt 270 Punkte), mehr Abstand zwischen Logo und Solaranlage (Wunsch Patrick: „wirkt zusammengedrückt“).

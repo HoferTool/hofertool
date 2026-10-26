@@ -80,7 +80,7 @@ function Inhalt({ konf, status, neu }) {
 
   return (
     <Gruppe titel="Einrichtblätter als PDF" id="ebp"
-      text={"Jedes Einrichtblatt aus der App kommt als PDF in einen eigenen Ordner, je Maschinentyp ein Unterordner, zum Beispiel "
+      text={"Jedes Einrichtblatt aus der App mit „EB OK“ kommt als PDF in einen eigenen Ordner, je Maschinentyp ein Unterordner, zum Beispiel "
         + "„Star SB-20\\10841-0009 Star SB-20.pdf“. Ändert sich ein Blatt, wird sein PDF überschrieben; ist die Datei gerade offen "
         + "und lässt sich nicht überschreiben, kommt daneben eine neue mit V-Nummer („… V2.pdf“). Gelöschte Blätter bleiben im Ordner. "
         + "Die App muss auf dem Gerät mit dem Ordner offen sein, mit einem Admin, dem Konto Planwand oder dem Sicherungskonto "
@@ -98,7 +98,7 @@ function Inhalt({ konf, status, neu }) {
         <div id="ebp-stand" className="dokpfad-stand">
           <span className={"dokpfad-punkt " + (fertig ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
           {s.gesamt
-            ? alt.zahlText(s.gesichert || 0) + " von " + alt.zahlText(s.gesamt) + " Einrichtblättern im Ordner"
+            ? alt.zahlText(s.gesichert || 0) + " von " + alt.zahlText(s.gesamt) + " bestätigten Einrichtblättern im Ordner"
               + (s.offen ? " · " + alt.zahlText(s.offen) + " noch offen" : "")
             : "Noch nichts gesichert"}
           {s.letzte && <div className="klein gedaempft">Zuletzt {s.letzte.datei} · {datumText(new Date(s.letzte.zeit))}</div>}

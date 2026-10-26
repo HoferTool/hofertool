@@ -7,7 +7,7 @@
 //  überschreiben, sonst soll es eine V-Nummer haben; das ist nur dafür,
 //  dass ich, wenn alles weg wäre, noch Einrichtblätter habe“.
 //
-//  Jedes Blatt aus der App (Tabelle einrichtblatt_app) kommt als PDF in
+//  Jedes Blatt aus der App mit „EB OK“ (einrichtblatt_app.gut_am) kommt als PDF in
 //  den gewählten Ordner, je Maschinentyp ein Unterordner:
 //    <Ordner>\Star SB-20\10841-0009 Star SB-20.pdf
 //  Ändert sich das Blatt, wird die Datei überschrieben. Geht das nicht
@@ -125,15 +125,19 @@ async function pdfAblegen(ordner, basis, blob) {
 
 // ---------- Blätter ----------
 
-// Alle Blätter, seitenweise (die Datenbank gibt höchstens 1000 auf einmal)
+// Alle Blätter mit „EB OK“, seitenweise (die Datenbank gibt höchstens
+// 1000 auf einmal). Nur die bestätigten: Wunsch Patrick 26. Oktober 2026
+// „es soll erst anfangen speichern nach EB OK, die Excel sind ja schon
+// gesichert“. Gefiltert hier, nicht in der Abfrage, damit es auch im
+// Prüfstand gilt.
 async function alleBlaetter() {
   const aus = [];
   for (let ab = 0; ; ab += 1000) {
-    const r = await alt.db.from("einrichtblatt_app").select("id, hoco_nr, type_id, geaendert_am")
+    const r = await alt.db.from("einrichtblatt_app").select("id, hoco_nr, type_id, geaendert_am, gut_am")
       .order("hoco_nr").range(ab, ab + 999);
     if (r.error) throw r.error;
     const d = r.data || [];
-    aus.push(...d);
+    aus.push(...d.filter((b) => b.gut_am));
     if (d.length < 1000) break;
   }
   return aus;

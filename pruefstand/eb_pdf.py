@@ -1,4 +1,4 @@
-# Einrichtblätter als PDF (1.200.0): Ordner wählen, alle Blätter aus der
+# Einrichtblätter als PDF (1.200.0, seit 1.205.0 nur mit EB OK): Ordner wählen, alle Blätter aus der
 # App als PDF je Typ-Ordner, geändertes Blatt überschreibt seine Datei,
 # lässt sie sich nicht überschreiben, kommt eine V-Nummer daneben.
 import time, os
@@ -51,8 +51,9 @@ with sync_playwright() as p:
       D.machine_types.find(t => t.id === 't2').name = 'Index C100';
       D.einrichtblatt_app = [
         { id: 'b1', hoco_nr: '10000-0301', type_id: 't1', programme: { 1: 'O1301' }, plaetze: { T100: { taetigkeit: 'Plandrehen', werkzeug: 'Wendeplatte' } },
-          kopf: {}, seiten: [{ name: 'Geo Offset', quer: false, html: '<p>Geo Offset X 1.234</p>' }], geaendert_am: '2026-10-20T10:00:00Z' },
-        { id: 'b2', hoco_nr: '10000-0302', type_id: 't2', programme: {}, plaetze: {}, kopf: {}, seiten: [], geaendert_am: '2026-10-21T10:00:00Z' },
+          kopf: {}, seiten: [{ name: 'Geo Offset', quer: false, html: '<p>Geo Offset X 1.234</p>' }], gut_am: '2026-10-20T10:00:00Z', geaendert_am: '2026-10-20T10:00:00Z' },
+        { id: 'b2', hoco_nr: '10000-0302', type_id: 't2', programme: {}, plaetze: {}, kopf: {}, seiten: [], gut_am: '2026-10-21T10:00:00Z', geaendert_am: '2026-10-21T10:00:00Z' },
+        { id: 'b3', hoco_nr: '10000-0303', type_id: 't1', programme: {}, plaetze: {}, kopf: {}, seiten: [], gut_am: null, geaendert_am: '2026-10-21T10:00:00Z' },
       ];
       D.artikel_bild = D.artikel_bild || []; D.eb_bilder = D.eb_bilder || [];
     }""")
@@ -71,6 +72,7 @@ with sync_playwright() as p:
     t1 = pg.evaluate("TEST.daten.machine_types.find(t => t.id === 't1').name")
     n1 = t1 + "/10000-0301 " + t1 + ".pdf"
     pruefe("Je Typ ein Ordner mit PDF", n1 in namen and "Index C100/10000-0302 Index C100.pdf" in namen)
+    pruefe("Ohne EB OK kein PDF", not any("10000-0303" in n for n in namen))
     kopf = pg.evaluate("n => String.fromCharCode(...window.ORDNER.get(n).daten.slice(0, 5))", n1)
     pruefe("Ist ein PDF", kopf == "%PDF-")
     roh = bytes(pg.evaluate("n => [...window.ORDNER.get(n).daten]", n1))
