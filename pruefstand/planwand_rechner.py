@@ -58,7 +58,7 @@ with sync_playwright() as p:
     pruefe("Keine Richtungs- und Einheitenwahl", pg.locator("[data-art], [data-einheit]").count() == 0)
     pruefe("Titel Bestellen", pg.inner_text("#mr-ergebnis .ergebnis__titel") == "Bestellen")
     # Ausschuss % (1.137.0): Standard 10; für die alten Proben erst auf 0
-    pruefe("Ausschuss Standard 10: " + pg.input_value("#mr-ausschuss"), pg.input_value("#mr-ausschuss") == "10")
+    pruefe("Ausschuss leer (gilt 0): " + pg.input_value("#mr-ausschuss"), pg.input_value("#mr-ausschuss") == "")
     tippe(pg, "#mr-ausschuss", "0")
     tippe(pg, "#mr-d", "20"); tippe(pg, "#mr-menge", "600")
     pruefe("Ohne Länge: Hinweis", "Länge Fertigteil eintragen" in pg.inner_text("#mr-ergebnis"))
@@ -97,12 +97,12 @@ with sync_playwright() as p:
     pruefe("Werkstoff Rostfrei V2A gewählt", pg.input_value("#mr-werkstoff") == "kat:v2a")
     pruefe("Sechskant aus dem Material, 12 mm", "aktiv" in pg.get_attribute("[data-form='6kt']", "class") and pg.input_value("#mr-d") == "12")
     pruefe("Länge 10", pg.input_value("#mr-laenge") == "10")
-    pruefe("HOCO Nr. ohne gemerkten Ausschuss: 10", pg.input_value("#mr-ausschuss") == "10")
+    pruefe("HOCO Nr. ohne gemerkten Ausschuss: leer", pg.input_value("#mr-ausschuss") == "")
     tippe(pg, "#mr-menge", "1000")
     ab = float(pg.input_value("#mr-abstecher").replace(",", ".") or 0)
     st = float(pg.input_value("#mr-stange")); stu = float(pg.input_value("#mr-stumpen"))
     import math
-    je = math.floor((st - stu) / (10 + ab + 0.5)); stangen = math.ceil(1000 / je) * 1.1
+    je = math.floor((st - stu) / (10 + ab + 0.5)); stangen = math.ceil(1000 / je)
     soll = stangen * st / 1000 * (math.sqrt(3) / 2 * 144 * 7.9 / 1000)
     soll_t = ("%.1f" % soll).replace(".", ",").replace(",0", "")
     zz = pg.inner_text("#mr-ergebnis .mr-zusatz")

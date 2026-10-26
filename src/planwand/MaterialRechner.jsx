@@ -24,7 +24,9 @@
 //  als längeres Reststück liegen), daraus ganze Stangen und kg, und ganz
 //  am Schluss der Ausschuss auf Stangen und kg (seit 1.137.1, Wunsch
 //  Patrick 22. Oktober 2026: „einfach ganz am Schluss auf die Stangen und
-//  kg 10 % rechnen“), ohne Zusatzzeile.
+//  kg 10 % rechnen“), ohne Zusatzzeile. Seit 1.198.1 ist das Feld leer
+//  und gilt als 0 (Wunsch Patrick 26. Oktober 2026: „nicht 10 %, sondern
+//  einfach leer bei 0“); ein bei der HOCO Nr. gemerkter Wert kommt wieder.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -32,7 +34,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { materialZerlegen, querschnittMm2, formFuerTeil, kategorienListe, werkstoffWahlVon, werkstoffGenau, dichtenLaden,
   STANGE_STANDARD_MM, STUMPEN_STANDARD_MM, PLANIEREN_STANDARD_MM } from "../daten/material.js";
 
-const AUSSCHUSS_STANDARD = 10;
+const AUSSCHUSS_STANDARD = 0;
 const zahlLesen = (t) => { const n = Number(String(t ?? "").trim().replace(",", ".").replace(/'/g, "")); return String(t ?? "").trim() !== "" && isFinite(n) ? n : null; };
 const zahlFeld = (n) => (n === null || n === undefined ? "" : String(Math.round(n * 100) / 100).replace(".", ","));
 const zeigen = (n, stellen) => {
@@ -118,7 +120,7 @@ export default function MaterialRechner() {
   const vonHand = useRef(false);
   const [gemerkt, setGemerkt] = useState("");
   const [menge, setMenge] = useState("");
-  const [ausschuss, setAusschuss] = useState(String(AUSSCHUSS_STANDARD));
+  const [ausschuss, setAusschuss] = useState("");
   const ausschussVonHand = useRef(false);
   // Eigene Dichten aus den Einstellungen holen, dann neu rechnen
   const [wahlListe, setWahlListe] = useState(kategorienListe);
@@ -156,7 +158,7 @@ export default function MaterialRechner() {
         if (w) setWerkstoff(w);
         ausschussVonHand.current = false;
         const gemerktProzent = h.teil ? zahlLesen(h.teil.rechner_ausschuss_pct) : null;
-        setAusschuss(zahlFeld(gemerktProzent !== null ? gemerktProzent : AUSSCHUSS_STANDARD));
+        setAusschuss(gemerktProzent ? zahlFeld(gemerktProzent) : "");
         if (h.teil && Number(h.teil.teil_laenge_mm)) setLaenge(zahlFeld(Number(h.teil.teil_laenge_mm)));
         if (h.typ) {
           if (Number(h.typ.abstecher_mm)) setAbstecher(zahlFeld(Number(h.typ.abstecher_mm)));
