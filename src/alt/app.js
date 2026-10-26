@@ -145,7 +145,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.212.0";
+const APP_VERSION = "1.212.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1141,21 +1141,44 @@ function fassungPruefen(spaeter) {
   return Promise.race([lauf, new Promise((ok) => setTimeout(() => ok(false), 2500))]);
 }
 
-async function fassungHolen(spaeter) {
-  const eigene = eigeneFassung();
-  if (!eigene || navigator.onLine === false) return false;
-  let html;
+// Welche Programmdatei steht in der index.html auf dem Server? "" ohne
+// Netz oder ohne Antwort.
+async function fassungAufServer() {
+  if (navigator.onLine === false) return "";
   try {
     const r = await zeitlimit(fetch("./index.html?stand=" + Date.now(), { cache: "no-store" }), 8000, "Fassung");
-    if (!r.ok) return false;
-    html = await r.text();
-  } catch (f) { return false; }
-  const m = html.match(/assets\/(index-[^"'\s]+\.js)/);
-  if (!m || m[1] === eigene) return false;
+    if (!r.ok) return "";
+    const m = (await r.text()).match(/assets\/(index-[^"'\s]+\.js)/);
+    return m ? m[1] : "";
+  } catch (f) { return ""; }
+}
+
+// GitHub Pages lässt den Browser die Seite zehn Minuten lang aus seinem
+// Zwischenspeicher nehmen. Ohne das hier kam beim Neuladen oft noch die
+// alte index.html mit der alten Programmdatei, und weil je Tab nur
+// einmal je Fassung neu geladen wird, blieb der Bildschirm darauf
+// stehen (Patrick 26. Oktober 2026: „das Infoboard-Display aktualisiert
+// sich nicht automatisch“). Darum vor dem Neuladen die Seite selbst
+// frisch holen, das ersetzt den gemerkten Stand.
+async function seiteFrischHolen() {
   try {
-    if (sessionStorage.getItem(FASSUNG_NEULADEN) === m[1]) return false;
-    sessionStorage.setItem(FASSUNG_NEULADEN, m[1]);
+    await zeitlimit(Promise.all([
+      fetch(location.pathname + location.search, { cache: "reload" }),
+      fetch("./index.html", { cache: "reload" }),
+    ]), 8000, "Seite");
+  } catch (f) { /* dann eben so */ }
+}
+
+async function fassungHolen(spaeter) {
+  const eigene = eigeneFassung();
+  if (!eigene) return false;
+  const server = await fassungAufServer();
+  if (!server || server === eigene) return false;
+  try {
+    if (sessionStorage.getItem(FASSUNG_NEULADEN) === server) return false;
+    sessionStorage.setItem(FASSUNG_NEULADEN, server);
   } catch (f) { /* ohne Speicher trotzdem einmal neu laden */ }
+  await seiteFrischHolen();
   if (!spaeter) location.reload();
   return true;
 }
@@ -1181,6 +1204,9 @@ let neuladenAb = Date.now() + NEULADEN_TAKT;
 const NEULADEN_FENSTER_RUHIG = ["betrachter", "dok", "wetter", "hoco"];
 
 function neuladenRuhig() {
+  // Der Bildschirm im Gang (Infoboard, Empfang) wird nie bedient: dort
+  // zählen weder Ruhe noch Schreibmarke, nur Netz und kein offenes Fenster
+  if (bildschirmZeigt()) return navigator.onLine !== false && !document.querySelector(".dialog-huelle");
   if (document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return false;
   if (document.querySelector(".temp__liste--laeuft")) return false; // Temp-Ordner lädt hoch
   if (eigeneFensterOffen()) return false; // Auftragsfenster auf einem anderen Bildschirm
@@ -1200,9 +1226,39 @@ function stuendlichNeuLaden() {
   // Falls das Neuladen scheitert, nicht jede Minute wieder: erst in einer Stunde
   neuladenAb = Date.now() + NEULADEN_TAKT;
   if (document.getElementById("pad") && typeof padNeuLaden === "function") padNeuLaden();
-  else location.reload();
+  else seiteFrischHolen().then(() => location.reload());
 }
 setInterval(stuendlichNeuLaden, 60000);
+
+// ---------- Bildschirme holen neue Fassungen sofort ----------
+// Infoboard und Empfang laufen tagelang ohne Anmeldung und ohne Strg + F5.
+// Statt bis zum stündlichen Neuladen zu warten, schauen sie alle zwei
+// Minuten nach, ob eine neue Fassung draussen ist, und laden dann gleich
+// neu (Wunsch Patrick 26. Oktober 2026). Klappt das Neuladen nicht (alte
+// Seite kam doch wieder), versucht es der Bildschirm nach zehn Minuten
+// noch einmal, statt wie ein normaler Tab für immer aufzugeben.
+const BILDSCHIRM_TAKT = 2 * 60 * 1000;
+const BILDSCHIRM_NOCHMAL = 10 * 60 * 1000;
+const BILDSCHIRM_NEULADEN = "hofer.fassung.bildschirm";
+
+function bildschirmZeigt() {
+  return !ARCHIV && !!document.getElementById("infoboard");
+}
+
+async function bildschirmFassung() {
+  if (!bildschirmZeigt() || document.querySelector(".dialog-huelle")) return;
+  const eigene = eigeneFassung();
+  const server = eigene && await fassungAufServer();
+  if (!server || server === eigene || !bildschirmZeigt()) return;
+  try {
+    const [f, zeit] = String(sessionStorage.getItem(BILDSCHIRM_NEULADEN) || "").split("|");
+    if (f === server && Date.now() - +zeit < BILDSCHIRM_NOCHMAL) return;
+    sessionStorage.setItem(BILDSCHIRM_NEULADEN, server + "|" + Date.now());
+  } catch (f) { /* ohne Speicher trotzdem neu laden */ }
+  await seiteFrischHolen();
+  location.reload();
+}
+setInterval(bildschirmFassung, BILDSCHIRM_TAKT);
 
 // =================================================================
 //  FEHLERPROTOKOLL
