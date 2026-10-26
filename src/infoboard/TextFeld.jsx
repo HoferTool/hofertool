@@ -124,7 +124,10 @@ function farbenMerken(el) {
 
 // ---------- Anzeige ----------
 // Das Blatt in echten Massen, eingepasst auf breite × hoehe Punkte der Tafel
-export function TextBlatt({ html, format, breite, hoehe, bearbeiten, innenRef, onInput }) {
+// ohneGrund: Text frei auf der Tafel, ohne weisses Blatt und ohne Rand
+// (Wunsch Patrick 26. Oktober 2026: „Text ohne Hintergrund direkt platzieren“);
+// grund ist dann die Farbe der Tafel, damit man im Fenster sieht, wie es wirkt
+export function TextBlatt({ html, format, breite, hoehe, bearbeiten, innenRef, onInput, ohneGrund, grund }) {
   const [bw] = BLATT_MM[format] || BLATT_MM.a4;
   const k = breite / (bw * MM);
   const eigen = useRef(null);
@@ -134,17 +137,18 @@ export function TextBlatt({ html, format, breite, hoehe, bearbeiten, innenRef, o
     if (el.current && (!bearbeiten || !el.current.innerHTML)) el.current.innerHTML = sauber(html);
   }, [html, bearbeiten, el]);
   return (
-    <div className="ib-text" style={{ width: breite, height: hoehe }}>
+    <div className={"ib-text" + (ohneGrund ? " ib-text--ohne-grund" : "")}
+      style={{ width: breite, height: hoehe, background: ohneGrund ? grund || "transparent" : undefined }}>
       <div ref={el} className="ib-text__blatt" contentEditable={bearbeiten || undefined}
         suppressContentEditableWarning spellCheck={bearbeiten ? true : undefined} onInput={onInput}
-        style={{ width: bw * MM, height: hoehe / k, padding: RAND_MM * MM, fontSize: STANDARD_PT + "pt",
+        style={{ width: bw * MM, height: hoehe / k, padding: ohneGrund ? 0 : RAND_MM * MM, fontSize: STANDARD_PT + "pt",
           transform: "scale(" + k + ")" }} />
     </div>
   );
 }
 
 // ---------- Fenster zum Bearbeiten ----------
-export function textBearbeiten({ html, format, seitenVerhaeltnis, titel }) {
+export function textBearbeiten({ html, format, seitenVerhaeltnis, titel, ohneGrund, grund }) {
   return new Promise((fertig) => {
     const huelle = document.createElement("div");
     huelle.className = "dialog-huelle ib-texteditor-huelle";
@@ -152,11 +156,11 @@ export function textBearbeiten({ html, format, seitenVerhaeltnis, titel }) {
     const wurzel = createRoot(huelle);
     const zu = (wert) => { wurzel.unmount(); huelle.remove(); fertig(wert); };
     wurzel.render(<TextEditor html={html} format={format} verhaeltnis={seitenVerhaeltnis}
-      titel={titel} zu={zu} />);
+      titel={titel} zu={zu} ohneGrund={ohneGrund} grund={grund} />);
   });
 }
 
-function TextEditor({ html, format, verhaeltnis, titel, zu }) {
+function TextEditor({ html, format, verhaeltnis, titel, zu, ohneGrund, grund }) {
   const blatt = useRef(null);
   const platz = useRef(null);
   const datei = useRef(null);
@@ -360,7 +364,7 @@ function TextEditor({ html, format, verhaeltnis, titel, zu }) {
         {mass[0] > 0 &&
           <div className={"ib-te__seite" + (zuViel ? " ib-te__seite--voll" : "")}>
             <TextBlatt html={start} format={format} breite={mass[0]} hoehe={mass[1]} bearbeiten
-              innenRef={blatt} onInput={pruefen} />
+              innenRef={blatt} onInput={pruefen} ohneGrund={ohneGrund} grund={grund} />
           </div>}
       </div>
       <div className="ib-te__fuss">

@@ -91,8 +91,15 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
         // Gerechnet im gedrehten Teil, damit die Ecke dem Finger folgt.
         const c = Math.cos(vorher.drehung * RAD), sn = Math.sin(vorher.drehung * RAD);
         const lx = dx * c + dy * sn, ly = -dx * sn + dy * c;
-        const f = Math.max(MIN_GROESSE / Math.min(vorher.w, vorher.h), (vorher.w + lx) / vorher.w, (vorher.h + ly) / vorher.h);
-        const w = vorher.w * f, h = vorher.h * f;
+        // Freier Text ohne Hintergrund darf breiter oder höher werden,
+        // die Schrift richtet sich nur nach der Breite; alles andere bleibt im Verhältnis
+        let w, h;
+        if (t.art === "text" && t.ohneGrund) {
+          w = Math.max(MIN_GROESSE, vorher.w + lx); h = Math.max(MIN_GROESSE / 2, vorher.h + ly);
+        } else {
+          const f = Math.max(MIN_GROESSE / Math.min(vorher.w, vorher.h), (vorher.w + lx) / vorher.w, (vorher.h + ly) / vorher.h);
+          w = vorher.w * f; h = vorher.h * f;
+        }
         const ecke = { x: mitte.x - (vorher.w / 2) * c + (vorher.h / 2) * sn, y: mitte.y - (vorher.w / 2) * sn - (vorher.h / 2) * c };
         const m = { x: ecke.x + (w / 2) * c - (h / 2) * sn, y: ecke.y + (w / 2) * sn + (h / 2) * c };
         jetzt = { ...jetzt, w: Math.round(w), h: Math.round(h), x: Math.round(m.x - w / 2), y: Math.round(m.y - h / 2) };
@@ -149,7 +156,7 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
             <div key={t.id} className={"ib-teil" + (an ? " ib-teil--gewaehlt" : "")} data-ibteil={t.id}
               style={{ left: t.x, top: t.y, width: t.w, height: t.h,
                 transform: t.drehung ? "rotate(" + t.drehung + "deg)" : undefined }}>
-              <div className={"ib-feld ib-feld--" + format + " ib-feld--" + t.art}>
+              <div className={"ib-feld ib-feld--" + format + " ib-feld--" + t.art + (t.art === "text" && t.ohneGrund ? " ib-feld--ohne-grund" : "")}>
                 <FeldInhalt feld={t} format={format} bearbeiten={bearbeiten} grossZiel={grossZiel}
                   breite={t.w} hoehe={t.h} />
               </div>
@@ -215,7 +222,7 @@ function Kopf() {
 }
 
 function FeldInhalt({ feld, format, bearbeiten, grossZiel, breite, hoehe }) {
-  if (feld.art === "text") return <TextBlatt html={feld.html} format={format} breite={breite} hoehe={hoehe} />;
+  if (feld.art === "text") return <TextBlatt html={feld.html} format={format} breite={breite} hoehe={hoehe} ohneGrund={!!feld.ohneGrund} />;
   if (feld.art === "skizze") {
     return (
       <div className="ib-skizze">

@@ -118,13 +118,17 @@ function Gestalten({ mass }) {
   const dateiWaehlen = (ersetzen) => { dateiZiel.current = ersetzen || null; datei.current && datei.current.click(); };
 
   // Text wie in Word (Wunsch Patrick 20. Oktober 2026). Neu ein A4 in der Mitte.
-  const textOeffnen = async (t) => {
-    const format = t && t.w > t.h ? "a3" : "a4";
+  // Text ohne Hintergrund (Wunsch Patrick 26. Oktober 2026): frei auf der
+  // Tafel, ohne weisses Blatt, zuerst breit und flach wie eine Zeile
+  const textOeffnen = async (t, ohneGrund) => {
+    const frei = t ? !!t.ohneGrund : !!ohneGrund;
+    const v = t ? t.h / t.w : frei ? 0.25 : Math.SQRT2;
+    const format = v < 1 ? "a3" : "a4";
     const html = await textBearbeiten({ html: t && t.art === "text" ? t.html : "", format,
-      seitenVerhaeltnis: t ? t.h / t.w : Math.SQRT2, titel: t ? "Text bearbeiten" : "Neuer Text" });
+      seitenVerhaeltnis: v, titel: t ? "Text bearbeiten" : "Neuer Text", ohneGrund: frei, grund: mass.grund });
     if (html == null) return;
     if (t && t.art === "text") { await teilAendern(t.id, { html }); return; }
-    const neu = neuesTeil({ id: neueId(), art: "text", html }, Math.SQRT2, null, mass);
+    const neu = neuesTeil({ id: neueId(), art: "text", html, ...(frei ? { ohneGrund: true } : {}) }, v, null, mass);
     await aendern((teile) => [...teile, neu]);
     setGewaehlt(neu.id);
   };
@@ -180,8 +184,10 @@ function Gestalten({ mass }) {
             <div className="ib-wahl__knoepfe">
               <button type="button" className="knopf knopf--haupt" data-ib="neu-datei" disabled={!!laedt}
                 onClick={() => dateiWaehlen(null)}>{laedt ? "Lädt " + laedt + " …" : "Datei hinzufügen …"}</button>
-              <button type="button" className="knopf" data-ib="neu-text" onClick={() => textOeffnen(null)}>
+              <button type="button" className="knopf" data-ib="neu-text" onClick={() => textOeffnen(null, false)}>
                 Text hinzufügen</button>
+              <button type="button" className="knopf" data-ib="neu-text-frei" onClick={() => textOeffnen(null, true)}>
+                Text ohne Hintergrund</button>
             </div>
             <input ref={datei} type="file" hidden multiple onChange={dateiGewaehlt}
               accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
@@ -205,6 +211,13 @@ function Gestalten({ mass }) {
                   <button type="button" className="knopf knopf--still" data-ib="hinten" onClick={() => ebene(false)}>Nach hinten</button>
                   <button type="button" className="knopf knopf--gefahr" data-ib="leeren" onClick={entfernen}>Entfernen</button>
                 </div>
+                {wahl.art === "text" &&
+                  <label className="ib-geraet">
+                    <input type="checkbox" checked={!!wahl.ohneGrund} data-ib="ohne-grund"
+                      onChange={(e) => teilAendern(wahl.id, { ohneGrund: e.target.checked })} />
+                    <span>Ohne Hintergrund<small>Nur der Text, ohne weisses Blatt und ohne Rand. Breite und Höhe
+                      lassen sich an der Ecke frei ziehen, die Schrift richtet sich nach der Breite.</small></span>
+                  </label>}
                 <Drehung key={wahl.id} wert={wahl.drehung || 0} setzen={(g) => teilAendern(wahl.id, { drehung: g })} />
                 {wahl.art === "datei" && wahl.datei && (wahl.datei.typ === "pdf" || wahl.datei.typ === "excel") &&
                   <label className="feld">Mehrere Seiten wechseln

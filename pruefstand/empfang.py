@@ -56,6 +56,28 @@ with sync_playwright() as p:
     t = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.teile[0]")
     pruefe(t["x"] >= 0 and t["x"] + t["w"] <= 1920 and t["y"] >= 270 and t["y"] + t["h"] <= 1080,
            "neues Teil liegt unter dem Kopf auf der Tafel: %s" % {k2: t[k2] for k2 in "xywh"})
+
+    # Text ohne Hintergrund: frei platziert, breit und flach, ohne Blatt
+    pg.click("[data-ib='neu-text-frei']"); pg.wait_for_selector(".ib-te .ib-text__blatt"); pg.wait_for_timeout(300)
+    pg.locator(".ib-te .ib-text__blatt").click(); pg.keyboard.type("Herzlich willkommen")
+    pg.keyboard.press("Control+A"); pg.select_option("[data-ibte='groesse']", "36")
+    pg.click("[data-ibte='fertig']"); pg.wait_for_timeout(800)
+    tx = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.teile.find(t => t.art === 'text')")
+    pruefe(tx and tx.get("ohneGrund") is True and tx["w"] > tx["h"] * 3, "Text ohne Hintergrund gespeichert, breit: %s" % (tx and {k2: tx[k2] for k2 in "wh"}))
+    grund = pg.evaluate(f"() => getComputedStyle(document.querySelector(\".ib-gestalten [data-ibteil='{tx['id']}'] .ib-text__blatt\")).backgroundColor")
+    pruefe(grund in ("rgba(0, 0, 0, 0)", "transparent"), "kein weisses Blatt: %s" % grund)
+    # Ecke frei ziehen: nur breiter, nicht höher
+    ecke = pg.locator(f".ib-gestalten [data-ibteil='{tx['id']}'] [data-ibecke]").bounding_box()
+    x, y = ecke["x"] + ecke["width"] / 2, ecke["y"] + ecke["height"] / 2
+    pg.mouse.move(x, y); pg.mouse.down()
+    for i in range(10): pg.mouse.move(x + i * 5, y)
+    pg.mouse.up(); pg.wait_for_timeout(800)
+    tx2 = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.teile.find(t => t.art === 'text')")
+    pruefe(tx2["w"] > tx["w"] + 20 and abs(tx2["h"] - tx["h"]) <= 2, "Ecke zieht frei: %s → %s" % ((tx["w"], tx["h"]), (tx2["w"], tx2["h"])))
+    pg.uncheck("[data-ib='ohne-grund']"); pg.wait_for_timeout(500)
+    pruefe(pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.teile.find(t => t.art === 'text').ohneGrund") is False,
+           "Häkchen schaltet den Hintergrund wieder ein")
+    pg.check("[data-ib='ohne-grund']"); pg.wait_for_timeout(500)
     pg.screenshot(path=os.path.join(BILD, "empfang-gestalten.png"))
 
     pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)
@@ -69,7 +91,7 @@ with sync_playwright() as p:
     # Nachts keine Hühner am Empfang, die Dokumente bleiben
     pg.clock.set_system_time(datetime(heute.year, heute.month, heute.day, 23, 30))
     pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)
-    pruefe(pg.locator("#infoboard [data-ib='nacht']").count() == 0 and pg.locator("#infoboard .ib-teil").count() == 1,
+    pruefe(pg.locator("#infoboard [data-ib='nacht']").count() == 0 and pg.locator("#infoboard .ib-teil").count() == 2,
            "nachts keine Hühner, Dokumente bleiben")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
 

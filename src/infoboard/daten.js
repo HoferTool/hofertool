@@ -53,11 +53,11 @@ export const SEKUNDEN = 20;
 // zeichnet: so ist jeder Punkt ein Pixel und nichts wird unscharf verkleinert.
 export const TAFELN = {
   haupt: { id: "haupt", name: "Infoboard", seite: "infoboard", breite: BREITE, hoehe: HOEHE, kopf: KOPF_H,
-    geraet: "hofer.infoboard.geraet" },
+    geraet: "hofer.infoboard.geraet", grund: "#0b1626" },
   // ruhig: eigener heller Kopf ohne Wellen und Jetski, nachts keine Hühner
   // (Wunsch Patrick 26. Oktober 2026: „keine durchlaufenden Animationen“)
   empfang: { id: "empfang", name: "Empfang", seite: "empfang", breite: 1920, hoehe: 1080, kopf: 270,
-    geraet: "hofer.empfang.geraet", ruhig: true },
+    geraet: "hofer.empfang.geraet", ruhig: true, grund: "#f4efe7" },
 };
 export const TafelMass = createContext(TAFELN.haupt);
 export const useTafelMass = () => useContext(TafelMass);
