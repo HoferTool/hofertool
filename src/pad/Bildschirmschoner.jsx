@@ -12,6 +12,11 @@
 //  PDF-Ansicht des Betrachters. Ist das Blatt in der App mit „Blatt ist
 //  gut“ bestätigt, zeigt der Schoner dieses (seit 1.170.0).
 //
+//  Solange eine Kachel rot blinkt (Stückzeit, Länge oder heutige
+//  Stückzahl fehlen, mit dem Bild aus „Bilder im Pad Mode“), kommt kein
+//  Schoner: die Mahnung soll sichtbar bleiben (Wunsch Patrick,
+//  26. Oktober 2026: „nur wenn Pablo nicht mehr leuchtet“).
+//
 //  Abgemeldet wird im Pad Mode nie (leerlaufPruefen in app.js), darum
 //  kommen sich Bildschirmschoner und Abmeldung nicht in die Quere.
 // =================================================================
@@ -82,7 +87,7 @@ function Blatt({ adresse }) {
     : <PdfAnsicht daten={daten} beiFehler={() => setFehler(true)} />;
 }
 
-export default function Bildschirmschoner({ hoco, typId }) {
+export default function Bildschirmschoner({ hoco, typId, mahnt }) {
   const [adresse, setAdresse] = useState(null);
   const [zeigen, setZeigen] = useState(false);
 
@@ -101,7 +106,7 @@ export default function Bildschirmschoner({ hoco, typId }) {
   useEffect(lauschen, []);
 
   useEffect(() => {
-    if (!adresse || zeigen) return;
+    if (!adresse || zeigen || mahnt) return;
     const takt = setInterval(() => {
       if (Date.now() - letzte >= SCHONER_NACH_MS && stoertNicht()) {
         // Schon vorher holen, damit das Blatt gleich da ist
@@ -110,7 +115,10 @@ export default function Bildschirmschoner({ hoco, typId }) {
       }
     }, 1000);
     return () => clearInterval(takt);
-  }, [adresse, zeigen]);
+  }, [adresse, zeigen, mahnt]);
+
+  // Fängt die Mahnung an, während der Schoner offen ist, weg damit
+  useEffect(() => { if (mahnt) setZeigen(false); }, [mahnt]);
 
   // Escape am Computer wie ein Tipp. Vor allen anderen abgefangen,
   // sonst ginge das Pad zusätzlich einen Schritt zurück.

@@ -1,6 +1,7 @@
 # Pad Mode: Nach einer Minute ohne Berührung zeigt das Dashboard der
 # Maschine das Einrichtblatt über den ganzen Bildschirm, ein Tipp führt
 # zurück (1.43.0). Ohne Auftrag und bei offenem Fenster kein Schoner.
+# Solange eine Kachel rot blinkt, kommt er nicht (1.187.1).
 # Die Uhr läuft mit der Uhr von Playwright vor, statt eine Minute zu warten.
 import sys, time, os
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -51,6 +52,28 @@ with sync_playwright() as p:
 
     pg.locator("#pad .pad-kachel--maschine").filter(has_not_text="kein Auftrag").first.click()
     pg.wait_for_selector("#pad .pad-stk-zahl"); pg.wait_for_timeout(600)
+
+    # Solange eine Kachel rot blinkt (Stückzeit, Stückzahl), kein Schoner
+    # (1.187.1, Wunsch Patrick: „nur wenn Pablo nicht mehr leuchtet“)
+    pruefe("Kacheln blinken rot", pg.locator("#pad .pad-karte2--nervt").count() == 2)
+    warten(pg, 61000)
+    pruefe("Kachel blinkt: kein Schoner", not schoner(pg))
+    warten(pg, 120000)
+    pruefe("auch nach drei Minuten nicht", not schoner(pg))
+
+    # Stückzeit und heutige Stückzahl nachtragen, dann neu öffnen
+    pg.evaluate("""() => {
+      const d = TEST.daten, j = d.jobs.find((x) => x.machine_id === 'm-l1' && x.plan_status === 'laeuft');
+      const typ = d.machines.find((m) => m.id === 'm-l1').type_id;
+      const z = d.hoco_type_data.find((x) => x.hoco_nr === j.job_number && x.type_id === typ);
+      if (z) z.stueckzeit_s = 42; else d.hoco_type_data.push({ hoco_nr: j.job_number, type_id: typ, stueckzeit_s: 42 });
+      const n = new Date(), heute = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+      d.production_records.push({ id: 'prheute', machine_id: 'm-l1', job_id: j.id, record_date: heute, quantity: 999999, updated_at: n.toISOString() });
+    }""")
+    pg.click("#pad [data-padzurueck]"); pg.wait_for_timeout(600)
+    pg.locator("#pad .pad-kachel--maschine").filter(has_not_text="kein Auftrag").first.click()
+    pg.wait_for_selector("#pad .pad-stk-zahl"); pg.wait_for_timeout(800)
+    pruefe("nichts blinkt mehr", pg.locator("#pad .pad-karte2--nervt").count() == 0)
     warten(pg, 30000)
     pruefe("nach 30 Sekunden noch kein Schoner", not schoner(pg))
     warten(pg, 31000)
