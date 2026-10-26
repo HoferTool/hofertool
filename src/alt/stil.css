@@ -9608,12 +9608,6 @@ body.dunkel .mseite-park__zahl, body.dunkel .mseite-park__leer, body.dunkel .mse
 .eba-platz--pruefen.eba-platz--aktiv { outline-color: #d32f2f; }
 .eba-seite--druck .eba-platz--pruefen { box-shadow: none; }
 .eba-rot-zahl { color: #d32f2f; font-weight: 600; font-size: .85em; }
-.eba-hl { margin-top: 8px; padding: 8px; border: 2px solid #d32f2f; border-radius: 6px; display: grid; gap: 6px; }
-.eba-hl-titel { font-weight: 700; }
-.eba-hl small { color: var(--gedaempft); }
-.eba-hl select { width: 100%; }
-.eba-hl-fehlt { border-color: #d32f2f !important; }
-.eba-hl-fehler { color: #d32f2f; font-weight: 600; }
 .eba-pf-artikel--frei { border-left: 4px solid #d32f2f; padding-left: 6px; }
 
 /* Startseite: Heute noch offen (seit 1.186.0, start/HeuteOffen.jsx) */
@@ -9671,3 +9665,10 @@ body.dunkel .heuteoffen--nervt .heuteoffen__maschine { background: #fff; color: 
 .dialog-huelle--eigen .auf-kopf { cursor: default; }
 .dialog-huelle--eigen .auf-kopf__eigen { display: none; }
 body:has(> .dialog-huelle--eigen) { overflow: hidden; margin: 0; background: var(--flaeche); }
+
+/* Platzfenster im dunklen Modus: HD-Knopf war weiss auf weiss, die
+   Auswahlliste Waschgebinde schwarz auf dunkel (Patrick 26. Oktober 2026:
+   „Man kann HD nicht lesen“, „Waschgebinde Auswahl auf PC schwarz“) */
+body.dunkel .eba-pf-hd { background: #2b333d !important; color: #e6edf3 !important; -webkit-text-fill-color: #e6edf3; border-color: #5a6672; }
+body.dunkel .eba-pf-hd--an { color: #ff6b6b !important; -webkit-text-fill-color: #ff6b6b; border-color: #ff6b6b; }
+body.dunkel .eba-seite .eba-ein option { background: #fff; color: #000; -webkit-text-fill-color: #000; }

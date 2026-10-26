@@ -17,7 +17,6 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
 import { werkzeugWaehlen } from "../seiten/bestellungen/PositionFenster.jsx";
-import { WerkzeugHinterlegen, werkzeugOffen } from "./WerkzeugHinterlegen.jsx";
 import { excelVorlesen, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
   artikelHolen, STAMM_FELDER, WASCHGEBINDE, prgNummern } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
@@ -190,6 +189,12 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
   );
 }
 
+// Ein Platz braucht noch eine Hand: Werkzeug ohne Artikel, oder der
+// Artikel kommt nur vom Einlesen und ist nicht bestätigt (rot umrandet)
+function werkzeugOffen(p) {
+  return !!(p && p.werkzeug && (!p.article_id || p.ungeprueft));
+}
+
 // ---------------- Ein Platz bearbeiten ----------------
 // Ein Fenster je Werkzeugplatz: Tätigkeit, Mass, HD, Standzeit und das
 // Werkzeug. Das Werkzeug wird nur gewählt, nicht geschrieben, im selben
@@ -202,7 +207,6 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
   const [artikel, setArtikel] = useState(null);
   const [bildWahl, setBildWahl] = useState(false);
   const [bildGewaehlt, setBildGewaehlt] = useState(false);
-  const [hinterlegen, setHinterlegen] = useState(false);
   useEffect(() => { if (wert.article_id) artikelHolen(wert.article_id).then(setArtikel); }, []);
   const f = (feld) => (e) => setP(Object.assign({}, p, { [feld]: e.target.value }));
   const merkKey = bildSchluesselVon(p);
@@ -210,10 +214,11 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
 
   // Ein gewähltes oder angelegtes Werkzeug ist geprüft. Ein selbst
   // zugeordnetes wird nicht mehr mit „Ja, stimmt“ bestätigt, sondern
-  // über „Auswählen“ mit dem Excel-Text in der Suche (Wunsch Patrick,
-  // 26. Oktober 2026)
+  // über „Auswählen“ mit dem Excel-Text in der Suche; neu angelegt wird
+  // nur im Fenster von Bestellen, dort ist der Lieferant Pflicht
+  // (Wunsch Patrick, 26. Oktober 2026)
   const nehmen = (a) => {
-    setArtikel(a); setHinterlegen(false);
+    setArtikel(a);
     setP(Object.assign({}, p, { article_id: a.id, werkzeug: a.article_number || a.name || "", hersteller: a.supplier_name || "",
       spezial_id: null, ungeprueft: false, bild: artikelBilder[a.id] || p.bild || null }));
   };
@@ -261,23 +266,20 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
         <span className="eba-pf-titel">Werkzeug</span>
         {p.article_id && p.ungeprueft
           ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-bestaetigen=""><b>„{p.werkzeug}“</b>
-              <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ""}. Noch nicht hinterlegt: auswählen (die Suche steht schon da) oder neu hinterlegen.</span></div>
+              <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ""}. Noch nicht hinterlegt: „Auswählen“, die Suche steht schon da. Fehlt es, dort neu anlegen.</span></div>
           : p.article_id
           ? <div className="eba-pf-artikel"><b>{p.werkzeug}</b>
               <span>{[artikel && artikel.spezial ? "Spezialwerkzeug" : "", artikel && artikel.name, p.hersteller].filter(Boolean).join(" · ")}</span></div>
           : p.werkzeug
             ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-frei=""><b>„{p.werkzeug}“</b>
-                <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ", ohne Hersteller"}. Noch nicht hinterlegt: vorhandenes wählen oder neu hinterlegen.</span></div>
+                <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ", ohne Hersteller"}. Noch nicht hinterlegt: „Auswählen“, die Suche steht schon da. Fehlt es, dort neu anlegen.</span></div>
             : <div className="eba-pf-artikel"><span>Noch kein Werkzeug</span></div>}
-        {hinterlegen
-          ? <WerkzeugHinterlegen p={p} fertig={nehmen} abbrechen={() => setHinterlegen(false)} />
-          : <div className="eba-pf-wknoepfe">
-              <button className="knopf knopf--klein" data-pf-waehlen="" onClick={waehlen}>{p.werkzeug ? (p.article_id && !p.ungeprueft ? "Anderes Werkzeug wählen" : "Auswählen") : "Werkzeug wählen"}</button>
-              {p.werkzeug && (!p.article_id || p.ungeprueft) && <button className="knopf knopf--klein knopf--haupt" data-pf-hinterlegen-knopf=""
-                onClick={() => setHinterlegen(true)}>Werkzeug hinterlegen</button>}
-              {p.werkzeug && <button className="knopf knopf--klein knopf--still" data-pf-wzweg=""
-                onClick={() => setP(Object.assign({}, p, { werkzeug: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false }))}>Entfernen</button>}
-            </div>}
+        <div className="eba-pf-wknoepfe">
+          <button className={"knopf knopf--klein" + (werkzeugOffen(p) ? " knopf--haupt" : "")} data-pf-waehlen="" onClick={waehlen}>
+            {p.werkzeug ? (p.article_id && !p.ungeprueft ? "Anderes Werkzeug wählen" : "Auswählen") : "Werkzeug wählen"}</button>
+          {p.werkzeug && <button className="knopf knopf--klein knopf--still" data-pf-wzweg=""
+            onClick={() => setP(Object.assign({}, p, { werkzeug: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false }))}>Entfernen</button>}
+        </div>
       </div>
       <label className="feld"><span>Geo-Offset, nur wenn nötig (steht über dem Bild)</span>
         <textarea data-pf="geo" rows={2} value={p.geo || ""} onChange={f("geo")} placeholder="z. B. X 0.12  Z -0.05" /></label>
@@ -495,8 +497,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     // Erst wenn jedes Werkzeug hinterlegt und bestätigt ist (Wunsch
     // Patrick, 26. Oktober 2026: nie mehr ohne Hersteller)
     if (offen > 0) {
-      alt.meldung(offen === 1 ? "Ein Werkzeug ist noch rot: zuerst hinterlegen oder bestätigen."
-        : offen + " Werkzeuge sind noch rot: zuerst hinterlegen oder bestätigen.", "warn");
+      alt.meldung(offen === 1 ? "Ein Werkzeug ist noch rot: zuerst antippen und auswählen."
+        : offen + " Werkzeuge sind noch rot: zuerst antippen und auswählen.", "warn");
       return;
     }
     const ok = await alt.nachfragen({ titel: "EB OK",
@@ -554,7 +556,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       <div className="betrachter__kopf">
         <span className="betrachter__titel">Einrichtblatt {hocoNr} · {typ.name}
           {daten.blatt && !daten.blatt.gut_am && <span className="eba-offen" data-eba-offen=""> noch nicht bestätigt</span>}
-          {darf && offen > 0 && <span className="eba-rot-zahl" data-eba-rot={offen}> · {offen} {offen === 1 ? "Werkzeug" : "Werkzeuge"} rot: antippen und hinterlegen oder bestätigen</span>}</span>
+          {darf && offen > 0 && <span className="eba-rot-zahl" data-eba-rot={offen}> · {offen} {offen === 1 ? "Werkzeug" : "Werkzeuge"} rot: antippen und auswählen</span>}</span>
         <div className="betrachter__knoepfe">
           {bearbeiten
             ? <>
