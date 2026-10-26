@@ -14,6 +14,10 @@
 //  Die Hühner sind die weissen Hühner des Infoboards (feste.js) und
 //  tragen dieselbe Verkleidung je Fest und Jahreszeit; statt der
 //  düsteren Halloween-Hühner der Nacht tragen sie am Tag einen Hexenhut.
+//  Seit 1.212.0 (26. Oktober 2026: „es ist aber Winter, das ganze soll
+//  im Schnee stattfinden“): vom 15. Oktober bis Ende März zieht der Umzug
+//  durch Schnee statt über die Wiese: Schneewehen unten, Schneefall,
+//  Schnee auf Dach, Kamin und Gepäck, Pulverschnee statt Staub.
 //  Gesteuert mit Zeitgebern und el.animate statt React-Zustand, damit
 //  die Startseite dafür nie neu zeichnet.
 // =================================================================
@@ -67,12 +71,14 @@ const STALL = `<svg viewBox="0 -24 215 174" xmlns="http://www.w3.org/2000/svg">
     <rect x="137" y="17" width="12" height="20" fill="#8c5a36" stroke="#5e3a20" stroke-width="1.5"/>
     <path d="M12 54 L100 8 L188 54 Z" fill="#b8322a" stroke="#7d1f19" stroke-width="2.4" stroke-linejoin="round"/>
     <g stroke="#962820" stroke-width="1.4"><path d="M41 39 L159 39 M65 26 L135 26"/></g>
+    <!--schnee-dach-->
     <g transform="rotate(-3 100 0)">
       <rect x="70" y="-14" width="34" height="22" rx="2" fill="#c8955a" stroke="#8a6234" stroke-width="1.5"/>
       <path d="M87 -14 V8" stroke="#e8c48c" stroke-width="4"/>
       <rect x="104" y="-6" width="30" height="14" rx="7" fill="#e9e2f5" stroke="#8d7fb0" stroke-width="1.4"/>
       <path d="M111 -6 V8 M119 -6 V8 M127 -6 V8" stroke="#b5a8d6" stroke-width="2"/>
       <path d="M66 4 C90 -6 120 -4 138 4" stroke="#7a5a2a" stroke-width="1.6" fill="none"/>
+      <!--schnee-gepaeck-->
     </g>
     <circle cx="62" cy="77" r="13" fill="#3b2a1c" stroke="#7b4f28" stroke-width="2.4"/>
     <g class="umzug-stall__gucker">
@@ -103,6 +109,26 @@ const KUEKEN = `<svg viewBox="0 0 40 36" xmlns="http://www.w3.org/2000/svg">
   </g>
 </svg>`;
 
+// Schnee auf Dach und Kamin, auf dem Gepäck (gleiche Drehung wie das Gepäck)
+const SCHNEE_DACH = `<path d="M7 55 L100 4 L193 55 Q187 61 181 56 Q174 62 166 52 L100 15 L34 52 Q26 62 19 56 Q13 61 7 55 Z" fill="#fbfdff" stroke="#c9d8ea" stroke-width="1"/>
+    <rect x="134" y="13" width="18" height="6" rx="3" fill="#fbfdff" stroke="#c9d8ea" stroke-width="1"/>`;
+const SCHNEE_GEPAECK = `<rect x="68" y="-18" width="38" height="7" rx="3.5" fill="#fbfdff" stroke="#c9d8ea" stroke-width="1"/>
+      <path d="M104 -4 C108 -10 130 -10 134 -4 Z" fill="#fbfdff" stroke="#c9d8ea" stroke-width="1"/>`;
+const stallSvg = (schnee) => schnee
+  ? STALL.replace("<!--schnee-dach-->", SCHNEE_DACH).replace("<!--schnee-gepaeck-->", SCHNEE_GEPAECK)
+  : STALL;
+
+// Schnee liegt vom 15. Oktober bis Ende März (Wunsch Patrick: „es ist aber Winter“)
+export const schneeZeit = (d = new Date()) => {
+  const x = (d.getMonth() + 1) * 100 + d.getDate();
+  return x >= 1015 || x <= 331;
+};
+
+// Weiche Schneewehen am oberen Rand des Schnees
+const WEHEN = `url("data:image/svg+xml,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='120' height='14' viewBox='0 0 120 14'>" +
+  "<path d='M0 14 L0 9 C10 2 22 3 30 8 C38 12 46 4 58 5 C70 6 74 12 86 9 C96 6 104 2 114 6 L120 9 L120 14 Z' fill='#f7fbff'/></svg>")}")`;
+
 // Gras am oberen Rand der Wiese
 const GRAS = `url("data:image/svg+xml,${encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' width='60' height='14' viewBox='0 0 60 14'>" +
@@ -124,9 +150,10 @@ export default function Durchfahrt() {
     // Im versteckten Tab zieht niemand um
     const wach = async () => { while (!aus && document.hidden) await warte(1000); };
 
+    const schnee = schneeZeit();
     const wiese = document.createElement("div");
-    wiese.className = "umzug-wiese";
-    wiese.style.setProperty("--gras", GRAS);
+    wiese.className = "umzug-wiese" + (schnee ? " umzug-wiese--schnee" : "");
+    wiese.style.setProperty("--gras", schnee ? WEHEN : GRAS);
     band.appendChild(wiese);
     const wieseHoch = () => Math.max(10, Math.round((band.clientHeight || 120) * .13));
     const wieseSetzen = () => { wiese.style.height = wieseHoch() + "px"; };
@@ -137,7 +164,7 @@ export default function Durchfahrt() {
     // Staub, wo die Räder rollen: bleibt stehen, geht auf und vergeht
     const staub = (x, y, g) => {
       const d = document.createElement("div");
-      d.className = "umzug-staub";
+      d.className = "umzug-staub" + (schnee ? " umzug-staub--schnee" : "");
       d.style.cssText = `left:${x - g / 2}px;bottom:${y}px;width:${g}px;height:${g * .6}px`;
       band.appendChild(d);
       const a = d.animate([{ opacity: .55, transform: "scale(.4)" }, { opacity: 0, transform: `translate(0,${-g * .4}px) scale(1.6)` }],
@@ -173,6 +200,34 @@ export default function Durchfahrt() {
       a.onfinish = () => f.remove();
     };
 
+    // Schneeflocken fallen über das ganze Band bis in den Schnee
+    const flocke = () => {
+      const breit = band.clientWidth, hoch = band.clientHeight;
+      if (!breit || !hoch) return;
+      const g = zufall(2.5, 6.5);
+      const f = document.createElement("div");
+      f.className = "umzug-flocke";
+      f.style.cssText = `left:${zufall(-20, breit + 20)}px;top:${-g}px;width:${g}px;height:${g}px;opacity:${zufall(.55, .95).toFixed(2)}`;
+      band.appendChild(f);
+      const tief = hoch - wieseHoch() * zufall(.3, .9);
+      const wind = zufall(-40, 10), wackeln = zufall(6, 16);
+      const a = f.animate([
+        { transform: "translate(0,0)" },
+        { transform: `translate(${wind * .33 + wackeln}px,${tief * .33}px)` },
+        { transform: `translate(${wind * .66 - wackeln}px,${tief * .66}px)` },
+        { transform: `translate(${wind}px,${tief}px)`, opacity: 0 },
+      ], { duration: zufall(5000, 9000) * Math.max(.6, hoch / 160), easing: "linear", fill: "forwards" });
+      a.onfinish = () => f.remove();
+    };
+    if (schnee) (async () => {
+      while (!aus) {
+        await wach();
+        if (aus) return;
+        flocke();
+        await warte(zufall(90, 220) * Math.max(.4, 1200 / Math.max(300, band.clientWidth || 1200)));
+      }
+    })();
+
     const umzug = async () => {
       const breit = band.clientWidth, hoch = band.clientHeight;
       if (!breit || !hoch) return;
@@ -195,7 +250,7 @@ export default function Durchfahrt() {
       const stall = document.createElement("div");
       stall.className = "umzug-stall";
       stall.style.cssText = `left:${stallX}px;bottom:${-4 / 150 * H}px;width:${H * 215 / 150}px;height:${hoehe}px`;
-      stall.innerHTML = STALL;
+      stall.innerHTML = stallSvg(schnee);
       const deichsel = { x: stallX + 209 / 150 * H, y: (150 - 104) / 150 * H };
       x = deichsel.x + H * .35;
       const huhn = (hx, klasse, gefieder, zusatz, tiefer) => {

@@ -8832,6 +8832,13 @@ body.dunkel .umzug-wiese { filter: brightness(.7) saturate(.85); }
 .umzug-rauch { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; filter: blur(2px);
   background: radial-gradient(circle, rgba(240,240,245,.8) 0%, rgba(230,232,240,.35) 50%, transparent 72%); }
 .umzug-feder { position: absolute; z-index: 4; pointer-events: none; opacity: 0; }
+/* Im Winter (15. Oktober bis Ende März, seit 1.212.0, Wunsch Patrick
+   26. Oktober 2026): Schnee statt Wiese, Schneefall, Pulverschnee. */
+.umzug-wiese--schnee { background: var(--gras) repeat-x left top / auto 70%, linear-gradient(180deg, transparent 0 45%, #f7fbff 45%, #d6e3f1 100%); }
+body.dunkel .umzug-wiese--schnee { filter: brightness(.82) saturate(.9); }
+.umzug-staub--schnee { background: radial-gradient(ellipse, rgba(255,255,255,.95) 0%, rgba(240,246,255,.5) 50%, transparent 72%); }
+.umzug-flocke { position: absolute; z-index: 5; border-radius: 50%; pointer-events: none; background: #fff;
+  box-shadow: 0 0 3px rgba(255,255,255,.8); will-change: transform; }
 @media (prefers-reduced-motion: reduce) { .durchfahrt { display: none; } }
 
 /* Erfassen: am Tag eines Auftragswechsels zwei Felder, oben der alte,
