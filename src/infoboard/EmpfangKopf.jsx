@@ -89,8 +89,7 @@ export default function EmpfangKopf({ hoehe, breite, top, left }) {
     kacheln = <>
       <Kachel art="sonne" zeichen={SONNE} name="Sonnenstrom jetzt" wert={alt.solarKw(prod)} />
       <Kachel art="tag" zeichen={BLATT} name="Heute erzeugt" wert={kwh(solar.ertrag_tag_kwh) || "–"} />
-      <Kachel art="eigen" zeichen={HAUS} name="Selbst gebraucht" wert={anteil + " %"}
-        unter="von der Sonne" />
+      <Kachel art="eigen" zeichen={HAUS} name="Selbst gebraucht" wert={anteil + " %"} />
       <Kachel art="netz" zeichen={NETZ} name={netz > 0 ? "Vom Netz" : "Ins Netz"} wert={alt.solarKw(Math.abs(netz))} />
     </>;
   }

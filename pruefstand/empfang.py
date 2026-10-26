@@ -54,7 +54,7 @@ with sync_playwright() as p:
     zeilen = pg.evaluate("() => TEST.daten.infoboard.map(z => [z.id, (z.aufbau.teile || []).length])")
     pruefe(sorted(zeilen) == [["empfang", 1], ["haupt", 1]], "eigene Zeile empfang, Infoboard unverändert: %s" % zeilen)
     t = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.teile[0]")
-    pruefe(t["x"] >= 0 and t["x"] + t["w"] <= 1920 and t["y"] >= 330 and t["y"] + t["h"] <= 1080,
+    pruefe(t["x"] >= 0 and t["x"] + t["w"] <= 1920 and t["y"] >= 270 and t["y"] + t["h"] <= 1080,
            "neues Teil liegt unter dem Kopf auf der Tafel: %s" % {k2: t[k2] for k2 in "xywh"})
     pg.screenshot(path=os.path.join(BILD, "empfang-gestalten.png"))
 

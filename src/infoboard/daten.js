@@ -56,7 +56,7 @@ export const TAFELN = {
     geraet: "hofer.infoboard.geraet" },
   // ruhig: eigener heller Kopf ohne Wellen und Jetski, nachts keine Hühner
   // (Wunsch Patrick 26. Oktober 2026: „keine durchlaufenden Animationen“)
-  empfang: { id: "empfang", name: "Empfang", seite: "empfang", breite: 1920, hoehe: 1080, kopf: 330,
+  empfang: { id: "empfang", name: "Empfang", seite: "empfang", breite: 1920, hoehe: 1080, kopf: 270,
     geraet: "hofer.empfang.geraet", ruhig: true },
 };
 export const TafelMass = createContext(TAFELN.haupt);
