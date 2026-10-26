@@ -18,6 +18,9 @@ export const TABELLE = "einrichtblatt_app";
 
 // Die Felder eines Platzes, in dieser Reihenfolge auf dem Blatt
 export const PLATZ_FELDER = ["standzeit", "taetigkeit", "mass", "hersteller", "werkzeug"];
+// Ein Platz ist in Gebrauch, sobald auf ihm etwas steht (Farbe im Blatt,
+// Auswahl beim Werkzeugwechsel)
+export const platzInGebrauch = (p) => !!p && ["taetigkeit", "mass", "werkzeug", "hersteller", "standzeit", "hd", "geo"].some((k) => p[k]);
 // Die Artikel-Bezeichnung ist wieder dabei (Patrick, 23. Oktober 2026:
 // „die Infos bez. Prg. Nr., Art. Bez. und so … normal ausfüllen“)
 export const STAMM_FELDER = [

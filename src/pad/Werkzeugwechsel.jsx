@@ -12,6 +12,8 @@ import { useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
+import { blattSuchen, platzInGebrauch } from "../einrichtblatt/daten.js";
+import { platzGruppe, platzName } from "../einrichtblatt/vorlagen.js";
 
 const anzahlText = (n) => n + (n === 1 ? " Werkzeug" : " Werkzeuge");
 
@@ -42,25 +44,53 @@ export async function werkzeugWechselDialog(maschine, auftrag) {
   // kommt Path 2 zuletzt (1, 3, 2), so wie die Plätze an der Maschine
   // liegen; alle anderen wie Index bleiben 1, 2, 3 (Wunsch Patrick
   // 16. Oktober 2026).
-  let paths = [], typen = [];
-  try { [paths, typen] = await Promise.all([alt.ladeTypAufbau(maschine.type_id), alt.ladeTypen()]); }
-  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
+  let paths = [], typen = [], blatt = null;
+  try {
+    [paths, typen, blatt] = await Promise.all([alt.ladeTypAufbau(maschine.type_id), alt.ladeTypen(),
+      auftrag && auftrag.job_number ? blattSuchen(auftrag.job_number, maschine.type_id) : null]);
+  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
   const typ = typen.find((t) => t.id === maschine.type_id);
   const sw = istSw(typ);
   const rang = (p) => pathRang(p.nummer, sw);
-  const reihen = paths
+  let reihen = paths
     .sort((x, y) => rang(x) - rang(y))
-    .map((p) => ({ id: p.id, name: p.name, plaetze: (p.type_slots || []).filter((s) => s.tool_nr)
+    .map((p) => ({ id: p.id, name: p.name, nummer: p.nummer, plaetze: (p.type_slots || []).filter((s) => s.tool_nr)
       .sort((a, b) => nachZahl(a.tool_nr, b.tool_nr)) }))
     .filter((p) => p.plaetze.length);
+
+  // Steht das Blatt schon in der App, sind nur die Plätze dran, auf denen
+  // dort ein Werkzeug steht (Wunsch Patrick 26. Oktober 2026: „nur die,
+  // welche auch wirklich gebraucht werden“). Bei Index heissen die Plätze
+  // im Blatt „R2-T7“, sonst wie am Typ „T1100“.
+  const imBlatt = blatt && Object.entries(blatt.plaetze || {}).filter(([, p]) => platzInGebrauch(p));
+  let alle = null;
+  if (imBlatt && imBlatt.length) {
+    const genutzt = Object.fromEntries(imBlatt);
+    const platzVon = (p, sl) => genutzt["R" + p.nummer + "-" + sl.tool_nr] || genutzt[sl.tool_nr];
+    const nurGenutzt = reihen.map((p) => Object.assign({}, p, { plaetze: p.plaetze.filter((sl) => platzVon(p, sl))
+      .map((sl) => Object.assign({}, sl, { eb: platzVon(p, sl) })) })).filter((p) => p.plaetze.length);
+    if (nurGenutzt.length) { alle = reihen; reihen = nurGenutzt; }
+    else if (!reihen.length) {
+      // Typ ohne angelegte Plätze (etwa Star): dann die Plätze des Blatts
+      const gruppen = {};
+      imBlatt.sort(([a], [b]) => nachZahl(a, b)).forEach(([k, p]) => {
+        const g = platzGruppe(k) || "Werkzeuge";
+        (gruppen[g] = gruppen[g] || []).push({ id: k, tool_nr: platzName(k), eb: p });
+      });
+      reihen = Object.entries(gruppen).map(([name, plaetze]) => ({ id: name, name, plaetze }));
+    }
+  }
   if (!reihen.length) {
     alt.meldung("Für diesen Maschinentyp sind noch keine Werkzeugplätze angelegt.", "warn");
     return;
   }
-  fensterOeffnen((zu) => <Auswahl reihen={reihen} maschine={maschine} auftrag={auftrag} zu={zu} />);
+  fensterOeffnen((zu) => <Auswahl reihen={reihen} alle={alle} maschine={maschine} auftrag={auftrag} zu={zu} />);
 }
 
-function Auswahl({ reihen, maschine, auftrag, zu }) {
+function Auswahl({ reihen: genutzt, alle, maschine, auftrag, zu }) {
+  // „Alle Plätze“ holt die übrigen dazu, falls doch einmal eines fehlt
+  const [alleZeigen, setAlleZeigen] = useState(false);
+  const reihen = alleZeigen && alle ? alle : genutzt;
   // Gewählt wird der einzelne Platz, nicht die Nummer: sonst ginge
   // mit T1 auf einem Revolver auch T1 auf allen anderen an
   const [gewaehlt, setGewaehlt] = useState([]);
@@ -70,9 +100,10 @@ function Auswahl({ reihen, maschine, auftrag, zu }) {
     if (!gewaehlt.length) return;
     zu();
     // Mehrere Paths: der Name kommt mit, damit die Historie sie trennt
-    const mitPath = reihen.length > 1;
+    // (gezählt am ganzen Typ, nicht nur an den Paths aus dem Blatt)
+    const mitPath = (alle || genutzt).length > 1;
     const liste = [];
-    reihen.forEach((p) => p.plaetze.forEach((sl) => {
+    (alle || genutzt).forEach((p) => p.plaetze.forEach((sl) => {
       if (gewaehlt.includes(sl.id)) liste.push({ tool_nr: sl.tool_nr, path: mitPath ? p.name || null : null });
     }));
     eintragen(maschine, auftrag, liste);
@@ -81,10 +112,13 @@ function Auswahl({ reihen, maschine, auftrag, zu }) {
   return (
     <div className="dialog dialog--breit">
       <div className="wz-kopf"><h2>Werkzeugwechsel</h2>
+        {alle && <button className="knopf knopf--klein knopf--still" data-wzalle="" style={{ marginLeft: "auto", marginRight: ".5rem" }}
+          onClick={() => setAlleZeigen(!alleZeigen)}>{alleZeigen ? "Nur aus dem Einrichtblatt" : "Alle Plätze"}</button>}
         {/* Die Historie sitzt dort, wo man sie braucht: neben dem Wechsel */}
         <button className="knopf knopf--klein" data-wzhistorie=""
           onClick={() => { zu(); wechselHistorie(maschine, auftrag); }}>Historie</button></div>
-      <p className="klein">Alle Werkzeuge antippen, die gewechselt wurden.</p>
+      <p className="klein">Alle Werkzeuge antippen, die gewechselt wurden.
+        {alle ? (alleZeigen ? " Es stehen alle Plätze des Typs da." : " Es stehen nur die Werkzeuge aus dem Einrichtblatt da.") : ""}</p>
       {reihen.map((p) => (
         <div className="wz-path" key={p.id}>
           <div className="wz-path__name">{p.name}</div>
@@ -92,7 +126,7 @@ function Auswahl({ reihen, maschine, auftrag, zu }) {
             <button key={sl.id} type="button" className={"wz-platz" + (gewaehlt.includes(sl.id) ? " wz-platz--an" : "")}
               data-tool={sl.tool_nr} onClick={() => umschalten(sl.id)}>
               <span className="wz-platz__nr">{sl.tool_nr}</span>
-              <span className="wz-platz__art">{sl.bezeichnung || ""}</span>
+              <span className="wz-platz__art">{(sl.eb && (sl.eb.taetigkeit || sl.eb.werkzeug)) || sl.bezeichnung || ""}</span>
             </button>
           ))}</div>
         </div>

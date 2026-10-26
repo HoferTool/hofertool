@@ -18,7 +18,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
 import { werkzeugWaehlen } from "../seiten/bestellungen/PositionFenster.jsx";
 import { excelVorlesen, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
-  artikelHolen, STAMM_FELDER, WASCHGEBINDE, prgNummern } from "./daten.js";
+  artikelHolen, STAMM_FELDER, WASCHGEBINDE, prgNummern, platzInGebrauch } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
 import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
@@ -128,7 +128,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
   const bemerkung = ohneFa(blatt.bemerkung);
 
   // Star wie im Excel: Plätze in Gebrauch in der Farbe des Typs, leere grau
-  const inGebrauch = (p) => ["taetigkeit", "mass", "werkzeug", "hersteller", "standzeit", "hd", "geo"].some((k) => p[k]);
+  const inGebrauch = platzInGebrauch;
   const farbeVon = (nr) => (vorlage.farben && vorlage.farben[nr])
     || (vorlage.typFarbe ? (inGebrauch(plaetze[nr] || {}) ? vorlage.typFarbe : GRAU)
       : pfad[nr] ? PFADFARBE[pfad[nr].nummer] || GRAU : GRAU);
