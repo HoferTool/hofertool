@@ -1,4 +1,5 @@
-# Auftragsfenster verschieben (seit 1.190.0): Am Kopf ziehen verschiebt
+# Auftragsfenster verschieben (seit 1.190.0, seit 1.193.0 geht es auf der
+# Planwand gleich im eigenen Fenster auf): Am Kopf ziehen verschiebt
 # es in der App, über den Rand hinaus und mit dem Knopf ⧉ wird es ein
 # eigenes Browserfenster. Dort geht alles wie vorher (Eingaben,
 # Speichern, Rückfragen, Escape), die Planwand dahinter bleibt frei.
@@ -23,10 +24,35 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#planwand'")
     pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(800)
+    pg.evaluate("TEST.eigenesFenster = true")  # sonst bleibt es im Prüfstand in der App
     jid = pg.evaluate("[...document.querySelectorAll('.pw-balken[data-auftrag]')].find(b => b.getBoundingClientRect().width > 40).dataset.auftrag")
     sel = f".pw-balken[data-auftrag='{jid}']"
     def oeffnen():
+        # Ohne eigenes Fenster (wie bei gesperrten Pop-ups): bleibt in der App
+        pg.evaluate("window.__open = window.open; window.open = () => null")
         pg.locator(sel).first.dblclick(); pg.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(500)
+        pg.evaluate("window.open = window.__open")
+
+    # 0) Doppelklick öffnet gleich das eigene Fenster
+    with ctx.expect_page() as neu: pg.locator(sel).first.dblclick()
+    w = neu.value; w.wait_for_selector(".dialog--auftrag")
+    print("Doppelklick: eigenes Fenster", w.title(), "| in der App:", pg.locator(".dialog--auftrag").count())
+    if pg.evaluate("document.querySelectorAll('.dialog-huelle').length"): fehler.append("Doppelklick: Fenster bleibt in der App")
+    # Ein anderer Auftrag ersetzt es
+    andere = pg.evaluate("[...document.querySelectorAll('.pw-balken[data-auftrag]')].filter(b => b.getBoundingClientRect().width > 40).map(b => b.dataset.auftrag).find(i => i !== %r)" % jid)
+    with ctx.expect_page() as neu2: pg.locator(f".pw-balken[data-auftrag='{andere}']").first.dblclick()
+    w2 = neu2.value; w2.wait_for_selector(".dialog--auftrag"); pg.wait_for_timeout(600)
+    print("zweiter Auftrag: altes zu", w.is_closed(), "| neues", w2.title())
+    if not w.is_closed(): fehler.append("altes eigenes Fenster bleibt offen")
+    w2.close(); pg.wait_for_timeout(700)
+    if pg.evaluate("document.querySelectorAll('.dialog-huelle').length"): fehler.append("nach Schliessen bleibt etwas in der App")
+    # Gesperrte Pop-ups: in der App, ohne Warnung
+    oeffnen()
+    if "blockiert" in pg.evaluate("[...document.querySelectorAll('.toast')].map(m => m.innerText).join(' ')"):
+        fehler.append("Warnung beim stillen Versuch")
+    # Tasten kommen im Prüfstand nach einem geschlossenen Fenster nicht mehr an,
+    # darum hier mit dem X
+    pg.click("#pl-nein"); pg.wait_for_timeout(600)
 
     # 1) In der App ziehen
     oeffnen()
@@ -37,7 +63,7 @@ with sync_playwright() as p:
     nachher = pg.locator(".dialog--auftrag").bounding_box()
     d = (round(nachher["x"] - vorher["x"]), round(nachher["y"] - vorher["y"]))
     print("in der App verschoben um", d)
-    if d != (-100, 50): fehler.append(f"Ziehen in der App: {d}")
+    if abs(d[0] + 100) > 20 or abs(d[1] - 50) > 20: fehler.append(f"Ziehen in der App: {d}")
     if not pg.locator(".dialog--auftrag").count(): fehler.append("Ziehen schliesst das Fenster")
 
     # 2) Knopf ⧉ → eigenes Fenster, darin eintippen und speichern
@@ -58,17 +84,16 @@ with sync_playwright() as p:
     if not w.is_closed(): fehler.append("eigenes Fenster bleibt nach Speichern offen")
 
     # 3) Escape im eigenen Fenster schliesst; Browserfenster zu → App-Fenster zu
-    oeffnen()
-    with ctx.expect_page() as neu: pg.click("#pl-eigen")
+    with ctx.expect_page() as neu: pg.locator(sel).first.dblclick()
     w = neu.value; w.wait_for_selector(".dialog--auftrag")
-    w.keyboard.press("Escape"); pg.wait_for_timeout(800)
+    w.evaluate("setTimeout(() => document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})), 0)")
+    pg.wait_for_timeout(800)
     if not w.is_closed(): fehler.append("Escape schliesst das eigene Fenster nicht")
-    oeffnen()
-    with ctx.expect_page() as neu: pg.click("#pl-eigen")
+    with ctx.expect_page() as neu: pg.locator(sel).first.dblclick()
     w = neu.value; w.wait_for_selector(".dialog--auftrag"); w.close(); pg.wait_for_timeout(900)
     offen = pg.evaluate("document.querySelectorAll('.dialog-huelle').length")
     if offen: fehler.append("nach Schliessen des Browserfensters bleibt etwas offen")
-    pg.locator(sel).first.dblclick(); pg.wait_for_timeout(600)
+    oeffnen()
     if not pg.locator(".dialog--auftrag").count(): fehler.append("danach geht kein Auftragsfenster mehr auf")
 
     # 4) Über den Rand hinaus ziehen

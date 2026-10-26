@@ -39,7 +39,9 @@ export function eigeneFensterZu() {
 
 // lage = { x, y } in Bildschirmpunkten (beim Herausziehen: dort, wo die
 // Maus das Fenster hingezogen hat), sonst die zuletzt gemerkte Lage
-export function inEigenesFenster(huelle, zu, { titel, lage } = {}) {
+// still: ohne Meldung, wenn der Browser das Fenster nicht aufgehen lässt
+// (beim Öffnen von selbst bleibt es dann einfach in der App)
+export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
   const dialog = huelle.firstElementChild || huelle;
   const r = dialog.getBoundingClientRect();
   const vorher = lageLesen();
@@ -50,7 +52,7 @@ export function inEigenesFenster(huelle, zu, { titel, lage } = {}) {
   const w = window.open("", "hofer-" + Date.now(),
     `popup=yes,width=${breite},height=${hoehe},left=${x},top=${y}`);
   if (!w) {
-    alt.meldung("Der Browser hat das eigene Fenster blockiert. Oben rechts in der Adresszeile Pop-ups für das HoferTool erlauben.", "warn");
+    if (!still) alt.meldung("Der Browser hat das eigene Fenster blockiert. Oben rechts in der Adresszeile Pop-ups für das HoferTool erlauben.", "warn");
     return false;
   }
 

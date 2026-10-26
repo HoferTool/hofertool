@@ -34,7 +34,7 @@ import { ImHausEinblendung } from "./MaterialImHaus.jsx";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { spezialAnzahl } from "../daten/spezialwerkzeuge.js";
 import { spezialwerkzeugeOeffnen } from "../teile/Spezialwerkzeuge.jsx";
-import { inEigenesFenster } from "../teile/eigenesFenster.js";
+import { inEigenesFenster, eigeneFensterZu } from "../teile/eigenesFenster.js";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
@@ -42,8 +42,18 @@ export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vor
   // wiederfinden (Wunsch Patrick 19. Oktober 2026: „damit man sieht,
   // wo man war“). Die Tafel zeigt es beim nächsten Zeichnen.
   if (auftrag && auftrag.id) alt.plan.angewaehlt = auftrag.id;
+  // Auf der Planwand am Computer geht es gleich im eigenen Fenster auf
+  // (Wunsch Patrick 26. Oktober 2026: „von Anfang an in einem separaten
+  // Tab, nicht erst, wenn es aus dem HoferTool verschoben wird“). Ein
+  // schon offenes eigenes Fenster macht dem neuen Auftrag Platz, das
+  // neue kommt an dieselbe Stelle (gemerkte Lage).
+  // Im Prüfstand nur, wenn ein Test es einschaltet: die übrigen Tests
+  // suchen das Fenster in der Seite selbst
+  const pruefstand = window.TEST && !window.TEST.eigenesFenster;
+  const eigen = !pruefstand && !!document.getElementById("pw-inhalt") && eigenesFensterMoeglich() && !alt.istExtern();
+  if (eigen) eigeneFensterZu();
   let lageWeg = null;
-  fensterOeffnen((zu) => (
+  const zu = fensterOeffnen((zu) => (
     <AuftragFenster auftrag={auftrag || null} b={b} vorgabeMaschine={vorgabeMaschine}
       vorgabeDatum={vorgabeDatum} vorlage={vorlage || null} leer={!auftrag && !vorlage && !!leer} zu={zu} />
   ), () => { alt.plan.imDialog = false; if (lageWeg) lageWeg(); }, "auftrag-huelle",
@@ -54,7 +64,13 @@ export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vor
   // Aus dem Fortschritt (b.nachPlanAenderung) nicht: Dort fehlt die Tafel.
   auftrag && auftrag.id && !(b && b.nachPlanAenderung) ? { art: "auftrag", daten: { id: auftrag.id } } : null);
   const huellen = document.querySelectorAll(".auftrag-huelle");
-  lageWeg = unterKopfLegen(huellen[huellen.length - 1]);
+  const huelle = huellen[huellen.length - 1];
+  lageWeg = unterKopfLegen(huelle);
+  // Lässt der Browser es nicht zu (Pop-ups gesperrt, Neuladen ohne
+  // Klick), bleibt es still in der App; der Knopf ⧉ meldet dann den Grund
+  if (eigen && huelle && inEigenesFenster(huelle, zu, { titel: auftragTitel(auftrag), still: true })) {
+    alt.plan.imDialog = false;
+  }
 }
 
 // Auf der Planwand reicht das Fenster vom Kopf mit KW und Tag bis ganz
