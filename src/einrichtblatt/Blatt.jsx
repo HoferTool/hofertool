@@ -342,9 +342,9 @@ function Bibliothek({ aktiv, waehlen }) {
 // Tabellen (auch aus Excel hineinkopiert, etwa Geo-Offset-Daten) und
 // Bilder (Wunsch Patrick, 24. Oktober 2026). Im Pad nur zum Lesen.
 const A4 = [794, 1123];
-function seitenMass(seite) { return seite && seite.quer ? [A4[1], A4[0]] : A4; }
+export function seitenMass(seite) { return seite && seite.quer ? [A4[1], A4[0]] : A4; }
 
-function ZusatzSeite({ seite, bearbeiten, inhaltBearbeiten }) {
+export function ZusatzSeite({ seite, bearbeiten, inhaltBearbeiten }) {
   const [w, h] = seitenMass(seite);
   return (
     <div className={"eba-zseite" + (bearbeiten ? " eba-zseite--bearbeiten" : "")} data-eba-zseite=""

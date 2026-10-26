@@ -9686,3 +9686,5 @@ body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a
    Stück (seit 1.199.0, Wunsch Patrick 26. Oktober 2026) */
 .auf-spalte--zeichnung .mat-info { margin: 0; flex: 0 0 auto; }
 .mat-info__offen { font-size: .92em; }
+/* Einrichtblätter als PDF: Freigabe-Knopf über dem des Planwand-Archivs (1.200.0) */
+.eb-pdf-freigeben { bottom: 100px; }

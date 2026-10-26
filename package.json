@@ -13,6 +13,8 @@
   "dependencies": {
     "exceljs": "^4.4.0",
     "fflate": "^0.8.2",
+    "html2canvas-pro": "^2.5.0",
+    "jspdf": "^4.2.1",
     "jszip": "^3.10.2",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",

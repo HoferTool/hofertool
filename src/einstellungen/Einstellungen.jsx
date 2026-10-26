@@ -19,6 +19,7 @@ import MahnBilder from "./MahnBilder.jsx";
 import Nutzer from "./Nutzer.jsx";
 import Sicherung from "./Sicherung.jsx";
 import PlanwandArchiv from "./PlanwandArchiv.jsx";
+import EinrichtblattPdf from "./EinrichtblattPdf.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { meldungenVerwalten } from "../teile/anmeldeMeldungen.jsx";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
@@ -393,8 +394,9 @@ function UeberDieApp() {
 
 // „Planwand als Excel“ ist weg (Wunsch Patrick 8. Oktober 2026)
 // Darunter das Planwand-Archiv zum Nachschauen (1.22.0, Wunsch Patrick 10. Oktober 2026)
+// und die Einrichtblätter als PDF (1.200.0, Wunsch Patrick 26. Oktober 2026)
 function Backup() {
-  return <><Sicherung /><PlanwandArchiv /></>;
+  return <><Sicherung /><PlanwandArchiv /><EinrichtblattPdf /></>;
 }
 
 // ---------- Fehlerprotokoll ----------
