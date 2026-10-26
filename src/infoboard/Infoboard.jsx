@@ -21,7 +21,7 @@ import { Tafel } from "./Tafel.jsx";
 import { istNacht } from "./Nacht.jsx";
 import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
-  istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil, TAFELN } from "./daten.js";
+  istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil, TAFELN, tafelFarben } from "./daten.js";
 
 // 0 = nicht von selbst blättern, die Seite wechselt nur beim Antippen
 // (Wunsch Patrick 21. Oktober 2026).
@@ -64,7 +64,7 @@ function Gestalten({ mass }) {
   // nacheinander an, jede soll die vorherigen behalten
   const aendern = async (machen) => {
     const vorher = stand.current;
-    const neu = { frei: true, teile: machen(vorher.teile) };
+    const neu = { ...vorher, frei: true, teile: machen(vorher.teile) };
     stand.current = neu;
     setAufbau(neu);
     try { await aufbauSpeichern(neu, mass.id); setFehler(""); }
@@ -72,6 +72,14 @@ function Gestalten({ mass }) {
       stand.current = vorher; setAufbau(vorher);
       alt.meldung("Nicht gespeichert: " + (fehltTabelle(e) ? "infoboard.sql fehlt in Supabase." : alt.fehlertext(e)), "fehler");
     }
+  };
+  // Farben nur im Aufbau, die Teile bleiben, wie sie sind
+  const farbenSetzen = async (farben) => {
+    const vorher = stand.current;
+    const neu = { ...vorher, farben };
+    stand.current = neu; setAufbau(neu);
+    try { await aufbauSpeichern(neu, mass.id); }
+    catch (e) { stand.current = vorher; setAufbau(vorher); alt.meldung("Nicht gespeichert: " + alt.fehlertext(e), "fehler"); }
   };
   const teilAendern = (id, patch) => aendern((teile) => teile.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   const wahl = aufbau.teile.find((t) => t.id === gewaehlt) || null;
@@ -125,7 +133,7 @@ function Gestalten({ mass }) {
     const v = t ? t.h / t.w : frei ? 0.25 : Math.SQRT2;
     const format = v < 1 ? "a3" : "a4";
     const html = await textBearbeiten({ html: t && t.art === "text" ? t.html : "", format,
-      seitenVerhaeltnis: v, titel: t ? "Text bearbeiten" : "Neuer Text", ohneGrund: frei, grund: mass.grund });
+      seitenVerhaeltnis: v, titel: t ? "Text bearbeiten" : "Neuer Text", ohneGrund: frei, grund: tafelFarben(mass, aufbau).grund });
     if (html == null) return;
     if (t && t.art === "text") { await teilAendern(t.id, { html }); return; }
     const neu = neuesTeil({ id: neueId(), art: "text", html, ...(frei ? { ohneGrund: true } : {}) }, v, null, mass);
@@ -191,6 +199,7 @@ function Gestalten({ mass }) {
             </div>
             <input ref={datei} type="file" hidden multiple onChange={dateiGewaehlt}
               accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
+            {mass.ruhig && <Farben mass={mass} aufbau={aufbau} setzen={farbenSetzen} />}
             {!wahl && <p className="klein">Dateien vom Computer einfach auf die Tafel ziehen, dorthin, wo sie hin sollen.
               Antippen wählt ein Teil: ziehen verschiebt es, die Ecke unten rechts ändert die Grösse,
               der runde Griff oben dreht es.</p>}
@@ -238,6 +247,38 @@ function Gestalten({ mass }) {
         </div>
       </div>
     </section>
+  );
+}
+
+// Farben von Kopf und Hintergrund am Empfang (Wunsch Patrick 26. Oktober
+// 2026: „ich möchte es einstellen können“). Der Farbwähler meldet beim
+// Ziehen laufend, darum zeigt die Tafel sofort und gespeichert wird kurz
+// nach dem letzten Zug.
+function Farben({ mass, aufbau, setzen }) {
+  const jetzt = tafelFarben(mass, aufbau);
+  const uhr = useRef(null);
+  useEffect(() => () => clearTimeout(uhr.current), []);
+  const neu = (patch, sofort) => {
+    const f = { ...jetzt, ...patch };
+    document.querySelectorAll(".ib-gestalten--" + mass.id + " .ib-blatt").forEach((b) => {
+      b.style.background = f.grund;
+      const k = b.querySelector(".ek"); if (k) k.style.background = f.kopf;
+    });
+    clearTimeout(uhr.current);
+    uhr.current = setTimeout(() => setzen(f), sofort ? 0 : 400);
+  };
+  const vorgabe = !aufbau.farben;
+  return (
+    <div className="ib-farben">
+      <label className="ib-farbe">Kopf
+        <input type="color" value={jetzt.kopf} data-ib="farbe-kopf" onChange={(e) => neu({ kopf: e.target.value })} /></label>
+      <label className="ib-farbe">Hintergrund
+        <input type="color" value={jetzt.grund} data-ib="farbe-grund" onChange={(e) => neu({ grund: e.target.value })} /></label>
+      <button type="button" className="knopf knopf--still" data-ib="farben-tauschen"
+        onClick={() => neu({ kopf: jetzt.grund, grund: jetzt.kopf }, true)}>Tauschen</button>
+      {!vorgabe && <button type="button" className="knopf knopf--still" data-ib="farben-vorgabe"
+        onClick={() => { clearTimeout(uhr.current); setzen(null); }}>Wie am Anfang</button>}
+    </div>
   );
 }
 
@@ -323,6 +364,8 @@ function aufloesungText() {
 
 function Anzeige({ huelle, mass }) {
   const [aufbau, setAufbau] = useState(null);
+  // Rand um die Tafel in derselben Farbe wie ihr Hintergrund
+  useEffect(() => { if (mass.ruhig) huelle.style.background = tafelFarben(mass, aufbau).grund; }, [aufbau, mass, huelle]);
   const [fehler, setFehler] = useState("");
   const [zu, setZu] = useState(false);
   const stand = useRef("");

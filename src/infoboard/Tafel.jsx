@@ -21,7 +21,7 @@ import Skizze from "../pad/Skizze.jsx";
 import { TextBlatt } from "./TextFeld.jsx";
 import { Seite as ExcelSeite, seitenRechnen } from "../teile/ExcelAnsicht.jsx";
 import { excelLesen } from "../teile/excelLesen.js";
-import { LUECKE, BLATT, SEKUNDEN, MIN_GROESSE, TAFELN, TafelMass, useTafelMass } from "./daten.js";
+import { LUECKE, BLATT, SEKUNDEN, MIN_GROESSE, TAFELN, TafelMass, useTafelMass, tafelFarben } from "./daten.js";
 
 // Das Blatt passt sich ganz in den Platz ein, hochkant mittig
 function useMassstab(rahmen, mass) {
@@ -134,6 +134,7 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
     },
   };
 
+  const farben = tafelFarben(mass, aufbau);
   return (
     <TafelMass.Provider value={mass}>
     <div className="ib-rahmen" ref={rahmen}
@@ -143,9 +144,9 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
       {k > 0 &&
       <div ref={blatt} className={"ib-blatt" + (bearbeiten ? " ib-blatt--bearbeiten" : "") + (ziel ? " ib-blatt--ziel" : "")}
         data-ibtafel={mass.id}
-        style={{ width: mass.breite, height: mass.hoehe, transform: "translate(-50%, -50%) scale(" + k + ")" }}
+        style={{ width: mass.breite, height: mass.hoehe, background: mass.ruhig ? farben.grund : undefined, transform: "translate(-50%, -50%) scale(" + k + ")" }}
         onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>
-        {mass.ruhig ? <EmpfangKopf hoehe={mass.kopf - 2 * LUECKE} breite={mass.breite - 2 * LUECKE} top={LUECKE} left={LUECKE} />
+        {mass.ruhig ? <EmpfangKopf farbe={farben.kopf} hoehe={mass.kopf - 2 * LUECKE} breite={mass.breite - 2 * LUECKE} top={LUECKE} left={LUECKE} />
           : <Kopf />}
         {nacht && !mass.ruhig && <Huehnerhimmel />}
         {(!nacht || mass.ruhig) && aufbau.teile.map((t0) => {

@@ -87,6 +87,15 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1500)
     gr = pg.evaluate("() => { const f = document.querySelector('.ib-gestalten .ib-feld--bild'); return f && getComputedStyle(f).backgroundColor; }")
     pruefe(gr == "rgba(0, 0, 0, 0)", "Bild ohne weissen Hintergrund: %s" % gr)
+    # Farben einstellbar (1.204.0): Tauschen speichert beide im Aufbau
+    pg.click("[data-ib='farben-tauschen']"); pg.wait_for_timeout(800)
+    fa = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.farben")
+    pruefe(fa == {"kopf": "#fffdf9", "grund": "#f4efe7"}, "Farben getauscht gespeichert: %s" % fa)
+    kb = pg.evaluate("() => [getComputedStyle(document.querySelector('.ib-gestalten .ek')).backgroundColor, getComputedStyle(document.querySelector('.ib-gestalten .ib-blatt')).backgroundColor]")
+    pruefe(kb == ["rgb(255, 253, 249)", "rgb(244, 239, 231)"], "Tafel zeigt die Farben: %s" % kb)
+    pg.click("[data-ib='farben-vorgabe']"); pg.wait_for_timeout(800)
+    pruefe(not pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.farben"), "wie am Anfang")
+    pg.click("[data-ib='farben-tauschen']"); pg.wait_for_timeout(800)
     pg.screenshot(path=os.path.join(BILD, "empfang-gestalten.png"))
 
     pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)

@@ -57,8 +57,16 @@ export const TAFELN = {
   // ruhig: eigener heller Kopf ohne Wellen und Jetski, nachts keine Hühner
   // (Wunsch Patrick 26. Oktober 2026: „keine durchlaufenden Animationen“)
   empfang: { id: "empfang", name: "Empfang", seite: "empfang", breite: 1920, hoehe: 1080, kopf: 330,
-    geraet: "hofer.empfang.geraet", ruhig: true, grund: "#f4efe7" },
+    geraet: "hofer.empfang.geraet", ruhig: true, grund: "#fffdf9", kopfFarbe: "#f4efe7" },
 };
+
+// Farben der Tafel: am Empfang stellt sie der Admin selbst ein (Wunsch
+// Patrick 26. Oktober 2026: „ich möchte es einstellen können“), gespeichert
+// im Aufbau unter farben; leer = Vorgabe
+export function tafelFarben(mass, aufbau) {
+  const f = (aufbau && aufbau.farben) || {};
+  return { grund: f.grund || mass.grund, kopf: f.kopf || mass.kopfFarbe };
+}
 export const TafelMass = createContext(TAFELN.haupt);
 export const useTafelMass = () => useContext(TafelMass);
 
@@ -91,7 +99,8 @@ function teilOrdnen(t) {
 
 export function aufbauOrdnen(a) {
   if (a && a.frei && Array.isArray(a.teile)) {
-    return { frei: true, teile: a.teile.filter((t) => t && t.id && t.art && t.art !== "leer").map(teilOrdnen) };
+    return { frei: true, teile: a.teile.filter((t) => t && t.id && t.art && t.art !== "leer").map(teilOrdnen),
+      ...(a.farben ? { farben: a.farben } : {}) };
   }
   const reihen = reihenOrdnen(a);
   return { frei: true, teile: felderLage(reihen).filter((l) => l.feld.art !== "leer")
