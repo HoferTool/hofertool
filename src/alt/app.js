@@ -145,7 +145,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.207.1";
+const APP_VERSION = "1.208.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2853,6 +2853,9 @@ function istAdmin() { return meineRolle() === "admin"; }
 // Ohne u gilt die angemeldete Person. Solange sql/andere-nutzer.sql
 // fehlt, kennt das Profil das Häkchen nicht; dann zählt die Rolle
 // Planwand, denn genau das waren bisher die Gerätekonten.
+function empfangSehen(u) {
+  return !!(u && u.einstellungen && u.einstellungen.empfangSehen);
+}
 function istAndererNutzer(u) {
   const k = u || profil;
   if (!k) return false;
@@ -2900,7 +2903,11 @@ function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
   if ((pfad === "material" || pfad === "qs" || pfad === "maschinen" || pfad === "statistik") && meineRolle() === "dienst") return false;
-  if (pfad === "infoboard" || pfad === "empfang") return infoboardSichtbar();
+  if (pfad === "infoboard") return infoboardSichtbar();
+  // Den Bereich Empfang sehen nur Personen mit dem Vermerk empfangSehen am
+  // Konto (Wunsch Patrick 26. Oktober 2026, sql/empfang-sehen.sql); der
+  // Bildschirm selbst geht trotzdem von selbst auf.
+  if (pfad === "empfang") return infoboardSichtbar() && empfangSehen(profil);
   if (!istExtern()) return true;
   return pfad === "planwand" || pfad === "produktion";
 }
