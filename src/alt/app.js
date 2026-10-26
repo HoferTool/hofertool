@@ -141,7 +141,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.194.0";
+const APP_VERSION = "1.195.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7823,10 +7823,11 @@ async function ladeBlaetter(hocoNr) {
 
 const pad = { wo: "start", parkId: null, maschineId: null, daten: {} };
 
-// Eine Minute, die letzten zehn Sekunden zählen im roten Feld oben
-// rückwärts (Wunsch Patrick, 12. Oktober 2026; vorher fünf Minuten
-// und 20 Sekunden)
-const LEERLAUF_MS = 60 * 1000;
+// Fünf Minuten, die letzten zehn Sekunden zählen im roten Feld oben
+// rückwärts (Wunsch Patrick, 26. Oktober 2026: „5 statt 1 min“; vom
+// 12. bis 26. Oktober 2026 eine Minute, davor fünf Minuten und
+// 20 Sekunden Warnung)
+const LEERLAUF_MS = 5 * 60 * 1000;
 const WARNUNG_MS = 10 * 1000;
 let leerlauf = { letzte: Date.now(), echt: Date.now(), takt: null, abmelden: null, hinweis: null };
 
@@ -10493,7 +10494,7 @@ function zeichneGeruest() {
 
   if (einstellungWert("navschmal", "0") === "1") document.body.classList.add("nav--schmal");
 
-  // Nach einer Minute ohne Eingabe wird abgemeldet. 10 Sekunden vorher
+  // Nach fünf Minuten ohne Eingabe wird abgemeldet. 10 Sekunden vorher
   // erscheint eine Warnung; jede Berührung, jeder Klick, jede Taste
   // setzt die Uhr zurück. Gerechnet wird mit Zeitstempeln, nicht mit
   // einem einzelnen Zähler — so greift es auch, wenn der Browser das

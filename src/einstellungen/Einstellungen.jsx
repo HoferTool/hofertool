@@ -334,7 +334,7 @@ function Darstellung() {
         ? <SchalterZeile id="e-angemeldet" titel="Angemeldet bleiben"
             text="Dieses Konto wird nie von selbst abgemeldet." checked disabled />
         : <Schalter id="e-angemeldet" name="angemeldetbleiben" titel="Angemeldet bleiben"
-            text="Ohne meldet sich die App nach einer Minute ohne Bedienung selbst ab. Nach 4 Stunden ohne Bedienung wird immer abgemeldet."
+            text="Ohne meldet sich die App nach fünf Minuten ohne Bedienung selbst ab. Nach 4 Stunden ohne Bedienung wird immer abgemeldet."
             beiAenderung={() => { if (window.untaetigNeuStarten) window.untaetigNeuStarten(); }} />}
     </Gruppe>
   );

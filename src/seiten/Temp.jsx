@@ -83,7 +83,7 @@ export default function Temp({ auffrischen }) {
   };
 
   // Solange Kamera oder Dateiauswahl offen sind, ist die App im Hintergrund;
-  // die Abmeldung nach 1 Minute wartet darauf (leerlaufPruefen in app.js)
+  // die Abmeldung nach 5 Minuten wartet darauf (leerlaufPruefen in app.js)
   const waehlen = (ref) => { document.body.dataset.tempWahl = String(Date.now()); ref.current.click(); };
   const fertig = () => { delete document.body.dataset.tempWahl; };
   useEffect(() => {

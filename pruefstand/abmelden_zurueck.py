@@ -1,4 +1,4 @@
-# Abmeldung nach einer Minute, Countdown, zurück an denselben Ort
+# Abmeldung nach fünf Minuten (seit 1.195.0, vorher eine), Countdown, zurück an denselben Ort
 # (1.32.0, Wunsch Patrick 12. Oktober 2026): nach 1 Minute Ruhe wird
 # eine Person abgemeldet, die letzten 10 Sekunden zählen im roten Feld
 # oben rückwärts. Meldet sie sich am selben Tag wieder an, landet sie
@@ -43,11 +43,11 @@ def hinweis(pg):
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
 
-    # 1. Countdown und Abmeldung nach einer Minute
+    # 1. Countdown und Abmeldung nach fünf Minuten
     pg, f = seite(br)
     pruefe("angemeldet auf Bestellungen", angemeldet(pg) and "bestellungen" in pg.evaluate("location.hash"))
-    pg.clock.fast_forward(45 * 1000); pg.wait_for_timeout(300)
-    pruefe("nach 45 Sekunden noch kein rotes Feld", hinweis(pg) == "")
+    pg.clock.fast_forward(285 * 1000); pg.wait_for_timeout(300)
+    pruefe("nach 4:45 Minuten noch kein rotes Feld", hinweis(pg) == "")
     pg.clock.fast_forward(6 * 1000); pg.wait_for_timeout(300)
     t1 = hinweis(pg)
     import re
@@ -62,7 +62,7 @@ with sync_playwright() as p:
     n2 = zahl(t2)
     pruefe("Countdown zählt herunter (" + (t2.splitlines()[0] if t2 else "leer") + ")", bool(n1) and n2 is not None and 3 <= n1 - n2 <= 5)
     pg.clock.fast_forward(7 * 1000); pg.wait_for_timeout(1500)
-    pruefe("nach einer Minute abgemeldet", not angemeldet(pg))
+    pruefe("nach fünf Minuten abgemeldet", not angemeldet(pg))
 
     # 2. Wieder anmelden: zurück auf Bestellungen
     wieder_anmelden(pg)
@@ -70,7 +70,7 @@ with sync_playwright() as p:
     pruefe("wieder auf Bestellungen (" + pg.evaluate("location.hash") + ")", "bestellungen" in pg.evaluate("location.hash"))
 
     # 3. Neuer Tag: Startseite
-    pg.clock.fast_forward(70 * 1000); pg.wait_for_timeout(1500)
+    pg.clock.fast_forward(310 * 1000); pg.wait_for_timeout(1500)
     pruefe("wieder abgemeldet", not angemeldet(pg))
     pg.evaluate("""(() => { const z = JSON.parse(localStorage.getItem('hofer.nachAbmeldung'));
       z.tag = '2000-01-01'; localStorage.setItem('hofer.nachAbmeldung', JSON.stringify(z)); })()""")
@@ -80,7 +80,7 @@ with sync_playwright() as p:
 
     # 3b. Länger als 4 Stunden weg, selber Tag: auch Startseite (1.163.0)
     pg.evaluate("location.hash = '#/bestellungen'"); pg.wait_for_timeout(800)
-    pg.clock.fast_forward(70 * 1000); pg.wait_for_timeout(1500)
+    pg.clock.fast_forward(310 * 1000); pg.wait_for_timeout(1500)
     pruefe("3b abgemeldet", not angemeldet(pg))
     pg.evaluate("""(() => { const z = JSON.parse(localStorage.getItem('hofer.nachAbmeldung'));
       z.um = Date.now() - 5 * 3600 * 1000; localStorage.setItem('hofer.nachAbmeldung', JSON.stringify(z)); })()""")
