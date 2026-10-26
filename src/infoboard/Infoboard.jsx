@@ -14,6 +14,7 @@
 //  „Dieses Gerät ist das Infoboard“ einschalten kann: Dann geht die
 //  Anzeige nach jedem Anmelden und Neuladen von selbst auf.
 // =================================================================
+import { logoGroesse } from "./EmpfangKopf.jsx";
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
@@ -202,9 +203,7 @@ function Gestalten({ mass }) {
             <input ref={datei} type="file" hidden multiple onChange={dateiGewaehlt}
               accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
             {mass.ruhig && <Farben mass={mass} aufbau={aufbau} setzen={farbenSetzen} />}
-            {mass.ruhig && <p className="klein">Das Logo im Kopf lässt sich mit der Maus an eine andere Stelle ziehen.
-              {aufbau.logo && <> <button type="button" className="knopf knopf--still" data-ib="logo-zurueck"
-                onClick={() => logoSetzen(null)}>Logo zurück in die Mitte</button></>}</p>}
+            {mass.ruhig && <LogoWahl lage={aufbau.logo} setzen={logoSetzen} />}
             {!wahl && <p className="klein">Dateien vom Computer einfach auf die Tafel ziehen, dorthin, wo sie hin sollen.
               Antippen wählt ein Teil: ziehen verschiebt es, die Ecke unten rechts ändert die Grösse,
               der runde Griff oben dreht es.</p>}
@@ -283,6 +282,33 @@ function Farben({ mass, aufbau, setzen }) {
         onClick={() => neu({ kopf: jetzt.grund, grund: jetzt.kopf }, true)}>Tauschen</button>
       {!vorgabe && <button type="button" className="knopf knopf--still" data-ib="farben-vorgabe"
         onClick={() => { clearTimeout(uhr.current); setzen(null); }}>Wie am Anfang</button>}
+    </div>
+  );
+}
+
+// Logo am Empfang: ziehen verschiebt es auf der Tafel, hier die Grösse
+// (Wunsch Patrick 26. Oktober 2026: „kann ich es auch zoomen?“).
+// Gespeichert kurz nach dem letzten Zug wie die Drehung.
+function LogoWahl({ lage, setzen }) {
+  const s0 = Math.round(((lage && lage.s) || 1) * 100);
+  const [g, setG] = useState(s0);
+  const uhr = useRef(null);
+  useEffect(() => { setG(s0); }, [s0]);
+  useEffect(() => () => clearTimeout(uhr.current), []);
+  const neu = (x) => {
+    setG(x);
+    clearTimeout(uhr.current);
+    uhr.current = setTimeout(() => setzen({ ...(lage || {}), s: logoGroesse(x / 100) }), 300);
+  };
+  return (
+    <div className="ib-logowahl">
+      <label className="feld ib-drehung">Grösse des Logos: {g} %
+        <input type="range" min="30" max="250" step="1" value={g} data-ib="logo-groesse"
+          onChange={(e) => neu(Number(e.target.value))} /></label>
+      <p className="klein">Das Logo im Kopf mit der Maus an eine andere Stelle ziehen, das Mausrad darauf
+        macht es grösser oder kleiner.</p>
+      {lage && <button type="button" className="knopf knopf--still" data-ib="logo-zurueck"
+        onClick={() => { clearTimeout(uhr.current); setzen(null); }}>Logo wie am Anfang</button>}
     </div>
   );
 }

@@ -82,8 +82,32 @@ function Kachel({ art, zeichen, name, wert, unter }) {
 // k ist der Massstab der Vorschau, damit das Logo genau dem Zeiger folgt.
 function Logo({ lage, setzen, k }) {
   const [zug, setZug] = useState(null);
+  const [rad, setRad] = useState(null);
   const start = useRef(null);
+  const bild = useRef(null);
+  const uhr = useRef(null);
   const x = zug ? zug.x : (lage && lage.x) || 0, y = zug ? zug.y : (lage && lage.y) || 0;
+  const s = rad ?? ((lage && lage.s) || 1);
+  const aktuell = useRef(null);
+  aktuell.current = { x, y, s, lage, setzen };
+  useEffect(() => { setRad(null); }, [lage && lage.s]);
+  // Mausrad auf dem Logo zoomt (Wunsch Patrick 26. Oktober 2026: „kann ich
+  // es auch zoomen?“). Eigener Hörer, weil React das Rad nur passiv meldet
+  // und die Seite sonst mitrollt; gespeichert kurz nach dem letzten Dreh.
+  useEffect(() => {
+    const el = bild.current;
+    if (!el || !setzen) return undefined;
+    const drehen = (e) => {
+      e.preventDefault();
+      const a = aktuell.current;
+      const neu = logoGroesse(a.s * (e.deltaY < 0 ? 1.06 : 1 / 1.06));
+      setRad(neu);
+      clearTimeout(uhr.current);
+      uhr.current = setTimeout(() => a.setzen({ ...(a.lage || {}), x: a.x, y: a.y, s: neu }), 400);
+    };
+    el.addEventListener("wheel", drehen, { passive: false });
+    return () => { el.removeEventListener("wheel", drehen); clearTimeout(uhr.current); };
+  }, [setzen]);
   const greifen = (e) => {
     if (!setzen || e.button > 0) return;
     e.preventDefault(); e.stopPropagation();
@@ -92,18 +116,22 @@ function Logo({ lage, setzen, k }) {
     setZug({ x, y });
   };
   const ziehen = (e) => {
-    const s = start.current; if (!s) return;
-    setZug({ x: Math.round(s.x + (e.clientX - s.mx) / (k || 1)), y: Math.round(s.y + (e.clientY - s.my) / (k || 1)) });
+    const st = start.current; if (!st) return;
+    setZug({ x: Math.round(st.x + (e.clientX - st.mx) / (k || 1)), y: Math.round(st.y + (e.clientY - st.my) / (k || 1)) });
   };
   const loslassen = () => {
-    const s = start.current; start.current = null;
-    if (s && zug && (zug.x !== s.x || zug.y !== s.y)) setzen({ x: zug.x, y: zug.y });
+    const st = start.current; start.current = null;
+    if (st && zug && (zug.x !== st.x || zug.y !== st.y)) setzen({ ...(lage || {}), x: zug.x, y: zug.y, s });
     setZug(null);
   };
-  return <img className={"ek__logo" + (setzen ? " ek__logo--ziehbar" : "")} src={LOGO} alt="Hofer + Co."
-    draggable={false} data-ib="logo" style={x || y ? { transform: "translate(" + x + "px, " + y + "px)" } : undefined}
+  const t = (x || y ? "translate(" + x + "px, " + y + "px)" : "") + (s !== 1 ? " scale(" + s + ")" : "");
+  return <img ref={bild} className={"ek__logo" + (setzen ? " ek__logo--ziehbar" : "")} src={LOGO} alt="Hofer + Co."
+    draggable={false} data-ib="logo" style={t ? { transform: t } : undefined}
     onPointerDown={greifen} onPointerMove={ziehen} onPointerUp={loslassen} onPointerCancel={loslassen} />;
 }
+
+// Grösse des Logos: 30 % bis 250 % der Vorgabe
+export const logoGroesse = (s) => Math.round(Math.min(2.5, Math.max(0.3, s)) * 100) / 100;
 
 export default function EmpfangKopf({ hoehe, breite, top, left, farbe, logo, logoSetzen, k }) {
   const jetzt = useJetzt();

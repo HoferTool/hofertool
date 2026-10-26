@@ -107,8 +107,24 @@ with sync_playwright() as p:
     pg.wait_for_timeout(600)
     lo = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.logo")
     pruefe(lo and abs(lo["x"] - 60 / kk) < 3 and abs(lo["y"] - 10 / kk) < 3, "Logo verschoben gespeichert: %s (k %.3f)" % (lo, kk))
+    # Zoomen (1.205.1): Mausrad auf dem Logo und Schieber, Ort bleibt
+    pg.locator(".ib-gestalten [data-ib='logo']").scroll_into_view_if_needed()
+    lb = pg.locator(".ib-gestalten [data-ib='logo']").bounding_box()
+    pg.mouse.move(lb["x"] + lb["width"] / 2, lb["y"] + lb["height"] / 2)
+    for _ in range(3): pg.mouse.wheel(0, -100); pg.wait_for_timeout(50)
+    pg.wait_for_timeout(800)
+    lo = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.logo")
+    pruefe(lo and lo.get("s", 1) > 1.1 and lo.get("x") == 105, "Mausrad vergrössert, Ort bleibt: %s" % lo)
+    pg.evaluate("""() => { const r = document.querySelector("[data-ib='logo-groesse']");
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(r, '60');
+      r.dispatchEvent(new Event('input', { bubbles: true })); }""")
+    pg.wait_for_timeout(800)
+    lo = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.logo")
+    pruefe(lo and lo.get("s") == 0.6 and lo.get("x") == 105, "Schieber setzt Grösse: %s" % lo)
+    tr = pg.locator(".ib-gestalten [data-ib='logo']").evaluate("el => el.style.transform")
+    pruefe("scale(0.6)" in tr, "Tafel zeigt die Grösse: %s" % tr)
     pg.click("[data-ib='logo-zurueck']"); pg.wait_for_timeout(600)
-    pruefe(not pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.logo"), "Logo zurück in die Mitte")
+    pruefe(not pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.logo"), "Logo wie am Anfang")
     pg.screenshot(path=os.path.join(BILD, "empfang-gestalten.png"))
 
     pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)
