@@ -15,6 +15,7 @@ import { alt } from "../bruecke.jsx";
 import { Uhr, Wetter, Solaranlage } from "../seiten/Start.jsx";
 import Durchfahrt from "../seiten/start/Durchfahrt.jsx";
 import Huehnerhimmel from "./Nacht.jsx";
+import EmpfangKopf from "./EmpfangKopf.jsx";
 import { pdfjs } from "../teile/PdfAnsicht.jsx";
 import Skizze from "../pad/Skizze.jsx";
 import { TextBlatt } from "./TextFeld.jsx";
@@ -137,9 +138,10 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
         data-ibtafel={mass.id}
         style={{ width: mass.breite, height: mass.hoehe, transform: "translate(-50%, -50%) scale(" + k + ")" }}
         onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>
-        <Kopf />
-        {nacht && <Huehnerhimmel />}
-        {!nacht && aufbau.teile.map((t0) => {
+        {mass.ruhig ? <EmpfangKopf hoehe={mass.kopf - 2 * LUECKE} breite={mass.breite - 2 * LUECKE} top={LUECKE} left={LUECKE} />
+          : <Kopf />}
+        {nacht && !mass.ruhig && <Huehnerhimmel />}
+        {(!nacht || mass.ruhig) && aufbau.teile.map((t0) => {
           const t = zug && zug.id === t0.id ? { ...t0, ...zug } : t0;
           const format = t.w > t.h ? "a3" : "a4";
           const an = bearbeiten && gewaehlt === t.id;

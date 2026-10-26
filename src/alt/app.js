@@ -145,7 +145,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.201.0";
+const APP_VERSION = "1.202.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9961,7 +9961,7 @@ Object.assign(alt, {
   reiterUebergang,
   best, seiteBestellungen, sucheArtikel, ladeBezeichnungen, ladeLieferanten,
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
-  LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, esc,
+  LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, solarLaden, solarKw, esc,
   darfPlanen, darfMaterialplatz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
   arbeitstagePlus, ausIso, ladeTodos, loeschen,
   planArchivDaten, istArchiv, bildVerkleinern,

@@ -36,8 +36,15 @@ with sync_playwright() as p:
     b = pg.locator(".ib-gestalten .ib-blatt").evaluate("el => [el.offsetWidth, el.offsetHeight, el.dataset.ibtafel]")
     pruefe(b == [1920, 1080, "empfang"], "Tafel quer 1920 × 1080: %s" % b)
     pruefe(pg.locator(".ib-gestalten .ib-teil").count() == 0, "Teile des Infoboards nicht am Empfang")
-    k = pg.evaluate("() => { const i = document.querySelector('.ib-gestalten .ib-kopf__innen'), o = i.parentElement;"
-                    " return [i.getBoundingClientRect().height, o.getBoundingClientRect().height]; }")
+    # Eigener ruhiger Kopf: hell, Uhr, Logo, Wetter, Solaranlage als Zahlen,
+    # keine Wellen, kein Jetski, nichts bewegt sich
+    pruefe(pg.locator(".ib-gestalten [data-ib='empfang-kopf']").count() == 1, "eigener Kopf am Empfang")
+    pruefe(pg.locator(".ib-gestalten .ib-blatt .kopfkarte, .ib-gestalten .ib-blatt .solar").count() == 0, "ohne Kopf der Startseite")
+    pg.wait_for_timeout(1500)
+    pruefe(pg.locator(".ib-gestalten .ek-kachel").count() == 4, "Solaranlage mit vier Zahlen: %d" % pg.locator(".ib-gestalten .ek-kachel").count())
+    an = pg.evaluate("() => document.querySelector('.ib-gestalten .ib-blatt').getAnimations({ subtree: true }).length")
+    pruefe(an == 0, "keine laufenden Animationen: %d" % an)
+    k = pg.evaluate("() => { const i = document.querySelector('.ib-gestalten .ek'); return [i.scrollHeight, i.clientHeight]; }")
     pruefe(k[0] <= k[1] + 1, "Kopf passt in seinen Platz: %s" % k)
 
     with pg.expect_file_chooser() as fc:
@@ -47,7 +54,7 @@ with sync_playwright() as p:
     zeilen = pg.evaluate("() => TEST.daten.infoboard.map(z => [z.id, (z.aufbau.teile || []).length])")
     pruefe(sorted(zeilen) == [["empfang", 1], ["haupt", 1]], "eigene Zeile empfang, Infoboard unverändert: %s" % zeilen)
     t = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.teile[0]")
-    pruefe(t["x"] >= 0 and t["x"] + t["w"] <= 1920 and t["y"] >= 300 and t["y"] + t["h"] <= 1080,
+    pruefe(t["x"] >= 0 and t["x"] + t["w"] <= 1920 and t["y"] >= 330 and t["y"] + t["h"] <= 1080,
            "neues Teil liegt unter dem Kopf auf der Tafel: %s" % {k2: t[k2] for k2 in "xywh"})
     pg.screenshot(path=os.path.join(BILD, "empfang-gestalten.png"))
 
@@ -59,6 +66,12 @@ with sync_playwright() as p:
     pg.screenshot(path=os.path.join(BILD, "empfang-anzeige.png"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pruefe(pg.locator("#infoboard").count() == 0, "Escape schliesst die Anzeige")
+    # Nachts keine Hühner am Empfang, die Dokumente bleiben
+    pg.clock.set_system_time(datetime(heute.year, heute.month, heute.day, 23, 30))
+    pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)
+    pruefe(pg.locator("#infoboard [data-ib='nacht']").count() == 0 and pg.locator("#infoboard .ib-teil").count() == 1,
+           "nachts keine Hühner, Dokumente bleiben")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
 
     # App-Paket: ?bildschirm=empfang merkt das Gerät und öffnet die Anzeige,
     # auch mit dem Konto „Infoboard“ (Vermerk am Konto)

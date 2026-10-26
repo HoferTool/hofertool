@@ -54,8 +54,10 @@ export const SEKUNDEN = 20;
 export const TAFELN = {
   haupt: { id: "haupt", name: "Infoboard", seite: "infoboard", breite: BREITE, hoehe: HOEHE, kopf: KOPF_H,
     geraet: "hofer.infoboard.geraet" },
-  empfang: { id: "empfang", name: "Empfang", seite: "empfang", breite: 1920, hoehe: 1080, kopf: 300,
-    geraet: "hofer.empfang.geraet" },
+  // ruhig: eigener heller Kopf ohne Wellen und Jetski, nachts keine Hühner
+  // (Wunsch Patrick 26. Oktober 2026: „keine durchlaufenden Animationen“)
+  empfang: { id: "empfang", name: "Empfang", seite: "empfang", breite: 1920, hoehe: 1080, kopf: 330,
+    geraet: "hofer.empfang.geraet", ruhig: true },
 };
 export const TafelMass = createContext(TAFELN.haupt);
 export const useTafelMass = () => useContext(TafelMass);
