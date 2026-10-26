@@ -33,6 +33,7 @@ with sync_playwright() as p:
       D.machine_types.find(t => t.id === 't2').name = 'Index';
       D.hoco_type_data.push({ hoco_nr: '10000-0301', type_id: 't2', blatt_url: XI, stueckzeit_s: null });
       D.einrichtblatt_app = []; D.artikel_bild = []; D.eb_bilder = [];
+      D.designations = ['Bohrer', 'Wendeplatte', 'Stechplatte'].map((name, i) => ({ id: 'd' + i, name }));
       D.articles.push({ id: 'a9', article_number: 'SPZ-77', name: 'Sonderhalter', unit: 'Stück', description: null,
         supplier_id: 's2', is_active: true, spezial: true });
     }""", [XL, XL_INDEX])
@@ -100,7 +101,7 @@ with sync_playwright() as p:
     pg.click("[data-platz='T200']"); pg.wait_for_selector("[data-platzfenster='T200']")
     pf = pg.locator("[data-platzfenster='T200']")
     pruefe("Kein freies Werkzeugfeld", pf.locator("input[data-pf='werkzeug'], input[data-pf='hersteller']").count() == 0)
-    pruefe("Excel-Text mit Hinweis", "HSS Bohrer 4.2" in pf.inner_text() and "Bitte das Werkzeug wählen" in pf.inner_text())
+    pruefe("Excel-Text mit Hinweis", "HSS Bohrer 4.2" in pf.inner_text() and "Noch nicht hinterlegt" in pf.inner_text())
     pf.locator("[data-pf='hd']").click()
     pf.locator("[data-pf='standzeit']").fill("2500")
     pf.locator("[data-pf-waehlen]").click(); pg.wait_for_selector("[data-werkzeugwahl]")
@@ -143,6 +144,44 @@ with sync_playwright() as p:
     pruefe("Spezialwerkzeug am Platz", "Spezialwerkzeug" in pf.inner_text() and "SPZ-77" in pf.inner_text())
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
     pg.screenshot(path="einrichtblatt_app_bearbeiten.png")
+
+    # Eingelesene Werkzeuge ohne hinterlegten oder bestätigten Artikel
+    # sind rot (1.185.0): T100 selbst zugeordnet, T400 nur Text
+    pruefe("T100 rot, selbst zugeordnet", pg.locator("[data-platz='T100'].eba-platz--pruefen").count() == 1)
+    pruefe("T400 rot, nur Text", pg.locator("[data-platz='T400'].eba-platz--pruefen").count() == 1)
+    pruefe("T200 nicht rot, gewählt", pg.locator("[data-platz='T200'].eba-platz--pruefen").count() == 0)
+    pg.click("[data-platz='T100']"); pg.wait_for_selector("[data-platzfenster='T100']")
+    pf = pg.locator("[data-platzfenster='T100']")
+    pruefe("T100 fragt, ob es dieses Werkzeug ist", pf.locator("[data-pf-bestaetigen]").count() == 1 and "Ist es dieses Werkzeug" in pf.inner_text())
+    pf.locator("[data-pf-stimmt]").click(); pg.wait_for_timeout(200)
+    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
+    pruefe("T100 nach Bestätigen nicht mehr rot", pg.locator("[data-platz='T100'].eba-platz--pruefen").count() == 0)
+    pg.click("[data-platz='T400']"); pg.wait_for_selector("[data-platzfenster='T400']")
+    pf = pg.locator("[data-platzfenster='T400']")
+    pf.locator("[data-pf-hinterlegen-knopf]").click(); pg.wait_for_selector("[data-hl='nummer']")
+    vor = {k: pf.locator(f"[data-hl='{k}']").input_value() for k in ("nummer", "name", "lieferant")}
+    print("Vorschlag T400:", vor)
+    pruefe("Vorschlag Nummer und Bezeichnung", vor["nummer"] == "HYP-HP-3D Ø3.50" and vor["name"] == "Bohrer")
+    pruefe("Unbekannter Hersteller als neuer vorgeschlagen", vor["lieferant"] == "__neu" and pf.locator("[data-hl='neuerName']").input_value() == "Muster")
+    pf.locator("[data-hl='lieferant']").select_option("")
+    pf.locator("[data-hl-ok]").click(); pg.wait_for_timeout(300)
+    pruefe("Ohne Hersteller nicht anlegen", "Ohne Hersteller" in pf.locator("[data-hl-fehler]").inner_text())
+    pf.locator("[data-hl='lieferant']").select_option("__neu"); pf.locator("[data-hl='neuerName']").fill("Muster AG")
+    pg.screenshot(path="einrichtblatt_app_hinterlegen.png")
+    pf.locator("[data-hl-ok]").click(); pg.wait_for_timeout(700)
+    neu = pg.evaluate("""() => { const a = TEST.daten.articles.find(x => x.article_number === 'HYP-HP-3D Ø3.50');
+      const l = a && TEST.daten.suppliers.find(x => x.id === a.supplier_id); return { a: !!a, name: a && a.name, lief: l && l.name }; }""")
+    pruefe("Artikel mit Hersteller angelegt: " + str(neu), neu["a"] and neu["name"] == "Bohrer" and neu["lief"] == "Muster AG")
+    pruefe("Platz zeigt neuen Hersteller", "Muster AG" in pf.inner_text())
+    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
+    pruefe("T400 nicht mehr rot", pg.locator("[data-platz='T400'].eba-platz--pruefen").count() == 0)
+    # Übrige rote Plätze leeren, damit EB OK geht; vorher sperrt EB OK
+    rot = pg.evaluate("[...document.querySelectorAll('.eba-platz--pruefen')].map(e => e.dataset.platz)")
+    print("noch rot:", rot)
+    for nr in rot:
+        pg.click(f"[data-platz='{nr}']"); pg.wait_for_selector(f"[data-platzfenster='{nr}']")
+        q = pg.locator(f"[data-platzfenster='{nr}']")
+        q.locator("[data-pf-wzweg]").click(); q.locator("[data-pf-ok]").click(); pg.wait_for_timeout(200)
 
     # Geo-Offset von Hand, Bild daneben kleiner
     pg.click("[data-platz='T100']"); pg.wait_for_selector("[data-platzfenster='T100']")
@@ -187,6 +226,8 @@ with sync_playwright() as p:
     s = pg.inner_text("[data-eba-seite]")
     pruefe("Blatt zeigt alles", all(x in s for x in ("Deckel neu", "236", "41 Sek./Stk.", "Ø21h9", "SPZ-77")))
 
+    pruefe("Nach dem Speichern keine roten Werkzeuge", pg.locator("[data-eba-rot]").count() == 0
+           and pg.evaluate("TEST.daten.einrichtblatt_app[0].plaetze.T100.ungeprueft") is None)
     # Blatt ist gut: Excel weg
     pruefe("Knopf heisst EB OK", pg.inner_text("[data-eba-gut]").strip() == "EB OK")
     pg.click("[data-eba-gut]"); pg.wait_for_selector(".dialog-huelle [data-ja]")

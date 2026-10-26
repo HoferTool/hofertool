@@ -308,7 +308,9 @@ export async function excelVorlesen(hocoNr, typ, excelUrl, { artikel } = {}) {
         const gemerkt = artikel || {};
         if (!gemerkt.finden) gemerkt.finden = artikelFuerText();
         const id = (await gemerkt.finden)(z.werkzeug);
-        if (id) z.article_id = id;
+        // Selbst zugeordnet: bleibt rot, bis jemand bestätigt, dass es
+        // dieses Werkzeug ist (Wunsch Patrick, 26. Oktober 2026)
+        if (id) { z.article_id = id; z.ungeprueft = true; }
       } catch (f) { /* dann ohne Artikel */ }
     }
     if (Object.keys(z).length) plaetze[nr] = z;

@@ -17,6 +17,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
 import { werkzeugWaehlen } from "../seiten/bestellungen/PositionFenster.jsx";
+import { WerkzeugHinterlegen, werkzeugOffen } from "./WerkzeugHinterlegen.jsx";
 import { excelVorlesen, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
   artikelHolen, STAMM_FELDER, WASCHGEBINDE, prgNummern } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
@@ -113,7 +114,9 @@ function KopfEingabe({ f, wert, aendern, d }) {
 // Rest darunter gehört den Bemerkungen.
 // teil und typDaten sind im Bearbeiten die Entwürfe; aendern(f, wert)
 // ändert ein Kopffeld
-export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder }) {
+// pruefen: eingelesene Werkzeuge ohne hinterlegten oder bestätigten
+// Artikel rot umranden (nur im Fenster, nicht im Pad und nicht im Druck)
+export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen }) {
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
@@ -134,7 +137,8 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
     const p = plaetze[nr] || {};
     const bild = platzBild(p, artikelBilder);
     return (
-      <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")}
+      <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")
+        + (pruefen && werkzeugOffen(p) ? " eba-platz--pruefen" : "")}
         style={{ gridRow: ri + 1, gridColumn: si + 1 }} data-platz={nr}
         onClick={bearbeiten ? () => platzWahl(nr) : undefined}>
         <div className="eba-tk" style={{ background: farbeVon(nr), "--eba-schrift": vorlage.schrift }}>
@@ -198,17 +202,21 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
   const [artikel, setArtikel] = useState(null);
   const [bildWahl, setBildWahl] = useState(false);
   const [bildGewaehlt, setBildGewaehlt] = useState(false);
+  const [hinterlegen, setHinterlegen] = useState(false);
   useEffect(() => { if (wert.article_id) artikelHolen(wert.article_id).then(setArtikel); }, []);
   const f = (feld) => (e) => setP(Object.assign({}, p, { [feld]: e.target.value }));
   const merkKey = bildSchluesselVon(p);
   const bild = platzBild(p, Object.assign({}, artikelBilder, merkKey && bildGewaehlt ? { [merkKey]: p.bild } : {}));
 
-  const waehlen = async () => {
-    const a = await werkzeugWaehlen({ suche: p.article_id ? "" : (p.werkzeug || ""), spezial: !!(artikel && artikel.spezial) });
-    if (!a) return;
-    setArtikel(a);
+  // Ein gewähltes, angelegtes oder bestätigtes Werkzeug ist geprüft
+  const nehmen = (a) => {
+    setArtikel(a); setHinterlegen(false);
     setP(Object.assign({}, p, { article_id: a.id, werkzeug: a.article_number || a.name || "", hersteller: a.supplier_name || "",
-      spezial_id: null, bild: artikelBilder[a.id] || p.bild || null }));
+      spezial_id: null, ungeprueft: false, bild: artikelBilder[a.id] || p.bild || null }));
+  };
+  const waehlen = async () => {
+    const a = await werkzeugWaehlen({ suche: p.article_id && !p.ungeprueft ? "" : (p.werkzeug || ""), spezial: !!(artikel && artikel.spezial) });
+    if (a) nehmen(a);
   };
   const fertig = async () => {
     const z = {};
@@ -220,6 +228,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     if (geo.trim()) z.geo = geo;
     if (p.ohneBild) z.ohneBild = true;
     if (p.article_id && z.werkzeug) z.article_id = p.article_id;
+    if (z.article_id && p.ungeprueft) z.ungeprueft = true;
     if (p.bild) z.bild = p.bild;
     // Am Artikel merken, sobald jemand ein Bild wählt: jeder andere Platz
     // damit bekommt es von selbst
@@ -247,18 +256,28 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
         waehlen={(k) => { setP(Object.assign({}, p, { bild: k })); setBildWahl(false); setBildGewaehlt(true); }} />}
       <div className="eba-pf-werkzeug" data-pf-werkzeug="">
         <span className="eba-pf-titel">Werkzeug</span>
-        {p.article_id
+        {p.article_id && p.ungeprueft
+          ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-bestaetigen=""><b>{artikel ? artikel.article_number : p.werkzeug}</b>
+              <span>{[artikel && artikel.name, artikel && artikel.supplier_name].filter(Boolean).join(" · ")}</span>
+              <span>Beim Einlesen gefunden, aus dem Excel „{p.werkzeug}“{p.hersteller ? ", " + p.hersteller : ""}. Ist es dieses Werkzeug?</span></div>
+          : p.article_id
           ? <div className="eba-pf-artikel"><b>{p.werkzeug}</b>
               <span>{[artikel && artikel.spezial ? "Spezialwerkzeug" : "", artikel && artikel.name, p.hersteller].filter(Boolean).join(" · ")}</span></div>
           : p.werkzeug
             ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-frei=""><b>„{p.werkzeug}“</b>
-                <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ""}. Bitte das Werkzeug wählen.</span></div>
+                <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ", ohne Hersteller"}. Noch nicht hinterlegt: vorhandenes wählen oder neu hinterlegen.</span></div>
             : <div className="eba-pf-artikel"><span>Noch kein Werkzeug</span></div>}
-        <div className="eba-pf-wknoepfe">
-          <button className="knopf knopf--klein" data-pf-waehlen="" onClick={waehlen}>{p.werkzeug ? "Anderes Werkzeug wählen" : "Werkzeug wählen"}</button>
-          {p.werkzeug && <button className="knopf knopf--klein knopf--still" data-pf-wzweg=""
-            onClick={() => setP(Object.assign({}, p, { werkzeug: "", hersteller: "", article_id: null, spezial_id: null }))}>Entfernen</button>}
-        </div>
+        {hinterlegen
+          ? <WerkzeugHinterlegen p={p} fertig={nehmen} abbrechen={() => setHinterlegen(false)} />
+          : <div className="eba-pf-wknoepfe">
+              {p.article_id && p.ungeprueft && <button className="knopf knopf--klein knopf--haupt" data-pf-stimmt=""
+                onClick={() => artikel ? nehmen(artikel) : setP(Object.assign({}, p, { ungeprueft: false }))}>Ja, stimmt</button>}
+              <button className="knopf knopf--klein" data-pf-waehlen="" onClick={waehlen}>{p.werkzeug ? (p.article_id ? "Anderes Werkzeug wählen" : "Vorhandenes wählen") : "Werkzeug wählen"}</button>
+              {p.werkzeug && !p.article_id && <button className="knopf knopf--klein knopf--haupt" data-pf-hinterlegen-knopf=""
+                onClick={() => setHinterlegen(true)}>Werkzeug hinterlegen</button>}
+              {p.werkzeug && <button className="knopf knopf--klein knopf--still" data-pf-wzweg=""
+                onClick={() => setP(Object.assign({}, p, { werkzeug: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false }))}>Entfernen</button>}
+            </div>}
       </div>
       <label className="feld"><span>Geo-Offset, nur wenn nötig (steht über dem Bild)</span>
         <textarea data-pf="geo" rows={2} value={p.geo || ""} onChange={f("geo")} placeholder="z. B. X 0.12  Z -0.05" /></label>
@@ -473,6 +492,13 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   // Erst nach „EB OK“ (bis 1.177.0 „Blatt ist gut“) zeigt der Pad Mode das Blatt aus der App
   // (Wunsch Patrick, 24. Oktober 2026); ein Excel dazu wird gelöscht
   const gut = async () => {
+    // Erst wenn jedes Werkzeug hinterlegt und bestätigt ist (Wunsch
+    // Patrick, 26. Oktober 2026: nie mehr ohne Hersteller)
+    if (offen > 0) {
+      alt.meldung(offen === 1 ? "Ein Werkzeug ist noch rot: zuerst hinterlegen oder bestätigen."
+        : offen + " Werkzeuge sind noch rot: zuerst hinterlegen oder bestätigen.", "warn");
+      return;
+    }
     const ok = await alt.nachfragen({ titel: "EB OK",
       text: excel
         ? "Stimmt das Blatt? Dann gilt es ab jetzt auch im Pad Mode. Das bisherige Excel-Einrichtblatt von " + hocoNr + " auf "
@@ -519,6 +545,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       titel: (x.name || "Seite") + " · " + hocoNr });
     if (html !== null) seiteAendern(i, { html });
   };
+  const offen = Object.values(blatt.plaetze || {}).filter(werkzeugOffen).length;
   const pfad = pfadVonPlatz(paths);
   const platzTitel = (nr) => platzGruppe(nr) || (pfad[nr] ? pfad[nr].name : "");
 
@@ -526,7 +553,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     <div className="betrachter eba-fenster">
       <div className="betrachter__kopf">
         <span className="betrachter__titel">Einrichtblatt {hocoNr} · {typ.name}
-          {daten.blatt && !daten.blatt.gut_am && <span className="eba-offen" data-eba-offen=""> noch nicht bestätigt</span>}</span>
+          {daten.blatt && !daten.blatt.gut_am && <span className="eba-offen" data-eba-offen=""> noch nicht bestätigt</span>}
+          {darf && offen > 0 && <span className="eba-rot-zahl" data-eba-rot={offen}> · {offen} {offen === 1 ? "Werkzeug" : "Werkzeuge"} rot: antippen und hinterlegen oder bestätigen</span>}</span>
         <div className="betrachter__knoepfe">
           {bearbeiten
             ? <>
@@ -565,7 +593,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         {zseite
           ? <ZusatzSeite seite={zseite} bearbeiten={bearbeiten} inhaltBearbeiten={() => inhaltBearbeiten(seiteNr - 1)} />
           : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt}
-              bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern}
+              bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} pruefen={darf}
               platzWahl={(nr) => setTimeout(() => setPlatz(nr), 0)} /></div>}
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
