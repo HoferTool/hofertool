@@ -74,13 +74,15 @@ function Gestalten({ mass }) {
     }
   };
   // Farben nur im Aufbau, die Teile bleiben, wie sie sind
-  const farbenSetzen = async (farben) => {
+  const ganzSetzen = async (patch) => {
     const vorher = stand.current;
-    const neu = { ...vorher, farben };
+    const neu = { ...vorher, ...patch };
     stand.current = neu; setAufbau(neu);
     try { await aufbauSpeichern(neu, mass.id); }
     catch (e) { stand.current = vorher; setAufbau(vorher); alt.meldung("Nicht gespeichert: " + alt.fehlertext(e), "fehler"); }
   };
+  const farbenSetzen = (farben) => ganzSetzen({ farben });
+  const logoSetzen = (logo) => ganzSetzen({ logo });
   const teilAendern = (id, patch) => aendern((teile) => teile.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   const wahl = aufbau.teile.find((t) => t.id === gewaehlt) || null;
 
@@ -183,7 +185,7 @@ function Gestalten({ mass }) {
       <div className="ib-gestalten__teile">
         <div className="ib-gestalten__vorschau">
           <Tafel mass={mass} aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt}
-            teilAendern={admin ? teilAendern : null}
+            teilAendern={admin ? teilAendern : null} logoSetzen={admin ? logoSetzen : null}
             ablegen={admin && !laedt ? (dateien, punkt) => dateienAblegen(dateien, punkt, null) : null}
             doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); } : null} />
         </div>
@@ -200,6 +202,9 @@ function Gestalten({ mass }) {
             <input ref={datei} type="file" hidden multiple onChange={dateiGewaehlt}
               accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
             {mass.ruhig && <Farben mass={mass} aufbau={aufbau} setzen={farbenSetzen} />}
+            {mass.ruhig && <p className="klein">Das Logo im Kopf lässt sich mit der Maus an eine andere Stelle ziehen.
+              {aufbau.logo && <> <button type="button" className="knopf knopf--still" data-ib="logo-zurueck"
+                onClick={() => logoSetzen(null)}>Logo zurück in die Mitte</button></>}</p>}
             {!wahl && <p className="klein">Dateien vom Computer einfach auf die Tafel ziehen, dorthin, wo sie hin sollen.
               Antippen wählt ein Teil: ziehen verschiebt es, die Ecke unten rechts ändert die Grösse,
               der runde Griff oben dreht es.</p>}

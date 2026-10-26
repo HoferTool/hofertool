@@ -98,6 +98,17 @@ with sync_playwright() as p:
     pg.click("[data-ib='farben-vorgabe']"); pg.wait_for_timeout(800)
     pruefe(not pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.farben"), "wie am Anfang")
     pg.click("[data-ib='farben-tauschen']"); pg.wait_for_timeout(800)
+    # Logo verschieben (1.205.0): ziehen speichert den Versatz in Punkten der Tafel
+    pg.locator(".ib-gestalten [data-ib='logo']").scroll_into_view_if_needed(); pg.wait_for_timeout(200)
+    lb = pg.locator(".ib-gestalten [data-ib='logo']").bounding_box()
+    kk = pg.evaluate("() => document.querySelector('.ib-gestalten .ib-blatt').getBoundingClientRect().width / 1920")
+    pg.mouse.move(lb["x"] + lb["width"] / 2, lb["y"] + lb["height"] / 2); pg.mouse.down()
+    pg.mouse.move(lb["x"] + lb["width"] / 2 + 60, lb["y"] + lb["height"] / 2 + 10, steps=5); pg.mouse.up()
+    pg.wait_for_timeout(600)
+    lo = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.logo")
+    pruefe(lo and abs(lo["x"] - 60 / kk) < 3 and abs(lo["y"] - 10 / kk) < 3, "Logo verschoben gespeichert: %s (k %.3f)" % (lo, kk))
+    pg.click("[data-ib='logo-zurueck']"); pg.wait_for_timeout(600)
+    pruefe(not pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.logo"), "Logo zurück in die Mitte")
     pg.screenshot(path=os.path.join(BILD, "empfang-gestalten.png"))
 
     pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)

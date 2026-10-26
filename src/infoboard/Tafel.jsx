@@ -61,7 +61,7 @@ function drehungRunden(g) {
 // Loslassen wird gespeichert.
 // nacht: Bildschirmschoner, statt der Teile fliegen Hühner (Nacht.jsx)
 // mass: welcher Bildschirm (TAFELN in daten.js), hochkant im Gang oder quer am Empfang
-export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAendern, ablegen, doppelt, nacht }) {
+export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAendern, ablegen, doppelt, nacht, logoSetzen }) {
   const rahmen = useRef(null);
   const blatt = useRef(null);
   const k = useMassstab(rahmen, mass);
@@ -146,7 +146,7 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
         data-ibtafel={mass.id}
         style={{ width: mass.breite, height: mass.hoehe, background: mass.ruhig ? farben.grund : undefined, transform: "translate(-50%, -50%) scale(" + k + ")" }}
         onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>
-        {mass.ruhig ? <EmpfangKopf farbe={farben.kopf} hoehe={mass.kopf - 2 * LUECKE} breite={mass.breite - 2 * LUECKE} top={LUECKE} left={LUECKE} />
+        {mass.ruhig ? <EmpfangKopf farbe={farben.kopf} logo={aufbau.logo} logoSetzen={bearbeiten ? logoSetzen : null} k={k} hoehe={mass.kopf - 2 * LUECKE} breite={mass.breite - 2 * LUECKE} top={LUECKE} left={LUECKE} />
           : <Kopf />}
         {nacht && !mass.ruhig && <Huehnerhimmel />}
         {(!nacht || mass.ruhig) && aufbau.teile.map((t0) => {

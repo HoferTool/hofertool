@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.205.0** Empfang: **Logo verschiebbar** (Wunsch Patrick 26. Oktober 2026: „ich will das Logo verschieben können“). Beim Gestalten das Logo im Kopf mit der Maus ziehen, gespeichert beim Loslassen als Versatz unter `logo` im Aufbau; „Logo zurück in die Mitte“ setzt es zurück.
 - **1.204.2** Empfang: Kopf ohne Schatten und ohne feinen Rand, bei gleichen Farben von Kopf und Hintergrund sieht man keinen Unterschied (Wunsch Patrick 26. Oktober 2026).
 - **1.204.1** Empfang: Logo von Patrick in seinen Farben (blau, Schrift grau), freigestellt in voller Auflösung als `public/logo-empfang.png` (Wunsch Patrick 26. Oktober 2026: „nimm dieses Logo“).
 - **1.207.0** Bestellungen → Artikel: **Kopieren** (Wunsch Patrick 26. Oktober 2026: „man soll auch Artikel kopieren können und einfach einen Teil umbenennen“). Knopf neben dem Stift öffnet das Fenster von Bearbeiten, alles ausgefüllt; „Als neuen Artikel speichern“ legt einen neuen an, die Nummer muss anders sein, der alte bleibt. Test `artikel_kopieren.py`.

@@ -8,7 +8,7 @@
 //  Solaranlage in wenigen grossen Zahlen, ohne Verlauf und ohne Wellen.
 //  Alles steht still; die Werte kommen jede Minute neu.
 // =================================================================
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 
 const LOGO = import.meta.env.BASE_URL + "logo-empfang.png";
@@ -76,7 +76,36 @@ function Kachel({ art, zeichen, name, wert, unter }) {
   );
 }
 
-export default function EmpfangKopf({ hoehe, breite, top, left, farbe }) {
+// Das Logo lässt sich beim Gestalten mit der Maus verschieben (Wunsch
+// Patrick 26. Oktober 2026: „ich will das Logo verschieben können“).
+// Gespeichert wird nur der Versatz in Punkten der Tafel, erst beim Loslassen;
+// k ist der Massstab der Vorschau, damit das Logo genau dem Zeiger folgt.
+function Logo({ lage, setzen, k }) {
+  const [zug, setZug] = useState(null);
+  const start = useRef(null);
+  const x = zug ? zug.x : (lage && lage.x) || 0, y = zug ? zug.y : (lage && lage.y) || 0;
+  const greifen = (e) => {
+    if (!setzen || e.button > 0) return;
+    e.preventDefault(); e.stopPropagation();
+    start.current = { mx: e.clientX, my: e.clientY, x, y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setZug({ x, y });
+  };
+  const ziehen = (e) => {
+    const s = start.current; if (!s) return;
+    setZug({ x: Math.round(s.x + (e.clientX - s.mx) / (k || 1)), y: Math.round(s.y + (e.clientY - s.my) / (k || 1)) });
+  };
+  const loslassen = () => {
+    const s = start.current; start.current = null;
+    if (s && zug && (zug.x !== s.x || zug.y !== s.y)) setzen({ x: zug.x, y: zug.y });
+    setZug(null);
+  };
+  return <img className={"ek__logo" + (setzen ? " ek__logo--ziehbar" : "")} src={LOGO} alt="Hofer + Co."
+    draggable={false} data-ib="logo" style={x || y ? { transform: "translate(" + x + "px, " + y + "px)" } : undefined}
+    onPointerDown={greifen} onPointerMove={ziehen} onPointerUp={loslassen} onPointerCancel={loslassen} />;
+}
+
+export default function EmpfangKopf({ hoehe, breite, top, left, farbe, logo, logoSetzen, k }) {
   const jetzt = useJetzt();
   const wetter = useWetter();
   const solar = useSolar();
@@ -105,7 +134,7 @@ export default function EmpfangKopf({ hoehe, breite, top, left, farbe }) {
         {/* Das Logo in seinen Farben, blau mit grauer Schrift, freigestellt und
             rund dreimal so fein wie gezeigt (Wunsch Patrick 26. Oktober 2026:
             „nimm dieses Logo“) */}
-        <img className="ek__logo" src={LOGO} alt="Hofer + Co." />
+        <Logo lage={logo} setzen={logoSetzen} k={k} />
         <div className="ek__wetter">
           {wetter && <>
             <div className="ek__grad">{wetter.temperatur}°</div>

@@ -100,7 +100,7 @@ function teilOrdnen(t) {
 export function aufbauOrdnen(a) {
   if (a && a.frei && Array.isArray(a.teile)) {
     return { frei: true, teile: a.teile.filter((t) => t && t.id && t.art && t.art !== "leer").map(teilOrdnen),
-      ...(a.farben ? { farben: a.farben } : {}) };
+      ...(a.farben ? { farben: a.farben } : {}), ...(a.logo ? { logo: a.logo } : {}) };
   }
   const reihen = reihenOrdnen(a);
   return { frei: true, teile: felderLage(reihen).filter((l) => l.feld.art !== "leer")
