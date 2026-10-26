@@ -39,7 +39,7 @@ function zwischen(d, [m1, t1], [m2, t2]) {
 
 // ---------- Was die Hühner tragen (im Raster des Huhns 124 × 100) ----------
 // Kopf um (72, 28) mit Radius 12, Kamm oben bei y 9–20, Schnabel 82–96.
-const ZUSATZ = {
+export const ZUSATZ = {
   // Weihnachten: Zipfelmütze, die nach hinten fällt
   samichlaus: {
     vorne: `<path d="M60 19 L86 17 C84 7 74 1 61 3 C54 4 49 8 46 13 C53 10 58 12 60 19 Z" fill="#d62828"/>
@@ -99,6 +99,13 @@ const ZUSATZ = {
       <path d="M61 47 L56 64 L62.5 64 L66.5 49 Z" fill="#a8431a"/>
       <path d="M56.5 61 L63 61" stroke="#f2b233" stroke-width="1.4"/>`,
   },
+  // Halloween am Tag (Umzug im Band oben, 1.211.0): Hexenhut statt der
+  // düsteren Nachthühner, die im hellen Band zu finster wirken
+  hexenhut: {
+    vorne: `<path d="M58 19 L88 16 C82 13 78 11 76 6 C74 1 70 -6 62 -9 C66 -3 67 4 66 15 Z" fill="#2b2233"/>
+      <path d="M55 20 C62 15 82 13 92 16 C84 20 64 22 55 20 Z" fill="#2b2233"/>
+      <path d="M62 17 L84 15" stroke="#f28c28" stroke-width="2.4"/>`,
+  },
   // Winter: Wollmütze und Schal
   wollmuetze: {
     vorne: `<path d="M59 20 C59 6 83 2 87 18 Z" fill="#2a6fdb"/>
@@ -126,8 +133,8 @@ export function weissesHuhn(zusatz = {}) {
   <path d="M82 25 L96 30 L82 35 Z" fill="#f2b233"/>
   <circle cx="75" cy="26" r="2.6" fill="#111"/>
   <g stroke="#f2b233" stroke-width="3" stroke-linecap="round" fill="none">
-    <path d="M40 72 L36 84 M36 84 L30 86 M36 84 L40 87"/>
-    <path d="M52 72 L50 84 M50 84 L44 86 M50 84 L54 87"/>
+    <path class="huhn-bein" d="M40 72 L36 84 M36 84 L30 86 M36 84 L40 87"/>
+    <path class="huhn-bein huhn-bein--2" d="M52 72 L50 84 M50 84 L44 86 M50 84 L54 87"/>
   </g>
   ${zusatz.vorne || ""}
   <g class="ib-huhn__fluegel"><path d="M30 50 C38 20 62 18 66 46 C56 60 40 62 30 50 Z" fill="#d9d3c5"/></g>

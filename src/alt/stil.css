@@ -8783,37 +8783,55 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
 
 /* ---------- Kopfkarte: Jetski im Band (seit 1.150.0 Durchfahrten) ----------
    Wunsch Patrick 22. Oktober 2026: statt der Hühner (1.125.0 bis
-   1.149.0) fährt etwas durch, seit 1.153.0 nur noch Jiviano auf dem
-   Jetski. Gesteuert von src/seiten/start/Durchfahrt.jsx.
+   1.149.0) fuhr etwas durch, 1.153.0 bis 1.210.x Jiviano auf dem
+   Jetski, seit 1.211.0 ziehen Hühner mit ihrem Stall um. Gesteuert von
+   src/seiten/start/Durchfahrt.jsx.
    Der runde Schein von früher bleibt aus. */
 .kopfkarte:not(.kopfkarte--geburtstag)::before,
 .kopfkarte:not(.kopfkarte--geburtstag)::after { content: none; animation: none; }
 .durchfahrt { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
-/* Wasser über das ganze Band und Jiviano auf dem Jetski (1.152.0,
-   seit 1.153.0 realer: Wellen als echte Sinusschichten, deren Masse
-   Durchfahrt.jsx setzt und für die Fahrt auf der Oberfläche nutzt).
-   Reihenfolge: hintere Welle, Schaum, Jetski, vordere Welle, Tropfen. */
-.fahrt-meer { position: absolute; inset: 0; pointer-events: none; }
-.fahrt-meer__welle { position: absolute; bottom: 0; background-repeat: repeat-x; will-change: transform; }
-.fahrt-meer__welle--hinten { z-index: 1; }
-.fahrt-meer__welle--vorne { z-index: 4; }
-.fahrt { position: absolute; left: 0; bottom: 0; z-index: 3; will-change: transform; }
-.fahrt__reiter { position: absolute; inset: 0; transform-origin: 50% 92%; will-change: transform; }
-.fahrt--foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.fahrt-schaum { position: absolute; z-index: 5; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(ellipse at center, rgba(255,255,255,.85) 0%, rgba(235,245,255,.5) 45%, rgba(255,255,255,0) 72%); }
-.fahrt-tropfen { position: absolute; z-index: 6; border-radius: 50%; pointer-events: none; filter: blur(.5px);
-  background: radial-gradient(circle at 35% 35%, #fff 0%, rgba(225,240,255,.85) 60%, rgba(200,225,250,.4) 100%); }
-.fahrt-nebel { position: absolute; z-index: 6; border-radius: 50%; pointer-events: none; filter: blur(3px);
-  background: radial-gradient(circle, rgba(255,255,255,.8) 0%, rgba(235,245,255,.4) 45%, rgba(255,255,255,0) 70%); }
-.fahrt-kontakt { position: absolute; left: 0; bottom: 0; z-index: 5; border-radius: 50%; pointer-events: none;
-  filter: blur(1.5px); will-change: transform, opacity;
-  background: radial-gradient(ellipse at 60% 50%, rgba(255,255,255,.95) 0%, rgba(240,248,255,.6) 40%, rgba(255,255,255,0) 70%); }
-/* Geldscheine hinter dem Jetski (seit 1.156.0) */
-.fahrt-geld { position: absolute; z-index: 6; pointer-events: none; display: flex; align-items: center; justify-content: center;
-  border-radius: 2px; color: #1f4d1a; font-weight: 800; line-height: 1; font-family: system-ui, sans-serif;
-  background: radial-gradient(ellipse 30% 42% at 50% 50%, #d8ecc4 0 60%, transparent 62%), linear-gradient(135deg, #8fcf6f, #4f9a3a);
-  box-shadow: inset 0 0 0 1.5px #2f6b24, 0 1px 2px rgba(0,0,0,.3); backface-visibility: visible; will-change: transform, opacity; }
+/* Hühner ziehen um (seit 1.211.0, Wunsch Patrick 26. Oktober 2026):
+   Wiese unten, darauf der Zug aus Durchfahrt.jsx. Reihenfolge: Wiese,
+   Seil, Stall, Hühner, Staub, Rauch und Federn. Beine schwingen, Körper
+   nicken, der Stall wackelt, die Räder drehen (Dauer setzt Durchfahrt.jsx). */
+.umzug-wiese { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none;
+  background: var(--gras) repeat-x left top / auto 70%, linear-gradient(180deg, transparent 0 45%, #5fa83a 45%, #3f7f27 100%); }
+body.dunkel .umzug-wiese { filter: brightness(.7) saturate(.85); }
+.umzug { position: absolute; left: 0; z-index: 2; pointer-events: none; will-change: transform; }
+.umzug svg { display: block; overflow: visible; }
+.umzug-seil { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; }
+.umzug-seil path { fill: none; stroke: #8a6a3a; stroke-width: 2; stroke-linecap: round; }
+.umzug-stall { position: absolute; z-index: 2; }
+.umzug-stall svg, .umzug-huhn svg, .umzug-kueken svg { width: 100%; height: 100%; }
+.umzug-stall__kasten { transform-box: fill-box; transform-origin: 50% 100%; animation: umzug-wackeln .9s ease-in-out infinite alternate; }
+@keyframes umzug-wackeln { from { transform: rotate(-.8deg) translateY(0); } to { transform: rotate(.8deg) translateY(-1.5px); } }
+.umzug-stall__rad { transform-box: fill-box; transform-origin: 50% 50%; animation: umzug-rad 1s linear infinite; }
+@keyframes umzug-rad { to { transform: rotate(360deg); } }
+.umzug-stall__kueken { animation: umzug-gucken 2.6s ease-in-out infinite; }
+.umzug-stall__gucker { animation: umzug-gucken 3.4s ease-in-out infinite reverse; }
+@keyframes umzug-gucken { 0%, 30% { transform: translateY(10px); } 45%, 85% { transform: translateY(0); } 100% { transform: translateY(10px); } }
+.umzug-huhn { position: absolute; }
+.umzug-huhn__koerper { width: 100%; height: 100%; transform-origin: 50% 100%;
+  animation: umzug-nicken var(--schritt, .35s) ease-in-out infinite alternate; animation-delay: inherit; }
+@keyframes umzug-nicken { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-4%) rotate(-2deg); } }
+.umzug-huhn--zieht .umzug-huhn__koerper { animation-name: umzug-ziehen; }
+@keyframes umzug-ziehen { from { transform: translateY(0) rotate(7deg); } to { transform: translateY(-3%) rotate(10deg); } }
+.umzug .huhn-bein { transform-box: fill-box; transform-origin: 50% 0; animation: umzug-bein var(--schritt, .35s) ease-in-out infinite alternate; }
+.umzug .huhn-bein--2 { animation-direction: alternate-reverse; }
+@keyframes umzug-bein { from { transform: rotate(-24deg); } to { transform: rotate(24deg); } }
+/* Der Flügel des Infoboard-Huhns schlägt im Flug, beim Gehen nur leicht */
+.umzug .ib-huhn__fluegel { transform-box: fill-box; transform-origin: 85% 30%; animation: umzug-fluegel .7s ease-in-out infinite alternate; }
+@keyframes umzug-fluegel { from { transform: rotate(-4deg); } to { transform: rotate(6deg); } }
+.umzug-kueken { position: absolute; z-index: 3; animation: umzug-nachrennen 1.8s ease-in-out infinite alternate; }
+.umzug-kueken svg { animation: umzug-huepfen .22s ease-in-out infinite alternate; }
+.umzug-kueken .huhn-bein { animation-duration: .16s; }
+@keyframes umzug-nachrennen { from { transform: translateX(0); } to { transform: translateX(30%); } }
+@keyframes umzug-huepfen { from { transform: translateY(0); } to { transform: translateY(-14%); } }
+.umzug-staub { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; filter: blur(1.5px);
+  background: radial-gradient(ellipse, rgba(214,190,150,.85) 0%, rgba(214,190,150,.35) 50%, transparent 72%); }
+.umzug-rauch { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; filter: blur(2px);
+  background: radial-gradient(circle, rgba(240,240,245,.8) 0%, rgba(230,232,240,.35) 50%, transparent 72%); }
+.umzug-feder { position: absolute; z-index: 4; pointer-events: none; opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .durchfahrt { display: none; } }
 
 /* Erfassen: am Tag eines Auftragswechsels zwei Felder, oben der alte,

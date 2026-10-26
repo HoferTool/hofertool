@@ -1,75 +1,113 @@
 // =================================================================
-//  JETSKI IM BAND OBEN
-//  Geschichte (alles Wunsch Patrick, 22. Oktober 2026): 1.130.0 bis
-//  1.149.0 liefen hier Hühner, 1.150.0 abwechselnd ein Ferrari und
-//  Super Mario mit Lasagne, 1.151.0 ein gezeichneter Jetski statt Mario,
-//  1.151.1 Jiviano Ferrari auf seinem Jetski als Foto, 1.152.0 mit
-//  Wasser im ganzen Band, Sprüngen und Sprechblase.
-//  Seit 1.153.0 („kein Auto mehr, die Animation etwas realer, sieht so
-//  komisch aus, Sprechblase weg“): nur noch Jiviano. Unten liegt immer
-//  Wasser mit zwei Wellenschichten, und der Jetski fährt genau auf der
-//  vorderen Welle: Höhe und Neigung rechnet jedes Bild aus der Wasser-
-//  oberfläche unter Bug und Heck, mit etwas Trägheit. Wasser (seit
-//  1.153.0, „die Wassereffekte vom Jetski besser“): Schaum am Rumpf,
-//  Heckfontäne aus Tropfen und Nebel, Bugspritzer beim Eintauchen und
-//  Kielwasser, das liegen bleibt und breit ausläuft. Das Foto steht nur
-//  in der Datenbank (app_config „durchfahrt_bild“ als data:-Bild), nie
-//  im öffentlichen Repository; fehlt es, gibt es nur die Wellen.
-//  Seit 1.156.0 („soll etwas mehr vorkommen und hinter ihm Geld
-//  herausfliegen“): Pause nur noch 4 bis 9 Sekunden, und hinter dem
-//  Fahrer flattern Hunderternoten davon. Seit 1.157.0 hat das Wasser
-//  den Ton der gewählten Themenfarbe.
+//  HÜHNER ZIEHEN UM, IM BAND OBEN
+//  Geschichte (alles Wunsch Patrick): 1.130.0 bis 1.149.0 liefen hier
+//  Hühner, 1.150.0 Ferrari und Mario, 1.151.0 bis 1.210.x Jiviano auf
+//  dem Jetski über Wellen im Ton der Themenfarbe.
+//  Seit 1.211.0 (26. Oktober 2026: „an Stelle von Jiviano mit dem
+//  Jetski Hühner, welche umziehen, vorbei laufen, sie sollen den
+//  Hühnerstall hinter sich herziehen“): Unten liegt eine Wiese, und ab
+//  und zu zieht ein Umzug vorbei, mal nach links, mal nach rechts.
+//  Vorne laufen Hühner mit ihrem Hab und Gut auf dem Rücken (Karton,
+//  Bündel, Koffer, Topfpflanze), dahinter ziehen zwei Hühner am Seil
+//  den Stall auf Rädern, mit Gepäck auf dem Dach, Rauch aus dem Kamin
+//  und Köpfen in Tür und Fenster; manchmal rennt hinten ein Küken nach.
+//  Die Hühner sind die weissen Hühner des Infoboards (feste.js) und
+//  tragen dieselbe Verkleidung je Fest und Jahreszeit; statt der
+//  düsteren Halloween-Hühner der Nacht tragen sie am Tag einen Hexenhut.
+//  Gesteuert mit Zeitgebern und el.animate statt React-Zustand, damit
+//  die Startseite dafür nie neu zeichnet.
 // =================================================================
 import { useEffect, useRef } from "react";
-import { alt } from "../../bruecke.jsx";
+import { festFuer, weissesHuhn, ZUSATZ, teilchen } from "../../infoboard/feste.js";
 
 const zufall = (a, b) => a + Math.random() * (b - a);
+const ganz = (a, b) => Math.floor(zufall(a, b + 1));
+const eins = (liste) => liste[ganz(0, liste.length - 1)];
 
-// Das Foto aus der Datenbank, einmal je Seite
-let fotoLaden = null;
-const jetskiFoto = () => {
-  if (!fotoLaden) {
-    fotoLaden = (async () => {
-      const r = await alt.db.from("app_config").select("wert").eq("schluessel", "durchfahrt_bild").maybeSingle();
-      const url = r && r.data && r.data.wert;
-      if (!url) return null;
-      // Erst fahren lassen, wenn das Bild wirklich geht
-      await new Promise((ok, nein) => { const i = new Image(); i.onload = ok; i.onerror = nein; i.src = url; });
-      return url;
-    })().catch(() => null);
-  }
-  return fotoLaden;
+// Gefieder: Körper und Flügel (null = das weisse Huhn wie es ist)
+const GEFIEDER = [null, null, ["#c47a3a", "#9a5a26"], ["#e8c27a", "#c99a4a"], ["#6b5a50", "#4a3d36"]];
+
+// Was die Hühner tragen, im Raster des Huhns 124 × 100 (Rücken bei y 33)
+const LADUNG = {
+  karton: `<g transform="rotate(-6 42 26)"><rect x="27" y="12" width="32" height="24" rx="1.5" fill="#c8955a" stroke="#8a6234" stroke-width="1.4"/>
+    <path d="M43 12 V36" stroke="#e8c48c" stroke-width="5"/><path d="M27 18 H59" stroke="#a87742" stroke-width="1"/></g>`,
+  buendel: `<path d="M44 42 L16 6" stroke="#8a6a3a" stroke-width="3" stroke-linecap="round"/>
+    <path d="M6 10 C4 -2 26 -4 26 8 C27 18 7 20 6 10 Z" fill="#d62828"/>
+    <g fill="#fff"><circle cx="11" cy="6" r="1.6"/><circle cx="19" cy="4" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="22" cy="11" r="1.6"/></g>
+    <path d="M14 1 L17 -4 L20 1" fill="#d62828"/>`,
+  koffer: `<g transform="rotate(-4 44 26)"><path d="M37 14 V10 H51 V14" stroke="#4a2e14" stroke-width="2.4" fill="none"/>
+    <rect x="28" y="14" width="32" height="21" rx="3" fill="#7b4a22" stroke="#4a2e14" stroke-width="1.4"/>
+    <path d="M28 21 H60" stroke="#c9a14a" stroke-width="2"/><rect x="41" y="19" width="6" height="4" fill="#c9a14a"/></g>`,
+  pflanze: `<path d="M34 34 L37 20 H53 L56 34 Z" fill="#c4622d" stroke="#8e4420" stroke-width="1.2"/>
+    <g fill="#3f9b3a"><path d="M45 20 C40 6 30 4 26 0 C34 2 44 6 45 20 Z"/><path d="M45 20 C48 4 58 -2 64 -4 C58 4 50 8 45 20 Z"/>
+    <path d="M45 20 C44 8 46 -2 46 -10 C50 -2 49 10 45 20 Z" fill="#57b84d"/></g>`,
+};
+// Geschirr der Zughühner, um die Brust
+const GESCHIRR = `<path d="M56 38 C60 50 72 52 80 45" stroke="#7a4a20" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+  <path d="M47 36 C50 48 54 56 58 60" stroke="#7a4a20" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+
+// Ein Huhn mit Verkleidung des Tages, Gefieder und Ladung
+const huhnSvg = (fest, gefieder, zusatz) => {
+  let s = fest.name === "halloween" ? weissesHuhn(ZUSATZ.hexenhut) : fest.huhn;
+  if (gefieder) s = s.replaceAll("#f4f1ea", gefieder[0]).replaceAll("#d9d3c5", gefieder[1]);
+  return s.replace("</svg>", `${zusatz || ""}</svg>`);
 };
 
-// Eine Wellenschicht als Sinus mit genauen Massen in Punkten, damit
-// die Oberfläche an jeder Stelle rechenbar ist: Mitte c, Höhe A,
-// Wellenlänge l, Schicht h hoch. Das Bild wiederholt sich alle l Punkte.
-// Farbton des Wassers je Themenfarbe (Wunsch Patrick 22. Oktober 2026:
-// „soll passend zur gewählten Themenfarbe mitwechseln“). Blau ist der
-// bisherige Ton, die anderen haben dieselbe Helligkeit im eigenen Ton.
-// Dazu ein Faktor für die Sättigung, damit Grün nicht grell wirkt.
-const WASSER_TON = { blau: [210, 1], rot: [0, 1], gruen: [152, .6], gelb: [44, .9], rosa: [325, 1], violett: [268, 1], orange: [24, 1] };
-const wasserFarben = (art) => {
-  const [t, f] = WASSER_TON[document.body.getAttribute("data-thema")] ?? WASSER_TON.blau;
-  const s = (n) => Math.round(n * f) + "%";
-  return art === "hinten"
-    ? [`hsla(${t - 2},${s(80)},71%,.55)`, `hsla(${t + 4},${s(67)},47%,.55)`, "rgba(255,255,255,.25)"]
-    : [`hsla(${t - 2},${s(76)},61%,.85)`, `hsla(${t + 6},${s(79)},37%,.95)`, "rgba(255,255,255,.55)"];
-};
+// Der Stall auf Rädern, Deichsel nach rechts (viewBox 0 -24 215 174,
+// Räder unten bei y 146). Gruppen mit Klassen, damit Räder drehen und
+// der Kasten wackelt.
+const STALL = `<svg viewBox="0 -24 215 174" xmlns="http://www.w3.org/2000/svg">
+  <g class="umzug-stall__kasten">
+    <path d="M185 112 L209 104" stroke="#5a3a1e" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="209" cy="104" r="4.5" fill="none" stroke="#3d3d3d" stroke-width="2.5"/>
+    <rect x="12" y="106" width="176" height="11" rx="2" fill="#6e4524"/>
+    <rect x="24" y="50" width="152" height="58" fill="#c98b4f"/>
+    <g stroke="#a86d38" stroke-width="1.6"><path d="M24 64 H176 M24 79 H176 M24 94 H176"/></g>
+    <rect x="24" y="50" width="152" height="58" fill="none" stroke="#7b4f28" stroke-width="2.4"/>
+    <rect x="137" y="17" width="12" height="20" fill="#8c5a36" stroke="#5e3a20" stroke-width="1.5"/>
+    <path d="M12 54 L100 8 L188 54 Z" fill="#b8322a" stroke="#7d1f19" stroke-width="2.4" stroke-linejoin="round"/>
+    <g stroke="#962820" stroke-width="1.4"><path d="M41 39 L159 39 M65 26 L135 26"/></g>
+    <g transform="rotate(-3 100 0)">
+      <rect x="70" y="-14" width="34" height="22" rx="2" fill="#c8955a" stroke="#8a6234" stroke-width="1.5"/>
+      <path d="M87 -14 V8" stroke="#e8c48c" stroke-width="4"/>
+      <rect x="104" y="-6" width="30" height="14" rx="7" fill="#e9e2f5" stroke="#8d7fb0" stroke-width="1.4"/>
+      <path d="M111 -6 V8 M119 -6 V8 M127 -6 V8" stroke="#b5a8d6" stroke-width="2"/>
+      <path d="M66 4 C90 -6 120 -4 138 4" stroke="#7a5a2a" stroke-width="1.6" fill="none"/>
+    </g>
+    <circle cx="62" cy="77" r="13" fill="#3b2a1c" stroke="#7b4f28" stroke-width="2.4"/>
+    <g class="umzug-stall__gucker">
+      <circle cx="62" cy="80" r="8" fill="#f4f1ea"/>
+      <circle cx="59" cy="71.5" r="2.6" fill="#e2463b"/><circle cx="63" cy="70.5" r="2.6" fill="#e2463b"/>
+      <circle cx="64.5" cy="78" r="1.4" fill="#111"/><path d="M69 79 L74 81 L69 83 Z" fill="#f2b233"/>
+    </g>
+    <path d="M110 108 V80 C110 70 140 70 140 80 V108 Z" fill="#3b2a1c" stroke="#7b4f28" stroke-width="2.4"/>
+    <g class="umzug-stall__kueken">
+      <circle cx="125" cy="98" r="7" fill="#ffd84a"/>
+      <circle cx="127.5" cy="96" r="1.2" fill="#111"/><path d="M131 97 L135 98.5 L131 100 Z" fill="#f08a24"/>
+    </g>
+    <path d="M140 108 L160 117" stroke="#8a6234" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <g class="umzug-stall__rad"><circle cx="48" cy="130" r="16" fill="#3a3a3a"/><circle cx="48" cy="130" r="10" fill="#8a8a8a"/>
+    <path d="M48 120 V140 M38 130 H58 M41 123 L55 137 M55 123 L41 137" stroke="#3a3a3a" stroke-width="2.4"/><circle cx="48" cy="130" r="3" fill="#3a3a3a"/></g>
+  <g class="umzug-stall__rad"><circle cx="152" cy="130" r="16" fill="#3a3a3a"/><circle cx="152" cy="130" r="10" fill="#8a8a8a"/>
+    <path d="M152 120 V140 M142 130 H162 M145 123 L159 137 M159 123 L145 137" stroke="#3a3a3a" stroke-width="2.4"/><circle cx="152" cy="130" r="3" fill="#3a3a3a"/></g>
+</svg>`;
 
-const welleBild = ({ l, h, c, A }, oben, unten, schaum) => {
-  let d = `M0 ${c}`;
-  for (let i = 1; i <= 48; i++) {
-    const x = l * i / 48;
-    d += ` L${x.toFixed(1)} ${(c - A * Math.sin(2 * Math.PI * x / l)).toFixed(2)}`;
-  }
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${l}' height='${h}' viewBox='0 0 ${l} ${h}'>` +
-    `<defs><linearGradient id='g' x1='0' x2='0' y1='0' y2='1'><stop offset='0' stop-color='${oben}'/>` +
-    `<stop offset='1' stop-color='${unten}'/></linearGradient></defs>` +
-    `<path d='${d} V${h} H0 Z' fill='url(#g)'/>` +
-    `<path d='${d}' fill='none' stroke='${schaum}' stroke-width='1.6'/></svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-};
+// Küken, das hinterherrennt (viewBox 0 0 40 36, Blick nach rechts)
+const KUEKEN = `<svg viewBox="0 0 40 36" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="18" cy="20" rx="12" ry="10" fill="#ffd84a"/><circle cx="27" cy="11" r="7.5" fill="#ffd84a"/>
+  <circle cx="29.5" cy="9.5" r="1.4" fill="#111"/><path d="M34 11 L39 12.5 L34 14 Z" fill="#f08a24"/>
+  <path d="M12 18 C16 14 22 16 22 20 C19 24 14 23 12 18 Z" fill="#f2c230"/>
+  <g stroke="#f08a24" stroke-width="2" stroke-linecap="round" fill="none">
+    <path class="huhn-bein" d="M15 29 L14 34 L11 35"/><path class="huhn-bein huhn-bein--2" d="M21 29 L21 34 L18 35"/>
+  </g>
+</svg>`;
+
+// Gras am oberen Rand der Wiese
+const GRAS = `url("data:image/svg+xml,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' width='60' height='14' viewBox='0 0 60 14'>" +
+  "<path d='M0 14 L3 5 L5 14 L8 2 L10 14 L14 6 L16 14 L19 3 L22 14 L26 7 L28 14 L31 1 L34 14 L37 6 L40 14 " +
+  "L43 3 L46 14 L49 7 L51 14 L54 2 L57 14 L60 6 L60 14 Z' fill='#5fa83a'/></svg>")}")`;
 
 export default function Durchfahrt() {
   const ref = useRef(null);
@@ -83,238 +121,183 @@ export default function Durchfahrt() {
       const t = setTimeout(() => { uhren.delete(t); ok(); }, ms);
       uhren.add(t);
     });
-    // Im versteckten Tab fährt niemand los
+    // Im versteckten Tab zieht niemand um
     const wach = async () => { while (!aus && document.hidden) await warte(1000); };
 
-    // Wasser: zwei Schichten, hinten lang und ruhig, vorne kürzer. Beide
-    // laufen langsam nach rechts, der Jetski fährt dagegen.
-    const meer = document.createElement("div");
-    meer.className = "fahrt-meer";
-    band.appendChild(meer);
-    let schichten = [];
-    const meerBauen = () => {
-      const hoch = band.clientHeight || 120;
-      meer.replaceChildren();
-      schichten.forEach((s) => s.anim.cancel());
-      schichten = [
-        { art: "hinten", l: Math.round(hoch * 3.2), h: Math.round(hoch * .3), A: hoch * .035, dauer: 9000 },
-        { art: "vorne", l: Math.round(hoch * 2.3), h: Math.round(hoch * .2), A: hoch * .045, dauer: 6000 },
-      ].map((s) => {
-        s.c = s.A + 2;
-        const el = document.createElement("div");
-        el.className = "fahrt-meer__welle fahrt-meer__welle--" + s.art;
-        el.style.height = s.h + "px";
-        el.style.width = `calc(100% + ${s.l}px)`;
-        el.style.left = -s.l + "px";
-        el.style.backgroundSize = `${s.l}px ${s.h}px`;
-        s.el = el;
-        el.style.backgroundImage = welleBild(s, ...wasserFarben(s.art));
-        meer.appendChild(el);
-        s.anim = el.animate([{ transform: "translateX(0)" }, { transform: `translateX(${s.l}px)` }],
-          { duration: s.dauer, iterations: Infinity });
-        return s;
-      });
-    };
-    meerBauen();
-    // Wechselt die Themenfarbe, wechselt das Wasser mit, ohne dass die
-    // Wellen neu anfangen
-    const themaWo = new MutationObserver(() => schichten.forEach((s) => {
-      s.el.style.backgroundImage = welleBild(s, ...wasserFarben(s.art));
-    }));
-    themaWo.observe(document.body, { attributes: true, attributeFilter: ["data-thema"] });
-    // Ändert sich die Höhe des Bands, passen die Wellen sich an
-    let hoeheVorher = band.clientHeight;
-    const wo = new ResizeObserver(() => {
-      if (band.clientHeight !== hoeheVorher) { hoeheVorher = band.clientHeight; meerBauen(); }
-    });
+    const wiese = document.createElement("div");
+    wiese.className = "umzug-wiese";
+    wiese.style.setProperty("--gras", GRAS);
+    band.appendChild(wiese);
+    const wieseHoch = () => Math.max(10, Math.round((band.clientHeight || 120) * .13));
+    const wieseSetzen = () => { wiese.style.height = wieseHoch() + "px"; };
+    wieseSetzen();
+    const wo = new ResizeObserver(wieseSetzen);
     wo.observe(band);
 
-    // Höhe der vorderen Wasseroberfläche über dem Bandboden an Stelle x
-    const oberflaeche = (x) => {
-      const s = schichten[1];
-      const t = s.anim.currentTime || 0;
-      const versatz = -s.l + s.l * ((t % s.dauer) / s.dauer);
-      const u = x - versatz;
-      return s.h - (s.c - s.A * Math.sin(2 * Math.PI * u / s.l));
+    // Staub, wo die Räder rollen: bleibt stehen, geht auf und vergeht
+    const staub = (x, y, g) => {
+      const d = document.createElement("div");
+      d.className = "umzug-staub";
+      d.style.cssText = `left:${x - g / 2}px;bottom:${y}px;width:${g}px;height:${g * .6}px`;
+      band.appendChild(d);
+      const a = d.animate([{ opacity: .55, transform: "scale(.4)" }, { opacity: 0, transform: `translate(0,${-g * .4}px) scale(1.6)` }],
+        { duration: zufall(700, 1100), easing: "ease-out", fill: "forwards" });
+      a.onfinish = () => d.remove();
     };
-
-    // Gischt-Tropfen im Wurfbogen, fallen zurück ins Wasser
-    const tropfen = (x, y, vx, vy, g, dauer = zufall(450, 800)) => {
-      const t = document.createElement("div");
-      t.className = "fahrt-tropfen";
-      t.style.left = x + "px";
-      t.style.bottom = y + "px";
-      t.style.width = t.style.height = g + "px";
-      band.appendChild(t);
-      const frames = [];
-      for (let k = 0; k <= 6; k++) {
-        const s = k / 6 * dauer / 1000;
-        frames.push({ transform: `translate(${(vx * s).toFixed(1)}px,${(-(vy * s - 320 * s * s)).toFixed(1)}px)`,
-          opacity: k === 6 ? 0 : .9 - k * .08 });
-      }
-      const a = t.animate(frames, { duration: dauer, fill: "forwards" });
-      a.onfinish = () => t.remove();
+    // Rauch aus dem Kamin: steigt und weht nach hinten
+    const rauch = (x, y, g, nachHinten) => {
+      const r = document.createElement("div");
+      r.className = "umzug-rauch";
+      r.style.cssText = `left:${x - g / 2}px;bottom:${y}px;width:${g}px;height:${g}px`;
+      band.appendChild(r);
+      const a = r.animate([{ opacity: .7, transform: "translate(0,0) scale(.5)" },
+        { opacity: 0, transform: `translate(${nachHinten * zufall(20, 45)}px,${-zufall(25, 45)}px) scale(1.8)` }],
+        { duration: zufall(1400, 2200), easing: "ease-out", fill: "forwards" });
+      a.onfinish = () => r.remove();
     };
-    // Sprühnebel: weiche Wolke, die nach hinten weht, aufgeht und vergeht
-    const nebel = (x, y, g, vx, vy) => {
-      const n = document.createElement("div");
-      n.className = "fahrt-nebel";
-      n.style.left = x - g / 2 + "px";
-      n.style.bottom = y - g / 2 + "px";
-      n.style.width = n.style.height = g + "px";
-      band.appendChild(n);
-      const a = n.animate([
-        { transform: "translate(0,0) scale(.35)", opacity: .75 },
-        { transform: `translate(${vx * .5}px,${-vy * .5}px) scale(1.2)`, opacity: .45, offset: .45 },
-        { transform: `translate(${vx}px,${-vy * .6}px) scale(2)`, opacity: 0 },
-      ], { duration: zufall(700, 1100), easing: "ease-out", fill: "forwards" });
-      a.onfinish = () => n.remove();
-    };
-    // Schaumspur: bleibt auf dem Wasser liegen, läuft breit und vergeht
-    const schaum = (x, y, b) => {
+    // Eine Feder fällt bis ins Gras, liegt kurz und verblasst
+    const feder = (x, y, boden, farbe) => {
+      const g = zufall(8, 14);
+      const t = teilchen("feder", farbe, g);
       const f = document.createElement("div");
-      f.className = "fahrt-schaum";
-      f.style.left = x + "px";
-      f.style.bottom = y + "px";
-      f.style.width = b + "px";
-      f.style.height = Math.max(3, b * .14) + "px";
+      f.className = "umzug-feder";
+      f.style.cssText = `width:${t.w}px;height:${t.h}px;left:${x}px;bottom:${y}px;${t.stil || ""}`;
       band.appendChild(f);
-      const a = f.animate([{ opacity: .8, transform: "scale(.5,1)" }, { opacity: .35, transform: "scale(1.3,1.4)", offset: .4 },
-        { opacity: 0, transform: "scale(1.9,1.8)" }],
-        { duration: zufall(2000, 2800), easing: "ease-out", fill: "forwards" });
+      const fall = Math.max(0, y - boden), dx = zufall(-30, 30), liegt = (Math.random() < .5 ? 90 : -90) + zufall(-15, 15);
+      const a = f.animate([
+        { opacity: 0, transform: "translate(0,0) rotate(0deg)" },
+        { opacity: .9, transform: `translate(${dx * .3}px,${-zufall(4, 12)}px) rotate(${zufall(-40, 40)}deg)`, offset: .12 },
+        { opacity: .85, transform: `translate(${dx}px,${fall}px) rotate(${liegt}deg)`, offset: .7 },
+        { opacity: 0, transform: `translate(${dx}px,${fall}px) rotate(${liegt}deg)` },
+      ], { duration: zufall(3500, 5500), easing: "ease-in-out", fill: "forwards" });
       a.onfinish = () => f.remove();
     };
 
-    // Geldschein: fliegt hinten aus dem Jetski hoch, flattert nach
-    // rechts davon und segelt dabei langsam abwärts
-    const geld = (x, y, g) => {
-      const n = document.createElement("div");
-      n.className = "fahrt-geld";
-      n.style.left = x + "px";
-      n.style.bottom = y + "px";
-      n.style.width = g + "px";
-      n.style.height = g * .5 + "px";
-      n.style.fontSize = g * .28 + "px";
-      n.textContent = "100";
-      band.appendChild(n);
-      const vx = zufall(60, 200), hoch1 = zufall(20, 55), fall = zufall(20, 60);
-      const d0 = zufall(-40, 40), d1 = d0 + zufall(200, 540) * (Math.random() < .5 ? -1 : 1);
-      const bilder = [];
-      for (let i = 0; i <= 8; i++) {
-        const t = i / 8;
-        // Hoch im Bogen, dann langsam segeln
-        const dy = hoch1 * Math.sin(Math.min(1, t * 1.6) * Math.PI / 2) - fall * Math.max(0, t - .45) * 2;
-        const dx = vx * t + Math.sin(t * 9) * 6;
-        const kipp = Math.cos(t * 11) * 70;
-        bilder.push({ transform: `translate(${dx.toFixed(1)}px, ${(-dy).toFixed(1)}px) rotate(${(d0 + (d1 - d0) * t).toFixed(0)}deg) rotateX(${kipp.toFixed(0)}deg)`,
-          opacity: t < .7 ? 1 : 1 - (t - .7) / .3 });
-      }
-      const a = n.animate(bilder, { duration: zufall(1600, 2400), easing: "linear", fill: "forwards" });
-      a.onfinish = () => n.remove();
-    };
-
-    const fahren = async () => {
+    const umzug = async () => {
       const breit = band.clientWidth, hoch = band.clientHeight;
       if (!breit || !hoch) return;
-      const foto = await jetskiFoto();
-      if (aus || !foto) return;
-      const h = Math.max(36, Math.min(130, hoch * .58));
-      const w = h * 300 / 204;
-      const el = document.createElement("div");
-      el.className = "fahrt fahrt--foto";
-      el.style.width = w + "px";
-      el.style.height = h + "px";
-      const reiter = document.createElement("div");
-      reiter.className = "fahrt__reiter";
-      const bild = document.createElement("img");
-      bild.alt = "";
-      bild.src = foto;
-      reiter.appendChild(bild);
-      el.appendChild(reiter);
-      band.appendChild(el);
-      // Mit der Spitze voran nach links, gleichmässig wie auf dem Wasser
-      const von = breit + 20, bis = -w - 20;
-      const dauer = zufall(7000, 9000) * Math.max(1, breit / 1400);
-      const start = performance.now();
-      // Bug und Heck im Foto (Anteil der Breite), Eintauchtiefe des Rumpfs
-      const bug = .1, heck = .88, tief = h * .1;
-      let y = null, dreh = 0, gischtNaechste = 0, nebelNaechste = 0, bugNaechste = 0, schaumNaechste = 0, geldNaechste = 0, bild2 = 0;
-      const kontakt = document.createElement("div");
-      kontakt.className = "fahrt-kontakt";
-      kontakt.style.height = h * .14 + "px";
-      band.appendChild(kontakt);
-      await new Promise((fertig) => {
-        const schritt = (jetzt) => {
-          if (aus) return fertig();
-          const p = Math.min(1, (jetzt - start) / dauer);
-          const x = von + (bis - von) * p;
-          const yb = oberflaeche(x + w * bug), yh = oberflaeche(x + w * heck);
-          const ziel = (yb + yh) / 2 - tief;
-          // Neigung aus der Oberfläche: steigt das Wasser am Bug, hebt
-          // sich die Spitze; leicht verzögert, damit er Gewicht hat
-          const zielDreh = Math.atan2(yb - yh, w * (heck - bug)) * 180 / Math.PI;
-          y = y === null ? ziel : y + (ziel - y) * .18;
-          dreh += (zielDreh - dreh) * .12;
-          // Leichtes Zittern vom Motor
-          const zittern = Math.sin(jetzt / 45) * .6;
-          el.style.transform = `translate(${x.toFixed(1)}px, ${(-(y + zittern)).toFixed(1)}px)`;
-          reiter.style.transform = `rotate(${dreh.toFixed(2)}deg)`;
-          const sichtbar = x < breit + 10 && x + w > -10;
-          // Weisser Schaum, wo der Rumpf das Wasser berührt
-          const kx = x + w * .12, kb = w * .8;
-          kontakt.style.transform = `translate(${kx.toFixed(1)}px, ${(-((yb + yh) / 2 - h * .07)).toFixed(1)}px)`;
-          kontakt.style.width = kb + "px";
-          kontakt.style.opacity = (.7 + Math.sin(jetzt / 70) * .15).toFixed(2);
-          // Heckfontäne: der Wasserstrahl der Düse wirft einen Bogen aus
-          // Tropfen und Nebel nach hinten oben
-          if (sichtbar && jetzt > gischtNaechste) {
-            const hx = x + w * heck, hy = yh - 1;
-            for (let i = 0; i < 5; i++)
-              tropfen(hx + zufall(-4, 8), hy + zufall(-2, 3), zufall(40, 230), zufall(70, 230), zufall(1.2, 3.6), zufall(500, 1000));
-            gischtNaechste = jetzt + zufall(25, 45);
+      const fest = festFuer(new Date());
+      const H = Math.max(36, Math.min(140, hoch * .58));      // Stall bis zum Rad unten
+      const hh = H * .56, hw = hh * 1.24;                      // Huhn
+      const boden = wieseHoch() * .45;                        // dort stehen die Füsse
+      const rechts = Math.random() < .5;                      // Laufrichtung
+
+      const zug = document.createElement("div");
+      zug.className = "umzug";
+      zug.dataset.fest = fest.name;
+      const hoehe = H * 174 / 150;
+      // Alles in der Zeichnung nach rechts laufend, von links: Küken,
+      // Stall, Seil, zwei Zughühner, vorne zwei bis vier mit Ladung
+      const teile = [];
+      const kueken = Math.random() < .45;
+      let x = kueken ? hh * .9 : 0;
+      const stallX = x;
+      const stall = document.createElement("div");
+      stall.className = "umzug-stall";
+      stall.style.cssText = `left:${stallX}px;bottom:${-4 / 150 * H}px;width:${H * 215 / 150}px;height:${hoehe}px`;
+      stall.innerHTML = STALL;
+      const deichsel = { x: stallX + 209 / 150 * H, y: (150 - 104) / 150 * H };
+      x = deichsel.x + H * .35;
+      const huhn = (hx, klasse, gefieder, zusatz, tiefer) => {
+        const el = document.createElement("div");
+        el.className = "umzug-huhn " + klasse;
+        const g = hh * (tiefer ? .92 : 1);
+        el.style.cssText = `left:${hx}px;bottom:${-.13 * g + (tiefer ? hh * .1 : 0)}px;width:${g * 1.24}px;height:${g}px;` +
+          `z-index:${tiefer ? 1 : 3};--schritt:${zufall(.3, .4).toFixed(2)}s;animation-delay:${-zufall(0, .5).toFixed(2)}s`;
+        el.innerHTML = `<div class="umzug-huhn__koerper">${huhnSvg(fest, gefieder, zusatz)}</div>`;
+        el.querySelectorAll(".huhn-bein").forEach((b) => { b.style.animationDelay = el.style.animationDelay; });
+        teile.push({ el, x: hx, w: g * 1.24, farbe: gefieder ? gefieder[0] : "#f4f1ea" });
+        return { el, g };
+      };
+      // Zwei ziehen am Seil, eines etwas weiter hinten im Bild
+      const zieher = [];
+      for (const tiefer of [true, false]) {
+        const hx = x + (tiefer ? hw * .7 : 0);
+        const { el, g } = huhn(hx, "umzug-huhn--zieht", eins(GEFIEDER), GESCHIRR, tiefer);
+        zieher.push({ x: hx + 52 / 124 * g * 1.24, y: (tiefer ? hh * .1 : 0) - .13 * g + (100 - 50) / 100 * g, el });
+      }
+      x += hw * 1.85;
+      for (let n = ganz(2, 4); n > 0; n--) {
+        huhn(x, "", eins(GEFIEDER), LADUNG[eins(Object.keys(LADUNG))], false);
+        x += hw * zufall(1.05, 1.35);
+      }
+      const lang = x + hw * .2;
+      zug.style.cssText = `width:${lang}px;height:${hoehe + H * .2}px;bottom:${boden}px`;
+      // Seile von der Deichsel zu den Geschirren, leicht durchhängend
+      const zh = hoehe + H * .2;
+      const seil = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      seil.setAttribute("class", "umzug-seil");
+      seil.setAttribute("viewBox", `0 0 ${lang} ${zh}`);
+      seil.innerHTML = zieher.map((z) => {
+        const ax = deichsel.x, ay = zh - deichsel.y, bx = z.x, by = zh - z.y;
+        return `<path d="M${ax.toFixed(1)} ${ay.toFixed(1)} Q${((ax + bx) / 2).toFixed(1)} ${(Math.max(ay, by) + H * .06).toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}"/>`;
+      }).join("");
+      zug.appendChild(seil);
+      zug.appendChild(stall);
+      teile.forEach((t) => zug.appendChild(t.el));
+      if (kueken) {
+        const k = document.createElement("div");
+        k.className = "umzug-kueken";
+        const kh = hh * .42;
+        k.style.cssText = `left:0;bottom:0;width:${kh * 40 / 36}px;height:${kh}px`;
+        k.innerHTML = KUEKEN;
+        zug.appendChild(k);
+      }
+      // Die Räder drehen genau so schnell, wie der Zug rollt
+      const dauer = zufall(15000, 20000) * Math.max(1, (breit + lang) / 1600);
+      const tempo = (breit + lang + 40) / dauer * 1000;
+      const umfang = 2 * Math.PI * 16 / 150 * H;
+      zug.querySelectorAll(".umzug-stall__rad").forEach((r) => { r.style.animationDuration = (umfang / tempo).toFixed(2) + "s"; });
+      band.appendChild(zug);
+
+      const spiegel = rechts ? "" : " scaleX(-1)";
+      const von = rechts ? -lang - 20 : breit + 20, bis = rechts ? breit + 20 : -lang - 20;
+      const a = zug.animate([{ transform: `translateX(${von}px)${spiegel}` }, { transform: `translateX(${bis}px)${spiegel}` }],
+        { duration: dauer, easing: "linear", fill: "forwards" });
+      // Stelle im Band zu einer Stelle in der Zeichnung
+      const imBand = (px) => {
+        const p = Math.min(1, (a.currentTime || 0) / dauer);
+        const zx = von + (bis - von) * p;
+        return zx + (rechts ? px : lang - px);
+      };
+      const raeder = [stallX + 48 / 150 * H, stallX + 152 / 150 * H];
+      const kamin = { x: stallX + 143 / 150 * H, y: boden + (150 - 16) / 150 * H };
+      let naechsterStaub = 0, naechsterRauch = 0, naechsteFeder = performance.now() + zufall(800, 2500);
+      const nebenbei = async () => {
+        while (!aus && zug.isConnected) {
+          await warte(90);
+          if (aus || !zug.isConnected) return;
+          const jetzt = performance.now();
+          if (jetzt > naechsterStaub) {
+            raeder.forEach((r) => { const bx = imBand(r); if (bx > -20 && bx < breit + 20) staub(bx + zufall(-4, 4), boden - 2, H * zufall(.14, .22)); });
+            naechsterStaub = jetzt + zufall(160, 320);
           }
-          if (sichtbar && jetzt > nebelNaechste) {
-            nebel(x + w * (heck + .04), yh + h * .08, h * zufall(.3, .45), zufall(70, 140), zufall(35, 70));
-            nebelNaechste = jetzt + zufall(60, 110);
+          if (jetzt > naechsterRauch) {
+            const bx = imBand(kamin.x);
+            if (bx > -20 && bx < breit + 20) rauch(bx, kamin.y, H * zufall(.1, .16), rechts ? -1 : 1);
+            naechsterRauch = jetzt + zufall(350, 600);
           }
-          // Bugwelle: taucht die Spitze ins Wasser, spritzt es vorne
-          if (sichtbar && jetzt > bugNaechste) {
-            const n = zielDreh < -1.5 ? 6 : 2;
-            for (let i = 0; i < n; i++)
-              tropfen(x + w * (bug + zufall(.02, .12)), yb, zufall(-50, 30), zufall(50, zielDreh < -1.5 ? 170 : 90), zufall(1.5, 3));
-            if (zielDreh < -1.5) nebel(x + w * (bug + .06), yb, h * .2, zufall(10, 40), zufall(10, 25));
-            bugNaechste = jetzt + zufall(50, 110);
+          if (jetzt > naechsteFeder) {
+            const t = eins(teile);
+            const bx = imBand(t.x + t.w / 2);
+            if (bx > 0 && bx < breit) feder(bx, boden + hh * zufall(.35, .6), boden - 2, t.farbe);
+            naechsteFeder = jetzt + zufall(1200, 3500);
           }
-          // Kielwasser: Schaum bleibt hinter ihm auf der Oberfläche liegen
-          if (sichtbar && jetzt > schaumNaechste) {
-            const sx = x + w * zufall(.7, .95);
-            schaum(sx, oberflaeche(sx) - 2, w * zufall(.3, .5));
-            schaumNaechste = jetzt + zufall(50, 90);
-          }
-          // Geldscheine fliegen hinter dem Fahrer raus
-          if (sichtbar && jetzt > geldNaechste) {
-            geld(x + w * zufall(.6, .75), y + h * zufall(.45, .6), h * zufall(.3, .4));
-            geldNaechste = jetzt + zufall(180, 380);
-          }
-          if (p >= 1) return fertig();
-          bild2 = requestAnimationFrame(schritt);
-        };
-        bild2 = requestAnimationFrame(schritt);
-        aufraeumen.add(() => cancelAnimationFrame(bild2));
-      });
-      el.remove();
-      kontakt.remove();
+        }
+      };
+      nebenbei();
+      await new Promise((ok) => { a.onfinish = ok; a.oncancel = ok; });
+      zug.remove();
     };
-    const aufraeumen = new Set();
 
     (async () => {
       await warte(zufall(1000, 2500));
       while (!aus) {
         await wach();
         if (aus) return;
-        await fahren();
-        // Kommt oft vorbei, mit kurzer Pause dazwischen
-        await warte(zufall(4000, 9000));
+        await umzug();
+        // Kurze Pause, dann kommt der nächste Umzug
+        await warte(zufall(5000, 10000));
       }
     })();
 
@@ -322,10 +305,8 @@ export default function Durchfahrt() {
       aus = true;
       uhren.forEach(clearTimeout);
       uhren.clear();
-      aufraeumen.forEach((f) => f());
       wo.disconnect();
-      themaWo.disconnect();
-      schichten.forEach((s) => s.anim.cancel());
+      band.getAnimations({ subtree: true }).forEach((a) => a.cancel());
       band.replaceChildren();
     };
   }, []);
