@@ -101,5 +101,22 @@ with sync_playwright() as p:
     pg.click("#b-neu"); pg.wait_for_selector("#pd-such")
     pg.click("#pd-nein"); pg.wait_for_timeout(300)
     pruefe("Abbrechen schliesst", pg.locator("#pd-such").count() == 0)
+
+    # Hinweis, wenn der Artikel schon offen oder bestellt ist (1.196.0)
+    def hinweis():
+        pg.click("#b-neu"); pg.wait_for_selector("#pd-such")
+        pg.type("#pd-such", "MTEC"); pg.wait_for_selector("#pd-treffer [data-w]")
+        pg.click("#pd-treffer [data-w]"); pg.wait_for_timeout(400)
+        t = pg.inner_text("#pd-schonda") if pg.locator("#pd-schonda").count() else ""
+        if t: pg.screenshot(path="/tmp/claude-0/schonda.png")
+        pg.click("#pd-nein"); pg.wait_for_timeout(200)
+        return t
+    pruefe("Offen: Hinweis 'steht schon bei Offen'", "steht schon bei Offen" in hinweis())
+    pg.evaluate("TEST.daten.order_items.forEach(z => { if (z.article_id === 'a1') { z.status = 'geliefert'; } });"
+                "TEST.daten.order_items[0].status = 'bestellt'; TEST.daten.order_items[0].status_am = '2026-10-20T10:00:00Z'")
+    t = hinweis()
+    pruefe("Bestellt: Hinweis 'schon bestellt' mit Menge", "schon bestellt" in t and "50 Stk." in t and "Bestellt am" in t)
+    pg.evaluate("TEST.daten.order_items.forEach(z => z.status = 'geliefert')")
+    pruefe("Alles geliefert: kein Hinweis", hinweis() == "")
     br.close()
 print("Fehler:", fehler[:3] if fehler else "keine")

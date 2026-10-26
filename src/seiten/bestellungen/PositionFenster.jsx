@@ -68,6 +68,11 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   // Foto: null, { liest, text }, { fehler } oder { lesung, treffer }
   const [foto, setFoto] = useState(null);
   const fotoFeld = useRef(null);
+  // Offene und bestellte Positionen des gewählten Artikels, damit
+  // niemand dasselbe zweimal aufschreibt (Wunsch Patrick 26. Oktober
+  // 2026: „wenn schon bestellt, soll kurze Info kommen“). Nur ein
+  // Hinweis, hinzufügen geht trotzdem.
+  const [schonDa, setSchonDa] = useState(null);
 
   useEffect(() => () => clearTimeout(taste.current), []);
   // Mit Vorgabe (etwa der Text aus dem alten Excel) gleich suchen
@@ -104,6 +109,17 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   };
 
   const nurWaehlen = typeof vorgabe.waehlen === "function";
+
+  useEffect(() => {
+    setSchonDa(null);
+    if (!gewaehlt || nurWaehlen) return;
+    let weg = false;
+    alt.db.from("order_items").select("id, quantity, status, status_am, ordered_at, created_at, ziel_text")
+      .eq("article_id", gewaehlt.id).in("status", ["offen", "bestellt", "teilweise_geliefert"])
+      .then(({ data }) => { if (!weg) setSchonDa((data || []).filter((z) => z.status !== "geliefert")); },
+        () => {});
+    return () => { weg = true; };
+  }, [gewaehlt && gewaehlt.id]);
   const [spezial, setSpezial] = useState(!!vorgabe.spezial);
   const neuAnlegen = async (nummer) => {
     const a = await alt.artikelSchnellAnlegen(typeof nummer === "string" ? nummer : suche.trim(), null, !!spezial);
@@ -284,6 +300,18 @@ function PositionFenster({ zu, fertig, vorgabe }) {
           <div className="klein">Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}
             {gewaehlt.gesamtbestand !== undefined && <> · Bestand {alt.zahlText(gewaehlt.gesamtbestand)}</>}</div>
         </div>
+        {schonDa && schonDa.length > 0 && (
+          <div className="pd-schonda" id="pd-schonda" role="status">
+            <b>{schonDa.some((z) => z.status !== "offen")
+              ? "Achtung: Dieser Artikel ist schon bestellt."
+              : "Achtung: Dieser Artikel steht schon bei Offen."}</b>
+            {schonDa.map((z) => (
+              <div key={z.id} className="klein" data-schonda={z.status}>
+                {alt.zahlText(z.quantity)} Stk. · {alt.statusZeitText(z) || ({ offen: "Offen", bestellt: "Bestellt",
+                  teilweise_geliefert: "Teilweise geliefert" })[z.status]}{z.ziel_text ? " · " + z.ziel_text : ""}</div>
+            ))}
+          </div>
+        )}
         <div className="zeitraumwahl">
           <label className="feld"><span>Menge</span>
             <input id="pd-menge" ref={mengeFeld} type="number" min="1" step="1" value={menge}

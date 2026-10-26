@@ -9672,3 +9672,12 @@ body:has(> .dialog-huelle--eigen) { overflow: hidden; margin: 0; background: var
 body.dunkel .eba-pf-hd { background: #2b333d !important; color: #e6edf3 !important; -webkit-text-fill-color: #e6edf3; border-color: #5a6672; }
 body.dunkel .eba-pf-hd--an { color: #ff6b6b !important; -webkit-text-fill-color: #ff6b6b; border-color: #ff6b6b; }
 body.dunkel .eba-seite .eba-ein option { background: #fff; color: #000; -webkit-text-fill-color: #000; }
+
+/* Hinweis im Fenster „Neue Bestellposition“: Artikel ist schon offen
+   oder bestellt (seit 1.196.0) */
+.pd-schonda {
+  margin: 8px 0; padding: 8px 12px; border-radius: 8px;
+  background: #fff4d6; color: #5a4300; border: 1px solid #f0c75e;
+}
+.pd-schonda b { display: block; margin-bottom: 2px; }
+body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a6220; }
