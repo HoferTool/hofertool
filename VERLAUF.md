@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.204.2** Empfang: Kopf ohne Schatten und ohne feinen Rand, bei gleichen Farben von Kopf und Hintergrund sieht man keinen Unterschied (Wunsch Patrick 26. Oktober 2026).
 - **1.204.1** Empfang: Logo von Patrick in seinen Farben (blau, Schrift grau), freigestellt in voller Auflösung als `public/logo-empfang.png` (Wunsch Patrick 26. Oktober 2026: „nimm dieses Logo“).
 - **1.206.0** Werkzeugsuche (Bestellungen, Einrichtblatt, Spezialwerkzeuge) findet auch die **Beschreibung** unter der Bezeichnung („Ø1.00 Mikrobohrer“). Im Einrichtblatt steht beim Werkzeug **zuerst die Artikel-Nr., dahinter die Bezeichnung** („MTEC-452410 Wendeplatte“), bei Bedarf auf zwei Zeilen (Wunsch Patrick 26. Oktober 2026).
 - **1.205.0** Einrichtblätter als PDF: gesichert werden **nur noch Blätter mit „EB OK“** (Wunsch Patrick 26. Oktober 2026: „es soll erst anfangen speichern nach EB OK, die Excel sind ja schon gesichert“). PDFs, die schon im Ordner liegen, bleiben. Test `eb_pdf.py`.

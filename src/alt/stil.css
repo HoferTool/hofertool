@@ -9703,7 +9703,7 @@ body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a
 .ib-gestalten--empfang .ib-gestalten__vorschau { box-shadow: 0 0 0 8px #d9d2c6, 0 18px 40px rgba(0,0,0,.18); }
 .ek { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; gap: 34px;
   padding: 16px 44px 16px; border-radius: 32px; background: #f4efe7; color: #23344f;
-  box-shadow: 0 10px 34px rgba(80, 60, 30, .10), 0 0 0 1px rgba(80, 60, 30, .06); font-family: inherit; }
+  box-shadow: none; font-family: inherit; }
 .ek__oben { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; flex: none; }
 .ek__uhr { font-size: 72px; font-weight: 300; line-height: 1; letter-spacing: -1px; color: #23344f;
   font-variant-numeric: tabular-nums; }

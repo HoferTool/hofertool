@@ -46,6 +46,8 @@ with sync_playwright() as p:
     pruefe(an == 0, "keine laufenden Animationen: %d" % an)
     k = pg.evaluate("() => { const i = document.querySelector('.ib-gestalten .ek'); return [i.scrollHeight, i.clientHeight]; }")
     pruefe(k[0] <= k[1] + 1, "Kopf passt in seinen Platz: %s" % k)
+    sch = pg.evaluate("() => getComputedStyle(document.querySelector('.ib-gestalten .ek')).boxShadow")
+    pruefe(sch == "none", "Kopf ohne Schatten: %s" % sch)
 
     with pg.expect_file_chooser() as fc:
         pg.click("[data-ib='neu-datei']")
