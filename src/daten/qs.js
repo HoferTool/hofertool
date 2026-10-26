@@ -43,16 +43,23 @@ export async function qsSpeichern(j, m, stueckRoh, notizRoh) {
       : alt.fehlertext(error), "fehler");
     return false;
   }
-  if (Array.isArray(data) && data[0]) alt.merkeSchritt("Ausschuss melden", alt.rueckWeg(TABELLE, { id: data[0].id }));
+  // Rückgängig: zuerst als zurückgenommen vermerken, sonst gilt das
+  // Löschen in der Datenbank als Quittieren und die Menge bliebe in der
+  // Statistik (sql/qs-ausschuss-sicher.sql)
+  if (Array.isArray(data) && data[0]) alt.merkeSchritt("Ausschuss melden",
+    [alt.rueckSetz(TABELLE, { zurueck: true }, { id: data[0].id }), alt.rueckWeg(TABELLE, { id: data[0].id })]);
   alt.meldung("Gemeldet. Steht jetzt im Pad Mode von " + name + ".", "gut");
   return true;
 }
 
 // Quittieren = löschen, ohne Rückfrage: es ist ein Abhaken, und
-// Rückgängig holt die Meldung zurück. Vorher quittiert_am setzen: so
-// bleibt die Menge in qs_ausschuss für die Statistik (seit 1.159.0,
-// sql/qs-ausschuss.sql); ein Löschen ohne das ist ein Rückgängig und
-// nimmt sie auch dort weg. Fehlt die Spalte noch, geht es ohne.
+// Rückgängig holt die Meldung zurück. Die Menge bleibt in qs_ausschuss
+// für die Statistik (seit 1.159.0, sql/qs-ausschuss.sql). Seit 1.186.1
+// zählt die Datenbank jedes Löschen als Quittieren, ausser die Meldung
+// ist als zurückgenommen vermerkt (sql/qs-ausschuss-sicher.sql): die
+// iPads löschten mit einer alten Fassung ohne quittiert_am, und jedes
+// Mal war der Ausschuss auch in der Statistik weg. quittiert_am setzen
+// wir trotzdem, damit der Zeitpunkt genau stimmt.
 export async function qsQuittieren(meldung) {
   await alt.db.from(TABELLE).update({ quittiert_am: new Date().toISOString() }).eq("id", meldung.id);
   const { error } = await alt.db.from(TABELLE).delete().eq("id", meldung.id);

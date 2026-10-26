@@ -437,6 +437,44 @@ export async function zurueckspielen(datei, fortschritt) {
     ohneZeichnungen: ohneFehlt.zeichnungen, ohneEinrichtblaetter: ohneFehlt.einrichtblaetter, stand: kopf.erstellt };
 }
 
+// ---------- Ausschuss aus den Sicherungen nachholen (1.186.1) ----------
+//  Bis 1.186.0 nahm ein Quittieren von einem iPad mit alter Fassung den
+//  Ausschuss auch aus der Statistik (qs_ausschuss). In jeder täglichen
+//  Sicherung stehen aber die Meldungen, die in dem Moment da waren. Das
+//  Sicherungsgerät liest darum einmal alle Sicherungen im Ordner und
+//  trägt nach, was fehlt (qs_ausschuss_nachtragen aus
+//  sql/qs-ausschuss-sicher.sql, vorhandene bleiben). Danach steht
+//  app_config.qs_ausschuss_nachgeholt, und es passiert nie wieder.
+export async function ausschussNachholen(h) {
+  const zeilen = new Map();
+  for (const x of await ordnerListe(h)) {
+    try {
+      const z = await zipInhalt(await (await h.getFileHandle(x.d)).getFile());
+      for (const t of ["qs_ausschuss", "qs_meldungen"]) {
+        const roh = await z.lesen("tabellen/" + t + ".json");
+        if (!roh) continue;
+        (JSON.parse(strFromU8(roh)) || []).forEach((r) => {
+          // qs_ausschuss weiss, ob und wann quittiert wurde: geht vor
+          if (r && r.id && (t === "qs_ausschuss" || !zeilen.has(r.id))) zeilen.set(r.id, r);
+        });
+      }
+    } catch (f) { /* beschädigte Sicherung: die nächste */ }
+  }
+  const r = await alt.db.rpc("qs_ausschuss_nachtragen", { p_zeilen: [...zeilen.values()], p_fertig: true });
+  if (r.error) throw r.error;
+  return r.data || 0;
+}
+
+async function ausschussNachholenEinmal(h) {
+  const r = await alt.db.from("app_config").select("wert").eq("schluessel", "qs_ausschuss_nachgeholt").maybeSingle();
+  if (r.error || (r.data && r.data.wert)) return;
+  try {
+    const n = await ausschussNachholen(h);
+    if (n) alt.meldung(n === 1 ? "1 Ausschussmeldung aus den Sicherungen für die Statistik zurückgeholt."
+      : n + " Ausschussmeldungen aus den Sicherungen für die Statistik zurückgeholt.", "gut");
+  } catch (f) { console.warn("Ausschuss nachholen:", f); }
+}
+
 // ---------- Täglich von selbst ----------
 //  Läuft auf jedem Gerät nach der Anmeldung, tut aber nur etwas auf dem
 //  Sicherungsgerät, wenn ein Admin, Planwand oder das Sicherungskonto angemeldet
@@ -463,8 +501,10 @@ async function pruefen() {
   const jetzt = new Date();
   const heuteAb = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate(), stunde);
   const faellig = !letzte || (jetzt - letzte) >= 24 * 3600000 || (jetzt >= heuteAb && letzte < heuteAb);
-  if (!faellig) return;
   const h = await ordnerHolen();
+  // Einmal den Ausschuss aus den Sicherungen nachholen, auch wenn heute schon gesichert ist
+  if (h && (await ordnerErlaubt(h, false)) === "granted") await ausschussNachholenEinmal(h).catch(() => {});
+  if (!faellig) return;
   const erlaubt = await ordnerErlaubt(h, false);
   if (erlaubt !== "granted") {
     if (erlaubt === "prompt") freigabeKnopf(h);

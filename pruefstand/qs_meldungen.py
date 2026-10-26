@@ -104,6 +104,15 @@ with sync_playwright() as p:
     pg.wait_for_selector("[data-qsquittieren]"); pg.click("[data-qsquittieren]"); pg.wait_for_timeout(900)
     if pg.evaluate("TEST.daten.qs_meldungen.length") != 0: fehler.append("Seite: Quittieren hat nicht gelöscht")
     if not pg.locator("#qs-keine").count(): fehler.append("Seite nach Quittieren nicht leer")
+    # Rückgängig von „Ausschuss melden“ vermerkt zuerst zurueck, damit die
+    # Datenbank die Menge auch aus der Statistik nimmt (1.186.1); jedes
+    # andere Löschen zählt dort als Quittieren
+    melden(pg, mid, "3", "Falsch gemeldet")
+    vorher = pg.evaluate("TEST.protokoll.length")
+    pg.click("#rueck-knopf"); pg.wait_for_timeout(1000)
+    arten = pg.evaluate(f"TEST.protokoll.slice({vorher}).filter(x => x.tabelle === 'qs_meldungen' && x.art !== 'select').map(x => x.art)")
+    if arten[:2] != ["update", "delete"]: fehler.append("Rückgängig ohne Vermerk zurueck: " + str(arten))
+    if pg.evaluate("TEST.daten.qs_meldungen.length") != 0: fehler.append("Rückgängig hat die Meldung nicht entfernt")
 
     # Pad, QS Check: der Fortschritt ist ein Knopf und öffnet das grosse Fenster (1.78.0)
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(700)
