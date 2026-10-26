@@ -9615,3 +9615,14 @@ body.dunkel .mseite-park__zahl, body.dunkel .mseite-park__leer, body.dunkel .mse
 .eba-hl-fehlt { border-color: #d32f2f !important; }
 .eba-hl-fehler { color: #d32f2f; font-weight: 600; }
 .eba-pf-artikel--frei { border-left: 4px solid #d32f2f; padding-left: 6px; }
+
+/* Startseite: Heute noch offen (seit 1.186.0, start/HeuteOffen.jsx) */
+.heuteoffen h2 { margin-bottom: 8px; }
+.heuteoffen__gruppe + .heuteoffen__gruppe { margin-top: 12px; }
+.heuteoffen__titel { font-weight: 600; margin-bottom: 6px; }
+.heuteoffen__liste { display: flex; flex-wrap: wrap; gap: 6px; }
+.heuteoffen__maschine { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 6px 10px; border-radius: 8px; border: 1px solid var(--linie); background: var(--flaeche, #fff);
+  color: var(--tinte); cursor: pointer; font: inherit; line-height: 1.2; }
+.heuteoffen__maschine:hover { border-color: var(--marke); }
+body.dunkel .heuteoffen__maschine { background: rgba(255, 255, 255, .06); }
