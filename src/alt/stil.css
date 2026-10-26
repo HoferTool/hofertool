@@ -9746,3 +9746,10 @@ body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a
 .ib-farben { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 12px 0; }
 .ib-farbe { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
 .ib-farbe input[type="color"] { width: 46px; height: 34px; padding: 2px; border: 1px solid var(--rand, #ccd); border-radius: 8px; background: #fff; cursor: pointer; }
+
+/* Einrichtblatt: hinter der Artikel-Nr. die Bezeichnung (seit 1.206.0,
+   Wunsch Patrick 26. Oktober 2026). Mit Bezeichnung darf das Feld zwei
+   Zeilen haben, das Bild darüber wird dafür etwas kleiner. */
+.eba-platz > .eba-wz:has(.eba-wz-bez) { height: auto; max-height: 28px; white-space: normal;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.eba-wz-bez { font-weight: 400; }

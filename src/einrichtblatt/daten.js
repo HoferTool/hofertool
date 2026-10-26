@@ -69,7 +69,29 @@ export async function blattLaden(hocoNr, typId) {
       if (!r.error) typ.blatt_aufbau = ((r.data || [])[0] || {}).blatt_aufbau || null;
     } catch (f) { /* ohne Aufbau ordnet die App selbst */ }
   }
+  if (blatt) await bezeichnungenNachholen(blatt.plaetze);
   return { blatt, typ, paths: paths || [], teil: teil || { hoco_nr: hocoNr }, typDaten: typDaten || {}, artikelBilder };
+}
+
+// Bezeichnung eines Artikels, wie sie im Blatt hinter der Artikel-Nr.
+// steht: Bezeichnung und Beschreibung („Wendeplatte R0.40“)
+export const artikelBezeichnung = (a) => [a && a.name, a && a.description]
+  .map((x) => String(x || "").trim()).filter(Boolean).join(" ");
+
+// Plätze mit hinterlegtem Artikel, die noch keine Bezeichnung haben
+// (gewählt vor 1.206.0), bekommen sie zum Zeichnen aus dem Artikel.
+// Gespeichert wird sie erst, wenn jemand das Blatt speichert.
+async function bezeichnungenNachholen(plaetze) {
+  const offen = Object.values(plaetze || {}).filter((p) => p && p.article_id && !p.ungeprueft && !p.bezeichnung);
+  if (!offen.length) return;
+  try {
+    const ids = [...new Set(offen.map((p) => p.article_id))];
+    const r = await alt.db.from("articles").select("id, name, description").in("id", ids);
+    if (r.error) return;
+    const nach = {};
+    (r.data || []).forEach((a) => { nach[a.id] = artikelBezeichnung(a); });
+    offen.forEach((p) => { if (nach[p.article_id]) p.bezeichnung = nach[p.article_id]; });
+  } catch (f) { /* dann nur die Nummer */ }
 }
 
 // Programm-Nr.: die letzten drei Ziffern der Programme im Werkzeug-

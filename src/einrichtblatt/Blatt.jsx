@@ -18,7 +18,7 @@ import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
 import { werkzeugWaehlen } from "../seiten/bestellungen/PositionFenster.jsx";
 import { excelVorlesen, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
-  artikelHolen, STAMM_FELDER, WASCHGEBINDE, prgNummern, platzInGebrauch } from "./daten.js";
+  artikelHolen, artikelBezeichnung, STAMM_FELDER, WASCHGEBINDE, prgNummern, platzInGebrauch } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
 import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
@@ -152,7 +152,12 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
           {p.geo ? <span className="eba-geo" data-geo="">{p.geo}</span> : null}
           {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her">{p.hersteller || ""}</div>
-        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}</div>
+        {/* Zuerst die Artikel-Nr., dahinter die Bezeichnung (Wunsch
+            Patrick, 26. Oktober 2026); ein nur selbst zugeordneter Artikel
+            zeigt weiter den Text aus dem Excel */}
+        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}
+          {p.werkzeug && p.article_id && !p.ungeprueft && p.bezeichnung
+            ? <span className="eba-wz-bez" data-wz-bez="">{" " + p.bezeichnung}</span> : null}</div>
       </div>
     );
   };
@@ -219,7 +224,8 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
   // (Wunsch Patrick, 26. Oktober 2026)
   const nehmen = (a) => {
     setArtikel(a);
-    setP(Object.assign({}, p, { article_id: a.id, werkzeug: a.article_number || a.name || "", hersteller: a.supplier_name || "",
+    setP(Object.assign({}, p, { article_id: a.id, werkzeug: a.article_number || a.name || "", bezeichnung: a.article_number ? artikelBezeichnung(a) : "",
+      hersteller: a.supplier_name || "",
       spezial_id: null, ungeprueft: false, bild: artikelBilder[a.id] || p.bild || null }));
   };
   const waehlen = async () => {
@@ -230,12 +236,13 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     const z = {};
     const sz = String(leer(p.standzeit)).replace(/'/g, "").trim();
     if (sz !== "" && !isNaN(Number(sz))) z.standzeit = Number(sz);
-    ["taetigkeit", "mass", "hersteller", "werkzeug"].forEach((k) => { const w = String(p[k] || "").trim(); if (w) z[k] = w; });
+    ["taetigkeit", "mass", "hersteller", "werkzeug", "bezeichnung"].forEach((k) => { const w = String(p[k] || "").trim(); if (w) z[k] = w; });
     if (p.hd) z.hd = true;
     const geo = String(p.geo || "").replace(/\s+$/, "");
     if (geo.trim()) z.geo = geo;
     if (p.ohneBild) z.ohneBild = true;
     if (p.article_id && z.werkzeug) z.article_id = p.article_id;
+    else delete z.bezeichnung;
     if (z.article_id && p.ungeprueft) z.ungeprueft = true;
     if (p.bild) z.bild = p.bild;
     // Am Artikel merken, sobald jemand ein Bild wählt: jeder andere Platz
@@ -278,7 +285,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
           <button className={"knopf knopf--klein" + (werkzeugOffen(p) ? " knopf--haupt" : "")} data-pf-waehlen="" onClick={waehlen}>
             {p.werkzeug ? (p.article_id && !p.ungeprueft ? "Anderes Werkzeug wählen" : "Auswählen") : "Werkzeug wählen"}</button>
           {p.werkzeug && <button className="knopf knopf--klein knopf--still" data-pf-wzweg=""
-            onClick={() => setP(Object.assign({}, p, { werkzeug: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false }))}>Entfernen</button>}
+            onClick={() => setP(Object.assign({}, p, { werkzeug: "", bezeichnung: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false }))}>Entfernen</button>}
         </div>
       </div>
       <label className="feld"><span>Geo-Offset, nur wenn nötig (steht über dem Bild)</span>

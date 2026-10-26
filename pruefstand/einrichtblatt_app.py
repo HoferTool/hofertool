@@ -122,6 +122,9 @@ with sync_playwright() as p:
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(500)
     schl = "eigen:" + eb[0]["id"]
     pruefe("Bild am Artikel gemerkt", pg.evaluate("TEST.daten.artikel_bild.find(x => x.article_id === 'a1')?.bild") == schl)
+    # Zuerst die Artikel-Nr., dahinter die Bezeichnung (1.206.0)
+    wz = pg.inner_text("[data-platz='T200'] .eba-wz")
+    pruefe("Blatt: Artikel-Nr. vor Bezeichnung", wz.replace("\n", " ").strip() == "MTEC-452410 Wendeplatte")
     pruefe("T100 bekommt das Artikelbild auch", pg.locator(f"[data-platz='T100'] [data-bild='{schl}']").count() == 1)
 
     # Sinnbilder der Norm in der Bibliothek (1.184.0)

@@ -145,7 +145,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.205.0";
+const APP_VERSION = "1.206.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8723,8 +8723,10 @@ async function sucheArtikel(text, filter) {
     if (filter && filter.bez) abfrage = abfrage.eq("name", filter.bez);
     if (filter && filter.lief) abfrage = abfrage.eq("supplier_name", filter.lief);
     if (mitSpezial && filter && typeof filter.spezial === "boolean") abfrage = abfrage.eq("spezial", filter.spezial);
+    // Auch die Beschreibung, die unter der Bezeichnung steht („Ø1.00
+    // Mikrobohrer“), Wunsch Patrick 26. Oktober 2026
     if (t) {
-      abfrage = orSuche(abfrage, ["article_number", "name", "supplier_name"], t);
+      abfrage = orSuche(abfrage, ["article_number", "name", "description", "supplier_name"], t);
     }
     return zeitlimit(abfrage.order("article_number").limit(50), 12000, "Artikelsuche");
   };
