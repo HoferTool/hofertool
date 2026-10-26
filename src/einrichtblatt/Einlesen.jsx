@@ -64,7 +64,7 @@ function EinlesenFenster({ typ, liste, zu }) {
 export async function alleEinlesen(typ) {
   const r = await alt.db.from("hoco_type_data").select("hoco_nr, blatt_url").eq("type_id", typ.id);
   if (r.error) throw r.error;
-  const liste = (r.data || []).filter((z) => z.hoco_nr && /\.(xlsx|xlsm)(\?|#|$)/i.test(String(z.blatt_url || "")))
+  const liste = (r.data || []).filter((z) => z.hoco_nr && /\.(xlsx|xlsm|xls)(\?|#|$)/i.test(String(z.blatt_url || "")))
     .sort((a, b) => String(a.hoco_nr).localeCompare(String(b.hoco_nr)));
   if (!liste.length) { alt.meldung("Für " + typ.name + " ist kein Excel-Einrichtblatt hinterlegt.", "warn"); return; }
   const ok = await alt.nachfragen({ titel: "Einrichtblätter einlesen",

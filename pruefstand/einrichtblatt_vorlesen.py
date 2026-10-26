@@ -1,6 +1,8 @@
 # Seit 1.178.0: Die App liest alle Excel-Einrichtblätter ohne Blatt in
 # der App im Hintergrund ein und speichert sie als „noch nicht bestätigt“;
 # vorhandene Blätter bleiben, nichts ist bestätigt, das Excel bleibt.
+# Seit 1.194.0 auch alte .xls (dasselbe Beispiel, von SheetJS als .xls
+# geschrieben).
 import base64, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from playwright.sync_api import sync_playwright
@@ -25,6 +27,8 @@ with sync_playwright() as p:
     # Das Excel als „.xlsx“-Adresse, wie in echt aus der Ablage
     pg.route("**/eb/*.xlsx", lambda r: r.fulfill(status=200, body=base64.b64decode(XL.split(",", 1)[1]),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+    XLS = open(os.path.join(HIER, "einrichtblatt-app-beispiel.xls"), "rb").read()
+    pg.route("**/eb/*.xls", lambda r: r.fulfill(status=200, body=XLS, content_type="application/vnd.ms-excel"))
     u = f"http://127.0.0.1:{PORT}/eb/"
     pg.evaluate("""(u) => {
       const D = TEST.daten;
@@ -41,7 +45,10 @@ with sync_playwright() as p:
     pruefe("Neues Blatt eingelesen", len(neu) == 1 and neu[0]["plaetze"]["T100"].get("taetigkeit") == "Abstechen")
     pruefe("Nicht bestätigt", neu and not neu[0].get("gut_am"))
     pruefe("Vorhandenes Blatt bleibt", [x for x in b if x["hoco_nr"] == "10000-0302"][0]["plaetze"]["T100"]["taetigkeit"] == "Eigenes")
-    pruefe("Altes .xls übersprungen", not any(x["hoco_nr"] == "10000-0303" for x in b))
+    alt = [x for x in b if x["hoco_nr"] == "10000-0303"]
+    pruefe("Altes .xls eingelesen", len(alt) == 1 and alt[0]["plaetze"]["T100"].get("taetigkeit") == "Abstechen")
+    pruefe(".xls gleich wie .xlsx", alt and neu and {k: {f: v for f, v in p.items() if f not in ("bild", "hd")} for k, p in alt[0]["plaetze"].items()}
+        == {k: {f: v for f, v in p.items() if f not in ("bild", "hd")} for k, p in neu[0]["plaetze"].items()})
     pruefe("Excel bleibt", pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301').blatt_url").endswith("a.xlsx"))
     n = len(b); pg.evaluate("TEST.ebVorlesen()"); pg.wait_for_timeout(800)
     pruefe("Zweiter Durchgang tut nichts", len(pg.evaluate("TEST.daten.einrichtblatt_app")) == n)

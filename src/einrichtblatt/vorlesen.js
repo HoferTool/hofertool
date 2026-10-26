@@ -11,8 +11,8 @@
 //  wo die App den ganzen Tag offen ist), nicht im Pad, am Handy und für
 //  Externe. Der Reihe nach, wenige je Durchgang, damit niemand etwas
 //  merkt. Mehrere Geräte zugleich schaden nicht: vor jedem Blatt wird
-//  nachgeschaut, ob es schon da ist. Alte .xls lassen sich nicht lesen,
-//  ein Excel ohne Werkzeuge (Kalkulation) bekommt kein Blatt.
+//  nachgeschaut, ob es schon da ist. Seit 1.194.0 auch alte .xls (ohne
+//  Bilder und HD-Kästchen). Ein Excel ohne Werkzeuge (Kalkulation) bekommt kein Blatt.
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { ausExcelEinlesen, tabelleFehlt, TABELLE } from "./daten.js";
@@ -52,7 +52,7 @@ export async function offeneBlaetter() {
   const [excel, app] = await Promise.all([alle("hoco_type_data", "hoco_nr, type_id, blatt_url"), alle(TABELLE, "hoco_nr, type_id")]);
   const da = new Set(app.map((b) => b.hoco_nr + "|" + b.type_id));
   const g = gescheitert();
-  return excel.filter((z) => z.hoco_nr && z.type_id && /\.(xlsx|xlsm)(\?|#|$)/i.test(String(z.blatt_url || ""))
+  return excel.filter((z) => z.hoco_nr && z.type_id && /\.(xlsx|xlsm|xls)(\?|#|$)/i.test(String(z.blatt_url || ""))
     && !da.has(z.hoco_nr + "|" + z.type_id) && !g[z.blatt_url]);
 }
 

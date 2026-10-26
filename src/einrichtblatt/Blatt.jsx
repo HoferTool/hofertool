@@ -425,7 +425,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   // und nur in leere Felder; gespeichert wird erst mit Speichern.
   const vorlesen = async (d) => {
     const url = d.typDaten && d.typDaten.blatt_url;
-    if (!url || /\.(pdf|xls)(\?|#|$)/i.test(String(url))) return;   // nur .xlsx und .xlsm lassen sich lesen
+    if (!url || /\.pdf(\?|#|$)/i.test(String(url))) return;   // .xlsx, .xlsm und seit 1.194.0 auch alte .xls
     if (d.blatt && Object.keys(d.blatt.plaetze || {}).length) return;
     setVorgelesen({ liest: true });
     try {

@@ -68,6 +68,8 @@ const TYP_BILD = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif:
 
 // Die erste sichtbare Tabelle der Mappe: Zellen, Bilder und Textfelder
 export async function excelRoh(daten) {
+  // Altes .xls (vorne D0 CF 11 E0) liest SheetJS
+  if (daten[0] === 0xd0 && daten[1] === 0xcf && daten[2] === 0x11 && daten[3] === 0xe0) return xlsRoh(daten);
   const zip = await JSZip.loadAsync(daten);
   const buch = zip.file("xl/workbook.xml");
   if (!buch) throw new Error("Keine Excel-Datei (.xlsx)");
@@ -135,6 +137,32 @@ export async function excelRoh(daten) {
     }
   }
   return { zellen, bilder, felder };
+}
+
+// Alte .xls (Excel 97–2003, rund 400 Einrichtblätter; Wunsch Patrick,
+// 26. Oktober 2026: „auch alte Version lesen“). SheetJS kennt dort nur
+// die Zellen, keine Bilder und Textfelder: HD-Kästchen und Sinnbilder
+// fehlen also, das ergänzt man beim Prüfen von Hand.
+let sheetJs = null;
+async function xlsRoh(daten) {
+  if (!sheetJs) sheetJs = import("xlsx").then((m) => (m.default && m.default.read ? m.default : m));
+  const XLSX = await sheetJs;
+  const wb = XLSX.read(daten, { type: "array", cellFormula: true, cellHTML: false, cellStyles: false });
+  const info = (wb.Workbook && wb.Workbook.Sheets) || [];
+  const name = wb.SheetNames.find((n, i) => !(info[i] && info[i].Hidden)) || wb.SheetNames[0];
+  const ws = name && wb.Sheets[name];
+  if (!ws) throw new Error("Die Mappe hat keine Tabelle");
+  const zellen = {};
+  for (const ref of Object.keys(ws)) {
+    if (ref[0] === "!") continue;
+    const ort = zelleZerlegen(ref);
+    const c = ws[ref];
+    if (!ort || !c || c.f) continue;          // Formeln zählen nicht, wie beim .xlsx
+    const wert = c.v;
+    if (wert === null || wert === undefined || String(wert).trim() === "") continue;
+    zellen[ort.z + ":" + ort.s] = { s: ort.s, z: ort.z, text: String(wert).trim(), zahl: c.t === "n" || c.t === "b" };
+  }
+  return { zellen, bilder: [], felder: [] };
 }
 
 // Bezeichnungen im Kopf, ohne Leerzeichen, Punkte und Striche
