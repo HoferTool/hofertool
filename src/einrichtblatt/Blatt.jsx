@@ -208,7 +208,10 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
   const merkKey = bildSchluesselVon(p);
   const bild = platzBild(p, Object.assign({}, artikelBilder, merkKey && bildGewaehlt ? { [merkKey]: p.bild } : {}));
 
-  // Ein gewähltes, angelegtes oder bestätigtes Werkzeug ist geprüft
+  // Ein gewähltes oder angelegtes Werkzeug ist geprüft. Ein selbst
+  // zugeordnetes wird nicht mehr mit „Ja, stimmt“ bestätigt, sondern
+  // über „Auswählen“ mit dem Excel-Text in der Suche (Wunsch Patrick,
+  // 26. Oktober 2026)
   const nehmen = (a) => {
     setArtikel(a); setHinterlegen(false);
     setP(Object.assign({}, p, { article_id: a.id, werkzeug: a.article_number || a.name || "", hersteller: a.supplier_name || "",
@@ -257,9 +260,8 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
       <div className="eba-pf-werkzeug" data-pf-werkzeug="">
         <span className="eba-pf-titel">Werkzeug</span>
         {p.article_id && p.ungeprueft
-          ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-bestaetigen=""><b>{artikel ? artikel.article_number : p.werkzeug}</b>
-              <span>{[artikel && artikel.name, artikel && artikel.supplier_name].filter(Boolean).join(" · ")}</span>
-              <span>Beim Einlesen gefunden, aus dem Excel „{p.werkzeug}“{p.hersteller ? ", " + p.hersteller : ""}. Ist es dieses Werkzeug?</span></div>
+          ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-bestaetigen=""><b>„{p.werkzeug}“</b>
+              <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ""}. Noch nicht hinterlegt: auswählen (die Suche steht schon da) oder neu hinterlegen.</span></div>
           : p.article_id
           ? <div className="eba-pf-artikel"><b>{p.werkzeug}</b>
               <span>{[artikel && artikel.spezial ? "Spezialwerkzeug" : "", artikel && artikel.name, p.hersteller].filter(Boolean).join(" · ")}</span></div>
@@ -270,10 +272,8 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
         {hinterlegen
           ? <WerkzeugHinterlegen p={p} fertig={nehmen} abbrechen={() => setHinterlegen(false)} />
           : <div className="eba-pf-wknoepfe">
-              {p.article_id && p.ungeprueft && <button className="knopf knopf--klein knopf--haupt" data-pf-stimmt=""
-                onClick={() => artikel ? nehmen(artikel) : setP(Object.assign({}, p, { ungeprueft: false }))}>Ja, stimmt</button>}
-              <button className="knopf knopf--klein" data-pf-waehlen="" onClick={waehlen}>{p.werkzeug ? (p.article_id ? "Anderes Werkzeug wählen" : "Vorhandenes wählen") : "Werkzeug wählen"}</button>
-              {p.werkzeug && !p.article_id && <button className="knopf knopf--klein knopf--haupt" data-pf-hinterlegen-knopf=""
+              <button className="knopf knopf--klein" data-pf-waehlen="" onClick={waehlen}>{p.werkzeug ? (p.article_id && !p.ungeprueft ? "Anderes Werkzeug wählen" : "Auswählen") : "Werkzeug wählen"}</button>
+              {p.werkzeug && (!p.article_id || p.ungeprueft) && <button className="knopf knopf--klein knopf--haupt" data-pf-hinterlegen-knopf=""
                 onClick={() => setHinterlegen(true)}>Werkzeug hinterlegen</button>}
               {p.werkzeug && <button className="knopf knopf--klein knopf--still" data-pf-wzweg=""
                 onClick={() => setP(Object.assign({}, p, { werkzeug: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false }))}>Entfernen</button>}
