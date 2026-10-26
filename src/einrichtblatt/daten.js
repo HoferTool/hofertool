@@ -73,24 +73,28 @@ export async function blattLaden(hocoNr, typId) {
   return { blatt, typ, paths: paths || [], teil: teil || { hoco_nr: hocoNr }, typDaten: typDaten || {}, artikelBilder };
 }
 
-// Bezeichnung eines Artikels, wie sie im Blatt hinter der Artikel-Nr.
-// steht: Bezeichnung und Beschreibung („Wendeplatte R0.40“)
-export const artikelBezeichnung = (a) => [a && a.name, a && a.description]
-  .map((x) => String(x || "").trim()).filter(Boolean).join(" ");
+// Text, der im Blatt hinter der Artikel-Nr. steht: nur die Beschreibung
+// des Artikels, die Bezeichnung braucht es dort nicht (Wunsch Patrick,
+// 26. Oktober 2026; 1.206.0 Bezeichnung und Beschreibung)
+export const artikelBezeichnung = (a) => String((a && a.description) || "").trim();
 
-// Plätze mit hinterlegtem Artikel, die noch keine Bezeichnung haben
-// (gewählt vor 1.206.0), bekommen sie zum Zeichnen aus dem Artikel.
-// Gespeichert wird sie erst, wenn jemand das Blatt speichert.
+// Plätze mit hinterlegtem Artikel holen den Text hinter der Artikel-Nr.
+// zum Zeichnen immer frisch aus dem Artikel, damit ältere Plätze (vor
+// 1.206.0 ohne, 1.206.0 mit Bezeichnung) und geänderte Beschreibungen
+// stimmen. Gespeichert wird er erst, wenn jemand das Blatt speichert.
 async function bezeichnungenNachholen(plaetze) {
-  const offen = Object.values(plaetze || {}).filter((p) => p && p.article_id && !p.ungeprueft && !p.bezeichnung);
+  const offen = Object.values(plaetze || {}).filter((p) => p && p.article_id && !p.ungeprueft);
   if (!offen.length) return;
   try {
     const ids = [...new Set(offen.map((p) => p.article_id))];
-    const r = await alt.db.from("articles").select("id, name, description").in("id", ids);
+    const r = await alt.db.from("articles").select("id, description").in("id", ids);
     if (r.error) return;
     const nach = {};
     (r.data || []).forEach((a) => { nach[a.id] = artikelBezeichnung(a); });
-    offen.forEach((p) => { if (nach[p.article_id]) p.bezeichnung = nach[p.article_id]; });
+    offen.forEach((p) => {
+      if (!(p.article_id in nach)) return;
+      if (nach[p.article_id]) p.bezeichnung = nach[p.article_id]; else delete p.bezeichnung;
+    });
   } catch (f) { /* dann nur die Nummer */ }
 }
 
