@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 
-const LOGO = import.meta.env.BASE_URL + "logo-weiss.svg";
+const LOGO = import.meta.env.BASE_URL + "logo-empfang.png";
 const zwei = (n) => String(n).padStart(2, "0");
 const kwh = (z) => (z === null || z === undefined || z === "" ? null
   : alt.zahlText(Math.round(Number(z))) + " kWh");
@@ -102,11 +102,10 @@ export default function EmpfangKopf({ hoehe, breite, top, left, farbe }) {
           <div className="ek__uhr">{zwei(jetzt.getHours())}:{zwei(jetzt.getMinutes())}</div>
           <div className="ek__datum">{jetzt.toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
         </div>
-        {/* Einfarbig dunkelblau aus dem Vektor-Logo der Anmeldung, damit es
-            auf jeder Grösse scharf ist (Wunsch Patrick 26. Oktober 2026:
-            „wieder das vorherige Logo, aber in einer guten Auflösung“) */}
-        <div className="ek__logo" role="img" aria-label="Hofer + Co."
-          style={{ WebkitMaskImage: "url(" + LOGO + ")", maskImage: "url(" + LOGO + ")" }} />
+        {/* Das Logo in seinen Farben, blau mit grauer Schrift, freigestellt und
+            rund dreimal so fein wie gezeigt (Wunsch Patrick 26. Oktober 2026:
+            „nimm dieses Logo“) */}
+        <img className="ek__logo" src={LOGO} alt="Hofer + Co." />
         <div className="ek__wetter">
           {wetter && <>
             <div className="ek__grad">{wetter.temperatur}°</div>
