@@ -12,10 +12,15 @@
 //    einen Typ, und für HOCO Nr. und Typ ist keine Stückzeit da.
 //  Steht nur da, wenn etwas fehlt. Ein Tipp auf die Maschine öffnet
 //  ihr Dashboard im Pad Mode, wo beides eingetragen wird.
+//  Seit 1.187.0 blinkt die Karte rot wie die Kacheln im Pad und zeigt
+//  dieselben Bilder (Wunsch Patrick 26. Oktober 2026: „rot blinken und
+//  Pablo anzeigen“); welche, steht nur in app_config.pad_mahnbilder.
 //  Nicht für Externe und das Dienstkonto (Externe sehen die
 //  Startseite ohnehin nicht).
 // =================================================================
+import { useEffect, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
+import { mahnBilder } from "../../daten/mahnbilder.js";
 
 const keine = async () => null;
 
@@ -85,16 +90,27 @@ function Maschinen({ liste, art }) {
 export default function HeuteOffen({ auffrischen }) {
   const zeigen = !alt.istExtern() && alt.meineRolle() !== "dienst";
   const { daten } = useDaten(zeigen ? heuteOffenLaden : keine, [auffrischen, zeigen]);
-  if (!daten || (!daten.stk.length && !daten.zeit.length)) return null;
+  const offen = !!(daten && (daten.stk.length || daten.zeit.length));
+  // Bilder erst holen, wenn die Karte wirklich dasteht
+  const [bilder, setBilder] = useState({});
+  useEffect(() => {
+    if (!offen) return;
+    let weg = false;
+    mahnBilder().then((b) => { if (!weg) setBilder(b || {}); });
+    return () => { weg = true; };
+  }, [offen]);
+  if (!offen) return null;
   return (
-    <section className="karte karte--warnung heuteoffen" id="db-heuteoffen">
+    <section className="karte heuteoffen heuteoffen--nervt" id="db-heuteoffen">
       <h2>⚠ Heute noch offen</h2>
       {daten.stk.length > 0 && <div className="heuteoffen__gruppe" id="db-heuteoffen-stk">
+        {bilder.stueckzahl && <img className="heuteoffen__foto" data-mahnbild="stueckzahl" src={bilder.stueckzahl} alt="" />}
         <div className="heuteoffen__titel">Noch keine Stückzahl gemeldet
           {" "}<span className="marke">{daten.stk.length}</span></div>
         <Maschinen liste={daten.stk} art="stk" />
       </div>}
       {daten.zeit.length > 0 && <div className="heuteoffen__gruppe" id="db-heuteoffen-zeit">
+        {bilder.stueckzeit && <img className="heuteoffen__foto" data-mahnbild="stueckzeit" src={bilder.stueckzeit} alt="" />}
         <div className="heuteoffen__titel">Stückzeit nicht hinterlegt
           {" "}<span className="marke">{daten.zeit.length}</span></div>
         <Maschinen liste={daten.zeit} art="zeit" />

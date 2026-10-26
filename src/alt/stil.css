@@ -9626,3 +9626,28 @@ body.dunkel .mseite-park__zahl, body.dunkel .mseite-park__leer, body.dunkel .mse
   color: var(--tinte); cursor: pointer; font: inherit; line-height: 1.2; }
 .heuteoffen__maschine:hover { border-color: var(--marke); }
 body.dunkel .heuteoffen__maschine { background: rgba(255, 255, 255, .06); }
+/* Seit 1.187.0 blinkt sie rot wie die Kacheln im Pad, mit deren Bildern
+   (Wunsch Patrick 26. Oktober 2026). Die rote Schicht blinkt, der Inhalt
+   bleibt ruhig darüber, damit man die Maschinen lesen kann. */
+.heuteoffen--nervt { position: relative; overflow: hidden; border: 0; color: #fff;
+  background: #b80000; animation: heuteoffen-puls .8s ease-in-out infinite; }
+.heuteoffen--nervt::after { content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(140deg, #ff3030, #b80000); pointer-events: none;
+  animation: pad-zeit-rot .8s ease-in-out infinite; z-index: 0; }
+.heuteoffen--nervt > * { position: relative; z-index: 1; }
+.heuteoffen--nervt h2, .heuteoffen--nervt .heuteoffen__titel { color: #fff; }
+.heuteoffen--nervt .marke { background: #fff; color: #b80000; }
+.heuteoffen--nervt .heuteoffen__maschine { background: #fff; color: #1a1a1a; border-color: #fff; }
+body.dunkel .heuteoffen--nervt .heuteoffen__maschine { background: #fff; color: #1a1a1a; }
+.heuteoffen--nervt .heuteoffen__maschine .klein { color: #555; }
+@keyframes heuteoffen-puls {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 40, 40, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(255, 70, 70, .8), 0 0 30px 8px rgba(255, 30, 30, .6); }
+}
+.heuteoffen__gruppe { min-height: 72px; }
+.heuteoffen__foto { float: right; width: 72px; height: 72px; margin: 0 0 6px 12px; border-radius: 50%;
+  object-fit: cover; border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+.heuteoffen__gruppe::after { content: ""; display: block; clear: both; }
+@media (prefers-reduced-motion: reduce) {
+  .heuteoffen--nervt, .heuteoffen--nervt::after { animation: none; }
+}

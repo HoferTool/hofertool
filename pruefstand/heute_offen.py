@@ -16,6 +16,8 @@ K = """(() => {
   daten.machines.forEach((m) => { if (m.id === "m-k1" || m.id === "m-l1") m.type_id = "t1"; });
   daten.production_records.push({ id: "prh", machine_id: "m-l1", job_id: b.id, record_date: iso(heute), quantity: 5, updated_at: new Date().toISOString() });
   daten.hoco_type_data.push({ hoco_nr: b.job_number, type_id: "t1", stueckzeit_s: 42 });
+  const bild = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><circle cx="40" cy="40" r="40" fill="#4a7"/></svg>');
+  daten.app_config.push({ schluessel: "pad_mahnbilder", wert: JSON.stringify({ stueckzahl: { bild }, stueckzeit: { bild } }) });
   window.A = a.job_number; window.B = b.job_number;
 })();
 """
@@ -38,6 +40,11 @@ with sync_playwright() as p:
         print(name, "Stückzahl fehlt:", stk, "Stückzeit fehlt:", zeit)
         if werktag and ("m-k1" not in stk or "m-l1" in stk): fehler.append(f"{name}: Stückzahl {stk}")
         if "m-k1" not in zeit or "m-l1" in zeit: fehler.append(f"{name}: Stückzeit {zeit}")
+        n = pg.evaluate("document.querySelectorAll('#db-heuteoffen [data-mahnbild]').length")
+        blinkt = pg.evaluate("getComputedStyle(document.querySelector('#db-heuteoffen'), '::after').animationName")
+        print(name, "Bilder:", n, "Blinken:", blinkt)
+        if n != 2: fehler.append(f"{name}: {n} Bilder statt 2")
+        if blinkt != "pad-zeit-rot": fehler.append(f"{name}: blinkt nicht")
         pg.locator("#db-heuteoffen").screenshot(path=f"/tmp/heuteoffen-{name}.png")
         if name == "pc":
             # Antippen öffnet das Pad dieser Maschine
