@@ -57,7 +57,8 @@ export async function heuteOffenLaden() {
 
   // Stückzeit je HOCO Nr. und Typ
   let zeit = [];
-  const mitTyp = zeilen.filter((z) => z.m.type_id && z.j.job_number);
+  // Nur laufende Aufträge, wie im Pad (seit 1.193.1, nicht mehr Rüsten)
+  const mitTyp = laeuft.filter((z) => z.m.type_id && z.j.job_number);
   if (mitTyp.length) {
     const r = await alt.zeitlimit(alt.db.from("hoco_type_data")
       .select("hoco_nr, type_id, stueckzeit_s")

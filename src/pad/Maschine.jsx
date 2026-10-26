@@ -591,7 +591,10 @@ export default function Maschine({ d }) {
   // Die Kachel mahnt, solange Stückzeit oder bestätigte Länge fehlen
   const laenge = teilLaenge(teil);
   const laengeFehlt = mitTyp && !!laenge && !(laenge.mm && laenge.sicher);
-  const zeitFehlt = mitTyp && (!(blattDaten && blattDaten.stueckzeit_s) || laengeFehlt);
+  // Gemahnt wird erst, wenn der Auftrag läuft, nicht schon beim Rüsten
+  // oder geplant (Wunsch Patrick 26. Oktober 2026: „erst wenn läuft drin ist“)
+  const zeitFehlt = mitTyp && !!j && j.plan_status === "laeuft"
+    && (!(blattDaten && blattDaten.stueckzeit_s) || laengeFehlt);
   const stkFehlt = heuteKeineStueckzahl(j, jeTag);
   const stkBild = useMahnBild("stueckzahl", stkFehlt);
   const mahnFoto = useMahnBild("stueckzeit", zeitFehlt);
