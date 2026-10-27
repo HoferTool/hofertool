@@ -9,7 +9,7 @@
 //  Gerechnet wird in src/daten/kalkulation.js. Sichtbar nur mit dem
 //  Vermerk kalkulationSehen am Konto, auch in der Datenbank.
 // =================================================================
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { ZiehListe } from "../teile/ZiehListe.jsx";
@@ -252,6 +252,38 @@ function enterWeiter(e) {
   e.preventDefault();
   ziel.focus();
   if (ziel.select && ziel.tagName === "INPUT") ziel.select();
+}
+
+// Eine Tabelle, die genau den Bildschirm füllt: die Zeilen teilen sich die
+// Höhe unter der Tabelle bis zum unteren Rand, so ist auf kleinen
+// Bildschirmen nichts zu rollen und auf grossen wird es grösser
+// (Patrick 27. Oktober 2026: „ich will nicht scrollen“, „kann grösser werden nach unten“)
+function useBildschirmHoch() {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const t = ref.current;
+    if (!t) return undefined;
+    const passen = () => {
+      const zeilen = t.querySelectorAll("tr").length || 1;
+      const seite = document.scrollingElement;
+      const setzen = (kz) => t.style.setProperty("--kz", kz + "px");
+      // Zuerst gross schätzen, dann messen und verkleinern, bis die Seite
+      // nicht mehr rollt: Schrift und Felder machen Zeilen oft höher als --kz
+      const oben = t.getBoundingClientRect().top + window.scrollY;
+      let kz = Math.max(12, Math.min(34, Math.floor((window.innerHeight - oben - 40) / zeilen)));
+      setzen(kz);
+      for (let i = 0; i < 25 && kz > 12; i++) {
+        const zuViel = seite.scrollHeight - window.innerHeight;
+        if (zuViel <= 0) break;
+        kz = Math.max(12, kz - Math.max(1, Math.floor(zuViel / zeilen)));
+        setzen(kz);
+      }
+    };
+    passen();
+    window.addEventListener("resize", passen);
+    return () => window.removeEventListener("resize", passen);
+  });
+  return ref;
 }
 
 function mitVorgaben(d) {
@@ -738,6 +770,7 @@ function Preis({ k, setze, setK, rechnung }) {
               value={eigen} onChange={(e) => preisStaffel(i, name, e.target.value)} /></td>;
         })}</tr>);
   };
+  const hochRef = useBildschirmHoch();
   const SF = (name, i, id, platz) => (
     <td key={id} className="rechts"><input className="kalk-zelle" type="text" id={id} inputMode="decimal" placeholder={platz} value={k.staffeln[staffelIdx[i]][name] || ""}
       onChange={(e) => setze("staffeln." + staffelIdx[i] + "." + name, e.target.value)} /></td>);
@@ -778,7 +811,7 @@ function Preis({ k, setze, setK, rechnung }) {
           Patrick 27. Oktober 2026: „alles untereinander, ohne Scrollen“) */}
       {rechnung.length > 0 &&
         <section className="karte kalk-rolle kalk-preis-karte" id="kalk-preis-jestaffel">
-          <table className="tabelle kalk-tab kalk-protokoll kalk-eng kalk-enger" id="kalk-preistab">
+          <table ref={hochRef} className="tabelle kalk-tab kalk-protokoll kalk-eng kalk-enger" id="kalk-preistab">
             <thead><tr><th>Stückzahl <small className="kalk-einheit">die erste Staffel füllt die weiteren gleich aus</small></th>
               {rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk</th>)}</tr></thead>
             <tbody>
@@ -811,12 +844,13 @@ function Preis({ k, setze, setK, rechnung }) {
 
 // Wie der Knopf „Protokoll“ im Gewatec, mit einer Spalte je Staffel
 function Ergebnis({ k, rechnung }) {
+  const hochRef = useBildschirmHoch();
   if (!rechnung.length) return <div className="karte karte--hinweis"><p>Zuerst eine Staffelmenge eintragen.</p></div>;
   const R = (f, st) => rechnung.map((r) => chf(f(r), st));
   return (
-    <section className="karte kalk-rolle">
-      <table className="tabelle kalk-tab kalk-protokoll" id="kalk-protokoll">
-        <thead><tr><th>Menge</th>{rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk<br /><small>{r.lose} {r.lose === 1 ? "Los" : "Lose"}</small></th>)}</tr></thead>
+    <section className="karte kalk-rolle kalk-preis-karte">
+      <table ref={hochRef} className="tabelle kalk-tab kalk-protokoll kalk-eng kalk-enger" id="kalk-protokoll">
+        <thead><tr><th>Menge</th>{rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk <small>· {r.lose} {r.lose === 1 ? "Los" : "Lose"}</small></th>)}</tr></thead>
         <tbody>
           <tr className="kalk-abschnitt"><td colSpan={rechnung.length + 1}>Material</td></tr>
           <Zeile titel="kg gesamt" werte={R((r) => r.mat.kg, 1)} klein />

@@ -39,6 +39,11 @@ with sync_playwright() as p:
                       ("23.2", "DB %"), ("30'400.00", "Umsatz"), ("1.0816", "Grenzkosten"), ("905.76", "Rüsten"), ("422.2", "Laufzeit")]:
         pruefe(wert in t, "Ergebnis wie Gewatec: %s %s" % (was, wert))
     pg.screenshot(path=BILD + "/kalk-ergebnis.png", full_page=True)
+    pg.set_viewport_size({"width": 1440, "height": 900}); pg.wait_for_timeout(300)
+    hoch = pg.evaluate("document.scrollingElement.scrollHeight")
+    pg.screenshot(path=BILD + "/kalk-ergebnis-ganz.png")
+    pruefe(hoch <= 900, "Reiter Ergebnis ohne Rollen bei 1440 × 900: %s" % hoch)
+    pg.set_viewport_size({"width": 1400, "height": 1000})
 
     # Preisermittlung: Verzinsung, Angebotspreis von Hand, Marge VK
     pg.locator("[data-kalk-reiter='preis']").click(); pg.wait_for_selector("#kalk-preistab")
@@ -53,6 +58,12 @@ with sync_playwright() as p:
     hoch = pg.evaluate("document.scrollingElement.scrollHeight")
     pg.screenshot(path=BILD + "/kalk-preis-ganz.png")
     pruefe(hoch <= 900, "Reiter Preis ohne Rollen bei 1440 × 900: %s" % hoch)
+    pg.set_viewport_size({"width": 1920, "height": 1200}); pg.wait_for_timeout(300)
+    hoch = pg.evaluate("document.scrollingElement.scrollHeight")
+    unten = pg.evaluate("document.querySelector('#kalk-preistab').getBoundingClientRect().bottom")
+    pg.screenshot(path=BILD + "/kalk-preis-gross.png")
+    pruefe(hoch <= 1200 and unten > 1000, "Reiter Preis nutzt grossen Bildschirm ohne Rollen: %s / unten %s" % (hoch, unten))
+    pg.set_viewport_size({"width": 1440, "height": 900}); pg.wait_for_timeout(300)
     pg.fill("#kalk-angebot-0", "4.10"); pg.wait_for_timeout(300)
     band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
     pruefe(band[0] == "4.10", "Angebotspreis von Hand gilt: %s" % band)

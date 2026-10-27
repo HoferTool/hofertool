@@ -10115,3 +10115,12 @@ h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }
 /* Ferien: Häkchen „Outlook-Termin senden“ (1.235.0) */
 .fd-termin { display: flex; align-items: center; gap: 8px; margin: 4px 0 2px; font-size: 14px; cursor: pointer; }
 .fd-termin input { width: 18px; height: 18px; margin: 0; }
+
+/* Kalkulation, Reiter Preis und Ergebnis: Zeilen wachsen mit der Höhe des Bildschirms,
+   damit grosse Bildschirme den Platz nutzen und kleine ohne Rollen
+   auskommen (Patrick 27. Oktober 2026: „kann grösser werden nach unten“).
+   Die Zeilenhöhe --kz misst die Seite selbst (useBildschirmHoch). */
+.kalk-enger td, .kalk-enger th { height: var(--kz); font-size: clamp(11px, calc(var(--kz) * 0.55), 16px); line-height: 1; }
+.kalk-kompakt .kalk-enger input.kalk-zelle { height: calc(var(--kz) - 3px); min-height: 0; line-height: 1; font-size: 1em; }
+.kalk-enger { --kz: 19px; }
+.kalk-enger .kalk-abschnitt td { font-weight: 700; padding-top: 0; }
