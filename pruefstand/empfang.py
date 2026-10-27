@@ -134,6 +134,18 @@ with sync_playwright() as p:
     pg.click("[data-ib='logo-zurueck']"); pg.wait_for_timeout(600)
     pruefe(not pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.logo"), "Logo wie am Anfang")
     pg.screenshot(path=os.path.join(BILD, "empfang-gestalten.png"))
+    # Wetter-Effekte (1.237.0): Häkchen, Alpenkette dahinter, zum Ausprobieren je Art
+    pruefe(pg.locator(".ib-gestalten [data-ib='wetter'], .ib-gestalten [data-ib='alpen']").count() == 0, "ohne Häkchen keine Effekte")
+    pg.locator("[data-ib='effekte']").scroll_into_view_if_needed(); pg.check("[data-ib='effekte']"); pg.wait_for_timeout(600)
+    pruefe(pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'empfang').aufbau.effekte") is True, "Häkchen gespeichert")
+    pruefe(pg.locator(".ib-gestalten [data-ib='alpen']").count() == 1, "Alpenkette im Hintergrund")
+    for art in ["schnee", "regen", "laub", "sonne", "gewitter", "nebel", "blueten"]:
+        pg.select_option("[data-ib='effekt-probe']", art); pg.wait_for_timeout(1500)
+        pruefe(pg.locator(".ib-gestalten [data-ib='wetter']").get_attribute("data-effekt") == art, "Probe " + art)
+        pg.locator(".ib-gestalten .ib-blatt").screenshot(path=os.path.join(BILD, "empfang-wetter-%s.png" % art))
+    pg.select_option("[data-ib='effekt-probe']", "")
+    pruefe(pg.evaluate("() => { const c = document.querySelector('.ib-gestalten [data-ib=\\'wetter\\'] canvas'); return !c || getComputedStyle(c.parentNode).pointerEvents; }") in (True, "none"),
+           "Effekte fangen keine Klicks")
 
     pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)
     pruefe(pg.locator("#infoboard [data-ibtafel='empfang']").count() == 1, "Anzeige zeigt den Empfang")
@@ -141,6 +153,7 @@ with sync_playwright() as p:
     sk = pg.locator("#infoboard .ib-blatt").bounding_box()
     pruefe(abs(sk["width"] - 1920) < 2 and abs(sk["height"] - 1080) < 2, "bei Full HD genau 1:1: %.0f × %.0f" % (sk["width"], sk["height"]))
     pg.screenshot(path=os.path.join(BILD, "empfang-anzeige.png"))
+    pruefe(pg.locator("#infoboard [data-ib='alpen']").count() == 1, "Anzeige mit Alpenkette")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pruefe(pg.locator("#infoboard").count() == 0, "Escape schliesst die Anzeige")
     # Nachts keine Hühner am Empfang, die Dokumente bleiben

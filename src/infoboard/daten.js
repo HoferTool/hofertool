@@ -100,7 +100,7 @@ function teilOrdnen(t) {
 export function aufbauOrdnen(a) {
   if (a && a.frei && Array.isArray(a.teile)) {
     return { frei: true, teile: a.teile.filter((t) => t && t.id && t.art && t.art !== "leer").map(teilOrdnen),
-      ...(a.farben ? { farben: a.farben } : {}), ...(a.logo ? { logo: a.logo } : {}) };
+      ...(a.farben ? { farben: a.farben } : {}), ...(a.logo ? { logo: a.logo } : {}), ...(a.effekte ? { effekte: true } : {}) };
   }
   const reihen = reihenOrdnen(a);
   return { frei: true, teile: felderLage(reihen).filter((l) => l.feld.art !== "leer")
@@ -261,7 +261,7 @@ export async function layoutsLaden(board) {
 
 export async function layoutSpeichern(board, name, aufbau, id) {
   const r = await alt.zeitlimit(alt.db.from("infoboard").upsert({ id: id || layoutVorsilbe(board) + neueId(),
-    aufbau: { name, layout: aufbau }, geaendert_am: new Date().toISOString() }, { onConflict: "id" }), 10000, "Layout speichern");
+    aufbau: { name, layout: ohneEffekte(aufbau) }, geaendert_am: new Date().toISOString() }, { onConflict: "id" }), 10000, "Layout speichern");
   if (r.error) throw r.error;
 }
 
@@ -277,4 +277,6 @@ function ordentlich(w) {
   if (w && typeof w === "object") return Object.keys(w).sort().reduce((o, k) => { o[k] = ordentlich(w[k]); return o; }, {});
   return w;
 }
-export const gleicherAufbau = (a, b) => JSON.stringify(ordentlich(aufbauOrdnen(a))) === JSON.stringify(ordentlich(aufbauOrdnen(b)));
+// Die Wetter-Effekte gehören zum Bildschirm, nicht zum Layout
+export const ohneEffekte = (a) => { if (!a || !a.effekte) return a; const { effekte, ...rest } = a; return rest; };
+export const gleicherAufbau = (a, b) => JSON.stringify(ordentlich(aufbauOrdnen(ohneEffekte(a)))) === JSON.stringify(ordentlich(aufbauOrdnen(ohneEffekte(b))));

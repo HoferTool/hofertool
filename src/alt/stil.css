@@ -10124,3 +10124,11 @@ h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }
 .kalk-kompakt .kalk-enger input.kalk-zelle { height: calc(var(--kz) - 3px); min-height: 0; line-height: 1; font-size: 1em; }
 .kalk-enger { --kz: 19px; }
 .kalk-enger .kalk-abschnitt td { font-weight: 700; padding-top: 0; }
+/* Empfang: Wetter-Effekte über allem, ohne Klicks; Alpenkette ganz hinten (1.237.0) */
+.ib-wetter { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
+.ib-wetter canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ib-wetter__blitz { position: absolute; inset: 0; background: #fff; opacity: 0; }
+.ib-wetter__blitz--an { animation: ib-blitz 0.9s ease-out; }
+@keyframes ib-blitz { 0% { opacity: 0; } 8% { opacity: .55; } 16% { opacity: .1; } 24% { opacity: .4; } 100% { opacity: 0; } }
+.ib-alpen { position: absolute; left: 0; pointer-events: none; z-index: 0; }
+.ib-effekte { display: grid; gap: 8px; margin: 10px 0; }

@@ -49,6 +49,9 @@ with sync_playwright() as p:
     pg.locator(".dialog-huelle input").last.fill("Winter"); knopf(pg, "Speichern")
     pruefe(pg.locator("[data-iblayout]").count() == 2, "zwei Layouts")
 
+    # Wetter-Effekte einschalten (1.237.0): gehören nicht zum Layout
+    pg.check("[data-ib='effekte']"); pg.wait_for_timeout(600)
+    pruefe(pg.locator(".ib-layout--aktiv[data-iblayout='Winter']").count() == 1, "Effekte ändern das aktive Layout nicht")
     # Sommer aktivieren: Bildschirm wieder wie vorher
     pg.locator("[data-iblayout='Sommer'] [data-ib='layout-aktivieren']").click(); pg.wait_for_selector(".dialog-huelle")
     knopf(pg, "Aktivieren")
@@ -56,6 +59,9 @@ with sync_playwright() as p:
     pruefe(len(e["teile"]) == 1 and e["teile"][0]["html"] == "Willkommen A" and e["farben"]["kopf"] == "#ff0000",
            "Sommer auf dem Bildschirm gespeichert")
     pruefe(pg.locator(".ib-gestalten .ib-teil").count() == 1, "Tafel zeigt Sommer")
+    pruefe(e.get("effekte") is True, "Effekte bleiben beim Aktivieren eingeschaltet")
+    z = pg.evaluate("() => TEST.daten.infoboard.filter(z => z.id.startsWith('empfang-layout-')).map(z => z.aufbau.layout.effekte)")
+    pruefe(all(x is None for x in z), "Layouts speichern keine Effekte: %s" % z)
     pruefe(pg.locator(".ib-layout--aktiv[data-iblayout='Sommer']").count() == 1, "Sommer wieder aktiv")
     pg.screenshot(path=BILD + "/empfang-layouts.png")
 

@@ -23,7 +23,8 @@ import { istNacht } from "./Nacht.jsx";
 import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
   istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil, TAFELN, tafelFarben,
-  layoutsLaden, layoutSpeichern, layoutLoeschen, gleicherAufbau } from "./daten.js";
+  layoutsLaden, layoutSpeichern, layoutLoeschen, gleicherAufbau, ohneEffekte } from "./daten.js";
+import { EFFEKTE } from "./Wetterhimmel.jsx";
 
 // 0 = nicht von selbst blättern, die Seite wechselt nur beim Antippen
 // (Wunsch Patrick 21. Oktober 2026).
@@ -45,6 +46,7 @@ function Gestalten({ mass }) {
   const [aufbau, setAufbau] = useState(null);
   const [fehler, setFehler] = useState("");
   const [gewaehlt, setGewaehlt] = useState(null);
+  const [probe, setProbe] = useState("");     // Wetter-Effekt zum Ausprobieren, nur in der Gestaltung
   const [laedt, setLaedt] = useState("");
   const [geraet, setGeraet] = useState(() => istInfoboardGeraet(mass));
   const datei = useRef(null);
@@ -86,6 +88,8 @@ function Gestalten({ mass }) {
   // Ein gespeichertes Layout aktivieren: der ganze Bildschirm wird ersetzt
   const ganzErsetzen = async (neu) => {
     const vorher = stand.current;
+    // Die Wetter-Effekte bleiben, wie sie sind, egal welches Layout kommt
+    neu = { ...ohneEffekte(neu), ...(vorher.effekte ? { effekte: true } : {}) };
     stand.current = neu; setAufbau(neu); setGewaehlt(null);
     try { await aufbauSpeichern(neu, mass.id); return true; }
     catch (e) { stand.current = vorher; setAufbau(vorher); alt.meldung("Nicht aktiviert: " + alt.fehlertext(e), "fehler"); return false; }
@@ -193,7 +197,7 @@ function Gestalten({ mass }) {
       {fehler && <p className="hinweis">{fehler}</p>}
       <div className="ib-gestalten__teile">
         <div className="ib-gestalten__vorschau">
-          <Tafel mass={mass} aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt}
+          <Tafel mass={mass} aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt} effektProbe={probe || null}
             teilAendern={admin ? teilAendern : null} logoSetzen={admin ? logoSetzen : null}
             ablegen={admin && !laedt ? (dateien, punkt) => dateienAblegen(dateien, punkt, null) : null}
             doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); } : null} />
@@ -213,6 +217,19 @@ function Gestalten({ mass }) {
             {mass.ruhig && <Layouts mass={mass} aufbau={aufbau} aktivieren={ganzErsetzen} />}
             {mass.ruhig && <Farben mass={mass} aufbau={aufbau} setzen={farbenSetzen} />}
             {mass.ruhig && <LogoWahl lage={aufbau.logo} setzen={logoSetzen} />}
+            {mass.ruhig &&
+              <div className="ib-effekte">
+                <label className="ib-geraet">
+                  <input type="checkbox" checked={!!aufbau.effekte} data-ib="effekte"
+                    onChange={(e) => ganzSetzen({ effekte: e.target.checked || undefined })} />
+                  <span>Wetter-Effekte<small>Je nach Wetter und Jahreszeit fällt Schnee, Regen, Laub oder Blüten,
+                    bei Sonne leuchtet es sanft. Gilt für jedes Layout.</small></span>
+                </label>
+                <label className="feld">Zum Ausprobieren (nur hier, nicht am Bildschirm)
+                  <select value={probe} data-ib="effekt-probe" onChange={(e) => setProbe(e.target.value)}>
+                    {EFFEKTE.map(([w, t]) => <option key={w} value={w}>{t}</option>)}
+                  </select></label>
+              </div>}
             {!wahl && <p className="klein">Dateien vom Computer einfach auf die Tafel ziehen, dorthin, wo sie hin sollen.
               Antippen wählt ein Teil: ziehen verschiebt es, die Ecke unten rechts ändert die Grösse,
               der runde Griff oben dreht es.</p>}

@@ -146,7 +146,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.236.1";
+const APP_VERSION = "1.237.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1831,7 +1831,7 @@ const WETTER_TEXT = {
 async function holeWetter() {
   const adresse = "https://api.open-meteo.com/v1/forecast"
     + "?latitude=" + ORT.lat + "&longitude=" + ORT.lon
-    + "&current=temperature_2m,weather_code"
+    + "&current=temperature_2m,weather_code,is_day"
     + "&daily=temperature_2m_max,temperature_2m_min"
     + "&timezone=Europe%2FZurich&forecast_days=1";
 
@@ -1844,6 +1844,9 @@ async function holeWetter() {
     text: WETTER_TEXT[d.current.weather_code] || "",
     hoch: Math.round(d.daily.temperature_2m_max[0]),
     tief: Math.round(d.daily.temperature_2m_min[0]),
+    // Für die Wetter-Effekte am Empfang (Wetterhimmel.jsx)
+    code: d.current.weather_code,
+    tag: d.current.is_day !== 0,
   };
 }
 
