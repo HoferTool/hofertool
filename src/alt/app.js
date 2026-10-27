@@ -146,7 +146,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.235.0";
+const APP_VERSION = "1.236.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8384,12 +8384,15 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
     return;
   }
   // Gibt es das Blatt in der App, gilt es. Im Pad Mode erst, wenn es
-  // jemand mit „EB OK“ bestätigt hat, und dort nur zum Lesen;
-  // bis dahin zeigt das Pad das Excel (Wunsch Patrick, 24. Oktober 2026)
+  // jemand mit „EB OK“ bestätigt hat; bis dahin zeigt das Pad das Excel
+  // (Wunsch Patrick, 24. Oktober 2026). Bearbeiten darf man es seit
+  // 1.236.0 auch im Pad, wie am Computer (Wunsch Patrick 27. Oktober
+  // 2026: „Man soll im Pad Mode EB bearbeiten können“).
   const imPad = document.body.classList.contains("pad-offen");
+  const darfEb = !!hocoNr && darfSchreiben() && !istExtern();
   const app = hocoNr ? await appBlattSuchen(hocoNr, typId) : null;
   if (app && (!imPad || app.gut_am)) {
-    await einrichtblattAppOeffnen(hocoNr, typId, { nurLesen: imPad || istExtern() || !darfSchreiben() });
+    await einrichtblattAppOeffnen(hocoNr, typId, { nurLesen: !darfEb });
     return;
   }
   let gefunden;
@@ -8399,7 +8402,10 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
   // Ins Blatt in der App: das eigene Excel der Nummer einlesen, sonst
   // ein leeres Blatt anfangen. Nicht aus der Vorlage des Typs, die ist
   // für keine bestimmte Nummer.
-  const appBlatt = !hocoNr || imPad || app || !darfSchreiben() || istExtern() ? null
+  // Im Pad steht ein noch nicht bestätigtes App-Blatt hinter dem Excel,
+  // der Knopf führt dorthin zum Bearbeiten.
+  const appBlatt = !darfEb ? null
+    : app ? { text: "Einrichtblatt in der App bearbeiten", tu: async (zu) => { zu(); await einrichtblattAppOeffnen(hocoNr, typId, { bearbeiten: true }); } }
     : gefunden.eigenes
       // Das Blatt geht zum Bearbeiten auf und liest sich selbst aus dem
       // Excel vor; gespeichert wird erst mit Speichern (seit 1.178.0)

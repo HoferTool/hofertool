@@ -1,5 +1,5 @@
 // =================================================================
-//  HINWEIS IM PAD MODE: EINRICHTBLATT AM PC KONTROLLIEREN
+//  HINWEIS IM PAD MODE: EINRICHTBLATT KONTROLLIEREN
 //  Beginnt im Pad ein neuer Auftrag (Rüsten oder läuft, auch der
 //  nächste, der beim Beenden auf Rüsten rückt), kommt die Meldung, am PC
 //  das Einrichtblatt in der App zu kontrollieren und wenn nötig
@@ -7,10 +7,14 @@
 //  nicht mehr hochgeladen (Wunsch Patrick, 23. Oktober 2026). Ist das
 //  Blatt schon als gut bestätigt, kommt nichts, ebenso wenn es weder ein
 //  Excel noch ein Blatt in der App gibt (dann gibt es nichts zu prüfen).
+//  Seit 1.236.0 geht das auch gleich hier im Pad: „Jetzt bearbeiten“
+//  öffnet das Blatt zum Ändern, „EB OK“ steht dann darin (Wunsch Patrick
+//  27. Oktober 2026: „Man soll im Pad Mode EB bearbeiten können“).
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { blattSuchen } from "./daten.js";
+import { einrichtblattAppOeffnen } from "./Blatt.jsx";
 
 const START = ["ruesten", "laeuft"];
 
@@ -36,15 +40,19 @@ export async function einrichtblattHinweis(j, neu) {
   }
   let typName = "";
   try { typName = (((await alt.ladeTypen()) || []).find((t) => t.id === m.type_id) || {}).name || ""; } catch (f) { /* ohne Namen */ }
+  const darf = alt.darfSchreiben();
+  let bearbeiten = false;
   await new Promise((fertig) => fensterOeffnen((zu) => (
     <div className="dialog eba-padhinweis" role="dialog" aria-modal="true" data-eba-padhinweis="">
-      <h2>Einrichtblatt am PC kontrollieren</h2>
+      <h2>Einrichtblatt kontrollieren</h2>
       <p><b>{j.job_number}</b> auf {m.name}{typName ? " (" + typName + ")" : ""} beginnt.</p>
-      <p>Bitte an den PC gehen und das Einrichtblatt in der App kontrollieren und wenn nötig anpassen.</p>
-      <p>Stimmt es, dort <b>„EB OK“</b> drücken: Dann wird das alte Excel gelöscht und nicht mehr hochgeladen.</p>
+      <p>Bitte das Einrichtblatt in der App kontrollieren und wenn nötig anpassen{darf ? ", gleich hier mit „Jetzt bearbeiten“ oder am PC" : ", am PC"}.</p>
+      <p>Stimmt es, im Blatt <b>„EB OK“</b> drücken: Dann wird das alte Excel gelöscht und nicht mehr hochgeladen.</p>
       <div className="dialog__knoepfe">
-        <button className="knopf knopf--haupt" data-ja="" data-fokus="" onClick={zu}>Verstanden</button>
+        <button className={"knopf" + (darf ? "" : " knopf--haupt")} data-ja="" data-fokus={darf ? undefined : ""} onClick={zu}>{darf ? "Später" : "Verstanden"}</button>
+        {darf && <button className="knopf knopf--haupt" data-eba-padbearbeiten="" data-fokus="" onClick={() => { bearbeiten = true; zu(); }}>Jetzt bearbeiten</button>}
       </div>
     </div>
   ), fertig));
+  if (bearbeiten) await einrichtblattAppOeffnen(j.job_number, m.type_id, { bearbeiten: true });
 }

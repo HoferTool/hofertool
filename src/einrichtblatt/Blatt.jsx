@@ -399,7 +399,7 @@ function SeitenReiter({ seiten, aktiv, waehlen, bearbeiten, neu }) {
 }
 
 // ---------------- Das Fenster ----------------
-// nurLesen: im Pad Mode und für alle ohne Schreibrecht
+// nurLesen: für alle ohne Schreibrecht und für Externe (im Pad Mode seit 1.236.0 nicht mehr)
 // Beim Bearbeiten fällt die FA-Zeile aus der Bemerkung gleich weg
 function entwurfVon(b) {
   return b.bemerkung && ohneFa(b.bemerkung) !== b.bemerkung ? Object.assign({}, b, { bemerkung: ohneFa(b.bemerkung) || null }) : b;
@@ -635,7 +635,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
 }
 
 // Öffnen: gleich das Blatt. Den Kopf samt Stammdaten füllt man direkt
-// darin aus. { nurLesen } im Pad Mode, { bearbeiten } gleich zum Ändern
+// darin aus. { nurLesen } ohne Schreibrecht, { bearbeiten } gleich zum Ändern
 // (Produktion → Infos zum Richten)
 export async function einrichtblattAppOeffnen(hocoNr, typId, { nurLesen, bearbeiten } = {}) {
   let daten;
