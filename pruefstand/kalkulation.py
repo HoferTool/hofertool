@@ -53,6 +53,14 @@ with sync_playwright() as p:
     pg.fill("#kalk-zins", ""); pg.fill("#kalk-zinsmon", ""); pg.fill("#kalk-angebot-0", ""); pg.wait_for_timeout(300)
     band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
     pruefe(band == ["3.80", "3.92"], "leer wieder wie Gewatec: %s" % band)
+    # Kosten je Staffel: Gewinn nur für Staffel 2
+    pg.fill("#kalk-ps1-gewinn", "20"); pg.wait_for_timeout(300)
+    band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(band[0] == "3.80" and band[1] != "3.92", "Gewinn je Staffel: %s" % band)
+    pg.screenshot(path=BILD + "/kalk-preis.png", full_page=True)
+    pg.fill("#kalk-ps1-gewinn", ""); pg.wait_for_timeout(300)
+    band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(band == ["3.80", "3.92"], "Gewinn je Staffel leer wie vorher: %s" % band)
     # Währung EUR mit Kurs aus dem Netz (hier nachgebildet)
     pg.route("**/api.frankfurter.dev/**", lambda r: r.fulfill(status=200, content_type="application/json",
         headers={"Access-Control-Allow-Origin": "*"}, body='{"amount":1,"base":"CHF","date":"2026-10-27","rates":{"EUR":1.07}}'))

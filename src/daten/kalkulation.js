@@ -164,6 +164,23 @@ export function externRechnen(ag, menge, mat) {
 // Rüstzeit und FGK haben, etwa kleine Mengen auf der Index und grosse auf
 // der Star. Die Werte liegen bei der Staffel (staffel.ag[Schlüssel des AG]),
 // damit sie mit der Staffel verschwinden; leer = Wert des Arbeitsgangs.
+// Alle Kosten oben im Reiter Preis lassen sich je Staffel anders setzen
+// (Wunsch Patrick 27. Oktober 2026); leer gilt der Wert oben
+export const PREIS_JE_STAFFEL = [
+  ["sek", "Sondereinzelkosten Vertrieb", "CHF/Stk"], ["vwgk", "Vw/Vt-Gemeinkosten", "%"],
+  ["zinsPct", "Verzinsung", "%"], ["zinsMonate", "Verzinsung über Monate", ""],
+  ["gewinn", "Gewinn", "%"], ["prov", "Provision", "%"], ["skonto", "Skonto", "%"], ["rabatt", "Rabatt", "%"],
+  ["eil", "Eilzuschlag", ""],
+  ["transport", "Transportkosten", "CHF/Stk"], ["transPct", "Transport Zuschlag", "%"], ["transPausch", "Transport pauschal", "CHF je Lieferlos"],
+  ["verpackung", "Verpackungskosten", "CHF/Stk"], ["verpPct", "Verpackung Zuschlag", "%"], ["verpPausch", "Verpackung pauschal", "CHF"],
+];
+export function preisFuerStaffel(preis, staffel) {
+  const x = { ...(preis || {}) };
+  const eigen = (staffel && staffel.preis) || {};
+  for (const [n] of PREIS_JE_STAFFEL) if (String(eigen[n] ?? "").trim()) x[n] = eigen[n];
+  return x;
+}
+
 export const AG_JE_STAFFEL = ["masch", "laufTag", "te", "erst", "folge", "fgk"];
 // Beim externen Arbeitsgang hat das Gewatec immer einen Kostensatz je Staffel.
 export function agFuerStaffel(ag, staffel, i) {
@@ -198,7 +215,7 @@ export function staffelRechnen(k, staffel, maschinen) {
   const extern = ags.filter((a) => a.extern).reduce((s, a) => s + a.kosten, 0);
   const ruest = ags.filter((a) => !a.extern).reduce((s, a) => s + a.ruestChf, 0);
   const varFert = ags.reduce((s, a) => s + a.var, 0);
-  const p = k.preis || {};
+  const p = preisFuerStaffel(k.preis, staffel);
   const proStk = (x) => (menge > 0 ? x / menge : 0);
   const herstell = proStk(mat.kosten + intern + extern);
   // Preisermittlung wie im Gewatec: Sondereinzelkosten Vertrieb vor den

@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.228.0** Kalkulation: im Reiter Preis die Tabelle **Kosten je Staffel** (Wunsch Patrick 27. Oktober 2026: „alle Kosten im oberen Bereich pro Staffelmenge rechnen können“): Sondereinzelkosten, Vw/Vt, Verzinsung, Gewinn, Provision, Skonto, Rabatt, Eilzuschlag, Transport und Verpackung je Staffel; leer gilt der Wert oben, eigene Werte sind blau umrandet.
 - **1.227.0** Kalkulation: über den Arbeitsgängen stehen die **Fertigungslose je Staffel** mit Stück je Los, dazu die Zeile „Fertigungslose“ in den Tabellen je Staffel bei Multimaschinell und extern (Wunsch Patrick 27. Oktober 2026).
 - **1.226.0** Kalkulation: externer Arbeitsgang mit **Kostensatz je Staffel** wie im Gewatec (Bild Patrick 27. Oktober 2026), darunter Stückzahl, Gewicht und Einzelkosten je Staffel; leer gilt der Kostensatz oben.
 - **1.225.0** Kalkulation: **Multimaschinell** im internen Arbeitsgang (Wunsch Patrick 27. Oktober 2026: „pro Staffelmenge die Werte separat festlegen, Auslastung, FGK etc.“). Mit dem Häkchen steht wie in der Maske des Gewatec je Staffel eine Spalte mit Maschine, Auslastung Std/Tag, Stundensatz fix/var/eff, Zeit je Stück, Rüstsatz, Erst- und Folgerüsten, FGK sowie Fix-, Var- und Vollkosten je Stück; leer gelassen gilt der Wert des Arbeitsgangs. Zugeklappt steht „je Staffel“ statt der Maschine.

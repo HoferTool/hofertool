@@ -17,7 +17,7 @@ import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT,
+  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL,
 } from "../daten/kalkulation.js";
 
 const REITER = [
@@ -176,7 +176,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
     const neu0 = structuredClone(alt0);
     const teile = pfad.split(".");
     let o = neu0;
-    teile.slice(0, -1).forEach((t) => { o = o[t]; });
+    teile.slice(0, -1).forEach((t) => { if (o[t] == null) o[t] = {}; o = o[t]; });
     o[teile[teile.length - 1]] = wert;
     return neu0;
   });
@@ -753,6 +753,25 @@ function Preis({ k, setze, rechnung }) {
           </div>
         </section>
       </div>
+      {rechnung.length > 0 &&
+        <section className="karte kalk-rolle" id="kalk-preis-jestaffel">
+          <h2>Kosten je Staffel</h2>
+          <p className="hinweis">Leer gilt der Wert oben (grau). Eine eigene Zahl gilt nur für diese Staffel.</p>
+          <table className="tabelle kalk-tab kalk-protokoll">
+            <thead><tr><th></th>{rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk</th>)}</tr></thead>
+            <tbody>
+              {PREIS_JE_STAFFEL.map(([name, titel, einheit]) => (
+                <tr key={name}><td>{titel} <span className="kalk-einheit">{name === "eil" ? (k.preis.eilArt === "prozent" ? "%" : "CHF/Stk") : einheit}</span></td>
+                  {rechnung.map((r, i) => {
+                    const st = k.staffeln[staffelIdx[i]], eigen = (st.preis || {})[name] || "";
+                    return <td key={i} className={"rechts" + (String(eigen).trim() ? " kalk-eigen" : "")}>
+                      <input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ps" + i + "-" + name}
+                        placeholder={k.preis[name] || ""} value={eigen}
+                        onChange={(e) => setze("staffeln." + staffelIdx[i] + ".preis." + name, e.target.value)} /></td>;
+                  })}</tr>))}
+            </tbody>
+          </table>
+        </section>}
       {rechnung.length > 0 &&
         <section className="karte kalk-rolle">
           <h2>Preisermittlung je Staffel</h2>
