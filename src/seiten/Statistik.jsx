@@ -29,8 +29,9 @@ const REITER = [["maschinen", "Maschinen"], ["artikel", "Artikel"], ["werkzeug",
 const MONATE_KURZ = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
 // Erst ab diesem Tag sind die Zahlen verlässlich erfasst; Älteres zählt
-// nie, auch wenn der Zeitraum weiter zurückreicht (Wunsch Patrick 23. Oktober 2026)
-export const STATISTIK_AB = "2026-10-19";
+// nie, auch wenn der Zeitraum weiter zurückreicht (Wunsch Patrick 23. Oktober 2026;
+// seit 27. Oktober 2026 ab 26.10. statt 19.10.: „erst ab dem 26.10 geführt“)
+export const STATISTIK_AB = "2026-10-26";
 
 // Zurück geht genau dorthin, wo man herkam: von einem Artikel, der von
 // einer Maschine aus geöffnet wurde, wieder zur Maschine, sonst zur Liste,
