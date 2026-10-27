@@ -104,10 +104,18 @@ export function materialRechnen(mat, menge) {
     meter = kgJeM > 0 ? kg / kgJeM : 0;
     stangen = meter / (stange / 1000);
   }
+  // Ausschuss in % ganz am Schluss auf kg, Meter und Stangen, leer = 0
+  // (seit 1.238.0, Wunsch Patrick 27. Oktober 2026, wie im Materialrechner)
+  const kgOhneAusschuss = kg;
+  const ausschuss = Math.max(0, z(mat.ausschuss));
+  const faktor = 1 + ausschuss / 100;
+  kg *= faktor; meter *= faktor; stangen *= faktor;
   // Wie im Gewatec: Mat-Kosten = kg gesamt × Preis, dann Gemeinkosten in % und pauschal
   const roh = kg * z(mat.preis);
   const kosten = roh * (1 + z(mat.gk) / 100) + z(mat.gkPausch);
-  return { kg, meter, stangen, kgJeM, roh, kosten, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0 };
+  return { kg, meter, stangen, kgJeM, roh, kosten, ausschuss, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0,
+    // Gewicht je Gutteil ohne Ausschuss, für externe Arbeitsgänge je kg
+    kgJeStkNetto: menge > 0 ? kgOhneAusschuss / menge : 0 };
 }
 
 // ---------- Ganze Kalkulation für eine Staffel ----------
@@ -141,7 +149,7 @@ export const EXTERN_NEBEN = [
 export const EXTERN_JE = { stk: 1, "100stk": 100, "1000stk": 1000 };
 
 export function externRechnen(ag, menge, mat) {
-  const kgStk = z(ag.kgStk) || mat.kgJeStk;
+  const kgStk = z(ag.kgStk) || mat.kgJeStkNetto;
   const gewicht = menge * kgStk;
   let satz = ag.je === "kg" ? gewicht * z(ag.extern) : menge / (EXTERN_JE[ag.je] || 1) * z(ag.extern);
   const posten = z(ag.posten) > 0 && (!(z(ag.postenBis) > 0) || gewicht <= z(ag.postenBis));

@@ -419,15 +419,17 @@ function Material({ k, setze, setK, rechnung }) {
           ? <div className="kalk-reihe">
               <F label="Ø" einheit="mm" id="kalk-d" {...f("d")} />
               <F label="Länge je Teil mit Abstich" einheit="mm" id="kalk-laenge" {...f("laenge")} />
-              <F label="Stange" einheit="mm" id="kalk-stange" {...f("stange")} />
+              <F label="Stangenlänge" einheit="mm" id="kalk-stange" platz="3000" {...f("stange")} />
               <F label="Reststück" einheit="mm" id="kalk-rest" {...f("rest")} />
               <F label="Dichte" einheit="kg/dm³" id="kalk-dichte" {...f("dichte")} />
+              <F label="Ausschuss" einheit="%" id="kalk-ausschuss" platz="0" {...f("ausschuss")} />
             </div>
           : <div className="kalk-reihe">
               <F label="Materialeinsatz" einheit="kg/Stk" id="kalk-einsatz" {...f("einsatz")} />
               <F label="Ø für Meter und Stangen" einheit="mm" id="kalk-d" {...f("d")} />
-              <F label="Stange" einheit="mm" id="kalk-stange" {...f("stange")} />
+              <F label="Stangenlänge" einheit="mm" id="kalk-stange" platz="3000" {...f("stange")} />
               <F label="Dichte" einheit="kg/dm³" id="kalk-dichte" {...f("dichte")} />
+              <F label="Ausschuss" einheit="%" id="kalk-ausschuss" platz="0" {...f("ausschuss")} />
             </div>}
       </section>
 
@@ -438,13 +440,14 @@ function Material({ k, setze, setK, rechnung }) {
             <tbody>
               <Zeile titel="kg gesamt" werte={rechnung.map((r) => chf(r.mat.kg, 1))} />
               <Zeile titel="Meter gesamt" werte={rechnung.map((r) => chf(r.mat.meter, 1))} />
-              <Zeile titel="Stangen" werte={rechnung.map((r) => chf(r.mat.stangen, m.modus === "rechnen" ? 0 : 1))} />
+              <Zeile titel="Stangen" werte={rechnung.map((r) => chf(r.mat.stangen, m.modus === "rechnen" && !(z(m.ausschuss) > 0) ? 0 : 1))} />
               <Zeile titel="kg je Stück" werte={rechnung.map((r) => chf(r.mat.kgJeStk, 4))} />
               <Zeile titel="Mat-Kosten = kg gesamt × Preis" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.roh))} klein />
               <Zeile titel="Materialkosten mit Gemeinkosten" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.kosten))} />
               <Zeile titel="Material je Stück" einheit="CHF" fett werte={rechnung.map((r) => chf(r.matStk, 4))} />
             </tbody>
           </table>
+          {r0 && r0.mat.ausschuss > 0 && <p className="hinweis" id="kalk-ausschuss-hinweis">kg, Meter und Stangen inkl. {chf(r0.mat.ausschuss, z(m.ausschuss) % 1 ? 1 : 0)} % Ausschuss.</p>}
           {r0 && r0.mat.kgJeM > 0 && <p className="hinweis">{chf(r0.mat.kgJeM, 3)} kg je Meter Stange.</p>}
         </section>}
     </>
