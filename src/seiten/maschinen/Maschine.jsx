@@ -8,6 +8,7 @@
 //   - Backup-Batterien: zuletzt gewechselt, nächster Wechsel (Vorschlag
 //     zwei Jahre, frei verschiebbar), Hinweis für alle ein oder aus
 //   - Wartungshistorie: wer, wann, was, mit Bildern und PDFs
+//   - CAM: was an dieser Maschine anders ist (nur SW, seit 1.224.0)
 //   - Bedienungsanleitungen und Unterlagen (Datei oder Link)
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -15,6 +16,8 @@ import { alt, useDaten } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { betrachter } from "../../teile/Betrachter.jsx";
 import { UnterlagenListe } from "../../teile/Unterlagen.jsx";
+import { MaschineAnders } from "../../cam/Aufbau.jsx";
+import { istCamTyp } from "../../cam/daten.js";
 import { infoLaden, infoSetzen, wartungLaden, anhangHochladen, plusJahre, batterieFaellig,
   batterieText, tageBis, fehltSql, SQL_FEHLT, BATTERIE_JAHRE, istPdf, istBild,
   BATTERIE_ARTEN, batterieArtTeilen, batterieArtZusammen, batterienText } from "../../daten/maschinenInfo.js";
@@ -49,6 +52,8 @@ export default function MaschineSeite({ m, typ, park }) {
         <Batterien m={m} info={info.daten} darf={darf} neu={info.neu} />
       </>}
       {!sqlFehlt && <Wartung m={m} darf={darf} />}
+      {/* CAM vorerst nur bei den SW-Maschinen (seit 1.224.0) */}
+      {m.type_id && istCamTyp(typ) && <MaschineAnders m={m} typId={m.type_id} typName={typ} />}
       <section className="karte unterlagen unterlagen--seite">
         <UnterlagenListe m={m} typ={typ} />
       </section>

@@ -43,9 +43,11 @@ with sync_playwright() as p:
     pruefe("Reiter auf der Seite führt die Leiste mit", pg.evaluate("document.querySelector('.nav__unterpunkt.aktiv').textContent") == "Artikel")
 
     # Rechner: Reiter in der Leiste wählen und wieder zurück zur Seite
-    pg.click(".nav__punkt[data-nav='rechner']"); pg.wait_for_selector(".nav__unterpunkt[data-unter='rechner/gravur']")
-    pg.click(".nav__unterpunkt[data-unter='rechner/gravur']"); pg.wait_for_timeout(400)
-    pruefe("Rechner: Gravur über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "Gravur")
+    pg.click(".nav__punkt[data-nav='rechner']"); pg.wait_for_selector(".nav__unterpunkt[data-unter='rechner/cam']")
+    pg.click(".nav__unterpunkt[data-unter='rechner/cam']"); pg.wait_for_timeout(400)
+    pruefe("Rechner: CAM über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "CAM")
+    pg.click(".nav__unterpunkt[data-unter='rechner/shortcuts']"); pg.wait_for_timeout(400)
+    pruefe("Rechner: Shortcuts über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "Shortcuts")
     pg.click(".nav__punkt[data-nav='produktion']"); pg.wait_for_selector(".nav__unterpunkt[data-unter='produktion/fortschritt']")
     pg.click(".nav__unterpunkt[data-unter='produktion/fortschritt']"); pg.wait_for_timeout(500)
     pruefe("Produktion: Fortschritt über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "Fortschritt")

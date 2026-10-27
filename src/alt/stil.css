@@ -9416,7 +9416,7 @@ html:has(.st-kopf), html:has(.st-kopf) body { overflow-x: clip; }
                      margin: 0 auto 10px; max-width: 900px; }
 .eba-zseite-leiste label { display: flex; align-items: center; gap: 6px; font-size: .85rem; }
 .eba-zseite-name { width: 180px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--rand, #c8d0da);
-                   background: var(--feld, #fff); color: inherit; font: inherit; }
+                   color: inherit; font: inherit; }
 .eba-zseite-format { display: inline-flex; gap: 4px; }
 .eba-reiter { flex: none; display: flex; gap: 2px; overflow-x: auto; padding: 0 10px; align-items: flex-start;
               border-top: 1px solid rgba(127, 127, 127, .35); background: rgba(127, 127, 127, .12); }
@@ -9989,3 +9989,63 @@ body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) .knopf { min-height:
 .kalk-kompakt .kalk-ags .kalk-reihe { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
 .kalk-kompakt .feld.kalk-feld > span:first-child { overflow-wrap: anywhere; hyphens: auto; }
 .kalk-suche { width: 100%; margin-bottom: 8px; }
+
+/* CAM unter Rechner, Aufbau im Typ-Fenster und an der Maschine (1.224.0) */
+.cam-wahl { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.cam-wahl .wahlknopf { min-width: 0; }
+.cam-titel { margin: 18px 0 6px; font-size: 1rem; }
+.cam-zeile { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+.cam-zeile__titel { color: var(--gedaempft); min-width: 90px; }
+.cam-tabelle { width: 100%; border-collapse: collapse; margin: 4px 0 10px; }
+.cam-tabelle th, .cam-tabelle td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--linie); text-align: left; vertical-align: middle; }
+.cam-tabelle tbody th { font-weight: 600; white-space: nowrap; width: 1%; }
+.cam-tabelle thead th { color: var(--gedaempft); font-weight: 500; font-size: .85rem; }
+.cam-feld { width: 100%; min-width: 70px; padding: 6px 8px; border: 1px solid var(--linie); border-radius: 6px; color: inherit; font: inherit; }
+.cam-feld--breit { min-width: 180px; }
+.cam-code { width: 110px; font-family: ui-monospace, Consolas, monospace; }
+.cam-offen th { color: var(--gedaempft); }
+.cam-weg, .cam-haken { width: 1%; text-align: center; }
+.cam-haken input { width: 20px; height: 20px; }
+.cam-anders { background: rgba(192, 132, 21, .1); }
+.cam-anders__felder { display: flex; gap: 6px; }
+.cam-anders__felder .cam-feld:first-child { max-width: 110px; }
+.cam-plaetze summary { cursor: pointer; font-weight: 600; margin: 14px 0 6px; }
+.cam-notiz { width: 100%; min-height: 70px; padding: 8px; border: 1px solid var(--linie); border-radius: 6px; color: inherit; font: inherit; white-space: pre-wrap; }
+.cam-liste { list-style: none; margin: 8px 0 0; padding: 0; }
+.cam-liste li { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--linie); }
+.cam-liste__name { font-weight: 600; text-align: left; }
+.cam-liste li .klein { flex: 1; }
+.cam-gelesen { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0 0 10px; }
+.cam-gelesen dt { color: var(--gedaempft); }
+.cam-gelesen dd { margin: 0; font-family: ui-monospace, Consolas, monospace; word-break: break-word; }
+.cam-text { max-height: 60vh; overflow: auto; padding: 10px; border-radius: 6px; background: #0f1724; color: #e5ecf5; font-size: .85rem; white-space: pre; }
+.cam-programm { width: min(960px, 96vw); }
+.cam-schritte { margin: 6px 0 10px; padding: 0; list-style: none; display: grid; gap: 8px; }
+.cam-schritte li { display: grid; gap: 2px; }
+body.dunkel .cam-anders { background: rgba(192, 132, 21, .18); }
+@media (max-width: 640px) {
+  .cam-anders__felder { flex-direction: column; }
+  .cam-feld--breit { min-width: 0; }
+}
+/* Skizze des Aufbaus im CAM */
+.cam-skizze-huelle { overflow-x: auto; margin: 4px 0 8px; border: 1px solid var(--linie); border-radius: 8px; background: var(--grund); }
+.cam-skizze { display: block; width: 100%; min-width: 760px; height: auto; }
+.cam-sk-spindel { fill: var(--linie-stark); }
+.cam-sk-buechse { fill: var(--gedaempft); }
+.cam-sk-stange { fill: #c7ccd3; stroke: #8d949e; }
+.cam-sk-achse, .cam-sk-trenn { stroke: var(--gedaempft); stroke-dasharray: 6 5; stroke-width: 1.2; }
+.cam-sk-titel { font-size: 15px; font-weight: 600; fill: var(--tinte); }
+.cam-sk-klein { font-size: 12px; fill: var(--gedaempft); }
+.cam-sk-kachel { fill: var(--flaeche); stroke: var(--linie-stark); }
+.cam-sk-nr { font-size: 11px; font-weight: 700; fill: #fff; }
+.cam-sk-schaft, .cam-sk-halter { fill: #7d8693; stroke: #4c5560; stroke-width: 1; }
+.cam-sk-halter { fill: #a3abb6; }
+.cam-sk-platte { fill: #d4a017; stroke: #7a5c0a; stroke-width: 1; }
+.cam-sk-motor rect { fill: var(--marke); }
+.cam-sk-motor path { stroke: var(--marke); stroke-width: 2; }
+.cam-sk-leer { stroke: var(--gedaempft); stroke-width: 2.5; }
+.cam-sk-frage { font-size: 24px; font-weight: 700; fill: var(--gedaempft); }
+.cam-sk-platz--vorschlag .cam-sk-kachel { stroke-dasharray: 5 4; stroke: var(--gedaempft); }
+.cam-sk-platz--klick { cursor: pointer; }
+.cam-sk-platz--klick:hover .cam-sk-kachel { stroke: var(--marke); stroke-width: 2; }
+.cam-hinweise { margin: 0 0 8px; padding-left: 18px; }

@@ -32,6 +32,8 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `tool_changes` | Werkzeugwechsel | `machine_id`, `job_id`, `tool_nr`, `grund`, `stueckzahl`, `gehalten_stk` |
 | `setup_sheets`, `setup_sheet_paths`, `setup_sheet_slots`, `setup_snapshots` | Einrichtblätter | |
 | `type_paths`, `type_slots`, `tool_kinds` | Aufbau je Maschinentyp | |
+| `cam_aufbau` | CAM-Aufbau (1.224.0, `sql/cam.sql`) | genau eines von `type_id` oder `machine_id`; `daten` jsonb: beim Typ `{steuerung, paths: {path_id: {aufgabe}}, plaetze: {T-Nr: {art, hinweis}}, mbefehle: [{id, funktion, code, hinweis}], notiz}`, bei der Maschine `{anders: {m_id: {code, hinweis}}, notiz}`; lesen alle ausser Externen, schreiben mit Schreibrecht |
+| `cam_programme` | Eigene NC-Programme als Stilvorlage (1.224.0) | `type_id`, `machine_id`, `name`, `hoco_nr`, `notiz`, `inhalt` (Text), `erstellt_am`, `erstellt_von`; löschen eigene oder Admin |
 | `quality_reports` | Ausschuss und Kontrolle | |
 
 ## Bestellungen und Einkauf

@@ -48,7 +48,7 @@ with sync_playwright() as p:
         pg.fill(sel, str(wert)); pg.press(sel, "Tab"); pg.wait_for_timeout(250)
 
     # C-Achse
-    pg.wait_for_selector("[data-unter='rechner/cachse']"); pg.click("[data-unter='rechner/cachse']")
+    pg.wait_for_selector("[data-rech='cachse']"); pg.click("[data-rech='cachse']")
     pg.wait_for_selector("pre.gcode")
     pruefe("C-Achse: Felder", "Vorschub C-Achse" in pg.inner_text("#rech-inhalt")
            and "Vorschub Eintauchen in Z" in pg.inner_text("#rech-inhalt"))
@@ -58,7 +58,7 @@ with sync_playwright() as p:
     pruefe("C-Achse Torx: Vorschub getrennt", vorschuebe(code(), r"G1Z-"))
 
     # Gravur
-    pg.click("[data-unter='rechner/gravur']"); pg.wait_for_selector("[data-grav='spiegelnX']")
+    pg.click("[data-rech='gravur']"); pg.wait_for_selector("[data-grav='spiegelnX']")
     feld("[data-grav='vorschub']", 50); feld("[data-grav='vorschubC']", 120)
     pruefe("Gravur Stirn: Vorschub getrennt", vorschuebe(code(), r"G1Z-"))
     roh = punkte(code())
@@ -74,7 +74,7 @@ with sync_playwright() as p:
     pruefe("Gravur Mantel: Vorschub getrennt", vorschuebe(code(), r"G1X"))
 
     # DXF
-    pg.click("[data-unter='rechner/dxf']"); pg.wait_for_selector("#dxf-datei", state="attached")
+    pg.click("[data-rech='dxf']"); pg.wait_for_selector("#dxf-datei", state="attached")
     pg.set_input_files("#dxf-datei", files=[{"name": "schief.dxf", "mimeType": "text/plain", "buffer": DXF.encode()}])
     pg.wait_for_selector("[data-dxf='spiegelnX']")
     feld("[data-dxf='vorschub']", 50); feld("[data-dxf='vorschubC']", 120)

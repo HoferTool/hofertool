@@ -20,7 +20,7 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#rechner'")
-    pg.wait_for_selector("[data-unter='rechner/dxf']"); pg.click("[data-unter='rechner/dxf']")
+    pg.wait_for_selector("[data-rech='dxf']"); pg.click("[data-rech='dxf']")
     pg.wait_for_selector("pre.gcode")
 
     def ziehen(sel, name, art, inhalt, ablegen=True):

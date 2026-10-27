@@ -1,7 +1,9 @@
 // =================================================================
 //  RECHNER FÜR DIE WERKSTATT
-//  Reiter: Drehzahl (hier), Winkel und Fase, G-Code, C-Achse, Gravur
-//  und DXF (je eine Datei in src/seiten/rechner/).
+//  Oben zwei Reiter (seit 1.224.0, Wunsch Patrick 27. Oktober 2026):
+//   - Shortcuts: die bisherigen Rechner Drehzahl (hier), Winkel und
+//     Fase, G-Code, C-Achse, Gravur und DXF (src/seiten/rechner/)
+//   - CAM: Aufbau der Maschinen und Programme (src/cam/)
 // =================================================================
 import { useState } from "react";
 import { useGemerkt } from "../bruecke.jsx";
@@ -14,8 +16,13 @@ import GCode from "./rechner/GCode.jsx";
 import CAchse from "./rechner/CAchse.jsx";
 import Gravur from "./rechner/Gravur.jsx";
 import Dxf from "./rechner/Dxf.jsx";
+import Cam from "../cam/Cam.jsx";
 
-export const REITER = [
+// Oben auf der Seite und in der Seitenleiste
+export const REITER = [["shortcuts", "Shortcuts"], ["cam", "CAM"]];
+
+// Unter Shortcuts
+export const RECHNER = [
   ["drehzahl", "Drehzahl"], ["winkel", "Winkel und Fase"], ["gcode", "G-Code"],
   ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"],
 ];
@@ -23,6 +30,7 @@ export const REITER = [
 // Was jemand eingetippt hat, bleibt beim Wechsel auf eine andere
 // Seite stehen, bis die App neu geladen wird.
 const gemerkt = {
+  oben: "shortcuts",
   ansicht: "drehzahl",
   werkstoff: 0,
   schneidstoff: "hm",
@@ -37,8 +45,8 @@ teilMerken("rechner", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z)
 
 // Für die Seitenleiste: ohne Wert lesen, mit Wert für das nächste Öffnen setzen
 export function rechnerAnsicht(wert) {
-  if (wert !== undefined) gemerkt.ansicht = wert;
-  return gemerkt.ansicht;
+  if (wert !== undefined) gemerkt.oben = wert;
+  return gemerkt.oben;
 }
 
 const INHALT = { winkel: Winkel, gcode: GCode, cachse: CAchse, gravur: Gravur, dxf: Dxf };
@@ -46,22 +54,29 @@ const INHALT = { winkel: Winkel, gcode: GCode, cachse: CAchse, gravur: Gravur, d
 const zahl = (n) => Math.round(n).toLocaleString("de-CH");
 
 export default function Rechner() {
+  const [oben, setOben] = useState(REITER.some(([w]) => w === gemerkt.oben) ? gemerkt.oben : "shortcuts");
   const [ansicht, setAnsicht] = useState(gemerkt.ansicht);
-  useGemerkt(gemerkt, { ansicht });
-  // Strg + F findet die Rechner (seit 1.169.0)
+  useGemerkt(gemerkt, { oben, ansicht });
+  // Strg + F findet die Rechner (seit 1.169.0) und das CAM
   useSeitenSuche({
-    name: "Rechner", platzhalter: "Drehzahl, Winkel, G-Code, Gravur …",
-    eintraege: REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: w })),
-    springen: (x) => setAnsicht(x.wert),
+    name: "Rechner", platzhalter: "Drehzahl, Winkel, G-Code, Gravur, CAM …",
+    eintraege: RECHNER.map(([w, t]) => ({ gruppe: "Shortcuts", zeichen: "∑", titel: t, wert: w }))
+      .concat([{ gruppe: "CAM", zeichen: "⚙", titel: "CAM", wert: "cam" }]),
+    springen: (x) => { if (x.wert === "cam") setOben("cam"); else { setOben("shortcuts"); setAnsicht(x.wert); } },
   });
 
   const Inhalt = INHALT[ansicht] || Drehzahl;
   return (
     <>
       <h1 className="seitentitel">Rechner</h1>
-      <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" seite="rechner" />
-      <Uebergang key={ansicht}>
-        <div id="rech-inhalt"><Inhalt /></div>
+      <Reiter reiter={REITER} aktiv={oben} waehlen={setOben} merkmal="rech-oben" seite="rechner" />
+      <Uebergang key={oben}>
+        {oben === "cam" ? <Cam /> : <>
+          <Reiter reiter={RECHNER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" />
+          <Uebergang key={ansicht}>
+            <div id="rech-inhalt"><Inhalt /></div>
+          </Uebergang>
+        </>}
       </Uebergang>
     </>
   );

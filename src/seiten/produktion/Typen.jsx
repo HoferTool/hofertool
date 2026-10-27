@@ -12,6 +12,8 @@ import { useLayoutEffect, useReducer, useRef } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { alleEinlesen } from "../../einrichtblatt/Einlesen.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
+import { TypAufbau as CamAufbau } from "../../cam/Aufbau.jsx";
+import { istCamTyp } from "../../cam/daten.js";
 
 let ladeNr = 0;
 
@@ -228,6 +230,8 @@ function TypFenster({ typId, zu }) {
                     <p className="klein">{anzahl === 1 ? "1 Maschine" : anzahl + " Maschinen"} mit diesem Typ</p>
                   </section>
                   <Aufbau typ={typ} typen={typen} darf={darf} geladen={{ nr }} neuLaden={neuLaden} imFenster />
+                  {/* CAM vorerst nur für SW (seit 1.224.0, Wunsch Patrick 27. Oktober 2026) */}
+                  {istCamTyp(typ) && <CamAufbau key={nr} typ={typ} imFenster />}
                 </>}
       </div>
     </div>
