@@ -10106,3 +10106,8 @@ h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }
 @media (max-width: 760px) {
   .kalk-kompakt .kalk-ag__kopf { grid-template-columns: 28px 2em minmax(0, 1fr) 5.5em 28px; }
 }
+
+/* Kalkulation: Materialbezeichnung doppelt so breit (Wunsch Patrick 27. Oktober 2026) */
+.kalk-reihe > .kalk-feld--breit { grid-column: span 2; }
+.kalk-kompakt .kalk-feld--breit.feld.kalk-feld { grid-template-columns: minmax(70px, 26%) minmax(0, 1fr); }
+@media (max-width: 760px) { .kalk-reihe > .kalk-feld--breit { grid-column: auto; } }

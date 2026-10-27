@@ -265,9 +265,9 @@ function mitVorgaben(d) {
 }
 
 // Ein Eingabefeld; Zahlen als Text, damit Komma und Apostroph gehen
-function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, platz, liste }) {
+function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, platz, liste, breit }) {
   return (
-    <label className="feld kalk-feld">
+    <label className={"feld kalk-feld" + (breit ? " kalk-feld--breit" : "")}>
       <span>{label}{einheit ? <em> {einheit}</em> : null}</span>
       {mehrzeilig
         ? <textarea id={id} rows={3} value={wert || ""} onChange={(e) => setzen(e.target.value)} />
@@ -289,6 +289,7 @@ function Kopf({ k, setze, nr, setNr }) {
         <F label="Adresse" id="kalk-adresse" mehrzeilig {...f("adresse")} />
         <F label="Artikel-Code" id="kalk-artikel" text {...f("artikel")} />
         <F label="Zeichnung" id="kalk-zeichnung" text {...f("zeichnung")} />
+        <F label="Kunden Ident-Nr." id="kalk-ident" text {...f("ident")} />
         <F label="Index" id="kalk-index" text {...f("index")} />
         <F label="Teilebezeichnung" id="kalk-bez" text {...f("bezeichnung")} />
       </section>
@@ -296,7 +297,6 @@ function Kopf({ k, setze, nr, setNr }) {
         <h2>Anfrage und Bearbeitung</h2>
         <F label="Anfrage vom" id="kalk-anfrage" typ="date" {...f("anfrage")} />
         <F label="Ihr Zeichen" id="kalk-zeichen" text {...f("zeichen")} />
-        <F label="Sachbearbeiter" id="kalk-sb" text {...f("sachbearbeiter")} platz={alt.personName ? "" : ""} />
       </section>
     </div>
   );
@@ -332,7 +332,7 @@ function Material({ k, setze, setK, rechnung }) {
       <section className="karte">
         <h2>Material</h2>
         <div className="kalk-reihe">
-          <F label="Materialbezeichnung" id="kalk-mat" text {...f("bez")} />
+          <F label="Materialbezeichnung" id="kalk-mat" text breit {...f("bez")} />
           <F label="Werkstoff-Nr." id="kalk-matnr" text {...f("nr")} />
         </div>
         <div className="kalk-reihe">
@@ -853,7 +853,7 @@ function Angebot({ k, setze, nr, rechnung }) {
         <div className="kalk-blatt__band"><b>HOFER + CO</b><span>Hofer+Co Präzisionsdrehteile AG · Alte Bernstrasse 24 · CH-4573 Lohn-Ammannsegg</span></div>
         <div className="kalk-blatt__oben">
           <div><h3>Angebot</h3><div>Angebots-Nr. {nr}</div><div>Datum {heuteText()}</div>
-            {k.kopf.sachbearbeiter && <div>Sachbearbeiter {k.kopf.sachbearbeiter}</div>}</div>
+            </div>
           <div className="kalk-blatt__an">{k.kopf.kunde}{k.kopf.adresse ? "\n" + k.kopf.adresse : ""}</div>
         </div>
         {k.kopf.anfrage && <p><b>Ihre Anfrage vom {datumText(k.kopf.anfrage)}</b></p>}
@@ -863,6 +863,7 @@ function Angebot({ k, setze, nr, rechnung }) {
           {k.material.nr && <><dt>Werkst. Nr.</dt><dd>{k.material.nr}</dd></>}
           <dt>Artikel-Code</dt><dd>{k.kopf.artikel}</dd>
           <dt>Zeichnung</dt><dd>{k.kopf.zeichnung}{k.kopf.index ? " / Index: " + k.kopf.index : ""}</dd>
+          {k.kopf.ident && <><dt>Kunden Ident-Nr.</dt><dd>{k.kopf.ident}</dd></>}
         </dl>
         <table className="kalk-blatt__preise">
           <thead><tr><th>Pos</th><th className="rechts">Menge</th><th>ME</th><th className="rechts">Preis (exkl. MwSt.)</th><th className="rechts">Pro</th></tr></thead>

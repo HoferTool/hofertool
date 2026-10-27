@@ -278,7 +278,7 @@ export function staffelRechnen(k, staffel, maschinen) {
 // ---------- Neue Kalkulation ----------
 export function leereKalkulation() {
   return {
-    kopf: { kunde: "", adresse: "", artikel: "", zeichnung: "", index: "", bezeichnung: "", anfrage: "", zeichen: "", sachbearbeiter: "" },
+    kopf: { kunde: "", adresse: "", artikel: "", zeichnung: "", index: "", ident: "", bezeichnung: "", anfrage: "", zeichen: "" },
     staffeln: [{ menge: "1000", lose: "1" }],
     material: { bez: "", nr: "", preis: "", gk: "", modus: "hand", einsatz: "", d: "", dichte: "7.85", stange: "3000", rest: "", laenge: "" },
     ags: [],

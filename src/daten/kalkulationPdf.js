@@ -33,7 +33,6 @@ export async function angebotPdf(k, nr, rechnung) {
   pdf.text("Angebot", L, y);
   pdf.setFontSize(9.5);
   const links = [["Angebots-Nr.", nr || ""], ["Datum", heuteText()]];
-  if (k.kopf.sachbearbeiter) links.push(["Sachbearbeiter", k.kopf.sachbearbeiter]);
   let yl = y + 7;
   links.forEach(([a, b]) => { pdf.text(a, L, yl); pdf.text(": " + b, L + 30, yl); yl += 5; });
 
@@ -55,7 +54,8 @@ export async function angebotPdf(k, nr, rechnung) {
   pdf.setDrawColor(0); pdf.setLineWidth(0.3);
   pdf.line(L, y, R, y); y += 6;
   const teil = [["Bezeichnung", k.kopf.bezeichnung], ["Werkstoff", k.material.bez], ["Werkst. Nr.", k.material.nr],
-    ["Artikel-Code", k.kopf.artikel], ["Zeichnung", (k.kopf.zeichnung || "") + (k.kopf.index ? " / Index: " + k.kopf.index : "")]]
+    ["Artikel-Code", k.kopf.artikel], ["Zeichnung", (k.kopf.zeichnung || "") + (k.kopf.index ? " / Index: " + k.kopf.index : "")],
+    ["Kunden Ident-Nr.", k.kopf.ident]]
     .filter(([, w]) => w);
   teil.forEach(([a, b]) => { pdf.text(a, L, y); pdf.text(": " + b, L + 30, y); y += 5; });
   y += 2;
