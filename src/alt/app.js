@@ -13,6 +13,7 @@ import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
 import Statistik, { statistikZurueck } from "../seiten/Statistik.jsx";
+import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import Temp from "../seiten/Temp.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Infoboard, { Empfang, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
@@ -145,7 +146,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.213.1";
+const APP_VERSION = "1.214.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -182,6 +183,8 @@ function escapeZurueck() {
     if (wo === "maschinen" && maschinenZurueck()) return;
     // Statistik: vom Artikel oder der Maschine dorthin, wo man herkam
     if (wo === "statistik" && statistikZurueck()) return;
+    // Kalkulation: aus einer Kalkulation zurück zur Liste
+    if (wo === "kalkulation" && kalkulationZurueck()) return;
     if (wo === "produktion" && prod.ansicht && prod.ansicht !== "erfassen") {
       prod.ansicht = "erfassen"; zeichneSeite(); return;
     }
@@ -2912,6 +2915,12 @@ function istAdmin() { return meineRolle() === "admin"; }
 function empfangSehen(u) {
   return !!(u && u.einstellungen && u.einstellungen.empfangSehen);
 }
+// Die Kalkulation sieht vorerst nur, wer den Vermerk kalkulationSehen am
+// Konto hat (Wunsch Patrick 27. Oktober 2026: „nur für Patrick Ruch“,
+// sql/kalkulation.sql); die Datenbank prüft dasselbe.
+function kalkulationSehen(u) {
+  return !!(u && u.einstellungen && u.einstellungen.kalkulationSehen);
+}
 function istAndererNutzer(u) {
   const k = u || profil;
   if (!k) return false;
@@ -2960,6 +2969,7 @@ function seiteSichtbar(pfad) {
   // Das Dienstkonto braucht keine Material-Seite
   if ((pfad === "material" || pfad === "qs" || pfad === "maschinen" || pfad === "statistik") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard") return infoboardSichtbar();
+  if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   // Den Bereich Empfang sehen nur Personen mit dem Vermerk empfangSehen am
   // Konto (Wunsch Patrick 26. Oktober 2026, sql/empfang-sehen.sql); der
   // Bildschirm selbst geht trotzdem von selbst auf.
@@ -9923,6 +9933,10 @@ SYM.infoboard = svg('<rect x="5" y="2.5" width="14" height="19" rx="2"/>'
 SYM.empfang = svg('<rect x="2.5" y="4" width="19" height="12" rx="2"/><path d="M12 16v4"/><path d="M8 20.5h8"/>'
   + '<path d="M5.5 7.5h6"/><rect x="5.5" y="9.5" width="5" height="4" rx=".6"/><rect x="12.5" y="7.5" width="6" height="6" rx=".6"/>');
 
+// Kalkulation: Blatt mit Franken-Zeichen und Summenstrich
+SYM.kalkulation = svg('<rect x="4.5" y="2.5" width="15" height="19" rx="2"/>'
+  + '<path d="M8 7h8M8 11h8M8 15h4"/><path d="M13.5 18h3"/><path d="M14 15h3"/>');
+
 // QS: Lupe mit Häkchen, wie Prüfen
 SYM.qs = svg('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20.5 20.5"/>'
   + '<path d="M7.8 10.6l2 2 3.6-3.8"/>');
@@ -10034,6 +10048,8 @@ const SEITEN = [
   { pfad: "qs",           titel: "Qualitätssicherung", zeichen: SYM.qs, zeige: reactSeite(Qs) },
   // Produktionsdaten je Maschine und Artikel (Wunsch Patrick 23. Oktober 2026)
   { pfad: "statistik",    titel: "Statistik",    zeichen: SYM.statistik, zeige: reactSeite(Statistik) },
+  // Kalkulation wie im Gewatec, vorerst nur für Patrick (seit 1.214.0)
+  { pfad: "kalkulation",  titel: "Kalkulation",  zeichen: SYM.kalkulation, zeige: reactSeite(Kalkulation) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: reactSeite(Einkauf) },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)

@@ -9793,3 +9793,101 @@ body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a
 .ib-layout__name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
 .ib-layout__name small { font-weight: 400; color: var(--gut); }
 .ib-layout--aktiv { background: color-mix(in srgb, var(--gut) 12%, transparent); }
+
+/* =================================================================
+   KALKULATION (seit 1.214.0, src/seiten/Kalkulation.jsx)
+   ================================================================= */
+.kalk-knoepfe { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; }
+.kalk-rolle { overflow-x: auto; }
+.kalk-liste { width: 100%; }
+.kalk-liste__zeile { cursor: pointer; }
+.kalk-liste__zeile:hover td { background: var(--marke-hell); }
+.kalk-klein { display: block; font-size: .8rem; color: var(--gedaempft); }
+.kalk-zurueck { margin-bottom: 10px; }
+.kalk-kopf { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 10px; margin-bottom: 12px; }
+.kalk-kopf .seitentitel { margin-bottom: 2px; }
+.kalk-kopf__unter { color: var(--gedaempft); }
+.kalk-kopf__rechts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.kalk-stand { font-size: .82rem; color: var(--gedaempft); }
+.kalk-stand--gespeichert { color: var(--gut); }
+.kalk-stand--fehler { color: var(--gefahr); font-weight: 600; }
+
+/* Band mit dem Preis jeder Staffel, immer über den Reitern */
+.kalk-band { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; }
+.kalk-band__staffel { flex: 0 0 auto; min-width: 150px; background: var(--marke); color: #fff;
+  border-radius: var(--radius); padding: 8px 14px; display: grid; gap: 1px; }
+.kalk-band__staffel span { font-size: .8rem; opacity: .85; }
+.kalk-band__staffel b { font-size: 1.5rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.kalk-band__staffel small { font-size: .72rem; opacity: .8; }
+.kalk-band__leer { color: var(--gedaempft); padding: 8px 0; }
+
+.kalk-zwei { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; align-items: start; }
+.kalk-zwei > * { min-width: 0; }
+.kalk-reihe { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 12px; align-items: start; }
+.kalk-feld > span em { font-style: normal; color: var(--gedaempft); font-weight: 400; }
+.kalk-feld input, .kalk-feld select, .kalk-feld textarea { width: 100%; }
+.kalk-modus { flex-wrap: wrap; }
+.kalk-hinweis-oben { margin: -4px 0 12px; }
+.kalk-unter { font-size: .9rem; margin: 14px 0 8px; color: var(--gedaempft); text-transform: uppercase; letter-spacing: .04em; }
+
+.kalk-staffeln { display: grid; gap: 6px; margin-bottom: 10px; }
+.kalk-staffel { display: grid; grid-template-columns: minmax(120px, 200px) minmax(80px, 120px) auto; gap: 0 12px; align-items: center; }
+.kalk-staffel .feld { margin-bottom: 6px; }
+
+.kalk-tab { width: 100%; }
+.kalk-tab td:first-child { white-space: nowrap; }
+.kalk-tab td.rechts, .kalk-tab th.rechts { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kalk-einheit { color: var(--gedaempft); font-size: .8rem; }
+.kalk-fett td { font-weight: 650; }
+.kalk-blass td { color: var(--gedaempft); font-size: .85rem; }
+.kalk-hervor td { background: var(--marke-hell); }
+.kalk-abschnitt td { font-weight: 650; padding-top: 14px; color: var(--marke); border-bottom: 2px solid var(--linie-stark); }
+.kalk-satz { margin-top: 12px; max-width: 560px; }
+
+/* Arbeitsgänge als Karten, am Griff ziehbar */
+.kalk-ags { margin-bottom: 12px; }
+.kalk-ag { background: var(--flaeche); border: 1px solid var(--linie); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; }
+.kalk-ag--extern { border-left: 4px solid var(--warnung); }
+.kalk-ag__kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
+.kalk-ag__pos { font-weight: 650; color: var(--gedaempft); min-width: 2.2em; }
+.kalk-ag__bez { flex: 1 1 200px; min-width: 0; font-weight: 600; }
+.kalk-ag__art { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--gedaempft); }
+.kalk-ag__summe { font-variant-numeric: tabular-nums; min-width: 5em; text-align: right; }
+.kalk-ag__fuss { font-size: .8rem; color: var(--gedaempft); }
+.kalk-ag .feld { margin-bottom: 6px; }
+
+/* Stundensätze */
+.kalk-masch { padding: 0; }
+.kalk-masch__kopf { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-wrap: wrap; justify-content: space-between;
+  gap: 6px 14px; width: 100%; padding: 14px 16px; }
+.kalk-masch__kopf:focus-visible { outline: 2px solid var(--marke); outline-offset: -2px; }
+.kalk-masch__kopf span { font-variant-numeric: tabular-nums; font-weight: 650; }
+.kalk-masch__kopf small { font-weight: 400; color: var(--gedaempft); margin-left: 6px; }
+.kalk-masch__inhalt { padding: 0 16px 16px; border-top: 1px solid var(--linie); padding-top: 12px; }
+
+/* Vorschau des Angebots, immer hell wie das Papier */
+.kalk-blatt { background: #fff; color: #111; padding: 0; overflow: hidden; font-size: .82rem; }
+.kalk-blatt__band { background: #2a7bd1; color: #fff; padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; }
+.kalk-blatt__band b { font-size: 1.3rem; letter-spacing: .04em; }
+.kalk-blatt__band span { font-size: .7rem; opacity: .9; }
+.kalk-blatt > :not(.kalk-blatt__band) { margin-left: 18px; margin-right: 18px; }
+.kalk-blatt__oben { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; margin-bottom: 10px; }
+.kalk-blatt__oben h3 { font-size: 1.15rem; margin: 0 0 4px; font-weight: 500; }
+.kalk-blatt__an { white-space: pre-line; }
+.kalk-blatt__teil { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin-top: 10px; margin-bottom: 10px; }
+.kalk-blatt__teil dt { color: #333; }
+.kalk-blatt__teil dd { margin: 0; }
+.kalk-blatt__preise { width: calc(100% - 36px); border-collapse: collapse; margin-top: 6px; margin-bottom: 6px; }
+.kalk-blatt__preise th { text-align: left; border-top: 1px solid #111; border-bottom: 1px solid #111; padding: 4px 4px; font-weight: 600; }
+.kalk-blatt__preise td { padding: 4px; border-bottom: 1px solid #ddd; font-variant-numeric: tabular-nums; }
+.kalk-blatt__preise .rechts { text-align: right; }
+.kalk-blatt__text { margin-bottom: 18px; }
+@media (max-width: 640px) {
+  .kalk-staffel { grid-template-columns: 1fr 90px auto; }
+  .kalk-blatt__oben { grid-template-columns: 1fr; }
+}
+.kalk-ags .ziehliste__zeile > :not(.ziehliste__griff) { flex: 1 1 auto; min-width: 0; }
+.kalk-ags .kalk-reihe { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+.kalk-ag__bez { font: inherit; font-weight: 600; padding: 8px 10px; border: 1px solid var(--linie); border-radius: var(--radius);
+  background: var(--flaeche); color: var(--tinte); }
+.kalk-ag__bez:focus { outline: 2px solid var(--marke); outline-offset: -1px; }
