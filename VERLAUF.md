@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.237.2** (27. Oktober 2026) Kalkulation: die Liste „Fertigungslose je Staffel“ über den Arbeitsgängen ist weg (Patrick 27. Oktober 2026: „soll nicht im Kopf aufgelistet werden, sie sind ja schon beim Drehen komplett in den Staffeln angegeben“). Die Zeile „Fertigungslose“ in den Tabellen je Staffel bleibt.
 - **1.237.1** (27. Oktober 2026) Kalkulation: die **Übersicht am Handy** als Kärtchen statt Tabelle (Patrick 27. Oktober 2026: „Auf dem iPhone wird die Übersicht der Kalkulationen komisch dargestellt“). Die sechs Spalten passten nicht, die Handy-Regel für Tabellen brach Nummer, Preis und Datum Ziffer für Ziffer um. Jetzt je Kalkulation oben Nr. und Preis, darunter Kunde, Artikel mit Bezeichnung, unten Staffeln und Datum. Suchfeld 16 px, damit das iPhone nicht hineinzoomt. Hinweis unten: „nur für freigegebene Personen sichtbar“ statt „nur für dich“ (Michel Bolinger hat seit heute auch den Vermerk `kalkulationSehen`).
 - **1.237.0** (27. Oktober 2026): Empfang mit Wetter-Effekten je Wetter und Jahreszeit (Häkchen, unabhängig vom Layout) und schemenhafter Alpenkette von Lohn-Ammannsegg im Hintergrund.
 - **1.236.1** Kalkulation: Reiter **Preis** und **Ergebnis** füllen die Höhe des Bildschirms ohne Rollen, auf grossen Bildschirmen mit grösseren Zeilen und Feldern, auf kleinen enger (Patrick 27. Oktober 2026: „Preis sehr klein, kann grösser werden nach unten“, „Ergebnis zu gross, ich will nicht scrollen“; `useBildschirmHoch`).

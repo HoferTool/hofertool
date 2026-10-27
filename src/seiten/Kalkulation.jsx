@@ -479,12 +479,8 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
     <>
       {!maschinen.length && <div className="karte karte--hinweis"><p>Noch keine Stundensätze. Zuerst unter
         „Alle Kalkulationen“ → „Stundensätze der Maschinen“ eine Maschine anlegen.</p></div>}
-      {rechnung.length > 0 && <div className="kalk-lose" id="kalk-lose">
-        <span className="kalk-einheit">Fertigungslose je Staffel:</span>
-        {rechnung.map((r, n) => <span key={n} className="kalk-lose__teil" data-lose={n}>
-          {chf(r.menge, 0)} Stk: <b>{r.lose} {r.lose === 1 ? "Los" : "Lose"}</b>{" "}
-          <span className="kalk-einheit">({chf(r.menge / r.lose, 0)} Stk je Los)</span></span>)}
-      </div>}
+      {/* Die Liste „Fertigungslose je Staffel“ über den Arbeitsgängen ist seit 1.237.2 weg:
+          die Lose stehen schon in den Tabellen je Staffel der Arbeitsgänge (Wunsch Patrick 27. Oktober 2026) */}
       <div className="kalk-ag-titel" aria-hidden="true">
         <span></span><span>AG</span><span>Bezeichnung</span><span>Maschine / Lieferant</span><span className="rechts">te Sek.</span>
         <span className="rechts">tr Std</span><span className="rechts">FGK</span><span className="rechts">CHF/Stk</span><span></span>
