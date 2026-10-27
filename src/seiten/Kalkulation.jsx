@@ -17,7 +17,7 @@ import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation,
+  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan,
 } from "../daten/kalkulation.js";
 
 const REITER = [
@@ -84,14 +84,13 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
     try {
       let daten = leereKalkulation();
       let masch = maschinen;
-      if (beispiel) {
-        // Die Stundensätze aus dem Gewatec-Beispiel anlegen, soweit sie fehlen
-        for (const m of BEISPIEL_MASCHINEN) {
-          if (!masch.some((x) => x.name === m.name)) await maschineSpeichern(m);
-        }
-        masch = await maschinenLaden();
-        daten = beispielKalkulation(masch);
-      }
+      // Die Stundensätze, die der Start-Arbeitsplan braucht, anlegen, soweit sie fehlen
+      const fehlt = BEISPIEL_MASCHINEN.filter((m) => (beispiel || START_MASCHINEN.includes(m.name))
+        && !masch.some((x) => x.name === m.name));
+      for (const m of fehlt) await maschineSpeichern(m);
+      if (fehlt.length) masch = await maschinenLaden();
+      if (beispiel) daten = beispielKalkulation(masch);
+      else daten.ags = startArbeitsplan(masch);
       const id = await kalkulationSpeichern({ nr: beispiel ? "20225174" : naechsteNr(liste), daten });
       neu();
       oeffnen(id);

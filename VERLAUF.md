@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.215.0** Kalkulation: **jede neue Kalkulation startet mit dem Dummy-Arbeitsplan** wie im Gewatec (Wunsch Patrick 27. Oktober 2026): Material bereitstellen, Maschine einrichten, Erstteilprüfung, Drehen komplett, Waschen fettfrei, Zwischenkontrolle, Endkontrolle, Versand/Einlagern. Kontrolle mit 0.5 Std Rüsten, Waschen auf der Reinigungsanlage, Versand auf der Spedition; fehlen diese Stundensätze, legt die App sie an. Drehen bekommt keine Maschine (je Teil wählen).
 - **1.214.1** Kalkulation: **Reiter stehen oben in der Seite** (Patrick 27. Oktober 2026: „wie komme ich hier weiter?“). Sie standen nur links in der Seitenleiste und waren in der Seite ausgeblendet, darum sah man nur die Kopfdaten.
 - **1.214.0** **Kalkulation** wie im Gewatec, nur für Patrick (Wunsch Patrick 27. Oktober 2026: „ich möchte gerne ein Testprogramm … im HoferTool einbauen, nur für Patrick Ruch“). Stundensätze aus den Grundlagen, Arbeitsgänge, beliebig viele Staffeln mit eigenen Losen, Ergebnis je Staffel und Angebot als PDF; das Beispiel 20225174 ergibt dieselben Zahlen wie das Gewatec (3.80 CHF). Laufzeit am Tag beim Arbeitsgang statt mehrerer Schichtmodelle je Maschine. `sql/kalkulation.sql` eingespielt.
 - **1.213.1** Empfang, Kachel der Solaranlage heisst **„Selbst erzeugt“** statt „Selbst gebraucht“ (Wunsch Patrick 27. Oktober 2026). Die Zahl bleibt: Anteil des Verbrauchs, den die Solaranlage gerade selbst erzeugt.

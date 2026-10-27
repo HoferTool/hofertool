@@ -220,6 +220,27 @@ export const BEISPIEL_MASCHINEN = [
   { name: "Spedition", sort: 4, daten: { modus: "hand", fix: "0", var: "0", ruest: "0" } },
 ];
 
+// Arbeitsplan, mit dem jede neue Kalkulation startet, wie Patricks
+// Dummy im Gewatec (Wunsch Patrick 27. Oktober 2026). Drehen bekommt
+// keine Maschine, die wählt man je Teil; Kontrolle, Waschen und Versand
+// nehmen die Stundensätze gleichen Namens, wenn es sie gibt.
+export const START_MASCHINEN = ["Kontrolle", "Reinigungsanlage", "Spedition"];
+
+export function startArbeitsplan(maschinen) {
+  const id = (name) => (maschinen.find((m) => m.name.startsWith(name)) || {}).id || "";
+  const ag = (bez, masch, ruest) => ({ bez, art: "intern", masch, te: "0", erst: ruest, folge: ruest, fgk: "" });
+  return [
+    ag("Material bereitstellen", "", "0"),
+    ag("Maschine einrichten", "", "0"),
+    ag("Erstteilprüfung", id("Kontrolle"), "0.5"),
+    ag("Drehen komplett", "", "0"),
+    ag("Waschen fettfrei", id("Reinigungsanlage"), "0"),
+    ag("Zwischenkontrolle", id("Kontrolle"), "0.5"),
+    ag("Endkontrolle", id("Kontrolle"), "0.5"),
+    ag("Versand/Einlagern", id("Spedition"), "0"),
+  ];
+}
+
 export function beispielKalkulation(maschinen) {
   const id = (name) => (maschinen.find((m) => m.name.startsWith(name)) || {}).id || "";
   const k = leereKalkulation();

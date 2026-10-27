@@ -61,6 +61,12 @@ with sync_playwright() as p:
     # Escape: zurück zur Liste
     pg.evaluate("document.activeElement && document.activeElement.blur()"); pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
     pruefe(pg.locator(".kalk-liste").count() > 0, "Escape zurück zur Liste")
+    # Neue Kalkulation startet mit dem Dummy-Arbeitsplan
+    pg.click("#kalk-neu"); pg.wait_for_timeout(1200)
+    neu = pg.evaluate("() => TEST.daten.kalkulationen.find(k => k.nr !== '20225174')")
+    bez = [a["bez"] for a in neu["daten"]["ags"]] if neu else []
+    pruefe(len(bez) == 8 and bez[0] == "Material bereitstellen" and bez[-1] == "Versand/Einlagern", "Start-Arbeitsplan: %s" % bez)
+    pruefe(all(a["masch"] for a in neu["daten"]["ags"] if a["bez"] in ("Erstteilprüfung", "Endkontrolle", "Versand/Einlagern")), "Kontrolle und Spedition zugeordnet")
     if pg.locator("#kalk-zurueck").count(): pg.click("#kalk-zurueck")
     pg.wait_for_selector("#kalk-saetze")
     pg.click("#kalk-saetze"); pg.wait_for_selector(".kalk-masch"); pg.click(".kalk-masch__kopf >> nth=0"); pg.wait_for_timeout(300)
