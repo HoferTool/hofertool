@@ -102,6 +102,23 @@ export function materialRechnen(mat, menge) {
 }
 
 // ---------- Ganze Kalkulation für eine Staffel ----------
+export const WAEHRUNGEN = ["CHF", "EUR", "USD"];
+
+// Aktueller Kurs: 1 CHF = kurs in der Zielwährung. Zuerst die Kurse der
+// Europäischen Zentralbank (Frankfurter, täglich), sonst open.er-api.com.
+export async function kursHolen(waehrung) {
+  if (waehrung === "CHF") return { kurs: 1, datum: "" };
+  try {
+    const a = await fetch("https://api.frankfurter.dev/v1/latest?base=CHF&symbols=" + waehrung);
+    const d = await a.json();
+    if (d && d.rates && d.rates[waehrung]) return { kurs: d.rates[waehrung], datum: d.date, quelle: "EZB" };
+  } catch (e) { /* weiter mit der zweiten Quelle */ }
+  const a = await fetch("https://open.er-api.com/v6/latest/CHF");
+  const d = await a.json();
+  if (!d || !d.rates || !d.rates[waehrung]) throw new Error("Kein Wechselkurs erhalten.");
+  return { kurs: d.rates[waehrung], datum: new Date((d.time_last_update_unix || 0) * 1000).toISOString().slice(0, 10), quelle: "open.er-api.com" };
+}
+
 export function staffelRechnen(k, staffel, maschinen) {
   const menge = z(staffel.menge), lose = Math.max(1, z(staffel.lose) || 1);
   const mat = materialRechnen(k.material || {}, menge);
@@ -147,12 +164,18 @@ export function staffelRechnen(k, staffel, maschinen) {
   vk = p.eilArt === "prozent" ? vk * (1 + z(p.eil) / 100) : vk + z(p.eil);
   const schritt = z(p.rundung) || 0.01;
   // Ein eingetragener Angebotspreis der Staffel gilt vor dem gerundeten VK
+  // Ausgabe in CHF, EUR oder USD: gerechnet wird in CHF, das Angebot
+  // geht in der gewählten Währung hinaus und wird dort gerundet
+  // (Wunsch Patrick 27. Oktober 2026, „Währung (Ausgabe)“ im Gewatec)
+  const waehrung = WAEHRUNGEN.includes(p.waehrung) ? p.waehrung : "CHF";
+  const faktor = waehrung === "CHF" ? 1 : (z(p.kurs) || 1);
   const angebotHand = z(staffel.angebot) > 0;
-  const angebot = angebotHand ? z(staffel.angebot) : Math.round(vk / schritt) * schritt;
+  const angebotAus = angebotHand ? z(staffel.angebot) : Math.round(vk * faktor / schritt) * schritt;
+  const angebot = angebotAus / faktor;
   const umsatz = angebot * menge;
   const ziel = z(staffel.ziel);
   return {
-    menge, lose, lieferlose, mat, ags,
+    menge, lose, lieferlose, mat, ags, waehrung, faktor, angebotAus, umsatzAus: angebotAus * menge,
     matStk: mat.jeStk, internStk: proStk(intern), externStk: proStk(extern), ruestStk: proStk(ruest),
     herstell, selbst, zins, selbstVerz, transport, verpackung, fracht, vk, angebot, angebotHand, umsatz, ziel,
     margeVk: (vk - selbstVerz - fracht) * menge,
@@ -170,7 +193,7 @@ export function leereKalkulation() {
     staffeln: [{ menge: "1000", lose: "1" }],
     material: { bez: "", nr: "", preis: "", gk: "", modus: "hand", einsatz: "", d: "", dichte: "7.85", stange: "3000", rest: "", laenge: "" },
     ags: [],
-    preis: { sek: "", vwgk: "", zinsPct: "", zinsMonate: "", transport: "", transPct: "", transPausch: "", eil: "", eilArt: "pauschal", verpackung: "", verpPct: "", verpPausch: "", gewinn: "30", prov: "", skonto: "", rabatt: "", rundung: "0.01" },
+    preis: { sek: "", vwgk: "", zinsPct: "", zinsMonate: "", transport: "", transPct: "", transPausch: "", eil: "", eilArt: "pauschal", verpackung: "", verpPct: "", verpPausch: "", gewinn: "30", prov: "", skonto: "", rabatt: "", rundung: "0.01", waehrung: "CHF", kurs: "", kursDatum: "", kursQuelle: "" },
     angebot: { lieferzeit: "nach Absprache", lieferbed: "franko Domizil, inkl. Verpackung", zahlung: "30 Tage netto", gueltig: "Offerte freibleibend, gültig 1 Monat ab Offertdatum. (Materialpreisveränderungen ausgenommen)" },
   };
 }

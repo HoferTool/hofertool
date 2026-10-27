@@ -53,7 +53,20 @@ with sync_playwright() as p:
     pg.fill("#kalk-zins", ""); pg.fill("#kalk-zinsmon", ""); pg.fill("#kalk-angebot-0", ""); pg.wait_for_timeout(300)
     band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
     pruefe(band == ["3.80", "3.92"], "leer wieder wie Gewatec: %s" % band)
+    # Währung EUR mit Kurs aus dem Netz (hier nachgebildet)
+    pg.route("**/api.frankfurter.dev/**", lambda r: r.fulfill(status=200, content_type="application/json",
+        headers={"Access-Control-Allow-Origin": "*"}, body='{"amount":1,"base":"CHF","date":"2026-10-27","rates":{"EUR":1.07}}'))
+    pg.select_option("#kalk-waehrung", "EUR"); pg.wait_for_timeout(800)
+    band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(band[0] == "4.06 EUR", "Angebot in EUR mit Kurs 1.07: %s" % band)
+    pruefe(pg.input_value("#kalk-kurs") == "1.07", "Kurs eingetragen")
     pg.screenshot(path=BILD + "/kalk-preis.png", full_page=True)
+    with pg.expect_download() as dl:
+        pg.locator("[data-kalk-reiter='angebot']").click(); pg.click("#kalk-pdf")
+    pruefe("4.06 EUR" in pg.locator("#kalk-vorschau").inner_text(), "Vorschau in EUR")
+    pg.locator("[data-kalk-reiter='preis']").click(); pg.select_option("#kalk-waehrung", "CHF"); pg.wait_for_timeout(300)
+    band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(band == ["3.80", "3.92"], "zurück auf CHF: %s" % band)
 
     pg.locator("[data-kalk-reiter='ags']").click(); pg.wait_for_selector("#kalk-ags")
     agt = pg.locator("[data-ag='1']").inner_text()
