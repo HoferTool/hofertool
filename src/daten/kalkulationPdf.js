@@ -77,7 +77,7 @@ export async function angebotPdf(k, nr, rechnung) {
   });
   pdf.line(L, y, R, y); y += 14;
 
-  const bed = [["Lieferzeit", k.angebot.lieferzeit], ["Lieferbedingung", k.angebot.lieferbed], ["Zahlungsbedingung", k.angebot.zahlung]]
+  const bed = [["Lieferzeit", k.angebot.lieferzeit], ["Lieferbedingung", k.angebot.lieferbed], ["Versandbedingung", k.angebot.versand], ["Zahlungsbedingung", k.angebot.zahlung]]
     .filter(([, w]) => w);
   bed.forEach(([a, b]) => { pdf.text(a, L, y); pdf.text(": " + b, L + 36, y); y += 5; });
   y += 5;

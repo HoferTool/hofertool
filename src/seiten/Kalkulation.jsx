@@ -234,14 +234,14 @@ function mitVorgaben(d) {
 }
 
 // Ein Eingabefeld; Zahlen als Text, damit Komma und Apostroph gehen
-function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, platz }) {
+function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, platz, liste }) {
   return (
     <label className="feld kalk-feld">
       <span>{label}{einheit ? <em> {einheit}</em> : null}</span>
       {mehrzeilig
         ? <textarea id={id} rows={3} value={wert || ""} onChange={(e) => setzen(e.target.value)} />
         : <input id={id} type={typ || "text"} inputMode={text || typ ? undefined : "decimal"} value={wert == null ? "" : wert}
-            placeholder={platz} onChange={(e) => setzen(e.target.value)} />}
+            placeholder={platz} list={liste} onChange={(e) => setzen(e.target.value)} />}
       {hinweis ? <span className="feldhinweis">{hinweis}</span> : null}
     </label>
   );
@@ -437,6 +437,36 @@ const LAUFZEITEN = [8, 10, 12, 14, 16, 18, 20, 22, 24];
 
 // Arbeitsgänge zur Auswahl, wie „Arbeitsgänge-Auswahl“ im Gewatec
 // (Bildschirmfoto Patrick 27. Oktober 2026); freier Text geht auch
+// Lieferbedingungen wie im Gewatec (Kürzel, Text), Bild Patrick 27. Oktober 2026
+const LIEFERBEDINGUNGEN = [
+  ["ABH", "abgeholt"], ["DDP", "DDP Schwanden"], ["EXW D", "ab Werk"], ["EXW E", "ex works"],
+  ["EXWEXV", "ab Werk, exkl. Verpackung"], ["EXWEXVT", "ab Werk, exkl. Verpackung/Transport"],
+  ["EXWIV", "ab Werk, inkl. Verpackung"], ["EXWSPEZ", "Packing and Delivery not included"], ["F", "franko"],
+  ["FCAL", "FCA Lohn-Ammannsegg, packing included"], ["FD", "franko Domizil"], ["FDIV", "franko Domizil, inkl. Verpackung"],
+  ["FDIVT", "franko Domizil inkl. Verpackung/Transport"], ["FDZ", "franko Domizil verzollt"],
+  ["FGW", "franko Galvano Wullimann, inkl. Verpackung"], ["fHIV", "frei Haus, incl. Verpackung"],
+  ["FRH", "Frei Haus, inkl. Verpackung"], ["FRHIVTZ", "Frei Haus, inkl. Verpackung, Transpotkosten und Verzollung"],
+  ["LIECHTI", "an Liechti AG - Niederwangen"], ["SCHM", "an Härterei Schmid AG - 4657 Dulliken"],
+  ["SPFUX", "Abgh: SpediFux"], ["WBC", "an WBC Härterei AG - Bubikon"],
+];
+
+// Versandbedingungen wie im Gewatec, Bild Patrick 27. Oktober 2026
+const VERSANDBEDINGUNGEN = [
+  ["ABG", "abgeholt"], ["ABGKU", "abgeholt im Auftrag Kunde"], ["CDOM", "per Cargo Domicile"],
+  ["COBI", "an Cobianchi AG-3672 Oberdiessbach"], ["DHL", "per DHL"], ["DHL EXP", "per DHL Express"],
+  ["EGGER", "via E. Egger, St. Gallen"], ["EMBRU", "an: Embru Werke AG - 8630 Rüti ZH"], ["FEDEX", "per FedEX"],
+  ["Ferag", "abgeholt per Camion Ferag"], ["GONDR", "per Gondrand AG, Basel"], ["LGI", "via LGI Logistics"],
+  ["LIECHT", "an Liechti AG, 3172 Niederwangen"], ["LÜ", "Lieferung überbracht"],
+  ["MICHEL", "an Adrian Michel AG - 5046 Schmiedrued-Walde"], ["PLANZER", "via Planzer Trasporti SA, 6934 Bioggio"],
+  ["PODHDP", "per Post/DHL/DPD"], ["POST", "per Post"], ["POSTEXP", "per Post-Express"], ["POSTPRIO", "per Post-Priority"],
+  ["POSTURG", "Post Urgent"], ["RERO", "an RERO Waldenburg"], ["Schenker", "via Schenker Storen, Schönenwerd"],
+  ["SCHM", "an:Härterei Schmid AG-4657 Dulliken"], ["SPFUX", "per SpediFux"],
+  ["TECHNOLAC", "an Technolac, Riedmatt 6, 6373 Ennetbürgen"], ["TNT", "per TNT economy express"],
+  ["Tribo", "per Cargo Domizile an Tribo Tech AG"], ["UPS", "per UPS"], ["UPS EXP", "per UPS Express"],
+  ["UPS EXPS", "per UPS Express Saver"], ["UPS STAND", "per UPS Standard"], ["USM", "Lieferung an USM Münsingen"],
+  ["WBC", "an WBC Härterei, 8608 Bubikon"], ["WULL", "an Galvano Wullimann, 2545 Selzach"],
+];
+
 const AG_VORLAGEN = [
   "Material bereitstellen", "Maschine einrichten", "Erstteilprüfung", "Drehen komplett", "Waschen fettfrei",
   "Zwischenkontrolle", "Endkontrolle", "Versand/Einlagern", "100% auf Butzen kontrollieren", "Bohrung entgraten",
@@ -636,7 +666,10 @@ function Angebot({ k, setze, nr, rechnung }) {
       <section className="karte">
         <h2>Bedingungen</h2>
         <F label="Lieferzeit" id="kalk-lieferzeit" text {...f("lieferzeit")} />
-        <F label="Lieferbedingung" id="kalk-lieferbed" text {...f("lieferbed")} />
+        <F label="Lieferbedingung" id="kalk-lieferbed" text liste="kalk-lieferbed-liste" hinweis="Aus der Liste wählen oder frei schreiben" {...f("lieferbed")} />
+        <datalist id="kalk-lieferbed-liste">{LIEFERBEDINGUNGEN.map(([kurz, t]) => <option key={kurz} value={t}>{kurz}</option>)}</datalist>
+        <F label="Versandbedingung" id="kalk-versand" text liste="kalk-versand-liste" hinweis="Aus der Liste wählen oder frei schreiben" {...f("versand")} />
+        <datalist id="kalk-versand-liste">{VERSANDBEDINGUNGEN.map(([kurz, t]) => <option key={kurz} value={t}>{kurz}</option>)}</datalist>
         <F label="Zahlungsbedingung" id="kalk-zahlung" text {...f("zahlung")} />
         <F label="Schlusstext" id="kalk-gueltig" mehrzeilig {...f("gueltig")} />
         <button className="knopf knopf--haupt knopf--breit" id="kalk-pdf" disabled={laeuft || !rechnung.length} onClick={pdf}>
@@ -665,6 +698,7 @@ function Angebot({ k, setze, nr, rechnung }) {
         <dl className="kalk-blatt__teil">
           <dt>Lieferzeit</dt><dd>{k.angebot.lieferzeit}</dd>
           <dt>Lieferbedingung</dt><dd>{k.angebot.lieferbed}</dd>
+          {k.angebot.versand && <><dt>Versandbedingung</dt><dd>{k.angebot.versand}</dd></>}
           <dt>Zahlungsbedingung</dt><dd>{k.angebot.zahlung}</dd>
         </dl>
         <p className="kalk-blatt__text">{k.angebot.gueltig}</p>
