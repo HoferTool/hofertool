@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.234.0** Kalkulation: Ist der Artikel-Code schon eine HOCO Nr. mit Aufträgen, füllt die App das leere Material mit dem Material des jüngsten Auftrags, samt Werkstoff-Nr. und Ø (Wunsch Patrick 27. Oktober 2026).
 - **1.233.0** Kalkulation: Feld „Kunden Ident-Nr.“ unter der Zeichnung (auch im Angebot und im PDF), „Sachbearbeiter“ entfernt, Materialbezeichnung doppelt so breit (Wunsch Patrick 27. Oktober 2026).
 - **1.232.0** Kalkulation: Enter springt wie Tab ins nächste Feld, in den Tabellen je Staffel nach rechts, Shift + Enter zurück; Artikel-Code, Zeichnung und Index in den Kopfdaten untereinander (Wunsch Patrick 27. Oktober 2026).
 - **1.231.0** Kalkulation: Reiter Preis als eine einzige enge Tabelle untereinander, Eingaben je Staffel eingerückt bei dem, was sie ergeben, ohne Rollen auf 1440 × 900 (Wunsch Patrick 27. Oktober 2026: „alles untereinander … mach es enger“); der Pfeil zum Aufklappen der Arbeitsgänge steht direkt vor der Positionsnummer.

@@ -15,6 +15,7 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { ZiehListe } from "../teile/ZiehListe.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
+import { materialZerlegen, werkstoffGenau } from "../daten/material.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
   kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln,
@@ -280,6 +281,31 @@ function F({ label, wert, setzen, einheit, id, text, mehrzeilig, hinweis, typ, p
 
 function Kopf({ k, setze, nr, setNr }) {
   const f = (name) => ({ wert: k.kopf[name], setzen: (w) => setze("kopf." + name, w) });
+  // Ist der Artikel-Code eine bekannte HOCO Nr., kommt das Material des
+  // jüngsten Auftrags von selbst, solange noch keins eingetragen ist
+  // (Wunsch Patrick 27. Oktober 2026)
+  const [matHinweis, setMatHinweis] = useState("");
+  const artikel = (k.kopf.artikel || "").trim();
+  const matLeer = !String(k.material.bez || "").trim();
+  useEffect(() => {
+    if (!/^\d{4,6}-\d{3,4}$/.test(artikel) || !matLeer) return undefined;
+    let weg = false;
+    const zeit = setTimeout(async () => {
+      try {
+        const r = await alt.db.from("jobs").select("material_bez, planned_from").eq("job_number", artikel)
+          .not("material_bez", "is", null).order("planned_from", { ascending: false }).limit(1);
+        const bez = r && !r.error && r.data && r.data[0] ? String(r.data[0].material_bez || "").trim() : "";
+        if (weg || !bez) return;
+        setze("material.bez", bez);
+        const w = werkstoffGenau(bez);
+        if (w && w.nr) setze("material.nr", w.nr);
+        const t = materialZerlegen(bez);
+        if (t && t.d) setze("material.d", String(t.d));
+        setMatHinweis("Material aus HOCO Nr. " + artikel + " übernommen: " + bez);
+      } catch (e) { /* ohne Verbindung bleibt das Feld leer */ }
+    }, 500);
+    return () => { weg = true; clearTimeout(zeit); };
+  }, [artikel, matLeer]);
   return (
     <div className="kalk-zwei">
       <section className="karte">
@@ -288,6 +314,7 @@ function Kopf({ k, setze, nr, setNr }) {
         <F label="Kunde" id="kalk-kunde" text {...f("kunde")} />
         <F label="Adresse" id="kalk-adresse" mehrzeilig {...f("adresse")} />
         <F label="Artikel-Code" id="kalk-artikel" text {...f("artikel")} />
+        {matHinweis && <p className="hinweis" id="kalk-mat-hinweis">{matHinweis}</p>}
         <F label="Zeichnung" id="kalk-zeichnung" text {...f("zeichnung")} />
         <F label="Kunden Ident-Nr." id="kalk-ident" text {...f("ident")} />
         <F label="Index" id="kalk-index" text {...f("index")} />

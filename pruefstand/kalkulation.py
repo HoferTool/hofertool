@@ -147,6 +147,15 @@ with sync_playwright() as p:
     pruefe(len(bez) == 8 and bez[0] == "Material bereitstellen" and bez[-1] == "Versand/Einlagern", "Start-Arbeitsplan: %s" % bez)
     pruefe(neu["daten"]["ags"][3]["fgk"] == "56", "Drehen komplett mit 56 % FGK")
     pruefe(all(a["masch"] for a in neu["daten"]["ags"] if a["bez"] in ("Erstteilprüfung", "Endkontrolle", "Versand/Einlagern")), "Kontrolle und Spedition zugeordnet")
+    # Bekannte HOCO Nr. als Artikel-Code füllt das Material
+    pg.evaluate("""() => { TEST.daten.jobs = TEST.daten.jobs || [];
+      TEST.daten.jobs.push({ id: 'kalk-j1', job_number: '99999-0001', material_bez: 'X8CrNiS18-9 rd 012 mm h9', planned_from: '2026-10-01' }); }""")
+    pg.locator("[data-kalk-reiter='kopf']").click()
+    pg.fill("#kalk-artikel", "99999-0001"); pg.wait_for_timeout(1200)
+    pruefe(pg.locator("#kalk-mat-hinweis").count() == 1, "Hinweis Material übernommen")
+    pg.locator("[data-kalk-reiter='material']").click()
+    pruefe(pg.input_value("#kalk-mat") == "X8CrNiS18-9 rd 012 mm h9", "Material aus HOCO Nr.: %s" % pg.input_value("#kalk-mat"))
+    pruefe(pg.input_value("#kalk-matnr") == "1.4305", "Werkstoff-Nr. dazu: %s" % pg.input_value("#kalk-matnr"))
     if pg.locator("#kalk-zurueck").count(): pg.click("#kalk-zurueck")
     pg.wait_for_selector("#kalk-saetze")
     # Suche in der Liste
