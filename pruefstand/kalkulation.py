@@ -81,7 +81,15 @@ with sync_playwright() as p:
     b2 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
     pruefe(b2[0] == "3.80", "ohne Verrechnen nicht im Preis: %s" % b2)
     pg.check("#kalk-ag-ruestv-4"); pg.fill("#kalk-ag-ruestp-4", ""); pg.wait_for_timeout(300)
+    # Multimaschinell: Staffel 2 mit halber Stückzeit, Staffel 1 bleibt
+    pg.click("[data-ag-auf='1']"); pg.check("#kalk-ag-multi-1")
+    pg.fill("#kalk-ag-s1-te-1", "95"); pg.wait_for_timeout(300)
+    b3 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(b3[0] == "3.80" and b3[1] != "3.92", "je Staffel eigene Stückzeit: %s" % b3)
     pg.screenshot(path=BILD + "/kalk-ags.png", full_page=True)
+    pg.fill("#kalk-ag-s1-te-1", ""); pg.uncheck("#kalk-ag-multi-1"); pg.wait_for_timeout(300)
+    b3 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(b3 == ["3.80", "3.92"], "ohne Multimaschinell wie vorher: %s" % b3)
 
     # Neue Staffel: eigene Lose
     pg.locator("[data-kalk-reiter='material']").click(); pg.click("#kalk-staffel-neu")

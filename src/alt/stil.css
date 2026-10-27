@@ -10049,3 +10049,9 @@ body.dunkel .cam-anders { background: rgba(192, 132, 21, .18); }
 .cam-sk-platz--klick { cursor: pointer; }
 .cam-sk-platz--klick:hover .cam-sk-kachel { stroke: var(--marke); stroke-width: 2; }
 .cam-hinweise { margin: 0 0 8px; padding-left: 18px; }
+/* Multimaschinell: Werte je Staffel im Arbeitsgang */
+.kalk-multi { grid-column: 1 / -1; margin: 2px 0 4px; }
+.kalk-jestaffel { grid-column: 1 / -1; }
+.kalk-jestaffel select { min-width: 9em; }
+.kalk-ag__multi { font-style: normal; font-size: .72rem; text-transform: uppercase; color: var(--marke); font-weight: 650; }
+.kalk-jestaffel .kalk-tab { width: auto; } .kalk-jestaffel td.rechts { min-width: 8em; }

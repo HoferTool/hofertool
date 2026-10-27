@@ -242,6 +242,8 @@ function mitVorgaben(d) {
   for (const t of ["kopf", "material", "preis", "angebot"]) x[t] = { ...leer[t], ...(x[t] || {}) };
   if (!Array.isArray(x.staffeln)) x.staffeln = leer.staffeln;
   if (!Array.isArray(x.ags)) x.ags = [];
+  // Feste Schlüssel, weil die Werte je Staffel daran hängen
+  x.ags = x.ags.map((a, i) => (a.key ? a : { ...a, key: "ag" + i }));
   return x;
 }
 
@@ -428,7 +430,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     // Drehen hat im Gewatec 56 % FGK, vorbelegt solange das Feld leer ist (Wunsch Patrick 27. Oktober 2026)
                     if (a.art !== "extern" && /^drehen/i.test(t) && !String(a.fgk || "").trim()) setze("ags." + i + ".fgk", FGK_DREHEN);
                   }} />
-                <span className="kalk-ag__ort">{ext ? <><i>Extern</i> {a.lieferant || ""}</> : (mm ? mm.name : <i>keine Maschine</i>)}</span>
+                <span className="kalk-ag__ort">{ext ? <><i>Extern</i> {a.lieferant || ""}</> : a.multi ? <i className="kalk-ag__multi">je Staffel</i> : (mm ? mm.name : <i>keine Maschine</i>)}</span>
                 <span className="kalk-ag__zahl">{ext ? (a.extern ? chf(z(a.extern), 2) + " /" + ({ stk: "Stk", "100stk": "100", "1000stk": "1000", kg: "kg" }[a.je || "stk"]) : "") : (a.te || "")}</span>
                 <span className="kalk-ag__zahl">{ext ? "" : ruest}</span>
                 <span className="kalk-ag__zahl">{ext || !String(a.fgk || "").trim() ? "" : a.fgk + " %"}</span>
@@ -487,6 +489,9 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     <F label="Erstrüsten" einheit="Std" id={"kalk-ag-er-" + i} {...f("erst")} />
                     <F label="Folgerüsten" einheit="Std" id={"kalk-ag-fr-" + i} {...f("folge")} />
                     <F label="FGK" einheit="%" id={"kalk-ag-fgk-" + i} {...f("fgk")} />
+                    <label className="kalk-haken kalk-multi"><input type="checkbox" id={"kalk-ag-multi-" + i} checked={!!a.multi}
+                      onChange={(e) => setze("ags." + i + ".multi", e.target.checked)} /> Multimaschinell: je Staffel eigene Werte</label>
+                    {a.multi && <JeStaffel a={a} i={i} k={k} setK={setK} maschinen={maschinen} rechnung={rechnung} />}
                   </div>)}
               {offen && r && !r.extern && (r.laufH > 0 || r.ruestChf > 0) &&
                 <div className="kalk-ag__fuss">Fix {chf(r.fix / r0.menge, 4)} · Variabel {chf(r.var / r0.menge, 4)}
@@ -576,6 +581,52 @@ const AG_VORLAGEN_EXTERN = [
 ];
 
 let zaehler = 0;
+// Multimaschinell: je Staffel eine Zeile mit Maschine, Laufzeit, Stückzeit,
+// Rüsten und FGK; leer gelassen gilt der Wert des Arbeitsgangs darüber
+function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
+  const idx = k.staffeln.map((s, j) => (z(s.menge) > 0 ? j : -1)).filter((j) => j >= 0);
+  if (!idx.length) return <p className="hinweis">Zuerst unter „Staffeln und Material“ eine Menge eintragen.</p>;
+  const setzen = (j, name, wert) => setK((x) => {
+    const staffeln = x.staffeln.map((s, n) => (n !== j ? s
+      : { ...s, ag: { ...(s.ag || {}), [a.key]: { ...((s.ag || {})[a.key] || {}), [name]: wert } } }));
+    return { ...x, staffeln };
+  });
+  // Aufbau wie die Maske im Gewatec: je Staffel eine Spalte, Werte untereinander
+  const spalten = idx.map((j, n) => ({ j, menge: rechnung[n] ? rechnung[n].menge : z(k.staffeln[j].menge),
+    eigen: ((k.staffeln[j].ag || {})[a.key]) || {}, r: rechnung[n] && rechnung[n].ags[i] }));
+  const feld = (name) => spalten.map(({ j, eigen }) => (
+    <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-" + name + "-" + i}
+      placeholder={a[name] || ""} value={eigen[name] || ""} onChange={(e) => setzen(j, name, e.target.value)} /></td>));
+  const wert = (fn, st) => spalten.map(({ j, r, menge }) => <td key={j} className="rechts">{r && menge ? chf(fn(r, menge), st) : "–"}</td>);
+  const basis = maschinen.find((q) => q.id === a.masch);
+  return (
+    <div className="kalk-jestaffel kalk-rolle">
+      <table className="kalk-tab">
+        <tbody>
+          <tr className="kalk-fett"><td>Menge</td>{spalten.map(({ j, menge }) => <td key={j} className="rechts">{chf(menge, 0)} Stk</td>)}</tr>
+          <tr><td>Maschine</td>{spalten.map(({ j, eigen }) => (
+            <td key={j} className="rechts"><select id={"kalk-ag-s" + j + "-masch-" + i} value={eigen.masch || ""} onChange={(e) => setzen(j, "masch", e.target.value)}>
+              <option value="">wie oben{basis ? " (" + basis.name + ")" : ""}</option>
+              {maschinen.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select></td>))}</tr>
+          <tr><td>Auslastung <span className="kalk-einheit">Std/Tag</span></td>{feld("laufTag")}</tr>
+          <tr className="kalk-blass"><td>Stundensatz fix</td>{wert((r) => r.satz.fix)}</tr>
+          <tr className="kalk-blass"><td>Stundensatz var</td>{wert((r) => r.satz.var)}</tr>
+          <tr className="kalk-blass"><td>Stundensatz eff</td>{wert((r) => r.satz.eff)}</tr>
+          <tr><td>Zeit je Stück <span className="kalk-einheit">Sek.</span></td>{feld("te")}</tr>
+          <tr className="kalk-blass"><td>Rüstsatz</td>{wert((r) => r.satz.ruest)}</tr>
+          <tr><td>Rüstzeit Erstrüsten <span className="kalk-einheit">Std</span></td>{feld("erst")}</tr>
+          <tr><td>Rüstzeit Folgerüsten <span className="kalk-einheit">Std</span></td>{feld("folge")}</tr>
+          <tr><td>FGK <span className="kalk-einheit">%</span></td>{feld("fgk")}</tr>
+          <tr><td>Fixkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.fix / m, 4)}</tr>
+          <tr><td>Varkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.var / m, 4)}</tr>
+          <tr className="kalk-fett kalk-hervor"><td>Vollkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.kosten / m, 4)}</tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function schluessel() { return "ag" + Date.now().toString(36) + (zaehler++); }
 
 function Preis({ k, setze, rechnung }) {

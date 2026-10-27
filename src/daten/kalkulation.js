@@ -159,14 +159,29 @@ export function externRechnen(ag, menge, mat) {
     einzel: menge > 0 ? kosten / menge : 0 };
 }
 
+// Multimaschinell wie im Gewatec (Wunsch Patrick 27. Oktober 2026): ein
+// interner Arbeitsgang kann je Staffel eine andere Maschine, Stückzeit,
+// Rüstzeit und FGK haben, etwa kleine Mengen auf der Index und grosse auf
+// der Star. Die Werte liegen bei der Staffel (staffel.ag[Schlüssel des AG]),
+// damit sie mit der Staffel verschwinden; leer = Wert des Arbeitsgangs.
+export const AG_JE_STAFFEL = ["masch", "laufTag", "te", "erst", "folge", "fgk"];
+export function agFuerStaffel(ag, staffel, i) {
+  if (!ag.multi) return ag;
+  const eigen = ((staffel && staffel.ag) || {})[ag.key || "ag" + i] || {};
+  const x = { ...ag };
+  for (const n of AG_JE_STAFFEL) if (String(eigen[n] ?? "").trim()) x[n] = eigen[n];
+  return x;
+}
+
 export function staffelRechnen(k, staffel, maschinen) {
   const menge = z(staffel.menge), lose = Math.max(1, z(staffel.lose) || 1);
   const mat = materialRechnen(k.material || {}, menge);
-  const ags = (k.ags || []).map((ag) => {
-    if (ag.art === "extern") {
+  const ags = (k.ags || []).map((ag0, i) => {
+    if (ag0.art === "extern") {
       // Je Stück oder je kg (Galvanik, Härten); ohne Gewicht gilt der Materialeinsatz
-      return externRechnen(ag, menge, mat);
+      return externRechnen(ag0, menge, mat);
     }
+    const ag = agFuerStaffel(ag0, staffel, i);
     const m = maschinen.find((x) => x.id === ag.masch);
     const s = m ? stundensatz(m, ag.laufTag) : { fix: 0, var: 0, eff: 0, ruest: 0 };
     const laufH = menge * z(ag.te) / 3600;
