@@ -10079,3 +10079,11 @@ body.dunkel .cam-anders { background: rgba(192, 132, 21, .18); }
 #kalk-preis-jestaffel .kalk-zelle { width: 6.5em; }
 .kalk-kompakt .kalk-eng input.kalk-zelle { min-height: 22px; height: 22px; padding: 0 5px; }
 .kalk-mini span { white-space: nowrap; }
+
+/* Kalkulation: Staffelmengen als Spalten, Lose darunter */
+.kalk-staffeltab { width: auto; }
+.kalk-staffeltab .kalk-zelle { width: 7em; }
+.kalk-staffeltab td:first-child { white-space: nowrap; padding-right: 10px; }
+.kalk-staffel-weg { margin-left: 6px; font-size: 0.9em; }
+.kalk-staffeltab + * { margin-top: 0; }
+h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }

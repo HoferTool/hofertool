@@ -293,22 +293,25 @@ function Material({ k, setze, setK, rechnung }) {
   const r0 = rechnung[0];
   return (
     <>
-      <section className="karte">
-        <div className="karte__kopf"><h2>Staffelmengen</h2></div>
-        <p className="hinweis kalk-hinweis-oben">Jede Menge rechnet für sich. Lose: wie oft gerüstet wird, das zweite und
-          jedes weitere Los mit der Zeit „Folgerüsten“.</p>
-        <div className="kalk-staffeln" id="kalk-staffeln">
-          {k.staffeln.map((s, i) => (
-            <div className="kalk-staffel" key={i} data-staffel-zeile={i}>
-              <F label={"Menge " + (i + 1)} einheit="Stk" id={"kalk-menge-" + i} wert={s.menge} setzen={(w) => setze("staffeln." + i + ".menge", w)} />
-              <F label="Lose" id={"kalk-lose-" + i} wert={s.lose} setzen={(w) => setze("staffeln." + i + ".lose", w)} />
-              {k.staffeln.length > 1 &&
-                <button className="linkknopf linkknopf--gefahr" data-staffel-weg={i} title="Staffel entfernen"
-                  onClick={() => setK((x) => ({ ...x, staffeln: x.staffeln.filter((_, j) => j !== i) }))}>Entfernen</button>}
-            </div>))}
-        </div>
-        <button className="knopf knopf--klein" id="kalk-staffel-neu"
-          onClick={() => setK((x) => ({ ...x, staffeln: [...x.staffeln, { menge: "", lose: "1", preis: { ...((x.staffeln[0] || {}).preis || {}) } }] }))}>+ Staffel</button>
+      {/* Staffeln nebeneinander, Lose darunter, damit nichts rollt
+          (Wunsch Patrick 27. Oktober 2026) */}
+      <section className="karte kalk-rolle">
+        <h2>Staffelmengen <small className="kalk-einheit">Lose: wie oft gerüstet wird, jedes weitere Los mit „Folgerüsten“</small></h2>
+        <table className="kalk-tab kalk-eng kalk-staffeltab" id="kalk-staffeln">
+          <tbody>
+            <tr><td></td>{k.staffeln.map((s, i) => <th key={i} className="rechts" data-staffel-zeile={i}>Staffel {i + 1}
+              {k.staffeln.length > 1 && <button className="linkknopf linkknopf--gefahr kalk-staffel-weg" data-staffel-weg={i} title="Staffel entfernen"
+                onClick={() => setK((x) => ({ ...x, staffeln: x.staffeln.filter((_, j) => j !== i) }))}>✕</button>}</th>)}
+              <td rowSpan={3}><button className="knopf knopf--klein" id="kalk-staffel-neu"
+                onClick={() => setK((x) => ({ ...x, staffeln: [...x.staffeln, { menge: "", lose: "1", preis: { ...((x.staffeln[0] || {}).preis || {}) } }] }))}>+ Staffel</button></td></tr>
+            <tr><td>Menge <span className="kalk-einheit">Stk</span></td>{k.staffeln.map((s, i) => (
+              <td key={i} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-menge-" + i}
+                value={s.menge || ""} onChange={(e) => setze("staffeln." + i + ".menge", e.target.value)} /></td>))}</tr>
+            <tr><td>Lose</td>{k.staffeln.map((s, i) => (
+              <td key={i} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-lose-" + i}
+                value={s.lose || ""} onChange={(e) => setze("staffeln." + i + ".lose", e.target.value)} /></td>))}</tr>
+          </tbody>
+        </table>
       </section>
 
       <section className="karte">
@@ -355,7 +358,7 @@ function Material({ k, setze, setK, rechnung }) {
 
       {rechnung.length > 0 &&
         <section className="karte kalk-rolle">
-          <table className="tabelle kalk-tab" id="kalk-mat-tab">
+          <table className="tabelle kalk-tab kalk-eng" id="kalk-mat-tab">
             <thead><tr><th>Menge</th>{rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)}</th>)}</tr></thead>
             <tbody>
               <Zeile titel="kg gesamt" werte={rechnung.map((r) => chf(r.mat.kg, 1))} />

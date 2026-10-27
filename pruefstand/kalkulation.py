@@ -116,7 +116,12 @@ with sync_playwright() as p:
     pruefe(b3 == ["3.80", "3.92"], "ohne Multimaschinell wie vorher: %s" % b3)
 
     # Neue Staffel: eigene Lose
-    pg.locator("[data-kalk-reiter='material']").click(); pg.click("#kalk-staffel-neu")
+    pg.locator("[data-kalk-reiter='material']").click()
+    pg.set_viewport_size({"width": 1440, "height": 900}); pg.wait_for_timeout(300)
+    pg.screenshot(path=BILD + "/kalk-staffeln.png")
+    hoch = pg.evaluate("document.scrollingElement.scrollHeight")
+    pruefe(hoch <= 900, "Reiter Staffeln und Material ohne Rollen: %s" % hoch)
+    pg.click("#kalk-staffel-neu")
     pruefe(pg.locator("#kalk-spez").input_value() == "Stahl", "Spez. Gewicht 7.85 = Stahl")
     pg.fill("#kalk-menge-2", "20000"); pg.fill("#kalk-lose-2", "4"); pg.wait_for_timeout(1800)
     band = pg.locator("#kalk-band .kalk-band__staffel").count()
