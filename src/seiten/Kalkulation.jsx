@@ -439,7 +439,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     // Drehen hat im Gewatec 56 % FGK, vorbelegt solange das Feld leer ist (Wunsch Patrick 27. Oktober 2026)
                     if (a.art !== "extern" && /^drehen/i.test(t) && !String(a.fgk || "").trim()) setze("ags." + i + ".fgk", FGK_DREHEN);
                   }} />
-                <span className="kalk-ag__ort">{ext ? <><i>Extern</i> {a.lieferant || ""}</> : a.multi ? <i className="kalk-ag__multi">je Staffel</i> : (mm ? mm.name : <i>keine Maschine</i>)}</span>
+                <span className="kalk-ag__ort">{ext ? <><i>Extern</i> {a.lieferant || ""}</> : (mm ? mm.name : <i>keine Maschine</i>)}</span>
                 <span className="kalk-ag__zahl">{ext ? (a.extern ? chf(z(a.extern), 2) + " /" + ({ stk: "Stk", "100stk": "100", "1000stk": "1000", kg: "kg" }[a.je || "stk"]) : "") : (a.te || "")}</span>
                 <span className="kalk-ag__zahl">{ext ? "" : ruest}</span>
                 <span className="kalk-ag__zahl">{ext || !String(a.fgk || "").trim() ? "" : a.fgk + " %"}</span>
@@ -589,7 +589,7 @@ const AG_VORLAGEN_EXTERN = [
 ];
 
 let zaehler = 0;
-// Multimaschinell: je Staffel eine Zeile mit Maschine, Laufzeit, Stückzeit,
+// Multimaschinell: je Staffel eine Zeile mit Laufzeit, Stückzeit,
 // Rüsten und FGK; leer gelassen gilt der Wert des Arbeitsgangs darüber
 function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
   const idx = k.staffeln.map((s, j) => (z(s.menge) > 0 ? j : -1)).filter((j) => j >= 0);
@@ -606,18 +606,12 @@ function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
     <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-" + name + "-" + i}
       placeholder={a[name] || ""} value={eigen[name] || ""} onChange={(e) => setzen(j, name, e.target.value)} /></td>));
   const wert = (fn, st) => spalten.map(({ j, r, menge }) => <td key={j} className="rechts">{r && menge ? chf(fn(r, menge), st) : "–"}</td>);
-  const basis = maschinen.find((q) => q.id === a.masch);
   return (
     <div className="kalk-jestaffel kalk-rolle">
       <table className="kalk-tab">
         <tbody>
           <tr className="kalk-fett"><td>Menge</td>{spalten.map(({ j, menge }) => <td key={j} className="rechts">{chf(menge, 0)} Stk</td>)}</tr>
           <tr><td>Fertigungslose</td>{spalten.map(({ j, r }, n) => <td key={j} className="rechts">{rechnung[n] ? rechnung[n].lose : "–"}</td>)}</tr>
-          <tr><td>Maschine</td>{spalten.map(({ j, eigen }) => (
-            <td key={j} className="rechts"><select id={"kalk-ag-s" + j + "-masch-" + i} value={eigen.masch || ""} onChange={(e) => setzen(j, "masch", e.target.value)}>
-              <option value="">wie oben{basis ? " (" + basis.name + ")" : ""}</option>
-              {maschinen.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select></td>))}</tr>
           <tr><td>Auslastung <span className="kalk-einheit">Std/Tag</span></td>{feld("laufTag")}</tr>
           <tr className="kalk-blass"><td>Stundensatz fix</td>{wert((r) => r.satz.fix)}</tr>
           <tr className="kalk-blass"><td>Stundensatz var</td>{wert((r) => r.satz.var)}</tr>

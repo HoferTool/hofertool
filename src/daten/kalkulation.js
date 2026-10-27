@@ -196,7 +196,9 @@ export function preisInStaffeln(k) {
   return k;
 }
 
-export const AG_JE_STAFFEL = ["masch", "laufTag", "te", "erst", "folge", "fgk"];
+// Die Maschine bleibt für alle Staffeln dieselbe (Patrick 27. Oktober 2026:
+// „innerhalb eines Teils immer mit derselben Maschine“)
+export const AG_JE_STAFFEL = ["laufTag", "te", "erst", "folge", "fgk"];
 // Beim externen Arbeitsgang hat das Gewatec immer einen Kostensatz je Staffel.
 export function agFuerStaffel(ag, staffel, i) {
   const felder = ag.art === "extern" ? ["extern"] : ag.multi ? AG_JE_STAFFEL : [];
