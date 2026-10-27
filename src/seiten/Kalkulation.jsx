@@ -467,6 +467,21 @@ const VERSANDBEDINGUNGEN = [
   ["WBC", "an WBC Härterei, 8608 Bubikon"], ["WULL", "an Galvano Wullimann, 2545 Selzach"],
 ];
 
+// Zahlungsbedingungen wie im Gewatec, Bild Patrick 27. Oktober 2026
+const ZAHLUNGSBEDINGUNGEN = [
+  ["10", "10 Tage netto"], ["10230", "10 Tage 2.00% Skonto, 30 Tage netto"], ["10245", "10 Tage 2.00% Skonto, 45 Tage netto"],
+  ["10260", "10 Tage 2.00% Skonto, 60 Tage netto"], ["10330", "10 Tage 3.00% Skonto, 30 Tage netto"],
+  ["10530", "10 Tage 5.00% Skonto, 30 Tage netto"], ["14230", "14 Tage 2.00% Skonto, 30 Tage netto"],
+  ["14330", "14 Tage 3.00% Skonto, 30 Tage netto"], ["14330260", "14 Tage 3% Skonto, 30 Tage 2% Skonto, 60 Tage netto"],
+  ["14360", "14 Tage 3.00% Skonto, 60 Tage netto"], ["15", "15 Tage netto"], ["15230", "15 Tage 2.00% Skonto, 30 Tage netto"],
+  ["15245", "15 Tage 2.00% Skonto, 45 Tage netto"], ["20445", "20 Tage 4.00% Skonto 45 Tage netto"],
+  ["3 x 1/3", "1/3 bei Auftragserteilung, 1/3 bei Lieferung, 1/3 30 Tage netto"], ["30", "30 Tage netto"],
+  ["30245", "30 Tage 2.00% Skonto, 45 Tage netto"], ["30260", "30 Tage 2.00% Skonto, 60 Tage netto"],
+  ["30360", "30 Tage 3.00% Skonto, 60 Tage netto"], ["30day", "Payment within 30 days"], ["60", "60 Tage netto"],
+  ["60290", "60 Tage 2.00% Skonto, 90 Tage netto"], ["6M", "Innert 6 Monaten ab Rechnungsdatum"], ["BAR", "Barzahlung"],
+  ["NACH", "per Nachnahme"], ["SOFORT", "Sofort nach Erhalt der Rechnung"], ["VOR", "Lieferung gegen Vorauszahlung"],
+];
+
 const AG_VORLAGEN = [
   "Material bereitstellen", "Maschine einrichten", "Erstteilprüfung", "Drehen komplett", "Waschen fettfrei",
   "Zwischenkontrolle", "Endkontrolle", "Versand/Einlagern", "100% auf Butzen kontrollieren", "Bohrung entgraten",
@@ -670,7 +685,8 @@ function Angebot({ k, setze, nr, rechnung }) {
         <datalist id="kalk-lieferbed-liste">{LIEFERBEDINGUNGEN.map(([kurz, t]) => <option key={kurz} value={t}>{kurz}</option>)}</datalist>
         <F label="Versandbedingung" id="kalk-versand" text liste="kalk-versand-liste" hinweis="Aus der Liste wählen oder frei schreiben" {...f("versand")} />
         <datalist id="kalk-versand-liste">{VERSANDBEDINGUNGEN.map(([kurz, t]) => <option key={kurz} value={t}>{kurz}</option>)}</datalist>
-        <F label="Zahlungsbedingung" id="kalk-zahlung" text {...f("zahlung")} />
+        <F label="Zahlungsbedingung" id="kalk-zahlung" text liste="kalk-zahlung-liste" hinweis="Aus der Liste wählen oder frei schreiben" {...f("zahlung")} />
+        <datalist id="kalk-zahlung-liste">{ZAHLUNGSBEDINGUNGEN.map(([kurz, t]) => <option key={kurz} value={t}>{kurz}</option>)}</datalist>
         <F label="Schlusstext" id="kalk-gueltig" mehrzeilig {...f("gueltig")} />
         <button className="knopf knopf--haupt knopf--breit" id="kalk-pdf" disabled={laeuft || !rechnung.length} onClick={pdf}>
           {laeuft ? "PDF wird erstellt …" : "Angebot als PDF"}</button>
