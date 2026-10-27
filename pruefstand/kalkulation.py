@@ -59,6 +59,9 @@ with sync_playwright() as p:
     pg.fill("#kalk-ps0-zinsPct", ""); pg.fill("#kalk-ps0-zinsMonate", ""); pg.fill("#kalk-angebot-0", ""); pg.wait_for_timeout(300)
     band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
     pruefe(band == ["3.80", "3.92"], "leer wieder wie Gewatec: %s" % band)
+    # Enter springt ins nächste Feld, in der Tabelle nach rechts
+    pg.focus("#kalk-ps0-gewinn"); pg.keyboard.press("Enter")
+    pruefe(pg.evaluate("document.activeElement.id") == "kalk-ps1-gewinn", "Enter geht zur nächsten Staffel: %s" % pg.evaluate("document.activeElement.id"))
     # Kosten je Staffel: Gewinn nur für Staffel 2
     pg.fill("#kalk-ps1-gewinn", "20"); pg.wait_for_timeout(300)
     band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()

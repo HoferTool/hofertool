@@ -199,7 +199,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
 
   const Inhalt = { kopf: Kopf, material: Material, ags: Arbeitsgaenge, preis: Preis, ergebnis: Ergebnis, angebot: Angebot }[reiter] || Kopf;
   return (
-    <div className="kalk-kompakt">
+    <div className="kalk-kompakt" onKeyDown={enterWeiter}>
       <div className="kalk-kopf">
         <div className="kalk-kopf__links">
           <button className="knopf knopf--klein kalk-zurueck" id="kalk-zurueck" onClick={zurueck}>← Alle</button>
@@ -236,6 +236,23 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
 }
 
 // Ältere oder unvollständige Daten mit den Feldern einer neuen ergänzen
+// Enter springt wie Tab ins nächste Feld, Shift + Enter zurück; in den
+// Tabellen je Staffel stehen die Felder Zeile für Zeile, also nach rechts
+// (Wunsch Patrick 27. Oktober 2026). Mehrzeilige Felder behalten Enter.
+function enterWeiter(e) {
+  if (e.key !== "Enter" || e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (!t.matches || !t.matches("input:not([type=checkbox]):not([type=radio]), select")) return;
+  const felder = [...e.currentTarget.querySelectorAll("input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea")]
+    .filter((x) => !x.disabled && !x.readOnly && x.offsetParent !== null);
+  const i = felder.indexOf(t);
+  const ziel = felder[i + (e.shiftKey ? -1 : 1)];
+  if (i < 0 || !ziel) return;
+  e.preventDefault();
+  ziel.focus();
+  if (ziel.select && ziel.tagName === "INPUT") ziel.select();
+}
+
 function mitVorgaben(d) {
   const leer = leereKalkulation();
   const x = structuredClone(d || {});
@@ -270,11 +287,9 @@ function Kopf({ k, setze, nr, setNr }) {
         <F label="Kalkulation Nr." id="kalk-nr" text wert={nr} setzen={setNr} />
         <F label="Kunde" id="kalk-kunde" text {...f("kunde")} />
         <F label="Adresse" id="kalk-adresse" mehrzeilig {...f("adresse")} />
-        <div className="kalk-reihe">
-          <F label="Artikel-Code" id="kalk-artikel" text {...f("artikel")} />
-          <F label="Zeichnung" id="kalk-zeichnung" text {...f("zeichnung")} />
-          <F label="Index" id="kalk-index" text {...f("index")} />
-        </div>
+        <F label="Artikel-Code" id="kalk-artikel" text {...f("artikel")} />
+        <F label="Zeichnung" id="kalk-zeichnung" text {...f("zeichnung")} />
+        <F label="Index" id="kalk-index" text {...f("index")} />
         <F label="Teilebezeichnung" id="kalk-bez" text {...f("bezeichnung")} />
       </section>
       <section className="karte">
