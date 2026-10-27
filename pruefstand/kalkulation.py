@@ -84,6 +84,7 @@ with sync_playwright() as p:
 
     # Neue Staffel: eigene Lose
     pg.locator("[data-kalk-reiter='material']").click(); pg.click("#kalk-staffel-neu")
+    pruefe(pg.locator("#kalk-spez").input_value() == "Stahl", "Spez. Gewicht 7.85 = Stahl")
     pg.fill("#kalk-menge-2", "20000"); pg.fill("#kalk-lose-2", "4"); pg.wait_for_timeout(1800)
     band = pg.locator("#kalk-band .kalk-band__staffel").count()
     pruefe(band == 3, "dritte Staffel im Band: %d" % band)

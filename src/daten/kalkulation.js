@@ -81,6 +81,13 @@ export function stundensatz(m, laufTag) {
 // ---------- Material ----------
 // Entweder das Einsatzgewicht je Stück von Hand (wie im Gewatec), oder
 // gerechnet aus Durchmesser, Länge je Teil und ganzen Stangen.
+// Spezifisches Gewicht wie im Gewatec (Bild Patrick 27. Oktober 2026), kg/dm³
+export const SPEZ_GEWICHT = [
+  ["Stahl", "7.85"], ["Alu, legiert", "2.842"], ["Messing", "8.493"], ["Gusseisen", "7.269"], ["Alu, rein", "2.70"],
+  ["Kupfer", "8.885"], ["Silber", "10.50"], ["Titan", "4.65"], ["Kunststoff", "1.41"], ["Profilmaterial SEA", "8.00"],
+  ["POM-H", "1.43"], ["Neusilber Rohr", "8.70"],
+];
+
 export function materialRechnen(mat, menge) {
   const d = z(mat.d), dichte = z(mat.dichte) || 7.85;
   const kgJeM = Math.PI / 4 * d * d * dichte / 1000;
@@ -97,8 +104,10 @@ export function materialRechnen(mat, menge) {
     meter = kgJeM > 0 ? kg / kgJeM : 0;
     stangen = meter / (stange / 1000);
   }
-  const kosten = kg * z(mat.preis) * (1 + z(mat.gk) / 100);
-  return { kg, meter, stangen, kgJeM, kosten, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0 };
+  // Wie im Gewatec: Mat-Kosten = kg gesamt × Preis, dann Gemeinkosten in % und pauschal
+  const roh = kg * z(mat.preis);
+  const kosten = roh * (1 + z(mat.gk) / 100) + z(mat.gkPausch);
+  return { kg, meter, stangen, kgJeM, roh, kosten, jeStk: menge > 0 ? kosten / menge : 0, kgJeStk: menge > 0 ? kg / menge : 0 };
 }
 
 // ---------- Ganze Kalkulation für eine Staffel ----------

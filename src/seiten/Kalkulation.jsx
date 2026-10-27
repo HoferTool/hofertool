@@ -17,7 +17,7 @@ import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, EXTERN_NEBEN, FGK_DREHEN,
+  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT,
 } from "../daten/kalkulation.js";
 
 const REITER = [
@@ -306,6 +306,17 @@ function Material({ k, setze, setK, rechnung }) {
         <div className="kalk-reihe">
           <F label="Materialpreis" einheit="CHF/kg" id="kalk-matpreis" {...f("preis")} />
           <F label="Material-Gemeinkosten" einheit="%" id="kalk-matgk" {...f("gk")} />
+          <F label="Material-Gemeinkosten pauschal" einheit="CHF" id="kalk-matgkp" {...f("gkPausch")} />
+        </div>
+        <div className="kalk-reihe">
+          <F label="Abmessung" id="kalk-abmessung" text platz="Stange Ø 12.7 x 73.5 geschliffen" {...f("abmessung")} />
+          <label className="feld kalk-feld"><span>Spezifisches Gewicht von</span>
+            <select id="kalk-spez" value={(SPEZ_GEWICHT.find(([, w]) => z(w) === z(m.dichte)) || [""])[0]}
+              onChange={(e) => { const x = SPEZ_GEWICHT.find(([n]) => n === e.target.value); if (x) setze("material.dichte", x[1]); }}>
+              <option value="">– eigener Wert –</option>
+              {SPEZ_GEWICHT.map(([n, w]) => <option key={n} value={n}>{n} ({w})</option>)}
+            </select>
+          </label>
         </div>
         <div className="moduswahl kalk-modus">
           {[["hand", "Einsatzgewicht je Stück eintragen"], ["rechnen", "Aus Länge und Stangen rechnen"]].map(([w, t]) => (
@@ -337,7 +348,8 @@ function Material({ k, setze, setK, rechnung }) {
               <Zeile titel="Meter gesamt" werte={rechnung.map((r) => chf(r.mat.meter, 1))} />
               <Zeile titel="Stangen" werte={rechnung.map((r) => chf(r.mat.stangen, m.modus === "rechnen" ? 0 : 1))} />
               <Zeile titel="kg je Stück" werte={rechnung.map((r) => chf(r.mat.kgJeStk, 4))} />
-              <Zeile titel="Materialkosten gesamt" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.kosten))} />
+              <Zeile titel="Mat-Kosten = kg gesamt × Preis" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.roh))} klein />
+              <Zeile titel="Materialkosten mit Gemeinkosten" einheit="CHF" werte={rechnung.map((r) => chf(r.mat.kosten))} />
               <Zeile titel="Material je Stück" einheit="CHF" fett werte={rechnung.map((r) => chf(r.matStk, 4))} />
             </tbody>
           </table>

@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.220.0** Kalkulation, Material wie Mat.-Kosten I im Gewatec (Bild Patrick 27. Oktober 2026): Auswahl „Spezifisches Gewicht von“ mit der Liste aus dem Gewatec (Stahl 7.85, Messing 8.493, Titan 4.65 …), Material-Gemeinkosten pauschal neben den Prozent, Feld Abmessung; in der Tabelle „Mat-Kosten = kg gesamt × Preis“ und die Kosten mit Gemeinkosten.
 - **1.219.0** Kalkulation: **externer Arbeitsgang wie im Gewatec** (Bild Patrick 27. Oktober 2026): Kostensatz je 1, 100 oder 1000 Stück oder je kg, Gewicht je Stück (leer = Materialeinsatz), Postensatz pauschal bis zu einem Gewicht statt des Satzes, dazu Rüst-, Werkzeug-, Verpackungs-, Transport- und Protokollkosten je Stück und pauschal; Rüsten und Werkzeug zählen nur mit „Verrechnen“. Darunter Gewicht und Einzelkosten. Dazu **Drehen mit 56 % FGK** vorbelegt (Wunsch Patrick 27. Oktober 2026), im Dummy-Arbeitsplan und wenn man einen Arbeitsgang „Drehen …“ wählt und das Feld FGK leer ist.
 - **1.218.1** Kalkulation: auch die **Zahlungsbedingung** als Auswahl mit den 27 Einträgen aus dem Gewatec.
 - **1.218.0** Kalkulation, Reiter Angebot: **Lieferbedingung und neu Versandbedingung als Auswahl** mit den Listen aus dem Gewatec (22 und 35 Einträge, Bilder Patrick 27. Oktober 2026); freier Text geht weiter. Die Versandbedingung steht auch in Vorschau und PDF.
