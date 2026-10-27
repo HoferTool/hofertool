@@ -81,6 +81,10 @@ with sync_playwright() as p:
     b2 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
     pruefe(b2[0] == "3.80", "ohne Verrechnen nicht im Preis: %s" % b2)
     pg.check("#kalk-ag-ruestv-4"); pg.fill("#kalk-ag-ruestp-4", ""); pg.wait_for_timeout(300)
+    # Fertigungslose je Staffel über den Arbeitsgängen und in der Tabelle je Staffel
+    lose = pg.locator("#kalk-lose").inner_text()
+    pruefe("2 Lose" in lose and "1 Los" in lose, "Fertigungslose je Staffel: %s" % lose)
+    pruefe("Fertigungslose" in pg.locator("[data-ag='4']").inner_text(), "Fertigungslose beim externen AG")
     # Externer Kostensatz je Staffel
     pg.fill("#kalk-ag-s1-extern-4", "0.44"); pg.wait_for_timeout(300)
     b4 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()

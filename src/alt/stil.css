@@ -10055,3 +10055,7 @@ body.dunkel .cam-anders { background: rgba(192, 132, 21, .18); }
 .kalk-jestaffel select { min-width: 9em; }
 .kalk-ag__multi { font-style: normal; font-size: .72rem; text-transform: uppercase; color: var(--marke); font-weight: 650; }
 .kalk-jestaffel .kalk-tab { width: auto; } .kalk-jestaffel td.rechts { min-width: 8em; }
+
+/* Kalkulation: Fertigungslose je Staffel über den Arbeitsgängen */
+.kalk-lose { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; margin: 0 0 6px; font-size: 0.92em; }
+.kalk-lose__teil b { font-weight: 700; }

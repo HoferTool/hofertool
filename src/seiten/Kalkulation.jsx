@@ -401,6 +401,12 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
     <>
       {!maschinen.length && <div className="karte karte--hinweis"><p>Noch keine Stundensätze. Zuerst unter
         „Alle Kalkulationen“ → „Stundensätze der Maschinen“ eine Maschine anlegen.</p></div>}
+      {rechnung.length > 0 && <div className="kalk-lose" id="kalk-lose">
+        <span className="kalk-einheit">Fertigungslose je Staffel:</span>
+        {rechnung.map((r, n) => <span key={n} className="kalk-lose__teil" data-lose={n}>
+          {chf(r.menge, 0)} Stk: <b>{r.lose} {r.lose === 1 ? "Los" : "Lose"}</b>{" "}
+          <span className="kalk-einheit">({chf(r.menge / r.lose, 0)} Stk je Los)</span></span>)}
+      </div>}
       <div className="kalk-ag-titel" aria-hidden="true">
         <span>AG</span><span>Bezeichnung</span><span>Maschine / Lieferant</span><span className="rechts">te Sek.</span>
         <span className="rechts">tr Std</span><span className="rechts">FGK</span><span className="rechts">CHF/Stk</span><span></span><span></span>
@@ -603,6 +609,7 @@ function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
       <table className="kalk-tab">
         <tbody>
           <tr className="kalk-fett"><td>Menge</td>{spalten.map(({ j, menge }) => <td key={j} className="rechts">{chf(menge, 0)} Stk</td>)}</tr>
+          <tr><td>Fertigungslose</td>{spalten.map(({ j, r }, n) => <td key={j} className="rechts">{rechnung[n] ? rechnung[n].lose : "–"}</td>)}</tr>
           <tr><td>Maschine</td>{spalten.map(({ j, eigen }) => (
             <td key={j} className="rechts"><select id={"kalk-ag-s" + j + "-masch-" + i} value={eigen.masch || ""} onChange={(e) => setzen(j, "masch", e.target.value)}>
               <option value="">wie oben{basis ? " (" + basis.name + ")" : ""}</option>
@@ -640,6 +647,7 @@ function ExternJeStaffel({ a, i, k, setK, rechnung }) {
       <table className="kalk-tab">
         <tbody>
           <tr className="kalk-fett"><td>Stückzahl</td>{sp.map(({ j, menge }) => <td key={j} className="rechts">{chf(menge, 0)}</td>)}</tr>
+          <tr><td>Fertigungslose</td>{sp.map(({ j }, n) => <td key={j} className="rechts">{rechnung[n] ? rechnung[n].lose : "–"}</td>)}</tr>
           <tr className="kalk-blass"><td>Gewicht <span className="kalk-einheit">kg</span></td>{sp.map(({ j, r }) => <td key={j} className="rechts">{r ? chf(r.gewicht, 2) : "–"}</td>)}</tr>
           <tr><td>Kostensatz <span className="kalk-einheit">CHF</span></td>{sp.map(({ j, eigen }) => (
             <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-extern-" + i}
