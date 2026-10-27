@@ -17,7 +17,7 @@ import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL,
+  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, EXTERN_NEBEN, FGK_DREHEN, SPEZ_GEWICHT, PREIS_JE_STAFFEL, preisInStaffeln,
 } from "../daten/kalkulation.js";
 
 const REITER = [
@@ -244,7 +244,7 @@ function mitVorgaben(d) {
   if (!Array.isArray(x.ags)) x.ags = [];
   // Feste Schlüssel, weil die Werte je Staffel daran hängen
   x.ags = x.ags.map((a, i) => (a.key ? a : { ...a, key: "ag" + i }));
-  return x;
+  return preisInStaffeln(x);
 }
 
 // Ein Eingabefeld; Zahlen als Text, damit Komma und Apostroph gehen
@@ -308,7 +308,7 @@ function Material({ k, setze, setK, rechnung }) {
             </div>))}
         </div>
         <button className="knopf knopf--klein" id="kalk-staffel-neu"
-          onClick={() => setK((x) => ({ ...x, staffeln: [...x.staffeln, { menge: "", lose: "1" }] }))}>+ Staffel</button>
+          onClick={() => setK((x) => ({ ...x, staffeln: [...x.staffeln, { menge: "", lose: "1", preis: { ...((x.staffeln[0] || {}).preis || {}) } }] }))}>+ Staffel</button>
       </section>
 
       <section className="karte">
@@ -662,7 +662,7 @@ function ExternJeStaffel({ a, i, k, setK, rechnung }) {
 
 function schluessel() { return "ag" + Date.now().toString(36) + (zaehler++); }
 
-function Preis({ k, setze, rechnung }) {
+function Preis({ k, setze, setK, rechnung }) {
   const f = (name) => ({ wert: k.preis[name], setzen: (w) => setze("preis." + name, w) });
   // Lieferlose, Angebots- und Zielpreis gehören zur Staffel, wie im Gewatec
   // je Stückzahl; die Staffeln mit Menge in derselben Reihenfolge wie rechnung
@@ -678,96 +678,65 @@ function Preis({ k, setze, rechnung }) {
     } catch (e) { alt.meldung("Wechselkurs nicht erhalten. Den Faktor von Hand eintragen.", "warn"); }
     setHolt(false);
   }
+  // Die erste Staffel gibt die weiteren vor: wer dort noch gleich war wie
+  // die erste, bekommt den neuen Wert mit, eigene Werte bleiben
+  const preisStaffel = (i, name, wert) => setK((x) => {
+    const st = x.staffeln.map((s) => ({ ...s, preis: { ...(s.preis || {}) } }));
+    const vorher = st[staffelIdx[i]].preis[name] || "";
+    st[staffelIdx[i]].preis[name] = wert;
+    if (i === 0) staffelIdx.slice(1).forEach((j) => { if ((st[j].preis[name] || "") === vorher) st[j].preis[name] = wert; });
+    return { ...x, staffeln: st };
+  });
   const SF = (name, i, id, platz) => (
     <td key={id} className="rechts"><input className="kalk-zelle" type="text" id={id} inputMode="decimal" placeholder={platz} value={k.staffeln[staffelIdx[i]][name] || ""}
       onChange={(e) => setze("staffeln." + staffelIdx[i] + "." + name, e.target.value)} /></td>);
   return (
     <>
-      <div className="kalk-zwei">
-        <section className="karte">
-          <h2>Selbstkosten</h2>
-          <F label="Sondereinzelkosten Vertrieb" einheit="CHF/Stk" id="kalk-sek" {...f("sek")} />
-          <F label="Vw/Vt-Gemeinkosten" einheit="%" id="kalk-vwgk" {...f("vwgk")} />
-          <div className="kalk-reihe">
-            <F label="Verzinsung" einheit="%" id="kalk-zins" {...f("zinsPct")} />
-            <F label="über Monate" id="kalk-zinsmon" {...f("zinsMonate")} />
-          </div>
-          <p className="hinweis">Selbstkosten = (Herstellkosten + Sondereinzelkosten) × (1 + Vw/Vt). Zins = Selbstkosten × % × Monate ÷ 12.</p>
-        </section>
-        <section className="karte">
-          <h2>Gewinn, Abzüge und Eilzuschlag</h2>
-          <F label="Gewinn" einheit="%" id="kalk-gewinn" {...f("gewinn")} />
-          <div className="kalk-reihe">
-            <F label="Provision" einheit="%" id="kalk-prov" {...f("prov")} />
-            <F label="Skonto" einheit="%" id="kalk-skonto" {...f("skonto")} />
-            <F label="Rabatt" einheit="%" id="kalk-rabatt" {...f("rabatt")} />
-          </div>
-          <div className="kalk-reihe">
-            <label className="feld kalk-feld"><span>Eilzuschlag</span>
-              <select id="kalk-eilart" value={k.preis.eilArt || "pauschal"} onChange={(e) => setze("preis.eilArt", e.target.value)}>
-                <option value="pauschal">Pauschal CHF/Stk</option><option value="prozent">Prozent</option>
-              </select>
-            </label>
-            <F label="Betrag" einheit={k.preis.eilArt === "prozent" ? "%" : "CHF/Stk"} id="kalk-eil" {...f("eil")} />
-          </div>
-          <label className="feld kalk-feld"><span>Angebotspreis runden auf</span>
-            <select id="kalk-rundung" value={k.preis.rundung || "0.01"} onChange={(e) => setze("preis.rundung", e.target.value)}>
-              <option value="0.01">1 Rappen</option><option value="0.05">5 Rappen</option>
-              <option value="0.1">10 Rappen</option><option value="1">1 Franken</option>
-            </select>
+      {/* Alles Gemeinsame in einer Zeile, damit der Reiter ohne Rollen
+          Platz hat (Wunsch Patrick 27. Oktober 2026) */}
+      <div className="kalk-preis-leiste">
+        <label className="kalk-mini"><span>Eilzuschlag</span>
+          <select id="kalk-eilart" value={k.preis.eilArt || "pauschal"} onChange={(e) => setze("preis.eilArt", e.target.value)}>
+            <option value="pauschal">Pauschal CHF/Stk</option><option value="prozent">Prozent</option>
+          </select>
+        </label>
+        <label className="kalk-mini"><span>Runden auf</span>
+          <select id="kalk-rundung" value={k.preis.rundung || "0.01"} onChange={(e) => setze("preis.rundung", e.target.value)}>
+            <option value="0.01">1 Rappen</option><option value="0.05">5 Rappen</option>
+            <option value="0.1">10 Rappen</option><option value="1">1 Franken</option>
+          </select>
+        </label>
+        <label className="kalk-mini"><span>Währung</span>
+          <select id="kalk-waehrung" value={w} onChange={(e) => { setze("preis.waehrung", e.target.value); if (e.target.value !== "CHF") kurs(e.target.value); }}>
+            {WAEHRUNGEN.map((x) => <option key={x} value={x}>{x === "USD" ? "USD (Dollar)" : x}</option>)}
+          </select>
+        </label>
+        {w !== "CHF" && <>
+          <label className="kalk-mini"><span>1 CHF = {w}</span>
+            <input type="text" inputMode="decimal" id="kalk-kurs" value={k.preis.kurs || ""} onChange={(e) => setze("preis.kurs", e.target.value)} />
           </label>
-          <p className="hinweis">Verkaufspreis = (Selbstkosten verzinst + Transport + Verpackung) × (1 + Gewinn) ÷ (1 − Provision − Skonto − Rabatt), dann Eilzuschlag.</p>
-        </section>
-        <section className="karte">
-          <h2>Währung des Angebots</h2>
-          <div className="kalk-reihe">
-            <label className="feld kalk-feld"><span>Währung (Ausgabe)</span>
-              <select id="kalk-waehrung" value={w} onChange={(e) => { setze("preis.waehrung", e.target.value); if (e.target.value !== "CHF") kurs(e.target.value); }}>
-                {WAEHRUNGEN.map((x) => <option key={x} value={x}>{x === "USD" ? "USD (Dollar)" : x}</option>)}
-              </select>
-            </label>
-            {w !== "CHF" && <F label={"Umrechnungsfaktor: 1 CHF ="} einheit={w} id="kalk-kurs" {...f("kurs")} />}
-          </div>
-          {w !== "CHF" && <>
-            <p className="hinweis">{holt ? "Kurs wird geholt …" : k.preis.kursDatum
-              ? "Kurs vom " + datumText(k.preis.kursDatum) + (k.preis.kursQuelle ? " (" + k.preis.kursQuelle + ")" : "") + ". Gerechnet wird in CHF, Angebotspreis und PDF in " + w + "."
-              : "Von Hand eingetragen."}</p>
-            <button className="knopf knopf--klein" id="kalk-kurs-holen" disabled={holt} onClick={() => kurs(w)}>Aktuellen Kurs holen</button>
-          </>}
-        </section>
-        <section className="karte">
-          <h2>Transportkosten</h2>
-          <F label="Transportkosten" einheit="CHF/Stk" id="kalk-transport" {...f("transport")} />
-          <div className="kalk-reihe">
-            <F label="Zuschlag" einheit="% auf Selbstkosten verzinst" id="kalk-transpct" {...f("transPct")} />
-            <F label="Zuschlag pauschal" einheit="CHF je Lieferlos" id="kalk-transpausch" {...f("transPausch")} />
-          </div>
-          <p className="hinweis">Die Anzahl Lieferlose steht je Staffel unten.</p>
-        </section>
-        <section className="karte">
-          <h2>Verpackungskosten</h2>
-          <F label="Verpackungskosten" einheit="CHF/Stk" id="kalk-verpackung" {...f("verpackung")} />
-          <div className="kalk-reihe">
-            <F label="Zuschlag" einheit="% auf Selbstkosten verzinst" id="kalk-verppct" {...f("verpPct")} />
-            <F label="Zuschlag pauschal" einheit="CHF für die ganze Menge" id="kalk-verppausch" {...f("verpPausch")} />
-          </div>
-        </section>
+          <button className="knopf knopf--klein" id="kalk-kurs-holen" disabled={holt} onClick={() => kurs(w)}>Aktuellen Kurs holen</button>
+          <span className="kalk-einheit">{holt ? "Kurs wird geholt …" : k.preis.kursDatum
+            ? "Kurs vom " + datumText(k.preis.kursDatum) + (k.preis.kursQuelle ? " (" + k.preis.kursQuelle + ")" : "")
+            : "Von Hand eingetragen."}</span>
+        </>}
       </div>
+      {!rechnung.length && <div className="karte karte--hinweis"><p>Zuerst eine Staffelmenge eintragen.</p></div>}
+      <div className="kalk-preis-raster">
       {rechnung.length > 0 &&
         <section className="karte kalk-rolle" id="kalk-preis-jestaffel">
-          <h2>Kosten je Staffel</h2>
-          <p className="hinweis">Leer gilt der Wert oben (grau). Eine eigene Zahl gilt nur für diese Staffel.</p>
-          <table className="tabelle kalk-tab kalk-protokoll">
+          <h2>Kosten je Staffel <small className="kalk-einheit">Die erste Staffel füllt die weiteren gleich aus</small></h2>
+          <table className="tabelle kalk-tab kalk-protokoll kalk-eng">
             <thead><tr><th></th>{rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk</th>)}</tr></thead>
             <tbody>
               {PREIS_JE_STAFFEL.map(([name, titel, einheit]) => (
                 <tr key={name}><td>{titel} <span className="kalk-einheit">{name === "eil" ? (k.preis.eilArt === "prozent" ? "%" : "CHF/Stk") : einheit}</span></td>
                   {rechnung.map((r, i) => {
                     const st = k.staffeln[staffelIdx[i]], eigen = (st.preis || {})[name] || "";
-                    return <td key={i} className={"rechts" + (String(eigen).trim() ? " kalk-eigen" : "")}>
+                    const erst = (k.staffeln[staffelIdx[0]].preis || {})[name] || "";
+                    return <td key={i} className={"rechts" + (i > 0 && eigen !== erst ? " kalk-eigen" : "")}>
                       <input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ps" + i + "-" + name}
-                        placeholder={k.preis[name] || ""} value={eigen}
-                        onChange={(e) => setze("staffeln." + staffelIdx[i] + ".preis." + name, e.target.value)} /></td>;
+                        value={eigen} onChange={(e) => preisStaffel(i, name, e.target.value)} /></td>;
                   })}</tr>))}
             </tbody>
           </table>
@@ -775,7 +744,7 @@ function Preis({ k, setze, rechnung }) {
       {rechnung.length > 0 &&
         <section className="karte kalk-rolle">
           <h2>Preisermittlung je Staffel</h2>
-          <table className="tabelle kalk-tab kalk-protokoll" id="kalk-preistab">
+          <table className="tabelle kalk-tab kalk-protokoll kalk-eng" id="kalk-preistab">
             <thead><tr><th>Stückzahl</th>{rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk</th>)}</tr></thead>
             <tbody>
               <Zeile titel="Herstellkosten" einheit="CHF/Stk" werte={R((r) => r.herstell, 4)} />
@@ -794,6 +763,7 @@ function Preis({ k, setze, rechnung }) {
             </tbody>
           </table>
         </section>}
+      </div>
     </>
   );
 }

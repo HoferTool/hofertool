@@ -181,6 +181,21 @@ export function preisFuerStaffel(preis, staffel) {
   return x;
 }
 
+// Seit 1.229.0 gibt es oben keine gemeinsamen Werte mehr, nur noch die
+// Spalten je Staffel (Wunsch Patrick 27. Oktober 2026). Ältere Kalkulationen
+// tragen ihre Werte von oben in jede noch leere Staffel ein.
+export function preisInStaffeln(k) {
+  const oben = k.preis || {};
+  k.staffeln = (k.staffeln || []).map((st) => {
+    const eigen = { ...(st.preis || {}) };
+    for (const [n] of PREIS_JE_STAFFEL) if (!String(eigen[n] ?? "").trim() && String(oben[n] ?? "").trim()) eigen[n] = oben[n];
+    return { ...st, preis: eigen };
+  });
+  k.preis = { ...oben };
+  for (const [n] of PREIS_JE_STAFFEL) k.preis[n] = "";
+  return k;
+}
+
 export const AG_JE_STAFFEL = ["masch", "laufTag", "te", "erst", "folge", "fgk"];
 // Beim externen Arbeitsgang hat das Gewatec immer einen Kostensatz je Staffel.
 export function agFuerStaffel(ag, staffel, i) {

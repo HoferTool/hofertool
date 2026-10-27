@@ -10063,3 +10063,19 @@ body.dunkel .cam-anders { background: rgba(192, 132, 21, .18); }
 /* Kalkulation: eigene Werte je Staffel im Reiter Preis hervorheben */
 .kalk-eigen .kalk-zelle { border-color: var(--blau, #1d4ed8); font-weight: 700; }
 #kalk-preis-jestaffel .kalk-zelle { width: 7em; }
+
+/* Kalkulation, Reiter Preis: gemeinsame Werte in einer Leiste, die beiden
+   Tabellen nebeneinander und eng, damit alles ohne Rollen Platz hat */
+.kalk-preis-leiste { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 0 0 8px; }
+.kalk-mini { display: inline-flex; gap: 6px; align-items: center; font-size: 0.88em; }
+.kalk-mini select, .kalk-mini input { min-height: 28px; padding: 2px 6px; }
+.kalk-mini input { width: 6em; }
+.kalk-preis-raster { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 10px; align-items: start; }
+.kalk-preis-raster > .karte { margin: 0; padding: 8px 10px; }
+.kalk-preis-raster h2 { font-size: 1em; margin: 0 0 4px; }
+.kalk-preis-raster h2 small { font-weight: 400; margin-left: 6px; }
+.kalk-eng td, .kalk-eng th { padding: 1px 6px; line-height: 1.25; font-size: 0.88em; }
+.kalk-eng .kalk-zelle { min-height: 22px; height: 22px; padding: 0 5px; font-size: 1em; }
+#kalk-preis-jestaffel .kalk-zelle { width: 6.5em; }
+.kalk-kompakt .kalk-eng input.kalk-zelle { min-height: 22px; height: 22px; padding: 0 5px; }
+.kalk-mini span { white-space: nowrap; }
