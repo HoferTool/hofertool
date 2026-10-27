@@ -9915,3 +9915,76 @@ body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) h2 { font-size: 1.15
 body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) .ib-te__leiste select { min-height: 44px; font-size: 1rem; }
 body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) .ib-te__knopf { min-width: 44px; height: 44px; }
 body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) .knopf { min-height: 48px; }
+/* ---------- Kalkulation kompakt (Wunsch Patrick 27. Oktober 2026: „ich will nicht scrollen, ähnlich wie Gewatec“) ---------- */
+.kalk-kompakt { font-size: .9rem; }
+.kalk-kompakt .kalk-kopf { margin-bottom: 8px; align-items: center; }
+.kalk-kopf__links { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 0; }
+.kalk-kompakt .kalk-zurueck { margin: 0; align-self: center; }
+.kalk-kompakt .seitentitel { font-size: 1.2rem; margin: 0; }
+.kalk-kompakt .kalk-kopf__unter { font-size: .82rem; }
+.kalk-kompakt .knopf { min-height: 32px; padding: 4px 12px; font-size: .85rem; }
+.kalk-kompakt .kalk-band { margin-bottom: 8px; gap: 6px; }
+.kalk-kompakt .kalk-band__staffel { min-width: 130px; padding: 5px 10px; }
+.kalk-kompakt .kalk-band__staffel b { font-size: 1.15rem; }
+.kalk-kompakt .reiter { margin-bottom: 8px; }
+.kalk-kompakt .reiter__knopf { padding: 6px 12px; font-size: .88rem; }
+.kalk-kompakt .karte { padding: 8px 12px; margin-bottom: 8px; }
+.kalk-kompakt .karte h2 { font-size: .9rem; margin: 0 0 6px; color: var(--marke); }
+.kalk-kompakt .kalk-zwei { gap: 8px; }
+.kalk-kompakt .kalk-reihe { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0 16px; }
+.kalk-kompakt .kalk-unter { margin: 6px 0 4px; font-size: .75rem; }
+/* Feld: Beschriftung links, Eingabe rechts, wie in der Maske des Gewatec */
+.kalk-kompakt .feld.kalk-feld { display: grid; grid-template-columns: minmax(80px, 42%) minmax(0, 1fr); align-items: center;
+  gap: 0 8px; margin-bottom: 3px; }
+.kalk-kompakt .feld.kalk-feld > span:first-child { margin: 0; font-size: .8rem; line-height: 1.2; }
+.kalk-kompakt .feld.kalk-feld > .feldhinweis { grid-column: 2; margin-top: 0; font-size: .7rem; line-height: 1.25; }
+.kalk-kompakt input[type="text"], .kalk-kompakt input[type="number"], .kalk-kompakt input[type="date"],
+.kalk-kompakt input:not([type]), .kalk-kompakt select, .kalk-kompakt textarea {
+  min-height: 30px; padding: 3px 7px; font-size: .88rem; }
+.kalk-kompakt textarea { min-height: 52px; }
+.kalk-kompakt .feld { margin-bottom: 4px; }
+.kalk-kompakt .hinweis, .kalk-kompakt .feldhinweis { font-size: .75rem; }
+.kalk-kompakt table td, .kalk-kompakt table th { padding: 3px 8px; }
+.kalk-kompakt .kalk-abschnitt td { padding-top: 8px; }
+.kalk-kompakt .kalk-staffeln { gap: 2px; margin-bottom: 6px; }
+.kalk-kompakt .kalk-knoepfe { gap: 6px; margin-bottom: 8px; }
+
+/* Arbeitsgänge als Zeilen, aufklappbar */
+.kalk-ag-titel, .kalk-kompakt .kalk-ag__kopf { display: grid;
+  grid-template-columns: 2.4em minmax(140px, 2.2fr) minmax(100px, 1.4fr) 5.5em 5.5em 4em 6em 28px 28px; gap: 0 8px; align-items: center; }
+.kalk-ag-titel { font-size: .72rem; font-weight: 650; color: var(--gedaempft); text-transform: uppercase; letter-spacing: .03em;
+  padding: 0 10px 2px calc(10px + 28px); }
+.kalk-ag-titel .rechts { text-align: right; }
+.kalk-kompakt .kalk-ags { margin-bottom: 8px; }
+.kalk-kompakt .kalk-ag { padding: 2px 10px; margin-bottom: 2px; }
+.kalk-kompakt .kalk-ag--auf { padding-bottom: 8px; margin: 4px 0; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.kalk-kompakt .kalk-ag__kopf { margin: 0; cursor: pointer; min-height: 34px; }
+.kalk-kompakt .kalk-ag--auf .kalk-ag__kopf { border-bottom: 1px solid var(--linie); margin-bottom: 6px; }
+.kalk-kompakt .kalk-ag__bez { padding: 3px 7px; min-height: 28px; }
+.kalk-ag__ort { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gedaempft); }
+.kalk-ag__ort i { font-style: normal; font-size: .7rem; text-transform: uppercase; color: var(--warnung); font-weight: 650; }
+.kalk-ag__zahl { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kalk-ag__auf, .kalk-ag__weg { all: unset; cursor: pointer; width: 28px; height: 28px; display: grid; place-items: center;
+  border-radius: 6px; color: var(--gedaempft); }
+.kalk-ag__auf:hover { background: var(--marke-hell); color: var(--marke); }
+.kalk-ag__weg:hover { background: var(--gefahr); color: #fff; }
+.kalk-ag__auf:focus-visible, .kalk-ag__weg:focus-visible { outline: 2px solid var(--marke); }
+.kalk-kompakt .kalk-ags .kalk-reihe { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+@media (max-width: 760px) {
+  .kalk-ag-titel { display: none; }
+  .kalk-kompakt .kalk-ag__kopf { grid-template-columns: 2em minmax(0, 1fr) 5.5em 28px 28px; }
+  .kalk-kompakt .kalk-ag__kopf > .kalk-ag__ort, .kalk-kompakt .kalk-ag__kopf > .kalk-ag__zahl { display: none; }
+  .kalk-kompakt .feld.kalk-feld { grid-template-columns: minmax(80px, 40%) minmax(0, 1fr); }
+}
+.kalk-kompakt .kalk-zwei { grid-template-columns: repeat(auto-fit, minmax(265px, 1fr)); }
+.kalk-kompakt input.kalk-zelle[type="text"] { min-height: 26px; padding: 2px 6px; }
+.kalk-kompakt .kalk-tab td, .kalk-kompakt .kalk-tab th { padding: 2px 8px; }
+.kalk-kompakt .kalk-zwei { grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
+.kalk-kompakt .feld.kalk-feld { grid-template-columns: minmax(70px, 52%) minmax(0, 1fr); }
+.kalk-kompakt .feld.kalk-feld > span:first-child { font-size: .76rem; }
+.kalk-kompakt .karte > .hinweis, .kalk-kompakt .karte > p { font-size: .7rem; line-height: 1.3; margin: 4px 0 0; }
+.kalk-kompakt .feld.kalk-feld > input, .kalk-kompakt .feld.kalk-feld > select, .kalk-kompakt .feld.kalk-feld > textarea {
+  min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; }
+.kalk-kompakt .kalk-reihe { grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); }
+.kalk-kompakt .kalk-ags .kalk-reihe { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+.kalk-kompakt .feld.kalk-feld > span:first-child { overflow-wrap: anywhere; hyphens: auto; }

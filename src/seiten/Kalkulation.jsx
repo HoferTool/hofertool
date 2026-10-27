@@ -187,10 +187,10 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
 
   const Inhalt = { kopf: Kopf, material: Material, ags: Arbeitsgaenge, preis: Preis, ergebnis: Ergebnis, angebot: Angebot }[reiter] || Kopf;
   return (
-    <>
-      <button className="knopf knopf--klein kalk-zurueck" id="kalk-zurueck" onClick={zurueck}>← Alle Kalkulationen</button>
+    <div className="kalk-kompakt">
       <div className="kalk-kopf">
-        <div>
+        <div className="kalk-kopf__links">
+          <button className="knopf knopf--klein kalk-zurueck" id="kalk-zurueck" onClick={zurueck}>← Alle</button>
           <h1 className="seitentitel">Kalkulation {nr}</h1>
           <div className="kalk-kopf__unter">{[k.kopf.kunde, k.kopf.artikel, k.kopf.bezeichnung].filter(Boolean).join(" · ") || "Noch ohne Kunde und Artikel"}</div>
         </div>
@@ -219,7 +219,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
           <Inhalt k={k} setze={setze} setK={setK} nr={nr} setNr={setNr} maschinen={maschinen} rechnung={rechnung} />
         </div>
       </Uebergang>
-    </>
+     </div>
   );
 }
 
@@ -370,9 +370,16 @@ function Zeile({ titel, einheit, werte, fett, klein }) {
 
 function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
   const r0 = rechnung[0];
-  const neu = (art) => setK((x) => ({ ...x, ags: [...x.ags, art === "extern"
-    ? { key: schluessel(), bez: "", art: "extern", je: "stk", extern: "", ruestPausch: "" }
-    : { key: schluessel(), bez: "", art: "intern", masch: (maschinen[0] || {}).id || "", te: "", erst: "", folge: "", fgk: "" }] }));
+  // Aufgeklappte Arbeitsgänge; zugeklappt steht jeder als eine Zeile wie im Gewatec (Wunsch Patrick 27. Oktober 2026)
+  const [auf, setAuf] = useState(() => new Set());
+  const umschalten = (key) => setAuf((x) => { const n = new Set(x); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const neu = (art) => {
+    const key = schluessel();
+    setAuf((x) => new Set(x).add(key));
+    setK((x) => ({ ...x, ags: [...x.ags, art === "extern"
+      ? { key, bez: "", art: "extern", je: "stk", extern: "", ruestPausch: "" }
+      : { key, bez: "", art: "intern", masch: (maschinen[0] || {}).id || "", te: "", erst: "", folge: "", fgk: "" }] }));
+  };
   // Jeder Arbeitsgang braucht einen festen Schlüssel fürs Ziehen
   const ags = k.ags.map((a, i) => (a.key ? a : { ...a, key: "ag" + i }));
 
@@ -380,6 +387,10 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
     <>
       {!maschinen.length && <div className="karte karte--hinweis"><p>Noch keine Stundensätze. Zuerst unter
         „Alle Kalkulationen“ → „Stundensätze der Maschinen“ eine Maschine anlegen.</p></div>}
+      <div className="kalk-ag-titel" aria-hidden="true">
+        <span>AG</span><span>Bezeichnung</span><span>Maschine / Lieferant</span><span className="rechts">te Sek.</span>
+        <span className="rechts">tr Std</span><span className="rechts">FGK</span><span className="rechts">CHF/Stk</span><span></span><span></span>
+      </div>
       <ZiehListe id="kalk-ags" className="kalk-ags" darf={true}
         ordnen={(reihe) => setK((x) => {
           const mit = x.ags.map((a, i) => (a.key ? a : { ...a, key: "ag" + i }));
@@ -388,10 +399,14 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
         eintraege={ags.map((a, i) => {
           const r = r0 && r0.ags[i];
           const f = (name) => ({ wert: a[name], setzen: (w) => setze("ags." + i + "." + name, w) });
+          const offen = auf.has(a.key);
+          const ext = a.art === "extern";
+          const mm = !ext && maschinen.find((q) => q.id === a.masch);
+          const ruest = [a.erst, a.folge].filter((x) => String(x || "").trim()).join(" / ");
           return { key: a.key, inhalt:
-            <div className={"kalk-ag" + (a.art === "extern" ? " kalk-ag--extern" : "")} data-ag={i}
+            <div className={"kalk-ag" + (ext ? " kalk-ag--extern" : "") + (offen ? " kalk-ag--auf" : "")} data-ag={i}
               onPointerDown={(e) => { if (e.target.closest("input, select, textarea, button")) e.stopPropagation(); }}>
-              <div className="kalk-ag__kopf">
+              <div className="kalk-ag__kopf" onClick={(e) => { if (!e.target.closest("input, select, button")) umschalten(a.key); }}>
                 <span className="kalk-ag__pos">{(i + 1) * 10}</span>
                 <input className="kalk-ag__bez" id={"kalk-ag-bez-" + i} value={a.bez} placeholder="Arbeitsgang wählen oder schreiben"
                   list={a.art === "extern" ? "kalk-ag-vorlagen-extern" : "kalk-ag-vorlagen"}
@@ -401,12 +416,17 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     // Drehen hat im Gewatec 56 % FGK, vorbelegt solange das Feld leer ist (Wunsch Patrick 27. Oktober 2026)
                     if (a.art !== "extern" && /^drehen/i.test(t) && !String(a.fgk || "").trim()) setze("ags." + i + ".fgk", FGK_DREHEN);
                   }} />
-                <span className="kalk-ag__art">{a.art === "extern" ? "Extern" : "Intern"}</span>
+                <span className="kalk-ag__ort">{ext ? <><i>Extern</i> {a.lieferant || ""}</> : (mm ? mm.name : <i>keine Maschine</i>)}</span>
+                <span className="kalk-ag__zahl">{ext ? (a.extern ? chf(z(a.extern), 2) + " /" + ({ stk: "Stk", "100stk": "100", "1000stk": "1000", kg: "kg" }[a.je || "stk"]) : "") : (a.te || "")}</span>
+                <span className="kalk-ag__zahl">{ext ? "" : ruest}</span>
+                <span className="kalk-ag__zahl">{ext || !String(a.fgk || "").trim() ? "" : a.fgk + " %"}</span>
                 <b className="kalk-ag__summe" title="Kosten je Stück bei der ersten Staffel">{r ? chf(r.kosten / r0.menge, 4) : "–"}</b>
-                <button className="linkknopf linkknopf--gefahr" data-ag-weg={i}
-                  onClick={() => setK((x) => ({ ...x, ags: x.ags.filter((_, j) => j !== i) }))}>Entfernen</button>
+                <button className="kalk-ag__auf" data-ag-auf={i} aria-expanded={offen} title={offen ? "Zuklappen" : "Aufklappen"}
+                  onClick={() => umschalten(a.key)}>{offen ? "▴" : "▾"}</button>
+                <button className="kalk-ag__weg" data-ag-weg={i} title="Arbeitsgang entfernen"
+                  onClick={() => setK((x) => ({ ...x, ags: x.ags.filter((_, j) => j !== i) }))}>✕</button>
               </div>
-              {a.art === "extern"
+              {offen && (ext
                 ? <div className="kalk-extern">
                     <div className="kalk-reihe">
                       <F label="Lieferant" id={"kalk-ag-lief-" + i} text {...f("lieferant")} />
@@ -455,8 +475,8 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                     <F label="Erstrüsten" einheit="Std" id={"kalk-ag-er-" + i} {...f("erst")} />
                     <F label="Folgerüsten" einheit="Std" id={"kalk-ag-fr-" + i} {...f("folge")} />
                     <F label="FGK" einheit="%" id={"kalk-ag-fgk-" + i} {...f("fgk")} />
-                  </div>}
-              {r && !r.extern && (r.laufH > 0 || r.ruestChf > 0) &&
+                  </div>)}
+              {offen && r && !r.extern && (r.laufH > 0 || r.ruestChf > 0) &&
                 <div className="kalk-ag__fuss">Fix {chf(r.fix / r0.menge, 4)} · Variabel {chf(r.var / r0.menge, 4)}
                   {" "}· Laufzeit {chf(r.laufH, 1)} h · Rüsten {chf(r.ruestChf)} CHF bei {chf(r0.menge, 0)} Stk</div>}
             </div> };
@@ -467,7 +487,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
         <button className="knopf" id="kalk-ag-intern" onClick={() => neu("intern")}>+ Interner Arbeitsgang</button>
         <button className="knopf" id="kalk-ag-extern" onClick={() => neu("extern")}>+ Externer Arbeitsgang</button>
       </div>
-      <p className="hinweis">Kosten = (Laufzeit × Stundensatz + Rüstzeit × Rüstsatz) × (1 + FGK). Am Griff links ziehen, um die Reihenfolge zu ändern.</p>
+      <p className="hinweis">Kosten = (Laufzeit × Stundensatz + Rüstzeit × Rüstsatz) × (1 + FGK). Zeile antippen klappt den Arbeitsgang auf, am Griff links ziehen ändert die Reihenfolge.</p>
     </>
   );
 }

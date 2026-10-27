@@ -71,6 +71,7 @@ with sync_playwright() as p:
     pg.locator("[data-kalk-reiter='ags']").click(); pg.wait_for_selector("#kalk-ags")
     agt = pg.locator("[data-ag='1']").inner_text()
     pruefe("2.07" in agt, "Drehen komplett 2.07 je Stk: %s" % agt.replace("\n", " ")[:160])
+    pg.click("[data-ag-auf='4']")
     ext = pg.locator("[data-ag='4']").inner_text()
     pruefe("0.3000 CHF/Stk" in ext and "547.20 kg" in ext, "Polieren extern: %s" % ext.replace("\n", " ")[-120:])
     pg.fill("#kalk-ag-ruestp-4", "800"); pg.wait_for_timeout(300)
