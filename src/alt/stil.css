@@ -9902,3 +9902,16 @@ input.kalk-zelle[type="text"] { width: 7.5em; max-width: 100%; text-align: right
 .kalk-extern__neben input[type="text"] { width: 7.5em; max-width: 100%; text-align: right; }
 .kalk-haken { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 13px; }
 @media (max-width: 600px) { .kalk-extern__neben td:first-child { font-size: 12px; } .kalk-extern__neben input[type="text"] { width: 5em; } }
+
+/* Eigene Maschinen-Notizen (1.221.0): der Editor rollt über mehrere Seiten */
+.ib-te__platz--rollen { overflow: auto; align-items: flex-start; padding: 12px 0; }
+.ib-te__platz--rollen .ib-te__seite { flex: none; }
+.ib-text--wachsen .ib-text__blatt { overflow: visible; }
+.unterlagen__gruppe[data-art="notizen"] .unterlagen__symbol { background: #0f8a7e; }
+/* Im Pad Mode der Editor so breit wie sonst, nicht wie ein kleines Pad-Fenster */
+body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) { width: min(1100px, 100%) !important; max-width: none !important;
+  padding: 16px 18px; font-size: 1rem; }
+body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) h2 { font-size: 1.15rem; margin-bottom: 0; }
+body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) .ib-te__leiste select { min-height: 44px; font-size: 1rem; }
+body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) .ib-te__knopf { min-width: 44px; height: 44px; }
+body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) .knopf { min-height: 48px; }

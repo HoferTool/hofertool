@@ -560,6 +560,8 @@ export function createClient(_url, _key, optionen) {
     storage: { from: (ablage) => ({
       upload: (pfad, datei, o) => {
         TEST.protokoll.push({ art: "upload", ablage, pfad, typ: o && o.contentType, groesse: datei && datei.size });
+        // Hochgeladene Dateien aufheben, damit ein Test sie lesen kann (etwa die Seiten eines PDF)
+        (TEST.dateien = TEST.dateien || {})[pfad] = datei;
         if (TEST.ordner) (TEST.ordner[ablage] = TEST.ordner[ablage] || []).push({ pfad,
           size: datei && datei.size, mimetype: o && o.contentType, created_at: new Date().toISOString() });
         return Promise.resolve({ data: { path: pfad }, error: null });

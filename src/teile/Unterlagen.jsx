@@ -13,6 +13,15 @@
 //  in der Ablage „zeichnungen“ unter maschinen/. Lesen alle ausser
 //  Externen, hochladen, umbenennen und löschen alle mit Schreibrecht (seit 1.135.0, vorher nur Admins; auch in
 //  der Datenbank so geregelt).
+//
+//  Eigene Maschinen-Notizen (seit 1.221.0, Wunsch Patrick 27. Oktober
+//  2026: „eigene Dokumente erstellen, mit dem gleichen Texteditor wie
+//  im Infoboard, als wieder bearbeitbares PDF“): „+ Notiz“ öffnet den
+//  Editor des Infoboards über mehrere A4-Seiten. Gespeichert wird ein
+//  PDF (zum Ansehen und Drucken wie jede Unterlage) und der Text selbst
+//  in maschinen_unterlagen.inhalt (sql/maschinen-notizen.sql), damit
+//  „Bearbeiten“ das Dokument wieder im Editor öffnet. Jede Fassung ist
+//  eine neue Datei, die alte bleibt für Rückgängig liegen.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -22,6 +31,7 @@ import { istExcel } from "./excelLesen.js";
 import { wiederOeffner } from "./wiederherstellen.js";
 
 export const UNTERLAGEN_ARTEN = [
+  ["notizen", "Eigene Maschinen-Notizen"],
   ["handbuch", "Handbuch / Bedienungsanleitung"],
   ["elektro", "Elektroschema"],
   ["hydraulik", "Hydraulik / Pneumatik"],
@@ -111,6 +121,25 @@ function UnterlagenFenster({ m, typ, zu }) {
 
 // Die Liste selbst, im Fenster oder eingebettet auf der Seite einer
 // Maschine (Seite Maschinen, seit 1.134.0). Ohne zu kein Schliessen.
+// Eine Notiz im Editor schreiben und als PDF ablegen. Gibt die Felder für
+// maschinen_unterlagen zurück oder null, wenn abgebrochen wurde.
+async function notizSchreiben(m, titel, html, ordner) {
+  const { textBearbeiten } = await import("../infoboard/TextFeld.jsx");
+  const neu = await textBearbeiten({ html, format: "a4", seitenVerhaeltnis: 297 / 210, fortlaufend: true,
+    titel: titel + " · " + (m.machine_number || m.name || "") });
+  if (neu === null || neu === undefined) return null;
+  alt.meldung("PDF wird erstellt …");
+  const { notizPdf } = await import("./notizPdf.jsx");
+  const blob = await notizPdf(neu, titel);
+  const dateiname = titel.replace(/[\\/:*?"<>|]+/g, " ").trim() + ".pdf";
+  const pfad = "maschinen/" + ordner + "/" + ablageName(dateiname);
+  const up = await alt.db.storage.from("zeichnungen").upload(pfad, blob,
+    { contentType: "application/pdf", upsert: false });
+  if (up.error) throw up.error;
+  const url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
+  return { url, pfad, dateiname, groesse: blob.size || null, inhalt: neu };
+}
+
 export function UnterlagenListe({ m, typ, zu }) {
   const [liste, setListe] = useState(null);
   const [fehler, setFehler] = useState("");
@@ -174,6 +203,51 @@ export function UnterlagenListe({ m, typ, zu }) {
       setLaedt("");
     }
     laden();
+  };
+
+  // Neue eigene Notiz: zuerst Titel und für wen, dann der Editor
+  const notizNeu = async () => {
+    const w = await alt.dialogFelder({ titel: "Neue Maschinen-Notiz",
+      felder: [
+        { name: "titel", label: "Titel", pflicht: true, platzhalter: "z. B. Kühlmittel nachfüllen" },
+        ...(m.type_id ? [{ name: "fuer", label: "Gilt für", wert: "maschine", auswahl: giltFuerAuswahl() }] : []),
+      ],
+      bestaetigen: "Weiter zum Text" });
+    if (!w) return;
+    const titel = w.titel.trim();
+    const fuerTyp = w.fuer === "typ" && m.type_id;
+    try {
+      const d = await notizSchreiben(m, titel, "", fuerTyp ? "typ-" + m.type_id : m.id);
+      if (!d) return;
+      const ein = await alt.db.from("maschinen_unterlagen").insert({
+        machine_id: fuerTyp ? null : m.id, type_id: fuerTyp ? m.type_id : null,
+        art: "notizen", titel, ...d }).select("id");
+      if (ein.error) throw ein.error;
+      const neuId = ((ein.data || [])[0] || {}).id;
+      if (neuId) alt.merkeSchritt("Notiz " + titel, alt.rueckWeg("maschinen_unterlagen", { id: neuId }));
+      alt.meldung("Gespeichert: " + titel, "gut");
+    } catch (f) { notizFehler(f); }
+    laden();
+  };
+
+  // Eine Notiz wieder im Editor öffnen; neues PDF, Text und Rückgängig
+  const notizBearbeiten = async (u) => {
+    try {
+      const vorher = await alt.rueckSichern("maschinen_unterlagen", { id: u.id });
+      const d = await notizSchreiben(m, u.titel, u.inhalt || "", u.type_id ? "typ-" + u.type_id : (u.machine_id || m.id));
+      if (!d) return;
+      const { error } = await alt.db.from("maschinen_unterlagen").update(d).eq("id", u.id);
+      if (error) throw error;
+      alt.merkeSchritt("Bearbeiten von " + u.titel, alt.rueckRein("maschinen_unterlagen", vorher));
+      alt.meldung("Gespeichert: " + u.titel, "gut");
+    } catch (f) { notizFehler(f); }
+    laden();
+  };
+
+  const notizFehler = (f) => {
+    const t = alt.fehlertext(f);
+    alt.meldung(/inhalt/.test(t)
+      ? "Die Notizen sind in der Datenbank noch nicht eingerichtet (sql/maschinen-notizen.sql)." : t, "fehler");
   };
 
   // Statt einer Datei eine Adresse, etwa das Handbuch beim Hersteller
@@ -255,6 +329,7 @@ export function UnterlagenListe({ m, typ, zu }) {
         {darf && <button className="knopf knopf--haupt" id="unterlagen-neu" disabled={!!laedt}
           onClick={() => wahl.current && wahl.current.click()}>+ Datei</button>}
         {darf && <button className="knopf" id="unterlagen-link" onClick={linkNeu}>+ Link</button>}
+        {darf && <button className="knopf" id="unterlagen-notiz" onClick={notizNeu}>+ Notiz</button>}
         {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}
       </div>
       {darf && <input ref={wahl} type="file" multiple hidden id="unterlagen-datei"
@@ -266,7 +341,7 @@ export function UnterlagenListe({ m, typ, zu }) {
           ? <p className="klein">Lädt …</p>
           : !gruppen.length
           ? <p className="unterlagen__leer">Noch keine Unterlagen für diese Maschine.
-              {darf ? " Mit „+ Datei“ ein Handbuch oder Schema hochladen oder mit „+ Link“ verlinken." : ""}</p>
+              {darf ? " Mit „+ Datei“ ein Handbuch oder Schema hochladen, mit „+ Link“ verlinken oder mit „+ Notiz“ selbst schreiben." : ""}</p>
           : gruppen.map(([art, name, teile]) => (
               <section key={art} className="unterlagen__gruppe" data-art={art}>
                 <h3>{name}</h3>
@@ -284,6 +359,9 @@ export function UnterlagenListe({ m, typ, zu }) {
                         </span>
                       </button>
                       {darf && <div className="unterlagen__knoepfe">
+                        {u.art === "notizen" && u.inhalt != null &&
+                          <button className="knopf knopf--klein knopf--haupt" data-notiz-bearbeiten={u.id}
+                            onClick={() => notizBearbeiten(u)}>Bearbeiten</button>}
                         <button className="knopf knopf--klein" data-unterlage-aendern={u.id}
                           onClick={() => umbenennen(u)}>Ändern</button>
                         <button className="knopf knopf--klein knopf--gefahr-leise" data-unterlage-weg={u.id}

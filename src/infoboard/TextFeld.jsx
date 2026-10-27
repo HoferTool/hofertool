@@ -27,7 +27,9 @@ import { dateiHochladen } from "./daten.js";
 const MM = 96 / 25.4;
 // a4q: A4 quer, für die weiteren Seiten des Einrichtblatts
 export const BLATT_MM = { a4: [210, 297], a3: [420, 297], a4q: [297, 210] };
-const RAND_MM = 12;
+export const RAND_MM = 12;
+// Höhe des Texts je A4-Seite im PDF der Maschinen-Notizen: A4 ohne Rand oben und unten
+export const SEITE_INHALT_MM = 297 - 2 * RAND_MM;
 
 export const GROESSEN = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72, 96];
 export const STANDARD_PT = 14;
@@ -127,28 +129,50 @@ function farbenMerken(el) {
 // ohneGrund: Text frei auf der Tafel, ohne weisses Blatt und ohne Rand
 // (Wunsch Patrick 26. Oktober 2026: „Text ohne Hintergrund direkt platzieren“);
 // grund ist dann die Farbe der Tafel, damit man im Fenster sieht, wie es wirkt
-export function TextBlatt({ html, format, breite, hoehe, bearbeiten, innenRef, onInput, ohneGrund, grund }) {
+// wachsen: das Blatt wird mit dem Text länger, über mehrere A4-Seiten
+// (eigene Maschinen-Notizen, seit 1.221.0); die gestrichelten Linien
+// zeigen ungefähr, wo im PDF eine neue Seite beginnt
+export function TextBlatt({ html, format, breite, hoehe, bearbeiten, innenRef, onInput, ohneGrund, grund, wachsen }) {
   const [bw] = BLATT_MM[format] || BLATT_MM.a4;
   const k = breite / (bw * MM);
   const eigen = useRef(null);
   const el = innenRef || eigen;
+  const [lang, setLang] = useState(0);
   // Beim Bearbeiten nur einmal füllen, sonst springt die Schreibmarke
   useLayoutEffect(() => {
     if (el.current && (!bearbeiten || !el.current.innerHTML)) el.current.innerHTML = sauber(html);
   }, [html, bearbeiten, el]);
+  // Die Hülle ist so hoch wie das verkleinerte Blatt
+  useLayoutEffect(() => {
+    if (!wachsen || !el.current) return;
+    const messen = () => el.current && setLang(el.current.offsetHeight * k);
+    messen();
+    const ro = new ResizeObserver(messen);
+    ro.observe(el.current);
+    return () => ro.disconnect();
+  }, [wachsen, k, el]);
+  const seite = SEITE_INHALT_MM * MM;
   return (
-    <div className={"ib-text" + (ohneGrund ? " ib-text--ohne-grund" : "")}
-      style={{ width: breite, height: hoehe, background: ohneGrund ? grund || "transparent" : undefined }}>
+    <div className={"ib-text" + (ohneGrund ? " ib-text--ohne-grund" : "") + (wachsen ? " ib-text--wachsen" : "")}
+      style={{ width: breite, height: wachsen ? Math.max(hoehe, lang) : hoehe,
+        background: ohneGrund ? grund || "transparent" : undefined }}>
       <div ref={el} className="ib-text__blatt" contentEditable={bearbeiten || undefined}
         suppressContentEditableWarning spellCheck={bearbeiten ? true : undefined} onInput={onInput}
-        style={{ width: bw * MM, height: hoehe / k, padding: ohneGrund ? 0 : RAND_MM * MM, fontSize: STANDARD_PT + "pt",
-          transform: "scale(" + k + ")" }} />
+        style={{ width: bw * MM, height: wachsen ? "auto" : hoehe / k, minHeight: wachsen ? hoehe / k : undefined,
+          padding: ohneGrund ? 0 : RAND_MM * MM, fontSize: STANDARD_PT + "pt", transform: "scale(" + k + ")",
+          backgroundImage: wachsen ? "repeating-linear-gradient(to bottom, transparent 0, transparent "
+            + (seite - 2) + "px, #9aa4b1 " + (seite - 2) + "px, #9aa4b1 " + seite + "px)" : undefined,
+          backgroundSize: wachsen ? "100% " + seite + "px" : undefined,
+          // Nur im Textbereich, damit oben im Rand keine Linie steht
+          backgroundClip: wachsen ? "content-box" : undefined, backgroundOrigin: wachsen ? "content-box" : undefined,
+          backgroundRepeat: wachsen ? "repeat-y" : undefined }} />
     </div>
   );
 }
 
 // ---------- Fenster zum Bearbeiten ----------
-export function textBearbeiten({ html, format, seitenVerhaeltnis, titel, ohneGrund, grund }) {
+// fortlaufend: mehrere Seiten, das Fenster rollt (Maschinen-Notizen)
+export function textBearbeiten({ html, format, seitenVerhaeltnis, titel, ohneGrund, grund, fortlaufend }) {
   return new Promise((fertig) => {
     const huelle = document.createElement("div");
     huelle.className = "dialog-huelle ib-texteditor-huelle";
@@ -156,11 +180,11 @@ export function textBearbeiten({ html, format, seitenVerhaeltnis, titel, ohneGru
     const wurzel = createRoot(huelle);
     const zu = (wert) => { wurzel.unmount(); huelle.remove(); fertig(wert); };
     wurzel.render(<TextEditor html={html} format={format} verhaeltnis={seitenVerhaeltnis}
-      titel={titel} zu={zu} ohneGrund={ohneGrund} grund={grund} />);
+      titel={titel} zu={zu} ohneGrund={ohneGrund} grund={grund} fortlaufend={fortlaufend} />);
   });
 }
 
-function TextEditor({ html, format, verhaeltnis, titel, zu, ohneGrund, grund }) {
+function TextEditor({ html, format, verhaeltnis, titel, zu, ohneGrund, grund, fortlaufend }) {
   const blatt = useRef(null);
   const platz = useRef(null);
   const datei = useRef(null);
@@ -176,7 +200,8 @@ function TextEditor({ html, format, verhaeltnis, titel, zu, ohneGrund, grund }) 
     const rechnen = () => {
       const w = el.clientWidth - 8, h = el.clientHeight - 8;
       if (w <= 0 || h <= 0) return;
-      const b = Math.min(w, h / verhaeltnis);
+      // Fortlaufend nach der Breite, nach unten rollt es
+      const b = fortlaufend ? Math.min(w - 16, 900) : Math.min(w, h / verhaeltnis);
       setMass([Math.floor(b), Math.floor(b * verhaeltnis)]);
     };
     rechnen();
@@ -188,7 +213,7 @@ function TextEditor({ html, format, verhaeltnis, titel, zu, ohneGrund, grund }) 
   const pruefen = () => {
     const el = blatt.current;
     if (el) farbenMerken(el);
-    if (el) setZuViel(el.scrollHeight > el.clientHeight + 2);
+    if (el && !fortlaufend) setZuViel(el.scrollHeight > el.clientHeight + 2);
     neu((n) => n + 1);
   };
   useEffect(() => { if (mass[0]) { pruefen(); blatt.current && blatt.current.focus(); } }, [mass[0]]);
@@ -360,17 +385,18 @@ function TextEditor({ html, format, verhaeltnis, titel, zu, ohneGrund, grund }) 
               onClick={() => bildBreite(p)}>{p} %</button>))}
           <button type="button" className="ib-te__knopf" onClick={bildWeg}>Entfernen</button>
         </div>}
-      <div className="ib-te__platz" ref={platz} onClick={blattKlick}>
+      <div className={"ib-te__platz" + (fortlaufend ? " ib-te__platz--rollen" : "")} ref={platz} onClick={blattKlick}>
         {mass[0] > 0 &&
           <div className={"ib-te__seite" + (zuViel ? " ib-te__seite--voll" : "")}>
             <TextBlatt html={start} format={format} breite={mass[0]} hoehe={mass[1]} bearbeiten
-              innenRef={blatt} onInput={pruefen} ohneGrund={ohneGrund} grund={grund} />
+              innenRef={blatt} onInput={pruefen} ohneGrund={ohneGrund} grund={grund} wachsen={fortlaufend} />
           </div>}
       </div>
       <div className="ib-te__fuss">
         <span className={"klein" + (zuViel ? " ib-te__warnung" : "")}>
           {zuViel ? "Der Text ist länger als das Feld: Was unter dem Rand steht, ist am Bildschirm nicht zu sehen."
-            : meldung || "So wie hier steht es auf dem Bildschirm."}</span>
+            : meldung || (fortlaufend ? "Mehrere Seiten gehen: Die graue Linie zeigt ungefähr, wo im PDF eine neue Seite beginnt."
+              : "So wie hier steht es auf dem Bildschirm.")}</span>
         <button type="button" className="knopf knopf--still" onClick={() => zu(null)}>Abbrechen</button>
         <button type="button" className="knopf" data-ibte="fertig"
           onClick={() => zu(sauber(blatt.current ? blatt.current.innerHTML : ""))}>Speichern</button>
