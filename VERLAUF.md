@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.231.0** Kalkulation: Reiter Preis als eine einzige enge Tabelle untereinander, Eingaben je Staffel eingerückt bei dem, was sie ergeben, ohne Rollen auf 1440 × 900 (Wunsch Patrick 27. Oktober 2026: „alles untereinander … mach es enger“); der Pfeil zum Aufklappen der Arbeitsgänge steht direkt vor der Positionsnummer.
 - **1.230.1** Kalkulation: kein oranges „je Staffel“ mehr in der Zeile des Arbeitsgangs, dort steht immer die Maschine; Multimaschinell wählt keine eigene Maschine je Staffel mehr (Patrick 27. Oktober 2026: „innerhalb eines Teils immer mit derselben Maschine“).
 - **1.230.0** Kalkulation, Reiter Staffeln und Material: Staffeln nebeneinander als Spalten, Menge und Lose darunter, Entfernen als ✕ neben „Staffel 1“; der Reiter passt ohne Rollen auf 1440 × 900 (Wunsch Patrick 27. Oktober 2026).
 - **1.229.0** Kalkulation, Reiter Preis: die Karten mit den gemeinsamen Werten oben sind weg (Wunsch Patrick 27. Oktober 2026). Es gibt nur noch die Tabelle „Kosten je Staffel“; was in der ersten Staffel steht, kommt gleich in die weiteren und lässt sich dort ändern. Alte Werte von oben stehen beim Öffnen in jeder Staffel. Eilart, Rundung und Währung in einer Leiste, beide Tabellen nebeneinander, kein Rollen mehr.

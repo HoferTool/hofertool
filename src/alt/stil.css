@@ -10087,3 +10087,22 @@ body.dunkel .cam-anders { background: rgba(192, 132, 21, .18); }
 .kalk-staffel-weg { margin-left: 6px; font-size: 0.9em; }
 .kalk-staffeltab + * { margin-top: 0; }
 h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }
+
+/* Kalkulation, Reiter Preis: eine einzige enge Tabelle untereinander */
+.kalk-preis-karte { padding: 6px 10px; margin: 0; }
+.kalk-enger { width: auto; min-width: min(760px, 100%); }
+.kalk-enger td, .kalk-enger th { padding: 0 8px; line-height: 1.15; font-size: 0.84em; }
+.kalk-enger td.rechts, .kalk-enger th.rechts { min-width: 8em; }
+.kalk-kompakt .kalk-enger input.kalk-zelle { min-height: 18px; height: 18px; padding: 0 5px; font-size: 1em; width: 7em; }
+.kalk-enger tr.kalk-eingabe td:first-child { padding-left: 18px; color: var(--text-leise, #555); }
+.kalk-enger td, .kalk-enger th { line-height: 1.05; font-size: 0.8em; padding-top: 0; padding-bottom: 0; }
+.kalk-kompakt .kalk-enger input.kalk-zelle { min-height: 16px; height: 16px; line-height: 14px; border-radius: 3px; }
+.kalk-preis-leiste { margin-bottom: 4px; }
+.kalk-preis-leiste .kalk-mini select, .kalk-preis-leiste .kalk-mini input { min-height: 24px; height: 24px; padding: 0 4px; }
+
+/* Kalkulation: Aufklapp-Pfeil direkt vor der Positionsnummer (Wunsch Patrick 27. Oktober 2026) */
+.kalk-ag-titel, .kalk-kompakt .kalk-ag__kopf {
+  grid-template-columns: 28px 2.4em minmax(140px, 2.2fr) minmax(100px, 1.4fr) 5.5em 5.5em 4em 6em 28px; }
+@media (max-width: 760px) {
+  .kalk-kompakt .kalk-ag__kopf { grid-template-columns: 28px 2em minmax(0, 1fr) 5.5em 28px; }
+}

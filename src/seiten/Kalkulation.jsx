@@ -411,8 +411,8 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
           <span className="kalk-einheit">({chf(r.menge / r.lose, 0)} Stk je Los)</span></span>)}
       </div>}
       <div className="kalk-ag-titel" aria-hidden="true">
-        <span>AG</span><span>Bezeichnung</span><span>Maschine / Lieferant</span><span className="rechts">te Sek.</span>
-        <span className="rechts">tr Std</span><span className="rechts">FGK</span><span className="rechts">CHF/Stk</span><span></span><span></span>
+        <span></span><span>AG</span><span>Bezeichnung</span><span>Maschine / Lieferant</span><span className="rechts">te Sek.</span>
+        <span className="rechts">tr Std</span><span className="rechts">FGK</span><span className="rechts">CHF/Stk</span><span></span>
       </div>
       <ZiehListe id="kalk-ags" className="kalk-ags" darf={true}
         ordnen={(reihe) => setK((x) => {
@@ -430,6 +430,8 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
             <div className={"kalk-ag" + (ext ? " kalk-ag--extern" : "") + (offen ? " kalk-ag--auf" : "")} data-ag={i}
               onPointerDown={(e) => { if (e.target.closest("input, select, textarea, button")) e.stopPropagation(); }}>
               <div className="kalk-ag__kopf" onClick={(e) => { if (!e.target.closest("input, select, button")) umschalten(a.key); }}>
+                <button className="kalk-ag__auf" data-ag-auf={i} aria-expanded={offen} title={offen ? "Zuklappen" : "Aufklappen"}
+                  onClick={() => umschalten(a.key)}>{offen ? "▴" : "▾"}</button>
                 <span className="kalk-ag__pos">{(i + 1) * 10}</span>
                 <input className="kalk-ag__bez" id={"kalk-ag-bez-" + i} value={a.bez} placeholder="Arbeitsgang wählen oder schreiben"
                   list={a.art === "extern" ? "kalk-ag-vorlagen-extern" : "kalk-ag-vorlagen"}
@@ -444,8 +446,6 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                 <span className="kalk-ag__zahl">{ext ? "" : ruest}</span>
                 <span className="kalk-ag__zahl">{ext || !String(a.fgk || "").trim() ? "" : a.fgk + " %"}</span>
                 <b className="kalk-ag__summe" title="Kosten je Stück bei der ersten Staffel">{r ? chf(r.kosten / r0.menge, 4) : "–"}</b>
-                <button className="kalk-ag__auf" data-ag-auf={i} aria-expanded={offen} title={offen ? "Zuklappen" : "Aufklappen"}
-                  onClick={() => umschalten(a.key)}>{offen ? "▴" : "▾"}</button>
                 <button className="kalk-ag__weg" data-ag-weg={i} title="Arbeitsgang entfernen"
                   onClick={() => setK((x) => ({ ...x, ags: x.ags.filter((_, j) => j !== i) }))}>✕</button>
               </div>
@@ -684,6 +684,18 @@ function Preis({ k, setze, setK, rechnung }) {
     if (i === 0) staffelIdx.slice(1).forEach((j) => { if ((st[j].preis[name] || "") === vorher) st[j].preis[name] = wert; });
     return { ...x, staffeln: st };
   });
+  const E = (name) => {
+    const [, titel, einheit] = PREIS_JE_STAFFEL.find(([n]) => n === name);
+    return (
+      <tr key={name} className="kalk-eingabe"><td>{titel} <span className="kalk-einheit">{name === "eil" ? (k.preis.eilArt === "prozent" ? "%" : "CHF/Stk") : einheit}</span></td>
+        {rechnung.map((r, i) => {
+          const eigen = (k.staffeln[staffelIdx[i]].preis || {})[name] || "";
+          const erst = (k.staffeln[staffelIdx[0]].preis || {})[name] || "";
+          return <td key={i} className={"rechts" + (i > 0 && eigen !== erst ? " kalk-eigen" : "")}>
+            <input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ps" + i + "-" + name}
+              value={eigen} onChange={(e) => preisStaffel(i, name, e.target.value)} /></td>;
+        })}</tr>);
+  };
   const SF = (name, i, id, platz) => (
     <td key={id} className="rechts"><input className="kalk-zelle" type="text" id={id} inputMode="decimal" placeholder={platz} value={k.staffeln[staffelIdx[i]][name] || ""}
       onChange={(e) => setze("staffeln." + staffelIdx[i] + "." + name, e.target.value)} /></td>);
@@ -719,48 +731,38 @@ function Preis({ k, setze, setK, rechnung }) {
         </>}
       </div>
       {!rechnung.length && <div className="karte karte--hinweis"><p>Zuerst eine Staffelmenge eintragen.</p></div>}
-      <div className="kalk-preis-raster">
+      {/* Eine Tabelle untereinander in der Reihenfolge der Rechnung:
+          Eingaben je Staffel direkt bei dem, was sie ergeben (Wunsch
+          Patrick 27. Oktober 2026: „alles untereinander, ohne Scrollen“) */}
       {rechnung.length > 0 &&
-        <section className="karte kalk-rolle" id="kalk-preis-jestaffel">
-          <h2>Kosten je Staffel <small className="kalk-einheit">Die erste Staffel füllt die weiteren gleich aus</small></h2>
-          <table className="tabelle kalk-tab kalk-protokoll kalk-eng">
-            <thead><tr><th></th>{rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk</th>)}</tr></thead>
-            <tbody>
-              {PREIS_JE_STAFFEL.map(([name, titel, einheit]) => (
-                <tr key={name}><td>{titel} <span className="kalk-einheit">{name === "eil" ? (k.preis.eilArt === "prozent" ? "%" : "CHF/Stk") : einheit}</span></td>
-                  {rechnung.map((r, i) => {
-                    const st = k.staffeln[staffelIdx[i]], eigen = (st.preis || {})[name] || "";
-                    const erst = (k.staffeln[staffelIdx[0]].preis || {})[name] || "";
-                    return <td key={i} className={"rechts" + (i > 0 && eigen !== erst ? " kalk-eigen" : "")}>
-                      <input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ps" + i + "-" + name}
-                        value={eigen} onChange={(e) => preisStaffel(i, name, e.target.value)} /></td>;
-                  })}</tr>))}
-            </tbody>
-          </table>
-        </section>}
-      {rechnung.length > 0 &&
-        <section className="karte kalk-rolle">
-          <h2>Preisermittlung je Staffel</h2>
-          <table className="tabelle kalk-tab kalk-protokoll kalk-eng" id="kalk-preistab">
-            <thead><tr><th>Stückzahl</th>{rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk</th>)}</tr></thead>
+        <section className="karte kalk-rolle kalk-preis-karte" id="kalk-preis-jestaffel">
+          <table className="tabelle kalk-tab kalk-protokoll kalk-eng kalk-enger" id="kalk-preistab">
+            <thead><tr><th>Stückzahl <small className="kalk-einheit">die erste Staffel füllt die weiteren gleich aus</small></th>
+              {rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk</th>)}</tr></thead>
             <tbody>
               <Zeile titel="Herstellkosten" einheit="CHF/Stk" werte={R((r) => r.herstell, 4)} />
+              {E("sek")}{E("vwgk")}
               <Zeile titel="Selbstkosten" einheit="CHF/Stk" werte={R((r) => r.selbst, 4)} />
-              <Zeile titel="Selbstkosten verzinst" einheit="CHF/Stk" werte={R((r) => r.selbstVerz, 4)} />
+              {E("zinsPct")}{E("zinsMonate")}
+              <Zeile titel="Selbstkosten verzinst" einheit="CHF/Stk" werte={R((r) => r.selbstVerz, 4)} fett />
               <tr><td>Anzahl Lieferlose</td>{rechnung.map((r, i) => SF("lieferlose", i, "kalk-lieferlose-" + i, "1"))}</tr>
-              <Zeile titel="Transportkosten" einheit="CHF/Stk" werte={R((r) => r.transport, 4)} />
-              <Zeile titel="Verpackungskosten" einheit="CHF/Stk" werte={R((r) => r.verpackung, 4)} />
+              {E("transport")}{E("transPct")}{E("transPausch")}
+              <Zeile titel="Transportkosten gesamt" einheit="CHF/Stk" werte={R((r) => r.transport, 4)} />
+              {E("verpackung")}{E("verpPct")}{E("verpPausch")}
+              <Zeile titel="Verpackungskosten gesamt" einheit="CHF/Stk" werte={R((r) => r.verpackung, 4)} />
+              {E("gewinn")}{E("prov")}{E("skonto")}{E("rabatt")}{E("eil")}
               <Zeile titel="Grenzkosten GK" einheit="CHF/Stk" werte={R((r) => r.grenz, 4)} klein />
               <Zeile titel="Marge VK" einheit="CHF" werte={R((r) => r.margeVk, 4)} />
               <Zeile titel="Verkaufspreis VK" einheit="CHF/Stk" werte={R((r) => r.vk, 4)} fett />
               <tr><td>Angebotspreis <span className="kalk-einheit">{w}/Stk</span> <small>leer = VK gerundet</small></td>{rechnung.map((r, i) => SF("angebot", i, "kalk-angebot-" + i, chf(Math.round(r.vk * r.faktor / (z(k.preis.rundung) || 0.01)) * (z(k.preis.rundung) || 0.01))))}</tr>
               <tr><td>Zielpreis <span className="kalk-einheit">{w}/Stk</span></td>{rechnung.map((r, i) => SF("ziel", i, "kalk-ziel-" + i))}</tr>
               <tr className="kalk-fett kalk-hervor"><td>Angebotspreis gilt <span className="kalk-einheit">{w}/Stk</span></td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebotAus)}</td>)}</tr>
-              <Zeile titel="Abstand zum Zielpreis" einheit={w + "/Stk"} werte={rechnung.map((r) => (r.ziel > 0 ? chf(r.angebotAus - r.ziel, 4) : "–"))} klein />
+              {/* nur mit Zielpreis, spart sonst eine Zeile */}
+              {rechnung.some((r) => r.ziel > 0) &&
+                <Zeile titel="Abstand zum Zielpreis" einheit={w + "/Stk"} werte={rechnung.map((r) => (r.ziel > 0 ? chf(r.angebotAus - r.ziel, 4) : "–"))} klein />}
             </tbody>
           </table>
         </section>}
-      </div>
     </>
   );
 }
