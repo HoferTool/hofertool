@@ -133,19 +133,20 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
                   const staffeln = (d.staffeln || []).filter((s) => z(s.menge) > 0);
                   const erste = staffeln.length ? staffelRechnen(d, staffeln[0], maschinen) : null;
                   return (
+                    // Die Klassen je Zelle braucht das Handy: dort wird jede Zeile ein Kärtchen (seit 1.237.1)
                     <tr key={k.id} data-kalk={k.id} className="kalk-liste__zeile" onClick={() => oeffnen(k.id)}>
-                      <td><b>{k.nr || "–"}</b></td>
-                      <td>{k.kunde || "–"}</td>
-                      <td>{k.artikel || ""}{d.kopf && d.kopf.bezeichnung ? <span className="kalk-klein">{d.kopf.bezeichnung}</span> : null}</td>
-                      <td>{staffeln.map((s) => chf(z(s.menge), 0)).join(" / ")}</td>
-                      <td className="rechts">{erste ? chf(erste.angebotAus) + (erste.waehrung !== "CHF" ? " " + erste.waehrung : "") : "–"}</td>
-                      <td>{alt.datumZeitKurz ? alt.datumZeitKurz(k.geaendert_am) : ""}</td>
+                      <td className="kalk-liste__nr"><b>{k.nr || "–"}</b></td>
+                      <td className="kalk-liste__kunde">{k.kunde || "–"}</td>
+                      <td className="kalk-liste__artikel">{k.artikel || ""}{d.kopf && d.kopf.bezeichnung ? <span className="kalk-klein">{d.kopf.bezeichnung}</span> : null}</td>
+                      <td className="kalk-liste__staffeln">{staffeln.map((s) => chf(z(s.menge), 0)).join(" / ")}</td>
+                      <td className="rechts kalk-liste__preis">{erste ? chf(erste.angebotAus) + (erste.waehrung !== "CHF" ? " " + erste.waehrung : "") : "–"}</td>
+                      <td className="kalk-liste__datum">{alt.datumZeitKurz ? alt.datumZeitKurz(k.geaendert_am) : ""}</td>
                     </tr>);
                 })}
               </tbody>
             </table>}
           </section>}
-      <p className="hinweis">Testprogramm, nur für dich sichtbar. Gerechnet wird genau wie im Gewatec,
+      <p className="hinweis">Testprogramm, nur für freigegebene Personen sichtbar. Gerechnet wird genau wie im Gewatec,
         aber mit beliebig vielen Staffelmengen.</p>
     </>
   );

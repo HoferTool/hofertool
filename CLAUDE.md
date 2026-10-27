@@ -7,7 +7,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Test:** https://hofertool.github.io/hofertool/test/ — genauso der Zweig `claude/project-thread-au2n7k` (Thread „Einrichtblatt in der App“) im Ordner `test/`, mit echten Daten, oben das Schild „Test“. `sw.js` lässt auch `/test/` in Ruhe. Das Einrichtblatt in der App ist seit 1.170.0 live in `main`. Die Aufgabe „HoferTool“ lädt kein Excel mehr für HOCO Nr. und Typ, deren Blatt in der App als gut bestätigt ist (`einrichtblatt_app.gut_am`).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 1.237.0 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
+- **Stand:** Version 1.237.1 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
 
 ## Mit wem du arbeitest
 

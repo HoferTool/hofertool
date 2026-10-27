@@ -10132,3 +10132,35 @@ h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }
 @keyframes ib-blitz { 0% { opacity: 0; } 8% { opacity: .55; } 16% { opacity: .1; } 24% { opacity: .4; } 100% { opacity: 0; } }
 .ib-alpen { position: absolute; left: 0; pointer-events: none; z-index: 0; }
 .ib-effekte { display: grid; gap: 8px; margin: 10px 0; }
+
+/* Kalkulation: Übersicht am Handy als Kärtchen statt Tabelle (1.237.1).
+   Sechs Spalten passen nicht auf 390 px; die allgemeine Regel
+   word-break für Tabellen am Handy brach Nummer, Preis und Datum
+   Ziffer für Ziffer um. Jede Zeile wird ein Raster:
+   Nr. ......... Preis
+   Kunde
+   Artikel · Bezeichnung
+   Staffeln ..... Datum */
+@media (max-width: 620px) {
+  .kalk-liste thead { display: none; }
+  .kalk-liste, .kalk-liste tbody { display: block; width: 100%; }
+  .kalk-liste__zeile { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--linie); }
+  .kalk-liste__zeile:last-child { border-bottom: 0; }
+  .kalk-liste .kalk-liste__zeile td { display: block; padding: 0; border: 0; min-width: 0;
+    word-break: normal; overflow-wrap: anywhere; white-space: normal; }
+  .kalk-liste__zeile:hover td { background: none; }
+  .kalk-liste__zeile:active { background: var(--marke-hell); }
+  .kalk-liste .kalk-liste__nr { grid-column: 1; grid-row: 1; font-size: 1rem; }
+  .kalk-liste .kalk-liste__preis { grid-column: 2; grid-row: 1; font-weight: 650; font-size: 1rem;
+    white-space: nowrap; text-align: right; }
+  .kalk-liste .kalk-liste__kunde { grid-column: 1 / -1; }
+  .kalk-liste .kalk-liste__artikel { grid-column: 1 / -1; }
+  .kalk-liste .kalk-liste__artikel:empty { display: none; }
+  .kalk-liste .kalk-liste__artikel .kalk-klein { display: inline; margin-left: 6px; }
+  .kalk-liste .kalk-liste__staffeln { grid-column: 1; font-size: .8rem; color: var(--gedaempft); }
+  .kalk-liste .kalk-liste__datum { grid-column: 2; align-self: end; font-size: .8rem; color: var(--gedaempft);
+    white-space: nowrap; text-align: right; }
+  /* iPhone vergrössert die Seite beim Tippen in Felder unter 16 px */
+  .kalk-suche { font-size: 16px; }
+}
