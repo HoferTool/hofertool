@@ -19,6 +19,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 let pdfjsLaden = null;
 export function pdfjs() {
   if (!pdfjsLaden) {
+    streamDurchlaufen();
     pdfjsLaden = Promise.all([
       import("pdfjs-dist/legacy/build/pdf.mjs"),
       import("pdfjs-dist/legacy/build/pdf.worker.mjs?url"),
@@ -28,6 +29,32 @@ export function pdfjs() {
     });
   }
   return pdfjsLaden;
+}
+
+// pdf.js holt den Text einer Seite mit „for await“ über einen
+// ReadableStream. Safari (iPad, iPhone) kann das nicht, die Legacy-
+// Fassung ergänzt es nicht: getTextContent brach dort ab, und die Suche
+// meldete jedes PDF als eingescannt (Patrick 27. Oktober 2026: „auf dem
+// PC kann ich die PDFs durchsuchen, im Pad Mode … hat keinen Text“).
+// Darum hier nachrüsten, mit dem Leser des Streams.
+function streamDurchlaufen() {
+  const P = typeof ReadableStream !== "undefined" && ReadableStream.prototype;
+  if (!P || P[Symbol.asyncIterator]) return;
+  const werte = function (opt) {
+    const leser = this.getReader();
+    const ohneAbbruch = !!(opt && opt.preventCancel);
+    return {
+      next: () => leser.read(),
+      return: async (wert) => {
+        if (!ohneAbbruch) { try { await leser.cancel(wert); } catch (f) { /* schon zu */ } }
+        leser.releaseLock();
+        return { done: true, value: wert };
+      },
+      [Symbol.asyncIterator]() { return this; },
+    };
+  };
+  if (!P.values) Object.defineProperty(P, "values", { value: werte, configurable: true, writable: true });
+  Object.defineProperty(P, Symbol.asyncIterator, { value: werte, configurable: true, writable: true });
 }
 
 // Verweise innerhalb des PDF (etwa Seitenzahlen im Inhaltsverzeichnis):

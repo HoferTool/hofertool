@@ -90,5 +90,29 @@ with sync_playwright() as p:
     pruefe("Betrachter bleibt offen", pg.locator(".betrachter-huelle").count() == 1)
     pruefe("keine Skriptfehler", not f)
     if f: print(f)
+
+    # Wie Safari am iPad: ReadableStream ohne „for await“. Vorher brach
+    # dort das Lesen des Texts ab, und die Suche meldete „eingescannt“.
+    pg2 = br.new_context(viewport={"width": 1180, "height": 820}).new_page()
+    pg2.add_init_script("delete ReadableStream.prototype[Symbol.asyncIterator]; delete ReadableStream.prototype.values;")
+    pg2.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
+    for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**",
+              "**://api.open-meteo.com/**"]:
+        pg2.route(u, lambda r: r.abort())
+    pg2.route("**://x.invalid/**", lambda r: r.fulfill(status=200, content_type="application/pdf", body=PDF,
+                                                       headers={"Access-Control-Allow-Origin": "*"}))
+    pg2.goto(f"http://127.0.0.1:{PORT}/index.html#dashboard", wait_until="domcontentloaded")
+    pg2.wait_for_selector("#inhalt"); pg2.wait_for_timeout(1200)
+    pruefe("Nachbau Safari: kein for await", pg2.evaluate("() => !ReadableStream.prototype[Symbol.asyncIterator]"))
+    pg2.locator("#kopf-einstellungen").click(); pg2.wait_for_timeout(500)
+    pg2.locator("[data-einst='dokumente']").click(); pg2.wait_for_selector("[data-dokauf]")
+    pg2.locator("[data-dokauf]").first.click(); pg2.wait_for_selector(".pdfansicht canvas[data-fertig]", timeout=20000)
+    pg2.locator("[data-pdfsuche]").click()
+    pg2.locator("[data-pdfsuchfeld]").fill("spindel")
+    try:
+        pg2.wait_for_function("() => /^1 \\/ 2$/.test(document.querySelector('[data-pdfsuchstand]').textContent.trim())", timeout=15000)
+        pruefe("Safari: zwei Treffer statt „eingescannt“", True)
+    except Exception:
+        pruefe("Safari: zwei Treffer statt „eingescannt“ (" + pg2.locator("[data-pdfsuchstand]").inner_text() + ")", False)
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")
