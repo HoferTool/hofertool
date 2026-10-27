@@ -33,20 +33,20 @@ with sync_playwright() as p:
     pg.click("#kalk-beispiel"); pg.wait_for_selector("#kalk-band .kalk-band__staffel"); pg.wait_for_timeout(600)
     band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
     pruefe(band == ["3.80", "3.92"], "Angebotspreise 8'000 und 2'500 Stk: %s" % band)
-    pg.locator("[data-kalk-reiter='ergebnis']").dispatch_event('click'); pg.wait_for_selector("#kalk-protokoll")
+    pg.locator("[data-kalk-reiter='ergebnis']").click(); pg.wait_for_selector("#kalk-protokoll")
     t = pg.locator("#kalk-protokoll").inner_text()
     for wert, was in [("2.9185", "Herstellkosten"), ("0.5089", "Material"), ("2.1096", "intern"), ("0.8815", "DB je Stk"),
                       ("23.2", "DB %"), ("30'400.00", "Umsatz"), ("1.0816", "Grenzkosten"), ("905.76", "Rüsten"), ("422.2", "Laufzeit")]:
         pruefe(wert in t, "Ergebnis wie Gewatec: %s %s" % (was, wert))
     pg.screenshot(path=BILD + "/kalk-ergebnis.png", full_page=True)
 
-    pg.locator("[data-kalk-reiter='ags']").dispatch_event('click'); pg.wait_for_selector("#kalk-ags")
+    pg.locator("[data-kalk-reiter='ags']").click(); pg.wait_for_selector("#kalk-ags")
     agt = pg.locator("[data-ag='1']").inner_text()
     pruefe("2.07" in agt, "Drehen komplett 2.07 je Stk: %s" % agt.replace("\n", " ")[:160])
     pg.screenshot(path=BILD + "/kalk-ags.png", full_page=True)
 
     # Neue Staffel: eigene Lose
-    pg.locator("[data-kalk-reiter='material']").dispatch_event('click'); pg.click("#kalk-staffel-neu")
+    pg.locator("[data-kalk-reiter='material']").click(); pg.click("#kalk-staffel-neu")
     pg.fill("#kalk-menge-2", "20000"); pg.fill("#kalk-lose-2", "4"); pg.wait_for_timeout(1800)
     band = pg.locator("#kalk-band .kalk-band__staffel").count()
     pruefe(band == 3, "dritte Staffel im Band: %d" % band)
@@ -54,7 +54,7 @@ with sync_playwright() as p:
     pruefe(len(gesp) == 3 and gesp[2]["lose"] == "4", "von selbst gespeichert mit eigenen Losen: %s" % gesp)
 
     with pg.expect_download() as dl:
-        pg.locator("[data-kalk-reiter='angebot']").dispatch_event('click'); pg.click("#kalk-pdf")
+        pg.locator("[data-kalk-reiter='angebot']").click(); pg.click("#kalk-pdf")
     pruefe(dl.value.suggested_filename == "Angebot 20225174.pdf", "Angebot als PDF: %s" % dl.value.suggested_filename)
     pg.screenshot(path=BILD + "/kalk-angebot.png", full_page=True)
 

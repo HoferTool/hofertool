@@ -214,7 +214,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
           </div>)) : <div className="kalk-band__leer">Noch keine Staffelmenge</div>}
       </div>
 
-      <Reiter reiter={REITER} aktiv={reiter} waehlen={setReiter} merkmal="kalk-reiter" seite="kalkulation" />
+      <Reiter reiter={REITER} aktiv={reiter} waehlen={setReiter} merkmal="kalk-reiter" />
       <Uebergang key={reiter}>
         <div id="kalk-inhalt">
           <Inhalt k={k} setze={setze} setK={setK} nr={nr} setNr={setNr} maschinen={maschinen} rechnung={rechnung} />
