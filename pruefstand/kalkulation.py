@@ -71,6 +71,15 @@ with sync_playwright() as p:
     pg.locator("[data-kalk-reiter='ags']").click(); pg.wait_for_selector("#kalk-ags")
     agt = pg.locator("[data-ag='1']").inner_text()
     pruefe("2.07" in agt, "Drehen komplett 2.07 je Stk: %s" % agt.replace("\n", " ")[:160])
+    ext = pg.locator("[data-ag='4']").inner_text()
+    pruefe("0.3000 CHF/Stk" in ext and "547.20 kg" in ext, "Polieren extern: %s" % ext.replace("\n", " ")[-120:])
+    pg.fill("#kalk-ag-ruestp-4", "800"); pg.wait_for_timeout(300)
+    b2 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(b2[0] != "3.80", "Rüstkosten pauschal verrechnet: %s" % b2)
+    pg.uncheck("#kalk-ag-ruestv-4"); pg.wait_for_timeout(300)
+    b2 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(b2[0] == "3.80", "ohne Verrechnen nicht im Preis: %s" % b2)
+    pg.check("#kalk-ag-ruestv-4"); pg.fill("#kalk-ag-ruestp-4", ""); pg.wait_for_timeout(300)
     pg.screenshot(path=BILD + "/kalk-ags.png", full_page=True)
 
     # Neue Staffel: eigene Lose
@@ -94,6 +103,7 @@ with sync_playwright() as p:
     neu = pg.evaluate("() => TEST.daten.kalkulationen.find(k => k.nr !== '20225174')")
     bez = [a["bez"] for a in neu["daten"]["ags"]] if neu else []
     pruefe(len(bez) == 8 and bez[0] == "Material bereitstellen" and bez[-1] == "Versand/Einlagern", "Start-Arbeitsplan: %s" % bez)
+    pruefe(neu["daten"]["ags"][3]["fgk"] == "56", "Drehen komplett mit 56 % FGK")
     pruefe(all(a["masch"] for a in neu["daten"]["ags"] if a["bez"] in ("Erstteilprüfung", "Endkontrolle", "Versand/Einlagern")), "Kontrolle und Spedition zugeordnet")
     if pg.locator("#kalk-zurueck").count(): pg.click("#kalk-zurueck")
     pg.wait_for_selector("#kalk-saetze")

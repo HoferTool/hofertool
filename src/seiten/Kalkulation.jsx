@@ -17,7 +17,7 @@ import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import {
   z, chf, stundensatz, staffelRechnen, leereKalkulation, kalkulationenLaden, maschinenLaden,
-  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen,
+  kalkulationSpeichern, maschineSpeichern, naechsteNr, BEISPIEL_MASCHINEN, beispielKalkulation, START_MASCHINEN, startArbeitsplan, WAEHRUNGEN, kursHolen, EXTERN_NEBEN, FGK_DREHEN,
 } from "../daten/kalkulation.js";
 
 const REITER = [
@@ -359,7 +359,7 @@ function Zeile({ titel, einheit, werte, fett, klein }) {
 function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
   const r0 = rechnung[0];
   const neu = (art) => setK((x) => ({ ...x, ags: [...x.ags, art === "extern"
-    ? { key: schluessel(), bez: "", art: "extern", extern: "", externRuest: "" }
+    ? { key: schluessel(), bez: "", art: "extern", je: "stk", extern: "", ruestPausch: "" }
     : { key: schluessel(), bez: "", art: "intern", masch: (maschinen[0] || {}).id || "", te: "", erst: "", folge: "", fgk: "" }] }));
   // Jeder Arbeitsgang braucht einen festen Schlüssel fürs Ziehen
   const ags = k.ags.map((a, i) => (a.key ? a : { ...a, key: "ag" + i }));
@@ -383,24 +383,51 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                 <span className="kalk-ag__pos">{(i + 1) * 10}</span>
                 <input className="kalk-ag__bez" id={"kalk-ag-bez-" + i} value={a.bez} placeholder="Arbeitsgang wählen oder schreiben"
                   list={a.art === "extern" ? "kalk-ag-vorlagen-extern" : "kalk-ag-vorlagen"}
-                  onChange={(e) => setze("ags." + i + ".bez", e.target.value)} />
+                  onChange={(e) => {
+                    const t = e.target.value;
+                    setze("ags." + i + ".bez", t);
+                    // Drehen hat im Gewatec 56 % FGK, vorbelegt solange das Feld leer ist (Wunsch Patrick 27. Oktober 2026)
+                    if (a.art !== "extern" && /^drehen/i.test(t) && !String(a.fgk || "").trim()) setze("ags." + i + ".fgk", FGK_DREHEN);
+                  }} />
                 <span className="kalk-ag__art">{a.art === "extern" ? "Extern" : "Intern"}</span>
                 <b className="kalk-ag__summe" title="Kosten je Stück bei der ersten Staffel">{r ? chf(r.kosten / r0.menge, 4) : "–"}</b>
                 <button className="linkknopf linkknopf--gefahr" data-ag-weg={i}
                   onClick={() => setK((x) => ({ ...x, ags: x.ags.filter((_, j) => j !== i) }))}>Entfernen</button>
               </div>
               {a.art === "extern"
-                ? <div className="kalk-reihe">
-                    <F label="Lieferant" id={"kalk-ag-lief-" + i} text {...f("lieferant")} />
-                    <label className="feld kalk-feld"><span>Kostensatz je</span>
-                      <select id={"kalk-ag-je-" + i} value={a.je || "stk"} onChange={(e) => setze("ags." + i + ".je", e.target.value)}>
-                        <option value="stk">Stück</option><option value="kg">kg</option>
-                      </select>
-                    </label>
-                    <F label="Kostensatz" einheit={a.je === "kg" ? "CHF/kg" : "CHF/Stk"} id={"kalk-ag-ext-" + i} {...f("extern")} />
-                    {a.je === "kg" && <F label="Gewicht je Stück" einheit="kg" id={"kalk-ag-kg-" + i} {...f("kgStk")}
-                      platz={k.material.einsatz || ""} hinweis="Leer = Materialeinsatz je Stück" />}
-                    <F label="Rüsten pauschal" einheit="CHF" id={"kalk-ag-extr-" + i} {...f("externRuest")} />
+                ? <div className="kalk-extern">
+                    <div className="kalk-reihe">
+                      <F label="Lieferant" id={"kalk-ag-lief-" + i} text {...f("lieferant")} />
+                      <label className="feld kalk-feld"><span>Kostensatz je</span>
+                        <select id={"kalk-ag-je-" + i} value={a.je || "stk"} onChange={(e) => setze("ags." + i + ".je", e.target.value)}>
+                          <option value="stk">1 Stk</option><option value="100stk">100 Stk</option>
+                          <option value="1000stk">1000 Stk</option><option value="kg">kg</option>
+                        </select>
+                      </label>
+                      <F label="Kostensatz" einheit="CHF" id={"kalk-ag-ext-" + i} {...f("extern")} />
+                      <F label="Gewicht je Stück" einheit="kg" id={"kalk-ag-kg-" + i} {...f("kgStk")}
+                        platz={r ? chf(r.kgStk, 4) : ""} hinweis="Leer = Materialeinsatz je Stück" />
+                    </div>
+                    <div className="kalk-reihe">
+                      <F label="Postensatz pauschal" einheit="CHF" id={"kalk-ag-posten-" + i} {...f("posten")} />
+                      <F label="bis" einheit="kg" id={"kalk-ag-postenbis-" + i} {...f("postenBis")}
+                        hinweis="Postensatz statt Kostensatz bis zu diesem Gewicht, leer = immer" />
+                    </div>
+                    <table className="kalk-extern__neben">
+                      <thead><tr><th></th><th>CHF je Stk</th><th>CHF pauschal</th><th></th></tr></thead>
+                      <tbody>{EXTERN_NEBEN.map(([n, titel, verr]) => (
+                        <tr key={n}><td>{titel}</td>
+                          <td><input type="text" inputMode="decimal" id={"kalk-ag-" + n + "stk-" + i} value={a[n + "Stk"] || ""}
+                            onChange={(e) => setze("ags." + i + "." + n + "Stk", e.target.value)} /></td>
+                          <td><input type="text" inputMode="decimal" id={"kalk-ag-" + n + "p-" + i}
+                            value={(n === "ruest" && a.ruestPausch == null ? a.externRuest : a[n + "Pausch"]) || ""}
+                            onChange={(e) => setze("ags." + i + "." + n + "Pausch", e.target.value)} /></td>
+                          <td>{verr && <label className="kalk-haken"><input type="checkbox" id={"kalk-ag-" + n + "v-" + i}
+                            checked={a[n + "Verr"] !== false} onChange={(e) => setze("ags." + i + "." + n + "Verr", e.target.checked)} /> Verrechnen</label>}</td>
+                        </tr>))}</tbody>
+                    </table>
+                    {r && <p className="feldhinweis">Bei {chf(r0.menge, 0)} Stk: Gewicht {chf(r.gewicht, 2)} kg
+                      {r.posten ? ", Postensatz gilt" : ""}, Einzelkosten <b>{chf(r.einzel, 4)} CHF/Stk</b></p>}
                   </div>
                 : <div className="kalk-reihe">
                     <label className="feld kalk-feld"><span>Maschine</span>

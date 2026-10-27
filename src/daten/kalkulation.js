@@ -119,15 +119,44 @@ export async function kursHolen(waehrung) {
   return { kurs: d.rates[waehrung], datum: new Date((d.time_last_update_unix || 0) * 1000).toISOString().slice(0, 10), quelle: "open.er-api.com" };
 }
 
+// Externer Arbeitsgang wie im Gewatec (Bild Patrick 27. Oktober 2026):
+// Kostensatz je Stück, 100 Stück, 1000 Stück oder kg; ein Postensatz
+// (pauschal) gilt bis zum eingetragenen Gewicht statt des Satzes, ohne
+// Gewicht immer. Dazu Rüst-, Werkzeug-, Verpackungs-, Transport- und
+// Protokollkosten je Stück und pauschal; Rüsten und Werkzeug nur mit
+// „Verrechnen“. Ohne Gewicht je Stück gilt der Materialeinsatz.
+export const EXTERN_NEBEN = [
+  ["ruest", "Rüstkosten", true], ["werkz", "Werkzeugkosten", true], ["verp", "Verpackungskosten", false],
+  ["transp", "Transportkosten", false], ["prot", "Oberflächenprotokoll", false],
+];
+export const EXTERN_JE = { stk: 1, "100stk": 100, "1000stk": 1000 };
+
+export function externRechnen(ag, menge, mat) {
+  const kgStk = z(ag.kgStk) || mat.kgJeStk;
+  const gewicht = menge * kgStk;
+  let satz = ag.je === "kg" ? gewicht * z(ag.extern) : menge / (EXTERN_JE[ag.je] || 1) * z(ag.extern);
+  const posten = z(ag.posten) > 0 && (!(z(ag.postenBis) > 0) || gewicht <= z(ag.postenBis));
+  if (posten) satz = z(ag.posten);
+  let varK = posten ? 0 : satz, fixK = posten ? satz : 0, ruestChf = 0;
+  const neben = EXTERN_NEBEN.map(([n, , verrechnen]) => {
+    const pausch = n === "ruest" && ag.ruestPausch == null ? z(ag.externRuest) : z(ag[n + "Pausch"]);
+    const wert = menge * z(ag[n + "Stk"]) + pausch;
+    const zaehlt = !verrechnen || ag[n + "Verr"] !== false;
+    if (zaehlt) { varK += menge * z(ag[n + "Stk"]); fixK += pausch; if (n === "ruest") ruestChf = wert; }
+    return { n, wert, zaehlt };
+  });
+  const kosten = varK + fixK;
+  return { ag, extern: true, kosten, var: varK, fix: fixK, ruestChf, laufH: 0, gewicht, kgStk, satz, posten, neben,
+    einzel: menge > 0 ? kosten / menge : 0 };
+}
+
 export function staffelRechnen(k, staffel, maschinen) {
   const menge = z(staffel.menge), lose = Math.max(1, z(staffel.lose) || 1);
   const mat = materialRechnen(k.material || {}, menge);
   const ags = (k.ags || []).map((ag) => {
     if (ag.art === "extern") {
       // Je Stück oder je kg (Galvanik, Härten); ohne Gewicht gilt der Materialeinsatz
-      const jeStk = ag.je === "kg" ? z(ag.extern) * (z(ag.kgStk) || mat.kgJeStk) : z(ag.extern);
-      const kosten = menge * jeStk + z(ag.externRuest);
-      return { ag, extern: true, kosten, var: menge * jeStk, fix: z(ag.externRuest), ruestChf: z(ag.externRuest), laufH: 0 };
+      return externRechnen(ag, menge, mat);
     }
     const m = maschinen.find((x) => x.id === ag.masch);
     const s = m ? stundensatz(m, ag.laufTag) : { fix: 0, var: 0, eff: 0, ruest: 0 };
@@ -263,16 +292,17 @@ export const BEISPIEL_MASCHINEN = [
 // Dummy im Gewatec (Wunsch Patrick 27. Oktober 2026). Drehen bekommt
 // keine Maschine, die wählt man je Teil; Kontrolle, Waschen und Versand
 // nehmen die Stundensätze gleichen Namens, wenn es sie gibt.
+export const FGK_DREHEN = "56";
 export const START_MASCHINEN = ["Kontrolle", "Reinigungsanlage", "Spedition"];
 
 export function startArbeitsplan(maschinen) {
   const id = (name) => (maschinen.find((m) => m.name.startsWith(name)) || {}).id || "";
-  const ag = (bez, masch, ruest) => ({ bez, art: "intern", masch, te: "0", erst: ruest, folge: ruest, fgk: "" });
+  const ag = (bez, masch, ruest, fgk = "") => ({ bez, art: "intern", masch, te: "0", erst: ruest, folge: ruest, fgk });
   return [
     ag("Material bereitstellen", "", "0"),
     ag("Maschine einrichten", "", "0"),
     ag("Erstteilprüfung", id("Kontrolle"), "0.5"),
-    ag("Drehen komplett", "", "0"),
+    ag("Drehen komplett", "", "0", FGK_DREHEN),
     ag("Waschen fettfrei", id("Reinigungsanlage"), "0"),
     ag("Zwischenkontrolle", id("Kontrolle"), "0.5"),
     ag("Endkontrolle", id("Kontrolle"), "0.5"),
