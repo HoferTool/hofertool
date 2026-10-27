@@ -26,7 +26,7 @@ const REITER = [
 ];
 
 // Offene Kalkulation und Reiter bleiben beim Seitenwechsel und Neuladen
-const gemerkt = { offen: null, reiter: "kopf", saetze: false };
+const gemerkt = { offen: null, reiter: "kopf", saetze: false, suche: "" };
 teilMerken("kalkulation", () => ({ ...gemerkt }), (x) => { Object.assign(gemerkt, x); });
 
 // Escape: aus der Kalkulation oder den Stundensätzen zurück zur Liste
@@ -78,6 +78,15 @@ export default function Kalkulation({ auffrischen }) {
 // ---------- Liste aller Kalkulationen ----------
 function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
   const [laeuft, setLaeuft] = useState(false);
+  // Suche in der Liste (Wunsch Patrick 27. Oktober 2026): alle Wörter müssen irgendwo im Kopf der Kalkulation stehen
+  const [suche, setSuche] = useState(gemerkt.suche || "");
+  useGemerkt(gemerkt, { suche });
+  const woerter = suche.toLowerCase().split(/\s+/).filter(Boolean);
+  const gefunden = !woerter.length ? liste : liste.filter((k) => {
+    const kopf = (k.daten && k.daten.kopf) || {};
+    const text = [k.nr, k.kunde, k.artikel, ...Object.values(kopf)].filter((x) => typeof x === "string").join(" ").toLowerCase();
+    return woerter.every((w) => text.includes(w));
+  });
 
   async function anlegen(beispiel) {
     setLaeuft(true);
@@ -112,10 +121,13 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
         ? <div className="karte karte--hinweis"><p>Noch keine Kalkulation. Mit „Beispiel aus Gewatec anlegen“ kommt die
             Kalkulation 20225174 mit allen Zahlen herein, zum Vergleichen mit dem Gewatec.</p></div>
         : <section className="karte kalk-rolle">
+            <input type="text" id="kalk-suche" className="kalk-suche" value={suche} placeholder="Suchen: Nummer, Kunde, Artikel, Zeichnung, Bezeichnung …"
+              onChange={(e) => setSuche(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape" && suche) { e.preventDefault(); setSuche(""); } }} />
+            {!gefunden.length ? <p className="hinweis" id="kalk-nichts">Keine Kalkulation gefunden.</p> :
             <table className="tabelle kalk-liste">
               <thead><tr><th>Nr.</th><th>Kunde</th><th>Artikel</th><th>Staffeln</th><th className="rechts">Preis</th><th>Geändert</th></tr></thead>
               <tbody>
-                {liste.map((k) => {
+                {gefunden.map((k) => {
                   const d = k.daten || {};
                   const staffeln = (d.staffeln || []).filter((s) => z(s.menge) > 0);
                   const erste = staffeln.length ? staffelRechnen(d, staffeln[0], maschinen) : null;
@@ -130,7 +142,7 @@ function Liste({ liste, maschinen, oeffnen, neu, saetze }) {
                     </tr>);
                 })}
               </tbody>
-            </table>
+            </table>}
           </section>}
       <p className="hinweis">Testprogramm, nur für dich sichtbar. Gerechnet wird genau wie im Gewatec,
         aber mit beliebig vielen Staffelmengen.</p>

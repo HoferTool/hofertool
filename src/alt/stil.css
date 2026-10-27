@@ -9988,3 +9988,4 @@ body.pad-offen .dialog.ib-te:not(.dialog--auftrag):not(.nb) .knopf { min-height:
 .kalk-kompakt .kalk-reihe { grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); }
 .kalk-kompakt .kalk-ags .kalk-reihe { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
 .kalk-kompakt .feld.kalk-feld > span:first-child { overflow-wrap: anywhere; hyphens: auto; }
+.kalk-suche { width: 100%; margin-bottom: 8px; }

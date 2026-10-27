@@ -109,6 +109,13 @@ with sync_playwright() as p:
     pruefe(all(a["masch"] for a in neu["daten"]["ags"] if a["bez"] in ("Erstteilprüfung", "Endkontrolle", "Versand/Einlagern")), "Kontrolle und Spedition zugeordnet")
     if pg.locator("#kalk-zurueck").count(): pg.click("#kalk-zurueck")
     pg.wait_for_selector("#kalk-saetze")
+    # Suche in der Liste
+    pg.fill("#kalk-suche", "genge 10789"); pg.wait_for_timeout(200)
+    pruefe(pg.locator(".kalk-liste__zeile").count() == 1, "Suche findet Genge 10789")
+    pg.fill("#kalk-suche", "gibtsnicht"); pg.wait_for_timeout(200)
+    pruefe(pg.locator("#kalk-nichts").count() == 1, "Suche ohne Treffer")
+    pg.fill("#kalk-suche", ""); pg.wait_for_timeout(200)
+    pruefe(pg.locator(".kalk-liste__zeile").count() == 2, "ohne Suche alle zwei")
     pg.click("#kalk-saetze"); pg.wait_for_selector(".kalk-masch"); pg.click(".kalk-masch__kopf >> nth=0"); pg.wait_for_timeout(300)
     t = pg.locator(".kalk-masch >> nth=0").inner_text()
     pruefe("23.72" in t and "18.60" in t and "5.12" in t, "Stundensatz SW-20 23.72 = 18.60 + 5.12")
