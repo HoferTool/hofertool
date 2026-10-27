@@ -40,6 +40,21 @@ with sync_playwright() as p:
         pruefe(wert in t, "Ergebnis wie Gewatec: %s %s" % (was, wert))
     pg.screenshot(path=BILD + "/kalk-ergebnis.png", full_page=True)
 
+    # Preisermittlung: Verzinsung, Angebotspreis von Hand, Marge VK
+    pg.locator("[data-kalk-reiter='preis']").click(); pg.wait_for_selector("#kalk-preistab")
+    t = pg.locator("#kalk-preistab").inner_text()
+    pruefe("3.80" in t, "Preistabelle zeigt 3.80: %s" % t.replace("\n", " ")[:200])
+    pg.fill("#kalk-zins", "6"); pg.fill("#kalk-zinsmon", "12"); pg.wait_for_timeout(300)
+    t = pg.locator("#kalk-preistab").inner_text()
+    pruefe("3.0936" in t, "Selbstkosten verzinst 2.9185 × 1.06 = 3.0936")
+    pg.fill("#kalk-angebot-0", "4.10"); pg.wait_for_timeout(300)
+    band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(band[0] == "4.10", "Angebotspreis von Hand gilt: %s" % band)
+    pg.fill("#kalk-zins", ""); pg.fill("#kalk-zinsmon", ""); pg.fill("#kalk-angebot-0", ""); pg.wait_for_timeout(300)
+    band = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(band == ["3.80", "3.92"], "leer wieder wie Gewatec: %s" % band)
+    pg.screenshot(path=BILD + "/kalk-preis.png", full_page=True)
+
     pg.locator("[data-kalk-reiter='ags']").click(); pg.wait_for_selector("#kalk-ags")
     agt = pg.locator("[data-ag='1']").inner_text()
     pruefe("2.07" in agt, "Drehen komplett 2.07 je Stk: %s" % agt.replace("\n", " ")[:160])

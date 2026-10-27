@@ -129,20 +129,36 @@ export function staffelRechnen(k, staffel, maschinen) {
   const p = k.preis || {};
   const proStk = (x) => (menge > 0 ? x / menge : 0);
   const herstell = proStk(mat.kosten + intern + extern);
-  const selbst = herstell * (1 + z(p.vwgk) / 100);
-  const fracht = z(p.transport) + z(p.verpackung);
+  // Preisermittlung wie im Gewatec: Sondereinzelkosten Vertrieb vor den
+  // Vw/Vt-Gemeinkosten, dann Verzinsung über Monate auf die Selbstkosten
+  const selbst = (herstell + z(p.sek)) * (1 + z(p.vwgk) / 100);
+  const zins = selbst * z(p.zinsPct) / 100 * z(p.zinsMonate) / 12;
+  const selbstVerz = selbst + zins;
+  // Transportkostenberechnung: je Stück, Zuschlag % auf die verzinsten
+  // Selbstkosten und ein Pauschalbetrag je Lieferlos
+  const lieferlose = Math.max(1, Math.round(z(staffel.lieferlose)) || 1);
+  const transport = z(p.transport) + selbstVerz * z(p.transPct) / 100 + proStk(z(p.transPausch) * lieferlose);
+  // Verpackung genauso, Pauschal für die ganze Menge
+  const verpackung = z(p.verpackung) + selbstVerz * z(p.verpPct) / 100 + proStk(z(p.verpPausch));
+  const fracht = transport + verpackung;
   const abzug = (z(p.prov) + z(p.skonto) + z(p.rabatt)) / 100;
-  const vk = (selbst + fracht) * (1 + z(p.gewinn) / 100) / (abzug < 1 ? 1 - abzug : 1);
+  let vk = (selbstVerz + fracht) * (1 + z(p.gewinn) / 100) / (abzug < 1 ? 1 - abzug : 1);
+  // Eilzuschlag pauschal in CHF je Stück oder in Prozent auf den VK
+  vk = p.eilArt === "prozent" ? vk * (1 + z(p.eil) / 100) : vk + z(p.eil);
   const schritt = z(p.rundung) || 0.01;
-  const angebot = Math.round(vk / schritt) * schritt;
+  // Ein eingetragener Angebotspreis der Staffel gilt vor dem gerundeten VK
+  const angebotHand = z(staffel.angebot) > 0;
+  const angebot = angebotHand ? z(staffel.angebot) : Math.round(vk / schritt) * schritt;
   const umsatz = angebot * menge;
+  const ziel = z(staffel.ziel);
   return {
-    menge, lose, mat, ags,
+    menge, lose, lieferlose, mat, ags,
     matStk: mat.jeStk, internStk: proStk(intern), externStk: proStk(extern), ruestStk: proStk(ruest),
-    herstell, selbst, fracht, vk, angebot, umsatz,
+    herstell, selbst, zins, selbstVerz, transport, verpackung, fracht, vk, angebot, angebotHand, umsatz, ziel,
+    margeVk: (vk - selbstVerz - fracht) * menge,
     grenz: mat.jeStk + proStk(varFert) + fracht,
-    db: angebot - selbst, dbPct: angebot > 0 ? (angebot - selbst) / angebot * 100 : 0,
-    gewinnAuftrag: umsatz - (selbst + fracht) * menge,
+    db: angebot - selbstVerz, dbPct: angebot > 0 ? (angebot - selbstVerz) / angebot * 100 : 0,
+    gewinnAuftrag: umsatz - (selbstVerz + fracht) * menge,
     laufH: ags.reduce((s, a) => s + (a.laufH || 0), 0),
   };
 }
@@ -154,7 +170,7 @@ export function leereKalkulation() {
     staffeln: [{ menge: "1000", lose: "1" }],
     material: { bez: "", nr: "", preis: "", gk: "", modus: "hand", einsatz: "", d: "", dichte: "7.85", stange: "3000", rest: "", laenge: "" },
     ags: [],
-    preis: { vwgk: "", transport: "", verpackung: "", gewinn: "30", prov: "", skonto: "", rabatt: "", rundung: "0.01" },
+    preis: { sek: "", vwgk: "", zinsPct: "", zinsMonate: "", transport: "", transPct: "", transPausch: "", eil: "", eilArt: "pauschal", verpackung: "", verpPct: "", verpPausch: "", gewinn: "30", prov: "", skonto: "", rabatt: "", rundung: "0.01" },
     angebot: { lieferzeit: "nach Absprache", lieferbed: "franko Domizil, inkl. Verpackung", zahlung: "30 Tage netto", gueltig: "Offerte freibleibend, gültig 1 Monat ab Offertdatum. (Materialpreisveränderungen ausgenommen)" },
   };
 }

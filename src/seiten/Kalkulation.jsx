@@ -209,7 +209,7 @@ function Bearbeiten({ eintrag, maschinen, zurueck, neu, oeffnen, liste }) {
           <div className="kalk-band__staffel" key={i} data-staffel={i}>
             <span>{chf(r.menge, 0)} Stk</span>
             <b>{chf(r.angebot)}</b>
-            <small>Selbstkosten {chf(r.selbst, 4)} · DB {chf(r.dbPct, 1)} %</small>
+            <small>Selbstkosten {chf(r.selbstVerz, 4)} · DB {chf(r.dbPct, 1)} %</small>
           </div>)) : <div className="kalk-band__leer">Noch keine Staffelmenge</div>}
       </div>
 
@@ -462,35 +462,93 @@ const AG_VORLAGEN_EXTERN = [
 let zaehler = 0;
 function schluessel() { return "ag" + Date.now().toString(36) + (zaehler++); }
 
-function Preis({ k, setze }) {
+function Preis({ k, setze, rechnung }) {
   const f = (name) => ({ wert: k.preis[name], setzen: (w) => setze("preis." + name, w) });
+  // Lieferlose, Angebots- und Zielpreis gehören zur Staffel, wie im Gewatec
+  // je Stückzahl; die Staffeln mit Menge in derselben Reihenfolge wie rechnung
+  const staffelIdx = k.staffeln.map((s, i) => (z(s.menge) > 0 ? i : -1)).filter((i) => i >= 0);
+  const R = (fn, st) => rechnung.map((r) => chf(fn(r), st));
+  const SF = (name, i, id, platz) => (
+    <td key={id} className="rechts"><input className="kalk-zelle" type="text" id={id} inputMode="decimal" placeholder={platz} value={k.staffeln[staffelIdx[i]][name] || ""}
+      onChange={(e) => setze("staffeln." + staffelIdx[i] + "." + name, e.target.value)} /></td>);
   return (
-    <div className="kalk-zwei">
-      <section className="karte">
-        <h2>Zuschläge</h2>
-        <F label="Vw/Vt-Gemeinkosten" einheit="%" id="kalk-vwgk" {...f("vwgk")} />
-        <div className="kalk-reihe">
-          <F label="Transport" einheit="CHF/Stk" id="kalk-transport" {...f("transport")} />
-          <F label="Verpackung" einheit="CHF/Stk" id="kalk-verpackung" {...f("verpackung")} />
-        </div>
-        <F label="Gewinn" einheit="%" id="kalk-gewinn" {...f("gewinn")} />
-      </section>
-      <section className="karte">
-        <h2>Abzüge und Rundung</h2>
-        <div className="kalk-reihe">
-          <F label="Provision" einheit="%" id="kalk-prov" {...f("prov")} />
-          <F label="Skonto" einheit="%" id="kalk-skonto" {...f("skonto")} />
-          <F label="Rabatt" einheit="%" id="kalk-rabatt" {...f("rabatt")} />
-        </div>
-        <label className="feld kalk-feld"><span>Angebotspreis runden auf</span>
-          <select id="kalk-rundung" value={k.preis.rundung || "0.01"} onChange={(e) => setze("preis.rundung", e.target.value)}>
-            <option value="0.01">1 Rappen</option><option value="0.05">5 Rappen</option>
-            <option value="0.1">10 Rappen</option><option value="1">1 Franken</option>
-          </select>
-        </label>
-        <p className="hinweis">Verkaufspreis = (Selbstkosten + Transport + Verpackung) × (1 + Gewinn) ÷ (1 − Provision − Skonto − Rabatt).</p>
-      </section>
-    </div>
+    <>
+      <div className="kalk-zwei">
+        <section className="karte">
+          <h2>Selbstkosten</h2>
+          <F label="Sondereinzelkosten Vertrieb" einheit="CHF/Stk" id="kalk-sek" {...f("sek")} />
+          <F label="Vw/Vt-Gemeinkosten" einheit="%" id="kalk-vwgk" {...f("vwgk")} />
+          <div className="kalk-reihe">
+            <F label="Verzinsung" einheit="%" id="kalk-zins" {...f("zinsPct")} />
+            <F label="über Monate" id="kalk-zinsmon" {...f("zinsMonate")} />
+          </div>
+          <p className="hinweis">Selbstkosten = (Herstellkosten + Sondereinzelkosten) × (1 + Vw/Vt). Zins = Selbstkosten × % × Monate ÷ 12.</p>
+        </section>
+        <section className="karte">
+          <h2>Gewinn, Abzüge und Eilzuschlag</h2>
+          <F label="Gewinn" einheit="%" id="kalk-gewinn" {...f("gewinn")} />
+          <div className="kalk-reihe">
+            <F label="Provision" einheit="%" id="kalk-prov" {...f("prov")} />
+            <F label="Skonto" einheit="%" id="kalk-skonto" {...f("skonto")} />
+            <F label="Rabatt" einheit="%" id="kalk-rabatt" {...f("rabatt")} />
+          </div>
+          <div className="kalk-reihe">
+            <label className="feld kalk-feld"><span>Eilzuschlag</span>
+              <select id="kalk-eilart" value={k.preis.eilArt || "pauschal"} onChange={(e) => setze("preis.eilArt", e.target.value)}>
+                <option value="pauschal">Pauschal CHF/Stk</option><option value="prozent">Prozent</option>
+              </select>
+            </label>
+            <F label="Betrag" einheit={k.preis.eilArt === "prozent" ? "%" : "CHF/Stk"} id="kalk-eil" {...f("eil")} />
+          </div>
+          <label className="feld kalk-feld"><span>Angebotspreis runden auf</span>
+            <select id="kalk-rundung" value={k.preis.rundung || "0.01"} onChange={(e) => setze("preis.rundung", e.target.value)}>
+              <option value="0.01">1 Rappen</option><option value="0.05">5 Rappen</option>
+              <option value="0.1">10 Rappen</option><option value="1">1 Franken</option>
+            </select>
+          </label>
+          <p className="hinweis">Verkaufspreis = (Selbstkosten verzinst + Transport + Verpackung) × (1 + Gewinn) ÷ (1 − Provision − Skonto − Rabatt), dann Eilzuschlag.</p>
+        </section>
+        <section className="karte">
+          <h2>Transportkosten</h2>
+          <F label="Transportkosten" einheit="CHF/Stk" id="kalk-transport" {...f("transport")} />
+          <div className="kalk-reihe">
+            <F label="Zuschlag" einheit="% auf Selbstkosten verzinst" id="kalk-transpct" {...f("transPct")} />
+            <F label="Zuschlag pauschal" einheit="CHF je Lieferlos" id="kalk-transpausch" {...f("transPausch")} />
+          </div>
+          <p className="hinweis">Die Anzahl Lieferlose steht je Staffel unten.</p>
+        </section>
+        <section className="karte">
+          <h2>Verpackungskosten</h2>
+          <F label="Verpackungskosten" einheit="CHF/Stk" id="kalk-verpackung" {...f("verpackung")} />
+          <div className="kalk-reihe">
+            <F label="Zuschlag" einheit="% auf Selbstkosten verzinst" id="kalk-verppct" {...f("verpPct")} />
+            <F label="Zuschlag pauschal" einheit="CHF für die ganze Menge" id="kalk-verppausch" {...f("verpPausch")} />
+          </div>
+        </section>
+      </div>
+      {rechnung.length > 0 &&
+        <section className="karte kalk-rolle">
+          <h2>Preisermittlung je Staffel</h2>
+          <table className="tabelle kalk-tab kalk-protokoll" id="kalk-preistab">
+            <thead><tr><th>Stückzahl</th>{rechnung.map((r, i) => <th key={i} className="rechts">{chf(r.menge, 0)} Stk</th>)}</tr></thead>
+            <tbody>
+              <Zeile titel="Herstellkosten" einheit="CHF/Stk" werte={R((r) => r.herstell, 4)} />
+              <Zeile titel="Selbstkosten" einheit="CHF/Stk" werte={R((r) => r.selbst, 4)} />
+              <Zeile titel="Selbstkosten verzinst" einheit="CHF/Stk" werte={R((r) => r.selbstVerz, 4)} />
+              <tr><td>Anzahl Lieferlose</td>{rechnung.map((r, i) => SF("lieferlose", i, "kalk-lieferlose-" + i, "1"))}</tr>
+              <Zeile titel="Transportkosten" einheit="CHF/Stk" werte={R((r) => r.transport, 4)} />
+              <Zeile titel="Verpackungskosten" einheit="CHF/Stk" werte={R((r) => r.verpackung, 4)} />
+              <Zeile titel="Grenzkosten GK" einheit="CHF/Stk" werte={R((r) => r.grenz, 4)} klein />
+              <Zeile titel="Marge VK" einheit="CHF" werte={R((r) => r.margeVk, 4)} />
+              <Zeile titel="Verkaufspreis VK" einheit="CHF/Stk" werte={R((r) => r.vk, 4)} fett />
+              <tr><td>Angebotspreis <small>leer = VK gerundet</small></td>{rechnung.map((r, i) => SF("angebot", i, "kalk-angebot-" + i, chf(r.vk >= 0 ? Math.round(r.vk / (z(k.preis.rundung) || 0.01)) * (z(k.preis.rundung) || 0.01) : 0)))}</tr>
+              <tr><td>Zielpreis</td>{rechnung.map((r, i) => SF("ziel", i, "kalk-ziel-" + i))}</tr>
+              <tr className="kalk-fett kalk-hervor"><td>Angebotspreis gilt</td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebot)}</td>)}</tr>
+              <Zeile titel="Abstand zum Zielpreis" einheit="CHF/Stk" werte={rechnung.map((r) => (r.ziel > 0 ? chf(r.angebot - r.ziel, 4) : "–"))} klein />
+            </tbody>
+          </table>
+        </section>}
+    </>
   );
 }
 
@@ -518,6 +576,7 @@ function Ergebnis({ k, rechnung }) {
           <Zeile titel="Fertigung extern" werte={R((r) => r.externStk, 4)} />
           <Zeile titel="Herstellkosten" werte={R((r) => r.herstell, 4)} fett />
           <Zeile titel="Selbstkosten" werte={R((r) => r.selbst, 4)} />
+          {rechnung.some((r) => r.zins) && <Zeile titel="Selbstkosten verzinst" werte={R((r) => r.selbstVerz, 4)} />}
           <Zeile titel="Transport und Verpackung" werte={R((r) => r.fracht, 4)} klein />
           <Zeile titel="Verkaufspreis" werte={R((r) => r.vk, 4)} />
           <tr className="kalk-fett kalk-hervor"><td>Angebotspreis</td>{rechnung.map((r, i) => <td key={i} className="rechts">{chf(r.angebot)}</td>)}</tr>
