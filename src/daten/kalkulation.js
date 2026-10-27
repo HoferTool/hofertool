@@ -165,11 +165,13 @@ export function externRechnen(ag, menge, mat) {
 // der Star. Die Werte liegen bei der Staffel (staffel.ag[Schlüssel des AG]),
 // damit sie mit der Staffel verschwinden; leer = Wert des Arbeitsgangs.
 export const AG_JE_STAFFEL = ["masch", "laufTag", "te", "erst", "folge", "fgk"];
+// Beim externen Arbeitsgang hat das Gewatec immer einen Kostensatz je Staffel.
 export function agFuerStaffel(ag, staffel, i) {
-  if (!ag.multi) return ag;
+  const felder = ag.art === "extern" ? ["extern"] : ag.multi ? AG_JE_STAFFEL : [];
+  if (!felder.length) return ag;
   const eigen = ((staffel && staffel.ag) || {})[ag.key || "ag" + i] || {};
   const x = { ...ag };
-  for (const n of AG_JE_STAFFEL) if (String(eigen[n] ?? "").trim()) x[n] = eigen[n];
+  for (const n of felder) if (String(eigen[n] ?? "").trim()) x[n] = eigen[n];
   return x;
 }
 
@@ -177,11 +179,11 @@ export function staffelRechnen(k, staffel, maschinen) {
   const menge = z(staffel.menge), lose = Math.max(1, z(staffel.lose) || 1);
   const mat = materialRechnen(k.material || {}, menge);
   const ags = (k.ags || []).map((ag0, i) => {
-    if (ag0.art === "extern") {
-      // Je Stück oder je kg (Galvanik, Härten); ohne Gewicht gilt der Materialeinsatz
-      return externRechnen(ag0, menge, mat);
-    }
     const ag = agFuerStaffel(ag0, staffel, i);
+    if (ag.art === "extern") {
+      // Je Stück oder je kg (Galvanik, Härten); ohne Gewicht gilt der Materialeinsatz
+      return externRechnen(ag, menge, mat);
+    }
     const m = maschinen.find((x) => x.id === ag.masch);
     const s = m ? stundensatz(m, ag.laufTag) : { fix: 0, var: 0, eff: 0, ruest: 0 };
     const laufH = menge * z(ag.te) / 3600;

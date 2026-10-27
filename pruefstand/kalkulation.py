@@ -73,7 +73,7 @@ with sync_playwright() as p:
     pruefe("2.07" in agt, "Drehen komplett 2.07 je Stk: %s" % agt.replace("\n", " ")[:160])
     pg.click("[data-ag-auf='4']")
     ext = pg.locator("[data-ag='4']").inner_text()
-    pruefe("0.3000 CHF/Stk" in ext and "547.20 kg" in ext, "Polieren extern: %s" % ext.replace("\n", " ")[-120:])
+    pruefe("0.3000" in ext and "547.20" in ext, "Polieren extern: %s" % ext.replace("\n", " ")[-120:])
     pg.fill("#kalk-ag-ruestp-4", "800"); pg.wait_for_timeout(300)
     b2 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
     pruefe(b2[0] != "3.80", "Rüstkosten pauschal verrechnet: %s" % b2)
@@ -81,6 +81,12 @@ with sync_playwright() as p:
     b2 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
     pruefe(b2[0] == "3.80", "ohne Verrechnen nicht im Preis: %s" % b2)
     pg.check("#kalk-ag-ruestv-4"); pg.fill("#kalk-ag-ruestp-4", ""); pg.wait_for_timeout(300)
+    # Externer Kostensatz je Staffel
+    pg.fill("#kalk-ag-s1-extern-4", "0.44"); pg.wait_for_timeout(300)
+    b4 = pg.locator("#kalk-band .kalk-band__staffel b").all_inner_texts()
+    pruefe(b4[0] == "3.80" and b4[1] != "3.92", "externer Satz je Staffel: %s" % b4)
+    pruefe("0.4400" in pg.locator("[data-ag='4']").inner_text(), "Einzelkosten 0.44 bei Staffel 2")
+    pg.fill("#kalk-ag-s1-extern-4", ""); pg.wait_for_timeout(300)
     # Multimaschinell: Staffel 2 mit halber Stückzeit, Staffel 1 bleibt
     pg.click("[data-ag-auf='1']"); pg.check("#kalk-ag-multi-1")
     pg.fill("#kalk-ag-s1-te-1", "95"); pg.wait_for_timeout(300)

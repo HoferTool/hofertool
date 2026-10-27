@@ -472,8 +472,7 @@ function Arbeitsgaenge({ k, setze, setK, maschinen, rechnung }) {
                             checked={a[n + "Verr"] !== false} onChange={(e) => setze("ags." + i + "." + n + "Verr", e.target.checked)} /> Verrechnen</label>}</td>
                         </tr>))}</tbody>
                     </table>
-                    {r && <p className="feldhinweis">Bei {chf(r0.menge, 0)} Stk: Gewicht {chf(r.gewicht, 2)} kg
-                      {r.posten ? ", Postensatz gilt" : ""}, Einzelkosten <b>{chf(r.einzel, 4)} CHF/Stk</b></p>}
+                    <ExternJeStaffel a={a} i={i} k={k} setK={setK} rechnung={rechnung} />
                   </div>
                 : <div className="kalk-reihe">
                     <label className="feld kalk-feld"><span>Maschine</span>
@@ -621,6 +620,32 @@ function JeStaffel({ a, i, k, setK, maschinen, rechnung }) {
           <tr><td>Fixkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.fix / m, 4)}</tr>
           <tr><td>Varkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.var / m, 4)}</tr>
           <tr className="kalk-fett kalk-hervor"><td>Vollkosten <span className="kalk-einheit">CHF/Stk</span></td>{wert((r, m) => r.kosten / m, 4)}</tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Externer Arbeitsgang wie im Gewatec: Kostensatz je Staffel (leer = Satz
+// oben), darunter Gewicht und Einzelkosten je Staffel
+function ExternJeStaffel({ a, i, k, setK, rechnung }) {
+  const idx = k.staffeln.map((s, j) => (z(s.menge) > 0 ? j : -1)).filter((j) => j >= 0);
+  if (!idx.length) return null;
+  const setzen = (j, wert) => setK((x) => ({ ...x, staffeln: x.staffeln.map((s, n) => (n !== j ? s
+    : { ...s, ag: { ...(s.ag || {}), [a.key]: { ...((s.ag || {})[a.key] || {}), extern: wert } } })) }));
+  const sp = idx.map((j, n) => ({ j, r: rechnung[n] && rechnung[n].ags[i], menge: rechnung[n] ? rechnung[n].menge : 0,
+    eigen: ((k.staffeln[j].ag || {})[a.key]) || {} }));
+  return (
+    <div className="kalk-jestaffel kalk-rolle">
+      <table className="kalk-tab">
+        <tbody>
+          <tr className="kalk-fett"><td>Stückzahl</td>{sp.map(({ j, menge }) => <td key={j} className="rechts">{chf(menge, 0)}</td>)}</tr>
+          <tr className="kalk-blass"><td>Gewicht <span className="kalk-einheit">kg</span></td>{sp.map(({ j, r }) => <td key={j} className="rechts">{r ? chf(r.gewicht, 2) : "–"}</td>)}</tr>
+          <tr><td>Kostensatz <span className="kalk-einheit">CHF</span></td>{sp.map(({ j, eigen }) => (
+            <td key={j} className="rechts"><input className="kalk-zelle" type="text" inputMode="decimal" id={"kalk-ag-s" + j + "-extern-" + i}
+              placeholder={a.extern || ""} value={eigen.extern || ""} onChange={(e) => setzen(j, e.target.value)} /></td>))}</tr>
+          <tr className="kalk-fett kalk-hervor"><td>Einzelkosten <span className="kalk-einheit">CHF/Stk</span></td>{sp.map(({ j, r }) => (
+            <td key={j} className="rechts">{r ? chf(r.einzel, 4) + (r.posten ? " (Posten)" : "") : "–"}</td>))}</tr>
         </tbody>
       </table>
     </div>
