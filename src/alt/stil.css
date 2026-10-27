@@ -9783,3 +9783,13 @@ body.dunkel .pd-schonda { background: #3a2f10; color: #ffe7a6; border-color: #7a
 /* Material im Einrichtblatt immer auf einer Zeile (seit 1.210.0) */
 .eba-eine-zeile { display: inline-block; white-space: nowrap; }
 .eba-eine-zeile { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+
+/* Gespeicherte Layouts am Empfang (1.213.0) */
+.ib-layouts { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--linie); border-radius: 10px; }
+.ib-layouts__kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.ib-layouts__kopf h3 { margin: 0; }
+.ib-layout { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; }
+.ib-layout + .ib-layout { border-top: 1px solid var(--linie); }
+.ib-layout__name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.ib-layout__name small { font-weight: 400; color: var(--gut); }
+.ib-layout--aktiv { background: color-mix(in srgb, var(--gut) 12%, transparent); }

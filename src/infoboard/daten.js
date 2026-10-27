@@ -238,3 +238,43 @@ export function bildschirmDiesesGeraets() {
   if (istInfoboardGeraet(TAFELN.haupt)) return TAFELN.haupt;
   return null;
 }
+
+// Gespeicherte Layouts mit allem Inhalt (Wunsch Patrick 27. Oktober 2026:
+// „Layouts speichern, damit ich diese wieder aktivieren kann … nicht nur
+// das Layout, sondern auch den Inhalt“). Jedes steht als eigene Zeile in
+// der Tabelle infoboard mit der Kennung „empfang-layout-…“, im Feld aufbau
+// { name, layout: ganzer Aufbau }. So braucht es kein neues SQL, die
+// Rechte (lesen alle ausser Externen, ändern nur Admins) gelten wie für
+// den Bildschirm, und die Sicherung nimmt sie mit. Die Dateien bleiben in
+// der Ablage, auch wenn man sie auf dem Bildschirm entfernt.
+const layoutVorsilbe = (board) => board + "-layout-";
+
+export async function layoutsLaden(board) {
+  const r = await alt.zeitlimit(alt.db.from("infoboard").select("id, aufbau, geaendert_am")
+    .like("id", layoutVorsilbe(board) + "%"), 10000, "Layouts");
+  if (r.error) throw r.error;
+  return (r.data || []).filter((z) => String(z.id).startsWith(layoutVorsilbe(board)) && z.aufbau && z.aufbau.layout)
+    .map((z) => ({ id: z.id, name: String(z.aufbau.name || "Ohne Namen"), layout: aufbauOrdnen(z.aufbau.layout),
+      am: String(z.geaendert_am || "") }))
+    .sort((a, b) => a.name.localeCompare(b.name, "de"));
+}
+
+export async function layoutSpeichern(board, name, aufbau, id) {
+  const r = await alt.zeitlimit(alt.db.from("infoboard").upsert({ id: id || layoutVorsilbe(board) + neueId(),
+    aufbau: { name, layout: aufbau }, geaendert_am: new Date().toISOString() }, { onConflict: "id" }), 10000, "Layout speichern");
+  if (r.error) throw r.error;
+}
+
+export async function layoutLoeschen(id) {
+  const r = await alt.zeitlimit(alt.db.from("infoboard").delete().eq("id", id), 10000, "Layout löschen");
+  if (r.error) throw r.error;
+}
+
+// Gleicher Aufbau, egal in welcher Reihenfolge die Felder stehen: so sieht
+// man, welches gespeicherte Layout gerade auf dem Bildschirm ist
+function ordentlich(w) {
+  if (Array.isArray(w)) return w.map(ordentlich);
+  if (w && typeof w === "object") return Object.keys(w).sort().reduce((o, k) => { o[k] = ordentlich(w[k]); return o; }, {});
+  return w;
+}
+export const gleicherAufbau = (a, b) => JSON.stringify(ordentlich(aufbauOrdnen(a))) === JSON.stringify(ordentlich(aufbauOrdnen(b)));

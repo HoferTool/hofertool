@@ -22,7 +22,8 @@ import { Tafel } from "./Tafel.jsx";
 import { istNacht } from "./Nacht.jsx";
 import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
-  istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil, TAFELN, tafelFarben } from "./daten.js";
+  istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil, TAFELN, tafelFarben,
+  layoutsLaden, layoutSpeichern, layoutLoeschen, gleicherAufbau } from "./daten.js";
 
 // 0 = nicht von selbst blättern, die Seite wechselt nur beim Antippen
 // (Wunsch Patrick 21. Oktober 2026).
@@ -81,6 +82,13 @@ function Gestalten({ mass }) {
     stand.current = neu; setAufbau(neu);
     try { await aufbauSpeichern(neu, mass.id); }
     catch (e) { stand.current = vorher; setAufbau(vorher); alt.meldung("Nicht gespeichert: " + alt.fehlertext(e), "fehler"); }
+  };
+  // Ein gespeichertes Layout aktivieren: der ganze Bildschirm wird ersetzt
+  const ganzErsetzen = async (neu) => {
+    const vorher = stand.current;
+    stand.current = neu; setAufbau(neu); setGewaehlt(null);
+    try { await aufbauSpeichern(neu, mass.id); return true; }
+    catch (e) { stand.current = vorher; setAufbau(vorher); alt.meldung("Nicht aktiviert: " + alt.fehlertext(e), "fehler"); return false; }
   };
   const farbenSetzen = (farben) => ganzSetzen({ farben });
   const logoSetzen = (logo) => ganzSetzen({ logo });
@@ -202,6 +210,7 @@ function Gestalten({ mass }) {
             </div>
             <input ref={datei} type="file" hidden multiple onChange={dateiGewaehlt}
               accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
+            {mass.ruhig && <Layouts mass={mass} aufbau={aufbau} aktivieren={ganzErsetzen} />}
             {mass.ruhig && <Farben mass={mass} aufbau={aufbau} setzen={farbenSetzen} />}
             {mass.ruhig && <LogoWahl lage={aufbau.logo} setzen={logoSetzen} />}
             {!wahl && <p className="klein">Dateien vom Computer einfach auf die Tafel ziehen, dorthin, wo sie hin sollen.
@@ -251,6 +260,69 @@ function Gestalten({ mass }) {
         </div>
       </div>
     </section>
+  );
+}
+
+// Gespeicherte Layouts am Empfang (Wunsch Patrick 27. Oktober 2026):
+// „Speichern“ legt den ganzen Bildschirm mit allem Inhalt (Dateien, Texte,
+// Farben, Logo) unter einem Namen ab, „Aktivieren“ holt ihn zurück auf den
+// Bildschirm. Was gerade auf dem Bildschirm ist, ist markiert.
+function Layouts({ mass, aufbau, aktivieren }) {
+  const [liste, setListe] = useState(null);
+  const [fehler, setFehler] = useState("");
+  const laden = () => layoutsLaden(mass.id).then((l) => { setListe(l); setFehler(""); },
+    (e) => { setListe([]); setFehler(alt.fehlertext(e)); });
+  useEffect(() => { laden(); }, [mass]);
+  const aktiv = (liste || []).find((l) => gleicherAufbau(l.layout, aufbau));
+
+  const speichern = async () => {
+    const w = await alt.dialogFelder({ titel: "Layout speichern",
+      text: "Alles, was jetzt auf dem Bildschirm am " + mass.name + " ist, mit Dateien, Texten, Farben und Logo.",
+      felder: [{ name: "name", label: "Name", pflicht: true, hinweis: "Zum Beispiel „Besuch Kunde“ oder „Weihnachten“." }],
+      bestaetigen: "Speichern" });
+    if (!w) return;
+    const name = String(w.name || "").trim();
+    if (!name) return;
+    const gleich = (liste || []).find((l) => l.name.toLowerCase() === name.toLowerCase());
+    if (gleich && !(await alt.nachfragen({ titel: "„" + gleich.name + "“ ersetzen?",
+      text: "Unter diesem Namen ist schon ein Layout gespeichert. Es wird durch den jetzigen Bildschirm ersetzt.",
+      bestaetigen: "Ersetzen" }))) return;
+    try { await layoutSpeichern(mass.id, name, aufbau, gleich && gleich.id); alt.meldung("Layout „" + name + "“ gespeichert.", "gut"); laden(); }
+    catch (e) { alt.meldung("Nicht gespeichert: " + alt.fehlertext(e), "fehler"); }
+  };
+
+  const holen = async (l) => {
+    const ok = await alt.nachfragen({ titel: "„" + l.name + "“ aktivieren?",
+      text: aktiv ? "Der Bildschirm zeigt danach dieses Layout. „" + aktiv.name + "“ bleibt gespeichert."
+        : "Der Bildschirm zeigt danach dieses Layout. Was jetzt drauf ist, ist nicht als Layout gespeichert und geht verloren. Vorher mit „Jetzt speichern …“ ablegen, wenn es bleiben soll.",
+      bestaetigen: "Aktivieren" });
+    if (ok && (await aktivieren(l.layout))) alt.meldung("„" + l.name + "“ ist jetzt auf dem Bildschirm.", "gut");
+  };
+
+  const weg = async (l) => {
+    const ok = await alt.nachfragen({ titel: "Layout „" + l.name + "“ löschen?",
+      text: "Der Bildschirm bleibt, wie er ist. Nur das gespeicherte Layout ist danach weg.", bestaetigen: "Löschen", gefahr: true });
+    if (!ok) return;
+    try { await layoutLoeschen(l.id); laden(); } catch (e) { alt.meldung("Nicht gelöscht: " + alt.fehlertext(e), "fehler"); }
+  };
+
+  return (
+    <div className="ib-layouts" data-ib="layouts">
+      <div className="ib-layouts__kopf">
+        <h3>Layouts</h3>
+        <button type="button" className="knopf" data-ib="layout-speichern" onClick={speichern}>Jetzt speichern …</button>
+      </div>
+      {fehler && <p className="hinweis">{fehler}</p>}
+      {liste && !liste.length && !fehler && <p className="klein">Noch keine Layouts gespeichert. „Jetzt speichern …“ legt den
+        ganzen Bildschirm mit allem Inhalt unter einem Namen ab, später holt „Aktivieren“ ihn wieder.</p>}
+      {liste && liste.map((l) => (
+        <div key={l.id} className={"ib-layout" + (aktiv === l ? " ib-layout--aktiv" : "")} data-iblayout={l.name}>
+          <span className="ib-layout__name">{l.name}{aktiv === l && <small> · ist auf dem Bildschirm</small>}</span>
+          {aktiv !== l && <button type="button" className="knopf knopf--still" data-ib="layout-aktivieren" onClick={() => holen(l)}>Aktivieren</button>}
+          <button type="button" className="knopf knopf--still knopf--gefahr" data-ib="layout-loeschen" title="Layout löschen"
+            onClick={() => weg(l)}>Löschen</button>
+        </div>))}
+    </div>
   );
 }
 
