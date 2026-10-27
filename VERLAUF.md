@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.235.0** Ferien als **Outlook-Termin** (Wunsch Patrick 27. Oktober 2026: „wenn man Ferien einträgt, soll ein Outlook-Kalendereintrag generiert werden, der an eine bestimmte Empfängerliste versendet wird“): Admins tragen unter Einstellungen → Allgemein → Ferien die Empfänger ein (`app_config.ferien_verteiler`). Steht dort etwas, hat das Ferienfenster das Häkchen „Outlook-Termin an … senden“ (neu an, beim Ändern aus). Speichern lädt wie die Bestellmail eine `.eml` herunter (An, Betreff, Text, Termin als `.ics` im Anhang, ganztägig, „frei“, UID je Ferieneintrag), Outlook öffnet sie als Entwurf; auf Tablet und Handy das Teilen-Fenster mit der `.ics`, Empfänger in der Zwischenablage (`src/teile/ferienTermin.js`). Prüfstand `ferien_termin.py`.
 - **1.234.0** Kalkulation: Ist der Artikel-Code schon eine HOCO Nr. mit Aufträgen, füllt die App das leere Material mit dem Material des jüngsten Auftrags, samt Werkstoff-Nr. und Ø (Wunsch Patrick 27. Oktober 2026).
 - **1.233.0** Kalkulation: Feld „Kunden Ident-Nr.“ unter der Zeichnung (auch im Angebot und im PDF), „Sachbearbeiter“ entfernt, Materialbezeichnung doppelt so breit (Wunsch Patrick 27. Oktober 2026).
 - **1.232.0** Kalkulation: Enter springt wie Tab ins nächste Feld, in den Tabellen je Staffel nach rechts, Shift + Enter zurück; Artikel-Code, Zeichnung und Index in den Kopfdaten untereinander (Wunsch Patrick 27. Oktober 2026).

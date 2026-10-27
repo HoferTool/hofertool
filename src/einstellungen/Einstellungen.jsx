@@ -22,6 +22,7 @@ import PlanwandArchiv from "./PlanwandArchiv.jsx";
 import EinrichtblattPdf from "./EinrichtblattPdf.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { meldungenVerwalten } from "../teile/anmeldeMeldungen.jsx";
+import { adressenAus, verteilerLaden, verteilerSpeichern } from "../teile/ferienTermin.js";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 
 // Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
@@ -108,6 +109,7 @@ function Allgemein({ bin }) {
       <Darstellung />
       {bin && <AnmeldeMeldungen />}
       {(bin || alt.darfDokumenteUndSicherung()) && <Bestellmail />}
+      {bin && <FerienVerteiler />}
       <UeberDieApp />
     </>
   );
@@ -361,6 +363,34 @@ function Bestellmail() {
       {/* Der Text steht nicht mehr hier, sondern im eigenen Fenster mit Vorschau */}
       <Zeile titel="Text für Bestellmails" text="Die Mail an den Lieferanten mit Logos und Links.">
         <button className="knopf knopf--klein" id="bestellmail-oeffnen" onClick={bestellmailOeffnen}>Text bearbeiten</button>
+      </Zeile>
+    </Gruppe>
+  );
+}
+
+// Empfänger des Outlook-Termins beim Eintragen von Ferien (1.235.0,
+// Wunsch Patrick 27. Oktober 2026), nur Admins; src/teile/ferienTermin.js
+function FerienVerteiler() {
+  const [text, setText] = useState("");
+  const [gespeichert, setGespeichert] = useState("");
+  useEffect(() => { verteilerLaden().then((v) => { setText(v); setGespeichert(v); }); }, []);
+  const speichern = async () => {
+    const falsch = text.split(/[\s,;]+/).filter((a) => a && !adressenAus(a).length);
+    try {
+      const neu = await verteilerSpeichern(text);
+      setText(neu); setGespeichert(neu);
+      alt.meldung(falsch.length ? "Gespeichert. Weggelassen, weil keine Mailadresse: " + falsch.join(", ") : "Empfänger gespeichert.",
+        falsch.length ? "warn" : "gut");
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
+  return (
+    <Gruppe titel="Ferien">
+      <Zeile breit titel="Outlook-Termin an" text="Beim Eintragen von Ferien macht die App eine Mail mit dem Termin für den Kalender an diese Adressen. Mehrere mit Komma, Strichpunkt oder je auf einer Zeile. Leer = keine Mail.">
+        <textarea id="ferien-verteiler" rows={3} value={text} placeholder="name@hoferco.ch; ..."
+          onChange={(e) => setText(e.target.value)} style={{ width: "100%" }} />
+        {text !== gespeichert && (
+          <button className="knopf knopf--klein knopf--haupt" id="ferien-verteiler-speichern" onClick={speichern}>Speichern</button>
+        )}
       </Zeile>
     </Gruppe>
   );
