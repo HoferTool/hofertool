@@ -10130,7 +10130,7 @@ h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }
 .ib-wetter__blitz { position: absolute; inset: 0; background: #fff; opacity: 0; }
 .ib-wetter__blitz--an { animation: ib-blitz 0.9s ease-out; }
 @keyframes ib-blitz { 0% { opacity: 0; } 8% { opacity: .55; } 16% { opacity: .1; } 24% { opacity: .4; } 100% { opacity: 0; } }
-.ib-alpen { position: absolute; left: 0; pointer-events: none; z-index: 0; opacity: 0.75; }
+.ib-alpen { position: absolute; left: 0; pointer-events: none; z-index: 0; }
 .ib-effekte { display: grid; gap: 8px; margin: 10px 0; }
 
 /* Kalkulation: Übersicht am Handy als Kärtchen statt Tabelle (1.237.1).
