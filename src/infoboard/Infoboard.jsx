@@ -30,8 +30,11 @@ import { EFFEKTE } from "./Wetterhimmel.jsx";
 // (Wunsch Patrick 21. Oktober 2026).
 const WECHSEL = [[0, "Nicht selber blättern"], [10, "alle 10 Sekunden"], [20, "alle 20 Sekunden"], [30, "alle 30 Sekunden"], [60, "jede Minute"], [120, "alle 2 Minuten"]];
 
+// Sehen und gestalten dürfen das Infoboard seit 1.241.0 alle ausser Externen
+// und dem Dienstkonto (Wunsch Patrick 28. Oktober 2026: „sollen alle
+// bearbeiten können, ausser die Externen“); den Empfang weiter nur Admins.
 export function infoboardSichtbar() {
-  return !alt.istExtern() && (alt.istAdmin() || alt.istAndererNutzer());
+  return !alt.istExtern() && alt.meineRolle() !== "dienst";
 }
 
 export default function Infoboard() { return <Gestalten mass={TAFELN.haupt} />; }
@@ -42,7 +45,7 @@ export default function Infoboard() { return <Gestalten mass={TAFELN.haupt} />; 
 export function Empfang() { return <Gestalten mass={TAFELN.empfang} />; }
 
 function Gestalten({ mass }) {
-  const admin = alt.istAdmin();
+  const admin = mass.id === "haupt" ? infoboardSichtbar() : alt.istAdmin();
   const [aufbau, setAufbau] = useState(null);
   const [fehler, setFehler] = useState("");
   const [gewaehlt, setGewaehlt] = useState(null);

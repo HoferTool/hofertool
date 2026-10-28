@@ -17,7 +17,10 @@ const TAGE = 60;
 export default function Kalender({ auffrischen }) {
   const { daten: liste, fehler, neu } = useDaten(kalenderLaden, [auffrischen]);
   const geb = useDaten(geburtstageLaden, [auffrischen]);
-  const darf = alt.darfSchreiben();
+  // Eintragen dürfen alle ausser Externen und dem Dienstkonto, auch ohne
+  // Schreibrecht (Wunsch Patrick 28. Oktober 2026: „sollen alle bearbeiten
+  // können, ausser die Externen“)
+  const darf = !alt.istExtern() && alt.meineRolle() !== "dienst";
 
   useSeitenSuche({
     name: "Kalender", platzhalter: "Termin …",
