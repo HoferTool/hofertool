@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://hofertool.github.io/hofertool/samsung" version="1.0.0" viewmodes="maximized">
-  <tizen:application id="HoferEmpfa.Empfang" package="HoferEmpfa" required_version="2.3"/>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://hofertool.github.io/hoferempfang" version="1.1.0" viewmodes="fullscreen">
   <access origin="*" subdomains="true"/>
   <content src="index.html"/>
-  <feature name="http://tizen.org/feature/screen.size.all"/>
-  <name>Hofer Empfang</name>
+  <name>hoferempfang</name>
+  <icon src="icon.png"/>
+  <author href="https://hofertool.github.io/hofertool/">Hofer + Co.</author>
+  <feature name="http://tizen.org/feature/network.internet"/>
+  <tizen:application id="HoferEmpfa.app" package="HoferEmpfa" required_version="3.0"/>
   <tizen:privilege name="http://tizen.org/privilege/internet"/>
-  <tizen:profile name="tv-samsung"/>
+  <tizen:profile name="tv"/>
   <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
   <tizen:allow-navigation>*</tizen:allow-navigation>
 </widget>
