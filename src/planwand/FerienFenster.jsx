@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { adressenAus, ferienTerminSenden, verteilerLaden } from "../teile/ferienTermin.js";
+import { adressenAus, ferienAktualisieren, ferienTerminSenden, verteilerLaden } from "../teile/ferienTermin.js";
 
 // freieZeile(von, tage, ausserId) sucht die erste Ferienzeile ohne
 // Überschneidung; sie bleibt im alten Programm bei der Planwand.
@@ -27,10 +27,10 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
   const [bis, setBis] = useState(eintrag ? alt.letzterArbeitstag(eintrag.von, eintrag.tage || 1) : start);
   const [notiz, setNotiz] = useState(eintrag ? (eintrag.note || "") : "");
   // Outlook-Termin an den Verteiler (1.235.0, Wunsch Patrick 27. Oktober 2026):
-  // nur, wenn unter Einstellungen Empfänger stehen; bei neuen Ferien
-  // eingeschaltet, beim Ändern aus.
+  // nur, wenn unter Einstellungen Empfänger stehen; seit 1.239.0 auch
+  // beim Ändern eingeschaltet, dann als Aktualisierung.
   const [verteiler, setVerteiler] = useState("");
-  const [termin, setTermin] = useState(!eintrag);
+  const [termin, setTermin] = useState(true);
   useEffect(() => { let weg = false; verteilerLaden().then((v) => { if (!weg) setVerteiler(v); }); return () => { weg = true; }; }, []);
   const empfaenger = adressenAus(verteiler);
 
@@ -68,7 +68,10 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
     fertig(error, "Gespeichert.");
     if (!error && termin && empfaenger.length) {
       ferienTerminSenden({ id: eintrag ? eintrag.id : neuId, person: wer, von: erster,
-        bis: alt.letzterArbeitstag(erster, tage), tage, notiz: notiz.trim() }, verteiler)
+        bis: alt.letzterArbeitstag(erster, tage), tage, notiz: notiz.trim(),
+        art: eintrag ? "geaendert" : undefined,
+        vorher: eintrag && (eintrag.von !== erster || (eintrag.tage || 1) !== tage)
+          ? { von: eintrag.von, bis: alt.letzterArbeitstag(eintrag.von, eintrag.tage || 1) } : undefined }, verteiler)
         .catch((f) => alt.meldung("Termin liess sich nicht erstellen: " + (f && f.message), "fehler"));
     }
   };
@@ -83,6 +86,7 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
     const { error } = await alt.db.from("vacations").delete().eq("id", eintrag.id);
     if (!error) alt.merkeSchritt("Löschen der Ferien von " + eintrag.person, alt.rueckRein("vacations", vorher));
     fertig(error, "Gelöscht.");
+    if (!error) ferienAktualisieren(eintrag, "abgesagt");
   };
 
   return (

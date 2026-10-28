@@ -58,7 +58,16 @@ function falten(zeile) {
   return teile.join("\r\n");
 }
 
-// { id, person, von, bis, tage, notiz } → Text der .ics-Datei
+// Aktualisierungen (1.239.0, Wunsch Patrick 28. Oktober 2026: „wenn ein
+// Ferieneintrag verschoben oder gelöscht wird, muss eine Aktualisierung
+// gesendet werden“): f.art = "geaendert" schickt denselben Termin (gleiche
+// UID, höhere SEQUENCE) mit neuen Daten, "abgesagt" eine Absage
+// (METHOD:CANCEL), die Outlook mit „Aus Kalender entfernen“ anbietet.
+const absage = (f) => f.art === "abgesagt";
+const METHODE = (f) => absage(f) ? "CANCEL" : "PUBLISH";
+const VORWORT = { geaendert: "Geändert: ", abgesagt: "Abgesagt: " };
+
+// { id, person, von, bis, tage, notiz, art } → Text der .ics-Datei
 export function icsBauen(f) {
   const jetzt = new Date();
   const stempel = jetzt.getUTCFullYear() + zwei(jetzt.getUTCMonth() + 1) + zwei(jetzt.getUTCDate())
@@ -67,7 +76,7 @@ export function icsBauen(f) {
   const ende = alt.plusTage(f.bis, 1);
   const zeilen = [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Hofer + Co.//HoferTool//DE",
-    "METHOD:PUBLISH", "CALSCALE:GREGORIAN",
+    "METHOD:" + METHODE(f), "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
     "UID:ferien-" + (f.id || stempel) + "@hoferco.ch",
     "DTSTAMP:" + stempel,
@@ -75,7 +84,8 @@ export function icsBauen(f) {
     "SEQUENCE:" + Math.floor(jetzt.getTime() / 60000) % 2000000000,
     "DTSTART;VALUE=DATE:" + icsDatum(f.von),
     "DTEND;VALUE=DATE:" + icsDatum(ende),
-    "SUMMARY:" + icsText("Ferien " + f.person),
+    "SUMMARY:" + icsText((absage(f) ? "Abgesagt: " : "") + "Ferien " + f.person),
+    ...(absage(f) ? ["STATUS:CANCELLED"] : []),
     "DESCRIPTION:" + icsText(f.person + " ist vom " + ch(f.von) + " bis " + ch(f.bis) + " in den Ferien"
       + tageText(f.tage) + (f.notiz ? "\n" + f.notiz : "")),
     "TRANSP:TRANSPARENT",
@@ -95,18 +105,28 @@ const ascii = (s) => s.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, 
 const zeilen76 = (s) => s.replace(/(.{76})/g, "$1\r\n");
 
 export function mailText(f, absender) {
+  if (absage(f)) return "Guten Tag\n\n"
+    + "Die Ferien von " + f.person + " vom " + ch(f.von) + " bis " + ch(f.bis) + " sind gelöscht.\n"
+    + "\nDie Absage liegt im Anhang. Öffnen und „Aus Kalender entfernen“ nimmt den Termin aus Ihrem Kalender,"
+    + " sonst bitte von Hand löschen.\n\n"
+    + "Freundliche Grüsse\n\n" + (absender || "") + "\nHofer + Co. Präzisionsdrehteile";
+  const geaendert = f.art === "geaendert";
   return "Guten Tag\n\n"
+    + (geaendert ? "Die Ferien von " + f.person + " haben sich geändert. Neu: " : "")
     + f.person + " ist vom " + ch(f.von) + " bis " + ch(f.bis) + " in den Ferien"
     + tageText(f.tage) + "\n"
+    + (f.vorher ? "Vorher: " + ch(f.vorher.von) + " bis " + ch(f.vorher.bis) + "\n" : "")
     + (f.notiz ? "Notiz: " + f.notiz + "\n" : "")
-    + "\nDer Termin liegt im Anhang. Öffnen und „Speichern und schliessen“ trägt ihn in Ihren Kalender ein.\n\n"
+    + (geaendert
+      ? "\nDer neue Termin liegt im Anhang. Öffnen und „Speichern und schliessen“ ersetzt den alten in Ihrem Kalender.\n\n"
+      : "\nDer Termin liegt im Anhang. Öffnen und „Speichern und schliessen“ trägt ihn in Ihren Kalender ein.\n\n")
     + "Freundliche Grüsse\n\n" + (absender || "") + "\nHofer + Co. Präzisionsdrehteile";
 }
 
 export function emlBauen(f, an, absender) {
   const g = "----=_Hofer_F" + Date.now();
   const name = "Ferien " + f.person.replace(/[\\/:*?"<>|]/g, "") + ".ics";
-  const betreff = "Ferien " + f.person + ": " + ch(f.von) + " – " + ch(f.bis);
+  const betreff = (VORWORT[f.art] || "") + "Ferien " + f.person + ": " + ch(f.von) + " – " + ch(f.bis);
   return [
     "To: " + an.join(", "),
     "Subject: =?UTF-8?B?" + b64(betreff) + "?=",
@@ -121,7 +141,7 @@ export function emlBauen(f, an, absender) {
     zeilen76(b64(mailText(f, absender).replace(/\r?\n/g, "\r\n"))),
     "",
     "--" + g,
-    'Content-Type: text/calendar; charset="utf-8"; method=PUBLISH; name="' + ascii(name) + '"',
+    'Content-Type: text/calendar; charset="utf-8"; method=' + METHODE(f) + '; name="' + ascii(name) + '"',
     'Content-Disposition: attachment; filename="' + ascii(name) + '"; filename*=UTF-8\'\'' + encodeURIComponent(name),
     "Content-Transfer-Encoding: base64",
     "",
@@ -152,12 +172,31 @@ export async function ferienTerminSenden(f, verteiler) {
     if (navigator.canShare({ files: [datei] })) {
       try { if (navigator.clipboard) await navigator.clipboard.writeText(an.join(", ")); } catch (e) { /* ohne Zwischenablage */ }
       try {
-        await navigator.share({ files: [datei], title: "Ferien " + f.person, text: mailText(f, absender) });
+        await navigator.share({ files: [datei], title: (VORWORT[f.art] || "") + "Ferien " + f.person, text: mailText(f, absender) });
         alt.meldung("Termin geteilt. Die Empfänger liegen in der Zwischenablage, im Mail bei An einfügen.", "gut");
-      } catch (e) { if (!e || e.name !== "AbortError") alt.meldung("Teilen ging nicht: " + (e && e.message), "fehler"); }
-      return;
+        return;
+      } catch (e) {
+        if (e && e.name === "AbortError") return;
+        // Nach einer Rückfrage lässt Safari das Teilen nicht mehr zu: dann wie am Computer
+        if (!e || e.name !== "NotAllowedError") { alt.meldung("Teilen ging nicht: " + (e && e.message), "fehler"); return; }
+      }
     }
   }
   herunterladen(new Blob([emlBauen(f, an, absender)], { type: "message/rfc822" }), dateiName + ".eml");
   alt.meldung("Die Mail mit dem Termin liegt bei den Downloads. Öffnen, Outlook zeigt sie als Entwurf, nur noch Senden drücken.", "gut");
+}
+
+// Für Verschieben, Ziehen an den Griffen und Löschen: holt die Empfänger
+// selbst und schickt nur, wenn welche eingetragen sind. eintrag ist die
+// Zeile aus vacations (person, von, tage, note, id).
+export async function ferienAktualisieren(eintrag, art, vorher) {
+  const verteiler = await verteilerLaden();
+  if (!adressenAus(verteiler).length) return;
+  const tage = eintrag.tage || 1;
+  const f = { id: eintrag.id, person: eintrag.person, von: eintrag.von, tage,
+    bis: alt.letzterArbeitstag(eintrag.von, tage), notiz: eintrag.note || "", art };
+  if (vorher && vorher.von && (vorher.von !== f.von || (vorher.tage || 1) !== tage))
+    f.vorher = { von: vorher.von, bis: alt.letzterArbeitstag(vorher.von, vorher.tage || 1) };
+  try { await ferienTerminSenden(f, verteiler); }
+  catch (e) { alt.meldung("Termin liess sich nicht erstellen: " + (e && e.message), "fehler"); }
 }

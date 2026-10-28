@@ -1,6 +1,6 @@
 # Ferien als Outlook-Termin (1.235.0): Empfänger in den Einstellungen,
 # Häkchen im Ferienfenster, .eml mit .ics im Anhang zum Herunterladen
-import time, base64, re
+import time, base64, re, email, email.header
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
@@ -43,7 +43,6 @@ with sync_playwright() as p:
     eml = open(d.path(), encoding="utf-8").read()
     pruefe("An", "To: anna@hoferco.ch, ben@hoferco.ch" in eml)
     pruefe("Entwurf", "X-Unsent: 1" in eml)
-    import email
     m = email.message_from_string(eml)
     texte = [t.get_payload(decode=True).decode("utf-8") for t in m.walk() if not t.is_multipart()]
     pruefe("Anhang .ics", any((t.get_filename() or "").endswith(".ics") for t in m.walk()))
@@ -58,10 +57,62 @@ with sync_playwright() as p:
     pruefe("UID am Eintrag", bool(neu) and ("UID:ferien-" + str(neu["id"])) in ics)
     pruefe("Mailtext", "Testperson Ölz ist vom" in mail)
 
-    # Ändern: Häkchen aus, keine Datei
+    def lesen(d):
+        m = email.message_from_string(open(d.path(), encoding="utf-8").read())
+        texte = [t.get_payload(decode=True).decode("utf-8") for t in m.walk() if not t.is_multipart()]
+        betreff = str(email.header.make_header(email.header.decode_header(m["Subject"])))
+        return betreff, next((t for t in texte if "BEGIN:VCALENDAR" in t), ""), next((t for t in texte if "Guten Tag" in t), "")
+    import email.header
+
+    # Ändern im Fenster: Häkchen an, Aktualisierung mit gleicher UID
     pg.locator("[data-ferien='f2']").click(); pg.wait_for_timeout(600)
-    pruefe("beim Ändern aus", not pg.locator("#fd-termin").is_checked())
-    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pruefe("beim Ändern an", pg.locator("#fd-termin").is_checked())
+    pg.fill("#fd-notiz", "neu")
+    with pg.expect_download() as dl:
+        pg.locator("#fd-ja").click()
+    b, ics, mail = lesen(dl.value)
+    pruefe("Betreff Geändert: " + b, b.startswith("Geändert: Ferien Tristan"))
+    pruefe("ics PUBLISH, UID f2", "METHOD:PUBLISH" in ics and "UID:ferien-f2@" in ics)
+    pg.wait_for_timeout(1200)
+    pg.wait_for_selector("[data-ferien='f1'] [data-fgriff='rechts']")
+
+    # Griff ziehen: Aktualisierung von selbst, mit Vorher
+    g = pg.locator("[data-ferien='f1'] [data-fgriff='rechts']").bounding_box()
+    spalte = pg.evaluate("parseFloat(getComputedStyle(document.querySelector('.pw-tafel')).getPropertyValue('--spalte')) || 40")
+    with pg.expect_download() as dl:
+        pg.mouse.move(g["x"] + g["width"] / 2, g["y"] + g["height"] / 2); pg.mouse.down()
+        for k in range(1, 11):
+            pg.mouse.move(g["x"] + g["width"] / 2 + k * spalte * 2 / 10, g["y"] + g["height"] / 2); pg.wait_for_timeout(20)
+        pg.mouse.up()
+    b, ics, mail = lesen(dl.value)
+    pruefe("Griff: Geändert", b.startswith("Geändert: Ferien Ramona") and "UID:ferien-f1@" in ics)
+    pruefe("Griff: Vorher im Text", "Vorher:" in mail)
+    pg.wait_for_timeout(800)
+
+    # Verschieben: Aktualisierung
+    bx = pg.locator("[data-ferien='f1']").bounding_box()
+    von_alt = pg.evaluate("TEST.daten.vacations.find(v => v.id === 'f1').von")
+    with pg.expect_download() as dl:
+        x, y = bx["x"] + 20, bx["y"] + bx["height"] / 2
+        pg.mouse.move(x, y); pg.mouse.down(); pg.wait_for_timeout(550)
+        for k in range(1, 11):
+            pg.mouse.move(x + k * spalte * 3 / 10, y); pg.wait_for_timeout(20)
+        pg.mouse.up()
+    b, ics, mail = lesen(dl.value)
+    von_neu = pg.evaluate("TEST.daten.vacations.find(v => v.id === 'f1').von")
+    pruefe(f"Verschoben {von_alt} → {von_neu}: Geändert", von_neu != von_alt and b.startswith("Geändert: Ferien Ramona"))
+    pruefe("Verschoben: neues Datum im Termin", "DTSTART;VALUE=DATE:" + von_neu.replace("-", "") in ics)
+    pg.wait_for_timeout(800)
+
+    # Löschen: Absage
+    pg.locator("[data-ferien='f1']").click(); pg.wait_for_timeout(600)
+    pg.locator("#fd-weg").click(); pg.wait_for_timeout(400)
+    with pg.expect_download() as dl:
+        pg.locator("[data-ja]").click()
+    b, ics, mail = lesen(dl.value)
+    pruefe("Löschen: Abgesagt", b.startswith("Abgesagt: Ferien Ramona"))
+    pruefe("Löschen: CANCEL", "METHOD:CANCEL" in ics and "STATUS:CANCELLED" in ics and "UID:ferien-f1@" in ics)
+    pruefe("Löschen: Text", "gelöscht" in mail)
     pruefe("Seitenfehler: " + str(f[:2]), not f)
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

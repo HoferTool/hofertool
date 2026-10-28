@@ -63,6 +63,7 @@ const ARCHIV = (typeof window !== "undefined" && window.HOFER_ARCHIV) || null;
 function istArchiv() { return !!ARCHIV; }
 import { werkzeugWechselDialog } from "../pad/Werkzeugwechsel.jsx";
 import { ferienDialog } from "../planwand/FerienFenster.jsx";
+import { ferienAktualisieren } from "../teile/ferienTermin.js";
 import { hocoFenster } from "../planwand/HocoFenster.jsx";
 import Hoco from "../hoco/Hoco.jsx";
 import { maschinenkopf } from "../seiten/rechner/kopf.jsx";
@@ -146,7 +147,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.238.0";
+const APP_VERSION = "1.239.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5716,9 +5717,14 @@ function ferienGriffe(b) {
         if (tage[vonJetzt]) daten.von = tage[vonJetzt];
       }
 
+      const vorher = { von: f2.von, tage: f2.tage };
       const { error } = await db.from("vacations").update(daten).eq("id", f2.id);
       if (error) meldung(fehlertext(error), "fehler");
-      else { meldung("Angepasst."); planAktualisieren(b); }
+      else {
+        meldung("Angepasst."); planAktualisieren(b);
+        // Outlook-Termin der Empfänger nachführen (1.239.0)
+        ferienAktualisieren({ ...f2, ...daten }, "geaendert", vorher);
+      }
     });
 
     griff.addEventListener("pointercancel", () => {
@@ -6611,6 +6617,8 @@ function ferienVerhalten(b) {
         merkeSchritt("Ferien von " + f2.person,
           rueckSetz("vacations", { zeile: altZ, von: altVon }, { id: f2.id }));
         meldung("Verschoben."); planAktualisieren(b);
+        // Nur in eine andere Bahn gezogen ändert am Termin nichts
+        if (teile[1] !== altVon) ferienAktualisieren({ ...f2, zeile: neueBahn, von: teile[1] }, "geaendert", { von: altVon, tage: f2.tage });
       }
     });
 
