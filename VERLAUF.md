@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.246.0** (28. Oktober 2026) Startseite: Karte **„Laufend ohne WBG“** (Wunsch Patrick: „welche laufenden aufträge noch keinen wbg haben“): Aufträge auf „läuft“ an Maschinen der eigenen Parks ohne WBG, ohne externe Parks; Tipp öffnet das Auftragsfenster, wo die WBG hochgeladen wird. Steht nur da, wenn es welche gibt (`src/seiten/start/OhneWbg.jsx`).
 - **1.245.1** (28. Oktober 2026) Empfang: Alpenkette wieder genau wie in 1.237.0 (Patrick: „ich will die erste ursprüngliche Variante“).
 - **1.245.0** (28. Oktober 2026) Empfang: Alpenkette **grafisch** statt gemalt (Patrick: „gefällt mir nicht … weniger markant und stilistischer“): flache Schichten in sanften Tönen, gerade Kanten, Schneekappen mit Zickzack, unten weich ausgeblendet, wieder als SVG.
 - **1.244.0** (28. Oktober 2026) Empfang: die **Alpenkette realistischer** (Wunsch Patrick: „kannst du die berge etwas realistischer darstellen“): statt glatter Flächen einmal Punkt für Punkt auf eine Leinwand gemalt, Grate mit Zacken in jeder Grösse, Fels mit senkrechten Rinnen aus Rauschen, Licht von links mit Schattenflanken rechts der Gipfel, Schnee nur oben und in Flecken, Dunst gegen unten; halbe Auflösung, weil es schemenhaft bleiben soll und der Samsung-Bildschirm langsam ist.

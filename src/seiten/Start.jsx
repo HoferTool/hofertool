@@ -17,6 +17,7 @@ import { Ziffern } from "../effekte/Ziffern.jsx";
 import Durchfahrt from "./start/Durchfahrt.jsx";
 import Batterien from "./start/Batterien.jsx";
 import HeuteOffen from "./start/HeuteOffen.jsx";
+import OhneWbg from "./start/OhneWbg.jsx";
 
 // Ohne Adminrecht wird gar nicht erst nach Problemen gefragt
 const keineProbleme = async () => [];
@@ -50,6 +51,8 @@ export default function Start({ auffrischen }) {
       {/* Maschinen ohne Stückzahl von heute oder ohne Stückzeit
           (Wunsch Patrick 26. Oktober 2026) */}
       <HeuteOffen auffrischen={auffrischen} />
+      {/* Laufende Aufträge ohne WBG (Wunsch Patrick 28. Oktober 2026) */}
+      <OhneWbg auffrischen={auffrischen} />
       {/* Fällige Backup-Batterien für alle (Wunsch Patrick 21. Oktober 2026) */}
       <Batterien auffrischen={auffrischen} />
       {/* Reihenfolge nach Wunsch 4. Oktober 2026: Probleme, Bestellungen,
