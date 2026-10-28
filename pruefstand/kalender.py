@@ -68,6 +68,10 @@ with sync_playwright() as p:
     pruefe(br2[0] < br2[1] and not br2[2] and br2[3] < 40, "Geburtstage schmal, Termine breit, nichts abgeschnitten: %s" % br2)
     import os
     if os.environ.get("BILD"): pg.locator("[data-ib='band']").screenshot(path=os.environ["BILD"])
+    # Jeder Bereich nur so hoch wie seine Einträge (Wunsch Patrick 28. Oktober 2026)
+    hoch = pg.evaluate("""() => [...document.querySelectorAll('.ib-band__teil')].map(t =>
+      [t.offsetHeight, t.scrollHeight, t.parentElement.clientHeight])""")
+    pruefe(all(h[0] <= h[1] + 1 for h in hoch) and hoch[0][0] < hoch[0][2], "Bereiche nur so hoch wie nötig: %s" % hoch)
     pruefe(not pf, "keine Skriptfehler: %s" % pf[:2])
     br.close()
 print("Fehler: " + ("keine" if not fehler else "; ".join(fehler)))
