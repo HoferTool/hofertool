@@ -6,18 +6,21 @@
 //  (Kehrichtabfuhr, Papiersammlung …). Lädt alle fünf Minuten neu und
 //  rechnet nach Mitternacht von selbst den neuen Tag.
 // =================================================================
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { geburtstageLaden, geburtstageAufbereiten } from "../seiten/start/Karten.jsx";
 import { kalenderLaden, naechsteTermine, wannText, kalenderZeichen } from "../daten/kalender.js";
 
 const NEU_MS = 5 * 60 * 1000;
-const GEBURTSTAGE = 4;
+// Seit 1.243.0 bis zu acht je Seite: das Band wächst mit, die Dokumente
+// darunter rutschen nach unten (Tafel.jsx, teileUnterBand)
+const GEBURTSTAGE = 8;
 const GEBURTSTAGE_TAGE = 30;
-const TERMINE = 4;
+const TERMINE = 8;
 const TERMINE_TAGE = 30;
 
-export default function KopfBand({ top, left, breite, hoehe }) {
+export default function KopfBand({ top, left, breite, hoehe, hoeheMelden }) {
+  const band = useRef(null);
   const [leute, setLeute] = useState(null);
   const [kalender, setKalender] = useState(null);
   const [heute, setHeute] = useState(() => alt.isoDatum(new Date()));
@@ -47,8 +50,23 @@ export default function KopfBand({ top, left, breite, hoehe }) {
   const termine = naechsteTermine(kalender, TERMINE_TAGE, heute)
     .filter((t) => !gesehen.has(t.eintrag.id) && gesehen.add(t.eintrag.id)).slice(0, TERMINE);
 
+  // Die Tafel muss wissen, wie hoch das Band gerade wirklich ist, damit
+  // sie die Dokumente darunter schieben kann (Wunsch Patrick 28. Oktober
+  // 2026: „sonst ist dieser von den Dokumenten verdeckt“)
+  useLayoutEffect(() => {
+    const el = band.current;
+    if (!el || !hoeheMelden) return;
+    const melden = () => hoeheMelden(el.offsetHeight);
+    melden();
+    const ro = new ResizeObserver(melden);
+    ro.observe(el);
+    return () => { ro.disconnect(); hoeheMelden(0); };
+  }, [hoeheMelden, heute]);
+
+  // Ohne feste Höhe: das Band wächst mit seinen Einträgen, hoehe ist nur
+  // die Mindesthöhe, die beim Einbau für das Band vorgesehen war
   return (
-    <section className="ib-band" data-ib="band" key={heute} style={{ top, left, width: breite, height: hoehe }}>
+    <section className="ib-band" data-ib="band" key={heute} ref={band} style={{ top, left, width: breite, minHeight: hoehe }}>
       <div className="ib-band__teil" data-ib="band-geburtstage">
         <h2 className="ib-band__titel">🎂 Geburtstage</h2>
         {leute && !geb.length && <p className="ib-band__leer">Keine Geburtstage in den nächsten {GEBURTSTAGE_TAGE} Tagen.</p>}

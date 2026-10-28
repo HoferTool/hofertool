@@ -73,5 +73,30 @@ with sync_playwright() as p:
       [t.offsetHeight, t.scrollHeight, t.parentElement.clientHeight])""")
     pruefe(all(h[0] <= h[1] + 1 for h in hoch) and hoch[0][0] < hoch[0][2], "Bereiche nur so hoch wie nötig: %s" % hoch)
     pruefe(not pf, "keine Skriptfehler: %s" % pf[:2])
+    pg.close()
+
+    # Wächst das Band, rutschen die Dokumente darunter mit (seit 1.243.0,
+    # Wunsch Patrick 28. Oktober 2026): acht Termine, Teile direkt bei 622
+    viele = ",".join("{ id: 'v%d', titel: 'Termin %d', datum: '%s', wiederholung: 'nie' }"
+                     % (i, i, (heute + timedelta(days=i + 1)).isoformat()) for i in range(8))
+    MIT += """;
+TEST.daten.kalender = [%s];
+TEST.daten.infoboard = [{ id: 'haupt', geaendert_am: '2026-10-28T06:00:00Z', aufbau: { frei: true, teile: [
+  { id: 'a', art: 'text', html: 'Oben', x: 12, y: 630, w: 344, h: 486 },
+  { id: 'b', art: 'text', html: 'Unten', x: 724, y: 1420, w: 344, h: 486 } ] } }];
+""" % viele
+    pg, pf = seite(br, "?bildschirm=infoboard")
+    pg.wait_for_selector("#infoboard [data-ib='band']", timeout=15000); pg.wait_for_timeout(1500)
+    z = pg.locator("[data-ib='band-termine'] .ib-band__zeile").count()
+    pruefe(z == 8, "acht Termine im Band: %d" % z)
+    l = pg.evaluate("""() => { const b = document.querySelector('.ib-band'), bl = document.querySelector('.ib-blatt');
+      const t = [...document.querySelectorAll('[data-ibteil]')].map(e => [e.offsetTop, e.offsetTop + e.offsetHeight, e.offsetLeft]);
+      return { band: b.offsetTop + b.offsetHeight, teile: t, hoehe: bl.offsetHeight,
+        abgeschnitten: [...b.querySelectorAll('.ib-band__teil')].some(x => x.scrollHeight > x.clientHeight + 1) }; }""")
+    pruefe(l["band"] > 622 and not l["abgeschnitten"], "Band gewachsen, nichts abgeschnitten: %s" % l)
+    pruefe(all(t[0] >= l["band"] for t in l["teile"]), "kein Dokument über dem Band: %s" % l)
+    pruefe(all(t[1] <= l["hoehe"] for t in l["teile"]), "Dokumente bleiben auf der Tafel: %s" % l)
+    if os.environ.get("BILD2"): pg.screenshot(path=os.environ["BILD2"])
+    pruefe(not pf, "keine Skriptfehler: %s" % pf[:2])
     br.close()
 print("Fehler: " + ("keine" if not fehler else "; ".join(fehler)))

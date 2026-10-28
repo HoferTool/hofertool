@@ -57,6 +57,27 @@ function drehungRunden(g) {
   return d;
 }
 
+// Wächst das Band mit Geburtstagen und Terminen über den Platz hinaus,
+// den die Dokumente frei lassen, rutschen alle Teile zusammen nach unten,
+// und reicht der Platz bis zum unteren Rand nicht, werden sie gemeinsam
+// verkleinert, mittig wie vorher (Wunsch Patrick 28. Oktober 2026: „sonst
+// ist dieser von den Dokumenten verdeckt“). Nur für die Anzeige, der
+// gespeicherte Aufbau bleibt, wie er ist; wird das Band wieder kleiner,
+// stehen die Teile wieder an ihrem Platz.
+export function teileUnterBand(teile, oben, mass) {
+  if (!teile.length) return teile;
+  const minY = Math.min(...teile.map((t) => t.y));
+  if (minY >= oben) return teile;
+  const maxB = Math.max(...teile.map((t) => t.y + t.h));
+  const d = oben - minY;
+  if (maxB + d <= mass.hoehe) return teile.map((t) => ({ ...t, y: t.y + d }));
+  // Unten bleibt der Abstand zum Rand wie im Aufbau
+  const unten = Math.min(maxB, mass.hoehe);
+  const s = Math.max(0.2, (unten - oben) / (maxB - minY));
+  const mitte = mass.breite / 2;
+  return teile.map((t) => ({ ...t, x: mitte + (t.x - mitte) * s, y: oben + (t.y - minY) * s, w: t.w * s, h: t.h * s }));
+}
+
 // Die Tafel: Kopf oben fest, darauf frei liegende Teile. In der
 // Gestaltung verschiebt man ein Teil durch Ziehen, die Ecke unten rechts
 // ändert die Grösse (Seitenverhältnis bleibt, damit nichts verzerrt), der
@@ -70,6 +91,12 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
   const k = useMassstab(rahmen, mass);
   const [zug, setZug] = useState(null);       // { id, x, y, w, h, drehung } während des Ziehens
   const [ziel, setZiel] = useState(false);
+  const [bandHoehe, setBandHoehe] = useState(0);
+  // In der Gestaltung stehen die Teile dort, wo sie gespeichert sind, sonst
+  // passten Ziehen und Ablegen nicht mehr zur Maus
+  const bandOben = mass.band > 0 ? mass.kopf - mass.band : 0;
+  const teile = useMemo(() => (bearbeiten || !bandHoehe ? aufbau.teile
+    : teileUnterBand(aufbau.teile, bandOben + bandHoehe + LUECKE, mass)), [aufbau.teile, bearbeiten, bandHoehe, bandOben, mass]);
 
   const greifen = (e, t, art) => {
     if (!bearbeiten || e.button > 0) return;
@@ -151,10 +178,10 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
         onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>
         {mass.ruhig ? <EmpfangKopf farbe={farben.kopf} logo={aufbau.logo} logoSetzen={bearbeiten ? logoSetzen : null} k={k} hoehe={mass.kopf - 2 * LUECKE} breite={mass.breite - 2 * LUECKE} top={LUECKE} left={LUECKE} />
           : <Kopf />}
-        {mass.band > 0 && <KopfBand top={mass.kopf - mass.band} left={LUECKE} breite={mass.breite - 2 * LUECKE} hoehe={mass.band - LUECKE} />}
+        {mass.band > 0 && <KopfBand top={bandOben} left={LUECKE} breite={mass.breite - 2 * LUECKE} hoehe={mass.band - LUECKE} hoeheMelden={setBandHoehe} />}
         {mass.ruhig && (aufbau.effekte || effektProbe) && <Alpen breite={mass.breite} hoehe={mass.hoehe} oben={mass.kopf} />}
         {nacht && !mass.ruhig && <Huehnerhimmel />}
-        {(!nacht || mass.ruhig) && aufbau.teile.map((t0) => {
+        {(!nacht || mass.ruhig) && teile.map((t0) => {
           const t = zug && zug.id === t0.id ? { ...t0, ...zug } : t0;
           const format = t.w > t.h ? "a3" : "a4";
           const an = bearbeiten && gewaehlt === t.id;
