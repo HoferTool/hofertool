@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.245.1** (28. Oktober 2026) Empfang: Alpenkette wieder genau wie in 1.237.0 (Patrick: „ich will die erste ursprüngliche Variante“).
 - **1.245.0** (28. Oktober 2026) Empfang: Alpenkette **grafisch** statt gemalt (Patrick: „gefällt mir nicht … weniger markant und stilistischer“): flache Schichten in sanften Tönen, gerade Kanten, Schneekappen mit Zickzack, unten weich ausgeblendet, wieder als SVG.
 - **1.244.0** (28. Oktober 2026) Empfang: die **Alpenkette realistischer** (Wunsch Patrick: „kannst du die berge etwas realistischer darstellen“): statt glatter Flächen einmal Punkt für Punkt auf eine Leinwand gemalt, Grate mit Zacken in jeder Grösse, Fels mit senkrechten Rinnen aus Rauschen, Licht von links mit Schattenflanken rechts der Gipfel, Schnee nur oben und in Flecken, Dunst gegen unten; halbe Auflösung, weil es schemenhaft bleiben soll und der Samsung-Bildschirm langsam ist.
 - **1.242.3** (28. Oktober 2026) Infoboard und Empfang holen neue Fassungen sicherer (Patrick: „der PC Infoboard aktualisiert nicht“): ein offenes Fenster hinter der Anzeige hält das Neuladen nicht mehr auf, neu geladen wird über `?fassung=…` statt aus dem Zwischenspeicher von GitHub Pages, zweiter Versuch nach drei Minuten.
