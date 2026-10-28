@@ -23,7 +23,7 @@ def seite(br, rolle, url):
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     pg, pf = seite(br, "mitarbeiter", "#/kalender")
-    pg.wait_for_selector("#kal-naechste", timeout=15000); pg.wait_for_timeout(500)
+    pg.wait_for_selector("#kal-alle", timeout=15000); pg.wait_for_timeout(500)
     pruefe(pg.locator("#kal-neu").count() == 1, "Mitarbeiter: Knopf Termin eintragen")
     pruefe(pg.locator("[data-nav='infoboard']").count() > 0, "Mitarbeiter: Infoboard im Menü")
     pg.evaluate("location.hash = '#/infoboard'"); pg.wait_for_timeout(1500)
@@ -34,7 +34,7 @@ with sync_playwright() as p:
 
     pg, pf = seite(br, "extern", "#/kalender")
     pg.wait_for_timeout(3000)
-    pruefe(pg.locator("#kal-naechste").count() == 0, "Extern: kein Kalender")
+    pruefe(pg.locator("#kal-alle").count() == 0, "Extern: kein Kalender")
     pruefe(pg.locator("[data-nav='infoboard']").count() == 0 and pg.locator("[data-nav='kalender']").count() == 0, "Extern: nichts im Menü")
     pg.close()
     br.close()
