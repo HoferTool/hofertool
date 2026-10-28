@@ -29,11 +29,10 @@ def seite(p, url):
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     pg, pf = seite(br, "#/kalender")
-    pg.wait_for_selector("#kal-naechste"); pg.wait_for_timeout(800)
-    t = pg.inner_text("#kal-naechste")
-    pruefe("Heute" in t and "Kehrichtabfuhr" in t, "wöchentliche Abfuhr heute in den nächsten Tagen")
-    pruefe(t.count("Kehrichtabfuhr") >= 8, "jede Woche einmal in 60 Tagen: %d" % t.count("Kehrichtabfuhr"))
-    pruefe("wird 41" in t, "Geburtstag steht im Kalender")
+    pg.wait_for_selector("#kal-alle"); pg.wait_for_timeout(800)
+    # Keine Übersicht der nächsten 60 Tage mehr (seit 1.242.0)
+    pruefe(pg.locator("#kal-naechste").count() == 0, "keine Übersicht der nächsten 60 Tage")
+    pruefe("Kehrichtabfuhr" in pg.inner_text("#kal-alle"), "Eintrag in der Liste")
     pruefe(pg.locator("[data-nav='kalender']").count() > 0, "Kalender im Menü")
     # Neuer Termin, alle 2 Wochen
     pg.click("#kal-neu"); pg.wait_for_selector(".dialog-huelle input")

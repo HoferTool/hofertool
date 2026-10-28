@@ -2,21 +2,17 @@
 //  KALENDER
 //  Eigene Seite im Menü für wichtige Termine wie Kehrichtabfuhr,
 //  Papiersammlung oder Papierkörbe leeren (Wunsch Patrick 28. Oktober
-//  2026). Oben die nächsten Termine samt Geburtstagen, darunter alle
-//  Einträge zum Ändern. Dieselben Termine stehen auf dem Infoboard unter
+//  2026). Alle Einträge zum Ändern; die Übersicht der nächsten 60 Tage
+//  ist seit 1.242.0 weg (Wunsch Patrick 28. Oktober 2026: „nicht nötig“). Dieselben Termine stehen auf dem Infoboard unter
 //  der Solaranlage. Nicht für Externe.
 // =================================================================
 import { alt, useDaten } from "../bruecke.jsx";
-import { kalenderLaden, naechsteTermine, wannText, kalenderZeichen, WIEDERHOLUNG,
+import { kalenderLaden, kalenderZeichen, WIEDERHOLUNG,
   wiederholungText, fehltKalender } from "../daten/kalender.js";
-import { geburtstageLaden, geburtstageAufbereiten } from "./start/Karten.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
-
-const TAGE = 60;
 
 export default function Kalender({ auffrischen }) {
   const { daten: liste, fehler, neu } = useDaten(kalenderLaden, [auffrischen]);
-  const geb = useDaten(geburtstageLaden, [auffrischen]);
   // Eintragen dürfen alle ausser Externen und dem Dienstkonto, auch ohne
   // Schreibrecht (Wunsch Patrick 28. Oktober 2026: „sollen alle bearbeiten
   // können, ausser die Externen“)
@@ -30,15 +26,6 @@ export default function Kalender({ auffrischen }) {
     springen: (x) => hinzeigen('[data-kal="' + x.id + '"]'),
   });
 
-  // Termine und Geburtstage der nächsten 60 Tage zusammen, nach Datum
-  const termine = liste ? naechsteTermine(liste, TAGE).map((t) => ({
-    datum: t.datum, tage: t.tage, zeichen: kalenderZeichen(t.eintrag.titel),
-    titel: t.eintrag.titel, notiz: t.eintrag.notiz, schluessel: t.eintrag.id + t.datum })) : [];
-  geburtstageAufbereiten(geb.daten).filter((m) => m.tage <= TAGE).forEach((m) => termine.push({
-    datum: m.datum, tage: m.tage, zeichen: "🎂", titel: m.name + " wird " + m.alter,
-    schluessel: "g" + m.name + m.datum, geburtstag: true }));
-  termine.sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
-
   return (
     <>
       <h1 className="seitentitel">Kalender</h1>
@@ -49,21 +36,6 @@ export default function Kalender({ auffrischen }) {
             ? "Der Kalender braucht noch die Datei kalender.sql in Supabase." : alt.fehlertext(fehler)}</p></div>
         : !liste ? <div className="laedt">Wird geladen …</div>
         : <>
-            <section className="karte" id="kal-naechste">
-              <div className="karte__kopf"><h2>Die nächsten {TAGE} Tage</h2></div>
-              {!termine.length
-                ? <p className="hinweis">Keine Termine in den nächsten {TAGE} Tagen.</p>
-                : <div className="kal-liste">
-                    {termine.map((t) => (
-                      <div className={"kal-zeile" + (t.tage === 0 ? " kal-zeile--heute" : "")} key={t.schluessel}>
-                        <span className="kal-zeile__wann">{wannText(t)}</span>
-                        <span className="kal-zeile__zeichen">{t.zeichen}</span>
-                        <span className="kal-zeile__was">{t.titel}
-                          {t.notiz && <span className="klein"> · {t.notiz}</span>}</span>
-                      </div>
-                    ))}
-                  </div>}
-            </section>
             <section className="karte" id="kal-alle">
               <div className="karte__kopf"><h2>Alle Einträge</h2><span className="klein">{liste.length}</span></div>
               {!liste.length
