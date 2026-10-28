@@ -33,6 +33,7 @@ with sync_playwright() as p:
     # Keine Übersicht der nächsten 60 Tage mehr (seit 1.242.0)
     pruefe(pg.locator("#kal-naechste").count() == 0, "keine Übersicht der nächsten 60 Tage")
     pruefe("Kehrichtabfuhr" in pg.inner_text("#kal-alle"), "Eintrag in der Liste")
+    pruefe("Infoboard bei der Stempeluhr" in pg.inner_text("#kal-info"), "Hinweis aufs Infoboard")
     pruefe(pg.locator("[data-nav='kalender']").count() > 0, "Kalender im Menü")
     # Neuer Termin, alle 2 Wochen
     pg.click("#kal-neu"); pg.wait_for_selector(".dialog-huelle input")

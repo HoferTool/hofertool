@@ -29,6 +29,8 @@ export default function Kalender({ auffrischen }) {
   return (
     <>
       <h1 className="seitentitel">Kalender</h1>
+      {/* Wunsch Patrick 28. Oktober 2026: sagen, wo die Termine sonst noch stehen */}
+      <p className="hinweis" id="kal-info">ℹ️ Diese Termine erscheinen auf dem Infoboard bei der Stempeluhr.</p>
       {darf && <button className="knopf knopf--haupt knopf--breit" id="kal-neu"
         onClick={() => eintragDialog(null, neu)}>+ Termin eintragen</button>}
       {fehler && !liste
