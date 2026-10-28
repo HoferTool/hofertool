@@ -124,15 +124,28 @@ function farbenMerken(el) {
   });
 }
 
+// Helligkeit einer Farbe #rrggbb (wahrgenommen), unter der Hälfte = dunkel
+function istDunkel(farbe) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(farbe || "");
+  if (!m) return false;
+  const [r, g, b] = m.slice(1).map((x) => parseInt(x, 16));
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128;
+}
+
 // ---------- Anzeige ----------
 // Das Blatt in echten Massen, eingepasst auf breite × hoehe Punkte der Tafel
 // ohneGrund: Text frei auf der Tafel, ohne weisses Blatt und ohne Rand
 // (Wunsch Patrick 26. Oktober 2026: „Text ohne Hintergrund direkt platzieren“);
 // grund ist dann die Farbe der Tafel, damit man im Fenster sieht, wie es wirkt
+// tafel: Farbe der Tafel dahinter; ist sie dunkel (Infoboard), ist die
+// Schrift ohne Hintergrund von selbst weiss, sonst stünde schwarz auf
+// Dunkelblau (Wunsch Patrick 28. Oktober 2026: „im Infoboard auch Text ohne
+// Hintergrund wie beim Empfang“); eine von Hand gewählte Farbe bleibt (--tf)
 // wachsen: das Blatt wird mit dem Text länger, über mehrere A4-Seiten
 // (eigene Maschinen-Notizen, seit 1.221.0); die gestrichelten Linien
 // zeigen ungefähr, wo im PDF eine neue Seite beginnt
-export function TextBlatt({ html, format, breite, hoehe, bearbeiten, innenRef, onInput, ohneGrund, grund, wachsen }) {
+export function TextBlatt({ html, format, breite, hoehe, bearbeiten, innenRef, onInput, ohneGrund, grund, tafel, wachsen }) {
+  const schrift = ohneGrund && istDunkel(tafel || grund) ? "#ffffff" : undefined;
   const [bw] = BLATT_MM[format] || BLATT_MM.a4;
   const k = breite / (bw * MM);
   const eigen = useRef(null);
@@ -155,7 +168,7 @@ export function TextBlatt({ html, format, breite, hoehe, bearbeiten, innenRef, o
   return (
     <div className={"ib-text" + (ohneGrund ? " ib-text--ohne-grund" : "") + (wachsen ? " ib-text--wachsen" : "")}
       style={{ width: breite, height: wachsen ? Math.max(hoehe, lang) : hoehe,
-        background: ohneGrund ? grund || "transparent" : undefined }}>
+        background: ohneGrund ? grund || "transparent" : undefined, "--tf": schrift }}>
       <div ref={el} className="ib-text__blatt" contentEditable={bearbeiten || undefined}
         suppressContentEditableWarning spellCheck={bearbeiten ? true : undefined} onInput={onInput}
         style={{ width: bw * MM, height: wachsen ? "auto" : hoehe / k, minHeight: wachsen ? hoehe / k : undefined,

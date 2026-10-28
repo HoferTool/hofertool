@@ -164,7 +164,7 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
                 transform: t.drehung ? "rotate(" + t.drehung + "deg)" : undefined }}>
               <div className={"ib-feld ib-feld--" + format + " ib-feld--" + t.art + (t.art === "text" && t.ohneGrund ? " ib-feld--ohne-grund" : "")
                 + (t.art === "datei" && t.datei && t.datei.typ === "bild" ? " ib-feld--bild" : "")}>
-                <FeldInhalt feld={t} format={format} bearbeiten={bearbeiten} grossZiel={grossZiel}
+                <FeldInhalt feld={t} format={format} bearbeiten={bearbeiten} grossZiel={grossZiel} grund={farben.grund}
                   breite={t.w} hoehe={t.h} />
               </div>
               {bearbeiten && <>
@@ -230,8 +230,8 @@ function Kopf() {
   );
 }
 
-function FeldInhalt({ feld, format, bearbeiten, grossZiel, breite, hoehe }) {
-  if (feld.art === "text") return <TextBlatt html={feld.html} format={format} breite={breite} hoehe={hoehe} ohneGrund={!!feld.ohneGrund} />;
+function FeldInhalt({ feld, format, bearbeiten, grossZiel, breite, hoehe, grund }) {
+  if (feld.art === "text") return <TextBlatt html={feld.html} format={format} breite={breite} hoehe={hoehe} ohneGrund={!!feld.ohneGrund} tafel={grund} />;
   if (feld.art === "skizze") {
     return (
       <div className="ib-skizze">
