@@ -41,6 +41,8 @@ with sync_playwright() as p:
     pg.wait_for_selector("#infoboard", timeout=15000)
     pruefe(True, "Infoboard-Anzeige geht auf")
     pg.evaluate("window.__alt = 1")
+    # Ein vergessenes Fenster hinter der Anzeige hält nichts auf (1.242.3)
+    pg.evaluate("""() => { const d = document.createElement('div'); d.className = 'dialog-huelle'; document.body.appendChild(d); }""")
     # Gleiche Fassung: nichts passiert
     pg.clock.run_for(130000); pg.wait_for_timeout(800)
     pruefe(pg.evaluate("window.__alt === 1"), "gleiche Fassung: kein Neuladen")
@@ -53,19 +55,21 @@ with sync_playwright() as p:
     pg.clock.run_for(3000)
     pg.wait_for_selector("#infoboard", timeout=15000)
     pruefe(True, "nach dem Neuladen wieder die Anzeige")
+    pruefe(any("fassung=NEU123" in u for u in frisch), "neu geladen mit ?fassung= in der Adresse")
+    pruefe("fassung=" not in pg.url and "bildschirm=infoboard" in pg.url, "Zusatz danach wieder weg: " + pg.url)
     # Kam doch die alte Seite: nicht im Kreis, erst nach zehn Minuten wieder
     pg.evaluate("window.__alt = 2")
-    pg.clock.run_for(6 * 60000); pg.wait_for_timeout(800)
+    pg.clock.run_for(90000); pg.wait_for_timeout(800)
     pruefe(pg.evaluate("window.__alt === 2"), "nicht gleich wieder neu geladen")
     pruefe(pg.locator("#infoboard").count() == 1, "Anzeige bleibt offen, keine Abmeldung")
     # Zehn Minuten nach dem letzten Versuch: noch einmal
     pg.evaluate("""() => { const [f] = sessionStorage.getItem('hofer.fassung.bildschirm').split('|');
-      sessionStorage.setItem('hofer.fassung.bildschirm', f + '|' + (Date.now() - 11 * 60000)); }""")
+      sessionStorage.setItem('hofer.fassung.bildschirm', f + '|' + (Date.now() - 4 * 60000)); }""")
     for _ in range(12):
         if pg.evaluate("window.__alt === undefined"): break
         pg.clock.run_for(20000); pg.wait_for_timeout(1000)
     pg.wait_for_function("window.__alt === undefined", timeout=20000)
-    pruefe(True, "nach zehn Minuten noch ein Versuch")
+    pruefe(True, "nach drei Minuten noch ein Versuch")
     pruefe(not pf, "keine Skriptfehler: %s" % pf[:3])
     br.close()
 print("Fehler: " + ("keine" if not fehler else "; ".join(fehler)))

@@ -148,7 +148,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.242.2";
+const APP_VERSION = "1.242.3";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1211,7 +1211,7 @@ const NEULADEN_FENSTER_RUHIG = ["betrachter", "dok", "wetter", "hoco"];
 function neuladenRuhig() {
   // Der Bildschirm im Gang (Infoboard, Empfang) wird nie bedient: dort
   // zählen weder Ruhe noch Schreibmarke, nur Netz und kein offenes Fenster
-  if (bildschirmZeigt()) return navigator.onLine !== false && !document.querySelector(".dialog-huelle");
+  if (bildschirmZeigt()) return navigator.onLine !== false;
   if (document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return false;
   if (document.querySelector(".temp__liste--laeuft")) return false; // Temp-Ordner lädt hoch
   if (eigeneFensterOffen()) return false; // Auftragsfenster auf einem anderen Bildschirm
@@ -1240,18 +1240,44 @@ setInterval(stuendlichNeuLaden, 60000);
 // Statt bis zum stündlichen Neuladen zu warten, schauen sie alle zwei
 // Minuten nach, ob eine neue Fassung draussen ist, und laden dann gleich
 // neu (Wunsch Patrick 26. Oktober 2026). Klappt das Neuladen nicht (alte
-// Seite kam doch wieder), versucht es der Bildschirm nach zehn Minuten
+// Seite kam doch wieder), versucht es der Bildschirm nach drei Minuten
 // noch einmal, statt wie ein normaler Tab für immer aufzugeben.
+//
+// Seit 1.242.3 (Patrick 28. Oktober 2026: „der PC Infoboard aktualisiert
+// nicht“): Ein offenes Fenster hinter der Anzeige hält nichts mehr auf,
+// am Bildschirm schliesst es ja niemand. Und neu geladen wird über eine
+// Adresse mit der neuen Fassung (?fassung=…): GitHub Pages und der Browser
+// haben die Seite ohne Zusatz bis zehn Minuten zwischengespeichert, nach
+// kurz hintereinander ausgelieferten Fassungen kam so immer wieder die
+// alte Seite. Eine neue Adresse kommt sicher frisch vom Server.
 const BILDSCHIRM_TAKT = 2 * 60 * 1000;
-const BILDSCHIRM_NOCHMAL = 10 * 60 * 1000;
+const BILDSCHIRM_NOCHMAL = 3 * 60 * 1000;
 const BILDSCHIRM_NEULADEN = "hofer.fassung.bildschirm";
 
 function bildschirmZeigt() {
   return !ARCHIV && !!document.getElementById("infoboard");
 }
 
+// Die Adresse mit ?fassung=… zum Neuladen, alles andere (bildschirm=…,
+// die Seite im Hash) bleibt
+function adresseMitFassung(fassung) {
+  const u = new URL(location.href);
+  u.searchParams.set("fassung", fassung.replace(/^index-|\.js$/g, ""));
+  return u.href;
+}
+
+// Nach dem Laden den Zusatz wieder aus der Adresse nehmen, damit er nicht
+// beim nächsten Mal mitgeht
+try {
+  const u = new URL(location.href);
+  if (u.searchParams.has("fassung")) {
+    u.searchParams.delete("fassung");
+    history.replaceState(history.state, "", u.href);
+  }
+} catch (f) { /* egal */ }
+
 async function bildschirmFassung() {
-  if (!bildschirmZeigt() || document.querySelector(".dialog-huelle")) return;
+  if (!bildschirmZeigt()) return;
   const eigene = eigeneFassung();
   const server = eigene && await fassungAufServer();
   if (!server || server === eigene || !bildschirmZeigt()) return;
@@ -1261,7 +1287,7 @@ async function bildschirmFassung() {
     sessionStorage.setItem(BILDSCHIRM_NEULADEN, server + "|" + Date.now());
   } catch (f) { /* ohne Speicher trotzdem neu laden */ }
   await seiteFrischHolen();
-  location.reload();
+  location.replace(adresseMitFassung(server));
 }
 setInterval(bildschirmFassung, BILDSCHIRM_TAKT);
 
