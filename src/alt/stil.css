@@ -10164,3 +10164,35 @@ h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }
   /* iPhone vergrössert die Seite beim Tippen in Felder unter 16 px */
   .kalk-suche { font-size: 16px; }
 }
+
+/* ---------- Infoboard: Band mit Geburtstagen und Terminen unter der
+   Solaranlage (seit 1.240.0, Wunsch Patrick 28. Oktober 2026). Masse in
+   Punkten der Tafel (1080 breit), gross genug für den Gang ---------- */
+.ib-band { position: absolute; display: grid; grid-template-columns: 1fr 1.25fr; gap: 12px;
+           color: #eef4ff; margin: 0; }
+.ib-band__teil { background: linear-gradient(140deg, #0f1b2e 0%, #132844 55%, #0d1826 100%);
+                 border-radius: 16px; padding: 12px 18px; min-width: 0; overflow: hidden; }
+.ib-band__titel { margin: 0 0 4px; font-size: 24px; line-height: 1.2; color: #fff; }
+.ib-band__zeile { display: flex; align-items: center; gap: 10px; height: 29px;
+                  font-size: 21px; border-top: 1px solid rgba(255,255,255,.08); min-width: 0; }
+.ib-band__titel + .ib-band__zeile { border-top: 0; }
+.ib-band__zeile--heute { color: #ffd166; font-weight: 700; }
+.ib-band__bild { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex: none; }
+.ib-band__bild--leer { display: inline-flex; align-items: center; justify-content: center;
+                       background: #28456e; color: #fff; font-weight: 700; font-size: 14px; }
+.ib-band__zeichen { width: 26px; text-align: center; font-size: 21px; flex: none; }
+.ib-band__was { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ib-band__klein { color: #8fa6c6; font-weight: 400; font-size: 17px; }
+.ib-band__wann { flex: none; color: #b9cbe6; font-variant-numeric: tabular-nums; }
+.ib-band__zeile--heute .ib-band__wann { color: #ffd166; }
+.ib-band__leer { margin: 6px 0; color: #8fa6c6; font-size: 19px; }
+
+/* ---------- Seite Kalender (seit 1.240.0) ---------- */
+.kal-liste { display: flex; flex-direction: column; }
+.kal-zeile { display: flex; align-items: baseline; gap: 10px; padding: 7px 0;
+             border-top: 1px solid var(--linie, rgba(127,127,127,.2)); }
+.kal-zeile:first-child { border-top: 0; }
+.kal-zeile--heute { font-weight: 700; }
+.kal-zeile__wann { width: 92px; flex: none; font-variant-numeric: tabular-nums; }
+.kal-zeile__zeichen { width: 28px; flex: none; text-align: center; font-size: 18px; }
+.kal-zeile__was { flex: 1; min-width: 0; }

@@ -16,6 +16,7 @@ import { Uhr, Wetter, Solaranlage } from "../seiten/Start.jsx";
 import Durchfahrt from "../seiten/start/Durchfahrt.jsx";
 import Huehnerhimmel from "./Nacht.jsx";
 import EmpfangKopf from "./EmpfangKopf.jsx";
+import KopfBand from "./KopfBand.jsx";
 import Wetterhimmel from "./Wetterhimmel.jsx";
 import Alpen from "./Alpen.jsx";
 import { pdfjs } from "../teile/PdfAnsicht.jsx";
@@ -150,6 +151,7 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
         onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>
         {mass.ruhig ? <EmpfangKopf farbe={farben.kopf} logo={aufbau.logo} logoSetzen={bearbeiten ? logoSetzen : null} k={k} hoehe={mass.kopf - 2 * LUECKE} breite={mass.breite - 2 * LUECKE} top={LUECKE} left={LUECKE} />
           : <Kopf />}
+        {mass.band > 0 && <KopfBand top={mass.kopf - mass.band} left={LUECKE} breite={mass.breite - 2 * LUECKE} hoehe={mass.band - LUECKE} />}
         {mass.ruhig && (aufbau.effekte || effektProbe) && <Alpen breite={mass.breite} hoehe={mass.hoehe} oben={mass.kopf} />}
         {nacht && !mass.ruhig && <Huehnerhimmel />}
         {(!nacht || mass.ruhig) && aufbau.teile.map((t0) => {
@@ -197,7 +199,8 @@ function Kopf() {
   const mass = useTafelMass();
   const innen = useRef(null);
   const [k, setK] = useState(1);
-  const hoehe = mass.kopf - 2 * LUECKE;
+  // Das Band mit Geburtstagen und Terminen hat seinen eigenen Platz darunter
+  const hoehe = mass.kopf - (mass.band || 0) - 2 * LUECKE;
   useLayoutEffect(() => {
     const el = innen.current;
     if (!el) return;

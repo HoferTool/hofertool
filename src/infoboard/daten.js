@@ -41,6 +41,9 @@ export const FELD_B = (BREITE - (SPALTEN + 1) * LUECKE) / SPALTEN;   // 344
 export const FELD_H = Math.round(FELD_B * Math.SQRT2);              // 486
 // Kopf mit Logo, Uhr, Wetter und Solaranlage: der Rest oben
 export const KOPF_H = HOEHE - REIHEN * (FELD_H + LUECKE);           // 426
+// Darunter seit 1.240.0 das Band mit Geburtstagen und Terminen (KopfBand.jsx,
+// Wunsch Patrick 28. Oktober 2026); die Teile beginnen erst darunter
+export const BAND_H = 196;
 // Höhe durch Breite für die Zeichenfläche: A4 hochkant, A3 quer
 export const BLATT = { a4: FELD_H / FELD_B, a3: FELD_H / (2 * FELD_B + LUECKE) };
 export const FORMATE = ["a4", "a3l", "a3r"];
@@ -52,7 +55,7 @@ export const SEKUNDEN = 20;
 // Punkte gross, weil der Browser der Samsung-Bildschirme höchstens Full HD
 // zeichnet: so ist jeder Punkt ein Pixel und nichts wird unscharf verkleinert.
 export const TAFELN = {
-  haupt: { id: "haupt", name: "Infoboard", seite: "infoboard", breite: BREITE, hoehe: HOEHE, kopf: KOPF_H,
+  haupt: { id: "haupt", name: "Infoboard", seite: "infoboard", breite: BREITE, hoehe: HOEHE, kopf: KOPF_H + BAND_H, band: BAND_H,
     geraet: "hofer.infoboard.geraet", grund: "#0b1626" },
   // ruhig: eigener heller Kopf ohne Wellen und Jetski, nachts keine Hühner
   // (Wunsch Patrick 26. Oktober 2026: „keine durchlaufenden Animationen“)

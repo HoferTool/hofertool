@@ -253,7 +253,7 @@ function NutzerInfos({ u, status, bin }) {
 function startSeiten(u) {
   return (alt.SEITEN || []).filter((x) => {
     if (x.pfad === "dashboard") return false;
-    if (u.role === "dienst" && ["material", "qs", "maschinen", "statistik"].includes(x.pfad)) return false;
+    if (u.role === "dienst" && ["material", "qs", "maschinen", "statistik", "kalender"].includes(x.pfad)) return false;
     if (x.pfad === "infoboard") return u.role === "admin" || istAndererNutzer(u);
     if (x.pfad === "empfang") return u.role === "admin" && !!(u.einstellungen && u.einstellungen.empfangSehen);
     return true;
