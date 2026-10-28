@@ -14,8 +14,8 @@ def pruefe(ok, text):
 heute = datetime.now().date()
 MIT = FAKE + """;
 TEST.daten.kalender = [{ id: 'k1', titel: 'Kehrichtabfuhr', datum: '%s', wiederholung: 'woche', notiz: 'bis 7 Uhr' }];
-TEST.daten.profiles.forEach((x, i) => { x.geburtstag = i === 0 ? '1985-%s' : null; });
-""" % ((heute - timedelta(days=14)).isoformat(), heute.strftime("%m-%d"))
+TEST.daten.profiles.forEach((x, i) => { x.geburtstag = i === 0 ? '1985-%s' : i === 1 ? '1990-%s' : null; });
+""" % ((heute - timedelta(days=14)).isoformat(), heute.strftime("%m-%d"), (heute + timedelta(days=60)).strftime("%m-%d"))
 
 def seite(p, url):
     pg = p.new_page(viewport={"width": 1080, "height": 1920})
@@ -55,6 +55,8 @@ with sync_playwright() as p:
     pruefe("Kehrichtabfuhr" in b and "bis 7 Uhr" in b, "Termine auf dem Infoboard")
     pruefe(b.count("Kehrichtabfuhr") == 1, "je Termin nur der nächste Tag")
     pruefe("Heute" in b and "wird 41" in b, "Geburtstag heute auf dem Infoboard")
+    gz = pg.locator("[data-ib='band-geburtstage'] .ib-band__zeile").count()
+    pruefe(gz == 1, "nur Geburtstage der nächsten 30 Tage, nicht in 60 Tagen: %d" % gz)
     lage = pg.evaluate("""() => { const t = document.querySelector('.ib-blatt'), k = document.querySelector('.ib-kopf'), b = document.querySelector('.ib-band');
       return [k.offsetTop + k.offsetHeight, b.offsetTop, b.offsetTop + b.offsetHeight, b.scrollHeight <= b.clientHeight + 1]; }""")
     pruefe(lage[0] <= lage[1] and lage[2] <= 622 and lage[3], "Band unter dem Kopf, passt in seinen Platz: %s" % lage)

@@ -13,6 +13,7 @@ import { kalenderLaden, naechsteTermine, wannText, kalenderZeichen } from "../da
 
 const NEU_MS = 5 * 60 * 1000;
 const GEBURTSTAGE = 4;
+const GEBURTSTAGE_TAGE = 30;
 const TERMINE = 4;
 const TERMINE_TAGE = 30;
 
@@ -37,10 +38,9 @@ export default function KopfBand({ top, left, breite, hoehe }) {
     return () => { gueltig = false; clearInterval(t); clearInterval(tag); };
   }, []);
 
-  // Wie auf der Startseite: alle innerhalb von 30 Tagen, sonst die nächsten
-  const alle = geburtstageAufbereiten(leute);
-  let geb = alle.filter((m) => m.tage <= 30).slice(0, GEBURTSTAGE);
-  if (geb.length < GEBURTSTAGE) geb = alle.slice(0, GEBURTSTAGE);
+  // Nur die nächsten 30 Tage, auch wenn dann weniger dastehen
+  // (Wunsch Patrick 28. Oktober 2026)
+  const geb = geburtstageAufbereiten(leute).filter((m) => m.tage <= GEBURTSTAGE_TAGE).slice(0, GEBURTSTAGE);
   // Je Eintrag nur der nächste Tag, sonst füllt die wöchentliche
   // Kehrichtabfuhr allein die Liste
   const gesehen = new Set();
@@ -51,7 +51,7 @@ export default function KopfBand({ top, left, breite, hoehe }) {
     <section className="ib-band" data-ib="band" key={heute} style={{ top, left, width: breite, height: hoehe }}>
       <div className="ib-band__teil" data-ib="band-geburtstage">
         <h2 className="ib-band__titel">🎂 Geburtstage</h2>
-        {leute && !geb.length && <p className="ib-band__leer">Keine hinterlegt.</p>}
+        {leute && !geb.length && <p className="ib-band__leer">Keine Geburtstage in den nächsten {GEBURTSTAGE_TAGE} Tagen.</p>}
         {geb.map((m, i) => (
           <div className={"ib-band__zeile" + (m.tage === 0 ? " ib-band__zeile--heute" : "")} key={m.name + i}>
             {m.bild
