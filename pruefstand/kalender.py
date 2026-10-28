@@ -60,6 +60,14 @@ with sync_playwright() as p:
     lage = pg.evaluate("""() => { const t = document.querySelector('.ib-blatt'), k = document.querySelector('.ib-kopf'), b = document.querySelector('.ib-band');
       return [k.offsetTop + k.offsetHeight, b.offsetTop, b.offsetTop + b.offsetHeight, b.scrollHeight <= b.clientHeight + 1]; }""")
     pruefe(lage[0] <= lage[1] and lage[2] <= 622 and lage[3], "Band unter dem Kopf, passt in seinen Platz: %s" % lage)
+    # Geburtstage nur so breit wie nötig, der Rest für die Termine (seit 1.241.1)
+    br2 = pg.evaluate("""() => { const g = document.querySelector("[data-ib='band-geburtstage']"), t = document.querySelector("[data-ib='band-termine']");
+      const ab = [...g.querySelectorAll('.ib-band__was')].some((e) => e.scrollWidth > e.clientWidth + 1);
+      const w = g.querySelector('.ib-band__was'), n = g.querySelector('.ib-band__wann');
+      return [g.offsetWidth, t.offsetWidth, ab, n.getBoundingClientRect().left - w.getBoundingClientRect().right]; }""")
+    pruefe(br2[0] < br2[1] and not br2[2] and br2[3] < 40, "Geburtstage schmal, Termine breit, nichts abgeschnitten: %s" % br2)
+    import os
+    if os.environ.get("BILD"): pg.locator("[data-ib='band']").screenshot(path=os.environ["BILD"])
     pruefe(not pf, "keine Skriptfehler: %s" % pf[:2])
     br.close()
 print("Fehler: " + ("keine" if not fehler else "; ".join(fehler)))

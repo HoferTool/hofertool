@@ -10168,8 +10168,11 @@ h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }
 /* ---------- Infoboard: Band mit Geburtstagen und Terminen unter der
    Solaranlage (seit 1.240.0, Wunsch Patrick 28. Oktober 2026). Masse in
    Punkten der Tafel (1080 breit), gross genug für den Gang ---------- */
-.ib-band { position: absolute; display: grid; grid-template-columns: 1fr 1.25fr; gap: 12px;
+.ib-band { position: absolute; display: grid; grid-template-columns: fit-content(55%) 1fr; gap: 12px;
            color: #eef4ff; margin: 0; }
+/* Geburtstage nur so breit wie nötig, der Rest gehört den Terminen
+   (seit 1.241.1, Wunsch Patrick 28. Oktober 2026) */
+.ib-band__teil[data-ib="band-geburtstage"] .ib-band__wann { margin-left: 14px; }
 .ib-band__teil { background: linear-gradient(140deg, #0f1b2e 0%, #132844 55%, #0d1826 100%);
                  border-radius: 16px; padding: 12px 18px; min-width: 0; overflow: hidden; }
 .ib-band__titel { margin: 0 0 4px; font-size: 24px; line-height: 1.2; color: #fff; }
