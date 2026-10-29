@@ -25,7 +25,8 @@ function offlineListe() {
       };
       sammeln(ziel);
       // Grosse Symbole und der Service Worker selbst gehören nicht hinein
-      const liste = alle.filter((d) => d !== "./sw.js" && !d.endsWith(".ico"));
+      // Bilder für Meldungen beim Anmelden braucht das Tablet nicht offline
+      const liste = alle.filter((d) => d !== "./sw.js" && !d.endsWith(".ico") && !d.startsWith("./meldungen/"));
       const sw = join(ziel, "sw.js");
       const text = readFileSync(sw, "utf8");
       // Die Fassung ergibt sich aus den Dateinamen: Ändert sich etwas,
