@@ -128,6 +128,9 @@ function useZiehen(kopfRef, zu, auftrag, extern) {
     const runter = (e) => {
       if (e.button !== 0 || e.pointerType !== "mouse") return;
       if (e.target.closest("button, a, input, select, textarea, label")) return;
+      // Auf der Schrift (HOCO Nr., Maschine …) markieren statt ziehen,
+      // damit man sie kopieren kann (Wunsch Patrick 29. Oktober 2026)
+      if (e.target.closest("h2, .auf-kopf__unter, .siegel")) return;
       const huelle = kopf.closest(".dialog-huelle");
       const dialog = kopf.closest(".dialog");
       if (!huelle || !dialog || huelle.classList.contains("dialog-huelle--eigen")) return;
