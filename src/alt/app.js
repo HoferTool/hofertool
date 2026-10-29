@@ -10,6 +10,7 @@
 import { alt, reactSeite, reactAufraeumen } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
+import { aehnlicheTreffer } from "../daten/aehnlich.js";
 import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
 import Statistik, { statistikZurueck } from "../seiten/Statistik.jsx";
@@ -149,7 +150,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.254.1";
+const APP_VERSION = "1.255.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8872,7 +8873,43 @@ async function sucheArtikel(text, filter) {
     ({ data, error } = await abfragen(false));
   }
   if (error) throw error;
-  return data || [];
+  const genau = data || [];
+  if (!t) return genau;
+  // Dahinter ähnlich geschriebene (seit 1.255.0, src/daten/aehnlich.js);
+  // fehlen die, bleiben eben nur die genauen
+  try {
+    const alle = await artikelVorrat(filter);
+    return genau.concat(aehnlicheTreffer(t, alle,
+      (a) => [a.article_number, a.name, a.description, a.supplier_name], genau, 20));
+  } catch (f) {
+    return genau;
+  }
+}
+
+// Alle Artikel für die ähnlichen Treffer, eine Minute gemerkt, damit nicht
+// jeder Tastendruck die ganze Liste holt
+const artikelVorratSpeicher = new Map();
+async function artikelVorrat(filter) {
+  const f = filter || {};
+  const schluessel = JSON.stringify([f.bez || "", f.lief || "", typeof f.spezial === "boolean" ? f.spezial : null]);
+  const da = artikelVorratSpeicher.get(schluessel);
+  if (da && Date.now() - da.zeit < 60000) return da.liste;
+  const holen = async (mitSpezial) => {
+    let abfrage = db.from("artikel_uebersicht").select("*");
+    if (f.bez) abfrage = abfrage.eq("name", f.bez);
+    if (f.lief) abfrage = abfrage.eq("supplier_name", f.lief);
+    if (mitSpezial && typeof f.spezial === "boolean") abfrage = abfrage.eq("spezial", f.spezial);
+    return zeitlimit(abfrage.order("article_number").limit(5000), 12000, "Artikel");
+  };
+  let { data, error } = await holen(true);
+  if (error && /spezial/.test(String(error.message || ""))) {
+    if (f.spezial === true) return [];
+    ({ data, error } = await holen(false));
+  }
+  if (error) throw error;
+  const liste = data || [];
+  artikelVorratSpeicher.set(schluessel, { zeit: Date.now(), liste });
+  return liste;
 }
 
 // =================================================================

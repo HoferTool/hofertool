@@ -68,7 +68,7 @@ function Liste({ liste, sucht, schreiben, behaelter, spezial }) {
   if (!liste.length) return <Leer text={sucht ? "Kein Artikel gefunden." : (spezial ? "Noch keine Spezialwerkzeuge angelegt." : "Noch keine Artikel angelegt.")} />;
   return (
     <Karte titel={spezial ? "Spezialwerkzeuge" : "Artikel"} zahl={liste.length}
-      unter={liste.length >= 50 ? "Die ersten 50. Mit der Suche findest du jeden." : undefined}>
+      unter={liste.filter((a) => !a.aehnlich).length >= 50 ? "Die ersten 50. Mit der Suche findest du jeden." : undefined}>
       {/* Wieder als Liste (Wunsch Patrick, 6. Oktober 2026: „Artikel wieder zu
           einer Liste“): je Artikel eine Zeile, Spalten Nummer, Bezeichnung,
           Lieferant. So lässt sich die Spalte mit dem Auge herunterlesen. */}
@@ -81,6 +81,7 @@ function Liste({ liste, sucht, schreiben, behaelter, spezial }) {
             <div className="bs-artikel__nr">
               <span className="bs-pos__nr">{a.article_number}</span>
               {a.is_active === false && <span className="bs-chip bs-chip--still">ausgeblendet</span>}
+              {a.aehnlich && <span className="bs-aehnlich">ähnlich</span>}
             </div>
             <div className="bs-artikel__text">
               <div className="bs-artikel__name">{a.name}

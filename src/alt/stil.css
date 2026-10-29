@@ -10185,3 +10185,9 @@ body.pad-offen .pad-pw-huelle .dialog.pad-pw.pad-pw { max-width: none !important
 .pad-hoco-knopf { display: block; background: none; border: 0; padding: 0; margin: 0; color: inherit;
   font-family: inherit; text-align: left; cursor: pointer;
   text-decoration: underline dotted rgba(255,255,255,.45); text-underline-offset: 6px; }
+
+/* Ähnlich geschriebener Treffer der Artikelsuche (seit 1.255.0) */
+.bs-aehnlich { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 8px;
+  font-size: 11px; font-weight: 600; line-height: 16px; vertical-align: middle;
+  background: #fff3cd; color: #7a5a00; }
+body.dunkel .bs-aehnlich { background: #4a3b10; color: #ffe08a; }

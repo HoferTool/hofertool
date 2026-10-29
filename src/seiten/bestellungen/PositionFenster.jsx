@@ -281,7 +281,8 @@ function PositionFenster({ zu, fertig, vorgabe }) {
             ? treffer.slice(0, 8).map((a) => (
                 <button key={a.id} className="pd-zeile" data-w={a.id} onClick={() => waehlen(a)}>
                   <strong>{a.article_number}</strong> {a.name}
-                  <span className="klein"> {a.supplier_name || "ohne Lieferant"}</span></button>
+                  <span className="klein"> {a.supplier_name || "ohne Lieferant"}</span>
+                  {a.aehnlich && <span className="bs-aehnlich">ähnlich</span>}</button>
               ))
             : <p className="hinweis">Kein Artikel gefunden.</p>}
           {schreiben && suche.trim() &&

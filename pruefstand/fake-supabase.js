@@ -283,6 +283,8 @@ function passt(zeile, f) {
     case "in":  return (f.wert || []).map(String).indexOf(String(w)) !== -1;
     case "like": return String(w || "").toLowerCase()
       .includes(String(f.wert).replace(/%/g, "").toLowerCase());
+    // Nur mit TEST.orFiltern: einfache „spalte.ilike.wert,…“ (Artikelsuche)
+    case "oder": return f.teile.some((t) => passt(zeile, t));
     default: return true;
   }
 }
@@ -312,7 +314,16 @@ function bauer(tabelle) {
     in(feld, wert)  { zustand.filter.push({ feld, wert, art: "in" }); return b; },
     ilike(feld, wert) { zustand.filter.push({ feld, wert, art: "like" }); return b; },
     like(feld, wert)  { zustand.filter.push({ feld, wert, art: "like" }); return b; },
-    or() { return b; },
+    or(text) {
+      if (TEST.orFiltern) {
+        const teile = String(text).split(/,(?=[a-z_]+\.ilike\.)/).map((x) => {
+          const m = x.match(/^([a-z_]+)\.ilike\.(.*)$/);
+          return m ? { feld: m[1], wert: m[2].replace(/^"|"$/g, ""), art: "like" } : null;
+        }).filter(Boolean);
+        if (teile.length) zustand.filter.push({ art: "oder", teile });
+      }
+      return b;
+    },
     not() { return b; },
     order(feld, o) { zustand.sort.push({ feld, ab: !!(o && o.ascending === false) }); return b; },
     limit(n) { zustand.grenze = n; return b; },

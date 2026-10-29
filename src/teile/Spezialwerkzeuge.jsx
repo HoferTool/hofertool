@@ -190,6 +190,7 @@ function ZuordnenFenster({ hoco, zu, fertig }) {
                     onClick={() => { setGewaehlt(a); setTreffer(null); setSuche(""); }}>
                     <strong>{a.article_number}</strong> {a.name}
                     <span className="klein"> {a.supplier_name || "ohne Lieferant"}</span>
+                    {a.aehnlich && <span className="bs-aehnlich">ähnlich</span>}
                     {/* Ein normaler Artikel wandert beim Zuordnen zu den Spezialwerkzeugen */}
                     {a.spezial === false && <span className="klein spezial__wandert"> · kommt aus den Bestellungen hierher</span>}
                   </button>))}
