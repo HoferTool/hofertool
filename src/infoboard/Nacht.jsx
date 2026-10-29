@@ -29,6 +29,13 @@ export function istNacht(d = new Date()) {
   return min >= 23 * 60 || min < 5 * 60 + 30;
 }
 
+// Empfang: von 18:00 bis 06:00 nur Schwarz, jeden Tag (Wunsch Patrick
+// 29. Oktober 2026: „zwischen 18.00 und 06.00 einen schwarzen Bildschirm“)
+export function istEmpfangDunkel(d = new Date()) {
+  const h = d.getHours();
+  return h >= 18 || h < 6;
+}
+
 // Ein Halloween-Huhn von der Seite (feste.js: Fest „halloween“), Blick nach rechts (Wunsch Patrick
 // 25. Oktober 2026: „Halloween-Versionen, etwas düster und furcht-
 // erregend“): schwarz-zerzaust mit Rippen, glühenden Augen, Reisszähnen,

@@ -156,11 +156,25 @@ with sync_playwright() as p:
     pruefe(pg.locator("#infoboard [data-ib='alpen']").count() == 1, "Anzeige mit Alpenkette")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pruefe(pg.locator("#infoboard").count() == 0, "Escape schliesst die Anzeige")
+    # Seit 1.269.0: von 18:00 bis 06:00 nur Schwarz, ein Tipp zeigt ihn eine Minute
+    schwarz = lambda: pg.locator("#infoboard [data-ib='schwarz']").count() == 1
+    for h, m, soll in [(17, 59, False), (18, 0, True), (5, 59, True), (6, 0, False)]:
+        pg.clock.set_system_time(datetime(heute.year, heute.month, heute.day, h, m))
+        pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1200)
+        pruefe(schwarz() == soll, "%02d:%02d %s" % (h, m, "schwarz" if soll else "nicht schwarz"))
+        if soll and h == 18:
+            pg.screenshot(path=os.path.join(BILD, "empfang-schwarz.png"))
+            pruefe(pg.evaluate("() => { const r = document.querySelector('[data-ib=\\'schwarz\\']').getBoundingClientRect(); return r.width >= innerWidth && r.height >= innerHeight; }"),
+                   "Schwarz über den ganzen Bildschirm")
+            pg.mouse.click(960, 700); pg.wait_for_timeout(600)
+            pruefe(not schwarz(), "Tipp zeigt den Empfang")
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     # Nachts keine Hühner am Empfang, die Dokumente bleiben
     pg.clock.set_system_time(datetime(heute.year, heute.month, heute.day, 23, 30))
     pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)
     pruefe(pg.locator("#infoboard [data-ib='nacht']").count() == 0 and pg.locator("#infoboard .ib-teil").count() == 3,
            "nachts keine Hühner, Dokumente bleiben")
+    pruefe(pg.locator("#infoboard [data-ib='schwarz']").count() == 1, "23:30 schwarz")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
 
     # App-Paket: ?bildschirm=empfang merkt das Gerät und öffnet die Anzeige,

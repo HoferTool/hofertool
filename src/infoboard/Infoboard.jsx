@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { Tafel } from "./Tafel.jsx";
-import { istNacht } from "./Nacht.jsx";
+import { istNacht, istEmpfangDunkel } from "./Nacht.jsx";
 import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
 import { webBearbeiten, programmBearbeiten, NEU_LADEN, useFensterMelden } from "./WebFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
@@ -548,15 +548,20 @@ function Anzeige({ huelle, mass, melden }) {
   // Bildschirmschoner (Nacht.jsx): nachts und sonntags unter dem Kopf
   // Hühner statt Dokumente. Ein Tipp darunter holt sie für eine Minute.
   const [nacht, setNacht] = useState(istNacht);
+  // Empfang abends und nachts ganz schwarz, ein Tipp zeigt ihn eine Minute
+  const istEmpfang = mass.id === "empfang";
+  const [dunkel, setDunkel] = useState(() => istEmpfang && istEmpfangDunkel());
   const [wachBis, setWachBis] = useState(0);
   useEffect(() => {
     const t = setInterval(() => {
       setNacht(istNacht());
+      setDunkel(istEmpfang && istEmpfangDunkel());
       setWachBis((w) => (w && Date.now() > w ? 0 : w));
     }, 15000);
     return () => clearInterval(t);
   }, []);
   const schoner = nacht && !wachBis;
+  const schwarz = dunkel && !wachBis;
 
   useEffect(() => {
     let gueltig = true;
@@ -598,7 +603,7 @@ function Anzeige({ huelle, mass, melden }) {
   const kopfTipp = (e) => {
     const r = huelle.getBoundingClientRect();
     if (e.clientY - r.top < r.height * 0.2) setZu(true);
-    else if (schoner) setWachBis(Date.now() + WACH_MS);
+    else if (schoner || schwarz) setWachBis(Date.now() + WACH_MS);
   };
 
   useFensterMelden(melden ? mass.id : null, huelle, [aufbau, schoner]);
@@ -606,6 +611,7 @@ function Anzeige({ huelle, mass, melden }) {
   return (
     <div className="ib-voll__innen" onPointerDown={kopfTipp}>
       {aufbau && <Tafel mass={mass} aufbau={aufbau} grossZiel={huelle} nacht={schoner} />}
+      {schwarz && <div className="ib-voll__schwarz" data-ib="schwarz" />}
       {fehler && <div className="ib-voll__fehler">{fehler}</div>}
       {zu && <button type="button" className="ib-voll__zu" data-ib="schliessen"
         onClick={() => infoboardSchliessen()}>Schliessen</button>}

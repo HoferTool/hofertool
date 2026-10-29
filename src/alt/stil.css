@@ -10252,3 +10252,6 @@ body.dunkel .bs-aehnlich { background: #4a3b10; color: #ffe08a; }
 .kred-zeile { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0; border-top: 1px solid var(--rand, #ddd); }
 .kred-datei { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kred-name { flex: 1 1 180px; min-width: 140px; }
+
+/* Empfang von 18:00 bis 06:00 nur Schwarz, über allem ausser Schliessen */
+.ib-voll__schwarz { position: fixed; inset: 0; z-index: 5; background: #000; cursor: none; }
