@@ -22,7 +22,7 @@ import Alpen from "./Alpen.jsx";
 import { pdfjs } from "../teile/PdfAnsicht.jsx";
 import Skizze from "../pad/Skizze.jsx";
 import { TextBlatt } from "./TextFeld.jsx";
-import { WebFlaeche } from "./WebFeld.jsx";
+import { WebFlaeche, ProgrammFlaeche } from "./WebFeld.jsx";
 import { Seite as ExcelSeite, seitenRechnen } from "../teile/ExcelAnsicht.jsx";
 import { excelLesen } from "../teile/excelLesen.js";
 import { LUECKE, BLATT, SEKUNDEN, MIN_GROESSE, TAFELN, TafelMass, useTafelMass, tafelFarben } from "./daten.js";
@@ -261,6 +261,7 @@ function Kopf() {
 function FeldInhalt({ feld, format, bearbeiten, grossZiel, breite, hoehe, grund }) {
   if (feld.art === "text") return <TextBlatt html={feld.html} format={format} breite={breite} hoehe={hoehe} ohneGrund={!!feld.ohneGrund} tafel={grund} />;
   if (feld.art === "web") return <WebFlaeche feld={feld} bearbeiten={bearbeiten} />;
+  if (feld.art === "programm") return <ProgrammFlaeche feld={feld} bearbeiten={bearbeiten} />;
   if (feld.art === "skizze") {
     return (
       <div className="ib-skizze">

@@ -10,6 +10,13 @@
 #  genau darüber, immer im Vordergrund. Fehlt die Meldung länger als
 #  drei Minuten (Anzeige zu, PC ohne Netz), schliesst es die Fenster.
 #
+#  Programmfenster (Wunsch Patrick 29. Oktober 2026, Tapo-Kamera mit
+#  BlueStacks): Felder mit „programm“ meinen ein Fenster, das schon
+#  läuft, gefunden am Titel. Es wird nie geschlossen, nur darüber gelegt
+#  und die gemeldeten Ränder weggeschnitten (Leisten von BlueStacks).
+#  Fehlt es, startet die Desktop-Verknüpfung mit dem gemeldeten Namen
+#  (höchstens alle zwei Minuten). Ohne Meldung kommt es in die Taskleiste.
+#
 #  Jedes Feld hat ein eigenes Chrome-Profil unter
 #  C:\Hofer\InfoboardFenster\profile, so bleibt eine Anmeldung auf
 #  der Seite erhalten.
@@ -76,7 +83,7 @@ if ($Einrichten) {
 if ($Probe) {
   $d = Lesen
   Write-Host ("Meldung vor " + [math]::Round($d.alter_s) + " Sekunden")
-  foreach ($f in @($d.fenster)) { Write-Host ("  " + $f.adresse + "  bei " + $f.x + "," + $f.y + "  " + $f.w + " x " + $f.h) }
+  foreach ($f in @($d.fenster)) { Write-Host ("  " + $(if ($f.programm) { "Programm " + $f.programm } else { $f.adresse }) + "  bei " + $f.x + "," + $f.y + "  " + $f.w + " x " + $f.h) }
   exit 0
 }
 
@@ -93,6 +100,10 @@ public class IbFenster {
   [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr h, int i, int v);
   [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr nach, int x, int y, int w, int hh, uint f);
   [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
+  [DllImport("user32.dll")] public static extern int SetWindowRgn(IntPtr h, IntPtr rgn, bool neu);
+  [DllImport("gdi32.dll")] public static extern IntPtr CreateRectRgn(int l, int o, int r, int u);
 }
 "@
 # Pixel wie die Anzeige sie meldet, nicht von Windows hochgerechnet
@@ -144,14 +155,80 @@ function Legen($e, $f) {
   [IbFenster]::SetWindowPos($e.hwnd, [IntPtr](-1), [int]$f.x, [int]$f.y, [int]$f.w, [int]$f.h, 0x0010 -bor 0x0020 -bor 0x0040) | Out-Null
 }
 
+# ---------- Programmfenster (BlueStacks usw.) ----------
+$programme = @{}   # id -> @{ hwnd, start, rgn }
+
+function ProgrammSuchen([string]$titel) {
+  $p = Get-Process | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero -and $_.MainWindowTitle -like ("*" + $titel + "*") } | Select-Object -First 1
+  if ($p) { return $p.MainWindowHandle }
+  return [IntPtr]::Zero
+}
+
+function VerknuepfungStarten([string]$name) {
+  if (-not $name) { return }
+  foreach ($ort in @([Environment]::GetFolderPath("Desktop"), [Environment]::GetFolderPath("CommonDesktopDirectory"))) {
+    $lnk = Join-Path $ort ($name + ".lnk")
+    if (Test-Path $lnk) { Start-Process -FilePath $lnk; Schreibe ("Gestartet: " + $lnk); return }
+  }
+  Schreibe ("Verknüpfung nicht gefunden: " + $name + ".lnk auf dem Desktop")
+}
+
+function ProgrammLegen($f) {
+  $id = [string]$f.id
+  $e = $programme[$id]
+  if (-not $e) { $e = @{ hwnd = [IntPtr]::Zero; start = [datetime]::MinValue; rgn = "" }; $programme[$id] = $e }
+  if ($e.hwnd -eq [IntPtr]::Zero -or -not [IbFenster]::IsWindow($e.hwnd)) {
+    $e.hwnd = ProgrammSuchen ([string]$f.programm)
+    $e.rgn = ""
+    if ($e.hwnd -eq [IntPtr]::Zero) {
+      if (((Get-Date) - $e.start).TotalMinutes -ge 2) { $e.start = Get-Date; VerknuepfungStarten ([string]$f.verknuepfung) }
+      return
+    }
+    Schreibe ("Gefunden: " + $f.programm)
+  }
+  if ([IbFenster]::IsIconic($e.hwnd)) { [IbFenster]::ShowWindow($e.hwnd, 9) | Out-Null }
+  $s = $f.schnitt
+  $o = [int]$s.oben; $r = [int]$s.rechts; $u = [int]$s.unten; $l = [int]$s.links
+  $stil = [IbFenster]::GetWindowLong($e.hwnd, -16)
+  $neu = $stil -band (-bnot 0x00C00000) -band (-bnot 0x00040000)
+  if ($neu -ne $stil) { [IbFenster]::SetWindowLong($e.hwnd, -16, $neu) | Out-Null }
+  # Fenster um die Ränder grösser, die Ränder liegen ausserhalb des Felds und werden weggeschnitten
+  $bw = [int]$f.w + $l + $r; $bh = [int]$f.h + $o + $u
+  [IbFenster]::SetWindowPos($e.hwnd, [IntPtr](-1), [int]$f.x - $l, [int]$f.y - $o, $bw, $bh, 0x0010 -bor 0x0020 -bor 0x0040) | Out-Null
+  $schluessel = "$o,$r,$u,$l,$bw,$bh"
+  if ($e.rgn -ne $schluessel) {
+    $rgn = [IbFenster]::CreateRectRgn($l, $o, $bw - $r, $bh - $u)
+    [IbFenster]::SetWindowRgn($e.hwnd, $rgn, $true) | Out-Null
+    $e.rgn = $schluessel
+  }
+}
+
+function ProgrammWeg($id) {
+  $e = $programme[$id]
+  if ($e -and $e.hwnd -ne [IntPtr]::Zero -and [IbFenster]::IsWindow($e.hwnd)) {
+    # Nicht mehr im Vordergrund (HWND_NOTOPMOST), ganzes Fenster zurück, in die Taskleiste
+    [IbFenster]::SetWindowPos($e.hwnd, [IntPtr](-2), 0, 0, 0, 0, 0x0001 -bor 0x0002 -bor 0x0010) | Out-Null
+    [IbFenster]::SetWindowRgn($e.hwnd, [IntPtr]::Zero, $true) | Out-Null
+    [IbFenster]::ShowWindow($e.hwnd, 6) | Out-Null
+  }
+  $programme.Remove($id)
+}
+
 Schreibe "Gestartet"
 while ($true) {
   try {
     $d = Lesen
     $liste = @()
-    if ($d.alter_s -lt 180) { $liste = @($d.fenster) | Where-Object { $_ -and $_.adresse } }
+    $progListe = @()
+    if ($d.alter_s -lt 180) {
+      $liste = @($d.fenster) | Where-Object { $_ -and $_.adresse -and -not $_.programm }
+      $progListe = @($d.fenster) | Where-Object { $_ -and $_.programm }
+    }
     $ids = @($liste | ForEach-Object { [string]$_.id })
     foreach ($id in @($laufend.Keys)) { if ($ids -notcontains $id) { Schliessen $id; Schreibe "Geschlossen: $id" } }
+    $progIds = @($progListe | ForEach-Object { [string]$_.id })
+    foreach ($id in @($programme.Keys)) { if ($progIds -notcontains $id) { ProgrammWeg $id; Schreibe "Weggelegt: $id" } }
+    foreach ($f in $progListe) { ProgrammLegen $f }
     foreach ($f in $liste) {
       $id = [string]$f.id
       $e = $laufend[$id]

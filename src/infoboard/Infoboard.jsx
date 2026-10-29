@@ -21,7 +21,7 @@ import { alt } from "../bruecke.jsx";
 import { Tafel } from "./Tafel.jsx";
 import { istNacht } from "./Nacht.jsx";
 import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
-import { webBearbeiten, NEU_LADEN, useFensterMelden } from "./WebFeld.jsx";
+import { webBearbeiten, programmBearbeiten, NEU_LADEN, useFensterMelden } from "./WebFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
   istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil, TAFELN, tafelFarben,
   layoutsLaden, layoutSpeichern, layoutLoeschen, gleicherAufbau, ohneEffekte } from "./daten.js";
@@ -170,12 +170,23 @@ function Gestalten({ mass }) {
     setGewaehlt(neu.id);
   };
 
+  // Programmfenster am PC, z. B. BlueStacks mit Tapo (Wunsch Patrick 29. Oktober 2026), zuerst 16:9
+  const programmOeffnen = async (t) => {
+    const feld = await programmBearbeiten(t);
+    if (!feld) return;
+    if (t) { await teilAendern(t.id, feld); return; }
+    const neu = neuesTeil({ id: neueId(), art: "programm", ...feld }, 9 / 16, null, mass);
+    await aendern((teile) => [...teile, neu]);
+    setGewaehlt(neu.id);
+  };
+
   const entfernen = async () => {
     if (!wahl) return;
     const ok = await alt.nachfragen({ titel: "Vom " + mass.name + " entfernen?",
       text: wahl.art === "skizze" ? "Die Zeichenfläche und alles darauf verschwindet vom Infoboard."
         : wahl.art === "text" ? "Der Text verschwindet vom Infoboard."
         : wahl.art === "web" ? "Die Webseite verschwindet vom Infoboard."
+        : wahl.art === "programm" ? "Das Programmfenster verschwindet vom Infoboard."
         : "Die Datei verschwindet vom Infoboard.", bestaetigen: "Entfernen", gefahr: true });
     if (!ok) return;
     if (wahl.art === "skizze") {
@@ -199,6 +210,7 @@ function Gestalten({ mass }) {
 
   const inhaltText = (f) => f.art === "skizze" ? "Zeichenfläche" : f.art === "text" ? "Text"
     : f.art === "web" ? "Webseite: " + (f.adresse || "")
+    : f.art === "programm" ? "Programmfenster: " + (f.titel || "")
     : f.art === "datei" && f.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video", excel: "Excel" }[f.datei.typ] || "Datei") + ": " + (f.datei.name || "")
     : "Leer";
 
@@ -216,7 +228,7 @@ function Gestalten({ mass }) {
           <Tafel mass={mass} aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt} effektProbe={probe || null}
             teilAendern={admin ? teilAendern : null} logoSetzen={admin ? logoSetzen : null}
             ablegen={admin && !laedt ? (dateien, punkt) => dateienAblegen(dateien, punkt, null) : null}
-            doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); if (t && t.art === "web") webOeffnen(t); } : null} />
+            doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); if (t && t.art === "web") webOeffnen(t); if (t && t.art === "programm") programmOeffnen(t); } : null} />
         </div>
         <div className="ib-gestalten__seite">
           {admin && <>
@@ -229,6 +241,9 @@ function Gestalten({ mass }) {
                 Text ohne Hintergrund</button>
               <button type="button" className="knopf" data-ib="neu-web" onClick={() => webOeffnen(null)}>
                 Webseite hinzufügen</button>
+              {mass.id === "haupt" &&
+                <button type="button" className="knopf" data-ib="neu-programm" onClick={() => programmOeffnen(null)}>
+                  Programmfenster (Kamera) …</button>}
             </div>
             <input ref={datei} type="file" hidden multiple onChange={dateiGewaehlt}
               accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
@@ -261,6 +276,8 @@ function Gestalten({ mass }) {
                     ? <button type="button" className="knopf" data-ib="text" onClick={() => textOeffnen(wahl)}>Text bearbeiten</button>
                     : wahl.art === "web"
                     ? <button type="button" className="knopf" data-ib="web" onClick={() => webOeffnen(wahl)}>Webseite ändern</button>
+                    : wahl.art === "programm"
+                    ? <button type="button" className="knopf" data-ib="programm" onClick={() => programmOeffnen(wahl)}>Programmfenster ändern</button>
                     : wahl.art === "datei" &&
                       <button type="button" className="knopf" data-ib="datei" disabled={!!laedt}
                         onClick={() => dateiWaehlen(wahl)}>Andere Datei …</button>}

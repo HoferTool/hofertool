@@ -22,6 +22,13 @@
 //  Programm skripte/infoboard-fenster.ps1 am Infoboard-PC liest das und
 //  legt ein Chrome-Fenster ohne Rahmen darüber. So geht jede Seite, auch
 //  gesperrte und solche mit Anmeldung.
+//
+//  Programmfenster (art "programm", Wunsch Patrick 29. Oktober 2026:
+//  Livebild der Tapo-Kamera mit BlueStacks): dasselbe für ein beliebiges
+//  Fenster am PC, gefunden am Titel. teil = { art: "programm", titel,
+//  verknuepfung, schnitt: { oben, rechts, unten, links } }. Die Ränder
+//  schneidet das Programm am PC weg (Leisten von BlueStacks, Knöpfe der
+//  App), damit nur das Bild übrig bleibt.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -85,6 +92,42 @@ export async function webBearbeiten(t) {
   return feld;
 }
 
+// Fenster zum Hinzufügen oder Ändern eines Programmfensters
+export async function programmBearbeiten(t) {
+  const s = (t && t.schnitt) || {};
+  const w = await alt.dialogFelder({
+    titel: t ? "Programmfenster ändern" : "Programmfenster hinzufügen",
+    text: "Ein Fenster am Infoboard-PC, etwa BlueStacks mit der Tapo-App, kommt genau über dieses Feld. "
+      + "Das Programm infoboard-fenster am PC muss laufen.",
+    felder: [
+      { name: "titel", label: "Titel des Fensters (ein Teil reicht)", wert: t ? t.titel : "BlueStacks", pflicht: true },
+      { name: "verknuepfung", label: "Starten mit Verknüpfung auf dem Desktop", wert: t ? t.verknuepfung || "" : "Tapo",
+        platzhalter: "z. B. Tapo", hinweis: "Name der Verknüpfung ohne .lnk. Ist das Fenster nicht offen, startet das Programm sie." },
+      { name: "oben", label: "Oben abschneiden (Pixel)", wert: s.oben || 0 },
+      { name: "rechts", label: "Rechts abschneiden (Pixel)", wert: s.rechts || 0 },
+      { name: "unten", label: "Unten abschneiden (Pixel)", wert: s.unten || 0 },
+      { name: "links", label: "Links abschneiden (Pixel)", wert: s.links || 0 },
+    ],
+    bestaetigen: t ? "Speichern" : "Hinzufügen",
+  });
+  if (!w) return null;
+  const zahl = (v) => Math.max(0, Math.min(2000, Math.round(Number(String(v || 0).replace(",", ".")) || 0)));
+  return { titel: String(w.titel || "").trim(), verknuepfung: String(w.verknuepfung || "").trim(),
+    schnitt: { oben: zahl(w.oben), rechts: zahl(w.rechts), unten: zahl(w.unten), links: zahl(w.links) } };
+}
+
+export function ProgrammFlaeche({ feld, bearbeiten }) {
+  if (!feld.titel) return null;
+  const s = feld.schnitt || {};
+  return (
+    <div className="ib-web-pc" data-ibwebpc={feld.id} data-programm={feld.titel}
+      data-verknuepfung={feld.verknuepfung || ""}
+      data-schnitt={[s.oben || 0, s.rechts || 0, s.unten || 0, s.links || 0].join(",")}>
+      {bearbeiten && <><strong>{feld.titel}</strong><span>Programmfenster am Infoboard-PC</span></>}
+    </div>
+  );
+}
+
 export function WebFlaeche({ feld, bearbeiten }) {
   const [runde, setRunde] = useState(0);
   const minuten = feld.neuLaden || 0;
@@ -136,11 +179,18 @@ function fensterLesen(huelle) {
   const y0 = window.screenY + Math.max(0, window.outerHeight - window.innerHeight);
   return [...huelle.querySelectorAll("[data-ibwebpc]")].map((el) => {
     const r = el.getBoundingClientRect();
+    if (el.dataset.programm) {
+      const [oben, rechts, unten, links] = (el.dataset.schnitt || "").split(",").map((z) => Number(z) || 0);
+      return { id: el.dataset.ibwebpc, programm: el.dataset.programm, verknuepfung: el.dataset.verknuepfung || "",
+        schnitt: { oben, rechts, unten, links }, f,
+        x: Math.round((x0 + r.left) * f), y: Math.round((y0 + r.top) * f),
+        w: Math.round(r.width * f), h: Math.round(r.height * f) };
+    }
     return { id: el.dataset.ibwebpc, adresse: el.dataset.adresse,
       neuLaden: Number(el.dataset.neuladen) || 0, zoom: Number(el.dataset.zoom) || 100, f,
       x: Math.round((x0 + r.left) * f), y: Math.round((y0 + r.top) * f),
       w: Math.round(r.width * f), h: Math.round(r.height * f) };
-  }).filter((w) => w.w > 20 && w.h > 20 && w.adresse);
+  }).filter((w) => w.w > 20 && w.h > 20 && (w.adresse || w.programm));
 }
 
 export function useFensterMelden(board, huelle, abh) {
