@@ -53,6 +53,7 @@ export default function Kreditoren() {
         ? "Keine neuen PDFs im Ordner."
         : alt.zahlText(l.abgelegt) + (l.abgelegt === 1 ? " Rechnung" : " Rechnungen") + " abgelegt"
           + (l.zuordnen ? ", " + l.zuordnen + " zum Zuordnen (unten)" : "")
+          + (l.doppelt ? ", " + l.doppelt + " waren schon abgelegt" : "")
           + (l.fehler.length ? ". Nicht gegangen: " + l.fehler.join(" · ") : "") });
     } catch (f) {
       setErgebnis({ ok: false, text: alt.fehlertext(f) });

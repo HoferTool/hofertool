@@ -140,16 +140,25 @@ async function stapelAblegen(h, name, liste, zuInfo) {
   const { PDFDocument } = await import("pdf-lib");
   const quelle = await PDFDocument.load(daten, { ignoreEncryption: true, updateMetadata: false });
   const zeilen = [];
-  let abgelegt = 0, zuordnen = 0;
+  let abgelegt = 0, zuordnen = 0, doppelt = 0;
   for (const d of docs) {
     const neu = await PDFDocument.create();
     (await neu.copyPages(quelle, d.seiten)).forEach((p) => neu.addPage(p));
     const blob = new Blob([await neu.save()], { type: "application/pdf" });
     const ordnerName = d.lieferant ? sauber(d.lieferant) : ZUORDNEN;
     const ordner = await h.getDirectoryHandle(ordnerName, { create: true });
+    const seitenText = "S. " + (d.seiten[0] + 1) + (d.seiten.length > 1 ? "–" + (d.seiten[d.seiten.length - 1] + 1) : "");
+    // Dieselbe Rechnungsnummer beim selben Lieferanten ist dieselbe Rechnung
+    // (zweimal gescannt oder an zwei Geräten zugleich abgelegt): nicht doppelt
+    // ablegen (Patrick 29. Oktober 2026: „warum 2 Dokumente aus der gleichen Rechnung?“)
+    if (d.lieferant && d.nummer && (await gibt(ordner, dateiName(d, name)))) {
+      lernen(liste, d.lieferant, d);
+      doppelt++;
+      zeilen.push(name + " " + seitenText + " → schon da: " + ordnerName + "\\" + dateiName(d, name));
+      continue;
+    }
     const ziel = await freierName(ordner, dateiName(d, name));
     await schreiben(ordner, ziel, blob);
-    const seitenText = "S. " + (d.seiten[0] + 1) + (d.seiten.length > 1 ? "–" + (d.seiten[d.seiten.length - 1] + 1) : "");
     if (d.lieferant) {
       lernen(liste, d.lieferant, d);
       abgelegt++;
@@ -162,7 +171,7 @@ async function stapelAblegen(h, name, liste, zuInfo) {
   }
   const originale = await h.getDirectoryHandle(ORIGINALE, { create: true });
   await verschieben(h, name, originale);
-  return { abgelegt, zuordnen, zeilen };
+  return { abgelegt, zuordnen, doppelt, zeilen };
 }
 
 // ---------- Ganzer Ordner ----------
@@ -181,7 +190,7 @@ export async function krSortieren(h, { sofort = false, fortschritt } = {}) {
       if (!sofort && Date.now() - f.lastModified < RUHE_MS) continue;
       offen.push(name);
     }
-    const ergebnis = { stapel: 0, abgelegt: 0, zuordnen: 0, fehler: [] };
+    const ergebnis = { stapel: 0, abgelegt: 0, zuordnen: 0, doppelt: 0, fehler: [] };
     if (!offen.length) return ergebnis;
     const liste = await lieferantenLaden(h);
     const zuOrdner = await h.getDirectoryHandle(ZUORDNEN, { create: true });
@@ -194,6 +203,7 @@ export async function krSortieren(h, { sofort = false, fortschritt } = {}) {
         ergebnis.stapel++;
         ergebnis.abgelegt += l.abgelegt;
         ergebnis.zuordnen += l.zuordnen;
+        ergebnis.doppelt += l.doppelt;
         zeilen.push(...l.zeilen);
       } catch (f) {
         // Bleibt liegen und kommt beim nächsten Mal wieder (etwa wenn er offen war)
