@@ -31,6 +31,21 @@ export default function Kreditoren() {
     }
   };
   useEffect(() => { if (kannOrdner) krOrdnerHolen().then(lesen); }, []);
+  // Die Liste neu lesen, solange das Fenster offen ist: die Ablage im
+  // Hintergrund (alle 2 Minuten) legt Rechnungen nach „_Zuordnen“, während
+  // die Einstellungen schon offen sind (Patrick 29. Oktober 2026: „es liegt
+  // eine drin und ich sehe Zum Zuordnen nicht“)
+  useEffect(() => {
+    if (!griff || erlaubt !== "granted") return undefined;
+    const neu = () => { if (!document.hidden && !krLaeuft()) lesen(griff); };
+    const t = setInterval(neu, 10000);
+    window.addEventListener("focus", neu);
+    return () => { clearInterval(t); window.removeEventListener("focus", neu); };
+  }, [griff, erlaubt]);
+
+  const freigeben = async () => {
+    if (griff && (await ordnerErlaubt(griff, true)) === "granted") await lesen(griff);
+  };
 
   const ordnerNeu = async () => {
     let h;
@@ -76,8 +91,9 @@ export default function Kreditoren() {
           : <span className="klein gedaempft">Ordner wählen geht nur in Chrome oder Edge am Computer.</span>}
       </Zeile>
       {griff && erlaubt !== "granted" && <p className="hinweis klein" id="kred-freigabe">
-        Der Browser braucht die Erlaubnis für den Ordner nochmals. Einmal auf „Jetzt ablegen“ drücken und „Zulassen“ wählen,
-        am besten „Bei jedem Besuch zulassen“.</p>}
+        Der Browser braucht die Erlaubnis für den Ordner nochmals, erst dann sieht man auch „Zum Zuordnen“.{" "}
+        <button className="knopf knopf--klein knopf--haupt" id="kred-freigeben" onClick={freigeben}>Ordner freigeben</button>{" "}
+        und „Zulassen“ wählen, am besten „Bei jedem Besuch zulassen“.</p>}
       <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
         <div className="dokpfad-stand klein gedaempft">
           {lieferanten.length ? alt.zahlText(lieferanten.length) + " Lieferanten bekannt" : ""}
