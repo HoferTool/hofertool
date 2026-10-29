@@ -14,8 +14,16 @@
 //  Die Seite ist meist für einen breiten Bildschirm gemacht, darum
 //  „Darstellung“: bei 50 % ist der Rahmen doppelt so breit und wird auf
 //  die Hälfte verkleinert, man sieht also mehr von der Seite.
+//
+//  Echtes Chrome-Fenster (amPc, nur Infoboard, Wunsch Patrick 29. Oktober
+//  2026: „kannst du nicht den Browser anzeigen?“): die Anzeige zeigt nur
+//  eine dunkle Fläche und meldet, wo auf dem Bildschirm sie in Pixeln
+//  liegt (infoboard_fenster_melden, sql/infoboard-fenster.sql). Das
+//  Programm skripte/infoboard-fenster.ps1 am Infoboard-PC liest das und
+//  legt ein Chrome-Fenster ohne Rahmen darüber. So geht jede Seite, auch
+//  gesperrte und solche mit Anmeldung.
 // =================================================================
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 
 export const NEU_LADEN = [[0, "Nie von selbst"], [1, "jede Minute"], [5, "alle 5 Minuten"],
@@ -66,7 +74,8 @@ export async function webBearbeiten(t) {
     const ok = await alt.nachfragen({
       titel: "Seite lässt sich nicht einbetten",
       text: "Diese Seite verbietet es, in einer anderen Seite angezeigt zu werden (" + (p.grund || "gesperrt")
-        + "). Am Bildschirm stünde nur ein Hinweis. Alternative: ein Bildschirmfoto oder PDF der Seite als Datei hinzufügen.",
+        + "). Am Infoboard geht es trotzdem: hinzufügen und rechts das Häkchen „Als echtes Chrome-Fenster am Infoboard-PC“ setzen."
+        + " Sonst stünde am Bildschirm nur ein Hinweis.",
       bestaetigen: "Trotzdem hinzufügen", abbrechen: "Abbrechen" });
     if (!ok) return null;
     feld.gesperrt = p.grund || "gesperrt";
@@ -87,6 +96,14 @@ export function WebFlaeche({ feld, bearbeiten }) {
   let host = feld.adresse;
   try { host = new URL(feld.adresse).host; } catch { /* bleibt */ }
   if (!feld.adresse) return null;
+  if (feld.amPc) {
+    return (
+      <div className="ib-web-pc" data-ibwebpc={feld.id} data-adresse={feld.adresse}
+        data-neuladen={feld.neuLaden || 0} data-zoom={feld.zoom || 100}>
+        {bearbeiten && <><strong>{host}</strong><span>Chrome-Fenster am Infoboard-PC</span></>}
+      </div>
+    );
+  }
   if (feld.gesperrt) {
     return (
       <div className="ib-web-gesperrt" data-ibweb="gesperrt">
@@ -105,4 +122,47 @@ export function WebFlaeche({ feld, bearbeiten }) {
         style={{ width: 100 / k + "%", height: 100 / k + "%", transform: "scale(" + k + ")" }} />
     </div>
   );
+}
+
+// Meldet je Minute und nach jeder Änderung, wo die Chrome-Fenster hin
+// sollen. Eine leere Liste (Nacht, Anzeige zu) lässt das Programm am PC
+// die Fenster schliessen; bleibt die Meldung länger aus, tut es das auch.
+const MELDEN_MS = 60000;
+function fensterLesen(huelle) {
+  const f = window.devicePixelRatio || 1;
+  // Oberkante des Inhalts auf dem Bildschirm: im Vollbild 0, sonst unter
+  // der Leiste des Browsers
+  const x0 = window.screenX + (window.outerWidth - window.innerWidth) / 2;
+  const y0 = window.screenY + Math.max(0, window.outerHeight - window.innerHeight);
+  return [...huelle.querySelectorAll("[data-ibwebpc]")].map((el) => {
+    const r = el.getBoundingClientRect();
+    return { id: el.dataset.ibwebpc, adresse: el.dataset.adresse,
+      neuLaden: Number(el.dataset.neuladen) || 0, zoom: Number(el.dataset.zoom) || 100, f,
+      x: Math.round((x0 + r.left) * f), y: Math.round((y0 + r.top) * f),
+      w: Math.round(r.width * f), h: Math.round(r.height * f) };
+  }).filter((w) => w.w > 20 && w.h > 20 && w.adresse);
+}
+
+export function useFensterMelden(board, huelle, abh) {
+  const zuletzt = useRef("");
+  useEffect(() => {
+    if (!board || !huelle) return;
+    const senden = (liste, immer) => {
+      const text = JSON.stringify(liste);
+      if (!immer && text === zuletzt.current) return;
+      zuletzt.current = text;
+      Promise.resolve(alt.db.rpc("infoboard_fenster_melden", { p_board: board, p_fenster: liste })).then(() => {}, () => {});
+    };
+    const jetzt = (immer) => senden(fensterLesen(huelle), immer);
+    // Kurz warten, bis die Tafel eingepasst ist
+    const t1 = setTimeout(() => jetzt(false), 1500);
+    const uhr = setInterval(() => jetzt(true), MELDEN_MS);
+    const groesse = () => jetzt(false);
+    window.addEventListener("resize", groesse);
+    return () => { clearTimeout(t1); clearInterval(uhr); window.removeEventListener("resize", groesse); };
+  }, [board, huelle, ...abh]);
+  // Anzeige zu: Fenster weg
+  useEffect(() => () => {
+    if (board) Promise.resolve(alt.db.rpc("infoboard_fenster_melden", { p_board: board, p_fenster: [] })).then(() => {}, () => {});
+  }, [board]);
 }

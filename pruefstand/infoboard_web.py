@@ -1,4 +1,4 @@
-# Webseite als Teil auf dem Infoboard (1.261.0, Wunsch Patrick 29. Oktober
+# Webseite als Teil auf dem Infoboard (1.261.0, Chrome-Fenster am PC 1.262.0, Wunsch Patrick 29. Oktober
 # 2026: „im Infoboard auch Webseiten anzeigen“). Eine einbettbare Seite
 # steht als Rahmen da, eine gesperrte als Hinweis statt grauem Feld.
 import time
@@ -44,6 +44,24 @@ with sync_playwright() as p:
     pruefe(pg.locator(f"[data-ibteil='{g[-1]['id']}'] [data-ibweb='gesperrt']").count() == 1, "Hinweis statt grauem Feld")
     pruefe(pg.locator("[data-ib='web-gesperrt']").count() == 1, "Hinweis rechts beim gewählten Teil")
     pg.screenshot(path="/tmp/claude-0/-home-user-hofertool/200b2cf0-6212-519e-8d78-d9236840c41e/scratchpad/web-gesperrt.png")
+    # Echtes Chrome-Fenster am PC (1.262.0): Häkchen, Platzhalter, Meldung der Lage
+    pg.check("[data-ib='am-pc']"); pg.wait_for_timeout(600)
+    g = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'haupt').aufbau.teile.filter(t => t.art === 'web')")
+    pruefe(g[-1].get("amPc") is True, "Häkchen gespeichert")
+    pruefe(pg.locator(f"[data-ibteil='{g[-1]['id']}'] [data-ibwebpc]").count() == 1, "Platzhalter statt Hinweis")
+    pg.evaluate("localStorage.setItem('hofer.infoboard.geraet', '1')")
+    pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(2500)
+    m = pg.evaluate("() => TEST.protokoll.filter(p => p.art === 'rpc' && p.name === 'infoboard_fenster_melden').map(p => p.args)")
+    pruefe(len(m) >= 1 and m[-1]["p_board"] == "haupt" and len(m[-1]["p_fenster"]) == 1, "Lage gemeldet: %s" % (m[-1] if m else None))
+    if m and m[-1]["p_fenster"]:
+        f = m[-1]["p_fenster"][0]
+        r = pg.evaluate(f"() => {{ const r = document.querySelector('#infoboard [data-ibwebpc]').getBoundingClientRect(); return [r.left + screenX + (outerWidth - innerWidth) / 2, r.top + screenY + Math.max(0, outerHeight - innerHeight), r.width, r.height]; }}")
+        pruefe(f["adresse"] == "https://www.google.ch/" and abs(f["x"] - r[0]) < 2 and abs(f["w"] - r[2]) < 2 and f["w"] > 100,
+               "Pixel stimmen: %s / %s" % (f, r))
+    pg.screenshot(path="/tmp/claude-0/-home-user-hofertool/200b2cf0-6212-519e-8d78-d9236840c41e/scratchpad/web-pc.png")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
+    m = pg.evaluate("() => TEST.protokoll.filter(p => p.art === 'rpc' && p.name === 'infoboard_fenster_melden').map(p => p.args)")
+    pruefe(m[-1]["p_fenster"] == [], "beim Schliessen leere Liste gemeldet")
     pruefe(not pf, "keine Skriptfehler: %s" % pf[:2])
     br.close()
 print("Fehler:", "keine" if not fehler else fehler)

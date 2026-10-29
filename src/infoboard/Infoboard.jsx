@@ -21,7 +21,7 @@ import { alt } from "../bruecke.jsx";
 import { Tafel } from "./Tafel.jsx";
 import { istNacht } from "./Nacht.jsx";
 import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
-import { webBearbeiten, NEU_LADEN } from "./WebFeld.jsx";
+import { webBearbeiten, NEU_LADEN, useFensterMelden } from "./WebFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
   istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil, TAFELN, tafelFarben,
   layoutsLaden, layoutSpeichern, layoutLoeschen, gleicherAufbau, ohneEffekte } from "./daten.js";
@@ -283,9 +283,17 @@ function Gestalten({ mass }) {
                       onChange={(e) => teilAendern(wahl.id, { neuLaden: Number(e.target.value) })}>
                       {NEU_LADEN.map(([w, t]) => <option key={w} value={w}>{t}</option>)}
                     </select></label>}
-                {wahl.art === "web" && wahl.gesperrt &&
+                {wahl.art === "web" && mass.id === "haupt" &&
+                  <label className="ib-geraet">
+                    <input type="checkbox" checked={!!wahl.amPc} data-ib="am-pc"
+                      onChange={(e) => teilAendern(wahl.id, { amPc: e.target.checked || undefined })} />
+                    <span>Als echtes Chrome-Fenster am Infoboard-PC<small>Für Seiten, die sich nicht einbetten lassen
+                      oder eine Anmeldung brauchen. Das Programm infoboard-fenster am PC legt ein Chrome-Fenster genau
+                      über dieses Feld. Drehen geht dann nicht.</small></span>
+                  </label>}
+                {wahl.art === "web" && wahl.gesperrt && !wahl.amPc &&
                   <p className="hinweis" data-ib="web-gesperrt">Diese Seite lässt sich nicht einbetten ({wahl.gesperrt}).
-                    Am Bildschirm steht darum nur ein Hinweis.</p>}
+                    Am Bildschirm steht darum nur ein Hinweis{mass.id === "haupt" ? ", ausser mit dem Häkchen oben" : ""}.</p>}
                 <Drehung key={wahl.id} wert={wahl.drehung || 0} setzen={(g) => teilAendern(wahl.id, { drehung: g })} />
                 {wahl.art === "datei" && wahl.datei && (wahl.datei.typ === "pdf" || wahl.datei.typ === "excel") &&
                   <label className="feld">Mehrere Seiten wechseln
@@ -463,7 +471,9 @@ export function infoboardOeffnen(vonHand, mass = TAFELN.haupt) {
   document.body.classList.add("ib-offen");
   const wurzel = createRoot(huelle);
   offen = { huelle, wurzel };
-  wurzel.render(<Anzeige huelle={huelle} mass={mass} />);
+  // Nur der echte Bildschirm meldet die Lage der Chrome-Fenster (WebFeld.jsx),
+  // nicht wer am eigenen PC mal „Anzeige öffnen“ drückt
+  wurzel.render(<Anzeige huelle={huelle} mass={mass} melden={!vonHand || istInfoboardGeraet(mass)} />);
   // Vollbild erlaubt der Browser nur nach einem Tipp oder Klick. Beim Start
   // von selbst (Konto Infoboard, Bildschirm-Gerät) holt darum der erste
   // Tipp, Klick oder Tastendruck irgendwo das Vollbild nach, damit Adress-
@@ -511,7 +521,7 @@ function aufloesungText() {
     Math.round(window.innerHeight * f) + " Pixel · Bildschirm " + (s.width || "?") + " × " + (s.height || "?");
 }
 
-function Anzeige({ huelle, mass }) {
+function Anzeige({ huelle, mass, melden }) {
   const [aufbau, setAufbau] = useState(null);
   // Rand um die Tafel in derselben Farbe wie ihr Hintergrund
   useEffect(() => { if (mass.ruhig) huelle.style.background = tafelFarben(mass, aufbau).grund; }, [aufbau, mass, huelle]);
@@ -573,6 +583,8 @@ function Anzeige({ huelle, mass }) {
     if (e.clientY - r.top < r.height * 0.2) setZu(true);
     else if (schoner) setWachBis(Date.now() + WACH_MS);
   };
+
+  useFensterMelden(melden ? mass.id : null, huelle, [aufbau, schoner]);
 
   return (
     <div className="ib-voll__innen" onPointerDown={kopfTipp}>
