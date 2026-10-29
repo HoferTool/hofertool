@@ -1,24 +1,20 @@
 // =================================================================
 //  WERKZEUGWECHSEL-PROTOKOLL FÜR INDEX
-//  Beim Index läuft der Werkzeugwechsel wie das Excel-Blatt
-//  „Werkzeugwechselprotokoll“ (Wunsch Patrick 29. Oktober 2026): je
-//  Revolver die Plätze T1 bis T10, aber nur die, auf denen laut
-//  Einrichtblatt ein Werkzeug steht; daneben Spalten „Dat. / Stückz.“,
-//  eine je Wechsel. Das Protokoll gehört zur HOCO Nr. auf dem Typ: kommt
-//  ein neuer FA desselben Teils, geht es im selben Protokoll weiter, eine
-//  farbige Spaltenlinie mit „Neuer FA …“ darüber trennt die Aufträge.
-//  Ein Blatt hat sechs Spalten wie das Excel; behalten werden nur die
-//  letzten drei Blätter, Älteres löscht die App (Patrick: „rest wird
-//  nicht mehr gebraucht“).
+//  Beim Index ist das Blatt, das „Als PDF ablegen“ in der Historie macht,
+//  wie das Excel „Werkzeugwechselprotokoll“ (Wunsch Patrick 29. Oktober
+//  2026): je Revolver die Plätze T1 bis T10, aber nur die, auf denen laut
+//  Einrichtblatt ein Werkzeug steht; daneben sechs Spalten „Dat. /
+//  Stückz.“ je Blatt, eine je Wechsel. Das Protokoll gehört zur HOCO Nr.
+//  auf dem Typ: kommt ein neuer FA desselben Teils, geht es weiter, eine
+//  rote Spaltenlinie mit „Neuer FA …“ darüber trennt die Aufträge.
+//  Behalten werden nur die letzten drei Blätter, Älteres löscht die App
+//  (Patrick: „rest wird nicht mehr gebraucht“).
 //
-//  Gespeichert wird wie bei allen Typen in tool_changes (Path =
-//  „Revolver N“ in bezeichnung), damit Historie, Standzeit und PDF
-//  unverändert weiterlaufen.
+//  Eingetragen wird wie bei allen Typen über die Platzwahl (Werkzeugwechsel.jsx)
+//  in tool_changes, Path = „Revolver N“ in bezeichnung.
 // =================================================================
-import { useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { fensterOeffnen } from "../teile/Fenster.jsx";
-import { platzInGebrauch } from "../einrichtblatt/daten.js";
+import { blattSuchen, platzInGebrauch } from "../einrichtblatt/daten.js";
 import { REVOLVER } from "../einrichtblatt/vorlagen.js";
 
 export const SPALTEN_JE_BLATT = 6;
@@ -98,126 +94,93 @@ function reihenBilden(blatt, runden, alle) {
   }).filter((r) => r.plaetze.length);
 }
 
-export async function indexProtokoll(maschine, auftrag, typ, blatt, eintragen, historie) {
-  let runden = [];
-  try { runden = await protokollLaden(auftrag.job_number, typ.id); }
-  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
-  const neuLaden = async () => altesLoeschen(await protokollLaden(auftrag.job_number, typ.id));
-  fensterOeffnen((zu) => <Protokoll maschine={maschine} auftrag={auftrag} typ={typ} blatt={blatt}
-    anfang={runden} neuLaden={neuLaden} eintragen={eintragen} historie={historie} zu={zu} />);
+// Nach jedem Wechsel an einem Index: mehr als drei Blätter dieser HOCO Nr.,
+// dann die ältesten weg
+export async function indexAufraeumen(maschine, auftrag) {
+  if (!auftrag || !auftrag.job_number) return;
+  try {
+    const typ = (await alt.ladeTypen()).find((t) => t.id === maschine.type_id);
+    if (!istIndex(typ)) return;
+    await altesLoeschen(await protokollLaden(auftrag.job_number, typ.id));
+  } catch (f) { /* dann beim nächsten Mal */ }
 }
 
-function Protokoll({ maschine, auftrag, typ, blatt, anfang, neuLaden, eintragen, historie, zu }) {
-  const [runden, setRunden] = useState(anfang);
-  const [alle, setAlle] = useState(false);
-  const [gewaehlt, setGewaehlt] = useState([]);
-  const [laeuft, setLaeuft] = useState(false);
-  const darf = alt.darfSchreiben();
+// Das PDF der Historie beim Index ist dieses Protokoll statt des Blatts
+// „Plattenwechsel“ (Patrick 29. Oktober 2026: „hätte anstelle von der
+// aktuellen PDF-Version kommen sollen, Historie behalten“). Gibt null
+// zurück, wenn es kein Index ist oder kein Auftrag dahintersteht.
+export async function indexPdfAufbau(maschine, auftrag) {
+  if (!auftrag || !auftrag.job_number) return null;
+  const typ = (await alt.ladeTypen()).find((t) => t.id === maschine.type_id);
+  if (!istIndex(typ)) return null;
+  const [runden, blatt] = await Promise.all([protokollLaden(auftrag.job_number, typ.id),
+    blattSuchen(auftrag.job_number, typ.id).catch(() => null)]);
+  return { html: (titel) => protokollHtml(maschine, auftrag, blatt, runden, titel) };
+}
 
-  // Die nächste Spalte zum Eintragen hängt hinten an; ist das letzte Blatt
-  // voll, beginnt sie ein neues
-  const spalten = runden.concat(darf ? [{ neu: true, job: auftrag.id, fa: auftrag.fa_nr || "" }] : []);
-  const anzahl = Math.max(1, Math.ceil(spalten.length / SPALTEN_JE_BLATT));
-  const [seite, setSeite] = useState(anzahl - 1);
-  const s = Math.min(seite, anzahl - 1);
-  const aufBlatt = spalten.slice(s * SPALTEN_JE_BLATT, (s + 1) * SPALTEN_JE_BLATT);
-  while (aufBlatt.length < SPALTEN_JE_BLATT) aufBlatt.push(null);
-
-  // Neuer FA: anderer Auftrag als die Spalte davor
-  const index = (c) => spalten.indexOf(c);
-  const neuerFa = (c) => { const i = index(c); return i > 0 && c && (spalten[i - 1].job || "") !== (c.job || ""); };
+function protokollHtml(maschine, auftrag, blatt, runden, titel) {
+  const esc = alt.esc;
+  const reihen = reihenBilden(blatt, runden, false);
+  const blaetter = [];
+  for (let i = 0; i < Math.max(1, runden.length); i += SPALTEN_JE_BLATT) blaetter.push(runden.slice(i, i + SPALTEN_JE_BLATT));
+  const neuerFa = (c) => { const i = runden.indexOf(c); return i > 0 && (runden[i - 1].job || "") !== (c.job || ""); };
   const faText = (c) => (c.fa ? "FA " + c.fa : "anderer Auftrag");
+  const gewechselt = (c, r, p) => c.zeilen.some((z) => z.tool_nr === p.tool_nr && (revolverVon(z.bezeichnung) === r.nr || !z.bezeichnung));
+  const kl = (c) => "sp" + (c && neuerFa(c) ? " fa" : "");
 
-  const reihen = reihenBilden(blatt, runden, alle);
-  const mitBlatt = !!(blatt && Object.keys(blatt.plaetze || {}).some((k) => platzInGebrauch(blatt.plaetze[k])));
-  const umschalten = (id) => setGewaehlt((g) => (g.includes(id) ? g.filter((x) => x !== id) : g.concat(id)));
-  const gewechselt = (c, r, p) => c && !c.neu && c.zeilen.some((z) => z.tool_nr === p.tool_nr
-    && (revolverVon(z.bezeichnung) === r.nr || !z.bezeichnung));
-
-  const speichern = async () => {
-    if (!gewaehlt.length || laeuft) return;
-    const liste = [];
-    reihen.forEach((r) => r.plaetze.forEach((p) => { if (gewaehlt.includes(p.id)) liste.push({ tool_nr: p.tool_nr, path: r.name }); }));
-    setLaeuft(true);
-    const ok = await eintragen(maschine, auftrag, liste);
-    if (ok) {
-      try {
-        const neu = await neuLaden();
-        setRunden(neu);
-        setGewaehlt([]);
-        setSeite(Math.ceil((neu.length + 1) / SPALTEN_JE_BLATT) - 1);
-      } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
-    }
-    setLaeuft(false);
+  const seite = (spalten, nr) => {
+    const sp = spalten.slice();
+    while (sp.length < SPALTEN_JE_BLATT) sp.push(null);
+    return '<div class="seite">'
+      + '<div class="kopf"><div>Werkstück: <b>' + esc(auftrag.job_number) + '</b></div>'
+      + '<h1>Werkzeugwechselprotokoll</h1>'
+      + '<div class="rechts">' + esc((maschine.name || "Index C100") + (maschine.machine_number ? " · " + maschine.machine_number : ""))
+      + '<div class="logo" role="img" aria-label="Hofer + Co."></div></div></div>'
+      + '<table><colgroup><col class="nr"><col class="wz">' + sp.map(() => '<col class="sp">').join("") + '</colgroup>'
+      + '<thead><tr class="falabel"><th colspan="2"></th>' + sp.map((c, i) => '<th class="' + kl(c) + '">'
+        + (c ? (neuerFa(c) ? '<span class="neu">Neuer ' + esc(faText(c)) + '</span>' : (i === 0 ? '<span class="still">' + esc(faText(c)) + '</span>' : "")) : "")
+        + '</th>').join("") + '</tr>'
+      + '<tr><th class="nr">T-Nr</th><th class="wz">Werkzeug</th>' + sp.map((c) => '<th class="' + kl(c) + '">Dat. / Stückz.</th>').join("") + '</tr></thead><tbody>'
+      + reihen.map((r) => '<tr class="rev"><th colspan="' + (2 + SPALTEN_JE_BLATT) + '" style="background:' + r.farbe + '">' + esc(r.name) + '</th></tr>'
+        + r.plaetze.map((p) => '<tr><td class="nr">' + esc(p.tool_nr) + '</td><td class="wz">'
+          + (p.eb ? '<b>' + esc(p.eb.taetigkeit || p.eb.werkzeug || "") + '</b>' + (p.eb.hersteller ? ' <small>' + esc(p.eb.hersteller) + '</small>' : "") : "")
+          + '</td>' + sp.map((c) => '<td class="' + kl(c) + '">' + (c && gewechselt(c, r, p)
+            ? esc(datum(c.wann)) + '<br><b>' + (c.stk === null || c.stk === undefined ? "—" : esc(alt.zahlText(c.stk))) + '</b>' : "") + '</td>').join("")
+          + '</tr>').join("")).join("")
+      + '</tbody></table>'
+      + '<div class="fuss"><span>Blatt ' + nr + ' von ' + blaetter.length + ' · behalten werden die letzten ' + BLAETTER_BEHALTEN + ' Blätter</span>'
+      + '<span>Erstellt ' + esc(alt.datumZeitKurz(new Date().toISOString())) + '</span></div></div>';
   };
 
-  const klasse = (c) => "ixp-sp" + (c && c.neu ? " ixp-sp--neu" : "") + (c && neuerFa(c) ? " ixp-sp--fa" : "");
-
-  return (
-    <div className="dialog dialog--breit ixp">
-      <div className="wz-kopf">
-        <h2>Werkzeugwechsel­protokoll</h2>
-        {mitBlatt && <button className="knopf knopf--klein knopf--still" data-ixpalle="" style={{ marginLeft: "auto", marginRight: ".5rem" }}
-          onClick={() => setAlle(!alle)}>{alle ? "Nur aus dem Einrichtblatt" : "Alle Plätze"}</button>}
-        <button className="knopf knopf--klein" data-wzhistorie="" style={mitBlatt ? null : { marginLeft: "auto" }}
-          onClick={() => { zu(); historie(maschine, auftrag); }}>Historie</button>
-        <button className="knopf knopf--still knopf--klein" data-zu="" onClick={zu}>Schliessen</button>
-      </div>
-      <div className="ixp-titel">
-        <span>Werkstück: <strong data-ixphoco="">{auftrag.job_number}</strong></span>
-        <span>{maschine.name || "Index C100"}{maschine.machine_number ? " · " + maschine.machine_number : ""}</span>
-        <span className="ixp-blaettern">
-          <button className="knopf knopf--klein knopf--still" data-ixpzurueck="" disabled={s === 0}
-            aria-label="Blatt zurück" onClick={() => setSeite(s - 1)}>◀</button>
-          <span data-ixpblatt="">Blatt {s + 1} von {anzahl}</span>
-          <button className="knopf knopf--klein knopf--still" data-ixpweiter="" disabled={s >= anzahl - 1}
-            aria-label="Blatt weiter" onClick={() => setSeite(s + 1)}>▶</button>
-        </span>
-      </div>
-      {!mitBlatt && <p className="klein">Kein Einrichtblatt in der App: es stehen alle Plätze T1 bis T10 da.</p>}
-      <div className="ixp-rollen">
-        <table className="ixp-tabelle">
-          {/* Feste Breiten: die erste Zeile (FA) fasst T-Nr und Werkzeug zusammen */}
-          <colgroup><col className="ixp-nr" /><col className="ixp-wz" />
-            {aufBlatt.map((c, i) => <col key={i} className="ixp-sp" />)}</colgroup>
-          <thead>
-            <tr className="ixp-fazeile"><th colSpan="2"></th>{aufBlatt.map((c, i) => (
-              <th key={i} className={klasse(c)}>{c && (neuerFa(c) ? <span className="ixp-falabel" data-ixpneufa="">Neuer {faText(c)}</span>
-                : (i === 0 ? <span className="ixp-fa-still">{faText(c)}</span> : null))}</th>))}</tr>
-            <tr><th className="ixp-nr">T-Nr</th><th className="ixp-wz">Werkzeug</th>
-              {aufBlatt.map((c, i) => <th key={i} className={klasse(c)}>{c && c.neu ? "Neu" : "Dat. / Stückz."}</th>)}</tr>
-          </thead>
-          <tbody>
-            {reihen.map((r) => [
-              <tr key={r.nr} className="ixp-rev"><th colSpan={2 + SPALTEN_JE_BLATT} style={{ background: r.farbe }}>{r.name}</th></tr>,
-              ...r.plaetze.map((p) => (
-                <tr key={p.id} data-ixpplatz={p.id} className={gewaehlt.includes(p.id) ? "ixp-an" : ""}
-                  onClick={darf && s === anzahl - 1 ? () => umschalten(p.id) : undefined}>
-                  <td className="ixp-nr">{p.tool_nr}</td>
-                  <td className="ixp-wz">{p.eb ? <><strong>{p.eb.taetigkeit || p.eb.werkzeug || ""}</strong>
-                    {p.eb.hersteller && <small> {p.eb.hersteller}</small>}</> : ""}</td>
-                  {aufBlatt.map((c, i) => (
-                    <td key={i} className={klasse(c)}>
-                      {c && c.neu ? (gewaehlt.includes(p.id) ? <span className="ixp-haken">✓</span> : "")
-                        : gewechselt(c, r, p) ? <span className="ixp-eintrag" data-ixpeintrag="">{datum(c.wann)}
-                          <b>{c.stk === null || c.stk === undefined ? "—" : alt.zahlText(c.stk)}</b></span> : ""}
-                    </td>
-                  ))}
-                </tr>
-              )),
-            ])}
-          </tbody>
-        </table>
-      </div>
-      <p className="klein">{darf
-        ? (s === anzahl - 1 ? "Gewechselte Werkzeuge antippen, dann eintragen. " : "Zum Eintragen aufs letzte Blatt blättern. ")
-          + "Behalten werden die letzten " + BLAETTER_BEHALTEN + " Blätter."
-        : "Nur zum Ansehen."}</p>
-      {darf && <div className="dialog__knoepfe">
-        <button className="knopf knopf--still" data-nein="" onClick={zu}>Schliessen</button>
-        <button className="knopf knopf--haupt" data-ixpeintragen="" disabled={!gewaehlt.length || laeuft} onClick={speichern}>
-          {gewaehlt.length ? "Wechsel eintragen · " + gewaehlt.length : "Wechsel eintragen"}</button>
-      </div>}
-    </div>
-  );
+  return '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' + esc(titel) + '</title><style>'
+    + '@page { size: A4 landscape; margin: 9mm 9mm }'
+    + '* { box-sizing: border-box } body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0;'
+    + ' -webkit-print-color-adjust: exact; print-color-adjust: exact }'
+    + '.seite { max-width: 279mm; margin: 0 auto; padding: 60px 0 10mm; break-after: page }'
+    + '.seite:last-child { break-after: auto }'
+    + '@media print { .seite { padding: 0; max-width: none } }'
+    + '.kopf { display: flex; align-items: flex-end; justify-content: space-between; gap: 6mm; margin-bottom: 3mm; font-size: 12pt }'
+    + '.kopf b { font-size: 15pt } h1 { font-size: 20pt; font-weight: 400; margin: 0 }'
+    + '.rechts { display: flex; align-items: flex-end; gap: 5mm }'
+    + '.logo { width: 40mm; aspect-ratio: 643 / 240; background: #2f6db5;'
+    + ' -webkit-mask: url(' + alt.LOGO_WEISS + ') center / contain no-repeat; mask: url(' + alt.LOGO_WEISS + ') center / contain no-repeat }'
+    + 'table { width: 100%; border-collapse: collapse; table-layout: fixed }'
+    + 'th, td { border: .6pt solid #000; padding: 1mm 1.5mm; font-size: 10pt }'
+    + 'col.nr { width: 14mm } col.wz { width: 62mm }'
+    + 'thead th { font-size: 9pt; text-align: center } td.nr { text-align: center; font-weight: 700 }'
+    + 'td.wz { overflow: hidden; white-space: nowrap; text-overflow: ellipsis } td.wz small { color: #444 }'
+    + 'td.sp { text-align: center; height: 10mm; font-size: 9pt; line-height: 1.2 } td.sp b { font-size: 10.5pt }'
+    + 'tr.falabel th { border: 0; text-align: left; padding: 0 1mm 1mm; font-size: 9pt; vertical-align: bottom }'
+    + 'tr.falabel .neu { color: #d62828; font-weight: 700; white-space: nowrap } tr.falabel .still { color: #555; font-weight: 400 }'
+    + '.fa { border-left: 2.4pt solid #d62828 !important }'
+    + 'tr.rev th { text-align: left; padding: .8mm 2mm; font-size: 10pt }'
+    + 'tr { break-inside: avoid }'
+    + '.fuss { margin-top: 2mm; display: flex; justify-content: space-between; color: #555; font-size: 7.5pt }'
+    + '.leiste { position: fixed; top: 10px; right: 12px; display: flex; gap: 6px }'
+    + '.leiste button { font: inherit; font-size: 10pt; padding: 8px 16px; border: 1px solid #2f6db5;'
+    + ' background: #2f6db5; color: #fff; border-radius: 6px; cursor: pointer }'
+    + '.leiste button + button { background: #fff; color: #2f6db5 } @media print { .leiste { display: none } }'
+    + '</style></head><body><div class="leiste"><button onclick="window.print()">Drucken / PDF</button>'
+    + '<button onclick="window.close()">Schliessen</button></div>'
+    + blaetter.map((b, i) => seite(b, i + 1)).join("") + '</body></html>';
 }

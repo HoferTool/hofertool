@@ -150,7 +150,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.267.0";
+const APP_VERSION = "1.267.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8376,7 +8376,8 @@ async function historieAblegen(maschine, auftrag, runden, spaltenHolen) {
     + (auftrag && auftrag.job_number ? auftrag.job_number : maschine.name).replace(/[^A-Za-z0-9-]+/g, "_")
     + "_" + isoDatum(new Date());
   fenster.document.open();
-  fenster.document.write(historieBlatt(maschine, auftrag, runden, titel, aufbau));
+  // Beim Index liefert das Protokoll sein eigenes Blatt (IndexProtokoll.jsx)
+  fenster.document.write(aufbau && aufbau.html ? aufbau.html(titel) : historieBlatt(maschine, auftrag, runden, titel, aufbau));
   fenster.document.close();
 
   // Zusätzlich in der Ablage hinterlegen, damit die Historie später

@@ -14,7 +14,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { blattSuchen, platzInGebrauch } from "../einrichtblatt/daten.js";
 import { platzGruppe, platzName } from "../einrichtblatt/vorlagen.js";
-import { istIndex, indexProtokoll } from "./IndexProtokoll.jsx";
+import { indexAufraeumen, indexPdfAufbau } from "./IndexProtokoll.jsx";
 
 const anzahlText = (n) => n + (n === 1 ? " Werkzeug" : " Werkzeuge");
 
@@ -51,12 +51,6 @@ export async function werkzeugWechselDialog(maschine, auftrag) {
       auftrag && auftrag.job_number ? blattSuchen(auftrag.job_number, maschine.type_id) : null]);
   } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
   const typ = typen.find((t) => t.id === maschine.type_id);
-  // Index hat ein eigenes Protokoll je HOCO Nr. wie das Excel (Wunsch
-  // Patrick 29. Oktober 2026); Externe vorerst wie bisher (Entscheid offen)
-  if (istIndex(typ) && auftrag && auftrag.job_number && !alt.istExtern()) {
-    indexProtokoll(maschine, auftrag, typ, blatt, eintragen, wechselHistorie);
-    return;
-  }
   const sw = istSw(typ);
   const rang = (p) => pathRang(p.nummer, sw);
   let reihen = paths
@@ -189,6 +183,8 @@ async function eintragen(maschine, auftrag, liste) {
   try { await alt.einfuegenOhneUnbekannte("tool_changes", zeilen); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
   alt.meldung(anzahlText(liste.length) + " bei " + alt.zahlText(stand) + " Stück eingetragen.");
+  // Beim Index bleiben je HOCO Nr. nur die letzten drei Protokollblätter
+  indexAufraeumen(maschine, auftrag);
   return true;
 }
 
@@ -399,7 +395,7 @@ function Historie({ maschine, auftrag, anfang, zu }) {
     <div className="dialog dialog--breit">
       <div className="blatt__kopf"><h2>Werkzeugwechsel · {maschine.name}</h2>
         {runden.length > 0 && <button className="knopf knopf--klein" data-wzpdf=""
-          onClick={() => alt.historieAblegen(maschine, auftrag, runden, () => blattSpalten(maschine, auftrag, runden))}>Als PDF ablegen</button>}
+          onClick={() => alt.historieAblegen(maschine, auftrag, runden, async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, runden))}>Als PDF ablegen</button>}
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
       {runden.length
         ? <table className="tabelle">
