@@ -37,6 +37,11 @@ STAPEL = pdf([
     [],
     ["Empfangsschein   Zahlteil", "Konto / Zahlbar an", "CH44 3199 9123 0008 8901 2", "Beispiel Stahl GmbH", "Industriestrasse 1", "Referenz"]
         + ["Rechnungsnummer 55001", "Datum 28.10.2026"],
+    # Fusszeile nur „1/2“ ohne „Seite“, Nummer auf Seite 2 falsch gelesen,
+    # „Konto-/ Zahlbar an“ mit Bindestrich (wie bei Notz Metall)
+    ["Rechnung 3301 - 20.10.2026"] + HOFER + ["Total CHF 50.00", "1/2"],
+    ["Rechnung 330 1 - 20.10.2026", "2/2"],
+    ["Empfangsschein  Zahlteil  Konto-/ Zahlbar an", "CH12 3456 7890 1234 5678 9", "Muster Metall AG", "Bernstrasse 1", "Rechnung 3301 - 20.10.2026"],
     ["Kleiner Verein"] + HOFER + ["Rechnungs-Nr 0099", "Rechnungsdatum 26.10.2026", "IBAN CH56 0483 5012 3456 7800 9"],
     ["Turnverein Muster"] + HOFER + ["Rechnung 0777", "Rechnungsdatum 25.10.2026", "Bankverbindung:", "Turnverein Muster", "IBAN CH93 0076 2011 6238 5295 7", "Raiffeisenbank"],
 ])
@@ -83,6 +88,7 @@ with sync_playwright() as p:
       const t = await f.text(); return (t.match(/\\/Type \\/Page[^s]/g) || []).length; }""")
     pruefe("Leere Rückseiten weg, zwei Seiten: " + str(seiten), seiten == 2)
     pruefe("QR-Zahlteil erkennt Beispiel Stahl", "Beispiel Stahl GmbH/2026-10-28 55001.pdf" in namen)
+    pruefe("Fusszeile 1/2 und Konto-/ Zahlbar an", "Muster Metall AG/2026-10-20 3301.pdf" in namen and not any(n.startswith("_Zuordnen/2026-10-20") for n in namen))
     pruefe("Stapel nach _Originale", "_Originale/Scan 001.pdf" in namen and "Scan 001.pdf" not in namen)
     pruefe("Name über der IBAN erkannt", "Turnverein Muster/2026-10-25 0777.pdf" in namen)
     pruefe("Unbekannter nach _Zuordnen", "_Zuordnen/2026-10-26 0099.pdf" in namen)

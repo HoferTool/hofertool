@@ -69,7 +69,7 @@ export function ibansIn(text) {
 export function qrName(zeilen) {
   const namen = [];
   for (let i = 0; i < zeilen.length; i++) {
-    if (!/konto\s*\/?\s*zahlbar\s*an/i.test(zeilen[i])) continue;
+    if (!/konto\s*-?\s*\/?\s*zahlbar\s*an/i.test(zeilen[i])) continue;
     for (let j = i; j < Math.min(zeilen.length, i + 6); j++) {
       // In derselben Zeile können zwei Spalten stehen; nur was nach der IBAN kommt
       const rest = j === i ? zeilen[j].replace(/.*zahlbar\s*an/i, "") : zeilen[j];
@@ -132,6 +132,16 @@ export function seiteIn(text) {
   const n = +m[1], von = m[2] ? +m[2] : null;
   if (!n || (von && n > von)) return null;
   return { n, von };
+}
+
+// Ohne das Wort „Seite“: eine Zeile, auf der nur „1/3“ steht (Fusszeile
+// bei Notz Metall, Patrick 29. Oktober 2026: „du hast daraus sieben gemacht“)
+export function seiteZeile(zeilen) {
+  for (const z of zeilen) {
+    const m = /^\s*(\d{1,2})\s*\/\s*(\d{1,2})\s*$/.exec(z);
+    if (m && +m[1] >= 1 && +m[1] <= +m[2] && +m[2] <= 20) return { n: +m[1], von: +m[2] };
+  }
+  return null;
 }
 
 // Rechnungsnummer
@@ -201,7 +211,7 @@ export function seiteLesen(zeilen, liste) {
     zeilen,
     lieferant: l ? l.name : null,
     qr: qrName(zeilen) || uidFirma(zeilen) || bankName(zeilen),
-    seite: seiteIn(flach),
+    seite: seiteIn(flach) || seiteZeile(zeilen),
     nummer: nummerIn(flach),
     datum: datumIn(zeilen),
     uids: uidsIn(text),
