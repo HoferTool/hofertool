@@ -84,10 +84,14 @@ function ZurueckKnopf({ r }) {
   );
 }
 
+// Der heutige Tag zählt nie mit, weil die Stückzahlen oft erst im Lauf
+// des Tages gemeldet werden (Wunsch Patrick 29. Oktober 2026)
 function zeitraum() {
-  const heute = alt.isoDatum(new Date());
-  let [von, bis] = [alt.plusTage(heute, -((Number(st.zeitraum) || 30) - 1)), heute];
+  const gestern = alt.plusTage(alt.isoDatum(new Date()), -1);
+  let [von, bis] = [alt.plusTage(gestern, -((Number(st.zeitraum) || 30) - 1)), gestern];
   if (st.zeitraum === "frei" && st.von && st.bis) [von, bis] = st.von <= st.bis ? [st.von, st.bis] : [st.bis, st.von];
+  if (bis > gestern) bis = gestern;
+  if (von > bis) von = bis;
   return [von < STATISTIK_AB ? STATISTIK_AB : von, bis < STATISTIK_AB ? STATISTIK_AB : bis];
 }
 
@@ -151,11 +155,11 @@ export default function Statistik({ auffrischen }) {
         {st.zeitraum === "frei" && <span className="st-frei">
           <input type="date" value={von} min={STATISTIK_AB} max={bis} data-stvon onChange={(e) => e.target.value && setze({ von: e.target.value })} />
           <span>bis</span>
-          <input type="date" value={bis} min={von} data-stbis onChange={(e) => e.target.value && setze({ bis: e.target.value })} />
+          <input type="date" value={bis} min={von} max={alt.plusTage(alt.isoDatum(new Date()), -1)} data-stbis onChange={(e) => e.target.value && setze({ bis: e.target.value })} />
         </span>}
         <span className="klein st-zeit__text">{alt.kurzDatum(von)}{von.slice(0, 4)} – {alt.kurzDatum(bis)}{bis.slice(0, 4)}
           {r ? " · " + r.arbeitstage + " Arbeitstage" : ""}</span>
-        <span className="klein st-zeit__text" id="st-ab">Gezählt wird erst ab {alt.kurzDatum(STATISTIK_AB)}{STATISTIK_AB.slice(0, 4)}.</span>
+        <span className="klein st-zeit__text" id="st-ab">Gezählt wird erst ab {alt.kurzDatum(STATISTIK_AB)}{STATISTIK_AB.slice(0, 4)}, bis gestern (heute ist noch nicht fertig gemeldet).</span>
       </div>
       <Uebergang key={st.reiter}>
         {st.reiter === "werkzeug"

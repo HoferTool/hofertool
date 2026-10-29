@@ -14,7 +14,7 @@
 //    Nr. und Maschinentyp). Ohne Stückzeit zählen die Stück trotzdem
 //    zum Ausstoss, aber nicht zur Zeit; die Seite sagt, wie viele.
 //  - Auslastung: Produktionszeit geteilt durch 10 h je Arbeitstag
-//    (Mo–Fr bis heute), 10 h = 100 % (Vorgabe Patrick).
+//    (Mo–Fr bis gestern, heute zählt nicht), 10 h = 100 % (Vorgabe Patrick).
 //  - Startmengen (1.160.0, Wunsch Patrick 23. Oktober 2026: „Es kann
 //    keine höhere Auslastung als 240 % geben“): Als das HoferTool Ende
 //    September startete, liefen viele Aufträge schon; ihr erster
@@ -60,10 +60,11 @@ async function alleZeilen(bauen, name) {
   return raus;
 }
 
-// Mo–Fr von von bis bis (beide JJJJ-MM-TT), höchstens bis heute
+// Mo–Fr von von bis bis (beide JJJJ-MM-TT), höchstens bis gestern,
+// weil der heutige Tag nicht mitzählt
 export function arbeitstageZaehlen(von, bis) {
-  const heute = alt.isoDatum(new Date());
-  const ende = bis < heute ? bis : heute;
+  const gestern = alt.plusTage(alt.isoDatum(new Date()), -1);
+  const ende = bis < gestern ? bis : gestern;
   let n = 0;
   for (let t = von; t <= ende; t = alt.plusTage(t, 1)) {
     const w = alt.ausIso(t).getDay();
