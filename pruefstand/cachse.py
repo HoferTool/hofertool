@@ -21,7 +21,7 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#rechner'")
-    pg.wait_for_selector("[data-rech='cachse']"); pg.click("[data-rech='cachse']")
+    pg.wait_for_selector("[data-unter='rechner/cachse']"); pg.click("[data-unter='rechner/cachse']")
     pg.wait_for_selector("pre.gcode")
     code = lambda: pg.text_content("pre.gcode")
     def feld(name, wert):
@@ -77,9 +77,9 @@ with sync_playwright() as p:
     pg.click("#cax-los"); pg.wait_for_timeout(150)
     pruefe("Ablauf hält", pg.inner_text("#cax-los") == "Ablauf zeigen")
     # Gravur sieht denselben Vorspann
-    pg.click("[data-rech='gravur']"); pg.wait_for_timeout(600)
+    pg.click("[data-unter='rechner/gravur']"); pg.wait_for_timeout(600)
     pruefe("Gravur nimmt den Vorspann", "M110" in (pg.text_content("#rech-inhalt pre") or ""))
-    pg.click("[data-rech='cachse']"); pg.wait_for_selector("#cax-bild"); pg.wait_for_timeout(800)
+    pg.click("[data-unter='rechner/cachse']"); pg.wait_for_selector("#cax-bild"); pg.wait_for_timeout(800)
     pg.screenshot(path="cachse.png", full_page=False)
     br.close()
 print("Fehler:", fehler[:3] if fehler else "keine")

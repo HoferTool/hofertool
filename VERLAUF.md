@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.247.0** **CAM wieder ganz entfernt** (Entscheid Patrick 29. Oktober 2026: „nimm es raus“): kein Reiter Shortcuts und CAM mehr, der Rechner hat wieder direkt seine Reiter Drehzahl, Winkel, G-Code, C-Achse, Gravur und DXF; im Fenster „⚙ Typ“ und auf der Seite der SW-Maschinen steht nichts mehr vom CAM. Die Tabellen `cam_aufbau` und `cam_programme` bleiben in der Datenbank, der Code im Git-Verlauf.
 - **1.246.0** (28. Oktober 2026) Startseite: Karte **„Laufend ohne WBG“** (Wunsch Patrick: „welche laufenden aufträge noch keinen wbg haben“): Aufträge auf „läuft“ an Maschinen der eigenen Parks ohne WBG, ohne externe Parks; Tipp öffnet das Auftragsfenster, wo die WBG hochgeladen wird. Steht nur da, wenn es welche gibt (`src/seiten/start/OhneWbg.jsx`).
 - **1.245.1** (28. Oktober 2026) Empfang: Alpenkette wieder genau wie in 1.237.0 (Patrick: „ich will die erste ursprüngliche Variante“).
 - **1.245.0** (28. Oktober 2026) Empfang: Alpenkette **grafisch** statt gemalt (Patrick: „gefällt mir nicht … weniger markant und stilistischer“): flache Schichten in sanften Tönen, gerade Kanten, Schneekappen mit Zickzack, unten weich ausgeblendet, wieder als SVG.
