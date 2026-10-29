@@ -140,7 +140,7 @@ export async function statistikLaden(von, bis) {
   let typen = [];
   try { typen = await alt.ladeTypen(); } catch (f) { /* ohne Typnamen geht es auch */ }
   const ids = maschinen.map((m) => m.id);
-  if (!ids.length) return { maschinen, typen, jobs: [], records: [], zeiten: [], ausschuss: [], von, bis };
+  if (!ids.length) return { maschinen, parks, typen, jobs: [], records: [], zeiten: [], ausschuss: [], von, bis };
 
   const ab = alt.ausIso(von);
   const bisEnde = alt.ausIso(alt.plusTage(bis, 1));
@@ -176,7 +176,7 @@ export async function statistikLaden(von, bis) {
     if (r.error) throw r.error;
     (r.data || []).forEach((j) => jobs.set(j.id, j));
   }
-  return { maschinen, typen, jobs: [...jobs.values()], records, zeiten, ausschuss, von, bis };
+  return { maschinen, parks, typen, jobs: [...jobs.values()], records, zeiten, ausschuss, von, bis };
 }
 
 // ---------------------------------------------------------------
@@ -380,7 +380,9 @@ export function statistikRechnen(d) {
 // ---------------------------------------------------------------
 //  Werkzeugverbrauch aus den Bestellungen
 // ---------------------------------------------------------------
-export async function werkzeugLaden(von, bis, maschinen) {
+// Nur die Positionen holen; gerechnet wird mit werkzeugRechnen, damit
+// das Umschalten der Maschinen nicht jedes Mal neu lädt
+export async function werkzeugLaden(von, bis) {
   const ab = alt.ausIso(von).toISOString();
   const bisEnde = alt.ausIso(alt.plusTage(bis, 1)).toISOString();
   // Nach Anlegen holen und unten nach dem Tag der Bestellung filtern:
@@ -401,7 +403,7 @@ export async function werkzeugLaden(von, bis, maschinen) {
     if (r.error) throw r.error;
     (r.data || []).forEach((a) => artikel.set(a.id, a));
   }
-  return werkzeugRechnen(imZeitraum, artikel, maschinen, von, bis);
+  return { positionen: imZeitraum, artikel };
 }
 
 // Ziel „Maschine“ steht als Text da („Star SR-20 12“); passt er zu
@@ -419,9 +421,15 @@ function platzIn(maschinen, id) {
   return i < 0 ? 1e6 : i;
 }
 
-export function werkzeugRechnen(positionen, artikel, maschinen, von, bis) {
+// nur = Set der gewählten Maschinen oder null für alle. Mit einer Wahl
+// zählen nur Positionen mit Ziel einer gewählten Maschine (seit 1.263.0)
+export function werkzeugRechnen(alle, artikel, maschinen, von, bis, nur = null) {
   const jeArtikel = {}, jeMaschine = {}, jeMonat = {};
   let stk = 0;
+  const positionen = !nur ? alle : alle.filter((p) => {
+    const m = p.ziel_art === "maschine" ? maschineFinden(p.ziel_text, maschinen) : null;
+    return m && nur.has(String(m.id));
+  });
   positionen.forEach((p) => {
     const a = artikel.get(p.article_id) || null;
     const menge = Number(p.quantity) || 0;

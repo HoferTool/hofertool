@@ -10,13 +10,13 @@
 //  Externe (Entscheid Patrick 23. Oktober 2026: „Externe nicht“) und
 //  Dienst (seiteSichtbar).
 // =================================================================
-import { useMemo, useReducer } from "react";
+import { useMemo, useReducer, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { Saeulen, Balken, Kennzahl } from "../teile/Diagramm.jsx";
-import { statistikLaden, statistikRechnen, werkzeugLaden, dauerText, stundenText, prozentText, kommaText,
+import { statistikLaden, statistikRechnen, werkzeugLaden, werkzeugRechnen, dauerText, stundenText, prozentText, kommaText,
   STUNDEN_VOLL, STUNDEN_MAX } from "../daten/statistik.js";
 
 export const st = { reiter: "maschinen", zeitraum: "30", von: null, bis: null, maschine: null, artikel: null, suche: "", verlauf: [] };
@@ -95,6 +95,12 @@ function zeitraum() {
   return [von < STATISTIK_AB ? STATISTIK_AB : von, bis < STATISTIK_AB ? STATISTIK_AB : bis];
 }
 
+// Welche Maschinen zählen (seit 1.263.0, Wunsch Patrick 29. Oktober 2026:
+// „wählen können, welche Maschinen berücksichtigt werden sollen“). Gemerkt
+// je Person werden die abgewählten, damit neue Maschinen von selbst dabei sind.
+const OHNE = "statistik_ohne_maschinen";
+const ohneLesen = () => new Set(String((alt.einstellungWert && alt.einstellungWert(OHNE, "")) || "").split(",").filter(Boolean));
+
 const quoteText = (q) => Number.isFinite(q) ? kommaText(q * 100) + " %" : "–";
 const stk = (n) => alt.zahlText(Math.round(n || 0));
 const stkText = (n) => stk(n) + " Stk";
@@ -144,7 +150,16 @@ export default function Statistik({ auffrischen }) {
   const [, zeichnen] = useReducer((x) => x + 1, 0);
   const [von, bis] = zeitraum();
   const { daten, fehler } = useDaten(() => statistikLaden(von, bis), [auffrischen, von, bis]);
-  const r = useMemo(() => (daten ? statistikRechnen(daten) : null), [daten]);
+  const [ohne, setOhne] = useState(ohneLesen);
+  const [wahlOffen, setWahlOffen] = useState(false);
+  const alleM = daten ? daten.maschinen : [];
+  const ohneHier = alleM.filter((m) => ohne.has(String(m.id))).length;
+  const r = useMemo(() => (daten ? statistikRechnen(ohneHier
+    ? { ...daten, maschinen: daten.maschinen.filter((m) => !ohne.has(String(m.id))) } : daten) : null), [daten, ohne]);
+  const ohneSetzen = (neu) => {
+    setOhne(neu);
+    alt.einstellungSetzenWert(OHNE, [...neu].join(","));
+  };
   const setze = (o) => { Object.assign(st, o); zeichnen(); };
   zeichnenAussen = zeichnen;
 
@@ -178,11 +193,18 @@ export default function Statistik({ auffrischen }) {
         </span>}
         <span className="klein st-zeit__text">{alt.kurzDatum(von)}{von.slice(0, 4)} – {alt.kurzDatum(bis)}{bis.slice(0, 4)}
           {r ? " · " + r.arbeitstage + " Arbeitstage" : ""}</span>
+        {daten && daten.maschinen.length > 1 && <button className={"st-chip st-chip--wahl" + (ohneHier ? " st-chip--teil" : "")}
+          id="st-wahl-knopf" aria-expanded={wahlOffen} onClick={() => setWahlOffen(!wahlOffen)}>
+          Maschinen: {ohneHier ? (alleM.length - ohneHier) + " von " + alleM.length : "alle"} <span aria-hidden="true">{wahlOffen ? "▴" : "▾"}</span>
+        </button>}
         <span className="klein st-zeit__text" id="st-ab">Gezählt wird erst ab {alt.kurzDatum(STATISTIK_AB)}{STATISTIK_AB.slice(0, 4)}, bis gestern (heute ist noch nicht fertig gemeldet).</span>
       </div>
+      {wahlOffen && daten && <MaschinenWahl d={daten} ohne={ohne} setzen={ohneSetzen} zu={() => setWahlOffen(false)} />}
+      {daten && ohneHier > 0 && ohneHier === alleM.length && <p className="qs-fehlt" id="st-keine">Keine Maschine gewählt. Oben bei „Maschinen“ mindestens eine einschalten.</p>}
       <Uebergang key={st.reiter}>
         {st.reiter === "werkzeug"
-          ? <Werkzeug von={von} bis={bis} maschinen={daten ? daten.maschinen : null} />
+          ? <Werkzeug von={von} bis={bis} maschinen={daten ? daten.maschinen : null}
+            nur={ohneHier ? new Set(alleM.filter((m) => !ohne.has(String(m.id))).map((m) => String(m.id))) : null} />
           : fehler && !r
             ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>
             : !r
@@ -192,6 +214,76 @@ export default function Statistik({ auffrischen }) {
                 : <Maschinen r={r} setze={setze} />}
       </Uebergang>
     </>
+  );
+}
+
+// ---------------------------------------------------------------
+//  Wahl der Maschinen: Park → Typ → Maschine, je Stufe alle an oder aus
+// ---------------------------------------------------------------
+function Haken({ ids, ohne, setzen, children, className }) {
+  const aus = ids.filter((id) => ohne.has(id)).length;
+  const an = aus === 0, teil = aus > 0 && aus < ids.length;
+  return (
+    <label className={className}>
+      <input type="checkbox" checked={an} ref={(el) => { if (el) el.indeterminate = teil; }}
+        onChange={() => {
+          // Teilweise an: ein Tipp schaltet alle ein, nicht aus
+          const neu = new Set(ohne);
+          ids.forEach((id) => (an ? neu.add(id) : neu.delete(id)));
+          setzen(neu);
+        }} />
+      <span>{children}</span>
+    </label>
+  );
+}
+
+function MaschinenWahl({ d, ohne, setzen, zu }) {
+  const typName = new Map((d.typen || []).map((t) => [t.id, t.name]));
+  const parkName = new Map((d.parks || []).map((p) => [p.id, p.name]));
+  // Reihenfolge der Planwand bleibt: Gruppen in der Folge ihrer ersten Maschine
+  const parks = [];
+  d.maschinen.forEach((m) => {
+    let p = parks.find((x) => x.id === m.park_id);
+    if (!p) parks.push(p = { id: m.park_id, name: parkName.get(m.park_id) || "Ohne Park", typen: [] });
+    let t = p.typen.find((x) => x.id === m.type_id);
+    if (!t) p.typen.push(t = { id: m.type_id, name: typName.get(m.type_id) || "Ohne Typ", maschinen: [] });
+    t.maschinen.push(m);
+  });
+  const ids = (l) => l.map((m) => String(m.id));
+  const alle = ids(d.maschinen);
+  const an = alle.filter((id) => !ohne.has(id)).length;
+  return (
+    <div className="karte st-wahl" id="st-wahl">
+      <div className="st-wahl__kopf">
+        <b>Welche Maschinen zählen?</b>
+        <button className="st-chip" data-stwahl="alle" onClick={() => setzen(new Set())}>Alle</button>
+        <button className="st-chip" data-stwahl="keine" onClick={() => setzen(new Set([...ohne, ...alle]))}>Keine</button>
+        <span className="klein">{an} von {alle.length} gewählt, wird gemerkt</span>
+        <button className="knopf st-wahl__zu" data-stwahl="zu" onClick={zu}>Fertig</button>
+      </div>
+      <div className="st-wahl__parks">
+        {parks.map((p) => {
+          const pIds = ids(p.typen.flatMap((t) => t.maschinen));
+          return (
+            <div className="st-wahl__park" key={p.id || "ohne"}>
+              <Haken ids={pIds} ohne={ohne} setzen={setzen} className="st-wahl__parkname">{p.name}</Haken>
+              {p.typen.map((t) => (
+                <div className="st-wahl__typ" key={t.id || "ohne"}>
+                  {p.typen.length > 1 || t.maschinen.length > 1
+                    ? <Haken ids={ids(t.maschinen)} ohne={ohne} setzen={setzen} className="st-wahl__typname">{t.name}</Haken> : null}
+                  <div className="st-wahl__maschinen">
+                    {t.maschinen.map((m) => (
+                      <Haken key={m.id} ids={[String(m.id)]} ohne={ohne} setzen={setzen} className="st-wahl__m">
+                        {alt.maschineZielText(m)}</Haken>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -529,16 +621,19 @@ function EinArtikel({ a, r, setze }) {
 // ---------------------------------------------------------------
 //  Reiter Werkzeug
 // ---------------------------------------------------------------
-function Werkzeug({ von, bis, maschinen }) {
-  const { daten: w, fehler } = useDaten(() => (maschinen ? werkzeugLaden(von, bis, maschinen) : new Promise(() => {})),
-    [von, bis, maschinen]);
+function Werkzeug({ von, bis, maschinen, nur }) {
+  const { daten: roh, fehler } = useDaten(() => werkzeugLaden(von, bis), [von, bis]);
+  const nurText = nur ? [...nur].sort().join(",") : "";
+  const w = useMemo(() => (roh && maschinen ? werkzeugRechnen(roh.positionen, roh.artikel, maschinen, von, bis, nur) : null),
+    [roh, maschinen, nurText]);
   if (fehler && !w) return <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>;
   if (!w) return <div className="laedt">Wird geladen …</div>;
   const monatLabel = (m) => MONATE_KURZ[Number(m.slice(5, 7)) - 1] + " " + m.slice(2, 4);
   return (
     <>
       <p className="klein st-hinweis">Vorerst aus den Bestellungen: jede Position, die im Zeitraum bestellt wurde. Sobald die
-        Einrichtblätter mit den Artikelnummern der Werkzeuge und dem Wechselprotokoll verknüpft sind, kommt der echte Verbrauch dazu.</p>
+        Einrichtblätter mit den Artikelnummern der Werkzeuge und dem Wechselprotokoll verknüpft sind, kommt der echte Verbrauch dazu.
+        {nur && <b> Mit der Wahl der Maschinen zählen nur Positionen mit Ziel einer gewählten Maschine.</b>}</p>
       <div className="dg-kennzahlen">
         <Kennzahl id="st-k-positionen" titel="Bestellpositionen" wert={alt.zahlText(w.positionen)} />
         <Kennzahl id="st-k-stueck" titel="Bestellte Menge" wert={stkText(w.stk)} />
