@@ -13,8 +13,13 @@
 //  - Produktionszeit: Tagesmenge × Stückzeit (hoco_type_data je HOCO
 //    Nr. und Maschinentyp). Ohne Stückzeit zählen die Stück trotzdem
 //    zum Ausstoss, aber nicht zur Zeit; die Seite sagt, wie viele.
-//  - Auslastung: Produktionszeit geteilt durch 10 h je Arbeitstag
-//    (Mo–Fr bis gestern, heute zählt nicht), 10 h = 100 % (Vorgabe Patrick).
+//  - Auslastung: Produktionszeit geteilt durch 10 h je Tag, 10 h =
+//    100 % (Vorgabe Patrick). Seit 1.258.0 zählen nur Tage, an denen
+//    für die Maschine eine Stückzahl gemeldet ist (Wunsch Patrick
+//    29. Oktober 2026: „Tage nicht berücksichtigen, an denen keine
+//    Stückzahl gemeldet ist“); ein Tag ohne Meldung ist kein Tag mit
+//    0 Stück, sondern einer, über den man nichts weiss. Vorher alle
+//    Arbeitstage Mo–Fr. Heute zählt nicht (1.257.0).
 //  - Startmengen (1.160.0, Wunsch Patrick 23. Oktober 2026: „Es kann
 //    keine höhere Auslastung als 240 % geben“): Als das HoferTool Ende
 //    September startete, liefen viele Aufträge schon; ihr erster
@@ -139,7 +144,7 @@ export async function statistikLaden(von, bis) {
 
   const ab = alt.ausIso(von);
   const bisEnde = alt.ausIso(alt.plusTage(bis, 1));
-  const felder = "id, job_number, machine_id, plan_status, started_at, ended_at, target_quantity, material_bez";
+  const felder = "id, job_number, fa_nr, machine_id, plan_status, started_at, ended_at, target_quantity, material_bez";
   const [jobsOffen, jobsBeendet, records, zeiten, ausschuss] = await Promise.all([
     alleZeilen(() => alt.db.from("jobs").select(felder).in("machine_id", ids)
       .is("ended_at", null).lt("started_at", bisEnde.toISOString()).order("id"), "Aufträge"),
@@ -291,13 +296,19 @@ export function statistikRechnen(d) {
 
   // Zusammenfassen
   const leer = () => ({ stk: 0, h: 0, stkOhneZeit: 0, tage: new Set(), jeTag: {}, auftraege: new Set(),
-    maschinen: new Set(), artikel: new Set(), ueb: [], aus: 0, ausListe: [], stkStart: 0 });
+    maschinen: new Set(), artikel: new Set(), ueb: [], aus: 0, ausListe: [], stkStart: 0,
+    // Tage mit gemeldeter Stückzahl; maschinenTage zählt beim Gesamten
+    // jede Maschine an jedem dieser Tage einzeln
+    meldeTage: new Set(), maschinenTage: new Set() });
   const dazu = (z, e) => {
     z.stk += e.stk;
     if (e.h !== null) z.h += e.h; else if (e.stk) z.stkOhneZeit += e.stk;
     if (e.stk) z.tage.add(e.datum);
+    z.meldeTage.add(e.datum);
+    z.maschinenTage.add(e.mid + "|" + e.datum);
     const t = (z.jeTag[e.datum] = z.jeTag[e.datum] || { stk: 0, h: 0 });
     t.stk += e.stk; if (e.h !== null) t.h += e.h;
+    (t.mids = t.mids || new Set()).add(e.mid);
     if (e.jobId) z.auftraege.add(e.jobId);
     z.maschinen.add(e.mid);
     if (e.hoco) z.artikel.add(e.hoco);
@@ -331,10 +342,15 @@ export function statistikRechnen(d) {
     stk: z.stk, h: z.h, stkOhneZeit: z.stkOhneZeit, stkStart: z.stkStart,
     produktionsTage: z.tage.size,
     stkJeTag: z.tage.size ? z.stk / z.tage.size : NaN,
-    hJeTag: arbeitstage ? z.h / arbeitstage : NaN,
-    auslastung: arbeitstage && nMaschinen ? z.h / (arbeitstage * STUNDEN_VOLL * nMaschinen) : NaN,
-    jeTag: tage.map((t) => ({ datum: t, stk: (z.jeTag[t] || {}).stk || 0, h: (z.jeTag[t] || {}).h || 0,
-      aus: (z.jeTag[t] || {}).aus || 0 })),
+    meldeTage: z.meldeTage.size, maschinenTage: z.maschinenTage.size,
+    // Ø Stunden je Maschine und Tag mit gemeldeter Stückzahl
+    hJeTag: z.maschinenTage.size ? z.h / z.maschinenTage.size : NaN,
+    auslastung: nMaschinen && z.maschinenTage.size ? z.h / (z.maschinenTage.size * STUNDEN_VOLL) : NaN,
+    jeTag: tage.map((t) => {
+      const x = z.jeTag[t] || {};
+      // gemeldet = so viele Maschinen haben an dem Tag eine Stückzahl
+      return { datum: t, stk: x.stk || 0, h: x.h || 0, aus: x.aus || 0, gemeldet: x.mids ? x.mids.size : 0 };
+    }),
     ausschuss: z.aus, ausschussQuote: z.stk ? z.aus / z.stk : NaN, ausschussMeldungen: z.ausListe,
     auftraege: z.auftraege.size, maschinen: [...z.maschinen], artikel: [...z.artikel],
     uebergaenge: z.ueb, uebergangMittel: mittel(z.ueb),

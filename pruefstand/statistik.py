@@ -18,7 +18,7 @@ DATEN = """(() => {
   const D = TEST.daten;
   const vorlage = D.jobs.find(j => j.machine_id === 'm-k1');
   D.jobs.forEach(j => { if (j.machine_id === 'm-k1') { j.started_at = null; j.ended_at = null; j.plan_status = 'geplant'; } });
-  D.jobs.push({ ...vorlage, id: 'sA', job_number: '10111-0001', plan_status: 'fertig',
+  D.jobs.push({ ...vorlage, id: 'sA', job_number: '10111-0001', fa_nr: '4711', plan_status: 'fertig',
     started_at: um(vor, 7), ended_at: um(d, 10), target_quantity: 800 });
   // Lief schon vor dem ersten Eintrag: dessen Stand ist die Startmenge (1.160.0)
   D.jobs.push({ ...vorlage, id: 'sC', job_number: '10333-0003', plan_status: 'fertig',
@@ -136,6 +136,19 @@ with sync_playwright() as p:
     pg.hover("#st-zeit-tag .dg-spalte:nth-last-child(1)"); pg.wait_for_timeout(200)
     if not pg.locator("#st-zeit-tag .dg-tip").count(): fehler.append("Kein Fenster beim Darüberfahren")
     pg.screenshot(path="statistik-maschine.png", full_page=True)
+    # 1.258.0: nur Tage mit Stückzahl zählen: 18 h an 2 Tagen = 90 %
+    ausl = pg.inner_text("#st-k-auslastung")
+    if "90 %" not in ausl: fehler.append("Auslastung nicht über Tage mit Stückzahl: " + ausl)
+    leer = pg.locator("#st-zeit-tag .dg-spalte--blass").first
+    leer.hover(); pg.wait_for_timeout(200)
+    if "keine Stückzahl gemeldet" not in pg.inner_text("#st-zeit-tag .dg-tip"): fehler.append("Tag ohne Meldung nicht erklärt")
+    # HOCO Nr. und FA Nr. in den Säulen der Maschine
+    teile = pg.evaluate("""[...document.querySelectorAll('#st-ausstoss-tag .dg-teil')].map(e => e.textContent)""")
+    if "10111-0001 · FA 4711" not in teile or not any(t.startswith("10222-0002") for t in teile):
+        fehler.append("Aufträge in den Säulen: " + str(teile))
+    zwei = pg.evaluate("""[...document.querySelectorAll('#st-zeit-tag .dg-saeule--teile')].map(e => e.querySelectorAll('.dg-teil').length)""")
+    if 2 not in zwei: fehler.append("Tag mit Auftragswechsel nicht geteilt: " + str(zwei))
+    pg.locator("#st-zeit-tag").screenshot(path="statistik-auftraege.png")
 
     # Artikel
     pg.evaluate("document.querySelector('#inhalt [data-streiter=artikel]').click()"); pg.wait_for_selector("#st-artikel-tabelle"); pg.wait_for_timeout(400)

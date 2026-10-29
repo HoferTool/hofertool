@@ -45,8 +45,10 @@ export function Saeulen({ werte, format, wertText, ziel, zielText, hoehe = 190, 
           {werte.map((w, i) => (
             <div key={w.key} className={"dg-spalte" + (w.blass ? " dg-spalte--blass" : "") + (zeig === i ? " aktiv" : "")}
               onMouseEnter={() => setZeig(i)} onClick={() => setZeig(zeig === i ? null : i)}>
-              <i className="dg-saeule" style={{ height: Math.min(100, (w.wert || 0) / max * 100) + "%" }} />
-              {w.wert > 0 && <WertAnschrift anteil={Math.min(1, w.wert / max)} text={wt(w.wert)} />}
+              {w.teile && w.teile.length
+                ? <Teile w={w} anteil={Math.min(1, (w.wert || 0) / max)} />
+                : <i className="dg-saeule" style={{ height: Math.min(100, (w.wert || 0) / max * 100) + "%" }} />}
+              {w.wert > 0 && <WertAnschrift anteil={Math.min(1, w.wert / max)} text={wt(w.wert, w)} />}
               <span className={"dg-x" + (i % (2 * schritt) ? " dg-x--handy-weg" : "")}>{i % schritt === 0 ? w.label : ""}</span>
             </div>
           ))}
@@ -54,6 +56,22 @@ export function Saeulen({ werte, format, wertText, ziel, zielText, hoehe = 190, 
         {aktiv && <div className="dg-tip" style={tipLage((zeig + 0.5) / werte.length)}>
           {aktiv.tip || <><b>{f(aktiv.wert || 0)}</b> {aktiv.label}</>}</div>}
       </div>
+    </div>
+  );
+}
+
+// Säule aus Stücken übereinander, je eines mit senkrechter Anschrift
+// (Statistik: ein Stück je Auftrag, 1.258.0). teile: [{ wert, text,
+// farbe }], farbe 0 oder 1, damit zwei Aufträge am selben Tag sich
+// abheben. Steht der Wert innen oben, hält die Säule oben Platz frei.
+function Teile({ w, anteil }) {
+  return (
+    <div className={"dg-saeule dg-saeule--teile" + (anteil > 0.72 ? " dg-saeule--platz" : "")}
+      style={{ height: Math.min(100, anteil * 100) + "%" }}>
+      {w.teile.filter((t) => t.wert > 0).map((t, i) => (
+        <i key={i} className={"dg-teil dg-teil--" + (t.farbe || 0)} style={{ flexGrow: t.wert }}>
+          <span>{t.text}</span></i>
+      ))}
     </div>
   );
 }

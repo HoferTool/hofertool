@@ -10197,3 +10197,17 @@ body.dunkel .bs-aehnlich { background: #4a3b10; color: #ffe08a; }
 .eba-geo { text-align: center; }
 .eba-platz > .eba-bild--nurgeo { justify-content: center; }
 .eba-bild--nurgeo .eba-geo { max-height: 100%; }
+
+/* Statistik einer Maschine (1.258.0): Säule je Tag aus einem Stück je
+   Auftrag, darin HOCO Nr. und FA Nr. senkrecht; zwei Farben, damit ein
+   Auftragswechsel am selben Tag zu sehen ist */
+.dg-saeule--teile { display: flex; flex-direction: column-reverse; overflow: hidden; }
+.dg-saeule--platz { padding-top: 16px; }
+.dg-teil { display: flex; align-items: flex-end; justify-content: center; min-height: 0; flex-basis: 0;
+  overflow: hidden; background: var(--marke); }
+.dg-teil--1 { background: color-mix(in srgb, var(--marke) 62%, #000); }
+.dg-teil + .dg-teil { border-bottom: 2px solid var(--flaeche); }
+.dg-teil span { writing-mode: vertical-rl; transform: rotate(180deg); padding: 4px 0; font-size: .62rem;
+  font-weight: 600; line-height: 1; color: #fff; text-shadow: 0 0 2px rgba(0,0,0,.45); white-space: nowrap;
+  font-variant-numeric: tabular-nums; pointer-events: none; }
+.dg-tip .st-tip-auftrag { font-weight: 400; }

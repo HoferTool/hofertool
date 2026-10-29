@@ -101,24 +101,43 @@ const stkText = (n) => stk(n) + " Stk";
 const wochenende = (t) => { const w = alt.ausIso(t).getDay(); return w === 0 || w === 6; };
 const tagLabel = (t) => alt.WT_KURZ[(alt.ausIso(t).getDay() + 6) % 7] + " " + alt.kurzDatum(t);
 
-// Säulen je Tag; bei langen Zeiträumen je Woche, sonst wird es zu eng
-function jeZeit(jeTag, feld) {
+// Säulen je Tag; bei langen Zeiträumen je Woche, sonst wird es zu eng.
+// Tage ohne gemeldete Stückzahl stehen blass und leer da und sagen das
+// beim Antippen (seit 1.258.0), ausser beim Ausschuss (mitMeldung
+// false). Mit nenner ist der Wert ein Anteil (Auslastung): je Woche
+// dann Summe durch Summe, nicht die Anteile zusammengezählt.
+function jeZeit(jeTag, feld, { nenner, mitMeldung = true } = {}) {
+  const ohne = (t) => mitMeldung && !t.gemeldet;
   if (jeTag.length <= 62) {
-    return jeTag.map((t) => ({ key: t.datum, label: alt.kurzDatum(t.datum), wert: t[feld], blass: wochenende(t.datum),
-      tipTag: tagLabel(t.datum) }));
+    return jeTag.map((t) => {
+      const n = nenner ? nenner(t) : 1;
+      return { key: t.datum, label: alt.kurzDatum(t.datum), wert: ohne(t) || !n ? 0 : t[feld] / n,
+        blass: wochenende(t.datum) || ohne(t), ohneMeldung: ohne(t), h: t.h, tipTag: tagLabel(t.datum) };
+    });
   }
   const wochen = [];
   jeTag.forEach((t) => {
     const ws = alt.wochenStart(t.datum);
     let w = wochen[wochen.length - 1];
-    if (!w || w.key !== ws) { w = { key: ws, label: "KW " + alt.kalenderwoche(ws), wert: 0, tipTag: "Woche ab " + alt.kurzDatum(ws) }; wochen.push(w); }
-    w.wert += t[feld];
+    if (!w || w.key !== ws) {
+      w = { key: ws, label: "KW " + alt.kalenderwoche(ws), wert: 0, summe: 0, teiler: 0, h: 0, gemeldet: 0,
+        tipTag: "Woche ab " + alt.kurzDatum(ws) };
+      wochen.push(w);
+    }
+    if (ohne(t)) return;
+    w.gemeldet++;
+    w.summe += t[feld]; w.h += t.h;
+    w.teiler += nenner ? nenner(t) : 0;
+    w.wert = nenner ? (w.teiler ? w.summe / w.teiler : 0) : w.summe;
   });
+  wochen.forEach((w) => { if (mitMeldung && !w.gemeldet) { w.blass = true; w.ohneMeldung = true; } });
   return wochen;
 }
 
 function mitTip(werte, f) {
-  return werte.map((w) => ({ ...w, tip: <><b>{f(w.wert)}</b><br />{w.tipTag}</> }));
+  return werte.map((w) => ({ ...w, tip: w.ohneMeldung
+    ? <><b>keine Stückzahl gemeldet</b><br />{w.tipTag}</>
+    : <><b>{f(w.wert)}</b><br />{w.tipTag}</> }));
 }
 
 export default function Statistik({ auffrischen }) {
@@ -186,7 +205,7 @@ function Kennzahlen({ z, mitAuslastung }) {
         unter={(z.produktionsTage ? "Ø " + stk(z.stkJeTag) + " Stk pro Produktionstag" : "keine Stückzahlen")
           + (z.stkStart ? " · " + stk(z.stkStart) + " Stk Startmengen nicht gezählt" : "")} />
       <Kennzahl id="st-k-zeit" titel="Produktionszeit" wert={stundenText(z.h)}
-        unter={z.stkOhneZeit ? stk(z.stkOhneZeit) + " Stk ohne Stückzeit nicht mitgezählt" : "Ø " + stundenText(z.hJeTag) + " pro Arbeitstag"} />
+        unter={z.stkOhneZeit ? stk(z.stkOhneZeit) + " Stk ohne Stückzeit nicht mitgezählt" : "Ø " + stundenText(z.hJeTag) + " je Maschine und Tag mit Stückzahl"} />
       {mitAuslastung && <Kennzahl id="st-k-auslastung" titel="Auslastung" wert={prozentText(z.auslastung)}
         unter={STUNDEN_VOLL + " h am Tag = 100 %, höchstens " + STUNDEN_MAX + " h"} />}
       <Kennzahl id="st-k-ausschuss" titel="Ausschuss" wert={stkText(z.ausschuss)}
@@ -285,7 +304,7 @@ function Maschinen({ r, setze }) {
     <>
       <Kennzahlen z={g} mitAuslastung />
       <Karte id="st-auslastung" titel="Auslastung je Maschine"
-        unter={"Produktionszeit aus Stückzahl × Stückzeit, " + STUNDEN_VOLL + " h je Arbeitstag = 100 %. Antippen zeigt die Maschine."}>
+        unter={"Produktionszeit aus Stückzahl × Stückzeit, " + STUNDEN_VOLL + " h je Tag = 100 %, nur Tage mit gemeldeter Stückzahl. Antippen zeigt die Maschine."}>
         <Balken zeilen={liste.map((m) => ({ key: m.id, label: m.name, unter: m.typ, wert: m.auslastung || 0,
           text: <>{prozentText(m.auslastung)} <small>{stundenText(m.h)}</small></> }))}
           ziel={1} zielText="100 %" waehlen={(id) => oeffnen({ maschine: id })} />
@@ -294,9 +313,9 @@ function Maschinen({ r, setze }) {
         <Karte id="st-ausstoss-tag" titel="Ausstoss pro Tag" unter="Alle Maschinen zusammen">
           <Saeulen werte={mitTip(jeZeit(g.jeTag, "stk"), stkText)} format={stk} />
         </Karte>
-        <Karte id="st-zeit-tag" titel="Auslastung pro Tag" unter={"Alle " + r.maschinen.length + " Maschinen zusammen, 100 % = " + r.maschinen.length * STUNDEN_VOLL + " h"}>
-          <Saeulen werte={mitTip(jeZeit(g.jeTag.map((t) => ({ ...t, p: r.maschinen.length ? t.h / (r.maschinen.length * STUNDEN_VOLL) : 0 })), "p"),
-            prozentText)} format={prozentText} wertText={(p) => kommaText(p * r.maschinen.length * STUNDEN_VOLL) + " h"}
+        <Karte id="st-zeit-tag" titel="Auslastung pro Tag" unter={"Maschinen mit gemeldeter Stückzahl, je Maschine " + STUNDEN_VOLL + " h = 100 %"}>
+          <Saeulen werte={mitTip(jeZeit(g.jeTag, "h", { nenner: (t) => t.gemeldet * STUNDEN_VOLL }), prozentText)}
+            format={prozentText} wertText={(p, w) => kommaText(w.h) + " h"}
             ziel={g.jeTag.length <= 62 ? 1 : 0} zielText="100 %" />
         </Karte>
       </div>
@@ -309,14 +328,14 @@ function Maschinen({ r, setze }) {
             waehlen={(id) => oeffnen({ maschine: id })} />
         </Karte>
         <Karte id="st-ausschuss-tag" titel="Ausschuss pro Tag" unter="Alle Maschinen zusammen">
-          <Saeulen werte={mitTip(jeZeit(g.jeTag, "aus"), stkText)} format={stk} />
+          <Saeulen werte={mitTip(jeZeit(g.jeTag, "aus", { mitMeldung: false }), stkText)} format={stk} />
         </Karte>
       </div>
       <Karte id="st-maschinen-tabelle" titel="Alle Maschinen">
         <div className="st-tabelle-huelle">
           <table className="st-tabelle">
             <thead><tr><th>Maschine</th><th className="zahl">Ausstoss</th><th className="zahl">Ø Stk/Tag</th>
-              <th className="zahl">Prod.-Zeit</th><th className="zahl">Ø h/Arbeitstag</th><th className="zahl">Auslastung</th>
+              <th className="zahl">Prod.-Zeit</th><th className="zahl" title="Nur Tage mit gemeldeter Stückzahl">Ø h/Tag</th><th className="zahl">Auslastung</th>
               <th className="zahl">Ausschuss</th><th className="zahl">Quote</th>
               <th className="zahl">Wechsel</th><th className="zahl">Ø Übergang</th></tr></thead>
             <tbody>
@@ -361,6 +380,26 @@ function EineMaschine({ m, r, setze }) {
     z.stk += e.stk; z.h += e.h || 0;
   });
   const artikel = Object.entries(jeArtikel).sort((a, b) => b[1].stk - a[1].stk);
+  // Je Tag die Aufträge mit HOCO Nr. und FA Nr. in den Säulen (Wunsch
+  // Patrick 29. Oktober 2026: „bei den Balken die Hoferartikel und FA
+  // Nr. an“). Aufeinanderfolgende Aufträge wechseln die Farbe.
+  const jeTagAuftrag = {}, farbe = new Map();
+  r.eintraege.filter((e) => e.mid === m.id).forEach((e) => {
+    const k = e.jobId || "hoco:" + e.hoco;
+    if (!farbe.has(k)) farbe.set(k, farbe.size % 2);
+    const l = (jeTagAuftrag[e.datum] = jeTagAuftrag[e.datum] || new Map());
+    const j = r.jobVon.get(e.jobId) || {};
+    const x = l.get(k) || { stk: 0, h: 0, farbe: farbe.get(k),
+      text: [e.hoco || "ohne HOCO Nr.", j.fa_nr ? "FA " + j.fa_nr : ""].filter(Boolean).join(" · ") };
+    x.stk += e.stk; x.h += e.h || 0;
+    l.set(k, x);
+  });
+  const mitAuftraegen = (werte, feld, f) => m.jeTag.length > 62 ? werte : werte.map((w) => {
+    const l = [...(jeTagAuftrag[w.key] || new Map()).values()];
+    if (!l.length || w.ohneMeldung) return w;
+    return { ...w, teile: l.map((x) => ({ wert: x[feld], text: x.text, farbe: x.farbe })),
+      tip: <><b>{f(w.wert)}</b> {w.tipTag}{l.map((x, i) => <span key={i} className="st-tip-auftrag"><br />{x.text}: {f(x[feld])}</span>)}</> };
+  });
   return (
     <>
       <div className="st-kopf">
@@ -370,17 +409,17 @@ function EineMaschine({ m, r, setze }) {
       <Kennzahlen z={m} mitAuslastung />
       <div className="st-zwei">
         <Karte id="st-ausstoss-tag" titel="Ausstoss pro Tag">
-          <Saeulen werte={mitTip(jeZeit(m.jeTag, "stk"), stkText)} format={stk} />
+          <Saeulen werte={mitAuftraegen(mitTip(jeZeit(m.jeTag, "stk"), stkText), "stk", stkText)} format={stk} />
         </Karte>
         <Karte id="st-zeit-tag" titel="Produktionszeit pro Tag" unter={STUNDEN_VOLL + " h = 100 % Auslastung"}>
-          <Saeulen werte={mitTip(jeZeit(m.jeTag, "h"), stundenText)} format={(h) => Math.round(h) + " h"}
+          <Saeulen werte={mitAuftraegen(mitTip(jeZeit(m.jeTag, "h"), stundenText), "h", stundenText)} format={(h) => Math.round(h) + " h"}
             wertText={(h) => kommaText(h) + " h"}
             ziel={m.jeTag.length <= 62 ? STUNDEN_VOLL : 0} zielText={STUNDEN_VOLL + " h"}
             deckel={m.jeTag.length <= 62 ? 24 : 0} />
         </Karte>
       </div>
       <Karte id="st-ausschuss-tag" titel="Ausschuss pro Tag" unter="Aus den Meldungen der Qualitätssicherung">
-        <Saeulen werte={mitTip(jeZeit(m.jeTag, "aus"), stkText)} format={stk} />
+        <Saeulen werte={mitTip(jeZeit(m.jeTag, "aus", { mitMeldung: false }), stkText)} format={stk} />
         <AusschussListe liste={m.ausschussMeldungen} r={r} ohneMaschine />
       </Karte>
       <Karte id="st-maschine-artikel" titel="Artikel auf dieser Maschine" unter="Antippen zeigt den Artikel.">
