@@ -150,7 +150,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.265.0";
+const APP_VERSION = "1.266.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3508,10 +3508,59 @@ const PLANSTATUS = {
   fertig:  { name: "Fertig",   zeichen: "✔" },
 };
 
-// Samstag und Sonntag werden auf der Planwand übersprungen.
+// Betriebsferien (1.266.0, Wunsch Patrick 29. Oktober 2026: „blende
+// KW52 und 53 in der Planwand aus, wir arbeiten dann nicht“): ganze
+// Kalenderwochen, jedes Jahr wieder, gelten wie das Wochenende. Die
+// Planwand zeigt sie nicht, und Aufträge und Ferien zählen sie nicht als
+// Arbeitstage, laufen also darüber hinweg. Die Wochen stehen in
+// app_config.betriebsferien_kw (Einstellungen → Allgemein, nur Admins);
+// ohne Eintrag oder ohne Leserecht (Externe) gilt die Vorgabe.
+const BETRIEBSFERIEN_VORGABE = [52, 53];
+let BETRIEBSFERIEN_KW = BETRIEBSFERIEN_VORGABE.slice();
+const betriebsferienGemerkt = new Map();
+function istBetriebsferien(datum) {
+  if (!BETRIEBSFERIEN_KW.length) return false;
+  let ja = betriebsferienGemerkt.get(datum);
+  if (ja === undefined) {
+    ja = BETRIEBSFERIEN_KW.includes(kalenderwoche(datum));
+    if (betriebsferienGemerkt.size > 20000) betriebsferienGemerkt.clear();
+    betriebsferienGemerkt.set(datum, ja);
+  }
+  return ja;
+}
+
+function betriebsferienSetzen(wochen) {
+  const liste = Array.isArray(wochen)
+    ? [...new Set(wochen.map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 53))].sort((a, b) => a - b)
+    : BETRIEBSFERIEN_VORGABE.slice();
+  if (liste.join(",") === BETRIEBSFERIEN_KW.join(",")) return false;
+  BETRIEBSFERIEN_KW = liste;
+  // Alles Gemerkte hängt an den freien Tagen
+  betriebsferienGemerkt.clear();
+  arbeitstagePlusGemerkt.clear();
+  arbeitstageGemerkt.clear();
+  return true;
+}
+
+async function betriebsferienLaden() {
+  try {
+    const r = await zeitlimit(db.from("app_config").select("wert")
+      .eq("schluessel", "betriebsferien_kw").maybeSingle(), 6000, "Betriebsferien");
+    if (!r.error) betriebsferienSetzen(r.data ? r.data.wert : null);
+  } catch (f) { /* Vorgabe bleibt */ }
+}
+
+// Samstag und Sonntag werden auf der Planwand übersprungen, ebenso die
+// Wochen der Betriebsferien.
 function istWochenende(datum) {
   const t = ausIso(datum).getDay();
-  return t === 0 || t === 6;
+  return t === 0 || t === 6 || istBetriebsferien(datum);
+}
+
+function vorherigerArbeitstag(datum) {
+  let d = datum;
+  while (istWochenende(d)) d = plusTage(d, -1);
+  return d;
 }
 
 function naechsterArbeitstag(datum) {
@@ -3531,19 +3580,17 @@ function arbeitstagePlus(datum, n) {
   const gemerkt = arbeitstagePlusGemerkt.get(schluessel);
   if (gemerkt) return gemerkt;
   let d = naechsterArbeitstag(datum);
-  if (n >= 0) {
-    // ganze Wochen auf einmal, den Rest Tag für Tag
-    const wochen = Math.floor(n / 5);
-    if (wochen > 0) d = plusTage(d, wochen * 7);
-    for (let i = 0; i < n - wochen * 5; i++) { d = naechsterArbeitstag(plusTage(d, 1)); }
-  } else {
-    // Negative Werte gehen rückwärts, Wochenenden werden übersprungen
-    const m = -n;
-    const wochen = Math.floor(m / 5);
-    if (wochen > 0) d = plusTage(d, -wochen * 7);
-    for (let i = 0; i < m - wochen * 5; i++) {
-      d = plusTage(d, -1);
-      while ([0, 6].indexOf(ausIso(d).getDay()) !== -1) d = plusTage(d, -1);
+  // Eine Woche weiter sind genau fünf Arbeitstage, solange die Woche,
+  // in der man landet, keine Betriebsferien hat; sonst Tag für Tag.
+  // Negative Werte gehen gleich rückwärts.
+  const schritt = n >= 0 ? 1 : -1;
+  let rest = Math.abs(n);
+  while (rest > 0) {
+    const woche = plusTage(d, 7 * schritt);
+    if (rest >= 5 && !istBetriebsferien(woche)) { d = woche; rest -= 5; }
+    else {
+      d = schritt > 0 ? naechsterArbeitstag(plusTage(d, 1)) : vorherigerArbeitstag(plusTage(d, -1));
+      rest--;
     }
   }
   if (arbeitstagePlusGemerkt.size > 20000) arbeitstagePlusGemerkt.clear();
@@ -3574,7 +3621,8 @@ function arbeitstage(ab, anzahl) {
 // Luft. So muss nicht für jeden alten Auftrag gerechnet werden.
 function koennteSichtbar(von, dauer, sichtVon, sichtBis) {
   if (!von || von > sichtBis) return false;
-  const kalendertage = Math.ceil((Number(dauer) || 1) * 7 / 5) + 4;
+  // + 14 für zwei Wochen Betriebsferien
+  const kalendertage = Math.ceil((Number(dauer) || 1) * 7 / 5) + 4 + (BETRIEBSFERIEN_KW.length ? 14 : 0);
   return plusTage(von, kalendertage) >= sichtVon;
 }
 
@@ -4230,6 +4278,8 @@ async function farbzuteilungLaden() {
   // Von Hand eingetragene Werkstoffnummern (Suche, Schnellvorschau)
   await werkstoffNummernLaden();
   await bestellmailTextLaden();
+  // Betriebsferien vor dem ersten Zeichnen der Planwand
+  await betriebsferienLaden();
   // Alte WBG wegräumen, einmal am Tag, im Hintergrund
   setTimeout(() => { wbgAufraeumen().catch(() => {}); }, 4000);
   // Tägliche Sicherung, wenn dieses Gerät das Sicherungsgerät ist (src/teile/sicherung.js)
@@ -10128,7 +10178,7 @@ async function planArchivDaten() {
     ladePlanAuftraege(true), alle("machines"), alle("machine_parks"), alle("machine_types", "id, name, is_active"),
     ladeFerien().catch(() => []), alle("profiles", "id, full_name, initialen, ist_planer, is_active"),
     db.from("farb_material").select("*").then((r) => r.data || [], () => []),
-    db.from("app_config").select("schluessel, wert").in("schluessel", ["werkstoff_zuordnung", "plan_symbole"])
+    db.from("app_config").select("schluessel, wert").in("schluessel", ["werkstoff_zuordnung", "plan_symbole", "betriebsferien_kw"])
       .then((r) => r.data || [], () => [])]);
   // Keine Dateien: Adressen von Zeichnungen und WBGs fallen weg
   const ohneDateien = (j) => Object.assign({}, j, { drawing_url: null, wbg_url: null });
@@ -10202,7 +10252,8 @@ Object.assign(alt, {
   siegelListe, siegelName, siegelHtml, standsNachtragen, werkstoffErkennen, farbeVon, schriftZu, auftragFarbe, pdfGanz, betrachter, dateiAnsehen, dokZeigen,
   werkzeugWechselDialog, zifferblock,
   PLANFARBEN, farbenZurWahl, naechstePlanfarbe, meineInitialen, personVoll, naechsterFreierTag,
-  letzterArbeitstag, arbeitstageZwischen, notizZusammen, dialogSchliessen, leerlaufAktiv,
+  letzterArbeitstag, arbeitstageZwischen, betriebsferienSetzen, BETRIEBSFERIEN_VORGABE,
+  betriebsferienKw: () => BETRIEBSFERIEN_KW.slice(), notizZusammen, dialogSchliessen, leerlaufAktiv,
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, zeichnungEntfernen, wbgEntfernen, einrichtblattEntfernen, ablageLoeschen,
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert, einstellungWert,

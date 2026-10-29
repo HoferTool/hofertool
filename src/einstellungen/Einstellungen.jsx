@@ -110,6 +110,7 @@ function Allgemein({ bin }) {
       {bin && <AnmeldeMeldungen />}
       {(bin || alt.darfDokumenteUndSicherung()) && <Bestellmail />}
       {bin && <FerienVerteiler />}
+      {bin && <Betriebsferien />}
       <UeberDieApp />
     </>
   );
@@ -390,6 +391,42 @@ function FerienVerteiler() {
           onChange={(e) => setText(e.target.value)} style={{ width: "100%" }} />
         {text !== gespeichert && (
           <button className="knopf knopf--klein knopf--haupt" id="ferien-verteiler-speichern" onClick={speichern}>Speichern</button>
+        )}
+      </Zeile>
+    </Gruppe>
+  );
+}
+
+// Betriebsferien (1.266.0, Wunsch Patrick 29. Oktober 2026): Kalender-
+// wochen, die jedes Jahr frei sind; die Planwand blendet sie aus und
+// zählt sie nicht als Arbeitstage (betriebsferienSetzen in app.js).
+function Betriebsferien() {
+  const jetzt = () => alt.betriebsferienKw().join(", ");
+  const [text, setText] = useState(jetzt);
+  const [gespeichert, setGespeichert] = useState(jetzt);
+  const speichern = async () => {
+    const teile = text.split(/[\s,;]+/).filter(Boolean);
+    const wochen = teile.map(Number);
+    if (wochen.some((n) => !Number.isInteger(n) || n < 1 || n > 53)) {
+      alt.meldung("Bitte nur Kalenderwochen von 1 bis 53, zum Beispiel: 52, 53", "warn");
+      return;
+    }
+    try {
+      const { error } = await alt.db.from("app_config").upsert({ schluessel: "betriebsferien_kw", wert: wochen });
+      if (error) throw error;
+      alt.betriebsferienSetzen(wochen);
+      const neu = jetzt();
+      setText(neu); setGespeichert(neu);
+      alt.meldung(neu ? "Betriebsferien gespeichert: KW " + neu : "Keine Betriebsferien mehr.", "gut");
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
+  return (
+    <Gruppe titel="Betriebsferien">
+      <Zeile titel="Kalenderwochen" text="Diese Wochen sind jedes Jahr frei. Die Planwand zeigt sie nicht, und Aufträge laufen darüber hinweg wie über ein Wochenende. Mehrere mit Komma. Leer = keine.">
+        <input id="betriebsferien-kw" value={text} placeholder="52, 53" onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && text !== gespeichert) speichern(); }} style={{ width: "10em" }} />
+        {text !== gespeichert && (
+          <button className="knopf knopf--klein knopf--haupt" id="betriebsferien-speichern" onClick={speichern}>Speichern</button>
         )}
       </Zeile>
     </Gruppe>
