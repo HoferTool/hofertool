@@ -25,6 +25,7 @@ import { PadKopf, padZeichnen } from "./Pad.jsx";
 import { qsFenster } from "../teile/QsFenster.jsx";
 import { einrichtblattHinweis } from "../einrichtblatt/PadHinweis.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
+import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 
 // Die Zustände in der Reihenfolge, in der ein Auftrag sie durchläuft
 const ABLAUF = ["geplant", "ruesten", "laeuft", "fertig"];
@@ -152,9 +153,6 @@ function materialStil(j, bez) {
   return f ? { "--ak-grund": f.hex, "--ak-schrift": f.schrift } : undefined;
 }
 
-// Die HOCO Nr. öffnet das Auftragsfenster wie auf der Planwand; nach dem
-// Speichern zeichnet sich das Pad neu statt der Planwand
-const PAD_ZIEL = { nachPlanAenderung: () => padZeichnen() };
 
 // Stückzahl: „1'200 von 5'000“ mit Balken. Seit 1.78.0 ein Knopf, der
 // das grosse Fenster zum Ausschuss melden öffnet (nicht für Externe,
@@ -203,8 +201,10 @@ export default function QsCheck({ zeilen, teile }) {
                 {j ? (
                   <>
                     <div className="pad-ak__auftrag">
+                      {/* Seit 1.253.0 die Planwand als Fenster mit angewähltem
+                          Balken statt des Auftragsfensters (Wunsch Patrick 29. Oktober 2026) */}
                       <button className="pad-ak__hoco" data-qsauftrag={j.id}
-                        onClick={() => alt.planAuftragDialog(j, PAD_ZIEL)}>{j.job_number}</button>
+                        onClick={() => planwandFensterOeffnen(j)}>{j.job_number}</button>
                     </div>
                     <Fortschritt j={j} m={m} />
                     <div className="pad-ak__doks">

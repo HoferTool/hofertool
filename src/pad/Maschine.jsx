@@ -19,6 +19,7 @@ import { unterlagenOeffnen } from "../teile/Unterlagen.jsx";
 import { spezialwerkzeugeOeffnen } from "../teile/Spezialwerkzeuge.jsx";
 import { spezialAnzahl } from "../daten/spezialwerkzeuge.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
+import { planwandFensterOeffnen } from "./PlanwandFenster.jsx";
 import { Ziffern } from "../effekte/Ziffern.jsx";
 import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
@@ -695,7 +696,12 @@ export default function Maschine({ d }) {
         <div className="pad-spalte">
           <div className="pad-karte2 pad-karte2--hoco">
             <span className="pad-name">HOCO Nr.</span>
-            <span className="pad-wert pad-wert--gross">{j ? j.job_number : "kein Auftrag"}</span>
+            {/* Tipp auf die Nummer: Planwand als Fenster, Balken angewählt
+                (Wunsch Patrick 29. Oktober 2026) */}
+            {j
+              ? <button type="button" className="pad-wert pad-wert--gross pad-hoco-knopf" data-padplanwand=""
+                  onClick={() => planwandFensterOeffnen(j)}>{j.job_number}</button>
+              : <span className="pad-wert pad-wert--gross">kein Auftrag</span>}
             {/* Der Textteil richtet seine Schrift nach der Menge (padTextEinpassen) */}
             <div className="pad-hocotext">
               <div className="pad-zeilen">

@@ -90,19 +90,16 @@ with sync_playwright() as p:
         if hg in ("rgba(0, 0, 0, 0)", ""): fehler.append(name + ": Karte ohne Farbe " + hg)
         if "X10CrNiS" in t or "1.4305" in t: fehler.append(name + ": Materialbezeichnung noch da")
         if BILDER: pg.screenshot(path=f"{BILDER}/anlagen-check-{name}.png", full_page=False)
-        # HOCO Nr. öffnet das Auftragsfenster
+        # HOCO Nr. öffnet seit 1.253.0 die Planwand als Fenster, Balken
+        # angewählt, ohne Auftragsfenster (Wunsch Patrick 29. Oktober 2026)
         knopf = pg.locator("#pad [data-qsauftrag]").first
-        nr = knopf.inner_text(); knopf.click()
+        jid = knopf.get_attribute("data-qsauftrag"); knopf.click()
         try:
-            pg.wait_for_selector(".dialog--auftrag", timeout=5000)
-            if nr not in pg.inner_text(".dialog--auftrag"): fehler.append(name + ": falscher Auftrag im Fenster")
-            # Quer und gross wie auf der Planwand, nicht schmal wie die Pad-Fenster
-            bw = pg.evaluate("(() => { const r = document.querySelector('.dialog--auftrag').getBoundingClientRect(); return [r.width, r.height, innerWidth]; })()")
-            if not mobil and ((bw[0] < bw[1] and bw[2] > 1000) or bw[0] < 0.8 * min(bw[2], 1180)): fehler.append(f"{name}: Auftragsfenster nicht quer und gross {bw}")
-            pg.wait_for_timeout(800)
-            if BILDER and name == "ipad-quer": pg.screenshot(path=f"{BILDER}/anlagen-check-fenster.png")
+            pg.wait_for_selector(".pad-pw .pw-balken", timeout=8000); pg.wait_for_timeout(1200)
+            if not pg.locator(f".pad-pw .pw-balken--angewaehlt[data-auftrag='{jid}']").count(): fehler.append(name + ": Balken nicht angewählt")
+            if pg.locator(".dialog--auftrag").count(): fehler.append(name + ": Auftragsfenster ging auf")
         except Exception:
-            fehler.append(name + ": Auftragsfenster ging nicht auf")
+            fehler.append(name + ": Planwand ging nicht auf")
         pg.context.close()
     br.close()
 print("Fehler:", "; ".join(fehler) if fehler else "keine")

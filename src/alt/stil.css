@@ -10159,3 +10159,29 @@ h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }
 .eba-platz--ziel:hover { outline: 3px solid #2e7d32; outline-offset: -2px; }
 .eba-platz--bearbeiten[draggable="true"] { cursor: grab; }
 .eba-wechsel { background: #e8f0fe; }
+
+/* ---------- Planwand als Fenster im Pad (seit 1.254.0) ----------
+   Fast über den ganzen Bildschirm, damit die Tafel Platz hat; die
+   Rolle der Tafel nimmt die Höhe des Fensters statt der Seite. */
+.pad-pw-huelle { padding: 12px; place-items: stretch; }
+/* Das Pad macht seine Fenster sonst schmal (600 Pixel, mit !important) */
+body.pad-offen .pad-pw-huelle .dialog.pad-pw.pad-pw { max-width: none !important; width: 100% !important; height: 100%;
+  max-height: none; display: flex; flex-direction: column; padding: 0 !important; overflow: hidden;
+  border-radius: 14px; font-size: 1rem; }
+.pad-pw__kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 6px 8px 6px 16px; border-bottom: 1px solid var(--linie); flex: none; }
+.pad-pw__kopf h2 { margin: 0; }
+.pad-pw__zu { width: 48px; height: 48px; border: 0; border-radius: 50%; background: transparent;
+  color: var(--gedaempft); font-size: 1.4rem; cursor: pointer; }
+.pad-pw__zu:hover { background: var(--linie); color: var(--tinte); }
+.pad-pw__buehne { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 8px 6px; max-width: none; }
+/* Unter der Tafel stehen im Fenster noch Zeitregler und Rand */
+.pad-pw__buehne #pw-inhalt .pw-rolle { height: calc(100dvh - var(--pw-oben, 220px) - 58px); }
+@media (max-width: 780px) {
+  .pad-pw-huelle { padding: 0; }
+  .pad-pw-huelle .dialog.pad-pw { border-radius: 0; }
+}
+/* Die HOCO Nr. im Dashboard ist ein Knopf, sieht aber aus wie vorher */
+.pad-hoco-knopf { display: block; background: none; border: 0; padding: 0; margin: 0; color: inherit;
+  font-family: inherit; text-align: left; cursor: pointer;
+  text-decoration: underline dotted rgba(255,255,255,.45); text-underline-offset: 6px; }
