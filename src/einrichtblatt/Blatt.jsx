@@ -17,7 +17,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
 import { werkzeugWaehlen } from "../seiten/bestellungen/PositionFenster.jsx";
-import { excelVorlesen, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
+import { excelVorlesen, blattVonAnderem, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
   artikelHolen, artikelBezeichnung, STAMM_FELDER, WASCHGEBINDE, prgNummern, platzInGebrauch } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
 import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
@@ -497,6 +497,24 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
     finally { setLaeuft(false); }
   };
+  // Ein anderes Blatt als Anfang nehmen: Werkzeuge, Programme und Kopf
+  // kommen mit, die HOCO Nr. bleibt die eigene (Wunsch Patrick 29. Oktober 2026)
+  const vonAnderem = async () => {
+    const w = await alt.dialogFelder({ titel: "Von anderem Blatt übernehmen",
+      text: "Das Blatt einer anderen HOCO Nr. auf " + (typ.name || "diesem Typ") + " wird übernommen und als "
+        + hocoNr + " gespeichert. Danach anpassen und Speichern.",
+      felder: [{ name: "nr", label: "HOCO Nr. des anderen Blatts", platzhalter: "z. B. 10000-0355", pflicht: true }],
+      bestaetigen: "Übernehmen" });
+    if (!w) return;
+    setLaeuft(true);
+    try {
+      const v = await blattVonAnderem(w.nr, hocoNr, typ);
+      setEntwurf((b) => entwurfVon(Object.assign({}, b, v.blatt, { hoco_nr: hocoNr, type_id: typId })));
+      setPlatz(null); setSeiteNr(0);
+      setVorgelesen({ uebernommen: w.nr.trim(), hinweise: v.hinweise || [] });
+    } catch (f) { alt.meldung(alt.fehlertext(f), "warn"); }
+    finally { setLaeuft(false); }
+  };
   const abbrechen = () => {
     if (!daten.blatt) { zu(); return; }
     anfangen(daten); setBearbeiten(false); setPlatz(null); setVorgelesen(null);
@@ -587,6 +605,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
           {bearbeiten
             ? <>
                 <span className="eba-hinweis">{zseite ? "Seite antippen zum Schreiben" : "Kopf direkt ausfüllen, Platz antippen für Werkzeug"}</span>
+                {!daten.blatt && <button className="knopf knopf--klein" data-eba-von-anderem="" disabled={laeuft} onClick={vonAnderem}>Von anderem Blatt übernehmen</button>}
                 <button className="knopf knopf--klein" data-eba-abbrechen="" onClick={abbrechen}>Abbrechen</button>
                 <button className="knopf knopf--klein knopf--haupt" data-eba-speichern="" disabled={laeuft} onClick={speichern}>Speichern</button>
               </>
@@ -602,6 +621,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       {bearbeiten && vorgelesen && <div className={"eba-vorgelesen" + (vorgelesen.fehler ? " eba-vorgelesen--fehler" : "")} data-eba-vorgelesen="">
         {vorgelesen.liest ? <span>Lese das Excel …</span>
           : vorgelesen.fehler ? <span>Excel nicht gelesen: {vorgelesen.fehler}</span>
+          : vorgelesen.uebernommen ? <span><b>Von {vorgelesen.uebernommen} übernommen.</b> Bitte prüfen und anpassen, dann Speichern: es wird als {hocoNr} gespeichert.
+              {vorgelesen.hinweise.length > 0 && <> Achtung: {vorgelesen.hinweise.join(" · ")}</>}</span>
           : <span><b>Aus dem Excel vorgelesen.</b> Bitte prüfen und anpassen, dann Speichern.
               {vorgelesen.hinweise.length > 0 && <> Achtung: {vorgelesen.hinweise.join(" · ")}</>}</span>}
         {!vorgelesen.liest && <button className="linkknopf" data-eba-vorgelesen-zu="" onClick={() => setVorgelesen(null)}>✕</button>}

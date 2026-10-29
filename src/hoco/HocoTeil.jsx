@@ -8,6 +8,7 @@ import { laengeFehlt, laengeVersuchen } from "../daten/material.js";
 import { alt, useDaten } from "../bruecke.jsx";
 import { teilLaden, pdfHochladen } from "./daten.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
+import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
 import { stueckzeitText, stueckzeitFragen, stueckzeitSetzen, laengeText, laengeSetzen, artInfoFragen }
   from "../daten/stueckzahl.js";
 
@@ -178,6 +179,10 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
                   <td className="rechts nowrap">
                     {(e.eigenes || e.vorlage) && <><button className="knopf knopf--klein hocoteil__haupt" data-blatt-typ={e.typId}
                       onClick={() => blattAnsehen(e.typId)}>Ansehen</button>{" "}</>}
+                    {/* Ohne Blatt gleich ein neues in der App, auch von einem anderen
+                        übernommen (Wunsch Patrick 29. Oktober 2026) */}
+                    {!e.eigenes && !e.vorlage && darf && !alt.istExtern() && <><button className="knopf knopf--klein" data-blatt-neu={e.typId}
+                      onClick={() => einrichtblattAppOeffnen(t.hoco_nr, e.typId)}>Neu in der App</button>{" "}</>}
                     {darf && <button className="knopf knopf--klein" data-blatt-pdf={e.typId} data-ablegen=""
                       onClick={() => blattHinterlegen(e.typId)}>{e.eigenes ? "Ersetzen" : "Datei hinterlegen"}</button>}
                     {darf && e.eigenes && <>{" "}<button className="knopf knopf--klein knopf--gefahr-leise" data-blatt-weg={e.typId}

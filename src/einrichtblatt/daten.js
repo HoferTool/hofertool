@@ -352,6 +352,35 @@ export async function excelVorlesen(hocoNr, typ, excelUrl, { artikel } = {}) {
   return { blatt, stamm: e.stamm || {}, typDaten: e.typDaten || {}, hinweise };
 }
 
+// Ein anderes Blatt als Anfang nehmen (Wunsch Patrick 29. Oktober 2026:
+// „wenn kein Einrichtblatt hinterlegt ist, ein anderes nehmen, mit der
+// neuen Nr. abspeichern und abändern“). Zuerst das Blatt in der App der
+// anderen HOCO Nr. auf demselben Typ, sonst ihr Excel. Übernommen wird nur
+// das Blatt (Werkzeuge, Programme, Kopf, Seiten); HOCO Nr. und Stammdaten
+// bleiben die der neuen Nummer, gespeichert wird erst mit Speichern.
+export async function blattVonAnderem(quelle, hocoNr, typ) {
+  const nr = String(quelle || "").trim();
+  if (!nr) throw new Error("Bitte eine HOCO Nr. eingeben.");
+  if (nr === hocoNr) throw new Error("Das ist dieselbe HOCO Nr.");
+  const kopie = (x) => (x == null ? x : JSON.parse(JSON.stringify(x)));
+  const da = await blattSuchen(nr, typ.id);
+  if (da) {
+    return { quelle: "app", blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: kopie(da.programme) || {},
+      geometrie: da.geometrie || null, maschine_nr: da.maschine_nr || null, bemerkung: da.bemerkung || null,
+      plaetze: kopie(da.plaetze) || {}, kopf: kopie(da.kopf) || {}, seiten: kopie(da.seiten) || [] } };
+  }
+  const r = await alt.db.from("hoco_type_data").select("blatt_url").eq("hoco_nr", nr).eq("type_id", typ.id).limit(1);
+  const url = r.error ? null : ((r.data || [])[0] || {}).blatt_url;
+  if (url && !/\.pdf(\?|#|$)/i.test(String(url))) {
+    const v = await excelVorlesen(nr, typ, url);
+    const b = v.blatt;
+    return { quelle: "excel", hinweise: v.hinweise.filter((h) => !/^Im Blatt steht HOCO/.test(h)),
+      blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: b.programme || {}, geometrie: b.geometrie || null,
+        maschine_nr: b.maschine_nr || null, bemerkung: b.bemerkung || null, plaetze: b.plaetze || {}, kopf: b.kopf || {} } };
+  }
+  throw new Error("Für " + nr + " gibt es auf " + (typ.name || "diesem Typ") + " kein Einrichtblatt.");
+}
+
 // nurMitPlaetzen: ohne ein einziges Werkzeug nichts speichern (im
 // Hintergrund; rund die Hälfte der Index-„Einrichtblätter“ sind Kalkulationen)
 export async function ausExcelEinlesen(hocoNr, typ, excelUrl, { ueberschreiben, artikel, nurMitPlaetzen } = {}) {
