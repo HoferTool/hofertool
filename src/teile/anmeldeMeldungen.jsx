@@ -25,6 +25,7 @@ import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
 import { wiederOeffner } from "./wiederherstellen.js";
 import { FettText, TextMitStil, stilWert } from "./FettText.jsx";
+import { dialogFelder } from "./Dialoge.jsx";
 
 const TABELLE = "anmelde_meldungen";
 const QUITTUNGEN = "anmelde_quittungen";
@@ -382,12 +383,38 @@ async function bildHochladen(datei) {
 // als Adresse oder direkt als data:-Bild, damit alles in einer Datei
 // steckt. Text darf Zeilenumbrüche und <b>, <i>, <u> haben. Gibt
 // { titel, seiten } zurück oder wirft einen Fehler mit verständlichem Text.
-export function meldungAusDatei(roh) {
+//
+// Seit 1.271.0 geht auch einfacher Text zum Hineinkopieren (Wunsch Patrick
+// 29. Oktober 2026: „als Text reinkopieren statt hochladen“, am Handy gibt
+// es die Datei oft nicht): „# Titel“, „## Überschrift“ beginnt eine Seite,
+// **fett** wird <b>, alles andere ist Text der Seite.
+function meldungAusText(roh) {
+  const d = { titel: "", seiten: [] };
+  let seite = null;
+  for (const z of String(roh).replace(/\r\n?/g, "\n").split("\n")) {
+    const t = z.trim();
+    if (/^#\s/.test(t) && !d.titel && !d.seiten.length) { d.titel = t.slice(2).trim(); continue; }
+    if (/^##\s/.test(t)) { seite = { ueber: t.slice(3).trim(), text: [] }; d.seiten.push(seite); continue; }
+    if (!seite) { if (!t) continue; seite = { ueber: "", text: [] }; d.seiten.push(seite); }
+    seite.text.push(z.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>"));
+  }
+  for (const x of d.seiten) {
+    while (x.text.length && !x.text[x.text.length - 1].trim()) x.text.pop();
+    while (x.text.length && !x.text[0].trim()) x.text.shift();
+  }
+  d.seiten = d.seiten.filter((x) => x.ueber || x.text.length);
+  return d;
+}
+
+export function meldungAusDatei(roh, alsText) {
   let d;
-  try { d = JSON.parse(String(roh).replace(/^\uFEFF/, "")); }
-  catch (f) { throw new Error("Die Datei ist keine Meldung (kein lesbarer Inhalt)."); }
+  const text = String(roh).replace(/^\uFEFF/, "").trim();
+  if (!alsText || /^[{[]/.test(text)) {
+    try { d = JSON.parse(text); }
+    catch (f) { throw new Error("Der Inhalt ist keine Meldung (kein lesbarer Inhalt)."); }
+  } else d = meldungAusText(text);
   if (d && typeof d.text === "string" && !Array.isArray(d.seiten)) d = { ...d, seiten: seitenLesen(d.text) };
-  if (!d || !Array.isArray(d.seiten) || !d.seiten.length) throw new Error("In der Datei stehen keine Seiten.");
+  if (!d || !Array.isArray(d.seiten) || !d.seiten.length) throw new Error("Darin stehen keine Seiten.");
   const zeilen = (t) => (Array.isArray(t) ? t.join("\n") : String(t || "")).replace(/\r?\n/g, "<br>");
   return {
     titel: String(d.titel || "").trim(),
@@ -453,21 +480,28 @@ function Bearbeiten({ m, fertig }) {
   // sofort da und werden im Hintergrund hochgeladen, damit die Meldung
   // klein bleibt; klappt das nicht, bleiben sie als data:-Bild (geht auch).
   const datei = useRef(null);
-  const ausDatei = async (d) => {
-    if (!d) return;
+  const ausDatei = async (d) => { if (d) ausInhalt(await d.text(), "Aus Datei laden", "der Datei", false); };
+  const alsText = async () => {
+    const e = await dialogFelder({ titel: "Als Text einfügen", bestaetigen: "Übernehmen",
+      text: "Text hineinkopieren (z. B. von Claude). „# Titel“, jede „## Überschrift“ beginnt eine Seite, **fett** wird fett.",
+      felder: [{ name: "text", label: "Meldung", typ: "textarea", zeilen: 14, pflicht: true,
+        platzhalter: "# Neu im HoferTool\n\n## Planwand\nText der ersten Seite …" }] });
+    if (e && e.text) ausInhalt(e.text, "Als Text einfügen", "des Texts", true);
+  };
+  const ausInhalt = async (roh, wo, woher, alsText) => {
     let inhalt;
-    try { inhalt = meldungAusDatei(await d.text()); }
+    try { inhalt = meldungAusDatei(roh, alsText); }
     catch (f) { alt.meldung(f.message, "fehler"); return; }
     const etwasDa = titel.trim() || seiten.some((x) => {
       const feld = document.getElementById("am-text-" + x.k);
       return x.ueber.trim() || x.bilder.length || (feld && feld.textContent.trim());
     });
-    if (etwasDa && !(await alt.nachfragen({ titel: "Aus Datei laden",
-      text: "Titel und alle Seiten durch den Inhalt der Datei ersetzen?", bestaetigen: "Ersetzen" }))) return;
+    if (etwasDa && !(await alt.nachfragen({ titel: wo,
+      text: "Titel und alle Seiten durch den Inhalt " + woher + " ersetzen?", bestaetigen: "Ersetzen" }))) return;
     const liste = inhalt.seiten.map((x) => ({ ...neueSeite(x), laedt: x.bilder.filter((b) => b.startsWith("data:")).length }));
     if (inhalt.titel) { setTitel(inhalt.titel); setFehlt(false); }
     setSeiten(liste);
-    alt.meldung("Meldung aus der Datei geladen: " + liste.length + (liste.length === 1 ? " Seite." : " Seiten."), "gut");
+    alt.meldung("Meldung aus " + (alsText ? "dem Text" : "der Datei") + " geladen: " + liste.length + (liste.length === 1 ? " Seite." : " Seiten."), "gut");
     let fehler = false;
     for (const s of liste) {
       for (const b of s.bilder.filter((x) => x.startsWith("data:"))) {
@@ -512,7 +546,9 @@ function Bearbeiten({ m, fertig }) {
       <div className="am-ausdatei">
         <button type="button" className="knopf knopf--klein knopf--still" id="am-aus-datei"
           onClick={() => datei.current.click()}>Aus Datei laden …</button>
-        <span className="hinweis klein">Füllt Titel, Seiten, Text und Bilder von selbst aus (Datei .json, z. B. von Claude).</span>
+        <button type="button" className="knopf knopf--klein knopf--still" id="am-als-text"
+          onClick={alsText}>Als Text einfügen …</button>
+        <span className="hinweis klein">Füllt Titel, Seiten, Text und Bilder von selbst aus (Datei .json oder hineinkopierter Text, z. B. von Claude).</span>
         <input ref={datei} type="file" accept=".json,application/json,text/plain" hidden id="am-datei"
           onChange={(e) => { ausDatei(e.target.files[0]); e.target.value = ""; }} />
       </div>

@@ -188,6 +188,18 @@ with sync_playwright() as p:
     pg.locator("#am-speichern").click(); pg.wait_for_timeout(800)
     st = pg.evaluate("() => { const t = TEST.daten.anmelde_meldungen.find(x => x.titel === 'Aus der Datei').text; return JSON.parse(t.match(/^<!--seiten:([\\s\\S]*)-->$/)[1]).map(x => x.ueber + ':' + x.bilder.length + ':' + x.bilder.every(b => !b.startsWith('data:') || b.includes('#meldungen/')) + ':' + x.text.includes('<br>')); }")
     pruefe(f"Aus Datei gespeichert ({st})", st == ["A:1:true:true", "B:1:true:false"])
+    # Als Text einfügen (1.271.0): # Titel, ## Seite, **fett**
+    pg.locator("#am-neu").click(); pg.wait_for_timeout(500)
+    pg.locator("#am-als-text").click(); pg.wait_for_timeout(400)
+    pg.locator(".dialog-huelle").last.locator("textarea").fill("# Aus dem Text\n\n## Erste\nZeile **fett**\nZweite Zeile\n\n## Zweite\nNur Text\n")
+    pg.locator(".dialog-huelle").last.locator("[data-ja]").click(); pg.wait_for_timeout(800)
+    pruefe("Titel aus dem Text", pg.locator("#am-titel-feld").input_value() == "Aus dem Text")
+    pruefe("Zwei Seiten aus dem Text", pg.locator(".am-seite").count() == 2
+           and pg.locator(".am-seite").nth(0).locator(".am-seite__ueber").input_value() == "Erste"
+           and pg.locator(".am-seite").nth(1).locator(".am-seite__ueber").input_value() == "Zweite")
+    pruefe("Fett aus dem Text", pg.locator(".am-seite").nth(0).locator(".stilfeld b").inner_text() == "fett")
+    pg.locator("#am-speichern").click(); pg.wait_for_timeout(800)
+    pruefe("Aus Text gespeichert", pg.evaluate("() => TEST.daten.anmelde_meldungen.some(x => x.titel === 'Aus dem Text' && x.text.includes('Zweite Zeile'))"))
     pg.context.close()
 
     # Gerätekonto: keine Meldung

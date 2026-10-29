@@ -97,7 +97,7 @@ function Feld({ f, id, erstes }) {
   if (f.typ === "textarea") {
     return (
       <label className="feld"><span>{f.label}</span>
-        <textarea id={id} rows={3} placeholder={f.platzhalter || ""} defaultValue={f.wert || ""}
+        <textarea id={id} rows={f.zeilen || 3} placeholder={f.platzhalter || ""} defaultValue={f.wert || ""}
           data-fokus={erstes ? "" : undefined} />{hinweis}</label>
     );
   }
