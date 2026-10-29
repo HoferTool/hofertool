@@ -10339,3 +10339,9 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
   .auf-kopf__knoepfe #pl-problem-eigen, .auf-kopf__knoepfe #pl-vorbereiten { order: 3; flex: 1 1 0; min-height: 36px; }
   .auf-kopf::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
 }
+/* Werkzeug in drei Zeilen wie im Einrichtblatt (seit 1.272.1) */
+.vb-bez { display: flex; flex-direction: column; line-height: 1.25; }
+.vb-her { font-size: .78rem; color: var(--gedaempft); }
+.vb-wznr { font-weight: 600; }
+.vb-beschr { font-size: .9rem; }
+.vb-punkt--ok .vb-bez { text-decoration: line-through; }

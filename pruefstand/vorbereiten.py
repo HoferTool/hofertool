@@ -39,7 +39,7 @@ with sync_playwright() as p:
       D.articles = (D.articles || []).concat([{ id: 'a-wz1', article_number: 'MTEC 42510', name: 'Ausdrehwerkzeug', description: 'Ausdreher Bohrung ab Ø2.5' }]);
       D.einrichtblatt_app = [{ id: 'eb1', hoco_nr: j.job_number, type_id: 't1', gut_am: '2026-10-28T08:00:00Z', kopf: {}, programme: {},
         plaetze: { T1100: { taetigkeit: 'Bohren', werkzeug: '30200350', bezeichnung: 'Bohrer Ø3.50' },
-                   T200: { taetigkeit: 'Drehen', hd: true, werkzeug: 'MTEC 42510', article_id: 'a-wz1' },
+                   T200: { taetigkeit: 'Drehen', hd: true, werkzeug: 'MTEC 42510', article_id: 'a-wz1', hersteller: 'Ifanger' },
                    T100: { taetigkeit: 'Abstechen', hd: true, werkzeug: 'ISC6011372' },
                    T300: {} } }];
       D.auftrag_vorbereiten = []; }""", jid)
@@ -57,7 +57,9 @@ with sync_playwright() as p:
     nrs = pg.evaluate("[...document.querySelectorAll('#vorbereiten .vb-tnr')].map(e => e.textContent)")
     pruefe("Werkzeuge der Reihe nach, leere weg: " + str(nrs), nrs == ["T100", "T200", "T1100"])
     pruefe("Beschreibung aus dem Artikel", "Ausdreher Bohrung ab Ø2.5" in pg.inner_text("#vorbereiten"))
-    pruefe("Bezeichnung aus dem Blatt", "Bohrer Ø3.50" in pg.inner_text("#vorbereiten"))
+    pruefe("Ohne Artikel keine Beschreibung, nur die Nummer", "Bohrer Ø3.50" not in pg.inner_text("#vorbereiten") and "30200350" in pg.inner_text("#vorbereiten"))
+    z = pg.evaluate("[...document.querySelector(\"[data-vb='wz:T200']\").closest('li').querySelectorAll('.vb-bez > span')].map(e => e.className + ':' + e.textContent)")
+    pruefe("Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung " + str(z), z == ["vb-her:Ifanger", "vb-wznr:MTEC 42510HD", "vb-beschr:Ausdreher Bohrung ab Ø2.5"])
     pruefe("Zweimal HD", pg.locator("#vorbereiten .vb-hd").count() == 2)
     txt = pg.inner_text("#vorbereiten")
     pruefe("Kein Fortschritt, keine Länge, keine Hinweise", not any(w in txt for w in ["erledigt", "Länge", "Hinweise", "Bereit"]))

@@ -6,7 +6,8 @@
 //       oder nichts davon, mehr nicht
 //    2. Spannmittel: ein einziger Punkt (Zange, Canon, Ladestange)
 //    3. Werkzeuge der Reihe nach aus dem Einrichtblatt in der App:
-//       T-Nr., HD und die Artikel-Beschreibung
+//       T-Nr., HD und die drei Zeilen wie im Blatt (Lieferant, Artikel-Nr.,
+//       Beschreibung)
 //  Fortschritt, Länge, Hinweise und „Bereit“ wollte Patrick nicht.
 //  Jedes Häkchen ist eine Zeile in auftrag_vorbereiten
 //  (sql/vorbereiten.sql), damit alle sehen, was schon bereit ist.
@@ -75,10 +76,15 @@ async function werkzeugeLaden(auftrag) {
   const liste = keys.map((k) => {
     const p = plaetze[k];
     const a = p.article_id && !p.ungeprueft ? artikel[p.article_id] : null;
-    const bez = (a && (artikelBezeichnung(a) || a.name)) || p.bezeichnung || p.werkzeug || p.taetigkeit || "";
+    // Die drei Zeilen wie im Blatt: Lieferant, Artikel-Nr., Beschreibung
+    // (Patrick: „gleich alle drei Zeilen, sonst weiss ich nicht, was das
+    // ist“); die Beschreibung nur bei hinterlegtem, geprüftem Artikel
+    const beschreibung = a ? artikelBezeichnung(a) : (p.article_id && !p.ungeprueft ? p.bezeichnung || "" : "");
+    const zeilen = [p.hersteller || "", p.werkzeug || "", beschreibung];
+    if (!zeilen.some(Boolean)) zeilen[1] = p.taetigkeit || "";
     const rev = /^R(\d)-/.exec(k);
     return {
-      key: k, nr: platzName(k), revolver: rev ? rev[1] : "", bez, hd: !!p.hd,
+      key: k, nr: platzName(k), revolver: rev ? rev[1] : "", zeilen, hd: !!p.hd,
       farbe: (vorlage.farben && vorlage.farben[k]) || vorlage.typFarbe || "#d9dee5",
     };
   });
@@ -177,7 +183,12 @@ function VorbereitenFenster({ auftrag, zu }) {
                   return [titel,
                     <Punkt key={w.key} id={"wz:" + w.key} klasse="vb-wz">
                       <span className="vb-tnr" style={{ background: farbe }}>{w.nr}</span>
-                      <span className="vb-bez">{w.bez}{w.hd && <span className="vb-hd">HD</span>}</span>
+                      <span className="vb-bez">
+                        {w.zeilen[0] && <span className="vb-her">{w.zeilen[0]}</span>}
+                        {w.zeilen[1] && <span className="vb-wznr">{w.zeilen[1]}{w.hd && <span className="vb-hd">HD</span>}</span>}
+                        {!w.zeilen[1] && w.hd && <span className="vb-hd">HD</span>}
+                        {w.zeilen[2] && <span className="vb-beschr">{w.zeilen[2]}</span>}
+                      </span>
                     </Punkt>];
                 })}
               </ul>
