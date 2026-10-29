@@ -14,6 +14,7 @@
 //  feld   = { id, art: "leer" | "datei" | "text" | "skizze" (alt),
 //             datei: { url, pfad, name, typ: "pdf" | "bild" | "video" | "excel" },
 //             html (bei art "text": Text wie in Word, TextFeld.jsx),
+//             adresse, zoom, neuLaden, gesperrt (bei art "web": Webseite, WebFeld.jsx),
 //             sekunden: Seitenwechsel bei PDFs mit mehreren Seiten }
 //  Eine Reihe behält immer drei Felder; mit A3 zeigt sie nur die ersten
 //  zwei, das dritte kommt zurück, wenn man wieder auf drei A4 schaltet.

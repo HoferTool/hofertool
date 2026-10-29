@@ -21,6 +21,7 @@ import { alt } from "../bruecke.jsx";
 import { Tafel } from "./Tafel.jsx";
 import { istNacht } from "./Nacht.jsx";
 import { textBearbeiten, wordLesen, sauber } from "./TextFeld.jsx";
+import { webBearbeiten, NEU_LADEN } from "./WebFeld.jsx";
 import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, fehltTabelle, neueId,
   istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil, TAFELN, tafelFarben,
   layoutsLaden, layoutSpeichern, layoutLoeschen, gleicherAufbau, ohneEffekte } from "./daten.js";
@@ -159,11 +160,22 @@ function Gestalten({ mass }) {
     setGewaehlt(neu.id);
   };
 
+  // Webseite als Teil (Wunsch Patrick 29. Oktober 2026), zuerst quer
+  const webOeffnen = async (t) => {
+    const feld = await webBearbeiten(t);
+    if (!feld) return;
+    if (t) { await teilAendern(t.id, feld); return; }
+    const neu = neuesTeil({ id: neueId(), art: "web", ...feld }, 0.75, null, mass);
+    await aendern((teile) => [...teile, neu]);
+    setGewaehlt(neu.id);
+  };
+
   const entfernen = async () => {
     if (!wahl) return;
     const ok = await alt.nachfragen({ titel: "Vom " + mass.name + " entfernen?",
       text: wahl.art === "skizze" ? "Die Zeichenfläche und alles darauf verschwindet vom Infoboard."
         : wahl.art === "text" ? "Der Text verschwindet vom Infoboard."
+        : wahl.art === "web" ? "Die Webseite verschwindet vom Infoboard."
         : "Die Datei verschwindet vom Infoboard.", bestaetigen: "Entfernen", gefahr: true });
     if (!ok) return;
     if (wahl.art === "skizze") {
@@ -186,6 +198,7 @@ function Gestalten({ mass }) {
   };
 
   const inhaltText = (f) => f.art === "skizze" ? "Zeichenfläche" : f.art === "text" ? "Text"
+    : f.art === "web" ? "Webseite: " + (f.adresse || "")
     : f.art === "datei" && f.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video", excel: "Excel" }[f.datei.typ] || "Datei") + ": " + (f.datei.name || "")
     : "Leer";
 
@@ -203,7 +216,7 @@ function Gestalten({ mass }) {
           <Tafel mass={mass} aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt} effektProbe={probe || null}
             teilAendern={admin ? teilAendern : null} logoSetzen={admin ? logoSetzen : null}
             ablegen={admin && !laedt ? (dateien, punkt) => dateienAblegen(dateien, punkt, null) : null}
-            doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); } : null} />
+            doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); if (t && t.art === "web") webOeffnen(t); } : null} />
         </div>
         <div className="ib-gestalten__seite">
           {admin && <>
@@ -214,6 +227,8 @@ function Gestalten({ mass }) {
                 Text hinzufügen</button>
               <button type="button" className="knopf" data-ib="neu-text-frei" onClick={() => textOeffnen(null, true)}>
                 Text ohne Hintergrund</button>
+              <button type="button" className="knopf" data-ib="neu-web" onClick={() => webOeffnen(null)}>
+                Webseite hinzufügen</button>
             </div>
             <input ref={datei} type="file" hidden multiple onChange={dateiGewaehlt}
               accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
@@ -244,6 +259,8 @@ function Gestalten({ mass }) {
                 <div className="ib-wahl__knoepfe">
                   {wahl.art === "text"
                     ? <button type="button" className="knopf" data-ib="text" onClick={() => textOeffnen(wahl)}>Text bearbeiten</button>
+                    : wahl.art === "web"
+                    ? <button type="button" className="knopf" data-ib="web" onClick={() => webOeffnen(wahl)}>Webseite ändern</button>
                     : wahl.art === "datei" &&
                       <button type="button" className="knopf" data-ib="datei" disabled={!!laedt}
                         onClick={() => dateiWaehlen(wahl)}>Andere Datei …</button>}
@@ -260,6 +277,15 @@ function Gestalten({ mass }) {
                     <span>Ohne Hintergrund<small>Nur der Text, ohne weisses Blatt und ohne Rand. Breite und Höhe
                       lassen sich an der Ecke frei ziehen, die Schrift richtet sich nach der Breite.</small></span>
                   </label>}
+                {wahl.art === "web" &&
+                  <label className="feld">Neu laden
+                    <select value={wahl.neuLaden || 0} data-ib="neu-laden"
+                      onChange={(e) => teilAendern(wahl.id, { neuLaden: Number(e.target.value) })}>
+                      {NEU_LADEN.map(([w, t]) => <option key={w} value={w}>{t}</option>)}
+                    </select></label>}
+                {wahl.art === "web" && wahl.gesperrt &&
+                  <p className="hinweis" data-ib="web-gesperrt">Diese Seite lässt sich nicht einbetten ({wahl.gesperrt}).
+                    Am Bildschirm steht darum nur ein Hinweis.</p>}
                 <Drehung key={wahl.id} wert={wahl.drehung || 0} setzen={(g) => teilAendern(wahl.id, { drehung: g })} />
                 {wahl.art === "datei" && wahl.datei && (wahl.datei.typ === "pdf" || wahl.datei.typ === "excel") &&
                   <label className="feld">Mehrere Seiten wechseln
