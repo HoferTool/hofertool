@@ -73,7 +73,7 @@ $einstDatei = Join-Path $ordnerHier "abgleich-einstellungen.json"
 $standDatei = Join-Path $ordnerHier "einrichtblaetter-stand.json"
 $protDatei  = Join-Path $ordnerHier "einrichtblaetter.log"
 $hoechstensJeLauf = 150
-$listeHoechstens  = 300
+$listeHoechstens  = 600
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -292,6 +292,10 @@ try {
     # Je HOCO Nr. das Werkzeugprotokoll, sonst ein anderes Protokoll,
     # sonst die Datei nur mit Nummer; bei mehreren die zuletzt geänderte
     $jeNr = @{}
+    # Weggelassene Dateien kommen nur in die Liste, wenn ihre Nummer gar
+    # kein Blatt bekommt; sonst füllen die vielen Toleranzen die Liste und
+    # man sieht nicht, warum eine Nummer leer bleibt (Patrick 29. Oktober 2026)
+    $weggelassen = @()
     foreach ($d in $alle) {
       $h = HocoAusName $d.Name
       if (-not $h) { $status.ohneNr++; Eintrag $oi $d.Name "" "ohne HOCO Nr. im Namen, bleibt weg"; continue }
@@ -307,13 +311,14 @@ try {
             }
           } catch { Schreibe ("Entfernen ging nicht: " + $d.Name + ": " + $_.Exception.Message) }
         }
-        Eintrag $oi $d.Name $h $was
+        $weggelassen += @{ d = $d.Name; h = $h; w = $was }
         continue
       }
       $d | Add-Member -NotePropertyName HoferRang -NotePropertyValue $r.rang -Force
       if (-not $jeNr[$h]) { $jeNr[$h] = @() }
       $jeNr[$h] += $d
     }
+    foreach ($e in $weggelassen) { if (-not $jeNr[$e.h]) { Eintrag $oi $e.d $e.h $e.w } }
     foreach ($h in ($jeNr.Keys | Sort-Object)) {
       $schluessel = $h + "|" + [string]$typ.id
       $jetzt = [string]$blattVon[$schluessel]
