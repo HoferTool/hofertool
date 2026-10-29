@@ -10217,7 +10217,7 @@ body.dunkel .bs-aehnlich { background: #4a3b10; color: #ffe08a; }
 @container (max-width: 30px) { .dg-teil-namen { display: none; } .dg-saeule--teile { width: 72%; } }
 .dg-tip .st-tip-auftrag { font-weight: 400; }
 
-/* Infoboard: Webseite als Teil (seit 1.260.0) */
+/* Infoboard: Webseite als Teil (seit 1.261.0) */
 .ib-feld--web { background: #fff; overflow: hidden; }
 .ib-web { position: absolute; inset: 0; overflow: hidden; }
 .ib-web iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: #fff; }
