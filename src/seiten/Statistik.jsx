@@ -370,6 +370,9 @@ function Maschinen({ r, setze }) {
   );
 }
 
+// Kräftige, klar verschiedene Farben, auf denen weisse Schrift gut lesbar ist
+const ARTIKEL_FARBEN = ["#1f5fbf", "#d35400", "#2e7d32", "#7b3fa8", "#00838f", "#c62828", "#8d6e1f", "#ad1457"];
+
 function EineMaschine({ m, r, setze }) {
   // Artikel auf dieser Maschine
   const jeArtikel = {};
@@ -380,17 +383,20 @@ function EineMaschine({ m, r, setze }) {
     z.stk += e.stk; z.h += e.h || 0;
   });
   const artikel = Object.entries(jeArtikel).sort((a, b) => b[1].stk - a[1].stk);
-  // Je Tag die Aufträge mit HOCO Nr. und FA Nr. in den Säulen (Wunsch
-  // Patrick 29. Oktober 2026: „bei den Balken die Hoferartikel und FA
-  // Nr. an“). Aufeinanderfolgende Aufträge wechseln die Farbe.
+  // Je Tag die Aufträge mit HOCO Nr. in den Säulen (Wunsch Patrick
+  // 29. Oktober 2026: „bei den Balken die Hoferartikel“; die FA Nr. nur
+  // noch beim Antippen: „lass die FA Nr. weg, Artikel reicht mir, dafür
+  // grösser“). Jeder Artikel hat seine eigene Farbe, damit man den
+  // Auftragswechsel sieht („farbliche Unterschiede“).
   const jeTagAuftrag = {}, farbe = new Map();
   r.eintraege.filter((e) => e.mid === m.id).forEach((e) => {
     const k = e.jobId || "hoco:" + e.hoco;
-    if (!farbe.has(k)) farbe.set(k, farbe.size % 2);
+    const fk = e.hoco || "ohne";
+    if (!farbe.has(fk)) farbe.set(fk, ARTIKEL_FARBEN[farbe.size % ARTIKEL_FARBEN.length]);
     const l = (jeTagAuftrag[e.datum] = jeTagAuftrag[e.datum] || new Map());
     const j = r.jobVon.get(e.jobId) || {};
-    const x = l.get(k) || { stk: 0, h: 0, farbe: farbe.get(k),
-      text: [e.hoco || "ohne HOCO Nr.", j.fa_nr ? "FA " + j.fa_nr : ""].filter(Boolean).join(" · ") };
+    const x = l.get(k) || { stk: 0, h: 0, farbe: farbe.get(fk), text: e.hoco || "ohne HOCO Nr.",
+      lang: [e.hoco || "ohne HOCO Nr.", j.fa_nr ? "FA " + j.fa_nr : ""].filter(Boolean).join(" · ") };
     x.stk += e.stk; x.h += e.h || 0;
     l.set(k, x);
   });
@@ -398,7 +404,7 @@ function EineMaschine({ m, r, setze }) {
     const l = [...(jeTagAuftrag[w.key] || new Map()).values()];
     if (!l.length || w.ohneMeldung) return w;
     return { ...w, teile: l.map((x) => ({ wert: x[feld], text: x.text, farbe: x.farbe })),
-      tip: <><b>{f(w.wert)}</b> {w.tipTag}{l.map((x, i) => <span key={i} className="st-tip-auftrag"><br />{x.text}: {f(x[feld])}</span>)}</> };
+      tip: <><b>{f(w.wert)}</b> {w.tipTag}{l.map((x, i) => <span key={i} className="st-tip-auftrag"><br />{x.lang}: {f(x[feld])}</span>)}</> };
   });
   return (
     <>
@@ -409,10 +415,10 @@ function EineMaschine({ m, r, setze }) {
       <Kennzahlen z={m} mitAuslastung />
       <div className="st-zwei">
         <Karte id="st-ausstoss-tag" titel="Ausstoss pro Tag">
-          <Saeulen werte={mitAuftraegen(mitTip(jeZeit(m.jeTag, "stk"), stkText), "stk", stkText)} format={stk} />
+          <Saeulen werte={mitAuftraegen(mitTip(jeZeit(m.jeTag, "stk"), stkText), "stk", stkText)} format={stk} hoehe={300} />
         </Karte>
         <Karte id="st-zeit-tag" titel="Produktionszeit pro Tag" unter={STUNDEN_VOLL + " h = 100 % Auslastung"}>
-          <Saeulen werte={mitAuftraegen(mitTip(jeZeit(m.jeTag, "h"), stundenText), "h", stundenText)} format={(h) => Math.round(h) + " h"}
+          <Saeulen werte={mitAuftraegen(mitTip(jeZeit(m.jeTag, "h"), stundenText), "h", stundenText)} format={(h) => Math.round(h) + " h"} hoehe={300}
             wertText={(h) => kommaText(h) + " h"}
             ziel={m.jeTag.length <= 62 ? STUNDEN_VOLL : 0} zielText={STUNDEN_VOLL + " h"}
             deckel={m.jeTag.length <= 62 ? 24 : 0} />

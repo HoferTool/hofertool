@@ -144,7 +144,7 @@ with sync_playwright() as p:
     if "keine Stückzahl gemeldet" not in pg.inner_text("#st-zeit-tag .dg-tip"): fehler.append("Tag ohne Meldung nicht erklärt")
     # HOCO Nr. und FA Nr. in den Säulen der Maschine
     teile = pg.evaluate("""[...document.querySelectorAll('#st-ausstoss-tag .dg-teil')].map(e => e.textContent)""")
-    if "10111-0001 · FA 4711" not in teile or not any(t.startswith("10222-0002") for t in teile):
+    if "10111-0001" not in teile or not any(t.startswith("10222-0002") for t in teile):
         fehler.append("Aufträge in den Säulen: " + str(teile))
     zwei = pg.evaluate("""[...document.querySelectorAll('#st-zeit-tag .dg-saeule--teile')].map(e => e.querySelectorAll('.dg-teil').length)""")
     if 2 not in zwei: fehler.append("Tag mit Auftragswechsel nicht geteilt: " + str(zwei))

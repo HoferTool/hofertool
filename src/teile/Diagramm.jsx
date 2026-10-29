@@ -63,13 +63,17 @@ export function Saeulen({ werte, format, wertText, ziel, zielText, hoehe = 190, 
 // Säule aus Stücken übereinander, je eines mit senkrechter Anschrift
 // (Statistik: ein Stück je Auftrag, 1.258.0). teile: [{ wert, text,
 // farbe }], farbe 0 oder 1, damit zwei Aufträge am selben Tag sich
-// abheben. Steht der Wert innen oben, hält die Säule oben Platz frei.
+// abheben; eine Farbe als Text (#…) gilt direkt. Steht der Wert innen oben, hält die Säule oben Platz frei.
 function Teile({ w, anteil }) {
+  const teile = w.teile.filter((t) => t.wert > 0);
+  // Der freie Platz oben in der Farbe des obersten Stücks
+  const oben = teile.length ? teile[teile.length - 1].farbe : null;
   return (
     <div className={"dg-saeule dg-saeule--teile" + (anteil > 0.72 ? " dg-saeule--platz" : "")}
-      style={{ height: Math.min(100, anteil * 100) + "%" }}>
-      {w.teile.filter((t) => t.wert > 0).map((t, i) => (
-        <i key={i} className={"dg-teil dg-teil--" + (t.farbe || 0)} style={{ flexGrow: t.wert }}>
+      style={{ height: Math.min(100, anteil * 100) + "%", ...(typeof oben === "string" ? { background: oben } : {}) }}>
+      {teile.map((t, i) => (
+        <i key={i} className={"dg-teil" + (typeof t.farbe === "number" ? " dg-teil--" + t.farbe : "")}
+          style={{ flexGrow: t.wert, ...(typeof t.farbe === "string" ? { background: t.farbe } : {}) }}>
           <span>{t.text}</span></i>
       ))}
     </div>
