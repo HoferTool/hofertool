@@ -80,7 +80,7 @@ async function werkzeugeLaden(auftrag) {
   const artikel = {};
   if (ids.length) {
     try {
-      const r = await alt.db.from("articles").select("id, name, description").in("id", ids);
+      const r = await alt.db.from("articles").select("id, name, description, spezial").in("id", ids);
       (r.data || []).forEach((a) => { artikel[a.id] = a; });
     } catch (f) { /* dann der Text aus dem Blatt */ }
   }
@@ -99,6 +99,8 @@ async function werkzeugeLaden(auftrag) {
     const rev = /^R(\d)-/.exec(k);
     return {
       key: k, nr: platzName(k), revolver: rev ? rev[1] : "", zeilen, hd: !!p.hd,
+      // Stern beim Lieferanten wie im Blatt (Wunsch Patrick 29. Oktober 2026)
+      spezial: a ? !!a.spezial : !!p.spezial,
       farbe: (vorlage.farben && vorlage.farben[k]) || vorlage.typFarbe || "#d9dee5",
     };
   });
@@ -199,7 +201,7 @@ function VorbereitenFenster({ auftrag, zu }) {
                     <Punkt key={w.key} id={"wz:" + w.key} klasse="vb-wz">
                       <span className="vb-tnr" style={{ background: farbe }}>{w.nr}</span>
                       <span className="vb-bez">
-                        {w.zeilen[0] && <span className="vb-her">{w.zeilen[0]}</span>}
+                        {w.zeilen[0] && <span className="vb-her">{w.zeilen[0]}{w.spezial && <span className="eba-stern" title="Spezialwerkzeug">★</span>}</span>}
                         {w.zeilen[1] && <span className="vb-wznr">{w.zeilen[1]}{w.hd && <span className="vb-hd">HD</span>}</span>}
                         {!w.zeilen[1] && w.hd && <span className="vb-hd">HD</span>}
                         {w.zeilen[2] && <span className="vb-beschr">{w.zeilen[2]}</span>}
