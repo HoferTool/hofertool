@@ -198,9 +198,10 @@ function Erkennen([string]$dateiname, $typen) {
             passt = [bool]((-not $nurExcel) -and (-not $keins) -and ($hoco -or $typ -or $fa)) }
 }
 
-# Offene Aufträge einer HOCO Nr., der nächste zuerst
+# Offene Aufträge einer HOCO Nr. (laufend, Rüsten oder geplant, nicht
+# fertig), der nächste zuerst
 function OffeneAuftraege([string]$hoco) {
-  $l = @(Lesen ("jobs?select=id,job_number,fa_nr,machine_id,planned_from,wbg_url&ended_at=is.null&job_number=eq." + (W $hoco)))
+  $l = @(Lesen ("jobs?select=id,job_number,fa_nr,machine_id,planned_from,wbg_url,plan_status&ended_at=is.null&plan_status=neq.fertig&job_number=eq." + (W $hoco)))
   return @($l | Sort-Object @{ Expression = { if ($_.planned_from) { [string]$_.planned_from } else { "9999" } } })
 }
 
@@ -208,13 +209,23 @@ function OffeneAuftraege([string]$hoco) {
 #  - WBG mit FA Nr.: Steht die FA Nr. schon auf einem Auftrag, kommt die WBG
 #    dorthin. Sonst an den nächsten offenen Auftrag der HOCO Nr. ohne FA Nr.,
 #    und die FA Nr. wird dort eingetragen. Jede FA Nr. gibt es nur einmal.
+#    Nie an einen abgeschlossenen Auftrag (Wunsch Patrick 29. Oktober 2026:
+#    "nur laufend oder in Zukunft"): steht die FA Nr. auf einem fertigen
+#    Auftrag, bleibt die WBG ohne Ziel und geht nach "nicht zugeordnet".
 #  - Einrichtblatt mit HOCO Nr., aber ohne Typ im Namen: Typ der Maschine
 #    des nächsten offenen Auftrags dieser Nummer.
 function ZielSuchen($z, $typen) {
   if ($z.art -eq "wbg" -and $z.fa) {
     $auftrag = $null
-    $a = @(Lesen ("jobs?select=id,job_number,fa_nr,machine_id,planned_from,wbg_url&limit=1&fa_nr=eq." + (W $z.fa)))
-    if ($a.Count -gt 0) { $auftrag = $a[0] }
+    $a = @(Lesen ("jobs?select=id,job_number,fa_nr,machine_id,planned_from,wbg_url,plan_status,ended_at&limit=1&fa_nr=eq." + (W $z.fa)))
+    if ($a.Count -gt 0) {
+      if ($a[0].ended_at -or [string]$a[0].plan_status -eq "fertig") {
+        $z.auftrag = $null; $z.passt = $false; $z.vorbei = $true
+        $z.grund = "die FA Nr. " + $z.fa + " gehört zum abgeschlossenen Auftrag " + $a[0].job_number + " (WBGs nur an laufende oder geplante Aufträge)"
+        return $z
+      }
+      $auftrag = $a[0]
+    }
     elseif ($z.hoco) {
       $auftrag = @(OffeneAuftraege $z.hoco | Where-Object { -not ([string]$_.fa_nr).Trim() }) | Select-Object -First 1
     }

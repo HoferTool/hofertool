@@ -158,7 +158,7 @@ try {
     if (-not $z.passt) {
       # WBG mit FA Nr., deren Auftrag noch nicht geplant ist: warten
       $alter = ((Get-Date) - $d.CreationTime).TotalDays
-      if ($z.art -eq "wbg" -and $z.fa -and -not $z.master -and $alter -lt $wartenTage) {
+      if ($z.art -eq "wbg" -and $z.fa -and -not $z.master -and -not $z.vorbei -and $alter -lt $wartenTage) {
         $status.wartet += $d.Name
         $nochDa[$d.Name] = $true
         if (-not $stand.gemeldet[$d.Name]) {

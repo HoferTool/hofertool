@@ -149,7 +149,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.252.0";
+const APP_VERSION = "1.252.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2027,10 +2027,10 @@ function dokErkennen(dateiname, typen) {
 
 // Offene Aufträge einer HOCO Nr., der nächste zuerst
 async function dokOffeneAuftraege(hoco) {
-  const r = await db.from("jobs").select("id, job_number, fa_nr, machine_id, planned_from, wbg_url")
+  const r = await db.from("jobs").select("id, job_number, fa_nr, machine_id, planned_from, wbg_url, plan_status")
     .eq("job_number", hoco).is("ended_at", null);
   if (r.error) throw r.error;
-  return (r.data || []).slice().sort((a, b) =>
+  return (r.data || []).filter((j) => j.plan_status !== "fertig").sort((a, b) =>
     String(a.planned_from || "9999").localeCompare(String(b.planned_from || "9999")));
 }
 
@@ -2039,15 +2039,24 @@ async function dokOffeneAuftraege(hoco) {
 //   Steht sie schon auf einem Auftrag, kommt die WBG dorthin (neue
 //   Fassung). Sonst an den nächsten offenen Auftrag der HOCO Nr., der
 //   noch keine FA Nr. hat, und die FA Nr. wird dort eingetragen.
+//   Nie an einen abgeschlossenen Auftrag (Wunsch Patrick 29. Oktober
+//   2026: „nur laufend oder in Zukunft“): steht die FA Nr. auf einem
+//   fertigen Auftrag, ist die WBG nicht zuzuordnen.
 // - Einrichtblatt mit HOCO Nr., aber ohne Typ im Namen: Typ der
 //   Maschine, auf der der nächste offene Auftrag dieser Nummer steht.
 async function dokZielSuchen(z, typen) {
   const n = Object.assign({}, z, { geprueft: true });
   try {
     if (n.art === "wbg" && n.fa) {
-      const r = await db.from("jobs").select("id, job_number, fa_nr, machine_id, planned_from, wbg_url")
+      const r = await db.from("jobs").select("id, job_number, fa_nr, machine_id, planned_from, wbg_url, plan_status, ended_at")
         .eq("fa_nr", n.fa).limit(1);
       let auftrag = (r.data || [])[0] || null;
+      if (auftrag && (auftrag.ended_at || auftrag.plan_status === "fertig")) {
+        n.auftrag = null; n.passt = false; n.vorbei = true;
+        n.grund = "die FA Nr. " + n.fa + " gehört zum abgeschlossenen Auftrag " + auftrag.job_number
+          + " (WBGs nur an laufende oder geplante Aufträge)";
+        return n;
+      }
       if (!auftrag && n.hoco) {
         auftrag = (await dokOffeneAuftraege(n.hoco)).find((j) => !String(j.fa_nr || "").trim()) || null;
       }
