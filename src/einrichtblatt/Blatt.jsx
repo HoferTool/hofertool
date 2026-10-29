@@ -134,7 +134,7 @@ function KopfEingabe({ f, wert, aendern, d }) {
 // ändert ein Kopffeld
 // pruefen: eingelesene Werkzeuge ohne hinterlegten oder bestätigten
 // Artikel rot umranden (nur im Fenster, nicht im Pad und nicht im Druck)
-export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen }) {
+export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel }) {
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
@@ -156,9 +156,20 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
     const bild = platzBild(p, artikelBilder);
     return (
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")
-        + (pruefen && werkzeugOffen(p) ? " eba-platz--pruefen" : "")}
+        + (pruefen && werkzeugOffen(p) ? " eba-platz--pruefen" : "") + (wechsel === nr ? " eba-platz--wechsel" : "")
+        + (wechsel && wechsel !== nr ? " eba-platz--ziel" : "")}
         style={{ gridRow: ri + 1, gridColumn: si + 1 }} data-platz={nr}
-        onClick={bearbeiten ? () => platzWahl(nr) : undefined}>
+        onClick={bearbeiten ? () => platzWahl(nr) : undefined}
+        // Am Computer ein Werkzeug direkt auf einen anderen Platz ziehen,
+        // steht dort schon eins, tauschen die beiden (Wunsch Patrick 29. Oktober 2026)
+        draggable={!!(bearbeiten && tauschen && inGebrauch(p))}
+        onDragStart={bearbeiten && tauschen ? (e) => { e.dataTransfer.setData("text/plain", "eba-platz:" + nr); e.dataTransfer.effectAllowed = "move"; } : undefined}
+        onDragOver={bearbeiten && tauschen ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } : undefined}
+        onDrop={bearbeiten && tauschen ? (e) => {
+          e.preventDefault();
+          const m = /^eba-platz:(.+)$/.exec(e.dataTransfer.getData("text/plain") || "");
+          if (m && m[1] !== nr) tauschen(m[1], nr);
+        } : undefined}>
         <div className="eba-tk" style={{ background: farbeVon(nr), "--eba-schrift": vorlage.schrift }}>
           {p.standzeit ? <span className="eba-tk-links"><span className="eba-wert">{alt.zahlText(p.standzeit)}</span></span> : null}
           <b>{platzName(nr)}</b>
@@ -226,7 +237,7 @@ function werkzeugOffen(p) {
 // Patrick, 23. Oktober 2026). Der Hersteller ist der Lieferant des
 // Artikels. Das Bild merkt sich der Artikel (Wunsch Patrick,
 // 13. Oktober 2026).
-function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildNeu }) {
+function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildNeu, wechseln }) {
   const [p, setP] = useState(Object.assign({}, wert));
   const [artikel, setArtikel] = useState(null);
   const [bildWahl, setBildWahl] = useState(false);
@@ -251,7 +262,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     const a = await werkzeugWaehlen({ suche: p.article_id && !p.ungeprueft ? "" : (p.werkzeug || ""), spezial: !!(artikel && artikel.spezial) });
     if (a) nehmen(a);
   };
-  const fertig = async () => {
+  const fertig = async (danach) => {
     const z = {};
     const sz = String(leer(p.standzeit)).replace(/'/g, "").trim();
     if (sz !== "" && !isNaN(Number(sz))) z.standzeit = Number(sz);
@@ -271,6 +282,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
       catch (x) { alt.meldung(alt.fehlertext(x), "warn"); }
     }
     setzen(z); zu();
+    if (danach && Object.keys(z).length) danach();
   };
   return (
     <div className="eba-platzfenster" data-platzfenster={nr} onClick={(e) => e.stopPropagation()}>
@@ -320,7 +332,10 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
       </div>
       <div className="eba-pf-fuss">
         <button className="knopf knopf--klein" data-pf-leeren="" onClick={() => setP({})}>Platz leeren</button>
-        <button className="knopf knopf--klein knopf--haupt" data-pf-ok="" onClick={fertig}>Übernehmen</button>
+        {wechseln && platzInGebrauch(p) && <button className="knopf knopf--klein" data-pf-wechseln=""
+          title="Danach den neuen Platz antippen; steht dort schon etwas, wird getauscht"
+          onClick={() => fertig(wechseln)}>Platz wechseln</button>}
+        <button className="knopf knopf--klein knopf--haupt" data-pf-ok="" onClick={() => fertig()}>Übernehmen</button>
       </div>
     </div>
   );
@@ -413,6 +428,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const [teilE, setTeilE] = useState(Object.assign({}, start.teil));
   const [typE, setTypE] = useState(Object.assign({}, start.typDaten));
   const [platz, setPlatz] = useState(null);
+  // Platz, dessen Werkzeug gerade auf einen anderen Platz wechselt
+  const [wechsel, setWechsel] = useState(null);
   const [laeuft, setLaeuft] = useState(false);
   const [seiteNr, setSeiteNr] = useState(0);
   const [artikelBilder, setArtikelBilder] = useState(start.artikelBilder || {});
@@ -492,7 +509,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       await typSpeichern(hocoNr, typId, typDaten, typE);
       const d = await neuLaden();
       anfangen(d);
-      setBearbeiten(false); setPlatz(null); setVorgelesen(null);
+      setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null);
       alt.meldung("Einrichtblatt gespeichert.", "gut");
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
     finally { setLaeuft(false); }
@@ -517,7 +534,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   };
   const abbrechen = () => {
     if (!daten.blatt) { zu(); return; }
-    anfangen(daten); setBearbeiten(false); setPlatz(null); setVorgelesen(null);
+    anfangen(daten); setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null);
   };
   // Ein Kopffeld ändern, dort, wo es hingehört
   const aendern = (f, w) => {
@@ -573,6 +590,24 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     if (Object.keys(z).length) plaetze[nr] = z; else delete plaetze[nr];
     setEntwurf(Object.assign({}, entwurf, { plaetze }));
   };
+  // Zwei Plätze tauschen; ist das Ziel leer, wandert das Werkzeug nur
+  // (Wunsch Patrick 29. Oktober 2026: „wenn dort auch was ist, dann einfach Switch“)
+  const tauschen = (von, nach) => {
+    setEntwurf((b) => {
+      const pl = Object.assign({}, b.plaetze || {});
+      const a = pl[von], z = pl[nach];
+      if (z && Object.keys(z).length) pl[von] = z; else delete pl[von];
+      if (a && Object.keys(a).length) pl[nach] = a; else delete pl[nach];
+      return Object.assign({}, b, { plaetze: pl });
+    });
+    setWechsel(null); setPlatz(null);
+    const war = (entwurf.plaetze || {})[nach];
+    alt.meldung(platzName(von) + (war && platzInGebrauch(war) ? " und " + platzName(nach) + " getauscht." : " auf " + platzName(nach) + " verschoben."), "gut");
+  };
+  const platzWahl = (nr) => setTimeout(() => {
+    if (wechsel) { if (wechsel !== nr) tauschen(wechsel, nr); else setWechsel(null); return; }
+    setPlatz(nr);
+  }, 0);
   const seitenSetzen = (liste) => setEntwurf((b) => Object.assign({}, b, { seiten: liste }));
   const seiteAendern = (i, z) => seitenSetzen(seiten.map((x, j) => (j === i ? Object.assign({}, x, z) : x)));
   const neueSeite = () => {
@@ -627,6 +662,10 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
               {vorgelesen.hinweise.length > 0 && <> Achtung: {vorgelesen.hinweise.join(" · ")}</>}</span>}
         {!vorgelesen.liest && <button className="linkknopf" data-eba-vorgelesen-zu="" onClick={() => setVorgelesen(null)}>✕</button>}
       </div>}
+      {bearbeiten && wechsel && !zseite && <div className="eba-vorgelesen eba-wechsel" data-eba-wechsel={wechsel}>
+        <span><b>{platzName(wechsel)} wechseln:</b> jetzt den neuen Platz antippen. Steht dort schon ein Werkzeug, tauschen die beiden.</span>
+        <button className="knopf knopf--klein" data-eba-wechsel-ab="" onClick={() => setWechsel(null)}>Abbrechen</button>
+      </div>}
       <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => setPlatz(null)}>
         {zseite && bearbeiten && <div className="eba-zseite-leiste" onClick={(e) => e.stopPropagation()}>
           <label>Name <input className="eba-zseite-name" data-eba-seite-name="" value={zseite.name || ""}
@@ -643,10 +682,11 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
           ? <ZusatzSeite seite={zseite} bearbeiten={bearbeiten} inhaltBearbeiten={() => inhaltBearbeiten(seiteNr - 1)} />
           : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt}
               bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} pruefen={darf}
-              platzWahl={(nr) => setTimeout(() => setPlatz(nr), 0)} /></div>}
+              platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} /></div>}
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
-          artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))} />}
+          artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))}
+          wechseln={() => setWechsel(platz)} />}
         {!hatPlaetze && !zseite && <div className="abruf-leer"><b>Für {typ.name} sind noch keine Werkzeugplätze angelegt.</b>
           <p>Unter Maschinen → Typen → {typ.name} → Aufbau anlegen.</p></div>}
       </div>
