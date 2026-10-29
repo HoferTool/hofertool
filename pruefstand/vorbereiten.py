@@ -3,6 +3,7 @@
 # Material (was und ob vorhanden/bestellt/nichts), ein Punkt Spannmittel,
 # Werkzeuge aus dem Einrichtblatt mit T-Nr., HD und Beschreibung.
 # Häkchen landen in auftrag_vorbereiten, wieder weg = Zeile weg.
+# Externe bekommen den Knopf auch (seit 1.272.2, „Extern ja“).
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -89,5 +90,34 @@ with sync_playwright() as p:
     pg.set_viewport_size({"width": 390, "height": 844}); pg.wait_for_timeout(400)
     pruefe("Am Handy nicht breiter als der Bildschirm", pg.evaluate("document.querySelector('#vorbereiten').getBoundingClientRect().width <= 390"))
     pg.screenshot(path="/tmp/vorbereiten_handy.png")
+
+    # Externe (Entscheid Patrick 29. Oktober 2026: „Extern ja“)
+    zusatz = """
+(() => {
+  daten.profiles[0].role = 'extern';
+  daten.machine_parks.push({ id: 'pe', name: 'Extern', is_active: true });
+  daten.machines.push({ id: 'm-ex', park_id: 'pe', name: 'BNJ-42SY Zurbrügg', machine_number: '303', is_active: true, sort_order: 1 });
+  daten.jobs.push({ id: 'jx1', job_number: '10841-0013', machine_id: 'm-ex', planned_from: arbeitstagPlus(montag, 0),
+    planned_days: 8, plan_status: 'laeuft', started_at: new Date().toISOString(), target_quantity: 2000, color: '#0000ff',
+    material_bez: 'CW614N rd 012', material_menge: '' });
+})();
+"""
+    pe = br.new_context(viewport={"width": 1600, "height": 950}).new_page()
+    pe.on("pageerror", lambda e: fehler.append("SEITENFEHLER extern: " + str(e)[:160]))
+    pe.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript",
+        body=FAKE.replace('if (typeof window !== "undefined") window.TEST = TEST;', zusatz + '\nif (typeof window !== "undefined") window.TEST = TEST;')))
+    for u in ["**://fonts.googleapis.com/**","**://fonts.gstatic.com/**","**://esm.sh/**","**://*.supabase.co/**","**://api.open-meteo.com/**"]:
+        pe.route(u, lambda r: r.abort())
+    pe.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
+    pe.wait_for_selector(".pw-balken[data-auftrag='jx1']", timeout=15000); pe.wait_for_timeout(800)
+    pe.evaluate("TEST.daten.auftrag_vorbereiten = []")
+    oeffnen(pe, "jx1")
+    pruefe("Extern: Auftragsfenster offen", pe.locator(".dialog--auftrag").count() == 1)
+    pruefe("Extern: Vorbereiten-Knopf da", pe.locator("#pl-vorbereiten").count() == 1)
+    pruefe("Extern: kein Problem-Knopf (wie bisher)", pe.locator("#pl-problem-eigen").count() == 0)
+    pe.click("#pl-vorbereiten"); pe.wait_for_timeout(700)
+    pruefe("Extern: Checkliste offen", pe.locator("#vorbereiten").count() == 1)
+    pe.click("[data-vb='material']"); pe.wait_for_timeout(400)
+    pruefe("Extern: abhaken geht", pe.evaluate("TEST.daten.auftrag_vorbereiten.some(r => r.job_id === 'jx1' && r.punkt === 'material')"))
     br.close()
 print("Fehler:", "keine" if not fehler else fehler[:12])

@@ -12,7 +12,10 @@
 //  Jedes Häkchen ist eine Zeile in auftrag_vorbereiten
 //  (sql/vorbereiten.sql), damit alle sehen, was schon bereit ist.
 //  Fehlt die Tabelle, gelten die Häkchen nur, solange das Fenster offen
-//  ist. Nicht für Externe (Entscheid offen, Patrick gefragt).
+//  ist. Externe bekommen sie auch (seit 1.272.2, Entscheid Patrick
+//  29. Oktober 2026: „Extern ja“) und haken bei ihren Maschinen ab;
+//  die Artikel dürfen sie nicht lesen, darum gilt für sie der Text,
+//  der im Blatt gespeichert ist.
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -60,7 +63,15 @@ async function werkzeugeLaden(auftrag) {
   if (!typId) return { liste: [], ohne: "Die Maschine hat keinen Typ." };
   const [blatt, typen] = await Promise.all([blattSuchen(auftrag.job_number, typId), alt.ladeTypen()]);
   if (!blatt) return { liste: [], ohne: "Für diese HOCO Nr. gibt es auf diesem Typ noch kein Einrichtblatt in der App." };
-  const typ = (typen || []).find((t) => t.id === typId) || { name: "" };
+  let typ = (typen || []).find((t) => t.id === typId);
+  // Ein eben erst angelegter Typ fehlt in der gemerkten Liste noch
+  if (!typ) {
+    try {
+      const r = await alt.db.from("machine_types").select("id, name").eq("id", typId).limit(1);
+      typ = (r.data || [])[0];
+    } catch (f) { /* dann ohne Farben */ }
+  }
+  typ = typ || { name: "" };
   const vorlage = vorlageFuer(typ);
   const plaetze = blatt.plaetze || {};
   const keys = Object.keys(plaetze).filter((k) => platzInGebrauch(plaetze[k])).sort(platzSort);
@@ -80,8 +91,11 @@ async function werkzeugeLaden(auftrag) {
     // (Patrick: „gleich alle drei Zeilen, sonst weiss ich nicht, was das
     // ist“); die Beschreibung nur bei hinterlegtem, geprüftem Artikel
     const beschreibung = a ? artikelBezeichnung(a) : (p.article_id && !p.ungeprueft ? p.bezeichnung || "" : "");
-    const zeilen = [p.hersteller || "", p.werkzeug || "", beschreibung];
-    if (!zeilen.some(Boolean)) zeilen[1] = p.taetigkeit || "";
+    // Fehlt die Beschreibung, steht dort, wofür es ist (Aufgabe und Mass
+    // aus dem Blatt), damit jedes Werkzeug drei Zeilen hat (Patrick:
+    // „jedes Werkzeug wie T200“)
+    const wofuer = [p.taetigkeit, p.mass].filter(Boolean).join(" ");
+    const zeilen = [p.hersteller || "", p.werkzeug || "", beschreibung || wofuer];
     const rev = /^R(\d)-/.exec(k);
     return {
       key: k, nr: platzName(k), revolver: rev ? rev[1] : "", zeilen, hd: !!p.hd,
@@ -95,7 +109,8 @@ function VorbereitenFenster({ auftrag, zu }) {
   const [wz, setWz] = useState(null);
   const [haken, setHaken] = useState({});
   const [ohneTabelle, setOhneTabelle] = useState(false);
-  const darf = alt.darfSchreiben() && !alt.istExtern();
+  // Externe sehen ohnehin nur Aufträge ihrer Maschinen (auch in der Datenbank)
+  const darf = alt.darfSchreiben() || alt.istExtern();
   const mat = materialStand(auftrag);
 
   const hakenLaden = async () => {

@@ -695,8 +695,9 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
           {auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--warnung" id="pl-problem-eigen"
             onClick={() => { zu(); alt.problemMelden(b, auftrag); }}>Problem</button>}
           {/* Checkliste fürs Rüsten (Wunsch Patrick 29. Oktober 2026), geht
-              über dem Auftragsfenster auf, das offen bleibt */}
-          {auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-vorbereiten"
+              über dem Auftragsfenster auf, das offen bleibt; auch für
+              Externe (Entscheid Patrick 29. Oktober 2026: „Extern ja“) */}
+          {auftrag && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-vorbereiten"
             onClick={() => vorbereitenOeffnen(auftrag)}>Vorbereiten</button>}
           {!extern && eigenesFensterMoeglich() && <button type="button" className="dialog__schliessen-inline auf-kopf__eigen"
             id="pl-eigen" title="In eigenem Fenster öffnen, zum Verschieben auf einen anderen Bildschirm"
