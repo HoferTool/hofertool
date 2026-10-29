@@ -12,7 +12,9 @@ daten.dokumente = [
   { id: 'w2', art: 'wbg', hoco_nr: '10007-0381', type_id: null, titel: '20260001',
     dateiname: '20260001 10007-0381.pdf', datei_url: 'https://x/wbg-weg.pdf', erstellt_am: '2026-10-28T08:00:00Z' },
   { id: 'z1', art: 'zeichnung', hoco_nr: '10844-0049', type_id: null, titel: 'Z',
-    dateiname: 'z.pdf', datei_url: 'https://x/z.pdf', erstellt_am: '2026-10-27T08:00:00Z' }];
+    dateiname: 'z.pdf', datei_url: 'https://x/z.pdf', erstellt_am: '2026-10-27T08:00:00Z' },
+  { id: 'e1', art: 'einrichtblatt', hoco_nr: '10844-0049', type_id: daten.machine_types[0].id, titel: 'E',
+    dateiname: 'e.xlsx', datei_url: 'https://x/e.xlsx', erstellt_am: '2026-10-26T08:00:00Z' }];
 """
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 fehler = []
@@ -31,12 +33,16 @@ with sync_playwright() as p:
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(600)
     pg.locator("[data-einst='dokumente']").click(); pg.wait_for_timeout(1500)
     j = pg.evaluate("({ nr: TEST.daten.jobs[0].job_number, m: TEST.daten.machines.find(m => m.id === TEST.daten.jobs[0].machine_id) })")
-    zeilen = [pg.inner_text(f"#dok-letzte tbody tr:nth-child({i})") for i in (1, 2, 3)]
+    zeilen = [pg.inner_text(f"#dok-letzte tbody tr:nth-child({i})") for i in (1, 2, 3, 4)]
+    tname = pg.evaluate("TEST.daten.machine_types[0].name")
     for z in zeilen: print("Zeile:", z.replace("\n", " | "))
     mname = j["m"].get("machine_number") or j["m"]["name"]
     pruefe("WBG zeigt Auftrag, FA, Maschine, Zustand", "Auftrag " + j["nr"] in zeilen[0] and "FA 20268566" in zeilen[0] and mname in zeilen[0] and "läuft" in zeilen[0] and " ab " in zeilen[0])
     pruefe("WBG ohne Auftrag", "an keinem Auftrag (mehr)" in zeilen[1])
-    pruefe("Zeichnung wie vorher", "10844-0049" in zeilen[2] and "Auftrag" not in zeilen[2])
+    pruefe("Spalte Maschine da", "Maschine" in pg.text_content("#dok-letzte thead"))
+    pruefe("WBG: Maschine in eigener Spalte", mname in pg.inner_text("#dok-letzte tbody tr:nth-child(1) [data-dokmaschine]"))
+    pruefe("Einrichtblatt: Maschinentyp", tname in zeilen[3] and "Maschinentyp" in zeilen[3])
+    pruefe("Zeichnung wie vorher", "10844-0049" in zeilen[2] and "Auftrag 1" not in zeilen[2] and "kein offener Auftrag" in zeilen[2])
     if os.environ.get("BILD_ORDNER"):
         pg.locator("#dok-letzte").screenshot(path=os.environ["BILD_ORDNER"] + "/wbg-ziel.png")
     pg.locator("[data-wbgziel] .linkknopf").first.click(); pg.wait_for_timeout(1200)

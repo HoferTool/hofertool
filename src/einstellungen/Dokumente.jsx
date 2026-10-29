@@ -573,7 +573,7 @@ async function letzteLaden(suche) {
   const r = await abfrage.order("erstellt_am", { ascending: false }).limit(t ? LETZTE_TREFFER : LETZTE_ANZAHL);
   if (r.error) throw r.error;
   const doks = r.data || [];
-  await wbgAuftraegeHolen(doks);
+  await Promise.all([wbgAuftraegeHolen(doks), maschinenZuordnen(doks)]);
   return doks;
 }
 
@@ -598,6 +598,51 @@ async function wbgAuftraegeHolen(doks) {
         .map((j) => Object.assign({}, j, { maschineName: mName[j.machine_id] || "" }));
     });
   } catch (f) { /* dann eben ohne Auftrag */ }
+}
+
+// Bei welcher Maschine ein Dokument gelandet ist (Wunsch Patrick
+// 29. Oktober 2026: „in den Dokumenten auch wissen, bei welcher Maschine
+// er zugeordnet wurde“). WBG: die Maschine ihres Auftrags (kommt aus
+// wbgAuftraegeHolen). Einrichtblatt: es gilt für einen Maschinentyp,
+// also der Typ. Zeichnung: hängt an der HOCO Nr., darum die Maschinen
+// der noch offenen Aufträge dieser Nummer. Fehlt etwas, bleibt es leer.
+async function maschinenZuordnen(doks) {
+  try {
+    const mitTyp = doks.filter((d) => d.type_id);
+    const zng = doks.filter((d) => d.art === "zeichnung" && d.hoco_nr);
+    const [typen, maschinen, jobs] = await Promise.all([
+      mitTyp.length ? alt.ladeTypen().catch(() => []) : [],
+      zng.length ? alt.ladeMaschinen(true, true).catch(() => []) : [],
+      zng.length ? alt.db.from("jobs").select("job_number, machine_id, ended_at, planned_from")
+        .in("job_number", [...new Set(zng.map((d) => d.hoco_nr))]).is("ended_at", null)
+        .then((r) => r.data || [], () => []) : [],
+    ]);
+    const tName = {};
+    typen.forEach((t) => { tName[t.id] = t.name; });
+    mitTyp.forEach((d) => { if (tName[d.type_id]) d.typName = tName[d.type_id]; });
+    const mName = {};
+    maschinen.forEach((m) => { mName[m.id] = m.machine_number || m.name; });
+    zng.forEach((d) => {
+      d.maschinen = [...new Set(jobs.filter((j) => j.job_number === d.hoco_nr && !j.ended_at && mName[j.machine_id])
+        .map((j) => mName[j.machine_id]))];
+    });
+  } catch (f) { /* dann eben ohne Maschine */ }
+}
+
+function MaschineSpalte({ d }) {
+  let text = "", klein = "";
+  if (d.art === "wbg" && d.auftraege) {
+    text = [...new Set(d.auftraege.map((j) => j.maschineName).filter(Boolean))].join(", ");
+    if (!text) klein = "keine";
+  } else if (d.typName) {
+    text = d.typName; klein = "Maschinentyp";
+  } else if (d.art === "zeichnung" && d.maschinen) {
+    text = d.maschinen.join(", ");
+    klein = text ? "offene Aufträge" : "kein offener Auftrag";
+  }
+  if (!text && !klein) return null;
+  return <span data-dokmaschine="">{text ? <b>{text}</b> : null}
+    {klein ? <div className="klein gedaempft">{klein}</div> : null}</span>;
 }
 
 const ZUSTAND_TEXT = { geplant: "geplant", ruesten: "Rüsten", laeuft: "läuft", fertig: "fertig" };
@@ -672,12 +717,13 @@ function Letzte({ stand, hochladen }) {
   else {
     inhalt = (
       <table className="tabelle">
-        <thead><tr><th>Art</th><th>Datei</th><th>Gehört zu</th><th>Abgelegt</th><th /></tr></thead>
+        <thead><tr><th>Art</th><th>Datei</th><th>Gehört zu</th><th>Maschine</th><th>Abgelegt</th><th /></tr></thead>
         <tbody>{liste.map((d) => (
           <tr key={d.id}>
             <td>{artVon(d.art).zeichen} {artVon(d.art).name}</td>
             <td>{d.dateiname || d.titel || ""}</td>
             <td><GehoertZu d={d} /></td>
+            <td><MaschineSpalte d={d} /></td>
             <td className="klein nowrap">{abgelegtAm(d.erstellt_am)}</td>
             <td className="rechts nowrap">
               <button className="linkknopf" data-dokauf={d.datei_url}
