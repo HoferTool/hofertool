@@ -1,4 +1,4 @@
-# Webseite als Teil auf dem Infoboard (1.259.0, Wunsch Patrick 29. Oktober
+# Webseite als Teil auf dem Infoboard (1.260.0, Wunsch Patrick 29. Oktober
 # 2026: „im Infoboard auch Webseiten anzeigen“). Eine einbettbare Seite
 # steht als Rahmen da, eine gesperrte als Hinweis statt grauem Feld.
 import time
