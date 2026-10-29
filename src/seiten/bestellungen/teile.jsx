@@ -181,3 +181,9 @@ export function Ziel({ art, text }) {
 }
 
 export function mehrzahl(n, eins, viele) { return n + " " + (n === 1 ? eins : viele); }
+
+// Stern neben dem Lieferanten eines Spezialwerkzeugs, überall gleich wie
+// im Einrichtblatt (seit 1.272.0, Wunsch Patrick 29. Oktober 2026)
+export function Stern({ an }) {
+  return an ? <span className="eba-stern bs-stern" title="Spezialwerkzeug" data-stern="">★</span> : null;
+}

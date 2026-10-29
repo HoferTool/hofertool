@@ -16,7 +16,7 @@ import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { inDerAppDrucken } from "../teile/drucken.js";
-import { werkzeugWaehlen } from "../seiten/bestellungen/PositionFenster.jsx";
+import { werkzeugWaehlen, positionOeffnen } from "../seiten/bestellungen/PositionFenster.jsx";
 import { excelVorlesen, blattVonAnderem, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
   artikelHolen, artikelBezeichnung, STAMM_FELDER, WASCHGEBINDE, prgNummern, platzInGebrauch } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
@@ -24,6 +24,7 @@ import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
+import { istMaterialBlatt } from "./jeMaterial.js";
 
 // Ein Bild aus der Bibliothek: Sinnbild der Norm oder hochgeladen
 export function BildZeichnung({ schluessel, className }) {
@@ -169,7 +170,7 @@ function KopfEingabe({ f, wert, aendern, d }) {
 // ändert ein Kopffeld
 // pruefen: eingelesene Werkzeuge ohne hinterlegten oder bestätigten
 // Artikel rot umranden (nur im Fenster, nicht im Pad und nicht im Druck)
-export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel }) {
+export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen }) {
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
@@ -189,12 +190,15 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
   const zelle = (nr, ri, si) => {
     const p = plaetze[nr] || {};
     const bild = platzBild(p, artikelBilder);
+    // Beim Ansehen: antippen bestellt das Werkzeug (seit 1.271.0)
+    const bestellbar = !bearbeiten && bestellen && p.article_id && !p.ungeprueft;
     return (
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")
         + (pruefen && werkzeugOffen(p) ? " eba-platz--pruefen" : "") + (wechsel === nr ? " eba-platz--wechsel" : "")
-        + (wechsel && wechsel !== nr ? " eba-platz--ziel" : "")}
+        + (wechsel && wechsel !== nr ? " eba-platz--ziel" : "") + (bestellbar ? " eba-platz--bestellbar" : "")}
+        title={bestellbar ? "Antippen: " + (p.werkzeug || "Werkzeug") + " bestellen" : undefined}
         style={{ gridRow: ri + 1, gridColumn: si + 1 }} data-platz={nr}
-        onClick={bearbeiten ? () => platzWahl(nr) : undefined}
+        onClick={bearbeiten ? () => platzWahl(nr) : bestellbar ? () => bestellen(nr, p) : undefined}
         // Am Computer ein Werkzeug direkt auf einen anderen Platz ziehen,
         // steht dort schon eins, tauschen die beiden (Wunsch Patrick 29. Oktober 2026)
         draggable={!!(bearbeiten && tauschen && inGebrauch(p))}
@@ -216,7 +220,8 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
         <div className={"eba-bild" + (p.geo ? " eba-bild--geo" + (bild && !p.ohneBild ? "" : " eba-bild--nurgeo") : "")}>
           {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} /> : null}
           {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
-        <div className="eba-her">{p.hersteller || ""}</div>
+        <div className="eba-her">{p.hersteller || ""}{p.spezial && p.article_id &&
+          <span className="eba-stern" title="Spezialwerkzeug" data-eba-stern="">★</span>}</div>
         {/* Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (Wunsch
             Patrick, 26. Oktober 2026); ein nur selbst zugeordneter Artikel
             zeigt weiter nur den Text aus dem Excel */}
@@ -291,7 +296,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     setArtikel(a);
     setP(Object.assign({}, p, { article_id: a.id, werkzeug: a.article_number || a.name || "", bezeichnung: a.article_number ? artikelBezeichnung(a) : "",
       hersteller: a.supplier_name || "",
-      spezial_id: null, ungeprueft: false, bild: artikelBilder[a.id] || p.bild || null }));
+      spezial_id: null, ungeprueft: false, spezial: !!a.spezial, bild: artikelBilder[a.id] || p.bild || null }));
   };
   const waehlen = async () => {
     const a = await werkzeugWaehlen({ suche: p.article_id && !p.ungeprueft ? "" : (p.werkzeug || ""), spezial: !!(artikel && artikel.spezial) });
@@ -309,6 +314,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     if (p.article_id && z.werkzeug) z.article_id = p.article_id;
     else delete z.bezeichnung;
     if (z.article_id && p.ungeprueft) z.ungeprueft = true;
+    if (z.article_id && p.spezial) z.spezial = true;
     if (p.bild) z.bild = p.bild;
     // Am Artikel merken, sobald jemand ein Bild wählt: jeder andere Platz
     // damit bekommt es von selbst
@@ -540,8 +546,11 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     setLaeuft(true);
     try {
       await blattSpeichern(entwurf, "Einrichtblatt " + hocoNr + " " + (typ.name || ""));
-      await stammSpeichern(hocoNr, teil, Object.fromEntries(STAMM_FELDER.map(([f]) => [f, leer(teilE[f])])));
-      await typSpeichern(hocoNr, typId, typDaten, typE);
+      // Ein Blatt je Materialgrösse gehört zu keiner HOCO Nr.: keine Stammdaten
+      if (!istMaterialBlatt(hocoNr)) {
+        await stammSpeichern(hocoNr, teil, Object.fromEntries(STAMM_FELDER.map(([f]) => [f, leer(teilE[f])])));
+        await typSpeichern(hocoNr, typId, typDaten, typE);
+      }
       const d = await neuLaden();
       anfangen(d);
       setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null);
@@ -639,6 +648,15 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     const war = (entwurf.plaetze || {})[nach];
     alt.meldung(platzName(von) + (war && platzInGebrauch(war) ? " und " + platzName(nach) + " getauscht." : " auf " + platzName(nach) + " verschoben."), "gut");
   };
+  // Werkzeug eines Platzes gleich bestellen: Neue Bestellposition mit dem
+  // Artikel, danach steht es unter Bestellungen → Offen (Wunsch Patrick
+  // 29. Oktober 2026: „auf den Platz klicken und direkt zu offenen
+  // Bestellungen hinzufügen“)
+  const bestellen = async (nr, p) => {
+    const a = await artikelHolen(p.article_id);
+    if (!a) { alt.meldung("Der Artikel zu diesem Platz ist nicht mehr da.", "warn"); return; }
+    positionOeffnen(null, { artikel: a, notiz: "Einrichtblatt " + hocoNr + " " + typ.name + ", " + platzName(nr) });
+  };
   const platzWahl = (nr) => setTimeout(() => {
     if (wechsel) { if (wechsel !== nr) tauschen(wechsel, nr); else setWechsel(null); return; }
     setPlatz(nr);
@@ -717,7 +735,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
           ? <ZusatzSeite seite={zseite} bearbeiten={bearbeiten} inhaltBearbeiten={() => inhaltBearbeiten(seiteNr - 1)} />
           : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt}
               bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} pruefen={darf}
-              platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} /></div>}
+              platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} bestellen={darf ? bestellen : null} /></div>}
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
           artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))}

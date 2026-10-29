@@ -27,6 +27,7 @@ import { ExcelAnsicht } from "../teile/ExcelAnsicht.jsx";
 import { PdfAnsicht } from "../teile/PdfAnsicht.jsx";
 import { istExcel } from "../teile/excelLesen.js";
 import { blattSuchen } from "../einrichtblatt/daten.js";
+import { materialBlattFuer } from "../einrichtblatt/jeMaterial.js";
 import { BlattAnzeige } from "../einrichtblatt/Blatt.jsx";
 
 export const SCHONER_NACH_MS = 60 * 1000;
@@ -96,8 +97,16 @@ export default function Bildschirmschoner({ hoco, typId, mahnt }) {
     setAdresse(null);
     if (!hoco || !typId) return;
     let weg = false;
+    // Ohne eigenes Blatt und eigenes Excel das Blatt je Materialgrösse
+    // des Typs, wenn bestätigt (seit 1.272.0); dann „app:Schlüssel“
+    const jeMaterial = async (g) => {
+      if (g && g.eigenes) return g.adresse;
+      const k = await materialBlattFuer(hoco, typId);
+      const b = k ? await blattSuchen(k, typId) : null;
+      return b && b.gut_am ? "app:" + k : (g && g.adresse) || null;
+    };
     blattSuchen(hoco, typId)
-      .then((b) => (b && b.gut_am ? "app:" : alt.blattPdfSuchen(hoco, typId).then((g) => (g && g.adresse) || null)))
+      .then((b) => (b && b.gut_am ? "app:" : alt.blattPdfSuchen(hoco, typId).then(jeMaterial)))
       .then((a) => { if (!weg) setAdresse(a); })
       .catch(() => { /* dann eben kein Schoner */ });
     return () => { weg = true; };
@@ -110,7 +119,7 @@ export default function Bildschirmschoner({ hoco, typId, mahnt }) {
     const takt = setInterval(() => {
       if (Date.now() - letzte >= SCHONER_NACH_MS && stoertNicht()) {
         // Schon vorher holen, damit das Blatt gleich da ist
-        if (adresse !== "app:") dateiHolen(adresse).catch(() => {});
+        if (!adresse.startsWith("app:")) dateiHolen(adresse).catch(() => {});
         setZeigen(true);
       }
     }, 1000);
@@ -142,7 +151,7 @@ export default function Bildschirmschoner({ hoco, typId, mahnt }) {
   return createPortal(
     <div className="pad-schoner" data-padschoner="">
       <div className="pad-schoner__blatt">
-        {adresse === "app:" ? <BlattAnzeige hocoNr={hoco} typId={typId} /> : <Blatt adresse={adresse} />}</div>
+        {adresse.startsWith("app:") ? <BlattAnzeige hocoNr={adresse.slice(4) || hoco} typId={typId} /> : <Blatt adresse={adresse} />}</div>
       <div className="pad-schoner__deckel" data-padschonerzu=""
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setZeigen(false); }} />
       <div className="pad-schoner__hinweis">Tippen, um zum Dashboard zurückzukehren</div>

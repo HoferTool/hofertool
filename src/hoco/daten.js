@@ -3,6 +3,8 @@
 //  Die Stammdaten (hoco_parts) und die Nummern auf der Planwand merkt
 //  sich das alte Programm kurz (stammGemerkt); gesucht wird im Gerät.
 // =================================================================
+import { materialBlattFuer, VORSILBE } from "../einrichtblatt/jeMaterial.js";
+import { blattSuchen } from "../einrichtblatt/daten.js";
 import { alt } from "../bruecke.jsx";
 
 // Alle Nummern samt denen, die bisher nur auf der Planwand stehen.
@@ -149,6 +151,11 @@ export async function teilLaden(t, darf) {
     ((sheets && sheets.data) || []).forEach((s) => { const e = dazu(s.type_id); if (e) { e.eigenes = s.blatt_url || null; e.zeit = s.stueckzeit_s ? Number(s.stueckzeit_s) : null; } });
     typenGenutzt = Object.keys(sammlung).map((k) => sammlung[k])
       .sort((a, c) => String(a.name).localeCompare(String(c.name)));
+    // Ohne eigenes Excel: gilt ein Blatt je Materialgrösse? (seit 1.272.0)
+    await Promise.all(typenGenutzt.filter((e) => !e.eigenes).map(async (e) => {
+      const k = await materialBlattFuer(t.hoco_nr, e.typId);
+      if (k && await blattSuchen(k, e.typId)) e.material = k.slice(VORSILBE.length);
+    }));
   } catch (f) { /* dann eben ohne */ }
 
 

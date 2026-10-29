@@ -10387,3 +10387,18 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
 .sw-chip--dazu { border-style: dashed; border-color: var(--linie-stark); }
 .sw-paths { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0 1rem; align-items: start; }
 .sw-paths .sw-gitter { grid-template-columns: 1fr; }
+/* Spezialwerkzeuge stehen seit 1.271.0 bei allen anderen, mit Stern beim
+   Lieferanten (.eba-stern) und unter Offen in einer eigenen Karte */
+.bs-lieferant--spezial { border-left: 4px solid #c58a00; }
+
+/* Einrichtblatt ansehen: Platz mit Werkzeug antippen bestellt es (seit 1.271.0) */
+.eba-platz--bestellbar { cursor: pointer; }
+@media (hover: hover) { .eba-platz--bestellbar:hover { outline: 2px solid var(--marke); outline-offset: -2px; } }
+
+/* Seite der Maschine: Einrichtblätter je Materialgrösse (seit 1.272.0) */
+.mseite-jm-liste { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.mseite-jm { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--linie); border-radius: 10px; }
+.mseite-jm__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+/* Einrichtblatt: Stern beim Lieferanten eines Spezialwerkzeugs (seit 1.272.0) */
+.eba-stern { margin-left: 3px; color: #c58a00; }

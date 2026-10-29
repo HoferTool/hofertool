@@ -13,20 +13,22 @@
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
+import { Stern } from "./teile.jsx";
 import { artikelFotoLesen, artikelFuerFoto, artikelFinden, artikelLernen } from "../../daten/artikelFoto.js";
 
 // fertig: wird nach dem Speichern aufgerufen, damit die Liste neu lädt.
 // vorgabe: { artikel, maschine, notiz } schon eingetragen, etwa beim
 // Nachbestellen eines Spezialwerkzeugs (seit 1.131.0).
-// vorgabe.spezial: die Position gehört zu den Spezialwerkzeugen, gesucht
-// und angelegt werden nur solche (seit 1.142.0); sonst nur normale Artikel
+// vorgabe.spezial: ein neu angelegter Artikel ist schon als
+// Spezialwerkzeug angehakt. Gesucht wird seit 1.271.0 immer in allen
+// Artikeln (Wunsch Patrick 29. Oktober 2026: „alles zusammen“).
 export function positionOeffnen(fertig, vorgabe) {
   fensterOeffnen((zu) => <PositionFenster zu={zu} fertig={fertig} vorgabe={vorgabe || {}} />);
 }
 
 // Werkzeug fürs Einrichtblatt wählen: dasselbe Fenster wie beim
-// Bestellen, nur ohne Menge und Ziel, dazu der Knopf „Spezialwerkzeuge“,
-// weil die getrennt geführt werden (Wunsch Patrick, 23. Oktober 2026:
+// Bestellen, nur ohne Menge und Ziel; seit 1.271.0 mit allen Artikeln
+// zusammen, ohne Knopf „Spezialwerkzeuge“ (Wunsch Patrick, 23. Oktober 2026:
 // „Werkzeuge nur auswählen, wenn nicht vorhanden erstellen wie bei
 // bestellen, mit einem Button für Spezialwerkzeuge“). Gibt den Artikel
 // aus artikel_uebersicht zurück oder null.
@@ -64,7 +66,6 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   const mengeFeld = useRef(null);
   const freiFeld = useRef(null);
   const suchNr = useRef(0);
-  const spezialRef = useRef(!!vorgabe.spezial);
   // Foto: null, { liest, text }, { fehler } oder { lesung, treffer }
   const [foto, setFoto] = useState(null);
   const fotoFeld = useRef(null);
@@ -89,7 +90,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
     const nr = ++suchNr.current;
     setSucht(true);
     try {
-      const liste = await alt.sucheArtikel(t, { spezial: !!spezialRef.current });
+      const liste = await alt.sucheArtikel(t);
       // Nur das Ergebnis der letzten Suche zählt
       if (nr !== suchNr.current) return;
       setTreffer(liste); setSuchFehler(null);
@@ -120,7 +121,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
         () => {});
     return () => { weg = true; };
   }, [gewaehlt && gewaehlt.id]);
-  const [spezial, setSpezial] = useState(!!vorgabe.spezial);
+  const spezial = !!vorgabe.spezial;
   const neuAnlegen = async (nummer) => {
     const a = await alt.artikelSchnellAnlegen(typeof nummer === "string" ? nummer : suche.trim(), null, !!spezial);
     if (a) waehlen(a);
@@ -138,7 +139,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
           setFoto({ liest: true, text: lesen ? "Foto wird gelesen … " + Math.round(anteil * 100) + " %"
             : "Texterkennung wird geladen …" });
         }),
-        artikelFuerFoto().then((l) => l.filter((a) => !!a.spezial === spezial)),
+        artikelFuerFoto(),
       ]);
       const treffer = artikelFinden(lesung, artikel);
       setFoto({ lesung, treffer });
@@ -210,16 +211,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
 
   return (
     <div className="dialog" data-werkzeugwahl={nurWaehlen ? "" : undefined}>
-      <h2>{nurWaehlen ? "Werkzeug wählen" : spezial ? "Spezialwerkzeug bestellen" : "Neue Bestellposition"}</h2>
-      {nurWaehlen && <div className="moduswahl" id="pd-art">
-        {[[false, "Artikel"], [true, "Spezialwerkzeuge"]].map(([w, t]) => (
-          <button key={t} type="button" className={"moduswahl__knopf" + (spezial === w ? " aktiv" : "")}
-            data-pd-spezial={w ? "ja" : "nein"} onClick={() => {
-              if (spezial === w) return;
-              spezialRef.current = w; setSpezial(w); setGewaehlt(null); setFoto(null);
-              if (suche.trim()) suchen(suche);
-            }}>{t}</button>))}
-      </div>}
+      <h2>{nurWaehlen ? "Werkzeug wählen" : "Neue Bestellposition"}</h2>
       <div className="suchleiste">
         <input type="text" id="pd-such" placeholder="Suchen" autoComplete="off" data-fokus="" value={suche}
           onChange={(e) => {
@@ -247,7 +239,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
                     <button key={t.a.id} className={"pd-zeile" + (gewaehlt && gewaehlt.id === t.a.id ? " pd-zeile--gewaehlt" : "")}
                       data-fotow={t.a.id} data-punkte={t.punkte} onClick={() => waehlen(t.a)}>
                       <strong>{t.a.article_number}</strong> {t.a.name}
-                      <span className="klein"> {t.a.supplier_name || "ohne Lieferant"}</span>
+                      <span className="klein"> {t.a.supplier_name || "ohne Lieferant"}<Stern an={t.a.spezial} /></span>
                       <span className={"bs-chip" + (t.sicher ? "" : " bs-chip--still")}>
                         {t.sicher ? "passt" : "vielleicht"}</span></button>
                   ))}
@@ -281,24 +273,24 @@ function PositionFenster({ zu, fertig, vorgabe }) {
             ? treffer.slice(0, 8).map((a) => (
                 <button key={a.id} className="pd-zeile" data-w={a.id} onClick={() => waehlen(a)}>
                   <strong>{a.article_number}</strong> {a.name}
-                  <span className="klein"> {a.supplier_name || "ohne Lieferant"}</span>
+                  <span className="klein"> {a.supplier_name || "ohne Lieferant"}<Stern an={a.spezial} /></span>
                   {a.aehnlich && <span className="bs-aehnlich">ähnlich</span>}</button>
               ))
             : <p className="hinweis">Kein Artikel gefunden.</p>}
           {schreiben && suche.trim() &&
             <button className="pd-zeile pd-zeile--neu" data-neuartikel="" onClick={neuAnlegen}>
-              + {spezial ? "Spezialwerkzeug" : "Artikel"} "{suche.trim()}" neu anlegen</button>}
+              + Artikel "{suche.trim()}" neu anlegen</button>}
         </>}
       </div>
 
       {gewaehlt && nurWaehlen && <div className="pd-gewaehlt" id="pd-gewaehlt">
         <strong>{gewaehlt.article_number}</strong> {gewaehlt.name}
-        <div className="klein">{spezial ? "Spezialwerkzeug · " : ""}Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}</div>
+        <div className="klein">Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}<Stern an={gewaehlt.spezial} /></div>
       </div>}
       {gewaehlt && !nurWaehlen && <div id="pd-rest">
         <div className="pd-gewaehlt" id="pd-gewaehlt">
           <strong>{gewaehlt.article_number}</strong> {gewaehlt.name}
-          <div className="klein">Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}
+          <div className="klein">Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}<Stern an={gewaehlt.spezial} />
             {gewaehlt.gesamtbestand !== undefined && <> · Bestand {alt.zahlText(gewaehlt.gesamtbestand)}</>}</div>
         </div>
         {schonDa && schonDa.length > 0 && (
@@ -357,7 +349,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
         {nurWaehlen
           ? <button className="knopf knopf--haupt" id="pd-ja" disabled={!gewaehlt}
               onClick={() => { if (fotoLesung) artikelLernen(gewaehlt.id, fotoLesung).catch(() => {});
-                vorgabe.waehlen(Object.assign({}, gewaehlt, { spezial })); }}>Übernehmen</button>
+                vorgabe.waehlen(gewaehlt); }}>Übernehmen</button>
           : <button className="knopf knopf--haupt" id="pd-ja" disabled={!gewaehlt || speichert} onClick={hinzufuegen}>
               Hinzufügen</button>}
       </div>

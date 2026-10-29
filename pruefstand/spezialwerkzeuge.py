@@ -1,4 +1,5 @@
-# Spezialwerkzeuge (1.131.0, Wunsch Patrick 21. Oktober 2026):
+# Spezialwerkzeuge (1.131.0, Wunsch Patrick 21. Oktober 2026; seit 1.271.0
+# ohne eigenen Bereich, bei allen Artikeln, unter Offen eine eigene Karte):
 # Bestellungen → Spezialwerkzeuge: Artikel einer HOCO Nr. zuordnen,
 # nachbestellen wie eine normale Position. Im Auftragsfenster der
 # Planwand und im Pad Mode an der Maschine dieselbe Liste.
@@ -25,60 +26,73 @@ with sync_playwright() as p:
     # Ein Auftrag mit HOCO Nr. aus den Beispieldaten
     hoco = pg.evaluate("TEST.daten.jobs.find(j => j.job_number && !j.ended_at).job_number")
 
-    pg.evaluate("location.hash='#bestellungen'"); pg.wait_for_selector("[data-unter='bestellungen/spezial']")
-    pg.click("[data-unter='bestellungen/spezial']"); pg.wait_for_selector("#sw-liste"); pg.wait_for_timeout(500)
-    pruefe("Noch keine" in pg.inner_text("#sw-liste"), "Reiter leer am Anfang")
-    pg.click("#sw-neu"); pg.wait_for_selector("#sz-hoco")
-    pg.fill("#sz-hoco", hoco.replace("-", ""))
+    # Seit 1.271.0 kein eigener Bereich mehr unter Bestellungen
+    pg.evaluate("location.hash='#bestellungen'"); pg.wait_for_selector("[data-unter='bestellungen/offen']")
+    pruefe(pg.locator("[data-unter='bestellungen/spezial']").count() == 0, "Kein Reiter Spezialwerkzeuge mehr")
+
+    # Zuordnen im Auftragsfenster auf der Planwand
+    pg.evaluate("location.hash='#planwand'"); pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(800)
+    jid = pg.evaluate(f"TEST.daten.jobs.find(j => j.job_number === '{hoco}' && !j.ended_at).id")
+    pg.locator(f".pw-balken[data-auftrag='{jid}']").first.dblclick(); pg.wait_for_selector(".dialog--auftrag")
+    pg.wait_for_timeout(600)
+    pg.click("#pl-spezial"); pg.wait_for_selector("#spezialwerkzeuge")
+    pg.click("#spezial-neu"); pg.wait_for_selector("#sz-such")
     pg.type("#sz-such", "MTEC"); pg.wait_for_selector("#sz-treffer [data-w]")
     pg.click("#sz-treffer [data-w]"); pg.wait_for_selector("#sz-gewaehlt")
     pg.fill("#sz-notiz", "Platz 3")
-    pg.click("#sz-ja"); pg.wait_for_timeout(800)
+    pg.click("#sz-ja"); pg.wait_for_selector("#spezialwerkzeuge [data-spezial]")
     d = pg.evaluate("TEST.daten.spezialwerkzeuge")
     pruefe(len(d) == 1 and d[0]["hoco_nr"] == hoco and d[0]["article_id"] == "a1" and d[0]["notiz"] == "Platz 3",
-           "Zuordnung gespeichert, HOCO Nr. vereinheitlicht: %s" % d)
-    t = pg.inner_text("#sw-liste")
-    pruefe(hoco in t and "MTEC-452410" in t, "Liste zeigt HOCO Nr. und Artikel")
-    pg.screenshot(path=os.path.join(BILD, "spezial-bestellungen.png"))
+           "Zuordnung gespeichert: %s" % d)
+    pruefe(pg.evaluate("TEST.daten.articles.find(a => a.id === 'a1').spezial") is True, "Artikel als Spezialwerkzeug markiert")
+    pruefe("MTEC-452410" in pg.inner_text("#spezialwerkzeuge"), "Fenster zeigt das Werkzeug")
+    pg.screenshot(path=os.path.join(BILD, "spezial-fenster.png"))
 
-    # Nachbestellen aus dem Reiter: Fenster Neue Bestellposition, Artikel schon gewählt
+    # Nachbestellen: Fenster Neue Bestellposition, Artikel schon gewählt
     vorher = pg.evaluate("TEST.daten.order_items.length")
-    pg.click("[data-spezial-bestellen]"); pg.wait_for_selector("#pd-gewaehlt")
+    pg.click("#spezialwerkzeuge [data-spezial-bestellen]"); pg.wait_for_selector("#pd-gewaehlt")
     pruefe("MTEC-452410" in pg.inner_text("#pd-gewaehlt"), "Artikel vorgewählt")
     pruefe(hoco in pg.input_value("#pd-notiz"), "Notiz nennt die HOCO Nr.")
+    ziel = pg.locator("#pd-zielwahl .aktiv").get_attribute("data-ziel")
+    pruefe(ziel == "maschine" and pg.input_value("#pd-zielauswahl") != "", "Ziel ist die Maschine des Auftrags")
     pg.fill("#pd-menge", "2"); pg.click("#pd-ja"); pg.wait_for_timeout(800)
     neu = pg.evaluate("TEST.daten.order_items")[vorher:]
     pruefe(len(neu) == 1 and neu[0]["quantity"] == 2 and neu[0]["article_id"] == "a1" and neu[0]["supplier_id"],
            "Bestellposition mit Lieferant angelegt")
-    pg.wait_for_timeout(500)
-    pruefe("Schon in Bestellung" in pg.inner_text("#sw-liste"), "Offene Bestellung wird angezeigt")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
 
-    # Getrennt (1.142.0): der Artikel ist jetzt ein Spezialwerkzeug, er und
-    # seine Bestellungen stehen nur noch unter Spezialwerkzeuge
-    pruefe(pg.evaluate("TEST.daten.articles.find(a => a.id === 'a1').spezial") is True, "Artikel als Spezialwerkzeug markiert")
-    pg.click("[data-spezial-reiter='offen']"); pg.wait_for_timeout(800)
-    t = pg.inner_text("#best-inhalt")
-    pruefe("MTEC-452410" in t and "Hoffmann" in t or "MTEC-452410" in t, "Spezial · Offen zeigt die Positionen: " + t[:200].replace("\n", " | "))
+    # Alles zusammen (1.271.0): unter Offen eine eigene Karte je Lieferant
+    pg.evaluate("location.hash='#bestellungen'"); pg.wait_for_selector("[data-unter='bestellungen/offen']")
+    pg.click("[data-unter='bestellungen/offen']"); pg.wait_for_timeout(900)
+    karte = pg.locator(".bs-lieferant--spezial")
+    pruefe(karte.count() == 1 and "MTEC-452410" in karte.inner_text() and "Spezialwerkzeuge" in karte.inner_text(),
+           "Offen: eigene Karte Spezialwerkzeuge")
+    pruefe(karte.locator("[data-bestellpdf]").count() == 1, "Eigenes PDF für die Spezialwerkzeuge")
     pg.screenshot(path=os.path.join(BILD, "spezial-offen.png"))
-    pg.click("[data-spezial-reiter='artikel']"); pg.wait_for_timeout(800)
-    pruefe("MTEC-452410" in pg.inner_text("#ar-liste"), "Spezial · Artikel zeigt das Werkzeug")
-    pg.click("[data-unter='bestellungen/offen']"); pg.wait_for_timeout(800)
-    pruefe("MTEC-452410" not in pg.inner_text("#best-inhalt"), "Normale Bestellungen zeigen es nicht")
     pg.click("[data-unter='bestellungen/artikel']"); pg.wait_for_timeout(800)
-    pruefe("MTEC-452410" not in pg.inner_text("#best-inhalt"), "Normale Artikel zeigen es nicht")
-    # Neue Position in den normalen Bestellungen findet das Spezialwerkzeug nicht
+    zeile = pg.locator(".bs-artikel", has_text="MTEC-452410")
+    pruefe(zeile.count() == 1 and zeile.locator("[data-stern]").count() == 1, "Artikel: mit allen, Stern beim Lieferanten")
+    # Bearbeiten: Häkchen Spezialwerkzeug ist gesetzt und lässt sich wegnehmen
+    zeile.locator("[data-arbearb]").click(); pg.wait_for_selector("#ab-spezial")
+    pruefe(pg.is_checked("#ab-spezial"), "Häkchen beim Bearbeiten gesetzt")
+    pg.uncheck("#ab-spezial"); pg.click("#ab-ja"); pg.wait_for_timeout(800)
+    pruefe(pg.evaluate("TEST.daten.articles.find(a => a.id === 'a1').spezial") is False, "Häkchen weg gespeichert")
+    pg.locator(".bs-artikel", has_text="MTEC-452410").locator("[data-arbearb]").click(); pg.wait_for_selector("#ab-spezial")
+    pg.check("#ab-spezial"); pg.click("#ab-ja"); pg.wait_for_timeout(800)
+    pruefe(pg.evaluate("TEST.daten.articles.find(a => a.id === 'a1').spezial") is True, "Häkchen wieder gesetzt")
+    # Neuer Artikel: Häkchen beim Feld Beschreibung
+    pg.click("#ar-neu"); pg.wait_for_timeout(500)
+    haken = pg.locator(".dialog .feld-haken", has_text="Spezialwerkzeug")
+    pruefe(haken.count() == 1, "Neuer Artikel fragt nach Spezialwerkzeug")
+    pg.screenshot(path=os.path.join(BILD, "spezial-neu.png"))
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    # Neue Position findet das Spezialwerkzeug
     pg.click("[data-unter='bestellungen/offen']"); pg.wait_for_timeout(500)
     pg.click("#b-neu"); pg.wait_for_selector("#pd-such")
     pg.type("#pd-such", "MTEC"); pg.wait_for_timeout(900)
-    pruefe(pg.locator("#pd-treffer [data-w]").count() == 0, "Neue Position findet kein Spezialwerkzeug")
+    pruefe(pg.locator("#pd-treffer [data-w='a1']").count() == 1, "Neue Position findet das Spezialwerkzeug")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
-    # Neues Spezialwerkzeug anlegen: Lieferanten sind dieselben
-    pg.click("[data-unter='bestellungen/spezial']"); pg.wait_for_timeout(500)
-    pg.click("[data-spezial-reiter='artikel']"); pg.wait_for_timeout(500)
-    pg.click("#ar-neu"); pg.wait_for_timeout(500)
-    pg.screenshot(path=os.path.join(BILD, "spezial-neu.png"))
-    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
-    pg.click("[data-spezial-reiter='hoco']"); pg.wait_for_timeout(500)
 
     # Auftragsfenster auf der Planwand
     pg.evaluate("location.hash='#planwand'"); pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(800)
@@ -88,12 +102,6 @@ with sync_playwright() as p:
     pruefe("(1)" in pg.inner_text("#pl-spezial"), "Knopf im Auftragsfenster mit Zahl: " + pg.inner_text("#pl-spezial"))
     pg.screenshot(path=os.path.join(BILD, "spezial-auftrag.png"))
     pg.click("#pl-spezial"); pg.wait_for_selector("#spezialwerkzeuge [data-spezial]")
-    pruefe("MTEC-452410" in pg.inner_text("#spezialwerkzeuge"), "Fenster zeigt das Werkzeug")
-    pg.screenshot(path=os.path.join(BILD, "spezial-fenster.png"))
-    pg.click("#spezialwerkzeuge [data-spezial-bestellen]"); pg.wait_for_selector("#pd-gewaehlt")
-    ziel = pg.locator("#pd-zielwahl .aktiv").get_attribute("data-ziel")
-    pruefe(ziel == "maschine" and pg.input_value("#pd-zielauswahl") != "", "Ziel ist die Maschine des Auftrags")
-    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     # Entfernen mit Rückfrage, dann Rückgängig
     pg.click("#spezialwerkzeuge [data-spezial-weg]"); pg.wait_for_timeout(300)
     pg.locator(".dialog-huelle .dialog__knoepfe button").last.click(); pg.wait_for_timeout(700)

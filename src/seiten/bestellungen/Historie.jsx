@@ -5,8 +5,7 @@
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { passt } from "../../teile/Suchfeld.jsx";
-import { istSpezial } from "./Offen.jsx";
-import { Leiste, Karte, Status, Ziel, Leer, Laedt, Fehler } from "./teile.jsx";
+import { Leiste, Karte, Status, Ziel, Leer, Laedt, Fehler, Stern } from "./teile.jsx";
 
 const lieferzeit = (z) => String(z.delivered_at || z.completed_at || z.created_at || "");
 
@@ -14,14 +13,14 @@ const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
                 "August", "September", "Oktober", "November", "Dezember"];
 const WT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
-// spezial: nur die Spezialwerkzeuge, sonst nur die anderen (seit 1.142.0)
-export default function Historie({ auffrischen, behaelter, spezial }) {
+// Alle zusammen, auch die Spezialwerkzeuge (seit 1.271.0)
+export default function Historie({ auffrischen, behaelter }) {
   const best = alt.best;
-  const [suche, setSuche] = useSpeicherWert(best, spezial ? "spezialHistorieSuche" : "historieSuche", auffrischen);
+  const [suche, setSuche] = useSpeicherWert(best, "historieSuche", auffrischen);
   const { daten: liste, fehler } = useDaten(() => {
     alt.stammVergessen();
-    return alt.ladeBestellungen(false).then((l) => l.filter((z) => istSpezial(z) === !!spezial));
-  }, [auffrischen, spezial]);
+    return alt.ladeBestellungen(false);
+  }, [auffrischen]);
 
   const leiste = <Leiste suchId="bh-suche" suche={suche} setSuche={setSuche}
     platzhalter="Artikel, Lieferant, Person oder Ziel suchen" />;
@@ -92,7 +91,7 @@ function Zeile({ z, schreiben, behaelter }) {
         {a.name && <span className="bs-pos__name">{a.name}</span>}
       </div>
       <div className="bs-hz__ziel"><Ziel art={z.ziel_art} text={z.ziel_anzeige || z.ziel_text} /></div>
-      <div className="bs-hz__klein bs-hz__lief">{lieferant}</div>
+      <div className="bs-hz__klein bs-hz__lief">{lieferant}<Stern an={z.articles && z.articles.spezial} /></div>
       <div className="bs-hz__klein bs-hz__wer"><span className="bs-hz__vor">von </span>{wer}</div>
       <div className="bs-pos__menge bs-hz__menge"><b>{alt.zahlText(z.quantity)}</b><span>{einheit}</span></div>
       <div className="bs-pos__status">

@@ -9,10 +9,15 @@
 //     zwei Jahre, frei verschiebbar), Hinweis für alle ein oder aus
 //   - Wartungshistorie: wer, wann, was, mit Bildern und PDFs
 //   - Bedienungsanleitungen und Unterlagen (Datei oder Link)
+//   - Einrichtblätter je Materialgrösse, nur wo welche eingerichtet
+//     sind (seit 1.272.0, SB-20C Nr. 120)
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
+import { einrichtblattAppOeffnen } from "../../einrichtblatt/Blatt.jsx";
+import { blattSuchen } from "../../einrichtblatt/daten.js";
+import { jeMaterialLaden, jeMaterialSpeichern, blattSchluessel } from "../../einrichtblatt/jeMaterial.js";
 import { betrachter } from "../../teile/Betrachter.jsx";
 import { UnterlagenListe } from "../../teile/Unterlagen.jsx";
 import { infoLaden, infoSetzen, wartungLaden, anhangHochladen, plusJahre, batterieFaellig,
@@ -48,11 +53,78 @@ export default function MaschineSeite({ m, typ, park }) {
         <InfoFeld m={m} info={info.daten} darf={darf} neu={info.neu} />
         <Batterien m={m} info={info.daten} darf={darf} neu={info.neu} />
       </>}
+      <JeMaterial m={m} />
       {!sqlFehlt && <Wartung m={m} darf={darf} />}
       <section className="karte unterlagen unterlagen--seite">
         <UnterlagenListe m={m} typ={typ} />
       </section>
     </div>
+  );
+}
+
+// ---------- Einrichtblätter je Materialgrösse ----------
+// Ein Blatt in der App je Materialgrösse; ein Auftrag ohne eigenes Blatt
+// bekommt das, dessen Merkmal in seinem Material steht (Wunsch Patrick
+// 29. Oktober 2026). Die Liste ändern nur Admins.
+
+function JeMaterial({ m }) {
+  const [stoss, setStoss] = useState(0);
+  const d = useDaten(async () => {
+    if (!m.type_id) return [];
+    const liste = (await jeMaterialLaden(stoss > 0))[m.type_id] || [];
+    const blaetter = await Promise.all(liste.map((e) => blattSuchen(blattSchluessel(e), m.type_id)));
+    return liste.map((e, i) => ({ e, blatt: blaetter[i] }));
+  }, [m.type_id, stoss]);
+  const zeilen = d.daten || [];
+  if (!zeilen.length) return null;
+  const admin = alt.istAdmin();
+  const darfEb = alt.darfSchreiben() && !alt.istExtern();
+  const liste = zeilen.map((z) => z.e);
+  const speichern = async (neu) => {
+    try { await jeMaterialSpeichern(m.type_id, neu); setStoss((x) => x + 1); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
+  const aendern = async (i) => {
+    const e = i === null ? { name: "", erkennen: [] } : liste[i];
+    const w = await alt.dialogFelder({ titel: i === null ? "Materialgrösse hinzufügen" : "Materialgrösse ändern",
+      felder: [
+        { name: "name", label: "Name", pflicht: true, wert: e.name, platzhalter: "Rohr 16.2 x 14.5" },
+        { name: "erkennen", label: "Erkannt im Material an", pflicht: true, wert: (e.erkennen || []).join(", "),
+          platzhalter: "16.2/14.5, Ø16", hinweis: "Mehrere mit Komma trennen. Eines davon muss im Material des Auftrags stehen." },
+      ] });
+    if (!w) return;
+    const neu = { name: w.name.replace(/\//g, "-").trim(), erkennen: w.erkennen.split(/\s*,\s*/).filter(Boolean) };
+    speichern(i === null ? liste.concat([neu]) : liste.map((x, j) => (j === i ? neu : x)));
+  };
+  const weg = async (i) => {
+    const ja = await alt.nachfragen({ titel: "Materialgrösse entfernen",
+      text: "„" + liste[i].name + "“ steht dann nicht mehr hier. Das Blatt selbst bleibt gespeichert.",
+      bestaetigen: "Entfernen", gefahr: true });
+    if (ja) speichern(liste.filter((x, j) => j !== i));
+  };
+  const oeffnen = (z) => einrichtblattAppOeffnen(blattSchluessel(z.e), m.type_id,
+    { nurLesen: !darfEb, bearbeiten: darfEb && !z.blatt }).then(() => setStoss((x) => x + 1));
+
+  return (
+    <section className="karte mseite-jematerial" id="mseite-jematerial">
+      <div className="karte__kopf">
+        <h2>Einrichtblätter je Materialgrösse</h2>
+        {admin && <button className="knopf knopf--klein" data-jm-neu="" onClick={() => aendern(null)}>+ Materialgrösse</button>}
+      </div>
+      <p className="klein">Hat ein Auftrag kein eigenes Einrichtblatt, gilt das Blatt, dessen Merkmal in seinem Material steht.</p>
+      <div className="mseite-jm-liste">
+        {zeilen.map((z, i) => (
+          <div key={z.e.name} className="mseite-jm" data-jm={z.e.name}>
+            <div className="mseite-jm__text"><b>{z.e.name}</b>
+              <span className="klein">Erkannt an: {(z.e.erkennen || []).join(", ")}
+                {" · "}{!z.blatt ? "noch nicht angelegt" : z.blatt.gut_am ? "EB OK" : "noch nicht bestätigt"}</span></div>
+            <button className="knopf knopf--klein knopf--haupt" data-jm-oeffnen={z.e.name} onClick={() => oeffnen(z)}>
+              {z.blatt ? "Öffnen" : darfEb ? "Anlegen" : "Noch kein Blatt"}</button>
+            {admin && <button className="knopf knopf--klein knopf--still" data-jm-aendern={z.e.name} onClick={() => aendern(i)}>Ändern</button>}
+            {admin && <button className="knopf knopf--klein knopf--still" data-jm-weg={z.e.name} onClick={() => weg(i)}>✕</button>}
+          </div>))}
+      </div>
+    </section>
   );
 }
 

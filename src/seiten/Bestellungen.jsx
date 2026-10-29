@@ -15,20 +15,22 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Offen from "./bestellungen/Offen.jsx";
 import Historie from "./bestellungen/Historie.jsx";
 import Artikel from "./bestellungen/Artikel.jsx";
-import Spezialwerkzeuge from "./bestellungen/Spezialwerkzeuge.jsx";
 import Bezeichnungen from "./bestellungen/Bezeichnungen.jsx";
 import Lieferanten from "./bestellungen/Lieferanten.jsx";
-import { istSpezial } from "./bestellungen/Offen.jsx";
 
 export const REITER = [
   ["offen", "Offen"], ["bestellt", "Bestellt"], ["historie", "Historie"],
-  ["artikel", "Artikel"], ["spezial", "Spezialwerkzeuge"], ["bezeichnungen", "Bezeichnungen"], ["lieferanten", "Lieferanten"],
+  ["artikel", "Artikel"], ["bezeichnungen", "Bezeichnungen"], ["lieferanten", "Lieferanten"],
 ];
 
 export default function Bestellungen({ auffrischen, behaelter }) {
   // Der gewählte Reiter steht in best.ansicht im alten Programm, weil
   // auch die Suche und die Taste Zurück ihn setzen.
   const best = alt.best;
+  // Den eigenen Bereich Spezialwerkzeuge gibt es seit 1.271.0 nicht mehr
+  // (Wunsch Patrick 29. Oktober 2026: „alles zusammen“); ein gemerkter
+  // Reiter von vorher landet bei Offen
+  if (best.ansicht === "spezial") best.ansicht = "offen";
   const [, zeichnen] = useReducer((x) => x + 1, 0);
   const waehlen = (wert) => { best.ansicht = wert; zeichnen(); };
   // Nach einem Treffer der Suche den Reiter frisch aufbauen, damit er
@@ -41,13 +43,9 @@ export default function Bestellungen({ auffrischen, behaelter }) {
     name: "Bestellungen", platzhalter: "Artikel, Nummer, Lieferant …",
     eintraege: bestellSuchListe,
     springen: (x) => {
-      const spezial = !!x.spezial;
       const unter = x.art === "position" ? (x.status === "offen" ? "offen" : "bestellt") : "artikel";
       if (x.art === "lieferant") { best.ansicht = "lieferanten"; best.liefSuche = x.titel; }
-      else if (spezial) {
-        best.ansicht = "spezial"; best.spezialAnsicht = unter;
-        best[unter === "artikel" ? "spezialArtikelSuche" : "spezialOffenSuche"] = x.suchwort;
-      } else {
+      else {
         best.ansicht = unter;
         best[unter === "artikel" ? "artikelSuche" : "offenSuche"] = x.suchwort;
       }
@@ -57,8 +55,7 @@ export default function Bestellungen({ auffrischen, behaelter }) {
 
   return (
     <>
-      {/* Die Spezialwerkzeuge sind ein eigener Bereich (seit 1.142.0) */}
-      <h1 className="seitentitel">{best.ansicht === "spezial" ? "Spezialwerkzeuge" : "Bestellungen"}</h1>
+      <h1 className="seitentitel">Bestellungen</h1>
       <Reiter reiter={REITER} aktiv={best.ansicht} waehlen={waehlen} merkmal="best" seite="bestellungen" />
       {!alt.darfSchreiben() &&
         <div className="nurlesen">Du kannst hier alles ansehen, aber nichts ändern.</div>}
@@ -74,7 +71,6 @@ export default function Bestellungen({ auffrischen, behaelter }) {
 function Inhalt({ ansicht, ...weiter }) {
   if (ansicht === "historie") return <Historie {...weiter} />;
   if (ansicht === "artikel") return <Artikel {...weiter} />;
-  if (ansicht === "spezial") return <Spezialwerkzeuge {...weiter} />;
   if (ansicht === "bezeichnungen") return <Bezeichnungen {...weiter} />;
   if (ansicht === "lieferanten") return <Lieferanten {...weiter} />;
   return <Offen bereich={ansicht === "bestellt" ? "bestellt" : "offen"} {...weiter} />;
@@ -94,15 +90,15 @@ async function bestellSuchListe() {
   return [
     ...positionen.map((z) => {
       const a = z.articles || {};
-      return { art: "position", gruppe: "Positionen", zeichen: "◧", spezial: istSpezial(z), status: z.status,
+      return { art: "position", gruppe: "Positionen", zeichen: "◧", status: z.status,
         titel: [a.article_number, a.name].filter(Boolean).join(" · ") || "Position",
         zeile: [STATUS[z.status] || z.status, z.quantity && alt.zahlText(z.quantity) + " " + (a.unit || ""), lieferant(z),
           z.ziel_anzeige || z.ziel_text].filter(Boolean).join(" · "),
         such: [a.description, z.note, alt.personName(z.profiles, "")].filter(Boolean).join(" "),
         suchwort: a.article_number || a.name || "" };
     }),
-    ...artikel.map((a) => ({ art: "artikel", gruppe: a.spezial ? "Spezialwerkzeuge" : "Artikel", zeichen: "◧",
-      spezial: !!a.spezial, titel: [a.article_number, a.name].filter(Boolean).join(" · "),
+    ...artikel.map((a) => ({ art: "artikel", gruppe: "Artikel", zeichen: "◧",
+      titel: [a.article_number, a.name].filter(Boolean).join(" · "),
       zeile: a.supplier_name || "", suchwort: a.article_number || a.name || "" })),
     ...lieferanten.map((l) => ({ art: "lieferant", gruppe: "Lieferanten", zeichen: "◈", titel: l.name })),
   ];

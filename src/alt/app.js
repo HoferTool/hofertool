@@ -43,6 +43,7 @@ import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
 import { blattSuchen as appBlattSuchen } from "../einrichtblatt/daten.js";
+import { materialBlattFuer } from "../einrichtblatt/jeMaterial.js";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick, symbolAnwendenEnde } from "../daten/symbole.js";
 import { zeichnungNrSofort, zeichnungNrHolen } from "../daten/zeichnungNr.js";
@@ -151,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.273.0";
+const APP_VERSION = "1.274.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8514,6 +8515,17 @@ async function einrichtblattPdfOeffnen(hocoNr, typId, titel) {
   try { gefunden = await blattPdfSuchen(hocoNr, typId); }
   catch (f) { meldung(fehlertext(f), "fehler"); return; }
 
+  // Ohne eigenes Blatt und eigenes Excel gilt das Blatt je Materialgrösse
+  // des Typs (seit 1.272.0, SB-20C Nr. 120, src/einrichtblatt/jeMaterial.js)
+  if (!app && !gefunden.eigenes) {
+    const k = await materialBlattFuer(hocoNr, typId);
+    const mb = k ? await appBlattSuchen(k, typId) : null;
+    if (mb && (!imPad || mb.gut_am)) {
+      await einrichtblattAppOeffnen(k, typId, { nurLesen: !darfEb });
+      return;
+    }
+  }
+
   // Ins Blatt in der App: das eigene Excel der Nummer einlesen, sonst
   // ein leeres Blatt anfangen. Nicht aus der Vorlage des Typs, die ist
   // für keine bestimmte Nummer.
@@ -9212,15 +9224,19 @@ async function artikelSchnellAnlegen(vorgabe, lieferantVorgabe, spezial) {
   try { bezeichnungen = await ladeBezeichnungen(); } catch (f) { /* geht auch ohne */ }
 
   const w = await dialogFelder({
-    titel: spezial ? "Neues Spezialwerkzeug anlegen" : "Neuen Artikel anlegen",
+    titel: "Neuen Artikel anlegen",
     felder: [
       { name: "nummer", label: "Artikelnummer", pflicht: true, wert: vorgabe || "" },
       { name: "beschreibung", label: "Beschreibung", typ: "textarea",
         platzhalter: "nur falls nötig, kann leer bleiben" },
+      // Seit 1.271.0 gibt es keinen eigenen Bereich mehr, das Häkchen
+      // kennzeichnet das Werkzeug nur (eigene Liste je Lieferant unter Offen)
+      { name: "spezial", label: "Spezialwerkzeug", typ: "haken", wert: !!spezial },
     ],
     bestaetigen: "Weiter",
   });
   if (!w) return null;
+  spezial = !!w.spezial;
 
   // Bezeichnung aus der gepflegten Liste wählen
   const bez = await bezeichnungWaehlen(bezeichnungen);
@@ -9411,7 +9427,9 @@ async function artikelBearbeiten(artikel, b, kopie) {
 
     + '<label class="feld"><span>Beschreibung</span>'
     + '<textarea id="ab-beschreibung" rows="2">'
-    + esc(artikel.description || "") + '</textarea></label>' 
+    + esc(artikel.description || "") + '</textarea></label>'
+    + '<label class="feld-haken"><input type="checkbox" id="ab-spezial"'
+    + (artikel.spezial ? " checked" : "") + '><span>Spezialwerkzeug</span></label>'
 
     + '<div class="dialog__knoepfe">'
     + (kopie ? "" : '<button class="knopf knopf--gefahr" id="ab-weg">Löschen</button>')
@@ -9493,7 +9511,7 @@ async function artikelBearbeiten(artikel, b, kopie) {
       const neu = { article_number: nummer, name: name,
         description: ($("ab-beschreibung").value || "").trim() || null,
         unit: artikel.unit || "Stück", supplier_id: lieferantNeu };
-      if (artikel.spezial) neu.spezial = true;
+      if ($("ab-spezial").checked) neu.spezial = true;
       const k = await db.from("articles").insert(neu).select();
       if (k.error) {
         const m = String(k.error.message || "").toLowerCase();
@@ -9509,13 +9527,17 @@ async function artikelBearbeiten(artikel, b, kopie) {
       return;
     }
 
-    const r = await db.from("articles").update({
+    const aenderung = {
       article_number: nummer,
       name: name,
       description: ($("ab-beschreibung").value || "").trim() || null,
       unit: "Stück",
       supplier_id: lieferantNeu,
-    }).eq("id", artikel.id).select();
+    };
+    // Nur mitschicken, wenn geändert: ohne sql/spezialwerkzeuge-getrennt.sql
+    // kennt die Datenbank die Spalte nicht
+    if ($("ab-spezial").checked !== !!artikel.spezial) aenderung.spezial = $("ab-spezial").checked;
+    const r = await db.from("articles").update(aenderung).eq("id", artikel.id).select();
 
     // Wechselt der Lieferant, ziehen alle noch offenen Bestellpositionen
     // dieses Artikels mit. Die Position merkt sich sonst den Lieferanten

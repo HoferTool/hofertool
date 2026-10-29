@@ -110,7 +110,7 @@ with sync_playwright() as p:
     pf.locator("[data-pf='standzeit']").fill("2500")
     pf.locator("[data-pf-waehlen]").click(); pg.wait_for_selector("[data-werkzeugwahl]")
     w = pg.locator("[data-werkzeugwahl]")
-    pruefe("Fenster wie beim Bestellen, mit Spezialwerkzeugen", w.locator("[data-pd-spezial='ja']").count() == 1
+    pruefe("Fenster wie beim Bestellen, ohne eigenen Knopf Spezialwerkzeuge (1.271.0)", w.locator("[data-pd-spezial]").count() == 0
            and pg.input_value("#pd-such") == "HSS Bohrer 4.2")
     pg.fill("#pd-such", "MTEC"); pg.wait_for_timeout(700)
     w.locator(".pd-zeile[data-w='a1']").click(); pg.wait_for_timeout(200)
@@ -147,12 +147,14 @@ with sync_playwright() as p:
     pf = pg.locator("[data-platzfenster='T300']")
     pf.locator("[data-pf-waehlen]").click(); pg.wait_for_selector("[data-werkzeugwahl]")
     w = pg.locator("[data-werkzeugwahl]")
-    w.locator("[data-pd-spezial='ja']").click(); pg.fill("#pd-such", "SPZ"); pg.wait_for_timeout(700)
-    pruefe("Nur Spezialwerkzeuge in der Liste", w.locator(".pd-zeile[data-w='a9']").count() == 1 and w.locator(".pd-zeile[data-w='a1']").count() == 0)
+    pg.fill("#pd-such", "SPZ"); pg.wait_for_timeout(700)
+    pruefe("Spezialwerkzeug in derselben Suche", w.locator(".pd-zeile[data-w='a9']").count() == 1)
     w.locator(".pd-zeile[data-w='a9']").click(); w.locator("#pd-ja").click(); pg.wait_for_timeout(500)
     pruefe("Spezialwerkzeug am Platz", "Spezialwerkzeug" in pf.inner_text() and "SPZ-77" in pf.inner_text())
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
     pg.screenshot(path="einrichtblatt_app_bearbeiten.png")
+    pruefe("Stern beim Lieferanten des Spezialwerkzeugs (1.272.0)", pg.locator("[data-platz='T300'] .eba-her [data-eba-stern]").count() == 1
+           and pg.locator("[data-platz='T200'] [data-eba-stern]").count() == 0)
 
     # Eingelesene Werkzeuge ohne hinterlegten oder bestätigten Artikel
     # sind rot (1.185.0): T100 selbst zugeordnet, T400 nur Text
@@ -284,6 +286,14 @@ with sync_playwright() as p:
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
     pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_timeout(1000)
     pruefe("Wieder öffnen: gleich das App-Blatt", pg.locator("[data-eba-seite]").count() == 1)
+    # Platz antippen bestellt das Werkzeug (1.271.0)
+    pg.click("[data-platz='T200'].eba-platz--bestellbar"); pg.wait_for_selector("#pd-gewaehlt")
+    pruefe("Platz antippen: Bestellposition mit dem Werkzeug", "MTEC-452410" in pg.inner_text("#pd-gewaehlt")
+           and "T200" in pg.input_value("#pd-notiz") and "10000-0301" in pg.input_value("#pd-notiz"))
+    vorher = pg.evaluate("TEST.daten.order_items.length")
+    pg.fill("#pd-menge", "3"); pg.click("#pd-ja"); pg.wait_for_timeout(800)
+    neu = pg.evaluate("TEST.daten.order_items")[vorher:]
+    pruefe("Unter Offen bestellt", len(neu) == 1 and neu[0]["article_id"] == "a1" and neu[0]["quantity"] == 3 and neu[0].get("status", "offen") == "offen")
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
 
     # Index: drei Revolver mit T1 bis T10

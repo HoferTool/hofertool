@@ -87,13 +87,17 @@ async function bezeichnungenNachholen(plaetze) {
   if (!offen.length) return;
   try {
     const ids = [...new Set(offen.map((p) => p.article_id))];
-    const r = await alt.db.from("articles").select("id, description").in("id", ids);
+    // Mit „spezial“: Spezialwerkzeuge bekommen im Blatt einen Stern beim
+    // Lieferanten (seit 1.272.0); kennt die Datenbank die Spalte nicht, ohne
+    let r = await alt.db.from("articles").select("id, description, spezial").in("id", ids);
+    if (r.error) r = await alt.db.from("articles").select("id, description").in("id", ids);
     if (r.error) return;
-    const nach = {};
-    (r.data || []).forEach((a) => { nach[a.id] = artikelBezeichnung(a); });
+    const nach = {}, spezial = {};
+    (r.data || []).forEach((a) => { nach[a.id] = artikelBezeichnung(a); spezial[a.id] = !!a.spezial; });
     offen.forEach((p) => {
       if (!(p.article_id in nach)) return;
       if (nach[p.article_id]) p.bezeichnung = nach[p.article_id]; else delete p.bezeichnung;
+      if (spezial[p.article_id]) p.spezial = true; else delete p.spezial;
     });
   } catch (f) { /* dann nur die Nummer */ }
 }

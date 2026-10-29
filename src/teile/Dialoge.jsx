@@ -85,6 +85,13 @@ function Feld({ f, id, erstes }) {
         {hinweis}</fieldset>
     );
   }
+  // Einzelnes Häkchen, gibt true oder false zurück
+  if (f.typ === "haken") {
+    return (
+      <label className="feld-haken"><input id={id} type="checkbox" defaultChecked={!!f.wert} />
+        <span>{f.label}</span>{hinweis}</label>
+    );
+  }
   if (f.auswahl) {
     return (
       <label className="feld"><span>{f.label}</span>
@@ -139,6 +146,7 @@ export function dialogFelder(o) {
           ergebnis[f.name] = el ? [...el.querySelectorAll("input:checked")].map((h) => h.value) : [];
           continue;
         }
+        if (f.typ === "haken") { ergebnis[f.name] = !!(el && el.checked); continue; }
         const wert = el && el.dataset.stilfeld !== undefined ? stilWert(el)
           : ((el && el.value) || "").trim();
         if (f.pflicht && !wert) {

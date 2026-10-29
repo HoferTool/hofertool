@@ -3,14 +3,16 @@
 //  Positionen nach Lieferant gruppiert. In „Offen“ steht nur wirklich
 //  Offenes; was bestellt oder teilweise geliefert ist, steht in
 //  „Bestellt“. Die Suche filtert sofort, ohne neu zu laden.
-//  Mit spezial (seit 1.142.0) dieselben Reiter für die
-//  Spezialwerkzeuge: dort nur ihre Positionen, hier nur die anderen.
+//  Spezialwerkzeuge stehen seit 1.271.0 mit allen anderen hier, aber je
+//  Lieferant in einer eigenen Karte mit eigenem PDF, weil sie oft per
+//  Mail bestellt werden, auch wo sonst die Website gilt (Wunsch Patrick
+//  29. Oktober 2026, Beispiel Dihawag).
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { positionOeffnen } from "./PositionFenster.jsx";
 import { Leiste, NeuKnopf, Karte, Logo, Status, Ziel, Zeichen, Symbolknopf,
-  Leer, Laedt, Fehler, mehrzahl } from "./teile.jsx";
+  Leer, Laedt, Fehler, mehrzahl, Stern } from "./teile.jsx";
 
 const BLOECKE = {
   bestellt: [{ status: "bestellt", titel: "Bestellt" },
@@ -38,14 +40,14 @@ function fristArt(z, heute) {
 // Gehört die Position zu den Spezialwerkzeugen? Am Artikel entschieden
 export const istSpezial = (z) => !!(z.articles && z.articles.spezial);
 
-export default function Offen({ bereich, auffrischen, behaelter, spezial }) {
+export default function Offen({ bereich, auffrischen, behaelter }) {
   const best = alt.best;
-  const [suche, setSuche] = useSpeicherWert(best, spezial ? "spezialOffenSuche" : "offenSuche", auffrischen);
+  const [suche, setSuche] = useSpeicherWert(best, "offenSuche", auffrischen);
   const { daten: liste, fehler, neu } = useDaten(() => {
     // Nach jeder Änderung frisch holen, nicht aus dem Gedächtnis
     alt.stammVergessen();
-    return alt.ladeBestellungen(true).then((l) => l.filter((z) => istSpezial(z) === !!spezial));
-  }, [auffrischen, spezial]);
+    return alt.ladeBestellungen(true);
+  }, [auffrischen]);
 
   const schreiben = alt.darfSchreiben();
   // Neue Positionen entstehen im Reiter Offen. In Bestellt und
@@ -54,7 +56,7 @@ export default function Offen({ bereich, auffrischen, behaelter, spezial }) {
     <Leiste suchId="bo-suche" suche={suche} setSuche={setSuche}
       platzhalter="Artikel, Lieferant oder Person suchen"
       knopf={schreiben && bereich === "offen" &&
-        <NeuKnopf id="b-neu" text="Neue Position" onClick={() => positionOeffnen(neu, spezial ? { spezial: true } : undefined)} />} />
+        <NeuKnopf id="b-neu" text="Neue Position" onClick={() => positionOeffnen(neu)} />} />
   );
 
   if (fehler && !liste) return <>{leiste}<Fehler fehler={fehler} /></>;
@@ -83,7 +85,7 @@ export default function Offen({ bereich, auffrischen, behaelter, spezial }) {
 
       {!imBereich.length &&
         <Leer text={sucht ? 'Nichts gefunden zu "' + suche + '".'
-          : bereich === "offen" ? (spezial ? "Keine offenen Spezialwerkzeuge." : "Keine offenen Bestellpositionen.")
+          : bereich === "offen" ? "Keine offenen Bestellpositionen."
           : "Nichts bestellt, das noch aussteht."} />}
     </>
   );
@@ -96,8 +98,9 @@ function Block({ block, posten, schreiben, neu, behaelter, heute, einziger }) {
   const gruppen = {};
   posten.forEach((z) => {
     const lief = lieferantVon(z);
-    const name = (lief && lief.name) || "Ohne Lieferant";
-    (gruppen[name] = gruppen[name] || { lief: null, lief0: lief, website: null, weg: null, posten: [] }).posten.push(z);
+    const spezial = istSpezial(z);
+    const name = ((lief && lief.name) || "Ohne Lieferant") + (spezial ? " · Spezialwerkzeuge" : "");
+    (gruppen[name] = gruppen[name] || { lief: null, lief0: lief, website: null, weg: null, spezial, posten: [] }).posten.push(z);
     if (lief && lief.website) gruppen[name].website = lief.website;
     if (lief && lief.bestellweg) gruppen[name].weg = lief.bestellweg;
     // PDF gibt es bei jedem Lieferanten, auch wenn sonst über die Website
@@ -120,6 +123,19 @@ function Block({ block, posten, schreiben, neu, behaelter, heute, einziger }) {
       ))}
     </>
   );
+}
+
+// Shops, deren Suche über die Adresse direkt zum Artikel führt (geprüft
+// 29. Oktober 2026); andere öffnen ihre Website, wenn dort bestellt wird
+const SHOP_SUCHE = [
+  [/utilis/i, "https://shop.utilis.com/en/search?query="],
+  [/sm tools/i, "https://smtools.ch/search?search="],
+];
+export function shopAdresse(lief, nummer) {
+  if (!lief || !nummer) return null;
+  const such = SHOP_SUCHE.find(([muster]) => muster.test(lief.name || ""));
+  if (such) return such[1] + encodeURIComponent(nummer);
+  return lief.bestellweg === "website" && lief.website ? lief.website : null;
 }
 
 const BESTELLWEG = { mail: "Bestellung per Mail", website: "Bestellung über Website" };
@@ -147,14 +163,19 @@ function Lieferant({ name, gruppe, block, schreiben, neu, behaelter, heute }) {
     else { alt.meldung(positionen(posten.length) + " geändert."); neu(); }
   };
 
-  const unter = [positionen(gruppe.posten.length), BESTELLWEG[gruppe.weg]].filter(Boolean).join(" · ");
+  // Spezialwerkzeuge: Stern neben dem Lieferanten, eigene Karte
+  const liefName = gruppe.spezial
+    ? <>{(gruppe.lief0 && gruppe.lief0.name) || "Ohne Lieferant"}<Stern an /></> : name;
+  // Bei Spezialwerkzeugen gilt der Bestellweg des Lieferanten oft nicht
+  const unter = [positionen(gruppe.posten.length), gruppe.spezial ? "Spezialwerkzeuge" : BESTELLWEG[gruppe.weg]]
+    .filter(Boolean).join(" · ");
 
   return (
-    <Karte className="bs-lieferant" vorne={<Logo lief={gruppe.lief0} name={name} />}
+    <Karte className={"bs-lieferant" + (gruppe.spezial ? " bs-lieferant--spezial" : "")} vorne={<Logo lief={gruppe.lief0} name={(gruppe.lief0 && gruppe.lief0.name) || name} />}
       titel={gruppe.website
         ? <a className="lieferantlink" href={gruppe.website} target="_blank" rel="noopener">
-            {name}<Zeichen name="aussen" groesse={14} /></a>
-        : name}
+            {liefName}<Zeichen name="aussen" groesse={14} /></a>
+        : liefName}
       unter={unter}
       aktionen={<>
         {/* Aufs PDF kommt genau, was in dieser Karte steht */}
@@ -183,9 +204,15 @@ function Zeile({ z, schreiben, behaelter, heute }) {
   const teil = z.status === "teilweise_geliefert" && !!z.geliefert_menge;
   const anteil = teil ? Math.min(100, Math.round(100 * z.geliefert_menge / Math.max(1, z.quantity))) : 0;
 
+  // Kopiert die Bestell-Nr. und geht gleich zum Artikel im Shop, wo
+  // der Shop eine Suche über die Adresse kennt, sonst auf die Website,
+  // wenn dort bestellt wird (seit 1.271.0, Wunsch Patrick 29. Oktober 2026)
   const kopieren = async () => {
     const text = a2.article_number || "";
     if (!text) { alt.meldung("Nichts zu kopieren.", "warn"); return; }
+    // Das Fenster sofort öffnen, sonst sperrt der Browser es als Pop-up
+    const ziel = shopAdresse(lieferantVon(z), text);
+    if (ziel) window.open(ziel, "_blank", "noopener");
     try { await navigator.clipboard.writeText(text); alt.meldung("Kopiert: " + text); }
     catch (f) { alt.meldung("Kopieren nicht möglich: " + text, "warn"); }
   };
@@ -196,7 +223,8 @@ function Zeile({ z, schreiben, behaelter, heute }) {
         <div className="bs-pos__titel">
           <span className="bs-pos__nr">{a2.article_number || "?"}</span>
           <button className="kopiersymbol bs-kopie" data-bkopie={a2.article_number || ""}
-            title="Artikelnummer kopieren" aria-label="Artikelnummer kopieren" onClick={kopieren}>
+            title={shopAdresse(lieferantVon(z), "x") ? "Artikelnummer kopieren und im Shop öffnen" : "Artikelnummer kopieren"}
+            aria-label="Artikelnummer kopieren" onClick={kopieren}>
             <Zeichen name="kopie" groesse={14} /></button>
           <span className="bs-pos__name">{a2.name || ""}</span>
           {a2.description && <span className="bs-pos__beschreibung">{a2.description}</span>}
