@@ -14,6 +14,7 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { blattSuchen, platzInGebrauch } from "../einrichtblatt/daten.js";
 import { platzGruppe, platzName } from "../einrichtblatt/vorlagen.js";
+import { istIndex, indexProtokoll } from "./IndexProtokoll.jsx";
 
 const anzahlText = (n) => n + (n === 1 ? " Werkzeug" : " Werkzeuge");
 
@@ -50,6 +51,12 @@ export async function werkzeugWechselDialog(maschine, auftrag) {
       auftrag && auftrag.job_number ? blattSuchen(auftrag.job_number, maschine.type_id) : null]);
   } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
   const typ = typen.find((t) => t.id === maschine.type_id);
+  // Index hat ein eigenes Protokoll je HOCO Nr. wie das Excel (Wunsch
+  // Patrick 29. Oktober 2026); Externe vorerst wie bisher (Entscheid offen)
+  if (istIndex(typ) && auftrag && auftrag.job_number && !alt.istExtern()) {
+    indexProtokoll(maschine, auftrag, typ, blatt, eintragen, wechselHistorie);
+    return;
+  }
   const sw = istSw(typ);
   const rang = (p) => pathRang(p.nummer, sw);
   let reihen = paths
@@ -147,7 +154,7 @@ async function eintragen(maschine, auftrag, liste) {
         wert: auftrag ? (auftrag.stand || 0) : "", hinweis: anzahlText(liste.length) },
       { name: "notiz", label: "Notiz", wert: "" }],
     bestaetigen: "Wechsel eintragen" });
-  if (!w) return;
+  if (!w) return false;
   const stand = Math.max(0, Math.round(Number(w.stk) || 0));
 
   // Wie viele Stück das Werkzeug gehalten hat: Abstand zur Stückzahl
@@ -180,8 +187,9 @@ async function eintragen(maschine, auftrag, liste) {
   // Über den Einfüger, der Spalten weglässt, die es in der Tabelle
   // nicht gibt: sonst scheitert der ganze Eintrag an einem Feld
   try { await alt.einfuegenOhneUnbekannte("tool_changes", zeilen); }
-  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
+  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
   alt.meldung(anzahlText(liste.length) + " bei " + alt.zahlText(stand) + " Stück eingetragen.");
+  return true;
 }
 
 // ---------- Historie ----------

@@ -35,7 +35,8 @@ daten.machine_types.find(t => t.id === 't1').name = %r;""" % typname
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
-    pruefe("Index: 1, 2, 3", reihenfolge(br, "Index") == ["Path 1", "Path 2", "Path 3"])
+    # Index hat seit 1.267.0 ein eigenes Protokoll (index_protokoll.py)
+    pruefe("andere Typen: 1, 2, 3", reihenfolge(br, "Citizen L20") == ["Path 1", "Path 2", "Path 3"])
     pruefe("SW-20: 1, 3, 2", reihenfolge(br, "SW-20") == ["Path 1", "Path 3", "Path 2"])
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

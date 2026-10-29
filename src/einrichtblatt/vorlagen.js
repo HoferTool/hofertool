@@ -84,7 +84,7 @@ function star(name, art, { mitT700 = true, mitT3100 = true, mitT3400 = false } =
 // ---------------- Index ----------------
 // Revolver 1 im Excel olivbraun (Designfarbe „Hintergrund 2, dunkler 50 %“),
 // die Platznummern darauf schwarz (seit 1.210.1, Wunsch Patrick 26. Oktober 2026)
-const REVOLVER = [["1", "#948A54"], ["2", "#92D050"], ["3", "#00B0F0"]];
+export const REVOLVER = [["1", "#948A54"], ["2", "#92D050"], ["3", "#00B0F0"]];
 function index(name) {
   const reihen = [];
   REVOLVER.forEach(([r]) => {
