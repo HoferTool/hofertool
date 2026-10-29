@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.247.1** (29. Oktober 2026) Einrichtblätter: Dateien mit **„Einrichtblatt“ im Namen** kommen wieder hoch (Patrick: „10000-0355 bei SB-20RG kommt nicht aufs Tool“). Im Ordner der SB-20RG heissen die Blätter „10000-0355 Einrichtblatt.xlsx“; `einrichtblaetter.ps1` hielt „Einrichtblatt“ für ein fremdes Wort und liess sie weg. Jetzt zählt so ein Name wie das Werkzeugprotokoll; Werkzeugwechsel und Toleranzen bleiben weiter weg.
 - **1.247.0** **CAM wieder ganz entfernt** (Entscheid Patrick 29. Oktober 2026: „nimm es raus“): kein Reiter Shortcuts und CAM mehr, der Rechner hat wieder direkt seine Reiter Drehzahl, Winkel, G-Code, C-Achse, Gravur und DXF; im Fenster „⚙ Typ“ und auf der Seite der SW-Maschinen steht nichts mehr vom CAM. Die Tabellen `cam_aufbau` und `cam_programme` bleiben in der Datenbank, der Code im Git-Verlauf.
 - **1.246.0** (28. Oktober 2026) Startseite: Karte **„Laufend ohne WBG“** (Wunsch Patrick: „welche laufenden aufträge noch keinen wbg haben“): Aufträge auf „läuft“ an Maschinen der eigenen Parks ohne WBG, ohne externe Parks; Tipp öffnet das Auftragsfenster, wo die WBG hochgeladen wird. Steht nur da, wenn es welche gibt (`src/seiten/start/OhneWbg.jsx`).
 - **1.245.1** (28. Oktober 2026) Empfang: Alpenkette wieder genau wie in 1.237.0 (Patrick: „ich will die erste ursprüngliche Variante“).

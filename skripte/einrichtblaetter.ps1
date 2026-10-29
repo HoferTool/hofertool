@@ -20,6 +20,7 @@
 #  es ein Einrichtblatt, egal was sonst noch im Namen steht und in welcher
 #  Reihenfolge (Wunsch Patrick 16. Oktober 2026). Ohne "Protokoll" zählt
 #  die Datei nur, wenn ausser HOCO Nr. und Typ nichts im Namen steht.
+#  Ebenso mit "Einrichtblatt" im Namen (Patrick 29. Oktober 2026).
 #  Werkzeugwechsel und Toleranzen sind nie ein Einrichtblatt; war so eins
 #  schon hochgeladen, nimmt das Programm es in der App wieder weg. Gibt es
 #  für eine HOCO Nr. mehrere, zählt das Werkzeugprotokoll, sonst die
@@ -143,6 +144,11 @@ function Rang([string]$name, [string]$typName) {
       if ($w -match '^(werkz[a-z]*|wz)?prot') { $prot = 1 } elseif ($prot -eq 0) { $prot = 2 }
     }
   }
+  # "Einrichtblatt" im Namen (auch "Einrichteblatt", "Einrichtungsblatt")
+  # ist so gut wie das Werkzeugprotokoll; so heissen die Blätter der
+  # SB-20RG ("10000-0355 Einrichtblatt.xlsx"), die vorher als fremdes Wort
+  # wegblieben (Patrick 29. Oktober 2026)
+  if (@($woerter | Where-Object { $_ -match '^einricht' }).Count -gt 0) { $prot = 1 }
   if ($prot -gt 0) { return @{ rang = $prot; fremd = "" } }
   $typWoerter = @(($typName.ToLower() -split '[^a-zäöüß]+') | Where-Object { $_ })
   $fremd = @()
