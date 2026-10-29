@@ -6,11 +6,13 @@
 //  Rahmenlinien und Bilder.
 //
 //  .xlsx/.xlsm liest exceljs, das auch Schrift, Farben und Rahmen
-//  kennt. Alte .xls und .ods liest SheetJS; das kennt nur Werte,
-//  verbundene Zellen und Breiten, sieht also schlichter aus. Beide
-//  Bibliotheken kommen erst beim ersten Öffnen dazu, damit der Start
+//  kennt. Alte .xls liest SheetJS für die Werte, das Aussehen (Schrift,
+//  Rahmen, Farben, Masse, Bilder) liest xlsBiff.js selbst; .ods bleibt
+//  schlicht. Beide Bibliotheken kommen erst beim ersten Öffnen dazu, damit der Start
 //  der App klein bleibt.
 // =================================================================
+
+import { biffLesen } from "./xlsBiff.js";
 
 const ENDUNG = /\.(xlsx|xlsm|xls|ods)(\?|#|$)/i;
 export const istExcel = (name) => ENDUNG.test(String(name || ""));
@@ -442,51 +444,182 @@ async function mitSheetJS(daten) {
   if (!sheetJsLaden) sheetJsLaden = import("xlsx").then((m) => m.default && m.default.read ? m.default : m);
   const XLSX = await sheetJsLaden;
   const wb = XLSX.read(daten, { type: "array", cellStyles: true, cellDates: true, cellNF: true });
+  // Aussehen einer alten .xls liest die App selbst (xlsBiff.js); geht
+  // das schief (.ods, kaputte Datei), bleibt es schlicht wie bisher
+  let biff = null;
+  try {
+    const cfb = XLSX.CFB.read(daten, { type: "array" });
+    const strom = XLSX.CFB.find(cfb, "Workbook") || XLSX.CFB.find(cfb, "Book");
+    if (strom && strom.content) biff = biffLesen(new Uint8Array(strom.content));
+  } catch (f) { biff = null; }
+  const druckbereiche = new Map();
+  ((wb.Workbook && wb.Workbook.Names) || []).forEach((n) => {
+    if (n.Name === "_xlnm.Print_Area" && n.Sheet != null) druckbereiche.set(n.Sheet, druckbereichLesen(n.Ref));
+  });
   const blaetter = [];
   wb.SheetNames.forEach((name, i) => {
     const info = wb.Workbook && wb.Workbook.Sheets && wb.Workbook.Sheets[i];
     if (info && info.Hidden) return;
     const ws = wb.Sheets[name];
-    const rng = XLSX.utils.decode_range(ws["!ref"] || "A1");
-    const letzteZ = Math.min(rng.e.r + 1, MAX_ZEILEN), letzteS = Math.min(rng.e.c + 1, MAX_SPALTEN);
-    const zellen = new Map();
-    for (let r = 1; r <= letzteZ; r++) {
-      for (let c = 1; c <= letzteS; c++) {
-        const z = ws[XLSX.utils.encode_cell({ r: r - 1, c: c - 1 })];
-        if (!z || z.v == null || z.v === "") continue;
-        zellen.set(r + "," + c, { z });
-      }
-    }
-    const cols = ws["!cols"] || [], rows = ws["!rows"] || [];
-    const spalten = [], zeilen = [];
-    for (let c = 0; c < letzteS; c++) {
-      const k = cols[c] || {};
-      spalten.push(k.hidden ? 0 : k.wpx ? Math.round(k.wpx) : k.wch ? Math.round(k.wch * 7 + 5) : 64);
-    }
-    for (let r = 0; r < letzteZ; r++) {
-      const k = rows[r] || {};
-      zeilen.push(k.hidden ? 0 : k.hpx ? Math.round(k.hpx) : k.hpt ? Math.round(k.hpt * PX_JE_PT) : 20);
-    }
-    const merges = (ws["!merges"] || []).map((m) => ({ top: m.s.r + 1, left: m.s.c + 1, bottom: m.e.r + 1, right: m.e.c + 1 }))
-      .filter((m) => m.top <= letzteZ && m.left <= letzteS);
-    blaetter.push(modellBauen({
-      name, spalten, zeilen, gitter: true, merges,
-      alle: zellen, zelle: (r, c) => zellen.get(r + "," + c),
-      stil: ({ z }) => {
-        const zahl = z.t === "n" || z.t === "d";
-        let text = z.w;
-        if (text == null) text = z.v instanceof Date ? zahlText(z.v, z.z) : zahlText(z.v, null);
-        // SheetJS schreibt Tausender und Komma englisch; Schweizer Schreibweise
-        if (zahl && typeof z.v === "number" && /^-?[\d,]+(\.\d+)?%?$/.test(text)) text = text.replace(/,/g, "'");
-        return { text, schrift: {}, fill: null, ha: zahl ? "right" : z.t === "b" ? "center" : "left",
-          v: "bottom", umbruch: false, einzug: 0 };
-      },
-      rahmen: () => null,
-      bilder: [],
-    }));
+    const bb = biff && biff.blaetter.find((x) => x.name === name);
+    blaetter.push(bb ? blattAusBiff(XLSX, ws, bb, biff, druckbereiche.get(i)) : blattSchlicht(XLSX, ws, name));
   });
   if (!blaetter.length) throw new Error("Die Datei enthält kein sichtbares Blatt.");
   return blaetter;
+}
+
+// Text einer Zelle, wie SheetJS sie gelesen hat
+function sheetJsText(z) {
+  const zahl = z.t === "n" || z.t === "d";
+  let text = z.w;
+  if (text == null) text = z.v instanceof Date ? zahlText(z.v, z.z) : zahlText(z.v, null);
+  // SheetJS schreibt Tausender und Komma englisch; Schweizer Schreibweise
+  if (zahl && typeof z.v === "number" && /^-?[\d,]+(\.\d+)?%?$/.test(text)) text = text.replace(/,/g, "'");
+  return { text, zahl };
+}
+
+function blattAusBiff(XLSX, ws, bb, biff, druck) {
+  // Wie weit das Blatt geht, sagen nur Zellen mit Wert, Rahmen oder
+  // Füllung: „!ref“ von SheetJS zählt auch leere Zellen mit, die nur
+  // ein Format haben, oft ganze Zeilen bis Spalte IH
+  let letzteZ = 1, letzteS = 1;
+  const zellen = new Map();
+  // Zellen mit Wert, und leere mit Rahmen oder Füllung
+  const sichtbar = (xf) => xf && (xf.muster > 0 || xf.l[0] || xf.r[0] || xf.o[0] || xf.u[0]);
+  for (const [key, ix] of bb.zellen) {
+    const [r, c] = key.split(",").map(Number);
+    if (r > MAX_ZEILEN || c > MAX_SPALTEN) continue;
+    const z = ws[XLSX.utils.encode_cell({ r: r - 1, c: c - 1 })];
+    const hatWert = z && z.v != null && z.v !== "";
+    const xf = biff.xfs[ix];
+    if (!hatWert && !sichtbar(xf)) continue;
+    zellen.set(key, { z: hatWert ? z : null, xf, b: !!sichtbar(xf) });
+    letzteZ = Math.max(letzteZ, r); letzteS = Math.max(letzteS, c);
+  }
+  bb.merges.forEach((m) => { letzteZ = Math.max(letzteZ, m.bottom); letzteS = Math.max(letzteS, m.right); });
+  bb.bilder.forEach((b) => {
+    letzteZ = Math.max(letzteZ, b.bis.z + (b.bis.zo ? 1 : 0));
+    letzteS = Math.max(letzteS, b.bis.s + (b.bis.so ? 1 : 0));
+  });
+  if (druck) { letzteZ = Math.max(letzteZ, druck.bottom); letzteS = Math.max(letzteS, druck.right); }
+  letzteZ = Math.max(1, Math.min(letzteZ, MAX_ZEILEN)); letzteS = Math.max(1, Math.min(letzteS, MAX_SPALTEN));
+
+  // Breite in Zeichen wie bei exceljs: Zeichen × 7 Pixel
+  const stdBreite = Math.round((bb.stdBreite || 8.43) * 7);
+  const stdHoehe = Math.round((bb.stdHoehe || 12.75) * PX_JE_PT);
+  const spalten = [], zeilen = [];
+  for (let c = 0; c < letzteS; c++) {
+    const k = bb.spalten[c];
+    spalten.push(k ? (k.aus ? 0 : Math.round(k.breite * 7)) : stdBreite);
+  }
+  for (let r = 0; r < letzteZ; r++) {
+    const k = bb.zeilen.get(r);
+    zeilen.push(k ? (k.aus ? 0 : Math.round(k.pt * PX_JE_PT)) : stdHoehe);
+  }
+
+  const farbe = (i) => biff.farbe(i);
+  const schrift = (ix) => {
+    const f = biff.schriften[ix];
+    if (!f) return {};
+    const c = f.farbe < 64 ? farbe(f.farbe) : null;
+    return schriftStil({ name: f.name, size: f.size, bold: f.bold, italic: f.italic, underline: f.underline,
+      strike: f.strike, vertAlign: f.vertAlign, color: c ? { argb: c.slice(1) } : null }, {});
+  };
+  const r0 = bb.seite.raender, zoll = (v, std) => (typeof v === "number" && v >= 0 ? v : std) * 96;
+  const seite = {
+    quer: bb.seite.quer == null ? null : bb.seite.quer,
+    raender: { l: zoll(r0.l, 0.75), r: zoll(r0.r, 0.75), o: zoll(r0.o, 1), u: zoll(r0.u, 1) },
+    massstab: bb.seite.massstab > 0 ? bb.seite.massstab : 1,
+    einpassen: bb.seite.einpassen ? { b: bb.seite.fitB, h: bb.seite.fitH } : null,
+    mitte: bb.seite.mitte,
+    druck,
+  };
+
+  // Bildanker: Versatz in 1/1024 der Spaltenbreite und 1/256 der
+  // Zeilenhöhe, umgerechnet in EMU wie bei .xlsx
+  const emuX = (s, o) => Math.round(((spalten[s] || 0) * Math.min(o, 1024)) / 1024 * 9525);
+  const emuY = (z, o) => Math.round(((zeilen[z] || 0) * Math.min(o, 256)) / 256 * 9525);
+  const bilder = bb.bilder.map((b) => ({
+    von: { s: b.von.s, so: emuX(b.von.s, b.von.so), z: b.von.z, zo: emuY(b.von.z, b.von.zo) },
+    bis: { s: b.bis.s, so: emuX(b.bis.s, b.bis.so), z: b.bis.z, zo: emuY(b.bis.z, b.bis.zo) },
+    teile: b.teile, gruppe: b.gruppe,
+  }));
+
+  const merges = bb.merges.filter((m) => m.top <= letzteZ && m.left <= letzteS);
+  const modell = modellBauen({
+    name: bb.name, spalten, zeilen, gitter: bb.seite.gitter, merges, seite: { ...seite, quer: seite.quer ?? false },
+    druckGitter: bb.seite.druckGitter,
+    alle: zellen, zelle: (r, c) => zellen.get(r + "," + c),
+    stil: ({ z, xf }) => {
+      let text = null, zahl = false;
+      if (z) ({ text, zahl } = sheetJsText(z));
+      const fill = xf && xf.muster > 0 ? farbe(xf.vorne) : null;
+      const ha = xf && xf.ha !== "general" ? (xf.ha === "centerContinuous" ? "center" : xf.ha === "distributed" ? "center" : xf.ha)
+        : zahl ? "right" : z && z.t === "b" ? "center" : "left";
+      return {
+        text, schrift: xf ? schrift(xf.font) : {}, fill, ha,
+        v: xf ? xf.va : "bottom",
+        umbruch: !!(xf && (xf.umbruch || xf.ha === "justify" || xf.va === "justify")),
+        einzug: xf ? xf.einzug : 0,
+        drehung: xf && xf.drehung ? (xf.drehung === 255 ? undefined : xf.drehung > 90 ? 90 - xf.drehung : xf.drehung) : undefined,
+        kleiner: !!(xf && xf.kleiner && !xf.umbruch),
+      };
+    },
+    rahmen: ({ xf }, s) => {
+      if (!xf) return null;
+      const [art, icv] = xf[{ top: "o", bottom: "u", left: "l", right: "r" }[s]];
+      const name = RAHMEN_BIFF[art];
+      if (!name || !RAHMEN[name]) return null;
+      const [dicke, strich] = RAHMEN[name];
+      return { dicke, art: strich, farbe: (icv < 64 && farbe(icv)) || "#000" };
+    },
+    bilder,
+  });
+  // Ohne Angabe zur Ausrichtung: quer, wenn der Inhalt breiter als hoch ist
+  if (seite.quer == null) modell.seite.quer = modell.seite.inhalt.b > modell.seite.inhalt.h * 1.1;
+  return modell;
+}
+
+const RAHMEN_BIFF = [null, "thin", "medium", "dashed", "dotted", "thick", "double", "hair",
+  "mediumDashed", "dashDot", "mediumDashDot", "dashDotDot", "mediumDashDotDot", "slantDashDot"];
+
+// .ods und was sich nicht selbst lesen lässt: nur Werte, schlicht
+function blattSchlicht(XLSX, ws, name) {
+  const rng = XLSX.utils.decode_range(ws["!ref"] || "A1");
+  const letzteZ = Math.min(rng.e.r + 1, MAX_ZEILEN), letzteS = Math.min(rng.e.c + 1, MAX_SPALTEN);
+  const zellen = new Map();
+  for (let r = 1; r <= letzteZ; r++) {
+    for (let c = 1; c <= letzteS; c++) {
+      const z = ws[XLSX.utils.encode_cell({ r: r - 1, c: c - 1 })];
+      if (!z || z.v == null || z.v === "") continue;
+      zellen.set(r + "," + c, { z });
+    }
+  }
+  const cols = ws["!cols"] || [], rows = ws["!rows"] || [];
+  const spalten = [], zeilen = [];
+  for (let c = 0; c < letzteS; c++) {
+    const k = cols[c] || {};
+    // „width“ sind Zeichen; wpx rechnet SheetJS je nach Datei mit
+    // doppelter Zeichenbreite
+    spalten.push(k.hidden ? 0 : k.width ? Math.round(k.width * 7) : k.wch ? Math.round(k.wch * 7 + 5) : 64);
+  }
+  for (let r = 0; r < letzteZ; r++) {
+    const k = rows[r] || {};
+    zeilen.push(k.hidden ? 0 : k.hpt ? Math.round(k.hpt * PX_JE_PT) : 20);
+  }
+  const merges = (ws["!merges"] || []).map((m) => ({ top: m.s.r + 1, left: m.s.c + 1, bottom: m.e.r + 1, right: m.e.c + 1 }))
+    .filter((m) => m.top <= letzteZ && m.left <= letzteS);
+  return modellBauen({
+    name, spalten, zeilen, gitter: true, merges,
+    alle: zellen, zelle: (r, c) => zellen.get(r + "," + c),
+    stil: ({ z }) => {
+      const { text, zahl } = sheetJsText(z);
+      return { text, schrift: {}, fill: null, ha: zahl ? "right" : z.t === "b" ? "center" : "left",
+        v: "bottom", umbruch: false, einzug: 0 };
+    },
+    rahmen: () => null,
+    bilder: [],
+  });
 }
 
 // ---------- Gemeinsames Modell ----------
