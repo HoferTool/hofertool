@@ -98,6 +98,41 @@ function EineZeile({ text }) {
   return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="">{text}</span>;
 }
 
+// Notiz (Geo-Offset) im Bildfeld eines Platzes: immer waagrecht mittig;
+// ohne Bild auch senkrecht mittig und so gross, wie das Feld es zulässt
+// (Wunsch Patrick 29. Oktober 2026: „schön mitte zentriert, Höhe und
+// Breite anpassen“). Mit Bild bleibt sie klein über dem Bild.
+function GeoText({ text, mitBild }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    const feld = el && el.parentElement;
+    if (!el || !feld) return;
+    const passen = () => {
+      el.style.fontSize = "";
+      el.style.lineHeight = "";
+      if (mitBild) return;
+      const b = feld.clientWidth - 4, h = feld.clientHeight - 2;
+      if (b <= 0 || h <= 0) return;
+      const passt = (px) => {
+        el.style.fontSize = px + "px";
+        el.style.lineHeight = "1.15";
+        return el.scrollWidth <= b && el.scrollHeight <= h;
+      };
+      let lo = 7, hi = 26;
+      if (passt(hi)) return;
+      while (hi - lo > 0.25) { const m = (lo + hi) / 2; if (passt(m)) lo = m; else hi = m; }
+      passt(Math.floor(lo * 4) / 4);
+    };
+    passen();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(passen);
+    ro.observe(feld);
+    return () => ro.disconnect();
+  }, [text, mitBild]);
+  return <span ref={ref} className="eba-geo" data-geo="">{text}</span>;
+}
+
 // Ein Eingabefeld im Kopf
 function KopfEingabe({ f, wert, aendern, d }) {
   const id = f.art + ":" + f.feld;
@@ -178,8 +213,8 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
         <div className="eba-mass">{p.mass || ""}</div>
         {/* Geo-Offset nur, wo nötig: steht über dem Bild, das Bild wird
             kleiner oder fällt ganz weg (Wunsch Patrick, 24. Oktober 2026) */}
-        <div className={"eba-bild" + (p.geo ? " eba-bild--geo" : "")}>
-          {p.geo ? <span className="eba-geo" data-geo="">{p.geo}</span> : null}
+        <div className={"eba-bild" + (p.geo ? " eba-bild--geo" + (bild && !p.ohneBild ? "" : " eba-bild--nurgeo") : "")}>
+          {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} /> : null}
           {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her">{p.hersteller || ""}</div>
         {/* Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (Wunsch

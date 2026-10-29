@@ -217,6 +217,22 @@ with sync_playwright() as p:
     pf.locator("[data-pf='geo']").fill("X 0.12\nZ -0.05")
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
     pruefe("Geo-Offset im Feld", "X 0.12" in pg.inner_text("[data-platz='T100'] .eba-geo"))
+    # Notiz ohne Bild: waagrecht und senkrecht mittig, ans Feld angepasst (1.256.0)
+    pg.click("[data-platz='T100']"); pg.wait_for_selector("[data-platzfenster='T100']")
+    pf.locator("[data-pf='ohneBild']").check()
+    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
+    gm = pg.evaluate("""() => { const g = document.querySelector('[data-platz="T100"] .eba-geo'), f = g.parentElement;
+      const a = g.getBoundingClientRect(), b = f.getBoundingClientRect();
+      return { dx: Math.abs((a.left + a.right) / 2 - (b.left + b.right) / 2), dy: Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2),
+        gross: parseFloat(getComputedStyle(g).fontSize), passt: a.bottom <= b.bottom + 1 && a.top >= b.top - 1 && a.right <= b.right + 1,
+        hoch: a.height / b.height }; }""")
+    print("Notiz ohne Bild:", gm)
+    pruefe("Notiz mittig", gm["dx"] < 2 and gm["dy"] < 2)
+    pruefe("Notiz grösser und passt", gm["gross"] > 11 and gm["passt"])
+    pg.locator("[data-platz='T100']").screenshot(path="einrichtblatt_app_notiz_mitte.png")
+    pg.click("[data-platz='T100']"); pg.wait_for_selector("[data-platzfenster='T100']")
+    pf.locator("[data-pf='ohneBild']").uncheck()
+    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
     hd = pg.evaluate("""() => { const t = document.querySelector('[data-platz="T200"] .eba-tk');
       const l = t.querySelector('.eba-tk-links').getBoundingClientRect(), r = t.querySelector('.eba-tk-rechts').getBoundingClientRect();
       return l.left < r.left; }""")
@@ -323,7 +339,7 @@ with sync_playwright() as p:
 
     # Im Pad: App-Blatt erst nach „Blatt ist gut“, und nur zum Lesen
     pg.evaluate("""() => TEST.daten.einrichtblatt_app.push({ id: 'eb2', hoco_nr: '10000-0302', type_id: 't1', programme: {},
-      plaetze: { T100: { taetigkeit: 'Pad-Test' } }, kopf: {}, seiten: [{ name: 'Notizen', quer: false, html: '<p>Hallo Pad</p>' }],
+      plaetze: { T100: { taetigkeit: 'Pad-Test' }, T200: { taetigkeit: 'Notiz', geo: 'Achtung\\nlinks', ohneBild: true } }, kopf: {}, seiten: [{ name: 'Notizen', quer: false, html: '<p>Hallo Pad</p>' }],
       gut_am: null })""")
     pg.click("#pad [data-padreiter='blatt']"); pg.wait_for_timeout(1200)
     pruefe("Pad: nicht bestätigt → Excel, kein App-Blatt", pg.locator("[data-eba-seite]").count() == 0
@@ -336,6 +352,13 @@ with sync_playwright() as p:
     pg.evaluate("TEST.daten.einrichtblatt_app.find(x => x.id === 'eb2').gut_am = new Date().toISOString()")
     pg.click("#pad [data-padreiter='blatt']"); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(500)
     pruefe("Pad: bestätigt → App-Blatt", "Pad-Test" in pg.inner_text("[data-eba-seite]"))
+    gm = pg.evaluate("""() => { const g = document.querySelector('[data-platz="T200"] .eba-geo'), f = g.parentElement;
+      const a = g.getBoundingClientRect(), b = f.getBoundingClientRect();
+      return { dx: Math.abs((a.left + a.right) / 2 - (b.left + b.right) / 2), dy: Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2),
+        passt: a.bottom <= b.bottom + 1 && a.top >= b.top - 1, gross: parseFloat(getComputedStyle(g).fontSize) }; }""")
+    print("Pad Notiz:", gm)
+    pruefe("Pad: Notiz mittig und angepasst", gm["dx"] < 2 and gm["dy"] < 2 and gm["passt"] and gm["gross"] > 11)
+    pg.locator("[data-eba-seite]").screenshot(path="einrichtblatt_app_pad_notiz.png")
     pg.click("[data-eba-seite-nr='1']"); pg.wait_for_timeout(300)
     pruefe("Pad: weitere Seite lesbar", "Hallo Pad" in pg.inner_text("[data-eba-zseite]")
            and pg.locator(".eba-zseite--bearbeiten").count() == 0)

@@ -10191,3 +10191,9 @@ body.pad-offen .pad-pw-huelle .dialog.pad-pw.pad-pw { max-width: none !important
   font-size: 11px; font-weight: 600; line-height: 16px; vertical-align: middle;
   background: #fff3cd; color: #7a5a00; }
 body.dunkel .bs-aehnlich { background: #4a3b10; color: #ffe08a; }
+/* Einrichtblatt: Notiz (Geo-Offset) im Platz mittig, ohne Bild auch
+   senkrecht mittig und ans Feld angepasst (1.256.0, Wunsch Patrick 29. Oktober 2026) */
+.eba-platz > .eba-bild--geo { align-items: center; }
+.eba-geo { text-align: center; }
+.eba-platz > .eba-bild--nurgeo { justify-content: center; }
+.eba-bild--nurgeo .eba-geo { max-height: 100%; }
