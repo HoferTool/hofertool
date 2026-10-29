@@ -10199,17 +10199,20 @@ body.dunkel .bs-aehnlich { background: #4a3b10; color: #ffe08a; }
 .eba-bild--nurgeo .eba-geo { max-height: 100%; }
 
 /* Statistik einer Maschine (1.258.0): Säule je Tag aus einem Stück je
-   Auftrag, darin HOCO Nr. und FA Nr. senkrecht; zwei Farben, damit ein
-   Auftragswechsel am selben Tag zu sehen ist */
-.dg-saeule--teile { display: flex; flex-direction: column-reverse; overflow: hidden; }
-.dg-saeule--platz { padding-top: 18px; }
-/* breiter, damit die HOCO Nr. gut lesbar Platz hat (1.258.1) */
-.dg-saeule--teile { width: 84%; max-width: 44px; }
-.dg-teil { display: flex; align-items: flex-end; justify-content: center; min-height: 0; flex-basis: 0;
-  overflow: hidden; background: var(--marke); }
+   Auftrag, jeder Artikel in eigener Farbe (1.259.0). Seit 1.260.0 steht
+   die HOCO Nr. senkrecht neben der Säule statt darin (Patrick: „wenn er
+   kurz ist, sieht man sie nicht“): jedes Namensfeld ist so hoch wie
+   sein Stück, mindestens aber so hoch wie die Schrift; reicht das nicht,
+   wächst die Spalte der Namen nach oben über die Säule hinaus. */
+.dg-teile-huelle { display: flex; align-items: flex-end; justify-content: center; gap: 2px; width: 100%; height: 100%; }
+.dg-saeule--teile { display: flex; flex-direction: column-reverse; overflow: hidden; width: 50%; max-width: 30px; flex: none; }
+.dg-teil { display: block; min-height: 0; flex-basis: 0; background: var(--marke); }
 .dg-teil--1 { background: color-mix(in srgb, var(--marke) 62%, #000); }
 .dg-teil + .dg-teil { border-bottom: 2px solid var(--flaeche); }
-.dg-teil span { writing-mode: vertical-rl; transform: rotate(180deg); padding: 6px 0; font-size: .82rem;
-  font-weight: 700; letter-spacing: .02em; line-height: 1; color: #fff; text-shadow: 0 0 3px rgba(0,0,0,.6); white-space: nowrap;
-  font-variant-numeric: tabular-nums; pointer-events: none; }
+.dg-teil-namen { display: flex; flex-direction: column-reverse; flex: none; }
+.dg-teil-name { display: flex; align-items: flex-end; flex: 0 0 auto; }
+.dg-teil-name span { writing-mode: vertical-rl; transform: rotate(180deg); padding: 3px 0; font-size: .8rem;
+  font-weight: 700; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: none; }
+/* Bei sehr schmalen Spalten (lange Zeiträume) kein Platz daneben */
+@container (max-width: 30px) { .dg-teil-namen { display: none; } .dg-saeule--teile { width: 72%; } }
 .dg-tip .st-tip-auftrag { font-weight: 400; }

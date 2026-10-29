@@ -60,22 +60,31 @@ export function Saeulen({ werte, format, wertText, ziel, zielText, hoehe = 190, 
   );
 }
 
-// Säule aus Stücken übereinander, je eines mit senkrechter Anschrift
-// (Statistik: ein Stück je Auftrag, 1.258.0). teile: [{ wert, text,
-// farbe }], farbe 0 oder 1, damit zwei Aufträge am selben Tag sich
-// abheben; eine Farbe als Text (#…) gilt direkt. Steht der Wert innen oben, hält die Säule oben Platz frei.
+// Säule aus Stücken übereinander (Statistik: ein Stück je Auftrag,
+// 1.258.0). teile: [{ wert, text, farbe }], farbe als Text (#…) oder
+// 0/1. Die Anschrift steht senkrecht neben der Säule in der Farbe des
+// Stücks, auf seiner Höhe; ist ein Stück zu kurz für die Schrift,
+// schiebt sie die Anschriften darüber nach oben (1.260.0).
 function Teile({ w, anteil }) {
   const teile = w.teile.filter((t) => t.wert > 0);
-  // Der freie Platz oben in der Farbe des obersten Stücks
-  const oben = teile.length ? teile[teile.length - 1].farbe : null;
+  const summe = teile.reduce((s, t) => s + t.wert, 0) || 1;
+  const hoehe = Math.min(100, anteil * 100);
+  const farbe = (t) => (typeof t.farbe === "string" ? t.farbe : undefined);
   return (
-    <div className={"dg-saeule dg-saeule--teile" + (anteil > 0.72 ? " dg-saeule--platz" : "")}
-      style={{ height: Math.min(100, anteil * 100) + "%", ...(typeof oben === "string" ? { background: oben } : {}) }}>
-      {teile.map((t, i) => (
-        <i key={i} className={"dg-teil" + (typeof t.farbe === "number" ? " dg-teil--" + t.farbe : "")}
-          style={{ flexGrow: t.wert, ...(typeof t.farbe === "string" ? { background: t.farbe } : {}) }}>
-          <span>{t.text}</span></i>
-      ))}
+    <div className="dg-teile-huelle">
+      <div className="dg-saeule dg-saeule--teile" style={{ height: hoehe + "%" }}>
+        {teile.map((t, i) => (
+          <i key={i} className={"dg-teil" + (typeof t.farbe === "number" ? " dg-teil--" + t.farbe : "")}
+            style={{ flexGrow: t.wert, background: farbe(t) }} />
+        ))}
+      </div>
+      <div className="dg-teil-namen" style={{ height: hoehe + "%" }}>
+        {teile.map((t, i) => (
+          // Grundhöhe = Anteil am Stück; die Schrift selbst ist die Mindesthöhe
+          <span key={i} className="dg-teil-name" style={{ flexBasis: t.wert / summe * 100 + "%", color: farbe(t) }}>
+            <span>{t.text}</span></span>
+        ))}
+      </div>
     </div>
   );
 }
