@@ -273,12 +273,22 @@ try {
   # zeichnung_quelle: Pfad auf dem Laufwerk, den die App zum Kopieren
   # anbietet (seit 1.1.0, sql/zeichnung-pfad.sql)
   $quelleVon = @{}
-  try { $teile = @(LesenAlle "hoco_parts?select=hoco_nr,zeichnung_url,zeichnung_quelle&order=hoco_nr"); $mitQuelle = $true }
-  catch { $teile = @(LesenAlle "hoco_parts?select=hoco_nr,zeichnung_url&order=hoco_nr"); $mitQuelle = $false }
+  # zeichnung_drehung: in der App gedreht (seit 1.252.0,
+  # sql/zeichnung-drehung.sql). Die gedrehte Datei hat eine neue Adresse;
+  # stammt sie aus einer eigenen ("von"), gilt sie weiter als eigene,
+  # nicht als Master. Eine neue Fassung im Ordner ersetzt sie also, und
+  # die App dreht diese von selbst wieder gleich.
+  $drehungVon = @{}
+  try { $teile = @(LesenAlle "hoco_parts?select=hoco_nr,zeichnung_url,zeichnung_quelle,zeichnung_drehung&order=hoco_nr"); $mitQuelle = $true }
+  catch {
+    try { $teile = @(LesenAlle "hoco_parts?select=hoco_nr,zeichnung_url,zeichnung_quelle&order=hoco_nr"); $mitQuelle = $true }
+    catch { $teile = @(LesenAlle "hoco_parts?select=hoco_nr,zeichnung_url&order=hoco_nr"); $mitQuelle = $false }
+  }
   foreach ($t in $teile) {
     $bekannt[[string]$t.hoco_nr] = $true; $stamm[[string]$t.hoco_nr] = $true
     if ($t.zeichnung_url) { $adresseVon[[string]$t.hoco_nr] = [string]$t.zeichnung_url }
     if ($t.zeichnung_quelle) { $quelleVon[[string]$t.hoco_nr] = $t.zeichnung_quelle }
+    if ($t.zeichnung_drehung) { $drehungVon[[string]$t.hoco_nr] = $t.zeichnung_drehung }
   }
   foreach ($j in (LesenAlle "jobs?select=job_number&order=id")) { if ($j.job_number) { $bekannt[[string]$j.job_number] = $true } }
 
@@ -316,6 +326,10 @@ try {
     if (-not $bekannt[$h]) { $status.unbekannt++; continue }
     $jetzt = [string]$adresseVon[$h]
     $eigene = [string]$stand.adressen[$h]
+
+    # In der App gedreht: die gedrehte Fassung der eigenen Datei zählt als eigene
+    $dr = $drehungVon[$h]
+    if ($jetzt -and $eigene -and $dr -and ([string]$dr.url -eq $jetzt) -and ([string]$dr.von -eq $eigene)) { $eigene = $jetzt }
 
     # Von Hand hochgeladen oder gewählt: Master, bleibt
     if ($jetzt -and ($jetzt -ne $eigene)) { $status.manuell++; continue }

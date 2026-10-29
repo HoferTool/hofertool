@@ -5,7 +5,9 @@
 //  selbst und passt sie in die ganze Fläche ein; nur wenn das nicht
 //  geht, kommt die Anzeige des Browsers. Excel-Dateien (.xlsx, .xls)
 //  zeichnet ExcelAnsicht, erkannt an der Endung der Adresse.
-//  Drucken, Speichern, in neuem Tab öffnen, Schliessen.
+//  Drucken, Speichern, in neuem Tab öffnen, Schliessen. Zeichnungen
+//  (PDF) lassen sich drehen, gespeichert in der Datei selbst
+//  (src/daten/zeichnungDrehen.js).
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
@@ -16,6 +18,7 @@ import { ExcelAnsicht, excelDrucken } from "./ExcelAnsicht.jsx";
 import { istExcel } from "./excelLesen.js";
 import { usePfad, pfadKopieren } from "../daten/zeichnungPfad.jsx";
 import { wiederOeffner } from "./wiederherstellen.js";
+import { istZeichnung, darfDrehen, drehungSpeichern, pdfDrehen } from "../daten/zeichnungDrehen.js";
 import { poolDruckLaden, poolDruckerName, poolKannExcel, poolDrucken, pdfSeitenAlsJpg } from "./poolDruck.js";
 
 // „art“ nur, wenn die Adresse nichts verrät (Datei vom Gerät): "pdf",
@@ -50,7 +53,10 @@ export function dateiAnsehen(datei) {
 
 // Auch für dokZeigen (DokAbruf.jsx): „hinweis“ steht klein neben dem Titel
 // knoepfe: weitere Knöpfe im Kopf, vor „Schliessen“ (etwa „Zeichnung entfernen“)
-export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe, wbg }) {
+export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, knoepfe, wbg }) {
+  // Nach dem Drehen liegt die Zeichnung unter einer neuen Adresse
+  const [adresse, setAdresse] = useState(anfang);
+  useEffect(() => { setAdresse(anfang); }, [anfang]);
   // Aufrufer, die „PDF“ annehmen, bekommen für .html die Seite
   if (art === "pdf" && istHtml(adresse)) art = "html";
   const istPdf = art === "pdf", istXl = art === "excel", istSeite = art === "html";
@@ -82,7 +88,7 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe, 
       })
       .catch(() => { if (!weg) setPdf({ art: istXl ? "fehler" : "browser" }); });
     return () => { weg = true; };
-  }, [adresse, art]);
+  }, [anfang, art]);
   useEffect(() => () => { if (pdf.url) URL.revokeObjectURL(pdf.url); }, [pdf.url]);
 
   // Drucken direkt aus der App (src/teile/drucken.js): Die PDF wird
@@ -93,6 +99,54 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe, 
   // wenn die PDF nicht selbst geladen werden konnte (Anzeige des
   // Browsers), bleibt der alte Weg über den Rahmen und den neuen Tab.
   const [druckt, setDruckt] = useState(false);
+
+  // Drehen (Wunsch Patrick 29. Oktober 2026: „PDF-Zeichnung drehen, gleich
+  // so abspeichern, dass es immer so anzeigt, egal wo“). Nur bei PDFs,
+  // die als Zeichnung an einer HOCO Nr. oder einem Auftrag hängen, und
+  // nur mit Schreibrecht. Jeder Tipp dreht sofort um 90° im Uhrzeigersinn;
+  // gespeichert wird kurz nach dem letzten Tipp, alle Tipps zusammen.
+  const [drehbar, setDrehbar] = useState(false);
+  const [dreht, setDreht] = useState("");          // "", "warten", "speichert"
+  const dreh = useRef({ grad: 0, basis: null, uhr: null, laeuft: false });
+  useEffect(() => {
+    let weg = false;
+    setDrehbar(false);
+    if (art === "pdf" && !wbg && darfDrehen()) istZeichnung(anfang).then((ja) => { if (!weg) setDrehbar(ja); });
+    return () => { weg = true; };
+  }, [anfang, art, wbg]);
+  const drehenSichern = async () => {
+    const d = dreh.current;
+    d.uhr = null;
+    if (d.laeuft || !d.grad || !d.basis) return;
+    d.laeuft = true; setDreht("speichert");
+    const grad = d.grad; d.grad = 0;
+    try {
+      const neu = await drehungSpeichern(d.basis.url, d.basis.daten, grad);
+      d.basis = { url: neu, daten: await pdfDrehen(d.basis.daten, grad) };
+      setAdresse(neu);
+      alt.meldung("Zeichnung gedreht gespeichert.", "gut");
+    } catch (f) {
+      alt.meldung("Drehen ging nicht: " + alt.fehlertext(f), "fehler");
+    } finally {
+      d.laeuft = false;
+      if (d.grad) drehenSichern(); else setDreht("");
+    }
+  };
+  const drehen = async () => {
+    if (!pdf.daten) { alt.meldung("Die Datei ist noch nicht geladen.", "warn"); return; }
+    const d = dreh.current;
+    if (!d.basis) d.basis = { url: adresse, daten: pdf.daten };
+    try {
+      const neu = await pdfDrehen(pdf.daten, 90);
+      setPdf((p) => Object.assign({}, p, { daten: neu, blob: new Blob([neu], { type: "application/pdf" }) }));
+    } catch (f) { alt.meldung("Drehen ging nicht: " + alt.fehlertext(f), "fehler"); return; }
+    d.grad = (d.grad + 90) % 360;
+    if (!d.laeuft) setDreht("warten");
+    clearTimeout(d.uhr);
+    d.uhr = setTimeout(drehenSichern, 1200);
+  };
+  // Fenster zu, bevor gespeichert ist: trotzdem speichern
+  useEffect(() => () => { const d = dreh.current; if (d.uhr) { clearTimeout(d.uhr); drehenSichern(); } }, []);
   const dateiName = () => (titel || "Datei").replace(/[^A-Za-z0-9._-]+/g, "_") + "."
     + (endung || (String(adresse).split(/[?#]/)[0].match(/\.([A-Za-z0-9]{2,5})$/) || [])[1]
        || (istPdf ? "pdf" : istXl ? "xlsx" : "jpg")).toLowerCase();
@@ -250,6 +304,9 @@ export function Betrachter({ adresse, titel, art, endung, zu, hinweis, knoepfe, 
               <button className="knopf" data-geraetdruck="" onClick={drucken}>Auf diesem Gerät drucken</button>
             </div>}
           </span>
+          {drehbar && <button className="knopf knopf--klein" data-drehen="" onClick={drehen}
+            disabled={pdf.art !== "bereit"} title="Um 90° drehen, wird für alle gespeichert">
+            {dreht === "speichert" ? "Dreht …" : "Drehen ↻"}</button>}
           <button className="knopf knopf--klein" data-speichern="" onClick={speichern}>Speichern</button>
           {pfad
             ? <button className="knopf knopf--klein" data-pfad="" title={pfad} onClick={() => pfadKopieren(pfad)}>Pfad</button>
