@@ -17,6 +17,7 @@ import { platzGruppe, platzName, vorlageFuer } from "../einrichtblatt/vorlagen.j
 import { indexAufraeumen, indexPdfAufbau, istIndex, protokollLaden, reihenBilden, revolverVon,
   SPALTEN_JE_BLATT } from "./IndexProtokoll.jsx";
 import { WechselBlatt } from "./WechselBlatt.jsx";
+import { SwWechsel, swModellLaden } from "./SwWechsel.jsx";
 
 const anzahlText = (n) => n + (n === 1 ? " Werkzeug" : " Werkzeuge");
 
@@ -42,7 +43,23 @@ const nameRang = (name, sw) => {
 const werkzeugVergleich = (a, b, sw) => (nameRang(a.bezeichnung, sw) - nameRang(b.bezeichnung, sw))
   || nachZahl(a.bezeichnung, b.bezeichnung) || nachZahl(a.tool_nr, b.tool_nr);
 
+// SW hat ein eigenes Fenster mit Karten je Werkzeug und der Standzeit
+// für den Tool Life Counter (SwWechsel.jsx). Braucht einen Auftrag,
+// weil die Standzeit an der HOCO Nr. hängt; sonst die übliche Platzwahl.
+async function swOeffnen(maschine, auftrag) {
+  if (!auftrag || !auftrag.job_number || alt.istExtern()) return false;
+  let typ = null;
+  try { typ = (await alt.ladeTypen()).find((t) => t.id === maschine.type_id); } catch (f) { return false; }
+  if (!istSw(typ)) return false;
+  let anfang;
+  try { anfang = await swModellLaden(maschine, auftrag, typ); }
+  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return true; }
+  fensterOeffnen((zu) => <SwWechsel maschine={maschine} auftrag={auftrag} typ={typ} anfang={anfang} aktionen={AKTIONEN} zu={zu} />);
+  return true;
+}
+
 export async function werkzeugWechselDialog(maschine, auftrag) {
+  if (await swOeffnen(maschine, auftrag)) return;
   // Alle Werkzeugplätze des Typs, nach Path sortiert. Nur bei SW-Typen
   // kommt Path 2 zuletzt (1, 3, 2), so wie die Plätze an der Maschine
   // liegen; alle anderen wie Index bleiben 1, 2, 3 (Wunsch Patrick
@@ -238,6 +255,7 @@ function rundenBilden(liste, sw) {
 }
 
 async function wechselHistorie(maschine, auftrag) {
+  if (await swOeffnen(maschine, auftrag)) return;
   let runden = [];
   try { runden = await historieLaden(maschine); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
@@ -318,10 +336,18 @@ async function blattSpalten(maschine, auftrag, runden) {
 // Löschen: Wer schreiben darf (Admin, Planwand, Lang- und Kurzdreher),
 // darf auch einen falsch eingetragenen Wechsel entfernen. Das deckt
 // sich mit der Regel "loeschen" auf tool_changes in der Datenbank.
-async function loeschen(maschine, runde) {
+// ganz: aus dem Blatt heraus geht immer der ganze Wechsel weg, mit einer
+// Rückfrage (einzelne Werkzeuge nimmt man dort durch Antippen heraus)
+async function loeschen(maschine, runde, ganz) {
   let weg = runde.zeilen;
   const wann = alt.datumZeitKurz(runde.wann);
-  if (runde.zeilen.length > 1) {
+  if (ganz) {
+    const ja = await alt.nachfragen({ titel: "Wechsel löschen?",
+      text: "Wechsel vom " + wann + " bei " + (leerOder(runde.stk) ? "—" : alt.zahlText(runde.stk)) + " Stück wird entfernt ("
+        + runde.zeilen.map(wzText).join(", ") + ").",
+      bestaetigen: "Löschen", gefahr: true });
+    if (!ja) return false;
+  } else if (runde.zeilen.length > 1) {
     const wahl = await auswahlDialog("Welchen Eintrag löschen?", [
       { wert: "alle", text: "Ganze Runde · " + runde.zeilen.map(wzText).join(", ") },
       ...runde.zeilen.map((z, i) => ({ wert: String(i), text: "Nur " + wzText(z) })),
@@ -405,29 +431,23 @@ async function modellDerHistorie(maschine, auftrag, runden) {
     laden: async () => nurDiese(await historieLaden(maschine)) };
 }
 
-const AKTIONEN = { eintragen: (...a) => eintragen(...a), loeschen: (...a) => loeschen(...a),
+const AKTIONEN = { eintragen: (...a) => eintragen(...a), rundeLoeschen: (m, r) => loeschen(m, r, true),
   nachrechnen: (...a) => gehaltenNachrechnen(...a) };
 
 function Historie({ maschine, auftrag, anfang, zu }) {
   const [modell, setModell] = useState(null);
-  const [liste, setListe] = useState(false);
   const [runden, setRunden] = useState(anfang);
   const [laeuft, setLaeuft] = useState(null);
   const darf = alt.darfSchreiben();
 
-  // Blatt neu aufbauen beim Öffnen und beim Zurückschalten von der Liste
+  // Mit Blatt gibt es keine Liste mehr: Löschen geht direkt im Blatt
+  // (Wunsch Patrick 29. Oktober 2026: „ohne auf die Liste zu müssen“)
   useEffect(() => {
-    if (liste) return undefined;
     let weg = false;
     modellDerHistorie(maschine, auftrag, runden).then((m) => { if (!weg) setModell(m); }).catch(() => {});
     return () => { weg = true; };
-  }, [liste]);
-  const blattZeigen = !!modell && !liste;
-  const umschalten = async () => {
-    // Im Blatt Geändertes soll auch in der Liste stehen
-    if (!liste) { try { setRunden(await historieLaden(maschine)); } catch (f) { /* dann wie vorher */ } }
-    setListe(!liste);
-  };
+  }, []);
+  const blattZeigen = !!modell;
 
   const entfernen = async (r) => {
     setLaeuft(r.schluessel);
@@ -442,10 +462,13 @@ function Historie({ maschine, auftrag, anfang, zu }) {
   return (
     <div className={"dialog dialog--breit" + (modell ? " wz-hist" : "")}>
       <div className="blatt__kopf"><h2>Werkzeugwechsel · {maschine.name}</h2>
-        {modell && <button className="knopf knopf--klein knopf--still" data-wzliste=""
-          onClick={umschalten}>{liste ? "Als Blatt" : (darf ? "Liste (Einträge löschen)" : "Als Liste")}</button>}
         {runden.length > 0 && <button className="knopf knopf--klein" data-wzpdf=""
-          onClick={() => alt.historieAblegen(maschine, auftrag, runden, async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, runden))}>Als PDF ablegen</button>}
+          onClick={async () => {
+            // Im Blatt Geändertes soll auch im PDF stehen
+            let aktuell = runden;
+            try { aktuell = await historieLaden(maschine); setRunden(aktuell); } catch (f) { /* dann wie vorher */ }
+            alt.historieAblegen(maschine, auftrag, aktuell, async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, aktuell));
+          }}>Als PDF ablegen</button>}
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
       {blattZeigen
         ? <WechselBlatt key={modell.art + modell.runden.length} modell={modell} maschine={maschine} auftrag={auftrag} aktionen={AKTIONEN} />

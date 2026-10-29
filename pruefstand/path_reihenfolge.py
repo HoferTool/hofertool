@@ -27,8 +27,9 @@ daten.machine_types.find(t => t.id === 't1').name = %r;""" % typname
     if pg.locator("#pad [data-padtyp]").count(): pg.locator("#pad [data-padtyp]").first.click(); pg.wait_for_timeout(800)
     pg.locator("#pad .pad-kachel--maschine").filter(has_not_text="kein Auftrag").first.click()
     pg.wait_for_selector("#pad .pad-stk-zahl")
-    pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-tool]")
-    namen = pg.locator(".wz-path__name").all_inner_texts()
+    pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-tool], [data-swkarte]")
+    # SW hat seit 1.273.0 ein eigenes Fenster mit Karten je Path
+    namen = pg.locator(".wz-path__name, .sw-path__name").all_inner_texts()
     pg.context.close()
     print(typname, namen)
     return namen

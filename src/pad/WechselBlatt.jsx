@@ -5,7 +5,9 @@
 //  „Historie so, dass sie aussieht wie das PDF … anpassen können,
 //  Stückzahl, Werkzeugwahl und so“):
 //  - Feld antippen: dieses Werkzeug in diesem Wechsel dazu oder weg
-//  - Datum/Stückzahl antippen: Stückzahl oder Notiz ändern, ganz löschen
+//  - Datum/Stückzahl antippen: Stückzahl oder Notiz ändern
+//  - Papierkorb beim Wechsel: ganz löschen, ohne Liste (Wunsch Patrick
+//    29. Oktober 2026)
 //  - Spalte bzw. Zeile „Neu“: Werkzeuge antippen, dann eintragen
 //  Index: Werkzeuge untereinander je Revolver, sechs Wechsel je Blatt
 //  nebeneinander, neuer FA mit roter Spaltenlinie. Star: wie das Blatt
@@ -13,7 +15,7 @@
 // =================================================================
 import { useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { auswahlDialog } from "../teile/Dialoge.jsx";
+import { Eimer } from "./SwWechsel.jsx";
 
 const datum = (iso) => new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit" });
 const stkText = (n) => (n === null || n === undefined ? "—" : alt.zahlText(n));
@@ -23,7 +25,7 @@ const neueId = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() :
 // modell: { art: "index" | "star", gruppen: [{ name, farbe, werkzeuge }],
 //   runden, laden(), spaltenJeBlatt }, je Werkzeug { key, tool_nr, path,
 //   text, unter, farbe, schrift, passt(zeile) }
-// aktionen: { eintragen(maschine, auftrag, liste), loeschen(maschine, runde),
+// aktionen: { eintragen(maschine, auftrag, liste), rundeLoeschen(maschine, runde),
 //   nachrechnen(maschine, zeilen) } aus Werkzeugwechsel.jsx
 export function WechselBlatt({ modell, maschine, auftrag, aktionen }) {
   const [runden, setRunden] = useState(modell.runden);
@@ -66,15 +68,11 @@ export function WechselBlatt({ modell, maschine, auftrag, aktionen }) {
     }
   });
 
-  // Stückzahl und Notiz eines Wechsels ändern oder ihn ganz löschen
+  const rundeWeg = (r) => darf && arbeit(() => aktionen.rundeLoeschen({ id: r.zeilen[0].machine_id || maschine.id }, r));
+
+  // Stückzahl und Notiz eines Wechsels ändern
   const rundeBearbeiten = async (r) => {
     if (!darf || laeuft) return;
-    const wahl = await auswahlDialog("Wechsel vom " + datum(r.wann) + " bei " + stkText(r.stk) + " Stück", [
-      { wert: "aendern", text: "Stückzahl oder Notiz ändern" },
-      { wert: "loeschen", text: "Wechsel löschen" },
-    ]);
-    if (wahl === "loeschen") return arbeit(() => aktionen.loeschen({ id: r.zeilen[0].machine_id || maschine.id }, r));
-    if (wahl !== "aendern") return;
     const w = await alt.dialogFelder({ titel: "Wechsel vom " + datum(r.wann),
       felder: [{ name: "stk", label: "Stückzahl", typ: "number", pflicht: true, wert: r.stk === null ? "" : r.stk },
         { name: "notiz", label: "Notiz", wert: (r.zeilen[0] && r.zeilen[0].notiz) || "" }],
@@ -99,17 +97,17 @@ export function WechselBlatt({ modell, maschine, auftrag, aktionen }) {
 
   const knopf = darf && (
     <div className="dialog__knoepfe wzb-knoepfe">
-      <span className="klein">Feld antippen: Werkzeug dazu oder weg. Datum antippen: Stückzahl ändern oder löschen.</span>
+      <span className="klein">Feld antippen: Werkzeug dazu oder weg. Datum antippen: Stückzahl ändern. Papierkorb: Wechsel löschen.</span>
       <button className="knopf knopf--haupt" data-wzbeintragen="" disabled={!neu.length || laeuft} onClick={eintragen}>
         {neu.length ? "Neuen Wechsel eintragen · " + neu.length : "Neuen Wechsel eintragen"}</button>
     </div>);
 
   return modell.art === "index"
-    ? <IndexBlatt {...{ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten, neuUmschalten, auftrag, maschine }} knopf={knopf} />
-    : <StarBlatt {...{ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten, neuUmschalten, werkzeuge, auftrag, maschine }} knopf={knopf} />;
+    ? <IndexBlatt {...{ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten, rundeWeg, neuUmschalten, auftrag, maschine }} knopf={knopf} />
+    : <StarBlatt {...{ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten, rundeWeg, neuUmschalten, werkzeuge, auftrag, maschine }} knopf={knopf} />;
 }
 
-function IndexBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten, neuUmschalten, auftrag, maschine, knopf }) {
+function IndexBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten, rundeWeg, neuUmschalten, auftrag, maschine, knopf }) {
   const je = modell.spaltenJeBlatt;
   const spalten = runden.concat(darf ? [{ neu: true, job: auftrag.id, fa: auftrag.fa_nr || "" }] : []);
   const anzahl = Math.max(1, Math.ceil(spalten.length / je));
@@ -143,6 +141,9 @@ function IndexBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeite
             <th key={i} className={kl(c) + (c && !c.neu && darf ? " wzb-tipp" : "")} data-wzbrunde={c && !c.neu ? "" : undefined}
               onClick={c && !c.neu ? () => rundeBearbeiten(c) : undefined}>
               {!c ? "Dat. / Stückz." : c.neu ? "Neu" : <>{datum(c.wann)}<br /><b>{stkText(c.stk)}</b></>}</th>))}</tr>
+          {darf && <tr className="wzb-wegzeile"><th colSpan="2"></th>{aufBlatt.map((c, i) => (
+            <th key={i} className={kl(c)}>{c && !c.neu && <button type="button" className="wz-weg" data-wzbweg=""
+              title="Wechsel löschen" aria-label={"Wechsel vom " + datum(c.wann) + " löschen"} onClick={() => rundeWeg(c)}><Eimer /></button>}</th>))}</tr>}
         </thead>
         <tbody>{modell.gruppen.map((g) => [
           <tr key={g.name} className="wzb-gruppe"><th colSpan={2 + je} style={{ background: g.farbe }}>{g.name}</th></tr>,
@@ -163,7 +164,7 @@ function IndexBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeite
   </>);
 }
 
-function StarBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten, neuUmschalten, werkzeuge, auftrag, maschine, knopf }) {
+function StarBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten, rundeWeg, neuUmschalten, werkzeuge, auftrag, maschine, knopf }) {
   return (<>
     <div className="wzb-titel">
       <span>Werkstück: <strong>{auftrag.job_number}</strong></span>
@@ -173,7 +174,7 @@ function StarBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten
       <table className="wzb-tabelle wzb-star">
         <thead><tr><th className="wzb-dat">Datum:</th><th className="wzb-stk">Stück:</th>
           {werkzeuge.map((w) => <th key={w.key} className="wzb-wzk" style={{ background: w.farbe, color: w.schrift }}><span>{w.text}</span></th>)}
-          <th className="wzb-links">Bemerkung:</th><th className="wzb-vis">Visum:</th></tr></thead>
+          <th className="wzb-links">Bemerkung:</th><th className="wzb-vis">Visum:</th>{darf && <th aria-label="Löschen"></th>}</tr></thead>
         <tbody>
           {runden.map((r) => (
             <tr key={r.schluessel}>
@@ -184,13 +185,15 @@ function StarBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten
                   {hat(r, w) ? <span className="wzb-x" data-wzbx="">X</span> : ""}</td>))}
               <td className="wzb-links klein">{(r.zeilen[0] && r.zeilen[0].notiz) || ""}</td>
               <td className="wzb-vis">{visum(r.person)}</td>
+              {darf && <td className="wzb-weg"><button type="button" className="wz-weg" data-wzbweg="" title="Wechsel löschen"
+                aria-label={"Wechsel vom " + datum(r.wann) + " löschen"} onClick={() => rundeWeg(r)}><Eimer /></button></td>}
             </tr>))}
           {darf && <tr className="wzb-neu">
             <td colSpan="2"><b>Neu</b></td>
             {werkzeuge.map((w) => (
               <td key={w.key} className="wzb-x-zelle wzb-tipp" data-wzbneu={w.key} onClick={() => neuUmschalten(w)}>
                 {neu.includes(w.key) ? <span className="wzb-haken">✓</span> : ""}</td>))}
-            <td colSpan="2"></td>
+            <td colSpan="3"></td>
           </tr>}
         </tbody>
       </table>

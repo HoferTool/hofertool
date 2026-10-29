@@ -78,8 +78,7 @@ with sync_playwright() as p:
     pg.locator("[data-wzbplatz='R2-T2'] td.wzb-sp").first.click(); pg.wait_for_timeout(800)
     pruefe("Werkzeug wieder weg: 2 Einträge", stk(2500) == 2)
     # Stückzahl ändern
-    pg.locator("[data-wzbrunde]").first.click(); pg.wait_for_timeout(300)
-    pg.locator("button:has-text('Stückzahl oder Notiz ändern')").click(); pg.wait_for_timeout(300)
+    pg.locator("[data-wzbrunde]").first.click(); pg.wait_for_timeout(400)
     pg.locator(".dialog-huelle input").last.evaluate("e => e.closest('.dialog').querySelector('input').value = ''")
     pg.locator(".dialog-huelle .dialog").last.locator("input").first.fill("2600")
     pg.locator("button:has-text('Speichern')").last.click(); pg.wait_for_timeout(900)
@@ -92,8 +91,12 @@ with sync_playwright() as p:
     pruefe("Neuer Wechsel aus dem Blatt", stk(2700) == 1)
     pruefe("Neuer Wechsel steht im Blatt", pg.locator("[data-wzbx]").count() >= 3)
     pg.screenshot(path="/tmp/claude-0/ixp-historie.png")
-    pg.click("[data-wzliste]"); pg.wait_for_timeout(500)
-    pruefe("Liste zum Löschen da", pg.locator("[data-wzweg]").count() > 0)
+    pruefe("keine Liste mehr", pg.locator("[data-wzliste]").count() == 0)
+    # Wechsel direkt im Blatt löschen (eine Nachfrage)
+    vorher = pg.evaluate("TEST.daten.tool_changes.length")
+    pg.locator("[data-wzbweg]").last.click(); pg.wait_for_selector("[data-ja]")
+    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(1200)
+    pruefe("Wechsel im Blatt gelöscht", stk(2700) == 0 and pg.evaluate("TEST.daten.tool_changes.length") == vorher - 1)
     with pg.context.expect_page() as neu_seite:
         pg.click("[data-wzpdf]")
     blatt = neu_seite.value
