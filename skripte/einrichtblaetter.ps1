@@ -96,13 +96,13 @@ $KEY = $E.anon_key
 # Anmeldung und welche Datei je HOCO Nr. und Typ zuletzt hochgeladen wurde
 # (dateien: Kennung, adressen: die eigene Adresse in der App, abgelehnt:
 # in der App weggenommene Dateien, volle Pfade)
-$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; adressen = @{}; abgelehnt = @{}; erledigt = $null; letzter = $null }
+$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; adressen = @{}; abgelehnt = @{}; erledigt = $null; letzter = $null; einrichtFrei = $false }
 $adressenNeu = $true
 if (Test-Path $standDatei) {
   try {
     $g = Get-Content -Raw -Path $standDatei -Encoding UTF8 | ConvertFrom-Json
     $stand.token = $g.token; $stand.ablauf = [double]$g.ablauf; $stand.auffrischen = $g.auffrischen
-    $stand.erledigt = $g.erledigt; $stand.letzter = $g.letzter
+    $stand.erledigt = $g.erledigt; $stand.letzter = $g.letzter; $stand.einrichtFrei = [bool]$g.einrichtFrei
     if ($g.dateien) { $g.dateien.PSObject.Properties | ForEach-Object { $stand.dateien[$_.Name] = [string]$_.Value } }
     if ($g.PSObject.Properties.Name -contains "adressen") { $adressenNeu = $false }
     if ($g.adressen) { $g.adressen.PSObject.Properties | ForEach-Object { $stand.adressen[$_.Name] = [string]$_.Value } }
@@ -111,6 +111,18 @@ if (Test-Path $standDatei) {
 }
 function StandSichern {
   $stand | ConvertTo-Json -Depth 5 | Set-Content -Path $standDatei -Encoding UTF8
+}
+# Einmalig: Blätter mit "Einrichtblatt" im Namen hat das Programm selbst
+# am 15. Oktober 2026 als fremd aus der App genommen, danach galten sie als
+# "in der App entfernt" und kamen nie wieder (10000-0291, 10007-0804 auf
+# der SB-20RG, Patrick 29. Oktober 2026). Diese Einträge fallen weg.
+if (-not $stand.einrichtFrei) {
+  foreach ($k in @($stand.abgelehnt.Keys)) {
+    $stand.abgelehnt[$k] = @($stand.abgelehnt[$k] | Where-Object { $_ -and (Split-Path -Leaf ($_.Split("|")[0])) -notmatch '(?i)einricht' })
+    if ($stand.abgelehnt[$k].Count -eq 0) { $stand.abgelehnt.Remove($k) }
+  }
+  $stand.einrichtFrei = $true
+  if (Test-Path $standDatei) { StandSichern }
 }
 
 . (Join-Path $ordnerHier "dokumente-teile.ps1")
@@ -306,6 +318,12 @@ try {
         if ($scharf) {
           try {
             if (FalschesEntfernen $d $h $typ) {
+              # Das Programm hat es selbst weggenommen, nicht jemand in
+              # der App: darum nicht als abgelehnt merken
+              $sk = $h + "|" + [string]$typ.id
+              if ($stand.dateien[$sk] -and ([string]$stand.dateien[$sk]).Split("|")[0] -eq $d.FullName) {
+                $stand.dateien.Remove($sk); $stand.adressen.Remove($sk); StandSichern
+              }
               $was = "kein Einrichtblatt (" + $r.fremd + "), aus der App entfernt"
               Schreibe ("aus der App entfernt: " + $d.FullName)
             }
