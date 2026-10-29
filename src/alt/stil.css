@@ -10289,3 +10289,53 @@ body.dunkel .bs-aehnlich { background: #4a3b10; color: #ffe08a; }
 .wzb-star td { height: 2.4rem; }
 .wzb-knoepfe { align-items: center; gap: 1rem; }
 .wzb-knoepfe .klein { margin-right: auto; color: var(--gedaempft); }
+
+/* ---------- Vorbereiten (seit 1.272.0): Checkliste fürs Rüsten,
+   kompakt und am Handy gut lesbar ---------- */
+.knopf--vorbereiten { border-color: var(--gut); color: var(--gut); }
+.knopf--vorbereiten:hover { background: #e6f3ec; }
+.vorbereiten-huelle .dialog.vorbereiten { max-width: 460px; padding: 0; display: flex; flex-direction: column; max-height: 92vh; overflow: hidden; }
+.vb-kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 12px 14px 8px; border-bottom: 1px solid var(--linie); }
+.vb-kopf h2 { margin: 0; font-size: 1.15rem; }
+.vb-rolle { overflow-y: auto; padding-bottom: 8px; }
+.vorbereiten h3 { margin: 0; padding: 6px 14px; background: var(--grund); font-size: .78rem; letter-spacing: .05em; text-transform: uppercase; color: var(--gedaempft); display: flex; justify-content: space-between; }
+.vorbereiten h3 span { font-weight: 500; }
+.vorbereiten ul { list-style: none; margin: 0; padding: 0; }
+.vb-punkt { display: flex; gap: 10px; align-items: center; padding: 7px 14px; border-bottom: 1px solid var(--linie); }
+.vb-haken { flex: none; width: 26px; height: 26px; border: 2px solid var(--linie-stark); border-radius: 5px; background: var(--flaeche); font-size: 16px; line-height: 1; padding: 0; cursor: pointer; }
+.vb-haken:disabled { cursor: default; opacity: .7; }
+.vb-punkt--ok .vb-haken { background: var(--gut); border-color: var(--gut); color: #fff; }
+.vb-text { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; cursor: pointer; font-size: .98rem; }
+.vb-punkt--ok .vb-text { opacity: .55; }
+.vb-punkt--ok .vb-bez, .vb-punkt--ok .vb-text > b { text-decoration: line-through; }
+.vb-klein { font-size: .8rem; color: var(--gedaempft); }
+.vb-mat { font-size: .78rem; font-weight: 600; padding: 1px 7px; border-radius: 10px; }
+.vb-mat--vorhanden { background: #dff1e6; color: #145c38; }
+.vb-mat--bestellt { background: #fdf0d5; color: #7a4f05; }
+.vb-mat--nichts { background: #fbe1df; color: #9b1c15; }
+.vb-wz .vb-text { flex-wrap: nowrap; }
+.vb-tnr { flex: none; min-width: 56px; text-align: center; font-weight: 700; font-size: .85rem; padding: 2px 4px; border-radius: 4px; color: #000; }
+.vb-bez { min-width: 0; overflow-wrap: anywhere; }
+.vb-hd { display: inline-block; margin-left: 6px; font-size: .68rem; font-weight: 700; background: var(--gefahr); color: #fff; border-radius: 3px; padding: 0 4px; vertical-align: 1px; }
+.vb-revolver { padding: 5px 14px 2px; font-size: .78rem; font-weight: 600; color: var(--gedaempft); }
+.vb-hinweis { padding: 8px 14px; margin: 0; }
+body.dunkel .vb-tnr, body.dunkel .vb-mat, body.dunkel .vb-hd, body.dunkel .vb-punkt--ok .vb-haken { color: revert; }
+body.dunkel .vb-tnr { color: #000; }
+body.dunkel .vb-hd, body.dunkel .vb-punkt--ok .vb-haken { color: #fff; }
+body.dunkel .vb-mat--vorhanden { color: #145c38; }
+body.dunkel .vb-mat--bestellt { color: #7a4f05; }
+body.dunkel .vb-mat--nichts { color: #9b1c15; }
+@media (max-width: 640px) {
+  .vorbereiten-huelle .dialog.vorbereiten { max-width: none; max-height: 100%; height: 100%; border-radius: 0; }
+}
+/* Am Handy haben Problem, Vorbereiten und X neben der HOCO Nr. nicht
+   alle Platz: Problem und Vorbereiten stehen dort in einer eigenen
+   Reihe unter dem Kopf, je halb breit, das X bleibt oben rechts */
+@media (max-width: 640px) {
+  .auf-kopf { flex-wrap: wrap; row-gap: 8px; }
+  .auf-kopf__titel { flex: 1 1 0; min-width: 0; order: 0; }
+  .auf-kopf__knoepfe { display: contents; }
+  .auf-kopf__knoepfe .dialog__schliessen-inline { order: 1; flex: none; }
+  .auf-kopf__knoepfe #pl-problem-eigen, .auf-kopf__knoepfe #pl-vorbereiten { order: 3; flex: 1 1 0; min-height: 36px; }
+  .auf-kopf::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
+}

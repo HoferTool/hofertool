@@ -35,6 +35,7 @@ import { mahnBilder } from "../daten/mahnbilder.js";
 import { spezialAnzahl } from "../daten/spezialwerkzeuge.js";
 import { spezialwerkzeugeOeffnen } from "../teile/Spezialwerkzeuge.jsx";
 import { inEigenesFenster, eigeneFensterZu } from "../teile/eigenesFenster.js";
+import { vorbereitenOeffnen } from "./Vorbereiten.jsx";
 
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
@@ -693,6 +694,10 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
         <div className="auf-kopf__knoepfe">
           {auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--warnung" id="pl-problem-eigen"
             onClick={() => { zu(); alt.problemMelden(b, auftrag); }}>Problem</button>}
+          {/* Checkliste fürs Rüsten (Wunsch Patrick 29. Oktober 2026), geht
+              über dem Auftragsfenster auf, das offen bleibt */}
+          {auftrag && !extern && <button type="button" className="knopf knopf--klein knopf--vorbereiten" id="pl-vorbereiten"
+            onClick={() => vorbereitenOeffnen(auftrag)}>Vorbereiten</button>}
           {!extern && eigenesFensterMoeglich() && <button type="button" className="dialog__schliessen-inline auf-kopf__eigen"
             id="pl-eigen" title="In eigenem Fenster öffnen, zum Verschieben auf einen anderen Bildschirm"
             aria-label="In eigenem Fenster öffnen"
