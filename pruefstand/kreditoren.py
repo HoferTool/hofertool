@@ -32,7 +32,9 @@ def pdf(seiten):
 HOFER = ["Hofer + Co. Praezisionsdrehteile", "Alte Bernstrasse 24", "4573 Lohn-Ammannsegg"]
 STAPEL = pdf([
     ["Muster Werkzeug AG, Feldweg 3, 8000 Zuerich, CHE-111.222.333 MWST"] + HOFER + ["Rechnung RE-4711", "Rechnungsdatum 27.10.2026", "Bestelldatum 20.10.2026", "Seite 1 von 2"],
+    [],  # leere Rückseite (beidseitig gescannt) trennt nicht
     ["Muster Werkzeug AG", "Rechnung RE-4711", "Total CHF 120.00", "Seite 2 von 2"],
+    [],
     ["Empfangsschein   Zahlteil", "Konto / Zahlbar an", "CH44 3199 9123 0008 8901 2", "Beispiel Stahl GmbH", "Industriestrasse 1", "Referenz"]
         + ["Rechnungsnummer 55001", "Datum 28.10.2026"],
     ["Kleiner Verein"] + HOFER + ["Rechnungs-Nr 0099", "Rechnungsdatum 26.10.2026", "IBAN CH56 0483 5012 3456 7800 9"],
@@ -77,6 +79,9 @@ with sync_playwright() as p:
     print("Ergebnis:", pg.inner_text("#kred-auftrag"))
     namen = pg.evaluate(BAUM); print("Ordner:", namen)
     pruefe("Zwei Seiten Muster Werkzeug als eine Rechnung", "Muster Werkzeug AG/2026-10-27 RE-4711.pdf" in namen)
+    seiten = pg.evaluate("""async () => { const f = await (await (await window.KRED.getDirectoryHandle('Muster Werkzeug AG')).getFileHandle('2026-10-27 RE-4711.pdf')).getFile();
+      const t = await f.text(); return (t.match(/\\/Type \\/Page[^s]/g) || []).length; }""")
+    pruefe("Leere Rückseiten weg, zwei Seiten: " + str(seiten), seiten == 2)
     pruefe("QR-Zahlteil erkennt Beispiel Stahl", "Beispiel Stahl GmbH/2026-10-28 55001.pdf" in namen)
     pruefe("Stapel nach _Originale", "_Originale/Scan 001.pdf" in namen and "Scan 001.pdf" not in namen)
     pruefe("Name über der IBAN erkannt", "Turnverein Muster/2026-10-25 0777.pdf" in namen)

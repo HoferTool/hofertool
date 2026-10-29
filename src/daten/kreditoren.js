@@ -181,6 +181,8 @@ export function lieferantSuchen(text, liste) {
   for (const l of liste) if ((l.iban || []).some((i) => ibans.includes(i))) return l;
   let best = null, laenge = 0;
   for (const l of liste) {
+    // Ein Ordner mit unserem eigenen Namen passt auf jede Rechnung
+    if (EIGENE.test(l.name)) continue;
     for (const w of [l.name, ...(l.text || [])]) {
       const k = nameKern(w);
       if (k.length < 4) continue;
@@ -230,30 +232,48 @@ export function stapelLesen(seitenZeilen, liste) {
 // bei einem anderen Lieferanten, bei einer anderen Rechnungsnummer
 // desselben Lieferanten, oder nach einer vollständigen Rechnung („2 von 2“),
 // wenn die Seite nicht erkennbar zum selben Lieferanten gehört.
-// Leere Seiten (Rückseiten, Trennblätter) trennen und fallen weg.
+// Seiten ohne Text bleiben bei der Rechnung davor.
 export function stapelTeilen(seiten) {
   const docs = [];
-  let akt = null, trenn = false;
+  let akt = null;
+  const vorne = [];
   seiten.forEach((s, i) => {
-    if (s.leer) { trenn = true; return; }
+    // Seiten ohne Text (leere Rückseiten beim beidseitigen Scannen, oder ein
+    // Bild ohne OCR) trennen nicht, sonst zerfällt jede Rechnung in
+    // Einzelseiten (Patrick 29. Oktober 2026). Sie bleiben bei der Rechnung
+    // davor, damit nichts verloren geht.
+    // Ganz weisse Rückseiten fallen weg
+    if (s.leer && s.weiss) return;
+    if (s.leer) { if (akt) akt.seiten.push(i); else vorne.push(i); return; }
     const lief = s.lieferant || s.qr;
-    let neu = !akt || trenn;
+    let neu = !akt;
     if (!neu && s.seite && s.seite.n === 1) neu = true;
     if (!neu && lief && akt.lieferant && einfach(lief) !== einfach(akt.lieferant)) neu = true;
+    // Andere Rechnungsnummer: nur trennen, wenn nicht derselbe Lieferant und
+    // kein Zahlteil. Der Scanner liest die Nummer auf Seite 2 oder im
+    // Einzahlungsschein manchmal leicht anders (Patrick 29. Oktober 2026:
+    // „bei Steeltec Seite 1 und 2 getrennt, bei Ades die Rechnung vom
+    // Einzahlungsschein“)
+    const gleicherLief = lief && akt && akt.lieferant && einfach(lief) === einfach(akt.lieferant);
     if (!neu && s.nummer && akt.nummer && einfach(s.nummer) !== einfach(akt.nummer)
-      && (!s.seite || s.seite.n === 1)) neu = true;
+      && !gleicherLief && !s.zahlteil && (!s.seite || s.seite.n === 1)) neu = true;
     // Der Zahlteil (QR-Rechnung) auf eigenem Blatt gehört zur Rechnung davor
     const gleich = lief && (!akt || !akt.lieferant || einfach(lief) === einfach(akt.lieferant));
     if (!neu && akt.fertig && !(gleich && (akt.lieferant || s.zahlteil))) neu = true;
-    // Eine Folgeseite („Seite 2“) gehört zur Rechnung davor, wenn nichts dagegen spricht
-    if (neu && akt && !trenn && s.seite && s.seite.n > 1 && !akt.fertig
-      && !(lief && akt.lieferant && einfach(lief) !== einfach(akt.lieferant))) neu = false;
-    trenn = false;
+    // Die nächste Folgeseite („Seite 2“ nach „Seite 1 von 2“) gehört immer zur
+    // Rechnung davor, auch wenn der Lieferant dort anders gelesen wird
+    if (neu && akt && s.seite && s.seite.n > 1 && !akt.fertig
+      && (s.seite.n === akt.letzte + 1 || !(lief && akt.lieferant && einfach(lief) !== einfach(akt.lieferant)))) neu = false;
+    // Ein Zahlteil ohne „Seite 1“ gehört zur Rechnung davor, ausser diese ist
+    // fertig und von einem anderen Lieferanten
+    if (neu && akt && s.zahlteil && !(s.seite && s.seite.n === 1)
+      && (!akt.fertig || !lief || !akt.lieferant || einfach(lief) === einfach(akt.lieferant))) neu = false;
     if (neu) {
-      akt = { seiten: [], lieferant: null, gelernt: false, nummer: null, datum: null, fertig: false,
+      akt = { seiten: [], letzte: 0, lieferant: null, gelernt: false, nummer: null, datum: null, fertig: false,
         uids: new Set(), ibans: new Set(), vorschlag: null };
       docs.push(akt);
     }
+    if (vorne.length) akt.seiten.push(...vorne.splice(0));
     akt.seiten.push(i);
     if (s.lieferant) { akt.lieferant = s.lieferant; akt.gelernt = true; }
     else if (s.qr && !akt.gelernt) akt.lieferant = s.qr;
@@ -263,6 +283,7 @@ export function stapelTeilen(seiten) {
     s.ibans.forEach((x) => akt.ibans.add(x));
     if (!akt.vorschlag) akt.vorschlag = firmaVorschlag(s.zeilen);
     if (s.seite && s.seite.von) akt.fertig = s.seite.n === s.seite.von;
+    akt.letzte = s.seite ? s.seite.n : akt.letzte;
   });
   return docs.map((d) => Object.assign(d, { uids: [...d.uids], ibans: [...d.ibans] }));
 }

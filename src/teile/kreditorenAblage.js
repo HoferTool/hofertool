@@ -122,20 +122,43 @@ async function seitenLesen(daten) {
   const { pdfjs } = await import("./PdfAnsicht.jsx");
   const lib = await pdfjs();
   const doc = await lib.getDocument({ data: daten.slice(), isEvalSupported: false }).promise;
-  const aus = [];
+  const zeilen = [], weiss = [];
   try {
     for (let i = 1; i <= doc.numPages; i++) {
       const p = await doc.getPage(i);
-      aus.push(zeilenAusStuecken((await p.getTextContent()).items));
+      const z = zeilenAusStuecken((await p.getTextContent()).items);
+      zeilen.push(z);
+      weiss.push(z.join("").replace(/\s/g, "").length < 15 ? await istWeiss(p) : false);
     }
   } finally { try { doc.destroy(); } catch (f) { /* egal */ } }
-  return aus;
+  return { zeilen, weiss };
+}
+
+// Eine Seite ohne Text ist eine leere Rückseite, wenn sie auch gezeichnet
+// fast nur weiss ist (der Rand zählt nicht, dort liegen Scannerschatten).
+// Bilder ohne OCR sind nicht weiss und bleiben in der Rechnung.
+async function istWeiss(p) {
+  try {
+    const v = p.getViewport({ scale: 0.25 });
+    const c = document.createElement("canvas");
+    c.width = Math.ceil(v.width); c.height = Math.ceil(v.height);
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+    await p.render({ canvasContext: ctx, viewport: v }).promise;
+    const rx = Math.floor(c.width * 0.06), ry = Math.floor(c.height * 0.06);
+    const d = ctx.getImageData(rx, ry, c.width - 2 * rx, c.height - 2 * ry).data;
+    let dunkel = 0;
+    for (let k = 0; k < d.length; k += 4) if (d[k] * 0.3 + d[k + 1] * 0.59 + d[k + 2] * 0.11 < 150) dunkel++;
+    return dunkel / (d.length / 4) < 0.003;
+  } catch (f) { return false; }
 }
 
 async function stapelAblegen(h, name, liste, zuInfo) {
   const datei = await (await h.getFileHandle(name)).getFile();
   const daten = new Uint8Array(await datei.arrayBuffer());
-  const seiten = stapelLesen(await seitenLesen(daten), liste);
+  const gelesen = await seitenLesen(daten);
+  const seiten = stapelLesen(gelesen.zeilen, liste);
+  seiten.forEach((s, i) => { s.weiss = gelesen.weiss[i]; });
   const docs = stapelTeilen(seiten);
   const { PDFDocument } = await import("pdf-lib");
   const quelle = await PDFDocument.load(daten, { ignoreEncryption: true, updateMetadata: false });
@@ -144,7 +167,7 @@ async function stapelAblegen(h, name, liste, zuInfo) {
   for (const d of docs) {
     const neu = await PDFDocument.create();
     (await neu.copyPages(quelle, d.seiten)).forEach((p) => neu.addPage(p));
-    const blob = new Blob([await neu.save()], { type: "application/pdf" });
+    const blob = new Blob([await neu.save({ useObjectStreams: false })], { type: "application/pdf" });
     const ordnerName = d.lieferant ? sauber(d.lieferant) : ZUORDNEN;
     const ordner = await h.getDirectoryHandle(ordnerName, { create: true });
     const seitenText = "S. " + (d.seiten[0] + 1) + (d.seiten.length > 1 ? "–" + (d.seiten[d.seiten.length - 1] + 1) : "");
