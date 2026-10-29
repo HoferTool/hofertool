@@ -36,6 +36,7 @@ STAPEL = pdf([
     ["Empfangsschein   Zahlteil", "Konto / Zahlbar an", "CH44 3199 9123 0008 8901 2", "Beispiel Stahl GmbH", "Industriestrasse 1", "Referenz"]
         + ["Rechnungsnummer 55001", "Datum 28.10.2026"],
     ["Kleiner Verein"] + HOFER + ["Rechnungs-Nr 0099", "Rechnungsdatum 26.10.2026", "IBAN CH56 0483 5012 3456 7800 9"],
+    ["Turnverein Muster"] + HOFER + ["Rechnung 0777", "Rechnungsdatum 25.10.2026", "Bankverbindung:", "Turnverein Muster", "IBAN CH93 0076 2011 6238 5295 7", "Raiffeisenbank"],
 ])
 
 ORDNER = """
@@ -78,6 +79,7 @@ with sync_playwright() as p:
     pruefe("Zwei Seiten Muster Werkzeug als eine Rechnung", "Muster Werkzeug AG/2026-10-27 RE-4711.pdf" in namen)
     pruefe("QR-Zahlteil erkennt Beispiel Stahl", "Beispiel Stahl GmbH/2026-10-28 55001.pdf" in namen)
     pruefe("Stapel nach _Originale", "_Originale/Scan 001.pdf" in namen and "Scan 001.pdf" not in namen)
+    pruefe("Name über der IBAN erkannt", "Turnverein Muster/2026-10-25 0777.pdf" in namen)
     pruefe("Unbekannter nach _Zuordnen", "_Zuordnen/2026-10-26 0099.pdf" in namen)
     pruefe("Zeile zum Zuordnen", pg.locator("#kred-zuordnen .kred-zeile").count() == 1)
 

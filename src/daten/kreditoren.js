@@ -108,6 +108,23 @@ export function uidFirma(zeilen) {
   return null;
 }
 
+// Ohne QR-Zahlteil: der Name direkt über der IBAN bei „Bankverbindung“
+// („Bankverbindung: / Basel que si / IBAN CH61 …“). Bankname und Ort
+// (UBS, Kantonalbank, „8098 Zürich“) zählen nicht.
+export function bankName(zeilen) {
+  for (let i = 0; i < zeilen.length; i++) {
+    if (!/bankverbindung|kontoinhaber|zugunsten|zahlbar an/i.test(zeilen[i])) continue;
+    for (let j = i + 1; j < Math.min(zeilen.length, i + 5); j++) {
+      if (!ibansIn(zeilen[j].toUpperCase()).length) continue;
+      const z = (zeilen[j - 1] || "").replace(/\s{2,}.*$/, "").trim();
+      if (j - 1 > i && z && /[a-zäöü]{3}/i.test(z) && !/^\d|bank|ubs|credit|raiffeisen|postfinance|iban|konto|swift|bic/i.test(z)
+        && !EIGENE.test(z)) return z;
+      break;
+    }
+  }
+  return null;
+}
+
 // „Seite 2 von 3“, „Seite 2/2“, „Seite: 1“, „Seite 2 / 3“
 export function seiteIn(text) {
   const m = /seite\s*:?\s*(\d{1,2})(?:\s*(?:von|\/|of)\s*(\d{1,2}))?/i.exec(text);
@@ -181,7 +198,7 @@ export function seiteLesen(zeilen, liste) {
   return {
     zeilen,
     lieferant: l ? l.name : null,
-    qr: qrName(zeilen) || uidFirma(zeilen),
+    qr: qrName(zeilen) || uidFirma(zeilen) || bankName(zeilen),
     seite: seiteIn(flach),
     nummer: nummerIn(flach),
     datum: datumIn(zeilen),
