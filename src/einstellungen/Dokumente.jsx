@@ -572,7 +572,68 @@ async function letzteLaden(suche) {
   }
   const r = await abfrage.order("erstellt_am", { ascending: false }).limit(t ? LETZTE_TREFFER : LETZTE_ANZAHL);
   if (r.error) throw r.error;
-  return r.data || [];
+  const doks = r.data || [];
+  await wbgAuftraegeHolen(doks);
+  return doks;
+}
+
+// Wo eine WBG hängt (Wunsch Patrick 29. Oktober 2026: „zeig mir bei den
+// WBG, wo sie zugeordnet wurden“): Die WBG steht in jobs.wbg_url des
+// Auftrags, an den sie kam. Je WBG-Eintrag die Aufträge mit genau dieser
+// Adresse und ihre Maschine, als d.auftraege. Fehlt etwas, bleibt die
+// Liste wie vorher.
+async function wbgAuftraegeHolen(doks) {
+  const wbgs = doks.filter((d) => d.art === "wbg" && d.datei_url);
+  if (!wbgs.length) return;
+  try {
+    const [r, maschinen] = await Promise.all([
+      alt.db.from("jobs").select("*").in("wbg_url", wbgs.map((d) => d.datei_url)),
+      alt.ladeMaschinen(true, true).catch(() => []),
+    ]);
+    if (r.error) return;
+    const mName = {};
+    maschinen.forEach((m) => { mName[m.id] = m.machine_number || m.name; });
+    wbgs.forEach((d) => {
+      d.auftraege = (r.data || []).filter((j) => j.wbg_url === d.datei_url)
+        .map((j) => Object.assign({}, j, { maschineName: mName[j.machine_id] || "" }));
+    });
+  } catch (f) { /* dann eben ohne Auftrag */ }
+}
+
+const ZUSTAND_TEXT = { geplant: "geplant", ruesten: "Rüsten", laeuft: "läuft", fertig: "fertig" };
+
+function datumLang(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
+  return m ? m[3] + "." + m[2] + "." + m[1] : "";
+}
+
+// Wie auf der Startseite: das Auftragsfenster nimmt die Maschinen aus prod.maschinen
+async function auftragOeffnen(j) {
+  if (!(alt.prod.maschinen || []).length) {
+    try { alt.prod.maschinen = await alt.ladeMaschinen(false, true); } catch { /* Fenster geht trotzdem auf */ }
+  }
+  const { maschineName, ...auftrag } = j;
+  alt.planAuftragDialog(auftrag, {});
+}
+
+function GehoertZu({ d }) {
+  if (d.art !== "wbg" || !d.auftraege) return d.hoco_nr || "";
+  if (!d.auftraege.length) {
+    return <>{d.hoco_nr || ""}<div className="klein gedaempft" data-wbgziel="">an keinem Auftrag (mehr)</div></>;
+  }
+  return (
+    <>{d.auftraege.map((j) => {
+      const teile = [j.fa_nr ? "FA " + j.fa_nr : "", j.maschineName,
+        j.planned_from ? "ab " + datumLang(j.planned_from) : "",
+        j.ended_at ? "fertig" : (ZUSTAND_TEXT[j.plan_status] || "")].filter(Boolean);
+      return (
+        <div key={j.id} data-wbgziel={j.id}>
+          <button className="linkknopf" title="Auftrag öffnen" onClick={() => auftragOeffnen(j)}>
+            Auftrag {j.job_number || d.hoco_nr || ""}</button>
+          <div className="klein gedaempft">{teile.join(" · ")}</div>
+        </div>);
+    })}</>
+  );
 }
 
 // erstellt_am ist ein Zeitstempel; kurzDatum las daraus „NaN.NaN.“.
@@ -616,7 +677,7 @@ function Letzte({ stand, hochladen }) {
           <tr key={d.id}>
             <td>{artVon(d.art).zeichen} {artVon(d.art).name}</td>
             <td>{d.dateiname || d.titel || ""}</td>
-            <td>{d.hoco_nr || ""}</td>
+            <td><GehoertZu d={d} /></td>
             <td className="klein nowrap">{abgelegtAm(d.erstellt_am)}</td>
             <td className="rechts nowrap">
               <button className="linkknopf" data-dokauf={d.datei_url}
