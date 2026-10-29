@@ -121,5 +121,25 @@ with sync_playwright() as p:
         if pg.evaluate("document.querySelectorAll('.dialog-huelle').length"): fehler.append("danach bleibt ein Fenster in der App")
     if not w.is_closed(): w.close()
     pg.wait_for_timeout(600)
+
+    # 5) Einrichtblatt aus dem eigenen Fenster geht dort auf, auch wenn der
+    # Browser den Fokus nicht meldet (Patrick 29. Oktober 2026: am PC
+    # „versteckt“ hinter dem Auftragsfenster im Hauptfenster)
+    jid2 = pg.evaluate("[...document.querySelectorAll('.pw-balken[data-auftrag]')].find(b => b.getBoundingClientRect().width > 40).dataset.auftrag")
+    with ctx.expect_page() as neu: pg.locator(f".pw-balken[data-auftrag='{jid2}']").first.dblclick()
+    w = neu.value; w.wait_for_selector(".dialog--auftrag"); w.wait_for_timeout(400)
+    w.evaluate("Document.prototype.hasFocus = () => false")
+    pg.evaluate("Document.prototype.hasFocus = () => false")
+    w.click("#pl-blattreihe button"); w.wait_for_timeout(1200)
+    hier = w.evaluate("document.querySelectorAll('.betrachter-huelle').length")
+    dort = pg.evaluate("document.querySelectorAll('.betrachter-huelle').length")
+    print("Einrichtblatt: im eigenen Fenster", hier, "| in der App", dort)
+    if hier != 1 or dort: fehler.append("Einrichtblatt geht nicht im eigenen Fenster auf")
+    # Ein Klick auf die Planwand danach: neue Fenster bleiben wieder in der App
+    w.click(".betrachter-huelle button:has-text('Schliessen')"); w.wait_for_timeout(300)
+    pg.locator(".pw-balken[data-auftrag]").nth(2).click(); pg.wait_for_timeout(200)
+    pg.evaluate("TEST.eigenesFenster = false; window.open = () => null")
+    if not w.is_closed(): w.close()
+    pg.wait_for_timeout(600)
     ctx.close(); br.close()
 print("Fehler:", "keine" if not fehler else fehler[:10])

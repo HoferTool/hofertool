@@ -109,12 +109,24 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
     oben.dispatchEvent(new w.MouseEvent("click", { bubbles: true }));
   });
 
-  // Neue Fenster der App, während man hier arbeitet, kommen hierher
+  // Neue Fenster der App, während man hier arbeitet, kommen hierher.
+  // „Hier gearbeitet“ heisst: zuletzt hier getippt oder geklickt, nicht
+  // im Hauptfenster. Nur nach dem Fokus zu fragen genügte nicht: am PC
+  // ging das Einrichtblatt (lädt erst aus der Datenbank) im Hauptfenster
+  // hinter diesem Fenster auf (Patrick 29. Oktober 2026: „versteckt“).
+  let hier = Date.now(), dort = 0;
+  const merkHier = () => { hier = Date.now(); };
+  const merkDort = () => { dort = Date.now(); };
+  ["pointerdown", "keydown"].forEach((art) => {
+    d.addEventListener(art, merkHier, { capture: true, passive: true });
+    document.addEventListener(art, merkDort, { capture: true, passive: true });
+  });
   const neue = new MutationObserver((meldungen) => {
-    if (!d.hasFocus()) return;
+    if (!d.hasFocus() && !(hier > dort)) return;
     meldungen.forEach((m) => m.addedNodes.forEach((n) => {
       if (n.nodeType !== 1 || !n.classList || !n.classList.contains("dialog-huelle")) return;
       d.body.appendChild(n);
+      try { w.focus(); } catch (f) { /* dann eben ohne */ }
       const f = n.querySelector("[data-fokus], [autofocus]") || n.querySelector("input, button");
       if (f) f.focus();
     }));
@@ -128,6 +140,7 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
       fertig = true;
       offen.delete(eintrag);
       neue.disconnect();
+      ["pointerdown", "keydown"].forEach((art) => document.removeEventListener(art, merkDort, { capture: true }));
       wache.disconnect();
       clearInterval(zuPruefen);
       removeEventListener("pagehide", eintrag.schliessen);

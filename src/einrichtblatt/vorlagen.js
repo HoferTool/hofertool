@@ -41,9 +41,10 @@ const F = {
   zeit: { art: "typ", feld: "stueckzeit_s", label: "Prod.- Zeit:", zahl: true, einheit: "Sek./Stk." },
   wasch: { art: "stamm", feld: "waschgebinde", label: "Waschgebinde:", auswahl: "waschgebinde" },
   laufzeit: { art: "typ", feld: "abend_stk", label: "Masch.- Laufzeit:", zahl: true, einheit: "Stk. am Abend" },
-  // Bei allen ausser Index heisst das Programm „Path 1“ (Wunsch Patrick,
-  // 24. Oktober 2026)
-  prgNr: { art: "prg", feld: "nr", label: "Path 1:" },
+  // Wo nur eine Programmzeile steht (Star, Typen ohne eigene Vorlage),
+  // heisst sie „Programm Nr.“ (Wunsch Patrick 29. Oktober 2026; vom
+  // 24. Oktober an „Path 1“). Die SW-20 hat drei Zeilen Path 1 bis 3.
+  prgNr: { art: "prg", feld: "nr", label: "Programm Nr.:" },
   n1000: { art: "kopf", feld: "n1000", label: "N1000:" },
   geometrie: { art: "blatt", feld: "geometrie", label: "Geometriedaten:", farbe: "#FF0000" },
   festanschlag: { art: "kopf", feld: "festanschlag", label: "Festanschlag Länge:" },

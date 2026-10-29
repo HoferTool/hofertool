@@ -75,7 +75,7 @@ with sync_playwright() as p:
     pruefe("Star-Plätze T100–T600, T1100, kein T3100 beim SR-32",
            all(pg.locator(f"[data-platz='T{n}']").count() == 1 for n in (100, 600, 700, 1000, 1100, 2400))
            and pg.locator("[data-platz='T3100']").count() == 1)   # T3100 steht im Excel, kommt hinten dazu
-    pruefe("Kopf mit Path 1, Artikel Bezeich, N1000", all(x in s for x in ("Path 1:", "111, 333", "Artikel Bezeich", "N1000", "Deckel")))
+    pruefe("Kopf mit Programm Nr., Artikel Bezeich, N1000", "Path 1" not in s and all(x in s for x in ("Programm Nr.:", "111, 333", "Artikel Bezeich", "N1000", "Deckel")))
     pruefe("Werkzeugtext aus dem Excel nur im Bearbeiten markiert", pg.locator("[data-platz='T200'] .eba-wz--frei").count() == 0)
     pg.screenshot(path="einrichtblatt_app_ansicht.png")
     # Immer ein A4 quer, alle Werkzeugfelder gleich hoch, nichts ragt
@@ -284,7 +284,7 @@ with sync_playwright() as p:
     pruefe("Index: Kopf", "fa_nr" not in bi["kopf"] and bi["kopf"].get("festanschlag") == "55.5"
            and bi["kopf"].get("anschlag_von") == "Revolver 2" and bi["maschine_nr"] == "Nr.3")
     s = pg.inner_text("[data-eba-seite]")
-    pruefe("Index: ohne Path 1, mit Festanschlag und Legende", "Path 1" not in s and "Festanschlag" in s
+    pruefe("Index: ohne Programm Nr., mit Festanschlag und Legende", "Path 1" not in s and "Programm Nr" not in s and "Festanschlag" in s
            and "Revolver 3" in s and pg.locator("[data-eba-seite] .eba-platz").count() == 30)
     farbe = pg.evaluate("getComputedStyle(document.querySelector('.eba-tk')).color")
     pruefe("Index: Platznummern schwarz", farbe == "rgb(0, 0, 0)")
