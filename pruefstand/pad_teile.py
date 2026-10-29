@@ -98,6 +98,8 @@ with sync_playwright() as p:
     pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-wzhistorie]")
     pg.click("[data-wzhistorie]"); pg.wait_for_timeout(900)
     pruefe("Historie offen", "Werkzeugwechsel ·" in pg.inner_text(".dialog-huelle"))
+    # Beim Star steht die Historie seit 1.270.0 als Blatt da, die Liste zum Löschen dahinter
+    if pg.locator("[data-wzliste]").count(): pg.click("[data-wzliste]"); pg.wait_for_timeout(600)
     # Einen Eintrag einer Runde mit zwei Werkzeugen löschen
     pruefe("Löschknopf da", pg.locator("[data-wzweg]").count() >= 1)
     pg.locator("[data-wzweg]").first.click(); pg.wait_for_selector(".statuswahl [data-w='alle']")

@@ -8,13 +8,15 @@
 //  Das Blatt für die Ablage (historieAblegen) ist ein eigenes
 //  Druckdokument und bleibt im alten Programm.
 // =================================================================
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { blattSuchen, platzInGebrauch } from "../einrichtblatt/daten.js";
-import { platzGruppe, platzName } from "../einrichtblatt/vorlagen.js";
-import { indexAufraeumen, indexPdfAufbau } from "./IndexProtokoll.jsx";
+import { platzGruppe, platzName, vorlageFuer } from "../einrichtblatt/vorlagen.js";
+import { indexAufraeumen, indexPdfAufbau, istIndex, protokollLaden, reihenBilden, revolverVon,
+  SPALTEN_JE_BLATT } from "./IndexProtokoll.jsx";
+import { WechselBlatt } from "./WechselBlatt.jsx";
 
 const anzahlText = (n) => n + (n === 1 ? " Werkzeug" : " Werkzeuge");
 
@@ -184,7 +186,7 @@ async function eintragen(maschine, auftrag, liste) {
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
   alt.meldung(anzahlText(liste.length) + " bei " + alt.zahlText(stand) + " Stück eingetragen.");
   // Beim Index bleiben je HOCO Nr. nur die letzten drei Protokollblätter
-  indexAufraeumen(maschine, auftrag);
+  await indexAufraeumen(maschine, auftrag);
   return true;
 }
 
@@ -376,10 +378,56 @@ async function gehaltenNachrechnen(maschine, weg) {
   }
 }
 
+// Die Historie als Blatt wie ihr PDF, für Index und Star (SB, SR), zum
+// Bearbeiten (WechselBlatt.jsx; Patrick 29. Oktober 2026: „Historie so,
+// dass sie aussieht wie das PDF“). Andere Typen und ohne Auftrag: null,
+// dann bleibt die Liste.
+async function modellDerHistorie(maschine, auftrag, runden) {
+  if (!auftrag || !auftrag.job_number) return null;
+  const hoco = auftrag.job_number;
+  const typ = (await alt.ladeTypen()).find((t) => t.id === maschine.type_id);
+  if (istIndex(typ)) {
+    const [eigene, blatt] = await Promise.all([protokollLaden(hoco, typ.id), blattSuchen(hoco, typ.id).catch(() => null)]);
+    const gruppen = reihenBilden(blatt, eigene, false).map((r) => ({ name: r.name, farbe: r.farbe,
+      werkzeuge: r.plaetze.map((p) => ({ key: p.id, tool_nr: p.tool_nr, path: r.name,
+        text: p.eb ? p.eb.taetigkeit || p.eb.werkzeug || "" : "", unter: p.eb && p.eb.hersteller,
+        passt: (z) => z.tool_nr === p.tool_nr && (!z.bezeichnung || revolverVon(z.bezeichnung) === r.nr) })) }));
+    return { art: "index", gruppen, runden: eigene, spaltenJeBlatt: SPALTEN_JE_BLATT, laden: () => protokollLaden(hoco, typ.id) };
+  }
+  if (!typ || vorlageFuer(typ).art !== "star") return null;
+  // Wie im PDF nur die Wechsel dieser HOCO Nr., älteste zuerst
+  const nurDiese = (rs) => rs.filter((r) => r.zeilen.some((z) => (z.hoco_nr || z.auftrag_nr) === hoco))
+    .sort((x, y) => String(x.wann || "").localeCompare(String(y.wann || "")));
+  const { spalten } = await blattSpalten(maschine, auftrag, runden);
+  const werkzeuge = spalten.map((c, i) => ({ key: i + "|" + c.tool_nr + "|" + (c.path || ""), tool_nr: c.tool_nr, path: c.path,
+    text: c.text || c.tool_nr, farbe: c.farbe, schrift: c.schrift, passt: (z) => z.tool_nr === c.tool_nr && gleicherPath(z, c.path) }));
+  return { art: "star", gruppen: [{ name: "", werkzeuge }], runden: nurDiese(runden.slice()),
+    laden: async () => nurDiese(await historieLaden(maschine)) };
+}
+
+const AKTIONEN = { eintragen: (...a) => eintragen(...a), loeschen: (...a) => loeschen(...a),
+  nachrechnen: (...a) => gehaltenNachrechnen(...a) };
+
 function Historie({ maschine, auftrag, anfang, zu }) {
+  const [modell, setModell] = useState(null);
+  const [liste, setListe] = useState(false);
   const [runden, setRunden] = useState(anfang);
   const [laeuft, setLaeuft] = useState(null);
   const darf = alt.darfSchreiben();
+
+  // Blatt neu aufbauen beim Öffnen und beim Zurückschalten von der Liste
+  useEffect(() => {
+    if (liste) return undefined;
+    let weg = false;
+    modellDerHistorie(maschine, auftrag, runden).then((m) => { if (!weg) setModell(m); }).catch(() => {});
+    return () => { weg = true; };
+  }, [liste]);
+  const blattZeigen = !!modell && !liste;
+  const umschalten = async () => {
+    // Im Blatt Geändertes soll auch in der Liste stehen
+    if (!liste) { try { setRunden(await historieLaden(maschine)); } catch (f) { /* dann wie vorher */ } }
+    setListe(!liste);
+  };
 
   const entfernen = async (r) => {
     setLaeuft(r.schluessel);
@@ -392,12 +440,16 @@ function Historie({ maschine, auftrag, anfang, zu }) {
   };
 
   return (
-    <div className="dialog dialog--breit">
+    <div className={"dialog dialog--breit" + (modell ? " wz-hist" : "")}>
       <div className="blatt__kopf"><h2>Werkzeugwechsel · {maschine.name}</h2>
+        {modell && <button className="knopf knopf--klein knopf--still" data-wzliste=""
+          onClick={umschalten}>{liste ? "Als Blatt" : (darf ? "Liste (Einträge löschen)" : "Als Liste")}</button>}
         {runden.length > 0 && <button className="knopf knopf--klein" data-wzpdf=""
           onClick={() => alt.historieAblegen(maschine, auftrag, runden, async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, runden))}>Als PDF ablegen</button>}
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
-      {runden.length
+      {blattZeigen
+        ? <WechselBlatt key={modell.art + modell.runden.length} modell={modell} maschine={maschine} auftrag={auftrag} aktionen={AKTIONEN} />
+        : runden.length
         ? <table className="tabelle">
             <thead><tr><th>Stückzahl</th><th>Gewechselt</th><th>Auftrag</th><th>Wann</th><th>Wer</th>
               {darf && <th aria-label="Löschen"></th>}</tr></thead>
@@ -428,8 +480,8 @@ function Historie({ maschine, auftrag, anfang, zu }) {
             ))}</tbody>
           </table>
         : <p className="hinweis">Noch kein Wechsel eingetragen.</p>}
-      <p className="klein">Die Zahl hinter einem Werkzeug sagt, wie viele Stück es seit dem letzten Wechsel
-        gehalten hat. Die Standzeit im Einrichtblatt bleibt davon unberührt und wird dort von Hand gepflegt.</p>
+      {!blattZeigen && <p className="klein">Die Zahl hinter einem Werkzeug sagt, wie viele Stück es seit dem letzten Wechsel
+        gehalten hat. Die Standzeit im Einrichtblatt bleibt davon unberührt und wird dort von Hand gepflegt.</p>}
     </div>
   );
 }

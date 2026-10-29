@@ -18,7 +18,7 @@ daten.type_slots = [];
 daten.einrichtblatt_app = [];
 daten.jobs.forEach(j => {
   daten.einrichtblatt_app.push({ id: 'eb' + j.id, hoco_nr: j.job_number, type_id: 't1',
-    plaetze: { 'R1-T3': { taetigkeit: 'SCHLICHTER', hersteller: 'Utilis' }, 'R2-T2': { taetigkeit: 'ECO CUT D8' }, 'R3-T4': { taetigkeit: 'SCHLICHTER' }, 'R3-T5': {} } });
+    plaetze: { 'R1-T1': { taetigkeit: 'ANSCHLAG' }, 'R1-T3': { taetigkeit: 'SCHLICHTER', hersteller: 'Utilis' }, 'R2-T2': { taetigkeit: 'ECO CUT D8' }, 'R3-T4': { taetigkeit: 'SCHLICHTER' }, 'R3-T5': {} } });
   if (!/^m-l/.test(j.machine_id)) return;
   const anderer = daten.jobs.find(x => x.id !== j.id && /^m-k/.test(x.machine_id));
   for (let i = 0; i < 18; i++) {
@@ -49,7 +49,7 @@ with sync_playwright() as p:
     pg.wait_for_selector("#pad .pad-stk-zahl")
     pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-tool]")
     tools = pg.locator("[data-tool]").evaluate_all("e => e.map(x => x.dataset.tool)")
-    pruefe("Werkzeugwechsel wie vorher, nur Plätze aus dem Blatt " + str(tools), tools == ["T3", "T2", "T4"])
+    pruefe("Werkzeugwechsel wie vorher, nur Plätze aus dem Blatt " + str(tools), tools == ["T1", "T3", "T2", "T4"])
     pg.locator(".wz-path").filter(has_text="Revolver 1").locator("[data-tool='T3']").click()
     pg.locator(".wz-path").filter(has_text="Revolver 3").locator("[data-tool='T4']").click()
     pg.click("[data-wzweiter]")
@@ -67,6 +67,33 @@ with sync_playwright() as p:
     # Historie bleibt, ihr PDF ist beim Index das Protokoll
     pg.locator(".pad-knopf--wz").click(); pg.wait_for_selector("[data-wzhistorie]")
     pg.click("[data-wzhistorie]"); pg.wait_for_selector("[data-wzpdf]")
+    pg.wait_for_selector("[data-wzbplatz]", timeout=10000); pg.wait_for_timeout(300)
+    zeilen = pg.locator("[data-wzbplatz]").evaluate_all("e => e.map(x => x.dataset.wzbplatz)")
+    pruefe("Historie als Blatt ohne Anschlag R1-T1 " + str(zeilen), zeilen == ["R1-T3", "R2-T2", "R3-T4"])
+    pruefe("Historie Blatt 3 von 3", pg.locator("[data-wzbblatt]").inner_text() == "Blatt 3 von 3")
+    stk = lambda n: pg.evaluate("n => TEST.daten.tool_changes.filter(z => z.stueckzahl === n).length", n)
+    # Werkzeug in den Wechsel bei 2'500 dazu
+    pg.locator("[data-wzbplatz='R2-T2'] td.wzb-sp").first.click(); pg.wait_for_timeout(800)
+    pruefe("Werkzeug dazu: 3 Einträge bei 2500", stk(2500) == 3)
+    pg.locator("[data-wzbplatz='R2-T2'] td.wzb-sp").first.click(); pg.wait_for_timeout(800)
+    pruefe("Werkzeug wieder weg: 2 Einträge", stk(2500) == 2)
+    # Stückzahl ändern
+    pg.locator("[data-wzbrunde]").first.click(); pg.wait_for_timeout(300)
+    pg.locator("button:has-text('Stückzahl oder Notiz ändern')").click(); pg.wait_for_timeout(300)
+    pg.locator(".dialog-huelle input").last.evaluate("e => e.closest('.dialog').querySelector('input').value = ''")
+    pg.locator(".dialog-huelle .dialog").last.locator("input").first.fill("2600")
+    pg.locator("button:has-text('Speichern')").last.click(); pg.wait_for_timeout(900)
+    pruefe("Stückzahl geändert", stk(2600) == 2 and stk(2500) == 0)
+    # Neuer Wechsel direkt im Blatt
+    pg.locator("[data-wzbplatz='R1-T3'] td.wzb-sp--neu").click()
+    pg.click("[data-wzbeintragen]"); pg.wait_for_timeout(400)
+    pg.locator(".dialog-huelle .dialog").last.locator("input").first.fill("2700")
+    pg.locator("button:has-text('Wechsel eintragen')").last.click(); pg.wait_for_timeout(1500)
+    pruefe("Neuer Wechsel aus dem Blatt", stk(2700) == 1)
+    pruefe("Neuer Wechsel steht im Blatt", pg.locator("[data-wzbx]").count() >= 3)
+    pg.screenshot(path="/tmp/claude-0/ixp-historie.png")
+    pg.click("[data-wzliste]"); pg.wait_for_timeout(500)
+    pruefe("Liste zum Löschen da", pg.locator("[data-wzweg]").count() > 0)
     with pg.context.expect_page() as neu_seite:
         pg.click("[data-wzpdf]")
     blatt = neu_seite.value

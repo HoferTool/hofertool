@@ -3114,7 +3114,7 @@ body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) .feld > span { font-size: 
 /* Im Pad Mode: breite Fenster, Auswahl untereinander. Das Auftragsfenster
    (aus dem QS Check) geht quer und gross auf wie auf der Planwand
    (Wunsch Patrick, 15. Oktober 2026), darum nimmt es keine Pad-Grösse an. */
-body.pad-offen .dialog:not(.dialog--auftrag):not(.nb) { width: min(600px, 94vw) !important;
+body.pad-offen .dialog:not(.dialog--auftrag):not(.nb):not(.wz-hist) { width: min(600px, 94vw) !important;
                          max-width: min(600px, 94vw) !important; }
 body.pad-offen .statuswahl { grid-template-columns: 1fr !important;
                              display: grid !important; }
@@ -10255,3 +10255,37 @@ body.dunkel .bs-aehnlich { background: #4a3b10; color: #ffe08a; }
 
 /* Empfang von 18:00 bis 06:00 nur Schwarz, über allem ausser Schliessen */
 .ib-voll__schwarz { position: fixed; inset: 0; z-index: 5; background: #000; cursor: none; }
+
+/* Historie des Werkzeugwechsels als Blatt wie das PDF, zum Bearbeiten
+   (seit 1.270.0, Index und Star, src/pad/WechselBlatt.jsx) */
+.dialog.wz-hist { width: min(1180px, 96vw) !important; max-width: min(1180px, 96vw) !important; }
+.wzb-titel { display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.4rem; margin: .2rem 0 .6rem; }
+.wzb-titel strong { font-size: 1.15rem; }
+.wzb-gross { font-size: 1.35rem; }
+.wzb-blaettern { margin-left: auto; display: flex; align-items: center; gap: .4rem; font-weight: 600; }
+.wzb-rollen { overflow-x: auto; }
+.wzb-tabelle { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: .9rem; }
+.wzb-tabelle th, .wzb-tabelle td { border: 1px solid var(--linie-stark); padding: 4px 6px; text-align: center; }
+.wzb-tabelle thead th { font-size: .78rem; font-weight: 600; }
+.wzb-tabelle .wzb-links { text-align: left; }
+.wzb-index col.wzb-nr { width: 3.4rem; } .wzb-index col.wzb-wz { width: 15rem; }
+.wzb-index td.wzb-nr { font-weight: 700; }
+.wzb-index td.wzb-wz { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wzb-index td.wzb-wz small { color: var(--gedaempft); }
+.wzb-index td.wzb-sp { height: 2.6rem; }
+.wzb-falabel th { border: 0 !important; padding: 0 4px 2px !important; text-align: left !important; vertical-align: bottom; }
+.wzb-neufa { color: #d62828; font-weight: 700; white-space: nowrap; }
+.wzb-fa { color: var(--gedaempft); font-weight: 400; white-space: nowrap; }
+.wzb-tabelle .wzb-sp--fa { border-left: 4px solid #d62828 !important; }
+.wzb-sp--neu, .wzb-neu td { background: color-mix(in srgb, var(--marke) 7%, transparent); }
+.wzb-gruppe th { color: #000; text-align: left; font-weight: 700; padding: 3px 8px; }
+.wzb-tipp { cursor: pointer; }
+.wzb-tipp:hover { background: color-mix(in srgb, var(--marke) 12%, transparent); }
+.wzb-x { font-weight: 800; font-size: 1.05rem; }
+.wzb-haken { color: var(--marke); font-weight: 800; font-size: 1.2rem; }
+.wzb-star th.wzb-wzk { width: 2.6rem; padding: 6px 0; vertical-align: bottom; }
+.wzb-star th.wzb-wzk span { writing-mode: vertical-rl; transform: rotate(180deg); display: inline-block; white-space: nowrap; }
+.wzb-star .wzb-dat { width: 6rem; } .wzb-star .wzb-stk { width: 5.5rem; text-align: right; } .wzb-star .wzb-vis { width: 4rem; }
+.wzb-star td { height: 2.4rem; }
+.wzb-knoepfe { align-items: center; gap: 1rem; }
+.wzb-knoepfe .klein { margin-right: auto; color: var(--gedaempft); }

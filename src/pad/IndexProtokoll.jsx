@@ -23,12 +23,12 @@ const PLAETZE = Array.from({ length: 10 }, (_, i) => "T" + (i + 1));
 
 export const istIndex = (typ) => /^\s*index/i.test((typ && typ.name) || "");
 
-const revolverVon = (bez) => { const m = /revolver\s*(\d)/i.exec(bez || ""); return m ? m[1] : null; };
+export const revolverVon = (bez) => { const m = /revolver\s*(\d)/i.exec(bez || ""); return m ? m[1] : null; };
 const datum = (iso) => new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit" });
 
 // Alle Wechsel dieser HOCO Nr. auf Maschinen dieses Typs, älteste zuerst,
 // als Runden (alle Zeilen eines Eintrags teilen Zeitpunkt und Stückzahl)
-async function protokollLaden(hoco, typId) {
+export async function protokollLaden(hoco, typId) {
   const m = await alt.db.from("machines").select("id, name").eq("type_id", typId);
   if (m.error) throw m.error;
   const maschinen = m.data || [];
@@ -54,7 +54,7 @@ async function protokollLaden(hoco, typId) {
     let rd = runden.find((x) => x.schluessel === schluessel);
     if (!rd) {
       rd = { schluessel, wann: z.gewechselt_am, stk: z.stueckzahl, job: z.job_id || null,
-        fa: z.job_id ? fa[z.job_id] || "" : "", maschine: z.maschine, person: z.person, zeilen: [] };
+        fa: z.job_id ? fa[z.job_id] || "" : "", notiz: z.notiz, maschine: z.maschine, person: z.person, zeilen: [] };
       runden.push(rd);
     }
     rd.zeilen.push(z);
@@ -80,7 +80,7 @@ async function altesLoeschen(runden) {
 
 // Die Reihen: je Revolver die Plätze mit Werkzeug im Einrichtblatt, dazu
 // alles, was schon gewechselt wurde. Ohne Blatt alle T1 bis T10.
-function reihenBilden(blatt, runden, alle) {
+export function reihenBilden(blatt, runden, alle) {
   const plaetze = (blatt && blatt.plaetze) || {};
   const mitBlatt = Object.keys(plaetze).some((k) => /^R\d-T\d+$/.test(k) && platzInGebrauch(plaetze[k]));
   const gewechselt = new Set(runden.flatMap((r) => r.zeilen.map((z) => (revolverVon(z.bezeichnung) || "?") + "|" + z.tool_nr)));
@@ -88,7 +88,9 @@ function reihenBilden(blatt, runden, alle) {
     const namen = PLAETZE.slice();
     // Ein Platz, den es nur in der Historie gibt (etwa T11), kommt hinten dazu
     gewechselt.forEach((k) => { const [r, t] = k.split("|"); if (r === nr && !namen.includes(t)) namen.push(t); });
-    const reihe = namen.filter((t) => alle || !mitBlatt || platzInGebrauch(plaetze["R" + nr + "-" + t]) || gewechselt.has(nr + "|" + t))
+    // Der Anschlag auf Revolver 1, T1 ist fest und wird nie gewechselt
+    // (Patrick 29. Oktober 2026: „der ist fix und wird immer benötigt“)
+    const reihe = namen.filter((t) => !(nr === "1" && t === "T1")).filter((t) => alle || !mitBlatt || platzInGebrauch(plaetze["R" + nr + "-" + t]) || gewechselt.has(nr + "|" + t))
       .map((t) => ({ id: "R" + nr + "-" + t, tool_nr: t, eb: plaetze["R" + nr + "-" + t] || null }));
     return { nr, name: "Revolver " + nr, farbe, plaetze: reihe };
   }).filter((r) => r.plaetze.length);
