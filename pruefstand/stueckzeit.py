@@ -33,7 +33,7 @@ with sync_playwright() as p:
       const D = TEST.daten;
       const m = D.machines.find(x => x.id === 'm-k1');
       if (!m.type_id) m.type_id = 't1';
-      D.jobs.filter(j => j.machine_id === 'm-k1').forEach(j => { if (j.plan_status === 'laeuft') j.plan_status = 'geplant'; });
+      D.jobs.filter(j => j.machine_id === 'm-k1').forEach(j => { if (j.plan_status === 'laeuft' || j.plan_status === 'ruesten') j.plan_status = 'geplant'; });
       const vorlage = D.jobs.find(j => j.machine_id === 'm-k1');
       D.jobs.push({ ...vorlage, id: 'tT', job_number: '10333-0003', plan_status: 'laeuft',
         started_at: '2026-10-01T04:00:00Z', ended_at: null, target_quantity: 5000, stand: 900,

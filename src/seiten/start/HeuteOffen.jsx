@@ -20,7 +20,7 @@
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
-import { mahnBilder } from "../../daten/mahnbilder.js";
+import { mahnBilder, escobarDarf } from "../../daten/mahnbilder.js";
 
 const keine = async () => null;
 
@@ -40,7 +40,8 @@ export async function heuteOffenLaden() {
   // Stückzahl: was heute gemeldet wurde, auch für den Arbeitstag davor
   // („Wurde heute schon produziert? Nein“ legt den Stand auf gestern)
   let stk = [];
-  const laeuft = zeilen.filter((z) => z.j.plan_status === "laeuft");
+  // Wie im Pad: nicht beim Rüsten und nicht am ersten Tag (escobarDarf)
+  const laeuft = zeilen.filter((z) => escobarDarf(z.j));
   if (werktag && laeuft.length) {
     const ab = alt.isoDatum(new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate() - 4));
     const r = await alt.zeitlimit(alt.db.from("production_records")

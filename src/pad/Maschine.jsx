@@ -27,7 +27,7 @@ import { notizbuecherFuerPark, buecherFuerPark, BUCH } from "../notizbuch/Notizb
 import Bildschirmschoner from "./Bildschirmschoner.jsx";
 import { einrichtblattHinweis } from "../einrichtblatt/PadHinweis.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
-import { mahnBilder } from "../daten/mahnbilder.js";
+import { mahnBilder, escobarDarf } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
 import { useQsMeldungen, QsMeldungen } from "./QsMeldung.jsx";
 import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitSetzen, artInfoFragen, laengeText,
@@ -309,7 +309,7 @@ function Zeile({ name, wert }) {
 // gemachter Eintrag (auf „Wurde heute schon produziert? Nein“ landet die
 // Zahl auf dem letzten Arbeitstag, ist aber trotzdem heute gemeldet).
 function heuteKeineStueckzahl(j, jeTag) {
-  if (!j || j.plan_status !== "laeuft") return false;
+  if (!escobarDarf(j)) return false;
   const jetzt = new Date();
   if (jetzt.getDay() === 0 || jetzt.getDay() === 6) return false;
   const heute = alt.isoDatum(jetzt);
@@ -594,7 +594,9 @@ export default function Maschine({ d }) {
   const laengeFehlt = mitTyp && !!laenge && !(laenge.mm && laenge.sicher);
   // Gemahnt wird erst, wenn der Auftrag läuft, nicht schon beim Rüsten
   // oder geplant (Wunsch Patrick 26. Oktober 2026: „erst wenn läuft drin ist“)
-  const zeitFehlt = mitTyp && !!j && j.plan_status === "laeuft"
+  // Seit 1.265.0 auch nicht, solange an der Maschine gerüstet wird, und
+  // nicht am Tag, an dem er auf „läuft“ ging (escobarDarf)
+  const zeitFehlt = mitTyp && escobarDarf(j)
     && (!(blattDaten && blattDaten.stueckzeit_s) || laengeFehlt);
   const stkFehlt = heuteKeineStueckzahl(j, jeTag);
   const stkBild = useMahnBild("stueckzahl", stkFehlt);

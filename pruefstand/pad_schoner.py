@@ -10,6 +10,9 @@ server_starten(); time.sleep(0.4)
 HIER = os.path.dirname(os.path.abspath(__file__))
 XLSX = open(os.path.join(HIER, "einrichtblatt-beispiel.xlsx"), "rb").read()
 F = FAKE.replace("blatt_url: null", "blatt_url: 'https://x.invalid/eb.xlsx'")
+# Wird an der Maschine gerüstet, mahnt nichts (1.265.0): Rüsten neben „läuft“ weg
+F = F.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
+  "(() => { const D = daten; D.jobs.forEach(j => { if (j.plan_status === 'ruesten' && D.jobs.some(x => x.machine_id === j.machine_id && x.plan_status === 'laeuft')) j.plan_status = 'geplant'; }); })();\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 fehler = []
 def pruefe(name, ok):
     print(("ok   " if ok else "FALSCH ") + name)

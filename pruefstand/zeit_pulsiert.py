@@ -20,6 +20,8 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("(TEST.daten.hoco_type_data || []).forEach(z => z.stueckzeit_s = null)")
+    # Wird an der Maschine gerüstet, mahnt nichts (1.265.0): Rüsten neben „läuft“ weg
+    pg.evaluate("() => { const D = TEST.daten; D.jobs.forEach(j => { if (j.plan_status === 'ruesten' && D.jobs.some(x => x.machine_id === j.machine_id && x.plan_status === 'laeuft')) j.plan_status = 'geplant'; }); }")
     # Heute noch nichts gemeldet
     pg.evaluate("""() => { const h = new Date(); const iso = h.getFullYear() + '-' + String(h.getMonth()+1).padStart(2,'0') + '-' + String(h.getDate()).padStart(2,'0');
       TEST.daten.production_records = TEST.daten.production_records.filter(z => z.record_date !== iso

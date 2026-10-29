@@ -11,6 +11,19 @@
 import { alt } from "../bruecke.jsx";
 
 const SCHLUESSEL = "pad_mahnbilder";
+
+// Darf das Mahnbild („Escobar“) bei diesem Auftrag leuchten? Nur wenn er
+// läuft, an der Maschine nicht gerade gerüstet wird und er nicht erst
+// heute auf „läuft“ gestellt wurde: am ersten Tag noch nicht, erst ab
+// dem Tag danach (Wunsch Patrick 29. Oktober 2026: „beim Rüsten soll
+// kein Escobar leuchten, am ersten Tag nicht rot, erst ab Tag zwei“).
+// Ladet ladeLaufendeAuftraege vorher, weiss es, wo gerüstet wird.
+export function escobarDarf(j) {
+  if (!j || j.plan_status !== "laeuft") return false;
+  if (j.machine_id && alt.maschineRuestet && alt.maschineRuestet(j.machine_id)) return false;
+  if (!j.started_at) return true;
+  return alt.isoDatum(new Date(j.started_at)) < alt.isoDatum(new Date());
+}
 export const MAHN_ARTEN = [
   ["stueckzeit", "Stückzeit fehlt"],
   ["stueckzahl", "Heute noch keine Stückzahl"],

@@ -150,7 +150,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.264.0";
+const APP_VERSION = "1.265.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3299,6 +3299,9 @@ function maschineZielText(m) {
   return m.name + (m.machine_number ? " " + m.machine_number : "");
 }
 
+let maschinenImRuesten = new Set();
+const maschineRuestet = (id) => maschinenImRuesten.has(id);
+
 async function ladeLaufendeAuftraege() {
   const { data, error } = await zeitlimit(
     db.from("jobs").select("*").is("ended_at", null), 10000, "Aufträge");
@@ -3317,7 +3320,11 @@ async function ladeLaufendeAuftraege() {
   // Gibt es mehrere, hat "läuft" Vorrang, dann Rüsten.
   const RANG = { laeuft: 3, ruesten: 2 };
   const karte = {};
+  // Wo gerade gerüstet wird, auch wenn der alte Auftrag noch auf
+  // „läuft“ steht: dort mahnt das Pad nicht (Wunsch Patrick 29. Oktober 2026)
+  maschinenImRuesten = new Set();
   (data || []).forEach((j) => {
+    if (j.plan_status === "ruesten" && j.machine_id) maschinenImRuesten.add(j.machine_id);
     const rang = RANG[j.plan_status] || 0;
     if (!rang) return;
     const vorhanden = karte[j.machine_id];
@@ -10180,7 +10187,7 @@ Object.assign(alt, {
   darfPlanen, darfMaterialplatz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
   arbeitstagePlus, ausIso, ladeTodos, loeschen,
   planArchivDaten, istArchiv, bildVerkleinern,
-  prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, ladePlanAuftraege,
+  prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, maschineRuestet, ladePlanAuftraege,
   istExtern, einstellung, rollenMerken, produktionAlteAnsicht, seiteProduktion,
   ladeZaehlerstaende, speichereStand, wochenStart, plusTage, wochentagName, WT_KURZ,
   PLANSTATUS, zustandSetzen, einrichtblattPdfOeffnen, blattPdfSuchen, BESTELLSTATUS,

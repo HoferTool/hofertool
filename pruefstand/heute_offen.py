@@ -25,6 +25,8 @@ K = """(() => {
   daten.machines.forEach((m) => { if (m.id === "m-k2") { m.park_id = "p-ext"; m.type_id = "t1"; } });
   x.plan_status = "laeuft";
   daten.production_records = daten.production_records.filter((r) => r.machine_id !== "m-k2");
+  // Wird an der Maschine gerüstet, mahnt nichts (1.265.0): Rüsten weg
+  daten.jobs.forEach((j) => { if (j.plan_status === "ruesten") j.plan_status = "geplant"; });
   window.A = a.job_number; window.B = b.job_number;
 })();
 """
