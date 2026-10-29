@@ -56,6 +56,7 @@ import { einlesenWaechter } from "../einrichtblatt/vorlesen.js";
 import { drehungWaechter } from "../daten/zeichnungDrehen.js";
 import { planArchivWaechter } from "../teile/planwandArchiv.js";
 import { ebPdfWaechter } from "../teile/ebPdf.js";
+import { kreditorenWaechter } from "../teile/kreditorenAblage.js";
 import { archivVerbindung } from "../archiv/archivDb.js";
 
 // In einer Backup-Datei der Planwand (src/teile/planwandArchiv.js) läuft
@@ -150,7 +151,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.267.1";
+const APP_VERSION = "1.268.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -4285,7 +4286,7 @@ async function farbzuteilungLaden() {
   // Tägliche Sicherung, wenn dieses Gerät das Sicherungsgerät ist (src/teile/sicherung.js)
   // und tägliche Planwand-Datei zum Nachschauen (src/teile/planwandArchiv.js);
   // beides nicht in einer Backup-Datei
-  if (!ARCHIV) { sicherungWaechter(); planArchivWaechter(); einlesenWaechter(); ebPdfWaechter(); drehungWaechter(); }
+  if (!ARCHIV) { sicherungWaechter(); planArchivWaechter(); einlesenWaechter(); ebPdfWaechter(); kreditorenWaechter(); drehungWaechter(); }
   // Abgelaufenes in den Temp-Ordnern aller wegräumen, höchstens stündlich je Gerät
   if (!ARCHIV && !istExtern()) tempAufraeumenRegelmaessig();
 }

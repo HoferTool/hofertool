@@ -10245,3 +10245,10 @@ body.dunkel .bs-aehnlich { background: #4a3b10; color: #ffe08a; }
 .st-wahl__typname { font-weight: 600; color: var(--gedaempft); }
 .st-wahl__maschinen { display: flex; flex-wrap: wrap; gap: 0 16px; margin-left: 14px; }
 .st-wahl__m { font-size: .95rem; }
+
+/* Kreditorenrechnungen: Rechnungen zum Zuordnen (1.268.0) */
+.kred-zuordnen { margin-top: 14px; }
+.kred-zuordnen h3 { font-size: 15px; margin: 0 0 8px; }
+.kred-zeile { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0; border-top: 1px solid var(--rand, #ddd); }
+.kred-datei { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kred-name { flex: 1 1 180px; min-width: 140px; }

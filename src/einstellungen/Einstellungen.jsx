@@ -20,6 +20,7 @@ import Nutzer from "./Nutzer.jsx";
 import Sicherung from "./Sicherung.jsx";
 import PlanwandArchiv from "./PlanwandArchiv.jsx";
 import EinrichtblattPdf from "./EinrichtblattPdf.jsx";
+import Kreditoren from "./Kreditoren.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { meldungenVerwalten } from "../teile/anmeldeMeldungen.jsx";
 import { adressenAus, verteilerLaden, verteilerSpeichern } from "../teile/ferienTermin.js";
@@ -70,7 +71,8 @@ function Einstellungen({ zu }) {
   if (offen === "allgemein") inhalt = <Allgemein bin={bin} />;
   else if (offen === "backup") inhalt = <Backup />;
   else if (offen === "fehler") inhalt = <Fehlerprotokoll />;
-  else if (offen === "dokumente") inhalt = <Dokumente />;
+  // Kreditorenrechnungen nur für Admins (1.268.0, Wunsch Patrick 29. Oktober 2026)
+  else if (offen === "dokumente") inhalt = <><Dokumente />{alt.istAdmin() && <Kreditoren />}</>;
   else if (offen === "farben") inhalt = <Farben />;
   else if (offen === "symbole") inhalt = <><Symbole /><MahnBilder /></>;
   else inhalt = <Nutzer />;
