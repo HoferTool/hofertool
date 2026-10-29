@@ -58,10 +58,28 @@ function safariPruefen() {
   };
 }
 
+// Die Bilddecoder von pdf.js (JPEG 2000, JBIG2, Farbprofile) sind
+// WebAssembly und werden zur Laufzeit nachgeladen. Ohne sie bleiben
+// eingescannte Seiten weiss (Patrick 29. Oktober 2026: Rechnung „in der
+// App weiss und leer, im neuen Tab erscheint sie“). Sie liegen unter
+// pdfjs/ neben der App, auch für den Offline-Betrieb.
+function pdfjsWasm() {
+  const quelle = "node_modules/pdfjs-dist/wasm/";
+  return {
+    name: "hofer-pdfjs-wasm",
+    apply: "build",
+    generateBundle() {
+      for (const n of ["openjpeg.wasm", "jbig2.wasm", "qcms_bg.wasm"]) {
+        this.emitFile({ type: "asset", fileName: "pdfjs/" + n, source: readFileSync(quelle + n) });
+      }
+    },
+  };
+}
+
 export default defineConfig({
   // Relative Pfade: Die App liegt auf GitHub Pages unter /hofertool/
   base: "./",
-  plugins: [react(), offlineListe(), safariPruefen()],
+  plugins: [react(), pdfjsWasm(), offlineListe(), safariPruefen()],
   build: {
     outDir: "dist",
     // Die App wartet beim Start auf die Datenbank (await ganz oben)

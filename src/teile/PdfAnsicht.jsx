@@ -25,7 +25,14 @@ export function pdfjs() {
       import("pdfjs-dist/legacy/build/pdf.worker.mjs?url"),
     ]).then(([lib, worker]) => {
       lib.GlobalWorkerOptions.workerSrc = worker.default;
-      return lib;
+      // Eingescannte PDFs (JPEG 2000, JBIG2) brauchen die Decoder aus
+      // pdfjs/ (vite.config.js), sonst bleiben die Seiten weiss. Gilt so
+      // für jeden Aufruf von getDocument in der App.
+      const wasmUrl = new URL("pdfjs/", document.baseURI).href;
+      const laden = lib.getDocument;
+      return Object.assign({}, lib, {
+        getDocument: (o) => laden(o && typeof o === "object" && !(o instanceof Uint8Array) && !o.wasmUrl ? { wasmUrl, ...o } : o),
+      });
     });
   }
   return pdfjsLaden;
