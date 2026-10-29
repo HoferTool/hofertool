@@ -148,7 +148,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.250.0";
+const APP_VERSION = "1.251.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -330,6 +330,13 @@ function oberstesFensterSchliessen() {
   // dass sie schon zu sind, und tun nichts mehr.
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    // Im Pad geht Escape wie der Knopf „Zurück“ einen Schritt zurück,
+    // erst auf dem Startbild des Pads schliesst es das Pad ganz
+    // (Wunsch Patrick 29. Oktober 2026). Nur Escape, nicht Zurück im
+    // Browser, damit die Buchführung der Verlaufseinträge stimmt.
+    const oben = fensterStapel.filter((el) => document.body.contains(el)).pop();
+    const zurueck = oben && oben.id === "pad" && oben.querySelector("[data-padzurueck]");
+    if (zurueck) { e.preventDefault(); zurueck.click(); return; }
     if (oberstesFensterSchliessen()) { e.preventDefault(); return; }
     // Kein richtiges Fenster offen: dann das kleine Infofenster der
     // Planwand, das beim Antippen eines Balkens stehen bleibt
