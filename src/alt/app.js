@@ -17,6 +17,7 @@ import Statistik, { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import Temp from "../seiten/Temp.jsx";
 import Kalender from "../seiten/Kalender.jsx";
+import Einlagen from "../seiten/Einlagen.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Infoboard, { Empfang, Pausenraum, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
 import { bildschirmDiesesGeraets, TAFELN } from "../infoboard/daten.js";
@@ -152,7 +153,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.305.0";
+const APP_VERSION = "1.306.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1225,6 +1226,8 @@ function neuladenRuhig() {
   if (bildschirmZeigt()) return navigator.onLine !== false;
   if (document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return false;
   if (document.querySelector(".temp__liste--laeuft")) return false; // Temp-Ordner lädt hoch
+  // Einlagen Gen hält Foto und Kontur nur im Speicher, Neuladen nähme sie weg
+  if (document.querySelector(".einlagen-rahmen")) return false;
   if (eigeneFensterOffen()) return false; // Auftragsfenster auf einem anderen Bildschirm
   const fenster = Array.from(document.querySelectorAll(".dialog-huelle"));
   if (fenster.some((h) => !NEULADEN_FENSTER_RUHIG.includes(fensterArt(h)))) return false;
@@ -3018,7 +3021,7 @@ const ROLLEN = {
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
-  if ((pfad === "material" || pfad === "qs" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender") && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "qs" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   // Den Bereich Empfang sehen nur Personen mit dem Vermerk empfangSehen am
@@ -10182,6 +10185,11 @@ SYM.material = svg('<circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><
 SYM.kalender = svg('<rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18"/>'
   + '<path d="M8 2.5v4M16 2.5v4"/><rect x="13" y="13" width="4" height="4" rx=".8" fill="currentColor" stroke="none"/>');
 
+
+// Einlagen Gen: Einlage von oben mit zwei Werkzeugtaschen
+SYM.einlagen = svg('<rect x="3" y="3" width="18" height="18" rx="2.5"/>'
+  + '<rect x="6" y="6" width="4" height="12" rx="2"/><path d="M13.5 6.5h2.5a2 2 0 0 1 2 2V10l-2.5 1.5V17.5h-2z"/>');
+
 SYM.temp = svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
   + '<path d="M12 16v-5"/><path d="M9.5 13.5L12 11l2.5 2.5"/>');
 
@@ -10323,6 +10331,8 @@ const SEITEN = [
   // Eigener Ordner je Person, vor Google (Wunsch Patrick, 12. Oktober 2026)
   // Termine wie Kehrichtabfuhr, auch auf dem Infoboard (Wunsch Patrick 28. Oktober 2026)
   { pfad: "kalender",     titel: "Kalender",     zeichen: SYM.kalender, zeige: reactSeite(Kalender) },
+  // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
+  { pfad: "einlagen",     titel: "Einlagen Gen (created by Ecker)", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   { pfad: "temp",         titel: "Temp",         zeichen: SYM.temp, zeige: reactSeite(Temp) },
   // Grosser Bildschirm hochkant (Wunsch Patrick 20. Oktober 2026), nur
   // für Admins und Gerätekonten
@@ -10335,7 +10345,7 @@ const SEITEN = [
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
-  meineProfilId, parkIstExtern,
+  meineProfilId, parkIstExtern, leerlaufAktiv,
   zeitlimit, meldung, nachfragen, fehlertext, dialogFelder, auswahlDialog,
   merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,
   reiterUebergang,

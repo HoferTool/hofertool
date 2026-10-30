@@ -10723,3 +10723,6 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .eba-platz > .eba-ansehen { position: absolute; inset: 2px; height: auto; line-height: normal; border-bottom: none; display: flex; flex-direction: column; gap: 6px;
   justify-content: center; align-items: stretch; padding: 6px 10px; background: rgba(255, 255, 255, 0.92); z-index: 10; }
 .eba-ansehen .knopf { font-size: 13px; padding: 6px 8px; min-height: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Einlagen Gen: Konturscanner im Rahmen, bis an den unteren Rand */
+.einlagen-rahmen { display: block; width: 100%; border: 0; border-radius: var(--radius); background: var(--grund); }

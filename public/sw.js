@@ -65,6 +65,23 @@ self.addEventListener("fetch", (e) => {
   // Dasselbe für die Test-Fassung unter .../test/.
   if (url.pathname.includes("/vorschau/") || url.pathname.includes("/test/")) return;
 
+  // Einlagen Gen ist eine eigene Seite im Rahmen (public/einlagen/). Sie
+  // darf nie als Seite der App abgelegt werden, sonst startet ohne Netz
+  // der Konturscanner statt der App. Erst das Netz, sonst die eigene.
+  if (url.pathname.includes("/einlagen/") && !/\.js$/.test(url.pathname)) {
+    e.respondWith((async () => {
+      const c = await caches.open(HUELLE);
+      try {
+        const frisch = await fetch(anfrage);
+        if (frisch.ok) c.put(anfrage, frisch.clone());
+        return frisch;
+      } catch (f) {
+        return (await c.match(anfrage, { ignoreSearch: true })) || (await c.match("./einlagen/index.html")) || Response.error();
+      }
+    })());
+    return;
+  }
+
   // Die Seite: erst das Netz, sonst die gemerkte Fassung
   if (anfrage.mode === "navigate" || url.pathname.endsWith("/index.html")
       || url.pathname.endsWith("/")) {
