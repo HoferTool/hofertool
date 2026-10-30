@@ -10393,3 +10393,20 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
 .bs-artikel__hoco-leer { color: var(--gedaempft); font-style: italic; }
 .bs-artikel__hoco:empty { display: none; }
 @media (min-width: 641px) { .bs-artikel__hoco:empty { display: flex; } }
+/* Einrichtblatt: Schriftfarbe und dünn/fett der Notiz im Platz (1.281.0) */
+.eba-geo--fett { font-weight: 700; }
+.eba-pf-geostil { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: -4px 0 12px; }
+.eba-pf-geofarbe { width: 28px; height: 28px; border-radius: 50%; flex: none; padding: 0; cursor: pointer;
+  background: var(--f); border: 2px solid var(--linie-stark); touch-action: manipulation; position: relative; }
+.eba-pf-geofarbe.aktiv { box-shadow: 0 0 0 2px var(--flaeche, #fff), 0 0 0 4px #1f6feb; }
+.eba-pf-geofarbe--waehler { overflow: hidden; border: none;
+  background: conic-gradient(#ff4d4d, #ffd84d, #5ee06a, #4dd2ff, #6a6aff, #e04dff, #ff4d4d); }
+.eba-pf-geofarbe--waehler::after { content: ""; position: absolute; inset: 6px; border-radius: 50%;
+  background: var(--f); box-shadow: 0 0 0 2px rgba(0,0,0,.3); pointer-events: none; }
+.eba-pf-geofarbe--waehler input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+.eba-pf-geodicke { display: inline-flex; margin-left: auto; border: 2px solid var(--linie-stark); border-radius: 6px; overflow: hidden; }
+.eba-pf-geodicke button { height: 32px; min-width: 58px; padding: 0 10px; border: 0; background: #fff; color: #667; cursor: pointer; font: inherit; font-size: .85rem; }
+.eba-pf-geodicke button + button { border-left: 2px solid var(--linie-stark); }
+.eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; }
+body.dunkel .eba-pf-geodicke button { background: #2b333d; color: #e6edf3; -webkit-text-fill-color: #e6edf3; }
+body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -webkit-text-fill-color: #fff; }

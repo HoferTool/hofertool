@@ -101,11 +101,16 @@ function EineZeile({ text }) {
   return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="">{text}</span>;
 }
 
+// Schriftfarben der Notiz im Platz; Schwarz ist die Vorgabe und wird
+// nicht gespeichert
+const GEO_SCHWARZ = "#000000";
+const GEO_FARBEN = [["Schwarz", GEO_SCHWARZ], ["Rot", "#e03030"], ["Blau", "#1f5fd6"], ["Grün", "#1a8f3c"], ["Orange", "#e07a00"]];
+
 // Notiz (Geo-Offset) im Bildfeld eines Platzes: immer waagrecht mittig;
 // ohne Bild auch senkrecht mittig und so gross, wie das Feld es zulässt
 // (Wunsch Patrick 29. Oktober 2026: „schön mitte zentriert, Höhe und
 // Breite anpassen“). Mit Bild bleibt sie klein über dem Bild.
-function GeoText({ text, mitBild }) {
+function GeoText({ text, mitBild, farbe, fett }) {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
@@ -132,8 +137,9 @@ function GeoText({ text, mitBild }) {
     const ro = new ResizeObserver(passen);
     ro.observe(feld);
     return () => ro.disconnect();
-  }, [text, mitBild]);
-  return <span ref={ref} className="eba-geo" data-geo="">{text}</span>;
+  }, [text, mitBild, fett]);
+  return <span ref={ref} className={"eba-geo" + (fett ? " eba-geo--fett" : "")} data-geo=""
+    style={farbe ? { color: farbe, WebkitTextFillColor: farbe } : undefined}>{text}</span>;
 }
 
 // Ein Eingabefeld im Kopf
@@ -223,7 +229,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
         {/* Geo-Offset nur, wo nötig: steht über dem Bild, das Bild wird
             kleiner oder fällt ganz weg (Wunsch Patrick, 24. Oktober 2026) */}
         <div className={"eba-bild" + (p.geo ? " eba-bild--geo" + (bild && !p.ohneBild ? "" : " eba-bild--nurgeo") : "")}>
-          {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} /> : null}
+          {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} farbe={p.geoFarbe} fett={!!p.geoFett} /> : null}
           {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her">{p.hersteller || ""}{p.spezial && p.article_id &&
           <span className="eba-stern" title="Spezialwerkzeug" data-eba-stern="">★</span>}</div>
@@ -391,7 +397,11 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     ["taetigkeit", "mass", "hersteller", "werkzeug", "bezeichnung"].forEach((k) => { const w = String(p[k] || "").trim(); if (w) z[k] = w; });
     if (p.hd) z.hd = true;
     const geo = String(p.geo || "").replace(/\s+$/, "");
-    if (geo.trim()) z.geo = geo;
+    if (geo.trim()) {
+      z.geo = geo;
+      if (p.geoFarbe && p.geoFarbe !== GEO_SCHWARZ) z.geoFarbe = p.geoFarbe;
+      if (p.geoFett) z.geoFett = true;
+    }
     if (p.ohneBild) z.ohneBild = true;
     if (p.article_id && z.werkzeug) z.article_id = p.article_id;
     else delete z.bezeichnung;
@@ -443,7 +453,26 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
         </div>
       </div>
       <label className="feld"><span>Geo-Offset, nur wenn nötig</span>
-        <textarea data-pf="geo" rows={2} value={p.geo || ""} onChange={f("geo")} placeholder="z. B. X 0.12  Z -0.05" /></label>
+        <textarea data-pf="geo" rows={2} value={p.geo || ""} onChange={f("geo")} placeholder="z. B. X 0.12  Z -0.05"
+          style={{ color: p.geoFarbe || undefined, WebkitTextFillColor: p.geoFarbe || undefined, fontWeight: p.geoFett ? 700 : undefined }} /></label>
+      {/* Schriftfarbe und dünn/fett der Notiz, wie die Leiste der Skizze im
+          Pad: ein paar feste Farben und der Farbwähler des Geräts
+          (Wunsch Patrick 30. Oktober 2026) */}
+      <div className="eba-pf-geostil" data-pf-geostil="">
+        {GEO_FARBEN.map(([name, wert]) => <button key={wert} type="button" title={name} aria-label={name}
+          data-pf-geofarbe={wert} className={"eba-pf-geofarbe" + ((p.geoFarbe || GEO_SCHWARZ) === wert ? " aktiv" : "")}
+          style={{ "--f": wert }} onClick={() => setP(Object.assign({}, p, { geoFarbe: wert === GEO_SCHWARZ ? null : wert }))} />)}
+        <label className={"eba-pf-geofarbe eba-pf-geofarbe--waehler" + (p.geoFarbe && !GEO_FARBEN.some((x) => x[1] === p.geoFarbe) ? " aktiv" : "")}
+          style={{ "--f": p.geoFarbe || GEO_SCHWARZ }} title="Andere Farbe wählen" aria-label="Andere Farbe wählen">
+          <input type="color" data-pf-geowahl="" value={p.geoFarbe || GEO_SCHWARZ}
+            onChange={(e) => setP(Object.assign({}, p, { geoFarbe: e.target.value.toLowerCase() }))} /></label>
+        <span className="eba-pf-geodicke">
+          <button type="button" data-pf-geodicke="duenn" className={!p.geoFett ? "aktiv" : ""}
+            onClick={() => setP(Object.assign({}, p, { geoFett: false }))}>Dünn</button>
+          <button type="button" data-pf-geodicke="fett" className={p.geoFett ? "aktiv" : ""}
+            onClick={() => setP(Object.assign({}, p, { geoFett: true }))}><b>Fett</b></button>
+        </span>
+      </div>
       {BILDER_AN && <label className="eba-pf-check"><input type="checkbox" data-pf="ohneBild" checked={!!p.ohneBild}
         onChange={(e) => setP(Object.assign({}, p, { ohneBild: e.target.checked }))} /> Kein Bild auf dem Blatt</label>}
       <div className="eba-pf-zeile">
