@@ -99,9 +99,14 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
   const [bandHoehe, setBandHoehe] = useState(0);
   // In der Gestaltung stehen die Teile dort, wo sie gespeichert sind, sonst
   // passten Ziehen und Ablegen nicht mehr zur Maus
-  const bandOben = mass.band > 0 ? mass.kopf - mass.band : 0;
+  // Im Pausenraum unter dem Band noch eine flache Leiste über die ganze
+  // Breite (mass.leiste, für Radiosender und YouTube; Wunsch Patrick
+  // 30. Oktober 2026: „möglichst breit und nicht hoch“)
+  const leiste = mass.leiste || 0;
+  const bandOben = mass.band > 0 ? mass.kopf - mass.band - leiste : 0;
+  const leisteOben = bandOben + Math.max(bandHoehe, (mass.band || 0) - LUECKE) + LUECKE;
   const teile = useMemo(() => (bearbeiten || !bandHoehe ? aufbau.teile
-    : teileUnterBand(aufbau.teile, bandOben + bandHoehe + LUECKE, mass)), [aufbau.teile, bearbeiten, bandHoehe, bandOben, mass]);
+    : teileUnterBand(aufbau.teile, bandOben + bandHoehe + LUECKE + leiste, mass)), [aufbau.teile, bearbeiten, bandHoehe, bandOben, leiste, mass]);
 
   const greifen = (e, t, art) => {
     if (!bearbeiten || e.button > 0) return;
@@ -179,13 +184,13 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
       {k > 0 &&
       <div ref={blatt} className={"ib-blatt" + (bearbeiten ? " ib-blatt--bearbeiten" : "") + (ziel ? " ib-blatt--ziel" : "")}
         data-ibtafel={mass.id}
-        style={{ width: mass.breite, height: mass.hoehe, background: mass.ruhig ? farben.grund : undefined, transform: "translate(-50%, -50%) scale(" + k + ")" }}
+        style={{ width: mass.breite, height: mass.hoehe, background: mass.ruhig || mass.hell ? farben.grund : undefined, transform: "translate(-50%, -50%) scale(" + k + ")" }}
         onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>
-        {mass.ruhig ? <EmpfangKopf farbe={farben.kopf} logo={aufbau.logo} logoSetzen={bearbeiten ? logoSetzen : null} k={k} hoehe={mass.kopf - 2 * LUECKE} breite={mass.breite - 2 * LUECKE} top={LUECKE} left={LUECKE} />
+        {mass.ruhig || mass.hell ? <EmpfangKopf farbe={farben.kopf} logo={aufbau.logo} logoSetzen={bearbeiten ? logoSetzen : null} k={k} hoehe={mass.kopf - (mass.band || 0) - leiste - 2 * LUECKE} breite={mass.breite - 2 * LUECKE} top={LUECKE} left={LUECKE} />
           : <Kopf />}
-        {mass.bandRechts > 0 && <KopfBand top={LUECKE} left={mass.breite - LUECKE - mass.bandRechts} breite={mass.bandRechts}
-          hoehe={mass.kopf - 2 * LUECKE} rechts />}
-        {mass.band > 0 && <KopfBand top={bandOben} left={LUECKE} breite={mass.breite - 2 * LUECKE} hoehe={mass.band - LUECKE} hoeheMelden={setBandHoehe} />}
+        {mass.band > 0 && <KopfBand top={bandOben} left={LUECKE} breite={mass.breite - 2 * LUECKE} hoehe={mass.band - LUECKE} hoeheMelden={setBandHoehe} flach={!!mass.hell} />}
+        {leiste > 0 && <div className="ib-leiste" data-ib="pausenraum-leiste"
+          style={{ top: leisteOben, left: LUECKE, width: mass.breite - 2 * LUECKE, height: leiste - LUECKE }} />}
         {mass.ruhig && (aufbau.effekte || effektProbe) && <Alpen breite={mass.breite} hoehe={mass.hoehe} oben={mass.kopf} />}
         {nacht && !mass.ruhig && <Huehnerhimmel />}
         {(!nacht || mass.ruhig) && teile.map((t0) => {
@@ -249,7 +254,7 @@ function Kopf() {
     ro.observe(el);
     return () => ro.disconnect();
   }, [hoehe]);
-  const breite = mass.breite - 2 * LUECKE - (mass.bandRechts ? mass.bandRechts + LUECKE : 0);
+  const breite = mass.breite - 2 * LUECKE;
   return (
     <div className="ib-kopf" style={{ height: hoehe, top: LUECKE, left: LUECKE, width: breite }}>
       <div className="ib-kopf__innen" ref={innen}

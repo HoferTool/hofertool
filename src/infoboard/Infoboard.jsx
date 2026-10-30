@@ -277,8 +277,8 @@ function Gestalten({ mass }) {
             <input ref={datei} type="file" hidden multiple onChange={dateiGewaehlt}
               accept="application/pdf,image/*,video/*,.xlsx,.xlsm,.xls,.ods,.docx" />
             {mass.ruhig && <Layouts mass={mass} aufbau={aufbau} aktivieren={ganzErsetzen} />}
-            {mass.ruhig && <Farben mass={mass} aufbau={aufbau} setzen={farbenSetzen} />}
-            {mass.ruhig && <LogoWahl lage={aufbau.logo} setzen={logoSetzen} />}
+            {(mass.ruhig || mass.hell) && <Farben mass={mass} aufbau={aufbau} setzen={farbenSetzen} />}
+            {(mass.ruhig || mass.hell) && <LogoWahl lage={aufbau.logo} setzen={logoSetzen} />}
             {mass.ruhig &&
               <div className="ib-effekte">
                 <label className="ib-geraet">
@@ -585,7 +585,7 @@ function aufloesungText() {
 function Anzeige({ huelle, mass, melden }) {
   const [aufbau, setAufbau] = useState(null);
   // Rand um die Tafel in derselben Farbe wie ihr Hintergrund
-  useEffect(() => { if (mass.ruhig) huelle.style.background = tafelFarben(mass, aufbau).grund; }, [aufbau, mass, huelle]);
+  useEffect(() => { if (mass.ruhig || mass.hell) huelle.style.background = tafelFarben(mass, aufbau).grund; }, [aufbau, mass, huelle]);
   const [fehler, setFehler] = useState("");
   const [zu, setZu] = useState(false);
   const stand = useRef("");

@@ -66,10 +66,13 @@ export const TAFELN = {
   // Touch. Oben derselbe Kopf wie im Infoboard samt Band mit Geburtstagen
   // und Terminen, darunter Teile wie im Infoboard und antippbare Kacheln
   // (Kachel.jsx), die ihren Inhalt gross über den Bildschirm öffnen.
-  // Quer ist wenig Höhe: das Band steht rechts neben dem Kopf statt darunter
-  // (bandRechts = seine Breite), so bleibt für die Teile mehr Platz.
-  pausenraum: { id: "pausenraum", name: "Pausenraum", seite: "pausenraum", breite: 1920, hoehe: 1080, kopf: 360, bandRechts: 700,
-    geraet: "hofer.pausenraum.geraet", touch: true, grund: "#0b1626" },
+  // Seit 1.286.0 hell und freundlich (Wunsch Patrick 30. Oktober 2026: „heller
+  // und freundlicher … Hintergrundfarbe ändern können wie beim Empfang“):
+  // hell = heller Kopf des Empfangs über die ganze Breite mit der Solaranlage,
+  // darunter das Band flach in einer Zeile je Bereich; Farben wählbar, nachts
+  // aber trotzdem die Hühner wie am Infoboard (nicht ruhig).
+  pausenraum: { id: "pausenraum", name: "Pausenraum", seite: "pausenraum", breite: 1920, hoehe: 1080, kopf: 314 + 84 + 80, band: 84, leiste: 80,
+    geraet: "hofer.pausenraum.geraet", touch: true, hell: true, grund: "#eef4fa", kopfFarbe: "#ffffff" },
 };
 
 // Farben der Tafel: am Empfang stellt sie der Admin selbst ein (Wunsch

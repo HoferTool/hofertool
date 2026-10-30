@@ -24,7 +24,12 @@ with sync_playwright() as p:
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:200]))
     heute = datetime.now()
     pg.clock.set_system_time(datetime(heute.year, heute.month, heute.day, 10, 0) + timedelta(days=(2 - heute.weekday()) % 7))
-    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
+    t0 = datetime(heute.year, heute.month, heute.day) + timedelta(days=(2 - heute.weekday()) % 7)
+    geb = lambda d: "1990-" + (t0 + timedelta(days=d)).strftime("%m-%d")
+    tag = lambda d: (t0 + timedelta(days=d)).strftime("%Y-%m-%d")
+    MIT = FAKE + ";\nTEST.daten.people = [{ id: 'p1', name: 'Anna Muster', geburtstag: '%s' }, { id: 'p2', name: 'Beat Beispiel', geburtstag: '%s' }];" % (geb(0), geb(5)) \
+        + "\nTEST.daten.kalender = [{ id: 'k1', titel: 'Kehrichtabfuhr', datum: '%s', wiederholung: 'woche' }, { id: 'k2', titel: 'Papiersammlung', datum: '%s' }];\n" % (tag(1), tag(9))
+    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=MIT))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
@@ -36,9 +41,22 @@ with sync_playwright() as p:
     b = pg.locator(".ib-gestalten .ib-blatt").evaluate("el => [el.offsetWidth, el.offsetHeight, el.dataset.ibtafel]")
     pruefe(b == [1920, 1080, "pausenraum"], "Tafel quer 1920 × 1080: %s" % b)
     pruefe(pg.locator(".ib-gestalten .ib-teil").count() == 0, "Teile des Infoboards nicht im Pausenraum")
-    pruefe(pg.locator(".ib-gestalten .ib-blatt .kopfkarte").count() == 1 and pg.locator(".ib-gestalten .ib-blatt .solar").count() >= 1,
-           "Kopf wie Infoboard mit Solaranlage")
-    pruefe(pg.locator(".ib-gestalten .ib-blatt .ib-band, .ib-gestalten .ib-blatt [class*='band']").count() >= 1, "Band mit Geburtstagen und Terminen")
+    # Seit 1.286.0 hell: Kopf des Empfangs über die ganze Breite, Band flach darunter, Leiste für Radio
+    ek = pg.locator(".ib-gestalten [data-ib='empfang-kopf']").evaluate("el => [el.offsetLeft, el.offsetWidth, el.scrollHeight <= el.clientHeight + 1]")
+    pruefe(ek == [12, 1896, True], "heller Kopf über die ganze Breite, passt: %s" % ek)
+    pruefe(pg.locator(".ib-gestalten .ib-blatt .kopfkarte").count() == 0, "nicht mehr der dunkle Kopf")
+    pruefe(pg.locator(".ib-gestalten .ib-band--flach").count() == 1, "Band flach")
+    pg.wait_for_timeout(800)
+    bh = pg.locator(".ib-gestalten .ib-band--flach").evaluate("el => el.offsetHeight")
+    pruefe(bh <= 80, "Band niedrig: %d" % bh)
+    pruefe(pg.locator(".ib-gestalten .ib-band--flach .ib-band__zeile").count() == 4, "Geburtstage und Termine im Band: %d" % pg.locator(".ib-gestalten .ib-band--flach .ib-band__zeile").count())
+    pruefe(pg.locator(".ib-gestalten [data-ib='pausenraum-leiste']").count() == 1, "Leiste für Radio und YouTube")
+    # Hintergrundfarbe wählbar wie am Empfang
+    pg.locator("[data-ib='farbe-grund']").evaluate("(el) => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(el, '#ffe8cc'); el.dispatchEvent(new Event('input', { bubbles: true })); }")
+    pg.wait_for_timeout(1000)
+    fb = pg.evaluate("() => (TEST.daten.infoboard.find(z => z.id === 'pausenraum') || { aufbau: {} }).aufbau.farben")
+    pruefe(fb and fb.get("grund") == "#ffe8cc", "Hintergrundfarbe gespeichert: %s" % fb)
+    pg.click("[data-ib='farben-vorgabe']"); pg.wait_for_timeout(800)
 
     # Kachel mit PDF
     pg.click("[data-ib='neu-kachel']"); pg.wait_for_selector(".dialog-huelle")
@@ -53,7 +71,7 @@ with sync_playwright() as p:
     t = pg.evaluate("() => TEST.daten.infoboard.find(z => z.id === 'pausenraum').aufbau.teile[0]")
     pruefe(t["art"] == "kachel" and t["titel"] == "Menüplan" and t["inhalt"]["art"] == "datei" and t["inhalt"]["datei"]["typ"] == "pdf",
            "Kachel mit PDF gespeichert: %s" % {k: t.get(k) for k in ("art", "titel", "zeichen")})
-    pruefe(t["y"] >= 450 and t["y"] + t["h"] <= 1080, "Kachel unter dem Kopf: %s" % {k: t[k] for k in "xywh"})
+    pruefe(t["y"] >= 478 and t["y"] + t["h"] <= 1080, "Kachel unter dem Kopf: %s" % {k: t[k] for k in "xywh"})
     pg.screenshot(path=BILD + "/pausenraum-gestalten.png")
     pruefe(pg.locator("[data-ib='kachel-inhalt']").inner_text().find("Menu.pdf") >= 0, "Inhalt der Kachel angezeigt")
     # In der Gestaltung öffnet Antippen nichts
