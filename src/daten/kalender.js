@@ -16,6 +16,8 @@ export const WIEDERHOLUNG = [
   { wert: "4wochen", text: "Alle 4 Wochen" },
   { wert: "monat", text: "Jeden Monat am selben Tag" },
   { wert: "jahr", text: "Jedes Jahr" },
+  // Etwa die Backup-Batterien der Maschinen (Wunsch Patrick 30. Oktober 2026)
+  { wert: "2jahre", text: "Alle 2 Jahre" },
 ];
 export const wiederholungText = (w) => (WIEDERHOLUNG.find((x) => x.wert === w) || WIEDERHOLUNG[0]).text;
 
@@ -34,6 +36,7 @@ export function fehltKalender(e) {
 // einen Blick erkennt
 export function kalenderZeichen(titel) {
   const t = String(titel || "").toLowerCase();
+  if (/batterie|akku/.test(t)) return "🔋";
   if (/papier|karton|altpapier/.test(t)) return "📰";
   if (/grün|gruen|kompost|garten/.test(t)) return "🌿";
   if (/glas|alu|blech|metall|schrott/.test(t)) return "♻️";
@@ -67,18 +70,21 @@ function tageVon(e, ab, bis) {
       if (t > bis) break;
       if (t >= ab) raus.push(t);
     }
-  } else if (w === "monat" || w === "jahr") {
+  } else if (w === "monat" || w === "jahr" || w === "2jahre") {
+    const jahre = w === "jahr" ? 1 : w === "2jahre" ? 2 : 0;
     const tag = start.getDate();
     const a = alt.ausIso(ab);
-    let j = a.getFullYear(), m = w === "jahr" ? start.getMonth() : a.getMonth();
-    if (w === "jahr" && new Date(j, m, 1) < new Date(a.getFullYear(), a.getMonth(), 1)) j++;
+    let j = a.getFullYear(), m = jahre ? start.getMonth() : a.getMonth();
+    if (jahre && new Date(j, m, 1) < new Date(a.getFullYear(), a.getMonth(), 1)) j++;
+    // Alle 2 Jahre: nur Jahre im Takt des ersten Datums
+    if (jahre === 2 && (j - start.getFullYear()) % 2) j++;
     for (let i = 0; i < 400; i++) {
       // Den 31. gibt es nicht jeden Monat: dann der letzte Tag des Monats
       const letzter = new Date(j, m + 1, 0).getDate();
       const t = iso(new Date(j, m, Math.min(tag, letzter)));
       if (t > bis) break;
       if (t >= ab && t >= e.datum) raus.push(t);
-      if (w === "jahr") j++; else { m++; if (m > 11) { m = 0; j++; } }
+      if (jahre) j += jahre; else { m++; if (m > 11) { m = 0; j++; } }
     }
   }
   return raus;
