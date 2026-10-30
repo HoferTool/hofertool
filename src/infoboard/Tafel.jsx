@@ -194,7 +194,8 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
           style={{ top: leisteOben, left: LUECKE, width: mass.breite - 2 * LUECKE, height: leiste - LUECKE }}>
           {/* Radiosender und YouTube zum Antippen (Radio.jsx); das Video
               nimmt die Höhe bis zum unteren Rand der Tafel */}
-          <Radio videoHoehe={Math.max(240, mass.hoehe - leisteOben - leiste - LUECKE)} />
+          <Radio videoHoehe={Math.max(240, mass.hoehe - leisteOben - leiste - LUECKE)}
+            gross={{ oben: -leisteOben, links: -LUECKE, breite: mass.breite, hoehe: mass.hoehe }} />
         </div>}
         {mass.ruhig && (aufbau.effekte || effektProbe) && <Alpen breite={mass.breite} hoehe={mass.hoehe} oben={mass.kopf} />}
         {nacht && !mass.ruhig && <Huehnerhimmel />}

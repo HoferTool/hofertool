@@ -10652,3 +10652,9 @@ body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -w
 .eba-pf-geogroesse b { min-width: 44px; text-align: center; }
 body.dunkel .eba-pf-geogroesse button { background: #2b333d; color: #e6edf3; -webkit-text-fill-color: #e6edf3; }
 body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; -webkit-text-fill-color: #fff; }
+/* Video im Pausenraum gross über die ganze Tafel (1.296.0) */
+.pr-radio__video--gross { right: auto; border-radius: 0; box-shadow: none; z-index: 40; }
+.pr-radio__videoleiste { position: absolute; top: 16px; right: 16px; display: flex; gap: 10px; }
+.pr-radio__videoleiste button { height: 56px; padding: 0 22px; border: 0; border-radius: 999px; font-size: 24px; font-weight: 600;
+  font-family: inherit; color: #fff; background: rgba(10, 20, 35, .72); cursor: pointer; }
+.pr-radio__videoleiste button:active { background: rgba(31, 111, 235, .9); }

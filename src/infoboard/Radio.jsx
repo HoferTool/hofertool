@@ -13,16 +13,25 @@ import { senderLaden, istVideo, videoEinbetten } from "../daten/radio.js";
 const NEU_MS = 10 * 60 * 1000;
 const LAUT_SCHRITT = 0.1;
 const LAUT_MERKEN = "hofer.radio.lautstaerke";
+const GROSS_MERKEN = "hofer.radio.gross";
 
 function lautGemerkt() {
   try { const n = Number(localStorage.getItem(LAUT_MERKEN)); return n > 0 && n <= 1 ? n : 0.6; } catch (f) { return 0.6; }
 }
 
-export default function Radio({ style, className = "", videoHoehe = 560 }) {
+function grossGemerkt() {
+  try { return localStorage.getItem(GROSS_MERKEN) !== "0"; } catch (f) { return true; }
+}
+
+// gross = Lage der ganzen Tafel von der Leiste aus gesehen
+// ({oben, links, breite, hoehe} in Punkten der Tafel), dorthin geht ein
+// Video, wenn es gross läuft
+export default function Radio({ style, className = "", videoHoehe = 560, gross = null }) {
   const [sender, setSender] = useState(null);
   const [an, setAn] = useState(null);       // id des laufenden Senders
   const [stand, setStand] = useState("");   // "laedt" | "spielt" | "fehler"
   const [laut, setLaut] = useState(lautGemerkt);
+  const [grossAn, setGrossAn] = useState(grossGemerkt);
   const ton = useRef(null);
 
   useEffect(() => {
@@ -66,7 +75,13 @@ export default function Radio({ style, className = "", videoHoehe = 560 }) {
     return n;
   });
 
+  const grossSetzen = (an) => {
+    setGrossAn(an);
+    try { localStorage.setItem(GROSS_MERKEN, an ? "1" : "0"); } catch (f) { /* egal */ }
+  };
+
   const video = istVideo(laufend) ? videoEinbetten(laufend) : null;
+  const istGross = !!(video && gross && grossAn);
   useEffect(() => { if (istVideo(laufend) && !video) setStand("fehler"); }, [laufend, video]);
 
   // Die Tafel soll Tipps hier nicht als „Anzeige antippen“ verstehen
@@ -76,7 +91,7 @@ export default function Radio({ style, className = "", videoHoehe = 560 }) {
   // „möglichst breit und nicht hoch“): Sender nebeneinander, rechts
   // Lautstärke und Stopp; der Stand steht im gewählten Knopf
   const standText = (s) => (an !== s.id ? null : stand === "laedt" ? "verbinde …"
-    : stand === "fehler" ? "nicht erreichbar" : istVideo(s) ? "läuft unten" : "läuft");
+    : stand === "fehler" ? "nicht erreichbar" : istVideo(s) ? (gross && grossAn ? "läuft gross" : "läuft unten") : "läuft");
 
   return (
     <section className={"pr-radio " + className} data-ib="radio" style={style}
@@ -104,13 +119,30 @@ export default function Radio({ style, className = "", videoHoehe = 560 }) {
           <button className="pr-radio__rund" data-radio="lauter" onClick={() => lautAendern(LAUT_SCHRITT)} aria-label="Lauter">+</button>
         </span>
       )}
+      {video && gross && !istGross && (
+        <button className="pr-radio__stopp" data-radio="groesser" onClick={() => grossSetzen(true)}>⛶ Grösser</button>)}
       {laufend && <button className="pr-radio__stopp" data-radio="stopp" onClick={anhalten}>■ Stopp</button>}
-      {/* Die Leiste ist zu flach für ein Video: es läuft darunter über
-          den Teilen der Tafel, Stopp oder nochmal antippen blendet aus */}
+      {/* Die Leiste ist zu flach für ein Video. Gross (Vorgabe, Wunsch
+          Patrick 30. Oktober 2026: „mach das Bild bei Livestream
+          grösser“) füllt es die ganze Tafel, 1920 × 1080 ist genau 16:9;
+          „Kleiner“ legt es unter die Leiste über die Teile der Tafel.
+          Stopp oder nochmal antippen blendet aus */}
       {video && (
-        <div className="pr-radio__video" style={{ height: videoHoehe }}>
+        <div className={"pr-radio__video" + (istGross ? " pr-radio__video--gross" : "")} data-radio="videofeld"
+          style={istGross ? { top: gross.oben, left: gross.links, width: gross.breite, height: gross.hoehe } : { height: videoHoehe }}>
           <iframe key={laufend.id} src={video} title={laufend.name} data-radio="video"
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
+          {istGross && (
+            <div className="pr-radio__videoleiste">
+              {/* Die Leiste liegt darunter: andere Videos direkt hier wählen */}
+              {(sender || []).filter((s) => istVideo(s) && s.id !== an).map((s) => (
+                <button key={s.id} data-radio-video={s.id} onClick={() => waehlen(s)}>
+                  {s.art === "srf" ? "📺 " : "▶ "}{s.name}</button>
+              ))}
+              <button data-radio="kleiner" onClick={() => grossSetzen(false)}>Kleiner</button>
+              <button data-radio="stopp-gross" onClick={anhalten}>■ Stopp</button>
+            </div>
+          )}
         </div>
       )}
       <audio ref={ton} preload="none"

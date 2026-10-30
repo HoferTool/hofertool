@@ -65,10 +65,21 @@ with sync_playwright() as p:
     pruefe("Titans of CNC als Videoliste: " + src[:80], "list=UUc2lUKVOTXKlQR7Fm7h1JfQ" in src)
     pruefe("SRF 3 nicht mehr an", "pr-radio__knopf--an" not in (pg.locator(".ib-voll [data-radio-sender='srf3']").get_attribute("class") or ""))
     pg.screenshot(path="/tmp/claude-0/radio-video.png")
-    pg.locator(".ib-voll [data-radio-sender='srfinfotv']").click(); pg.wait_for_timeout(800)
+    pg.locator(".ib-voll [data-radio-video='srfinfotv']").click(); pg.wait_for_timeout(800)
     src = pg.locator(".ib-voll [data-radio='video']").get_attribute("src") or ""
     pruefe("SRF info live im Player von Play SRF: " + src[:90], src.startswith("https://www.srf.ch/play/embed?urn=urn:srf:video:c49c1d73"))
-    pg.locator(".ib-voll [data-radio='stopp']").click(); pg.wait_for_timeout(300)
+    # Gross über die ganze Tafel, „Kleiner“ und „Grösser“ schalten um
+    b = pg.locator(".ib-voll .ib-blatt").bounding_box()
+    v = pg.locator(".ib-voll [data-radio='videofeld']").bounding_box()
+    pruefe("Video gross über ganze Tafel: %s %s" % (v, b),
+           abs(v["x"] - b["x"]) < 2 and abs(v["y"] - b["y"]) < 2 and abs(v["width"] - b["width"]) < 2 and abs(v["height"] - b["height"]) < 2)
+    pg.screenshot(path="/tmp/claude-0/radio-gross.png")
+    pg.locator(".ib-voll [data-radio='kleiner']").click(); pg.wait_for_timeout(300)
+    v2 = pg.locator(".ib-voll [data-radio='videofeld']").bounding_box()
+    pruefe("Kleiner legt es unter die Leiste", v2["y"] > b["y"] + 100 and pg.locator(".ib-voll [data-radio='groesser']").count() == 1)
+    pg.locator(".ib-voll [data-radio='groesser']").click(); pg.wait_for_timeout(300)
+    pruefe("Grösser wieder gross", pg.locator(".ib-voll .pr-radio__video--gross").count() == 1)
+    pg.locator(".ib-voll [data-radio='stopp-gross']").click(); pg.wait_for_timeout(300)
     pruefe("Stopp blendet Video aus", pg.locator(".ib-voll [data-radio='video']").count() == 0)
     pruefe("keine Fehler: " + str(f), not f)
     br.close()
