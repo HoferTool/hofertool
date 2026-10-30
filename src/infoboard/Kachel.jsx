@@ -11,17 +11,18 @@
 //
 //  teil = { art: "kachel", titel, zeichen (Emoji, frei), farbe,
 //           inhalt: { art: "datei", datei } | { art: "web", adresse, zoom, gesperrt }
-//                 | { art: "text", html } }
+//                 | { art: "text", html } | { art: "spiel", spiel: "alle" | Spiel-Id } }
 // =================================================================
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { textBearbeiten } from "./TextFeld.jsx";
 import { webBearbeiten } from "./WebFeld.jsx";
 import { dateiHochladen, dateiTyp } from "./daten.js";
+import { SPIELE, Spiele, spielName } from "./Spiele.jsx";
 
 export const KACHEL_FARBEN = [["#1f6feb", "Blau"], ["#2ea043", "Grün"], ["#d97706", "Orange"], ["#dc2626", "Rot"],
   ["#7c3aed", "Violett"], ["#0891b2", "Türkis"], ["#db2777", "Pink"], ["#475569", "Grau"]];
-const INHALTE = [["datei", "Datei (PDF, Bild, Video, Excel)"], ["web", "Webseite"], ["text", "Text wie in Word"]];
+const INHALTE = [["datei", "Datei (PDF, Bild, Video, Excel)"], ["web", "Webseite"], ["text", "Text wie in Word"], ["spiel", "Spiele"]];
 export const ZU_MS = 2 * 60 * 1000;
 
 // Eine Datei wählen, ohne festes Feld im Fenster. Bricht man ab, kommt null
@@ -40,11 +41,21 @@ function dateiWaehlen() {
 export const inhaltName = (inh) => !inh ? "kein Inhalt"
   : inh.art === "web" ? "Webseite: " + (inh.adresse || "")
   : inh.art === "text" ? "Text"
+  : inh.art === "spiel" ? "Spiel: " + spielName(inh.spiel)
   : inh.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video", excel: "Excel" }[inh.datei.typ] || "Datei") + ": " + (inh.datei.name || "")
   : "kein Inhalt";
 
 // Inhalt wählen oder ändern. Ergibt den neuen Inhalt oder null.
 export async function inhaltBearbeiten(art, alt0) {
+  if (art === "spiel") {
+    const w = await alt.dialogFelder({
+      titel: "Welches Spiel?",
+      felder: [{ name: "spiel", label: "Beim Antippen", wert: alt0 && alt0.art === "spiel" ? alt0.spiel : "alle",
+        auswahl: [["alle", "Alle Spiele zur Auswahl"], ...SPIELE.map((x) => [x.id, x.name])] }],
+      bestaetigen: "Übernehmen",
+    });
+    return w ? { art: "spiel", spiel: w.spiel || "alle" } : null;
+  }
   if (art === "web") {
     const f = await webBearbeiten(alt0 && alt0.art === "web" ? alt0 : null);
     return f ? { art: "web", ...f } : null;
@@ -143,6 +154,7 @@ export function KachelGross({ feld, breite, hoehe, zu, inhaltZeigen }) {
           <video className="ib-bild" src={inh.datei.url} autoPlay controls playsInline />}
         {box && inh.art === "datei" && inh.datei && inh.datei.typ !== "video" &&
           inhaltZeigen({ id: feld.id + "-gross", art: "datei", datei: inh.datei, sekunden: 0 }, box.b, box.h)}
+        {box && inh.art === "spiel" && <Spiele spiel={inh.spiel} breite={box.b} hoehe={box.h} />}
         {!inh.art && <div className="ib-leer">Diese Kachel hat noch keinen Inhalt.</div>}
       </div>
     </div>

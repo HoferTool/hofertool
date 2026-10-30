@@ -10534,3 +10534,94 @@ body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -w
   background: #eee; color: #333; font-size: 1.05em; font-weight: 600; cursor: pointer; }
 .sd-knopf--an { background: #2e9e4f; border-color: #2e9e4f; color: #fff; }
 .sd-knopf:disabled { cursor: default; opacity: .7; }
+
+/* ===== Spiele im Pausenraum (src/infoboard/Spiele.jsx) =====
+   Alles in Punkten der Tafel (1920 × 1080), gross für den Finger. */
+.sp-liste { display: flex; gap: 36px; align-items: stretch; justify-content: center; padding: 40px 0; box-sizing: border-box; }
+.sp-karte { flex: 1; max-width: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  padding: 30px 24px; border: 0; border-radius: 32px; cursor: pointer; color: #fff; text-align: center;
+  background: linear-gradient(160deg, #2563eb, #1e3a8a); box-shadow: 0 14px 40px rgba(0,0,0,.4); touch-action: manipulation; }
+.sp-karte:nth-child(2) { background: linear-gradient(160deg, #f59e0b, #b45309); }
+.sp-karte:nth-child(3) { background: linear-gradient(160deg, #16a34a, #166534); }
+.sp-karte:nth-child(4) { background: linear-gradient(160deg, #0ea5e9, #0369a1); }
+.sp-karte:nth-child(5) { background: linear-gradient(160deg, #e11d48, #9f1239); }
+.sp-karte:active { transform: scale(.97); }
+.sp-karte__zeichen { font-size: 120px; line-height: 1; }
+.sp-karte__name { font-size: 46px; font-weight: 800; }
+.sp-karte__text { font-size: 24px; opacity: .9; line-height: 1.3; }
+.sp-karte__los { margin-top: 10px; padding: 14px 40px; border-radius: 999px; background: rgba(255,255,255,.22); font-size: 28px; font-weight: 700; }
+
+.sp-rahmen { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; }
+.sp-zurueck { flex: none; align-self: flex-start; height: 72px; margin-bottom: 18px; padding: 0 34px; border: 3px solid rgba(255,255,255,.7);
+  border-radius: 999px; background: rgba(255,255,255,.1); color: #fff; font-size: 30px; font-weight: 700; cursor: pointer; }
+.sp-gross { padding: 26px 56px; border: 0; border-radius: 999px; background: #22c55e; color: #fff; font-size: 40px; font-weight: 800;
+  cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,.35); touch-action: manipulation; }
+.sp-gross:active { transform: scale(.96); }
+.sp-klein { padding: 16px 30px; border: 2px solid rgba(255,255,255,.5); border-radius: 999px; background: none; color: #fff; font-size: 26px; cursor: pointer; }
+.sp-start { display: flex; flex-direction: column; align-items: center; gap: 60px; }
+.sp-start__titel { font-size: 90px; font-weight: 800; }
+.sp-start__knoepfe { display: flex; gap: 40px; }
+.sp-seite { display: flex; flex-direction: column; gap: 28px; align-items: stretch; width: 420px; }
+.sp-seite--schmal { width: 300px; }
+.sp-meldung { font-size: 44px; font-weight: 800; text-align: center; min-height: 110px; display: flex; align-items: center; justify-content: center; }
+.sp-zahlen { display: grid; gap: 12px; }
+.sp-zahlen > div { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 22px; border-radius: 16px;
+  background: rgba(255,255,255,.1); font-size: 26px; }
+.sp-zahlen b { font-size: 38px; }
+.sp-taste { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 150px; height: 150px;
+  border: 0; border-radius: 36px; background: #334155; color: #fff; font-size: 64px; font-weight: 800; cursor: pointer;
+  touch-action: none; user-select: none; box-shadow: 0 6px 0 #0f172a; }
+.sp-taste small { font-size: 20px; font-weight: 600; }
+.sp-taste:active { background: #475569; transform: translateY(4px); box-shadow: 0 2px 0 #0f172a; }
+.sp-ueber { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 30px; background: rgba(5,11,20,.72); border-radius: inherit; text-align: center; padding: 30px; color: #fff; }
+.sp-ueber__titel { font-size: 54px; font-weight: 800; }
+.sp-ueber__text { font-size: 34px; max-width: 900px; line-height: 1.35; }
+.sp-ueber__rekord { font-size: 44px; font-weight: 800; color: #fde047; }
+
+/* Tic Tac Toe */
+.sp-ttt { display: flex; align-items: center; gap: 80px; }
+.sp-ttt__feld { display: grid; gap: 14px; padding: 14px; border-radius: 28px; background: #1e293b; }
+.sp-ttt__zelle { border: 0; border-radius: 20px; background: #f8fafc; cursor: pointer; font-weight: 800; line-height: 1;
+  display: flex; align-items: center; justify-content: center; touch-action: manipulation; }
+.sp-ttt__zelle--X { color: #dc2626; }
+.sp-ttt__zelle--O { color: #2563eb; }
+.sp-ttt__zelle--sieg { background: #fde047; }
+
+/* Klötzli */
+.sp-kl { display: flex; align-items: center; gap: 40px; }
+.sp-tasten { display: flex; flex-direction: column; gap: 40px; }
+.sp-kl__feld { position: relative; display: grid; gap: 2px; padding: 4px; border-radius: 12px; background: #0f172a;
+  border: 4px solid #334155; touch-action: none; }
+.sp-kl__z { border-radius: 6px; background: #1e293b; }
+.sp-kl__z--voll { background: var(--sf); box-shadow: inset 0 -6px 0 rgba(0,0,0,.25), inset 0 4px 0 rgba(255,255,255,.3); }
+.sp-kl__z--schatten { background: #334155; outline: 2px dashed #64748b; outline-offset: -4px; }
+.sp-naechster { display: flex; flex-direction: column; gap: 12px; align-items: center; font-size: 24px; }
+.sp-naechster__bild { display: grid; grid-template-columns: repeat(3, 44px); grid-auto-rows: 44px; gap: 3px; }
+
+/* Hühnerhof */
+.sp-hof { display: flex; align-items: center; gap: 50px; }
+.sp-hof__feld { position: relative; border-radius: 16px; background: #65a30d; touch-action: none; overflow: hidden;
+  box-shadow: inset 0 0 0 6px #3f6212; }
+.sp-hof__zaun { position: absolute; width: var(--k); height: var(--k); background: #92400e;
+  box-shadow: inset 0 0 0 4px #78350f; border-radius: 8px; }
+.sp-hof__korn { position: absolute; width: var(--k); height: var(--k); }
+.sp-hof__korn::after { content: ""; position: absolute; left: 50%; top: 50%; width: 18%; height: 26%; transform: translate(-50%, -50%) rotate(30deg);
+  border-radius: 50%; background: #fde047; box-shadow: 0 0 0 2px #a16207; }
+.sp-hof__tier { position: absolute; width: var(--k); height: var(--k); display: flex; align-items: center; justify-content: center;
+  font-size: calc(var(--k) * .8); line-height: 1; transition: left .19s linear, top .19s linear; }
+.sp-hof__fuchs { transition-duration: .3s; }
+.sp-hof__tier--rechts { transform: scaleX(-1); }
+.sp-kreuz { display: grid; grid-template-columns: repeat(3, 130px); grid-template-rows: repeat(3, 130px); gap: 6px; justify-content: center; }
+.sp-kreuz .sp-taste { width: 130px; height: 130px; font-size: 56px; }
+.sp-kreuz__hoch { grid-area: 1 / 2; }
+.sp-kreuz__links { grid-area: 2 / 1; }
+.sp-kreuz__rechts { grid-area: 2 / 3; }
+.sp-kreuz__runter { grid-area: 3 / 2; }
+
+/* Flatterhuhn und Eierschleuder */
+.sp-leinwand { position: relative; border-radius: 20px; overflow: hidden; }
+.sp-leinwand canvas { display: block; touch-action: none; }
+.sp-leinwand__zahlen { position: absolute; left: 20px; top: 16px; display: flex; gap: 18px; pointer-events: none; }
+.sp-leinwand__zahlen > span { padding: 10px 22px; border-radius: 999px; background: rgba(15,23,42,.7); color: #fff; font-size: 26px; }
+.sp-leinwand__zahlen b { font-size: 34px; margin-left: 8px; }
