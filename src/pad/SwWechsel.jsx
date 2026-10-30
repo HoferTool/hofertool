@@ -1,22 +1,17 @@
 // =================================================================
 //  WERKZEUGWECHSEL BEI SW
-//  Bei den SW-Maschinen nutzen wir den Tool Life Counter der Maschine
-//  selbst, aber nur, wenn bekannt ist, welche Standzeit realistisch ist
-//  (Wunsch Patrick 29. Oktober 2026: „besser, einfacher und trotzdem
-//  genialer als die anderen“). Darum ist das Fenster eine Karte je
-//  Werkzeug statt einer Tabelle:
-//  - wie viele Stück das Werkzeug seit dem letzten Wechsel gemacht hat
-//  - welche Standzeit sich aus den bisherigen Wechseln ergibt, und ob
-//    sie sicher genug ist, um sie in den Tool Life Counter zu tippen
-//  - Karten antippen, dann „Wechsel eintragen“
-//  - darunter der Verlauf: Datum/Stück antippen ändert, ein Werkzeug
-//    antippen nimmt es aus dem Wechsel, der Papierkorb löscht ihn ganz
-//  Gerechnet wird über alle SW-Maschinen desselben Typs, aber nur für
-//  diese HOCO Nr. (protokollLaden), weil die Standzeit am Teil hängt.
+//  Eine Karte je Werkzeug: Stück seit dem letzten Wechsel gegen die
+//  Standzeit aus dem Einrichtblatt, „200 / 800“ mit Balken, mehr nicht
+//  (Wunsch Patrick 30. Oktober 2026: „einfach Standzeit vom EB nehmen …
+//  mit einem Balken und gut ist“). Die Standzeit antippen ändert sie,
+//  gespeichert im Einrichtblatt. Karten antippen, dann „Wechsel
+//  eintragen“. Der Verlauf ist ein eigener Knopf oben: Datum/Stück
+//  antippen ändert, ✕ nimmt ein Werkzeug heraus, + nimmt eines dazu,
+//  der Papierkorb löscht den Wechsel.
 // =================================================================
 import { useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { blattSpeichern, blattSuchen, platzInGebrauch } from "../einrichtblatt/daten.js";
+import { blattSpeichern, blattSuchen, leeresBlatt, platzInGebrauch } from "../einrichtblatt/daten.js";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { protokollLaden } from "./IndexProtokoll.jsx";
 
@@ -29,42 +24,6 @@ export const swPath = (t) => { const n = nummer(t); return n < 1000 ? 1 : n < 20
 const PATH_FARBE = { 1: "#FFC000", 2: "#00B0F0", 3: "#00B050" };
 const ORDNUNG = [1, 3, 2];
 const neueId = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : null);
-
-// Wie lange hielt ein Werkzeug? Abstand der Stückzahl zwischen zwei
-// Wechseln desselben Platzes im selben Auftrag auf derselben Maschine.
-// Über Aufträge hinweg zählt es nicht, weil der Zähler neu beginnt.
-export function standzeitenVon(runden, toolNr) {
-  const werte = [];
-  const letzte = {};
-  runden.forEach((r) => {
-    const zeile = r.zeilen.find((x) => x.tool_nr === toolNr);
-    if (!zeile || r.stk === null || r.stk === undefined) return;
-    const k = (r.job || "") + "|" + (zeile.machine_id || "");
-    if (letzte[k] !== undefined && r.stk > letzte[k]) werte.push(r.stk - letzte[k]);
-    letzte[k] = r.stk;
-  });
-  return werte;
-}
-
-// Realistische Standzeit: von den letzten acht Werten die, die nahe am
-// Median liegen (halb bis anderthalb Mal). Ausreisser wie ein Bruch
-// nach 50 Stück oder ein vergessener Eintrag zählen nicht. Sicher erst
-// mit mindestens drei ähnlichen Werten, die mindestens 60 % ausmachen.
-// Der Vorschlag für den Counter ist der Wert, den drei von vier
-// Werkzeugen erreicht haben (unteres Viertel), auf 10 abgerundet: so
-// meldet die Maschine, bevor es knapp wird.
-export function standzeitSchaetzen(alle) {
-  const werte = alle.slice(-8);
-  if (!werte.length) return { n: 0, sicher: false };
-  const sortiert = werte.slice().sort((a, b) => a - b);
-  const mitte = sortiert.length % 2 ? sortiert[(sortiert.length - 1) / 2]
-    : (sortiert[sortiert.length / 2 - 1] + sortiert[sortiert.length / 2]) / 2;
-  const typisch = sortiert.filter((w) => w >= mitte * 0.5 && w <= mitte * 1.5);
-  const sicher = typisch.length >= 3 && typisch.length / werte.length >= 0.6;
-  const viertel = typisch[Math.floor((typisch.length - 1) * 0.25)];
-  return { n: werte.length, sicher, typisch: typisch.length, von: typisch[0], bis: typisch[typisch.length - 1],
-    vorschlag: viertel ? Math.max(10, Math.floor(viertel / 10) * 10) : null };
-}
 
 export async function swModellLaden(maschine, auftrag, typ) {
   const hoco = auftrag.job_number;
@@ -87,6 +46,7 @@ export function SwWechsel({ maschine, auftrag, typ, anfang, aktionen, zu }) {
   const [m, setM] = useState(anfang);
   const [gewaehlt, setGewaehlt] = useState([]);
   const [alleZeigen, setAlleZeigen] = useState(false);
+  const [verlaufZeigen, setVerlaufZeigen] = useState(false);
   const [laeuft, setLaeuft] = useState(false);
   const darf = alt.darfSchreiben();
   const stand = auftrag.stand || 0;
@@ -108,10 +68,10 @@ export function SwWechsel({ maschine, auftrag, typ, anfang, aktionen, zu }) {
 
   const karten = sichtbar.map((t) => {
     const p = m.eb[t] || {};
-    const schaetzung = standzeitSchaetzen(standzeitenVon(m.runden, t));
+    const standzeit = Number(String(p.standzeit || "").replace(/'/g, "")) || 0;
     const letzter = m.runden.filter((r) => r.job === auftrag.id && r.zeilen.some((x) => x.tool_nr === t)).pop();
     const seit = letzter && letzter.stk !== null ? Math.max(0, stand - letzter.stk) : stand;
-    return { t, p, schaetzung, seit, seitWechsel: !!letzter };
+    return { t, p, standzeit, seit };
   });
 
   const umschalten = (t) => darf && setGewaehlt((g) => (g.includes(t) ? g.filter((x) => x !== t) : g.concat(t)));
@@ -122,11 +82,18 @@ export function SwWechsel({ maschine, auftrag, typ, anfang, aktionen, zu }) {
     return true;
   });
 
-  // Die sichere Standzeit als Standzeit ins Einrichtblatt schreiben
-  const insBlatt = (t, wert) => arbeit(async () => {
-    const plaetze = Object.assign({}, m.blatt.plaetze, { [t]: Object.assign({}, m.blatt.plaetze[t], { standzeit: wert }) });
-    await blattSpeichern(Object.assign({}, m.blatt, { plaetze }), "Standzeit ins Einrichtblatt");
-    alt.meldung("Standzeit " + t + " im Einrichtblatt: " + z(wert) + " Stk.", "gut");
+  // Standzeit direkt hier ändern, sie gilt im Einrichtblatt (ohne Blatt
+  // in der App entsteht eines nur mit dieser Standzeit)
+  const standzeitAendern = (t, alt0) => darf && arbeit(async () => {
+    const w = await alt.dialogFelder({ titel: "Standzeit " + t, felder: [{ name: "sz", label: "Standzeit in Stück",
+      typ: "number", ziffern: true, wert: alt0 || "", hinweis: "Leer lassen entfernt die Standzeit" }], bestaetigen: "Speichern" });
+    if (!w) return false;
+    const wert = String(w.sz || "").trim() === "" ? null : Math.max(0, Math.round(Number(w.sz) || 0));
+    const blatt = m.blatt || leeresBlatt(auftrag.job_number, typ.id);
+    const platz = Object.assign({}, (blatt.plaetze || {})[t]);
+    if (wert) platz.standzeit = wert; else delete platz.standzeit;
+    await blattSpeichern(Object.assign({}, blatt, { plaetze: Object.assign({}, blatt.plaetze, { [t]: platz }) }), "Standzeit ändern");
+    alt.meldung(wert ? "Standzeit " + t + ": " + z(wert) + " Stk." : "Standzeit " + t + " entfernt.", "gut");
   });
 
   const rundeAendern = (r) => darf && arbeit(async () => {
@@ -177,18 +144,21 @@ export function SwWechsel({ maschine, auftrag, typ, anfang, aktionen, zu }) {
     <div className="dialog dialog--breit wz-hist sw">
       <div className="blatt__kopf"><h2>Werkzeuge · {maschine.name}</h2>
         <span className="sw-kopf">HOCO <b>{auftrag.job_number}</b> · Stand <b data-swstand="">{z(stand)}</b> Stk</span>
-        {imEb.length > 0 && imEb.length < m.plaetze.length && <button className="knopf knopf--klein knopf--still" data-swalle=""
+        <button className={"knopf knopf--klein" + (verlaufZeigen ? " knopf--haupt" : "")} data-swverlauf=""
+          onClick={() => setVerlaufZeigen(!verlaufZeigen)}>{verlaufZeigen ? "Zurück zu den Werkzeugen" : "Verlauf"}</button>
+        {!verlaufZeigen && imEb.length > 0 && imEb.length < m.plaetze.length && <button className="knopf knopf--klein knopf--still" data-swalle=""
           onClick={() => setAlleZeigen(!alleZeigen)}>{alleZeigen ? "Nur aus dem Einrichtblatt" : "Alle Plätze"}</button>}
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
 
+      {!verlaufZeigen && <>
       <div className="sw-paths">{ORDNUNG.map((pn) => {
         const k = karten.filter((x) => pathVon(x.t) === pn);
         if (!k.length) return null;
         return (
           <div key={pn} className="sw-path">
             <div className="sw-path__name" style={{ borderColor: PATH_FARBE[pn] }}>Path {pn}</div>
-            <div className="sw-gitter">{k.map(({ t, p, schaetzung: s, seit, seitWechsel }) => {
-              const anteil = s.sicher && s.vorschlag ? seit / s.vorschlag : 0;
+            <div className="sw-gitter">{k.map(({ t, p, standzeit, seit }) => {
+              const anteil = standzeit ? seit / standzeit : 0;
               const zustand = anteil >= 1 ? " sw-karte--faellig" : anteil >= 0.85 ? " sw-karte--bald" : "";
               return (
                 <div key={t} role="button" tabIndex={0} data-swkarte={t}
@@ -196,33 +166,24 @@ export function SwWechsel({ maschine, auftrag, typ, anfang, aktionen, zu }) {
                   style={{ borderTopColor: PATH_FARBE[pn] }} onClick={() => umschalten(t)}>
                   <div className="sw-karte__kopf"><b>{t}</b><span>{p.taetigkeit || p.werkzeug || ""}</span>
                     {gewaehlt.includes(t) && <span className="sw-haken">✓</span>}</div>
-                  <div className="sw-seit"><b>{z(seit)}</b> Stk {seitWechsel ? "seit Wechsel" : "seit Auftragsbeginn"}</div>
-                  {s.sicher
-                    ? <>
-                        <div className="sw-balken"><i style={{ width: Math.min(100, anteil * 100) + "%" }} /></div>
-                        <div className="sw-counter" data-swcounter={s.vorschlag}>Tool-Counter: <b>{z(s.vorschlag)}</b> Stk</div>
-                        <div className="klein">{s.typisch} von {s.n} Wechseln hielten {z(s.von)} bis {z(s.bis)} Stk</div>
-                      </>
-                    : <div className="sw-unsicher" data-swunsicher="">Standzeit noch unsicher
-                        {s.n ? " · " + s.n + " gemessen" : ""}{s.n && s.von ? " (" + z(s.von) + "–" + z(s.bis) + ")" : ""}</div>}
-                  <div className="sw-eb klein">
-                    {p.standzeit ? <>Im EB: {z(p.standzeit)} Stk</> : "Im EB: keine Standzeit"}
-                    {darf && m.blatt && s.sicher && Number(p.standzeit) !== s.vorschlag && (
-                      <button className="knopf knopf--klein" data-swinsblatt={t}
-                        onClick={(e) => { e.stopPropagation(); insBlatt(t, s.vorschlag); }}>Ins EB: {z(s.vorschlag)}</button>)}
-                  </div>
+                  <div className="sw-zahl" data-swzahl={seit + "/" + (standzeit || "")}>
+                    <b>{z(seit)}</b> / <button type="button" className="sw-sz" data-swstandzeit={t} disabled={!darf}
+                      title="Standzeit ändern" onClick={(e) => { e.stopPropagation(); standzeitAendern(t, standzeit); }}>
+                      {standzeit ? z(standzeit) : "–"}</button></div>
+                  <div className="sw-balken"><i style={{ width: Math.min(100, anteil * 100) + "%" }} /></div>
                 </div>);
             })}</div>
           </div>);
       })}</div>
 
       {darf && <div className="dialog__knoepfe wzb-knoepfe">
-        <span className="klein">Gewechselte Werkzeuge antippen. Tool-Counter steht erst, wenn mindestens drei Wechsel
-          ähnlich lange hielten; vorgeschlagen ist, was drei von vier Werkzeugen geschafft haben.</span>
+        <span className="klein">Gewechselte Werkzeuge antippen. Standzeit antippen zum Ändern.</span>
         <button className="knopf knopf--haupt" data-sweintragen="" disabled={!gewaehlt.length || laeuft} onClick={eintragen}>
           {gewaehlt.length ? "Wechsel eintragen · " + gewaehlt.length : "Wechsel eintragen"}</button>
       </div>}
+      </>}
 
+      {verlaufZeigen && <>
       <h3 className="sw-verlauf-titel">Verlauf {auftrag.job_number}</h3>
       {verlauf.length ? <div className="sw-verlauf">{verlauf.map((r) => (
         <div key={r.schluessel} className="sw-runde" data-swrunde="">
@@ -242,6 +203,7 @@ export function SwWechsel({ maschine, auftrag, typ, anfang, aktionen, zu }) {
             <Eimer /></button>}
         </div>))}</div>
         : <p className="hinweis">Für diese HOCO Nr. ist noch kein Wechsel eingetragen.</p>}
+      </>}
     </div>
   );
 }

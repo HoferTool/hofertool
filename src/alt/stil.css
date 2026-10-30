@@ -10405,3 +10405,12 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
 
 /* Bestellungen → Artikel: „Mehr laden“ unter der Liste (seit 1.275.0) */
 .bs-mehr { display: flex; justify-content: center; padding: 14px 0 6px; }
+
+/* SW: Stück seit Wechsel / Standzeit aus dem EB (seit 1.278.0) */
+.sw-zahl { font-size: 1.35rem; display: flex; align-items: baseline; gap: .35rem; }
+.sw-zahl b { font-size: 1.6rem; }
+.sw-sz { font: inherit; font-weight: 700; color: inherit; background: none; border: 1px dashed var(--linie-stark);
+  border-radius: 6px; padding: 0 .4rem; cursor: pointer; }
+.sw-sz:hover:not(:disabled) { border-color: var(--marke); color: var(--marke); }
+.sw-sz:disabled { border-color: transparent; cursor: default; }
+.sw-karte .sw-balken { height: 12px; border-radius: 6px; }
