@@ -140,12 +140,12 @@ export async function statistikLaden(von, bis) {
   let typen = [];
   try { typen = await alt.ladeTypen(); } catch (f) { /* ohne Typnamen geht es auch */ }
   const ids = maschinen.map((m) => m.id);
-  if (!ids.length) return { maschinen, parks, typen, jobs: [], records: [], zeiten: [], ausschuss: [], von, bis };
+  if (!ids.length) return { maschinen, parks, typen, jobs: [], records: [], zeiten: [], ausschuss: [], verlauf: [], spaeter: [], von, bis };
 
   const ab = alt.ausIso(von);
   const bisEnde = alt.ausIso(alt.plusTage(bis, 1));
   const felder = "id, job_number, fa_nr, machine_id, plan_status, started_at, ended_at, target_quantity, material_bez";
-  const [jobsOffen, jobsBeendet, records, zeiten, ausschuss] = await Promise.all([
+  const [jobsOffen, jobsBeendet, records, zeiten, ausschuss, verlauf, spaeter] = await Promise.all([
     alleZeilen(() => alt.db.from("jobs").select(felder).in("machine_id", ids)
       .is("ended_at", null).lt("started_at", bisEnde.toISOString()).order("id"), "Aufträge"),
     // Vorgänger der ersten Übergänge: bis zwei Wochen vor dem Zeitraum
@@ -155,7 +155,7 @@ export async function statistikLaden(von, bis) {
     // Ein Auftrag, der vor dem Zeitraum anfing, braucht seinen letzten
     // Zählerstand davor, sonst zählt sein ganzer Stand am ersten Tag
     alleZeilen(() => alt.db.from("production_records")
-      .select("id, machine_id, record_date, quantity, job_id")
+      .select("id, machine_id, record_date, quantity, job_id, created_at, updated_at")
       .in("machine_id", ids).gte("record_date", alt.plusTage(von, -120)).lte("record_date", bis)
       .order("record_date").order("id"), "Stückzahlen"),
     alleZeilen(() => alt.db.from("hoco_type_data").select("hoco_nr, type_id, stueckzeit_s").order("hoco_nr"),
@@ -165,6 +165,18 @@ export async function statistikLaden(von, bis) {
       .select("id, job_id, machine_id, hoco_nr, stueck, notiz, erstellt_am, erstellt_name")
       .in("machine_id", ids).gte("erstellt_am", ab.toISOString()).lt("erstellt_am", bisEnde.toISOString())
       .order("erstellt_am"), "Ausschuss").catch(() => null),
+    // Zustandswechsel für die Zeitachse beim Auftragswechsel; null =
+    // Tabelle fehlt noch (sql/zustand-verlauf.sql)
+    alleZeilen(() => alt.db.from("auftrag_zustand_verlauf")
+      .select("job_id, machine_id, von, nach, am, nachgetragen")
+      .in("machine_id", ids).gte("am", new Date(ab.getTime() - UEBERGANG_MAX).toISOString())
+      .lt("am", bisEnde.toISOString()).order("am"), "Zustände").catch(() => null),
+    // Die erste Stückzahl eines neuen Auftrags kann nach dem Zeitraum
+    // kommen (heute zählt nie mit), die Zeitachse braucht sie trotzdem
+    alleZeilen(() => alt.db.from("production_records")
+      .select("id, machine_id, record_date, quantity, job_id, created_at, updated_at")
+      .in("machine_id", ids).gt("record_date", bis).lte("record_date", alt.plusTage(bis, 14))
+      .order("record_date").order("id"), "Stückzahlen").catch(() => []),
   ]);
   const jobs = new Map();
   jobsOffen.concat(jobsBeendet).forEach((j) => jobs.set(j.id, j));
@@ -176,14 +188,14 @@ export async function statistikLaden(von, bis) {
     if (r.error) throw r.error;
     (r.data || []).forEach((j) => jobs.set(j.id, j));
   }
-  return { maschinen, parks, typen, jobs: [...jobs.values()], records, zeiten, ausschuss, von, bis };
+  return { maschinen, parks, typen, jobs: [...jobs.values()], records, zeiten, ausschuss, verlauf, spaeter, von, bis };
 }
 
 // ---------------------------------------------------------------
 //  Rechnen
 // ---------------------------------------------------------------
 export function statistikRechnen(d) {
-  const { maschinen, typen, jobs, records, zeiten, ausschuss, von, bis } = d;
+  const { maschinen, typen, jobs, records, zeiten, ausschuss, verlauf, spaeter, von, bis } = d;
   const jobVon = new Map(jobs.map((j) => [j.id, j]));
   const maschineVon = new Map(maschinen.map((m) => [m.id, m]));
   const typName = new Map((typen || []).map((t) => [t.id, t.name]));
@@ -263,6 +275,55 @@ export function statistikRechnen(d) {
   });
   ausschussListe.sort((x, y) => String(y.zeit).localeCompare(String(x.zeit)));
 
+  // Zeitachse beim Auftragswechsel (1.302.0, Wunsch Patrick 30. Oktober
+  // 2026): letzte Stückzahl des alten Auftrags → Ende → Rüsten → QS Check
+  // → Läuft → erste Stückzahl des neuen. Gemeldet ist eine Stückzahl,
+  // wann sie eingetippt wurde (created_at), nicht ihr Tag.
+  const meldungen = {};
+  records.concat(spaeter || []).forEach((z) => {
+    const q = Number(z.quantity);
+    if (!z.job_id || !Number.isFinite(q) || q < 0) return;
+    const zeit = z.updated_at || z.created_at;
+    if (zeit) (meldungen[z.job_id] = meldungen[z.job_id] || []).push({ zeit, erst: z.created_at || zeit });
+  });
+  const zustaende = {};
+  (verlauf || []).forEach((v) => { if (!v.nachgetragen) (zustaende[v.job_id] = zustaende[v.job_id] || []).push(v); });
+  const zeitachse = (a, b) => {
+    const start = new Date(b.started_at);
+    const ende = new Date(a.ended_at);
+    const altM = (meldungen[a.id] || []).map((x) => x.zeit).filter((t) => new Date(t) <= new Date(ende.getTime() + 10 * MINUTE)).sort();
+    const neuM = (meldungen[b.id] || []).map((x) => x.erst).filter((t) => new Date(t) >= new Date(start.getTime() - 10 * MINUTE)).sort();
+    // Der letzte Wechsel auf Rüsten bzw. QS Check vor dem Start
+    const zuletzt = (nach) => {
+      const l = (zustaende[b.id] || []).filter((v) => v.nach === nach && new Date(v.am) <= start);
+      return l.length ? l[l.length - 1].am : null;
+    };
+    const punkte = [
+      { art: "stk_alt", zeit: altM.length ? altM[altM.length - 1] : null },
+      { art: "ende", zeit: a.ended_at },
+      { art: "ruesten", zeit: zuletzt("ruesten") },
+      { art: "qs", zeit: zuletzt("qs") },
+      { art: "laeuft", zeit: b.started_at },
+      { art: "stk_neu", zeit: neuM.length ? neuM[0] : null },
+    ];
+    // Abschnitte zwischen den bekannten Punkten, ohne Wochenende. Wurde
+    // schon vor dem Ende gerüstet, zählt der Abschnitt ab dem Ende, damit
+    // die Summe der Abschnitte die ganze Zeit bleibt
+    let vorher = null;
+    punkte.forEach((p) => {
+      if (!p.zeit) return;
+      p.ab = p.zeit;
+      if (vorher) {
+        const x = new Date(vorher.ab), y = new Date(p.zeit);
+        if (y < x) p.ab = vorher.ab;
+        vorher.ms = y > x ? ohneWochenende(x, y) : 0;
+        vorher.bis = p.art;
+      }
+      vorher = p;
+    });
+    return punkte;
+  };
+
   // Übergänge je Maschine
   const uebergaenge = [];
   const jeMaschine = {};
@@ -289,7 +350,7 @@ export function statistikRechnen(d) {
       const ms = start > ende ? ohneWochenende(ende, start) : 0;
       uebergaenge.push({ mid, datum: alt.isoDatum(start), ende: a.ended_at, start: b.started_at, ms,
         vorher: a.job_number || "", vorherId: a.id, neu: b.job_number || "", neuId: b.id,
-        hoco: hocoNormal(b.job_number) });
+        hoco: hocoNormal(b.job_number), schritte: zeitachse(a, b) });
     });
   });
   uebergaenge.sort((x, y) => String(y.start).localeCompare(String(x.start)));
@@ -337,6 +398,18 @@ export function statistikRechnen(d) {
     if (u.hoco) (art[u.hoco] = art[u.hoco] || leer()).ueb.push(u);
   });
 
+  // Ø Dauer je Abschnitt der Zeitachse, nur über Wechsel, bei denen der
+  // Abschnitt bekannt ist
+  const schrittMittel = (l) => {
+    const sum = {};
+    l.forEach((u) => (u.schritte || []).forEach((p) => {
+      if (p.ms === undefined) return;
+      const k = p.art + ">" + p.bis;
+      (sum[k] = sum[k] || { art: p.art, bis: p.bis, ms: 0, n: 0 }).ms += p.ms;
+      sum[k].n++;
+    }));
+    return Object.values(sum).map((x) => ({ ...x, ms: x.ms / x.n }));
+  };
   const mittel = (l) => l.length ? l.reduce((s, u) => s + u.ms, 0) / l.length : NaN;
   const fertig = (z, nMaschinen) => ({
     stk: z.stk, h: z.h, stkOhneZeit: z.stkOhneZeit, stkStart: z.stkStart,
@@ -353,7 +426,7 @@ export function statistikRechnen(d) {
     }),
     ausschuss: z.aus, ausschussQuote: z.stk ? z.aus / z.stk : NaN, ausschussMeldungen: z.ausListe,
     auftraege: z.auftraege.size, maschinen: [...z.maschinen], artikel: [...z.artikel],
-    uebergaenge: z.ueb, uebergangMittel: mittel(z.ueb),
+    uebergaenge: z.ueb, uebergangMittel: mittel(z.ueb), schrittMittel: schrittMittel(z.ueb),
   });
 
   const maschinenListe = maschinen.map((m) => ({
@@ -370,7 +443,7 @@ export function statistikRechnen(d) {
   }).sort((a, b) => b.stk - a.stk);
 
   return {
-    von, bis, tage, arbeitstage, ausschussFehlt: ausschuss === null,
+    von, bis, tage, arbeitstage, ausschussFehlt: ausschuss === null, zustaendeFehlen: verlauf === null,
     gesamt: fertig(alle, maschinen.length),
     maschinen: maschinenListe, artikel: artikelListe,
     maschineVon, jobVon, eintraege, ausgelassen,

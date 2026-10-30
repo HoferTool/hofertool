@@ -28,8 +28,8 @@ DATEN = """(() => {
   D.production_records = D.production_records.filter(z => z.machine_id !== 'm-k1');
   D.production_records.push(
     { id: 's1', machine_id: 'm-k1', job_id: 'sA', record_date: iso(vor), quantity: 500 },
-    { id: 's2', machine_id: 'm-k1', job_id: 'sA', record_date: iso(d), quantity: 800 },
-    { id: 's3', machine_id: 'm-k1', job_id: 'sB', record_date: iso(d), quantity: 200 },
+    { id: 's2', machine_id: 'm-k1', job_id: 'sA', record_date: iso(d), quantity: 800, created_at: um(d, 9) },
+    { id: 's3', machine_id: 'm-k1', job_id: 'sB', record_date: iso(d), quantity: 200, created_at: um(d, 16) },
     { id: 's0', machine_id: 'm-k1', job_id: 'sC', record_date: iso(vor), quantity: 50000 });
   // 72 s und 36 s: Vortag 500 × 72 = 10 h, Tag 300 × 72 + 200 × 36 = 8 h
   D.hoco_type_data.push({ hoco_nr: '10111-0001', type_id: 't2', stueckzeit_s: 72 },
@@ -38,6 +38,11 @@ DATEN = """(() => {
   D.articles.push({ id: 'a9', article_number: 'BOHR-42', name: 'Bohrer 4.2', unit: 'Stück', supplier_id: 's1', is_active: true });
   D.order_items.push({ id: 'o9', article_id: 'a9', supplier_id: 's1', quantity: 12, status: 'bestellt',
     ziel_art: 'maschine', ziel_text: 'Tornos M1 K-2001', created_at: um(vor, 8), ordered_at: um(d, 9) });
+  // Zeitachse (1.302.0): Ende 10, Rüsten 11, QS Check 11:30 (Zeitachse
+  // kennt ihn), Läuft 12, erste Stückzahl 16; letzte alte Stückzahl 9
+  D.auftrag_zustand_verlauf = [
+    { job_id: 'sB', machine_id: 'm-k1', von: 'geplant', nach: 'ruesten', am: um(d, 11), nachgetragen: false },
+    { job_id: 'sB', machine_id: 'm-k1', von: 'ruesten', nach: 'qs', am: new Date(new Date(um(d, 11)).getTime() + 1800000).toISOString(), nachgetragen: false }];
   D.qs_ausschuss = [{ id: 'q1', machine_id: 'm-k1', job_id: 'sB', hoco_nr: '10222-0002', stueck: 50,
     notiz: 'Grat', erstellt_am: um(d, 14), erstellt_name: 'Saheesan' }];
   return iso(d);
@@ -102,6 +107,14 @@ with sync_playwright() as p:
 
     # Eine Maschine: 1'000 Stk, 18 h, Übergang 2 h
     pg.click("#st-auslastung [data-dgzeile='m-k1']"); pg.wait_for_selector("#st-maschine-name"); pg.wait_for_timeout(400)
+    za = pg.evaluate("""[...document.querySelectorAll('[data-stuebergang="sB"] [data-stza]')].map(e => e.dataset.stza + '=' + e.querySelector('.st-za__dauer').textContent)""")
+    if za != ["stk_alt=1,0 h", "ende=1,0 h", "ruesten=30 min", "qs=30 min", "laeuft=4,0 h"]:
+        fehler.append("Zeitachse falsch: " + str(za))
+    if pg.locator('[data-stuebergang="sB"] [data-stzapunkt]').count() != 6:
+        fehler.append("Zeitachse ohne 6 Punkte")
+    if not pg.locator("#st-za-schnitt").count(): fehler.append("Kein Ø je Schritt")
+    pg.locator('#st-wechsel').scroll_into_view_if_needed()
+    pg.locator('#st-wechsel').screenshot(path="/tmp/claude-0/zeitachse.png")
     aus = pg.inner_text("#st-k-ausstoss"); zeit = pg.inner_text("#st-k-zeit"); ueb = pg.inner_text("#st-k-uebergang")
     if "1'000" not in aus: fehler.append("Ausstoss m-k1 falsch: " + aus)
     if "50'000 Stk Startmengen" not in aus: fehler.append("Startmenge nicht genannt: " + aus)
@@ -110,7 +123,7 @@ with sync_playwright() as p:
     aus2 = pg.inner_text("#st-k-ausschuss")
     if "50 Stk" not in aus2 or "5,0 %" not in aus2: fehler.append("Ausschuss m-k1 falsch: " + aus2)
     if "Grat" not in pg.inner_text("#st-ausschuss-liste"): fehler.append("Ausschussmeldung fehlt")
-    zeile = pg.inner_text("#st-uebergaenge tbody tr")
+    zeile = pg.inner_text("#st-uebergaenge .st-za-wechsel")
     if "10111-0001" not in zeile or "10222-0002" not in zeile: fehler.append("Übergang ohne Aufträge: " + zeile)
     saeulen = pg.locator("#st-zeit-tag .dg-saeule").count()
     # Gezählt wird erst ab 26. Oktober 2026, davor gibt es keine Säulen

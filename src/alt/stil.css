@@ -10699,3 +10699,32 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 
 /* Werkzeug ansehen: PDFs des gewählten Artikels in Neue Bestellposition (seit 1.299.0) */
 .pd-ansehen { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+/* Statistik: Zeitachse beim Auftragswechsel (seit 1.302.0) */
+.st-za-liste { display: flex; flex-direction: column; gap: 14px; }
+.st-za-wechsel, .st-za-schnitt { border: 1px solid var(--rand, #d6dde6); border-radius: 10px; padding: 10px 12px; }
+.st-za-schnitt { background: color-mix(in srgb, var(--akzent, #1d4ed8) 6%, transparent); }
+.st-za-kopf { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-bottom: 8px; }
+.st-za-kopf__summe { margin-left: auto; }
+.st-za__band { display: flex; gap: 2px; height: 42px; border-radius: 8px; overflow: hidden; }
+.st-za--kurz .st-za__band { height: 38px; }
+.st-za__teil { flex-basis: 0; min-width: 0; display: flex; flex-direction: column; justify-content: center;
+  padding: 0 6px; color: #fff; overflow: hidden; white-space: nowrap; line-height: 1.15; }
+.st-za__was { font-size: .72rem; opacity: .9; overflow: hidden; text-overflow: ellipsis; }
+.st-za__dauer { font-size: .86rem; overflow: hidden; text-overflow: ellipsis; }
+.st-za__teil--stk_alt, .st-za__marke--stk_alt { background: #5b7f99; }
+.st-za__teil--ende, .st-za__marke--ende { background: #9aa3ad; }
+.st-za__teil--ruesten, .st-za__marke--ruesten { background: #d96a12; }
+.st-za__teil--qs, .st-za__marke--qs { background: #7c4dbd; }
+.st-za__teil--laeuft, .st-za__marke--laeuft { background: #1c8a4e; }
+.st-za__marke--stk_neu { background: #0f5132; }
+.st-za__punkte { list-style: none; margin: 8px 0 0; padding: 0; display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.st-za__punkte li { display: flex; flex-direction: column; gap: 1px; font-size: .82rem; min-width: 0; }
+.st-za__name { font-weight: 600; }
+.st-za__marke { width: 12px; height: 12px; border-radius: 50%; margin-bottom: 2px; }
+.st-za__fehlt { opacity: .45; }
+@media (max-width: 640px) {
+  .st-za__punkte { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .st-za__was { display: none; }
+}

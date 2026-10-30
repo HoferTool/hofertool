@@ -319,27 +319,86 @@ function Karte({ titel, unter, children, id }) {
   );
 }
 
-function Uebergaenge({ liste, r, ohneMaschine }) {
-  if (!liste.length) return <p className="klein dg-leer">Im Zeitraum kein Wechsel von einem beendeten zum nächsten laufenden Auftrag.</p>;
+// Zeitachse beim Auftragswechsel (1.302.0, Wunsch Patrick 30. Oktober
+// 2026: „letzte gemeldete Stückzahl – Auftrag Ende – Rüsten – QS Check –
+// läuft – erste gemeldete Stückzahl“, alle Zwischenschritte einzeln).
+// Je Punkt eine Marke mit Zeit, dazwischen ein Abschnitt so breit wie
+// seine Dauer (ohne Wochenende), mit der Dauer darin. Fehlt ein Punkt
+// (Rüsten und QS Check gibt es erst seit dem Zustand-Verlauf), steht er
+// blass als „nicht erfasst“ da und der Abschnitt davor reicht weiter.
+const PUNKTE = {
+  stk_alt: { name: "Letzte Stückzahl", kurz: "Stk. alt" },
+  ende:    { name: "Auftrag Ende",     kurz: "Ende" },
+  ruesten: { name: "Rüsten",           kurz: "Rüsten" },
+  qs:      { name: "QS Check",         kurz: "QS" },
+  laeuft:  { name: "Läuft",            kurz: "Läuft" },
+  stk_neu: { name: "Erste Stückzahl",  kurz: "Stk. neu" },
+};
+// Abschnitt heisst nach dem, was in der Zeit passiert
+const ABSCHNITT = {
+  stk_alt: "läuft noch", ende: "wartet aufs Rüsten", ruesten: "Rüsten",
+  qs: "QS Check", laeuft: "läuft bis 1. Meldung",
+};
+
+function Zeitachse({ schritte, kurz }) {
+  const bekannt = schritte.filter((p) => p.zeit);
+  const teile = bekannt.filter((p) => p.ms !== undefined);
+  const summe = teile.reduce((s, p) => s + p.ms, 0);
   return (
-    <div className="st-tabelle-huelle">
-      <table className="st-tabelle" id="st-uebergaenge">
-        <thead><tr><th>Datum</th>{!ohneMaschine && <th>Maschine</th>}<th>Fertig</th><th>Läuft</th><th className="zahl">Übergang</th></tr></thead>
-        <tbody>
-          {liste.slice(0, 60).map((u) => {
-            const m = r.maschineVon.get(u.mid);
-            return (
-              <tr key={u.neuId + u.vorherId} data-stuebergang={u.neuId}>
-                <td>{alt.kurzDatum(u.datum)}</td>
-                {!ohneMaschine && <td>{m ? alt.maschineZielText(m) : ""}</td>}
-                <td>{u.vorher || "–"} <span className="klein">{uhr(u.ende)}</span></td>
-                <td>{u.neu || "–"} <span className="klein">{uhr(u.start)}</span></td>
-                <td className="zahl"><b>{dauerText(u.ms)}</b></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className={"st-za" + (kurz ? " st-za--kurz" : "")}>
+      <div className="st-za__band">
+        {teile.map((p) => (
+          <div key={p.art} className={"st-za__teil st-za__teil--" + p.art} data-stza={p.art}
+            style={{ flexGrow: summe ? Math.max(p.ms / summe, 0.06) : 1 }}
+            title={ABSCHNITT[p.art] + ": " + dauerText(p.ms)}>
+            <span className="st-za__was">{ABSCHNITT[p.art]}</span>
+            <b className="st-za__dauer">{dauerText(p.ms)}</b>
+          </div>
+        ))}
+      </div>
+      {!kurz && (
+        <ol className="st-za__punkte">
+          {schritte.map((p) => (
+            <li key={p.art} className={p.zeit ? "" : "st-za__fehlt"} data-stzapunkt={p.art}>
+              <span className={"st-za__marke st-za__marke--" + p.art} />
+              <span className="st-za__name">{PUNKTE[p.art].name}</span>
+              <span className="klein">{p.zeit ? uhr(p.zeit) : "nicht erfasst"}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+function Uebergaenge({ liste, mittel, r, ohneMaschine }) {
+  if (!liste.length) return <p className="klein dg-leer">Im Zeitraum kein Wechsel von einem beendeten zum nächsten laufenden Auftrag.</p>;
+  const reihe = Object.keys(PUNKTE);
+  const schnitt = (mittel || []).filter((x) => reihe.indexOf(x.bis) === reihe.indexOf(x.art) + 1)
+    .sort((x, y) => reihe.indexOf(x.art) - reihe.indexOf(y.art));
+  return (
+    <div className="st-za-liste" id="st-uebergaenge">
+      {r.zustaendeFehlen && <p className="klein">Rüsten und QS Check fehlen: der Zustand-Verlauf ist in der Datenbank noch nicht eingerichtet.</p>}
+      {schnitt.length > 0 && (
+        <div className="st-za-schnitt" id="st-za-schnitt">
+          <div className="st-za-kopf"><b>Ø je Schritt</b> <span className="klein">über alle Wechsel, bei denen beide Punkte erfasst sind</span></div>
+          <Zeitachse kurz schritte={schnitt.map((x) => ({ art: x.art, zeit: 1, ms: x.ms }))} />
+        </div>
+      )}
+      {liste.slice(0, 60).map((u) => {
+        const m = r.maschineVon.get(u.mid);
+        return (
+          <div key={u.neuId + u.vorherId} className="st-za-wechsel" data-stuebergang={u.neuId}>
+            <div className="st-za-kopf">
+              <b>{alt.kurzDatum(u.datum)}</b>
+              {!ohneMaschine && m && <span>{alt.maschineZielText(m)}</span>}
+              <span>{u.vorher || "–"} → {u.neu || "–"}</span>
+              <span className="st-za-kopf__summe">Ende bis Läuft <b>{dauerText(u.ms)}</b></span>
+            </div>
+            <Zeitachse schritte={u.schritte || []} />
+          </div>
+        );
+      })}
       {liste.length > 60 && <p className="klein">Die neusten 60 von {liste.length}.</p>}
     </div>
   );
@@ -455,8 +514,8 @@ function Maschinen({ r, setze }) {
           Eine Maschine zählt höchstens {STUNDEN_MAX} h am Tag.</p>}
       </Karte>
       <Karte id="st-wechsel" titel="Übergänge von Auftrag zu Auftrag"
-        unter="Vom Beenden eines Auftrags, bis der nächste auf derselben Maschine läuft (Rüsten eingeschlossen). Samstag und Sonntag zählen nicht.">
-        <Uebergaenge liste={g.uebergaenge} r={r} />
+        unter="Je Wechsel die Zeitachse: letzte Stückzahl, Auftrag Ende, Rüsten, QS Check, Läuft, erste Stückzahl. Samstag und Sonntag zählen nicht.">
+        <Uebergaenge liste={g.uebergaenge} mittel={g.schrittMittel} r={r} />
       </Karte>
     </>
   );
@@ -526,7 +585,7 @@ function EineMaschine({ m, r, setze }) {
           waehlen={(k) => { if (k !== "ohne HOCO Nr.") oeffnen({ reiter: "artikel", artikel: k }); }} />
       </Karte>
       <Karte id="st-wechsel" titel="Übergänge von Auftrag zu Auftrag" unter="Samstag und Sonntag zählen nicht.">
-        <Uebergaenge liste={m.uebergaenge} r={r} ohneMaschine />
+        <Uebergaenge liste={m.uebergaenge} mittel={m.schrittMittel} r={r} ohneMaschine />
       </Karte>
     </>
   );
@@ -612,7 +671,7 @@ function EinArtikel({ a, r, setze }) {
         <AusschussListe liste={a.ausschussMeldungen} r={r} />
       </Karte>
       <Karte id="st-wechsel" titel="Übergänge auf diesen Artikel" unter="Vom Beenden des vorherigen Auftrags, bis dieser Artikel lief. Samstag und Sonntag zählen nicht.">
-        <Uebergaenge liste={a.uebergaenge} r={r} />
+        <Uebergaenge liste={a.uebergaenge} mittel={a.schrittMittel} r={r} />
       </Karte>
     </>
   );

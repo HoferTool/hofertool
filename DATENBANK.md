@@ -50,6 +50,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `designations` | Bezeichnungen | |
 | `shopping_items` | Einkaufsliste | `text`, `menge`, `laden`, `prio` (1–4), `is_done` |
 | `storage_locations`, `stock_movements`, `stock_balances` | Lager (derzeit ungenutzt) | |
+| `auftrag_zustand_verlauf` | Jeder Zustandswechsel eines Auftrags (1.302.0) | `job_id`, `machine_id`, `von`, `nach`, `wer`, `am`, `nachgetragen` (Läuft/Fertig einmal aus `started_at`/`ended_at` nachgetragen); schreibt nur der Auslöser `jobs_zustand_verlauf`, lesen alle ausser Externen und Dienst (`sql/zustand-verlauf.sql`) |
 | `material_posten` | Material-Übersicht (1.67.0) | `material` (Bezeichnung wie `jobs.material_bez`), `menge`, `einheit` (`kg`, `stg`), `ort`, `art` (`lager`, `bestellt`), `be_nr`, `lieferant`, `termin`, `notiz`, `ca` (Menge nur geschätzt, 1.143.0, `sql/material-ca.sql`), `job_id` (Rest aus diesem Auftrag, seit 1.71.0 auch: zugewiesen an diesen Auftrag), `fuer_hoco` (Rahmen: gehört allen Aufträgen dieser HOCO Nr., 1.71.0), `platz` (genauer Platz beim Zuweisen, 1.71.0, beide `sql/material-zuweisen.sql`), `erstellt_*`, `geaendert_*` (Auslöser), `weg_am`/`weg_von` (aufgebraucht, leer = noch da). Alle ausser Externen und Dienst lesen und schreiben (`sql/material-uebersicht.sql`) |
 
 ## Personen, Kommunikation, Sonstiges
