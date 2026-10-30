@@ -48,6 +48,24 @@ with sync_playwright() as p:
     pruefe("MTEC-452410" in pg.inner_text("#spezialwerkzeuge"), "Fenster zeigt das Werkzeug")
     pg.screenshot(path=os.path.join(BILD, "spezial-fenster.png"))
 
+    # PDF zum Spezialwerkzeug hinterlegen, öffnen, löschen (1.287.0)
+    pg.evaluate("TEST.daten.spezial_pdfs = []")
+    PDF = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"
+    pruefe(pg.locator("#spezialwerkzeuge [data-spezial-pdf-neu]").count() == 1, "Knopf + PDF")
+    pg.set_input_files("#spezialwerkzeuge [data-spezial-pdf-datei]", files=[{"name": "Zeichnung Halter.pdf", "mimeType": "application/pdf", "buffer": PDF}])
+    pg.wait_for_selector("#spezialwerkzeuge [data-spezial-pdf]"); pg.wait_for_timeout(300)
+    sp = pg.evaluate("TEST.daten.spezial_pdfs")
+    pruefe(len(sp) == 1 and sp[0]["article_id"] == "a1" and sp[0]["name"] == "Zeichnung Halter"
+           and sp[0]["pfad"].startswith("spezialwerkzeuge/a1/"), "PDF gespeichert: %s" % sp)
+    pruefe("Zeichnung Halter" in pg.inner_text("#spezialwerkzeuge [data-spezial-pdf]"), "PDF steht beim Werkzeug")
+    pg.click("#spezialwerkzeuge [data-spezial-pdf]"); pg.wait_for_selector(".betrachter"); pg.wait_for_timeout(400)
+    pruefe("Zeichnung Halter" in pg.inner_text(".betrachter"), "PDF geht im Betrachter auf")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("#spezialwerkzeuge").count() == 1, "Escape schliesst nur den Betrachter")
+    pg.click("#spezialwerkzeuge [data-spezial-pdf-weg]"); pg.wait_for_selector(".dialog:has-text('PDF löschen')")
+    pg.locator(".dialog:has-text('PDF löschen') [data-ja]").click(); pg.wait_for_timeout(500)
+    pruefe(pg.evaluate("TEST.daten.spezial_pdfs.length") == 0 and pg.locator("#spezialwerkzeuge [data-spezial-pdf]").count() == 0, "PDF gelöscht")
+
     # Nachbestellen: Fenster Neue Bestellposition, Artikel schon gewählt
     vorher = pg.evaluate("TEST.daten.order_items.length")
     pg.click("#spezialwerkzeuge [data-spezial-bestellen]"); pg.wait_for_selector("#pd-gewaehlt")

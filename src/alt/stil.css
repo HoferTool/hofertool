@@ -10467,3 +10467,8 @@ body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -w
   color: #23344f; z-index: 3; }
 .ib-blatt--bearbeiten .ib-leiste:empty { border: 2px dashed rgba(35, 52, 79, .25); border-radius: 18px; }
 .ib-blatt--bearbeiten .ib-leiste:empty::after { content: "Radiosender und YouTube"; margin: auto; font-size: 22px; opacity: .45; }
+
+/* PDFs zu den Spezialwerkzeugen (seit 1.287.0) */
+.spezial__pdfs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.spezial__pdf { display: inline-flex; align-items: center; gap: 2px; }
+.spezial__pdf-weg { color: var(--fehler, #c62828); padding: 0 4px; }

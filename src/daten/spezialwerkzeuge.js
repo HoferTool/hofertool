@@ -62,12 +62,13 @@ export async function spezialLaden(hoco) {
     const f = await alt.zeitlimit(alt.db.from("artikel_uebersicht").select("*").eq("spezial", true), 10000, "Artikel");
     if (!f.error) frei = (f.data || []).filter((a) => !ids.includes(a.id));
   }
-  const offen = await offeneBestellungen(ids.concat(frei.map((a) => a.id)));
+  const alleIds = ids.concat(frei.map((a) => a.id));
+  const [offen, pdfs] = await Promise.all([offeneBestellungen(alleIds), spezialPdfsLaden(alleIds)]);
   return zeilen.map((z) => Object.assign({}, z, {
     artikel: artikel.find((a) => a.id === z.article_id) || null,
-    offen: offen[z.article_id] || [],
+    offen: offen[z.article_id] || [], pdfs: pdfs[z.article_id] || [],
   })).concat(frei.map((a) => ({ id: null, article_id: a.id, hoco_nr: "", notiz: null,
-    artikel: a, offen: offen[a.id] || [] })))
+    artikel: a, offen: offen[a.id] || [], pdfs: pdfs[a.id] || [] })))
     .filter((z) => z.artikel)
     // Ohne HOCO Nr. ganz unten
     .sort((x, y) => (!x.hoco_nr) - (!y.hoco_nr) || String(x.hoco_nr).localeCompare(String(y.hoco_nr), "de", { numeric: true })
@@ -121,6 +122,50 @@ export async function spezialEntfernen(z) {
   if (error) throw error;
   alt.merkeSchritt("Spezialwerkzeug " + ((z.artikel && z.artikel.article_number) || "") + " bei "
     + z.hoco_nr + " entfernen", alt.rueckRein("spezialwerkzeuge", vorher));
+}
+
+// ---------- PDFs zum Spezialwerkzeug ----------
+// Zeichnung, Datenblatt … je Artikel, gelten bei jeder HOCO Nr. (seit
+// 1.287.0, Wunsch Patrick 30. Oktober 2026: „Bei den Spezialwerkzeugen
+// sollen PDF hinterlegt werden können“, sql/spezialwerkzeug-pdf.sql).
+// Fehlt die Tabelle, gibt es eben keine.
+export const PDF_FEHLT = "Die PDFs zu den Spezialwerkzeugen sind in der Datenbank noch nicht eingerichtet (sql/spezialwerkzeug-pdf.sql).";
+
+async function spezialPdfsLaden(ids) {
+  if (!ids.length) return {};
+  try {
+    const r = await alt.zeitlimit(alt.db.from("spezial_pdfs").select("*").in("article_id", ids).order("erstellt_am"), 10000, "PDFs");
+    if (r.error) return {};
+    const je = {};
+    (r.data || []).forEach((p) => { (je[p.article_id] = je[p.article_id] || []).push(p); });
+    return je;
+  } catch (f) { return {}; }
+}
+
+export async function spezialPdfHochladen(artikel, datei) {
+  if (!/pdf$/i.test(datei.type || "") && !/\.pdf$/i.test(datei.name || "")) throw new Error("Nur PDF-Dateien lassen sich hinterlegen.");
+  const sauber = String(datei.name || "datei.pdf").replace(/[^A-Za-z0-9._-]+/g, "_");
+  const pfad = "spezialwerkzeuge/" + artikel.id + "/" + Date.now().toString(36) + "-" + sauber;
+  const ablage = alt.db.storage.from("zeichnungen");
+  const up = await ablage.upload(pfad, datei, { upsert: false, contentType: "application/pdf" });
+  if (up.error) throw up.error;
+  const url = ablage.getPublicUrl(pfad).data.publicUrl;
+  const r = await alt.db.from("spezial_pdfs").insert([{ article_id: artikel.id,
+    name: String(datei.name || "PDF").replace(/\.pdf$/i, ""), url, pfad }]).select("id");
+  if (r.error) {
+    if (/spezial_pdfs/.test(alt.fehlertext(r.error))) throw new Error(PDF_FEHLT);
+    throw r.error;
+  }
+  const id = ((r.data || [])[0] || {}).id;
+  if (id) alt.merkeSchritt("PDF zu " + (artikel.article_number || "Spezialwerkzeug"), [alt.rueckWeg("spezial_pdfs", { id })]);
+}
+
+// Löschen lässt die Datei liegen, damit Rückgängig geht
+export async function spezialPdfLoeschen(p) {
+  const vorher = await alt.rueckSichern("spezial_pdfs", { id: p.id });
+  const r = await alt.db.from("spezial_pdfs").delete().eq("id", p.id);
+  if (r.error) throw r.error;
+  alt.merkeSchritt("PDF „" + p.name + "“ löschen", [alt.rueckRein("spezial_pdfs", vorher)]);
 }
 
 export const STATUS_TEXT = { offen: "offen", bestellt: "bestellt", teilweise_geliefert: "teilweise geliefert" };
