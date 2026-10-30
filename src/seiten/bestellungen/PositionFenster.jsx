@@ -13,7 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
-import { Stern } from "./teile.jsx";
+import { ArtikelAngaben } from "./teile.jsx";
 import { artikelFotoLesen, artikelFuerFoto, artikelFinden, artikelLernen } from "../../daten/artikelFoto.js";
 
 // fertig: wird nach dem Speichern aufgerufen, damit die Liste neu lädt.
@@ -240,8 +240,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
                   {foto.treffer.map((t) => (
                     <button key={t.a.id} className={"pd-zeile" + (gewaehlt && gewaehlt.id === t.a.id ? " pd-zeile--gewaehlt" : "")}
                       data-fotow={t.a.id} data-punkte={t.punkte} onClick={() => waehlen(t.a)}>
-                      <strong>{t.a.article_number}</strong> {t.a.name}
-                      <span className="klein"> {t.a.supplier_name || "ohne Lieferant"}<Stern an={t.a.spezial} /></span>
+                      <ArtikelAngaben a={t.a} />
                       <span className={"bs-chip" + (t.sicher ? "" : " bs-chip--still")}>
                         {t.sicher ? "passt" : "vielleicht"}</span></button>
                   ))}
@@ -274,8 +273,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
           {treffer.length
             ? treffer.slice(0, 8).map((a) => (
                 <button key={a.id} className="pd-zeile" data-w={a.id} onClick={() => waehlen(a)}>
-                  <strong>{a.article_number}</strong> {a.name}
-                  <span className="klein"> {a.supplier_name || "ohne Lieferant"}<Stern an={a.spezial} /></span>
+                  <ArtikelAngaben a={a} />
                   {a.aehnlich && <span className="bs-aehnlich">ähnlich</span>}</button>
               ))
             : <p className="hinweis">Kein Artikel gefunden.</p>}
@@ -286,14 +284,12 @@ function PositionFenster({ zu, fertig, vorgabe }) {
       </div>
 
       {gewaehlt && nurWaehlen && <div className="pd-gewaehlt" id="pd-gewaehlt">
-        <strong>{gewaehlt.article_number}</strong> {gewaehlt.name}
-        <div className="klein">Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}<Stern an={gewaehlt.spezial} /></div>
+        <ArtikelAngaben a={gewaehlt} />
       </div>}
       {gewaehlt && !nurWaehlen && <div id="pd-rest">
         <div className="pd-gewaehlt" id="pd-gewaehlt">
-          <strong>{gewaehlt.article_number}</strong> {gewaehlt.name}
-          <div className="klein">Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}<Stern an={gewaehlt.spezial} />
-            {gewaehlt.gesamtbestand !== undefined && <> · Bestand {alt.zahlText(gewaehlt.gesamtbestand)}</>}</div>
+          <ArtikelAngaben a={gewaehlt} />
+          {gewaehlt.gesamtbestand !== undefined && <div className="klein">Bestand {alt.zahlText(gewaehlt.gesamtbestand)}</div>}
         </div>
         {schonDa && schonDa.length > 0 && (
           <div className="pd-schonda" id="pd-schonda" role="status">

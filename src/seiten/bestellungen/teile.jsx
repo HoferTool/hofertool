@@ -188,6 +188,20 @@ export function Stern({ an }) {
   return an ? <span className="eba-stern bs-stern" title="Spezialwerkzeug" data-stern="">★</span> : null;
 }
 
+// Ein Artikel in einer Auswahl, überall gleich: Art.-Nr. und Bezeichnung,
+// darunter die Beschreibung und der Lieferant, damit man beim Wählen sieht,
+// welches Werkzeug es ist (Wunsch Patrick 30. Oktober 2026: „alles anzeigen,
+// also Art.-Nr., Beschreibung und Lieferant“)
+export function ArtikelAngaben({ a }) {
+  return (
+    <span className="artikel-angaben">
+      <span className="artikel-angaben__kopf"><strong>{a.article_number}</strong> {a.name}</span>
+      {a.description && <span className="klein artikel-angaben__beschreibung">{a.description}</span>}
+      <span className="klein artikel-angaben__lieferant">Lieferant: {a.supplier_name || "keiner hinterlegt"}<Stern an={a.spezial} /></span>
+    </span>
+  );
+}
+
 // Alles, was bei einer Position steht, für die Suche in Offen, Bestellt
 // und Historie: Artikel, Lieferant, Menge, Termin, Status, Ziel, Person,
 // Notiz und die HOCO Nummern des Spezialwerkzeugs (Wunsch Patrick
