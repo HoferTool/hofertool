@@ -227,7 +227,7 @@ function Geruest() {
                 data-nav={s.pfad} href={"#/" + s.pfad} style={{ "--n": i }}>
                 {/* Die Zeichen sind fest eingebaute SVG aus dem Programm */}
                 <span className="nav__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} />
-                <span className="nav__text">{s.titel}{s.unter && <small className="nav__unter">{s.unter}</small>}</span>
+                <span className="nav__text">{s.titel}{s.unter && <small className="nav__zusatz">{s.unter}</small>}</span>
               </a>
               {aktiv === s.pfad && UNTERREITER[s.pfad] && <Unterreiter key="offen" seite={s.pfad} />}
               {zuklappend === s.pfad && aktiv !== s.pfad && <Unterreiter key="zu" seite={s.pfad} zu />}
@@ -330,7 +330,7 @@ function HandyMenue({ aktiv }) {
                   className={"handymenue__punkt" + (p.schluessel === aktiv ? " aktiv" : "")}
                   onClick={(e) => waehlen(e, p)}>
                   {p.zeichen}
-                  <span className="handymenue__text">{trennbar(p.titel)}{p.unter && <small className="nav__unter">{p.unter}</small>}</span>
+                  <span className="handymenue__text">{trennbar(p.titel)}{p.unter && <small className="nav__zusatz">{p.unter}</small>}</span>
                 </a>
               ))}
             </div>

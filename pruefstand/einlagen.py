@@ -27,7 +27,7 @@ with sync_playwright() as p:
     pg, pf = seite(br, "#/einlagen")
     pg.wait_for_selector("iframe.einlagen-rahmen", timeout=20000)
     pruefe(pg.locator("[data-nav='einlagen']").count() > 0, "Reiter im Menü")
-    nav = pg.evaluate("() => { const t = document.querySelector(\"[data-nav='einlagen'] .nav__text\"); const u = t.querySelector('.nav__unter'); return [t.firstChild.textContent, u && u.textContent, u && +getComputedStyle(u).opacity, u && u.getBoundingClientRect().top > t.firstChild.parentElement.getBoundingClientRect().top + 5]; }")
+    nav = pg.evaluate("() => { const t = document.querySelector(\"[data-nav='einlagen'] .nav__text\"); const u = t.querySelector('.nav__zusatz'); return [t.firstChild.textContent, u && u.textContent, u && +getComputedStyle(u).opacity, u && u.getBoundingClientRect().top > t.firstChild.parentElement.getBoundingClientRect().top + 5]; }")
     pruefe(nav[0] == "Einlagen Gen" and nav[1] == "created by Ecker" and nav[2] < 1 and nav[3], "Reiter zweizeilig, zweite Zeile blass: %s" % nav)
     fr = pg.frame_locator("iframe.einlagen-rahmen")
     fr.locator("h1").wait_for(timeout=15000); pg.wait_for_timeout(1500)

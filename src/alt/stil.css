@@ -10732,8 +10732,10 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .eba-laufen input { margin: 0; }
 
 /* Zweite, blasse Zeile unter dem Namen im Menü, etwa „created by Ecker“
-   bei Einlagen Gen (Wunsch Patrick 30. Oktober 2026) */
-.nav__unter { display: block; font-size: .72em; font-weight: 400; line-height: 1.2; opacity: .55; white-space: nowrap; }
+   bei Einlagen Gen (Wunsch Patrick 30. Oktober 2026). Eigener Name, weil
+   .nav__unter die Unterpunkte im Menü sind: 1.307.0 bis 1.320.0 machte der
+   gleiche Name sie blass und klein */
+.nav__zusatz { display: block; font-size: .72em; font-weight: 400; line-height: 1.2; opacity: .55; white-space: nowrap; }
 
 /* Einlagen Gen: Leiste mit den in der App gespeicherten Einlagen */
 .einlagen { position: relative; }
