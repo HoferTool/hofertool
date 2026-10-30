@@ -10502,3 +10502,8 @@ body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -w
 .es-radio__name { width: 12em; }
 .es-radio__adresse { flex: 1; min-width: 14em; }
 .es-radio__unten { display: flex; gap: 6px; margin-top: 4px; }
+
+/* PDFs zu den Spezialwerkzeugen (seit 1.288.0) */
+.spezial__pdfs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.spezial__pdf { display: inline-flex; align-items: center; gap: 2px; }
+.spezial__pdf-weg { color: var(--fehler, #c62828); padding: 0 4px; }

@@ -19,7 +19,8 @@ import { fensterOeffnen } from "./Fenster.jsx";
 import { wiederOeffner } from "./wiederherstellen.js";
 import { positionOeffnen } from "../seiten/bestellungen/PositionFenster.jsx";
 import { spezialLaden, spezialZuordnen, spezialEntfernen, hocoNormal, offenText,
-  fehltTabelle, FEHLT_TEXT } from "../daten/spezialwerkzeuge.js";
+  fehltTabelle, FEHLT_TEXT, spezialPdfHochladen, spezialPdfLoeschen } from "../daten/spezialwerkzeuge.js";
+import { betrachter } from "./Betrachter.jsx";
 
 const maschineKurz = (m) => m ? { id: m.id, name: m.name, machine_number: m.machine_number } : null;
 
@@ -80,16 +81,34 @@ function SpezialFenster({ hoco, maschine, zu }) {
               {schreiben ? " Mit „+ Spezialwerkzeug“ einen Artikel zuordnen." : ""}</p>
           : <ul className="spezial__liste">
               {liste.map((z) => <SpezialZeile key={z.id} z={z} schreiben={schreiben}
-                bestellen={() => nachbestellen(z, maschine, laden)} entfernen={() => entfernen(z)} />)}
+                bestellen={() => nachbestellen(z, maschine, laden)} entfernen={() => entfernen(z)} neuLaden={laden} />)}
             </ul>}
       </div>
     </div>
   );
 }
 
-export function SpezialZeile({ z, schreiben, bestellen, entfernen, mitHoco }) {
+export function SpezialZeile({ z, schreiben, bestellen, entfernen, mitHoco, neuLaden }) {
   const a = z.artikel;
   const unterwegs = offenText(z.offen);
+  const [laedt, setLaedt] = useState(false);
+  const datei = useRef(null);
+  const pdfs = z.pdfs || [];
+  const hochladen = async (dateien) => {
+    if (!dateien.length) return;
+    setLaedt(true);
+    try {
+      for (const d of dateien) await spezialPdfHochladen(a, d);
+      alt.meldung(dateien.length === 1 ? "PDF hinterlegt." : dateien.length + " PDFs hinterlegt.", "gut");
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+    finally { setLaedt(false); if (neuLaden) neuLaden(); }
+  };
+  const pdfWeg = async (p) => {
+    if (!(await alt.nachfragen({ titel: "PDF löschen", text: "„" + p.name + "“ bei " + a.article_number + " löschen?",
+      bestaetigen: "Löschen", gefahr: true }))) return;
+    try { await spezialPdfLoeschen(p); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+    if (neuLaden) neuLaden();
+  };
   return (
     <li className="spezial__zeile" data-spezial={z.id || z.article_id}>
       <div className="spezial__text">
@@ -99,6 +118,19 @@ export function SpezialZeile({ z, schreiben, bestellen, entfernen, mitHoco }) {
         <span className="klein">Lieferant: {a.supplier_name || "keiner hinterlegt"}
           {z.notiz ? " · " + z.notiz : ""}</span>
         {unterwegs && <span className="spezial__unterwegs" data-unterwegs="">Schon in Bestellung: {unterwegs}</span>}
+        {/* PDFs zum Werkzeug (seit 1.288.0): antippen öffnet sie */}
+        {(pdfs.length > 0 || (schreiben && neuLaden)) && <span className="spezial__pdfs">
+          {pdfs.map((p) => <span key={p.id} className="spezial__pdf">
+            <button className="knopf knopf--klein" data-spezial-pdf={p.id} title="PDF öffnen"
+              onClick={() => betrachter(p.url, p.name + " · " + a.article_number, true)}>📄 {p.name}</button>
+            {schreiben && neuLaden && <button className="linkknopf spezial__pdf-weg" data-spezial-pdf-weg={p.id}
+              title="PDF löschen" onClick={() => pdfWeg(p)}>✕</button>}</span>)}
+          {schreiben && neuLaden && <>
+            <button className="knopf knopf--klein" data-spezial-pdf-neu={a.id} disabled={laedt}
+              onClick={() => datei.current && datei.current.click()}>{laedt ? "Lädt …" : "+ PDF"}</button>
+            <input ref={datei} type="file" accept="application/pdf,.pdf" multiple hidden data-spezial-pdf-datei={a.id}
+              onChange={(e) => { const l = [...(e.target.files || [])]; e.target.value = ""; hochladen(l); }} /></>}
+        </span>}
       </div>
       <div className="unterlagen__knoepfe">
         {schreiben && <button className="knopf knopf--haupt" data-spezial-bestellen={z.id}
