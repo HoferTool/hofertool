@@ -851,7 +851,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       const k = await poolDruckLaden();
       if (poolA4Drucker(k)) {
         const w = await auswahlDialog("Drucken", [
-          { wert: "a4", text: "Im Büro drucken (A4)" }, { wert: "hier", text: "Auf diesem Gerät drucken" }]);
+          { wert: "a4", text: "Im Büro drucken" }, { wert: "hier", text: "Auf diesem Gerät drucken" }]);
         if (!w) return;
         if (w === "a4") {
           setDruckt(true);

@@ -48,8 +48,8 @@ export function poolDruckerName(k) {
 // 30. Oktober 2026: „der Drucker ist so eingerichtet, dass er das Papier
 // für die WBG nimmt, die anderen Sachen sollen normal A4 drucken“).
 // Gewählt unter Einstellungen → Dokumente, sonst der Standarddrucker des
-// Pool-Rechners. drucken.ps1 stellt bei diesen Aufträgen A4 und das
-// Papierfach „automatisch“ ein, auch wenn es derselbe Drucker ist.
+// Pool-Rechners. drucken.ps1 gibt dabei weder Papier noch Fach vor, der
+// Drucker druckt mit seinen eigenen Einstellungen (Patrick 30. Oktober 2026).
 export function poolA4Drucker(k) {
   k = k || konfig;
   if (!k || alt.istExtern()) return "";
@@ -146,7 +146,7 @@ export async function poolDrucken({ art, bilder, quelle, blatt, titel, kopien, a
     r = await alt.zeitlimit(alt.db.from("druckauftraege").insert([zeile]), 10000, "Druckauftrag");
   }
   if (r && r.error) throw r.error;
-  verfolgen(id, a4 ? "Büro (A4)" : "Planbüro", poolLebt(k));
+  verfolgen(id, a4 ? "Büro" : "Planbüro", poolLebt(k));
   return id;
 }
 

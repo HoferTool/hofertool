@@ -184,7 +184,8 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
   // 2026: „soll nur bei WBG stehen, sonst nicht nötig“); alles andere
   // druckt „Drucken“ gleich auf diesem Gerät.
   // Alles andere (Zeichnung, Einrichtblatt, Dokumente) geht seit 1.309.0
-  // vom iPad und Handy aus normal auf A4 über den Pool-Rechner, nicht auf
+  // vom iPad und Handy aus über den Pool-Rechner (normal, seit 1.320.2 ohne
+  // A4 und Fach vorzugeben), nicht auf
   // den WBG-Drucker mit dem speziellen Papier (Wunsch Patrick 30. Oktober
   // 2026: „wichtig bei den iPads, am PC kann man ja einfach drucken“).
   const a4 = !wbg && (istAppleFinger() || alt.istTippgeraet());
@@ -299,7 +300,7 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
             <button className="knopf knopf--klein" data-drucken="" onClick={knopfDrucken} disabled={druckt}
               aria-expanded={poolGeht ? wahl : undefined}>{druckt ? "Druckt …" : "Drucken"}</button>
             {wahl && <div className="druckwahl" data-druckwahl="" role="menu">
-              <button className="knopf knopf--haupt" data-pooldruck="" onClick={anPool}>{a4 ? "Im Büro drucken (A4)" : "Nur WBGs drucken"}</button>
+              <button className="knopf knopf--haupt" data-pooldruck="" onClick={anPool}>{a4 ? "Im Büro drucken" : "Nur WBGs drucken"}</button>
               <div className="druckwahl__kopien">
                 <span>Kopien</span>
                 <button className="knopf knopf--klein" aria-label="Weniger" data-kopienweniger=""

@@ -310,7 +310,7 @@ function PoolDrucker() {
     <Gruppe titel="Drucker am Pool-Rechner" id="pool-drucker"
       text={"iPad und Handy im WLAN Hofer&Co kommen nicht an den Drucker im Firmennetz. Ist hier ein Drucker gewählt, "
         + "fragt „Drucken“ bei einer WBG, ob über den Pool-Rechner gedruckt werden soll. Alles andere (Zeichnung, "
-        + "Einrichtblatt, Dokumente) geht vom iPad und Handy aus auf Wunsch normal auf A4 über den Pool-Rechner. "
+        + "Einrichtblatt, Dokumente) geht vom iPad und Handy aus auf Wunsch über den Pool-Rechner auf den Drucker für alles andere. "
         + "Der Pool-Rechner schaut alle paar Sekunden nach und druckt."}>
       {daten ? <DruckerFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
@@ -346,10 +346,10 @@ function DruckerFormular({ werte }) {
           {namen.map((n) => <option key={n} value={n}>{n}{st && st.standard === n ? " (Standard)" : ""}</option>)}
         </select>
       </Zeile>
-      <Zeile titel="Drucker für A4" text={"Für alles ausser WBGs, vom iPad und Handy aus. Gedruckt wird immer A4 aus dem "
-        + "Papierfach „automatisch“, auch wenn es derselbe Drucker ist. Leer = Standarddrucker des Pool-Rechners"
+      <Zeile titel="Drucker für alles andere" text={"Für alles ausser WBGs, vom iPad und Handy aus. Gedruckt wird mit den "
+        + "Einstellungen dieses Druckers, ohne Papier oder Fach vorzugeben. Leer = Standarddrucker des Pool-Rechners"
         + (st && st.standard ? " (" + st.standard + ")." : ".")}>
-        <select id="pooldrucker-a4" aria-label="Drucker für A4" value={druckerA4} disabled={!darf}
+        <select id="pooldrucker-a4" aria-label="Drucker für alles andere" value={druckerA4} disabled={!darf}
           onChange={(e) => setDruckerA4(e.target.value)}>
           <option value="">Standarddrucker</option>
           {namenA4.map((n) => <option key={n} value={n}>{n}{st && st.standard === n ? " (Standard)" : ""}</option>)}

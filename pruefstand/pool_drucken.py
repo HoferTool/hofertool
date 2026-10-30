@@ -177,14 +177,14 @@ with sync_playwright() as p:
     # Pool-Rechner (nicht der WBG-Drucker), ohne eigenen A4-Drucker der Standard
     oeffnen(pg, "https://x.invalid/hoch.pdf", "zeichnung")
     tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(300)
-    pruefe("Zeichnung: Auswahl mit Im Büro drucken (A4)", pg.locator("[data-druckwahl]").count() == 1
-           and pg.inner_text("[data-pooldruck]").strip() == "Im Büro drucken (A4)")
+    pruefe("Zeichnung: Auswahl mit Im Büro drucken", pg.locator("[data-druckwahl]").count() == 1
+           and pg.inner_text("[data-pooldruck]").strip() == "Im Büro drucken")
     if bilder: pg.screenshot(path=f"{AB}/pool-druck-a4.png")
     tippen(pg, "[data-pooldruck]", True)
     pg.wait_for_function("TEST.daten.druckauftraege.length === 1", timeout=15000)
     a = pg.evaluate("TEST.daten.druckauftraege[0]")
     pruefe("Zeichnung: Auftrag a4 auf dem Standarddrucker", a.get("a4") is True and a["drucker"] == "SHARP MX-3061" and a["seiten"] == 2)
-    pruefe("Meldung: Büro (A4)", any("Büro (A4)" in m for m in meldungen(pg)))
+    pruefe("Meldung: Büro", any("Geht ans Büro" in m for m in meldungen(pg)))
     # Eigener A4-Drucker aus den Einstellungen
     if f: print(f)
     br.close()

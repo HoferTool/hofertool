@@ -17,9 +17,10 @@
 #  man in der App unter Einstellungen → Dokumente; die Liste der Drucker
 #  meldet dieses Programm jede Minute (app_config.druck_status).
 #
-#  Aufträge mit a4 (alles ausser WBGs, vom iPad aus) druckt es auf A4
-#  aus dem Papierfach „automatisch“, nicht aus dem Fach mit dem Papier
-#  für die WBG (Wunsch Patrick 30. Oktober 2026).
+#  Aufträge mit a4 (alles ausser WBGs, vom iPad aus) gehen auf den
+#  Drucker für alles andere und drucken mit seinen eigenen Einstellungen,
+#  ohne Papier oder Fach vorzugeben (Patrick 30. Oktober 2026: „einfach
+#  normal drucken, sonst wählt es das falsche Fach“).
 #
 #  Aufträge, die älter als 15 Minuten sind (Rechner war aus), werden
 #  nicht mehr gedruckt, sondern mit einer Meldung abgeschlossen.
@@ -116,24 +117,7 @@ function StandMelden {
 # ---------- Drucken ----------
 # Bilder (JPG-Seiten) mit Windows selbst: jede Seite so gross wie das
 # Papier erlaubt, hoch oder quer je nach Bild, mittig.
-# A4 und Papierfach „automatisch“ in die Seiteneinstellung, wo der Treiber
-# es kennt; sonst bleibt, was eingestellt ist.
-function A4Setzen($ps) {
-  try {
-    $a4 = $null
-    foreach ($g in $ps.PrinterSettings.PaperSizes) { if ($g.Kind -eq [System.Drawing.Printing.PaperKind]::A4) { $a4 = $g; break } }
-    if ($a4) { $ps.PaperSize = $a4 }
-  } catch { }
-  try {
-    $auto = $null
-    foreach ($q in $ps.PrinterSettings.PaperSources) {
-      if ($q.Kind -eq [System.Drawing.Printing.PaperSourceKind]::AutomaticFeed -or $q.Kind -eq [System.Drawing.Printing.PaperSourceKind]::FormSource) { $auto = $q; break }
-    }
-    if ($auto) { $ps.PaperSource = $auto }
-  } catch { }
-}
-
-function BilderDrucken([string[]]$dateien, [string]$drucker, [int]$kopien, [string]$titel, [bool]$a4 = $false) {
+function BilderDrucken([string[]]$dateien, [string]$drucker, [int]$kopien, [string]$titel) {
   $script:bilder = @()
   try {
     foreach ($d in $dateien) { $script:bilder += [System.Drawing.Image]::FromFile($d) }
@@ -145,14 +129,11 @@ function BilderDrucken([string[]]$dateien, [string]$drucker, [int]$kopien, [stri
     $doc.PrintController = New-Object System.Drawing.Printing.StandardPrintController
     $doc.PrinterSettings.Copies = [int16][Math]::Min($kopien, [Math]::Max(1, $doc.PrinterSettings.MaximumCopies))
     $doc.PrinterSettings.Collate = $true
-    $script:a4 = $a4
-    if ($a4) { A4Setzen $doc.DefaultPageSettings }
     $script:seite = 0
     $doc.add_QueryPageSettings({
       param($s, $e)
       $b = $script:bilder[$script:seite]
       $e.PageSettings.Landscape = ($b.Width -gt $b.Height)
-      if ($script:a4) { A4Setzen $e.PageSettings }
     })
     $doc.add_PrintPage({
       param($s, $e)
@@ -188,7 +169,7 @@ function BilderDrucken([string[]]$dateien, [string]$drucker, [int]$kopien, [stri
 # Excel mit Excel selbst: so, wie es in Excel eingerichtet ist. Excel will
 # den Drucker mit Anschluss („Sharp auf Ne03:“, im englischen Excel „on“),
 # den Anschluss steht in der Registrierung.
-function ExcelDrucken([string]$pfad, [string]$drucker, [int]$kopien, [string]$blatt, [bool]$a4 = $false) {
+function ExcelDrucken([string]$pfad, [string]$drucker, [int]$kopien, [string]$blatt) {
   if (-not (HatExcel)) { throw "Auf dem Pool-Rechner ist kein Excel." }
   $ne = $null
   try {
@@ -211,8 +192,6 @@ function ExcelDrucken([string]$pfad, [string]$drucker, [int]$kopien, [string]$bl
       try { $xl.ActivePrinter = $v; $gesetzt = $true; break } catch { }
     }
     if (-not $gesetzt) { throw "Excel findet den Drucker '$drucker' nicht." }
-    # 9 = xlPaperA4; das Fach wählt der Drucker dann selbst
-    if ($a4) { try { $ws.PageSetup.PaperSize = 9 } catch { } }
     $leer = [Type]::Missing
     $ws.PrintOut($leer, $leer, $kopien, $false, $leer, $false, $true) | Out-Null
   } finally {
@@ -267,7 +246,7 @@ function Bearbeiten($a, $einst) {
       if (-not $endung) { $endung = ".xlsx" }
       $datei = Join-Path $temp ("blatt" + $endung)
       Invoke-WebRequest -UseBasicParsing -Uri ([string]$a.quelle) -OutFile $datei -TimeoutSec 60
-      ExcelDrucken $datei $drucker $kopien ([string]$a.blatt) ([bool]$a.a4)
+      ExcelDrucken $datei $drucker $kopien ([string]$a.blatt)
     } else {
       $dateien = @()
       for ($i = 1; $i -le [int]$a.seiten; $i++) {
@@ -276,7 +255,7 @@ function Bearbeiten($a, $einst) {
         $dateien += $d
       }
       if (-not $dateien.Count) { throw "Der Auftrag hat keine Seiten." }
-      BilderDrucken $dateien $drucker $kopien $titel ([bool]$a.a4)
+      BilderDrucken $dateien $drucker $kopien $titel
     }
     Abschliessen $a "fertig" $null
     $script:zuletzt = @{ zeit = (Get-Date).ToUniversalTime().ToString("o"); titel = $titel; wer = [string]$a.wer }

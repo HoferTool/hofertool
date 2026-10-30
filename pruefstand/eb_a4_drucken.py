@@ -1,6 +1,6 @@
 # Einrichtblatt in der App vom iPad aus auf A4 über den Pool-Rechner
 # (1.309.0, Wunsch Patrick 30. Oktober 2026): „Drucken“ fragt am
-# Tippgerät „Im Büro drucken (A4)“ oder „Auf diesem Gerät“; A4 zeichnet
+# Tippgerät „Im Büro drucken“ oder „Auf diesem Gerät“; A4 zeichnet
 # die gezeigte Seite als JPG und legt einen Auftrag mit a4 ab.
 import time
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -33,8 +33,8 @@ with sync_playwright() as p:
     pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(800)
     pg.evaluate("TEST.protokoll.length = 0")
     pg.click("[data-eba-drucken]"); pg.wait_for_selector(".dialog [data-w='a4']")
-    pruefe("Auswahl: Im Büro drucken (A4) und Auf diesem Gerät",
-           pg.locator(".dialog [data-w='a4']").inner_text().strip() == "Im Büro drucken (A4)" and pg.locator(".dialog [data-w='hier']").count() == 1)
+    pruefe("Auswahl: Im Büro drucken und Auf diesem Gerät",
+           pg.locator(".dialog [data-w='a4']").inner_text().strip() == "Im Büro drucken" and pg.locator(".dialog [data-w='hier']").count() == 1)
     pg.click(".dialog [data-w='a4']")
     pg.wait_for_function("TEST.daten.druckauftraege.length === 1", timeout=30000)
     a = pg.evaluate("TEST.daten.druckauftraege[0]")
