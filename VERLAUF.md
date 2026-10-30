@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.321.1** (30. Oktober 2026) Drucken im Büro vom iPad kommt **in Farbe** statt schwarz-weiss: `drucken.ps1` schaltet Farbe ausdrücklich ein, wo der Drucker sie kann (Patrick: „kommt schwarz weiss heraus“).
 - **1.321.0** (30. Oktober 2026) Drucken im Büro vom iPad: wieder **A4**, und neu das **Papierfach wählbar** unter Einstellungen → Dokumente → „Papierfach für A4“ (Patrick: ohne Vorgabe kam das Spezialpapier der WBG). Der Pool-Rechner meldet die Fächer je Drucker (`druck_status.faecher`), gespeichert in `app_config.druck.fach_a4`, leer = automatisch.
 - **1.320.2** (30. Oktober 2026) Drucken im Büro vom iPad: **kein A4 und kein Papierfach mehr vorgegeben**, der Drucker druckt mit seinen eigenen Einstellungen (Patrick: „es soll nicht A4 auswählen, sondern einfach normal drucken, es wählt das falsche Fach“). Knopf heisst „Im Büro drucken“, Einstellung „Drucker für alles andere“.
 - **1.320.0** (30. Oktober 2026) **HOCO Nr. im Auftragsfenster führt zu den Stammdaten** (Wunsch Patrick: „aufs HOCO Nr. drücken können und gelangt direkt zu den Stammdaten“): die HOCO Nr. oben im Auftragsfenster ist gepunktet unterstrichen, ein Tipp öffnet das Fenster HOCO Nr. gleich beim Teil über dem Auftragsfenster; Escape schliesst nur dieses. Ohne Stammdaten steht die Nummer in der Suche zum Anlegen. Nicht für Externe und im Archiv (`stammdatenOeffnen` in `AuftragFenster.jsx`, Test `auftrag_hoco_stamm.py`).

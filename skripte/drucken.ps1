@@ -139,6 +139,9 @@ function StandMelden {
 # Bei A4 (alles ausser WBG, von Tippgeräten) Papier A4 und das in der App
 # gewählte Fach, sonst „automatisch“; so kommt nicht das WBG-Papier.
 function A4Setzen($pg, [string]$fach) {
+  # Farbe ausdrücklich an: sonst nimmt PrintDocument gern die Vorgabe
+  # „Graustufen“ des Treibers (Patrick 30. Oktober 2026: „kommt schwarz weiss“)
+  try { if ($pg.PrinterSettings.SupportsColor) { $pg.Color = $true } } catch { }
   try { $a4=$null; foreach ($g in $pg.PrinterSettings.PaperSizes) { if ($g.Kind -eq [System.Drawing.Printing.PaperKind]::A4) { $a4=$g; break } }; if ($a4) { $pg.PaperSize=$a4 } } catch { }
   try {
     $q=$null
@@ -227,6 +230,7 @@ function ExcelDrucken([string]$pfad, [string]$drucker, [int]$kopien, [string]$bl
     if (-not $gesetzt) { throw "Excel findet den Drucker '$drucker' nicht." }
     # Ein Fach kann Excel nicht wählen, nur das Papier A4
     if ($a4) { try { $ws.PageSetup.PaperSize = 9 } catch { } }
+    if ($a4) { try { $ws.PageSetup.BlackAndWhite = $false } catch { } }
     $leer = [Type]::Missing
     $ws.PrintOut($leer, $leer, $kopien, $false, $leer, $false, $true) | Out-Null
   } finally {
