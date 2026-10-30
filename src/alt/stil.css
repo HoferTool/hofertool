@@ -10762,3 +10762,8 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 
 /* Temp als Reiter der Einstellungen (1.310.0): Titel wie die anderen Gruppen */
 .temp__titel { margin: 0 0 6px; font-size: 1.15rem; }
+
+/* Startseite: Kalender der nächsten zwei Wochen (seit 1.311.0, start/Kalender.jsx);
+   der Zusatz im Titel blass und normal dick */
+.kal-karte__zusatz { font-weight: 400; opacity: .7; }
+.kalenderfenster { max-height: 88vh; overflow-y: auto; }

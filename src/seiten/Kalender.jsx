@@ -1,53 +1,57 @@
 // =================================================================
 //  KALENDER
-//  Eigene Seite im Menü für wichtige Termine wie Kehrichtabfuhr,
-//  Papiersammlung oder Papierkörbe leeren (Wunsch Patrick 28. Oktober
-//  2026). Alle Einträge zum Ändern; die Übersicht der nächsten 60 Tage
-//  ist seit 1.242.0 weg (Wunsch Patrick 28. Oktober 2026: „nicht nötig“). Dieselben Termine stehen auf dem Infoboard unter
-//  der Solaranlage. Nicht für Externe.
+//  Termine wie Kehrichtabfuhr, Papiersammlung oder Papierkörbe leeren
+//  (Wunsch Patrick 28. Oktober 2026). Von 1.240.0 bis 1.310.x eine eigene
+//  Seite im Menü; seit 1.311.0 eine Karte auf der Startseite mit den
+//  nächsten zwei Wochen, und ein Tipp darauf öffnet dieses Fenster zum
+//  Verwalten (Wunsch Patrick 30. Oktober 2026: „Reiter selber brauchts
+//  nicht“). Dieselben Termine stehen auf dem Infoboard unter der
+//  Solaranlage. Nicht für Externe und Dienst.
 // =================================================================
 import { alt, useDaten } from "../bruecke.jsx";
+import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { wiederOeffner } from "../teile/wiederherstellen.js";
 import { kalenderLaden, kalenderZeichen, WIEDERHOLUNG,
   wiederholungText, fehltKalender } from "../daten/kalender.js";
-import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 
-export default function Kalender({ auffrischen }) {
-  const { daten: liste, fehler, neu } = useDaten(kalenderLaden, [auffrischen]);
-  // Eintragen dürfen alle ausser Externen und dem Dienstkonto, auch ohne
-  // Schreibrecht (Wunsch Patrick 28. Oktober 2026: „sollen alle bearbeiten
-  // können, ausser die Externen“)
-  const darf = !alt.istExtern() && alt.meineRolle() !== "dienst";
+// Eintragen dürfen alle ausser Externen und dem Dienstkonto, auch ohne
+// Schreibrecht (Wunsch Patrick 28. Oktober 2026: „sollen alle bearbeiten
+// können, ausser die Externen“)
+export const kalenderDarf = () => !alt.istExtern() && alt.meineRolle() !== "dienst";
 
-  useSeitenSuche({
-    name: "Kalender", platzhalter: "Termin …",
-    eintraege: () => (liste || []).map((e) => ({
-      gruppe: "Termine", zeichen: kalenderZeichen(e.titel), titel: e.titel,
-      zeile: wiederholungText(e.wiederholung) + " · ab " + alt.langDatum(e.datum), id: e.id })),
-    springen: (x) => hinzeigen('[data-kal="' + x.id + '"]'),
-  });
+// fertig: die Karte auf der Startseite lädt danach neu
+export function kalenderOeffnen(fertig) {
+  fensterOeffnen((zu) => <KalenderFenster zu={zu} />, () => { if (fertig) fertig(); },
+    "kalender-huelle", { art: "kalender" });
+}
+wiederOeffner("kalender", () => kalenderOeffnen());
 
+function KalenderFenster({ zu }) {
+  const { daten: liste, fehler, neu } = useDaten(kalenderLaden, []);
+  const darf = kalenderDarf();
   return (
-    <>
-      <h1 className="seitentitel">Kalender</h1>
+    <div className="dialog dialog--breit kalenderfenster" role="dialog" aria-modal="true" id="kal-fenster">
+      <div className="blatt__kopf">
+        <h2>Kalender</h2>
+        <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
+      </div>
       {/* Wunsch Patrick 28. Oktober 2026: sagen, wo die Termine sonst noch stehen */}
-      <p className="hinweis" id="kal-info">ℹ️ Diese Termine erscheinen auf dem Infoboard bei der Stempeluhr.</p>
-      {darf && <button className="knopf knopf--haupt knopf--breit" id="kal-neu"
+      <p className="hinweis" id="kal-info">ℹ️ Diese Termine erscheinen auf der Startseite und auf dem Infoboard bei der Stempeluhr.</p>
+      {darf && <button className="knopf knopf--haupt knopf--breit" id="kal-neu" data-fokus=""
         onClick={() => eintragDialog(null, neu)}>+ Termin eintragen</button>}
       {fehler && !liste
-        ? <div className="karte karte--fehler"><p>{fehltKalender(fehler)
-            ? "Der Kalender braucht noch die Datei kalender.sql in Supabase." : alt.fehlertext(fehler)}</p></div>
+        ? <p className="hinweis">{fehltKalender(fehler)
+            ? "Der Kalender braucht noch die Datei kalender.sql in Supabase." : alt.fehlertext(fehler)}</p>
         : !liste ? <div className="laedt">Wird geladen …</div>
-        : <>
-            <section className="karte" id="kal-alle">
-              <div className="karte__kopf"><h2>Alle Einträge</h2><span className="klein">{liste.length}</span></div>
-              {!liste.length
-                ? <p className="hinweis">Noch nichts eingetragen.{darf ? " Mit „+ Termin eintragen“ oben, zum Beispiel die Kehrichtabfuhr jede Woche." : ""}</p>
-                : <div className="notizen">
-                    {liste.map((e) => <Eintrag key={e.id} e={e} darf={darf} neu={neu} />)}
-                  </div>}
-            </section>
-          </>}
-    </>
+        : <section id="kal-alle">
+            <div className="karte__kopf"><h3>Alle Einträge</h3><span className="klein">{liste.length}</span></div>
+            {!liste.length
+              ? <p className="hinweis">Noch nichts eingetragen.{darf ? " Mit „+ Termin eintragen“ oben, zum Beispiel die Kehrichtabfuhr jede Woche." : ""}</p>
+              : <div className="notizen">
+                  {liste.map((e) => <Eintrag key={e.id} e={e} darf={darf} neu={neu} />)}
+                </div>}
+          </section>}
+    </div>
   );
 }
 

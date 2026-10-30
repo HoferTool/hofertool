@@ -15,7 +15,7 @@ import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
 import Statistik, { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
-import Kalender from "../seiten/Kalender.jsx";
+import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Infoboard, { Empfang, Pausenraum, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
@@ -152,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.310.0";
+const APP_VERSION = "1.311.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10327,8 +10327,9 @@ const SEITEN = [
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
-  // Termine wie Kehrichtabfuhr, auch auf dem Infoboard (Wunsch Patrick 28. Oktober 2026)
-  { pfad: "kalender",     titel: "Kalender",     zeichen: SYM.kalender, zeige: reactSeite(Kalender) },
+  // Den Reiter Kalender gibt es seit 1.311.0 nicht mehr: die Termine stehen
+  // als Karte auf der Startseite, ein Tipp öffnet das Fenster zum Verwalten
+  // (Wunsch Patrick 30. Oktober 2026: „Reiter selber brauchts nicht“)
   // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
   { pfad: "einlagen",     titel: "Einlagen Gen", unter: "created by Ecker", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   // Grosser Bildschirm hochkant (Wunsch Patrick 20. Oktober 2026), nur
@@ -10482,13 +10483,12 @@ function syncTabellen(pfad) {
   // Ohne profiles: dort landen auch die persönlichen Einstellungen. Jeder
   // Regler, den jemand im Betrieb verschob, liess sonst alle Startseiten
   // neu aufbauen. Geburtstage kommen beim nächsten Öffnen.
-  if (pfad === "dashboard") return ["jobs", "todos", "shopping_items", "order_items", "materialausgabe"];
+  if (pfad === "dashboard") return ["jobs", "todos", "shopping_items", "order_items", "materialausgabe", "kalender"];
   if (pfad === "produktion") return ["production_records", "jobs", "machines"];
   if (pfad === "bestellungen") return ["order_items", "articles", "suppliers", "designations"];
   if (pfad === "einkauf") return ["shopping_items"];
   if (pfad === "einstellungen") return ["profiles", "people"];
   if (pfad === "qs") return ["qs_meldungen", "jobs"];
-  if (pfad === "kalender") return ["kalender"];
   return [];
 }
 

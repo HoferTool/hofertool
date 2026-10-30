@@ -22,10 +22,13 @@ def seite(br, rolle, url):
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
-    pg, pf = seite(br, "mitarbeiter", "#/kalender")
+    # Kalender seit 1.311.0 als Karte auf Start mit Fenster
+    pg, pf = seite(br, "mitarbeiter", "#/dashboard")
+    pg.wait_for_selector("#db-kalender .karte", timeout=15000); pg.click("#db-kalender .karte")
     pg.wait_for_selector("#kal-alle", timeout=15000); pg.wait_for_timeout(500)
     pruefe(pg.locator("#kal-neu").count() == 1, "Mitarbeiter: Knopf Termin eintragen")
     pruefe(pg.locator("[data-nav='infoboard']").count() > 0, "Mitarbeiter: Infoboard im Menü")
+    pg.click("#kal-fenster [data-zu]"); pg.wait_for_timeout(300)
     pg.evaluate("location.hash = '#/infoboard'"); pg.wait_for_timeout(1500)
     t = pg.inner_text("main") if pg.locator("main").count() else pg.inner_text("body")
     pruefe("Datei wählen" in t or "Text" in t, "Mitarbeiter: Infoboard gestalten")
@@ -34,7 +37,7 @@ with sync_playwright() as p:
 
     pg, pf = seite(br, "extern", "#/kalender")
     pg.wait_for_timeout(3000)
-    pruefe(pg.locator("#kal-alle").count() == 0, "Extern: kein Kalender")
+    pruefe(pg.locator("#kal-alle").count() == 0 and pg.locator("#db-kalender").count() == 0, "Extern: kein Kalender")
     pruefe(pg.locator("[data-nav='infoboard']").count() == 0 and pg.locator("[data-nav='kalender']").count() == 0, "Extern: nichts im Menü")
     pg.close()
     br.close()

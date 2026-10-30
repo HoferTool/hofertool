@@ -28,22 +28,33 @@ def seite(p, url):
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
-    pg, pf = seite(br, "#/kalender")
-    pg.wait_for_selector("#kal-alle"); pg.wait_for_timeout(800)
-    # Keine Übersicht der nächsten 60 Tage mehr (seit 1.242.0)
-    pruefe(pg.locator("#kal-naechste").count() == 0, "keine Übersicht der nächsten 60 Tage")
-    pruefe("Kehrichtabfuhr" in pg.inner_text("#kal-alle"), "Eintrag in der Liste")
-    pruefe("Infoboard bei der Stempeluhr" in pg.inner_text("#kal-info"), "Hinweis aufs Infoboard")
-    pruefe(pg.locator("[data-nav='kalender']").count() > 0, "Kalender im Menü")
+    # Seit 1.311.0 kein Reiter mehr: Karte auf der Startseite nach den
+    # Problemen, nächste zwei Wochen, je Eintrag nur einmal; Tipp öffnet
+    # das Fenster zum Verwalten (Wunsch Patrick 30. Oktober 2026)
+    pg, pf = seite(br, "#/dashboard")
+    pg.wait_for_selector("#db-kalender .karte", timeout=15000); pg.wait_for_timeout(800)
+    k = pg.inner_text("#db-kalender")
+    pruefe(k.count("Kehrichtabfuhr") == 1 and "jede Woche" in k, "wöchentlicher Termin nur einmal auf Start: %r" % k)
+    reihe = pg.evaluate("""() => [...document.querySelectorAll('#db-probleme, #db-kalender, #db-status')].map(e => e.id)""")
+    pruefe(reihe[:2] == ["db-probleme", "db-kalender"], "Kalender direkt nach den Problemen: %s" % reihe)
+    pruefe(pg.locator("[data-nav='kalender']").count() == 0, "kein Reiter Kalender im Menü")
+    pg.click("#db-kalender .karte"); pg.wait_for_selector("#kal-fenster #kal-alle")
+    pruefe("Kehrichtabfuhr" in pg.inner_text("#kal-alle"), "Eintrag im Fenster")
     # Neuer Termin, alle 2 Wochen
-    pg.click("#kal-neu"); pg.wait_for_selector(".dialog-huelle input")
-    pg.locator(".dialog-huelle input").first.fill("Papierkörbe leeren")
-    pg.locator(".dialog-huelle input[type=date]").fill((heute + timedelta(days=3)).isoformat())
-    pg.locator(".dialog-huelle select").select_option("2wochen")
-    pg.locator(".dialog-huelle .knopf--haupt").last.click(); pg.wait_for_timeout(800)
+    pg.click("#kal-neu"); pg.wait_for_function("document.querySelectorAll('.dialog-huelle').length >= 2")
+    d = pg.locator(".dialog-huelle").last
+    d.locator("input").first.fill("Papierkörbe leeren")
+    d.locator("input[type=date]").fill((heute + timedelta(days=3)).isoformat())
+    d.locator("select").select_option("2wochen")
+    d.locator(".knopf--haupt").last.click(); pg.wait_for_timeout(800)
     z = pg.evaluate("() => TEST.daten.kalender.find(x => x.titel === 'Papierkörbe leeren')")
     pruefe(z and z["wiederholung"] == "2wochen" and z["datum"] == (heute + timedelta(days=3)).isoformat(), "Termin gespeichert: %s" % z)
     pruefe("Papierkörbe leeren" in pg.inner_text("#kal-alle"), "Termin in der Liste")
+    pg.click("#kal-fenster [data-zu]"); pg.wait_for_timeout(800)
+    k = pg.inner_text("#db-kalender")
+    pruefe("Papierkörbe leeren" in k, "nach dem Schliessen neu auf Start")
+    import os
+    if os.environ.get("BILD0"): pg.locator("#db-kalender").screenshot(path=os.environ["BILD0"])
     pruefe(not pf, "keine Skriptfehler: %s" % pf[:2])
     pg.close()
 

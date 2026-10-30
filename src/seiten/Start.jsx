@@ -18,6 +18,7 @@ import Durchfahrt from "./start/Durchfahrt.jsx";
 import Batterien from "./start/Batterien.jsx";
 import HeuteOffen from "./start/HeuteOffen.jsx";
 import OhneWbg from "./start/OhneWbg.jsx";
+import KalenderKarte from "./start/Kalender.jsx";
 
 // Ohne Adminrecht wird gar nicht erst nach Problemen gefragt
 const keineProbleme = async () => [];
@@ -48,6 +49,9 @@ export default function Start({ auffrischen }) {
       <Solaranlage />
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
       {admin && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
+      {/* Termine der nächsten zwei Wochen, statt des Reiters Kalender
+          (Wunsch Patrick 30. Oktober 2026) */}
+      <KalenderKarte auffrischen={auffrischen} />
       {/* Maschinen ohne Stückzahl von heute oder ohne Stückzeit
           (Wunsch Patrick 26. Oktober 2026) */}
       <HeuteOffen auffrischen={auffrischen} />
