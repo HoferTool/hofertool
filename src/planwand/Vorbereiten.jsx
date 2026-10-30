@@ -80,7 +80,7 @@ async function werkzeugeLaden(auftrag) {
   const artikel = {};
   if (ids.length) {
     try {
-      const r = await alt.db.from("articles").select("id, name, description, spezial").in("id", ids);
+      const r = await alt.db.from("articles").select("id, article_number, name, description, spezial").in("id", ids);
       (r.data || []).forEach((a) => { artikel[a.id] = a; });
     } catch (f) { /* dann der Text aus dem Blatt */ }
   }
@@ -95,7 +95,7 @@ async function werkzeugeLaden(auftrag) {
     // aus dem Blatt), damit jedes Werkzeug drei Zeilen hat (Patrick:
     // „jedes Werkzeug wie T200“)
     const wofuer = [p.taetigkeit, p.mass].filter(Boolean).join(" ");
-    const zeilen = [p.hersteller || "", p.werkzeug || "", beschreibung || wofuer];
+    const zeilen = [p.hersteller || "", (a && (a.article_number || a.name)) || p.werkzeug || "", beschreibung || wofuer];
     const rev = /^R(\d)-/.exec(k);
     return {
       key: k, nr: platzName(k), revolver: rev ? rev[1] : "", zeilen, hd: !!p.hd,

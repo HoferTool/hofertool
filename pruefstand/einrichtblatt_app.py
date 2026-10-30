@@ -295,6 +295,17 @@ with sync_playwright() as p:
     neu = pg.evaluate("TEST.daten.order_items")[vorher:]
     pruefe("Unter Offen bestellt", len(neu) == 1 and neu[0]["article_id"] == "a1" and neu[0]["quantity"] == 3 and neu[0].get("status", "offen") == "offen")
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
+    # Artikel umbenannt: das Blatt zeigt die neuen Angaben aus der Datenbank (1.277.0)
+    pg.evaluate("""() => { const D = TEST.daten; const a = D.articles.find(x => x.id === 'a1');
+      a.article_number = 'MTEC-999'; a.description = 'R0.80 neu';
+      D.suppliers.find(x => x.id === a.supplier_id).name = 'Lieferant neu'; }""")
+    pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_timeout(1000)
+    zeilen = [pg.inner_text(t200 + k).strip() for k in (".eba-her", ".eba-wz", ".eba-wz-bez")]
+    pruefe("Umbenannter Artikel im Blatt neu", zeilen == ["Lieferant neu", "MTEC-999", "R0.80 neu"])
+    pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
+    pg.evaluate("""() => { const D = TEST.daten; const a = D.articles.find(x => x.id === 'a1');
+      a.article_number = 'MTEC-452410'; a.description = 'R0.40 CCMT';
+      D.suppliers.find(x => x.id === a.supplier_id).name = 'Vischer & Bolli AG'; }""")
 
     # Index: drei Revolver mit T1 bis T10
     pg.locator("[data-blatt-typ='t2']").click(); pg.wait_for_selector(".betrachter"); pg.wait_for_timeout(800)

@@ -125,10 +125,15 @@ export async function geoSeiteEinsetzen(blatt, typ) {
 // 26. Oktober 2026; 1.206.0 Bezeichnung und Beschreibung)
 export const artikelBezeichnung = (a) => String((a && a.description) || "").trim();
 
-// Plätze mit hinterlegtem Artikel holen den Text hinter der Artikel-Nr.
-// zum Zeichnen immer frisch aus dem Artikel, damit ältere Plätze (vor
-// 1.206.0 ohne, 1.206.0 mit Bezeichnung) und geänderte Beschreibungen
-// stimmen. Gespeichert wird er erst, wenn jemand das Blatt speichert.
+// Plätze mit hinterlegtem Artikel holen Artikel-Nr., Lieferant und den
+// Text hinter der Artikel-Nr. zum Zeichnen immer frisch aus dem Artikel,
+// damit ein umbenannter Artikel in jedem Blatt gleich neu heisst (Wunsch
+// Patrick, 30. Oktober 2026: „wenn ein Art. neu heisst, soll es von der
+// Datenbank übernehmen“). Gespeichert schreibt das die Datenbank selbst
+// beim Ändern des Artikels (sql/einrichtblatt-artikel-nachziehen.sql),
+// hier zählt es auch ohne das SQL. Selbst zugeordnete (ungeprüfte) Plätze
+// zieht nur die Datenbank nach, und nur, wo genau die Artikel-Nr. steht,
+// damit ein anderer Text aus dem Excel für die Suche beim Prüfen bleibt.
 async function bezeichnungenNachholen(plaetze) {
   const offen = Object.values(plaetze || {}).filter((p) => p && p.article_id && !p.ungeprueft);
   if (!offen.length) return;
@@ -136,17 +141,32 @@ async function bezeichnungenNachholen(plaetze) {
     const ids = [...new Set(offen.map((p) => p.article_id))];
     // Mit „spezial“: Spezialwerkzeuge bekommen im Blatt einen Stern beim
     // Lieferanten (seit 1.272.0); kennt die Datenbank die Spalte nicht, ohne
-    let r = await alt.db.from("articles").select("id, description, spezial").in("id", ids);
-    if (r.error) r = await alt.db.from("articles").select("id, description").in("id", ids);
+    let r = await alt.db.from("articles").select("id, article_number, name, description, supplier_id, spezial").in("id", ids);
+    if (r.error) r = await alt.db.from("articles").select("id, article_number, name, description, supplier_id").in("id", ids);
     if (r.error) return;
-    const nach = {}, spezial = {};
-    (r.data || []).forEach((a) => { nach[a.id] = artikelBezeichnung(a); spezial[a.id] = !!a.spezial; });
+    const artikel = {};
+    (r.data || []).forEach((a) => { artikel[a.id] = a; });
+    const liefIds = [...new Set((r.data || []).map((a) => a.supplier_id).filter(Boolean))];
+    let lieferant = null;
+    if (liefIds.length) {
+      try {
+        const l = await alt.db.from("suppliers").select("id, name").in("id", liefIds);
+        if (!l.error) { lieferant = {}; (l.data || []).forEach((x) => { lieferant[x.id] = x.name || ""; }); }
+      } catch (f) { /* dann bleibt der gespeicherte Lieferant */ }
+    }
     offen.forEach((p) => {
-      if (!(p.article_id in nach)) return;
-      if (nach[p.article_id]) p.bezeichnung = nach[p.article_id]; else delete p.bezeichnung;
-      if (spezial[p.article_id]) p.spezial = true; else delete p.spezial;
+      const a = artikel[p.article_id];
+      if (!a) return;
+      // wie beim Wählen im Platz (nehmen in Blatt.jsx)
+      const nr = a.article_number || a.name || "";
+      if (nr) p.werkzeug = nr;
+      const bez = artikelBezeichnung(a);
+      if (bez) p.bezeichnung = bez; else delete p.bezeichnung;
+      // ohne Lieferant am Artikel bleibt der Hersteller, der im Blatt steht
+      if (lieferant && lieferant[a.supplier_id]) p.hersteller = lieferant[a.supplier_id];
+      if (a.spezial) p.spezial = true; else delete p.spezial;
     });
-  } catch (f) { /* dann nur die Nummer */ }
+  } catch (f) { /* dann nur das Gespeicherte */ }
 }
 
 // Programm-Nr.: die letzten drei Ziffern der Programme im Werkzeug-
