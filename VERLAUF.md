@@ -2,8 +2,10 @@
 
 Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neueste Version zuerst. Die Regeln und Entscheidungen stehen in CLAUDE.md.
 
+
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.290.0** (30. Oktober 2026) **HOCO Nr. und PDFs für jeden Artikel** (Wunsch Patrick: „Nicht nur Spezial, sondern überall. Ich will das auch bei Bestellen zuweisen können.“). Unter Bestellungen → Artikel in der Spalte HOCO Nr. „+ zuweisen“ bzw. „ändern“: Fenster „HOCO Nr. und PDFs“ (`artikelZuweisenOeffnen`) ordnet HOCO Nummern zu oder entfernt sie und hinterlegt PDFs. Zuordnen setzt den Stern ★ nicht mehr von selbst. Test `artikel_zuweisen.py`.
 - **1.289.0** (30. Oktober 2026) **Werkzeug wählen zeigt alles** (Wunsch Patrick: „wenn man ein Werkzeug wählen will bei EB oder sonst wo, soll es alles anzeigen, also Art.-Nr., Beschreibung und Lieferant“). Jede Artikelauswahl (Neue Bestellposition, Werkzeug wählen im Einrichtblatt, Spezialwerkzeug zuordnen, Artikel per Foto) zeigt je Treffer und beim gewählten Artikel Art.-Nr. mit Bezeichnung, darunter die Beschreibung und den Lieferanten mit Stern (`ArtikelAngaben` in `src/seiten/bestellungen/teile.jsx`). Test `artikel_angaben.py`.
 - **1.288.0** (30. Oktober 2026) Spezialwerkzeuge: **PDFs hinterlegen** (Wunsch Patrick). Im Fenster Spezialwerkzeuge je Werkzeug „+ PDF“, antippen öffnet, ✕ löscht; gilt für den Artikel bei jeder HOCO Nr. Tabelle `spezial_pdfs` (`sql/spezialwerkzeug-pdf.sql`, eingespielt).
 - **1.287.0** (30. Oktober 2026) Pausenraum: **Radiosender und YouTube** in der flachen Leiste unter Geburtstagen und Terminen (Wunsch Patrick: „verschiedene Radiosender anwählen können“, „den YouTube-Kanal Titans of CNC“, „möglichst breit und nicht hoch“). Schweizer Sender vorbelegt, Titans of CNC als Liste seiner Videos unter der Leiste; Liste unter Einstellungen → Allgemein → Radio im Pausenraum (`app_config.radio_sender`). Test `radio.py`.

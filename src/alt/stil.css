@@ -9059,7 +9059,7 @@ body.dunkel .matausgabe-offen td, body.dunkel .mat-zeile.offen td {
 /* Spezialwerkzeuge als eigener Bereich mit eigenen Reitern (seit 1.142.0) */
 .spezial__reiter { margin: -4px 0 12px; }
 .spezial__reiter .reiter { font-size: .92em; }
-.spezial__wandert { color: #b26a00; font-weight: 600; }
+
 
 /* Material: Menge „ca.“ (geschätzt), seit 1.143.0 */
 .mat-menge__kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
@@ -10513,3 +10513,12 @@ body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -w
 .artikel-angaben { display: grid; gap: 1px; }
 .artikel-angaben__beschreibung { color: var(--tinte); }
 .artikel-angaben__lieferant { color: var(--gedaempft); }
+
+/* HOCO Nr. und PDFs je Artikel unter Bestellungen → Artikel (seit 1.290.0) */
+.bs-artikel__pdfzahl { white-space: nowrap; color: var(--gedaempft); }
+.bs-artikel__zuweisen { align-self: flex-start; font-size: .8rem; padding: 0; }
+.az-liste { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.az-hoco { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px;
+  background: var(--flaeche-2, rgba(0,0,0,.06)); font-weight: 600; font-variant-numeric: tabular-nums; }
+.az-neu { display: flex; gap: 8px; }
+.az-neu input { flex: 1; min-width: 0; }

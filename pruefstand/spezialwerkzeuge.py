@@ -44,7 +44,9 @@ with sync_playwright() as p:
     d = pg.evaluate("TEST.daten.spezialwerkzeuge")
     pruefe(len(d) == 1 and d[0]["hoco_nr"] == hoco and d[0]["article_id"] == "a1" and d[0]["notiz"] == "Platz 3",
            "Zuordnung gespeichert: %s" % d)
-    pruefe(pg.evaluate("TEST.daten.articles.find(a => a.id === 'a1').spezial") is True, "Artikel als Spezialwerkzeug markiert")
+    # Seit 1.290.0 macht Zuordnen keinen Artikel mehr zum Spezialwerkzeug
+    pruefe(not pg.evaluate("TEST.daten.articles.find(a => a.id === 'a1').spezial"), "Zuordnen lässt das Kennzeichen")
+    pg.evaluate("TEST.daten.articles.find(a => a.id === 'a1').spezial = true")
     pruefe("MTEC-452410" in pg.inner_text("#spezialwerkzeuge"), "Fenster zeigt das Werkzeug")
     pg.screenshot(path=os.path.join(BILD, "spezial-fenster.png"))
 

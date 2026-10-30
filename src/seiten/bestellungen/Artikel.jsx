@@ -6,6 +6,8 @@
 import { useState, useEffect } from "react";
 import { alt, useDaten, useVerzoegert, useSpeicherWert } from "../../bruecke.jsx";
 import { artikelFotosOeffnen } from "./ArtikelFotos.jsx";
+import { artikelZuweisenOeffnen } from "../../teile/Spezialwerkzeuge.jsx";
+import { spezialPdfsLaden } from "../../daten/spezialwerkzeuge.js";
 import { Leiste, NeuKnopf, Karte, Symbolknopf, Zeichen, Leer, Laedt, Fehler, Stern } from "./teile.jsx";
 
 // Alle Artikel zusammen, Spezialwerkzeuge mit Kennzeichen (seit 1.271.0,
@@ -72,7 +74,7 @@ export default function Artikel({ auffrischen, behaelter }) {
           : !gefiltert
             ? <Laedt />
             : <Liste liste={gefiltert} sucht={!!suche || !!bez || !!lief} schreiben={schreiben}
-                behaelter={behaelter} anzahl={anzahl} gesamt={gesamt} hocoJe={hocoJe || {}}
+                behaelter={behaelter} anzahl={anzahl} gesamt={gesamt} hocoJe={hocoJe || {}} auffrischen={auffrischen}
                 mehr={() => setAnzahl((n) => n + 50)} />}
       </div>
     </>
@@ -82,7 +84,11 @@ export default function Artikel({ auffrischen, behaelter }) {
 // Frisch geholt, damit eine neue Zuordnung gleich dasteht
 const hocoJeArtikel = () => alt.hocoJeArtikel(true);
 
-function Liste({ liste, sucht, schreiben, behaelter, anzahl, gesamt, mehr, hocoJe }) {
+function Liste({ liste, sucht, schreiben, behaelter, anzahl, gesamt, mehr, hocoJe, auffrischen }) {
+  // PDFs der sichtbaren Artikel (seit 1.290.0); ohne Tabelle keine
+  const ids = liste.map((a) => a.id);
+  const { daten: pdfJe } = useDaten(() => spezialPdfsLaden(ids), [ids.join(","), auffrischen]);
+  const zuweisen = (a) => artikelZuweisenOeffnen(a, () => alt.seiteBestellungen(behaelter));
   if (!liste.length) return <Leer text={sucht ? "Kein Artikel gefunden." : "Noch keine Artikel angelegt."} />;
   const genau = liste.filter((a) => !a.aehnlich).length;
   const bekannt = typeof gesamt === "number";
@@ -118,10 +124,19 @@ function Liste({ liste, sucht, schreiben, behaelter, anzahl, gesamt, mehr, hocoJ
                       rel="noopener">{a.supplier_name}<Zeichen name="aussen" groesse={12} /></a>
                   : a.supplier_name)
               : "–"}<Stern an={a.spezial} /></div>
+            {/* HOCO Nr. und PDFs für jeden Artikel (seit 1.290.0, Wunsch Patrick
+                30. Oktober 2026: „auch bei Bestellen zuweisen können“): antippen
+                öffnet das Fenster zum Zuordnen und Hinterlegen */}
             <div className="bs-artikel__hoco" data-arhoco={a.id}>
-              {(hocoJe[a.id] || []).length
-                ? hocoJe[a.id].map((h) => <span key={h} className="bs-artikel__hoco-nr">{h}</span>)
-                : (a.spezial ? <span className="bs-artikel__hoco-leer">keine</span> : null)}
+              {(hocoJe[a.id] || []).map((h) => <span key={h} className="bs-artikel__hoco-nr">{h}</span>)}
+              {((pdfJe || {})[a.id] || []).length > 0 && <span className="bs-artikel__pdfzahl" data-arpdfzahl={a.id}
+                title="Hinterlegte PDFs">📄 {pdfJe[a.id].length}</span>}
+              {(schreiben || (hocoJe[a.id] || []).length || ((pdfJe || {})[a.id] || []).length)
+                ? <button type="button" className="linkknopf bs-artikel__zuweisen" data-arzuweisen={a.id}
+                    onClick={() => zuweisen(a)}>
+                    {schreiben ? ((hocoJe[a.id] || []).length || ((pdfJe || {})[a.id] || []).length ? "ändern" : "+ zuweisen") : "ansehen"}
+                  </button>
+                : null}
             </div>
             <span className="bs-pos__aktionen">
               {schreiben && <>

@@ -93,27 +93,26 @@ export async function spezialZuordnen(artikel, hocoNrs, notiz) {
   if (vorhanden.error) throw vorhanden.error;
   const schon = new Set((vorhanden.data || []).map((z) => z.hoco_nr));
   const neu = nrs.filter((n) => !schon.has(n));
-  // Ein normaler Artikel wird damit zum Spezialwerkzeug und verschwindet
-  // samt seinen Bestellungen aus den normalen Bestellungen
-  const zurueck = [];
-  if (!artikel.spezial) {
-    const u = await alt.db.from("articles").update({ spezial: true }).eq("id", artikel.id);
-    if (u.error && !/spezial/.test(alt.fehlertext(u.error))) throw u.error;
-    if (!u.error) zurueck.push(alt.rueckSetz("articles", { spezial: false }, { id: artikel.id }));
-    artikel.spezial = true;
-  }
-  if (!neu.length) {
-    if (zurueck.length) alt.merkeSchritt("Artikel " + (artikel.article_number || "") + " zu den Spezialwerkzeugen", zurueck);
-    return 0;
-  }
+  // Zuordnen macht den Artikel nicht mehr zum Spezialwerkzeug (seit
+  // 1.290.0, Wunsch Patrick 30. Oktober 2026: „soll auch für alles offen
+  // sein“); das Häkchen „Spezialwerkzeug“ setzt man beim Artikel selbst
+  if (!neu.length) return 0;
   const r = await alt.db.from("spezialwerkzeuge")
     .insert(neu.map((n) => ({ article_id: artikel.id, hoco_nr: n, notiz: (notiz || "").trim() || null })))
     .select("id");
   if (r.error) throw r.error;
   const ids = (r.data || []).map((z) => z.id);
-  if (ids.length || zurueck.length) alt.merkeSchritt("Spezialwerkzeug " + (artikel.article_number || "") + " zuordnen",
-    ids.map((id) => alt.rueckWeg("spezialwerkzeuge", { id })).concat(zurueck));
+  if (ids.length) alt.merkeSchritt((artikel.article_number || "Artikel") + " zu " + neu.join(", "),
+    ids.map((id) => alt.rueckWeg("spezialwerkzeuge", { id })));
   return neu.length;
+}
+
+// Zuordnungen eines einzelnen Artikels (Fenster aus Bestellungen → Artikel)
+export async function artikelZuordnungen(articleId) {
+  const r = await alt.zeitlimit(alt.db.from("spezialwerkzeuge").select("*").eq("article_id", articleId),
+    10000, "Zuordnungen");
+  if (r.error) throw r.error;
+  return (r.data || []).sort((x, y) => String(x.hoco_nr).localeCompare(String(y.hoco_nr), "de", { numeric: true }));
 }
 
 export async function spezialEntfernen(z) {
@@ -128,10 +127,12 @@ export async function spezialEntfernen(z) {
 // Zeichnung, Datenblatt … je Artikel, gelten bei jeder HOCO Nr. (seit
 // 1.287.0, Wunsch Patrick 30. Oktober 2026: „Bei den Spezialwerkzeugen
 // sollen PDF hinterlegt werden können“, sql/spezialwerkzeug-pdf.sql).
-// Fehlt die Tabelle, gibt es eben keine.
+// Fehlt die Tabelle, gibt es eben keine. Seit 1.290.0 für jeden Artikel,
+// auch aus Bestellungen → Artikel (Wunsch Patrick 30. Oktober 2026:
+// „Nicht nur Spezial, sondern überall“).
 export const PDF_FEHLT = "Die PDFs zu den Spezialwerkzeugen sind in der Datenbank noch nicht eingerichtet (sql/spezialwerkzeug-pdf.sql).";
 
-async function spezialPdfsLaden(ids) {
+export async function spezialPdfsLaden(ids) {
   if (!ids.length) return {};
   try {
     const r = await alt.zeitlimit(alt.db.from("spezial_pdfs").select("*").in("article_id", ids).order("erstellt_am"), 10000, "PDFs");
