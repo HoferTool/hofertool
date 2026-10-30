@@ -7,8 +7,9 @@ from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
 def dialog_felder(pg, werte):
-    pg.wait_for_selector(".dialog-huelle .dialog input")
-    felder = pg.locator(".dialog-huelle .dialog input")
+    # Die Einkaufsliste ist seit 1.313.0 selbst ein Fenster
+    pg.wait_for_selector(".dialog-huelle:not(.einkauf-huelle) .dialog input")
+    felder = pg.locator(".dialog-huelle:not(.einkauf-huelle) .dialog input")
     for i, w in enumerate(werte):
         felder.nth(i).fill(w)
     pg.click(".dialog-huelle [data-ja]")
@@ -26,7 +27,7 @@ with sync_playwright() as p:
     pg.clock.install()
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#einkauf'")
-    pg.wait_for_selector("#ek-neu"); pg.wait_for_timeout(400)
+    pg.wait_for_selector("#ek-fenster #ek-neu"); pg.wait_for_timeout(400)
     if "leer" not in pg.inner_text("#ek-inhalt"): fehler.append("leere Liste ohne Hinweis")
 
     # Hinzufügen: Kaffee, Sofort; Handschuhe, Irgendwann
@@ -52,7 +53,7 @@ with sync_playwright() as p:
     pg.locator("[data-ekfertig]").first.click(); pg.wait_for_selector(".dialog-huelle [data-ja]")
     pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(500)
     if pg.locator("[data-ekfertig]").count() != 1: fehler.append("Abhaken wirkt nicht")
-    pg.click("#rueck-knopf"); pg.wait_for_timeout(600)
+    pg.keyboard.press("Control+z"); pg.wait_for_timeout(600)
     if pg.locator("[data-ekfertig]").count() != 2: fehler.append("Rückgängig wirkt nicht")
     pg.locator("[data-ekfertig]").first.click(); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(500)
 
@@ -66,7 +67,7 @@ with sync_playwright() as p:
     pg.evaluate("window._ekKnopf = document.getElementById('ek-neu')")
     pg.evaluate("""TEST.daten.shopping_items.push({id:'x1', text:'Klebeband', prio:2, is_done:false,
                    created_at:new Date().toISOString()})""")
-    pg.locator("h1").click()   # kein Feld im Fokus, sonst wartet der Abgleich
+    pg.locator("#ek-fenster .blatt__kopf h2").click()   # kein Feld im Fokus, sonst wartet der Abgleich
     pg.clock.fast_forward(46000); pg.wait_for_timeout(800)
     if "Klebeband" not in pg.inner_text("#ek-inhalt"): fehler.append("Neuer Eintrag kommt nicht")
     if not pg.evaluate("window._ekKnopf === document.getElementById('ek-neu')"):

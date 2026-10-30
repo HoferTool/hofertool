@@ -3,11 +3,26 @@
 //  Für alles, was man beim nächsten Ladenbesuch mitnehmen soll.
 //  Erste React-Seite mit Daten: lädt über useDaten, frischt sich
 //  beim Abgleich still auf und nutzt die Fenster des alten Programms.
+//
+//  Seit 1.313.0 kein eigener Reiter mehr, sondern ein Fenster, das die
+//  Karte „Einkaufsliste“ auf der Startseite öffnet (Wunsch Patrick
+//  30. Oktober 2026: „Einkaufsliste soll Startfenster aufgehen, keinen
+//  Reiter bekommen“). Alte Verweise auf #/einkauf öffnen das Fenster.
 // =================================================================
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { PRIO } from "../daten/einkauf.js";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
+import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { wiederOeffner } from "../teile/wiederherstellen.js";
+
+// Öffnet die Einkaufsliste als Fenster; beimSchliessen frischt etwa die
+// Karte auf der Startseite auf. Nicht für Externe und das Dienstkonto.
+export function einkaufOeffnen(beimSchliessen) {
+  if (alt.istExtern() || document.getElementById("ek-fenster")) return;
+  fensterOeffnen((zu) => <Einkauf zu={zu} />, beimSchliessen, "einkauf-huelle", { art: "einkauf" });
+}
+wiederOeffner("einkauf", () => einkaufOeffnen());
 
 const gemerkt = { zeigeErledigte: false };
 
@@ -21,11 +36,21 @@ async function listeLaden(erledigte) {
   return data || [];
 }
 
-export default function Einkauf({ auffrischen }) {
+export default function Einkauf({ auffrischen, zu }) {
   const [zeigeErledigte, setZeigeErledigte] = useState(gemerkt.zeigeErledigte);
   useGemerkt(gemerkt, { zeigeErledigte });
   const { daten: liste, fehler, neu } = useDaten(
     () => listeLaden(zeigeErledigte), [zeigeErledigte, auffrischen]);
+  // Strg + Z im Fenster und der Abgleich der Startseite dahinter
+  // (EinkaufKurz) holen die Liste frisch
+  useEffect(() => {
+    window.addEventListener("hofer-rueckgaengig", neu);
+    window.addEventListener("hofer-einkauf-neu", neu);
+    return () => {
+      window.removeEventListener("hofer-rueckgaengig", neu);
+      window.removeEventListener("hofer-einkauf-neu", neu);
+    };
+  }, [neu]);
 
   // Strg + F sucht auf der Liste (seit 1.169.0); Erledigtes nur, wenn es gezeigt wird
   useSeitenSuche({
@@ -38,8 +63,11 @@ export default function Einkauf({ auffrischen }) {
   });
 
   return (
-    <>
-      <h1 className="seitentitel">Einkaufsliste</h1>
+    <div className="dialog dialog--breit einkauf-fenster" role="dialog" aria-modal="true" id="ek-fenster">
+      <div className="blatt__kopf">
+        <h2>Einkaufsliste</h2>
+        <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
+      </div>
       <button className="knopf knopf--haupt knopf--breit" id="ek-neu"
         onClick={() => eintragDialog(null, neu)}>+ Auf die Liste setzen</button>
       <div id="ek-inhalt">
@@ -55,7 +83,7 @@ export default function Einkauf({ auffrischen }) {
                 </button>
               </>}
       </div>
-    </>
+    </div>
   );
 }
 

@@ -4,9 +4,11 @@
 //  ist seit 111.26.0 weg, an ihrer Stelle stehen die Probleme.
 //  Jede lädt für sich; fehlt eine Tabelle, bleibt nur ihre Karte weg.
 // =================================================================
+import { useEffect } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
 import { PRIO } from "../../daten/einkauf.js";
 import { KlickKarte } from "./Karte.jsx";
+import { einkaufOeffnen } from "../Einkauf.jsx";
 
 async function abfrage(anfrage, ms, name) {
   const { data, error } = await alt.zeitlimit(anfrage, ms, name);
@@ -73,13 +75,18 @@ export function Probleme({ liste, fehler, neu }) {
 // ---------- Kurzfassung der Einkaufsliste ----------
 
 export function EinkaufKurz({ auffrischen }) {
-  const { daten: liste } = useDaten(() => abfrage(
+  const { daten: liste, neu } = useDaten(() => abfrage(
     alt.db.from("shopping_items").select("*").eq("is_done", false)
       .order("prio").order("created_at").limit(12), 8000, "Einkauf"), [auffrischen]);
+  // Der Abgleich frischt auch das offene Fenster der Einkaufsliste auf
+  useEffect(() => {
+    if (auffrischen) window.dispatchEvent(new Event("hofer-einkauf-neu"));
+  }, [auffrischen]);
   if (!liste) return <div id="db-einkauf" />;
   return (
     <div id="db-einkauf">
-      <KlickKarte zu="einkauf">
+      {/* Die ganze Liste als Fenster, seit 1.313.0 ohne eigenen Reiter */}
+      <KlickKarte zu="einkauf" oeffnen={() => einkaufOeffnen(neu)}>
         <h2>Einkaufsliste{liste.length > 0 && <> <span className="marke">{liste.length}</span></>}</h2>
         {liste.length
           ? <div className="notizen">

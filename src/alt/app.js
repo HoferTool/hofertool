@@ -24,7 +24,7 @@ import { bildschirmDiesesGeraets, TAFELN } from "../infoboard/daten.js";
 // für Samsung), damit das Gerät es sich auch vor dem Anmelden merkt
 bildschirmDiesesGeraets();
 import { tempAufraeumenRegelmaessig } from "../daten/temp.js";
-import Einkauf from "../seiten/Einkauf.jsx";
+import { einkaufOeffnen } from "../seiten/Einkauf.jsx";
 import Bestellungen from "../seiten/Bestellungen.jsx";
 import Start from "../seiten/Start.jsx";
 import Produktion from "../seiten/Produktion.jsx";
@@ -152,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.312.0";
+const APP_VERSION = "1.313.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -553,7 +553,16 @@ async function rueckAusfuehren(s) {
 }
 
 // Nach dem Zurücknehmen die offene Seite still auffrischen
+// Ist nur das Fenster der Einkaufsliste offen (seit 1.313.0)? Es gilt
+// für Strg + Z und den Abgleich wie eine Seite, nicht wie ein Dialog.
+function nurEinkaufOffen() {
+  const fenster = document.querySelectorAll(".dialog-huelle");
+  return fenster.length === 1 && fenster[0].classList.contains("einkauf-huelle");
+}
+
 function rueckAuffrischen() {
+  // Fenster mit eigener Liste (Einkaufsliste) laden selbst neu
+  window.dispatchEvent(new Event("hofer-rueckgaengig"));
   const pfad = (location.hash.replace(/^#\/?/, "").split("/")[0]) || "dashboard";
   if (pfad === "planwand") {
     if (plan.b && document.body.contains(plan.b)) planAktualisieren(plan.b);
@@ -609,7 +618,8 @@ document.addEventListener("keydown", (e) => {
   if (istTextfeld(e.target)) return;
   // Offenes Fenster: dort gibt es nichts zurückzunehmen. Im kleinen
   // Notizbuch nimmt die Seite selbst zurück, wenn man zuletzt dort war.
-  if (document.querySelector(".dialog-huelle, .nb-schwebend[data-aktiv='1']")) return;
+  // Ausnahme: die Einkaufsliste als Fenster, dort wird gelöscht und abgehakt
+  if (!nurEinkaufOffen() && document.querySelector(".dialog-huelle, .nb-schwebend[data-aktiv='1']")) return;
   e.preventDefault();
   schrittZurueck();
 });
@@ -10323,7 +10333,6 @@ const SEITEN = [
   // Kalkulation wie im Gewatec, vorerst nur für Patrick (seit 1.214.0)
   { pfad: "kalkulation",  titel: "Kalkulation",  zeichen: SYM.kalkulation, zeige: reactSeite(Kalkulation) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
-  { pfad: "einkauf",      titel: "Einkauf",      zeichen: SYM.einkauf, zeige: reactSeite(Einkauf) },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
@@ -10496,7 +10505,7 @@ function syncTabellen(pfad) {
 // Wird sowohl vom Zeittakt als auch von Realtime aufgerufen.
 async function syncPruefen() {
   if (document.hidden) return;
-  if (document.querySelector(".dialog-huelle")) return;
+  if (document.querySelector(".dialog-huelle") && !nurEinkaufOffen()) return;
 
   const a = document.activeElement;
   if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA"
@@ -10779,6 +10788,14 @@ function zeichneSeite() {
     location.hash = "";
     einst.reiter = "temp";
     einstellungenOeffnen();
+    return;
+  }
+
+  // Die Einkaufsliste ist seit 1.313.0 ein Fenster über der Startseite
+  if (roh === "einkauf") {
+    if (ARCHIV) { location.hash = "#/planwand"; return; }
+    location.hash = "";
+    einkaufOeffnen();
     return;
   }
 

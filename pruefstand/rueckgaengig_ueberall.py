@@ -72,14 +72,16 @@ with sync_playwright() as p:
     # 3. Einkauf löschen, dann Abmelden leert die Liste
     pg.evaluate("location.hash = '#/einkauf'"); pg.wait_for_timeout(600)
     pg.evaluate("TEST.daten.shopping_items.push({ id: 'ek1', text: 'Kaffee', is_done: false, prio: 1, created_at: new Date().toISOString() })")
-    pg.evaluate("location.hash = '#/dashboard'"); pg.wait_for_timeout(400)
+    pg.click("#ek-fenster [data-zu]"); pg.wait_for_timeout(400)
     pg.evaluate("location.hash = '#/einkauf'"); pg.wait_for_selector("[data-ekweg='ek1']"); pg.wait_for_timeout(300)
     pg.click("[data-ekweg='ek1']"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(800)
     pruefe("Einkauf gelöscht und merkbar: " + titel(), "Kaffee" in titel())
-    pg.click("#rueck-knopf"); pg.wait_for_timeout(1000)
+    # Seit 1.313.0 ein Fenster: Strg + Z geht dort direkt
+    pg.keyboard.press("Control+z"); pg.wait_for_timeout(1000)
     pruefe("Einkauf zurück", pg.evaluate("TEST.daten.shopping_items.some(z => z.id === 'ek1')"))
     pruefe("Liste zeigt ihn wieder", pg.locator("[data-ekweg='ek1']").count() == 1)
     pg.click("[data-ekweg='ek1']"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(800)
+    pg.click("#ek-fenster [data-zu]"); pg.wait_for_timeout(400)
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(600)
     pg.locator("[data-einst='allgemein']").click(); pg.wait_for_timeout(200)
     pg.locator("#ab").click(); pg.wait_for_timeout(300); pg.locator("[data-ja]").click(); pg.wait_for_timeout(1500)
