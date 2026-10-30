@@ -57,6 +57,17 @@ function pfadVonPlatz(paths) {
   return k;
 }
 
+// Die Plätze, die im Aufbau des Typs stehen (Maschinen → ⚙ Typ → Paths
+// mit Plätzen); beim Index je Revolver als „R2-T7“. Ohne Aufbau null,
+// dann gelten alle Plätze der Vorlage wie bisher
+function aufbauPlaetze(paths, art) {
+  const s = new Set();
+  (paths || []).forEach((p) => (p.type_slots || []).forEach((sl) => {
+    if (sl.tool_nr) s.add(art === "index" ? "R" + p.nummer + "-" + sl.tool_nr : sl.tool_nr);
+  }));
+  return s.size ? s : null;
+}
+
 const heute = () => { const d = new Date(); return String(d.getDate()).padStart(2, "0") + "." + String(d.getMonth() + 1).padStart(2, "0") + "." + String(d.getFullYear()).slice(2); };
 const leer = (w) => w === undefined || w === null ? "" : w;
 
@@ -197,6 +208,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
+  const aufbau = useMemo(() => aufbauPlaetze(paths, vorlage.art), [paths, vorlage.art]);
   const plaetze = blatt.plaetze || {};
   const { kopfAb, kopfBreite } = vorlage;
   const d = { blatt, teil, typDaten, typ };
@@ -224,6 +236,17 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
     const bild = BILDER_AN ? platzBild(p, artikelBilder) : null;
     // Beim Ansehen: antippen bestellt das Werkzeug (seit 1.271.0)
     const bestellbar = !bearbeiten && bestellen && p.article_id && !p.ungeprueft;
+    // Ein Platz, den die Maschine laut Aufbau nicht hat, bleibt als leeres
+    // Feld stehen, ohne T-Nr. und ohne Antippen (Wunsch Patrick 30. Oktober
+    // 2026: „nur die Werkzeuge, die bei Aufbau auch drin sind“); steht dort
+    // aber schon ein Werkzeug, bleibt er wie bisher, damit nichts verschwindet
+    const aus = !!(aufbau && !aufbau.has(nr) && !inGebrauch(p));
+    if (aus) {
+      return <div key={nr} className="eba-zelle eba-platz eba-platz--aus" data-platz-aus={nr}
+        style={{ gridRow: ri + 1, gridColumn: si + 1 }}>
+        <div className="eba-tk" style={{ background: GRAU }} /><div className="eba-tat" /><div className="eba-mass" />
+        <div className="eba-bild" /><div className="eba-her" /><div className="eba-wz" /><div className="eba-wz-bez" /></div>;
+    }
     return (
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")
         + (pruefen && werkzeugOffen(p) ? " eba-platz--pruefen" : "") + (wechsel === nr ? " eba-platz--wechsel" : "")

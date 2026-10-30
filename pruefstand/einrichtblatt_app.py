@@ -33,6 +33,10 @@ with sync_playwright() as p:
       D.machine_types.find(t => t.id === 't2').name = 'Index';
       D.hoco_type_data.push({ hoco_nr: '10000-0301', type_id: 't2', blatt_url: XI, stueckzeit_s: null });
       D.einrichtblatt_app = []; D.artikel_bild = []; D.eb_bilder = [];
+      // Aufbau des SR-32J wie an der Maschine, ohne T900 (seit 1.303.0)
+      ['T300', 'T400', 'T500', 'T600', 'T700', 'T800', 'T1000', 'T1100', 'T1200', 'T1300', 'T1400',
+        'T2100', 'T2200', 'T2300', 'T2400'].forEach((t, i) => D.type_slots.push({ id: 'slx' + i, path_id: 'pa1',
+        bezeichnung: t, kind_id: 'k1', platz_nr: 10 + i, tool_nr: t, werkzeuge: 1, hinweis: null, sortierung: 10 + i }));
       D.articles.find(a => a.id === 'a1').description = 'R0.40 CCMT';
       D.designations = ['Bohrer', 'Wendeplatte', 'Stechplatte'].map((name, i) => ({ id: 'd' + i, name }));
       D.articles.push({ id: 'a9', article_number: 'SPZ-77', name: 'Sonderhalter', unit: 'Stück', description: null,
@@ -77,6 +81,9 @@ with sync_playwright() as p:
            and pg.locator("[data-platz='T3100']").count() == 1)   # T3100 steht im Excel, kommt hinten dazu
     pruefe("Kopf mit Programm Nr., Artikel Bezeich, N1000", "Path 1" not in s and all(x in s for x in ("Programm Nr.:", "111, 333", "Artikel Bezeich", "N1000", "Deckel")))
     pruefe("Werkzeugtext aus dem Excel nur im Bearbeiten markiert", pg.locator("[data-platz='T200'] .eba-wz--frei").count() == 0)
+    pruefe("Platz nicht im Aufbau: Feld ohne T-Nr. (1.303.0)",
+           pg.locator("[data-platz='T900']").count() == 0 and pg.locator("[data-platz-aus='T900']").count() == 1
+           and pg.locator("[data-platz-aus='T900']").inner_text().strip() == "")
     pg.screenshot(path="einrichtblatt_app_ansicht.png")
     # Immer ein A4 quer, alle Werkzeugfelder gleich hoch, nichts ragt
     # hinaus (Wunsch Patrick, 24. Oktober 2026)
