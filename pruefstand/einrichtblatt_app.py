@@ -289,7 +289,7 @@ with sync_playwright() as p:
     # Platz antippen bestellt das Werkzeug (1.271.0)
     pg.click("[data-platz='T200'].eba-platz--bestellbar"); pg.wait_for_selector("#pd-gewaehlt")
     pruefe("Platz antippen: Bestellposition mit dem Werkzeug", "MTEC-452410" in pg.inner_text("#pd-gewaehlt")
-           and "T200" in pg.input_value("#pd-notiz") and "10000-0301" in pg.input_value("#pd-notiz"))
+           and pg.input_value("#pd-notiz") == "" and pg.locator("#pd-foto").count() == 0)
     vorher = pg.evaluate("TEST.daten.order_items.length")
     pg.fill("#pd-menge", "3"); pg.click("#pd-ja"); pg.wait_for_timeout(800)
     neu = pg.evaluate("TEST.daten.order_items")[vorher:]

@@ -651,11 +651,12 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   // Werkzeug eines Platzes gleich bestellen: Neue Bestellposition mit dem
   // Artikel, danach steht es unter Bestellungen → Offen (Wunsch Patrick
   // 29. Oktober 2026: „auf den Platz klicken und direkt zu offenen
-  // Bestellungen hinzufügen“)
+  // Bestellungen hinzufügen“); seit 1.275.1 Notiz leer und ohne Foto
+  // (Wunsch Patrick 30. Oktober 2026)
   const bestellen = async (nr, p) => {
     const a = await artikelHolen(p.article_id);
     if (!a) { alt.meldung("Der Artikel zu diesem Platz ist nicht mehr da.", "warn"); return; }
-    positionOeffnen(null, { artikel: a, notiz: "Einrichtblatt " + hocoNr + " " + typ.name + ", " + platzName(nr) });
+    positionOeffnen(null, { artikel: a, ohneFoto: true });
   };
   const platzWahl = (nr) => setTimeout(() => {
     if (wechsel) { if (wechsel !== nr) tauschen(wechsel, nr); else setWechsel(null); return; }

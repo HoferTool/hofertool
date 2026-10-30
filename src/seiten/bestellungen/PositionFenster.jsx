@@ -224,7 +224,9 @@ function PositionFenster({ zu, fertig, vorgabe }) {
             if (e.key === "Enter") { e.preventDefault(); clearTimeout(taste.current); suchen(suche); }
           }} />
       </div>
-      <div className="mat-foto pd-foto" id="pd-foto">
+      {/* Aus dem Einrichtblatt ist der Artikel schon klar: kein Foto
+          (Wunsch Patrick 30. Oktober 2026) */}
+      {!vorgabe.ohneFoto && <div className="mat-foto pd-foto" id="pd-foto">
         <input ref={fotoFeld} type="file" accept="image/*" hidden id="pd-foto-datei" onChange={fotoGewaehlt} />
         <button type="button" className="knopf" id="pd-foto-knopf" disabled={!!(foto && foto.liest)}
           onClick={() => fotoFeld.current && fotoFeld.current.click()}>📷 Artikel fotografieren</button>
@@ -264,7 +266,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
               <pre className="mat-foto__text">{fotoLesung.text}</pre></details>
           </div>
         )}
-      </div>
+      </div>}
       <div id="pd-treffer" className="pd-treffer">
         {sucht && !treffer && <div className="laedt">Wird gesucht …</div>}
         {suchFehler && <p className="hinweis">{suchFehler}</p>}
