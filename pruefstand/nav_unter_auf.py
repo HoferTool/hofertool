@@ -24,7 +24,7 @@ with sync_playwright() as p:
         for i, ms in enumerate([60, 120, 160, 500]):
             pg.wait_for_timeout(ms)
             if ZIEL: pg.screenshot(path=f"{ZIEL}/{modus}-{i}.png", clip={"x":0,"y":40,"width":260,"height":560})
-        if pg.locator(".nav__unter").count() != 1: fehler.append("Alte Gruppe bleibt stehen: " + modus)
+        if pg.locator("div.nav__unter").count() != 1: fehler.append("Alte Gruppe bleibt stehen: " + modus)
         if pg.locator("[data-unter^='produktion/']").count(): fehler.append("Produktion-Reiter noch klickbar")
         if pg.locator("[data-unter='bestellungen/bestellt']").count() != 1: fehler.append("Bestellungen-Reiter fehlen")
         pg.click("[data-unter='bestellungen/bestellt']"); pg.wait_for_timeout(400)

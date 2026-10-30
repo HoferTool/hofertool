@@ -33,7 +33,25 @@ export const UNTERREITER = {
     merken: (w) => rechnerAnsicht(w),
     gemerkt: () => rechnerAnsicht(),
   },
+  // Die Bildschirme sind eigene Seiten mit eigener Adresse; der Unterpunkt
+  // wechselt darum die Seite statt eines Reiters (seit 1.315.0)
+  bildschirme: {
+    liste: () => bildschirmSeiten().map((s) => [s.pfad, s.titel]),
+    gehe: (w) => { location.hash = "#/" + w; },
+    gemerkt: () => location.hash.replace(/^#\/?/, "").split("/")[0],
+  },
 };
+
+// Die Bildschirm-Seiten, die die Person sehen darf (Infoboard, Empfang, Pausenraum)
+export function bildschirmSeiten() {
+  return alt.SEITEN.filter((s) => s.gruppe === "bildschirme" && alt.seiteSichtbar(s.pfad));
+}
+
+// Unter welchem Punkt im Menü eine Seite steht
+export function menuePunkt(pfad) {
+  const s = pfad && alt.SEITEN.find((x) => x.pfad === pfad);
+  return (s && s.gruppe) || pfad;
+}
 
 // Was die offenen Reiterleisten gemeldet haben: { seite: {aktiv, waehlen} }
 const offen = {};
@@ -60,6 +78,7 @@ export function reiterAktiv(seite) {
 
 // Klick in der Seitenleiste. istOffen: diese Seite ist gerade gezeigt.
 export function reiterWaehlen(seite, wert, istOffen) {
+  if (UNTERREITER[seite].gehe) { UNTERREITER[seite].gehe(wert); return; }
   if (istOffen && offen[seite]) { offen[seite].waehlen(wert); return; }
   UNTERREITER[seite].merken(wert);
   if (istOffen) alt.zeichneSeite();

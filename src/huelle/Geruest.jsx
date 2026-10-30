@@ -14,7 +14,7 @@ import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { GeraetMarke } from "../pad/geraet.jsx";
-import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen } from "./unterreiter.js";
+import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen, menuePunkt } from "./unterreiter.js";
 
 let wurzel = null;
 let aktivSetzen = () => {};
@@ -159,13 +159,15 @@ function inhaltMitziehen() {
 
 function Geruest() {
   const profil = alt.profil;
-  const [aktiv, setAktiv] = useState(null);
+  const [offeneSeite, setAktiv] = useState(null);
   useLayoutEffect(() => { aktivSetzen = setAktiv; }, []);
+  // Infoboard, Empfang und Pausenraum leuchten im Menü unter „Bildschirme“
+  const aktiv = menuePunkt(offeneSeite);
   const sucheVorgeladen = useRef(false);
   const zuklappend = useZuklappend(aktiv);
 
   const anzeige = (profil && (profil.full_name || profil.email)) || "";
-  const navSeiten = alt.SEITEN.filter((s) => alt.seiteSichtbar(s.pfad));
+  const navSeiten = alt.SEITEN.filter((s) => !s.gruppe && alt.seiteSichtbar(s.pfad));
   const klappen = () => {
     const b = document.body;
     const schmal = !b.classList.contains("nav--schmal") || b.classList.contains("nav--klappt-zu");
@@ -289,7 +291,7 @@ function HandyMenue({ aktiv }) {
     return () => document.removeEventListener("keydown", taste, true);
   }, [offen]);
 
-  const seiten = alt.SEITEN.filter((s) => alt.seiteSichtbar(s.pfad));
+  const seiten = alt.SEITEN.filter((s) => !s.gruppe && alt.seiteSichtbar(s.pfad));
   const punkte = [
     ...seiten.map((s) => ({ schluessel: s.pfad, titel: s.titel, unter: s.unter, href: "#/" + s.pfad,
       zeichen: <span className="handymenue__zeichen" aria-hidden="true" dangerouslySetInnerHTML={{ __html: s.zeichen }} /> })),

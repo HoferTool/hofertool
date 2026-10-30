@@ -10767,3 +10767,16 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
    der Zusatz im Titel blass und normal dick */
 .kal-karte__zusatz { font-weight: 400; opacity: .7; }
 .kalenderfenster { max-height: 88vh; overflow-y: auto; }
+
+/* Bildschirme: Wahl zwischen Infoboard, Empfang und Pausenraum (seit 1.315.0) */
+.bs-wahl { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 8px; }
+.bs-kachel { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 18px 24px;
+  background: var(--flaeche); border: 1px solid var(--linie); border-radius: 12px; color: var(--tinte);
+  text-decoration: none; text-align: center; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.bs-kachel:hover, .bs-kachel:focus-visible { border-color: var(--aktion); box-shadow: 0 4px 16px rgba(0, 56, 132, .14); transform: translateY(-2px); }
+.bs-kachel__zeichen { width: 64px; height: 64px; color: var(--aktion); }
+.bs-kachel__zeichen svg { width: 100%; height: 100%; }
+.bs-kachel__titel { font-size: 1.15rem; }
+.bs-kachel__text { color: var(--gedaempft); font-size: .9rem; }
+@media (max-width: 640px) { .bs-wahl { grid-template-columns: 1fr; } .bs-kachel { flex-direction: row; text-align: left; padding: 16px; gap: 14px; }
+  .bs-kachel__zeichen { width: 40px; height: 40px; flex: none; } .bs-kachel__titel { min-width: 90px; } }

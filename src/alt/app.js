@@ -18,6 +18,7 @@ import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
+import Bildschirme from "../seiten/Bildschirme.jsx";
 import Infoboard, { Empfang, Pausenraum, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
 import { bildschirmDiesesGeraets, TAFELN } from "../infoboard/daten.js";
 // Gleich beim Start lesen, ob die Adresse ?bildschirm=… trägt (App-Paket
@@ -152,7 +153,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.314.0";
+const APP_VERSION = "1.315.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -553,7 +554,7 @@ async function rueckAusfuehren(s) {
 }
 
 // Nach dem Zurücknehmen die offene Seite still auffrischen
-// Ist nur das Fenster der Einkaufsliste offen (seit 1.313.0)? Es gilt
+// Ist nur das Fenster der Einkaufsliste offen (seit 1.314.0)? Es gilt
 // für Strg + Z und den Abgleich wie eine Seite, nicht wie ein Dialog.
 function nurEinkaufOffen() {
   const fenster = document.querySelectorAll(".dialog-huelle");
@@ -3032,6 +3033,7 @@ function seiteSichtbar(pfad) {
   // Das Dienstkonto braucht keine Material-Seite
   if ((pfad === "material" || pfad === "qs" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
+  if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   // Den Bereich Empfang sehen nur Personen mit dem Vermerk empfangSehen am
   // Konto (Wunsch Patrick 26. Oktober 2026, sql/empfang-sehen.sql); der
@@ -10211,6 +10213,10 @@ SYM.infoboard = svg('<rect x="5" y="2.5" width="14" height="19" rx="2"/>'
 SYM.empfang = svg('<rect x="2.5" y="4" width="19" height="12" rx="2"/><path d="M12 16v4"/><path d="M8 20.5h8"/>'
   + '<path d="M5.5 7.5h6"/><rect x="5.5" y="9.5" width="5" height="4" rx=".6"/><rect x="12.5" y="7.5" width="6" height="6" rx=".6"/>');
 
+// Bildschirme: ein Bildschirm quer und daneben einer hochkant
+SYM.bildschirme = svg('<rect x="2" y="5" width="13" height="9" rx="1.5"/><path d="M8.5 14v3.5"/><path d="M5.5 18h6"/>'
+  + '<rect x="16.5" y="3" width="5.5" height="15" rx="1.2"/><path d="M18 6h2.5"/>');
+
 // Pausenraum: Kaffeetasse mit Dampf
 SYM.pausenraum = svg('<path d="M4 10h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11.5h1.5a2.5 2.5 0 0 1 0 5H16.5"/>'
   + '<path d="M8 3.5c-.8 1 .8 2 0 3.2M12 3.5c-.8 1 .8 2 0 3.2"/>');
@@ -10341,13 +10347,19 @@ const SEITEN = [
   // (Wunsch Patrick 30. Oktober 2026: „Reiter selber brauchts nicht“)
   // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
   { pfad: "einlagen",     titel: "Einlagen Gen", unter: "created by Ecker", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
+  // Alle Bildschirme unter einem Punkt im Menü (seit 1.315.0, Wunsch Patrick
+  // 30. Oktober 2026: „Alle Bildschirme zu einem Reiter machen“). Die Seiten
+  // darunter behalten ihre Adressen (#/infoboard …), weil die Geräte an der
+  // Wand und die Samsung-Pakete sie so öffnen; im Menü stehen sie nur noch
+  // als Unterpunkte (gruppe).
+  { pfad: "bildschirme",  titel: "Bildschirme",  zeichen: SYM.bildschirme, zeige: reactSeite(Bildschirme) },
   // Grosser Bildschirm hochkant (Wunsch Patrick 20. Oktober 2026), nur
   // für Admins und Gerätekonten
-  { pfad: "infoboard",    titel: "Infoboard",    zeichen: SYM.infoboard, zeige: reactSeite(Infoboard) },
+  { pfad: "infoboard",    titel: "Infoboard",    gruppe: "bildschirme", zeichen: SYM.infoboard, zeige: reactSeite(Infoboard) },
   // Bildschirm quer am Empfang (Wunsch Patrick 26. Oktober 2026), gleiche Rechte
-  { pfad: "empfang",      titel: "Empfang",      zeichen: SYM.empfang, zeige: reactSeite(Empfang) },
+  { pfad: "empfang",      titel: "Empfang",      gruppe: "bildschirme", zeichen: SYM.empfang, zeige: reactSeite(Empfang) },
   // Bildschirm quer mit Touch im Pausenraum (Wunsch Patrick 30. Oktober 2026), Rechte wie Infoboard
-  { pfad: "pausenraum",   titel: "Pausenraum",   zeichen: SYM.pausenraum, zeige: reactSeite(Pausenraum) },
+  { pfad: "pausenraum",   titel: "Pausenraum",   gruppe: "bildschirme", zeichen: SYM.pausenraum, zeige: reactSeite(Pausenraum) },
 ];
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen

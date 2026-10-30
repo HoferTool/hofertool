@@ -252,7 +252,8 @@ function NutzerInfos({ u, status, bin }) {
 // nur für die gewählte Person statt für die angemeldete.
 function startSeiten(u) {
   return (alt.SEITEN || []).filter((x) => {
-    if (x.pfad === "dashboard") return false;
+    // Bildschirme ist nur die Auswahl, gewählt wird der Bildschirm selbst
+    if (x.pfad === "dashboard" || x.pfad === "bildschirme") return false;
     if (u.role === "dienst" && ["material", "qs", "maschinen", "statistik", "kalender"].includes(x.pfad)) return false;
     if (x.pfad === "infoboard") return u.role === "admin" || istAndererNutzer(u);
     if (x.pfad === "pausenraum") return u.role !== "extern" && u.role !== "dienst";

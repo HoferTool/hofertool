@@ -30,14 +30,17 @@ with sync_playwright() as p:
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     # Ohne Vermerk empfangSehen am Konto kein Empfang, auch für Admins
-    pruefe(pg.locator("[data-nav='empfang']").count() == 0 and pg.locator("[data-nav='infoboard']").count() > 0,
-           "Empfang ohne Vermerk nicht im Menü, Infoboard schon")
+    # Seit 1.315.0 stehen die Bildschirme unter einem Punkt „Bildschirme“
+    pg.evaluate("location.hash='#/bildschirme'"); pg.wait_for_selector("#bs-wahl")
+    pruefe(pg.locator("[data-bs='empfang']").count() == 0 and pg.locator("[data-bs='infoboard']").count() > 0,
+           "Empfang ohne Vermerk nicht bei den Bildschirmen, Infoboard schon")
     pg.unroute("**/cdn.jsdelivr.net/**")
     MIT = FAKE + ";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { empfangSehen: true };\n"
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=MIT))
     pg.reload(wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
-    pruefe(pg.locator("[data-nav='empfang']").count() > 0, "Empfang im Menü mit Vermerk")
+    pg.wait_for_selector("#bs-wahl")
+    pruefe(pg.locator("[data-bs='empfang']").count() > 0, "Empfang bei den Bildschirmen mit Vermerk")
     pg.evaluate("""() => { TEST.daten.infoboard = [{ id: 'haupt', geaendert_am: '2026-10-20T10:00:00Z',
       aufbau: { frei: true, teile: [{ id: 'gang', art: 'text', html: 'Gang', x: 12, y: 500, w: 344, h: 486 }] } }]; }""")
     pg.evaluate("location.hash='#/empfang'"); pg.wait_for_selector(".ib-gestalten--empfang"); pg.wait_for_timeout(800)

@@ -41,7 +41,7 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
-    pruefe(pg.locator("[data-nav='infoboard']").count() > 0, "Infoboard im Menü für Admins")
+    pruefe(pg.locator("[data-nav='bildschirme']").count() > 0, "Bildschirme im Menü für Admins")
     # Ein Aufbau von vorher mit Reihen: wird beim Laden zu freien Teilen
     pg.evaluate("""() => { TEST.daten.infoboard = [{ id: 'haupt', geaendert_am: '2026-10-20T10:00:00Z', aufbau: { reihen: [
       { format: 'a4', felder: [{ id: 'altpdf', art: 'datei', datei: { url: 'x', name: 'Alt.pdf', typ: 'pdf' }, sekunden: 20 }, { id: 'l1', art: 'leer' }, { id: 'l2', art: 'leer' }] },

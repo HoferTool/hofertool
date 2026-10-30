@@ -34,7 +34,7 @@ with sync_playwright() as p:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
-    pruefe(pg.locator("[data-nav='pausenraum']").count() > 0, "Pausenraum im Menü")
+    pruefe(pg.locator("[data-nav='bildschirme']").count() > 0, "Bildschirme im Menü")
     pg.evaluate("""() => { TEST.daten.infoboard = [{ id: 'haupt', geaendert_am: '2026-10-20T10:00:00Z',
       aufbau: { frei: true, teile: [{ id: 'gang', art: 'text', html: 'Gang', x: 12, y: 700, w: 344, h: 486 }] } }]; }""")
     pg.evaluate("location.hash='#/pausenraum'"); pg.wait_for_selector(".ib-gestalten--pausenraum"); pg.wait_for_timeout(1500)
