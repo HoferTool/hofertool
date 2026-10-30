@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.297.0** (30. Oktober 2026) Pausenraum: Kachel **Eierzähler** (Wunsch Patrick: „damit wir die täglich gelegten Eier eintragen können“). Tag wählen, mit − / + / +5 / +10 eintragen, speichert von selbst, Summen und die letzten 14 Tage. Neue Tabelle `eier_tage` (`sql/eier-tage.sql`, eingespielt). Test `eier.py`.
 - **1.296.0** (30. Oktober 2026) Pausenraum-Radio: **Video gross** über die ganze Tafel (Wunsch Patrick: „mach das Bild bei Livestream grösser“). Oben rechts die anderen Videos, „Kleiner“ (wieder unter der Leiste, „⛶ Grösser“ zurück, je Gerät gemerkt) und „Stopp“. Test `radio.py` erweitert.
 - **1.294.0** (30. Oktober 2026) Pausenraum: **Spiele mit Hofer + Co Charakter** (Wunsch Patrick, Themen von hoferco.ch). Materiallager statt Klötzli (Werkstoffe), Hallenrunde statt Hühnerhof (Drehteile zwischen Star, Index und Willemin), Ausschuss-Jagd statt Flatterhuhn (schlechte Teile auf Förderbändern), Späneschleuder statt Eierschleuder (Spänemonster auf Materialkisten), Tic Tac Toe mit Schraube und Zahnrad. Test `spiele.py` angepasst.
 - **1.293.0** (30. Oktober 2026) Pausenraum-Radio: **SRF-Fernsehen live** (SRF 1, SRF zwei, SRF info über den Player von Play SRF) und Radio SRF 2 Kultur und SRF 4 News (Wunsch Patrick: „geht auch SRF info, SRF 2 und SRF als Video-Livestream?“); kürzere Namen und schmalere Knöpfe, damit alle 14 in einer Reihe stehen. In den Einstellungen Art „SRF (Play SRF)“.

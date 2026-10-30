@@ -330,6 +330,8 @@ function Gestalten({ mass }) {
                         onClick={() => kachelInhalt(wahl, "text")}>Text …</button>
                       <button type="button" className="knopf knopf--still" data-ib="kachel-spiel"
                         onClick={() => kachelInhalt(wahl, "spiel")}>Spiel …</button>
+                      <button type="button" className="knopf knopf--still" data-ib="kachel-eier"
+                        onClick={() => kachelInhalt(wahl, "eier")}>Eierzähler</button>
                     </div>
                   </div>}
                 {wahl.art === "text" &&

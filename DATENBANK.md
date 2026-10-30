@@ -69,7 +69,8 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `solar_werte` | Solaranlage, gefüllt von aussen (`solarlog.ps1` über `solar_melden`); Startseite zeigt die letzten 24 h |
 | `solar_zugang` | eine Zeile mit dem Solar-Schlüssel für `solarlog.ps1`; für App und Besucher ganz gesperrt (`sql/solar.sql`) |
 | `ib_import` | Rohdaten des infoBoard-Imports (einmalig) |
-| `eier_zaehler`, `eier_historie`, `game_scores` | Spass |
+| `eier_tage` | Eierzähler im Pausenraum (1.297.0): je Tag `datum` (Schlüssel), `anzahl`, `geaendert_von`, `geaendert_am` (setzt der Auslöser `eier_tage_stempel`), `sql/eier-tage.sql` |
+| `eier_zaehler`, `eier_historie`, `game_scores` | Spass (alt, unbenutzt) |
 
 ## Sichten
 

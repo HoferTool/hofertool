@@ -10658,3 +10658,41 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .pr-radio__videoleiste button { height: 56px; padding: 0 22px; border: 0; border-radius: 999px; font-size: 24px; font-weight: 600;
   font-family: inherit; color: #fff; background: rgba(10, 20, 35, .72); cursor: pointer; }
 .pr-radio__videoleiste button:active { background: rgba(31, 111, 235, .9); }
+
+/* Eierzähler im Pausenraum (src/infoboard/Eier.jsx, 1.297.0): hell und
+   gross für den Finger, links eintragen, rechts die letzten 14 Tage */
+.pr-eier { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1.2fr; gap: 1.4em;
+  color: #23344f; }
+.pr-eier section { background: #fff; border-radius: 28px; padding: 1.4em; box-shadow: 0 2px 10px rgba(35,52,79,.12);
+  display: flex; flex-direction: column; min-height: 0; }
+.pr-eier button { font: inherit; cursor: pointer; touch-action: manipulation; }
+.pr-eier__eingabe { align-items: center; justify-content: center; gap: 1em; }
+.pr-eier__tag { display: flex; align-items: center; gap: .8em; font-size: 2.2em; font-weight: 700; }
+.pr-eier__tag span { min-width: 7em; text-align: center; }
+.pr-eier__tag button { width: 2.2em; height: 2.2em; border-radius: 50%; border: 0; background: #eef4fa; color: #23344f;
+  font-size: 1em; font-weight: 700; }
+.pr-eier__tag button:disabled { opacity: .3; cursor: default; }
+.pr-eier__zahl { display: flex; align-items: center; gap: 1.2em; }
+.pr-eier__wert { display: flex; flex-direction: column; align-items: center; min-width: 3.2em; font-size: 7em; font-weight: 800;
+  line-height: 1; font-variant-numeric: tabular-nums; }
+.pr-eier__wert small { font-size: .2em; font-weight: 600; opacity: .7; margin-top: .3em; }
+.pr-eier__knopf { width: 3.6em; height: 3.6em; border-radius: 50%; border: 0; font-size: 2.6em !important; font-weight: 800;
+  background: #eef4fa; color: #23344f; line-height: 1; }
+.pr-eier__knopf--plus { background: #f4b400; color: #fff; }
+.pr-eier__knopf:active { transform: scale(.94); }
+.pr-eier__knopf:disabled { opacity: .35; }
+.pr-eier__mehr { display: flex; gap: .8em; }
+.pr-eier__mehr button { padding: .5em 1.4em; border-radius: 999px; border: 2px solid #f4b400; background: #fff8e1;
+  color: #8a5a00; font-size: 1.5em; font-weight: 700; }
+.pr-eier__stand { margin: 0; font-size: 1.2em; opacity: .7; min-height: 1.4em; }
+.pr-eier__summen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1em; margin-bottom: 1.2em; }
+.pr-eier__summen div { background: #fff8e1; border-radius: 18px; padding: .6em .8em; display: flex; flex-direction: column; align-items: center; }
+.pr-eier__summen b { font-size: 2.6em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.pr-eier__summen span { font-size: 1.1em; opacity: .75; }
+.pr-eier__saeulen { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(14, 1fr); gap: .4em; }
+.pr-eier__saeule { display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; min-height: 0;
+  border: 0; background: transparent; padding: 0; border-radius: 12px; color: #23344f; }
+.pr-eier__saeule--an { background: #eef4fa; }
+.pr-eier__n { font-size: 1.3em; font-weight: 700; text-align: center; min-height: 1.3em; }
+.pr-eier__balken { display: block; min-height: 4px; margin: 0 18%; background: #f4b400; border-radius: 8px 8px 2px 2px; }
+.pr-eier__wt { font-size: 1em; text-align: center; margin-top: .3em; line-height: 1.15; opacity: .8; }
