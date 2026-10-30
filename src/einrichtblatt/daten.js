@@ -69,8 +69,55 @@ export async function blattLaden(hocoNr, typId) {
       if (!r.error) typ.blatt_aufbau = ((r.data || [])[0] || {}).blatt_aufbau || null;
     } catch (f) { /* ohne Aufbau ordnet die App selbst */ }
   }
-  if (blatt) await bezeichnungenNachholen(blatt.plaetze);
+  if (blatt) await Promise.all([bezeichnungenNachholen(blatt.plaetze), geoSeiteEinsetzen(blatt, typ)]);
   return { blatt, typ, paths: paths || [], teil: teil || { hoco_nr: hocoNr }, typDaten: typDaten || {}, artikelBilder };
+}
+
+// ---------------- GEO-OFFSET aus der NC-Datei ----------------
+// Bei SW-Typen kommt das Geometrie-Programm (4234 zur Prg.-Nr. 234) als
+// Seite 2 „GEO-OFFSET“ ins Blatt, unformatiert als Text (Wunsch Patrick
+// 30. Oktober 2026: „ohne Formatieren, einfach so als Text, weil wir es
+// dann auch so machen werden in Zukunft“). Den Text legt nc-geo.ps1 aus
+// dem Ordner NC-Programme des Typs in die Tabelle nc_geo. Eingesetzt wird
+// beim Laden, gespeichert erst, wenn jemand das Blatt speichert. Die
+// Seite trägt `nc`, solange sie von der Datei kommt; eine neuere Datei
+// ersetzt sie dann. Wer sie von Hand ändert, nimmt `nc` weg, dann bleibt
+// sie, wie sie ist, ebenso eine von Hand angelegte Seite „GEO-OFFSET“.
+export const GEO_SEITE = "GEO-OFFSET";
+const istSwTyp = (t) => /^\s*sw/i.test((t && t.name) || "");
+
+export function geoNummer(blatt) {
+  const m = String((blatt && blatt.geometrie) || "").match(/(^|\D)(4\d{3})(?!\d)/);
+  if (m) return m[2];
+  const nr = prgNummern(blatt).split(",")[0].trim();
+  return /^\d{3}$/.test(nr) ? "4" + nr : null;
+}
+
+// Zeile für Zeile, sonst nichts; lange Programme etwas kleiner, damit
+// sie auf die A4-Seite passen
+export function geoHtml(text) {
+  const zeilen = String(text || "").replace(/\r\n?/g, "\n").split("\n");
+  const pt = zeilen.length > 110 ? 6 : zeilen.length > 85 ? 7 : zeilen.length > 65 ? 8 : zeilen.length > 50 ? 9 : 0;
+  return "<h2>" + GEO_SEITE + "</h2><p" + (pt ? ' style="font-size: ' + pt + 'pt"' : "") + ">"
+    + zeilen.map((z) => alt.esc(z)).join("<br>") + "</p>";
+}
+
+export async function geoSeiteEinsetzen(blatt, typ) {
+  if (!blatt || !istSwTyp(typ)) return;
+  const nr = geoNummer(blatt);
+  if (!nr) return;
+  try {
+    const r = await alt.db.from("nc_geo").select("nr, datei, inhalt, geaendert").eq("type_id", typ.id).eq("nr", nr).limit(1);
+    const g = !r.error && (r.data || [])[0];
+    if (!g || !String(g.inhalt || "").trim()) return;
+    const seiten = Array.isArray(blatt.seiten) ? blatt.seiten.slice() : [];
+    const i = seiten.findIndex((x) => x && String(x.name || "").replace(/[\s-]/g, "").toUpperCase() === "GEOOFFSET");
+    const neu = { name: GEO_SEITE, quer: false, html: geoHtml(g.inhalt), nc: { nr, datei: g.datei || null, geaendert: g.geaendert || null } };
+    if (i === -1) seiten.unshift(neu);
+    else if (seiten[i].nc && seiten[i].html !== neu.html) seiten[i] = Object.assign({}, seiten[i], { html: neu.html, nc: neu.nc });
+    else return;
+    blatt.seiten = seiten;
+  } catch (f) { /* ohne Tabelle oder Netz: Blatt wie gespeichert */ }
 }
 
 // Text, der im Blatt hinter der Artikel-Nr. steht: nur die Beschreibung

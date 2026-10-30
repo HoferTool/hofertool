@@ -145,7 +145,15 @@ export const typAktion = {
         // nur für die Materialmenge: je Teil Länge + Abstecher + 0,5 mm
         .concat("abstecher_mm" in t ? [
           { name: "abstecher", label: "Abstecherbreite in mm", wert: t.abstecher_mm ?? "", dezimal: true,
-            hinweis: "Nur für die Materialmenge: je Teil Länge + Abstecher + 0,5 mm fürs Planieren." }] : []) });
+            hinweis: "Nur für die Materialmenge: je Teil Länge + Abstecher + 0,5 mm fürs Planieren." }] : [])
+        // Ordner der NC-Programme, nur SW (seit 1.276.0, Wunsch Patrick
+        // 30. Oktober 2026): nc-geo.ps1 holt dort die Datei 4… ins
+        // Einrichtblatt als Seite „GEO-OFFSET“
+        .concat(istSwTyp(t) && "nc_ordner" in t ? [
+          { name: "nc", label: "Ordner NC-Programme", wert: t.nc_ordner || "",
+            platzhalter: "\\\\Server\\Freigabe\\Ordner",
+            hinweis: "Die Datei, deren Name mit 4 beginnt (z. B. 4234), kommt als Seite „GEO-OFFSET“ ins Einrichtblatt. "
+              + "Am besten den Netzpfad \\\\Server\\… eintragen, nicht einen Laufwerksbuchstaben." }] : []) });
     if (!w) return;
     const daten = { name: w.name, beschreibung: w.text || null };
     const vorher = { name: t.name, beschreibung: t.beschreibung || null };
@@ -158,6 +166,10 @@ export const typAktion = {
       const ab = Number(String(w.abstecher || "").replace(",", "."));
       daten.abstecher_mm = w.abstecher !== "" && ab >= 0 && ab < 50 ? ab : null;
       vorher.abstecher_mm = t.abstecher_mm;
+    }
+    if (istSwTyp(t) && "nc_ordner" in t) {
+      daten.nc_ordner = String(w.nc || "").trim().replace(/^"(.*)"$/, "$1") || null;
+      vorher.nc_ordner = t.nc_ordner || null;
     }
     senden(alt.db.from("machine_types").update(daten).eq("id", t.id),
       "Gespeichert.", nachher, ["Ändern von " + t.name,
@@ -174,6 +186,31 @@ export const typAktion = {
     return senden(alt.db.from("machine_types").delete().eq("id", t.id), "Typ gelöscht.", nachher, rueck);
   },
 };
+
+// SW-Typen holen die Geometriedaten (Programm 4…) aus dem NC-Ordner
+export const istSwTyp = (t) => /^\s*sw/i.test((t && t.name) || "");
+
+// Was nc-geo.ps1 im Ordner dieses Typs zuletzt gesehen hat
+function NcStand({ typ }) {
+  const { daten } = useDaten(async () => {
+    const [st, n] = await Promise.all([
+      alt.db.from("app_config").select("wert").eq("schluessel", "nc_geo_status").limit(1),
+      alt.db.from("nc_geo").select("nr").eq("type_id", typ.id)]);
+    let s = null;
+    try { s = JSON.parse(((st.data || [])[0] || {}).wert || "null"); } catch (f) { /* ohne Stand */ }
+    const info = s && (s.typen || []).find((x) => x.typ === typ.name);
+    return { s, info, anzahl: n.error ? null : (n.data || []).length };
+  }, [typ.id, typ.nc_ordner]);
+  if (!typ.nc_ordner) return <p className="klein gedaempft" id="typ-nc">Ordner NC-Programme: nicht eingetragen (Bearbeiten)</p>;
+  const info = daten && daten.info;
+  return (
+    <p className="klein" id="typ-nc">Ordner NC-Programme: {typ.nc_ordner}
+      {daten && daten.anzahl !== null && <> · {alt.zahlText(daten.anzahl)} Geometrie-Programme (4…) in der App</>}
+      {info && info.fehler && <strong> · {info.fehler}</strong>}
+      {daten && daten.s && !info && <span className="gedaempft"> · wird beim nächsten Durchlauf am Pool-Rechner gelesen</span>}
+    </p>
+  );
+}
 
 // Kurz, was am Typ für die Materialmenge eingestellt ist
 function laengenText(t) {
@@ -225,6 +262,7 @@ function TypFenster({ typId, zu }) {
                     </div>
                     {typ.beschreibung && <p className="klein">{typ.beschreibung}</p>}
                     {laengenText(typ) && <p className="klein" id="typ-laengen">{laengenText(typ)}</p>}
+                    {istSwTyp(typ) && "nc_ordner" in typ && <NcStand typ={typ} />}
                     <p className="klein">{anzahl === 1 ? "1 Maschine" : anzahl + " Maschinen"} mit diesem Typ</p>
                   </section>
                   <Aufbau typ={typ} typen={typen} darf={darf} geladen={{ nr }} neuLaden={neuLaden} imFenster />

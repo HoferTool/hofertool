@@ -677,7 +677,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     const [w, h] = seitenMass(x);
     const html = await textBearbeiten({ html: x.html || "", format: x.quer ? "a4q" : "a4", seitenVerhaeltnis: h / w,
       titel: (x.name || "Seite") + " · " + hocoNr });
-    if (html !== null) seiteAendern(i, { html });
+    // Von Hand geändert: kommt nicht mehr von der NC-Datei (GEO-OFFSET)
+    if (html !== null && html !== x.html) seiteAendern(i, { html, nc: undefined });
   };
   const offen = Object.values(blatt.plaetze || {}).filter(werkzeugOffen).length;
   const pfad = pfadVonPlatz(paths);
