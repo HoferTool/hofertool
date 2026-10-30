@@ -41,7 +41,8 @@ XLSX = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "einrichtbl
 K = """daten.app_config.push(
   { schluessel: 'druck', wert: JSON.stringify({ drucker: 'SHARP MX-3061' }) },
   { schluessel: 'druck_status', wert: JSON.stringify({ gesehen: new Date().toISOString(), rechner: 'PCWIN-10PLANBÜR',
-    drucker: ['Microsoft Print to PDF', 'SHARP MX-3061'], standard: 'SHARP MX-3061', excel: true }) });
+    drucker: ['Microsoft Print to PDF', 'SHARP MX-3061'], standard: 'SHARP MX-3061', excel: true,
+    faecher: { 'SHARP MX-3061': ['Automatisch', 'Fach 1', 'Fach 2 (WBG)'], 'Microsoft Print to PDF': [] } }) });
 """
 MARKE = "if (typeof window !== \"undefined\") window.TEST = TEST;"
 MIT = FAKE.replace("blatt_url: null", "blatt_url: 'https://x.invalid/eb.xlsx'").replace(MARKE, K + "\n" + MARKE)
@@ -217,10 +218,14 @@ with sync_playwright() as p:
     if bilder:
         pg.locator("#pool-drucker").scroll_into_view_if_needed(); pg.wait_for_timeout(200)
         pg.locator("#pool-drucker").screenshot(path=f"{AB}/pool-druck-einstellungen.png")
+    fopts = pg.evaluate("[...document.querySelectorAll('#pooldrucker-fach option')].map(o => o.textContent)")
+    pruefe("Einstellungen: Fächer des A4-Druckers in der Liste", fopts == ["Automatisch", "Automatisch", "Fach 1", "Fach 2 (WBG)"])
+    pg.select_option("#pooldrucker-fach", "Fach 1")
     pg.select_option("#pooldrucker", "Microsoft Print to PDF")
     pg.click("#pooldrucker-speichern"); pg.wait_for_timeout(500)
     w = pg.evaluate("JSON.parse(TEST.daten.app_config.filter(x => x.schluessel === 'druck').pop().wert)")
     pruefe("Einstellungen: Drucker gespeichert", w.get("drucker") == "Microsoft Print to PDF")
+    pruefe("Einstellungen: A4-Fach gespeichert", w.get("fach_a4") == "Fach 1")
     pruefe("PC: keine Seitenfehler", not f)
     if f: print(f)
     br.close()

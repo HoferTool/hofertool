@@ -102,12 +102,31 @@ function HatExcel {
   return (Test-Path "Registry::HKEY_CLASSES_ROOT\Excel.Application\CLSID")
 }
 
+# Papierfächer je Drucker, damit man in der App das A4-Fach wählen kann
+# (sonst nimmt der Drucker das Spezialpapier der WBG). Nur alle 15 Minuten
+# neu, weil ein Netzwerkdrucker beim Fragen kurz hängen kann.
+$faecher = $null
+$faecherZeit = [DateTime]::MinValue
+function Faecher {
+  if ($script:faecher -and ((Get-Date) - $script:faecherZeit).TotalMinutes -lt 15) { return $script:faecher }
+  $f = @{}
+  foreach ($d in (DruckerListe)) {
+    try {
+      $ps = New-Object System.Drawing.Printing.PrinterSettings
+      $ps.PrinterName = $d
+      if ($ps.IsValid) { $f[$d] = [string[]]@($ps.PaperSources | ForEach-Object { [string]$_.SourceName } | Where-Object { $_ }) }
+    } catch { }
+  }
+  $script:faecher = $f; $script:faecherZeit = Get-Date
+  return $f
+}
+
 $zuletzt = $null
 $letzterFehler = $null
 function StandMelden {
   $status = @{ gesehen = (Get-Date).ToUniversalTime().ToString("o"); rechner = $env:COMPUTERNAME;
                drucker = [string[]](DruckerListe); standard = [string](StandardDrucker); excel = [bool](HatExcel);
-               zuletzt = $script:zuletzt; fehler = $script:letzterFehler }
+               faecher = (Faecher); zuletzt = $script:zuletzt; fehler = $script:letzterFehler }
   if ($Probe) { return $status }
   Aendern "Post" "app_config?on_conflict=schluessel" @{ schluessel = "druck_status";
     wert = ($status | ConvertTo-Json -Compress -Depth 4) } "resolution=merge-duplicates"
@@ -117,7 +136,18 @@ function StandMelden {
 # ---------- Drucken ----------
 # Bilder (JPG-Seiten) mit Windows selbst: jede Seite so gross wie das
 # Papier erlaubt, hoch oder quer je nach Bild, mittig.
-function BilderDrucken([string[]]$dateien, [string]$drucker, [int]$kopien, [string]$titel) {
+# Bei A4 (alles ausser WBG, von Tippgeräten) Papier A4 und das in der App
+# gewählte Fach, sonst „automatisch“; so kommt nicht das WBG-Papier.
+function A4Setzen($pg, [string]$fach) {
+  try { $a4=$null; foreach ($g in $pg.PrinterSettings.PaperSizes) { if ($g.Kind -eq [System.Drawing.Printing.PaperKind]::A4) { $a4=$g; break } }; if ($a4) { $pg.PaperSize=$a4 } } catch { }
+  try {
+    $q=$null
+    if ($fach) { foreach ($x in $pg.PrinterSettings.PaperSources) { if ([string]$x.SourceName -eq $fach) { $q=$x; break } } }
+    if (-not $q) { foreach ($x in $pg.PrinterSettings.PaperSources) { if ($x.Kind -eq [System.Drawing.Printing.PaperSourceKind]::AutomaticFeed -or $x.Kind -eq [System.Drawing.Printing.PaperSourceKind]::FormSource) { $q=$x; break } } }
+    if ($q) { $pg.PaperSource=$q }
+  } catch { }
+}
+function BilderDrucken([string[]]$dateien, [string]$drucker, [int]$kopien, [string]$titel, [bool]$a4 = $false, [string]$fach = "") {
   $script:bilder = @()
   try {
     foreach ($d in $dateien) { $script:bilder += [System.Drawing.Image]::FromFile($d) }
@@ -129,10 +159,13 @@ function BilderDrucken([string[]]$dateien, [string]$drucker, [int]$kopien, [stri
     $doc.PrintController = New-Object System.Drawing.Printing.StandardPrintController
     $doc.PrinterSettings.Copies = [int16][Math]::Min($kopien, [Math]::Max(1, $doc.PrinterSettings.MaximumCopies))
     $doc.PrinterSettings.Collate = $true
+    $script:a4 = $a4; $script:fach = $fach
+    if ($a4) { A4Setzen $doc.DefaultPageSettings $fach }
     $script:seite = 0
     $doc.add_QueryPageSettings({
       param($s, $e)
       $b = $script:bilder[$script:seite]
+      if ($script:a4) { A4Setzen $e.PageSettings $script:fach }
       $e.PageSettings.Landscape = ($b.Width -gt $b.Height)
     })
     $doc.add_PrintPage({
@@ -169,7 +202,7 @@ function BilderDrucken([string[]]$dateien, [string]$drucker, [int]$kopien, [stri
 # Excel mit Excel selbst: so, wie es in Excel eingerichtet ist. Excel will
 # den Drucker mit Anschluss („Sharp auf Ne03:“, im englischen Excel „on“),
 # den Anschluss steht in der Registrierung.
-function ExcelDrucken([string]$pfad, [string]$drucker, [int]$kopien, [string]$blatt) {
+function ExcelDrucken([string]$pfad, [string]$drucker, [int]$kopien, [string]$blatt, [bool]$a4 = $false) {
   if (-not (HatExcel)) { throw "Auf dem Pool-Rechner ist kein Excel." }
   $ne = $null
   try {
@@ -192,6 +225,8 @@ function ExcelDrucken([string]$pfad, [string]$drucker, [int]$kopien, [string]$bl
       try { $xl.ActivePrinter = $v; $gesetzt = $true; break } catch { }
     }
     if (-not $gesetzt) { throw "Excel findet den Drucker '$drucker' nicht." }
+    # Ein Fach kann Excel nicht wählen, nur das Papier A4
+    if ($a4) { try { $ws.PageSetup.PaperSize = 9 } catch { } }
     $leer = [Type]::Missing
     $ws.PrintOut($leer, $leer, $kopien, $false, $leer, $false, $true) | Out-Null
   } finally {
@@ -246,7 +281,7 @@ function Bearbeiten($a, $einst) {
       if (-not $endung) { $endung = ".xlsx" }
       $datei = Join-Path $temp ("blatt" + $endung)
       Invoke-WebRequest -UseBasicParsing -Uri ([string]$a.quelle) -OutFile $datei -TimeoutSec 60
-      ExcelDrucken $datei $drucker $kopien ([string]$a.blatt)
+      ExcelDrucken $datei $drucker $kopien ([string]$a.blatt) ([bool]$a.a4)
     } else {
       $dateien = @()
       for ($i = 1; $i -le [int]$a.seiten; $i++) {
@@ -255,7 +290,7 @@ function Bearbeiten($a, $einst) {
         $dateien += $d
       }
       if (-not $dateien.Count) { throw "Der Auftrag hat keine Seiten." }
-      BilderDrucken $dateien $drucker $kopien $titel
+      BilderDrucken $dateien $drucker $kopien $titel ([bool]$a.a4) ([string]$einst.fach_a4)
     }
     Abschliessen $a "fertig" $null
     $script:zuletzt = @{ zeit = (Get-Date).ToUniversalTime().ToString("o"); titel = $titel; wer = [string]$a.wer }

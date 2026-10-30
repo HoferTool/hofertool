@@ -322,15 +322,19 @@ function DruckerFormular({ werte }) {
   const st = jsonOder(werte.druck_status, null);
   const [drucker, setDrucker] = useState(einst.drucker || "");
   const [druckerA4, setDruckerA4] = useState(einst.drucker_a4 || "");
+  const [fachA4, setFachA4] = useState(einst.fach_a4 || "");
   const darf = alt.darfDokumenteUndSicherung();
   const liste = (st && st.drucker) || [];
   // Gewählter Drucker auch dann in der Liste, wenn der Pool-Rechner ihn (noch) nicht meldet
   const namen = drucker && !liste.includes(drucker) ? [drucker, ...liste] : liste;
   const namenA4 = druckerA4 && !liste.includes(druckerA4) ? [druckerA4, ...liste] : liste;
+  // Fächer meldet der Pool-Rechner je Drucker; gewähltes Fach bleibt auch ohne Meldung in der Liste
+  const faecherDa = (st && st.faecher && st.faecher[druckerA4 || st.standard]) || [];
+  const faecher = fachA4 && !faecherDa.includes(fachA4) ? [fachA4, ...faecherDa] : faecherDa;
 
   const speichern = async () => {
     const r = await alt.db.from("app_config").upsert([{ schluessel: "druck",
-      wert: JSON.stringify(Object.assign({}, einst, { drucker, drucker_a4: druckerA4 })) }]);
+      wert: JSON.stringify(Object.assign({}, einst, { drucker, drucker_a4: druckerA4, fach_a4: fachA4 })) }]);
     if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
     poolDruckLaden(true);
     alt.meldung(drucker ? "Drucker gespeichert. „Drucken“ fragt jetzt, wohin." : "Drucken über den Pool-Rechner ist aus.");
@@ -347,12 +351,21 @@ function DruckerFormular({ werte }) {
         </select>
       </Zeile>
       <Zeile titel="Drucker für alles andere" text={"Für alles ausser WBGs, vom iPad und Handy aus. Gedruckt wird mit den "
-        + "Einstellungen dieses Druckers, ohne Papier oder Fach vorzugeben. Leer = Standarddrucker des Pool-Rechners"
+        + "auf A4 aus dem Fach darunter. Leer = Standarddrucker des Pool-Rechners"
         + (st && st.standard ? " (" + st.standard + ")." : ".")}>
         <select id="pooldrucker-a4" aria-label="Drucker für alles andere" value={druckerA4} disabled={!darf}
-          onChange={(e) => setDruckerA4(e.target.value)}>
+          onChange={(e) => { setDruckerA4(e.target.value); setFachA4(""); }}>
           <option value="">Standarddrucker</option>
           {namenA4.map((n) => <option key={n} value={n}>{n}{st && st.standard === n ? " (Standard)" : ""}</option>)}
+        </select>
+      </Zeile>
+      <Zeile titel="Papierfach für A4" text={"Das Fach mit normalem A4-Papier, nicht das mit dem Papier für die WBG. "
+        + "Automatisch = der Drucker wählt selbst."
+        + (st && !st.faecher ? " Die Fächer kommen, sobald der Pool-Rechner die neue Fassung geholt hat (bis zehn Minuten)." : "")}>
+        <select id="pooldrucker-fach" aria-label="Papierfach für A4" value={fachA4} disabled={!darf}
+          onChange={(e) => setFachA4(e.target.value)}>
+          <option value="">Automatisch</option>
+          {faecher.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
       </Zeile>
       <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">
