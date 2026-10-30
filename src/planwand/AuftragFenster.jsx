@@ -37,6 +37,15 @@ import { spezialwerkzeugeOeffnen } from "../teile/Spezialwerkzeuge.jsx";
 import { inEigenesFenster, eigeneFensterZu } from "../teile/eigenesFenster.js";
 import { vorbereitenOeffnen } from "./Vorbereiten.jsx";
 
+// Öffnet die HOCO Nummern als Fenster gleich beim Teil. Hat die Nummer
+// noch keine Stammdaten, steht sie dort in der Suche, damit man sie
+// mit einem Tipp anlegen kann.
+function stammdatenOeffnen(nr) {
+  alt.prod.hocoOffen = nr;
+  alt.prod.hocoSuche = nr;
+  alt.hocoFenster();
+}
+
 export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage, leer) {
   alt.plan.imDialog = true;
   // Wer einen Auftrag öffnet, egal von wo, soll ihn danach markiert
@@ -662,6 +671,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     !planerListe.some((u) => (u.initialen || "").trim() === k));
   const geaendertVon = auftrag && auftrag.geaendert_von ? alt.personVoll(auftrag.geaendert_von) : "";
 
+  const hocoLink = auftrag && auftrag.job_number && !extern && !(alt.istArchiv && alt.istArchiv());
   const kopfM = maschinen.find((m) => m.id === w.maschine);
   const maschineKopf = kopfM ? kopfM.name + (kopfM.machine_number ? " (" + kopfM.machine_number + ")" : "") : "";
   return (
@@ -671,7 +681,14 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
         <div className="auf-kopf__titel">
           {auftrag
             ? <>
-                <div className="auf-kopf__nr"><h2>{auftrag.job_number}</h2>
+                {/* Tipp auf die HOCO Nr. öffnet ihre Stammdaten über dem
+                    Auftragsfenster (Wunsch Patrick 30. Oktober 2026); nicht
+                    für Externe und nicht im Archiv */}
+                <div className="auf-kopf__nr">{hocoLink
+                  ? <h2><button type="button" className="auf-kopf__hoco" id="pl-hoco-stamm"
+                      title={"Stammdaten von " + auftrag.job_number + " öffnen"}
+                      onClick={() => stammdatenOeffnen(auftrag.job_number)}>{auftrag.job_number}</button></h2>
+                  : <h2>{auftrag.job_number}</h2>}
                   {w.planer.length > 0 && <span className="siegel-reihe" id="pl-siegel">
                     {w.planer.map((k) => <span key={k} className="siegel"
                       title={"Eingeplant von " + (alt.siegelName(k) || k)}>{k}</span>)}</span>}</div>

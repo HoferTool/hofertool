@@ -10803,3 +10803,9 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 /* Ganz schmale Handys: Unterlagen nur als Zeichen, damit der Knopf
    „Offene Meldungen“ noch in die Leiste passt */
 @media (max-width: 420px) { #pad .pad__kopf--dash .pad__unterlagen { font-size: 0; gap: 0; padding: 0 9px; } }
+
+/* HOCO Nr. im Auftragsfenster als Verweis zu den Stammdaten (1.320.0) */
+/* gepunktet unterstrichen, damit man auch am iPad ohne Maus sieht, dass man tippen kann */
+.auf-kopf__hoco { all: unset; cursor: pointer; border-radius: 4px;
+  text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.auf-kopf__hoco:hover, .auf-kopf__hoco:focus-visible { text-decoration-style: solid; color: var(--aktion); }
