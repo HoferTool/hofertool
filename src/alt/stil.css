@@ -4986,7 +4986,7 @@ body.dunkel .kippschalter:not(:checked) { background: #56616d; }
 /* Tabellen aus Zeilen (Artikel) */
 .bs-tabelle__kopf, .bs-tabelle__zeile { display: grid; gap: 16px; align-items: center; padding: 0 18px; }
 .bs-tabelle--artikel .bs-tabelle__kopf, .bs-tabelle--artikel .bs-tabelle__zeile {
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 84px; }
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(90px, .6fr) 84px; }
 .bs-tabelle__kopf { padding-top: 10px; padding-bottom: 8px; font-size: .72rem; font-weight: 650;
   letter-spacing: .05em; text-transform: uppercase; color: var(--gedaempft);
   border-bottom: 1px solid var(--linie); background: var(--grund); }
@@ -5862,7 +5862,7 @@ body[data-thema] #pad .pad-kachel--maschine::before {
    2026): eine Zeile je Artikel, Nummer gross, Bezeichnung daneben,
    Beschreibung klein darunter, rechts der Lieferant. */
 .bs-tabelle--artikel .bs-tabelle__kopf, .bs-tabelle--artikel .bs-tabelle__zeile {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr) 84px; gap: 12px; }
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr) minmax(90px, .6fr) 84px; gap: 12px; }
 .bs-tabelle--artikel .bs-tabelle__zeile { min-height: 48px; padding-top: 7px; padding-bottom: 7px; }
 .bs-tabelle--artikel .bs-artikel__name { margin-top: 0; font-size: .86rem; }
 .bs-tabelle--artikel .bs-pos__beschreibung { margin-top: 1px; font-size: .74rem; }
@@ -10386,3 +10386,10 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
 @media print { .eba-fbild--an { outline: none; } .eba-fbild-weg, .eba-fbild-gross { display: none; } }
 .eba-seite--druck .eba-fbild--an { outline: none; }
 .eba-seite--druck .eba-fbild-weg, .eba-seite--druck .eba-fbild-gross { display: none; }
+
+/* Bestellungen → Artikel: Spalte HOCO Nr. der Spezialwerkzeuge (1.281.0) */
+.bs-artikel__hoco { display: flex; flex-wrap: wrap; gap: 3px 8px; font-size: .82rem; font-variant-numeric: tabular-nums; }
+.bs-artikel__hoco-nr { font-weight: 600; white-space: nowrap; }
+.bs-artikel__hoco-leer { color: var(--gedaempft); font-style: italic; }
+.bs-artikel__hoco:empty { display: none; }
+@media (min-width: 641px) { .bs-artikel__hoco:empty { display: flex; } }

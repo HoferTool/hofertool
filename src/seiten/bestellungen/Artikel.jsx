@@ -33,6 +33,9 @@ export default function Artikel({ auffrischen, behaelter }) {
     () => alt.ladeBezeichnungen().catch(() => []), [auffrischen]);
   const { daten: lieferanten } = useDaten(
     () => alt.ladeLieferanten().catch(() => []), [auffrischen]);
+  // Zu welcher HOCO Nr. ein Spezialwerkzeug gehört (Tabelle spezialwerkzeuge,
+  // Wunsch Patrick 30. Oktober 2026); ohne Tabelle bleibt die Spalte leer
+  const { daten: hocoJe } = useDaten(() => hocoJeArtikel(), [auffrischen]);
 
   // Auch hier filtern, falls die Datenbank den Filter nicht kennt
   const gefiltert = liste && liste.filter((a) =>
@@ -69,14 +72,25 @@ export default function Artikel({ auffrischen, behaelter }) {
           : !gefiltert
             ? <Laedt />
             : <Liste liste={gefiltert} sucht={!!suche || !!bez || !!lief} schreiben={schreiben}
-                behaelter={behaelter} anzahl={anzahl} gesamt={gesamt}
+                behaelter={behaelter} anzahl={anzahl} gesamt={gesamt} hocoJe={hocoJe || {}}
                 mehr={() => setAnzahl((n) => n + 50)} />}
       </div>
     </>
   );
 }
 
-function Liste({ liste, sucht, schreiben, behaelter, anzahl, gesamt, mehr }) {
+async function hocoJeArtikel() {
+  try {
+    const r = await alt.zeitlimit(alt.db.from("spezialwerkzeuge").select("article_id, hoco_nr"), 10000, "Spezialwerkzeuge");
+    if (r.error) return {};
+    const je = {};
+    (r.data || []).forEach((z) => { if (z.hoco_nr) (je[z.article_id] = je[z.article_id] || []).push(z.hoco_nr); });
+    Object.values(je).forEach((l) => l.sort((x, y) => String(x).localeCompare(String(y), "de", { numeric: true })));
+    return je;
+  } catch (f) { return {}; }
+}
+
+function Liste({ liste, sucht, schreiben, behaelter, anzahl, gesamt, mehr, hocoJe }) {
   if (!liste.length) return <Leer text={sucht ? "Kein Artikel gefunden." : "Noch keine Artikel angelegt."} />;
   const genau = liste.filter((a) => !a.aehnlich).length;
   const bekannt = typeof gesamt === "number";
@@ -92,7 +106,7 @@ function Liste({ liste, sucht, schreiben, behaelter, anzahl, gesamt, mehr }) {
           Lieferant. So lässt sich die Spalte mit dem Auge herunterlesen. */}
       <div className="bs-tabelle bs-tabelle--artikel">
         <div className="bs-tabelle__kopf">
-          <span>Artikelnummer</span><span>Bezeichnung</span><span>Lieferant</span><span />
+          <span>Artikelnummer</span><span>Bezeichnung</span><span>Lieferant</span><span>HOCO Nr.</span><span />
         </div>
         {liste.map((a) => (
           <div key={a.id} className={"bs-tabelle__zeile bs-artikel" + (a.is_active === false ? " bs-inaktiv" : "")}>
@@ -112,6 +126,11 @@ function Liste({ liste, sucht, schreiben, behaelter, anzahl, gesamt, mehr }) {
                       rel="noopener">{a.supplier_name}<Zeichen name="aussen" groesse={12} /></a>
                   : a.supplier_name)
               : "–"}<Stern an={a.spezial} /></div>
+            <div className="bs-artikel__hoco" data-arhoco={a.id}>
+              {(hocoJe[a.id] || []).length
+                ? hocoJe[a.id].map((h) => <span key={h} className="bs-artikel__hoco-nr">{h}</span>)
+                : (a.spezial ? <span className="bs-artikel__hoco-leer">keine</span> : null)}
+            </div>
             <span className="bs-pos__aktionen">
               {schreiben && <>
                 {/* Verpackung fotografieren, damit das Foto bei der neuen
