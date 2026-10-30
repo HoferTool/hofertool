@@ -14,6 +14,8 @@ import { useEffect, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { ArtikelAngaben } from "./teile.jsx";
+import { betrachter } from "../../teile/Betrachter.jsx";
+import { spezialPdfsLaden } from "../../daten/spezialwerkzeuge.js";
 import { artikelFotoLesen, artikelFuerFoto, artikelFinden, artikelLernen } from "../../daten/artikelFoto.js";
 
 // fertig: wird nach dem Speichern aufgerufen, damit die Liste neu lädt.
@@ -74,6 +76,10 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   // 2026: „wenn schon bestellt, soll kurze Info kommen“). Nur ein
   // Hinweis, hinzufügen geht trotzdem.
   const [schonDa, setSchonDa] = useState(null);
+  // PDFs, die beim gewählten Artikel hinterlegt sind (spezial_pdfs),
+  // damit man das Werkzeug gleich ansehen kann (seit 1.299.0, Wunsch
+  // Patrick 30. Oktober 2026: „Werkzeug ansehen“, auch aus dem Einrichtblatt)
+  const [pdfs, setPdfs] = useState([]);
 
   useEffect(() => () => clearTimeout(taste.current), []);
   // Mit Vorgabe (etwa der Text aus dem alten Excel) gleich suchen
@@ -121,6 +127,22 @@ function PositionFenster({ zu, fertig, vorgabe }) {
         () => {});
     return () => { weg = true; };
   }, [gewaehlt && gewaehlt.id]);
+  useEffect(() => {
+    setPdfs([]);
+    if (!gewaehlt) return;
+    let weg = false;
+    spezialPdfsLaden([gewaehlt.id]).then((je) => { if (!weg) setPdfs(je[gewaehlt.id] || []); });
+    return () => { weg = true; };
+  }, [gewaehlt && gewaehlt.id]);
+  const ansehen = pdfs.length > 0 && (
+    <div className="pd-ansehen" id="pd-ansehen">
+      {pdfs.map((p) => (
+        <button key={p.id} type="button" className="knopf knopf--klein" data-pd-ansehen={p.id}
+          onClick={() => betrachter(p.url, p.name + " · " + (gewaehlt.article_number || ""), true)}>
+          📄 {pdfs.length === 1 ? "Werkzeug ansehen" : p.name}</button>
+      ))}
+    </div>
+  );
   const spezial = !!vorgabe.spezial;
   const neuAnlegen = async (nummer) => {
     const a = await alt.artikelSchnellAnlegen(typeof nummer === "string" ? nummer : suche.trim(), null, !!spezial);
@@ -285,11 +307,13 @@ function PositionFenster({ zu, fertig, vorgabe }) {
 
       {gewaehlt && nurWaehlen && <div className="pd-gewaehlt" id="pd-gewaehlt">
         <ArtikelAngaben a={gewaehlt} />
+        {ansehen}
       </div>}
       {gewaehlt && !nurWaehlen && <div id="pd-rest">
         <div className="pd-gewaehlt" id="pd-gewaehlt">
           <ArtikelAngaben a={gewaehlt} />
           {gewaehlt.gesamtbestand !== undefined && <div className="klein">Bestand {alt.zahlText(gewaehlt.gesamtbestand)}</div>}
+          {ansehen}
         </div>
         {schonDa && schonDa.length > 0 && (
           <div className="pd-schonda" id="pd-schonda" role="status">

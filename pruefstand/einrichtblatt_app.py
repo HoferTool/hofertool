@@ -268,6 +268,18 @@ with sync_playwright() as p:
     pg.click("[data-platz='T200'].eba-platz--bestellbar"); pg.wait_for_selector("#pd-gewaehlt")
     pruefe("Platz antippen: Bestellposition mit dem Werkzeug", "MTEC-452410" in pg.inner_text("#pd-gewaehlt")
            and pg.input_value("#pd-notiz") == "" and pg.locator("#pd-foto").count() == 0)
+    pruefe("Ohne PDF kein „Werkzeug ansehen“", pg.locator("#pd-ansehen").count() == 0)
+    pg.click("#pd-abbrechen") if pg.locator("#pd-abbrechen").count() else pg.keyboard.press("Escape")
+    pg.wait_for_timeout(300)
+    # Mit hinterlegtem PDF: Knopf „Werkzeug ansehen“ öffnet es (1.299.0)
+    pg.evaluate("""() => { const D = TEST.daten; D.spezial_pdfs = D.spezial_pdfs || [];
+      D.spezial_pdfs.push({ id: 'sp-a1', article_id: 'a1', name: 'Datenblatt', url: 'https://example.invalid/d.pdf', erstellt_am: '2026-10-30' }); }""")
+    pg.click("[data-platz='T200'].eba-platz--bestellbar"); pg.wait_for_selector("#pd-ansehen")
+    pruefe("Mit PDF: Knopf „Werkzeug ansehen“", "Werkzeug ansehen" in pg.inner_text("#pd-ansehen"))
+    pg.click("[data-pd-ansehen='sp-a1']"); pg.wait_for_selector(".betrachter:has-text('Datenblatt')", timeout=5000)
+    pruefe("Werkzeug ansehen öffnet den Betrachter", pg.locator(".betrachter:has-text('Datenblatt')").count() >= 1)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pruefe("Bestellfenster bleibt offen", pg.locator("#pd-gewaehlt").count() == 1)
     vorher = pg.evaluate("TEST.daten.order_items.length")
     pg.fill("#pd-menge", "3"); pg.click("#pd-ja"); pg.wait_for_timeout(800)
     neu = pg.evaluate("TEST.daten.order_items")[vorher:]

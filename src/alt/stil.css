@@ -10696,3 +10696,6 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .pr-eier__n { font-size: 1.3em; font-weight: 700; text-align: center; min-height: 1.3em; }
 .pr-eier__balken { display: block; min-height: 4px; margin: 0 18%; background: #f4b400; border-radius: 8px 8px 2px 2px; }
 .pr-eier__wt { font-size: 1em; text-align: center; margin-top: .3em; line-height: 1.15; opacity: .8; }
+
+/* Werkzeug ansehen: PDFs des gewählten Artikels in Neue Bestellposition (seit 1.299.0) */
+.pd-ansehen { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }

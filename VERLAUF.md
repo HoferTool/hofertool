@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.299.0** (30. Oktober 2026) **Werkzeug ansehen** (Wunsch Patrick: „wenn eine Datei hinterlegt wurde, soll man einen Button haben, Werkzeug ansehen“). Ist beim Artikel ein PDF hinterlegt (`spezial_pdfs`), steht in „Neue Bestellposition“ unter dem gewählten Artikel „📄 Werkzeug ansehen“ (bei mehreren je ein Knopf mit dem Namen), auch wenn man im Einrichtblatt auf ein Werkzeugfeld tippt und beim Werkzeug wählen; öffnet im Betrachter, das Fenster bleibt offen.
 - **1.298.0** (30. Oktober 2026) Einrichtblatt je Materialgrösse (SB-20C Nr. 120): bei „Ho&Co. Nr“ steht die HOCO Nr. des Auftrags, „Artikel Bezeich“ fest „Gehäuse Ø16.2 x div.“ (Aussen-Ø aus dem Namen des Blatts), Zeichnungs Nr., Index und N1000 sind weg (Wunsch Patrick). Test `eb_je_material.py` erweitert.
 - **1.297.0** (30. Oktober 2026) Pausenraum: Kachel **Eierzähler** (Wunsch Patrick: „damit wir die täglich gelegten Eier eintragen können“). Tag wählen, mit − / + / +5 / +10 eintragen, speichert von selbst, Summen und die letzten 14 Tage. Neue Tabelle `eier_tage` (`sql/eier-tage.sql`, eingespielt). Test `eier.py`.
 - **1.296.0** (30. Oktober 2026) Pausenraum-Radio: **Video gross** über die ganze Tafel (Wunsch Patrick: „mach das Bild bei Livestream grösser“). Oben rechts die anderen Videos, „Kleiner“ (wieder unter der Leiste, „⛶ Grösser“ zurück, je Gerät gemerkt) und „Stopp“. Test `radio.py` erweitert.
