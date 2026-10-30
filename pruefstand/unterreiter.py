@@ -46,9 +46,9 @@ with sync_playwright() as p:
     pg.click(".nav__punkt[data-nav='rechner']"); pg.wait_for_selector(".nav__unterpunkt[data-unter='rechner/gravur']")
     pg.click(".nav__unterpunkt[data-unter='rechner/gravur']"); pg.wait_for_timeout(400)
     pruefe("Rechner: Gravur über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "Gravur")
-    pg.click(".nav__punkt[data-nav='produktion']"); pg.wait_for_selector(".nav__unterpunkt[data-unter='produktion/fortschritt']")
-    pg.click(".nav__unterpunkt[data-unter='produktion/fortschritt']"); pg.wait_for_timeout(500)
-    pruefe("Produktion: Fortschritt über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "Fortschritt")
+    pg.click(".nav__punkt[data-nav='produktion']"); pg.wait_for_selector(".nav__unterpunkt[data-unter='produktion/richten']")
+    pg.click(".nav__unterpunkt[data-unter='produktion/richten']"); pg.wait_for_timeout(500)
+    pruefe("Produktion: Infos zum Richten über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "Infos zum Richten")
     pg.screenshot(path="unterreiter.png")
 
     # Eingeklappt und am Handy: nicht sichtbar

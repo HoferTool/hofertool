@@ -17,7 +17,7 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Erfassen from "./produktion/Erfassen.jsx";
 import Fortschritt from "./produktion/Fortschritt.jsx";
 import Richten from "./produktion/Richten.jsx";
-import Statistik from "./Statistik.jsx";
+import Statistik, { st } from "./Statistik.jsx";
 import { ms } from "./Maschinen.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 
@@ -25,7 +25,9 @@ import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 // „Statistik“ seit 1.318.0 hier statt als eigene Seite im Menü (Wunsch
 // Patrick 30. Oktober 2026: „Statistik zu Produktion integrieren“);
 // nicht für Externe (Entscheid offen) und das Dienstkonto
-export const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"], ["richten", "Infos zum Richten"], ["statistik", "Statistik"]];
+// „Fortschritt“ ist seit 1.319.0 ein Reiter der Statistik (Wunsch Patrick
+// 30. Oktober 2026)
+export const REITER = [["erfassen", "Erfassen"], ["richten", "Infos zum Richten"], ["statistik", "Statistik"]];
 
 // Was die Person davon sieht; auch für die Seitenleiste (unterreiter.js)
 export function sichtbareReiter() {
@@ -59,6 +61,8 @@ function vorgabenSetzen(prod) {
   }
   // Alte Verweise auf Reiter, die es nicht mehr gibt
   if (["typen", "maschinen", "uebersicht"].includes(prod.ansicht)) prod.ansicht = "erfassen";
+  // Alte Verweise auf den Reiter Fortschritt führen in die Statistik
+  if (prod.ansicht === "fortschritt") { prod.ansicht = "statistik"; st.reiter = "fortschritt"; }
   if (prod.ansicht === "statistik" && alt.meineRolle() === "dienst") prod.ansicht = "erfassen";
 }
 
@@ -102,7 +106,10 @@ export default function Produktion({ auffrischen, behaelter }) {
       <Uebergang key={prod.ansicht}>
         {prod.ansicht === "statistik"
           // Lädt ihre Daten selbst, braucht die Grunddaten nicht
-          ? <div id="prod-inhalt"><Statistik auffrischen={auffrischen} eingebettet /></div>
+          ? <div id="prod-inhalt"><Statistik auffrischen={auffrischen} eingebettet
+              fortschritt={geladen ? <Fortschritt key={geladen.nr} neuLaden={neu} />
+                : fehler ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>
+                : <div className="laedt">Wird geladen …</div>} /></div>
           : fehler && !geladen
           ? <div id="prod-inhalt"><div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div></div>
           : !geladen
@@ -112,9 +119,7 @@ export default function Produktion({ auffrischen, behaelter }) {
                   <Erfassen geladen={geladen} neuLaden={neu} behaelter={behaelter}
                     zuMaschinen={zuMaschinen} />
                 </div>
-              : prod.ansicht === "fortschritt"
-                ? <div id="prod-inhalt"><Fortschritt key={geladen.nr} neuLaden={neu} /></div>
-                : prod.ansicht === "richten"
+              : prod.ansicht === "richten"
                 ? <div id="prod-inhalt"><Richten key={geladen.nr} /></div>
                 : <AltTeil key={prod.ansicht + geladen.nr} id="prod-inhalt"
                     zeichne={(el) => alteAnsicht(el, behaelter)} />}

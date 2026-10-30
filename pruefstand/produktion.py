@@ -70,7 +70,11 @@ with sync_playwright() as p:
       j.planned_from = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
       j.planned_days = 30; j.stand = 0;
     })()""")
-    pg.click("[data-unter='produktion/fortschritt']"); pg.wait_for_selector(".fo-zeile")
+    # Fortschritt ist seit 1.319.0 ein Reiter der Statistik in der Produktion
+    pg.click("[data-unter='produktion/statistik']"); pg.wait_for_selector("[data-streiter='fortschritt']")
+    if pg.locator("[data-unter='produktion/fortschritt']").count(): fehler.append("Fortschritt noch als Reiter der Produktion")
+    pg.click("[data-streiter='fortschritt']"); pg.wait_for_selector(".fo-zeile")
+    if pg.locator("#st-zeit").count(): fehler.append("Zeitraum der Statistik beim Fortschritt")
     alle = pg.locator(".fo-zeile").count()
     pg.select_option("#fo-nur", "verzug"); pg.wait_for_timeout(200)
     verzug = pg.locator(".fo-zeile").count()

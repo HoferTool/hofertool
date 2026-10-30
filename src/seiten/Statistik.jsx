@@ -146,8 +146,12 @@ function mitTip(werte, f) {
     : <><b>{f(w.wert)}</b><br />{w.tipTag}</> }));
 }
 
-// eingebettet: als Reiter in der Produktion (seit 1.318.0), ohne eigenen Titel
-export default function Statistik({ auffrischen, eingebettet }) {
+// eingebettet: als Reiter in der Produktion (seit 1.318.0), ohne eigenen Titel.
+// fortschritt: der frühere Reiter Fortschritt der Produktion, seit 1.319.0
+// ein Reiter der Statistik (Wunsch Patrick 30. Oktober 2026: „Bei Statistik
+// Fortschritt rein hauen“); die Produktion reicht ihn fertig herein, weil er
+// ihre Grunddaten braucht
+export default function Statistik({ auffrischen, eingebettet, fortschritt }) {
   const [, zeichnen] = useReducer((x) => x + 1, 0);
   const [von, bis] = zeitraum();
   const { daten, fehler } = useDaten(() => statistikLaden(von, bis), [auffrischen, von, bis]);
@@ -162,6 +166,8 @@ export default function Statistik({ auffrischen, eingebettet }) {
     alt.einstellungSetzenWert(OHNE, [...neu].join(","));
   };
   const setze = (o) => { Object.assign(st, o); zeichnen(); };
+  const reiter = fortschritt ? [...REITER, ["fortschritt", "Fortschritt"]] : REITER;
+  if (st.reiter === "fortschritt" && !fortschritt) st.reiter = "maschinen";
   zeichnenAussen = zeichnen;
 
   // Strg + F sucht Maschinen und Artikel und öffnet sie (seit 1.169.0)
@@ -181,9 +187,10 @@ export default function Statistik({ auffrischen, eingebettet }) {
   return (
     <>
       {!eingebettet && <h1 className="seitentitel">Statistik</h1>}
-      <Reiter reiter={REITER} aktiv={st.reiter} waehlen={(w) => setze({ reiter: w, verlauf: [] })} merkmal="streiter"
+      <Reiter reiter={reiter} aktiv={st.reiter} waehlen={(w) => setze({ reiter: w, verlauf: [] })} merkmal="streiter"
         seite={eingebettet ? undefined : "statistik"} />
-      <div className="st-zeit" id="st-zeit">
+      {/* Fortschritt zeigt den Stand jetzt, ohne Zeitraum und Maschinenwahl */}
+      {st.reiter !== "fortschritt" && <div className="st-zeit" id="st-zeit">
         {ZEITRAEUME.map(([w, t]) => (
           <button key={w} className={"st-chip" + (st.zeitraum === w ? " aktiv" : "")} data-stzeit={w}
             onClick={() => setze(w === "frei" ? { zeitraum: w, von: st.von || von, bis: st.bis || bis } : { zeitraum: w })}>{t}</button>
@@ -200,11 +207,13 @@ export default function Statistik({ auffrischen, eingebettet }) {
           Maschinen: {ohneHier ? (alleM.length - ohneHier) + " von " + alleM.length : "alle"} <span aria-hidden="true">{wahlOffen ? "▴" : "▾"}</span>
         </button>}
         <span className="klein st-zeit__text" id="st-ab">Gezählt wird erst ab {alt.kurzDatum(STATISTIK_AB)}{STATISTIK_AB.slice(0, 4)}, bis gestern (heute ist noch nicht fertig gemeldet).</span>
-      </div>
-      {wahlOffen && daten && <MaschinenWahl d={daten} ohne={ohne} setzen={ohneSetzen} zu={() => setWahlOffen(false)} />}
-      {daten && ohneHier > 0 && ohneHier === alleM.length && <p className="qs-fehlt" id="st-keine">Keine Maschine gewählt. Oben bei „Maschinen“ mindestens eine einschalten.</p>}
+      </div>}
+      {wahlOffen && daten && st.reiter !== "fortschritt" && <MaschinenWahl d={daten} ohne={ohne} setzen={ohneSetzen} zu={() => setWahlOffen(false)} />}
+      {daten && st.reiter !== "fortschritt" && ohneHier > 0 && ohneHier === alleM.length && <p className="qs-fehlt" id="st-keine">Keine Maschine gewählt. Oben bei „Maschinen“ mindestens eine einschalten.</p>}
       <Uebergang key={st.reiter}>
-        {st.reiter === "werkzeug"
+        {st.reiter === "fortschritt"
+          ? fortschritt
+          : st.reiter === "werkzeug"
           ? <Werkzeug von={von} bis={bis} maschinen={daten ? daten.maschinen : null}
             nur={ohneHier ? new Set(alleM.filter((m) => !ohne.has(String(m.id))).map((m) => String(m.id))) : null} />
           : fehler && !r
