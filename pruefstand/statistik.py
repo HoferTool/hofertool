@@ -79,8 +79,22 @@ with sync_playwright() as p:
     pg = neu(br)
     tag = pg.evaluate(DATEN)
     pg.wait_for_timeout(800)
-    if not pg.locator(".nav__punkt", has_text="Statistik").count():
-        fehler.append("Kein Menüpunkt Statistik")
+    # Seit 1.318.0 ein Reiter der Produktion, kein Menüpunkt mehr
+    if pg.locator(".nav__punkt", has_text="Statistik").count():
+        fehler.append("Menüpunkt Statistik noch da")
+    pg.evaluate("location.hash='#/produktion'")
+    # Am Computer stehen die Reiter der Produktion in der Seitenleiste
+    pg.wait_for_selector("[data-unter='produktion/statistik']", timeout=15000)
+    pg.locator("[data-unter='produktion/statistik']").first.click()
+    pg.wait_for_selector("#st-auslastung", timeout=15000)
+    if pg.locator("h1.seitentitel", has_text="Statistik").count(): fehler.append("Eigener Titel Statistik in der Produktion")
+    # Strg + F sucht im Reiter Statistik Maschinen und Artikel
+    pg.keyboard.press("Control+f"); pg.wait_for_timeout(500)
+    if "Statistik" not in (pg.locator(".dialog-huelle").first.inner_text() if pg.locator(".dialog-huelle").count() else ""):
+        fehler.append("Strg + F sucht nicht in der Statistik")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    # Alte Adresse führt in den Reiter
+    pg.evaluate("location.hash='#/dashboard'"); pg.wait_for_timeout(800)
     pg.evaluate("location.hash='#/statistik'")
     pg.wait_for_selector("#st-auslastung", timeout=15000); pg.wait_for_timeout(600)
     pg.screenshot(path="statistik-maschinen.png", full_page=True)
@@ -238,6 +252,8 @@ with sync_playwright() as p:
     e = neu(br, rolle="extern"); e.wait_for_timeout(1500)
     e.evaluate("location.hash='#/statistik'"); e.wait_for_timeout(1500)
     if e.locator("#st-zeit").count(): fehler.append("Extern sieht die Statistik")
+    e.evaluate("location.hash='#/produktion'"); e.wait_for_timeout(1500)
+    if e.locator("[data-ansicht='statistik']").count(): fehler.append("Extern sieht den Reiter Statistik")
     br.close()
 
 print("Fehler:", "; ".join(fehler) if fehler else "keine")

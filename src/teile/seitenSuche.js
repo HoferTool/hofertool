@@ -15,11 +15,16 @@
 //                { gruppe, zeichen, titel, zeile, such, … }
 //                (such: weiterer Text, der gefunden werden soll)
 //    springen(x): was ein Treffer tut
+//    aus:        true = gerade nicht zuständig (etwa Produktion, solange
+//                darin der Reiter Statistik mit eigener Suche offen ist)
 //  }
 // =================================================================
 import { useEffect, useRef } from "react";
 
-let aktiv = null;
+// Alle angemeldeten Suchen, die jüngste zuletzt. Eine Seite kann eine
+// andere einbetten (Statistik in der Produktion, seit 1.318.0), darum
+// eine Liste statt einer einzigen
+let angemeldet = [];
 
 export function useSeitenSuche(def) {
   // Immer die neueste Fassung, damit springen die frischen Daten sieht
@@ -27,13 +32,17 @@ export function useSeitenSuche(def) {
   halter.current = def;
   useEffect(() => {
     const eintrag = { def: () => halter.current };
-    aktiv = eintrag;
-    return () => { if (aktiv === eintrag) aktiv = null; };
+    angemeldet.push(eintrag);
+    return () => { angemeldet = angemeldet.filter((x) => x !== eintrag); };
   }, []);
 }
 
 export function seitenSuche() {
-  return aktiv ? aktiv.def() : null;
+  for (let i = angemeldet.length - 1; i >= 0; i--) {
+    const d = angemeldet[i].def();
+    if (d && !d.aus) return d;
+  }
+  return null;
 }
 
 // Alle Wörter müssen irgendwo vorkommen; Gruppen bleiben beisammen

@@ -146,7 +146,8 @@ function mitTip(werte, f) {
     : <><b>{f(w.wert)}</b><br />{w.tipTag}</> }));
 }
 
-export default function Statistik({ auffrischen }) {
+// eingebettet: als Reiter in der Produktion (seit 1.318.0), ohne eigenen Titel
+export default function Statistik({ auffrischen, eingebettet }) {
   const [, zeichnen] = useReducer((x) => x + 1, 0);
   const [von, bis] = zeitraum();
   const { daten, fehler } = useDaten(() => statistikLaden(von, bis), [auffrischen, von, bis]);
@@ -179,8 +180,9 @@ export default function Statistik({ auffrischen }) {
 
   return (
     <>
-      <h1 className="seitentitel">Statistik</h1>
-      <Reiter reiter={REITER} aktiv={st.reiter} waehlen={(w) => setze({ reiter: w, verlauf: [] })} merkmal="streiter" seite="statistik" />
+      {!eingebettet && <h1 className="seitentitel">Statistik</h1>}
+      <Reiter reiter={REITER} aktiv={st.reiter} waehlen={(w) => setze({ reiter: w, verlauf: [] })} merkmal="streiter"
+        seite={eingebettet ? undefined : "statistik"} />
       <div className="st-zeit" id="st-zeit">
         {ZEITRAEUME.map(([w, t]) => (
           <button key={w} className={"st-chip" + (st.zeitraum === w ? " aktiv" : "")} data-stzeit={w}

@@ -11,7 +11,7 @@
 //  ohne die Seite neu aufzubauen.
 // =================================================================
 import { alt } from "../bruecke.jsx";
-import { REITER as PROD_REITER } from "../seiten/Produktion.jsx";
+import { sichtbareReiter as prodReiter } from "../seiten/Produktion.jsx";
 import { REITER as BEST_REITER } from "../seiten/Bestellungen.jsx";
 import { REITER as RECH_REITER, rechnerAnsicht } from "../seiten/Rechner.jsx";
 
@@ -19,7 +19,7 @@ import { REITER as RECH_REITER, rechnerAnsicht } from "../seiten/Rechner.jsx";
 // nächste Öffnen der Seite setzen. gemerkt(): der zuletzt gewählte.
 export const UNTERREITER = {
   produktion: {
-    liste: () => PROD_REITER.filter(([w]) => !alt.istExtern() || w === "erfassen"),
+    liste: () => prodReiter(),
     merken: (w) => { alt.prod.ansicht = w; },
     gemerkt: () => alt.prod.ansicht,
   },

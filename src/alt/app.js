@@ -12,7 +12,7 @@ import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { aehnlicheTreffer } from "../daten/aehnlich.js";
 import Rechner from "../seiten/Rechner.jsx";
-import Statistik, { statistikZurueck } from "../seiten/Statistik.jsx";
+import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
@@ -152,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.317.0";
+const APP_VERSION = "1.318.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -188,7 +188,8 @@ function escapeZurueck() {
     // Seite Maschinen: von der Maschine zum Typ, zum Park
     if (wo === "maschinen" && maschinenZurueck()) return;
     // Statistik: vom Artikel oder der Maschine dorthin, wo man herkam
-    if (wo === "statistik" && statistikZurueck()) return;
+    // (seit 1.318.0 ein Reiter der Produktion)
+    if (wo === "produktion" && prod.ansicht === "statistik" && statistikZurueck()) return;
     // Kalkulation: aus einer Kalkulation zurück zur Liste
     if (wo === "kalkulation" && kalkulationZurueck()) return;
     if (wo === "produktion" && prod.ansicht && prod.ansicht !== "erfassen") {
@@ -10336,8 +10337,8 @@ const SEITEN = [
   // Die Seite Qualitätssicherung (1.77.0 bis 1.309.x) gibt es nicht
   // mehr: gemeldet wird im QS Check des Pads, die offenen Meldungen
   // stehen oben im Pad (Wunsch Patrick 30. Oktober 2026)
-  // Produktionsdaten je Maschine und Artikel (Wunsch Patrick 23. Oktober 2026)
-  { pfad: "statistik",    titel: "Statistik",    zeichen: SYM.statistik, zeige: reactSeite(Statistik) },
+  // Statistik ist seit 1.318.0 ein Reiter der Produktion (Wunsch Patrick
+  // 30. Oktober 2026), #/statistik führt dorthin
   // Kalkulation wie im Gewatec, vorerst nur für Patrick (seit 1.214.0)
   { pfad: "kalkulation",  titel: "Kalkulation",  zeichen: SYM.kalkulation, zeige: reactSeite(Kalkulation) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
@@ -10809,6 +10810,13 @@ function zeichneSeite() {
     if (ARCHIV) { location.hash = "#/planwand"; return; }
     location.hash = "";
     einkaufOeffnen();
+    return;
+  }
+
+  // Statistik ist seit 1.318.0 ein Reiter der Produktion
+  if (roh === "statistik" && !ARCHIV) {
+    prod.ansicht = istExtern() || meineRolle() === "dienst" ? "erfassen" : "statistik";
+    location.hash = "#/produktion";
     return;
   }
 

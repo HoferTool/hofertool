@@ -17,11 +17,21 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Erfassen from "./produktion/Erfassen.jsx";
 import Fortschritt from "./produktion/Fortschritt.jsx";
 import Richten from "./produktion/Richten.jsx";
+import Statistik from "./Statistik.jsx";
 import { ms } from "./Maschinen.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 
 // „Infos zum Richten“ seit 1.170.0: Einrichtblätter in der App ändern
-export const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"], ["richten", "Infos zum Richten"]];
+// „Statistik“ seit 1.318.0 hier statt als eigene Seite im Menü (Wunsch
+// Patrick 30. Oktober 2026: „Statistik zu Produktion integrieren“);
+// nicht für Externe (Entscheid offen) und das Dienstkonto
+export const REITER = [["erfassen", "Erfassen"], ["fortschritt", "Fortschritt"], ["richten", "Infos zum Richten"], ["statistik", "Statistik"]];
+
+// Was die Person davon sieht; auch für die Seitenleiste (unterreiter.js)
+export function sichtbareReiter() {
+  return REITER.filter(([w]) => (!alt.istExtern() || w === "erfassen")
+    && (w !== "statistik" || alt.meineRolle() !== "dienst"));
+}
 
 let ladeNr = 0;
 
@@ -49,6 +59,7 @@ function vorgabenSetzen(prod) {
   }
   // Alte Verweise auf Reiter, die es nicht mehr gibt
   if (["typen", "maschinen", "uebersicht"].includes(prod.ansicht)) prod.ansicht = "erfassen";
+  if (prod.ansicht === "statistik" && alt.meineRolle() === "dienst") prod.ansicht = "erfassen";
 }
 
 export default function Produktion({ auffrischen, behaelter }) {
@@ -63,6 +74,8 @@ export default function Produktion({ auffrischen, behaelter }) {
   // Strg + F sucht Maschinen und was gerade auf ihnen läuft (seit 1.169.0);
   // ein Treffer wählt Park und Erfassen und zeigt die Maschine
   useSeitenSuche({
+    // Die Statistik meldet ihre eigene Suche an
+    aus: prod.ansicht === "statistik",
     name: "Produktion", platzhalter: "Maschine, Nummer, HOCO Nr. oder FA Nr. …",
     eintraege: () => !geladen ? [] : (prod.maschinen || []).map((m) => {
       const j = (prod.auftraege || {})[m.id];
@@ -78,7 +91,7 @@ export default function Produktion({ auffrischen, behaelter }) {
     },
   });
 
-  const reiter = REITER.filter(([w]) => !alt.istExtern() || w === "erfassen");
+  const reiter = sichtbareReiter();
 
   return (
     <>
@@ -87,7 +100,10 @@ export default function Produktion({ auffrischen, behaelter }) {
       {!(alt.darfSchreiben() || alt.istExtern()) &&
         <div className="nurlesen">Du kannst hier alles ansehen, aber nichts ändern.</div>}
       <Uebergang key={prod.ansicht}>
-        {fehler && !geladen
+        {prod.ansicht === "statistik"
+          // Lädt ihre Daten selbst, braucht die Grunddaten nicht
+          ? <div id="prod-inhalt"><Statistik auffrischen={auffrischen} eingebettet /></div>
+          : fehler && !geladen
           ? <div id="prod-inhalt"><div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div></div>
           : !geladen
             ? <div id="prod-inhalt"><div className="laedt">Wird geladen …</div></div>
