@@ -18,6 +18,7 @@ import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
 import { wiederOeffner } from "./wiederherstellen.js";
 import { positionOeffnen } from "../seiten/bestellungen/PositionFenster.jsx";
+import { ArtikelAngaben } from "../seiten/bestellungen/teile.jsx";
 import { spezialLaden, spezialZuordnen, spezialEntfernen, hocoNormal, offenText,
   fehltTabelle, FEHLT_TEXT, spezialPdfHochladen, spezialPdfLoeschen } from "../daten/spezialwerkzeuge.js";
 import { betrachter } from "./Betrachter.jsx";
@@ -199,8 +200,7 @@ function ZuordnenFenster({ hoco, zu, fertig }) {
       <div className="feld"><span className="feldlabel">Artikel</span>
         {gewaehlt
           ? <div className="pd-gewaehlt" id="sz-gewaehlt">
-              <strong>{gewaehlt.article_number}</strong> {gewaehlt.name}
-              <div className="klein">Lieferant: {gewaehlt.supplier_name || "keiner hinterlegt"}</div>
+              <ArtikelAngaben a={gewaehlt} />
               {gewaehlt.spezial === false && <div className="klein spezial__wandert">Dieser Artikel und seine Bestellungen
                 stehen danach nur noch bei den Spezialwerkzeugen.</div>}
               <button type="button" className="knopf knopf--klein knopf--still" onClick={() => setGewaehlt(null)}>
@@ -220,8 +220,7 @@ function ZuordnenFenster({ hoco, zu, fertig }) {
                 {treffer && treffer.slice(0, 8).map((a) => (
                   <button key={a.id} className="pd-zeile" data-w={a.id}
                     onClick={() => { setGewaehlt(a); setTreffer(null); setSuche(""); }}>
-                    <strong>{a.article_number}</strong> {a.name}
-                    <span className="klein"> {a.supplier_name || "ohne Lieferant"}</span>
+                    <ArtikelAngaben a={a} />
                     {a.aehnlich && <span className="bs-aehnlich">ähnlich</span>}
                     {/* Ein normaler Artikel wandert beim Zuordnen zu den Spezialwerkzeugen */}
                     {a.spezial === false && <span className="klein spezial__wandert"> · kommt aus den Bestellungen hierher</span>}

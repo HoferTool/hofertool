@@ -10507,3 +10507,9 @@ body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -w
 .spezial__pdfs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
 .spezial__pdf { display: inline-flex; align-items: center; gap: 2px; }
 .spezial__pdf-weg { color: var(--fehler, #c62828); padding: 0 4px; }
+
+/* Artikel in einer Auswahl: Art.-Nr. und Bezeichnung, darunter Beschreibung
+   und Lieferant (seit 1.289.0) */
+.artikel-angaben { display: grid; gap: 1px; }
+.artikel-angaben__beschreibung { color: var(--tinte); }
+.artikel-angaben__lieferant { color: var(--gedaempft); }
