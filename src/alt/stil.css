@@ -10402,3 +10402,6 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
 
 /* Einrichtblatt: Stern beim Lieferanten eines Spezialwerkzeugs (seit 1.272.0) */
 .eba-stern { margin-left: 3px; color: #c58a00; }
+
+/* Bestellungen → Artikel: „Mehr laden“ unter der Liste (seit 1.275.0) */
+.bs-mehr { display: flex; justify-content: center; padding: 14px 0 6px; }

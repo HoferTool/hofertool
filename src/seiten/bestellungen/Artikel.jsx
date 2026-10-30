@@ -3,6 +3,7 @@
 //  Suche fragt die Datenbank, kurz nachdem man aufgehört hat zu
 //  tippen. Filter nach Bezeichnung und Lieferant als Auswahllisten.
 // =================================================================
+import { useState, useEffect } from "react";
 import { alt, useDaten, useVerzoegert, useSpeicherWert } from "../../bruecke.jsx";
 import { artikelFotosOeffnen } from "./ArtikelFotos.jsx";
 import { Leiste, NeuKnopf, Karte, Symbolknopf, Zeichen, Leer, Laedt, Fehler, Stern } from "./teile.jsx";
@@ -17,7 +18,15 @@ export default function Artikel({ auffrischen, behaelter }) {
   const ruhig = useVerzoegert(suche, 300);
   const schreiben = alt.darfSchreiben();
 
-  const { daten: liste, fehler } = useDaten(() => alt.sucheArtikel(ruhig, { bez, lief }),
+  // Je 50 mehr mit „Mehr laden“; neue Suche oder Filter fängt wieder bei 50 an
+  const [anzahl, setAnzahl] = useState(50);
+  useEffect(() => { setAnzahl(50); }, [ruhig, bez, lief]);
+  const { daten: liste, fehler } = useDaten(() => alt.sucheArtikel(ruhig, { bez, lief, anzahl }),
+    [ruhig, bez, lief, anzahl, auffrischen]);
+  // Wie viele Artikel es gibt (mit Suche und Filter: wie viele passen),
+  // Wunsch Patrick 30. Oktober 2026; ohne Zahl geht es auch
+  const { daten: gesamt } = useDaten(
+    () => alt.sucheArtikel(ruhig, { bez, lief, zaehlen: true }).catch(() => null),
     [ruhig, bez, lief, auffrischen]);
   // Bezeichnungen und Lieferanten für die Filter; sie sind Beiwerk, ohne geht es auch
   const { daten: bezeichnungen } = useDaten(
@@ -59,17 +68,25 @@ export default function Artikel({ auffrischen, behaelter }) {
           ? <Fehler fehler={fehler} />
           : !gefiltert
             ? <Laedt />
-            : <Liste liste={gefiltert} sucht={!!suche || !!bez || !!lief} schreiben={schreiben} behaelter={behaelter} />}
+            : <Liste liste={gefiltert} sucht={!!suche || !!bez || !!lief} schreiben={schreiben}
+                behaelter={behaelter} anzahl={anzahl} gesamt={gesamt}
+                mehr={() => setAnzahl((n) => n + 50)} />}
       </div>
     </>
   );
 }
 
-function Liste({ liste, sucht, schreiben, behaelter }) {
+function Liste({ liste, sucht, schreiben, behaelter, anzahl, gesamt, mehr }) {
   if (!liste.length) return <Leer text={sucht ? "Kein Artikel gefunden." : "Noch keine Artikel angelegt."} />;
+  const genau = liste.filter((a) => !a.aehnlich).length;
+  const bekannt = typeof gesamt === "number";
+  // Mehr gibt es, wenn die Zahl grösser ist, oder ohne Zahl, wenn die Seite voll war
+  const nochMehr = bekannt ? genau < gesamt : genau >= anzahl;
   return (
-    <Karte titel="Artikel" zahl={liste.length}
-      unter={liste.filter((a) => !a.aehnlich).length >= 50 ? "Die ersten 50. Mit der Suche findest du jeden." : undefined}>
+    <Karte titel="Artikel" zahl={bekannt ? alt.zahlText(gesamt) : liste.length}
+      unter={bekannt
+        ? (genau < gesamt ? alt.zahlText(genau) + " von " + alt.zahlText(gesamt) + " geladen" : undefined)
+        : (nochMehr ? "Die ersten " + alt.zahlText(genau) + "." : undefined)}>
       {/* Wieder als Liste (Wunsch Patrick, 6. Oktober 2026: „Artikel wieder zu
           einer Liste“): je Artikel eine Zeile, Spalten Nummer, Bezeichnung,
           Lieferant. So lässt sich die Spalte mit dem Auge herunterlesen. */}
@@ -116,6 +133,13 @@ function Liste({ liste, sucht, schreiben, behaelter }) {
           </div>
         ))}
       </div>
+      {nochMehr && (
+        <div className="bs-mehr">
+          <button type="button" className="knopf" id="ar-mehr" onClick={mehr}>
+            Mehr laden ({bekannt ? alt.zahlText(Math.min(50, gesamt - genau)) : 50} weitere)
+          </button>
+        </div>
+      )}
     </Karte>
   );
 }

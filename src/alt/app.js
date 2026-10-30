@@ -152,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.274.1";
+const APP_VERSION = "1.275.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8924,8 +8924,14 @@ function orSuche(abfrage, spalten, text) {
 // Spezialwerkzeuge stehen nur unter Spezialwerkzeuge)
 async function sucheArtikel(text, filter) {
   const t = (text || "").trim();
+  // Wie viele auf einmal: 50, „Mehr laden“ im Reiter Artikel holt je 50 dazu
+  // (Wunsch Patrick 30. Oktober 2026); zaehlen: nur die Anzahl der Treffer
+  const anzahl = (filter && filter.anzahl) || 50;
+  const zaehlen = !!(filter && filter.zaehlen);
   const abfragen = (mitSpezial) => {
-    let abfrage = db.from("artikel_uebersicht").select("*");
+    let abfrage = zaehlen
+      ? db.from("artikel_uebersicht").select("id", { count: "exact", head: true })
+      : db.from("artikel_uebersicht").select("*");
     if (filter && filter.bez) abfrage = abfrage.eq("name", filter.bez);
     if (filter && filter.lief) abfrage = abfrage.eq("supplier_name", filter.lief);
     if (mitSpezial && filter && typeof filter.spezial === "boolean") abfrage = abfrage.eq("spezial", filter.spezial);
@@ -8934,16 +8940,18 @@ async function sucheArtikel(text, filter) {
     if (t) {
       abfrage = orSuche(abfrage, ["article_number", "name", "description", "supplier_name"], t);
     }
-    return zeitlimit(abfrage.order("article_number").limit(50), 12000, "Artikelsuche");
+    if (zaehlen) return zeitlimit(abfrage, 12000, "Artikel zählen");
+    return zeitlimit(abfrage.order("article_number").limit(anzahl), 12000, "Artikelsuche");
   };
-  let { data, error } = await abfragen(true);
+  let { data, error, count } = await abfragen(true);
   // Kennt die Datenbank die Spalte noch nicht (sql/spezialwerkzeuge-getrennt.sql),
   // ist jeder Artikel ein normaler
   if (error && /spezial/.test(String(error.message || ""))) {
-    if (filter && filter.spezial === true) return [];
-    ({ data, error } = await abfragen(false));
+    if (filter && filter.spezial === true) return zaehlen ? 0 : [];
+    ({ data, error, count } = await abfragen(false));
   }
   if (error) throw error;
+  if (zaehlen) return typeof count === "number" ? count : (data || []).length;
   const genau = data || [];
   if (!t) return genau;
   // Dahinter ähnlich geschriebene (seit 1.255.0, src/daten/aehnlich.js);

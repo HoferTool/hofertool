@@ -528,6 +528,7 @@ function bauer(tabelle) {
               supplier_website: l ? l.website : null,
               gesamtbestand: 0, unter_mindestbestand: false, spezial: !!a.spezial });
           }).filter((z) => zustand.filter.every((f) => passt(z, f)));
+          if (zustand.grenze) treffer = treffer.slice(0, zustand.grenze);
         }
         if (tabelle === "setup_sheet_slots") {
           treffer = treffer.map((z) => Object.assign({}, z, {
