@@ -10751,3 +10751,11 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .einlagen__oeffnen:hover { border-color: var(--marke); }
 .einlagen__oeffnen > span { font-size: .85em; }
 .einlagen__weg { flex: none; }
+
+/* Einlagen Gen: gespeicherte Werkzeuge (seit 1.308.0) */
+.einlagen__wz { align-items: center; padding: 6px 4px; border-bottom: 1px solid var(--linie); flex-wrap: wrap; }
+.einlagen__wz:last-child { border-bottom: 0; }
+.einlagen__umriss { flex: none; width: 56px; height: 40px; fill: var(--tinte); }
+.einlagen__wz-text { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 2px; }
+.einlagen__wz-text > span { font-size: .85em; }
+#einlagen-wz-fenster { max-width: 780px; }

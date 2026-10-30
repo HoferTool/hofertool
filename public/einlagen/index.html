@@ -959,7 +959,9 @@ function discardPointEdits() {
 function runWarp() { if (!st.srcData) return; work(() => { if (st.result) pushUndo(); discardPointEdits(); doWarp(); doSegment(); render(); renderInfo(); updateEditUI(); }); }
 function runSegment(undoDone) { if (!st.warp) return; work(() => { if (undoDone !== true && st.result) pushUndo(); discardPointEdits(); doSegment(); render(); renderInfo(); updateEditUI(); }); }
 
+const newScanId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 function setSource(drawable, w, h, sample) {
+  st.scanId = newScanId();
   const f = Math.min(1, 3200 / Math.max(w, h)), c = document.createElement("canvas");
   c.width = Math.round(w * f); c.height = Math.round(h * f);
   const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(drawable, 0, 0, c.width, c.height);
@@ -1560,46 +1562,57 @@ $("exportBtn").addEventListener("click", () => {
 
 // ---------- Projekt speichern / öffnen ----------
 const PROJECT_APP = "werkzeug-konturscanner";
-$("saveProjBtn").addEventListener("click", () => {
-  if (!st.srcCanvas || !st.corners) { toast("Noch kein Foto geladen."); return; }
-  const proj = {
-    app: PROJECT_APP, version: 1, saved: new Date().toISOString(), name: baseName(),
+// Projekt als Objekt; projApply setzt es wieder ein (auch Hofer Tool: Werkzeuge in der App)
+function projData() {
+  return {
+    app: PROJECT_APP, version: 1, saved: new Date().toISOString(), name: baseName(), scanId: st.scanId,
     settings: settingsObj(), sample: st.sample, corners: st.corners, autoCorners: st.autoCorners,
     image: st.srcCanvas.toDataURL("image/jpeg", 0.92),
     edit: { strokes: st.edit.strokes, grips: st.edit.grips }, pointEdits: st.edit.pointEdits, result: st.result
   };
-  saveFile(baseName() + ".kontur.json", JSON.stringify(proj), "application/json");
+}
+$("saveProjBtn").addEventListener("click", () => {
+  if (!st.srcCanvas || !st.corners) { toast("Noch kein Foto geladen."); return; }
+  saveFile(baseName() + ".kontur.json", JSON.stringify(projData()), "application/json");
 });
+function projValid(proj) {
+  return !!(proj && proj.app === PROJECT_APP && typeof proj.image === "string" && proj.image.startsWith("data:image/") && Array.isArray(proj.corners) && proj.corners.length === 4);
+}
+function projApply(proj, label, done) {
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+    st.srcCanvas = c; st.srcData = g.getImageData(0, 0, c.width, c.height); st.sw = c.width; st.sh = c.height;
+    st.scanId = proj.scanId || newScanId();
+    st.sample = !!proj.sample; $("sampleBadge").hidden = !st.sample;
+    applySettings(proj.settings); saveSettings();
+    const ed = proj.edit || {};
+    Object.assign(st.edit, { strokes: Array.isArray(ed.strokes) ? ed.strokes : [], grips: Array.isArray(ed.grips) ? ed.grips : [],
+      cur: null, sel: null, dragPt: false, undo: [], pointEdits: proj.pointEdits || 0, hover: null, gsel: null, gdrag: null,
+      smoothing: false, multi: new Set(), rect: null, lineA: null, poly: null });
+    st.corners = proj.corners; st.autoCorners = Array.isArray(proj.autoCorners) ? proj.autoCorners : proj.corners.map(p => p.slice());
+    st.detected = true; st.zoom = 1; $("zoomFit").textContent = "100 %";
+    setView("contour", true);
+    work(() => {
+      doWarp();
+      if (proj.result && Array.isArray(proj.result.tools)) st.result = proj.result; else doSegment();
+      render(); renderInfo(); updateEditUI(); if (label) toast(label);
+      if (done) done();
+    });
+  };
+  img.onerror = () => setStatus("<strong>Das Foto im Projekt konnte nicht gelesen werden.</strong>", true);
+  img.src = proj.image;
+}
 function loadProject(file) {
   if (!file) return;
   const rd = new FileReader();
   rd.onload = () => {
     let proj = null; try { proj = JSON.parse(rd.result); } catch (e) {}
-    if (!proj || proj.app !== PROJECT_APP || typeof proj.image !== "string" || !proj.image.startsWith("data:image/") || !Array.isArray(proj.corners) || proj.corners.length !== 4) {
+    if (!projValid(proj)) {
       setStatus("<strong>Die Datei ist kein Konturscanner-Projekt.</strong> Bitte eine mit „Projekt speichern“ erstellte .json-Datei wählen.", true); return;
     }
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
-      const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
-      st.srcCanvas = c; st.srcData = g.getImageData(0, 0, c.width, c.height); st.sw = c.width; st.sh = c.height;
-      st.sample = !!proj.sample; $("sampleBadge").hidden = !st.sample;
-      applySettings(proj.settings); saveSettings();
-      const ed = proj.edit || {};
-      Object.assign(st.edit, { strokes: Array.isArray(ed.strokes) ? ed.strokes : [], grips: Array.isArray(ed.grips) ? ed.grips : [],
-        cur: null, sel: null, dragPt: false, undo: [], pointEdits: proj.pointEdits || 0, hover: null, gsel: null, gdrag: null,
-        smoothing: false, multi: new Set(), rect: null, lineA: null, poly: null });
-      st.corners = proj.corners; st.autoCorners = Array.isArray(proj.autoCorners) ? proj.autoCorners : proj.corners.map(p => p.slice());
-      st.detected = true; st.zoom = 1; $("zoomFit").textContent = "100 %";
-      setView("contour", true);
-      work(() => {
-        doWarp();
-        if (proj.result && Array.isArray(proj.result.tools)) st.result = proj.result; else doSegment();
-        render(); renderInfo(); updateEditUI(); toast("Projekt geladen: " + (proj.name || file.name));
-      });
-    };
-    img.onerror = () => setStatus("<strong>Das Foto im Projekt konnte nicht gelesen werden.</strong>", true);
-    img.src = proj.image;
+    projApply(proj, "Projekt geladen: " + (proj.name || file.name));
   };
   rd.onerror = () => setStatus("<strong>Die Datei konnte nicht gelesen werden.</strong>", true);
   rd.readAsText(file);
@@ -2605,12 +2618,31 @@ function askLayoutTarget() {
 }
 const addFromScan = async (e, ask) => {
   if (!st.result || !st.result.tools.length) { toast("Im Scan ist noch keine Kontur vorhanden."); return; }
+  // Liegen Werkzeuge dieses Fotos schon in der Einlage (man ist zur Kontur
+  // zurück und hat sie geändert), bekommen sie die neue Kontur und bleiben
+  // an ihrem Platz, statt ein zweites Mal hineinzukommen
+  const tag = i => st.scanId + ":" + i, da = lay.items.filter(it => it.scan && it.scan.startsWith(st.scanId + ":"));
+  if (da.length && ask) { scanUpdate(); return; }
   let target = "add"; if (ask && lay.items.length) { target = await askLayoutTarget(); if (!target) return; }
   const idx = await pickTools(st.result.tools, "Welche Werkzeuge in die Einlage einfügen?", "Einfügen");
   if (!idx.length) return;
   const all = itemsFromTools(st.result.tools, baseName());
+  all.forEach((it, i) => it.scan = tag(i));
   layAddItems(idx.map(i => all[i]), true, target === "new");
 };
+// Werkzeuge dieses Fotos in der Einlage auf die aktuelle Kontur bringen (Lage, Tiefe, Mulden bleiben)
+function scanUpdate() {
+  const neu = itemsFromTools(st.result.tools, baseName()); let n = 0;
+  layPush();
+  lay.items.forEach(it => {
+    if (!it.scan || !it.scan.startsWith(st.scanId + ":")) return;
+    const f = neu[+it.scan.split(":")[1]];
+    if (f) { it.polys = f.polys; n++; }
+  });
+  lay.nextId = 1 + lay.items.reduce((m, it) => Math.max(m, +it.id || 0), 0);
+  setMode("layout");
+  toast(n ? `Kontur von ${n} Werkzeug${n > 1 ? "en" : ""} in der Einlage aktualisiert.` : "Keine passenden Werkzeuge in der Einlage.");
+}
 // Schnellerfassung: Foto, automatische Erkennung, kurze Kontrolle, direkt in die Einlage, danach gleich das nächste Foto
 function quickReview() {
   const tools = st.result ? st.result.tools : [], ok = st.detected && tools.length > 0, n0 = lay.items.length;
@@ -2635,7 +2667,7 @@ function quickReview() {
   const close = () => el.remove();
   const add = fin => {
     const name = (el.querySelector("#qName").value || "").trim().slice(0, 60) || `Werkzeug ${n0 + 1}`, dep = Math.max(1, +el.querySelector("#qDepth").value || lay.newDepth);
-    const items = itemsFromTools(tools, name); items.forEach(it => it.depth = dep);
+    const items = itemsFromTools(tools, name); items.forEach((it, i) => { it.depth = dep; it.scan = st.scanId + ":" + i; });
     layAddItems(items, fin);
   };
   el.addEventListener("click", e => {
@@ -3046,6 +3078,8 @@ document.addEventListener("keydown", e => {
 });
 setView("contour", true);
 makeSample();
+// Für Hofer Tool (src/seiten/Einlagen.jsx): Zustand des Scans lesen
+window.scanState = () => st;
 </script>
 
 </body>

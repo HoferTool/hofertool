@@ -631,3 +631,8 @@ Excel-Export · Ferienblock als ein Block · beliebige Farben und Farbwähler ·
 ## Bis 101 — Grundlagen
 
 Planwand mit Ziehen, Verlängern, Nachrücken und Lücke schliessen · Produktion mit Tag und Woche · Pad Mode · Einrichtblätter mit Typen, Pfaden und Plätzen · Bestellungen mit Lieferanten und Artikeln · Einkaufsliste · Werkstatt-Rechner · Chat · Fahrzeuge · Ferien · infoBoard-Import (2'593 Balken, 659 Ferieneinträge) · Rollen und Rechte.
+
+## 1.308.0 — Einlagen Gen: Werkzeuge einzeln speichern (30. Oktober 2026)
+- Wunsch Patrick: beim Erfassen die Werkzeuge einzeln speichern können; beim Zurückgehen von der Einlage dürfen Änderungen an der Kontur nicht verloren gehen.
+- „Werkzeug speichern“ und „Gespeicherte Werkzeuge“ (In die Einlage, Kontur bearbeiten, löschen), Tabelle `einlagen_werkzeuge` (eingespielt).
+- Scan liegt auf dem Gerät (IndexedDB) und kommt nach Reiterwechsel und Neuladen wieder; „Weiter zur Einlage“ aktualisiert schon übernommene Werkzeuge statt sie doppelt einzufügen.
