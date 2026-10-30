@@ -10388,7 +10388,7 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
 .eba-seite--druck .eba-fbild-weg, .eba-seite--druck .eba-fbild-gross { display: none; }
 
 /* Bestellungen → Artikel: Spalte HOCO Nr. der Spezialwerkzeuge (1.281.0) */
-.bs-artikel__hoco { display: flex; flex-wrap: wrap; gap: 3px 8px; font-size: .82rem; font-variant-numeric: tabular-nums; }
+.bs-artikel__hoco { display: flex; flex-direction: column; gap: 2px; font-size: .82rem; font-variant-numeric: tabular-nums; }
 .bs-artikel__hoco-nr { font-weight: 600; white-space: nowrap; }
 .bs-artikel__hoco-leer { color: var(--gedaempft); font-style: italic; }
 .bs-artikel__hoco:empty { display: none; }
