@@ -44,6 +44,18 @@ export function poolDruckerName(k) {
   return (k.einst && k.einst.drucker) || "";
 }
 
+// Drucker für alles andere als WBGs, normal auf A4 (Wunsch Patrick
+// 30. Oktober 2026: „der Drucker ist so eingerichtet, dass er das Papier
+// für die WBG nimmt, die anderen Sachen sollen normal A4 drucken“).
+// Gewählt unter Einstellungen → Dokumente, sonst der Standarddrucker des
+// Pool-Rechners. drucken.ps1 stellt bei diesen Aufträgen A4 und das
+// Papierfach „automatisch“ ein, auch wenn es derselbe Drucker ist.
+export function poolA4Drucker(k) {
+  k = k || konfig;
+  if (!k || alt.istExtern()) return "";
+  return (k.einst && k.einst.drucker_a4) || (k.stand && k.stand.standard) || "";
+}
+
 // Hat sich der Pool-Rechner in den letzten zwei Minuten gemeldet?
 export function poolLebt(k) {
   k = k || konfig;
@@ -100,10 +112,12 @@ export async function pdfSeitenAlsJpg(lib, daten) {
 // Druckauftrag ablegen und verfolgen.
 //  art "bilder": bilder = [Blob, …] (je Seite eines)
 //  art "excel":  quelle = Adresse der Datei, blatt = Name des Blatts
-export async function poolDrucken({ art, bilder, quelle, blatt, titel, kopien }) {
+//  a4: nicht der WBG-Drucker, sondern normal auf A4 (poolA4Drucker)
+export async function poolDrucken({ art, bilder, quelle, blatt, titel, kopien, a4 }) {
   const k = await poolDruckLaden();
-  const drucker = poolDruckerName(k);
-  if (!drucker) throw new Error("Unter Einstellungen → Dokumente ist kein Drucker gewählt.");
+  const drucker = a4 ? poolA4Drucker(k) : poolDruckerName(k);
+  if (!drucker) throw new Error(a4 ? "Der Pool-Rechner meldet keinen Drucker für A4."
+    : "Unter Einstellungen → Dokumente ist kein Drucker gewählt.");
   const id = (crypto.randomUUID && crypto.randomUUID())
     || "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) =>
       (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16));
@@ -118,13 +132,21 @@ export async function poolDrucken({ art, bilder, quelle, blatt, titel, kopien })
     }
   }
   const profil = alt.profil || {};
-  const r = await alt.zeitlimit(alt.db.from("druckauftraege").insert([{
+  const zeile = {
     id, erstellt_von: profil.id || null, wer: profil.full_name || profil.email || null,
     titel: titel || null, art, quelle: quelle || null, blatt: blatt || null, seiten,
     kopien: Math.max(1, Math.min(20, kopien || 1)), drucker,
-  }]), 10000, "Druckauftrag");
+  };
+  if (a4) zeile.a4 = true;
+  let r = await alt.zeitlimit(alt.db.from("druckauftraege").insert([zeile]), 10000, "Druckauftrag");
+  // Ohne sql/drucken-a4.sql kennt die Datenbank die Spalte noch nicht:
+  // dann ohne, gedruckt wird trotzdem auf dem A4-Drucker
+  if (r && r.error && a4 && /a4/.test(String(r.error.message || ""))) {
+    delete zeile.a4;
+    r = await alt.zeitlimit(alt.db.from("druckauftraege").insert([zeile]), 10000, "Druckauftrag");
+  }
   if (r && r.error) throw r.error;
-  verfolgen(id, "Planbüro", poolLebt(k));
+  verfolgen(id, a4 ? "Büro (A4)" : "Planbüro", poolLebt(k));
   return id;
 }
 

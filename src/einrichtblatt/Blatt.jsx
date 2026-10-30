@@ -15,7 +15,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
-import { inDerAppDrucken } from "../teile/drucken.js";
+import { inDerAppDrucken, istAppleFinger } from "../teile/drucken.js";
+import { poolDruckLaden, poolA4Drucker, poolDrucken } from "../teile/poolDruck.js";
+import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { werkzeugWaehlen, positionOeffnen } from "../seiten/bestellungen/PositionFenster.jsx";
 import { excelVorlesen, blattVonAnderem, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
   artikelHolen, artikelBezeichnung, STAMM_FELDER, WASCHGEBINDE, prgNummern, platzInGebrauch } from "./daten.js";
@@ -839,6 +841,32 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
     finally { setLaeuft(false); }
   };
+  // iPad und Handy: auf Wunsch über den Pool-Rechner normal auf A4 (seit
+  // 1.309.0, Wunsch Patrick 30. Oktober 2026), dort öffnet window.print()
+  // in der App auf dem Startbildschirm nichts
+  const [druckt, setDruckt] = useState(false);
+  const knopfDrucken = async () => {
+    if (druckt) return;
+    if (istAppleFinger() || alt.istTippgeraet()) {
+      const k = await poolDruckLaden();
+      if (poolA4Drucker(k)) {
+        const w = await auswahlDialog("Drucken", [
+          { wert: "a4", text: "Im Büro drucken (A4)" }, { wert: "hier", text: "Auf diesem Gerät drucken" }]);
+        if (!w) return;
+        if (w === "a4") {
+          setDruckt(true);
+          try {
+            const { blattJpgs } = await import("./pdfMachen.jsx");
+            const bilder = await blattJpgs(Object.assign({}, daten, { blatt, artikelBilder }), { auftrag, nur: seiteNr });
+            await poolDrucken({ art: "bilder", bilder, titel: "Einrichtblatt " + hocoNr + " " + (typ.name || ""), kopien: 1, a4: true });
+          } catch (f) { alt.meldung("Drucken ging nicht: " + alt.fehlertext(f), "fehler"); }
+          finally { setDruckt(false); }
+          return;
+        }
+      }
+    }
+    drucken();
+  };
   const drucken = () => {
     const k = seite.current && seite.current.querySelector(zseite ? "[data-eba-zseite]" : "[data-eba-seite]");
     if (!k) return;
@@ -979,7 +1007,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
                 {bildKnopf}
                 {excel && !nurLesen && <button className="knopf knopf--klein" data-eba-excel="" onClick={() => dokZeigen({ art: "einrichtblatt", titel: "Excel " + hocoNr, adresse: excel })}>Excel ansehen</button>}
                 {darf && daten.blatt && !daten.blatt.gut_am && <button className="knopf knopf--klein" data-eba-gut="" disabled={laeuft} onClick={gut}>EB OK</button>}
-                <button className="knopf knopf--klein" data-eba-drucken="" onClick={drucken}>Drucken</button>
+                <button className="knopf knopf--klein" data-eba-drucken="" onClick={knopfDrucken} disabled={druckt}>{druckt ? "Druckt …" : "Drucken"}</button>
                 <button className="knopf knopf--klein" data-zu="" onClick={zu}>Schliessen</button>
               </>}
         </div>

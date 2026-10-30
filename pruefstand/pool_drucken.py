@@ -173,17 +173,30 @@ with sync_playwright() as p:
     pruefe("Foto: eine JPG-Seite", len(ups) == 1 and ups[0]["typ"] == "image/jpeg"
            and pg.evaluate("TEST.daten.druckauftraege[0].seiten") == 1)
 
-    # Seit 1.171.0 nur bei WBGs: Zeichnung und Einrichtblatt drucken gleich auf dem Gerät
+    # Seit 1.309.0: alles andere vom iPad aus normal auf A4 über den
+    # Pool-Rechner (nicht der WBG-Drucker), ohne eigenen A4-Drucker der Standard
     oeffnen(pg, "https://x.invalid/hoch.pdf", "zeichnung")
-    tippen(pg, ".betrachter [data-drucken]", True)
-    pg.wait_for_function("document.getElementById('druckdatei') && window.__prints > 0", timeout=15000)
-    pruefe("Zeichnung: keine Auswahl, gleich auf dem Gerät", pg.locator("[data-druckwahl]").count() == 0
-           and pg.evaluate("TEST.daten.druckauftraege.length") == 0)
-    pg.evaluate("window.dispatchEvent(new Event('afterprint'))"); pg.wait_for_timeout(200)
+    tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(300)
+    pruefe("Zeichnung: Auswahl mit Im Büro drucken (A4)", pg.locator("[data-druckwahl]").count() == 1
+           and pg.inner_text("[data-pooldruck]").strip() == "Im Büro drucken (A4)")
+    if bilder: pg.screenshot(path=f"{AB}/pool-druck-a4.png")
+    tippen(pg, "[data-pooldruck]", True)
+    pg.wait_for_function("TEST.daten.druckauftraege.length === 1", timeout=15000)
+    a = pg.evaluate("TEST.daten.druckauftraege[0]")
+    pruefe("Zeichnung: Auftrag a4 auf dem Standarddrucker", a.get("a4") is True and a["drucker"] == "SHARP MX-3061" and a["seiten"] == 2)
+    pruefe("Meldung: Büro (A4)", any("Büro (A4)" in m for m in meldungen(pg)))
+    # Eigener A4-Drucker aus den Einstellungen
+    if f: print(f)
+    br.close()
+    br, pg, f = browser(p, True, MIT.replace("drucker: 'SHARP MX-3061' })", "drucker: 'SHARP MX-3061', drucker_a4: 'Microsoft Print to PDF' })"))
     oeffnen(pg, "", "blatt")
     tippen(pg, ".betrachter [data-drucken]", True); pg.wait_for_timeout(600)
-    pruefe("Einrichtblatt: keine Auswahl", pg.locator("[data-druckwahl]").count() == 0
-           and pg.evaluate("TEST.daten.druckauftraege.length") == 0)
+    pruefe("Einrichtblatt (Excel): Auswahl A4", pg.locator("[data-druckwahl]").count() == 1)
+    tippen(pg, "[data-pooldruck]", True)
+    pg.wait_for_function("TEST.daten.druckauftraege.length === 1", timeout=15000)
+    a = pg.evaluate("TEST.daten.druckauftraege[0]")
+    print(a)
+    pruefe("Einrichtblatt: Excel-Auftrag a4 auf dem A4-Drucker", a["art"] == "excel" and a.get("a4") is True and a["drucker"] == "Microsoft Print to PDF")
     pruefe("iPad: keine Seitenfehler", not f)
     if f: print(f)
 
@@ -219,6 +232,14 @@ with sync_playwright() as p:
     pg.wait_for_function("document.getElementById('druckdatei') && window.__prints > 0", timeout=15000)
     pruefe("Ohne Drucker: keine Auswahl, gleich der Druckdialog", pg.locator("[data-druckwahl]").count() == 0)
     pg.evaluate("window.dispatchEvent(new Event('afterprint'))")
+    br.close()
+    # PC mit Drucker: Zeichnung druckt wie bisher gleich am PC
+    br, pg, f2 = browser(p, False, MIT)
+    f += f2
+    oeffnen(pg, "https://x.invalid/quer.pdf", "zeichnung", False)
+    pg.click(".betrachter [data-drucken]")
+    pg.wait_for_function("document.getElementById('druckdatei') && window.__prints > 0", timeout=15000)
+    pruefe("PC: Zeichnung ohne Auswahl, gleich der Druckdialog", pg.locator("[data-druckwahl]").count() == 0)
     br.close()
     br, pg, f2 = browser(p, False, OHNE)
     f += f2

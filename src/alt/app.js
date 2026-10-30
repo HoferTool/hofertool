@@ -153,7 +153,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.308.0";
+const APP_VERSION = "1.309.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10376,7 +10376,7 @@ Object.assign(alt, {
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, zeichnungEntfernen, wbgEntfernen, einrichtblattEntfernen, ablageLoeschen,
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert, einstellungWert,
   meineRolle, zeichneSeite,
-  masseBerechnen, isMobil, zuHeute, hocoFenster, sucheDialog, serverStempel,
+  masseBerechnen, isMobil, istTippgeraet, zuHeute, hocoFenster, sucheDialog, serverStempel,
   stammdatenAufPlanwand, zeichnungAnheften, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,
   planVorratStarten, planVorratSchieben, planVorratEnde, aeltereNachladen,
   naechsterArbeitstag, APP_VERSION,

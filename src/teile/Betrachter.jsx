@@ -13,13 +13,13 @@ import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
 import { PdfAnsicht, pdfjs } from "./PdfAnsicht.jsx";
-import { inDerAppDrucken, pdfSeitenAlsBilder, perTeilenDrucken } from "./drucken.js";
+import { inDerAppDrucken, pdfSeitenAlsBilder, perTeilenDrucken, istAppleFinger } from "./drucken.js";
 import { ExcelAnsicht, excelDrucken } from "./ExcelAnsicht.jsx";
 import { istExcel } from "./excelLesen.js";
 import { usePfad, pfadKopieren } from "../daten/zeichnungPfad.jsx";
 import { wiederOeffner } from "./wiederherstellen.js";
 import { istZeichnung, darfDrehen, drehungSpeichern, pdfDrehen } from "../daten/zeichnungDrehen.js";
-import { poolDruckLaden, poolDruckerName, poolKannExcel, poolDrucken, pdfSeitenAlsJpg } from "./poolDruck.js";
+import { poolDruckLaden, poolDruckerName, poolA4Drucker, poolKannExcel, poolDrucken, pdfSeitenAlsJpg } from "./poolDruck.js";
 
 // „art“ nur, wenn die Adresse nichts verrät (Datei vom Gerät): "pdf",
 // "excel" oder "bild". Sonst entscheidet die Endung, und Excel gewinnt
@@ -166,7 +166,8 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
   useEffect(() => {
     let weg = false;
     poolDruckLaden().then((k) => {
-      if (!weg) setPool(poolDruckerName(k) ? { drucker: poolDruckerName(k), excel: poolKannExcel(k) } : null);
+      if (!weg) setPool(poolDruckerName(k) || poolA4Drucker(k)
+        ? { drucker: poolDruckerName(k), a4: poolA4Drucker(k), excel: poolKannExcel(k) } : null);
     });
     return () => { weg = true; };
   }, []);
@@ -182,7 +183,13 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
   // Ins Planbüro nur bei WBGs (seit 1.171.0, Wunsch Patrick 24. Oktober
   // 2026: „soll nur bei WBG stehen, sonst nicht nötig“); alles andere
   // druckt „Drucken“ gleich auf diesem Gerät.
-  const poolGeht = !!wbg && !!pool && (istXl ? pool.excel && /^https?:/i.test(adresse) : true);
+  // Alles andere (Zeichnung, Einrichtblatt, Dokumente) geht seit 1.309.0
+  // vom iPad und Handy aus normal auf A4 über den Pool-Rechner, nicht auf
+  // den WBG-Drucker mit dem speziellen Papier (Wunsch Patrick 30. Oktober
+  // 2026: „wichtig bei den iPads, am PC kann man ja einfach drucken“).
+  const a4 = !wbg && (istAppleFinger() || alt.istTippgeraet());
+  const poolGeht = !!pool && !!(a4 ? pool.a4 : wbg && pool.drucker)
+    && (istXl ? pool.excel && /^https?:/i.test(adresse) : !istSeite);
   const knopfDrucken = () => {
     if (druckt) return;
     if (poolGeht) { if (!wahl) setKopien(1); setWahl((w) => !w); return; }
@@ -195,14 +202,14 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
     try {
       if (istXl) {
         const reiter = wurzel.current && wurzel.current.querySelector("[data-blattreiter][aria-selected='true']");
-        await poolDrucken({ art: "excel", quelle: adresse, blatt: reiter ? reiter.textContent : null, titel, kopien });
+        await poolDrucken({ art: "excel", quelle: adresse, blatt: reiter ? reiter.textContent : null, titel, kopien, a4 });
       } else if (istPdf) {
         if (!pdf.daten) throw new Error("Die PDF liess sich nicht laden.");
         const seiten = await pdfSeitenAlsJpg(await pdfjs(), pdf.daten);
-        await poolDrucken({ art: "bilder", bilder: seiten.map((x) => x.blob), titel, kopien });
+        await poolDrucken({ art: "bilder", bilder: seiten.map((x) => x.blob), titel, kopien, a4 });
       } else {
         if (!pdf.blob) throw new Error("Das Bild liess sich nicht laden.");
-        await poolDrucken({ art: "bilder", bilder: [pdf.blob], titel, kopien });
+        await poolDrucken({ art: "bilder", bilder: [pdf.blob], titel, kopien, a4 });
       }
     } catch (f) {
       alt.meldung("Drucken ging nicht: " + alt.fehlertext(f), "fehler");
@@ -292,7 +299,7 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
             <button className="knopf knopf--klein" data-drucken="" onClick={knopfDrucken} disabled={druckt}
               aria-expanded={poolGeht ? wahl : undefined}>{druckt ? "Druckt …" : "Drucken"}</button>
             {wahl && <div className="druckwahl" data-druckwahl="" role="menu">
-              <button className="knopf knopf--haupt" data-pooldruck="" onClick={anPool}>Nur WBGs drucken</button>
+              <button className="knopf knopf--haupt" data-pooldruck="" onClick={anPool}>{a4 ? "Im Büro drucken (A4)" : "Nur WBGs drucken"}</button>
               <div className="druckwahl__kopien">
                 <span>Kopien</span>
                 <button className="knopf knopf--klein" aria-label="Weniger" data-kopienweniger=""

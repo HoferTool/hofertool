@@ -309,7 +309,8 @@ function PoolDrucker() {
   return (
     <Gruppe titel="Drucker am Pool-Rechner" id="pool-drucker"
       text={"iPad und Handy im WLAN Hofer&Co kommen nicht an den Drucker im Firmennetz. Ist hier ein Drucker gewählt, "
-        + "fragt „Drucken“ bei einer WBG, ob über den Pool-Rechner gedruckt werden soll. "
+        + "fragt „Drucken“ bei einer WBG, ob über den Pool-Rechner gedruckt werden soll. Alles andere (Zeichnung, "
+        + "Einrichtblatt, Dokumente) geht vom iPad und Handy aus auf Wunsch normal auf A4 über den Pool-Rechner. "
         + "Der Pool-Rechner schaut alle paar Sekunden nach und druckt."}>
       {daten ? <DruckerFormular werte={daten} /> : <div className="laedt">Wird geladen …</div>}
     </Gruppe>
@@ -320,14 +321,16 @@ function DruckerFormular({ werte }) {
   const einst = jsonOder(werte.druck, null) || {};
   const st = jsonOder(werte.druck_status, null);
   const [drucker, setDrucker] = useState(einst.drucker || "");
+  const [druckerA4, setDruckerA4] = useState(einst.drucker_a4 || "");
   const darf = alt.darfDokumenteUndSicherung();
   const liste = (st && st.drucker) || [];
   // Gewählter Drucker auch dann in der Liste, wenn der Pool-Rechner ihn (noch) nicht meldet
   const namen = drucker && !liste.includes(drucker) ? [drucker, ...liste] : liste;
+  const namenA4 = druckerA4 && !liste.includes(druckerA4) ? [druckerA4, ...liste] : liste;
 
   const speichern = async () => {
     const r = await alt.db.from("app_config").upsert([{ schluessel: "druck",
-      wert: JSON.stringify(Object.assign({}, einst, { drucker })) }]);
+      wert: JSON.stringify(Object.assign({}, einst, { drucker, drucker_a4: druckerA4 })) }]);
     if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return; }
     poolDruckLaden(true);
     alt.meldung(drucker ? "Drucker gespeichert. „Drucken“ fragt jetzt, wohin." : "Drucken über den Pool-Rechner ist aus.");
@@ -341,6 +344,15 @@ function DruckerFormular({ werte }) {
           onChange={(e) => setDrucker(e.target.value)}>
           <option value="">Keiner</option>
           {namen.map((n) => <option key={n} value={n}>{n}{st && st.standard === n ? " (Standard)" : ""}</option>)}
+        </select>
+      </Zeile>
+      <Zeile titel="Drucker für A4" text={"Für alles ausser WBGs, vom iPad und Handy aus. Gedruckt wird immer A4 aus dem "
+        + "Papierfach „automatisch“, auch wenn es derselbe Drucker ist. Leer = Standarddrucker des Pool-Rechners"
+        + (st && st.standard ? " (" + st.standard + ")." : ".")}>
+        <select id="pooldrucker-a4" aria-label="Drucker für A4" value={druckerA4} disabled={!darf}
+          onChange={(e) => setDruckerA4(e.target.value)}>
+          <option value="">Standarddrucker</option>
+          {namenA4.map((n) => <option key={n} value={n}>{n}{st && st.standard === n ? " (Standard)" : ""}</option>)}
         </select>
       </Zeile>
       <div className="knopfreihe es-knopfreihe es-knopfreihe--ende">

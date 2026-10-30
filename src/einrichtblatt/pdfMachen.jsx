@@ -23,9 +23,10 @@ function bilderFertig(el) {
   ]);
 }
 
-export async function blattPdf(hocoNr, typId) {
-  const daten = await blattLaden(hocoNr, typId);
-  if (!daten.blatt) throw new Error("Kein Einrichtblatt in der App");
+// Zeichnet Seiten eines Blatts unsichtbar und gibt sie je als Canvas an
+// „jede“ weiter. nur: undefined = alle Seiten, 0 = Werkzeugblatt,
+// 1, 2 … = die weiteren Seiten.
+async function seitenZeichnen(daten, { auftrag, nur } = {}, jede) {
   const seiten = Array.isArray(daten.blatt.seiten) ? daten.blatt.seiten : [];
   const huelle = document.createElement("div");
   huelle.className = "eb-pdf-buehne";
@@ -34,14 +35,16 @@ export async function blattPdf(hocoNr, typId) {
   huelle.style.cssText = "position:fixed;left:-30000px;top:0;width:1200px;pointer-events:none;background:#fff;color:#000";
   document.body.appendChild(huelle);
   const wurzel = createRoot(huelle);
+  const mit = (i) => nur === undefined || nur === i;
   try {
     flushSync(() => wurzel.render(
       <div>
-        <div data-pdf-seite="" data-quer="1" style={{ width: 1123, height: 794, overflow: "hidden", background: "#fff" }}>
+        {mit(0) && <div data-pdf-seite="" data-quer="1" style={{ width: 1123, height: 794, overflow: "hidden", background: "#fff" }}>
           <BlattSeite typ={daten.typ} paths={daten.paths} teil={daten.teil} typDaten={daten.typDaten} blatt={daten.blatt}
-            artikelBilder={daten.artikelBilder || {}} />
-        </div>
+            auftrag={auftrag} artikelBilder={daten.artikelBilder || {}} />
+        </div>}
         {seiten.map((s, i) => {
+          if (!mit(i + 1)) return null;
           const [w, h] = seitenMass(s);
           return <div key={i} data-pdf-seite="" data-quer={s.quer ? "1" : ""} style={{ width: w, height: h, overflow: "hidden", background: "#fff" }}>
             <ZusatzSeite seite={s} />
@@ -51,19 +54,37 @@ export async function blattPdf(hocoNr, typId) {
     await new Promise((ok) => requestAnimationFrame(() => setTimeout(ok, 50)));
     try { await document.fonts.ready; } catch (f) { /* dann mit dem, was da ist */ }
     await bilderFertig(huelle);
-    let pdf = null;
     for (const el of huelle.querySelectorAll("[data-pdf-seite]")) {
-      const quer = !!el.dataset.quer;
       const bild = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
-      const [w, h] = quer ? [297, 210] : [210, 297];
-      if (!pdf) pdf = new jsPDF({ unit: "mm", format: "a4", orientation: quer ? "landscape" : "portrait", compress: true });
-      else pdf.addPage("a4", quer ? "landscape" : "portrait");
-      pdf.addImage(bild.toDataURL("image/jpeg", 0.88), "JPEG", 0, 0, w, h);
+      await jede(bild, !!el.dataset.quer);
     }
-    pdf.setProperties({ title: "Einrichtblatt " + hocoNr + " " + (daten.typ.name || ""), creator: "HoferTool" });
-    return { blob: pdf.output("blob"), typName: daten.typ.name || "" };
   } finally {
     wurzel.unmount();
     huelle.remove();
   }
+}
+
+export async function blattPdf(hocoNr, typId) {
+  const daten = await blattLaden(hocoNr, typId);
+  if (!daten.blatt) throw new Error("Kein Einrichtblatt in der App");
+  let pdf = null;
+  await seitenZeichnen(daten, {}, (bild, quer) => {
+    const [w, h] = quer ? [297, 210] : [210, 297];
+    if (!pdf) pdf = new jsPDF({ unit: "mm", format: "a4", orientation: quer ? "landscape" : "portrait", compress: true });
+    else pdf.addPage("a4", quer ? "landscape" : "portrait");
+    pdf.addImage(bild.toDataURL("image/jpeg", 0.88), "JPEG", 0, 0, w, h);
+  });
+  pdf.setProperties({ title: "Einrichtblatt " + hocoNr + " " + (daten.typ.name || ""), creator: "HoferTool" });
+  return { blob: pdf.output("blob"), typName: daten.typ.name || "" };
+}
+
+// Seiten als JPG für den Druck über den Pool-Rechner (Einrichtblatt vom
+// iPad aus auf A4, Wunsch Patrick 30. Oktober 2026). daten wie im Fenster.
+export async function blattJpgs(daten, optionen) {
+  const blobs = [];
+  await seitenZeichnen(daten, optionen, async (bild) => {
+    blobs.push(await new Promise((ok) => bild.toBlob(ok, "image/jpeg", 0.9)));
+    bild.width = bild.height = 0; // Speicher auf dem iPad gleich wieder frei
+  });
+  return blobs;
 }
