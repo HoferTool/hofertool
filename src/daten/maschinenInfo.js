@@ -72,6 +72,10 @@ export function batterieText(info) {
 }
 
 // Für die Startseite: alle Maschinen mit fälligen Batterien
+// Index-Maschinen haben keine Backup-Batterien (Patrick 30. Oktober 2026):
+// dort weder Karte auf der Seite der Maschine noch Hinweis auf der Startseite
+export const ohneBatterien = (typName) => /^\s*index/i.test(typName || "");
+
 export async function faelligeBatterien() {
   const r = await alt.zeitlimit(alt.db.from("maschinen_info")
     .select("*")
@@ -83,8 +87,10 @@ export async function faelligeBatterien() {
   const faellig = (r.data || []).filter(batterieFaellig);
   if (!faellig.length) return [];
   const maschinen = await alt.ladeAlleMaschinen();
+  const t = await alt.zeitlimit(alt.db.from("machine_types").select("id, name"), 10000, "Typen");
+  const typName = (id) => ((t.data || []).find((x) => x.id === id) || {}).name;
   return faellig.map((i) => ({ ...i, m: maschinen.find((m) => m.id === i.machine_id) }))
-    .filter((x) => x.m)
+    .filter((x) => x.m && !ohneBatterien(typName(x.m.type_id)))
     .sort((a, b) => String(a.batterie_faellig).localeCompare(String(b.batterie_faellig)));
 }
 

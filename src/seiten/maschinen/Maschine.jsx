@@ -21,7 +21,7 @@ import { jeMaterialLaden, jeMaterialSpeichern, blattSchluessel } from "../../ein
 import { betrachter } from "../../teile/Betrachter.jsx";
 import { UnterlagenListe } from "../../teile/Unterlagen.jsx";
 import { infoLaden, infoSetzen, wartungLaden, anhangHochladen, plusJahre, batterieFaellig,
-  batterieText, tageBis, fehltSql, SQL_FEHLT, BATTERIE_JAHRE, istPdf, istBild,
+  batterieText, tageBis, ohneBatterien, fehltSql, SQL_FEHLT, BATTERIE_JAHRE, istPdf, istBild,
   BATTERIE_ARTEN, batterieArtTeilen, batterieArtZusammen, batterienText } from "../../daten/maschinenInfo.js";
 
 const langDatum = (iso) => iso ? alt.kurzDatum(iso) + iso.slice(0, 4) : "";
@@ -51,7 +51,7 @@ export default function MaschineSeite({ m, typ, park }) {
       {!info.fehler && info.laedt && !info.daten && <div className="laedt">Wird geladen …</div>}
       {!info.fehler && (!info.laedt || info.daten !== null) && <>
         <InfoFeld m={m} info={info.daten} darf={darf} neu={info.neu} />
-        <Batterien m={m} info={info.daten} darf={darf} neu={info.neu} />
+        {!ohneBatterien(typ) && <Batterien m={m} info={info.daten} darf={darf} neu={info.neu} />}
       </>}
       <JeMaterial m={m} />
       {!sqlFehlt && <Wartung m={m} darf={darf} />}
