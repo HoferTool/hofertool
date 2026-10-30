@@ -116,31 +116,15 @@ with sync_playwright() as p:
     w.locator(".pd-zeile[data-w='a1']").click(); pg.wait_for_timeout(200)
     w.locator("#pd-ja").click(); pg.wait_for_timeout(500)
     pruefe("Artikel am Platz", "MTEC-452410" in pf.inner_text() and "Vischer & Bolli AG" in pf.inner_text())
-    pf.locator("[data-pf-bild]").click()
-    PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
-    pf.locator("[data-bib-hoch]").set_input_files({"name": "mein-werkzeug.png", "mimeType": "image/png", "buffer": PNG})
-    pg.wait_for_timeout(1200)
-    eb = pg.evaluate("TEST.daten.eb_bilder")
-    pruefe("Eigenes Bild hochgeladen", len(eb) == 1 and pf.locator("[data-pf-bild] .eba-svg--foto").count() == 1)
-    pg.screenshot(path="einrichtblatt_app_platz.png")
+    # Keine Bilder und Sinnbilder mehr (1.279.1)
+    pruefe("Keine Bildwahl im Platz", pf.locator("[data-pf-bild]").count() == 0 and pf.locator("[data-pf='ohneBild']").count() == 0)
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(500)
-    schl = "eigen:" + eb[0]["id"]
-    pruefe("Bild am Artikel gemerkt", pg.evaluate("TEST.daten.artikel_bild.find(x => x.article_id === 'a1')?.bild") == schl)
     # Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (1.209.0)
     t200 = "[data-platz='T200'] "
     zeilen = [pg.inner_text(t200 + k).strip() for k in (".eba-her", ".eba-wz", ".eba-wz-bez")]
     pruefe("Blatt: Lieferant, Artikel-Nr., Beschreibung je eine Zeile", zeilen == ["Vischer & Bolli AG", "MTEC-452410", "R0.40 CCMT"])
     pruefe("Zeilen in dieser Reihenfolge", pg.evaluate("""[...document.querySelector("[data-platz='T200']").children].slice(-3).map(e => e.className).join(' ')""") == "eba-her eba-wz eba-wz-bez")
-    pruefe("T100 bekommt das Artikelbild auch", pg.locator(f"[data-platz='T100'] [data-bild='{schl}']").count() == 1)
-
-    # Sinnbilder der Norm in der Bibliothek (1.184.0)
-    pg.click("[data-platz='T400']"); pg.wait_for_selector("[data-platzfenster='T400']")
-    pf = pg.locator("[data-platzfenster='T400']")
-    pf.locator("[data-pf-bild]").click(); pg.wait_for_timeout(200)
-    pruefe("Sinnbilder in der Auswahl", pf.locator(".eba-pf-bib--norm").count() >= 16)
-    pf.locator("[data-bib='gewinde']").click(); pg.wait_for_timeout(200)
-    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(400)
-    pruefe("Sinnbild Gewinde am Platz", pg.locator("[data-platz='T400'] [data-bild='gewinde'] svg").count() == 1)
+    pruefe("Keine Bilder auf dem Blatt", pg.locator("[data-platz] [data-bild]").count() == 0)
 
     # Platz T300: Spezialwerkzeug
     pg.click("[data-platz='T300']"); pg.wait_for_selector("[data-platzfenster='T300']")
@@ -220,9 +204,6 @@ with sync_playwright() as p:
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
     pruefe("Geo-Offset im Feld", "X 0.12" in pg.inner_text("[data-platz='T100'] .eba-geo"))
     # Notiz ohne Bild: waagrecht und senkrecht mittig, ans Feld angepasst (1.256.0)
-    pg.click("[data-platz='T100']"); pg.wait_for_selector("[data-platzfenster='T100']")
-    pf.locator("[data-pf='ohneBild']").check()
-    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
     gm = pg.evaluate("""() => { const g = document.querySelector('[data-platz="T100"] .eba-geo'), f = g.parentElement;
       const a = g.getBoundingClientRect(), b = f.getBoundingClientRect();
       return { dx: Math.abs((a.left + a.right) / 2 - (b.left + b.right) / 2), dy: Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2),
@@ -232,9 +213,6 @@ with sync_playwright() as p:
     pruefe("Notiz mittig", gm["dx"] < 2 and gm["dy"] < 2)
     pruefe("Notiz grösser und passt", gm["gross"] > 11 and gm["passt"])
     pg.locator("[data-platz='T100']").screenshot(path="einrichtblatt_app_notiz_mitte.png")
-    pg.click("[data-platz='T100']"); pg.wait_for_selector("[data-platzfenster='T100']")
-    pf.locator("[data-pf='ohneBild']").uncheck()
-    pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
     hd = pg.evaluate("""() => { const t = document.querySelector('[data-platz="T200"] .eba-tk');
       const l = t.querySelector('.eba-tk-links').getBoundingClientRect(), r = t.querySelector('.eba-tk-rechts').getBoundingClientRect();
       return l.left < r.left; }""")

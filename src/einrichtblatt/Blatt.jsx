@@ -27,6 +27,8 @@ import { ohneFa } from "./excelEinlesen.js";
 import { istMaterialBlatt } from "./jeMaterial.js";
 
 // Ein Bild aus der Bibliothek: Sinnbild der Norm oder hochgeladen
+const BILDER_AN = false;
+
 export function BildZeichnung({ schluessel, className }) {
   const b = bildDaten(schluessel);
   if (b && b.svg) return <span className={"eba-svg " + (className || "")} data-bild={schluessel} title={b.name}
@@ -189,7 +191,10 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
       : pfad[nr] ? PFADFARBE[pfad[nr].nummer] || GRAU : GRAU);
   const zelle = (nr, ri, si) => {
     const p = plaetze[nr] || {};
-    const bild = platzBild(p, artikelBilder);
+    // Keine Bilder und Sinnbilder mehr in den Werkzeugfeldern (seit 1.279.1,
+    // Wunsch Patrick 30. Oktober 2026); gewählte Bilder bleiben in den
+    // Daten, falls sie doch zurückkommen sollen
+    const bild = BILDER_AN ? platzBild(p, artikelBilder) : null;
     // Beim Ansehen: antippen bestellt das Werkzeug (seit 1.271.0)
     const bestellbar = !bearbeiten && bestellen && p.article_id && !p.ungeprueft;
     return (
@@ -330,16 +335,16 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
       <div className="eba-pf-kopf"><b>{platzName(nr)}{titel ? " · " + titel : ""}</b>
         <button className="knopf knopf--klein knopf--still" data-pf-zu="" onClick={zu}>✕</button></div>
       <div className="eba-pf-oben">
-        <button className="eba-pf-bildknopf" data-pf-bild="" onClick={() => setBildWahl(!bildWahl)} title="Bild wählen">
+        {BILDER_AN && <button className="eba-pf-bildknopf" data-pf-bild="" onClick={() => setBildWahl(!bildWahl)} title="Bild wählen">
           {bild ? <BildZeichnung schluessel={bild.schluessel} /> : <span className="eba-plus">Bild<br />wählen</span>}
           <small>{!bild ? "" : bild.art === "gemerkt" ? "gemerkt" : "gewählt"}</small>
-        </button>
+        </button>}
         <div className="eba-pf-felder">
           <label className="feld"><span>Tätigkeit</span><input data-pf="taetigkeit" value={p.taetigkeit || ""} onChange={f("taetigkeit")} /></label>
           <label className="feld"><span>Mass</span><input data-pf="mass" value={p.mass || ""} onChange={f("mass")} /></label>
         </div>
       </div>
-      {bildWahl && <Bibliothek aktiv={bild && bild.schluessel}
+      {BILDER_AN && bildWahl && <Bibliothek aktiv={bild && bild.schluessel}
         waehlen={(k) => { setP(Object.assign({}, p, { bild: k })); setBildWahl(false); setBildGewaehlt(true); }} />}
       <div className="eba-pf-werkzeug" data-pf-werkzeug="">
         <span className="eba-pf-titel">Werkzeug</span>
@@ -360,10 +365,10 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
             onClick={() => setP(Object.assign({}, p, { werkzeug: "", bezeichnung: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false }))}>Entfernen</button>}
         </div>
       </div>
-      <label className="feld"><span>Geo-Offset, nur wenn nötig (steht über dem Bild)</span>
+      <label className="feld"><span>Geo-Offset, nur wenn nötig</span>
         <textarea data-pf="geo" rows={2} value={p.geo || ""} onChange={f("geo")} placeholder="z. B. X 0.12  Z -0.05" /></label>
-      <label className="eba-pf-check"><input type="checkbox" data-pf="ohneBild" checked={!!p.ohneBild}
-        onChange={(e) => setP(Object.assign({}, p, { ohneBild: e.target.checked }))} /> Kein Bild auf dem Blatt</label>
+      {BILDER_AN && <label className="eba-pf-check"><input type="checkbox" data-pf="ohneBild" checked={!!p.ohneBild}
+        onChange={(e) => setP(Object.assign({}, p, { ohneBild: e.target.checked }))} /> Kein Bild auf dem Blatt</label>}
       <div className="eba-pf-zeile">
         <button className={"eba-pf-hd" + (p.hd ? " eba-pf-hd--an" : "")} data-pf="hd" aria-pressed={!!p.hd}
           onClick={() => setP(Object.assign({}, p, { hd: !p.hd }))}>HD {p.hd ? "ein" : "aus"}</button>

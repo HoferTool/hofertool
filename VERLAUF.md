@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.279.1** (30. Oktober 2026) Einrichtblatt: keine Bilder und Sinnbilder mehr in den Werkzeugfeldern, keine Bildwahl im Platz (Wunsch Patrick).
 - **1.275.1** (30. Oktober 2026) Bestellen aus dem Einrichtblatt: Notiz bleibt leer, kein „Artikel fotografieren“ im Fenster (Wunsch Patrick).
 - **1.279.0** (30. Oktober 2026) Werkzeugwechsel SW wieder **wie bei den SB-Maschinen** (Wunsch Patrick: „mach wieder SW wie bei SB“): normale Platzwahl, Historie als Blatt „Plattenwechsel“ mit Papierkorb je Wechsel; die eigene SW-Ansicht (`SwWechsel.jsx`) ist entfernt. Test `sw_wechsel.py` neu.
 - **1.278.0** (30. Oktober 2026) Werkzeugwechsel SW **einfacher** (Wunsch Patrick: „einfach Standzeit vom EB nehmen … 200/800 mit einem Balken und gut ist“): je Karte nur „Stück seit Wechsel / Standzeit aus dem EB“ mit Balken, Standzeit antippen ändert sie im Einrichtblatt, keine Schätzung mehr; der Verlauf ist ein eigener Knopf oben. Test `sw_wechsel.py`.
