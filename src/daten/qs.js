@@ -48,6 +48,7 @@ export async function qsSpeichern(j, m, stueckRoh, notizRoh) {
   // Statistik (sql/qs-ausschuss-sicher.sql)
   if (Array.isArray(data) && data[0]) alt.merkeSchritt("Ausschuss melden",
     [alt.rueckSetz(TABELLE, { zurueck: true }, { id: data[0].id }), alt.rueckWeg(TABELLE, { id: data[0].id })]);
+  geaendert();
   alt.meldung("Gemeldet. Steht jetzt im Pad Mode von " + name + ".", "gut");
   return true;
 }
@@ -65,15 +66,23 @@ export async function qsQuittieren(meldung) {
   const { error } = await alt.db.from(TABELLE).delete().eq("id", meldung.id);
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return false; }
   alt.merkeSchritt("Meldung der Qualitätssicherung quittieren", alt.rueckRein(TABELLE, meldung));
+  geaendert();
   alt.meldung("Quittiert.", "gut");
   return true;
 }
 
+// Auf diesem Gerät gemeldet oder quittiert: Knopf „Offene Meldungen“
+// und Wetter-Kachel sofort nachziehen, ohne auf Realtime zu warten
+const EREIGNIS = "hofer-qs-geaendert";
+function geaendert() { window.dispatchEvent(new Event(EREIGNIS)); }
+
 // Bei jeder Änderung an den Meldungen, über Realtime; null, wenn es
 // das nicht gibt. Gibt eine Funktion zum Abmelden zurück.
 export function qsBeobachten(rueckruf) {
+  window.addEventListener(EREIGNIS, rueckruf);
+  const los = () => window.removeEventListener(EREIGNIS, rueckruf);
   const db = alt.db;
-  if (!db || typeof db.channel !== "function") return () => {};
+  if (!db || typeof db.channel !== "function") return los;
   let entpreller = null;
   const kanal = db.channel("qs-" + Date.now() + "-" + Math.random().toString(36).slice(2))
     .on("postgres_changes", { event: "*", schema: "public", table: TABELLE }, () => {
@@ -81,7 +90,7 @@ export function qsBeobachten(rueckruf) {
       entpreller = setTimeout(rueckruf, 300);
     });
   kanal.subscribe();
-  return () => { clearTimeout(entpreller); try { db.removeChannel(kanal); } catch (f) { /* egal */ } };
+  return () => { los(); clearTimeout(entpreller); try { db.removeChannel(kanal); } catch (f) { /* egal */ } };
 }
 
 export function wannText(iso) {

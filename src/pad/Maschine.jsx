@@ -27,7 +27,7 @@ import { einrichtblattHinweis } from "../einrichtblatt/PadHinweis.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
 import { mahnBilder, escobarDarf } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
-import { useQsMeldungen, QsMeldungen } from "./QsMeldung.jsx";
+import { useQsMeldungen, QsMeldungen, PadMeldungenKnopf } from "./QsMeldung.jsx";
 import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitSetzen, artInfoFragen, laengeText,
   laengeSetzen } from "../daten/stueckzahl.js";
 import { laengeVersuchen } from "../daten/material.js";
@@ -661,6 +661,7 @@ export default function Maschine({ d }) {
         </>}
       </div>
       <GeraetMarke />
+      <PadMeldungenKnopf />
       <PadNeuLadenKnopf />
       <button className="pad__zu" data-padzu="" onClick={() => alt.padSchliessen()}
         aria-label="Schliessen">✕<span className="pad__zutext"> Schliessen</span></button>

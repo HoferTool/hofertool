@@ -21,6 +21,7 @@ import { alt, reactAufraeumen } from "../bruecke.jsx";
 import Maschine, { maschineLaden } from "./Maschine.jsx";
 import QsCheck, { qsLaden } from "./QsCheck.jsx";
 import { padGeraet, geraetSetzen, istPadKonto, GeraetMarke } from "./geraet.jsx";
+import { PadMeldungenKnopf } from "./QsMeldung.jsx";
 export { padGeraetZustand } from "./geraet.jsx";
 
 let wurzel = null, huelle = null, zaehler = 0;
@@ -82,6 +83,7 @@ export function PadKopf({ titel, zurueck }) {
         : <span className="pad__zurueck pad__zurueck--leer" />}
       <span className="pad__titel">{titel}</span>
       <GeraetMarke />
+      <PadMeldungenKnopf />
       <PadNeuLadenKnopf />
       <button className="pad__zu" data-padzu="" onClick={() => alt.padSchliessen()}
         aria-label="Schliessen">✕<span className="pad__zutext"> Schliessen</span></button>

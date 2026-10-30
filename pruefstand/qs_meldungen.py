@@ -36,8 +36,14 @@ def zumPad(pg):
     return pg.evaluate("""() => { const nr = document.querySelector('#pad .pad-wert--gross').textContent;
         const j = TEST.daten.jobs.find(x => x.job_number === nr && !x.ended_at); return j && j.machine_id; }""")
 
+def zuQsCheck(pg):
+    if pg.locator("#pad").count(): pg.click("#pad [data-padzu]"); pg.wait_for_timeout(500)
+    pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(700)
+    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
+    pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector("#pad [data-qsfort]")
+
 def melden(pg, mid, stk, notiz):
-    pg.click(f"[data-qsmelden='{mid}']"); pg.wait_for_selector(".dialog-huelle [data-ja]")
+    pg.click(f"#pad [data-qsfort='{mid}']"); pg.wait_for_selector(".dialog-huelle [data-ja]")
     feld = pg.locator(".dialog-huelle input").first
     if feld.get_attribute("readonly") is None: feld.fill(stk)
     else:
@@ -62,28 +68,31 @@ with sync_playwright() as p:
     pg.wait_for_timeout(400)
     pg.click("#pad [data-padzu]"); pg.wait_for_timeout(700)
 
-    # Seite QS im Menü
-    if not pg.locator("a[href='#qs'], [data-pfad='qs'], a[href='#/qs']").count():
-        fehler.append("QS nicht in der Navigation")
-    pg.evaluate("location.hash='#qs'"); pg.wait_for_selector(f"[data-qsmelden='{mid}']")
-    if "Keine offenen Meldungen" not in pg.inner_text("#inhalt"): fehler.append("Leere Liste ohne Hinweis")
-    n = pg.locator("[data-qsmelden]").count()
-    soll = pg.evaluate("Object.keys(TEST.daten.jobs.filter(j => !j.ended_at && ['laeuft','ruesten'].includes(j.plan_status)).reduce((a, j) => (a[j.machine_id] = 1, a), {})).length")
-    if n != soll: fehler.append(f"{soll} Maschinen mit Auftrag erwartet, {n} da")
-    # Pflichtfelder: ohne Notiz kein Speichern
-    pg.click(f"[data-qsmelden='{mid}']"); pg.wait_for_selector(".dialog-huelle [data-ja]")
-    pg.locator(".dialog-huelle input").first.fill("12"); pg.click(".dialog-huelle [data-ja]"); pg.wait_for_timeout(400)
-    if not pg.locator(".dialog-huelle").count(): fehler.append("Ohne Notiz gespeichert")
-    pg.click(".dialog-huelle [data-nein]"); pg.wait_for_timeout(400)
+    # Keine Seite QS mehr im Menü (seit 1.310.0), gemeldet wird im QS Check des Pads
+    if pg.locator("a[href='#qs'], [data-pfad='qs'], a[href='#/qs']").count():
+        fehler.append("QS noch in der Navigation")
+    pg.evaluate("location.hash='#qs'"); pg.wait_for_timeout(800)
+    if pg.locator("[data-qsmelden]").count(): fehler.append("Seite QS noch erreichbar")
+    zuQsCheck(pg)
+    if pg.inner_text("#pad [data-padmeldungenzahl]") != "0": fehler.append("Zahl am Knopf ohne Meldung nicht 0")
+    pg.click("#pad [data-padmeldungen]"); pg.wait_for_selector("#qs-offen-fenster #qs-keine")
+    pg.click("#qs-offen-fenster [data-nein]"); pg.wait_for_timeout(300)
     melden(pg, mid, "120", "Grat am Einstich, 120 Stk. aussortiert")
     d = pg.evaluate("TEST.daten.qs_meldungen.map(x => ({...x}))")
     if len(d) != 1 or d[0].get("stueck") != 120 or d[0].get("machine_id") != mid:
         fehler.append("Meldung falsch gespeichert: " + str(d))
     if pg.evaluate("TEST.daten.production_records.some(z => z.quantity < 0)"): fehler.append("Etwas automatisch abgezogen")
-    pg.wait_for_selector("#qs-meldungen [data-qsmeldung]")
-    t = pg.inner_text("#qs-meldungen")
+    pg.wait_for_timeout(800)
+    if pg.inner_text("#pad [data-padmeldungenzahl]") != "1": fehler.append("Zahl am Knopf nach Meldung nicht 1")
+    if "pad__meldungen--offen" not in (pg.get_attribute("#pad [data-padmeldungen]", "class") or ""):
+        fehler.append("Knopf nicht rot mit offener Meldung")
+    pg.click("#pad [data-padmeldungen]"); pg.wait_for_selector("#qs-offen-fenster #qs-meldungen [data-qsmeldung]")
+    t = pg.inner_text("#qs-offen-fenster")
     if "120" not in t or "Grat" not in t: fehler.append("Meldung nicht in der Liste: " + t)
-    if BILDER: pg.screenshot(path=BILDER + "/qs-seite.png", full_page=True)
+    if BILDER: pg.wait_for_timeout(900); pg.screenshot(path=BILDER + "/qs-offen-fenster.png")
+    pg.click("#qs-offen-fenster [data-nein]"); pg.wait_for_timeout(300)
+    if BILDER: pg.screenshot(path=BILDER + "/qs-pad-knopf.png")
+    pg.click("#pad [data-padzu]"); pg.wait_for_timeout(700)
 
     # Im Pad anstelle des Wetters
     zumPad(pg)
@@ -98,16 +107,19 @@ with sync_playwright() as p:
     if pg.evaluate("TEST.daten.qs_meldungen.length") != 0: fehler.append("Quittieren hat nicht gelöscht")
     pg.click("#pad [data-padzu]"); pg.wait_for_timeout(700)
 
-    # Quittieren auf der Seite
-    pg.evaluate("location.hash='#qs'"); pg.wait_for_selector(f"[data-qsmelden='{mid}']")
+    # Quittieren im Fenster „Offene Meldungen“
+    zuQsCheck(pg)
     melden(pg, mid, "5", "Masshaltig nicht ok")
-    pg.wait_for_selector("[data-qsquittieren]"); pg.click("[data-qsquittieren]"); pg.wait_for_timeout(900)
-    if pg.evaluate("TEST.daten.qs_meldungen.length") != 0: fehler.append("Seite: Quittieren hat nicht gelöscht")
-    if not pg.locator("#qs-keine").count(): fehler.append("Seite nach Quittieren nicht leer")
+    pg.click("#pad [data-padmeldungen]"); pg.wait_for_selector("#qs-offen-fenster [data-qsquittieren]")
+    pg.click("#qs-offen-fenster [data-qsquittieren]"); pg.wait_for_timeout(900)
+    if pg.evaluate("TEST.daten.qs_meldungen.length") != 0: fehler.append("Fenster: Quittieren hat nicht gelöscht")
+    if not pg.locator("#qs-offen-fenster #qs-keine").count(): fehler.append("Fenster nach Quittieren nicht leer")
+    pg.click("#qs-offen-fenster [data-nein]"); pg.wait_for_timeout(300)
     # Rückgängig von „Ausschuss melden“ vermerkt zuerst zurueck, damit die
     # Datenbank die Menge auch aus der Statistik nimmt (1.186.1); jedes
     # andere Löschen zählt dort als Quittieren
     melden(pg, mid, "3", "Falsch gemeldet")
+    pg.click("#pad [data-padzu]"); pg.wait_for_timeout(700)
     vorher = pg.evaluate("TEST.protokoll.length")
     pg.click("#rueck-knopf"); pg.wait_for_timeout(1000)
     arten = pg.evaluate(f"TEST.protokoll.slice({vorher}).filter(x => x.tabelle === 'qs_meldungen' && x.art !== 'select').map(x => x.art)")
@@ -141,8 +153,8 @@ with sync_playwright() as p:
     # iPad mit Finger: Stück über den Zifferblock der App, keine Tastatur;
     # Quittieren-Knopf mit heller Schrift auf dunklem Grund (1.92.1)
     ip = seite(br, 820, 1180, True)
-    ip.evaluate("location.hash='#qs'"); ip.wait_for_selector(f"[data-qsmelden='{mid}']")
-    ip.click(f"[data-qsmelden='{mid}']"); ip.wait_for_selector("#qsf-stueck")
+    zuQsCheck(ip)
+    ip.click(f"#pad [data-qsfort='{mid}']"); ip.wait_for_selector("#qsf-stueck")
     if ip.get_attribute("#qsf-stueck", "inputmode") != "none": fehler.append("iPad: Stückfeld holt Tastatur")
     if ip.get_attribute("#qsf-notiz", "inputmode") not in (None, "text"): fehler.append("iPad: Notiz ohne normale Tastatur")
     ip.click("#qsf-stueck"); ip.wait_for_selector(".zifferblock")
@@ -153,6 +165,7 @@ with sync_playwright() as p:
     ip.fill("#qsf-notiz", "Grat"); ip.click("#qs-fenster [data-ja]"); ip.wait_for_timeout(1000)
     d = ip.evaluate("TEST.daten.qs_meldungen.map(x => ({...x}))")
     if len(d) != 1 or d[0].get("stueck") != 17: fehler.append("iPad: Meldung über Zifferblock falsch: " + str(d))
+    ip.click("#pad [data-padzu]"); ip.wait_for_timeout(500)
     zumPad(ip); ip.wait_for_selector("#pad [data-padqsquittieren]", timeout=8000)
     farbe = ip.evaluate("""() => { const c = getComputedStyle(document.querySelector('#pad [data-padqsquittieren]'));
         return [c.color, c.webkitTextFillColor, c.backgroundColor]; }""")
@@ -162,11 +175,9 @@ with sync_playwright() as p:
     ip.click("#pad [data-padqsquittieren]"); ip.wait_for_timeout(900)
     if ip.evaluate("TEST.daten.qs_meldungen.length") != 0: fehler.append("iPad: nicht quittiert")
 
-    # Handy
+    # Handy: Knopf ohne Text, nur die Zahl
     if BILDER:
         h = seite(br, 390, 844, True)
-        h.evaluate("location.hash='#qs'"); h.wait_for_selector("[data-qsmelden]")
-        melden(h, h.get_attribute("[data-qsmelden]", "data-qsmelden"), "30", "Kratzer")
-        h.wait_for_selector("[data-qsquittieren]"); h.screenshot(path=BILDER + "/qs-handy.png", full_page=True)
+        zuQsCheck(h); h.screenshot(path=BILDER + "/qs-pad-handy.png")
     br.close()
 print("QS-Meldungen | Fehler:", "; ".join(fehler) if fehler else "keine")

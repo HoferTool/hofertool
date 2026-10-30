@@ -12,7 +12,6 @@ import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { aehnlicheTreffer } from "../daten/aehnlich.js";
 import Rechner from "../seiten/Rechner.jsx";
-import Qs from "../seiten/Qs.jsx";
 import Statistik, { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import "../seiten/Kalender.jsx";
@@ -153,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.316.0";
+const APP_VERSION = "1.317.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3031,7 +3030,7 @@ const ROLLEN = {
 function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
-  if ((pfad === "material" || pfad === "qs" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen") && meineRolle() === "dienst") return false;
+  if ((pfad === "material" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender" || pfad === "einlagen") && meineRolle() === "dienst") return false;
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
@@ -10334,8 +10333,9 @@ const SEITEN = [
   // Parks, Typen und jede Maschine mit Infos, Wartung und Batterien,
   // vorher in der Produktion (Wunsch Patrick 21. Oktober 2026)
   { pfad: "maschinen",    titel: "Maschinen",    zeichen: SYM.maschinen, zeige: reactSeite(MaschinenSeite) },
-  // Ausschuss melden statt Zustand „QS Check“ (seit 1.77.0)
-  { pfad: "qs",           titel: "Qualitätssicherung", zeichen: SYM.qs, zeige: reactSeite(Qs) },
+  // Die Seite Qualitätssicherung (1.77.0 bis 1.309.x) gibt es nicht
+  // mehr: gemeldet wird im QS Check des Pads, die offenen Meldungen
+  // stehen oben im Pad (Wunsch Patrick 30. Oktober 2026)
   // Produktionsdaten je Maschine und Artikel (Wunsch Patrick 23. Oktober 2026)
   { pfad: "statistik",    titel: "Statistik",    zeichen: SYM.statistik, zeige: reactSeite(Statistik) },
   // Kalkulation wie im Gewatec, vorerst nur für Patrick (seit 1.214.0)
@@ -10511,7 +10511,6 @@ function syncTabellen(pfad) {
   if (pfad === "bestellungen") return ["order_items", "articles", "suppliers", "designations"];
   if (pfad === "einkauf") return ["shopping_items"];
   if (pfad === "einstellungen") return ["profiles", "people"];
-  if (pfad === "qs") return ["qs_meldungen", "jobs"];
   return [];
 }
 

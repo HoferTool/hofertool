@@ -10780,3 +10780,26 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .bs-kachel__text { color: var(--gedaempft); font-size: .9rem; }
 @media (max-width: 640px) { .bs-wahl { grid-template-columns: 1fr; } .bs-kachel { flex-direction: row; text-align: left; padding: 16px; gap: 14px; }
   .bs-kachel__zeichen { width: 40px; height: 40px; flex: none; } .bs-kachel__titel { min-width: 90px; } }
+
+/* ---------- Pad: Knopf „Offene Meldungen“ oben (1.317.0) ----------
+   Ersetzt die Seite Qualitätssicherung. Gleich hoch wie Neu laden,
+   mit der Zahl als Plakette; rot, sobald etwas offen ist. */
+#pad .pad__meldungen { flex: none; height: 58px; display: inline-flex; align-items: center; gap: 10px;
+  padding: 0 14px; border-radius: 16px; color: #f2f4f7; cursor: pointer; font: inherit; font-weight: 650;
+  font-size: 1.05rem; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); }
+#pad .pad__meldungen:active { background: rgba(255,255,255,.18); }
+#pad .pad__meldungen-zahl { min-width: 30px; height: 30px; padding: 0 8px; border-radius: 15px;
+  display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.16); }
+#pad .pad__meldungen--offen { background: #b42318; border-color: #f97066; color: #fff; }
+#pad .pad__meldungen--offen .pad__meldungen-zahl { background: #fff; color: #b42318; }
+@media (max-width: 760px) { #pad .pad__meldungen-text { display: none; }
+  #pad .pad__meldungen { height: 44px; padding: 0 8px; border-radius: 12px; } }
+@media (max-width: 760px) { #pad .pad__kopf--dash .pad__meldungen { height: 38px; } }
+.qsof { width: min(960px, 96vw); max-height: 90vh; overflow-y: auto; position: relative; }
+.qsof__titel { margin: 0 40px 14px 0; font-size: 1.3rem; }
+@media (max-width: 420px) { #pad .pad__kopf--dash .pad__meldungen { padding: 0 3px; }
+  #pad .pad__kopf--dash .pad__meldungen-zahl { min-width: 24px; height: 24px; padding: 0 5px; font-size: .9rem; }
+  #pad .pad__kopf--dash { gap: 8px !important; } }
+/* Ganz schmale Handys: Unterlagen nur als Zeichen, damit der Knopf
+   „Offene Meldungen“ noch in die Leiste passt */
+@media (max-width: 420px) { #pad .pad__kopf--dash .pad__unterlagen { font-size: 0; gap: 0; padding: 0 9px; } }
