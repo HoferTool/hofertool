@@ -64,11 +64,14 @@ with sync_playwright() as p:
     if zeilen.count() != 2: fehler.append("Zeilen: " + str(zeilen.count()))
     if "KW 24" not in bl.inner_text("tbody"): fehler.append("Termin fehlt im PDF")
     if bl.locator(".blatt.zeichnung").count() != 1: fehler.append("Zeichnungsseiten: " + str(bl.locator(".blatt.zeichnung").count()))
-    if bl.locator(".blatt.zeichnung.quer").count() != 1: fehler.append("Zeichnung nicht quer")
+    # Quere Zeichnung steht gedreht hochkant auf der Seite
+    if bl.locator(".blatt.zeichnung.quer").count(): fehler.append("Zeichnungsseite noch quer")
+    gr = bl.evaluate("(() => { const i = document.querySelector('.zbild img'); return [i.naturalWidth, i.naturalHeight]; })()")
+    if not gr[1] > gr[0]: fehler.append("Zeichnung nicht gedreht: " + str(gr))
     if "1 Seite Zeichnung angehängt" not in bl.inner_text("#zeichnungstand"): fehler.append("Stand: " + bl.inner_text("#zeichnungstand"))
     if "MTEC-452410" not in bl.inner_text(".zkopf"): fehler.append("Kopf der Zeichnung ohne Artikel")
     bl.screenshot(path=os.path.join(os.environ.get("BILDER", HIER), "bestell_termin_zeichnung.png"), full_page=True)
-    # Das PDF für die Mail hat zwei Seiten, die zweite quer
+    # Das PDF für die Mail hat zwei Seiten, beide hochkant
     # Die Bibliotheken direkt ins Blatt, wie mailbilder.py (cdnjs ist hier nicht erreichbar)
     bl.add_script_tag(content=H2C); bl.add_script_tag(content=JSPDF)
     # Die Google-Schrift ist hier gesperrt, html2canvas wartet sonst ewig auf sie
@@ -78,7 +81,7 @@ with sync_playwright() as p:
       return { seiten: (t.match(/\\/Type \\/Page[^s]/g) || []).length,
                boxen: t.match(/MediaBox \\[[^\\]]*\\]/g) }; }""")
     if info["seiten"] != 2: fehler.append("PDF-Seiten: " + str(info))
-    if not any(b.startswith("MediaBox [0 0 841") for b in info.get("boxen") or []): fehler.append("Zweite Seite nicht quer: " + str(info))
+    if any(b.startswith("MediaBox [0 0 841") for b in info.get("boxen") or []): fehler.append("Eine Seite ist quer: " + str(info))
     bl.close()
 
     # Ohne Termin keine Spalte

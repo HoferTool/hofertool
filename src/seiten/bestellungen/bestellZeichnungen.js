@@ -15,6 +15,23 @@ import { alt } from "../../bruecke.jsx";
 // Mehr Seiten macht die Mail zu schwer
 const HOECHSTENS = 20;
 
+// Jede Zeichnungsseite steht hochkant (seit 1.300.2, Wunsch Patrick
+// 30. Oktober 2026: „nicht quer, sondern hoch, dass alles passt“):
+// eine quere Zeichnung wird um 90° gedreht, Schriftfeld oben rechts wie
+// beim Ablegen einer A3 im A4-Ordner, so füllt sie die ganze Seite.
+async function hochkant(img) {
+  if (img.decode) await img.decode().catch(() => {});
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (!w || w <= h) return img.src;
+  const c = document.createElement("canvas");
+  c.width = h; c.height = w;
+  const g = c.getContext("2d");
+  g.translate(0, w);
+  g.rotate(-Math.PI / 2);
+  g.drawImage(img, 0, 0);
+  return c.toDataURL("image/jpeg", 0.92);
+}
+
 export async function zeichnungenAnhaengen(fenster, posten) {
   const fertig = () => { try { fenster.zeichnungenDa && fenster.zeichnungenDa(); } catch (f) { /* zu */ } };
   // Kurz oben im Blatt sagen, was passiert ist (wird nicht gedruckt)
@@ -49,9 +66,11 @@ export async function zeichnungenAnhaengen(fenster, posten) {
       const doc = fenster.document;
       const ziel = doc && doc.getElementById("zeichnungen");
       if (!ziel) return;
-      bilder.slice(0, HOECHSTENS - seiten).forEach((img, i) => {
+      const teil = bilder.slice(0, HOECHSTENS - seiten);
+      const quellen = await Promise.all(teil.map(hochkant));
+      teil.forEach((img, i) => {
         const blatt = doc.createElement("div");
-        blatt.className = "blatt zeichnung" + (/--quer/.test(img.className) ? " quer" : "");
+        blatt.className = "blatt zeichnung";
         const kopf = doc.createElement("div");
         kopf.className = "zkopf";
         kopf.textContent = "Zeichnung zu Artikel " + (a.article_number || "") + " · " + (p.name || "")
@@ -59,7 +78,7 @@ export async function zeichnungenAnhaengen(fenster, posten) {
         const rahmen = doc.createElement("div");
         rahmen.className = "zbild";
         const bild = doc.createElement("img");
-        bild.src = img.src;
+        bild.src = quellen[i];
         bild.alt = kopf.textContent;
         rahmen.appendChild(bild);
         blatt.append(kopf, rahmen);

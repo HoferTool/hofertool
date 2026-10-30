@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.301.1** (30. Oktober 2026) Bestell-PDF: Zeichnungsseiten immer A4 hochkant, quere Zeichnungen gedreht, damit alles auf die Seite passt (Wunsch Patrick: „nicht quer, sondern hoch“).
 - **1.301.0** (30. Oktober 2026) Bestellungen: **Artikel per Foto entfernt** (Wunsch Patrick: „Artikel erkennen per Handy raus bei Bestellungen, keine Kamera-Zeichen mehr“). Kein „📷 Artikel fotografieren“ mehr bei „Neue Bestellposition“, kein Kamera-Knopf „Verpackung lernen“ und keine Fotozahl unter Bestellungen → Artikel; `src/daten/artikelFoto.js`, `ArtikelFotos.jsx`, der Test `artikel_foto` und die Bibliothek zxing-wasm sind weg. Das Foto der Bestellung beim Material bleibt.
 - **1.300.1** (30. Oktober 2026) Bestell-PDF: oben im Blatt steht, ob Zeichnungen angehängt wurden, keine beim Artikel hinterlegt ist oder sich eine nicht laden liess (Patrick: „Bei mir kommt keine Zeichnung mit“).
 - **1.300.0** (30. Oktober 2026) Bestell-PDF mit **Liefertermin und Zeichnung** (Wunsch Patrick: „zusätzlich zu jedem Art. der Termin … und als zweite Seite die Zeichnung, welche beim Art. hinterlegt ist“). Feld „Liefertermin fürs PDF (freiwillig)“ in „Neue Bestellposition“ und bei „Bearbeiten“ (`order_items.liefertermin`, eingespielt); im PDF eine Spalte TERMIN nur mit Termin. Die beim Artikel hinterlegten PDFs kommen als weitere Seiten dazu, quere Zeichnungen quer.

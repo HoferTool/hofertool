@@ -153,7 +153,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.301.0";
+const APP_VERSION = "1.301.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9766,21 +9766,17 @@ function bestellungDrucken(lieferant, posten) {
     "                 border-radius: 6px; }",
     ".mailhinweis { max-width: 210mm; margin: 6mm auto 0; padding: 0 4mm;",
     "               color: #55606e; font-size: 9.5pt; line-height: 1.5; }",
-    // Zeichnungen der Artikel als weitere Seiten, quer, wenn die
-    // Zeichnung quer ist (seit 1.300.0)
-    ".blatt.zeichnung { padding: 8mm 10mm; min-height: 297mm; display: flex; flex-direction: column; }",
-    ".blatt.zeichnung.quer { width: 297mm; min-height: 210mm; }",
+    // Zeichnungen der Artikel als weitere Seiten, immer hochkant (seit
+    // 1.300.2; quere sind schon gedreht), das ganze Bild auf der Seite
+    ".blatt.zeichnung { padding: 8mm 10mm; min-height: 297mm; display: flex; flex-direction: column; overflow: hidden; }",
     ".zkopf { font-size: 9pt; color: #555; margin-bottom: 3mm; }",
     ".zbild { flex: 1; display: flex; align-items: center; justify-content: center; }",
-    ".zbild img { max-width: 100%; max-height: 270mm; display: block; }",
-    ".blatt.zeichnung.quer .zbild img { max-height: 183mm; }",
-    "@page quer { size: A4 landscape; margin: 0; }",
+    ".zbild img { max-width: 100%; max-height: 265mm; display: block; }",
     "@media print { .leiste, .mailhinweis { display: none; }",
     "  body { background: #fff; }",
     "  .blatt { margin: 0; box-shadow: none; min-height: auto; }",
     "  .blatt + .blatt { break-before: page; }",
-    "  .blatt.zeichnung { height: 297mm; min-height: 0; }",
-    "  .blatt.zeichnung.quer { page: quer; height: 210mm; } }",
+    "  .blatt.zeichnung { height: 297mm; min-height: 0; } }",
   ].join("");
 
   // Erzeugt die Unterschrift im Briefenster: Alex Brush wird von
@@ -9879,8 +9875,8 @@ function bestellungDrucken(lieferant, posten) {
     // Zeichnungen: das Bild direkt, ohne Umweg über html2canvas, damit es scharf bleibt
     "  document.querySelectorAll('.blatt.zeichnung').forEach(function (z) {",
     "    var img = z.querySelector('img'); if (!img || !img.naturalWidth) return;",
-    "    var quer = z.classList.contains('quer'), bw = quer ? 297 : 210, bh = quer ? 210 : 297;",
-    "    pdf.addPage('a4', quer ? 'l' : 'p');",
+    "    var bw = 210, bh = 297;",
+    "    pdf.addPage('a4', 'p');",
     "    var kopf = (z.querySelector('.zkopf') || {}).textContent || '';",
     "    pdf.setFontSize(9); pdf.setTextColor(85); pdf.text(kopf, 10, 11);",
     "    var w = bw - 20, hh = bh - 24, f = Math.min(w / img.naturalWidth, hh / img.naturalHeight);",
