@@ -212,7 +212,7 @@ export function positionSuchfelder(z, hocoJe) {
   const datum = (d) => (d ? [String(d).slice(0, 10), alt.kurzDatum(String(d).slice(0, 10))] : []);
   return [a.article_number, a.name, a.description, a.unit, lief.name,
     z.quantity, alt.zahlText ? alt.zahlText(z.quantity) : "", z.geliefert_menge,
-    (alt.BESTELLSTATUS || {})[z.status], z.note, z.ziel_text, z.ziel_anzeige,
+    (alt.BESTELLSTATUS || {})[z.status], z.note, z.liefertermin, z.ziel_text, z.ziel_anzeige,
     z.delivered_location, alt.personName(z.profiles, ""),
     datum(z.needed_by), datum(alt.statusZeit(z)),
     (hocoJe && hocoJe[z.article_id]) || []];

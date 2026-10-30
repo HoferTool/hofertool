@@ -8,6 +8,7 @@
 //  Mail bestellt werden, auch wo sonst die Website gilt (Wunsch Patrick
 //  29. Oktober 2026, Beispiel Dihawag).
 // =================================================================
+import { zeichnungenAnhaengen } from "./bestellZeichnungen.js";
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { positionOeffnen } from "./PositionFenster.jsx";
@@ -180,7 +181,10 @@ function Lieferant({ name, gruppe, block, schreiben, neu, behaelter, heute }) {
         {/* Aufs PDF kommt genau, was in dieser Karte steht */}
         {gruppe.lief &&
           <button className="knopf knopf--mini bs-knopf" data-bestellpdf={name} data-block={block}
-            onClick={() => alt.bestellungDrucken(gruppe.lief, gruppe.posten)}>
+            onClick={() => {
+              const f = alt.bestellungDrucken(gruppe.lief, gruppe.posten);
+              if (f) zeichnungenAnhaengen(f, gruppe.posten);
+            }}>
             <Zeichen name="pdf" groesse={15} />PDF</button>}
         {schreiben &&
           <button className="knopf knopf--mini bs-knopf" data-sammelstatus={name} data-block={block}
@@ -235,6 +239,8 @@ function Zeile({ z, schreiben, behaelter, heute }) {
             <span className={"bs-chip bs-chip--frist bs-chip--" + frist}>
               <Zeichen name="kalender" groesse={14} />
               {frist === "spaet" ? "überfällig seit " : "bis "}{alt.kurzDatum(z.needed_by)}</span>}
+          {z.liefertermin && <span className="bs-chip bs-chip--termin" title="Liefertermin auf dem Bestell-PDF">
+              <Zeichen name="kalender" groesse={14} />Termin {z.liefertermin}</span>}
           {z.note && <span className="bs-chip bs-chip--notiz"><Zeichen name="notiz" groesse={14} />{z.note}</span>}
           <span className="bs-pos__wer">{alt.personName(z.profiles)}{zeit && <> · {alt.statusZeitText(z)}</>}</span>
         </div>
@@ -310,6 +316,8 @@ async function bearbeiten(z, behaelter) {
       { name: "ziel", label: "Zuweisung", auswahl: zielListe, wert: jetzt },
       { name: "menge", label: "Menge", typ: "number", wert: z.quantity, pflicht: true },
       { name: "frist", label: "Bis wann", typ: "date", wert: z.needed_by || "" },
+      { name: "termin", label: "Liefertermin fürs PDF (freiwillig)", wert: z.liefertermin || "",
+        platzhalter: "z. B. KW23 oder schnellstmöglich" },
       { name: "notiz", label: "Notiz", wert: z.note || "" },
     ], bestaetigen: "Speichern" });
   if (!w) return;
@@ -317,13 +325,19 @@ async function bearbeiten(z, behaelter) {
   const wert = String(w.ziel || jetzt);
   const trenn = wert.indexOf("::");
   const vorher = await alt.rueckSichern("order_items", { id: z.id });
-  const { error } = await alt.db.from("order_items").update({
-    quantity: Math.max(1, Math.round(w.menge)),
-    needed_by: w.frist || null,
-    note: w.notiz || null,
-    ziel_art: wert.slice(0, trenn),
-    ziel_text: wert.slice(trenn + 2),
-  }).eq("id", z.id);
+  // Liefertermin lässt aendernOhneUnbekannte weg, wenn die Datenbank
+  // ihn noch nicht kennt (sql/bestellung-liefertermin.sql)
+  let error = null;
+  try {
+    await alt.aendernOhneUnbekannte("order_items", {
+      quantity: Math.max(1, Math.round(w.menge)),
+      needed_by: w.frist || null,
+      note: w.notiz || null,
+      liefertermin: String(w.termin || "").trim() || null,
+      ziel_art: wert.slice(0, trenn),
+      ziel_text: wert.slice(trenn + 2),
+    }, "id", z.id);
+  } catch (f) { error = f; }
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
   alt.merkeSchritt("Ändern der Position " + ((z.articles && z.articles.article_number) || ""),
     alt.rueckRein("order_items", vorher));

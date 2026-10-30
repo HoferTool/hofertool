@@ -53,6 +53,9 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   const [gewaehlt, setGewaehlt] = useState(vorgabe.artikel || null);
   const [menge, setMenge] = useState("1");
   const [frist, setFrist] = useState("");
+  // Liefertermin für den Lieferanten (frei, etwa „KW23“), steht nur
+  // auf dem Bestell-PDF, wenn etwas drin ist (seit 1.300.0)
+  const [termin, setTermin] = useState("");
   const [notiz, setNotiz] = useState(vorgabe.notiz || "");
   // Lager ist der Normalfall und deshalb vorgewählt. Es wird nicht
   // verbucht, sondern steht wie jedes andere Ziel in der Historie.
@@ -209,7 +212,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
     if (!zielText) { alt.meldung("Bitte noch angeben, wohin die Lieferung soll.", "warn"); return; }
 
     setSpeichert(true);
-    const { data, error } = await alt.db.from("order_items").insert({
+    const daten = {
       article_id: gewaehlt.id,
       supplier_id: gewaehlt.supplier_id || null,
       quantity: m,
@@ -217,7 +220,16 @@ function PositionFenster({ zu, fertig, vorgabe }) {
       note: notiz.trim() || null,
       ziel_art: zielArt,
       ziel_text: zielText,
-    }).select("id");
+    };
+    if (termin.trim()) daten.liefertermin = termin.trim();
+    let { data, error } = await alt.db.from("order_items").insert(daten).select("id");
+    // Kennt die Datenbank das Feld noch nicht (sql/bestellung-liefertermin.sql),
+    // wird die Position ohne Termin gespeichert statt gar nicht
+    if (error && daten.liefertermin && /liefertermin/.test(alt.fehlertext(error))) {
+      delete daten.liefertermin;
+      ({ data, error } = await alt.db.from("order_items").insert(daten).select("id"));
+      if (!error) alt.meldung("Der Liefertermin liess sich noch nicht speichern (Datenbank).", "warn");
+    }
     setSpeichert(false);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     // Nach einem Foto: die Verpackung gehört zu diesem Artikel
@@ -362,6 +374,9 @@ function PositionFenster({ zu, fertig, vorgabe }) {
           {zielArt === "andere" &&
             <input type="text" id="pd-zielfrei" ref={freiFeld} value={zielFrei} onChange={(e) => setZielFrei(e.target.value)} />}
         </div>
+        <label className="feld"><span>Liefertermin fürs PDF (freiwillig)</span>
+          <input type="text" id="pd-termin" placeholder="z. B. KW23 oder schnellstmöglich" value={termin}
+            onChange={(e) => setTermin(e.target.value)} /></label>
         <label className="feld"><span>Notiz</span>
           <textarea id="pd-notiz" rows="2" value={notiz} onChange={(e) => setNotiz(e.target.value)} /></label>
       </div>}

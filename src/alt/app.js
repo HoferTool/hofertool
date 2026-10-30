@@ -153,7 +153,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.299.0";
+const APP_VERSION = "1.300.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9653,7 +9653,7 @@ const LOGO_BRIEF = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA4QAAAFPCAYAAA
 function bestellungDrucken(lieferant, posten) {
   if (!posten || !posten.length) {
     meldung("Für diesen Lieferanten ist nichts offen.", "warn");
-    return;
+    return null;
   }
 
   const jetzt = new Date();
@@ -9666,12 +9666,17 @@ function bestellungDrucken(lieferant, posten) {
   const kurz = nachname ? vorname.charAt(0) + "." + nachname : vorname;
   const vollerName = (vorname + " " + nachname).trim();
 
+  // Liefertermin je Position (frei, etwa „KW23“) als eigene Spalte,
+  // nur wenn bei mindestens einer etwas steht (seit 1.300.0, Wunsch
+  // Patrick 30. Oktober 2026)
+  const mitTermin = posten.some((z) => String(z.liefertermin || "").trim());
   const zeilen = posten.map((z) => {
     const a = z.articles || {};
     // Nur die Artikelnummer. Notizen sind intern und haben auf
     // der Bestellung nichts verloren.
     return '<tr>'
       + '<td class="a">' + esc(a.article_number || "") + '</td>'
+      + (mitTermin ? '<td class="t">' + esc(String(z.liefertermin || "").trim()) + '</td>' : "")
       + '<td class="m">' + zahlText(z.quantity) + ' ' + esc(a.unit || "Stk.") + '</td>'
       + '</tr>';
   }).join("");
@@ -9703,7 +9708,7 @@ function bestellungDrucken(lieferant, posten) {
   const fenster = window.open("", "_blank");
   if (!fenster) {
     meldung("Das Fenster wurde blockiert. Bitte Pop-ups für diese Seite erlauben.", "warn");
-    return;
+    return null;
   }
 
   const stil = [
@@ -9742,6 +9747,7 @@ function bestellungDrucken(lieferant, posten) {
     "th { font-size: 8.5pt; letter-spacing: .1em; color: #003884; font-weight: 700;",
     "     text-align: left; padding: 0 1mm 2mm; border-bottom: 1pt solid #003884; }",
     "th.m, td.m { text-align: right; width: 32mm; }",
+    "th.t, td.t { width: 40mm; }",
     "td { font-size: 10.5pt; padding: 2.2mm 1mm; border-bottom: .4pt solid #e3e7ec; }",
 
     // Gleich gross wie die Angaben oben (Wunsch 3. Oktober 2026)
@@ -9760,9 +9766,21 @@ function bestellungDrucken(lieferant, posten) {
     "                 border-radius: 6px; }",
     ".mailhinweis { max-width: 210mm; margin: 6mm auto 0; padding: 0 4mm;",
     "               color: #55606e; font-size: 9.5pt; line-height: 1.5; }",
+    // Zeichnungen der Artikel als weitere Seiten, quer, wenn die
+    // Zeichnung quer ist (seit 1.300.0)
+    ".blatt.zeichnung { padding: 8mm 10mm; min-height: 297mm; display: flex; flex-direction: column; }",
+    ".blatt.zeichnung.quer { width: 297mm; min-height: 210mm; }",
+    ".zkopf { font-size: 9pt; color: #555; margin-bottom: 3mm; }",
+    ".zbild { flex: 1; display: flex; align-items: center; justify-content: center; }",
+    ".zbild img { max-width: 100%; max-height: 270mm; display: block; }",
+    ".blatt.zeichnung.quer .zbild img { max-height: 183mm; }",
+    "@page quer { size: A4 landscape; margin: 0; }",
     "@media print { .leiste, .mailhinweis { display: none; }",
     "  body { background: #fff; }",
-    "  .blatt { margin: 0; box-shadow: none; min-height: auto; } }",
+    "  .blatt { margin: 0; box-shadow: none; min-height: auto; }",
+    "  .blatt + .blatt { break-before: page; }",
+    "  .blatt.zeichnung { height: 297mm; min-height: 0; }",
+    "  .blatt.zeichnung.quer { page: quer; height: 210mm; } }",
   ].join("");
 
   // Erzeugt die Unterschrift im Briefenster: Alex Brush wird von
@@ -9852,11 +9870,23 @@ function bestellungDrucken(lieferant, posten) {
     "  if (!window.html2canvas) await laden('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');",
     "  if (!window.jspdf) await laden('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');",
     "  try { await window.signaturFertig; } catch (e) {}",
+    "  try { await window.zeichnungenFertig; } catch (e) {}",
     "  var blatt = document.querySelector('.blatt');",
     "  var bild = await html2canvas(blatt, { scale: 2, backgroundColor: '#ffffff' });",
     "  var pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', compress: true });",
     "  var h = bild.height * 210 / bild.width;",
     "  pdf.addImage(bild.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 210, Math.min(h, 297));",
+    // Zeichnungen: das Bild direkt, ohne Umweg über html2canvas, damit es scharf bleibt
+    "  document.querySelectorAll('.blatt.zeichnung').forEach(function (z) {",
+    "    var img = z.querySelector('img'); if (!img || !img.naturalWidth) return;",
+    "    var quer = z.classList.contains('quer'), bw = quer ? 297 : 210, bh = quer ? 210 : 297;",
+    "    pdf.addPage('a4', quer ? 'l' : 'p');",
+    "    var kopf = (z.querySelector('.zkopf') || {}).textContent || '';",
+    "    pdf.setFontSize(9); pdf.setTextColor(85); pdf.text(kopf, 10, 11);",
+    "    var w = bw - 20, hh = bh - 24, f = Math.min(w / img.naturalWidth, hh / img.naturalHeight);",
+    "    var iw = img.naturalWidth * f, ih = img.naturalHeight * f;",
+    "    pdf.addImage(img.src, 'JPEG', (bw - iw) / 2, 15 + (hh - ih) / 2, iw, ih);",
+    "  });",
     "  return pdf.output('blob');",
     "}",
     "function emlBauen(pdfB64) {",
@@ -9955,8 +9985,8 @@ function bestellungDrucken(lieferant, posten) {
     + '<style>' + stil + '</style></head><body>'
 
     + '<div class="leiste">'
-    + '<button onclick="window.print()">Drucken</button>'
-    + '<button onclick="window.print()">Als PDF speichern</button>'
+    + '<button onclick="druck()">Drucken</button>'
+    + '<button onclick="druck()">Als PDF speichern</button>'
     + '<button id="mailknopf" onclick="perMail()">Per Mail mit PDF</button>' 
     // Läuft die App im Vollbild, gibt es keine Leiste zum Schliessen.
     // Klappt window.close() nicht, kommt ein Hinweis statt nichts.
@@ -10008,7 +10038,7 @@ function bestellungDrucken(lieferant, posten) {
     + '</div></div>'
 
     + '<table><thead><tr>'
-    + '<th class="a">ARTIKEL</th><th class="m">MENGE</th>'
+    + '<th class="a">ARTIKEL</th>' + (mitTermin ? '<th class="t">TERMIN</th>' : "") + '<th class="m">MENGE</th>'
     + '</tr></thead><tbody>' + zeilen + '</tbody></table>'
 
     + '<p class="bitte">Wir bitten um eine Bestätigung dieser Bestellung sowie '
@@ -10021,10 +10051,17 @@ function bestellungDrucken(lieferant, posten) {
     + '</div>'
 
     + '</div></div>'
+    + '<div id="zeichnungen"></div>'
+    // Die App hängt die Zeichnungen danach an und ruft zeichnungenDa();
+    // Drucken und Mail warten darauf, höchstens 30 Sekunden
+    + '<script>window.zeichnungenFertig = new Promise(function (r) { window.zeichnungenDa = r;'
+    + ' setTimeout(r, 30000); });'
+    + 'async function druck() { try { await window.zeichnungenFertig; } catch (e) {} window.print(); }<\/script>'
     + '<script>' + schreiber + '<\/script>'
     + '<script>' + mailer + '<\/script>'
     + '</body></html>');
   fenster.document.close();
+  return fenster;
 }
 
 async function lieferantDialog(lieferant, b) {
