@@ -58,6 +58,12 @@ with sync_playwright() as p:
     pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_timeout(1500)
     pruefe(pg.locator("[data-eba-seite]").count() == 1 and "Material Rohr 12 x 11.2" in pg.inner_text(".eba-fenster"),
            "Einrichtblatt der HOCO Nr. zeigt das Blatt der Materialgrösse")
+    kopf = pg.evaluate("""() => Object.fromEntries([...document.querySelectorAll('.eba-fenster [data-eba-zeile]')]
+      .map(z => [z.dataset.ebaZeile, z.querySelector('b').innerText.trim()]))""")
+    print("Kopf", kopf)
+    pruefe(kopf.get("hoco") == hoco, "Ho&Co. Nr. ist die des Auftrags")
+    pruefe(kopf.get("bezeichnung") == "Gehäuse Ø12 x div.", "Artikel Bezeich: Gehäuse Ø12 x div.")
+    pruefe(not any(k in kopf for k in ["zeichnungs_nr", "index_nr", "n1000"]), "ohne Zeichnung, Index und N1000")
     pg.screenshot(path="/tmp/eb-je-material-hoco.png")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()

@@ -69,3 +69,13 @@ export async function materialBlattFuer(hocoNr, typId) {
   const e = passendesBlatt(await materialVon(hocoNr), liste);
   return e ? blattSchluessel(e) : null;
 }
+
+// Im Blatt je Materialgrösse steht bei „Ho&Co. Nr“ die HOCO Nr. des
+// Auftrags, bei „Artikel Bezeich“ „Gehäuse Ø<Aussen-Ø> x div.“, und
+// Zeichnungs Nr., Index und N1000 fallen weg (seit 1.298.0, Wunsch
+// Patrick 30. Oktober 2026, SB-20C Nr. 120)
+export const MATERIAL_OHNE = ["zeichnungs_nr", "index_nr", "n1000"];
+export function materialArtBez(schluessel) {
+  const m = /(\d+(?:[.,]\d+)?)/.exec(String(schluessel || "").slice(VORSILBE.length));
+  return "Gehäuse " + (m ? "Ø" + m[1].replace(",", ".") + " " : "") + "x div.";
+}

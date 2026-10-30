@@ -151,7 +151,7 @@ export default function Bildschirmschoner({ hoco, typId, mahnt }) {
   return createPortal(
     <div className="pad-schoner" data-padschoner="">
       <div className="pad-schoner__blatt">
-        {adresse.startsWith("app:") ? <BlattAnzeige hocoNr={adresse.slice(4) || hoco} typId={typId} /> : <Blatt adresse={adresse} />}</div>
+        {adresse.startsWith("app:") ? <BlattAnzeige hocoNr={adresse.slice(4) || hoco} typId={typId} auftrag={hoco} /> : <Blatt adresse={adresse} />}</div>
       <div className="pad-schoner__deckel" data-padschonerzu=""
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setZeigen(false); }} />
       <div className="pad-schoner__hinweis">Tippen, um zum Dashboard zurückzukehren</div>

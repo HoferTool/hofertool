@@ -24,7 +24,7 @@ import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freies
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
-import { istMaterialBlatt } from "./jeMaterial.js";
+import { istMaterialBlatt, MATERIAL_OHNE, materialArtBez } from "./jeMaterial.js";
 
 // Ein Bild aus der Bibliothek: Sinnbild der Norm oder hochgeladen
 const BILDER_AN = false;
@@ -62,7 +62,7 @@ const leer = (w) => w === undefined || w === null ? "" : w;
 
 // Wert eines Kopffelds, je nachdem, wo es gespeichert ist
 function feldWert(f, d) {
-  if (f.art === "fest") return d.blatt.hoco_nr;
+  if (f.art === "fest") return f.wert !== undefined ? f.wert : d.blatt.hoco_nr;
   if (f.art === "stamm") return leer(d.teil[f.feld]);
   if (f.art === "typ") return leer(d.typDaten[f.feld]);
   if (f.art === "prg") {
@@ -193,7 +193,7 @@ function KopfEingabe({ f, wert, aendern, d }) {
 // ändert ein Kopffeld
 // pruefen: eingelesene Werkzeuge ohne hinterlegten oder bestätigten
 // Artikel rot umranden (nur im Fenster, nicht im Pad und nicht im Druck)
-export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern }) {
+export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern }) {
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
@@ -201,7 +201,13 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
   const { kopfAb, kopfBreite } = vorlage;
   const d = { blatt, teil, typDaten, typ };
   // Geometriedaten nur, wo die Vorlage sie hat oder schon etwas steht
-  const felder = vorlage.felder.filter((f) => f.feld !== "geometrie" || vorlage.art === "sw" || blatt.geometrie);
+  const jeMat = istMaterialBlatt(blatt.hoco_nr);
+  const felder = vorlage.felder.filter((f) => f.feld !== "geometrie" || vorlage.art === "sw" || blatt.geometrie)
+    // Blatt je Materialgrösse: HOCO Nr. vom Auftrag, Bezeichnung fest,
+    // ohne Zeichnung, Index und N1000 (seit 1.298.0)
+    .filter((f) => !jeMat || !MATERIAL_OHNE.includes(f.feld))
+    .map((f) => !jeMat ? f : f.art === "fest" ? Object.assign({}, f, { wert: auftrag || "" })
+      : f.feld === "bezeichnung" ? Object.assign({}, f, { art: "fest", wert: materialArtBez(blatt.hoco_nr) }) : f);
   // Die FA Nr. gehört nicht mehr ins Blatt, auch nicht in die Bemerkung
   const bemerkung = ohneFa(blatt.bemerkung);
 
@@ -607,7 +613,7 @@ function entwurfVon(b) {
   return b.bemerkung && ohneFa(b.bemerkung) !== b.bemerkung ? Object.assign({}, b, { bemerkung: ohneFa(b.bemerkung) || null }) : b;
 }
 
-function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbeiten }) {
+function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbeiten, auftrag }) {
   const [daten, setDaten] = useState(start);
   const darf = !nurLesen && alt.darfSchreiben() && !alt.istExtern();
   const [bearbeiten, setBearbeiten] = useState(darf && (!start.blatt || !!gleichBearbeiten));
@@ -938,7 +944,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         </div>}
         {zseite
           ? <ZusatzSeite seite={zseite} bearbeiten={bearbeiten} inhaltBearbeiten={() => inhaltBearbeiten(seiteNr - 1)} />
-          : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt}
+          : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt} auftrag={auftrag}
               bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} pruefen={darf}
               platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} bestellen={darf ? bestellen : null}
               bilderAendern={darf ? bilderAendern : null} /></div>}
@@ -957,18 +963,19 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
 // Öffnen: gleich das Blatt. Den Kopf samt Stammdaten füllt man direkt
 // darin aus. { nurLesen } ohne Schreibrecht, { bearbeiten } gleich zum Ändern
 // (Produktion → Infos zum Richten)
-export async function einrichtblattAppOeffnen(hocoNr, typId, { nurLesen, bearbeiten } = {}) {
+// { auftrag } beim Blatt je Materialgrösse: die HOCO Nr. des Auftrags
+export async function einrichtblattAppOeffnen(hocoNr, typId, { nurLesen, bearbeiten, auftrag } = {}) {
   let daten;
   try { daten = await blattLaden(hocoNr, typId); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
   fensterOeffnen((zu) => <BlattFenster hocoNr={hocoNr} typId={typId} daten={daten} zu={zu}
-    nurLesen={!!nurLesen} gleichBearbeiten={!!bearbeiten} />,
+    nurLesen={!!nurLesen} gleichBearbeiten={!!bearbeiten} auftrag={auftrag} />,
     null, "betrachter-huelle eba-huelle");
 }
 
 // Nur das Werkzeugblatt, eingepasst in den Platz darum (Bildschirmschoner
 // im Pad Mode)
-export function BlattAnzeige({ hocoNr, typId }) {
+export function BlattAnzeige({ hocoNr, typId, auftrag }) {
   const [daten, setDaten] = useState(null);
   const [k, setK] = useState(1);
   const platz = useRef(null);
@@ -991,7 +998,7 @@ export function BlattAnzeige({ hocoNr, typId }) {
     <div className="eba-anzeige" ref={platz} data-eba-anzeige="">
       <div style={{ width: 1123 * k, height: 794 * k }}>
         <div style={{ transform: "scale(" + k + ")", transformOrigin: "top left", width: 1123 }}>
-          <BlattSeite typ={daten.typ} paths={daten.paths} teil={daten.teil} typDaten={daten.typDaten} blatt={daten.blatt}
+          <BlattSeite typ={daten.typ} paths={daten.paths} teil={daten.teil} typDaten={daten.typDaten} blatt={daten.blatt} auftrag={auftrag}
             artikelBilder={daten.artikelBilder || {}} />
         </div>
       </div>
