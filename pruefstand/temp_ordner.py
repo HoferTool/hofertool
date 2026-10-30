@@ -1,4 +1,4 @@
-# Temp-Ordner (1.35.0): Reiter im Menü (Just Eat seit 1.160.2 weg), nur der eigene Ordner,
+# Temp-Ordner (1.35.0): seit 1.310.0 Reiter der Einstellungen, nicht mehr im Menü; nur der eigene Ordner,
 # hochladen, herunterladen, löschen; am Handy Foto und Video.
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
@@ -24,15 +24,18 @@ def seite(p, breite, hoehe, mobil):
       { pfad: 'u1/1791800000000-Messprotokoll.pdf', size: 250000, mimetype: 'application/pdf', created_at: new Date(Date.now() - 2*3600000).toISOString() },
       { pfad: 'u1/1791700000000-Alt.jpg', size: 900, mimetype: 'image/jpeg', created_at: new Date(Date.now() - 30*3600000).toISOString() },
       { pfad: 'u2/1791800000000-Fremd_Geheim.jpg', size: 1000, mimetype: 'image/jpeg', created_at: new Date().toISOString() } ] }; }""")
+    # Alter Verweis #temp öffnet die Einstellungen im Reiter Temp
     pg.evaluate("location.hash='#temp'")
-    pg.wait_for_selector("#temp-seite"); pg.wait_for_timeout(500)
+    pg.wait_for_selector(".dialog--einstellungen #temp-seite"); pg.wait_for_timeout(500)
+    if "aktiv" not in (pg.get_attribute("[data-einst='temp']", "class") or ""):
+        fehler.append("Reiter Temp nicht angewählt")
     return br, pg
 
 with sync_playwright() as p:
     br, pg = seite(p, 1300, 900, False)
-    # Temp steht im Menü, Just Eat ist seit 1.160.2 weg
+    # Temp steht seit 1.310.0 nicht mehr im Menü
     namen = pg.eval_on_selector_all(".nav .nav__punkt .nav__text", "e => e.map(x => x.textContent)")
-    if "Temp" not in namen or "Just Eat" in namen:
+    if "Temp" in namen or "Kalender" not in namen:
         fehler.append("Reihenfolge im Menü: %s" % namen)
     text = pg.inner_text("#temp-seite")
     if "Messprotokoll.pdf" not in text: fehler.append("eigene Datei fehlt")
@@ -96,6 +99,15 @@ with sync_playwright() as p:
     # Tablet quer
     br, pg = seite(p, 1180, 820, True)
     pg.screenshot(path="/tmp/temp-tablet.png")
+    br.close()
+
+    # Über das Zahnrad: Reiter Temp gleich nach Allgemein
+    br, pg = seite(p, 1300, 900, False)
+    reiter = pg.eval_on_selector_all("[data-einst]", "e => e.map(x => x.dataset.einst)")
+    if reiter[:2] != ["allgemein", "temp"]: fehler.append("Reiter: %s" % reiter)
+    pg.click("[data-einst='allgemein']"); pg.wait_for_timeout(200)
+    if pg.locator("#temp-seite").count(): fehler.append("Temp bleibt im Reiter Allgemein")
+    pg.click("[data-einst='temp']"); pg.wait_for_selector("#temp-seite")
     br.close()
 
 print("Fehler:", "keine" if not fehler else "\n  " + "\n  ".join(fehler))

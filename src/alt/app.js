@@ -15,7 +15,6 @@ import Rechner from "../seiten/Rechner.jsx";
 import Qs from "../seiten/Qs.jsx";
 import Statistik, { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
-import Temp from "../seiten/Temp.jsx";
 import Kalender from "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
@@ -153,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.309.0";
+const APP_VERSION = "1.310.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8139,7 +8138,7 @@ function leerlaufPruefen() {
   // Patrick, 8. Oktober 2026): Die hängen am Bildschirm im Betrieb und
   // sollen nie von selbst abgemeldet werden.
   // Ebenso, solange der Temp-Ordner hochlädt oder die Kamera bzw. die
-  // Dateiauswahl offen ist (src/seiten/Temp.jsx): ein Video vom Handy
+  // Dateiauswahl offen ist (src/einstellungen/Temp.jsx): ein Video vom Handy
   // dauert länger als eine Minute, ohne dass jemand in der App tippt
   const tempWahl = +document.body.dataset.tempWahl || 0;
   if (document.getElementById("pad") || istAndererNutzer() || document.querySelector(".temp__liste--laeuft")
@@ -10328,12 +10327,10 @@ const SEITEN = [
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
-  // Eigener Ordner je Person, vor Google (Wunsch Patrick, 12. Oktober 2026)
   // Termine wie Kehrichtabfuhr, auch auf dem Infoboard (Wunsch Patrick 28. Oktober 2026)
   { pfad: "kalender",     titel: "Kalender",     zeichen: SYM.kalender, zeige: reactSeite(Kalender) },
   // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
   { pfad: "einlagen",     titel: "Einlagen Gen", unter: "created by Ecker", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
-  { pfad: "temp",         titel: "Temp",         zeichen: SYM.temp, zeige: reactSeite(Temp) },
   // Grosser Bildschirm hochkant (Wunsch Patrick 20. Oktober 2026), nur
   // für Admins und Gerätekonten
   { pfad: "infoboard",    titel: "Infoboard",    zeichen: SYM.infoboard, zeige: reactSeite(Infoboard) },
@@ -10772,6 +10769,16 @@ function zeichneSeite() {
   if (roh === "fortschritt") {
     prod.ansicht = "fortschritt";
     location.hash = "#produktion";
+    return;
+  }
+
+  // Temp ist seit 1.310.0 ein Reiter der Einstellungen (Wunsch Patrick
+  // 30. Oktober 2026: „Temp Ordner in Einstellungen neuer Reiter“);
+  // alte Verweise auf #/temp öffnen ihn dort
+  if (roh === "temp" && !ARCHIV) {
+    location.hash = "";
+    einst.reiter = "temp";
+    einstellungenOeffnen();
     return;
   }
 

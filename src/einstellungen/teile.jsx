@@ -57,6 +57,7 @@ const PFADE = {
   fehler: <><path d="M12 3 2 20h20z" /><path d="M12 10v4M12 17v.5" /></>,
   farben: <><circle cx="12" cy="12" r="9" /><circle cx="8" cy="10" r="1.3" /><circle cx="12" cy="7.5" r="1.3" /><circle cx="16" cy="10" r="1.3" /><path d="M12 21a3 3 0 0 1 0-6h2" /></>,
   symbole: <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 16V8l4 5 4-5v8" /></>,
+  temp: <><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M12 16v-5M9.5 13.5 12 11l2.5 2.5" /></>,
   nutzer: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" /><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 13.8c2 .9 3.5 3 3.5 6.2" /></>,
 };
 

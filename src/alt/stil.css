@@ -7240,7 +7240,7 @@ body.pw-seite .su-leiste { bottom: 40px; }
 .aw-knoepfe .aw-knopf { padding-left: 9px; padding-right: 9px; }
 @media (max-width: 1300px) { .aw-knoepfe { gap: 5px; } .aw-knoepfe .aw-knopf { padding-left: 6px; padding-right: 6px; } }
 
-/* ---------- Temp-Ordner (1.38.0, src/seiten/Temp.jsx) ---------- */
+/* ---------- Temp-Ordner (1.38.0, src/einstellungen/Temp.jsx) ---------- */
 .temp { max-width: 900px; position: relative; }
 .temp__hinweis { color: var(--gedaempft); margin: -4px 0 14px; }
 .temp__knoepfe { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -10759,3 +10759,6 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .einlagen__wz-text { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 2px; }
 .einlagen__wz-text > span { font-size: .85em; }
 #einlagen-wz-fenster { max-width: 780px; }
+
+/* Temp als Reiter der Einstellungen (1.310.0): Titel wie die anderen Gruppen */
+.temp__titel { margin: 0 0 6px; font-size: 1.15rem; }

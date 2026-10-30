@@ -22,6 +22,7 @@ import PlanwandArchiv from "./PlanwandArchiv.jsx";
 import EinrichtblattPdf from "./EinrichtblattPdf.jsx";
 import Kreditoren from "./Kreditoren.jsx";
 import RadioSender from "./Radio.jsx";
+import Temp from "./Temp.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { meldungenVerwalten } from "../teile/anmeldeMeldungen.jsx";
 import { adressenAus, verteilerLaden, verteilerSpeichern } from "../teile/ferienTermin.js";
@@ -36,8 +37,9 @@ import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
 // Seit 1.12.3 wieder nur Allgemein, Dokumente und Backup (Wunsch Patrick,
 // 9. Oktober 2026: „Planwand soll nur allgemein dokumente backup sehen“).
 // Nutzer (Passwörter anderer, PINs anderer, Rollen) bleibt bei Admins. true = nur Admins, "dok" = Admins und Planwand,
-// "mat" = Admins und wer „Materialplatz bearbeiten“ hat.
-const REITER = [["allgemein", "Allgemein"], ["dokumente", "Dokumente", "dok"], ["backup", "Backup", "dok"],
+// "mat" = Admins und wer „Materialplatz bearbeiten“ hat, "temp" = alle
+// ausser Externen und Dienst (Temp-Ordner, seit 1.310.0 hier statt im Menü).
+const REITER = [["allgemein", "Allgemein"], ["temp", "Temp", "temp"], ["dokumente", "Dokumente", "dok"], ["backup", "Backup", "dok"],
                 ["fehler", "Fehlerprotokoll", true], ["farben", "Farben und Material", "mat"],
                 ["symbole", "Symbole", true],
                 ["nutzer", "Nutzer", true]];
@@ -63,7 +65,9 @@ function Einstellungen({ zu }) {
   // Farben und Material auch für alle mit dem Häkchen „Materialplatz
   // bearbeiten“ (seit 1.172.0, Wunsch Patrick 24. Oktober 2026)
   const mat = alt.darfMaterialplatz();
-  const reiter = REITER.filter(([, , wer]) => !wer || bin || (wer === "dok" && dok) || (wer === "mat" && mat));
+  const temp = !alt.istExtern() && alt.meineRolle() !== "dienst";
+  const reiter = REITER.filter(([, , wer]) => wer === "temp" ? temp
+    : !wer || bin || (wer === "dok" && dok) || (wer === "mat" && mat));
   if (!reiter.some(([w]) => w === alt.einst.reiter)) alt.einst.reiter = reiter[0][0];
   const [offen, setOffen] = useState(alt.einst.reiter);
   const waehlen = (w) => { alt.einst.reiter = w; setOffen(w); };
@@ -75,6 +79,7 @@ function Einstellungen({ zu }) {
   // Kreditorenrechnungen nur für Admins (1.268.0, Wunsch Patrick 29. Oktober 2026)
   else if (offen === "dokumente") inhalt = <><Dokumente />{alt.istAdmin() && <Kreditoren />}</>;
   else if (offen === "farben") inhalt = <Farben />;
+  else if (offen === "temp") inhalt = <Temp />;
   else if (offen === "symbole") inhalt = <><Symbole /><MahnBilder /></>;
   else inhalt = <Nutzer />;
 

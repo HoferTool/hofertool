@@ -5,11 +5,14 @@
 //  direkt aufnehmen, am Computer herunterladen und löschen. Nur die
 //  Person selbst sieht ihn (geprüft in der Datenbank). Nach 24 Stunden
 //  ist alles von selbst weg. Daten in src/daten/temp.js.
+//  Seit 1.310.0 ein Reiter der Einstellungen statt eigener Seite im
+//  Menü (Wunsch Patrick 30. Oktober 2026). Die Suche je Seite meldet
+//  er darum nicht mehr an: im Fenster würde sie die der Seite dahinter
+//  beim Schliessen abmelden.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../bruecke.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
-import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 import { TEMP_STUNDEN, wegAm, TEMP_MAX, TEMP_MAX_MB, tempListe, tempHochladen, tempLoeschen, tempAdresse, tempVorschauen } from "../daten/temp.js";
 
 const ruehrbar = () => window.matchMedia("(hover: none) and (pointer: coarse)").matches;
@@ -37,8 +40,8 @@ const istPdf = (d) => d.typ === "application/pdf" || /\.pdf$/i.test(d.name);
 const istXl = (d) => /\.(xlsx?|xlsm)$/i.test(d.name);
 const endung = (d) => ((d.name.match(/\.([A-Za-z0-9]{1,5})$/) || [])[1] || "Datei").toUpperCase();
 
-export default function Temp({ auffrischen }) {
-  const { daten: liste, fehler, neu } = useDaten(tempListe, [auffrischen]);
+export default function Temp() {
+  const { daten: liste, fehler, neu } = useDaten(tempListe, []);
   const [laeuft, setLaeuft] = useState([]);
   const [ziehen, setZiehen] = useState(false);
   const [bilder, setBilder] = useState({});
@@ -107,14 +110,6 @@ export default function Temp({ auffrischen }) {
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
 
-  // Strg + F sucht die eigenen Dateien und öffnet sie (seit 1.169.0)
-  useSeitenSuche({
-    name: "Temp", platzhalter: "Dateiname …",
-    eintraege: () => (liste || []).map((d) => ({ gruppe: "Dateien", zeichen: "▤", titel: d.name,
-      zeile: groesseText(d.groesse) + " · " + alt.datumZeitKurz(d.am), d })),
-    springen: (x) => { hinzeigen('[data-temp="' + CSS.escape(x.d.name) + '"]'); ansehen(x.d); },
-  });
-
   const herunterladen = async (d) => {
     try {
       const a = document.createElement("a");
@@ -145,7 +140,7 @@ export default function Temp({ auffrischen }) {
 
   return (
     <div className={"temp" + (ziehen ? " temp--ziehen" : "")} id="temp-seite" {...zieh}>
-      <h1 className="seitentitel">Mein Temp-Ordner</h1>
+      <h2 className="temp__titel">Mein Temp-Ordner</h2>
       <p className="temp__hinweis">
         Nur du siehst diese Dateien. Nach {TEMP_STUNDEN} Stunden werden sie von selbst gelöscht. Höchstens {TEMP_MAX_MB} MB je Datei.
       </p>
