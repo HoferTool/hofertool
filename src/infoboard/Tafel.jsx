@@ -24,6 +24,7 @@ import Skizze from "../pad/Skizze.jsx";
 import { TextBlatt } from "./TextFeld.jsx";
 import { WebFlaeche, ProgrammFlaeche } from "./WebFeld.jsx";
 import { KachelFlaeche, KachelGross } from "./Kachel.jsx";
+import Radio from "./Radio.jsx";
 import { Seite as ExcelSeite, seitenRechnen } from "../teile/ExcelAnsicht.jsx";
 import { excelLesen } from "../teile/excelLesen.js";
 import { LUECKE, BLATT, SEKUNDEN, MIN_GROESSE, TAFELN, TafelMass, useTafelMass, tafelFarben } from "./daten.js";
@@ -190,7 +191,11 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
           : <Kopf />}
         {mass.band > 0 && <KopfBand top={bandOben} left={LUECKE} breite={mass.breite - 2 * LUECKE} hoehe={mass.band - LUECKE} hoeheMelden={setBandHoehe} flach={!!mass.hell} />}
         {leiste > 0 && <div className="ib-leiste" data-ib="pausenraum-leiste"
-          style={{ top: leisteOben, left: LUECKE, width: mass.breite - 2 * LUECKE, height: leiste - LUECKE }} />}
+          style={{ top: leisteOben, left: LUECKE, width: mass.breite - 2 * LUECKE, height: leiste - LUECKE }}>
+          {/* Radiosender und YouTube zum Antippen (Radio.jsx); das Video
+              nimmt die Höhe bis zum unteren Rand der Tafel */}
+          <Radio videoHoehe={Math.max(240, mass.hoehe - leisteOben - leiste - LUECKE)} />
+        </div>}
         {mass.ruhig && (aufbau.effekte || effektProbe) && <Alpen breite={mass.breite} hoehe={mass.hoehe} oben={mass.kopf} />}
         {nacht && !mass.ruhig && <Huehnerhimmel />}
         {(!nacht || mass.ruhig) && teile.map((t0) => {

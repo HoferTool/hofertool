@@ -10467,3 +10467,38 @@ body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -w
   color: #23344f; z-index: 3; }
 .ib-blatt--bearbeiten .ib-leiste:empty { border: 2px dashed rgba(35, 52, 79, .25); border-radius: 18px; }
 .ib-blatt--bearbeiten .ib-leiste:empty::after { content: "Radiosender und YouTube"; margin: auto; font-size: 22px; opacity: .45; }
+.ib-band--rechts { grid-template-columns: 1fr 1fr; overflow: hidden; align-items: stretch; }
+
+/* Radio im Pausenraum (src/infoboard/Radio.jsx): eine flache Leiste über
+   die ganze Breite, hell wie der Pausenraum, Knöpfe gross für den Finger */
+.pr-radio { position: relative; display: flex; align-items: center; gap: 10px; box-sizing: border-box;
+  width: 100%; height: 100%; padding: 8px 12px; border-radius: 14px; background: #fff; color: #23344f;
+  box-shadow: 0 1px 4px rgba(35,52,79,.12); font-size: 20px; }
+.pr-radio__titel { font-size: 28px; flex: none; }
+.pr-radio__sender { flex: 1; min-width: 0; display: flex; gap: 8px; height: 100%; }
+.pr-radio__knopf { flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 0 10px; border: 2px solid #d5e1ee; border-radius: 12px; background: #f5f9fd; color: #23344f;
+  font: inherit; font-weight: 600; cursor: pointer; transition: background .2s, border-color .2s; }
+.pr-radio__knopf:active { background: #e3edf8; }
+.pr-radio__knopf--an { border-color: #1f6feb; background: #e7f0ff; color: #0f4fbf; }
+.pr-radio__knopf--fehler { border-color: #d64545; background: #fdeeee; color: #a12a2a; }
+.pr-radio__knopf--video .pr-radio__zeichen { color: #e02424; }
+.pr-radio__zeichen { font-size: 22px; flex: none; }
+.pr-radio__name { min-width: 0; display: flex; flex-direction: column; line-height: 1.1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-radio__stand { font-size: 14px; font-weight: 500; opacity: .8; }
+.pr-radio__laut { display: flex; align-items: center; gap: 6px; flex: none; }
+.pr-radio__lautzahl { min-width: 3.2em; text-align: center; font-variant-numeric: tabular-nums; }
+.pr-radio__rund, .pr-radio__stopp { height: 52px; border: 2px solid #d5e1ee; border-radius: 26px;
+  background: #f5f9fd; color: #23344f; font: inherit; font-weight: 700; cursor: pointer; }
+.pr-radio__rund { width: 52px; font-size: 28px; line-height: 1; padding: 0; }
+.pr-radio__stopp { padding: 0 18px; flex: none; }
+.pr-radio__video { position: absolute; left: 0; right: 0; top: calc(100% + 10px); z-index: 30;
+  border-radius: 14px; overflow: hidden; background: #000; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.pr-radio__video iframe { width: 100%; height: 100%; border: 0; display: block; }
+.pr-radio__leer { margin: 0; color: #6a7f9c; font-size: 18px; }
+.es-radio { display: flex; flex-direction: column; gap: 6px; }
+.es-radio__zeile { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.es-radio__name { width: 12em; }
+.es-radio__adresse { flex: 1; min-width: 14em; }
+.es-radio__unten { display: flex; gap: 6px; margin-top: 4px; }

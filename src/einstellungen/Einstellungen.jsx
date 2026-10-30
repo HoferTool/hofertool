@@ -21,6 +21,7 @@ import Sicherung from "./Sicherung.jsx";
 import PlanwandArchiv from "./PlanwandArchiv.jsx";
 import EinrichtblattPdf from "./EinrichtblattPdf.jsx";
 import Kreditoren from "./Kreditoren.jsx";
+import RadioSender from "./Radio.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { meldungenVerwalten } from "../teile/anmeldeMeldungen.jsx";
 import { adressenAus, verteilerLaden, verteilerSpeichern } from "../teile/ferienTermin.js";
@@ -113,6 +114,7 @@ function Allgemein({ bin }) {
       {(bin || alt.darfDokumenteUndSicherung()) && <Bestellmail />}
       {bin && <FerienVerteiler />}
       {bin && <Betriebsferien />}
+      {bin && <RadioSender />}
       <UeberDieApp />
     </>
   );
