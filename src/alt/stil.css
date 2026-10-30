@@ -10345,48 +10345,10 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
 .vb-wznr { font-weight: 600; }
 .vb-beschr { font-size: .9rem; }
 .vb-punkt--ok .vb-bez { text-decoration: line-through; }
-/* Werkzeugwechsel direkt im Blatt löschen und eigene Ansicht für SW
-   mit Standzeit für den Tool Life Counter (seit 1.273.0, src/pad/SwWechsel.jsx) */
+/* Werkzeugwechsel direkt im Blatt löschen (seit 1.273.0) */
 .wzb-wegzeile th { padding: 2px !important; }
 .wzb-tabelle .wz-weg { width: 34px; height: 34px; }
 .wzb-star th:last-child, .wzb-star td.wzb-weg { width: 3rem; }
-.sw-kopf { margin-right: auto; margin-left: 1rem; color: var(--gedaempft); }
-.sw-kopf b { color: var(--text); }
-.sw-path { margin: .4rem 0 .8rem; }
-.sw-path__name { font-weight: 700; border-left: 6px solid; padding-left: .5rem; margin-bottom: .4rem; }
-.sw-gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .6rem; }
-.sw-karte { border: 1px solid var(--linie-stark); border-top: 6px solid; border-radius: 10px; padding: .55rem .7rem;
-  cursor: pointer; display: flex; flex-direction: column; gap: .25rem; background: var(--flaeche, transparent);
-  transition: box-shadow .15s, transform .1s; user-select: none; }
-.sw-karte:active { transform: scale(.98); }
-.sw-karte--an { box-shadow: 0 0 0 3px var(--marke); }
-.sw-karte--bald { background: color-mix(in srgb, #f59e0b 14%, transparent); }
-.sw-karte--faellig { background: color-mix(in srgb, #dc2626 14%, transparent); }
-.sw-karte__kopf { display: flex; align-items: baseline; gap: .5rem; }
-.sw-karte__kopf b { font-size: 1.2rem; }
-.sw-karte__kopf span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gedaempft); flex: 1; }
-.sw-karte__kopf .sw-haken { flex: none; color: var(--marke); font-weight: 800; font-size: 1.2rem; }
-.sw-seit b { font-size: 1.15rem; }
-.sw-balken { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--gedaempft) 20%, transparent); overflow: hidden; }
-.sw-balken i { display: block; height: 100%; background: var(--marke); }
-.sw-karte--bald .sw-balken i { background: #f59e0b; } .sw-karte--faellig .sw-balken i { background: #dc2626; }
-.sw-counter b { font-size: 1.1rem; }
-.sw-unsicher { color: var(--gedaempft); font-style: italic; }
-.sw-eb { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: auto; color: var(--gedaempft); }
-.sw-verlauf-titel { margin: 1rem 0 .4rem; font-size: 1rem; }
-.sw-verlauf { display: flex; flex-direction: column; gap: .3rem; max-height: 40vh; overflow-y: auto; }
-.sw-runde { display: flex; align-items: center; gap: .6rem; border-bottom: 1px solid var(--linie-stark); padding: .25rem 0; }
-.sw-runde__wann { display: flex; flex-direction: column; align-items: flex-start; min-width: 6.5rem; background: none;
-  border: 1px solid transparent; border-radius: 6px; padding: .2rem .4rem; cursor: pointer; color: inherit; font: inherit; }
-.sw-runde__wann:hover:not(:disabled) { border-color: var(--marke); }
-.sw-runde__wz { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; flex: 1; }
-.sw-chip { border: 2px solid; border-radius: 999px; padding: .15rem .6rem; background: none; color: inherit;
-  font: inherit; font-weight: 600; cursor: pointer; }
-.sw-chip span { color: var(--gedaempft); font-weight: 400; }
-.sw-chip:hover:not(:disabled) span { color: var(--gefahr); }
-.sw-chip--dazu { border-style: dashed; border-color: var(--linie-stark); }
-.sw-paths { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0 1rem; align-items: start; }
-.sw-paths .sw-gitter { grid-template-columns: 1fr; }
 /* Spezialwerkzeuge stehen seit 1.271.0 bei allen anderen, mit Stern beim
    Lieferanten (.eba-stern) und unter Offen in einer eigenen Karte */
 .bs-lieferant--spezial { border-left: 4px solid #c58a00; }
@@ -10406,11 +10368,3 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
 /* Bestellungen → Artikel: „Mehr laden“ unter der Liste (seit 1.275.0) */
 .bs-mehr { display: flex; justify-content: center; padding: 14px 0 6px; }
 
-/* SW: Stück seit Wechsel / Standzeit aus dem EB (seit 1.278.0) */
-.sw-zahl { font-size: 1.35rem; display: flex; align-items: baseline; gap: .35rem; }
-.sw-zahl b { font-size: 1.6rem; }
-.sw-sz { font: inherit; font-weight: 700; color: inherit; background: none; border: 1px dashed var(--linie-stark);
-  border-radius: 6px; padding: 0 .4rem; cursor: pointer; }
-.sw-sz:hover:not(:disabled) { border-color: var(--marke); color: var(--marke); }
-.sw-sz:disabled { border-color: transparent; cursor: default; }
-.sw-karte .sw-balken { height: 12px; border-radius: 6px; }

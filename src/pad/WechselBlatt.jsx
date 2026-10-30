@@ -15,7 +15,6 @@
 // =================================================================
 import { useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { Eimer } from "./SwWechsel.jsx";
 
 const datum = (iso) => new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit" });
 const stkText = (n) => (n === null || n === undefined ? "—" : alt.zahlText(n));
@@ -201,4 +200,13 @@ function StarBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten
     {!runden.length && <p className="hinweis">Für diese HOCO Nr. ist noch kein Wechsel eingetragen.</p>}
     {knopf}
   </>);
+}
+
+// Papierkorb zum direkten Löschen eines Wechsels
+function Eimer() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+    </svg>);
 }

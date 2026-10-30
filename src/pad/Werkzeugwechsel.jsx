@@ -17,7 +17,6 @@ import { platzGruppe, platzName, vorlageFuer } from "../einrichtblatt/vorlagen.j
 import { indexAufraeumen, indexPdfAufbau, istIndex, protokollLaden, reihenBilden, revolverVon,
   SPALTEN_JE_BLATT } from "./IndexProtokoll.jsx";
 import { WechselBlatt } from "./WechselBlatt.jsx";
-import { SwWechsel, swModellLaden } from "./SwWechsel.jsx";
 
 const anzahlText = (n) => n + (n === 1 ? " Werkzeug" : " Werkzeuge");
 
@@ -43,23 +42,7 @@ const nameRang = (name, sw) => {
 const werkzeugVergleich = (a, b, sw) => (nameRang(a.bezeichnung, sw) - nameRang(b.bezeichnung, sw))
   || nachZahl(a.bezeichnung, b.bezeichnung) || nachZahl(a.tool_nr, b.tool_nr);
 
-// SW hat ein eigenes Fenster mit Karten je Werkzeug und der Standzeit
-// für den Tool Life Counter (SwWechsel.jsx). Braucht einen Auftrag,
-// weil die Standzeit an der HOCO Nr. hängt; sonst die übliche Platzwahl.
-async function swOeffnen(maschine, auftrag) {
-  if (!auftrag || !auftrag.job_number || alt.istExtern()) return false;
-  let typ = null;
-  try { typ = (await alt.ladeTypen()).find((t) => t.id === maschine.type_id); } catch (f) { return false; }
-  if (!istSw(typ)) return false;
-  let anfang;
-  try { anfang = await swModellLaden(maschine, auftrag, typ); }
-  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return true; }
-  fensterOeffnen((zu) => <SwWechsel maschine={maschine} auftrag={auftrag} typ={typ} anfang={anfang} aktionen={AKTIONEN} zu={zu} />);
-  return true;
-}
-
 export async function werkzeugWechselDialog(maschine, auftrag) {
-  if (await swOeffnen(maschine, auftrag)) return;
   // Alle Werkzeugplätze des Typs, nach Path sortiert. Nur bei SW-Typen
   // kommt Path 2 zuletzt (1, 3, 2), so wie die Plätze an der Maschine
   // liegen; alle anderen wie Index bleiben 1, 2, 3 (Wunsch Patrick
@@ -255,7 +238,6 @@ function rundenBilden(liste, sw) {
 }
 
 async function wechselHistorie(maschine, auftrag) {
-  if (await swOeffnen(maschine, auftrag)) return;
   let runden = [];
   try { runden = await historieLaden(maschine); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return; }
@@ -420,7 +402,8 @@ async function modellDerHistorie(maschine, auftrag, runden) {
         passt: (z) => z.tool_nr === p.tool_nr && (!z.bezeichnung || revolverVon(z.bezeichnung) === r.nr) })) }));
     return { art: "index", gruppen, runden: eigene, spaltenJeBlatt: SPALTEN_JE_BLATT, laden: () => protokollLaden(hoco, typ.id) };
   }
-  if (!typ || vorlageFuer(typ).art !== "star") return null;
+  // SW läuft wie die SB-Maschinen (Wunsch Patrick 30. Oktober 2026)
+  if (!typ || (vorlageFuer(typ).art !== "star" && !istSw(typ))) return null;
   // Wie im PDF nur die Wechsel dieser HOCO Nr., älteste zuerst
   const nurDiese = (rs) => rs.filter((r) => r.zeilen.some((z) => (z.hoco_nr || z.auftrag_nr) === hoco))
     .sort((x, y) => String(x.wann || "").localeCompare(String(y.wann || "")));
