@@ -24,6 +24,8 @@ import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freies
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
+import { betrachter } from "../teile/Betrachter.jsx";
+import { spezialPdfsLaden } from "../daten/spezialwerkzeuge.js";
 import { istMaterialBlatt, MATERIAL_OHNE, materialArtBez } from "./jeMaterial.js";
 
 // Ein Bild aus der Bibliothek: Sinnbild der Norm oder hochgeladen
@@ -204,7 +206,7 @@ function KopfEingabe({ f, wert, aendern, d }) {
 // ändert ein Kopffeld
 // pruefen: eingelesene Werkzeuge ohne hinterlegten oder bestätigten
 // Artikel rot umranden (nur im Fenster, nicht im Pad und nicht im Druck)
-export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern }) {
+export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern, pdfs, markiert, markieren }) {
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
@@ -236,6 +238,11 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
     const bild = BILDER_AN ? platzBild(p, artikelBilder) : null;
     // Beim Ansehen: antippen bestellt das Werkzeug (seit 1.271.0)
     const bestellbar = !bearbeiten && bestellen && p.article_id && !p.ungeprueft;
+    // Im Pad Mode: antippen zeigt beim Namen „Ansehen“ für die PDFs, die
+    // beim Artikel hinterlegt sind, daneben „Bestellen“ (seit 1.305.0,
+    // Wunsch Patrick 30. Oktober 2026); ohne PDF bestellt es wie bisher
+    const zeichnungen = !bearbeiten && pdfs && p.article_id && !p.ungeprueft ? pdfs[p.article_id] || [] : [];
+    const mitAnsehen = zeichnungen.length > 0 && !!markieren;
     // Ein Platz, den die Maschine laut Aufbau nicht hat, bleibt als leeres
     // Feld stehen, ohne T-Nr. und ohne Antippen (Wunsch Patrick 30. Oktober
     // 2026: „nur die Werkzeuge, die bei Aufbau auch drin sind“); steht dort
@@ -250,10 +257,13 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
     return (
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")
         + (pruefen && werkzeugOffen(p) ? " eba-platz--pruefen" : "") + (wechsel === nr ? " eba-platz--wechsel" : "")
-        + (wechsel && wechsel !== nr ? " eba-platz--ziel" : "") + (bestellbar ? " eba-platz--bestellbar" : "")}
-        title={bestellbar ? "Antippen: " + (p.werkzeug || "Werkzeug") + " bestellen" : undefined}
+        + (wechsel && wechsel !== nr ? " eba-platz--ziel" : "") + (bestellbar || mitAnsehen ? " eba-platz--bestellbar" : "")
+        + (mitAnsehen && markiert === nr ? " eba-platz--ansehen" : "")}
+        title={mitAnsehen ? "Antippen: " + (p.werkzeug || "Werkzeug") + " ansehen" : bestellbar ? "Antippen: " + (p.werkzeug || "Werkzeug") + " bestellen" : undefined}
         style={{ gridRow: ri + 1, gridColumn: si + 1 }} data-platz={nr}
-        onClick={bearbeiten ? () => platzWahl(nr) : bestellbar ? () => bestellen(nr, p) : undefined}
+        onClick={bearbeiten ? () => platzWahl(nr)
+          : mitAnsehen ? (e) => { e.stopPropagation(); markieren(markiert === nr ? null : nr); }
+          : bestellbar ? () => bestellen(nr, p) : undefined}
         // Am Computer ein Werkzeug direkt auf einen anderen Platz ziehen,
         // steht dort schon eins, tauschen die beiden (Wunsch Patrick 29. Oktober 2026)
         draggable={!!(bearbeiten && tauschen && inGebrauch(p))}
@@ -282,6 +292,13 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
             zeigt weiter nur den Text aus dem Excel */}
         <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}</div>
         <div className="eba-wz-bez" data-wz-bez="">{p.werkzeug && p.article_id && !p.ungeprueft && p.bezeichnung ? p.bezeichnung : ""}</div>
+        {mitAnsehen && markiert === nr && <div className="eba-ansehen" data-eba-ansehen={nr} onClick={(e) => e.stopPropagation()}>
+          {zeichnungen.map((z) => <button key={z.id} type="button" className="knopf knopf--klein knopf--haupt" data-eba-ansehen-pdf={z.id}
+            onClick={() => betrachter(z.url, z.name + " · " + (p.werkzeug || ""), true)}>
+            {zeichnungen.length === 1 ? "Ansehen" : z.name}</button>)}
+          {bestellbar && <button type="button" className="knopf knopf--klein" data-eba-ansehen-bestellen=""
+            onClick={() => { markieren(null); bestellen(nr, p); }}>Bestellen</button>}
+        </div>}
       </div>
     );
   };
@@ -644,6 +661,18 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const [teilE, setTeilE] = useState(Object.assign({}, start.teil));
   const [typE, setTypE] = useState(Object.assign({}, start.typDaten));
   const [platz, setPlatz] = useState(null);
+  // Pad Mode: hinterlegte PDFs je Artikel und der angetippte Platz, der
+  // „Ansehen“ zeigt (Externe nicht)
+  const imPad = typeof document !== "undefined" && document.body.classList.contains("pad-offen") && !alt.istExtern();
+  const [pdfs, setPdfs] = useState(null);
+  const [markiert, setMarkiert] = useState(null);
+  const artikelIds = Object.values((daten.blatt && daten.blatt.plaetze) || {}).map((x) => x && x.article_id).filter(Boolean).sort().join(",");
+  useEffect(() => {
+    if (!imPad || !artikelIds) { setPdfs(null); return undefined; }
+    let weg = false;
+    spezialPdfsLaden(artikelIds.split(",")).then((je) => { if (!weg) setPdfs(je); });
+    return () => { weg = true; };
+  }, [imPad, artikelIds]);
   // Platz, dessen Werkzeug gerade auf einen anderen Platz wechselt
   const [wechsel, setWechsel] = useState(null);
   const [laeuft, setLaeuft] = useState(false);
@@ -953,7 +982,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         <span><b>{platzName(wechsel)} wechseln:</b> jetzt den neuen Platz antippen. Steht dort schon ein Werkzeug, tauschen die beiden.</span>
         <button className="knopf knopf--klein" data-eba-wechsel-ab="" onClick={() => setWechsel(null)}>Abbrechen</button>
       </div>}
-      <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => setPlatz(null)}>
+      <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => { setPlatz(null); setMarkiert(null); }}>
         {zseite && bearbeiten && <div className="eba-zseite-leiste" onClick={(e) => e.stopPropagation()}>
           <label>Name <input className="eba-zseite-name" data-eba-seite-name="" value={zseite.name || ""}
             onChange={(e) => seiteAendern(seiteNr - 1, { name: e.target.value })} /></label>
@@ -970,6 +999,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
           : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt} auftrag={auftrag}
               bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} pruefen={darf}
               platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} bestellen={darf ? bestellen : null}
+              pdfs={imPad ? pdfs : null} markiert={markiert} markieren={imPad ? setMarkiert : null}
               bilderAendern={darf ? bilderAendern : null} /></div>}
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}

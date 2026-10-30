@@ -10716,3 +10716,10 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
   .st-za__punkte { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .st-za__was { display: none; }
 }
+
+/* Einrichtblatt im Pad Mode: angetippter Platz zeigt beim Namen „Ansehen“
+   für die beim Artikel hinterlegten PDFs, daneben „Bestellen“ (seit 1.305.0) */
+.eba-platz--ansehen { position: relative; outline: 3px solid var(--marke); outline-offset: -3px; }
+.eba-platz > .eba-ansehen { position: absolute; inset: 2px; height: auto; line-height: normal; border-bottom: none; display: flex; flex-direction: column; gap: 6px;
+  justify-content: center; align-items: stretch; padding: 6px 10px; background: rgba(255, 255, 255, 0.92); z-index: 10; }
+.eba-ansehen .knopf { font-size: 13px; padding: 6px 8px; min-height: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

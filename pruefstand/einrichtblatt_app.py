@@ -292,6 +292,22 @@ with sync_playwright() as p:
     neu = pg.evaluate("TEST.daten.order_items")[vorher:]
     pruefe("Unter Offen bestellt", len(neu) == 1 and neu[0]["article_id"] == "a1" and neu[0]["quantity"] == 3 and neu[0].get("status", "offen") == "offen")
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
+    # Im Pad Mode: Platz antippen zeigt beim Namen „Ansehen“ und „Bestellen“ (1.305.0)
+    pg.evaluate("document.body.classList.add('pad-offen')")
+    pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(800)
+    pg.click("[data-platz='T200']"); pg.wait_for_timeout(300)
+    pruefe("Pad: Antippen zeigt Ansehen statt gleich Bestellen", pg.locator("[data-eba-ansehen='T200']").count() == 1
+           and pg.locator("#pd-gewaehlt").count() == 0 and "Ansehen" in pg.inner_text("[data-eba-ansehen='T200']"))
+    pg.screenshot(path="/tmp/claude-0/eb-pad-ansehen.png")
+    pg.click("[data-eba-ansehen-pdf='sp-a1']"); pg.wait_for_selector(".betrachter:has-text('Datenblatt')", timeout=5000)
+    pruefe("Pad: Ansehen öffnet die Zeichnung", pg.locator(".betrachter:has-text('Datenblatt')").count() >= 1)
+    pg.locator(".betrachter:has-text('Datenblatt') [data-zu]").last.click(); pg.wait_for_timeout(400)
+    pg.click("[data-eba-ansehen-bestellen]"); pg.wait_for_selector("#pd-gewaehlt")
+    pruefe("Pad: Bestellen daneben", "MTEC-452410" in pg.inner_text("#pd-gewaehlt"))
+    pg.click("#pd-abbrechen") if pg.locator("#pd-abbrechen").count() else pg.keyboard.press("Escape")
+    pg.wait_for_timeout(300)
+    pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
+    pg.evaluate("document.body.classList.remove('pad-offen')")
     # Artikel umbenannt: das Blatt zeigt die neuen Angaben aus der Datenbank (1.277.0)
     pg.evaluate("""() => { const D = TEST.daten; const a = D.articles.find(x => x.id === 'a1');
       a.article_number = 'MTEC-999'; a.description = 'R0.80 neu';

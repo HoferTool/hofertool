@@ -144,20 +144,8 @@ with sync_playwright() as p:
             k.first.click(); gefunden = True; break
         pg.click("[data-padzurueck]"); pg.wait_for_timeout(600)
     pg.wait_for_timeout(2000)
-    knopf = pg.locator("[data-padspezial]")
-    pruefe(gefunden and knopf.count() == 1, "Knopf Spezialwerkzeuge im Pad")
-    if knopf.count():
-        pg.screenshot(path=os.path.join(BILD, "spezial-pad.png"))
-        knopf.click(); pg.wait_for_selector("#spezialwerkzeuge .unterlagen__leer")
-        # Im Pad gleich zuordnen: HOCO Nr. des laufenden Auftrags steht schon drin
-        pg.click("#spezial-neu"); pg.wait_for_selector("#sz-such")
-        padhoco = pg.input_value("#sz-hoco")
-        pg.type("#sz-such", "MTEC"); pg.wait_for_selector("#sz-treffer [data-w]")
-        pg.click("#sz-treffer [data-w]"); pg.click("#sz-ja")
-        pg.wait_for_selector("#spezialwerkzeuge [data-spezial]")
-        pruefe(padhoco in pg.inner_text("#spezialwerkzeuge h2") and "MTEC-452410" in pg.inner_text("#spezialwerkzeuge"),
-               "Pad: zugeordnet und angezeigt (%s)" % padhoco)
-        pg.screenshot(path=os.path.join(BILD, "spezial-pad-fenster.png"))
+    # Den Knopf Spezialwerkzeuge im Pad gibt es seit 1.305.0 nicht mehr
+    pruefe(gefunden and pg.locator("[data-padspezial]").count() == 0, "Kein Knopf Spezialwerkzeuge im Pad")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)
     br.close()
 print("Fehler:", "keine" if not fehler else fehler)
