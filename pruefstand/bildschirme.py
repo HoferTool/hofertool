@@ -29,8 +29,8 @@ with sync_playwright() as p:
         if handy:
             pg.locator(".handymenue__knopf").click(); pg.wait_for_timeout(900)
             namen = pg.evaluate("[...document.querySelectorAll('.handymenue__text')].map(t => t.textContent)")
-            pruefe("Bildschirme" in namen and "Infoboard" not in namen, "Handy-Menü: Bildschirme: %s" % namen[-3:])
-            pg.locator(".handymenue__punkt", has_text="Bildschirme").click(); pg.wait_for_timeout(1200)
+            pruefe("Anzeigen" in namen and "Infoboard" not in namen, "Handy-Menü: Bildschirme: %s" % namen[-3:])
+            pg.locator(".handymenue__punkt", has_text="Anzeigen").click(); pg.wait_for_timeout(1200)
         else:
             pg.click("[data-nav='bildschirme']"); pg.wait_for_timeout(1200)
         pg.wait_for_selector("#bs-wahl")

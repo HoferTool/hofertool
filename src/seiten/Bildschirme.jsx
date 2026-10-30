@@ -5,6 +5,7 @@
 //  Seite zeigt nur die Wahl; Infoboard, Empfang und Pausenraum bleiben
 //  eigene Seiten mit ihrer Adresse, weil die Geräte an der Wand sie so
 //  öffnen. Am Computer stehen sie dazu als Unterpunkte in der Leiste.
+//  Im Menü heisst der Punkt seit 1.316.0 „Anzeigen“ (Wunsch Patrick).
 // =================================================================
 import { bildschirmSeiten } from "../huelle/unterreiter.js";
 
@@ -18,7 +19,7 @@ export default function Bildschirme() {
   const seiten = bildschirmSeiten();
   return (
     <>
-      <h1 className="seitentitel">Bildschirme</h1>
+      <h1 className="seitentitel">Anzeigen</h1>
       <div className="bs-wahl" id="bs-wahl">
         {seiten.map((s) => (
           <a key={s.pfad} className="bs-kachel" href={"#/" + s.pfad} data-bs={s.pfad}>
