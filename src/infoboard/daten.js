@@ -62,6 +62,14 @@ export const TAFELN = {
   // (Wunsch Patrick 26. Oktober 2026: „keine durchlaufenden Animationen“)
   empfang: { id: "empfang", name: "Empfang", seite: "empfang", breite: 1920, hoehe: 1080, kopf: 330,
     geraet: "hofer.empfang.geraet", ruhig: true, grund: "#fffdf9", kopfFarbe: "#f4efe7" },
+  // Pausenraum (Wunsch Patrick 30. Oktober 2026): quer, 1920 × 1080, mit
+  // Touch. Oben derselbe Kopf wie im Infoboard samt Band mit Geburtstagen
+  // und Terminen, darunter Teile wie im Infoboard und antippbare Kacheln
+  // (Kachel.jsx), die ihren Inhalt gross über den Bildschirm öffnen.
+  // Quer ist wenig Höhe: das Band steht rechts neben dem Kopf statt darunter
+  // (bandRechts = seine Breite), so bleibt für die Teile mehr Platz.
+  pausenraum: { id: "pausenraum", name: "Pausenraum", seite: "pausenraum", breite: 1920, hoehe: 1080, kopf: 360, bandRechts: 700,
+    geraet: "hofer.pausenraum.geraet", touch: true, grund: "#0b1626" },
 };
 
 // Farben der Tafel: am Empfang stellt sie der Admin selbst ein (Wunsch
@@ -239,6 +247,7 @@ export function bildschirmDiesesGeraets() {
     }
   } catch (f) { /* ohne Speicher eben nicht */ }
   if (istInfoboardGeraet(TAFELN.empfang)) return TAFELN.empfang;
+  if (istInfoboardGeraet(TAFELN.pausenraum)) return TAFELN.pausenraum;
   if (istInfoboardGeraet(TAFELN.haupt)) return TAFELN.haupt;
   return null;
 }

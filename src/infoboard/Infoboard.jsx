@@ -15,7 +15,7 @@
 //  Anzeige nach jedem Anmelden und Neuladen von selbst auf.
 // =================================================================
 import { logoGroesse } from "./EmpfangKopf.jsx";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
 import { Tafel } from "./Tafel.jsx";
@@ -26,6 +26,7 @@ import { aufbauLaden, aufbauSpeichern, aufbauOrdnen, dateiHochladen, dateiTyp, f
   istInfoboardGeraet, infoboardGeraetSetzen, SEKUNDEN, verhaeltnisLesen, neuesTeil, TAFELN, tafelFarben,
   layoutsLaden, layoutSpeichern, layoutLoeschen, gleicherAufbau, ohneEffekte } from "./daten.js";
 import { EFFEKTE } from "./Wetterhimmel.jsx";
+import { kachelBearbeiten, inhaltBearbeiten, inhaltName } from "./Kachel.jsx";
 
 // 0 = nicht von selbst blättern, die Seite wechselt nur beim Antippen
 // (Wunsch Patrick 21. Oktober 2026).
@@ -45,8 +46,13 @@ export default function Infoboard() { return <Gestalten mass={TAFELN.haupt} />; 
 // wie das Infoboard, nur eigene Zeile in der Tabelle und eigenes Gerät.
 export function Empfang() { return <Gestalten mass={TAFELN.empfang} />; }
 
+// Der Bildschirm im Pausenraum, quer, 1920 × 1080, mit Touch (Wunsch
+// Patrick 30. Oktober 2026). Kopf wie das Infoboard, dazu antippbare
+// Kacheln (Kachel.jsx); gestalten dürfen alle wie beim Infoboard.
+export function Pausenraum() { return <Gestalten mass={TAFELN.pausenraum} />; }
+
 function Gestalten({ mass }) {
-  const admin = mass.id === "haupt" ? infoboardSichtbar() : alt.istAdmin();
+  const admin = mass.id === "empfang" ? alt.istAdmin() : infoboardSichtbar();
   const [aufbau, setAufbau] = useState(null);
   const [fehler, setFehler] = useState("");
   const [gewaehlt, setGewaehlt] = useState(null);
@@ -180,6 +186,24 @@ function Gestalten({ mass }) {
     setGewaehlt(neu.id);
   };
 
+  // Antippbare Kachel (nur Pausenraum), zuerst klein und fast quadratisch
+  const kachelOeffnen = async (t) => {
+    const feld = await kachelBearbeiten(t);
+    if (!feld) return;
+    if (t) { await teilAendern(t.id, feld); return; }
+    const neu = { ...neuesTeil({ id: neueId(), art: "kachel", ...feld }, 0.7, null, mass), w: 320, h: 230 };
+    neu.x = Math.round((mass.breite - neu.w) / 2); neu.y = Math.round(mass.kopf + (mass.hoehe - mass.kopf - neu.h) / 2);
+    await aendern((teile) => [...teile, neu]);
+    setGewaehlt(neu.id);
+  };
+  const kachelInhalt = async (t, art) => {
+    setLaedt(art === "datei" ? "Datei" : "");
+    try {
+      const inhalt = await inhaltBearbeiten(art, t.inhalt);
+      if (inhalt) await teilAendern(t.id, { inhalt });
+    } finally { setLaedt(""); }
+  };
+
   const entfernen = async () => {
     if (!wahl) return;
     const ok = await alt.nachfragen({ titel: "Vom " + mass.name + " entfernen?",
@@ -187,6 +211,7 @@ function Gestalten({ mass }) {
         : wahl.art === "text" ? "Der Text verschwindet vom Infoboard."
         : wahl.art === "web" ? "Die Webseite verschwindet vom Infoboard."
         : wahl.art === "programm" ? "Das Programmfenster verschwindet vom Infoboard."
+        : wahl.art === "kachel" ? "Die Kachel verschwindet vom " + mass.name + ". Die Datei bleibt in der Ablage."
         : "Die Datei verschwindet vom Infoboard.", bestaetigen: "Entfernen", gefahr: true });
     if (!ok) return;
     if (wahl.art === "skizze") {
@@ -211,14 +236,15 @@ function Gestalten({ mass }) {
   const inhaltText = (f) => f.art === "skizze" ? "Zeichenfläche" : f.art === "text" ? "Text"
     : f.art === "web" ? "Webseite: " + (f.adresse || "")
     : f.art === "programm" ? "Programmfenster: " + (f.titel || "")
+    : f.art === "kachel" ? "Kachel: " + (f.titel || "")
     : f.art === "datei" && f.datei ? ({ pdf: "PDF", bild: "Bild", video: "Video", excel: "Excel" }[f.datei.typ] || "Datei") + ": " + (f.datei.name || "")
     : "Leer";
 
   return (
     <section className={"karte ib-gestalten ib-gestalten--" + mass.id}>
       <div className="ib-gestalten__kopf">
-        <h2>{mass.id === "empfang" ? "Empfang" : "Infoboard"}</h2>
-        {mass.id === "empfang" && <span className="klein">Bildschirm quer, genau 1920 × 1080 Punkte</span>}
+        <h2>{mass.name}</h2>
+        {mass.breite > mass.hoehe && <span className="klein">Bildschirm quer, genau 1920 × 1080 Punkte{mass.touch ? ", mit Touch" : ""}</span>}
         <button type="button" className="knopf" data-ib="anzeige" onClick={() => infoboardOeffnen(true, mass)}>
           Anzeige öffnen</button>
       </div>
@@ -228,12 +254,15 @@ function Gestalten({ mass }) {
           <Tafel mass={mass} aufbau={aufbau} bearbeiten={admin} gewaehlt={gewaehlt} waehlen={setGewaehlt} effektProbe={probe || null}
             teilAendern={admin ? teilAendern : null} logoSetzen={admin ? logoSetzen : null}
             ablegen={admin && !laedt ? (dateien, punkt) => dateienAblegen(dateien, punkt, null) : null}
-            doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); if (t && t.art === "web") webOeffnen(t); if (t && t.art === "programm") programmOeffnen(t); } : null} />
+            doppelt={admin ? (id) => { const t = aufbau.teile.find((x) => x.id === id); if (t && t.art === "text") textOeffnen(t); if (t && t.art === "web") webOeffnen(t); if (t && t.art === "programm") programmOeffnen(t); if (t && t.art === "kachel") kachelOeffnen(t); } : null} />
         </div>
         <div className="ib-gestalten__seite">
           {admin && <>
             <div className="ib-wahl__knoepfe">
-              <button type="button" className="knopf knopf--haupt" data-ib="neu-datei" disabled={!!laedt}
+              {mass.touch &&
+                <button type="button" className="knopf knopf--haupt" data-ib="neu-kachel" onClick={() => kachelOeffnen(null)}>
+                  Kachel zum Antippen …</button>}
+              <button type="button" className={"knopf" + (mass.touch ? "" : " knopf--haupt")} data-ib="neu-datei" disabled={!!laedt}
                 onClick={() => dateiWaehlen(null)}>{laedt ? "Lädt " + laedt + " …" : "Datei hinzufügen …"}</button>
               <button type="button" className="knopf" data-ib="neu-text" onClick={() => textOeffnen(null, false)}>
                 Text hinzufügen</button>
@@ -278,6 +307,8 @@ function Gestalten({ mass }) {
                     ? <button type="button" className="knopf" data-ib="web" onClick={() => webOeffnen(wahl)}>Webseite ändern</button>
                     : wahl.art === "programm"
                     ? <button type="button" className="knopf" data-ib="programm" onClick={() => programmOeffnen(wahl)}>Programmfenster ändern</button>
+                    : wahl.art === "kachel"
+                    ? <button type="button" className="knopf" data-ib="kachel" onClick={() => kachelOeffnen(wahl)}>Titel und Farbe …</button>
                     : wahl.art === "datei" &&
                       <button type="button" className="knopf" data-ib="datei" disabled={!!laedt}
                         onClick={() => dateiWaehlen(wahl)}>Andere Datei …</button>}
@@ -287,6 +318,18 @@ function Gestalten({ mass }) {
                   <button type="button" className="knopf knopf--still" data-ib="hinten" onClick={() => ebene(false)}>Nach hinten</button>
                   <button type="button" className="knopf knopf--gefahr" data-ib="leeren" onClick={entfernen}>Entfernen</button>
                 </div>
+                {wahl.art === "kachel" &&
+                  <div className="ib-kachelwahl">
+                    <p className="klein" data-ib="kachel-inhalt">Beim Antippen: {inhaltName(wahl.inhalt)}</p>
+                    <div className="ib-wahl__knoepfe">
+                      <button type="button" className="knopf knopf--still" data-ib="kachel-datei" disabled={!!laedt}
+                        onClick={() => kachelInhalt(wahl, "datei")}>Datei …</button>
+                      <button type="button" className="knopf knopf--still" data-ib="kachel-web"
+                        onClick={() => kachelInhalt(wahl, "web")}>Webseite …</button>
+                      <button type="button" className="knopf knopf--still" data-ib="kachel-text"
+                        onClick={() => kachelInhalt(wahl, "text")}>Text …</button>
+                    </div>
+                  </div>}
                 {wahl.art === "text" &&
                   <label className="ib-geraet">
                     <input type="checkbox" checked={!!wahl.ohneGrund} data-ib="ohne-grund"
@@ -325,7 +368,8 @@ function Gestalten({ mass }) {
           </>}
           <label className="ib-geraet">
             <input type="checkbox" checked={geraet} data-ib="geraet" onChange={(e) => geraetUmschalten(e.target.checked)} />
-            <span>{mass.id === "empfang" ? "Dieses Gerät ist der Bildschirm am Empfang" : "Dieses Gerät ist der Infoboard-Bildschirm"}<small>Nach dem Anmelden und nach jedem Neuladen geht die Anzeige
+            <span>{mass.id === "empfang" ? "Dieses Gerät ist der Bildschirm am Empfang"
+              : mass.id === "pausenraum" ? "Dieses Gerät ist der Bildschirm im Pausenraum" : "Dieses Gerät ist der Infoboard-Bildschirm"}<small>Nach dem Anmelden und nach jedem Neuladen geht die Anzeige
               von selbst über den ganzen Bildschirm auf.</small></span>
           </label>
         </div>
@@ -600,17 +644,32 @@ function Anzeige({ huelle, mass, melden }) {
     return () => clearTimeout(t);
   }, [zu]);
 
+  // Kachel im Pausenraum gross offen (Kachel.jsx)
+  const [gross, setGross] = useState(null);
+  const grossZu = useCallback(() => setGross(null), []);
+  useEffect(() => { if (schoner) setGross(null); }, [schoner]);
+  // Im Pausenraum tippen alle auf den Bildschirm: dort zeigt erst ein
+  // langer Druck (3 Sekunden) auf den Kopf „Schliessen“, damit niemand
+  // aus Versehen in die App dahinter kommt
+  const halten = useRef(null);
+  const loslassen = () => { clearTimeout(halten.current); halten.current = null; };
+  useEffect(() => loslassen, []);
+
   const kopfTipp = (e) => {
     const r = huelle.getBoundingClientRect();
-    if (e.clientY - r.top < r.height * 0.2) setZu(true);
+    const oben = e.clientY - r.top < r.height * 0.2;
+    if (oben && mass.touch) { loslassen(); halten.current = setTimeout(() => setZu(true), 3000); }
+    else if (oben) setZu(true);
     else if (schoner || schwarz) setWachBis(Date.now() + WACH_MS);
   };
 
-  useFensterMelden(melden ? mass.id : null, huelle, [aufbau, schoner]);
+  // Chrome-Fenster am PC gibt es nur am Infoboard und am Empfang
+  useFensterMelden(melden && !mass.touch ? mass.id : null, huelle, [aufbau, schoner]);
 
   return (
-    <div className="ib-voll__innen" onPointerDown={kopfTipp}>
-      {aufbau && <Tafel mass={mass} aufbau={aufbau} grossZiel={huelle} nacht={schoner} />}
+    <div className="ib-voll__innen" onPointerDown={kopfTipp} onPointerUp={loslassen} onPointerCancel={loslassen} onPointerLeave={loslassen}>
+      {aufbau && <Tafel mass={mass} aufbau={aufbau} grossZiel={huelle} nacht={schoner}
+        antippen={mass.touch ? setGross : null} gross={gross} grossZu={grossZu} />}
       {schwarz && <div className="ib-voll__schwarz" data-ib="schwarz" />}
       {fehler && <div className="ib-voll__fehler">{fehler}</div>}
       {zu && <button type="button" className="ib-voll__zu" data-ib="schliessen"

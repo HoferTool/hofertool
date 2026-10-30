@@ -18,7 +18,7 @@ import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import Temp from "../seiten/Temp.jsx";
 import Kalender from "../seiten/Kalender.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
-import Infoboard, { Empfang, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
+import Infoboard, { Empfang, Pausenraum, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
 import { bildschirmDiesesGeraets, TAFELN } from "../infoboard/daten.js";
 // Gleich beim Start lesen, ob die Adresse ?bildschirm=… trägt (App-Paket
 // für Samsung), damit das Gerät es sich auch vor dem Anmelden merkt
@@ -152,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.283.0";
+const APP_VERSION = "1.284.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3019,7 +3019,7 @@ function seiteSichtbar(pfad) {
   if (ARCHIV) return pfad === "planwand";
   // Das Dienstkonto braucht keine Material-Seite
   if ((pfad === "material" || pfad === "qs" || pfad === "maschinen" || pfad === "statistik" || pfad === "kalender") && meineRolle() === "dienst") return false;
-  if (pfad === "infoboard") return infoboardSichtbar();
+  if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   // Den Bereich Empfang sehen nur Personen mit dem Vermerk empfangSehen am
   // Konto (Wunsch Patrick 26. Oktober 2026, sql/empfang-sehen.sql); der
@@ -10124,6 +10124,10 @@ SYM.infoboard = svg('<rect x="5" y="2.5" width="14" height="19" rx="2"/>'
 SYM.empfang = svg('<rect x="2.5" y="4" width="19" height="12" rx="2"/><path d="M12 16v4"/><path d="M8 20.5h8"/>'
   + '<path d="M5.5 7.5h6"/><rect x="5.5" y="9.5" width="5" height="4" rx=".6"/><rect x="12.5" y="7.5" width="6" height="6" rx=".6"/>');
 
+// Pausenraum: Kaffeetasse mit Dampf
+SYM.pausenraum = svg('<path d="M4 10h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11.5h1.5a2.5 2.5 0 0 1 0 5H16.5"/>'
+  + '<path d="M8 3.5c-.8 1 .8 2 0 3.2M12 3.5c-.8 1 .8 2 0 3.2"/>');
+
 // Kalkulation: Blatt mit Franken-Zeichen und Summenstrich
 SYM.kalkulation = svg('<rect x="4.5" y="2.5" width="15" height="19" rx="2"/>'
   + '<path d="M8 7h8M8 11h8M8 15h4"/><path d="M13.5 18h3"/><path d="M14 15h3"/>');
@@ -10255,6 +10259,8 @@ const SEITEN = [
   { pfad: "infoboard",    titel: "Infoboard",    zeichen: SYM.infoboard, zeige: reactSeite(Infoboard) },
   // Bildschirm quer am Empfang (Wunsch Patrick 26. Oktober 2026), gleiche Rechte
   { pfad: "empfang",      titel: "Empfang",      zeichen: SYM.empfang, zeige: reactSeite(Empfang) },
+  // Bildschirm quer mit Touch im Pausenraum (Wunsch Patrick 30. Oktober 2026), Rechte wie Infoboard
+  { pfad: "pausenraum",   titel: "Pausenraum",   zeichen: SYM.pausenraum, zeige: reactSeite(Pausenraum) },
 ];
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen

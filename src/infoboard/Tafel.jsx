@@ -23,6 +23,7 @@ import { pdfjs } from "../teile/PdfAnsicht.jsx";
 import Skizze from "../pad/Skizze.jsx";
 import { TextBlatt } from "./TextFeld.jsx";
 import { WebFlaeche, ProgrammFlaeche } from "./WebFeld.jsx";
+import { KachelFlaeche, KachelGross } from "./Kachel.jsx";
 import { Seite as ExcelSeite, seitenRechnen } from "../teile/ExcelAnsicht.jsx";
 import { excelLesen } from "../teile/excelLesen.js";
 import { LUECKE, BLATT, SEKUNDEN, MIN_GROESSE, TAFELN, TafelMass, useTafelMass, tafelFarben } from "./daten.js";
@@ -86,7 +87,10 @@ export function teileUnterBand(teile, oben, mass) {
 // Loslassen wird gespeichert.
 // nacht: Bildschirmschoner, statt der Teile fliegen Hühner (Nacht.jsx)
 // mass: welcher Bildschirm (TAFELN in daten.js), hochkant im Gang oder quer am Empfang
-export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAendern, ablegen, doppelt, nacht, logoSetzen, effektProbe }) {
+// antippen: in der Anzeige des Pausenraums öffnet eine Kachel ihren Inhalt
+// gross (gross, grossZu; Kachel.jsx)
+export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehlen, grossZiel, teilAendern, ablegen, doppelt, nacht, logoSetzen, effektProbe,
+  antippen, gross, grossZu }) {
   const rahmen = useRef(null);
   const blatt = useRef(null);
   const k = useMassstab(rahmen, mass);
@@ -179,6 +183,8 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
         onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>
         {mass.ruhig ? <EmpfangKopf farbe={farben.kopf} logo={aufbau.logo} logoSetzen={bearbeiten ? logoSetzen : null} k={k} hoehe={mass.kopf - 2 * LUECKE} breite={mass.breite - 2 * LUECKE} top={LUECKE} left={LUECKE} />
           : <Kopf />}
+        {mass.bandRechts > 0 && <KopfBand top={LUECKE} left={mass.breite - LUECKE - mass.bandRechts} breite={mass.bandRechts}
+          hoehe={mass.kopf - 2 * LUECKE} rechts />}
         {mass.band > 0 && <KopfBand top={bandOben} left={LUECKE} breite={mass.breite - 2 * LUECKE} hoehe={mass.band - LUECKE} hoeheMelden={setBandHoehe} />}
         {mass.ruhig && (aufbau.effekte || effektProbe) && <Alpen breite={mass.breite} hoehe={mass.hoehe} oben={mass.kopf} />}
         {nacht && !mass.ruhig && <Huehnerhimmel />}
@@ -193,7 +199,7 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
               <div className={"ib-feld ib-feld--" + format + " ib-feld--" + t.art + (t.art === "text" && t.ohneGrund ? " ib-feld--ohne-grund" : "")
                 + (t.art === "datei" && t.datei && t.datei.typ === "bild" ? " ib-feld--bild" : "")}>
                 <FeldInhalt feld={t} format={format} bearbeiten={bearbeiten} grossZiel={grossZiel} grund={farben.grund}
-                  breite={t.w} hoehe={t.h} />
+                  breite={t.w} hoehe={t.h} antippen={antippen} />
               </div>
               {bearbeiten && <>
                 <div className="ib-teil__griff" aria-label="Verschieben"
@@ -211,6 +217,8 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
           );
         })}
         {mass.ruhig && (aufbau.effekte || effektProbe) && <Wetterhimmel breite={mass.breite} hoehe={mass.hoehe} probe={effektProbe} />}
+        {gross && !nacht && <KachelGross feld={gross} breite={mass.breite} hoehe={mass.hoehe} zu={grossZu}
+          inhaltZeigen={(f, b, h) => <FeldInhalt feld={f} format={b > h ? "a3" : "a4"} breite={b} hoehe={h} grund={farben.grund} />} />}
       </div>}
     </div>
     </TafelMass.Provider>
@@ -241,7 +249,7 @@ function Kopf() {
     ro.observe(el);
     return () => ro.disconnect();
   }, [hoehe]);
-  const breite = mass.breite - 2 * LUECKE;
+  const breite = mass.breite - 2 * LUECKE - (mass.bandRechts ? mass.bandRechts + LUECKE : 0);
   return (
     <div className="ib-kopf" style={{ height: hoehe, top: LUECKE, left: LUECKE, width: breite }}>
       <div className="ib-kopf__innen" ref={innen}
@@ -258,7 +266,8 @@ function Kopf() {
   );
 }
 
-function FeldInhalt({ feld, format, bearbeiten, grossZiel, breite, hoehe, grund }) {
+function FeldInhalt({ feld, format, bearbeiten, grossZiel, breite, hoehe, grund, antippen }) {
+  if (feld.art === "kachel") return <KachelFlaeche feld={feld} breite={breite} hoehe={hoehe} antippen={bearbeiten ? null : antippen} />;
   if (feld.art === "text") return <TextBlatt html={feld.html} format={format} breite={breite} hoehe={hoehe} ohneGrund={!!feld.ohneGrund} tafel={grund} />;
   if (feld.art === "web") return <WebFlaeche feld={feld} bearbeiten={bearbeiten} />;
   if (feld.art === "programm") return <ProgrammFlaeche feld={feld} bearbeiten={bearbeiten} />;

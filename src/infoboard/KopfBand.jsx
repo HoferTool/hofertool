@@ -19,7 +19,9 @@ const GEBURTSTAGE_TAGE = 30;
 const TERMINE = 8;
 const TERMINE_TAGE = 30;
 
-export default function KopfBand({ top, left, breite, hoehe, hoeheMelden }) {
+// rechts: im Pausenraum neben dem Kopf, fest so hoch wie er (quer ist
+// unten kein Platz zum Wachsen); was nicht hineinpasst, fällt weg
+export default function KopfBand({ top, left, breite, hoehe, hoeheMelden, rechts }) {
   const band = useRef(null);
   const [leute, setLeute] = useState(null);
   const [kalender, setKalender] = useState(null);
@@ -66,7 +68,8 @@ export default function KopfBand({ top, left, breite, hoehe, hoeheMelden }) {
   // Ohne feste Höhe: das Band wächst mit seinen Einträgen, hoehe ist nur
   // die Mindesthöhe, die beim Einbau für das Band vorgesehen war
   return (
-    <section className="ib-band" data-ib="band" key={heute} ref={band} style={{ top, left, width: breite, minHeight: hoehe }}>
+    <section className={"ib-band" + (rechts ? " ib-band--rechts" : "")} data-ib="band" key={heute} ref={band}
+      style={{ top, left, width: breite, ...(rechts ? { height: hoehe } : { minHeight: hoehe }) }}>
       <div className="ib-band__teil" data-ib="band-geburtstage">
         <h2 className="ib-band__titel">🎂 Geburtstage</h2>
         {leute && !geb.length && <p className="ib-band__leer">Keine Geburtstage in den nächsten {GEBURTSTAGE_TAGE} Tagen.</p>}

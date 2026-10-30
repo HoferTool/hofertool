@@ -10410,3 +10410,39 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
 .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; }
 body.dunkel .eba-pf-geodicke button { background: #2b333d; color: #e6edf3; -webkit-text-fill-color: #e6edf3; }
 body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -webkit-text-fill-color: #fff; }
+
+/* Pausenraum (seit 1.284.0): quer wie der Empfang, Kopf wie das Infoboard,
+   dazu antippbare Kacheln, die ihren Inhalt gross öffnen (Kachel.jsx) */
+.ib-gestalten--pausenraum .ib-gestalten__teile { flex-direction: column; align-items: stretch; }
+.ib-gestalten--pausenraum .ib-gestalten__vorschau { height: auto; width: 100%; max-width: calc(72vh * 16 / 9);
+  aspect-ratio: 16 / 9; }
+.ib-gestalten--pausenraum .ib-gestalten__seite { max-width: none; }
+.ib-gestalten--pausenraum .ib-gestalten__kopf .klein { margin-right: auto; }
+.ib-feld--kachel { background: transparent !important; box-shadow: none !important; border: 0 !important; overflow: visible; }
+.ib-kachel { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .12em; padding: .3em; border: 0; border-radius: .45em; cursor: pointer; font: inherit; font-weight: 700;
+  color: #fff; text-align: center; line-height: 1.1;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--kf) 82%, #fff), var(--kf) 55%, color-mix(in srgb, var(--kf) 80%, #000));
+  box-shadow: 0 .12em .4em rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.35);
+  transition: transform .12s ease, filter .12s ease; touch-action: manipulation; }
+.ib-kachel:active { transform: scale(.96); filter: brightness(1.1); }
+.ib-kachel__zeichen { font-size: 1.7em; line-height: 1; }
+.ib-kachel__titel { overflow-wrap: anywhere; text-shadow: 0 1px 3px rgba(0,0,0,.35); }
+.ib-kachel__tipp { position: absolute; right: .55em; bottom: .4em; font-size: .32em; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase; opacity: .75; }
+.ib-gross { position: absolute; left: 0; top: 0; z-index: 7; display: flex; flex-direction: column;
+  background: #050b14; color: #fff; }
+.ib-gross__kopf { flex: none; height: 110px; display: flex; align-items: center; gap: 28px; padding: 0 28px 0 40px;
+  background: var(--kf); box-shadow: 0 4px 18px rgba(0,0,0,.4); }
+.ib-gross__titel { font-size: 48px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ib-gross__hinweis { margin-right: auto; font-size: 24px; opacity: .85; }
+.ib-gross__titel + .ib-gross__zu { margin-left: auto; }
+.ib-gross__zu { flex: none; padding: 18px 40px; border: 3px solid #fff; border-radius: 999px; cursor: pointer;
+  background: rgba(0,0,0,.25); color: #fff; font: inherit; font-size: 34px; font-weight: 700; touch-action: manipulation; }
+.ib-gross__zu:active { background: rgba(0,0,0,.45); }
+.ib-gross__flaeche { position: relative; flex: 1; margin: 24px; display: flex; align-items: center; justify-content: center; }
+.ib-gross__flaeche > .ib-pdf, .ib-gross__flaeche > .ib-web, .ib-gross__flaeche > .ib-bild,
+.ib-gross__flaeche > video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.ib-gross__text { position: relative; background: #fff; border-radius: 6px; overflow: hidden; }
+.ib-kachelwahl { margin: 8px 0; }
+.ib-band--rechts { grid-template-columns: 1fr 1fr; overflow: hidden; align-items: stretch; }

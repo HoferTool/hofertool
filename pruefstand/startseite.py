@@ -24,7 +24,7 @@ with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     for start, rolle, soll in [(None, None, "#/dashboard"), ("planwand", None, "#/planwand"),
                                ("bestellungen", None, "#/bestellungen"),
-                               ("infoboard", "langdreher", "#/dashboard"),
+                               ("empfang", "langdreher", "#/dashboard"),
                                ("statistik", "extern", "#/planwand"), ("gibtsnicht", None, "#/dashboard")]:
         v = (f"window.START = '{start}';" if start else "") + (f"window.ROLLE = '{rolle}';" if rolle else "")
         pg, f = seite(br, v)
