@@ -23,7 +23,9 @@ VORAB = """(() => { let t; Object.defineProperty(window, 'TEST', { configurable:
       { id: 'm5', titel: 'Mit Seiten', aktiv: true, erstellt: '2026-10-13T10:00:00Z', text: '<!--seiten:' + JSON.stringify([
         { ueber: 'Eins', text: 'Erste Seite', bilder: ['https://bild.test/a.png'] },
         { ueber: 'Zwei', text: 'Zweite Seite', bilder: ['https://bild.test/b.png', 'https://bild.test/c.png'] },
-        { ueber: 'Drei', text: 'Dritte Seite', bilder: [] }]) + '-->' }];
+        { ueber: 'Drei', text: 'Dritte Seite', bilder: [] }]) + '-->' },
+      // Erst ab einem Zeitpunkt in der Zukunft (1.314.0): noch nicht zeigen
+      { id: 'm6', titel: 'Erst später', text: 'z', aktiv: true, erstellt: '2026-10-12T08:00:00Z', ab: '2099-01-01T02:00:00Z' }];
     v.daten.anmelde_quittungen = [{ meldung_id: 'm2', user_id: 'u1', am: '2026-10-10T09:00:00Z' },
                                   { meldung_id: 'm1', user_id: 'u2', am: '2026-10-13T09:30:00Z' }];
     if (window.GERAET) v.daten.profiles[0].andere_nutzer = true;
@@ -56,7 +58,7 @@ with sync_playwright() as p:
     pg.wait_for_timeout(500)
     gr = pg.evaluate("() => { const r = document.querySelector('.dialog.anmeldemeldung').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; }")
     pruefe(f"Fenster gross und mittig ({gr})", gr[0] >= 780 and abs(gr[1] - 720) < 4 and abs(gr[2] - 450) < 40)
-    pruefe("Zähler 1 von 3", "1 von 3" in pg.locator(".anmeldemeldung__datum").inner_text())
+    pruefe("Zähler 1 von 3 (Meldung mit späterem „ab“ fehlt)", "1 von 3" in pg.locator(".anmeldemeldung__datum").inner_text())
     if BILD: pg.screenshot(path=BILD + "/meldung-anmelden.png")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(600)
     pruefe("Escape tut nichts, keine Abmelde-Frage", sperre() == 1 and pg.locator(".dialog-huelle").count() == 0)
@@ -99,7 +101,8 @@ with sync_playwright() as p:
     pg.locator("[data-einst=allgemein]").click(); pg.wait_for_timeout(300)
     pruefe("Knopf Verwalten in Allgemein", pg.locator("#am-verwalten").count() == 1)
     pg.locator("#am-verwalten").click(); pg.wait_for_selector(".anmeldemeldungen"); pg.wait_for_timeout(400)
-    pruefe("Alle 5 Meldungen in der Liste", pg.locator(".anmeldemeldungen__eintrag").count() == 5)
+    pruefe("Alle 6 Meldungen in der Liste", pg.locator(".anmeldemeldungen__eintrag").count() == 6)
+    pruefe("Liste zeigt „erscheint ab“", "erscheint ab 01.01.2099" in pg.locator("[data-meldung=m6]").inner_text())
     pruefe("Liste zeigt die Seitenzahl", "3 Seiten" in pg.locator("[data-meldung=m5]").inner_text())
     zahl = pg.locator("[data-leser=m1]").inner_text()
     pruefe(f"Gelesen-Zahl stimmt ({zahl})", zahl == "Gelesen: 2 von 3")

@@ -202,12 +202,17 @@ export async function meldungenNachAnmeldung() {
     // Zuerst nur die Kennungen: Text und Bilder können gross sein und
     // werden nur für die Meldungen geholt, die diese Person noch nicht kennt
     const [m, q] = await Promise.all([
-      alt.zeitlimit(db.from(TABELLE).select("id").eq("aktiv", true), 10000, "Meldungen"),
+      alt.zeitlimit(db.from(TABELLE).select("id, ab").eq("aktiv", true)
+        .then((r) => (r.error ? db.from(TABELLE).select("id").eq("aktiv", true) : r)), 10000, "Meldungen"),
       alt.zeitlimit(db.from(QUITTUNGEN).select("meldung_id").eq("user_id", p.id), 10000, "Quittungen"),
     ]);
     if (m.error || q.error) return;
     const gelesen = new Set((q.data || []).map((x) => x.meldung_id));
-    const ids = (m.data || []).map((x) => x.id).filter((id) => !gelesen.has(id));
+    // Meldungen mit „ab“ (etwa Montag 03:00) erst ab dann; für alle ausser
+    // Admins sperrt das schon die Datenbank, Admins sehen sie sonst zu früh
+    const jetzt = Date.now();
+    const ids = (m.data || []).filter((x) => !x.ab || new Date(x.ab).getTime() <= jetzt)
+      .map((x) => x.id).filter((id) => !gelesen.has(id));
     if (!ids.length) return;
     const t = await alt.zeitlimit(db.from(TABELLE).select("id, titel, text, erstellt").in("id", ids)
       .order("erstellt", { ascending: true }), 30000, "Meldungen");
@@ -692,7 +697,8 @@ function Verwalten({ anfang, zu }) {
                   <strong>{m.titel}</strong>
                   <span className="klein">{datumText(m.erstellt)}
                     {seitenLesen(m.text).length > 1 ? " · " + seitenLesen(m.text).length + " Seiten" : ""}
-                    {m.aktiv ? "" : " · ausgeschaltet"}</span>
+                    {m.aktiv ? "" : " · ausgeschaltet"}
+                    {m.ab && new Date(m.ab).getTime() > Date.now() ? " · erscheint ab " + datumText(m.ab) + " " + new Date(m.ab).toTimeString().slice(0, 5) : ""}</span>
                 </div>
                 <button className="linkknopf" data-leser={m.id}
                   onClick={() => setOffen(offen === m.id ? null : m.id)}>
