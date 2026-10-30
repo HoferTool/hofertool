@@ -65,26 +65,30 @@ with sync_playwright() as p:
     pg.screenshot(path=BILD + "/spiele-hof.png")
     pg.click("[data-sp='zurueck']")
 
-    # Flatterhuhn: Hühner fliegen, Antippen trifft
-    pg.click("[data-sp='wahl-flatterhuhn']"); pg.click("[data-sp='fh-start']")
+    # Ausschuss-Jagd: Teile auf den Bändern antippen, schlechte geben Punkte
+    pg.click("[data-sp='wahl-flatterhuhn']")
+    pruefe(pg.locator(".sp-muster").count() == 4, "Erklärung mit Gutteil, Riss, Rost, Grat")
+    pg.screenshot(path=BILD + "/spiele-ausschuss-start.png")
+    pg.click("[data-sp='fh-start']")
     getroffen = False
-    for i in range(40):
+    for i in range(80):
         pg.wait_for_timeout(150)
-        box = pg.locator("[data-sp='flatterhuhn'] canvas").bounding_box()
-        # Bild nach Huhn absuchen: weisse Pixel im Himmel
-        pt = pg.locator("[data-sp='flatterhuhn'] canvas").evaluate("""c => { const g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height * 0.7).data;
-          for (let y = 60; y < c.height * 0.7; y += 6) for (let x = 0; x < c.width; x += 6) { const i = (y * c.width + x) * 4;
-            if (d[i] > 245 && d[i+1] > 245 && d[i+2] > 245) return [x / c.width, y / c.height]; } return null; }""")
+        cvl = pg.locator("[data-sp='flatterhuhn'] canvas"); box = cvl.bounding_box()
+        pt = cvl.evaluate("""c => { const g = c.getContext('2d');
+          for (const f of [0.42, 0.64, 0.86]) { const y = Math.round(c.height * f), d = g.getImageData(0, y, c.width, 1).data;
+            for (let x = 100; x < c.width - 100; x += 4) { const i = x * 4;
+              if (Math.abs(d[i] - 51) < 12 && Math.abs(d[i+1] - 65) < 12 && Math.abs(d[i+2] - 85) < 12) return [x / c.width, y / c.height]; } }
+          return null; }""")
         if pt:
-            pg.mouse.click(box["x"] + pt[0] * box["width"], box["y"] + pt[1] * box["height"] + 8); pg.wait_for_timeout(200)
+            pg.mouse.click(box["x"] + pt[0] * box["width"], box["y"] + pt[1] * box["height"]); pg.wait_for_timeout(100)
             if int(pg.locator("[data-sp='fh-punkte']").inner_text()) > 0: getroffen = True; break
-    pruefe(getroffen, "Huhn angetippt gibt Punkte")
+    pruefe(getroffen, "schlechtes Teil angetippt gibt Punkte")
     pg.screenshot(path=BILD + "/spiele-flatterhuhn.png")
     pg.click("[data-sp='zurueck']")
 
     # Eierschleuder: spannen und schiessen
     pg.click("[data-sp='wahl-eierschleuder']"); pg.click("[data-sp='es-start']"); pg.wait_for_timeout(500)
-    eier = pg.locator("[data-sp='es-eier']").inner_text().count("🥚")
+    eier = pg.locator("[data-sp='es-eier']").inner_text().count("🔩")
     box = pg.locator("[data-sp='eierschleuder'] canvas").bounding_box()
     sx = box["x"] + 230 * box["width"] / pg.locator("[data-sp='eierschleuder'] canvas").evaluate("c => c.width")
     sk = box["height"] / pg.locator("[data-sp='eierschleuder'] canvas").evaluate("c => c.height")
@@ -92,8 +96,8 @@ with sync_playwright() as p:
     pg.mouse.move(sx, sy); pg.mouse.down(); pg.mouse.move(sx - 60, sy + 40, steps=5)
     pg.wait_for_timeout(200); pg.screenshot(path=BILD + "/spiele-schleuder.png")
     pg.mouse.move(sx - 140, sy + 90, steps=5); pg.mouse.up(); pg.wait_for_timeout(2500)
-    nach = pg.locator("[data-sp='es-eier']").inner_text().count("🥚")
-    pruefe(nach == eier - 1, "Ei geschossen: %d → %d" % (eier, nach))
+    nach = pg.locator("[data-sp='es-eier']").inner_text().count("🔩")
+    pruefe(nach == eier - 1, "Drehteil geschossen: %d → %d" % (eier, nach))
     pg.click("[data-ib='gross-zu']"); pg.wait_for_timeout(300)
     pruefe(pg.locator(".ib-voll [data-ib='gross']").count() == 0, "Schliessen schliesst die Spiele")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)

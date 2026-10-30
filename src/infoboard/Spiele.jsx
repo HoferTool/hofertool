@@ -5,25 +5,31 @@
 //  Auswahl wäre auch gut“. Eine Kachel mit Inhalt „Spiel“ öffnet entweder
 //  ein Spiel direkt oder die Liste aller Spiele.
 //
-//  Eigene Spiele, keine Nachbauten bekannter Spiele:
-//  - Tic Tac Toe (drei in einer Reihe), zu zweit oder gegen den Computer
-//  - Klötzli: Steine aus 1 bis 5 Feldern fallen, volle Reihen verschwinden
-//  - Hühnerhof: das Huhn pickt alle Körner, der Fuchs jagt es
-//  - Flatterhuhn: Hühner flattern vorbei, antippen gibt Punkte („und noch
-//    Moorhuhn“, Patrick)
-//  - Eierschleuder: mit der Schleuder Eier auf Füchse auf Kisten („und
-//    Angry Birds“, Patrick)
+//  Eigene Spiele, keine Nachbauten bekannter Spiele, seit 1.293.0 mit
+//  Hofer + Co Charakter (Wunsch Patrick: „sollen einen Hofer + Co
+//  Charakter haben“, Themen von hoferco.ch: Präzisionsdrehteile ab
+//  Stange, Star, Index, Willemin, Prüfmittel). Der Bösewicht überall ist
+//  das Spänemonster, ein Knäuel aus Fliessspänen.
+//  - Tic Tac Toe: Schraube gegen Zahnrad, zu zweit oder gegen den Computer
+//  - Materiallager: Werkstoff-Klötze in den Farben der Planwand fallen
+//  - Hallenrunde: Drehteile zwischen den Maschinen einsammeln
+//  - Ausschuss-Jagd: auf den Förderbändern die schlechten Teile antippen
+//    („und noch Moorhuhn“, Patrick)
+//  - Späneschleuder: mit Drehteilen die Spänemonster von den Material-
+//    kisten schiessen („und Angry Birds“, Patrick)
+//  Die Kennungen (kloetzli, huehnerhof …) bleiben, weil Kacheln und
+//  Rekorde sie gespeichert haben.
 //  Alles mit grossen Knöpfen für den Finger; Rekorde je Gerät im
 //  localStorage (darf fehlen, dann eben ohne Rekord).
 // =================================================================
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export const SPIELE = [
-  { id: "dreigewinnt", name: "Tic Tac Toe", zeichen: "⭕", text: "Drei in einer Reihe. Zu zweit oder gegen den Computer." },
-  { id: "kloetzli", name: "Klötzli", zeichen: "🧱", text: "Steine fallen, volle Reihen verschwinden." },
-  { id: "huehnerhof", name: "Hühnerhof", zeichen: "🐔", text: "Das Huhn pickt alle Körner. Pass auf den Fuchs auf!" },
-  { id: "flatterhuhn", name: "Flatterhuhn", zeichen: "🪶", text: "Hühner flattern vorbei. Tipp sie an, 90 Sekunden lang." },
-  { id: "eierschleuder", name: "Eierschleuder", zeichen: "🥚", text: "Schleuder spannen und die Füchse von den Kisten werfen." },
+  { id: "dreigewinnt", name: "Tic Tac Toe", zeichen: "🔩", text: "Schraube gegen Zahnrad. Zu zweit oder gegen den Computer." },
+  { id: "kloetzli", name: "Materiallager", zeichen: "📦", text: "V2A, Messing, Alu … fallen ins Lager. Volle Reihen gehen in die Produktion." },
+  { id: "huehnerhof", name: "Hallenrunde", zeichen: "🏭", text: "Sammle die Drehteile zwischen den Maschinen ein. Achtung, Spänemonster!" },
+  { id: "flatterhuhn", name: "Ausschuss-Jagd", zeichen: "🔍", text: "Tipp auf den Förderbändern die schlechten Teile an. 90 Sekunden." },
+  { id: "eierschleuder", name: "Späneschleuder", zeichen: "🎯", text: "Mit Drehteilen die Spänemonster von den Materialkisten schiessen." },
 ];
 export const spielName = (id) => id === "alle" || !id ? "Alle Spiele zur Auswahl"
   : (SPIELE.find((s) => s.id === id) || {}).name || "Spiel";
@@ -159,7 +165,7 @@ function DreiGewinnt({ breite, hoehe }) {
   if (!art) {
     return (
       <div className="sp-start" data-sp="ttt-start">
-        <div className="sp-start__titel">⭕ Tic Tac Toe ❌</div>
+        <div className="sp-start__titel">🔩 Tic Tac Toe ⚙️</div>
         <div className="sp-start__knoepfe">
           <button type="button" className="sp-gross" data-sp="ttt-zwei" onClick={() => setArt("zwei")}>👥 Zu zweit</button>
           <button type="button" className="sp-gross" data-sp="ttt-computer" onClick={() => setArt("computer")}>🤖 Gegen Computer</button>
@@ -168,15 +174,15 @@ function DreiGewinnt({ breite, hoehe }) {
     );
   }
   const g = Math.floor(Math.min(hoehe - 20, breite - 760) / 3);
-  const namen = art === "computer" ? { X: "Du", O: "Computer" } : { X: "Spieler ❌", O: "Spieler ⭕" };
+  const namen = art === "computer" ? { X: "Du", O: "Computer" } : { X: "Schraube 🔩", O: "Zahnrad ⚙️" };
   return (
     <div className="sp-ttt" data-sp="ttt">
       <div className="sp-ttt__feld" style={{ gridTemplateColumns: `repeat(3, ${g}px)`, gridAutoRows: g + "px" }}>
         {f.map((v, i) => (
           <button type="button" key={i} data-sp={"ttt-" + i}
             className={"sp-ttt__zelle" + (v ? " sp-ttt__zelle--" + v : "") + (w && w.reihe.includes(i) ? " sp-ttt__zelle--sieg" : "")}
-            style={{ fontSize: g * 0.7 }} onPointerDown={(e) => { e.preventDefault(); setzen(i); }}>
-            {v === "X" ? "✕" : v === "O" ? "◯" : ""}</button>
+            style={{ fontSize: g * 0.62 }} onPointerDown={(e) => { e.preventDefault(); setzen(i); }}>
+            {v === "X" ? "🔩" : v === "O" ? "⚙️" : ""}</button>
         ))}
       </div>
       <div className="sp-seite">
@@ -198,14 +204,16 @@ function DreiGewinnt({ breite, hoehe }) {
 
 // ------------------------------- Klötzli -------------------------------
 const KB = 10, KH = 16;
+// Farben wie die Werkstoffe auf der Planwand (werkstoffErkennen)
+const WERKSTOFF = { "#dc2626": "V2A", "#94a3b8": "V4A", "#f59e0b": "MS", "#2563eb": "ST", "#f1f5f9": "AL", "#facc15": "NS", "#8b5cf6": "TI" };
 const STEINE = [
-  { teile: [[0, 0]], farbe: "#f59e0b" },
-  { teile: [[0, 0], [1, 0]], farbe: "#10b981" },
-  { teile: [[0, 0], [1, 0], [2, 0]], farbe: "#3b82f6" },
-  { teile: [[0, 0], [1, 0], [0, 1]], farbe: "#ef4444" },
-  { teile: [[0, 0], [1, 0], [2, 0], [1, 1]], farbe: "#a855f7" },
-  { teile: [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]], farbe: "#ec4899" },
-  { teile: [[0, 0], [2, 0], [0, 1], [1, 1], [2, 1]], farbe: "#06b6d4" },
+  { teile: [[0, 0]], farbe: "#facc15" },
+  { teile: [[0, 0], [1, 0]], farbe: "#94a3b8" },
+  { teile: [[0, 0], [1, 0], [2, 0]], farbe: "#2563eb" },
+  { teile: [[0, 0], [1, 0], [0, 1]], farbe: "#dc2626" },
+  { teile: [[0, 0], [1, 0], [2, 0], [1, 1]], farbe: "#f59e0b" },
+  { teile: [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]], farbe: "#8b5cf6" },
+  { teile: [[0, 0], [2, 0], [0, 1], [1, 1], [2, 1]], farbe: "#f1f5f9" },
 ];
 const neuerStein = () => {
   const s = STEINE[Math.floor(Math.random() * STEINE.length)];
@@ -301,11 +309,11 @@ function Kloetzli({ breite, hoehe }) {
         {...wischen((r) => tun(r === "runter" ? "fallen" : r))}>
         {bild.flat().map((c, i) => (
           <div key={i} className={"sp-kl__z" + (c ? " sp-kl__z--voll" : schatten.includes(i) ? " sp-kl__z--schatten" : "")}
-            style={c ? { "--sf": c } : undefined} />
+            style={c ? { "--sf": c, fontSize: k * 0.28 } : undefined}>{c ? WERKSTOFF[c] : null}</div>
         ))}
         {(!z || z.aus) &&
           <div className="sp-ueber">
-            {z && z.aus && <div className="sp-ueber__titel">Fertig! {z.punkte.toLocaleString("de-CH")} Punkte</div>}
+            {z && z.aus && <div className="sp-ueber__titel">Lager voll! {z.punkte.toLocaleString("de-CH")} Punkte</div>}
             {z && z.neuerRekord && <div className="sp-ueber__rekord">🏆 Neuer Rekord!</div>}
             <button type="button" className="sp-gross" data-sp="kl-start" onClick={starten}>{z ? "Nochmal" : "▶ Start"}</button>
           </div>}
@@ -350,6 +358,9 @@ const HOF = [
   "###################",
 ];
 const HB = HOF[0].length, HH = HOF.length;
+// Schilder auf den Maschinenblöcken der Halle (Zeile, erste Spalte, Breite)
+const SCHILDER = [[2, 5, 3, "STAR"], [2, 11, 3, "STAR"], [8, 2, 4, "SW20"], [8, 7, 5, "INDEX C100"], [8, 13, 4, "WILLEMIN"],
+  [4, 4, 2, "SB16"], [4, 13, 2, "SR32"]];
 const RICHT = { links: [-1, 0], rechts: [1, 0], hoch: [0, -1], runter: [0, 1] };
 const frei = (x, y) => x >= 0 && x < HB && y >= 0 && y < HH && HOF[y][x] !== "#";
 const KOERNER = () => {
@@ -455,17 +466,20 @@ function Huehnerhof({ breite, hoehe }) {
       <div className="sp-hof__feld" style={{ width: k * HB, height: k * HH, "--k": k + "px" }}
         {...wischen(tun)}>
         {HOF.map((r, y) => [...r].map((c, x) => c === "#"
-          ? <div key={x + "-" + y} className="sp-hof__zaun" style={{ left: x * k, top: y * k }} />
+          ? <div key={x + "-" + y} className={"sp-hof__zaun" + (x === 0 || y === 0 || x === HB - 1 || y === HH - 1 ? " sp-hof__zaun--wand" : "")}
+            style={{ left: x * k, top: y * k }} />
           : z && z.koerner.has(y * HB + x)
             ? <div key={x + "-" + y} className="sp-hof__korn" style={{ left: x * k, top: y * k }} />
             : null))}
+        {SCHILDER.map(([y, x, w, t]) => <div key={t + x + y} className="sp-hof__schild"
+          style={{ left: x * k, top: y * k, width: w * k, height: k, fontSize: k * 0.3 }}>{t}</div>)}
         {z && <div className={"sp-hof__tier sp-hof__huhn" + (z.huhn.r === "rechts" ? " sp-hof__tier--rechts" : "")}
-          data-sp="huhn" style={{ left: z.huhn.x * k, top: z.huhn.y * k }}>🐔</div>}
-        {z && z.fuechse.map((f, i) => <div key={i} className="sp-hof__tier sp-hof__fuchs" style={{ left: f.x * k, top: f.y * k }}>🦊</div>)}
+          data-sp="huhn" style={{ left: z.huhn.x * k, top: z.huhn.y * k }}>🧑‍🏭</div>}
+        {z && z.fuechse.map((f, i) => <div key={i} className="sp-hof__tier sp-hof__fuchs" style={{ left: f.x * k, top: f.y * k }}><SpaeneMonster /></div>)}
         {(!z || z.aus) &&
           <div className="sp-ueber">
-            {!z && <div className="sp-ueber__text">Pick alle Körner auf! Steuern mit Wischen oder den Pfeilen.</div>}
-            {z && z.aus && <div className="sp-ueber__titel">Der Fuchs war schneller! {z.punkte.toLocaleString("de-CH")} Punkte</div>}
+            {!z && <div className="sp-ueber__text">Sammle alle Drehteile in der Halle ein! Die Spänemonster wollen dich erwischen. Steuern mit Wischen oder den Pfeilen.</div>}
+            {z && z.aus && <div className="sp-ueber__titel">Das Spänemonster hat dich erwischt! {z.punkte.toLocaleString("de-CH")} Punkte</div>}
             {z && z.neuerRekord && <div className="sp-ueber__rekord">🏆 Neuer Rekord!</div>}
             <button type="button" className="sp-gross" data-sp="hof-start" onClick={starten}>{z ? "Nochmal" : "▶ Start"}</button>
           </div>}
@@ -473,8 +487,8 @@ function Huehnerhof({ breite, hoehe }) {
       <div className="sp-seite">
         <div className="sp-zahlen">
           <div><span>Punkte</span><b data-sp="hof-punkte">{z ? z.punkte.toLocaleString("de-CH") : 0}</b></div>
-          <div><span>Leben</span><b>{z ? "🐔".repeat(Math.max(0, z.leben)) || "–" : "🐔🐔🐔"}</b></div>
-          <div><span>Hof</span><b>{z ? z.stufe : 1}</b></div>
+          <div><span>Leben</span><b>{z ? "❤️".repeat(Math.max(0, z.leben)) || "–" : "❤️❤️❤️"}</b></div>
+          <div><span>Schicht</span><b>{z ? z.stufe : 1}</b></div>
           <div><span>Rekord</span><b>{rekord.toLocaleString("de-CH")}</b></div>
         </div>
         <div className="sp-kreuz">
@@ -496,54 +510,133 @@ function canvasPunkt(c, e) {
   return { x: (e.clientX - r.left) * (c.width / r.width), y: (e.clientY - r.top) * (c.height / r.height) };
 }
 
-function zeichneHuhn(g, x, y, s, flug, links) {
-  g.save();
-  g.translate(x, y);
-  if (links) g.scale(-1, 1);
-  g.scale(s, s);
-  g.fillStyle = "#f8fafc"; g.strokeStyle = "#1e293b"; g.lineWidth = 3;
-  g.beginPath(); g.ellipse(0, 0, 34, 26, 0, 0, Math.PI * 2); g.fill(); g.stroke();      // Bauch
-  g.beginPath(); g.moveTo(-30, -6); g.lineTo(-52, -22); g.lineTo(-44, 4); g.closePath(); g.fill(); g.stroke(); // Schwanz
-  g.beginPath(); g.arc(30, -22, 16, 0, Math.PI * 2); g.fill(); g.stroke();              // Kopf
-  g.fillStyle = "#dc2626";
-  g.beginPath(); g.arc(26, -40, 6, 0, Math.PI * 2); g.arc(34, -40, 6, 0, Math.PI * 2); g.fill(); // Kamm
-  g.beginPath(); g.ellipse(40, -10, 4, 7, 0, 0, Math.PI * 2); g.fill();                 // Kehllappen
-  g.fillStyle = "#f59e0b";
-  g.beginPath(); g.moveTo(44, -26); g.lineTo(58, -21); g.lineTo(44, -16); g.closePath(); g.fill(); // Schnabel
-  g.fillStyle = "#1e293b"; g.beginPath(); g.arc(35, -25, 3.2, 0, Math.PI * 2); g.fill(); // Auge
-  g.fillStyle = "#e2e8f0";                                                               // Flügel
-  g.beginPath(); g.moveTo(-6, -4);
-  g.quadraticCurveTo(-4, -4 - 44 * flug, 22, -6 - 30 * flug); g.quadraticCurveTo(12, 4, -6, -4);
-  g.fill(); g.stroke();
+// Das Spänemonster für die Hallenrunde (im DOM)
+export function SpaeneMonster() {
+  return (
+    <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">
+      <g fill="none" stroke="#94a3b8" strokeWidth="7" strokeLinecap="round">
+        <path d="M50 18 a32 32 0 1 1 -30 22 a22 22 0 1 1 20 30 a12 12 0 1 1 18 -8" />
+        <path d="M18 28 q-14 -8 -6 -22 M82 22 q14 -4 10 -18 M86 78 q12 6 8 18 M14 74 q-12 8 -4 20" stroke="#64748b" strokeWidth="5" />
+      </g>
+      <g stroke="#1e293b" strokeWidth="4" strokeLinecap="round"><path d="M28 36 l14 6 M72 36 l-14 6" /></g>
+      <circle cx="38" cy="50" r="10" fill="#fff" stroke="#1e293b" strokeWidth="3" />
+      <circle cx="62" cy="50" r="10" fill="#fff" stroke="#1e293b" strokeWidth="3" />
+      <circle cx="40" cy="52" r="4.5" fill="#1e293b" /><circle cx="60" cy="52" r="4.5" fill="#1e293b" />
+      <path d="M38 72 q12 -8 24 0" fill="none" stroke="#1e293b" strokeWidth="4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Dasselbe auf dem Canvas
+function zeichneMonster(g, x, y, s, wackeln = 0) {
+  g.save(); g.translate(x, y); g.rotate(Math.sin(wackeln) * 0.12); g.scale(s, s);
+  g.lineCap = "round"; g.fillStyle = "rgba(148,163,184,.25)";
+  g.beginPath(); g.arc(0, 0, 36, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = "#94a3b8"; g.lineWidth = 7;
+  g.beginPath(); g.arc(0, 0, 32, -1.4, 4.2); g.stroke();
+  g.beginPath(); g.arc(4, 2, 22, 1.2, 6.6); g.stroke();
+  g.strokeStyle = "#64748b"; g.lineWidth = 5;
+  for (const [a, l] of [[-2.4, 1], [-0.7, 1.2], [0.8, 0.9], [2.4, 1.1]]) {
+    g.beginPath(); g.moveTo(Math.cos(a) * 34, Math.sin(a) * 34);
+    g.quadraticCurveTo(Math.cos(a + 0.4) * 52 * l, Math.sin(a + 0.4) * 52 * l, Math.cos(a - 0.2) * 50 * l, Math.sin(a - 0.2) * 50 * l); g.stroke();
+  }
+  g.strokeStyle = "#1e293b"; g.lineWidth = 4;
+  g.beginPath(); g.moveTo(-22, -16); g.lineTo(-8, -10); g.moveTo(22, -16); g.lineTo(8, -10); g.stroke();
+  for (const ax of [-12, 12]) {
+    g.fillStyle = "#fff"; g.lineWidth = 3; g.beginPath(); g.arc(ax, 0, 10, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = "#1e293b"; g.beginPath(); g.arc(ax + (ax < 0 ? 2 : -2), 2, 4.5, 0, Math.PI * 2); g.fill();
+  }
+  g.lineWidth = 4; g.beginPath(); g.moveTo(-12, 22); g.quadraticCurveTo(0, 14, 12, 22); g.stroke();
   g.restore();
 }
 
-function zeichneFuchs(g, x, y, s) {
-  g.save(); g.translate(x, y); g.scale(s, s);
-  g.fillStyle = "#ea580c"; g.strokeStyle = "#431407"; g.lineWidth = 3;
-  g.beginPath(); g.moveTo(-30, -10); g.lineTo(-24, -42); g.lineTo(-8, -20);
-  g.lineTo(8, -20); g.lineTo(24, -42); g.lineTo(30, -10); g.lineTo(0, 26); g.closePath(); g.fill(); g.stroke();
-  g.fillStyle = "#fff7ed";
-  g.beginPath(); g.moveTo(-18, 2); g.lineTo(0, 26); g.lineTo(18, 2); g.lineTo(0, 8); g.closePath(); g.fill();
-  g.fillStyle = "#1c1917";
-  g.beginPath(); g.arc(-11, -6, 4, 0, Math.PI * 2); g.arc(11, -6, 4, 0, Math.PI * 2); g.arc(0, 22, 4, 0, Math.PI * 2); g.fill();
+// Ein Drehteil von der Seite: abgesetzte Welle mit Gewinde, metallisch.
+// fehler: "riss" | "rost" | "grat" | null
+const FORMEN = [
+  [[0, 36, 30], [36, 50, 18], [86, 34, 24]],     // Bolzen mit Bund
+  [[0, 24, 22], [24, 60, 30], [84, 36, 14]],     // Achse
+  [[0, 50, 26], [50, 24, 34], [74, 46, 20]],     // Hülse mit Kragen
+];
+function zeichneDrehteil(g, x, y, s, form = 0, fehler = null, drehung = 0) {
+  const stufen = FORMEN[form % FORMEN.length];
+  const l = stufen.reduce((m, [a, b]) => Math.max(m, a + b), 0);
+  g.save(); g.translate(x, y); g.rotate(drehung); g.scale(s, s); g.translate(-l / 2, 0);
+  for (const [a, b, d] of stufen) {
+    const v = g.createLinearGradient(0, -d, 0, d);
+    v.addColorStop(0, "#f8fafc"); v.addColorStop(0.35, "#cbd5e1"); v.addColorStop(0.7, "#64748b"); v.addColorStop(1, "#94a3b8");
+    g.fillStyle = v; g.strokeStyle = "#334155"; g.lineWidth = 2.5;
+    g.fillRect(a, -d, b, 2 * d); g.strokeRect(a, -d, b, 2 * d);
+  }
+  // Gewinde am letzten Absatz
+  const [ga, gb, gd] = stufen[stufen.length - 1];
+  g.strokeStyle = "rgba(30,41,59,.55)"; g.lineWidth = 2;
+  for (let k = ga + 5; k < ga + gb - 3; k += 6) { g.beginPath(); g.moveTo(k, -gd); g.lineTo(k + 4, gd); g.stroke(); }
+  if (fehler === "riss") {
+    g.strokeStyle = "#dc2626"; g.lineWidth = 4; g.beginPath();
+    const m = stufen[1][0] + stufen[1][1] / 2;
+    g.moveTo(m - 6, -stufen[1][2]); g.lineTo(m + 6, -8); g.lineTo(m - 4, 4); g.lineTo(m + 8, stufen[1][2]); g.stroke();
+  } else if (fehler === "rost") {
+    g.fillStyle = "rgba(180,83,9,.85)";
+    for (const [px, py, r] of [[l * 0.3, -6, 9], [l * 0.45, 8, 7], [l * 0.62, -2, 11], [l * 0.2, 10, 5]]) { g.beginPath(); g.arc(px, py, r, 0, Math.PI * 2); g.fill(); }
+  } else if (fehler === "grat") {
+    g.fillStyle = "#dc2626";
+    const [a] = stufen[1];
+    for (let k = -1; k <= 1; k += 2) { g.beginPath(); g.moveTo(a, k * stufen[1][2]); g.lineTo(a - 6, k * (stufen[1][2] + 16)); g.lineTo(a + 8, k * stufen[1][2]); g.fill(); }
+  }
   g.restore();
 }
 
-function zeichneLandschaft(g, b, h) {
-  const himmel = g.createLinearGradient(0, 0, 0, h);
-  himmel.addColorStop(0, "#7dd3fc"); himmel.addColorStop(1, "#e0f2fe");
-  g.fillStyle = himmel; g.fillRect(0, 0, b, h);
-  g.fillStyle = "#fde68a"; g.beginPath(); g.arc(b - 160, 120, 60, 0, Math.PI * 2); g.fill();
-  g.fillStyle = "#86efac";
-  g.beginPath(); g.moveTo(0, h * 0.78);
-  for (let x = 0; x <= b + 40; x += 40) g.lineTo(x, h * 0.74 + Math.sin(x / 210) * 30);
-  g.lineTo(b + 40, h); g.lineTo(0, h); g.fill();
-  g.fillStyle = "#4ade80"; g.fillRect(0, h - 70, b, 70);
+// Hintergrund: unsere Halle mit Fenstern, Maschinen und gelber Linie am Boden
+function zeichneHalle(g, b, h, boden, maschinen = true) {
+  const wand = g.createLinearGradient(0, 0, 0, boden);
+  wand.addColorStop(0, "#e2e8f0"); wand.addColorStop(1, "#f8fafc");
+  g.fillStyle = wand; g.fillRect(0, 0, b, boden);
+  // Fensterband mit Himmel
+  for (let x = 40; x < b - 140; x += 260) {
+    const f = g.createLinearGradient(0, 110, 0, 230);
+    f.addColorStop(0, "#7dd3fc"); f.addColorStop(1, "#e0f2fe");
+    g.fillStyle = f; g.fillRect(x, 110, 220, 120);
+    g.strokeStyle = "#475569"; g.lineWidth = 6; g.strokeRect(x, 110, 220, 120);
+    g.beginPath(); g.moveTo(x + 110, 110); g.lineTo(x + 110, 230); g.stroke();
+  }
+  g.fillStyle = "#1e3a8a"; g.font = "bold 34px system-ui"; g.textAlign = "right";
+  g.fillText("HOFER + CO", b - 40, 280);
+  g.font = "20px system-ui"; g.fillStyle = "#475569"; g.fillText("Präzisionsdrehteile · Lohn-Ammannsegg", b - 40, 308);
+  g.textAlign = "left";
+  // Maschinen hinten
+  const namen = ["STAR SB-20", "INDEX C100", "STAR SW20", "WILLEMIN 508", "STAR SR-32", "INDEX C100"];
+  let i = 0;
+  g.globalAlpha = 0.55;
+  for (let x = 30; maschinen && x < b; x += 330, i++) {
+    const mh = 190 + (i % 2) * 30, my = boden - mh;
+    g.fillStyle = "#cbd5e1"; g.fillRect(x, my, 290, mh);
+    g.fillStyle = "#e2e8f0"; g.fillRect(x + 14, my + 14, 150, mh - 60);
+    g.fillStyle = "rgba(125,211,252,.55)"; g.fillRect(x + 26, my + 26, 126, mh - 90);
+    g.fillStyle = "#1d4ed8"; g.fillRect(x, my, 290, 12);
+    g.fillStyle = "#334155"; g.fillRect(x + 184, my + 24, 86, 56);
+    g.fillStyle = "#22c55e"; g.beginPath(); g.arc(x + 200, my + 100, 8, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#475569"; g.font = "bold 18px system-ui"; g.fillText(namen[i % namen.length], x + 14, my + mh - 18);
+  }
+  g.globalAlpha = 1;
+  g.fillStyle = "#9ca3af"; g.fillRect(0, boden, b, h - boden);
+  for (let x = 0; x < b; x += 60) { g.fillStyle = x % 120 ? "#1f2937" : "#facc15"; g.fillRect(x, boden, 60, 12); }
 }
 
-// ----------------------------- Flatterhuhn -----------------------------
+// Funken, wo etwas getroffen wurde
+function zeichneFunken(g, p) {
+  g.strokeStyle = "#f59e0b"; g.lineWidth = 4;
+  const r = (1.2 - p.zeit) * 90;
+  for (let k = 0; k < 10; k++) {
+    const a = k / 10 * Math.PI * 2;
+    g.beginPath(); g.moveTo(p.x + Math.cos(a) * r * 0.5, p.y + Math.sin(a) * r * 0.5); g.lineTo(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r); g.stroke();
+  }
+}
+
+// ---------------------------- Ausschuss-Jagd ----------------------------
+// Drei Förderbänder, darauf Drehteile. Schlechte Teile (Riss, Rost, Grat)
+// antippen gibt Punkte, ein Gutteil antippen kostet Punkte.
 const FH_DAUER = 90;
+const FEHLER = ["riss", "rost", "grat"];
 
 function Flatterhuhn({ breite, hoehe }) {
   const cv = useRef(null);
@@ -551,46 +644,61 @@ function Flatterhuhn({ breite, hoehe }) {
   const [, neu] = useState(0);
   const [rekord, setRekord] = useState(() => rekordLesen("flatterhuhn"));
   const b = Math.floor(breite), h = Math.floor(hoehe - 4);
+  const BAENDER = [0.42, 0.64, 0.86].map((f, i) => ({ y: Math.round(h * f), v: [220, 320, 430][i] * (i % 2 ? -1 : 1), punkte: [10, 15, 20][i] }));
 
-  const starten = () => { s.current = { huehner: [], federn: [], punkte: 0, treffer: 0, ende: Date.now() + FH_DAUER * 1000, laeuft: true, naechstes: 0 }; neu((n) => n + 1); };
+  const starten = () => { s.current = { teile: [], texte: [], punkte: 0, treffer: 0, durch: 0, ende: Date.now() + FH_DAUER * 1000, laeuft: true, naechstes: [0, 0.6, 1.2] }; neu((n) => n + 1); };
 
   useEffect(() => {
-    let rahmen, zuletzt = performance.now(), anzeige = -1;
+    let rahmen, zuletzt = performance.now(), anzeige = -1, lauf = 0;
     const schritt = (jetzt) => {
       const dt = Math.min(0.05, (jetzt - zuletzt) / 1000); zuletzt = jetzt;
       const c = cv.current, z = s.current;
       if (!c) return;
       const g = c.getContext("2d");
-      zeichneLandschaft(g, b, h);
+      zeichneHalle(g, b, h, h - 30, false);
+      if (z && z.laeuft) lauf += dt;
+      // Bänder
+      for (const band of BAENDER) {
+        g.fillStyle = "#1f2937"; g.fillRect(0, band.y + 30, b, 34);
+        g.fillStyle = "#374151";
+        const off = ((lauf * band.v) % 60 + 60) % 60;
+        for (let x = -60 + off; x < b; x += 60) g.fillRect(x, band.y + 34, 30, 26);
+        g.fillStyle = "#6b7280"; for (let x = 20; x < b; x += 160) { g.beginPath(); g.arc(x, band.y + 47, 10, 0, Math.PI * 2); g.fill(); }
+      }
       if (z) {
         if (z.laeuft) {
-          z.naechstes -= dt;
-          if (z.naechstes <= 0) {
-            // Ferne Hühner sind kleiner, schneller und geben mehr Punkte
-            const tiefe = Math.random(), links = Math.random() < 0.5;
-            const gr = 0.55 + tiefe * 1.0;
-            z.huehner.push({ x: links ? b + 80 : -80, y: 90 + Math.random() * (h * 0.55), gr, links,
-              v: (260 + (1 - tiefe) * 260) * (links ? -1 : 1), welle: Math.random() * 6, punkte: gr < 0.8 ? 25 : gr < 1.2 ? 10 : 5 });
-            z.naechstes = 0.35 + Math.random() * 0.7;
-          }
+          BAENDER.forEach((band, i) => {
+            z.naechstes[i] -= dt;
+            if (z.naechstes[i] <= 0) {
+              const defekt = Math.random() < 0.38;
+              z.teile.push({ band: i, x: band.v > 0 ? -90 : b + 90, form: Math.floor(Math.random() * 3),
+                fehler: defekt ? FEHLER[Math.floor(Math.random() * 3)] : null });
+              z.naechstes[i] = 0.9 + Math.random() * 1.4;
+            }
+          });
           if (Date.now() >= z.ende) {
             z.laeuft = false;
             if (rekordMerken("flatterhuhn", z.punkte)) { z.neuerRekord = true; setRekord(z.punkte); }
             neu((n) => n + 1);
           }
         }
-        z.huehner = z.huehner.filter((u) => u.x > -150 && u.x < b + 150);
-        z.huehner.sort((p, q) => p.gr - q.gr);
-        for (const u of z.huehner) {
-          u.x += u.v * dt; u.welle += dt * 5;
-          zeichneHuhn(g, u.x, u.y + Math.sin(u.welle) * 18, u.gr, (Math.sin(u.welle * 3) + 1) / 2, u.links);
+        for (const t of z.teile) {
+          const band = BAENDER[t.band];
+          if (z.laeuft) t.x += band.v * dt;
+          zeichneDrehteil(g, t.x, band.y, 1.1, t.form, t.fehler);
         }
-        z.federn = z.federn.filter((f) => (f.zeit -= dt) > 0);
-        for (const f of z.federn) {
-          f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 300 * dt;
+        const vorher = z.teile.length;
+        z.teile = z.teile.filter((t) => {
+          const raus = t.x < -120 || t.x > b + 120;
+          if (raus && t.fehler) z.durch++;
+          return !raus;
+        });
+        if (z.teile.length !== vorher) neu((n) => n + 1);
+        z.texte = z.texte.filter((f) => (f.zeit -= dt) > 0);
+        for (const f of z.texte) {
           g.globalAlpha = Math.min(1, f.zeit);
-          if (f.text) { g.fillStyle = "#1d4ed8"; g.font = "bold 44px system-ui"; g.fillText(f.text, f.x, f.y); }
-          else { g.fillStyle = "#fff"; g.beginPath(); g.ellipse(f.x, f.y, 10, 4, f.vx / 200, 0, Math.PI * 2); g.fill(); }
+          if (f.funken) zeichneFunken(g, f);
+          g.fillStyle = f.farbe; g.font = "bold 46px system-ui"; g.fillText(f.text, f.x - 40, f.y - 50 - (1.2 - f.zeit) * 50);
           g.globalAlpha = 1;
         }
         const rest = z.laeuft ? Math.ceil((z.ende - Date.now()) / 1000) : 0;
@@ -600,20 +708,24 @@ function Flatterhuhn({ breite, hoehe }) {
     };
     rahmen = requestAnimationFrame(schritt);
     return () => cancelAnimationFrame(rahmen);
-  }, [b, h]);
+  }, [b, h]); // eslint-disable-line
 
   const tippen = (e) => {
     const z = s.current;
     if (!z || !z.laeuft) return;
     const p = canvasPunkt(cv.current, e);
-    // vorderste zuerst (grösste liegen oben)
-    for (let i = z.huehner.length - 1; i >= 0; i--) {
-      const u = z.huehner[i], yy = u.y + Math.sin(u.welle) * 18;
-      if (Math.abs(p.x - u.x) < 50 * u.gr && Math.abs(p.y - yy + 10 * u.gr) < 42 * u.gr) {
-        z.huehner.splice(i, 1);
-        z.punkte += u.punkte; z.treffer++;
-        for (let k = 0; k < 10; k++) z.federn.push({ x: u.x, y: yy, vx: (Math.random() - 0.5) * 400, vy: -Math.random() * 300, zeit: 1.2 });
-        z.federn.push({ x: u.x - 20, y: yy - 40, vx: 0, vy: -60, zeit: 1, text: "+" + u.punkte });
+    for (let i = z.teile.length - 1; i >= 0; i--) {
+      const t = z.teile[i], y = BAENDER[t.band].y;
+      if (Math.abs(p.x - t.x) < 80 && Math.abs(p.y - y) < 50) {
+        z.teile.splice(i, 1);
+        if (t.fehler) {
+          const pt = BAENDER[t.band].punkte;
+          z.punkte += pt; z.treffer++;
+          z.texte.push({ x: t.x, y, zeit: 1.2, text: "+" + pt, farbe: "#15803d", funken: true });
+        } else {
+          z.punkte = Math.max(0, z.punkte - 5);
+          z.texte.push({ x: t.x, y, zeit: 1.2, text: "Gutteil! −5", farbe: "#dc2626" });
+        }
         neu((n) => n + 1);
         return;
       }
@@ -628,12 +740,17 @@ function Flatterhuhn({ breite, hoehe }) {
       <div className="sp-leinwand__zahlen">
         <span>Punkte <b data-sp="fh-punkte">{z ? z.punkte : 0}</b></span>
         <span>Zeit <b>{rest}</b></span>
+        <span>Durchgerutscht <b>{z ? z.durch : 0}</b></span>
         <span>Rekord <b>{rekord}</b></span>
       </div>
       {(!z || !z.laeuft) &&
         <div className="sp-ueber">
-          {!z && <div className="sp-ueber__text">Tipp die Hühner an! Kleine, ferne geben mehr Punkte.</div>}
-          {z && <div className="sp-ueber__titel">Zeit um! {z.punkte} Punkte, {z.treffer} Hühner</div>}
+          {!z && <div className="sp-ueber__text">Tipp die schlechten Teile an: mit Riss, Rost oder Grat.
+            Gutteile in Ruhe lassen! Je schneller das Band, desto mehr Punkte.</div>}
+          {!z && <div className="sp-ausschuss-muster"><MusterTeil fehler={null} text="Gutteil" /><MusterTeil fehler="riss" text="Riss" />
+            <MusterTeil fehler="rost" text="Rost" /><MusterTeil fehler="grat" text="Grat" /></div>}
+          {z && <div className="sp-ueber__titel">Schicht fertig! {z.punkte} Punkte</div>}
+          {z && <div className="sp-ueber__text">{z.treffer} schlechte Teile gefunden, {z.durch} durchgerutscht</div>}
           {z && z.neuerRekord && <div className="sp-ueber__rekord">🏆 Neuer Rekord!</div>}
           <button type="button" className="sp-gross" data-sp="fh-start" onClick={starten}>{z ? "Nochmal" : "▶ Start"}</button>
         </div>}
@@ -641,25 +758,54 @@ function Flatterhuhn({ breite, hoehe }) {
   );
 }
 
-// ---------------------------- Eierschleuder ----------------------------
+// Kleines Musterbild für die Erklärung
+function MusterTeil({ fehler, text }) {
+  const cv = useRef(null);
+  useEffect(() => {
+    const g = cv.current && cv.current.getContext("2d");
+    if (!g) return;
+    g.clearRect(0, 0, 200, 90); zeichneDrehteil(g, 100, 45, 1.1, 0, fehler);
+  }, [fehler]);
+  return <div className={"sp-muster" + (fehler ? " sp-muster--schlecht" : "")}><canvas ref={cv} width={200} height={90} /><span>{text}</span></div>;
+}
+
+// ---------------------------- Späneschleuder ----------------------------
 const KISTE = 72;
 const SCHWERE = 900;
+const KISTEN_STOFFE = [["V2A", "#dc2626"], ["V4A", "#94a3b8"], ["MS", "#f59e0b"], ["ST", "#2563eb"], ["AL", "#f1f5f9"], ["NS", "#facc15"], ["TI", "#8b5cf6"]];
 
-// Ein Hof: Türme aus Kisten (manche aus Stein, die halten), oben Füchse
+// Ein Lager: Türme aus Materialkisten (manche Gussblöcke, die halten), oben Spänemonster
 function hofBauen(stufe, b, boden) {
   const tuerme = [], anzahl = Math.min(5, 2 + Math.floor(stufe / 2));
   const x0 = b * 0.5, platz = (b - 120 - x0) / anzahl;
   for (let i = 0; i < anzahl; i++) {
     const hoch = 1 + Math.floor(Math.random() * Math.min(6, 2 + stufe));
-    const kisten = Array.from({ length: hoch }, () => ({ stein: Math.random() < Math.min(0.35, 0.08 * stufe), y: 0 }));
+    const kisten = Array.from({ length: hoch }, () => ({ stein: Math.random() < Math.min(0.35, 0.08 * stufe), y: 0,
+      stoff: KISTEN_STOFFE[Math.floor(Math.random() * KISTEN_STOFFE.length)] }));
     tuerme.push({ x: x0 + platz * i + platz / 2, kisten, fuchs: i === 0 || Math.random() < 0.7 ? { gefallen: 0, y: 0 } : null });
   }
-  // Ziel-Höhen setzen (ohne Animation beim Aufbau)
   for (const t of tuerme) {
     t.kisten.forEach((k, j) => { k.y = boden - (j + 1) * KISTE; });
-    if (t.fuchs) t.fuchs.y = boden - t.kisten.length * KISTE - 34;
+    if (t.fuchs) t.fuchs.y = boden - t.kisten.length * KISTE - 40;
   }
   return tuerme;
+}
+
+function zeichneKiste(g, x, k0) {
+  const k = { ...k0, y: k0.y + 2 }, KISTE = 68;
+  const l = x - KISTE / 2;
+  if (k.stein) {
+    g.fillStyle = "#475569"; g.fillRect(l, k.y, KISTE, KISTE);
+    g.strokeStyle = "#1e293b"; g.lineWidth = 4; g.strokeRect(l + 2, k.y + 2, KISTE - 4, KISTE - 4);
+    g.fillStyle = "#cbd5e1"; g.font = "bold 16px system-ui"; g.textAlign = "center"; g.fillText("GUSS", x, k.y + KISTE / 2 + 6); g.textAlign = "left";
+    return;
+  }
+  g.fillStyle = "#c08a4a"; g.fillRect(l, k.y, KISTE, KISTE);
+  g.strokeStyle = "#7c4a1e"; g.lineWidth = 4; g.strokeRect(l + 2, k.y + 2, KISTE - 4, KISTE - 4);
+  g.beginPath(); g.moveTo(l + 2, k.y + 24); g.lineTo(l + KISTE - 2, k.y + 24); g.moveTo(l + 2, k.y + 48); g.lineTo(l + KISTE - 2, k.y + 48); g.stroke();
+  g.fillStyle = k.stoff[1]; g.fillRect(l + 12, k.y + 26, KISTE - 24, 20);
+  g.fillStyle = k.stoff[1] === "#f1f5f9" || k.stoff[1] === "#facc15" ? "#1e293b" : "#fff";
+  g.font = "bold 15px system-ui"; g.textAlign = "center"; g.fillText(k.stoff[0], x, k.y + 42); g.textAlign = "left";
 }
 
 function Eierschleuder({ breite, hoehe }) {
@@ -675,57 +821,53 @@ function Eierschleuder({ breite, hoehe }) {
   const starten = () => { const z = { stufe: 1, punkte: 0, laeuft: true, splat: [] }; level(z); s.current = z; neu((n) => n + 1); };
 
   useEffect(() => {
-    let rahmen, zuletzt = performance.now();
+    let rahmen, zuletzt = performance.now(), zeit = 0;
     const schritt = (jetzt) => {
-      const dt = Math.min(0.033, (jetzt - zuletzt) / 1000); zuletzt = jetzt;
+      const dt = Math.min(0.033, (jetzt - zuletzt) / 1000); zuletzt = jetzt; zeit += dt;
       const c = cv.current, z = s.current;
       if (!c) return;
       const g = c.getContext("2d");
-      zeichneLandschaft(g, b, h);
-      g.fillStyle = "#a16207"; g.fillRect(0, boden, b, 8);
-      // Schleuder
-      g.strokeStyle = "#78350f"; g.lineWidth = 16; g.lineCap = "round";
-      g.beginPath(); g.moveTo(sch.x, boden); g.lineTo(sch.x, sch.y + 50); g.lineTo(sch.x - 34, sch.y);
+      zeichneHalle(g, b, h, boden);
+      // Schleuder aus Stahl auf einem Sockel
+      g.fillStyle = "#334155"; g.fillRect(sch.x - 40, boden - 26, 80, 26);
+      g.strokeStyle = "#64748b"; g.lineWidth = 16; g.lineCap = "round";
+      g.beginPath(); g.moveTo(sch.x, boden - 26); g.lineTo(sch.x, sch.y + 50); g.lineTo(sch.x - 34, sch.y);
       g.moveTo(sch.x, sch.y + 50); g.lineTo(sch.x + 34, sch.y); g.stroke();
-      zeichneHuhn(g, 110, boden - 26, 0.9, 0.2, false);
+      // Vorrat neben der Schleuder
+      if (z) for (let k = 0; k < Math.max(0, z.eier - (z.zug || z.ei ? 0 : 1)); k++) zeichneDrehteil(g, 110 - k * 4, boden - 20 - k * 22, 0.4, 0);
       if (z) {
-        // Kisten und Füchse rutschen auf ihre Höhe
         let wirdGefallen = false;
         for (const t of z.tuerme) {
           t.kisten.forEach((k, j) => {
             const ziel = boden - (j + 1) * KISTE;
             if (k.y < ziel) { k.y = Math.min(ziel, k.y + 700 * dt); wirdGefallen = true; }
-            g.fillStyle = k.stein ? "#94a3b8" : "#d97706"; g.strokeStyle = k.stein ? "#334155" : "#78350f"; g.lineWidth = 4;
-            g.fillRect(t.x - KISTE / 2, k.y, KISTE, KISTE); g.strokeRect(t.x - KISTE / 2 + 2, k.y + 2, KISTE - 4, KISTE - 4);
-            if (!k.stein) { g.beginPath(); g.moveTo(t.x - KISTE / 2 + 6, k.y + 6); g.lineTo(t.x + KISTE / 2 - 6, k.y + KISTE - 6); g.stroke(); }
+            zeichneKiste(g, t.x, k);
           });
           if (t.fuchs) {
-            const ziel = boden - t.kisten.length * KISTE - 34;
+            const ziel = boden - t.kisten.length * KISTE - 40;
             if (t.fuchs.y < ziel) { t.fuchs.y = Math.min(ziel, t.fuchs.y + 700 * dt); wirdGefallen = true; }
-            zeichneFuchs(g, t.x, t.fuchs.y, 1.1);
+            zeichneMonster(g, t.x, t.fuchs.y, 1, zeit * 3 + t.x);
           }
         }
-        // Gespannte Schleuder
         const spitze = z.zug ? z.zug : z.ei ? null : (z.eier > 0 && z.laeuft ? sch : null);
         if (spitze) {
-          g.strokeStyle = "#451a03"; g.lineWidth = 6;
+          g.strokeStyle = "#1e293b"; g.lineWidth = 6;
           g.beginPath(); g.moveTo(sch.x - 34, sch.y); g.lineTo(spitze.x, spitze.y); g.lineTo(sch.x + 34, sch.y); g.stroke();
-          ei(g, spitze.x, spitze.y);
-          if (z.zug) { // Zielhilfe: ein paar Punkte der Flugbahn
+          zeichneDrehteil(g, spitze.x, spitze.y, 0.45, 0);
+          if (z.zug) {
             const vx = (sch.x - z.zug.x) * 6.5, vy = (sch.y - z.zug.y) * 6.5;
             g.fillStyle = "rgba(30,41,59,.45)";
             for (let k = 1; k <= 8; k++) { const t = k * 0.07; g.beginPath(); g.arc(z.zug.x + vx * t, z.zug.y + vy * t + SCHWERE * t * t / 2, 6, 0, Math.PI * 2); g.fill(); }
           }
         }
-        // Fliegendes Ei
         if (z.ei) {
           const e = z.ei;
-          e.vy += SCHWERE * dt; e.x += e.vx * dt; e.y += e.vy * dt;
-          ei(g, e.x, e.y);
+          e.vy += SCHWERE * dt; e.x += e.vx * dt; e.y += e.vy * dt; e.dreh = (e.dreh || 0) + dt * 12;
+          zeichneDrehteil(g, e.x, e.y, 0.45, 0, null, e.dreh);
           let weg = e.x > b + 50 || e.y > boden - 12;
           for (const t of z.tuerme) {
             if (weg) break;
-            if (t.fuchs && Math.hypot(e.x - t.x, e.y - t.fuchs.y) < 46) {
+            if (t.fuchs && Math.hypot(e.x - t.x, e.y - t.fuchs.y) < 50) {
               t.fuchs = null; z.punkte += 500; z.splat.push({ x: e.x, y: e.y, zeit: 1.2, text: "+500" }); weg = true; break;
             }
             for (let j = t.kisten.length - 1; j >= 0; j--) {
@@ -733,7 +875,7 @@ function Eierschleuder({ breite, hoehe }) {
               if (Math.abs(e.x - t.x) < KISTE / 2 + 12 && e.y > k.y - 12 && e.y < k.y + KISTE + 12) {
                 if (!k.stein) {
                   t.kisten.splice(j, 1); z.punkte += 50;
-                  if (t.fuchs) { t.fuchs.gefallen++; }
+                  if (t.fuchs) t.fuchs.gefallen++;
                 }
                 z.splat.push({ x: e.x, y: e.y, zeit: 1 });
                 weg = true; break;
@@ -742,19 +884,17 @@ function Eierschleuder({ breite, hoehe }) {
           }
           if (weg) { if (e.y > boden - 12) z.splat.push({ x: e.x, y: boden - 6, zeit: 1 }); z.ei = null; neu((n) => n + 1); }
         }
-        // Wer zweimal fällt, rennt davon
+        // Wer zweimal fällt, zerfällt in Späne
         for (const t of z.tuerme) if (t.fuchs && t.fuchs.gefallen >= 2 && !wirdGefallen) {
-          z.splat.push({ x: t.x, y: t.fuchs.y - 30, zeit: 1.2, text: "+500" }); t.fuchs = null; z.punkte += 500; neu((n) => n + 1);
+          z.splat.push({ x: t.x, y: t.fuchs.y, zeit: 1.2, text: "+500" }); t.fuchs = null; z.punkte += 500; neu((n) => n + 1);
         }
         z.splat = z.splat.filter((p) => (p.zeit -= dt) > 0);
         for (const p of z.splat) {
           g.globalAlpha = Math.min(1, p.zeit);
-          if (p.text) { g.fillStyle = "#1d4ed8"; g.font = "bold 48px system-ui"; g.fillText(p.text, p.x - 50, p.y - (1.2 - p.zeit) * 60); }
-          else { g.fillStyle = "#fef9c3"; g.beginPath(); g.ellipse(p.x, p.y, 30, 14, 0, 0, Math.PI * 2); g.fill();
-            g.fillStyle = "#facc15"; g.beginPath(); g.arc(p.x, p.y, 9, 0, Math.PI * 2); g.fill(); }
+          zeichneFunken(g, p);
+          if (p.text) { g.fillStyle = "#1d4ed8"; g.font = "bold 48px system-ui"; g.fillText(p.text, p.x - 50, p.y - 40 - (1.2 - p.zeit) * 60); }
           g.globalAlpha = 1;
         }
-        // Hof leer oder keine Eier mehr
         if (z.laeuft && !z.ei && !wirdGefallen) {
           if (!z.tuerme.some((t) => t.fuchs)) {
             z.punkte += z.eier * 300; z.stufe++; level(z); neu((n) => n + 1);
@@ -772,6 +912,10 @@ function Eierschleuder({ breite, hoehe }) {
   }, [b, h]); // eslint-disable-line
 
   // Spannen: irgendwo links ansetzen und ziehen, loslassen schiesst
+  const zugBegrenzen = (p) => {
+    const dx = p.x - sch.x, dy = p.y - sch.y, l = Math.hypot(dx, dy), max = 170;
+    return l > max ? { x: sch.x + dx / l * max, y: sch.y + dy / l * max } : p;
+  };
   const runter = (e) => {
     const z = s.current;
     if (!z || !z.laeuft || z.ei || z.eier <= 0) return;
@@ -779,10 +923,6 @@ function Eierschleuder({ breite, hoehe }) {
     if (p.x > b * 0.45) return;
     cv.current.setPointerCapture && cv.current.setPointerCapture(e.pointerId);
     z.zug = zugBegrenzen(p);
-  };
-  const zugBegrenzen = (p) => {
-    const dx = p.x - sch.x, dy = p.y - sch.y, l = Math.hypot(dx, dy), max = 170;
-    return l > max ? { x: sch.x + dx / l * max, y: sch.y + dy / l * max } : p;
   };
   const ziehen = (e) => { const z = s.current; if (z && z.zug) z.zug = zugBegrenzen(canvasPunkt(cv.current, e)); };
   const los = () => {
@@ -800,22 +940,18 @@ function Eierschleuder({ breite, hoehe }) {
       <canvas ref={cv} width={b} height={h} onPointerDown={runter} onPointerMove={ziehen} onPointerUp={los} onPointerCancel={los} />
       <div className="sp-leinwand__zahlen">
         <span>Punkte <b data-sp="es-punkte">{z ? z.punkte.toLocaleString("de-CH") : 0}</b></span>
-        <span>Eier <b data-sp="es-eier">{z ? "🥚".repeat(Math.max(0, z.eier)) || "–" : "–"}</b></span>
-        <span>Hof <b>{z ? z.stufe : 1}</b></span>
+        <span>Teile <b data-sp="es-eier">{z ? "🔩".repeat(Math.max(0, z.eier)) || "–" : "–"}</b></span>
+        <span>Lager <b>{z ? z.stufe : 1}</b></span>
         <span>Rekord <b>{rekord.toLocaleString("de-CH")}</b></span>
       </div>
       {(!z || !z.laeuft) &&
         <div className="sp-ueber">
-          {!z && <div className="sp-ueber__text">Finger aufs Ei legen, nach hinten ziehen, loslassen. Graue Kisten sind aus Stein.</div>}
-          {z && <div className="sp-ueber__titel">Keine Eier mehr! {z.punkte.toLocaleString("de-CH")} Punkte</div>}
+          {!z && <div className="sp-ueber__text">Die Spänemonster haben sich im Materiallager eingenistet! Finger auf das Drehteil
+            in der Schleuder legen, nach hinten ziehen, loslassen. Gussblöcke halten jedem Treffer stand.</div>}
+          {z && <div className="sp-ueber__titel">Keine Teile mehr! {z.punkte.toLocaleString("de-CH")} Punkte</div>}
           {z && z.neuerRekord && <div className="sp-ueber__rekord">🏆 Neuer Rekord!</div>}
           <button type="button" className="sp-gross" data-sp="es-start" onClick={starten}>{z ? "Nochmal" : "▶ Start"}</button>
         </div>}
     </div>
   );
-}
-
-function ei(g, x, y) {
-  g.fillStyle = "#fffbeb"; g.strokeStyle = "#92400e"; g.lineWidth = 3;
-  g.beginPath(); g.ellipse(x, y, 17, 22, 0, 0, Math.PI * 2); g.fill(); g.stroke();
 }

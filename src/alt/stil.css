@@ -10628,3 +10628,17 @@ body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -w
 .sp-leinwand__zahlen { position: absolute; left: 20px; top: 16px; display: flex; gap: 18px; pointer-events: none; }
 .sp-leinwand__zahlen > span { padding: 10px 22px; border-radius: 999px; background: rgba(15,23,42,.7); color: #fff; font-size: 26px; }
 .sp-leinwand__zahlen b { font-size: 34px; margin-left: 8px; }
+/* Seit 1.293.0 mit Hofer + Co Charakter */
+.sp-kl__z--voll { display: flex; align-items: center; justify-content: center; font-weight: 800; color: rgba(15,23,42,.65); }
+.sp-hof__feld { background: #cbd5e1; box-shadow: inset 0 0 0 6px #475569; }
+.sp-hof__zaun { background: #e2e8f0; box-shadow: inset 0 0 0 3px #64748b, inset 0 6px 0 3px #1d4ed8; border-radius: 6px; }
+.sp-hof__zaun--wand { background: #475569; box-shadow: inset 0 0 0 3px #334155; border-radius: 0; }
+.sp-hof__schild { position: absolute; z-index: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px;
+  box-sizing: border-box; font-weight: 800; color: #334155; letter-spacing: .04em; pointer-events: none; }
+.sp-hof__korn::after { width: 44%; height: 20%; transform: translate(-50%, -50%); border-radius: 3px;
+  background: linear-gradient(#f8fafc, #94a3b8 60%, #64748b); box-shadow: 0 0 0 2px #334155; }
+.sp-hof__fuchs { padding: 4%; box-sizing: border-box; }
+.sp-ausschuss-muster { display: flex; gap: 22px; }
+.sp-muster { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 14px; border-radius: 16px;
+  background: #e2e8f0; color: #15803d; font-size: 26px; font-weight: 800; }
+.sp-muster--schlecht { color: #dc2626; }
