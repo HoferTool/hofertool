@@ -10368,3 +10368,21 @@ body.dunkel .vb-mat--nichts { color: #9b1c15; }
 /* Bestellungen → Artikel: „Mehr laden“ unter der Liste (seit 1.275.0) */
 .bs-mehr { display: flex; justify-content: center; padding: 14px 0 6px; }
 
+
+/* Freie Bilder auf dem Einrichtblatt (seit 1.280.0): liegen über allem,
+   Lage in Prozent der Seite, damit Druck und PDF gleich aussehen */
+.eba-seite { position: relative; }
+.eba-fbilder { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.eba-fbild { position: absolute; pointer-events: none; }
+.eba-fbilder--aendern .eba-fbild { pointer-events: auto; cursor: grab; touch-action: none; }
+.eba-fbild img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+.eba-fbild--an { outline: 2px dashed #1d6fd6; outline-offset: 2px; }
+.eba-fbild-weg { position: absolute; top: -14px; right: -14px; width: 28px; height: 28px; border-radius: 50%;
+                 border: 2px solid #fff; background: #c62828; color: #fff; font-size: 14px; line-height: 1; cursor: pointer;
+                 padding: 0; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.eba-fbild-gross { position: absolute; right: -9px; bottom: -9px; width: 18px; height: 18px; border-radius: 4px;
+                   background: #1d6fd6; border: 2px solid #fff; cursor: nwse-resize; touch-action: none;
+                   box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+@media print { .eba-fbild--an { outline: none; } .eba-fbild-weg, .eba-fbild-gross { display: none; } }
+.eba-seite--druck .eba-fbild--an { outline: none; }
+.eba-seite--druck .eba-fbild-weg, .eba-seite--druck .eba-fbild-gross { display: none; }

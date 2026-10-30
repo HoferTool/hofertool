@@ -220,6 +220,51 @@ export async function blattSpeichern(blatt, text) {
   return neu;
 }
 
+// Freie Bilder auf dem Blatt (seit 1.280.0, Wunsch Patrick 30. Oktober
+// 2026: „Bilder einfügen und frei überall hin schieben, gleich
+// abspeichern“). Sie liegen in kopf.bilder als [{ id, url, x, y, w }],
+// Lage und Breite in Prozent der Seite, damit sie am Bildschirm, im
+// Druck und im PDF an derselben Stelle stehen. Gespeichert wird nur
+// kopf, und zwar sofort, mit Rückgängig; der Rest des Blatts bleibt.
+export async function freieBilderSpeichern(hocoNr, typId, bilder) {
+  const wo = { hoco_nr: hocoNr, type_id: typId };
+  const vorher = await alt.rueckSichern(TABELLE, wo);
+  if (!vorher.length) throw new Error("Das Blatt ist noch nicht gespeichert.");
+  const kopfAlt = vorher[0].kopf || {};
+  const kopf = Object.assign({}, kopfAlt, { bilder });
+  if (!bilder.length) delete kopf.bilder;
+  const r = await alt.db.from(TABELLE).update({ kopf }).eq("hoco_nr", hocoNr).eq("type_id", typId);
+  if (r.error) throw r.error;
+  alt.merkeSchritt("Bild auf Einrichtblatt " + hocoNr, alt.rueckSetz(TABELLE, { kopf: kopfAlt }, wo));
+  return kopf;
+}
+
+// Ein Bild für das Blatt hochladen, verkleinert auf höchstens 1600
+// Pixel; Fotos als JPG, PNG bleibt PNG (freigestellt bleibt freigestellt)
+export async function freiesBildHochladen(datei) {
+  let blob = datei;
+  const png = /png|gif|webp|svg/i.test(datei.type || "");
+  try {
+    const bild = await createImageBitmap(datei);
+    const f = Math.min(1, 1600 / Math.max(bild.width, bild.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bild.width * f); c.height = Math.round(bild.height * f);
+    c.getContext("2d").drawImage(bild, 0, 0, c.width, c.height);
+    const b = await new Promise((ok) => c.toBlob(ok, png ? "image/png" : "image/jpeg", 0.88));
+    if (b) blob = b;
+  } catch (f) { /* dann das Original */ }
+  const ext = /png/.test(blob.type) ? "png" : /jpe?g/.test(blob.type) ? "jpg" : (String(datei.name || "").split(".").pop() || "bild");
+  const name = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+  const pfad = "einrichtblatt/frei/" + name + "." + ext;
+  const ablage = alt.db.storage.from("zeichnungen");
+  const r = await ablage.upload(pfad, blob, { upsert: true, contentType: blob.type || "image/" + ext });
+  if (r.error) throw r.error;
+  const url = ablage.getPublicUrl(pfad).data.publicUrl;
+  let hoch = 0.75;
+  try { const b = await createImageBitmap(blob); hoch = b.height / b.width; } catch (f) { /* Vorgabe */ }
+  return { url, hoch };
+}
+
 // Stammdaten der HOCO Nr. ändern (nur, was sich geändert hat)
 export async function stammSpeichern(hocoNr, alteWerte, neueWerte) {
   const neu = {};

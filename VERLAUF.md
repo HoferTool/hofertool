@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.280.0** (30. Oktober 2026) Einrichtblatt: **Bilder frei aufs Blatt** (Wunsch Patrick: „Bilder einfügen und frei überall hin schieben, gleich abspeichern“). Knopf „Bild einfügen“ oder Strg + V, ziehen verschiebt, Ecke ändert die Grösse, ✕ löscht; jede Änderung gleich gespeichert in `kopf.bilder`, mit Rückgängig; auch in Druck, PDF und Pad.
 - **1.279.1** (30. Oktober 2026) Einrichtblatt: keine Bilder und Sinnbilder mehr in den Werkzeugfeldern, keine Bildwahl im Platz (Wunsch Patrick).
 - **1.275.1** (30. Oktober 2026) Bestellen aus dem Einrichtblatt: Notiz bleibt leer, kein „Artikel fotografieren“ im Fenster (Wunsch Patrick).
 - **1.279.0** (30. Oktober 2026) Werkzeugwechsel SW wieder **wie bei den SB-Maschinen** (Wunsch Patrick: „mach wieder SW wie bei SB“): normale Platzwahl, Historie als Blatt „Plattenwechsel“ mit Papierkorb je Wechsel; die eigene SW-Ansicht (`SwWechsel.jsx`) ist entfernt. Test `sw_wechsel.py` neu.

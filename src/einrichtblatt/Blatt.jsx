@@ -20,7 +20,7 @@ import { werkzeugWaehlen, positionOeffnen } from "../seiten/bestellungen/Positio
 import { excelVorlesen, blattVonAnderem, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
   artikelHolen, artikelBezeichnung, STAMM_FELDER, WASCHGEBINDE, prgNummern, platzInGebrauch } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
-import { eigenesBildHochladen, eigenesBildLoeschen } from "./daten.js";
+import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freiesBildHochladen } from "./daten.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
@@ -172,7 +172,7 @@ function KopfEingabe({ f, wert, aendern, d }) {
 // ändert ein Kopffeld
 // pruefen: eingelesene Werkzeuge ohne hinterlegten oder bestätigten
 // Artikel rot umranden (nur im Fenster, nicht im Pad und nicht im Druck)
-export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen }) {
+export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern }) {
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
@@ -265,6 +265,83 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
             : <div className="eba-bem" data-eba-bem="">{bemerkung}</div>}
         </div>
       </div>
+      <FreieBilder bilder={(blatt.kopf || {}).bilder} aendern={bilderAendern} />
+    </div>
+  );
+}
+
+// ---------------- Freie Bilder auf dem Blatt ----------------
+// Liegen über allem, wo man sie hinzieht (Wunsch Patrick 30. Oktober
+// 2026: „wo es Platz hat ein Bild rein, um zu wissen, wie es aussehen
+// soll“). Antippen wählt, ziehen verschiebt, die Ecke unten rechts
+// ändert die Grösse, ✕ löscht. Jede Änderung geht gleich an aendern.
+// Ohne aendern nur zum Ansehen, Klicks gehen dann durch zum Platz.
+function FreieBilder({ bilder, aendern }) {
+  const [wahl, setWahl] = useState(null);
+  const [zug, setZug] = useState(null);   // { id, x, y, w } während des Ziehens
+  const liste = Array.isArray(bilder) ? bilder : [];
+  useEffect(() => {
+    if (!wahl || !aendern) return undefined;
+    const weg = (e) => { if (!e.target.closest || !e.target.closest("[data-eba-fbild]")) setWahl(null); };
+    document.addEventListener("pointerdown", weg, true);
+    return () => document.removeEventListener("pointerdown", weg, true);
+  }, [wahl, !!aendern]);
+  if (!liste.length) return null;
+  const greifen = (e, b, art) => {
+    if (!aendern || e.button > 0) return;
+    e.preventDefault(); e.stopPropagation();
+    setWahl(b.id);
+    const seite = e.currentTarget.closest("[data-eba-seite]");
+    if (!seite) return;
+    const r = seite.getBoundingClientRect();
+    const start = { cx: e.clientX, cy: e.clientY, x: b.x, y: b.y, w: b.w };
+    let jetzt = null;
+    const ziehen = (ev) => {
+      const dx = (ev.clientX - start.cx) / r.width * 100, dy = (ev.clientY - start.cy) / r.height * 100;
+      if (!jetzt && Math.abs(ev.clientX - start.cx) + Math.abs(ev.clientY - start.cy) < 3) return;
+      jetzt = art === "gross"
+        ? { id: b.id, x: b.x, y: b.y, w: Math.max(3, Math.min(100 - b.x, start.w + dx)) }
+        : { id: b.id, x: Math.max(-b.w / 2, Math.min(100 - b.w / 2, start.x + dx)), y: Math.max(-5, Math.min(95, start.y + dy)), w: b.w };
+      setZug(jetzt);
+    };
+    const los = () => {
+      window.removeEventListener("pointermove", ziehen);
+      window.removeEventListener("pointerup", los);
+      window.removeEventListener("pointercancel", los);
+      setZug(null);
+      if (jetzt) {
+        const r1 = (n) => Math.round(n * 100) / 100;
+        aendern(liste.map((x) => (x.id === b.id ? Object.assign({}, x, { x: r1(jetzt.x), y: r1(jetzt.y), w: r1(jetzt.w) }) : x)));
+      }
+    };
+    window.addEventListener("pointermove", ziehen);
+    window.addEventListener("pointerup", los);
+    window.addEventListener("pointercancel", los);
+  };
+  const loeschen = async (e, b) => {
+    e.stopPropagation();
+    if (!(await alt.nachfragen({ titel: "Bild löschen", text: "Dieses Bild vom Blatt löschen?", bestaetigen: "Löschen", gefahr: true }))) return;
+    setWahl(null);
+    aendern(liste.filter((x) => x.id !== b.id));
+  };
+  return (
+    <div className={"eba-fbilder" + (aendern ? " eba-fbilder--aendern" : "")} data-eba-fbilder="">
+      {liste.map((b0) => {
+        const b = zug && zug.id === b0.id ? Object.assign({}, b0, zug) : b0;
+        const an = aendern && wahl === b.id;
+        return (
+          <div key={b.id} className={"eba-fbild" + (an ? " eba-fbild--an" : "")} data-eba-fbild={b.id}
+            style={{ left: b.x + "%", top: b.y + "%", width: b.w + "%" }}
+            onPointerDown={(e) => greifen(e, b, "ziehen")} onClick={(e) => e.stopPropagation()}>
+            <img src={b.url} alt="" draggable={false} crossOrigin="anonymous" />
+            {an && <>
+              <button className="eba-fbild-weg" data-eba-fbild-weg="" title="Bild löschen"
+                onPointerDown={(e) => e.stopPropagation()} onClick={(e) => loeschen(e, b)}>✕</button>
+              <span className="eba-fbild-gross" data-eba-fbild-gross="" title="Ziehen: grösser oder kleiner"
+                onPointerDown={(e) => greifen(e, b, "gross")} /></>}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -686,6 +763,61 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     // Von Hand geändert: kommt nicht mehr von der NC-Datei (GEO-OFFSET)
     if (html !== null && html !== x.html) seiteAendern(i, { html, nc: undefined });
   };
+  // Freie Bilder: gehen gleich in die Datenbank, auch mitten im
+  // Bearbeiten; ein neues Blatt ohne gespeicherte Zeile behält sie im
+  // Entwurf bis Speichern
+  const mitBildern = (kopf, liste) => {
+    const k = Object.assign({}, kopf || {});
+    if (liste.length) k.bilder = liste; else delete k.bilder;
+    return k;
+  };
+  const bilderAendern = async (liste) => {
+    if (bearbeiten) setEntwurf((b) => Object.assign({}, b, { kopf: mitBildern(b.kopf, liste) }));
+    if (!daten.blatt) return;
+    setDaten((d) => Object.assign({}, d, { blatt: Object.assign({}, d.blatt, { kopf: mitBildern(d.blatt.kopf, liste) }) }));
+    try { await freieBilderSpeichern(daten.blatt.hoco_nr, daten.blatt.type_id, liste); }
+    catch (f) { alt.meldung("Bild nicht gespeichert: " + alt.fehlertext(f), "fehler"); }
+  };
+  const bildDatei = useRef(null);
+  const bildEinfuegen = async (datei) => {
+    if (!datei) return;
+    if (!/^image\//.test(datei.type || "")) { alt.meldung("Nur Bilder lassen sich ins Blatt einfügen.", "warn"); return; }
+    setLaeuft(true);
+    try {
+      const { url, hoch } = await freiesBildHochladen(datei);
+      const w = 22, h = w * hoch * 1123 / 794;
+      const r1 = (x) => Math.round(x * 100) / 100;
+      const liste = (Array.isArray((blatt.kopf || {}).bilder) ? blatt.kopf.bilder : [])
+        .concat([{ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), url,
+          x: r1(50 - w / 2), y: r1(Math.max(2, 50 - h / 2)), w }]);
+      await bilderAendern(liste);
+      alt.meldung(daten.blatt ? "Bild eingefügt. Ziehen verschiebt es, die Ecke unten rechts ändert die Grösse."
+        : "Bild eingefügt. Es wird mit dem Blatt gespeichert.", "gut");
+    } catch (f) { alt.meldung("Bild nicht eingefügt: " + alt.fehlertext(f), "fehler"); }
+    finally { setLaeuft(false); }
+  };
+  // Strg + V fügt ein Bild aus der Zwischenablage ein (nicht in Feldern)
+  const einfuegenRef = useRef(bildEinfuegen);
+  einfuegenRef.current = bildEinfuegen;
+  useEffect(() => {
+    if (!darf || zseite) return undefined;
+    const kleben = (e) => {
+      const t = e.target;
+      if (t && (t.closest && t.closest("input, textarea, [contenteditable=true], [contenteditable='']"))) return;
+      const d = e.clipboardData;
+      const f = d && [...(d.files || [])].find((x) => /^image\//.test(x.type));
+      if (!f) return;
+      e.preventDefault();
+      einfuegenRef.current(f);
+    };
+    document.addEventListener("paste", kleben);
+    return () => document.removeEventListener("paste", kleben);
+  }, [darf, !!zseite]);
+  const bildKnopf = darf && !zseite && <>
+    <button className="knopf knopf--klein" data-eba-bild-neu="" disabled={laeuft} title="Bild einfügen, auch mit Strg + V"
+      onClick={() => bildDatei.current && bildDatei.current.click()}>Bild einfügen</button>
+    <input ref={bildDatei} type="file" accept="image/*" hidden data-eba-bild-datei=""
+      onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; bildEinfuegen(f); }} /></>;
   const offen = Object.values(blatt.plaetze || {}).filter(werkzeugOffen).length;
   const pfad = pfadVonPlatz(paths);
   const platzTitel = (nr) => platzGruppe(nr) || (pfad[nr] ? pfad[nr].name : "");
@@ -701,11 +833,13 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
             ? <>
                 <span className="eba-hinweis">{zseite ? "Seite antippen zum Schreiben" : "Kopf direkt ausfüllen, Platz antippen für Werkzeug"}</span>
                 {!daten.blatt && <button className="knopf knopf--klein" data-eba-von-anderem="" disabled={laeuft} onClick={vonAnderem}>Von anderem Blatt übernehmen</button>}
+                {bildKnopf}
                 <button className="knopf knopf--klein" data-eba-abbrechen="" onClick={abbrechen}>Abbrechen</button>
                 <button className="knopf knopf--klein knopf--haupt" data-eba-speichern="" disabled={laeuft} onClick={speichern}>Speichern</button>
               </>
             : <>
                 {darf && <button className="knopf knopf--klein" data-eba-bearbeiten="" onClick={() => { anfangen(daten); setBearbeiten(true); vorlesen(daten); }}>Bearbeiten</button>}
+                {bildKnopf}
                 {excel && !nurLesen && <button className="knopf knopf--klein" data-eba-excel="" onClick={() => dokZeigen({ art: "einrichtblatt", titel: "Excel " + hocoNr, adresse: excel })}>Excel ansehen</button>}
                 {darf && daten.blatt && !daten.blatt.gut_am && <button className="knopf knopf--klein" data-eba-gut="" disabled={laeuft} onClick={gut}>EB OK</button>}
                 <button className="knopf knopf--klein" data-eba-drucken="" onClick={drucken}>Drucken</button>
@@ -742,7 +876,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
           ? <ZusatzSeite seite={zseite} bearbeiten={bearbeiten} inhaltBearbeiten={() => inhaltBearbeiten(seiteNr - 1)} />
           : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt}
               bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} pruefen={darf}
-              platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} bestellen={darf ? bestellen : null} /></div>}
+              platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} bestellen={darf ? bestellen : null}
+              bilderAendern={darf ? bilderAendern : null} /></div>}
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
           artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))}
