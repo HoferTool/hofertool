@@ -8,7 +8,7 @@
 //  src/daten/radio.js (app_config.radio_sender).
 // =================================================================
 import { useEffect, useRef, useState } from "react";
-import { senderLaden, youtubeEinbetten } from "../daten/radio.js";
+import { senderLaden, istVideo, videoEinbetten } from "../daten/radio.js";
 
 const NEU_MS = 10 * 60 * 1000;
 const LAUT_SCHRITT = 0.1;
@@ -51,7 +51,7 @@ export default function Radio({ style, className = "", videoHoehe = 560 }) {
     const a = ton.current;
     if (a) { a.pause(); a.removeAttribute("src"); }
     setAn(s.id);
-    if (s.art === "youtube") { setStand("spielt"); return; }
+    if (istVideo(s)) { setStand("spielt"); return; }
     setStand("laedt");
     // Ein Sender ist ein Strom ohne Ende: immer frisch verbinden, damit
     // nach einer Pause nicht der alte Puffer weiterspielt
@@ -66,8 +66,8 @@ export default function Radio({ style, className = "", videoHoehe = 560 }) {
     return n;
   });
 
-  const video = laufend && laufend.art === "youtube" ? youtubeEinbetten(laufend.adresse) : null;
-  useEffect(() => { if (laufend && laufend.art === "youtube" && !video) setStand("fehler"); }, [laufend, video]);
+  const video = istVideo(laufend) ? videoEinbetten(laufend) : null;
+  useEffect(() => { if (istVideo(laufend) && !video) setStand("fehler"); }, [laufend, video]);
 
   // Die Tafel soll Tipps hier nicht als „Anzeige antippen“ verstehen
   const halten = (e) => e.stopPropagation();
@@ -76,30 +76,31 @@ export default function Radio({ style, className = "", videoHoehe = 560 }) {
   // „möglichst breit und nicht hoch“): Sender nebeneinander, rechts
   // Lautstärke und Stopp; der Stand steht im gewählten Knopf
   const standText = (s) => (an !== s.id ? null : stand === "laedt" ? "verbinde …"
-    : stand === "fehler" ? "nicht erreichbar" : s.art === "youtube" ? "läuft unten" : "läuft");
+    : stand === "fehler" ? "nicht erreichbar" : istVideo(s) ? "läuft unten" : "läuft");
 
   return (
     <section className={"pr-radio " + className} data-ib="radio" style={style}
       onPointerDown={halten} onClick={halten}>
-      <span className="pr-radio__titel" aria-hidden="true">📻</span>
       <div className="pr-radio__sender">
         {(sender || []).map((s) => (
           <button key={s.id} data-radio-sender={s.id}
             className={"pr-radio__knopf" + (an === s.id ? " pr-radio__knopf--an" : "")
               + (an === s.id && stand === "fehler" ? " pr-radio__knopf--fehler" : "")
-              + (s.art === "youtube" ? " pr-radio__knopf--video" : "")}
+              + (istVideo(s) ? " pr-radio__knopf--video" : "")}
             onClick={() => waehlen(s)}>
-            <span className="pr-radio__zeichen">{s.art === "youtube" ? "▶" : an === s.id && stand === "spielt" ? "🔊" : "♪"}</span>
+            {/* Zeichen nur bei Videos und beim laufenden Sender, damit mehr
+                Namen in die Reihe passen */}
+            {(istVideo(s) || (an === s.id && stand === "spielt")) && (
+              <span className="pr-radio__zeichen">{s.art === "srf" ? "📺" : s.art === "youtube" ? "▶" : "🔊"}</span>)}
             <span className="pr-radio__name">{s.name}
               {standText(s) && <small className="pr-radio__stand" data-radio="stand">{standText(s)}</small>}</span>
           </button>
         ))}
         {sender && !sender.length && <p className="pr-radio__leer">Keine Sender eingetragen (Einstellungen → Allgemein).</p>}
       </div>
-      {laufend && laufend.art !== "youtube" && (
+      {laufend && !istVideo(laufend) && (
         <span className="pr-radio__laut">
-          <button className="pr-radio__rund" data-radio="leiser" onClick={() => lautAendern(-LAUT_SCHRITT)} aria-label="Leiser">−</button>
-          <span className="pr-radio__lautzahl">{Math.round(laut * 100)} %</span>
+          <button className="pr-radio__rund" data-radio="leiser" onClick={() => lautAendern(-LAUT_SCHRITT)} aria-label="Leiser" title={"Lautstärke " + Math.round(laut * 100) + " %"}>−</button>
           <button className="pr-radio__rund" data-radio="lauter" onClick={() => lautAendern(LAUT_SCHRITT)} aria-label="Lauter">+</button>
         </span>
       )}

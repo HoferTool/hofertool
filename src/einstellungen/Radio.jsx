@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { Gruppe } from "./teile.jsx";
-import { VORGABE, senderLaden, senderSpeichern, youtubeEinbetten, neueSenderId } from "../daten/radio.js";
+import { VORGABE, senderLaden, senderSpeichern, istVideo, videoEinbetten, neueSenderId } from "../daten/radio.js";
 
 const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -29,10 +29,10 @@ export default function RadioSender() {
   const probeHoeren = (s) => {
     const a = ton.current;
     if (probe === s.id) { a.pause(); setProbe(null); return; }
-    if (s.art === "youtube") {
-      const url = youtubeEinbetten(s.adresse);
-      if (url) window.open(url.replace("autoplay=1", "autoplay=0"), "_blank", "noopener");
-      else alt.meldung("Diese YouTube-Adresse versteht die App nicht. Bitte die Adresse des Kanals (…/channel/UC…), einer Wiedergabeliste oder eines Videos.", "warn");
+    if (istVideo(s)) {
+      const url = videoEinbetten(s);
+      if (url) window.open(url.replace("autoplay=1", "autoplay=0").replace("autoplay=true", "autoplay=false"), "_blank", "noopener");
+      else alt.meldung("Diese Adresse versteht die App nicht. YouTube: Kanal (…/channel/UC…), Wiedergabeliste oder Video. SRF: Adresse aus Play SRF oder urn:srf:video:…", "warn");
       return;
     }
     a.src = s.adresse; setProbe(s.id);
@@ -46,8 +46,8 @@ export default function RadioSender() {
     if (neu.some((s) => s.art === "radio" && !/^https:\/\//i.test(s.adresse))) {
       alt.meldung("Radio-Adressen müssen mit https:// beginnen, sonst spielt der Browser sie nicht.", "warn"); return;
     }
-    if (neu.some((s) => s.art === "youtube" && !youtubeEinbetten(s.adresse))) {
-      alt.meldung("Eine YouTube-Adresse versteht die App nicht. Bitte die Adresse des Kanals (…/channel/UC…), einer Wiedergabeliste oder eines Videos.", "warn"); return;
+    if (neu.some((s) => istVideo(s) && !videoEinbetten(s))) {
+      alt.meldung("Eine Video-Adresse versteht die App nicht. YouTube: Kanal (…/channel/UC…), Wiedergabeliste oder Video. SRF: Adresse aus Play SRF oder urn:srf:video:…", "warn"); return;
     }
     try {
       await senderSpeichern(neu);
@@ -58,7 +58,7 @@ export default function RadioSender() {
 
   return (
     <Gruppe titel="Radio im Pausenraum" id="radio-sender"
-      text="Diese Sender stehen auf dem Pausenraum-Display zum Antippen. Radio: Adresse des Stroms mit https. YouTube: Adresse eines Kanals (…/channel/UC…), einer Wiedergabeliste oder eines Videos."
+      text="Diese Sender stehen auf dem Pausenraum-Display zum Antippen. Radio: Adresse des Stroms mit https. YouTube: Adresse eines Kanals (…/channel/UC…), einer Wiedergabeliste oder eines Videos. SRF: Adresse einer Sendung oder eines Livestreams aus Play SRF."
       aktionen={!gleich(liste, gespeichert) && (
         <button className="knopf knopf--klein knopf--haupt" id="radio-speichern" onClick={speichern}>Speichern</button>
       )}>
@@ -69,10 +69,11 @@ export default function RadioSender() {
             <select value={s.art} onChange={(e) => aendern(i, "art", e.target.value)}>
               <option value="radio">Radio</option>
               <option value="youtube">YouTube</option>
+              <option value="srf">SRF (Play SRF)</option>
             </select>
             <input className="es-radio__adresse" value={s.adresse} placeholder="https://…" onChange={(e) => aendern(i, "adresse", e.target.value)} />
             <button className="knopf knopf--klein" onClick={() => probeHoeren(s)}>
-              {probe === s.id ? "■ Stopp" : s.art === "youtube" ? "Ansehen" : "▶ Probe"}</button>
+              {probe === s.id ? "■ Stopp" : istVideo(s) ? "Ansehen" : "▶ Probe"}</button>
             <button className="knopf knopf--klein" aria-label="Entfernen" title="Entfernen"
               onClick={() => setListe((l) => l.filter((_, j) => j !== i))}>✕</button>
           </div>
