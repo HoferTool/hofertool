@@ -65,6 +65,7 @@ with sync_playwright() as p:
     if "KW 24" not in bl.inner_text("tbody"): fehler.append("Termin fehlt im PDF")
     if bl.locator(".blatt.zeichnung").count() != 1: fehler.append("Zeichnungsseiten: " + str(bl.locator(".blatt.zeichnung").count()))
     if bl.locator(".blatt.zeichnung.quer").count() != 1: fehler.append("Zeichnung nicht quer")
+    if "1 Seite Zeichnung angehängt" not in bl.inner_text("#zeichnungstand"): fehler.append("Stand: " + bl.inner_text("#zeichnungstand"))
     if "MTEC-452410" not in bl.inner_text(".zkopf"): fehler.append("Kopf der Zeichnung ohne Artikel")
     bl.screenshot(path=os.path.join(os.environ.get("BILDER", HIER), "bestell_termin_zeichnung.png"), full_page=True)
     # Das PDF für die Mail hat zwei Seiten, die zweite quer
@@ -89,6 +90,7 @@ with sync_playwright() as p:
     bl = neu.value; bl.wait_for_selector("tbody tr"); bl.wait_for_timeout(800)
     if "TERMIN" in bl.inner_text("thead"): fehler.append("Spalte Termin ohne Termin")
     if bl.locator(".blatt.zeichnung").count(): fehler.append("Zeichnung ohne PDF")
+    if "keine Zeichnung" not in bl.inner_text("#zeichnungstand"): fehler.append("Stand ohne PDF: " + bl.inner_text("#zeichnungstand"))
     bl.close()
 
     # Neue Position mit Termin

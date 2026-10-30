@@ -10,12 +10,18 @@
 import { pdfjs } from "../../teile/PdfAnsicht.jsx";
 import { pdfSeitenAlsBilder } from "../../teile/drucken.js";
 import { spezialPdfsLaden } from "../../daten/spezialwerkzeuge.js";
+import { alt } from "../../bruecke.jsx";
 
 // Mehr Seiten macht die Mail zu schwer
 const HOECHSTENS = 20;
 
 export async function zeichnungenAnhaengen(fenster, posten) {
   const fertig = () => { try { fenster.zeichnungenDa && fenster.zeichnungenDa(); } catch (f) { /* zu */ } };
+  // Kurz oben im Blatt sagen, was passiert ist (wird nicht gedruckt)
+  const stand = (text) => {
+    try { const h = fenster.document.getElementById("zeichnungstand"); if (h) h.textContent = text; } catch (f) { /* zu */ }
+  };
+  const fehler = [];
   try {
     const ids = [...new Set(posten.map((z) => z.article_id).filter(Boolean))];
     const je = await spezialPdfsLaden(ids);
@@ -25,7 +31,8 @@ export async function zeichnungenAnhaengen(fenster, posten) {
         if (!liste.some((x) => x.p.id === p.id)) liste.push({ p, a: z.articles || {} });
       });
     });
-    if (!liste.length) return;
+    if (!liste.length) { stand("Bei diesen Artikeln ist keine Zeichnung (PDF) hinterlegt."); return; }
+    stand("Zeichnungen werden angehängt …");
     const lib = await pdfjs();
     let seiten = 0;
     for (const { p, a } of liste) {
@@ -35,7 +42,10 @@ export async function zeichnungenAnhaengen(fenster, posten) {
         const antwort = await fetch(p.url);
         if (!antwort.ok) throw new Error(antwort.status);
         bilder = await pdfSeitenAlsBilder(lib, new Uint8Array(await antwort.arrayBuffer()));
-      } catch (f) { continue; }
+      } catch (f) {
+        fehler.push((p.name || "PDF") + ": " + (f && f.message ? f.message : f));
+        continue;
+      }
       const doc = fenster.document;
       const ziel = doc && doc.getElementById("zeichnungen");
       if (!ziel) return;
@@ -61,7 +71,15 @@ export async function zeichnungenAnhaengen(fenster, posten) {
     const doc = fenster.document;
     await Promise.all([...doc.querySelectorAll(".blatt.zeichnung img")].map((b) =>
       b.decode ? b.decode().catch(() => {}) : null));
+    stand(seiten
+      ? (seiten === 1 ? "1 Seite Zeichnung angehängt." : seiten + " Seiten Zeichnungen angehängt.")
+        + (fehler.length ? " Nicht geladen: " + fehler.join("; ") : "")
+      : "Die Zeichnung liess sich nicht laden: " + fehler.join("; "));
   } catch (f) {
-    /* ohne Zeichnung geht die Bestellung trotzdem */
-  } finally { fertig(); }
+    // ohne Zeichnung geht die Bestellung trotzdem
+    stand("Die Zeichnungen liessen sich nicht laden: " + (f && f.message ? f.message : f));
+  } finally {
+    if (fehler.length) try { alt.fehlerMerken("Bestell-PDF Zeichnung", fehler.join("; ")); } catch (f) { /* egal */ }
+    fertig();
+  }
 }

@@ -153,7 +153,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.300.0";
+const APP_VERSION = "1.300.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10003,6 +10003,9 @@ function bestellungDrucken(lieferant, posten) {
         : 'Für diesen Lieferanten ist keine Mailadresse hinterlegt — die Mail kommt '
           + 'ohne Empfänger, den trägst du in Outlook ein.')
     + '</p>' 
+    // Was mit den Zeichnungen der Artikel los ist, damit man sieht,
+    // warum keine dabei ist (seit 1.300.1)
+    + '<p class="mailhinweis" id="zeichnungstand">Zeichnungen der Artikel werden gesucht …</p>'
     + '<div class="blatt">'
 
     + '<div class="balken">'
