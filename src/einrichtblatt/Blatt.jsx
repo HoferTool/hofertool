@@ -113,11 +113,15 @@ function tnrSchreiben(w) {
 const GEO_SCHWARZ = "#000000";
 const GEO_FARBEN = [["Schwarz", GEO_SCHWARZ], ["Rot", "#e03030"], ["Blau", "#1f5fd6"], ["Grün", "#1a8f3c"], ["Orange", "#e07a00"]];
 
+// Schriftgrösse der Notiz im Platz von Hand (Punkte auf dem Blatt);
+// leer = Auto, so gross wie das Feld es zulässt
+const GEO_GROESSE_MIN = 6, GEO_GROESSE_MAX = 40, GEO_GROESSE_START = 14;
+
 // Notiz (Geo-Offset) im Bildfeld eines Platzes: immer waagrecht mittig;
 // ohne Bild auch senkrecht mittig und so gross, wie das Feld es zulässt
 // (Wunsch Patrick 29. Oktober 2026: „schön mitte zentriert, Höhe und
 // Breite anpassen“). Mit Bild bleibt sie klein über dem Bild.
-function GeoText({ text, mitBild, farbe, fett }) {
+function GeoText({ text, mitBild, farbe, fett, groesse }) {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
@@ -126,6 +130,10 @@ function GeoText({ text, mitBild, farbe, fett }) {
     const passen = () => {
       el.style.fontSize = "";
       el.style.lineHeight = "";
+      // Von Hand gewählte Grösse (Wunsch Patrick 30. Oktober 2026); passt
+      // sie nicht ins Feld, wird sie nur so weit kleiner, dass nichts
+      // abgeschnitten wird
+      if (groesse) { el.style.fontSize = groesse + "px"; el.style.lineHeight = "1.15"; }
       if (mitBild) return;
       const b = feld.clientWidth - 4, h = feld.clientHeight - 2;
       if (b <= 0 || h <= 0) return;
@@ -134,7 +142,7 @@ function GeoText({ text, mitBild, farbe, fett }) {
         el.style.lineHeight = "1.15";
         return el.scrollWidth <= b && el.scrollHeight <= h;
       };
-      let lo = 7, hi = 26;
+      let lo = Math.min(7, groesse || 7), hi = groesse || 26;
       if (passt(hi)) return;
       while (hi - lo > 0.25) { const m = (lo + hi) / 2; if (passt(m)) lo = m; else hi = m; }
       passt(Math.floor(lo * 4) / 4);
@@ -144,7 +152,7 @@ function GeoText({ text, mitBild, farbe, fett }) {
     const ro = new ResizeObserver(passen);
     ro.observe(feld);
     return () => ro.disconnect();
-  }, [text, mitBild, fett]);
+  }, [text, mitBild, fett, groesse]);
   return <span ref={ref} className={"eba-geo" + (fett ? " eba-geo--fett" : "")} data-geo=""
     style={farbe ? { color: farbe, WebkitTextFillColor: farbe } : undefined}>{text}</span>;
 }
@@ -236,7 +244,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
         {/* Geo-Offset nur, wo nötig: steht über dem Bild, das Bild wird
             kleiner oder fällt ganz weg (Wunsch Patrick, 24. Oktober 2026) */}
         <div className={"eba-bild" + (p.geo ? " eba-bild--geo" + (bild && !p.ohneBild ? "" : " eba-bild--nurgeo") : "")}>
-          {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} farbe={p.geoFarbe} fett={!!p.geoFett} /> : null}
+          {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} farbe={p.geoFarbe} fett={!!p.geoFett} groesse={p.geoGroesse || null} /> : null}
           {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her">{p.hersteller || ""}{p.spezial && p.article_id &&
           <span className="eba-stern" title="Spezialwerkzeug" data-eba-stern="">★</span>}</div>
@@ -413,6 +421,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
       z.geo = geo;
       if (p.geoFarbe && p.geoFarbe !== GEO_SCHWARZ) z.geoFarbe = p.geoFarbe;
       if (p.geoFett) z.geoFett = true;
+      if (p.geoGroesse) z.geoGroesse = p.geoGroesse;
     }
     if (p.ohneBild) z.ohneBild = true;
     if (p.article_id && z.werkzeug) z.article_id = p.article_id;
@@ -486,6 +495,18 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
           <button type="button" data-pf-geodicke="fett" className={p.geoFett ? "aktiv" : ""}
             onClick={() => setP(Object.assign({}, p, { geoFett: true }))}><b>Fett</b></button>
         </span>
+      </div>
+      {/* Schriftgrösse der Notiz: Auto füllt das Feld, sonst von Hand
+          (Wunsch Patrick 30. Oktober 2026) */}
+      <div className="eba-pf-geogroesse" data-pf-geogroesse="">
+        <span>Schriftgrösse</span>
+        <button type="button" data-pf-geogr="auto" className={!p.geoGroesse ? "aktiv" : ""}
+          onClick={() => setP(Object.assign({}, p, { geoGroesse: null }))}>Auto</button>
+        <button type="button" data-pf-geogr="minus" aria-label="Kleiner"
+          onClick={() => setP(Object.assign({}, p, { geoGroesse: Math.max(GEO_GROESSE_MIN, (p.geoGroesse || GEO_GROESSE_START + 1) - 1) }))}>−</button>
+        <b data-pf-geogr-wert="">{p.geoGroesse || ""}</b>
+        <button type="button" data-pf-geogr="plus" aria-label="Grösser"
+          onClick={() => setP(Object.assign({}, p, { geoGroesse: Math.min(GEO_GROESSE_MAX, (p.geoGroesse || GEO_GROESSE_START - 1) + 1) }))}>+</button>
       </div>
       {BILDER_AN && <label className="eba-pf-check"><input type="checkbox" data-pf="ohneBild" checked={!!p.ohneBild}
         onChange={(e) => setP(Object.assign({}, p, { ohneBild: e.target.checked }))} /> Kein Bild auf dem Blatt</label>}
