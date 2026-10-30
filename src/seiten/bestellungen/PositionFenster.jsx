@@ -5,10 +5,8 @@
 //  Fenstern (Nummer, Bezeichnung, Lieferant) und bleibt im alten
 //  Programm (artikelSchnellAnlegen), weil auch das Einrichtblatt es
 //  braucht.
-//  Seit 1.109.0 auch per Foto der Verpackung (Wunsch Patrick
-//  19. Oktober 2026): zuerst passende Artikel zeigen, sonst einen
-//  neuen mit der gelesenen Nummer anlegen. Was man danach bestellt,
-//  lernt die App für das nächste Foto (src/daten/artikelFoto.js).
+//  Artikel per Foto (1.109.0 bis 1.300.x) gibt es seit 1.301.0 nicht
+//  mehr (Wunsch Patrick 30. Oktober 2026: „keine Kamera-Zeichen mehr“).
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
@@ -16,7 +14,6 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { ArtikelAngaben } from "./teile.jsx";
 import { betrachter } from "../../teile/Betrachter.jsx";
 import { spezialPdfsLaden } from "../../daten/spezialwerkzeuge.js";
-import { artikelFotoLesen, artikelFuerFoto, artikelFinden, artikelLernen } from "../../daten/artikelFoto.js";
 
 // fertig: wird nach dem Speichern aufgerufen, damit die Liste neu lädt.
 // vorgabe: { artikel, maschine, notiz } schon eingetragen, etwa beim
@@ -71,9 +68,6 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   const mengeFeld = useRef(null);
   const freiFeld = useRef(null);
   const suchNr = useRef(0);
-  // Foto: null, { liest, text }, { fehler } oder { lesung, treffer }
-  const [foto, setFoto] = useState(null);
-  const fotoFeld = useRef(null);
   // Offene und bestellte Positionen des gewählten Artikels, damit
   // niemand dasselbe zweimal aufschreibt (Wunsch Patrick 26. Oktober
   // 2026: „wenn schon bestellt, soll kurze Info kommen“). Nur ein
@@ -152,30 +146,6 @@ function PositionFenster({ zu, fertig, vorgabe }) {
     if (a) waehlen(a);
   };
 
-  const fotoGewaehlt = async (e) => {
-    const datei = e.target.files && e.target.files[0];
-    e.target.value = "";
-    if (!datei) return;
-    setFoto({ liest: true, text: "Texterkennung wird geladen …" });
-    try {
-      const [lesung, artikel] = await Promise.all([
-        artikelFotoLesen(datei, (status, anteil) => {
-          const lesen = /recogniz/.test(status || "");
-          setFoto({ liest: true, text: lesen ? "Foto wird gelesen … " + Math.round(anteil * 100) + " %"
-            : "Texterkennung wird geladen …" });
-        }),
-        artikelFuerFoto(),
-      ]);
-      const treffer = artikelFinden(lesung, artikel);
-      setFoto({ lesung, treffer });
-      setTreffer(null);
-      // Ein klarer Treffer ist gleich gewählt, prüfen muss man trotzdem
-      if (treffer.length && treffer[0].sicher && !(treffer[1] && treffer[1].sicher)) waehlen(treffer[0].a);
-    } catch (f) {
-      setFoto({ fehler: "Das Foto liess sich nicht lesen. Ohne Internet geht es beim ersten Mal nicht. " + alt.fehlertext(f) });
-    }
-  };
-  const fotoLesung = foto && foto.lesung;
 
   // Was die Zielauswahl braucht, erst laden, wenn sie gewählt wird
   const zielSetzen = async (art) => {
@@ -232,8 +202,6 @@ function PositionFenster({ zu, fertig, vorgabe }) {
     }
     setSpeichert(false);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
-    // Nach einem Foto: die Verpackung gehört zu diesem Artikel
-    if (fotoLesung) artikelLernen(gewaehlt.id, fotoLesung).catch(() => {});
     if (Array.isArray(data) && data[0]) alt.merkeSchritt("Neue Position " + (gewaehlt.article_number || ""),
       alt.rueckWeg("order_items", { id: data[0].id }));
     zu();
@@ -258,48 +226,6 @@ function PositionFenster({ zu, fertig, vorgabe }) {
             if (e.key === "Enter") { e.preventDefault(); clearTimeout(taste.current); suchen(suche); }
           }} />
       </div>
-      {/* Aus dem Einrichtblatt ist der Artikel schon klar: kein Foto
-          (Wunsch Patrick 30. Oktober 2026) */}
-      {!vorgabe.ohneFoto && <div className="mat-foto pd-foto" id="pd-foto">
-        <input ref={fotoFeld} type="file" accept="image/*" hidden id="pd-foto-datei" onChange={fotoGewaehlt} />
-        <button type="button" className="knopf" id="pd-foto-knopf" disabled={!!(foto && foto.liest)}
-          onClick={() => fotoFeld.current && fotoFeld.current.click()}>📷 Artikel fotografieren</button>
-        {foto && foto.liest && <span className="klein" id="pd-foto-stand">{foto.text}</span>}
-        {foto && foto.fehler && <span className="klein mat-foto__fehler">{foto.fehler}</span>}
-        {fotoLesung && (
-          <div className="mat-foto__ergebnis" id="pd-foto-ergebnis">
-            {foto.treffer.length
-              ? <>
-                  <span className="klein"><b>{foto.treffer.length === 1 ? "Diesen Artikel gibt es schon:" : "Passende Artikel:"}</b></span>
-                  {foto.treffer.map((t) => (
-                    <button key={t.a.id} className={"pd-zeile" + (gewaehlt && gewaehlt.id === t.a.id ? " pd-zeile--gewaehlt" : "")}
-                      data-fotow={t.a.id} data-punkte={t.punkte} onClick={() => waehlen(t.a)}>
-                      <ArtikelAngaben a={t.a} />
-                      <span className={"bs-chip" + (t.sicher ? "" : " bs-chip--still")}>
-                        {t.sicher ? "passt" : "vielleicht"}</span></button>
-                  ))}
-                </>
-              : <span className="klein" id="pd-foto-nichts"><b>Diesen Artikel gibt es noch nicht.</b>
-                  {" "}Unten neu anlegen oder oben suchen, falls er doch schon da ist.</span>}
-            {schreiben && !foto.treffer.some((t) => t.sicher) && (
-              <div className="pd-foto__neu" id="pd-foto-neu">
-                <span className="klein">Neu anlegen mit Nummer:</span>
-                {fotoLesung.nummern.map((n) => (
-                  <button key={n} type="button" className="knopf knopf--klein" data-fotonr={n}
-                    onClick={() => neuAnlegen(n)}>{n}</button>
-                ))}
-                <button type="button" className="knopf knopf--klein knopf--still" data-fotonr=""
-                  onClick={() => neuAnlegen("")}>andere</button>
-              </div>
-            )}
-            <span className="klein">Beim Hinzufügen merkt sich die App die Verpackung für das nächste Foto.</span>
-            {fotoLesung.codeTexte && fotoLesung.codeTexte.length > 0 &&
-              <span className="klein" id="pd-foto-codes">Strichcode: {fotoLesung.codeTexte.join(", ")}</span>}
-            <details><summary className="klein">Gelesener Text</summary>
-              <pre className="mat-foto__text">{fotoLesung.text}</pre></details>
-          </div>
-        )}
-      </div>}
       <div id="pd-treffer" className="pd-treffer">
         {sucht && !treffer && <div className="laedt">Wird gesucht …</div>}
         {suchFehler && <p className="hinweis">{suchFehler}</p>}
@@ -385,8 +311,7 @@ function PositionFenster({ zu, fertig, vorgabe }) {
         <button className="knopf knopf--still" id="pd-nein" data-nein="" onClick={zu}>Abbrechen</button>
         {nurWaehlen
           ? <button className="knopf knopf--haupt" id="pd-ja" disabled={!gewaehlt}
-              onClick={() => { if (fotoLesung) artikelLernen(gewaehlt.id, fotoLesung).catch(() => {});
-                vorgabe.waehlen(gewaehlt); }}>Übernehmen</button>
+              onClick={() => vorgabe.waehlen(gewaehlt)}>Übernehmen</button>
           : <button className="knopf knopf--haupt" id="pd-ja" disabled={!gewaehlt || speichert} onClick={hinzufuegen}>
               Hinzufügen</button>}
       </div>

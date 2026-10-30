@@ -808,7 +808,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const bestellen = async (nr, p) => {
     const a = await artikelHolen(p.article_id);
     if (!a) { alt.meldung("Der Artikel zu diesem Platz ist nicht mehr da.", "warn"); return; }
-    positionOeffnen(null, { artikel: a, ohneFoto: true });
+    positionOeffnen(null, { artikel: a });
   };
   const platzWahl = (nr) => setTimeout(() => {
     if (wechsel) { if (wechsel !== nr) tauschen(wechsel, nr); else setWechsel(null); return; }
