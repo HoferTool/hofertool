@@ -10525,18 +10525,6 @@ body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -w
   background: var(--flaeche-2, rgba(0,0,0,.06)); font-weight: 600; font-variant-numeric: tabular-nums; }
 .az-neu { display: flex; gap: 8px; }
 .az-neu input { flex: 1; min-width: 0; }
-/* Steckdosen (seit 1.291.0): eine Karte je Steckdose, grün wenn ein */
-.sd-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.sd-karte { display: flex; flex-direction: column; gap: 8px; margin: 0; border-left: 6px solid var(--rand, #ccc); }
-.sd-karte--an { border-left-color: #2e9e4f; }
-.sd-karte--weg { opacity: .55; }
-.sd-name { font-weight: 600; font-size: 1.1em; }
-.sd-info { min-height: 1.2em; }
-.sd-schalter { display: flex; flex-wrap: wrap; gap: 8px; }
-.sd-knopf { flex: 1; min-width: 90px; padding: 12px 10px; border-radius: 10px; border: 1px solid #bbb;
-  background: #eee; color: #333; font-size: 1.05em; font-weight: 600; cursor: pointer; }
-.sd-knopf--an { background: #2e9e4f; border-color: #2e9e4f; color: #fff; }
-.sd-knopf:disabled { cursor: default; opacity: .7; }
 
 /* ===== Spiele im Pausenraum (src/infoboard/Spiele.jsx) =====
    Alles in Punkten der Tafel (1920 × 1080), gross für den Finger. */
