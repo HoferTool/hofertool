@@ -153,7 +153,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.306.1";
+const APP_VERSION = "1.307.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10332,7 +10332,7 @@ const SEITEN = [
   // Termine wie Kehrichtabfuhr, auch auf dem Infoboard (Wunsch Patrick 28. Oktober 2026)
   { pfad: "kalender",     titel: "Kalender",     zeichen: SYM.kalender, zeige: reactSeite(Kalender) },
   // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
-  { pfad: "einlagen",     titel: "Einlagen Gen (created by Ecker)", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
+  { pfad: "einlagen",     titel: "Einlagen Gen", unter: "created by Ecker", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   { pfad: "temp",         titel: "Temp",         zeichen: SYM.temp, zeige: reactSeite(Temp) },
   // Grosser Bildschirm hochkant (Wunsch Patrick 20. Oktober 2026), nur
   // für Admins und Gerätekonten

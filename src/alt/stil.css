@@ -10730,3 +10730,24 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 /* Einrichtblatt: Häkchen „Laufen lassen“ bei Stück am Abend */
 .eba-laufen { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; font-size: 0.85em; cursor: pointer; }
 .eba-laufen input { margin: 0; }
+
+/* Zweite, blasse Zeile unter dem Namen im Menü, etwa „created by Ecker“
+   bei Einlagen Gen (Wunsch Patrick 30. Oktober 2026) */
+.nav__unter { display: block; font-size: .72em; font-weight: 400; line-height: 1.2; opacity: .55; white-space: nowrap; }
+
+/* Einlagen Gen: Leiste mit den in der App gespeicherten Einlagen */
+.einlagen { position: relative; }
+.einlagen__leiste { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.einlagen__stand { color: var(--gedaempft); font-size: .9em; }
+.einlagen__stand--fehler { color: var(--gefahr); font-weight: 600; }
+.einlagen__liste { position: absolute; z-index: 20; left: 0; right: 0; max-width: 640px; max-height: 70vh; overflow: auto;
+  background: var(--flaeche); border: 1px solid var(--linie-stark); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+  padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.einlagen__liste > p { margin: 8px; }
+.einlagen__zeile { display: flex; align-items: stretch; gap: 6px; }
+.einlagen__zeile.aktiv .einlagen__oeffnen { border-color: var(--marke); background: var(--marke-hell); }
+.einlagen__oeffnen { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px;
+  border: 1px solid var(--linie); border-radius: var(--radius); background: transparent; color: var(--tinte); font: inherit; cursor: pointer; }
+.einlagen__oeffnen:hover { border-color: var(--marke); }
+.einlagen__oeffnen > span { font-size: .85em; }
+.einlagen__weg { flex: none; }

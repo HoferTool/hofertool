@@ -12,7 +12,7 @@ def pruefe(ok, text):
     if not ok: fehler.append(text)
 BILD = os.environ.get("BILD")
 
-def seite(br, url, mit="", w=1440, h=900, mobil=False):
+def seite(br, url, mit="\nTEST.daten.einlagen = [];", w=1440, h=900, mobil=False):
     ctx = br.new_context(viewport={"width": w, "height": h}, is_mobile=mobil, has_touch=mobil)
     pg = ctx.new_page()
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:200]))
@@ -27,7 +27,8 @@ with sync_playwright() as p:
     pg, pf = seite(br, "#/einlagen")
     pg.wait_for_selector("iframe.einlagen-rahmen", timeout=20000)
     pruefe(pg.locator("[data-nav='einlagen']").count() > 0, "Reiter im Menü")
-    pruefe("Einlagen Gen (created by Ecker)" in pg.inner_text("body"), "Name des Reiters")
+    nav = pg.evaluate("() => { const t = document.querySelector(\"[data-nav='einlagen'] .nav__text\"); const u = t.querySelector('.nav__unter'); return [t.firstChild.textContent, u && u.textContent, u && +getComputedStyle(u).opacity, u && u.getBoundingClientRect().top > t.firstChild.parentElement.getBoundingClientRect().top + 5]; }")
+    pruefe(nav[0] == "Einlagen Gen" and nav[1] == "created by Ecker" and nav[2] < 1 and nav[3], "Reiter zweizeilig, zweite Zeile blass: %s" % nav)
     fr = pg.frame_locator("iframe.einlagen-rahmen")
     fr.locator("h1").wait_for(timeout=15000); pg.wait_for_timeout(1500)
     f = pg.frames[1]
@@ -46,7 +47,22 @@ with sync_playwright() as p:
     if BILD: pg.screenshot(path=BILD + "-pc-einlage.png")
     # Beispiel-Scan in die Einlage, dann STL speichern: Download aus dem Rahmen
     f.click("button:has-text('Aktuellen Scan einfügen')"); pg.wait_for_timeout(800)
-    f.click("#pickAll"); f.click("#pickOk"); pg.wait_for_timeout(1500)
+    f.click("#pickAll"); f.click("#pickOk"); pg.wait_for_timeout(3000)
+    # Von selbst in der App gespeichert (Tabelle einlagen)
+    e = pg.evaluate("() => (TEST.daten.einlagen || []).map(x => [x.name, x.daten.items.length])")
+    pruefe(len(e) == 1 and e[0][1] == 4, "Einlage von selbst gespeichert: %s" % e)
+    pruefe("in der App gespeichert" in pg.inner_text("#einlagen-stand"), "Stand zeigt gespeichert: " + pg.inner_text("#einlagen-stand"))
+    # Name ändern speichert auch
+    f.fill("#layName", "Bohrer-Kiste"); f.dispatch_event("#layName", "change"); pg.wait_for_timeout(2500)
+    e = pg.evaluate("() => (TEST.daten.einlagen || []).map(x => x.name)")
+    pruefe(e == ["Bohrer-Kiste"], "Name gespeichert, keine zweite Zeile: %s" % e)
+    # Neue Einlage, dann die gespeicherte wieder öffnen
+    pg.click("#einlagen-neu"); pg.wait_for_timeout(2500)
+    pruefe(f.evaluate("layData().items.length") == 0 and len(pg.evaluate("TEST.daten.einlagen")) == 1, "neue leere Einlage, nichts Leeres gespeichert")
+    pg.click("#einlagen-liste"); pg.wait_for_selector("#einlagen-fenster .einlagen__oeffnen")
+    if BILD: pg.screenshot(path=BILD + "-liste.png")
+    pg.click("#einlagen-fenster .einlagen__oeffnen"); pg.wait_for_timeout(800)
+    pruefe(f.evaluate("layData().items.length") == 4 and f.evaluate("layData().name") == "Bohrer-Kiste", "gespeicherte Einlage wieder geöffnet")
     if BILD: pg.screenshot(path=BILD + "-pc-einlage2.png")
     f.evaluate("document.getElementById('layExportStl').scrollIntoView()")
     with pg.expect_download(timeout=30000) as dl:
@@ -76,7 +92,7 @@ with sync_playwright() as p:
     pg.context.close()
 
     # Externe sehen den Reiter nicht
-    pg, pf = seite(br, "#/einlagen", "\nTEST.daten.profiles[0].role = 'extern';")
+    pg, pf = seite(br, "#/einlagen", "\nTEST.daten.einlagen = []; TEST.daten.profiles[0].role = 'extern';")
     pg.wait_for_timeout(3000)
     pruefe(pg.locator("iframe.einlagen-rahmen").count() == 0 and pg.locator("[data-nav='einlagen']").count() == 0, "Externe sehen den Reiter nicht")
     pg.context.close()
