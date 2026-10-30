@@ -4,7 +4,7 @@
 //  Als Zeilen wie die Lieferanten, ohne Bild (Wunsch 4. Oktober 2026).
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
-import { passt } from "../../teile/Suchfeld.jsx";
+import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { Leiste, NeuKnopf, Karte, Symbolknopf, Leer, Laedt, Fehler } from "./teile.jsx";
 
 export default function Bezeichnungen({ auffrischen }) {
@@ -12,7 +12,7 @@ export default function Bezeichnungen({ auffrischen }) {
   const [suche, setSuche] = useSpeicherWert(best, "bezSuche", auffrischen);
   const schreiben = alt.darfSchreiben();
   const { daten: liste, fehler, neu } = useDaten(() => alt.ladeBezeichnungen(), [auffrischen]);
-  const gefiltert = liste && liste.filter((z) => passt(suche, [z.name]));
+  const gefiltert = liste && liste.filter((z) => passtWoerter(suche, [z.name]));
 
   return (
     <>

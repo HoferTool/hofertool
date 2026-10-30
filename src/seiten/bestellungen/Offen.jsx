@@ -11,7 +11,8 @@
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { positionOeffnen } from "./PositionFenster.jsx";
-import { Leiste, NeuKnopf, Karte, Logo, Status, Ziel, Zeichen, Symbolknopf,
+import { passtWoerter } from "../../teile/Suchfeld.jsx";
+import { positionSuchfelder, Leiste, NeuKnopf, Karte, Logo, Status, Ziel, Zeichen, Symbolknopf,
   Leer, Laedt, Fehler, mehrzahl, Stern } from "./teile.jsx";
 
 const BLOECKE = {
@@ -49,12 +50,15 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
     return alt.ladeBestellungen(true);
   }, [auffrischen]);
 
+  // HOCO Nummern der Spezialwerkzeuge, nur für die Suche; ohne geht es auch
+  const { daten: hocoJe } = useDaten(() => alt.hocoJeArtikel(true), [auffrischen]);
+
   const schreiben = alt.darfSchreiben();
   // Neue Positionen entstehen im Reiter Offen. In Bestellt und
   // Teilweise geliefert wäre der Knopf nur verwirrend.
   const leiste = (
     <Leiste suchId="bo-suche" suche={suche} setSuche={setSuche}
-      platzhalter="Artikel, Lieferant oder Person suchen"
+      platzhalter="Artikel, Lieferant, HOCO Nr., Person … suchen"
       knopf={schreiben && bereich === "offen" &&
         <NeuKnopf id="b-neu" text="Neue Position" onClick={() => positionOeffnen(neu)} />} />
   );
@@ -63,12 +67,7 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
   if (!liste) return <>{leiste}<Laedt /></>;
 
   const sucht = suche.trim().toLowerCase();
-  const gefiltert = !sucht ? liste : liste.filter((z) => {
-    const a2 = z.articles || {};
-    return [a2.article_number, a2.name, a2.description, (lieferantVon(z) || {}).name,
-            z.note, z.ziel_text, z.ziel_anzeige, alt.personName(z.profiles, "")]
-      .map((x) => String(x || "").toLowerCase()).join(" ").includes(sucht);
-  });
+  const gefiltert = !sucht ? liste : liste.filter((z) => passtWoerter(sucht, positionSuchfelder(z, hocoJe)));
 
   const heute = alt.isoDatum(new Date());
   const imBereich = gefiltert.filter((z) => BLOECKE[bereich].some((bl) => bl.status === z.status));

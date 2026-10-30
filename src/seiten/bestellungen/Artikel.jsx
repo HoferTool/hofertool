@@ -44,7 +44,7 @@ export default function Artikel({ auffrischen, behaelter }) {
   return (
     <>
       <Leiste suchId="ar-suche" suche={suche} setSuche={setSuche}
-        platzhalter="Nummer, Bezeichnung oder Lieferant suchen"
+        platzhalter="Nummer, Bezeichnung, Lieferant oder HOCO Nr. suchen"
         filter={<>
           <select id="ar-bez" className="auswahl bs-filter" value={bez} aria-label="Bezeichnung"
             onChange={(e) => { setBez(e.target.value); }}>
@@ -79,16 +79,8 @@ export default function Artikel({ auffrischen, behaelter }) {
   );
 }
 
-async function hocoJeArtikel() {
-  try {
-    const r = await alt.zeitlimit(alt.db.from("spezialwerkzeuge").select("article_id, hoco_nr"), 10000, "Spezialwerkzeuge");
-    if (r.error) return {};
-    const je = {};
-    (r.data || []).forEach((z) => { if (z.hoco_nr) (je[z.article_id] = je[z.article_id] || []).push(z.hoco_nr); });
-    Object.values(je).forEach((l) => l.sort((x, y) => String(x).localeCompare(String(y), "de", { numeric: true })));
-    return je;
-  } catch (f) { return {}; }
-}
+// Frisch geholt, damit eine neue Zuordnung gleich dasteht
+const hocoJeArtikel = () => alt.hocoJeArtikel(true);
 
 function Liste({ liste, sucht, schreiben, behaelter, anzahl, gesamt, mehr, hocoJe }) {
   if (!liste.length) return <Leer text={sucht ? "Kein Artikel gefunden." : "Noch keine Artikel angelegt."} />;

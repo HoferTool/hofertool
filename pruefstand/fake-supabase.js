@@ -316,9 +316,12 @@ function bauer(tabelle) {
     like(feld, wert)  { zustand.filter.push({ feld, wert, art: "like" }); return b; },
     or(text) {
       if (TEST.orFiltern) {
-        const teile = String(text).split(/,(?=[a-z_]+\.ilike\.)/).map((x) => {
+        const teile = String(text).split(/,(?=[a-z_]+\.(?:ilike|in)\.)/).map((x) => {
           const m = x.match(/^([a-z_]+)\.ilike\.(.*)$/);
-          return m ? { feld: m[1], wert: m[2].replace(/^"|"$/g, ""), art: "like" } : null;
+          if (m) return { feld: m[1], wert: m[2].replace(/^"|"$/g, ""), art: "like" };
+          // feld.in.(a,b): eine der Kennungen
+          const n = x.match(/^([a-z_]+)\.in\.\((.*)\)$/);
+          return n ? { feld: n[1], wert: n[2].split(","), art: "in" } : null;
         }).filter(Boolean);
         if (teile.length) zustand.filter.push({ art: "oder", teile });
       }

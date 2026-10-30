@@ -4,8 +4,8 @@
 //  aus Versehen auf geliefert gesetzt hat, kann es hier zurücksetzen.
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
-import { passt } from "../../teile/Suchfeld.jsx";
-import { Leiste, Karte, Status, Ziel, Leer, Laedt, Fehler, Stern } from "./teile.jsx";
+import { passtWoerter } from "../../teile/Suchfeld.jsx";
+import { positionSuchfelder, Leiste, Karte, Status, Ziel, Leer, Laedt, Fehler, Stern } from "./teile.jsx";
 
 const lieferzeit = (z) => String(z.delivered_at || z.completed_at || z.created_at || "");
 
@@ -22,19 +22,18 @@ export default function Historie({ auffrischen, behaelter }) {
     return alt.ladeBestellungen(false);
   }, [auffrischen]);
 
+  // HOCO Nummern der Spezialwerkzeuge, nur für die Suche
+  const { daten: hocoJe } = useDaten(() => alt.hocoJeArtikel(true), [auffrischen]);
+
   const leiste = <Leiste suchId="bh-suche" suche={suche} setSuche={setSuche}
-    platzhalter="Artikel, Lieferant, Person oder Ziel suchen" />;
+    platzhalter="Artikel, Lieferant, HOCO Nr., Person, Ziel … suchen" />;
   if (fehler && !liste) return <>{leiste}<Fehler fehler={fehler} /></>;
   if (!liste) return <>{leiste}<Laedt /></>;
 
   const schreiben = alt.darfSchreiben();
   const fertige = liste.filter((z) => z.status === "geliefert")
     .sort((a, c) => lieferzeit(c).localeCompare(lieferzeit(a)))
-    .filter((z) => {
-      const a = z.articles || {};
-      return passt(suche, [a.article_number, a.name, (z.suppliers && z.suppliers.name),
-                           alt.personName(z.profiles, ""), z.ziel_text, z.ziel_anzeige]);
-    });
+    .filter((z) => passtWoerter(suche, positionSuchfelder(z, hocoJe)));
 
   // Nach Monat der Lieferung gruppiert, der jüngste zuoberst
   const monate = [];

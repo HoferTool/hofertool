@@ -4,7 +4,7 @@
 //  alten Programm: lieferantDialog.
 // =================================================================
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
-import { passt } from "../../teile/Suchfeld.jsx";
+import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { Leiste, NeuKnopf, Karte, Logo, Symbolknopf, Zeichen, Leer, Laedt, Fehler } from "./teile.jsx";
 import { logoOeffnen } from "./LogoFenster.jsx";
 
@@ -20,7 +20,8 @@ export default function Lieferanten({ auffrischen, behaelter }) {
       onClick={() => alt.lieferantDialog(null, behaelter)} />} />;
   if (fehler && !liste) return <>{leiste}<Fehler fehler={fehler} /></>;
   if (!liste) return <>{leiste}<Laedt /></>;
-  const gefiltert = liste.filter((l) => passt(suche, [l.name, l.email, l.adresse]));
+  const gefiltert = liste.filter((l) => passtWoerter(suche, [l.name, l.email, l.adresse, l.website,
+    l.bestellweg === "mail" ? "Bestellung per Mail" : "Über Website"]));
 
   return (
     <>

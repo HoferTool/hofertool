@@ -152,7 +152,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.284.0";
+const APP_VERSION = "1.285.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8908,13 +8908,42 @@ async function ladeLieferanten() {
 // Bedingungen, darum steht jedes Wort in Anführungszeichen. Komma und
 // Leerzeichen trennen Wörter; jedes Wort muss in einer der Spalten stehen
 // („DCMT11304-F1 ,TP2501“ brach vorher mit „failed to parse logic tree“ ab).
-function orSuche(abfrage, spalten, text) {
+function orSuche(abfrage, spalten, text, zusatz) {
   const woerter = String(text || "").split(/[\s,]+/).filter(Boolean);
   for (const w of woerter) {
     const wert = '"%' + w.replace(/[\\"]/g, (z) => "\\" + z) + '%"';
-    abfrage = abfrage.or(spalten.map((s) => s + ".ilike." + wert).join(","));
+    // zusatz(w): weitere Bedingungen für dieses Wort, etwa „id.in.(…)“
+    const extra = zusatz ? zusatz(w) : [];
+    abfrage = abfrage.or(spalten.map((s) => s + ".ilike." + wert).concat(extra).join(","));
   }
   return abfrage;
+}
+
+// Zu welchen HOCO Nummern ein Spezialwerkzeug gehört (Tabelle
+// spezialwerkzeuge), je Artikel, eine Minute gemerkt. Für die Spalte
+// HOCO Nr. und die Suche unter Bestellungen (Wunsch Patrick 30. Oktober
+// 2026: „nach allem suchen inkl. HOCO Nr.“); ohne Tabelle leer.
+let hocoJeArtikelSpeicher = null;
+async function hocoJeArtikel(frisch) {
+  if (!frisch && hocoJeArtikelSpeicher && Date.now() - hocoJeArtikelSpeicher.zeit < 60000) return hocoJeArtikelSpeicher.je;
+  const je = {};
+  try {
+    const r = await zeitlimit(db.from("spezialwerkzeuge").select("article_id, hoco_nr"), 10000, "Spezialwerkzeuge");
+    if (r.error) return je;
+    (r.data || []).forEach((z) => { if (z.hoco_nr) (je[z.article_id] = je[z.article_id] || []).push(z.hoco_nr); });
+    Object.values(je).forEach((l) => l.sort((x, y) => String(x).localeCompare(String(y), "de", { numeric: true })));
+  } catch (f) { return je; }
+  hocoJeArtikelSpeicher = { zeit: Date.now(), je };
+  return je;
+}
+
+// HOCO Nr. ohne Bindestriche und Leerzeichen vergleichen, damit
+// „108410009“ auch „10841-0009“ findet
+const hocoKurz = (x) => String(x || "").toLowerCase().replace(/[^0-9a-z]/g, "");
+function artikelMitHoco(je, wort) {
+  const w = hocoKurz(wort);
+  if (!w) return [];
+  return Object.keys(je).filter((id) => je[id].some((h) => hocoKurz(h).includes(w)));
 }
 
 // filter: { bez, lief, spezial } — Bezeichnung und Lieferant fragt schon die
@@ -8937,12 +8966,17 @@ async function sucheArtikel(text, filter) {
     if (mitSpezial && filter && typeof filter.spezial === "boolean") abfrage = abfrage.eq("spezial", filter.spezial);
     // Auch die Beschreibung, die unter der Bezeichnung steht („Ø1.00
     // Mikrobohrer“), Wunsch Patrick 26. Oktober 2026
+    // Dazu Einheit und die HOCO Nummern der Spezialwerkzeuge (seit 1.285.0)
     if (t) {
-      abfrage = orSuche(abfrage, ["article_number", "name", "description", "supplier_name"], t);
+      abfrage = orSuche(abfrage, ["article_number", "name", "description", "supplier_name", "unit"], t, (w) => {
+        const ids = artikelMitHoco(hocoJe, w).slice(0, 300);
+        return ids.length ? ["id.in.(" + ids.join(",") + ")"] : [];
+      });
     }
     if (zaehlen) return zeitlimit(abfrage, 12000, "Artikel zählen");
     return zeitlimit(abfrage.order("article_number").limit(anzahl), 12000, "Artikelsuche");
   };
+  const hocoJe = t ? await hocoJeArtikel() : {};
   let { data, error, count } = await abfragen(true);
   // Kennt die Datenbank die Spalte noch nicht (sql/spezialwerkzeuge-getrennt.sql),
   // ist jeder Artikel ein normaler
@@ -8959,7 +8993,7 @@ async function sucheArtikel(text, filter) {
   try {
     const alle = await artikelVorrat(filter);
     return genau.concat(aehnlicheTreffer(t, alle,
-      (a) => [a.article_number, a.name, a.description, a.supplier_name], genau, 20));
+      (a) => [a.article_number, a.name, a.description, a.supplier_name].concat(hocoJe[a.id] || []), genau, 20));
   } catch (f) {
     return genau;
   }
@@ -10269,7 +10303,7 @@ Object.assign(alt, {
   zeitlimit, meldung, nachfragen, fehlertext, dialogFelder, auswahlDialog,
   merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,
   reiterUebergang,
-  best, seiteBestellungen, sucheArtikel, ladeBezeichnungen, ladeLieferanten,
+  best, seiteBestellungen, sucheArtikel, hocoJeArtikel, ladeBezeichnungen, ladeLieferanten,
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, solarLaden, solarKw, esc,
   darfPlanen, darfMaterialplatz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
