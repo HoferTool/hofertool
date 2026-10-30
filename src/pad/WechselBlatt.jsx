@@ -148,7 +148,7 @@ function IndexBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeite
           <tr key={g.name} className="wzb-gruppe"><th colSpan={2 + je} style={{ background: g.farbe }}>{g.name}</th></tr>,
           ...g.werkzeuge.map((w) => (
             <tr key={w.key} data-wzbplatz={w.key}>
-              <td className="wzb-nr">{w.tool_nr}</td>
+              <td className="wzb-nr">{w.anzeige || w.tool_nr}</td>
               <td className="wzb-wz"><strong>{w.text}</strong>{w.unter && <small> {w.unter}</small>}</td>
               {aufBlatt.map((c, i) => (
                 <td key={i} className={kl(c) + (c && darf ? " wzb-tipp" : "")}

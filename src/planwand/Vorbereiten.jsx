@@ -98,7 +98,7 @@ async function werkzeugeLaden(auftrag) {
     const zeilen = [p.hersteller || "", (a && (a.article_number || a.name)) || p.werkzeug || "", beschreibung || wofuer];
     const rev = /^R(\d)-/.exec(k);
     return {
-      key: k, nr: platzName(k), revolver: rev ? rev[1] : "", zeilen, hd: !!p.hd,
+      key: k, nr: p.tnr || platzName(k), revolver: rev ? rev[1] : "", zeilen, hd: !!p.hd,
       // Stern beim Lieferanten wie im Blatt (Wunsch Patrick 29. Oktober 2026)
       spezial: a ? !!a.spezial : !!p.spezial,
       farbe: (vorlage.farben && vorlage.farben[k]) || vorlage.typFarbe || "#d9dee5",

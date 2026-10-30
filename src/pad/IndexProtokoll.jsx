@@ -144,7 +144,7 @@ function protokollHtml(maschine, auftrag, blatt, runden, titel) {
         + '</th>').join("") + '</tr>'
       + '<tr><th class="nr">T-Nr</th><th class="wz">Werkzeug</th>' + sp.map((c) => '<th class="' + kl(c) + '">Dat. / Stückz.</th>').join("") + '</tr></thead><tbody>'
       + reihen.map((r) => '<tr class="rev"><th colspan="' + (2 + SPALTEN_JE_BLATT) + '" style="background:' + r.farbe + '">' + esc(r.name) + '</th></tr>'
-        + r.plaetze.map((p) => '<tr><td class="nr">' + esc(p.tool_nr) + '</td><td class="wz">'
+        + r.plaetze.map((p) => '<tr><td class="nr">' + esc((p.eb && p.eb.tnr) || p.tool_nr) + '</td><td class="wz">'
           + (p.eb ? '<b>' + esc(p.eb.taetigkeit || p.eb.werkzeug || "") + '</b>' + (p.eb.hersteller ? ' <small>' + esc(p.eb.hersteller) + '</small>' : "") : "")
           + '</td>' + sp.map((c) => '<td class="' + kl(c) + '">' + (c && gewechselt(c, r, p)
             ? esc(datum(c.wann)) + '<br><b>' + (c.stk === null || c.stk === undefined ? "—" : esc(alt.zahlText(c.stk))) + '</b>' : "") + '</td>').join("")

@@ -65,7 +65,8 @@ const vier = (l) => [null, null].concat(l, [null, null, null, null]).slice(0, 6)
 // gelb), leere Plätze keine. Die zweite Reihe im Excel trägt je nach
 // Blatt T700–T1000 oder T3100–T3300, darum stehen die beiden Reihen hier
 // nebeneinander; beim SB-20 steht T3100–T3400 an zweiter Stelle.
-const STAR_FARBE = { sb16c: "#00B0F0", sb16d: "#92D050", sb16e: "#92D050", sb20: "#92D050", sr32: "#99CC00", sr10: "#FFFF00" };
+// Seit 1.283.0 alle SB-16 und SR-10 blau (Wunsch Patrick 30. Oktober 2026).
+const STAR_FARBE = { sb16c: "#00B0F0", sb16d: "#00B0F0", sb16e: "#00B0F0", sb20: "#92D050", sr32: "#99CC00", sr10: "#00B0F0" };
 function star(name, art, { mitT700 = true, mitT3100 = true, mitT3400 = false } = {}) {
   const reihen = [T(100, 600, 100)];
   const t3100 = vier(T(3100, mitT3400 ? 3400 : 3300, 100));

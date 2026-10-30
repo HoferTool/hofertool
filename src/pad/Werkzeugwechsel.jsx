@@ -128,7 +128,7 @@ function Auswahl({ reihen: genutzt, alle, maschine, auftrag, zu }) {
           <div className="wz-gitter">{p.plaetze.map((sl) => (
             <button key={sl.id} type="button" className={"wz-platz" + (gewaehlt.includes(sl.id) ? " wz-platz--an" : "")}
               data-tool={sl.tool_nr} onClick={() => umschalten(sl.id)}>
-              <span className="wz-platz__nr">{sl.tool_nr}</span>
+              <span className="wz-platz__nr">{(sl.eb && sl.eb.tnr) || sl.tool_nr}</span>
               <span className="wz-platz__art">{(sl.eb && (sl.eb.taetigkeit || sl.eb.werkzeug)) || sl.bezeichnung || ""}</span>
             </button>
           ))}</div>
@@ -309,8 +309,11 @@ async function blattSpalten(maschine, auftrag, runden) {
     if (!jeTausend && i < 0) { gruppen.push(g); i = gruppen.length - 1; }
     [c.farbe, c.schrift] = GRUPPENFARBEN[i % GRUPPENFARBEN.length];
     // Dieselbe Nummer auf mehreren Revolvern: R1, R2 … davor
+    // Andere T-Nr. aus dem Blatt (anderer Halter auf dem Platz) als Anschrift
+    const ebp = plaetze["R" + c.nummer + "-" + c.tool_nr] || plaetze[c.tool_nr];
+    const nr = (ebp && ebp.tnr) || c.tool_nr;
     c.text = spalten.filter((x) => x.tool_nr === c.tool_nr).length > 1 && c.nummer
-      ? (/revolver/i.test(c.path || "") ? "R" : "P") + c.nummer + " " + c.tool_nr : c.tool_nr;
+      ? (/revolver/i.test(c.path || "") ? "R" : "P") + c.nummer + " " + nr : nr;
   });
   return { spalten, typ: typ ? typ.name : "" };
 }
@@ -397,7 +400,7 @@ async function modellDerHistorie(maschine, auftrag, runden) {
   if (istIndex(typ)) {
     const [eigene, blatt] = await Promise.all([protokollLaden(hoco, typ.id), blattSuchen(hoco, typ.id).catch(() => null)]);
     const gruppen = reihenBilden(blatt, eigene, false).map((r) => ({ name: r.name, farbe: r.farbe,
-      werkzeuge: r.plaetze.map((p) => ({ key: p.id, tool_nr: p.tool_nr, path: r.name,
+      werkzeuge: r.plaetze.map((p) => ({ key: p.id, tool_nr: p.tool_nr, anzeige: p.eb && p.eb.tnr, path: r.name,
         text: p.eb ? p.eb.taetigkeit || p.eb.werkzeug || "" : "", unter: p.eb && p.eb.hersteller,
         passt: (z) => z.tool_nr === p.tool_nr && (!z.bezeichnung || revolverVon(z.bezeichnung) === r.nr) })) }));
     return { art: "index", gruppen, runden: eigene, spaltenJeBlatt: SPALTEN_JE_BLATT, laden: () => protokollLaden(hoco, typ.id) };

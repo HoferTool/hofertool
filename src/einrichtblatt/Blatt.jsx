@@ -101,6 +101,13 @@ function EineZeile({ text }) {
   return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="">{text}</span>;
 }
 
+// Eingetippte T-Nr. ordentlich schreiben: „3121“ oder „t 3121“ → „T3121“
+function tnrSchreiben(w) {
+  const s = String(w || "").trim().replace(/\s+/g, "");
+  if (!s) return "";
+  return /^\d+$/.test(s) ? "T" + s : s.replace(/^t(?=\d)/, "T");
+}
+
 // Schriftfarben der Notiz im Platz; Schwarz ist die Vorgabe und wird
 // nicht gespeichert
 const GEO_SCHWARZ = "#000000";
@@ -222,7 +229,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, bearbeiten, plat
         } : undefined}>
         <div className="eba-tk" style={{ background: farbeVon(nr), "--eba-schrift": vorlage.schrift }}>
           {p.standzeit ? <span className="eba-tk-links"><span className="eba-wert">{alt.zahlText(p.standzeit)}</span></span> : null}
-          <b>{platzName(nr)}</b>
+          <b data-eba-tnr={p.tnr ? "" : undefined}>{p.tnr || platzName(nr)}</b>
           {p.hd && <span className="eba-tk-rechts"><span className="eba-hd" data-hd="">HD</span></span>}</div>
         <div className="eba-tat">{p.taetigkeit || ""}</div>
         <div className="eba-mass">{p.mass || ""}</div>
@@ -396,6 +403,11 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     if (sz !== "" && !isNaN(Number(sz))) z.standzeit = Number(sz);
     ["taetigkeit", "mass", "hersteller", "werkzeug", "bezeichnung"].forEach((k) => { const w = String(p[k] || "").trim(); if (w) z[k] = w; });
     if (p.hd) z.hd = true;
+    // Andere T-Nr. auf diesem Platz, etwa weil ein anderer Halter drauf ist
+    // (T3121 statt T3100, Wunsch Patrick 30. Oktober 2026); der Platz im
+    // Blatt bleibt derselbe, nur die Anschrift ändert sich
+    const tnr = tnrSchreiben(p.tnr);
+    if (tnr && tnr !== platzName(nr)) z.tnr = tnr;
     const geo = String(p.geo || "").replace(/\s+$/, "");
     if (geo.trim()) {
       z.geo = geo;
@@ -419,7 +431,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
   };
   return (
     <div className="eba-platzfenster" data-platzfenster={nr} onClick={(e) => e.stopPropagation()}>
-      <div className="eba-pf-kopf"><b>{platzName(nr)}{titel ? " · " + titel : ""}</b>
+      <div className="eba-pf-kopf"><b>{p.tnr ? p.tnr + " (auf " + platzName(nr) + ")" : platzName(nr)}{titel ? " · " + titel : ""}</b>
         <button className="knopf knopf--klein knopf--still" data-pf-zu="" onClick={zu}>✕</button></div>
       <div className="eba-pf-oben">
         {BILDER_AN && <button className="eba-pf-bildknopf" data-pf-bild="" onClick={() => setBildWahl(!bildWahl)} title="Bild wählen">
@@ -429,6 +441,8 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
         <div className="eba-pf-felder">
           <label className="feld"><span>Tätigkeit</span><input data-pf="taetigkeit" value={p.taetigkeit || ""} onChange={f("taetigkeit")} /></label>
           <label className="feld"><span>Mass</span><input data-pf="mass" value={p.mass || ""} onChange={f("mass")} /></label>
+          <label className="feld"><span>Andere T-Nr. (anderer Halter drauf)</span><input data-pf="tnr" value={p.tnr || ""}
+            placeholder={"leer = " + platzName(nr)} onChange={f("tnr")} onBlur={() => setP(Object.assign({}, p, { tnr: tnrSchreiben(p.tnr) }))} /></label>
         </div>
       </div>
       {BILDER_AN && bildWahl && <Bibliothek aktiv={bild && bild.schluessel}

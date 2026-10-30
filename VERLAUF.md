@@ -4,6 +4,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.283.0** (30. Oktober 2026) Einrichtblatt: **andere T-Nr. auf einem Platz** (Wunsch Patrick: „statt T3100 dann T3121, weil ein anderer Halter drauf ist“). Platz antippen, Feld „Andere T-Nr.“, dann steht sie auf dem Blatt, in Vorbereiten, im Werkzeugwechsel und im Protokoll. Dazu alle **SB-16 und SR-10 blau** wie der SB-16C (Wunsch Patrick). Test `eb_tnr.py`.
 - **1.282.1** (30. Oktober 2026) Bestellungen → Artikel: mehrere HOCO Nummern stehen in der Spalte immer untereinander (Wunsch Patrick).
 - **1.282.0** (30. Oktober 2026) Einrichtblatt: **Schriftfarbe und Dünn/Fett für die Notiz im Werkzeugfeld** (Wunsch Patrick: „ähnlich wie bei Zeichnungsfeld von Padmode“). Im Fenster des Platzes unter „Geo-Offset“ fünf Farben (Schwarz, Rot, Blau, Grün, Orange), der Farbwähler des Geräts und Dünn/Fett; gilt auf dem Blatt, im Druck, PDF und Pad (`geoFarbe`, `geoFett` am Platz). Test `eb_geo_stil.py`.
 - **1.281.0** (30. Oktober 2026) Bestellungen → Artikel: neue Spalte **HOCO Nr.** zeigt, zu welchen HOCO Nummern ein Spezialwerkzeug gehört (aus `spezialwerkzeuge`; Spezialwerkzeug ohne Zuordnung „keine“), Wunsch Patrick.
