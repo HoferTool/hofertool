@@ -35,7 +35,7 @@ with sync_playwright() as p:
     br, pg = seite(p, 1300, 900, False)
     # Temp steht seit 1.310.0 nicht mehr im Menü
     namen = pg.eval_on_selector_all(".nav .nav__punkt .nav__text", "e => e.map(x => x.textContent)")
-    if "Temp" in namen or "Kalender" not in namen:
+    if "Temp" in namen or "Kalender" in namen or "Rechner" not in namen:  # Kalender seit 1.311.0 auf Start
         fehler.append("Reihenfolge im Menü: %s" % namen)
     text = pg.inner_text("#temp-seite")
     if "Messprotokoll.pdf" not in text: fehler.append("eigene Datei fehlt")
