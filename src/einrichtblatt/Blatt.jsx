@@ -91,11 +91,18 @@ function feldWert(f, d) {
 function feldText(f, w, d) {
   if (f.feld === "material") return [w, d.teil.material_groesse].filter(Boolean).join(" ");
   if (f.typVorne) return (d.typ.name || "") + (w ? "   " + w : "");
+  if (f.feld === "abend_stk" && istLaufenLassen(w)) return "Laufen lassen";
   if (f.einheit) {
     if (w === "" || isNaN(Number(w))) return w;
     return (f.feld === "stueckzeit_s" ? Math.round(Number(w) * 10) / 10 : w) + " " + f.einheit;
   }
   return w;
+}
+
+// „Laufen lassen“ bei Stück am Abend ist im Pad als -1 gespeichert und
+// steht im Blatt als Wort, nicht als -1 (Wunsch Patrick 30. Oktober 2026)
+function istLaufenLassen(w) {
+  return String(w === null || w === undefined ? "" : w).trim() === "-1" || /laufen/i.test(String(w || ""));
 }
 
 // Text, der immer auf einer Zeile bleibt: passt er nicht, wird die
@@ -190,6 +197,14 @@ function KopfEingabe({ f, wert, aendern, d }) {
       onChange={(e) => { aendern(f, e.target.value); if (d.teil.material_groesse) aendern({ art: "stamm", feld: "material_groesse" }, ""); }} />;
   }
   if (f.typVorne) return <span className="eba-ein-zwei"><span>{d.typ.name}</span>{feld}</span>;
+  if (f.feld === "abend_stk") {
+    const laufen = istLaufenLassen(wert);
+    return <span className="eba-ein-zwei">
+      {laufen ? <span data-eba-feld={id}>Laufen lassen</span> : feld}
+      <label className="eba-laufen"><input type="checkbox" checked={laufen}
+        onChange={(e) => aendern(f, e.target.checked ? "-1" : "")} /> Laufen lassen</label>
+      {laufen ? null : <small>{f.einheit}</small>}</span>;
+  }
   if (f.einheit) return <span className="eba-ein-zwei">{feld}<small>{f.einheit}</small></span>;
   return feld;
 }

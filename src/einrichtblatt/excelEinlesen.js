@@ -314,7 +314,7 @@ export function blattAusExcel(roh) {
       const nr = werte.slice(1).join(" ").trim() || (/\bnr\.?\s*\S+/i.exec(wert) || [])[0];
       kopf.maschine_nr = nr || null;
     } else if (art === "stueckzeit") { const n = zahlDarin(wert); if (n) typDaten.stueckzeit_s = n; }
-    else if (art === "abend") { const n = zahlDarin(wert); if (n) typDaten.abend_stk = Math.round(n); }
+    else if (art === "abend") { const n = zahlDarin(wert); if (/laufen/i.test(wert)) typDaten.abend_stk = -1; else if (n) typDaten.abend_stk = Math.round(n); }
     else if (wert) stamm[art] = wert;
   }
 

@@ -292,7 +292,9 @@ export async function typSpeichern(hocoNr, typId, alteWerte, neueWerte) {
   const neu = {};
   TYP_FELDER.forEach((f) => {
     if (neueWerte[f] === undefined) return;
-    const t = String(neueWerte[f] === null ? "" : neueWerte[f]).replace(/'/g, "").replace(",", ".").trim();
+    let t = String(neueWerte[f] === null ? "" : neueWerte[f]).replace(/'/g, "").replace(",", ".").trim();
+    // „Laufen lassen“ wie im Pad als -1
+    if (f === "abend_stk" && /laufen/i.test(t)) t = "-1";
     const w = t === "" || isNaN(Number(t)) ? null : (f === "abend_stk" ? Math.round(Number(t)) : Number(t));
     const vorher = alteWerte && alteWerte[f] !== undefined && alteWerte[f] !== null ? Number(alteWerte[f]) : null;
     if (w !== vorher) neu[f] = w;

@@ -10726,3 +10726,7 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 
 /* Einlagen Gen: Konturscanner im Rahmen, bis an den unteren Rand */
 .einlagen-rahmen { display: block; width: 100%; border: 0; border-radius: var(--radius); background: var(--grund); }
+
+/* Einrichtblatt: Häkchen „Laufen lassen“ bei Stück am Abend */
+.eba-laufen { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; font-size: 0.85em; cursor: pointer; }
+.eba-laufen input { margin: 0; }
