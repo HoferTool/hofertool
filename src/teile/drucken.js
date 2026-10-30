@@ -89,7 +89,12 @@ export async function pdfSeitenAlsBilder(lib, daten) {
       const v = seite.getViewport({ scale: 150 / 72 });
       const c = document.createElement("canvas");
       c.width = Math.floor(v.width); c.height = Math.floor(v.height);
-      await seite.render({ canvasContext: c.getContext("2d"), viewport: v, canvas: c }).promise;
+      // intent "print": ohne requestAnimationFrame zeichnen. Das Bestell-PDF
+      // zeichnet aus der App, während der Tab mit dem Bestellblatt vorne
+      // ist; im verdeckten Tab steht requestAnimationFrame still, und das
+      // Zeichnen blieb ewig hängen (1.301.2, Patrick: „Zeichnungen werden
+      // angehängt …“ bleibt so).
+      await seite.render({ canvasContext: c.getContext("2d"), viewport: v, canvas: c, intent: "print" }).promise;
       const img = document.createElement("img");
       img.src = c.toDataURL("image/jpeg", 0.92);
       img.className = "druckdatei__seite" + (v.width > v.height ? " druckdatei__seite--quer" : "");

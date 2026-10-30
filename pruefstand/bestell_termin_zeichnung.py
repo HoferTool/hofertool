@@ -52,6 +52,9 @@ with sync_playwright() as p:
     o1 = pg.evaluate("TEST.daten.order_items.find(z => z.id === 'o1').liefertermin")
     if o1 != "KW 24": fehler.append("Termin nicht gespeichert: " + str(o1))
 
+    # Wie im echten Browser: hinter dem Bestellblatt ist die App verdeckt,
+    # requestAnimationFrame steht dort still (1.301.2)
+    pg.evaluate("window.requestAnimationFrame = () => 0")
     with ctx.expect_page() as neu:
         pg.click("[data-bestellpdf]")
     bl = neu.value
