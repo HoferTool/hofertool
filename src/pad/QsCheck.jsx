@@ -181,7 +181,7 @@ export default function QsCheck({ zeilen, teile }) {
     + (raster && raster.rollt ? " pad-ak--rollt" : "");
   return (
     <>
-      <PadKopf titel="QS Check" zurueck />
+      <PadKopf titel="QS Check" zurueck meldungen />
       <div ref={ref} className={klasse} style={{ "--ak-spalten": raster ? raster.spalten : 1 }}>
         {!zeilen.length && <p className="pad__leer">Keine Maschinen.</p>}
         {raster && zeilen.map(({ m, j }) => {

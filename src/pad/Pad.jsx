@@ -75,7 +75,10 @@ export function PadNeuLadenKnopf() {
 
 // Grosse Knöpfe statt eines schmalen Balkens mit Pfeilchen: an der
 // Maschine wird mit Handschuhen getippt.
-export function PadKopf({ titel, zurueck }) {
+// Den Knopf „Offene Meldungen“ gibt es seit 1.322.0 nur noch im QS Check
+// (Wunsch Patrick 31. Oktober 2026: „Offene Meldungen nur bei QS Check“);
+// an der Maschine steht die Meldung wie immer als Feld statt des Wetters.
+export function PadKopf({ titel, zurueck, meldungen }) {
   return (
     <div className="pad__kopf">
       {zurueck
@@ -83,7 +86,7 @@ export function PadKopf({ titel, zurueck }) {
         : <span className="pad__zurueck pad__zurueck--leer" />}
       <span className="pad__titel">{titel}</span>
       <GeraetMarke />
-      <PadMeldungenKnopf />
+      {meldungen && <PadMeldungenKnopf />}
       <PadNeuLadenKnopf />
       <button className="pad__zu" data-padzu="" onClick={() => alt.padSchliessen()}
         aria-label="Schliessen">✕<span className="pad__zutext"> Schliessen</span></button>

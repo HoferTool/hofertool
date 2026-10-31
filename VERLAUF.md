@@ -649,3 +649,8 @@ Planwand mit Ziehen, Verlängern, Nachrücken und Lücke schliessen · Produktio
 - Wunsch Patrick: beim Erfassen die Werkzeuge einzeln speichern können; beim Zurückgehen von der Einlage dürfen Änderungen an der Kontur nicht verloren gehen.
 - „Werkzeug speichern“ und „Gespeicherte Werkzeuge“ (In die Einlage, Kontur bearbeiten, löschen), Tabelle `einlagen_werkzeuge` (eingespielt).
 - Scan liegt auf dem Gerät (IndexedDB) und kommt nach Reiterwechsel und Neuladen wieder; „Weiter zur Einlage“ aktualisiert schon übernommene Werkzeuge statt sie doppelt einzufügen.
+
+## 1.322.0 — Offene Meldungen nur im QS Check (31. Oktober 2026)
+
+- Wunsch Patrick: „Offene Meldungen nur bei QS Check, bei den Maschinen soll normal ein Feld aufpoppen wie immer.“
+- Der Knopf „Offene Meldungen“ steht nur noch in der Kopfleiste des QS Check (`meldungen` an `PadKopf`), nicht mehr auf Startseite, Parks und Dashboard der Maschine. An der Maschine bleibt die Meldung das Feld statt des Wetters.

@@ -61,6 +61,8 @@ with sync_playwright() as p:
     mid = zumPad(pg)
     if "WETTER" not in pg.inner_text("#pad .pad-karte2--saeule").upper(): fehler.append("Ohne Meldung kein Wetter")
     if pg.locator("#pad-qsmeldung").count(): fehler.append("Meldung ohne Meldung")
+    # Knopf „Offene Meldungen“ seit 1.322.0 nur im QS Check, nicht an der Maschine
+    if pg.locator("#pad [data-padmeldungen]").count(): fehler.append("Knopf Offene Meldungen an der Maschine")
     # Zustand QS Check nicht mehr wählbar
     pg.click("#pad [data-padstatus]"); pg.wait_for_selector(".dialog-huelle [data-w]")
     if pg.locator(".dialog-huelle [data-w='qs']").count(): fehler.append("QS Check im Pad noch wählbar")

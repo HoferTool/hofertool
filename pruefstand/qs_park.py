@@ -30,7 +30,10 @@ def seite(br, rolle):
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html#dashboard", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
-    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padmeldungen]")
+    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
+    # Der Knopf steht seit 1.322.0 nur noch im QS Check
+    if pg.locator("#pad [data-padmeldungen]").count(): fehler.append(rolle + ": Knopf auf der Startseite des Pads")
+    pg.click("#pad [data-padwo='qs']"); pg.wait_for_selector("#pad [data-padmeldungen]")
     pg.wait_for_timeout(1200)
     return pg
 
