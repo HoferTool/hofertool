@@ -49,7 +49,7 @@ with sync_playwright() as p:
         planned_from: '2026-10-27', plan_note: 'Mat ab Rahmen Notz 2026008261' });
       // Rahmenauftrag: ohne Mengenrechnung
       D.jobs.push({ ...basis, id: 'mF', job_number: '10555-0006', plan_status: 'geplant', material_bez: mat,
-        planned_from: '2026-11-17', abruf_info: 'Neuer Rahmen 50000 Stk.' });
+        planned_from: '2026-10-23', planned_days: 1, abruf_info: 'Neuer Rahmen 50000 Stk.' });
       // Bestellt mit Termin vor dem Stichtag: gilt als geliefert
       D.jobs.push({ ...basis, id: 'mE', job_number: '10555-0005', plan_status: 'geplant',
         material_bez: 'X10CrNiS18-9 rd 016 mm h8', planned_from: '2026-11-10',
@@ -63,6 +63,7 @@ with sync_playwright() as p:
       D.hoco_parts.push({ hoco_nr: '10555-0002', teil_d_mm: 24, teil_laenge_mm: 30, teil_mass_bestaetigt: false,
         teil_mass_quelle: 'Einrichtblatt: Deckel 24 x 30' });
       D.hoco_parts.push({ hoco_nr: '10555-0003', teil_d_mm: 24, teil_laenge_mm: 30, teil_mass_bestaetigt: true });
+      D.hoco_parts.push({ hoco_nr: '10555-0006', teil_d_mm: 24, teil_laenge_mm: 30, teil_mass_bestaetigt: true });
       D.material_posten = [{ id: 'p1', material: 'X14CrMoS17 rd 024 mm h8', menge: 200, einheit: 'kg',
         ort: 'Restelager', art: 'lager', weg_am: null, erstellt_am: '2026-10-01T08:00:00Z',
         erstellt_von: 'u1', geaendert_am: '2026-10-02T13:05:00Z', geaendert_von: 'u1' }];
@@ -196,6 +197,11 @@ with sync_playwright() as p:
     pruefe("Notiz ohne „aus infoBoard“ in der Schnellvorschau", not any("infoBoard" in t for t in zz))
     pruefe("Werkstoffnummer in der Schnellvorschau: " + next((t for t in zz if "1.4104" in t), "fehlt"),
            any(t.startswith("1.4104 · ") for t in zz))
+    # Seit 1.327.0 rechnet die Mat. info. auch beim Rahmenauftrag (mF, 5'000 Stück, Länge 30 → 61 Stangen)
+    zf = vorschau("mF")
+    mif = " / ".join(z for z in zf if z.startswith("Mat. info.") or "notwendig" in z) or ("fehlt: " + " | ".join(zf)[-200:])
+    pruefe("Rahmenauftrag (mF): Mat. info. gerechnet: " + mif,
+           "/ 61 Stangen" in mif and "notwendig für 5'000 offene Stück" in mif and "Rahmen" not in mif)
     pg.screenshot(path="/tmp/matinfo_vorschau.png")
     pg.mouse.move(5, 5)
     pg.locator(".pw-balken[data-auftrag='mB']").first.dblclick()

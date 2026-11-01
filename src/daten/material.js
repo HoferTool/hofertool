@@ -853,7 +853,10 @@ export const MAT_INFO_ERKLAERUNG = "ca. heisst: Die Länge des Fertigteils ist n
   + "oder im Pad Mode mit der Kachel „Art. Info“.";
 export function matInfo(j) {
   if (!stand || !stand.daten || !j || !istOffen(j)) return null;
-  if (istRahmen(j)) return { text: "Rahmen, keine Mengenrechnung" };
+  // Rahmenaufträge rechnen seit 1.327.0 auch, einfach für die
+  // Fertigungsmenge dieses Auftrags (Wunsch Patrick 1. November 2026:
+  // „einfach für Stückzahl, welche hergestellt werden muss“); die
+  // Material-Übersicht behandelt Rahmen weiter als unendlich.
   if (!String(j.material_bez || "").trim()) return { text: "kein Material eingetragen" };
   if (!kgJeMeter(j.material_bez)) return { text: "Material nicht erkannt" };
   const teil = stand.daten.teile[j.job_number];
