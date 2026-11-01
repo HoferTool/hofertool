@@ -1,0 +1,21 @@
+/* Gäste der Monster-Horde (spukGaeste.js, seit 1.326.0): Clown aus dem
+   Gully und der Zug mit der Sackkarre. Die Bewegungen von Beinen, Armen,
+   Kopf und Augen kommen aus den spuk-Regeln in stil.css. */
+.spuk-gully { position: absolute; z-index: 3; overflow: hidden; pointer-events: none; }
+.spuk-gully__clown { position: absolute; bottom: 0; transform: translateY(100%); transform-origin: 50% 100%; }
+.spuk-gully__clown svg, .spuk-gully__ballon svg, .spuk-gully__loch svg, .spuk-karre svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.spuk-gully__clown .spuk-kopf { transform-box: fill-box; transform-origin: 50% 100%; animation: spuk-clown-kopf 2.4s ease-in-out infinite alternate; }
+@keyframes spuk-clown-kopf { 0% { transform: rotate(-4deg); } 50% { transform: rotate(10deg); } 100% { transform: rotate(-14deg); } }
+.spuk-gully__ballon { position: absolute; transform-origin: 50% 100%; }
+.spuk-gully__loch { position: absolute; z-index: 2; pointer-events: none; transform-origin: 50% 50%; }
+.spuk-gully__glut { animation: spuk-glut 1.2s ease-in-out infinite alternate; }
+@keyframes spuk-glut { from { fill: #3a0404; } to { fill: #8e0a0a; } }
+.spuk-ballon { transform-box: fill-box; transform-origin: 50% 100%; animation: spuk-ballon 2.2s ease-in-out infinite alternate; }
+@keyframes spuk-ballon { from { transform: rotate(-5deg); } to { transform: rotate(6deg); } }
+.spuk-gaeste .spuk-kreatur svg { overflow: visible; }
+.spuk-karre { position: absolute; z-index: 3; }
+.spuk-karre > svg { animation: spuk-rumpeln .45s ease-in-out infinite alternate; transform-origin: 60% 100%; }
+.spuk-karre__rad { transform-box: fill-box; transform-origin: 50% 50%; animation: spuk-rad 1s linear infinite; }
+.spuk .spuk-kopf--langsam { transform-origin: 50% 100%; animation-duration: 3.6s; }
+.spuk-tropfen { transform-box: fill-box; transform-origin: 50% 0; animation: spuk-tropfen 1.4s ease-in infinite; }
+@keyframes spuk-tropfen { 0% { transform: scaleY(.6); } 80% { transform: scaleY(1.5); } 100% { transform: scaleY(.6); } }

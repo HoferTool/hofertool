@@ -25,7 +25,7 @@ with sync_playwright() as p:
         gesehen, richtung, staub, rauch = [], set(), False, False
         letzte = None
         for i in range(900):
-            info = pg.evaluate("""() => { const z = document.querySelector('.spuk'); if (!z) return null;
+            info = pg.evaluate("""() => { const z = document.querySelector('.spuk:not(.spuk-gaeste)'); if (!z) return null;
                 const r = z.getBoundingClientRect(), k = document.querySelector('.kopfkarte').getBoundingClientRect();
                 return { mitte: r.left + r.width / 2 > k.left + k.width * .3 && r.left + r.width / 2 < k.right - k.width * .3,
                          links: r.left, unten: k.bottom - r.bottom, hoch: k.height, oben: r.top - k.top,
@@ -45,7 +45,7 @@ with sync_playwright() as p:
                 if info["oben"] < -2: fehler.append(f"{name}: Zug ragt oben aus dem Band ({info['oben']:.0f})")
                 # Bewegt er sich, und in welche Richtung?
                 a = info["links"]; pg.wait_for_timeout(500)
-                b = pg.evaluate("() => { const z = document.querySelector('.spuk'); return z ? z.getBoundingClientRect().left : null }")
+                b = pg.evaluate("() => { const z = document.querySelector('.spuk:not(.spuk-gaeste)'); return z ? z.getBoundingClientRect().left : null }")
                 if b is None or abs(b - a) < 2: fehler.append(f"{name}: Zug steht")
                 else: richtung.add("rechts" if b > a else "links")
                 pg.locator(".kopfkarte").screenshot(path=f"durchfahrt_{name}_{len(gesehen)}.png")

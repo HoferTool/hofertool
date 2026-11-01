@@ -28,6 +28,7 @@
 //  die Startseite dafür nie neu zeichnet.
 // =================================================================
 import { useEffect, useRef } from "react";
+import { gaesteStarten } from "./spukGaeste.js";
 
 const zufall = (a, b) => a + Math.random() * (b - a);
 const ganz = (a, b) => Math.floor(zufall(a, b + 1));
@@ -516,6 +517,8 @@ export default function Durchfahrt() {
       if (Math.abs((band.clientWidth || 0) - breitVorher) > 40) { breitVorher = band.clientWidth; steineSetzen(); }
     };
     erdeSetzen();
+    // Horror-Clown und Mann in Zwangsjacke (seit 1.326.0, spukGaeste.js)
+    const gaeste = gaesteStarten(band, erdeHoch);
     const wo = new ResizeObserver(erdeSetzen);
     wo.observe(band);
 
@@ -796,11 +799,17 @@ export default function Durchfahrt() {
         await horde();
         // Kurze Pause, dann kommt die nächste Horde
         await warte(zufall(5000, 10000));
+        // Manchmal dazwischen der Zug mit Clown und Sackkarre
+        if (!aus && Math.random() < .5) {
+          await gaeste.zug();
+          await warte(zufall(5000, 10000));
+        }
       }
     })();
 
     return () => {
       aus = true;
+      gaeste.stopp();
       uhren.forEach(clearTimeout);
       uhren.clear();
       wo.disconnect();
