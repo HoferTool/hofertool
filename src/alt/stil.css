@@ -10811,3 +10811,13 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .auf-kopf__hoco { all: unset; cursor: pointer; border-radius: 4px;
   text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 4px; }
 .auf-kopf__hoco:hover, .auf-kopf__hoco:focus-visible { text-decoration-style: solid; color: var(--aktion); }
+
+/* Mailkonto in den Einstellungen (1.323.0) */
+.mk-raster { display: grid; grid-template-columns: 200px minmax(0, 460px); gap: 8px 14px; align-items: center; }
+.mk-raster input { width: 100%; }
+.mk-knoepfe { display: flex; gap: 8px; margin-top: 12px; }
+.mk-gut { color: #1a8f3c; font-weight: 600; }
+.mk-rot { color: #c62828; font-weight: 600; }
+@media (max-width: 640px) { .mk-raster { grid-template-columns: 1fr; gap: 4px; } }
+/* Bestellung gesendet (1.323.0) */
+.bs-chip--gesendet { background: #e3f4e8; color: #16692f; border-color: #9fd5ae; }

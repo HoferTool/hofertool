@@ -27,6 +27,7 @@ import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { meldungenVerwalten } from "../teile/anmeldeMeldungen.jsx";
 import { adressenAus, verteilerLaden, verteilerSpeichern } from "../teile/ferienTermin.js";
 import { Gruppe, Zeile, SchalterZeile, ReiterZeichen } from "./teile.jsx";
+import { Mailkonto } from "./Mailkonto.jsx";
 
 // Wer nicht Admin ist, sieht nur „Allgemein“ (Wunsch Patrick,
 // 7. Oktober 2026: „für alle nicht Admins nur Allgemein sichtbar“).
@@ -117,6 +118,7 @@ function Allgemein({ bin }) {
       <Darstellung />
       {bin && <AnmeldeMeldungen />}
       {(bin || alt.darfDokumenteUndSicherung()) && <Bestellmail />}
+      {bin && <Mailkonto />}
       {bin && <FerienVerteiler />}
       {bin && <Betriebsferien />}
       {bin && <RadioSender />}

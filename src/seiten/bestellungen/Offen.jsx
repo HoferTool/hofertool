@@ -9,6 +9,7 @@
 //  29. Oktober 2026, Beispiel Dihawag).
 // =================================================================
 import { zeichnungenAnhaengen } from "./bestellZeichnungen.js";
+import { mailStatus } from "../../daten/mailkonto.js";
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { positionOeffnen } from "./PositionFenster.jsx";
@@ -54,6 +55,17 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
   // HOCO Nummern der Spezialwerkzeuge, nur für die Suche; ohne geht es auch
   const { daten: hocoJe } = useDaten(() => alt.hocoJeArtikel(true), [auffrischen]);
 
+  // Direkt senden über das Mailkonto (1.323.0): Knopf nur, wenn eingerichtet;
+  // nach dem Senden aus dem Bestellblatt die Liste frisch holen
+  const [direkt, setDirekt] = useState(false);
+  useEffect(() => {
+    let weg = false;
+    mailStatus().then((s) => { if (!weg) setDirekt(!!s.aktiv); });
+    const frisch = () => neu();
+    window.addEventListener("hofer-bestellung-gesendet", frisch);
+    return () => { weg = true; window.removeEventListener("hofer-bestellung-gesendet", frisch); };
+  }, []);
+
   const schreiben = alt.darfSchreiben();
   // Neue Positionen entstehen im Reiter Offen. In Bestellt und
   // Teilweise geliefert wäre der Knopf nur verwirrend.
@@ -79,7 +91,7 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
 
       {BLOECKE[bereich].map((bl) => (
         <Block key={bl.status} block={bl} posten={gefiltert.filter((z) => z.status === bl.status)}
-          schreiben={schreiben} neu={neu} behaelter={behaelter} heute={heute}
+          schreiben={schreiben} neu={neu} behaelter={behaelter} heute={heute} direkt={direkt}
           einziger={BLOECKE[bereich].length === 1} />
       ))}
 
@@ -91,7 +103,7 @@ export default function Offen({ bereich, auffrischen, behaelter }) {
   );
 }
 
-function Block({ block, posten, schreiben, neu, behaelter, heute, einziger }) {
+function Block({ block, posten, schreiben, neu, behaelter, heute, einziger, direkt }) {
   if (!posten.length) return null;
 
   // Innerhalb des Blocks nach Lieferant gruppieren
@@ -119,7 +131,7 @@ function Block({ block, posten, schreiben, neu, behaelter, heute, einziger }) {
         <span className="bs-zahl">{posten.length}</span></h2>}
       {namen.map((name) => (
         <Lieferant key={name} name={name} gruppe={gruppen[name]} block={block.status}
-          schreiben={schreiben} neu={neu} behaelter={behaelter} heute={heute} />
+          schreiben={schreiben} neu={neu} behaelter={behaelter} heute={heute} direkt={direkt} />
       ))}
     </>
   );
@@ -140,7 +152,7 @@ export function shopAdresse(lief, nummer) {
 
 const BESTELLWEG = { mail: "Bestellung per Mail", website: "Bestellung über Website" };
 
-function Lieferant({ name, gruppe, block, schreiben, neu, behaelter, heute }) {
+function Lieferant({ name, gruppe, block, schreiben, neu, behaelter, heute, direkt }) {
   // Alle Positionen dieses Lieferanten auf einmal umstellen
   const sammelstatus = async () => {
     const posten = gruppe.posten;
@@ -186,6 +198,13 @@ function Lieferant({ name, gruppe, block, schreiben, neu, behaelter, heute }) {
               if (f) zeichnungenAnhaengen(f, gruppe.posten);
             }}>
             <Zeichen name="pdf" groesse={15} />PDF</button>}
+        {gruppe.lief && direkt &&
+          <button className="knopf knopf--mini knopf--haupt bs-knopf" data-bestellsenden={name} data-block={block}
+            title="Bestellung mit PDF direkt an den Lieferanten mailen"
+            onClick={() => {
+              const f = alt.bestellungDrucken(gruppe.lief, gruppe.posten, { senden: true });
+              if (f) zeichnungenAnhaengen(f, gruppe.posten);
+            }}>✉ Bestellung senden</button>}
         {schreiben &&
           <button className="knopf knopf--mini bs-knopf" data-sammelstatus={name} data-block={block}
             onClick={sammelstatus}>Status für alle</button>}
@@ -241,6 +260,8 @@ function Zeile({ z, schreiben, behaelter, heute }) {
               {frist === "spaet" ? "überfällig seit " : "bis "}{alt.kurzDatum(z.needed_by)}</span>}
           {z.liefertermin && <span className="bs-chip bs-chip--termin" title="Liefertermin auf dem Bestell-PDF">
               <Zeichen name="kalender" groesse={14} />Termin {z.liefertermin}</span>}
+          {z.gesendet_am && <span className="bs-chip bs-chip--gesendet" title="Per Mail aus dem HoferTool gesendet">
+              ✉ gesendet {alt.datumZeitKurz(z.gesendet_am)}</span>}
           {z.note && <span className="bs-chip bs-chip--notiz"><Zeichen name="notiz" groesse={14} />{z.note}</span>}
           <span className="bs-pos__wer">{alt.personName(z.profiles)}{zeit && <> · {alt.statusZeitText(z)}</>}</span>
         </div>

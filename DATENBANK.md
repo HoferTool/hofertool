@@ -72,6 +72,8 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `ib_import` | Rohdaten des infoBoard-Imports (einmalig) |
 | `eier_tage` | Eierzähler im Pausenraum (1.297.0): je Tag `datum` (Schlüssel), `anzahl`, `geaendert_von`, `geaendert_am` (setzt der Auslöser `eier_tage_stempel`), `sql/eier-tage.sql` |
 | `eier_zaehler`, `eier_historie`, `game_scores` | Spass (alt, unbenutzt) |
+| `mail_konto` | Mailkonto in Microsoft 365 (1.323.0): eine Zeile (`id` 1) mit `mandant`, `client_id`, `geheimnis`, `absender`, `name`, `geprueft_am`, `fehler`; RLS ohne Regeln, nur die Server-Funktion `mail-senden` liest sie; Funktionen `mail_konto_status`, `mail_konto_lesen` (Admins, ohne Schlüssel), `mail_konto_setzen` (Admins), `sql/mailkonto.sql` |
+| `mail_protokoll` | Was `mail-senden` verschickt hat (`art`, `an`, `betreff`, `ok`, `fehler`), lesen nur Admins. Dazu `vacations.outlook_id` und `order_items.gesendet_am`/`gesendet_von` |
 
 ## Sichten
 

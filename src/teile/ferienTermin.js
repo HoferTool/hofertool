@@ -18,6 +18,7 @@
 //  ändern dürfen ihn nur Admins (Einstellungen → Allgemein).
 // =================================================================
 import { alt } from "../bruecke.jsx";
+import { mailAktiv, mailSenden } from "../daten/mailkonto.js";
 
 const SCHLUESSEL = "ferien_verteiler";
 
@@ -163,6 +164,25 @@ function herunterladen(blob, name) {
 // Teilen-Fenster mit der .ics (Adressen in der Zwischenablage).
 export async function ferienTerminSenden(f, verteiler) {
   const an = adressenAus(verteiler);
+  // Mit eingerichtetem Mailkonto (seit 1.323.0) schickt der Server den
+  // Termin selbst aus dem Kalender des gemeinsamen Kontos: die Empfänger
+  // haben ihn dann ohne Zutun im Outlook-Kalender, Ändern und Löschen
+  // ziehen nach. Ohne Konto wie bisher als .eml-Entwurf.
+  if (await mailAktiv()) {
+    try {
+      if (f.art === "abgesagt") {
+        await mailSenden({ art: "ferien_absagen", outlook_id: f.outlook_id || null, person: f.person });
+        if (f.outlook_id) alt.meldung("Ferientermin in Outlook abgesagt.", "gut");
+      } else {
+        const r = await mailSenden({ art: "ferien", id: f.id, person: f.person, von: f.von, bis: f.bis, notiz: f.notiz || "" });
+        if (r.empfaenger) alt.meldung((f.art === "geaendert" ? "Ferientermin in Outlook geändert" : "Ferientermin an "
+          + r.empfaenger + " Empfänger gesendet") + ".", "gut");
+      }
+    } catch (e) {
+      alt.meldung("Der Ferientermin ging nicht an Outlook: " + (e && e.message), "fehler");
+    }
+    return;
+  }
   const absender = (alt.profil && alt.profil.full_name) || "";
   const mobil = /iPad|iPhone|Android/.test(navigator.userAgent)
     || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
@@ -193,7 +213,7 @@ export async function ferienAktualisieren(eintrag, art, vorher) {
   const verteiler = await verteilerLaden();
   if (!adressenAus(verteiler).length) return;
   const tage = eintrag.tage || 1;
-  const f = { id: eintrag.id, person: eintrag.person, von: eintrag.von, tage,
+  const f = { id: eintrag.id, outlook_id: eintrag.outlook_id, person: eintrag.person, von: eintrag.von, tage,
     bis: alt.letzterArbeitstag(eintrag.von, tage), notiz: eintrag.note || "", art };
   if (vorher && vorher.von && (vorher.von !== f.von || (vorher.tage || 1) !== tage))
     f.vorher = { von: vorher.von, bis: alt.letzterArbeitstag(vorher.von, vorher.tage || 1) };

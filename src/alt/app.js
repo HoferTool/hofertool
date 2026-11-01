@@ -76,6 +76,8 @@ import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
 import { meldungenNachAnmeldung, meldungenWeg } from "../teile/anmeldeMeldungen.jsx";
 import { eigeneFensterOffen, eigeneFensterZu } from "../teile/eigenesFenster.js";
 import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
+// Stellt window.hoferMailSenden fürs Bestellblatt bereit (1.323.0)
+import "../daten/mailkonto.js";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -152,7 +154,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.322.0";
+const APP_VERSION = "1.323.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -9663,7 +9665,10 @@ const LOGO_BRIEF = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA4QAAAFPCAYAAA
 
 // Bestellbrief nach der Hofer-Vorlage. Öffnet ein eigenes Fenster
 // mit einem Knopf zum Speichern als PDF.
-function bestellungDrucken(lieferant, posten) {
+function bestellungDrucken(lieferant, posten, optionen) {
+  const sendenGleich = !!(optionen && optionen.senden);
+  // Das Blatt baut beim Direkt-Senden aus geändertem Text die Mail neu
+  window.hoferBestellHtml = bestellmailHtml;
   if (!posten || !posten.length) {
     meldung("Für diesen Lieferanten ist nichts offen.", "warn");
     return null;
@@ -9777,6 +9782,19 @@ function bestellungDrucken(lieferant, posten) {
     ".leiste button { font: inherit; font-size: 10pt; padding: 7px 14px; cursor: pointer;",
     "                 border: 1px solid #003884; background: #003884; color: #fff;",
     "                 border-radius: 6px; }",
+    // Feld „Direkt senden“ (1.323.0)
+    "#sendefeld { display: none; max-width: 210mm; margin: 14mm auto 0; background: #fff; border-radius: 10px;",
+    "  padding: 16px 18px; box-shadow: 0 2px 12px rgba(0,0,0,.15); font-family: 'Segoe UI', system-ui, Arial, sans-serif; font-size: 14px; }",
+    "#sendefeld h2 { margin: 0 0 10px; font-size: 18px; color: #003884; }",
+    "#sendefeld label { display: block; margin: 8px 0 3px; font-weight: 600; font-size: 13px; }",
+    "#sendefeld input, #sendefeld textarea { width: 100%; font: inherit; padding: 7px 9px; border: 1px solid #b8c0cc; border-radius: 7px; }",
+    "#sendefeld textarea { min-height: 150px; resize: vertical; }",
+    "#sendefeld .sf-anhang { margin: 10px 0 4px; padding: 8px 10px; border: 1px solid #d4d9e1; border-radius: 8px; }",
+    "#sendefeld .sf-klein { color: #555; font-size: 12px; margin: 6px 0 0; }",
+    "#sendefeld .sf-knoepfe { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }",
+    "#sendefeld .sf-knoepfe button { font: inherit; padding: 8px 18px; border-radius: 8px; border: 1px solid #b8c0cc; background: #fff; cursor: pointer; }",
+    "#sendefeld .sf-knoepfe .sf-haupt, #sendeknopf { background: #003884; color: #fff; border-color: #003884; }",
+    "#sendefeld .sf-gut { margin: 0; color: #1a8f3c; font-weight: 600; font-size: 16px; }",
     ".mailhinweis { max-width: 210mm; margin: 6mm auto 0; padding: 0 4mm;",
     "               color: #55606e; font-size: 9.5pt; line-height: 1.5; }",
     // Zeichnungen der Artikel als weitere Seiten, immer hochkant (seit
@@ -9785,7 +9803,7 @@ function bestellungDrucken(lieferant, posten) {
     ".zkopf { font-size: 9pt; color: #555; margin-bottom: 3mm; }",
     ".zbild { flex: 1; display: flex; align-items: center; justify-content: center; }",
     ".zbild img { max-width: 100%; max-height: 265mm; display: block; }",
-    "@media print { .leiste, .mailhinweis { display: none; }",
+    "@media print { .leiste, .mailhinweis, #sendefeld { display: none !important; }",
     "  body { background: #fff; }",
     "  .blatt { margin: 0; box-shadow: none; min-height: auto; }",
     "  .blatt + .blatt { break-before: page; }",
@@ -9865,7 +9883,10 @@ function bestellungDrucken(lieferant, posten) {
       text: mailText + "\n\n" + MAIL_LOGOS.map((l) => l.alt + ": " + l.link).join("\n"),
       html: bestellmailHtml(mailText),
       logos: MAIL_LOGOS.map((l) => ({ id: l.id, datei: l.datei, bild: l.bild })),
-      datei: dateiname }) + ";",
+      datei: dateiname,
+      // Für „Direkt senden“ (1.323.0): reiner Text zum Bearbeiten,
+      // die Positionen für den Vermerk „gesendet“
+      grundtext: mailText, positionen: posten.map((z) => z.id), senden: sendenGleich }) + ";",
     "function laden(src) { return new Promise(function (ok, nein) {",
     "  var s = document.createElement('script'); s.src = src; s.onload = ok;",
     "  s.onerror = function () { nein(new Error('Konnte ' + src.split('/').pop() + ' nicht laden')); };",
@@ -9951,6 +9972,7 @@ function bestellungDrucken(lieferant, posten) {
     "  document.body.appendChild(a); a.click(); a.remove();",
     "  setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000); }",
     "function hinweis(text) { var h = document.getElementById('mailhinweis'); if (h) h.textContent = text; }",
+    "// ---------- Direkt senden über das Mailkonto (1.323.0) ----------\n// Das Blatt hat keinen Zugang zur Anmeldung; es ruft die App dahinter\n// (window.opener), die an die Server-Funktion mail-senden schickt.\nvar SENDEN = null;\nfunction sfWert(id) { var e = document.getElementById(id); return e ? e.value : ''; }\nfunction direktZeigen() {\n  var op = null; try { op = window.opener; } catch (e) {}\n  if (!op || !op.hoferMailStatus) return;\n  op.hoferMailStatus().then(function (s) {\n    if (!s || !s.aktiv) {\n      if (MAIL.senden) hinweis('Direkt senden geht erst, wenn ein Admin unter Einstellungen → Allgemein das Mailkonto einrichtet. Bis dahin: „Per Mail mit PDF“.');\n      return;\n    }\n    SENDEN = s;\n    document.getElementById('sendeknopf').style.display = '';\n    if (MAIL.senden) sendefeldAuf();\n  }).catch(function () {});\n}\nfunction sendefeldAuf() {\n  if (!SENDEN) return;\n  var f = document.getElementById('sendefeld');\n  f.style.display = 'block';\n  document.getElementById('sf-an').value = MAIL.an || '';\n  document.getElementById('sf-betreff').value = MAIL.betreff;\n  document.getElementById('sf-text').value = MAIL.grundtext || '';\n  document.getElementById('sf-datei').textContent = MAIL.datei + '.pdf';\n  document.getElementById('sf-von').textContent = 'Absender: ' + SENDEN.absender + ' · eine Kopie liegt danach dort im Ordner „Gesendet“.';\n  window.scrollTo(0, 0);\n  if (!MAIL.an) document.getElementById('sf-an').focus();\n}\nfunction sendefeldZu() { document.getElementById('sendefeld').style.display = 'none'; }\nasync function direktSenden() {\n  var an = sfWert('sf-an').trim();\n  if (!an) { alert('Bitte eine Empfängeradresse eintragen.'); return; }\n  var k = document.getElementById('sf-senden'), vorher = k.textContent;\n  k.disabled = true; k.textContent = 'PDF wird erstellt …';\n  try {\n    var pdf = await pdfMachen();\n    var b = bufB64(await pdf.arrayBuffer());\n    k.textContent = 'Wird gesendet …';\n    var text = sfWert('sf-text');\n    var op = window.opener;\n    var html = text === MAIL.grundtext ? MAIL.html : (op.hoferBestellHtml ? op.hoferBestellHtml(text) : null);\n    await op.hoferMailSenden({ art: 'bestellung', an: an, kopie: sfWert('sf-kopie'), betreff: sfWert('sf-betreff'),\n      text: text, html: html, logos: html ? MAIL.logos : [], pdf: { name: MAIL.datei + '.pdf', base64: b },\n      positionen: MAIL.positionen });\n    var f = document.getElementById('sendefeld');\n    f.innerHTML = '';\n    var p = document.createElement('p'); p.className = 'sf-gut';\n    p.textContent = '✔ Bestellung an ' + an + ' gesendet.';\n    f.appendChild(p);\n    document.getElementById('sendeknopf').style.display = 'none';\n    try { op.dispatchEvent(new op.Event('hofer-bestellung-gesendet')); } catch (e) {}\n  } catch (e) {\n    alert('Senden ging nicht: ' + (e && e.message ? e.message : e));\n    k.disabled = false; k.textContent = vorher;\n  }\n}\nif (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', direktZeigen); else direktZeigen();\n",
     "async function perMail() {",
     "  var k = document.getElementById('mailknopf'); var alt = k.textContent;",
     "  k.disabled = true; k.textContent = 'PDF wird erstellt …';",
@@ -9996,6 +10018,7 @@ function bestellungDrucken(lieferant, posten) {
     + '<div class="leiste">'
     + '<button onclick="druck()">Drucken</button>'
     + '<button onclick="druck()">Als PDF speichern</button>'
+    + '<button id="sendeknopf" onclick="sendefeldAuf()" style="display:none">Direkt senden</button>'
     + '<button id="mailknopf" onclick="perMail()">Per Mail mit PDF</button>' 
     // Läuft die App im Vollbild, gibt es keine Leiste zum Schliessen.
     // Klappt window.close() nicht, kommt ein Hinweis statt nichts.
@@ -10005,6 +10028,15 @@ function bestellungDrucken(lieferant, posten) {
     + 'Bitte über den Tab schliessen.</p>\';},400)">Schliessen</button>'
     + '</div>'
 
+    + '<div id="sendefeld"><h2>Bestellung senden</h2>'
+    + '<label for="sf-an">An</label><input id="sf-an" type="email" multiple>'
+    + '<label for="sf-kopie">Kopie an (freiwillig)</label><input id="sf-kopie" type="text">'
+    + '<label for="sf-betreff">Betreff</label><input id="sf-betreff" type="text">'
+    + '<label for="sf-text">Text</label><textarea id="sf-text"></textarea>'
+    + '<div class="sf-anhang">📄 <b id="sf-datei"></b> <span class="sf-klein">(diese Bestellung, mit den Zeichnungen der Artikel)</span></div>'
+    + '<p class="sf-klein" id="sf-von"></p>'
+    + '<div class="sf-knoepfe"><button onclick="sendefeldZu()">Abbrechen</button>'
+    + '<button class="sf-haupt" id="sf-senden" onclick="direktSenden()">Senden</button></div></div>'
     + '<p class="mailhinweis" id="mailhinweis">'
     + (lieferant && lieferant.email
         ? 'Per Mail mit PDF: Die fertige Mail an ' + esc(lieferant.email)

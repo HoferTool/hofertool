@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { adressenAus, ferienAktualisieren, ferienTerminSenden, verteilerLaden } from "../teile/ferienTermin.js";
+import { mailAktiv } from "../daten/mailkonto.js";
 
 // freieZeile(von, tage, ausserId) sucht die erste Ferienzeile ohne
 // Überschneidung; sie bleibt im alten Programm bei der Planwand.
@@ -31,7 +32,10 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
   // beim Ändern eingeschaltet, dann als Aktualisierung.
   const [verteiler, setVerteiler] = useState("");
   const [termin, setTermin] = useState(true);
-  useEffect(() => { let weg = false; verteilerLaden().then((v) => { if (!weg) setVerteiler(v); }); return () => { weg = true; }; }, []);
+  // Mit Mailkonto geht der Termin direkt raus (seit 1.323.0)
+  const [direkt, setDirekt] = useState(false);
+  useEffect(() => { let weg = false; verteilerLaden().then((v) => { if (!weg) setVerteiler(v); });
+    mailAktiv().then((a) => { if (!weg) setDirekt(a); }); return () => { weg = true; }; }, []);
   const empfaenger = adressenAus(verteiler);
 
   const fertig = (error, text) => {
@@ -107,7 +111,7 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
       {empfaenger.length > 0 && (
         <label className="fd-termin" title={empfaenger.join(", ")}>
           <input type="checkbox" id="fd-termin" checked={termin} onChange={(e) => setTermin(e.target.checked)} />
-          <span>Outlook-Termin an {empfaenger.length === 1 ? empfaenger[0] : empfaenger.length + " Empfänger"} senden</span>
+          <span>{direkt ? "Termin direkt" : "Outlook-Termin"} an {empfaenger.length === 1 ? empfaenger[0] : empfaenger.length + " Empfänger"} senden{direkt ? " (Outlook-Kalender)" : ""}</span>
         </label>
       )}
 
