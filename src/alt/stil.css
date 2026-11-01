@@ -10601,6 +10601,7 @@ body.dunkel .eba-pf-geodicke button.aktiv { background: #1f6feb; color: #fff; -w
 .sp-karte:nth-child(3) { background: linear-gradient(160deg, #16a34a, #166534); }
 .sp-karte:nth-child(4) { background: linear-gradient(160deg, #0ea5e9, #0369a1); }
 .sp-karte:nth-child(5) { background: linear-gradient(160deg, #e11d48, #9f1239); }
+.sp-karte:nth-child(7) { background: linear-gradient(160deg, #7c3aed, #4c1d95); }
 .sp-karte:active { transform: scale(.97); }
 .sp-karte__zeichen { font-size: 120px; line-height: 1; }
 .sp-karte__name { font-size: 46px; font-weight: 800; }

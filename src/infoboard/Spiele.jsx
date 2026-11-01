@@ -20,6 +20,8 @@
 //  - Versandpalette: Gebinde auf eine Palette 8 × 8 legen, volle Reihen
 //    und Spalten gehen in den Versand (SpielPalette.jsx, Wunsch Patrick
 //    1. November 2026: Block-Puzzle „Hofer-Style“)
+//  - Hallensprint: Endlos-Läufer auf drei Spuren durch die Werkhalle
+//    (seit 1.329.0, „ein Nachmache von Subway Surfers aber Hofer Style“)
 //  Die Kennungen (kloetzli, huehnerhof …) bleiben, weil Kacheln und
 //  Rekorde sie gespeichert haben.
 //  Alles mit grossen Knöpfen für den Finger; Rekorde je Gerät im
@@ -35,6 +37,7 @@ export const SPIELE = [
   { id: "flatterhuhn", name: "Ausschuss-Jagd", zeichen: "🔍", text: "Tipp auf den Förderbändern die schlechten Teile an. 90 Sekunden." },
   { id: "eierschleuder", name: "Späneschleuder", zeichen: "🎯", text: "Mit Drehteilen die Spänemonster von den Materialkisten schiessen." },
   { id: "palette", name: "Versandpalette", zeichen: "🧩", text: "Gebinde auf die Palette ziehen. Volle Reihen gehen in den Versand." },
+  { id: "hallensprint", name: "Hallensprint", zeichen: "🏃", text: "Renn durch die Werkhalle: Staplern ausweichen, über Paletten springen, Drehteile sammeln." },
 ];
 export const spielName = (id) => id === "alle" || !id ? "Alle Spiele zur Auswahl"
   : (SPIELE.find((s) => s.id === id) || {}).name || "Spiel";
@@ -114,6 +117,7 @@ export function Spiele({ spiel, breite, hoehe }) {
       {gewaehlt === "flatterhuhn" && <Flatterhuhn breite={breite} hoehe={h} />}
       {gewaehlt === "eierschleuder" && <Eierschleuder breite={breite} hoehe={h} />}
       {gewaehlt === "palette" && <Versandpalette breite={breite} hoehe={h} />}
+      {gewaehlt === "hallensprint" && <Hallensprint breite={breite} hoehe={h} />}
     </div>
   );
 }
@@ -957,6 +961,372 @@ function Eierschleuder({ breite, hoehe }) {
           {z && <div className="sp-ueber__titel">Keine Teile mehr! {z.punkte.toLocaleString("de-CH")} Punkte</div>}
           {z && z.neuerRekord && <div className="sp-ueber__rekord">🏆 Neuer Rekord!</div>}
           <button type="button" className="sp-gross" data-sp="es-start" onClick={starten}>{z ? "Nochmal" : "▶ Start"}</button>
+        </div>}
+    </div>
+  );
+}
+
+// ----------------------------- Hallensprint -----------------------------
+// Wunsch Patrick 1. November 2026: noch ein Spiel „im Hofer-Style“, ein
+// Endlos-Läufer. Eigene Umsetzung: Ein Mitarbeiter im blauen Overall rennt
+// auf drei Spuren durch unsere Werkhalle. Gabelstaplern weicht man aus,
+// über Materialpaletten und Spänemonster springt man, unter Absperrungen
+// duckt man sich. Drehteile geben Punkte, der Schutzhelm hält einen
+// Zusammenstoss aus, der Magnet zieht Drehteile an.
+// Gezeichnet in einfacher Perspektive: Welt-z = Abstand vor dem Läufer,
+// Spurbreite = 1 Einheit, x = −1, 0, 1.
+const HS_WEIT = 42;        // dort tauchen neue Dinge auf
+const HS_KAMERA = 4;       // Abstand der Kamera hinter dem Läufer
+const HS_HOCH = 0.85;      // Grösse des Läufers
+const HS_TIEF = { stapler: 1.4, palette: 0.9, absperrung: 0.25, monster: 0.6 };
+const HS_GRUND = {
+  stapler: "Du bist in einen Gabelstapler gerannt!",
+  palette: "Über die Palette hättest du springen müssen!",
+  absperrung: "Unter der Absperrung hättest du dich ducken müssen!",
+  monster: "Das Spänemonster hat dich erwischt!",
+};
+const HS_MASCHINEN = ["STAR SB-20", "INDEX C100", "STAR SW20", "WILLEMIN 508", "STAR SR-32", "STAR SB-16"];
+
+function hsReihe(z, zeit, dinge) {
+  const spuren = [-1, 0, 1].sort(() => Math.random() - 0.5);
+  const anzahl = zeit > 12 && Math.random() < 0.45 ? 2 : 1;
+  const belegt = {};
+  for (let k = 0; k < anzahl; k++) {
+    const r = Math.random();
+    const art = r < 0.38 ? "stapler" : r < 0.62 ? "palette" : r < 0.84 ? "absperrung" : "monster";
+    belegt[spuren[k]] = art;
+    dinge.push({ art, x: spuren[k], z, wackeln: Math.random() * 6 });
+  }
+  // Drehteile in einer Spur ohne Stapler, über Paletten im Bogen
+  if (Math.random() < 0.65) {
+    const frei = [-1, 0, 1].filter((x) => belegt[x] !== "stapler");
+    const x = frei[Math.floor(Math.random() * frei.length)];
+    const ueber = belegt[x] === "palette" || belegt[x] === "monster";
+    for (let i = 0; i < 6; i++) {
+      const dz = (i - 2.5) * 1.4;
+      const hoehe = ueber ? 0.3 + 0.75 * Math.max(0, 1 - (dz / 4) ** 2) : belegt[x] === "absperrung" ? 0.2 : 0.3;
+      dinge.push({ art: "teil", x, z: z + dz, hoehe, form: i % 3 });
+    }
+  } else if (Math.random() < 0.18) {
+    const frei = [-1, 0, 1].filter((x) => !belegt[x]);
+    if (frei.length) dinge.push({ art: Math.random() < 0.5 ? "helm" : "magnet", x: frei[0], z: z + 3, hoehe: 0.35 });
+  }
+}
+
+// Läufer von hinten: blauer Overall, gelber Helm nur mit Schutzhelm
+function hsLaeufer(g, x, y, s, lauf, l) {
+  const geduckt = l.duck > 0 && l.y < 0.05;
+  const hoch = (geduckt ? 0.5 : 1) * HS_HOCH * s;
+  g.save(); g.translate(x, y - l.y * s);
+  const bein = l.y > 0.05 ? 0.4 : Math.sin(lauf * 16);
+  // Beine
+  g.fillStyle = "#1e3a8a";
+  for (const k of [-1, 1]) {
+    const hub = geduckt ? 0 : Math.max(0, bein * k) * hoch * 0.16;
+    g.fillRect(k * hoch * 0.09 - hoch * 0.06, -hoch * 0.42 - hub, hoch * 0.12, hoch * 0.42 - hub * 0.2);
+    g.fillStyle = "#111827"; g.fillRect(k * hoch * 0.09 - hoch * 0.075, -hoch * 0.06 - hub, hoch * 0.15, hoch * 0.07);
+    g.fillStyle = "#1e3a8a";
+  }
+  // Körper
+  g.fillStyle = "#1d4ed8";
+  g.beginPath(); g.roundRect(-hoch * 0.17, -hoch * 0.82, hoch * 0.34, hoch * 0.44, hoch * 0.08); g.fill();
+  g.fillStyle = "#facc15"; g.fillRect(-hoch * 0.17, -hoch * 0.56, hoch * 0.34, hoch * 0.045);
+  g.fillStyle = "#fff"; g.font = `bold ${Math.round(hoch * 0.07)}px system-ui`; g.textAlign = "center";
+  g.fillText("HOFER", 0, -hoch * 0.66); g.textAlign = "left";
+  // Arme schwingen gegengleich
+  g.strokeStyle = "#1d4ed8"; g.lineWidth = hoch * 0.09; g.lineCap = "round";
+  for (const k of [-1, 1]) {
+    g.beginPath(); g.moveTo(k * hoch * 0.17, -hoch * 0.76);
+    g.lineTo(k * hoch * 0.25, -hoch * 0.56 - (geduckt ? 0 : bein * k * hoch * 0.1)); g.stroke();
+  }
+  // Kopf
+  g.fillStyle = "#7c4a2d"; g.beginPath(); g.arc(0, -hoch * 0.92, hoch * 0.11, 0, Math.PI * 2); g.fill();
+  if (l.helm) {
+    g.fillStyle = "#facc15"; g.beginPath(); g.arc(0, -hoch * 0.94, hoch * 0.13, Math.PI, 0); g.fill();
+    g.fillRect(-hoch * 0.16, -hoch * 0.95, hoch * 0.32, hoch * 0.035);
+  }
+  g.restore();
+}
+
+function hsStapler(g, x, y, s, zeit) {
+  const b = 0.82 * s, h = 1.35 * s;
+  g.save(); g.translate(x, y);
+  // Gegengewicht und Fahrgestell
+  g.fillStyle = "#f59e0b"; g.beginPath(); g.roundRect(-b / 2, -h * 0.45, b, h * 0.38, s * 0.05); g.fill();
+  g.fillStyle = "#111827";
+  for (const k of [-1, 1]) g.fillRect(k * b * 0.42 - s * 0.07, -h * 0.12, s * 0.14, h * 0.12);
+  // Schutzdach
+  g.strokeStyle = "#1f2937"; g.lineWidth = s * 0.05;
+  g.beginPath(); g.moveTo(-b * 0.42, -h * 0.45); g.lineTo(-b * 0.42, -h * 0.95); g.lineTo(b * 0.42, -h * 0.95); g.lineTo(b * 0.42, -h * 0.45); g.stroke();
+  // Hubmast mit Gabel und Palette
+  g.fillStyle = "#374151";
+  for (const k of [-1, 1]) g.fillRect(k * b * 0.22 - s * 0.04, -h, s * 0.08, h * 0.98);
+  g.fillStyle = "#a16207"; g.fillRect(-b * 0.48, -h * 0.3, b * 0.96, h * 0.06);
+  g.fillStyle = "#cbd5e1";
+  for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(-b * 0.36 + k * b * 0.18, -h * 0.36, s * 0.06, 0, Math.PI * 2); g.fill(); }
+  // Blinklicht
+  g.fillStyle = Math.sin(zeit * 9) > 0 ? "#fb923c" : "#7c2d12";
+  g.beginPath(); g.arc(0, -h * 1.0, s * 0.06, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#1e3a8a"; g.font = `bold ${Math.max(6, Math.round(s * 0.11))}px system-ui`; g.textAlign = "center";
+  g.fillText("HOFER", 0, -h * 0.2); g.textAlign = "left";
+  g.restore();
+}
+
+function hsPalette(g, x, y, s) {
+  const b = 0.85 * s;
+  g.save(); g.translate(x, y);
+  g.fillStyle = "#b45309"; g.fillRect(-b / 2, -s * 0.12, b, s * 0.12);
+  g.fillStyle = "#78350f"; for (const k of [-0.45, -0.05, 0.35]) g.fillRect(k * b, -s * 0.1, b * 0.1, s * 0.1);
+  // Stangenmaterial auf der Palette, Enden in Werkstofffarben
+  const farben = ["#dc2626", "#f97316", "#9ca3af", "#2563eb", "#facc15"];
+  for (let r = 0; r < 3; r++) for (let k = 0; k < 6 - r; k++) {
+    g.fillStyle = farben[(k + r) % farben.length];
+    g.beginPath(); g.arc(-b * 0.4 + (k + r / 2) * b * 0.16, -s * 0.18 - r * s * 0.1, s * 0.055, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = Math.max(1, s * 0.01); g.stroke();
+  }
+  g.restore();
+}
+
+function hsAbsperrung(g, x, y, s) {
+  const b = 0.95 * s;
+  g.save(); g.translate(x, y);
+  g.fillStyle = "#334155";
+  for (const k of [-1, 1]) g.fillRect(k * b / 2 - s * 0.03, -s * 0.85, s * 0.06, s * 0.85);
+  // gelb-schwarzer Balken, Unterkante über dem geduckten Läufer
+  g.save(); g.beginPath(); g.rect(-b / 2, -s * 0.82, b, s * 0.22); g.clip();
+  g.fillStyle = "#facc15"; g.fillRect(-b / 2, -s * 0.82, b, s * 0.22);
+  g.fillStyle = "#111827";
+  for (let k = -b; k < b; k += s * 0.18) { g.beginPath(); g.moveTo(k, -s * 0.6); g.lineTo(k + s * 0.09, -s * 0.6); g.lineTo(k + s * 0.31, -s * 0.82); g.lineTo(k + s * 0.22, -s * 0.82); g.fill(); }
+  g.restore();
+  g.fillStyle = "#dc2626"; g.font = `bold ${Math.max(6, Math.round(s * 0.09))}px system-ui`; g.textAlign = "center";
+  g.fillText("KRAN", 0, -s * 0.88); g.textAlign = "left";
+  g.restore();
+}
+
+function hsHelm(g, x, y, s) {
+  g.fillStyle = "#facc15"; g.strokeStyle = "#a16207"; g.lineWidth = Math.max(1, s * 0.02);
+  g.beginPath(); g.arc(x, y, s * 0.16, Math.PI, 0); g.fill(); g.stroke();
+  g.fillRect(x - s * 0.21, y - s * 0.02, s * 0.42, s * 0.05);
+}
+function hsMagnet(g, x, y, s) {
+  g.strokeStyle = "#dc2626"; g.lineWidth = s * 0.08; g.lineCap = "butt";
+  g.beginPath(); g.arc(x, y, s * 0.12, Math.PI, 0, true); g.stroke();
+  g.strokeStyle = "#e5e7eb";
+  g.beginPath(); g.moveTo(x - s * 0.12, y); g.lineTo(x - s * 0.12, y - s * 0.08); g.moveTo(x + s * 0.12, y); g.lineTo(x + s * 0.12, y - s * 0.08); g.stroke();
+}
+
+function Hallensprint({ breite, hoehe }) {
+  const cv = useRef(null);
+  const s = useRef(null);
+  const [, neu] = useState(0);
+  const [rekord, setRekord] = useState(() => rekordLesen("hallensprint"));
+  const b = Math.floor(breite), h = Math.floor(hoehe - 4);
+  const fuss = h - 50, hor = Math.round(h * 0.3), cx = b / 2;
+  const U = Math.min(b * 0.2, (fuss - hor) * 0.8);
+
+  // Perspektive: Welt (x in Spuren, z vor dem Läufer) → Bildschirm
+  const p = (z) => HS_KAMERA / (z + HS_KAMERA);
+  const auf = (x, z) => { const f = p(z); return { x: cx + x * U * f, y: hor + (fuss - hor) * f, s: U * f }; };
+
+  const starten = () => {
+    s.current = { laeuft: true, zeit: 0, weg: 0, teile: 0, dinge: [], naechste: 12,
+      l: { spur: 0, x: 0, y: 0, vy: 0, duck: 0, helm: false, magnet: 0, schutz: 0 }, texte: [] };
+    if (window.TEST) window.TEST.hallensprint = s.current; // Prüfstand: Zustand ansehen
+    neu((n) => n + 1);
+  };
+  const tempo = (z) => Math.min(30, 13 + z.zeit * 0.22);
+
+  const steuern = useCallback((r) => {
+    const z = s.current;
+    if (!z || !z.laeuft) return false;
+    const l = z.l;
+    if (r === "links") l.spur = Math.max(-1, l.spur - 1);
+    else if (r === "rechts") l.spur = Math.min(1, l.spur + 1);
+    else if (r === "hoch" || r === "fallen") { if (l.y < 0.02) { l.vy = 5.6; l.duck = 0; } }
+    else if (r === "runter") { l.duck = 0.75; if (l.y > 0.02) l.vy = -12; }
+    return true;
+  }, []);
+  usePfeile(steuern);
+
+  useEffect(() => {
+    let rahmen, zuletzt = performance.now(), anzeige = "";
+    const schritt = (jetzt) => {
+      const dt = Math.min(0.04, (jetzt - zuletzt) / 1000); zuletzt = jetzt;
+      const c = cv.current, z = s.current;
+      if (!c) return;
+      const g = c.getContext("2d");
+      const zeit = z ? z.zeit : jetzt / 1000;
+      if (z && z.laeuft) {
+        const v = tempo(z), l = z.l;
+        z.zeit += dt; z.weg += v * dt;
+        l.x += (l.spur - l.x) * Math.min(1, dt * 16);
+        l.vy -= 16 * dt; l.y = Math.max(0, l.y + l.vy * dt); if (l.y === 0) l.vy = 0;
+        l.duck = Math.max(0, l.duck - dt); l.magnet = Math.max(0, l.magnet - dt); l.schutz = Math.max(0, l.schutz - dt);
+        z.naechste -= v * dt;
+        if (z.naechste <= 0) { hsReihe(HS_WEIT, z.zeit, z.dinge); z.naechste = 9 + v * 0.3; }
+        const geduckt = l.duck > 0 && l.y < 0.05;
+        const oben = l.y + HS_HOCH * (geduckt ? 0.5 : 1);
+        for (const o of z.dinge) {
+          const alt0 = o.z; o.z -= v * dt;
+          if (o.weg) continue;
+          if (o.art === "teil" && l.magnet > 0 && o.z < 9 && o.z > -0.5) { o.x += (l.x - o.x) * Math.min(1, dt * 10); o.hoehe += (l.y + 0.3 - o.hoehe) * Math.min(1, dt * 10); }
+          const t = (HS_TIEF[o.art] || 0.4) / 2;
+          if (!(o.z - t < 0.3 && alt0 + t > -0.3) || Math.abs(o.x - l.x) > 0.55) continue;
+          if (o.art === "teil" || o.art === "helm" || o.art === "magnet") {
+            if (o.hoehe < l.y - 0.1 || o.hoehe > oben + 0.1) continue;
+            o.weg = true;
+            if (o.art === "teil") { z.teile++; }
+            else if (o.art === "helm") { l.helm = true; z.texte.push({ text: "Schutzhelm!", zeit: 1.5 }); }
+            else { l.magnet = 9; z.texte.push({ text: "Magnet!", zeit: 1.5 }); }
+            continue;
+          }
+          const getroffen = o.art === "stapler" || (o.art === "absperrung" ? !geduckt : l.y < 0.38);
+          if (!getroffen || l.schutz > 0) continue;
+          if (l.helm) { l.helm = false; l.schutz = 1.2; o.weg = true; z.texte.push({ text: "Helm hat dich geschützt!", zeit: 1.5 }); continue; }
+          z.laeuft = false; z.grund = HS_GRUND[o.art];
+          z.punkte = Math.round(z.weg) + z.teile * 10;
+          if (rekordMerken("hallensprint", z.punkte)) { z.neuerRekord = true; setRekord(z.punkte); }
+          neu((n) => n + 1);
+        }
+        z.dinge = z.dinge.filter((o) => o.z > -2.5 && !(o.weg && o.art !== "stapler"));
+        z.texte = z.texte.filter((f) => (f.zeit -= dt) > 0);
+      }
+      const weg = z ? z.weg : zeit * 6;
+
+      // Halle: Rückwand, Decke mit Lampen, Boden mit Spuren
+      const wand = g.createLinearGradient(0, 0, 0, hor);
+      wand.addColorStop(0, "#94a3b8"); wand.addColorStop(1, "#e2e8f0");
+      g.fillStyle = wand; g.fillRect(0, 0, b, hor);
+      g.fillStyle = "#1e3a8a"; g.font = `bold ${Math.round(h * 0.035)}px system-ui`; g.textAlign = "center";
+      g.fillText("HOFER + CO · PRÄZISIONSDREHTEILE", cx, hor - h * 0.02); g.textAlign = "left";
+      for (let k = 0; k < 14; k++) {
+        const zz = k * 4 - (weg % 4);
+        if (zz < -2) continue;
+        const f = p(zz), y = hor - hor * f * 0.9, w = U * f * 0.9;
+        g.fillStyle = `rgba(255,255,240,${Math.min(0.95, f * 1.5)})`; g.fillRect(cx - w / 2, y, w, Math.max(2, f * 14));
+      }
+      g.fillStyle = "#6b7280"; g.fillRect(0, hor, b, h - hor);
+      const boden = (x1, x2, z1, z2, farbe) => {
+        const a = auf(x1, z1), bb = auf(x2, z1), c2 = auf(x2, z2), d = auf(x1, z2);
+        g.fillStyle = farbe; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(bb.x, bb.y); g.lineTo(c2.x, c2.y); g.lineTo(d.x, d.y); g.fill();
+      };
+      boden(-1.6, 1.6, -3.5, 200, "#9ca3af");
+      // Leitlinien zwischen den Spuren und gelb-schwarzer Rand
+      for (let k = 0; k < 30; k++) {
+        const z1 = k * 2 - (weg % 2);
+        if (z1 < -3.5) continue;
+        for (const x of [-0.5, 0.5]) boden(x - 0.03, x + 0.03, z1, z1 + 1, "#f8fafc");
+        for (const x of [-1.6, 1.5]) boden(x, x + 0.1, z1, z1 + 1, "#facc15");
+        for (const x of [-1.6, 1.5]) boden(x, x + 0.1, z1 + 1, z1 + 2, "#111827");
+      }
+      // Maschinen links und rechts als Kulisse
+      for (let k = 7; k >= 0; k--) {
+        const z1 = k * 8 - (weg % 8) + 2, nr = Math.floor((weg + k * 8) / 8);
+        if (z1 < -2) continue;
+        for (const seite of [-1, 1]) {
+          const innen = seite * 1.9, aussen = seite * 3.6;
+          const a = auf(innen, z1 + 4), bb = auf(innen, z1), hoch1 = 1.5;
+          // Innenseite der Maschine
+          g.fillStyle = "#cbd5e1"; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(bb.x, bb.y);
+          g.lineTo(bb.x, bb.y - hoch1 * bb.s); g.lineTo(a.x, a.y - hoch1 * a.s); g.fill();
+          g.fillStyle = "#1d4ed8"; g.beginPath(); g.moveTo(a.x, a.y - hoch1 * a.s); g.lineTo(bb.x, bb.y - hoch1 * bb.s);
+          g.lineTo(bb.x, bb.y - (hoch1 - 0.1) * bb.s); g.lineTo(a.x, a.y - (hoch1 - 0.1) * a.s); g.fill();
+          // Vorderseite mit Fenster und Namen
+          const c2 = auf(aussen, z1);
+          const l0 = Math.min(bb.x, c2.x), w = Math.abs(c2.x - bb.x);
+          g.fillStyle = "#e2e8f0"; g.fillRect(l0, bb.y - hoch1 * bb.s, w, hoch1 * bb.s);
+          g.fillStyle = "#1d4ed8"; g.fillRect(l0, bb.y - hoch1 * bb.s, w, 0.1 * bb.s);
+          g.fillStyle = "rgba(125,211,252,.7)"; g.fillRect(l0 + w * 0.1, bb.y - 1.2 * bb.s, w * 0.55, 0.6 * bb.s);
+          g.fillStyle = "#22c55e"; g.beginPath(); g.arc(l0 + w * 0.8, bb.y - 1.1 * bb.s, 0.05 * bb.s, 0, Math.PI * 2); g.fill();
+          if (bb.s > 30) {
+            g.fillStyle = "#334155"; g.font = `bold ${Math.round(bb.s * 0.12)}px system-ui`;
+            g.fillText(HS_MASCHINEN[(nr * 2 + (seite > 0 ? 1 : 0)) % HS_MASCHINEN.length], l0 + w * 0.1, bb.y - 0.3 * bb.s, w * 0.8);
+          }
+        }
+      }
+
+      // Dinge und Läufer von hinten nach vorne
+      const liste = z ? [...z.dinge.filter((o) => !o.weg || o.art === "stapler")] : [];
+      liste.sort((o1, o2) => o2.z - o1.z);
+      const laeuferZeichnen = () => {
+        const l = z ? z.l : { x: 0, y: 0, duck: 0, helm: false };
+        const q = auf(l.x, 0);
+        g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(q.x, q.y, q.s * 0.22 / (1 + l.y), q.s * 0.06, 0, 0, Math.PI * 2); g.fill();
+        if (z && z.l.schutz > 0 && Math.floor(z.zeit * 12) % 2) return;
+        hsLaeufer(g, q.x, q.y, q.s, zeit, l);
+        if (z && z.l.magnet > 0) { g.strokeStyle = "rgba(220,38,38,.5)"; g.lineWidth = 6; g.beginPath(); g.arc(q.x, q.y - (l.y + 0.45) * q.s, q.s * 0.55, 0, Math.PI * 2); g.stroke(); }
+      };
+      let gezeichnet = false;
+      for (const o of liste) {
+        if (!gezeichnet && o.z < 0) { laeuferZeichnen(); gezeichnet = true; }
+        if (o.z > HS_WEIT + 2) continue;
+        const q = auf(o.x, o.z);
+        g.globalAlpha = Math.min(1, (HS_WEIT + 2 - o.z) / 8);
+        if (o.art === "stapler") hsStapler(g, q.x, q.y, q.s, zeit + o.wackeln);
+        else if (o.art === "palette") hsPalette(g, q.x, q.y, q.s);
+        else if (o.art === "absperrung") hsAbsperrung(g, q.x, q.y, q.s);
+        else if (o.art === "monster") zeichneMonster(g, q.x, q.y - q.s * 0.3, q.s * 0.3 / 36, zeit * 4 + o.wackeln);
+        else if (o.art === "teil") zeichneDrehteil(g, q.x, q.y - o.hoehe * q.s, q.s * 0.42 / 120, o.form, null, Math.sin(zeit * 3 + o.z) * 0.4);
+        else if (o.art === "helm") hsHelm(g, q.x, q.y - o.hoehe * q.s, q.s);
+        else if (o.art === "magnet") hsMagnet(g, q.x, q.y - o.hoehe * q.s, q.s);
+        g.globalAlpha = 1;
+      }
+      if (!gezeichnet) laeuferZeichnen();
+      if (z) for (const f of z.texte) {
+        g.globalAlpha = Math.min(1, f.zeit); g.fillStyle = "#1d4ed8"; g.font = "bold 54px system-ui"; g.textAlign = "center";
+        g.fillText(f.text, cx, hor + 90 - (1.5 - f.zeit) * 30); g.textAlign = "left"; g.globalAlpha = 1;
+      }
+      const stand = z ? Math.round(z.weg) + "|" + z.teile + "|" + z.l.helm + "|" + (z.l.magnet > 0) : "";
+      if (stand !== anzeige) { anzeige = stand; neu((n) => n + 1); }
+      rahmen = requestAnimationFrame(schritt);
+    };
+    rahmen = requestAnimationFrame(schritt);
+    return () => cancelAnimationFrame(rahmen);
+  }, [b, h]); // eslint-disable-line
+
+  // Wischen löst schon während der Bewegung aus, ein kurzes Tippen
+  // wechselt links oder rechts die Spur und springt in der Mitte.
+  const fingerRef = useRef(null);
+  const runter = (e) => { fingerRef.current = { x: e.clientX, y: e.clientY, fertig: false }; };
+  const ziehen = (e) => {
+    const f = fingerRef.current;
+    if (!f || f.fertig) return;
+    const dx = e.clientX - f.x, dy = e.clientY - f.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 40) return;
+    f.fertig = true;
+    steuern(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "rechts" : "links") : (dy > 0 ? "runter" : "hoch"));
+  };
+  const hoch = (e) => {
+    const f = fingerRef.current; fingerRef.current = null;
+    if (!f || f.fertig) return;
+    const r = e.currentTarget.getBoundingClientRect(), anteil = (e.clientX - r.left) / r.width;
+    steuern(anteil < 0.33 ? "links" : anteil > 0.67 ? "rechts" : "hoch");
+  };
+
+  const z = s.current;
+  const punkte = z ? Math.round(z.weg) + z.teile * 10 : 0;
+  return (
+    <div className="sp-leinwand" data-sp="hallensprint" style={{ width: b, height: h }}>
+      <canvas ref={cv} width={b} height={h} onPointerDown={runter} onPointerMove={ziehen} onPointerUp={hoch} onPointerCancel={() => { fingerRef.current = null; }} />
+      <div className="sp-leinwand__zahlen">
+        <span>Meter <b data-sp="hs-meter">{z ? Math.round(z.weg).toLocaleString("de-CH") : 0}</b></span>
+        <span>Drehteile <b data-sp="hs-teile">{z ? z.teile : 0}</b></span>
+        <span>Punkte <b data-sp="hs-punkte">{punkte.toLocaleString("de-CH")}</b></span>
+        <span>Rekord <b>{rekord.toLocaleString("de-CH")}</b></span>
+        {z && z.l.helm && <span>⛑️ Helm</span>}
+        {z && z.l.magnet > 0 && <span>🧲 Magnet</span>}
+      </div>
+      {(!z || !z.laeuft) &&
+        <div className="sp-ueber">
+          {!z && <div className="sp-ueber__titel">Hallensprint</div>}
+          {!z && <div className="sp-ueber__text">Renn durch die Werkhalle und sammle Drehteile!
+            Wischen nach links oder rechts wechselt die Spur, nach oben springst du über Paletten und Spänemonster,
+            nach unten duckst du dich unter Absperrungen. Gabelstaplern weichst du aus.
+            Der gelbe Helm schützt einmal, der Magnet zieht Drehteile an.</div>}
+          {z && <div className="sp-ueber__titel">Feierabend! {z.punkte.toLocaleString("de-CH")} Punkte</div>}
+          {z && <div className="sp-ueber__text">{z.grund}<br />{Math.round(z.weg).toLocaleString("de-CH")} Meter, {z.teile} Drehteile</div>}
+          {z && z.neuerRekord && <div className="sp-ueber__rekord">🏆 Neuer Rekord!</div>}
+          <button type="button" className="sp-gross" data-sp="hs-start" onClick={starten}>{z ? "Nochmal" : "▶ Start"}</button>
         </div>}
     </div>
   );
