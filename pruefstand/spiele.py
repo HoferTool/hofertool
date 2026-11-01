@@ -2,6 +2,7 @@
 # mit Inhalt „Spiel“, Liste zur Auswahl, Tic Tac Toe, Klötzli, Hühnerhof,
 # Flatterhuhn und Eierschleuder spielbar mit Tippen.
 import time, os
+from datetime import datetime, timedelta
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
@@ -15,6 +16,9 @@ with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     ctx = br.new_context(viewport={"width": 1920, "height": 1080})
     pg = ctx.new_page()
+    # Werktag 10 Uhr, sonst zeigt die Anzeige nachts und sonntags die Hühner
+    heute = datetime.now()
+    pg.clock.set_system_time(datetime(heute.year, heute.month, heute.day, 10, 0) + timedelta(days=(2 - heute.weekday()) % 7))
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:200]))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
@@ -37,7 +41,7 @@ with sync_playwright() as p:
 
     pg.click("[data-ib='anzeige']"); pg.wait_for_selector(".ib-voll--pausenraum .ib-kachel"); pg.wait_for_timeout(1000)
     pg.locator(".ib-voll [data-ibkachel='Spiele']").click(); pg.wait_for_timeout(800)
-    pruefe(pg.locator("[data-sp='liste'] .sp-karte").count() == 5, "Liste mit fünf Spielen")
+    pruefe(pg.locator("[data-sp='liste'] .sp-karte").count() >= 6, "Liste mit allen Spielen")
     pg.screenshot(path=BILD + "/spiele-liste.png")
 
     # Tic Tac Toe gegen den Computer

@@ -17,12 +17,16 @@
 //    („und noch Moorhuhn“, Patrick)
 //  - Späneschleuder: mit Drehteilen die Spänemonster von den Material-
 //    kisten schiessen („und Angry Birds“, Patrick)
+//  - Versandpalette: Gebinde auf eine Palette 8 × 8 legen, volle Reihen
+//    und Spalten gehen in den Versand (SpielPalette.jsx, Wunsch Patrick
+//    1. November 2026: Block-Puzzle „Hofer-Style“)
 //  Die Kennungen (kloetzli, huehnerhof …) bleiben, weil Kacheln und
 //  Rekorde sie gespeichert haben.
 //  Alles mit grossen Knöpfen für den Finger; Rekorde je Gerät im
 //  localStorage (darf fehlen, dann eben ohne Rekord).
 // =================================================================
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Versandpalette } from "./SpielPalette.jsx";
 
 export const SPIELE = [
   { id: "dreigewinnt", name: "Tic Tac Toe", zeichen: "🔩", text: "Schraube gegen Zahnrad. Zu zweit oder gegen den Computer." },
@@ -30,6 +34,7 @@ export const SPIELE = [
   { id: "huehnerhof", name: "Hallenrunde", zeichen: "🏭", text: "Sammle die Drehteile zwischen den Maschinen ein. Achtung, Spänemonster!" },
   { id: "flatterhuhn", name: "Ausschuss-Jagd", zeichen: "🔍", text: "Tipp auf den Förderbändern die schlechten Teile an. 90 Sekunden." },
   { id: "eierschleuder", name: "Späneschleuder", zeichen: "🎯", text: "Mit Drehteilen die Spänemonster von den Materialkisten schiessen." },
+  { id: "palette", name: "Versandpalette", zeichen: "🧩", text: "Gebinde auf die Palette ziehen. Volle Reihen gehen in den Versand." },
 ];
 export const spielName = (id) => id === "alle" || !id ? "Alle Spiele zur Auswahl"
   : (SPIELE.find((s) => s.id === id) || {}).name || "Spiel";
@@ -108,6 +113,7 @@ export function Spiele({ spiel, breite, hoehe }) {
       {gewaehlt === "huehnerhof" && <Huehnerhof breite={breite} hoehe={h} />}
       {gewaehlt === "flatterhuhn" && <Flatterhuhn breite={breite} hoehe={h} />}
       {gewaehlt === "eierschleuder" && <Eierschleuder breite={breite} hoehe={h} />}
+      {gewaehlt === "palette" && <Versandpalette breite={breite} hoehe={h} />}
     </div>
   );
 }

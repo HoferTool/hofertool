@@ -10886,3 +10886,38 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 @media (max-width: 640px) { .mk-raster { grid-template-columns: 1fr; gap: 4px; } }
 /* Bestellung gesendet (1.323.0) */
 .bs-chip--gesendet { background: #e3f4e8; color: #16692f; border-color: #9fd5ae; }
+/* Versandpalette im Pausenraum (1.328.0): Block-Puzzle auf einer Holzpalette */
+.sp-liste { flex-wrap: wrap; align-content: center; gap: 28px; padding: 10px 0; }
+/* bis acht Spiele in zwei Reihen zu vier */
+.sp-liste .sp-karte { flex: 0 1 calc(25% - 28px); max-width: 440px; gap: 10px; padding: 22px 20px; }
+.sp-liste .sp-karte__zeichen { font-size: 84px; }
+.sp-liste .sp-karte__name { font-size: 38px; }
+.sp-liste .sp-karte__text { font-size: 21px; }
+.sp-liste .sp-karte__los { margin-top: 4px; padding: 10px 34px; font-size: 24px; }
+.sp-karte:nth-child(6) { background: linear-gradient(160deg, #a16207, #713f12); }
+.sp-vp { position: relative; display: flex; align-items: center; gap: 60px; user-select: none; -webkit-user-select: none; }
+.sp-vp__hilfe { font-size: 22px; line-height: 1.35; opacity: .8; }
+.sp-vp__palette { position: relative; display: grid; gap: 0; padding: 8px; border-radius: 14px; touch-action: none;
+  background: repeating-linear-gradient(90deg, #b9824a 0 30%, #8a5a2b 30% 33.333%), #9a6633;
+  box-shadow: 0 16px 40px rgba(0,0,0,.45), inset 0 0 0 4px #6b4220; }
+.sp-vp__platz { margin: 2px; border-radius: 6px; background: rgba(60,35,12,.35); box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
+.sp-vp__platz--weg { background: rgba(253,224,71,.35); }
+.sp-vp__kiste { margin: 2px; border-radius: 6px; background: var(--sf); color: rgba(15,23,42,.75); font-weight: 800;
+  display: flex; align-items: center; justify-content: center; letter-spacing: .02em;
+  box-shadow: inset 0 -6px 0 rgba(0,0,0,.25), inset 0 4px 0 rgba(255,255,255,.35), 0 2px 3px rgba(0,0,0,.3); }
+.sp-vp__kiste--vor { opacity: .55; }
+.sp-vp__kiste--weg { outline: 4px solid #fde047; outline-offset: -2px; }
+.sp-vp__kiste--fort { position: absolute; margin: 0; pointer-events: none; animation: sp-vp-fort .55s ease-in forwards; }
+@keyframes sp-vp-fort { 0% { transform: scale(1); filter: brightness(1.8); } 40% { transform: scale(1.12); } 100% { transform: scale(.2) translateY(-60px); opacity: 0; } }
+.sp-vp__spruch { position: absolute; left: 50%; top: 42%; z-index: 3; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
+  font-size: 64px; font-weight: 900; color: #fde047; text-shadow: 0 4px 0 #713f12, 0 8px 24px rgba(0,0,0,.6); animation: sp-vp-spruch 1.4s ease-out forwards; }
+@keyframes sp-vp-spruch { 0% { transform: translate(-50%, -50%) scale(.5); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+  75% { opacity: 1; } 100% { transform: translate(-50%, -110%) scale(1); opacity: 0; } }
+.sp-vp__band { display: flex; flex-direction: column; gap: 18px; align-self: stretch; justify-content: center; padding: 18px; border-radius: 22px;
+  background: repeating-linear-gradient(180deg, #334155 0 18px, #1e293b 18px 22px); box-shadow: inset 0 0 0 4px #0f172a; }
+.sp-vp__bandtitel { text-align: center; font-size: 22px; font-weight: 700; opacity: .7; }
+.sp-vp__fach { flex: 1; min-height: 150px; display: flex; align-items: center; justify-content: center; border-radius: 16px;
+  background: rgba(255,255,255,.06); cursor: grab; touch-action: none; }
+.sp-vp__fach--zu { opacity: .35; }
+.sp-vp__form { display: grid; gap: 0; pointer-events: none; }
+.sp-vp__schwebt { position: absolute; z-index: 5; display: grid; gap: 0; pointer-events: none; filter: drop-shadow(0 14px 18px rgba(0,0,0,.5)); }
