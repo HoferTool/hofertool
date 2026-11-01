@@ -573,7 +573,12 @@ export function infoboardSchliessen() {
 }
 
 const NACHSEHEN_MS = 30000;
-const WACH_MS = 60000;
+// Wird ein Bildschirm benutzt (Tipp, Klick, Taste, Mausrad), egal wann,
+// bleibt er bis 15 Minuten nach der letzten Benutzung wach, erst dann
+// kommt der Nachtmodus wieder (Wunsch Patrick 1. November 2026: „wenn
+// irgendein Bildschirm gebraucht wird, egal wann, soll es nicht in den
+// Nachtmodus gehen, erst dann wieder nach etwa 15 Minuten“)
+const WACH_MS = 15 * 60000;
 
 // Zeigt, wie fein der Browser des Bildschirms zeichnet: meldet er bei
 // einem 4K-Bildschirm nur 1080 Punkte mit Faktor 1, vergrössert das
@@ -594,9 +599,9 @@ function Anzeige({ huelle, mass, melden }) {
   const [zu, setZu] = useState(false);
   const stand = useRef("");
   // Bildschirmschoner (Nacht.jsx): nachts und sonntags unter dem Kopf
-  // Hühner statt Dokumente. Ein Tipp darunter holt sie für eine Minute.
+  // Hühner statt Dokumente. Jede Benutzung holt sie für 15 Minuten.
   const [nacht, setNacht] = useState(istNacht);
-  // Empfang abends und nachts ganz schwarz, ein Tipp zeigt ihn eine Minute
+  // Empfang abends und nachts ganz schwarz, Benutzung zeigt ihn 15 Minuten
   const istEmpfang = mass.id === "empfang";
   const [dunkel, setDunkel] = useState(() => istEmpfang && istEmpfangDunkel());
   const [wachBis, setWachBis] = useState(0);
@@ -607,6 +612,19 @@ function Anzeige({ huelle, mass, melden }) {
       setWachBis((w) => (w && Date.now() > w ? 0 : w));
     }, 15000);
     return () => clearInterval(t);
+  }, []);
+  useEffect(() => {
+    let zuletzt = 0;
+    const benutzt = () => {
+      const jetzt = Date.now();
+      // Höchstens alle paar Sekunden neu setzen, damit die Tafel nicht bei jedem Tipp neu zeichnet
+      if (jetzt - zuletzt < 5000) return;
+      zuletzt = jetzt;
+      setWachBis(jetzt + WACH_MS);
+    };
+    const arten = ["pointerdown", "keydown", "wheel", "touchstart"];
+    arten.forEach((a) => window.addEventListener(a, benutzt, { capture: true, passive: true }));
+    return () => arten.forEach((a) => window.removeEventListener(a, benutzt, { capture: true }));
   }, []);
   const schoner = nacht && !wachBis;
   const schwarz = dunkel && !wachBis;
@@ -664,7 +682,6 @@ function Anzeige({ huelle, mass, melden }) {
     const oben = e.clientY - r.top < r.height * 0.2;
     if (oben && mass.touch) { loslassen(); halten.current = setTimeout(() => setZu(true), 3000); }
     else if (oben) setZu(true);
-    else if (schoner || schwarz) setWachBis(Date.now() + WACH_MS);
   };
 
   // Chrome-Fenster am PC gibt es nur am Infoboard und am Empfang

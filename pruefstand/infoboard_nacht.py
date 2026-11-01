@@ -1,12 +1,17 @@
 # Infoboard: Bildschirmschoner (1.179.0, Wunsch Patrick 25. Oktober 2026).
 # Von 23:00 bis 05:30 und sonntags den ganzen Tag bleibt der Kopf, darunter
 # statt der Dokumente Schwarz mit fliegenden Halloween-Hühnern (1.179.1).
-# Ein Tipp darunter zeigt die Dokumente für eine Minute.
+# Ein Tipp darunter zeigt die Dokumente. Seit 1.331.0 hält jede Benutzung
+# (Tipp, Taste), egal wann, den Schoner bis 15 Minuten danach fern.
 import os, time
 from datetime import datetime
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
+# Die Bildschirme laufen mit Gerätekonten, die nie von selbst abmelden;
+# sonst meldet der Sprung der Uhr um 14 Minuten hier ab
+FAKE = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
+  "daten.profiles[0].andere_nutzer = true;\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 fehler = []
 def pruefe(ok, text):
     print(("ok   " if ok else "FEHLT") + " " + text)
@@ -45,6 +50,23 @@ with sync_playwright() as p:
     pg.screenshot(path=os.environ.get("BILD", "/tmp/infoboard-nacht.png"))
     pg.mouse.click(270, 700); pg.wait_for_timeout(1200)
     pruefe(tafel(pg) and not nacht(pg) and kopf(pg), "Tipp zeigt die Dokumente")
+    # Die Uhr springt, die App merkt es beim nächsten Nachsehen (alle 15 s)
+    pg.clock.set_system_time(datetime.fromisoformat("2026-10-21T23:44:00+02:00")); pg.wait_for_timeout(16000)
+    pruefe(tafel(pg) and not nacht(pg), "14 Minuten nach dem Tipp noch wach")
+    pg.keyboard.press("Shift"); pg.wait_for_timeout(300)
+    pg.clock.set_system_time(datetime.fromisoformat("2026-10-21T23:58:00+02:00")); pg.wait_for_timeout(16000)
+    pruefe(tafel(pg) and not nacht(pg), "Taste hält wach: 14 Minuten danach noch wach")
+    pg.clock.set_system_time(datetime.fromisoformat("2026-10-22T00:00:30+02:00")); pg.wait_for_timeout(16000)
+    pruefe(nacht(pg) and not tafel(pg), "16 Minuten ohne Benutzung: wieder Hühner")
+    br.close()
+    # Benutzt kurz vor 23:00: um 23:00 noch kein Schoner, erst 15 Minuten danach
+    br, pg = oeffnen(p, "2026-10-21T22:55:00+02:00")
+    pruefe(tafel(pg) and not nacht(pg), "22:55 Tafel")
+    pg.mouse.click(270, 700); pg.wait_for_timeout(300)
+    pg.clock.set_system_time(datetime.fromisoformat("2026-10-21T23:05:00+02:00")); pg.wait_for_timeout(16000)
+    pruefe(tafel(pg) and not nacht(pg), "23:05 nach Tipp um 22:55 noch Tafel")
+    pg.clock.set_system_time(datetime.fromisoformat("2026-10-21T23:11:00+02:00")); pg.wait_for_timeout(16000)
+    pruefe(nacht(pg), "23:11 ohne Benutzung: Schoner")
     br.close()
     for zeit, soll, text in [("2026-10-22T05:20:00+02:00", True, "Donnerstag 05:20"),
                              ("2026-10-22T05:40:00+02:00", False, "Donnerstag 05:40"),
