@@ -8784,61 +8784,94 @@ body .ib-text__blatt, body .ib-text__blatt * { color: var(--tf, #111) !important
 /* ---------- Kopfkarte: Jetski im Band (seit 1.150.0 Durchfahrten) ----------
    Wunsch Patrick 22. Oktober 2026: statt der Hühner (1.125.0 bis
    1.149.0) fuhr etwas durch, 1.153.0 bis 1.210.x Jiviano auf dem
-   Jetski, seit 1.211.0 ziehen Hühner mit ihrem Stall um. Gesteuert von
+   Jetski, 1.211.0 bis 1.323.x zogen Hühner mit ihrem Stall um, seit
+   1.324.0 schlurfen Zombies und Halloween-Kreaturen vorbei. Gesteuert von
    src/seiten/start/Durchfahrt.jsx.
    Der runde Schein von früher bleibt aus. */
 .kopfkarte:not(.kopfkarte--geburtstag)::before,
 .kopfkarte:not(.kopfkarte--geburtstag)::after { content: none; animation: none; }
 .durchfahrt { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
-/* Hühner ziehen um (seit 1.211.0, Wunsch Patrick 26. Oktober 2026):
-   Wiese unten, darauf der Zug aus Durchfahrt.jsx. Reihenfolge: Wiese,
-   Seil, Stall, Hühner, Staub, Rauch und Federn. Beine schwingen, Körper
-   nicken, der Stall wackelt, die Räder drehen (Dauer setzt Durchfahrt.jsx). */
-.umzug-wiese { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none;
-  background: var(--gras) repeat-x left top / auto 70%, linear-gradient(180deg, transparent 0 45%, #5fa83a 45%, #3f7f27 100%); }
-body.dunkel .umzug-wiese { filter: brightness(.7) saturate(.85); }
-.umzug { position: absolute; left: 0; z-index: 2; pointer-events: none; will-change: transform; }
-.umzug svg { display: block; overflow: visible; }
-.umzug-seil { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; }
-.umzug-seil path { fill: none; stroke: #8a6a3a; stroke-width: 2; stroke-linecap: round; }
-.umzug-stall { position: absolute; z-index: 2; }
-.umzug-stall svg, .umzug-huhn svg, .umzug-kueken svg { width: 100%; height: 100%; }
-.umzug-stall__kasten { transform-box: fill-box; transform-origin: 50% 100%; animation: umzug-wackeln .9s ease-in-out infinite alternate; }
-@keyframes umzug-wackeln { from { transform: rotate(-.8deg) translateY(0); } to { transform: rotate(.8deg) translateY(-1.5px); } }
-.umzug-stall__rad { transform-box: fill-box; transform-origin: 50% 50%; animation: umzug-rad 1s linear infinite; }
-@keyframes umzug-rad { to { transform: rotate(360deg); } }
-.umzug-stall__kueken { animation: umzug-gucken 2.6s ease-in-out infinite; }
-.umzug-stall__gucker { animation: umzug-gucken 3.4s ease-in-out infinite reverse; }
-@keyframes umzug-gucken { 0%, 30% { transform: translateY(10px); } 45%, 85% { transform: translateY(0); } 100% { transform: translateY(10px); } }
-.umzug-huhn { position: absolute; }
-.umzug-huhn__koerper { width: 100%; height: 100%; transform-origin: 50% 100%;
-  animation: umzug-nicken var(--schritt, .35s) ease-in-out infinite alternate; animation-delay: inherit; }
-@keyframes umzug-nicken { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-4%) rotate(-2deg); } }
-.umzug-huhn--zieht .umzug-huhn__koerper { animation-name: umzug-ziehen; }
-@keyframes umzug-ziehen { from { transform: translateY(0) rotate(7deg); } to { transform: translateY(-3%) rotate(10deg); } }
-.umzug .huhn-bein { transform-box: fill-box; transform-origin: 50% 0; animation: umzug-bein var(--schritt, .35s) ease-in-out infinite alternate; }
-.umzug .huhn-bein--2 { animation-direction: alternate-reverse; }
-@keyframes umzug-bein { from { transform: rotate(-24deg); } to { transform: rotate(24deg); } }
-/* Der Flügel des Infoboard-Huhns schlägt im Flug, beim Gehen nur leicht */
-.umzug .ib-huhn__fluegel { transform-box: fill-box; transform-origin: 85% 30%; animation: umzug-fluegel .7s ease-in-out infinite alternate; }
-@keyframes umzug-fluegel { from { transform: rotate(-4deg); } to { transform: rotate(6deg); } }
-.umzug-kueken { position: absolute; z-index: 3; animation: umzug-nachrennen 1.8s ease-in-out infinite alternate; }
-.umzug-kueken svg { animation: umzug-huepfen .22s ease-in-out infinite alternate; }
-.umzug-kueken .huhn-bein { animation-duration: .16s; }
-@keyframes umzug-nachrennen { from { transform: translateX(0); } to { transform: translateX(30%); } }
-@keyframes umzug-huepfen { from { transform: translateY(0); } to { transform: translateY(-14%); } }
-.umzug-staub { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; filter: blur(1.5px);
-  background: radial-gradient(ellipse, rgba(214,190,150,.85) 0%, rgba(214,190,150,.35) 50%, transparent 72%); }
-.umzug-rauch { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; filter: blur(2px);
-  background: radial-gradient(circle, rgba(240,240,245,.8) 0%, rgba(230,232,240,.35) 50%, transparent 72%); }
-.umzug-feder { position: absolute; z-index: 4; pointer-events: none; opacity: 0; }
-/* Im Winter (15. Oktober bis Ende März, seit 1.212.0, Wunsch Patrick
-   26. Oktober 2026): Schnee statt Wiese, Schneefall, Pulverschnee. */
-.umzug-wiese--schnee { background: var(--gras) repeat-x left top / auto 70%, linear-gradient(180deg, transparent 0 45%, #f7fbff 45%, #d6e3f1 100%); }
-body.dunkel .umzug-wiese--schnee { filter: brightness(.82) saturate(.9); }
-.umzug-staub--schnee { background: radial-gradient(ellipse, rgba(255,255,255,.95) 0%, rgba(240,246,255,.5) 50%, transparent 72%); }
-.umzug-flocke { position: absolute; z-index: 5; border-radius: 50%; pointer-events: none; background: #fff;
-  box-shadow: 0 0 3px rgba(255,255,255,.8); will-change: transform; }
+/* Zombies und Halloween-Kreaturen (seit 1.324.0, Wunsch Patrick
+   1. November 2026: „lass die umziehenden Hühner weg und ersetze sie
+   durch Zombies und Halloween-Kreaturen, aber richtig furchterregend“;
+   1.211.0 bis 1.323.x zogen hier Hühner um). Unten Schein, Erde mit
+   Grabsteinen, Nebel, darauf die Horde aus Durchfahrt.jsx. Beine
+   schlurfen, Arme greifen, Köpfe wanken, Augen glühen, der Sarg rumpelt,
+   die Räder drehen (Dauer setzt Durchfahrt.jsx). */
+.spuk-schein { position: absolute; left: 0; right: 0; bottom: 0; height: 55%; z-index: 0; pointer-events: none;
+  background: linear-gradient(0deg, rgba(40,4,8,.55), rgba(40,4,8,0)); }
+.spuk-erde { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; pointer-events: none;
+  background: var(--gras) repeat-x left top / auto 70%, linear-gradient(180deg, transparent 0 45%, #2a1f19 45%, #120c09 100%); }
+.spuk-grab { position: absolute; z-index: 1; pointer-events: none; opacity: .92; }
+.spuk-grab svg { width: 100%; height: 100%; display: block; }
+.spuk-nebel { position: absolute; left: -50%; right: -50%; bottom: 0; z-index: 4; pointer-events: none; opacity: .55;
+  background: radial-gradient(ellipse 18% 60% at 20% 80%, rgba(200,214,210,.55), transparent 70%),
+              radial-gradient(ellipse 22% 55% at 55% 85%, rgba(190,206,200,.5), transparent 70%),
+              radial-gradient(ellipse 16% 50% at 85% 80%, rgba(200,214,210,.5), transparent 70%);
+  animation: spuk-nebel 38s linear infinite alternate; }
+@keyframes spuk-nebel { from { transform: translateX(-12%); } to { transform: translateX(12%); } }
+.spuk { position: absolute; left: 0; z-index: 3; pointer-events: none; will-change: transform; }
+.spuk svg { display: block; overflow: visible; }
+.spuk-kette { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; }
+.spuk-kette path { fill: none; stroke: #7c7c84; stroke-width: 2.6; stroke-dasharray: 4 2; stroke-linecap: round; }
+.spuk-sarg { position: absolute; z-index: 2; }
+.spuk-sarg svg, .spuk-kreatur svg, .spuk-kriecher svg, .spuk-geist svg, .spuk-fledermaus svg, .spuk-hand svg { width: 100%; height: 100%; }
+.spuk-sarg__wagen { transform-box: fill-box; transform-origin: 50% 100%; animation: spuk-rumpeln .5s ease-in-out infinite alternate; }
+@keyframes spuk-rumpeln { from { transform: rotate(-1deg) translateY(0); } to { transform: rotate(1deg) translateY(-1.5px); } }
+.spuk-sarg__rad { transform-box: fill-box; transform-origin: 50% 50%; animation: spuk-rad 1s linear infinite; }
+@keyframes spuk-rad { to { transform: rotate(360deg); } }
+.spuk-sarg__deckel { transform-box: fill-box; transform-origin: 0% 100%; animation: spuk-deckel 4.2s ease-in-out infinite; }
+@keyframes spuk-deckel { 0%, 55%, 100% { transform: rotate(0deg); } 65%, 80% { transform: rotate(-9deg); } 70% { transform: rotate(-6deg); } }
+.spuk-sarg__gucker { animation: spuk-blinzeln 4.2s ease-in-out infinite; }
+@keyframes spuk-blinzeln { 0%, 50% { opacity: 0; } 62%, 84% { opacity: 1; } 92%, 100% { opacity: 0; } }
+.spuk-sarg__hand { transform-box: fill-box; transform-origin: 0% 0%; animation: spuk-baumeln 1.3s ease-in-out infinite alternate; }
+@keyframes spuk-baumeln { from { transform: rotate(-8deg); } to { transform: rotate(10deg); } }
+.spuk-rabe { transform-box: fill-box; transform-origin: 50% 100%; animation: spuk-rabe 3s ease-in-out infinite; }
+@keyframes spuk-rabe { 0%, 70%, 100% { transform: rotate(0deg); } 78%, 88% { transform: rotate(-14deg); } }
+.spuk-auge { filter: drop-shadow(0 0 1.5px #ff2a14) drop-shadow(0 0 3px #ff2a14); animation: spuk-gluehen 1.6s ease-in-out infinite alternate; }
+.spuk-auge--gelb { filter: drop-shadow(0 0 2px #ffd21a) drop-shadow(0 0 4px #ff9a00); }
+.spuk-auge--gruen { filter: drop-shadow(0 0 2px #6cff4a) drop-shadow(0 0 5px #2aff1a); }
+.spuk-auge--blau { filter: drop-shadow(0 0 2px #9fe8ff) drop-shadow(0 0 4px #4ac8ff); }
+@keyframes spuk-gluehen { from { opacity: .75; } to { opacity: 1; } }
+.spuk-flackern { filter: drop-shadow(0 0 2px #ffb21a) drop-shadow(0 0 6px #ff6a00); animation: spuk-flackern .9s steps(6) infinite; }
+@keyframes spuk-flackern { 0% { opacity: 1; } 20% { opacity: .7; } 35% { opacity: .95; } 50% { opacity: .6; } 70% { opacity: 1; } 85% { opacity: .8; } }
+.spuk-kreatur { position: absolute; }
+.spuk-kreatur__koerper { width: 100%; height: 100%; transform-origin: 50% 100%;
+  animation: spuk-wanken var(--schritt, .7s) ease-in-out infinite alternate; animation-delay: inherit; }
+@keyframes spuk-wanken { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-2%) rotate(4deg); } }
+.spuk-kreatur--zieht .spuk-kreatur__koerper { animation-name: spuk-ziehen; }
+@keyframes spuk-ziehen { from { transform: translateY(0) rotate(9deg); } to { transform: translateY(-2%) rotate(14deg); } }
+.spuk .spuk-bein { transform-box: fill-box; transform-origin: 50% 0; animation: spuk-bein var(--schritt, .7s) ease-in-out infinite alternate; }
+.spuk .spuk-bein--2 { animation-direction: alternate-reverse; }
+@keyframes spuk-bein { from { transform: rotate(-16deg); } to { transform: rotate(16deg); } }
+.spuk .spuk-arm { transform-box: fill-box; transform-origin: 0% 50%; animation: spuk-greifen calc(var(--schritt, .7s) * 1.7) ease-in-out infinite alternate; }
+.spuk .spuk-arm--2 { animation-direction: alternate-reverse; }
+@keyframes spuk-greifen { from { transform: rotate(-9deg); } to { transform: rotate(7deg); } }
+.spuk .spuk-kopf { transform-box: fill-box; transform-origin: 30% 100%; animation: spuk-kopf calc(var(--schritt, .7s) * 2.3) ease-in-out infinite alternate; }
+@keyframes spuk-kopf { 0% { transform: rotate(-6deg); } 60% { transform: rotate(8deg); } 100% { transform: rotate(14deg) translateY(4%); } }
+.spuk .spuk-kiefer { transform-box: fill-box; transform-origin: 50% 0; animation: spuk-klappern .18s steps(2) infinite; }
+@keyframes spuk-klappern { from { transform: translateY(0); } to { transform: translateY(22%); } }
+.spuk-band { animation: spuk-wehen 1.2s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: 100% 0; }
+@keyframes spuk-wehen { from { transform: rotate(-6deg) scaleY(.8); } to { transform: rotate(8deg) scaleY(1.2); } }
+.spuk-kriecher { position: absolute; z-index: 3; animation: spuk-kriechen 1.4s ease-in-out infinite alternate; }
+@keyframes spuk-kriechen { from { transform: translateX(0); } to { transform: translateX(14%); } }
+.spuk-geist { position: absolute; z-index: 5; animation: spuk-schweben 2.8s ease-in-out infinite alternate; }
+@keyframes spuk-schweben { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-14%) rotate(5deg); } }
+.spuk-geist svg { filter: drop-shadow(0 0 6px rgba(160,230,255,.55)); }
+.spuk-geist__mund { transform-box: fill-box; transform-origin: 50% 0; animation: spuk-heulen 1.6s ease-in-out infinite alternate; }
+@keyframes spuk-heulen { from { transform: scaleY(.7); } to { transform: scaleY(1.15); } }
+.spuk-geist__tuch { animation: spuk-flimmern 3s ease-in-out infinite alternate; }
+@keyframes spuk-flimmern { from { opacity: .95; } 50% { opacity: .55; } to { opacity: .9; } }
+.spuk-fledermaus { position: absolute; z-index: 6; pointer-events: none; will-change: transform; }
+.spuk-fledermaus__fluegel { transform-box: fill-box; transform-origin: 50% 70%; animation: spuk-flattern var(--flattern, .15s) ease-in-out infinite alternate; }
+@keyframes spuk-flattern { from { transform: scaleY(1); } to { transform: scaleY(-.5); } }
+.spuk-hand { position: absolute; z-index: 1; overflow: hidden; pointer-events: none; }
+.spuk-hand__innen { position: absolute; left: 0; right: 0; bottom: 0; transform: translateY(100%); transform-origin: 50% 100%; }
+.spuk-dreck { position: absolute; z-index: 5; border-radius: 50%; pointer-events: none; filter: blur(1.5px);
+  background: radial-gradient(ellipse, rgba(70,50,36,.85) 0%, rgba(70,50,36,.35) 50%, transparent 72%); }
+.spuk-dunst { position: absolute; z-index: 5; border-radius: 50%; pointer-events: none; filter: blur(2.5px);
+  background: radial-gradient(circle, rgba(120,255,110,.6) 0%, rgba(70,200,90,.25) 50%, transparent 72%); }
+.spuk-blut { position: absolute; z-index: 5; pointer-events: none; background: #9b0c0c; border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%; }
 @media (prefers-reduced-motion: reduce) { .durchfahrt { display: none; } }
 
 /* Erfassen: am Tag eines Auftragswechsels zwei Felder, oben der alte,
