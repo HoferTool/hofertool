@@ -39,7 +39,10 @@ with sync_playwright() as p:
     pruefe(t and t["inhalt"] == {"art": "spiel", "spiel": "alle"}, "Kachel mit allen Spielen gespeichert: %s" % (t and t.get("inhalt")))
     pruefe("Alle Spiele" in pg.locator("[data-ib='kachel-inhalt']").inner_text(), "Inhalt der Kachel angezeigt")
 
-    pg.click("[data-ib='anzeige']"); pg.wait_for_selector(".ib-voll--pausenraum .ib-kachel"); pg.wait_for_timeout(1000)
+    pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1200)
+    # Sonntags und nachts ruht die Anzeige: ein Tipp zeigt die Kacheln
+    if pg.locator(".ib-voll .ib-nacht").count(): pg.mouse.click(960, 800); pg.wait_for_timeout(800)
+    pg.wait_for_selector(".ib-voll--pausenraum .ib-kachel"); pg.wait_for_timeout(600)
     pg.locator(".ib-voll [data-ibkachel='Spiele']").click(); pg.wait_for_timeout(800)
     pruefe(pg.locator("[data-sp='liste'] .sp-karte").count() >= 6, "Liste mit allen Spielen")
     pg.screenshot(path=BILD + "/spiele-liste.png")

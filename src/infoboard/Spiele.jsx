@@ -22,6 +22,8 @@
 //    1. November 2026: Block-Puzzle „Hofer-Style“)
 //  - Hallensprint: Endlos-Läufer auf drei Spuren durch die Werkhalle
 //    (seit 1.329.0, „ein Nachmache von Subway Surfers aber Hofer Style“)
+//  - Kugellager (seit 1.330.0, eigene Datei Kugellager.jsx): Werkstoff-
+//    kugeln schiessen, drei gleiche fallen („Bubble Shooter“, Patrick)
 //  Die Kennungen (kloetzli, huehnerhof …) bleiben, weil Kacheln und
 //  Rekorde sie gespeichert haben.
 //  Alles mit grossen Knöpfen für den Finger; Rekorde je Gerät im
@@ -29,6 +31,7 @@
 // =================================================================
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Versandpalette } from "./SpielPalette.jsx";
+import Kugellager from "./Kugellager.jsx";
 
 export const SPIELE = [
   { id: "dreigewinnt", name: "Tic Tac Toe", zeichen: "🔩", text: "Schraube gegen Zahnrad. Zu zweit oder gegen den Computer." },
@@ -38,6 +41,7 @@ export const SPIELE = [
   { id: "eierschleuder", name: "Späneschleuder", zeichen: "🎯", text: "Mit Drehteilen die Spänemonster von den Materialkisten schiessen." },
   { id: "palette", name: "Versandpalette", zeichen: "🧩", text: "Gebinde auf die Palette ziehen. Volle Reihen gehen in den Versand." },
   { id: "hallensprint", name: "Hallensprint", zeichen: "🏃", text: "Renn durch die Werkhalle: Staplern ausweichen, über Paletten springen, Drehteile sammeln." },
+  { id: "kugellager", name: "Kugellager", zeichen: "🔴", text: "Werkstoffkugeln schiessen. Drei gleiche fallen in die Kiste, bevor die Späne nachdrücken." },
 ];
 export const spielName = (id) => id === "alle" || !id ? "Alle Spiele zur Auswahl"
   : (SPIELE.find((s) => s.id === id) || {}).name || "Spiel";
@@ -118,6 +122,7 @@ export function Spiele({ spiel, breite, hoehe }) {
       {gewaehlt === "eierschleuder" && <Eierschleuder breite={breite} hoehe={h} />}
       {gewaehlt === "palette" && <Versandpalette breite={breite} hoehe={h} />}
       {gewaehlt === "hallensprint" && <Hallensprint breite={breite} hoehe={h} />}
+      {gewaehlt === "kugellager" && <Kugellager breite={breite} hoehe={h} />}
     </div>
   );
 }
