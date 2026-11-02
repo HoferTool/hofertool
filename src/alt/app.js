@@ -154,7 +154,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.333.0";
+const APP_VERSION = "1.334.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -8336,7 +8336,7 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
     + zelle(r ? (r.stk === null || r.stk === undefined ? "" : zahlText(r.stk)) : "", "stk")
     + spalten.map((c) => zelle(r && r.zeilen.some((z) => gleich(z, c)) ? "X" : "", "wz")).join("")
     + zelle(r && r.notiz ? esc(r.notiz) : "", "bem")
-    + zelle(r ? esc(visum(r.person)) : "", "vis") + '</tr>';
+    + zelle(r ? esc(r.kuerzel || visum(r.person)) : "", "vis") + '</tr>';
 
   const name = "Werkzeugwechsel " + (maschine.name || (aufbau && aufbau.typ) || "");
 

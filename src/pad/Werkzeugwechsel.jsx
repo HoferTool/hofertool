@@ -143,14 +143,29 @@ function Auswahl({ reihen: genutzt, alle, maschine, auftrag, zu }) {
   );
 }
 
+// Kürzel, wer gewechselt hat: 2 bis 3 Buchstaben wie JPF, SH, ET
+// (Wunsch Patrick 2. November 2026). Pflicht, weil an einem Pad viele
+// Leute arbeiten und das Konto nichts über die Person sagt.
+export const kuerzelFeld = (wert) => ({ name: "kuerzel", label: "Kürzel (wer hat gewechselt?)", pflicht: true,
+  wert: wert || "", platzhalter: "z. B. JPF", maxLaenge: 3, gross: true, hinweis: "2 bis 3 Buchstaben" });
+export const kuerzelGut = (k) => /^[A-ZÄÖÜ]{2,3}$/.test(k);
+
 async function eintragen(maschine, auftrag, liste) {
-  const w = await alt.dialogFelder({ titel: "Stückzahl beim Wechsel",
-    felder: [
-      { name: "stk", label: "Jetzige Stückzahl", typ: "number", pflicht: true,
-        wert: auftrag ? (auftrag.stand || 0) : "", hinweis: anzahlText(liste.length) },
-      { name: "notiz", label: "Notiz", wert: "" }],
-    bestaetigen: "Wechsel eintragen" });
-  if (!w) return false;
+  let w = { stk: auftrag ? (auftrag.stand || 0) : "", kuerzel: "", notiz: "" };
+  // Bei falschem Kürzel kommt das Fenster mit allem Eingetippten wieder
+  for (;;) {
+    w = await alt.dialogFelder({ titel: "Stückzahl beim Wechsel",
+      felder: [
+        { name: "stk", label: "Jetzige Stückzahl", typ: "number", pflicht: true,
+          wert: w.stk, hinweis: anzahlText(liste.length) },
+        kuerzelFeld(w.kuerzel),
+        { name: "notiz", label: "Notiz", wert: w.notiz }],
+      bestaetigen: "Wechsel eintragen" });
+    if (!w) return false;
+    w.kuerzel = String(w.kuerzel || "").toUpperCase().replace(/\s+/g, "");
+    if (kuerzelGut(w.kuerzel)) break;
+    alt.meldung("Kürzel: bitte 2 bis 3 Buchstaben, etwa JPF.", "warn");
+  }
   const stand = Math.max(0, Math.round(Number(w.stk) || 0));
 
   // Wie viele Stück das Werkzeug gehalten hat: Abstand zur Stückzahl
@@ -177,6 +192,7 @@ async function eintragen(maschine, auftrag, liste) {
       stueckzahl: stand,
       gehalten_stk: (!v || v.stueckzahl === null) ? null : Math.max(0, stand - v.stueckzahl),
       notiz: w.notiz || null,
+      kuerzel: w.kuerzel,
       gewechselt_am: zeitpunkt,
     };
   });
@@ -184,7 +200,7 @@ async function eintragen(maschine, auftrag, liste) {
   // nicht gibt: sonst scheitert der ganze Eintrag an einem Feld
   try { await alt.einfuegenOhneUnbekannte("tool_changes", zeilen); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
-  alt.meldung(anzahlText(liste.length) + " bei " + alt.zahlText(stand) + " Stück eingetragen.");
+  alt.meldung(anzahlText(liste.length) + " bei " + alt.zahlText(stand) + " Stück eingetragen (" + w.kuerzel + ").");
   // Beim Index bleiben je HOCO Nr. nur die letzten drei Protokollblätter
   await indexAufraeumen(maschine, auftrag);
   return true;
@@ -227,7 +243,7 @@ function rundenBilden(liste, sw) {
     const schluessel = z.gewechselt_am + "|" + (z.stueckzahl === null ? "" : z.stueckzahl);
     let r = runden.find((x) => x.schluessel === schluessel);
     if (!r) {
-      r = { schluessel, wann: z.gewechselt_am, stk: z.stueckzahl, person: z.person,
+      r = { schluessel, wann: z.gewechselt_am, stk: z.stueckzahl, person: z.person, kuerzel: z.kuerzel || "",
         auftrag: z.auftrag_nr, notiz: z.notiz, zeilen: [] };
       runden.push(r);
     }
@@ -475,7 +491,8 @@ function Historie({ maschine, auftrag, anfang, zu }) {
                 </td>
                 <td className="klein">{r.auftrag || ""}</td>
                 <td className="klein nowrap">{alt.datumZeitKurz(r.wann)}</td>
-                <td className="klein">{r.person || ""}</td>
+                <td className="klein">{r.kuerzel ? <strong data-wzkuerzel="">{r.kuerzel}</strong> : ""}
+                  {r.person && <div className="klein">{r.person}</div>}</td>
                 {darf && <td className="wz-weg-zelle">
                   <button type="button" className="wz-weg" data-wzweg="" title="Eintrag löschen"
                     aria-label={"Wechsel vom " + alt.datumZeitKurz(r.wann) + " löschen"}

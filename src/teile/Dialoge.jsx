@@ -114,7 +114,9 @@ function Feld({ f, id, erstes }) {
       <input id={id} type={f.typ || "text"} defaultValue={leer(f.wert)} placeholder={f.platzhalter || ""}
         inputMode={f.dezimal ? "decimal" : (zahl || f.ziffern ? "numeric" : undefined)}
         min={zahl ? 0 : undefined} step={zahl ? 1 : undefined}
-        pattern={f.ziffern ? "[0-9]*" : undefined} autoComplete={f.ziffern || f.dezimal ? "off" : undefined}
+        pattern={f.ziffern ? "[0-9]*" : undefined} autoComplete={f.ziffern || f.dezimal || f.gross ? "off" : undefined}
+        maxLength={f.maxLaenge || undefined} autoCapitalize={f.gross ? "characters" : undefined}
+        style={f.gross ? { textTransform: "uppercase" } : undefined}
         data-fokus={erstes ? "" : undefined} />{hinweis}</label>
   );
 }

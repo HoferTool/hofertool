@@ -15,10 +15,12 @@
 // =================================================================
 import { useState } from "react";
 import { alt } from "../bruecke.jsx";
+import { kuerzelFeld, kuerzelGut } from "./Werkzeugwechsel.jsx";
 
 const datum = (iso) => new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit" });
 const stkText = (n) => (n === null || n === undefined ? "—" : alt.zahlText(n));
-const visum = (name) => String(name || "").split(/[\s.]+/).filter(Boolean).map((w) => w[0].toUpperCase()).join("");
+// Visum: das eingetippte Kürzel, bei älteren Einträgen die Anfangsbuchstaben des Kontos
+const visum = (r) => r.kuerzel || String(r.person || "").split(/[\s.]+/).filter(Boolean).map((w) => w[0].toUpperCase()).join("");
 const neueId = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : null);
 
 // modell: { art: "index" | "star", gruppen: [{ name, farbe, werkzeuge }],
@@ -60,7 +62,7 @@ export function WechselBlatt({ modell, maschine, auftrag, aktionen }) {
         machine_id: v.machine_id || maschine.id, job_id: v.job_id || null,
         hoco_nr: v.hoco_nr || (auftrag && auftrag.job_number) || null,
         tool_nr: w.tool_nr, bezeichnung: w.path || null, stueckzahl: r.stk,
-        notiz: v.notiz || null, gewechselt_am: v.gewechselt_am });
+        notiz: v.notiz || null, kuerzel: v.kuerzel || null, gewechselt_am: v.gewechselt_am });
       await alt.einfuegenOhneUnbekannte("tool_changes", [zeile]);
       if (id) alt.merkeSchritt("Werkzeugwechsel ändern", alt.rueckWeg("tool_changes", { id }));
       alt.meldung(w.tool_nr + " zum Wechsel vom " + datum(r.wann) + " dazu.");
@@ -72,16 +74,22 @@ export function WechselBlatt({ modell, maschine, auftrag, aktionen }) {
   // Stückzahl und Notiz eines Wechsels ändern
   const rundeBearbeiten = async (r) => {
     if (!darf || laeuft) return;
-    const w = await alt.dialogFelder({ titel: "Wechsel vom " + datum(r.wann),
-      felder: [{ name: "stk", label: "Stückzahl", typ: "number", pflicht: true, wert: r.stk === null ? "" : r.stk },
-        { name: "notiz", label: "Notiz", wert: (r.zeilen[0] && r.zeilen[0].notiz) || "" }],
-      bestaetigen: "Speichern" });
-    if (!w) return;
+    let w = { stk: r.stk === null ? "" : r.stk, kuerzel: r.kuerzel || "", notiz: (r.zeilen[0] && r.zeilen[0].notiz) || "" };
+    for (;;) {
+      w = await alt.dialogFelder({ titel: "Wechsel vom " + datum(r.wann),
+        felder: [{ name: "stk", label: "Stückzahl", typ: "number", pflicht: true, wert: w.stk },
+          kuerzelFeld(w.kuerzel), { name: "notiz", label: "Notiz", wert: w.notiz }],
+        bestaetigen: "Speichern" });
+      if (!w) return;
+      w.kuerzel = String(w.kuerzel || "").toUpperCase().replace(/\s+/g, "");
+      if (kuerzelGut(w.kuerzel)) break;
+      alt.meldung("Kürzel: bitte 2 bis 3 Buchstaben, etwa JPF.", "warn");
+    }
     const ids = r.zeilen.map((z) => z.id).filter(Boolean);
     await arbeit(async () => {
       const vorher = await alt.rueckSichern("tool_changes", { id: ids });
       const u = await alt.db.from("tool_changes").update({ stueckzahl: Math.max(0, Math.round(Number(w.stk) || 0)),
-        notiz: w.notiz || null }).in("id", ids);
+        notiz: w.notiz || null, kuerzel: w.kuerzel }).in("id", ids);
       if (u.error) throw u.error;
       alt.merkeSchritt("Werkzeugwechsel ändern", alt.rueckRein("tool_changes", vorher));
       alt.meldung("Wechsel geändert.", "gut");
@@ -96,7 +104,7 @@ export function WechselBlatt({ modell, maschine, auftrag, aktionen }) {
 
   const knopf = darf && (
     <div className="dialog__knoepfe wzb-knoepfe">
-      <span className="klein">Feld antippen: Werkzeug dazu oder weg. Datum antippen: Stückzahl ändern. Papierkorb: Wechsel löschen.</span>
+      <span className="klein">Feld antippen: Werkzeug dazu oder weg. Datum antippen: Stückzahl oder Kürzel ändern. Papierkorb: Wechsel löschen.</span>
       <button className="knopf knopf--haupt" data-wzbeintragen="" disabled={!neu.length || laeuft} onClick={eintragen}>
         {neu.length ? "Neuen Wechsel eintragen · " + neu.length : "Neuen Wechsel eintragen"}</button>
     </div>);
@@ -139,7 +147,8 @@ function IndexBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeite
           <tr><th>T-Nr</th><th className="wzb-links">Werkzeug</th>{aufBlatt.map((c, i) => (
             <th key={i} className={kl(c) + (c && !c.neu && darf ? " wzb-tipp" : "")} data-wzbrunde={c && !c.neu ? "" : undefined}
               onClick={c && !c.neu ? () => rundeBearbeiten(c) : undefined}>
-              {!c ? "Dat. / Stückz." : c.neu ? "Neu" : <>{datum(c.wann)}<br /><b>{stkText(c.stk)}</b></>}</th>))}</tr>
+              {!c ? "Dat. / Stückz." : c.neu ? "Neu" : <>{datum(c.wann)}<br /><b>{stkText(c.stk)}</b>
+                {c.kuerzel && <><br /><small data-wzkuerzel="">{c.kuerzel}</small></>}</>}</th>))}</tr>
           {darf && <tr className="wzb-wegzeile"><th colSpan="2"></th>{aufBlatt.map((c, i) => (
             <th key={i} className={kl(c)}>{c && !c.neu && <button type="button" className="wz-weg" data-wzbweg=""
               title="Wechsel löschen" aria-label={"Wechsel vom " + datum(c.wann) + " löschen"} onClick={() => rundeWeg(c)}><Eimer /></button>}</th>))}</tr>}
@@ -183,7 +192,7 @@ function StarBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeiten
                 <td key={w.key} className={"wzb-x-zelle" + (darf ? " wzb-tipp" : "")} onClick={() => umschalten(r, w)}>
                   {hat(r, w) ? <span className="wzb-x" data-wzbx="">X</span> : ""}</td>))}
               <td className="wzb-links klein">{(r.zeilen[0] && r.zeilen[0].notiz) || ""}</td>
-              <td className="wzb-vis">{visum(r.person)}</td>
+              <td className="wzb-vis" data-wzkuerzel="">{visum(r)}</td>
               {darf && <td className="wzb-weg"><button type="button" className="wz-weg" data-wzbweg="" title="Wechsel löschen"
                 aria-label={"Wechsel vom " + datum(r.wann) + " löschen"} onClick={() => rundeWeg(r)}><Eimer /></button></td>}
             </tr>))}
