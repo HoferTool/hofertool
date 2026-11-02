@@ -10922,3 +10922,7 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .sp-vp__fach--zu { opacity: .35; }
 .sp-vp__form { display: grid; gap: 0; pointer-events: none; }
 .sp-vp__schwebt { position: absolute; z-index: 5; display: grid; gap: 0; pointer-events: none; filter: drop-shadow(0 14px 18px rgba(0,0,0,.5)); }
+
+/* Einrichtblatt: Datum oben rechts auf der Seite GEO-OFFSET (1.335.0) */
+.eba-zseite-stand { position: absolute; top: 14px; right: 18px; font-size: 11pt; color: #333; background: #fff;
+  padding: 2px 6px; border: 1px solid #999; border-radius: 4px; pointer-events: none; white-space: nowrap; }

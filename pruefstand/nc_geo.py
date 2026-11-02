@@ -43,6 +43,10 @@ with sync_playwright() as p:
     pruefe("Überschrift GEO-OFFSET", t.strip().startswith("GEO-OFFSET"))
     pruefe("Text der NC-Datei Zeile für Zeile", "G10 L2 P1 X0 Z-12.5\nG10 L2 P2 X1.25 Z0 <test>" in t)
     pruefe("Nicht das andere Programm", "anderes" not in t)
+    stand = pg.locator("[data-eba-geo-stand]")
+    pruefe("Datum der NC-Datei oben rechts", stand.count() == 1 and "29.10.2026" in stand.inner_text() and "O4234.NC" in stand.inner_text())
+    bx = stand.bounding_box(); sx = pg.locator("[data-eba-zseite]").bounding_box()
+    pruefe("Steht oben rechts", bx["x"] + bx["width"] > sx["x"] + sx["width"] - 40 and bx["y"] < sx["y"] + 40)
     pg.screenshot(path="/tmp/claude-0/nc_geo_blatt.png")
     # Speichern übernimmt die Seite ins Blatt
     pg.click("[data-eba-bearbeiten]"); pg.wait_for_timeout(600)
@@ -60,6 +64,7 @@ with sync_playwright() as p:
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
     pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_selector("[data-eba-seite-nr='1']")
     pg.click("[data-eba-seite-nr='1']"); pg.wait_for_timeout(300)
+    pruefe("Ohne Datum kein Stempel", pg.locator("[data-eba-geo-stand]").count() == 0)
     pruefe("Von Hand bleibt", "von Hand" in pg.inner_text("[data-eba-zseite]") and pg.locator("[data-eba-seite-nr='2']").count() == 0)
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
 

@@ -635,8 +635,23 @@ function Bibliothek({ aktiv, waehlen }) {
 const A4 = [794, 1123];
 export function seitenMass(seite) { return seite && seite.quer ? [A4[1], A4[0]] : A4; }
 
+// Auf der Seite GEO-OFFSET steht oben rechts, von wann der Inhalt ist
+// (Wunsch Patrick 2. November 2026: „Änderungsdatum, dass man weiss, von
+// wann es war … am besten oben rechts“): von Hand geändert das Datum der
+// Änderung, sonst die Änderungszeit der NC-Datei
+function geoStand(seite) {
+  if (!seite || String(seite.name || "").replace(/[\s-]/g, "").toUpperCase() !== "GEOOFFSET") return null;
+  const wann = seite.geaendert || (seite.nc && seite.nc.geaendert);
+  const d = wann ? new Date(wann) : null;
+  if (!d || isNaN(d)) return null;
+  const z = (n) => String(n).padStart(2, "0");
+  return "Geändert " + z(d.getDate()) + "." + z(d.getMonth() + 1) + "." + d.getFullYear() + " " + z(d.getHours()) + ":" + z(d.getMinutes())
+    + (seite.geaendert ? "" : seite.nc && seite.nc.datei ? " · " + seite.nc.datei : "");
+}
+
 export function ZusatzSeite({ seite, bearbeiten, inhaltBearbeiten }) {
   const [w, h] = seitenMass(seite);
+  const stand = geoStand(seite);
   return (
     <div className={"eba-zseite" + (bearbeiten ? " eba-zseite--bearbeiten" : "")} data-eba-zseite=""
       style={{ width: w, height: h }} onClick={bearbeiten ? inhaltBearbeiten : undefined}
@@ -644,6 +659,7 @@ export function ZusatzSeite({ seite, bearbeiten, inhaltBearbeiten }) {
       <TextBlatt html={seite.html || ""} format={seite.quer ? "a4q" : "a4"} breite={w} hoehe={h} />
       {bearbeiten && !seite.html && <div className="eba-zseite-leer">Antippen und schreiben, Tabellen aus Excel
         hineinkopieren oder Bilder einfügen</div>}
+      {stand && <div className="eba-zseite-stand" data-eba-geo-stand="">{stand}</div>}
     </div>
   );
 }
@@ -926,7 +942,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     const html = await textBearbeiten({ html: x.html || "", format: x.quer ? "a4q" : "a4", seitenVerhaeltnis: h / w,
       titel: (x.name || "Seite") + " · " + hocoNr });
     // Von Hand geändert: kommt nicht mehr von der NC-Datei (GEO-OFFSET)
-    if (html !== null && html !== x.html) seiteAendern(i, { html, nc: undefined });
+    if (html !== null && html !== x.html) seiteAendern(i, { html, nc: undefined, geaendert: new Date().toISOString() });
   };
   // Freie Bilder: gehen gleich in die Datenbank, auch mitten im
   // Bearbeiten; ein neues Blatt ohne gespeicherte Zeile behält sie im
