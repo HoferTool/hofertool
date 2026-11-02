@@ -13,7 +13,7 @@ import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { blattSuchen, platzInGebrauch } from "../einrichtblatt/daten.js";
-import { platzGruppe, platzName, vorlageFuer } from "../einrichtblatt/vorlagen.js";
+import { istBlauerTyp, platzGruppe, platzName, TYP_BLAU, vorlageFuer } from "../einrichtblatt/vorlagen.js";
 import { indexAufraeumen, indexPdfAufbau, istIndex, protokollLaden, reihenBilden, revolverVon,
   SPALTEN_JE_BLATT } from "./IndexProtokoll.jsx";
 import { WechselBlatt } from "./WechselBlatt.jsx";
@@ -352,6 +352,8 @@ async function blattSpalten(maschine, auftrag, runden) {
     let i = jeTausend ? g : gruppen.indexOf(g);
     if (!jeTausend && i < 0) { gruppen.push(g); i = gruppen.length - 1; }
     [c.farbe, c.schrift] = GRUPPENFARBEN[i % GRUPPENFARBEN.length];
+    // SB-16 und SR-10 immer im Blau des Typs (seit 1.343.0)
+    if (istBlauerTyp(typ)) [c.farbe, c.schrift] = [TYP_BLAU, "#000"];
     // Dieselbe Nummer auf mehreren Revolvern: R1, R2 … davor
     // Andere T-Nr. aus dem Blatt (anderer Halter auf dem Platz) als Anschrift
     const ebp = plaetze["R" + c.nummer + "-" + c.tool_nr] || plaetze[c.tool_nr];
