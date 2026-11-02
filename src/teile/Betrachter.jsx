@@ -16,7 +16,6 @@ import { PdfAnsicht, pdfjs } from "./PdfAnsicht.jsx";
 import { inDerAppDrucken, pdfSeitenAlsBilder, perTeilenDrucken, istAppleFinger } from "./drucken.js";
 import { ExcelAnsicht, excelDrucken } from "./ExcelAnsicht.jsx";
 import { istExcel } from "./excelLesen.js";
-import { usePfad, pfadKopieren } from "../daten/zeichnungPfad.jsx";
 import { wiederOeffner } from "./wiederherstellen.js";
 import { istZeichnung, darfDrehen, drehungSpeichern, pdfDrehen } from "../daten/zeichnungDrehen.js";
 import { poolDruckLaden, poolDruckerName, poolA4Drucker, poolKannExcel, poolDrucken, pdfSeitenAlsJpg } from "./poolDruck.js";
@@ -60,8 +59,6 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
   // Aufrufer, die „PDF“ annehmen, bekommen für .html die Seite
   if (art === "pdf" && istHtml(adresse)) art = "html";
   const istPdf = art === "pdf", istXl = art === "excel", istSeite = art === "html";
-  // Zeichnung vom Laufwerk des Pool-Rechners: „Pfad“ statt „Neuer Tab“
-  const pfad = usePfad(adresse);
   const rahmen = useRef(null);
   const wurzel = useRef(null);
   const bild = useRef(null);
@@ -316,9 +313,7 @@ export function Betrachter({ adresse: anfang, titel, art, endung, zu, hinweis, k
             disabled={pdf.art !== "bereit"} title="Um 90° drehen, wird für alle gespeichert">
             {dreht === "speichert" ? "Dreht …" : "Drehen ↻"}</button>}
           <button className="knopf knopf--klein" data-speichern="" onClick={speichern}>Speichern</button>
-          {pfad
-            ? <button className="knopf knopf--klein" data-pfad="" title={pfad} onClick={() => pfadKopieren(pfad)}>Pfad</button>
-            : <a className="knopf knopf--klein" href={(istSeite && pdf.url) || adresse} target="_blank" rel="noopener">Neuer Tab</a>}
+          <a className="knopf knopf--klein" href={(istSeite && pdf.url) || adresse} target="_blank" rel="noopener">Neuer Tab</a>
           {knoepfe || null}
           <button className="knopf knopf--klein" data-zu="" onClick={zu}>Schliessen</button>
         </div>

@@ -26,7 +26,6 @@ import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { auftragSpeichern, auftragLoeschen } from "./auftragSpeichern.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
-import { PfadKopieren } from "../daten/zeichnungPfad.jsx";
 import { wiederOeffner } from "../teile/wiederherstellen.js";
 import { useWaschprog } from "../daten/waschprog.js";
 import { matInfo, MAT_INFO_ERKLAERUNG, materialImHaus } from "../daten/material.js";
@@ -902,7 +901,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
               }} />}</div>
           {/* Dokumente direkt unter der Zeichnung, nebeneinander */}
           <div className="auf-dokumente">
-            <div className="auf-dok"><span className="feldlabel">Zeichnung <PfadKopieren adresse={w.pdf} /></span>
+            <div className="auf-dok"><span className="feldlabel">Zeichnung</span>
               <div className="auf-dok__knoepfe">
                 <Anhang was="PDF" ordner="zeichnung" adresse={w.pdf} setzen={(x) => setze("pdf", x)}
                   abruf={auftrag && auftrag.job_number ? { art: "zeichnung", hoco: auftrag.job_number } : null}
