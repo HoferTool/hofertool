@@ -244,25 +244,71 @@ export function nummerIn(text) {
 }
 
 // Rechnungsdatum als JJJJ-MM-TT: zuerst ein Datum bei „Rechnung“ oder
-// „Datum“, nicht Bestell-, Liefer- oder Verfalldatum
+// „Datum“, nicht Bestell-, Liefer- oder Verfalldatum. Nimmt alle üblichen
+// Schreibweisen, nicht nur 28.10.2026 (Patrick 2. November 2026: „warum
+// Brack immer ohne Datum? dort ist eindeutig ein Datum“): 28.10.26,
+// 28/10/2026, 2026-10-28, 28. Oktober 2026, 28. Okt. 2026, Oct 28, 2026,
+// und was OCR daraus macht (Leerzeichen, Komma statt Punkt, O statt 0).
+const MONATE = [
+  ["jan"], ["feb"], ["mär", "mar", "maer", "mrz"], ["apr"], ["mai", "may"], ["jun"],
+  ["jul"], ["aug"], ["sep"], ["okt", "oct"], ["nov"], ["dez", "dec"],
+];
+const MONAT_RE = "(jan|feb|m(?:ä|ae|a)r|mrz|apr|mai|may|jun|jul|aug|sep|okt|oct|nov|dez|dec)[a-zäöü]*\\.?";
+function monatNr(w) {
+  w = w.toLowerCase();
+  const i = MONATE.findIndex((l) => l.some((k) => w.startsWith(k)));
+  return i < 0 ? 0 : i + 1;
+}
+function isoAus(j, mo, t) {
+  j = +j; mo = +mo; t = +t;
+  if (j < 100) j += 2000;
+  if (j < 2000 || j > 2099 || mo < 1 || mo > 12 || t < 1 || t > 31) return null;
+  return j + "-" + String(mo).padStart(2, "0") + "-" + String(t).padStart(2, "0");
+}
+// Alle Daten einer Zeile, in der Reihenfolge, in der sie dort stehen.
+// kurz = auch zweistellige Jahre (nur bei „Datum“ oder „Rechnung“, sonst
+// wären Werkstoffnummern oder Masse schnell ein Datum)
+export function datenInZeile(zeile, kurz) {
+  // Ohne Rückblick im Suchmuster (Safari 16 am iPad): davor steht dafür
+  // eine Gruppe „Anfang oder kein Zahlzeichen“
+  const z = String(zeile).replace(/(\d)[oO](?=\d|\b)/g, "$10").replace(/(\d)[oO](?=\d|\b)/g, "$10")
+    .replace(/(\b\d{1,2})\s*([.,/])\s*(?=\d)/g, "$1$2");
+  const aus = [];
+  const dazu = (pos, d) => { if (d) aus.push({ pos, d }); };
+  let m;
+  const zahl = /(^|[^\d.,/\-])(\d{1,2})[.,/\-](\d{1,2})[.,/\-](20\d{2}|\d{2})(?![\d.,/\-]?\d)/g;
+  while ((m = zahl.exec(z))) if (m[4].length === 4 || kurz) dazu(m.index, isoAus(m[4], m[3], m[2]));
+  const leer = /(^|[^\d.,])(\d{1,2})\.?\s(\d{1,2})\.?\s(20\d{2})(?!\d)/g;
+  while ((m = leer.exec(z))) dazu(m.index, isoAus(m[4], m[3], m[2]));
+  const iso = /(^|\D)(20\d{2})[\-/.](\d{1,2})[\-/.](\d{1,2})(?!\d)/g;
+  while ((m = iso.exec(z))) dazu(m.index, isoAus(m[2], m[3], m[4]));
+  const wort = new RegExp("(^|\\D)(\\d{1,2})\\.?\\s*" + MONAT_RE + "\\s*(20\\d{2})(?!\\d)", "gi");
+  while ((m = wort.exec(z))) dazu(m.index, isoAus(m[4], monatNr(m[3]), m[2]));
+  const engl = new RegExp("\\b" + MONAT_RE + "\\s*(\\d{1,2}),?\\s*(20\\d{2})(?!\\d)", "gi");
+  while ((m = engl.exec(z))) dazu(m.index, isoAus(m[3], monatNr(m[1]), m[2]));
+  return aus.sort((x, y) => x.pos - y.pos).map((x) => x.d);
+}
+
 export function datumIn(zeilen) {
-  const re = /\b(\d{1,2})[.\s]\s?(\d{1,2})[.\s]\s?(20\d{2})\b/;
-  const iso = (m) => {
-    const t = +m[1], mo = +m[2];
-    if (t < 1 || t > 31 || mo < 1 || mo > 12) return null;
-    return m[3] + "-" + String(mo).padStart(2, "0") + "-" + String(t).padStart(2, "0");
-  };
+  const nicht = /bestell|liefer|verfall|auftrag|f[äa]llig|zahlbar bis|letzte|geburt|valuta/i;
+  const marke = (z) => /rechnung|datum|date|\bden\b|\bvom\b|\bper\b/i.test(z);
+  // Steht das Datum unter der Beschriftung (Spalte „Rechnungsdatum“, Wert
+  // in der Zeile darunter), gehört die nächste Zeile dazu
   const stufen = [
-    (z) => /rechnung/i.test(z) && !/bestell|liefer|verfall|auftrag/i.test(z),
-    (z) => /datum|\bden\b|\bvom\b|, \d/i.test(z) && !/bestell|liefer|verfall|auftrag|letzte/i.test(z),
-    () => true,
+    (z, i) => /rechnung/i.test(z) && !nicht.test(z) ? [z, (/datum|date/i.test(z) ? zeilen[i + 1] : "") || ""] : null,
+    (z, i) => marke(z) && !nicht.test(z) ? [z, (/datum|date/i.test(z) ? zeilen[i + 1] : "") || ""] : null,
+    (z) => !nicht.test(z) ? [z] : null,
+    (z) => [z],
+    (z) => [z],
   ];
-  for (const passt of stufen) {
-    for (const z of zeilen) {
-      if (!passt(z)) continue;
-      const m = re.exec(z);
-      const d = m && iso(m);
-      if (d) return d;
+  for (let s = 0; s < stufen.length; s++) {
+    for (let i = 0; i < zeilen.length; i++) {
+      const teile = stufen[s](zeilen[i], i);
+      if (!teile) continue;
+      for (const t of teile) {
+        const d = datenInZeile(t, s < 2 || s === 4)[0];
+        if (d) return d;
+      }
     }
   }
   return null;
