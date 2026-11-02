@@ -79,7 +79,7 @@ with sync_playwright() as p:
     pruefe("Star-Plätze T100–T600, T1100, kein T3100 beim SR-32",
            all(pg.locator(f"[data-platz='T{n}']").count() == 1 for n in (100, 600, 700, 1000, 1100, 2400))
            and pg.locator("[data-platz='T3100']").count() == 1)   # T3100 steht im Excel, kommt hinten dazu
-    pruefe("Kopf mit Programm Nr., Artikel Bezeich, N1000", "Path 1" not in s and all(x in s for x in ("Programm Nr.:", "111, 333", "Artikel Bezeich", "N1000", "Deckel")))
+    pruefe("Kopf mit Programm Nr., Artikel Bezeich, ohne N1000", "Path 1" not in s and "N1000" not in s and all(x in s for x in ("Programm Nr.:", "111, 333", "Artikel Bezeich", "Deckel")))
     pruefe("Werkzeugtext aus dem Excel nur im Bearbeiten markiert", pg.locator("[data-platz='T200'] .eba-wz--frei").count() == 0)
     pruefe("Platz nicht im Aufbau: Feld ohne T-Nr. (1.303.0)",
            pg.locator("[data-platz='T900']").count() == 0 and pg.locator("[data-platz-aus='T900']").count() == 1
@@ -101,7 +101,7 @@ with sync_playwright() as p:
     pruefe("Werkzeugtext aus dem Excel markiert", pg.locator("[data-platz='T200'] .eba-wz--frei").count() == 1)
     pg.fill("[data-eba-feld='stamm:bezeichnung']", "Deckel neu")
     pruefe("Keine FA Nr. und keine Autom.-Nr. im Kopf", pg.locator("[data-eba-feld='kopf:fa_nr'], [data-eba-feld='blatt:maschine_nr']").count() == 0)
-    pg.fill("[data-eba-feld='kopf:n1000']", "N1000 ja")
+    pruefe("Kein Feld N1000 im Kopf", pg.locator("[data-eba-feld='kopf:n1000']").count() == 0)
     pg.fill("[data-eba-feld='typ:stueckzeit_s']", "41")
     pg.fill("[data-eba-feld='prg:nr']", "236")
     pg.select_option("[data-eba-feld='stamm:waschgebinde']", "Typ 2 fein")
@@ -249,7 +249,7 @@ with sync_playwright() as p:
     pruefe("T200 gespeichert", t2.get("hd") is True and t2.get("standzeit") == 2500 and t2.get("article_id") == "a1"
            and t2.get("werkzeug") == "MTEC-452410" and t2.get("hersteller") == "Vischer & Bolli AG")
     pruefe("T300 mit Spezialwerkzeug", b["plaetze"]["T300"].get("article_id") == "a9")
-    pruefe("Kopf am Blatt", "fa_nr" not in b["kopf"] and b["kopf"].get("n1000") == "N1000 ja" and b["programme"].get("nr") == "236")
+    pruefe("Kopf am Blatt", "fa_nr" not in b["kopf"] and b["programme"].get("nr") == "236")
     pruefe("Langes Material auf einer Zeile", pg.evaluate("""() => { const e = document.querySelector('[data-eba-eine-zeile]');
       return !!e && e.textContent.includes('Debrunner') && e.getBoundingClientRect().height < 30 && e.scrollWidth <= e.clientWidth && !!e.style.fontSize; }"""))
     hp = pg.evaluate("TEST.daten.hoco_parts.find(x => x.hoco_nr === '10000-0301')")

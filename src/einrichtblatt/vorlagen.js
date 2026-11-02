@@ -9,7 +9,9 @@
 //  - Star (SB-16C, SB-16D, SB-16E, SB-20, SR-10, SR-32): oben T100 bis
 //    T600, darunter links der Kopf, rechts T700–T1000, T1100–T1400,
 //    T2100–T2400 und, wo vorhanden, T3100–T3400. Kopf mit
-//    „Programm Nr.“ und „N1000“.
+//    „Programm Nr.“ (N1000 steht seit 1.336.0 nicht mehr im Blatt,
+//    Wunsch Patrick 2. November 2026: „N1000 aus EB rausnehmen“;
+//    ein eingelesener Wert bleibt in kopf.n1000).
 //  - Index: drei Revolver mit je T1 bis T10 in zwei Reihen zu fünf,
 //    Revolver 1 olivbraun, 2 grün, 3 blau; links der Kopf, ohne Programm-Nr.
 //    (Patrick: „Index hat keine Nr.“), dafür die Festanschlag-Länge.
@@ -77,7 +79,7 @@ function star(name, art, { mitT700 = true, mitT3100 = true, mitT3400 = false } =
   return {
     art: "star", titel: "Werkzeug- Protokoll-" + name, spalten: 6, kopfBreite: 2, kopfAb: 1, reihen,
     typFarbe: STAR_FARBE[art] || null,
-    felder: [F.prgNr, F.hoco, F.bez, F.zeichnung, F.index, F.material, F.n1000, F.zeit, F.wasch, F.laufzeit],
+    felder: [F.prgNr, F.hoco, F.bez, F.zeichnung, F.index, F.material, F.zeit, F.wasch, F.laufzeit],
     prgNr: true,
   };
 }
