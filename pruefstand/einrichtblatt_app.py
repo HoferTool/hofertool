@@ -37,7 +37,7 @@ with sync_playwright() as p:
       ['T300', 'T400', 'T500', 'T600', 'T700', 'T800', 'T1000', 'T1100', 'T1200', 'T1300', 'T1400',
         'T2100', 'T2200', 'T2300', 'T2400'].forEach((t, i) => D.type_slots.push({ id: 'slx' + i, path_id: 'pa1',
         bezeichnung: t, kind_id: 'k1', platz_nr: 10 + i, tool_nr: t, werkzeuge: 1, hinweis: null, sortierung: 10 + i }));
-      D.articles.find(a => a.id === 'a1').description = 'R0.40 CCMT';
+      D.articles.find(a => a.id === 'a1').description = 'R0.40 CCMT 09T304 FN M10/30 D30 Cermet Sonderausführung';
       D.designations = ['Bohrer', 'Wendeplatte', 'Stechplatte'].map((name, i) => ({ id: 'd' + i, name }));
       D.articles.push({ id: 'a9', article_number: 'SPZ-77', name: 'Sonderhalter', unit: 'Stück', description: null,
         supplier_id: 's2', is_active: true, spezial: true });
@@ -70,7 +70,7 @@ with sync_playwright() as p:
            and t4.get("hersteller") == "Muster AG" and t4.get("werkzeug") == "HYP-HP-3D Ø3.50")
     pruefe("Artikel aus Werkzeugtext erkannt", b["plaetze"]["T100"].get("article_id") == "a1")
     pruefe("Maschinen-Nr.", b["maschine_nr"] == "Nr.7")
-    pruefe("Material auf einer Zeile", pg.evaluate("""() => { const e = document.querySelector('[data-eba-eine-zeile]');
+    pruefe("Material auf einer Zeile", pg.evaluate("""() => { const e = [...document.querySelectorAll('[data-eba-eine-zeile]')].find(x => !x.closest('[data-platz]'));
       return !!e && e.getBoundingClientRect().height < 30 && e.scrollWidth <= e.parentElement.clientWidth; }"""))
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")
     pruefe("Stückzeit ergänzt", td.get("stueckzeit_s") == 33)
@@ -129,7 +129,9 @@ with sync_playwright() as p:
     # Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (1.209.0)
     t200 = "[data-platz='T200'] "
     zeilen = [pg.inner_text(t200 + k).strip() for k in (".eba-her", ".eba-wz", ".eba-wz-bez")]
-    pruefe("Blatt: Lieferant, Artikel-Nr., Beschreibung je eine Zeile", zeilen == ["Vischer & Bolli AG", "MTEC-452410", "R0.40 CCMT"])
+    pruefe("Blatt: Lieferant, Artikel-Nr., Beschreibung je eine Zeile", zeilen == ["Vischer & Bolli AG", "MTEC-452410", "R0.40 CCMT 09T304 FN M10/30 D30 Cermet Sonderausführung"])
+    # Lange Beschreibung nie abgeschnitten, Schrift wird kleiner (1.347.2)
+    pruefe("Lange Beschreibung ganz sichtbar", pg.evaluate("""(() => { const z = document.querySelector("[data-platz='T200'] .eba-wz-bez"); const s = z.querySelector("[data-eba-eine-zeile]"); return !!s && s.scrollWidth <= z.clientWidth && parseFloat(s.style.fontSize) < 10.5; })()"""))
     pruefe("Zeilen in dieser Reihenfolge", pg.evaluate("""[...document.querySelector("[data-platz='T200']").children].slice(-3).map(e => e.className).join(' ')""") == "eba-her eba-wz eba-wz-bez")
     pruefe("Keine Bilder auf dem Blatt", pg.locator("[data-platz] [data-bild]").count() == 0)
 
@@ -250,7 +252,7 @@ with sync_playwright() as p:
            and t2.get("werkzeug") == "MTEC-452410" and t2.get("hersteller") == "Vischer & Bolli AG")
     pruefe("T300 mit Spezialwerkzeug", b["plaetze"]["T300"].get("article_id") == "a9")
     pruefe("Kopf am Blatt", "fa_nr" not in b["kopf"] and b["programme"].get("nr") == "236")
-    pruefe("Langes Material auf einer Zeile", pg.evaluate("""() => { const e = document.querySelector('[data-eba-eine-zeile]');
+    pruefe("Langes Material auf einer Zeile", pg.evaluate("""() => { const e = [...document.querySelectorAll('[data-eba-eine-zeile]')].find(x => !x.closest('[data-platz]'));
       return !!e && e.textContent.includes('Debrunner') && e.getBoundingClientRect().height < 30 && e.scrollWidth <= e.clientWidth && !!e.style.fontSize; }"""))
     hp = pg.evaluate("TEST.daten.hoco_parts.find(x => x.hoco_nr === '10000-0301')")
     pruefe("Stammdaten", hp.get("bezeichnung") == "Deckel neu" and hp.get("waschgebinde") == "Typ 2 fein" and hp.get("material") == "1.4305 X8CrNiS18-9 rd Ø21h9 gezogen, Stange 3 m, Debrunner" and not hp.get("material_groesse"))

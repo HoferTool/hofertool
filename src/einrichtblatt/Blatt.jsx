@@ -110,16 +110,28 @@ function istLaufenLassen(w) {
 // Text, der immer auf einer Zeile bleibt: passt er nicht, wird die
 // Schrift kleiner statt umzubrechen (Material mit Mass, Wunsch Patrick
 // 26. Oktober 2026)
-function EineZeile({ text }) {
+function EineZeile({ text, min = 7 }) {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.style.fontSize = "";
-    const voll = parseFloat(getComputedStyle(el).fontSize) || 14;
-    const breit = el.parentElement ? el.parentElement.clientWidth - 8 : 0;
-    if (breit > 0 && el.scrollWidth > breit) el.style.fontSize = Math.max(7, Math.floor(voll * breit / el.scrollWidth * 10) / 10) + "px";
-  }, [text]);
+    const passen = () => {
+      el.style.fontSize = "";
+      const voll = parseFloat(getComputedStyle(el).fontSize) || 14;
+      const breit = el.parentElement ? el.parentElement.clientWidth - 8 : 0;
+      if (breit > 0 && el.scrollWidth > breit) el.style.fontSize = Math.max(min, Math.floor(voll * breit / el.scrollWidth * 10) / 10) + "px";
+    };
+    passen();
+    // Blatt erst verborgen und später gezeigt: dann neu einpassen
+    if (typeof ResizeObserver === "undefined" || !el.parentElement) return;
+    let breitVorher = el.parentElement.clientWidth;
+    const ro = new ResizeObserver(() => {
+      const b = el.parentElement ? el.parentElement.clientWidth : 0;
+      if (b !== breitVorher) { breitVorher = b; passen(); }
+    });
+    ro.observe(el.parentElement);
+    return () => ro.disconnect();
+  }, [text, min]);
   return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="">{text}</span>;
 }
 
@@ -302,13 +314,16 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
         <div className={"eba-bild" + (p.geo ? " eba-bild--geo" + (bild && !p.ohneBild ? "" : " eba-bild--nurgeo") : "")}>
           {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} farbe={p.geoFarbe} fett={!!p.geoFett} groesse={p.geoGroesse || null} /> : null}
           {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
-        <div className="eba-her">{p.hersteller || ""}{p.spezial && p.article_id &&
+        <div className="eba-her"><EineZeile text={p.hersteller || ""} min={5} />{p.spezial && p.article_id &&
           <span className="eba-stern" title="Spezialwerkzeug" data-eba-stern="">★</span>}</div>
         {/* Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (Wunsch
             Patrick, 26. Oktober 2026); ein nur selbst zugeordneter Artikel
             zeigt weiter nur den Text aus dem Excel */}
-        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}</div>
-        <div className="eba-wz-bez" data-wz-bez="">{p.werkzeug && p.article_id && !p.ungeprueft && p.bezeichnung ? p.bezeichnung : ""}</div>
+        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}><EineZeile text={p.werkzeug || ""} min={5} /></div>
+        <div className="eba-wz-bez" data-wz-bez="">{/* nie abschneiden, zu lang wird die Schrift
+          kleiner, damit Zusätze wie „M10/30 D30“ am Schluss sichtbar
+          bleiben (Wunsch Patrick, 2. November 2026) */}
+          <EineZeile text={p.werkzeug && p.article_id && !p.ungeprueft && p.bezeichnung ? p.bezeichnung : ""} min={5} /></div>
         {mitAnsehen && markiert === nr && <div className="eba-ansehen" data-eba-ansehen={nr} onClick={(e) => e.stopPropagation()}>
           {zeichnungen.map((z) => <button key={z.id} type="button" className="knopf knopf--klein knopf--haupt" data-eba-ansehen-pdf={z.id}
             onClick={() => betrachter(z.url, z.name + " · " + (p.werkzeug || ""), true)}>
