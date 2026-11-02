@@ -11024,3 +11024,15 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 /* Werkzeugwechsel-Liste: Einträge antippen zum Ändern (1.341.0) */
 .wz-tipp { cursor: pointer; }
 @media (hover: hover) { tr:hover > .wz-tipp { background: color-mix(in srgb, var(--marke) 8%, transparent); } }
+
+/* Wartung im Pad: „Als Nächstes“ oben (seit 1.342.0) */
+.wartung__naechstes { border: 2px solid #2f6fb3; border-radius: 14px; padding: 10px 14px; margin: 4px 0 10px;
+  background: rgba(47,111,179,.07); flex: none; }
+.wartung__naechstes h3 { margin: 0 0 6px; font-size: 1.1em; }
+.wartung__naechstes ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wartung__naechstes button { display: flex; gap: 14px; align-items: baseline; width: 100%; text-align: left;
+  font: inherit; color: inherit; background: var(--flaeche, #fff); border: 1px solid var(--rand, #d6dde5);
+  border-radius: 10px; padding: 8px 12px; cursor: pointer; font-size: 1.1em; }
+.wartung__naechst-wann { min-width: 9.5em; color: #2f6fb3; font-weight: 700; white-space: nowrap; }
+.wartung__naechst--faellig button { border: 2px solid #e08a2c; background: rgba(240,140,40,.12); }
+.wartung__naechst--faellig .wartung__naechst-wann { color: #c2620a; }

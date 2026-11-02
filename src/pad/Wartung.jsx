@@ -638,6 +638,29 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
   };
   const sortiert = [...(plaene || [])].sort((a, b) => rang(a) - rang(b));
 
+  // „Als Nächstes“ oben im Fenster des Pads (Wunsch Patrick 2. November
+  // 2026: „wenn man auf Wartung klickt im Pad Mode soll oben aufgelistet
+  // werden, was als Nächstes zu tun ist“): zuerst alles Fällige, dann
+  // die nächsten Termine, auch die Backup-Batterien, höchstens fünf.
+  const naechste = [];
+  if (m) {
+    const info = infos[m.id], typ = namen.typ[m.type_id] || "";
+    (plaene || []).forEach((p) => {
+      const seit = faelligSeit(p, erledigt, m.id, jetzt);
+      if (seit) naechste.push({ id: p.id, titel: p.titel, wann: seit, faellig: true });
+      else { const n = naechsterTermin(p, jetzt); if (n) naechste.push({ id: p.id, titel: p.titel, wann: n }); }
+    });
+    if (info && info.batterie_hinweis !== false && info.batterie_faellig && !ohneBatterien(typ)) {
+      naechste.push({ id: "batterie", titel: "Backup-Batterien wechseln", wann: alt.ausIso(info.batterie_faellig),
+        tag: true, faellig: batterieHeuteFaellig(info, typ) });
+    }
+    naechste.sort((a, b) => (b.faellig ? 1 : 0) - (a.faellig ? 1 : 0) || a.wann - b.wann);
+  }
+  const hinzeigen = (id) => {
+    const el = document.querySelector(id === "batterie" ? "#wartung [data-wartung-batterien]" : "#wartung [data-wartung='" + id + "']");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const titel = m ? [namen.typ[m.type_id], m.machine_number || m.name].filter(Boolean).join(" · ") : ueberschrift;
   const erklaerung = m
     ? "Alles, was an dieser Maschine gilt: je Typ, je Park oder nur für sie. Beim Ablegen wählen, wofür es gilt."
@@ -653,6 +676,18 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
         {darf && <button className="knopf" id="wartung-vorhanden" onClick={vorhandeneWaehlen}>Vorhandene wählen</button>}
         {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}
       </div>
+      {m && plaene !== null && <div className="wartung__naechstes" data-wartung-naechstes="">
+        <h3>Als Nächstes</h3>
+        {!naechste.length ? <p className="klein">Nichts geplant.</p>
+          : <ol>{naechste.slice(0, 5).map((x) => (
+              <li key={x.id} className={x.faellig ? "wartung__naechst--faellig" : ""}>
+                <button type="button" onClick={() => hinzeigen(x.id)}>
+                  <span className="wartung__naechst-wann">{x.faellig ? "Jetzt fällig"
+                    : x.tag ? datumText(x.wann) : zeitText(x.wann)}</span>
+                  <b>{x.titel}</b>
+                </button>
+              </li>))}</ol>}
+      </div>}
       {darf && <input ref={wahl} type="file" multiple hidden id="wartung-datei" accept="image/*,application/pdf,.pdf"
         onChange={(e) => { const d = [...e.target.files]; e.target.value = ""; if (d.length) hochladen(d); }} />}
       <p className="klein wartung__erklaerung">{erklaerung} Bild oder PDF ablegen (oder eine schon abgelegte mit „Vorhandene wählen“), dann „Terminieren“ mit

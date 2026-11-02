@@ -203,6 +203,9 @@ with sync_playwright() as p:
     pg.wait_for_selector("#pad .pad-stk-zahl"); pg.wait_for_timeout(800)
     pg.locator(".pad-karte2--wartung").click(); pg.wait_for_selector("#wartung"); pg.wait_for_timeout(800)
     t = pg.locator("#wartung").inner_text()
+    nx = pg.locator("#wartung [data-wartung-naechstes]")
+    pruefe("Als Nächstes oben", nx.count() == 1 and "Als Nächstes" in nx.inner_text())
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-naechstes.png"))
     pruefe("Pad zeigt Typ und Park, nicht die andere Maschine", "Filter wechseln" in t and "Halle putzen" in t and "Nur hier" not in t)
     pruefe("Schild Gilt für je Zeile", pg.locator("#wartung [data-wartung-ziel='park']").count() == 1
            and pg.locator("#wartung [data-wartung-ziel='typ']").count() == 1)
