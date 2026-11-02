@@ -10,8 +10,8 @@ def pruefe(name, ok):
     print(("ok   " if ok else "FALSCH ") + name)
     if not ok: fehler.append(name)
 
-def oeffnen(br, mitBlatt):
-    k = """daten.einrichtblatt_app = [];
+def oeffnen(br, mitBlatt, zusatz=""):
+    k = zusatz + """daten.einrichtblatt_app = [];
 if (%s) daten.jobs.forEach(j => daten.einrichtblatt_app.push({ id: 'eb' + j.id, hoco_nr: j.job_number, type_id: 't1',
   plaetze: { T200: { taetigkeit: 'Abstechen', werkzeug: 'Stecher 2 mm' }, T100: {} } }));""" % ("true" if mitBlatt else "false")
     f = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", k + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
@@ -82,7 +82,33 @@ with sync_playwright() as p:
     pg.screenshot(path="/tmp/claude-0/star-historie.png")
     vis = pg.locator(".wzb-star td[data-wzkuerzel]").evaluate_all("e => e.map(x => x.innerText.trim())")
     pruefe("beide Kürzel im Blatt " + str(vis), sorted(vis) == ["JPF", "SH"])
+    # Visum antippen ändert das Kürzel (Wunsch Patrick 2. November 2026)
+    pg.locator(".wzb-star td[data-wzbwer]").filter(has_text="SH").click(); pg.wait_for_timeout(400)
+    d = pg.locator(".dialog-huelle .dialog").last
+    pruefe("Visum öffnet Fenster mit Kürzel", d.locator("input").nth(1).input_value() == "SH")
+    d.locator("input").nth(1).fill("et"); d.locator("button:has-text('Speichern')").click(); pg.wait_for_timeout(1200)
+    vis = pg.locator(".wzb-star td[data-wzkuerzel]").evaluate_all("e => e.map(x => x.innerText.trim())")
+    pruefe("Kürzel über Visum geändert " + str(vis), sorted(vis) == ["ET", "JPF"])
     pruefe("keine Seitenfehler " + str(fe), not fe)
+    pg.context.close()
+
+    # Liste (Typ ohne Blatt-Historie): Wer antippen ändert den Eintrag
+    pg, fe = oeffnen(br, False, "daten.machine_types.forEach(t => { t.name = 'Fraese X'; });\n"
+      + "daten.tool_changes = [{ id: 'tc1', machine_id: daten.machines[0].id, tool_nr: 'T100', stueckzahl: 500, kuerzel: 'AB', gewechselt_am: '2026-11-01T08:00:00Z' }];\n")
+    pg.click("[data-wzhistorie]"); pg.wait_for_timeout(1500)
+    if pg.locator("td[data-wzwer]").count():
+        pg.locator("td[data-wzwer]").first.click(); pg.wait_for_timeout(400)
+        d = pg.locator(".dialog-huelle .dialog").last
+        d.locator("input").nth(1).fill("jpf"); d.locator("input").first.fill("700")
+        d.locator("button:has-text('Speichern')").click(); pg.wait_for_timeout(1200)
+        z = pg.evaluate("TEST.daten.tool_changes.map(z => z.kuerzel + '|' + z.stueckzahl)")
+        pruefe("Liste: Eintrag geändert " + str(z), "JPF|700" in z)
+        pruefe("Liste zeigt neues Kürzel", "JPF" in pg.locator("td[data-wzwer]").first.inner_text())
+        pg.screenshot(path="/tmp/claude-0/wz-liste.png")
+    else:
+        pg.screenshot(path="/tmp/claude-0/wz-liste.png")
+        pruefe("Liste mit Wer-Spalte da", False)
+    pruefe("keine Seitenfehler Liste " + str(fe), not fe)
     pg.context.close()
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

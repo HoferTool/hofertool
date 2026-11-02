@@ -11020,3 +11020,7 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
   background: color-mix(in srgb, var(--blau, #1f5fa8) 14%, transparent); color: var(--blau, #1f5fa8); }
 .wartung__ziel--park { background: color-mix(in srgb, #2e8b57 16%, transparent); color: #2e7a4f; }
 .wartung__ziel--maschine { background: color-mix(in srgb, #e08a2c 18%, transparent); color: #b5651a; }
+
+/* Werkzeugwechsel-Liste: Einträge antippen zum Ändern (1.341.0) */
+.wz-tipp { cursor: pointer; }
+@media (hover: hover) { tr:hover > .wz-tipp { background: color-mix(in srgb, var(--marke) 8%, transparent); } }

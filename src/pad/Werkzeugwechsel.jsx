@@ -150,6 +150,34 @@ export const kuerzelFeld = (wert) => ({ name: "kuerzel", label: "Kürzel (wer ha
   wert: wert || "", platzhalter: "z. B. JPF", maxLaenge: 3, gross: true, hinweis: "2 bis 3 Buchstaben" });
 export const kuerzelGut = (k) => /^[A-ZÄÖÜ]{2,3}$/.test(k);
 
+// Einen eingetragenen Wechsel ändern: Stückzahl, Kürzel und Notiz für
+// alle Zeilen der Runde (Wunsch Patrick 2. November 2026: „auch wer
+// anklicken und bearbeiten können“). Gibt true zurück, wenn gespeichert.
+export async function wechselAendern(r) {
+  let w = { stk: r.stk === null || r.stk === undefined ? "" : r.stk, kuerzel: r.kuerzel || "",
+    notiz: (r.zeilen[0] && r.zeilen[0].notiz) || "" };
+  for (;;) {
+    w = await alt.dialogFelder({ titel: "Wechsel vom " + alt.datumZeitKurz(r.wann),
+      felder: [{ name: "stk", label: "Stückzahl", typ: "number", pflicht: true, wert: w.stk },
+        kuerzelFeld(w.kuerzel), { name: "notiz", label: "Notiz", wert: w.notiz }],
+      bestaetigen: "Speichern" });
+    if (!w) return false;
+    w.kuerzel = String(w.kuerzel || "").toUpperCase().replace(/\s+/g, "");
+    if (kuerzelGut(w.kuerzel)) break;
+    alt.meldung("Kürzel: bitte 2 bis 3 Buchstaben, etwa JPF.", "warn");
+  }
+  const ids = r.zeilen.map((z) => z.id).filter(Boolean);
+  try {
+    const vorher = await alt.rueckSichern("tool_changes", { id: ids });
+    const u = await alt.db.from("tool_changes").update({ stueckzahl: Math.max(0, Math.round(Number(w.stk) || 0)),
+      notiz: w.notiz || null, kuerzel: w.kuerzel }).in("id", ids);
+    if (u.error) throw u.error;
+    alt.merkeSchritt("Werkzeugwechsel ändern", alt.rueckRein("tool_changes", vorher));
+  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
+  alt.meldung("Wechsel geändert.", "gut");
+  return true;
+}
+
 async function eintragen(maschine, auftrag, liste) {
   let w = { stk: auftrag ? (auftrag.stand || 0) : "", kuerzel: "", notiz: "" };
   // Bei falschem Kürzel kommt das Fenster mit allem Eingetippten wieder
@@ -461,6 +489,18 @@ function Historie({ maschine, auftrag, anfang, zu }) {
     setLaeuft(null);
   };
 
+  // Antippen einer Zeile ändert Stückzahl, Kürzel und Notiz
+  const aendern = async (r) => {
+    if (!darf || laeuft !== null) return;
+    setLaeuft(r.schluessel);
+    if (await wechselAendern(r)) {
+      try { setRunden(await historieLaden(maschine)); }
+      catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+    }
+    setLaeuft(null);
+  };
+  const tipp = darf ? " wz-tipp" : "";
+
   return (
     <div className={"dialog dialog--breit" + (modell ? " wz-hist" : "")}>
       <div className="blatt__kopf"><h2>Werkzeugwechsel · {maschine.name}</h2>
@@ -480,8 +520,9 @@ function Historie({ maschine, auftrag, anfang, zu }) {
               {darf && <th aria-label="Löschen"></th>}</tr></thead>
             <tbody>{runden.map((r) => (
               <tr key={r.schluessel}>
-                <td className="nowrap"><strong>{leerOder(r.stk) ? "—" : alt.zahlText(r.stk)}</strong></td>
-                <td>
+                <td className={"nowrap" + tipp} data-wzaendern="" onClick={() => aendern(r)}>
+                  <strong>{leerOder(r.stk) ? "—" : alt.zahlText(r.stk)}</strong></td>
+                <td className={tipp} onClick={() => aendern(r)}>
                   {r.zeilen.map((z, i) => (
                     <span key={z.id || i}>{i > 0 && " "}<span className="wz-marke">{z.tool_nr}
                       {z.bezeichnung && <small> {z.bezeichnung}</small>}
@@ -490,8 +531,8 @@ function Historie({ maschine, auftrag, anfang, zu }) {
                   {r.notiz && <div className="klein">{r.notiz}</div>}
                 </td>
                 <td className="klein">{r.auftrag || ""}</td>
-                <td className="klein nowrap">{alt.datumZeitKurz(r.wann)}</td>
-                <td className="klein">{r.kuerzel ? <strong data-wzkuerzel="">{r.kuerzel}</strong> : ""}
+                <td className={"klein nowrap" + tipp} onClick={() => aendern(r)}>{alt.datumZeitKurz(r.wann)}</td>
+                <td className={"klein" + tipp} data-wzwer="" onClick={() => aendern(r)}>{r.kuerzel ? <strong data-wzkuerzel="">{r.kuerzel}</strong> : ""}
                   {r.person && <div className="klein">{r.person}</div>}</td>
                 {darf && <td className="wz-weg-zelle">
                   <button type="button" className="wz-weg" data-wzweg="" title="Eintrag löschen"
@@ -506,6 +547,7 @@ function Historie({ maschine, auftrag, anfang, zu }) {
             ))}</tbody>
           </table>
         : <p className="hinweis">Noch kein Wechsel eingetragen.</p>}
+      {!blattZeigen && runden.length > 0 && darf && <p className="klein">Eintrag antippen: Stückzahl, Kürzel oder Notiz ändern.</p>}
       {!blattZeigen && <p className="klein">Die Zahl hinter einem Werkzeug sagt, wie viele Stück es seit dem letzten Wechsel
         gehalten hat. Die Standzeit im Einrichtblatt bleibt davon unberührt und wird dort von Hand gepflegt.</p>}
     </div>
