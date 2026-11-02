@@ -9,7 +9,7 @@ import { alt } from "../bruecke.jsx";
 import { Gruppe, Zeile } from "./teile.jsx";
 import { kannOrdner, ordnerErlaubt } from "../teile/sicherung.js";
 import { istModulFehler } from "../teile/modulFehler.js";
-import { krOrdnerHolen, krOrdnerWaehlen, krSortieren, krLaeuft, zuordnenListe, zuordnenDatei, zuordnen, lieferantenLaden }
+import { krOrdnerHolen, krOrdnerWaehlen, krSortieren, krLaeuft, zuordnenListe, zuordnenDatei, zuordnen, lieferantenLaden, zuordnenAlleLoeschen }
   from "../teile/kreditorenAblage.js";
 
 export default function Kreditoren() {
@@ -114,7 +114,18 @@ export default function Kreditoren() {
       {!arbeit && ergebnis && <div className={"si-auftrag " + (ergebnis.ok ? "si-auftrag--gut" : "si-auftrag--fehler")} id="kred-auftrag">
         {ergebnis.ok ? "✓ " : "Nicht ganz geklappt: "}{ergebnis.text}</div>}
       {offen.length > 0 && <div className="kred-zuordnen" id="kred-zuordnen">
-        <h3>Zum Zuordnen ({offen.length})</h3>
+        <div className="kred-kopf">
+          <h3>Zum Zuordnen ({offen.length})</h3>
+          <button className="knopf knopf--klein" id="kred-alle-weg" onClick={async () => {
+            const ok = await alt.nachfragen({ titel: "Alle zum Zuordnen löschen?",
+              text: "Die " + offen.length + " Rechnungen in „_Zuordnen“ werden gelöscht. Die gescannten Stapel bleiben in „_Originale“.",
+              bestaetigen: "Löschen", gefahr: true });
+            if (!ok) return;
+            try { const n = await zuordnenAlleLoeschen(griff); alt.meldung(alt.zahlText(n) + " gelöscht.", "gut"); }
+            catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+            await lesen(griff);
+          }}>Alle löschen</button>
+        </div>
         <datalist id="kred-namen">{lieferanten.map((n) => <option key={n} value={n} />)}</datalist>
         {offen.map((r) => <ZuordnenZeile key={r.name} r={r} griff={griff} fertig={() => lesen(griff)} />)}
       </div>}

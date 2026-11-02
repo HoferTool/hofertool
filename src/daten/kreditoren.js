@@ -90,20 +90,106 @@ export function qrName(zeilen) {
 // auf der Seite, die nicht wir selbst sind
 export function firmaVorschlag(zeilen) {
   for (const z of zeilen) {
-    if (EIGENE.test(z)) continue;
-    const m = /([A-ZÄÖÜ][\wÄÖÜäöü&.\-/ ]{1,40}?\s(?:AG|GmbH|SA|Sàrl))\b/.exec(z);
-    if (m) return m[1].replace(/^.*:\s*/, "").trim();
+    const f = firmaInZeile(z);
+    if (f) return f;
   }
   return null;
+}
+
+// Banken, Post und Zahlungsdienste stehen auf vielen Rechnungen, sind
+// aber nie der Lieferant
+const NIE_LIEFERANT = /\b(ubs|credit suisse|postfinance|post ch|die post|swiss post|raiffeisen|kantonalbank|valiant|migros bank|bank cler|zkb|bkb|bcv|twint|mastercard|visa)\b/i;
+const FORM = "(?:AG|GmbH(?:\\s*&\\s*Co\\.?\\s*KG)?|SA|S\\.A\\.|Sàrl|S[àa]rl|Sagl|SAGL|KG|Ltd\\.?|Inc\\.?|e\\.K\\.|GmbH\\.)";
+const FIRMA_RE = new RegExp("([A-ZÄÖÜ0-9][\\wÄÖÜäöüéèà&+.,\\-/' ]{1,45}?\\s" + FORM + ")(?![\\wäöü])");
+
+// Eine Firma mit Rechtsform in einer Zeile, nicht wir selbst und keine Bank
+export function firmaInZeile(z) {
+  const m = FIRMA_RE.exec(String(z || ""));
+  if (!m) return null;
+  let f = m[1].replace(/^.*:\s*/, "").replace(/^(von|an|bei|durch|firma)\s+/i, "").replace(/[,.]+$/, "").trim();
+  // Vorne angeklebte Zeilenreste („Rechnung Muster AG“) weg
+  f = f.replace(/^(rechnung|faktura|lieferschein|gutschrift|offerte|auftragsbest[aä]tigung)\s+/i, "");
+  if (EIGENE.test(f) || NIE_LIEFERANT.test(f) || nameKern(f).length < 3) return null;
+  return f;
+}
+
+// Seit 1.346.0 (Patrick 2. November 2026: „das muss auf Anhieb besser
+// funktionieren, alle sind OCR eingescannt“): ohne gelernte Liste und
+// ohne QR-Zahlteil steht der Lieferant fast immer im Briefkopf oben
+// und in der Fusszeile unten, meist mit Rechtsform, dazu seine Website
+// oder Mailadresse. Die Firma, die dort am häufigsten vorkommt (oder zur
+// Website passt), ist er. Nur eine Vermutung: sie trennt keinen Stapel,
+// gilt aber für die Rechnung, wenn sonst nichts da ist, und danach
+// lernt die App UID und IBAN dazu.
+export function domainsIn(text) {
+  const aus = [];
+  const re = /(?:www\.|@)([a-z0-9][a-z0-9\-]{1,40})\.(?:ch|com|de|li|at|net|eu|fr|it|swiss)\b/gi;
+  let m;
+  while ((m = re.exec(text))) {
+    const d = m[1].toLowerCase();
+    if (!/hofer|hoferco|gmail|bluewin|gmx|hotmail|outlook|yahoo|sunrise|swisscom|postfinance|ubs|raiffeisen|admin|estv/.test(d) && !aus.includes(d)) aus.push(d);
+  }
+  return aus;
+}
+
+export function kopfFirma(zeilen) {
+  const n = zeilen.length;
+  if (!n) return null;
+  const rand = (i) => i < 10 || i >= n - 10;
+  const kandidaten = new Map();
+  zeilen.forEach((z, i) => {
+    // Unsere Adresse und Lieferadressen zählen nicht
+    if (EIGENE.test(z) || /liefer(adresse|ung an)|rechnungsadresse|empf[aä]nger/i.test(z)) return;
+    const f = firmaInZeile(z);
+    if (!f) return;
+    const k = nameKern(f);
+    const alt = kandidaten.get(k) || { name: f, zahl: 0, erste: i };
+    // Ränder (Briefkopf, Fusszeile) zählen doppelt
+    alt.zahl += rand(i) ? 2 : 1;
+    if (f.length < alt.name.length) alt.name = f;
+    kandidaten.set(k, alt);
+  });
+  const domains = domainsIn(zeilen.join(" "));
+  const zurDomain = (k) => domains.some((d) => k.replace(/\s/g, "").includes(d.replace(/-/g, "")) || d.replace(/-/g, "").includes(k.split(" ")[0]));
+  const liste = [...kandidaten.entries()].map(([k, v]) => ({ ...v, wert: v.zahl + (zurDomain(k) ? 3 : 0) - v.erste / 100 }));
+  if (liste.length) return liste.sort((a, b) => b.wert - a.wert)[0].name;
+  // Ohne Rechtsform: der Name aus der Website („www.utilis.ch“ → „Utilis“)
+  if (domains.length) return domains[0].split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  return null;
+}
+
+// Gleicher Lieferant trotz OCR-Fehler und Schreibweise: „Muster Werkzeug AG“
+// = „Muster Werkzeug“ = „Muster Werkzeuq AG“
+export function gleicherName(a, b) {
+  const x = nameKern(a).replace(/\s/g, ""), y = nameKern(b).replace(/\s/g, "");
+  if (!x || !y) return false;
+  if (x === y) return true;
+  if (Math.min(x.length, y.length) < 5) return false;
+  const grenze = Math.max(x.length, y.length) >= 10 ? 2 : 1;
+  if (Math.abs(x.length - y.length) > grenze) return false;
+  let vor = Array.from({ length: y.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= x.length; i++) {
+    const jetzt = [i];
+    for (let j = 1; j <= y.length; j++) {
+      jetzt[j] = Math.min(vor[j] + 1, jetzt[j - 1] + 1, vor[j - 1] + (x[i - 1] === y[j - 1] ? 0 : 1));
+    }
+    vor = jetzt;
+  }
+  return vor[y.length] <= grenze;
 }
 
 // Steht eine Firma in derselben Zeile wie ihre UID-Nummer (Fusszeile
 // „Steeltec AG / … / UID-Nr. CHE-105.900.006“), ist sie es sicher
 export function uidFirma(zeilen) {
-  for (const z of zeilen) {
-    if (!uidsIn(z).length || EIGENE.test(z)) continue;
-    const f = firmaVorschlag([z]);
-    if (f) return f;
+  for (let i = 0; i < zeilen.length; i++) {
+    if (!uidsIn(zeilen[i]).length || EIGENE.test(zeilen[i])) continue;
+    // Zuerst dieselbe Zeile, dann die zwei darüber und darunter
+    for (const j of [i, i - 1, i + 1, i - 2, i + 2]) {
+      const z = zeilen[j];
+      if (!z || EIGENE.test(z)) continue;
+      const f = firmaInZeile(z);
+      if (f) return f;
+    }
   }
   return null;
 }
@@ -202,6 +288,13 @@ export function lieferantSuchen(text, liste) {
   return best;
 }
 
+// Ein bekannter Lieferant mit (fast) gleichem Namen, sonst der Name selbst
+export function bekannterName(name, liste) {
+  if (!name) return name;
+  const l = liste.find((x) => einfach(x.name) === einfach(name)) || liste.find((x) => gleicherName(x.name, name));
+  return l ? l.name : name;
+}
+
 // Merkmale einer Seite. zeilen = Textzeilen der Seite von oben nach unten
 export function seiteLesen(zeilen, liste) {
   const text = zeilen.join("\n");
@@ -211,6 +304,7 @@ export function seiteLesen(zeilen, liste) {
     zeilen,
     lieferant: l ? l.name : null,
     qr: qrName(zeilen) || uidFirma(zeilen) || bankName(zeilen),
+    vermutung: kopfFirma(zeilen),
     seite: seiteIn(flach) || seiteZeile(zeilen),
     nummer: nummerIn(flach),
     datum: datumIn(zeilen),
@@ -228,13 +322,16 @@ export function stapelLesen(seitenZeilen, liste) {
   let seiten = seitenZeilen.map((z) => seiteLesen(z, liste));
   const dazu = [];
   seiten.forEach((s) => {
-    if (s.lieferant || !s.qr || dazu.some((x) => einfach(x.name) === einfach(s.qr))) return;
+    if (s.qr) s.qr = bekannterName(s.qr, liste.concat(dazu));
+    if (s.lieferant || !s.qr || dazu.some((x) => gleicherName(x.name, s.qr))) return;
     dazu.push({ name: s.qr, uid: s.uids, iban: s.ibans, text: [], neu: true });
   });
   if (dazu.length) {
     const ganz = liste.concat(dazu);
     seiten = seitenZeilen.map((z) => seiteLesen(z, ganz));
+    seiten.forEach((s) => { if (s.qr) s.qr = bekannterName(s.qr, ganz); });
   }
+  seiten.forEach((s) => { if (s.vermutung) s.vermutung = bekannterName(s.vermutung, liste); });
   return seiten;
 }
 
@@ -280,7 +377,7 @@ export function stapelTeilen(seiten) {
       && (!akt.fertig || !lief || !akt.lieferant || einfach(lief) === einfach(akt.lieferant))) neu = false;
     if (neu) {
       akt = { seiten: [], letzte: 0, lieferant: null, gelernt: false, nummer: null, datum: null, fertig: false,
-        uids: new Set(), ibans: new Set(), vorschlag: null };
+        uids: new Set(), ibans: new Set(), vorschlag: null, vermutungen: [] };
       docs.push(akt);
     }
     if (vorne.length) akt.seiten.push(...vorne.splice(0));
@@ -292,10 +389,26 @@ export function stapelTeilen(seiten) {
     s.uids.forEach((u) => akt.uids.add(u));
     s.ibans.forEach((x) => akt.ibans.add(x));
     if (!akt.vorschlag) akt.vorschlag = firmaVorschlag(s.zeilen);
+    if (s.vermutung) akt.vermutungen.push(s.vermutung);
     if (s.seite && s.seite.von) akt.fertig = s.seite.n === s.seite.von;
     akt.letzte = s.seite ? s.seite.n : akt.letzte;
   });
-  return docs.map((d) => Object.assign(d, { uids: [...d.uids], ibans: [...d.ibans] }));
+  return docs.map((d) => {
+    // Ohne sicheren Lieferanten: die Firma, die auf den Seiten der Rechnung
+    // am häufigsten im Briefkopf steht
+    if (!d.lieferant && d.vermutungen.length) {
+      const zahl = new Map();
+      d.vermutungen.forEach((v) => {
+        const k = [...zahl.keys()].find((x) => gleicherName(x, v)) || v;
+        zahl.set(k, (zahl.get(k) || 0) + 1);
+      });
+      d.lieferant = [...zahl.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      d.vermutet = true;
+    }
+    if (!d.vorschlag && d.vermutungen.length) d.vorschlag = d.vermutungen[0];
+    delete d.vermutungen;
+    return Object.assign(d, { uids: [...d.uids], ibans: [...d.ibans] });
+  });
 }
 
 // Dateiname einer Rechnung: „2026-10-28 KR26-17717.pdf“

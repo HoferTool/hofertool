@@ -22,7 +22,7 @@
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { kannOrdner, idbTun, ordnerErlaubt } from "./sicherung.js";
-import { stapelLesen, stapelTeilen, dateiName, lernen, sauber, einfach, zeilenAusStuecken } from "../daten/kreditoren.js";
+import { stapelLesen, stapelTeilen, dateiName, lernen, sauber, einfach, zeilenAusStuecken, bekannterName } from "../daten/kreditoren.js";
 
 export const LISTE_DATEI = "_Lieferanten.json";
 export const ZUORDNEN = "_Zuordnen";
@@ -181,6 +181,9 @@ async function stapelAblegen(h, name, liste, zuInfo) {
     const neu = await PDFDocument.create();
     (await neu.copyPages(quelle, d.seiten)).forEach((p) => neu.addPage(p));
     const blob = new Blob([await neu.save({ useObjectStreams: false })], { type: "application/pdf" });
+    // Gleicher Lieferant trotz anders gelesenem Namen (OCR), auch aus einer
+    // Rechnung weiter vorne im selben Stapel: in denselben Ordner
+    if (d.lieferant) d.lieferant = bekannterName(d.lieferant, liste);
     const ordnerName = d.lieferant ? sauber(d.lieferant) : ZUORDNEN;
     const ordner = await h.getDirectoryHandle(ordnerName, { create: true });
     const seitenText = "S. " + (d.seiten[0] + 1) + (d.seiten.length > 1 ? "–" + (d.seiten[d.seiten.length - 1] + 1) : "");
@@ -270,6 +273,20 @@ export async function zuordnenListe(h) {
     aus.push(Object.assign({ name }, info[name] || {}));
   }
   return aus.sort((a, b) => (a.name > b.name ? 1 : -1));
+}
+
+// Alle Rechnungen in „_Zuordnen“ löschen (Patrick 2. November 2026:
+// „lösche alle im App zum Zuordnen“). Die Stapel liegen weiter in „_Originale“.
+export async function zuordnenAlleLoeschen(h) {
+  const zuOrdner = await h.getDirectoryHandle(ZUORDNEN, { create: true });
+  const namen = [];
+  for await (const [name, e] of zuOrdner.entries()) {
+    if (e.kind === "file" && /\.pdf$/i.test(name)) namen.push(name);
+  }
+  for (const n of namen) await zuOrdner.removeEntry(n);
+  await schreiben(zuOrdner, ZU_INFO, JSON.stringify({}));
+  try { await protokoll(h, [ZUORDNEN + ": " + namen.length + " Rechnungen gelöscht (von Hand)"]); } catch (f) { /* egal */ }
+  return namen.length;
 }
 
 export async function zuordnenDatei(h, name) {
