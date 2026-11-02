@@ -10949,11 +10949,12 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .wartung__erklaerung { margin: 4px 0 10px; }
 /* Karten so gross wie möglich (Wunsch Patrick 2. November 2026):
    im Pad-Fenster fast der ganze Bildschirm, Vorschau füllt die Karte */
-.wartung-huelle .dialog.wartung--fenster { width: min(1500px, calc(100vw - 24px)); max-width: none;
-  height: calc(100dvh - 24px); max-height: none; display: flex; flex-direction: column; }
+.wartung-huelle #wartung.wartung--fenster {
+  width: min(1500px, calc(100vw - 24px)) !important; max-width: none !important;
+  height: calc(100dvh - 24px); max-height: none !important; display: flex; flex-direction: column; }
 .wartung--fenster .wartung__liste { flex: 1 1 auto; min-height: 0; overflow: auto; max-height: none; }
 .wartung__liste { list-style: none; margin: 0; padding: 2px; display: grid; gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); }
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
 .wartung__zeile { display: flex; flex-direction: column; gap: 8px; min-width: 0;
   border: 1px solid var(--rand, #d6dde5); border-radius: 14px; padding: 10px; }
 .wartung__zeile--faellig { border: 2px solid #e08a2c; background: rgba(240,140,40,.1); }
