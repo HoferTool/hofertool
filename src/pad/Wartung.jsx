@@ -652,7 +652,7 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
     });
     if (info && info.batterie_hinweis !== false && info.batterie_faellig && !ohneBatterien(typ)) {
       naechste.push({ id: "batterie", titel: "Backup-Batterien wechseln", wann: alt.ausIso(info.batterie_faellig),
-        tag: true, faellig: batterieHeuteFaellig(info, typ) });
+        tag: true, faellig: batterieHeuteFaellig(info, typ), zusatz: batterienText(info) });
     }
     naechste.sort((a, b) => (b.faellig ? 1 : 0) - (a.faellig ? 1 : 0) || a.wann - b.wann);
   }
@@ -681,11 +681,17 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
         {!naechste.length ? <p className="klein">Nichts geplant.</p>
           : <ol>{naechste.slice(0, 5).map((x) => (
               <li key={x.id} className={x.faellig ? "wartung__naechst--faellig" : ""}>
-                <button type="button" onClick={() => hinzeigen(x.id)}>
+                <button type="button" onClick={() => x.id !== "batterie" && hinzeigen(x.id)}
+                  data-naechst={x.id}>
                   <span className="wartung__naechst-wann">{x.faellig ? "Jetzt fällig"
                     : x.tag ? datumText(x.wann) : zeitText(x.wann)}</span>
                   <b>{x.titel}</b>
+                  {x.zusatz && <span className="klein">{x.zusatz}</span>}
                 </button>
+                {x.id === "batterie" && x.faellig && !alt.istExtern()
+                  && <button type="button" className="knopf knopf--haupt wartung__naechst-knopf"
+                    data-batterie-erledigt={m.id}
+                    onClick={() => erledigen({ art: "batterie", titel: "Backup-Batterien" }, m)}>Gewechselt</button>}
               </li>))}</ol>}
       </div>}
       {darf && <input ref={wahl} type="file" multiple hidden id="wartung-datei" accept="image/*,application/pdf,.pdf"
@@ -695,7 +701,9 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
         Maschine jemand unten in der Mitte „Erledigt“ tippt.</p>
       {laedt && <p className="unterlagen__laedt">Lädt hoch: {laedt} …</p>}
       {fehler && <p className="fehlertext">{fehler}</p>}
-      <Batterien maschinen={maschinen} infos={infos} typen={namen.typ} darf={!alt.istExtern()} />
+      {/* Steht die Batterie schon bei „Als Nächstes“, keine eigene Karte (Wunsch Patrick 2. November 2026) */}
+      {!(m && naechste.some((x) => x.id === "batterie"))
+        && <Batterien maschinen={maschinen} infos={infos} typen={namen.typ} darf={!alt.istExtern()} />}
       {plaene === null
         ? <p className="klein">Lädt …</p>
         : !sortiert.length

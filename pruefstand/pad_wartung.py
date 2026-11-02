@@ -123,6 +123,19 @@ with sync_playwright() as p:
       window.dispatchEvent(new Event('hofer:wartung')); }""", mid)
     pg.wait_for_timeout(800)
     pruefe("Kachel fällig wegen Batterien", "Backup-Batterien" in pg.locator(".pad-karte2--wartung").inner_text())
+    # 1.345.0: Batterie steht bei „Als Nächstes“ mit „Gewechselt“, keine eigene Karte, ganzes Fenster rollt
+    pg.locator(".pad-karte2--wartung").click(); pg.wait_for_selector("#wartung [data-wartung-naechstes]"); pg.wait_for_timeout(600)
+    pruefe("Batterie bei Als Nächstes", pg.locator("#wartung [data-wartung-naechstes] [data-naechst='batterie']").count() == 1
+           and "Mono D" in pg.locator("#wartung [data-wartung-naechstes]").inner_text())
+    pruefe("keine eigene Batterie-Karte", pg.locator("#wartung [data-wartung-batterien]").count() == 0)
+    pruefe("Gewechselt bei Als Nächstes", pg.locator("#wartung [data-wartung-naechstes] [data-batterie-erledigt]").count() == 1)
+    rollt = pg.evaluate("""() => { const w = document.querySelector('#wartung'), l = w.querySelector('.wartung__liste');
+      return { fenster: getComputedStyle(w).overflowY, liste: l ? getComputedStyle(l).overflowY : 'visible',
+               hoch: w.scrollHeight > w.clientHeight }; }""")
+    print("Rollen:", rollt)
+    pruefe("ganzes Fenster rollt, Liste nicht für sich", rollt["fenster"] == "auto" and rollt["liste"] == "visible")
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-batterie-naechstes.png"))
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
     warten(pg, 61000)
     pruefe("Batterie-Schoner", pg.locator(".pad-schoner--batterie").count() == 1
            and "2 × Mono D" in pg.locator(".pad-schoner--batterie").inner_text())

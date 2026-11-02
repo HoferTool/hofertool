@@ -10949,10 +10949,11 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .wartung__erklaerung { margin: 4px 0 10px; }
 /* Karten so gross wie möglich (Wunsch Patrick 2. November 2026):
    im Pad-Fenster fast der ganze Bildschirm, Vorschau füllt die Karte */
+/* Das ganze Fenster rollt am Stück, kein fester Kopf (Wunsch Patrick 2. November 2026) */
 .wartung-huelle #wartung.wartung--fenster {
   width: min(1500px, calc(100vw - 24px)) !important; max-width: none !important;
-  height: calc(100dvh - 24px); max-height: none !important; display: flex; flex-direction: column; }
-.wartung--fenster .wartung__liste { flex: 1 1 auto; min-height: 0; overflow: auto; max-height: none; }
+  max-height: calc(100dvh - 24px) !important; overflow: auto; display: block; }
+.wartung--fenster .wartung__liste { overflow: visible; max-height: none; }
 .wartung__liste { list-style: none; margin: 0; padding: 2px; display: grid; gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
 .wartung__zeile { display: flex; flex-direction: column; gap: 8px; min-width: 0;
@@ -11030,9 +11031,15 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
   background: rgba(47,111,179,.07); flex: none; }
 .wartung__naechstes h3 { margin: 0 0 6px; font-size: 1.1em; }
 .wartung__naechstes ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.wartung__naechstes button { display: flex; gap: 14px; align-items: baseline; width: 100%; text-align: left;
+.wartung__naechstes button[data-naechst] { display: flex; gap: 14px; align-items: baseline; width: 100%; text-align: left;
   font: inherit; color: inherit; background: var(--flaeche, #fff); border: 1px solid var(--rand, #d6dde5);
   border-radius: 10px; padding: 8px 12px; cursor: pointer; font-size: 1.1em; }
 .wartung__naechst-wann { min-width: 9.5em; color: #2f6fb3; font-weight: 700; white-space: nowrap; }
-.wartung__naechst--faellig button { border: 2px solid #e08a2c; background: rgba(240,140,40,.12); }
+.wartung__naechst--faellig button[data-naechst] { border: 2px solid #e08a2c; background: rgba(240,140,40,.12); }
 .wartung__naechst--faellig .wartung__naechst-wann { color: #c2620a; }
+
+/* Batterie direkt bei „Als Nächstes“ quittieren */
+.wartung__naechstes li { display: flex; gap: 8px; align-items: stretch; }
+.wartung__naechstes li > button[data-naechst] { flex: 1 1 auto; min-width: 0; flex-wrap: wrap; }
+.wartung__naechstes button[data-naechst] .klein { white-space: nowrap; opacity: .8; }
+.wartung__naechst-knopf { flex: none; font-size: 1.1em; padding: 8px 22px; }
