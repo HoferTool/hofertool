@@ -513,15 +513,17 @@ export async function blattVonAnderem(quelle, hocoNr, typ) {
     ? ["Blatt vom Typ " + name(q.typId) + ": Plätze passen nicht immer zu " + (typ.name || "diesem Typ") + ", bitte prüfen."] : [];
   if (q.art === "app") {
     const da = q.blatt;
-    return { quelle: "app", hinweise: fremd, blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: kopie(da.programme) || {},
-      geometrie: da.geometrie || null, maschine_nr: da.maschine_nr || null, bemerkung: da.bemerkung || null,
+    // Programm-Nr. (und die Geometrie, die an ihr hängt) kommen nicht mit,
+    // die trägt man selbst ein (Wunsch Patrick 2. November 2026)
+    return { quelle: "app", hinweise: fremd, blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: {},
+      geometrie: null, maschine_nr: da.maschine_nr || null, bemerkung: da.bemerkung || null,
       plaetze: kopie(da.plaetze) || {}, kopf: kopie(da.kopf) || {}, seiten: kopie(da.seiten) || [] } };
   }
   const quellTyp = (typen || []).find((t) => t.id === q.typId) || typ;
   const v = await excelVorlesen(nr, quellTyp, q.url);
   const b = v.blatt;
   return { quelle: "excel", hinweise: fremd.concat(v.hinweise.filter((h) => !/^Im Blatt steht HOCO/.test(h))),
-    blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: b.programme || {}, geometrie: b.geometrie || null,
+    blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: {}, geometrie: null,
       maschine_nr: b.maschine_nr || null, bemerkung: b.bemerkung || null, plaetze: b.plaetze || {}, kopf: b.kopf || {} } };
 }
 

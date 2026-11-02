@@ -11051,3 +11051,6 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 /* Kreditoren: nur vermutet zugeordnet (seit 1.347.0) */
 .kred-vermutet { margin-left: 6px; padding: 1px 6px; border-radius: 8px; background: #fde68a; color: #713f12; font-size: 0.85em; }
 #kred-zuletzt summary { cursor: pointer; margin: 10px 0 4px; }
+
+/* Programm-Nr. nach „Von anderem Blatt übernehmen“: selbst eintragen (1.348.0) */
+.eba-feld--rot .eba-ein { box-shadow: 0 0 0 2px #d32f2f; border-color: #d32f2f; }

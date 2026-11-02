@@ -235,7 +235,7 @@ function KopfEingabe({ f, wert, aendern, d }) {
 // ändert ein Kopffeld
 // pruefen: eingelesene Werkzeuge ohne hinterlegten oder bestätigten
 // Artikel rot umranden (nur im Fenster, nicht im Pad und nicht im Druck)
-export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern, pdfs, markiert, markieren }) {
+export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern, pdfs, markiert, markieren, prgRot }) {
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
@@ -339,8 +339,12 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
     const w = feldWert(f, d);
     const inhalt = bearbeiten ? <KopfEingabe f={f} wert={w} aendern={aendern} d={d} />
       : f.feld === "material" ? <EineZeile text={feldText(f, w, d)} /> : feldText(f, w, d);
-    if (f.farbe) return <div key={f.art + f.feld} className="eba-prg"><span style={{ background: f.farbe }}>{f.label}</span><b>{inhalt}</b></div>;
-    return <div key={f.art + f.feld} className="eba-kz" data-eba-zeile={f.feld}><span>{f.label}</span><b>{inhalt}</b></div>;
+    // Von einem anderen Blatt übernommen: die Programm-Nr. kommt nicht mit,
+    // das leere Feld ist rot, bis man sie selbst einträgt (Wunsch Patrick
+    // 2. November 2026: „soll prg nr nicht übernehmen … rot umrahmen“)
+    const rot = prgRot && bearbeiten && f.art === "prg" && !String(w || "").trim() ? " eba-feld--rot" : "";
+    if (f.farbe) return <div key={f.art + f.feld} className={"eba-prg" + rot} data-eba-prg-rot={rot ? "" : undefined}><span style={{ background: f.farbe }}>{f.label}</span><b>{inhalt}</b></div>;
+    return <div key={f.art + f.feld} className={"eba-kz" + rot} data-eba-zeile={f.feld} data-eba-prg-rot={rot ? "" : undefined}><span>{f.label}</span><b>{inhalt}</b></div>;
   };
   return (
     <div className="eba-seite" data-eba-seite="" data-eba-vorlage={vorlage.art}>
@@ -728,6 +732,9 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const [artikelBilder, setArtikelBilder] = useState(start.artikelBilder || {});
   // Was beim Bearbeiten aus dem Excel vorgelesen wurde: { liest } oder { hinweise }
   const [vorgelesen, setVorgelesen] = useState(null);
+  // Nach „Von anderem Blatt übernehmen“: Programm-Nr. muss man selbst eintragen
+  const [prgPflicht, setPrgPflicht] = useState(false);
+  const prgFehlt = prgPflicht && !Object.values(entwurf.programme || {}).some((v) => String(v || "").trim());
   const seite = useRef(null);
   const { typ, paths, teil, typDaten } = daten;
   const excel = typDaten.blatt_url || null;
@@ -795,6 +802,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     setTeilE(Object.assign({}, d.teil)); setTypE(Object.assign({}, d.typDaten));
   };
   const speichern = async () => {
+    if (prgFehlt) { alt.meldung("Bitte zuerst die Programm-Nr. eintragen (rot umrandet).", "warn"); return; }
     setLaeuft(true);
     try {
       await blattSpeichern(entwurf, "Einrichtblatt " + hocoNr + " " + (typ.name || ""));
@@ -805,7 +813,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       }
       const d = await neuLaden();
       anfangen(d);
-      setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null);
+      setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null); setPrgPflicht(false);
       alt.meldung("Einrichtblatt gespeichert.", "gut");
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
     finally { setLaeuft(false); }
@@ -826,12 +834,13 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       setEntwurf((b) => entwurfVon(Object.assign({}, b, v.blatt, { hoco_nr: hocoNr, type_id: typId })));
       setPlatz(null); setSeiteNr(0);
       setVorgelesen({ uebernommen: w.nr.trim(), hinweise: v.hinweise || [] });
+      setPrgPflicht(true);
     } catch (f) { alt.meldung(alt.fehlertext(f), "warn"); }
     finally { setLaeuft(false); }
   };
   const abbrechen = () => {
     if (!daten.blatt) { zu(); return; }
-    anfangen(daten); setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null);
+    anfangen(daten); setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null); setPrgPflicht(false);
   };
   // Ein Kopffeld ändern, dort, wo es hingehört
   const aendern = (f, w) => {
@@ -1075,7 +1084,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
               bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} pruefen={darf}
               platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} bestellen={darf ? bestellen : null}
               pdfs={imPad ? pdfs : null} markiert={markiert} markieren={imPad ? setMarkiert : null}
-              bilderAendern={darf ? bilderAendern : null} /></div>}
+              bilderAendern={darf ? bilderAendern : null} prgRot={prgPflicht} /></div>}
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
           artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))}
