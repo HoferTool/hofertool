@@ -8328,6 +8328,13 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
 
   // Ab vielen Werkzeugen quer, damit die Spalten zum Ankreuzen breit genug bleiben
   const quer = spalten.length > 18;
+  // Alles muss auf die Breite der A4-Seite passen (Wunsch Patrick
+  // 2. November 2026, SW mit drei Paths): Datum, Stück und Visum fest,
+  // der Bemerkung bleiben mindestens 30 mm, die Werkzeugspalten teilen
+  // sich den Rest, höchstens 7 mm breit
+  const seiteBreit = quer ? 281 : 194;
+  const wzBreit = Math.max(3, Math.min(7, Math.floor((seiteBreit - 19 - 17 - 15 - 30) / Math.max(1, spalten.length) * 10) / 10));
+  const wzSchrift = wzBreit >= 6 ? 9 : wzBreit >= 4.5 ? 7.5 : 6.5;
   const zeilenJeSeite = quer ? 24 : 36;
   const leer = Math.max(0, zeilenJeSeite - (eigene.length % zeilenJeSeite || (eigene.length ? zeilenJeSeite : 0)));
   const zelle = (inhalt, klasse) => '<td' + (klasse ? ' class="' + klasse + '"' : "") + '>' + inhalt + '</td>';
@@ -8356,7 +8363,7 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
     + 'table { width: 100%; border-collapse: collapse; table-layout: fixed }'
     + 'th, td { border: .6pt solid #000; padding: 0 1mm; height: 6.4mm; font-size: 10pt; overflow: hidden; white-space: nowrap }'
     + 'thead th { border-bottom: 1.6pt solid #000; height: auto; vertical-align: bottom; text-align: left; font-size: 11pt; padding: 1mm }'
-    + 'thead th.wz { padding: 1mm 0; text-align: center; vertical-align: bottom; font-size: 9pt }'
+    + 'thead th.wz { padding: 1mm 0; text-align: center; vertical-align: bottom; font-size: ' + wzSchrift + 'pt }'
     + 'thead th.wz span { writing-mode: vertical-rl; transform: rotate(180deg); display: inline-block; white-space: nowrap; line-height: 1 }'
     + 'tbody tr:last-child td { border-bottom: 1.6pt solid #000 }'
     + 'td.wz { text-align: center; font-weight: 700; padding: 0 }'
@@ -8365,7 +8372,8 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
     + 'td.vis { text-align: center }'
     + 'tr { break-inside: avoid }'
     // Die Werkzeugspalten schmal wie im Excel, die Bemerkung nimmt den Rest
-    + '.dat { width: 19mm } .stk { width: 17mm } .wz { width: ' + (spalten.length > 30 ? 5.5 : 7) + 'mm } .vis { width: 15mm }'
+    + '.dat { width: 19mm } .stk { width: 17mm } .wz { width: ' + wzBreit + 'mm } .vis { width: 15mm }'
+    + 'td.wz { font-size: ' + (wzBreit >= 5 ? 10 : 8) + 'pt }'
     + '.fuss { margin-top: 2mm; display: flex; justify-content: space-between; color: #555; font-size: 7.5pt }'
     + '.leiste { position: fixed; top: 10px; right: 12px; display: flex; gap: 6px }'
     + '.leiste button { font: inherit; font-size: 10pt; padding: 8px 16px; border: 1px solid #2f6db5;'
@@ -8392,10 +8400,13 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
 
 async function historieAblegen(maschine, auftrag, runden, spaltenHolen) {
   // Das Fenster sofort öffnen, solange der Klick noch gilt; die Spalten
-  // (Aufbau des Typs, Einrichtblatt) kommen erst danach
+  // (Aufbau des Typs, Einrichtblatt) kommen erst danach. Darum darf
+  // runden auch eine Funktion sein, die frisch lädt: Safari am iPad
+  // sperrt das Fenster, wenn vor dem Öffnen schon gewartet wurde.
   const fenster = window.open("", "_blank");
   if (!fenster) { meldung("Das Fenster wurde blockiert.", "warn"); return; }
   fenster.document.write('<!doctype html><meta charset="utf-8"><p style="font-family:Arial;padding:20px">Blatt wird vorbereitet …</p>');
+  if (typeof runden === "function") runden = await runden();
   let aufbau = null;
   try { aufbau = spaltenHolen ? await spaltenHolen() : null; }
   catch (f) { aufbau = null; }

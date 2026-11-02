@@ -449,8 +449,10 @@ async function modellDerHistorie(maschine, auftrag, runden) {
         passt: (z) => z.tool_nr === p.tool_nr && (!z.bezeichnung || revolverVon(z.bezeichnung) === r.nr) })) }));
     return { art: "index", gruppen, runden: eigene, spaltenJeBlatt: SPALTEN_JE_BLATT, laden: () => protokollLaden(hoco, typ.id) };
   }
-  // SW läuft wie die SB-Maschinen (Wunsch Patrick 30. Oktober 2026)
-  if (!typ || (vorlageFuer(typ).art !== "star" && !istSw(typ))) return null;
+  // SW zeigt die Historie wieder als Liste wie am Anfang, das PDF bleibt
+  // das Blatt „Plattenwechsel“ (Wunsch Patrick 2. November 2026; vom
+  // 30. Oktober bis 1.341.0 wie die SB-Maschinen als Blatt)
+  if (!typ || istSw(typ) || vorlageFuer(typ).art !== "star") return null;
   // Wie im PDF nur die Wechsel dieser HOCO Nr., älteste zuerst
   const nurDiese = (rs) => rs.filter((r) => r.zeilen.some((z) => (z.hoco_nr || z.auftrag_nr) === hoco))
     .sort((x, y) => String(x.wann || "").localeCompare(String(y.wann || "")));
@@ -505,11 +507,16 @@ function Historie({ maschine, auftrag, anfang, zu }) {
     <div className={"dialog dialog--breit" + (modell ? " wz-hist" : "")}>
       <div className="blatt__kopf"><h2>Werkzeugwechsel · {maschine.name}</h2>
         {runden.length > 0 && <button className="knopf knopf--klein" data-wzpdf=""
-          onClick={async () => {
-            // Im Blatt Geändertes soll auch im PDF stehen
+          onClick={() => {
+            // Im Blatt Geändertes soll auch im PDF stehen. Frisch geladen
+            // wird erst nach dem Öffnen des Fensters, sonst sperrt Safari
+            // am iPad es („Das Fenster wurde blockiert“)
             let aktuell = runden;
-            try { aktuell = await historieLaden(maschine); setRunden(aktuell); } catch (f) { /* dann wie vorher */ }
-            alt.historieAblegen(maschine, auftrag, aktuell, async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, aktuell));
+            const frisch = async () => {
+              try { aktuell = await historieLaden(maschine); setRunden(aktuell); } catch (f) { /* dann wie vorher */ }
+              return aktuell;
+            };
+            alt.historieAblegen(maschine, auftrag, frisch, async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, aktuell));
           }}>Als PDF ablegen</button>}
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
       {blattZeigen
