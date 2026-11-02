@@ -183,7 +183,7 @@ export function Tafel({ mass = TAFELN.haupt, aufbau, bearbeiten, gewaehlt, waehl
       onDragOver={ablegen ? (e) => e.preventDefault() : undefined}
       onDrop={ablegen ? (e) => e.preventDefault() : undefined}>
       {k > 0 &&
-      <div ref={blatt} className={"ib-blatt" + (bearbeiten ? " ib-blatt--bearbeiten" : "") + (ziel ? " ib-blatt--ziel" : "")}
+      <div ref={blatt} className={"ib-blatt" + (mass.ruhig || mass.hell ? " hell-bleibt" : "") + (bearbeiten ? " ib-blatt--bearbeiten" : "") + (ziel ? " ib-blatt--ziel" : "")}
         data-ibtafel={mass.id}
         style={{ width: mass.breite, height: mass.hoehe, background: mass.ruhig || mass.hell ? farben.grund : undefined, transform: "translate(-50%, -50%) scale(" + k + ")" }}
         onPointerDown={bearbeiten && waehlen ? () => waehlen(null) : undefined} {...dateiZiehen}>

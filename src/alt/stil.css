@@ -1260,7 +1260,7 @@ body.kopiermodus .pw-balken { cursor: copy; outline: 1px dashed var(--signalgelb
 .kopf__dunkel { display: none; }
 
 /* ---------- Dunkler Modus: ausnahmslos helle Schrift ---------- */
-body.dunkel, body.dunkel * { color: var(--tinte); }
+body.dunkel, body.dunkel *:not(:where(.hell-bleibt, .hell-bleibt *)) { color: var(--tinte); }
 
 /* Nur diese Flächen sind hell und brauchen dunkle Schrift */
 body.dunkel .knopf--haupt, body.dunkel .knopf--haupt *,
@@ -1314,7 +1314,7 @@ body.dunkel {
 }
 
 /* Jede Schrift ist weiss. Keine Ausnahmen. */
-body.dunkel, body.dunkel * { color: #ffffff !important; }
+body.dunkel, body.dunkel *:not(:where(.hell-bleibt, .hell-bleibt *)) { color: #ffffff !important; }
 body.dunkel .klein, body.dunkel .hinweis, body.dunkel .feldhinweis,
 body.dunkel .versionsecke { color: var(--gedaempft) !important; }
 
@@ -6783,11 +6783,6 @@ body.pad-offen .dialog.dialog--wetter, .dialog--wetter { max-width: min(1000px, 
   .wf-tag { grid-template-columns: 5.4rem 1.8rem 2rem minmax(40px, 1fr) 2rem; padding: 8px; }
   .wf-tag__regen, .wf-tag__wind, .wf-tag__sonne { white-space: normal; }
 }
-/* Kopier-Zeichen für den Pfad der Zeichnung (1.1.0) */
-.pfad-kopieren { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
-  width: 20px; height: 20px; margin-left: 4px; padding: 0; border: 0; border-radius: 4px;
-  background: transparent; color: var(--gedaempft); cursor: pointer; }
-.pfad-kopieren:hover, .pfad-kopieren:focus-visible { color: var(--marke); background: rgba(127, 127, 127, .15); }
 
 /* Balken unter der Maus hervorheben (Wunsch Patrick, 9. Oktober 2026):
    weisser Rand mit dunklem Saum, damit es auf jeder Werkstofffarbe und
@@ -10922,3 +10917,185 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .sp-vp__fach--zu { opacity: .35; }
 .sp-vp__form { display: grid; gap: 0; pointer-events: none; }
 .sp-vp__schwebt { position: absolute; z-index: 5; display: grid; gap: 0; pointer-events: none; filter: drop-shadow(0 14px 18px rgba(0,0,0,.5)); }
+
+/* Einrichtblatt: Datum oben rechts auf der Seite GEO-OFFSET (1.335.0) */
+.eba-zseite-stand { position: absolute; top: 14px; right: 18px; font-size: 11pt; color: #333; background: #fff;
+  padding: 2px 6px; border: 1px solid #999; border-radius: 4px; pointer-events: none; white-space: nowrap; }
+
+/* ---------- Pad Mode: Wartung statt Internet (seit 1.337.0) ----------
+   Gleicher Platz wie vorher die Kachel Internet; fällig wird sie orange
+   und pulsiert sanft. Im Bildschirmschoner unten in der Mitte „Erledigt“
+   über dem Deckel (Wunsch Patrick 2. November 2026). */
+.pad-karte2--wartung { cursor: pointer; color: #fff; text-align: left; font: inherit;
+  background: linear-gradient(140deg, #3f5566, #1d2a35) !important;
+  border-color: rgba(170,200,225,.22) !important; justify-content: center; min-width: 0; }
+.pad-karte2--wartung .pad-name { color: #c9dbe9; }
+.pad-karte2--wartung:active { filter: brightness(1.15); }
+.pad-karte2--wartung-faellig { background: linear-gradient(140deg, #d9771a, #8a3d05) !important;
+  border-color: rgba(255,200,140,.5) !important; animation: pad-wartung-puls 2.4s ease-in-out infinite; }
+.pad-karte2--wartung-faellig .pad-name { color: #ffe3c4; }
+@keyframes pad-wartung-puls { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,150,40,0); }
+  50% { box-shadow: 0 0 0 6px rgba(255,150,40,.35); } }
+.pad-wartung { display: flex; align-items: center; gap: 10px; }
+.pad-wartung svg { width: 1.3em; height: 1.3em; flex: none; fill: none;
+  stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+.pad-wartung__unter { font-size: .82em; opacity: .85; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 100%; margin-top: 2px; }
+.wartung__erklaerung { margin: 4px 0 10px; }
+/* Karten so gross wie möglich (Wunsch Patrick 2. November 2026):
+   im Pad-Fenster fast der ganze Bildschirm, Vorschau füllt die Karte */
+/* Das ganze Fenster rollt am Stück, kein fester Kopf (Wunsch Patrick 2. November 2026) */
+.wartung-huelle #wartung.wartung--fenster {
+  width: min(1500px, calc(100vw - 24px)) !important; max-width: none !important;
+  max-height: calc(100dvh - 24px) !important; overflow: auto; display: block; }
+.wartung--fenster .wartung__liste { overflow: visible; max-height: none; }
+.wartung__liste { list-style: none; margin: 0; padding: 2px; display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.wartung__zeile { display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  border: 1px solid var(--rand, #d6dde5); border-radius: 14px; padding: 10px; }
+.wartung__zeile--faellig { border: 2px solid #e08a2c; background: rgba(240,140,40,.1); }
+.wartung__vorschau { position: relative; display: flex; align-items: center; justify-content: center;
+  height: clamp(320px, 58vh, 760px); border: 0; padding: 0; border-radius: 10px; overflow: hidden;
+  background: #eef1f4; cursor: zoom-in; }
+.wartung--einstellungen .wartung__vorschau { height: clamp(320px, 62vh, 820px); }
+.wartung__vorschau-bild { width: 100%; height: 100%; object-fit: contain; display: block; }
+.wartung__vorschau-text { color: #6b7785; }
+.wartung__pdf-marke { position: absolute; top: 8px; left: 8px; background: rgba(15,30,50,.75); color: #fff;
+  font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+.wartung__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wartung__text b { font-size: 1.15em; }
+.wartung__knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
+.es-wartung__parks { display: grid; gap: 10px; margin: 12px 0 16px; }
+.es-wartung__park { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.es-wartung__parkname { font-weight: 700; min-width: 120px; }
+.es-wartung__maschinen { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.es-wartung__maschine { display: inline-flex; gap: 6px; align-items: center; }
+.es-wartung__zahl { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px;
+  background: rgba(0,0,0,.1); }
+.es-wartung__maschine--faellig .es-wartung__zahl { background: #e08a2c; color: #fff; }
+.pad-schoner__bild { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.pad-schoner__wartung-titel { position: absolute; left: 50%; top: max(12px, env(safe-area-inset-top));
+  transform: translateX(-50%); pointer-events: none; max-width: calc(100% - 32px);
+  background: #d9771a; color: #fff; font-weight: 700; font-size: 22px; padding: 10px 22px;
+  border-radius: 999px; box-shadow: 0 6px 20px rgba(0,0,0,.35); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.pad-schoner__erledigt { position: absolute; left: 50%; bottom: max(22px, env(safe-area-inset-bottom));
+  transform: translateX(-50%); z-index: 2; border: 0; cursor: pointer;
+  background: #1f9d55; color: #fff; font: inherit; font-weight: 800; font-size: 28px;
+  padding: 18px 54px; border-radius: 999px; box-shadow: 0 8px 26px rgba(0,0,0,.4); }
+.pad-schoner__erledigt:active { filter: brightness(1.12); transform: translateX(-50%) scale(.97); }
+#wartung-neu { white-space: nowrap; }
+/* Wartung je Typ mit Backup-Batterien (seit 1.338.0) */
+.es-wartung > .es-wartung__maschinen { margin: 12px 0 16px; }
+.wartung__faellig-an { color: #b85f0c; font-weight: 700; }
+.wartung__batterien { border: 1px solid var(--rand, #d6dde5); border-radius: 14px; padding: 10px 14px;
+  margin: 0 0 14px; }
+.wartung__batterien h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 1.05em; }
+.wartung__batterien ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wartung__batterien li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 8px;
+  border-radius: 8px; }
+.wartung__batterien li b { min-width: 70px; }
+.wartung__batterien li span { flex: 1 1 240px; }
+.wartung__batt--faellig { background: rgba(240,140,40,.14); outline: 2px solid #e08a2c; }
+.wartung__batterie-symbol { width: 1.4em; height: 1.4em; flex: none; }
+.pad-schoner--batterie { background: #14202e; }
+.pad-schoner__batterie { position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; padding: 90px 24px 140px; text-align: center; }
+.pad-schoner__batterie .wartung__batterie-symbol { width: min(34vw, 260px); height: auto; color: #f0a040; }
+.pad-schoner__batterie-titel { font-size: clamp(32px, 6vw, 64px); font-weight: 800; }
+.pad-schoner__batterie-maschine { font-size: clamp(24px, 4vw, 42px); font-weight: 700; color: #cfe1f5; }
+.pad-schoner__batterie-art { font-size: clamp(22px, 3.4vw, 34px); }
+.pad-schoner__batterie-seit { font-size: clamp(18px, 2.6vw, 26px); color: #ffc98a; }
+.wartung--einstellungen .wartung__batterien ul { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
+.wartung__batterien-hinweis { margin: 4px 0 0; }
+
+/* Wartung je Typ, Park oder Maschine (1.339.0) */
+.es-wartung__art { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 4px; }
+.es-wartung__art-titel { font-weight: 700; margin-right: 4px; }
+.wartung__ziel { align-self: flex-start; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--blau, #1f5fa8) 14%, transparent); color: var(--blau, #1f5fa8); }
+.wartung__ziel--park { background: color-mix(in srgb, #2e8b57 16%, transparent); color: #2e7a4f; }
+.wartung__ziel--maschine { background: color-mix(in srgb, #e08a2c 18%, transparent); color: #b5651a; }
+
+/* Werkzeugwechsel-Liste: Einträge antippen zum Ändern (1.341.0) */
+.wz-tipp { cursor: pointer; }
+@media (hover: hover) { tr:hover > .wz-tipp { background: color-mix(in srgb, var(--marke) 8%, transparent); } }
+
+/* Wartung im Pad: „Als Nächstes“ oben (seit 1.342.0) */
+.wartung__naechstes { border: 2px solid #2f6fb3; border-radius: 14px; padding: 10px 14px; margin: 4px 0 10px;
+  background: rgba(47,111,179,.07); flex: none; }
+.wartung__naechstes h3 { margin: 0 0 6px; font-size: 1.1em; }
+.wartung__naechstes ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wartung__naechstes button[data-naechst] { display: flex; gap: 14px; align-items: baseline; width: 100%; text-align: left;
+  font: inherit; color: inherit; background: var(--flaeche, #fff); border: 1px solid var(--rand, #d6dde5);
+  border-radius: 10px; padding: 8px 12px; cursor: pointer; font-size: 1.1em; }
+.wartung__naechst-wann { min-width: 9.5em; color: #2f6fb3; font-weight: 700; white-space: nowrap; }
+.wartung__naechst--faellig button[data-naechst] { border: 2px solid #e08a2c; background: rgba(240,140,40,.12); }
+.wartung__naechst--faellig .wartung__naechst-wann { color: #c2620a; }
+
+/* Batterie direkt bei „Als Nächstes“ quittieren */
+.wartung__naechstes li { display: flex; gap: 8px; align-items: stretch; }
+.wartung__naechstes li > button[data-naechst] { flex: 1 1 auto; min-width: 0; flex-wrap: wrap; }
+.wartung__naechstes button[data-naechst] .klein { white-space: nowrap; opacity: .8; }
+.wartung__naechst-knopf { flex: none; font-size: 1.1em; padding: 8px 22px; }
+
+/* Kreditoren: Kopf der Liste „Zum Zuordnen“ mit „Alle löschen“ (1.346.0) */
+.kred-kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.kred-kopf h3 { margin: 0; }
+
+/* Kreditoren: nur vermutet zugeordnet (seit 1.347.0) */
+.kred-vermutet { margin-left: 6px; padding: 1px 6px; border-radius: 8px; background: #fde68a; color: #713f12; font-size: 0.85em; }
+#kred-zuletzt summary { cursor: pointer; margin: 10px 0 4px; }
+
+/* Programm-Nr. nach „Von anderem Blatt übernehmen“: selbst eintragen (1.348.0) */
+.eba-feld--rot .eba-ein { box-shadow: 0 0 0 2px #d32f2f; border-color: #d32f2f; }
+/* Backup-Batterien für einen ganzen Typ oder Park auf einmal (1.350.0) */
+.wartung__batt-alle { margin-left: auto; font-size: .85em; }
+
+/* Kontrast im dunklen Modus (1.350.1, Bild Patrick 2. November 2026):
+   body.dunkel * macht jede Schrift weiss (!important). Helle Schilder
+   behielten aber ihre helle Fläche, „gesendet …“ bei den Bestellungen oder
+   „vorhanden“ in Vorbereiten waren weiss auf hellgrün kaum lesbar.
+   Darum hier dunkle Flächen in derselben Farbe mit weisser Schrift, und wo
+   die Fläche bewusst hell bleibt (Farbpunkt, rot blinkende Karte), die
+   dunkle Schrift mit !important. Prüfstand: kontrast.py. */
+body.dunkel .bs-chip--gesendet { background: #1e4630; border-color: #2f7a4f; }
+body.dunkel .vb-mat--vorhanden { background: #1e4630; }
+body.dunkel .vb-mat--bestellt { background: #4a3a12; }
+body.dunkel .vb-mat--nichts { background: #5a221d; }
+body.dunkel .vb-mat { color: #fff !important; }
+body.dunkel .kred-vermutet { background: #4a3a12; }
+body.dunkel .knopf--vorbereiten:hover { background: #1e4630; }
+body.dunkel .knopf--warnung:hover { background: #4a3a12; }
+body.dunkel .auf-vorschau__gross { background: rgba(28, 34, 41, .92); border-color: var(--linie-stark); }
+body.dunkel .auf-vorschau__gross:hover { background: var(--flaeche); border-color: var(--marke); }
+body.dunkel .wartung__vorschau { background: #232a32; }
+body.dunkel .mat-foto__zeile--material, body.dunkel .mat-foto__zeile--kg { color: #111 !important; }
+body.dunkel .geb-bild--leer { color: #1d4ed8 !important; }
+body.dunkel .farbzeile__punkt { color: var(--fz-schrift, #fff) !important; }
+body.dunkel .heuteoffen--nervt .heuteoffen__maschine,
+body.dunkel .heuteoffen--nervt .heuteoffen__maschine * { color: #1a1a1a !important; }
+body.dunkel .heuteoffen--nervt .heuteoffen__maschine .klein { color: #555 !important; }
+body.dunkel .heuteoffen--nervt .marke, body.dunkel .heuteoffen--nervt .marke * { color: #b80000 !important; }
+body.dunkel .heuteoffen--nervt .marke { background: #fff; }
+body.dunkel .vb-tnr { color: #000 !important; }
+body.dunkel .login__flieger-bild { color: #0f1620 !important; }
+/* Plätze im Fenster „⚙ Typ“: die Karten bleiben weiss wie auf dem Blatt */
+body.dunkel .platzliste .eb-karte, body.dunkel .platzliste .eb-karte * { color: #111 !important; }
+body.dunkel .platzliste .eb-karte__kopf { color: #fff !important; }
+body.dunkel .platzliste .eb-karte--frei .eb-karte__kopf { color: #7a8694 !important; }
+body.dunkel .platzliste .eb-karte__beispiel { color: #8a95a3 !important; }
+body.dunkel .platzliste .eb-karte__tat { color: #55606e !important; }
+body.dunkel .platzliste .eb-karte__knopf { color: #33445c !important; }
+body.dunkel .platzliste .eb-karte__knopf--weg { color: #c0392b !important; }
+
+/* Helle Bildschirme (Empfang, Pausenraum) bleiben auch im dunklen Modus
+   hell: dort gilt die weisse Schrift nicht (.hell-bleibt an der Tafel,
+   Tafel.jsx), und die Grundfarben sind die hellen. */
+body.dunkel .hell-bleibt {
+  --grund: #f3f5f8; --flaeche: #ffffff; --tinte: #1d2430; --gedaempft: #5c6675;
+  --linie: #d6dbe3; --linie-stark: #aeb7c4; --marke: #003884; --marke-dunkel: #002b66;
+  --marke-hell: #e8eef7; --stahl: #003884; --warnung: #b5761a; --gefahr: #b3261e; --gut: #1f7a4d;
+}
+/* „Wetter nicht verfügbar“ im blauen Kopf: grau auf blau war kaum lesbar */
+.kopfkarte__wetter .klein { color: rgba(255, 255, 255, .8); }

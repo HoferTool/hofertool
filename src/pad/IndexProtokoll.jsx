@@ -54,7 +54,7 @@ export async function protokollLaden(hoco, typId) {
     let rd = runden.find((x) => x.schluessel === schluessel);
     if (!rd) {
       rd = { schluessel, wann: z.gewechselt_am, stk: z.stueckzahl, job: z.job_id || null,
-        fa: z.job_id ? fa[z.job_id] || "" : "", notiz: z.notiz, maschine: z.maschine, person: z.person, zeilen: [] };
+        fa: z.job_id ? fa[z.job_id] || "" : "", notiz: z.notiz, maschine: z.maschine, person: z.person, kuerzel: z.kuerzel || "", zeilen: [] };
       runden.push(rd);
     }
     rd.zeilen.push(z);
@@ -147,7 +147,8 @@ function protokollHtml(maschine, auftrag, blatt, runden, titel) {
         + r.plaetze.map((p) => '<tr><td class="nr">' + esc((p.eb && p.eb.tnr) || p.tool_nr) + '</td><td class="wz">'
           + (p.eb ? '<b>' + esc(p.eb.taetigkeit || p.eb.werkzeug || "") + '</b>' + (p.eb.hersteller ? ' <small>' + esc(p.eb.hersteller) + '</small>' : "") : "")
           + '</td>' + sp.map((c) => '<td class="' + kl(c) + '">' + (c && gewechselt(c, r, p)
-            ? esc(datum(c.wann)) + '<br><b>' + (c.stk === null || c.stk === undefined ? "—" : esc(alt.zahlText(c.stk))) + '</b>' : "") + '</td>').join("")
+            ? esc(datum(c.wann)) + '<br><b>' + (c.stk === null || c.stk === undefined ? "—" : esc(alt.zahlText(c.stk))) + '</b>'
+              + (c.kuerzel ? '<br><small>' + esc(c.kuerzel) + '</small>' : "") : "") + '</td>').join("")
           + '</tr>').join("")).join("")
       + '</tbody></table>'
       + '<div class="fuss"><span>Blatt ' + nr + ' von ' + blaetter.length + ' · behalten werden die letzten ' + BLAETTER_BEHALTEN + ' Blätter</span>'

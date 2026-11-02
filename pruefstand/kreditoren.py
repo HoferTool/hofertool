@@ -44,6 +44,11 @@ STAPEL = pdf([
     ["Empfangsschein  Zahlteil  Konto-/ Zahlbar an", "CH12 3456 7890 1234 5678 9", "Muster Metall AG", "Bernstrasse 1", "Rechnung 3301 - 20.10.2026"],
     ["Kleiner Verein"] + HOFER + ["Rechnungs-Nr 0099", "Rechnungsdatum 26.10.2026", "IBAN CH56 0483 5012 3456 7800 9"],
     ["Turnverein Muster"] + HOFER + ["Rechnung 0777", "Rechnungsdatum 25.10.2026", "Bankverbindung:", "Turnverein Muster", "IBAN CH93 0076 2011 6238 5295 7", "Raiffeisenbank"],
+    # Ohne QR und ohne gelernte Liste: Briefkopf und Fusszeile (1.346.0)
+    ["Praezi Werkzeuge GmbH", "Seeweg 9, 6300 Zug"] + HOFER + ["Rechnung Nr. 88-120", "Datum 24.10.2026", "Pos 1 Bohrer von Sandvik Coromant AG",
+     "Total CHF 80.00", "Zahlbar an UBS Switzerland AG", "Praezi Werkzeuge GmbH  www.praezi.ch  info@praezi.ch"],
+    # OCR liest den Namen leicht anders: kommt trotzdem zum selben Lieferanten
+    ["Praezi Werkzeuqe GmbH"] + HOFER + ["Rechnung Nr. 88-121", "Datum 25.10.2026", "www.praezi.ch"],
 ])
 
 ORDNER = """
@@ -91,6 +96,9 @@ with sync_playwright() as p:
     pruefe("Fusszeile 1/2 und Konto-/ Zahlbar an", "Muster Metall AG/2026-10-20 3301.pdf" in namen and not any(n.startswith("_Zuordnen/2026-10-20") for n in namen))
     pruefe("Stapel nach _Originale", "_Originale/Scan 001.pdf" in namen and "Scan 001.pdf" not in namen)
     pruefe("Name über der IBAN erkannt", "Turnverein Muster/2026-10-25 0777.pdf" in namen)
+    pruefe("Briefkopf ohne QR erkannt", "Praezi Werkzeuge GmbH/2026-10-24 88-120.pdf" in namen)
+    pruefe("OCR-Fehler im Namen gleicher Lieferant", "Praezi Werkzeuge GmbH/2026-10-25 88-121.pdf" in namen)
+    pruefe("Bank und Hersteller nicht als Lieferant", not any(n.startswith(("UBS", "Sandvik")) for n in namen))
     pruefe("Unbekannter nach _Zuordnen", "_Zuordnen/2026-10-26 0099.pdf" in namen)
     pruefe("Zeile zum Zuordnen", pg.locator("#kred-zuordnen .kred-zeile").count() == 1)
 
@@ -112,6 +120,29 @@ with sync_playwright() as p:
     pruefe("Gleiche Rechnung nicht doppelt", "Muster Werkzeug AG/2026-10-27 RE-4711 (2).pdf" not in namen and "schon abgelegt" in pg.inner_text("#kred-auftrag"))
     liste = pg.evaluate("async () => JSON.parse(await (await (await window.KRED.getFileHandle('_Lieferanten.json')).getFile()).text())")
     pruefe("UID gelernt", any(l["name"] == "Muster Werkzeug AG" and "111222333" in l["uid"] for l in liste))
+    # Falsch zugeordnet: in „Zuletzt abgelegt“ korrigieren
+    pruefe("Zuletzt abgelegt mit vermutet", pg.locator("#kred-zuletzt .kred-zeile:has-text('88-120') .kred-vermutet").count() == 1)
+    for nr in ["88-120", "88-121"]:
+        z = pg.locator("#kred-zuletzt .kred-zeile", has_text=nr)
+        z.locator(".kred-name").fill("Richtig AG"); z.locator(".kred-korr").click(); pg.wait_for_timeout(1000)
+        namen = pg.evaluate(BAUM)
+        if nr == "88-120":
+            pruefe("Korrigiert verschoben", "Richtig AG/2026-10-24 88-120.pdf" in namen and "Praezi Werkzeuge GmbH/2026-10-24 88-120.pdf" not in namen)
+    pruefe("Falscher Ordner weg", not any(n.startswith("Praezi") for n in namen) and "Richtig AG/2026-10-25 88-121.pdf" in namen)
+    liste = pg.evaluate("async () => JSON.parse(await (await (await window.KRED.getFileHandle('_Lieferanten.json')).getFile()).text())")
+    pruefe("Falscher Lieferant vergessen", not any(l["name"].startswith("Praezi") for l in liste) and any(l["name"] == "Richtig AG" for l in liste))
+    z = pg.locator("#kred-zuletzt .kred-zeile", has_text="55001"); z.locator(".kred-stimmt").click(); pg.wait_for_timeout(800)
+    pruefe("Stimmt nimmt aus der Liste", pg.locator("#kred-zuletzt .kred-zeile", has_text="55001").count() == 0)
+    # Zweimal unbekannt in _Zuordnen, dann „Alle löschen“
+    pg.evaluate("""async (b64) => { const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const w = await (await window.KRED.getFileHandle('Scan 003.pdf', { create: true })).createWritable();
+      await w.write(bytes); await w.close(); }""", base64.b64encode(pdf([["Niemand Bekannt"] + HOFER + ["Rechnung 1234", "Datum 01.10.2026"]])).decode())
+    pg.click("#kred-jetzt"); pg.wait_for_timeout(300)
+    pg.wait_for_selector("#kred-zuordnen", timeout=60000)
+    pg.click("#kred-alle-weg"); pg.wait_for_timeout(300)
+    pg.locator(".dialog-huelle .knopf--gefahr, .dialog-huelle button:has-text('Löschen')").last.click(); pg.wait_for_timeout(800)
+    namen = pg.evaluate(BAUM)
+    pruefe("Alle zum Zuordnen gelöscht", not any(n.startswith("_Zuordnen/") and n.endswith(".pdf") for n in namen) and pg.locator("#kred-zuordnen").count() == 0)
     pruefe("Keine Fehler auf der Seite", not f)
     if f: print(f)
     br.close()

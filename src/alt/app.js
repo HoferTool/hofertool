@@ -78,6 +78,7 @@ import { eigeneFensterOffen, eigeneFensterZu } from "../teile/eigenesFenster.js"
 import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 // Stellt window.hoferMailSenden fürs Bestellblatt bereit (1.323.0)
 import "../daten/mailkonto.js";
+import { istModulFehler } from "../teile/modulFehler.js";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -154,7 +155,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.332.0";
+const APP_VERSION = "1.350.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1261,6 +1262,12 @@ function stuendlichNeuLaden() {
 }
 setInterval(stuendlichNeuLaden, 60000);
 
+// Fehlt ein Programmteil, weil inzwischen eine neue Fassung draussen ist
+// (Tab läuft noch mit der alten), nicht eine Stunde warten: im nächsten
+// ruhigen Moment neu laden. Sonst blieb etwa das Ablegen der
+// Kreditorenrechnungen am Pool-Rechner bis dahin hängen.
+window.addEventListener("vite:preloadError", () => { neuladenAb = 0; });
+
 // ---------- Bildschirme holen neue Fassungen sofort ----------
 // Infoboard und Empfang laufen tagelang ohne Anmeldung und ohne Strg + F5.
 // Statt bis zum stündlichen Neuladen zu warten, schauen sie alle zwei
@@ -1608,6 +1615,9 @@ function fehlertext(e) {
       + "Authentication → Policies und lässt sich auf 1 setzen.";
   }
   if (m.includes("row-level security")) return "Dafür fehlen dir die Rechte.";
+  // Vor „Failed to fetch“: ein fehlender Programmteil nach einer neuen
+  // Fassung ist kein WLAN-Problem (Patrick 2. November 2026)
+  if (istModulFehler(e)) return "Die App wurde inzwischen erneuert. Bitte die Seite neu laden (F5).";
   if (m.includes("Failed to fetch")) return "Keine Verbindung zum Server. WLAN prüfen.";
   if (m.includes("foreign key") || m.includes("violates foreign key"))
     return "Das lässt sich nicht löschen, weil noch Buchungen oder Bestellungen daran hängen. "
@@ -1717,12 +1727,12 @@ async function profilLaden(frisch) {
     const spalten = "id, email, full_name, role, is_active, geburtstag, "
       + "bild_url, parks, darf_bearbeiten, ist_planer, initialen, ohne_passwort, einstellungen";
     let { data, error } = await zeitlimit(
-      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz, startseite")
+      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz, startseite, darf_notiz")
         .eq("id", s.user.id).single(), 10000, "Profil");
     // Ohne sql/andere-nutzer.sql oder sql/materialplatz-recht.sql kennt die
     // Datenbank das Häkchen nicht: dann ohne die Spalten lesen, statt ohne
     // Profil dazustehen
-    if (error && /andere_nutzer|darf_materialplatz|startseite/.test(String(error.message || ""))) {
+    if (error && /andere_nutzer|darf_materialplatz|startseite|darf_notiz/.test(String(error.message || ""))) {
       ({ data, error } = await zeitlimit(
         db.from("profiles").select(spalten).eq("id", s.user.id).single(), 10000, "Profil"));
     }
@@ -4341,6 +4351,16 @@ function darfBearbeitenKnopf() {
 function darfMaterialplatz() {
   if (istExtern()) return false;
   return istAdmin() || (profil && profil.darf_materialplatz === true);
+}
+
+// Die „Notiz für die Maschine“ im Auftragsfenster ändern ausser denen
+// mit Materialplatz-Recht auch alle mit dem eigenen Häkchen „Notiz
+// bearbeiten“ (Wunsch Patrick 2. November 2026: „Tristan darf das
+// bearbeiten“, profiles.darf_notiz, sql/notiz-recht.sql). Den
+// Materialplatz bekommen sie damit nicht.
+function darfNotiz() {
+  if (istExtern()) return false;
+  return darfMaterialplatz() || (profil && profil.darf_notiz === true);
 }
 
 // Darf gerade auf der Planwand geändert werden? Nur noch Admins
@@ -8318,6 +8338,13 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
 
   // Ab vielen Werkzeugen quer, damit die Spalten zum Ankreuzen breit genug bleiben
   const quer = spalten.length > 18;
+  // Alles muss auf die Breite der A4-Seite passen (Wunsch Patrick
+  // 2. November 2026, SW mit drei Paths): Datum, Stück und Visum fest,
+  // der Bemerkung bleiben mindestens 30 mm, die Werkzeugspalten teilen
+  // sich den Rest, höchstens 7 mm breit
+  const seiteBreit = quer ? 281 : 194;
+  const wzBreit = Math.max(3, Math.min(7, Math.floor((seiteBreit - 19 - 17 - 15 - 30) / Math.max(1, spalten.length) * 10) / 10));
+  const wzSchrift = wzBreit >= 6 ? 9 : wzBreit >= 4.5 ? 7.5 : 6.5;
   const zeilenJeSeite = quer ? 24 : 36;
   const leer = Math.max(0, zeilenJeSeite - (eigene.length % zeilenJeSeite || (eigene.length ? zeilenJeSeite : 0)));
   const zelle = (inhalt, klasse) => '<td' + (klasse ? ' class="' + klasse + '"' : "") + '>' + inhalt + '</td>';
@@ -8326,7 +8353,7 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
     + zelle(r ? (r.stk === null || r.stk === undefined ? "" : zahlText(r.stk)) : "", "stk")
     + spalten.map((c) => zelle(r && r.zeilen.some((z) => gleich(z, c)) ? "X" : "", "wz")).join("")
     + zelle(r && r.notiz ? esc(r.notiz) : "", "bem")
-    + zelle(r ? esc(visum(r.person)) : "", "vis") + '</tr>';
+    + zelle(r ? esc(r.kuerzel || visum(r.person)) : "", "vis") + '</tr>';
 
   const name = "Werkzeugwechsel " + (maschine.name || (aufbau && aufbau.typ) || "");
 
@@ -8346,7 +8373,7 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
     + 'table { width: 100%; border-collapse: collapse; table-layout: fixed }'
     + 'th, td { border: .6pt solid #000; padding: 0 1mm; height: 6.4mm; font-size: 10pt; overflow: hidden; white-space: nowrap }'
     + 'thead th { border-bottom: 1.6pt solid #000; height: auto; vertical-align: bottom; text-align: left; font-size: 11pt; padding: 1mm }'
-    + 'thead th.wz { padding: 1mm 0; text-align: center; vertical-align: bottom; font-size: 9pt }'
+    + 'thead th.wz { padding: 1mm 0; text-align: center; vertical-align: bottom; font-size: ' + wzSchrift + 'pt }'
     + 'thead th.wz span { writing-mode: vertical-rl; transform: rotate(180deg); display: inline-block; white-space: nowrap; line-height: 1 }'
     + 'tbody tr:last-child td { border-bottom: 1.6pt solid #000 }'
     + 'td.wz { text-align: center; font-weight: 700; padding: 0 }'
@@ -8355,7 +8382,8 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
     + 'td.vis { text-align: center }'
     + 'tr { break-inside: avoid }'
     // Die Werkzeugspalten schmal wie im Excel, die Bemerkung nimmt den Rest
-    + '.dat { width: 19mm } .stk { width: 17mm } .wz { width: ' + (spalten.length > 30 ? 5.5 : 7) + 'mm } .vis { width: 15mm }'
+    + '.dat { width: 19mm } .stk { width: 17mm } .wz { width: ' + wzBreit + 'mm } .vis { width: 15mm }'
+    + 'td.wz { font-size: ' + (wzBreit >= 5 ? 10 : 8) + 'pt }'
     + '.fuss { margin-top: 2mm; display: flex; justify-content: space-between; color: #555; font-size: 7.5pt }'
     + '.leiste { position: fixed; top: 10px; right: 12px; display: flex; gap: 6px }'
     + '.leiste button { font: inherit; font-size: 10pt; padding: 8px 16px; border: 1px solid #2f6db5;'
@@ -8382,10 +8410,13 @@ function historieBlatt(maschine, auftrag, runden, titel, aufbau) {
 
 async function historieAblegen(maschine, auftrag, runden, spaltenHolen) {
   // Das Fenster sofort öffnen, solange der Klick noch gilt; die Spalten
-  // (Aufbau des Typs, Einrichtblatt) kommen erst danach
+  // (Aufbau des Typs, Einrichtblatt) kommen erst danach. Darum darf
+  // runden auch eine Funktion sein, die frisch lädt: Safari am iPad
+  // sperrt das Fenster, wenn vor dem Öffnen schon gewartet wurde.
   const fenster = window.open("", "_blank");
   if (!fenster) { meldung("Das Fenster wurde blockiert.", "warn"); return; }
   fenster.document.write('<!doctype html><meta charset="utf-8"><p style="font-family:Arial;padding:20px">Blatt wird vorbereitet …</p>');
+  if (typeof runden === "function") runden = await runden();
   let aufbau = null;
   try { aufbau = spaltenHolen ? await spaltenHolen() : null; }
   catch (f) { aufbau = null; }
@@ -10407,7 +10438,7 @@ Object.assign(alt, {
   best, seiteBestellungen, sucheArtikel, hocoJeArtikel, ladeBezeichnungen, ladeLieferanten,
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, solarLaden, solarKw, esc,
-  darfPlanen, darfMaterialplatz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
+  darfPlanen, darfMaterialplatz, darfNotiz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
   arbeitstagePlus, ausIso, ladeTodos, loeschen,
   planArchivDaten, istArchiv, bildVerkleinern,
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, maschineRuestet, ladePlanAuftraege,

@@ -9,7 +9,9 @@
 //  - Star (SB-16C, SB-16D, SB-16E, SB-20, SR-10, SR-32): oben T100 bis
 //    T600, darunter links der Kopf, rechts T700–T1000, T1100–T1400,
 //    T2100–T2400 und, wo vorhanden, T3100–T3400. Kopf mit
-//    „Programm Nr.“ und „N1000“.
+//    „Programm Nr.“ (N1000 steht seit 1.336.0 nicht mehr im Blatt,
+//    Wunsch Patrick 2. November 2026: „N1000 aus EB rausnehmen“;
+//    ein eingelesener Wert bleibt in kopf.n1000).
 //  - Index: drei Revolver mit je T1 bis T10 in zwei Reihen zu fünf,
 //    Revolver 1 olivbraun, 2 grün, 3 blau; links der Kopf, ohne Programm-Nr.
 //    (Patrick: „Index hat keine Nr.“), dafür die Festanschlag-Länge.
@@ -67,6 +69,13 @@ const vier = (l) => [null, null].concat(l, [null, null, null, null]).slice(0, 6)
 // nebeneinander; beim SB-20 steht T3100–T3400 an zweiter Stelle.
 // Seit 1.283.0 alle SB-16 und SR-10 blau (Wunsch Patrick 30. Oktober 2026).
 const STAR_FARBE = { sb16c: "#00B0F0", sb16d: "#00B0F0", sb16e: "#00B0F0", sb20: "#92D050", sr32: "#99CC00", sr10: "#00B0F0" };
+// Der „blaue Typ“: alle SB-16 und SR-10 (Wunsch Patrick 2. November 2026:
+// „soll immer blau sein“). Gilt im Einrichtblatt und im Werkzeugwechsel.
+export const TYP_BLAU = "#00B0F0";
+export function istBlauerTyp(typ) {
+  const n = kurz(String((typ && typ.name) || "").replace(/_\d+$/, "")).replace(/^star/, "");
+  return /^(sb16|sr10)/.test(n);
+}
 function star(name, art, { mitT700 = true, mitT3100 = true, mitT3400 = false } = {}) {
   const reihen = [T(100, 600, 100)];
   const t3100 = vier(T(3100, mitT3400 ? 3400 : 3300, 100));
@@ -76,8 +85,8 @@ function star(name, art, { mitT700 = true, mitT3100 = true, mitT3400 = false } =
   reihen.push(vier(T(2100, 2400, 100)));
   return {
     art: "star", titel: "Werkzeug- Protokoll-" + name, spalten: 6, kopfBreite: 2, kopfAb: 1, reihen,
-    typFarbe: STAR_FARBE[art] || null,
-    felder: [F.prgNr, F.hoco, F.bez, F.zeichnung, F.index, F.material, F.n1000, F.zeit, F.wasch, F.laufzeit],
+    typFarbe: /^(sb16|sr10)/.test(kurz(name).replace(/^star/, "")) ? TYP_BLAU : STAR_FARBE[art] || null,
+    felder: [F.prgNr, F.hoco, F.bez, F.zeichnung, F.index, F.material, F.zeit, F.wasch, F.laufzeit],
     prgNr: true,
   };
 }

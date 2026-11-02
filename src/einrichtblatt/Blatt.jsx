@@ -110,16 +110,28 @@ function istLaufenLassen(w) {
 // Text, der immer auf einer Zeile bleibt: passt er nicht, wird die
 // Schrift kleiner statt umzubrechen (Material mit Mass, Wunsch Patrick
 // 26. Oktober 2026)
-function EineZeile({ text }) {
+function EineZeile({ text, min = 7 }) {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.style.fontSize = "";
-    const voll = parseFloat(getComputedStyle(el).fontSize) || 14;
-    const breit = el.parentElement ? el.parentElement.clientWidth - 8 : 0;
-    if (breit > 0 && el.scrollWidth > breit) el.style.fontSize = Math.max(7, Math.floor(voll * breit / el.scrollWidth * 10) / 10) + "px";
-  }, [text]);
+    const passen = () => {
+      el.style.fontSize = "";
+      const voll = parseFloat(getComputedStyle(el).fontSize) || 14;
+      const breit = el.parentElement ? el.parentElement.clientWidth - 8 : 0;
+      if (breit > 0 && el.scrollWidth > breit) el.style.fontSize = Math.max(min, Math.floor(voll * breit / el.scrollWidth * 10) / 10) + "px";
+    };
+    passen();
+    // Blatt erst verborgen und später gezeigt: dann neu einpassen
+    if (typeof ResizeObserver === "undefined" || !el.parentElement) return;
+    let breitVorher = el.parentElement.clientWidth;
+    const ro = new ResizeObserver(() => {
+      const b = el.parentElement ? el.parentElement.clientWidth : 0;
+      if (b !== breitVorher) { breitVorher = b; passen(); }
+    });
+    ro.observe(el.parentElement);
+    return () => ro.disconnect();
+  }, [text, min]);
   return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="">{text}</span>;
 }
 
@@ -223,7 +235,7 @@ function KopfEingabe({ f, wert, aendern, d }) {
 // ändert ein Kopffeld
 // pruefen: eingelesene Werkzeuge ohne hinterlegten oder bestätigten
 // Artikel rot umranden (nur im Fenster, nicht im Pad und nicht im Druck)
-export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern, pdfs, markiert, markieren }) {
+export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern, pdfs, markiert, markieren, prgRot }) {
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
@@ -302,13 +314,16 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
         <div className={"eba-bild" + (p.geo ? " eba-bild--geo" + (bild && !p.ohneBild ? "" : " eba-bild--nurgeo") : "")}>
           {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} farbe={p.geoFarbe} fett={!!p.geoFett} groesse={p.geoGroesse || null} /> : null}
           {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
-        <div className="eba-her">{p.hersteller || ""}{p.spezial && p.article_id &&
+        <div className="eba-her"><EineZeile text={p.hersteller || ""} min={5} />{p.spezial && p.article_id &&
           <span className="eba-stern" title="Spezialwerkzeug" data-eba-stern="">★</span>}</div>
         {/* Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (Wunsch
             Patrick, 26. Oktober 2026); ein nur selbst zugeordneter Artikel
             zeigt weiter nur den Text aus dem Excel */}
-        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}>{p.werkzeug || ""}</div>
-        <div className="eba-wz-bez" data-wz-bez="">{p.werkzeug && p.article_id && !p.ungeprueft && p.bezeichnung ? p.bezeichnung : ""}</div>
+        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}><EineZeile text={p.werkzeug || ""} min={5} /></div>
+        <div className="eba-wz-bez" data-wz-bez="">{/* nie abschneiden, zu lang wird die Schrift
+          kleiner, damit Zusätze wie „M10/30 D30“ am Schluss sichtbar
+          bleiben (Wunsch Patrick, 2. November 2026) */}
+          <EineZeile text={p.werkzeug && p.article_id && !p.ungeprueft && p.bezeichnung ? p.bezeichnung : ""} min={5} /></div>
         {mitAnsehen && markiert === nr && <div className="eba-ansehen" data-eba-ansehen={nr} onClick={(e) => e.stopPropagation()}>
           {zeichnungen.map((z) => <button key={z.id} type="button" className="knopf knopf--klein knopf--haupt" data-eba-ansehen-pdf={z.id}
             onClick={() => betrachter(z.url, z.name + " · " + (p.werkzeug || ""), true)}>
@@ -324,8 +339,12 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
     const w = feldWert(f, d);
     const inhalt = bearbeiten ? <KopfEingabe f={f} wert={w} aendern={aendern} d={d} />
       : f.feld === "material" ? <EineZeile text={feldText(f, w, d)} /> : feldText(f, w, d);
-    if (f.farbe) return <div key={f.art + f.feld} className="eba-prg"><span style={{ background: f.farbe }}>{f.label}</span><b>{inhalt}</b></div>;
-    return <div key={f.art + f.feld} className="eba-kz" data-eba-zeile={f.feld}><span>{f.label}</span><b>{inhalt}</b></div>;
+    // Von einem anderen Blatt übernommen: die Programm-Nr. kommt nicht mit,
+    // das leere Feld ist rot, bis man sie selbst einträgt (Wunsch Patrick
+    // 2. November 2026: „soll prg nr nicht übernehmen … rot umrahmen“)
+    const rot = prgRot && bearbeiten && f.art === "prg" && !String(w || "").trim() ? " eba-feld--rot" : "";
+    if (f.farbe) return <div key={f.art + f.feld} className={"eba-prg" + rot} data-eba-prg-rot={rot ? "" : undefined}><span style={{ background: f.farbe }}>{f.label}</span><b>{inhalt}</b></div>;
+    return <div key={f.art + f.feld} className={"eba-kz" + rot} data-eba-zeile={f.feld} data-eba-prg-rot={rot ? "" : undefined}><span>{f.label}</span><b>{inhalt}</b></div>;
   };
   return (
     <div className="eba-seite" data-eba-seite="" data-eba-vorlage={vorlage.art}>
@@ -635,8 +654,23 @@ function Bibliothek({ aktiv, waehlen }) {
 const A4 = [794, 1123];
 export function seitenMass(seite) { return seite && seite.quer ? [A4[1], A4[0]] : A4; }
 
+// Auf der Seite GEO-OFFSET steht oben rechts, von wann der Inhalt ist
+// (Wunsch Patrick 2. November 2026: „Änderungsdatum, dass man weiss, von
+// wann es war … am besten oben rechts“): von Hand geändert das Datum der
+// Änderung, sonst die Änderungszeit der NC-Datei
+function geoStand(seite) {
+  if (!seite || String(seite.name || "").replace(/[\s-]/g, "").toUpperCase() !== "GEOOFFSET") return null;
+  const wann = seite.geaendert || (seite.nc && seite.nc.geaendert);
+  const d = wann ? new Date(wann) : null;
+  if (!d || isNaN(d)) return null;
+  const z = (n) => String(n).padStart(2, "0");
+  return "Geändert " + z(d.getDate()) + "." + z(d.getMonth() + 1) + "." + d.getFullYear() + " " + z(d.getHours()) + ":" + z(d.getMinutes())
+    + (seite.geaendert ? "" : seite.nc && seite.nc.datei ? " · " + seite.nc.datei : "");
+}
+
 export function ZusatzSeite({ seite, bearbeiten, inhaltBearbeiten }) {
   const [w, h] = seitenMass(seite);
+  const stand = geoStand(seite);
   return (
     <div className={"eba-zseite" + (bearbeiten ? " eba-zseite--bearbeiten" : "")} data-eba-zseite=""
       style={{ width: w, height: h }} onClick={bearbeiten ? inhaltBearbeiten : undefined}
@@ -644,6 +678,7 @@ export function ZusatzSeite({ seite, bearbeiten, inhaltBearbeiten }) {
       <TextBlatt html={seite.html || ""} format={seite.quer ? "a4q" : "a4"} breite={w} hoehe={h} />
       {bearbeiten && !seite.html && <div className="eba-zseite-leer">Antippen und schreiben, Tabellen aus Excel
         hineinkopieren oder Bilder einfügen</div>}
+      {stand && <div className="eba-zseite-stand" data-eba-geo-stand="">{stand}</div>}
     </div>
   );
 }
@@ -697,6 +732,9 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const [artikelBilder, setArtikelBilder] = useState(start.artikelBilder || {});
   // Was beim Bearbeiten aus dem Excel vorgelesen wurde: { liest } oder { hinweise }
   const [vorgelesen, setVorgelesen] = useState(null);
+  // Nach „Von anderem Blatt übernehmen“: Programm-Nr. muss man selbst eintragen
+  const [prgPflicht, setPrgPflicht] = useState(false);
+  const prgFehlt = prgPflicht && !Object.values(entwurf.programme || {}).some((v) => String(v || "").trim());
   const seite = useRef(null);
   const { typ, paths, teil, typDaten } = daten;
   const excel = typDaten.blatt_url || null;
@@ -764,6 +802,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     setTeilE(Object.assign({}, d.teil)); setTypE(Object.assign({}, d.typDaten));
   };
   const speichern = async () => {
+    if (prgFehlt) { alt.meldung("Bitte zuerst die Programm-Nr. eintragen (rot umrandet).", "warn"); return; }
     setLaeuft(true);
     try {
       await blattSpeichern(entwurf, "Einrichtblatt " + hocoNr + " " + (typ.name || ""));
@@ -774,7 +813,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       }
       const d = await neuLaden();
       anfangen(d);
-      setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null);
+      setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null); setPrgPflicht(false);
       alt.meldung("Einrichtblatt gespeichert.", "gut");
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
     finally { setLaeuft(false); }
@@ -783,7 +822,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   // kommen mit, die HOCO Nr. bleibt die eigene (Wunsch Patrick 29. Oktober 2026)
   const vonAnderem = async () => {
     const w = await alt.dialogFelder({ titel: "Von anderem Blatt übernehmen",
-      text: "Das Blatt einer anderen HOCO Nr. auf " + (typ.name || "diesem Typ") + " wird übernommen und als "
+      text: "Das Blatt einer anderen HOCO Nr. wird übernommen, auch von einem anderen Typ, und als "
         + hocoNr + " gespeichert. Danach anpassen und Speichern.",
       felder: [{ name: "nr", label: "HOCO Nr. des anderen Blatts", platzhalter: "z. B. 10000-0355", pflicht: true }],
       bestaetigen: "Übernehmen" });
@@ -791,15 +830,17 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     setLaeuft(true);
     try {
       const v = await blattVonAnderem(w.nr, hocoNr, typ);
+      if (!v) return;
       setEntwurf((b) => entwurfVon(Object.assign({}, b, v.blatt, { hoco_nr: hocoNr, type_id: typId })));
       setPlatz(null); setSeiteNr(0);
       setVorgelesen({ uebernommen: w.nr.trim(), hinweise: v.hinweise || [] });
+      setPrgPflicht(true);
     } catch (f) { alt.meldung(alt.fehlertext(f), "warn"); }
     finally { setLaeuft(false); }
   };
   const abbrechen = () => {
     if (!daten.blatt) { zu(); return; }
-    anfangen(daten); setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null);
+    anfangen(daten); setBearbeiten(false); setPlatz(null); setWechsel(null); setVorgelesen(null); setPrgPflicht(false);
   };
   // Ein Kopffeld ändern, dort, wo es hingehört
   const aendern = (f, w) => {
@@ -926,7 +967,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     const html = await textBearbeiten({ html: x.html || "", format: x.quer ? "a4q" : "a4", seitenVerhaeltnis: h / w,
       titel: (x.name || "Seite") + " · " + hocoNr });
     // Von Hand geändert: kommt nicht mehr von der NC-Datei (GEO-OFFSET)
-    if (html !== null && html !== x.html) seiteAendern(i, { html, nc: undefined });
+    if (html !== null && html !== x.html) seiteAendern(i, { html, nc: undefined, geaendert: new Date().toISOString() });
   };
   // Freie Bilder: gehen gleich in die Datenbank, auch mitten im
   // Bearbeiten; ein neues Blatt ohne gespeicherte Zeile behält sie im
@@ -1043,7 +1084,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
               bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} pruefen={darf}
               platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} bestellen={darf ? bestellen : null}
               pdfs={imPad ? pdfs : null} markiert={markiert} markieren={imPad ? setMarkiert : null}
-              bilderAendern={darf ? bilderAendern : null} /></div>}
+              bilderAendern={darf ? bilderAendern : null} prgRot={prgPflicht} /></div>}
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
           artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))}

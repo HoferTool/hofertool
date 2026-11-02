@@ -94,6 +94,30 @@ export async function faelligeBatterien() {
     .sort((a, b) => String(a.batterie_faellig).localeCompare(String(b.batterie_faellig)));
 }
 
+// Batterien gewechselt: Termin weiter und ein Eintrag in der
+// Wartungshistorie, beides mit Rückgängig. Gemeinsam für die Seite der
+// Maschine und das „Erledigt“ im Pad (seit 1.338.0).
+export async function batterienGewechselt(maschineId, am, naechst, notiz, wer) {
+  am = am || alt.isoDatum(new Date());
+  naechst = naechst || plusJahre(am, BATTERIE_JAHRE);
+  await infoSetzen(maschineId, { batterie_gewechselt: am, batterie_faellig: naechst }, "Batterien " + (wer || ""));
+  const ein = await alt.db.from("maschinen_wartung").insert({ machine_id: maschineId, datum: am,
+    erstellt_von: alt.meineProfilId(),
+    text: "Backup-Batterien gewechselt" + (notiz ? "\n" + notiz : ""), anhaenge: [] }).select("id");
+  if (!ein.error && ein.data && ein.data[0]) {
+    alt.merkeSchritt("Wartung " + (wer || ""), alt.rueckWeg("maschinen_wartung", { id: ein.data[0].id }));
+  }
+  window.dispatchEvent(new Event("hofer:wartung"));
+  return naechst;
+}
+
+// Ist der Termin da (nicht schon 30 Tage vorher wie auf der Startseite)?
+// Dann zeigt das Pad den Wechsel als Bildschirmschoner (seit 1.338.0).
+export function batterieHeuteFaellig(info, typName) {
+  if (!info || info.batterie_hinweis === false || !info.batterie_faellig || ohneBatterien(typName)) return false;
+  return tageBis(info.batterie_faellig) <= 0;
+}
+
 // ---------- Wartungshistorie ----------
 
 export async function wartungLaden(maschineId) {
@@ -167,4 +191,23 @@ export function batterienText(info) {
   const art = info.batterie_art || "";
   if (!n && !art) return "";
   return (n ? n + " × " : "") + (art || (n === 1 ? "Batterie" : "Batterien"));
+}
+
+// Backup-Batterien für viele Maschinen auf einmal, etwa einen ganzen Typ
+// oder Park (seit 1.350.0, Wunsch Patrick 2. November 2026: „solche
+// Zustände auch einem Park oder Typ zuweisen per Termin“). Schreibt je
+// Maschine nur die übergebenen Felder, ein Rückgängig für alle zusammen.
+export async function infoSetzenViele(maschinenIds, felder, rueckText) {
+  const schritte = [];
+  const daten = { ...felder, geaendert_am: new Date().toISOString(), geaendert_von: alt.meineProfilId() };
+  for (const id of maschinenIds) {
+    const vorher = await alt.rueckSichern("maschinen_info", { machine_id: id });
+    const r = vorher.length
+      ? await alt.db.from("maschinen_info").update(daten).eq("machine_id", id)
+      : await alt.db.from("maschinen_info").insert({ machine_id: id, ...daten });
+    if (r.error) throw r.error;
+    schritte.push(vorher.length ? alt.rueckRein("maschinen_info", vorher)
+      : alt.rueckWeg("maschinen_info", { machine_id: id }));
+  }
+  if (rueckText && schritte.length) alt.merkeSchritt(rueckText, schritte);
 }

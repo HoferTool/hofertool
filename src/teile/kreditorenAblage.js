@@ -22,13 +22,18 @@
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { kannOrdner, idbTun, ordnerErlaubt } from "./sicherung.js";
-import { stapelLesen, stapelTeilen, dateiName, lernen, sauber, einfach, zeilenAusStuecken } from "../daten/kreditoren.js";
+import { stapelLesen, stapelTeilen, dateiName, lernen, sauber, einfach, zeilenAusStuecken, bekannterName } from "../daten/kreditoren.js";
 
 export const LISTE_DATEI = "_Lieferanten.json";
 export const ZUORDNEN = "_Zuordnen";
 export const ORIGINALE = "_Originale";
 const PROTOKOLL = "_Protokoll.txt";
 const ZU_INFO = ".hofer-zuordnen.json";
+// Was die App selbst einem Lieferanten zugeordnet hat, damit man es in den
+// Einstellungen korrigieren kann (Patrick 2. November 2026: „was wenn
+// Lieferantennamen falsch erkannt, aber automatisch zugeordnet?“)
+const ABGELEGT = ".hofer-abgelegt.json";
+const ABGELEGT_MAX = 200;
 // Eine Datei, die noch so jung ist, schreibt der Scanner vielleicht noch
 const RUHE_MS = 60000;
 
@@ -101,7 +106,20 @@ async function protokoll(h, zeilen) {
 
 // Gelernte Liste plus alle Unterordner, die nicht mit „_“ anfangen
 export async function lieferantenLaden(h) {
-  const liste = await textLesen(h, LISTE_DATEI, []);
+  // Die gelernte Liste nie stillschweigend als leer nehmen: wäre sie nur
+  // gerade nicht lesbar (Laufwerk hängt, Datei offen, Abgleich läuft),
+  // würde das Speichern am Schluss alles Gelernte (UID, IBAN, Namen)
+  // überschreiben, und danach landet die Hälfte in „_Zuordnen“
+  // (Patrick 2. November 2026). Fehlt die Datei, ist es ein neuer Ordner.
+  let liste = [];
+  let griff = null;
+  try { griff = await h.getFileHandle(LISTE_DATEI); } catch (f) { /* noch keine Liste */ }
+  if (griff) {
+    const text = await (await griff.getFile()).text();
+    try { liste = JSON.parse(text); } catch (f) {
+      throw new Error("„" + LISTE_DATEI + "“ ist nicht lesbar, darum nichts abgelegt. Bitte melden.");
+    }
+  }
   const gueltig = Array.isArray(liste) ? liste.filter((l) => l && l.name) : [];
   for await (const [name, e] of h.entries()) {
     if (e.kind !== "directory" || name.startsWith("_") || name.startsWith(".")) continue;
@@ -153,7 +171,7 @@ async function istWeiss(p) {
   } catch (f) { return false; }
 }
 
-async function stapelAblegen(h, name, liste, zuInfo) {
+async function stapelAblegen(h, name, liste, zuInfo, abgelegtListe) {
   const datei = await (await h.getFileHandle(name)).getFile();
   const daten = new Uint8Array(await datei.arrayBuffer());
   const gelesen = await seitenLesen(daten);
@@ -168,6 +186,9 @@ async function stapelAblegen(h, name, liste, zuInfo) {
     const neu = await PDFDocument.create();
     (await neu.copyPages(quelle, d.seiten)).forEach((p) => neu.addPage(p));
     const blob = new Blob([await neu.save({ useObjectStreams: false })], { type: "application/pdf" });
+    // Gleicher Lieferant trotz anders gelesenem Namen (OCR), auch aus einer
+    // Rechnung weiter vorne im selben Stapel: in denselben Ordner
+    if (d.lieferant) d.lieferant = bekannterName(d.lieferant, liste);
     const ordnerName = d.lieferant ? sauber(d.lieferant) : ZUORDNEN;
     const ordner = await h.getDirectoryHandle(ordnerName, { create: true });
     const seitenText = "S. " + (d.seiten[0] + 1) + (d.seiten.length > 1 ? "–" + (d.seiten[d.seiten.length - 1] + 1) : "");
@@ -185,6 +206,8 @@ async function stapelAblegen(h, name, liste, zuInfo) {
     if (d.lieferant) {
       lernen(liste, d.lieferant, d);
       abgelegt++;
+      abgelegtListe.push({ ordner: ordnerName, datei: ziel, lieferant: d.lieferant, uids: d.uids || [], ibans: d.ibans || [],
+        vermutet: !!d.vermutet, aus: name, seiten: seitenText, zeit: Date.now() });
       zeilen.push(name + " " + seitenText + " → " + ordnerName + "\\" + ziel);
     } else {
       zuInfo[ziel] = { vorschlag: d.vorschlag, uids: d.uids, ibans: d.ibans, aus: name, seiten: seitenText };
@@ -215,14 +238,19 @@ export async function krSortieren(h, { sofort = false, fortschritt } = {}) {
     }
     const ergebnis = { stapel: 0, abgelegt: 0, zuordnen: 0, doppelt: 0, fehler: [] };
     if (!offen.length) return ergebnis;
+    // Die Programmteile zuerst einmal laden: fehlt einer (neue Fassung
+    // draussen, dieser Tab noch alt), bricht es hier für alle ab statt
+    // je Datei mit „Keine Verbindung zum Server“ (Patrick 2. November 2026)
+    await Promise.all([import("./PdfAnsicht.jsx").then((m) => m.pdfjs()), import("pdf-lib")]);
     const liste = await lieferantenLaden(h);
     const zuOrdner = await h.getDirectoryHandle(ZUORDNEN, { create: true });
     const zuInfo = await textLesen(zuOrdner, ZU_INFO, {});
+    const abgelegtListe = await abgelegtLesen(h);
     const zeilen = [];
     for (const name of offen.sort()) {
       if (fortschritt) fortschritt(name, ergebnis.stapel, offen.length);
       try {
-        const l = await stapelAblegen(h, name, liste, zuInfo);
+        const l = await stapelAblegen(h, name, liste, zuInfo, abgelegtListe);
         ergebnis.stapel++;
         ergebnis.abgelegt += l.abgelegt;
         ergebnis.zuordnen += l.zuordnen;
@@ -236,6 +264,7 @@ export async function krSortieren(h, { sofort = false, fortschritt } = {}) {
     }
     await lieferantenSpeichern(h, liste);
     await schreiben(zuOrdner, ZU_INFO, JSON.stringify(zuInfo));
+    try { await abgelegtSchreiben(h, abgelegtListe); } catch (f) { /* nur die Liste zum Korrigieren */ }
     try { await protokoll(h, zeilen); } catch (f) { /* Protokoll offen in einem Programm */ }
     return ergebnis;
   })();
@@ -253,6 +282,20 @@ export async function zuordnenListe(h) {
     aus.push(Object.assign({ name }, info[name] || {}));
   }
   return aus.sort((a, b) => (a.name > b.name ? 1 : -1));
+}
+
+// Alle Rechnungen in „_Zuordnen“ löschen (Patrick 2. November 2026:
+// „lösche alle im App zum Zuordnen“). Die Stapel liegen weiter in „_Originale“.
+export async function zuordnenAlleLoeschen(h) {
+  const zuOrdner = await h.getDirectoryHandle(ZUORDNEN, { create: true });
+  const namen = [];
+  for await (const [name, e] of zuOrdner.entries()) {
+    if (e.kind === "file" && /\.pdf$/i.test(name)) namen.push(name);
+  }
+  for (const n of namen) await zuOrdner.removeEntry(n);
+  await schreiben(zuOrdner, ZU_INFO, JSON.stringify({}));
+  try { await protokoll(h, [ZUORDNEN + ": " + namen.length + " Rechnungen gelöscht (von Hand)"]); } catch (f) { /* egal */ }
+  return namen.length;
 }
 
 export async function zuordnenDatei(h, name) {
@@ -277,6 +320,70 @@ export async function zuordnen(h, name, lieferant) {
   await schreiben(zuOrdner, ZU_INFO, JSON.stringify(info));
   await lieferantenSpeichern(h, liste);
   try { await protokoll(h, [ZUORDNEN + "\\" + name + " → " + sauber(l.name) + "\\" + neu + " (von Hand)"]); } catch (f) { /* egal */ }
+  return sauber(l.name) + "\\" + neu;
+}
+
+// ---------- Zuletzt abgelegt: falsch erkannte korrigieren ----------
+
+async function abgelegtLesen(h) {
+  const l = await textLesen(h, ABGELEGT, []);
+  return Array.isArray(l) ? l.filter((e) => e && e.ordner && e.datei) : [];
+}
+async function abgelegtSchreiben(h, l) {
+  await schreiben(h, ABGELEGT, JSON.stringify(l.slice(-ABGELEGT_MAX)));
+}
+
+// Neueste zuerst, nur was noch an seinem Ort liegt
+export async function abgelegtListe(h) {
+  const l = await abgelegtLesen(h);
+  const aus = [];
+  for (const e of l.slice().reverse()) {
+    try { await (await h.getDirectoryHandle(e.ordner)).getFileHandle(e.datei); aus.push(e); } catch (f) { /* verschoben oder gelöscht */ }
+  }
+  return aus;
+}
+
+export async function abgelegtDatei(h, e) {
+  return (await (await h.getDirectoryHandle(e.ordner)).getFileHandle(e.datei)).getFile();
+}
+
+// Als richtig bestätigt: aus der Liste nehmen
+export async function abgelegtStimmt(h, e) {
+  const l = await abgelegtLesen(h);
+  await abgelegtSchreiben(h, l.filter((x) => !(x.ordner === e.ordner && x.datei === e.datei)));
+}
+
+// Rechnung zum richtigen Lieferanten verschieben. UID und IBAN dieser
+// Rechnung vergisst der falsche Lieferant und lernt der richtige, damit die
+// nächste Rechnung gleich richtig landet. Ein Ordner, der danach leer ist,
+// war nur der Irrtum und verschwindet samt Eintrag.
+export async function abgelegtKorrigieren(h, e, lieferant) {
+  lieferant = String(lieferant || "").trim();
+  if (!sauber(lieferant)) throw new Error("Bitte den richtigen Lieferanten eingeben.");
+  const liste = await lieferantenLaden(h);
+  const vorhanden = liste.find((l) => einfach(l.name) === einfach(lieferant));
+  const neuName = vorhanden ? vorhanden.name : lieferant;
+  if (sauber(neuName) === e.ordner) throw new Error("Die Rechnung liegt schon bei „" + e.ordner + "“.");
+  const falsch = liste.find((l) => sauber(l.name) === e.ordner || einfach(l.name) === einfach(e.lieferant || ""));
+  if (falsch) {
+    falsch.uid = (falsch.uid || []).filter((u) => !(e.uids || []).includes(u));
+    falsch.iban = (falsch.iban || []).filter((i) => !(e.ibans || []).includes(i));
+  }
+  const l = lernen(liste, neuName, { uids: e.uids, ibans: e.ibans });
+  if (!vorhanden && !l.text.includes(lieferant)) l.text.push(lieferant);
+  const von = await h.getDirectoryHandle(e.ordner);
+  const nach = await h.getDirectoryHandle(sauber(l.name), { create: true });
+  const neu = await verschieben(von, e.datei, nach);
+  let leer = true;
+  for await (const [n] of von.entries()) { if (n) { leer = false; break; } }
+  if (leer) {
+    try { await h.removeEntry(e.ordner); } catch (f) { leer = false; }
+  }
+  const rest = leer && falsch ? liste.filter((x) => x !== falsch) : liste;
+  await lieferantenSpeichern(h, rest);
+  const al = await abgelegtLesen(h);
+  await abgelegtSchreiben(h, al.filter((x) => !(x.ordner === e.ordner && x.datei === e.datei)));
+  try { await protokoll(h, [e.ordner + "\\" + e.datei + " → " + sauber(l.name) + "\\" + neu + " (korrigiert von Hand)"]); } catch (f) { /* egal */ }
   return sauber(l.name) + "\\" + neu;
 }
 

@@ -13,7 +13,7 @@ import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { auswahlDialog } from "../teile/Dialoge.jsx";
 import { blattSuchen, platzInGebrauch } from "../einrichtblatt/daten.js";
-import { platzGruppe, platzName, vorlageFuer } from "../einrichtblatt/vorlagen.js";
+import { istBlauerTyp, platzGruppe, platzName, TYP_BLAU, vorlageFuer } from "../einrichtblatt/vorlagen.js";
 import { indexAufraeumen, indexPdfAufbau, istIndex, protokollLaden, reihenBilden, revolverVon,
   SPALTEN_JE_BLATT } from "./IndexProtokoll.jsx";
 import { WechselBlatt } from "./WechselBlatt.jsx";
@@ -143,14 +143,57 @@ function Auswahl({ reihen: genutzt, alle, maschine, auftrag, zu }) {
   );
 }
 
+// Kürzel, wer gewechselt hat: 2 bis 3 Buchstaben wie JPF, SH, ET
+// (Wunsch Patrick 2. November 2026). Pflicht, weil an einem Pad viele
+// Leute arbeiten und das Konto nichts über die Person sagt.
+export const kuerzelFeld = (wert) => ({ name: "kuerzel", label: "Kürzel (wer hat gewechselt?)", pflicht: true,
+  wert: wert || "", platzhalter: "z. B. JPF", maxLaenge: 3, gross: true, hinweis: "2 bis 3 Buchstaben" });
+export const kuerzelGut = (k) => /^[A-ZÄÖÜ]{2,3}$/.test(k);
+
+// Einen eingetragenen Wechsel ändern: Stückzahl, Kürzel und Notiz für
+// alle Zeilen der Runde (Wunsch Patrick 2. November 2026: „auch wer
+// anklicken und bearbeiten können“). Gibt true zurück, wenn gespeichert.
+export async function wechselAendern(r) {
+  let w = { stk: r.stk === null || r.stk === undefined ? "" : r.stk, kuerzel: r.kuerzel || "",
+    notiz: (r.zeilen[0] && r.zeilen[0].notiz) || "" };
+  for (;;) {
+    w = await alt.dialogFelder({ titel: "Wechsel vom " + alt.datumZeitKurz(r.wann),
+      felder: [{ name: "stk", label: "Stückzahl", typ: "number", pflicht: true, wert: w.stk },
+        kuerzelFeld(w.kuerzel), { name: "notiz", label: "Notiz", wert: w.notiz }],
+      bestaetigen: "Speichern" });
+    if (!w) return false;
+    w.kuerzel = String(w.kuerzel || "").toUpperCase().replace(/\s+/g, "");
+    if (kuerzelGut(w.kuerzel)) break;
+    alt.meldung("Kürzel: bitte 2 bis 3 Buchstaben, etwa JPF.", "warn");
+  }
+  const ids = r.zeilen.map((z) => z.id).filter(Boolean);
+  try {
+    const vorher = await alt.rueckSichern("tool_changes", { id: ids });
+    const u = await alt.db.from("tool_changes").update({ stueckzahl: Math.max(0, Math.round(Number(w.stk) || 0)),
+      notiz: w.notiz || null, kuerzel: w.kuerzel }).in("id", ids);
+    if (u.error) throw u.error;
+    alt.merkeSchritt("Werkzeugwechsel ändern", alt.rueckRein("tool_changes", vorher));
+  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
+  alt.meldung("Wechsel geändert.", "gut");
+  return true;
+}
+
 async function eintragen(maschine, auftrag, liste) {
-  const w = await alt.dialogFelder({ titel: "Stückzahl beim Wechsel",
-    felder: [
-      { name: "stk", label: "Jetzige Stückzahl", typ: "number", pflicht: true,
-        wert: auftrag ? (auftrag.stand || 0) : "", hinweis: anzahlText(liste.length) },
-      { name: "notiz", label: "Notiz", wert: "" }],
-    bestaetigen: "Wechsel eintragen" });
-  if (!w) return false;
+  let w = { stk: auftrag ? (auftrag.stand || 0) : "", kuerzel: "", notiz: "" };
+  // Bei falschem Kürzel kommt das Fenster mit allem Eingetippten wieder
+  for (;;) {
+    w = await alt.dialogFelder({ titel: "Stückzahl beim Wechsel",
+      felder: [
+        { name: "stk", label: "Jetzige Stückzahl", typ: "number", pflicht: true,
+          wert: w.stk, hinweis: anzahlText(liste.length) },
+        kuerzelFeld(w.kuerzel),
+        { name: "notiz", label: "Notiz", wert: w.notiz }],
+      bestaetigen: "Wechsel eintragen" });
+    if (!w) return false;
+    w.kuerzel = String(w.kuerzel || "").toUpperCase().replace(/\s+/g, "");
+    if (kuerzelGut(w.kuerzel)) break;
+    alt.meldung("Kürzel: bitte 2 bis 3 Buchstaben, etwa JPF.", "warn");
+  }
   const stand = Math.max(0, Math.round(Number(w.stk) || 0));
 
   // Wie viele Stück das Werkzeug gehalten hat: Abstand zur Stückzahl
@@ -177,6 +220,7 @@ async function eintragen(maschine, auftrag, liste) {
       stueckzahl: stand,
       gehalten_stk: (!v || v.stueckzahl === null) ? null : Math.max(0, stand - v.stueckzahl),
       notiz: w.notiz || null,
+      kuerzel: w.kuerzel,
       gewechselt_am: zeitpunkt,
     };
   });
@@ -184,7 +228,7 @@ async function eintragen(maschine, auftrag, liste) {
   // nicht gibt: sonst scheitert der ganze Eintrag an einem Feld
   try { await alt.einfuegenOhneUnbekannte("tool_changes", zeilen); }
   catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
-  alt.meldung(anzahlText(liste.length) + " bei " + alt.zahlText(stand) + " Stück eingetragen.");
+  alt.meldung(anzahlText(liste.length) + " bei " + alt.zahlText(stand) + " Stück eingetragen (" + w.kuerzel + ").");
   // Beim Index bleiben je HOCO Nr. nur die letzten drei Protokollblätter
   await indexAufraeumen(maschine, auftrag);
   return true;
@@ -227,7 +271,7 @@ function rundenBilden(liste, sw) {
     const schluessel = z.gewechselt_am + "|" + (z.stueckzahl === null ? "" : z.stueckzahl);
     let r = runden.find((x) => x.schluessel === schluessel);
     if (!r) {
-      r = { schluessel, wann: z.gewechselt_am, stk: z.stueckzahl, person: z.person,
+      r = { schluessel, wann: z.gewechselt_am, stk: z.stueckzahl, person: z.person, kuerzel: z.kuerzel || "",
         auftrag: z.auftrag_nr, notiz: z.notiz, zeilen: [] };
       runden.push(r);
     }
@@ -308,6 +352,8 @@ async function blattSpalten(maschine, auftrag, runden) {
     let i = jeTausend ? g : gruppen.indexOf(g);
     if (!jeTausend && i < 0) { gruppen.push(g); i = gruppen.length - 1; }
     [c.farbe, c.schrift] = GRUPPENFARBEN[i % GRUPPENFARBEN.length];
+    // SB-16 und SR-10 immer im Blau des Typs (seit 1.343.0)
+    if (istBlauerTyp(typ)) [c.farbe, c.schrift] = [TYP_BLAU, "#000"];
     // Dieselbe Nummer auf mehreren Revolvern: R1, R2 … davor
     // Andere T-Nr. aus dem Blatt (anderer Halter auf dem Platz) als Anschrift
     const ebp = plaetze["R" + c.nummer + "-" + c.tool_nr] || plaetze[c.tool_nr];
@@ -405,8 +451,10 @@ async function modellDerHistorie(maschine, auftrag, runden) {
         passt: (z) => z.tool_nr === p.tool_nr && (!z.bezeichnung || revolverVon(z.bezeichnung) === r.nr) })) }));
     return { art: "index", gruppen, runden: eigene, spaltenJeBlatt: SPALTEN_JE_BLATT, laden: () => protokollLaden(hoco, typ.id) };
   }
-  // SW läuft wie die SB-Maschinen (Wunsch Patrick 30. Oktober 2026)
-  if (!typ || (vorlageFuer(typ).art !== "star" && !istSw(typ))) return null;
+  // SW zeigt die Historie wieder als Liste wie am Anfang, das PDF bleibt
+  // das Blatt „Plattenwechsel“ (Wunsch Patrick 2. November 2026; vom
+  // 30. Oktober bis 1.341.0 wie die SB-Maschinen als Blatt)
+  if (!typ || istSw(typ) || vorlageFuer(typ).art !== "star") return null;
   // Wie im PDF nur die Wechsel dieser HOCO Nr., älteste zuerst
   const nurDiese = (rs) => rs.filter((r) => r.zeilen.some((z) => (z.hoco_nr || z.auftrag_nr) === hoco))
     .sort((x, y) => String(x.wann || "").localeCompare(String(y.wann || "")));
@@ -445,15 +493,32 @@ function Historie({ maschine, auftrag, anfang, zu }) {
     setLaeuft(null);
   };
 
+  // Antippen einer Zeile ändert Stückzahl, Kürzel und Notiz
+  const aendern = async (r) => {
+    if (!darf || laeuft !== null) return;
+    setLaeuft(r.schluessel);
+    if (await wechselAendern(r)) {
+      try { setRunden(await historieLaden(maschine)); }
+      catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+    }
+    setLaeuft(null);
+  };
+  const tipp = darf ? " wz-tipp" : "";
+
   return (
     <div className={"dialog dialog--breit" + (modell ? " wz-hist" : "")}>
       <div className="blatt__kopf"><h2>Werkzeugwechsel · {maschine.name}</h2>
         {runden.length > 0 && <button className="knopf knopf--klein" data-wzpdf=""
-          onClick={async () => {
-            // Im Blatt Geändertes soll auch im PDF stehen
+          onClick={() => {
+            // Im Blatt Geändertes soll auch im PDF stehen. Frisch geladen
+            // wird erst nach dem Öffnen des Fensters, sonst sperrt Safari
+            // am iPad es („Das Fenster wurde blockiert“)
             let aktuell = runden;
-            try { aktuell = await historieLaden(maschine); setRunden(aktuell); } catch (f) { /* dann wie vorher */ }
-            alt.historieAblegen(maschine, auftrag, aktuell, async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, aktuell));
+            const frisch = async () => {
+              try { aktuell = await historieLaden(maschine); setRunden(aktuell); } catch (f) { /* dann wie vorher */ }
+              return aktuell;
+            };
+            alt.historieAblegen(maschine, auftrag, frisch, async () => (await indexPdfAufbau(maschine, auftrag).catch(() => null)) || blattSpalten(maschine, auftrag, aktuell));
           }}>Als PDF ablegen</button>}
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button></div>
       {blattZeigen
@@ -464,8 +529,9 @@ function Historie({ maschine, auftrag, anfang, zu }) {
               {darf && <th aria-label="Löschen"></th>}</tr></thead>
             <tbody>{runden.map((r) => (
               <tr key={r.schluessel}>
-                <td className="nowrap"><strong>{leerOder(r.stk) ? "—" : alt.zahlText(r.stk)}</strong></td>
-                <td>
+                <td className={"nowrap" + tipp} data-wzaendern="" onClick={() => aendern(r)}>
+                  <strong>{leerOder(r.stk) ? "—" : alt.zahlText(r.stk)}</strong></td>
+                <td className={tipp} onClick={() => aendern(r)}>
                   {r.zeilen.map((z, i) => (
                     <span key={z.id || i}>{i > 0 && " "}<span className="wz-marke">{z.tool_nr}
                       {z.bezeichnung && <small> {z.bezeichnung}</small>}
@@ -474,8 +540,9 @@ function Historie({ maschine, auftrag, anfang, zu }) {
                   {r.notiz && <div className="klein">{r.notiz}</div>}
                 </td>
                 <td className="klein">{r.auftrag || ""}</td>
-                <td className="klein nowrap">{alt.datumZeitKurz(r.wann)}</td>
-                <td className="klein">{r.person || ""}</td>
+                <td className={"klein nowrap" + tipp} onClick={() => aendern(r)}>{alt.datumZeitKurz(r.wann)}</td>
+                <td className={"klein" + tipp} data-wzwer="" onClick={() => aendern(r)}>{r.kuerzel ? <strong data-wzkuerzel="">{r.kuerzel}</strong> : ""}
+                  {r.person && <div className="klein">{r.person}</div>}</td>
                 {darf && <td className="wz-weg-zelle">
                   <button type="button" className="wz-weg" data-wzweg="" title="Eintrag löschen"
                     aria-label={"Wechsel vom " + alt.datumZeitKurz(r.wann) + " löschen"}
@@ -489,6 +556,7 @@ function Historie({ maschine, auftrag, anfang, zu }) {
             ))}</tbody>
           </table>
         : <p className="hinweis">Noch kein Wechsel eingetragen.</p>}
+      {!blattZeigen && runden.length > 0 && darf && <p className="klein">Eintrag antippen: Stückzahl, Kürzel oder Notiz ändern.</p>}
       {!blattZeigen && <p className="klein">Die Zahl hinter einem Werkzeug sagt, wie viele Stück es seit dem letzten Wechsel
         gehalten hat. Die Standzeit im Einrichtblatt bleibt davon unberührt und wird dort von Hand gepflegt.</p>}
     </div>
