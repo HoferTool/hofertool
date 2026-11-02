@@ -101,7 +101,20 @@ async function protokoll(h, zeilen) {
 
 // Gelernte Liste plus alle Unterordner, die nicht mit „_“ anfangen
 export async function lieferantenLaden(h) {
-  const liste = await textLesen(h, LISTE_DATEI, []);
+  // Die gelernte Liste nie stillschweigend als leer nehmen: wäre sie nur
+  // gerade nicht lesbar (Laufwerk hängt, Datei offen, Abgleich läuft),
+  // würde das Speichern am Schluss alles Gelernte (UID, IBAN, Namen)
+  // überschreiben, und danach landet die Hälfte in „_Zuordnen“
+  // (Patrick 2. November 2026). Fehlt die Datei, ist es ein neuer Ordner.
+  let liste = [];
+  let griff = null;
+  try { griff = await h.getFileHandle(LISTE_DATEI); } catch (f) { /* noch keine Liste */ }
+  if (griff) {
+    const text = await (await griff.getFile()).text();
+    try { liste = JSON.parse(text); } catch (f) {
+      throw new Error("„" + LISTE_DATEI + "“ ist nicht lesbar, darum nichts abgelegt. Bitte melden.");
+    }
+  }
   const gueltig = Array.isArray(liste) ? liste.filter((l) => l && l.name) : [];
   for await (const [name, e] of h.entries()) {
     if (e.kind !== "directory" || name.startsWith("_") || name.startsWith(".")) continue;
