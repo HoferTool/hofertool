@@ -37,7 +37,8 @@ import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
 import { infoLaden, batterieHeuteFaellig, batterienGewechselt, batterieText, batterienText,
-  ohneBatterien } from "../daten/maschinenInfo.js";
+  ohneBatterien, infoSetzenViele, plusJahre, BATTERIE_JAHRE, BATTERIE_ARTEN, batterieArtTeilen,
+  batterieArtZusammen } from "../daten/maschinenInfo.js";
 
 const PLAN = "wartung_plan";
 const ERLEDIGT = "wartung_erledigt";
@@ -407,12 +408,47 @@ export const BatterieSymbol = () => (
 
 // Karte der Backup-Batterien einer oder mehrerer Maschinen (je
 // Maschine ihr Typ, weil Index keine Batterien hat)
-function Batterien({ maschinen, infos, typen, darf }) {
+function Batterien({ maschinen, infos, typen, darf, ziel, zielName }) {
   const mit = maschinen.filter((x) => !ohneBatterien(typen[x.type_id] || ""));
   if (!mit.length) return null;
+  // Termin, Anzahl und Art für alle Maschinen des Typs oder Parks auf einmal
+  const fuerAlle = async () => {
+    const erste = mit.map((x) => infos[x.id]).find((i) => i && (i.batterie_art || i.batterie_anzahl || i.batterie_faellig)) || {};
+    const teile = batterieArtTeilen(erste.batterie_art);
+    const w = await alt.dialogFelder({ titel: "Backup-Batterien: " + zielName,
+      felder: [
+        { name: "naechst", label: "Nächster Wechsel", typ: "date", wert: erste.batterie_faellig || "",
+          hinweis: "Gilt für alle " + mit.length + " Maschinen. Leer lassen = Termin bleibt je Maschine wie er ist." },
+        { name: "zuletzt", label: "Zuletzt gewechselt", typ: "date", wert: "",
+          hinweis: "freiwillig; ohne nächsten Wechsel gibt es diesen Datum + " + BATTERIE_JAHRE + " Jahre" },
+        { name: "anzahl", label: "Anzahl Batterien je Maschine", ziffern: true, wert: erste.batterie_anzahl || "",
+          platzhalter: "z. B. 3", hinweis: "leer = bleibt je Maschine" },
+        { name: "art", label: "Art", wert: teile.art,
+          auswahl: [["", "— bleibt je Maschine —"]].concat(BATTERIE_ARTEN.map((a) => [a, a]), [["andere", "Andere …"]]) },
+        { name: "zusatz", label: "Genaue Bezeichnung", wert: teile.zusatz, platzhalter: "bei „Andere“ oder als Zusatz" },
+      ],
+      bestaetigen: "Für alle setzen" });
+    if (!w) return;
+    const naechst = w.naechst || (w.zuletzt ? plusJahre(w.zuletzt, BATTERIE_JAHRE) : null);
+    const felder = { batterie_hinweis: true };
+    if (naechst) felder.batterie_faellig = naechst;
+    if (w.zuletzt) felder.batterie_gewechselt = w.zuletzt;
+    const n = parseInt(w.anzahl, 10);
+    if (n > 0) felder.batterie_anzahl = n;
+    const art = batterieArtZusammen(w.art, w.zusatz);
+    if (art) felder.batterie_art = art;
+    try {
+      await infoSetzenViele(mit.map((x) => x.id), felder, "Backup-Batterien " + zielName);
+      alt.meldung("Backup-Batterien für " + mit.length + " Maschinen gesetzt.", "gut");
+      geaendert();
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
   return (
     <div className="wartung__batterien" data-wartung-batterien="">
-      <h3><BatterieSymbol /> Backup-Batterien</h3>
+      <h3><BatterieSymbol /> Backup-Batterien
+        {ziel && darf && alt.darfSchreiben() && mit.length > 0
+          && <button type="button" className="knopf knopf--klein wartung__batt-alle" data-batterie-alle=""
+            onClick={fuerAlle}>Termin für alle setzen</button>}</h3>
       <ul>
         {mit.map((x) => {
           const info = infos[x.id];
@@ -703,7 +739,8 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
       {fehler && <p className="fehlertext">{fehler}</p>}
       {/* Steht die Batterie schon bei „Als Nächstes“, keine eigene Karte (Wunsch Patrick 2. November 2026) */}
       {!(m && naechste.some((x) => x.id === "batterie"))
-        && <Batterien maschinen={maschinen} infos={infos} typen={namen.typ} darf={!alt.istExtern()} />}
+        && <Batterien maschinen={maschinen} infos={infos} typen={namen.typ} darf={!alt.istExtern()}
+          ziel={!m && ziel} zielName={ueberschrift} />}
       {plaene === null
         ? <p className="klein">Lädt …</p>
         : !sortiert.length

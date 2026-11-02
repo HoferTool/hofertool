@@ -162,6 +162,22 @@ with sync_playwright() as p:
     pruefe("Batterien aller Maschinen des Typs", pg.locator(".es-wartung [data-batterie-maschine]").count() >= 2)
     pruefe("Fällig an: andere Maschinen", "Fällig an" in pg.locator(".es-wartung [data-wartung]").inner_text()
            and pg.evaluate("(mid) => { const m = TEST.daten.machines.find(x => x.id === mid); return m.machine_number || m.name; }", mid) not in pg.locator(".es-wartung [data-faellig-an]").inner_text())
+    # 1.346.0: Backup-Batterien für den ganzen Typ auf einmal
+    pg.click(".es-wartung [data-batterie-alle]"); pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
+    pg.locator(".dialog-huelle:last-child input[type=date]").first.fill("2028-08-01")
+    pg.evaluate("""() => { const d = document.querySelector('.dialog-huelle:last-child');
+      const s = [...d.querySelectorAll('select')].find(x => [...x.options].some(o => o.value.startsWith('Mono D')));
+      s.value = [...s.options].find(o => o.value.startsWith('Mono D')).value; s.dispatchEvent(new Event('change', {bubbles: true}));
+      const n = [...d.querySelectorAll('input')].find(x => x.placeholder === 'z. B. 3');
+      n.value = '3'; n.dispatchEvent(new Event('input', {bubbles: true})); }""")
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-batt-alle-dialog.png"))
+    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(1500)
+    alle = pg.evaluate("""() => { const ids = TEST.daten.machines.filter(m => m.type_id === 't1').map(m => m.id);
+      return ids.map(id => (TEST.daten.maschinen_info || []).find(i => i.machine_id === id) || {}); }""")
+    print("Batterien:", [(i.get("batterie_faellig"), i.get("batterie_anzahl")) for i in alle])
+    pruefe("Termin für alle Maschinen des Typs gesetzt", len(alle) >= 2 and all(i.get("batterie_faellig") == "2028-08-01"
+           and i.get("batterie_anzahl") == 3 and str(i.get("batterie_art", "")).startswith("Mono D") for i in alle))
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-batt-alle.png"))
     vb = pg.locator(".es-wartung .wartung__vorschau").first.bounding_box()
     print("Vorschau:", vb)
     pruefe("Vorschau gross", vb and vb["height"] >= 320 and vb["width"] >= 400)
