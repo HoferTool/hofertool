@@ -117,7 +117,7 @@ function FarbZeile({ f, nr, zu, gespeichert, kats, eigene }) {
 
   return (
     <div className={"farbzeile" + (material.trim() ? " farbzeile--belegt" : "")}>
-      <span className="farbzeile__punkt" style={{ background: f.hex, color: f.schrift }}>{zu.buchstabe || ""}</span>
+      <span className="farbzeile__punkt" style={{ background: f.hex, color: f.schrift, "--fz-schrift": f.schrift }}>{zu.buchstabe || ""}</span>
       <span className="farbzeile__name">{f.name}</span>
       <input type="text" className="farbzeile__material" data-fmat={f.wert} value={material} placeholder="Material"
         onChange={(e) => setMaterial(e.target.value)} onBlur={() => speichern(material, kuerzel)}

@@ -1260,7 +1260,7 @@ body.kopiermodus .pw-balken { cursor: copy; outline: 1px dashed var(--signalgelb
 .kopf__dunkel { display: none; }
 
 /* ---------- Dunkler Modus: ausnahmslos helle Schrift ---------- */
-body.dunkel, body.dunkel * { color: var(--tinte); }
+body.dunkel, body.dunkel *:not(:where(.hell-bleibt, .hell-bleibt *)) { color: var(--tinte); }
 
 /* Nur diese Flächen sind hell und brauchen dunkle Schrift */
 body.dunkel .knopf--haupt, body.dunkel .knopf--haupt *,
@@ -1314,7 +1314,7 @@ body.dunkel {
 }
 
 /* Jede Schrift ist weiss. Keine Ausnahmen. */
-body.dunkel, body.dunkel * { color: #ffffff !important; }
+body.dunkel, body.dunkel *:not(:where(.hell-bleibt, .hell-bleibt *)) { color: #ffffff !important; }
 body.dunkel .klein, body.dunkel .hinweis, body.dunkel .feldhinweis,
 body.dunkel .versionsecke { color: var(--gedaempft) !important; }
 
@@ -11051,3 +11051,51 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .eba-feld--rot .eba-ein { box-shadow: 0 0 0 2px #d32f2f; border-color: #d32f2f; }
 /* Backup-Batterien für einen ganzen Typ oder Park auf einmal (1.350.0) */
 .wartung__batt-alle { margin-left: auto; font-size: .85em; }
+
+/* Kontrast im dunklen Modus (1.350.1, Bild Patrick 2. November 2026):
+   body.dunkel * macht jede Schrift weiss (!important). Helle Schilder
+   behielten aber ihre helle Fläche, „gesendet …“ bei den Bestellungen oder
+   „vorhanden“ in Vorbereiten waren weiss auf hellgrün kaum lesbar.
+   Darum hier dunkle Flächen in derselben Farbe mit weisser Schrift, und wo
+   die Fläche bewusst hell bleibt (Farbpunkt, rot blinkende Karte), die
+   dunkle Schrift mit !important. Prüfstand: kontrast.py. */
+body.dunkel .bs-chip--gesendet { background: #1e4630; border-color: #2f7a4f; }
+body.dunkel .vb-mat--vorhanden { background: #1e4630; }
+body.dunkel .vb-mat--bestellt { background: #4a3a12; }
+body.dunkel .vb-mat--nichts { background: #5a221d; }
+body.dunkel .vb-mat { color: #fff !important; }
+body.dunkel .kred-vermutet { background: #4a3a12; }
+body.dunkel .knopf--vorbereiten:hover { background: #1e4630; }
+body.dunkel .knopf--warnung:hover { background: #4a3a12; }
+body.dunkel .auf-vorschau__gross { background: rgba(28, 34, 41, .92); border-color: var(--linie-stark); }
+body.dunkel .auf-vorschau__gross:hover { background: var(--flaeche); border-color: var(--marke); }
+body.dunkel .wartung__vorschau { background: #232a32; }
+body.dunkel .mat-foto__zeile--material, body.dunkel .mat-foto__zeile--kg { color: #111 !important; }
+body.dunkel .geb-bild--leer { color: #1d4ed8 !important; }
+body.dunkel .farbzeile__punkt { color: var(--fz-schrift, #fff) !important; }
+body.dunkel .heuteoffen--nervt .heuteoffen__maschine,
+body.dunkel .heuteoffen--nervt .heuteoffen__maschine * { color: #1a1a1a !important; }
+body.dunkel .heuteoffen--nervt .heuteoffen__maschine .klein { color: #555 !important; }
+body.dunkel .heuteoffen--nervt .marke, body.dunkel .heuteoffen--nervt .marke * { color: #b80000 !important; }
+body.dunkel .heuteoffen--nervt .marke { background: #fff; }
+body.dunkel .vb-tnr { color: #000 !important; }
+body.dunkel .login__flieger-bild { color: #0f1620 !important; }
+/* Plätze im Fenster „⚙ Typ“: die Karten bleiben weiss wie auf dem Blatt */
+body.dunkel .platzliste .eb-karte, body.dunkel .platzliste .eb-karte * { color: #111 !important; }
+body.dunkel .platzliste .eb-karte__kopf { color: #fff !important; }
+body.dunkel .platzliste .eb-karte--frei .eb-karte__kopf { color: #7a8694 !important; }
+body.dunkel .platzliste .eb-karte__beispiel { color: #8a95a3 !important; }
+body.dunkel .platzliste .eb-karte__tat { color: #55606e !important; }
+body.dunkel .platzliste .eb-karte__knopf { color: #33445c !important; }
+body.dunkel .platzliste .eb-karte__knopf--weg { color: #c0392b !important; }
+
+/* Helle Bildschirme (Empfang, Pausenraum) bleiben auch im dunklen Modus
+   hell: dort gilt die weisse Schrift nicht (.hell-bleibt an der Tafel,
+   Tafel.jsx), und die Grundfarben sind die hellen. */
+body.dunkel .hell-bleibt {
+  --grund: #f3f5f8; --flaeche: #ffffff; --tinte: #1d2430; --gedaempft: #5c6675;
+  --linie: #d6dbe3; --linie-stark: #aeb7c4; --marke: #003884; --marke-dunkel: #002b66;
+  --marke-hell: #e8eef7; --stahl: #003884; --warnung: #b5761a; --gefahr: #b3261e; --gut: #1f7a4d;
+}
+/* „Wetter nicht verfügbar“ im blauen Kopf: grau auf blau war kaum lesbar */
+.kopfkarte__wetter .klein { color: rgba(255, 255, 255, .8); }
