@@ -22,7 +22,7 @@ import { betrachter } from "../../teile/Betrachter.jsx";
 import { UnterlagenListe } from "../../teile/Unterlagen.jsx";
 import { infoLaden, infoSetzen, wartungLaden, anhangHochladen, plusJahre, batterieFaellig,
   batterieText, tageBis, ohneBatterien, fehltSql, SQL_FEHLT, BATTERIE_JAHRE, istPdf, istBild,
-  BATTERIE_ARTEN, batterieArtTeilen, batterieArtZusammen, batterienText } from "../../daten/maschinenInfo.js";
+  BATTERIE_ARTEN, batterieArtTeilen, batterieArtZusammen, batterienText, batterienGewechselt } from "../../daten/maschinenInfo.js";
 
 const langDatum = (iso) => iso ? alt.kurzDatum(iso) + iso.slice(0, 4) : "";
 
@@ -213,17 +213,10 @@ function Batterien({ m, info, darf, neu }) {
         { name: "notiz", label: "Notiz für die Wartung", typ: "textarea", platzhalter: "kann leer bleiben" }],
       bestaetigen: "Speichern" });
     if (!w) return;
-    const naechst = w.naechst || plusJahre(w.am, BATTERIE_JAHRE);
     try {
-      await infoSetzen(m.id, { batterie_gewechselt: w.am, batterie_faellig: naechst }, "Batterien " + wer);
-      const ein = await alt.db.from("maschinen_wartung").insert({ machine_id: m.id, datum: w.am, erstellt_von: alt.meineProfilId(),
-        text: "Backup-Batterien gewechselt" + (w.notiz ? "\n" + w.notiz : ""), anhaenge: [] }).select("id");
-      if (!ein.error && ein.data && ein.data[0]) {
-        alt.merkeSchritt("Wartung " + wer, alt.rueckWeg("maschinen_wartung", { id: ein.data[0].id }));
-      }
+      const naechst = await batterienGewechselt(m.id, w.am, w.naechst, w.notiz, wer);
       alt.meldung("Gespeichert. Nächster Wechsel am " + langDatum(naechst) + ".", "gut");
       neu();
-      window.dispatchEvent(new Event("hofer:wartung"));
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
 

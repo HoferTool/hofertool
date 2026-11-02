@@ -2,10 +2,14 @@
 # 2. November 2026). Bild ablegen, terminieren; ab dem Termin zeigt der
 # Bildschirmschoner das Bild statt des Einrichtblatts (auch wenn eine
 # Kachel mahnt), bis „Erledigt“ unten in der Mitte quittiert.
+# Seit 1.338.0 je Maschinentyp mit Wiederholung, Quittung je Maschine,
+# dazu die Backup-Batterien mit eigenem Schoner.
 import sys, time, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
+K = """(() => { daten.machines.forEach((m) => { if (/^m-l/.test(m.id)) m.type_id = "t1"; }); })();"""
+FAKE = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 AB = os.environ.get("BILDER_ORDNER", "/tmp")
 PNG = bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010806000000"
                     "1f15c4890000000d49444154789c63f8cf80000000030001a5f2bd6f0000000049454e44ae426082")
@@ -48,18 +52,25 @@ with sync_playwright() as p:
     pg.set_input_files("#wartung-datei", files=[{"name": "Filter wechseln.png", "mimeType": "image/png", "buffer": PNG}])
     pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
     pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(800)
-    zeilen = pg.evaluate("TEST.daten.pad_wartungen || []")
-    pruefe("eine Wartung gespeichert", len(zeilen) == 1 and zeilen[0]["titel"] == "Filter wechseln"
-           and zeilen[0]["art"] == "bild" and not zeilen[0].get("termin"))
+    zeilen = pg.evaluate("TEST.daten.wartung_plan || []")
+    pruefe("eine Wartung je Typ gespeichert", len(zeilen) == 1 and zeilen[0]["titel"] == "Filter wechseln"
+           and zeilen[0]["art"] == "bild" and not zeilen[0].get("termin") and zeilen[0]["type_id"] == "t1")
+    mid = pg.evaluate("TEST.daten.machines.find(m => document.querySelector('#wartung h2').textContent.includes(m.machine_number || m.name)).id")
+    print("Maschine:", mid)
+    pruefe("Batterien stehen im Fenster", pg.locator("#wartung [data-wartung-batterien]").count() == 1)
     pruefe("Zeile zeigt kein Termin", "Kein Termin" in pg.locator("#wartung").inner_text())
 
     # Terminieren: eine Minute in der Vergangenheit
     pg.locator("[data-wartung-termin]").first.click(); pg.wait_for_timeout(400)
     pg.evaluate("""() => { const d = new Date(Date.now() - 60000), z = (n) => String(n).padStart(2, '0');
       const el = document.querySelector('.dialog-huelle:last-child input[type=datetime-local]');
-      el.value = d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T'+z(d.getHours())+':'+z(d.getMinutes()); }""")
+      el.value = d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T'+z(d.getHours())+':'+z(d.getMinutes());
+      const s = document.querySelector('.dialog-huelle:last-child select'); s.value = 'woche'; s.dispatchEvent(new Event('change', {bubbles: true})); }""")
     pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(800)
-    pruefe("Termin gesetzt", bool(pg.evaluate("TEST.daten.pad_wartungen[0].termin")))
+    pruefe("Termin mit Wiederholung gesetzt", bool(pg.evaluate("TEST.daten.wartung_plan[0].termin"))
+           and pg.evaluate("TEST.daten.wartung_plan[0].wiederholung") == "woche")
+    pruefe("nächster Termin in einer Woche angezeigt", "Jede Woche" in pg.locator("#wartung").inner_text()
+           and "nächster Termin" in pg.locator("#wartung").inner_text())
     pruefe("Zeile fällig mit Erledigt", pg.locator(".wartung__zeile--faellig [data-wartung-erledigt]").count() == 1)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-fenster.png"))
     pg.click("#wartung [data-zu]"); pg.wait_for_timeout(500)
@@ -78,28 +89,65 @@ with sync_playwright() as p:
     # Tipp daneben: nur zurück, sie kommt wieder
     pg.locator("[data-padschonerzu]").click(position={"x": 200, "y": 300}); pg.wait_for_timeout(500)
     pruefe("Tipp daneben schliesst", pg.locator(SCHONER).count() == 0)
-    pruefe("noch nicht erledigt", bool(pg.evaluate("TEST.daten.pad_wartungen[0].termin")))
+    pruefe("noch nicht erledigt", not pg.evaluate("TEST.daten.wartung_erledigt || []"))
     warten(pg, 61000)
     pruefe("kommt nach einer Minute wieder", pg.locator(SCHONER).count() == 1)
 
     pg.click("[data-wartung-erledigt-schoner]"); pg.wait_for_timeout(900)
-    w = pg.evaluate("TEST.daten.pad_wartungen[0]")
-    pruefe("Erledigt quittiert", pg.locator(SCHONER).count() == 0 and not w.get("termin") and w.get("erledigt_am"))
+    e = pg.evaluate("TEST.daten.wartung_erledigt || []")
+    pruefe("Erledigt quittiert je Maschine", pg.locator(SCHONER).count() == 0 and len(e) == 1
+           and e[0]["machine_id"] == mid and bool(pg.evaluate("TEST.daten.wartung_plan[0].termin")))
     warten(pg, 61000)
     pruefe("danach keine Wartung mehr im Schoner", pg.locator(SCHONER).count() == 0)
     pruefe("Kachel wieder ruhig", pg.locator(".pad-karte2--wartung-faellig").count() == 0)
+    # Eine Woche später: wieder fällig
+    # (Termin und Quittung eine Woche zurück = eine Woche später; die Uhr
+    # weit vorstellen liesse die App stündlich neu laden)
+    pg.evaluate("""() => { const w = 7 * 86400000, d = TEST.daten;
+      d.wartung_plan[0].termin = new Date(new Date(d.wartung_plan[0].termin) - w).toISOString();
+      d.wartung_erledigt.forEach((e) => { e.erledigt_am = new Date(new Date(e.erledigt_am) - w).toISOString(); });
+      window.dispatchEvent(new Event('hofer:wartung')); }""")
+    pg.wait_for_timeout(800)
+    pruefe("nach einer Woche wieder fällig", pg.locator(".pad-karte2--wartung-faellig").count() == 1)
+    warten(pg, 61000)
+    pruefe("Schoner wieder da", pg.locator(SCHONER).count() == 1)
+    pg.click("[data-wartung-erledigt-schoner]"); pg.wait_for_timeout(900)
+    pruefe("zweite Quittung", len(pg.evaluate("TEST.daten.wartung_erledigt")) == 2)
+
+    # Backup-Batterien heute fällig: eigener Schoner, Erledigt = gewechselt
+    pg.evaluate("""(mid) => { const d = TEST.daten; d.maschinen_info = d.maschinen_info || [];
+      const gestern = new Date(Date.now() - 86400000), z = (n) => String(n).padStart(2, '0');
+      d.maschinen_info.push({ machine_id: mid, batterie_faellig: gestern.getFullYear()+'-'+z(gestern.getMonth()+1)+'-'+z(gestern.getDate()),
+        batterie_hinweis: true, batterie_anzahl: 2, batterie_art: 'Mono D (LR20, die dicken)' });
+      window.dispatchEvent(new Event('hofer:wartung')); }""", mid)
+    pg.wait_for_timeout(800)
+    pruefe("Kachel fällig wegen Batterien", "Backup-Batterien" in pg.locator(".pad-karte2--wartung").inner_text())
+    warten(pg, 61000)
+    pruefe("Batterie-Schoner", pg.locator(".pad-schoner--batterie").count() == 1
+           and "2 × Mono D" in pg.locator(".pad-schoner--batterie").inner_text())
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-batterie.png"))
+    pg.click("[data-wartung-erledigt-schoner]"); pg.wait_for_timeout(1000)
+    info = pg.evaluate("(mid) => TEST.daten.maschinen_info.find(i => i.machine_id === mid)", mid)
+    hist = pg.evaluate("(mid) => (TEST.daten.maschinen_wartung || []).filter(w => w.machine_id === mid)", mid)
+    pruefe("Batterien gewechselt: Termin in 2 Jahren, Eintrag in Historie",
+           info.get("batterie_gewechselt") and info["batterie_faellig"][:4] == str(int(info["batterie_gewechselt"][:4]) + 2)
+           and len(hist) == 1)
+    pruefe("Batterie-Schoner weg", pg.locator(".pad-schoner--batterie").count() == 0)
     # Einstellungen → Wartung: dieselbe Liste, Maschine wählen, gross
     pg.click("#pad [data-padzurueck]"); pg.wait_for_timeout(400)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pg.evaluate("document.querySelector('#pad [data-padzu], #pad .pad-schliessen') && document.querySelector('#pad [data-padzu], #pad .pad-schliessen').click()")
     pg.wait_for_timeout(500)
     if pg.locator("#pad").count(): pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
-    pg.evaluate("TEST.daten.pad_wartungen[0].url = location.origin + '/icon-512.png'")
+    pg.evaluate("TEST.daten.wartung_plan[0].url = location.origin + '/icon-512.png'")
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(700)
     pruefe("Reiter Wartung da", pg.locator("[data-einst='wartung']").count() == 1)
     pg.click("[data-einst='wartung']"); pg.wait_for_timeout(700)
-    pg.click("[data-wartung-maschine='m-l1']"); pg.wait_for_timeout(800)
-    pruefe("Wartung der Maschine in den Einstellungen", pg.locator(".es-wartung [data-wartung]").count() == 1)
+    pg.click("[data-wartung-typ='t1']"); pg.wait_for_timeout(800)
+    pruefe("Wartung des Typs in den Einstellungen", pg.locator(".es-wartung [data-wartung]").count() == 1)
+    pruefe("Batterien aller Maschinen des Typs", pg.locator(".es-wartung [data-batterie-maschine]").count() >= 2)
+    pruefe("Fällig an: andere Maschinen", "Fällig an" in pg.locator(".es-wartung [data-wartung]").inner_text()
+           and pg.evaluate("(mid) => { const m = TEST.daten.machines.find(x => x.id === mid); return m.machine_number || m.name; }", mid) not in pg.locator(".es-wartung [data-faellig-an]").inner_text())
     vb = pg.locator(".es-wartung .wartung__vorschau").first.bounding_box()
     print("Vorschau:", vb)
     pruefe("Vorschau gross", vb and vb["height"] >= 320 and vb["width"] >= 400)

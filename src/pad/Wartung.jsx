@@ -7,11 +7,19 @@
 //  soll es quittieren können, indem man auf den Button unten Mitte
 //  drückt: Erledigt“).
 //
-//  Je Maschine eine Liste von Bildern und PDFs (Tabelle pad_wartungen,
-//  sql/pad-wartung.sql). Jedes kann einen Termin haben. Ab dem Termin
-//  ist es „fällig“: der Bildschirmschoner zeigt es statt des
-//  Einrichtblatts, bis jemand „Erledigt“ tippt. Erledigt nimmt den
-//  Termin weg; die Datei bleibt für das nächste Mal liegen.
+//  Seit 1.338.0 je Maschinentyp statt je Maschine, mit Wiederholung
+//  (Wunsch Patrick 2. November 2026: „nicht spezifisch Nr. sondern Typ,
+//  Wiederholungen täglich/Woche/Monat/jährlich, Batterie-Backup soll
+//  auch dort angezeigt werden und Schoner dazu geben“):
+//   - wartung_plan: Bild oder PDF je Typ, erster Termin, Wiederholung
+//   - wartung_erledigt: wer an welcher Maschine wann quittiert hat
+//  Fällig an einer Maschine ist ein Plan, wenn sein letzter Termin
+//  (aus erstem Termin und Wiederholung gerechnet) da ist und an dieser
+//  Maschine seither niemand „Erledigt“ getippt hat. So quittiert jede
+//  Maschine des Typs für sich.
+//  Dazu die Backup-Batterien der Maschine (maschinen_info, Seite der
+//  Maschine): am Termin sind sie hier fällig wie eine Wartung, der
+//  Schoner zeigt sie, „Erledigt“ heisst „Batterien gewechselt“.
 //
 //  Hochladen, terminieren, löschen: alle mit Schreibrecht. Quittieren:
 //  alle, die es sehen. Externe haben die Kachel nicht (wie vorher
@@ -21,12 +29,31 @@ import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
+import { infoLaden, batterieHeuteFaellig, batterienGewechselt, batterieText, batterienText,
+  ohneBatterien } from "../daten/maschinenInfo.js";
 
-const TABELLE = "pad_wartungen";
-const AENDERUNG = "hofer-wartung";
+const PLAN = "wartung_plan";
+const ERLEDIGT = "wartung_erledigt";
+const AENDERUNG = "hofer:wartung";
+
+export const WIEDERHOLUNG = [
+  ["nie", "Einmalig"],
+  ["tag", "Jeden Tag"],
+  ["woche", "Jede Woche"],
+  ["2wochen", "Alle 2 Wochen"],
+  ["monat", "Jeden Monat"],
+  ["3monate", "Alle 3 Monate"],
+  ["6monate", "Alle 6 Monate"],
+  ["jahr", "Jedes Jahr"],
+  ["2jahre", "Alle 2 Jahre"],
+];
+export const wiederholungText = (w) => (WIEDERHOLUNG.find((x) => x[0] === w) || WIEDERHOLUNG[0])[1];
+// Schritt je Wiederholung: Tage oder Monate
+const SCHRITT = { tag: [1, 0], woche: [7, 0], "2wochen": [14, 0], monat: [0, 1], "3monate": [0, 3],
+  "6monate": [0, 6], jahr: [0, 12], "2jahre": [0, 24] };
 
 const endungVon = (name) => ((String(name || "").match(/\.([A-Za-z0-9]+)$/) || [])[1] || "").toLowerCase();
-export const istPdf = (w) => w.art === "pdf" || endungVon(w.dateiname || w.url.split(/[?#]/)[0]) === "pdf";
+export const istPdf = (w) => !!w && (w.art === "pdf" || endungVon(w.dateiname || String(w.url || "").split(/[?#]/)[0]) === "pdf");
 
 function ablageName(name) {
   const rein = String(name || "datei").normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -46,49 +73,161 @@ export function zeitText(iso) {
   return TAGE[d.getDay()] + " " + d.getDate() + "." + (d.getMonth() + 1) + "." + d.getFullYear()
     + " " + zwei(d.getHours()) + ":" + zwei(d.getMinutes());
 }
+const datumText = (d) => TAGE[d.getDay()] + " " + d.getDate() + "." + (d.getMonth() + 1) + "." + d.getFullYear();
 
-export const istFaellig = (w) => !!w.termin && new Date(w.termin).getTime() <= Date.now();
-export function faellige(liste) {
-  return (liste || []).filter(istFaellig).sort((a, b) => new Date(a.termin) - new Date(b.termin));
+// ---------- Termine rechnen ----------
+
+// k-ter Termin ab dem ersten. Monate auf den letzten Tag gekürzt
+// (31. Januar + 1 Monat = 28./29. Februar), Uhrzeit bleibt.
+function termin(start, w, k) {
+  const [tage, monate] = SCHRITT[w] || [0, 0];
+  const d = new Date(start);
+  if (tage) { d.setDate(d.getDate() + tage * k); return d; }
+  const tag = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + monate * k);
+  const letzter = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(tag, letzter));
+  return d;
 }
 
-export async function wartungenLaden(maschineId) {
-  const r = await alt.db.from(TABELLE).select("*").eq("machine_id", maschineId).order("erstellt_am");
+// Nummer des letzten Termins, der schon da ist (0 = der erste)
+function letzteNummer(start, w, jetzt) {
+  const [tage, monate] = SCHRITT[w];
+  const schaetz = tage ? (jetzt - start) / (tage * 86400000) : (jetzt - start) / (monate * 30.44 * 86400000);
+  let k = Math.max(0, Math.floor(schaetz) - 1);
+  while (termin(start, w, k + 1).getTime() <= jetzt) k++;
+  while (k > 0 && termin(start, w, k).getTime() > jetzt) k--;
+  return k;
+}
+
+// Der letzte Termin, der schon da ist (oder null)
+export function letzterTermin(plan, jetzt = Date.now()) {
+  if (!plan || !plan.termin) return null;
+  const start = new Date(plan.termin);
+  if (start.getTime() > jetzt) return null;
+  if (!SCHRITT[plan.wiederholung]) return start;
+  return termin(start, plan.wiederholung, letzteNummer(start, plan.wiederholung, jetzt));
+}
+
+// Der nächste Termin in der Zukunft (oder null)
+export function naechsterTermin(plan, jetzt = Date.now()) {
+  if (!plan || !plan.termin) return null;
+  const start = new Date(plan.termin);
+  if (start.getTime() > jetzt) return start;
+  if (!SCHRITT[plan.wiederholung]) return null;
+  return termin(start, plan.wiederholung, letzteNummer(start, plan.wiederholung, jetzt) + 1);
+}
+
+// Wann zuletzt an dieser Maschine erledigt (Date oder null)
+function zuletztErledigt(erledigt, planId, maschineId) {
+  let max = null;
+  (erledigt || []).forEach((e) => {
+    if (e.plan_id !== planId || e.machine_id !== maschineId) return;
+    const t = new Date(e.erledigt_am);
+    if (!max || t > max) max = t;
+  });
+  return max;
+}
+
+// Ist der Plan an dieser Maschine fällig? Gibt den Termin zurück, seit
+// dem er fällig ist, sonst null.
+export function faelligSeit(plan, erledigt, maschineId, jetzt = Date.now()) {
+  const l = letzterTermin(plan, jetzt);
+  if (!l) return null;
+  const e = zuletztErledigt(erledigt, plan.id, maschineId);
+  return e && e >= l ? null : l;
+}
+
+// ---------- Laden ----------
+
+export async function plaeneLaden(typeId) {
+  if (!typeId) return [];
+  const r = await alt.db.from(PLAN).select("*").eq("type_id", typeId).order("erstellt_am");
   if (r.error) throw r.error;
   return r.data || [];
 }
 
-const geaendert = () => window.dispatchEvent(new Event(AENDERUNG));
+export async function erledigtLaden(planIds) {
+  if (!planIds.length) return [];
+  const r = await alt.db.from(ERLEDIGT).select("*").in("plan_id", planIds);
+  if (r.error) throw r.error;
+  return r.data || [];
+}
 
-// Liste einer Maschine, frisch nach jeder Änderung und jede Minute
-// (ein Termin kann auch von einem anderen Gerät gesetzt werden)
-export function useWartungen(maschineId) {
-  const [liste, setListe] = useState([]);
+const typNamen = new Map();
+async function typName(typeId) {
+  if (!typeId) return "";
+  if (!typNamen.has(typeId)) {
+    const p = alt.db.from("machine_types").select("id, name").eq("id", typeId)
+      .then((r) => ((r.data || [])[0] || {}).name || "");
+    typNamen.set(typeId, p);
+  }
+  return typNamen.get(typeId);
+}
+
+export const geaendert = () => window.dispatchEvent(new Event(AENDERUNG));
+
+// Alles zur Wartung einer Maschine: Pläne ihres Typs, wer wann erledigt
+// hat, die Batterien. Frisch nach jeder Änderung und jede Minute (ein
+// Termin kann von einem anderen Gerät kommen, und Termine werden auch
+// ohne Änderung in der Datenbank fällig).
+export function useWartung(m) {
+  const [stand, setStand] = useState({ plaene: [], erledigt: [], info: null, typ: "" });
   const [, setTakt] = useState(0);
+  const id = m && m.id, typId = m && m.type_id;
   useEffect(() => {
-    if (!maschineId || alt.istExtern()) { setListe([]); return; }
+    if (!id || alt.istExtern()) { setStand({ plaene: [], erledigt: [], info: null, typ: "" }); return; }
     let weg = false;
-    const laden = () => wartungenLaden(maschineId)
-      .then((l) => { if (!weg) setListe(l); })
-      .catch(() => { /* ohne Tabelle eben keine Wartung */ });
+    const laden = async () => {
+      const [plaene, info, typ] = await Promise.all([
+        plaeneLaden(typId).catch(() => []),
+        infoLaden(id).catch(() => null),
+        typName(typId).catch(() => "")]);
+      const erledigt = await erledigtLaden(plaene.map((p) => p.id)).catch(() => []);
+      if (!weg) setStand({ plaene, erledigt, info, typ });
+    };
     laden();
-    // Jede Minute neu laden; dazu neu zeichnen, damit ein Termin
-    // fällig wird, auch wenn sich in der Datenbank nichts ändert
     const t = setInterval(() => { laden(); setTakt((x) => x + 1); }, 60 * 1000);
     window.addEventListener(AENDERUNG, laden);
     return () => { weg = true; clearInterval(t); window.removeEventListener(AENDERUNG, laden); };
-  }, [maschineId]);
-  return liste;
+  }, [id, typId]);
+  return { ...stand, faellig: faelligeFuer(m, stand) };
 }
 
-// Quittieren: Termin weg, erledigt jetzt (wer, setzt die Datenbank)
-export async function wartungErledigen(w) {
-  const vorher = await alt.rueckSichern(TABELLE, { id: w.id });
-  const { error } = await alt.db.from(TABELLE)
-    .update({ termin: null, erledigt_am: new Date().toISOString() }).eq("id", w.id);
-  if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return false; }
-  alt.merkeSchritt("Wartung erledigt: " + w.titel, alt.rueckRein(TABELLE, vorher));
-  alt.meldung("Erledigt: " + w.titel, "gut");
+// Was an der Maschine jetzt fällig ist, ältestes zuerst: Pläne und
+// Batterien
+export function faelligeFuer(m, { plaene, erledigt, info, typ }) {
+  if (!m) return [];
+  const liste = [];
+  (plaene || []).forEach((p) => {
+    const seit = faelligSeit(p, erledigt, m.id);
+    if (seit) liste.push({ art: "plan", id: p.id, titel: p.titel, plan: p, seit });
+  });
+  if (batterieHeuteFaellig(info, typ)) {
+    liste.push({ art: "batterie", id: "batterie", titel: "Backup-Batterien wechseln", info,
+      seit: alt.ausIso(info.batterie_faellig) });
+  }
+  return liste.sort((a, b) => a.seit - b.seit);
+}
+
+// Quittieren an dieser Maschine, mit Rückgängig
+export async function erledigen(item, m) {
+  if (item.art === "batterie") {
+    try {
+      const naechst = await batterienGewechselt(m.id, null, null, null, m.machine_number || m.name);
+      alt.meldung("Batterien gewechselt. Nächster Wechsel am " + alt.kurzDatum(naechst) + naechst.slice(0, 4) + ".", "gut");
+      geaendert();
+      return true;
+    } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); return false; }
+  }
+  const r = await alt.db.from(ERLEDIGT).insert({ plan_id: item.plan.id, machine_id: m.id,
+    // Uhr des Geräts, mit der auch die Termine gerechnet werden
+    erledigt_am: new Date().toISOString() }).select("id");
+  if (r.error) { alt.meldung(alt.fehlertext(r.error), "fehler"); return false; }
+  const neu = ((r.data || [])[0] || {}).id;
+  if (neu) alt.merkeSchritt("Wartung erledigt: " + item.titel, alt.rueckWeg(ERLEDIGT, { id: neu }));
+  alt.meldung("Erledigt: " + item.titel, "gut");
   geaendert();
   return true;
 }
@@ -98,12 +237,25 @@ function ansehen(w) {
   return betrachter(w.url, w.titel, false, "bild", endungVon(w.dateiname || w.url));
 }
 
+// Nächster Termin an der Maschine, für die Kachel
+function naechstesAnMaschine(m, { plaene, info, typ }) {
+  let best = null;
+  (plaene || []).forEach((p) => {
+    const n = naechsterTermin(p);
+    if (n && (!best || n < best.wann)) best = { wann: n, titel: p.titel };
+  });
+  if (info && info.batterie_hinweis !== false && info.batterie_faellig && !ohneBatterien(typ)) {
+    const b = alt.ausIso(info.batterie_faellig);
+    if (!best || b < best.wann) best = { wann: b, titel: "Batterien", tag: true };
+  }
+  return best;
+}
+
 // ---------- Kachel im Dashboard ----------
 export function WartungKachel({ m }) {
-  const liste = useWartungen(m && m.id);
-  const f = faellige(liste);
-  const naechste = liste.filter((w) => w.termin && !istFaellig(w))
-    .sort((a, b) => new Date(a.termin) - new Date(b.termin))[0];
+  const w = useWartung(m);
+  const f = w.faellig;
+  const n = !f.length && naechstesAnMaschine(m, w);
   return (
     <button type="button" className={"pad-karte2 pad-karte2--wartung" + (f.length ? " pad-karte2--wartung-faellig" : "")}
       data-padfeld="wartung" onClick={() => wartungFensterOeffnen(m)}>
@@ -115,7 +267,7 @@ export function WartungKachel({ m }) {
       </span>
       <span className="pad-wartung__unter">
         {f.length ? f[0].titel + (f.length > 1 ? " (+" + (f.length - 1) + ")" : "")
-          : naechste ? "nächste " + zeitText(naechste.termin) : "keine geplant"}
+          : n ? "nächste " + (n.tag ? datumText(n.wann) : zeitText(n.wann)) + " · " + n.titel : "keine geplant"}
       </span>
     </button>
   );
@@ -124,21 +276,16 @@ export function WartungKachel({ m }) {
 // ---------- Fenster mit der Liste ----------
 export function wartungFensterOeffnen(m) {
   if (!m || !m.id) return;
-  fensterOeffnen((zu) => <WartungFenster m={m} zu={zu} />, null, "wartung-huelle");
+  fensterOeffnen((zu) => (
+    <div className="dialog dialog--breit wartung wartung--fenster" id="wartung">
+      <WartungListe typId={m.type_id} m={m} zu={zu} />
+    </div>), null, "wartung-huelle");
 }
 
 function terminVorschlag(w) {
   if (w && w.termin) return feldWert(new Date(w.termin));
   const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(7, 0, 0, 0);
   return feldWert(d);
-}
-
-function WartungFenster({ m, zu }) {
-  return (
-    <div className="dialog dialog--breit wartung wartung--fenster" id="wartung">
-      <WartungListe m={m} zu={zu} />
-    </div>
-  );
 }
 
 // Erste Seite eines PDF als Bild, so gross wie die Karte (Wunsch
@@ -187,28 +334,78 @@ function Vorschau({ w }) {
   </>;
 }
 
-// Die Liste, im Fenster des Pads oder unter Einstellungen → Wartung.
-// Ohne zu kein Schliessen.
-export function WartungListe({ m, zu }) {
-  const [liste, setListe] = useState(null);
+export const BatterieSymbol = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="wartung__batterie-symbol">
+    <rect x="2.5" y="7" width="17" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+    <rect x="20" y="10" width="2" height="4" rx="0.6" fill="currentColor" />
+    <path d="M10.5 9 8 12.5h3l-1.5 3 3.5-4.5h-3l1-2z" fill="currentColor" /></svg>);
+
+// Karte der Backup-Batterien einer oder mehrerer Maschinen
+function Batterien({ maschinen, infos, typ, darf }) {
+  if (ohneBatterien(typ) || !maschinen.length) return null;
+  return (
+    <div className="wartung__batterien" data-wartung-batterien="">
+      <h3><BatterieSymbol /> Backup-Batterien</h3>
+      <ul>
+        {maschinen.map((x) => {
+          const info = infos[x.id];
+          const faellig = batterieHeuteFaellig(info, typ);
+          const aus = !info || info.batterie_hinweis === false || !info.batterie_faellig;
+          return (
+            <li key={x.id} className={faellig ? "wartung__batt--faellig" : ""} data-batterie-maschine={x.id}>
+              <b>{x.machine_number || x.name}</b>
+              <span>{aus ? "kein Termin" : batterieText(info)}
+                {batterienText(info) ? " · " + batterienText(info) : ""}
+                {info && info.batterie_gewechselt ? " · zuletzt " + alt.kurzDatum(info.batterie_gewechselt)
+                  + String(info.batterie_gewechselt).slice(0, 4) : ""}</span>
+              {faellig && darf && <button className="knopf knopf--klein knopf--haupt" data-batterie-erledigt={x.id}
+                onClick={() => erledigen({ art: "batterie", titel: "Backup-Batterien" }, x)}>Gewechselt</button>}
+            </li>);
+        })}
+      </ul>
+      <p className="klein wartung__batterien-hinweis">Termin, Anzahl und Art der Batterien auf der Seite der Maschine
+        (Maschinen → Maschine). Am Termin zeigt das Pad den Wechsel als Bildschirmschoner.</p>
+    </div>
+  );
+}
+
+// Die Liste eines Typs, im Fenster des Pads (mit m: Stand dieser
+// Maschine) oder unter Einstellungen → Wartung (ohne m: Stand aller
+// Maschinen des Typs). Ohne zu kein Schliessen.
+export function WartungListe({ typId, m, maschinen: alle, typ: typText, zu }) {
+  const [plaene, setPlaene] = useState(null);
+  const [erledigt, setErledigt] = useState([]);
+  const [infos, setInfos] = useState({});
+  const [typ, setTyp] = useState(typText || "");
   const [fehler, setFehler] = useState("");
   const [laedt, setLaedt] = useState("");
   const wahl = useRef(null);
   const darf = alt.darfSchreiben() && !alt.istExtern();
+  const maschinen = m ? [m] : (alle || []);
+  const kennung = maschinen.map((x) => x.id).join(",");
 
   const laden = async () => {
-    try { setListe(await wartungenLaden(m.id)); setFehler(""); }
-    catch (f) {
+    try {
+      const p = await plaeneLaden(typId);
+      const [e, ...i] = await Promise.all([erledigtLaden(p.map((x) => x.id)),
+        ...maschinen.map((x) => infoLaden(x.id).catch(() => null))]);
+      setPlaene(p); setErledigt(e); setFehler("");
+      const z = {}; maschinen.forEach((x, n) => { z[x.id] = i[n]; }); setInfos(z);
+    } catch (f) {
       const t = alt.fehlertext(f);
-      setFehler(/pad_wartungen/.test(t) ? "Die Wartung ist in der Datenbank noch nicht eingerichtet (sql/pad-wartung.sql)." : t);
-      setListe([]);
+      setFehler(/wartung_(plan|erledigt)/.test(t) ? "Die Wartung ist in der Datenbank noch nicht eingerichtet (sql/wartung-typ.sql)." : t);
+      setPlaene([]);
     }
   };
   useEffect(() => {
     laden();
+    if (!typText) typName(typId).then(setTyp).catch(() => {});
     window.addEventListener(AENDERUNG, laden);
     return () => window.removeEventListener(AENDERUNG, laden);
-  }, []);
+  }, [typId, kennung]);
+
+  const wiederholungFeld = (wert) => ({ name: "wiederholung", label: "Wiederholen", wert: wert || "nie",
+    auswahl: WIEDERHOLUNG });
 
   const hochladen = async (dateien) => {
     for (const datei of dateien) {
@@ -217,28 +414,30 @@ export function WartungListe({ m, zu }) {
         alt.meldung(datei.name + ": nur Bilder oder PDFs.", "warn"); continue;
       }
       const w = await alt.dialogFelder({
-        titel: "Wartung ablegen",
+        titel: "Wartung ablegen" + (typ ? " · " + typ : ""),
         felder: [
           { name: "titel", label: "Was ist zu tun?", pflicht: true,
             wert: datei.name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim() },
-          { name: "termin", label: "Termin (leer = nur ablegen)", typ: "datetime-local", wert: "",
-            hinweis: "Ab dann zeigt das Pad es als Bildschirmschoner, bis jemand „Erledigt“ tippt." },
+          { name: "termin", label: "Erster Termin (leer = nur ablegen)", typ: "datetime-local", wert: "",
+            hinweis: "Ab dann zeigt das Pad jeder Maschine dieses Typs es als Bildschirmschoner, bis dort jemand „Erledigt“ tippt." },
+          wiederholungFeld("nie"),
         ],
         bestaetigen: "Ablegen" });
       if (!w) continue;
       setLaedt(datei.name);
       try {
-        const pfad = "maschinen/" + m.id + "/wartung-pad/" + ablageName(datei.name);
+        const pfad = "typen/" + typId + "/wartung/" + ablageName(datei.name);
         const up = await alt.db.storage.from("zeichnungen").upload(pfad, datei,
           { contentType: datei.type || (pdf ? "application/pdf" : "application/octet-stream"), upsert: false });
         if (up.error) throw up.error;
         const url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
-        const ein = await alt.db.from(TABELLE).insert({
-          machine_id: m.id, titel: w.titel.trim(), url, pfad, dateiname: datei.name,
-          art: pdf ? "pdf" : "bild", termin: w.termin ? new Date(w.termin).toISOString() : null }).select("id");
+        const ein = await alt.db.from(PLAN).insert({
+          type_id: typId, titel: w.titel.trim(), url, pfad, dateiname: datei.name,
+          art: pdf ? "pdf" : "bild", termin: w.termin ? new Date(w.termin).toISOString() : null,
+          wiederholung: w.wiederholung || "nie" }).select("id");
         if (ein.error) throw ein.error;
         const neuId = ((ein.data || [])[0] || {}).id;
-        if (neuId) alt.merkeSchritt("Wartung " + w.titel.trim(), alt.rueckWeg(TABELLE, { id: neuId }));
+        if (neuId) alt.merkeSchritt("Wartung " + w.titel.trim(), alt.rueckWeg(PLAN, { id: neuId }));
         alt.meldung("Abgelegt: " + w.titel.trim(), "gut");
       } catch (f) {
         const t = alt.fehlertext(f);
@@ -250,10 +449,10 @@ export function WartungListe({ m, zu }) {
   };
 
   const aendern = async (w, daten, text) => {
-    const vorher = await alt.rueckSichern(TABELLE, { id: w.id });
-    const { error } = await alt.db.from(TABELLE).update(daten).eq("id", w.id);
+    const vorher = await alt.rueckSichern(PLAN, { id: w.id });
+    const { error } = await alt.db.from(PLAN).update(daten).eq("id", w.id);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
-    alt.merkeSchritt(text, alt.rueckRein(TABELLE, vorher));
+    alt.merkeSchritt(text, alt.rueckRein(PLAN, vorher));
     geaendert();
   };
 
@@ -262,72 +461,99 @@ export function WartungListe({ m, zu }) {
       titel: "Termin für „" + w.titel + "“",
       felder: [
         { name: "titel", label: "Was ist zu tun?", wert: w.titel, pflicht: true },
-        { name: "termin", label: "Ab wann anzeigen?", typ: "datetime-local", wert: terminVorschlag(w), pflicht: true,
-          hinweis: "Ab dann zeigt das Pad es als Bildschirmschoner statt des Einrichtblatts." },
+        { name: "termin", label: "Erster Termin", typ: "datetime-local", wert: terminVorschlag(w), pflicht: true,
+          hinweis: "Ab dann zeigt das Pad es als Bildschirmschoner statt des Einrichtblatts, an jeder Maschine des Typs." },
+        wiederholungFeld(w.wiederholung),
       ],
       bestaetigen: "Terminieren" });
     if (!e || !e.termin) return;
-    await aendern(w, { titel: e.titel.trim(), termin: new Date(e.termin).toISOString() }, "Termin " + w.titel);
+    await aendern(w, { titel: e.titel.trim(), termin: new Date(e.termin).toISOString(),
+      wiederholung: e.wiederholung || "nie" }, "Termin " + w.titel);
   };
 
   const loeschen = async (w) => {
     const ja = await alt.nachfragen({ titel: "Wartung löschen",
-      text: "Soll „" + w.titel + "“ gelöscht werden?", bestaetigen: "Löschen", gefahr: true });
+      text: "Soll „" + w.titel + "“ für alle Maschinen des Typs gelöscht werden?", bestaetigen: "Löschen", gefahr: true });
     if (!ja) return;
-    // Die Datei bleibt liegen, damit Rückgängig sie zurückholt
-    const vorher = await alt.rueckSichern(TABELLE, { id: w.id });
-    const { error } = await alt.db.from(TABELLE).delete().eq("id", w.id);
+    // Die Datei bleibt liegen, damit Rückgängig sie zurückholt. Die
+    // Quittungen gehen mit dem Plan weg (in der Datenbank), darum vorher
+    // sichern.
+    const vorher = await alt.rueckSichern(PLAN, { id: w.id });
+    const quittungen = await alt.rueckSichern(ERLEDIGT, { plan_id: w.id });
+    const { error } = await alt.db.from(PLAN).delete().eq("id", w.id);
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
-    alt.merkeSchritt("Löschen von " + w.titel, alt.rueckRein(TABELLE, vorher));
+    alt.merkeSchritt("Löschen von " + w.titel, [...[].concat(alt.rueckRein(PLAN, vorher)),
+      ...(quittungen.length ? [].concat(alt.rueckRein(ERLEDIGT, quittungen)) : [])]);
     geaendert();
   };
 
-  // Fällige zuerst, dann geplante nach Termin, dann die übrigen
-  const sortiert = [...(liste || [])].sort((a, b) => {
-    const ta = a.termin ? new Date(a.termin).getTime() : Infinity;
-    const tb = b.termin ? new Date(b.termin).getTime() : Infinity;
-    return ta - tb;
-  });
+  // Fällige zuerst, dann nach nächstem Termin, dann ohne Termin
+  const jetzt = Date.now();
+  const rang = (p) => {
+    const f = maschinen.some((x) => faelligSeit(p, erledigt, x.id, jetzt));
+    if (f) return -Infinity;
+    const n = naechsterTermin(p, jetzt);
+    return n ? n.getTime() : Infinity;
+  };
+  const sortiert = [...(plaene || [])].sort((a, b) => rang(a) - rang(b));
+
+  if (!typId) {
+    return <>
+      <div className="blatt__kopf"><h2>Wartung · {m ? m.machine_number || m.name : ""}</h2>
+        {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}</div>
+      <p className="unterlagen__leer">Diese Maschine hat keinen Typ. Die Wartung gilt je Maschinentyp: zuerst unter
+        Maschinen einen Typ zuordnen.</p>
+    </>;
+  }
 
   return (
     <>
       <div className="blatt__kopf">
-        <h2>Wartung · {m.name}{m.machine_number && m.machine_number !== m.name ? " " + m.machine_number : ""}</h2>
+        <h2>Wartung · {typ || "Typ"}{m ? " · " + (m.machine_number || m.name) : ""}</h2>
         {darf && <button className="knopf knopf--haupt" id="wartung-neu" disabled={!!laedt}
           onClick={() => wahl.current && wahl.current.click()}>+ Bild oder PDF</button>}
         {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}
       </div>
       {darf && <input ref={wahl} type="file" multiple hidden id="wartung-datei" accept="image/*,application/pdf,.pdf"
         onChange={(e) => { const d = [...e.target.files]; e.target.value = ""; if (d.length) hochladen(d); }} />}
-      <p className="klein wartung__erklaerung">Bild oder PDF ablegen, dann „Terminieren“: ab dem Termin zeigt das Pad
-        es als Bildschirmschoner statt des Einrichtblatts, bis jemand unten in der Mitte „Erledigt“ tippt.</p>
+      <p className="klein wartung__erklaerung">Gilt für alle Maschinen des Typs {typ}. Bild oder PDF ablegen, dann
+        „Terminieren“ mit Wiederholung: ab dem Termin zeigt das Pad jeder Maschine es als Bildschirmschoner statt des
+        Einrichtblatts, bis dort jemand unten in der Mitte „Erledigt“ tippt.</p>
       {laedt && <p className="unterlagen__laedt">Lädt hoch: {laedt} …</p>}
       {fehler && <p className="fehlertext">{fehler}</p>}
-      {liste === null
+      <Batterien maschinen={maschinen} infos={infos} typ={typ} darf={!alt.istExtern()} />
+      {plaene === null
         ? <p className="klein">Lädt …</p>
         : !sortiert.length
-        ? <p className="unterlagen__leer">Noch nichts abgelegt.{darf ? " Mit „+ Bild oder PDF“ beginnen." : ""}</p>
+        ? <p className="unterlagen__leer">Für diesen Typ ist noch nichts abgelegt.{darf ? " Mit „+ Bild oder PDF“ beginnen." : ""}</p>
         : <ul className="wartung__liste">
             {sortiert.map((w) => {
-              const f = istFaellig(w);
+              const seit = m ? faelligSeit(w, erledigt, m.id, jetzt) : null;
+              const faelligAn = m ? [] : maschinen.filter((x) => faelligSeit(w, erledigt, x.id, jetzt));
+              const f = m ? !!seit : faelligAn.length > 0;
+              const n = naechsterTermin(w, jetzt);
+              const zuletzt = m ? zuletztErledigt(erledigt, w.id, m.id) : null;
               return (
                 <li key={w.id} className={"wartung__zeile" + (f ? " wartung__zeile--faellig" : "")} data-wartung={w.id}>
                   <button className="wartung__vorschau" title="Gross ansehen" onClick={() => ansehen(w)}>
                     <Vorschau w={w} />
                   </button>
                   <div className="wartung__text">
-                      <b>{w.titel}</b>
-                      <span className="klein">
-                        {f ? "Fällig seit " + zeitText(w.termin)
-                          : w.termin ? "Geplant: " + zeitText(w.termin) : "Kein Termin"}
-                        {w.erledigt_am ? " · zuletzt erledigt " + zeitText(w.erledigt_am) : ""}</span>
+                    <b>{w.titel}</b>
+                    <span className="klein">
+                      {w.termin ? wiederholungText(w.wiederholung) : "Kein Termin"}
+                      {seit ? " · fällig seit " + zeitText(seit) : ""}
+                      {n ? " · nächster Termin " + zeitText(n) : ""}
+                      {zuletzt ? " · zuletzt erledigt " + zeitText(zuletzt) : ""}</span>
+                    {faelligAn.length > 0 && <span className="klein wartung__faellig-an" data-faellig-an="">
+                      Fällig an: {faelligAn.map((x) => x.machine_number || x.name).join(", ")}</span>}
                   </div>
                   <div className="wartung__knoepfe">
-                    {f && <button className="knopf knopf--klein knopf--haupt" data-wartung-erledigt={w.id}
-                      onClick={() => wartungErledigen(w)}>Erledigt</button>}
+                    {m && seit && <button className="knopf knopf--klein knopf--haupt" data-wartung-erledigt={w.id}
+                      onClick={() => erledigen({ art: "plan", plan: w, titel: w.titel }, m)}>Erledigt</button>}
                     {darf && <button className={"knopf knopf--klein" + (f ? "" : " knopf--haupt")} data-wartung-termin={w.id}
                       onClick={() => terminieren(w)}>{w.termin ? "Termin ändern" : "Terminieren"}</button>}
-                    {darf && w.termin && !f && <button className="knopf knopf--klein" data-wartung-ohne={w.id}
+                    {darf && w.termin && <button className="knopf knopf--klein" data-wartung-ohne={w.id}
                       onClick={() => aendern(w, { termin: null }, "Termin weg: " + w.titel)}>Kein Termin</button>}
                     {darf && <button className="knopf knopf--klein knopf--gefahr-leise" data-wartung-weg={w.id}
                       onClick={() => loeschen(w)}>Löschen</button>}

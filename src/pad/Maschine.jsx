@@ -657,7 +657,7 @@ export default function Maschine({ d }) {
     <>
       {kopf}
       {/* Nach einer Minute ohne Berührung das Einrichtblatt gross (Wunsch Patrick, 13. Oktober 2026) */}
-      <Bildschirmschoner maschineId={m.id} hoco={j ? j.job_number : null} typId={m.type_id || null} mahnt={zeitFehlt || stkFehlt} />
+      <Bildschirmschoner maschine={m} hoco={j ? j.job_number : null} typId={m.type_id || null} mahnt={zeitFehlt || stkFehlt} />
       {!j && <p className="pad__hinweis">Auf dieser Maschine läuft gerade kein Auftrag.</p>}
       <div className="pad-flaeche">
 

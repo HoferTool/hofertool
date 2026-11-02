@@ -94,6 +94,30 @@ export async function faelligeBatterien() {
     .sort((a, b) => String(a.batterie_faellig).localeCompare(String(b.batterie_faellig)));
 }
 
+// Batterien gewechselt: Termin weiter und ein Eintrag in der
+// Wartungshistorie, beides mit Rückgängig. Gemeinsam für die Seite der
+// Maschine und das „Erledigt“ im Pad (seit 1.338.0).
+export async function batterienGewechselt(maschineId, am, naechst, notiz, wer) {
+  am = am || alt.isoDatum(new Date());
+  naechst = naechst || plusJahre(am, BATTERIE_JAHRE);
+  await infoSetzen(maschineId, { batterie_gewechselt: am, batterie_faellig: naechst }, "Batterien " + (wer || ""));
+  const ein = await alt.db.from("maschinen_wartung").insert({ machine_id: maschineId, datum: am,
+    erstellt_von: alt.meineProfilId(),
+    text: "Backup-Batterien gewechselt" + (notiz ? "\n" + notiz : ""), anhaenge: [] }).select("id");
+  if (!ein.error && ein.data && ein.data[0]) {
+    alt.merkeSchritt("Wartung " + (wer || ""), alt.rueckWeg("maschinen_wartung", { id: ein.data[0].id }));
+  }
+  window.dispatchEvent(new Event("hofer:wartung"));
+  return naechst;
+}
+
+// Ist der Termin da (nicht schon 30 Tage vorher wie auf der Startseite)?
+// Dann zeigt das Pad den Wechsel als Bildschirmschoner (seit 1.338.0).
+export function batterieHeuteFaellig(info, typName) {
+  if (!info || info.batterie_hinweis === false || !info.batterie_faellig || ohneBatterien(typName)) return false;
+  return tageBis(info.batterie_faellig) <= 0;
+}
+
 // ---------- Wartungshistorie ----------
 
 export async function wartungLaden(maschineId) {
