@@ -473,7 +473,7 @@ export async function excelVorlesen(hocoNr, typ, excelUrl, { artikel } = {}) {
 // Ein anderes Blatt als Anfang nehmen (Wunsch Patrick 29. Oktober 2026:
 // „wenn kein Einrichtblatt hinterlegt ist, ein anderes nehmen, mit der
 // neuen Nr. abspeichern und abändern“). Zuerst das Blatt in der App der
-// anderen HOCO Nr. auf demselben Typ, sonst ihr Excel. Übernommen wird nur
+// anderen HOCO Nr. auf demselben Typ, sonst ihr Excel, sonst von einem anderen Typ. Übernommen wird nur
 // das Blatt (Werkzeuge, Programme, Kopf, Seiten); HOCO Nr. und Stammdaten
 // bleiben die der neuen Nummer, gespeichert wird erst mit Speichern.
 export async function blattVonAnderem(quelle, hocoNr, typ) {
@@ -481,22 +481,48 @@ export async function blattVonAnderem(quelle, hocoNr, typ) {
   if (!nr) throw new Error("Bitte eine HOCO Nr. eingeben.");
   if (nr === hocoNr) throw new Error("Das ist dieselbe HOCO Nr.");
   const kopie = (x) => (x == null ? x : JSON.parse(JSON.stringify(x)));
-  const da = await blattSuchen(nr, typ.id);
-  if (da) {
-    return { quelle: "app", blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: kopie(da.programme) || {},
+  // Seit 1.344.0 von jedem Typ (Wunsch Patrick 2. November 2026: „soll man
+  // von jedem Typ übernehmen können“): zuerst derselbe Typ, sonst alle
+  // Blätter in der App und Excel dieser Nummer auf anderen Typen, bei
+  // mehreren zur Wahl
+  const db = alt.db;
+  const [ra, rx, typen] = await Promise.all([
+    db.from(TABELLE).select("*").eq("hoco_nr", nr),
+    db.from("hoco_type_data").select("type_id, blatt_url").eq("hoco_nr", nr),
+    alt.ladeTypen().catch(() => []),
+  ]);
+  const name = (id) => ((typen || []).find((t) => t.id === id) || {}).name || "anderer Typ";
+  const quellen = [];
+  for (const b of (ra.error ? [] : ra.data || [])) quellen.push({ art: "app", typId: b.type_id, blatt: b });
+  for (const t of (rx.error ? [] : rx.data || [])) {
+    if (!t.blatt_url || /\.pdf(\?|#|$)/i.test(String(t.blatt_url))) continue;
+    if (quellen.some((q) => q.typId === t.type_id)) continue;   // Blatt in der App geht vor
+    quellen.push({ art: "excel", typId: t.type_id, url: t.blatt_url });
+  }
+  if (!quellen.length) throw new Error("Für " + nr + " gibt es kein Einrichtblatt.");
+  let q = quellen.find((x) => x.typId === typ.id);
+  if (!q && quellen.length === 1) q = quellen[0];
+  if (!q) {
+    const wert = await alt.auswahlDialog("Von welchem Typ übernehmen?",
+      quellen.map((x, i) => ({ wert: i, text: name(x.typId) + (x.art === "excel" ? " (Excel)" : "") })),
+      "Für " + nr + " gibt es mehrere Einrichtblätter.");
+    if (wert == null) return null;
+    q = quellen[Number(wert)];
+  }
+  const fremd = q.typId !== typ.id
+    ? ["Blatt vom Typ " + name(q.typId) + ": Plätze passen nicht immer zu " + (typ.name || "diesem Typ") + ", bitte prüfen."] : [];
+  if (q.art === "app") {
+    const da = q.blatt;
+    return { quelle: "app", hinweise: fremd, blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: kopie(da.programme) || {},
       geometrie: da.geometrie || null, maschine_nr: da.maschine_nr || null, bemerkung: da.bemerkung || null,
       plaetze: kopie(da.plaetze) || {}, kopf: kopie(da.kopf) || {}, seiten: kopie(da.seiten) || [] } };
   }
-  const r = await alt.db.from("hoco_type_data").select("blatt_url").eq("hoco_nr", nr).eq("type_id", typ.id).limit(1);
-  const url = r.error ? null : ((r.data || [])[0] || {}).blatt_url;
-  if (url && !/\.pdf(\?|#|$)/i.test(String(url))) {
-    const v = await excelVorlesen(nr, typ, url);
-    const b = v.blatt;
-    return { quelle: "excel", hinweise: v.hinweise.filter((h) => !/^Im Blatt steht HOCO/.test(h)),
-      blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: b.programme || {}, geometrie: b.geometrie || null,
-        maschine_nr: b.maschine_nr || null, bemerkung: b.bemerkung || null, plaetze: b.plaetze || {}, kopf: b.kopf || {} } };
-  }
-  throw new Error("Für " + nr + " gibt es auf " + (typ.name || "diesem Typ") + " kein Einrichtblatt.");
+  const quellTyp = (typen || []).find((t) => t.id === q.typId) || typ;
+  const v = await excelVorlesen(nr, quellTyp, q.url);
+  const b = v.blatt;
+  return { quelle: "excel", hinweise: fremd.concat(v.hinweise.filter((h) => !/^Im Blatt steht HOCO/.test(h))),
+    blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: b.programme || {}, geometrie: b.geometrie || null,
+      maschine_nr: b.maschine_nr || null, bemerkung: b.bemerkung || null, plaetze: b.plaetze || {}, kopf: b.kopf || {} } };
 }
 
 // nurMitPlaetzen: ohne ein einziges Werkzeug nichts speichern (im

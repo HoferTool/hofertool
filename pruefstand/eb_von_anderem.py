@@ -41,6 +41,22 @@ with sync_playwright() as p:
     t = pg.inner_text("[data-eba-seite]")
     pruefe("Werkzeuge im Blatt", "Abstechen" in t and "Vordrehen" in t)
     pruefe("Eigene HOCO Nr. im Blatt", "10000-0301" in t and "10000-0399" not in t)
+    # Von einem anderen Typ (seit 1.344.0): nur auf t2 vorhanden, kommt ohne Wahl
+    pg.evaluate("TEST.daten.einrichtblatt_app.push({ hoco_nr: '10000-0397', type_id: 't2', programme: {}, kopf: {}, seiten: [], plaetze: { T100: { taetigkeit: 'Gewindedrehen' } } })")
+    pg.click("[data-eba-von-anderem]"); pg.wait_for_selector(".dialog:has-text('Von anderem Blatt')")
+    pg.locator(".dialog:has-text('Von anderem Blatt') input").fill("10000-0397"); pg.locator(".dialog:has-text('Von anderem Blatt') [data-ja]").click(); pg.wait_for_timeout(800)
+    pruefe("Von anderem Typ übernommen", "Gewindedrehen" in pg.inner_text("[data-eba-seite]") and "Blatt vom Typ Tornos" in pg.inner_text("body"))
+    # Auf mehreren anderen Typen: Wahl
+    pg.evaluate("TEST.daten.einrichtblatt_app.push({ hoco_nr: '10000-0396', type_id: 't2', programme: {}, kopf: {}, seiten: [], plaetze: { T100: { taetigkeit: 'Typ2' } } }, { hoco_nr: '10000-0396', type_id: 't9', programme: {}, kopf: {}, seiten: [], plaetze: { T100: { taetigkeit: 'Typ9' } } })")
+    pg.click("[data-eba-von-anderem]"); pg.wait_for_selector(".dialog:has-text('Von anderem Blatt')")
+    pg.locator(".dialog:has-text('Von anderem Blatt') input").fill("10000-0396"); pg.locator(".dialog:has-text('Von anderem Blatt') [data-ja]").click(); pg.wait_for_timeout(800)
+    wahl = pg.locator(".dialog:has-text('Von welchem Typ')")
+    pruefe("Wahl des Typs bei mehreren", wahl.count() == 1 and wahl.locator("[data-w]").count() == 2)
+    if wahl.count(): wahl.locator("button:has-text('Tornos')").click(); pg.wait_for_timeout(800)
+    pruefe("Gewählter Typ übernommen", "Typ2" in pg.inner_text("[data-eba-seite]"))
+    # Zurück auf das Blatt vom eigenen Typ für die Prüfungen unten
+    pg.click("[data-eba-von-anderem]"); pg.wait_for_selector(".dialog:has-text('Von anderem Blatt')")
+    pg.locator(".dialog:has-text('Von anderem Blatt') input").fill("10000-0399"); pg.locator(".dialog:has-text('Von anderem Blatt') [data-ja]").click(); pg.wait_for_timeout(800)
     pg.screenshot(path="/tmp/claude-0/x/eb_von_anderem.png")
     pg.click("[data-eba-speichern]"); pg.wait_for_timeout(1000)
     neu = pg.evaluate("TEST.daten.einrichtblatt_app.find(b => b.hoco_nr === '10000-0301')")

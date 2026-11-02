@@ -30,6 +30,21 @@ function lageMerken(w) {
   } catch (f) { /* ohne Speicher eben nicht gemerkt */ }
 }
 
+// Der Eintritt (bewegungFenster in app.js, Web Animations) läuft auf der
+// Zeitachse des Hauptfensters. Zieht das Fenster mitten darin um, bleibt
+// er im anderen Dokument halb stehen, das Fenster wirkt durchsichtig
+// (Patrick 2. November 2026: Einrichtblatt aus der Planwand bearbeiten
+// „so durchsichtig“). Darum vor dem Umhängen fertig laufen lassen.
+function eintrittBeenden(el) {
+  try {
+    if (el.getAnimations) el.getAnimations({ subtree: true }).forEach((a) => {
+      // Endlose (Blinken …) laufen weiter, nur Eintritte gehen ans Ende
+      const ende = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming().endTime : Infinity;
+      if (ende !== Infinity) { try { a.finish(); } catch (f) { /* lassen */ } }
+    });
+  } catch (f) { /* ältere Browser: nichts zu tun */ }
+}
+
 export const eigeneFensterOffen = () => offen.size > 0;
 
 // Beim Abmelden und vor dem Neuladen: alles zu
@@ -82,6 +97,7 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
   for (const a of document.documentElement.attributes) d.documentElement.setAttribute(a.name, a.value);
   for (const a of document.body.attributes) d.body.setAttribute(a.name, a.value);
 
+  eintrittBeenden(huelle);
   huelle.classList.add("dialog-huelle--eigen");
   huelle.classList.remove("auftrag-huelle--unten");
   d.body.appendChild(huelle);
@@ -125,6 +141,7 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
     if (!d.hasFocus() && !(hier > dort)) return;
     meldungen.forEach((m) => m.addedNodes.forEach((n) => {
       if (n.nodeType !== 1 || !n.classList || !n.classList.contains("dialog-huelle")) return;
+      eintrittBeenden(n);
       d.body.appendChild(n);
       try { w.focus(); } catch (f) { /* dann eben ohne */ }
       const f = n.querySelector("[data-fokus], [autofocus]") || n.querySelector("input, button");

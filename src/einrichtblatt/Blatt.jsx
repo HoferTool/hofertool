@@ -799,7 +799,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   // kommen mit, die HOCO Nr. bleibt die eigene (Wunsch Patrick 29. Oktober 2026)
   const vonAnderem = async () => {
     const w = await alt.dialogFelder({ titel: "Von anderem Blatt übernehmen",
-      text: "Das Blatt einer anderen HOCO Nr. auf " + (typ.name || "diesem Typ") + " wird übernommen und als "
+      text: "Das Blatt einer anderen HOCO Nr. wird übernommen, auch von einem anderen Typ, und als "
         + hocoNr + " gespeichert. Danach anpassen und Speichern.",
       felder: [{ name: "nr", label: "HOCO Nr. des anderen Blatts", platzhalter: "z. B. 10000-0355", pflicht: true }],
       bestaetigen: "Übernehmen" });
@@ -807,6 +807,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     setLaeuft(true);
     try {
       const v = await blattVonAnderem(w.nr, hocoNr, typ);
+      if (!v) return;
       setEntwurf((b) => entwurfVon(Object.assign({}, b, v.blatt, { hoco_nr: hocoNr, type_id: typId })));
       setPlatz(null); setSeiteNr(0);
       setVorgelesen({ uebernommen: w.nr.trim(), hinweise: v.hinweise || [] });
