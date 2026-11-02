@@ -21,6 +21,13 @@
 //  Maschine): am Termin sind sie hier fällig wie eine Wartung, der
 //  Schoner zeigt sie, „Erledigt“ heisst „Batterien gewechselt“.
 //
+//  Seit 1.339.0 lässt sich eine Wartung statt einem Typ auch einer
+//  einzelnen Maschine oder einem ganzen Park zuteilen (Wunsch Patrick
+//  2. November 2026: „Wartungen sollen auch einzeln pro Maschine und
+//  Park zugeteilt werden können“). Am Plan steht genau eines von
+//  type_id, machine_id, park_id (sql/wartung-ziel.sql). Quittiert wird
+//  weiter je Maschine.
+//
 //  Hochladen, terminieren, löschen: alle mit Schreibrecht. Quittieren:
 //  alle, die es sehen. Externe haben die Kachel nicht (wie vorher
 //  „Internet“).
@@ -141,11 +148,45 @@ export function faelligSeit(plan, erledigt, maschineId, jetzt = Date.now()) {
 
 // ---------- Laden ----------
 
-export async function plaeneLaden(typeId) {
-  if (!typeId) return [];
-  const r = await alt.db.from(PLAN).select("*").eq("type_id", typeId).order("erstellt_am");
+// Wem ein Plan gilt: { art: "typ" | "park" | "maschine", id }
+export function zielVon(p) {
+  if (p.machine_id) return { art: "maschine", id: p.machine_id };
+  if (p.park_id) return { art: "park", id: p.park_id };
+  return { art: "typ", id: p.type_id };
+}
+const SPALTE = { typ: "type_id", park: "park_id", maschine: "machine_id" };
+// Die drei Spalten für ein Ziel, die anderen leer. Beim Typ nur type_id,
+// damit es auch ohne sql/wartung-ziel.sql geht.
+function zielSpalten(z, auchLeere) {
+  const d = { [SPALTE[z.art]]: z.id };
+  if (auchLeere) Object.values(SPALTE).forEach((k) => { if (!(k in d)) d[k] = null; });
+  return d;
+}
+
+// Gilt der Plan an dieser Maschine?
+export function giltFuer(p, m) {
+  if (!m) return false;
+  if (p.machine_id) return p.machine_id === m.id;
+  if (p.park_id) return p.park_id === m.park_id;
+  return !!p.type_id && p.type_id === m.type_id;
+}
+
+// Alle Pläne (es sind wenige); gefiltert wird hier, damit Typ, Park und
+// Maschine in einem Zug kommen
+async function alleLaden() {
+  const r = await alt.db.from(PLAN).select("*").order("erstellt_am");
   if (r.error) throw r.error;
   return r.data || [];
+}
+// Pläne, die an der Maschine gelten (Typ, Park und die Maschine selbst)
+export async function plaeneLaden(m) {
+  if (!m || !m.id) return [];
+  return (await alleLaden()).filter((p) => giltFuer(p, m));
+}
+// Pläne mit genau diesem Ziel (Einstellungen → Wartung)
+export async function plaeneZiel(z) {
+  if (!z || !z.id) return [];
+  return (await alleLaden()).filter((p) => { const x = zielVon(p); return x.art === z.art && x.id === z.id; });
 }
 
 export async function erledigtLaden(planIds) {
@@ -166,6 +207,30 @@ async function typName(typeId) {
   return typNamen.get(typeId);
 }
 
+// Namen von Typen, Parks und Maschinen für „gilt für …“
+let namenVorrat = null;
+export function namenLaden() {
+  if (!namenVorrat) {
+    namenVorrat = Promise.all([alt.db.from("machine_types").select("id, name"),
+      alt.db.from("machine_parks").select("id, name"), alt.db.from("machines").select("id, name, machine_number")])
+      .then(([t, p, m]) => {
+        const n = { typ: {}, park: {}, maschine: {} };
+        (t.data || []).forEach((x) => { n.typ[x.id] = x.name || ""; });
+        (p.data || []).forEach((x) => { n.park[x.id] = x.name || ""; });
+        (m.data || []).forEach((x) => { n.maschine[x.id] = x.machine_number || x.name || ""; });
+        return n;
+      });
+    namenVorrat.catch(() => { namenVorrat = null; });
+  }
+  return namenVorrat;
+}
+export function zielText(z, namen) {
+  const name = ((namen || {})[z.art] || {})[z.id] || "";
+  if (z.art === "maschine") return "Nur Maschine " + name;
+  if (z.art === "park") return "Ganzer Park " + name;
+  return "Alle Maschinen " + name;
+}
+
 export const geaendert = () => window.dispatchEvent(new Event(AENDERUNG));
 
 // Alles zur Wartung einer Maschine: Pläne ihres Typs, wer wann erledigt
@@ -175,13 +240,13 @@ export const geaendert = () => window.dispatchEvent(new Event(AENDERUNG));
 export function useWartung(m) {
   const [stand, setStand] = useState({ plaene: [], erledigt: [], info: null, typ: "" });
   const [, setTakt] = useState(0);
-  const id = m && m.id, typId = m && m.type_id;
+  const id = m && m.id, typId = m && m.type_id, parkId = m && m.park_id;
   useEffect(() => {
     if (!id || alt.istExtern()) { setStand({ plaene: [], erledigt: [], info: null, typ: "" }); return; }
     let weg = false;
     const laden = async () => {
       const [plaene, info, typ] = await Promise.all([
-        plaeneLaden(typId).catch(() => []),
+        plaeneLaden(m).catch(() => []),
         infoLaden(id).catch(() => null),
         typName(typId).catch(() => "")]);
       const erledigt = await erledigtLaden(plaene.map((p) => p.id)).catch(() => []);
@@ -191,7 +256,7 @@ export function useWartung(m) {
     const t = setInterval(() => { laden(); setTakt((x) => x + 1); }, 60 * 1000);
     window.addEventListener(AENDERUNG, laden);
     return () => { weg = true; clearInterval(t); window.removeEventListener(AENDERUNG, laden); };
-  }, [id, typId]);
+  }, [id, typId, parkId]);
   return { ...stand, faellig: faelligeFuer(m, stand) };
 }
 
@@ -278,7 +343,7 @@ export function wartungFensterOeffnen(m) {
   if (!m || !m.id) return;
   fensterOeffnen((zu) => (
     <div className="dialog dialog--breit wartung wartung--fenster" id="wartung">
-      <WartungListe typId={m.type_id} m={m} zu={zu} />
+      <WartungListe m={m} zu={zu} />
     </div>), null, "wartung-huelle");
 }
 
@@ -340,16 +405,18 @@ export const BatterieSymbol = () => (
     <rect x="20" y="10" width="2" height="4" rx="0.6" fill="currentColor" />
     <path d="M10.5 9 8 12.5h3l-1.5 3 3.5-4.5h-3l1-2z" fill="currentColor" /></svg>);
 
-// Karte der Backup-Batterien einer oder mehrerer Maschinen
-function Batterien({ maschinen, infos, typ, darf }) {
-  if (ohneBatterien(typ) || !maschinen.length) return null;
+// Karte der Backup-Batterien einer oder mehrerer Maschinen (je
+// Maschine ihr Typ, weil Index keine Batterien hat)
+function Batterien({ maschinen, infos, typen, darf }) {
+  const mit = maschinen.filter((x) => !ohneBatterien(typen[x.type_id] || ""));
+  if (!mit.length) return null;
   return (
     <div className="wartung__batterien" data-wartung-batterien="">
       <h3><BatterieSymbol /> Backup-Batterien</h3>
       <ul>
-        {maschinen.map((x) => {
+        {mit.map((x) => {
           const info = infos[x.id];
-          const faellig = batterieHeuteFaellig(info, typ);
+          const faellig = batterieHeuteFaellig(info, typen[x.type_id] || "");
           const aus = !info || info.batterie_hinweis === false || !info.batterie_faellig;
           return (
             <li key={x.id} className={faellig ? "wartung__batt--faellig" : ""} data-batterie-maschine={x.id}>
@@ -369,43 +436,62 @@ function Batterien({ maschinen, infos, typ, darf }) {
   );
 }
 
-// Die Liste eines Typs, im Fenster des Pads (mit m: Stand dieser
-// Maschine) oder unter Einstellungen → Wartung (ohne m: Stand aller
-// Maschinen des Typs). Ohne zu kein Schliessen.
-export function WartungListe({ typId, m, maschinen: alle, typ: typText, zu }) {
+// Wofür eine Wartung an dieser Maschine gelten kann (Auswahl im Dialog)
+function zielWahl(m, namen) {
+  const w = [];
+  if (m.type_id) w.push(["typ:" + m.type_id, "Alle Maschinen des Typs " + (namen.typ[m.type_id] || "")]);
+  if (m.park_id) w.push(["park:" + m.park_id, "Ganzer Park " + (namen.park[m.park_id] || "")]);
+  w.push(["maschine:" + m.id, "Nur diese Maschine (" + (m.machine_number || m.name || "") + ")"]);
+  return w;
+}
+const zielAus = (wert) => { const [art, id] = String(wert || "").split(":"); return { art, id }; };
+const zielWert = (z) => z.art + ":" + z.id;
+
+// Die Liste im Fenster des Pads (mit m: alle Pläne, die an dieser
+// Maschine gelten, beim Ablegen wählbar Typ, Park oder nur sie) oder
+// unter Einstellungen → Wartung (mit ziel: genau die Pläne dieses Typs,
+// Parks oder dieser Maschine, maschinen = alle, an denen sie gelten).
+// Ohne zu kein Schliessen.
+export function WartungListe({ m, ziel, maschinen: alle, zu }) {
   const [plaene, setPlaene] = useState(null);
   const [erledigt, setErledigt] = useState([]);
   const [infos, setInfos] = useState({});
-  const [typ, setTyp] = useState(typText || "");
+  const [namen, setNamen] = useState({ typ: {}, park: {}, maschine: {} });
   const [fehler, setFehler] = useState("");
   const [laedt, setLaedt] = useState("");
   const wahl = useRef(null);
   const darf = alt.darfSchreiben() && !alt.istExtern();
   const maschinen = m ? [m] : (alle || []);
-  const kennung = maschinen.map((x) => x.id).join(",");
+  const kennung = maschinen.map((x) => x.id).join(",") + "|" + (ziel ? zielWert(ziel) : "");
+
+  const sqlFehler = (t) => /wartung_(plan|erledigt)|machine_id|park_id|type_id|ein_ziel/.test(t)
+    ? "Die Wartung ist in der Datenbank noch nicht ganz eingerichtet (sql/wartung-ziel.sql)." : t;
 
   const laden = async () => {
     try {
-      const p = await plaeneLaden(typId);
+      const p = m ? await plaeneLaden(m) : await plaeneZiel(ziel);
       const [e, ...i] = await Promise.all([erledigtLaden(p.map((x) => x.id)),
         ...maschinen.map((x) => infoLaden(x.id).catch(() => null))]);
       setPlaene(p); setErledigt(e); setFehler("");
       const z = {}; maschinen.forEach((x, n) => { z[x.id] = i[n]; }); setInfos(z);
     } catch (f) {
-      const t = alt.fehlertext(f);
-      setFehler(/wartung_(plan|erledigt)/.test(t) ? "Die Wartung ist in der Datenbank noch nicht eingerichtet (sql/wartung-typ.sql)." : t);
+      setFehler(sqlFehler(alt.fehlertext(f)));
       setPlaene([]);
     }
   };
   useEffect(() => {
     laden();
-    if (!typText) typName(typId).then(setTyp).catch(() => {});
+    namenLaden().then(setNamen).catch(() => {});
     window.addEventListener(AENDERUNG, laden);
     return () => window.removeEventListener(AENDERUNG, laden);
-  }, [typId, kennung]);
+  }, [kennung]);
 
   const wiederholungFeld = (wert) => ({ name: "wiederholung", label: "Wiederholen", wert: wert || "nie",
     auswahl: WIEDERHOLUNG });
+  // Im Pad wählbar, wem die Wartung gilt; Vorgabe der Typ (wie bisher)
+  const zielFeld = (wert) => m ? [{ name: "ziel", label: "Gilt für", wert, auswahl: zielWahl(m, namen) }] : [];
+  const vorgabeZiel = () => ziel || (m.type_id ? { art: "typ", id: m.type_id } : { art: "maschine", id: m.id });
+  const ueberschrift = ziel ? zielText(ziel, namen).replace(/^Alle Maschinen /, "Typ ") : "";
 
   const hochladen = async (dateien) => {
     for (const datei of dateien) {
@@ -414,25 +500,29 @@ export function WartungListe({ typId, m, maschinen: alle, typ: typText, zu }) {
         alt.meldung(datei.name + ": nur Bilder oder PDFs.", "warn"); continue;
       }
       const w = await alt.dialogFelder({
-        titel: "Wartung ablegen" + (typ ? " · " + typ : ""),
+        titel: "Wartung ablegen" + (ueberschrift ? " · " + ueberschrift : ""),
         felder: [
           { name: "titel", label: "Was ist zu tun?", pflicht: true,
             wert: datei.name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim() },
+          ...zielFeld(zielWert(vorgabeZiel())),
           { name: "termin", label: "Erster Termin (leer = nur ablegen)", typ: "datetime-local", wert: "",
-            hinweis: "Ab dann zeigt das Pad jeder Maschine dieses Typs es als Bildschirmschoner, bis dort jemand „Erledigt“ tippt." },
+            hinweis: "Ab dann zeigt das Pad jeder betroffenen Maschine es als Bildschirmschoner, bis dort jemand „Erledigt“ tippt." },
           wiederholungFeld("nie"),
         ],
         bestaetigen: "Ablegen" });
       if (!w) continue;
+      const z = w.ziel ? zielAus(w.ziel) : vorgabeZiel();
       setLaedt(datei.name);
       try {
-        const pfad = "typen/" + typId + "/wartung/" + ablageName(datei.name);
+        const ordner = z.art === "typ" ? "typen/" + z.id + "/wartung/"
+          : z.art === "park" ? "parks/" + z.id + "/wartung/" : "maschinen/" + z.id + "/wartung-pad/";
+        const pfad = ordner + ablageName(datei.name);
         const up = await alt.db.storage.from("zeichnungen").upload(pfad, datei,
           { contentType: datei.type || (pdf ? "application/pdf" : "application/octet-stream"), upsert: false });
         if (up.error) throw up.error;
         const url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
         const ein = await alt.db.from(PLAN).insert({
-          type_id: typId, titel: w.titel.trim(), url, pfad, dateiname: datei.name,
+          ...zielSpalten(z, false), titel: w.titel.trim(), url, pfad, dateiname: datei.name,
           art: pdf ? "pdf" : "bild", termin: w.termin ? new Date(w.termin).toISOString() : null,
           wiederholung: w.wiederholung || "nie" }).select("id");
         if (ein.error) throw ein.error;
@@ -441,7 +531,7 @@ export function WartungListe({ typId, m, maschinen: alle, typ: typText, zu }) {
         alt.meldung("Abgelegt: " + w.titel.trim(), "gut");
       } catch (f) {
         const t = alt.fehlertext(f);
-        alt.meldung(/exceeded|too large|413|maximum/i.test(t) ? datei.name + " ist zu gross für die Ablage." : t, "fehler");
+        alt.meldung(/exceeded|too large|413|maximum/i.test(t) ? datei.name + " ist zu gross für die Ablage." : sqlFehler(t), "fehler");
       }
       setLaedt("");
     }
@@ -451,29 +541,34 @@ export function WartungListe({ typId, m, maschinen: alle, typ: typText, zu }) {
   const aendern = async (w, daten, text) => {
     const vorher = await alt.rueckSichern(PLAN, { id: w.id });
     const { error } = await alt.db.from(PLAN).update(daten).eq("id", w.id);
-    if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
+    if (error) { alt.meldung(sqlFehler(alt.fehlertext(error)), "fehler"); return; }
     alt.merkeSchritt(text, alt.rueckRein(PLAN, vorher));
     geaendert();
   };
 
   const terminieren = async (w) => {
+    const jetzt = zielVon(w);
     const e = await alt.dialogFelder({
       titel: "Termin für „" + w.titel + "“",
       felder: [
         { name: "titel", label: "Was ist zu tun?", wert: w.titel, pflicht: true },
+        ...zielFeld(zielWert(jetzt)),
         { name: "termin", label: "Erster Termin", typ: "datetime-local", wert: terminVorschlag(w), pflicht: true,
-          hinweis: "Ab dann zeigt das Pad es als Bildschirmschoner statt des Einrichtblatts, an jeder Maschine des Typs." },
+          hinweis: "Ab dann zeigt das Pad es als Bildschirmschoner statt des Einrichtblatts, an jeder betroffenen Maschine." },
         wiederholungFeld(w.wiederholung),
       ],
       bestaetigen: "Terminieren" });
     if (!e || !e.termin) return;
-    await aendern(w, { titel: e.titel.trim(), termin: new Date(e.termin).toISOString(),
-      wiederholung: e.wiederholung || "nie" }, "Termin " + w.titel);
+    const daten = { titel: e.titel.trim(), termin: new Date(e.termin).toISOString(),
+      wiederholung: e.wiederholung || "nie" };
+    if (e.ziel && e.ziel !== zielWert(jetzt)) Object.assign(daten, zielSpalten(zielAus(e.ziel), true));
+    await aendern(w, daten, "Termin " + w.titel);
   };
 
   const loeschen = async (w) => {
     const ja = await alt.nachfragen({ titel: "Wartung löschen",
-      text: "Soll „" + w.titel + "“ für alle Maschinen des Typs gelöscht werden?", bestaetigen: "Löschen", gefahr: true });
+      text: "Soll „" + w.titel + "“ gelöscht werden (" + zielText(zielVon(w), namen) + ")?",
+      bestaetigen: "Löschen", gefahr: true });
     if (!ja) return;
     // Die Datei bleibt liegen, damit Rückgängig sie zurückholt. Die
     // Quittungen gehen mit dem Plan weg (in der Datenbank), darum vorher
@@ -497,35 +592,32 @@ export function WartungListe({ typId, m, maschinen: alle, typ: typText, zu }) {
   };
   const sortiert = [...(plaene || [])].sort((a, b) => rang(a) - rang(b));
 
-  if (!typId) {
-    return <>
-      <div className="blatt__kopf"><h2>Wartung · {m ? m.machine_number || m.name : ""}</h2>
-        {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}</div>
-      <p className="unterlagen__leer">Diese Maschine hat keinen Typ. Die Wartung gilt je Maschinentyp: zuerst unter
-        Maschinen einen Typ zuordnen.</p>
-    </>;
-  }
+  const titel = m ? [namen.typ[m.type_id], m.machine_number || m.name].filter(Boolean).join(" · ") : ueberschrift;
+  const erklaerung = m
+    ? "Alles, was an dieser Maschine gilt: je Typ, je Park oder nur für sie. Beim Ablegen wählen, wofür es gilt."
+    : ziel.art === "maschine" ? "Gilt nur für diese Maschine."
+    : ziel.art === "park" ? "Gilt für alle Maschinen des Parks." : "Gilt für alle Maschinen des Typs.";
 
   return (
     <>
       <div className="blatt__kopf">
-        <h2>Wartung · {typ || "Typ"}{m ? " · " + (m.machine_number || m.name) : ""}</h2>
+        <h2>Wartung{titel ? " · " + titel : ""}</h2>
         {darf && <button className="knopf knopf--haupt" id="wartung-neu" disabled={!!laedt}
           onClick={() => wahl.current && wahl.current.click()}>+ Bild oder PDF</button>}
         {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}
       </div>
       {darf && <input ref={wahl} type="file" multiple hidden id="wartung-datei" accept="image/*,application/pdf,.pdf"
         onChange={(e) => { const d = [...e.target.files]; e.target.value = ""; if (d.length) hochladen(d); }} />}
-      <p className="klein wartung__erklaerung">Gilt für alle Maschinen des Typs {typ}. Bild oder PDF ablegen, dann
-        „Terminieren“ mit Wiederholung: ab dem Termin zeigt das Pad jeder Maschine es als Bildschirmschoner statt des
-        Einrichtblatts, bis dort jemand unten in der Mitte „Erledigt“ tippt.</p>
+      <p className="klein wartung__erklaerung">{erklaerung} Bild oder PDF ablegen, dann „Terminieren“ mit
+        Wiederholung: ab dem Termin zeigt das Pad es als Bildschirmschoner statt des Einrichtblatts, bis an der
+        Maschine jemand unten in der Mitte „Erledigt“ tippt.</p>
       {laedt && <p className="unterlagen__laedt">Lädt hoch: {laedt} …</p>}
       {fehler && <p className="fehlertext">{fehler}</p>}
-      <Batterien maschinen={maschinen} infos={infos} typ={typ} darf={!alt.istExtern()} />
+      <Batterien maschinen={maschinen} infos={infos} typen={namen.typ} darf={!alt.istExtern()} />
       {plaene === null
         ? <p className="klein">Lädt …</p>
         : !sortiert.length
-        ? <p className="unterlagen__leer">Für diesen Typ ist noch nichts abgelegt.{darf ? " Mit „+ Bild oder PDF“ beginnen." : ""}</p>
+        ? <p className="unterlagen__leer">Noch nichts abgelegt.{darf ? " Mit „+ Bild oder PDF“ beginnen." : ""}</p>
         : <ul className="wartung__liste">
             {sortiert.map((w) => {
               const seit = m ? faelligSeit(w, erledigt, m.id, jetzt) : null;
@@ -533,6 +625,7 @@ export function WartungListe({ typId, m, maschinen: alle, typ: typText, zu }) {
               const f = m ? !!seit : faelligAn.length > 0;
               const n = naechsterTermin(w, jetzt);
               const zuletzt = m ? zuletztErledigt(erledigt, w.id, m.id) : null;
+              const z = zielVon(w);
               return (
                 <li key={w.id} className={"wartung__zeile" + (f ? " wartung__zeile--faellig" : "")} data-wartung={w.id}>
                   <button className="wartung__vorschau" title="Gross ansehen" onClick={() => ansehen(w)}>
@@ -540,6 +633,8 @@ export function WartungListe({ typId, m, maschinen: alle, typ: typText, zu }) {
                   </button>
                   <div className="wartung__text">
                     <b>{w.titel}</b>
+                    {m && <span className={"wartung__ziel wartung__ziel--" + z.art} data-wartung-ziel={z.art}>
+                      {zielText(z, namen)}</span>}
                     <span className="klein">
                       {w.termin ? wiederholungText(w.wiederholung) : "Kein Termin"}
                       {seit ? " · fällig seit " + zeitText(seit) : ""}

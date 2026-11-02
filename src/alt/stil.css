@@ -11012,3 +11012,11 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 .pad-schoner__batterie-seit { font-size: clamp(18px, 2.6vw, 26px); color: #ffc98a; }
 .wartung--einstellungen .wartung__batterien ul { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
 .wartung__batterien-hinweis { margin: 4px 0 0; }
+
+/* Wartung je Typ, Park oder Maschine (1.339.0) */
+.es-wartung__art { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 4px; }
+.es-wartung__art-titel { font-weight: 700; margin-right: 4px; }
+.wartung__ziel { align-self: flex-start; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--blau, #1f5fa8) 14%, transparent); color: var(--blau, #1f5fa8); }
+.wartung__ziel--park { background: color-mix(in srgb, #2e8b57 16%, transparent); color: #2e7a4f; }
+.wartung__ziel--maschine { background: color-mix(in srgb, #e08a2c 18%, transparent); color: #b5651a; }

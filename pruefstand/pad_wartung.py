@@ -4,6 +4,7 @@
 # Kachel mahnt), bis „Erledigt“ unten in der Mitte quittiert.
 # Seit 1.338.0 je Maschinentyp mit Wiederholung, Quittung je Maschine,
 # dazu die Backup-Batterien mit eigenem Schoner.
+# Seit 1.339.0 auch je Park oder einzelne Maschine.
 import sys, time, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -65,7 +66,7 @@ with sync_playwright() as p:
     pg.evaluate("""() => { const d = new Date(Date.now() - 60000), z = (n) => String(n).padStart(2, '0');
       const el = document.querySelector('.dialog-huelle:last-child input[type=datetime-local]');
       el.value = d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T'+z(d.getHours())+':'+z(d.getMinutes());
-      const s = document.querySelector('.dialog-huelle:last-child select'); s.value = 'woche'; s.dispatchEvent(new Event('change', {bubbles: true})); }""")
+      const s = [...document.querySelectorAll('.dialog-huelle:last-child select')].find(x => [...x.options].some(o => o.value === 'woche')); s.value = 'woche'; s.dispatchEvent(new Event('change', {bubbles: true})); }""")
     pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(800)
     pruefe("Termin mit Wiederholung gesetzt", bool(pg.evaluate("TEST.daten.wartung_plan[0].termin"))
            and pg.evaluate("TEST.daten.wartung_plan[0].wiederholung") == "woche")
@@ -152,6 +153,53 @@ with sync_playwright() as p:
     print("Vorschau:", vb)
     pruefe("Vorschau gross", vb and vb["height"] >= 320 and vb["width"] >= 400)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-einstellungen.png"))
+    # 1.339.0: auch je Park oder einzelne Maschine
+    pg.click("[data-wartung-art='maschine']"); pg.wait_for_timeout(600)
+    andere = pg.evaluate("(mid) => TEST.daten.machines.find(m => m.id !== mid && m.is_active !== false && /^m-l/.test(m.id)).id", mid)
+    pg.click(f"[data-wartung-wahl='{andere}']"); pg.wait_for_timeout(800)
+    pruefe("Maschine gewählt, Typ-Wartung steht dort nicht", pg.locator(".es-wartung [data-wartung]").count() == 0)
+    pg.set_input_files("#wartung-datei", files=[{"name": "Nur hier.png", "mimeType": "image/png", "buffer": PNG}])
+    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
+    pruefe("in Einstellungen keine Wahl Gilt für", pg.locator(".dialog-huelle:last-child select").count() == 1)
+    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    neu = pg.evaluate("TEST.daten.wartung_plan.find(p => p.titel === 'Nur hier')")
+    pruefe("Wartung nur für die Maschine", neu and neu.get("machine_id") == andere and not neu.get("type_id"))
+    pruefe("steht in der Liste der Maschine", pg.locator(".es-wartung [data-wartung]").count() == 1)
+    pg.click("[data-wartung-art='park']"); pg.wait_for_timeout(600)
+    park = pg.evaluate("(mid) => TEST.daten.machines.find(m => m.id === mid).park_id", mid)
+    pg.click(f"[data-wartung-wahl='{park}']"); pg.wait_for_timeout(800)
+    pg.set_input_files("#wartung-datei", files=[{"name": "Halle putzen.png", "mimeType": "image/png", "buffer": PNG}])
+    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
+    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    neu = pg.evaluate("TEST.daten.wartung_plan.find(p => p.titel === 'Halle putzen')")
+    pruefe("Wartung für den ganzen Park", neu and neu.get("park_id") == park and not neu.get("type_id"))
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-park.png"))
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+    # Im Pad der ersten Maschine: Typ und Park gelten, „Nur hier“ (andere Maschine) nicht
+    pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
+    pg.click("#pad [data-padwo='parks']"); pg.wait_for_selector("#pad [data-park]")
+    pg.locator("#pad [data-park]").filter(has_text="Lang").first.click(); pg.wait_for_timeout(800)
+    if pg.locator("#pad [data-padtyp]").count(): pg.locator("#pad [data-padtyp]").first.click(); pg.wait_for_timeout(800)
+    nr = pg.evaluate("(mid) => { const m = TEST.daten.machines.find(x => x.id === mid); return m.machine_number || m.name; }", mid)
+    pg.locator("#pad .pad-kachel--maschine").filter(has_text=nr).first.click()
+    pg.wait_for_selector("#pad .pad-stk-zahl"); pg.wait_for_timeout(800)
+    pg.locator(".pad-karte2--wartung").click(); pg.wait_for_selector("#wartung"); pg.wait_for_timeout(800)
+    t = pg.locator("#wartung").inner_text()
+    pruefe("Pad zeigt Typ und Park, nicht die andere Maschine", "Filter wechseln" in t and "Halle putzen" in t and "Nur hier" not in t)
+    pruefe("Schild Gilt für je Zeile", pg.locator("#wartung [data-wartung-ziel='park']").count() == 1
+           and pg.locator("#wartung [data-wartung-ziel='typ']").count() == 1)
+    pg.set_input_files("#wartung-datei", files=[{"name": "Spindel.png", "mimeType": "image/png", "buffer": PNG}])
+    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
+    pg.evaluate("""(mid) => { const s = [...document.querySelectorAll('.dialog-huelle:last-child select')]
+      .find(x => [...x.options].some(o => o.value === 'maschine:' + mid));
+      s.value = 'maschine:' + mid; s.dispatchEvent(new Event('change', {bubbles: true})); }""", mid)
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-dialog.png"))
+    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    neu = pg.evaluate("TEST.daten.wartung_plan.find(p => p.titel === 'Spindel')")
+    pruefe("im Pad: nur diese Maschine gewählt", neu and neu.get("machine_id") == mid and not neu.get("type_id"))
+    pruefe("steht im Pad mit Schild", pg.locator("#wartung [data-wartung-ziel='maschine']").count() == 1)
+    pg.locator("#wartung [data-wartung-ziel]").first.scroll_into_view_if_needed(); pg.wait_for_timeout(300)
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-pad-ziele.png"))
     pruefe("keine Seitenfehler", not f)
     if f: print(f[:3])
     br.close()
