@@ -11047,3 +11047,7 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 /* Kreditoren: Kopf der Liste „Zum Zuordnen“ mit „Alle löschen“ (1.346.0) */
 .kred-kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .kred-kopf h3 { margin: 0; }
+
+/* Kreditoren: nur vermutet zugeordnet (seit 1.347.0) */
+.kred-vermutet { margin-left: 6px; padding: 1px 6px; border-radius: 8px; background: #fde68a; color: #713f12; font-size: 0.85em; }
+#kred-zuletzt summary { cursor: pointer; margin: 10px 0 4px; }

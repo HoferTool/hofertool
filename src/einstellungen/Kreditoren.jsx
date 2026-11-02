@@ -9,7 +9,8 @@ import { alt } from "../bruecke.jsx";
 import { Gruppe, Zeile } from "./teile.jsx";
 import { kannOrdner, ordnerErlaubt } from "../teile/sicherung.js";
 import { istModulFehler } from "../teile/modulFehler.js";
-import { krOrdnerHolen, krOrdnerWaehlen, krSortieren, krLaeuft, zuordnenListe, zuordnenDatei, zuordnen, lieferantenLaden, zuordnenAlleLoeschen }
+import { krOrdnerHolen, krOrdnerWaehlen, krSortieren, krLaeuft, zuordnenListe, zuordnenDatei, zuordnen, lieferantenLaden, zuordnenAlleLoeschen,
+  abgelegtListe, abgelegtDatei, abgelegtKorrigieren, abgelegtStimmt }
   from "../teile/kreditorenAblage.js";
 
 export default function Kreditoren() {
@@ -19,6 +20,10 @@ export default function Kreditoren() {
   const [ergebnis, setErgebnis] = useState(null);
   const [offen, setOffen] = useState([]);
   const [lieferanten, setLieferanten] = useState([]);
+  const [zuletzt, setZuletzt] = useState([]);
+  // Aufgeklappt, wenn etwas nur vermutet ist; danach bestimmt man selbst
+  const [zuletztAuf, setZuletztAuf] = useState(false);
+  useEffect(() => { if (zuletzt.some((e) => e.vermutet)) setZuletztAuf(true); }, [zuletzt.some((e) => e.vermutet)]);
 
   const lesen = async (h) => {
     setGriff(h);
@@ -27,6 +32,7 @@ export default function Kreditoren() {
     if (h && e === "granted") {
       try {
         setOffen(await zuordnenListe(h));
+        setZuletzt(await abgelegtListe(h));
         setLieferanten((await lieferantenLaden(h)).map((l) => l.name).sort((a, b) => a.localeCompare(b, "de")));
       } catch (f) { setErgebnis({ ok: false, text: alt.fehlertext(f) }); }
     }
@@ -126,9 +132,16 @@ export default function Kreditoren() {
             await lesen(griff);
           }}>Alle löschen</button>
         </div>
-        <datalist id="kred-namen">{lieferanten.map((n) => <option key={n} value={n} />)}</datalist>
         {offen.map((r) => <ZuordnenZeile key={r.name} r={r} griff={griff} fertig={() => lesen(griff)} />)}
       </div>}
+      {(offen.length > 0 || zuletzt.length > 0) && <datalist id="kred-namen">{lieferanten.map((n) => <option key={n} value={n} />)}</datalist>}
+      {zuletzt.length > 0 && <details className="kred-zuordnen" id="kred-zuletzt" open={zuletztAuf}>
+        <summary onClick={(ev) => { ev.preventDefault(); setZuletztAuf(!zuletztAuf); }}><h3 style={{ display: "inline" }}>Zuletzt abgelegt ({zuletzt.length}
+          {zuletzt.some((e) => e.vermutet) ? ", davon " + zuletzt.filter((e) => e.vermutet).length + " nur vermutet" : ""})</h3></summary>
+        <p className="klein gedaempft">Liegt eine Rechnung beim falschen Lieferanten, den richtigen Namen eintippen und „Korrigieren“.
+          Die App verschiebt sie und erkennt diesen Lieferanten danach richtig. „Stimmt“ nimmt sie aus der Liste.</p>
+        {zuletzt.slice(0, 60).map((e) => <ZuletztZeile key={e.ordner + "/" + e.datei} e={e} griff={griff} fertig={() => lesen(griff)} />)}
+      </details>}
     </Gruppe>
   );
 }
@@ -159,6 +172,34 @@ function ZuordnenZeile({ r, griff, fertig }) {
       <input className="feld kred-name" list="kred-namen" value={name} placeholder="Lieferant"
         onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") ablegen(); }} />
       <button className="knopf knopf--klein knopf--haupt" disabled={laeuft} onClick={ablegen}>Ablegen</button>
+    </div>
+  );
+}
+
+function ZuletztZeile({ e, griff, fertig }) {
+  const [name, setName] = useState("");
+  const [laeuft, setLaeuft] = useState(false);
+  const ansehen = async () => {
+    try { alt.dateiAnsehen(await abgelegtDatei(griff, e)); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+  };
+  const tun = async (fn, gut) => {
+    setLaeuft(true);
+    try { const wo = await fn(); if (gut) alt.meldung(gut(wo), "gut"); await fertig(); }
+    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); setLaeuft(false); }
+  };
+  const korrigieren = () => {
+    if (!name.trim()) { alt.meldung("Bitte den richtigen Lieferanten eingeben.", "warn"); return; }
+    tun(() => abgelegtKorrigieren(griff, e, name), (wo) => "Verschoben nach „" + wo + "“.");
+  };
+  return (
+    <div className="kred-zeile">
+      <button className="knopf knopf--klein kred-datei" onClick={ansehen} title="Ansehen">{e.datei}</button>
+      <span className="klein">bei <b>{e.ordner}</b>{e.vermutet ? <span className="kred-vermutet"> vermutet</span> : ""}</span>
+      <input className="feld kred-name" list="kred-namen" value={name} placeholder="Richtiger Lieferant"
+        onChange={(ev) => setName(ev.target.value)} onKeyDown={(ev) => { if (ev.key === "Enter") korrigieren(); }} />
+      <button className="knopf knopf--klein knopf--haupt kred-korr" disabled={laeuft} onClick={korrigieren}>Korrigieren</button>
+      <button className="knopf knopf--klein kred-stimmt" disabled={laeuft} onClick={() => tun(() => abgelegtStimmt(griff, e))}>Stimmt</button>
     </div>
   );
 }

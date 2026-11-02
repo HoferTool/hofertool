@@ -120,6 +120,19 @@ with sync_playwright() as p:
     pruefe("Gleiche Rechnung nicht doppelt", "Muster Werkzeug AG/2026-10-27 RE-4711 (2).pdf" not in namen and "schon abgelegt" in pg.inner_text("#kred-auftrag"))
     liste = pg.evaluate("async () => JSON.parse(await (await (await window.KRED.getFileHandle('_Lieferanten.json')).getFile()).text())")
     pruefe("UID gelernt", any(l["name"] == "Muster Werkzeug AG" and "111222333" in l["uid"] for l in liste))
+    # Falsch zugeordnet: in „Zuletzt abgelegt“ korrigieren
+    pruefe("Zuletzt abgelegt mit vermutet", pg.locator("#kred-zuletzt .kred-zeile:has-text('88-120') .kred-vermutet").count() == 1)
+    for nr in ["88-120", "88-121"]:
+        z = pg.locator("#kred-zuletzt .kred-zeile", has_text=nr)
+        z.locator(".kred-name").fill("Richtig AG"); z.locator(".kred-korr").click(); pg.wait_for_timeout(1000)
+        namen = pg.evaluate(BAUM)
+        if nr == "88-120":
+            pruefe("Korrigiert verschoben", "Richtig AG/2026-10-24 88-120.pdf" in namen and "Praezi Werkzeuge GmbH/2026-10-24 88-120.pdf" not in namen)
+    pruefe("Falscher Ordner weg", not any(n.startswith("Praezi") for n in namen) and "Richtig AG/2026-10-25 88-121.pdf" in namen)
+    liste = pg.evaluate("async () => JSON.parse(await (await (await window.KRED.getFileHandle('_Lieferanten.json')).getFile()).text())")
+    pruefe("Falscher Lieferant vergessen", not any(l["name"].startswith("Praezi") for l in liste) and any(l["name"] == "Richtig AG" for l in liste))
+    z = pg.locator("#kred-zuletzt .kred-zeile", has_text="55001"); z.locator(".kred-stimmt").click(); pg.wait_for_timeout(800)
+    pruefe("Stimmt nimmt aus der Liste", pg.locator("#kred-zuletzt .kred-zeile", has_text="55001").count() == 0)
     # Zweimal unbekannt in _Zuordnen, dann „Alle löschen“
     pg.evaluate("""async (b64) => { const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
       const w = await (await window.KRED.getFileHandle('Scan 003.pdf', { create: true })).createWritable();
