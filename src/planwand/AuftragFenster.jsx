@@ -358,6 +358,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   // bearbeiten“ hat, auch ohne Planungsrecht; alle anderen sehen ihn nur
   // (Wunsch Patrick, 9. Oktober 2026)
   const darfPlatz = alt.darfMaterialplatz();
+  // Notiz auch mit eigenem Häkchen „Notiz bearbeiten“ (seit 1.333.0)
+  const darfNotiz = alt.darfNotiz ? alt.darfNotiz() : darfPlatz;
   const extern = alt.istExtern();
   const kopfRef = useRef(null);
   useZiehen(kopfRef, zu, auftrag, extern);
@@ -582,12 +584,12 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
         const platzNeu = (w.matOrt || "").trim();
         const platzAlt = alt.materialPlatz(auftrag).trim();
         const notizAlt = alt.notizTrennen(auftrag.plan_note || "").notiz;
-        const notizNeu = darfPlatz && w.notiz !== anfang.current.notiz ? w.notiz : notizAlt;
+        const notizNeu = darfNotiz && w.notiz !== anfang.current.notiz ? w.notiz : notizAlt;
         const platz = darfPlatz ? platzNeu : platzAlt;
-        if (darfPlatz && (platzNeu !== platzAlt || notizNeu !== notizAlt)) {
+        if ((darfPlatz && platzNeu !== platzAlt) || (darfNotiz && notizNeu !== notizAlt)) {
           const spalte = alt.materialPlatzSpalte();
           const aenderung = {};
-          if (spalte && platzNeu !== platzAlt) aenderung.material_platz = platzNeu || null;
+          if (spalte && darfPlatz && platzNeu !== platzAlt) aenderung.material_platz = platzNeu || null;
           if (!spalte || notizNeu !== notizAlt) aenderung.plan_note = alt.notizZusammen(notizNeu, spalte ? "" : platz);
           await alt.aendernOhneUnbekannte("jobs", aenderung, "id", auftrag.id);
         }
@@ -866,7 +868,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
 
           {/* Die Notiz füllt, was in der linken Spalte noch frei ist */}
           <label className="feld feld--wachsend auf-notiz"><span>Notiz für die Maschine</span>
-            <textarea id="pl-notiz" ref={notizFeld} readOnly={!darf && !darfPlatz} value={w.notiz}
+            <textarea id="pl-notiz" ref={notizFeld} readOnly={!darf && !darfNotiz} value={w.notiz}
               onChange={(e) => notizAendern(e.target.value)} /></label>
         </div>
 

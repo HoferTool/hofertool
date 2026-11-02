@@ -154,7 +154,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.332.0";
+const APP_VERSION = "1.333.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1717,12 +1717,12 @@ async function profilLaden(frisch) {
     const spalten = "id, email, full_name, role, is_active, geburtstag, "
       + "bild_url, parks, darf_bearbeiten, ist_planer, initialen, ohne_passwort, einstellungen";
     let { data, error } = await zeitlimit(
-      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz, startseite")
+      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz, startseite, darf_notiz")
         .eq("id", s.user.id).single(), 10000, "Profil");
     // Ohne sql/andere-nutzer.sql oder sql/materialplatz-recht.sql kennt die
     // Datenbank das Häkchen nicht: dann ohne die Spalten lesen, statt ohne
     // Profil dazustehen
-    if (error && /andere_nutzer|darf_materialplatz|startseite/.test(String(error.message || ""))) {
+    if (error && /andere_nutzer|darf_materialplatz|startseite|darf_notiz/.test(String(error.message || ""))) {
       ({ data, error } = await zeitlimit(
         db.from("profiles").select(spalten).eq("id", s.user.id).single(), 10000, "Profil"));
     }
@@ -4341,6 +4341,16 @@ function darfBearbeitenKnopf() {
 function darfMaterialplatz() {
   if (istExtern()) return false;
   return istAdmin() || (profil && profil.darf_materialplatz === true);
+}
+
+// Die „Notiz für die Maschine“ im Auftragsfenster ändern ausser denen
+// mit Materialplatz-Recht auch alle mit dem eigenen Häkchen „Notiz
+// bearbeiten“ (Wunsch Patrick 2. November 2026: „Tristan darf das
+// bearbeiten“, profiles.darf_notiz, sql/notiz-recht.sql). Den
+// Materialplatz bekommen sie damit nicht.
+function darfNotiz() {
+  if (istExtern()) return false;
+  return darfMaterialplatz() || (profil && profil.darf_notiz === true);
 }
 
 // Darf gerade auf der Planwand geändert werden? Nur noch Admins
@@ -10407,7 +10417,7 @@ Object.assign(alt, {
   best, seiteBestellungen, sucheArtikel, hocoJeArtikel, ladeBezeichnungen, ladeLieferanten,
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, solarLaden, solarKw, esc,
-  darfPlanen, darfMaterialplatz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
+  darfPlanen, darfMaterialplatz, darfNotiz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
   arbeitstagePlus, ausIso, ladeTodos, loeschen,
   planArchivDaten, istArchiv, bildVerkleinern,
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, maschineRuestet, ladePlanAuftraege,

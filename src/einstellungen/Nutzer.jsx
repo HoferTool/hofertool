@@ -197,6 +197,7 @@ function BenutzerListe({ leute, parks, mitPin, status, bin, neu }) {
         const merkmale = [ROLLEN[u.role] || u.role];
         if (istAndererNutzer(u)) merkmale.push("Andere Nutzer");
         if (u.darf_materialplatz && u.role !== "admin") merkmale.push("Materialplatz");
+        if (u.darf_notiz && !u.darf_materialplatz && u.role !== "admin") merkmale.push("Notiz");
         if (u.ist_planer && u.initialen) merkmale.push("plant als " + u.initialen);
         const start = u.startseite && (alt.SEITEN || []).find((x) => x.pfad === u.startseite);
         if (start && u.role !== "extern") merkmale.push("startet mit " + start.titel);
@@ -281,6 +282,8 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
         ? "Dafür fehlt noch sql/andere-nutzer.sql in der Datenbank."
         : "darf_materialplatz" in felder && /darf_materialplatz/.test(error.message || "")
           ? "Dafür fehlt noch sql/materialplatz-recht.sql in der Datenbank."
+          : "darf_notiz" in felder && /darf_notiz/.test(error.message || "")
+          ? "Dafür fehlt noch sql/notiz-recht.sql in der Datenbank."
           : "startseite" in felder && /startseite/.test(error.message || "")
             ? "Dafür fehlt noch sql/startseite.sql in der Datenbank." : alt.fehlertext(error), "fehler");
       setU((x) => ({ ...x, ...zurueck }));
@@ -416,6 +419,12 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
                 onChange={(e) => aendern({ darf_materialplatz: e.target.checked },
                   e.target.checked ? "Darf jetzt den Materialplatz bearbeiten." : "Materialplatz nur noch ansehen.")} />
                 <span>Materialplatz bearbeiten (Feld im Auftragsfenster)</span></label>}
+          {u.role !== "admin" && u.role !== "extern" && (
+            <label className="schalter"><input type="checkbox" data-notizrecht={u.id}
+              checked={!!u.darf_notiz || !!u.darf_materialplatz} disabled={!!u.darf_materialplatz}
+              onChange={(e) => aendern({ darf_notiz: e.target.checked },
+                e.target.checked ? "Darf jetzt die Notiz für die Maschine bearbeiten." : "Notiz nur noch ansehen.")} />
+              <span>Notiz für die Maschine bearbeiten (Feld im Auftragsfenster{u.darf_materialplatz ? ", schon mit Materialplatz" : ""})</span></label>)}
         </div>
       </div>
 
