@@ -11,11 +11,13 @@
 //  Wahl, darunter die Backup-Batterien der betroffenen Maschinen und
 //  die Bilder und PDFs mit Termin und Wiederholung, je Plan an welchen
 //  Maschinen er gerade fällig ist. Alle mit Schreibrecht ausser
-//  Externen.
+//  Externen. Seit 1.340.0 zeigt eine einzelne Maschine auch, was vom
+//  Typ und vom Park her gilt, und „Vorhandene wählen“ teilt eine schon
+//  abgelegte Datei neu zu, ohne Hochladen.
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
-import { WartungListe, faelligSeit, zielVon } from "../pad/Wartung.jsx";
+import { WartungListe, faelligSeit, zielVon, giltFuer } from "../pad/Wartung.jsx";
 import { batterieHeuteFaellig } from "../daten/maschinenInfo.js";
 
 // Gewählte Art und Wahl, solange die App offen ist
@@ -55,7 +57,11 @@ export default function Wartung() {
         const typName = (x) => (typen.find((y) => y.id === x.type_id) || {}).name || "";
         const z = {};
         const zaehlen = (a, id) => {
-          const plaene = (p.data || []).filter((x) => { const q = zielVon(x); return q.art === a && q.id === id; });
+          // Bei einer Maschine zählt alles, was dort gilt (auch vom Typ und Park)
+          const mm = a === "maschine" && maschinen.find((y) => y.id === id);
+          const plaene = (p.data || []).filter((x) => {
+            if (mm) return giltFuer(x, mm);
+            const q = zielVon(x); return q.art === a && q.id === id; });
           const faellig = betroffen({ art: a, id }, maschinen).filter((x) =>
             plaene.some((pl) => faelligSeit(pl, e.data || [], x.id))
             || batterieHeuteFaellig((i.data || []).find((y) => y.machine_id === x.id), typName(x))).length;
@@ -128,7 +134,12 @@ export default function Wartung() {
       </div>
       {wahlListe}
       {ziel ? <div className="wartung wartung--einstellungen">
-          <WartungListe key={art + wahl} ziel={ziel} maschinen={betroffen(ziel, maschinen)} /></div>
+          {/* Bei einer einzelnen Maschine alles, was dort gilt, auch vom Typ
+              und vom Park, wie im Pad (Wunsch Patrick 2. November 2026) */}
+          {art === "maschine"
+            ? <WartungListe key={art + wahl} m={maschinen.find((x) => x.id === wahl)}
+                vorgabe={{ art: "maschine", id: wahl }} />
+            : <WartungListe key={art + wahl} ziel={ziel} maschinen={betroffen(ziel, maschinen)} />}</div>
         : <p className="unterlagen__leer">Oben {art === "typ" ? "einen Maschinentyp" : art === "park" ? "einen Park"
           : "eine Maschine"} wählen.</p>}
     </section>

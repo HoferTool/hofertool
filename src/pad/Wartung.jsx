@@ -452,7 +452,7 @@ const zielWert = (z) => z.art + ":" + z.id;
 // unter Einstellungen → Wartung (mit ziel: genau die Pläne dieses Typs,
 // Parks oder dieser Maschine, maschinen = alle, an denen sie gelten).
 // Ohne zu kein Schliessen.
-export function WartungListe({ m, ziel, maschinen: alle, zu }) {
+export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
   const [plaene, setPlaene] = useState(null);
   const [erledigt, setErledigt] = useState([]);
   const [infos, setInfos] = useState({});
@@ -490,7 +490,7 @@ export function WartungListe({ m, ziel, maschinen: alle, zu }) {
     auswahl: WIEDERHOLUNG });
   // Im Pad wählbar, wem die Wartung gilt; Vorgabe der Typ (wie bisher)
   const zielFeld = (wert) => m ? [{ name: "ziel", label: "Gilt für", wert, auswahl: zielWahl(m, namen) }] : [];
-  const vorgabeZiel = () => ziel || (m.type_id ? { art: "typ", id: m.type_id } : { art: "maschine", id: m.id });
+  const vorgabeZiel = () => ziel || vorgabe || (m.type_id ? { art: "typ", id: m.type_id } : { art: "maschine", id: m.id });
   const ueberschrift = ziel ? zielText(ziel, namen).replace(/^Alle Maschinen /, "Typ ") : "";
 
   const hochladen = async (dateien) => {
@@ -565,6 +565,52 @@ export function WartungListe({ m, ziel, maschinen: alle, zu }) {
     await aendern(w, daten, "Termin " + w.titel);
   };
 
+  // Eine schon abgelegte Datei (etwa vom Typ) noch einmal zuteilen, ohne
+  // sie neu hochzuladen (Wunsch Patrick 2. November 2026: „Wartungen, die
+  // bei den Typen erscheinen, sollen auch bei den einzelnen Maschinen
+  // ausgewählt werden können“). Neuer Plan mit eigenem Termin, dieselbe
+  // Datei in der Ablage.
+  const vorhandeneWaehlen = async () => {
+    let alle;
+    try { alle = await alleLaden(); } catch (f) { alt.meldung(sqlFehler(alt.fehlertext(f)), "fehler"); return; }
+    // Was an dieser Maschine schon gilt, zuerst; je Datei nur einmal
+    const nah = (p) => maschinen.some((x) => giltFuer(p, x)) ? 0 : 1;
+    const gesehen = new Set();
+    const liste = [...alle].sort((a, b) => nah(a) - nah(b)).filter((p) => {
+      if (!p.url || gesehen.has(p.url)) return false;
+      gesehen.add(p.url); return true;
+    });
+    if (!liste.length) { alt.meldung("Es ist noch keine Wartung abgelegt.", "warn"); return; }
+    const id = await alt.auswahlDialog("Vorhandene Wartung wählen",
+      liste.map((p) => ({ wert: p.id, text: p.titel + " · " + zielText(zielVon(p), namen)
+        + (istPdf(p) ? " · PDF" : " · Bild") })),
+      "Die Datei bleibt dieselbe, Termin und Wiederholung gelten nur für die neue Zuteilung.");
+    const q = liste.find((p) => p.id === id);
+    if (!q) return;
+    const vorgabe = m ? { art: "maschine", id: m.id } : ziel;
+    const w = await alt.dialogFelder({
+      titel: "Wartung zuteilen" + (ueberschrift ? " · " + ueberschrift : ""),
+      felder: [
+        { name: "titel", label: "Was ist zu tun?", pflicht: true, wert: q.titel },
+        ...zielFeld(zielWert(vorgabe)),
+        { name: "termin", label: "Erster Termin (leer = nur ablegen)", typ: "datetime-local", wert: "",
+          hinweis: "Ab dann zeigt das Pad jeder betroffenen Maschine es als Bildschirmschoner, bis dort jemand „Erledigt“ tippt." },
+        wiederholungFeld(q.wiederholung),
+      ],
+      bestaetigen: "Zuteilen" });
+    if (!w) return;
+    const z = w.ziel ? zielAus(w.ziel) : vorgabe;
+    const ein = await alt.db.from(PLAN).insert({
+      ...zielSpalten(z, false), titel: w.titel.trim(), url: q.url, pfad: q.pfad, dateiname: q.dateiname,
+      art: q.art, termin: w.termin ? new Date(w.termin).toISOString() : null,
+      wiederholung: w.wiederholung || "nie" }).select("id");
+    if (ein.error) { alt.meldung(sqlFehler(alt.fehlertext(ein.error)), "fehler"); return; }
+    const neuId = ((ein.data || [])[0] || {}).id;
+    if (neuId) alt.merkeSchritt("Wartung " + w.titel.trim(), alt.rueckWeg(PLAN, { id: neuId }));
+    alt.meldung("Zugeteilt: " + w.titel.trim() + " (" + zielText(z, namen) + ")", "gut");
+    geaendert();
+  };
+
   const loeschen = async (w) => {
     const ja = await alt.nachfragen({ titel: "Wartung löschen",
       text: "Soll „" + w.titel + "“ gelöscht werden (" + zielText(zielVon(w), namen) + ")?",
@@ -604,11 +650,12 @@ export function WartungListe({ m, ziel, maschinen: alle, zu }) {
         <h2>Wartung{titel ? " · " + titel : ""}</h2>
         {darf && <button className="knopf knopf--haupt" id="wartung-neu" disabled={!!laedt}
           onClick={() => wahl.current && wahl.current.click()}>+ Bild oder PDF</button>}
+        {darf && <button className="knopf" id="wartung-vorhanden" onClick={vorhandeneWaehlen}>Vorhandene wählen</button>}
         {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}
       </div>
       {darf && <input ref={wahl} type="file" multiple hidden id="wartung-datei" accept="image/*,application/pdf,.pdf"
         onChange={(e) => { const d = [...e.target.files]; e.target.value = ""; if (d.length) hochladen(d); }} />}
-      <p className="klein wartung__erklaerung">{erklaerung} Bild oder PDF ablegen, dann „Terminieren“ mit
+      <p className="klein wartung__erklaerung">{erklaerung} Bild oder PDF ablegen (oder eine schon abgelegte mit „Vorhandene wählen“), dann „Terminieren“ mit
         Wiederholung: ab dem Termin zeigt das Pad es als Bildschirmschoner statt des Einrichtblatts, bis an der
         Maschine jemand unten in der Mitte „Erledigt“ tippt.</p>
       {laedt && <p className="unterlagen__laedt">Lädt hoch: {laedt} …</p>}
