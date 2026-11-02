@@ -33,6 +33,11 @@ export function pdfjs() {
       return Object.assign({}, lib, {
         getDocument: (o) => laden(o && typeof o === "object" && !(o instanceof Uint8Array) && !o.wasmUrl ? { wasmUrl, ...o } : o),
       });
+    }).catch((f) => {
+      // Nicht den Fehlschlag merken: sonst scheitert jeder weitere Versuch
+      // bis zum Neuladen, auch wenn das Netz längst wieder da ist
+      pdfjsLaden = null;
+      throw f;
     });
   }
   return pdfjsLaden;

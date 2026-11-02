@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { Gruppe, Zeile } from "./teile.jsx";
 import { kannOrdner, ordnerErlaubt } from "../teile/sicherung.js";
+import { istModulFehler } from "../teile/modulFehler.js";
 import { krOrdnerHolen, krOrdnerWaehlen, krSortieren, krLaeuft, zuordnenListe, zuordnenDatei, zuordnen, lieferantenLaden }
   from "../teile/kreditorenAblage.js";
 
@@ -71,6 +72,13 @@ export default function Kreditoren() {
           + (l.doppelt ? ", " + l.doppelt + " waren schon abgelegt" : "")
           + (l.fehler.length ? ". Nicht gegangen: " + l.fehler.join(" · ") : "") });
     } catch (f) {
+      // Neue Fassung draussen, dieser Tab noch alt: gleich neu laden, die
+      // Einstellungen kommen danach wieder (Patrick 2. November 2026)
+      if (istModulFehler(f) && (await alt.fassungPruefen(true))) {
+        setErgebnis({ ok: false, text: "Die App wurde inzwischen erneuert und lädt jetzt neu. Danach nochmals „Jetzt ablegen“ drücken." });
+        setTimeout(() => location.reload(), 1500);
+        return;
+      }
       setErgebnis({ ok: false, text: alt.fehlertext(f) });
     }
     setArbeit("");

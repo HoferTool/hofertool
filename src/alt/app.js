@@ -78,6 +78,7 @@ import { eigeneFensterOffen, eigeneFensterZu } from "../teile/eigenesFenster.js"
 import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 // Stellt window.hoferMailSenden fürs Bestellblatt bereit (1.323.0)
 import "../daten/mailkonto.js";
+import { istModulFehler } from "../teile/modulFehler.js";
 
 const BOOT = document.getElementById("boot");
 const WURZEL = document.getElementById("root");
@@ -154,7 +155,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.344.0";
+const APP_VERSION = "1.344.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1261,6 +1262,12 @@ function stuendlichNeuLaden() {
 }
 setInterval(stuendlichNeuLaden, 60000);
 
+// Fehlt ein Programmteil, weil inzwischen eine neue Fassung draussen ist
+// (Tab läuft noch mit der alten), nicht eine Stunde warten: im nächsten
+// ruhigen Moment neu laden. Sonst blieb etwa das Ablegen der
+// Kreditorenrechnungen am Pool-Rechner bis dahin hängen.
+window.addEventListener("vite:preloadError", () => { neuladenAb = 0; });
+
 // ---------- Bildschirme holen neue Fassungen sofort ----------
 // Infoboard und Empfang laufen tagelang ohne Anmeldung und ohne Strg + F5.
 // Statt bis zum stündlichen Neuladen zu warten, schauen sie alle zwei
@@ -1608,6 +1615,9 @@ function fehlertext(e) {
       + "Authentication → Policies und lässt sich auf 1 setzen.";
   }
   if (m.includes("row-level security")) return "Dafür fehlen dir die Rechte.";
+  // Vor „Failed to fetch“: ein fehlender Programmteil nach einer neuen
+  // Fassung ist kein WLAN-Problem (Patrick 2. November 2026)
+  if (istModulFehler(e)) return "Die App wurde inzwischen erneuert. Bitte die Seite neu laden (F5).";
   if (m.includes("Failed to fetch")) return "Keine Verbindung zum Server. WLAN prüfen.";
   if (m.includes("foreign key") || m.includes("violates foreign key"))
     return "Das lässt sich nicht löschen, weil noch Buchungen oder Bestellungen daran hängen. "

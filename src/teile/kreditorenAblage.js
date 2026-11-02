@@ -215,6 +215,10 @@ export async function krSortieren(h, { sofort = false, fortschritt } = {}) {
     }
     const ergebnis = { stapel: 0, abgelegt: 0, zuordnen: 0, doppelt: 0, fehler: [] };
     if (!offen.length) return ergebnis;
+    // Die Programmteile zuerst einmal laden: fehlt einer (neue Fassung
+    // draussen, dieser Tab noch alt), bricht es hier für alle ab statt
+    // je Datei mit „Keine Verbindung zum Server“ (Patrick 2. November 2026)
+    await Promise.all([import("./PdfAnsicht.jsx").then((m) => m.pdfjs()), import("pdf-lib")]);
     const liste = await lieferantenLaden(h);
     const zuOrdner = await h.getDirectoryHandle(ZUORDNEN, { create: true });
     const zuInfo = await textLesen(zuOrdner, ZU_INFO, {});
