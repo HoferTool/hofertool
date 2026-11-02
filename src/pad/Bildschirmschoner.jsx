@@ -17,6 +17,13 @@
 //  Schoner: die Mahnung soll sichtbar bleiben (Wunsch Patrick,
 //  26. Oktober 2026: „nur wenn Pablo nicht mehr leuchtet“).
 //
+//  Wartung (seit 1.337.0, Wunsch Patrick 2. November 2026): Ist an der
+//  Maschine eine Wartung fällig (Kachel „Wartung“, src/pad/Wartung.jsx),
+//  zeigt der Schoner deren Bild oder PDF statt des Einrichtblatts, auch
+//  ohne Blatt und auch, wenn eine Kachel mahnt. Unten in der Mitte
+//  „Erledigt“ quittiert sie; ein Tipp daneben führt nur zurück, nach
+//  einer Minute kommt sie wieder.
+//
 //  Abgemeldet wird im Pad Mode nie (leerlaufPruefen in app.js), darum
 //  kommen sich Bildschirmschoner und Abmeldung nicht in die Quere.
 // =================================================================
@@ -29,6 +36,7 @@ import { istExcel } from "../teile/excelLesen.js";
 import { blattSuchen } from "../einrichtblatt/daten.js";
 import { materialBlattFuer } from "../einrichtblatt/jeMaterial.js";
 import { BlattAnzeige } from "../einrichtblatt/Blatt.jsx";
+import { useWartungen, faellige, istPdf, wartungErledigen } from "./Wartung.jsx";
 
 export const SCHONER_NACH_MS = 60 * 1000;
 
@@ -73,6 +81,23 @@ function stoertNicht() {
   return true;
 }
 
+function Wartung({ w }) {
+  const [daten, setDaten] = useState(null);
+  const [fehler, setFehler] = useState(false);
+  const pdf = istPdf(w);
+  useEffect(() => {
+    if (!pdf) return;
+    let weg = false;
+    setDaten(null); setFehler(false);
+    dateiHolen(w.url).then((d) => { if (!weg) setDaten(d); }).catch(() => { if (!weg) setFehler(true); });
+    return () => { weg = true; };
+  }, [w.url]);
+  if (!pdf) return <img className="pad-schoner__bild" src={w.url} alt={w.titel} />;
+  if (fehler) return <div className="pdfansicht__laden">Das PDF lässt sich gerade nicht laden.</div>;
+  if (!daten) return <div className="pdfansicht__laden">Wird geladen …</div>;
+  return <PdfAnsicht daten={daten} beiFehler={() => setFehler(true)} />;
+}
+
 function Blatt({ adresse }) {
   const [daten, setDaten] = useState(null);
   const [fehler, setFehler] = useState(false);
@@ -88,9 +113,10 @@ function Blatt({ adresse }) {
     : <PdfAnsicht daten={daten} beiFehler={() => setFehler(true)} />;
 }
 
-export default function Bildschirmschoner({ hoco, typId, mahnt }) {
+export default function Bildschirmschoner({ maschineId, hoco, typId, mahnt }) {
   const [adresse, setAdresse] = useState(null);
   const [zeigen, setZeigen] = useState(false);
+  const wartung = faellige(useWartungen(maschineId))[0] || null;
 
   // Gibt es ein Blatt? Neu bei jedem Auftrag und Typ.
   useEffect(() => {
@@ -114,20 +140,23 @@ export default function Bildschirmschoner({ hoco, typId, mahnt }) {
 
   useEffect(lauschen, []);
 
+  const wartungUrl = wartung ? wartung.url : null;
   useEffect(() => {
-    if (!adresse || zeigen || mahnt) return;
+    if (zeigen || (!wartungUrl && (!adresse || mahnt))) return;
     const takt = setInterval(() => {
       if (Date.now() - letzte >= SCHONER_NACH_MS && stoertNicht()) {
         // Schon vorher holen, damit das Blatt gleich da ist
-        if (!adresse.startsWith("app:")) dateiHolen(adresse).catch(() => {});
+        if (wartungUrl) { if (istPdf(wartung)) dateiHolen(wartungUrl).catch(() => {}); }
+        else if (!adresse.startsWith("app:")) dateiHolen(adresse).catch(() => {});
         setZeigen(true);
       }
     }, 1000);
     return () => clearInterval(takt);
-  }, [adresse, zeigen, mahnt]);
+  }, [adresse, zeigen, mahnt, wartungUrl]);
 
-  // Fängt die Mahnung an, während der Schoner offen ist, weg damit
-  useEffect(() => { if (mahnt) setZeigen(false); }, [mahnt]);
+  // Fängt die Mahnung an, während das Einrichtblatt offen ist, weg damit
+  // (eine fällige Wartung bleibt)
+  useEffect(() => { if (mahnt && !wartung) setZeigen(false); }, [mahnt, !!wartung]);
 
   // Escape am Computer wie ein Tipp. Vor allen anderen abgefangen,
   // sonst ginge das Pad zusätzlich einen Schritt zurück.
@@ -143,7 +172,23 @@ export default function Bildschirmschoner({ hoco, typId, mahnt }) {
     return () => window.removeEventListener("keydown", taste, true);
   }, [zeigen]);
 
-  if (!zeigen || !adresse) return null;
+  if (!zeigen || (!adresse && !wartung)) return null;
+  if (wartung) {
+    return createPortal(
+      <div className="pad-schoner pad-schoner--wartung" data-padschoner="" data-wartung-schoner={wartung.id}>
+        <div className="pad-schoner__blatt"><Wartung w={wartung} /></div>
+        <div className="pad-schoner__deckel" data-padschonerzu=""
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setZeigen(false); }} />
+        <div className="pad-schoner__wartung-titel">Wartung fällig: {wartung.titel}</div>
+        <button type="button" className="pad-schoner__erledigt" data-wartung-erledigt-schoner=""
+          onClick={async (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (await wartungErledigen(wartung)) setZeigen(false);
+          }}>✓ Erledigt</button>
+      </div>,
+      document.body);
+  }
+  if (!adresse) return null;
   // Der Deckel über dem Blatt fängt den Tipp ab: Geschlossen wird erst
   // beim „click“, also wenn der Finger wieder oben ist. So landet der
   // Tipp nicht noch auf einem Knopf des Dashboards darunter, und

@@ -10926,3 +10926,65 @@ body.dunkel .eba-pf-geogroesse button.aktiv { background: #1f6feb; color: #fff; 
 /* Einrichtblatt: Datum oben rechts auf der Seite GEO-OFFSET (1.335.0) */
 .eba-zseite-stand { position: absolute; top: 14px; right: 18px; font-size: 11pt; color: #333; background: #fff;
   padding: 2px 6px; border: 1px solid #999; border-radius: 4px; pointer-events: none; white-space: nowrap; }
+
+/* ---------- Pad Mode: Wartung statt Internet (seit 1.337.0) ----------
+   Gleicher Platz wie vorher die Kachel Internet; fällig wird sie orange
+   und pulsiert sanft. Im Bildschirmschoner unten in der Mitte „Erledigt“
+   über dem Deckel (Wunsch Patrick 2. November 2026). */
+.pad-karte2--wartung { cursor: pointer; color: #fff; text-align: left; font: inherit;
+  background: linear-gradient(140deg, #3f5566, #1d2a35) !important;
+  border-color: rgba(170,200,225,.22) !important; justify-content: center; min-width: 0; }
+.pad-karte2--wartung .pad-name { color: #c9dbe9; }
+.pad-karte2--wartung:active { filter: brightness(1.15); }
+.pad-karte2--wartung-faellig { background: linear-gradient(140deg, #d9771a, #8a3d05) !important;
+  border-color: rgba(255,200,140,.5) !important; animation: pad-wartung-puls 2.4s ease-in-out infinite; }
+.pad-karte2--wartung-faellig .pad-name { color: #ffe3c4; }
+@keyframes pad-wartung-puls { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,150,40,0); }
+  50% { box-shadow: 0 0 0 6px rgba(255,150,40,.35); } }
+.pad-wartung { display: flex; align-items: center; gap: 10px; }
+.pad-wartung svg { width: 1.3em; height: 1.3em; flex: none; fill: none;
+  stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+.pad-wartung__unter { font-size: .82em; opacity: .85; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 100%; margin-top: 2px; }
+.wartung__erklaerung { margin: 4px 0 10px; }
+/* Karten so gross wie möglich (Wunsch Patrick 2. November 2026):
+   im Pad-Fenster fast der ganze Bildschirm, Vorschau füllt die Karte */
+.wartung-huelle .dialog.wartung--fenster { width: min(1500px, calc(100vw - 24px)); max-width: none;
+  height: calc(100dvh - 24px); max-height: none; display: flex; flex-direction: column; }
+.wartung--fenster .wartung__liste { flex: 1 1 auto; min-height: 0; overflow: auto; max-height: none; }
+.wartung__liste { list-style: none; margin: 0; padding: 2px; display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); }
+.wartung__zeile { display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  border: 1px solid var(--rand, #d6dde5); border-radius: 14px; padding: 10px; }
+.wartung__zeile--faellig { border: 2px solid #e08a2c; background: rgba(240,140,40,.1); }
+.wartung__vorschau { position: relative; display: flex; align-items: center; justify-content: center;
+  height: clamp(320px, 58vh, 760px); border: 0; padding: 0; border-radius: 10px; overflow: hidden;
+  background: #eef1f4; cursor: zoom-in; }
+.wartung--einstellungen .wartung__vorschau { height: clamp(320px, 62vh, 820px); }
+.wartung__vorschau-bild { width: 100%; height: 100%; object-fit: contain; display: block; }
+.wartung__vorschau-text { color: #6b7785; }
+.wartung__pdf-marke { position: absolute; top: 8px; left: 8px; background: rgba(15,30,50,.75); color: #fff;
+  font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+.wartung__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wartung__text b { font-size: 1.15em; }
+.wartung__knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
+.es-wartung__parks { display: grid; gap: 10px; margin: 12px 0 16px; }
+.es-wartung__park { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.es-wartung__parkname { font-weight: 700; min-width: 120px; }
+.es-wartung__maschinen { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.es-wartung__maschine { display: inline-flex; gap: 6px; align-items: center; }
+.es-wartung__zahl { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px;
+  background: rgba(0,0,0,.1); }
+.es-wartung__maschine--faellig .es-wartung__zahl { background: #e08a2c; color: #fff; }
+.pad-schoner__bild { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.pad-schoner__wartung-titel { position: absolute; left: 50%; top: max(12px, env(safe-area-inset-top));
+  transform: translateX(-50%); pointer-events: none; max-width: calc(100% - 32px);
+  background: #d9771a; color: #fff; font-weight: 700; font-size: 22px; padding: 10px 22px;
+  border-radius: 999px; box-shadow: 0 6px 20px rgba(0,0,0,.35); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.pad-schoner__erledigt { position: absolute; left: 50%; bottom: max(22px, env(safe-area-inset-bottom));
+  transform: translateX(-50%); z-index: 2; border: 0; cursor: pointer;
+  background: #1f9d55; color: #fff; font: inherit; font-weight: 800; font-size: 28px;
+  padding: 18px 54px; border-radius: 999px; box-shadow: 0 8px 26px rgba(0,0,0,.4); }
+.pad-schoner__erledigt:active { filter: brightness(1.12); transform: translateX(-50%) scale(.97); }
+#wartung-neu { white-space: nowrap; }

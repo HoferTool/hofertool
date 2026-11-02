@@ -23,6 +23,7 @@ import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
 import { notizbuecherFuerPark, buecherFuerPark, BUCH } from "../notizbuch/Notizbuecher.jsx";
 import Bildschirmschoner from "./Bildschirmschoner.jsx";
+import { WartungKachel } from "./Wartung.jsx";
 import { einrichtblattHinweis } from "../einrichtblatt/PadHinweis.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
 import { mahnBilder, escobarDarf } from "../daten/mahnbilder.js";
@@ -35,26 +36,6 @@ import {
   holeWetterTage, wetterZeichen, tagesmengen, letzteTage, schnitte,
   schnittTage, schnittLang, prognose,
 } from "./daten.js";
-
-// Browser-Kachel: Google lässt sich nicht in der App zeigen. Am
-// Computer darum ein eigenes Fenster (ein zweiter Tipp holt es nach
-// vorn), auf Tablet und Handy öffnet der Link wie gewohnt einen Tab
-// bzw. Safari. Gleiches Verhalten wie die Knöpfe im Menü (Geruest.jsx).
-//
-// 1.20.0 öffnete Google in der App auf dem Startbildschirm in einem
-// Fenster über der App; Patrick will aber die Safari-App (10. Oktober
-// 2026: „kein Google, will Safari, es sind alles iPads“). Darum seit
-// 1.20.2 wieder der Link mit neuem Tab: Aus der App auf dem
-// Startbildschirm öffnet iOS ihn in Safari.
-const BROWSER_URL = "https://www.google.ch/";
-function browserOeffnen(e) {
-  if (matchMedia("(pointer: coarse)").matches) return;
-  const b = Math.min(1100, screen.availWidth - 40), h = Math.min(850, screen.availHeight - 40);
-  const f = window.open(BROWSER_URL, "hofer-browser",
-    "popup,width=" + b + ",height=" + h + ",left=" + Math.round((screen.availWidth - b) / 2)
-    + ",top=" + Math.round((screen.availHeight - h) / 2));
-  if (f) { e.preventDefault(); f.focus(); }
-}
 
 const zweistellig = (n) => String(n).padStart(2, "0");
 const prozent = (j) => Math.min(100, Math.round((j.stand || 0) / j.target_quantity * 100));
@@ -676,7 +657,7 @@ export default function Maschine({ d }) {
     <>
       {kopf}
       {/* Nach einer Minute ohne Berührung das Einrichtblatt gross (Wunsch Patrick, 13. Oktober 2026) */}
-      <Bildschirmschoner hoco={j ? j.job_number : null} typId={m.type_id || null} mahnt={zeitFehlt || stkFehlt} />
+      <Bildschirmschoner maschineId={m.id} hoco={j ? j.job_number : null} typId={m.type_id || null} mahnt={zeitFehlt || stkFehlt} />
       {!j && <p className="pad__hinweis">Auf dieser Maschine läuft gerade kein Auftrag.</p>}
       <div className="pad-flaeche">
 
@@ -712,8 +693,8 @@ export default function Maschine({ d }) {
             </div>
           </div>
 
-          {/* Stück am Abend teilt sich die Reihe mit dem Browser
-              (Wunsch Patrick, 9. Oktober 2026); Externe haben keinen. */}
+          {/* Stück am Abend teilt sich die Reihe mit der Wartung (bis 1.336.x
+              Internet, Wunsch Patrick, 9. Oktober 2026); Externe haben keine. */}
           <div className={alt.istExtern() ? "pad-reihe1" : "pad-reihe2 pad-reihe2--abend"}>
             <div className="pad-karte2 pad-karte2--abend" data-padfeld={mitTyp ? "abend" : ""}
               onClick={mitTyp ? () => abendBearbeiten(j, m, blattDaten) : undefined}>
@@ -726,18 +707,9 @@ export default function Maschine({ d }) {
                   : <Leer>{mitTyp ? "antippen und eintragen" : (programmGrund || "—")}</Leer>}
               </span>
             </div>
-            {!alt.istExtern() &&
-              <a className="pad-karte2 pad-karte2--browser" data-padfeld="browser"
-                href={BROWSER_URL} target="_blank" rel="noopener" onClick={browserOeffnen}>
-                <span className="pad-name">Internet · antippen</span>
-                <span className="pad-wert pad-browser">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" />
-                    <path d="M2.5 12h19M12 2.5c2.6 2.8 3.9 6 3.9 9.5s-1.3 6.7-3.9 9.5M12 2.5C9.4 5.3 8.1 8.5 8.1 12s1.3 6.7 3.9 9.5" /></svg>
-                  {/* Nirgends „Google“, die Kachel heisst „Internet“
-                      (Wunsch Patrick, 10. Oktober 2026) */}
-                  Internet
-                </span>
-              </a>}
+            {/* Statt „Internet“ seit 1.337.0 die Wartung (Wunsch Patrick
+                2. November 2026); Externe haben sie wie vorher nicht. */}
+            {!alt.istExtern() && <WartungKachel m={m} />}
           </div>
 
           {/* Vorsprung und Stückzeit teilen sich die Reihe (Wunsch 8. Oktober 2026).

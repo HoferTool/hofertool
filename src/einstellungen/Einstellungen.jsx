@@ -23,6 +23,7 @@ import EinrichtblattPdf from "./EinrichtblattPdf.jsx";
 import Kreditoren from "./Kreditoren.jsx";
 import RadioSender from "./Radio.jsx";
 import Temp from "./Temp.jsx";
+import Wartung from "./Wartung.jsx";
 import { bestellmailOeffnen } from "./Bestellmail.jsx";
 import { meldungenVerwalten } from "../teile/anmeldeMeldungen.jsx";
 import { adressenAus, verteilerLaden, verteilerSpeichern } from "../teile/ferienTermin.js";
@@ -41,6 +42,7 @@ import { Mailkonto } from "./Mailkonto.jsx";
 // "mat" = Admins und wer „Materialplatz bearbeiten“ hat, "temp" = alle
 // ausser Externen und Dienst (Temp-Ordner, seit 1.310.0 hier statt im Menü).
 const REITER = [["allgemein", "Allgemein"], ["temp", "Temp", "temp"], ["dokumente", "Dokumente", "dok"], ["backup", "Backup", "dok"],
+                ["wartung", "Wartung", "wartung"],
                 ["fehler", "Fehlerprotokoll", true], ["farben", "Farben und Material", "mat"],
                 ["symbole", "Symbole", true],
                 ["nutzer", "Nutzer", true]];
@@ -67,7 +69,10 @@ function Einstellungen({ zu }) {
   // bearbeiten“ (seit 1.172.0, Wunsch Patrick 24. Oktober 2026)
   const mat = alt.darfMaterialplatz();
   const temp = !alt.istExtern() && alt.meineRolle() !== "dienst";
-  const reiter = REITER.filter(([, , wer]) => wer === "temp" ? temp
+  // Wartung im Pad Mode: alle mit Schreibrecht ausser Externen, Dienst und
+  // Gerätekonten (die bleiben bei Allgemein, Dokumente, Backup), seit 1.337.0
+  const wartung = alt.darfSchreiben() && !alt.istExtern() && !["dienst", "planwand"].includes(alt.meineRolle());
+  const reiter = REITER.filter(([, , wer]) => wer === "temp" ? temp : wer === "wartung" ? wartung
     : !wer || bin || (wer === "dok" && dok) || (wer === "mat" && mat));
   if (!reiter.some(([w]) => w === alt.einst.reiter)) alt.einst.reiter = reiter[0][0];
   const [offen, setOffen] = useState(alt.einst.reiter);
@@ -81,6 +86,7 @@ function Einstellungen({ zu }) {
   else if (offen === "dokumente") inhalt = <><Dokumente />{alt.istAdmin() && <Kreditoren />}</>;
   else if (offen === "farben") inhalt = <Farben />;
   else if (offen === "temp") inhalt = <Temp />;
+  else if (offen === "wartung") inhalt = <Wartung />;
   else if (offen === "symbole") inhalt = <><Symbole /><MahnBilder /></>;
   else inhalt = <Nutzer />;
 
