@@ -10,7 +10,7 @@ import { alt } from "../bruecke.jsx";
 import { Gruppe } from "./teile.jsx";
 import { kontoLesen, kontoSetzen, mailSenden } from "../daten/mailkonto.js";
 
-const VORGABE_ABSENDER = "programmierung@hoferco.ch";
+const VORGABE_ABSENDER = "1.programmierung@hoferco.ch";
 
 export function Mailkonto() {
   const [konto, setKonto] = useState(null);

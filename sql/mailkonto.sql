@@ -2,7 +2,7 @@
 --  MAILKONTO: FERIEN UND BESTELLUNGEN DIREKT SENDEN
 --  Wunsch Patrick 31. Oktober 2026: Ferien sollen von selbst in Outlook
 --  stehen und Bestell-PDFs direkt rausgehen, über ein gemeinsames
---  Konto (programmierung@hoferco.ch, Microsoft 365).
+--  Konto (1.programmierung@hoferco.ch, Microsoft 365).
 --
 --  Was diese Datei tut:
 --   · Tabelle mail_konto: eine Zeile mit den Angaben der App-Anmeldung

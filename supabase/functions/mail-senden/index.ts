@@ -1,7 +1,7 @@
 // Sendet Mails und Kalendertermine über das gemeinsame Konto in
 // Microsoft 365 (Wunsch Patrick 31. Oktober 2026: Ferien sollen von selbst
 // in Outlook stehen, Bestell-PDFs direkt rausgehen; Konto
-// programmierung@hoferco.ch).
+// 1.programmierung@hoferco.ch).
 //
 // Warum über Microsoft Graph und nicht SMTP: Supabase lässt aus Server-
 // Funktionen keine Verbindungen auf Port 25 und 587 zu, und Microsoft 365

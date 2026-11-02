@@ -2,7 +2,7 @@
 //  MAILKONTO: DIREKT SENDEN ÜBER MICROSOFT 365 (seit 1.323.0)
 //  Wunsch Patrick 31. Oktober 2026: Ferien sollen von selbst in Outlook
 //  stehen, Bestell-PDFs gleich rausgehen, über das gemeinsame Konto
-//  programmierung@hoferco.ch.
+//  1.programmierung@hoferco.ch.
 //
 //  Gesendet wird nur auf dem Server (supabase/functions/mail-senden),
 //  der die Zugangsdaten der App-Anmeldung bei Microsoft aus mail_konto
