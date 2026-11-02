@@ -175,7 +175,13 @@ Deno.serve(async (req) => {
       }
       const ids = (Array.isArray(e.positionen) ? e.positionen : []).map(String).filter(Boolean);
       const am = new Date().toISOString();
-      if (ids.length) await db.from("order_items").update({ gesendet_am: am, gesendet_von: u.user.id }).in("id", ids);
+      if (ids.length) {
+        await db.from("order_items").update({ gesendet_am: am, gesendet_von: u.user.id }).in("id", ids);
+        // Gesendet heisst bestellt, ohne extra Klick (seit 1.332.0, Wunsch
+        // Patrick 2. November 2026); nur was noch offen war
+        await db.from("order_items").update({ status: "bestellt", status_am: am, ordered_at: am })
+          .in("id", ids).eq("status", "offen");
+      }
       await protokoll("bestellung", an.concat(kopie).join("; "), betreff, true);
       return antwort({ ok: true, an, gesendet_am: am });
     }

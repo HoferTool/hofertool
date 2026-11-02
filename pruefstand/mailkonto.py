@@ -86,14 +86,20 @@ with sync_playwright() as p:
     pg.evaluate("location.hash='#bestellungen'")
     pg.wait_for_selector("#best-inhalt .bs-pos"); pg.wait_for_timeout(800)
     pruefe("Knopf Bestellung senden", pg.locator("[data-bestellsenden]").count() >= 1)
+    pruefe("Kein PDF-Knopf in der Liste", pg.locator("[data-bestellpdf]").count() == 0)
     with ctx.expect_page() as neu:
         pg.locator("[data-bestellsenden]").first.click()
     bl = neu.value
     bl.on("pageerror", lambda e: fehler.append("BLATTFEHLER: " + str(e)[:160]))
     bl.wait_for_selector("#sendefeld", state="visible", timeout=8000)
     pruefe("Sendefeld offen mit Betreff", "Bestellung" in bl.input_value("#sf-betreff"))
+    pruefe("Nur PDF und Schliessen in der Leiste", bl.is_visible("#pdfknopf") and not bl.is_visible("#druckknopf")
+           and not bl.is_visible("#mailknopf") and not bl.is_visible("#sendeknopf") and not bl.is_visible("#pdfdruckknopf"))
     bl.add_script_tag(content=H2C); bl.add_script_tag(content=JSPDF)
     bl.evaluate("document.getElementById('schriftlink') && document.getElementById('schriftlink').remove()")
+    with bl.expect_download(timeout=40000) as dl:
+        bl.click("#pdfknopf")
+    pruefe("PDF herunterladen", dl.value.suggested_filename.endswith(".pdf"))
     bl.fill("#sf-an", "verkauf@lieferant.test")
     bl.screenshot(path=os.path.join(os.environ.get("BILDER", HIER), "mailkonto_bestellblatt.png"))
     bl.click("#sf-senden")

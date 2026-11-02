@@ -191,7 +191,8 @@ function Lieferant({ name, gruppe, block, schreiben, neu, behaelter, heute, dire
       unter={unter}
       aktionen={<>
         {/* Aufs PDF kommt genau, was in dieser Karte steht */}
-        {gruppe.lief &&
+        {/* Mit Mailkonto nur noch „Bestellung senden“, das PDF gibt es dort im Blatt (seit 1.332.0) */}
+        {gruppe.lief && !direkt &&
           <button className="knopf knopf--mini bs-knopf" data-bestellpdf={name} data-block={block}
             onClick={() => {
               const f = alt.bestellungDrucken(gruppe.lief, gruppe.posten);
