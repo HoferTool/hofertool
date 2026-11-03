@@ -508,8 +508,13 @@ async function pruefen() {
   const stunde = konf.stunde ?? 18;
   const letzte = k.status && k.status.letzte && k.status.letzte.zeit ? new Date(k.status.letzte.zeit) : null;
   const jetzt = new Date();
-  const heuteAb = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate(), stunde);
-  const faellig = !letzte || (jetzt - letzte) >= 24 * 3600000 || (jetzt >= heuteAb && letzte < heuteAb);
+  // Fällig ist, wenn seit der letzten eingestellten Stunde (heute oder, vor
+  // dieser Stunde, gestern) nicht gesichert wurde. Früher galt auch „24 Stunden
+  // seit der letzten“; das verschob die Zeit nach jeder späten oder von Hand
+  // gemachten Sicherung (Patrick 3. November 2026: „warum nicht immer gleich?“)
+  const zuletztFaellig = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate(), stunde);
+  if (jetzt < zuletztFaellig) zuletztFaellig.setDate(zuletztFaellig.getDate() - 1);
+  const faellig = !letzte || letzte < zuletztFaellig;
   const h = await ordnerHolen();
   // Einmal den Ausschuss aus den Sicherungen nachholen, auch wenn heute schon gesichert ist
   if (h && (await ordnerErlaubt(h, false)) === "granted") await ausschussNachholenEinmal(h).catch(() => {});
