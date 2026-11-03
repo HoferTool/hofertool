@@ -11295,3 +11295,89 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 .kt-elnr--an { font-weight: 700; fill: #e08a00; }
 .kt-modell__kontur { stroke-width: 1.6; }
 .kt-modell__alle { stroke-width: 1; }
+
+/* =================================================================
+   PABLO: Sprachassistent auf der Planwand (1.362.0)
+   Kleines Zeichen unten rechts, dass er zuhört; die Einblendung mit
+   Frage und Antwort darüber. Immer dunkelblau mit weisser Schrift,
+   darum auch im dunklen Modus ohne eigene Regel lesbar.
+   ================================================================= */
+.pablo-zeichen {
+  position: fixed; right: 18px; bottom: 74px; z-index: 76;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px 6px 8px; border: 0; border-radius: 999px; cursor: pointer;
+  background: #13284a; color: #fff; font: inherit; font-size: .82rem; font-weight: 600;
+  box-shadow: 0 4px 14px rgba(10, 25, 50, .28); opacity: .82;
+  transition: opacity .2s, transform .2s;
+}
+.pablo-zeichen:hover { opacity: 1; transform: translateY(-1px); }
+.pablo-zeichen--offen { opacity: 0; pointer-events: none; transform: scale(.8); }
+.pablo-zeichen__name { color: #fff !important; letter-spacing: .02em; }
+.pablo-zeichen__ring {
+  position: relative; width: 12px; height: 12px; border-radius: 50%; background: #3ddc97; flex: none;
+}
+.pablo-zeichen__ring::after {
+  content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid #3ddc97;
+  animation: pablo-atmen 2.4s ease-out infinite;
+}
+.pablo-zeichen--aus .pablo-zeichen__ring { background: #8a96a8; }
+.pablo-zeichen--aus .pablo-zeichen__ring::after { display: none; }
+.pablo-zeichen__wellen { display: none; }
+@keyframes pablo-atmen { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(1.7); opacity: 0; } }
+
+.pablo {
+  position: fixed; right: 18px; bottom: 74px; z-index: 85;
+  width: min(420px, calc(100vw - 32px)); max-height: min(70vh, 560px);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: linear-gradient(160deg, #13284a, #0d1c36); color: #fff;
+  border-radius: 18px; box-shadow: 0 18px 50px rgba(5, 15, 35, .45), 0 0 0 1px rgba(120, 170, 255, .18);
+  animation: pablo-auf .28s cubic-bezier(.2, .9, .3, 1.2);
+  transform-origin: bottom right;
+}
+.pablo * { color: #fff; }
+@keyframes pablo-auf { from { opacity: 0; transform: translateY(14px) scale(.92); } to { opacity: 1; transform: none; } }
+.pablo__kopf { display: flex; align-items: center; gap: 10px; padding: 12px 14px 8px; }
+.pablo__kopf b { font-size: 1.05rem; letter-spacing: .03em; }
+.pablo__status { flex: 1; font-size: .8rem; opacity: .75; }
+.pablo__x { background: none; border: 0; cursor: pointer; font-size: 1rem; opacity: .7; padding: 4px 6px; border-radius: 6px; }
+.pablo__x:hover { opacity: 1; background: rgba(255, 255, 255, .1); }
+
+/* Schallwellen: ruhig beim Lauschen, lebhaft beim Zuhören und Sprechen */
+.pablo__wellen { display: flex; align-items: center; gap: 3px; height: 22px; }
+.pablo__wellen i { display: block; width: 4px; height: 6px; border-radius: 2px; background: #3ddc97; }
+.pablo--hoert .pablo__wellen i, .pablo--spricht .pablo__wellen i { animation: pablo-welle .9s ease-in-out infinite; }
+.pablo--spricht .pablo__wellen i { background: #6fb1ff; }
+.pablo--denkt .pablo__wellen i { background: #ffd166; animation: pablo-welle 1.6s ease-in-out infinite; }
+.pablo__wellen i:nth-child(2) { animation-delay: -.7s !important; }
+.pablo__wellen i:nth-child(3) { animation-delay: -.35s !important; }
+.pablo__wellen i:nth-child(4) { animation-delay: -.55s !important; }
+.pablo__wellen i:nth-child(5) { animation-delay: -.15s !important; }
+@keyframes pablo-welle { 0%, 100% { height: 5px; } 50% { height: 22px; } }
+
+.pablo__inhalt { padding: 2px 16px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.pablo__frage { font-size: .92rem; opacity: .75; font-style: italic; }
+.pablo__antwort { font-size: 1.02rem; line-height: 1.45; animation: pablo-auf .25s ease-out; }
+.pablo__antwort--unklar { opacity: .85; }
+.pablo__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; }
+.pablo__knoepfe .knopf { background: rgba(255, 255, 255, .12) !important; border-color: rgba(255, 255, 255, .2) !important; color: #fff !important; }
+.pablo__knoepfe .knopf:hover { background: rgba(255, 255, 255, .22) !important; }
+.pablo__punkte { display: flex; gap: 6px; padding: 4px 0; }
+.pablo__punkte i { width: 8px; height: 8px; border-radius: 50%; background: #ffd166; animation: pablo-punkt 1s ease-in-out infinite; }
+.pablo__punkte i:nth-child(2) { animation-delay: .15s; }
+.pablo__punkte i:nth-child(3) { animation-delay: .3s; }
+@keyframes pablo-punkt { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-4px); } }
+.pablo__eingabe { display: flex; gap: 6px; padding: 10px 14px 14px; border-top: 1px solid rgba(255, 255, 255, .1); }
+.pablo__eingabe input {
+  flex: 1; min-width: 0; padding: 7px 10px; border-radius: 9px; font: inherit; font-size: .9rem;
+  background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .2); color: #fff;
+}
+.pablo__eingabe input::placeholder { color: rgba(255, 255, 255, .55); }
+.pablo__eingabe input:focus { outline: 2px solid #6fb1ff; outline-offset: 0; }
+@media (max-width: 640px) {
+  .pablo-zeichen { right: 12px; bottom: 12px; }
+  .pablo { right: 12px; bottom: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pablo, .pablo__antwort { animation: none; }
+  .pablo-zeichen__ring::after { animation: none; }
+}

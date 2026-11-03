@@ -15,6 +15,7 @@ import { alt } from "../bruecke.jsx";
 import { anmeldungAbbauen } from "./Anmeldung.jsx";
 import { GeraetMarke } from "../pad/geraet.jsx";
 import { UNTERREITER, reiterAktiv, reiterBeobachten, reiterWaehlen, menuePunkt } from "./unterreiter.js";
+import { pabloStarten, pabloSichtbar } from "../planwand/Pablo.jsx";
 
 let wurzel = null;
 let aktivSetzen = () => {};
@@ -29,6 +30,8 @@ export function geruestZeichnen(ziel) {
   wurzel = createRoot(huelle);
   // Sofort fertig, damit #inhalt gleich danach bereitsteht
   flushSync(() => wurzel.render(<Geruest />));
+  // Pablo, der Sprachassistent, ist von hier an auf allen Seiten da
+  if (pabloSichtbar()) pabloStarten();
 }
 
 // Vor der Anmeldeseite, die das Gerüst überschreibt
