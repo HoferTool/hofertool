@@ -122,7 +122,9 @@ function Pablo() {
   const offenRef = useRef(false);
   const sprache = useRef("de-CH");
   const [verstanden, setVerstanden] = useState("");   // was der Browser zuletzt gehört hat
-  const [grund, setGrund] = useState(Erkennung ? "" : "Dieser Browser kann nicht zuhören. Am besten Chrome oder Edge nehmen.");
+  // Brave hat die Spracherkennung zwar, aber keinen Server dahinter: sie meldet immer "network" (Patrick 3. November 2026).
+  const istBrave = typeof navigator !== "undefined" && !!navigator.brave;
+  const [grund, setGrund] = useState(istBrave ? "Brave kann nicht zuhören. Öffne das HoferTool in Chrome oder Edge." : Erkennung ? "" : "Dieser Browser kann nicht zuhören. Am besten Chrome oder Edge nehmen.");
   offenRef.current = offen;
 
   const zuPlanen = () => {
@@ -209,7 +211,7 @@ function Pablo() {
         aktiv.current = false; setZustand("aus");
         setGrund(e.error === "audio-capture" ? "Kein Mikrofon gefunden." : "Das Mikrofon ist für diese Seite gesperrt. Oben links in der Adresszeile beim Schloss das Mikrofon erlauben, dann hier antippen.");
       } else if (e.error === "language-not-supported" && sprache.current !== "de-DE") sprache.current = "de-DE";
-      else if (e.error === "network") { fehlerZahl.current++; if (fehlerZahl.current >= 3) setGrund("Die Spracherkennung des Browsers erreicht ihren Server nicht."); }
+      else if (e.error === "network") { fehlerZahl.current++; if (fehlerZahl.current >= 3) setGrund(istBrave ? "Brave kann nicht zuhören. Öffne das HoferTool in Chrome oder Edge." : "Die Spracherkennung des Browsers erreicht ihren Server nicht."); }
     };
     r.onend = () => {
       if (erk.current !== r) return;

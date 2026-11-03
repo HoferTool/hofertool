@@ -178,7 +178,7 @@ with sync_playwright() as p:
     pg.evaluate("__sag('Pablo wo läuft 10844-0049')"); pg.wait_for_selector("#pablo-antwort"); pg.wait_for_timeout(500)
     a = pg.inner_text("#pablo-antwort"); print("   →", a)
     pruefe("Antwort auch ausserhalb der Planwand", "10844-0049 läuft auf der L-1001" in a)
-    pg.click("#pablo-zeichen"); pg.wait_for_selector("#pablo")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300); pg.click("#pablo-zeichen"); pg.wait_for_selector("#pablo")
     befehl(pg, "gehe zu Bestellungen"); pg.wait_for_timeout(800)
     pruefe("Gehe zu Bestellungen", "bestellungen" in pg.evaluate("location.hash"))
     pg.click("#pablo-zeichen"); pg.wait_for_selector("#pablo")

@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.375.2** (3. November 2026) **Pablo in Brave**: Brave hat keine Spracherkennung dahinter, Pablo sagt dort gleich „Brave kann nicht zuhören. Öffne das HoferTool in Chrome oder Edge.“ statt eines Netzfehlers.
 - **1.375.0** (3. November 2026) **Kontur heisst HOFER-NC-PRO** (Patrick: „benenne Kontur um in HOFER-NC-PRO“): Reiter, Seitenleiste und eigenes Fenster heissen so, Pablo kennt den Namen; intern bleibt `kontur`.
 - **1.374.0** (3. November 2026) **Kontur: Fang für rechte Winkel** (Patrick: „ich will, dass beim Zeichnen ein Fang für rechte Winkel drin ist“): nahe der Waagrechten oder Senkrechten durchs Konturende rastet der Punkt ein, grüne Gummilinie mit Winkelzeichen.
 - **1.373.0** (3. November 2026) **Art der Abwesenheit** (Patrick: „Bei der Ferieneingabe soll unter folgendem gewählt werden: Ferien, Kompensieren, Militär/Zivilschutz und Feuerwehr“): Knöpfe im Ferienfenster, Spalte `vacations.abwesenheit` (alle 665 bisherigen = Ferien), eigene Farbe und Kurztext auf der Planwand, Art im Hinweis, im Outlook-Termin (Server-Funktion `mail-senden` Version 4), in der .eml und bei Pablo. Prüfstand `ferien_art.py`.
