@@ -11650,3 +11650,9 @@ body.dunkel .kt-k3d__bild { background: radial-gradient(ellipse at 50% 35%, #2a3
 .systemzustand__zeile:first-of-type { border-top: 0; }
 .systemzustand__zeile b { display: inline-block; min-width: 11em; color: #8a5c10; }
 body.dunkel .systemzustand__zeile { border-top-color: rgba(255, 255, 255, .12); }
+
+/* „Andere Nutzer“ / „Personen“ unter den Kacheln wieder mittig: die Knopf-
+   Regel aus 1.379.0 (inline-flex) hatte die Mitte aufgehoben (Patrick
+   3. November 2026: „soll unten mittig sein“) */
+.login__karte .linkknopf.login__anderekonto { display: flex; width: fit-content;
+  margin: 14px auto 0; }
