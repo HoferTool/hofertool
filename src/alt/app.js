@@ -76,7 +76,7 @@ import { maschinenkopf } from "../seiten/rechner/kopf.jsx";
 import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
 import { meldungenNachAnmeldung, meldungenWeg } from "../teile/anmeldeMeldungen.jsx";
 import { eigeneFensterOffen, eigeneFensterZu } from "../teile/eigenesFenster.js";
-import { vorschauInsFenster, imVorschauFenster, vorschauFensterZu } from "../planwand/vorschauFenster.js";
+import { vorschauInsFenster, imVorschauFenster, vorschauFensterZu, vorschauImmerOben } from "../planwand/vorschauFenster.js";
 import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 // Stellt window.hoferMailSenden fürs Bestellblatt bereit (1.323.0)
 import "../daten/mailkonto.js";
@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.380.0";
+const APP_VERSION = "1.380.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1244,6 +1244,9 @@ function neuladenRuhig() {
   // Einlagen Gen hält Foto und Kontur nur im Speicher, Neuladen nähme sie weg
   if (document.querySelector(".einlagen-rahmen")) return false;
   if (eigeneFensterOffen()) return false; // Auftragsfenster auf einem anderen Bildschirm
+  // Vorschau zuoberst (Bild im Bild): ginge beim Neuladen zu und lässt
+  // sich ohne Klick nicht wieder öffnen
+  if (vorschauImmerOben()) return false;
   const fenster = Array.from(document.querySelectorAll(".dialog-huelle"));
   if (fenster.some((h) => !NEULADEN_FENSTER_RUHIG.includes(fensterArt(h)))) return false;
   const a = document.activeElement;
