@@ -11445,3 +11445,52 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 /* Sonst ist body mit overflow-x: hidden der Rollbereich für sticky und die
    Grafik bleibt nicht stehen; clip schneidet gleich ab, rollt aber nicht */
 html:has(.kt-raster), body:has(.kt-raster) { overflow-x: clip; }
+/* Seit 1.369.0 steht das NC-Programm wieder rechts unter der Grafik
+   (Wunsch Patrick 3. November 2026). Die rechte Spalte bleibt beim Rollen
+   stehen, darum füllt das NC-Programm genau den Rest bis zum unteren Rand
+   und rollt in sich. */
+@media (min-width: 1101px) {
+  .kt-raster > div:last-child { display: flex; flex-direction: column; max-height: calc(100vh - 72px); }
+  .kt-raster > div:last-child > .karte { flex: 0 0 auto; }
+  .kt-raster > div:last-child > .kt-nc-karte { flex: 1 1 auto; min-height: 220px; display: flex; flex-direction: column; overflow: hidden; }
+  .kt-nc-karte .kt-nc { flex: 1 1 auto; min-height: 80px; max-height: none; }
+}
+@media (min-width: 1101px) {
+  .kt-nc-karte { padding-top: 12px; padding-bottom: 10px; }
+  .kt-nc-karte .karte__kopf { margin-bottom: 6px; }
+  .kt-nc-karte .kt-nc { min-height: 150px; margin: 0; }
+  .kt-nc-karte > .hinweis { font-size: .7rem; line-height: 1.3; margin: 6px 0 0; }
+}
+/* Seit 1.369.0 jedes Element auf einer einzigen Zeile (Wunsch Patrick
+   3. November 2026: „alles auf einer Linie, nicht Übergang, F und Pause
+   auf die nächste“). Die linke Spalte ist so breit wie diese Zeile, die
+   Grafik nimmt den Rest. Nur die Masse eines Freistichs stehen darunter. */
+@media (min-width: 1101px) {
+  .kt-raster { grid-template-columns: max-content minmax(0, 1fr); }
+  .kt-raster > div:first-child { max-width: 640px; }
+  .kt-el { flex-wrap: wrap; }
+  .kt-el::after { display: none; }
+  .kt-el .kt-dreh, .kt-el .kt-ueb, .kt-el .kt-extra { order: 0; margin-left: 0 !important; }
+  .kt-el .kt-weg { order: 1; margin-left: auto; }
+  .kt-el .kt-fs { order: 2; flex-basis: 100%; }
+  .kt-zahl { width: 52px; }
+  .kt-zahl.kt-zahl--klein { width: 42px; }
+  .kt-el > select { width: 68px; }
+  .kt-ueb select { width: 108px; }
+  .kt-ueb input { width: 40px; }
+  .kt-dreh { width: 28px; padding: 2px 0; font-size: 1rem; }
+}
+@media (min-width: 1101px) {
+  .kt-raster { grid-template-columns: 590px minmax(0, 1fr); }
+  .kt-raster > div:first-child { max-width: none; }
+  .kt-el > select { width: 78px; }
+  .kt-ueb select { width: 118px; }
+}
+@media (min-width: 1101px) {
+  .kt-raster { grid-template-columns: 600px minmax(0, 1fr); }
+  .kt-el { gap: 4px; flex-wrap: nowrap; }
+  .kt-el:has(.kt-fs) { flex-wrap: wrap; }
+  .kt-zahl { width: 50px; }
+  .kt-ueb select { width: 112px; }
+}
+.kt-werkzeug .kt-zahl { width: 96px !important; }
