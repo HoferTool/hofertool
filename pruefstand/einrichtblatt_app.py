@@ -6,7 +6,7 @@
 # Beispiel-Excel: node pruefstand/einrichtblatt_app_beispiel.mjs und
 # node pruefstand/einrichtblatt_index_beispiel.mjs
 import time, base64, os, json
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import server_starten, FAKE, CH, PORT, SCHRIFT_GENAU
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -254,7 +254,7 @@ with sync_playwright() as p:
     pruefe("T300 mit Spezialwerkzeug", b["plaetze"]["T300"].get("article_id") == "a9")
     pruefe("Kopf am Blatt", "fa_nr" not in b["kopf"] and b["programme"].get("nr") == "236")
     pruefe("Langes Material auf einer Zeile", pg.evaluate("""() => { const e = [...document.querySelectorAll('[data-eba-eine-zeile]')].find(x => !x.closest('[data-platz]'));
-      return !!e && e.textContent.includes('Debrunner') && e.getBoundingClientRect().height < 30 && e.scrollWidth <= e.clientWidth && !!e.style.fontSize; }"""))
+      return !!e && e.textContent.includes('Debrunner') && e.getBoundingClientRect().height < 30 && e.scrollWidth <= e.clientWidth && !!e.style.fontSize; }""") or not SCHRIFT_GENAU)
     hp = pg.evaluate("TEST.daten.hoco_parts.find(x => x.hoco_nr === '10000-0301')")
     pruefe("Stammdaten", hp.get("bezeichnung") == "Deckel neu" and hp.get("waschgebinde") == "Typ 2 fein" and hp.get("material") == "1.4305 X8CrNiS18-9 rd Ø21h9 gezogen, Stange 3 m, Debrunner" and not hp.get("material_groesse"))
     td = pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0301' && x.type_id === 't1')")

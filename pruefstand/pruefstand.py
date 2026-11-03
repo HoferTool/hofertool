@@ -125,3 +125,9 @@ def kein_rest(pg, warten=1500):
     try: pg.wait_for_selector(".dialog-huelle h2:has-text('Material übrig?')", timeout=warten)
     except Exception: return
     pg.locator(".dialog:has(h2:has-text('Material übrig?')) [data-nein]").first.click(); pg.wait_for_timeout(800)
+
+
+# Auf GitHub hat der Browser andere Ersatzschriften (die Google-Schriften
+# sind im Prüfstand gesperrt): Prüfungen, die auf den Pixel an der
+# Schriftbreite hängen, gelten dort nicht, nur hier mit derselben Schrift.
+SCHRIFT_GENAU = not os.environ.get("GITHUB_ACTIONS")

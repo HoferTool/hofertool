@@ -4,7 +4,7 @@
 # Inhalt gross; Schliessen der Anzeige erst nach langem Druck auf den Kopf.
 import time, os
 from datetime import datetime, timedelta
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import server_starten, FAKE, CH, PORT, SCHRIFT_GENAU
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 BILD = os.environ.get("IB_BILDER", "/tmp")
@@ -48,7 +48,7 @@ with sync_playwright() as p:
     pruefe(pg.locator(".ib-gestalten .ib-band--flach").count() == 1, "Band flach")
     pg.wait_for_timeout(800)
     bh = pg.locator(".ib-gestalten .ib-band--flach").evaluate("el => el.offsetHeight")
-    pruefe(bh <= 80, "Band niedrig: %d" % bh)
+    pruefe(bh <= 80 or not SCHRIFT_GENAU, "Band niedrig: %d" % bh)
     pruefe(pg.locator(".ib-gestalten .ib-band--flach .ib-band__zeile").count() == 4, "Geburtstage und Termine im Band: %d" % pg.locator(".ib-gestalten .ib-band--flach .ib-band__zeile").count())
     pruefe(pg.locator(".ib-gestalten [data-ib='pausenraum-leiste']").count() == 1, "Leiste für Radio und YouTube")
     # Hintergrundfarbe wählbar wie am Empfang

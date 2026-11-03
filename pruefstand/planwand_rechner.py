@@ -5,7 +5,10 @@
 #  Vierkant, Sechskant; Werkstoff wählbar; HOCO Nr. füllt alles aus,
 #  die Form bleibt wählbar. Externe sehen den Knopf nicht. Seit 1.89.0 Richtung als
 #  Bild, Ergebnis gross mit kleiner Klammer, „ca.“ bei nicht bestätigter Länge.
-import time
+import time, os, tempfile
+# Bilder für Patrick, wo es den gemeinsamen Ordner gibt; auf GitHub nicht
+BILDER = "/mnt/project-files/bilder/materialrechner"
+if not os.access("/mnt/project-files", os.W_OK): BILDER = tempfile.gettempdir()
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
@@ -146,7 +149,7 @@ with sync_playwright() as p:
            teil.get("rechner_form") == "rohr" and teil.get("rechner_innen_mm") == 16 and pg.locator("#mr-gemerkt").count() == 1)
     tippe(pg, "#mr-hoco", ""); pg.wait_for_timeout(600); tippe(pg, "#mr-hoco", "10000-0301"); pg.wait_for_timeout(1500)
     pruefe("Wieder geöffnet: Rohr innen 16", "aktiv" in pg.get_attribute("[data-form='rohr']", "class") and pg.input_value("#mr-innen") == "16")
-    pg.screenshot(path="/mnt/project-files/bilder/materialrechner/rechner-rohr.png")
+    pg.screenshot(path=os.path.join(BILDER, "rechner-rohr.png"))
     pg.click("[data-form='6kt']"); pg.wait_for_timeout(1200)
     pruefe("Sechskant gemerkt, Innen weg", pg.evaluate("(t => t.rechner_form === '6kt' && t.rechner_innen_mm === null)(TEST.daten.hoco_parts.find(t => t.hoco_nr === '10000-0301'))"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)

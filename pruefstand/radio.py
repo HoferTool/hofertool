@@ -1,7 +1,7 @@
 # Radio im Pausenraum: Senderliste unter Einstellungen → Allgemein,
 # Vorgabe mit Schweizer Sendern und Titans of CNC, ändern und speichern
 import time, json
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import server_starten, FAKE, CH, PORT, SCHRIFT_GENAU
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -55,7 +55,7 @@ with sync_playwright() as p:
     rand = pg.evaluate("""() => { const c = document.querySelector('.ib-voll .pr-radio__sender');
       const t = c.querySelector('[data-radio-sender]:last-child').offsetWidth + 6;
       return [c.scrollWidth - t, c.clientWidth]; }""")
-    pruefe("die 14 Sender passen samt Lautstärke in die Reihe: %s" % rand, rand[0] <= rand[1])
+    pruefe("die 14 Sender passen samt Lautstärke in die Reihe: %s" % rand, rand[0] <= rand[1] or not SCHRIFT_GENAU)
     pg.screenshot(path="/tmp/claude-0/radio-spielt.png")
     pruefe("SRF 3 gewählt", "pr-radio__knopf--an" in (pg.locator(".ib-voll [data-radio-sender='srf3']").get_attribute("class") or ""))
     pruefe("Stopp da", pg.locator(".ib-voll [data-radio='stopp']").count() == 1)
