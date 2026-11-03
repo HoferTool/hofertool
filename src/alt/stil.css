@@ -11546,3 +11546,34 @@ html:has(.kt-raster), body:has(.kt-raster) { overflow-x: clip; }
   .lk-form { grid-template-columns: 1fr; }
   .lk-besuch__wer { margin-left: 0; width: 100%; }
 }
+/* Seit 1.372.0 Grafik noch niedriger, damit das NC-Programm mehr Zeilen
+   ohne Rollen zeigt (Wunsch Patrick 3. November 2026); Legende knapp */
+@media (min-width: 1101px) {
+  .kt-raster > div:last-child > .karte:first-child { padding-top: 10px; padding-bottom: 8px; }
+  .kt-raster > div:last-child > .karte:first-child .karte__kopf { margin-bottom: 4px; }
+  .kt-legende { font-size: .7rem; margin-top: 4px; }
+}
+@media (min-width: 1101px) {
+  /* Die rechte Spalte reicht immer bis unten, das NC-Programm nimmt den
+     ganzen Rest, auch wenn es kurz ist */
+  .kt-raster > div:last-child { height: calc(100vh - 72px); }
+}
+/* Bereich Werkzeug kompakt (seit 1.372.0, Wunsch Patrick 3. November
+   2026): Titel und Aussen/Innen in einer Reihe, die drei Felder
+   nebeneinander, Schneidenlage klein rechts daneben */
+.kt-wz-karte { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; padding-top: 12px; padding-bottom: 10px; }
+.kt-wz-karte > h2 { margin: 0; font-size: 1rem; }
+.kt-wz-karte > .moduswahl { margin: 0; justify-self: start; }
+.kt-wz-karte .moduswahl__knopf { padding: 4px 12px; min-height: 30px; font-size: .85rem; }
+.kt-wz-karte > :not(h2):not(.moduswahl) { grid-column: 1 / -1; }
+.kt-wz-karte .kt-werkzeug { grid-template-columns: 1fr auto; gap: 12px; margin-bottom: 4px; align-items: start; }
+.kt-wz-karte .kt-felder { grid-template-columns: repeat(3, auto); justify-content: start; gap: 8px; }
+.kt-wz-karte .kt-felder .kt-zahl { width: 92px !important; }
+.kt-wz-karte .kt-felder input { min-height: 28px; height: 28px; padding: 2px 6px; font-size: .85rem; }
+.kt-wz-karte .kt-werkzeug > div:last-child { max-width: 130px; display: grid; grid-template-columns: auto; }
+.kt-wz-karte .kt-lage { grid-template-columns: repeat(3, 28px); gap: 3px; margin: 2px 0 3px; }
+.kt-wz-karte .kt-lage__knopf { width: 28px; height: 28px; min-height: 28px; padding: 0; }
+.kt-wz-karte .kt-lage__knopf svg { width: 22px; height: 22px; }
+.kt-wz-karte .kt-werkzeug .klein { font-size: .68rem; line-height: 1.25; }
+.kt-wz-karte .schalter { margin: 2px 0 0; font-size: .82rem; align-items: center; }
+.kt-wz-karte .schalter input { width: 16px; height: 16px; margin: 0; }

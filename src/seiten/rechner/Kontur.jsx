@@ -244,7 +244,7 @@ function KonturRechner({ imFenster }) {
               Radius oder Fase steht am Ende eines Elements, zum nächsten hin.</p>
           </section>
 
-          <section className="karte">
+          <section className="karte kt-wz-karte">
             <h2>Werkzeug</h2>
             <div className="moduswahl">
               {[["aussen", "Aussenkontur"], ["innen", "Innenkontur"]].map(([w, t]) => (
@@ -254,9 +254,9 @@ function KonturRechner({ imFenster }) {
             </div>
             <div className="kt-werkzeug">
               <div className="kt-felder">
-                <Zahl label="Schneidenradius (Platte) in mm" wert={k.rn} setze={(v) => aendern({ rn: v })} name="rn" breit />
+                <Zahl label="Plattenradius" wert={k.rn} setze={(v) => aendern({ rn: v })} name="rn" breit />
                 <Zahl label="Grundvorschub F" wert={k.f} setze={(v) => aendern({ f: v })} name="f" breit />
-                <Zahl label="Abstand Anfahren / Wegfahren" wert={k.abstand} setze={(v) => aendern({ abstand: v })} name="abstand" breit />
+                <Zahl label="Abstand an/weg" wert={k.abstand} setze={(v) => aendern({ abstand: v })} name="abstand" breit />
               </div>
               <div>
                 <span className="kt-titel">Schneidenlage</span>
@@ -271,8 +271,7 @@ function KonturRechner({ imFenster }) {
                     </button>
                   ))}
                 </div>
-                <span className="klein">Der Punkt, auf den das Werkzeug vermessen ist (gedachte Spitze).
-                  Star aussen: unten rechts.</span>
+                <span className="klein">Gedachte Spitze, auf die vermessen ist. Star aussen: unten rechts.</span>
               </div>
             </div>
             <label className="schalter"><input type="checkbox" id="kt-tausch" checked={!!k.g2g3Tauschen}
@@ -290,7 +289,7 @@ function KonturRechner({ imFenster }) {
                 title="Letzte Änderung an der Kontur zurücknehmen" onClick={zurueck}>↶ Rückgängig</button></div>
             <Grafik kontur={kontur} bahn={bahn} k={k} wahl={wahl} setWahl={ausGrafik} zeichnen={zeichnen}
               punktSetzen={punktSetzen} ende={ende} />
-            <p className="klein">
+            <p className="klein kt-legende">
               <span className="kt-leg kt-leg--kontur" /> Fertigkontur
               <span className="kt-leg kt-leg--bahn" /> programmierte Bahn (gedachte Spitze)
               <span className="kt-leg kt-leg--mitte" /> Schneidenmitte
@@ -625,7 +624,7 @@ function ModellFenster({ text, name, zu, uebernehmen }) {
 // -----------------------------------------------------------------
 //  Grafik: Z nach rechts, X nach oben, Mittellinie unten (aussen)
 // -----------------------------------------------------------------
-const B = 640, H = 340, RAND = 30;   // seit 1.365.0 höher (Wunsch Patrick: „Grafikfenster grösser“)
+const B = 640, H = 250, RAND = 24;   // seit 1.365.0 höher (Wunsch Patrick: „Grafikfenster grösser“)
 
 function punkteVon(segs) {
   const p = [];
