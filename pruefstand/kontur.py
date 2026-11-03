@@ -144,7 +144,12 @@ with sync_playwright() as p:
     pg.click("[data-ktmodell='aussen']"); pg.wait_for_timeout(100)
     pruefe("STEP: Drehachse wird genannt", "entlang Modell-" in pg.inner_text("#kt-modell-achse"))
     gross = pg.locator(".kt-modell__bild").bounding_box()
-    pruefe("STEP: Vorschau gross", gross["width"] > 900)
+    pruefe("STEP: Vorschau gross", gross["width"] > 700 and pg.locator("#kt-modell-3d").count() == 1)
+    # Achse grafisch: einen Kreis in der 3D-Ansicht antippen
+    pruefe("STEP: Kreise in der 3D-Ansicht", pg.locator("[data-ktkreis]").count() > 3)
+    pg.locator("[data-ktkreis]").first.dispatch_event("click"); pg.wait_for_timeout(150)
+    pruefe("STEP: Kreis wählt Achse", pg.locator("#kt-modell-achse-zurueck").count() == 1)
+    pg.click("#kt-modell-achse-zurueck"); pg.wait_for_timeout(150)
     # Elemente weglassen: so lange antippen, bis eines der Kontur wegfällt
     weniger = False
     d0 = pg.locator(".kt-modell__kontur").get_attribute("d")

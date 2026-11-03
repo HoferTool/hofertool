@@ -74,14 +74,18 @@ const vSkalar = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
 const vLaenge = (a) => Math.sqrt(vSkalar(a, a));
 const vEinheit = (a) => { const l = vLaenge(a); return l < 1e-12 ? v(0, 0, 1) : vMal(a, 1 / l); };
 
-export function modell(text) {
+// Flächen mit ihren Rändern und dazu alle Kanten (für die 3D-Ansicht)
+export function modellUndKanten(text) {
   const { e, faktor } = stepLesen(text);
   const hol = (r) => (r && r.ref ? e.get(r.ref) : null);
   const punkt = (r) => { const p = hol(r); return p && p.typ === "CARTESIAN_POINT" ? vMal(v(...p.w[1].concat([0, 0, 0]).slice(0, 3)), faktor) : null; };
   const richtung = (r) => { const d = hol(r); return d && d.typ === "DIRECTION" ? vEinheit(v(...d.w[1].concat([0, 0, 0]).slice(0, 3))) : v(0, 0, 1); };
-  const lage = (r) => { const a = hol(r); if (!a || a.typ !== "AXIS2_PLACEMENT_3D") return null; return { o: punkt(a.w[1]), d: richtung(a.w[2]) }; };
+  const richtungX = (r) => { const d = hol(r); return d && d.typ === "DIRECTION" ? vEinheit(v(...d.w[1].concat([0, 0, 0]).slice(0, 3))) : null; };
+  const lage = (r) => { const a = hol(r); if (!a || a.typ !== "AXIS2_PLACEMENT_3D") return null; return { o: punkt(a.w[1]), d: richtung(a.w[2]), x: richtungX(a.w[3]) }; };
 
   const flaechen = [];
+  const kanten = [];
+  const gesehen = new Set();
   for (const [, ein] of e) {
     if (ein.typ !== "ADVANCED_FACE" && ein.typ !== "FACE_SURFACE") continue;
     const s = hol(ein.w[2]);
@@ -93,8 +97,10 @@ export function modell(text) {
     else if (art === "PLANE") Object.assign(f, { lage: lage(s.w[1]) });
     else if (art === "TOROIDAL_SURFACE") Object.assign(f, { lage: lage(s.w[1]), R: s.w[2] * faktor, r: s.w[3] * faktor });
     else if (art === "SPHERICAL_SURFACE") Object.assign(f, { lage: lage(s.w[1]), R: s.w[2] * faktor });
-    else { flaechen.push({ art: "andere" }); continue; }
-    if (!f.lage || !f.lage.o) continue;
+    // Freiform (B-Spline, Drehfläche …): Art unbekannt, aber ihre Ränder
+    // zählen trotzdem, damit kein Stück der Kontur fehlt
+    else f.frei = true;
+    if (!f.frei && (!f.lage || !f.lage.o)) continue;
     for (const b of ein.w[1] || []) {
       const bound = hol(b); const loop = bound && hol(bound.w[1]);
       if (!loop || loop.typ !== "EDGE_LOOP") continue;
@@ -106,25 +112,40 @@ export function modell(text) {
         // beschnitten (TRIMMED_CURVE): die eigentliche Kurve steckt darin
         for (let n = 0; n < 3 && kurve && ["SURFACE_CURVE", "SEAM_CURVE", "TRIMMED_CURVE"].includes(kurve.typ); n++) kurve = hol(kurve.w[1]);
         const p1 = hol(kante.w[1]), p2 = hol(kante.w[2]);
-        if (p1 && p1.typ === "VERTEX_POINT") f.punkte.push(punkt(p1.w[1]));
-        if (p2 && p2.typ === "VERTEX_POINT") f.punkte.push(punkt(p2.w[1]));
+        const a = p1 && p1.typ === "VERTEX_POINT" ? punkt(p1.w[1]) : null;
+        const bb = p2 && p2.typ === "VERTEX_POINT" ? punkt(p2.w[1]) : null;
+        if (a) f.punkte.push(a);
+        if (bb) f.punkte.push(bb);
+        const neu = !gesehen.has(o.w[3].ref);
+        gesehen.add(o.w[3].ref);
         if (kurve && kurve.typ === "CIRCLE") {
           const l = lage(kurve.w[1]);
-          if (l && l.o) f.kreise.push({ o: l.o, d: l.d, R: kurve.w[2] * faktor });
-        } else f.andere++;
+          if (l && l.o) {
+            const k = { o: l.o, d: l.d, x: l.x, R: kurve.w[2] * faktor };
+            f.kreise.push(k);
+            if (neu) kanten.push({ art: "kreis", ...k, a, b: bb });
+          }
+        } else {
+          f.andere++;
+          if (!neu) continue;
+          if (kurve && kurve.typ === "B_SPLINE_CURVE_WITH_KNOTS") {
+            const pts = (kurve.w[2] || []).map(punkt).filter(Boolean);
+            if (pts.length > 1) kanten.push({ art: "zug", pts });
+          } else if (a && bb) kanten.push({ art: "linie", a, b: bb });
+        }
       }
     }
     flaechen.push(f);
   }
-  return flaechen;
+  return { flaechen, kanten };
 }
+export function modell(text) { return modellUndKanten(text).flaechen; }
 
-// Achse: die der meisten Zylinder (sonst Kegel, Tori)
 // Alle möglichen Drehachsen, die beste (meiste Zylinder) zuerst
 export function achsenFinden(flaechen) {
   const kandidaten = [];
   for (const f of flaechen) {
-    if (!["CYLINDRICAL_SURFACE", "CONICAL_SURFACE", "TOROIDAL_SURFACE"].includes(f.art)) continue;
+    if (f.frei || !["CYLINDRICAL_SURFACE", "CONICAL_SURFACE", "TOROIDAL_SURFACE"].includes(f.art)) continue;
     const g = f.art === "CYLINDRICAL_SURFACE" ? 3 : 1;
     const d = f.lage.d;
     const k = kandidaten.find((a) => Math.abs(Math.abs(vSkalar(a.d, d)) - 1) < 1e-6 && aufAchse(a, f.lage.o));
@@ -144,18 +165,31 @@ const zr = (a, p) => { const w = vMinus(p, a.o); const z = vSkalar(w, a.d); retu
 // --- Längsschnitt -----------------------------------------------------
 // Ergebnis: { stuecke: [{ a, b, t: "L"|"A", c, R }], weg: Anzahl
 // weggelassener Flächen, laenge } in Z und Radius
-export function schnittAusStep(text, achseNr = 0) {
+// achseWahl: Nummer aus achsenFinden oder eine eigene Achse { o, d }
+// (in der 3D-Ansicht an einem Kreis angetippt)
+export function schnittAusStep(text, achseWahl = 0) {
   const flaechen = modell(text);
   const achsen = achsenFinden(flaechen);
-  const achse = achsen[achseNr] || achsen[0];
+  const achse = typeof achseWahl === "object" && achseWahl ? achseWahl : (achsen[achseWahl] || achsen[0]);
   if (!achse) return { fehler: "Keine Drehachse gefunden. Ist es ein Drehteil (mit Zylinderflächen)?" };
   const stuecke = [];
   let weg = 0;
   const gleich = (p, q) => Math.abs(p.z - q.z) < EPS && Math.abs(p.r - q.r) < EPS;
   for (const f of flaechen) {
-    if (f.art === "andere" || !f.lage) { weg++; continue; }
-    const koax = f.art === "PLANE" ? parallel(achse, f.lage.d) : parallel(achse, f.lage.d) && aufAchse(achse, f.lage.o);
-    if (!koax) { weg++; continue; }
+    if (f.art === "andere" || (!f.lage && !f.frei)) { weg++; continue; }
+    if (f.frei) {
+      // Freiform: nur, wenn sie zwischen zwei Kreisen um die Achse liegt
+      // (etwa gerändelt oder als Spline gespeichert). Dann als Gerade
+      // zwischen den äussersten Kreisen, als angenähert markiert.
+      if (!f.kreise.some((k) => parallel(achse, k.d) && aufAchse(achse, k.o))) { weg++; continue; }
+    } else {
+      // Kugel: die Richtung ihrer Lage ist beliebig, es zählt nur, dass
+      // die Mitte auf der Achse liegt (Kugelkopf, Kugelgelenk)
+      const koax = f.art === "PLANE" ? parallel(achse, f.lage.d)
+        : f.art === "SPHERICAL_SURFACE" ? aufAchse(achse, f.lage.o)
+          : parallel(achse, f.lage.d) && aufAchse(achse, f.lage.o);
+      if (!koax) { weg++; continue; }
+    }
     // Die Kreise um die Achse sind die Punkte im Schnitt
     const pkt = [];
     for (const k of f.kreise) {
@@ -185,7 +219,7 @@ export function schnittAusStep(text, achseNr = 0) {
       const mz = zr(achse, f.lage.o).z;
       const c = f.art === "TOROIDAL_SURFACE" ? { z: mz, r: Math.abs(f.R) } : { z: mz, r: 0 };
       stuecke.push({ t: "A", a, b, c, R: f.art === "TOROIDAL_SURFACE" ? f.r : f.R });
-    } else stuecke.push({ t: "L", a, b });
+    } else stuecke.push({ t: "L", a, b, ...(f.frei ? { genaehert: true } : {}) });
   }
   // Doppelte (halbe Flächen) weg
   const einmal = [];
@@ -194,7 +228,7 @@ export function schnittAusStep(text, achseNr = 0) {
     einmal.push(s);
   }
   einmal.forEach((x, i) => { x.nr = i; });
-  const info = { achsen, achseNr: achsen.indexOf(achse) };
+  const info = { achsen, achseNr: achsen.indexOf(achse), achse };
   if (!einmal.length) return { fehler: "Keine Flächen um diese Drehachse gefunden.", ...info };
   return { stuecke: einmal, weg, ...info };
 }

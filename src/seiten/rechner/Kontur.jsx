@@ -13,7 +13,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
-import { schnittAusStep, konturAusSchnitt, elementeAusZug } from "./step.js";
+import { schnittAusStep, konturAusSchnitt, elementeAusZug, modellUndKanten } from "./step.js";
+import Modell3D from "./Modell3D.jsx";
 import { konturRechnen, bahnRechnen, ncProgramm, bogenWinkel, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
 
 const VORGABE = {
@@ -460,7 +461,9 @@ function Konturliste({ k, aendern, code, gespeichert, setGespeichert }) {
           if (!datei) return;
           let schnitt, text = "";
           try { text = await datei.text(); schnitt = schnittAusStep(text); } catch (f) { schnitt = { fehler: "Datei nicht lesbar." }; }
-          if (schnitt.fehler && !(schnitt.achsen && schnitt.achsen.length > 1)) { alt.meldung(schnitt.fehler, "warn"); return; }
+          // Ohne gefundene Achse trotzdem öffnen: in der 3D-Ansicht lässt
+          // sich ein Kreis als Achse antippen
+          if (schnitt.fehler && (!text || schnitt.fehler === "Datei nicht lesbar.")) { alt.meldung(schnitt.fehler, "warn"); return; }
           const name = datei.name.replace(/\.(stp|step)$/i, "");
           fensterOeffnen((zu) => <ModellFenster text={text} name={name} zu={zu}
             uebernehmen={(neu) => { aendern(neu); setGespeichert(null); }} />);
@@ -482,17 +485,19 @@ function achseText(a) {
 // aussen / innen, welche Seite vorne ist, Nullpunkt verschieben und
 // einzelne Elemente weglassen (Antippen in der Vorschau)
 function ModellFenster({ text, name, zu, uebernehmen }) {
-  const [achseNr, setAchseNr] = useState(0);
+  // Drehachse: zuerst die gefundene, ein angetippter Kreis in der
+  // 3D-Ansicht macht seine Mitte zur Achse
+  const [achseWahl, setAchseWahl] = useState(null);
+  const kanten = useMemo(() => { try { return modellUndKanten(text).kanten; } catch (f) { return []; } }, [text]);
   const [innen, setInnen] = useState(false);
   const [umdrehen, setUmdrehen] = useState(false);
   const [ohne, setOhne] = useState(() => new Set());
   const [z0, setZ0] = useState("");
-  const schnitt = useMemo(() => schnittAusStep(text, achseNr), [text, achseNr]);
-  const achsen = schnitt.achsen || [];
+  const schnitt = useMemo(() => schnittAusStep(text, achseWahl || 0), [text, achseWahl]);
   const z0Zahl = Number(String(z0).replace(",", ".")) || 0;
   const gewahlt = schnitt.stuecke ? konturAusSchnitt(schnitt, { innen, umdrehen, ohne, z0: z0Zahl }) : { fehler: schnitt.fehler };
   const pfad = (zug) => zug.map((s, i) => (i ? "" : `M${s.a.z} ${-s.a.r} `)
-    + (s.t === "A" ? `A${s.R} ${s.R} 0 0 ${(s.a.z - s.c.z) * (s.b.r - s.c.r) - (s.a.r - s.c.r) * (s.b.z - s.c.z) > 0 ? 1 : 0} ${s.b.z} ${-s.b.r} ` : `L${s.b.z} ${-s.b.r} `)).join("");
+    + (s.t === "A" ? `A${s.R} ${s.R} 0 0 ${(s.a.z - s.c.z) * (s.b.r - s.c.r) - (s.a.r - s.c.r) * (s.b.z - s.c.z) > 0 ? 0 : 1} ${s.b.z} ${-s.b.r} ` : `L${s.b.z} ${-s.b.r} `)).join("");
   // Alle Stücke (auch Innenkontur) blass, die gewählte kräftig,
   // weggelassene rot gestrichelt
   const st = schnitt.stuecke || [];
@@ -508,23 +513,26 @@ function ModellFenster({ text, name, zu, uebernehmen }) {
   return (
     <div className="dialog kt-modell">
       <h2>3D-Modell „{name}“</h2>
-      <div className="kt-modell__zeile">
-        <span className="klein">Drehachse</span>
-        {achsen.length > 1
-          ? <select id="kt-modell-achse" value={achseNr} onChange={(e) => { setAchseNr(Number(e.target.value)); setOhne(new Set()); }}>
-            {achsen.map((a, i) => <option key={i} value={i}>{achseText(a)}</option>)}
-          </select>
-          : <span className="klein" id="kt-modell-achse">{achsen[0] ? achseText(achsen[0]) : "keine"}</span>}
-      </div>
+      <div className="kt-modell__teile">
+        <div className="kt-modell__links">
+          <div className="kt-modell__titel">3D-Modell <span className="klein">ziehen dreht, Mausrad zoomt, einen Kreis antippen = Drehachse</span></div>
+          <Modell3D kanten={kanten} achse={schnitt.achse} waehlen={(a) => { setAchseWahl(a); setOhne(new Set()); }} />
+          <div className="klein" id="kt-modell-achse">Drehachse: {schnitt.achse ? achseText(schnitt.achse) : "keine"}
+            {achseWahl && <> · <button className="linkknopf" id="kt-modell-achse-zurueck" onClick={() => { setAchseWahl(null); setOhne(new Set()); }}>wie gefunden</button></>}</div>
+        </div>
+        <div className="kt-modell__rechts">
+          <div className="kt-modell__titel">Seitenkontur <span className="klein">Linie antippen = weglassen</span></div>
       <svg className="kt-modell__bild" viewBox={`${-rand - z0Zahl} ${-rmax - rand} ${zmax - zmin + 2 * rand} ${rmax + 2 * rand}`}>
         <line x1={-rand - z0Zahl} x2={zmax - zmin + rand - z0Zahl} y1="0" y2="0" className="kt-achse" />
         <line x1="0" x2="0" y1={-rmax - rand} y2={rand} className="kt-modell__null" />
-        {blass.map((s) => <path key={s.nr} d={pfad([s])} className={"kt-modell__alle" + (ohne.has(s.nr) ? " weg" : "")} />)}
+        {blass.map((s) => <path key={s.nr} d={pfad([s])} className={"kt-modell__alle" + (ohne.has(s.nr) ? " weg" : "") + (s.genaehert ? " genaehert" : "")} />)}
         {gewahlt.zug && <path d={pfad(gewahlt.zug)} className="kt-modell__kontur" />}
         {/* Unsichtbar breit darüber, damit man die Linie gut trifft */}
         {blass.map((s) => <path key={"t" + s.nr} d={pfad([s])} data-ktstueck={s.nr} className="kt-modell__treffer" onClick={() => umschalten(s.nr)}><title>{ohne.has(s.nr) ? "Wieder berücksichtigen" : "Weglassen"}</title></path>)}
         {gewahlt.start && <circle cx={gewahlt.start.z} cy={-gewahlt.start.r} r={rand * 0.25} className="kt-startpunkt" />}
       </svg>
+        </div>
+      </div>
       <div className="moduswahl">
         <button className={"moduswahl__knopf" + (!innen ? " aktiv" : "")} data-ktmodell="aussen" onClick={() => setInnen(false)}>Aussenkontur</button>
         <button className={"moduswahl__knopf" + (innen ? " aktiv" : "")} data-ktmodell="innen" onClick={() => setInnen(true)}>Innenkontur</button>
@@ -689,10 +697,18 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
         ))}
         {bahn.mitte.length > 0 && Number(k.rn) > 0 && <path d={pfad(bahn.mitte)} className="kt-mitte" />}
         {bahn.bahn.length > 0 && <path d={pfad(bahn.bahn)} className="kt-bahn" />}
-        {segs.filter((g) => !g.uebergang).map((g) => (
-          <text key={"n" + g.nr} x={(Number(X(g.a)) + Number(X(g.b))) / 2 + 5} y={(Number(Y(g.a)) + Number(Y(g.b))) / 2 - 5}
-            className="kt-elnr">{g.nr}</text>
-        ))}
+        {(() => {
+          // Nummern nur, wo Platz ist: liegen sie zu dicht, fällt die
+          // spätere weg (das gewählte Element steht immer da)
+          const gesetzt = [];
+          return segs.filter((g) => !g.uebergang).map((g) => {
+            const x = (Number(X(g.a)) + Number(X(g.b))) / 2 + 3, y = (Number(Y(g.a)) + Number(Y(g.b))) / 2 - 3;
+            const an = g.nr - 1 === wahl;
+            if (!an && gesetzt.some((q) => Math.abs(q.x - x) < 9 + 4 * String(g.nr).length && Math.abs(q.y - y) < 9)) return null;
+            gesetzt.push({ x, y });
+            return <text key={"n" + g.nr} x={x} y={y} className={"kt-elnr" + (an ? " kt-elnr--an" : "")}>{g.nr}</text>;
+          });
+        })()}
         <circle cx={X({ z: Number(k.startZ) || 0 })} cy={Y({ r: (Number(k.startX) || 0) / 2 })} r="4" className="kt-startpunkt" />
         {zeichnen && maus && (
           <>

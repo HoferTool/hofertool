@@ -11269,3 +11269,29 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 .kt-modell__alle.weg { stroke: #d33; stroke-width: 2.5; stroke-dasharray: 5 4; }
 .kt-modell__z0 { display: inline-flex; align-items: center; gap: 4px; }
 .kt-modell__z0 input { width: 70px; }
+
+/* 1.361.0: 3D-Ansicht des STEP-Modells, Achse grafisch wählen */
+.kt-modell__teile { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .kt-modell__teile { grid-template-columns: 1fr; } }
+.kt-modell__titel { font-weight: 600; margin-bottom: 4px; }
+.kt-modell__titel .klein { font-weight: 400; margin-left: 6px; }
+.kt-modell__teile .kt-modell__bild { min-height: 0; height: 52vh; }
+.kt-3d__bild { width: 100%; height: 52vh; background: var(--grund); border: 1px solid var(--linie); border-radius: 8px; touch-action: none; cursor: grab; display: block; }
+.kt-3d__bild * { vector-effect: non-scaling-stroke; }
+.kt-3d__kante { fill: none; stroke: var(--text-blass, #8a939d); stroke-width: 1; }
+.kt-3d__kante.achse { stroke: var(--marke); stroke-width: 2; }
+.kt-3d__achse { fill: none; stroke: var(--marke); stroke-width: 1.2; stroke-dasharray: 10 3 2 3; }
+.kt-3d__treffer { fill: none; stroke: transparent; stroke-width: 12; cursor: pointer; }
+.kt-3d__treffer:hover { stroke: rgba(0, 120, 255, .35); }
+.kt-3d__knoepfe { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+.kt-modell__alle.genaehert { stroke-dasharray: 2 3; }
+
+/* 1.361.0: Grafik feiner (Patrick: „Striche dünner, die Zahlen auch, man kann es nicht lesen“) */
+.kt-kontur { stroke-width: 1.4; }
+.kt-kontur--an { stroke-width: 2.4; }
+.kt-bahn { stroke-width: 1; stroke-dasharray: 4 2; }
+.kt-mitte { stroke-width: .7; }
+.kt-elnr { font-size: 8px; font-weight: 500; }
+.kt-elnr--an { font-weight: 700; fill: #e08a00; }
+.kt-modell__kontur { stroke-width: 1.6; }
+.kt-modell__alle { stroke-width: 1; }
