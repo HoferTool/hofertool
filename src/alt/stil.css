@@ -11689,33 +11689,39 @@ body.dunkel .eba-vorgelesen--fehler .linkknopf { color: #7a1f1f !important; }
    Wunsch Patrick 3. November 2026). Die Tiefe zeichnet ::before mit
    geschichteten Schatten hinter dem Text, der Text darüber (.ncpro-text)
    hat einen metallischen Verlauf. */
-.ncpro-kopf { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 2px 0 18px; text-align: center; }
-.ncpro-kopf__logo { height: 86px; width: auto; display: block; }
+.ncpro-kopf { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin: 0 0 12px; }
+.ncpro-kopf .ncpro-titel { justify-self: start; }
+.ncpro-kopf__mitte { justify-self: center; }
+.ncpro-kopf__rechts { justify-self: end; }
+.ncpro-kopf__logo { height: 58px; width: auto; display: block; }
 .ncpro-kopf__logo--dunkel { display: none; }
 body.dunkel .ncpro-kopf__logo--hell { display: none; }
 body.dunkel .ncpro-kopf__logo--dunkel { display: block; }
+/* Seit 1.381.1 schlicht und modern statt Block-Schatten (Patrick: „wirkt
+   zu Word-Art-mässig, es soll modern sein“): Systemschrift, eng gesetzt,
+   HOFER dunkel, NC-PRO im Blauverlauf, nur ein weicher Schatten. */
 .ncpro-titel, .kt-marke__name {
-  position: relative; display: inline-block; margin: 0;
-  font-family: "Segoe UI Black", "Arial Black", "Helvetica Neue", Arial, sans-serif;
-  font-weight: 900; font-size: clamp(30px, 4.4vw, 54px); letter-spacing: .05em; line-height: 1.15;
-  transform: perspective(700px) rotateX(14deg); transform-origin: 50% 100%;
+  margin: 0; display: inline-block;
+  font-family: Inter, "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-weight: 800; font-size: clamp(24px, 2.6vw, 34px); letter-spacing: -0.02em; line-height: 1.1;
+  filter: drop-shadow(0 3px 6px rgba(11, 61, 122, .18));
 }
-.ncpro-titel::before, .kt-marke__name::before {
-  content: attr(data-text); position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none;
-  color: #0a3570;
-  text-shadow: 1px 1px 0 #0a3570, 2px 2px 0 #093065, 3px 3px 0 #082b5c, 4px 4px 0 #072551,
-    5px 5px 0 #061f46, 6px 6px 0 #05193a, 9px 11px 16px rgba(0, 0, 0, .38);
+.ncpro-titel::before, .kt-marke__name::before { content: none; }
+.ncpro-text { color: #0b2545; }
+.ncpro-text b { font-weight: inherit; color: transparent;
+  background: linear-gradient(100deg, #1f6fe0 0%, #0aa5e8 100%);
+  -webkit-background-clip: text; background-clip: text; }
+body.dunkel .ncpro-text { color: #fff !important; }
+body.dunkel .ncpro-text b { color: transparent !important; background: linear-gradient(100deg, #5aa2ff 0%, #38d0ff 100%);
+  -webkit-background-clip: text; background-clip: text; }
+body.dunkel .ncpro-titel, body.dunkel .kt-marke__name { filter: drop-shadow(0 3px 8px rgba(56, 160, 255, .25)); }
+.kt-marke__name { font-size: 20px; }
+@media (max-width: 760px) {
+  .ncpro-kopf { grid-template-columns: 1fr auto; }
+  .ncpro-kopf__mitte { grid-row: 1; grid-column: 2; }
+  .ncpro-kopf__rechts { grid-column: 1 / -1; justify-self: start; }
+  .ncpro-kopf__logo { height: 40px; }
 }
-.ncpro-text {
-  position: relative; z-index: 1; color: transparent;
-  background: linear-gradient(180deg, #a8dcff 0%, #3b97f2 36%, #0d63db 50%, #0a4398 63%, #2a7fe0 100%);
-  -webkit-background-clip: text; background-clip: text;
-}
-body.dunkel .ncpro-text { color: transparent !important; }
-body.dunkel .ncpro-titel::before, body.dunkel .kt-marke__name::before { color: #0a3570 !important; }
-.kt-marke__name { font-size: 22px; }
-.kt-marke__name::before { text-shadow: 1px 1px 0 #0a3570, 2px 2px 0 #082b5c, 3px 3px 0 #061f46, 4px 5px 8px rgba(0,0,0,.35); }
-@media (max-width: 640px) { .ncpro-kopf__logo { height: 50px; } }
 
 /* 3D-Ansicht der Kontur (seit 1.381.0) */
 .kt-ansicht { display: inline-flex; margin: 0 0 0 4px; }

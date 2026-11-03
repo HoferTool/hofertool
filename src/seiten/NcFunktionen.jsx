@@ -58,10 +58,16 @@ export default function NcFunktionen() {
           grösser oben in der Mitte“, „HOFER-NC-PRO in einer modernen
           dreidimensionalen Schrift“). Die Tiefe kommt aus geschichteten
           Schatten, der Text bleibt normaler Text (Suche, Vorlesen). */}
+      {/* Seit 1.381.1 alles in einer Zeile (Patrick: „HOFER-NC-PRO nach
+          links, der Kopf braucht zu viel Platz“): Name links, Logo in der
+          Mitte, rechts die Knöpfe der Kontur (Kontur.jsx hängt sie dort ein). */}
       <header className="ncpro-kopf" id="ncpro-kopf">
-        <img className="ncpro-kopf__logo ncpro-kopf__logo--hell" src={import.meta.env.BASE_URL + "logo-empfang.png"} alt="Hofer + Co." />
-        <img className="ncpro-kopf__logo ncpro-kopf__logo--dunkel" src={import.meta.env.BASE_URL + "logo-weiss.svg"} alt="Hofer + Co." />
-        <h1 className="seitentitel ncpro-titel" data-text="HOFER-NC-PRO"><span className="ncpro-text">HOFER-NC-PRO</span></h1>
+        <h1 className="seitentitel ncpro-titel" data-text="HOFER-NC-PRO"><span className="ncpro-text">HOFER-<b>NC-PRO</b></span></h1>
+        <div className="ncpro-kopf__mitte">
+          <img className="ncpro-kopf__logo ncpro-kopf__logo--hell" src={import.meta.env.BASE_URL + "logo-empfang.png"} alt="Hofer + Co." />
+          <img className="ncpro-kopf__logo ncpro-kopf__logo--dunkel" src={import.meta.env.BASE_URL + "logo-weiss.svg"} alt="Hofer + Co." />
+        </div>
+        <div className="ncpro-kopf__rechts" id="ncpro-kopf-rechts" />
       </header>
       <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" seite="nc" />
       <Uebergang key={ansicht + (ansicht === "rechner" ? neu : "")}>

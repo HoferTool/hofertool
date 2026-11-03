@@ -10,6 +10,7 @@
 //  Konturen in „konturliste“.
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import Kontur3D from "./Kontur3D.jsx";
@@ -275,28 +276,38 @@ function KonturRechner({ imFenster }) {
     if (!genau) springen.current = k.elemente.length;
   };
 
-  return (
-    <div className="kt" ref={wurzel}>
-      {/* Markenleiste mit Logo (seit 1.376.0, Wunsch Patrick 3. November 2026:
-          „mach irgendwo noch gut platziert das Hofer Logo“). Hell das farbige
-          Logo vom Empfang, im dunklen Modus das weisse. */}
-      <div className="kt-oben" id="kt-marke">
-        {/* Auf der Seite steht das grosse Logo im Kopf (seit 1.381.0), hier nur im eigenen Fenster */}
-        <div className="kt-marke">
-          {imFenster && <>
-          <img className="kt-marke__logo kt-marke__logo--hell" src={LOGO_FARBE} alt="Hofer + Co." />
-          <img className="kt-marke__logo kt-marke__logo--dunkel" src={LOGO_HELL} alt="Hofer + Co." /></>}
-          {/* Auf der Seite steht der Name schon als Überschrift (seit 1.376.1) */}
-          {imFenster && <><span className="kt-marke__strich" /><span className="kt-marke__name" data-text="HOFER-NC-PRO"><span className="ncpro-text">HOFER-NC-PRO</span></span></>}
-        </div>
-        <div className="kt-oben__knoepfe">
+  // Knöpfe oben: auf der Seite rechts im Kopf (seit 1.381.1), im eigenen Fenster in der Leiste
+  const [kopfRechts, setKopfRechts] = useState(null);
+  useEffect(() => {
+    if (imFenster) return;
+    const d = (wurzel.current && wurzel.current.ownerDocument) || document;
+    setKopfRechts(d.getElementById("ncpro-kopf-rechts"));
+  }, [imFenster]);
+  const knoepfe = (
+    <div className="kt-oben__knoepfe">
           <button className="knopf knopf--klein" id="kt-anleitung" title="Erklärvideo zum Start" onClick={tutorialOeffnen}>▶ Anleitung</button>
           {!imFenster && window.matchMedia && window.matchMedia("(pointer: fine)").matches && (
             <button className="knopf knopf--klein" id="kt-eigen" onClick={fensterAuf}
               title="Den Rechner in einem eigenen Browserfenster öffnen, das man verschieben kann, auch auf einen anderen Bildschirm">
               ⧉ Eigenes Fenster</button>)}
         </div>
+  );
+
+  return (
+    <div className="kt" ref={wurzel}>
+      {/* Markenleiste mit Logo (seit 1.376.0, Wunsch Patrick 3. November 2026:
+          „mach irgendwo noch gut platziert das Hofer Logo“). Hell das farbige
+          Logo vom Empfang, im dunklen Modus das weisse. */}
+      {imFenster ? (
+      <div className="kt-oben" id="kt-marke">
+        <div className="kt-marke">
+          <img className="kt-marke__logo kt-marke__logo--hell" src={LOGO_FARBE} alt="Hofer + Co." />
+          <img className="kt-marke__logo kt-marke__logo--dunkel" src={LOGO_HELL} alt="Hofer + Co." />
+          <span className="kt-marke__strich" /><span className="kt-marke__name" data-text="HOFER-NC-PRO"><span className="ncpro-text">HOFER-<b>NC-PRO</b></span></span>
+        </div>
+        {knoepfe}
       </div>
+      ) : kopfRechts ? createPortal(knoepfe, kopfRechts) : <div className="kt-oben">{knoepfe}</div>}
       <div className="kt-raster">
         <div>
           <section className="karte">
