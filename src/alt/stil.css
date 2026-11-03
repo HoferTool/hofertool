@@ -11674,7 +11674,7 @@ body.dunkel .eba-vorgelesen--fehler .linkknopf { color: #7a1f1f !important; }
   .notiz input + .notiz__text ~ .linkknopf:first-of-type { margin-left: 30px; }
 }
 
-/* ---------- Vorschau im eigenen Fenster (seit 1.380.0) ---------- */
+/* ---------- Vorschau im eigenen Fenster (seit 1.381.0) ---------- */
 .vf-body { margin: 0; background: var(--flaeche); min-height: 100vh; }
 .vf-inhalt { padding: 10px 12px; }
 .vf-leer { color: var(--gedaempft); font-size: .85rem; padding: 20px 4px; text-align: center; }
@@ -11684,3 +11684,46 @@ body.dunkel .eba-vorgelesen--fehler .linkknopf { color: #7a1f1f !important; }
 .pw-info--eigen .pw-info__zeile { font-size: .95rem; }
 .pw-info--eigen .pw-info__nr { font-size: 1.2rem; }
 .pw-eck--an { background: var(--marke) !important; color: #fff !important; border-color: var(--marke) !important; }
+
+/* HOFER-NC-PRO: Kopf mit grossem Logo und Name in 3D-Schrift (seit 1.381.0,
+   Wunsch Patrick 3. November 2026). Die Tiefe zeichnet ::before mit
+   geschichteten Schatten hinter dem Text, der Text darüber (.ncpro-text)
+   hat einen metallischen Verlauf. */
+.ncpro-kopf { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 2px 0 18px; text-align: center; }
+.ncpro-kopf__logo { height: 86px; width: auto; display: block; }
+.ncpro-kopf__logo--dunkel { display: none; }
+body.dunkel .ncpro-kopf__logo--hell { display: none; }
+body.dunkel .ncpro-kopf__logo--dunkel { display: block; }
+.ncpro-titel, .kt-marke__name {
+  position: relative; display: inline-block; margin: 0;
+  font-family: "Segoe UI Black", "Arial Black", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 900; font-size: clamp(30px, 4.4vw, 54px); letter-spacing: .05em; line-height: 1.15;
+  transform: perspective(700px) rotateX(14deg); transform-origin: 50% 100%;
+}
+.ncpro-titel::before, .kt-marke__name::before {
+  content: attr(data-text); position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none;
+  color: #0a3570;
+  text-shadow: 1px 1px 0 #0a3570, 2px 2px 0 #093065, 3px 3px 0 #082b5c, 4px 4px 0 #072551,
+    5px 5px 0 #061f46, 6px 6px 0 #05193a, 9px 11px 16px rgba(0, 0, 0, .38);
+}
+.ncpro-text {
+  position: relative; z-index: 1; color: transparent;
+  background: linear-gradient(180deg, #a8dcff 0%, #3b97f2 36%, #0d63db 50%, #0a4398 63%, #2a7fe0 100%);
+  -webkit-background-clip: text; background-clip: text;
+}
+body.dunkel .ncpro-text { color: transparent !important; }
+body.dunkel .ncpro-titel::before, body.dunkel .kt-marke__name::before { color: #0a3570 !important; }
+.kt-marke__name { font-size: 22px; }
+.kt-marke__name::before { text-shadow: 1px 1px 0 #0a3570, 2px 2px 0 #082b5c, 3px 3px 0 #061f46, 4px 5px 8px rgba(0,0,0,.35); }
+@media (max-width: 640px) { .ncpro-kopf__logo { height: 50px; } }
+
+/* 3D-Ansicht der Kontur (seit 1.381.0) */
+.kt-ansicht { display: inline-flex; margin: 0 0 0 4px; }
+.kt-k3d { position: relative; }
+.kt-k3d__bild { width: 100%; display: block; cursor: grab; touch-action: none; user-select: none; border-radius: 6px;
+  background: radial-gradient(ellipse at 50% 35%, rgba(255,255,255,.9), rgba(214,224,236,.6)); }
+body.dunkel .kt-k3d__bild { background: radial-gradient(ellipse at 50% 35%, #2a3442, #121820); }
+.kt-k3d__bild:active { cursor: grabbing; }
+.kt-k3d__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.kt-k3d__schnitt { margin-right: 6px; }
+.kt-k3d-huelle .dialog.kt-k3d-fenster { width: min(1500px, 95vw); max-width: none; }

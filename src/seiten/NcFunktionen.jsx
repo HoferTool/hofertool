@@ -53,7 +53,16 @@ export default function NcFunktionen() {
   const Inhalt = INHALT[ansicht] || Kontur;
   return (
     <>
-      <h1 className="seitentitel">HOFER-NC-PRO</h1>
+      {/* Kopf mit grossem Logo in der Mitte und dem Namen in 3D-Schrift
+          (seit 1.381.0, Wunsch Patrick 3. November 2026: „das Hofer Logo
+          grösser oben in der Mitte“, „HOFER-NC-PRO in einer modernen
+          dreidimensionalen Schrift“). Die Tiefe kommt aus geschichteten
+          Schatten, der Text bleibt normaler Text (Suche, Vorlesen). */}
+      <header className="ncpro-kopf" id="ncpro-kopf">
+        <img className="ncpro-kopf__logo ncpro-kopf__logo--hell" src={import.meta.env.BASE_URL + "logo-empfang.png"} alt="Hofer + Co." />
+        <img className="ncpro-kopf__logo ncpro-kopf__logo--dunkel" src={import.meta.env.BASE_URL + "logo-weiss.svg"} alt="Hofer + Co." />
+        <h1 className="seitentitel ncpro-titel" data-text="HOFER-NC-PRO"><span className="ncpro-text">HOFER-NC-PRO</span></h1>
+      </header>
       <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" seite="nc" />
       <Uebergang key={ansicht + (ansicht === "rechner" ? neu : "")}>
         <div id="rech-inhalt"><Inhalt /></div>

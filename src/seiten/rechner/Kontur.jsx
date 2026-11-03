@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
+import Kontur3D from "./Kontur3D.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { schnittAusStep, konturAusSchnitt, elementeAusZug, modellUndKanten } from "./step.js";
 import Modell3D from "./Modell3D.jsx";
@@ -38,6 +39,25 @@ function laden() {
   if (!gemerkt) gemerkt = JSON.parse(JSON.stringify(VORGABE));
   return gemerkt;
 }
+
+// 3D gross im eigenen Fenster (seit 1.381.0): das Fenster liest die
+// Kontur laufend aus diesem kleinen Speicher, so dreht man sie gross,
+// während man links weiter ändert.
+const dreiD = { daten: null, hoerer: new Set() };
+const dreiDMelden = (d) => { dreiD.daten = d; dreiD.hoerer.forEach((f) => f(d)); };
+function DreiDLive({ zu }) {
+  const [d, setD] = useState(dreiD.daten);
+  useEffect(() => { dreiD.hoerer.add(setD); return () => { dreiD.hoerer.delete(setD); }; }, []);
+  const hoch = Math.max(320, Math.round((window.innerHeight || 800) * 0.72));
+  return (
+    <div className="dialog kt-k3d-fenster">
+      <div className="karte__kopf"><h2>3D-Ansicht</h2>
+        <button className="knopf knopf--klein" id="kt-k3d-zu" onClick={zu}>Schliessen</button></div>
+      {d && <Kontur3D segmente={d.segmente} innen={d.innen} wahl={d.wahl} setWahl={d.setWahl} hoehe={hoch} gross />}
+    </div>
+  );
+}
+const dreiDGross = () => fensterOeffnen((zu) => <DreiDLive zu={zu} />, null, "kt-k3d-huelle");
 
 const neuesElement = (art) => ({ art, x: "", z: "", w: "", r: art === "bogen" ? "1" : "", dreh: "cw", ueb: "", uw: "" });
 
@@ -214,6 +234,9 @@ function KonturRechner({ imFenster }) {
     if (pre.scrollHeight > h && (oben < pre.scrollTop || oben > pre.scrollTop + h - 30)) pre.scrollTop = Math.max(0, oben - h / 3);
   }, [wahl, code]);
   const fehler = [...kontur.fehler, ...bahn.fehler];
+  // 3D-Ansicht (seit 1.381.0, Wunsch Patrick 3. November 2026)
+  const [drei, setDrei] = useState(false);
+  useEffect(() => { dreiDMelden({ segmente: kontur.segmente, innen: k.seite === "innen", wahl, setWahl: ausGrafik }); });
 
   const kopieren = async () => {
     // Im eigenen Fenster dessen Zwischenablage, sonst fehlt der Fokus
@@ -258,11 +281,13 @@ function KonturRechner({ imFenster }) {
           „mach irgendwo noch gut platziert das Hofer Logo“). Hell das farbige
           Logo vom Empfang, im dunklen Modus das weisse. */}
       <div className="kt-oben" id="kt-marke">
+        {/* Auf der Seite steht das grosse Logo im Kopf (seit 1.381.0), hier nur im eigenen Fenster */}
         <div className="kt-marke">
+          {imFenster && <>
           <img className="kt-marke__logo kt-marke__logo--hell" src={LOGO_FARBE} alt="Hofer + Co." />
-          <img className="kt-marke__logo kt-marke__logo--dunkel" src={LOGO_HELL} alt="Hofer + Co." />
+          <img className="kt-marke__logo kt-marke__logo--dunkel" src={LOGO_HELL} alt="Hofer + Co." /></>}
           {/* Auf der Seite steht der Name schon als Überschrift (seit 1.376.1) */}
-          {imFenster && <><span className="kt-marke__strich" /><span className="kt-marke__name">HOFER-NC-PRO</span></>}
+          {imFenster && <><span className="kt-marke__strich" /><span className="kt-marke__name" data-text="HOFER-NC-PRO"><span className="ncpro-text">HOFER-NC-PRO</span></span></>}
         </div>
         <div className="kt-oben__knoepfe">
           <button className="knopf knopf--klein" id="kt-anleitung" title="Erklärvideo zum Start" onClick={tutorialOeffnen}>▶ Anleitung</button>
@@ -337,11 +362,19 @@ function KonturRechner({ imFenster }) {
           <section className="karte">
             <div className="karte__kopf"><h2>Grafik</h2>
               <button className={"knopf knopf--klein" + (zeichnen ? " knopf--haupt" : "")} id="kt-zeichnen"
-                onClick={() => setZeichnen((z) => !z)}>{zeichnen ? "Zeichnen beenden" : "✎ Zeichnen"}</button>
+                onClick={() => { setDrei(false); setZeichnen((z) => !z); }}>{zeichnen ? "Zeichnen beenden" : "✎ Zeichnen"}</button>
               <button className="knopf knopf--klein" id="kt-zurueck" disabled={!verlauf.current.length}
-                title="Letzte Änderung an der Kontur zurücknehmen" onClick={zurueck}>↶ Rückgängig</button></div>
-            <Grafik kontur={kontur} bahn={bahn} k={k} wahl={wahl} setWahl={ausGrafik} zeichnen={zeichnen}
-              punktSetzen={punktSetzen} ende={ende} />
+                title="Letzte Änderung an der Kontur zurücknehmen" onClick={zurueck}>↶ Rückgängig</button>
+              <span className="moduswahl kt-ansicht">
+                <button className={"moduswahl__knopf" + (!drei ? " aktiv" : "")} id="kt-2d" onClick={() => setDrei(false)}>2D</button>
+                <button className={"moduswahl__knopf" + (drei ? " aktiv" : "")} id="kt-3d"
+                  title="Die Kontur als gedrehten Körper zeigen" onClick={() => { setDrei(true); setZeichnen(false); }}>3D</button>
+              </span>
+              {drei && <button className="knopf knopf--klein" id="kt-3d-gross" title="3D-Ansicht gross in einem Fenster" onClick={dreiDGross}>⛶ Gross</button>}</div>
+            {drei
+              ? <div className="kt-bildfeld"><Kontur3D segmente={kontur.segmente} innen={k.seite === "innen"} wahl={wahl} setWahl={ausGrafik} hoehe={260} /></div>
+              : <Grafik kontur={kontur} bahn={bahn} k={k} wahl={wahl} setWahl={ausGrafik} zeichnen={zeichnen}
+              punktSetzen={punktSetzen} ende={ende} />}
             <p className="klein kt-legende">
               <span className="kt-leg kt-leg--kontur" /> Fertigkontur
               <span className="kt-leg kt-leg--bahn" /> programmierte Bahn (gedachte Spitze)

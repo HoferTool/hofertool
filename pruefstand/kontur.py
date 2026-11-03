@@ -259,8 +259,22 @@ with sync_playwright() as p:
     pg.click("[data-ktseite='innen']"); pg.wait_for_timeout(100)
     pruefe("Innen wählt Spitze oben rechts", pg.locator("[data-ktspitze='or'].aktiv").count() == 1)
     # Erklärvideo und Logo (1.376.0)
-    pruefe("Logo in der Leiste", pg.locator("#kt-marke .kt-marke__logo").count() == 2
+    pruefe("Grosses Logo oben in der Mitte", pg.locator("#ncpro-kopf .ncpro-kopf__logo").count() == 2
            and "HOFER-NC-PRO" in pg.inner_text("h1.seitentitel"))
+    # 3D-Ansicht der Kontur (1.381.0)
+    pg.click("#kt-3d"); pg.wait_for_selector("#kt-k3d"); pg.wait_for_timeout(300)
+    if BILD: pg.screenshot(path=BILD + "/kontur-3d.png", full_page=False)
+    farbig = pg.evaluate("""() => { const c = document.querySelector('#kt-k3d'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let n = 0; for (let i = 3; i < d.length; i += 16) if (d[i] > 200) n++; return n; }""")
+    pruefe("3D zeigt einen Körper", farbig > 2000)
+    b = pg.locator("#kt-k3d").bounding_box()
+    pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2); pg.mouse.down()
+    pg.mouse.move(b["x"] + b["width"] / 2 + 80, b["y"] + b["height"] / 2 + 20, steps=5); pg.mouse.up()
+    pg.uncheck("#kt-k3d-schnitt"); pg.wait_for_timeout(100); pg.check("#kt-k3d-schnitt")
+    pg.click("#kt-3d-gross"); pg.wait_for_selector("#kt-k3d-gross"); pg.wait_for_timeout(300)
+    if BILD: pg.screenshot(path=BILD + "/kontur-3d-gross.png")
+    pruefe("3D gross im Fenster", pg.locator("#kt-k3d-gross").count() == 1)
+    pg.click("#kt-k3d-zu"); pg.click("#kt-2d"); pg.wait_for_selector("#kt-bild")
     pruefe("Im Prüfstand kein Video von selbst", pg.locator("#kt-tutorial").count() == 0)
     pg.click("#kt-anleitung"); pg.wait_for_selector("#kt-tutorial")
     pruefe("Anleitung zeigt das Video", pg.locator("#kt-tutorial video[src='hilfe/hofer-nc-pro.mp4']").count() == 1)
