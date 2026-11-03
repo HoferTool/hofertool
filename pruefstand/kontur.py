@@ -260,7 +260,7 @@ with sync_playwright() as p:
     pruefe("Innen wählt Spitze oben rechts", pg.locator("[data-ktspitze='or'].aktiv").count() == 1)
     # Erklärvideo und Logo (1.376.0)
     pruefe("Logo in der Leiste", pg.locator("#kt-marke .kt-marke__logo").count() == 2
-           and "HOFER-NC-PRO" in pg.inner_text("#kt-marke"))
+           and "HOFER-NC-PRO" in pg.inner_text("h1.seitentitel"))
     pruefe("Im Prüfstand kein Video von selbst", pg.locator("#kt-tutorial").count() == 0)
     pg.click("#kt-anleitung"); pg.wait_for_selector("#kt-tutorial")
     pruefe("Anleitung zeigt das Video", pg.locator("#kt-tutorial video[src='hilfe/hofer-nc-pro.mp4']").count() == 1)

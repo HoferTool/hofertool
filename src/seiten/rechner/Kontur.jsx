@@ -261,8 +261,8 @@ function KonturRechner({ imFenster }) {
         <div className="kt-marke">
           <img className="kt-marke__logo kt-marke__logo--hell" src={LOGO_FARBE} alt="Hofer + Co." />
           <img className="kt-marke__logo kt-marke__logo--dunkel" src={LOGO_HELL} alt="Hofer + Co." />
-          <span className="kt-marke__strich" />
-          <span className="kt-marke__name">HOFER-NC-PRO</span>
+          {/* Auf der Seite steht der Name schon als Überschrift (seit 1.376.1) */}
+          {imFenster && <><span className="kt-marke__strich" /><span className="kt-marke__name">HOFER-NC-PRO</span></>}
         </div>
         <div className="kt-oben__knoepfe">
           <button className="knopf knopf--klein" id="kt-anleitung" title="Erklärvideo zum Start" onClick={tutorialOeffnen}>▶ Anleitung</button>

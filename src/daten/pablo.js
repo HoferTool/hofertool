@@ -245,7 +245,7 @@ const SEITEN_WORTE = [
   [/bestellung|bestellen/, "bestellungen", "Bestellungen"],
   [/einkauf/, "einkauf", "Einkaufsliste"],
   [/material(seite|übersicht)?\b|restmaterial/, "material", "Material"],
-  [/nc[- ]?funktion|hofer[- ]?nc|nc[- ]?pro|kontur|g-?code|gravur|dxf|c-?achse/, "nc", "NC-Funktionen"],
+  [/nc[- ]?funktion|hofer[- ]?nc|nc[- ]?pro|kontur|g-?code|gravur|dxf|c-?achse/, "nc", "HOFER-NC-PRO"],
   [/rechner/, "rechner", "Rechner"],
   [/einlagen/, "einlagen", "Einlagen Gen"],
   [/infoboard/, "infoboard", "Infoboard"],

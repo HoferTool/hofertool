@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.376.1** (3. November 2026) **NC-Funktionen heisst HOFER-NC-PRO** (Patrick: „NC-Funktionen als Überschrift auch umbenennen nach Hofer-NC-Pro“): Überschrift, Menü, Suche und Pablo; die Logoleiste zeigt auf der Seite nur noch das Logo, der Name steht in der Überschrift.
 - **1.376.0** (3. November 2026) **HOFER-NC-PRO: Erklärvideo und Logo** (Patrick: „mach ein Erklärvideo … beim Öffnen … wie ein Tutorial zum Starten, mit einer Checkbox soll es nicht mehr kommen“, „auch etwas zum STEP-Import“, „mach irgendwo noch gut platziert das Hofer-Logo“): Video von rund 1:40 mit Untertiteln (Elemente, Übergänge, Bogen, Zeichnen mit Fang, Tab, Rückgängig, Markieren, Zoom, Werkzeug, STEP-Import mit 3D-Ansicht, Weglassen, andere Seite, Speichern), geht beim Öffnen auf, „Nicht mehr anzeigen“ je Person, „▶ Anleitung“ oben; Markenleiste mit Hofer-Logo oben und im Videofenster.
 - **1.375.2** (3. November 2026) **Pablo in Brave**: Brave hat keine Spracherkennung dahinter, Pablo sagt dort gleich „Brave kann nicht zuhören. Öffne das HoferTool in Chrome oder Edge.“ statt eines Netzfehlers.
 - **1.375.0** (3. November 2026) **Kontur heisst HOFER-NC-PRO** (Patrick: „benenne Kontur um in HOFER-NC-PRO“): Reiter, Seitenleiste und eigenes Fenster heissen so, Pablo kennt den Namen; intern bleibt `kontur`.

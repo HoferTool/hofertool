@@ -38,14 +38,14 @@ export default function NcFunktionen() {
   const [ansicht, setAnsicht] = useState(ncAnsicht());
   useGemerkt(gemerkt, { ansicht });
   useSeitenSuche({
-    name: "NC-Funktionen", platzhalter: "Kontur, C-Achse, Gravur, DXF …",
-    eintraege: REITER.map(([w, t]) => ({ gruppe: "NC-Funktionen", zeichen: "⌨", titel: t, wert: w })),
+    name: "HOFER-NC-PRO", platzhalter: "Kontur, C-Achse, Gravur, DXF …",
+    eintraege: REITER.map(([w, t]) => ({ gruppe: "HOFER-NC-PRO", zeichen: "⌨", titel: t, wert: w })),
     springen: (x) => setAnsicht(x.wert),
   });
   const Inhalt = INHALT[ansicht] || Kontur;
   return (
     <>
-      <h1 className="seitentitel">NC-Funktionen</h1>
+      <h1 className="seitentitel">HOFER-NC-PRO</h1>
       <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" seite="nc" />
       <Uebergang key={ansicht}>
         <div id="rech-inhalt"><Inhalt /></div>

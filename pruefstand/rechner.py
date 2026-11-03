@@ -37,7 +37,7 @@ with sync_playwright() as p:
     if not pg.locator("#rech-inhalt input").count(): fehler.append("Reiter leer: winkel")
     pg.evaluate("location.hash='#nc'"); pg.wait_for_selector("[data-unter='nc/kontur']")
     if pg.locator("[data-unter='nc/gcode']").count(): fehler.append("G-Code noch da")
-    if "NC-Funktionen" not in pg.inner_text("h1.seitentitel"): fehler.append("Seite NC-Funktionen fehlt")
+    if "HOFER-NC-PRO" not in pg.inner_text("h1.seitentitel"): fehler.append("Seite NC-Funktionen fehlt")
     for reiter, merkmal in [("cachse", "svg, canvas, input"),
                             ("gravur", "input, canvas"), ("dxf", "input, button"), ("kontur", "input, svg")]:
         pg.click(f"[data-unter='nc/{reiter}']"); pg.wait_for_timeout(250)
