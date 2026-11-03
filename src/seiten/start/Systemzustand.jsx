@@ -73,8 +73,10 @@ export function zustandPruefen(w, solarZeit, jetzt = Date.now()) {
   const nc = w.nc_geo_status;
   if (nc && nc.fehler) aus.push({ was: "GEO-OFFSET", text: fehlerText(nc.fehler) });
   if (solarZeit !== undefined) {
+    // Am Abend liefert der Solar-Log oft 20 bis 50 Minuten nichts
+    // (2. und 3. November 2026), darum erst nach 90 Minuten melden
     const a = alter(solarZeit, jetzt);
-    if (a > 30 * MIN) aus.push({ was: "Solaranlage", text: "Keine Werte " + seitText(a) + "." });
+    if (a > 90 * MIN) aus.push({ was: "Solaranlage", text: "Keine Werte " + seitText(a) + "." });
   }
   return aus;
 }
