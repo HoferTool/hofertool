@@ -10,8 +10,8 @@
 //  auch im Pad Mode und auf den Bildschirmen), hört Pablo mit (Spracherkennung des
 //  Browsers) und reagiert nur, wenn jemand „Pablo“ sagt. Unten links
 //  zeigt ein kleines Zeichen, dass er zuhört. Hört er seinen Namen,
-//  geht die Einblendung auf: was er versteht, dann die Antwort, die er
-//  auch vorliest (Sprachausgabe des Geräts). Ein Tipp aufs Zeichen
+//  geht die Einblendung auf: was er versteht, dann die Antwort als Text,
+//  ohne Stimme (seit 1.368.0). Ein Tipp aufs Zeichen
 //  öffnet sie zum Eintippen. Die Antworten kommen aus src/daten/pablo.js,
 //  ohne KI und ohne Kosten (Entscheid Patrick 3. November 2026).
 //  Nicht für Externe (Entscheid Patrick 3. November 2026: „Externe nicht“)
@@ -20,7 +20,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt } from "../bruecke.jsx";
-import { antworten, zumSprechen } from "../daten/pablo.js";
+import { antworten } from "../daten/pablo.js";
 
 const Erkennung = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
 const ZU_NACH_MS = 25000;       // Einblendung geht nach der Antwort von selbst zu
@@ -66,60 +66,9 @@ export function nachWeckwort(t) {
   return null;
 }
 
-// ---------- Stimme ----------
-// Zuerst ElevenLabs über den Server (Funktion pablo-stimme, Schlüssel nur
-// dort). Ist dort nichts eingerichtet oder klappt es nicht, die beste
-// Stimme des Geräts: „Natural“/„Online“-Stimmen (Edge) klingen fast wie
-// echt, darum vor allen anderen.
-let stimme = null;
-function stimmeWaehlen() {
-  if (typeof speechSynthesis === "undefined") return null;
-  const alle = (speechSynthesis.getVoices() || []).filter((v) => /^de/i.test(v.lang));
-  const punkte = (v) => {
-    let p = 0;
-    if (/natural|neural|online/i.test(v.name)) p += 100;
-    if (/premium|enhanced|verbessert/i.test(v.name)) p += 60;
-    if (/google/i.test(v.name)) p += 30;
-    if (/^de-CH/i.test(v.lang)) p += 15;
-    else if (/^de-DE/i.test(v.lang)) p += 10;
-    // Pablo ist ein Mann
-    if (/\b(jan|conrad|killian|florian|ralf|stefan|markus|yannick|viktor|martin|helmut)\b/i.test(v.name)) p += 8;
-    if (/hedda|katja|leni|amala|anna|petra|seraphina|vicki|elke|marlene/i.test(v.name)) p -= 2;
-    return p;
-  };
-  stimme = alle.sort((a, b) => punkte(b) - punkte(a))[0] || null;
-  return stimme;
-}
-if (typeof speechSynthesis !== "undefined") {
-  stimmeWaehlen();
-  try { speechSynthesis.addEventListener("voiceschanged", stimmeWaehlen); } catch (f) { /* ältere Browser */ }
-}
-
-let elevenAusBis = 0;               // nach „nicht eingerichtet“ eine Weile nicht fragen
-const tonVorrat = new Map();        // gleicher Text = gleiche Aufnahme, spart Guthaben
-let tonJetzt = null;
-async function elevenTon(text) {
-  if (Date.now() < elevenAusBis || !alt.db || !alt.db.functions) return null;
-  if (tonVorrat.has(text)) return tonVorrat.get(text);
-  try {
-    const r = await alt.zeitlimit(alt.db.functions.invoke("pablo-stimme", { body: { text } }), 9000, "Pablo Stimme");
-    const d = r && r.data;
-    if (!(d instanceof Blob) || !d.size) {
-      // kein Schlüssel: 10 Minuten Ruhe, sonst 1 Minute
-      elevenAusBis = Date.now() + (d && d.fehler === "kein-schluessel" ? 600000 : 60000);
-      if (d && d.fehler && d.fehler !== "kein-schluessel") alt.fehlerMerken && alt.fehlerMerken("Pablo Stimme", JSON.stringify(d));
-      return null;
-    }
-    const url = URL.createObjectURL(d);
-    tonVorrat.set(text, url);
-    if (tonVorrat.size > 60) { const [k, u] = tonVorrat.entries().next().value; tonVorrat.delete(k); URL.revokeObjectURL(u); }
-    return url;
-  } catch (e) {
-    elevenAusBis = Date.now() + 60000;
-    return null;
-  }
-}
-function tonStopp() { if (tonJetzt) { try { tonJetzt.pause(); } catch (f) { /* egal */ } tonJetzt = null; } }
+// Keine Sprachausgabe (Patrick 3. November 2026: „will dann ohne Stimme,
+// soll einfach als Textfeld aufpoppen“): die Antwort steht nur in der
+// Einblendung. 1.365.0 hatte kurz ElevenLabs und die Gerätestimme.
 
 export function pabloSichtbar() {
   return !alt.istExtern() && !(alt.istArchiv && alt.istArchiv());
@@ -185,43 +134,6 @@ function Pablo() {
   };
 
   // ---------- Sprechen ----------
-  const geraetSprechen = (text) => new Promise((fertig) => {
-    if (typeof speechSynthesis === "undefined" || !text) { fertig(); return; }
-    try { speechSynthesis.cancel(); } catch (f) { /* egal */ }
-    const u = new SpeechSynthesisUtterance(text);
-    const v = stimme || stimmeWaehlen();
-    if (v) u.voice = v;
-    u.lang = v ? v.lang : "de-CH";
-    u.rate = /natural|neural|online/i.test(v ? v.name : "") ? 1.0 : 1.05;
-    let fertigGemeldet = false;
-    const ende = () => { if (fertigGemeldet) return; fertigGemeldet = true; fertig(); };
-    u.onend = ende; u.onerror = ende;
-    // Manche Browser melden das Ende nie: spätestens nach der Lesezeit weiter
-    setTimeout(ende, 2500 + text.length * 90);
-    try { speechSynthesis.speak(u); } catch (f) { ende(); }
-  });
-  const sprechen = async (roh) => {
-    if (!roh) return;
-    const text = zumSprechen(roh);
-    tonStopp();
-    const url = await elevenTon(text);
-    if (url) {
-      const ok = await new Promise((fertig) => {
-        const a = new Audio(url);
-        tonJetzt = a;
-        let gemeldet = false;
-        const ende = (gut) => { if (gemeldet) return; gemeldet = true; if (tonJetzt === a) tonJetzt = null; fertig(gut); };
-        a.onended = () => ende(true);
-        a.onerror = () => ende(false);
-        a.onpause = () => ende(true);
-        setTimeout(() => ende(true), 4000 + text.length * 120);
-        a.play().catch(() => ende(false));   // Browser sperrt Ton: Gerätestimme
-      });
-      if (ok) return;
-    }
-    await geraetSprechen(text);
-  };
-  const schweigen = () => { tonStopp(); try { speechSynthesis.cancel(); } catch (f) { /* egal */ } };
 
   // ---------- Fragen ----------
   const fragen = async (text) => {
@@ -237,8 +149,6 @@ function Pablo() {
     catch (e) { a = { text: "Das hat nicht geklappt: " + (e && e.message ? e.message : e), fehler: true }; }
     setAntwort(a);
     if (a.aktion) { try { await a.aktion(); } catch (e) { alt.meldung(alt.fehlertext ? alt.fehlertext(e) : String(e), "fehler"); } }
-    setZustand("spricht");
-    await sprechen(a.text);
     besetzt.current = false;
     setZustand(aktiv.current ? "lauscht" : "aus");
     // Hat Pablo etwas geöffnet, steht die Einblendung nicht im Weg
@@ -317,7 +227,7 @@ function Pablo() {
     if (aktiv.current) neuStart.current = setTimeout(zuhoeren, 1200);
     const sicht = () => { if (document.hidden) stopp(); else if (aktiv.current) zuhoeren(); };
     document.addEventListener("visibilitychange", sicht);
-    return () => { aktiv.current = false; document.removeEventListener("visibilitychange", sicht); stopp(); schweigen(); clearTimeout(zuTakt.current); };
+    return () => { aktiv.current = false; document.removeEventListener("visibilitychange", sicht); stopp(); clearTimeout(zuTakt.current); };
   }, []);
 
   // Escape schliesst nur die Einblendung
@@ -335,7 +245,6 @@ function Pablo() {
   }, [offen]);
 
   const schliessen = () => {
-    schweigen();
     clearTimeout(zuTakt.current);
     wartetBis.current = 0;
     setOffen(false);
@@ -384,7 +293,6 @@ function Pablo() {
               <div className="pablo__knoepfe">
                 {antwort.auftragId && !antwort.aktion && <button className="knopf knopf--klein" id="pablo-zeigen"
                   onClick={() => alt.balkenZeigen(antwort.auftragId, true)}>Auf der Planwand zeigen</button>}
-                <button className="knopf knopf--klein" onClick={() => sprechen(antwort.text)}>Nochmals vorlesen</button>
               </div>
             )}
           </div>

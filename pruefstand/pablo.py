@@ -73,7 +73,7 @@ def seite(p, extern):
 
 def befehl(pg, t):
     pg.fill("#pablo-eingabe", t); pg.press("#pablo-eingabe", "Enter"); pg.wait_for_timeout(900)
-    print("   ", t, "→", pg.evaluate("__gesagt[__gesagt.length - 1]"))
+    print("   ", t)
 
 def frage(pg, t):
     pg.fill("#pablo-eingabe", t); pg.press("#pablo-eingabe", "Enter")
@@ -101,7 +101,7 @@ with sync_playwright() as p:
     pg.wait_for_selector("#pablo-antwort"); pg.wait_for_timeout(400)
     a = pg.inner_text("#pablo-antwort"); print("   →", a)
     pruefe("Antwort zum Auftrag (läuft, Maschine, Menge)", "10844-0049 läuft auf der L-1001" in a and "5'000 Stück" in a)
-    pruefe("Vorgelesen, ohne Apostroph", any("5000 Stück" in g for g in pg.evaluate("__gesagt")))
+    pruefe("Nichts vorgelesen (ohne Stimme)", len(pg.evaluate("__gesagt")) == 0)
     pruefe("Nennt weiteren offenen Auftrag nicht (andere Nr.)", "weitere" not in a)
     pg.screenshot(path="/tmp/claude-0/-home-user-hofertool/da0acc45-2bf3-5a47-96fd-e28b16df273f/scratchpad/pablo-antwort.png")
 
