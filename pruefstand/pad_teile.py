@@ -63,7 +63,9 @@ with sync_playwright() as p:
            and pg.locator("[data-tool='T100'].wz-platz--an").count() == 1)
     tools = [werkzeuge.nth(0).get_attribute("data-tool"), werkzeuge.nth(1).get_attribute("data-tool")]
     weiter.click(); pg.wait_for_selector(".dialog-huelle input")
-    pg.locator(".dialog-huelle input").first.fill("5000"); pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(900)
+    pg.locator(".dialog-huelle input").first.fill("5000")
+    pg.locator(".dialog-huelle input").nth(1).fill("JPF")  # Kürzel ist Pflicht (seit 1.334.0)
+    pg.locator(".dialog-huelle [data-ja]").last.click(); pg.wait_for_timeout(900)
     zeilen = pg.evaluate("(TEST.daten.tool_changes || []).map(z => z.tool_nr + ':' + z.stueckzahl)")
     print("Wechsel:", zeilen)
     pruefe("Wechsel eingetragen", sorted(zeilen) == sorted([t + ":5000" for t in tools]))

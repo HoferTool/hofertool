@@ -36,7 +36,10 @@ with sync_playwright() as p:
     else:
         nr = pg.evaluate(f"() => TEST.daten.planwand.find(j => j.id === '{jid}').job_number")
         sel = f".pw-balken[data-auftrag='{jid}']"
-        pg.locator(sel).first.click(); pg.wait_for_timeout(1000)
+        # Seit 1.174.0 öffnet ein Klick auf den Balken die Zeichnung nicht mehr:
+        # über das Auftragsfenster, Zeichnung „Ansehen“
+        pg.locator(sel).first.dblclick(); pg.wait_for_selector(".dialog--auftrag")
+        pg.locator("#pl-pdfreihe", has_text="Ansehen").locator("text=Ansehen").first.click(); pg.wait_for_timeout(1000)
         pruefe("Betrachter offen", pg.locator(".betrachter").count() == 1)
         knopf = pg.locator("[data-zeichnungweg]")
         pruefe("Knopf „Zeichnung entfernen“ da", knopf.count() == 1 and "entfernen" in knopf.inner_text())
@@ -51,6 +54,8 @@ with sync_playwright() as p:
         d = pg.evaluate(f"() => (TEST.daten.dokumente || []).filter(x => x.art === 'zeichnung' && x.hoco_nr === '{nr}').length")
         pruefe("Dokument weg", d == 0)
         # Rückgängig holt alles zurück
+        if pg.locator(".dialog--auftrag").count():
+            pg.mouse.move(5, 5); pg.keyboard.press("Escape"); pg.wait_for_timeout(600)
         pg.keyboard.press("Control+z"); pg.wait_for_timeout(1200)
         z = pg.evaluate(f"() => TEST.daten.hoco_parts.find(t => t.hoco_nr === '{nr}').zeichnung_url")
         pruefe("Rückgängig: Stammdaten wieder mit Zeichnung", z == ADR)

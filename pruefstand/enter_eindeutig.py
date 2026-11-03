@@ -63,12 +63,13 @@ with sync_playwright() as p:
         while pg.locator(".dialog-huelle").count():
             pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
 
-        # Planwand-Suche: ein einziger Treffer öffnet das Auftragsfenster
+        # Planwand-Suche: auch ein einziger Treffer führt nur zum Balken,
+        # das Auftragsfenster geht nie direkt auf (seit 1.24.2)
         jid = pg.evaluate("""() => { const j = TEST.daten.planwand.find(j => j.planned_from);
           j.plan_note = 'Einzigartig4711'; return j.id; }""")
         pg.locator("#kopf-suche").click(); pg.wait_for_timeout(400)
         pg.fill("#su-text", "Einzigartig4711"); pg.press("#su-text", "Enter"); pg.wait_for_timeout(1500)
-        pruefe("ein Treffer: Auftragsfenster offen", pg.locator(".dialog--auftrag").count() == 1)
+        pruefe("ein Treffer: kein Auftragsfenster", pg.locator(".dialog--auftrag").count() == 0)
         pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
         pg.locator("#kopf-suche").click(); pg.wait_for_timeout(400)
         pg.fill("#su-text", "Tornos"); pg.press("#su-text", "Enter"); pg.wait_for_timeout(1500)

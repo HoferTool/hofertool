@@ -38,7 +38,7 @@ with sync_playwright() as p:
     # Zeichnungs-Ordner: Pfad, Stand der Aufgabe „HoferTool“, speichern, keine Knöpfe (Wunsch 8. Oktober 2026)
     pruefe("Pfad geladen", pg.input_value("#zng-pfad") == "\\\\FS01\\Zeichnungen")
     stand = pg.inner_text("#zng-stand"); print("Stand:", stand)
-    pruefe("Stand und zuletzt: " + repr(stand[:160]), "auf SRV1" in stand and "1’234 HOCO Nr." in stand and "Zuletzt hochgeladen" in stand and "(2)" in stand)
+    pruefe("Stand und zuletzt: " + repr(stand[:160]), "auf SRV1" in stand and "1'234 HOCO Nr." in stand and "Zuletzt hochgeladen" in stand and "(2)" in stand)
     pruefe("Keine Knöpfe Probelauf und Hochladen", pg.locator("#zng-hochladen, #zng-probe, #pool-hochladen, #zng-scharf").count() == 0)
     pg.fill("#zng-pfad", "\\\\FS02\\Neu"); pg.locator("#zng-unter").check(force=True); pg.click("#zng-speichern"); pg.wait_for_timeout(500)
     k = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'zng_ordner').wert)"); print("Gespeichert:", k)

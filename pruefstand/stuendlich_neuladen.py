@@ -14,6 +14,17 @@ daten.profiles[0].andere_nutzer = true; daten.profiles[0].email = 'planwand@hofe
 F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;", K + "\nif (typeof window !== \"undefined\") window.TEST = TEST;")
 STUNDE = 61 * 60 * 1000
 
+
+def zeichnung_allein(pg, jz):
+    """Seit 1.174.0 öffnet ein Klick auf den Balken keine Zeichnung mehr:
+    Auftragsfenster mit Doppelklick, dort „Ansehen“, dann das
+    Auftragsfenster darunter schliessen, damit nur der Betrachter offen ist."""
+    pg.locator(f".pw-balken[data-auftrag='{jz}']").first.dblclick(); pg.wait_for_timeout(1500)
+    pg.locator("#pl-pdfreihe", has_text="Ansehen").locator("text=Ansehen").first.click(); pg.wait_for_timeout(1000)
+    pg.evaluate("(() => { const d = document.querySelector('.dialog--auftrag'); const h = d && d.closest('.dialog-huelle');"
+                " const k = h && h.querySelector('[data-zu], .dialog__zu, [aria-label=Schliessen]'); if (k) k.click(); })()")
+    pg.wait_for_timeout(800)
+
 def seite(br, hash=""):
     pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
     f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
@@ -63,7 +74,8 @@ with sync_playwright() as p:
     # 3. Schreibmarke im Suchfeld: wartet; Feld verlassen und eine halbe Minute Ruhe: neu geladen
     pg, f = seite(br)
     marke(pg)
-    pg.evaluate("document.querySelector('#kopf-suche input, input[type=search], input')?.focus()")
+    # Die Startseite hat kein eigenes Feld mehr: ein Feld dazu, wie ein Suchfeld
+    pg.evaluate("(() => { const i = document.createElement('input'); i.id = 'test-feld'; document.getElementById('inhalt').prepend(i); i.focus(); })()")
     im_feld = pg.evaluate("/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)")
     pg.clock.fast_forward(STUNDE); pg.wait_for_timeout(500)
     pruefe("Schreibmarke im Feld: nicht neu geladen", im_feld and not neu_geladen(pg))
@@ -88,7 +100,7 @@ with sync_playwright() as p:
     jz = pg.evaluate("(() => { const ids = new Set(TEST.daten.planwand.filter(j => j.drawing_url).map(j => j.id));"
                      " const b = [...document.querySelectorAll('.pw-balken[data-auftrag]')].find(b => ids.has(b.dataset.auftrag) && b.getBoundingClientRect().width > 40);"
                      " return b && b.dataset.auftrag; })()")
-    pg.locator(f".pw-balken[data-auftrag='{jz}']").first.click(); pg.clock.fast_forward(1500); pg.wait_for_timeout(800)
+    zeichnung_allein(pg, jz)
     offen = pg.locator(".betrachter-huelle").count() == 1
     marke(pg)
     pg.clock.fast_forward(STUNDE); pg.wait_for_timeout(3500)

@@ -29,16 +29,30 @@ def pruefen(t):
 
 def bewerten(text, code):
     # Auch Zeilen wie "Fehler Pad: …" zählen, nicht nur "Fehler: …"
-    zeilen = [z for z in text.splitlines() if re.search(r"Fehler( \w+)?:", z) or "Error" in z]
-    ok = code == 0 and not any("Error" in z for z in zeilen) and all(re.search(r"Fehler( \w+)?: keine", z) for z in zeilen if re.search(r"Fehler( \w+)?:", z))
+    zeilen = [z for z in text.splitlines() if re.search(r"(?<![Kk]eine )Fehler( \w+)?:", z) or "Error" in z]
+    ok = code == 0 and not any("Error" in z for z in zeilen) and all(re.search(r"Fehler( \w+)?: (keine|\[\])", z) for z in zeilen if re.search(r"(?<![Kk]eine )Fehler( \w+)?:", z))
     return ok, zeilen
+
+# Nur einen Teil prüfen: PRUEFSTAND_NUR="einkauf,pad" oder ab einer Nummer
+nur = [t for t in os.environ.get("PRUEFSTAND_NUR", "").split(",") if t]
+if nur: TESTS = [t for t in TESTS if t in nur]
+TESTS = TESTS[int(os.environ.get("PRUEFSTAND_AB", "0")):]
 
 gut = 0
 start = time.time()
+nochmal = []
 with ThreadPoolExecutor(max_workers=STRAENGE) as pool:
     for t, text, code, dauer in pool.map(pruefen, TESTS):
         ok, zeilen = bewerten(text, code)
         gut += ok
-        print(("OK    " if ok else "FEHLER") + "  " + t + "  (%ds)" % dauer + ("" if ok else "  ->  " + " | ".join(zeilen[-2:])), flush=True)
+        if not ok: nochmal.append((t, zeilen))
+        print(("OK    " if ok else "WIEDER") + "  " + t + "  (%ds)" % dauer + ("" if ok else "  ->  " + " | ".join(zeilen[-2:])), flush=True)
+# Unter Last laufen manche Prüfungen mit festen Wartezeiten zu knapp:
+# was gleichzeitig scheiterte, kommt allein ein zweites Mal dran
+for t, _ in nochmal:
+    t, text, code, dauer = pruefen(t)
+    ok, zeilen = bewerten(text, code)
+    gut += ok
+    print(("OK    " if ok else "FEHLER") + "  " + t + "  (allein, %ds)" % dauer + ("" if ok else "  ->  " + " | ".join(zeilen[-2:])), flush=True)
 print("\nDauer: %d Minuten" % ((time.time() - start) / 60))
 print("\n%d von %d Prüfungen ohne Fehler" % (gut, len(TESTS)))

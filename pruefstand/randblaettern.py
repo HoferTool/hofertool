@@ -8,7 +8,7 @@ server_starten(); time.sleep(0.4)
 def seite(br, breite, hoehe, finger=False):
     ctx = br.new_context(viewport={"width": breite, "height": hoehe}, has_touch=finger, is_mobile=False)
     pg = ctx.new_page()
-    f = []; pg.on("pageerror", lambda e: f.append(str(e)[:170]))
+    f = []; pg.on("pageerror", lambda e: (f.append(str(e)[:170]), print("SEITENFEHLER", e.stack)))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200,
         content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**","**://fonts.gstatic.com/**",

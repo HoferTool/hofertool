@@ -130,10 +130,7 @@ with sync_playwright() as p:
     pg.keyboard.press("Enter"); pg.wait_for_timeout(800)
     pruefe("NC-Funktionen: Reiter Gravur", pg.evaluate("[...document.querySelectorAll('[data-rech].aktiv, .reiter .aktiv')].map(x=>x.textContent).join()").find("Gravur") >= 0)
 
-    # QS
-    oeffnen("qs")
-    pruefe("QS: sucht auf der Seite", "Qualitätssicherung" in wo())
-    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    # Die Seite QS gibt es seit 1.317.0 nicht mehr (QS Check im Pad)
 
     pruefe("Seitenfehler: " + str(f[:2]), not f)
     br.close()

@@ -27,13 +27,10 @@ with sync_playwright() as p:
     if not jid: fehler.append("kein Balken ohne Zeichnung")
     else:
         sel = f".pw-balken[data-auftrag='{jid}']"
-        pg.locator(sel).first.click(); pg.wait_for_timeout(1000)
-        if pg.locator(".betrachter").count() == 0: fehler.append("Klick zeigt Zeichnung der HOCO Nr. nicht")
-        z = pg.evaluate(f"() => (TEST.daten.jobs || TEST.daten.planwand).concat(TEST.daten.planwand).find(j => j.id === '{jid}').drawing_url")
-        print("am Auftrag:", (z or "")[:30])
-        if not z: fehler.append("Zeichnung nicht am Auftrag gespeichert")
-        for _ in range(3): pg.keyboard.press("Escape"); pg.wait_for_timeout(250)
-        pg.wait_for_timeout(1500)
+        # Seit 1.174.0 öffnet ein einzelner Klick nirgends mehr die Zeichnung,
+        # nur das Auftragsfenster zeigt sie
+        pg.locator(sel).first.click(); pg.wait_for_timeout(800)
+        if pg.locator(".betrachter").count(): fehler.append("einzelner Klick öffnet die Zeichnung")
         pg.locator(sel).first.dblclick(); pg.wait_for_timeout(1200)
         if pg.locator(".dialog--auftrag").count() == 0: fehler.append("kein Auftragsfenster")
         if pg.locator("#pl-vorschau iframe").count() == 0: fehler.append("Vorschau leer")

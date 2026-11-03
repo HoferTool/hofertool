@@ -66,6 +66,12 @@ export function hinzeigen(selektor) {
     const el = document.querySelector(selektor);
     if (!el) { if (++n < 50) setTimeout(versuch, 100); return; }
     el.scrollIntoView({ block: "center", behavior: "smooth" });
+    // Baut sich die Liste darüber gerade noch auf (Filter weg), rutscht
+    // der Treffer wieder weg: dann ein zweites Mal hinrollen
+    setTimeout(() => {
+      const r = el.isConnected && el.getBoundingClientRect();
+      if (r && (r.top < 0 || r.bottom > window.innerHeight)) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 700);
     el.classList.remove("such-blitz");
     void el.offsetWidth;
     el.classList.add("such-blitz");

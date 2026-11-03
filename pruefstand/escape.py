@@ -22,8 +22,12 @@ with sync_playwright() as p:
         danach = pg.evaluate(zaehlen)
         print(f"{name:22} offen: {offen} → nach Esc: {danach}")
         # aufräumen, falls offen geblieben
+        # Seit 1.163.0 geht Escape Schritt für Schritt bis zur Startseite
+        # zurück: darum nicht weiter drücken, sondern zur Planwand zurück
         for _ in range(3):
-            if pg.evaluate(zaehlen): pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+            if pg.locator(".dialog-huelle").count(): pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+        if not pg.locator(".pw-tafel").count():
+            pg.evaluate("location.hash='#planwand'"); pg.wait_for_selector(".pw-tafel"); pg.wait_for_timeout(800)
     probe("Auftrag", lambda: pg.locator(".pw-balken").first.dblclick())
     probe("HOCO Nr.", lambda: pg.locator("#pw-hoco").click())
     probe("Suchen (Planwand)", lambda: pg.locator("#pw-suchen, [id*=suche]").first.click() if pg.locator("#pw-suchen").count() else None)

@@ -31,7 +31,7 @@ with sync_playwright() as p:
 
     pruefe("Abschnitt da", pg.locator("#eb-ordner").count() == 1)
     st = pg.inner_text("#eb-stand"); print(st)
-    pruefe("Stand der Aufgabe", "BUERO1" in st and "1’205 Excel-Dateien" in st and "Zuletzt hochgeladen" in st and "(3)" in st)
+    pruefe("Stand der Aufgabe", "BUERO1" in st and "1'205 Excel-Dateien" in st and "Zuletzt hochgeladen" in st and "(3)" in st)
     pruefe("Ordnerfehler sichtbar", "Ordner nicht erreichbar" in pg.inner_text("#eb-ordner"))
     pruefe("Pool-Text nur WBGs", "nur für wbgs" in pg.inner_text("body").lower())
 

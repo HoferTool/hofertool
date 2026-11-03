@@ -24,15 +24,15 @@ with sync_playwright() as p:
         return pg.evaluate("""() => { const a = document.querySelector('#inhalt .reiter .aktiv, #inhalt [aria-selected=true], #inhalt .reiter__knopf--aktiv, #inhalt .aktiv');
           return a ? a.textContent.trim() : ''; }""")
 
-    # Produktion: auf den Unterreiter Fortschritt, dann Fenster auf und Esc
-    pg.get_by_text("Fortschritt", exact=True).first.click(); pg.wait_for_timeout(800)
+    # Produktion: auf den Unterreiter Infos zum Richten (Fortschritt steht seit 1.319.0 in der Statistik), dann Fenster auf und Esc
+    pg.get_by_text("Infos zum Richten", exact=True).first.click(); pg.wait_for_timeout(800)
     vorher = reiter_text()
     pg.keyboard.press("Control+f"); pg.wait_for_timeout(700)
     pruefe("Suche über alles ist offen", fenster() >= 1)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
     pruefe("Fenster zu", fenster() == 0)
     nachher = reiter_text()
-    pruefe(f"Unterreiter bleibt ({vorher!r} → {nachher!r})", vorher == nachher and "Fortschritt" in nachher)
+    pruefe(f"Unterreiter bleibt ({vorher!r} → {nachher!r})", vorher == nachher and "Richten" in nachher)
     pruefe("Seite bleibt Produktion", "produktion" in pg.evaluate("location.hash"))
 
     # Ohne Fenster geht Escape weiter eine Ebene zurück

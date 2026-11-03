@@ -126,7 +126,8 @@ with sync_playwright() as p:
     if "ändert ein Administrator" in text: fehler.append("alter Hinweis noch da")
     reiter = pg.evaluate("[...document.querySelectorAll('[data-einst]')].map(k => k.dataset.einst)")
     print("Reiter ohne Admin:", reiter)
-    if reiter != ["allgemein"]: fehler.append("Nicht-Admin sieht mehr als Allgemein")
+    # Seit 1.310.0 Temp, seit 1.337.0 Wartung (mit Schreibrecht) dazu
+    if reiter != ["allgemein", "temp", "wartung"]: fehler.append("Nicht-Admin sieht mehr als Allgemein, Temp, Wartung")
     fehler += f; pg.close()
 
     # 5. Planwand (111.123.0): dazu Dokumente und Backup, mit allen Knöpfen,
@@ -136,7 +137,8 @@ with sync_playwright() as p:
     reiter = pg.evaluate("[...document.querySelectorAll('[data-einst]')].map(k => k.dataset.einst)")
     print("Reiter Planwand:", reiter)
     # Seit 1.12.3 nur noch Allgemein, Dokumente und Backup (Wunsch Patrick, 9. Oktober 2026)
-    if reiter != ["allgemein", "dokumente", "backup"]: fehler.append("Planwand sieht andere Reiter als Allgemein, Dokumente, Backup")
+    # Seit 1.310.0 dazu Temp (alle ausser Externen und Dienst), Wartung nicht für Gerätekonten
+    if reiter != ["allgemein", "temp", "dokumente", "backup"]: fehler.append("Planwand sieht andere Reiter als Allgemein, Temp, Dokumente, Backup")
     if pg.locator("#np").count(): fehler.append("Planwand sieht Passwortfeld")
     da = pg.evaluate("[!!document.getElementById('bestellmail-oeffnen'), !!document.getElementById('pin-feld')]")
     print("Bestellmail, Planwand-PIN:", da)

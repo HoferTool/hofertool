@@ -1,7 +1,10 @@
 # Auftragsfenster (React): Ab/Tage/Bis gekoppelt, Werkstoff erkannt,
 # Ändern speichert, doppelte FA Nr. wird abgelehnt, neuer Auftrag
 # übernimmt die Stammdaten der HOCO Nr., Löschen und Strg+Z.
-import time
+import time, datetime
+# Montag dieser Woche, damit der Balken nach dem Speichern auf der Tafel bleibt
+MO = datetime.date.today() - datetime.timedelta(days=datetime.date.today().weekday())
+D = lambda n: (MO + datetime.timedelta(days=n)).isoformat()
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
@@ -25,9 +28,9 @@ with sync_playwright() as p:
     balken = pg.locator(".pw-balken[data-auftrag]").first
     jid = balken.get_attribute("data-auftrag")
     balken.dblclick(); pg.wait_for_selector(".dialog--auftrag")
-    pg.fill("#pl-von", "2026-10-05"); pg.fill("#pl-tage", "3"); pg.wait_for_timeout(100)
-    if pg.input_value("#pl-bis") != "2026-10-07": fehler.append("Bis folgt Tage nicht: " + pg.input_value("#pl-bis"))
-    pg.fill("#pl-bis", "2026-10-09"); pg.wait_for_timeout(100)
+    pg.fill("#pl-von", D(0)); pg.fill("#pl-tage", "3"); pg.wait_for_timeout(100)
+    if pg.input_value("#pl-bis") != D(2): fehler.append("Bis folgt Tage nicht: " + pg.input_value("#pl-bis"))
+    pg.fill("#pl-bis", D(4)); pg.wait_for_timeout(100)
     if pg.input_value("#pl-tage") != "5": fehler.append("Tage folgt Bis nicht: " + pg.input_value("#pl-tage"))
     pg.fill("#pl-mat-bez", "1.4305 rd 12"); pg.wait_for_timeout(500)
     if "V2A" not in pg.inner_text("#pl-werkstoff"): fehler.append("Werkstoff nicht erkannt: " + pg.inner_text("#pl-werkstoff"))
@@ -39,7 +42,7 @@ with sync_playwright() as p:
             pg.locator(".dialog-huelle [data-nein]").last.click(); pg.wait_for_timeout(800)
     j = pg.evaluate(f"TEST.daten.jobs.find(x => x.id === '{jid}')")
     if j["target_quantity"] != 1234: fehler.append("Menge nicht gespeichert")
-    if j["planned_days"] != 5 or j["planned_from"] != "2026-10-05": fehler.append("Zeit nicht gespeichert")
+    if j["planned_days"] != 5 or j["planned_from"] != D(0): fehler.append("Zeit nicht gespeichert")
     if j["material_bez"] != "1.4305 rd 12": fehler.append("Material nicht gespeichert")
     if j["plan_status"] != "ruesten": fehler.append("Zustand nicht gespeichert: " + str(j["plan_status"]))
     if j["color"] != "rot": fehler.append("Farbe nicht aus dem Werkstoff: " + str(j["color"]))

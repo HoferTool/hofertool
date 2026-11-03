@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.381.3";
+const APP_VERSION = "1.381.4";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -7385,6 +7385,9 @@ function planZugSchritt(zeit) {
   if (!z) return;
   z.bild = 0;
   if (!z.richtung) return;
+  // Ist die Planwand inzwischen weg (Seite gewechselt, neu gezeichnet),
+  // hört das Blättern am Rand auf, statt ins Leere zu zeichnen
+  if (!document.getElementById("pw-inhalt")) { z.richtung = 0; return; }
   const dt = Math.min(100, Math.max(0, zeit - z.letzte));
   z.letzte = zeit;
   z.rest += z.tempo * dt / 1000;

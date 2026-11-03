@@ -156,7 +156,7 @@ with sync_playwright() as p:
     pg.wait_for_timeout(600)
     pruefe("Zeichnung geht auf", pg.locator(".dialog-huelle").count() >= 1)
     pruefe("Einblendung danach weg", pg.locator("#pablo").count() == 0)
-    pg.evaluate("document.activeElement && document.activeElement.blur()"); pg.mouse.click(5, 300)
+    pg.evaluate("document.activeElement && document.activeElement.blur()")  # nicht ins PDF klicken, sonst hat es die Tasten
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pruefe("Zeichnung wieder zu", pg.locator(".dialog-huelle").count() == 0)
     pg.click("#pablo-zeichen"); pg.wait_for_selector("#pablo")

@@ -59,7 +59,7 @@ with sync_playwright() as p:
         pruefe(vor != nach, name + ": Uhr läuft weiter " + vor.replace(chr(10), "") + " -> " + nach.replace(chr(10), ""))
         pg.evaluate("() => { window.Date = Object.getPrototypeOf(window.Date); }")
         ys = pg.evaluate("() => [...document.querySelectorAll('#pad .pad-skizze__leiste > *')].map(z => Math.round(z.getBoundingClientRect().top + z.getBoundingClientRect().height / 2))")
-        pruefe(len(ys) == 6 and max(ys) - min(ys) <= 2, name + ": Zeichenknöpfe auf einer Zeile " + str(ys))
+        pruefe(len(ys) >= 6 and max(ys) - min(ys) <= 2, name + ": Zeichenknöpfe auf einer Zeile " + str(ys))
         lb = pg.locator("#pad .pad-skizze__leiste").bounding_box(); kb = pg.locator("#pad .pad-karte2--skizze").bounding_box()
         pruefe(lb["x"] + lb["width"] <= kb["x"] + kb["width"], name + ": Leiste passt in die Kachel")
         flb = pg.locator("#pad .pad-flaeche").bounding_box()

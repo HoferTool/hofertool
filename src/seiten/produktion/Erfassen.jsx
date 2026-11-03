@@ -410,11 +410,12 @@ function StandFeld({ maschine, datum, staende, neu, auftragId: fuer, istAlt, bis
     const tag = await standTagWaehlen(laeuftJetzt ? j : { id: auftragId }, datum);
     if (!tag) { el.value = wert; return; }
     el.classList.add("menge--speichert");
+    // Der frühere Wert genau dieses Auftrags an diesem Tag, vor dem
+    // Speichern gelesen, damit ihn das Speichern nicht schon überschreibt
+    const frueher = tag === datum ? eintrag : staende.proSchluessel[maschine.id + "|" + tag + "|" + auftragId];
+    const vorherWert = frueher && frueher.job_id === auftragId ? frueher.quantity : null;
     try {
       await alt.speichereStand(maschine.id, tag, stand, auftragId);
-      // Der frühere Wert genau dieses Auftrags an diesem Tag
-      const frueher = tag === datum ? eintrag : staende.proSchluessel[maschine.id + "|" + tag + "|" + auftragId];
-      const vorherWert = frueher && frueher.job_id === auftragId ? frueher.quantity : null;
       alt.merkeSchritt("Zählerstand vom " + alt.kurzDatum(tag), vorherWert === null
         ? alt.rueckWeg("production_records", { machine_id: maschine.id, record_date: tag, job_id: auftragId })
         : alt.rueckStand(maschine.id, tag, vorherWert, auftragId));
@@ -466,11 +467,12 @@ function AltFeld({ maschine, datum, eintrag, auftragId, bisher, neu }) {
     if (!Number.isFinite(stand)) { alt.meldung("Bitte eine Zahl eingeben.", "warn"); return; }
     if (eintrag && eintrag.quantity === stand) return;
     el.classList.add("menge--speichert");
+    const vorher = eintrag ? eintrag.quantity : null;
     try {
       await alt.speichereStand(maschine.id, datum, stand, auftragId);
-      alt.merkeSchritt("Zählerstand vom " + alt.kurzDatum(datum), !eintrag
+      alt.merkeSchritt("Zählerstand vom " + alt.kurzDatum(datum), vorher === null
         ? alt.rueckWeg("production_records", { machine_id: maschine.id, record_date: datum, job_id: auftragId })
-        : alt.rueckStand(maschine.id, datum, eintrag.quantity, auftragId));
+        : alt.rueckStand(maschine.id, datum, vorher, auftragId));
       el.classList.remove("menge--speichert");
       el.classList.add("menge--gespeichert");
       setTimeout(() => el.classList.remove("menge--gespeichert"), 900);

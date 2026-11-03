@@ -152,6 +152,9 @@ with sync_playwright() as p:
 
     pg.click("[data-ib='anzeige']"); pg.wait_for_timeout(1500)
     pruefe(pg.locator("#infoboard [data-ibtafel='empfang']").count() == 1, "Anzeige zeigt den Empfang")
+    # Die Anzeige holt beim ersten Tipp das Vollbild; Playwright kann
+    # die Grösse nur im normalen Fenster ändern
+    pg.evaluate("() => document.fullscreenElement && document.exitFullscreen()"); pg.wait_for_timeout(300)
     pg.set_viewport_size({"width": 1920, "height": 1080}); pg.wait_for_timeout(800)
     sk = pg.locator("#infoboard .ib-blatt").bounding_box()
     pruefe(abs(sk["width"] - 1920) < 2 and abs(sk["height"] - 1080) < 2, "bei Full HD genau 1:1: %.0f × %.0f" % (sk["width"], sk["height"]))

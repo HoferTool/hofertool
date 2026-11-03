@@ -32,10 +32,10 @@ with sync_playwright() as p:
         if not h.startswith(soll): fehler.append(f"{start}/{rolle}: {h} statt {soll}")
         if start == "planwand":
             # Neuladen auf einer anderen Seite bleibt dort
-            pg.evaluate("location.hash = '#/rechner'"); pg.wait_for_timeout(500)
+            pg.evaluate("location.hash = '#/bestellungen'"); pg.wait_for_timeout(500)
             pg.reload(wait_until="domcontentloaded"); pg.wait_for_timeout(2300)
             print("nach Neuladen:", pg.evaluate("location.hash"))
-            if not pg.evaluate("location.hash").startswith("#/rechner"): fehler.append("Neuladen springt auf Startseite")
+            if not pg.evaluate("location.hash").startswith("#/bestellungen"): fehler.append("Neuladen springt auf Startseite")
         fehler += f; pg.close()
 
     # Admin wählt die Startseite einer anderen Person

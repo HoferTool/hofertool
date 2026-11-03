@@ -11,6 +11,16 @@ F = FAKE.replace("if (typeof window !== \"undefined\") window.TEST = TEST;",
                  "daten.notizbuecher = [{ id: 'nb1', name: 'Werkstatt', farbe: '#2e7d32', reihenfolge: 1, gesperrt: false, erstellt_am: '2026-10-07T08:00:00Z' }];\n"
                  "daten.notizbuch_seiten = [{ id: 'ns1', buch_id: 'nb1', titel: 'Spannzangen', reihenfolge: 1, erstellt_am: '2026-10-07T08:00:00Z', inhalt: [] }];\n"
                  "if (typeof window !== \"undefined\") window.TEST = TEST;")
+def zeichnung_allein(pg, jz):
+    """Seit 1.174.0 öffnet ein Klick auf den Balken keine Zeichnung mehr:
+    Auftragsfenster mit Doppelklick, dort „Ansehen“, dann das
+    Auftragsfenster darunter schliessen, damit nur der Betrachter offen ist."""
+    pg.locator(f".pw-balken[data-auftrag='{jz}']").first.dblclick(); pg.wait_for_timeout(1500)
+    pg.locator("#pl-pdfreihe", has_text="Ansehen").locator("text=Ansehen").first.click(); pg.wait_for_timeout(1000)
+    pg.evaluate("(() => { const d = document.querySelector('.dialog--auftrag'); const h = d && d.closest('.dialog-huelle');"
+                " const k = h && h.querySelector('[data-zu], .dialog__zu, [aria-label=Schliessen]'); if (k) k.click(); })()")
+    pg.wait_for_timeout(800)
+
 f = []
 def pruefe(was, ok):
     print(("ok   " if ok else "FEHLT ") + was)
@@ -59,7 +69,7 @@ with sync_playwright() as p:
                      " const b = [...document.querySelectorAll('.pw-balken[data-auftrag]')].find(b => ids.has(b.dataset.auftrag) && b.getBoundingClientRect().width > 40);"
                      " return b && b.dataset.auftrag; })()")
     if jz:
-        pg.locator(f".pw-balken[data-auftrag='{jz}']").first.click(); pg.wait_for_timeout(1200)
+        zeichnung_allein(pg, jz)
         t = pg.evaluate("(document.querySelector('.betrachter__titel') || {}).textContent || ''")
         pruefe("Zeichnung offen", pg.locator(".betrachter-huelle").count() == 1)
         neu(".betrachter-huelle")
@@ -90,9 +100,9 @@ with sync_playwright() as p:
 
     # 6. Reiter der Produktion
     pg.evaluate("location.hash = '#produktion'"); pg.wait_for_timeout(1200)
-    pg.evaluate("document.querySelector('#inhalt [data-ansicht=fortschritt]').click()"); pg.wait_for_timeout(800)
+    pg.evaluate("document.querySelector('#inhalt [data-ansicht=richten]').click()"); pg.wait_for_timeout(800)
     neu(None)
-    pruefe("Produktion im Reiter Fortschritt", pg.locator("#inhalt [data-ansicht=fortschritt].aktiv").count() == 1)
+    pruefe("Produktion im Reiter Infos zum Richten", pg.locator("#inhalt [data-ansicht=richten].aktiv").count() == 1)
 
     # 6b. Notizbuch gross, dann klein
     pg.evaluate("location.hash = '#dashboard'"); pg.wait_for_timeout(1500)

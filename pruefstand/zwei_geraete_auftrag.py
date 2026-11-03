@@ -42,7 +42,8 @@ with sync_playwright() as p:
     pruefe("Notiz vom anderen Gerät bleibt (" + str(j.get("plan_note")) + ")", j.get("plan_note") == "vom anderen Gerät")
     pruefe("Zustand vom anderen Gerät bleibt (" + str(j.get("plan_status")) + ")", j.get("plan_status") == "ruesten")
     # Einstellungen: nur der eine Wert, der Rest vom anderen Gerät bleibt
-    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    # Escape nur, wenn noch ein Fenster offen ist: sonst geht es seit 1.163.0 zur Startseite
+    if pg.locator(".dialog-huelle").count(): pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pg.evaluate("(() => { const p = TEST.daten.profiles.find(x => x.id === 'u1'); p.einstellungen = Object.assign({}, p.einstellungen, { vomAnderen: 'ja' }); })()")
     n = pg.evaluate("TEST.protokoll.length")
     pg.fill("#pw-zoomwert", "30"); pg.press("#pw-zoomwert", "Enter"); pg.wait_for_timeout(800)
