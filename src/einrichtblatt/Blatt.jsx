@@ -23,7 +23,7 @@ import { excelVorlesen, blattVonAnderem, blattLaden, blattSpeichern, blattIstGut
   artikelHolen, artikelBezeichnung, STAMM_FELDER, WASCHGEBINDE, prgNummern, platzInGebrauch } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
 import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freiesBildHochladen } from "./daten.js";
-import { vorlageFuer, reihenMitRest, platzName, platzGruppe } from "./vorlagen.js";
+import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
 import { betrachter } from "../teile/Betrachter.jsx";
@@ -272,17 +272,13 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
     // Wunsch Patrick 30. Oktober 2026); ohne PDF bestellt es wie bisher
     const zeichnungen = !bearbeiten && pdfs && p.article_id && !p.ungeprueft ? pdfs[p.article_id] || [] : [];
     const mitAnsehen = zeichnungen.length > 0 && !!markieren;
-    // Ein Platz, den die Maschine laut Aufbau nicht hat, bleibt als leeres
-    // Feld stehen, ohne T-Nr. und ohne Antippen (Wunsch Patrick 30. Oktober
-    // 2026: „nur die Werkzeuge, die bei Aufbau auch drin sind“); steht dort
-    // aber schon ein Werkzeug, bleibt er wie bisher, damit nichts verschwindet
-    const aus = !!(aufbau && !aufbau.has(nr) && !inGebrauch(p));
-    if (aus) {
-      return <div key={nr} className="eba-zelle eba-platz eba-platz--aus" data-platz-aus={nr}
-        style={{ gridRow: ri + 1, gridColumn: si + 1 }}>
-        <div className="eba-tk" style={{ background: GRAU }} /><div className="eba-tat" /><div className="eba-mass" />
-        <div className="eba-bild" /><div className="eba-her" /><div className="eba-wz" /><div className="eba-wz-bez" /></div>;
-    }
+    // Ein Platz, den die Maschine laut Aufbau nicht hat, und ein Loch im
+    // Raster ohne Platz der Vorlage stehen als normales Feld ohne T-Nr.
+    // da, das man trotzdem beschreiben kann (Wunsch Patrick 3. November
+    // 2026: „solche Leerstellen soll es nicht geben, soll einfach ohne
+    // T-Nr. stehen“; 1.303.0 bis 1.352.1 ein leeres graues Feld). Mit einer
+    // „Andere T-Nr.“ steht diese; ein belegter Platz zeigt seine wie bisher
+    const ohneNr = !platzName(nr) || !!(aufbau && !aufbau.has(nr) && !inGebrauch(p));
     return (
       <div key={nr} className={"eba-zelle eba-platz" + (bearbeiten ? " eba-platz--bearbeiten" : "") + (aktiv === nr ? " eba-platz--aktiv" : "")
         + (pruefen && werkzeugOffen(p) ? " eba-platz--pruefen" : "") + (wechsel === nr ? " eba-platz--wechsel" : "")
@@ -303,9 +299,9 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
           const m = /^eba-platz:(.+)$/.exec(e.dataTransfer.getData("text/plain") || "");
           if (m && m[1] !== nr) tauschen(m[1], nr);
         } : undefined}>
-        <div className="eba-tk" style={{ background: farbeVon(nr), "--eba-schrift": vorlage.schrift }}>
+        <div className="eba-tk" style={{ background: ohneNr ? GRAU : farbeVon(nr), "--eba-schrift": vorlage.schrift }}>
           {p.standzeit ? <span className="eba-tk-links"><span className="eba-wert">{alt.zahlText(p.standzeit)}</span></span> : null}
-          <b data-eba-tnr={p.tnr ? "" : undefined}>{p.tnr || platzName(nr)}</b>
+          <b data-eba-tnr={p.tnr ? "" : undefined} data-eba-ohne-nr={ohneNr ? "" : undefined}>{p.tnr || (ohneNr ? "" : platzName(nr))}</b>
           {p.hd && <span className="eba-tk-rechts"><span className="eba-hd" data-hd="">HD</span></span>}</div>
         <div className="eba-tat">{p.taetigkeit || ""}</div>
         <div className="eba-mass">{p.mass || ""}</div>
@@ -353,7 +349,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
         gridTemplateColumns: vorlage.breiten || "repeat(" + vorlage.spalten + ", minmax(0, 1fr))" }}>
         {reihen.map((r, ri) => r.map((nr, si) => (nr ? zelle(nr, ri, si)
           : (ri >= kopfAb && si < kopfBreite) ? null
-          : <div key={"l" + ri + "-" + si} className="eba-zelle eba-leer" style={{ gridRow: ri + 1, gridColumn: si + 1 }} />)))}
+          : zelle(freiFeld(ri, si), ri, si))))}
         <div className={"eba-zelle eba-kopf" + (kopfBreite < 2 ? " eba-kopf--schmal" : "") + (bearbeiten ? " eba-kopf--bearbeiten" : "")}
           style={{ gridRow: (kopfAb + 1) + " / " + (reihen.length + 1), gridColumn: "1 / " + (kopfBreite + 1) }}
           data-eba-kopf="" onClick={(e) => e.stopPropagation()}>
@@ -522,7 +518,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
   };
   return (
     <div className="eba-platzfenster" data-platzfenster={nr} onClick={(e) => e.stopPropagation()}>
-      <div className="eba-pf-kopf"><b>{p.tnr ? p.tnr + " (auf " + platzName(nr) + ")" : platzName(nr)}{titel ? " · " + titel : ""}</b>
+      <div className="eba-pf-kopf"><b>{p.tnr ? p.tnr + (platzName(nr) ? " (auf " + platzName(nr) + ")" : "") : platzName(nr) || "Feld ohne T-Nr."}{titel ? " · " + titel : ""}</b>
         <button className="knopf knopf--klein knopf--still" data-pf-zu="" onClick={zu}>✕</button></div>
       <div className="eba-pf-oben">
         {BILDER_AN && <button className="eba-pf-bildknopf" data-pf-bild="" onClick={() => setBildWahl(!bildWahl)} title="Bild wählen">
@@ -533,7 +529,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
           <label className="feld"><span>Tätigkeit</span><input data-pf="taetigkeit" value={p.taetigkeit || ""} onChange={f("taetigkeit")} /></label>
           <label className="feld"><span>Mass</span><input data-pf="mass" value={p.mass || ""} onChange={f("mass")} /></label>
           <label className="feld"><span>Andere T-Nr. (anderer Halter drauf)</span><input data-pf="tnr" value={p.tnr || ""}
-            placeholder={"leer = " + platzName(nr)} onChange={f("tnr")} onBlur={() => setP(Object.assign({}, p, { tnr: tnrSchreiben(p.tnr) }))} /></label>
+            placeholder={platzName(nr) ? "leer = " + platzName(nr) : "leer = ohne T-Nr."} onChange={f("tnr")} onBlur={() => setP(Object.assign({}, p, { tnr: tnrSchreiben(p.tnr) }))} /></label>
         </div>
       </div>
       {BILDER_AN && bildWahl && <Bibliothek aktiv={bild && bild.schluessel}
@@ -934,7 +930,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     });
     setWechsel(null); setPlatz(null);
     const war = (entwurf.plaetze || {})[nach];
-    alt.meldung(platzName(von) + (war && platzInGebrauch(war) ? " und " + platzName(nach) + " getauscht." : " auf " + platzName(nach) + " verschoben."), "gut");
+    const nameVon = (k) => platzName(k) || "Feld ohne T-Nr.";
+    alt.meldung(nameVon(von) + (war && platzInGebrauch(war) ? " und " + nameVon(nach) + " getauscht." : " auf " + nameVon(nach) + " verschoben."), "gut");
   };
   // Werkzeug eines Platzes gleich bestellen: Neue Bestellposition mit dem
   // Artikel, danach steht es unter Bestellungen → Offen (Wunsch Patrick
@@ -1063,7 +1060,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         {!vorgelesen.liest && <button className="linkknopf" data-eba-vorgelesen-zu="" onClick={() => setVorgelesen(null)}>✕</button>}
       </div>}
       {bearbeiten && wechsel && !zseite && <div className="eba-vorgelesen eba-wechsel" data-eba-wechsel={wechsel}>
-        <span><b>{platzName(wechsel)} wechseln:</b> jetzt den neuen Platz antippen. Steht dort schon ein Werkzeug, tauschen die beiden.</span>
+        <span><b>{platzName(wechsel) || "Feld ohne T-Nr."} wechseln:</b> jetzt den neuen Platz antippen. Steht dort schon ein Werkzeug, tauschen die beiden.</span>
         <button className="knopf knopf--klein" data-eba-wechsel-ab="" onClick={() => setWechsel(null)}>Abbrechen</button>
       </div>}
       <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => { setPlatz(null); setMarkiert(null); }}>

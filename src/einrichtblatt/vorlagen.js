@@ -178,7 +178,8 @@ export function vorlageFuer(typ, paths) {
 export function reihenMitRest(vorlage, plaetze) {
   const reihen = vorlage.reihen.map((r) => r.slice());
   const drin = new Set(reihen.flat().filter(Boolean));
-  const rest = Object.keys(plaetze || {}).filter((k) => !drin.has(k)).sort(platzSort);
+  // Freie Felder („Frei-2-5“) stehen an ihrer Stelle im Raster, nicht hinten
+  const rest = Object.keys(plaetze || {}).filter((k) => !drin.has(k) && !istFreiFeld(k)).sort(platzSort);
   const frei = vorlage.spalten - vorlage.kopfBreite;
   while (rest.length) {
     const r = Array.from({ length: vorlage.kopfBreite }, () => null)
@@ -188,8 +189,16 @@ export function reihenMitRest(vorlage, plaetze) {
   return reihen;
 }
 
-// „R2-T7“ → Revolver 2, T7; „T1100“ bleibt
+// Freies Feld ohne Platz der Vorlage (seit 1.352.2): wo im Raster sonst
+// ein leeres Loch war, steht ein Feld ohne T-Nr., das man trotzdem
+// beschreiben kann (Wunsch Patrick 3. November 2026). Schlüssel nach der
+// Stelle im Raster, „Frei-<Reihe>-<Spalte>“
+export const freiFeld = (ri, si) => "Frei-" + ri + "-" + si;
+export const istFreiFeld = (k) => /^Frei-\d+-\d+$/.test(k || "");
+
+// „R2-T7“ → Revolver 2, T7; „T1100“ bleibt; ein freies Feld hat keine T-Nr.
 export function platzName(key) {
+  if (istFreiFeld(key)) return "";
   const m = /^R(\d)-(T\d+)$/.exec(key || "");
   return m ? m[2] : key;
 }

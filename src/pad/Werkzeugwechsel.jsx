@@ -78,7 +78,7 @@ export async function werkzeugWechselDialog(maschine, auftrag) {
       const gruppen = {};
       imBlatt.sort(([a], [b]) => nachZahl(a, b)).forEach(([k, p]) => {
         const g = platzGruppe(k) || "Werkzeuge";
-        (gruppen[g] = gruppen[g] || []).push({ id: k, tool_nr: platzName(k), eb: p });
+        (gruppen[g] = gruppen[g] || []).push({ id: k, tool_nr: platzName(k) || k, eb: p });
       });
       reihen = Object.entries(gruppen).map(([name, plaetze]) => ({ id: name, name, plaetze }));
     }
@@ -327,7 +327,7 @@ async function blattSpalten(maschine, auftrag, runden) {
   if (!alle.length) {
     Object.keys(plaetze).filter((k) => platzInGebrauch(plaetze[k])).forEach((k) => {
       const g = platzGruppe(k);
-      alle.push({ tool_nr: platzName(k), path: g || null, nummer: g ? Number(g.replace(/\D/g, "")) : 0 });
+      alle.push({ tool_nr: platzName(k) || k, path: g || null, nummer: g ? Number(g.replace(/\D/g, "")) : 0 });
     });
   }
   const gewechselt = runden.flatMap((r) => r.zeilen);

@@ -81,9 +81,10 @@ with sync_playwright() as p:
            and pg.locator("[data-platz='T3100']").count() == 1)   # T3100 steht im Excel, kommt hinten dazu
     pruefe("Kopf mit Programm Nr., Artikel Bezeich, ohne N1000", "Path 1" not in s and "N1000" not in s and all(x in s for x in ("Programm Nr.:", "111, 333", "Artikel Bezeich", "Deckel")))
     pruefe("Werkzeugtext aus dem Excel nur im Bearbeiten markiert", pg.locator("[data-platz='T200'] .eba-wz--frei").count() == 0)
-    pruefe("Platz nicht im Aufbau: Feld ohne T-Nr. (1.303.0)",
-           pg.locator("[data-platz='T900']").count() == 0 and pg.locator("[data-platz-aus='T900']").count() == 1
-           and pg.locator("[data-platz-aus='T900']").inner_text().strip() == "")
+    # seit 1.352.2 ein normales Feld ohne T-Nr., das man beschreiben kann
+    pruefe("Platz nicht im Aufbau: Feld ohne T-Nr. (1.303.0, 1.352.2)",
+           pg.locator("[data-platz='T900'] [data-eba-ohne-nr]").count() == 1
+           and pg.locator("[data-platz='T900']").inner_text().strip() == "")
     pg.screenshot(path="einrichtblatt_app_ansicht.png")
     # Immer ein A4 quer, alle Werkzeugfelder gleich hoch, nichts ragt
     # hinaus (Wunsch Patrick, 24. Oktober 2026)
