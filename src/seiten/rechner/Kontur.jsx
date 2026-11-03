@@ -293,7 +293,7 @@ function KonturRechner({ imFenster }) {
               <span className="kt-leg kt-leg--kontur" /> Fertigkontur
               <span className="kt-leg kt-leg--bahn" /> programmierte Bahn (gedachte Spitze)
               <span className="kt-leg kt-leg--mitte" /> Schneidenmitte
-              {zeichnen ? " · Klick setzt den nächsten Punkt (Raster 0,1 mm), Tab springt in X und Z" : " · Klick auf ein Element wählt es"}
+              {zeichnen ? " · Klick setzt den nächsten Punkt (Raster 0,1 mm, rechter Winkel rastet ein), Tab springt in X und Z" : " · Klick auf ein Element wählt es"}
             </p>
             {fehler.length > 0 && <div className="kt-fehler" id="kt-fehler">{fehler.map((f) => <div key={f}>{f}</div>)}</div>}
           </section>
@@ -806,9 +806,18 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
     if (!m) return null;
     const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
     const raster = 0.1;
-    const z = Math.round((zmin + (q.x - ox) / s) / raster) * raster;
-    const r = Math.max(0, Math.round((rmin + (oy - q.y) / s) / (raster / 2)) * (raster / 2));
-    return { z, r };
+    let z = Math.round((zmin + (q.x - ox) / s) / raster) * raster;
+    let r = Math.max(0, Math.round((rmin + (oy - q.y) / s) / (raster / 2)) * (raster / 2));
+    // Fang für rechte Winkel (seit 1.374.0, Wunsch Patrick 3. November
+    // 2026): liegt die Maus bis FANG Punkte neben der Waagrechten oder
+    // Senkrechten durch das Konturende, gilt genau diese Linie.
+    let fang = null;
+    if (zeichnen) {
+      const FANG = 10;
+      if (Math.abs(q.y - Number(Y(ende))) < FANG) { r = ende.r; fang = "waag"; }
+      else if (Math.abs(q.x - Number(X(ende))) < FANG) { z = ende.z; fang = "senk"; }
+    }
+    return { z, r, fang };
   };
   const zahl = (n) => (Math.round(n * 1000) / 1000).toLocaleString("de-CH");
 
@@ -853,7 +862,15 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
         <circle cx={X({ z: Number(k.startZ) || 0 })} cy={Y({ r: (Number(k.startX) || 0) / 2 })} r="4" className="kt-startpunkt" />
         {zeichnen && maus && (
           <>
-            <line x1={X(ende)} y1={Y(ende)} x2={X(maus)} y2={Y(maus)} className="kt-gummi" />
+            <line x1={X(ende)} y1={Y(ende)} x2={X(maus)} y2={Y(maus)} className={"kt-gummi" + (maus.fang ? " kt-gummi--fang" : "")} />
+            {maus.fang && (() => {
+              // Zeichen für den rechten Winkel am Konturende
+              const ex = Number(X(ende)), ey = Number(Y(ende)), g = 9;
+              const sx = maus.fang === "waag" ? Math.sign(Number(X(maus)) - ex) || 1 : 0;
+              const sy = maus.fang === "senk" ? Math.sign(Number(Y(maus)) - ey) || 1 : 0;
+              const d = maus.fang === "waag" ? `M${ex + sx * g} ${ey} V${ey - g} H${ex}` : `M${ex} ${ey + sy * g} H${ex + g} V${ey}`;
+              return <path d={d} className="kt-fang" data-ktfang={maus.fang} />;
+            })()}
             <circle cx={X(maus)} cy={Y(maus)} r="3.5" className="kt-startpunkt" />
             <text x={Number(X(maus)) + 8} y={Number(Y(maus)) - 8} className="kt-text kt-text--maus">
               X{zahl(maus.r * 2)} Z{zahl(maus.z)}</text>

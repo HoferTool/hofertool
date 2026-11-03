@@ -11594,3 +11594,7 @@ html:has(.kt-raster), body:has(.kt-raster) { overflow-x: clip; }
 .fd-art--feuerwehr { --fd-farbe: #c0392b; }
 .fd-art.fd-art--an { background: var(--fd-farbe); color: #fff !important; }
 body.dunkel .fd-art { color: #fff !important; }
+/* Fang für rechte Winkel beim Zeichnen (seit 1.374.0): Gummilinie grün
+   und durchgezogen, am Konturende das Winkelzeichen */
+.kt-gummi--fang { stroke: #1a9b4b; stroke-dasharray: none; stroke-width: 1.8; }
+.kt-fang { fill: none; stroke: #1a9b4b; stroke-width: 1.4; pointer-events: none; }

@@ -105,6 +105,24 @@ with sync_playwright() as p:
     mx, my = box["x"] + box["width"] * 0.4, box["y"] + box["height"] * 0.4
     pruefe("Felder direkt neben der Maus", 0 <= d["x"] - mx < 40 and 0 <= d["y"] - my < 40)
     pg.keyboard.press("Escape")
+    # Fang für rechte Winkel: knapp neben der Waagrechten durchs Konturende
+    ende = pg.evaluate("""() => { const l = document.querySelector('.kt-gummi'); const m = l.ownerSVGElement.getScreenCTM();
+      const p = new DOMPoint(+l.getAttribute('x1'), +l.getAttribute('y1')).matrixTransform(m); return [p.x, p.y]; }""")
+    pg.mouse.move(ende[0] - 60, ende[1] + 5); pg.wait_for_timeout(100)
+    pruefe("Fang waagrecht sichtbar", pg.locator("[data-ktfang='waag']").count() == 1 and pg.locator(".kt-gummi--fang").count() == 1)
+    vor = pg.locator("[data-ktel]").count()
+    pg.mouse.click(ende[0] - 60, ende[1] + 5); pg.wait_for_timeout(150)
+    neu = pg.locator(f"[data-ktel='{vor}']")
+    pruefe("Fang setzt genau waagrecht", pg.locator("[data-ktel]").count() == vor + 1
+           and neu.locator("[data-ktfeld='x']").input_value() == "" and neu.locator("[data-ktfeld='z']").input_value() != "")
+    ende = pg.evaluate("""() => { const l = document.querySelector('.kt-gummi'); const m = l.ownerSVGElement.getScreenCTM();
+      const p = new DOMPoint(+l.getAttribute('x1'), +l.getAttribute('y1')).matrixTransform(m); return [p.x, p.y]; }""")
+    pg.mouse.move(ende[0] + 6, ende[1] - 50); pg.wait_for_timeout(100)
+    pruefe("Fang senkrecht sichtbar", pg.locator("[data-ktfang='senk']").count() == 1)
+    pg.mouse.move(ende[0] + 40, ende[1] - 50); pg.wait_for_timeout(100)
+    pruefe("Kein Fang schräg", pg.locator("[data-ktfang]").count() == 0)
+    pg.click("#kt-zurueck")  # gezeichnetes Element wieder weg
+    pg.wait_for_timeout(150)
     pg.click("#kt-zeichnen")
     # Klick auf ein Element in der Grafik wählt es in der Liste, Cursor in X
     pg.locator("#kt-bild [data-kttreffer='1']").click(force=True); pg.wait_for_timeout(200)
