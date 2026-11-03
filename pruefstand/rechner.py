@@ -32,8 +32,14 @@ with sync_playwright() as p:
 
     # Jeder Reiter zeigt etwas
     # Im Rechner nur noch Drehzahl und Winkel und Fase (seit 1.367.0)
-    if pg.locator("[data-unter='rechner/gcode']").count(): fehler.append("G-Code noch im Rechner")
-    pg.click("[data-unter='rechner/winkel']"); pg.wait_for_timeout(250)
+    # Seit 1.378.0 letzter Reiter von HOFER-NC-PRO, kein eigener Menüpunkt
+    if "HOFER-NC-PRO" not in pg.inner_text("h1.seitentitel"): fehler.append("#rechner führt nicht zu NC")
+    if not pg.locator("[data-unter='nc/rechner'].aktiv, .aktiv[data-unter='nc/rechner']").count() and not pg.locator("[data-rech='rechner'].aktiv").count():
+        fehler.append("Reiter Rechner nicht aktiv")
+    if pg.evaluate("[...document.querySelectorAll('.reiter--seite [data-rech]')].pop().dataset.rech") != "rechner":
+        fehler.append("Rechner nicht letzter Reiter")
+    if pg.locator("[data-unter='rechner/drehzahl']").count(): fehler.append("Rechner noch eigener Menüpunkt")
+    pg.click("[data-rech='winkel']"); pg.wait_for_timeout(250)
     if not pg.locator("#rech-inhalt input").count(): fehler.append("Reiter leer: winkel")
     pg.evaluate("location.hash='#nc'"); pg.wait_for_selector("[data-unter='nc/kontur']")
     if pg.locator("[data-unter='nc/gcode']").count(): fehler.append("G-Code noch da")
@@ -44,8 +50,8 @@ with sync_playwright() as p:
         if not pg.locator(f"#rech-inhalt").locator(merkmal).count():
             fehler.append("Reiter leer: " + reiter)
         if pg.locator("#rech-inhalt").count() != 1: fehler.append("rech-inhalt doppelt bei " + reiter)
-    pg.evaluate("location.hash='#rechner'"); pg.wait_for_selector("[data-unter='rechner/winkel']")
-    pg.click("[data-unter='rechner/winkel']"); pg.wait_for_timeout(200)
+    pg.evaluate("location.hash='#rechner'"); pg.wait_for_selector("[data-rech='winkel']")
+    pg.click("[data-rech='winkel']"); pg.wait_for_timeout(200)
     # Dreieck: a = 3, b = 4 → c = 5, β = 53,13°
     pg.fill("#w-a", "3"); pg.press("#w-a", "Tab"); pg.fill("#w-g", "4"); pg.press("#w-g", "Tab"); pg.wait_for_timeout(200)
     erg = pg.locator(".karte--ergebnis").first.inner_text().replace("\n", " ")
@@ -61,15 +67,15 @@ with sync_playwright() as p:
     pg.locator("#rech-inhalt input").first.fill("12"); pg.locator("#rech-inhalt input").first.press("Tab")
     pg.wait_for_timeout(200)
 
-    pg.evaluate("location.hash='#rechner'"); pg.wait_for_selector("[data-unter='rechner/winkel']")
-    pg.click("[data-unter='rechner/winkel']"); pg.wait_for_timeout(200)
+    pg.evaluate("location.hash='#rechner'"); pg.wait_for_selector("[data-rech='winkel']")
+    pg.click("[data-rech='winkel']"); pg.wait_for_timeout(200)
 
     # Seitenwechsel und zurück: Eingaben bleiben, Reiter bleibt
     pg.evaluate("location.hash='#einkauf'"); pg.wait_for_timeout(600)
     if pg.locator("#r-d").count(): fehler.append("Rechner nach Seitenwechsel noch da")
     pg.evaluate("location.hash='#rechner'"); pg.wait_for_timeout(400)
     if not pg.locator("[data-rech='winkel'].aktiv").count(): fehler.append("Reiter nicht gemerkt")
-    pg.click("[data-unter='rechner/drehzahl']"); pg.wait_for_timeout(200)
+    pg.click("[data-rech='drehzahl']"); pg.wait_for_timeout(200)
     if pg.input_value("#r-d") != "10": fehler.append("Durchmesser nicht gemerkt")
     for i in range(6):   # schnelles Hin und Her darf nichts kaputt machen
         pg.evaluate("location.hash='#einkauf'"); pg.wait_for_timeout(60)

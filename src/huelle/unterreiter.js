@@ -13,7 +13,6 @@
 import { alt } from "../bruecke.jsx";
 import { sichtbareReiter as prodReiter } from "../seiten/Produktion.jsx";
 import { REITER as BEST_REITER } from "../seiten/Bestellungen.jsx";
-import { REITER as RECH_REITER, rechnerAnsicht } from "../seiten/Rechner.jsx";
 import { REITER as NC_REITER, ncAnsicht } from "../seiten/NcFunktionen.jsx";
 
 // liste(): Reiter, die die Person sieht. merken(wert): Reiter für das
@@ -28,11 +27,6 @@ export const UNTERREITER = {
     liste: () => BEST_REITER,
     merken: (w) => { alt.best.ansicht = w; },
     gemerkt: () => alt.best.ansicht,
-  },
-  rechner: {
-    liste: () => RECH_REITER,
-    merken: (w) => rechnerAnsicht(w),
-    gemerkt: () => rechnerAnsicht(),
   },
   nc: {
     liste: () => NC_REITER,

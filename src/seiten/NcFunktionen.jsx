@@ -5,7 +5,9 @@
 //  Drehzahl und Winkel und Fase“). Reiter: Kontur, C-Achse, Gravur und
 //  DXF (je eine Datei in src/seiten/rechner/). Den Reiter G-Code (Fase
 //  und Radius) gibt es seit 1.370.0 nicht mehr, Kontur deckt das ab
-//  (Wunsch Patrick 3. November 2026).
+//  (Wunsch Patrick 3. November 2026). Seit 1.378.0 als letzter Reiter
+//  der Rechner (Drehzahl, Winkel und Fase), der vorher eine eigene
+//  Seite im Menü war (Wunsch Patrick 3. November 2026).
 //  Der Inhalt steht weiter in #rech-inhalt, damit Gestaltung und
 //  Prüfstand der Reiter unverändert gelten.
 // =================================================================
@@ -18,12 +20,13 @@ import CAchse from "./rechner/CAchse.jsx";
 import Gravur from "./rechner/Gravur.jsx";
 import Dxf from "./rechner/Dxf.jsx";
 import Kontur from "./rechner/Kontur.jsx";
+import Rechner, { REITER as RECHNER_REITER, rechnerAnsicht } from "./Rechner.jsx";
 
 export const REITER = [
-  ["kontur", "HOFER-NC-PRO"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"],
+  ["kontur", "HOFER-NC-PRO"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
 ];
 
-const INHALT = { cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur };
+const INHALT = { cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, rechner: Rechner };
 
 const gemerkt = { ansicht: "kontur" };
 teilMerken("nc", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
@@ -36,18 +39,23 @@ export function ncAnsicht(wert) {
 
 export default function NcFunktionen() {
   const [ansicht, setAnsicht] = useState(ncAnsicht());
+  const [neu, setNeu] = useState(0);
   useGemerkt(gemerkt, { ansicht });
   useSeitenSuche({
-    name: "HOFER-NC-PRO", platzhalter: "Kontur, C-Achse, Gravur, DXF …",
-    eintraege: REITER.map(([w, t]) => ({ gruppe: "HOFER-NC-PRO", zeichen: "⌨", titel: t, wert: w })),
-    springen: (x) => setAnsicht(x.wert),
+    name: "HOFER-NC-PRO", platzhalter: "Kontur, C-Achse, Gravur, DXF, Drehzahl …",
+    eintraege: [
+      ...REITER.map(([w, t]) => ({ gruppe: "HOFER-NC-PRO", zeichen: "⌨", titel: t, wert: w })),
+      ...RECHNER_REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: "rechner", unter: w })),
+    ],
+    // Drehzahl und Winkel liegen im Reiter Rechner; key wechselt, damit er die Wahl neu liest
+    springen: (x) => { if (x.unter) rechnerAnsicht(x.unter); setAnsicht(x.wert); setNeu((n) => n + 1); },
   });
   const Inhalt = INHALT[ansicht] || Kontur;
   return (
     <>
       <h1 className="seitentitel">HOFER-NC-PRO</h1>
       <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" seite="nc" />
-      <Uebergang key={ansicht}>
+      <Uebergang key={ansicht + (ansicht === "rechner" ? neu : "")}>
         <div id="rech-inhalt"><Inhalt /></div>
       </Uebergang>
     </>

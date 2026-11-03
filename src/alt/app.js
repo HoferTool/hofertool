@@ -12,8 +12,7 @@ import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { aehnlicheTreffer } from "../daten/aehnlich.js";
 import { abwesenheit } from "../daten/abwesenheit.js";
-import Rechner from "../seiten/Rechner.jsx";
-import NcFunktionen from "../seiten/NcFunktionen.jsx";
+import NcFunktionen, { ncAnsicht } from "../seiten/NcFunktionen.jsx";
 import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import "../seiten/Kalender.jsx";
@@ -157,7 +156,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.377.0";
+const APP_VERSION = "1.378.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10427,7 +10426,8 @@ const SEITEN = [
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
-  { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
+  // Der Rechner ist seit 1.378.0 der letzte Reiter von HOFER-NC-PRO
+  // (Wunsch Patrick 3. November 2026), #/rechner führt dorthin
   { pfad: "nc",           titel: "HOFER-NC-PRO", zeichen: SYM.nc,     zeige: reactSeite(NcFunktionen) },
   // Den Reiter Kalender gibt es seit 1.311.0 nicht mehr: die Termine stehen
   // als Karte auf der Startseite, ein Tipp öffnet das Fenster zum Verwalten
@@ -10894,6 +10894,13 @@ function zeichneSeite() {
     if (ARCHIV) { location.hash = "#/planwand"; return; }
     location.hash = "";
     einkaufOeffnen();
+    return;
+  }
+
+  // Der Rechner ist seit 1.378.0 ein Reiter von HOFER-NC-PRO
+  if (roh === "rechner" && !ARCHIV) {
+    ncAnsicht("rechner");
+    location.hash = "#/nc";
     return;
   }
 

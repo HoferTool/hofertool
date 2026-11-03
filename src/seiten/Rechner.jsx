@@ -3,13 +3,15 @@
 //  Reiter: Drehzahl (hier) und Winkel und Fase. G-Code, C-Achse,
 //  Gravur, DXF und Kontur stehen seit 1.367.0 auf der eigenen Seite
 //  NC-Funktionen (src/seiten/NcFunktionen.jsx).
+//  Seit 1.378.0 kein eigener Menüpunkt mehr, sondern der letzte Reiter
+//  „Rechner“ von HOFER-NC-PRO (Wunsch Patrick 3. November 2026: „Rechner
+//  bei NC einbauen als letztes“). #/rechner führt dorthin.
 // =================================================================
 import { useState } from "react";
 import { useGemerkt } from "../bruecke.jsx";
-import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
-import { Reiter, Uebergang } from "../teile/Reiter.jsx";
+import { Uebergang } from "../teile/Reiter.jsx";
 import Winkel from "./rechner/Winkel.jsx";
 
 export const REITER = [
@@ -42,24 +44,21 @@ const INHALT = { winkel: Winkel };
 
 const zahl = (n) => Math.round(n).toLocaleString("de-CH");
 
+// Inhalt des Reiters „Rechner“ in HOFER-NC-PRO: oben die Wahl Drehzahl
+// oder Winkel und Fase (data-rech wie früher die Reiter der Seite)
 export default function Rechner() {
   const [ansicht, setAnsicht] = useState(rechnerAnsicht());
   useGemerkt(gemerkt, { ansicht });
-  // Strg + F findet die Rechner (seit 1.169.0)
-  useSeitenSuche({
-    name: "Rechner", platzhalter: "Drehzahl, Winkel und Fase …",
-    eintraege: REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: w })),
-    springen: (x) => setAnsicht(x.wert),
-  });
-
   const Inhalt = INHALT[ansicht] || Drehzahl;
   return (
     <>
-      <h1 className="seitentitel">Rechner</h1>
-      <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" seite="rechner" />
-      <Uebergang key={ansicht}>
-        <div id="rech-inhalt"><Inhalt /></div>
-      </Uebergang>
+      <div className="moduswahl rech-wahl">
+        {REITER.map(([wert, text]) => (
+          <button key={wert} className={"moduswahl__knopf" + (ansicht === wert ? " aktiv" : "")}
+            data-rech={wert} onClick={() => setAnsicht(wert)}>{text}</button>
+        ))}
+      </div>
+      <Uebergang key={ansicht}><Inhalt /></Uebergang>
     </>
   );
 }
