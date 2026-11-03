@@ -20,7 +20,7 @@ import Dxf from "./rechner/Dxf.jsx";
 import Kontur from "./rechner/Kontur.jsx";
 
 export const REITER = [
-  ["kontur", "Kontur"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"],
+  ["kontur", "HOFER-NC-PRO"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"],
 ];
 
 const INHALT = { cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur };
