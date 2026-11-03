@@ -11,6 +11,7 @@ import { alt, reactSeite, reactAufraeumen } from "../bruecke.jsx";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { aehnlicheTreffer } from "../daten/aehnlich.js";
+import { abwesenheit } from "../daten/abwesenheit.js";
 import Rechner from "../seiten/Rechner.jsx";
 import NcFunktionen from "../seiten/NcFunktionen.jsx";
 import { statistikZurueck } from "../seiten/Statistik.jsx";
@@ -156,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.372.0";
+const APP_VERSION = "1.373.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5291,6 +5292,7 @@ function ferienInfoVerhalten() {
     fenster = document.createElement("div");
     fenster.className = "pw-info pw-info--ferien";
     fenster.innerHTML = '<div class="pw-info__kopf"><span class="pw-info__nr">' + esc(f.person || "") + '</span></div>'
+      + '<div class="pw-info__zeile">' + esc(abwesenheit(f).name) + '</div>'
       + '<div class="pw-info__zeile">📅 ' + esc(zeitraumText(f.von, f.tage)) + '</div>'
       + (notiz ? '<div class="pw-info__zeile">✎ ' + esc(notiz) + '</div>' : "");
     document.body.appendChild(fenster);
@@ -6358,12 +6360,15 @@ function zeichnePlanwand(b) {
     const feAngeschnitten = belegt[0] !== sichtbar[0];
     const bahn = bahnVon[f2.id] || Math.max(1, Number(f2.zeile) || 1);
     // Ferien brauchen keine Bestätigung mehr (Wunsch 9. Oktober 2026)
-    return '<div class="pw-ferien"'
-      + ' data-ferien="' + esc(f2.id) + '"'
+    // Art der Abwesenheit (1.373.0): eigene Farbe, ausser bei Ferien
+    // steht die Art kurz hinter dem Namen
+    const ab = abwesenheit(f2);
+    return '<div class="pw-ferien pw-ferien--' + ab.id + '"'
+      + ' data-ferien="' + esc(f2.id) + '" title="' + esc(ab.name) + '"'
       + ' data-von="' + von + '" data-dauer="' + sichtbar.length + '"'
       + ' style="--von:' + von + ';--dauer:' + sichtbar.length + ';--bahn:' + bahn + '">'
       + '<span class="pw-ferien__name">'
-      + esc(f2.person) + '</span>'
+      + esc(f2.person) + (ab.kurz ? '<span class="pw-ferien__art"> · ' + esc(ab.kurz) + '</span>' : "") + '</span>'
       + (fGriffe && !feAngeschnitten
           ? '<span class="pw-griff pw-griff--links" data-fgriff="links"></span>' : "")
       + (fGriffe

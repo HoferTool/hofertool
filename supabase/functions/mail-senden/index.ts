@@ -15,8 +15,8 @@
 // Aufrufe (POST, JSON, mit Anmeldung):
 //   { art: "pruefen" }    nur Admins: Probe-Mail an den Absender
 //   { art: "bestellung", an, kopie, betreff, text, html, logos, pdf: {name, base64}, positionen }
-//   { art: "ferien", id, person, von, bis, notiz }      neu oder ändern
-//   { art: "ferien_absagen", outlook_id, person }
+//   { art: "ferien", id, person, von, bis, notiz, bezeichnung }   neu oder ändern (bezeichnung = Art der Abwesenheit)
+//   { art: "ferien_absagen", outlook_id, person, bezeichnung }
 // Externe und das Dienstkonto dürfen nichts davon.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -190,16 +190,18 @@ Deno.serve(async (req) => {
       const { data: cfg } = await db.from("app_config").select("wert").eq("schluessel", "ferien_verteiler").maybeSingle();
       const verteiler = adressen(typeof cfg?.wert === "string" ? cfg.wert : "");
       const person = String(e.person || "").slice(0, 120);
+      // Art der Abwesenheit (seit 1.373.0): Ferien, Kompensieren, Militär/Zivilschutz, Feuerwehr
+      const grund = String(e.bezeichnung || "Ferien").slice(0, 40) || "Ferien";
 
       if (e.art === "ferien_absagen") {
         if (!e.outlook_id) return antwort({ ok: true, nichts: true });
         try {
           await graph(tok, "POST", absPfad + "/events/" + encodeURIComponent(e.outlook_id) + "/cancel",
-            { comment: "Die Ferien von " + person + " wurden im HoferTool gelöscht." });
+            { comment: "Der Eintrag " + grund + " von " + person + " wurde im HoferTool gelöscht." });
         } catch (f) {
           if ((f as { status?: number }).status !== 404) throw f;
         }
-        await protokoll("ferien", verteiler.join("; "), "Abgesagt: Ferien " + person, true);
+        await protokoll("ferien", verteiler.join("; "), "Abgesagt: " + grund + " " + person, true);
         return antwort({ ok: true });
       }
 
@@ -210,13 +212,13 @@ Deno.serve(async (req) => {
       if (!ferien) return antwort({ fehler: "Ferieneintrag nicht gefunden." }, 404);
       const notiz = String(e.notiz || "").trim();
       const termin = {
-        subject: "Ferien: " + person,
-        body: { contentType: "Text", content: person + " hat Ferien vom " + chDatum(vonIso) + " bis " + chDatum(bisIso) + "."
+        subject: grund + ": " + person,
+        body: { contentType: "Text", content: person + (grund === "Ferien" ? " hat Ferien vom " : " ist abwesend (" + grund + ") vom ") + chDatum(vonIso) + " bis " + chDatum(bisIso) + "."
           + (notiz ? "\n\n" + notiz : "") + "\n\nEingetragen im HoferTool." },
         start: { dateTime: vonIso + "T00:00:00", timeZone: "W. Europe Standard Time" },
         end: { dateTime: plusTag(bisIso) + "T00:00:00", timeZone: "W. Europe Standard Time" },
         isAllDay: true, showAs: "free", isReminderOn: false, responseRequested: false,
-        categories: ["Ferien"],
+        categories: [grund],
         attendees: verteiler.map((a) => ({ emailAddress: { address: a }, type: "required" })),
       };
       let id = ferien.outlook_id as string | null;
@@ -230,7 +232,7 @@ Deno.serve(async (req) => {
         id = r?.id || null;
         await db.from("vacations").update({ outlook_id: id }).eq("id", ferien.id);
       }
-      await protokoll("ferien", verteiler.join("; "), (neu ? "" : "Geändert: ") + "Ferien " + person, true);
+      await protokoll("ferien", verteiler.join("; "), (neu ? "" : "Geändert: ") + grund + " " + person, true);
       return antwort({ ok: true, empfaenger: verteiler.length, neu });
     }
 

@@ -11577,3 +11577,20 @@ html:has(.kt-raster), body:has(.kt-raster) { overflow-x: clip; }
 .kt-wz-karte .kt-werkzeug .klein { font-size: .68rem; line-height: 1.25; }
 .kt-wz-karte .schalter { margin: 2px 0 0; font-size: .82rem; align-items: center; }
 .kt-wz-karte .schalter input { width: 16px; height: 16px; margin: 0; }
+/* ---------- Art der Abwesenheit (1.373.0) ----------
+   Ferien bleiben grün, die anderen Arten bekommen eine eigene Farbe
+   auf der Planwand und im Ferienfenster. Weisse Schrift wie bisher. */
+.pw-ferien.pw-ferien--kompensieren { background: #2f6fb5 !important; }
+.pw-ferien.pw-ferien--militaer { background: #6b7a2e !important; }
+.pw-ferien.pw-ferien--feuerwehr { background: #c0392b !important; }
+.pw-ferien__art { font-weight: 500; opacity: .92; }
+.fd-arten { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0 0 12px; }
+.fd-art { border: 2px solid var(--fd-farbe); background: transparent; color: var(--fd-farbe);
+  border-radius: 8px; padding: 9px 6px; font: inherit; font-weight: 600; font-size: .9rem;
+  cursor: pointer; line-height: 1.15; }
+.fd-art--ferien { --fd-farbe: #1f8a70; }
+.fd-art--kompensieren { --fd-farbe: #2f6fb5; }
+.fd-art--militaer { --fd-farbe: #6b7a2e; }
+.fd-art--feuerwehr { --fd-farbe: #c0392b; }
+.fd-art.fd-art--an { background: var(--fd-farbe); color: #fff !important; }
+body.dunkel .fd-art { color: #fff !important; }

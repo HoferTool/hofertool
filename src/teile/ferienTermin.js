@@ -18,6 +18,7 @@
 //  ändern dürfen ihn nur Admins (Einstellungen → Allgemein).
 // =================================================================
 import { alt } from "../bruecke.jsx";
+import { abwesenheit } from "../daten/abwesenheit.js";
 import { mailAktiv, mailSenden } from "../daten/mailkonto.js";
 
 const SCHLUESSEL = "ferien_verteiler";
@@ -67,6 +68,10 @@ function falten(zeile) {
 const absage = (f) => f.art === "abgesagt";
 const METHODE = (f) => absage(f) ? "CANCEL" : "PUBLISH";
 const VORWORT = { geaendert: "Geändert: ", abgesagt: "Abgesagt: " };
+// Art der Abwesenheit (1.373.0): f.bezeichnung = „Kompensieren“ usw.,
+// ohne oder bei Ferien wie bisher
+const grund = (f) => f.bezeichnung || "Ferien";
+const weg = (f) => grund(f) === "Ferien" ? " in den Ferien" : " abwesend (" + grund(f) + ")";
 
 // { id, person, von, bis, tage, notiz, art } → Text der .ics-Datei
 export function icsBauen(f) {
@@ -85,9 +90,9 @@ export function icsBauen(f) {
     "SEQUENCE:" + Math.floor(jetzt.getTime() / 60000) % 2000000000,
     "DTSTART;VALUE=DATE:" + icsDatum(f.von),
     "DTEND;VALUE=DATE:" + icsDatum(ende),
-    "SUMMARY:" + icsText((absage(f) ? "Abgesagt: " : "") + "Ferien " + f.person),
+    "SUMMARY:" + icsText((absage(f) ? "Abgesagt: " : "") + grund(f) + " " + f.person),
     ...(absage(f) ? ["STATUS:CANCELLED"] : []),
-    "DESCRIPTION:" + icsText(f.person + " ist vom " + ch(f.von) + " bis " + ch(f.bis) + " in den Ferien"
+    "DESCRIPTION:" + icsText(f.person + " ist vom " + ch(f.von) + " bis " + ch(f.bis) + weg(f)
       + tageText(f.tage) + (f.notiz ? "\n" + f.notiz : "")),
     "TRANSP:TRANSPARENT",
     "X-MICROSOFT-CDO-BUSYSTATUS:FREE",
@@ -107,14 +112,14 @@ const zeilen76 = (s) => s.replace(/(.{76})/g, "$1\r\n");
 
 export function mailText(f, absender) {
   if (absage(f)) return "Guten Tag\n\n"
-    + "Die Ferien von " + f.person + " vom " + ch(f.von) + " bis " + ch(f.bis) + " sind gelöscht.\n"
+    + "Der Eintrag " + grund(f) + " von " + f.person + " vom " + ch(f.von) + " bis " + ch(f.bis) + " ist gelöscht.\n"
     + "\nDie Absage liegt im Anhang. Öffnen und „Aus Kalender entfernen“ nimmt den Termin aus Ihrem Kalender,"
     + " sonst bitte von Hand löschen.\n\n"
     + "Freundliche Grüsse\n\n" + (absender || "") + "\nHofer + Co. Präzisionsdrehteile";
   const geaendert = f.art === "geaendert";
   return "Guten Tag\n\n"
-    + (geaendert ? "Die Ferien von " + f.person + " haben sich geändert. Neu: " : "")
-    + f.person + " ist vom " + ch(f.von) + " bis " + ch(f.bis) + " in den Ferien"
+    + (geaendert ? "Der Eintrag " + grund(f) + " von " + f.person + " hat sich geändert. Neu: " : "")
+    + f.person + " ist vom " + ch(f.von) + " bis " + ch(f.bis) + weg(f)
     + tageText(f.tage) + "\n"
     + (f.vorher ? "Vorher: " + ch(f.vorher.von) + " bis " + ch(f.vorher.bis) + "\n" : "")
     + (f.notiz ? "Notiz: " + f.notiz + "\n" : "")
@@ -126,8 +131,8 @@ export function mailText(f, absender) {
 
 export function emlBauen(f, an, absender) {
   const g = "----=_Hofer_F" + Date.now();
-  const name = "Ferien " + f.person.replace(/[\\/:*?"<>|]/g, "") + ".ics";
-  const betreff = (VORWORT[f.art] || "") + "Ferien " + f.person + ": " + ch(f.von) + " – " + ch(f.bis);
+  const name = grund(f).replace(/\//g, "-") + " " + f.person.replace(/[\\/:*?"<>|]/g, "") + ".ics";
+  const betreff = (VORWORT[f.art] || "") + grund(f) + " " + f.person + ": " + ch(f.von) + " – " + ch(f.bis);
   return [
     "To: " + an.join(", "),
     "Subject: =?UTF-8?B?" + b64(betreff) + "?=",
@@ -171,10 +176,10 @@ export async function ferienTerminSenden(f, verteiler) {
   if (await mailAktiv()) {
     try {
       if (f.art === "abgesagt") {
-        await mailSenden({ art: "ferien_absagen", outlook_id: f.outlook_id || null, person: f.person });
+        await mailSenden({ art: "ferien_absagen", outlook_id: f.outlook_id || null, person: f.person, bezeichnung: grund(f) });
         if (f.outlook_id) alt.meldung("Ferientermin in Outlook abgesagt.", "gut");
       } else {
-        const r = await mailSenden({ art: "ferien", id: f.id, person: f.person, von: f.von, bis: f.bis, notiz: f.notiz || "" });
+        const r = await mailSenden({ art: "ferien", id: f.id, person: f.person, von: f.von, bis: f.bis, notiz: f.notiz || "", bezeichnung: grund(f) });
         if (r.empfaenger) alt.meldung((f.art === "geaendert" ? "Ferientermin in Outlook geändert" : "Ferientermin an "
           + r.empfaenger + " Empfänger gesendet") + ".", "gut");
       }
@@ -186,13 +191,13 @@ export async function ferienTerminSenden(f, verteiler) {
   const absender = (alt.profil && alt.profil.full_name) || "";
   const mobil = /iPad|iPhone|Android/.test(navigator.userAgent)
     || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
-  const dateiName = "Ferien " + f.person.replace(/[\\/:*?"<>|]/g, "");
+  const dateiName = grund(f).replace(/\//g, "-") + " " + f.person.replace(/[\\/:*?"<>|]/g, "");
   if (mobil && navigator.canShare) {
     const datei = new File([icsBauen(f)], dateiName + ".ics", { type: "text/calendar" });
     if (navigator.canShare({ files: [datei] })) {
       try { if (navigator.clipboard) await navigator.clipboard.writeText(an.join(", ")); } catch (e) { /* ohne Zwischenablage */ }
       try {
-        await navigator.share({ files: [datei], title: (VORWORT[f.art] || "") + "Ferien " + f.person, text: mailText(f, absender) });
+        await navigator.share({ files: [datei], title: (VORWORT[f.art] || "") + grund(f) + " " + f.person, text: mailText(f, absender) });
         alt.meldung("Termin geteilt. Die Empfänger liegen in der Zwischenablage, im Mail bei An einfügen.", "gut");
         return;
       } catch (e) {
@@ -214,7 +219,8 @@ export async function ferienAktualisieren(eintrag, art, vorher) {
   if (!adressenAus(verteiler).length) return;
   const tage = eintrag.tage || 1;
   const f = { id: eintrag.id, outlook_id: eintrag.outlook_id, person: eintrag.person, von: eintrag.von, tage,
-    bis: alt.letzterArbeitstag(eintrag.von, tage), notiz: eintrag.note || "", art };
+    bis: alt.letzterArbeitstag(eintrag.von, tage), notiz: eintrag.note || "", art,
+    bezeichnung: abwesenheit(eintrag).name };
   if (vorher && vorher.von && (vorher.von !== f.von || (vorher.tage || 1) !== tage))
     f.vorher = { von: vorher.von, bis: alt.letzterArbeitstag(vorher.von, vorher.tage || 1) };
   try { await ferienTerminSenden(f, verteiler); }

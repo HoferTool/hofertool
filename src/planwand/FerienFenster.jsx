@@ -9,6 +9,7 @@ import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { adressenAus, ferienAktualisieren, ferienTerminSenden, verteilerLaden } from "../teile/ferienTermin.js";
 import { mailAktiv } from "../daten/mailkonto.js";
+import { ABWESENHEITEN, abwesenheit } from "../daten/abwesenheit.js";
 
 // freieZeile(von, tage, ausserId) sucht die erste Ferienzeile ohne
 // Überschneidung; sie bleibt im alten Programm bei der Planwand.
@@ -27,6 +28,9 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
   const [von, setVon] = useState(start);
   const [bis, setBis] = useState(eintrag ? alt.letzterArbeitstag(eintrag.von, eintrag.tage || 1) : start);
   const [notiz, setNotiz] = useState(eintrag ? (eintrag.note || "") : "");
+  // Art der Abwesenheit (1.373.0): Ferien, Kompensieren, Militär/Zivilschutz, Feuerwehr
+  const [art, setArt] = useState(abwesenheit(eintrag).id);
+  const artName = (ABWESENHEITEN.find((a) => a.id === art) || ABWESENHEITEN[0]).name;
   // Outlook-Termin an den Verteiler (1.235.0, Wunsch Patrick 27. Oktober 2026):
   // nur, wenn unter Einstellungen Empfänger stehen; seit 1.239.0 auch
   // beim Ändern eingeschaltet, dann als Aktualisierung.
@@ -57,12 +61,20 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
       zeile: zeile || alt.freieFerienZeile(erster, tage, eintrag ? eintrag.id : null),
       von: erster, tage,
       note: notiz.trim() || null,
+      abwesenheit: art,
     };
     if (!eintrag) daten.genehmigt = true;
     const vorher = eintrag ? await alt.rueckSichern("vacations", { id: eintrag.id }) : [];
-    const { data, error } = eintrag
-      ? await alt.db.from("vacations").update(daten).eq("id", eintrag.id)
-      : await alt.db.from("vacations").insert(daten).select("id");
+    const schreiben = (d) => eintrag
+      ? alt.db.from("vacations").update(d).eq("id", eintrag.id)
+      : alt.db.from("vacations").insert(d).select("id");
+    let { data, error } = await schreiben(daten);
+    // Ohne die Spalte (sql/abwesenheit-art.sql) trotzdem speichern, als Ferien
+    if (error && /abwesenheit/.test(error.message || "")) {
+      delete daten.abwesenheit;
+      ({ data, error } = await schreiben(daten));
+      if (!error && art !== "ferien") alt.meldung("Die Art „" + artName + "“ kennt die Datenbank noch nicht, gespeichert als Ferien.", "warn");
+    }
     let neuId = null;
     if (!error) {
       neuId = !eintrag && Array.isArray(data) && data[0] && data[0].id;
@@ -72,7 +84,7 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
     fertig(error, "Gespeichert.");
     if (!error && termin && empfaenger.length) {
       ferienTerminSenden({ id: eintrag ? eintrag.id : neuId, person: wer, von: erster,
-        bis: alt.letzterArbeitstag(erster, tage), tage, notiz: notiz.trim(),
+        bis: alt.letzterArbeitstag(erster, tage), tage, notiz: notiz.trim(), bezeichnung: artName,
         art: eintrag ? "geaendert" : undefined,
         vorher: eintrag && (eintrag.von !== erster || (eintrag.tage || 1) !== tage)
           ? { von: eintrag.von, bis: alt.letzterArbeitstag(eintrag.von, eintrag.tage || 1) } : undefined }, verteiler)
@@ -82,7 +94,7 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
 
   const loeschen = async () => {
     const sicher = await alt.nachfragen({
-      titel: "Ferien löschen",
+      titel: abwesenheit(eintrag).name + " löschen",
       text: "Soll der Eintrag für " + eintrag.person + " gelöscht werden?",
       bestaetigen: "Löschen", gefahr: true });
     if (!sicher) return;
@@ -95,7 +107,15 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
 
   return (
     <div className="dialog">
-      <h2>{eintrag ? "Ferien" : "Ferien eintragen"}</h2>
+      <h2>{eintrag ? artName : artName + " eintragen"}</h2>
+
+      <div className="fd-arten" role="radiogroup" aria-label="Art">
+        {ABWESENHEITEN.map((a) => (
+          <button key={a.id} type="button" role="radio" aria-checked={art === a.id}
+            className={"fd-art fd-art--" + a.id + (art === a.id ? " fd-art--an" : "")}
+            data-art={a.id} onClick={() => setArt(a.id)}>{a.name}</button>
+        ))}
+      </div>
 
       <label className="feld"><span>Wer</span>
         <input id="fd-person" type="text" placeholder="Name" data-fokus="" value={person}
@@ -116,7 +136,7 @@ function FerienFenster({ eintrag, zeile, datum, b, zu }) {
       )}
 
       <div className="dialog__knoepfe">
-        {eintrag && <button className="knopf knopf--gefahr" id="fd-weg" onClick={loeschen}>Ferien löschen</button>}
+        {eintrag && <button className="knopf knopf--gefahr" id="fd-weg" onClick={loeschen}>Löschen</button>}
         <button className="knopf knopf--still" id="fd-nein" onClick={zu}>Abbrechen</button>
         <button className="knopf knopf--haupt"
           id="fd-ja" onClick={speichern}>Speichern</button>

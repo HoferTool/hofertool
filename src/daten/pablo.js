@@ -9,6 +9,7 @@
 //  Patrick 3. November 2026: „Nur selbst, ohne Claude“). Er sieht nur,
 //  was die angemeldete Person auf der Planwand sieht.
 // =================================================================
+import { abwesenheit } from "./abwesenheit.js";
 import { alt } from "../bruecke.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 
@@ -391,8 +392,9 @@ export async function selbstAntworten(frage) {
     const h = heute(), bis = alt.plusTage(h, 14);
     const f = ferienListe().map((v) => ({ v, e: alt.letzterArbeitstag(v.von, v.tage || 1) }))
       .filter((x) => x.e >= h && x.v.von <= bis).sort((a, b) => a.v.von.localeCompare(b.v.von));
-    if (!f.length) return { text: "In den nächsten zwei Wochen ist niemand in den Ferien eingetragen.", sicher: true };
-    return { text: "Ferien in den nächsten zwei Wochen: " + f.slice(0, 8).map((x) => x.v.person
+    if (!f.length) return { text: "In den nächsten zwei Wochen ist niemand abwesend eingetragen.", sicher: true };
+    return { text: "Abwesend in den nächsten zwei Wochen: " + f.slice(0, 8).map((x) => x.v.person
+      + (abwesenheit(x.v).id !== "ferien" ? " (" + abwesenheit(x.v).name + ")" : "")
       + (x.v.von <= h ? " bis " + datumText(x.e) : " ab " + datumText(x.v.von) + " bis " + datumText(x.e))).join(", ") + ".", sicher: true };
   }
 
