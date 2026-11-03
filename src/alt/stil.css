@@ -11633,3 +11633,43 @@ body.dunkel .kt-marke__name { color: #fff !important; }
 .lk-profil-zeile { display: flex; align-items: center; gap: 14px; margin: 4px 0 12px; }
 .lk-profil-zeile__knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
 .lk-profil-zeile__knoepfe .knopf { display: inline-flex; align-items: center; gap: 7px; }
+
+/* Textknöpfe („Bearbeiten“, „Löschen“ …) sind seit 1.379.0 richtige Knöpfe
+   im Stil der Symbolknöpfe daneben, nicht mehr unterstrichener Text
+   (Wunsch Patrick 3. November 2026: „buttons“, „eigentlich überall“).
+   Die Klasse bleibt linkknopf, damit alle Stellen auf einmal wechseln. */
+.linkknopf {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 32px; padding: 4px 11px;
+  border: 1px solid var(--linie); border-radius: 8px;
+  background: var(--flaeche); color: var(--marke);
+  font-size: .85rem; font-weight: 600; line-height: 1.2;
+  text-decoration: none; white-space: nowrap; vertical-align: middle;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.linkknopf:hover:not(:disabled) { border-color: var(--marke); background: var(--marke-hell); text-decoration: none; }
+.linkknopf:active:not(:disabled) { transform: translateY(1px); }
+.linkknopf:disabled { opacity: .5; cursor: default; }
+.linkknopf--gefahr { color: var(--gefahr); }
+.linkknopf--gefahr:hover:not(:disabled) { border-color: var(--gefahr);
+  background: color-mix(in srgb, var(--gefahr) 10%, var(--flaeche)); }
+.notiz .linkknopf, .fest__zeile .linkknopf, .suche-alles__wo .linkknopf { font-size: .8rem; }
+.tabelle td.rechts .linkknopf { margin: 2px 0 2px 6px; }
+.tabelle--bestellungen .bz-aktionen .linkknopf { margin-left: 8px; }
+@media (max-width: 640px) { .tabelle--bestellungen .bz-aktionen .linkknopf { margin: 0 8px 0 0; } }
+body.dunkel .linkknopf { background: color-mix(in srgb, #fff 4%, transparent); }
+body.dunkel .linkknopf, body.dunkel .linkknopf * { color: #8fb8ff !important; }
+body.dunkel .linkknopf--gefahr, body.dunkel .linkknopf--gefahr * { color: #ff8a80 !important; }
+body.dunkel .linkknopf:hover:not(:disabled) { background: color-mix(in srgb, #8fb8ff 12%, transparent); }
+/* Auf der blauen Anmeldung und in farbigen Hinweisen bleibt der Text wie bisher */
+.login__karte .linkknopf { border: none; background: none; color: #fff; text-decoration: underline;
+  font-weight: 400; padding: 6px 0; min-height: 0; }
+.eba-vorgelesen .linkknopf { color: inherit; background: transparent; border-color: currentColor; }
+body.dunkel .eba-vorgelesen .linkknopf { background: transparent; color: #5a4300 !important; }
+body.dunkel .eba-vorgelesen--fehler .linkknopf { color: #7a1f1f !important; }
+/* Am Handy stehen die Knöpfe unter dem Text, sonst bleibt für ihn kaum Platz */
+@media (max-width: 640px) {
+  .notiz { flex-wrap: wrap; row-gap: 6px; }
+  .notiz .notiz__text { flex: 1 1 calc(100% - 40px); }
+  .notiz input + .notiz__text ~ .linkknopf:first-of-type { margin-left: 30px; }
+}
