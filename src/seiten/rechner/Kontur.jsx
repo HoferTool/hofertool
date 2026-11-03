@@ -55,7 +55,7 @@ function fensterAuf() {
   if (fensterZu) return;
   const zu = fensterOeffnen((zu) => (
     <div className="dialog kt-eigen">
-      <div className="karte__kopf kt-eigen__kopf"><h2>Konturenrechner</h2>
+      <div className="karte__kopf kt-eigen__kopf"><span />
         <button className="knopf knopf--klein" id="kt-eigen-zu" onClick={zu}>Zurück ins HoferTool</button></div>
       <KonturRechner imFenster />
     </div>
@@ -68,8 +68,47 @@ function fensterAuf() {
     lage: { x: window.screenX + 60, y: window.screenY + 60 } })) zu();
 }
 
+// Erklärvideo beim Öffnen (seit 1.376.0, Wunsch Patrick 3. November 2026:
+// „Erklärvideo beim Öffnen von HOFER-NC-PRO, wie ein Tutorial zum Starten,
+// mit einer Checkbox soll es nicht mehr kommen“). Das Video ist mit dem
+// Prüfstand und Beispieldaten aufgenommen (pruefstand/tutorial_video.py)
+// und liegt in public/hilfe/, ausserhalb des Offline-Vorrats.
+const TUTORIAL_AUS = "ncpro_tutorial_aus";
+const LOGO_FARBE = import.meta.env.BASE_URL + "logo-empfang.png";
+const LOGO_HELL = import.meta.env.BASE_URL + "logo-weiss.svg";
+let tutorialGezeigt = false;
+export function tutorialOeffnen() {
+  fensterOeffnen((zu) => <Tutorial zu={zu} />, null, "kt-tutorial-huelle");
+}
+function Tutorial({ zu }) {
+  const [aus, setAus] = useState(() => alt.einstellungWert && alt.einstellungWert(TUTORIAL_AUS, "") === "1");
+  return (
+    <div className="dialog kt-tutorial" id="kt-tutorial">
+      <div className="kt-tutorial__kopf">
+        <img className="kt-marke__logo kt-marke__logo--hell" src={LOGO_FARBE} alt="Hofer + Co." />
+        <img className="kt-marke__logo kt-marke__logo--dunkel" src={LOGO_HELL} alt="Hofer + Co." />
+        <h2>So startest du mit HOFER-NC-PRO</h2>
+      </div>
+      <video src="hilfe/hofer-nc-pro.mp4" controls autoPlay muted playsInline className="kt-tutorial__video" />
+      <div className="kt-tutorial__fuss">
+        <label className="schalter schalter--eng"><input type="checkbox" id="kt-tutorial-aus" checked={aus}
+          onChange={(e) => { setAus(e.target.checked); alt.einstellungSetzenWert && alt.einstellungSetzenWert(TUTORIAL_AUS, e.target.checked ? "1" : ""); }} />
+          <span>Nicht mehr anzeigen</span></label>
+        <button className="knopf knopf--haupt" id="kt-tutorial-zu" onClick={zu}>Los geht's</button>
+      </div>
+    </div>
+  );
+}
+
 export default function Kontur() {
   const [, neu] = useState(0);
+  useEffect(() => {
+    // Einmal je Laden der App, solange „Nicht mehr anzeigen“ fehlt
+    if (tutorialGezeigt || fensterZu || (window.TEST && !window.TEST.tutorial)) return;
+    if (alt.einstellungWert && alt.einstellungWert(TUTORIAL_AUS, "") === "1") return;
+    tutorialGezeigt = true;
+    tutorialOeffnen();
+  }, []);
   useEffect(() => {
     const f = () => neu((n) => n + 1);
     fensterHoerer.add(f);
@@ -215,10 +254,24 @@ function KonturRechner({ imFenster }) {
 
   return (
     <div className="kt" ref={wurzel}>
-      {!imFenster && window.matchMedia && window.matchMedia("(pointer: fine)").matches && (
-        <div className="kt-oben"><button className="knopf knopf--klein" id="kt-eigen" onClick={fensterAuf}
-          title="Den Rechner in einem eigenen Browserfenster öffnen, das man verschieben kann, auch auf einen anderen Bildschirm">
-          ⧉ Eigenes Fenster</button></div>)}
+      {/* Markenleiste mit Logo (seit 1.376.0, Wunsch Patrick 3. November 2026:
+          „mach irgendwo noch gut platziert das Hofer Logo“). Hell das farbige
+          Logo vom Empfang, im dunklen Modus das weisse. */}
+      <div className="kt-oben" id="kt-marke">
+        <div className="kt-marke">
+          <img className="kt-marke__logo kt-marke__logo--hell" src={LOGO_FARBE} alt="Hofer + Co." />
+          <img className="kt-marke__logo kt-marke__logo--dunkel" src={LOGO_HELL} alt="Hofer + Co." />
+          <span className="kt-marke__strich" />
+          <span className="kt-marke__name">HOFER-NC-PRO</span>
+        </div>
+        <div className="kt-oben__knoepfe">
+          <button className="knopf knopf--klein" id="kt-anleitung" title="Erklärvideo zum Start" onClick={tutorialOeffnen}>▶ Anleitung</button>
+          {!imFenster && window.matchMedia && window.matchMedia("(pointer: fine)").matches && (
+            <button className="knopf knopf--klein" id="kt-eigen" onClick={fensterAuf}
+              title="Den Rechner in einem eigenen Browserfenster öffnen, das man verschieben kann, auch auf einen anderen Bildschirm">
+              ⧉ Eigenes Fenster</button>)}
+        </div>
+      </div>
       <div className="kt-raster">
         <div>
           <section className="karte">
