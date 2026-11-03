@@ -11,6 +11,7 @@
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
+import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { konturRechnen, bahnRechnen, ncProgramm, bogenWinkel, SPITZEN } from "./kontur.js";
 
 const VORGABE = {
@@ -41,6 +42,7 @@ export default function Kontur() {
   const [k, setK] = useState(laden);
   const [wahl, setWahl] = useState(-1);
   const [zeichnen, setZeichnen] = useState(false);
+  const [gespeichert, setGespeichert] = useState(null);
   const speichern = useRef(null);
 
   const aendern = (neu) => {
@@ -76,15 +78,25 @@ export default function Kontur() {
     catch (f) { alt.meldung("Kopieren nicht möglich. Bitte von Hand markieren.", "warn"); }
   };
 
+  // Als Textdatei, etwa für den USB-Stick an der Maschine
+  const herunterladen = () => {
+    const name = (k.name || "kontur").replace(/[^\w.-]+/g, "_");
+    const url = URL.createObjectURL(new Blob([code.replace(/\n/g, "\r\n") + "\r\n"], { type: "text/plain" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = name + ".nc"; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+
   // Ende der Kontur, damit ein Klick beim Zeichnen weiss, von wo aus
   const ende = kontur.segmente.length ? kontur.segmente[kontur.segmente.length - 1].b
     : { z: Number(k.startZ) || 0, r: (Number(k.startX) || 0) / 2 };
-  const punktSetzen = (z, r) => {
+  const punktSetzen = (z, r, genau) => {
     const el = neuesElement("gerade");
-    // Fast waagrecht oder senkrecht gilt als genau waagrecht oder senkrecht
+    // Mit der Maus: fast waagrecht oder senkrecht gilt als genau waagrecht
+    // oder senkrecht. Eingetippte Werte gelten so, wie sie sind.
     const dz = z - ende.z, dr = r - ende.r;
-    if (Math.abs(dr) > 1e-6 && Math.abs(dz) / Math.abs(dr) > 12) r = ende.r;
-    if (Math.abs(dz) > 1e-6 && Math.abs(dr) / Math.abs(dz) > 12) z = ende.z;
+    if (!genau && Math.abs(dr) > 1e-6 && Math.abs(dz) / Math.abs(dr) > 12) r = ende.r;
+    if (!genau && Math.abs(dz) > 1e-6 && Math.abs(dr) / Math.abs(dz) > 12) z = ende.z;
     if (Math.abs(r - ende.r) > 1e-6) el.x = zahlKurz(r * 2);
     if (Math.abs(z - ende.z) > 1e-6) el.z = zahlKurz(z);
     if (!el.x && !el.z) return;
@@ -97,7 +109,7 @@ export default function Kontur() {
       <div className="kt-raster">
         <div>
           <section className="karte">
-            <div className="karte__kopf"><h2>Kontur</h2><Konturliste k={k} aendern={aendern} /></div>
+            <div className="karte__kopf"><h2>Kontur</h2><Konturliste k={k} aendern={aendern} code={code} gespeichert={gespeichert} setGespeichert={setGespeichert} /></div>
             <div className="kt-start">
               <span className="kt-nr">S</span><b>Start</b>
               <Zahl label="X Ø" wert={k.startX} setze={(v) => aendern({ startX: v })} name="startX" />
@@ -167,14 +179,24 @@ export default function Kontur() {
               <span className="kt-leg kt-leg--kontur" /> Fertigkontur
               <span className="kt-leg kt-leg--bahn" /> programmierte Bahn (gedachte Spitze)
               <span className="kt-leg kt-leg--mitte" /> Schneidenmitte
-              {zeichnen ? " · Klick setzt den nächsten Punkt (Raster 0,1 mm)" : " · Klick auf ein Element wählt es"}
+              {zeichnen ? " · Klick setzt den nächsten Punkt (Raster 0,1 mm), Tab springt in X und Z" : " · Klick auf ein Element wählt es"}
             </p>
             {fehler.length > 0 && <div className="kt-fehler" id="kt-fehler">{fehler.map((f) => <div key={f}>{f}</div>)}</div>}
           </section>
 
           <section className="karte">
             <div className="karte__kopf"><h2>NC-Programm</h2>
-              <button className="linkknopf" id="kt-kopieren" onClick={kopieren}>Kopieren</button></div>
+              <span className="kt-dateien">
+                <button className="linkknopf" id="kt-datei" onClick={herunterladen}>Als Datei</button>
+                <button className="linkknopf" id="kt-kopieren" onClick={kopieren}>Kopieren</button></span></div>
+            {gespeichert && (gespeichert.nc === code
+              ? <p className="klein" id="kt-stand">Gespeichert als „{gespeichert.name}“ am {alt.datumZeitKurz(gespeichert.geaendert_am)}.</p>
+              : <p className="kt-fehler" id="kt-stand">Geändert seit dem Speichern als „{gespeichert.name}“. Nochmals „Speichern“, damit das neue Programm gilt.
+                {" "}<button className="linkknopf" id="kt-alt" onClick={() => fensterOeffnen((zu) => (
+                  <div className="dialog"><h2>Gespeichertes Programm „{gespeichert.name}“</h2>
+                    <pre className="gcode">{gespeichert.nc}</pre>
+                    <div className="dialog__knoepfe"><button className="knopf" onClick={zu}>Schliessen</button></div></div>))}>
+                  Gespeichertes ansehen</button></p>)}
             <pre className="gcode" id="kt-code">{code}</pre>
             <p className="hinweis">Fanuc-Schreibweise wie an den Star, X im Durchmesser. Der Schneidenradius ist in die
               Punkte eingerechnet, darum ohne G41/G42 und mit Schneidenradius 0 im Werkzeugkorrekturspeicher fahren.
@@ -231,45 +253,117 @@ function Element({ i, el, an, letztes, waehlen, aendern, weg }) {
   );
 }
 
-// Benannte Konturen am Konto
-function Konturliste({ k, aendern }) {
-  const [liste, setListe] = useState(() => {
-    try { return JSON.parse(alt.einstellungWert("konturliste", "[]")) || []; } catch (e) { return []; }
-  });
-  const ablegen = (neu) => { setListe(neu); alt.einstellungSetzenWert("konturliste", JSON.stringify(neu)); };
+// Gespeicherte Konturen samt erzeugtem NC-Programm in der Tabelle
+// „konturen“ (seit 1.356.0, sql/konturen.sql), für alle ausser Externen
+// und Dienst an jedem Gerät. Ohne Tabelle bleibt es beim Konto.
+const TABELLE = "konturen";
+const ohneTabelle = (e) => e && /konturen|relation|schema cache|PGRST205|42P01/i.test((e.message || "") + (e.code || ""));
+
+async function leuteNamen(ids) {
+  const leute = {};
+  const u = [...new Set(ids.filter(Boolean))];
+  if (!u.length) return leute;
+  const { data } = await alt.db.from("profiles").select("id, full_name, email").in("id", u);
+  (data || []).forEach((p) => { leute[p.id] = p.full_name || p.email || ""; });
+  return leute;
+}
+
+function ListeFenster({ zeilen, zu, oeffnen, loeschen }) {
+  const [suche, setSuche] = useState("");
+  const [liste, setListe] = useState(zeilen);
+  const w = suche.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const passend = liste.filter((z) => w.every((x) => (z.name + " " + (z.wer || "")).toLowerCase().includes(x)));
+  return (
+    <div className="dialog kt-liste-fenster"><h2>Gespeicherte Konturen</h2>
+      <input type="text" data-fokus placeholder="Suchen …" value={suche} onChange={(e) => setSuche(e.target.value)} id="kt-suche" />
+      <div className="kt-gespeichert">
+        {passend.length === 0 && <p className="klein">Keine Kontur gefunden.</p>}
+        {passend.map((z) => (
+          <div key={z.id} className="kt-gesp" data-ktgesp={z.name}>
+            <button className="kt-gesp__name" onClick={() => { oeffnen(z); zu(); }}>
+              <b>{z.name}</b>
+              <span className="klein">{z.geaendert_am ? alt.datumZeitKurz(z.geaendert_am) : ""}{z.wer ? " · " + z.wer : ""}</span>
+            </button>
+            <button className="kt-weg" title="Löschen" data-ktgespweg={z.name}
+              onClick={async () => { if (await loeschen(z)) setListe((l) => l.filter((x) => x.id !== z.id)); }}>✕</button>
+          </div>
+        ))}
+      </div>
+      <div className="dialog__knoepfe"><button className="knopf knopf--still" onClick={zu}>Schliessen</button></div>
+    </div>
+  );
+}
+
+function Konturliste({ k, aendern, code, gespeichert, setGespeichert }) {
+  const kontoListe = () => { try { return JSON.parse(alt.einstellungWert("konturliste", "[]")) || []; } catch (e) { return []; } };
+  const daten = () => { const d = { ...k }; delete d.name; return d; };
+
   const sichern = async () => {
     const w = await alt.dialogFelder({ titel: "Kontur speichern",
+      text: "Gespeichert wird die Kontur mit dem jetzt erzeugten NC-Programm, für alle sichtbar.",
       felder: [{ name: "name", label: "Name, z. B. HOCO Nr.", pflicht: true, wert: k.name || "" }], bestaetigen: "Speichern" });
     if (!w) return;
     const name = w.name.trim();
-    const daten = { ...k, name };
+    const { data: da, error: fl } = await alt.db.from(TABELLE).select("id, name").ilike("name", name.replace(/[%_\\]/g, "\\$&")).maybeSingle();
+    if (fl && ohneTabelle(fl)) {
+      // Ohne Tabelle: wie bisher am Konto
+      const liste = kontoListe().filter((x) => x.name !== name);
+      alt.einstellungSetzenWert("konturliste", JSON.stringify([...liste, { ...k, name, nc: code }]));
+      aendern({ name });
+      alt.meldung("Kontur „" + name + "“ an deinem Konto gespeichert.", "gut");
+      return;
+    }
+    if (da && da.name !== k.name && !(await alt.nachfragen({ titel: "Schon vorhanden",
+      text: "„" + da.name + "“ gibt es schon. Überschreiben?", bestaetigen: "Überschreiben" }))) return;
+    const zeile = { name, daten: daten(), nc: code };
+    const r = da ? await alt.db.from(TABELLE).update(zeile).eq("id", da.id).select("id, name, nc, geaendert_am").single()
+      : await alt.db.from(TABELLE).insert(zeile).select("id, name, nc, geaendert_am").single();
+    if (r.error) { alt.meldung("Speichern ging nicht: " + (r.error.message || r.error), "fehler"); return; }
     aendern({ name });
-    ablegen([...liste.filter((x) => x.name !== name), daten].sort((a, b) => a.name.localeCompare(b.name, "de")));
-    alt.meldung("Kontur „" + name + "“ gespeichert.", "gut");
+    setGespeichert(r.data);
+    alt.meldung("Kontur „" + name + "“ mit NC-Programm gespeichert.", "gut");
   };
+
   const oeffnen = async () => {
-    if (!liste.length) { alt.meldung("Noch keine Kontur gespeichert.", "warn"); return; }
-    const w = await alt.auswahlDialog("Kontur öffnen", liste.map((x) => ({ wert: x.name, text: x.name })));
-    if (!w) return;
-    const x = liste.find((y) => y.name === w);
-    if (x) aendern({ ...VORGABE, ...x });
+    const { data, error } = await alt.db.from(TABELLE).select("id, name, daten, nc, geaendert_am, geaendert_von")
+      .order("geaendert_am", { ascending: false }).limit(500);
+    let zeilen;
+    if (error) {
+      if (!ohneTabelle(error)) { alt.meldung("Laden ging nicht: " + (error.message || error), "fehler"); return; }
+      zeilen = kontoListe().map((x, i) => ({ id: "konto" + i, name: x.name, daten: x, nc: x.nc || "", konto: true }));
+    } else {
+      const leute = await leuteNamen(data.map((x) => x.geaendert_von));
+      zeilen = data.map((x) => ({ ...x, wer: leute[x.geaendert_von] || "" }));
+    }
+    if (!zeilen.length) { alt.meldung("Noch keine Kontur gespeichert.", "warn"); return; }
+    fensterOeffnen((zu) => (
+      <ListeFenster zeilen={zeilen} zu={zu}
+        oeffnen={(z) => { aendern({ ...VORGABE, ...z.daten, name: z.name }); setGespeichert(z.konto ? null : z); }}
+        loeschen={async (z) => {
+          if (!(await alt.nachfragen({ titel: "Kontur löschen", text: "„" + z.name + "“ löschen?", bestaetigen: "Löschen", gefahr: true }))) return false;
+          if (z.konto) {
+            alt.einstellungSetzenWert("konturliste", JSON.stringify(kontoListe().filter((x) => x.name !== z.name)));
+          } else {
+            const r = await alt.db.from(TABELLE).delete().eq("id", z.id);
+            if (r.error) { alt.meldung("Löschen ging nicht: " + (r.error.message || r.error), "fehler"); return false; }
+          }
+          if (gespeichert && gespeichert.id === z.id) setGespeichert(null);
+          return true;
+        }} />
+    ));
   };
-  const loeschen = async () => {
-    if (!k.name || !liste.some((x) => x.name === k.name)) { alt.meldung("Diese Kontur ist nicht gespeichert.", "warn"); return; }
-    if (!(await alt.nachfragen({ titel: "Kontur löschen", text: "„" + k.name + "“ löschen?", bestaetigen: "Löschen", gefahr: true }))) return;
-    ablegen(liste.filter((x) => x.name !== k.name));
-  };
+
   const leeren = async () => {
     if (!(await alt.nachfragen({ titel: "Neue Kontur", text: "Die Elemente leeren?", bestaetigen: "Leeren" }))) return;
     aendern({ name: "", startX: "0", startZ: "0", elemente: [] });
+    setGespeichert(null);
   };
   return (
     <div className="kt-dateien">
-      {k.name && <span className="klein">{k.name}</span>}
+      {k.name && <span className="klein" id="kt-name">{k.name}</span>}
       <button className="linkknopf" id="kt-neu" onClick={leeren}>Neu</button>
       <button className="linkknopf" id="kt-oeffnen" onClick={oeffnen}>Öffnen</button>
       <button className="linkknopf" id="kt-speichern" onClick={sichern}>Speichern</button>
-      {k.name && liste.some((x) => x.name === k.name) && <button className="linkknopf linkknopf--gefahr" onClick={loeschen}>Löschen</button>}
     </div>
   );
 }
@@ -297,6 +391,35 @@ function punkteVon(segs) {
 function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende }) {
   const [maus, setMaus] = useState(null);
   const svg = useRef(null);
+  // Beim Zeichnen die Werte auch eintippen (Wunsch Patrick 3. November
+  // 2026: „in die X- und Z-Werte springen können mit Tab“): Tab springt
+  // ins Feld X, Tab weiter in Z, Enter setzt den Punkt, dann wieder X.
+  const [ein, setEin] = useState({ x: "", z: "" });
+  const feldX = useRef(null);
+  const zahlFeld = (n) => String(Math.round(n * 1000) / 1000);
+  useEffect(() => {
+    if (!zeichnen) return undefined;
+    const taste = (e) => {
+      if (e.key !== "Tab" || e.defaultPrevented) return;
+      const t = e.target;
+      if (t && t.closest && t.closest(".kt-eingabe")) return;   // in den Feldern normal weiter
+      if (t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) return;
+      e.preventDefault();
+      if (maus) setEin({ x: zahlFeld(maus.r * 2), z: zahlFeld(maus.z) });
+      feldX.current && feldX.current.focus();
+      setTimeout(() => feldX.current && feldX.current.select(), 0);
+    };
+    window.addEventListener("keydown", taste);
+    return () => window.removeEventListener("keydown", taste);
+  }, [zeichnen, maus]);
+  const eingabeSetzen = () => {
+    const x = ein.x.trim() === "" ? null : Number(ein.x.replace(",", "."));
+    const z = ein.z.trim() === "" ? null : Number(ein.z.replace(",", "."));
+    if ((x === null && z === null) || Number.isNaN(x) || Number.isNaN(z)) { alt.meldung("X oder Z eingeben.", "warn"); return; }
+    punktSetzen(z === null ? ende.z : z, x === null ? ende.r : x / 2, true);
+    setEin({ x: "", z: "" });
+    feldX.current && feldX.current.focus();
+  };
   const alle = [...punkteVon(kontur.segmente), ...punkteVon(bahn.bahn),
     { z: Number(k.startZ) || 0, r: (Number(k.startX) || 0) / 2 }];
   let zmin = Math.min(...alle.map((p) => p.z)), zmax = Math.max(...alle.map((p) => p.z));
@@ -364,6 +487,18 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
           </>
         )}
       </svg>
+      {zeichnen && (
+        <div className="kt-eingabe" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); eingabeSetzen(); } }}>
+          <span className="klein">Nächster Punkt ab X{zahlFeld(ende.r * 2)} Z{zahlFeld(ende.z)}:</span>
+          <label className="kt-zahl"><span>X Ø</span>
+            <input ref={feldX} type="text" inputMode="decimal" id="kt-ein-x" value={ein.x} placeholder="gleich"
+              onChange={(e) => setEin({ ...ein, x: e.target.value })} /></label>
+          <label className="kt-zahl"><span>Z</span>
+            <input type="text" inputMode="decimal" id="kt-ein-z" value={ein.z} placeholder="gleich"
+              onChange={(e) => setEin({ ...ein, z: e.target.value })} /></label>
+          <button className="knopf knopf--klein" id="kt-ein-setzen" onClick={eingabeSetzen}>Setzen ↵</button>
+        </div>
+      )}
     </div>
   );
 }

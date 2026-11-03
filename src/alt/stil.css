@@ -11214,3 +11214,12 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
   .kt-ueb { margin-left: 0; }
   .kt-zahl:not(.kt-zahl--breit) { width: 66px; }
 }
+/* Kontur: Punkt eintippen beim Zeichnen, gespeicherte Konturen (seit 1.356.0) */
+.kt-eingabe { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; padding: 8px 6px 4px; }
+.kt-eingabe > .klein { align-self: center; }
+.kt-liste-fenster { width: min(560px, 94vw); }
+.kt-gespeichert { max-height: 60vh; overflow-y: auto; margin-top: 10px; }
+.kt-gesp { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--linie); }
+.kt-gesp__name { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  background: transparent; border: none; padding: 10px 6px; cursor: pointer; color: var(--tinte); font: inherit; }
+.kt-gesp__name:hover { background: var(--marke-hell); }
