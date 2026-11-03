@@ -2,11 +2,12 @@
 # 3. November 2026). Läuft mit dem Prüfstand, also nur mit Beispieldaten.
 # Ergebnis: public/hilfe/hofer-nc-pro.mp4 (braucht ffmpeg).
 # Seit 1.377.0 mit Sprecher (Wunsch Patrick 3. November 2026: „etwas
-# detaillierter und mit Ton“). Seit 1.378.2 eine warme deutsche Frauenstimme
-# aus Piper (pip install piper-tts, Stimme de-kerstin-low aus den Piper-Releases
-# auf GitHub, Pfad in STIMME), mit wenig Raumklang. Eine echte Person wird
-# bewusst nicht nachgeahmt.
-#   cd pruefstand && STIMME=/pfad/de-kerstin-low.onnx python tutorial_video.py
+# detaillierter und mit Ton“). Seit 1.381.3 wieder eine Männerstimme, tief und
+# sportlich (Patrick: „männlich, tief, sportlich“), aus Piper (pip install
+# piper-tts, Stimme de-thorsten-low aus den Piper-Releases auf GitHub, Pfad in
+# STIMME), tiefer gestimmt, zügig und kräftig verdichtet. Eine echte Person
+# wird bewusst nicht nachgeahmt. Dazu die 3D-Ansicht der Kontur.
+#   cd pruefstand && STIMME=/pfad/de-thorsten-low.onnx python tutorial_video.py
 import os, sys, time, shutil, subprocess, tempfile
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -14,7 +15,7 @@ from playwright.sync_api import sync_playwright
 HIER = os.path.dirname(os.path.abspath(__file__))
 ZIEL = os.path.join(HIER, "..", "public", "hilfe", "hofer-nc-pro.mp4")
 B, H = 1280, 800
-STIMME = os.environ.get("STIMME", "/tmp/claude-0/tts/kerstin-low/de-kerstin-low.onnx")
+STIMME = os.environ.get("STIMME", "/tmp/claude-0/tts/de-thorsten-low.onnx")
 
 # Schrift unten und ein sichtbarer Mauszeiger (headless zeigt keinen)
 ZUSATZ = """
@@ -52,17 +53,18 @@ def schritt(sprechen, zeile):
     return deko
 
 def ton_machen(ordner):
-    """Jede Zeile einzeln sprechen lassen, ruhig, mit etwas Wärme und wenig Hall."""
+    """Jede Zeile einzeln sprechen lassen: tiefer, kräftig und zügig (sportlich)."""
     dauer = []
     for i, (sprechen, _, _) in enumerate(SCHRITTE):
         roh = os.path.join(ordner, f"r{i}.wav"); fertig = os.path.join(ordner, f"t{i}.wav")
-        subprocess.run([sys.executable, "-m", "piper", "-m", STIMME, "-f", roh, "--length-scale", "1.06",
+        subprocess.run([sys.executable, "-m", "piper", "-m", STIMME, "-f", roh, "--length-scale", "0.97",
                         "--sentence-silence", "0.35"], input=sprechen.encode("utf-8"), check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", roh, "-af",
-                        "aresample=44100,equalizer=f=220:t=q:w=1:g=2,equalizer=f=6000:t=q:w=2:g=-2,"
-                        "acompressor=threshold=-20dB:ratio=2.5:makeup=2,"
-                        "aecho=0.8:0.3:30:0.08,loudnorm=I=-16:TP=-1.5", "-ar", "44100", "-ac", "1", fertig], check=True)
+                        "asetrate=16000*0.88,aresample=44100,atempo=1.136,"
+                        "equalizer=f=100:t=q:w=1:g=5,equalizer=f=3000:t=q:w=1.5:g=3,"
+                        "acompressor=threshold=-22dB:ratio=4:attack=5:release=60:makeup=3,"
+                        "aecho=0.8:0.3:25:0.06,loudnorm=I=-15:TP=-1.5", "-ar", "44100", "-ac", "1", fertig], check=True)
         d = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", fertig],
                                  capture_output=True, text=True).stdout.strip())
         dauer.append(d)
@@ -75,7 +77,7 @@ def ton_machen(ordner):
 def s_willkommen(pg, a): pg.wait_for_timeout(300)
 
 @schritt("Links steht die Liste der Elemente. Rechts oben siehst du die Grafik deiner Kontur, "
-         "und darunter das N C Programm, das sich bei jeder Änderung sofort mitrechnet.",
+         "und darunter das N C Programm, das sich bei jeder Änderung sofort mitrechnet. Oben rechts findest du jederzeit diese Anleitung.",
          "Links die <b>Elemente</b>, rechts die <b>Grafik</b> und darunter das <b>NC-Programm</b>.")
 def s_ueberblick(pg, a):
     a.hin(".kt-liste", klick=False, ms=1500); a.hin("#kt-bild", klick=False, ms=1500); a.hin("#kt-code", klick=False, ms=800)
@@ -206,15 +208,40 @@ def s_zoom(pg, a):
     pg.mouse.down(); pg.mouse.move(b["x"] + b["width"] * 0.6, b["y"] + b["height"] * 0.55, steps=15); pg.mouse.up()
     pg.wait_for_timeout(600); a.hin("#kt-zoom-alles", ms=500)
 
+@schritt("Neu gibt es die drei D Ansicht. Tippe oben in der Grafik auf drei D, dann siehst du deine Kontur als fertiges Drehteil. "
+         "Ziehen dreht es, das Mausrad zoomt. Aufgeschnitten zeigt auch Bohrungen und Innenkonturen. "
+         "Tippst du auf das Teil, ist das Element in der Liste gewählt. Mit Gross geht die Ansicht in einem grossen Fenster auf.",
+         "<b>10.</b> <b>„3D“</b>: Kontur als Drehteil. Ziehen dreht, <b>„Aufgeschnitten“</b> zeigt innen, <b>„⛶ Gross“</b> im Fenster.")
+def s_dreid(pg, a):
+    a.hin("#kt-3d", ms=900)
+    pg.wait_for_selector("#kt-k3d")
+    b = pg.locator("#kt-k3d").bounding_box()
+    mx, my = b["x"] + b["width"] * 0.5, b["y"] + b["height"] * 0.5
+    pg.mouse.move(mx, my, steps=10); pg.mouse.down()
+    pg.mouse.move(mx + 160, my + 30, steps=40); pg.mouse.move(mx - 60, my - 10, steps=40); pg.mouse.up()
+    pg.wait_for_timeout(500)
+    for i in range(3): pg.mouse.wheel(0, -120); pg.wait_for_timeout(250)
+    a.hin("#kt-k3d-schnitt", ms=1500)
+    pg.mouse.move(mx, my, steps=10); pg.mouse.down(); pg.mouse.move(mx - 120, my + 40, steps=40); pg.mouse.up()
+    pg.wait_for_timeout(900)
+    a.hin("#kt-3d-gross", ms=1200)
+    pg.wait_for_selector("#kt-k3d-gross")
+    g = pg.locator("#kt-k3d-gross").bounding_box()
+    gx, gy = g["x"] + g["width"] * 0.5, g["y"] + g["height"] * 0.5
+    pg.mouse.move(gx, gy, steps=10); pg.mouse.down(); pg.mouse.move(gx + 220, gy + 40, steps=50); pg.mouse.up()
+    pg.wait_for_timeout(1000)
+    a.hin("#kt-k3d-zu", ms=600)
+    a.hin("#kt-2d", ms=600)
+
 @schritt("Beim Werkzeug wählst du Aussen oder Innen, den Plattenradius, den Grundvorschub und die Schneidenlage. "
          "Für die Star aussen ist das unten rechts. Der Radius ist im Programm schon eingerechnet, ohne G einundvierzig oder zweiundvierzig.",
-         "<b>10.</b> Werkzeug: <b>Plattenradius</b>, Vorschub, <b>Schneidenlage</b>. Radius eingerechnet, ohne G41/G42.")
+         "<b>11.</b> Werkzeug: <b>Plattenradius</b>, Vorschub, <b>Schneidenlage</b>. Radius eingerechnet, ohne G41/G42.")
 def s_werkzeug(pg, a):
     a.tippen("[data-ktfeld='rn']", "0.4"); a.hin("[data-ktspitze='ur']", ms=1200)
 
 @schritt("Jetzt zum Import aus einem drei D Modell. Tippe oben auf drei D Modell und wähle eine STEP Datei. "
          "Das Programm liest daraus die Seitenkontur, ganz ohne C A D Programm.",
-         "<b>11.</b> <b>„3D-Modell“</b>: STEP-Datei wählen, die Seitenkontur wird gelesen.")
+         "<b>12.</b> <b>„3D-Modell“</b>: STEP-Datei wählen, die Seitenkontur wird gelesen.")
 def s_step(pg, a):
     a.hin("label:has(#kt-step)", klick=False, ms=600)
     pg.set_input_files("#kt-step", os.path.join(HIER, "kontur-test.step"))
@@ -253,7 +280,7 @@ def s_stepok(pg, a):
 
 @schritt("Speichern legt Kontur und N C Programm für alle ab, mit Öffnen holst du sie wieder. "
          "Als Datei oder Kopieren bringt das Programm an die Maschine.",
-         "<b>12.</b> <b>„Speichern“</b> für alle, <b>„Öffnen“</b> holt sie wieder. <b>„Als Datei“</b> / <b>„Kopieren“</b> für die Maschine.")
+         "<b>13.</b> <b>„Speichern“</b> für alle, <b>„Öffnen“</b> holt sie wieder. <b>„Als Datei“</b> / <b>„Kopieren“</b> für die Maschine.")
 def s_speichern(pg, a):
     a.hin("#kt-speichern", klick=False, ms=1000); a.hin("#kt-oeffnen", klick=False, ms=1000)
     a.hin("#kt-datei", klick=False, ms=1000); a.hin("#kt-kopieren", klick=False, ms=600)
