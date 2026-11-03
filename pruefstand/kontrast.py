@@ -69,13 +69,27 @@ with sync_playwright() as p:
                         gefunden.setdefault((name, "HOVER " + x["cls"]), (wo, x["k"], x["t"]))
                 except Exception: pass
             pg.mouse.move(0, 0)
+        # Hinweisfenster beim Darüberfahren (Säulen der Statistik, Balken und
+        # Ferien der Planwand, Symbole): sie stehen anderswo im Dokument,
+        # darum die ganze Seite absuchen (1.352.3, Bild Patrick Statistik)
+        def fenster_schweben(wo):
+            for sel in (".dg-spalte", ".dg-zeile", ".pw-balken[data-auftrag]", "[data-ferien]", "[data-plsymbol]"):
+                for k in pg.query_selector_all(sel)[:3]:
+                    try:
+                        if not k.is_visible(): continue
+                        k.hover(timeout=400); pg.wait_for_timeout(250)
+                        for x in pg.evaluate(SUCHEN):
+                            gefunden.setdefault((name, "HOVER " + x["cls"]), (wo + " " + sel, x["k"], x["t"]))
+                    except Exception: pass
+            pg.mouse.move(0, 0)
         for s in SEITEN:
             pg.evaluate(f"location.hash='{s}'"); pg.wait_for_timeout(1300)
             sammeln(s)
             for knopf in pg.query_selector_all(".reiter__knopf, .unterreiter__knopf")[:8]:
-                try: knopf.click(timeout=800); pg.wait_for_timeout(700); sammeln(s + " Reiter")
+                try: knopf.click(timeout=800); pg.wait_for_timeout(700); sammeln(s + " Reiter"); fenster_schweben(s + " Reiter")
                 except Exception: pass
             schweben(s)
+            fenster_schweben(s)
             pg.keyboard.press("Escape"); pg.keyboard.press("Escape")
         # Auftragsfenster und Vorbereiten
         pg.evaluate("location.hash='#/planwand'"); pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(800)

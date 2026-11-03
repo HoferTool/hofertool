@@ -11130,3 +11130,8 @@ body.dunkel .hell-bleibt {
 #pad .pad-qsm-huelle .pad-qsm__quittieren { border-color: #ffb4a8; }
 #pad .pad-qsm-huelle .pad-qsm__anzahl { color: #ffb4a8; }
 #pad .pad-qsm-huelle .pad-qsm__weiter { border-color: #ffb4a8; }
+/* 1.352.3: Hinweisfenster mit umgekehrten Farben (Grund --tinte) waren im
+   dunklen Modus weiss mit weisser Schrift (Bild Patrick: Statistik,
+   Produktionszeit). Dort dunkle Fläche mit Rand statt hell. */
+body.dunkel .dg-tip { background: #2b333d; border: 1px solid #5a6573; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+body.dunkel .bildwahl__weg { background: #3a4350; }
