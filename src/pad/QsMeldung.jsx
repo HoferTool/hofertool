@@ -61,6 +61,8 @@ export function useQsMeldungen(maschineId) {
 //  Maschine zusammen mit den QS-Meldungen anstelle des Wetters, bis
 //  jemand „Erledigt“ tippt. Sofort über Realtime auf die Aufträge der
 //  Maschine, sonst alle 30 Sekunden. Nicht für Externe (wie die QS).
+//  Seit 1.352.1 sind hier auch die QS-Meldungen rot wie die Probleme,
+//  nur an dieser Stelle im Pad (Wunsch Patrick 3. November 2026).
 // =================================================================
 const PROBLEM_EREIGNIS = "hofer-pad-probleme";
 
@@ -99,7 +101,8 @@ export function useProbleme(maschineId) {
   return liste;
 }
 
-// Mehrere Meldungen: oben „3 Meldungen“ mit Pfeil, unten ein Verlauf
+// Mehrere Meldungen: oben nur „3 Meldungen“ (seit 1.352.1 ohne Hinweis
+// daneben, Patrick: „einfach Meldungen reicht“), unten ein Verlauf
 // mit „Weitere unten ↓“, solange noch etwas darunter liegt, damit man
 // sieht, dass man wischen muss (Wunsch Patrick 3. November 2026).
 export function PadMeldungen({ qs, qsWeg, probleme }) {
@@ -120,7 +123,7 @@ export function PadMeldungen({ qs, qsWeg, probleme }) {
   return (
     <div className={"pad-qsm-huelle" + (mehrUnten ? " pad-qsm-huelle--mehr" : "")}>
       {n > 1 && <div className="pad-qsm__anzahl" data-padmeldunganzahl="">
-        ⚠ {n} Meldungen{mehrUnten ? <span> · nach unten wischen ↓</span> : null}</div>}
+        ⚠ {n} Meldungen</div>}
       <div className="pad-qsm" id="pad-qsmeldung" ref={kasten} onScroll={pruefen}>
         {probleme.map((j) => (
           <div key={"p" + j.id} className="pad-qsm__karte pad-qsm__karte--problem" data-padproblem={j.id}>

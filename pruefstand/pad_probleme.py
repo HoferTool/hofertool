@@ -57,7 +57,7 @@ with sync_playwright() as p:
     s = pg.inner_text("#pad .pad-karte2--saeule")
     if "Kühlmittel" not in s or "Zange" not in s or "Grat" not in s: fehler.append("Nicht alles da: " + s)
     if "WETTER" in s.upper(): fehler.append("Wetter trotz Problem")
-    if "3 Meldungen" not in s: fehler.append("Anzahl fehlt")
+    if "3 Meldungen" not in s or "wischen" in s: fehler.append("Anzahl fehlt")
     if not pg.locator("#pad .pad-qsm__weiter").count(): fehler.append("Kein Hinweis zum Wischen")
     pg.screenshot(path=os.environ.get("BILD", "/tmp/pad-probleme.png"))
     pg.locator("#pad .pad-qsm__weiter").click(force=True); pg.wait_for_timeout(900)
