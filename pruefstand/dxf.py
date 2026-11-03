@@ -32,8 +32,8 @@ with sync_playwright() as p:
               "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
-    pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#rechner'")
-    pg.wait_for_selector("[data-unter='rechner/dxf']"); pg.click("[data-unter='rechner/dxf']")
+    pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
+    pg.wait_for_selector("[data-unter='nc/dxf']"); pg.click("[data-unter='nc/dxf']")
     pg.wait_for_selector("pre.gcode")
     code = lambda: pg.text_content("pre.gcode")
     def feld(sel, wert):

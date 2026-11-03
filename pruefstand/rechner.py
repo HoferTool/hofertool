@@ -31,12 +31,19 @@ with sync_playwright() as p:
     pg.screenshot(path="rechner.png")
 
     # Jeder Reiter zeigt etwas
-    for reiter, merkmal in [("winkel", "input"), ("gcode", "textarea, input"), ("cachse", "svg, canvas, input"),
-                            ("gravur", "input, canvas"), ("dxf", "input, button")]:
-        pg.click(f"[data-unter='rechner/{reiter}']"); pg.wait_for_timeout(250)
+    # Im Rechner nur noch Drehzahl und Winkel und Fase (seit 1.367.0)
+    if pg.locator("[data-unter='rechner/gcode']").count(): fehler.append("G-Code noch im Rechner")
+    pg.click("[data-unter='rechner/winkel']"); pg.wait_for_timeout(250)
+    if not pg.locator("#rech-inhalt input").count(): fehler.append("Reiter leer: winkel")
+    pg.evaluate("location.hash='#nc'"); pg.wait_for_selector("[data-unter='nc/gcode']")
+    if "NC-Funktionen" not in pg.inner_text("h1.seitentitel"): fehler.append("Seite NC-Funktionen fehlt")
+    for reiter, merkmal in [("gcode", "textarea, input"), ("cachse", "svg, canvas, input"),
+                            ("gravur", "input, canvas"), ("dxf", "input, button"), ("kontur", "input, svg")]:
+        pg.click(f"[data-unter='nc/{reiter}']"); pg.wait_for_timeout(250)
         if not pg.locator(f"#rech-inhalt").locator(merkmal).count():
             fehler.append("Reiter leer: " + reiter)
         if pg.locator("#rech-inhalt").count() != 1: fehler.append("rech-inhalt doppelt bei " + reiter)
+    pg.evaluate("location.hash='#rechner'"); pg.wait_for_selector("[data-unter='rechner/winkel']")
     pg.click("[data-unter='rechner/winkel']"); pg.wait_for_timeout(200)
     # Dreieck: a = 3, b = 4 → c = 5, β = 53,13°
     pg.fill("#w-a", "3"); pg.press("#w-a", "Tab"); pg.fill("#w-g", "4"); pg.press("#w-g", "Tab"); pg.wait_for_timeout(200)
@@ -54,7 +61,8 @@ with sync_playwright() as p:
     pg.wait_for_timeout(200)
 
     # G-Code: Fase 1 × 45° auf Ø20, mit und ohne A-Programmierung
-    pg.click("[data-unter='rechner/gcode']"); pg.wait_for_timeout(250)
+    pg.evaluate("location.hash='#nc'"); pg.wait_for_selector("[data-unter='nc/gcode']")
+    pg.click("[data-unter='nc/gcode']"); pg.wait_for_timeout(250)
     prog = pg.inner_text("pre.gcode")
     if "G0X22.00Z0.00" not in prog or ",A45." not in prog: fehler.append("G-Code falsch: " + prog[:80])
     pg.check("#g-ohnea"); pg.wait_for_timeout(200)
@@ -64,6 +72,7 @@ with sync_playwright() as p:
     pg.fill("#g-dm", "30"); pg.press("#g-dm", "Enter"); pg.wait_for_timeout(200)
     if "G0X32.00" not in pg.inner_text("pre.gcode"): fehler.append("Durchmesser wirkt nicht")
     pg.check("#g-radan"); pg.uncheck("#g-ohnea"); pg.fill("#g-dm", "20"); pg.press("#g-dm", "Tab")
+    pg.evaluate("location.hash='#rechner'"); pg.wait_for_selector("[data-unter='rechner/winkel']")
     pg.click("[data-unter='rechner/winkel']"); pg.wait_for_timeout(200)
 
     # Seitenwechsel und zurück: Eingaben bleiben, Reiter bleibt

@@ -43,9 +43,9 @@ with sync_playwright() as p:
     pruefe("Reiter auf der Seite führt die Leiste mit", pg.evaluate("document.querySelector('.nav__unterpunkt.aktiv').textContent") == "Artikel")
 
     # Rechner: Reiter in der Leiste wählen und wieder zurück zur Seite
-    pg.click(".nav__punkt[data-nav='rechner']"); pg.wait_for_selector(".nav__unterpunkt[data-unter='rechner/gravur']")
-    pg.click(".nav__unterpunkt[data-unter='rechner/gravur']"); pg.wait_for_timeout(400)
-    pruefe("Rechner: Gravur über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "Gravur")
+    pg.click(".nav__punkt[data-nav='nc']"); pg.wait_for_selector(".nav__unterpunkt[data-unter='nc/gravur']")
+    pg.click(".nav__unterpunkt[data-unter='nc/gravur']"); pg.wait_for_timeout(400)
+    pruefe("NC-Funktionen: Gravur über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "Gravur")
     pg.click(".nav__punkt[data-nav='produktion']"); pg.wait_for_selector(".nav__unterpunkt[data-unter='produktion/richten']")
     pg.click(".nav__unterpunkt[data-unter='produktion/richten']"); pg.wait_for_timeout(500)
     pruefe("Produktion: Infos zum Richten über die Leiste", pg.evaluate("document.querySelector('.reiter__knopf.aktiv').textContent") == "Infos zum Richten")

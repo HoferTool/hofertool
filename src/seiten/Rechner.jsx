@@ -1,7 +1,8 @@
 // =================================================================
 //  RECHNER FÜR DIE WERKSTATT
-//  Reiter: Drehzahl (hier), Winkel und Fase, G-Code, C-Achse, Gravur
-//  DXF und Kontur (je eine Datei in src/seiten/rechner/).
+//  Reiter: Drehzahl (hier) und Winkel und Fase. G-Code, C-Achse,
+//  Gravur, DXF und Kontur stehen seit 1.367.0 auf der eigenen Seite
+//  NC-Funktionen (src/seiten/NcFunktionen.jsx).
 // =================================================================
 import { useState } from "react";
 import { useGemerkt } from "../bruecke.jsx";
@@ -10,15 +11,9 @@ import { teilMerken } from "../teile/wiederherstellen.js";
 import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import Winkel from "./rechner/Winkel.jsx";
-import GCode from "./rechner/GCode.jsx";
-import CAchse from "./rechner/CAchse.jsx";
-import Gravur from "./rechner/Gravur.jsx";
-import Dxf from "./rechner/Dxf.jsx";
-import Kontur from "./rechner/Kontur.jsx";
 
 export const REITER = [
-  ["drehzahl", "Drehzahl"], ["winkel", "Winkel und Fase"], ["gcode", "G-Code"],
-  ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["kontur", "Kontur"],
+  ["drehzahl", "Drehzahl"], ["winkel", "Winkel und Fase"],
 ];
 
 // Was jemand eingetippt hat, bleibt beim Wechsel auf eine andere
@@ -39,19 +34,20 @@ teilMerken("rechner", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z)
 // Für die Seitenleiste: ohne Wert lesen, mit Wert für das nächste Öffnen setzen
 export function rechnerAnsicht(wert) {
   if (wert !== undefined) gemerkt.ansicht = wert;
-  return gemerkt.ansicht;
+  // Ein gemerkter NC-Reiter von vorher (bis 1.366.x) gilt hier nicht mehr
+  return INHALT[gemerkt.ansicht] || gemerkt.ansicht === "drehzahl" ? gemerkt.ansicht : "drehzahl";
 }
 
-const INHALT = { winkel: Winkel, gcode: GCode, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur };
+const INHALT = { winkel: Winkel };
 
 const zahl = (n) => Math.round(n).toLocaleString("de-CH");
 
 export default function Rechner() {
-  const [ansicht, setAnsicht] = useState(gemerkt.ansicht);
+  const [ansicht, setAnsicht] = useState(rechnerAnsicht());
   useGemerkt(gemerkt, { ansicht });
   // Strg + F findet die Rechner (seit 1.169.0)
   useSeitenSuche({
-    name: "Rechner", platzhalter: "Drehzahl, Winkel, G-Code, Kontur …",
+    name: "Rechner", platzhalter: "Drehzahl, Winkel und Fase …",
     eintraege: REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: w })),
     springen: (x) => setAnsicht(x.wert),
   });

@@ -14,6 +14,7 @@ import { alt } from "../bruecke.jsx";
 import { sichtbareReiter as prodReiter } from "../seiten/Produktion.jsx";
 import { REITER as BEST_REITER } from "../seiten/Bestellungen.jsx";
 import { REITER as RECH_REITER, rechnerAnsicht } from "../seiten/Rechner.jsx";
+import { REITER as NC_REITER, ncAnsicht } from "../seiten/NcFunktionen.jsx";
 
 // liste(): Reiter, die die Person sieht. merken(wert): Reiter für das
 // nächste Öffnen der Seite setzen. gemerkt(): der zuletzt gewählte.
@@ -32,6 +33,11 @@ export const UNTERREITER = {
     liste: () => RECH_REITER,
     merken: (w) => rechnerAnsicht(w),
     gemerkt: () => rechnerAnsicht(),
+  },
+  nc: {
+    liste: () => NC_REITER,
+    merken: (w) => ncAnsicht(w),
+    gemerkt: () => ncAnsicht(),
   },
   // Die Bildschirme sind eigene Seiten mit eigener Adresse; der Unterpunkt
   // wechselt darum die Seite statt eines Reiters (seit 1.315.0)

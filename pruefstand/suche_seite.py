@@ -125,10 +125,10 @@ with sync_playwright() as p:
     pruefe("Eintrag leuchtet", pg.locator("[data-ek='e1'].such-blitz").count() == 1)
 
     # Rechner
-    oeffnen("rechner")
+    oeffnen("nc")
     pg.keyboard.type("gravur"); pg.wait_for_timeout(300)
     pg.keyboard.press("Enter"); pg.wait_for_timeout(800)
-    pruefe("Rechner: Reiter Gravur", pg.evaluate("[...document.querySelectorAll('[data-rech].aktiv, .reiter .aktiv')].map(x=>x.textContent).join()").find("Gravur") >= 0)
+    pruefe("NC-Funktionen: Reiter Gravur", pg.evaluate("[...document.querySelectorAll('[data-rech].aktiv, .reiter .aktiv')].map(x=>x.textContent).join()").find("Gravur") >= 0)
 
     # QS
     oeffnen("qs")

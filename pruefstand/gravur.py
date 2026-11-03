@@ -52,8 +52,8 @@ with sync_playwright() as p:
           cx += 6 * a.s; } };
     })();""")
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
-    pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#rechner'")
-    pg.wait_for_selector("[data-unter='rechner/gravur']"); pg.click("[data-unter='rechner/gravur']")
+    pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
+    pg.wait_for_selector("[data-unter='nc/gravur']"); pg.click("[data-unter='nc/gravur']")
     pg.wait_for_selector("pre.gcode")
     code = lambda: pg.text_content("pre.gcode")
     def feld(name, wert):

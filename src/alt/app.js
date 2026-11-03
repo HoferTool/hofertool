@@ -12,6 +12,7 @@ import { WERKSTOFFE } from "../daten/schnittwerte.js";
 import { materialAusNotizEntfernen } from "../daten/materialBestellung.js";
 import { aehnlicheTreffer } from "../daten/aehnlich.js";
 import Rechner from "../seiten/Rechner.jsx";
+import NcFunktionen from "../seiten/NcFunktionen.jsx";
 import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import "../seiten/Kalender.jsx";
@@ -155,7 +156,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.366.0";
+const APP_VERSION = "1.367.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10257,6 +10258,8 @@ SYM.bestellungen = svg('<path d="M6 2.8h9l4 4v14.4H6z"/><path d="M15 2.8v4h4"/>'
 SYM.einkauf = svg('<circle cx="9.5" cy="19.5" r="1.5"/><circle cx="17.5" cy="19.5" r="1.5"/>'
   + '<path d="M2.5 3h2.3l2.6 11.4h11.1L21 7H6.2"/>');
 
+// NC-Funktionen: Bildschirm mit Eingabezeichen
+SYM.nc = svg('<rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M7 9l3 3-3 3"/><path d="M12 15h5"/>');
 // Rechner: Winkelmesser mit Gradbogen
 SYM.rechner = svg('<path d="M3 19.5h18"/><path d="M3 19.5L17 5"/>'
   + '<path d="M11 19.5a8 8 0 0 0-2.4-5.7"/><circle cx="3" cy="19.5" r="1.1"'
@@ -10420,6 +10423,7 @@ const SEITEN = [
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
   { pfad: "rechner",      titel: "Rechner",      zeichen: SYM.rechner, zeige: reactSeite(Rechner) },
+  { pfad: "nc",           titel: "NC-Funktionen", zeichen: SYM.nc,     zeige: reactSeite(NcFunktionen) },
   // Den Reiter Kalender gibt es seit 1.311.0 nicht mehr: die Termine stehen
   // als Karte auf der Startseite, ein Tipp öffnet das Fenster zum Verwalten
   // (Wunsch Patrick 30. Oktober 2026: „Reiter selber brauchts nicht“)

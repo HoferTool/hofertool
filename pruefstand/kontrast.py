@@ -41,7 +41,7 @@ SUCHEN = r"""() => {
   }
   return aus; }"""
 
-SEITEN = ["#/dashboard", "#/planwand", "#/produktion", "#/maschinen", "#/bestellungen", "#/material", "#/rechner", "#/einkauf", "#/statistik", "#/infoboard", "#/pausenraum", "#/empfang"]
+SEITEN = ["#/dashboard", "#/planwand", "#/produktion", "#/maschinen", "#/bestellungen", "#/material", "#/rechner", "#/nc", "#/einkauf", "#/statistik", "#/infoboard", "#/pausenraum", "#/empfang"]
 gefunden = {}
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
