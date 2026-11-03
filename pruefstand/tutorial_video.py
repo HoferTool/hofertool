@@ -318,7 +318,6 @@ with sync_playwright() as p:
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
     pg.wait_for_selector("[data-unter='nc/kontur']"); pg.click("[data-unter='nc/kontur']")
     pg.wait_for_selector("#kt-code")
-    pg.add_style_tag(content="#pablo-zeichen, .pablo-zeichen { display: none !important; }")
     pg.mouse.move(640, 400)
     pg.wait_for_timeout(800)
     start = time.time() - t0
