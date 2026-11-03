@@ -352,7 +352,17 @@ export function bahnRechnen(segmente, rn, seite, spitze) {
 const z3 = (n) => { const t = (Math.round(n * 1000) / 1000).toFixed(3); return t === "-0.000" ? "0.000" : t; };
 
 export function ncProgramm(k, bahn) {
-  if (!bahn.length) return "( Noch keine gültige Kontur )";
+  return ncProgrammZeilen(k, bahn).zeilen.join("\n");
+}
+
+// Wie ncProgramm, dazu je Zeile die Nummer des Elements (0 = keines),
+// damit die App die Zeilen des gewählten Elements markieren kann
+// (seit 1.365.0, Wunsch Patrick 3. November 2026: „im NC-Code die Zeilen
+// markieren, wenn ich in der Grafik oder in der Liste auf ein Element
+// klicke“)
+export function ncProgrammZeilen(k, bahn) {
+  if (!bahn.length) return { zeilen: ["( Noch keine gültige Kontur )"], nrs: [0] };
+  const nrs = [];
   const rn = zahlVon(k.rn) || 0;
   const f = zahlVon(k.f);
   const ab = zahlVon(k.abstand) ?? 0.5;
@@ -365,6 +375,7 @@ export function ncProgramm(k, bahn) {
   const erst = bahn[0].a;
   zeilen.push(`G0X${z3(erst.r * 2)}Z${z3(erst.z - ab)}`);
   zeilen.push(`G1Z${z3(erst.z)}${f ? "F" + f : ""}`);
+  nrs.push(0, 0, 0, 0);
   // Vorschub je Element (seit 1.359.0, Wunsch Patrick 3. November 2026:
   // „Grundvorschub für alles, dann die einzelnen Elemente ändern“): leer
   // = Grundvorschub; F steht nur, wo er wechselt. Pause G4 am Ende des
@@ -390,14 +401,15 @@ export function ncProgramm(k, bahn) {
         ? `G${g}${t}I${z3(s.c.r - s.a.r)}K${z3(s.c.z - s.a.z)}`
         : `G${g}${t}R${z3(s.R)}`;
     }
-    if (zeile) { zeilen.push(zeile + fText); if (fText) fJetzt = fs; }
+    if (zeile) { zeilen.push(zeile + fText); nrs.push(s.nr || 0); if (fText) fJetzt = fs; }
     p = s.b;
     const naechste = bahn[i + 1];
     const pause = zahlVon(el(s.nr).pause);
-    if (pause > 0 && (!naechste || naechste.nr !== s.nr)) zeilen.push(`G4U${pause}`);
+    if (pause > 0 && (!naechste || naechste.nr !== s.nr)) { zeilen.push(`G4U${pause}`); nrs.push(s.nr || 0); }
   });
   zeilen.push(`G0X${z3(p.r * 2 + 2 * ab)}`);
-  return zeilen.join("\n");
+  nrs.push(0);
+  return { zeilen, nrs };
 }
 
 export const SPITZEN = [

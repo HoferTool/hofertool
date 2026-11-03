@@ -15,7 +15,7 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { schnittAusStep, konturAusSchnitt, elementeAusZug, modellUndKanten } from "./step.js";
 import Modell3D from "./Modell3D.jsx";
-import { konturRechnen, bahnRechnen, ncProgramm, bogenWinkel, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
+import { konturRechnen, bahnRechnen, ncProgrammZeilen, bogenWinkel, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
 
 const VORGABE = {
   startX: "0", startZ: "0",
@@ -163,7 +163,17 @@ function KonturRechner({ imFenster }) {
   const spitze = SPITZEN.find((s) => s.id === k.spitze) || SPITZEN[8];
   const kontur = useMemo(() => konturRechnen(k), [k]);
   const bahn = useMemo(() => bahnRechnen(kontur.segmente, rn, seite, spitze), [kontur, rn, seite, spitze]);
-  const code = useMemo(() => ncProgramm(k, kontur.fehler.length || bahn.fehler.length ? [] : bahn.bahn), [k, kontur, bahn]);
+  const nc = useMemo(() => ncProgrammZeilen(k, kontur.fehler.length || bahn.fehler.length ? [] : bahn.bahn), [k, kontur, bahn]);
+  const code = nc.zeilen.join("\n");
+  // Gewählte Zeilen im Programm sichtbar halten, ohne die Seite zu rollen
+  const ncKasten = useRef(null);
+  useEffect(() => {
+    const pre = ncKasten.current;
+    const z = pre && pre.querySelector(".kt-nc--an");
+    if (!z) return;
+    const oben = z.offsetTop - pre.offsetTop, h = pre.clientHeight;
+    if (pre.scrollHeight > h && (oben < pre.scrollTop || oben > pre.scrollTop + h - 30)) pre.scrollTop = Math.max(0, oben - h / 3);
+  }, [wahl, code]);
   const fehler = [...kontur.fehler, ...bahn.fehler];
 
   const kopieren = async () => {
@@ -235,6 +245,28 @@ function KonturRechner({ imFenster }) {
           </section>
 
           <section className="karte">
+            <div className="karte__kopf"><h2>NC-Programm</h2>
+              <span className="kt-dateien">
+                <button className="linkknopf" id="kt-datei" onClick={herunterladen}>Als Datei</button>
+                <button className="linkknopf" id="kt-kopieren" onClick={kopieren}>Kopieren</button></span></div>
+            {gespeichert && (gespeichert.nc === code
+              ? <p className="klein" id="kt-stand">Gespeichert als „{gespeichert.name}“ am {alt.datumZeitKurz(gespeichert.geaendert_am)}.</p>
+              : <p className="kt-fehler" id="kt-stand">Geändert seit dem Speichern als „{gespeichert.name}“. Nochmals „Speichern“, damit das neue Programm gilt.
+                {" "}<button className="linkknopf" id="kt-alt" onClick={() => fensterOeffnen((zu) => (
+                  <div className="dialog"><h2>Gespeichertes Programm „{gespeichert.name}“</h2>
+                    <pre className="gcode">{gespeichert.nc}</pre>
+                    <div className="dialog__knoepfe"><button className="knopf" onClick={zu}>Schliessen</button></div></div>))}>
+                  Gespeichertes ansehen</button></p>)}
+            <pre className="gcode kt-nc" id="kt-code" ref={ncKasten}>{nc.zeilen.map((z, i) => (
+              <span key={i} data-ktnc={nc.nrs[i] || undefined}
+                className={nc.nrs[i] && nc.nrs[i] - 1 === wahl ? "kt-nc--an" : undefined}
+                onClick={nc.nrs[i] ? () => ausGrafik(nc.nrs[i] - 1) : undefined}>{z}{i < nc.zeilen.length - 1 ? "\n" : ""}</span>))}</pre>
+            <p className="hinweis">Fanuc-Schreibweise wie an den Star, X im Durchmesser. Der Schneidenradius ist in die
+              Punkte eingerechnet, darum ohne G41/G42 und mit Schneidenradius 0 im Werkzeugkorrekturspeicher fahren.
+              Werkzeugaufruf, Drehzahl und Kühlung fehlen bewusst. Vor dem ersten Lauf am Simulator prüfen.</p>
+          </section>
+
+          <section className="karte">
             <h2>Werkzeug</h2>
             <div className="moduswahl">
               {[["aussen", "Aussenkontur"], ["innen", "Innenkontur"]].map(([w, t]) => (
@@ -288,25 +320,6 @@ function KonturRechner({ imFenster }) {
             </p>
             {fehler.length > 0 && <div className="kt-fehler" id="kt-fehler">{fehler.map((f) => <div key={f}>{f}</div>)}</div>}
           </section>
-
-          <section className="karte">
-            <div className="karte__kopf"><h2>NC-Programm</h2>
-              <span className="kt-dateien">
-                <button className="linkknopf" id="kt-datei" onClick={herunterladen}>Als Datei</button>
-                <button className="linkknopf" id="kt-kopieren" onClick={kopieren}>Kopieren</button></span></div>
-            {gespeichert && (gespeichert.nc === code
-              ? <p className="klein" id="kt-stand">Gespeichert als „{gespeichert.name}“ am {alt.datumZeitKurz(gespeichert.geaendert_am)}.</p>
-              : <p className="kt-fehler" id="kt-stand">Geändert seit dem Speichern als „{gespeichert.name}“. Nochmals „Speichern“, damit das neue Programm gilt.
-                {" "}<button className="linkknopf" id="kt-alt" onClick={() => fensterOeffnen((zu) => (
-                  <div className="dialog"><h2>Gespeichertes Programm „{gespeichert.name}“</h2>
-                    <pre className="gcode">{gespeichert.nc}</pre>
-                    <div className="dialog__knoepfe"><button className="knopf" onClick={zu}>Schliessen</button></div></div>))}>
-                  Gespeichertes ansehen</button></p>)}
-            <pre className="gcode" id="kt-code">{code}</pre>
-            <p className="hinweis">Fanuc-Schreibweise wie an den Star, X im Durchmesser. Der Schneidenradius ist in die
-              Punkte eingerechnet, darum ohne G41/G42 und mit Schneidenradius 0 im Werkzeugkorrekturspeicher fahren.
-              Werkzeugaufruf, Drehzahl und Kühlung fehlen bewusst. Vor dem ersten Lauf am Simulator prüfen.</p>
-          </section>
         </div>
       </div>
     </div>
@@ -337,9 +350,9 @@ function Element({ i, el, an, letztes, waehlen, aendern, weg, grundF }) {
       {el.art === "bogen" ? (
         <>
           <Zahl label="R" wert={el.r} setze={(v) => aendern({ r: v })} name="r" />
-          <button className="kt-dreh" data-ktfeld="dreh" title="Drehrichtung in der Grafik"
+          <button className="kt-dreh" data-ktfeld="dreh" title="Drehrichtung in der Grafik: im Uhrzeigersinn (UZ) oder dagegen"
             onClick={() => aendern({ dreh: el.dreh === "ccw" ? "cw" : "ccw" })}>
-            {el.dreh === "ccw" ? "↺ gegen Uhrzeiger" : "↻ Uhrzeiger"}</button>
+            {el.dreh === "ccw" ? "↺ gegen UZ" : "↻ im UZ"}</button>
         </>
       ) : (
         <Zahl label="Winkel °" wert={el.w} setze={(v) => aendern({ w: v })} name="w" />
@@ -613,7 +626,7 @@ function ModellFenster({ text, name, zu, uebernehmen }) {
 // -----------------------------------------------------------------
 //  Grafik: Z nach rechts, X nach oben, Mittellinie unten (aussen)
 // -----------------------------------------------------------------
-const B = 640, H = 380, RAND = 34;
+const B = 640, H = 460, RAND = 34;   // seit 1.365.0 höher (Wunsch Patrick: „Grafikfenster grösser“)
 
 function punkteVon(segs) {
   const p = [];

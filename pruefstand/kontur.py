@@ -52,6 +52,7 @@ with sync_playwright() as p:
     pg.click("[data-kt='bogen']"); pg.fill("[data-ktel='1'] [data-ktfeld='x']", "16"); pg.fill("[data-ktel='1'] [data-ktfeld='z']", "7")
     pg.fill("[data-ktel='1'] [data-ktfeld='r']", "2")
     pg.click("[data-ktel='1'] [data-ktfeld='dreh']")   # gegen Uhrzeiger = hohl
+    if BILD: pg.locator("[data-ktel='1']").screenshot(path=BILD + "/kontur-bogen.png")
     pg.wait_for_timeout(150)
     c = code()
     pruefe("Hohlradius R2 wird R1.8 mit G3", "G3X" in c and "R1.800" in c, ) if True else None
@@ -111,11 +112,21 @@ with sync_playwright() as p:
            pg.locator("[data-ktel='0']").get_attribute("class").find("kt-el--an") >= 0
            and pg.evaluate("document.activeElement.closest('[data-ktel]')?.dataset.ktel") == "0"
            and pg.evaluate("document.activeElement.dataset.ktfeld") == "x")
+    # NC-Zeilen des gewählten Elements markiert, Zeile antippen wählt Element
+    an = pg.locator("#kt-code .kt-nc--an")
+    if BILD:
+        pg.evaluate("document.querySelector('#kt-code').scrollIntoView({block:'center'})"); pg.wait_for_timeout(200)
+        pg.screenshot(path=BILD + "/kontur-markiert.png")
+    pruefe("NC-Zeilen des gewählten Elements markiert", an.count() >= 1 and all(
+        an.nth(j).get_attribute("data-ktnc") == "1" for j in range(an.count())))
+    pg.locator("#kt-code [data-ktnc='2']").first.click(); pg.wait_for_timeout(150)
+    pruefe("NC-Zeile antippen wählt Element", "kt-el--an" in pg.locator("[data-ktel='1']").get_attribute("class")
+           and pg.locator("#kt-code .kt-nc--an").first.get_attribute("data-ktnc") == "2")
     # Rückgängig nimmt das letzte Element weg
     vor = pg.locator("[data-ktel]").count()
     pg.click("[data-kt='gerade']"); pg.wait_for_timeout(150)
     pruefe("Neues Element: Cursor in X", pg.evaluate("document.activeElement.dataset.ktfeld") == "x"
-           and pg.evaluate("document.activeElement.closest('[data-ktel]')?.dataset.ktel") == "1")
+           and pg.evaluate("document.activeElement.closest('[data-ktel]')?.dataset.ktel") == "2")   # nach dem gewählten Element 2
     pg.click("#kt-zurueck"); pg.wait_for_timeout(150)
     pruefe("Rückgängig nimmt neues Element weg", pg.locator("[data-ktel]").count() == vor)
     pg.fill("[data-ktfeld='rn']", "0.55"); pg.wait_for_timeout(50)
@@ -167,9 +178,13 @@ with sync_playwright() as p:
     # Vorschub je Element und Pause
     pg.fill("[data-ktel='2'] [data-ktfeld='f']", "0.015"); pg.fill("[data-ktel='2'] [data-ktfeld='pause']", "0.5"); pg.wait_for_timeout(100)
     zl = code().split("\n")
-    pruefe("Vorschub je Element nur dort", "G2X16.000Z7.400R0.400F0.015" in zl and "G1Z14.288" in zl
-           and "G1X29.883Z25.692F0.03" in zl)
-    pruefe("Pause G4 am Ende des Elements", zl.index("G4U0.5") == zl.index("G1Z14.288") + 1)
+    # Der Punkt aus dem Mausklick hängt von der Grösse der Grafik ab,
+    # darum nur der Aufbau: F0.015 bis zum Ende von Element 3, dann Pause,
+    # danach wieder der Grundvorschub
+    i15 = zl.index("G2X16.000Z7.400R0.400F0.015") if "G2X16.000Z7.400R0.400F0.015" in zl else -9
+    pruefe("Vorschub je Element nur dort", i15 > 0 and zl[i15 + 1].startswith("G1Z") and "F" not in zl[i15 + 1]
+           and zl[i15 + 3].endswith("F0.03"))
+    pruefe("Pause G4 am Ende des Elements", zl[i15 + 2] == "G4U0.5")
     pg.fill("[data-ktel='2'] [data-ktfeld='f']", ""); pg.fill("[data-ktel='2'] [data-ktfeld='pause']", "")
 
     # Seitenkontur aus STEP (Teil mit Schlüsselfläche)

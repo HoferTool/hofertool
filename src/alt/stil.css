@@ -11395,3 +11395,53 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 /* Pablo: was zuletzt verstanden wurde und warum er nicht zuhört (seit 1.362.1) */
 .pablo__verstanden { font-size: .85rem; opacity: .7; }
 .pablo__grund { font-size: .88rem; background: rgba(255, 196, 0, .16); border-left: 3px solid #ffc400; padding: 6px 10px; border-radius: 6px; }
+
+/* Kontur: Liste kompakter, Grafik grösser (1.366.0, Wunsch Patrick
+   3. November 2026: „Listenbearbeitung kompakter und etwas kleiner, das
+   Grafikfenster grösser“). Die Grafik bleibt beim Rollen der Liste stehen. */
+.kt-raster { grid-template-columns: minmax(410px, .7fr) minmax(0, 1.5fr); gap: 14px; }
+@media (max-width: 1100px) { .kt-raster { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 1101px) { .kt-raster > div:last-child > .karte:first-child { position: sticky; top: 8px; z-index: 2; } }
+.kt-start, .kt-el { gap: 4px 5px; padding: 4px 6px; margin-bottom: 3px; font-size: .82rem; }
+.kt-nr { min-width: 20px; height: 20px; font-size: .72rem; }
+.kt-zahl { width: 58px; }
+.kt-zahl.kt-zahl--klein { width: 46px; }
+.kt-zahl > span { font-size: .66rem; margin-bottom: 0; line-height: 1.2; }
+.kt-liste input[type="text"], .kt-liste select, .kt-start input[type="text"] { min-height: 26px; height: 26px; padding: 2px 5px; font-size: .82rem; }
+.kt-dreh { min-height: 26px; padding: 2px 6px; font-size: .74rem; }
+.kt-weg { min-height: 26px; width: 24px; font-size: .95rem; }
+.kt-ueb input { width: 46px; }
+.kt-fs { gap: 4px 5px; }
+.kt-fs select { height: 26px; min-width: 90px; }
+.kt-extra { gap: 4px; }
+/* Je Element genau zwei Zeilen: oben Art, X, Z, Winkel/Radius und ✕,
+   darunter Übergang, F und Pause */
+.kt-el .kt-weg { order: 0; margin-left: auto; }
+.kt-el::after { content: ""; order: 1; flex-basis: 100%; height: 0; }
+.kt-el .kt-ueb { order: 2; margin-left: 25px; }
+.kt-el .kt-extra { order: 2; }
+.kt-el:not(:has(.kt-ueb)) .kt-extra { margin-left: 25px; }
+.kt-el > select { width: 74px; }
+.kt-ueb select { width: 132px; }
+.kt-fs { padding: 4px 6px !important; margin-top: 2px; }
+.kt-fs .klein { font-size: .7rem; line-height: 1.25; }
+.kt-dazu .knopf { padding: 4px 10px; min-height: 30px; font-size: .85rem; }
+.kt-raster > div:first-child > .karte:first-child > .klein { font-size: .72rem; line-height: 1.35; }
+.kt-el .kt-dreh { order: 2; margin-left: 25px; }
+.kt-el:has(.kt-dreh) .kt-ueb { margin-left: 0; }
+.kt-el:has(.kt-dreh):not(:has(.kt-ueb)) .kt-extra { margin-left: 0; }
+/* NC-Zeilen des gewählten Elements markiert, antippen wählt das Element */
+.kt-nc > span[data-ktnc] { cursor: pointer; }
+.kt-nc > span[data-ktnc]:hover { background: rgba(255, 255, 255, .08); }
+.kt-nc .kt-nc--an { background: #e08a00; color: #111 !important; border-radius: 2px; box-shadow: 0 0 0 2px #e08a00; }
+/* NC-Programm steht links unter der Liste, die Grafik rechts allein und
+   bleibt beim Rollen stehen; am schmalen Bildschirm kommt sie zuerst */
+.kt-nc { max-height: 45vh; overflow: auto; font-size: .82rem; }
+@media (max-width: 1100px) { .kt-raster > div:last-child { order: -1; } }
+@media (min-width: 1101px) {
+  .kt-raster > div:last-child > .karte:first-child { position: static; }
+  .kt-raster > div:last-child { position: sticky; top: 64px; align-self: start; z-index: 2; }
+}
+/* Sonst ist body mit overflow-x: hidden der Rollbereich für sticky und die
+   Grafik bleibt nicht stehen; clip schneidet gleich ab, rollt aber nicht */
+html:has(.kt-raster), body:has(.kt-raster) { overflow-x: clip; }
