@@ -13,15 +13,19 @@
 //  Maschinen er gerade fällig ist. Alle mit Schreibrecht ausser
 //  Externen. Seit 1.340.0 zeigt eine einzelne Maschine auch, was vom
 //  Typ und vom Park her gilt, und „Vorhandene wählen“ teilt eine schon
-//  abgelegte Datei neu zu, ohne Hochladen.
+//  abgelegte Datei neu zu, ohne Hochladen. Seit 1.353.0 oben zwei
+//  Reiter: „Vorlagen“ (Ablage nach Langdreher, Kurzdreher, Extern,
+//  WartungVorlagen.jsx) und „Zuteilen“ (das Bisherige).
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { WartungListe, faelligSeit, zielVon, giltFuer } from "../pad/Wartung.jsx";
 import { batterieHeuteFaellig } from "../daten/maschinenInfo.js";
+import WartungVorlagen from "./WartungVorlagen.jsx";
 
 // Gewählte Art und Wahl, solange die App offen ist
 let merk = { art: "typ", id: null };
+let merkTeil = "vorlagen";
 
 const ARTEN = [["typ", "Maschinentyp"], ["park", "Maschinenpark"], ["maschine", "Einzelne Maschine"]];
 
@@ -34,6 +38,26 @@ function betroffen(z, maschinen) {
 }
 
 export default function Wartung() {
+  const [teil, setTeil] = useState(merkTeil);
+  const teilWaehlen = (t) => { merkTeil = t; setTeil(t); };
+  const reiter = (
+    <div className="reiter es-wartung__teil" role="tablist">
+      {[["vorlagen", "Vorlagen"], ["zuteilen", "Zuteilen"]].map(([k, t]) => (
+        <button key={k} role="tab" aria-selected={k === teil} data-wartung-teil={k}
+          className={"reiter__knopf" + (k === teil ? " aktiv" : "")} onClick={() => teilWaehlen(k)}>{t}</button>))}
+    </div>);
+  if (teil === "vorlagen") {
+    return (
+      <section className="karte es-wartung">
+        <h2>Wartung im Pad Mode</h2>
+        {reiter}
+        <WartungVorlagen />
+      </section>);
+  }
+  return <WartungZuteilen reiter={reiter} />;
+}
+
+function WartungZuteilen({ reiter }) {
   const [stamm, setStamm] = useState(null); // { typen, parks, maschinen }
   const [art, setArt] = useState(merk.art);
   const [wahl, setWahl] = useState(merk.id);
@@ -122,6 +146,7 @@ export default function Wartung() {
   return (
     <section className="karte es-wartung">
       <h2>Wartung im Pad Mode</h2>
+      {reiter}
       <p className="klein">Bilder oder PDFs ablegen, terminieren und auf Wunsch wiederholen, für einen ganzen
         Maschinentyp, einen ganzen Park oder eine einzelne Maschine. Ab dem Termin zeigt das Pad jeder betroffenen
         Maschine es als Bildschirmschoner statt des Einrichtblatts, bis dort jemand unten in der Mitte „Erledigt“

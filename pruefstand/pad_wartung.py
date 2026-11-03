@@ -157,6 +157,22 @@ with sync_playwright() as p:
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(700)
     pruefe("Reiter Wartung da", pg.locator("[data-einst='wartung']").count() == 1)
     pg.click("[data-einst='wartung']"); pg.wait_for_timeout(700)
+    # 1.353.0: zuerst Vorlagen nach Langdreher, Kurzdreher, Extern
+    pruefe("Reiter Vorlagen zuerst offen", pg.locator("#wartung-vorlagen").count() == 1
+           and pg.locator("#wartung-vorlagen [data-vorlage-gruppe]").count() == 3)
+    pg.set_input_files("#vorlage-datei", files=[{"name": "Langdreher Öl.png", "mimeType": "image/png", "buffer": PNG}])
+    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
+    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    pg.click("#wartung-vorlagen [data-vorlage-gruppe='kurzdreher']"); pg.wait_for_timeout(300)
+    pg.set_input_files("#vorlage-datei", files=[{"name": "Kurzdreher Filter.png", "mimeType": "image/png", "buffer": PNG}])
+    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
+    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    vl = pg.evaluate("TEST.daten.wartung_vorlagen || []")
+    print("Vorlagen:", [(v["titel"], v["gruppe"]) for v in vl])
+    pruefe("zwei Vorlagen in ihrer Gruppe", len(vl) == 2 and {v["gruppe"] for v in vl} == {"langdreher", "kurzdreher"})
+    pruefe("Kurzdreher zeigt nur ihre", pg.locator("#wartung-vorlagen [data-vorlage-zeile]").count() == 1)
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-vorlagen.png"))
+    pg.click("[data-wartung-teil='zuteilen']"); pg.wait_for_timeout(600)
     pg.click("[data-wartung-typ='t1']"); pg.wait_for_timeout(800)
     pruefe("Wartung des Typs in den Einstellungen", pg.locator(".es-wartung [data-wartung]").count() == 1)
     pruefe("Batterien aller Maschinen des Typs", pg.locator(".es-wartung [data-batterie-maschine]").count() >= 2)
@@ -200,7 +216,9 @@ with sync_playwright() as p:
     vorher = pg.evaluate("TEST.daten.wartung_plan.length")
     typplan = pg.evaluate("TEST.daten.wartung_plan.find(p => p.type_id === 't1')")
     pg.click("#wartung-vorhanden"); pg.wait_for_timeout(500)
+    pruefe("Auswahl öffnet bei Langdreher", pg.locator("#wartung-wahl [data-vorlage-gruppe='langdreher'][aria-selected=true]").count() == 1)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-vorhanden.png"))
+    pg.click("#wartung-wahl [data-vorlage-gruppe='bisher']"); pg.wait_for_timeout(300)
     pg.locator(".dialog-huelle:last-child button").filter(has_text=typplan["titel"]).first.click(); pg.wait_for_timeout(500)
     pg.evaluate("() => { const f = document.querySelector('.dialog-huelle:last-child input[name=titel], .dialog-huelle:last-child input'); f.focus(); }")
     pg.locator(".dialog-huelle:last-child input").first.fill("Typ-Wartung hier")
@@ -250,6 +268,20 @@ with sync_playwright() as p:
     pruefe("steht im Pad mit Schild", pg.locator("#wartung [data-wartung-ziel='maschine']").count() == 1)
     pg.locator("#wartung [data-wartung-ziel]").first.scroll_into_view_if_needed(); pg.wait_for_timeout(300)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-pad-ziele.png"))
+    # 1.353.0: Vorlage an der Maschine wählen und dem ganzen Park zuteilen
+    pg.click("#wartung-vorhanden"); pg.wait_for_selector("#wartung-wahl"); pg.wait_for_timeout(400)
+    pruefe("im Pad: Gruppe Langdreher vorgewählt", pg.locator("#wartung-wahl [data-vorlage-gruppe='langdreher'][aria-selected=true]").count() == 1
+           and pg.locator("#wartung-wahl [data-vorlage]").count() == 1)
+    if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-vorlage-wahl.png"))
+    pg.locator("#wartung-wahl [data-vorlage]").first.click(); pg.wait_for_timeout(500)
+    pg.evaluate("""(pk) => { const s = [...document.querySelectorAll('.dialog-huelle:last-child select')]
+      .find(x => [...x.options].some(o => o.value === 'park:' + pk));
+      s.value = 'park:' + pk; s.dispatchEvent(new Event('change', {bubbles: true})); }""", park)
+    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    v = pg.evaluate("TEST.daten.wartung_vorlagen.find(x => x.gruppe === 'langdreher')")
+    neu = pg.evaluate("TEST.daten.wartung_plan.find(p => p.titel === 'Langdreher Öl')")
+    pruefe("Vorlage dem Park zugeteilt, gleiche Datei", neu and neu.get("park_id") == park and neu.get("url") == v["url"]
+           and neu.get("art") == "bild")
     pruefe("keine Seitenfehler", not f)
     if f: print(f[:3])
     br.close()

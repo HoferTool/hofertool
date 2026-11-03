@@ -28,6 +28,15 @@
 //  type_id, machine_id, park_id (sql/wartung-ziel.sql). Quittiert wird
 //  weiter je Maschine.
 //
+//  Seit 1.353.0 Vorlagen (Wunsch Patrick 3. November 2026: „die
+//  Wartungsvorlagen sollen bei den Einstellungen abgelegt werden können,
+//  unterscheide nur Langdreher, Kurzdreher, Extern … immer noch wie
+//  vorher auf jeder Maschine anwählbar: nur diese Maschine, ganzer Park,
+//  Typ“): Tabelle wartung_vorlagen (sql/wartung-vorlagen.sql), abgelegt
+//  unter Einstellungen → Wartung → Vorlagen. „Vorlage wählen“ an der
+//  Maschine zeigt zuerst die Gruppe ihres Parks und legt mit derselben
+//  Datei einen Plan mit eigenem Ziel und Termin an.
+//
 //  Hochladen, terminieren, löschen: alle mit Schreibrecht. Quittieren:
 //  alle, die es sehen. Externe haben die Kachel nicht (wie vorher
 //  „Internet“).
@@ -60,10 +69,10 @@ export const wiederholungText = (w) => (WIEDERHOLUNG.find((x) => x[0] === w) || 
 const SCHRITT = { tag: [1, 0], woche: [7, 0], "2wochen": [14, 0], monat: [0, 1], "3monate": [0, 3],
   "6monate": [0, 6], jahr: [0, 12], "2jahre": [0, 24] };
 
-const endungVon = (name) => ((String(name || "").match(/\.([A-Za-z0-9]+)$/) || [])[1] || "").toLowerCase();
+export const endungVon = (name) => ((String(name || "").match(/\.([A-Za-z0-9]+)$/) || [])[1] || "").toLowerCase();
 export const istPdf = (w) => !!w && (w.art === "pdf" || endungVon(w.dateiname || String(w.url || "").split(/[?#]/)[0]) === "pdf");
 
-function ablageName(name) {
+export function ablageName(name) {
   const rein = String(name || "datei").normalize("NFD").replace(/[̀-ͯ]/g, "")
     .replace(/[^A-Za-z0-9._-]+/g, "_").replace(/_+/g, "_");
   return Date.now().toString(36) + "-" + rein.slice(-80);
@@ -298,7 +307,7 @@ export async function erledigen(item, m) {
   return true;
 }
 
-function ansehen(w) {
+export function ansehen(w) {
   if (istPdf(w)) return betrachter(w.url, w.titel, true);
   return betrachter(w.url, w.titel, false, "bild", endungVon(w.dateiname || w.url));
 }
@@ -315,6 +324,85 @@ function naechstesAnMaschine(m, { plaene, info, typ }) {
     if (!best || b < best.wann) best = { wann: b, titel: "Batterien", tag: true };
   }
   return best;
+}
+
+// ---------- Vorlagen (seit 1.353.0) ----------
+export const VORLAGEN = "wartung_vorlagen";
+export const GRUPPEN = [["langdreher", "Langdreher"], ["kurzdreher", "Kurzdreher"], ["extern", "Extern"]];
+export const gruppeText = (g) => (GRUPPEN.find((x) => x[0] === g) || GRUPPEN[0])[1];
+// Gruppe nach dem Namen des Parks (Langdreherpark, Kurzdreherpark, Extern)
+export function gruppeVonPark(name) {
+  const n = String(name || "").toLowerCase();
+  if (/extern/.test(n)) return "extern";
+  if (/kurz/.test(n)) return "kurzdreher";
+  if (/lang/.test(n)) return "langdreher";
+  return null;
+}
+export async function vorlagenLaden() {
+  const r = await alt.db.from(VORLAGEN).select("*").order("sort_order").order("titel");
+  if (r.error) throw r.error;
+  return r.data || [];
+}
+
+// Auswahl als Fenster: Reiter Langdreher, Kurzdreher, Extern und
+// „Bisher zugeteilt“ (Dateien, die schon an einer Maschine hängen, aber
+// keine Vorlage sind). Gibt { titel, url, pfad, dateiname, art,
+// wiederholung? } oder null.
+function VorlagenWahl({ vorlagen, bisher, gruppe, namen, fertig }) {
+  const reiter = GRUPPEN.concat(bisher.length ? [["bisher", "Bisher zugeteilt"]] : []);
+  const [g, setG] = useState(gruppe || "langdreher");
+  const liste = g === "bisher" ? bisher : vorlagen.filter((v) => (v.gruppe || "langdreher") === g);
+  return (
+    <div className="dialog dialog--breit wartung wartung-wahl" id="wartung-wahl">
+      <div className="blatt__kopf">
+        <h2>Vorlage wählen</h2>
+        <button className="knopf knopf--still" data-nein="" onClick={() => fertig(null)}>Abbrechen</button>
+      </div>
+      <div className="es-wartung__art" role="tablist">
+        {reiter.map(([k, t]) => {
+          const n = k === "bisher" ? bisher.length : vorlagen.filter((v) => (v.gruppe || "langdreher") === k).length;
+          return <button key={k} role="tab" aria-selected={k === g} data-vorlage-gruppe={k}
+            className={"knopf" + (k === g ? " knopf--haupt" : "")} onClick={() => setG(k)}>
+            {t} <span className="es-wartung__zahl">{n}</span></button>;
+        })}
+      </div>
+      <p className="klein">Die Datei bleibt dieselbe. Danach wählen, wofür sie gilt, und den Termin setzen.
+        Vorlagen ablegen unter Einstellungen → Wartung → Vorlagen.</p>
+      {!liste.length ? <p className="unterlagen__leer">Keine Vorlagen in {gruppeText(g)}.</p>
+        : <ul className="wartung-wahl__liste">
+            {liste.map((v) => (
+              <li key={v.id}>
+                <button type="button" className="wartung-wahl__karte" data-vorlage={v.id} onClick={() => fertig(v)}>
+                  <span className="wartung-wahl__bild"><Vorschau w={v} /></span>
+                  <b>{v.titel}</b>
+                  {g === "bisher" && <span className="klein">{zielText(zielVon(v), namen)}</span>}
+                </button>
+              </li>))}
+          </ul>}
+    </div>
+  );
+}
+export async function vorlageWaehlen({ gruppe, namen, mitBisher = true }) {
+  const [vorlagen, plaene] = await Promise.all([vorlagenLaden().catch(() => []),
+    mitBisher ? alleLaden().catch(() => []) : []]);
+  // Je Datei nur einmal, nichts, was schon Vorlage ist
+  const gesehen = new Set(vorlagen.map((v) => v.url));
+  const bisher = plaene.filter((p) => { if (!p.url || gesehen.has(p.url)) return false; gesehen.add(p.url); return true; });
+  if (!vorlagen.length && !bisher.length) {
+    alt.meldung("Es ist noch keine Vorlage abgelegt (Einstellungen → Wartung → Vorlagen).", "warn");
+    return null;
+  }
+  // Ohne Vorlage in der eigenen Gruppe die erste mit Inhalt
+  let g = gruppe;
+  if (!g || !vorlagen.some((v) => v.gruppe === g)) {
+    g = (GRUPPEN.find(([k]) => vorlagen.some((v) => v.gruppe === k)) || [bisher.length ? "bisher" : gruppe || "langdreher"])[0];
+  }
+  return new Promise((fertig) => {
+    let ende = false;
+    const fertigMit = (wert) => { if (!ende) { ende = true; fertig(wert); } };
+    const zu = fensterOeffnen(() => <VorlagenWahl vorlagen={vorlagen} bisher={bisher} gruppe={g} namen={namen}
+      fertig={(v) => { fertigMit(v); zu(); }} />, () => fertigMit(null), "wartung-huelle");
+  });
 }
 
 // ---------- Kachel im Dashboard ----------
@@ -381,7 +469,7 @@ function pdfVorschau(url) {
   return vorschauVorrat.get(url);
 }
 
-function Vorschau({ w }) {
+export function Vorschau({ w }) {
   const pdf = istPdf(w);
   const [v, setV] = useState(null);
   const [fehler, setFehler] = useState(false);
@@ -601,27 +689,13 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
     await aendern(w, daten, "Termin " + w.titel);
   };
 
-  // Eine schon abgelegte Datei (etwa vom Typ) noch einmal zuteilen, ohne
-  // sie neu hochzuladen (Wunsch Patrick 2. November 2026: „Wartungen, die
-  // bei den Typen erscheinen, sollen auch bei den einzelnen Maschinen
-  // ausgewählt werden können“). Neuer Plan mit eigenem Termin, dieselbe
-  // Datei in der Ablage.
+  // Eine Vorlage aus den Einstellungen (seit 1.353.0) oder eine schon
+  // abgelegte Datei (etwa vom Typ) zuteilen, ohne neu hochzuladen (Wunsch
+  // Patrick 2. und 3. November 2026). Neuer Plan mit eigenem Ziel und
+  // Termin, dieselbe Datei in der Ablage.
   const vorhandeneWaehlen = async () => {
-    let alle;
-    try { alle = await alleLaden(); } catch (f) { alt.meldung(sqlFehler(alt.fehlertext(f)), "fehler"); return; }
-    // Was an dieser Maschine schon gilt, zuerst; je Datei nur einmal
-    const nah = (p) => maschinen.some((x) => giltFuer(p, x)) ? 0 : 1;
-    const gesehen = new Set();
-    const liste = [...alle].sort((a, b) => nah(a) - nah(b)).filter((p) => {
-      if (!p.url || gesehen.has(p.url)) return false;
-      gesehen.add(p.url); return true;
-    });
-    if (!liste.length) { alt.meldung("Es ist noch keine Wartung abgelegt.", "warn"); return; }
-    const id = await alt.auswahlDialog("Vorhandene Wartung wählen",
-      liste.map((p) => ({ wert: p.id, text: p.titel + " · " + zielText(zielVon(p), namen)
-        + (istPdf(p) ? " · PDF" : " · Bild") })),
-      "Die Datei bleibt dieselbe, Termin und Wiederholung gelten nur für die neue Zuteilung.");
-    const q = liste.find((p) => p.id === id);
+    const parkId = (m || maschinen[0] || {}).park_id || (ziel && ziel.art === "park" ? ziel.id : null);
+    const q = await vorlageWaehlen({ gruppe: gruppeVonPark(namen.park[parkId]), namen });
     if (!q) return;
     const vorgabe = m ? { art: "maschine", id: m.id } : ziel;
     const w = await alt.dialogFelder({
@@ -631,14 +705,14 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
         ...zielFeld(zielWert(vorgabe)),
         { name: "termin", label: "Erster Termin (leer = nur ablegen)", typ: "datetime-local", wert: "",
           hinweis: "Ab dann zeigt das Pad jeder betroffenen Maschine es als Bildschirmschoner, bis dort jemand „Erledigt“ tippt." },
-        wiederholungFeld(q.wiederholung),
+        wiederholungFeld(q.wiederholung || "nie"),
       ],
       bestaetigen: "Zuteilen" });
     if (!w) return;
     const z = w.ziel ? zielAus(w.ziel) : vorgabe;
     const ein = await alt.db.from(PLAN).insert({
       ...zielSpalten(z, false), titel: w.titel.trim(), url: q.url, pfad: q.pfad, dateiname: q.dateiname,
-      art: q.art, termin: w.termin ? new Date(w.termin).toISOString() : null,
+      art: q.art || (istPdf(q) ? "pdf" : "bild"), termin: w.termin ? new Date(w.termin).toISOString() : null,
       wiederholung: w.wiederholung || "nie" }).select("id");
     if (ein.error) { alt.meldung(sqlFehler(alt.fehlertext(ein.error)), "fehler"); return; }
     const neuId = ((ein.data || [])[0] || {}).id;
@@ -709,7 +783,7 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
         <h2>Wartung{titel ? " · " + titel : ""}</h2>
         {darf && <button className="knopf knopf--haupt" id="wartung-neu" disabled={!!laedt}
           onClick={() => wahl.current && wahl.current.click()}>+ Bild oder PDF</button>}
-        {darf && <button className="knopf" id="wartung-vorhanden" onClick={vorhandeneWaehlen}>Vorhandene wählen</button>}
+        {darf && <button className="knopf" id="wartung-vorhanden" onClick={vorhandeneWaehlen}>Vorlage wählen</button>}
         {zu && <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>}
       </div>
       {m && plaene !== null && <div className="wartung__naechstes" data-wartung-naechstes="">
@@ -732,7 +806,7 @@ export function WartungListe({ m, ziel, maschinen: alle, zu, vorgabe }) {
       </div>}
       {darf && <input ref={wahl} type="file" multiple hidden id="wartung-datei" accept="image/*,application/pdf,.pdf"
         onChange={(e) => { const d = [...e.target.files]; e.target.value = ""; if (d.length) hochladen(d); }} />}
-      <p className="klein wartung__erklaerung">{erklaerung} Bild oder PDF ablegen (oder eine schon abgelegte mit „Vorhandene wählen“), dann „Terminieren“ mit
+      <p className="klein wartung__erklaerung">{erklaerung} Bild oder PDF ablegen (oder eine Vorlage aus den Einstellungen mit „Vorlage wählen“), dann „Terminieren“ mit
         Wiederholung: ab dem Termin zeigt das Pad es als Bildschirmschoner statt des Einrichtblatts, bis an der
         Maschine jemand unten in der Mitte „Erledigt“ tippt.</p>
       {laedt && <p className="unterlagen__laedt">Lädt hoch: {laedt} …</p>}
