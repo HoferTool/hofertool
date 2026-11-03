@@ -2,11 +2,11 @@
 # 3. November 2026). Läuft mit dem Prüfstand, also nur mit Beispieldaten.
 # Ergebnis: public/hilfe/hofer-nc-pro.mp4 (braucht ffmpeg).
 # Seit 1.377.0 mit Sprecher (Wunsch Patrick 3. November 2026: „etwas
-# detaillierter und mit Ton“): tiefe deutsche Männerstimme aus Piper
-# (pip install piper-tts, Stimme de-thorsten-low aus den Piper-Releases auf
-# GitHub, Pfad in STIMME), mit etwas Trailer-Klang. Eine echte Person wird
+# detaillierter und mit Ton“). Seit 1.378.2 eine warme deutsche Frauenstimme
+# aus Piper (pip install piper-tts, Stimme de-kerstin-low aus den Piper-Releases
+# auf GitHub, Pfad in STIMME), mit wenig Raumklang. Eine echte Person wird
 # bewusst nicht nachgeahmt.
-#   cd pruefstand && STIMME=/pfad/de-thorsten-low.onnx python tutorial_video.py
+#   cd pruefstand && STIMME=/pfad/de-kerstin-low.onnx python tutorial_video.py
 import os, sys, time, shutil, subprocess, tempfile
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -14,7 +14,7 @@ from playwright.sync_api import sync_playwright
 HIER = os.path.dirname(os.path.abspath(__file__))
 ZIEL = os.path.join(HIER, "..", "public", "hilfe", "hofer-nc-pro.mp4")
 B, H = 1280, 800
-STIMME = os.environ.get("STIMME", "/tmp/claude-0/tts/de-thorsten-low.onnx")
+STIMME = os.environ.get("STIMME", "/tmp/claude-0/tts/kerstin-low/de-kerstin-low.onnx")
 
 # Schrift unten und ein sichtbarer Mauszeiger (headless zeigt keinen)
 ZUSATZ = """
@@ -52,17 +52,17 @@ def schritt(sprechen, zeile):
     return deko
 
 def ton_machen(ordner):
-    """Jede Zeile einzeln sprechen lassen, tiefer und mit etwas Hall."""
+    """Jede Zeile einzeln sprechen lassen, ruhig, mit etwas Wärme und wenig Hall."""
     dauer = []
     for i, (sprechen, _, _) in enumerate(SCHRITTE):
         roh = os.path.join(ordner, f"r{i}.wav"); fertig = os.path.join(ordner, f"t{i}.wav")
-        subprocess.run([sys.executable, "-m", "piper", "-m", STIMME, "-f", roh, "--length-scale", "1.08",
+        subprocess.run([sys.executable, "-m", "piper", "-m", STIMME, "-f", roh, "--length-scale", "1.06",
                         "--sentence-silence", "0.35"], input=sprechen.encode("utf-8"), check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", roh, "-af",
-                        "asetrate=16000*0.9,aresample=44100,atempo=1.111,"
-                        "equalizer=f=110:t=q:w=1:g=5,acompressor=threshold=-20dB:ratio=3:makeup=2,"
-                        "aecho=0.8:0.45:38:0.12,loudnorm=I=-16:TP=-1.5", "-ar", "44100", "-ac", "1", fertig], check=True)
+                        "aresample=44100,equalizer=f=220:t=q:w=1:g=2,equalizer=f=6000:t=q:w=2:g=-2,"
+                        "acompressor=threshold=-20dB:ratio=2.5:makeup=2,"
+                        "aecho=0.8:0.3:30:0.08,loudnorm=I=-16:TP=-1.5", "-ar", "44100", "-ac", "1", fertig], check=True)
         d = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", fertig],
                                  capture_output=True, text=True).stdout.strip())
         dauer.append(d)
