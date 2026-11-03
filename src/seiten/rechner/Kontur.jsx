@@ -129,12 +129,33 @@ function KonturRechner({ imFenster }) {
   };
   const elementAendern = (i, neu) => aendern({ elemente: k.elemente.map((e, j) => (j === i ? { ...e, ...neu } : e)) });
   const elementWeg = (i) => { aendern({ elemente: k.elemente.filter((_, j) => j !== i) }); setWahl(-1); };
+  // Feld X eines Elements in der Liste anspringen (Wunsch Patrick
+  // 3. November 2026: „wenn ich in der Grafik auf ein Element klicke, will
+  // ich, dass das Element in der Liste aktiviert wird; bei einem neuen
+  // Element soll der Cursor in den X-Wert springen“). Erst nach dem
+  // Zeichnen der Liste, sonst gibt es das neue Feld noch nicht.
+  const springen = useRef(null);
+  // Auch wenn das Element schon gewählt war, neu zeichnen, damit der
+  // Sprung ins Feld stattfindet
+  const [, sprungNeu] = useState(0);
+  useEffect(() => {
+    const i = springen.current;
+    if (i === null || !wurzel.current) return;
+    springen.current = null;
+    const zeile = wurzel.current.querySelector(`[data-ktel='${i}']`);
+    const feld = zeile && zeile.querySelector("[data-ktfeld='x']");
+    if (!feld) return;
+    zeile.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+    feld.focus({ preventScroll: true }); feld.select();
+  });
+  const ausGrafik = (i) => { springen.current = i; setWahl(i); sprungNeu((n) => n + 1); };
   const elementDazu = (art) => {
     const neu = [...k.elemente];
     const wo = wahl >= 0 && wahl < neu.length ? wahl + 1 : neu.length;
     neu.splice(wo, 0, neuesElement(art));
     aendern({ elemente: neu });
     setWahl(wo);
+    springen.current = wo;
   };
 
   const rn = Number(String(k.rn).replace(",", ".")) || 0;
@@ -177,6 +198,9 @@ function KonturRechner({ imFenster }) {
     if (!el.x && !el.z) return;
     aendern({ elemente: [...k.elemente, el] });
     setWahl(k.elemente.length);
+    // Mit der Maus gesetzt: gleich in X des neuen Elements. Eingetippt
+    // bleiben die Felder bei der Maus offen für den nächsten Punkt.
+    if (!genau) springen.current = k.elemente.length;
   };
 
   return (
@@ -254,7 +278,7 @@ function KonturRechner({ imFenster }) {
                 onClick={() => setZeichnen((z) => !z)}>{zeichnen ? "Zeichnen beenden" : "✎ Zeichnen"}</button>
               <button className="knopf knopf--klein" id="kt-zurueck" disabled={!verlauf.current.length}
                 title="Letzte Änderung an der Kontur zurücknehmen" onClick={zurueck}>↶ Rückgängig</button></div>
-            <Grafik kontur={kontur} bahn={bahn} k={k} wahl={wahl} setWahl={setWahl} zeichnen={zeichnen}
+            <Grafik kontur={kontur} bahn={bahn} k={k} wahl={wahl} setWahl={ausGrafik} zeichnen={zeichnen}
               punktSetzen={punktSetzen} ende={ende} />
             <p className="klein">
               <span className="kt-leg kt-leg--kontur" /> Fertigkontur
@@ -794,6 +818,12 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
           <path key={i} d={einzeln(g)} data-ktseg={g.nr}
             className={"kt-kontur" + (g.nr - 1 === wahl ? " kt-kontur--an" : "")}
             onClick={(e) => { if (zeichnen) return; e.stopPropagation(); setWahl(g.nr - 1); }} />
+        ))}
+        {/* Die Linien sind dünn: unsichtbar breiter darüber, damit ein
+            Klick das Element sicher trifft */}
+        {!zeichnen && segs.map((g, i) => (
+          <path key={"t" + i} d={einzeln(g)} data-kttreffer={g.nr} className="kt-treffer"
+            onClick={(e) => { e.stopPropagation(); setWahl(g.nr - 1); }} />
         ))}
         {bahn.mitte.length > 0 && Number(k.rn) > 0 && <path d={pfad(bahn.mitte)} className="kt-mitte" />}
         {bahn.bahn.length > 0 && <path d={pfad(bahn.bahn)} className="kt-bahn" />}

@@ -11388,3 +11388,6 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 .kt-zoom { position: absolute; right: 6px; top: 6px; display: flex; gap: 4px; }
 .kt-zoom .knopf { min-width: 30px; padding: 2px 8px; opacity: .85; }
 .kt-zoom .knopf:hover { opacity: 1; }
+
+/* Kontur: breite, unsichtbare Trefferfläche über den dünnen Linien (1.364.0) */
+.kt-treffer { fill: none; stroke: transparent; stroke-width: 12; stroke-linecap: round; cursor: pointer; pointer-events: stroke; }

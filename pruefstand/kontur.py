@@ -75,7 +75,9 @@ with sync_playwright() as p:
     vor = pg.locator("[data-ktel]").count()
     pg.mouse.click(box["x"] + box["width"] * 0.9, box["y"] + box["height"] * 0.3)
     pg.wait_for_timeout(150)
-    pruefe("Klick setzt neues Element", pg.locator("[data-ktel]").count() == vor + 1)
+    pruefe("Klick setzt neues Element", pg.locator("[data-ktel]").count() == vor + 1
+           and pg.evaluate("document.activeElement.dataset.ktfeld") == "x"
+           and pg.evaluate("document.activeElement.closest('[data-ktel]')?.dataset.ktel") == str(vor))
     # Tab springt in X und Z, Enter setzt den Punkt genau
     pg.mouse.move(box["x"] + box["width"] * 0.5, box["y"] + box["height"] * 0.5)
     pg.keyboard.press("Tab")
@@ -103,9 +105,17 @@ with sync_playwright() as p:
     pruefe("Felder direkt neben der Maus", 0 <= d["x"] - mx < 40 and 0 <= d["y"] - my < 40)
     pg.keyboard.press("Escape")
     pg.click("#kt-zeichnen")
+    # Klick auf ein Element in der Grafik wählt es in der Liste, Cursor in X
+    pg.locator("#kt-bild [data-kttreffer='1']").click(force=True); pg.wait_for_timeout(200)
+    pruefe("Klick in der Grafik wählt Element in der Liste",
+           pg.locator("[data-ktel='0']").get_attribute("class").find("kt-el--an") >= 0
+           and pg.evaluate("document.activeElement.closest('[data-ktel]')?.dataset.ktel") == "0"
+           and pg.evaluate("document.activeElement.dataset.ktfeld") == "x")
     # Rückgängig nimmt das letzte Element weg
     vor = pg.locator("[data-ktel]").count()
-    pg.click("[data-kt='gerade']"); pg.wait_for_timeout(100)
+    pg.click("[data-kt='gerade']"); pg.wait_for_timeout(150)
+    pruefe("Neues Element: Cursor in X", pg.evaluate("document.activeElement.dataset.ktfeld") == "x"
+           and pg.evaluate("document.activeElement.closest('[data-ktel]')?.dataset.ktel") == "1")
     pg.click("#kt-zurueck"); pg.wait_for_timeout(150)
     pruefe("Rückgängig nimmt neues Element weg", pg.locator("[data-ktel]").count() == vor)
     pg.fill("[data-ktfeld='rn']", "0.55"); pg.wait_for_timeout(50)
