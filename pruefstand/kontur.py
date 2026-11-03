@@ -112,6 +112,24 @@ with sync_playwright() as p:
     pg.wait_for_timeout(150); pg.click(".dialog .knopf--gefahr"); pg.wait_for_timeout(300)
     pruefe("Gelöscht", len(pg.evaluate("TEST.daten.konturen || []")) == 0)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
+    # Eigenes Browserfenster
+    with pg.expect_popup() as auf:
+        pg.click("#kt-eigen")
+    pop = auf.value; pop.wait_for_timeout(300)
+    if BILD: pop.set_viewport_size({"width": 1300, "height": 850}); pop.wait_for_timeout(200); pop.screenshot(path=BILD + "/kontur-eigen.png")
+    pruefe("Eigenes Fenster mit Rechner", pop.locator("#kt-code").count() == 1 and pg.locator("#kt-woanders").count() == 1)
+    pop.click("#kt-zeichnen")
+    b2 = pop.locator("#kt-bild").bounding_box()
+    pop.mouse.move(b2["x"] + b2["width"] * 0.5, b2["y"] + b2["height"] * 0.5)
+    pop.keyboard.press("Tab"); pop.wait_for_timeout(200)
+    pruefe("Tab im eigenen Fenster", pop.evaluate("document.activeElement && document.activeElement.id") == "kt-ein-x")
+    pop.keyboard.press("Escape"); pop.wait_for_timeout(100)
+    pop.click("#kt-zeichnen")
+    pop.fill("[data-ktfeld='rn']", "0.6"); pop.wait_for_timeout(100)
+    pop.click("#kt-eigen-zu"); pg.wait_for_timeout(600)
+    pruefe("Zurück im HoferTool mit der Änderung", pg.locator("#kt-woanders").count() == 0
+           and pg.locator("[data-ktfeld='rn']").input_value() == "0.6" and pop.is_closed())
+    pg.fill("[data-ktfeld='rn']", "0.4")
     pg.click("[data-ktseite='innen']"); pg.wait_for_timeout(100)
     pruefe("Innen wählt Spitze oben rechts", pg.locator("[data-ktspitze='or'].aktiv").count() == 1)
     if BILD:

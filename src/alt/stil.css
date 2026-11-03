@@ -11233,3 +11233,9 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 .kt-dyn__ok { min-height: 30px; width: 30px; border: none; background: var(--marke); color: #fff; border-radius: var(--radius); cursor: pointer; }
 /* Rahmen nur um die Grafik, damit die Felder X/Z genau bei der Maus stehen (1.356.1) */
 .kt-bildrahmen { position: relative; }
+/* Konturenrechner im eigenen Browserfenster (1.357.0) */
+.kt-oben { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.dialog.kt-eigen { width: min(1500px, 96vw); max-width: none; height: 90vh; }
+.dialog-huelle--eigen > .dialog.kt-eigen { width: 100%; height: 100vh; max-height: none !important;
+  border-radius: 0; transform: none !important; overflow-y: auto; }
+.kt-eigen__kopf { margin-bottom: 12px; }

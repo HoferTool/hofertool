@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
+import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { konturRechnen, bahnRechnen, ncProgramm, bogenWinkel, SPITZEN } from "./kontur.js";
 
 const VORGABE = {
@@ -38,8 +39,53 @@ function laden() {
 
 const neuesElement = (art) => ({ art, x: "", z: "", w: "", r: art === "bogen" ? "1" : "", dreh: "cw", ueb: "", uw: "" });
 
+// Eigenes Browserfenster (Wunsch Patrick 3. November 2026: „in einem
+// eigenen Tab öffnen, damit er aus dem HoferTool verschoben werden
+// kann“): Der Rechner zieht wie das Auftragsfenster der Planwand in ein
+// eigenes Fenster um (eigenesFenster.js), arbeitet dort mit derselben
+// Anmeldung weiter, und im Reiter steht so lange nur ein Hinweis, damit
+// nicht zwei Rechner dieselbe Kontur ändern.
+let fensterZu = null;
+const fensterHoerer = new Set();
+const fensterMelden = () => fensterHoerer.forEach((f) => f());
+
+function fensterAuf() {
+  if (fensterZu) return;
+  const zu = fensterOeffnen((zu) => (
+    <div className="dialog kt-eigen">
+      <div className="karte__kopf kt-eigen__kopf"><h2>Konturenrechner</h2>
+        <button className="knopf knopf--klein" id="kt-eigen-zu" onClick={zu}>Zurück ins HoferTool</button></div>
+      <KonturRechner imFenster />
+    </div>
+  ), () => { fensterZu = null; fensterMelden(); }, "kt-eigen-huelle");
+  const huellen = document.querySelectorAll(".kt-eigen-huelle");
+  const huelle = huellen[huellen.length - 1];
+  fensterZu = zu;
+  fensterMelden();
+  if (!huelle || !inEigenesFenster(huelle, zu, { titel: "Konturenrechner · Hofer Tool",
+    lage: { x: window.screenX + 60, y: window.screenY + 60 } })) zu();
+}
+
 export default function Kontur() {
+  const [, neu] = useState(0);
+  useEffect(() => {
+    const f = () => neu((n) => n + 1);
+    fensterHoerer.add(f);
+    return () => fensterHoerer.delete(f);
+  }, []);
+  if (fensterZu) return (
+    <section className="karte kt-woanders" id="kt-woanders">
+      <h2>Kontur</h2>
+      <p>Der Konturenrechner ist in einem eigenen Fenster offen.</p>
+      <button className="knopf" onClick={() => fensterZu && fensterZu()}>Zurückholen</button>
+    </section>
+  );
+  return <KonturRechner />;
+}
+
+function KonturRechner({ imFenster }) {
   const [k, setK] = useState(laden);
+  const wurzel = useRef(null);
   const [wahl, setWahl] = useState(-1);
   const [zeichnen, setZeichnen] = useState(false);
   const [gespeichert, setGespeichert] = useState(null);
@@ -74,7 +120,9 @@ export default function Kontur() {
   const fehler = [...kontur.fehler, ...bahn.fehler];
 
   const kopieren = async () => {
-    try { await navigator.clipboard.writeText(code); alt.meldung("Programm kopiert."); }
+    // Im eigenen Fenster dessen Zwischenablage, sonst fehlt der Fokus
+    const w = (wurzel.current && wurzel.current.ownerDocument.defaultView) || window;
+    try { await w.navigator.clipboard.writeText(code); alt.meldung("Programm kopiert."); }
     catch (f) { alt.meldung("Kopieren nicht möglich. Bitte von Hand markieren.", "warn"); }
   };
 
@@ -82,8 +130,9 @@ export default function Kontur() {
   const herunterladen = () => {
     const name = (k.name || "kontur").replace(/[^\w.-]+/g, "_");
     const url = URL.createObjectURL(new Blob([code.replace(/\n/g, "\r\n") + "\r\n"], { type: "text/plain" }));
-    const a = document.createElement("a");
-    a.href = url; a.download = name + ".nc"; document.body.appendChild(a); a.click(); a.remove();
+    const d = (wurzel.current && wurzel.current.ownerDocument) || document;
+    const a = d.createElement("a");
+    a.href = url; a.download = name + ".nc"; d.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 
@@ -105,7 +154,11 @@ export default function Kontur() {
   };
 
   return (
-    <div className="kt">
+    <div className="kt" ref={wurzel}>
+      {!imFenster && window.matchMedia && window.matchMedia("(pointer: fine)").matches && (
+        <div className="kt-oben"><button className="knopf knopf--klein" id="kt-eigen" onClick={fensterAuf}
+          title="Den Rechner in einem eigenen Browserfenster öffnen, das man verschieben kann, auch auf einen anderen Bildschirm">
+          ⧉ Eigenes Fenster</button></div>)}
       <div className="kt-raster">
         <div>
           <section className="karte">
@@ -437,8 +490,10 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
       e.preventDefault(); e.stopPropagation();
       dynOeffnen(maus);
     };
-    document.addEventListener("keydown", taste, true);
-    return () => document.removeEventListener("keydown", taste, true);
+    // Im eigenen Fenster kommen die Tasten in dessen Dokument an
+    const doc = (svg.current && svg.current.ownerDocument) || document;
+    doc.addEventListener("keydown", taste, true);
+    return () => doc.removeEventListener("keydown", taste, true);
   }, [zeichnen, maus, ende.z, ende.r]);
   useEffect(() => {
     if (dyn && !dyn.getippt && maus) setDyn((d) => d && !d.getippt ? { ...d, x: zahlFeld(maus.r * 2), z: zahlFeld(maus.z) } : d);
