@@ -11508,7 +11508,8 @@ html:has(.kt-raster), body:has(.kt-raster) { overflow-x: clip; }
 .lk-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
 .lk-knoepfe .knopf { display: inline-flex; align-items: center; gap: 7px; }
 .lk-liste { display: grid; gap: 8px; }
-.lk-kontakt { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 14px; align-items: start;
+.lk-kontakt { display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-auto-flow: column; grid-auto-columns: auto;
+  gap: 14px; align-items: start;
   padding: 10px 12px; border: 1px solid var(--linie); border-radius: 10px; background: var(--flaeche); }
 .lk-karte { width: 96px; height: 60px; padding: 0; border: 1px solid var(--linie); border-radius: 6px;
   overflow: hidden; background: var(--flaeche); cursor: zoom-in; display: flex; align-items: center; justify-content: center; }
@@ -11540,8 +11541,9 @@ html:has(.kt-raster), body:has(.kt-raster) { overflow-x: clip; }
 .lk-rohtext pre { white-space: pre-wrap; font: inherit; margin: 6px 0 0; padding: 8px; border-radius: 6px;
   background: color-mix(in srgb, var(--tinte) 5%, var(--flaeche)); }
 @media (max-width: 640px) {
-  .lk-kontakt { grid-template-columns: 64px minmax(0, 1fr); }
-  .lk-kontakt .lk-karte { width: 64px; height: 42px; }
+  .lk-kontakt { grid-template-columns: 52px minmax(0, 1fr); grid-auto-flow: row; }
+  .lk-kontakt .lk-profil { width: 52px; height: 52px; font-size: 1.05rem; }
+  .lk-kontakt > .lk-karte { grid-column: 2; width: 80px; height: 50px; }
   .lk-kontakt > .bs-pos__aktionen { grid-column: 1 / -1; justify-self: end; }
   .lk-form { grid-template-columns: 1fr; }
   .lk-besuch__wer { margin-left: 0; width: 100%; }
@@ -11619,3 +11621,15 @@ body.dunkel .kt-marke__name { color: #fff !important; }
 .kt-tutorial__kopf h2 { margin: 0; }
 .kt-tutorial__kopf .kt-marke__logo { height: 30px; }
 @media (max-width: 640px) { .kt-marke__logo { height: 26px; } .kt-marke__name { font-size: 16px; } .kt-marke__strich { height: 22px; } }
+
+/* Profilbild je Kontakt (seit 1.377.0, Wunsch Patrick 3. November 2026) */
+.lk-profil { width: 64px; height: 64px; padding: 0; border-radius: 50%; overflow: hidden; flex: none;
+  border: 1px solid var(--linie); background: var(--flaeche); cursor: zoom-in; display: flex;
+  align-items: center; justify-content: center; object-fit: cover; }
+.lk-profil img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lk-profil--leer { cursor: default; background: color-mix(in srgb, var(--marke) 14%, var(--flaeche));
+  color: var(--marke); font-weight: 700; font-size: 1.3rem; letter-spacing: .02em; }
+.lk-profil--gross { width: 88px; height: 88px; font-size: 1.7rem; cursor: default; }
+.lk-profil-zeile { display: flex; align-items: center; gap: 14px; margin: 4px 0 12px; }
+.lk-profil-zeile__knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
+.lk-profil-zeile__knoepfe .knopf { display: inline-flex; align-items: center; gap: 7px; }

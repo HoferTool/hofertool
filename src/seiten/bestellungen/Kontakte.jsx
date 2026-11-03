@@ -13,6 +13,11 @@
 //  lieferanten/<id>/karten/). Tabellen lieferant_kontakte und
 //  lieferant_besuche aus sql/lieferant-kontakte.sql (eingespielt).
 //  Lesen alle ausser Externen, ändern mit Schreibrecht, mit Rückgängig.
+//  Profilbild je Kontakt (seit 1.377.0, Wunsch Patrick 3. November 2026:
+//  „ein Foto soll auch hinzugefügt werden können“): rund in der Liste,
+//  quadratisch zugeschnitten, 512 Pixel, Ablage „zeichnungen“ unter
+//  lieferanten/<id>/profil/, Spalten foto_url und foto_pfad aus
+//  sql/lieferant-kontakt-foto.sql (eingespielt).
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
@@ -132,11 +137,11 @@ function Kontakt({ k, l, darf, neu }) {
   const tel = (n) => "tel:" + String(n).replace(/[^\d+]/g, "");
   return (
     <div className="lk-kontakt" data-lk={k.id}>
-      {k.karte_url
-        ? <button className="lk-karte" title="Visitenkarte ansehen"
-            onClick={() => alt.betrachter(k.karte_url, "Visitenkarte " + k.name, false)}>
-            <img src={k.karte_url} alt="Visitenkarte" loading="lazy" /></button>
-        : <span className="lk-karte lk-karte--leer"><Zeichen name="person" groesse={22} /></span>}
+      {k.foto_url
+        ? <button className="lk-profil" title="Profilbild ansehen"
+            onClick={() => alt.betrachter(k.foto_url, k.name, false)}>
+            <img src={k.foto_url} alt={k.name} loading="lazy" /></button>
+        : <span className="lk-profil lk-profil--leer">{anfangsbuchstaben(k.name)}</span>}
       <div className="lk-kontakt__text">
         <div className="lk-kontakt__name">{k.name}</div>
         {k.funktion && <div className="klein">{k.funktion}</div>}
@@ -147,12 +152,32 @@ function Kontakt({ k, l, darf, neu }) {
         </div>
         {k.notiz && <div className="lk-notiz">{k.notiz}</div>}
       </div>
+      {k.karte_url && <button className="lk-karte" title="Visitenkarte ansehen"
+        onClick={() => alt.betrachter(k.karte_url, "Visitenkarte " + k.name, false)}>
+        <img src={k.karte_url} alt="Visitenkarte" loading="lazy" /></button>}
       {darf && <div className="bs-pos__aktionen">
         <Symbolknopf zeichen="stift" text="Ändern" data-lkbearb={k.id} onClick={() => kontaktOeffnen(l, k, null, neu)} />
         <Symbolknopf zeichen="muell" text="Löschen" gefahr data-lkweg={k.id} onClick={loeschen} />
       </div>}
     </div>
   );
+}
+
+function anfangsbuchstaben(n) {
+  return String(n || "").replace(/[^A-Za-zÄÖÜäöüÉéÈè\s-]/g, "").split(/[\s-]+/).filter(Boolean)
+    .slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
+}
+
+// Profilbild: Mitte quadratisch ausschneiden, 512 Pixel, JPEG
+async function profilZuschneiden(datei) {
+  const bild = await createImageBitmap(datei);
+  const s = Math.min(bild.width, bild.height);
+  const z = Math.min(512, s);
+  const c = document.createElement("canvas");
+  c.width = c.height = z;
+  c.getContext("2d").drawImage(bild, (bild.width - s) / 2, (bild.height - s) / 2, s, s, 0, 0, z, z);
+  if (bild.close) bild.close();
+  return await new Promise((ok, nein) => c.toBlob((b) => (b ? ok(b) : nein(new Error("Bild liess sich nicht umwandeln"))), "image/jpeg", 0.88));
 }
 
 function Besuch({ b, l, kontakte, darf, neu }) {
@@ -231,11 +256,21 @@ function kontaktOeffnen(l, k, datei, neu) {
 function KontaktFenster({ l, k, datei, zu, neu }) {
   const [w, setW] = useState(() => ({ name: "", funktion: "", telefon: "", mobil: "", email: "", notiz: "", ...(k || {}) }));
   const [karte, setKarte] = useState(null); // neues Foto { datei, url }
+  const [profil, setProfil] = useState(null); // neues Profilbild { blob, url } oder { weg: true }
   const [lesen, setLesen] = useState(null); // Fortschritt der Erkennung
   const [gelesen, setGelesen] = useState(null); // welche Felder die Karte gefüllt hat
   const [speichert, setSpeichert] = useState(false);
   const foto = useRef(null);
+  const profilFeld = useRef(null);
   const setze = (n, v) => setW((x) => ({ ...x, [n]: v }));
+  const profilNehmen = async (d) => {
+    try {
+      const blob = await profilZuschneiden(d);
+      setProfil((p0) => { if (p0 && p0.url) URL.revokeObjectURL(p0.url); return { blob, url: URL.createObjectURL(blob) }; });
+    } catch (f) {
+      alt.meldung("Das Bild liess sich nicht öffnen: " + alt.fehlertext(f), "fehler");
+    }
+  };
 
   const karteNehmen = async (d) => {
     const url = URL.createObjectURL(d);
@@ -255,6 +290,7 @@ function KontaktFenster({ l, k, datei, zu, neu }) {
       });
       setGelesen({ felder: gefuellt, text: e.text });
     } catch (f) {
+      if (alt.fehlerMerken) alt.fehlerMerken("Visitenkarte lesen", (f && f.message) || String(f), navigator.userAgent);
       alt.meldung("Die Karte liess sich nicht lesen: " + alt.fehlertext(f), "fehler");
       setGelesen({ felder: [], text: "" });
     }
@@ -280,6 +316,16 @@ function KontaktFenster({ l, k, datei, zu, neu }) {
         daten.karte_url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
         daten.karte_pfad = pfad;
       }
+      if (profil && profil.blob) {
+        const pfad = "lieferanten/" + l.id + "/profil/" + crypto.randomUUID() + ".jpg";
+        const up = await alt.db.storage.from("zeichnungen").upload(pfad, profil.blob, { contentType: "image/jpeg", upsert: false });
+        if (up.error) throw up.error;
+        daten.foto_url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
+        daten.foto_pfad = pfad;
+      } else if (profil && profil.weg) {
+        daten.foto_url = null;
+        daten.foto_pfad = null;
+      }
       if (k) daten.geaendert_am = new Date().toISOString();
       const vorher = k ? await alt.rueckSichern("lieferant_kontakte", { id: k.id }) : [];
       const { data, error } = k
@@ -298,6 +344,7 @@ function KontaktFenster({ l, k, datei, zu, neu }) {
   };
 
   const bild = karte ? karte.url : (k && k.karte_url);
+  const profilBild = profil ? profil.url : (k && k.foto_url);
   return (
     <div className="dialog kontaktdialog" role="dialog" aria-modal="true" id="lk-dialog">
       <h2>{k ? "Kontakt ändern" : "Neuer Kontakt"} · {l.name}</h2>
@@ -314,6 +361,20 @@ function KontaktFenster({ l, k, datei, zu, neu }) {
             ? "Von der Karte ausgefüllt: " + gelesen.felder.map((f) => FELDER.find((x) => x[0] === f)[1]).join(", ")
               + ". Bitte kurz prüfen."
             : "Auf der Karte war nichts sicher zu erkennen. Am besten flach hinlegen, gut beleuchtet und möglichst bildfüllend fotografieren, oder von Hand ausfüllen."}</p>}
+        </div>
+      </div>
+      <div className="lk-profil-zeile">
+        {profilBild
+          ? <img className="lk-profil lk-profil--gross" id="lk-f-profilbild" src={profilBild} alt="Profilbild" />
+          : <span className="lk-profil lk-profil--gross lk-profil--leer">{anfangsbuchstaben(w.name)}</span>}
+        <div className="lk-profil-zeile__knoepfe">
+          <button type="button" className="knopf" id="lk-f-profil" onClick={() => profilFeld.current && profilFeld.current.click()}>
+            <Zeichen name="person" /> {profilBild ? "Anderes Profilbild" : "Profilbild hinzufügen"}</button>
+          {profilBild && <button type="button" className="knopf knopf--still" id="lk-f-profil-weg"
+            onClick={() => setProfil((p0) => { if (p0 && p0.url) URL.revokeObjectURL(p0.url); return k && k.foto_url ? { weg: true } : null; })}>
+            Entfernen</button>}
+          <input ref={profilFeld} type="file" accept="image/*" hidden data-ablegen="direkt" id="lk-f-profil-datei"
+            onChange={(e) => { const d = e.target.files && e.target.files[0]; e.target.value = ""; if (d) profilNehmen(d); }} />
         </div>
       </div>
       <form onSubmit={speichern} className="lk-form">

@@ -2,8 +2,9 @@
 # „die Erkennung der Visitenkarte funktioniert nicht“): Karte auf dem
 # Tisch mit Schatten und Glanz, schräg, hochkant (Handy gedreht), unscharf,
 # kopfüber, dazu eine dunkle Karte mit heller Schrift. Jede muss Name,
-# Telefon, Mobil und Mail liefern. Läuft nur mit TESS_DEU (Ordner mit
-# deu.traineddata.gz, siehe bestell_foto.py), sonst nur ein Hinweis.
+# Telefon, Mobil und Mail liefern. Seit 1.377.0 liegt die Texterkennung
+# in der eigenen Website (dist/tesseract/): der Test sperrt jsdelivr
+# ganz, so wie es Brave oder ein Werbeblocker tun.
 import os, time
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -16,10 +17,14 @@ def pruefe(was, ok):
 HIER = os.path.dirname(os.path.abspath(__file__))
 NM = os.path.join(HIER, "..", "node_modules")
 DEU = os.environ.get("TESS_DEU", "")
-mit_ocr = bool(DEU) and os.path.exists(os.path.join(DEU, "deu.traineddata.gz"))
+mit_ocr = os.path.exists(os.path.join(HIER, "..", "dist", "tesseract", "sprache", "deu.traineddata.gz"))
 
 def cdn(route):
     u = route.request.url
+    # Texterkennung nie von jsdelivr: so wie Brave, das fremde Adressen sperrt
+    if "tesseract" in u:
+        fehler.append("Texterkennung von jsdelivr: " + u[:120])
+        return route.abort()
     for stueck, ordner in (("/tesseract.js@v7.0.0/dist/", os.path.join(NM, "tesseract.js", "dist")),
                            ("/tesseract.js-core@v7.0.0/", os.path.join(NM, "tesseract.js-core")),
                            ("/@tesseract.js-data/deu/4.0.0_best_int/", DEU)):
@@ -77,7 +82,7 @@ for name, (k, soll) in KARTEN.items():
     FAELLE.append((name + " kopfüber", foto_html(k, 180, 2, 0.8), soll))
 
 if not mit_ocr:
-    print("Hinweis: ohne TESS_DEU wird die Erkennung nicht geprüft")
+    print("Hinweis: erst npm run build, sonst wird die Erkennung nicht geprüft")
     print("Fehler: keine"); raise SystemExit
 
 with sync_playwright() as p:

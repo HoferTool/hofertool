@@ -15,10 +15,14 @@ def pruefe(was, ok):
 HIER = os.path.dirname(os.path.abspath(__file__))
 NM = os.path.join(HIER, "..", "node_modules")
 DEU = os.environ.get("TESS_DEU", "")
-mit_ocr = bool(DEU) and os.path.exists(os.path.join(DEU, "deu.traineddata.gz"))
+# Seit 1.377.0 liegt die Texterkennung in der eigenen Website (dist/tesseract/)
+mit_ocr = os.path.exists(os.path.join(HIER, "..", "dist", "tesseract", "sprache", "deu.traineddata.gz"))
 
 def cdn(route):
     u = route.request.url
+    if "tesseract" in u:
+        fehler.append("Texterkennung von jsdelivr: " + u[:120])
+        return route.abort()
     for stueck, ordner in (("/tesseract.js@v7.0.0/dist/", os.path.join(NM, "tesseract.js", "dist")),
                            ("/tesseract.js-core@v7.0.0/", os.path.join(NM, "tesseract.js-core")),
                            ("/@tesseract.js-data/deu/4.0.0_best_int/", DEU)):
@@ -77,6 +81,26 @@ with sync_playwright() as p:
     else:
         pg.click("#lk-neu"); pg.wait_for_selector("#lk-dialog")
         pg.fill("#lk-f-name", "Thomas Brunner"); pg.fill("#lk-f-email", "thomas.brunner@vb.ch")
+    # Profilbild (seit 1.377.0): ein Hochformat wird quadratisch zugeschnitten
+    bs = ctx.new_page(); bs.set_viewport_size({"width": 300, "height": 500})
+    bs.set_content("<body style='margin:0;background:linear-gradient(#e33,#33e)'></body>")
+    profil = bs.screenshot(type="jpeg"); bs.close()
+    pruefe("Ohne Bild: Anfangsbuchstaben", pg.inner_text("#lk-dialog .lk-profil--leer") == "TB")
+    pg.set_input_files("#lk-f-profil-datei", files=[{"name": "p.jpg", "mimeType": "image/jpeg", "buffer": profil}])
+    pg.wait_for_selector("#lk-f-profilbild", timeout=5000)
+    pruefe("Profilbild in der Vorschau", pg.locator("#lk-f-profil-weg").count() == 1)
+    pg.click("#lk-f-speichern"); pg.wait_for_timeout(600)
+    k = pg.evaluate("TEST.daten.lieferant_kontakte")
+    pruefe("Profilbild gespeichert", bool(k and k[0].get("foto_url")) and "lieferanten/s1/profil/" in (k[0].get("foto_pfad") or ""))
+    pruefe("Profilbild rund in der Liste", pg.locator("#lk-kontakte button.lk-profil img").count() == 1)
+    # Ändern: Profilbild entfernen
+    pg.click("[data-lkbearb]"); pg.wait_for_selector("#lk-f-profil-weg")
+    pg.click("#lk-f-profil-weg"); pg.click("#lk-f-speichern"); pg.wait_for_timeout(600)
+    k = pg.evaluate("TEST.daten.lieferant_kontakte")
+    pruefe("Profilbild entfernt", k and not k[0].get("foto_url"))
+    pg.click("[data-lkbearb]"); pg.wait_for_selector("#lk-f-profil")
+    pg.set_input_files("#lk-f-profil-datei", files=[{"name": "p.jpg", "mimeType": "image/jpeg", "buffer": profil}])
+    pg.wait_for_selector("#lk-f-profilbild", timeout=5000)
     pg.click("#lk-f-speichern"); pg.wait_for_timeout(600)
     k = pg.evaluate("TEST.daten.lieferant_kontakte")
     pruefe("Kontakt gespeichert", len(k) == 1 and k[0]["name"] == "Thomas Brunner" and k[0]["supplier_id"] == "s1")

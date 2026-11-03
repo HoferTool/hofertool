@@ -27,10 +27,34 @@ async function workerHolen() {
   const { createWorker } = await import("tesseract.js");
   // Ein Worker für alle Fotos; die Fortschrittsmeldung geht an das
   // Fenster, das gerade liest
-  worker = createWorker("deu", 1, {
-    logger: (m) => { if (melden && m && typeof m.progress === "number") melden(m.status, m.progress); },
-  }).catch((f) => { worker = null; throw f; });
+  const logger = (m) => { if (melden && m && typeof m.progress === "number") melden(m.status, m.progress); };
+  // Zuerst aus der eigenen Website (vite.config.js, tesseractDateien):
+  // Brave und Werbeblocker sperrten jsdelivr, dann hing die Erkennung
+  // still bei „wird geladen“. Nur wenn die eigenen Dateien fehlen (npm
+  // run dev), von jsdelivr. Jeder Versuch hat eine Zeitgrenze, damit
+  // nie etwas endlos wartet.
+  const basis = new URL("./tesseract/", document.baseURI).href;
+  const versuch = (opt) => zeitgrenze(createWorker("deu", 1, { logger, ...opt }), 90000);
+  worker = (async () => {
+    let eigene = false;
+    try { eigene = (await fetch(basis + "worker.min.js", { method: "HEAD" })).ok; } catch (f) { /* kein Netz */ }
+    if (eigene) {
+      return versuch({ workerPath: basis + "worker.min.js", corePath: basis + "core/",
+        langPath: basis + "sprache", workerBlobURL: false });
+    }
+    return versuch({});
+  })().catch((f) => {
+    worker = null;
+    throw new Error("Die Texterkennung liess sich nicht laden (" + ((f && f.message) || f) + ").");
+  });
   return worker;
+}
+
+function zeitgrenze(p, ms) {
+  return new Promise((ok, nein) => {
+    const t = setTimeout(() => nein(new Error("keine Antwort nach " + Math.round(ms / 1000) + " Sekunden")), ms);
+    p.then((x) => { clearTimeout(t); ok(x); }, (f) => { clearTimeout(t); nein(f); });
+  });
 }
 
 // Handyfotos sind 12 Megapixel und mehr: auf höchstens 2400 Pixel

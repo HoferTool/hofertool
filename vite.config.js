@@ -28,7 +28,9 @@ function offlineListe() {
       // Bilder für Meldungen beim Anmelden braucht das Tablet nicht offline
       const liste = alle.filter((d) => d !== "./sw.js" && !d.endsWith(".ico") && !d.startsWith("./meldungen/")
         // Erklärvideos sind gross und werden nur bei Bedarf geladen
-        && !d.startsWith("./hilfe/"));
+        && !d.startsWith("./hilfe/")
+        // Die Texterkennung (13 MB) holt das Gerät erst beim ersten Foto
+        && !d.startsWith("./tesseract/"));
       const sw = join(ziel, "sw.js");
       const text = readFileSync(sw, "utf8");
       // Die Fassung ergibt sich aus den Dateinamen: Ändert sich etwas,
@@ -79,10 +81,33 @@ function pdfjsWasm() {
   };
 }
 
+// Texterkennung (Tesseract) aus der eigenen Website statt von jsdelivr
+// (Patrick 3. November 2026: „Visitenkarten-Erkennung funktioniert immer
+// noch nicht“). Brave und andere Blocker sperren das Nachladen von
+// fremden Adressen gern, dann blieb die Erkennung beim Laden hängen.
+// Nur die LSTM-Kerne (die App nimmt nur diese Erkennung) und die
+// deutschen Sprachdaten 4.0.0_best_int (1,3 MB).
+function tesseractDateien() {
+  const dateien = [
+    ["node_modules/tesseract.js/dist/worker.min.js", "worker.min.js"],
+    ["node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js", "core/tesseract-core-lstm.wasm.js"],
+    ["node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js", "core/tesseract-core-simd-lstm.wasm.js"],
+    ["node_modules/tesseract.js-core/tesseract-core-relaxedsimd-lstm.wasm.js", "core/tesseract-core-relaxedsimd-lstm.wasm.js"],
+    ["node_modules/@tesseract.js-data/deu/4.0.0_best_int/deu.traineddata.gz", "sprache/deu.traineddata.gz"],
+  ];
+  return {
+    name: "hofer-tesseract",
+    apply: "build",
+    generateBundle() {
+      for (const [von, nach] of dateien) this.emitFile({ type: "asset", fileName: "tesseract/" + nach, source: readFileSync(von) });
+    },
+  };
+}
+
 export default defineConfig({
   // Relative Pfade: Die App liegt auf GitHub Pages unter /hofertool/
   base: "./",
-  plugins: [react(), pdfjsWasm(), offlineListe(), safariPruefen()],
+  plugins: [react(), pdfjsWasm(), tesseractDateien(), offlineListe(), safariPruefen()],
   build: {
     outDir: "dist",
     // Die App wartet beim Start auf die Datenbank (await ganz oben)
