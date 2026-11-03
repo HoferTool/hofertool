@@ -45,6 +45,32 @@ function eintrittBeenden(el) {
   } catch (f) { /* ältere Browser: nichts zu tun */ }
 }
 
+// Gestaltung des Hauptfensters in ein anderes Dokument übertragen
+// (auch für die Vorschau im eigenen Fenster, src/planwand/vorschauFenster.js)
+export function stileUebertragen(d) {
+  // Gestaltung mitnehmen: die Regeln der Stilblätter als Text, damit
+  // nichts neu geladen werden muss (Adressen darin voll ausgeschrieben),
+  // fremde wie Google Fonts als Verweis; dazu die Klassen und Merkmale
+  // an html und body (dunkel, Themenfarbe …)
+  document.querySelectorAll("link[rel='stylesheet'], style").forEach((s) => {
+    let text = null;
+    try { if (s.sheet) text = Array.from(s.sheet.cssRules, (r) => r.cssText).join("\n"); } catch (f) { /* fremd */ }
+    if (text !== null) {
+      const basis = s.sheet.href || location.href;
+      const st = d.createElement("style");
+      st.textContent = text.replace(/url\((['"]?)(?!data:|#|[a-z]+:)([^'")]+)\1\)/gi,
+        (_, q, u) => `url("${new URL(u, basis).href}")`);
+      d.head.appendChild(st);
+    } else if (s.href) {
+      const l = d.createElement("link"); l.rel = "stylesheet"; l.href = s.href; d.head.appendChild(l);
+    }
+  });
+  const ikon = document.querySelector("link[rel~='icon']");
+  if (ikon) { const k = d.createElement("link"); k.rel = "icon"; k.href = ikon.href; d.head.appendChild(k); }
+  for (const a of document.documentElement.attributes) d.documentElement.setAttribute(a.name, a.value);
+  for (const a of document.body.attributes) d.body.setAttribute(a.name, a.value);
+}
+
 export const eigeneFensterOffen = () => offen.size > 0;
 
 // Beim Abmelden und vor dem Neuladen: alles zu
@@ -75,27 +101,7 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
   if (!d.head) d.documentElement.appendChild(d.createElement("head"));
   if (!d.body) d.documentElement.appendChild(d.createElement("body"));
   d.title = titel || document.title;
-  // Gestaltung mitnehmen: die Regeln der Stilblätter als Text, damit
-  // nichts neu geladen werden muss (Adressen darin voll ausgeschrieben),
-  // fremde wie Google Fonts als Verweis; dazu die Klassen und Merkmale
-  // an html und body (dunkel, Themenfarbe …)
-  document.querySelectorAll("link[rel='stylesheet'], style").forEach((s) => {
-    let text = null;
-    try { if (s.sheet) text = Array.from(s.sheet.cssRules, (r) => r.cssText).join("\n"); } catch (f) { /* fremd */ }
-    if (text !== null) {
-      const basis = s.sheet.href || location.href;
-      const st = d.createElement("style");
-      st.textContent = text.replace(/url\((['"]?)(?!data:|#|[a-z]+:)([^'")]+)\1\)/gi,
-        (_, q, u) => `url("${new URL(u, basis).href}")`);
-      d.head.appendChild(st);
-    } else if (s.href) {
-      const l = d.createElement("link"); l.rel = "stylesheet"; l.href = s.href; d.head.appendChild(l);
-    }
-  });
-  const ikon = document.querySelector("link[rel~='icon']");
-  if (ikon) { const k = d.createElement("link"); k.rel = "icon"; k.href = ikon.href; d.head.appendChild(k); }
-  for (const a of document.documentElement.attributes) d.documentElement.setAttribute(a.name, a.value);
-  for (const a of document.body.attributes) d.body.setAttribute(a.name, a.value);
+  stileUebertragen(d);
 
   eintrittBeenden(huelle);
   huelle.classList.add("dialog-huelle--eigen");

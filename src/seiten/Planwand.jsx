@@ -16,6 +16,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { symboleFensterOeffnen } from "../einstellungen/Symbole.jsx";
 import { materialRechnerOeffnen } from "../planwand/MaterialRechner.jsx";
+import { vorschauFensterUmschalten, vorschauFensterOffen, vorschauFensterBeobachten,
+  vorschauFensterWiederholen } from "../planwand/vorschauFenster.js";
 import { standLesen, standMerken } from "../daten/planwandStand.js";
 
 // Was auf der Tafel steht, für das nächste Öffnen merken
@@ -192,6 +194,32 @@ function zeitreglerEinrichten(zeitregler, marke, von, bis, b) {
   };
 }
 
+// Knopf für die Vorschau im eigenen Fenster (Wunsch Patrick 3. November
+// 2026): nur am Computer mit Maus, nicht im Archiv. Externe vorerst
+// nicht (neue Funktion, Patrick gefragt).
+const vorschauKnopfDa = () => !alt.isMobil() && !alt.istExtern()
+  && !(alt.istArchiv && alt.istArchiv()) && window.matchMedia("(pointer: fine)").matches;
+
+function VorschauKnopf() {
+  const [an, setAn] = useState(!!vorschauFensterOffen());
+  useEffect(() => {
+    const weg = vorschauFensterBeobachten(setAn);
+    vorschauFensterWiederholen();
+    setAn(!!vorschauFensterOffen());
+    return weg;
+  }, []);
+  return (
+    <button className={"knopf knopf--klein pw-eck pw-eck--plus" + (an ? " pw-eck--an" : "")} id="pw-vorschaufenster"
+      title={an ? "Vorschau im eigenen Fenster schliessen" : "Vorschau beim Darüberfahren in einem eigenen Fenster zeigen"}
+      aria-label="Vorschau im eigenen Fenster" aria-pressed={an} onClick={vorschauFensterUmschalten}>
+      <svg viewBox="0 0 24 24" className="pw-ecksym" fill="none" stroke="currentColor"
+        strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="7" width="12" height="13" rx="2" /><path d="M9 4h10a2 2 0 012 2v10" />
+        <path d="M6 11h6M6 14h6M6 17h4" /></svg>
+    </button>
+  );
+}
+
 function Kopfleiste({ b, mobil }) {
   const plan = alt.plan;
   const tageRef = useRef(null);
@@ -292,6 +320,7 @@ function Kopfleiste({ b, mobil }) {
             <circle cx="15" cy="13" r=".9" fill="currentColor" /><circle cx="9" cy="17" r=".9" fill="currentColor" />
             <circle cx="12" cy="17" r=".9" fill="currentColor" /><circle cx="15" cy="17" r=".9" fill="currentColor" /></svg>
         </button>}
+        {vorschauKnopfDa() && <VorschauKnopf />}
         {/* Zu heute springen, mit zwei Wochen Rückblick */}
         <button className="knopf knopf--klein pw-eck" id="pw-heute"
           title="Zu heute, mit zwei Wochen Rückblick — Taste H" onClick={() => alt.zuHeute(b)}>

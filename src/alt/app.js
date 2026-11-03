@@ -76,6 +76,7 @@ import { maschinenkopf } from "../seiten/rechner/kopf.jsx";
 import { einstellungenOeffnen } from "../einstellungen/Einstellungen.jsx";
 import { meldungenNachAnmeldung, meldungenWeg } from "../teile/anmeldeMeldungen.jsx";
 import { eigeneFensterOffen, eigeneFensterZu } from "../teile/eigenesFenster.js";
+import { vorschauInsFenster, imVorschauFenster, vorschauFensterZu } from "../planwand/vorschauFenster.js";
 import { zustandVorher, zustandVergessen, zustandFuerSpaeter, zustandNachAnmeldung, teilMerken, fensterArt } from "../teile/wiederherstellen.js";
 // Stellt window.hoferMailSenden fürs Bestellblatt bereit (1.323.0)
 import "../daten/mailkonto.js";
@@ -156,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.379.2";
+const APP_VERSION = "1.380.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -5165,12 +5166,16 @@ function balkenInfoVerhalten() {
                   : esc(m.offen.text), "mat-info__offen") : "");
           })();
 
-      document.body.appendChild(fenster);
-      platzieren();
+      // Vorschau im eigenen Fenster (Knopf oben auf der Planwand): dort
+      // statt über der Seitenleiste
+      if (!vorschauInsFenster(fenster)) {
+        document.body.appendChild(fenster);
+        platzieren();
+      }
       if (!istExtern() && zeichnungNrSofort(j) === undefined) {
         const offen = fenster;
         zeichnungNrHolen(j).then((nr) => {
-          if (fenster !== offen) return;
+          if (fenster !== offen && !imVorschauFenster(offen)) return;
           const feld = offen.querySelector("[data-wbg-znr]");
           if (!feld) return;
           if (nr) feld.textContent = nr;
@@ -5294,6 +5299,7 @@ function ferienInfoVerhalten() {
       + '<div class="pw-info__zeile">' + esc(abwesenheit(f).name) + '</div>'
       + '<div class="pw-info__zeile">📅 ' + esc(zeitraumText(f.von, f.tage)) + '</div>'
       + (notiz ? '<div class="pw-info__zeile">✎ ' + esc(notiz) + '</div>' : "");
+    if (vorschauInsFenster(fenster)) return;
     document.body.appendChild(fenster);
     platzieren();
   };
@@ -10993,6 +10999,7 @@ function zeichneGeruest() {
     profil = null;
     meldungenWeg();
     eigeneFensterZu();
+    vorschauFensterZu();
     // Auch das kleine Notizbuch geht beim Abmelden zu
     document.querySelectorAll(".dialog-huelle, .nb-schwebend [data-zu]").forEach((el) =>
       (el.classList.contains("dialog-huelle") ? el.remove() : el.click()));

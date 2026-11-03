@@ -11673,3 +11673,14 @@ body.dunkel .eba-vorgelesen--fehler .linkknopf { color: #7a1f1f !important; }
   .notiz .notiz__text { flex: 1 1 calc(100% - 40px); }
   .notiz input + .notiz__text ~ .linkknopf:first-of-type { margin-left: 30px; }
 }
+
+/* ---------- Vorschau im eigenen Fenster (seit 1.380.0) ---------- */
+.vf-body { margin: 0; background: var(--flaeche); min-height: 100vh; }
+.vf-inhalt { padding: 10px 12px; }
+.vf-leer { color: var(--gedaempft); font-size: .85rem; padding: 20px 4px; text-align: center; }
+.pw-info.pw-info--eigen { position: static !important; width: auto !important; max-width: none !important;
+  left: auto !important; top: auto !important; border: none; box-shadow: none; padding: 0;
+  background: transparent; pointer-events: auto; }
+.pw-info--eigen .pw-info__zeile { font-size: .95rem; }
+.pw-info--eigen .pw-info__nr { font-size: 1.2rem; }
+.pw-eck--an { background: var(--marke) !important; color: #fff !important; border-color: var(--marke) !important; }
