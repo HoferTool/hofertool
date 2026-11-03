@@ -1,7 +1,7 @@
 // =================================================================
 //  RECHNER FÜR DIE WERKSTATT
 //  Reiter: Drehzahl (hier), Winkel und Fase, G-Code, C-Achse, Gravur
-//  und DXF (je eine Datei in src/seiten/rechner/).
+//  DXF und Kontur (je eine Datei in src/seiten/rechner/).
 // =================================================================
 import { useState } from "react";
 import { useGemerkt } from "../bruecke.jsx";
@@ -14,10 +14,11 @@ import GCode from "./rechner/GCode.jsx";
 import CAchse from "./rechner/CAchse.jsx";
 import Gravur from "./rechner/Gravur.jsx";
 import Dxf from "./rechner/Dxf.jsx";
+import Kontur from "./rechner/Kontur.jsx";
 
 export const REITER = [
   ["drehzahl", "Drehzahl"], ["winkel", "Winkel und Fase"], ["gcode", "G-Code"],
-  ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"],
+  ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["kontur", "Kontur"],
 ];
 
 // Was jemand eingetippt hat, bleibt beim Wechsel auf eine andere
@@ -41,7 +42,7 @@ export function rechnerAnsicht(wert) {
   return gemerkt.ansicht;
 }
 
-const INHALT = { winkel: Winkel, gcode: GCode, cachse: CAchse, gravur: Gravur, dxf: Dxf };
+const INHALT = { winkel: Winkel, gcode: GCode, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur };
 
 const zahl = (n) => Math.round(n).toLocaleString("de-CH");
 
@@ -50,7 +51,7 @@ export default function Rechner() {
   useGemerkt(gemerkt, { ansicht });
   // Strg + F findet die Rechner (seit 1.169.0)
   useSeitenSuche({
-    name: "Rechner", platzhalter: "Drehzahl, Winkel, G-Code, Gravur …",
+    name: "Rechner", platzhalter: "Drehzahl, Winkel, G-Code, Kontur …",
     eintraege: REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: w })),
     springen: (x) => setAnsicht(x.wert),
   });
