@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
-import { konturRechnen, bahnRechnen, ncProgramm, bogenWinkel, SPITZEN } from "./kontur.js";
+import { konturRechnen, bahnRechnen, ncProgramm, bogenWinkel, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
 
 const VORGABE = {
   startX: "0", startZ: "0",
@@ -294,12 +294,28 @@ function Element({ i, el, an, letztes, waehlen, aendern, weg }) {
       )}
       {!letztes && (
         <span className="kt-ueb">
-          <select value={el.ueb || ""} data-ktfeld="ueb" onChange={(e) => aendern({ ueb: e.target.value })} title="Übergang zum nächsten Element">
+          <select value={el.ueb || ""} data-ktfeld="ueb" title="Übergang zum nächsten Element"
+            onChange={(e) => { const u = e.target.value; aendern(istFreistich(u) ? { ueb: u, ...freistichMasse(u, FREISTICHE[u].masse[Math.min(3, FREISTICHE[u].masse.length - 1)][0]) } : { ueb: u }); }}>
             <option value="">kein Übergang</option><option value="R">Radius</option><option value="F">Fase</option>
+            {Object.entries(FREISTICHE).map(([id, d]) => <option key={id} value={id}>{d.name}</option>)}
           </select>
-          {el.ueb && <input type="text" inputMode="decimal" data-ktfeld="uw" value={el.uw ?? ""} placeholder="mm"
+          {el.ueb && !istFreistich(el.ueb) && <input type="text" inputMode="decimal" data-ktfeld="uw" value={el.uw ?? ""} placeholder="mm"
             onChange={(e) => aendern({ uw: e.target.value })} />}
         </span>
+      )}
+      {!letztes && istFreistich(el.ueb) && (
+        <div className="kt-fs" onClick={(e) => e.stopPropagation()}>
+          <label className="kt-zahl"><span>{el.ueb === "FG" ? "Steigung" : "Grösse"}</span>
+            <select value={el.fs || ""} data-ktfeld="fs" onChange={(e) => aendern(freistichMasse(el.ueb, e.target.value))}>
+              {FREISTICHE[el.ueb].masse.map((m) => <option key={m[0]} value={m[0]}>{m[0]}</option>)}
+              {!FREISTICHE[el.ueb].masse.some((m) => m[0] === el.fs) && <option value={el.fs || ""}>eigene Masse</option>}
+            </select></label>
+          <Zahl label="Tiefe" wert={el.ft} setze={(v) => aendern({ ft: v, fs: "" })} name="ft" />
+          <Zahl label={el.ueb === "FG" ? "Breite g2" : "Breite f"} wert={el.ff} setze={(v) => aendern({ ff: v, fs: "" })} name="ff" />
+          <Zahl label="Radius" wert={el.fr} setze={(v) => aendern({ fr: v, fs: "" })} name="fr" />
+          {el.ueb === "FF" && <Zahl label="Tiefe Plan" wert={el.ft2} setze={(v) => aendern({ ft2: v, fs: "" })} name="ft2" />}
+          <span className="klein">{el.ueb === "FG" ? "Schräge 30° zur Achse" : el.ueb === "FF" ? "Schräge 15°, Wand 8°" : "Schräge 15°"} · in der Ecke Zylinder → Planfläche</span>
+        </div>
       )}
       <button className="kt-weg" title="Element löschen" data-ktweg={i} onClick={(e) => { e.stopPropagation(); weg(); }}>✕</button>
     </div>

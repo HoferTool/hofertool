@@ -11239,3 +11239,10 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 .dialog-huelle--eigen > .dialog.kt-eigen { width: 100%; height: 100vh; max-height: none !important;
   border-radius: 0; transform: none !important; overflow-y: auto; }
 .kt-eigen__kopf { margin-bottom: 12px; }
+/* Freistiche im Konturrechner (1.358.0) */
+.kt-fs { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end;
+  padding: 8px 10px; margin-left: 34px; border-left: 3px solid var(--marke); background: var(--grund); border-radius: 6px; }
+.kt-fs select { height: 38px; }
+.kt-fs .klein { flex-basis: 100%; }
+.kt-fs { order: 10; }
+.kt-fs select { min-width: 112px; }

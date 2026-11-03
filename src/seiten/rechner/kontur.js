@@ -95,6 +95,89 @@ function versetzt(s, d) {
   return { ...s, R, a: auf(s.a), b: auf(s.b) };
 }
 
+// -----------------------------------------------------------------
+//  Freistiche (seit 1.358.0, Wunsch Patrick 3. November 2026: „ISO-
+//  Elemente wie Freistiche“): in der Ecke zwischen einem Zylinder und
+//  einer Planfläche, wie im ShopTurn als Übergang am Ende eines
+//  Elements. Die Masse kommen aus der Tabelle der Norm und lassen sich
+//  von Hand ändern.
+//    t  Tiefe in den Zylinder (Radius), f  Breite auf der Oberfläche,
+//    r  Radius im Grund, t2 Tiefe in die Planfläche (nur DIN 509 F,
+//       am tiefsten Punkt gemessen),
+//    wa Winkel der Schräge zum Zylinder (zur Achse),
+//    wi Winkel der Wand zur Planfläche (DIN 509 F: 8°)
+// -----------------------------------------------------------------
+export const FREISTICHE = {
+  FE: { name: "Freistich DIN 509 E", wa: 15, wi: 0, masse: [
+    ["E0.2×0.1", 0.2, 0.1, 1], ["E0.4×0.2", 0.4, 0.2, 2], ["E0.6×0.2", 0.6, 0.2, 2], ["E0.6×0.3", 0.6, 0.3, 2.5],
+    ["E0.8×0.3", 0.8, 0.3, 2.5], ["E1×0.2", 1, 0.2, 2.5], ["E1×0.4", 1, 0.4, 4], ["E1.2×0.2", 1.2, 0.2, 2.5],
+    ["E1.2×0.4", 1.2, 0.4, 4], ["E1.6×0.3", 1.6, 0.3, 4], ["E2.5×0.4", 2.5, 0.4, 5], ["E4×0.5", 4, 0.5, 7]] },
+  FF: { name: "Freistich DIN 509 F", wa: 15, wi: 8, masse: [
+    ["F0.2×0.1", 0.2, 0.1, 1, 0.1], ["F0.4×0.2", 0.4, 0.2, 2, 0.1], ["F0.6×0.2", 0.6, 0.2, 2, 0.1], ["F0.6×0.3", 0.6, 0.3, 2.5, 0.2],
+    ["F0.8×0.3", 0.8, 0.3, 2.5, 0.2], ["F1×0.2", 1, 0.2, 2.5, 0.1], ["F1×0.4", 1, 0.4, 4, 0.3], ["F1.2×0.2", 1.2, 0.2, 2.5, 0.1],
+    ["F1.2×0.4", 1.2, 0.4, 4, 0.3], ["F1.6×0.3", 1.6, 0.3, 4, 0.2], ["F2.5×0.4", 2.5, 0.4, 5, 0.3], ["F4×0.5", 4, 0.5, 7, 0.3]] },
+  // DIN 76 Form A, Aussengewinde: Tiefe = (d − dg) / 2, Breite = g2
+  FG: { name: "Gewindefreistich DIN 76", wa: 30, wi: 0, masse: [
+    ["P 0.5", 0.2, 0.4, 1.75], ["P 0.7", 0.4, 0.55, 2.45], ["P 0.75", 0.4, 0.6, 2.6], ["P 0.8", 0.4, 0.65, 2.8],
+    ["P 1", 0.6, 0.8, 3.5], ["P 1.25", 0.6, 1, 4.4], ["P 1.5", 0.8, 1.15, 5.2], ["P 1.75", 1, 1.3, 6.1],
+    ["P 2", 1, 1.5, 7], ["P 2.5", 1.2, 1.8, 8.7], ["P 3", 1.6, 2.2, 10.5]] },
+};
+// Felder eines Masses aus der Tabelle: { fs, fr, ft, ff, ft2 }
+export function freistichMasse(art, name) {
+  const m = (FREISTICHE[art] && FREISTICHE[art].masse.find((x) => x[0] === name)) || FREISTICHE[art].masse[0];
+  return { fs: m[0], fr: String(m[1]), ft: String(m[2]), ff: String(m[3]), ft2: m[4] !== undefined ? String(m[4]) : "" };
+}
+export const istFreistich = (ueb) => !!FREISTICHE[ueb];
+
+// Segmente des Freistichs in der Ecke von s1 → s2, oder ein Fehlertext
+function freistich(s1, s2, el) {
+  const def = FREISTICHE[el.ueb];
+  const zahl = (v) => { const n = Number(String(v ?? "").replace(",", ".")); return Number.isFinite(n) ? n : NaN; };
+  const t = zahl(el.ft), f = zahl(el.ff), r = zahl(el.fr), t2 = el.ueb === "FF" ? zahl(el.ft2) || 0 : 0;
+  if (!(t > 0) || !(f > 0) || !(r > 0)) return "Tiefe, Breite und Radius eingeben";
+  if (s1.t !== "L" || s2.t !== "L") return "nur zwischen zwei Geraden";
+  const d1 = tEnde(s1), d2 = tAnfang(s2);
+  const achs = (d) => Math.abs(d.r) < 1e-6 ? "z" : Math.abs(d.z) < 1e-6 ? "r" : "";
+  let dz, fr, umgekehrt;
+  if (achs(d1) === "z" && achs(d2) === "r") { dz = d1; fr = d2; umgekehrt = false; }
+  else if (achs(d1) === "r" && achs(d2) === "z") { dz = mal(d2, -1); fr = mal(d1, -1); umgekehrt = true; }
+  else return "nur in der Ecke zwischen Zylinder und Planfläche";
+  const ecke = s1.b;
+  const G = (a, b) => plus(ecke, plus(mal(dz, a), mal(fr, b)));
+  const wa = grad(def.wa), wi = grad(def.wi);
+  // In Koordinaten a (über die Ecke hinaus in die Planfläche) und b
+  // (von der Zylinderlinie die Planfläche hinauf)
+  const S = [-f, 0];
+  const Q = [-f + t / Math.tan(wa), -t];
+  // Die Wand steht so, dass der Freistich genau t2 tief in die
+  // Planfläche geht (am Berührpunkt des Radius, dort am tiefsten)
+  const x0 = wi > 0 ? t2 + (r * (1 + Math.sin(wi))) / Math.cos(wi) - r * Math.cos(wi) : 0;
+  const ca = x0 - (r * (1 + Math.sin(wi))) / Math.cos(wi);
+  const T1 = [ca, -t];
+  const T2 = [ca + r * Math.cos(wi), -t + r + r * Math.sin(wi)];
+  const C = [ca, -t + r];
+  const W = wi > 0 ? [0, -t + x0 / Math.tan(wi)] : null;
+  if (ca < Q[0] - 1e-9) return "Breite zu klein für Tiefe und Radius";
+  const zyl = umgekehrt ? s2 : s1, plan = umgekehrt ? s1 : s2;
+  if (f > abstand(zyl.a, zyl.b) + 1e-9) return `Breite ${f} länger als der Zylinder`;
+  const oben = W ? W[1] : T2[1];
+  if (oben > abstand(plan.a, plan.b) - 1e-9) return "höher als die Planfläche";
+  const tiefPunkt = G(0, -t);
+  if (tiefPunkt.r < -1e-9) return "tiefer als die Drehmitte";
+  // Reihenfolge Zylinder → Planfläche
+  const pS = G(...S), pQ = G(...Q), pT1 = G(...T1), pT2 = G(...T2), pC = G(...C);
+  const ende = W ? G(...W) : pT2;
+  const ccw = kreuz(minus(pT1, pC), dz) > 0;
+  const teile = [{ t: "L", a: pS, b: pQ }, { t: "L", a: pQ, b: pT1 },
+    { t: "A", a: pT1, b: pT2, c: pC, R: r, ccw }];
+  if (W) teile.push({ t: "L", a: pT2, b: ende });
+  const liste = umgekehrt
+    ? teile.reverse().map((x) => ({ ...x, a: x.b, b: x.a, ...(x.t === "A" ? { ccw: !x.ccw } : {}) }))
+    : teile;
+  return { teile: liste.filter((x) => x.t === "A" || abstand(x.a, x.b) > 1e-9),
+    anfang: umgekehrt ? ende : pS, schluss: umgekehrt ? pS : ende };
+}
+
 const zahlVon = (t) => {
   if (t === undefined || t === null || String(t).trim() === "") return null;
   const n = Number(String(t).replace(",", "."));
@@ -156,6 +239,14 @@ export function konturRechnen(k) {
   for (let i = 0; i < seg.length - 1; i++) {
     const s1 = seg[i], s2 = seg[i + 1];
     const el = k.elemente[i];
+    if (s1 && s2 && istFreistich(el.ueb)) {
+      const fs = freistich(s1, s2, el);
+      if (typeof fs === "string") { fehler.push(`Element ${i + 1}: ${FREISTICHE[el.ueb].name}: ${fs}.`); continue; }
+      ecken.push(s1.b);
+      s1.b = fs.anfang; s2.a = fs.schluss;
+      fs.teile.forEach((n) => einfuegen.push([i, { ...n, nr: i + 1, uebergang: true }]));
+      continue;
+    }
     const wert = zahlVon(el.uw);
     if (!s1 || !s2 || !el.ueb || !wert || wert <= 0) continue;
     const t1 = tEnde(s1), t2 = tAnfang(s2);

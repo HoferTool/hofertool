@@ -29,6 +29,20 @@ with sync_playwright() as p:
     pruefe("Durchmesser 10 genau", "G1Z" in c and "X10.000" in c)
     if BILD: pg.screenshot(path=BILD + "/kontur-pc.png", full_page=True)
 
+    # Freistiche in der Ecke Ø10 → Planfläche Ø16 der Vorgabe
+    el1 = "[data-ktel='1'] "
+    pg.select_option(el1 + "[data-ktfeld='ueb']", "FE"); pg.wait_for_timeout(100)
+    pg.select_option(el1 + "[data-ktfeld='fs']", "E0.6×0.3"); pg.wait_for_timeout(100)
+    c = code()
+    pruefe("Freistich DIN 509 E", "G1X9.400Z6.846" in c and "G1Z7.600" in c and pg.locator("#kt-fehler").count() == 0)
+    pg.select_option(el1 + "[data-ktfeld='ueb']", "FG"); pg.select_option(el1 + "[data-ktfeld='fs']", "P 1"); pg.wait_for_timeout(100)
+    pruefe("Gewindefreistich DIN 76", "X8.400" in code() and pg.locator("#kt-fehler").count() == 0)
+    pg.select_option(el1 + "[data-ktfeld='ueb']", "FF"); pg.wait_for_timeout(100)
+    pruefe("Freistich DIN 509 F mit Tiefe Plan", pg.locator(el1 + "[data-ktfeld='ft2']").count() == 1 and pg.locator("#kt-fehler").count() == 0)
+    if BILD: pg.screenshot(path=BILD + "/kontur-freistich.png", full_page=True)
+    pg.fill(el1 + "[data-ktfeld='ff']", "0.5"); pg.wait_for_timeout(100)
+    pruefe("Zu schmaler Freistich gemeldet", "Breite zu klein" in pg.inner_text("#kt-fehler"))
+
     # Neue Kontur von Hand
     pg.once("dialog", lambda d: d.accept())
     pg.click("#kt-neu"); pg.wait_for_selector(".dialog"); pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(200)
