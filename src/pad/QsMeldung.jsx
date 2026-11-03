@@ -8,7 +8,7 @@
 //  darum holt sich dieser Teil die Meldungen selbst: sofort über
 //  Realtime, sonst alle 30 Sekunden. Nicht für Externe.
 // =================================================================
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "../teile/Fenster.jsx";
 import { qsMeldungenLaden, qsQuittieren, qsBeobachten, wannText } from "../daten/qs.js";
@@ -52,10 +52,98 @@ export function useQsMeldungen(maschineId) {
   return [liste, weg];
 }
 
-export function QsMeldungen({ liste, weg }) {
+// =================================================================
+//  GEMELDETE PROBLEME DER MASCHINE (1.352.0, Wunsch Patrick
+//  3. November 2026: „anstelle Wetter bei Padmode soll das gemeldete
+//  Problem auch angezeigt werden wie QS-Meldungen“)
+//  Probleme stehen am Auftrag (jobs.problem, gemeldet mit „Problem“ im
+//  Auftragsfenster). Im Pad stehen die Probleme aller Aufträge dieser
+//  Maschine zusammen mit den QS-Meldungen anstelle des Wetters, bis
+//  jemand „Erledigt“ tippt. Sofort über Realtime auf die Aufträge der
+//  Maschine, sonst alle 30 Sekunden. Nicht für Externe (wie die QS).
+// =================================================================
+const PROBLEM_EREIGNIS = "hofer-pad-probleme";
+
+export function useProbleme(maschineId) {
+  const [liste, setListe] = useState([]);
+  useEffect(() => {
+    if (!maschineId || alt.istExtern()) { setListe([]); return undefined; }
+    let gueltig = true;
+    const holen = () => alt.zeitlimit(alt.db.from("planwand").select("*")
+      .eq("machine_id", maschineId).not("problem", "is", null)
+      .order("problem_at", { ascending: false }), 10000, "Probleme")
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (gueltig) setListe((data || []).filter((j) => String(j.problem || "").trim()));
+      })
+      .catch(() => { /* ohne Netz: Liste bleibt, wie sie war */ });
+    holen();
+    window.addEventListener(PROBLEM_EREIGNIS, holen);
+    let kanal = null;
+    let entpreller = null;
+    try {
+      if (typeof alt.db.channel === "function") {
+        kanal = alt.db.channel("pad-probleme-" + Date.now() + "-" + Math.random().toString(36).slice(2))
+          .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: "machine_id=eq." + maschineId },
+            () => { clearTimeout(entpreller); entpreller = setTimeout(holen, 300); });
+        kanal.subscribe();
+      }
+    } catch (f) { kanal = null; }
+    const t = setInterval(() => { if (!document.hidden) holen(); }, 30000);
+    return () => {
+      gueltig = false; clearInterval(t); clearTimeout(entpreller);
+      window.removeEventListener(PROBLEM_EREIGNIS, holen);
+      if (kanal) { try { alt.db.removeChannel(kanal); } catch (f) { /* egal */ } }
+    };
+  }, [maschineId]);
+  return liste;
+}
+
+// Mehrere Meldungen: oben „3 Meldungen“ mit Pfeil, unten ein Verlauf
+// mit „Weitere unten ↓“, solange noch etwas darunter liegt, damit man
+// sieht, dass man wischen muss (Wunsch Patrick 3. November 2026).
+export function PadMeldungen({ qs, qsWeg, probleme }) {
+  const kasten = useRef(null);
+  const [mehrUnten, setMehrUnten] = useState(false);
+  const n = qs.length + probleme.length;
+  const pruefen = () => {
+    const el = kasten.current;
+    if (el) setMehrUnten(el.scrollHeight - el.scrollTop - el.clientHeight > 8);
+  };
+  useEffect(() => {
+    pruefen();
+    const t = setTimeout(pruefen, 300);
+    window.addEventListener("resize", pruefen);
+    return () => { clearTimeout(t); window.removeEventListener("resize", pruefen); };
+  });
+  const darf = alt.darfSchreiben() || alt.darfPlanen();
   return (
-    <div className="pad-qsm" id="pad-qsmeldung">
-      {liste.slice().reverse().map((me) => (
+    <div className={"pad-qsm-huelle" + (mehrUnten ? " pad-qsm-huelle--mehr" : "")}>
+      {n > 1 && <div className="pad-qsm__anzahl" data-padmeldunganzahl="">
+        ⚠ {n} Meldungen{mehrUnten ? <span> · nach unten wischen ↓</span> : null}</div>}
+      <div className="pad-qsm" id="pad-qsmeldung" ref={kasten} onScroll={pruefen}>
+        {probleme.map((j) => (
+          <div key={"p" + j.id} className="pad-qsm__karte pad-qsm__karte--problem" data-padproblem={j.id}>
+            <div className="pad-qsm__titel">⚠ Problem gemeldet</div>
+            <div className="pad-qsm__notiz pad-qsm__problem">{j.problem}</div>
+            <div className="pad-qsm__fuss">
+              <span>{j.job_number ? j.job_number + " · " : ""}{j.problem_at ? wannText(j.problem_at) : ""}{j.problem_von ? " · " + j.problem_von : ""}</span>
+              {darf && <button className="pad-qsm__quittieren" data-padproblemweg={j.id}
+                onClick={() => alt.problemQuittieren(j, null, () => window.dispatchEvent(new Event(PROBLEM_EREIGNIS)))}>✓ Erledigt</button>}
+            </div>
+          </div>
+        ))}
+        <QsMeldungen liste={qs} weg={qsWeg} innen />
+      </div>
+      {mehrUnten && <button className="pad-qsm__weiter" aria-label="Weitere Meldungen unten"
+        onClick={() => kasten.current && kasten.current.scrollBy({ top: kasten.current.clientHeight * 0.8, behavior: "smooth" })}>
+        Weitere unten ↓</button>}
+    </div>
+  );
+}
+
+export function QsMeldungen({ liste, weg, innen }) {
+  const karten = liste.slice().reverse().map((me) => (
         <div key={me.id} className="pad-qsm__karte" data-padqsmeldung={me.id}>
           <div className="pad-qsm__titel">⚠ Ausschuss aussortiert</div>
           <div className="pad-qsm__zahl"><b>{alt.zahlText(me.stueck)}</b> Stk. am Counter abziehen</div>
@@ -66,9 +154,9 @@ export function QsMeldungen({ liste, weg }) {
               onClick={async () => { if (await qsQuittieren(me)) weg(me.id); }}>✓ Quittieren</button>
           </div>
         </div>
-      ))}
-    </div>
-  );
+      ));
+  if (innen) return <>{karten}</>;
+  return <div className="pad-qsm" id="pad-qsmeldung">{karten}</div>;
 }
 
 // =================================================================

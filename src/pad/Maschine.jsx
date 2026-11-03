@@ -28,7 +28,7 @@ import { einrichtblattHinweis } from "../einrichtblatt/PadHinweis.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
 import { mahnBilder, escobarDarf } from "../daten/mahnbilder.js";
 import { wetterFensterOeffnen } from "./Wetter.jsx";
-import { useQsMeldungen, QsMeldungen } from "./QsMeldung.jsx";
+import { useQsMeldungen, useProbleme, PadMeldungen } from "./QsMeldung.jsx";
 import { standTagWaehlen, standTagHinweis, stueckzeitText, stueckzeitSetzen, artInfoFragen, laengeText,
   laengeSetzen } from "../daten/stueckzahl.js";
 import { laengeVersuchen } from "../daten/material.js";
@@ -509,12 +509,14 @@ function useJetzt() {
 // darunter Platz hat. Ein Tipp aufs Wetter öffnet das Wetterfenster mit
 // Stunden und mehr (Wunsch Patrick 9. Oktober 2026).
 // Eine offene QS-Meldung der Maschine steht anstelle des Wetters, bis
-// jemand quittiert (seit 1.77.0, src/pad/QsMeldung.jsx).
+// jemand quittiert (seit 1.77.0, src/pad/QsMeldung.jsx), seit 1.352.0
+// ebenso die gemeldeten Probleme der Aufträge dieser Maschine.
 function Saeule({ wetter, maschineId }) {
   const jetzt = useJetzt();
   const heute = alt.isoDatum(jetzt);
   const [qs, qsWeg] = useQsMeldungen(maschineId);
-  const mitQs = qs.length > 0;
+  const probleme = useProbleme(maschineId);
+  const mitQs = qs.length > 0 || probleme.length > 0;
   const tage = wetter && !mitQs ? wetter.tage.filter((x) => x.datum >= heute).slice(0, 6) : [];
   return (
     <div className="pad-karte2 pad-karte2--saeule">
@@ -532,7 +534,7 @@ function Saeule({ wetter, maschineId }) {
           : <span className="pad-ort">Wetter nicht verfügbar</span>}
       </div>
 
-      {mitQs && <QsMeldungen liste={qs} weg={qsWeg} />}
+      {mitQs && <PadMeldungen qs={qs} qsWeg={qsWeg} probleme={probleme} />}
       {tage.length > 0 && <>
         <div className="pad-stunden pad-stunden--regen pad-wetterknopf" data-padtage="" role="button"
           onClick={wetterFensterOeffnen} title="Mehr Wetter">
