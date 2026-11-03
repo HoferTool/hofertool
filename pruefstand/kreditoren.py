@@ -49,6 +49,11 @@ STAPEL = pdf([
      "Total CHF 80.00", "Zahlbar an UBS Switzerland AG", "Praezi Werkzeuge GmbH  www.praezi.ch  info@praezi.ch"],
     # OCR liest den Namen leicht anders: kommt trotzdem zum selben Lieferanten
     ["Praezi Werkzeuqe GmbH"] + HOFER + ["Rechnung Nr. 88-121", "Datum 25.10.2026", "www.praezi.ch"],
+    # Mehrere Rechnungen desselben Lieferanten hintereinander (Brack)
+    ["Muster Werkzeug AG, CHE-111.222.333 MWST"] + HOFER + ["Rechnung RE-5001", "Rechnungsdatum 21.10.2026"],
+    ["Muster Werkzeug AG, CHE-111.222.333 MWST"] + HOFER + ["Rechnung RE-5002", "Rechnungsdatum 22.10.2026"],
+    # Andere Firma ohne erkannte Nummer gleich danach: eigene Rechnung, nicht angehängt
+    ["Elektro Beispiel AG", "Dorfstrasse 5, 4500 Solothurn"] + HOFER + ["RECHNUNG", "Datum 26.10.2026", "Total CHF 300.00", "www.elektro-beispiel.ch"],
 ])
 
 ORDNER = """
@@ -98,6 +103,8 @@ with sync_playwright() as p:
     pruefe("Name über der IBAN erkannt", "Turnverein Muster/2026-10-25 0777.pdf" in namen)
     pruefe("Briefkopf ohne QR erkannt", "Praezi Werkzeuge GmbH/2026-10-24 88-120.pdf" in namen)
     pruefe("OCR-Fehler im Namen gleicher Lieferant", "Praezi Werkzeuge GmbH/2026-10-25 88-121.pdf" in namen)
+    pruefe("Gleicher Lieferant, andere Nummer getrennt", "Muster Werkzeug AG/2026-10-21 RE-5001.pdf" in namen and "Muster Werkzeug AG/2026-10-22 RE-5002.pdf" in namen)
+    pruefe("Andere Firma ohne Nummer nicht angehängt", any(n.startswith("Elektro Beispiel AG/2026-10-26") for n in namen))
     pruefe("Bank und Hersteller nicht als Lieferant", not any(n.startswith(("UBS", "Sandvik")) for n in namen))
     pruefe("Unbekannter nach _Zuordnen", "_Zuordnen/2026-10-26 0099.pdf" in namen)
     pruefe("Zeile zum Zuordnen", pg.locator("#kred-zuordnen .kred-zeile").count() == 1)
@@ -123,7 +130,7 @@ with sync_playwright() as p:
     # Falsch zugeordnet: in „Zuletzt abgelegt“ korrigieren
     pruefe("Zuletzt abgelegt mit vermutet", pg.locator("#kred-zuletzt .kred-zeile:has-text('88-120') .kred-vermutet").count() == 1)
     for nr in ["88-120", "88-121"]:
-        z = pg.locator("#kred-zuletzt .kred-zeile", has_text=nr)
+        z = pg.locator("#kred-zuletzt .kred-zeile", has_text=nr).first
         z.locator(".kred-name").fill("Richtig AG"); z.locator(".kred-korr").click(); pg.wait_for_timeout(1000)
         namen = pg.evaluate(BAUM)
         if nr == "88-120":
@@ -133,6 +140,16 @@ with sync_playwright() as p:
     pruefe("Falscher Lieferant vergessen", not any(l["name"].startswith("Praezi") for l in liste) and any(l["name"] == "Richtig AG" for l in liste))
     z = pg.locator("#kred-zuletzt .kred-zeile", has_text="55001"); z.locator(".kred-stimmt").click(); pg.wait_for_timeout(800)
     pruefe("Stimmt nimmt aus der Liste", pg.locator("#kred-zuletzt .kred-zeile", has_text="55001").count() == 0)
+    # Lieferant durchsehen: ältere Rechnung ohne Eintrag in der Liste korrigieren
+    pg.evaluate("async () => { const h = await window.KRED.getFileHandle('.hofer-abgelegt.json'); const w = await h.createWritable(); await w.write('[]'); await w.close(); }")
+    pg.click("#kred-durchsehen summary"); pg.fill("#kred-durch-name", "Muster Metall AG"); pg.click("#kred-durch-zeigen"); pg.wait_for_timeout(600)
+    z = pg.locator("#kred-durchsehen .kred-zeile", has_text="3301")
+    pruefe("Durchsehen zeigt Rechnung", z.count() == 1)
+    z.locator(".kred-name").fill("Metall Neu AG"); z.locator(".kred-korr").click(); pg.wait_for_timeout(1500)
+    namen = pg.evaluate(BAUM)
+    pruefe("Durchsehen korrigiert", "Metall Neu AG/2026-10-20 3301.pdf" in namen and not any(n.startswith("Muster Metall") for n in namen))
+    liste = pg.evaluate("async () => JSON.parse(await (await (await window.KRED.getFileHandle('_Lieferanten.json')).getFile()).text())")
+    pruefe("IBAN aus PDF neu gelernt", any(l["name"] == "Metall Neu AG" and any("CH12" in i for i in l["iban"]) for l in liste))
     # Zweimal unbekannt in _Zuordnen, dann „Alle löschen“
     pg.evaluate("""async (b64) => { const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
       const w = await (await window.KRED.getFileHandle('Scan 003.pdf', { create: true })).createWritable();

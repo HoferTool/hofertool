@@ -10,7 +10,7 @@ import { Gruppe, Zeile } from "./teile.jsx";
 import { kannOrdner, ordnerErlaubt } from "../teile/sicherung.js";
 import { istModulFehler } from "../teile/modulFehler.js";
 import { krOrdnerHolen, krOrdnerWaehlen, krSortieren, krLaeuft, zuordnenListe, zuordnenDatei, zuordnen, lieferantenLaden, zuordnenAlleLoeschen,
-  abgelegtListe, abgelegtDatei, abgelegtKorrigieren, abgelegtStimmt }
+  abgelegtListe, abgelegtDatei, abgelegtKorrigieren, abgelegtStimmt, lieferantDateien }
   from "../teile/kreditorenAblage.js";
 
 export default function Kreditoren() {
@@ -134,7 +134,7 @@ export default function Kreditoren() {
         </div>
         {offen.map((r) => <ZuordnenZeile key={r.name} r={r} griff={griff} fertig={() => lesen(griff)} />)}
       </div>}
-      {(offen.length > 0 || zuletzt.length > 0) && <datalist id="kred-namen">{lieferanten.map((n) => <option key={n} value={n} />)}</datalist>}
+      {lieferanten.length > 0 && <datalist id="kred-namen">{lieferanten.map((n) => <option key={n} value={n} />)}</datalist>}
       {zuletzt.length > 0 && <details className="kred-zuordnen" id="kred-zuletzt" open={zuletztAuf}>
         <summary onClick={(ev) => { ev.preventDefault(); setZuletztAuf(!zuletztAuf); }}><h3 style={{ display: "inline" }}>Zuletzt abgelegt ({zuletzt.length}
           {zuletzt.some((e) => e.vermutet) ? ", davon " + zuletzt.filter((e) => e.vermutet).length + " nur vermutet" : ""})</h3></summary>
@@ -142,6 +142,7 @@ export default function Kreditoren() {
           Die App verschiebt sie und erkennt diesen Lieferanten danach richtig. „Stimmt“ nimmt sie aus der Liste.</p>
         {zuletzt.slice(0, 60).map((e) => <ZuletztZeile key={e.ordner + "/" + e.datei} e={e} griff={griff} fertig={() => lesen(griff)} />)}
       </details>}
+      {griff && erlaubt === "granted" && lieferanten.length > 0 && <Durchsehen griff={griff} lieferanten={lieferanten} fertig={() => lesen(griff)} />}
     </Gruppe>
   );
 }
@@ -176,7 +177,36 @@ function ZuordnenZeile({ r, griff, fertig }) {
   );
 }
 
-function ZuletztZeile({ e, griff, fertig }) {
+// Alle Rechnungen eines Lieferanten zeigen, auch die von vor „Zuletzt
+// abgelegt“ (Patrick 3. November 2026: „Elektro Andres AG Rechnungen waren
+// bei Ausgleichskasse … ich sehe sie nicht mehr in der Liste“)
+function Durchsehen({ griff, lieferanten, fertig }) {
+  const [name, setName] = useState("");
+  const [liste, setListe] = useState(null);
+  const zeigen = async (n = name) => {
+    const l = lieferanten.find((x) => x.toLowerCase() === n.trim().toLowerCase());
+    if (!l) { alt.meldung("Diesen Lieferanten gibt es nicht. Bitte aus der Liste wählen.", "warn"); return; }
+    try { setListe({ name: l, dateien: await lieferantDateien(griff, l) }); }
+    catch (f) { setListe({ name: l, dateien: [] }); }
+  };
+  return (
+    <details className="kred-zuordnen" id="kred-durchsehen">
+      <summary><h3 style={{ display: "inline" }}>Lieferant durchsehen</h3></summary>
+      <p className="klein gedaempft">Zeigt alle Rechnungen in einem Lieferanten-Ordner. Liegt dort eine falsche, den richtigen Namen eintippen und „Korrigieren“.</p>
+      <div className="knopfreihe">
+        <input className="feld kred-name" id="kred-durch-name" list="kred-namen" value={name} placeholder="Lieferant"
+          onChange={(ev) => setName(ev.target.value)} onKeyDown={(ev) => { if (ev.key === "Enter") zeigen(); }} />
+        <button className="knopf knopf--klein knopf--haupt" id="kred-durch-zeigen" onClick={() => zeigen()}>Zeigen</button>
+      </div>
+      {liste && (liste.dateien.length
+        ? liste.dateien.map((e) => <ZuletztZeile key={e.ordner + "/" + e.datei} e={e} griff={griff} ohneStimmt
+            fertig={async () => { await fertig(); await zeigen(liste.name); }} />)
+        : <p className="klein gedaempft">Keine Rechnungen bei „{liste.name}“.</p>)}
+    </details>
+  );
+}
+
+function ZuletztZeile({ e, griff, fertig, ohneStimmt }) {
   const [name, setName] = useState("");
   const [laeuft, setLaeuft] = useState(false);
   const ansehen = async () => {
@@ -199,7 +229,7 @@ function ZuletztZeile({ e, griff, fertig }) {
       <input className="feld kred-name" list="kred-namen" value={name} placeholder="Richtiger Lieferant"
         onChange={(ev) => setName(ev.target.value)} onKeyDown={(ev) => { if (ev.key === "Enter") korrigieren(); }} />
       <button className="knopf knopf--klein knopf--haupt kred-korr" disabled={laeuft} onClick={korrigieren}>Korrigieren</button>
-      <button className="knopf knopf--klein kred-stimmt" disabled={laeuft} onClick={() => tun(() => abgelegtStimmt(griff, e))}>Stimmt</button>
+      {!ohneStimmt && <button className="knopf knopf--klein kred-stimmt" disabled={laeuft} onClick={() => tun(() => abgelegtStimmt(griff, e))}>Stimmt</button>}
     </div>
   );
 }

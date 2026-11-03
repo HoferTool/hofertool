@@ -158,6 +158,22 @@ export function kopfFirma(zeilen) {
   return null;
 }
 
+// Zwei Rechnungsnummern sind verschieden, nicht nur anders gelesen: mehr
+// als ein Zeichen anders (OCR verliest höchstens eines oder setzt ein
+// Leerzeichen)
+export function nummerAnders(a, b) {
+  const x = einfach(a).replace(/\s/g, ""), y = einfach(b).replace(/\s/g, "");
+  if (!x || !y || x === y || x.includes(y) || y.includes(x)) return false;
+  if (Math.abs(x.length - y.length) > 1) return true;
+  let vor = Array.from({ length: y.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= x.length; i++) {
+    const jetzt = [i];
+    for (let j = 1; j <= y.length; j++) jetzt[j] = Math.min(vor[j] + 1, jetzt[j - 1] + 1, vor[j - 1] + (x[i - 1] === y[j - 1] ? 0 : 1));
+    vor = jetzt;
+  }
+  return vor[y.length] > 1;
+}
+
 // Gleicher Lieferant trotz OCR-Fehler und Schreibweise: „Muster Werkzeug AG“
 // = „Muster Werkzeug“ = „Muster Werkzeuq AG“
 export function gleicherName(a, b) {
@@ -235,6 +251,8 @@ export function nummerIn(text) {
   const muster = [
     /rechnungs?\s*-?\s*(?:nr|nummer|no)\.?\s*:?\s*([A-Z0-9][A-Z0-9\-/.]*\d[A-Z0-9\-/]*)/i,
     /rechnung\s*:?\s*(?:RG\s+)?([A-Z]{0,4}-?\d[A-Z0-9\-/]*\d)\b/i,
+    // Andere Wörter für die Rechnungsnummer (Faktura, Beleg, Invoice …)
+    /(?:faktur(?:a|en)?|beleg|invoice|dokument)\s*-?\s*(?:nr|nummer|no)\.?\s*:?\s*([A-Z0-9][A-Z0-9\-/.]*\d[A-Z0-9\-/]*)/i,
   ];
   for (const re of muster) {
     const m = re.exec(text);
@@ -358,6 +376,8 @@ export function seiteLesen(zeilen, liste) {
     ibans: ibansIn(text.toUpperCase()),
     leer: einfach(text).length < 15,
     zahlteil: /zahlteil|empfangsschein/i.test(text),
+    // Unsere Adresse steht im Adressfeld der ersten Seite einer Rechnung
+    anUns: zeilen.some((z) => EIGENE.test(z)),
   };
 }
 
@@ -410,6 +430,25 @@ export function stapelTeilen(seiten) {
     const gleicherLief = lief && akt && akt.lieferant && einfach(lief) === einfach(akt.lieferant);
     if (!neu && s.nummer && akt.nummer && einfach(s.nummer) !== einfach(akt.nummer)
       && !gleicherLief && !s.zahlteil && (!s.seite || s.seite.n === 1)) neu = true;
+    // Ohne sicheren Lieferanten zählt der Briefkopf: steht oben eine andere
+    // Firma als bei der Rechnung davor und ist es keine Folgeseite, beginnt
+    // eine neue Rechnung. Sonst hängen sich ganze Rechnungen an die davor
+    // (Patrick 3. November 2026: Elektro Andres AG landete bei der
+    // Ausgleichskasse und bei AXA ARAG)
+    const vorFirma = akt && (akt.lieferant || akt.vermutungen[0]);
+    if (!neu && !lief && s.vermutung && vorFirma && einfach(s.vermutung) !== einfach(vorFirma)
+      && !gleicherName(s.vermutung, vorFirma) && !(s.seite && s.seite.n > 1) && !s.zahlteil
+      && !(s.nummer && akt.nummer && einfach(s.nummer) === einfach(akt.nummer))) neu = true;
+    // Derselbe Lieferant mit einer klar anderen Nummer auf einer ersten Seite
+    // ist die nächste Rechnung (Patrick 3. November 2026: „Brack hat nur eine
+    // Rechnung, da müssen viele sein“). Nur leicht anders gelesen bleibt sie
+    // zusammen (Steeltec, Ades).
+    // Fortlaufende Nummern unterscheiden sich oft nur in einer Ziffer: dann
+    // trennt ein anderes Datum oder unsere Adresse (erste Seite)
+    const nr = (x) => einfach(x).replace(/\s/g, "");
+    if (!neu && gleicherLief && s.nummer && akt.nummer && nr(s.nummer) !== nr(akt.nummer)
+      && !s.zahlteil && (!s.seite || s.seite.n === 1)
+      && (nummerAnders(s.nummer, akt.nummer) || s.anUns || (s.datum && akt.datum && s.datum !== akt.datum))) neu = true;
     // Der Zahlteil (QR-Rechnung) auf eigenem Blatt gehört zur Rechnung davor
     const gleich = lief && (!akt || !akt.lieferant || einfach(lief) === einfach(akt.lieferant));
     if (!neu && akt.fertig && !(gleich && (akt.lieferant || s.zahlteil))) neu = true;
@@ -423,7 +462,7 @@ export function stapelTeilen(seiten) {
       && (!akt.fertig || !lief || !akt.lieferant || einfach(lief) === einfach(akt.lieferant))) neu = false;
     if (neu) {
       akt = { seiten: [], letzte: 0, lieferant: null, gelernt: false, nummer: null, datum: null, fertig: false,
-        uids: new Set(), ibans: new Set(), vorschlag: null, vermutungen: [] };
+        uids: new Set(), ibans: new Set(), vorschlag: null, vermutungen: [], merkmale: [] };
       docs.push(akt);
     }
     if (vorne.length) akt.seiten.push(...vorne.splice(0));
@@ -434,6 +473,7 @@ export function stapelTeilen(seiten) {
     if (!akt.datum && s.datum) akt.datum = s.datum;
     s.uids.forEach((u) => akt.uids.add(u));
     s.ibans.forEach((x) => akt.ibans.add(x));
+    akt.merkmale.push({ firma: s.lieferant || s.qr || s.vermutung, uids: s.uids, ibans: s.ibans });
     if (!akt.vorschlag) akt.vorschlag = firmaVorschlag(s.zeilen);
     if (s.vermutung) akt.vermutungen.push(s.vermutung);
     if (s.seite && s.seite.von) akt.fertig = s.seite.n === s.seite.von;
@@ -453,6 +493,17 @@ export function stapelTeilen(seiten) {
     }
     if (!d.vorschlag && d.vermutungen.length) d.vorschlag = d.vermutungen[0];
     delete d.vermutungen;
+    // Gelernt werden nur UID und IBAN von Seiten, die zu diesem Lieferanten
+    // gehören. Rutscht eine fremde Rechnung mit in die Datei, bekäme der
+    // Lieferant sonst deren UID und IBAN, und ab dann landet jede Rechnung
+    // der fremden Firma bei ihm (Patrick 3. November 2026: „Elektro Andres
+    // AG Rechnungen waren bei Ausgleichskasse“)
+    if (d.lieferant) {
+      const passt = (m) => !m.firma || einfach(m.firma) === einfach(d.lieferant) || gleicherName(m.firma, d.lieferant);
+      d.uids = new Set(d.merkmale.filter(passt).flatMap((m) => m.uids));
+      d.ibans = new Set(d.merkmale.filter(passt).flatMap((m) => m.ibans));
+    }
+    delete d.merkmale;
     return Object.assign(d, { uids: [...d.uids], ibans: [...d.ibans] });
   });
 }

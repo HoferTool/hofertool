@@ -22,7 +22,7 @@
 // =================================================================
 import { alt } from "../bruecke.jsx";
 import { kannOrdner, idbTun, ordnerErlaubt } from "./sicherung.js";
-import { stapelLesen, stapelTeilen, dateiName, lernen, sauber, einfach, zeilenAusStuecken, bekannterName } from "../daten/kreditoren.js";
+import { stapelLesen, stapelTeilen, dateiName, lernen, sauber, einfach, zeilenAusStuecken, bekannterName, uidsIn, ibansIn } from "../daten/kreditoren.js";
 
 export const LISTE_DATEI = "_Lieferanten.json";
 export const ZUORDNEN = "_Zuordnen";
@@ -336,8 +336,10 @@ async function abgelegtSchreiben(h, l) {
 // Neueste zuerst, nur was noch an seinem Ort liegt
 export async function abgelegtListe(h) {
   const l = await abgelegtLesen(h);
-  const aus = [];
+  const aus = [], gesehen = new Set();
   for (const e of l.slice().reverse()) {
+    if (gesehen.has(e.ordner + "/" + e.datei)) continue;
+    gesehen.add(e.ordner + "/" + e.datei);
     try { await (await h.getDirectoryHandle(e.ordner)).getFileHandle(e.datei); aus.push(e); } catch (f) { /* verschoben oder gelöscht */ }
   }
   return aus;
@@ -345,6 +347,17 @@ export async function abgelegtListe(h) {
 
 export async function abgelegtDatei(h, e) {
   return (await (await h.getDirectoryHandle(e.ordner)).getFileHandle(e.datei)).getFile();
+}
+
+// Alle Rechnungen eines Lieferanten, auch die von vor der Liste
+// „Zuletzt abgelegt“, zum Durchsehen und Korrigieren
+export async function lieferantDateien(h, name) {
+  const ordner = await h.getDirectoryHandle(sauber(name));
+  const aus = [];
+  for await (const [datei, f] of ordner.entries()) {
+    if (f.kind === "file" && /\.pdf$/i.test(datei)) aus.push({ ordner: sauber(name), datei, lieferant: name });
+  }
+  return aus.sort((a, b) => (a.datei < b.datei ? 1 : -1));
 }
 
 // Als richtig bestätigt: aus der Liste nehmen
@@ -364,6 +377,15 @@ export async function abgelegtKorrigieren(h, e, lieferant) {
   const vorhanden = liste.find((l) => einfach(l.name) === einfach(lieferant));
   const neuName = vorhanden ? vorhanden.name : lieferant;
   if (sauber(neuName) === e.ordner) throw new Error("Die Rechnung liegt schon bei „" + e.ordner + "“.");
+  // Ältere Rechnungen (vor der Liste) oder aus „Lieferant durchsehen“: UID
+  // und IBAN aus dem PDF selbst lesen, damit der falsche Lieferant sie vergisst
+  if (!e.uids && !e.ibans) {
+    try {
+      const daten = new Uint8Array(await (await abgelegtDatei(h, e)).arrayBuffer());
+      const text = (await seitenLesen(daten)).zeilen.map((z) => z.join("\n")).join("\n");
+      e = Object.assign({}, e, { uids: uidsIn(text), ibans: ibansIn(text.toUpperCase()) });
+    } catch (f) { /* dann nur verschieben */ }
+  }
   const falsch = liste.find((l) => sauber(l.name) === e.ordner || einfach(l.name) === einfach(e.lieferant || ""));
   if (falsch) {
     falsch.uid = (falsch.uid || []).filter((u) => !(e.uids || []).includes(u));
