@@ -92,8 +92,22 @@ function KonturRechner({ imFenster }) {
   const [zeichnen, setZeichnen] = useState(false);
   const [gespeichert, setGespeichert] = useState(null);
   const speichern = useRef(null);
+  // Rückgängig (Wunsch Patrick 3. November 2026: „und einen Button für
+  // Rückgängig“): jeder Stand vor einer Änderung kommt auf einen Stapel.
+  // Tippen im selben Feld gilt als ein Schritt, sonst würde jeder
+  // Buchstabe einzeln zurückgehen.
+  const verlauf = useRef([]);
+  const zuletzt = useRef({ wann: 0, was: "" });
+  const [, verlaufNeu] = useState(0);
 
-  const aendern = (neu) => {
+  const aendern = (neu, ohneVerlauf) => {
+    if (!ohneVerlauf) {
+      const was = Object.keys(neu).join(",") + (neu.elemente ? ":" + neu.elemente.length : "");
+      const jetzt = Date.now();
+      const gleich = was === zuletzt.current.was && jetzt - zuletzt.current.wann < 1500 && !neu.elemente;
+      if (!gleich) { verlauf.current = [...verlauf.current.slice(-99), k]; verlaufNeu((n) => n + 1); }
+      zuletzt.current = { wann: jetzt, was };
+    }
     const ganz = { ...k, ...neu };
     gemerkt = ganz;
     setK(ganz);
@@ -103,6 +117,16 @@ function KonturRechner({ imFenster }) {
     }, 800);
   };
   useEffect(() => () => clearTimeout(speichern.current), []);
+  const zurueck = () => {
+    const v = verlauf.current;
+    if (!v.length) return;
+    const vorher = v[v.length - 1];
+    verlauf.current = v.slice(0, -1);
+    zuletzt.current = { wann: 0, was: "" };
+    verlaufNeu((n) => n + 1);
+    aendern(vorher, true);
+    if (wahl >= (vorher.elemente || []).length) setWahl(-1);
+  };
   const elementAendern = (i, neu) => aendern({ elemente: k.elemente.map((e, j) => (j === i ? { ...e, ...neu } : e)) });
   const elementWeg = (i) => { aendern({ elemente: k.elemente.filter((_, j) => j !== i) }); setWahl(-1); };
   const elementDazu = (art) => {
@@ -227,7 +251,9 @@ function KonturRechner({ imFenster }) {
           <section className="karte">
             <div className="karte__kopf"><h2>Grafik</h2>
               <button className={"knopf knopf--klein" + (zeichnen ? " knopf--haupt" : "")} id="kt-zeichnen"
-                onClick={() => setZeichnen((z) => !z)}>{zeichnen ? "Zeichnen beenden" : "✎ Zeichnen"}</button></div>
+                onClick={() => setZeichnen((z) => !z)}>{zeichnen ? "Zeichnen beenden" : "✎ Zeichnen"}</button>
+              <button className="knopf knopf--klein" id="kt-zurueck" disabled={!verlauf.current.length}
+                title="Letzte Änderung an der Kontur zurücknehmen" onClick={zurueck}>↶ Rückgängig</button></div>
             <Grafik kontur={kontur} bahn={bahn} k={k} wahl={wahl} setWahl={setWahl} zeichnen={zeichnen}
               punktSetzen={punktSetzen} ende={ende} />
             <p className="klein">
@@ -583,6 +609,77 @@ function punkteVon(segs) {
 function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende }) {
   const [maus, setMaus] = useState(null);
   const svg = useRef(null);
+  // Zoom (Wunsch Patrick 3. November 2026: „ich will die grafische Ansicht
+  // zoomen können“): Mausrad zoomt um den Zeiger, Ziehen verschiebt, zwei
+  // Finger zoomen, Knöpfe + − und „Alles“. Gerechnet wird in den Punkten
+  // des Bildes, nicht mit CSS, damit Linien und Schrift dünn bleiben.
+  // Bild = Grundbild × f + (px, py)
+  const [blick, setBlick] = useState({ f: 1, px: 0, py: 0 });
+  const blickRef = useRef(blick); blickRef.current = blick;
+  const zeiger = useRef(new Map());
+  const zug = useRef(null);
+  const gezogen = useRef(false);
+  const bildPunkt = (cx, cy) => {
+    const m = svg.current && svg.current.getScreenCTM();
+    if (!m) return null;
+    const q = new DOMPoint(cx, cy).matrixTransform(m.inverse());
+    return { x: q.x, y: q.y };
+  };
+  const zoomUm = (q, faktor) => setBlick((b) => {
+    const f = Math.max(0.5, Math.min(200, b.f * faktor));
+    const g = f / b.f;
+    return { f, px: q.x - (q.x - b.px) * g, py: q.y - (q.y - b.py) * g };
+  });
+  useEffect(() => {
+    const el = svg.current;
+    if (!el) return undefined;
+    // Eigener Hörer, weil React das Mausrad nur passiv meldet und die
+    // Seite sonst mitrollt
+    const rad = (e) => {
+      e.preventDefault();
+      const q = bildPunkt(e.clientX, e.clientY); if (!q) return;
+      zoomUm(q, Math.pow(1.0015, -e.deltaY * (e.deltaMode === 1 ? 30 : 1)));
+    };
+    el.addEventListener("wheel", rad, { passive: false });
+    return () => el.removeEventListener("wheel", rad);
+  }, []);
+  const runter = (e) => {
+    zeiger.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    gezogen.current = false;
+    const p = [...zeiger.current.values()];
+    if (p.length === 1) zug.current = { x: e.clientX, y: e.clientY, b: blickRef.current, weit: 0 };
+    else if (p.length === 2) {
+      const a = bildPunkt((p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2);
+      zug.current = { zwei: true, d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1, b: blickRef.current, q: a, weit: 99 };
+      gezogen.current = true;
+    }
+  };
+  const bewegen = (e) => {
+    if (!zeiger.current.has(e.pointerId)) return;
+    zeiger.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const z = zug.current; if (!z) return;
+    const m = svg.current.getScreenCTM(); if (!m) return;
+    if (z.zwei) {
+      const p = [...zeiger.current.values()]; if (p.length < 2) return;
+      const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1;
+      const f = Math.max(0.5, Math.min(200, z.b.f * d / z.d)), g = f / z.b.f;
+      setBlick({ f, px: z.q.x - (z.q.x - z.b.px) * g, py: z.q.y - (z.q.y - z.b.py) * g });
+      return;
+    }
+    const dx = e.clientX - z.x, dy = e.clientY - z.y;
+    z.weit = Math.max(z.weit, Math.abs(dx) + Math.abs(dy));
+    if (z.weit > 5) {
+      gezogen.current = true;
+      svg.current.setPointerCapture?.(e.pointerId);
+      setBlick({ f: z.b.f, px: z.b.px + dx / m.a, py: z.b.py + dy / m.d });
+    }
+  };
+  const hoch = (e) => {
+    zeiger.current.delete(e.pointerId);
+    if (zeiger.current.size === 0) zug.current = null;
+    else if (zeiger.current.size === 1) { const [p] = [...zeiger.current.values()]; zug.current = { x: p.x, y: p.y, b: blickRef.current, weit: 99 }; }
+  };
+  const knopfZoom = (faktor) => zoomUm({ x: B / 2, y: H / 2 }, faktor);
   // Beim Zeichnen die Werte auch eintippen (Wunsch Patrick 3. November
   // 2026: „in die X- und Z-Werte springen können mit Tab“, „bei der
   // Endpunkt-Anzeige“): Tab öffnet die Felder X und Z direkt an der
@@ -651,9 +748,10 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
   if (zeichnen) { zmax += Math.max(4, (zmax - zmin) * 0.4); rmax += Math.max(2, (rmax - rmin) * 0.3); }
   if (zmax - zmin < 4) zmax = zmin + 4;
   if (rmax - rmin < 2) rmax = rmin + 2;
-  const s = Math.min((B - 2 * RAND) / (zmax - zmin), (H - 2 * RAND) / (rmax - rmin));
-  const ox = RAND + ((B - 2 * RAND) - (zmax - zmin) * s) / 2;
-  const oy = H - RAND - ((H - 2 * RAND) - (rmax - rmin) * s) / 2;
+  const s0 = Math.min((B - 2 * RAND) / (zmax - zmin), (H - 2 * RAND) / (rmax - rmin));
+  const ox0 = RAND + ((B - 2 * RAND) - (zmax - zmin) * s0) / 2;
+  const oy0 = H - RAND - ((H - 2 * RAND) - (rmax - rmin) * s0) / 2;
+  const s = s0 * blick.f, ox = ox0 * blick.f + blick.px, oy = oy0 * blick.f + blick.py;
   const X = (p) => (ox + (p.z - zmin) * s).toFixed(2);
   const Y = (p) => (oy - (p.r - rmin) * s).toFixed(2);
   const pt = (p) => X(p) + " " + Y(p);
@@ -684,6 +782,8 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
       <div className="kt-bildrahmen">
       <svg ref={svg} viewBox={`0 0 ${B} ${H}`} className="kt-bild" id="kt-bild"
         onMouseMove={(e) => zeichnen && setMaus(weltpunkt(e))} onMouseLeave={() => setMaus(null)}
+        onPointerDown={runter} onPointerMove={bewegen} onPointerUp={hoch} onPointerCancel={hoch}
+        onClickCapture={(e) => { if (gezogen.current) { e.stopPropagation(); e.preventDefault(); gezogen.current = false; } }}
         onClick={(e) => { if (!zeichnen) return; const p = weltpunkt(e); if (p) punktSetzen(p.z, p.r); }}>
         <line x1={RAND / 2} x2={B - RAND / 2} y1={Y({ r: 0 })} y2={Y({ r: 0 })} className="kt-achse" />
         <text x={B - RAND / 2} y={Number(Y({ r: 0 })) - 4} textAnchor="end" className="kt-text">Mitte</text>
@@ -719,6 +819,12 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
           </>
         )}
       </svg>
+      <div className="kt-zoom" onClick={(e) => e.stopPropagation()}>
+        <button className="knopf knopf--klein" id="kt-zoom-rein" title="Vergrössern (auch Mausrad)" onClick={() => knopfZoom(1.5)}>+</button>
+        <button className="knopf knopf--klein" id="kt-zoom-raus" title="Verkleinern" onClick={() => knopfZoom(1 / 1.5)}>−</button>
+        <button className="knopf knopf--klein" id="kt-zoom-alles" title="Ganze Kontur zeigen" disabled={blick.f === 1 && !blick.px && !blick.py}
+          onClick={() => setBlick({ f: 1, px: 0, py: 0 })}>Alles</button>
+      </div>
       {zeichnen && dyn && (() => {
         // Verlässt die Maus die Grafik (etwa zum Feld hin), bleiben die
         // Felder an der letzten Stelle, statt zum Konturende zu springen

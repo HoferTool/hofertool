@@ -11381,3 +11381,10 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
   .pablo, .pablo__antwort { animation: none; }
   .pablo-zeichen__ring::after { animation: none; }
 }
+
+/* Kontur: Zoom in der Grafik (1.363.0) */
+.kt-bild { touch-action: none; cursor: grab; }
+.kt-bildfeld--zeichnen .kt-bild { cursor: crosshair; }
+.kt-zoom { position: absolute; right: 6px; top: 6px; display: flex; gap: 4px; }
+.kt-zoom .knopf { min-width: 30px; padding: 2px 8px; opacity: .85; }
+.kt-zoom .knopf:hover { opacity: 1; }
