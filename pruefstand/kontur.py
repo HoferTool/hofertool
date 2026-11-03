@@ -126,6 +126,26 @@ with sync_playwright() as p:
     pg.wait_for_timeout(150); pg.click(".dialog .knopf--gefahr"); pg.wait_for_timeout(300)
     pruefe("Gelöscht", len(pg.evaluate("TEST.daten.konturen || []")) == 0)
     pg.keyboard.press("Escape"); pg.wait_for_timeout(200)
+    # Vorschub je Element und Pause
+    pg.fill("[data-ktel='2'] [data-ktfeld='f']", "0.015"); pg.fill("[data-ktel='2'] [data-ktfeld='pause']", "0.5"); pg.wait_for_timeout(100)
+    zl = code().split("\n")
+    pruefe("Vorschub je Element nur dort", "G2X16.000Z7.400R0.400F0.015" in zl and "G1Z14.288" in zl
+           and "G1X29.883Z25.692F0.03" in zl)
+    pruefe("Pause G4 am Ende des Elements", zl.index("G4U0.5") == zl.index("G1Z14.288") + 1)
+    pg.fill("[data-ktel='2'] [data-ktfeld='f']", ""); pg.fill("[data-ktel='2'] [data-ktfeld='pause']", "")
+
+    # Seitenkontur aus STEP (Teil mit Schlüsselfläche)
+    pg.set_input_files("#kt-step", os.path.join(os.path.dirname(os.path.abspath(__file__)), "kontur-test.step"))
+    pg.wait_for_selector(".kt-modell"); pg.wait_for_timeout(200)
+    pruefe("STEP: Vorschau mit weggelassener Fläche", "8 Elemente" in pg.inner_text(".kt-modell") and "weggelassen" in pg.inner_text(".kt-modell"))
+    if BILD: pg.screenshot(path=BILD + "/kontur-step.png")
+    pg.click("[data-ktmodell='innen']"); pg.wait_for_timeout(100)
+    pruefe("STEP: ohne Bohrung keine Innenkontur", "keine Bohrung" in pg.inner_text(".kt-modell"))
+    pg.click("[data-ktmodell='aussen']"); pg.click("#kt-modell-ok"); pg.wait_for_timeout(200)
+    c = code()
+    pruefe("STEP: Kontur übernommen", pg.locator("[data-ktel]").count() == 8 and pg.inner_text("#kt-name") == "kontur-test"
+           and "G3X10.200Z8.000R0.100" in c and pg.locator("#kt-fehler").count() == 0)
+
     # Eigenes Browserfenster
     with pg.expect_popup() as auf:
         pg.click("#kt-eigen")

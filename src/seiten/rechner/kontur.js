@@ -365,25 +365,37 @@ export function ncProgramm(k, bahn) {
   const erst = bahn[0].a;
   zeilen.push(`G0X${z3(erst.r * 2)}Z${z3(erst.z - ab)}`);
   zeilen.push(`G1Z${z3(erst.z)}${f ? "F" + f : ""}`);
+  // Vorschub je Element (seit 1.359.0, Wunsch Patrick 3. November 2026:
+  // „Grundvorschub für alles, dann die einzelnen Elemente ändern“): leer
+  // = Grundvorschub; F steht nur, wo er wechselt. Pause G4 am Ende des
+  // Elements, in Sekunden mit U wie bei Fanuc-Drehmaschinen.
+  const el = (nr) => (k.elemente || [])[nr - 1] || {};
+  const fVon = (nr) => { const e = zahlVon(el(nr).f); return e && e > 0 ? e : f; };
+  let fJetzt = f;
   let p = erst;
-  for (const s of bahn) {
+  bahn.forEach((s, i) => {
     const xz = (q) => (Math.abs(q.r - p.r) > 5e-7 ? `X${z3(q.r * 2)}` : "") + (Math.abs(q.z - p.z) > 5e-7 ? `Z${z3(q.z)}` : "");
+    const fs = fVon(s.nr);
+    const fText = fs && fs !== fJetzt ? "F" + fs : "";
+    let zeile = "";
     if (s.t === "L") {
       const t = xz(s.b);
-      if (t) zeilen.push(`G1${t}`);
+      if (t) zeile = `G1${t}`;
     } else {
       let g = s.ccw ? 3 : 2;
       if (tausch) g = g === 2 ? 3 : 2;
       const t = `X${z3(s.b.r * 2)}Z${z3(s.b.z)}`;
-      if (bogenWinkel(s) > Math.PI - 1e-6) {
-        // Über 180° ist R nicht eindeutig: Mittelpunkt mit I (Radius) und K
-        zeilen.push(`G${g}${t}I${z3(s.c.r - s.a.r)}K${z3(s.c.z - s.a.z)}`);
-      } else {
-        zeilen.push(`G${g}${t}R${z3(s.R)}`);
-      }
+      // Über 180° ist R nicht eindeutig: Mittelpunkt mit I (Radius) und K
+      zeile = bogenWinkel(s) > Math.PI - 1e-6
+        ? `G${g}${t}I${z3(s.c.r - s.a.r)}K${z3(s.c.z - s.a.z)}`
+        : `G${g}${t}R${z3(s.R)}`;
     }
+    if (zeile) { zeilen.push(zeile + fText); if (fText) fJetzt = fs; }
     p = s.b;
-  }
+    const naechste = bahn[i + 1];
+    const pause = zahlVon(el(s.nr).pause);
+    if (pause > 0 && (!naechste || naechste.nr !== s.nr)) zeilen.push(`G4U${pause}`);
+  });
   zeilen.push(`G0X${z3(p.r * 2 + 2 * ab)}`);
   return zeilen.join("\n");
 }

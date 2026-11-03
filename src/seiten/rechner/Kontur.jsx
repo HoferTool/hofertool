@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
+import { schnittAusStep, konturAusSchnitt, elementeAusZug } from "./step.js";
 import { konturRechnen, bahnRechnen, ncProgramm, bogenWinkel, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
 
 const VORGABE = {
@@ -170,7 +171,7 @@ function KonturRechner({ imFenster }) {
             </div>
             <div className="kt-liste">
               {k.elemente.map((el, i) => (
-                <Element key={i} i={i} el={el} an={wahl === i} letztes={i === k.elemente.length - 1}
+                <Element key={i} i={i} el={el} an={wahl === i} letztes={i === k.elemente.length - 1} grundF={k.f}
                   waehlen={() => setWahl(i)} aendern={(neu) => elementAendern(i, neu)} weg={() => elementWeg(i)} />
               ))}
             </div>
@@ -195,7 +196,7 @@ function KonturRechner({ imFenster }) {
             <div className="kt-werkzeug">
               <div className="kt-felder">
                 <Zahl label="Schneidenradius (Platte) in mm" wert={k.rn} setze={(v) => aendern({ rn: v })} name="rn" breit />
-                <Zahl label="Vorschub F" wert={k.f} setze={(v) => aendern({ f: v })} name="f" breit />
+                <Zahl label="Grundvorschub F" wert={k.f} setze={(v) => aendern({ f: v })} name="f" breit />
                 <Zahl label="Abstand Anfahren / Wegfahren" wert={k.abstand} setze={(v) => aendern({ abstand: v })} name="abstand" breit />
               </div>
               <div>
@@ -273,7 +274,7 @@ function Zahl({ label, wert, setze, name, breit }) {
   );
 }
 
-function Element({ i, el, an, letztes, waehlen, aendern, weg }) {
+function Element({ i, el, an, letztes, waehlen, aendern, weg, grundF }) {
   return (
     <div className={"kt-el" + (an ? " kt-el--an" : "")} data-ktel={i} onFocus={waehlen} onClick={waehlen}>
       <span className="kt-nr">{i + 1}</span>
@@ -317,6 +318,14 @@ function Element({ i, el, an, letztes, waehlen, aendern, weg }) {
           <span className="klein">{el.ueb === "FG" ? "Schräge 30° zur Achse" : el.ueb === "FF" ? "Schräge 15°, Wand 8°" : "Schräge 15°"} · in der Ecke Zylinder → Planfläche</span>
         </div>
       )}
+      <span className="kt-extra">
+        <label className="kt-zahl kt-zahl--klein" title="Vorschub für dieses Element, leer = Grundvorschub"><span>F</span>
+          <input type="text" inputMode="decimal" data-ktfeld="f" value={el.f ?? ""} placeholder={grundF || "–"}
+            onChange={(e) => aendern({ f: e.target.value })} /></label>
+        <label className="kt-zahl kt-zahl--klein" title="Pause G4 am Ende des Elements, in Sekunden"><span>Pause s</span>
+          <input type="text" inputMode="decimal" data-ktfeld="pause" value={el.pause ?? ""} placeholder="–"
+            onChange={(e) => aendern({ pause: e.target.value })} /></label>
+      </span>
       <button className="kt-weg" title="Element löschen" data-ktweg={i} onClick={(e) => { e.stopPropagation(); weg(); }}>✕</button>
     </div>
   );
@@ -444,6 +453,66 @@ function Konturliste({ k, aendern, code, gespeichert, setGespeichert }) {
       <button className="linkknopf" id="kt-neu" onClick={leeren}>Neu</button>
       <button className="linkknopf" id="kt-oeffnen" onClick={oeffnen}>Öffnen</button>
       <button className="linkknopf" id="kt-speichern" onClick={sichern}>Speichern</button>
+      <label className="linkknopf" title="Seitenkontur aus einem 3D-Modell (STEP) übernehmen">3D-Modell
+        <input type="file" id="kt-step" accept=".stp,.step,.STP,.STEP" hidden onChange={async (e) => {
+          const datei = e.target.files && e.target.files[0];
+          e.target.value = "";
+          if (!datei) return;
+          let schnitt;
+          try { schnitt = schnittAusStep(await datei.text()); } catch (f) { schnitt = { fehler: "Datei nicht lesbar." }; }
+          if (schnitt.fehler) { alt.meldung(schnitt.fehler, "warn"); return; }
+          const name = datei.name.replace(/\.(stp|step)$/i, "");
+          fensterOeffnen((zu) => <ModellFenster schnitt={schnitt} name={name} zu={zu}
+            uebernehmen={(neu) => { aendern(neu); setGespeichert(null); }} />);
+        }} /></label>
+    </div>
+  );
+}
+
+// Vorschau des Längsschnitts aus dem STEP-Modell, Wahl aussen / innen
+// und welche Seite vorne (Z0) ist
+function ModellFenster({ schnitt, name, zu, uebernehmen }) {
+  const [innen, setInnen] = useState(false);
+  const [umdrehen, setUmdrehen] = useState(false);
+  const gewahlt = konturAusSchnitt(schnitt, { innen, umdrehen });
+  const pfad = (zug) => zug.map((s, i) => (i ? "" : `M${s.a.z} ${-s.a.r} `)
+    + (s.t === "A" ? `A${s.R} ${s.R} 0 0 ${(s.a.z - s.c.z) * (s.b.r - s.c.r) - (s.a.r - s.c.r) * (s.b.z - s.c.z) > 0 ? 1 : 0} ${s.b.z} ${-s.b.r} ` : `L${s.b.z} ${-s.b.r} `)).join("");
+  // Alle Stücke (auch Innenkontur) blass, die gewählte kräftig
+  const st = schnitt.stuecke;
+  const zs = st.flatMap((s) => [s.a.z, s.b.z]), rs = st.flatMap((s) => [s.a.r, s.b.r]);
+  const zmin = Math.min(...zs), zmax = Math.max(...zs), rmax = Math.max(...rs);
+  const rand = Math.max(zmax - zmin, rmax) * 0.06 + 0.5;
+  const blass = st.map((s) => {
+    const um = (p) => ({ z: (umdrehen ? zmax - p.z : p.z - zmin), r: p.r });
+    return { ...s, a: um(s.a), b: um(s.b), ...(s.c ? { c: um(s.c) } : {}) };
+  });
+  const elemente = gewahlt.zug ? elementeAusZug(gewahlt).elemente.length : 0;
+  return (
+    <div className="dialog kt-modell">
+      <h2>3D-Modell „{name}“</h2>
+      <svg className="kt-modell__bild" viewBox={`${-rand} ${-rmax - rand} ${zmax - zmin + 2 * rand} ${rmax + 2 * rand}`}>
+        <line x1={-rand} x2={zmax - zmin + rand} y1="0" y2="0" className="kt-achse" />
+        {blass.map((s, i) => <path key={i} d={pfad([s])} className="kt-modell__alle" />)}
+        {gewahlt.zug && <path d={pfad(gewahlt.zug)} className="kt-modell__kontur" />}
+        {gewahlt.start && <circle cx={gewahlt.start.z} cy={-gewahlt.start.r} r={rand * 0.25} className="kt-startpunkt" />}
+      </svg>
+      <div className="moduswahl">
+        <button className={"moduswahl__knopf" + (!innen ? " aktiv" : "")} data-ktmodell="aussen" onClick={() => setInnen(false)}>Aussenkontur</button>
+        <button className={"moduswahl__knopf" + (innen ? " aktiv" : "")} data-ktmodell="innen" onClick={() => setInnen(true)}>Innenkontur</button>
+        <button className="knopf knopf--klein" data-ktmodell="umdrehen" onClick={() => setUmdrehen((u) => !u)}>⇄ Andere Seite vorne</button>
+      </div>
+      <p className="klein">
+        {gewahlt.fehler || `${elemente} Elemente, Z0 an der Stirn links, Start beim roten Punkt.`}
+        {schnitt.weg > 0 && ` ${schnitt.weg === 1 ? "1 Fläche, die" : schnitt.weg + " Flächen, die"} nicht um die Drehachse ${schnitt.weg === 1 ? "läuft" : "laufen"} (Schlüsselflächen, Querbohrungen …), ${schnitt.weg === 1 ? "ist" : "sind"} weggelassen.`}
+      </p>
+      <div className="dialog__knoepfe">
+        <button className="knopf knopf--haupt" id="kt-modell-ok" disabled={!gewahlt.zug} onClick={() => {
+          const neu = elementeAusZug(gewahlt);
+          uebernehmen({ ...neu, name, seite: innen ? "innen" : "aussen", spitze: innen ? "or" : "ur" });
+          zu();
+        }}>Kontur übernehmen</button>
+        <button className="knopf" onClick={zu}>Abbrechen</button>
+      </div>
     </div>
   );
 }

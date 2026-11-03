@@ -11246,3 +11246,13 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 .kt-fs .klein { flex-basis: 100%; }
 .kt-fs { order: 10; }
 .kt-fs select { min-width: 112px; }
+/* Kontur aus 3D-Modell (1.359.0) */
+.dialog.kt-modell { width: min(900px, 96vw); }
+.kt-modell__bild { width: 100%; height: auto; max-height: 50vh; background: var(--grund); border: 1px solid var(--linie); border-radius: 8px; margin-bottom: 10px; }
+.kt-modell__bild * { vector-effect: non-scaling-stroke; }
+.kt-modell__alle { fill: none; stroke: var(--text-blass, #9aa3ad); stroke-width: 1.5; }
+.kt-modell__kontur { fill: none; stroke: var(--marke); stroke-width: 3; }
+.kt-modell .moduswahl { flex-wrap: wrap; gap: 6px; }
+/* Vorschub und Pause je Element (1.359.0) */
+.kt-extra { display: flex; gap: 6px; }
+.kt-zahl.kt-zahl--klein { width: 64px; }
