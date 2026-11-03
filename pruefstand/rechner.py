@@ -35,9 +35,10 @@ with sync_playwright() as p:
     if pg.locator("[data-unter='rechner/gcode']").count(): fehler.append("G-Code noch im Rechner")
     pg.click("[data-unter='rechner/winkel']"); pg.wait_for_timeout(250)
     if not pg.locator("#rech-inhalt input").count(): fehler.append("Reiter leer: winkel")
-    pg.evaluate("location.hash='#nc'"); pg.wait_for_selector("[data-unter='nc/gcode']")
+    pg.evaluate("location.hash='#nc'"); pg.wait_for_selector("[data-unter='nc/kontur']")
+    if pg.locator("[data-unter='nc/gcode']").count(): fehler.append("G-Code noch da")
     if "NC-Funktionen" not in pg.inner_text("h1.seitentitel"): fehler.append("Seite NC-Funktionen fehlt")
-    for reiter, merkmal in [("gcode", "textarea, input"), ("cachse", "svg, canvas, input"),
+    for reiter, merkmal in [("cachse", "svg, canvas, input"),
                             ("gravur", "input, canvas"), ("dxf", "input, button"), ("kontur", "input, svg")]:
         pg.click(f"[data-unter='nc/{reiter}']"); pg.wait_for_timeout(250)
         if not pg.locator(f"#rech-inhalt").locator(merkmal).count():
@@ -60,18 +61,6 @@ with sync_playwright() as p:
     pg.locator("#rech-inhalt input").first.fill("12"); pg.locator("#rech-inhalt input").first.press("Tab")
     pg.wait_for_timeout(200)
 
-    # G-Code: Fase 1 × 45° auf Ø20, mit und ohne A-Programmierung
-    pg.evaluate("location.hash='#nc'"); pg.wait_for_selector("[data-unter='nc/gcode']")
-    pg.click("[data-unter='nc/gcode']"); pg.wait_for_timeout(250)
-    prog = pg.inner_text("pre.gcode")
-    if "G0X22.00Z0.00" not in prog or ",A45." not in prog: fehler.append("G-Code falsch: " + prog[:80])
-    pg.check("#g-ohnea"); pg.wait_for_timeout(200)
-    if ",A" in pg.inner_text("pre.gcode") or "G3X" not in pg.inner_text("pre.gcode"): fehler.append("Ohne A falsch")
-    pg.uncheck("#g-radan"); pg.wait_for_timeout(200)
-    if pg.locator("#g-radius").count() or "G3X" in pg.inner_text("pre.gcode"): fehler.append("Radius aus wirkt nicht")
-    pg.fill("#g-dm", "30"); pg.press("#g-dm", "Enter"); pg.wait_for_timeout(200)
-    if "G0X32.00" not in pg.inner_text("pre.gcode"): fehler.append("Durchmesser wirkt nicht")
-    pg.check("#g-radan"); pg.uncheck("#g-ohnea"); pg.fill("#g-dm", "20"); pg.press("#g-dm", "Tab")
     pg.evaluate("location.hash='#rechner'"); pg.wait_for_selector("[data-unter='rechner/winkel']")
     pg.click("[data-unter='rechner/winkel']"); pg.wait_for_timeout(200)
 
