@@ -194,12 +194,12 @@ export async function ebSichernUndMelden(h, optionen) {
   try {
     const l = await ebSichern(h, optionen);
     const neu = { gesamt: l.gesamt, gesichert: l.gesichert, offen: l.offen,
-      fehler: l.fehler.length ? l.fehler.slice(0, 20) : null, geraet: geraetName(), ordner: h.name };
+      fehler: l.fehler.length ? l.fehler.slice(0, 20) : null, abbruch: false, geraet: geraetName(), ordner: h.name };
     if (l.letzte) neu.letzte = Object.assign({ zeit: new Date().toISOString() }, l.letzte);
     await statusMelden(neu);
     return l;
   } catch (f) {
-    await statusMelden({ fehler: [alt.fehlertext(f)], geraet: geraetName() });
+    await statusMelden({ fehler: [alt.fehlertext(f)], abbruch: true, geraet: geraetName() });
     throw f;
   }
 }
@@ -227,17 +227,21 @@ async function pruefen() {
   try {
     const l = await ebSichern(h, { hoechstens: 40 });
     // Nur melden, wenn sich etwas getan hat, sonst bleibt app_config ruhig
-    if (l.geschrieben || l.fehler.length || !k.status || k.status.gesamt !== l.gesamt) {
+    // Ein Abbruch des ganzen Durchgangs (etwa eine Zeitüberschreitung der
+    // Datenbank, während gleichzeitig die grosse Sicherung lief) blieb
+    // sonst für immer stehen: der nächste gute Durchgang räumt ihn weg
+    const abbruch = !!(k.status && k.status.abbruch);
+    if (l.geschrieben || l.fehler.length || abbruch || !k.status || k.status.gesamt !== l.gesamt) {
       const neu = { gesamt: l.gesamt, gesichert: l.gesichert, offen: l.offen,
-        fehler: l.fehler.length ? l.fehler.slice(0, 20) : (k.status && k.status.fehler) || null,
-        geraet: geraetName(), ordner: h.name };
+        fehler: l.fehler.length ? l.fehler.slice(0, 20) : (!abbruch && k.status && k.status.fehler) || null,
+        abbruch: false, geraet: geraetName(), ordner: h.name };
       if (l.geschrieben) neu.fehler = l.fehler.length ? l.fehler.slice(0, 20) : null;
       if (l.letzte) neu.letzte = Object.assign({ zeit: new Date().toISOString() }, l.letzte);
       await statusMelden(neu);
     }
   } catch (f) {
     console.warn("Einrichtblätter als PDF:", f);
-    await statusMelden({ fehler: [alt.fehlertext(f)], geraet: geraetName() });
+    await statusMelden({ fehler: [alt.fehlertext(f)], abbruch: true, geraet: geraetName() });
   }
 }
 

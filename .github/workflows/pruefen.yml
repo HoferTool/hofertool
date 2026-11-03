@@ -1,11 +1,16 @@
 # Baut die App und lässt den ganzen Prüfstand darüber laufen, bei
-# jedem Pull Request und jedem Push auf einen Arbeitszweig.
+# jedem Pull Request, jedem Push auf einen Arbeitszweig und jede Nacht
+# um Mitternacht auf main (Wunsch Patrick 3. November 2026: „jede Nacht
+# allgemein testen, damit so etwas nicht nochmals passiert“).
 name: Prüfen
 
 on:
   pull_request:
   push:
     branches-ignore: [main]
+  schedule:
+    - cron: "0 23 * * *"   # 00:00 Schweizer Winterzeit (01:00 im Sommer)
+  workflow_dispatch:
 
 jobs:
   pruefstand:

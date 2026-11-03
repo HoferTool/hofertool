@@ -19,6 +19,7 @@ import Batterien from "./start/Batterien.jsx";
 import HeuteOffen from "./start/HeuteOffen.jsx";
 import OhneWbg from "./start/OhneWbg.jsx";
 import KalenderKarte from "./start/Kalender.jsx";
+import Systemzustand from "./start/Systemzustand.jsx";
 
 // Ohne Adminrecht wird gar nicht erst nach Problemen gefragt
 const keineProbleme = async () => [];
@@ -48,6 +49,9 @@ export default function Start({ auffrischen }) {
       </section>
       <Solaranlage />
       <p className="gruss">{alt.begruessung()}{name ? ", " + name : ""}</p>
+      {/* Sicherung, Pool-Rechner, Drucker, Solar: nur wenn etwas nicht
+          stimmt, nur Admins (Wunsch Patrick 3. November 2026) */}
+      {admin && <Systemzustand auffrischen={auffrischen} />}
       {admin && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
       {/* Termine der nächsten zwei Wochen, statt des Reiters Kalender
           (Wunsch Patrick 30. Oktober 2026) */}

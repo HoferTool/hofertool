@@ -11735,3 +11735,9 @@ body.dunkel .kt-k3d__bild { background: radial-gradient(ellipse at 50% 35%, #2a3
 .kt-k3d__knoepfe { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
 .kt-k3d__schnitt { margin-right: 6px; }
 .kt-k3d-huelle .dialog.kt-k3d-fenster { width: min(1500px, 95vw); max-width: none; }
+
+/* Systemzustand auf der Startseite der Admins (1.382.0) */
+.systemzustand__zeile { padding: 6px 0; border-top: 1px solid rgba(138, 92, 16, .15); line-height: 1.4; }
+.systemzustand__zeile:first-of-type { border-top: 0; }
+.systemzustand__zeile b { display: inline-block; min-width: 11em; color: #8a5c10; }
+body.dunkel .systemzustand__zeile { border-top-color: rgba(255, 255, 255, .12); }
