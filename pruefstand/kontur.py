@@ -141,10 +141,26 @@ with sync_playwright() as p:
     if BILD: pg.screenshot(path=BILD + "/kontur-step.png")
     pg.click("[data-ktmodell='innen']"); pg.wait_for_timeout(100)
     pruefe("STEP: ohne Bohrung keine Innenkontur", "keine Bohrung" in pg.inner_text(".kt-modell"))
-    pg.click("[data-ktmodell='aussen']"); pg.click("#kt-modell-ok"); pg.wait_for_timeout(200)
+    pg.click("[data-ktmodell='aussen']"); pg.wait_for_timeout(100)
+    pruefe("STEP: Drehachse wird genannt", "entlang Modell-" in pg.inner_text("#kt-modell-achse"))
+    gross = pg.locator(".kt-modell__bild").bounding_box()
+    pruefe("STEP: Vorschau gross", gross["width"] > 900)
+    # Elemente weglassen: so lange antippen, bis eines der Kontur wegfällt
+    weniger = False
+    d0 = pg.locator(".kt-modell__kontur").get_attribute("d")
+    for i in range(pg.locator("[data-ktstueck]").count()):
+        pg.locator("[data-ktstueck]").nth(i).dispatch_event("click"); pg.wait_for_timeout(50)
+        if pg.locator(".kt-modell__kontur").get_attribute("d") != d0 and pg.locator(".kt-modell__alle.weg").count() == 1: weniger = True; break
+        pg.locator("[data-ktstueck]").nth(i).dispatch_event("click"); pg.wait_for_timeout(50)
+    pruefe("STEP: Element weglassen überbrückt", weniger)
+    pg.click("#kt-modell-alle"); pg.wait_for_timeout(100)
+    pruefe("STEP: alle wieder", "8 Elemente" in pg.inner_text(".kt-modell"))
+    pg.fill("#kt-modell-z0", "2"); pg.wait_for_timeout(100)
+    if BILD: pg.screenshot(path=BILD + "/kontur-step2.png")
+    pg.click("#kt-modell-ok"); pg.wait_for_timeout(200)
     c = code()
-    pruefe("STEP: Kontur übernommen", pg.locator("[data-ktel]").count() == 8 and pg.inner_text("#kt-name") == "kontur-test"
-           and "G3X10.200Z8.000R0.100" in c and pg.locator("#kt-fehler").count() == 0)
+    pruefe("STEP: Kontur übernommen, Z0 verschoben", pg.locator("[data-ktel]").count() == 8 and pg.inner_text("#kt-name") == "kontur-test"
+           and "G3X10.200Z6.000R0.100" in c and pg.locator("#kt-fehler").count() == 0)
 
     # Eigenes Browserfenster
     with pg.expect_popup() as auf:

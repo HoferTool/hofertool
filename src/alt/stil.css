@@ -11256,3 +11256,16 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 /* Vorschub und Pause je Element (1.359.0) */
 .kt-extra { display: flex; gap: 6px; }
 .kt-zahl.kt-zahl--klein { width: 64px; }
+
+/* 1.360.0: 3D-Modell grösser, Drehachse wählen, Elemente weglassen */
+.dialog.kt-modell { width: min(1400px, 97vw); max-width: none; max-height: 96vh; overflow: auto; }
+.kt-modell__mehr { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+.kt-modell__bild { max-height: 60vh; min-height: 36vh; }
+.kt-modell__zeile { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.kt-modell__zeile select { max-width: 100%; }
+.kt-modell__null { stroke: var(--marke); stroke-width: 1; stroke-dasharray: 4 3; }
+.kt-modell__treffer { fill: none; stroke: transparent; stroke-width: 14; cursor: pointer; }
+.kt-modell__treffer:hover { stroke: rgba(0, 120, 255, .25); }
+.kt-modell__alle.weg { stroke: #d33; stroke-width: 2.5; stroke-dasharray: 5 4; }
+.kt-modell__z0 { display: inline-flex; align-items: center; gap: 4px; }
+.kt-modell__z0 input { width: 70px; }

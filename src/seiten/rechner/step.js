@@ -120,7 +120,8 @@ export function modell(text) {
 }
 
 // Achse: die der meisten Zylinder (sonst Kegel, Tori)
-function achseFinden(flaechen) {
+// Alle möglichen Drehachsen, die beste (meiste Zylinder) zuerst
+export function achsenFinden(flaechen) {
   const kandidaten = [];
   for (const f of flaechen) {
     if (!["CYLINDRICAL_SURFACE", "CONICAL_SURFACE", "TOROIDAL_SURFACE"].includes(f.art)) continue;
@@ -130,7 +131,7 @@ function achseFinden(flaechen) {
     if (k) k.n += g; else kandidaten.push({ o: f.lage.o, d, n: g });
   }
   kandidaten.sort((a, b) => b.n - a.n);
-  return kandidaten[0] || null;
+  return kandidaten;
 }
 function aufAchse(a, p) {
   const w = vMinus(p, a.o);
@@ -143,9 +144,10 @@ const zr = (a, p) => { const w = vMinus(p, a.o); const z = vSkalar(w, a.d); retu
 // --- Längsschnitt -----------------------------------------------------
 // Ergebnis: { stuecke: [{ a, b, t: "L"|"A", c, R }], weg: Anzahl
 // weggelassener Flächen, laenge } in Z und Radius
-export function schnittAusStep(text) {
+export function schnittAusStep(text, achseNr = 0) {
   const flaechen = modell(text);
-  const achse = achseFinden(flaechen);
+  const achsen = achsenFinden(flaechen);
+  const achse = achsen[achseNr] || achsen[0];
   if (!achse) return { fehler: "Keine Drehachse gefunden. Ist es ein Drehteil (mit Zylinderflächen)?" };
   const stuecke = [];
   let weg = 0;
@@ -191,12 +193,17 @@ export function schnittAusStep(text) {
     if (einmal.some((x) => (gleich(x.a, s.a) && gleich(x.b, s.b)) || (gleich(x.a, s.b) && gleich(x.b, s.a)))) continue;
     einmal.push(s);
   }
-  if (!einmal.length) return { fehler: "Keine Flächen um die Drehachse gefunden." };
-  return { stuecke: einmal, weg };
+  einmal.forEach((x, i) => { x.nr = i; });
+  const info = { achsen, achseNr: achsen.indexOf(achse) };
+  if (!einmal.length) return { fehler: "Keine Flächen um diese Drehachse gefunden.", ...info };
+  return { stuecke: einmal, weg, ...info };
 }
 
 // Zug aus den Stücken: aussen (über die Stirn) oder innen (die Bohrung)
-export function konturAusSchnitt(schnitt, { innen = false, umdrehen = false } = {}) {
+// ohne: Nummern der Stücke, die nicht zählen: sie werden durch eine
+// Gerade vom Anfang bis zum Ende überbrückt (etwa Einstich, Fase).
+// z0: Nullpunkt um so viel nach rechts verschoben
+export function konturAusSchnitt(schnitt, { innen = false, umdrehen = false, ohne = null, z0 = 0 } = {}) {
   const key = (p) => Math.round(p.z / EPS) + ":" + Math.round(p.r / EPS);
   let st = schnitt.stuecke.map((s) => ({ ...s }));
   if (umdrehen) {
@@ -242,7 +249,25 @@ export function konturAusSchnitt(schnitt, { innen = false, umdrehen = false } = 
       if (Math.abs(l.a.z - zmax) < EPS && Math.abs(l.b.z - zmax) < EPS && l.b.r > l.a.r) zug.pop(); else break;
     }
   }
-  return { start, zug };
+  // Weggelassene Stücke: jede Folge davon wird eine Gerade
+  let fertig = zug;
+  if (ohne && ohne.size) {
+    fertig = [];
+    for (const x of zug) {
+      if (!ohne.has(x.nr)) { fertig.push(x); continue; }
+      const l = fertig[fertig.length - 1];
+      if (l && l.bruecke) l.b = x.b;
+      else fertig.push({ t: "L", a: x.a, b: x.b, bruecke: true });
+    }
+    fertig = fertig.filter((x) => Math.hypot(x.b.z - x.a.z, x.b.r - x.a.r) > EPS);
+    if (!fertig.length) return { fehler: "Alle Elemente weggelassen." };
+  }
+  if (z0) {
+    const sch = (p) => ({ z: p.z - z0, r: p.r });
+    fertig = fertig.map((x) => ({ ...x, a: sch(x.a), b: sch(x.b), ...(x.c ? { c: sch(x.c) } : {}) }));
+    return { start: sch(start), zug: fertig };
+  }
+  return { start, zug: fertig };
 }
 
 // Zug → Elemente des Konturrechners

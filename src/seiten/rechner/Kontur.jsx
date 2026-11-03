@@ -458,51 +458,86 @@ function Konturliste({ k, aendern, code, gespeichert, setGespeichert }) {
           const datei = e.target.files && e.target.files[0];
           e.target.value = "";
           if (!datei) return;
-          let schnitt;
-          try { schnitt = schnittAusStep(await datei.text()); } catch (f) { schnitt = { fehler: "Datei nicht lesbar." }; }
-          if (schnitt.fehler) { alt.meldung(schnitt.fehler, "warn"); return; }
+          let schnitt, text = "";
+          try { text = await datei.text(); schnitt = schnittAusStep(text); } catch (f) { schnitt = { fehler: "Datei nicht lesbar." }; }
+          if (schnitt.fehler && !(schnitt.achsen && schnitt.achsen.length > 1)) { alt.meldung(schnitt.fehler, "warn"); return; }
           const name = datei.name.replace(/\.(stp|step)$/i, "");
-          fensterOeffnen((zu) => <ModellFenster schnitt={schnitt} name={name} zu={zu}
+          fensterOeffnen((zu) => <ModellFenster text={text} name={name} zu={zu}
             uebernehmen={(neu) => { aendern(neu); setGespeichert(null); }} />);
         }} /></label>
     </div>
   );
 }
 
-// Vorschau des Längsschnitts aus dem STEP-Modell, Wahl aussen / innen
-// und welche Seite vorne (Z0) ist
-function ModellFenster({ schnitt, name, zu, uebernehmen }) {
+// Drehachse in Worten: Richtung im Modell und Punkt, durch den sie geht
+function achseText(a) {
+  const z = (n) => String(Math.round(n * 1000) / 1000);
+  const d = a.d;
+  const name = Math.abs(Math.abs(d.x) - 1) < 1e-6 ? "X" : Math.abs(Math.abs(d.y) - 1) < 1e-6 ? "Y" : Math.abs(Math.abs(d.z) - 1) < 1e-6 ? "Z" : null;
+  const richtung = name ? `entlang Modell-${name}` : `Richtung ${z(d.x)} / ${z(d.y)} / ${z(d.z)}`;
+  return `${richtung}, durch ${z(a.o.x)} / ${z(a.o.y)} / ${z(a.o.z)}`;
+}
+
+// Vorschau des Längsschnitts aus dem STEP-Modell: Drehachse wählen,
+// aussen / innen, welche Seite vorne ist, Nullpunkt verschieben und
+// einzelne Elemente weglassen (Antippen in der Vorschau)
+function ModellFenster({ text, name, zu, uebernehmen }) {
+  const [achseNr, setAchseNr] = useState(0);
   const [innen, setInnen] = useState(false);
   const [umdrehen, setUmdrehen] = useState(false);
-  const gewahlt = konturAusSchnitt(schnitt, { innen, umdrehen });
+  const [ohne, setOhne] = useState(() => new Set());
+  const [z0, setZ0] = useState("");
+  const schnitt = useMemo(() => schnittAusStep(text, achseNr), [text, achseNr]);
+  const achsen = schnitt.achsen || [];
+  const z0Zahl = Number(String(z0).replace(",", ".")) || 0;
+  const gewahlt = schnitt.stuecke ? konturAusSchnitt(schnitt, { innen, umdrehen, ohne, z0: z0Zahl }) : { fehler: schnitt.fehler };
   const pfad = (zug) => zug.map((s, i) => (i ? "" : `M${s.a.z} ${-s.a.r} `)
     + (s.t === "A" ? `A${s.R} ${s.R} 0 0 ${(s.a.z - s.c.z) * (s.b.r - s.c.r) - (s.a.r - s.c.r) * (s.b.z - s.c.z) > 0 ? 1 : 0} ${s.b.z} ${-s.b.r} ` : `L${s.b.z} ${-s.b.r} `)).join("");
-  // Alle Stücke (auch Innenkontur) blass, die gewählte kräftig
-  const st = schnitt.stuecke;
+  // Alle Stücke (auch Innenkontur) blass, die gewählte kräftig,
+  // weggelassene rot gestrichelt
+  const st = schnitt.stuecke || [];
   const zs = st.flatMap((s) => [s.a.z, s.b.z]), rs = st.flatMap((s) => [s.a.r, s.b.r]);
-  const zmin = Math.min(...zs), zmax = Math.max(...zs), rmax = Math.max(...rs);
+  const zmin = st.length ? Math.min(...zs) : 0, zmax = st.length ? Math.max(...zs) : 10, rmax = st.length ? Math.max(...rs) : 5;
   const rand = Math.max(zmax - zmin, rmax) * 0.06 + 0.5;
   const blass = st.map((s) => {
-    const um = (p) => ({ z: (umdrehen ? zmax - p.z : p.z - zmin), r: p.r });
+    const um = (p) => ({ z: (umdrehen ? zmax - p.z : p.z - zmin) - z0Zahl, r: p.r });
     return { ...s, a: um(s.a), b: um(s.b), ...(s.c ? { c: um(s.c) } : {}) };
   });
+  const umschalten = (nr) => setOhne((alt) => { const n = new Set(alt); if (n.has(nr)) n.delete(nr); else n.add(nr); return n; });
   const elemente = gewahlt.zug ? elementeAusZug(gewahlt).elemente.length : 0;
   return (
     <div className="dialog kt-modell">
       <h2>3D-Modell „{name}“</h2>
-      <svg className="kt-modell__bild" viewBox={`${-rand} ${-rmax - rand} ${zmax - zmin + 2 * rand} ${rmax + 2 * rand}`}>
-        <line x1={-rand} x2={zmax - zmin + rand} y1="0" y2="0" className="kt-achse" />
-        {blass.map((s, i) => <path key={i} d={pfad([s])} className="kt-modell__alle" />)}
+      <div className="kt-modell__zeile">
+        <span className="klein">Drehachse</span>
+        {achsen.length > 1
+          ? <select id="kt-modell-achse" value={achseNr} onChange={(e) => { setAchseNr(Number(e.target.value)); setOhne(new Set()); }}>
+            {achsen.map((a, i) => <option key={i} value={i}>{achseText(a)}</option>)}
+          </select>
+          : <span className="klein" id="kt-modell-achse">{achsen[0] ? achseText(achsen[0]) : "keine"}</span>}
+      </div>
+      <svg className="kt-modell__bild" viewBox={`${-rand - z0Zahl} ${-rmax - rand} ${zmax - zmin + 2 * rand} ${rmax + 2 * rand}`}>
+        <line x1={-rand - z0Zahl} x2={zmax - zmin + rand - z0Zahl} y1="0" y2="0" className="kt-achse" />
+        <line x1="0" x2="0" y1={-rmax - rand} y2={rand} className="kt-modell__null" />
+        {blass.map((s) => <path key={s.nr} d={pfad([s])} className={"kt-modell__alle" + (ohne.has(s.nr) ? " weg" : "")} />)}
         {gewahlt.zug && <path d={pfad(gewahlt.zug)} className="kt-modell__kontur" />}
+        {/* Unsichtbar breit darüber, damit man die Linie gut trifft */}
+        {blass.map((s) => <path key={"t" + s.nr} d={pfad([s])} data-ktstueck={s.nr} className="kt-modell__treffer" onClick={() => umschalten(s.nr)}><title>{ohne.has(s.nr) ? "Wieder berücksichtigen" : "Weglassen"}</title></path>)}
         {gewahlt.start && <circle cx={gewahlt.start.z} cy={-gewahlt.start.r} r={rand * 0.25} className="kt-startpunkt" />}
       </svg>
       <div className="moduswahl">
         <button className={"moduswahl__knopf" + (!innen ? " aktiv" : "")} data-ktmodell="aussen" onClick={() => setInnen(false)}>Aussenkontur</button>
         <button className={"moduswahl__knopf" + (innen ? " aktiv" : "")} data-ktmodell="innen" onClick={() => setInnen(true)}>Innenkontur</button>
+      </div>
+      <div className="kt-modell__mehr">
         <button className="knopf knopf--klein" data-ktmodell="umdrehen" onClick={() => setUmdrehen((u) => !u)}>⇄ Andere Seite vorne</button>
+        <label className="klein kt-modell__z0">Z0 nach rechts
+          <input id="kt-modell-z0" inputMode="decimal" value={z0} placeholder="0" onChange={(e) => setZ0(e.target.value)} /> mm</label>
+        {ohne.size > 0 && <button className="linkknopf" id="kt-modell-alle" onClick={() => setOhne(new Set())}>Alle wieder ({ohne.size} weggelassen)</button>}
       </div>
       <p className="klein">
-        {gewahlt.fehler || `${elemente} Elemente, Z0 an der Stirn links, Start beim roten Punkt.`}
+        {gewahlt.fehler || `${elemente} Elemente, Start beim roten Punkt, Z0 an der senkrechten Linie.`}
+        {" "}Ein Element antippen lässt es weg (rot gestrichelt), die Kontur geht dort gerade durch.
         {schnitt.weg > 0 && ` ${schnitt.weg === 1 ? "1 Fläche, die" : schnitt.weg + " Flächen, die"} nicht um die Drehachse ${schnitt.weg === 1 ? "läuft" : "laufen"} (Schlüsselflächen, Querbohrungen …), ${schnitt.weg === 1 ? "ist" : "sind"} weggelassen.`}
       </p>
       <div className="dialog__knoepfe">
