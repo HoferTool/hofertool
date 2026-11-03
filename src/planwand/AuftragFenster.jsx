@@ -77,9 +77,19 @@ export function planAuftragDialog(auftrag, b, vorgabeMaschine, vorgabeDatum, vor
   lageWeg = unterKopfLegen(huelle);
   // Lässt der Browser es nicht zu (Pop-ups gesperrt, Neuladen ohne
   // Klick), bleibt es still in der App; der Knopf ⧉ meldet dann den Grund
-  if (eigen && huelle && inEigenesFenster(huelle, zu, { titel: auftragTitel(auftrag), still: true })) {
-    alt.plan.imDialog = false;
+  if (eigen && huelle) {
+    if (inEigenesFenster(huelle, zu, { titel: auftragTitel(auftrag), still: true })) alt.plan.imDialog = false;
+    else popupGesperrtMelden();
   }
+}
+
+// Sperrt der Browser Pop-ups, blieb das Fenster bisher still in der App,
+// und man wusste nicht, warum es nicht als eigenes Fenster aufgeht
+// (Patrick 3. November 2026: „in einem eigenen kleinen Tab öffnen“).
+// Darum einmal je Tab sagen, wie man es erlaubt.
+function popupGesperrtMelden() {
+  try { if (sessionStorage.getItem("hofer.popupGesperrt")) return; sessionStorage.setItem("hofer.popupGesperrt", "1"); } catch (f) { /* dann jedes Mal */ }
+  alt.meldung("Das Auftragsfenster geht als eigenes Fenster auf, aber der Browser sperrt Pop-ups. Oben rechts in der Adresszeile auf das Pop-up-Zeichen klicken und „Immer zulassen“ wählen. Bis dahin öffnet der Knopf ⧉ oben im Fenster es von Hand.", "warn");
 }
 
 // Auf der Planwand reicht das Fenster vom Kopf mit KW und Tag bis ganz

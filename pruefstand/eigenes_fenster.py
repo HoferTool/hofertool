@@ -50,6 +50,10 @@ with sync_playwright() as p:
     oeffnen()
     if "blockiert" in pg.evaluate("[...document.querySelectorAll('.toast')].map(m => m.innerText).join(' ')"):
         fehler.append("Warnung beim stillen Versuch")
+    # … aber einmal je Tab der Hinweis, wie man Pop-ups erlaubt (seit 1.379.1)
+    if "sperrt Pop-ups" not in pg.evaluate("[...document.querySelectorAll('.toast')].map(m => m.innerText).join(' ')"):
+        fehler.append("kein Hinweis bei gesperrten Pop-ups")
+    print("Hinweis bei gesperrten Pop-ups da")
     # Tasten kommen im Prüfstand nach einem geschlossenen Fenster nicht mehr an,
     # darum hier mit dem X
     pg.click("#pl-nein"); pg.wait_for_timeout(600)
