@@ -11391,3 +11391,7 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 
 /* Kontur: breite, unsichtbare Trefferfläche über den dünnen Linien (1.364.0) */
 .kt-treffer { fill: none; stroke: transparent; stroke-width: 12; stroke-linecap: round; cursor: pointer; pointer-events: stroke; }
+
+/* Pablo: was zuletzt verstanden wurde und warum er nicht zuhört (seit 1.362.1) */
+.pablo__verstanden { font-size: .85rem; opacity: .7; }
+.pablo__grund { font-size: .88rem; background: rgba(255, 196, 0, .16); border-left: 3px solid #ffc400; padding: 6px 10px; border-radius: 6px; }

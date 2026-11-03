@@ -43,6 +43,12 @@ ERKENNUNG = """
     e.onresult({ resultIndex: 0, results: [r] });
     return true;
   };
+  window.__sagViele = (lesarten) => {
+    const e = window.__erk; if (!e || !e.onresult) return false;
+    const r = lesarten.map((t) => ({ transcript: t })); r.isFinal = true;
+    e.onresult({ resultIndex: 0, results: [r] });
+    return true;
+  };
   window.SpeechSynthesisUtterance = function (t) { this.text = t; };
   Object.defineProperty(window, "speechSynthesis", { configurable: true, value: { getVoices: () => [], addEventListener() {}, cancel() {},
     speak(u) { window.__gesagt.push(u.text); setTimeout(() => u.onend && u.onend(), 30); } } });
@@ -98,6 +104,33 @@ with sync_playwright() as p:
     pruefe("Vorgelesen, ohne Apostroph", any("5000 Stück" in g for g in pg.evaluate("__gesagt")))
     pruefe("Nennt weiteren offenen Auftrag nicht (andere Nr.)", "weitere" not in a)
     pg.screenshot(path="/tmp/claude-0/-home-user-hofertool/da0acc45-2bf3-5a47-96fd-e28b16df273f/scratchpad/pablo-antwort.png")
+
+    # 1.365.0: anders geschriebener Name und zweite Lesart zählen auch
+    for name in ["Bablo", "Paolo", "Pablu", "pablo escobar", "Pablo, Escobar"]:
+        pg.evaluate("document.querySelector('#pablo .pablo__x') && document.querySelector('#pablo .pablo__x').click()"); pg.wait_for_timeout(200)
+        pg.evaluate(f"__sag('{name} wo läuft 10844-0049')")
+        try:
+            pg.wait_for_selector("#pablo-antwort", timeout=3000); pg.wait_for_timeout(300)
+            a = pg.inner_text("#pablo-antwort")
+        except Exception:
+            a = ""
+        pruefe(f"Weckwort „{name}“ erkannt", "L-1001" in a)
+        pg.wait_for_timeout(300)
+    pg.evaluate("document.querySelector('#pablo .pablo__x') && document.querySelector('#pablo .pablo__x').click()"); pg.wait_for_timeout(200)
+    pg.evaluate("__sagViele(['Tablo wo läuft 10844-0049', 'Pablo wo läuft 10844-0049'])")
+    try:
+        pg.wait_for_selector("#pablo-antwort", timeout=3000); a = pg.inner_text("#pablo-antwort")
+    except Exception:
+        a = ""
+    pruefe("Weckwort in der zweiten Lesart erkannt", "L-1001" in a)
+    pg.wait_for_timeout(300)
+    pg.evaluate("document.querySelector('#pablo .pablo__x') && document.querySelector('#pablo .pablo__x').click()"); pg.wait_for_timeout(200)
+    pg.evaluate("__sag('Paul wo läuft 10844-0049')"); pg.wait_for_timeout(400)
+    pruefe("„Paul“ weckt Pablo nicht", pg.locator("#pablo").count() == 0)
+    pg.click("#pablo-zeichen"); pg.wait_for_selector("#pablo")
+    v = pg.inner_text("#pablo")
+    pruefe("Einblendung zeigt, was zuletzt verstanden wurde", "Zuletzt verstanden" in v and "Paul" in v)
+    pg.click("#pablo .pablo__x"); pg.wait_for_timeout(200)
     pg.wait_for_timeout(300)
     pruefe("Danach hört er wieder zu", pg.evaluate("!!window.__erk"))
 

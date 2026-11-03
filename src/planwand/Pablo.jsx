@@ -23,21 +23,103 @@ import { alt } from "../bruecke.jsx";
 import { antworten, zumSprechen } from "../daten/pablo.js";
 
 const Erkennung = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
-const WECKWORT = /\b(pablo|pablos|pablow|paplo|pablo escobar|escobar)\b/i;
 const ZU_NACH_MS = 25000;       // Einblendung geht nach der Antwort von selbst zu
 
+// ---------- Weckwort ----------
+// Patrick 3. November 2026: „es reagiert nicht auf Pablo“. Die Erkennung
+// schreibt den Namen oft anders (Bablo, Paolo, Pablu …), darum zählt
+// jedes Wort, das „Pablo“ bis auf einen Buchstaben gleicht, und jede
+// Lesart, die der Browser vorschlägt, nicht nur die erste.
+function abstand(a, b) {
+  const d = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let vor = d[0]; d[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = d[j];
+      d[j] = Math.min(d[j] + 1, d[j - 1] + 1, vor + (a[i - 1] === b[j - 1] ? 0 : 1));
+      vor = tmp;
+    }
+  }
+  return d[b.length];
+}
+const PABLO_WOERTER = new Set(["pablo", "pablos", "pablow", "paplo", "bablo", "pablu", "pavlo", "pabblo", "paolo", "paulo", "pablito", "pabelo", "pablò", "pabl"]);
+const norm = (w) => w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+export function istPablo(w) {
+  const n = norm(w);
+  if (PABLO_WOERTER.has(n)) return true;
+  if (n.length >= 4 && n.length <= 7 && /^[pb]/.test(n) && abstand(n, "pablo") <= 1) return true;
+  return istEscobar(n);
+}
+const istEscobar = (n) => n.length >= 6 && n.length <= 9 && abstand(norm(n), "escobar") <= 2;
+// Was nach „Pablo (Escobar)“ kommt, oder null ohne Weckwort
+export function nachWeckwort(t) {
+  t = String(t || "");
+  const re = /[\p{L}]+/gu;
+  let m;
+  while ((m = re.exec(t))) {
+    if (!istPablo(m[0])) continue;
+    let rest = t.slice(m.index + m[0].length).replace(/^[\s,.:!?]+/, "");
+    const n = rest.match(/^[\p{L}]+/u);
+    if (n && istEscobar(norm(n[0]))) rest = rest.slice(n[0].length).replace(/^[\s,.:!?]+/, "");
+    return rest.trim();
+  }
+  return null;
+}
+
+// ---------- Stimme ----------
+// Zuerst ElevenLabs über den Server (Funktion pablo-stimme, Schlüssel nur
+// dort). Ist dort nichts eingerichtet oder klappt es nicht, die beste
+// Stimme des Geräts: „Natural“/„Online“-Stimmen (Edge) klingen fast wie
+// echt, darum vor allen anderen.
 let stimme = null;
 function stimmeWaehlen() {
   if (typeof speechSynthesis === "undefined") return null;
-  const alle = speechSynthesis.getVoices() || [];
-  stimme = alle.find((v) => /^de-CH/i.test(v.lang)) || alle.find((v) => /^de-DE/i.test(v.lang) && /google|natural|online/i.test(v.name))
-    || alle.find((v) => /^de/i.test(v.lang)) || null;
+  const alle = (speechSynthesis.getVoices() || []).filter((v) => /^de/i.test(v.lang));
+  const punkte = (v) => {
+    let p = 0;
+    if (/natural|neural|online/i.test(v.name)) p += 100;
+    if (/premium|enhanced|verbessert/i.test(v.name)) p += 60;
+    if (/google/i.test(v.name)) p += 30;
+    if (/^de-CH/i.test(v.lang)) p += 15;
+    else if (/^de-DE/i.test(v.lang)) p += 10;
+    // Pablo ist ein Mann
+    if (/\b(jan|conrad|killian|florian|ralf|stefan|markus|yannick|viktor|martin|helmut)\b/i.test(v.name)) p += 8;
+    if (/hedda|katja|leni|amala|anna|petra|seraphina|vicki|elke|marlene/i.test(v.name)) p -= 2;
+    return p;
+  };
+  stimme = alle.sort((a, b) => punkte(b) - punkte(a))[0] || null;
   return stimme;
 }
 if (typeof speechSynthesis !== "undefined") {
   stimmeWaehlen();
   try { speechSynthesis.addEventListener("voiceschanged", stimmeWaehlen); } catch (f) { /* ältere Browser */ }
 }
+
+let elevenAusBis = 0;               // nach „nicht eingerichtet“ eine Weile nicht fragen
+const tonVorrat = new Map();        // gleicher Text = gleiche Aufnahme, spart Guthaben
+let tonJetzt = null;
+async function elevenTon(text) {
+  if (Date.now() < elevenAusBis || !alt.db || !alt.db.functions) return null;
+  if (tonVorrat.has(text)) return tonVorrat.get(text);
+  try {
+    const r = await alt.zeitlimit(alt.db.functions.invoke("pablo-stimme", { body: { text } }), 9000, "Pablo Stimme");
+    const d = r && r.data;
+    if (!(d instanceof Blob) || !d.size) {
+      // kein Schlüssel: 10 Minuten Ruhe, sonst 1 Minute
+      elevenAusBis = Date.now() + (d && d.fehler === "kein-schluessel" ? 600000 : 60000);
+      if (d && d.fehler && d.fehler !== "kein-schluessel") alt.fehlerMerken && alt.fehlerMerken("Pablo Stimme", JSON.stringify(d));
+      return null;
+    }
+    const url = URL.createObjectURL(d);
+    tonVorrat.set(text, url);
+    if (tonVorrat.size > 60) { const [k, u] = tonVorrat.entries().next().value; tonVorrat.delete(k); URL.revokeObjectURL(u); }
+    return url;
+  } catch (e) {
+    elevenAusBis = Date.now() + 60000;
+    return null;
+  }
+}
+function tonStopp() { if (tonJetzt) { try { tonJetzt.pause(); } catch (f) { /* egal */ } tonJetzt = null; } }
 
 export function pabloSichtbar() {
   return !alt.istExtern() && !(alt.istArchiv && alt.istArchiv());
@@ -70,13 +152,6 @@ function PabloHuelle() {
   return da ? <Pablo /> : null;
 }
 
-// Was nach „Pablo (Escobar)“ kommt
-function nachWeckwort(t) {
-  const m = String(t).match(WECKWORT);
-  if (!m) return null;
-  return t.slice(m.index + m[0].length).replace(/^[\s,.:!?]+/, "").replace(/^escobar\b[\s,.:!?]*/i, "").trim();
-}
-
 function Pablo() {
   const [offen, setOffen] = useState(false);
   // "aus" (kein Mikrofon), "lauscht" (wartet auf „Pablo“), "hoert" (Frage),
@@ -96,6 +171,9 @@ function Pablo() {
   const neuStart = useRef(null);
   const fehlerZahl = useRef(0);
   const offenRef = useRef(false);
+  const sprache = useRef("de-CH");
+  const [verstanden, setVerstanden] = useState("");   // was der Browser zuletzt gehört hat
+  const [grund, setGrund] = useState(Erkennung ? "" : "Dieser Browser kann nicht zuhören. Am besten Chrome oder Edge nehmen.");
   offenRef.current = offen;
 
   const zuPlanen = () => {
@@ -107,22 +185,43 @@ function Pablo() {
   };
 
   // ---------- Sprechen ----------
-  const sprechen = (text) => new Promise((fertig) => {
+  const geraetSprechen = (text) => new Promise((fertig) => {
     if (typeof speechSynthesis === "undefined" || !text) { fertig(); return; }
     try { speechSynthesis.cancel(); } catch (f) { /* egal */ }
-    const u = new SpeechSynthesisUtterance(zumSprechen(text));
+    const u = new SpeechSynthesisUtterance(text);
     const v = stimme || stimmeWaehlen();
     if (v) u.voice = v;
     u.lang = v ? v.lang : "de-CH";
-    u.rate = 1.05;
+    u.rate = /natural|neural|online/i.test(v ? v.name : "") ? 1.0 : 1.05;
     let fertigGemeldet = false;
     const ende = () => { if (fertigGemeldet) return; fertigGemeldet = true; fertig(); };
     u.onend = ende; u.onerror = ende;
     // Manche Browser melden das Ende nie: spätestens nach der Lesezeit weiter
-    setTimeout(ende, 2500 + zumSprechen(text).length * 90);
+    setTimeout(ende, 2500 + text.length * 90);
     try { speechSynthesis.speak(u); } catch (f) { ende(); }
   });
-  const schweigen = () => { try { speechSynthesis.cancel(); } catch (f) { /* egal */ } };
+  const sprechen = async (roh) => {
+    if (!roh) return;
+    const text = zumSprechen(roh);
+    tonStopp();
+    const url = await elevenTon(text);
+    if (url) {
+      const ok = await new Promise((fertig) => {
+        const a = new Audio(url);
+        tonJetzt = a;
+        let gemeldet = false;
+        const ende = (gut) => { if (gemeldet) return; gemeldet = true; if (tonJetzt === a) tonJetzt = null; fertig(gut); };
+        a.onended = () => ende(true);
+        a.onerror = () => ende(false);
+        a.onpause = () => ende(true);
+        setTimeout(() => ende(true), 4000 + text.length * 120);
+        a.play().catch(() => ende(false));   // Browser sperrt Ton: Gerätestimme
+      });
+      if (ok) return;
+    }
+    await geraetSprechen(text);
+  };
+  const schweigen = () => { tonStopp(); try { speechSynthesis.cancel(); } catch (f) { /* egal */ } };
 
   // ---------- Fragen ----------
   const fragen = async (text) => {
@@ -158,12 +257,16 @@ function Pablo() {
   function zuhoeren() {
     if (!Erkennung || !aktiv.current || erk.current || besetzt.current || document.hidden) return;
     const r = new Erkennung();
-    r.lang = "de-CH"; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
+    r.lang = sprache.current; r.interimResults = true; r.continuous = true; r.maxAlternatives = 4;
     r.onresult = (e) => {
       fehlerZahl.current = 0;
+      setGrund((g) => (g ? "" : g));
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = String(e.results[i][0].transcript || "").trim();
-        if (!t) continue;
+        // Jede Lesart prüfen: oft steht „Pablo“ erst in der zweiten
+        const lesarten = Array.from(e.results[i]).map((x) => String(x.transcript || "").trim()).filter(Boolean);
+        if (!lesarten.length) continue;
+        const t = lesarten.find((x) => nachWeckwort(x) !== null) || lesarten[0];
+        if (e.results[i].isFinal) setVerstanden(t);
         const rest = nachWeckwort(t);
         const wartet = Date.now() < wartetBis.current;
         if (!e.results[i].isFinal) {
@@ -194,7 +297,9 @@ function Pablo() {
       // Kein Mikrofon oder gesperrt: still aus, bis die Planwand neu aufgeht
       if (e.error === "not-allowed" || e.error === "service-not-allowed" || e.error === "audio-capture") {
         aktiv.current = false; setZustand("aus");
-      } else if (e.error === "network") fehlerZahl.current++;
+        setGrund(e.error === "audio-capture" ? "Kein Mikrofon gefunden." : "Das Mikrofon ist für diese Seite gesperrt. Oben links in der Adresszeile beim Schloss das Mikrofon erlauben, dann hier antippen.");
+      } else if (e.error === "language-not-supported" && sprache.current !== "de-DE") sprache.current = "de-DE";
+      else if (e.error === "network") { fehlerZahl.current++; if (fehlerZahl.current >= 3) setGrund("Die Spracherkennung des Browsers erreicht ihren Server nicht."); }
     };
     r.onend = () => {
       if (erk.current !== r) return;
@@ -246,7 +351,12 @@ function Pablo() {
     <>
       <button type="button" className={"pablo-zeichen pablo-zeichen--" + zustand + (offen ? " pablo-zeichen--offen" : "")} id="pablo-zeichen"
         title={zustand === "aus" ? "Pablo fragen (eintippen)" : "Pablo hört zu: sag „Pablo“ und deine Frage"}
-        aria-label="Pablo" onClick={() => (offen ? schliessen() : (setOffen(true), clearTimeout(zuTakt.current)))}>
+        aria-label="Pablo" onClick={() => {
+          // Nach gesperrtem Mikrofon: ein Tipp versucht es neu (mit Tipp erlauben manche Browser erst)
+          if (Erkennung && !aktiv.current) { aktiv.current = true; setGrund(""); setZustand("lauscht"); zuhoeren(); }
+          if (offen) schliessen();
+          else { if (!besetzt.current) { setFrage(""); setGehoert(""); setAntwort(null); } setOffen(true); clearTimeout(zuTakt.current); }
+        }}>
         <span className="pablo-zeichen__ring" />
         <span className="pablo-zeichen__wellen"><i /><i /><i /><i /></span>
         <span className="pablo-zeichen__name">Pablo</span>
@@ -262,6 +372,12 @@ function Pablo() {
           </div>
           <div className="pablo__inhalt">
             {(frage || gehoert) && <div className="pablo__frage" id="pablo-frage">„{frage || gehoert}“</div>}
+            {grund && !antwort && <div className="pablo__grund" id="pablo-grund">{grund}</div>}
+            {!frage && !gehoert && !antwort && !grund && zustand === "lauscht" && (
+              <div className="pablo__verstanden" id="pablo-verstanden">
+                {verstanden ? <>Zuletzt verstanden: „{verstanden}“</> : "Noch nichts gehört. Sag deutlich „Pablo“ und dann die Frage."}
+              </div>
+            )}
             {zustand === "denkt" && <div className="pablo__punkte"><i /><i /><i /></div>}
             {antwort && <div className={"pablo__antwort" + (antwort.fehler || antwort.unklar ? " pablo__antwort--unklar" : "")} id="pablo-antwort">{antwort.text}</div>}
             {antwort && (
