@@ -55,7 +55,7 @@ TEST.rpc.sicherung_lesen = () => [
     { id: 'd3', art: 'wbg', hoco_nr: '10844-0049', datei_url: A + 'dok/a.pdf' },
     { id: 'd4', art: 'sonstiges', hoco_nr: null, datei_url: A + 'dok/%C3%BC%20b.pdf' }] },
   { t: 'maschinen_unterlagen', nr: 2, zeilen: [{ id: 'u1', art: 'handbuch', url: A + 'maschinen/m1/hb.pdf' },
-    { id: 'u2', art: 'sonstiges', url: A + 'maschinen/m1/notiz.pdf', inhalt: '<p>Notiz</p>' }] },
+    { id: 'u2', art: 'sonstiges', url: A + 'maschinen/m1/notiz.pdf' }] },
   { t: 'irgendwas', nr: 1, zeilen: [{ id: 'x', text: 'siehe ' + A + 'wbg/wz.html' }] },
   { t: 'leer', nr: 0, zeilen: [] }];
 TEST.dateienJetzt = null;
@@ -132,7 +132,7 @@ with sync_playwright() as p:
     pruefe("Zeichnungen und Einrichtblatt nicht in der ZIP", not any(n.startswith("dateien/zeichnungen/dok/z") or "blatt" in n for n in z.namelist())
            and sorted((o["p"], o["art"]) for o in kopf["ausgelassen"]) == [("dok/blatt ü.xlsx", "einrichtblatt"), ("dok/vorlage.xlsx", "einrichtblatt"), ("dok/z1.pdf", "zeichnung"), ("dok/z2.pdf", "zeichnung"), ("maschinen/m1/hb.pdf", "handbuch"), ("zeichnung/alt.pdf", "alt")]
            and not any(o["p"] == "dok/z1.pdf" for o in kopf["dateien"]))
-    pruefe("Handbuch draussen, eigene Maschinen-Notiz drin", "dateien/zeichnungen/maschinen/m1/hb.pdf" not in z.namelist()
+    pruefe("Handbuch draussen, andere Unterlage drin", "dateien/zeichnungen/maschinen/m1/hb.pdf" not in z.namelist()
            and z.read("dateien/zeichnungen/maschinen/m1/notiz.pdf") == b"%PDF-1.4 notiz")
     pruefe("Vorlage des Typs auch draussen", "dateien/zeichnungen/dok/vorlage.xlsx" not in z.namelist())
     pruefe("Alte Datei ohne Verweis draussen, verwiesene in anderer Tabelle drin",

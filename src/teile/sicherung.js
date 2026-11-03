@@ -213,11 +213,11 @@ export function ohneDateien(tabellen, dateien) {
     if (z.art === "zeichnung") merke(z.datei_url, "zeichnung");
     else if (z.art === "einrichtblatt") merke(z.datei_url, "einrichtblatt");
   });
-  // Handbücher und andere Unterlagen der Maschinen gibt es beim Hersteller
-  // (Wunsch Patrick 3. November 2026: „Handbücher sein lassen, die sind
-  // extern“; zusammen rund 370 MB). Eigene Maschinen-Notizen bleiben drin,
-  // ihr PDF kommt aus dem Text in der App (inhalt).
-  zeilen("maschinen_unterlagen").forEach((z) => { if (!z.inhalt) merke(z.url, "handbuch"); });
+  // Handbücher der Maschinen gibt es beim Hersteller (Wunsch Patrick
+  // 3. November 2026: „Handbücher sein lassen, die sind extern“; der grösste
+  // Teil der rund 370 MB). Wartung, Elektro, Ersatzteile, Sonstiges und
+  // eigene Notizen bleiben drin, darunter können eigene Dokumente sein.
+  zeilen("maschinen_unterlagen").forEach((z) => { if (z.art === "handbuch" && !z.inhalt) merke(z.url, "handbuch"); });
   // Alles, worauf irgendeine Tabelle verweist, egal in welchem Feld
   const verwendet = new Set();
   const muster = /\/object\/(?:public|sign|authenticated)\/[^/?#"\\]+\/[^?#"\\]+/g;
