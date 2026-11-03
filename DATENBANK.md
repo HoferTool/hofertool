@@ -47,6 +47,8 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `eb_bilder` | Hochgeladene Bilder für das Einrichtblatt | `name`, `url`, `pfad` (Ablage `zeichnungen`, `einrichtblatt/bilder/`). `sql/einrichtblatt-bilder.sql` |
 | `eb_spezial` | Spezialwerkzeuge auf dem Einrichtblatt, kein Artikel | `name`, `hersteller`, `bild`. `sql/einrichtblatt-bilder.sql` |
 | `suppliers` | Lieferanten | `name`, `email`, `website`, `bestellweg` (`website` oder `mail`), `logo_url` (leer = Symbol der Website, `keins` = Buchstaben, sonst Bild; `sql/lieferant-logo.sql`) |
+| `lieferant_kontakte` | Kontaktpersonen je Lieferant (seit 1.371.0) | `supplier_id`, `name`, `funktion`, `telefon`, `mobil`, `email`, `notiz`, `karte_url`/`karte_pfad` (Foto der Visitenkarte, Ablage `zeichnungen` unter `lieferanten/<id>/karten/`); `sql/lieferant-kontakte.sql` |
+| `lieferant_besuche` | Besuche von Vertretern (seit 1.371.0) | `supplier_id`, `kontakt_id` (wahlweise), `datum`, `notiz`, `erstellt_von` |
 | `designations` | Bezeichnungen | |
 | `shopping_items` | Einkaufsliste | `text`, `menge`, `laden`, `prio` (1–4), `is_done` |
 | `storage_locations`, `stock_movements`, `stock_balances` | Lager (derzeit ungenutzt) | |

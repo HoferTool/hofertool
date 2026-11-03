@@ -11494,3 +11494,55 @@ html:has(.kt-raster), body:has(.kt-raster) { overflow-x: clip; }
   .kt-ueb select { width: 112px; }
 }
 .kt-werkzeug .kt-zahl { width: 96px !important; }
+
+/* Kontaktpersonen und Besuche bei den Lieferanten (seit 1.371.0) */
+.bs-lief__kontakte { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 3px 10px;
+  border: 1px dashed var(--linie-stark); border-radius: 999px; background: transparent; color: var(--gedaempft);
+  font: inherit; font-size: .8rem; cursor: pointer; }
+.bs-lief__kontakte:hover { color: var(--marke); border-color: var(--marke); }
+.bs-lief__kontakte--da { border-style: solid; color: var(--tinte);
+  background: color-mix(in srgb, var(--marke) 7%, var(--flaeche)); }
+.kontaktfenster { width: min(860px, 96vw); max-height: 92vh; overflow-y: auto; }
+.lk-bereich { margin-top: 14px; }
+.lk-bereich + .lk-bereich { margin-top: 24px; }
+.lk-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
+.lk-knoepfe .knopf { display: inline-flex; align-items: center; gap: 7px; }
+.lk-liste { display: grid; gap: 8px; }
+.lk-kontakt { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 14px; align-items: start;
+  padding: 10px 12px; border: 1px solid var(--linie); border-radius: 10px; background: var(--flaeche); }
+.lk-karte { width: 96px; height: 60px; padding: 0; border: 1px solid var(--linie); border-radius: 6px;
+  overflow: hidden; background: var(--flaeche); cursor: zoom-in; display: flex; align-items: center; justify-content: center; }
+.lk-karte img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lk-karte--leer { cursor: default; color: var(--gedaempft); border-style: dashed; }
+.lk-kontakt__name { font-weight: 650; }
+.lk-kontakt__info { display: flex; flex-wrap: wrap; gap: 2px 16px; margin-top: 4px; font-size: .86rem; }
+.lk-kontakt__info a { display: inline-flex; align-items: center; gap: 5px; color: var(--marke); text-decoration: none; }
+.lk-kontakt__info a:hover { text-decoration: underline; }
+.lk-notiz { margin-top: 5px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; }
+.lk-besuch { padding: 10px 12px; border: 1px solid var(--linie); border-left: 4px solid var(--marke);
+  border-radius: 10px; background: var(--flaeche); }
+.lk-besuch__kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lk-besuch__wer { margin-left: auto; color: var(--gedaempft); }
+.lk-besuch__kopf .bs-pos__aktionen { display: inline-flex; }
+.kontaktdialog { width: min(640px, 96vw); max-height: 94vh; overflow-y: auto; }
+.lk-karte-zeile { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; margin-bottom: 10px; }
+.lk-karte-gross { width: min(260px, 100%); max-height: 170px; object-fit: contain; border: 1px solid var(--linie);
+  border-radius: 8px; background: #fff; }
+.lk-karte-zeile__rechts { flex: 1 1 220px; display: grid; gap: 8px; align-content: start; }
+.lk-karte-zeile__rechts .knopf { display: inline-flex; align-items: center; gap: 7px; justify-self: start; }
+.lk-lesen { font-size: .88rem; color: var(--gedaempft); }
+.lk-lesen__balken { height: 6px; margin-top: 5px; border-radius: 3px; background: var(--linie); overflow: hidden; }
+.lk-lesen__balken span { display: block; height: 100%; background: var(--marke); transition: width .2s ease; }
+.lk-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.lk-form__breit, .lk-form .feld:first-child { grid-column: 1 / -1; }
+.lk-feld--gelesen input { border-color: #2e9d57; box-shadow: 0 0 0 2px color-mix(in srgb, #2e9d57 25%, transparent); }
+.lk-rohtext { margin: 6px 0 4px; font-size: .82rem; color: var(--gedaempft); }
+.lk-rohtext pre { white-space: pre-wrap; font: inherit; margin: 6px 0 0; padding: 8px; border-radius: 6px;
+  background: color-mix(in srgb, var(--tinte) 5%, var(--flaeche)); }
+@media (max-width: 640px) {
+  .lk-kontakt { grid-template-columns: 64px minmax(0, 1fr); }
+  .lk-kontakt .lk-karte { width: 64px; height: 42px; }
+  .lk-kontakt > .bs-pos__aktionen { grid-column: 1 / -1; justify-self: end; }
+  .lk-form { grid-template-columns: 1fr; }
+  .lk-besuch__wer { margin-left: 0; width: 100%; }
+}

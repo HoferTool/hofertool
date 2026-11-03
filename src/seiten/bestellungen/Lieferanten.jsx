@@ -7,12 +7,15 @@ import { alt, useDaten, useSpeicherWert } from "../../bruecke.jsx";
 import { passtWoerter } from "../../teile/Suchfeld.jsx";
 import { Leiste, NeuKnopf, Karte, Logo, Symbolknopf, Zeichen, Leer, Laedt, Fehler } from "./teile.jsx";
 import { logoOeffnen } from "./LogoFenster.jsx";
+import { kontakteOeffnen, kontakteUebersicht } from "./Kontakte.jsx";
 
 export default function Lieferanten({ auffrischen, behaelter }) {
   const best = alt.best;
   const [suche, setSuche] = useSpeicherWert(best, "liefSuche", auffrischen);
   const schreiben = alt.darfSchreiben();
   const { daten: liste, fehler, neu } = useDaten(() => alt.ladeLieferanten(), [auffrischen]);
+  // Kontakte und Besuche je Lieferant (seit 1.371.0); fehlt die Tabelle, bleibt es leer
+  const { daten: kontakte, neu: kontakteNeu } = useDaten(() => kontakteUebersicht().catch(() => ({})), [auffrischen]);
 
   const leiste = <Leiste suchId="lf-suche" suche={suche} setSuche={setSuche}
     platzhalter="Lieferant suchen"
@@ -42,6 +45,7 @@ export default function Lieferanten({ auffrischen, behaelter }) {
                       {l.email && <a href={"mailto:" + l.email}><Zeichen name="mail" groesse={13} />{l.email}</a>}
                       {l.adresse && <span>{String(l.adresse).replace(/\s*\n\s*/g, ", ")}</span>}
                     </div>
+                    <KontakteKnopf l={l} je={kontakte && kontakte[l.id]} fertig={kontakteNeu} />
                   </div>
                   <span className={"bs-chip " + (l.bestellweg === "mail" ? "bs-chip--mail" : "bs-chip--still")}>
                     {l.bestellweg === "mail" ? "Bestellung per Mail" : "Über Website"}</span>
@@ -59,6 +63,18 @@ export default function Lieferanten({ auffrischen, behaelter }) {
               ? 'Nichts gefunden zu "' + suche + '".' : "Noch keine Lieferanten angelegt."} />}
       </Karte>
     </>
+  );
+}
+
+// Kontaktpersonen und Besuche (Wunsch Patrick 3. November 2026)
+function KontakteKnopf({ l, je, fertig }) {
+  const k = (je && je.kontakte) || 0;
+  const teile = [k ? k + (k === 1 ? " Kontakt" : " Kontakte") : "Kontakte"];
+  if (je && je.letzter) teile.push("letzter Besuch " + je.letzter.split("-").reverse().join("."));
+  return (
+    <button type="button" className={"bs-lief__kontakte" + (k || (je && je.besuche) ? " bs-lief__kontakte--da" : "")}
+      data-lfkontakte={l.id} onClick={() => kontakteOeffnen(l, fertig)}>
+      <Zeichen name="person" groesse={13} />{teile.join(" · ")}</button>
   );
 }
 
