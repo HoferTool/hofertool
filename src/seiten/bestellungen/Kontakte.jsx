@@ -313,7 +313,7 @@ function KontaktFenster({ l, k, datei, zu, neu }) {
           {gelesen && !lesen && <p className="feldhinweis" id="lk-gelesen">{gelesen.felder.length
             ? "Von der Karte ausgefüllt: " + gelesen.felder.map((f) => FELDER.find((x) => x[0] === f)[1]).join(", ")
               + ". Bitte kurz prüfen."
-            : "Auf der Karte war nichts sicher zu erkennen. Bitte von Hand ausfüllen."}</p>}
+            : "Auf der Karte war nichts sicher zu erkennen. Am besten flach hinlegen, gut beleuchtet und möglichst bildfüllend fotografieren, oder von Hand ausfüllen."}</p>}
         </div>
       </div>
       <form onSubmit={speichern} className="lk-form">
