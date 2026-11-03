@@ -28,11 +28,12 @@ function datumText(d) {
   return z(d.getDate()) + "." + z(d.getMonth() + 1) + "." + d.getFullYear() + ", " + z(d.getHours()) + ":" + z(d.getMinutes()) + " Uhr";
 }
 // „ohne 250 Zeichnungen, 1 Einrichtblatt und 470 alte Dateien“ (leer, wenn nichts ausgelassen wurde)
-function ohneText(z, e, a) {
+function ohneText(z, e, a, h) {
   const teile = [];
   if (z) teile.push(z === 1 ? "1 Zeichnung" : alt.zahlText(z) + " Zeichnungen");
   if (e) teile.push(e === 1 ? "1 Einrichtblatt" : alt.zahlText(e) + " Einrichtblätter");
   if (a) teile.push(a === 1 ? "1 alte Datei" : alt.zahlText(a) + " alte Dateien");
+  if (h) teile.push(h === 1 ? "1 Handbuch" : alt.zahlText(h) + " Handbücher");
   return teile.length > 2 ? teile.slice(0, -1).join(", ") + " und " + teile[teile.length - 1] : teile.join(" und ");
 }
 function mbText(mb) {
@@ -125,7 +126,7 @@ function SicherungInhalt({ konf, status, neu }) {
     setErgebnis(null); setArbeit("Sicherung beginnt …");
     try {
       const l = await sichernUndMelden(h, "manuell", setArbeit, Number(behalten));
-      const ohne = ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter, l.ohneAlt);
+      const ohne = ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter, l.ohneAlt, l.ohneHandbuecher);
       setErgebnis({ ok: true, text: "Gesichert: " + l.datei + " (" + mbText(l.mb) + ", " + alt.zahlText(l.zeilen) + " Einträge, "
         + alt.zahlText(l.dateien) + " Dateien" + (l.fehlt ? ", " + l.fehlt + " Dateien nicht lesbar" : "")
         + (ohne ? ", ohne " + ohne : "") + ")" });
@@ -174,8 +175,10 @@ function SicherungInhalt({ konf, status, neu }) {
   // Zeichnungen und Einrichtblätter, die weder in der Sicherung noch in der Ablage sind
   const ohneFehltText = (r) => {
     const t = ohneText(r.ohneZeichnungen, r.ohneEinrichtblaetter);
+    const h = r.ohneHandbuecher ? " Ebenso fehlen " + ohneText(0, 0, 0, r.ohneHandbuecher)
+      + " der Maschinen, die gibt es beim Hersteller." : "";
     return t ? "Nicht in der Sicherung und in der Ablage nicht mehr da: " + t
-      + ". Sie müssen aus den Ordnern am Pool-Rechner neu hochgeladen werden." : "";
+      + ". Sie müssen aus den Ordnern am Pool-Rechner neu hochgeladen werden." + h : h.trim();
   };
 
   const ausOrdner = async (name) => {
@@ -192,7 +195,7 @@ function SicherungInhalt({ konf, status, neu }) {
     <span className={"dokpfad-punkt " + (l && Date.now() - new Date(l.zeit).getTime() < 36 * 3600000 ? "dokpfad-punkt--gut" : "dokpfad-punkt--alt")} />
     {l ? "Letzte Sicherung " + datumText(new Date(l.zeit)) + " · " + alt.zahlText(l.zeilen || 0) + " Einträge · "
       + alt.zahlText(l.dateien || 0) + " Dateien" + (l.mb ? " · " + mbText(l.mb) : "")
-      + (ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter, l.ohneAlt) ? " · ohne " + ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter, l.ohneAlt) : "")
+      + (ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter, l.ohneAlt, l.ohneHandbuecher) ? " · ohne " + ohneText(l.ohneZeichnungen, l.ohneEinrichtblaetter, l.ohneAlt, l.ohneHandbuecher) : "")
       : "Noch keine Sicherung"}
     {status && status.fehler && <div className="klein si-fehler" id="si-fehler">{status.fehler}</div>}
   </>;

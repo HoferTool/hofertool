@@ -213,6 +213,11 @@ export function ohneDateien(tabellen, dateien) {
     if (z.art === "zeichnung") merke(z.datei_url, "zeichnung");
     else if (z.art === "einrichtblatt") merke(z.datei_url, "einrichtblatt");
   });
+  // Handbücher und andere Unterlagen der Maschinen gibt es beim Hersteller
+  // (Wunsch Patrick 3. November 2026: „Handbücher sein lassen, die sind
+  // extern“; zusammen rund 370 MB). Eigene Maschinen-Notizen bleiben drin,
+  // ihr PDF kommt aus dem Text in der App (inhalt).
+  zeilen("maschinen_unterlagen").forEach((z) => { if (!z.inhalt) merke(z.url, "handbuch"); });
   // Alles, worauf irgendeine Tabelle verweist, egal in welchem Feld
   const verwendet = new Set();
   const muster = /\/object\/(?:public|sign|authenticated)\/[^/?#"\\]+\/[^?#"\\]+/g;
@@ -231,8 +236,11 @@ export function ohneDateien(tabellen, dateien) {
 
 // Zählt, wie viele Zeichnungen, Einrichtblätter und alte Dateien in einer Liste stehen
 export function ohneZaehlen(liste) {
-  const n = { zeichnungen: 0, einrichtblaetter: 0, alt: 0 };
-  (liste || []).forEach((o) => { if (o.art === "einrichtblatt") n.einrichtblaetter++; else if (o.art === "alt") n.alt++; else n.zeichnungen++; });
+  const n = { zeichnungen: 0, einrichtblaetter: 0, alt: 0, handbuecher: 0 };
+  (liste || []).forEach((o) => {
+    if (o.art === "einrichtblatt") n.einrichtblaetter++; else if (o.art === "alt") n.alt++;
+    else if (o.art === "handbuch") n.handbuecher++; else n.zeichnungen++;
+  });
   return n;
 }
 
@@ -317,7 +325,7 @@ export async function sichern(h, grund, fortschritt) {
     const groesse = (await (await h.getFileHandle(ziel)).getFile()).size;
     return { zeit: jetzt.toISOString(), datei: ziel, mb: Math.round(groesse / 104857.6) / 10, tabellen: tabellen.length,
       zeilen, dateien: liste.length - fehlt, fehlt, ohneZeichnungen: ohneZahl.zeichnungen, ohneEinrichtblaetter: ohneZahl.einrichtblaetter, ohneAlt: ohneZahl.alt,
-      grund, geraet: geraetName() };
+      ohneHandbuecher: ohneZahl.handbuecher, grund, geraet: geraetName() };
   })();
   try { return await laeuft; } finally { laeuft = null; }
 }
@@ -434,7 +442,8 @@ export async function zurueckspielen(datei, fortschritt) {
   // davon fehlen jetzt in der Ablage? (Alte Dateien braucht niemand.)
   const ohneFehlt = ohneZaehlen(listeDa ? (kopf.ausgelassen || []).filter((o) => o && o.b && o.p && o.art !== "alt" && !jetzt.has(o.b + "|" + o.p)) : []);
   return { tabellen: antw.tabellen, zeilen: antw.zeilen, ohneKonto: antw.ohne_konto, dateien: wieder, dateienFehlt: fehlt,
-    ohneZeichnungen: ohneFehlt.zeichnungen, ohneEinrichtblaetter: ohneFehlt.einrichtblaetter, stand: kopf.erstellt };
+    ohneZeichnungen: ohneFehlt.zeichnungen, ohneEinrichtblaetter: ohneFehlt.einrichtblaetter,
+    ohneHandbuecher: ohneFehlt.handbuecher, stand: kopf.erstellt };
 }
 
 // ---------- Ausschuss aus den Sicherungen nachholen (1.186.1) ----------

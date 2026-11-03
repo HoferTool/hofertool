@@ -42,7 +42,8 @@ ORDNER = """
 K = """
 TEST.ablage = { 'zeichnungen/dok/a.pdf': '%PDF-1.4 a', 'zeichnungen/dok/ü b.pdf': '%PDF-1.4 b', 'profilbilder/u1.png': 'PNG',
   'zeichnungen/dok/z1.pdf': '%PDF-1.4 z1', 'zeichnungen/dok/z2.pdf': '%PDF-1.4 z2', 'zeichnungen/dok/blatt ü.xlsx': 'XLSX',
-  'zeichnungen/dok/vorlage.xlsx': 'XLSX', 'zeichnungen/zeichnung/alt.pdf': '%PDF-1.4 alt', 'zeichnungen/wbg/wz.html': '<html>' };
+  'zeichnungen/dok/vorlage.xlsx': 'XLSX', 'zeichnungen/zeichnung/alt.pdf': '%PDF-1.4 alt', 'zeichnungen/wbg/wz.html': '<html>',
+  'zeichnungen/maschinen/m1/hb.pdf': '%PDF-1.4 hb', 'zeichnungen/maschinen/m1/notiz.pdf': '%PDF-1.4 notiz' };
 const A = 'https://lzhqwbxfwqamauntehof.supabase.co/storage/v1/object/public/zeichnungen/';
 TEST.rpc.sicherung_lesen = () => [
   { t: 'jobs', nr: 2, zeilen: [{ id: 'j1', job_number: '10844-0049', plan_note: 'Notiz mit „Umlaut“ ä', drawing_url: A + 'dok/z1.pdf', wbg_url: A + 'dok/weg.pdf' }, { id: 'j2', job_number: '10007-0381' }] },
@@ -53,6 +54,8 @@ TEST.rpc.sicherung_lesen = () => [
     { id: 'd2', art: 'einrichtblatt', hoco_nr: null, type_id: 't1', datei_url: A + 'dok/vorlage.xlsx' },
     { id: 'd3', art: 'wbg', hoco_nr: '10844-0049', datei_url: A + 'dok/a.pdf' },
     { id: 'd4', art: 'sonstiges', hoco_nr: null, datei_url: A + 'dok/%C3%BC%20b.pdf' }] },
+  { t: 'maschinen_unterlagen', nr: 2, zeilen: [{ id: 'u1', art: 'handbuch', url: A + 'maschinen/m1/hb.pdf' },
+    { id: 'u2', art: 'sonstiges', url: A + 'maschinen/m1/notiz.pdf', inhalt: '<p>Notiz</p>' }] },
   { t: 'irgendwas', nr: 1, zeilen: [{ id: 'x', text: 'siehe ' + A + 'wbg/wz.html' }] },
   { t: 'leer', nr: 0, zeilen: [] }];
 TEST.dateienJetzt = null;
@@ -66,7 +69,9 @@ TEST.rpc.sicherung_dateien = () => TEST.dateienJetzt || [
   { b: 'zeichnungen', p: 'dok/blatt ü.xlsx', g: 4, a: 'application/vnd.ms-excel' },
   { b: 'zeichnungen', p: 'dok/vorlage.xlsx', g: 4, a: 'application/vnd.ms-excel' },
   { b: 'zeichnungen', p: 'zeichnung/alt.pdf', g: 9, a: 'application/pdf' },
-  { b: 'zeichnungen', p: 'wbg/wz.html', g: 6, a: 'text/html' }];
+  { b: 'zeichnungen', p: 'wbg/wz.html', g: 6, a: 'text/html' },
+  { b: 'zeichnungen', p: 'maschinen/m1/hb.pdf', g: 11, a: 'application/pdf' },
+  { b: 'zeichnungen', p: 'maschinen/m1/notiz.pdf', g: 14, a: 'application/pdf' }];
 TEST.rpc.sicherung_puffern = (a) => a.p_zeilen.length;
 TEST.rpc.sicherung_einspielen = (a) => ({ tabellen: a.p_tabellen.length, zeilen: 3, ohne_konto: 0 });
 """
@@ -105,8 +110,8 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1500)
     st = pg.evaluate("JSON.parse(TEST.daten.app_config.findLast(x => x.schluessel === 'sicherung_status').wert)")
     print("Stand:", {k: v for k, v in st.items() if k != "liste"})
-    pruefe("Tägliche Sicherung gemacht", st["letzte"]["grund"] == "taeglich" and st["letzte"]["zeilen"] == 10)
-    pruefe("Eine Datei nicht lesbar gezählt", st["letzte"]["fehlt"] == 1 and st["letzte"]["dateien"] == 4)
+    pruefe("Tägliche Sicherung gemacht", st["letzte"]["grund"] == "taeglich" and st["letzte"]["zeilen"] == 12)
+    pruefe("Eine Datei nicht lesbar gezählt", st["letzte"]["fehlt"] == 1 and st["letzte"]["dateien"] == 5)
     pruefe("Zeichnungen, Einrichtblätter und Altes gezählt", st["letzte"]["ohneZeichnungen"] == 2 and st["letzte"]["ohneEinrichtblaetter"] == 2
            and st["letzte"]["ohneAlt"] == 1)
     namen = pg.evaluate("[...window.ORDNER.keys()].sort()"); print("Ordner:", namen)
@@ -122,11 +127,13 @@ with sync_playwright() as p:
     print("ZIP:", z.namelist())
     kopf = json.loads(z.read("sicherung.json"))
     pruefe("Kopf", kopf["art"] == "hofer-sicherung" and kopf["tabellen"] == [{"t": "jobs", "n": 2}, {"t": "app_config", "n": 1},
-           {"t": "hoco_parts", "n": 1}, {"t": "hoco_type_data", "n": 1}, {"t": "dokumente", "n": 4}, {"t": "irgendwas", "n": 1}, {"t": "leer", "n": 0}])
+           {"t": "hoco_parts", "n": 1}, {"t": "hoco_type_data", "n": 1}, {"t": "dokumente", "n": 4}, {"t": "maschinen_unterlagen", "n": 2}, {"t": "irgendwas", "n": 1}, {"t": "leer", "n": 0}])
     print("Ausgelassen:", kopf.get("ausgelassen"))
     pruefe("Zeichnungen und Einrichtblatt nicht in der ZIP", not any(n.startswith("dateien/zeichnungen/dok/z") or "blatt" in n for n in z.namelist())
-           and sorted((o["p"], o["art"]) for o in kopf["ausgelassen"]) == [("dok/blatt ü.xlsx", "einrichtblatt"), ("dok/vorlage.xlsx", "einrichtblatt"), ("dok/z1.pdf", "zeichnung"), ("dok/z2.pdf", "zeichnung"), ("zeichnung/alt.pdf", "alt")]
+           and sorted((o["p"], o["art"]) for o in kopf["ausgelassen"]) == [("dok/blatt ü.xlsx", "einrichtblatt"), ("dok/vorlage.xlsx", "einrichtblatt"), ("dok/z1.pdf", "zeichnung"), ("dok/z2.pdf", "zeichnung"), ("maschinen/m1/hb.pdf", "handbuch"), ("zeichnung/alt.pdf", "alt")]
            and not any(o["p"] == "dok/z1.pdf" for o in kopf["dateien"]))
+    pruefe("Handbuch draussen, eigene Maschinen-Notiz drin", "dateien/zeichnungen/maschinen/m1/hb.pdf" not in z.namelist()
+           and z.read("dateien/zeichnungen/maschinen/m1/notiz.pdf") == b"%PDF-1.4 notiz")
     pruefe("Vorlage des Typs auch draussen", "dateien/zeichnungen/dok/vorlage.xlsx" not in z.namelist())
     pruefe("Alte Datei ohne Verweis draussen, verwiesene in anderer Tabelle drin",
            "dateien/zeichnungen/zeichnung/alt.pdf" not in z.namelist() and z.read("dateien/zeichnungen/wbg/wz.html") == b"<html>")
@@ -141,9 +148,9 @@ with sync_playwright() as p:
     pg.click("#si-jetzt")
     pg.wait_for_function("document.querySelector('#si-auftrag') && document.querySelector('#si-auftrag').textContent.includes('Gesichert')", timeout=20000)
     print(pg.inner_text("#si-auftrag"))
-    pruefe("Jetzt sichern meldet Datei", ".zip" in pg.inner_text("#si-auftrag") and "10 Einträge" in pg.inner_text("#si-auftrag")
-           and "ohne 2 Zeichnungen, 2 Einrichtblätter und 1 alte Datei" in pg.inner_text("#si-auftrag"))
-    pruefe("Stand nennt Ausgelassenes", "ohne 2 Zeichnungen, 2 Einrichtblätter und 1 alte Datei" in pg.inner_text("#si-stand"))
+    pruefe("Jetzt sichern meldet Datei", ".zip" in pg.inner_text("#si-auftrag") and "12 Einträge" in pg.inner_text("#si-auftrag")
+           and "ohne 2 Zeichnungen, 2 Einrichtblätter, 1 alte Datei und 1 Handbuch" in pg.inner_text("#si-auftrag"))
+    pruefe("Stand nennt Ausgelassenes", "ohne 2 Zeichnungen, 2 Einrichtblätter, 1 alte Datei und 1 Handbuch" in pg.inner_text("#si-stand"))
     pruefe("Text nennt die Aufgabe", "Zeichnungen und Einrichtblätter" in pg.inner_text("#si") and "HoferTool" in pg.inner_text("#si"))
     pruefe("Liste im Fenster", pg.locator("#si-liste tbody tr").count() == 3)
     pruefe("Letzte Sicherung angezeigt", "Letzte Sicherung" in pg.inner_text("#si-stand"))
