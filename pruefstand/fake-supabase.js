@@ -624,7 +624,8 @@ export function createClient(_url, _key, optionen) {
         error: null }),
       getUser: () => Promise.resolve({
         data: { user: { id: "u1", email: "saheesan.hudson@hoferco.ch" } }, error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+      // Tests können Ereignisse auslösen: TEST.authHoerer.forEach((f) => f("SIGNED_OUT", null))
+      onAuthStateChange: (f) => { if (window.TEST) (TEST.authHoerer = TEST.authHoerer || []).push(f); return { data: { subscription: { unsubscribe() {} } } }; },
       signInWithPassword: () => Promise.resolve({ data: {}, error: null }),
       verifyOtp: (a) => {
         TEST.protokoll.push({ art: "verifyOtp", a });

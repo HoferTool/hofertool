@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.381.1";
+const APP_VERSION = "1.381.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1106,6 +1106,8 @@ function sitzungVonAnderemTab() {
 function sitzungenVerfolgen(client) {
   try {
     client.auth.onAuthStateChange((art, s) => {
+      // Supabase hat die Sitzung selbst entfernt (Schlüssel abgelehnt)
+      if (art === "SIGNED_OUT" && client === db) setTimeout(() => sitzungVerloren("abgemeldet"), 0);
       if (s && s.user && s.refresh_token && sitzungGemerkt(s.user.email)) {
         sitzungMerken(s.user.email, s.refresh_token);
       }
@@ -1691,6 +1693,10 @@ let profil = null;
 // Schlüssel wertlos. Dafür wird die Verbindung frisch aufgebaut, ohne
 // Sitzung im Speicher.
 async function abmelden() {
+  abmeldenZuletzt = Date.now();
+  try { return await abmeldenEcht(); } finally { abmeldenZuletzt = Date.now(); }
+}
+async function abmeldenEcht() {
   stammVergessen();
   // Rückgängig gilt nur bis zum Abmelden
   rueckLeeren();
@@ -1704,11 +1710,58 @@ async function abmelden() {
     return;
   }
   sitzungMerken(s.user.email, s.refresh_token);
-  try { db.auth.stopAutoRefresh(); } catch (f) { /* egal */ }
   try { db.removeAllChannels(); } catch (f) { /* egal */ }
+  zugangStilllegen(db);
   sitzungSchluessel().forEach((k) => sitzungSpeicher.removeItem(k));
   db = await verbinden();
   sitzungenVerfolgen(db);
+}
+
+// Der alte Zugang nach dem Abmelden ganz stilllegen (3. November 2026).
+// Vorher hielt er nur seine Uhr an. Beim nächsten Aufwecken des Tabs
+// (iPad aus dem Ruhezustand) startete Supabase sie aber von selbst neu,
+// und der alte Zugang las dieselbe Sitzung wie der neue aus dem Speicher.
+// Erneuerten beide denselben Schlüssel, hielt Supabase das für gestohlen
+// und beendete die Sitzung: das iPad konnte nichts mehr speichern, und
+// die toten Schlüssel liefen weiter jede Minute zum Server (über 1'400
+// Fehler am Tag, bis die Anmeldung für alle Geräte gebremst wurde).
+const TOTER_SPEICHER = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+function zugangStilllegen(client) {
+  if (!client || !client.auth) return;
+  const a = client.auth;
+  try { a.stopAutoRefresh(); } catch (f) { /* egal */ }
+  try { a.autoRefreshToken = false; } catch (f) { /* egal */ }
+  try { a.storage = TOTER_SPEICHER; } catch (f) { /* egal */ }
+  try { if (typeof a._removeVisibilityChangedCallback === "function") a._removeVisibilityChangedCallback(); } catch (f) { /* egal */ }
+}
+
+// Sitzung auf dem Server beendet, die App zeigt aber noch alles an:
+// dann speichert nichts mehr (Fehler 401). Lieber gleich neu laden, dann
+// steht die Anmeldung da (3. November 2026).
+// Eigenes Abmelden löst dasselbe Ereignis aus: bis 5 Sekunden danach nichts tun
+let abmeldenZuletzt = 0;
+const abmeldenLaeuft = () => Date.now() - abmeldenZuletzt < 5000;
+function sitzungVerloren(grund) {
+  if (!profil || abmeldenLaeuft() || ARCHIV) return;
+  try {
+    const zuletzt = Number(sessionStorage.getItem("hofer.sitzungVerloren") || 0);
+    if (Date.now() - zuletzt < 60000) return;
+    sessionStorage.setItem("hofer.sitzungVerloren", String(Date.now()));
+  } catch (f) { /* weiter */ }
+  try { fehlerMerken("Anmeldung", "Sitzung beendet (" + grund + "), Seite lädt neu"); } catch (f) { /* egal */ }
+  setTimeout(() => location.reload(), 300);
+}
+
+// Nach einem 401 nachsehen, ob die Sitzung wirklich weg ist
+async function sitzungNachpruefen() {
+  if (!profil || !db || abmeldenLaeuft()) return;
+  try {
+    const { data } = await zeitlimit(db.auth.getSession(), 6000, "Sitzung");
+    if (!data || !data.session) return sitzungVerloren("keine Sitzung");
+    const r = await zeitlimit(db.auth.refreshSession(), 15000, "Sitzung");
+    // Nur wenn der Server den Schlüssel ablehnt, nicht ohne Netz
+    if (r.error && r.error.status >= 400 && r.error.status < 500 && r.error.status !== 429) sitzungVerloren(r.error.message || "abgelehnt");
+  } catch (f) { /* ohne Netz: später wieder */ }
 }
 
 async function sitzung() {
@@ -1774,7 +1827,9 @@ function lebenszeichen() {
   if (Date.now() - lebenszeichenZuletzt < 60000) return;
   lebenszeichenZuletzt = Date.now();
   try {
-    Promise.resolve(db.rpc("ich_bin_da")).catch(() => {});
+    Promise.resolve(db.rpc("ich_bin_da")).then((r) => {
+      if (r && r.error && (r.status === 401 || /JWT|permission denied/i.test(r.error.message || ""))) sitzungNachpruefen();
+    }).catch(() => {});
   } catch (f) { /* ohne SQL kein Lebenszeichen */ }
 }
 function lebenszeichenStarten() {
@@ -11122,6 +11177,7 @@ try {
     if (zuLange) setTimeout(() =>
       meldung("Automatische Abmeldung nach 4 Stunden ohne Bedienung."), 400);
   } else if (p.is_active === false) {
+    abmeldenZuletzt = Date.now();
     await db.auth.signOut({ scope: "local" });
     profil = null;
     zeigeLogin();
