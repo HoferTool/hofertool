@@ -11150,3 +11150,7 @@ body.dunkel .bildwahl__weg { background: #3a4350; }
 .wartung-wahl__bild { position: relative; display: flex; align-items: center; justify-content: center;
   height: 220px; border-radius: 8px; overflow: hidden; background: #eef1f4; }
 body.dunkel .wartung-wahl__bild { background: #232a32; }
+
+/* 1.354.0: „Erledigt“ bei den gemeldeten Problemen auf der Startseite als
+   richtiger Knopf statt Text (Wunsch Patrick 3. November 2026) */
+.problemzeile__erledigt { flex: none; align-self: center; white-space: nowrap; }

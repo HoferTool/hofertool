@@ -729,8 +729,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
       {auftrag && auftrag.problem && <div className="problemkasten problemkasten--schmal">
         <span>⚠ {auftrag.problem}</span>
         <span className="klein">{auftrag.problem_von || ""}</span>
-        {darf && <button type="button" className="knopf knopf--klein" id="pl-problemweg"
-          onClick={() => { zu(); alt.problemQuittieren(auftrag, b); }}>Erledigt</button>}
+        {alt.darfProblemErledigen() && <button type="button" className="knopf knopf--klein" id="pl-problemweg"
+          onClick={() => { zu(); alt.problemQuittieren(auftrag, b); }}>✓ Erledigt</button>}
       </div>}
 
       {nurLesen && auftrag && <p className="klein auf-nurlesen" id="pl-nurlesen">

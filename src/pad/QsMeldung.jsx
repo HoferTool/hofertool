@@ -119,7 +119,7 @@ export function PadMeldungen({ qs, qsWeg, probleme }) {
     window.addEventListener("resize", pruefen);
     return () => { clearTimeout(t); window.removeEventListener("resize", pruefen); };
   });
-  const darf = alt.darfSchreiben() || alt.darfPlanen();
+  const darf = alt.darfProblemErledigen();
   return (
     <div className={"pad-qsm-huelle" + (mehrUnten ? " pad-qsm-huelle--mehr" : "")}>
       {n > 1 && <div className="pad-qsm__anzahl" data-padmeldunganzahl="">

@@ -35,7 +35,7 @@ export async function problemeLaden() {
 }
 
 export function Probleme({ liste, fehler, neu }) {
-  const darf = alt.darfSchreiben() || alt.darfPlanen();
+  const darf = alt.darfProblemErledigen();
   if (!liste && !fehler) return <div id="db-probleme" />;
   const n = liste ? liste.length : 0;
 
@@ -63,8 +63,8 @@ export function Probleme({ liste, fehler, neu }) {
                   {j.problem_at ? " · " + alt.datumZeitKurz(j.problem_at) : ""}</div>
               </div>
               {darf &&
-                <button className="linkknopf" data-probweg={j.id}
-                  onClick={() => alt.problemQuittieren(j, null, neu)}>Erledigt</button>}
+                <button className="knopf knopf--klein problemzeile__erledigt" data-probweg={j.id}
+                  onClick={() => alt.problemQuittieren(j, null, neu)}>✓ Erledigt</button>}
             </div>
           ))}
       </section>

@@ -155,7 +155,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.353.0";
+const APP_VERSION = "1.354.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -2935,6 +2935,17 @@ function meineParks() {
 // Externe Partner sehen nur Parks, die ihnen zugewiesen sind — ohne
 // Zuweisung die Parks mit "extern", "Lohn" oder "fremd" im Namen
 function istExtern() { return meineRolle() === "extern"; }
+
+// Gemeldete Probleme als erledigt markieren darf jede Person ausser
+// Externen und dem Dienstkonto, auch ohne Schreibrecht (Wunsch Patrick
+// 3. November 2026: „jede Person soll Meldungen als erledigt markieren
+// können“). Die Datenbank lässt das Ändern von jobs.problem allen
+// Angemeldeten ausser Externen zu.
+function darfProblemErledigen() {
+  if (ARCHIV) return false;
+  const r = meineRolle();
+  return !!r && r !== "extern" && r !== "dienst";
+}
 
 // Ferien darf jeder eintragen, verschieben und löschen, ausser Externen
 // und dem Dienstkonto (Wunsch Patrick, 9. Oktober 2026). Ziehen und
@@ -10438,7 +10449,7 @@ Object.assign(alt, {
   best, seiteBestellungen, sucheArtikel, hocoJeArtikel, ladeBezeichnungen, ladeLieferanten,
   artikelSchnellAnlegen, lieferantDialog, langDatum, datumZeitKurz,
   LOGO_WEISS, ORT, begruessung, holeWetter, naechsterFeiertag, solarKachel, solarLaden, solarKw, esc,
-  darfPlanen, darfMaterialplatz, darfNotiz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, vorbereitungFenster,
+  darfPlanen, darfMaterialplatz, darfNotiz, istAdmin, darfDokumenteUndSicherung, balkenZeigen, problemQuittieren, darfProblemErledigen, vorbereitungFenster,
   arbeitstagePlus, ausIso, ladeTodos, loeschen,
   planArchivDaten, istArchiv, bildVerkleinern,
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, maschineRuestet, ladePlanAuftraege,
