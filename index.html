@@ -2,6 +2,32 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<script>
+// Hängt der Start bei „Wird gestartet …“, weil die Programmdatei fehlt
+// (Patrick 3. November 2026): Gleich nach einer neuen Fassung liefert
+// GitHub Pages bis zehn Minuten noch die alte Seite aus, deren Dateien es
+// nicht mehr gibt. Dann einmal mit neuer Adresse (?fassung=…) laden, die
+// sicher frisch vom Server kommt. Höchstens einmal je Minute, damit es
+// ohne Netz nicht immer wieder lädt.
+(function () {
+  var los = false;
+  window.addEventListener("error", function (e) {
+    var t = e.target;
+    if (los || !t || (t.tagName !== "SCRIPT" && t.tagName !== "LINK")) return;
+    var src = t.src || t.href || "";
+    if (src.indexOf("/assets/") < 0) return;
+    try {
+      var vorher = +sessionStorage.getItem("hofer.startNeu") || 0;
+      if (Date.now() - vorher < 60000) return;
+      sessionStorage.setItem("hofer.startNeu", String(Date.now()));
+    } catch (f) { return; }
+    los = true;
+    var u = new URL(location.href);
+    u.searchParams.set("fassung", String(Date.now()));
+    location.replace(u.href);
+  }, true);
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Hofer Tool</title>
 <meta name="theme-color" content="#003884">

@@ -11223,3 +11223,13 @@ body.dunkel .wartung-wahl__bild { background: #232a32; }
 .kt-gesp__name { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
   background: transparent; border: none; padding: 10px 6px; cursor: pointer; color: var(--tinte); font: inherit; }
 .kt-gesp__name:hover { background: var(--marke-hell); }
+/* Kontur: Felder X und Z an der Maus beim Zeichnen (seit 1.356.1) */
+.kt-dyn { position: absolute; transform: translate(14px, 10px); display: flex; gap: 4px; align-items: flex-end;
+  background: var(--flaeche); border: 1px solid var(--marke); border-radius: var(--radius); padding: 4px 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18); z-index: 2; cursor: default; }
+.kt-dyn label { display: flex; flex-direction: column; }
+.kt-dyn label > span { font-size: .7rem; font-weight: 700; color: var(--marke); }
+.kt-dyn input[type="text"] { width: 72px; min-height: 30px; padding: 3px 6px; }
+.kt-dyn__ok { min-height: 30px; width: 30px; border: none; background: var(--marke); color: #fff; border-radius: var(--radius); cursor: pointer; }
+/* Rahmen nur um die Grafik, damit die Felder X/Z genau bei der Maus stehen (1.356.1) */
+.kt-bildrahmen { position: relative; }

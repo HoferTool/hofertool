@@ -74,6 +74,20 @@ with sync_playwright() as p:
     pruefe("Eingetippter Punkt als Element", pg.locator("[data-ktel]").count() == vor + 1
            and neu.locator("[data-ktfeld='x']").input_value() == "30" and neu.locator("[data-ktfeld='z']").input_value() == "25.5"
            and pg.evaluate("document.activeElement.id") == "kt-ein-x")
+    pruefe("Felder stehen bei der Maus", pg.locator(".kt-dyn").count() == 1)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(100)
+    pruefe("Escape schliesst die Felder", pg.locator(".kt-dyn").count() == 0)
+    # Fokus noch in einem anderen Feld: Tab über der Grafik geht trotzdem in X
+    pg.focus("[data-ktel='0'] [data-ktfeld='z']")
+    box = pg.locator("#kt-bild").bounding_box()
+    pg.mouse.move(box["x"] + box["width"] * 0.4, box["y"] + box["height"] * 0.4)
+    pg.keyboard.press("Tab")
+    pg.wait_for_timeout(200)
+    pruefe("Tab aus anderem Feld über der Grafik", pg.evaluate("document.activeElement.id") == "kt-ein-x")
+    d = pg.locator(".kt-dyn").bounding_box()
+    mx, my = box["x"] + box["width"] * 0.4, box["y"] + box["height"] * 0.4
+    pruefe("Felder direkt neben der Maus", 0 <= d["x"] - mx < 40 and 0 <= d["y"] - my < 40)
+    pg.keyboard.press("Escape")
     pg.click("#kt-zeichnen")
     # Speichern und öffnen
     pg.click("#kt-speichern"); pg.wait_for_selector(".dialog input")
@@ -89,6 +103,11 @@ with sync_playwright() as p:
     pg.click("#kt-oeffnen"); pg.wait_for_selector("[data-ktgesp='Test 1']"); pg.click("[data-ktgesp='Test 1'] .kt-gesp__name"); pg.wait_for_timeout(200)
     pruefe("Gespeicherte Kontur wieder offen", code() == gespeichert)
     pruefe("Name und Stand nach Öffnen", pg.inner_text("#kt-name") == "Test 1" and "Gespeichert als" in pg.inner_text("#kt-stand"))
+    # Jemand anderes speichert inzwischen dieselbe Kontur
+    pg.evaluate("TEST.daten.konturen[0].geaendert_am = '2026-11-03T12:30:00Z'")
+    pg.click("#kt-speichern"); pg.wait_for_selector(".dialog input"); pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(300)
+    pruefe("Inzwischen von anderem gespeichert: Rückfrage", "nachdem du sie geöffnet hast" in pg.inner_text(".dialog"))
+    pg.click(".dialog .knopf--haupt"); pg.wait_for_timeout(300)
     pg.click("#kt-oeffnen"); pg.wait_for_selector("[data-ktgespweg='Test 1']"); pg.click("[data-ktgespweg='Test 1']")
     pg.wait_for_timeout(150); pg.click(".dialog .knopf--gefahr"); pg.wait_for_timeout(300)
     pruefe("Gelöscht", len(pg.evaluate("TEST.daten.konturen || []")) == 0)

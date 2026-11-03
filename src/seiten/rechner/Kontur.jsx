@@ -304,7 +304,7 @@ function Konturliste({ k, aendern, code, gespeichert, setGespeichert }) {
       felder: [{ name: "name", label: "Name, z. B. HOCO Nr.", pflicht: true, wert: k.name || "" }], bestaetigen: "Speichern" });
     if (!w) return;
     const name = w.name.trim();
-    const { data: da, error: fl } = await alt.db.from(TABELLE).select("id, name").ilike("name", name.replace(/[%_\\]/g, "\\$&")).maybeSingle();
+    const { data: da, error: fl } = await alt.db.from(TABELLE).select("id, name, geaendert_am, geaendert_von").ilike("name", name.replace(/[%_\\]/g, "\\$&")).maybeSingle();
     if (fl && ohneTabelle(fl)) {
       // Ohne Tabelle: wie bisher am Konto
       const liste = kontoListe().filter((x) => x.name !== name);
@@ -313,8 +313,19 @@ function Konturliste({ k, aendern, code, gespeichert, setGespeichert }) {
       alt.meldung("Kontur „" + name + "“ an deinem Konto gespeichert.", "gut");
       return;
     }
-    if (da && da.name !== k.name && !(await alt.nachfragen({ titel: "Schon vorhanden",
-      text: "„" + da.name + "“ gibt es schon. Überschreiben?", bestaetigen: "Überschreiben" }))) return;
+    // Zwei Personen an zwei PCs (Frage Patrick 3. November 2026): Hat
+    // jemand dieselbe Kontur gespeichert, seit sie hier geöffnet wurde,
+    // fragt Speichern nach, statt still zu überschreiben.
+    const vonAnderem = da && da.name === k.name && gespeichert && gespeichert.id === da.id
+      && gespeichert.geaendert_am !== da.geaendert_am;
+    if (da && (da.name !== k.name || !gespeichert || gespeichert.id !== da.id || vonAnderem)) {
+      let wer = "";
+      if (vonAnderem) { const l = await leuteNamen([da.geaendert_von]); wer = l[da.geaendert_von] || "Jemand"; }
+      const text = vonAnderem
+        ? wer + " hat „" + da.name + "“ am " + alt.datumZeitKurz(da.geaendert_am) + " gespeichert, nachdem du sie geöffnet hast. Mit deiner Fassung überschreiben?"
+        : "„" + da.name + "“ gibt es schon. Überschreiben?";
+      if (!(await alt.nachfragen({ titel: vonAnderem ? "Inzwischen geändert" : "Schon vorhanden", text, bestaetigen: "Überschreiben" }))) return;
+    }
     const zeile = { name, daten: daten(), nc: code };
     const r = da ? await alt.db.from(TABELLE).update(zeile).eq("id", da.id).select("id, name, nc, geaendert_am").single()
       : await alt.db.from(TABELLE).insert(zeile).select("id, name, nc, geaendert_am").single();
@@ -392,33 +403,62 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
   const [maus, setMaus] = useState(null);
   const svg = useRef(null);
   // Beim Zeichnen die Werte auch eintippen (Wunsch Patrick 3. November
-  // 2026: „in die X- und Z-Werte springen können mit Tab“): Tab springt
-  // ins Feld X, Tab weiter in Z, Enter setzt den Punkt, dann wieder X.
-  const [ein, setEin] = useState({ x: "", z: "" });
-  const feldX = useRef(null);
+  // 2026: „in die X- und Z-Werte springen können mit Tab“, „bei der
+  // Endpunkt-Anzeige“): Tab öffnet die Felder X und Z direkt an der
+  // Anzeige bei der Maus, wie im CAD. Bis man tippt, laufen die Werte
+  // mit der Maus mit; Tab wechselt X ↔ Z, Enter setzt den Punkt genau,
+  // Escape schliesst die Felder.
+  const [dyn, setDyn] = useState(null);       // { x, z, getippt } oder null
+  const feldX = useRef(null), feldZ = useRef(null);
+  const letzteMaus = useRef(null);
+  if (maus) letzteMaus.current = maus;
   const zahlFeld = (n) => String(Math.round(n * 1000) / 1000);
+  const dynOeffnen = (p) => {
+    const q = p || ende;
+    fokusX.current = true;
+    setDyn({ x: zahlFeld(q.r * 2), z: zahlFeld(q.z), getippt: false });
+  };
+  // Erst nach dem Zeichnen der Felder hineinspringen, sonst geht der
+  // Fokus ins Leere, wenn React noch nicht so weit ist
+  const fokusX = useRef(false);
+  useEffect(() => {
+    if (dyn && fokusX.current && feldX.current) { fokusX.current = false; feldX.current.focus(); feldX.current.select(); }
+  }, [dyn]);
+  useEffect(() => { if (!zeichnen) setDyn(null); }, [zeichnen]);
   useEffect(() => {
     if (!zeichnen) return undefined;
     const taste = (e) => {
-      if (e.key !== "Tab" || e.defaultPrevented) return;
+      if (e.key !== "Tab") return;
       const t = e.target;
-      if (t && t.closest && t.closest(".kt-eingabe")) return;   // in den Feldern normal weiter
-      if (t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) return;
-      e.preventDefault();
-      if (maus) setEin({ x: zahlFeld(maus.r * 2), z: zahlFeld(maus.z) });
-      feldX.current && feldX.current.focus();
-      setTimeout(() => feldX.current && feldX.current.select(), 0);
+      if (t && t.closest && t.closest(".kt-dyn")) return;   // in den Feldern selbst
+      // Über der Grafik gilt Tab immer der Zeichnung, sonst nur, wenn
+      // nicht gerade in einem anderen Feld geschrieben wird
+      if (!maus && t && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) return;
+      e.preventDefault(); e.stopPropagation();
+      dynOeffnen(maus);
     };
-    window.addEventListener("keydown", taste);
-    return () => window.removeEventListener("keydown", taste);
-  }, [zeichnen, maus]);
+    document.addEventListener("keydown", taste, true);
+    return () => document.removeEventListener("keydown", taste, true);
+  }, [zeichnen, maus, ende.z, ende.r]);
+  useEffect(() => {
+    if (dyn && !dyn.getippt && maus) setDyn((d) => d && !d.getippt ? { ...d, x: zahlFeld(maus.r * 2), z: zahlFeld(maus.z) } : d);
+  }, [maus]);
   const eingabeSetzen = () => {
-    const x = ein.x.trim() === "" ? null : Number(ein.x.replace(",", "."));
-    const z = ein.z.trim() === "" ? null : Number(ein.z.replace(",", "."));
+    const x = dyn.x.trim() === "" ? null : Number(dyn.x.replace(",", "."));
+    const z = dyn.z.trim() === "" ? null : Number(dyn.z.replace(",", "."));
     if ((x === null && z === null) || Number.isNaN(x) || Number.isNaN(z)) { alt.meldung("X oder Z eingeben.", "warn"); return; }
     punktSetzen(z === null ? ende.z : z, x === null ? ende.r : x / 2, true);
-    setEin({ x: "", z: "" });
-    feldX.current && feldX.current.focus();
+    fokusX.current = true;
+    setDyn({ x: "", z: "", getippt: false, nach: { z: z === null ? ende.z : z, r: x === null ? ende.r : x / 2 } });
+  };
+  const dynTaste = (e) => {
+    if (e.key === "Enter") { e.preventDefault(); eingabeSetzen(); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setDyn(null); }
+    else if (e.key === "Tab") {
+      e.preventDefault(); e.stopPropagation();
+      const nach = e.target === feldX.current ? feldZ.current : feldX.current;
+      if (nach) { nach.focus(); nach.select(); }
+    }
   };
   const alle = [...punkteVon(kontur.segmente), ...punkteVon(bahn.bahn),
     { z: Number(k.startZ) || 0, r: (Number(k.startX) || 0) / 2 }];
@@ -458,6 +498,7 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
 
   return (
     <div className={"kt-bildfeld" + (zeichnen ? " kt-bildfeld--zeichnen" : "")}>
+      <div className="kt-bildrahmen">
       <svg ref={svg} viewBox={`0 0 ${B} ${H}`} className="kt-bild" id="kt-bild"
         onMouseMove={(e) => zeichnen && setMaus(weltpunkt(e))} onMouseLeave={() => setMaus(null)}
         onClick={(e) => { if (!zeichnen) return; const p = weltpunkt(e); if (p) punktSetzen(p.z, p.r); }}>
@@ -487,16 +528,29 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
           </>
         )}
       </svg>
+      {zeichnen && dyn && (() => {
+        // Verlässt die Maus die Grafik (etwa zum Feld hin), bleiben die
+        // Felder an der letzten Stelle, statt zum Konturende zu springen
+        const ort = (dyn.getippt && dyn.ort) || maus || letzteMaus.current || ende;
+        const lx = Math.min(78, Number(X(ort)) / B * 100), ly = Math.min(80, Number(Y(ort)) / H * 100);
+        return (
+          <div className="kt-dyn" style={{ left: lx + "%", top: ly + "%" }} onKeyDown={dynTaste}
+            onClick={(e) => e.stopPropagation()}>
+            <label><span>X Ø</span>
+              <input ref={feldX} type="text" inputMode="decimal" id="kt-ein-x" value={dyn.x} placeholder="gleich"
+                onChange={(e) => setDyn({ ...dyn, x: e.target.value, getippt: true, ort })} /></label>
+            <label><span>Z</span>
+              <input ref={feldZ} type="text" inputMode="decimal" id="kt-ein-z" value={dyn.z} placeholder="gleich"
+                onChange={(e) => setDyn({ ...dyn, z: e.target.value, getippt: true, ort })} /></label>
+            <button className="kt-dyn__ok" id="kt-ein-setzen" title="Punkt setzen (Enter)" onClick={eingabeSetzen}>↵</button>
+          </div>
+        );
+      })()}
+      </div>
       {zeichnen && (
-        <div className="kt-eingabe" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); eingabeSetzen(); } }}>
-          <span className="klein">Nächster Punkt ab X{zahlFeld(ende.r * 2)} Z{zahlFeld(ende.z)}:</span>
-          <label className="kt-zahl"><span>X Ø</span>
-            <input ref={feldX} type="text" inputMode="decimal" id="kt-ein-x" value={ein.x} placeholder="gleich"
-              onChange={(e) => setEin({ ...ein, x: e.target.value })} /></label>
-          <label className="kt-zahl"><span>Z</span>
-            <input type="text" inputMode="decimal" id="kt-ein-z" value={ein.z} placeholder="gleich"
-              onChange={(e) => setEin({ ...ein, z: e.target.value })} /></label>
-          <button className="knopf knopf--klein" id="kt-ein-setzen" onClick={eingabeSetzen}>Setzen ↵</button>
+        <div className="kt-eingabe">
+          <span className="klein">Tab: X und Z eintippen · Enter setzt den Punkt · Escape schliesst</span>
+          {!dyn && <button className="knopf knopf--klein" id="kt-ein-auf" onClick={() => dynOeffnen(null)}>⌨ Punkt eintippen</button>}
         </div>
       )}
     </div>
