@@ -50,6 +50,26 @@ function werteLesen(t) {
   return wert();
 }
 
+function komplexTeile(t) {
+  const teile = {};
+  let i = 0;
+  while (i < t.length) {
+    const m = /^\s*([A-Z0-9_]+)\s*\(/.exec(t.slice(i));
+    if (!m) break;
+    const auf = i + m[0].length - 1;
+    let tief = 0, j = auf, inText = false;
+    for (; j < t.length; j++) {
+      const c = t[j];
+      if (c === "'") inText = !inText;
+      else if (!inText && c === "(") tief++;
+      else if (!inText && c === ")") { tief--; if (!tief) break; }
+    }
+    teile[m[1]] = werteLesen(t.slice(auf, j + 1));
+    i = j + 1;
+  }
+  return teile;
+}
+
 export function stepLesen(text) {
   const daten = text.replace(/\/\*[\s\S]*?\*\//g, "");
   const anfang = daten.indexOf("DATA;");
@@ -61,8 +81,15 @@ export function stepLesen(text) {
   while ((m = muster.exec(teil))) {
     try { e.set(+m[1], { typ: m[2], w: werteLesen(m[3]) }); } catch (f) { /* einzelner kaputter Eintrag */ }
   }
+  // Zusammengesetzte Einträge (#12=(A(…)B(…));), etwa rationale
+  // B-Splines: jedes Teil unter seinem Namen (seit 1.389.0, Entgraten)
+  const komplex = /#(\d+)\s*=\s*\(([\s\S]*?)\)\s*;(?=\s*(?:#\d+\s*=|ENDSEC))/g;
+  while ((m = komplex.exec(teil))) {
+    try { e.set(+m[1], { typ: "KOMPLEX", teile: komplexTeile(m[2]) }); } catch (f) { /* einzelner kaputter Eintrag */ }
+  }
   const zoll = /CONVERSION_BASED_UNIT\s*\(\s*'INCH'/i.test(daten);
-  return { e, faktor: zoll ? 25.4 : 1 };
+  const gradWinkel = /CONVERSION_BASED_UNIT\s*\(\s*'DEGREE'/i.test(daten);
+  return { e, faktor: zoll ? 25.4 : 1, gradWinkel };
 }
 
 // --- Geometrie --------------------------------------------------------

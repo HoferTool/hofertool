@@ -41,6 +41,7 @@ export const EG_VORGABE = {
   vorschub: 300,
   vorschubZ: 100,
   wahl: null,          // null = alle Kanten, sonst die Kennungen
+  quelle: "bohren",    // bohren oder step (seit 1.389.0)
 };
 
 export const WERKZEUGE = [["kugel", "Kugelfräser"], ["kopier", "Kopierfräser"], ["zentrier", "Zentrierfräser"]];
@@ -63,6 +64,8 @@ const Z = v(0, 0, 1);
 // geschlossen, punkte: [{ E, u, nA, vB }] }. Dazu je Merkmal eine Mitte
 // für den Zentrierfräser: { punkte: [Punkt auf Fläche A], nA, halb }.
 export function kantenAusBohren(b) {
+  // Kanten aus einer STEP-Datei (seit 1.389.0) kommen fertig mit
+  if (b.art === "step") return b.step || { kanten: [], mitten: {} };
   const R = b.teilD / 2, z0 = b.zStirn;
   const kanten = [], mitten = {};
   const N = 72;
@@ -298,7 +301,8 @@ export function egBahnen(b, g) {
 export function egPruefen(b, g) {
   const w = [];
   const { bahnen, warnungen, kanten } = egBahnen(b, g);
-  if (!kanten.length) w.push("In Bohren / Fräsen ist keine Bearbeitung mit Kanten eingestellt.");
+  if (!kanten.length) w.push(b.art === "step" ? (b.step ? "In der STEP-Datei wurden keine Kanten zum Entgraten gefunden. Vielleicht liegen sie auf der anderen Seite: „Andere Seite vorne“ versuchen." : "Oben eine STEP-Datei wählen.")
+    : "In Bohren / Fräsen ist keine Bearbeitung mit Kanten eingestellt.");
   else if (g.wahl && !kanten.some((k) => g.wahl.includes(k.id))) w.push("Keine Kante gewählt. Im Bild oder in der Liste antippen.");
   if (!(g.fase > 0)) w.push("Die Fasengrösse muss grösser als 0 sein.");
   const ein = g.richtung === "front" ? antrieb.frontEin : antrieb.querEin;

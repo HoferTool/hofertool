@@ -14,6 +14,7 @@ import { ARTEN } from "./bohren.js";
 import { Antrieb, antriebLaden, bfAktuell, bfSetzen } from "./BohrenFraesen.jsx";
 import { EG_VORGABE, WERKZEUGE, egBahnen, egGcode, egPruefen, faseMasse, zentrierOrt } from "./entgraten.js";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
+import { kantenAusStep } from "./stepKanten.js";
 
 // C-Drehung in der Simulation: dieselben Regeln wie im G-Code
 const mitY = (g) => (g.spindel === "gegen" ? g.yGegen : g.yHaupt);
@@ -21,6 +22,9 @@ const grad = (w) => (w * Math.PI) / 180;
 
 const gemerkt = { ...EG_VORGABE };
 let gespeichertEg = null;
+// Geladene STEP-Datei (seit 1.389.0): Name, Text (nur solange die App
+// offen ist), Lage und die gefundenen Kanten
+let stepZustand = null;
 
 function FeldInnen({ name, text, wert, setze, schritt }) {
   const [eingabe, setEingabe] = useState(String(wert));
@@ -43,13 +47,33 @@ export default function Entgraten() {
   const setGespeichert = (z) => { gespeichertEg = z; setGespeichertRoh(z); };
   const aendern = (neu) => { const ganz = { ...g, ...neu }; Object.assign(gemerkt, ganz); setG(ganz); };
   const setze = (name, wert) => aendern({ [name]: wert });
+  const [st, setStRoh] = useState(stepZustand);
+  const setSt = (z) => { stepZustand = z; setStRoh(z); };
+  const [stLaedt, setStLaedt] = useState(false);
+  const stepRechnen = (text, name, lage) => {
+    setStLaedt(true);
+    // kurz warten, damit „wird gelesen“ zu sehen ist; grosse Dateien brauchen eine Sekunde
+    setTimeout(() => {
+      let erg;
+      try { erg = kantenAusStep(text, lage); } catch (f) { erg = { fehler: "Die STEP-Datei liess sich nicht lesen (" + (f.message || f) + ")." }; }
+      setSt({ name, text, ...lage, erg });
+      setStLaedt(false);
+      aendern({ wahl: null, quelle: "step" });
+    }, 30);
+  };
+  const stepB = useMemo(() => {
+    const e = st && st.erg && !st.erg.fehler ? st.erg : null;
+    return e ? { art: "step", teilD: e.teilD, zStirn: 0, laenge: e.laenge, draht: e.draht, step: { kanten: e.kanten, mitten: e.mitten } }
+      : { art: "step", teilD: 20, zStirn: 0, step: null };
+  }, [st]);
+  const bE = g.quelle === "step" ? stepB : b;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const { bahnen, kanten } = useMemo(() => egBahnen(b, g), [b, g]);
+  const { bahnen, kanten } = useMemo(() => egBahnen(bE, g), [bE, g]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const gcode = useMemo(() => egGcode(b, g), [b, g, stand]);
+  const gcode = useMemo(() => egGcode(bE, g), [bE, g, stand]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const warnungen = useMemo(() => egPruefen(b, g).liste, [b, g, stand]);
+  const warnungen = useMemo(() => egPruefen(bE, g).liste, [bE, g, stand]);
   const istGewaehlt = (id) => !g.wahl || g.wahl.includes(id);
   const umschalten = (id) => {
     const jetzt = g.wahl || kanten.map((k) => k.id);
@@ -68,14 +92,49 @@ export default function Entgraten() {
   return (
     <div className="karte">
       <div className="karte__kopf"><h2>Entgraten</h2>
-        <NcAblage art="entgraten" kurz="eg" wort="Entgraten" daten={{ bohren: b, entgraten: g }} nc={gcode}
+        <NcAblage art="entgraten" kurz="eg" wort="Entgraten" daten={{ bohren: b, entgraten: g, step: st && st.erg && !st.erg.fehler
+          ? { name: st.name, umdrehen: !!st.umdrehen, achse: st.achse || 0, erg: { ...st.erg, draht: undefined } } : null }} nc={gcode}
           laden={(d) => {
             if (d.bohren) { bfSetzen(d.bohren); setB(bfAktuell()); }
+            if (d.step) setSt({ ...d.step, text: null });
             const ganz = { ...EG_VORGABE, ...(d.entgraten || {}) }; Object.assign(gemerkt, ganz); setG(ganz);
           }}
           gespeichert={gespeichert} setGespeichert={setGespeichert} /></div>
-      <p className="klein" id="eg-quelle">Kanten aus <b>Bohren / Fräsen: {artName}</b> (Teil-Ø {b.teilD}).
-        Andere Bohrung oder Nut dort einstellen. Kanten aus STEP-Dateien kommen später dazu.</p>
+      <div className="eg-quelle">
+        <span>Kanten aus</span>
+        <div className="moduswahl" id="eg-quelle-wahl">
+          {[["bohren", "Bohren / Fräsen"], ["step", "STEP-Datei"]].map(([w, t]) => (
+            <button key={w} type="button" className={"moduswahl__knopf" + (g.quelle === w ? " aktiv" : "")}
+              data-egquelle={w} onClick={() => aendern({ quelle: w, wahl: null })}>{t}</button>
+          ))}
+        </div>
+        {g.quelle === "step" && <>
+          <label className="knopf knopf--klein" data-ablegen>{st ? "Andere STEP-Datei …" : "STEP-Datei wählen …"}
+            <input type="file" id="eg-step" accept=".stp,.step,.STP,.STEP" hidden onChange={async (e) => {
+              const datei = e.target.files && e.target.files[0];
+              e.target.value = "";
+              if (!datei) return;
+              const text = await datei.text();
+              stepRechnen(text, datei.name.replace(/\.(stp|step)$/i, ""), { umdrehen: false, achse: 0 });
+            }} /></label>
+          {st && <label className="eg-haken"><input type="checkbox" id="eg-step-um" checked={!!st.umdrehen} disabled={!st.text}
+            onChange={(e) => stepRechnen(st.text, st.name, { umdrehen: e.target.checked, achse: st.achse || 0 })} /> Andere Seite vorne</label>}
+          {st && st.erg && st.erg.achsen > 1 && st.text && (
+            <label className="eg-haken">Drehachse
+              <select id="eg-step-achse" value={st.achse || 0} onChange={(e) => stepRechnen(st.text, st.name, { umdrehen: !!st.umdrehen, achse: Number(e.target.value) })}>
+                {Array.from({ length: Math.min(st.erg.achsen, 6) }, (_, i) => <option key={i} value={i}>{i ? "Achse " + (i + 1) : "Hauptachse (gefunden)"}</option>)}
+              </select></label>)}
+        </>}
+      </div>
+      {g.quelle === "bohren"
+        ? <p className="klein" id="eg-quelle">Kanten aus <b>Bohren / Fräsen: {artName}</b> (Teil-Ø {b.teilD}). Andere Bohrung oder Nut dort einstellen.</p>
+        : <p className="klein" id="eg-quelle">{stLaedt ? "STEP-Datei wird gelesen …"
+          : !st ? "STEP-Datei wählen (oder hierher ziehen). Die App sucht darin die scharfen Kanten von Bohrungen, Nuten und Flächen."
+            : st.erg.fehler ? <span className="eg-fehler">{st.name}: {st.erg.fehler}</span>
+              : <><b>{st.name}</b>: Teil-Ø {st.erg.teilD}, Länge {st.erg.laenge}, {st.erg.kanten.length} Kanten zum Entgraten.
+                {" "}Weggelassen: {st.erg.weg.gedreht} Drehkanten (macht der Drehmeissel), {st.erg.weg.rund} Übergänge ohne Grat,
+                {" "}{st.erg.weg.innen} Innenecken{st.erg.weg.abseits ? ", " + st.erg.weg.abseits + " von vorne und aussen nicht erreichbar (Rückseite: „Andere Seite vorne“)" : ""}.
+                {!st.text && " Lage ändern: Datei nochmals wählen."}</>}</p>}
 
       <div className="eg-wahl">
       <div className="moduswahl" id="eg-werkzeuge">
@@ -94,12 +153,12 @@ export default function Entgraten() {
 
       <div className="cax-raster eg-raster">
         <div className="eg-links">
-          <Bild3D b={b} g={g} kanten={kanten} bahnen={bahnen} istGewaehlt={istGewaehlt} umschalten={umschalten} />
+          <Bild3D b={bE} g={g} kanten={kanten} bahnen={bahnen} istGewaehlt={istGewaehlt} umschalten={umschalten} />
           <div className="eg-liste" id="eg-liste">
             <div className="eg-liste__kopf"><b>Kanten</b>
               <button className="linkknopf" id="eg-alle" onClick={() => aendern({ wahl: null })}>Alle</button>
               <button className="linkknopf" id="eg-keine" onClick={() => aendern({ wahl: [] })}>Keine</button></div>
-            {kanten.length === 0 && <p className="klein">Keine Kanten. In Bohren / Fräsen eine Bearbeitung einstellen.</p>}
+            {kanten.length === 0 && <p className="klein">{g.quelle === "step" ? "Keine Kanten. Oben eine STEP-Datei wählen." : "Keine Kanten. In Bohren / Fräsen eine Bearbeitung einstellen."}</p>}
             {kanten.map((k) => (
               <label key={k.id} className="eg-kante-zeile">
                 <input type="checkbox" data-egkante={k.id} checked={istGewaehlt(k.id)} onChange={() => umschalten(k.id)} /> {k.name}
@@ -179,10 +238,11 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
   const R = Math.max(0.5, b.teilD / 2);
   // Wie weit das Teil nach hinten gezeichnet wird
   const tief = useMemo(() => {
+    if (b.laenge) return b.laenge + 1;
     let t = 0;
     kanten.forEach((k) => k.punkte.forEach((p) => { t = Math.max(t, b.zStirn - p.E[2]); }));
     return Math.max(t * 1.3 + 2, b.teilD * 0.8, 6);
-  }, [kanten, b.zStirn, b.teilD]);
+  }, [kanten, b.zStirn, b.teilD, b.laenge]);
   const zm = b.zStirn - tief / 2;
   const proj = (p) => {
     const ca = Math.cos(dreh.a), sa = Math.sin(dreh.a), cb = Math.cos(dreh.b), sb = Math.sin(dreh.b);
@@ -237,9 +297,14 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
         }}
         onPointerUp={() => { setTimeout(() => { ziehen.current = null; }, 0); }}
         onWheel={(e) => setZoom((z) => Math.max(0.4, Math.min(20, z * (e.deltaY < 0 ? 1.15 : 1 / 1.15))))}>
-        <path d={kreis(b.zStirn)} className="eg-teil" />
-        <path d={kreis(b.zStirn - tief)} className="eg-teil eg-teil--hinten" />
-        {umriss.map((d, i) => <path key={i} d={d} className="eg-teil" />)}
+        {b.draht
+          // STEP: das ganze Drahtmodell, dreht in der Simulation mit
+          ? <path d={b.draht.map((pts) => linieT(pts)).join("")} className="eg-draht" id="eg-draht" />
+          : <>
+            <path d={kreis(b.zStirn)} className="eg-teil" />
+            <path d={kreis(b.zStirn - tief)} className="eg-teil eg-teil--hinten" />
+            {umriss.map((d, i) => <path key={i} d={d} className="eg-teil" />)}
+          </>}
         {marken.map((d, i) => <path key={"m" + i} d={d} className={"eg-marke" + (i ? "" : " eg-marke--null")} />)}
         <path d={linie([[0, 0, b.zStirn + 2], [0, 0, b.zStirn - tief - 2]])} className="eg-achse" />
         {kanten.map((k) => <path key={k.id} d={linieT(k.punkte.map((p) => p.E), k.geschlossen)}

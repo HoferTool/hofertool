@@ -11727,3 +11727,11 @@ body.dunkel .eg-sk__text, body.dunkel .eg-sk__titel { fill: #fff; }
 .eg-marke { fill: none; stroke: var(--text-blass, #8a939d); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .eg-marke--null { stroke: #e08a00; stroke-width: 2.2; }
 #eg-sim-c { font-variant-numeric: tabular-nums; min-width: 4.5em; }
+
+/* Entgraten, Kanten aus STEP-Datei (seit 1.389.0) */
+.eg-quelle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 10px; }
+.eg-haken { display: inline-flex; align-items: center; gap: 6px; }
+.eg-draht { fill: none; stroke: #b8c2cc; stroke-width: 0.8; vector-effect: non-scaling-stroke; }
+body.dunkel .eg-draht { stroke: #4b5661; }
+.eg-fehler { color: #c62828; }
+body.dunkel .eg-fehler { color: #ff8a80 !important; }
