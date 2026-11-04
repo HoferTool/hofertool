@@ -56,7 +56,7 @@ export function projektOhneFoto(w) {
   const st = w.scanState();
   return {
     app: "werkzeug-konturscanner", version: 1, saved: new Date().toISOString(), name: w.baseName(), scanId: st.scanId,
-    settings: w.settingsObj(), sample: st.sample, corners: st.corners, autoCorners: st.autoCorners,
+    settings: w.settingsObj(), sample: st.sample, leer: !!st.leer, corners: st.corners, autoCorners: st.autoCorners,
     edit: { strokes: st.edit.strokes, grips: st.edit.grips }, pointEdits: st.edit.pointEdits, result: st.result,
   };
 }

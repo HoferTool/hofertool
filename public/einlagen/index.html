@@ -3,11 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Einlagen Gen</title>
+<title>Einlagen Generator</title>
 <!--
-  Einlagen Gen (created by Ecker): Werkzeug-Konturscanner von Ecker,
-  Stand v12, unverändert übernommen (Wunsch Patrick 30. Oktober
-  2026). Die App zeigt diese Seite im Reiter „Einlagen Gen“ in einem
+  Einlagen Generator (created by Ecker): Werkzeug-Konturscanner von Ecker,
+  Stand v12 (Wunsch Patrick 30. Oktober 2026), seit 1.391.0 erweitert
+  (Wunsch Patrick 4. November 2026): leeres A4 statt Beispielblatt,
+  Linien und Bögen mit Massen zeichnen, Aufmass je Werkzeug, Beschriftung,
+  konische Einlage und schräge Taschen, Export als 3MF, neue Leisten.
+  Die App zeigt diese Seite im Reiter „Einlagen Generator“ in einem
   Rahmen (src/seiten/Einlagen.jsx). Geändert sind nur: Schrift und
   Farben wie die App, hell oder dunkel wie die App, earcut liegt
   daneben statt aus dem Netz, damit es auch offline geht.
@@ -301,12 +304,40 @@ select, input[type="number"], input[type="text"] { border-radius: 6px; }
 }
 html, body { margin: 0; }
 body { font-variant-numeric: tabular-nums; }
+/* Werkzeugleisten (Wunsch Patrick 4. November 2026: „modern und instinktiv“):
+   Symbol über der Beschriftung, Gruppen als weiche Kacheln, darunter eine
+   Leiste nur mit dem, was zum gewählten Werkzeug gehört */
+header.bar { align-items: center; }
+.brand .sub { margin: 2px 0 0; font-size: .72rem; }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn.ghost:hover:not(:disabled) { color: var(--fg); border-color: var(--line); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.toolbar .spacer { flex: 1; }
+.toolbar .seg { border-radius: 12px; padding: 3px; gap: 2px; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.toolbar .tool, .toolbar .ltool, .toolbar .vtool {
+  flex-direction: column; justify-content: center; gap: 4px; min-width: 64px; padding: 7px 8px 6px;
+  border-radius: 9px; font: 600 .72rem/1 var(--font-body); border: 0 !important;
+}
+.toolbar .tool svg, .toolbar .ltool svg, .toolbar .vtool svg { width: 20px; height: 20px; }
+.toolbar .tool:hover:not(:disabled):not([aria-pressed="true"]), .toolbar .ltool:hover:not([aria-pressed="true"]), .toolbar .vtool:hover:not([aria-pressed="true"]) { background: var(--soft); }
+.tool:disabled { opacity: .38; cursor: not-allowed; }
+.ctxbar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 10px; background: var(--soft); border-radius: 12px; font-size: .84rem; }
+.ctxbar select { width: auto; }
+.ctxbar.addbar { background: transparent; padding: 0; }
+.drawtools { flex-basis: 100%; display: grid; gap: 7px; }
+.drawrow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.drawrow label { display: inline-flex; gap: 5px; align-items: center; }
+.drawrow input[type="number"] { width: 72px; }
+.drawlbl { font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); min-width: 48px; font-weight: 600; }
+.tool.flat { padding: 6px 10px; }
+.contents { display: contents; }
+@media (max-width: 640px) { .toolbar .tool, .toolbar .ltool, .toolbar .vtool { min-width: 52px; padding: 6px 5px; } header.bar .stepper { order: 5; flex-basis: 100%; } }
 </style>
 </head>
 <body>
 <div class="app">
   <header class="bar">
-    <div><h1>Einlagen Gen</h1><p class="sub">created by Ecker · Werkzeug-Konturscanner</p></div>
+    <div class="brand"><h1>Einlagen Generator</h1><p class="sub">created by Ecker</p></div>
     <nav class="stepper" role="tablist" aria-label="Arbeitsschritte">
       <button class="step" id="stepPhoto" role="tab" aria-selected="false" type="button"><span class="n">1</span>Foto &amp; Blatt</button>
       <button class="step" id="stepContour" role="tab" aria-selected="true" type="button"><span class="n">2</span>Kontur</button>
@@ -314,16 +345,14 @@ body { font-variant-numeric: tabular-nums; }
     </nav>
     <div hidden><button id="modeScan" type="button"></button><button id="modeLayout" type="button"></button></div>
     <div class="actions" id="scanActions">
-      <label class="btn primary" for="camInput">Foto aufnehmen</label>
-      <label class="btn" for="quickInput">Schnellerfassung</label>
-      <label class="btn" for="fileInput">Bild öffnen</label>
-      <button class="btn" id="sampleBtn" type="button">Beispiel</button>
-      <button class="btn newproj" type="button">Neues Projekt</button>
+      <label class="btn primary" for="camInput"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Foto aufnehmen</label>
+      <label class="btn" for="fileInput"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Bild öffnen</label>
+      <button class="btn" id="blankBtn" type="button" title="Leeres Blatt, um selbst mit Massen zu zeichnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg>Leeres Blatt</button>
       <input id="camInput" type="file" accept="image/*" capture="environment" hidden>
-      <input id="quickInput" type="file" accept="image/*" capture="environment" hidden>
       <input id="fileInput" type="file" accept="image/*" hidden>
       <input id="projInput" type="file" accept=".json,application/json" hidden>
     </div>
+    <button class="btn ghost newproj" type="button">Neues Projekt</button>
   </header>
 
   <div class="layout" id="scanMode">
@@ -338,7 +367,7 @@ body { font-variant-numeric: tabular-nums; }
           <button class="btn small" id="rotateBtn" type="button">Blatt drehen</button>
         </div>
       </div>
-      <div class="edittools" id="editTools">
+      <div class="toolbar" id="editTools">
         <div class="seg" role="group" aria-label="Ansicht">
           <button class="tool" type="button" data-tool="pan" aria-pressed="true" title="Ansehen und verschieben"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11V4a1.5 1.5 0 0 1 3 0v7M14 11V5.5a1.5 1.5 0 0 1 3 0V14a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3 14.5a1.5 1.5 0 0 1 2.4-1.8L8 15"/></svg>Ansehen</button>
         </div>
@@ -348,23 +377,49 @@ body { font-variant-numeric: tabular-nums; }
           <button class="tool" type="button" data-tool="smooth" aria-pressed="false" title="Wellige Stellen glätten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12c3-6 6 6 9 0s6 6 9 0"/></svg>Glätten</button>
         </div>
         <div class="seg" role="group" aria-label="Fläche malen">
-          <button class="tool" type="button" data-tool="add" aria-pressed="false" title="Fehlende Stellen hinzumalen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg>Hinzufügen</button>
-          <button class="tool" type="button" data-tool="erase" aria-pressed="false" title="Schatten und Fehler wegmalen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M8 12h8"/></svg>Entfernen</button>
+          <button class="tool" type="button" data-tool="add" aria-pressed="false" title="Fehlende Stellen hinzumalen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg>Malen +</button>
+          <button class="tool" type="button" data-tool="erase" aria-pressed="false" title="Schatten und Fehler wegmalen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M8 12h8"/></svg>Malen −</button>
         </div>
-        <div class="seg" role="group" aria-label="Fläche zeichnen"><button class="tool" type="button" data-tool="area" aria-pressed="false" title="Fläche aus Linien zeichnen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17l3-11 10 3 1 9z"/></svg>Fläche</button></div>
-        <div class="seg" role="group" aria-label="Griffmulde">
+        <div class="seg" role="group" aria-label="Zeichnen und Griff">
+          <button class="tool" type="button" data-tool="area" aria-pressed="false" title="Formen mit Massen zeichnen: Linien, Bögen, Rechteck, Kreis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16z"/><path d="M14 7l3 3"/></svg>Zeichnen</button>
           <button class="tool" type="button" data-tool="grip" aria-pressed="false" title="Griffmulde setzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>Griff</button>
         </div>
-        <select id="brush" aria-label="Pinselgröße" hidden><option value="2">Ø 2 mm</option><option value="4" selected>Ø 4 mm</option><option value="8">Ø 8 mm</option><option value="15">Ø 15 mm</option><option value="30">Ø 30 mm</option></select>
+        <span class="spacer"></span>
+        <div class="seg" role="group" aria-label="Rückgängig">
+          <button class="tool" id="undoBtn" type="button" disabled title="Rückgängig (Strg + Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>Zurück</button>
+        </div>
+      </div>
+      <div class="ctxbar" id="ctxBar">
+        <select id="brush" aria-label="Pinselgrösse" hidden><option value="2">Pinsel Ø 2 mm</option><option value="4" selected>Pinsel Ø 4 mm</option><option value="8">Pinsel Ø 8 mm</option><option value="15">Pinsel Ø 15 mm</option><option value="30">Pinsel Ø 30 mm</option></select>
         <button class="btn small" id="delPtBtn" type="button" hidden disabled>Punkt löschen</button>
         <button class="btn small" id="delRingBtn" type="button" hidden disabled>Kontur löschen</button>
-        <button class="btn small" id="clearBrushBtn" type="button" disabled>Pinselstriche verwerfen</button>
-        <button class="btn small" id="undoBtn" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>Rückgängig</button>
-        <div class="griptools" id="areaTools" hidden>
-          <input id="areaMode" type="hidden" value="add"><div class="seg" role="group" aria-label="Wirkung der Fläche"><button class="tool" type="button" data-area="add" aria-pressed="true">Hinzufügen</button><button class="tool" type="button" data-area="cut" aria-pressed="false">Entfernen</button></div>
-          <button class="btn small" id="areaClose" type="button" disabled>Fläche schließen</button>
-          <button class="btn small" id="areaBack" type="button" disabled>Letzten Punkt entfernen</button>
-          <button class="btn small" id="areaCancel" type="button" disabled>Abbrechen</button>
+        <div class="drawtools" id="areaTools" hidden>
+          <div class="drawrow">
+            <input id="areaMode" type="hidden" value="add"><div class="seg" role="group" aria-label="Wirkung"><button class="tool flat" type="button" data-area="add" aria-pressed="true">Werkzeug</button><button class="tool flat" type="button" data-area="cut" aria-pressed="false">Ausschneiden</button></div>
+            <button class="btn small" id="areaClose" type="button" disabled>Form schliessen</button>
+            <button class="btn small" id="areaBack" type="button" disabled>Letztes Stück weg</button>
+            <button class="btn small" id="areaCancel" type="button" disabled>Abbrechen</button>
+          </div>
+          <div class="drawrow">
+            <span class="drawlbl">Linie</span>
+            <label>Länge <input id="dLen" type="number" min="0.1" max="1000" step="0.5" value="50"> mm</label>
+            <label>Winkel <input id="dAng" type="number" min="-360" max="360" step="5" value="0"> °</label>
+            <button class="btn small" id="dLine" type="button">+ Linie</button>
+          </div>
+          <div class="drawrow">
+            <span class="drawlbl">Bogen</span>
+            <label>Radius <input id="dRad" type="number" min="0.5" max="1000" step="0.5" value="10"> mm</label>
+            <label>Winkel <input id="dArc" type="number" min="-359" max="359" step="5" value="90"> °</label>
+            <button class="btn small" id="dArcBtn" type="button">+ Bogen</button>
+          </div>
+          <div class="drawrow">
+            <span class="drawlbl">Form</span>
+            <label>Rechteck <input id="dRw" type="number" min="1" max="1000" step="0.5" value="60"> × <input id="dRh" type="number" min="1" max="1000" step="0.5" value="30"> mm</label>
+            <label>Ecken R <input id="dRr" type="number" min="0" max="500" step="0.5" value="0"> mm</label>
+            <button class="btn small" id="dRect" type="button">+ Rechteck</button>
+            <label>Kreis Ø <input id="dCd" type="number" min="1" max="1000" step="0.5" value="20"> mm</label>
+            <button class="btn small" id="dCirc" type="button">+ Kreis</button>
+          </div>
         </div>
         <div class="griptools" id="gripTools" hidden>
           <select id="gripShape" aria-label="Form der Griffmulde"><option value="slot">Nut (Langloch)</option><option value="oval">Oval</option></select>
@@ -374,12 +429,12 @@ body { font-variant-numeric: tabular-nums; }
           <label class="check"><input id="gripSnap" type="checkbox" checked> An Kontur ausrichten</label>
           <button class="btn small" id="delGripBtn" type="button" disabled>Griff löschen</button>
         </div>
+        <button class="btn small" id="clearBrushBtn" type="button" disabled>Gemaltes und Gezeichnetes verwerfen</button>
       </div>
       <p class="edithint" id="editHint"></p>
       <div class="viewwrap">
         <div class="viewer" id="viewer"><canvas id="view" aria-label="Arbeitsfläche"></canvas></div>
         <div class="busy" id="busy" hidden>Berechne …</div>
-        <div class="badge" id="sampleBadge" hidden>Beispielfoto</div>
         <div class="zoom" id="zoomBox">
           <button type="button" id="zoomOut" aria-label="Verkleinern">−</button>
           <button type="button" id="zoomFit" aria-label="Ganzes Blatt zeigen">100 %</button>
@@ -473,23 +528,28 @@ body { font-variant-numeric: tabular-nums; }
 
   <div class="layout" id="layoutMode" hidden>
     <section class="stage">
-      <div class="edittools">
-        <div class="seg" role="group" aria-label="Darstellung"><button class="vtool" type="button" data-lview="2d" aria-pressed="true">2D</button><button class="vtool" type="button" data-lview="3d" aria-pressed="false">3D</button></div>
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Darstellung"><button class="vtool" type="button" data-lview="2d" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>2D</button><button class="vtool" type="button" data-lview="3d" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>3D</button></div>
         <div class="seg" role="group" aria-label="Bearbeitungsmodus">
-          <button class="ltool" type="button" data-lmode="move" aria-pressed="true">Verschieben</button>
-          <button class="ltool" type="button" data-lmode="grip" aria-pressed="false">Griffmulde</button>
-          <button class="ltool" type="button" data-lmode="key" aria-pressed="false">Nagel</button>
+          <button class="ltool" type="button" data-lmode="move" aria-pressed="true" title="Werkzeuge und Beschriftung verschieben und drehen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>Verschieben</button>
+          <button class="ltool" type="button" data-lmode="grip" aria-pressed="false" title="Griffmulden an die Taschen setzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>Griffmulde</button>
+          <button class="ltool" type="button" data-lmode="key" aria-pressed="false" title="Nagellöcher an der Rückseite verschieben"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M12 12v9"/></svg>Nagel</button>
         </div>
-        <button class="btn small primary" id="layAddScan" type="button">Aktuellen Scan einfügen</button>
-        <label class="btn small" for="quickInput">Schnellerfassung</label>
-        <label class="btn small" for="layImport">Werkzeuge / Projekte importieren</label>
+        <div class="seg" role="group" aria-label="Auswahl">
+          <button class="tool" id="layRot" type="button" disabled title="Um 90° drehen (Taste R)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Drehen</button>
+          <button class="tool" id="layDup" type="button" disabled title="Kopie einfügen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>Kopie</button>
+          <button class="tool" id="layDel" type="button" disabled title="Aus der Einlage entfernen (Entf)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Entfernen</button>
+        </div>
+        <span class="spacer"></span>
+        <div class="seg" role="group" aria-label="Rückgängig">
+          <button class="tool" id="layUndo" type="button" disabled title="Rückgängig (Strg + Z)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>Zurück</button>
+        </div>
+      </div>
+      <div class="ctxbar addbar">
+        <button class="btn small primary" id="layAddScan" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Aktuellen Scan einfügen</button>
+        <button class="btn small" id="layAddText" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg>Beschriftung</button>
+        <label class="btn small" for="layImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Werkzeuge importieren</label>
         <input id="layImport" type="file" accept=".json,application/json" multiple hidden>
-        <button class="btn small" id="layRot" type="button" disabled>Drehen 90°</button>
-        <button class="btn small" id="layToolSave" type="button" disabled>Werkzeug speichern</button>
-        <button class="btn small" id="layDup" type="button" disabled>Duplizieren</button>
-        <button class="btn small" id="layDel" type="button" disabled>Entfernen</button>
-        <button class="btn small" id="layUndo" type="button" disabled>Rückgängig</button>
-        <button class="btn small newproj" type="button">Neues Projekt</button>
         <div class="griptools" id="layGripTools" hidden>
           <select id="lgShape" aria-label="Form der Griffmulde"><option value="slot">Nut (Langloch)</option><option value="oval">Oval</option></select>
           <label>Länge <input id="lgL" type="number" min="4" max="300" step="1" value="40"> mm</label>
@@ -520,21 +580,39 @@ body { font-variant-numeric: tabular-nums; }
         </div>
       </details>
       <details class="sec" open>
-        <summary>Ausgewähltes Werkzeug</summary>
+        <summary id="itTitle">Auswahl</summary>
         <div class="secbody">
-          <div class="row"><label for="itName">Name</label><input id="itName" type="text" maxlength="60" autocomplete="off" disabled></div>
+          <p class="help" id="itNone">Ein Werkzeug oder eine Beschriftung in der Einlage antippen.</p>
+          <div class="contents" id="itTextBox" hidden>
+            <div class="row"><label for="itTxt">Text</label><input id="itTxt" type="text" maxlength="80" autocomplete="off"></div>
+            <div class="row"><label for="itFont">Schrift</label><select id="itFont"></select></div>
+            <div class="row"><label for="itTh">Schrifthöhe</label><div class="unit"><input id="itTh" type="number" min="2" max="200" step="0.5"><span>mm</span></div></div>
+            <label class="check"><input id="itBold" type="checkbox"> Fett</label>
+            <p class="help">Die Schrifthöhe ist die Höhe eines Grossbuchstabens. Die Beschriftung wird in die Oberseite vertieft, „Tiefe ab Oberkante“ ist die Tiefe der Schrift (für den 3D-Druck 0,6 bis 1,5 mm).</p>
+          </div>
+          <div class="row" id="itNameRow"><label for="itName">Name</label><input id="itName" type="text" maxlength="60" autocomplete="off" disabled></div>
           <div class="row"><label for="itD">Tiefe ab Oberkante</label><div class="unit"><input id="itD" type="number" min="0" max="200" step="0.5" disabled><span>mm</span></div></div>
           <div class="row"><label for="itX">Mitte X</label><div class="unit"><input id="itX" type="number" step="0.5" disabled><span>mm</span></div></div>
           <div class="row"><label for="itY">Mitte Y</label><div class="unit"><input id="itY" type="number" step="0.5" disabled><span>mm</span></div></div>
           <div class="row"><label for="itA">Winkel</label><div class="unit"><input id="itA" type="number" min="-180" max="180" step="1" disabled><span>°</span></div></div>
+          <div class="contents" id="itToolBox">
+            <div class="row"><label for="itOff">Aufmass zur erfassten Kontur</label><div class="unit"><input id="itOff" type="number" min="-5" max="10" step="0.1" disabled><span>mm</span></div></div>
+            <p class="help">Verschiebt die Taschenwand gegenüber dem Original, zum Beispiel +1 mm für mehr Luft oder −0,5 mm für einen strammeren Sitz. Gilt zusätzlich zum Spaltmass beim Erfassen.</p>
+            <div class="row"><label for="itLean">Konisch zur dicken Seite</label><div class="unit"><input id="itLean" type="number" min="0" max="45" step="1" disabled><span>°</span></div></div>
+            <p class="help">Die Tasche läuft schräg in die Einlage, mit der Tiefe zur dicken Seite hin (Einstellung bei „Nagel (Schlüsselloch)“, sonst nach unten). Hängt die Einlage an der Wand, rutscht das Werkzeug so nach hinten statt heraus. Gestrichelt: Lage des Taschenbodens.</p>
           <div class="row"><label for="itE">Oberkante der Tasche</label><select id="itE" disabled><option value="none">Scharfkantig</option><option value="chamfer">Kantenbruch (45°)</option><option value="round">Verrundung</option></select></div>
           <div class="row"><label for="itEs">Größe der Kante</label><div class="unit"><input id="itEs" type="number" min="0.2" max="10" step="0.1" disabled><span>mm</span></div></div>
           <p class="help">Bricht oder rundet die Taschenkante an der Oberseite, damit sich das Werkzeug leichter greifen lässt. In 3D-Ansicht und STL entsteht sie aus feinen Stufen (ca. 0,25 mm). Die Größe ist auf Tiefe minus 0,2 mm begrenzt.</p>
           <div class="row"><label for="itF">Boden der Tasche</label><select id="itF" disabled><option value="flat">Flach</option><option value="round">Rund (Rinne)</option></select></div>
           <div class="row"><label for="itFr">Radius der Rinne</label><div class="unit"><input id="itFr" type="number" min="1" max="60" step="0.5" disabled><span>mm</span></div></div>
           <p class="help">Rinne für runde Werkzeuge wie Schraubenzieher oder Bohrer: Die Tasche wird zur Mitte hin tiefer, wie eine Halbrinne. Der Radius entspricht etwa dem halben Durchmesser des dicksten Teils (wird beim Einschalten vorgeschlagen). „Tiefe ab Oberkante“ ist die tiefste Stelle, Tiefe minus Radius ist die Wandhöhe am Rand. Dünnere Teile liegen tiefer in der Rinne. Ersetzt Kantenbruch und Verrundung. Werkzeuge mit Bohrung behalten einen flachen Boden.</p>
-          <button class="btn small" id="layDepthAll" type="button" disabled>Diese Tiefe für alle übernehmen</button>
-          <button class="btn small" id="layEdgeAll" type="button" disabled>Diese Kante für alle übernehmen</button>
+          </div>
+          <div class="btnrow">
+            <button class="btn small" id="layDepthAll" type="button" disabled>Tiefe für alle</button>
+            <button class="btn small" id="layOffAll" type="button" disabled>Aufmass für alle</button>
+            <button class="btn small" id="layLeanAll" type="button" disabled>Konisch für alle</button>
+            <button class="btn small" id="layEdgeAll" type="button" disabled>Kante für alle</button>
+          </div>
         </div>
       </details>
       <details class="sec" open>
@@ -542,11 +620,15 @@ body { font-variant-numeric: tabular-nums; }
         <div class="secbody">
           <div class="row"><label for="layName">Name</label><input id="layName" type="text" value="einlage" maxlength="60" autocomplete="off"></div>
           <div class="btnrow">
-            <button class="btn primary" id="layExportStl" type="button">Ganze Einlage als STL</button>
+            <button class="btn primary" id="layExport3mf" type="button">3MF</button>
+            <button class="btn primary" id="layExportStl" type="button">STL</button>
             <button class="btn" id="layExportSvg" type="button">SVG</button>
           </div>
-          <p class="help">Die STL enthält den kompletten Grundkörper mit allen Taschen in ihrer Tiefe und kann direkt in den Slicer. Erlaubt die Umgebung keine .stl-Dateien, kommt sie als ZIP. Im SVG sind die Taschen nach Tiefe gruppiert.</p>
-          <button class="btn small" id="layToolsZip" type="button">Alle Werkzeuge einzeln speichern (ZIP)</button>
+          <p class="help">3MF und STL enthalten den kompletten Grundkörper mit allen Taschen und der Beschriftung und gehen direkt in den Slicer (3MF ist kleiner und kennt die Masseinheit mm). Erlaubt die Umgebung keine .stl-Dateien, kommt sie als ZIP. Im SVG sind die Taschen nach Tiefe gruppiert.</p>
+          <div class="btnrow">
+            <button class="btn small" id="layToolSave" type="button" disabled>Gewähltes Werkzeug als Datei</button>
+            <button class="btn small" id="layToolsZip" type="button">Alle als ZIP</button>
+          </div>
           <div class="btnrow">
             <button class="btn small" id="laySave" type="button">Einlage speichern</button>
             <label class="btn small" for="layOpen">Einlage öffnen</label>
@@ -960,17 +1042,17 @@ function runWarp() { if (!st.srcData) return; work(() => { if (st.result) pushUn
 function runSegment(undoDone) { if (!st.warp) return; work(() => { if (undoDone !== true && st.result) pushUndo(); discardPointEdits(); doSegment(); render(); renderInfo(); updateEditUI(); }); }
 
 const newScanId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-function setSource(drawable, w, h, sample) {
-  st.scanId = newScanId();
+function setSource(drawable, w, h, sample, opts) {
+  opts = opts || {};
+  st.scanId = newScanId(); st.leer = !!opts.leer;
   const f = Math.min(1, 3200 / Math.max(w, h)), c = document.createElement("canvas");
   c.width = Math.round(w * f); c.height = Math.round(h * f);
   const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(drawable, 0, 0, c.width, c.height);
   st.srcCanvas = c; st.srcData = g.getImageData(0, 0, c.width, c.height); st.sw = c.width; st.sh = c.height; st.sample = sample;
   Object.assign(st.edit, { strokes: [], cur: null, sel: null, dragPt: false, undo: [], pointEdits: 0, hover: null, grips: [], gsel: null, gdrag: null, smoothing: false, multi: new Set(), rect: null, lineA: null, poly: null });
   st.zoom = 1; $("zoomFit").textContent = "100 %";
-  $("sampleBadge").hidden = !sample;
   work(() => {
-    const det = detectPaper();
+    const det = opts.corners || detectPaper();
     st.detected = !!det;
     st.autoCorners = det || [[st.sw * 0.15, st.sh * 0.1], [st.sw * 0.85, st.sh * 0.1], [st.sw * 0.85, st.sh * 0.9], [st.sw * 0.15, st.sh * 0.9]];
     st.corners = st.autoCorners.map(p => p.slice());
@@ -1028,6 +1110,14 @@ function render() {
     return;
   }
   const w = st.warp; g.drawImage(w.canvas, 0, 0);
+  if (st.leer) { // Raster auf dem leeren Blatt: alle 10 mm fein, alle 50 mm kräftiger (nur Anzeige)
+    g.save(); g.scale(w.ppm, w.ppm); const px = 1 / (s * w.ppm);
+    [[10, "rgba(29,91,192,.09)"], [50, "rgba(29,91,192,.22)"]].forEach(([d, col]) => {
+      g.beginPath(); for (let x = d; x < w.W; x += d) { g.moveTo(x, 0); g.lineTo(x, w.H); } for (let y = d; y < w.H; y += d) { g.moveTo(0, y); g.lineTo(w.W, y); }
+      g.lineWidth = px; g.strokeStyle = col; g.stroke();
+    });
+    g.restore();
+  }
   if (!st.result) return;
   g.save(); g.scale(w.ppm, w.ppm); const px = 1 / (s * w.ppm);
   const path = loops => { const p2 = new Path2D(); for (const l of loops) { p2.moveTo(l[0][0], l[0][1]); for (let i = 1; i < l.length; i++) p2.lineTo(l[i][0], l[i][1]); p2.closePath(); } return p2; };
@@ -1061,8 +1151,20 @@ function drawEditOverlay(g, px, accent, contour, hole) {
     g.beginPath(); pp.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]));
     if (pp.length > 2) { g.save(); g.globalAlpha = 0.18; g.fillStyle = col; g.fill(); g.restore(); }
     g.stroke();
-    if (e.hover) { const l = pp[pp.length - 1]; g.setLineDash([4 * px, 3 * px]); g.beginPath(); g.moveTo(l[0], l[1]); g.lineTo(e.hover[0], e.hover[1]); g.stroke(); g.setLineDash([]); }
-    pp.forEach((p, i) => { const h = (i ? 4 : 7) * px; g.fillStyle = i ? "#fff" : col; g.fillRect(p[0] - h, p[1] - h, 2 * h, 2 * h); g.lineWidth = 1.2 * px; g.strokeStyle = col; g.strokeRect(p[0] - h, p[1] - h, 2 * h, 2 * h); });
+    const tag = (t, x, y) => { g.font = `600 ${11 * px}px system-ui, sans-serif`; const w = g.measureText(t).width; g.fillStyle = "rgba(255,255,255,.93)"; g.fillRect(x - w / 2 - 3 * px, y - 8 * px, w + 6 * px, 14 * px); g.fillStyle = "#17201C"; g.fillText(t, x - w / 2, y + 3 * px); };
+    if (e.hover) {
+      const l = pp[pp.length - 1], q = snapPt(l, e.hover); g.setLineDash([4 * px, 3 * px]); g.beginPath(); g.moveTo(l[0], l[1]); g.lineTo(q[0], q[1]); g.stroke(); g.setLineDash([]);
+      if (dist(l, q) > 0.5) tag(`${de(dist(l, q))} mm · ${de(mathAng(l, q), 0)}°`, q[0], q[1] - 14 * px);
+    }
+    pp.forEach((p, i) => { const h = (i ? 2.5 : 6) * px; if (i && (!e.poly.segs || i === pp.length - 1 || pp.length < 40)) { g.fillStyle = "#fff"; g.fillRect(p[0] - h, p[1] - h, 2 * h, 2 * h); g.lineWidth = 1.2 * px; g.strokeStyle = col; g.strokeRect(p[0] - h, p[1] - h, 2 * h, 2 * h); } else if (!i) { g.fillStyle = col; g.fillRect(p[0] - h, p[1] - h, 2 * h, 2 * h); } });
+    // Mass jedes Stücks: Linie mit Länge, Bogen mit Radius und Winkel
+    let k = 0;
+    (e.poly.segs || []).forEach(sg => {
+      const a = pp[k - 1], z = pp[k + sg.n - 1], mid = pp[k + Math.floor((sg.n - 1) / 2)]; k += sg.n;
+      if (!a || !z) return;
+      if (sg.t === "a") tag(`R ${de(sg.r)} · ${de(Math.abs(sg.sw), 0)}°`, mid[0], mid[1] - 10 * px);
+      else if (dist(a, z) > 1) tag(`${de(dist(a, z))}`, (a[0] + z[0]) / 2, (a[1] + z[1]) / 2 - 10 * px);
+    });
     g.restore();
   }
   if (e.rect) {
@@ -1128,7 +1230,8 @@ function renderInfo() {
   $("thrVal").textContent = (p.thr > 0 ? "+" : "") + p.thr;
   const n = r ? r.tools.length : 0, nh = r ? r.tools.reduce((s, t) => s + t.holes.length, 0) : 0;
   $("tbCount").textContent = `${n} außen · ${nh} innen`;
-  let msg = st.detected
+  let msg = st.leer ? `<strong>Leeres Blatt</strong> · ${p.paper} ${w.land ? "quer" : "hoch"} · eigene Formen mit „Zeichnen“ (Raster 10 mm)`
+    : st.detected
     ? `<strong>Blatt erkannt</strong> · ${p.paper} ${w.land ? "quer" : "hoch"} · Schwelle ${r ? r.T : "–"} (auto ${r ? r.auto : "–"})`
     : `<strong>Kein Blatt gefunden.</strong> Ziehe die vier Kreise im Tab „Blatt“ auf die Blattecken.`;
   const ns = st.edit.strokes.length, np = st.edit.pointEdits;
@@ -1136,8 +1239,8 @@ function renderInfo() {
   if (np) msg += ` · ${np} Punktänderung${np > 1 ? "en" : ""}`;
   const ng = st.edit.grips.length;
   if (ng) msg += ` · ${ng} Griffmulde${ng > 1 ? "n" : ""}`;
-  if (r && !n) msg += ` · <strong>Keine Kontur gefunden.</strong> Schwelle nach links schieben.`;
-  setStatus(msg, !st.detected || (r && !n));
+  if (r && !n && !st.leer) msg += ` · <strong>Keine Kontur gefunden.</strong> Schwelle nach links schieben.`;
+  setStatus(msg, !st.detected || (r && !n && !st.leer));
   if (!r || !n) { $("results").innerHTML = ""; return; }
   const rows = r.tools.map((t, i) => `<tr><td><span class="swatch"></span>${i + 1}</td><td class="num">${de(t.bb[2] - t.bb[0])} × ${de(t.bb[3] - t.bb[1])}</td><td class="num">${de((t.area - t.holeArea) / 100, 1)}</td><td class="num">${t.holes.length}</td></tr>`).join("");
   $("results").innerHTML = `<table><thead><tr><th>Nr.</th><th>Breite × Höhe (mm)</th><th>Fläche (cm²)</th><th>Innenkonturen</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -1145,7 +1248,7 @@ function renderInfo() {
 
 // ---------- Bearbeiten ----------
 const HINTS = {
-  area: "Nacheinander auf die Ecken der Fläche tippen. Zum Schließen den ersten Punkt noch einmal antippen oder „Fläche schließen“ drücken (am PC: Enter). Oben „Hinzufügen“ oder „Entfernen“ wählen: Die Fläche wird dem Werkzeug hinzugefügt oder genau so, wie gezeichnet, herausgeschnitten (auch mitten im Werkzeug, ohne Spaltmaß). Mit „Rückgängig“ oder „Pinselstriche verwerfen“ wieder entfernen.",
+  area: "Zeichnen: Ecken antippen (rastet alle 15° ein) oder unten Länge und Winkel eintippen und „+ Linie“ bzw. Radius und Winkel und „+ Bogen“ (Bogen schliesst tangential an, + = nach links, − = nach rechts; 0° = nach rechts, 90° = nach oben). Ohne Startpunkt beginnt es in der Blattmitte. Den ersten Punkt antippen oder „Form schliessen“ (Enter) macht die Form fertig. Rechteck und Kreis entstehen um einen einzeln getippten Punkt, sonst in der Blattmitte. „Werkzeug“ fügt die Form als Werkzeug dazu (mit Spaltmass), „Ausschneiden“ schneidet sie genau so heraus.",
   pan: "Ansehen: Mit + und − zoomen, im vergrößerten Bild wischen zum Verschieben. Zum Korrigieren oben ein Werkzeug wählen.",
   points: "Punkt ziehen verschiebt ihn. Tippen auf eine Linie fügt dort einen Punkt ein. Auf freier Fläche einen Rahmen aufziehen wählt mehrere Punkte aus. Mit „Punkte löschen“ entfernen, die Linie wird dann gerade.",
   line: "Ersten Punkt auf der Kontur antippen, dann den zweiten. Alle Punkte dazwischen werden entfernt und durch eine gerade Linie ersetzt. Tippen zwischen zwei Punkte setzt dort einen neuen.",
@@ -1326,20 +1429,86 @@ function lineTap(mm, e) {
   updateTool(t); ed.lineA = null; ed.hover = null; ed.pointEdits++;
   render(); renderInfo(); updateEditUI();
 }
+// Zeichnen mit Massen (Wunsch Patrick 4. November 2026: „eigene Striche und Bögen
+// sollen manuell eingezeichnet werden können mit Massen“). Eine Form besteht aus
+// Stücken: getippte Punkte, Linien mit Länge und Winkel, Bögen mit Radius und
+// Winkel (tangential an das Stück davor), dazu fertige Rechtecke und Kreise.
+// Winkel wie am Zeichenbrett: 0° nach rechts, 90° nach oben.
+const ANG = a => a * Math.PI / 180;
+const mathAng = (a, b) => { let d = -Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI; if (d <= -180) d += 360; return d; };
+function newPoly() { return { pts: [], segs: [], cut: $("areaMode").value === "cut" }; }
+function polyStart() {
+  const ed = st.edit; if (!ed.poly) ed.poly = newPoly();
+  if (!ed.poly.pts.length) { ed.poly.pts.push([st.warp.W / 2, st.warp.H / 2]); ed.poly.segs.push({ n: 1, t: "p" }); }
+  return ed.poly;
+}
+// Getippter Punkt rastet auf 15°-Schritte ein, wenn er bis 3° daneben liegt
+function snapPt(prev, mm) {
+  if (!prev) return mm;
+  const L = dist(prev, mm), a = mathAng(prev, mm), sn = Math.round(a / 15) * 15;
+  if (L < 0.5 || Math.abs(a - sn) > 3) return mm;
+  return [prev[0] + L * Math.cos(ANG(sn)), prev[1] - L * Math.sin(ANG(sn))];
+}
 function areaTap(mm, e) {
   const ed = st.edit;
-  if (!ed.poly) ed.poly = { pts: [], cut: $("areaMode").value === "cut" };
+  if (!ed.poly) ed.poly = newPoly();
   const pp = ed.poly.pts;
   if (pp.length >= 3 && dist(pp[0], mm) < hitRad(e, 12)) { areaClose(); return; }
-  pp.push(mm); ed.hover = mm; render(); updateEditUI();
+  const q = snapPt(pp[pp.length - 1], mm);
+  pp.push(q); ed.poly.segs.push({ n: 1, t: pp.length > 1 ? "l" : "p" }); ed.hover = mm; render(); updateEditUI();
+}
+function drawLine() {
+  if (!st.warp) return;
+  const pl = polyStart(), L = Math.max(0.1, num("dLen", 50)), a = ANG(num("dAng", 0)), p = pl.pts[pl.pts.length - 1];
+  pl.pts.push([p[0] + L * Math.cos(a), p[1] - L * Math.sin(a)]); pl.segs.push({ n: 1, t: "l" });
+  render(); updateEditUI();
+}
+function drawArc() {
+  if (!st.warp) return;
+  const pl = polyStart(), R = Math.max(0.5, num("dRad", 10)), sw = num("dArc", 90); if (!sw) return;
+  const P0 = pl.pts[pl.pts.length - 1], n = pl.pts.length;
+  // Richtung am Ende des letzten Stücks (Bildschirm, y nach unten), sonst der Winkel bei „Linie“
+  const th = n >= 2 ? Math.atan2(P0[1] - pl.pts[n - 2][1], P0[0] - pl.pts[n - 2][0]) : -ANG(num("dAng", 0));
+  const sg = sw > 0 ? 1 : -1, left = [Math.sin(th), -Math.cos(th)], C = [P0[0] + sg * R * left[0], P0[1] + sg * R * left[1]];
+  const f0 = Math.atan2(P0[1] - C[1], P0[0] - C[0]), A = ANG(Math.abs(sw)), k = Math.max(4, Math.ceil(Math.abs(sw) / 3));
+  for (let i = 1; i <= k; i++) { const f = f0 - sg * A * i / k; pl.pts.push([C[0] + R * Math.cos(f), C[1] + R * Math.sin(f)]); }
+  pl.segs.push({ n: k, t: "a", r: R, sw });
+  render(); updateEditUI();
+}
+// Mitte für Rechteck und Kreis: ein einzeln getippter Punkt, sonst die Blattmitte
+function shapeCenter() {
+  const pl = st.edit.poly;
+  if (pl && pl.pts.length === 1) { const c = pl.pts[0]; st.edit.poly = null; return c; }
+  return [st.warp.W / 2, st.warp.H / 2];
+}
+function addShape(pts) {
+  const ed = st.edit; pushUndo();
+  ed.strokes.push({ add: $("areaMode").value !== "cut", poly: pts }); ed.hover = null; runSegment(true);
+}
+function drawRect() {
+  if (!st.warp) return;
+  const w = Math.max(1, num("dRw", 60)), h = Math.max(1, num("dRh", 30)), r = Math.max(0, Math.min(num("dRr", 0), w / 2, h / 2)), c = shapeCenter(), pts = [];
+  const x0 = c[0] - w / 2, x1 = c[0] + w / 2, y0 = c[1] - h / 2, y1 = c[1] + h / 2;
+  if (r < 0.05) pts.push([x0, y0], [x1, y0], [x1, y1], [x0, y1]);
+  else [[x1 - r, y0 + r, -90], [x1 - r, y1 - r, 0], [x0 + r, y1 - r, 90], [x0 + r, y0 + r, 180]].forEach(([cx, cy, a0]) => {
+    for (let k = 0; k <= 12; k++) { const a = ANG(a0 + 90 * k / 12); pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+  });
+  addShape(pts);
+}
+function drawCirc() {
+  if (!st.warp) return;
+  const r = Math.max(0.5, num("dCd", 20) / 2), c = shapeCenter(), n = Math.max(24, Math.min(180, Math.ceil(r * 4))), pts = [];
+  for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n; pts.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]); }
+  addShape(pts);
 }
 function areaClose() {
   const ed = st.edit, pl = ed.poly; if (!pl || pl.pts.length < 3) return;
   pushUndo(); ed.strokes.push({ add: !pl.cut, poly: pl.pts }); ed.poly = null; ed.hover = null; runSegment(true);
 }
 function areaBack() {
-  const ed = st.edit; if (!ed.poly) return;
-  ed.poly.pts.pop(); if (!ed.poly.pts.length) ed.poly = null; render(); updateEditUI();
+  const ed = st.edit, pl = ed.poly; if (!pl) return;
+  const sg = pl.segs.pop(); pl.pts.splice(pl.pts.length - (sg ? sg.n : 1));
+  if (!pl.pts.length) ed.poly = null; render(); updateEditUI();
 }
 function areaCancel() { st.edit.poly = null; st.edit.hover = null; render(); updateEditUI(); }
 function hitPoint(mm, rad) {
@@ -1405,6 +1574,7 @@ function updateEditUI() {
   $("brush").hidden = !brush;
   $("gripTools").hidden = e.tool !== "grip";
   $("areaTools").hidden = e.tool !== "area";
+  $("clearBrushBtn").hidden = !(brush || e.tool === "area");
   const npoly = e.poly ? e.poly.pts.length : 0;
   $("areaClose").disabled = npoly < 3; $("areaBack").disabled = !npoly; $("areaCancel").disabled = !npoly;
   $("delGripBtn").disabled = e.gsel == null;
@@ -1416,6 +1586,7 @@ function updateEditUI() {
   $("view").style.touchAction = contour && e.tool === "pan" ? "pan-x pan-y pinch-zoom" : "none";
   $("view").style.cursor = contour && e.tool !== "pan" ? "crosshair" : "default";
   $("editHint").textContent = contour ? HINTS[e.tool] : "Kreise auf die Blattecken ziehen. Die dicke Linie markiert die Oberkante des Blatts.";
+  $("ctxBar").hidden = !contour || ![...$("ctxBar").children].some(c => !c.hidden);
 }
 function setZoom(z) {
   const vw = $("viewer"), cv = $("view"), w0 = cv.offsetWidth || 1, h0 = cv.offsetHeight || 1;
@@ -1566,7 +1737,7 @@ const PROJECT_APP = "werkzeug-konturscanner";
 function projData() {
   return {
     app: PROJECT_APP, version: 1, saved: new Date().toISOString(), name: baseName(), scanId: st.scanId,
-    settings: settingsObj(), sample: st.sample, corners: st.corners, autoCorners: st.autoCorners,
+    settings: settingsObj(), sample: st.sample, leer: !!st.leer, corners: st.corners, autoCorners: st.autoCorners,
     image: st.srcCanvas.toDataURL("image/jpeg", 0.92),
     edit: { strokes: st.edit.strokes, grips: st.edit.grips }, pointEdits: st.edit.pointEdits, result: st.result
   };
@@ -1585,7 +1756,7 @@ function projApply(proj, label, done) {
     const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
     st.srcCanvas = c; st.srcData = g.getImageData(0, 0, c.width, c.height); st.sw = c.width; st.sh = c.height;
     st.scanId = proj.scanId || newScanId();
-    st.sample = !!proj.sample; $("sampleBadge").hidden = !st.sample;
+    st.sample = !!proj.sample; st.leer = !!proj.leer;
     applySettings(proj.settings); saveSettings();
     const ed = proj.edit || {};
     Object.assign(st.edit, { strokes: Array.isArray(ed.strokes) ? ed.strokes : [], grips: Array.isArray(ed.grips) ? ed.grips : [],
@@ -1619,7 +1790,19 @@ function loadProject(file) {
 }
 $("projInput").addEventListener("change", e => { loadProject(e.target.files[0]); e.target.value = ""; });
 
-// ---------- Beispielfoto ----------
+// ---------- Leeres Blatt ----------
+// Wunsch Patrick 4. November 2026: „bei Foto und Blatt soll ein leeres A4-Blatt
+// sein, wenn man selber zeichnen will“. Das Blatt ist schon entzerrt (Ecken =
+// Bildecken), erkannt wird darauf nichts; Formen kommen mit „Zeichnen“ dazu.
+function blankSheet(still) {
+  const [a, b] = PAPERS[P().paper] || PAPERS.A4, k = 4, c = document.createElement("canvas");
+  c.width = Math.round(a * k); c.height = Math.round(b * k);
+  const g = c.getContext("2d"); g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height);
+  st.afterLoad = still ? null : () => { st.edit.tool = "area"; updateEditUI(); render(); toast("Leeres Blatt: mit „Zeichnen“ Linien, Bögen, Rechtecke und Kreise mit Massen einzeichnen."); };
+  setSource(c, c.width, c.height, false, { leer: true, corners: [[0, 0], [c.width, 0], [c.width, c.height], [0, c.height]] });
+}
+
+// ---------- Beispielfoto (nur noch für den Prüfstand, ohne Knopf) ----------
 function makeSample() {
   const ppm = 4, W = 210, H = 297, sc = document.createElement("canvas"); sc.width = W * ppm; sc.height = H * ppm;
   const g = sc.getContext("2d"); g.fillStyle = "#f4f3ee"; g.fillRect(0, 0, sc.width, sc.height);
@@ -1678,12 +1861,82 @@ const LAY_HINTS = {
   grip: "An die Kante eines Werkzeugs tippen setzt eine Griffmulde, ausgerichtet an der Kante. Mulde ziehen verschiebt sie, eckige Anfasser ändern Länge und Breite, der runde dreht. Die Mulde bekommt die Tiefe ihres Werkzeugs und wandert mit ihm mit."
 };
 // Werkzeugtasche plus Griffmulden als eine Kontur (über ein feines Raster vereinigt, Ergebnis wird zwischengespeichert)
-const shapeCache = new WeakMap();
+const shapeCache = new WeakMap(), offCache = new WeakMap();
+// Erfasste Kontur mit Aufmass (Wunsch Patrick 4. November 2026: „Offset für
+// Verschiebung zum Original, z. B. +1 mm“): die Taschenwand rückt überall um
+// it.off nach aussen (+) oder innen (−), Bohrungen entsprechend umgekehrt
+function basePolys(it) {
+  const off = Math.max(-5, Math.min(10, +it.off || 0));
+  if (Math.abs(off) < 0.01 || it.text) return it.polys;
+  const c = offCache.get(it); if (c && c.off === off && c.src === it.polys) return c.polys;
+  const polys = offsetShape(it.polys, off); offCache.set(it, { off, src: it.polys, polys }); return polys;
+}
 function itemShape(it) {
-  if (!it.grips || !it.grips.length || lay.noUnion === it) return it.polys;
+  const bp = basePolys(it);
+  if (!it.grips || !it.grips.length || lay.noUnion === it) return bp;
   const sig = JSON.stringify(it.grips), c = shapeCache.get(it);
-  if (c && c.sig === sig && c.src === it.polys) return c.polys;
-  const polys = unionShape(it.polys, it.grips); shapeCache.set(it, { sig, src: it.polys, polys }); return polys;
+  if (c && c.sig === sig && c.src === bp) return c.polys;
+  const polys = unionShape(bp, it.grips); shapeCache.set(it, { sig, src: bp, polys }); return polys;
+}
+// Geschlossene Linienzüge (Rasterkoordinaten) in Konturen mit Löchern ordnen
+function loopsToPolys(raw, toMM, tol) {
+  const loops = raw.map(l => { const q = simplifyClosed(l.map(toMM), tol); return { pts: q, a: area(q) }; }).filter(l => Math.abs(l.a) > 0.3 && l.pts.length >= 3);
+  let sign = 1, big = 0; for (const l of loops) if (Math.abs(l.a) > big) { big = Math.abs(l.a); sign = Math.sign(l.a); }
+  const outs = loops.filter(l => Math.sign(l.a) === sign).map(l => ({ outer: l.pts, holes: [], A: Math.abs(l.a) }));
+  loops.filter(l => Math.sign(l.a) !== sign).forEach(h => {
+    let o = null; for (const t of outs) if (inPoly(h.pts[0], t.outer) && (!o || t.A < o.A)) o = t;
+    if (o) o.holes.push(h.pts);
+  });
+  return outs.map(o => ({ outer: o.outer, holes: o.holes }));
+}
+function offsetShape(polys, off) {
+  const ppm = 8, mx = Math.max(0, off) + 2, [a, b, c, d] = bbox(polys.flatMap(p => p.outer)), ox = a - mx, oy = b - mx;
+  const W = Math.ceil((c - a + 2 * mx) * ppm), H = Math.ceil((d - b + 2 * mx) * ppm);
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const g = cv.getContext("2d", { willReadFrequently: true }); g.setTransform(ppm, 0, 0, ppm, -ox * ppm, -oy * ppm);
+  const p = new Path2D(); polys.forEach(pl => [pl.outer, ...pl.holes].forEach(r => { p.moveTo(r[0][0], r[0][1]); r.forEach(q => p.lineTo(q[0], q[1])); p.closePath(); }));
+  g.fillStyle = "#000"; g.fill(p, "evenodd");
+  const px = g.getImageData(0, 0, W, H).data, m = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) m[i] = px[i * 4 + 3] > 127 ? 1 : 0;
+  const d2 = edt(m, W, H, off > 0 ? 1 : 0), grid = new Float32Array(W * H), op = Math.abs(off) * ppm + 0.5;
+  for (let i = 0; i < W * H; i++) { const dd = Math.sqrt(d2[i]); grid[i] = Math.max(0, Math.min(1, off > 0 ? 0.5 - (dd - op) : 0.5 + (dd - op))); }
+  const res = loopsToPolys(marching(grid, W, H), ([x, y]) => [(x + 0.5) / ppm + ox, (y + 0.5) / ppm + oy], 0.04);
+  return res.length ? res : polys;
+}
+// ---------- Beschriftung auf der Oberseite ----------
+// Wunsch Patrick 4. November 2026: „auf der oberen Fläche der Einlage noch die
+// Möglichkeit für eine Beschriftung, bei der man die Schrift und Höhe einstellen
+// kann“. Eine Beschriftung ist ein Teil der Einlage wie ein Werkzeug (verschieben,
+// drehen, kopieren, Rückgängig), ihre Kontur sind die Buchstaben, vertieft um
+// „Tiefe ab Oberkante“. it.text = { s, font, h (Höhe eines Grossbuchstabens in mm), bold }
+const FONTS = [
+  ["Arial", "Arial, Helvetica, sans-serif"], ["Arial Black", "'Arial Black', 'Arial Bold', Arial, sans-serif"],
+  ["Verdana", "Verdana, Geneva, sans-serif"], ["Tahoma", "Tahoma, Verdana, sans-serif"], ["Trebuchet MS", "'Trebuchet MS', Arial, sans-serif"],
+  ["Impact", "Impact, 'Arial Black', sans-serif"], ["Georgia", "Georgia, serif"], ["Times New Roman", "'Times New Roman', Times, serif"],
+  ["Courier New", "'Courier New', Courier, monospace"], ["System", "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"]
+];
+const fontCss = n => (FONTS.find(f => f[0] === n) || FONTS[0])[1];
+function textPolys(t) {
+  const ppm = Math.max(6, Math.min(16, 140 / Math.max(1, t.h))), wt = t.bold ? "700" : "400", fam = fontCss(t.font);
+  const cv = document.createElement("canvas"); let g = cv.getContext("2d", { willReadFrequently: true });
+  g.font = `${wt} 100px ${fam}`; const capH = g.measureText("H").actualBoundingBoxAscent || 72;
+  const fs = t.h / capH * 100 * ppm, font = `${wt} ${fs}px ${fam}`; g.font = font;
+  const lines = String(t.s || "").split("\n").map(x => x || " "), lh = t.h * 1.55 * ppm, pad = Math.ceil(t.h * 0.6 * ppm) + 4;
+  const ms = lines.map(l => g.measureText(l)), wMax = Math.max(1, ...ms.map(m => Math.max(m.width, (m.actualBoundingBoxRight || 0) + (m.actualBoundingBoxLeft || 0))));
+  const asc = Math.max(...ms.map(m => m.actualBoundingBoxAscent || capH)), desc = Math.max(0, ...ms.map(m => m.actualBoundingBoxDescent || 0));
+  cv.width = Math.min(8000, Math.ceil(wMax + 2 * pad)); cv.height = Math.min(8000, Math.ceil(asc + desc + (lines.length - 1) * lh + 2 * pad));
+  g = cv.getContext("2d", { willReadFrequently: true }); g.font = font; g.textAlign = "center"; g.textBaseline = "alphabetic"; g.fillStyle = "#000";
+  lines.forEach((l, i) => g.fillText(l, cv.width / 2, pad + asc + i * lh));
+  const W = cv.width, H = cv.height, d = g.getImageData(0, 0, W, H).data, grid = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) grid[i] = d[i * 4 + 3] / 255;
+  const polys = loopsToPolys(marching(grid, W, H), ([x, y]) => [(x + 0.5) / ppm, (y + 0.5) / ppm], 0.03);
+  if (!polys.length) return null;
+  const [a, b, c, e] = bbox(polys.flatMap(p => p.outer)), cx = (a + c) / 2, cy = (b + e) / 2, sh = r => r.map(q => [Math.round((q[0] - cx) * 1000) / 1000, Math.round((q[1] - cy) * 1000) / 1000]);
+  return polys.map(p => ({ outer: sh(p.outer), holes: p.holes.map(sh) }));
+}
+function textItem() {
+  const t = { s: "Beschriftung", font: "Arial", h: 8, bold: true }, polys = textPolys(t);
+  return polys && { id: lay.nextId++, name: t.s, text: t, polys, grips: [], x: 0, y: 0, ang: 0, depth: 1 };
 }
 function unionShape(polys, grips) {
   const ppm = 5, pts = polys.flatMap(p => p.outer);
@@ -1784,7 +2037,7 @@ function itemsFromTools(tools, name) {
 }
 function validItem(it) {
   return it && Array.isArray(it.polys) && it.polys.every(pl => Array.isArray(pl.outer) && pl.outer.length >= 3 && Array.isArray(pl.holes))
-    && [it.x, it.y, it.ang, it.depth].every(Number.isFinite) && (it.grips === undefined || (Array.isArray(it.grips) && it.grips.every(validGrip)));
+    && [it.x, it.y, it.ang, it.depth].every(Number.isFinite) && (!it.text || (typeof it.text.s === "string" && Number.isFinite(+it.text.h))) && (it.grips === undefined || (Array.isArray(it.grips) && it.grips.every(validGrip)));
 }
 function freeSpot(it) {
   const B = lay.base, gap = 4, [a, b, c, d] = itemBB({ ...it, x: 0, y: 0 }), boxes = lay.items.map(itemBB);
@@ -1811,6 +2064,8 @@ function layIssuesBase() {
   lay.items.forEach((it, i) => {
     if (worlds[i].some(pl => pl.outer.some(p => !insideBase(p, 2)))) res[i].push("Rand < 2 mm");
     if (it.depth > B.T - 1) res[i].push("Boden < 1 mm");
+    const lv = leanVec(it), dd = Math.min(it.depth, B.T - 0.2);
+    if (lv && worlds[i].some(pl => pl.outer.some(p => !insideBase([p[0] + dd * lv[0], p[1] + dd * lv[1]], 2)))) res[i].push("Schräge: Rand < 2 mm");
   });
   for (let i = 0; i < worlds.length; i++) for (let j = i + 1; j < worlds.length; j++) {
     const a = bbs[i], b = bbs[j];
@@ -1826,8 +2081,28 @@ function connDefaults() {
     slots: { on: false, sides: { l: true, r: true, t: false, b: false }, n: 2, first: 40, pitch: 80, w: 10, s: 6, ang: 15, spiel: 0.2, clipH: 0 },
     stack: { on: false, free: true, step: true, peg: false, rec: false, inset: 14, d: 8, h: 4, spiel: 0.3, rim: 6, fh: 6, st: 3, fit: 0.3 },
     mag: { on: false, top: true, bottom: true, d: 6.2, depth: 3.2, inset: 6 },
-    key: { on: false, n: 1, first: 37.5, pitch: 75, y: 30, head: 9, shaft: 4.5, len: 10, lip: 3, headDepth: 4, tilt: 0, rows: 1, y2: 150 }
+    key: { on: false, n: 1, first: 37.5, pitch: 75, y: 30, head: 9, shaft: 4.5, len: 10, lip: 3, headDepth: 4, tilt: 0, rows: 1, y2: 150 },
+    wedge: { a: 0, side: "b" }
   };
+}
+// Einlage konisch (Wunsch Patrick 4. November 2026: „bei den Nagellöchern soll man
+// die Einlage konisch machen können, damit die Werkzeuge nicht rausfallen, wenn es
+// an der Wand hängt, Einlage wird dicker auf der gegenüberstehenden Seite, Werkzeug
+// soll man auch auf diese Seite konisch einstellen können“). Die Rückseite bleibt
+// flach an der Wand, die Oberseite steigt zur dicken Seite hin an.
+const LEAN_DIR = { b: [0, 1], t: [0, -1], l: [-1, 0], r: [1, 0] };
+const wedgeSide = () => (lay.conn && lay.conn.wedge && LEAN_DIR[lay.conn.wedge.side]) ? lay.conn.wedge.side : "b";
+const wedgeTan = () => { const w = lay.conn && lay.conn.wedge; return w && w.a > 0 ? Math.tan(Math.min(30, w.a) * Math.PI / 180) : 0; };
+const wedgeMax = () => { const B = lay.base, s = wedgeSide(); return (s === "b" || s === "t" ? B.H : B.W) * wedgeTan(); };
+// Schräge Tasche: Verschiebung je mm Tiefe in Richtung der dicken Seite (Lage der Einlage, nicht des Werkzeugs)
+function leanVec(it) {
+  const a = Math.max(0, Math.min(45, +it.lean || 0)); if (!a || it.text) return null;
+  const d = LEAN_DIR[wedgeSide()], t = Math.tan(a * Math.PI / 180); return [d[0] * t, d[1] * t];
+}
+function wedgeInfo() {
+  const t = wedgeTan(); if (!t) return "";
+  const nm = { b: "unten", t: "oben", l: "links", r: "rechts" }[wedgeSide()], op = { b: "oben", t: "unten", l: "rechts", r: "links" }[wedgeSide()];
+  return esc(`Höhe ${op} ${de(lay.base.T)} mm, ${nm} ${de(lay.base.T + wedgeMax())} mm. Die Taschen behalten ihre Tiefe ab der schrägen Oberseite.`);
 }
 function connMerge(src) {
   const d = connDefaults();
@@ -2276,7 +2551,12 @@ function layAddItems(items, switchMode, fresh) {
 function laySyncInputs() {
   const B = lay.base, it = lay.items[lay.sel];
   $("baseW").value = B.W; $("baseH").value = B.H; $("baseT").value = B.T; $("baseR").value = B.R; $("newDepth").value = lay.newDepth;
-  ["itName", "itX", "itY", "itA", "itD", "itE", "itF", "layEdgeAll", "layRot", "layDup", "layDel", "layDepthAll", "layToolSave"].forEach(id => $(id).disabled = !it);
+  ["itName", "itX", "itY", "itA", "itD", "itE", "itF", "itOff", "itLean", "layEdgeAll", "layOffAll", "layLeanAll", "layRot", "layDup", "layDel", "layDepthAll", "layToolSave"].forEach(id => $(id).disabled = !it);
+  const tx = it && it.text;
+  $("itNone").hidden = !!it; $("itTextBox").hidden = !tx; $("itToolBox").hidden = !!tx; $("itNameRow").hidden = !!tx; $("layToolSave").disabled = !it || !!tx;
+  $("itTitle").textContent = tx ? "Auswahl: Beschriftung" : it ? "Auswahl: Werkzeug" : "Auswahl";
+  if (tx) { if (document.activeElement !== $("itTxt")) $("itTxt").value = tx.s; $("itFont").value = tx.font; $("itTh").value = tx.h; $("itBold").checked = !!tx.bold; }
+  $("itOff").value = it && !tx ? (+it.off || 0) : ""; $("itLean").value = it && !tx ? (+it.lean || 0) : "";
   $("itF").value = it && it.floor && it.floor.type === "round" ? "round" : "flat"; $("itFr").disabled = !it || $("itF").value !== "round"; $("itFr").value = it && it.floor && it.floor.r > 0 ? it.floor.r : "";
   if (it) { $("itName").value = it.name; $("itX").value = Math.round(it.x * 10) / 10; $("itY").value = Math.round(it.y * 10) / 10; $("itA").value = it.ang; $("itD").value = it.depth; }
   else ["itName", "itX", "itY", "itA", "itD"].forEach(id => $(id).value = "");
@@ -2312,6 +2592,16 @@ function layRender() {
     g.fillStyle = `rgba(23,32,28,${(0.28 + 0.6 * t).toFixed(2)})`; g.fill(p, "evenodd");
     g.lineWidth = (i === lay.sel ? 2.5 : 1.2) * px; g.strokeStyle = iss[i].length ? contour : (i === lay.sel ? accent : "#3A433F"); g.stroke(p);
     layDrawEdge(g, it, px, "#17201C"); layDrawTrough(g, it, px);
+    const lv = leanVec(it);
+    if (lv) {
+      const dd = Math.min(it.depth, B.T - 0.2); g.save(); g.setLineDash([4 * px, 3 * px]); g.lineWidth = 1.2 * px; g.strokeStyle = "rgba(255,255,255,.85)"; g.beginPath();
+      w.forEach(pl => { const r = pl.outer; r.forEach((q, k) => k ? g.lineTo(q[0] + dd * lv[0], q[1] + dd * lv[1]) : g.moveTo(q[0] + dd * lv[0], q[1] + dd * lv[1])); g.closePath(); });
+      g.stroke(); g.restore();
+    }
+    if (it.text) {
+      if (i === lay.sel) { const [a, b, c, d] = bbox(w.flatMap(pl => pl.outer)); g.save(); g.setLineDash([4 * px, 3 * px]); g.lineWidth = 1.2 * px; g.strokeStyle = accent; g.strokeRect(a - 2, b - 2, c - a + 4, d - b + 4); g.restore(); }
+      return;
+    }
     const [a, b, c, d] = bbox(w.flatMap(pl => pl.outer)), label = `${i + 1} · ${de(it.depth)} mm`;
     g.font = `600 ${11 * px}px Barlow, sans-serif`; const tw = g.measureText(label).width;
     g.fillStyle = "rgba(255,255,255,.88)"; g.fillRect((a + c) / 2 - tw / 2 - 4 * px, (b + d) / 2 - 8 * px, tw + 8 * px, 15 * px);
@@ -2345,12 +2635,12 @@ function layRenderList() {
   $("layStatus").innerHTML = `<strong>Grundkörper ${de(B.W, 0)} × ${de(B.H, 0)} × ${de(B.T)} mm</strong> · ${n} Werkzeug${n === 1 ? "" : "e"}`
     + (n ? ` · dünnster Boden ${de(B.T - maxD)} mm` : "") + (bad ? ` · <strong>${bad} mit Hinweis</strong>` : "");
   $("layStatus").classList.toggle("warn", !!bad);
-  { const cmx = connModel(), cw = cmx.warns; connWarnRender(cw); if ($("keyInfo")) $("keyInfo").innerHTML = keyInfo(cmx); }
+  { const cmx = connModel(), cw = cmx.warns; connWarnRender(cw); if ($("keyInfo")) $("keyInfo").innerHTML = keyInfo(cmx); if ($("wedgeInfo")) $("wedgeInfo").innerHTML = wedgeInfo(); }
   if (!n) { $("layList").innerHTML = `<p class="help">Noch keine Werkzeuge. Über „Aktuellen Scan einfügen“ oder „Projekte importieren“ hinzufügen.</p>`; return; }
   const rows = lay.items.map((it, i) => {
     const [a, b, c, d] = itemBB(it);
     const ng = (it.grips || []).length;
-    return `<tr data-i="${i}" class="${i === lay.sel ? "sel" : ""}"><td>${i + 1}</td><td>${esc(it.name)}${ng ? ` <span class="help">+ ${ng} Griffmulde${ng > 1 ? "n" : ""}</span>` : ""}</td><td class="num">${de(c - a)} × ${de(d - b)}</td><td class="num">${de(it.depth)}</td><td>${iss[i].length ? `<span class="warn">${esc(iss[i].join(", "))}</span>` : "ok"}</td></tr>`;
+    return `<tr data-i="${i}" class="${i === lay.sel ? "sel" : ""}"><td>${i + 1}</td><td>${it.text ? "Beschriftung „" + esc(it.text.s.replace(/\n/g, " ")) + "“" : esc(it.name)}${it.off ? ` <span class="help">${it.off > 0 ? "+" : ""}${de(it.off)} mm</span>` : ""}${it.lean ? ` <span class="help">schräg ${de(it.lean, 0)}°</span>` : ""}${ng ? ` <span class="help">+ ${ng} Griffmulde${ng > 1 ? "n" : ""}</span>` : ""}</td><td class="num">${de(c - a)} × ${de(d - b)}</td><td class="num">${de(it.depth)}</td><td>${iss[i].length ? `<span class="warn">${esc(iss[i].join(", "))}</span>` : "ok"}</td></tr>`;
   }).join("");
   $("layList").innerHTML = `<table><thead><tr><th>Nr.</th><th>Name</th><th>Größe (mm)</th><th>Tiefe (mm)</th><th>Prüfung</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
@@ -2379,7 +2669,11 @@ lcv.addEventListener("pointerdown", e => {
   if (cur && dist(layHandle(cur), mm) < tol) { layPush(); lay.drag = { mode: "rot", moved: false }; }
   else {
     let hit = -1;
-    for (let i = lay.items.length - 1; i >= 0; i--) if (itemWorld(lay.items[i]).some(pl => inPoly(mm, pl.outer))) { hit = i; break; }
+    for (let i = lay.items.length - 1; i >= 0; i--) {
+      const ti = lay.items[i], w = itemWorld(ti);
+      if (ti.text) { const [a, b, c, d] = bbox(w.flatMap(pl => pl.outer)); if (mm[0] >= a - 2 && mm[0] <= c + 2 && mm[1] >= b - 2 && mm[1] <= d + 2) { hit = i; break; } }
+      else if (w.some(pl => inPoly(mm, pl.outer))) { hit = i; break; }
+    }
     lay.sel = hit;
     if (hit >= 0) { layPush(); const h = lay.items[hit]; lay.drag = { mode: "move", dx: mm[0] - h.x, dy: mm[1] - h.y, moved: false }; }
   }
@@ -2451,13 +2745,15 @@ function basePolygon(B) {
   return pts;
 }
 // Volumenmodell: Block mit Taschen (flacher Boden je Tiefe), Zapfen in Bohrungen bleiben stehen.
-function buildSTL() {
+function buildTris() {
   if (typeof earcut !== "function") throw new Error("Die 3D-Bibliothek wurde nicht geladen. Bitte Internetverbindung prüfen und die Seite neu laden.");
   const B = lay.base, T = B.T, tris = [];
+  // tg: was der Keil anhebt, 0 = nichts (Unterseite), 1 = alles (Oberseite, Taschen), 2 = nur die oberen Ecken (Aussenwand)
+  let tg = 0;
   const add = (a, b, c, n) => {
     const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
     const cr = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-    tris.push(cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] < 0 ? [a, c, b] : [a, b, c]);
+    const t = cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] < 0 ? [a, c, b] : [a, b, c]; t.tg = tg; tris.push(t);
   };
   const flip = p => [p[0], B.H - p[1]];
   const cap = (outer, holes, z, up) => {
@@ -2496,38 +2792,53 @@ function buildSTL() {
     const d = Math.min(it.depth, T - 0.2); if (d <= 0) return;
     const ef = skipEdge.has(idx) ? null : edgeEff(it, d), lv = ef ? edgeLevels(it, ef, T) : null;
     const tf = troughEff(it, d), tl = tf ? troughLevels(it, tf, T) : null;
-    itemWorld(it).forEach((pl, pi) => pockets.push({ ...pl, d, levels: lv ? lv[pi] : null, trough: tl ? tl[pi] : null }));
+    const lean = leanVec(it);
+    itemWorld(it).forEach((pl, pi) => pockets.push({ ...pl, d, lean, levels: lv ? lv[pi] : null, trough: tl ? tl[pi] : null }));
   });
   if (cm.free) { cap(baseRing, [cm.free.ring].concat(rimHoles), 0, false); wall(cm.free.ring, 0, cm.free.fh, true); cap(cm.free.ring, recHoles, cm.free.fh, false); }
   else cap(baseRing, rimHoles, 0, false);
-  wall(baseRing, 0, zE, false);
+  tg = 2; wall(baseRing, 0, zE, false); tg = 1;
   const pockRings = pockets.map(p => p.levels ? p.levels[0].ring : p.outer);
   if (stp) { cap(baseRing, [stp.ring].concat(bandHoles), zE, true); wall(stp.ring, zE, T, false); cap(stp.ring, pockRings.concat(platHoles), T, true); }
   else cap(baseRing, pockRings.concat(platHoles), T, true);
   for (const pk of pockets) {
-    const zf = T - pk.d;
+    // Schräge Tasche: jeder Ring liegt mit der Tiefe ab Oberkante zur dicken Seite verschoben
+    const zf = T - pk.d, lv = pk.lean, S = (r, z) => lv ? r.map(q => [q[0] + (T - z) * lv[0], q[1] + (T - z) * lv[1]]) : r;
+    const W2 = (r, z0, z1, inw) => lv ? wall2(S(r, z0), z0, S(r, z1), z1, inw) : wall(r, z0, z1, inw);
+    const C2 = (o, hs, z, up) => cap(S(o, z), hs.map(h => S(h, z)), z, up);
     if (pk.trough) {
       const L = pk.trough;
-      wall(L[0].ring, L[0].z, T, true);
+      W2(L[0].ring, L[0].z, T, true);
       for (let i = 0; i < L.length; i++) {
-        if (i + 1 < L.length) { cap(L[i].ring, [L[i + 1].ring], L[i].z, true); wall(L[i + 1].ring, L[i + 1].z, L[i].z, true); }
-        else cap(L[i].ring, [], L[i].z, true);
+        if (i + 1 < L.length) { C2(L[i].ring, [L[i + 1].ring], L[i].z, true); W2(L[i + 1].ring, L[i + 1].z, L[i].z, true); }
+        else C2(L[i].ring, [], L[i].z, true);
       }
       continue;
     }
-    cap(pk.outer, pk.holes, zf, true);
+    C2(pk.outer, pk.holes, zf, true);
     if (pk.levels) {
       const L = pk.levels;
-      for (let i = 0; i < L.length - 1; i++) { wall(L[i].ring, L[i + 1].z, L[i].z, true); cap(L[i].ring, [L[i + 1].ring], L[i + 1].z, true); }
-      wall(pk.outer, zf, L[L.length - 1].z, true);
-    } else wall(pk.outer, zf, T, true);
-    for (const h of pk.holes) { wall(h, zf, T, false); cap(h, [], T, true); }
+      for (let i = 0; i < L.length - 1; i++) { W2(L[i].ring, L[i + 1].z, L[i].z, true); C2(L[i].ring, [L[i + 1].ring], L[i + 1].z, true); }
+      W2(pk.outer, zf, L[L.length - 1].z, true);
+    } else W2(pk.outer, zf, T, true);
+    for (const h of pk.holes) { W2(h, zf, T, false); cap(h, [], T, true); }
   }
   cm.pegs.forEach(h => { const c = circ(h.c, h.r, 24), z = zTf(h); wall(c, z, z + h.h, false); cap(c, [], z + h.h, true); });
   cm.magT.forEach(h => { const c = circ(h.c, h.r, 24), z = zTf(h); wall(c, z - h.depth, z, true); cap(c, [], z - h.depth, true); });
+  tg = 0;
   botF.forEach(h => { const z0 = h.z0 || 0; wall(h.poly, z0, z0 + h.depth, true); cap(h.poly, [], z0 + h.depth, false); });
   cm.keys.forEach(k => { wall2(k.A0, k.z0, k.A1, k.zL, true); cap(k.B1, [k.A1], k.zL, true); wall2(k.B1, k.zL, k.B2s, k.zT, true); cap(k.B2s, [], k.zT, false); });
-  const buf = new ArrayBuffer(84 + tris.length * 50), dv = new DataView(buf), head = new TextEncoder().encode("Werkzeug-Konturscanner Einlage, Einheit mm");
+  // Keil: Oberseite und Taschen um s(x, y) anheben, die Unterseite bleibt flach (Koordinaten hier schon gespiegelt, y nach oben)
+  const tw = wedgeTan();
+  if (tw > 0) {
+    const sd = wedgeSide(), sf = sd === "b" ? p => (B.H - p[1]) * tw : sd === "t" ? p => p[1] * tw : sd === "l" ? p => (B.W - p[0]) * tw : p => p[0] * tw;
+    tris.forEach(t => { if (!t.tg) return; for (let k = 0; k < 3; k++) { const p = t[k]; if (t.tg === 1 || p[2] > 1e-6) t[k] = [p[0], p[1], p[2] + sf(p)]; } });
+  }
+  return tris;
+}
+function buildSTL() {
+  const tris = buildTris();
+  const buf = new ArrayBuffer(84 + tris.length * 50), dv = new DataView(buf), head = new TextEncoder().encode("Einlagen Generator, Einheit mm");
   new Uint8Array(buf).set(head.slice(0, 80)); dv.setUint32(80, tris.length, true);
   let o = 84;
   for (const [a, b, c] of tris) {
@@ -2537,6 +2848,22 @@ function buildSTL() {
     dv.setUint16(o, 0, true); o += 2;
   }
   return new Uint8Array(buf);
+}
+// 3MF (Wunsch Patrick 4. November 2026: „Export als 3MF“): ZIP mit dem Netz als XML, Einheit mm, gleiche Ecken zusammengefasst
+function build3MF() {
+  const tris = buildTris(), ids = new Map(), vx = [], tr = [], f = v => (Math.round(v * 1e4) / 1e4).toString();
+  const vid = p => { const k = f(p[0]) + " " + f(p[1]) + " " + f(p[2]); let i = ids.get(k); if (i === undefined) { i = vx.length; ids.set(k, i); vx.push(k); } return i; };
+  for (const t of tris) { const a = vid(t[0]), b = vid(t[1]), c = vid(t[2]); if (a !== b && b !== c && a !== c) tr.push(`<triangle v1="${a}" v2="${b}" v3="${c}"/>`); }
+  const nm = esc($("layName").value || "Einlage");
+  const model = `<?xml version="1.0" encoding="UTF-8"?>\n<model unit="millimeter" xml:lang="de-CH" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">\n`
+    + `<metadata name="Title">${nm}</metadata>\n<metadata name="Application">Hofer Tool Einlagen Generator</metadata>\n`
+    + `<resources>\n<object id="1" type="model" name="${nm}">\n<mesh>\n<vertices>\n`
+    + vx.map(k => { const [x, y, z] = k.split(" "); return `<vertex x="${x}" y="${y}" z="${z}"/>`; }).join("\n")
+    + `\n</vertices>\n<triangles>\n` + tr.join("\n") + `\n</triangles>\n</mesh>\n</object>\n</resources>\n<build>\n<item objectid="1"/>\n</build>\n</model>\n`;
+  const types = '<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>';
+  const rels = '<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>';
+  const enc = new TextEncoder();
+  return makeZip([{ name: "[Content_Types].xml", data: enc.encode(types) }, { name: "_rels/.rels", data: enc.encode(rels) }, { name: "3D/3dmodel.model", data: enc.encode(model) }]);
 }
 const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
@@ -2643,45 +2970,6 @@ function scanUpdate() {
   setMode("layout");
   toast(n ? `Kontur von ${n} Werkzeug${n > 1 ? "en" : ""} in der Einlage aktualisiert.` : "Keine passenden Werkzeuge in der Einlage.");
 }
-// Schnellerfassung: Foto, automatische Erkennung, kurze Kontrolle, direkt in die Einlage, danach gleich das nächste Foto
-function quickReview() {
-  const tools = st.result ? st.result.tools : [], ok = st.detected && tools.length > 0, n0 = lay.items.length;
-  const el = document.createElement("div"); el.className = "pick"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true");
-  const list = tools.map((t, i) => `<span class="num">Nr. ${i + 1}: ${de(t.bb[2] - t.bb[0])} × ${de(t.bb[3] - t.bb[1])} mm${t.holes.length ? ` · ${t.holes.length} innen` : ""}</span>`).join("<br>");
-  el.innerHTML = `<div class="pickbox"><h2>Schnellerfassung</h2>`
-    + `<canvas id="qCv" style="width:100%;height:190px;border-radius:4px;background:#D6DCD8"></canvas>`
-    + (ok ? `<p class="help">${tools.length} Werkzeug${tools.length === 1 ? "" : "e"} erkannt. In der Einlage liegen schon ${n0}.<br>${list}</p>` : `<p class="help warn">${st.detected ? "Keine Kontur erkannt." : "Das Blatt wurde nicht erkannt."} Bitte neu aufnehmen oder in der Kontur-Ansicht korrigieren.</p>`)
-    + `<div class="row"><label for="qName">Name</label><input id="qName" type="text" maxlength="60" autocomplete="off" value="Werkzeug ${n0 + 1}"></div>`
-    + `<div class="row"><label for="qDepth">Tiefe ab Oberkante</label><div class="unit"><input id="qDepth" type="number" min="1" max="200" step="0.5" value="${lay.newDepth}"><span>mm</span></div></div>`
-    + `<div class="btnrow"><button class="btn small primary" data-q="next" type="button"${ok ? "" : " disabled"}>Übernehmen, nächstes Foto</button><button class="btn small" data-q="done" type="button"${ok ? "" : " disabled"}>Übernehmen, fertig</button></div>`
-    + `<div class="btnrow"><button class="btn small" data-q="retake" type="button">Neu aufnehmen</button><button class="btn small" data-q="fix" type="button">Korrigieren</button><span class="spacer"></span><button class="btn small" data-q="cancel" type="button">Abbrechen</button></div></div>`;
-  document.body.appendChild(el);
-  const cv = el.querySelector("#qCv"), dpr = window.devicePixelRatio || 1, w = cv.clientWidth || 300, h = 190;
-  cv.width = w * dpr; cv.height = h * dpr;
-  if (tools.length) {
-    const bb = bbox(tools.flatMap(t => t.outer)), s = Math.min((w - 16) / (bb[2] - bb[0]), (h - 16) / (bb[3] - bb[1])), g = cv.getContext("2d"), p = new Path2D();
-    g.setTransform(dpr * s, 0, 0, dpr * s, dpr * (w / 2 - (bb[0] + bb[2]) / 2 * s), dpr * (h / 2 - (bb[1] + bb[3]) / 2 * s));
-    tools.forEach(t => [t.outer, ...t.holes].forEach(r => { p.moveTo(r[0][0], r[0][1]); r.forEach(q => p.lineTo(q[0], q[1])); p.closePath(); }));
-    g.fillStyle = css("--contour"); g.fill(p, "evenodd");
-  }
-  const close = () => el.remove();
-  const add = fin => {
-    const name = (el.querySelector("#qName").value || "").trim().slice(0, 60) || `Werkzeug ${n0 + 1}`, dep = Math.max(1, +el.querySelector("#qDepth").value || lay.newDepth);
-    const items = itemsFromTools(tools, name); items.forEach((it, i) => { it.depth = dep; it.scan = st.scanId + ":" + i; });
-    layAddItems(items, fin);
-  };
-  el.addEventListener("click", e => {
-    const b = e.target.closest("[data-q]"); if (!b) return;
-    const q = b.dataset.q;
-    if (q === "next") { add(false); close(); $("quickInput").click(); }
-    else if (q === "done") { add(true); close(); }
-    else if (q === "retake") { close(); $("quickInput").click(); }
-    else if (q === "fix") { close(); setMode("scan"); setView("contour"); }
-    else close();
-  });
-  el.addEventListener("keydown", e => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
-  const nm = el.querySelector("#qName"); nm.focus(); nm.select();
-}
 // Neues Projekt: Foto, Konturen und Werkzeuge der Einlage leeren, Seite neu laden (Grundkörper und Verbinder auf Wunsch behalten)
 function newProject() {
   const el = document.createElement("div"); el.className = "pick"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true");
@@ -2706,7 +2994,6 @@ function newProject() {
   document.body.appendChild(el); el.querySelector("[data-n=ok]").focus();
 }
 document.querySelectorAll(".newproj").forEach(b => b.addEventListener("click", newProject));
-$("quickInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) loadFile(f, quickReview); });
 $("toLayoutBtn").addEventListener("click", e => addFromScan(e, true));
 $("layAddScan").addEventListener("click", e => addFromScan(e, false));
 // Einzelnes Werkzeug als kleine Datei (nur Kontur, ohne Foto) zum Wiederverwenden in anderen Einlagen
@@ -2752,6 +3039,12 @@ $("laySave").addEventListener("click", () => saveFile(layNameSafe() + ".einlage.
 $("layExportSvg").addEventListener("click", () => {
   if (!lay.items.length) { toast("Noch keine Werkzeuge in der Einlage."); return; }
   saveFile(layNameSafe() + ".svg", layoutSVG(), "image/svg+xml");
+});
+$("layExport3mf").addEventListener("click", () => {
+  if (!lay.items.length) { toast("Noch keine Werkzeuge in der Einlage."); return; }
+  let z;
+  try { z = build3MF(); } catch (err) { console.error(err); toast(err.message || "Das 3D-Modell konnte nicht erzeugt werden."); return; }
+  saveFile(layNameSafe() + ".3mf", z, "model/3mf");
 });
 $("layExportStl").addEventListener("click", () => {
   if (!lay.items.length) { toast("Noch keine Werkzeuge in der Einlage."); return; }
@@ -2800,9 +3093,33 @@ $("itEs").addEventListener("change", () => {
 });
 $("layEdgeAll").addEventListener("click", () => {
   const it = lay.items[lay.sel]; if (!it) return; layPush();
-  lay.items.forEach(o => o.edge = it.edge ? { ...it.edge } : { type: "none", size: 1 }); layChanged();
+  lay.items.forEach(o => { if (!o.text) o.edge = it.edge ? { ...it.edge } : { type: "none", size: 1 }; }); layChanged();
 });
-$("layDepthAll").addEventListener("click", () => { const it = lay.items[lay.sel]; if (!it) return; layPush(); lay.items.forEach(o => o.depth = it.depth); layChanged(); });
+$("layDepthAll").addEventListener("click", () => { const it = lay.items[lay.sel]; if (!it) return; layPush(); lay.items.forEach(o => { if (!o.text === !it.text) o.depth = it.depth; }); layChanged(); });
+// Beschriftung
+$("itFont").innerHTML = FONTS.map(f => `<option value="${esc(f[0])}" style="font-family:${esc(f[1])}">${esc(f[0])}</option>`).join("");
+function textUpdate(ch) {
+  const it = lay.items[lay.sel]; if (!it || !it.text) return;
+  const t = { ...it.text, ...ch }; t.h = Math.max(2, Math.min(200, +t.h || 8)); if (!String(t.s).trim()) { toast("Der Text ist leer."); laySyncInputs(); return; }
+  const polys = textPolys(t); if (!polys) { toast("Mit dieser Schrift ergibt der Text keine Kontur."); return; }
+  layPush(); it.text = t; it.polys = polys; it.name = t.s.slice(0, 60); layChanged();
+}
+$("itTxt").addEventListener("change", () => textUpdate({ s: $("itTxt").value.slice(0, 80) }));
+$("itTxt").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("itTxt").blur(); } });
+$("itFont").addEventListener("change", () => textUpdate({ font: $("itFont").value }));
+$("itTh").addEventListener("change", () => textUpdate({ h: num("itTh", 8) }));
+$("itBold").addEventListener("change", () => textUpdate({ bold: $("itBold").checked }));
+$("layAddText").addEventListener("click", () => {
+  const it = textItem(); if (!it) { toast("Die Beschriftung konnte nicht erzeugt werden."); return; }
+  layPush(); const p = freeSpot(it); it.x = p[0]; it.y = p[1]; lay.items.push(it); lay.sel = lay.items.length - 1; layChanged();
+  setTimeout(() => { $("itTxt").focus(); $("itTxt").select(); }, 50);
+  toast("Beschriftung eingefügt. Text, Schrift und Höhe unter „Auswahl“ ändern.");
+});
+// Aufmass und schräge Tasche je Werkzeug
+$("itOff").addEventListener("change", () => { const it = lay.items[lay.sel]; if (!it || it.text) return; layPush(); it.off = Math.round(Math.max(-5, Math.min(10, num("itOff", 0))) * 10) / 10; layChanged(); });
+$("itLean").addEventListener("change", () => { const it = lay.items[lay.sel]; if (!it || it.text) return; layPush(); it.lean = Math.max(0, Math.min(45, num("itLean", 0))); layChanged(); });
+$("layOffAll").addEventListener("click", () => { const it = lay.items[lay.sel]; if (!it || it.text) return; layPush(); lay.items.forEach(o => { if (!o.text) o.off = it.off || 0; }); layChanged(); });
+$("layLeanAll").addEventListener("click", () => { const it = lay.items[lay.sel]; if (!it || it.text) return; layPush(); lay.items.forEach(o => { if (!o.text) o.lean = it.lean || 0; }); layChanged(); });
 $("layRot").addEventListener("click", () => { const it = lay.items[lay.sel]; if (!it) return; layPush(); it.ang = normAng(it.ang + 90); layChanged(); });
 $("layDel").addEventListener("click", () => { if (!lay.items[lay.sel]) return; layPush(); lay.items.splice(lay.sel, 1); lay.sel = -1; layChanged(); });
 $("layDup").addEventListener("click", () => {
@@ -2938,6 +3255,11 @@ const CONN_SPEC = [
   ["n", "key.tilt", "Neigung beim Aufhängen", "°", 0, 30, 1],
   ["i", "keyInfo"],
   ["p", "Von Hand verschieben: oben in der Werkzeugleiste „Nagel“ wählen, dann das Loch ziehen. Hilfslinien zeigen Mitte und Abstände. Von der Rückseite eingelassen: Kopf durch das große Loch stecken, Kiste nach unten schieben, der Steg hält den Nagelkopf. Der Schlitz zeigt in der Ansicht nach oben."],
+  ["h", "wedge", "Konisch für die Wand"],
+  ["n", "wedge.a", "Keilwinkel der Oberseite (0 = aus)", "°", 0, 30, 0.5],
+  ["s", "wedge.side", "Dicke Seite", [["b", "unten"], ["t", "oben"], ["l", "links"], ["r", "rechts"]]],
+  ["i", "wedgeInfo"],
+  ["p", "Die Rückseite bleibt flach an der Wand, die Einlage wird zur dicken Seite hin dicker. Damit die Werkzeuge beim Hängen nicht herausfallen, unter „Auswahl“ bei „Konisch zur dicken Seite“ die Taschen schräg stellen (alle mit „Konisch für alle“)."],
   ["h", "mag", "Magnetlöcher"],
   ["c", "mag.on", "Magnetlöcher an den vier Ecken"],
   ["g", [["mag.top", "Oben"], ["mag.bottom", "Unten"]]],
@@ -2987,6 +3309,7 @@ function cnSync() {
     else if (r[0] === "c") h = chk(r[1], r[2]);
     else if (r[0] === "g") h = `<div class="btnrow">${r[1].map(x => chk(x[0], x[1])).join("")}</div>`;
     else if (r[0] === "b") h = `<button class="btn small" id="${r[1]}" type="button">${r[2]}</button>`;
+    else if (r[0] === "s") h = `<div class="row"><label for="${cnId(r[1])}">${r[2]}</label><select id="${cnId(r[1])}" data-cn="${r[1]}">${r[3].map(o => `<option value="${o[0]}">${o[1]}</option>`).join("")}</select></div>`;
     else h = `<div class="row"><label for="${cnId(r[1])}">${r[2]}</label><div class="unit"><input id="${cnId(r[1])}" data-cn="${r[1]}" type="number" min="${r[4]}" max="${r[5]}" step="${r[6]}"><span>${r[3]}</span></div></div>`;
     secs[secs.length - 1].html += h;
   });
@@ -2999,6 +3322,7 @@ function cnSync() {
     layPush();
     const path = el.dataset.cn.split("."), last = path.pop(), o = path.reduce((a, x) => a[x], lay.conn);
     if (el.type === "checkbox") o[last] = el.checked;
+    else if (el.tagName === "SELECT") o[last] = el.value;
     else { const v = parseFloat(el.value); if (Number.isFinite(v)) o[last] = Math.max(+el.min, Math.min(+el.max, v)); }
     layChanged();
   });
@@ -3025,7 +3349,7 @@ layLoadLocal(); laySyncInputs();
 loadSettings();
 $("camInput").addEventListener("change", e => { loadFile(e.target.files[0]); e.target.value = ""; });
 $("fileInput").addEventListener("change", e => { loadFile(e.target.files[0]); e.target.value = ""; });
-$("sampleBtn").addEventListener("click", makeSample);
+$("blankBtn").addEventListener("click", () => blankSheet(false));
 $("tabSheet").addEventListener("click", () => setView("sheet"));
 $("tabContour").addEventListener("click", () => setView("contour"));
 $("redetectBtn").addEventListener("click", () => { if (!st.autoCorners) return; st.corners = st.autoCorners.map(p => p.slice()); render(); runWarp(); });
@@ -3049,6 +3373,13 @@ $("undoBtn").addEventListener("click", undo);
 $("areaClose").addEventListener("click", areaClose);
 $("areaBack").addEventListener("click", areaBack);
 $("areaCancel").addEventListener("click", areaCancel);
+$("dLine").addEventListener("click", drawLine);
+$("dArcBtn").addEventListener("click", drawArc);
+$("dRect").addEventListener("click", drawRect);
+$("dCirc").addEventListener("click", drawCirc);
+// Enter in einem Massfeld setzt das Stück gleich
+[["dLen", drawLine], ["dAng", drawLine], ["dRad", drawArc], ["dArc", drawArc], ["dRw", drawRect], ["dRh", drawRect], ["dRr", drawRect], ["dCd", drawCirc]].forEach(([id, fn]) =>
+  $(id).addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); fn(); } }));
 document.querySelectorAll("[data-area]").forEach(b => b.addEventListener("click", () => {
   $("areaMode").value = b.dataset.area;
   document.querySelectorAll("[data-area]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
@@ -3077,7 +3408,8 @@ document.addEventListener("keydown", e => {
   else if (e.key === "Escape") { st.edit.poly = null; st.edit.lineA = null; st.edit.multi = new Set(); st.edit.sel = null; render(); updateEditUI(); }
 });
 setView("contour", true);
-makeSample();
+blankSheet(true);
+window.beispielLaden = makeSample;
 // Für Hofer Tool (src/seiten/Einlagen.jsx): Zustand des Scans lesen
 window.scanState = () => st;
 </script>

@@ -1,5 +1,5 @@
 // =================================================================
-//  EINLAGEN GEN (created by Ecker)
+//  EINLAGEN GENERATOR (created by Ecker, bis 1.390.x „Einlagen Gen“)
 //  Werkzeug-Konturscanner: Werkzeuge auf A4 fotografieren, Kontur
 //  erkennen und korrigieren, daraus eine Einlage mit Taschen bauen und
 //  als SVG oder STL für den 3D-Drucker speichern (Wunsch Patrick
@@ -226,6 +226,8 @@ export default function Einlagen() {
     if (!w || typeof w.scanState !== "function") return;
     const st = w.scanState();
     if (!st.srcCanvas || !st.result || st.sample) return; // das Beispielfoto nicht
+    // das leere Blatt beim Start auch nicht, sonst ersetzt es den letzten Scan auf dem Gerät
+    if (st.leer && !st.result.tools.length && !(st.edit.strokes || []).length) return;
     if (z.scanLaeuft) await z.scanLaeuft;
     const sig = signatur(w);
     if (sig === z.scanSig) return;
@@ -482,7 +484,7 @@ export default function Einlagen() {
             })}
         </div>
       )}
-      <iframe ref={rahmen} className="einlagen-rahmen" title="Einlagen Gen"
+      <iframe ref={rahmen} className="einlagen-rahmen" title="Einlagen Generator"
         src={import.meta.env.BASE_URL + "einlagen/index.html"} onLoad={geladen}
         allow="camera" />
     </div>

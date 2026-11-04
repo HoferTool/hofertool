@@ -24,6 +24,8 @@ with sync_playwright() as p:
     pg.wait_for_selector("iframe.einlagen-rahmen", timeout=20000)
     pg.frame_locator("iframe.einlagen-rahmen").locator("h1").wait_for(timeout=15000); pg.wait_for_timeout(2000)
     f = lambda: pg.frames[1]
+    pruefe(f().evaluate("scanState().leer") == True, "Start mit leerem Blatt")
+    f().evaluate("beispielLaden()"); pg.wait_for_timeout(1500)
     # Beispielfoto lässt sich nicht speichern
     pg.click("#einlagen-wz-speichern"); pg.wait_for_timeout(400)
     pruefe(len(pg.evaluate("TEST.daten.einlagen_werkzeuge")) == 0, "Beispielfoto wird nicht gespeichert")
@@ -69,7 +71,7 @@ with sync_playwright() as p:
     # Neues Projekt verwirft den Scan auf dem Gerät
     f().evaluate("newProject()"); pg.wait_for_timeout(300)
     f().click("[data-n=ok]"); pg.wait_for_timeout(3500)
-    pruefe(f().evaluate("scanState().sample") == True, "Neues Projekt: Beispiel statt alter Scan")
+    pruefe(f().evaluate("scanState().leer") == True, "Neues Projekt: leeres Blatt statt alter Scan")
     pg.click("#einlagen-werkzeuge"); pg.wait_for_selector("#einlagen-wz-fenster .einlagen__wz")
     pg.click("#einlagen-wz-fenster .einlagen__wz >> nth=0 >> [data-wz=kontur]"); pg.wait_for_timeout(2500)
     s = f().evaluate("[scanState().sample, scanState().result.tools.length, document.getElementById('scanMode').hidden]")

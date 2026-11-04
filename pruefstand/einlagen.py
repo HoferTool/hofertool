@@ -28,11 +28,11 @@ with sync_playwright() as p:
     pg.wait_for_selector("iframe.einlagen-rahmen", timeout=20000)
     pruefe(pg.locator("[data-nav='einlagen']").count() > 0, "Reiter im Menü")
     nav = pg.evaluate("() => { const t = document.querySelector(\"[data-nav='einlagen'] .nav__text\"); const u = t.querySelector('.nav__zusatz'); return [t.firstChild.textContent, u && u.textContent, u && +getComputedStyle(u).opacity, u && u.getBoundingClientRect().top > t.firstChild.parentElement.getBoundingClientRect().top + 5]; }")
-    pruefe(nav[0] == "Einlagen Gen" and nav[1] == "created by Ecker" and nav[2] < 1 and nav[3], "Reiter zweizeilig, zweite Zeile blass: %s" % nav)
+    pruefe(nav[0] == "Einlagen Generator" and nav[1] == "created by Ecker" and nav[2] < 1 and nav[3], "Reiter zweizeilig, zweite Zeile blass: %s" % nav)
     fr = pg.frame_locator("iframe.einlagen-rahmen")
     fr.locator("h1").wait_for(timeout=15000); pg.wait_for_timeout(1500)
     f = pg.frames[1]
-    pruefe(f.evaluate("document.querySelector('h1').textContent") == "Einlagen Gen", "Werkzeug läuft im Rahmen")
+    pruefe(f.evaluate("document.querySelector('h1').textContent") == "Einlagen Generator", "Werkzeug läuft im Rahmen")
     pruefe(f.evaluate("typeof earcut") == "function", "earcut ohne Netz geladen")
     pruefe(f.evaluate("document.documentElement.dataset.theme") == "light", "hell wie die App")
     pruefe(f.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()") == "#003884", "Firmenblau als Akzent")
@@ -46,6 +46,7 @@ with sync_playwright() as p:
     pruefe(f.evaluate("!document.getElementById('scanMode') || document.getElementById('scanMode').hidden || getComputedStyle(document.getElementById('scanMode')).display === 'none'"), "Schritt Einlage geht auf")
     if BILD: pg.screenshot(path=BILD + "-pc-einlage.png")
     # Beispiel-Scan in die Einlage, dann STL speichern: Download aus dem Rahmen
+    f.evaluate("beispielLaden()"); pg.wait_for_timeout(1500)
     f.click("button:has-text('Aktuellen Scan einfügen')"); pg.wait_for_timeout(800)
     f.click("#pickAll"); f.click("#pickOk"); pg.wait_for_timeout(3000)
     # Von selbst in der App gespeichert (Tabelle einlagen)
