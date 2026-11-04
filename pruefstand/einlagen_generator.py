@@ -1,4 +1,4 @@
-# Einlagen Generator (1.391.0, Wunsch Patrick 4. November 2026): leeres Blatt,
+# Einlagen Generator (1.391.0 bis 1.393.1, Wunsch Patrick 4. November 2026): leeres Blatt,
 # Zeichnen mit Massen, Aufmass, Beschriftung, konische Einlage, schräge Taschen,
 # Export als 3MF.
 import os, time, zipfile, re, struct
@@ -51,6 +51,30 @@ with sync_playwright() as p:
     f.click("#areaClose"); pg.wait_for_timeout(1500)
     n = f.evaluate("scanState().result.tools.length")
     pruefe(n == 2, "Linie, Bogen, Linie und Schliessen gibt ein zweites Werkzeug: %s" % n)
+    # Gezeichnete Form anklicken und löschen (1.392.1, Wunsch Patrick 4. November 2026)
+    def klickMM(x, y):
+        q = f.evaluate("([x, y]) => { const r = $('view').getBoundingClientRect(); return [r.left + x * st.warp.ppm * st.viewScale, r.top + y * st.warp.ppm * st.viewScale]; }", [x, y])
+        bx = pg.frames[1].frame_element().bounding_box()
+        pg.mouse.click(bx["x"] + q[0], bx["y"] + q[1]); pg.wait_for_timeout(300)
+    mitte = f.evaluate("(() => { const b = bbox(scanState().result.tools[0].outer); return [(b[0]+b[2])/2, (b[1]+b[3])/2]; })()")
+    f.evaluate("document.getElementById('view').scrollIntoView({block: 'center'})"); pg.wait_for_timeout(300)
+    klickMM(mitte[0], mitte[1])
+    pruefe(f.evaluate("st.edit.ssel") is not None and f.is_visible("#areaDel"), "Klick auf das Rechteck wählt es, „Form löschen“ erscheint")
+    if BILD: pg.screenshot(path=BILD + "-formwahl.png")
+    f.click("#areaDel"); pg.wait_for_timeout(1500)
+    pruefe(f.evaluate("scanState().result.tools.length") == 1 and not f.is_visible("#areaDel"), "Form löschen entfernt das Rechteck: %s" % f.evaluate("scanState().result.tools.length"))
+    f.evaluate("undo()"); pg.wait_for_timeout(500)
+    pruefe(f.evaluate("scanState().result.tools.length") == 2, "Rückgängig holt es zurück")
+    klickMM(mitte[0], mitte[1]); pg.keyboard.press("Delete"); pg.wait_for_timeout(1500)
+    pruefe(f.evaluate("scanState().result.tools.length") == 1, "Entf löscht die gewählte Form")
+    f.evaluate("undo()"); pg.wait_for_timeout(500)
+    # Auch „Kontur löschen“ bei Punkte nimmt die gezeichnete Form mit, sie kommt beim nächsten Zeichnen nicht zurück
+    f.evaluate("(() => { document.querySelector('.tool[data-tool=points]').click(); st.edit.sel = { ti: 0, ri: 0, pi: 0 }; deleteRing(false); })()"); pg.wait_for_timeout(500)
+    f.evaluate("(() => { document.querySelector('.tool[data-tool=area]').click(); runSegment(true); })()"); pg.wait_for_timeout(1500)
+    pruefe(f.evaluate("scanState().result.tools.length") == 1, "Kontur löschen bleibt gelöscht: %s" % f.evaluate("scanState().result.tools.length"))
+    f.evaluate("undo()"); pg.wait_for_timeout(500)
+    n = f.evaluate("scanState().result.tools.length")
+    pruefe(n == 2, "nach Rückgängig wieder 2 Werkzeuge: %s" % n)
     # In die Einlage
     f.click("#toLayoutBtn"); pg.wait_for_timeout(500)
     if f.is_visible("#pickAll"): f.click("#pickAll"); f.click("#pickOk")
