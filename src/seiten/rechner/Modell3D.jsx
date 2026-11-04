@@ -10,7 +10,7 @@
 //  Kreise um die gewählte Achse und die Achse selbst sind blau.
 // =================================================================
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
 const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
@@ -60,6 +60,14 @@ export default function Modell3D({ kanten, achse, waehlen }) {
   const [dreh, setDreh] = useState({ a: -0.6, b: 0.45 });
   const [zoom, setZoom] = useState(1);
   const ziehen = useRef(null);
+  // Mausrad zoomt nur das Bild, die Seite rollt nicht mit (passive: false)
+  const bildRef = useRef(null);
+  useEffect(() => {
+    const el = bildRef.current; if (!el) return undefined;
+    const rad = (e) => { e.preventDefault(); setZoom((z) => Math.max(0.3, Math.min(20, z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)))); };
+    el.addEventListener("wheel", rad, { passive: false });
+    return () => el.removeEventListener("wheel", rad);
+  }, []);
 
   // Drehen um die senkrechte Achse (a), dann kippen (b)
   const proj = (p) => {
@@ -93,7 +101,7 @@ export default function Modell3D({ kanten, achse, waehlen }) {
           if (z.weit > 4) { e.currentTarget.setPointerCapture?.(e.pointerId); setDreh({ a: z.d.a + dx * 0.01, b: Math.max(-1.55, Math.min(1.55, z.d.b + dy * 0.01)) }); }
         }}
         onPointerUp={() => { setTimeout(() => { ziehen.current = null; }, 0); }}
-        onWheel={(e) => { e.preventDefault?.(); setZoom((z) => Math.max(0.3, Math.min(20, z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)))); }}>
+        ref={bildRef}>
         {zuege.map((z, i) => <path key={i} d={linie(z.pts)} className={"kt-3d__kante" + (z.k.art === "kreis" && umAchse(z.k, achse) ? " achse" : "")} />)}
         {achsLinie && <path d={achsLinie} className="kt-3d__achse" />}
         {/* Kreise antippbar, breit und unsichtbar darüber */}

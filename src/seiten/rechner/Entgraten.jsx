@@ -234,7 +234,30 @@ export default function Entgraten() {
 function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
   const [dreh, setDreh] = useState({ a: 0.5, b: -0.6 });
   const [zoom, setZoom] = useState(1);
+  // Deckkraft des Modells (seit 1.390.0, Wunsch Patrick 4. November 2026:
+  // „Transparenz vom 3D-Modell verstellen“), je Person gemerkt. Abgelegt
+  // erst kurz nach dem letzten Schieben, nicht bei jedem Schritt.
+  const [deckung, setDeckungRoh] = useState(() => {
+    const w = Number(alt.einstellungWert?.("eg_deckung", "45"));
+    return Number.isFinite(w) && w >= 0 && w <= 100 ? w : 45;
+  });
+  const deckWarten = useRef(null);
+  const setDeckung = (w) => {
+    setDeckungRoh(w);
+    clearTimeout(deckWarten.current);
+    deckWarten.current = setTimeout(() => alt.einstellungSetzenWert?.("eg_deckung", w), 600);
+  };
+  const deckStil = { opacity: deckung / 100 };
   const ziehen = useRef(null);
+  // Mausrad zoomt nur das Bild: als eigener Zuhörer mit passive: false,
+  // sonst rollt die Seite mit (Patrick 4. November 2026)
+  const bildRef = useRef(null);
+  useEffect(() => {
+    const el = bildRef.current; if (!el) return undefined;
+    const rad = (e) => { e.preventDefault(); setZoom((z) => Math.max(0.4, Math.min(20, z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)))); };
+    el.addEventListener("wheel", rad, { passive: false });
+    return () => el.removeEventListener("wheel", rad);
+  }, []);
   const R = Math.max(0.5, b.teilD / 2);
   // Wie weit das Teil nach hinten gezeichnet wird
   const tief = useMemo(() => {
@@ -274,8 +297,15 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
   }
   const cc = Math.cos(cDreh), cs = Math.sin(cDreh);
   const amTeil = (p) => [p[0] * cc - p[1] * cs, p[0] * cs + p[1] * cc, p[2]];
-  const projT = (p) => proj(amTeil(p));
   const linieT = (pts, zu) => linie(pts.map(amTeil), zu);
+  // Bildschirm x, y und Tiefe (gross = näher beim Betrachter), für das
+  // Werkzeug als Körper
+  const sicht = (p) => {
+    const q = amTeil(p);
+    const ca = Math.cos(dreh.a), sa = Math.sin(dreh.a), cb = Math.cos(dreh.b), sb = Math.sin(dreh.b);
+    const x1 = q[0] * ca - q[1] * sa, y1 = q[0] * sa + q[1] * ca, z = q[2] - zm;
+    return [z * cb + y1 * sb, -x1, y1 * cb - z * sb];
+  };
   // Striche an der Stirn, damit man das Drehen des Teils sieht
   const marken = [];
   for (let i = 0; i < 12; i++) {
@@ -296,22 +326,22 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
           if (z.weit > 4) { e.currentTarget.setPointerCapture?.(e.pointerId); setDreh({ a: z.d.a + dy * 0.01, b: Math.max(-1.6, Math.min(1.6, z.d.b - dx * 0.01)) }); }
         }}
         onPointerUp={() => { setTimeout(() => { ziehen.current = null; }, 0); }}
-        onWheel={(e) => setZoom((z) => Math.max(0.4, Math.min(20, z * (e.deltaY < 0 ? 1.15 : 1 / 1.15))))}>
+        ref={bildRef}>
         {b.draht
           // STEP: das ganze Drahtmodell, dreht in der Simulation mit
-          ? <path d={b.draht.map((pts) => linieT(pts)).join("")} className="eg-draht" id="eg-draht" />
-          : <>
+          ? <path d={b.draht.map((pts) => linieT(pts)).join("")} className="eg-draht" id="eg-draht" style={deckStil} />
+          : <g id="eg-teil" style={deckStil}>
             <path d={kreis(b.zStirn)} className="eg-teil" />
             <path d={kreis(b.zStirn - tief)} className="eg-teil eg-teil--hinten" />
             {umriss.map((d, i) => <path key={i} d={d} className="eg-teil" />)}
-          </>}
+          </g>}
         {marken.map((d, i) => <path key={"m" + i} d={d} className={"eg-marke" + (i ? "" : " eg-marke--null")} />)}
         <path d={linie([[0, 0, b.zStirn + 2], [0, 0, b.zStirn - tief - 2]])} className="eg-achse" />
         {kanten.map((k) => <path key={k.id} d={linieT(k.punkte.map((p) => p.E), k.geschlossen)}
           className={"eg-kante" + (istGewaehlt(k.id) ? " gewaehlt" : "")} />)}
         {bahnen.map((bn, i) => <path key={"b" + i} d={linieT(bn.spitzen, bn.geschlossen)} className="eg-bahn" />)}
         {sim.an && sim.erledigt.map((pts, i) => pts.length > 1 && <path key={"e" + i} d={linieT(pts)} className="eg-bahn-fertig" />)}
-        {sim.an && sim.jetzt && <WerkzeugBild proj={projT} g={g} spitze={sim.jetzt.p} achse={sim.jetzt.a} />}
+        {sim.an && sim.jetzt && <WerkzeugBild sicht={sicht} g={g} spitze={sim.jetzt.p} achse={sim.jetzt.a} />}
         {kanten.map((k) => (
           <path key={"t" + k.id} d={linieT(k.punkte.map((p) => p.E), k.geschlossen)} className="eg-treffer" data-eg3d={k.id}
             onClick={() => { if (ziehen.current && ziehen.current.weit > 4) return; umschalten(k.id); }}>
@@ -322,6 +352,10 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
         <button className="knopf knopf--klein" onClick={() => setDreh({ a: 0, b: -1.5707 })}>Von vorne</button>
         <button className="knopf knopf--klein" onClick={() => setDreh({ a: 0, b: 0 })}>Von der Seite</button>
         <button className="knopf knopf--klein" onClick={() => { setDreh({ a: 0.5, b: -0.6 }); setZoom(1); }}>Schräg</button>
+        <label className="eg-deckung klein" title="Wie kräftig das Modell gezeichnet wird">Modell
+          <input type="range" id="eg-deckung" min="0" max="100" step="5" value={deckung}
+            onChange={(e) => setDeckung(Number(e.target.value))} />
+          <span>{deckung} %</span></label>
         <span className="klein">ziehen dreht, Mausrad zoomt, Kante antippen = wählen</span>
       </div>
       <SimLeiste sim={sim} c={cAnzeige} />
@@ -422,29 +456,82 @@ function SimLeiste({ sim, c }) {
 
 // Werkzeug im 3D-Bild: Spitze am Bahnpunkt, Achse wie gerechnet.
 // Kugel und Kopierfräser als Kugel mit Schaft, Zentrierfräser als Kegel.
-function WerkzeugBild({ proj, g, spitze, achse }) {
-  const plusV = (a, b, f) => [a[0] + b[0] * f, a[1] + b[1] * f, a[2] + b[2] * f];
+function WerkzeugBild({ sicht, g, spitze, achse }) {
+  // Seit 1.390.0 als Körper (Wunsch Patrick 4. November 2026: „das
+  // Werkzeug 3-dimensional“): Drehkörper um die Werkzeugachse aus Ringen,
+  // nur die zum Betrachter gewandten Flächen, hinten zuerst, hell und
+  // dunkel nach dem Licht von vorne oben links.
   const zent = g.werkzeug === "zentrier";
   const R = zent ? g.durchmesser / 2 : (g.werkzeug === "kopier" ? g.radius : g.durchmesser / 2);
+  if (!(R > 0)) return null;
   const tanH = Math.tan((Math.max(10, Math.min(170, g.winkel)) * Math.PI) / 360);
   const hKegel = zent ? R / tanH : R;          // bis zum vollen Ø bzw. Kugelmitte
-  const basis = plusV(spitze, achse, hKegel);
   const L = Math.max(4 * R, 6);
-  const p0 = proj(basis), p1 = proj(plusV(basis, achse, 1));
-  let d = [p1[0] - p0[0], p1[1] - p0[1]];
-  const dl = Math.hypot(d[0], d[1]);
-  const quer = dl > 0.05 ? [-d[1] / dl, d[0] / dl] : [1, 0];
-  const pt = (q, f, r) => (q[0] + d[0] * f + quer[0] * r).toFixed(3) + "," + (q[1] + d[1] * f + quer[1] * r).toFixed(3);
-  const schaft = [pt(p0, 0, R), pt(p0, L, R), pt(p0, L, -R), pt(p0, 0, -R)].join(" ");
-  const ps = proj(spitze);
+  const la = Math.hypot(achse[0], achse[1], achse[2]) || 1;
+  const a = achse.map((x) => x / la);
+  // zwei Richtungen quer zur Achse
+  const hilf = Math.abs(a[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+  const kreuz = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  const norm = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return v.map((x) => x / l); };
+  const e1 = norm(kreuz(a, hilf)), e2 = kreuz(a, e1);
+  // Profil von der Spitze nach oben: [Höhe entlang der Achse, Radius, schneidet]
+  const profil = [];
+  if (zent) { profil.push([0, 0, true], [hKegel, R, true]); }
+  else for (let i = 0; i <= 8; i++) { const t = (Math.PI / 2) * (i / 8); profil.push([R - R * Math.cos(t), R * Math.sin(t), true]); }
+  profil.push([hKegel, R, false], [hKegel + L, R, false]);
+  const N = 28;
+  const punkt = (h, r, f) => [0, 1, 2].map((k) => spitze[k] + a[k] * h + (e1[k] * Math.cos(f) + e2[k] * Math.sin(f)) * r);
+  const s0 = sicht(spitze);
+  const flaechen = [];
+  const licht = norm([-0.35, -0.45, 1]);         // Bildschirm: links, oben, vorne
+  const fuege = (pts, art) => {
+    const q = pts.map(sicht);
+    // Fläche im Bild: Normale aus zwei Kanten (Tiefe ist z)
+    const u = [q[1][0] - q[0][0], q[1][1] - q[0][1], q[1][2] - q[0][2]];
+    const v = [q[q.length - 1][0] - q[0][0], q[q.length - 1][1] - q[0][1], q[q.length - 1][2] - q[0][2]];
+    let n = kreuz(u, v);
+    const ln = Math.hypot(n[0], n[1], n[2]);
+    if (ln < 1e-9) return;
+    n = n.map((x) => x / ln);
+    flaechen.push({ q, n, art, t: q.reduce((x, p) => x + p[2], 0) / q.length });
+  };
+  for (let j = 0; j + 1 < profil.length; j++) {
+    const [h0, r0, sch] = profil[j], [h1, r1] = profil[j + 1];
+    if (h0 === h1 && r0 === r1) continue;
+    for (let i = 0; i < N; i++) {
+      const f0 = (2 * Math.PI * i) / N, f1 = (2 * Math.PI * (i + 1)) / N;
+      const pts = r0 < 1e-9
+        ? [punkt(h0, 0, 0), punkt(h1, r1, f0), punkt(h1, r1, f1)]
+        : [punkt(h0, r0, f0), punkt(h1, r1, f0), punkt(h1, r1, f1), punkt(h0, r0, f1)];
+      fuege(pts, sch ? "schneide" : "schaft");
+    }
+  }
+  // Deckel oben
+  const deckel = [];
+  for (let i = N; i > 0; i--) deckel.push(punkt(hKegel + L, R, (2 * Math.PI * i) / N));
+  fuege(deckel, "schaft");
+  // Richtung der Normalen nach aussen: Mitte des Körpers als Bezug
+  const mitte = sicht(punkt(hKegel + L / 2, 0, 0));
+  const sichtbar = flaechen.filter((fl) => {
+    const c = fl.q.reduce((x, p) => [x[0] + p[0], x[1] + p[1], x[2] + p[2]], [0, 0, 0]).map((x) => x / fl.q.length);
+    const aus = [c[0] - mitte[0], c[1] - mitte[1], c[2] - mitte[2]];
+    if (aus[0] * fl.n[0] + aus[1] * fl.n[1] + aus[2] * fl.n[2] < 0) fl.n = fl.n.map((x) => -x);
+    return fl.n[2] > -0.02;
+  }).sort((x, y) => x.t - y.t);
+  const farbe = (art, hell) => {
+    const [r, gg, bb] = art === "schneide" ? [236, 160, 52] : [150, 160, 172];
+    const k = 0.42 + 0.58 * hell;
+    return `rgb(${Math.round(r * k)},${Math.round(gg * k)},${Math.round(bb * k)})`;
+  };
   return (
     <g className="eg-wz" id="eg-sim-wz" pointerEvents="none">
-      {dl > 0.05 && <polygon points={schaft} className="eg-wz__schaft" />}
-      {zent
-        ? <polygon points={`${ps[0]},${ps[1]} ${pt(p0, 0, R)} ${pt(p0, 0, -R)}`} className="eg-wz__schneide" />
-        : <circle cx={p0[0]} cy={p0[1]} r={R} className="eg-wz__schneide" />}
-      {dl <= 0.05 && <circle cx={p0[0]} cy={p0[1]} r={R} className="eg-wz__schaft" />}
-      <circle cx={ps[0]} cy={ps[1]} r={Math.max(0.08, R * 0.12)} className="eg-wz__spitze" />
+      {sichtbar.map((fl, i) => {
+        const hell = Math.max(0, fl.n[0] * licht[0] + fl.n[1] * licht[1] + fl.n[2] * licht[2]);
+        const c = farbe(fl.art, hell);
+        return <polygon key={i} points={fl.q.map((p) => p[0].toFixed(3) + "," + p[1].toFixed(3)).join(" ")}
+          style={{ fill: c, stroke: c, strokeWidth: 0.6 }} vectorEffect="non-scaling-stroke" className={"eg-wz__" + fl.art} />;
+      })}
+      <circle cx={s0[0]} cy={s0[1]} r={Math.max(0.08, R * 0.12)} className="eg-wz__spitze" />
     </g>
   );
 }

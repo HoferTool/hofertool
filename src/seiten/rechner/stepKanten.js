@@ -262,6 +262,47 @@ export function kantenAusStep(text, { achse: achseNr = 0, umdrehen = false } = {
   draht.forEach((pts, i) => { draht[i] = pts.map(schieb); });
   kantenRoh.forEach((k) => { k.pts = k.pts.map(schieb); });
 
+  // Wie weit eine Drehfläche um die Achse herumreicht (Grad, aus ihren
+  // Randkanten). Eine gedrehte Fläche geht fast ganz herum, auch wenn eine
+  // Nut sie unterbricht; die Wand einer gefrästen Mantelnut liegt zwar
+  // auch quer zur Achse, reicht aber nur über ihren Bogen.
+  // Flächen auf derselben Drehfläche (etwa die Kopfzylinder aller Zähne
+  // eines Zahnrads) zählen zusammen
+  const schluessel = (f) => [f.art, zahlR(f.R), zahlR(f.r), zahlR(f.winkel),
+    f.art === "CYLINDRICAL_SURFACE" ? "" : zahlR(f.lage.o[2])].join("|");
+  const zahlR = (x) => (x === undefined ? "" : Math.round(x * 1000) / 1000);
+  const gruppen = new Map();
+  for (const f of flaechen.values()) {
+    if (!umAchse(f)) continue;
+    const s = schluessel(f);
+    if (!gruppen.has(s)) gruppen.set(s, []);
+    gruppen.get(s).push(f);
+  }
+  const umfang = new Map();
+  const umfangVon = (f) => {
+    if (umfang.has(f)) return umfang.get(f);
+    const alle = gruppen.get(schluessel(f)) || [f];
+    const fach = new Set();
+    for (const k of kantenRoh) {
+      if (!(nutzung.get(k.id) || []).some((x) => alle.includes(x.f))) continue;
+      const w = k.pts.map((p) => (Math.hypot(p[0], p[1]) > 1e-6 ? (Math.atan2(p[1], p[0]) * 180) / Math.PI : null));
+      for (let i = 0; i < w.length; i++) {
+        if (w[i] === null) continue;
+        fach.add(Math.floor((((w[i] % 360) + 360) % 360) / 5));
+        if (i + 1 < w.length && w[i + 1] !== null) {
+          let d = w[i + 1] - w[i];
+          if (d > 180) d -= 360; if (d < -180) d += 360;
+          if (Math.abs(d) < 30) for (let t = 0; t <= Math.abs(d); t += 2.5) fach.add(Math.floor((((w[i] + Math.sign(d) * t) % 360 + 360) % 360) / 5));
+        }
+      }
+    }
+    // Drei und mehr Stücke derselben Fläche: gedreht und danach unterbrochen
+    const grad = alle.length >= 3 ? 360 : fach.size * 5;
+    umfang.set(f, grad);
+    return grad;
+  };
+  const gedrehteFlaeche = (f) => umAchse(f) && umfangVon(f) >= 200;
+
   // ---------- Kanten prüfen ----------
   const gefunden = [];
   let gedreht = 0, rund = 0, innen = 0, unbekannt = 0, abseits = 0;
@@ -269,7 +310,7 @@ export function kantenAusStep(text, { achse: achseNr = 0, umdrehen = false } = {
     const nz = nutzung.get(k.id) || [];
     if (nz.length !== 2 || nz[0].f === nz[1].f) continue;   // Naht eines Zylinders
     const [F1, F2] = nz;
-    if (umAchse(F1.f) && umAchse(F2.f)) { gedreht++; continue; }
+    if (gedrehteFlaeche(F1.f) && gedrehteFlaeche(F2.f)) { gedreht++; continue; }
     const pts = k.pts;
     const tangente = (i) => einheit(minus(pts[Math.min(pts.length - 1, i + 1)], pts[Math.max(0, i - 1)]));
     const info = pts.map((E, i) => {
@@ -301,13 +342,18 @@ export function kantenAusStep(text, { achse: achseNr = 0, umdrehen = false } = {
     if (!zentrier) {
       // Weder stirnseitig noch von aussen gerade: nur, wenn eine Fläche
       // zum Frontwerkzeug schaut (Kugelfräser), sonst nicht erreichbar
+      // oder von aussen her zum Querwerkzeug (etwa eine Kugel, die von
+      // einem Schlitz angeschnitten ist: Kugelfräser von der Seite)
+      const r = einheit([m.E[0], m.E[1], 0]);
+      const aussen = (welche) => info.every((x) => punkt(x[welche], r) > 0.15);
       if (Math.max(m.n1[2], m.n2[2]) > 0.3) erst = m.n1[2] >= m.n2[2] ? 1 : 2;
+      else if (aussen("n1") || aussen("n2")) erst = aussen("n1") && (!aussen("n2") || punkt(m.n1, r) >= punkt(m.n2, r)) ? 1 : 2;
       else { abseits++; continue; }
     }
     const A = erst === 1 ? F1.f : F2.f, B = erst === 1 ? F2.f : F1.f;
     const punkte = info.map((x) => (erst === 1
-      ? { E: x.E, u: x.u1, nA: x.n1, vB: x.u2 } : { E: x.E, u: x.u2, nA: x.n2, vB: x.u1 }));
-    gefunden.push({ id: k.id, v1: k.v1, v2: k.v2, A, B, zentrier, punkte });
+      ? { E: x.E, u: x.u1, nA: x.n1, vB: x.u2, nB: x.n2 } : { E: x.E, u: x.u2, nA: x.n2, vB: x.u1, nB: x.n1 }));
+    gefunden.push({ id: k.id, v1: k.v1, v2: k.v2, A, B, zentrier, zB: erst === 1 ? a2 : a1, punkte });
   }
 
   // ---------- Zu Zügen verbinden ----------
@@ -316,6 +362,7 @@ export function kantenAusStep(text, { achse: achseNr = 0, umdrehen = false } = {
   // eines Bohrungsrands oder Seite, Bogen, Seite einer Nut)
   const frei = new Set(gefunden);
   const ende = (g, vorne) => (vorne ? g.v1 : g.v2);
+  const tauschen = (g) => ({ ...g, A: g.B, B: g.A, zentrier: g.zB, zB: g.zentrier, punkte: g.punkte.map((p) => ({ E: p.E, u: p.vB, nA: p.nB, vB: p.u, nB: p.nA })) });
   const umkehren = (g) => ({ ...g, v1: g.v2, v2: g.v1, punkte: [...g.punkte].reverse() });
   const richtungAm = (pk, amEnde) => (amEnde
     ? einheit(minus(pk[pk.length - 1].E, pk[pk.length - 2].E)) : einheit(minus(pk[1].E, pk[0].E)));
@@ -329,17 +376,25 @@ export function kantenAusStep(text, { achse: achseNr = 0, umdrehen = false } = {
         const ecke = vorwaerts ? zug.v2 : zug.v1;
         if (!vorwaerts && zug.v1 === zug.v2) break;
         if (vorwaerts && zug.v1 === zug.v2 && zug.teile.length > 1) break;
-        const kandidaten = [...frei].filter((g) => g.A === zug.A && (g.v1 === ecke || g.v2 === ecke));
+        // Nachbar mit gemeinsamer Fläche. Ist seine Fläche B unsere Fläche A
+        // (Mantelnut: Mantel einmal neben der Wand, einmal neben dem
+        // Boden), werden A und B getauscht, damit die Fase auf derselben
+        // Fläche gemessen wird
+        const letzt = vorwaerts ? zug.teile[zug.teile.length - 1] : zug.teile[0];
+        const kandidaten = [...frei].filter((g) => [g.A, g.B].some((f) => f === letzt.A || f === letzt.B) && (g.v1 === ecke || g.v2 === ecke));
         let passt = null;
         for (const g0 of kandidaten) {
-          let g = g0;
+          let g = g0.A !== letzt.A && g0.B === letzt.A ? tauschen(g0) : g0;
+          // Anfangsstück andersherum (etwa Boden der Nut vor dem Mantel)
+          const drehen = g.A !== letzt.A && g.A === letzt.B && zug.teile.length === 1;
           if (vorwaerts && g.v1 !== ecke) g = umkehren(g);
           if (!vorwaerts && g.v2 !== ecke) g = umkehren(g);
           const r1 = vorwaerts ? richtungAm(zug.punkte, true) : richtungAm(g.punkte, true);
           const r2 = vorwaerts ? richtungAm(g.punkte, false) : richtungAm(zug.punkte, false);
-          if (punkt(r1, r2) > Math.cos((40 * Math.PI) / 180)) { passt = { g0, g }; break; }
+          if (punkt(r1, r2) > Math.cos((40 * Math.PI) / 180)) { passt = { g0, g, drehen }; break; }
         }
         if (!passt) break;
+        if (passt.drehen) zug = { ...tauschen(zug), teile: [tauschen(zug.teile[0])] };
         frei.delete(passt.g0);
         const g = passt.g;
         zug = vorwaerts
@@ -348,6 +403,10 @@ export function kantenAusStep(text, { achse: achseNr = 0, umdrehen = false } = {
         if (zug.v1 === zug.v2) break;
       }
     }
+    // Art des Zugs nach seinem längsten Stück (ein kurzes Stück
+    // Stirnfläche am Anfang macht einen Bogen über die Kugel nicht zur Frontkante)
+    const lang = zug.teile.reduce((a, t) => (t.punkte.length > a.punkte.length ? t : a), zug.teile[0]);
+    zug.zentrier = lang.zentrier;
     zug.geschlossen = zug.v1 === zug.v2;
     if (zug.geschlossen && zug.punkte.length > 2) zug.punkte = zug.punkte.slice(0, -1);
     zuege.push(zug);

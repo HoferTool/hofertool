@@ -11731,7 +11731,12 @@ body.dunkel .eg-sk__text, body.dunkel .eg-sk__titel { fill: #fff; }
 /* Entgraten, Kanten aus STEP-Datei (seit 1.389.0) */
 .eg-quelle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 10px; }
 .eg-haken { display: inline-flex; align-items: center; gap: 6px; }
-.eg-draht { fill: none; stroke: #b8c2cc; stroke-width: 0.8; vector-effect: non-scaling-stroke; }
-body.dunkel .eg-draht { stroke: #4b5661; }
+.eg-draht { fill: none; stroke: #5d6873; stroke-width: 0.8; vector-effect: non-scaling-stroke; }
+body.dunkel .eg-draht { stroke: #aab4be; }
 .eg-fehler { color: #c62828; }
 body.dunkel .eg-fehler { color: #ff8a80 !important; }
+
+/* Entgraten: Schieber für die Deckkraft des Modells (seit 1.390.0) */
+.eg-deckung { display: inline-flex; align-items: center; gap: 6px; }
+.eg-deckung input { width: 110px; }
+.eg-deckung span { min-width: 3.2em; text-align: right; }

@@ -177,6 +177,18 @@ with sync_playwright() as p:
         pg.click("[data-egwz='zentrier']"); pg.wait_for_timeout(100)
         pg.locator("#eg-skizze").screenshot(path=BILD + "/eg-skizze-zentrier.png")
         pg.click("[data-egwz='kugel']"); pg.wait_for_timeout(100)
+    # Werkzeug als Körper (seit 1.390.0): viele schattierte Flächen
+    pg.click("#eg-sim-start"); pg.wait_for_timeout(300)
+    pruefe("Werkzeug 3D: Flächen", pg.locator("#eg-sim-wz polygon").count() > 20)
+    if pg.locator("#eg-sim-halt").count(): pg.click("#eg-sim-halt")
+    # Deckkraft des Modells
+    pg.locator("#eg-deckung").evaluate("e=>{const s=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; s.call(e,'20'); e.dispatchEvent(new Event('input',{bubbles:true}))}")
+    pg.wait_for_timeout(100)
+    pruefe("Deckkraft 20 %", pg.evaluate("getComputedStyle(document.querySelector('#eg-teil')).opacity") == "0.2")
+    # Mausrad zoomt, die Seite rollt nicht mit
+    pg.evaluate("window.scrollTo(0, 200)"); oben = pg.evaluate("window.scrollY")
+    pg.locator("#eg-3d").hover(); pg.mouse.wheel(0, 300); pg.wait_for_timeout(200)
+    pruefe("Mausrad: Seite bleibt", pg.evaluate("window.scrollY") == oben)
     pg.click("#eg-sim-aus"); pg.wait_for_timeout(100)
     pruefe("Simulation aus", pg.locator("#eg-sim-wz").count() == 0)
     if BILD: pg.screenshot(path=BILD + "/entgraten.png", full_page=True)
@@ -186,7 +198,9 @@ with sync_playwright() as p:
     pg.wait_for_function("document.querySelector('#eg-quelle') && /Kante/.test(document.querySelector('#eg-quelle').textContent)", timeout=15000)
     pg.wait_for_timeout(200)
     namen = pg.locator("#eg-liste label").all_inner_texts()
-    pruefe("STEP: Kanten erkannt", len(namen) == 2 and all("Quer" in n for n in namen))
+    pruefe("STEP: Kanten erkannt", len(namen) == 4 and sum("Quer, Z-4.5" in n for n in namen) == 2)
+    # Die Nut im Mantel geht nicht ganz herum: auch ihre Bögen an den gedrehten Wänden sind Kanten
+    pruefe("STEP: Bögen der Mantelnut", any("Z-3," in n for n in namen) and any("Z-6," in n for n in namen))
     pruefe("STEP: Drahtbild", pg.locator("#eg-draht").count() == 1)
     nc = pg.inner_text("#eg-code")
     pruefe("STEP: NC-Programm", "Kante (Quer, Z-4.5" in nc and "G1X" in nc)
