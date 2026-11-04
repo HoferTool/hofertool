@@ -96,6 +96,14 @@ with sync_playwright() as p:
     feld("durchmesser", 6)
     c = code()
     pruefe("Zentrier quer ohne Y: in der Mitte (Ø4 Bohrer)", c.count("(Mitte)") == 2 and "G12.1" not in c)
+    # Kontur abfahren ohne Y (seit 1.391.1): C läuft mit, kein Y, Spitze unter dem Mantel
+    pg.select_option("[data-eg='zentrierFahrt']", "kontur"); pg.wait_for_timeout(150)
+    c = code()
+    seg = c.split("( Querbohrung 1")[1].split("G0X")[0] if "( Querbohrung 1" in c else ""
+    cs = zahlen(seg, "C")
+    pruefe("Zentrier quer ohne Y fährt die Kontur", "(Mitte)" not in c and len(cs) > 20 and max(cs) - min(cs) > 5 and "Y" not in seg
+           and not any("Y-Achse" in t for t in pg.locator(".eg-warnung").all_inner_texts()))
+    pg.select_option("[data-eg='zentrierFahrt']", "auto"); pg.wait_for_timeout(100)
     pg.click("[data-egwz='kugel']"); feld("durchmesser", 2); pg.wait_for_timeout(100)
     c = code()
     seg = c.split("( Querbohrung 1")[1].split("G0X")[0]

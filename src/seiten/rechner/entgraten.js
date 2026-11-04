@@ -259,17 +259,41 @@ export function egBahnen(b, g) {
         bahnen.push({ name: k.name.replace(/, (Seite|Kante) .*$/, "") + " (Mitte)", spitzen, achsen: spitzen.map(() => m.nA), c0: k.c0, geschlossen: false });
         return;
       }
-      if (!front && !y) {
-        warnungen.push(k.name + ": Für den Zentrierfräser zu breit (braucht Ø" + (2 * ((m ? m.halb : 0) + w) + 0.2).toFixed(1)
-          + "), und ohne Y-Achse kann das Querwerkzeug nicht neben der Mitte fahren. Kugelfräser nehmen.");
-        return;
-      }
       const ort = zentrierOrt(g);
       const r0 = ort.r0;
       if (r0 <= w) { warnungen.push(k.name + ": Der Zentrierfräser ist zu klein für diese Fase."); return; }
       if (ort.zuGross && !warnungen.some((t) => t.startsWith("Schneidenposition")))
         warnungen.push("Schneidenposition: so weit oben hat der Fräser keine Schneide mehr. Gerechnet mit Ø" + (2 * r0).toFixed(2)
           + " an der Fasenoberkante (Spitze " + (r0 - w).toFixed(2) + " unter der Fase).");
+      if (!front && !y) {
+        // Querwerkzeug ohne Y (seit 1.391.1, Patrick 4. November 2026: „warum
+        // kann der Zentrierfräser nicht ohne Y-Achse entgraten beim
+        // Abfahren?“): die Werkzeugachse geht immer durch die Drehmitte, C
+        // dreht das Teil darunter. Auf dem Mantel (Fläche A rund um die
+        // Achse) steht der Fräser so überall senkrecht auf der Fläche: der
+        // Punkt neben der Kante wird auf den Mantel gelegt, die Achse zeigt
+        // dort radial. Auf einer ebenen Querfläche geht das nur, wo ihre
+        // Senkrechte durch die Mitte zeigt, sonst braucht es Y.
+        const spitzen = [], achsen = [];
+        let schief = false;
+        k.punkte.forEach((p) => {
+          const rE = Math.hypot(p.E[0], p.E[1]);
+          const Q = plus(p.E, mal(p.u, w - r0));
+          const a = einheit(v(Q[0], Q[1], 0));
+          const rad = einheit(v(p.E[0], p.E[1], 0));
+          const mantel = punkt(p.nA, rad) > 0.999;
+          if (!mantel && punkt(p.nA, a) < Math.cos(grad(3))) schief = true;
+          const S = mantel ? v(a[0] * rE, a[1] * rE, Q[2]) : Q;
+          spitzen.push(plus(S, mal(a, -r0 / tan)));
+          achsen.push(a);
+        });
+        if (schief) {
+          warnungen.push(k.name + ": Die Fläche ist eben und steht nicht senkrecht zur Drehmitte. Ohne Y-Achse kann der Zentrierfräser hier nicht senkrecht darauf stehen. Y-Achse einschalten oder Kugelfräser nehmen.");
+          return;
+        }
+        bahnen.push({ name: k.name, spitzen, achsen, c0: k.c0, geschlossen: k.geschlossen });
+        return;
+      }
       const spitzen = k.punkte.map((p) => plus(plus(p.E, mal(p.u, w - r0)), mal(p.nA, -r0 / tan)));
       bahnen.push({ name: k.name, spitzen, achsen: k.punkte.map((p) => p.nA), c0: k.c0, geschlossen: k.geschlossen });
     });
