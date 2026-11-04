@@ -11689,3 +11689,29 @@ body.dunkel .systemzustand__zeile { border-top-color: rgba(255, 255, 255, .12); 
 .nc-ablage { margin-left: auto; }
 .eg-wahl { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0; }
 .eg-wahl .moduswahl { margin: 0; }
+/* Entgraten: Skizze und Simulation (seit 1.386.0) */
+.eg-rechts { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.eg-skizze { width: 100%; background: var(--grund); border: 1px solid var(--linie); border-radius: 8px; display: block; }
+.eg-sk__mat { fill: #c9d3dd; stroke: #6b7785; stroke-width: 1; }
+.eg-sk__weg { fill: rgba(220, 50, 50, .22); stroke: none; }
+.eg-sk__fase { stroke: #d93025; stroke-width: 2.5; }
+.eg-sk__wz { fill: rgba(242, 176, 78, .55); stroke: #b26b00; stroke-width: 1.2; }
+.eg-sk__achse { stroke: #8a939d; stroke-width: 1; stroke-dasharray: 8 3 2 3; }
+.eg-sk__mass { stroke: #2a7de1; stroke-width: 1; }
+.eg-sk__text { font-size: 11px; fill: var(--text, #1d2733); }
+.eg-sk__titel { font-size: 12px; font-weight: 600; fill: var(--text, #1d2733); }
+.eg-sk__klein { font-size: 9px; fill: #6b7785; }
+.eg-sk__rot { fill: #d93025; }
+.eg-sk__spitze { fill: #d93025; }
+.eg-sim { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 0; }
+.eg-sim input[type=range] { flex: 1 1 160px; min-width: 120px; }
+.eg-bahn-fertig { fill: none; stroke: #d93025; stroke-width: 3; }
+.eg-wz__schaft { fill: rgba(140, 150, 160, .45); stroke: #59626c; stroke-width: 1; }
+.eg-wz__schneide { fill: rgba(242, 176, 78, .75); stroke: #b26b00; stroke-width: 1; }
+.eg-wz__spitze { fill: #d93025; }
+body.dunkel .eg-sk__text, body.dunkel .eg-sk__titel { fill: #fff; }
+
+/* Skizze lesbar über Linien, Tempo-Wahl schmal (1.386.0) */
+.eg-sk__text, .eg-sk__titel { paint-order: stroke; stroke: var(--grund, #fff); stroke-width: 3px; stroke-linejoin: round; }
+.eg-sk__hilf { stroke-dasharray: 3 2; }
+.eg-sim select { width: auto; flex: 0 0 auto; min-width: 0; padding: 4px 8px; }

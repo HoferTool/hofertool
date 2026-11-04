@@ -125,6 +125,28 @@ with sync_playwright() as p:
     pg.click("[data-unter='nc/entgraten']"); pg.wait_for_selector("#eg-code")
     pruefe("Nut Front: zwei Seiten", pg.locator("[data-egkante]").count() == 2)
     pg.click("[data-egri='front']"); pg.wait_for_timeout(100)
+    # Skizze und Simulation
+    pruefe("Skizze mit Breite und Tiefe", pg.locator("#eg-skizze").count() == 1
+           and "Breite" in pg.text_content("#eg-sk-breite") and "Tiefe" in pg.text_content("#eg-sk-tiefe"))
+    pruefe("Ohne Simulation kein Werkzeug", pg.locator("#eg-sim-wz").count() == 0)
+    pg.click("#eg-sim-start"); pg.wait_for_timeout(600)
+    pruefe("Simulation zeigt Werkzeug", pg.locator("#eg-sim-wz").count() == 1)
+    s1 = pg.text_content("#eg-sim-stand"); pg.wait_for_timeout(600); s2 = pg.text_content("#eg-sim-stand")
+    pruefe("Simulation läuft weiter", s1 != s2)
+    pg.click("#eg-sim-halt")
+    pg.evaluate("""() => { const r = document.querySelector('#eg-sim-ort'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+      set.call(r, r.max); r.dispatchEvent(new Event('input', { bubbles: true })); r.dispatchEvent(new Event('change', { bubbles: true })); }""")
+    pg.wait_for_timeout(150)
+    st = pg.text_content("#eg-sim-stand").replace(" mm", "").split(" / ")
+    pruefe("Regler ans Ende", st[0] == st[1] and pg.locator(".eg-bahn-fertig").count() > 0)
+    if BILD:
+        pg.screenshot(path=BILD + "/entgraten-sim.png", full_page=True)
+        pg.locator("#eg-skizze").screenshot(path=BILD + "/eg-skizze-kugel.png")
+        pg.click("[data-egwz='zentrier']"); pg.wait_for_timeout(100)
+        pg.locator("#eg-skizze").screenshot(path=BILD + "/eg-skizze-zentrier.png")
+        pg.click("[data-egwz='kugel']"); pg.wait_for_timeout(100)
+    pg.click("#eg-sim-aus"); pg.wait_for_timeout(100)
+    pruefe("Simulation aus", pg.locator("#eg-sim-wz").count() == 0)
     if BILD: pg.screenshot(path=BILD + "/entgraten.png", full_page=True)
     # Ohne Tabelle: am Konto
     pg.evaluate("window.FEHLENDE_TABELLEN = ['nc_programme']")
