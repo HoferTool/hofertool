@@ -1779,8 +1779,12 @@ body.dunkel .pw-balken--laeuft { border: 2px solid #ffffff; }
 /* ---------- Info-Fenster beim Darüberfahren ---------- */
 .pw-info { position: fixed; z-index: 45; width: 250px; max-width: calc(100vw - 16px);
            background: var(--flaeche); border: 1px solid var(--linie-stark);
+           /* Durchsichtig nach Einstellung (seit 1.393.0, vorschauDurchsichtAnwenden) */
+           background: color-mix(in srgb, var(--flaeche) var(--pw-info-deckung, 70%), transparent);
            border-radius: var(--radius); box-shadow: 0 10px 26px rgba(0,0,0,.28);
            padding: 10px 12px; pointer-events: none; }
+/* Schrift bleibt auch über bunten Balken lesbar */
+.pw-info:not(.pw-info--eigen) { text-shadow: 0 0 3px var(--flaeche), 0 0 1px var(--flaeche); }
 .pw-info__zustand { display: flex; align-items: center; gap: 8px; font-size: 1.5rem;
                     margin-bottom: 6px; }
 .pw-info__zustand span { font-size: .8rem; font-weight: 650; color: var(--gedaempft); }
