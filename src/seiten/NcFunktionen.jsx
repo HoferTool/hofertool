@@ -7,7 +7,8 @@
 //  und Radius) gibt es seit 1.370.0 nicht mehr, Kontur deckt das ab
 //  (Wunsch Patrick 3. November 2026). Seit 1.378.0 als letzter Reiter
 //  der Rechner (Drehzahl, Winkel und Fase), der vorher eine eigene
-//  Seite im Menü war (Wunsch Patrick 3. November 2026).
+//  Seite im Menü war (Wunsch Patrick 3. November 2026). Seit 1.384.0
+//  der Reiter Bohren / Fräsen für Front- und Querwerkzeuge.
 //  Der Inhalt steht weiter in #rech-inhalt, damit Gestaltung und
 //  Prüfstand der Reiter unverändert gelten.
 // =================================================================
@@ -20,13 +21,14 @@ import CAchse from "./rechner/CAchse.jsx";
 import Gravur from "./rechner/Gravur.jsx";
 import Dxf from "./rechner/Dxf.jsx";
 import Kontur from "./rechner/Kontur.jsx";
+import BohrenFraesen from "./rechner/BohrenFraesen.jsx";
 import Rechner, { REITER as RECHNER_REITER, rechnerAnsicht } from "./Rechner.jsx";
 
 export const REITER = [
-  ["kontur", "HOFER-NC-PRO"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
+  ["kontur", "HOFER-NC-PRO"], ["bohren", "Bohren / Fräsen"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
 ];
 
-const INHALT = { cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, rechner: Rechner };
+const INHALT = { bohren: BohrenFraesen, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, rechner: Rechner };
 
 const gemerkt = { ansicht: "kontur" };
 teilMerken("nc", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
@@ -42,7 +44,7 @@ export default function NcFunktionen() {
   const [neu, setNeu] = useState(0);
   useGemerkt(gemerkt, { ansicht });
   useSeitenSuche({
-    name: "HOFER-NC-PRO", platzhalter: "Kontur, C-Achse, Gravur, DXF, Drehzahl …",
+    name: "HOFER-NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, C-Achse, Gravur, DXF, Drehzahl …",
     eintraege: [
       ...REITER.map(([w, t]) => ({ gruppe: "HOFER-NC-PRO", zeichen: "⌨", titel: t, wert: w })),
       ...RECHNER_REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: "rechner", unter: w })),

@@ -11656,3 +11656,15 @@ body.dunkel .systemzustand__zeile { border-top-color: rgba(255, 255, 255, .12); 
    3. November 2026: „soll unten mittig sein“) */
 .login__karte .linkknopf.login__anderekonto { display: flex; width: fit-content;
   margin: 14px auto 0; }
+
+/* ---------- Bohren / Fräsen (seit 1.384.0) ---------- */
+.bf-werkzeug { margin: 8px 0 0; }
+.bf-zyklen { margin-top: 10px; }
+.bf-raster { grid-template-columns: 360px 1fr; }
+.bf-bilder { display: grid; gap: 6px; }
+.bf-loch { fill: var(--grund); stroke: var(--gefahr); stroke-width: 1.4; }
+.bf-querloch { stroke: var(--gefahr); stroke-linecap: butt; opacity: .55; }
+.bf-weg { fill: rgba(200, 40, 30, .22); stroke: var(--gefahr); stroke-width: 1.2; stroke-dasharray: 4 2; }
+.bf-antrieb { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.bf-antrieb textarea { font-family: ui-monospace, Consolas, monospace; font-size: .86rem; }
+@media (max-width: 900px) { .bf-raster { grid-template-columns: 1fr; } }
