@@ -11715,3 +11715,10 @@ body.dunkel .eg-sk__text, body.dunkel .eg-sk__titel { fill: #fff; }
 .eg-sk__text, .eg-sk__titel { paint-order: stroke; stroke: var(--grund, #fff); stroke-width: 3px; stroke-linejoin: round; }
 .eg-sk__hilf { stroke-dasharray: 3 2; }
 .eg-sim select { width: auto; flex: 0 0 auto; min-width: 0; padding: 4px 8px; }
+
+/* Zentrierfräser: Stelle an der Schneide (1.387.0) */
+.eg-sk__schneide { stroke: #1e9e4a; stroke-width: 4; stroke-linecap: round; opacity: .85; }
+.eg-sk__gruen { fill: #1e7a3c; }
+.eg-ort { display: flex; flex-direction: column; gap: 4px; }
+.eg-ort__reihe { display: flex; align-items: center; gap: 8px; }
+.eg-ort__reihe input[type=range] { flex: 1; }

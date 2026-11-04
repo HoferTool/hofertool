@@ -35,6 +35,7 @@ export const EG_VORGABE = {
   fase: 0.3,
   fasenArt: "breite",  // breite oder tiefe (Zentrierfräser)
   spitze: 0.3,         // Zentrierfräser entlang der Kante: Spitze so weit unter der Fase
+  zentrierFahrt: "auto", // auto = in der Mitte, wo es geht; kontur = immer der Kante entlang
   sicher: 1,
   drehzahl: 6000,
   vorschub: 300,
@@ -208,6 +209,19 @@ export function faseMasse(g) {
   return g.fasenArt === "tiefe" ? { breite: g.fase * tan, tiefe: g.fase } : { breite: g.fase, tiefe: g.fase / tan };
 }
 
+// Zentrierfräser entlang der Kante: welcher Teil der Schneide die Fase
+// macht. r0 = Radius des Kegels an der Oberkante der Fase (auf Fläche A),
+// die Spitze liegt r0 / tan(halber Winkel) unter Fläche A. Gewählt wird
+// über den Abstand der Spitze unter der Fase (spitze = r0 − Breite).
+export function zentrierOrt(g) {
+  const { breite: w } = faseMasse(g);
+  const tan = Math.tan(grad(Math.max(10, Math.min(170, g.winkel)) / 2));
+  const rMax = g.durchmesser / 2 - 0.1;
+  const gewuenscht = w + Math.max(0, g.spitze || 0);
+  const r0 = Math.min(rMax, gewuenscht);
+  return { w, tan, rMax, r0, unten: r0 - w, tiefe: r0 / tan, zuGross: gewuenscht > rMax + 1e-9 };
+}
+
 const mitY = (g) => (g.spindel === "gegen" ? g.yGegen : g.yHaupt);
 const kugelR = (g) => (g.werkzeug === "kopier" ? g.radius : g.durchmesser / 2);
 
@@ -234,7 +248,7 @@ export function egBahnen(b, g) {
       }
       const m = mitten[k.merkmal];
       // Schmal genug: in der Mitte fahren und beide Seiten auf einmal brechen
-      if (m && m.halb + w <= rMax) {
+      if (g.zentrierFahrt !== "kontur" && m && m.halb + w <= rMax) {
         if (erledigt.has(k.merkmal)) return;
         erledigt.add(k.merkmal);
         const r0 = m.halb + w;
@@ -247,8 +261,12 @@ export function egBahnen(b, g) {
           + "), und ohne Y-Achse kann das Querwerkzeug nicht neben der Mitte fahren. Kugelfräser nehmen.");
         return;
       }
-      const r0 = Math.min(rMax, w + g.spitze);
+      const ort = zentrierOrt(g);
+      const r0 = ort.r0;
       if (r0 <= w) { warnungen.push(k.name + ": Der Zentrierfräser ist zu klein für diese Fase."); return; }
+      if (ort.zuGross && !warnungen.some((t) => t.startsWith("Schneidenposition")))
+        warnungen.push("Schneidenposition: so weit oben hat der Fräser keine Schneide mehr. Gerechnet mit Ø" + (2 * r0).toFixed(2)
+          + " an der Fasenoberkante (Spitze " + (r0 - w).toFixed(2) + " unter der Fase).");
       const spitzen = k.punkte.map((p) => plus(plus(p.E, mal(p.u, w - r0)), mal(p.nA, -r0 / tan)));
       bahnen.push({ name: k.name, spitzen, achsen: k.punkte.map((p) => p.nA), c0: k.c0, geschlossen: k.geschlossen });
     });

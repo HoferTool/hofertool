@@ -12,7 +12,7 @@ import { alt } from "../../bruecke.jsx";
 import { KopfFelder } from "./kopf.jsx";
 import { ARTEN } from "./bohren.js";
 import { Antrieb, antriebLaden, bfAktuell, bfSetzen } from "./BohrenFraesen.jsx";
-import { EG_VORGABE, WERKZEUGE, egBahnen, egGcode, egPruefen, faseMasse } from "./entgraten.js";
+import { EG_VORGABE, WERKZEUGE, egBahnen, egGcode, egPruefen, faseMasse, zentrierOrt } from "./entgraten.js";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 
 const gemerkt = { ...EG_VORGABE };
@@ -127,14 +127,23 @@ export default function Entgraten() {
               </select></label>
           </>}
           <Feld name="fase" text={g.werkzeug === "zentrier" ? (g.fasenArt === "tiefe" ? "Fase Tiefe" : "Fase Breite") : "Fase (Breite = Tiefe)"} wert={g.fase} setze={setze} schritt="0.05" />
-          {g.werkzeug === "zentrier" && <Feld name="spitze" text="Spitze unter der Fase (entlang Kante)" wert={g.spitze} setze={setze} schritt="0.05" />}
+          {g.werkzeug === "zentrier" && <>
+            <label className="feld"><span>Fahren</span>
+              <select data-eg="zentrierFahrt" value={g.zentrierFahrt || "auto"} onChange={(e) => setze("zentrierFahrt", e.target.value)}>
+                <option value="auto">In der Mitte, wo es geht</option>
+                <option value="kontur">Kontur abfahren (der Kante entlang)</option>
+              </select></label>
+            <Feld name="spitze" text="Spitze unter der Fase" wert={g.spitze} setze={setze} schritt="0.05" />
+            <Feld name="ortD" text="Schneide-Ø an der Fasenoberkante" wert={Number((2 * (fm.breite + Math.max(0, g.spitze))).toFixed(3))}
+              setze={(_, d) => setze("spitze", Math.max(0, Number((d / 2 - fm.breite).toFixed(3))))} schritt="0.1" />
+          </>}
           <Feld name="sicher" text="Sicherheitsabstand" wert={g.sicher} setze={setze} />
           <Feld name="drehzahl" text="Drehzahl Werkzeug" wert={g.drehzahl} setze={setze} schritt="100" />
           <Feld name="vorschub" text="Vorschub mm/min" wert={g.vorschub} setze={setze} schritt="1" />
           <Feld name="vorschubZ" text="Vorschub Anfahren mm/min" wert={g.vorschubZ} setze={setze} schritt="1" />
           <p className="klein" id="eg-fase">Fase {fm.breite.toFixed(2)} breit × {fm.tiefe.toFixed(2)} tief.</p>
         </div>
-        <Skizze g={g} />
+        <Skizze g={g} setze={setze} />
         </div>
       </div>
 
@@ -350,7 +359,26 @@ function WerkzeugBild({ proj, g, spitze, achse }) {
 // Schnitt quer zur Kante: Fläche A oben, Fläche B nach unten, die Fase
 // dazwischen. Das Werkzeug steht so, wie die App es rechnet; der rote
 // Punkt ist die programmierte Spitze. Masse in mm.
-function Skizze({ g }) {
+// Schieber: welche Stelle der Schneide die Fase macht, von ganz unten
+// (nahe der Spitze) bis zum grössten Ø
+function OrtRegler({ g, setze }) {
+  const o = zentrierOrt(g);
+  const min = Math.min(o.w + 0.01, o.rMax), max = Math.max(o.rMax, min);
+  const mitte = g.zentrierFahrt !== "kontur";
+  return (
+    <div className="eg-ort" id="eg-ort">
+      <span className="klein">Position an der Schneide: <b>Ø{(2 * o.r0).toFixed(2)}</b> oben bis <b>Ø{(2 * o.unten).toFixed(2)}</b> unten,
+        Spitze {o.unten.toFixed(2)} unter der Fase</span>
+      <div className="eg-ort__reihe"><span className="klein">Spitze</span>
+        <input type="range" id="eg-ort-regler" min={min} max={max} step={(max - min) / 200 || 0.01} value={o.r0}
+          onChange={(e) => setze("spitze", Number((Number(e.target.value) - o.w).toFixed(3)))} />
+        <span className="klein">grösster Ø</span></div>
+      {mitte && <span className="klein">Gilt beim Fahren der Kante entlang. Schmale Bohrungen und Nuten fährt er in der Mitte, dort ergibt sich die Stelle von selbst; für überall gleich „Kontur abfahren“ wählen.</span>}
+    </div>
+  );
+}
+
+function Skizze({ g, setze }) {
   const { breite: w, tiefe: t } = faseMasse(g);
   const zent = g.werkzeug === "zentrier";
   const R = zent ? g.durchmesser / 2 : (g.werkzeug === "kopier" ? g.radius : g.durchmesser / 2);
@@ -362,7 +390,7 @@ function Skizze({ g }) {
   const A = [-w, 0], B = [0, -t];
   let werkzeug, spitze, rechts, masse = [];
   if (zent) {
-    const r0 = Math.min(R - 0.1, w + g.spitze);
+    const r0 = zentrierOrt(g).r0;
     spitze = [r0 - w, -r0 / tanH];
     const hoch = R / tanH;
     const oben = spitze[1] + hoch;
@@ -371,7 +399,11 @@ function Skizze({ g }) {
       <polygon className="eg-sk__wz" points={`${X(spitze[0])},${Y(spitze[1])} ${X(spitze[0] + R)},${Y(oben)} ${X(spitze[0] + R)},${Y(oben + R * 1.4)} ${X(spitze[0] - R)},${Y(oben + R * 1.4)} ${X(spitze[0] - R)},${Y(oben)}`} />
       <line className="eg-sk__achse" x1={X(spitze[0])} y1={Y(spitze[1] - 0.3 * R)} x2={X(spitze[0])} y2={Y(oben + R * 1.6)} />
     </>;
-    masse.push(<text key="w" className="eg-sk__text" x={X(spitze[0]) + 6} y={Y(spitze[1]) + 4}>{g.winkel}°</text>);
+    masse.push(<text key="w" className="eg-sk__text" x={X(spitze[0]) + 8} y={Y(spitze[1]) + 2}>{g.winkel}°</text>);
+    // genutzter Teil der Schneide: von Ø unten bis Ø oben an der Fase
+    masse.push(<line key="sn" className="eg-sk__schneide" x1={X(A[0])} y1={Y(0)} x2={X(B[0])} y2={Y(B[1])} />);
+    masse.push(<line key="om" className="eg-sk__mass eg-sk__hilf" x1={X(spitze[0])} y1={Y(0)} x2={X(-w)} y2={Y(0)} />);
+    masse.push(<text key="od" className="eg-sk__text eg-sk__gruen" x={X(-w) - 6} y={Y(0) - 6} textAnchor="end" id="eg-sk-ort">Ø{(2 * r0).toFixed(2)} oben</text>);
     masse.push(<text key="d" className="eg-sk__text" x={X(spitze[0])} y={Y(oben + R * 1.4) - 5} textAnchor="middle">Ø{g.durchmesser}</text>);
   } else {
     // Kugel berührt die Fase in der Mitte, Mitte auf der Luftseite
@@ -393,6 +425,7 @@ function Skizze({ g }) {
   const xT = Math.min(232, Math.max(X(0) + 24, X(rechts) + 10));
   const mat = `${X(-6)},${Y(0)} ${X(A[0])},${Y(0)} ${X(B[0])},${Y(B[1])} ${X(0)},${Y(-6)} ${X(-6)},${Y(-6)}`;
   return (
+    <>
     <svg viewBox="0 0 300 236" className="eg-skizze" id="eg-skizze">
       <text x="8" y="16" className="eg-sk__titel">Werkzeug an der Fase (Schnitt)</text>
       <polygon className="eg-sk__weg" points={`${X(A[0])},${Y(0)} ${X(0)},${Y(0)} ${X(B[0])},${Y(B[1])}`} />
@@ -408,8 +441,12 @@ function Skizze({ g }) {
       <text className="eg-sk__text" x={xT + 4} y={Y(-t / 2) + 4} id="eg-sk-tiefe">Tiefe {t.toFixed(2)}</text>
       {masse}
       <circle className="eg-sk__spitze" cx={X(spitze[0])} cy={Y(spitze[1])} r="3.5" />
-      <text className="eg-sk__text eg-sk__rot" x={X(spitze[0]) - 8} y={Y(spitze[1]) - 6} textAnchor="end">programmierter Punkt</text>
+      {zent
+        ? <text className="eg-sk__text eg-sk__rot" x={X(spitze[0])} y={Y(spitze[1]) + 18} textAnchor="middle">programmierter Punkt</text>
+        : <text className="eg-sk__text eg-sk__rot" x={X(spitze[0]) - 8} y={Y(spitze[1]) - 6} textAnchor="end">programmierter Punkt</text>}
       <text className="eg-sk__klein" x="8" y="228">grau Werkstück · gelb Werkzeug · rot wird abgetragen</text>
     </svg>
+    {zent && <OrtRegler g={g} setze={setze} />}
+    </>
   );
 }
