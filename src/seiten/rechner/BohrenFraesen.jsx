@@ -9,16 +9,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { KopfFelder } from "./kopf.jsx";
+import { NcAblage, NcStand } from "./NcAblage.jsx";
 import {
   ARTEN, BF_VORGABE, ZYKLEN, antrieb, bfGcode, bfPruefen, cWinkel, flaecheBreite,
   frontLoecher, istFront, zLagen,
 } from "./bohren.js";
 
 const gemerkt = { ...BF_VORGABE };
+// Für den Reiter Entgraten: er nimmt die Bearbeitung von hier
+export const bfAktuell = () => ({ ...gemerkt });
+export const bfSetzen = (neu) => Object.assign(gemerkt, { ...BF_VORGABE, ...neu });
+let gespeichertBf = null;
 
 // Befehle für den Werkzeugantrieb: je Person gemerkt wie der Vorspann
 let antriebGeladen = false;
-function antriebLaden() {
+export function antriebLaden() {
   if (antriebGeladen) return;
   antriebGeladen = true;
   try {
@@ -44,6 +49,8 @@ export default function BohrenFraesen() {
   const [stand, setStand] = useState(0);
   const aendern = (neu) => { const ganz = { ...b, ...neu }; Object.assign(gemerkt, ganz); setB(ganz); };
   const setze = (name, wert) => aendern({ [name]: wert });
+  const [gespeichert, setGespeichertRoh] = useState(gespeichertBf);
+  const setGespeichert = (z) => { gespeichertBf = z; setGespeichertRoh(z); };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const gcode = useMemo(() => bfGcode(b), [b, stand]);
@@ -59,6 +66,10 @@ export default function BohrenFraesen() {
 
   return (
     <div className="karte">
+      <div className="karte__kopf"><h2>Bohren / Fräsen</h2>
+        <NcAblage art="bohren" kurz="bf" wort="Bohren / Fräsen" daten={b} nc={gcode}
+          laden={(d) => { const ganz = { ...BF_VORGABE, ...d }; Object.assign(gemerkt, ganz); setB(ganz); }}
+          gespeichert={gespeichert} setGespeichert={setGespeichert} /></div>
       <div className="moduswahl" id="bf-arten">
         {ARTEN.map(([w, t]) => (
           <button key={w} type="button" className={"moduswahl__knopf" + (b.art === w ? " aktiv" : "")}
@@ -153,6 +164,7 @@ export default function BohrenFraesen() {
       <Antrieb geaendert={() => setStand((n) => n + 1)} />
       <KopfFelder geaendert={() => setStand((n) => n + 1)} />
       <pre className="gcode" id="bf-code">{gcode}</pre>
+      <NcStand kurz="bf" gespeichert={gespeichert} nc={gcode} />
       <button className="knopf knopf--klein" id="bf-kopieren" onClick={kopieren}>NC-Code kopieren</button>
     </div>
   );
@@ -160,7 +172,7 @@ export default function BohrenFraesen() {
 
 // ---------- Werkzeugantrieb ----------
 
-function Antrieb({ geaendert }) {
+export function Antrieb({ geaendert }) {
   // Offen nur beim ersten Mal, solange nichts eingetragen ist
   const [offen] = useState(() => !antrieb.frontEin && !antrieb.querEin);
   const uhr = useRef(null);

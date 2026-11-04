@@ -11668,3 +11668,24 @@ body.dunkel .systemzustand__zeile { border-top-color: rgba(255, 255, 255, .12); 
 .bf-antrieb { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 .bf-antrieb textarea { font-family: ui-monospace, Consolas, monospace; font-size: .86rem; }
 @media (max-width: 900px) { .bf-raster { grid-template-columns: 1fr; } }
+
+/* HOFER-NC-PRO → Entgraten (seit 1.385.0) */
+.eg-raster { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; }
+@media (max-width: 900px) { .eg-raster { grid-template-columns: 1fr; } }
+.eg-links { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.eg-3d__bild { width: 100%; height: 46vh; min-height: 260px; background: var(--grund); border: 1px solid var(--linie); border-radius: 8px; touch-action: none; cursor: grab; display: block; }
+.eg-3d__bild * { vector-effect: non-scaling-stroke; }
+.eg-teil { fill: none; stroke: var(--text-blass, #8a939d); stroke-width: 1.2; }
+.eg-teil--hinten { stroke-dasharray: 4 3; }
+.eg-achse { fill: none; stroke: var(--text-blass, #8a939d); stroke-width: 1; stroke-dasharray: 10 3 2 3; }
+.eg-kante { fill: none; stroke: #2a7de1; stroke-width: 2; }
+.eg-kante.gewaehlt { stroke: #f08a00; stroke-width: 3; }
+.eg-bahn { fill: none; stroke: #1f9d55; stroke-width: 1; stroke-dasharray: 3 2; }
+.eg-treffer { fill: none; stroke: transparent; stroke-width: 14; cursor: pointer; }
+.eg-treffer:hover { stroke: rgba(240, 138, 0, .3); }
+.eg-liste { border: 1px solid var(--linie); border-radius: 8px; padding: 6px 10px; max-height: 220px; overflow: auto; }
+.eg-liste__kopf { display: flex; gap: 12px; align-items: center; margin-bottom: 4px; }
+.eg-kante-zeile { display: flex; gap: 6px; align-items: center; font-size: 14px; padding: 2px 0; cursor: pointer; }
+.nc-ablage { margin-left: auto; }
+.eg-wahl { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0; }
+.eg-wahl .moduswahl { margin: 0; }

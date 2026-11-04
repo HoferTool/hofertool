@@ -48,8 +48,8 @@ with sync_playwright() as p:
     pg.click("[data-bfzyklus='tief']"); feld("zPos", "5; 12"); feld("anzahl", 2)
     pg.select_option("[data-bf='ausgabe']", "zyklus"); pg.wait_for_timeout(120)
     c = code()
-    pruefe("Quer G87 zwei Lagen, zwei Winkel", "G87Z5.000C0.000X4.000R0.Q2000F80" in c and "\nZ5.000C180.000" in c
-           and "\nZ12.000C0.000" in c and "\nZ12.000C180.000" in c and "G0X22.000" in c)
+    pruefe("Quer G87 zwei Lagen, zwei Winkel", "G87Z-5.000C0.000X4.000R0.Q2000F80" in c and "\nZ-5.000C180.000" in c
+           and "\nZ-12.000C0.000" in c and "\nZ-12.000C180.000" in c and "G0X22.000" in c)
     pruefe("Quer ohne Antrieb warnt", "QUERWERKZEUG EIN" in c and pg.locator(".bf-warnung").count() == 1)
 
     pg.click("[data-bfart='nutFront']"); pg.wait_for_timeout(120)

@@ -22,13 +22,14 @@ import Gravur from "./rechner/Gravur.jsx";
 import Dxf from "./rechner/Dxf.jsx";
 import Kontur from "./rechner/Kontur.jsx";
 import BohrenFraesen from "./rechner/BohrenFraesen.jsx";
+import Entgraten from "./rechner/Entgraten.jsx";
 import Rechner, { REITER as RECHNER_REITER, rechnerAnsicht } from "./Rechner.jsx";
 
 export const REITER = [
-  ["kontur", "HOFER-NC-PRO"], ["bohren", "Bohren / Fräsen"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
+  ["kontur", "HOFER-NC-PRO"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
 ];
 
-const INHALT = { bohren: BohrenFraesen, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, rechner: Rechner };
+const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, rechner: Rechner };
 
 const gemerkt = { ansicht: "kontur" };
 teilMerken("nc", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
@@ -44,7 +45,7 @@ export default function NcFunktionen() {
   const [neu, setNeu] = useState(0);
   useGemerkt(gemerkt, { ansicht });
   useSeitenSuche({
-    name: "HOFER-NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, C-Achse, Gravur, DXF, Drehzahl …",
+    name: "HOFER-NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, Drehzahl …",
     eintraege: [
       ...REITER.map(([w, t]) => ({ gruppe: "HOFER-NC-PRO", zeichen: "⌨", titel: t, wert: w })),
       ...RECHNER_REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: "rechner", unter: w })),

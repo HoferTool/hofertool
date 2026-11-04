@@ -89,7 +89,9 @@ export function frontLoecher(b) {
 // Quer: Z und C je Bohrung, zuerst alle Winkel einer Z-Lage
 export function querLoecher(b) {
   const out = [];
-  zLagen(b).forEach((zz) => cWinkel(b).forEach((c) => out.push({ z: zz, c })));
+  // Die Lagen sind Abstände ab der Stirn, ins Teil hinein (wie bei Nut
+  // und Fläche): Z = Stirn − Lage
+  zLagen(b).forEach((zz) => cWinkel(b).forEach((c) => out.push({ z: b.zStirn - zz, ab: zz, c })));
   return out;
 }
 
