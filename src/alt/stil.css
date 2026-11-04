@@ -7798,6 +7798,7 @@ body.dunkel .hocoteil__marke--thema, body.dunkel .hocoteil__zustand--geplant
     visibility: hidden; transition: none; }
   .handymenue__zeile { display: flex; justify-content: center; }
   .handymenue__punkt { width: 25%; box-sizing: border-box; display: grid; justify-items: center; gap: 6px;
+    align-content: start;
     padding: 10px 2px 8px; border-radius: 16px; text-decoration: none; color: var(--tinte);
     font-size: .74rem; -webkit-tap-highlight-color: transparent;
     animation: hm-punkt-rein .45s cubic-bezier(.34, 1.56, .64, 1) backwards;

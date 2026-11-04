@@ -260,7 +260,7 @@ with sync_playwright() as p:
     pruefe("Innen wählt Spitze oben rechts", pg.locator("[data-ktspitze='or'].aktiv").count() == 1)
     # Erklärvideo und Logo (1.376.0)
     pruefe("Grosses Logo oben in der Mitte", pg.locator("#ncpro-kopf .ncpro-kopf__logo").count() == 2
-           and "HOFER-NC-PRO" in pg.inner_text("h1.seitentitel"))
+           and "NC-PRO" in pg.inner_text("h1.seitentitel"))
     # 3D-Ansicht der Kontur (1.381.0)
     pg.click("#kt-3d"); pg.wait_for_selector("#kt-k3d"); pg.wait_for_timeout(300)
     if BILD: pg.screenshot(path=BILD + "/kontur-3d.png", full_page=False)

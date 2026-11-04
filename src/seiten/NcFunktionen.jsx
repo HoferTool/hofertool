@@ -26,7 +26,7 @@ import Entgraten from "./rechner/Entgraten.jsx";
 import Rechner, { REITER as RECHNER_REITER, rechnerAnsicht } from "./Rechner.jsx";
 
 export const REITER = [
-  ["kontur", "HOFER-NC-PRO"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
+  ["kontur", "NC-PRO"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
 ];
 
 const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, rechner: Rechner };
@@ -45,9 +45,9 @@ export default function NcFunktionen() {
   const [neu, setNeu] = useState(0);
   useGemerkt(gemerkt, { ansicht });
   useSeitenSuche({
-    name: "HOFER-NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, Drehzahl …",
+    name: "NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, Drehzahl …",
     eintraege: [
-      ...REITER.map(([w, t]) => ({ gruppe: "HOFER-NC-PRO", zeichen: "⌨", titel: t, wert: w })),
+      ...REITER.map(([w, t]) => ({ gruppe: "NC-PRO", zeichen: "⌨", titel: t, wert: w })),
       ...RECHNER_REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: "rechner", unter: w })),
     ],
     // Drehzahl und Winkel liegen im Reiter Rechner; key wechselt, damit er die Wahl neu liest
@@ -65,7 +65,7 @@ export default function NcFunktionen() {
           links, der Kopf braucht zu viel Platz“): Name links, Logo in der
           Mitte, rechts die Knöpfe der Kontur (Kontur.jsx hängt sie dort ein). */}
       <header className="ncpro-kopf" id="ncpro-kopf">
-        <h1 className="seitentitel ncpro-titel" data-text="HOFER-NC-PRO"><span className="ncpro-text">HOFER-<b>NC-PRO</b></span></h1>
+        <h1 className="seitentitel ncpro-titel" data-text="NC-PRO"><span className="ncpro-text"><b>NC-PRO</b></span></h1>
         <div className="ncpro-kopf__mitte">
           <img className="ncpro-kopf__logo ncpro-kopf__logo--hell" src={import.meta.env.BASE_URL + "logo-empfang.png"} alt="Hofer + Co." />
           <img className="ncpro-kopf__logo ncpro-kopf__logo--dunkel" src={import.meta.env.BASE_URL + "logo-weiss.svg"} alt="Hofer + Co." />

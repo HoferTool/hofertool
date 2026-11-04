@@ -255,8 +255,11 @@ export function menueZeilen(n) {
 }
 
 // Im Menü ist ein Feld nur ein Viertel breit: lange Namen bekommen eine
-// weiche Trennstelle, nicht jeder Browser trennt Deutsch von selbst
-const TRENNSTELLEN = { "Qualitätssicherung": "Qualitäts\u00ADsicherung" };
+// weiche Trennstelle, nicht jeder Browser trennt Deutsch von selbst.
+// Zwei Wörter brechen immer am selben Ort um (Wunsch Patrick 4. November
+// 2026: „Bei Handy-Menü soll es einen Textumbruch haben“)
+const TRENNSTELLEN = { "Qualitätssicherung": "Qualitäts\u00ADsicherung",
+  "Einlagen Generator": <>Einlagen<br />Generator</> };
 const trennbar = (t) => TRENNSTELLEN[t] || t;
 
 // Menü am Handy (Wunsch Patrick 14. Oktober 2026): unten ein breiter

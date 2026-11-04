@@ -33,7 +33,7 @@ with sync_playwright() as p:
     # Jeder Reiter zeigt etwas
     # Im Rechner nur noch Drehzahl und Winkel und Fase (seit 1.367.0)
     # Seit 1.378.0 letzter Reiter von HOFER-NC-PRO, kein eigener Menüpunkt
-    if "HOFER-NC-PRO" not in pg.inner_text("h1.seitentitel"): fehler.append("#rechner führt nicht zu NC")
+    if "NC-PRO" not in pg.inner_text("h1.seitentitel"): fehler.append("#rechner führt nicht zu NC")
     if not pg.locator("[data-unter='nc/rechner'].aktiv, .aktiv[data-unter='nc/rechner']").count() and not pg.locator("[data-rech='rechner'].aktiv").count():
         fehler.append("Reiter Rechner nicht aktiv")
     if pg.evaluate("[...document.querySelectorAll('.reiter--seite [data-rech]')].pop().dataset.rech") != "rechner":
@@ -43,7 +43,7 @@ with sync_playwright() as p:
     if not pg.locator("#rech-inhalt input").count(): fehler.append("Reiter leer: winkel")
     pg.evaluate("location.hash='#nc'"); pg.wait_for_selector("[data-unter='nc/kontur']")
     if pg.locator("[data-unter='nc/gcode']").count(): fehler.append("G-Code noch da")
-    if "HOFER-NC-PRO" not in pg.inner_text("h1.seitentitel"): fehler.append("Seite NC-Funktionen fehlt")
+    if "NC-PRO" not in pg.inner_text("h1.seitentitel"): fehler.append("Seite NC-Funktionen fehlt")
     for reiter, merkmal in [("cachse", "svg, canvas, input"),
                             ("gravur", "input, canvas"), ("dxf", "input, button"), ("kontur", "input, svg")]:
         pg.click(f"[data-unter='nc/{reiter}']"); pg.wait_for_timeout(250)
