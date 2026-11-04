@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.391.1";
+const APP_VERSION = "1.392.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10500,7 +10500,7 @@ const SEITEN = [
   // als Karte auf der Startseite, ein Tipp öffnet das Fenster zum Verwalten
   // (Wunsch Patrick 30. Oktober 2026: „Reiter selber brauchts nicht“)
   // Werkzeug-Konturscanner für 3D-gedruckte Einlagen (Wunsch Patrick 30. Oktober 2026)
-  { pfad: "einlagen",     titel: "Einlagen Generator", unter: "created by Ecker", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
+  { pfad: "einlagen",     titel: "Einlagen Generator", zeichen: SYM.einlagen, zeige: reactSeite(Einlagen) },
   // Alle Bildschirme unter einem Punkt im Menü (seit 1.315.0, Wunsch Patrick
   // 30. Oktober 2026: „Alle Bildschirme zu einem Reiter machen“). Die Seiten
   // darunter behalten ihre Adressen (#/infoboard …), weil die Geräte an der

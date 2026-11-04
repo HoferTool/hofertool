@@ -106,10 +106,46 @@ with sync_playwright() as p:
     m = zipfile.ZipFile(dl.value.path()).read("3D/3dmodel.model").decode()
     ts = [tuple(map(int, x)) for x in re.findall(r'<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"/>', m)]
     pruefe(dicht(ts), "auch ohne Keil geschlossen")
+    # Kantenbruch aussen (1.392.0, Wunsch Patrick 4. November 2026): Fase oder Radius, je Kante wählbar
+    DICHT_JS = """() => { const t = buildTris(), id = new Map(), f = v => (Math.round(v * 1e4) / 1e4).toFixed(4); let n = 0;
+      const vid = p => { const k = f(p[0]) + ' ' + f(p[1]) + ' ' + f(p[2]); if (!id.has(k)) id.set(k, n++); return id.get(k); };
+      const e = new Map(); let zmin = 1e9, zmax = -1e9, xmin = 1e9;
+      for (const q of t) { const a = vid(q[0]), b = vid(q[1]), c = vid(q[2]); if (a === b || b === c || a === c) continue;
+        q.forEach(p => { zmin = Math.min(zmin, p[2]); zmax = Math.max(zmax, p[2]); });
+        for (const [u, v] of [[a, b], [b, c], [c, a]]) e.set(u + ',' + v, (e.get(u + ',' + v) || 0) + 1); }
+      let ok = true; for (const [k, m] of e) { const [u, v] = k.split(','); if (m !== 1 || e.get(v + ',' + u) !== 1) { ok = false; break; } }
+      return [ok, t.length, zmin, zmax]; }"""
+    f.select_option("#kArt", "fase"); pg.wait_for_timeout(400)
+    pruefe(f.is_visible("#kS") and f.evaluate("lay.base.kante.art === 'fase' && ['l','r','t','b'].every(x => lay.base.kante.oben[x])"), "Fase gewählt, Oberseite rundum vorgewählt")
+    f.fill("#kS", "2"); f.dispatch_event("#kS", "change"); pg.wait_for_timeout(300)
+    r = f.evaluate(DICHT_JS); pruefe(r[0], "Fase oben rundum: Netz geschlossen %s" % r)
+    f.check("[data-kall='unten']"); pg.wait_for_timeout(300)
+    r = f.evaluate(DICHT_JS); pruefe(r[0], "Fase oben und unten: Netz geschlossen %s" % r)
+    # Kante wirklich da: oben am Rand fehlt Material (Punkt auf der Oberseite höchstens 2 mm vom Rand weg)
+    top = f.evaluate("(() => { const t = buildTris(), T = lay.base.T; let mx = 1e9; t.forEach(q => q.forEach(p => { if (Math.abs(p[2] - T) < 1e-6) mx = Math.min(mx, p[0]); })); return mx; })()")
+    pruefe(1.9 < top < 2.1, "Oberseite beginnt 2 mm innen: %.2f" % top)
+    f.select_option("#kArt", "radius"); pg.wait_for_timeout(300)
+    f.uncheck("[data-k='oben-t']"); f.uncheck("[data-k='unten-l']"); pg.wait_for_timeout(300)
+    pruefe(f.evaluate("document.querySelector(\"[data-kall='oben']\").indeterminate"), "„alle“ zeigt halb gewählt")
+    r = f.evaluate(DICHT_JS); pruefe(r[0], "Radius, einzelne Kanten: Netz geschlossen %s" % r)
+    f.evaluate("lay.conn.wedge.a = 5; lay.items.forEach(i => { if (!i.text) i.lean = 10; }); layChanged()")
+    r = f.evaluate(DICHT_JS); pruefe(r[0] and abs(r[2]) < 1e-6, "Radius mit Keil und Schräge: geschlossen, Unterseite flach %s" % r)
+    f.evaluate("lay.base.R = 0; layChanged()")
+    r = f.evaluate(DICHT_JS); pruefe(r[0], "ohne Eckenradius: geschlossen %s" % r)
+    f.evaluate("lay.base.R = 1; lay.base.kante.s = 3; layChanged()")
+    r = f.evaluate(DICHT_JS); pruefe(r[0], "Kante grösser als Eckenradius: geschlossen %s" % r)
+    f.evaluate("lay.base.R = 5; lay.base.kante.s = 2; layChanged()")
+    # Kante grösser als der Platz zur Tasche: wird gekürzt mit Hinweis
+    f.evaluate("lay.base.kante.s = 20; layChanged()")
+    pruefe("nur" in f.inner_text("#kInfo"), "Hinweis bei zu grosser Kante: " + f.inner_text("#kInfo"))
+    r = f.evaluate(DICHT_JS); pruefe(r[0], "gekürzte Kante: geschlossen %s" % r)
+    f.evaluate("lay.base.kante.s = 1.5; layChanged()")
+    if BILD: pg.screenshot(path=BILD + "-kanten.png")
+    f.evaluate("lay.conn.wedge.a = 0; lay.items.forEach(i => i.lean = 0); layChanged()")
     # Speichern und wieder öffnen behält alles
     d = f.evaluate("JSON.stringify(layData())")
     f.evaluate("(d) => { layApply(JSON.parse(d)); layChanged(); }", d)
-    pruefe(f.evaluate("lay.items.length === 3 && lay.items.some(i => i.text && i.text.s === 'HOFER 8') && lay.items[0].off === 1"), "Beschriftung und Aufmass bleiben beim Laden")
+    pruefe(f.evaluate("lay.items.length === 3 && lay.items.some(i => i.text && i.text.s === 'HOFER 8') && lay.items[0].off === 1 && lay.base.kante.art === 'radius' && lay.base.kante.s === 1.5 && !lay.base.kante.oben.t && lay.base.kante.unten.r"), "Beschriftung, Aufmass und Kanten bleiben beim Laden")
     f.click("#vtool3d") if f.locator("#vtool3d").count() else None
     pruefe(not pf, "keine Skriptfehler: %s" % pf[:2])
     br.close()

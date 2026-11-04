@@ -28,7 +28,6 @@ with sync_playwright() as p:
         if s:
             pruefe(s["op"] == "1", w + ": Unterpunkte nicht durchsichtig (%s)" % s["op"])
             pruefe(float(s["fs"].replace("px", "")) >= 13, w + ": Schrift nicht verkleinert (%s)" % s["fs"])
-            pruefe(s["zusatz"] == "0.55", w + ": „created by Ecker“ bleibt blass (%s)" % s["zusatz"])
         pg.locator("nav, .nav").first.screenshot(path=BILD + "/nav-unter-%s.png" % w)
         pg.close()
     br.close()

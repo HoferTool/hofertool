@@ -224,6 +224,10 @@ tr.sel td { background: var(--bg); }
 .ltool[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
 .ltool:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 [hidden] { display: none !important; }
+.kgrid { display: grid; grid-template-columns: auto repeat(5, 1fr); gap: 6px 4px; align-items: center; justify-items: center; font-size: .82rem; color: var(--muted, #5a6460); margin: 2px 0 4px; }
+.kgrid .kgrid__z { justify-self: start; color: inherit; font-weight: 600; }
+.kgrid .kgrid__alle { font-style: italic; }
+.kgrid input { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; }
 .pick { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 30; padding: 16px; }
 .pickbox {
   background: var(--surface); color: var(--fg); border-radius: 6px; padding: 14px; width: min(420px, 100%); max-height: 80vh;
@@ -337,7 +341,7 @@ header.bar { align-items: center; }
 <body>
 <div class="app">
   <header class="bar">
-    <div class="brand"><h1>Einlagen Generator</h1><p class="sub">created by Ecker</p></div>
+    <div class="brand"><h1>Einlagen Generator</h1></div>
     <nav class="stepper" role="tablist" aria-label="Arbeitsschritte">
       <button class="step" id="stepPhoto" role="tab" aria-selected="false" type="button"><span class="n">1</span>Foto &amp; Blatt</button>
       <button class="step" id="stepContour" role="tab" aria-selected="true" type="button"><span class="n">2</span>Kontur</button>
@@ -575,6 +579,17 @@ header.bar { align-items: center; }
           <div class="row"><label for="baseH">Länge (Y)</label><div class="unit"><input id="baseH" type="number" min="20" max="1000" step="1" value="200"><span>mm</span></div></div>
           <div class="row"><label for="baseT">Höhe</label><div class="unit"><input id="baseT" type="number" min="2" max="200" step="1" value="30"><span>mm</span></div></div>
           <div class="row"><label for="baseR">Eckenradius</label><div class="unit"><input id="baseR" type="number" min="0" max="100" step="1" value="5"><span>mm</span></div></div>
+          <div class="row"><label for="kArt">Aussenkanten</label><select id="kArt"><option value="keine">scharfkantig</option><option value="fase">Fase 45°</option><option value="radius">Radius</option></select></div>
+          <div class="contents" id="kBox" hidden>
+            <div class="row"><label for="kS" id="kSLab">Fase</label><div class="unit"><input id="kS" type="number" min="0.2" max="20" step="0.1" value="1"><span>mm</span></div></div>
+            <div class="kgrid" role="group" aria-label="Welche Kanten gebrochen werden">
+              <span></span><span>links</span><span>rechts</span><span>oben</span><span>unten</span><span class="kgrid__alle">alle</span>
+              <span class="kgrid__z">Oberseite</span><input type="checkbox" data-k="oben-l"><input type="checkbox" data-k="oben-r"><input type="checkbox" data-k="oben-t"><input type="checkbox" data-k="oben-b"><input type="checkbox" data-kall="oben">
+              <span class="kgrid__z">Unterseite</span><input type="checkbox" data-k="unten-l"><input type="checkbox" data-k="unten-r"><input type="checkbox" data-k="unten-t"><input type="checkbox" data-k="unten-b"><input type="checkbox" data-kall="unten">
+            </div>
+            <p class="help">Links, rechts, oben und unten sind die Seiten wie im Bild. Oberseite = Kanten an der Seite mit den Taschen, Unterseite = an der Auflage. In der Einlage gestrichelt.</p>
+            <p class="help warn" id="kInfo"></p>
+          </div>
           <div class="row"><label for="newDepth">Tiefe für neue Werkzeuge</label><div class="unit"><input id="newDepth" type="number" min="0.5" max="200" step="0.5" value="20"><span>mm</span></div></div>
           <button class="btn small" id="layFit" type="button">Größe an Werkzeuge anpassen (10 mm Rand)</button>
         </div>
@@ -2137,6 +2152,69 @@ function baseOutline(B, nt) {
   arc(r, r, 180); ins(nt ? nt.t : [], true);
   return out;
 }
+// ---------- Kantenbruch aussen (Wunsch Patrick 4. November 2026: „Aussenkanten entgraten mit Radius oder Kante, wählen, welche Kanten gebrochen werden“) ----------
+// lay.base.kante = { art: "keine" | "fase" | "radius", s: mm, oben: {l, r, t, b}, unten: {l, r, t, b} }; oben/unten = Ober- und Unterseite, l/r/t/b = Seiten wie im Bild
+const KANT_SEITEN = ["l", "r", "t", "b"];
+// Umriss wie baseOutline, aber je Seite um o[seite] nach innen versetzt; gleich viele Punkte wie baseOutline, damit die Ringe Punkt für Punkt zusammenpassen
+function kantenRing(B, nt, o) {
+  const r = Math.min(B.R, B.W / 2, B.H / 2), seg = 12, out = [];
+  const arc = (cx, cy, a0, ox, oy) => {
+    // Ecke zwischen einer senkrechten (ox) und einer waagrechten Seite (oy): Ecke des versetzten Rechtecks mit kleinerem Radius
+    let rr = Math.max(0, r - Math.max(Math.abs(ox), Math.abs(oy))); if (rr < 0.05) rr = 0; // fast null = genau null, sonst fallen nur einzelne Punkte zusammen
+    const sx = Math.sign(Math.cos((a0 + 45) * Math.PI / 180)), sy = Math.sign(Math.sin((a0 + 45) * Math.PI / 180));
+    const ex = cx + sx * r - ox, ey = cy + sy * r - oy, mx = ex - sx * rr, my = ey - sy * rr;
+    if (r <= 0.01) { out.push([cx - ox, cy - oy]); return; }
+    for (let k = 0; k <= seg; k++) { const a = (a0 + 90 * k / seg) * Math.PI / 180; out.push([mx + rr * Math.cos(a), my + rr * Math.sin(a)]); }
+  };
+  const ins = (list, asc, dx, dy) => list.slice().sort((p, q) => asc ? p.c - q.c : q.c - p.c).forEach(n => n.pts.forEach(q => out.push([q[0] + dx, q[1] + dy])));
+  arc(B.W - r, r, -90, o.r, -o.t); ins(nt ? nt.r : [], true, -o.r, 0);
+  arc(B.W - r, B.H - r, 0, o.r, o.b); ins(nt ? nt.b : [], false, 0, -o.b);
+  arc(r, B.H - r, 90, -o.l, o.b); ins(nt ? nt.l : [], false, o.l, 0);
+  arc(r, r, 180, -o.l, -o.t); ins(nt ? nt.t : [], true, 0, o.t);
+  return out;
+}
+// Stufen des Profils von der Kante (Versatz s, Höhe 0) bis zur Wand (Versatz 0, Höhe s); Fase = eine Schräge, Radius = Viertelkreis
+function kantenProfil(art, s) {
+  if (art === "fase") return [{ off: s, h: 0 }, { off: 0, h: s }];
+  const n = Math.max(4, Math.min(12, Math.ceil(s / 0.4))), l = [];
+  for (let k = 0; k <= n; k++) { const t = (Math.PI / 2) * k / n; l.push({ off: s - s * Math.sin(t), h: s - s * Math.cos(t) }); }
+  return l;
+}
+// Was wirklich gebaut wird: Grösse wird gekürzt, wenn Taschen, Löcher oder Höhe es verlangen; Hinweise in warns
+function kanteEff(cm) {
+  const k = lay.base.kante; if (!k || (k.art !== "fase" && k.art !== "radius")) return null;
+  const B = lay.base, T = B.T, zE = cm.step ? T - cm.step.st : T, warns = [];
+  const seiten = f => { const o = {}; let any = false; KANT_SEITEN.forEach(x => { o[x] = !!(f && f[x]); any = any || o[x]; }); return any ? o : null; };
+  const so = seiten(k.oben), su = seiten(k.unten), s0 = Math.min(Math.max(+k.s || 0, 0), 20);
+  if ((!so && !su) || s0 < 0.2) return null;
+  const ring0 = baseOutline(B, cm.notches), hasN = ["r", "b", "l", "t"].some(x => cm.notches[x].length);
+  const abstand = (pts, sd) => { let d = Infinity; for (const q of pts) {
+    if (sd.l) d = Math.min(d, q[0]); if (sd.r) d = Math.min(d, B.W - q[0]); if (sd.t) d = Math.min(d, q[1]); if (sd.b) d = Math.min(d, B.H - q[1]);
+    if (hasN) d = Math.min(d, distPoly(q, ring0)); } return d; };
+  const hMax = (so && su ? zE / 2 : zE) - 0.5;
+  const mk = (sd, pts, wo) => {
+    if (!sd) return null;
+    let sz = Math.min(s0, hMax); const d = pts.length ? abstand(pts, sd) - 0.5 : Infinity;
+    if (d < sz) sz = d;
+    if (sz < s0 - 0.05) warns.push(`${wo}: nur ${de(Math.max(0, Math.round(sz * 10) / 10))} mm möglich (${d < Math.min(s0, hMax) ? "Tasche oder Loch zu nah am Rand" : "Grundkörper zu niedrig"}).`);
+    return sz >= 0.2 ? { s: sz, sd, prof: kantenProfil(k.art, sz) } : null;
+  };
+  const topPts = [], botPts = [];
+  lay.items.forEach(it => { (edgeTopPolys(it) || itemWorld(it)).forEach(pl => pl.outer.forEach(q => topPts.push(q))); });
+  cm.pegs.concat(cm.magT).forEach(h => circ(h.c, h.r, 24).forEach(q => topPts.push(q)));
+  if (cm.step) cm.step.ring.forEach(q => topPts.push(q));
+  cm.recs.concat(cm.magB).forEach(h => circ(h.c, h.r, 24).forEach(q => botPts.push(q)));
+  cm.keys.forEach(kk => kk.A0.forEach(q => botPts.push(q)));
+  if (cm.free) cm.free.ring.forEach(q => botPts.push(q));
+  const oben = mk(so, topPts, "Kante Oberseite"), unten = mk(su, botPts, "Kante Unterseite");
+  return oben || unten ? { art: k.art, oben, unten, warns } : { art: k.art, oben: null, unten: null, warns };
+}
+function kanteInfo() {
+  const k = lay.base.kante; if (!k || k.art === "keine" || !k.art) return "";
+  const e = kanteEff(connModel());
+  if (!e) return "Keine Kante gewählt: Häkchen bei Oberseite oder Unterseite setzen.";
+  return e.warns.map(w => "⚠ " + esc(w)).join("<br>");
+}
 // Prüft alle Verbinder, Zapfen, Aussparungen und Magnetlöcher; was nicht passt, wird übersprungen und gemeldet
 function connModel() {
   const B = lay.base, C = lay.conn, T = B.T, rad = Math.min(B.R, B.W / 2, B.H / 2), warns = [];
@@ -2529,6 +2607,7 @@ function layData() { return { app: LAY_APP, version: 1, name: $("layName").value
 function layApply(o) {
   if (!o || typeof o !== "object") return;
   if (o.base) ["W", "H", "T", "R"].forEach(k => { if (Number.isFinite(+o.base[k])) lay.base[k] = +o.base[k]; });
+  if (o.base) { const k = o.base.kante; if (k && typeof k === "object") lay.base.kante = { art: ["fase", "radius"].includes(k.art) ? k.art : "keine", s: Number.isFinite(+k.s) ? +k.s : 1, oben: { ...(k.oben || {}) }, unten: { ...(k.unten || {}) } }; else delete lay.base.kante; }
   if (Number.isFinite(+o.newDepth) && +o.newDepth > 0) lay.newDepth = +o.newDepth;
   lay.items = Array.isArray(o.items) ? o.items.filter(validItem) : [];
   lay.nextId = 1 + lay.items.reduce((m, it) => Math.max(m, +it.id || 0), 0);
@@ -2550,7 +2629,10 @@ function layAddItems(items, switchMode, fresh) {
 }
 function laySyncInputs() {
   const B = lay.base, it = lay.items[lay.sel];
-  $("baseW").value = B.W; $("baseH").value = B.H; $("baseT").value = B.T; $("baseR").value = B.R; $("newDepth").value = lay.newDepth;
+  $("baseW").value = B.W; $("baseH").value = B.H; $("baseT").value = B.T; $("baseR").value = B.R; { const k = kanteObj(), an = k.art !== "keine"; $("kArt").value = k.art; $("kBox").hidden = !an; $("kS").value = k.s; $("kSLab").textContent = k.art === "radius" ? "Radius" : "Fase";
+    document.querySelectorAll("[data-k]").forEach(el => { const [f, x] = el.dataset.k.split("-"); el.checked = !!k[f][x]; });
+    document.querySelectorAll("[data-kall]").forEach(el => { const f = el.dataset.kall, n = KANT_SEITEN.filter(x => k[f][x]).length; el.checked = n === 4; el.indeterminate = n > 0 && n < 4; });
+    $("kInfo").innerHTML = an ? kanteInfo() : ""; } $("newDepth").value = lay.newDepth;
   ["itName", "itX", "itY", "itA", "itD", "itE", "itF", "itOff", "itLean", "layEdgeAll", "layOffAll", "layLeanAll", "layRot", "layDup", "layDel", "layDepthAll", "layToolSave"].forEach(id => $(id).disabled = !it);
   const tx = it && it.text;
   $("itNone").hidden = !!it; $("itTextBox").hidden = !tx; $("itToolBox").hidden = !!tx; $("itNameRow").hidden = !!tx; $("layToolSave").disabled = !it || !!tx;
@@ -2583,6 +2665,13 @@ function layRender() {
   g.lineWidth = px; g.strokeStyle = "rgba(0,0,0,.07)"; g.stroke(); g.restore();
   g.lineWidth = 1.5 * px; g.strokeStyle = "#8A9590"; g.stroke(bp);
   layDrawConn(g, cm, px, accent, contour);
+  { // Kantenbruch aussen gestrichelt: innere Linie der Oberseite (dunkel) und der Unterseite (hell)
+    const ke = kanteEff(cm);
+    if (ke) [[ke.unten, "rgba(255,255,255,.9)", [2, 2]], [ke.oben, "#5B6661", [5, 3]]].forEach(([e, col, dash]) => {
+      if (!e) return; const r = kantenRing(B, cm.notches, { l: e.sd.l ? e.s : 0, r: e.sd.r ? e.s : 0, t: e.sd.t ? e.s : 0, b: e.sd.b ? e.s : 0 });
+      g.save(); g.setLineDash(dash.map(v => v * px)); g.lineWidth = 1.2 * px; g.strokeStyle = col; g.beginPath();
+      r.forEach((q, i) => i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.closePath(); g.stroke(); g.restore(); });
+  }
   if (lay.mode === "key") layDrawKeyGuides(g, px, accent);
   const iss = layIssues();
   lay.items.forEach((it, i) => {
@@ -2749,11 +2838,11 @@ function buildTris() {
   if (typeof earcut !== "function") throw new Error("Die 3D-Bibliothek wurde nicht geladen. Bitte Internetverbindung prüfen und die Seite neu laden.");
   const B = lay.base, T = B.T, tris = [];
   // tg: was der Keil anhebt, 0 = nichts (Unterseite), 1 = alles (Oberseite, Taschen), 2 = nur die oberen Ecken (Aussenwand)
-  let tg = 0;
+  let tg = 0, thr = 0;
   const add = (a, b, c, n) => {
     const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
     const cr = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-    const t = cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] < 0 ? [a, c, b] : [a, b, c]; t.tg = tg; tris.push(t);
+    const t = cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] < 0 ? [a, c, b] : [a, b, c]; t.tg = tg; t.th = thr; tris.push(t);
   };
   const flip = p => [p[0], B.H - p[1]];
   const cap = (outer, holes, z, up) => {
@@ -2781,7 +2870,9 @@ function buildTris() {
   const wall2 = (r0, z0, r1, z1, inward) => {
     const p0 = r0.map(flip), p1 = r1.map(flip), ccw = area(p0) > 0;
     for (let i = 0; i < p0.length; i++) {
-      const j = (i + 1) % p0.length, a = p0[i], b = p0[j], dx = b[0] - a[0], dy = b[1] - a[1];
+      const j = (i + 1) % p0.length, a = p0[i], b = p0[j];
+      // Ist die Strecke unten zu einem Punkt geschrumpft (Kantenbruch an der Ecke), gibt die obere die Richtung
+      let dx = b[0] - a[0], dy = b[1] - a[1]; if (Math.abs(dx) + Math.abs(dy) < 1e-6) { dx = p1[j][0] - p1[i][0]; dy = p1[j][1] - p1[i][1]; }
       let n = ccw ? [dy, -dx, 0] : [-dy, dx, 0]; if (inward) n = [-n[0], -n[1], 0];
       const a0 = [a[0], a[1], z0], b0 = [b[0], b[1], z0], a1 = [p1[i][0], p1[i][1], z1], b1 = [p1[j][0], p1[j][1], z1];
       add(a0, b0, b1, n); add(a0, b1, a1, n);
@@ -2795,12 +2886,20 @@ function buildTris() {
     const lean = leanVec(it);
     itemWorld(it).forEach((pl, pi) => pockets.push({ ...pl, d, lean, levels: lv ? lv[pi] : null, trough: tl ? tl[pi] : null }));
   });
-  if (cm.free) { cap(baseRing, [cm.free.ring].concat(rimHoles), 0, false); wall(cm.free.ring, 0, cm.free.fh, true); cap(cm.free.ring, recHoles, cm.free.fh, false); }
-  else cap(baseRing, rimHoles, 0, false);
-  tg = 2; wall(baseRing, 0, zE, false); tg = 1;
+  // Aussenwand mit Kantenbruch: Ringe je Profilstufe, unten von 0 bis zb, oben von zt bis zE; dazwischen senkrecht
+  const ke = kanteEff(cm), null4 = { l: 0, r: 0, t: 0, b: 0 };
+  const kRing = (sd, off) => kantenRing(B, cm.notches, sd ? { l: sd.l ? off : 0, r: sd.r ? off : 0, t: sd.t ? off : 0, b: sd.b ? off : 0 } : null4);
+  const kU = ke && ke.unten, kO = ke && ke.oben, zb = kU ? kU.s : 0, zt = kO ? zE - kO.s : zE;
+  const wallK = ke ? kantenRing(B, cm.notches, null4) : baseRing;
+  const ringBot = kU ? kRing(kU.sd, kU.prof[0].off) : wallK, ringTop = kO ? kRing(kO.sd, kO.prof[0].off) : wallK;
+  if (cm.free) { cap(ringBot, [cm.free.ring].concat(rimHoles), 0, false); wall(cm.free.ring, 0, cm.free.fh, true); cap(cm.free.ring, recHoles, cm.free.fh, false); }
+  else cap(ringBot, rimHoles, 0, false);
+  if (kU) for (let i = 0; i + 1 < kU.prof.length; i++) { const a = kU.prof[i], b = kU.prof[i + 1]; wall2(kRing(kU.sd, a.off), a.h, kRing(kU.sd, b.off), b.h, false); }
+  tg = 2; thr = zb; if (zt > zb + 1e-6) wall(wallK, zb, zt, false); thr = 0; tg = 1;
+  if (kO) for (let i = kO.prof.length - 1; i > 0; i--) { const a = kO.prof[i], b = kO.prof[i - 1]; wall2(kRing(kO.sd, a.off), zE - a.h, kRing(kO.sd, b.off), zE - b.h, false); }
   const pockRings = pockets.map(p => p.levels ? p.levels[0].ring : p.outer);
-  if (stp) { cap(baseRing, [stp.ring].concat(bandHoles), zE, true); wall(stp.ring, zE, T, false); cap(stp.ring, pockRings.concat(platHoles), T, true); }
-  else cap(baseRing, pockRings.concat(platHoles), T, true);
+  if (stp) { cap(ringTop, [stp.ring].concat(bandHoles), zE, true); wall(stp.ring, zE, T, false); cap(stp.ring, pockRings.concat(platHoles), T, true); }
+  else cap(ringTop, pockRings.concat(platHoles), T, true);
   for (const pk of pockets) {
     // Schräge Tasche: jeder Ring liegt mit der Tiefe ab Oberkante zur dicken Seite verschoben
     const zf = T - pk.d, lv = pk.lean, S = (r, z) => lv ? r.map(q => [q[0] + (T - z) * lv[0], q[1] + (T - z) * lv[1]]) : r;
@@ -2832,7 +2931,7 @@ function buildTris() {
   const tw = wedgeTan();
   if (tw > 0) {
     const sd = wedgeSide(), sf = sd === "b" ? p => (B.H - p[1]) * tw : sd === "t" ? p => p[1] * tw : sd === "l" ? p => (B.W - p[0]) * tw : p => p[0] * tw;
-    tris.forEach(t => { if (!t.tg) return; for (let k = 0; k < 3; k++) { const p = t[k]; if (t.tg === 1 || p[2] > 1e-6) t[k] = [p[0], p[1], p[2] + sf(p)]; } });
+    tris.forEach(t => { if (!t.tg) return; for (let k = 0; k < 3; k++) { const p = t[k]; if (t.tg === 1 || p[2] > (t.th || 0) + 1e-6) t[k] = [p[0], p[1], p[2] + sf(p)]; } });
   }
   return tris;
 }
@@ -3067,6 +3166,14 @@ async function saveSTL(n, stl, noSvg) {
 }
 [["baseW", "W", 20], ["baseH", "H", 20], ["baseT", "T", 2], ["baseR", "R", 0]].forEach(([id, k, min]) =>
   $(id).addEventListener("change", () => { layPush(); lay.base[k] = Math.max(min, num(id, lay.base[k])); layChanged(); }));
+// Kantenbruch aussen: Art, Grösse und je Kante ein Häkchen
+function kanteObj() { const k = lay.base.kante || {}; return { art: k.art || "keine", s: Number.isFinite(+k.s) ? +k.s : 1, oben: { ...(k.oben || {}) }, unten: { ...(k.unten || {}) } }; }
+$("kArt").addEventListener("change", () => { layPush(); const k = kanteObj(); k.art = $("kArt").value;
+  if (k.art !== "keine" && !KANT_SEITEN.some(x => k.oben[x] || k.unten[x])) KANT_SEITEN.forEach(x => { k.oben[x] = true; });
+  lay.base = { ...lay.base, kante: k }; layChanged(); });
+$("kS").addEventListener("change", () => { layPush(); const k = kanteObj(); k.s = Math.min(20, Math.max(0.2, num("kS", 1))); lay.base = { ...lay.base, kante: k }; layChanged(); });
+document.querySelectorAll("[data-k]").forEach(el => el.addEventListener("change", () => { layPush(); const k = kanteObj(), [f, x] = el.dataset.k.split("-"); k[f][x] = el.checked; lay.base = { ...lay.base, kante: k }; layChanged(); }));
+document.querySelectorAll("[data-kall]").forEach(el => el.addEventListener("change", () => { layPush(); const k = kanteObj(), f = el.dataset.kall; KANT_SEITEN.forEach(x => { k[f][x] = el.checked; }); lay.base = { ...lay.base, kante: k }; layChanged(); }));
 $("newDepth").addEventListener("change", () => { lay.newDepth = Math.max(0.5, num("newDepth", 20)); laySaveLocal(); });
 [["itX", "x"], ["itY", "y"], ["itA", "ang"], ["itD", "depth"]].forEach(([id, k]) => $(id).addEventListener("change", () => {
   const it = lay.items[lay.sel]; if (!it) return;
