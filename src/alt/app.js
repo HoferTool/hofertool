@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.393.1";
+const APP_VERSION = "1.393.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -10509,7 +10509,7 @@ const SEITEN = [
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
   // Der Rechner ist seit 1.378.0 der letzte Reiter von HOFER-NC-PRO
   // (Wunsch Patrick 3. November 2026), #/rechner führt dorthin
-  { pfad: "nc",           titel: "HOFER-NC-PRO", zeichen: SYM.nc,     zeige: reactSeite(NcFunktionen) },
+  { pfad: "nc",           titel: "NC-PRO", zeichen: SYM.nc,     zeige: reactSeite(NcFunktionen) },
   // Den Reiter Kalender gibt es seit 1.311.0 nicht mehr: die Termine stehen
   // als Karte auf der Startseite, ein Tipp öffnet das Fenster zum Verwalten
   // (Wunsch Patrick 30. Oktober 2026: „Reiter selber brauchts nicht“)

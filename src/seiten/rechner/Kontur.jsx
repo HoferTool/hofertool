@@ -85,7 +85,7 @@ function fensterAuf() {
   const huelle = huellen[huellen.length - 1];
   fensterZu = zu;
   fensterMelden();
-  if (!huelle || !inEigenesFenster(huelle, zu, { titel: "HOFER-NC-PRO · Hofer Tool",
+  if (!huelle || !inEigenesFenster(huelle, zu, { titel: "NC-PRO · Hofer Tool",
     lage: { x: window.screenX + 60, y: window.screenY + 60 } })) zu();
 }
 
@@ -108,7 +108,7 @@ function Tutorial({ zu }) {
       <div className="kt-tutorial__kopf">
         <img className="kt-marke__logo kt-marke__logo--hell" src={LOGO_FARBE} alt="Hofer + Co." />
         <img className="kt-marke__logo kt-marke__logo--dunkel" src={LOGO_HELL} alt="Hofer + Co." />
-        <h2>So startest du mit HOFER-NC-PRO</h2>
+        <h2>So startest du mit NC-PRO</h2>
       </div>
       <video src="hilfe/hofer-nc-pro.mp4" controls autoPlay muted playsInline className="kt-tutorial__video" />
       <div className="kt-tutorial__fuss">
@@ -303,7 +303,7 @@ function KonturRechner({ imFenster }) {
         <div className="kt-marke">
           <img className="kt-marke__logo kt-marke__logo--hell" src={LOGO_FARBE} alt="Hofer + Co." />
           <img className="kt-marke__logo kt-marke__logo--dunkel" src={LOGO_HELL} alt="Hofer + Co." />
-          <span className="kt-marke__strich" /><span className="kt-marke__name" data-text="HOFER-NC-PRO"><span className="ncpro-text">HOFER-<b>NC-PRO</b></span></span>
+          <span className="kt-marke__strich" /><span className="kt-marke__name" data-text="NC-PRO"><span className="ncpro-text"><b>NC-PRO</b></span></span>
         </div>
         {knoepfe}
       </div>
