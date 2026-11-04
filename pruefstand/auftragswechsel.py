@@ -3,7 +3,7 @@
 # Aufträge des Tages, und die Statistik im Pad Mode beginnt beim neuen
 # Auftrag von vorn.
 import time
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import server_starten, FAKE, CH, PORT, tagsueber
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -18,6 +18,7 @@ with sync_playwright() as p:
     for u in ["**://fonts.googleapis.com/**","**://fonts.gstatic.com/**",
               "**://esm.sh/**","**://*.supabase.co/**","**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
+    tagsueber(pg)
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt")
     # Auf Kurzdreher-Maschine m-k1 heute: alter Auftrag A bis 800 Stück,

@@ -17,6 +17,18 @@ def server_starten():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv
 
+# Uhr der Seite auf heute 14:00 Schweizer Zeit stellen (läuft von dort
+# weiter). Der Prüfstand läuft auch nachts auf GitHub (4. November 2026:
+# um 03:52 waren Infoboard und Pausenraum im Nachtmodus, und Aufträge
+# „heute 09:30“ lagen noch in der Zukunft). Gibt das Datum zurück.
+def tagsueber(pg):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    zh = ZoneInfo("Europe/Zurich")
+    t = datetime.now(zh).replace(hour=14, minute=0, second=0, microsecond=0)
+    pg.clock.install(time=t)
+    return t.date()
+
 FAKE = open(os.path.join(HIER, "fake-supabase.js"), encoding="utf-8").read()
 
 def lauf(datei="index.html", breite=1600, hoehe=1000, mobil=False,

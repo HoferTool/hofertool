@@ -3,7 +3,7 @@
 # Tag in eier_tage, frühere Tage über die Pfeile.
 import time, os
 from datetime import date, timedelta
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import server_starten, FAKE, CH, PORT, tagsueber
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 BILD = os.environ.get("IB_BILDER", "/tmp")
@@ -12,12 +12,12 @@ def pruefe(ok, text):
     print(("ok   " if ok else "FEHLT") + " " + text)
     if not ok: fehler.append(text)
 
-heute = date.today().isoformat()
-gestern = (date.today() - timedelta(days=1)).isoformat()
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
-    ctx = br.new_context(viewport={"width": 1920, "height": 1080})
+    ctx = br.new_context(viewport={"width": 1920, "height": 1080}, timezone_id="Europe/Zurich")
     pg = ctx.new_page()
+    t = tagsueber(pg)
+    heute = t.isoformat(); gestern = (t - timedelta(days=1)).isoformat()
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:200]))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:

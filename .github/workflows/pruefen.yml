@@ -9,7 +9,9 @@ on:
   push:
     branches-ignore: [main]
   schedule:
-    - cron: "0 23 * * *"   # 00:00 Schweizer Winterzeit (01:00 im Sommer)
+    # Mo–Fr 00:00 Schweizer Winterzeit (01:00 im Sommer); sonntags ist
+    # das Infoboard den ganzen Tag im Nachtmodus
+    - cron: "0 23 * * 0-4"
   workflow_dispatch:
 
 jobs:

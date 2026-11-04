@@ -2,7 +2,7 @@
 # 2026: „im Infoboard auch Webseiten anzeigen“). Eine einbettbare Seite
 # steht als Rahmen da, eine gesperrte als Hinweis statt grauem Feld.
 import time
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import server_starten, FAKE, CH, PORT, tagsueber
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -19,6 +19,7 @@ with sync_playwright() as p:
         body="<html><body style='background:#ffd'><h1 id='hallo'>Hallo Infoboard</h1></body></html>"))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
+    tagsueber(pg)
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("""TEST.funktionen = { 'webseite-pruefen': (b) => b.adresse.includes('google')

@@ -1,7 +1,7 @@
 # Programmfenster auf dem Infoboard (1.264.0, Wunsch Patrick 29. Oktober 2026:
 # Tapo-Livebild mit BlueStacks). Das Feld meldet Titel, Verknüpfung, Ränder und Lage.
 import time
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import server_starten, FAKE, CH, PORT, tagsueber
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 fehler = []
@@ -16,6 +16,7 @@ with sync_playwright() as p:
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
+    tagsueber(pg)
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1200)
     pg.evaluate("location.hash='#/infoboard'"); pg.wait_for_selector(".ib-gestalten"); pg.wait_for_timeout(800)
