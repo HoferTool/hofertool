@@ -15,6 +15,10 @@ import { Antrieb, antriebLaden, bfAktuell, bfSetzen } from "./BohrenFraesen.jsx"
 import { EG_VORGABE, WERKZEUGE, egBahnen, egGcode, egPruefen, faseMasse, zentrierOrt } from "./entgraten.js";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 
+// C-Drehung in der Simulation: dieselben Regeln wie im G-Code
+const mitY = (g) => (g.spindel === "gegen" ? g.yGegen : g.yHaupt);
+const grad = (w) => (w * Math.PI) / 180;
+
 const gemerkt = { ...EG_VORGABE };
 let gespeichertEg = null;
 
@@ -196,6 +200,29 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
   };
   const umriss = [-dreh.a, Math.PI - dreh.a].map((f) => linie([[R * Math.cos(f), R * Math.sin(f), b.zStirn], [R * Math.cos(f), R * Math.sin(f), b.zStirn - tief]]));
   const sim = useSimulation(bahnen, g);
+  // Wie an der Maschine dreht in der Simulation das Teil (C-Achse), das
+  // Werkzeug bleibt stehen: ohne Y liegt die Spitze immer auf der X-Achse
+  // (G12.1 bzw. C folgt), mit Y steht C je Kante fest auf c0.
+  const cLetzt = useRef(0);
+  let cDreh = 0;
+  if (sim.an && sim.jetzt) {
+    const p = sim.jetzt.p;
+    if (mitY(g)) cDreh = -grad(sim.jetzt.c0 || 0);
+    else if (Math.hypot(p[0], p[1]) > 0.02) cDreh = -Math.atan2(p[1], p[0]);
+    else cDreh = cLetzt.current;
+    cLetzt.current = cDreh;
+  }
+  const cc = Math.cos(cDreh), cs = Math.sin(cDreh);
+  const amTeil = (p) => [p[0] * cc - p[1] * cs, p[0] * cs + p[1] * cc, p[2]];
+  const projT = (p) => proj(amTeil(p));
+  const linieT = (pts, zu) => linie(pts.map(amTeil), zu);
+  // Striche an der Stirn, damit man das Drehen des Teils sieht
+  const marken = [];
+  for (let i = 0; i < 12; i++) {
+    const f = (2 * Math.PI * i) / 12, r0 = i === 0 ? R * 0.55 : R * 0.82;
+    marken.push(linieT([[r0 * Math.cos(f), r0 * Math.sin(f), b.zStirn], [R * Math.cos(f), R * Math.sin(f), b.zStirn]]));
+  }
+  const cAnzeige = ((((-cDreh * 180) / Math.PI) % 360) + 360) % 360;
   const gross = Math.hypot(tief, b.teilD) * 0.62 / zoom;
   const box = `${-gross * 1.4} ${-gross} ${gross * 2.8} ${gross * 2}`;
   return (
@@ -213,14 +240,15 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
         <path d={kreis(b.zStirn)} className="eg-teil" />
         <path d={kreis(b.zStirn - tief)} className="eg-teil eg-teil--hinten" />
         {umriss.map((d, i) => <path key={i} d={d} className="eg-teil" />)}
+        {marken.map((d, i) => <path key={"m" + i} d={d} className={"eg-marke" + (i ? "" : " eg-marke--null")} />)}
         <path d={linie([[0, 0, b.zStirn + 2], [0, 0, b.zStirn - tief - 2]])} className="eg-achse" />
-        {kanten.map((k) => <path key={k.id} d={linie(k.punkte.map((p) => p.E), k.geschlossen)}
+        {kanten.map((k) => <path key={k.id} d={linieT(k.punkte.map((p) => p.E), k.geschlossen)}
           className={"eg-kante" + (istGewaehlt(k.id) ? " gewaehlt" : "")} />)}
-        {bahnen.map((bn, i) => <path key={"b" + i} d={linie(bn.spitzen, bn.geschlossen)} className="eg-bahn" />)}
-        {sim.an && sim.erledigt.map((pts, i) => pts.length > 1 && <path key={"e" + i} d={linie(pts)} className="eg-bahn-fertig" />)}
-        {sim.an && sim.jetzt && <WerkzeugBild proj={proj} g={g} spitze={sim.jetzt.p} achse={sim.jetzt.a} />}
+        {bahnen.map((bn, i) => <path key={"b" + i} d={linieT(bn.spitzen, bn.geschlossen)} className="eg-bahn" />)}
+        {sim.an && sim.erledigt.map((pts, i) => pts.length > 1 && <path key={"e" + i} d={linieT(pts)} className="eg-bahn-fertig" />)}
+        {sim.an && sim.jetzt && <WerkzeugBild proj={projT} g={g} spitze={sim.jetzt.p} achse={sim.jetzt.a} />}
         {kanten.map((k) => (
-          <path key={"t" + k.id} d={linie(k.punkte.map((p) => p.E), k.geschlossen)} className="eg-treffer" data-eg3d={k.id}
+          <path key={"t" + k.id} d={linieT(k.punkte.map((p) => p.E), k.geschlossen)} className="eg-treffer" data-eg3d={k.id}
             onClick={() => { if (ziehen.current && ziehen.current.weit > 4) return; umschalten(k.id); }}>
             <title>{k.name}</title></path>
         ))}
@@ -231,7 +259,7 @@ function Bild3D({ b, g, kanten, bahnen, istGewaehlt, umschalten }) {
         <button className="knopf knopf--klein" onClick={() => { setDreh({ a: 0.5, b: -0.6 }); setZoom(1); }}>Schräg</button>
         <span className="klein">ziehen dreht, Mausrad zoomt, Kante antippen = wählen</span>
       </div>
-      <SimLeiste sim={sim} />
+      <SimLeiste sim={sim} c={cAnzeige} />
     </div>
   );
 }
@@ -253,7 +281,7 @@ function useSimulation(bahnen, g) {
       const ak = bn.geschlossen ? [...bn.achsen, bn.achsen[0]] : bn.achsen;
       pk.forEach((p, i) => {
         if (i) { const q = pk[i - 1]; summe += Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); }
-        stuecke.push({ p, a: ak[i] || [0, 0, 1], bahn: bi, s: summe });
+        stuecke.push({ p, a: ak[i] || [0, 0, 1], bahn: bi, c0: bn.c0, s: summe });
       });
     });
     return { stuecke, laenge: summe };
@@ -286,14 +314,14 @@ function useSimulation(bahnen, g) {
     const a = st[Math.min(i, st.length - 1) - 1] || st[0], b = st[Math.min(i, st.length - 1)];
     const f = b.s > a.s && b.bahn === a.bahn ? Math.min(1, Math.max(0, (s - a.s) / (b.s - a.s))) : 1;
     const mix = (x, y) => [x[0] + (y[0] - x[0]) * f, x[1] + (y[1] - x[1]) * f, x[2] + (y[2] - x[2]) * f];
-    jetzt = { p: mix(a.p, b.p), a: b.bahn === a.bahn ? mix(a.a, b.a) : b.a };
+    jetzt = { p: mix(a.p, b.p), a: b.bahn === a.bahn ? mix(a.a, b.a) : b.a, c0: b.c0 };
     st.forEach((x, k) => {
       if (k >= i) return;
       if (!erledigt[x.bahn]) erledigt[x.bahn] = [];
       erledigt[x.bahn].push(x.p);
     });
     if (erledigt[a.bahn] && b.bahn === a.bahn) erledigt[a.bahn].push(jetzt.p);
-    if (s <= 0) jetzt = { p: st[0].p, a: st[0].a };
+    if (s <= 0) jetzt = { p: st[0].p, a: st[0].a, c0: st[0].c0 };
   }
   return {
     an, laeuft, s, tempo, laenge: weg.laenge, jetzt, erledigt: erledigt.filter(Boolean),
@@ -306,7 +334,7 @@ function useSimulation(bahnen, g) {
   };
 }
 
-function SimLeiste({ sim }) {
+function SimLeiste({ sim, c }) {
   if (!sim.laenge) return null;
   return (
     <div className="eg-sim" id="eg-sim">
@@ -320,6 +348,7 @@ function SimLeiste({ sim }) {
       <select id="eg-sim-tempo" value={sim.tempo} onChange={(e) => sim.setTempo(Number(e.target.value))} title="Tempo">
         {[1, 5, 20, 50].map((t) => <option key={t} value={t}>{t}×</option>)}
       </select>
+      {sim.an && <span className="klein" id="eg-sim-c" title="Das Teil dreht, das Werkzeug bleibt stehen">C {c.toFixed(1)}°</span>}
       <span className="klein" id="eg-sim-stand">{sim.s.toFixed(1)} / {sim.laenge.toFixed(1)} mm</span>
       {sim.an && <button className="linkknopf" id="eg-sim-aus" onClick={sim.aus}>Ausblenden</button>}
     </div>

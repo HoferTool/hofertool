@@ -11722,3 +11722,8 @@ body.dunkel .eg-sk__text, body.dunkel .eg-sk__titel { fill: #fff; }
 .eg-ort { display: flex; flex-direction: column; gap: 4px; }
 .eg-ort__reihe { display: flex; align-items: center; gap: 8px; }
 .eg-ort__reihe input[type=range] { flex: 1; }
+
+/* Entgraten, Simulation: Striche an der Stirn zeigen, wie das Teil dreht (seit 1.388.0) */
+.eg-marke { fill: none; stroke: var(--text-blass, #8a939d); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.eg-marke--null { stroke: #e08a00; stroke-width: 2.2; }
+#eg-sim-c { font-variant-numeric: tabular-nums; min-width: 4.5em; }

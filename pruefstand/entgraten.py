@@ -157,6 +157,20 @@ with sync_playwright() as p:
     pg.wait_for_timeout(150)
     st = pg.text_content("#eg-sim-stand").replace(" mm", "").split(" / ")
     pruefe("Regler ans Ende", st[0] == st[1] and pg.locator(".eg-bahn-fertig").count() > 0)
+    # Das Teil dreht (C), nicht das Werkzeug um das Teil
+    def sim_bei(anteil):
+        pg.evaluate("""(f) => { const r = document.querySelector('#eg-sim-ort'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+          set.call(r, String(Number(r.max) * f)); r.dispatchEvent(new Event('input', { bubbles: true })); r.dispatchEvent(new Event('change', { bubbles: true })); }""", anteil)
+        pg.wait_for_timeout(120)
+        return pg.text_content("#eg-sim-c"), pg.get_attribute(".eg-kante", "d"), pg.get_attribute(".eg-marke--null", "d")
+    c1, k1, m1 = sim_bei(0.2); c2, k2, m2 = sim_bei(0.45)
+    pruefe("Mit Y: C steht je Kante fest", c1 == c2 == "C 0.0°" and k1 == k2)
+    pg.select_option("[data-eg='y']", "nein"); pg.wait_for_timeout(150)
+    c1, k1, m1 = sim_bei(0.2); c2, k2, m2 = sim_bei(0.45)
+    pruefe("C-Winkel wird angezeigt", c1.startswith("C ") and c1 != c2)
+    pruefe("Kante und Marke drehen mit dem Teil", k1 != k2 and m1 != m2)
+    if BILD: pg.screenshot(path=BILD + "/entgraten-c.png", full_page=True)
+    pg.select_option("[data-eg='y']", "ja"); pg.wait_for_timeout(150)
     if BILD:
         pg.screenshot(path=BILD + "/entgraten-sim.png", full_page=True)
         pg.locator("#eg-skizze").screenshot(path=BILD + "/eg-skizze-kugel.png")
