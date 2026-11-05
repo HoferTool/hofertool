@@ -336,7 +336,7 @@ export function blockZeilen(b, w = {}, marke) {
     // Kanal 1“): M3/M4 S (und G96/G97) stehen nur noch in Kanal 2
     const mk = marke || { m1: "M300", m2: "M310" };
     return [
-      "T" + b.platz + (bez ? "(" + bez + ")" : ""),
+      "T" + b.platz + "(" + mitGegen(bez) + ")",
       ...(b.hd ? ["M1882D" + b.hd] : []),
       // Seit 1.409.0: T14 bleibt in Kanal 1, weil dort die
       // Verschleisskorrektur erfolgt (Patrick 5. November 2026)
@@ -385,6 +385,9 @@ export function blockZeilen(b, w = {}, marke) {
 // Seit 1.405.0: Kanal 2 bei einem Frontwerkzeug an der Gegenspindel,
 // nach Patricks O1458 (T2000, Wege in Z, G28W0.): die Gegenspindel fährt
 // mit dem Teil an das feste Werkzeug, die Marke danach gibt Kanal 1 frei
+// Seit 1.412.0 (Patrick 5. November 2026): an der Gegenspindel bekommt
+// die Bezeichnung in beiden Kanälen „MIT GEGENSPINDEL“ angehängt
+export const mitGegen = (bez) => (bez ? bez + " " : "") + "MIT GEGENSPINDEL";
 export function blockZeilen2(b, marke, w = {}) {
   const bez = String(b.bez || "").trim();
   const S = drehzahl(b, w) ?? String(b.S).trim();
@@ -396,7 +399,7 @@ export function blockZeilen2(b, marke, w = {}) {
   const s = (z) => (markeVon(z) || z.startsWith("/") ? z : "/" + z);
   return [
     "M75",
-    s("T2000" + (bez ? "(" + bez + ")" : "")),
+    s("T2000(" + mitGegen(bez) + ")"),
     marke.m1,
     s((g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S),
     s("G0Z" + (zahl(b.anZ) ?? b.anZ)),
