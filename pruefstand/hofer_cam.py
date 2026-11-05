@@ -82,6 +82,20 @@ with sync_playwright() as p:
     a, b = t.index("M1", t.index("T100(AUSSEN PLAN)")), t.index("(Start Ende)")
     pruefe("Front ohne Hochdruck", t[a+1:b] == ["T1400(BOHREN D6.8)", "M3S2500T14", "G0Z5.0",
         "G83W18.5Q5250F0.06", "G80", "G0Z0.", "T0", "M1"])
+    # Seit 1.401.0: Schnittgeschwindigkeit statt Drehzahl
+    pg.select_option("[data-block='1'] [data-camblock='sArt']", "vc")
+    pg.fill("[data-block='1'] [data-camblock='vc']", "53.4")
+    pruefe("Vc ohne Ø rot", pg.locator("[data-block='1'] .cam-feld--fehler [data-camblock='vcD']").count() == 1)
+    pg.fill("[data-block='1'] [data-camblock='vcD']", "6.8")
+    t = [x for x in k(1) if x]
+    pruefe("Vc ergibt S2500", "M3S2500T14" in t and pg.text_content("[data-camblock-s='1']") == "= S2500")
+    pg.select_option("[data-block='0'] [data-camblock='sArt']", "vc")
+    pg.fill("[data-block='0'] [data-camblock='vc']", "100")
+    a = float(pg.input_value("[data-cam='A']").replace(",", "."))
+    s_erw = round(100 * 1000 / (3.141592653589793 * a))
+    pruefe("Drehblock Vc mit Material-Ø", ("M3S%dT1" % s_erw) in [x for x in k(1) if x])
+    pg.select_option("[data-block='0'] [data-camblock='sArt']", "S")
+    pruefe("Zurück auf S", "M3S3000T1" in [x for x in k(1) if x])
     pg.click("[data-camblock-weg='1']")
     # Seit 1.398.0: angewählte Bearbeitung hervorgehoben
     pg.click("[data-block='0'] [data-camblock='code']")

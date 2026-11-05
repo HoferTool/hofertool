@@ -264,9 +264,31 @@ export function neuerBlock(bloecke = [], art = "dreh") {
     platz, bez: "", hd: "4", dreh: "3", S: "3000", anZ: "0", wegF: "0.05", wegA: "45", code: "" };
 }
 
-export function blockFehler(b) {
+// Seit 1.401.0 (Wunsch Patrick 5. November 2026: „generell und optional
+// anstelle der Drehzahl die Schnittgeschwindigkeit eingeben“): je Block
+// sArt "vc" mit vc (m/min) und vcD (Ø in mm); die App rechnet daraus die
+// Drehzahl S = Vc · 1000 / (π · Ø), auf ganze Umdrehungen gerundet. Beim
+// Drehwerkzeug gilt ohne Ø der Material-Ø A aus G266.
+export function vcDurchmesser(b, w = {}) {
+  const d = zahl(b.vcD);
+  if (d != null) return Number(d);
+  if (b.art !== "front") { const a = zahl(w.A); if (a != null) return Number(a); }
+  return null;
+}
+export function drehzahl(b, w = {}) {
+  if (b.sArt !== "vc") return /^\d+$/.test(String(b.S).trim()) && Number(b.S) > 0 ? String(b.S).trim() : null;
+  const vc = zahl(b.vc), d = vcDurchmesser(b, w);
+  if (vc == null || !(Number(vc) > 0) || !(d > 0)) return null;
+  return String(Math.round(Number(vc) * 1000 / (Math.PI * d)));
+}
+
+export function blockFehler(b, w = {}) {
   const f = {};
-  if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
+  if (b.sArt === "vc") {
+    if (zahl(b.vc) == null || !(Number(zahl(b.vc)) > 0)) f.vc = "Zahl fehlt";
+    if (String(b.vcD ?? "").trim() !== "" && zahl(b.vcD) == null) f.vcD = "Zahl oder leer";
+    else if (vcDurchmesser(b, w) == null) f.vcD = b.art === "front" ? "Ø fehlt" : "Ø fehlt (oder A oben)";
+  } else if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
   if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
   if (b.art === "front") {
     if (zahl(b.wegZ) == null) f.wegZ = "Zahl fehlt";
@@ -277,7 +299,8 @@ export function blockFehler(b) {
   return f;
 }
 
-export function blockZeilen(b) {
+export function blockZeilen(b, w = {}) {
+  const S = drehzahl(b, w) ?? String(b.S).trim();
   const t = Number(b.platz) / 100;
   const bez = String(b.bez || "").trim();
   if (b.art === "front") {
@@ -287,7 +310,7 @@ export function blockZeilen(b) {
     return [
       "T" + b.platz + (bez ? "(" + bez + ")" : ""),
       ...(b.hd ? ["M1882D" + b.hd] : []),
-      "M" + (b.dreh === "4" ? 4 : 3) + "S" + String(b.S).trim() + "T" + t,
+      "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
       "G0Z" + (zahl(b.anZ) ?? b.anZ),
       ...code,
       ...(b.hd ? ["M1892"] : []),
@@ -301,7 +324,7 @@ export function blockZeilen(b) {
   return [
     "T" + b.platz + (bez ? "(" + bez + ")" : ""),
     ...(b.hd ? ["M1881D" + b.hd] : []),
-    "M" + (b.dreh === "4" ? 4 : 3) + "S" + String(b.S).trim() + "T" + t,
+    "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
     "G0X[#531+1.]Z" + (zahl(b.anZ) ?? b.anZ),
     ...code,
     "G1X[#531+0.2]" + winkel + "F" + (zahl(b.wegF) ?? b.wegF),
@@ -320,7 +343,7 @@ export function programme(w) {
   const bereiche = {};
   let ab = k1.kopf.length;
   const bearb1 = (w.bloecke || []).flatMap((b) => {
-    const z = blockZeilen(b);
+    const z = blockZeilen(b, w);
     bereiche[b.id] = [ab + 1, ab + z.length];
     ab += z.length;
     return z;

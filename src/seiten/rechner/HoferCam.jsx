@@ -13,7 +13,7 @@ import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
-import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, blockFehler, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, blockFehler, drehzahl, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
 const gemerkt = vorgabe();
@@ -201,7 +201,7 @@ export default function HoferCam() {
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {bloecke.map((b, i) => {
-          const bf = blockFehler(b);
+          const bf = blockFehler(b, w);
           const front = b.art === "front";
           const feld = (name, text, lang, breit) => (
             <label className={"cam-feld" + (bf[name] ? " cam-feld--fehler" : "")} title={lang + (bf[name] ? " – " + bf[name] : "")}>
@@ -238,7 +238,18 @@ export default function HoferCam() {
                   <select data-camblock="dreh" value={b.dreh} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
                     <option value="3">M3</option><option value="4">M4</option>
                   </select></label>
-                {feld("S", "Drehzahl S", "Drehzahl")}
+                <label className="cam-feld" title="Drehzahl S direkt oder Schnittgeschwindigkeit Vc (die App rechnet S aus)"><span>Eingabe</span>
+                  <select data-camblock="sArt" value={b.sArt || "S"} onChange={(e) => blockAendern(b.id, "sArt", e.target.value)}>
+                    <option value="S">S U/min</option><option value="vc">Vc m/min</option>
+                  </select></label>
+                {b.sArt === "vc"
+                  ? <>
+                    {feld("vc", "Vc", "Schnittgeschwindigkeit in m/min", 54)}
+                    {feld("vcD", "Ø", front ? "Werkzeug-Ø in mm" : "Durchmesser in mm, leer = Material-Ø A aus G266", 54)}
+                    <span className="cam-vc-s klein" data-camblock-s={i} title="Daraus gerechnete Drehzahl">
+                      {drehzahl(b, w) ? "= S" + drehzahl(b, w) : "S –"}</span>
+                  </>
+                  : feld("S", "Drehzahl S", "Drehzahl")}
                 {front
                   ? <>
                     {feld("anZ", "Anfahren Z", "G0Z… vor dem Teil")}

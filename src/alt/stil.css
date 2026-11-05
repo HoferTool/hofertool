@@ -11806,3 +11806,7 @@ body.dunkel .cam-zeile--aktiv { background: #5a3a14; }
 /* Hofer Cam: NC-Code der Bearbeitung ein- und ausklappen (seit 1.399.0) */
 .cam-block__pfeil { border: none; background: none; cursor: pointer; font-size: 16px; width: 22px; padding: 0; color: inherit; }
 .cam-block__zu { border: none; background: none; cursor: pointer; padding: 0; text-align: left; color: var(--grau, #6b7785); }
+
+/* Hofer Cam: aus Vc gerechnete Drehzahl neben den Feldern (seit 1.401.0) */
+.cam-vc-s { align-self: center; white-space: nowrap; font-family: ui-monospace, Consolas, monospace; color: #1e5aa8; }
+body.dunkel .cam-vc-s { color: #9cc4ff !important; }
