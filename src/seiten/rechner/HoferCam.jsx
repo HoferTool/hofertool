@@ -206,7 +206,7 @@ export default function HoferCam() {
           <button className="knopf knopf--klein" id="cam-neu-seite"
             onClick={() => { const nb = neuerBlock(bloecke, "seite"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Querangetrieben T3100–T3400</button>
           <button className="knopf knopf--klein" id="cam-neu-quer"
-            onClick={() => { const nb = neuerBlock(bloecke, "quer"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben Front T3421–T3423</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "quer"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontangetrieben T3421–T3423</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
