@@ -7,7 +7,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Test:** https://hofertool.github.io/hofertool/test/ — genauso der Zweig `claude/project-thread-au2n7k` (Thread „Einrichtblatt in der App“) im Ordner `test/`, mit echten Daten, oben das Schild „Test“. `sw.js` lässt auch `/test/` in Ruhe. Das Einrichtblatt in der App ist seit 1.170.0 live in `main`. Die Aufgabe „HoferTool“ lädt kein Excel mehr für HOCO Nr. und Typ, deren Blatt in der App als gut bestätigt ist (`einrichtblatt_app.gut_am`).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 1.395.3 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
+- **Stand:** Version 1.395.4 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
 
 ## Mit wem du arbeitest
 
@@ -92,6 +92,7 @@ RÜCKGÄNGIG · OFFLINE · EXTERNE GERÄTE · FEHLERPROTOKOLL · STARTSEITE · D
 - Am Ende `notify pgrst, 'reload schema';` und eine **Probe**, die `ok` oder `FEHLT` zeigt.
 - Im Kopf der Datei in einfachen Worten erklären, was sie tut.
 - Über die Supabase-Verbindung (`execute_sql`) hängen Befehle mit `drop` an einer Freigabe, die Patrick nicht sieht (16. Oktober 2026); `create`, `alter … add`, `update` gehen. Darum ohne `drop` einspielen, wo es geht.
+- **Regeln immer mit `(select …)`**: Funktionen ohne Werte wie `darf_lesen()`, `ist_extern()`, `bin_admin()` in Policies als `(select darf_lesen())` schreiben, sonst ruft die Datenbank sie für jede Zeile auf (die Planwand brauchte so bis 3 s statt 6 ms, `sql/schneller-laden.sql`, 5. November 2026). Neue Spalten an der Ansicht `planwand` direkt in ihre Spaltenliste, nicht `jobs` noch einmal anhängen.
 - Die App so bauen, dass sie auch **ohne** das neue SQL nicht abstürzt: `aendernOhneUnbekannte` verwenden und eine verständliche Meldung zeigen.
 
 ### Prüfstand (`pruefstand/`)

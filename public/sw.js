@@ -26,10 +26,43 @@ const HUELLE = VORSILBE + "__FASSUNG__";
 // die Live-App weg, sobald sie selbst diese Fassung ist.
 const IST_VORSCHAU = /\/(vorschau|test)\/$/.test(BEREICH);
 
+// Neue Fassung einrichten (Patrick 5. November 2026: „lädt alles sehr
+// lange“). Vorher holte jedes Gerät bei jeder neuen Fassung alle rund
+// 10 MB auf einmal neu, gleichzeitig mit dem Start der App. Jetzt kommt
+// jede Programmdatei, die sich nicht geändert hat (gleicher Name =
+// gleicher Inhalt), aus der Ablage der alten Fassung, und nur Neues aus dem Netz,
+// höchstens drei Dateien zugleich, damit die App selbst Vorrang hat.
+async function einrichten() {
+  const c = await caches.open(HUELLE);
+  const namen = (await caches.keys()).filter((n) => n.startsWith(VORSILBE) && n !== HUELLE);
+  const alte = await Promise.all(namen.map((n) => caches.open(n)));
+  const offen = [];
+  for (const d of DATEIEN) {
+    // Nur Programmdateien unter assets/ tragen eine Prüfsumme im Namen.
+    // Andere (Logo, Einlagen, Archiv) können sich bei gleichem Namen ändern.
+    let gemerkt = null;
+    if (d.startsWith("./assets/")) {
+      for (const a of alte) { gemerkt = await a.match(d); if (gemerkt) break; }
+    }
+    if (gemerkt) await c.put(d, gemerkt);
+    else offen.push(d);
+  }
+  const holen = async () => {
+    while (offen.length) {
+      const d = offen.shift();
+      try {
+        const r = await fetch(d, { cache: "no-cache" });
+        if (r.ok) await c.put(d, r);
+      } catch (f) { /* beim nächsten Gebrauch */ }
+    }
+  };
+  await Promise.all([holen(), holen(), holen()]);
+  try { const s = await fetch("./"); if (s.ok) await c.put("./", s); } catch (f) { /* egal */ }
+}
+
 self.addEventListener("install", (e) => {
   self.skipWaiting();
-  e.waitUntil(caches.open(HUELLE).then((c) =>
-    c.addAll(["./", ...DATEIEN]).catch(() => { /* beim ersten Mal egal */ })));
+  e.waitUntil(einrichten().catch(() => { /* beim ersten Mal egal */ }));
 });
 
 self.addEventListener("activate", (e) => {
