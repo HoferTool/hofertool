@@ -331,16 +331,16 @@ export function blockZeilen(b, w = {}, marke) {
     // Seit 1.407.0 zwei Marken (Wunsch Patrick 5. November 2026: „2
     // Wartemarken, damit ich die Bearbeitung auf der Gegenspindel
     // dazwischen einfügen kann“): Start und Ende direkt nacheinander, in
-    // Kanal 2 steht die Bearbeitung zwischen den beiden
+    // Kanal 2 steht die Bearbeitung zwischen den beiden. Seit 1.408.0
+    // (Patrick: „Drehzahl, Drehrichtung etc. auf Kanal 2, nicht auf
+    // Kanal 1“): M3/M4 S (und G96/G97) stehen nur noch in Kanal 2
     const mk = marke || { m1: "M300", m2: "M310" };
     return [
       "T" + b.platz + (bez ? "(" + bez + ")" : ""),
       ...(b.hd ? ["M1882D" + b.hd] : []),
-      (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
       mk.m1,
       mk.m2,
       ...(b.hd ? ["M1892"] : []),
-      ...(g96 ? ["G97"] : []),
       "T0",
       "M1",
     ];
@@ -382,17 +382,21 @@ export function blockZeilen(b, w = {}, marke) {
 // Seit 1.405.0: Kanal 2 bei einem Frontwerkzeug an der Gegenspindel,
 // nach Patricks O1458 (T2000, Wege in Z, G28W0.): die Gegenspindel fährt
 // mit dem Teil an das feste Werkzeug, die Marke danach gibt Kanal 1 frei
-export function blockZeilen2(b, marke) {
+export function blockZeilen2(b, marke, w = {}) {
   const bez = String(b.bez || "").trim();
+  const S = drehzahl(b, w) ?? String(b.S).trim();
+  const g96 = b.sArt === "vc" && !!b.g96;
   const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
   return [
     "T2000" + (bez ? "(" + bez + ")" : ""),
     marke.m1,
+    (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S,
     "G0Z" + (zahl(b.anZ) ?? b.anZ),
     ...code,
     "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
     "G28W0.",
     marke.m2,
+    ...(g96 ? ["G97"] : []),
     "T0",
     "M1",
   ];
@@ -441,7 +445,7 @@ export function programme(w) {
     bereiche[b.id] = [ab + 1, ab + z.length];
     ab += z.length;
     if (marken[b.id]) {
-      const z2 = blockZeilen2(b, marken[b.id]);
+      const z2 = blockZeilen2(b, marken[b.id], w);
       bereiche2[b.id] = [ab2 + 1, ab2 + z2.length];
       ab2 += z2.length;
       bearb2.push(...z2);
