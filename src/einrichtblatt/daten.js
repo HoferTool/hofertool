@@ -13,6 +13,7 @@ import { alt } from "../bruecke.jsx";
 import { excelRoh, blattAusExcel } from "./excelEinlesen.js";
 import { eigeneBilderSetzen } from "./bilder.js";
 import { sinnbildFuerBild } from "./sinnbilder.js";
+import { platzName } from "./vorlagen.js";
 
 export const TABELLE = "einrichtblatt_app";
 
@@ -38,6 +39,30 @@ export const WASCHGEBINDE = ["Typ 1 fein", "Typ 1 mittel", "Typ 1 grob", "Typ 2 
 // Fehlt die Tabelle noch (SQL nicht ausgeführt), ist das kein Fehler:
 // dann gibt es eben noch keine Blätter in der App.
 export const tabelleFehlt = (f) => !!f && /einrichtblatt_app|relation .* does not exist|schema cache/i.test(String(f.message || f));
+
+// Ein Platz braucht noch eine Hand: Werkzeug ohne Artikel, oder der
+// Artikel kommt nur vom Einlesen und ist nicht bestätigt (rot umrandet)
+export function werkzeugOffen(p) {
+  return !!(p && p.werkzeug && (!p.article_id || p.ungeprueft));
+}
+
+// Beenden nur ohne rote Werkzeuge im Einrichtblatt der App (seit 1.400.0,
+// Wunsch Patrick 5. November 2026). Gilt für das Blatt von HOCO Nr. und
+// Typ der Maschine; ohne Blatt in der App hält nichts auf. Externe dürfen
+// das Blatt nicht bearbeiten, darum hält es sie nicht auf.
+export async function roteWerkzeugeVorDemBeenden(j) {
+  if (!j || !j.job_number || !j.machine_id || alt.istExtern()) return;
+  const m = await alt.db.from("machines").select("type_id").eq("id", j.machine_id).limit(1);
+  const typId = (((m && m.data) || [])[0] || {}).type_id;
+  if (!typId) return;
+  const blatt = await blattSuchen(j.job_number, typId);
+  if (!blatt) return;
+  const rot = Object.entries(blatt.plaetze || {}).filter(([, p]) => werkzeugOffen(p)).map(([nr, p]) => (p && p.tnr) || platzName(nr) || "ein Feld ohne T-Nr.");
+  if (!rot.length) return;
+  throw new Error(j.job_number + " lässt sich noch nicht beenden: im Einrichtblatt "
+    + (rot.length === 1 ? "ist " + rot[0] + " noch rot" : "sind " + rot.join(", ") + " noch rot")
+    + ". Zuerst im Einrichtblatt antippen und das Werkzeug auswählen.");
+}
 
 export async function blattSuchen(hocoNr, typId) {
   if (!hocoNr || !typId) return null;

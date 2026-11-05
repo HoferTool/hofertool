@@ -184,7 +184,7 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pruefe("Zurück im Platz", pg.locator("[data-werkzeugwahl]").count() == 0 and pf.count() == 1)
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
-    # Übrige rote Plätze leeren, damit EB OK geht; vorher sperrt EB OK
+    # Übrige rote Plätze leeren (EB OK geht seit 1.400.0 auch mit Rot)
     rot = pg.evaluate("[...document.querySelectorAll('.eba-platz--pruefen')].map(e => e.dataset.platz)")
     print("noch rot:", rot)
     for nr in rot:

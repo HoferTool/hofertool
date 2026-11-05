@@ -43,7 +43,7 @@ import { stueckzeitVorDemBeenden, letzteStueckzahlFragen } from "../daten/stueck
 import { betrachter, dateiAnsehen } from "../teile/Betrachter.jsx";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
 import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
-import { blattSuchen as appBlattSuchen } from "../einrichtblatt/daten.js";
+import { blattSuchen as appBlattSuchen, roteWerkzeugeVorDemBeenden } from "../einrichtblatt/daten.js";
 import { materialBlattFuer } from "../einrichtblatt/jeMaterial.js";
 import { symboleLaden, symbolHtml, symbolInfoZeigen, symbolInfoSetzen, symbolInfoWeg,
   symbolInfoOffen, M_SYMBOL, symbolModusAktiv, symbolAnAuftrag, symbolAmBalkenKlick, symbolAnwendenEnde } from "../daten/symbole.js";
@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.399.0";
+const APP_VERSION = "1.400.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -6980,6 +6980,8 @@ async function zustandSetzen(j, neu) {
   // Beim Auftragswechsel noch einmal die Stückzahl (Wunsch 12. Oktober
   // 2026): vor der Stückzeit, damit der Zählerstand des Tages nicht fehlt
   const beendet = neu === "fertig" && j.plan_status !== "fertig" && !j.ended_at;
+  // Rote Werkzeuge im Einrichtblatt sperren das Beenden (seit 1.400.0)
+  if (beendet) await roteWerkzeugeVorDemBeenden(j);
   if (beendet) await letzteStueckzahlFragen(j);
   if (beendet) await stueckzeitVorDemBeenden(j);
   // Was vom Material übrig bleibt, geht ins Lager (seit 1.67.0)

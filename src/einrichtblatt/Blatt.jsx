@@ -22,7 +22,7 @@ import { werkzeugWaehlen, positionOeffnen } from "../seiten/bestellungen/Positio
 import { excelVorlesen, blattVonAnderem, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
   artikelHolen, artikelBezeichnung, STAMM_FELDER, WASCHGEBINDE, prgNummern, platzInGebrauch } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
-import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freiesBildHochladen } from "./daten.js";
+import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freiesBildHochladen, werkzeugOffen } from "./daten.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
@@ -445,11 +445,6 @@ function FreieBilder({ bilder, aendern }) {
   );
 }
 
-// Ein Platz braucht noch eine Hand: Werkzeug ohne Artikel, oder der
-// Artikel kommt nur vom Einlesen und ist nicht bestätigt (rot umrandet)
-function werkzeugOffen(p) {
-  return !!(p && p.werkzeug && (!p.article_id || p.ungeprueft));
-}
 
 // Die Angaben im Fenster eines Platzes, wie sie im Blatt stehen
 function platzDaten(p, nr) {
@@ -873,18 +868,18 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   // Erst nach „EB OK“ (bis 1.177.0 „Blatt ist gut“) zeigt der Pad Mode das Blatt aus der App
   // (Wunsch Patrick, 24. Oktober 2026); ein Excel dazu wird gelöscht
   const gut = async () => {
-    // Erst wenn jedes Werkzeug hinterlegt und bestätigt ist (Wunsch
-    // Patrick, 26. Oktober 2026: nie mehr ohne Hersteller)
-    if (offen > 0) {
-      alt.meldung(offen === 1 ? "Ein Werkzeug ist noch rot: zuerst antippen und auswählen."
-        : offen + " Werkzeuge sind noch rot: zuerst antippen und auswählen.", "warn");
-      return;
-    }
+    // EB OK geht immer, auch mit roten Werkzeugen (seit 1.400.0, Wunsch
+    // Patrick 5. November 2026: „eb ok immer machen können, aber einen
+    // Auftrag beenden geht nur, wenn es keine roten Kästen mehr hat“;
+    // 1.185.0 bis 1.399.x sperrten rote Werkzeuge EB OK). Die Sperre
+    // steht jetzt beim Beenden, siehe roteWerkzeugeVorDemBeenden.
+    const rotText = offen > 0 ? " Achtung: " + (offen === 1 ? "ein Werkzeug ist" : offen + " Werkzeuge sind")
+      + " noch rot. Der Auftrag lässt sich erst beenden, wenn alle ausgewählt sind." : "";
     const ok = await alt.nachfragen({ titel: "EB OK",
-      text: excel
+      text: (excel
         ? "Stimmt das Blatt? Dann gilt es ab jetzt auch im Pad Mode. Das bisherige Excel-Einrichtblatt von " + hocoNr + " auf "
           + typ.name + " wird aus der Datenbank gelöscht, und die Aufgabe „HoferTool“ lädt dafür kein Excel mehr hoch."
-        : "Stimmt das Blatt? Dann gilt es ab jetzt auch im Pad Mode.",
+        : "Stimmt das Blatt? Dann gilt es ab jetzt auch im Pad Mode.") + rotText,
       bestaetigen: excel ? "EB OK, Excel löschen" : "EB OK", gefahr: !!excel });
     if (!ok) return;
     setLaeuft(true);
