@@ -295,11 +295,26 @@ export function blockFehler(b, w = {}) {
   if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
   if (b.art === "front") {
     if (zahl(b.wegZ) == null) f.wegZ = "Zahl fehlt";
+    if (anGegenspindel(b)) {
+      // Seit 1.407.0: Wartemarken von Hand, leer = von selbst
+      const m1 = markeNorm(b.m1), m2 = markeNorm(b.m2);
+      if (String(b.m1 ?? "").trim() !== "" && !m1) f.m1 = "M200–M999 oder leer";
+      if (String(b.m2 ?? "").trim() !== "" && !m2) f.m2 = "M200–M999 oder leer";
+      if (m1 && m1 === m2) f.m2 = "gleich wie Start";
+    }
     return f;
   }
   if (zahl(b.wegF) == null) f.wegF = "Zahl fehlt";
   if (String(b.wegA).trim() !== "" && zahl(b.wegA) == null) f.wegA = "Zahl oder leer";
   return f;
+}
+
+// Seit 1.407.0: eingetippte Wartemarke ("500", "M500") als "M500", sonst null
+export function markeNorm(t) {
+  const m = String(t ?? "").trim().match(/^[mM]?(\d{1,3})$/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return istMarkeNr(n) ? "M" + n : null;
 }
 
 export function blockZeilen(b, w = {}, marke) {
@@ -312,12 +327,18 @@ export function blockZeilen(b, w = {}, marke) {
   if (b.art === "front" && b.spindel === "gegen") {
     // Seit 1.405.0 (Patrick 5. November 2026): an der Gegenspindel hält
     // Kanal 1 nur das Werkzeug bereit (Kopf und Ende ohne G0Z) und wartet
-    // an der Marke, bis Kanal 2 mit T2000 die Bearbeitung fertig hat
+    // an der Marke, bis Kanal 2 mit T2000 die Bearbeitung fertig hat.
+    // Seit 1.407.0 zwei Marken (Wunsch Patrick 5. November 2026: „2
+    // Wartemarken, damit ich die Bearbeitung auf der Gegenspindel
+    // dazwischen einfügen kann“): Start und Ende direkt nacheinander, in
+    // Kanal 2 steht die Bearbeitung zwischen den beiden
+    const mk = marke || { m1: "M300", m2: "M310" };
     return [
       "T" + b.platz + (bez ? "(" + bez + ")" : ""),
       ...(b.hd ? ["M1882D" + b.hd] : []),
       (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
-      marke || "M300",
+      mk.m1,
+      mk.m2,
       ...(b.hd ? ["M1892"] : []),
       ...(g96 ? ["G97"] : []),
       "T0",
@@ -366,30 +387,41 @@ export function blockZeilen2(b, marke) {
   const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
   return [
     "T2000" + (bez ? "(" + bez + ")" : ""),
+    marke.m1,
     "G0Z" + (zahl(b.anZ) ?? b.anZ),
     ...code,
     "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
     "G28W0.",
-    marke,
+    marke.m2,
     "T0",
     "M1",
   ];
 }
 export const anGegenspindel = (b) => b.art === "front" && b.spindel === "gegen";
 
-// Freie Wartemarken ab M300 in Zehnerschritten, die weder in Kopf und
-// Ende noch im eingefügten NC-Code vorkommen
-function markenVergeben(bloecke, belegtZeilen) {
+// Je Block an der Gegenspindel zwei Wartemarken {m1, m2}: von Hand
+// gesetzte gelten, leere bekommen freie ab M300 in Zehnerschritten, die
+// weder in Kopf und Ende, im NC-Code noch bei anderen Blöcken vorkommen
+export function markenVergeben(bloecke, belegtZeilen = []) {
   const belegt = new Set(belegtZeilen.map(markeVon).filter(Boolean));
-  bloecke.forEach((b) => String(b.code || "").split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); }));
+  bloecke.forEach((b) => {
+    String(b.code || "").split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); });
+    if (anGegenspindel(b)) [b.m1, b.m2].map(markeNorm).filter(Boolean).forEach((m) => belegt.add(m));
+  });
   const marken = {};
   let n = 300;
+  const frei = () => {
+    while (belegt.has("M" + n) && n <= 999) n += 10;
+    const m = "M" + n;
+    belegt.add(m);
+    n += 10;
+    return m;
+  };
   for (const b of bloecke) {
     if (!anGegenspindel(b)) continue;
-    while (belegt.has("M" + n) && n <= 999) n += 10;
-    marken[b.id] = "M" + n;
-    belegt.add("M" + n);
-    n += 10;
+    const m1 = markeNorm(b.m1) || frei();
+    const m2 = markeNorm(b.m2) || frei();
+    marken[b.id] = { m1, m2 };
   }
   return marken;
 }
@@ -417,7 +449,7 @@ export function programme(w) {
     return z;
   });
   return {
-    bereiche, bereiche2,
+    bereiche, bereiche2, marken,
     k1: [...k1.kopf, ...bearb1, ...k1.ende],
     k2: [...k2.kopf, ...bearb2, ...k2.ende],
     nr1: nr4(Number(w.nr) || 0), nr2: nr4((Number(w.nr) || 0) + 1000),
