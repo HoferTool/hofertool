@@ -45,7 +45,7 @@ export const FELDER = [
     { name: "W", text: "W Teilelänge", lang: "W = #530 Teilelänge" },
     { name: "S", text: "S Drehzahl", lang: "S = #529 Abstechdrehzahl", ganz: true },
     { name: "X", text: "X Abstechende", lang: "X = #524 Abstechendposition" },
-    { name: "Z", text: "Z Start", lang: "Z = #525 Z-Achse Startposition, höchstens 200" },
+    { name: "Z", text: "Z Start", lang: "Z = #525 Z-Achse Startposition, höchstens 200: 200 mm minus Teilelänge minus inkl. evtl. vers. Abstecher minus Sicherheit" },
     { name: "F", text: "F Vorschub", lang: "F = #522 Vorschub Abstechen" },
     { name: "B", text: "B Stahlbreite", lang: "B = #528 Breite des Abstechstahls" },
   ] },
