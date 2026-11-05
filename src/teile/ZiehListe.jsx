@@ -100,7 +100,11 @@ export function ZiehListe({ eintraege, darf, ordnen, id, className, nurGriff }) 
       // Nicht über den Anfang oder das Ende der Liste hinaus
       const min = z.rects[0].top - z.rects[z.von].top;
       const max = z.rects[z.rects.length - 1].bottom - z.rects[z.von].bottom;
-      const d = Math.max(min - 12, Math.min(max + 12, dy));
+      // Seit 1.419.0 bis eine halbe Höhe darüber hinaus: ist die gezogene
+      // Zeile höher als die erste oder letzte, kam ihre Mitte sonst nie
+      // über deren Mitte (Hofer Cam mit zweizeiligen Bearbeitungen)
+      const rand = Math.max(12, z.rects[z.von].height / 2);
+      const d = Math.max(min - rand, Math.min(max + rand, dy));
       zeilen.current[z.key].style.transform = "translateY(" + d + "px) scale(1.02)";
       const ziel = zielRechnen(z, d);
       if (ziel !== z.ziel) { z.ziel = ziel; verschieben(z); }

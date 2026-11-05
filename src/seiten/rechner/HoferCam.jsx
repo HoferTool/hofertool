@@ -14,7 +14,7 @@ import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
-import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, QUER_PLAETZE, SEITE_PLAETZE, blockFehler, drehzahl, markenPaare, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, QUER_PLAETZE, SEITE_PLAETZE, vorschubArt, blockFehler, drehzahl, markenPaare, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
 const gemerkt = vorgabe();
@@ -249,6 +249,10 @@ export default function HoferCam() {
                 <label className="cam-feld" title={quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
                   <select data-camblock="hd" value={b.hd} onChange={(e) => blockAendern(b.id, "hd", e.target.value)}>
                     {HD_STUFEN.map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
+                  </select></label>
+                <label className="cam-feld" title={"Vorschub je Umdrehung (G99) oder je Minute (G98)" + (gegen ? ", in Kanal 2" : "") + "; am Ende der Bearbeitung immer wieder G99"}><span>Vorschub</span>
+                  <select data-camblock="vor" value={vorschubArt(b)} onChange={(e) => blockAendern(b.id, "vor", e.target.value)}>
+                    <option value="99">G99 mm/U</option><option value="98">G98 mm/min</option>
                   </select></label>
                 {b.hd && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
                   <input type="checkbox" data-camblock="hdAus" checked={!b.hdAn}

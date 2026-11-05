@@ -355,6 +355,14 @@ export function markeNorm(t) {
   return istMarkeNr(n) ? "M" + n : null;
 }
 
+// Seit 1.419.0 (Wunsch Patrick 5. November 2026: „G99 G98 soll generell
+// ausgewählt werden können“, „generell am Schluss wieder G99“): je
+// Bearbeitung G99 (mm/U) oder G98 (mm/min), Vorgabe wie bisher (G98 nur an
+// der Gegenspindel); die Zeile steht nach der Drehzahl, am Ende der
+// Bearbeitung immer G99
+export const vorschubArt = (b) => (b.vor === "98" || b.vor === "99" ? b.vor : anGegenspindel(b) ? "98" : "99");
+const vorZeile = (b) => "G" + vorschubArt(b);
+
 export function blockZeilen(b, w = {}, marke) {
   const S = drehzahl(b, w) ?? String(b.S).trim();
   // Seit 1.403.0 (Wunsch Patrick 5. November 2026): G96 im Kopf der
@@ -380,7 +388,7 @@ export function blockZeilen(b, w = {}, marke) {
       "G0T" + t,
       "M" + (b.dreh === "37" ? 37 : 36) + "S" + String(b.S).trim(),
       "G0X[#531+1.]Z" + (zahl(b.anZ) ?? b.anZ),
-      "G99", "M8", "M7", "G0", "G28H0.", "G1Y0.C0.F1.",
+      vorZeile(b), "M8", "M7", "G0", "G28H0.", "G1Y0.C0.F1.",
       ...code,
       "G0X30.",
       "G0Y0.",
@@ -401,11 +409,13 @@ export function blockZeilen(b, w = {}, marke) {
       "T" + b.platz + (bez ? "(" + bez + ")" : ""),
       ...(b.hd ? ["M1883D" + b.hd] : []),
       "M" + (b.dreh === "37" ? 37 : 36) + "S" + String(b.S).trim() + "T" + String(b.platz).slice(-2),
+      vorZeile(b),
       "G0Z" + (zahl(b.anZ) ?? b.anZ),
       ...code,
       ...(b.hd && !b.hdAn ? ["M1893"] : []),
       "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
       ...(b.spAn ? [] : ["M38"]),
+      "G99",
       "T0",
       "M1",
     ];
@@ -466,11 +476,13 @@ export function blockZeilen(b, w = {}, marke) {
       "T" + b.platz + (bez ? "(" + bez + ")" : ""),
       ...(b.hd ? ["M1882D" + b.hd] : []),
       (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
+      vorZeile(b),
       "G0Z" + (zahl(b.anZ) ?? b.anZ),
       ...code,
       ...(b.hd && !b.hdAn ? ["M1892"] : []),
       "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
       ...(g96 ? ["G97"] : []),
+      "G99",
       "T0",
       "M1",
     ];
@@ -481,12 +493,14 @@ export function blockZeilen(b, w = {}, marke) {
     "T" + b.platz + (bez ? "(" + bez + ")" : ""),
     ...(b.hd ? ["M1881D" + b.hd] : []),
     (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
+    vorZeile(b),
     "G0X[#531+1.]Z" + (zahl(b.anZ) ?? b.anZ),
     ...code,
     "G1X[#531+0.2]" + winkel + "F" + (zahl(b.wegF) ?? b.wegF),
     "G0X30.",
     ...(b.hd && !b.hdAn ? ["M1891"] : []),
     ...(g96 ? ["G97"] : []),
+    "G99",
     "T0",
     "M1",
   ];
@@ -518,7 +532,7 @@ export function blockZeilen2(b, marke, w = {}) {
     return [
       "M75",
       s("T2000(" + mitGegen(bez) + ")"),
-      "/G98", "/M8", "/M7", "/G0", "/G28H0.", "/M6",
+      s(vorZeile(b)), "/M8", "/M7", "/G0", "/G28H0.", "/M6",
       marke.m1,
       marke.m2,
       s("M" + (b.dreh === "37" ? 37 : 36) + "S" + String(b.S).trim()),
@@ -527,6 +541,7 @@ export function blockZeilen2(b, marke, w = {}) {
       s("G1Z" + z + "F2000"),
       "/G0Z20.",
       ...(b.spAn ? [] : ["/M38"]),
+      "/G99",
       "G0G28W0.",
       "T0",
       "M1",
@@ -538,10 +553,12 @@ export function blockZeilen2(b, marke, w = {}) {
     s("T2000(" + mitGegen(bez) + ")"),
     marke.m1,
     s((g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S),
+    s(vorZeile(b)),
     s("G0Z" + (zahl(b.anZ) ?? b.anZ)),
     ...code.map(s),
     s("G0Z" + (zahl(b.wegZ) ?? b.wegZ)),
     ...(g96 ? [s("G97")] : []),
+    "/G99",
     // Seit 1.411.0 (Patrick 5. November 2026): Marke Ende vor G0G28W0.,
     // wie in O1458; alles andere (etwa G1Z60.F2000) gehört in den NC-Code
     marke.m2,

@@ -52,8 +52,8 @@ with sync_playwright() as p:
     pg.fill("[data-block='0'] [data-camblock='code']", "G1X-0.8F0.05\n\nG0Z0.5")
     t = [x for x in k(1) if x]
     a, b = t.index("(Ende Kopf)"), t.index("(Start Ende)")
-    pruefe("Drehblock zwischen Kopf und Ende", t[a+1:b] == ["T100(AUSSEN PLAN)", "M1881D4", "M3S3000T1", "G0X[#531+1.]Z0.",
-        "G1X-0.8F0.05", "G0Z0.5", "G1X[#531+0.2],A45.F0.05", "G0X30.", "M1891", "T0", "M1"])
+    pruefe("Drehblock zwischen Kopf und Ende", t[a+1:b] == ["T100(AUSSEN PLAN)", "M1881D4", "M3S3000T1", "G99", "G0X[#531+1.]Z0.",
+        "G1X-0.8F0.05", "G0Z0.5", "G1X[#531+0.2],A45.F0.05", "G0X30.", "M1891", "G99", "T0", "M1"])
     pg.fill("[data-block='0'] [data-camblock='wegA']", "")
     pg.select_option("[data-block='0'] [data-camblock='hd']", "")
     t = [x for x in k(1) if x]
@@ -73,15 +73,15 @@ with sync_playwright() as p:
     pg.fill("[data-block='1'] [data-camblock='code']", "G83W18.5Q5250F0.06\nG80")
     t = [x for x in k(1) if x]
     a, b = t.index("M1", t.index("T100(AUSSEN PLAN)")), t.index("(Start Ende)")
-    pruefe("Frontblock wie Beispiel", t[a+1:b] == ["T1400(BOHREN D6.8)", "M1882D4", "M3S2500T14", "G0Z5.0",
-        "G83W18.5Q5250F0.06", "G80", "M1892", "G0Z0.", "T0", "M1"])
+    pruefe("Frontblock wie Beispiel", t[a+1:b] == ["T1400(BOHREN D6.8)", "M1882D4", "M3S2500T14", "G99", "G0Z5.0",
+        "G83W18.5Q5250F0.06", "G80", "M1892", "G0Z0.", "G99", "T0", "M1"])
     pruefe("Spindel Haupt, Gegen wählbar", pg.input_value("[data-block='1'] [data-camblock='spindel']") == "haupt"
            and pg.locator("[data-block='1'] option[value='gegen'][disabled]").count() == 0)
     pg.select_option("[data-block='1'] [data-camblock='hd']", "")
     t = [x for x in k(1) if x]
     a, b = t.index("M1", t.index("T100(AUSSEN PLAN)")), t.index("(Start Ende)")
-    pruefe("Front ohne Hochdruck", t[a+1:b] == ["T1400(BOHREN D6.8)", "M3S2500T14", "G0Z5.0",
-        "G83W18.5Q5250F0.06", "G80", "G0Z0.", "T0", "M1"])
+    pruefe("Front ohne Hochdruck", t[a+1:b] == ["T1400(BOHREN D6.8)", "M3S2500T14", "G99", "G0Z5.0",
+        "G83W18.5Q5250F0.06", "G80", "G0Z0.", "G99", "T0", "M1"])
     # Seit 1.401.0: Schnittgeschwindigkeit statt Drehzahl
     pg.select_option("[data-block='1'] [data-camblock='sArt']", "vc")
     pg.fill("[data-block='1'] [data-camblock='vc']", "53.4")
@@ -98,14 +98,14 @@ with sync_playwright() as p:
     pg.check("[data-block='1'] [data-camblock='g96']")
     t = [x for x in k(1) if x]
     a, b = t.index("M1", t.index("T100(AUSSEN PLAN)")), t.index("(Start Ende)")
-    pruefe("Front mit G96", t[a+1:b] == ["T1400(BOHREN D6.8)", "G96M3S53.4T14", "G0Z5.0",
-        "G83W18.5Q5250F0.06", "G80", "G0Z0.", "G97", "T0", "M1"]
+    pruefe("Front mit G96", t[a+1:b] == ["T1400(BOHREN D6.8)", "G96M3S53.4T14", "G99", "G0Z5.0",
+        "G83W18.5Q5250F0.06", "G80", "G0Z0.", "G97", "G99", "T0", "M1"]
         and pg.locator("[data-block='1'] [data-camblock='vcD']").count() == 0)
     pg.check("[data-block='0'] [data-camblock='g96']")
     t = [x for x in k(1) if x]
     i0 = t.index("T100(AUSSEN PLAN)")
     a = t.index("M1", i0)
-    pruefe("Drehblock mit G96", "G96M3S100T1" in t[i0:a+1] and t[a-2:a+1] == ["G97", "T0", "M1"])
+    pruefe("Drehblock mit G96", "G96M3S100T1" in t[i0:a+1] and t[a-3:a+1] == ["G97", "G99", "T0", "M1"])
     pg.uncheck("[data-block='0'] [data-camblock='g96']")
     pg.uncheck("[data-block='1'] [data-camblock='g96']")
     t = [x for x in k(1) if x]
@@ -128,8 +128,8 @@ with sync_playwright() as p:
     t = [x for x in k(1) if x]
     t2 = [x for x in k(2) if x]
     a2, b2 = t2.index("(Ende Kopf)"), t2.index("(Start Ende)")
-    pruefe("Gegenspindel Kanal 2", t2[a2+1:b2] == ["M75", "/T2000(BOHREN D6.8 MIT GEGENSPINDEL)", "M300", "/M3S2500", "/G0Z5.0", "/G83W18.5Q5250F0.06", "/G80",
-        "/G0Z0.", "M310", "G0G28W0.", "T0", "M1"])
+    pruefe("Gegenspindel Kanal 2", t2[a2+1:b2] == ["M75", "/T2000(BOHREN D6.8 MIT GEGENSPINDEL)", "M300", "/M3S2500", "/G98", "/G0Z5.0", "/G83W18.5Q5250F0.06", "/G80",
+        "/G0Z0.", "/G99", "M310", "G0G28W0.", "T0", "M1"])
     pruefe("Marken M300 und M310 gepaart", pg.locator(".cam-zeile--fehler").count() == 0)
     pruefe("Marken als Platzhalter", pg.get_attribute("[data-block='1'] [data-camblock='m1']", "placeholder") == "M300"
         and pg.get_attribute("[data-block='1'] [data-camblock='m2']", "placeholder") == "M310")
@@ -166,8 +166,8 @@ with sync_playwright() as p:
     pg.fill("[data-block='2'] [data-camblock='bez']", "PLAN BOHRUNG FRAESEN")
     t = [x for x in k(1) if x]
     a = t.index("T3421(PLAN BOHRUNG FRAESEN)")
-    pruefe("T3421 Hauptspindel", t[a:t.index("(Start Ende)")] == ["T3421(PLAN BOHRUNG FRAESEN)", "M1883D3", "M36S6000T21",
-        "G0Z5.0", "M1893", "G0Z0.", "M38", "T0", "M1"])
+    pruefe("T3421 Hauptspindel", t[a:t.index("(Start Ende)")] == ["T3421(PLAN BOHRUNG FRAESEN)", "M1883D3", "M36S6000T21", "G99",
+        "G0Z5.0", "M1893", "G0Z0.", "M38", "G99", "T0", "M1"])
     pg.uncheck("[data-block='2'] [data-camblock='m38']")
     pg.select_option("[data-block='2'] [data-camblock='dreh']", "37")
     t = [x for x in k(1) if x]
@@ -188,7 +188,7 @@ with sync_playwright() as p:
     a2 = t2.index("/T2000(PLAN BOHRUNG FRAESEN MIT GEGENSPINDEL)")
     pruefe("T3421 Kanal 2", t2[a2-1:t2.index("(Start Ende)")] == ["M75", "/T2000(PLAN BOHRUNG FRAESEN MIT GEGENSPINDEL)",
         "/G98", "/M8", "/M7", "/G0", "/G28H0.", "/M6", "M300", "M310", "/M36S6000", "/G0Z60.", "/G1W4.925F120", "/G4U0.05",
-        "M312", "M314", "/G1Z60.F2000", "/G0Z20.", "/M38", "G0G28W0.", "T0", "M1", "M320"])
+        "M312", "M314", "/G1Z60.F2000", "/G0Z20.", "/M38", "/G99", "G0G28W0.", "T0", "M1", "M320"])
     pruefe("T3421 Marken gepaart", pg.locator(".cam-zeile--fehler").count() == 0)
     pg.select_option("[data-block='2'] [data-camblock='dreh']", "37")
     pg.uncheck("[data-block='2'] [data-camblock='m38']")
@@ -196,7 +196,7 @@ with sync_playwright() as p:
     pg.fill("[data-block='2'] [data-camblock='m3']", "330")
     t2 = [x for x in k(2) if x]
     pruefe("T3421 M37, ohne M38, Z55, Marke", "/M37S6000" in t2 and "/G0Z55." in t2 and "/G1Z55.F2000" in t2
-        and t2[t2.index("G0G28W0.", a2)-1] == "/G0Z20." and t2[t2.index("M1", a2)+1] == "M330")
+        and t2[t2.index("G0G28W0.", a2)-2] == "/G0Z20." and t2[t2.index("M1", a2)+1] == "M330")
     pg.click("[data-camblock-weg='2']")
     # Seit 1.418.0: quer angetrieben T3100 an der Hauptspindel
     pg.click("#cam-neu-seite")
@@ -231,7 +231,10 @@ with sync_playwright() as p:
         z = pg.locator("[data-block='%d']" % nach).bounding_box()
         pg.mouse.move(g["x"] + g["width"] / 2, g["y"] + 10)
         pg.mouse.down()
-        ziel = z["y"] + 5 if nach < von else z["y"] + z["height"] - 5
+        # Mitte des gezogenen Blocks knapp über die Mitte des Ziels hinaus,
+        # auch wenn die Blöcke hoch sind (ohne an den Rand zu kommen)
+        um = (z["y"] + z["height"] / 2) - (g["y"] + g["height"] / 2)
+        ziel = g["y"] + 10 + um + (-15 if nach < von else 15)
         for s in range(1, 11):
             pg.mouse.move(g["x"] + g["width"] / 2, g["y"] + 10 + (ziel - g["y"] - 10) * s / 10)
             pg.wait_for_timeout(20)
@@ -249,7 +252,7 @@ with sync_playwright() as p:
     # Seit 1.398.0: angewählte Bearbeitung hervorgehoben
     pg.click("[data-block='0'] [data-camblock='code']")
     akt = pg.eval_on_selector_all("[data-kanal='1'].cam-zeile--aktiv .cam-text", "e => e.map(x => x.textContent)")
-    pruefe("Bearbeitung hervorgehoben", akt[:1] == ["T100(AUSSEN PLAN)"] and akt[-1:] == ["M1"] and len(akt) == 11
+    pruefe("Bearbeitung hervorgehoben", akt[:1] == ["T100(AUSSEN PLAN)"] and akt[-1:] == ["M1"] and len(akt) == 13
            and pg.locator(".cam-block--aktiv[data-block='0']").count() == 1)
     # Seit 1.399.0: NC-Code ein- und ausklappen
     pg.click("[data-camblock-pfeil='0']")
@@ -280,7 +283,7 @@ with sync_playwright() as p:
     pk = lambda: pop.eval_on_selector_all("[data-kanal='1'] .cam-text", "e => e.map(x => x.textContent)")
     pruefe("Eigenes Fenster zeigt Kanal 1", "O0458(10870-0002)" in pk() and pg.locator("#cam-imfenster").count() == 1
            and pg.locator("#cam-kanaele").count() == 0)
-    pruefe("Im Fenster hervorgehoben", pop.locator("[data-kanal='1'].cam-zeile--aktiv").count() == 11)
+    pruefe("Im Fenster hervorgehoben", pop.locator("[data-kanal='1'].cam-zeile--aktiv").count() == 13)
     pg.fill("[data-cam='nr']", "459"); pop.wait_for_timeout(150)
     pruefe("Eigenes Fenster rechnet live", "O0459(10870-0002)" in pk())
     pop.screenshot(path="hofer_cam_fenster.png")
