@@ -13,3 +13,5 @@ import "./teile/dateiAblegen.js";
 // Mehr Bewegung: gleitende Markierungen, Licht, Welle, Seitenwechsel
 import "./effekte/effekte.css";
 import "./effekte/effekte.js";
+// Neues Design „Präzision“ (Vorschau), als letzte Schicht über allem
+import "./design/design.css";

@@ -1,0 +1,469 @@
+/* =================================================================
+   NEUES DESIGN „Präzision“ (Vorschau, Wunsch Patrick 5. November 2026:
+   „das ganze HoferTool durcharbeiten … schön professionell“)
+
+   Eine einzige Schicht über der bisherigen Gestaltung, als letzte
+   Datei geladen. Sie ändert nur das Aussehen, nie das Verhalten:
+   - ruhige, neutrale Flächen statt Graublau, feine Haarlinien
+   - weiche Ecken (8 / 12 / 16 px) und zarte, mehrstufige Schatten
+   - klare Schrift-Hierarchie mit enger Laufweite bei Titeln
+   - Reiter als Segment-Schalter, Navigation als weiche Pillen
+   - Fenster schweben mit Unschärfe dahinter
+   Werkstofffarben, Zustandszeichen, Planwand-Balken und die blaue
+   Anmeldung bleiben, wie sie sind. Themenfarben tauschen weiter nur
+   --marke. Auf der Planwand gibt es keine neuen Schatten oder Filter,
+   damit sie so schnell bleibt wie bisher.
+   ================================================================= */
+
+:root {
+  --grund: #f4f5f7;
+  --flaeche: #ffffff;
+  --tinte: #111827;
+  --gedaempft: #5f6876;
+  --linie: #e5e7eb;
+  --linie-stark: #d2d6dc;
+  --marke-hell: #edf2fa;
+  --radius: 8px;
+
+  /* eigene Werte des neuen Designs */
+  --d-r: 10px;
+  --d-r-karte: 14px;
+  --d-r-gross: 18px;
+  --d-flaeche-2: #fafafb;
+  --d-feld: #ffffff;
+  --d-hover: #f3f4f6;
+  --d-schatten-1: 0 1px 2px rgba(16, 24, 40, .05);
+  --d-schatten-2: 0 1px 2px rgba(16, 24, 40, .04), 0 2px 8px -2px rgba(16, 24, 40, .08);
+  --d-schatten-3: 0 4px 8px -2px rgba(16, 24, 40, .06), 0 14px 32px -8px rgba(16, 24, 40, .16);
+  --d-schatten-fenster: 0 0 0 1px rgba(16, 24, 40, .06), 0 24px 64px -12px rgba(16, 24, 40, .35);
+  --d-ring: 0 0 0 4px color-mix(in srgb, var(--marke) 18%, transparent);
+  --d-kurve: cubic-bezier(.2, .8, .2, 1);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body.dunkel {
+  --grund: #0e1014;
+  --flaeche: #16191f;
+  --tinte: #f3f4f6;
+  --gedaempft: #a2aab6;
+  --linie: #252a32;
+  --linie-stark: #333a44;
+  --marke-hell: #1b2638;
+  --d-flaeche-2: #1a1e25;
+  --d-feld: #12151a;
+  --d-hover: #1f242c;
+  --d-schatten-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --d-schatten-2: 0 1px 2px rgba(0, 0, 0, .35), 0 2px 10px -2px rgba(0, 0, 0, .45);
+  --d-schatten-3: 0 4px 10px -2px rgba(0, 0, 0, .4), 0 16px 36px -8px rgba(0, 0, 0, .6);
+  --d-schatten-fenster: 0 0 0 1px rgba(255, 255, 255, .07), 0 28px 70px -12px rgba(0, 0, 0, .75);
+}
+
+html, body { background: var(--grund); }
+body { letter-spacing: -.003em; }
+
+/* ---------- Kopfzeile ----------
+   Weiss, eine Haarlinie statt der dicken blauen Linie, alles auf
+   einer Höhe und in einem Mass. */
+.kopf {
+  background: color-mix(in srgb, var(--flaeche) 97%, transparent);
+  border-bottom: 1px solid var(--linie);
+  box-shadow: 0 1px 0 rgba(16, 24, 40, .02);
+  gap: 8px;
+  padding: 0 14px;
+}
+.kopf::after { height: 1px; bottom: -1px; background: var(--linie); }
+.kopf::before { height: 1px; bottom: -1px; }
+.kopf__klapp, .kopf__rueck, .kopf__dunkel, .kopf__admin {
+  border-radius: var(--d-r);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--gedaempft);
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.kopf__klapp:hover, .kopf__rueck:hover:not(:disabled) {
+  background: var(--d-hover);
+  color: var(--tinte);
+}
+.kopf__rueck { font-weight: 500; }
+.kopf__suche {
+  border-radius: var(--d-r);
+  background: var(--d-hover);
+  border: 1px solid transparent;
+  color: var(--gedaempft);
+  font-weight: 450;
+}
+.kopf__suche:hover { background: var(--flaeche); border-color: var(--linie-stark); box-shadow: var(--d-ring); }
+.kopf__suche kbd {
+  border-radius: 6px;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  box-shadow: 0 1px 0 var(--linie);
+  font-family: inherit;
+  font-size: .7rem;
+  font-weight: 600;
+  color: var(--gedaempft);
+}
+.kopf__benutzer { color: var(--gedaempft); font-weight: 500; font-size: .86rem; }
+.kopf__bild { border-radius: 50%; box-shadow: 0 0 0 2px var(--flaeche), 0 0 0 3px var(--linie-stark); }
+.kopf__bild--leer {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--marke) 80%, #fff) 0%, var(--marke) 100%);
+  font-weight: 650;
+  font-size: .82rem;
+}
+
+/* Pad Mode: dunkle Pille wie ein Gerät */
+.pad-start {
+  border-radius: 999px !important;
+  background: #0f172a !important;
+  color: #fff !important;
+  border: 1px solid #0f172a !important;
+  font-weight: 600 !important;
+  letter-spacing: .005em;
+  padding-left: 18px !important;
+  padding-right: 18px !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .2), inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+.pad-start:hover { box-shadow: 0 6px 18px -4px rgba(15, 23, 42, .45), inset 0 1px 0 rgba(255, 255, 255, .14); }
+body.dunkel .pad-start { background: #f3f4f6 !important; color: #0f172a !important; border-color: #f3f4f6 !important; }
+body.dunkel .pad-start * { color: #0f172a !important; }
+
+/* ---------- Seitenleiste ---------- */
+@media (min-width: 780px) {
+  .nav {
+    background: var(--d-flaeche-2);
+    border-right: 1px solid var(--linie);
+    padding: 12px 0 16px;
+  }
+  .nav__punkt {
+    height: 40px;
+    margin: 1px 10px;
+    padding: 0 12px;
+    gap: 11px;
+    border-left: none;
+    border-radius: var(--d-r);
+    color: var(--gedaempft);
+    font-size: .92rem;
+    font-weight: 500;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  .nav__punkt:hover { background: var(--d-hover); color: var(--tinte); }
+  .nav__punkt.aktiv {
+    color: var(--tinte);
+    font-weight: 600;
+    background: var(--flaeche);
+    box-shadow: var(--d-schatten-2), inset 0 0 0 1px var(--linie);
+  }
+  .nav__punkt.aktiv .nav__zeichen { color: var(--marke); }
+  .nav.fx-gleit::before {
+    background: var(--flaeche);
+    border-radius: var(--d-r);
+    box-shadow: var(--d-schatten-2), inset 0 0 0 1px var(--linie);
+  }
+  .nav.fx-gleit .nav__punkt.aktiv { box-shadow: none; background: transparent; }
+  .navsym { width: 18px; height: 18px; }
+  body.nav--schmal .nav__punkt { margin: 1px 8px; }
+
+  .nav__unterinnen { padding: 2px 0 8px; }
+  .nav__unterinnen::before { left: 49px; width: 1px; background: var(--linie-stark); opacity: 1; }
+  .nav__unterpunkt {
+    margin: 1px 10px;
+    padding: 3px 12px 3px 37px;
+    min-height: 30px;
+    border-left: 0;
+    border-radius: 8px;
+    font-size: .86rem;
+    color: var(--gedaempft);
+  }
+  .nav__unterpunkt:hover { background: var(--d-hover); }
+  .nav__unterpunkt.aktiv { color: var(--tinte); background: color-mix(in srgb, var(--marke) 7%, transparent); }
+}
+
+/* ---------- Inhalt und Titel ---------- */
+@media (min-width: 780px) {
+  .inhalt { padding: 28px 32px 48px; }
+  .seitentitel { font-size: 1.75rem; }
+}
+.seitentitel {
+  font-weight: 700;
+  letter-spacing: -.025em;
+  line-height: 1.15;
+  color: var(--tinte);
+}
+h1, h2, h3 { letter-spacing: -.015em; }
+
+/* ---------- Karten ---------- */
+.karte {
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--d-r-karte);
+  box-shadow: var(--d-schatten-1);
+}
+.karte h2 { font-size: 1.02rem; font-weight: 650; letter-spacing: -.012em; }
+.karte--hinweis, .karte--fehler, .karte--warnung {
+  border-left-width: 1px;
+  position: relative;
+  overflow: hidden;
+}
+.karte--hinweis::before, .karte--fehler::before, .karte--warnung::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--marke);
+}
+.karte--fehler::before { background: var(--gefahr); }
+.karte--warnung { background: color-mix(in srgb, #f59e0b 6%, var(--flaeche)); border-color: color-mix(in srgb, #f59e0b 28%, var(--linie)); }
+.karte--warnung::before { background: #d97706; }
+.karte--klickbar { transition: box-shadow .2s var(--d-kurve), border-color .2s ease, transform .2s var(--d-kurve); }
+@media (hover: hover) {
+  .karte--klickbar:hover { border-color: var(--linie-stark); box-shadow: var(--d-schatten-3); transform: translateY(-1px); }
+}
+.karte--ergebnis { box-shadow: 0 10px 30px -10px color-mix(in srgb, var(--marke) 60%, transparent); }
+
+/* ---------- Knöpfe ---------- */
+.knopf {
+  min-height: 40px;
+  padding: 9px 16px;
+  border-radius: var(--d-r);
+  border: 1px solid var(--linie-stark);
+  background-color: var(--flaeche);
+  color: var(--tinte);
+  font-weight: 600;
+  font-size: .93rem;
+  letter-spacing: -.005em;
+  box-shadow: var(--d-schatten-1);
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .12s ease;
+}
+.knopf:hover:not(:disabled) { background-color: var(--d-hover); border-color: color-mix(in srgb, var(--tinte) 22%, var(--linie-stark)); }
+.knopf:active:not(:disabled) { transform: translateY(1px) scale(.99); box-shadow: none; }
+.knopf--haupt {
+  background-color: var(--aktion);
+  border-color: color-mix(in srgb, var(--aktion) 80%, #000);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .14), inset 0 1px 0 rgba(255, 255, 255, .16);
+}
+.knopf--haupt:hover:not(:disabled) { background-color: var(--aktion-dunkel); border-color: var(--aktion-dunkel); }
+.knopf--gefahr {
+  background-color: var(--gefahr);
+  border-color: color-mix(in srgb, var(--gefahr) 80%, #000);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .14), inset 0 1px 0 rgba(255, 255, 255, .16);
+}
+.knopf--gefahr:hover:not(:disabled) { background-color: color-mix(in srgb, var(--gefahr) 85%, #000); }
+.knopf--still { background-color: transparent; border-color: transparent; box-shadow: none; }
+.knopf--still:hover:not(:disabled) { background-color: var(--d-hover); border-color: transparent; }
+.knopf--klein { min-height: 34px; padding: 6px 11px; font-size: .86rem; border-radius: 8px; }
+.knopf--warnung { border-color: color-mix(in srgb, #d97706 55%, var(--linie-stark)); color: #92400e; }
+body.dunkel .knopf--haupt { color: #0b1220; }
+body.dunkel .knopf--haupt * { color: #0b1220 !important; }
+.knopf:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--aktion);
+  outline-offset: 2px;
+}
+
+/* ---------- Felder ---------- */
+input[type="text"], input[type="email"], input[type="password"], input[type="number"],
+input[type="date"], input[type="search"], input[type="time"], input[type="tel"], input[type="url"],
+select, textarea {
+  border-radius: var(--radius);
+  border-color: var(--linie-stark);
+  background-color: var(--d-feld);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+:is(input[type="text"], input[type="email"], input[type="password"], input[type="number"],
+    input[type="date"], input[type="search"], input[type="time"], input[type="tel"], input[type="url"],
+    select, textarea):hover:not(:disabled):not(:focus) {
+  border-color: color-mix(in srgb, var(--tinte) 28%, var(--linie-stark));
+}
+:is(input[type="text"], input[type="email"], input[type="password"], input[type="number"],
+    input[type="date"], input[type="search"], input[type="time"], input[type="tel"], input[type="url"],
+    select, textarea):focus {
+  outline: none;
+  border-color: var(--marke);
+  box-shadow: var(--d-ring);
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; }
+.feld > span, .feldlabel {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--gedaempft);
+  letter-spacing: .005em;
+}
+::placeholder { color: color-mix(in srgb, var(--gedaempft) 75%, transparent); }
+
+/* ---------- Reiter: Segment-Schalter ----------
+   Eine graue Schiene, der gewählte Reiter als weisse Taste darauf.
+   Die gleitende Markierung aus den Effekten ist die weisse Taste. */
+.reiter {
+  display: flex;
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
+  gap: 2px;
+  padding: 4px;
+  margin-bottom: 20px;
+  background: color-mix(in srgb, var(--tinte) 5.5%, var(--grund));
+  border: 1px solid color-mix(in srgb, var(--tinte) 4%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--tinte) 4%, transparent);
+  border-radius: 12px;
+}
+.reiter__knopf {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: .9rem;
+  font-weight: 550;
+  color: var(--gedaempft);
+  min-height: 34px;
+  transition: color .15s ease, background-color .15s ease;
+}
+.reiter__knopf:hover { color: var(--tinte); }
+.reiter__knopf.aktiv {
+  color: var(--tinte);
+  font-weight: 650;
+  background: var(--flaeche);
+  border-bottom-color: transparent;
+  box-shadow: var(--d-schatten-2);
+}
+body.dunkel .reiter__knopf.aktiv { background: #2a3039; box-shadow: var(--d-schatten-2); border-color: transparent; }
+.reiter.fx-gleit::before {
+  background: var(--flaeche);
+  border-radius: 8px;
+  box-shadow: var(--d-schatten-2);
+}
+body.dunkel .reiter.fx-gleit::before { background: #2a3039; }
+.reiter.fx-gleit .reiter__knopf.aktiv { background: none; box-shadow: none; }
+.unterreiter__knopf { border-radius: 8px; }
+.unterreiter__knopf.aktiv { box-shadow: inset 0 0 0 1px var(--marke); }
+
+/* Tag / Woche und ähnliche Umschalter: Segment-Schalter wie die Reiter */
+.moduswahl {
+  padding: 3px; gap: 2px;
+  border: 1px solid color-mix(in srgb, var(--tinte) 4%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tinte) 5.5%, var(--grund));
+}
+.moduswahl__knopf {
+  border-radius: 7px !important; border: none !important; background: transparent;
+  padding: 6px 16px; font-weight: 550; color: var(--gedaempft); box-shadow: none;
+}
+.moduswahl__knopf.aktiv {
+  background: var(--flaeche) !important; color: var(--tinte) !important; box-shadow: var(--d-schatten-2) !important;
+}
+body.dunkel .moduswahl__knopf.aktiv { background: #2a3039 !important; }
+body.dunkel .moduswahl__knopf.aktiv, body.dunkel .moduswahl__knopf.aktiv * { color: #f3f4f6 !important; }
+
+/* Auswahl-Pillen (Park, Wahl) im gleichen Stil */
+.parkwahl__knopf, .wahlknopf {
+  border-radius: 999px;
+  border: 1px solid var(--linie-stark);
+  background-color: var(--flaeche);
+  color: var(--tinte);
+  font-weight: 550;
+  box-shadow: var(--d-schatten-1);
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.parkwahl__knopf.aktiv, .wahlknopf.aktiv {
+  background-color: var(--tinte);
+  border-color: var(--tinte);
+  color: var(--flaeche);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .2);
+}
+body.dunkel .parkwahl__knopf.aktiv, body.dunkel .wahlknopf.aktiv {
+  background: #f3f4f6; border-color: #f3f4f6; box-shadow: none;
+}
+body.dunkel .parkwahl__knopf.aktiv *, body.dunkel .wahlknopf.aktiv *,
+body.dunkel .parkwahl__knopf.aktiv, body.dunkel .wahlknopf.aktiv { color: #111827 !important; }
+
+/* ---------- Tabellen ---------- */
+.tabelle { border-collapse: separate; border-spacing: 0; }
+.tabelle th {
+  font-size: .72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: .055em;
+  color: var(--gedaempft);
+  background: var(--d-flaeche-2);
+  border-bottom: 1px solid var(--linie);
+}
+.tabelle td { border-bottom: 1px solid var(--linie); }
+.tabelle tr:last-child td { border-bottom: none; }
+.zeile--klickbar { transition: background-color .12s ease; }
+.zeile--klickbar:hover { background: var(--d-hover); }
+
+/* ---------- Marken und Chips ---------- */
+.marke { border-radius: 6px; font-weight: 650; letter-spacing: .01em; }
+
+/* ---------- Fenster ---------- */
+.dialog-huelle {
+  background: rgba(10, 14, 22, .42);
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
+  backdrop-filter: blur(6px) saturate(120%);
+}
+.dialog {
+  border-radius: var(--d-r-gross);
+  border: none;
+  box-shadow: var(--d-schatten-fenster);
+  background: var(--flaeche);
+}
+@media (min-width: 621px) {
+  .dialog { padding: 24px; }
+}
+.dialog h2 { font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; }
+.dialog__knoepfe { gap: 10px; }
+.dialog__block { border-top-color: var(--linie); }
+.dialog__blocktitel { text-transform: uppercase; font-size: .72rem; letter-spacing: .06em; }
+
+/* ---------- Meldungen unten rechts ---------- */
+.toast {
+  border-radius: 12px;
+  box-shadow: 0 12px 32px -8px rgba(16, 24, 40, .4), 0 0 0 1px rgba(255, 255, 255, .06) inset;
+  font-weight: 500;
+}
+
+/* ---------- Startseite ---------- */
+.kopfkarte, .solar, .start-band { border-radius: var(--d-r-karte); }
+
+/* ---------- Planwand: nur der Rahmen ----------
+   Die Tafel selbst bleibt unverändert (Tempo). Nur Ecken und Linien
+   des Rahmens passen zum neuen Design. */
+.pw-tafel { border-radius: var(--d-r-karte); border-color: var(--linie); }
+
+/* ---------- Bildlaufleisten ruhig ---------- */
+html { scrollbar-color: color-mix(in srgb, var(--tinte) 22%, transparent) transparent; }
+
+/* ---------- Weniger Bewegung ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .karte--klickbar, .knopf { transition: none; }
+  .karte--klickbar:hover { transform: none; }
+}
+
+/* ---------- Einstellungen: Leiste links wie die Seitenleiste ---------- */
+@media (min-width: 821px) {
+  .es .es-reiter {
+    width: auto; max-width: none; background: var(--d-flaeche-2);
+    border: none; border-right: 1px solid var(--linie); border-radius: 0;
+    padding: 14px 10px;
+  }
+  .es .es-reiter__knopf { font-weight: 500; border-radius: var(--d-r); padding: 9px 12px; min-height: 0; }
+  .es .es-reiter__knopf:hover { background: var(--d-hover); }
+  .es .es-reiter__knopf.aktiv, .es .es-reiter.fx-gleit .es-reiter__knopf.aktiv {
+    color: var(--tinte); font-weight: 600;
+  }
+  .es .es-reiter__knopf.aktiv .es-reiter__zeichen { color: var(--marke); opacity: 1; }
+  .es .es-reiter__knopf.aktiv:not(.fx-gleit *) { background: var(--flaeche); box-shadow: var(--d-schatten-2), inset 0 0 0 1px var(--linie); }
+  .es .es-reiter.fx-gleit::before {
+    background: var(--flaeche); border-radius: var(--d-r);
+    box-shadow: var(--d-schatten-2), inset 0 0 0 1px var(--linie);
+  }
+  .es .es-reiter.fx-gleit .es-reiter__knopf:hover:not(.aktiv) { background: var(--d-hover); }
+}
+.es-gruppe.karte { border-radius: var(--d-r-karte); }
+.es-inhalt { background: var(--grund); }
+
+/* Logo in der Kopfzeile etwas grösser und ruhiger */
+.kopf__logo { height: 32px; }
+.kopf__logolink:hover { opacity: .75; }
+@media (min-width: 821px) {
+  body.dunkel .es .es-reiter.fx-gleit::before { background: #232831; box-shadow: inset 0 0 0 1px var(--linie-stark); }
+  body.dunkel .es .es-reiter__knopf.aktiv { background: transparent; }
+}
