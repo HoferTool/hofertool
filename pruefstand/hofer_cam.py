@@ -71,6 +71,12 @@ with sync_playwright() as p:
     akt = pg.eval_on_selector_all("[data-kanal='1'].cam-zeile--aktiv .cam-text", "e => e.map(x => x.textContent)")
     pruefe("Bearbeitung hervorgehoben", akt[:1] == ["T100(AUSSEN PLAN)"] and akt[-1:] == ["M1"] and len(akt) == 11
            and pg.locator(".cam-block--aktiv[data-block='0']").count() == 1)
+    # Seit 1.399.0: NC-Code ein- und ausklappen
+    pg.click("[data-camblock-pfeil='0']")
+    pruefe("Eingeklappt", pg.locator("[data-block='0'] [data-camblock='code']").count() == 0
+           and "2 Zeilen" in pg.text_content("[data-camblock-auf='0']") and "G0Z0.5" in [x for x in k(1) if x])
+    pg.click("[data-camblock-pfeil='0']")
+    pruefe("Ausgeklappt", pg.input_value("[data-block='0'] [data-camblock='code']").startswith("G1X-0.8"))
     # Seit 1.397.0: Speichern und Öffnen in nc_programme (art "cam")
     pg.evaluate("TEST.daten.nc_programme = TEST.daten.nc_programme || []")
     pg.click("#camab-speichern"); pg.wait_for_selector(".dialog input")

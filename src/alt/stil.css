@@ -11803,3 +11803,6 @@ body.dunkel .cam-block { border-color: #3a434c; }
 .cam-zeile--aktiv.cam-zeile--sync { background: #ffd6a3; }
 body.dunkel .cam-zeile--aktiv { background: #5a3a14; }
 .cam-eigen .cam-kanaele { max-height: calc(100vh - 130px); }
+/* Hofer Cam: NC-Code der Bearbeitung ein- und ausklappen (seit 1.399.0) */
+.cam-block__pfeil { border: none; background: none; cursor: pointer; font-size: 16px; width: 22px; padding: 0; color: inherit; }
+.cam-block__zu { border: none; background: none; cursor: pointer; padding: 0; text-align: left; color: var(--grau, #6b7785); }

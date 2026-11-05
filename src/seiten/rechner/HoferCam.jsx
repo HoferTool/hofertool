@@ -211,6 +211,10 @@ export default function HoferCam() {
             <div key={b.id} className={"cam-block" + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i}
               onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}>
               <div className="cam-block__zeile">
+                {/* Seit 1.399.0 (Wunsch Patrick 5. November 2026): NC-Code mit
+                    dem Pfeil ein- und ausklappen, gemerkt am Block (zu) */}
+                <button className="cam-block__pfeil" data-camblock-pfeil={i} title={b.zu ? "NC-Code zeigen" : "NC-Code einklappen"}
+                  aria-expanded={!b.zu} onClick={() => blockAendern(b.id, "zu", !b.zu)}>{b.zu ? "▸" : "▾"}</button>
                 <label className="cam-feld" title="Werkzeugplatz (Drehwerkzeug Kanal 1)"><span>Platz</span>
                   <select data-camblock="platz" value={b.platz} onChange={(e) => blockAendern(b.id, "platz", e.target.value)}>
                     {DREH_PLAETZE.map((p) => <option key={p} value={p}>T{p}</option>)}
@@ -237,9 +241,12 @@ export default function HoferCam() {
                     onClick={() => setzeBloecke(bloecke.filter((x) => x.id !== b.id))}>✕</button>
                 </span>
               </div>
-              <textarea className="cam-block__code" data-camblock="code" rows={4} spellCheck={false}
-                placeholder="NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …)"
-                value={b.code} onChange={(e) => blockAendern(b.id, "code", e.target.value)} />
+              {b.zu
+                ? <button className="cam-block__zu klein" data-camblock-auf={i} onClick={() => blockAendern(b.id, "zu", false)}>
+                    NC-Code: {String(b.code || "").split(/\r?\n/).filter((x) => x.trim()).length} Zeilen (aufklappen)</button>
+                : <textarea className="cam-block__code" data-camblock="code" rows={4} spellCheck={false}
+                    placeholder="NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …)"
+                    value={b.code} onChange={(e) => blockAendern(b.id, "code", e.target.value)} />}
             </div>
           );
         })}
