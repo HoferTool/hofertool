@@ -11778,3 +11778,15 @@ body.dunkel .cam-zeile--sync { background: #1d3a5a; }
 body.dunkel .cam-zeile--leer { background: repeating-linear-gradient(135deg, #1b2025 0 6px, #20262c 6px 12px); }
 body.dunkel .cam-zeile--fehler { background: #5a1d1d; }
 body.dunkel .cam-fehler, body.dunkel .cam-stand--fehler { color: #ff8a80 !important; }
+
+/* Hofer Cam: Bearbeitungsblöcke (seit 1.396.0) */
+.cam-bearb { margin: 4px 0 10px; }
+.cam-bearb__kopf { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.cam-block { border: 1px solid #d6dde4; border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; }
+.cam-block__zeile { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-bottom: 6px; }
+.cam-block .cam-feld select { height: 26px !important; min-height: 0 !important; font-size: 13px; padding: 0 4px !important; }
+.cam-block__knoepfe .knopf { min-height: 0; height: 26px; padding: 0 8px; }
+.cam-block__knoepfe { display: inline-flex; gap: 4px; margin-left: auto; }
+.cam-block__code { width: 100%; box-sizing: border-box; font-family: ui-monospace, Consolas, "Courier New", monospace;
+  font-size: 13px; line-height: 1.4; resize: vertical; min-height: 60px; }
+body.dunkel .cam-block { border-color: #3a434c; }

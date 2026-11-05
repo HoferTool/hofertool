@@ -69,7 +69,7 @@ function heute() {
 export function vorgabe() {
   return { nr: "1", hoco: "", datum: heute(), kuerzel: "",
     A: "17", W: "15.125", S: "3000", X: "-0.8", Z: "167.85", F: "0.03", B: "1.5",
-    schlicht: "-0.1", plan: "0.20", annaehern: "-10", ueber: "4" };
+    schlicht: "-0.1", plan: "0.20", annaehern: "-10", ueber: "4", bloecke: [] };
 }
 
 // Fehler je Feld (Text) oder leer
@@ -235,11 +235,57 @@ function kanal2(w) {
   return { kopf, ende };
 }
 
-// Ganze Programme je Kanal; die Bearbeitungen dazwischen kommen später
+// ---------- Bearbeitungen ----------
+// Drehwerkzeuge Kanal 1 (Patrick 5. November 2026): T100 bis T600. Kopf
+// der Bearbeitung: Aufruf, Hochdruck (M1881D…, nur T100–T600), Drehrichtung
+// mit Drehzahl und Korrektur, Anfahren auf Rohmaterial + 1 mm. Dazwischen
+// der NC-Code aus den Werkzeugen von NC-PRO. Ende: Wegfahren auf
+// Rohmaterial + 0.2 mm (Winkel und Vorschub einstellbar, X30. fest),
+// Hochdruck aus, Korrektur aus, M1.
+export const DREH_PLAETZE = ["100", "200", "300", "400", "500", "600"];
+export const HD_STUFEN = ["", "1", "2", "3", "4", "5", "6"];
+
+export function neuerBlock(bloecke = []) {
+  const belegt = new Set(bloecke.map((b) => b.platz));
+  const platz = DREH_PLAETZE.find((p) => !belegt.has(p)) || "100";
+  return { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), art: "dreh",
+    platz, bez: "", hd: "4", dreh: "3", S: "3000", anZ: "0", wegF: "0.05", wegA: "45", code: "" };
+}
+
+export function blockFehler(b) {
+  const f = {};
+  if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
+  if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
+  if (zahl(b.wegF) == null) f.wegF = "Zahl fehlt";
+  if (String(b.wegA).trim() !== "" && zahl(b.wegA) == null) f.wegA = "Zahl oder leer";
+  return f;
+}
+
+export function blockZeilen(b) {
+  const t = Number(b.platz) / 100;
+  const bez = String(b.bez || "").trim();
+  const winkel = String(b.wegA).trim() === "" ? "" : ",A" + (zahl(b.wegA) ?? b.wegA);
+  const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+  return [
+    "T" + b.platz + (bez ? "(" + bez + ")" : ""),
+    ...(b.hd ? ["M1881D" + b.hd] : []),
+    "M" + (b.dreh === "4" ? 4 : 3) + "S" + String(b.S).trim() + "T" + t,
+    "G0X[#531+1.]Z" + (zahl(b.anZ) ?? b.anZ),
+    ...code,
+    "G1X[#531+0.2]" + winkel + "F" + (zahl(b.wegF) ?? b.wegF),
+    "G0X30.",
+    ...(b.hd ? ["M1891"] : []),
+    "T0",
+    "M1",
+  ];
+}
+
+// Ganze Programme je Kanal; die Bearbeitungen stehen zwischen Kopf und Ende
 export function programme(w) {
   const k1 = kanal1(w), k2 = kanal2(w);
+  const bearb1 = (w.bloecke || []).flatMap(blockZeilen);
   return {
-    k1: [...k1.kopf, ...k1.ende],
+    k1: [...k1.kopf, ...bearb1, ...k1.ende],
     k2: [...k2.kopf, ...k2.ende],
     nr1: nr4(Number(w.nr) || 0), nr2: nr4((Number(w.nr) || 0) + 1000),
   };

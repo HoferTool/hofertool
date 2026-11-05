@@ -46,6 +46,26 @@ with sync_playwright() as p:
     pg.fill("[data-cam='nr']", "1000")
     pruefe("Nr. über 999 rot", pg.locator(".cam-feld--fehler [data-cam='nr']").count() == 1)
     pg.fill("[data-cam='nr']", "458")
+    # Seit 1.396.0: Bearbeitung mit Drehwerkzeug T100–T600 zwischen Kopf und Ende
+    pg.click("#cam-neu-dreh")
+    pg.fill("[data-block='0'] [data-camblock='bez']", "aussen plan")
+    pg.fill("[data-block='0'] [data-camblock='code']", "G1X-0.8F0.05\n\nG0Z0.5")
+    t = [x for x in k(1) if x]
+    a, b = t.index("(Ende Kopf)"), t.index("(Start Ende)")
+    pruefe("Drehblock zwischen Kopf und Ende", t[a+1:b] == ["T100(AUSSEN PLAN)", "M1881D4", "M3S3000T1", "G0X[#531+1.]Z0.",
+        "G1X-0.8F0.05", "G0Z0.5", "G1X[#531+0.2],A45.F0.05", "G0X30.", "M1891", "T0", "M1"])
+    pg.fill("[data-block='0'] [data-camblock='wegA']", "")
+    pg.select_option("[data-block='0'] [data-camblock='hd']", "")
+    t = [x for x in k(1) if x]
+    pruefe("Ohne Winkel und Hochdruck", "G1X[#531+0.2]F0.05" in t and "M1881D4" not in t and "M1891" not in t)
+    pg.fill("[data-block='0'] [data-camblock='wegA']", "45")
+    pg.select_option("[data-block='0'] [data-camblock='hd']", "4")
+    pg.click("#cam-neu-dreh")
+    pruefe("Zweiter Block nimmt freien Platz", pg.input_value("[data-block='1'] [data-camblock='platz']") == "200")
+    sync = pg.eval_on_selector_all(".cam-zeile--sync[data-kanal='1'] .cam-text", "e => e.map(x => x.textContent)")
+    pruefe("Marken nach Blöcken weiter gepaart", len(sync) == 7 and pg.locator(".cam-zeile--fehler").count() == 0)
+    pg.click("[data-camblock-weg='1']")
+    pruefe("Block entfernen", pg.locator(".cam-block").count() == 1)
     pg.screenshot(path="hofer_cam.png", full_page=False)
     pg.evaluate("document.body.classList.add('dunkel')"); pg.screenshot(path="hofer_cam_dunkel.png")
     br.close()

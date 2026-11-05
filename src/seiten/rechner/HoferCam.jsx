@@ -5,12 +5,12 @@
 //  Kanäle nebeneinander. Gleiche Synchronisationsmarken stehen auf
 //  derselben Zeile, die App füllt dazwischen Leerzeilen; eine Marke ohne
 //  Gegenstück ist rot. Rechnen in hofercam.js. Patrick gibt die Schritte
-//  vor, darum hier bewusst nur Kopf und Ende (Werkzeugplätze und
-//  Bearbeitungen kommen als Nächstes).
+//  vor, darum hier bewusst nur Kopf, Ende und seit 1.396.0 Blöcke für
+//  Drehwerkzeuge T100–T600 (weitere Plätze kommen nach seinen Vorgaben).
 // =================================================================
 import { useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
-import { FELDER, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { DREH_PLAETZE, FELDER, HD_STUFEN, blockFehler, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
 const gemerkt = vorgabe();
@@ -21,6 +21,16 @@ export default function HoferCam() {
     const neu = { ...w, [name]: wert };
     Object.assign(gemerkt, neu);
     setW(neu);
+  };
+  const bloecke = w.bloecke || [];
+  const setzeBloecke = (neu) => setze("bloecke", neu);
+  const blockAendern = (id, feld, wert) => setzeBloecke(bloecke.map((b) => (b.id === id ? { ...b, [feld]: wert } : b)));
+  const blockSchieben = (i, um) => {
+    const j = i + um;
+    if (j < 0 || j >= bloecke.length) return;
+    const neu = [...bloecke];
+    [neu[i], neu[j]] = [neu[j], neu[i]];
+    setzeBloecke(neu);
   };
   const fehler = pruefen(w);
   const prog = useMemo(() => programme(w), [w]);
@@ -63,6 +73,59 @@ export default function HoferCam() {
             ))}
           </fieldset>
         ))}
+      </div>
+
+      <div className="cam-bearb" id="cam-bearb">
+        <div className="cam-bearb__kopf">
+          <b>Bearbeitungen Kanal 1</b>
+          <button className="knopf knopf--klein" id="cam-neu-dreh"
+            onClick={() => setzeBloecke([...bloecke, neuerBlock(bloecke)])}>+ Drehwerkzeug T100–T600</button>
+        </div>
+        {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
+        {bloecke.map((b, i) => {
+          const bf = blockFehler(b);
+          const feld = (name, text, lang, breit) => (
+            <label className={"cam-feld" + (bf[name] ? " cam-feld--fehler" : "")} title={lang + (bf[name] ? " – " + bf[name] : "")}>
+              <span>{text}</span>
+              <input data-camblock={name} value={b[name]} style={breit ? { width: breit } : undefined}
+                inputMode="decimal" onChange={(e) => blockAendern(b.id, name, e.target.value)} />
+            </label>
+          );
+          return (
+            <div key={b.id} className="cam-block" data-block={i}>
+              <div className="cam-block__zeile">
+                <label className="cam-feld" title="Werkzeugplatz (Drehwerkzeug Kanal 1)"><span>Platz</span>
+                  <select data-camblock="platz" value={b.platz} onChange={(e) => blockAendern(b.id, "platz", e.target.value)}>
+                    {DREH_PLAETZE.map((p) => <option key={p} value={p}>T{p}</option>)}
+                  </select></label>
+                <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>
+                  <input data-camblock="bez" value={b.bez} style={{ width: 190 }}
+                    onChange={(e) => blockAendern(b.id, "bez", e.target.value.toUpperCase())} /></label>
+                <label className="cam-feld" title="Hochdruck M1881D… ein, am Ende M1891 aus"><span>Hochdruck</span>
+                  <select data-camblock="hd" value={b.hd} onChange={(e) => blockAendern(b.id, "hd", e.target.value)}>
+                    {HD_STUFEN.map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
+                  </select></label>
+                <label className="cam-feld" title="Drehrichtung"><span>Richtung</span>
+                  <select data-camblock="dreh" value={b.dreh} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
+                    <option value="3">M3</option><option value="4">M4</option>
+                  </select></label>
+                {feld("S", "Drehzahl S", "Drehzahl")}
+                {feld("anZ", "Anfahren Z", "G0X[#531+1.]Z…")}
+                {feld("wegA", "Weg Winkel", "Wegfahren: G1X[#531+0.2],A…  leer = ohne Winkel", 54)}
+                {feld("wegF", "Weg F", "Wegfahren: Vorschub F", 60)}
+                <span className="cam-block__knoepfe">
+                  <button className="knopf knopf--klein" title="Nach oben" disabled={i === 0} onClick={() => blockSchieben(i, -1)}>↑</button>
+                  <button className="knopf knopf--klein" title="Nach unten" disabled={i === bloecke.length - 1} onClick={() => blockSchieben(i, 1)}>↓</button>
+                  <button className="knopf knopf--klein" title="Bearbeitung entfernen" data-camblock-weg={i}
+                    onClick={() => setzeBloecke(bloecke.filter((x) => x.id !== b.id))}>✕</button>
+                </span>
+              </div>
+              <textarea className="cam-block__code" data-camblock="code" rows={4} spellCheck={false}
+                placeholder="NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …)"
+                value={b.code} onChange={(e) => blockAendern(b.id, "code", e.target.value)} />
+            </div>
+          );
+        })}
       </div>
 
       <div className="cam-stand" id="cam-stand">
