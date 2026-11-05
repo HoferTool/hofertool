@@ -9,12 +9,12 @@
 //  Drehwerkzeuge T100–T600 (weitere Plätze kommen nach seinen Vorgaben).
 // =================================================================
 import { ZiehListe } from "../../teile/ZiehListe.jsx";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
-import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, K2_PLAETZE, QUER_PLAETZE, SEITE_PLAETZE, vorschubArt, blockFehler, drehzahl, markenPaare, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, K2_PLAETZE, QUER_PLAETZE, SEITE_PLAETZE, vorschubArt, blockFehler, drehzahl, handNeu, markenPaare, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
 const gemerkt = vorgabe();
@@ -58,7 +58,7 @@ function programmFensterAuf() {
 function ImFenster() {
   useGemerkt();
   const w = { ...gemerkt };
-  const prog = programme(w);
+  const prog = programmeMitHand(w);
   const bereich = prog.bereiche[aktivId];
   // Im Fenster rollt die markierte Bearbeitung von selbst ins Bild
   useEffect(() => {
@@ -66,7 +66,10 @@ function ImFenster() {
     const el = d && d.querySelector(".cam-zeile--aktiv");
     if (el) el.scrollIntoView({ block: "nearest" });
   }, [aktivId, bereich && bereich[0]]);
-  return <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]} />;
+  // Änderungen im eigenen Fenster gehen in „gemerkt“, der Reiter liest sie
+  const handSetzen = (hand) => { gemerkt.hand = hand; melden(); };
+  return <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]}
+    w={w} handSetzen={handSetzen} />;
 }
 
 const text = (zeilen) => zeilen.join("\r\n") + "\r\n";
@@ -88,20 +91,73 @@ function herunterladen(e, zeilen, nr) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-function Kanaele({ prog, sync, fehler, bereich, bereich2 }) {
+// Seit 1.421.0 (Wunsch Patrick 5. November 2026): jede Zeile im
+// Programmfenster ist bearbeitbar; Enter macht eine neue Zeile darunter,
+// Rücktaste in einer leeren Zeile löscht sie. Was von Hand anders ist als
+// erzeugt, ist gelb; die App setzt es nach jedem Neurechnen wieder ein
+// (handAnwenden in hofercam.js).
+let fokusNach = null;
+function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen }) {
+  const kasten = useRef(null);
   const imBereich = (z, k) => {
     const b = k === 0 ? bereich : bereich2;
     return z && b && z.nr >= b[0] && z.nr <= b[1];
   };
+  const zeilenVon = (k) => (k === 1 ? prog.k1 : prog.k2);
+  const setzen = (k, zeilen) => handSetzen(handNeu(w, k, k === 1 ? prog.auto1 : prog.auto2, zeilen));
+  useEffect(() => {
+    if (!fokusNach || !kasten.current) return;
+    const el = kasten.current.querySelector("[data-kanal='" + fokusNach.k + "'][data-nr='" + fokusNach.nr + "'] .cam-text");
+    fokusNach = null;
+    if (!el) return;
+    el.focus();
+    const d = el.ownerDocument, sel = d.getSelection(), r = d.createRange();
+    r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r);
+  });
+  const zeileFertig = (k, nr, text) => {
+    const z = [...zeilenVon(k)];
+    if (z[nr - 1] === text) return;
+    z[nr - 1] = text;
+    setzen(k, z);
+  };
+  const taste = (e, k, nr) => {
+    const text = e.currentTarget.textContent;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const z = [...zeilenVon(k)];
+      z[nr - 1] = text;
+      z.splice(nr, 0, "");
+      fokusNach = { k, nr: nr + 1 };
+      setzen(k, z);
+    } else if (e.key === "Backspace" && text === "" && zeilenVon(k).length > 1) {
+      e.preventDefault();
+      const z = [...zeilenVon(k)];
+      z.splice(nr - 1, 1);
+      fokusNach = { k, nr: Math.max(1, nr - 1) };
+      setzen(k, z);
+    } else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.textContent = zeilenVon(k)[nr - 1]; e.currentTarget.blur(); }
+  };
+  const verwerfen = (k) => { const h = { ...(w.hand || {}) }; delete h["k" + k]; handSetzen(h); };
+  const verloren = [[1, prog.verloren1], [2, prog.verloren2]].filter(([, v]) => v && v.length);
   const zuViel = Object.keys(fehler).length > 0;
   return (<>
       <div className="cam-stand" id="cam-stand">
+        {(w.hand?.k1 || w.hand?.k2) && <span className="cam-stand--hand" id="cam-hand-stand">Gelb = von Hand geändert.
+          {[1, 2].filter((k) => w.hand?.["k" + k]).map((k) => (
+            <button key={k} className="knopf knopf--klein" data-cam-verwerfen={k} onClick={() => verwerfen(k)}>Kanal {k} wie erzeugt</button>))} </span>}
         {sync.fehler
           ? <span className="cam-stand--fehler">{sync.fehler === 1 ? "1 Marke hat" : sync.fehler + " Marken haben"} im anderen Kanal kein Gegenstück.</span>
           : <span>Alle Synchronisationsmarken sind gepaart.</span>}
         {zuViel && <span className="cam-stand--fehler"> Rot: {Object.entries(fehler).map(([n, t]) => n === "nr" ? "Nr. " + t : n + " " + t).join(", ")}.</span>}
       </div>
-      <div className="cam-kanaele" id="cam-kanaele">
+      {verloren.map(([k, v]) => (
+        <div key={k} className="cam-verloren" data-cam-verloren={k}>
+          <b>Kanal {k}: {v.length === 1 ? "1 Änderung findet" : v.length + " Änderungen finden"} ihre Stelle nicht mehr</b>
+          {" "}(die erzeugten Zeilen dort haben sich geändert). Bitte von Hand neu eintragen:
+          {v.map((x, i) => <pre key={i}>{x.zeilen.length ? x.zeilen.join("\n") : "(Zeilen gelöscht: " + x.war.join(" / ") + ")"}</pre>)}
+          <button className="knopf knopf--klein" onClick={() => setzen(k, zeilenVon(k))}>Erledigt</button>
+        </div>))}
+      <div className="cam-kanaele" id="cam-kanaele" ref={kasten}>
         <div className="cam-spalte cam-spalte--kopf">
           <b>Kanal 1 · O{prog.nr1}</b>
           <span>
@@ -118,17 +174,23 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2 }) {
         </div>
         {sync.reihen.map((r, i) => (
           [r.k1, r.k2].map((z, k) => (
-            <div key={i + "-" + k} data-reihe={i} data-kanal={k + 1}
+            <div key={i + "-" + k} data-reihe={i} data-kanal={k + 1} data-nr={z ? z.nr : undefined}
               className={"cam-zeile" + (r.sync ? " cam-zeile--sync" : "") + (!z ? " cam-zeile--leer" : "")
+                + (z && (k === 0 ? prog.gelb1 : prog.gelb2)?.has(z.nr - 1) ? " cam-zeile--hand" : "")
                 + (z?.fehler ? " cam-zeile--fehler" : "") + (imBereich(z, k) ? " cam-zeile--aktiv" : "")}>
               <span className="cam-nr">{z ? z.nr : ""}</span>
-              <span className="cam-text">{z ? z.text : ""}</span>
+              {z
+                ? <span className="cam-text" key={z.nr + ":" + z.text} contentEditable suppressContentEditableWarning spellCheck={false}
+                    onBlur={(e) => zeileFertig(k + 1, z.nr, e.currentTarget.textContent)}
+                    onKeyDown={(e) => taste(e, k + 1, z.nr)}>{z.text}</span>
+                : <span className="cam-text" />}
             </div>
           ))
         ))}
       </div>
       <p className="klein">Blau = Synchronisationsmarke, in beiden Kanälen auf derselben Zeile. Graue Zeilen füllt
-        die App nur für die Anzeige ein, sie kommen nicht ins Programm.</p>
+        die App nur für die Anzeige ein, sie kommen nicht ins Programm. Jede Zeile lässt sich antippen und ändern,
+        Enter gibt eine neue Zeile, Rücktaste in einer leeren Zeile löscht sie.</p>
   </>);
 }
 
@@ -164,7 +226,12 @@ export default function HoferCam() {
     setzeBloecke(neu);
   };
   const fehler = pruefen(w);
-  const prog = useMemo(() => programme(w), [w]);
+  const prog = useMemo(() => programmeMitHand(w), [w]);
+  // Änderungen aus dem eigenen Fenster kommen über „gemerkt“
+  useEffect(() => {
+    const f = () => setW((x) => (x.hand === gemerkt.hand ? x : { ...x, hand: gemerkt.hand }));
+    hoerer.add(f); return () => { hoerer.delete(f); };
+  }, []);
   const sync = useMemo(() => synchronisieren(prog.k1, prog.k2), [prog]);
 
   const ncBeide = text(prog.k1) + text(prog.k2);
@@ -363,7 +430,8 @@ export default function HoferCam() {
           <div className="cam-fensterleiste">
             <button className="knopf knopf--klein" id="cam-fenster" title="Kanäle in einem eigenen Browserfenster, auch auf einem anderen Bildschirm"
               onClick={programmFensterAuf}>⧉ Eigenes Fenster</button></div>
-          <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]} />
+          <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]}
+            w={w} handSetzen={(h) => setze("hand", h)} />
         </>}
     </div>
   );

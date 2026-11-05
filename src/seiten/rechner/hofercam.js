@@ -746,3 +746,89 @@ export function synchronisieren(z1, z2) {
   const fehler = reihen.reduce((n, r) => n + (r.k1?.fehler ? 1 : 0) + (r.k2?.fehler ? 1 : 0), 0);
   return { reihen, fehler };
 }
+
+// ---------- Von Hand geändert ----------
+// Seit 1.421.0 (Wunsch Patrick 5. November 2026: „alles im CNC-Programm-
+// fenster auch bearbeitbar, gelb hervorgehoben, was gegenüber der
+// automatischen Erzeugung geändert wurde“). Gespeichert wird je Kanal das
+// erzeugte Programm zur Zeit der letzten Änderung (basis) und das von
+// Hand geänderte (hand). Rechnet die App neu, setzt sie die Änderungen
+// zwischen basis und hand an derselben Stelle im neuen Programm wieder
+// ein; findet sie die Stelle nicht mehr, geht die Änderung als
+// „verloren“ zurück, damit die Anzeige sie rot nennen kann.
+
+// Paare gleicher Zeilen (längste gemeinsame Folge), als [i in a, j in b]
+function gleicheZeilen(a, b) {
+  const n = a.length, m = b.length;
+  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const p = [];
+  for (let i = 0, j = 0; i < n && j < m;) {
+    if (a[i] === b[j]) { p.push([i, j]); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) i++;
+    else j++;
+  }
+  return p;
+}
+
+// Abschnitte, in denen hand von basis abweicht: basis[von, bis) → zeilen
+function abschnitte(basis, hand) {
+  const p = [...gleicheZeilen(basis, hand), [basis.length, hand.length]];
+  const res = [];
+  let i = 0, j = 0;
+  for (const [pi, pj] of p) {
+    if (pi > i || pj > j) res.push({ von: i, bis: pi, zeilen: hand.slice(j, pj) });
+    i = pi + 1; j = pj + 1;
+  }
+  return res;
+}
+
+// Ergebnis: { zeilen, gelb: Set der Zeilen (ab 0) aus Handänderungen,
+// verloren: [{ zeilen, war }] }
+export function handAnwenden(neu, h) {
+  if (!h || !Array.isArray(h.hand) || !Array.isArray(h.basis)) return { zeilen: neu, gelb: new Set(), verloren: [] };
+  const { basis, hand } = h;
+  const zu = new Map(gleicheZeilen(basis, neu));
+  const ab = abschnitte(basis, hand);
+  // Stelle im neuen Programm: Zeile vor dem Abschnitt und Zeile danach
+  // müssen dort noch stehen und dazwischen genauso viele Zeilen wie vorher
+  const ersetzen = [], verloren = [];
+  for (const a of ab) {
+    const vor = a.von === 0 ? -1 : zu.get(a.von - 1);
+    const nach = a.bis === basis.length ? neu.length : zu.get(a.bis);
+    if (vor === undefined || nach === undefined || nach <= vor || nach - vor - 1 !== a.bis - a.von) {
+      verloren.push({ zeilen: a.zeilen, war: basis.slice(a.von, a.bis) });
+      continue;
+    }
+    ersetzen.push({ von: vor + 1, bis: nach, zeilen: a.zeilen });
+  }
+  const zeilen = [], gelb = new Set();
+  let i = 0;
+  for (const e of ersetzen) {
+    if (e.von < i) { verloren.push({ zeilen: e.zeilen, war: [] }); continue; }
+    zeilen.push(...neu.slice(i, e.von));
+    e.zeilen.forEach((z) => { gelb.add(zeilen.length); zeilen.push(z); });
+    i = e.bis;
+  }
+  zeilen.push(...neu.slice(i));
+  return { zeilen, gelb, verloren };
+}
+
+// Programme mit den Handänderungen (w.hand = { k1: {basis, hand}, k2: … })
+export function programmeMitHand(w) {
+  const p = programme(w);
+  const h = w.hand || {};
+  const r1 = handAnwenden(p.k1, h.k1), r2 = handAnwenden(p.k2, h.k2);
+  return { ...p, auto1: p.k1, auto2: p.k2, k1: r1.zeilen, k2: r2.zeilen,
+    gelb1: r1.gelb, gelb2: r2.gelb, verloren1: r1.verloren, verloren2: r2.verloren };
+}
+
+// Neue Handfassung eines Kanals: basis = jetzt erzeugt, hand = angezeigt
+// und geändert; gleich wie erzeugt = keine Handänderung mehr
+export function handNeu(w, kanal, auto, zeilen) {
+  const hand = { ...(w.hand || {}) };
+  if (zeilen.length === auto.length && zeilen.every((z, i) => z === auto[i])) delete hand["k" + kanal];
+  else hand["k" + kanal] = { basis: auto, hand: zeilen };
+  return hand;
+}

@@ -281,6 +281,27 @@ with sync_playwright() as p:
            and "2 Zeilen" in pg.text_content("[data-camblock-auf='0']") and "G0Z0.5" in [x for x in k(1) if x])
     pg.click("[data-camblock-pfeil='0']")
     pruefe("Ausgeklappt", pg.input_value("[data-block='0'] [data-camblock='code']").startswith("G1X-0.8"))
+    # Seit 1.421.0: Zeilen im Programm von Hand ändern, gelb, bleiben beim Neurechnen
+    zl = lambda kn, nr: pg.locator("[data-kanal='%d'][data-nr='%d'] .cam-text" % (kn, nr))
+    zl(1, 3).click(); pg.keyboard.press("End"); pg.keyboard.type("(HAND)"); pg.keyboard.press("Tab"); pg.wait_for_timeout(150)
+    t = [x for x in k(1) if x]
+    pruefe("Von Hand geändert", t[2] == "G40G97M9G18(HAND)" and pg.locator("[data-kanal='1'][data-nr='3'].cam-zeile--hand").count() == 1
+        and pg.locator("#cam-hand-stand").count() == 1)
+    pg.fill("[data-cam='S']", "2800")
+    t = [x for x in k(1) if x]
+    pruefe("Bleibt beim Neurechnen", t[2] == "G40G97M9G18(HAND)" and any("S2800X" in x for x in t)
+        and pg.locator(".cam-zeile--hand").count() == 1)
+    zl(1, 3).click(); pg.keyboard.press("End"); pg.keyboard.press("Enter"); pg.keyboard.type("(NEUE ZEILE)"); pg.keyboard.press("Tab")
+    pg.wait_for_timeout(150)
+    t = [x for x in k(1) if x]
+    pruefe("Neue Zeile mit Enter", t[3] == "(NEUE ZEILE)" and pg.locator(".cam-zeile--hand").count() == 2)
+    zl(2, 3).click(); pg.keyboard.press("End"); pg.keyboard.type("X"); pg.keyboard.press("Tab"); pg.wait_for_timeout(150)
+    pruefe("Kanal 2 von Hand", [x for x in k(2) if x][2] == "G130X" and pg.locator("[data-kanal='2'].cam-zeile--hand").count() == 1)
+    pg.click("[data-cam-verwerfen='2']"); pg.click("[data-cam-verwerfen='1']"); pg.wait_for_timeout(150)
+    t = [x for x in k(1) if x]
+    pruefe("Wie erzeugt", t[2] == "G40G97M9G18" and "(NEUE ZEILE)" not in t and pg.locator(".cam-zeile--hand").count() == 0
+        and [x for x in k(2) if x][2] == "G130")
+    pg.fill("[data-cam='S']", "3000")
     # Seit 1.397.0: Speichern und Öffnen in nc_programme (art "cam")
     pg.evaluate("TEST.daten.nc_programme = TEST.daten.nc_programme || []")
     pg.click("#camab-speichern"); pg.wait_for_selector(".dialog input")
