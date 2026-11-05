@@ -116,6 +116,29 @@ function MaschinenBild({ block }) {
     d.addEventListener("pointermove", f);
     return () => d.removeEventListener("pointermove", f);
   }, [!!block]);
+  // Seit 1.426.7 (Patrick: „möglichst gross, soll aber nicht T3421–T3423
+  // überdecken“): Grösse aus dem Platz rechts neben bzw. über den Knöpfen
+  // der Bearbeitungen, neu bei Rollen und Fenstergrösse
+  const [mass, setMass] = useState(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const d = el.ownerDocument, win = d.defaultView;
+    const rechnen = () => {
+      const k = [...d.querySelectorAll(".cam-bearb__kopf .knopf")].map((x) => x.getBoundingClientRect());
+      const vw = win.innerWidth, vh = win.innerHeight, oben = 70, rand = 16, text = 44;
+      if (!k.length) { setMass(Math.min(560, vh - oben - text - rand)); return; }
+      const rechts = Math.max(...k.map((x) => x.right)), obenK = Math.min(...k.map((x) => x.top)), untenK = Math.max(...k.map((x) => x.bottom));
+      // rechts neben den Knöpfen, über den Knöpfen oder unter ihnen
+      const neben = Math.min(vw - rechts - 2 * rand, vh - oben - text - rand);
+      const ueber = Math.min(vw - 2 * rand, obenK - oben - text - 8);
+      const unter = untenK > oben ? 0 : Math.min(vw - 2 * rand, vh - oben - text - rand);
+      setMass(Math.max(200, Math.min(900, Math.max(neben, ueber, unter))));
+    };
+    rechnen();
+    win.addEventListener("resize", rechnen); win.addEventListener("scroll", rechnen, true);
+    return () => { win.removeEventListener("resize", rechnen); win.removeEventListener("scroll", rechnen, true); };
+  }, [!!block]);
   if (!block) return null;
   const r = bildBereich(block);
   // Seit 1.426.3 (Patrick: „soll gut lesbar sein“): grösser, Rest des
@@ -125,7 +148,7 @@ function MaschinenBild({ block }) {
   const sx = Math.max(4, Math.min(512 - sb - 4, r.x + r.w / 2 - sb / 2));
   const sy = r.y - sh - 8 > 4 ? r.y - sh - 8 : r.y + r.h + 8;
   return (
-    <div className="cam-bild" id="cam-bild" data-bereich={r.text} ref={ref}>
+    <div className="cam-bild" id="cam-bild" data-bereich={r.text} ref={ref} style={mass ? { width: mass + 12 } : undefined}>
       <svg viewBox="0 0 512 512">
         <defs><mask id="cam-bild-maske">
           <rect x="0" y="0" width="512" height="512" fill="#fff" />
