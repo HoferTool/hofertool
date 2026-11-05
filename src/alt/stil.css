@@ -10231,8 +10231,10 @@ h2 small.kalk-einheit { font-weight: 400; margin-left: 6px; }
    Fast über den ganzen Bildschirm, damit die Tafel Platz hat; die
    Rolle der Tafel nimmt die Höhe des Fensters statt der Seite. */
 .pad-pw-huelle { padding: 12px; place-items: stretch; }
-/* Das Pad macht seine Fenster sonst schmal (600 Pixel, mit !important) */
-body.pad-offen .pad-pw-huelle .dialog.pad-pw.pad-pw { max-width: none !important; width: 100% !important; height: 100%;
+/* Das Pad macht seine Fenster sonst schmal (600 Pixel, mit !important);
+   die Regel dort hat seit 1.381.4 vier :not() und war stärker, darum
+   hier mehr Klassen (seit 1.403.1, Patrick: „soll ganzes Feld sein“) */
+body.pad-offen .dialog-huelle.pad-pw-huelle .dialog.pad-pw.pad-pw.pad-pw.pad-pw { max-width: none !important; width: 100% !important; height: 100%;
   max-height: none; display: flex; flex-direction: column; padding: 0 !important; overflow: hidden;
   border-radius: 14px; font-size: 1rem; }
 .pad-pw__kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px;

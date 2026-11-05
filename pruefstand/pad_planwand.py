@@ -42,6 +42,8 @@ with sync_playwright() as p:
           return r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth; })()""")
         pruefe(name + ": Balken sichtbar", sicht)
         pruefe(name + ": Pad bleibt darunter", pg.locator("#pad").count() == 1)
+        breit = pg.evaluate("document.querySelector('.pad-pw').getBoundingClientRect().width")
+        pruefe(name + f": Fenster füllt die Breite ({breit:.0f} von {vp['width']})", breit >= vp["width"] - 40)
         if BILDER: pg.screenshot(path=f"{BILDER}/pad-planwand-{name}.png")
         pg.mouse.move(5, 5); pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
         pruefe(name + ": Escape schliesst nur das Fenster", pg.locator(".pad-pw").count() == 0 and pg.locator("#pad .pad-stk-zahl").count() == 1)
