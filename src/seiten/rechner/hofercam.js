@@ -260,11 +260,18 @@ export const QUER_PLAETZE = ["3421", "3422", "3423"];
 // Seit 1.418.0: quer angetriebene T3100–T3400, nur Hauptspindel, nach
 // Patricks T3100 aus O0458 (5. November 2026)
 export const SEITE_PLAETZE = ["3100", "3200", "3300", "3400"];
+// Seit 1.420.0: Drehwerkzeuge Kanal 2, zuerst T2100 nach Patricks
+// Beispiel (5. November 2026); T2200–T2400 folgen nach seinen Vorgaben
+export const K2_PLAETZE = ["2100"];
 
 const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 export function neuerBlock(bloecke = [], art = "dreh") {
   const belegt = new Set(bloecke.map((b) => b.platz));
+  if (art === "k2") {
+    return { id: neueId(), art: "k2", platz: "2100", bez: "", dreh: "4", S: "2500",
+      vorX: "-45.4", vorZ: "61.40", nX: "-10", nZ: "-0.5", code: "" };
+  }
   if (art === "seite") {
     const platz = SEITE_PLAETZE.find((p) => !belegt.has(p)) || "3100";
     return { id: neueId(), art: "seite", platz, bez: "", hd: "3", dreh: "36", S: "6000", anZ: "0", code: "" };
@@ -293,7 +300,7 @@ export function neuerBlock(bloecke = [], art = "dreh") {
 export function vcDurchmesser(b, w = {}) {
   const d = zahl(b.vcD);
   if (d != null) return Number(d);
-  if (b.art !== "front") { const a = zahl(w.A); if (a != null) return Number(a); }
+  if (b.art !== "front" && b.art !== "k2") { const a = zahl(w.A); if (a != null) return Number(a); }
   return null;
 }
 export function drehzahl(b, w = {}) {
@@ -307,6 +314,14 @@ export function drehzahl(b, w = {}) {
 
 export function blockFehler(b, w = {}) {
   const f = {};
+  if (b.art === "k2") {
+    if (b.sArt === "vc") {
+      if (zahl(b.vc) == null || !(Number(zahl(b.vc)) > 0)) f.vc = "Zahl fehlt";
+      if (!b.g96 && vcDurchmesser(b, w) == null) f.vcD = "Ø fehlt";
+    } else if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
+    for (const n of ["vorX", "vorZ", "nX", "nZ"]) if (zahl(b[n]) == null) f[n] = "Zahl fehlt";
+    return f;
+  }
   if (b.art === "seite") {
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
     if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
@@ -366,6 +381,9 @@ export const vorschubArt = (b) => (b.vor === "98" || b.vor === "99" ? b.vor : an
 const vorZeile = (b) => "G" + vorschubArt(b);
 
 export function blockZeilen(b, w = {}, marke) {
+  // Kanal 2 allein: Kanal 1 bekommt nur die Markenpaare aus dem NC-Code
+  // mit dem eigenen Code dazwischen
+  if (b.art === "k2") return markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]);
   const S = drehzahl(b, w) ?? String(b.S).trim();
   // Seit 1.403.0 (Wunsch Patrick 5. November 2026): G96 im Kopf der
   // Bearbeitung ein, am Ende vor T0 mit G97 wieder aus
@@ -523,6 +541,39 @@ export function blockZeilen2(b, marke, w = {}) {
   // dann jede Zeile der Bearbeitung mit „/“ davor; Marken und das Ende
   // (G0G28W0., T0, M1) ohne, damit beide Kanäle immer synchron bleiben
   const s = (z) => (markeVon(z) || z.startsWith("/") ? z : "/" + z);
+  if (b.art === "k2") {
+    // Seit 1.420.0 nach Patricks T2100 (5. November 2026): G23 schaltet die
+    // Hubbegrenzung aus (am Ende G22 wieder ein), Vorpositionieren X und Z
+    // (nur T2100, spezieller Drehhalter), Nullpunktverschiebung G50 X/Z,
+    // am Ende zurück auf dieselben Werte; M5 am Ende wahlweise
+    const g = (n) => zahl(b[n]) ?? String(b[n] ?? "");
+    return [
+      "M75",
+      s("T" + b.platz + (bez ? "(" + bez + ")" : "")),
+      "/G23",
+      s((g96 ? "G96" : "") + "M" + (b.dreh === "3" ? 3 : 4) + "S" + S + "T" + String(b.platz).slice(0, 2)),
+      s(vorZeile(b)),
+      s("G0X" + g("vorX")),
+      s("G0Z" + g("vorZ")),
+      s("G50X" + g("nX") + "Z" + g("nZ")),
+      "/G1Z-1.F0.5",
+      "/G1X-11.",
+      ...code.map(s),
+      s("G1Z" + g("nZ") + "F0.5"),
+      s("G1X" + g("nX")),
+      s("G50Z" + g("vorZ") + "X" + g("vorX")),
+      "/G0Z20.0",
+      "/G0X0.0",
+      ...(g96 ? ["/G97"] : []),
+      "/G99",
+      "G28W0.0",
+      "M76",
+      "G22",
+      "T0",
+      "M1",
+      ...(b.ohneM5 ? [] : ["M5"]),
+    ];
+  }
   if (b.art === "quer") {
     // Seit 1.415.0 nach Patricks O1458: Kopf mit G98, Kühlmittel, C-Achse
     // auf 0 und M6 bei jeder Bearbeitung (Patrick: „kannst du immer
@@ -633,7 +684,7 @@ export function programme(w) {
     ab += z.length;
     // Seit 1.416.0: Markenpaare im Code von Kanal 1 geben Kanal 2 die
     // Marken mit dem Code aus dem Feld dazwischen
-    const z2 = marken[b.id] ? blockZeilen2(b, marken[b.id], w)
+    const z2 = marken[b.id] || b.art === "k2" ? blockZeilen2(b, marken[b.id], w)
       : markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y, "k2"), y]);
     if (z2.length) {
       bereiche2[b.id] = [ab2 + 1, ab2 + z2.length];

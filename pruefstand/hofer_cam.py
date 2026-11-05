@@ -210,6 +210,27 @@ with sync_playwright() as p:
         "G0X30.", "G0Y0.", "M1893", "T0", "M38", "M9", "G99", "T0", "M1"])
     pruefe("T3100 ohne Spindelwahl", pg.locator("[data-block='2'] [data-camblock='spindel']").count() == 0)
     pg.click("[data-camblock-weg='2']")
+    # Seit 1.420.0: Drehwerkzeug Kanal 2 T2100 nach Patricks Beispiel
+    pg.click("#cam-neu-k2")
+    pg.fill("[data-block='2'] [data-camblock='bez']", "PLANEN + D7.9")
+    pg.fill("[data-block='2'] [data-camblock='code']", "G1Z0.\nG1X-6.3F0.03\nM350\nM360")
+    pg.fill("[data-block='2'] [data-camk1='M350-M360'] textarea", "G0U1.")
+    t2 = [x for x in k(2) if x]
+    a2 = t2.index("/T2100(PLANEN + D7.9)") - 1
+    pruefe("T2100 Kanal 2", t2[a2:t2.index("(Start Ende)")] == ["M75", "/T2100(PLANEN + D7.9)", "/G23", "/M4S2500T21", "/G99",
+        "/G0X-45.4", "/G0Z61.40", "/G50X-10.Z-0.5", "/G1Z-1.F0.5", "/G1X-11.", "/G1Z0.", "/G1X-6.3F0.03", "M350", "M360",
+        "/G1Z-0.5F0.5", "/G1X-10.", "/G50Z61.40X-45.4", "/G0Z20.0", "/G0X0.0", "/G99", "G28W0.0", "M76", "G22", "T0", "M1", "M5"])
+    t = [x for x in k(1) if x]
+    i1 = t.index("M350")
+    pruefe("T2100 Kanal 1 nur Marken", t[i1:i1+3] == ["M350", "G0U1.", "M360"] and "/G23" not in t
+        and "Kanal 1 zwischen" in pg.text_content("[data-block='2'] [data-camk1='M350-M360']")
+        and pg.locator(".cam-zeile--fehler").count() == 0)
+    pg.uncheck("[data-block='2'] [data-camblock='m5']")
+    pg.fill("[data-block='2'] [data-camblock='nX']", "-12")
+    t2 = [x for x in k(2) if x]
+    pruefe("T2100 ohne M5, G50 X", "M5" not in t2[t2.index("G22", a2):t2.index("(Start Ende)")]
+        and "/G50X-12.Z-0.5" in t2 and "/G1X-12." in t2)
+    pg.click("[data-camblock-weg='2']")
     # Seit 1.416.0: Markenpaar im Code von Kanal 1 gibt ein Feld für Kanal 2
     alt0 = pg.input_value("[data-block='0'] [data-camblock='code']")
     pg.fill("[data-block='0'] [data-camblock='code']", alt0 + "\nM450\nM460")

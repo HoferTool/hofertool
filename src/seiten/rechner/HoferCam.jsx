@@ -14,7 +14,7 @@ import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
-import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, QUER_PLAETZE, SEITE_PLAETZE, vorschubArt, blockFehler, drehzahl, markenPaare, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, K2_PLAETZE, QUER_PLAETZE, SEITE_PLAETZE, vorschubArt, blockFehler, drehzahl, markenPaare, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
 const gemerkt = vorgabe();
@@ -197,7 +197,7 @@ export default function HoferCam() {
 
       <div className="cam-bearb" id="cam-bearb">
         <div className="cam-bearb__kopf">
-          <b>Bearbeitungen Kanal 1</b>
+          <b>Bearbeitungen</b>
           <button className="knopf knopf--klein" id="cam-neu-dreh"
             onClick={() => { const nb = neuerBlock(bloecke); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug T100–T600</button>
           <button className="knopf knopf--klein" id="cam-neu-front"
@@ -207,6 +207,9 @@ export default function HoferCam() {
             onClick={() => { const nb = neuerBlock(bloecke, "seite"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Querangetrieben T3100–T3400</button>
           <button className="knopf knopf--klein" id="cam-neu-quer"
             onClick={() => { const nb = neuerBlock(bloecke, "quer"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontangetrieben T3421–T3423</button>
+          {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
+          <button className="knopf knopf--klein" id="cam-neu-k2"
+            onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Kanal 2 Drehwerkzeug T2100</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
@@ -218,7 +221,10 @@ export default function HoferCam() {
           const front = b.art === "front";
           const seite = b.art === "seite";
           const quer = b.art === "quer" || seite;
-          const gegen = (quer || front) && b.spindel === "gegen";
+          const k2 = b.art === "k2";
+          // Kanal-2-Blöcke verhalten sich wie die Gegenspindel: NC-Code in
+          // Kanal 2, Markenpaare geben ein Feld für Kanal 1
+          const gegen = ((quer || front) && b.spindel === "gegen") || k2;
           const feld = (name, text, lang, breit, platzhalter) => (
             <label className={"cam-feld" + (bf[name] ? " cam-feld--fehler" : "")} title={lang + (bf[name] ? " – " + bf[name] : "")}>
               <span>{text}</span>
@@ -239,22 +245,22 @@ export default function HoferCam() {
                     <option value="haupt">Hauptspindel</option>
                     <option value="gegen">Gegenspindel (Kanal 2 mit T2000)</option>
                   </select></label>}
-                <label className="cam-feld" title={quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
+                <label className="cam-feld" title={k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
                   <select data-camblock="platz" value={b.platz} onChange={(e) => blockAendern(b.id, "platz", e.target.value)}>
-                    {(seite ? SEITE_PLAETZE : quer ? QUER_PLAETZE : front ? FRONT_PLAETZE : DREH_PLAETZE).map((p) => <option key={p} value={p}>T{p}</option>)}
+                    {(k2 ? K2_PLAETZE : seite ? SEITE_PLAETZE : quer ? QUER_PLAETZE : front ? FRONT_PLAETZE : DREH_PLAETZE).map((p) => <option key={p} value={p}>T{p}</option>)}
                   </select></label>
                 <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>
                   <input data-camblock="bez" value={b.bez} style={{ width: 190 }}
                     onChange={(e) => blockAendern(b.id, "bez", e.target.value.toUpperCase())} /></label>
-                <label className="cam-feld" title={quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
+                {!k2 && <label className="cam-feld" title={quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
                   <select data-camblock="hd" value={b.hd} onChange={(e) => blockAendern(b.id, "hd", e.target.value)}>
                     {HD_STUFEN.map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
-                  </select></label>
+                  </select></label>}
                 <label className="cam-feld" title={"Vorschub je Umdrehung (G99) oder je Minute (G98)" + (gegen ? ", in Kanal 2" : "") + "; am Ende der Bearbeitung immer wieder G99"}><span>Vorschub</span>
                   <select data-camblock="vor" value={vorschubArt(b)} onChange={(e) => blockAendern(b.id, "vor", e.target.value)}>
                     <option value="99">G99 mm/U</option><option value="98">G98 mm/min</option>
                   </select></label>
-                {b.hd && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
+                {b.hd && !k2 && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
                   <input type="checkbox" data-camblock="hdAus" checked={!b.hdAn}
                     onChange={(e) => blockAendern(b.id, "hdAn", !e.target.checked)} /><span>HD am Ende aus</span></label>}
                 {quer ? <>
@@ -296,7 +302,16 @@ export default function HoferCam() {
                       {b.g96 ? (drehzahl(b, w) ? "G96 S" + drehzahl(b, w) : "S –") : (drehzahl(b, w) ? "= S" + drehzahl(b, w) : "S –")}</span>
                   </>
                   : feld("S", "Drehzahl S", "Drehzahl")}
-                {front
+                {k2 ? <>
+                    {/* Seit 1.420.0 nach Patricks T2100 (5. November 2026) */}
+                    {feld("vorX", "Vorpos. X", "G0X… vor der Nullpunktverschiebung (spezieller Drehhalter auf T2100); am Ende G50Z…X… zurück", 58)}
+                    {feld("vorZ", "Vorpos. Z", "G0Z… vor der Nullpunktverschiebung; am Ende G50Z…X… zurück", 58)}
+                    {feld("nX", "G50 X", "Nullpunktverschiebung G50X…; am Ende G1X… auf denselben Wert", 58)}
+                    {feld("nZ", "G50 Z", "Nullpunktverschiebung G50…Z…; am Ende G1Z…F0.5 auf denselben Wert", 58)}
+                    <label className="cam-feld cam-g96" title="Nach M1 die Spindel mit M5 stoppen">
+                      <input type="checkbox" data-camblock="m5" checked={!b.ohneM5}
+                        onChange={(e) => blockAendern(b.id, "ohneM5", !e.target.checked)} /><span>M5 am Ende</span></label>
+                  </> : front
                   ? <>
                     {feld("anZ", "Anfahren Z", b.spindel === "gegen" ? "Kanal 2: G0Z… der Gegenspindel vor dem Werkzeug" : "G0Z… vor dem Teil")}
                     {feld("wegZ", "Zurück Z", b.spindel === "gegen" ? "Kanal 2: am Ende G0Z… zurück, danach Marke Ende und G0G28W0." : "Am Ende G0Z… zurück in sichere Richtung", 60)}
