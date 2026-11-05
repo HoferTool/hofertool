@@ -625,3 +625,14 @@ export async function blattIstGut(blatt) {
   if (pfade.length) { try { await db.storage.from("zeichnungen").remove(pfade); } catch (f) { /* bleibt eben liegen */ } }
   return gut;
 }
+
+// Ein PDF als weitere Seite des Blatts hochladen (seit 1.429.0): bleibt
+// das PDF selbst, in der Ablage zeichnungen unter einrichtblatt/pdf/
+export async function blattPdfHochladen(datei) {
+  const name = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+  const pfad = "einrichtblatt/pdf/" + name + ".pdf";
+  const ablage = alt.db.storage.from("zeichnungen");
+  const r = await ablage.upload(pfad, datei, { upsert: true, contentType: "application/pdf" });
+  if (r.error) throw r.error;
+  return { url: ablage.getPublicUrl(pfad).data.publicUrl, pfad };
+}

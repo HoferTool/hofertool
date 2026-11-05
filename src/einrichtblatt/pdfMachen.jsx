@@ -12,6 +12,28 @@ import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 import { BlattSeite, ZusatzSeite, seitenMass } from "./Blatt.jsx";
 import { blattLaden } from "./daten.js";
+import { istPdfSeite, pdfDaten } from "./PdfSeiten.jsx";
+import { pdfjs } from "../teile/PdfAnsicht.jsx";
+
+// Ein PDF als Seite des Blatts (seit 1.429.0): jede seiner Seiten als
+// Canvas, 150 Punkte je Zoll wie beim Drucken
+async function pdfSeitenZeichnen(url, jede) {
+  const [lib, daten] = await Promise.all([pdfjs(), pdfDaten(url)]);
+  const aufgabe = lib.getDocument({ data: daten.slice(), isEvalSupported: false });
+  try {
+    const doc = await aufgabe.promise;
+    for (let i = 1; i <= doc.numPages; i++) {
+      const p = await doc.getPage(i);
+      const v = p.getViewport({ scale: 150 / 72 });
+      const c = document.createElement("canvas");
+      c.width = Math.floor(v.width); c.height = Math.floor(v.height);
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+      await p.render({ canvasContext: ctx, viewport: v, canvas: c, intent: "print" }).promise;
+      await jede(c, v.width > v.height);
+    }
+  } finally { aufgabe.destroy(); }
+}
 
 // Bilder fertig laden, sonst fehlen sie im PDF; höchstens 8 Sekunden
 function bilderFertig(el) {
@@ -45,6 +67,7 @@ async function seitenZeichnen(daten, { auftrag, nur } = {}, jede) {
         </div>}
         {seiten.map((s, i) => {
           if (!mit(i + 1)) return null;
+          if (istPdfSeite(s)) return <div key={i} data-pdf-seite="" data-pdf-url={s.url} />;
           const [w, h] = seitenMass(s);
           return <div key={i} data-pdf-seite="" data-quer={s.quer ? "1" : ""} style={{ width: w, height: h, overflow: "hidden", background: "#fff" }}>
             <ZusatzSeite seite={s} />
@@ -55,6 +78,7 @@ async function seitenZeichnen(daten, { auftrag, nur } = {}, jede) {
     try { await document.fonts.ready; } catch (f) { /* dann mit dem, was da ist */ }
     await bilderFertig(huelle);
     for (const el of huelle.querySelectorAll("[data-pdf-seite]")) {
+      if (el.dataset.pdfUrl) { await pdfSeitenZeichnen(el.dataset.pdfUrl, jede); continue; }
       const bild = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
       await jede(bild, !!el.dataset.quer);
     }
