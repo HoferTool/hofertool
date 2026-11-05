@@ -65,7 +65,7 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
   };
   // Stückzeit in Sekunden je Maschinentyp (Wunsch 8. Oktober 2026)
   const zeitBearbeiten = async (e) => {
-    const s = await stueckzeitFragen("Stückzeit " + e.name, "Sekunden pro Stück für " + t.hoco_nr + ":", e.zeit);
+    const s = await stueckzeitFragen("Stückzeit " + String(e.name).replace(/_\d+$/, ""), "Sekunden pro Stück für " + t.hoco_nr + ":", e.zeit);
     if (s === null) return;
     try { await stueckzeitSetzen(t.hoco_nr, e.typId, s || null); meldung(s ? "Stückzeit gespeichert." : "Stückzeit entfernt."); neu(); }
     catch (f) { fehler(f); }
@@ -163,7 +163,10 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
               <thead><tr><th>Maschinentyp</th><th>Maschinen</th><th>Einrichtblatt</th><th>Stückzeit</th><th /></tr></thead>
               <tbody>{typenGenutzt.map((e) => (
                 <tr key={e.typId}>
-                  <td><strong>{e.name}</strong></td>
+                  {/* Ohne die Nummer hinten („SB-16C_113“ → „SB-16C“), sie steht
+                      ohnehin bei den Maschinen (Wunsch Patrick 5. November 2026:
+                      „bei dem Typ auch nicht das Prg Nr“), wie im Einrichtblatt */}
+                  <td><strong>{String(e.name).replace(/_\d+$/, "")}</strong></td>
                   <td>{e.maschinen.length
                     ? <span className="hocoteil__maschinen">{e.maschinen.map((m) =>
                         <span key={m} className="hocoteil__maschine">{m}</span>)}</span>

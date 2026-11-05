@@ -30,12 +30,17 @@ with sync_playwright() as p:
         gleiche.forEach((x, i) => TEST.daten.jobs.push({ id: 'mx' + i, job_number: j.job_number,
             machine_id: x.id, planned_from: '2027-0' + (1 + (i % 9)) + '-01', plan_status: 'geplant' }));
         const neueste = gleiche[Math.min(gleiche.length, 9) - 1];
+        // Typname mit Nummer hinten: in den Stammdaten ohne „_113“ (1.395.3)
+        const typ = (TEST.daten.machine_types || []).find(t => t.id === m.type_id);
+        if (typ) typ.name = 'SB-16C_113';
         return { hoco: j.job_number, nr: neueste.machine_number, anzahl: gleiche.length }; }""")
     pg.locator("#pw-hoco").click(); pg.wait_for_timeout(1200)
     pg.fill("#hoco-such", info["hoco"]); pg.wait_for_timeout(500)
     pg.locator(f"[data-hoco-auf='{info['hoco']}']").first.click(); pg.wait_for_timeout(1500)
     chips = pg.locator(".hocoteil__maschine").all_inner_texts()
     pruefe("Maschinen-Nr. " + info["nr"] + " steht da: " + str(chips), info["nr"] in chips)
+    typen = pg.locator(".hocoteil__tabelle tbody td:first-child strong").all_inner_texts()
+    pruefe("Typ ohne Nummer hinten: " + str(typen), "SB-16C" in typen and not any("_" in t for t in typen))
     pruefe("nur die Nummer, ohne Name", all(" " not in c for c in chips))
     pruefe("höchstens vier bei " + str(info["anzahl"]) + " Maschinen", len(chips) == min(4, info["anzahl"]))
     pruefe("neueste vorne", chips[:1] == [info["nr"]])
