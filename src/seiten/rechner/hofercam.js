@@ -876,16 +876,35 @@ export function handNeu(w, kanal, auto, zeilen) {
 // Werkzeuge markieren“): Bereich im Bild der SB-20RG (public/hilfe/
 // star-sb20rg.png, 512 × 512) je Bearbeitung, Zuordnung von Claude,
 // Patrick: „kannst du es logisch zuordnen?“
-export const BILD_BEREICHE = {
-  platten: { x: 88, y: 140, w: 162, h: 160, text: "Werkzeugplatten" },
-  quer: { x: 250, y: 190, w: 50, h: 50, text: "querangetrieben" },
-  haupt: { x: 298, y: 200, w: 37, h: 75, text: "zur Hauptspindel" },
-  gegen: { x: 362, y: 215, w: 73, h: 97, text: "zur Gegenspindel" },
-  k2: { x: 62, y: 345, w: 130, h: 90, text: "Kanal 2" },
-};
+// Seit 1.426.1 je Werkzeug einzeln nach Patricks Angaben: Platten T100–
+// T600 von links, quer T3100–T3300 von links (T3400 verdeckt), zur
+// Hauptspindel T3421–T3423 von unten (T1100–T1400 dort verdeckt), zur
+// Gegenspindel rechts T1100–T1400 von unten, links T3421–T3423 von unten
+const PLATTEN = [[123, 293], [143, 287], [163, 277], [187, 263], [207, 253], [223, 243]];
+const ZUR_GEGEN_FRONT = [[385, 284, 46, 20], [385, 264, 46, 19], [385, 244, 46, 19], [385, 223, 46, 19]];
+const ZUR_GEGEN_QUER = [[362, 285, 40, 14], [362, 262, 40, 14], [362, 239, 40, 14]];
+const ZUR_HAUPT_QUER = [[300, 255, 32, 17], [300, 233, 32, 17], [300, 209, 32, 17]];
+const QUER = [[255, 195, 15, 40], [269, 195, 15, 40], [284, 193, 16, 38]];
+// Kanal 2 T2100–T2400 von rechts (Patrick 5. November 2026)
+const KANAL2 = [[145, 354, 43, 35], [127, 364, 41, 35], [109, 374, 39, 35], [93, 383, 40, 35]];
+const r4 = (a, text, verdeckt) => ({ x: a[0], y: a[1], w: a[2], h: a[3], text, verdeckt: !!verdeckt });
 export function bildBereich(b) {
-  if (b.art === "k2" || b.art === "k2a") return BILD_BEREICHE.k2;
-  if (b.art === "seite") return BILD_BEREICHE.quer;
-  if (b.art === "front" || b.art === "quer") return anGegenspindel(b) ? BILD_BEREICHE.gegen : BILD_BEREICHE.haupt;
-  return BILD_BEREICHE.platten;
+  const p = Number(b.platz);
+  if (b.art === "k2" || b.art === "k2a") return r4(KANAL2[Math.max(0, Math.min(3, Math.round(p / 100) - 21))], "Kanal 2");
+  if (b.art === "seite") {
+    const i = Math.round(p / 100) - 31;
+    return i >= 0 && i < 3 ? r4(QUER[i], "querangetrieben") : r4([298, 192, 14, 40], "querangetrieben (verdeckt)", true);
+  }
+  const gegen = anGegenspindel(b);
+  if (b.art === "quer") {
+    const i = Math.max(0, Math.min(2, p - 3421));
+    return gegen ? r4(ZUR_GEGEN_QUER[i], "zur Gegenspindel") : r4(ZUR_HAUPT_QUER[i], "zur Hauptspindel");
+  }
+  if (b.art === "front") {
+    const i = Math.max(0, Math.min(3, Math.round(p / 100) - 11));
+    return gegen ? r4(ZUR_GEGEN_FRONT[i], "zur Gegenspindel") : r4([333, 205, 28, 95], "zur Hauptspindel (verdeckt)", true);
+  }
+  const i = Math.max(0, Math.min(5, Math.round(p / 100) - 1));
+  const [x, y] = PLATTEN[i];
+  return r4([x - 11, y - 95, 22, 100], "Werkzeugplatten");
 }

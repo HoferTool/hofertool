@@ -82,7 +82,7 @@ function MaschinenBild({ block }) {
     <div className="cam-bild" id="cam-bild" data-bereich={r.text}>
       <svg viewBox="0 0 512 512">
         <image href={import.meta.env.BASE_URL + "hilfe/star-sb20rg.png"} x="0" y="0" width="512" height="512" />
-        <rect className="cam-bild__rahmen" x={r.x} y={r.y} width={r.w} height={r.h} rx="8" />
+        <rect className={"cam-bild__rahmen" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")} x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />
         <text className="cam-bild__schild" x={tx} y={ty} textAnchor="middle">T{block.platz}</text>
       </svg>
       <div className="cam-bild__text">T{block.platz} · {r.text}</div>

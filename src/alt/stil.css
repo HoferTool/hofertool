@@ -11895,3 +11895,6 @@ body.dunkel .cam-verloren pre { background: #1b2025; }
 @keyframes cam-bild-puls { from { stroke-opacity: 1; } to { stroke-opacity: .35; } }
 body.dunkel .cam-bild { background: #fff; }
 body.dunkel .cam-bild__text { color: #333 !important; }
+.cam-bild__rahmen { stroke-width: 3.5; }
+.cam-bild__rahmen--verdeckt { stroke-dasharray: 6 4; fill: rgba(240,138,36,.08); }
+.cam-bild__schild { font-size: 22px; }
