@@ -250,11 +250,21 @@ export const HD_STUFEN = ["", "1", "2", "3", "4", "5", "6"];
 // seit 1.405.0 mit Gegenspindel: Kanal 1 nur Kopf und Ende ohne
 // Verfahrwege und eine Wartemarke, Kanal 2 mit T2000 macht die Wege.
 export const FRONT_PLAETZE = ["1100", "1200", "1300", "1400"];
+// Seit 1.415.0: angetriebene Querwerkzeuge T3421–T3423 an der
+// Gegenspindel (Patricks O0458 / O1458, 5. November 2026): Kanal 1
+// positioniert X, Kanal 2 schaltet das Werkzeug mit M37 / M38 ein und
+// macht mit T2000 den Weg in Z
+export const QUER_PLAETZE = ["3421", "3422", "3423"];
 
 const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 export function neuerBlock(bloecke = [], art = "dreh") {
   const belegt = new Set(bloecke.map((b) => b.platz));
+  if (art === "quer") {
+    const platz = QUER_PLAETZE.find((p) => !belegt.has(p)) || "3421";
+    return { id: neueId(), art: "quer", platz, bez: "", hd: "3", dreh: "37", S: "6000",
+      X: "", anZ: "60", code: "" };
+  }
   if (art === "front") {
     const platz = FRONT_PLAETZE.find((p) => !belegt.has(p)) || "1100";
     return { id: neueId(), art: "front", spindel: "haupt", platz, bez: "", hd: "4", dreh: "3",
@@ -287,6 +297,15 @@ export function drehzahl(b, w = {}) {
 
 export function blockFehler(b, w = {}) {
   const f = {};
+  if (b.art === "quer") {
+    if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
+    if (zahl(b.X) == null) f.X = "Zahl fehlt";
+    if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
+    const ms = ["m1", "m2", "m3"].map((n) => [n, markeNorm(b[n])]);
+    for (const [n, m] of ms) if (String(b[n] ?? "").trim() !== "" && !m) f[n] = "M200–M999 oder leer";
+    ms.forEach(([n, m], i) => { if (m && ms.slice(0, i).some(([, x]) => x === m)) f[n] = "doppelt"; });
+    return f;
+  }
   if (b.sArt === "vc") {
     if (zahl(b.vc) == null || !(Number(zahl(b.vc)) > 0)) f.vc = "Zahl fehlt";
     if (String(b.vcD ?? "").trim() !== "" && zahl(b.vcD) == null) f.vcD = "Zahl oder leer";
@@ -327,6 +346,27 @@ export function blockZeilen(b, w = {}, marke) {
   // Seit 1.413.0 (Wunsch Patrick 5. November 2026: „generell auswählen, ob
   // nach einer Bearbeitung der Hochdruck wieder ausgeschaltet wird,
   // standardmässig ja“): `hdAn` am Block lässt M1891 / M1892 am Ende weg
+  if (b.art === "quer") {
+    // Seit 1.415.0 (Patrick 5. November 2026): zwischen Marke Start und
+    // Marke 2 positioniert Kanal 1 in X, zwischen Marke 2 und Marke Ende
+    // macht Kanal 2 die Bearbeitung; freie Markenpaare im NC-Code von
+    // Kanal 2 (etwa M312 / M314 zum Freifahren in X) wie bei T1400.
+    // Hochdruck M1883D… / M1893 in Kanal 1 (Patrick: „ja M1883“); statt
+    // G0T0 am Ende T0 und M1 wie bei den anderen (Patrick: „vergiss G0T0“)
+    const mk = marke || { m1: "M300", m2: "M310", m3: "M320" };
+    return [
+      "T" + b.platz + "(" + mitGegen(bez) + ")",
+      ...(b.hd ? ["M1883D" + b.hd] : []),
+      mk.m1,
+      "G0X" + (zahl(b.X) ?? b.X) + "T" + String(b.platz).slice(-2),
+      mk.m2,
+      ...markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]),
+      mk.m3,
+      ...(b.hd && !b.hdAn ? ["M1893"] : []),
+      "T0",
+      "M1",
+    ];
+  }
   if (b.art === "front" && b.spindel === "gegen") {
     // Seit 1.405.0 (Patrick 5. November 2026): an der Gegenspindel hält
     // Kanal 1 nur das Werkzeug bereit (Kopf und Ende ohne G0Z) und wartet
@@ -403,6 +443,32 @@ export function blockZeilen2(b, marke, w = {}) {
   // dann jede Zeile der Bearbeitung mit „/“ davor; Marken und das Ende
   // (G0G28W0., T0, M1) ohne, damit beide Kanäle immer synchron bleiben
   const s = (z) => (markeVon(z) || z.startsWith("/") ? z : "/" + z);
+  if (b.art === "quer") {
+    // Seit 1.415.0 nach Patricks O1458: Kopf mit G98, Kühlmittel, C-Achse
+    // auf 0 und M6 bei jeder Bearbeitung (Patrick: „kannst du immer
+    // machen“), dann das angetriebene Werkzeug mit M37 / M38 S…, Anfahren
+    // und Wegfahren auf derselben Z (Patrick: „der Wert 60 soll als
+    // Anfahrposition der Gegenspindel definiert werden können“), fest
+    // F2000 und G0Z20., wahlweise M39 aus; Marke Ende nach M1
+    const z = zahl(b.anZ) ?? b.anZ;
+    return [
+      "M75",
+      s("T2000(" + mitGegen(bez) + ")"),
+      "/G98", "/M8", "/M7", "/G0", "/G28H0.", "/M6",
+      marke.m1,
+      marke.m2,
+      s("M" + (b.dreh === "38" ? 38 : 37) + "S" + String(b.S).trim()),
+      s("G0Z" + z),
+      ...code.map(s),
+      s("G1Z" + z + "F2000"),
+      "/G0Z20.",
+      ...(b.m39 ? ["/M39"] : []),
+      "G0G28W0.",
+      "T0",
+      "M1",
+      marke.m3,
+    ];
+  }
   return [
     "M75",
     s("T2000(" + mitGegen(bez) + ")"),
@@ -435,7 +501,7 @@ export function markenPaare(b) {
 }
 export const k1Zeilen = (b, x, y) =>
   String((b.k1 || {})[x + "-" + y] || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
-export const anGegenspindel = (b) => b.art === "front" && b.spindel === "gegen";
+export const anGegenspindel = (b) => (b.art === "front" && b.spindel === "gegen") || b.art === "quer";
 
 // Je Block an der Gegenspindel zwei Wartemarken {m1, m2}: von Hand
 // gesetzte gelten, leere bekommen freie ab M300 in Zehnerschritten, die
@@ -444,7 +510,7 @@ export function markenVergeben(bloecke, belegtZeilen = []) {
   const belegt = new Set(belegtZeilen.map(markeVon).filter(Boolean));
   bloecke.forEach((b) => {
     String(b.code || "").split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); });
-    if (anGegenspindel(b)) [b.m1, b.m2].map(markeNorm).filter(Boolean).forEach((m) => belegt.add(m));
+    if (anGegenspindel(b)) [b.m1, b.m2, b.m3].map(markeNorm).filter(Boolean).forEach((m) => belegt.add(m));
     Object.values(b.k1 || {}).forEach((c) => String(c).split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); }));
   });
   const marken = {};
@@ -460,7 +526,7 @@ export function markenVergeben(bloecke, belegtZeilen = []) {
     if (!anGegenspindel(b)) continue;
     const m1 = markeNorm(b.m1) || frei();
     const m2 = markeNorm(b.m2) || frei();
-    marken[b.id] = { m1, m2 };
+    marken[b.id] = b.art === "quer" ? { m1, m2, m3: markeNorm(b.m3) || frei() } : { m1, m2 };
   }
   return marken;
 }
