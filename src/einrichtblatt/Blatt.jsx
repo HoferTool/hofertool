@@ -451,6 +451,34 @@ function werkzeugOffen(p) {
   return !!(p && p.werkzeug && (!p.article_id || p.ungeprueft));
 }
 
+// Die Angaben im Fenster eines Platzes, wie sie im Blatt stehen
+function platzDaten(p, nr) {
+  const z = {};
+  const sz = String(leer(p.standzeit)).replace(/'/g, "").trim();
+  if (sz !== "" && !isNaN(Number(sz))) z.standzeit = Number(sz);
+  ["taetigkeit", "mass", "hersteller", "werkzeug", "bezeichnung"].forEach((k) => { const w = String(p[k] || "").trim(); if (w) z[k] = w; });
+  if (p.hd) z.hd = true;
+  // Andere T-Nr. auf diesem Platz, etwa weil ein anderer Halter drauf ist
+  // (T3121 statt T3100, Wunsch Patrick 30. Oktober 2026); der Platz im
+  // Blatt bleibt derselbe, nur die Anschrift ändert sich
+  const tnr = tnrSchreiben(p.tnr);
+  if (tnr && tnr !== platzName(nr)) z.tnr = tnr;
+  const geo = String(p.geo || "").replace(/\s+$/, "");
+  if (geo.trim()) {
+    z.geo = geo;
+    if (p.geoFarbe && p.geoFarbe !== GEO_SCHWARZ) z.geoFarbe = p.geoFarbe;
+    if (p.geoFett) z.geoFett = true;
+    if (p.geoGroesse) z.geoGroesse = p.geoGroesse;
+  }
+  if (p.ohneBild) z.ohneBild = true;
+  if (p.article_id && z.werkzeug) z.article_id = p.article_id;
+  else delete z.bezeichnung;
+  if (z.article_id && p.ungeprueft) z.ungeprueft = true;
+  if (z.article_id && p.spezial) z.spezial = true;
+  if (p.bild) z.bild = p.bild;
+  return z;
+}
+
 // ---------------- Ein Platz bearbeiten ----------------
 // Ein Fenster je Werkzeugplatz: Tätigkeit, Mass, HD, Standzeit und das
 // Werkzeug. Das Werkzeug wird nur gewählt, nicht geschrieben, im selben
@@ -458,7 +486,7 @@ function werkzeugOffen(p) {
 // Patrick, 23. Oktober 2026). Der Hersteller ist der Lieferant des
 // Artikels. Das Bild merkt sich der Artikel (Wunsch Patrick,
 // 13. Oktober 2026).
-function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildNeu, wechseln }) {
+function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildNeu, wechseln, offen }) {
   const [p, setP] = useState(Object.assign({}, wert));
   const [artikel, setArtikel] = useState(null);
   const [bildWahl, setBildWahl] = useState(false);
@@ -483,30 +511,16 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     const a = await werkzeugWaehlen({ suche: p.article_id && !p.ungeprueft ? "" : (p.werkzeug || ""), spezial: !!(artikel && artikel.spezial) });
     if (a) nehmen(a);
   };
+  // Was offen ist, nimmt das Blatt auch ohne „Übernehmen“ mit, wenn man
+  // daneben tippt, einen anderen Platz wählt oder gleich speichert: sonst
+  // ging etwa eine eingetippte T-Nr. ohne Werkzeug verloren (Wunsch Patrick
+  // 5. November 2026: „wenn man T-Nr. eingibt, ohne wirklich ein Werkzeug
+  // hinterlegen zu wollen, soll es auch abspeichern“). ✕ verwirft weiter
+  const vorher = useRef(JSON.stringify(wert));
+  if (offen) offen.current = { nr, daten: () => (JSON.stringify(p) === vorher.current ? null : platzDaten(p, nr)) };
+  useEffect(() => () => { if (offen && offen.current && offen.current.nr === nr) offen.current = null; }, []);
   const fertig = async (danach) => {
-    const z = {};
-    const sz = String(leer(p.standzeit)).replace(/'/g, "").trim();
-    if (sz !== "" && !isNaN(Number(sz))) z.standzeit = Number(sz);
-    ["taetigkeit", "mass", "hersteller", "werkzeug", "bezeichnung"].forEach((k) => { const w = String(p[k] || "").trim(); if (w) z[k] = w; });
-    if (p.hd) z.hd = true;
-    // Andere T-Nr. auf diesem Platz, etwa weil ein anderer Halter drauf ist
-    // (T3121 statt T3100, Wunsch Patrick 30. Oktober 2026); der Platz im
-    // Blatt bleibt derselbe, nur die Anschrift ändert sich
-    const tnr = tnrSchreiben(p.tnr);
-    if (tnr && tnr !== platzName(nr)) z.tnr = tnr;
-    const geo = String(p.geo || "").replace(/\s+$/, "");
-    if (geo.trim()) {
-      z.geo = geo;
-      if (p.geoFarbe && p.geoFarbe !== GEO_SCHWARZ) z.geoFarbe = p.geoFarbe;
-      if (p.geoFett) z.geoFett = true;
-      if (p.geoGroesse) z.geoGroesse = p.geoGroesse;
-    }
-    if (p.ohneBild) z.ohneBild = true;
-    if (p.article_id && z.werkzeug) z.article_id = p.article_id;
-    else delete z.bezeichnung;
-    if (z.article_id && p.ungeprueft) z.ungeprueft = true;
-    if (z.article_id && p.spezial) z.spezial = true;
-    if (p.bild) z.bild = p.bild;
+    const z = platzDaten(p, nr);
     // Am Artikel merken, sobald jemand ein Bild wählt: jeder andere Platz
     // damit bekommt es von selbst
     if (z.article_id && bildGewaehlt && (artikelBilder[z.article_id] || null) !== (p.bild || null)) {
@@ -709,6 +723,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const [teilE, setTeilE] = useState(Object.assign({}, start.teil));
   const [typE, setTypE] = useState(Object.assign({}, start.typDaten));
   const [platz, setPlatz] = useState(null);
+  const offenerPlatz = useRef(null);
   // Pad Mode: hinterlegte PDFs je Artikel und der angetippte Platz, der
   // „Ansehen“ zeigt (Externe nicht)
   const imPad = typeof document !== "undefined" && document.body.classList.contains("pad-offen") && !alt.istExtern();
@@ -799,9 +814,10 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   };
   const speichern = async () => {
     if (prgFehlt) { alt.meldung("Bitte zuerst die Programm-Nr. eintragen (rot umrandet).", "warn"); return; }
+    const blattJetzt = offenesNehmen(entwurf);
     setLaeuft(true);
     try {
-      await blattSpeichern(entwurf, "Einrichtblatt " + hocoNr + " " + (typ.name || ""));
+      await blattSpeichern(blattJetzt, "Einrichtblatt " + hocoNr + " " + (typ.name || ""));
       // Ein Blatt je Materialgrösse gehört zu keiner HOCO Nr.: keine Stammdaten
       if (!istMaterialBlatt(hocoNr)) {
         await stammSpeichern(hocoNr, teil, Object.fromEntries(STAMM_FELDER.map(([f]) => [f, leer(teilE[f])])));
@@ -913,10 +929,21 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     try { inDerAppDrucken([kopie], { quer: zseite ? !!zseite.quer : true, titel: "Einrichtblatt " + hocoNr + " " + (typ.name || ""), rand: zseite ? "0" : "8mm" }); }
     catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
-  const platzSetzen = (nr, z) => {
-    const plaetze = Object.assign({}, entwurf.plaetze || {});
+  const mitPlatz = (b, nr, z) => {
+    const plaetze = Object.assign({}, b.plaetze || {});
     if (Object.keys(z).length) plaetze[nr] = z; else delete plaetze[nr];
-    setEntwurf(Object.assign({}, entwurf, { plaetze }));
+    return Object.assign({}, b, { plaetze });
+  };
+  const platzSetzen = (nr, z) => setEntwurf((b) => mitPlatz(b, nr, z));
+  // Das offene Fenster eines Platzes ins Blatt nehmen, auch ohne
+  // „Übernehmen“ (siehe PlatzFenster); gibt das Blatt mit dem Platz zurück
+  const offenesNehmen = (b) => {
+    const o = offenerPlatz.current;
+    const z = o && o.daten();
+    offenerPlatz.current = null;
+    if (!z) return b;
+    setEntwurf((x) => mitPlatz(x, o.nr, z));
+    return mitPlatz(b, o.nr, z);
   };
   // Zwei Plätze tauschen; ist das Ziel leer, wandert das Werkzeug nur
   // (Wunsch Patrick 29. Oktober 2026: „wenn dort auch was ist, dann einfach Switch“)
@@ -945,6 +972,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   };
   const platzWahl = (nr) => setTimeout(() => {
     if (wechsel) { if (wechsel !== nr) tauschen(wechsel, nr); else setWechsel(null); return; }
+    if (nr !== platz) offenesNehmen(entwurf);
     setPlatz(nr);
   }, 0);
   const seitenSetzen = (liste) => setEntwurf((b) => Object.assign({}, b, { seiten: liste }));
@@ -1063,7 +1091,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         <span><b>{platzName(wechsel) || "Feld ohne T-Nr."} wechseln:</b> jetzt den neuen Platz antippen. Steht dort schon ein Werkzeug, tauschen die beiden.</span>
         <button className="knopf knopf--klein" data-eba-wechsel-ab="" onClick={() => setWechsel(null)}>Abbrechen</button>
       </div>}
-      <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => { setPlatz(null); setMarkiert(null); }}>
+      <div className="betrachter__buehne eba-buehne" ref={seite} onClick={() => { if (platz) offenesNehmen(entwurf); setPlatz(null); setMarkiert(null); }}>
         {zseite && bearbeiten && <div className="eba-zseite-leiste" onClick={(e) => e.stopPropagation()}>
           <label>Name <input className="eba-zseite-name" data-eba-seite-name="" value={zseite.name || ""}
             onChange={(e) => seiteAendern(seiteNr - 1, { name: e.target.value })} /></label>
@@ -1085,7 +1113,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
           artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))}
-          wechseln={() => setWechsel(platz)} />}
+          wechseln={() => setWechsel(platz)} offen={offenerPlatz} />}
         {!hatPlaetze && !zseite && <div className="abruf-leer"><b>Für {typ.name} sind noch keine Werkzeugplätze angelegt.</b>
           <p>Unter Maschinen → Typen → {typ.name} → Aufbau anlegen.</p></div>}
       </div>
