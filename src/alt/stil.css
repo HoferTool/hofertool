@@ -11898,3 +11898,9 @@ body.dunkel .cam-bild__text { color: #333 !important; }
 .cam-bild__rahmen { stroke-width: 3.5; }
 .cam-bild__rahmen--verdeckt { stroke-dasharray: 6 4; fill: rgba(240,138,36,.08); }
 .cam-bild__schild { font-size: 22px; }
+/* Seit 1.426.3: Bild gut lesbar */
+.cam-bild { width: 460px; max-width: calc(100vw - 32px); }
+.cam-bild__rahmen { stroke-width: 4; fill: none; }
+.cam-bild__schildgrund { fill: #f08a24; stroke: #fff; stroke-width: 3; }
+.cam-bild__schild { font: 800 30px system-ui, sans-serif; fill: #fff; stroke: none; paint-order: normal; }
+.cam-bild__text { font-size: 17px; padding: 4px 0 2px; }

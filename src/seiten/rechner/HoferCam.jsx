@@ -77,15 +77,26 @@ function ImFenster() {
 function MaschinenBild({ block }) {
   if (!block) return null;
   const r = bildBereich(block);
-  const tx = r.x + r.w / 2, ty = r.y > 60 ? r.y - 10 : r.y + r.h + 22;
+  // Seit 1.426.3 (Patrick: „soll gut lesbar sein“): grösser, Rest des
+  // Bilds abgedunkelt, Platz als Schild mit Grund über dem Werkzeug
+  const t = "T" + block.platz;
+  const sb = t.length * 19 + 20, sh = 40;
+  const sx = Math.max(4, Math.min(512 - sb - 4, r.x + r.w / 2 - sb / 2));
+  const sy = r.y - sh - 8 > 4 ? r.y - sh - 8 : r.y + r.h + 8;
   return (
     <div className="cam-bild" id="cam-bild" data-bereich={r.text}>
       <svg viewBox="0 0 512 512">
+        <defs><mask id="cam-bild-maske">
+          <rect x="0" y="0" width="512" height="512" fill="#fff" />
+          <rect x={r.x - 3} y={r.y - 3} width={r.w + 6} height={r.h + 6} rx="6" fill="#000" />
+        </mask></defs>
         <image href={import.meta.env.BASE_URL + "hilfe/star-sb20rg.png"} x="0" y="0" width="512" height="512" />
+        <rect x="0" y="0" width="512" height="512" fill="rgba(20,30,45,.45)" mask="url(#cam-bild-maske)" />
         <rect className={"cam-bild__rahmen" + (r.verdeckt ? " cam-bild__rahmen--verdeckt" : "")} x={r.x} y={r.y} width={r.w} height={r.h} rx="5" />
-        <text className="cam-bild__schild" x={tx} y={ty} textAnchor="middle">T{block.platz}</text>
+        <rect className="cam-bild__schildgrund" x={sx} y={sy} width={sb} height={sh} rx="8" />
+        <text className="cam-bild__schild" x={sx + sb / 2} y={sy + sh / 2 + 11} textAnchor="middle">{t}</text>
       </svg>
-      <div className="cam-bild__text">T{block.platz} · {r.text}</div>
+      <div className="cam-bild__text">{t} · {r.text}</div>
     </div>
   );
 }
