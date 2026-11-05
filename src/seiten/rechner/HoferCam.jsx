@@ -341,6 +341,7 @@ export default function HoferCam() {
                       onChange={(e) => blockAendern(b.id, "spAn", !e.target.checked)} /><span>M38 am Ende</span></label>
                   {gegen ? <>
                     {feld("X", "Position X", "Kanal 1: G0X…T21 zwischen Marke Start und Marke 2", 58)}
+                    {feld("Y", "Position Y", "Kanal 1: G0X…Y…T21, leer = ohne Y", 58)}
                     {feld("anZ", "Anfahren Z", "Kanal 2: G0Z… der Gegenspindel, am Schluss G1Z…F2000 zurück, dann G0Z20.", 58)}
                     {feld("m1", "Marke Start", "Kanal 1 und 2 vor dem Positionieren in X, leer = von selbst", 58, prog.marken[b.id]?.m1)}
                     {feld("m2", "Marke 2", "X positioniert, danach die Bearbeitung in Kanal 2, leer = von selbst", 58, prog.marken[b.id]?.m2)}

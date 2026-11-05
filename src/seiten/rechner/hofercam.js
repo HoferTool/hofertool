@@ -336,6 +336,7 @@ export function blockFehler(b, w = {}) {
     }
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
     if (zahl(b.X) == null) f.X = "Zahl fehlt";
+    if (String(b.Y ?? "").trim() !== "" && zahl(b.Y) == null) f.Y = "Zahl oder leer";
     if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
     const ms = ["m1", "m2", "m3"].map((n) => [n, markeNorm(b[n])]);
     for (const [n, m] of ms) if (String(b[n] ?? "").trim() !== "" && !m) f[n] = "M200–M999 oder leer";
@@ -452,7 +453,8 @@ export function blockZeilen(b, w = {}, marke) {
       "T" + b.platz + "(" + mitGegen(bez) + ")",
       ...(b.hd ? ["M1883D" + b.hd] : []),
       mk.m1,
-      "G0X" + (zahl(b.X) ?? b.X) + "T" + String(b.platz).slice(-2),
+      // Seit 1.422.0 (Wunsch Patrick 5. November 2026): wahlweise auch Y
+      "G0X" + (zahl(b.X) ?? b.X) + (zahl(b.Y) != null ? "Y" + zahl(b.Y) : "") + "T" + String(b.platz).slice(-2),
       mk.m2,
       ...markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]),
       mk.m3,

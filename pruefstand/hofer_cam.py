@@ -197,6 +197,9 @@ with sync_playwright() as p:
     t2 = [x for x in k(2) if x]
     pruefe("T3421 M37, ohne M38, Z55, Marke", "/M37S6000" in t2 and "/G0Z55." in t2 and "/G1Z55.F2000" in t2
         and t2[t2.index("G0G28W0.", a2)-2] == "/G0Z20." and t2[t2.index("M1", a2)+1] == "M330")
+    pg.fill("[data-block='2'] [data-camblock='Y']", "-2.5")
+    t = [x for x in k(1) if x]
+    pruefe("T3421 mit Y", any(x.startswith("G0X") and "Y-2.5T21" in x for x in t))
     pg.click("[data-camblock-weg='2']")
     # Seit 1.418.0: quer angetrieben T3100 an der Hauptspindel
     pg.click("#cam-neu-seite")
