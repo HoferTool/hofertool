@@ -66,6 +66,23 @@ with sync_playwright() as p:
     pruefe("Marken nach Blöcken weiter gepaart", len(sync) == 7 and pg.locator(".cam-zeile--fehler").count() == 0)
     pg.click("[data-camblock-weg='1']")
     pruefe("Block entfernen", pg.locator(".cam-block").count() == 1)
+    # Seit 1.400.0: Frontwerkzeug T1100–T1400 nach Patricks T1400-Beispiel
+    pg.click("#cam-neu-front")
+    pg.select_option("[data-block='1'] [data-camblock='platz']", "1400")
+    pg.fill("[data-block='1'] [data-camblock='bez']", "bohren d6.8")
+    pg.fill("[data-block='1'] [data-camblock='code']", "G83W18.5Q5250F0.06\nG80")
+    t = [x for x in k(1) if x]
+    a, b = t.index("M1", t.index("T100(AUSSEN PLAN)")), t.index("(Start Ende)")
+    pruefe("Frontblock wie Beispiel", t[a+1:b] == ["T1400(BOHREN D6.8)", "M1882D4", "M3S2500T14", "G0Z5.0",
+        "G83W18.5Q5250F0.06", "G80", "M1892", "G0Z0.", "T0", "M1"])
+    pruefe("Spindel Haupt, Gegen folgt", pg.input_value("[data-block='1'] [data-camblock='spindel']") == "haupt"
+           and pg.locator("[data-block='1'] option[value='gegen'][disabled]").count() == 1)
+    pg.select_option("[data-block='1'] [data-camblock='hd']", "")
+    t = [x for x in k(1) if x]
+    a, b = t.index("M1", t.index("T100(AUSSEN PLAN)")), t.index("(Start Ende)")
+    pruefe("Front ohne Hochdruck", t[a+1:b] == ["T1400(BOHREN D6.8)", "M3S2500T14", "G0Z5.0",
+        "G83W18.5Q5250F0.06", "G80", "G0Z0.", "T0", "M1"])
+    pg.click("[data-camblock-weg='1']")
     # Seit 1.398.0: angewählte Bearbeitung hervorgehoben
     pg.click("[data-block='0'] [data-camblock='code']")
     akt = pg.eval_on_selector_all("[data-kanal='1'].cam-zeile--aktiv .cam-text", "e => e.map(x => x.textContent)")

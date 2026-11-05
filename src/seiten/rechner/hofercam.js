@@ -245,10 +245,22 @@ function kanal2(w) {
 export const DREH_PLAETZE = ["100", "200", "300", "400", "500", "600"];
 export const HD_STUFEN = ["", "1", "2", "3", "4", "5", "6"];
 
-export function neuerBlock(bloecke = []) {
+// Seit 1.400.0: feste Frontwerkzeuge T1100–T1400 (Patricks Beispiel
+// T1400 Bohren D6.8, 5. November 2026). Wahl Haupt- oder Gegenspindel;
+// die Gegenspindel kommt erst mit Patricks Beispiel dazu.
+export const FRONT_PLAETZE = ["1100", "1200", "1300", "1400"];
+
+const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+export function neuerBlock(bloecke = [], art = "dreh") {
   const belegt = new Set(bloecke.map((b) => b.platz));
+  if (art === "front") {
+    const platz = FRONT_PLAETZE.find((p) => !belegt.has(p)) || "1100";
+    return { id: neueId(), art: "front", spindel: "haupt", platz, bez: "", hd: "4", dreh: "3",
+      S: "2500", anZ: "5.0", wegZ: "0", code: "" };
+  }
   const platz = DREH_PLAETZE.find((p) => !belegt.has(p)) || "100";
-  return { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), art: "dreh",
+  return { id: neueId(), art: "dreh",
     platz, bez: "", hd: "4", dreh: "3", S: "3000", anZ: "0", wegF: "0.05", wegA: "45", code: "" };
 }
 
@@ -256,6 +268,10 @@ export function blockFehler(b) {
   const f = {};
   if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
   if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
+  if (b.art === "front") {
+    if (zahl(b.wegZ) == null) f.wegZ = "Zahl fehlt";
+    return f;
+  }
   if (zahl(b.wegF) == null) f.wegF = "Zahl fehlt";
   if (String(b.wegA).trim() !== "" && zahl(b.wegA) == null) f.wegA = "Zahl oder leer";
   return f;
@@ -264,6 +280,22 @@ export function blockFehler(b) {
 export function blockZeilen(b) {
   const t = Number(b.platz) / 100;
   const bez = String(b.bez || "").trim();
+  if (b.art === "front") {
+    // Nach Patricks T1400: Hochdruck der Front M1882D… / M1892, kein X,
+    // nach der Bearbeitung mit Z zurück in sichere Richtung
+    const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+    return [
+      "T" + b.platz + (bez ? "(" + bez + ")" : ""),
+      ...(b.hd ? ["M1882D" + b.hd] : []),
+      "M" + (b.dreh === "4" ? 4 : 3) + "S" + String(b.S).trim() + "T" + t,
+      "G0Z" + (zahl(b.anZ) ?? b.anZ),
+      ...code,
+      ...(b.hd ? ["M1892"] : []),
+      "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
+      "T0",
+      "M1",
+    ];
+  }
   const winkel = String(b.wegA).trim() === "" ? "" : ",A" + (zahl(b.wegA) ?? b.wegA);
   const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
   return [
