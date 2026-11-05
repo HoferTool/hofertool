@@ -245,9 +245,12 @@ export default function HoferCam() {
                 {b.sArt === "vc"
                   ? <>
                     {feld("vc", "Vc", "Schnittgeschwindigkeit in m/min", 54)}
-                    {feld("vcD", "Ø", front ? "Werkzeug-Ø in mm" : "Durchmesser in mm, leer = Material-Ø A aus G266", 54)}
-                    <span className="cam-vc-s klein" data-camblock-s={i} title="Daraus gerechnete Drehzahl">
-                      {drehzahl(b, w) ? "= S" + drehzahl(b, w) : "S –"}</span>
+                    <label className="cam-feld cam-g96" title="G96 konstante Schnittgeschwindigkeit: im Kopf der Bearbeitung G96 mit S = Vc, am Ende G97">
+                      <input type="checkbox" data-camblock="g96" checked={!!b.g96}
+                        onChange={(e) => blockAendern(b.id, "g96", e.target.checked)} /><span>G96</span></label>
+                    {!b.g96 && feld("vcD", "Ø", front ? "Werkzeug-Ø in mm" : "Durchmesser in mm, leer = Material-Ø A aus G266", 54)}
+                    <span className="cam-vc-s klein" data-camblock-s={i} title={b.g96 ? "Mit G96 steht Vc als S im Programm" : "Daraus gerechnete Drehzahl"}>
+                      {b.g96 ? (drehzahl(b, w) ? "G96 S" + drehzahl(b, w) : "S –") : (drehzahl(b, w) ? "= S" + drehzahl(b, w) : "S –")}</span>
                   </>
                   : feld("S", "Drehzahl S", "Drehzahl")}
                 {front

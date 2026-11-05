@@ -278,6 +278,8 @@ export function vcDurchmesser(b, w = {}) {
 export function drehzahl(b, w = {}) {
   if (b.sArt !== "vc") return /^\d+$/.test(String(b.S).trim()) && Number(b.S) > 0 ? String(b.S).trim() : null;
   const vc = zahl(b.vc), d = vcDurchmesser(b, w);
+  // Seit 1.403.0: mit G96 hält die Maschine Vc selbst, S ist dann Vc
+  if (b.g96) return vc != null && Number(vc) > 0 ? String(b.vc).trim().replace(",", ".") : null;
   if (vc == null || !(Number(vc) > 0) || !(d > 0)) return null;
   return String(Math.round(Number(vc) * 1000 / (Math.PI * d)));
 }
@@ -287,7 +289,7 @@ export function blockFehler(b, w = {}) {
   if (b.sArt === "vc") {
     if (zahl(b.vc) == null || !(Number(zahl(b.vc)) > 0)) f.vc = "Zahl fehlt";
     if (String(b.vcD ?? "").trim() !== "" && zahl(b.vcD) == null) f.vcD = "Zahl oder leer";
-    else if (vcDurchmesser(b, w) == null) f.vcD = b.art === "front" ? "Ø fehlt" : "Ø fehlt (oder A oben)";
+    else if (!b.g96 && vcDurchmesser(b, w) == null) f.vcD = b.art === "front" ? "Ø fehlt" : "Ø fehlt (oder A oben)";
   } else if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
   if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
   if (b.art === "front") {
@@ -301,6 +303,9 @@ export function blockFehler(b, w = {}) {
 
 export function blockZeilen(b, w = {}) {
   const S = drehzahl(b, w) ?? String(b.S).trim();
+  // Seit 1.403.0 (Wunsch Patrick 5. November 2026): G96 im Kopf der
+  // Bearbeitung ein, am Ende vor T0 mit G97 wieder aus
+  const g96 = b.sArt === "vc" && !!b.g96;
   const t = Number(b.platz) / 100;
   const bez = String(b.bez || "").trim();
   if (b.art === "front") {
@@ -310,11 +315,12 @@ export function blockZeilen(b, w = {}) {
     return [
       "T" + b.platz + (bez ? "(" + bez + ")" : ""),
       ...(b.hd ? ["M1882D" + b.hd] : []),
-      "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
+      (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
       "G0Z" + (zahl(b.anZ) ?? b.anZ),
       ...code,
       ...(b.hd ? ["M1892"] : []),
       "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
+      ...(g96 ? ["G97"] : []),
       "T0",
       "M1",
     ];
@@ -324,12 +330,13 @@ export function blockZeilen(b, w = {}) {
   return [
     "T" + b.platz + (bez ? "(" + bez + ")" : ""),
     ...(b.hd ? ["M1881D" + b.hd] : []),
-    "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
+    (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
     "G0X[#531+1.]Z" + (zahl(b.anZ) ?? b.anZ),
     ...code,
     "G1X[#531+0.2]" + winkel + "F" + (zahl(b.wegF) ?? b.wegF),
     "G0X30.",
     ...(b.hd ? ["M1891"] : []),
+    ...(g96 ? ["G97"] : []),
     "T0",
     "M1",
   ];

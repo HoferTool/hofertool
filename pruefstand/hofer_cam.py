@@ -94,6 +94,22 @@ with sync_playwright() as p:
     a = float(pg.input_value("[data-cam='A']").replace(",", "."))
     s_erw = round(100 * 1000 / (3.141592653589793 * a))
     pruefe("Drehblock Vc mit Material-Ø", ("M3S%dT1" % s_erw) in [x for x in k(1) if x])
+    # Seit 1.403.0: G96 als Option, am Ende G97
+    pg.check("[data-block='1'] [data-camblock='g96']")
+    t = [x for x in k(1) if x]
+    a, b = t.index("M1", t.index("T100(AUSSEN PLAN)")), t.index("(Start Ende)")
+    pruefe("Front mit G96", t[a+1:b] == ["T1400(BOHREN D6.8)", "G96M3S53.4T14", "G0Z5.0",
+        "G83W18.5Q5250F0.06", "G80", "G0Z0.", "G97", "T0", "M1"]
+        and pg.locator("[data-block='1'] [data-camblock='vcD']").count() == 0)
+    pg.check("[data-block='0'] [data-camblock='g96']")
+    t = [x for x in k(1) if x]
+    i0 = t.index("T100(AUSSEN PLAN)")
+    a = t.index("M1", i0)
+    pruefe("Drehblock mit G96", "G96M3S100T1" in t[i0:a+1] and t[a-2:a+1] == ["G97", "T0", "M1"])
+    pg.uncheck("[data-block='0'] [data-camblock='g96']")
+    pg.uncheck("[data-block='1'] [data-camblock='g96']")
+    t = [x for x in k(1) if x]
+    pruefe("G96 wieder aus", "G97" not in t[t.index("T100(AUSSEN PLAN)"):t.index("(Start Ende)")])
     pg.select_option("[data-block='0'] [data-camblock='sArt']", "S")
     pruefe("Zurück auf S", "M3S3000T1" in [x for x in k(1) if x])
     pg.click("[data-camblock-weg='1']")

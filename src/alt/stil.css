@@ -11830,3 +11830,6 @@ body.dunkel .eba-schriftzeile { background: #1d2733; }
 .eba-pf-schrift-ziele button.aktiv { background: #1f6feb; border-color: #1f6feb; color: #fff; }
 body.dunkel .eba-pf-schrift-ziele button { background: #2b333d; color: #e6edf3; -webkit-text-fill-color: #e6edf3; }
 body.dunkel .eba-pf-schrift-ziele button.aktiv { background: #1f6feb; color: #fff; -webkit-text-fill-color: #fff; }
+/* Hofer Cam: Häkchen G96 neben Vc, Kästchen und Text auf einer Zeile */
+.cam-g96 { flex-direction: row; align-items: center; gap: 4px; }
+.cam-g96 input { width: auto; }
