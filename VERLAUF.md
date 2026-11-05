@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.429.0** (5. November 2026) **Einrichtblatt: PDF als weitere Seite(n)** (Patrick: „Docs hinterlegen, nicht als Bild, sondern gleich hochladen … als weitere Seite oder Seiten, runterscrollen wie PDF“): beim Bearbeiten unten „+ PDF“ neben „+ Seite“; jedes PDF wird eine eigene Seite mit Reiter (Dateiname), alle seine Seiten stehen untereinander zum Rollen; Drucken, Druck im Büro und EB-PDF-Sicherung nehmen sie mit. Seit 1.429.1 sehen auch Externe sie (Entscheid Patrick). Prüfstand `eb_pdf_seiten.py`.
 - **1.406.0** (5. November 2026) **Einrichtblatt: Schrift nur für den markierten Text** (Patrick: „Es soll nur die Sachen machen, welche markiert wurden“, Entscheid „Nur markierten Text“). Tätigkeit, Mass, Notiz Mitte, Kopftexte und Bemerkung lassen sich wie in Word markieren; Farbe, Dünn/Fett und Grösse gelten nur dort. Text bleibt rein gespeichert, Formatierung daneben in `fmt` (`src/einrichtblatt/markiert.jsx`).
 - **1.404.0** (5. November 2026) **Externe ändern den Zustand ihrer Aufträge** (Patrick: „externe müssen status ändern können z.B. fertig oder läuft“): in Produktion (Zustand und Beenden), Pad und QS Check, nur an Maschinen ihrer Parks und nur den Zustand; die Datenbank prüft das (`sql/extern-zustand.sql`, eingespielt). Prüfstand `extern_zustand.py`.
 - **1.403.1** (5. November 2026) **Planwand-Fenster im Pad wieder über den ganzen Bildschirm** (Patrick: „Soll ganzes Feld sein, die Planwand-Fenster dort“): seit 1.381.4 war die Pad-Regel für schmale Fenster (600 Pixel, vier `:not()`) stärker als die Regel des Planwand-Fensters, das Fenster stand nur halb breit da. Die Regel in `stil.css` hat jetzt mehr Klassen; `pad_planwand.py` prüft die Breite.
@@ -738,3 +739,8 @@ Planwand mit Ziehen, Verlängern, Nachrücken und Lücke schliessen · Produktio
 
 - Wunsch Patrick: „Offene Meldungen nur bei QS Check, bei den Maschinen soll normal ein Feld aufpoppen wie immer.“
 - Der Knopf „Offene Meldungen“ steht nur noch in der Kopfleiste des QS Check (`meldungen` an `PadKopf`), nicht mehr auf Startseite, Parks und Dashboard der Maschine. An der Maschine bleibt die Meldung das Feld statt des Wetters.
+
+## 1.428.0 — NC-PRO leuchtet in der Themenfarbe (5. November 2026)
+
+- Wunsch Patrick: „das NC PRO soll je nach dem welche Themenfarbe so leuchten“.
+- Verlauf und Schein des Schriftzugs NC-PRO (Kopf der Seite und Markenleiste im eigenen Fenster) kommen aus `--ncpro-a`, `--ncpro-b`, `--ncpro-schein` je Themenfarbe, hell und dunkel; Blau bleibt wie vorher. Prüfstand `nc_pro_leuchten.py`.

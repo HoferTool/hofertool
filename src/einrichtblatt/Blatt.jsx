@@ -22,7 +22,10 @@ import { werkzeugWaehlen, positionOeffnen } from "../seiten/bestellungen/Positio
 import { excelVorlesen, blattVonAnderem, blattLaden, blattSpeichern, blattIstGut, leeresBlatt, stammSpeichern, typSpeichern, artikelBildSetzen,
   artikelHolen, artikelBezeichnung, STAMM_FELDER, WASCHGEBINDE, prgNummern, platzInGebrauch } from "./daten.js";
 import { bildDaten, platzBild, eigeneBilder, sinnbilder, bildSchluesselVon } from "./bilder.js";
-import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freiesBildHochladen, werkzeugOffen } from "./daten.js";
+import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freiesBildHochladen, werkzeugOffen, blattPdfHochladen } from "./daten.js";
+import { PdfSeiten, istPdfSeite, pdfDaten } from "./PdfSeiten.jsx";
+import { pdfjs } from "../teile/PdfAnsicht.jsx";
+import { pdfSeitenAlsBilder } from "../teile/drucken.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
@@ -842,7 +845,8 @@ export function ZusatzSeite({ seite, bearbeiten, inhaltBearbeiten }) {
 }
 
 // Unten die Reiter: das Werkzeugblatt und die weiteren Seiten
-function SeitenReiter({ seiten, aktiv, waehlen, bearbeiten, neu }) {
+function SeitenReiter({ seiten, aktiv, waehlen, bearbeiten, neu, neuPdf }) {
+  const datei = useRef(null);
   if (!seiten.length && !bearbeiten) return null;
   return (
     <div className="eba-reiter" data-eba-reiter="">
@@ -852,6 +856,11 @@ function SeitenReiter({ seiten, aktiv, waehlen, bearbeiten, neu }) {
         <button key={i} className={"eba-reiter__r" + (aktiv === i + 1 ? " eba-reiter__r--an" : "")}
           data-eba-seite-nr={i + 1} onClick={() => waehlen(i + 1)}>{x.name || "Seite " + (i + 2)}</button>))}
       {bearbeiten && <button className="eba-reiter__r eba-reiter__neu" data-eba-seite-neu="" onClick={neu}>+ Seite</button>}
+      {bearbeiten && neuPdf && <>
+        <button className="eba-reiter__r eba-reiter__neu" data-eba-pdf-neu="" title="PDF als weitere Seite(n) hochladen"
+          onClick={() => datei.current && datei.current.click()}>+ PDF</button>
+        <input ref={datei} type="file" accept="application/pdf,.pdf" multiple hidden data-eba-pdf-datei="" data-ablegen="direkt"
+          onChange={(e) => { const f = [...(e.target.files || [])]; e.target.value = ""; neuPdf(f); }} /></>}
     </div>
   );
 }
@@ -903,6 +912,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const { typ, paths, teil, typDaten } = daten;
   const excel = typDaten.blatt_url || null;
   const blatt = bearbeiten ? entwurf : (daten.blatt || entwurf);
+  // PDF-Seiten (seit 1.429.0) sehen auch Externe (Entscheid Patrick 5. November 2026)
   const seiten = Array.isArray(blatt.seiten) ? blatt.seiten : [];
   useEffect(() => {
     if (!bearbeiten) { setKopfZiel(null); return undefined; }
@@ -1101,7 +1111,17 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     }
     drucken();
   };
-  const drucken = () => {
+  const drucken = async () => {
+    if (istPdfSeite(zseite)) {
+      setDruckt(true);
+      try {
+        const [lib, d] = await Promise.all([pdfjs(), pdfDaten(zseite.url)]);
+        const bilder = await pdfSeitenAlsBilder(lib, d);
+        inDerAppDrucken(bilder, { quer: bilder.length > 0 && /--quer/.test(bilder[0].className), titel: (zseite.name || "PDF") + " " + hocoNr });
+      } catch (f) { alt.meldung("Drucken ging nicht: " + alt.fehlertext(f), "fehler"); }
+      finally { setDruckt(false); }
+      return;
+    }
     const k = seite.current && seite.current.querySelector(zseite ? "[data-eba-zseite]" : "[data-eba-seite]");
     if (!k) return;
     const kopie = k.cloneNode(true);
@@ -1161,6 +1181,24 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const neueSeite = () => {
     seitenSetzen(seiten.concat([{ name: "Seite " + (seiten.length + 2), quer: false, html: "" }]));
     setSeiteNr(seiten.length + 1);
+  };
+  // PDFs als weitere Seiten: jede Datei eine Seite mit Reiter, Name aus
+  // dem Dateinamen; das PDF bleibt PDF (Wunsch Patrick 5. November 2026)
+  const neuePdfs = async (dateien) => {
+    const liste = dateien.filter((d) => /pdf/i.test(d.type || "") || /\.pdf$/i.test(d.name || ""));
+    if (!liste.length) { if (dateien.length) alt.meldung("Nur PDF-Dateien lassen sich als Seite hochladen.", "warn"); return; }
+    setLaeuft(true);
+    try {
+      const neu = [];
+      for (const d of liste) {
+        const { url, pfad } = await blattPdfHochladen(d);
+        neu.push({ art: "pdf", name: String(d.name || "PDF").replace(/\.pdf$/i, "").slice(0, 60) || "PDF", url, pfad });
+      }
+      setEntwurf((b) => Object.assign({}, b, { seiten: (Array.isArray(b.seiten) ? b.seiten : []).concat(neu) }));
+      setSeiteNr(seiten.length + 1);
+      alt.meldung(neu.length === 1 ? "PDF als Seite eingefügt. Speichern nicht vergessen." : neu.length + " PDFs als Seiten eingefügt. Speichern nicht vergessen.", "gut");
+    } catch (f) { alt.meldung("PDF nicht hochgeladen: " + alt.fehlertext(f), "fehler"); }
+    finally { setLaeuft(false); }
   };
   const seiteWeg = async (i) => {
     if (!(await alt.nachfragen({ titel: "Seite löschen", text: "Die Seite „" + (seiten[i].name || "") + "“ löschen?",
@@ -1243,7 +1281,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         <div className="betrachter__knoepfe">
           {bearbeiten
             ? <>
-                <span className="eba-hinweis">{zseite ? "Seite antippen zum Schreiben" : "Kopf direkt ausfüllen, Platz antippen für Werkzeug"}</span>
+                <span className="eba-hinweis">{istPdfSeite(zseite) ? "PDF-Seite: Name ändern oder löschen" : zseite ? "Seite antippen zum Schreiben" : "Kopf direkt ausfüllen, Platz antippen für Werkzeug"}</span>
                 {!daten.blatt && <button className="knopf knopf--klein" data-eba-von-anderem="" disabled={laeuft} onClick={vonAnderem}>Von anderem Blatt übernehmen</button>}
                 {bildKnopf}
                 <button className="knopf knopf--klein" data-eba-abbrechen="" onClick={abbrechen}>Abbrechen</button>
@@ -1283,15 +1321,16 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         {zseite && bearbeiten && <div className="eba-zseite-leiste" onClick={(e) => e.stopPropagation()}>
           <label>Name <input className="eba-zseite-name" data-eba-seite-name="" value={zseite.name || ""}
             onChange={(e) => seiteAendern(seiteNr - 1, { name: e.target.value })} /></label>
-          <span className="eba-zseite-format">
+          {!istPdfSeite(zseite) && <><span className="eba-zseite-format">
             <button className={"knopf knopf--klein" + (!zseite.quer ? " knopf--haupt" : "")} data-eba-seite-hoch=""
               onClick={() => seiteAendern(seiteNr - 1, { quer: false })}>Hochformat</button>
             <button className={"knopf knopf--klein" + (zseite.quer ? " knopf--haupt" : "")} data-eba-seite-quer=""
               onClick={() => seiteAendern(seiteNr - 1, { quer: true })}>Querformat</button></span>
-          <button className="knopf knopf--klein" data-eba-seite-inhalt="" onClick={() => inhaltBearbeiten(seiteNr - 1)}>Inhalt bearbeiten</button>
+          <button className="knopf knopf--klein" data-eba-seite-inhalt="" onClick={() => inhaltBearbeiten(seiteNr - 1)}>Inhalt bearbeiten</button></>}
           <button className="knopf knopf--klein knopf--gefahr-leise" data-eba-seite-weg="" onClick={() => seiteWeg(seiteNr - 1)}>Seite löschen</button>
         </div>}
-        {zseite
+        {istPdfSeite(zseite) ? <PdfSeiten seite={zseite} />
+          : zseite
           ? <ZusatzSeite seite={zseite} bearbeiten={bearbeiten} inhaltBearbeiten={() => inhaltBearbeiten(seiteNr - 1)} />
           : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt} auftrag={auftrag}
               bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} fmtSetzen={kopfFmtSetzen} pruefen={darf}
@@ -1305,7 +1344,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         {!hatPlaetze && !zseite && <div className="abruf-leer"><b>Für {typ.name} sind noch keine Werkzeugplätze angelegt.</b>
           <p>Unter Maschinen → Typen → {typ.name} → Aufbau anlegen.</p></div>}
       </div>
-      <SeitenReiter seiten={seiten} aktiv={seiteNr} waehlen={setSeiteNr} bearbeiten={bearbeiten} neu={neueSeite} />
+      <SeitenReiter seiten={seiten} aktiv={seiteNr} waehlen={setSeiteNr} bearbeiten={bearbeiten} neu={neueSeite} neuPdf={darf ? neuePdfs : null} />
     </div>
   );
 }

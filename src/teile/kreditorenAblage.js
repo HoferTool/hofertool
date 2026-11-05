@@ -36,6 +36,20 @@ const ABGELEGT = ".hofer-abgelegt.json";
 const ABGELEGT_MAX = 200;
 // Eine Datei, die noch so jung ist, schreibt der Scanner vielleicht noch
 const RUHE_MS = 60000;
+// Sperre im Ordner: legen zwei Geräte mit freigegebenem Ordner gleichzeitig
+// ab, entstehen sonst doppelte Rechnungen (Patrick 5. November 2026: zweiter
+// PC sieht jetzt auch die Liste). Wer ablegt, schreibt sich hinein und
+// erneuert sie bei jedem Stapel; ist sie älter als SPERRE_MS, gilt sie nicht mehr.
+const SPERRE = ".hofer-sperre.json";
+const SPERRE_MS = 10 * 60000;
+function geraetKennung() {
+  try {
+    let k = localStorage.getItem("hofer.kreditoren.geraet");
+    if (!k) { k = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem("hofer.kreditoren.geraet", k); }
+    return k;
+  } catch (f) { return "tab-" + Math.random().toString(36).slice(2); }
+}
+const GERAET = geraetKennung();
 
 // ---------- Ordner ----------
 
@@ -238,6 +252,8 @@ export async function krSortieren(h, { sofort = false, fortschritt } = {}) {
     }
     const ergebnis = { stapel: 0, abgelegt: 0, zuordnen: 0, doppelt: 0, fehler: [] };
     if (!offen.length) return ergebnis;
+    if (!(await sperreHolen(h))) { ergebnis.besetzt = true; return ergebnis; }
+    try {
     // Die Programmteile zuerst einmal laden: fehlt einer (neue Fassung
     // draussen, dieser Tab noch alt), bricht es hier für alle ab statt
     // je Datei mit „Keine Verbindung zum Server“ (Patrick 2. November 2026)
@@ -249,6 +265,7 @@ export async function krSortieren(h, { sofort = false, fortschritt } = {}) {
     const zeilen = [];
     for (const name of offen.sort()) {
       if (fortschritt) fortschritt(name, ergebnis.stapel, offen.length);
+      try { await sperreSchreiben(h); } catch (f) { /* bleibt die alte Zeit */ }
       try {
         const l = await stapelAblegen(h, name, liste, zuInfo, abgelegtListe);
         ergebnis.stapel++;
@@ -267,8 +284,26 @@ export async function krSortieren(h, { sofort = false, fortschritt } = {}) {
     try { await abgelegtSchreiben(h, abgelegtListe); } catch (f) { /* nur die Liste zum Korrigieren */ }
     try { await protokoll(h, zeilen); } catch (f) { /* Protokoll offen in einem Programm */ }
     return ergebnis;
+    } finally {
+      try { await h.removeEntry(SPERRE); } catch (f) { /* verfällt von selbst */ }
+    }
   })();
   try { return await laeuft; } finally { laeuft = null; }
+}
+
+async function sperreSchreiben(h) {
+  await schreiben(h, SPERRE, JSON.stringify({ geraet: GERAET, zeit: Date.now() }));
+}
+
+// Frei oder eigene Sperre: selbst eintragen, kurz warten und nachlesen, ob
+// nicht ein anderes Gerät im selben Augenblick dasselbe getan hat
+async function sperreHolen(h) {
+  const frei = (s) => !s || !s.geraet || s.geraet === GERAET || !(Date.now() - (s.zeit || 0) < SPERRE_MS);
+  if (!frei(await textLesen(h, SPERRE, null))) return false;
+  await sperreSchreiben(h);
+  await new Promise((r) => setTimeout(r, 1500));
+  const s = await textLesen(h, SPERRE, null);
+  return !!s && s.geraet === GERAET;
 }
 
 // ---------- Zuordnen von Hand ----------

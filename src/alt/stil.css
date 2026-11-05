@@ -11626,13 +11626,32 @@ body.dunkel .ncpro-kopf__logo--dunkel { display: block; }
 }
 .ncpro-titel::before, .kt-marke__name::before { content: none; }
 .ncpro-text { color: #0b2545; }
+/* Seit 1.428.0 leuchtet NC-PRO in der Themenfarbe (Wunsch Patrick
+   5. November 2026: „soll je nach Themenfarbe so leuchten“): Verlauf und
+   Schein kommen aus --ncpro-a/-b/-schein, je Thema und hell/dunkel. */
+body { --ncpro-a: #1f6fe0; --ncpro-b: #0aa5e8; --ncpro-schein: rgba(31, 111, 224, .45); }
+body.dunkel { --ncpro-a: #5aa2ff; --ncpro-b: #38d0ff; --ncpro-schein: rgba(56, 160, 255, .55); }
+body[data-thema="rot"]     { --ncpro-a: #c62828; --ncpro-b: #ff5a3c; --ncpro-schein: rgba(220, 50, 40, .45); }
+body[data-thema="gruen"]   { --ncpro-a: #1a8a4f; --ncpro-b: #2ec27e; --ncpro-schein: rgba(30, 160, 90, .45); }
+body[data-thema="gelb"]    { --ncpro-a: #b8860b; --ncpro-b: #e8b100; --ncpro-schein: rgba(220, 165, 0, .5); }
+body[data-thema="rosa"]    { --ncpro-a: #c2185b; --ncpro-b: #f0509a; --ncpro-schein: rgba(220, 40, 130, .45); }
+body[data-thema="violett"] { --ncpro-a: #6a2fc0; --ncpro-b: #a35cf0; --ncpro-schein: rgba(120, 60, 220, .45); }
+body[data-thema="orange"]  { --ncpro-a: #c95a10; --ncpro-b: #ff8a2a; --ncpro-schein: rgba(240, 110, 20, .45); }
+body.dunkel[data-thema="rot"]     { --ncpro-a: #ff6b5e; --ncpro-b: #ffa08a; --ncpro-schein: rgba(255, 100, 85, .6); }
+body.dunkel[data-thema="gruen"]   { --ncpro-a: #3fd68a; --ncpro-b: #8af0bd; --ncpro-schein: rgba(70, 220, 140, .55); }
+body.dunkel[data-thema="gelb"]    { --ncpro-a: #f2c85a; --ncpro-b: #ffe08a; --ncpro-schein: rgba(245, 200, 80, .55); }
+body.dunkel[data-thema="rosa"]    { --ncpro-a: #ff6fb8; --ncpro-b: #ffa8d4; --ncpro-schein: rgba(255, 110, 185, .6); }
+body.dunkel[data-thema="violett"] { --ncpro-a: #b07cf5; --ncpro-b: #d4b0ff; --ncpro-schein: rgba(180, 125, 245, .6); }
+body.dunkel[data-thema="orange"]  { --ncpro-a: #ff9a48; --ncpro-b: #ffc48a; --ncpro-schein: rgba(255, 150, 70, .6); }
 .ncpro-text b { font-weight: inherit; color: transparent;
-  background: linear-gradient(100deg, #1f6fe0 0%, #0aa5e8 100%);
+  background: linear-gradient(100deg, var(--ncpro-a) 0%, var(--ncpro-b) 100%);
   -webkit-background-clip: text; background-clip: text; }
+.ncpro-titel, .kt-marke__name {
+  filter: drop-shadow(0 0 6px var(--ncpro-schein)) drop-shadow(0 2px 4px rgba(0, 0, 0, .12)); }
 body.dunkel .ncpro-text { color: #fff !important; }
-body.dunkel .ncpro-text b { color: transparent !important; background: linear-gradient(100deg, #5aa2ff 0%, #38d0ff 100%);
-  -webkit-background-clip: text; background-clip: text; }
-body.dunkel .ncpro-titel, body.dunkel .kt-marke__name { filter: drop-shadow(0 3px 8px rgba(56, 160, 255, .25)); }
+body.dunkel .ncpro-text b { color: transparent !important; }
+body.dunkel .ncpro-titel, body.dunkel .kt-marke__name {
+  filter: drop-shadow(0 0 8px var(--ncpro-schein)) drop-shadow(0 0 18px var(--ncpro-schein)); }
 .kt-marke__name { font-size: 20px; }
 @media (max-width: 760px) {
   .ncpro-kopf { grid-template-columns: 1fr auto; }
@@ -11930,3 +11949,8 @@ body.dunkel .cam-wahl__punkt:hover, body.dunkel .cam-wahl__punkt:focus { backgro
 .cam-vorlage__fehler { color: #b3261e; }
 body.dunkel .cam-vorlage { background: #2a2118; border-color: #8a5a2a; }
 body.dunkel .cam-vorlage__fehler { color: #ff8a80 !important; }
+
+/* Einrichtblatt: PDF als weitere Seite, alle Seiten untereinander zum Rollen (seit 1.429.0) */
+.eba-pdf { display: flex; flex-direction: column; align-items: center; gap: 14px; padding-bottom: 14px; }
+.eba-pdf-seite { background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .35); flex: none; }
+.eba-pdf-seite canvas { display: block; }

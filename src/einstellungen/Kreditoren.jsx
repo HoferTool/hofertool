@@ -71,7 +71,8 @@ export default function Kreditoren() {
     try {
       const l = await krSortieren(h, { sofort: true,
         fortschritt: (name, n, alle) => setArbeit("„" + name + "“ wird getrennt und abgelegt (" + (n + 1) + " von " + alle + ") …") });
-      setErgebnis({ ok: !l.fehler.length, text: !l.stapel && !l.fehler.length
+      setErgebnis(l.besetzt ? { ok: false, text: "Ein anderes Gerät legt gerade Rechnungen ab. In ein paar Minuten nochmals versuchen." }
+        : { ok: !l.fehler.length, text: !l.stapel && !l.fehler.length
         ? "Keine neuen PDFs im Ordner."
         : alt.zahlText(l.abgelegt) + (l.abgelegt === 1 ? " Rechnung" : " Rechnungen") + " abgelegt"
           + (l.zuordnen ? ", " + l.zuordnen + " zum Zuordnen (unten)" : "")
