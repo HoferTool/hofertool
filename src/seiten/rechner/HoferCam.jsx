@@ -170,20 +170,26 @@ function MaschinenBild({ block }) {
     if (!el) return;
     const d = el.ownerDocument, win = d.defaultView;
     const rechnen = () => {
-      const k = [...d.querySelectorAll(".cam-bearb__kopf .knopf")].map((x) => x.getBoundingClientRect());
+      // Seit 1.427.3 (Patrick: „Bild kleiner, dass es den Bearbeitungsreiter
+      // nicht überdeckt“): frei bleiben die Knöpfe der Bearbeitungen und
+      // alle Felder der Bearbeitung unter der Maus; gesucht ist die grösste
+      // Breite, bei der das Bild oben rechts nichts davon berührt
+      const sel = ".cam-bearb__kopf .knopf" + (block ? `, .cam-block[data-blockid="${block.id}"] :is(input, select, textarea, button, .cam-vorlage)` : "");
+      const k = [...d.querySelectorAll(sel)].map((x) => x.getBoundingClientRect()).filter((x) => x.width && x.height);
       const vw = win.innerWidth, vh = win.innerHeight, oben = 70, rand = 16, text = 44;
-      if (!k.length) { setMass(Math.min(560, vh - oben - text - rand)); return; }
-      const rechts = Math.max(...k.map((x) => x.right)), obenK = Math.min(...k.map((x) => x.top)), untenK = Math.max(...k.map((x) => x.bottom));
-      // rechts neben den Knöpfen, über den Knöpfen oder unter ihnen
-      const neben = Math.min(vw - rechts - 2 * rand, vh - oben - text - rand);
-      const ueber = Math.min(vw - 2 * rand, obenK - oben - text - 8);
-      const unter = untenK > oben ? 0 : Math.min(vw - 2 * rand, vh - oben - text - rand);
-      setMass(Math.max(200, Math.min(900, Math.max(neben, ueber, unter))));
+      const hoechst = Math.min(900, vw - 2 * rand - 12, vh - oben - text - rand);
+      const frei = (s) => {
+        const l = vw - rand - s - 12, u = oben + s + 12 + text;
+        return !k.some((x) => x.right > l && x.left < vw - rand && x.bottom > oben && x.top < u);
+      };
+      let s = hoechst;
+      while (s > 120 && !frei(s)) s -= 10;
+      setMass(Math.max(120, s));
     };
     rechnen();
     win.addEventListener("resize", rechnen); win.addEventListener("scroll", rechnen, true);
     return () => { win.removeEventListener("resize", rechnen); win.removeEventListener("scroll", rechnen, true); };
-  }, [!!block]);
+  }, [block?.id]);
   if (!block) return null;
   const r = bildBereich(block);
   // Seit 1.426.3 (Patrick: „soll gut lesbar sein“): grösser, Rest des
@@ -458,7 +464,7 @@ export default function HoferCam() {
             </label>
           );
           return { key: b.id, inhalt: (
-            <div key={b.id} className={"cam-block" + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i}
+            <div key={b.id} className={"cam-block" + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i} data-blockid={b.id}
               onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}
               onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
               onPointerLeave={(e) => {

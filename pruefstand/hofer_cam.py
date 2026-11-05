@@ -262,9 +262,9 @@ with sync_playwright() as p:
     pruefe("Bild Kanal 2", pg.get_attribute("#cam-bild", "data-bereich") == "Kanal 2" and "T2100" in pg.text_content("#cam-bild"))
     pg.evaluate("window.scrollTo(0, 0)"); pg.hover("[data-block='0'] [data-camblock='bez']"); pg.wait_for_timeout(150)
     ueberlapp = pg.evaluate("""() => { const a = document.querySelector('#cam-bild').getBoundingClientRect();
-        return [...document.querySelectorAll('.cam-bearb__kopf .knopf')].some(k => { const b = k.getBoundingClientRect();
+        return [...document.querySelectorAll('.cam-bearb__kopf .knopf, .cam-block[data-block="0"] :is(input, select, textarea, button)')].some(k => { const b = k.getBoundingClientRect();
           return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; }); }""")
-    pruefe("Bild deckt keine Knöpfe", not ueberlapp and pg.evaluate("document.querySelector('#cam-bild').getBoundingClientRect().width") >= 200)
+    pruefe("Bild deckt weder Knöpfe noch Bearbeitung", not ueberlapp and pg.evaluate("document.querySelector('#cam-bild').getBoundingClientRect().width") >= 120)
     pruefe("Bild Platten", pg.get_attribute("#cam-bild", "data-bereich") == "Werkzeugplatten"
         and pg.get_attribute("#cam-bild .cam-bild__rahmen", "x") == "112")
     pg.screenshot(path="hofer_cam_bild.png")
