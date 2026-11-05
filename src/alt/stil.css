@@ -11840,3 +11840,22 @@ body.dunkel .eba-pf-schrift-ziele button.aktiv { background: #1f6feb; color: #ff
 .cam-zieh { list-style: none; padding: 0; margin: 0; }
 .cam-zieh > .ziehliste__zeile > .cam-block { flex: 1; min-width: 0; }
 .cam-zieh > .ziehliste__zeile > .ziehliste__griff { align-self: stretch; margin-bottom: 6px; }
+
+/* Felder mit Schrift nur für markierten Text (seit 1.403.0, Wunsch Patrick
+   5. November 2026): bearbeitbare Flächen statt input/textarea */
+.eba-rich { cursor: text; outline: none; white-space: pre-wrap; word-break: break-word; overflow: hidden; text-align: left; }
+.eba-rich--zeile { white-space: nowrap; overflow: hidden; }
+.eba-rich--zeile br { display: none; }
+.eba-rich:empty::before { content: attr(data-platzhalter); color: #8a96a3; -webkit-text-fill-color: #8a96a3; pointer-events: none; }
+.eba-pf-rich { width: 100%; min-height: 46px; padding: 10px 12px; box-sizing: border-box; font: inherit; color: var(--tinte);
+  background: var(--flaeche); border: 1px solid var(--linie-stark); border-radius: var(--radius); line-height: 1.4; }
+.eba-pf-rich.eba-rich--zeile { line-height: 24px; }
+.eba-pf-rich--mehr { min-height: 64px; }
+.eba-pf-rich:focus { outline: 3px solid var(--aktion); outline-offset: 1px; }
+body.dunkel .eba-pf-rich { background: #232a32; }
+body.dunkel .eba-pf-rich:focus { outline: 2px solid #6ba4ff; }
+.eba-seite div.eba-ein.eba-rich--zeile { display: block; }
+.eba-seite div.eba-ein.eba-rich:focus { border-color: #1f6feb; box-shadow: 0 0 0 1px #1f6feb; }
+.eba-seite .eba-bem-ein.eba-rich { overflow: auto; white-space: pre-wrap; }
+.eba-pf-schrift-tipp { font-size: .82rem; color: #556; margin: 8px 0 0; }
+body.dunkel .eba-pf-schrift-tipp { color: #c9d1d9; }

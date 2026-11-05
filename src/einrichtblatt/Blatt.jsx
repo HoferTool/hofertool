@@ -26,6 +26,7 @@ import { eigenesBildHochladen, eigenesBildLoeschen, freieBilderSpeichern, freies
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
+import { RichFeld, MitFormat, fmtGueltig, markiertFormatieren, markierteGroesse } from "./markiert.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
 import { spezialPdfsLaden } from "../daten/spezialwerkzeuge.js";
 import { istMaterialBlatt, MATERIAL_OHNE, materialArtBez } from "./jeMaterial.js";
@@ -110,7 +111,7 @@ function istLaufenLassen(w) {
 // Text, der immer auf einer Zeile bleibt: passt er nicht, wird die
 // Schrift kleiner statt umzubrechen (Material mit Mass, Wunsch Patrick
 // 26. Oktober 2026)
-function EineZeile({ text, min = 7, stil }) {
+function EineZeile({ text, min = 7, stil, html }) {
   const ref = useRef(null);
   const gr = stil && stil.groesse ? stil.groesse : null;
   useEffect(() => {
@@ -132,8 +133,8 @@ function EineZeile({ text, min = 7, stil }) {
     });
     ro.observe(el.parentElement);
     return () => ro.disconnect();
-  }, [text, min, gr, stil && stil.fett]);
-  return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="" style={stilCss(stil, true)}>{text}</span>;
+  }, [text, min, gr, stil && stil.fett, html]);
+  return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="" style={stilCss(stil, true)}><MitFormat html={html} text={text} /></span>;
 }
 
 // Eingetippte T-Nr. ordentlich schreiben: „3121“ oder „t 3121“ → „T3121“
@@ -220,6 +221,43 @@ function SchriftLeiste({ stil, setzen, standardFett, auto = "Normal", start = 12
     </span>
   );
 }
+// Leiste für markierten Text (seit 1.406.0, Wunsch Patrick 5. November
+// 2026: „nur die Sachen, welche markiert wurden“): wirkt nur auf das, was
+// im Feld markiert ist; ohne Markierung ein Hinweis
+const MARKIER_HINWEIS = "Zuerst den Text im Feld markieren, dann Farbe, Dünn/Fett oder Grösse wählen.";
+function MarkierLeiste() {
+  const behalten = (e) => e.preventDefault();
+  const tun = (z) => { if (!markiertFormatieren(z)) alt.meldung(MARKIER_HINWEIS, "warn"); };
+  const gr = (d) => {
+    const g = markierteGroesse();
+    if (!g) { alt.meldung(MARKIER_HINWEIS, "warn"); return; }
+    tun({ groesse: Math.max(GEO_GROESSE_MIN, Math.min(GEO_GROESSE_MAX, g + d)) });
+  };
+  return (
+    <span className="eba-schriftleiste" data-schriftleiste="" data-markierleiste="">
+      <span className="eba-pf-geostil" data-pf-geostil="">
+        {GEO_FARBEN.map(([name, wert]) => <button key={wert} type="button" title={name} aria-label={name} onMouseDown={behalten}
+          data-pf-geofarbe={wert} className="eba-pf-geofarbe" style={{ "--f": wert }} onClick={() => tun({ farbe: wert })} />)}
+        <label className="eba-pf-geofarbe eba-pf-geofarbe--waehler" style={{ "--f": GEO_SCHWARZ }} title="Andere Farbe wählen"
+          aria-label="Andere Farbe wählen" onMouseDown={behalten}>
+          <input type="color" data-pf-geowahl="" defaultValue={GEO_SCHWARZ} onChange={(e) => tun({ farbe: e.target.value.toLowerCase() })} /></label>
+        <span className="eba-pf-geodicke">
+          <button type="button" data-pf-geodicke="duenn" onMouseDown={behalten} onClick={() => tun({ fett: false })}>Dünn</button>
+          <button type="button" data-pf-geodicke="fett" onMouseDown={behalten} onClick={() => tun({ fett: true })}><b>Fett</b></button>
+        </span>
+      </span>
+      <span className="eba-pf-geogroesse" data-pf-geogroesse="">
+        <span>Grösse</span>
+        <button type="button" data-pf-geogr="auto" onMouseDown={behalten} onClick={() => tun({ groesse: null })}>Normal</button>
+        <button type="button" data-pf-geogr="minus" aria-label="Kleiner" onMouseDown={behalten} onClick={() => gr(-1)}>−</button>
+        <button type="button" data-pf-geogr="plus" aria-label="Grösser" onMouseDown={behalten} onClick={() => gr(1)}>+</button>
+      </span>
+    </span>
+  );
+}
+// Felder im Platz, in die man selbst schreibt: dort gilt die Schrift nur
+// für den markierten Text, gespeichert unter fmt
+const PLATZ_RICH = ["taetigkeit", "mass", "geo"];
 // Die Zeilen eines Platzes mit eigener Schrift; fett = wie sie üblich sind
 const PLATZ_ZEILEN = [["geo", "Notiz Mitte", false], ["taetigkeit", "Tätigkeit", true], ["mass", "Mass", true],
   ["tnr", "T-Nr.", true], ["hersteller", "Lieferant", false], ["werkzeug", "Artikel-Nr.", false], ["bezeichnung", "Beschreibung", false]];
@@ -240,7 +278,7 @@ function mitPlatzStil(p, k, st) {
 // ohne Bild auch senkrecht mittig und so gross, wie das Feld es zulässt
 // (Wunsch Patrick 29. Oktober 2026: „schön mitte zentriert, Höhe und
 // Breite anpassen“). Mit Bild bleibt sie klein über dem Bild.
-function GeoText({ text, mitBild, farbe, fett, groesse }) {
+function GeoText({ text, mitBild, farbe, fett, groesse, html }) {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
@@ -271,13 +309,13 @@ function GeoText({ text, mitBild, farbe, fett, groesse }) {
     const ro = new ResizeObserver(passen);
     ro.observe(feld);
     return () => ro.disconnect();
-  }, [text, mitBild, fett, groesse]);
+  }, [text, mitBild, fett, groesse, html]);
   return <span ref={ref} className={"eba-geo" + (fett ? " eba-geo--fett" : "")} data-geo=""
-    style={farbe ? { color: farbe, WebkitTextFillColor: farbe } : undefined}>{text}</span>;
+    style={farbe ? { color: farbe, WebkitTextFillColor: farbe } : undefined}><MitFormat html={html} text={text} /></span>;
 }
 
 // Ein Eingabefeld im Kopf
-function KopfEingabe({ f, wert, aendern, d, stil }) {
+function KopfEingabe({ f, wert, aendern, d, stil, fmt, fmtSetzen }) {
   const id = f.art + ":" + f.feld;
   const st = stilCss(stil);
   if (f.art === "fest") return <span>{wert}</span>;
@@ -286,15 +324,24 @@ function KopfEingabe({ f, wert, aendern, d, stil }) {
     return <select className="eba-ein" data-eba-feld={id} value={wert} style={st} onChange={(e) => aendern(f, e.target.value)}>
       <option value="">—</option>{liste.map((x) => <option key={x} value={x}>{x}</option>)}</select>;
   }
-  const feld = <input className="eba-ein" data-eba-feld={id} value={wert} style={st} inputMode={f.zahl ? "decimal" : undefined}
+  // Textfelder: Schrift nur für markierten Text (seit 1.406.0); Zahlen
+  // bleiben Eingabefelder, dort gilt die Schrift fürs ganze Feld
+  const rich = !f.zahl && !!fmtSetzen;
+  const feld = rich
+    ? <RichFeld className="eba-ein" data-eba-feld={id} einzeilig text={wert == null ? "" : String(wert)} html={fmt} style={st}
+        platzhalter={f.platzhalter || ""} aendern={(t, h) => { aendern(f, t); fmtSetzen(id, h); }} />
+    : <input className="eba-ein" data-eba-feld={id} value={wert} style={st} inputMode={f.zahl ? "decimal" : undefined}
     placeholder={f.platzhalter || ""} onChange={(e) => aendern(f, e.target.value)} />;
   // Material ist ein einziges Feld mit allem, auch dem Mass (Wunsch
   // Patrick 26. Oktober 2026: „nur eine Zeile mit allem, also Mass und
   // so“). Ein bisher getrennt gespeichertes Mass steht vorne mit drin und
   // wandert beim ersten Ändern ins Material.
   if (f.feld === "material") {
+    const neu = (t) => { aendern(f, t); if (d.teil.material_groesse) aendern({ art: "stamm", feld: "material_groesse" }, ""); };
+    if (rich) return <RichFeld className="eba-ein" data-eba-feld={id} einzeilig text={feldText(f, wert, d)} html={fmt} style={st}
+      aendern={(t, h) => { neu(t); fmtSetzen(id, h); }} />;
     return <input className="eba-ein" data-eba-feld={id} value={feldText(f, wert, d)} style={st}
-      onChange={(e) => { aendern(f, e.target.value); if (d.teil.material_groesse) aendern({ art: "stamm", feld: "material_groesse" }, ""); }} />;
+      onChange={(e) => neu(e.target.value)} />;
   }
   if (f.typVorne) return <span className="eba-ein-zwei"><span>{d.typ.name}</span>{feld}</span>;
   if (f.feld === "abend_stk") {
@@ -321,7 +368,7 @@ function KopfEingabe({ f, wert, aendern, d, stil }) {
 // ändert ein Kopffeld
 // pruefen: eingelesene Werkzeuge ohne hinterlegten oder bestätigten
 // Artikel rot umranden (nur im Fenster, nicht im Pad und nicht im Druck)
-export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern, pdfs, markiert, markieren, prgRot }) {
+export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbeiten, platzWahl, aendern, aktiv, artikelBilder, pruefen, tauschen, wechsel, bestellen, bilderAendern, pdfs, markiert, markieren, prgRot, fmtSetzen }) {
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
   const reihen = useMemo(() => reihenMitRest(vorlage, blatt.plaetze), [vorlage, blatt.plaetze]);
   const pfad = useMemo(() => pfadVonPlatz(paths), [paths]);
@@ -389,12 +436,12 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
           {p.standzeit ? <span className="eba-tk-links"><span className="eba-wert">{alt.zahlText(p.standzeit)}</span></span> : null}
           <b data-eba-tnr={p.tnr ? "" : undefined} data-eba-ohne-nr={ohneNr ? "" : undefined} style={stilCss(platzStil(p, "tnr"))}>{p.tnr || (ohneNr ? "" : platzName(nr))}</b>
           {p.hd && <span className="eba-tk-rechts"><span className="eba-hd" data-hd="">HD</span></span>}</div>
-        <div className="eba-tat" style={stilCss(platzStil(p, "taetigkeit"))}>{p.taetigkeit || ""}</div>
-        <div className="eba-mass" style={stilCss(platzStil(p, "mass"))}>{p.mass || ""}</div>
+        <div className="eba-tat" style={stilCss(platzStil(p, "taetigkeit"))}><MitFormat html={(p.fmt || {}).taetigkeit} text={p.taetigkeit || ""} /></div>
+        <div className="eba-mass" style={stilCss(platzStil(p, "mass"))}><MitFormat html={(p.fmt || {}).mass} text={p.mass || ""} /></div>
         {/* Geo-Offset nur, wo nötig: steht über dem Bild, das Bild wird
             kleiner oder fällt ganz weg (Wunsch Patrick, 24. Oktober 2026) */}
         <div className={"eba-bild" + (p.geo ? " eba-bild--geo" + (bild && !p.ohneBild ? "" : " eba-bild--nurgeo") : "")}>
-          {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} farbe={p.geoFarbe} fett={!!p.geoFett} groesse={p.geoGroesse || null} /> : null}
+          {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} farbe={p.geoFarbe} fett={!!p.geoFett} groesse={p.geoGroesse || null} html={(p.fmt || {}).geo} /> : null}
           {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her"><EineZeile text={p.hersteller || ""} min={5} stil={platzStil(p, "hersteller")} />{p.spezial && p.article_id &&
           <span className="eba-stern" title="Spezialwerkzeug" data-eba-stern="">★</span>}</div>
@@ -419,11 +466,15 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
 
   // Schrift je Kopffeld und Bemerkung (seit 1.402.0)
   const schrift = (blatt.kopf && blatt.kopf.schrift) || {};
+  // Formatierung markierter Stellen je Kopffeld und Bemerkung (seit 1.406.0)
+  const kfmt = (blatt.kopf && blatt.kopf.fmt) || {};
   const zeile = (f) => {
     const w = feldWert(f, d);
-    const fs = schrift[f.art + ":" + f.feld] || null;
-    const inhalt = bearbeiten ? <KopfEingabe f={f} wert={w} aendern={aendern} d={d} stil={fs} />
-      : f.feld === "material" ? <EineZeile text={feldText(f, w, d)} stil={fs} /> : <span style={stilCss(fs)}>{feldText(f, w, d)}</span>;
+    const id = f.art + ":" + f.feld;
+    const fs = schrift[id] || null;
+    const inhalt = bearbeiten ? <KopfEingabe f={f} wert={w} aendern={aendern} d={d} stil={fs} fmt={kfmt[id]} fmtSetzen={fmtSetzen} />
+      : f.feld === "material" ? <EineZeile text={feldText(f, w, d)} stil={fs} html={kfmt[id]} />
+      : <span style={stilCss(fs)}><MitFormat html={kfmt[id]} text={feldText(f, w, d)} /></span>;
     // Von einem anderen Blatt übernommen: die Programm-Nr. kommt nicht mit,
     // das leere Feld ist rot, bis man sie selbst einträgt (Wunsch Patrick
     // 2. November 2026: „soll prg nr nicht übernehmen … rot umrahmen“)
@@ -448,9 +499,13 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
             <span key={t} style={{ background: f, "--eba-schrift": vorlage.schrift }}>{t}</span>)}</div>}
           <div className="eba-tab">{felder.filter((f) => !f.farbe).map(zeile)}</div>
           {bearbeiten
-            ? <textarea className="eba-ein eba-bem-ein" data-eba-feld="blatt:bemerkung" placeholder="Bemerkungen, z. B. Abgreifen mit Schnabelzange" style={stilCss(schrift["blatt:bemerkung"])}
-                value={leer(blatt.bemerkung)} onChange={(e) => aendern({ art: "blatt", feld: "bemerkung" }, e.target.value)} />
-            : <div className="eba-bem" data-eba-bem="" style={stilCss(schrift["blatt:bemerkung"])}>{bemerkung}</div>}
+            ? (fmtSetzen
+              ? <RichFeld className="eba-ein eba-bem-ein" data-eba-feld="blatt:bemerkung" platzhalter="Bemerkungen, z. B. Abgreifen mit Schnabelzange"
+                  style={stilCss(schrift["blatt:bemerkung"])} text={leer(blatt.bemerkung)} html={kfmt["blatt:bemerkung"]}
+                  aendern={(t, h) => { aendern({ art: "blatt", feld: "bemerkung" }, t); fmtSetzen("blatt:bemerkung", h); }} />
+              : <textarea className="eba-ein eba-bem-ein" data-eba-feld="blatt:bemerkung" placeholder="Bemerkungen, z. B. Abgreifen mit Schnabelzange" style={stilCss(schrift["blatt:bemerkung"])}
+                value={leer(blatt.bemerkung)} onChange={(e) => aendern({ art: "blatt", feld: "bemerkung" }, e.target.value)} />)
+            : <div className="eba-bem" data-eba-bem="" style={stilCss(schrift["blatt:bemerkung"])}><MitFormat html={kfmt["blatt:bemerkung"]} text={bemerkung} /></div>}
         </div>
       </div>
       <FreieBilder bilder={(blatt.kopf || {}).bilder} aendern={bilderAendern} />
@@ -560,6 +615,12 @@ function platzDaten(p, nr) {
     Object.keys(p.stil).forEach((k) => { const w = stilSauber(p.stil[k], zeileFett(k)); if (w && (z[k] || k === "tnr")) st[k] = w; });
     if (Object.keys(st).length) z.stil = st;
   }
+  // Formatierung markierter Stellen, nur wenn sie zum Text passt (seit 1.406.0)
+  if (p.fmt) {
+    const fm = {};
+    PLATZ_RICH.forEach((k) => { if (z[k] && fmtGueltig(p.fmt[k], z[k])) fm[k] = p.fmt[k]; });
+    if (Object.keys(fm).length) z.fmt = fm;
+  }
   if (p.ohneBild) z.ohneBild = true;
   if (p.article_id && z.werkzeug) z.article_id = p.article_id;
   else delete z.bezeichnung;
@@ -585,6 +646,13 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
   const [ziel, setZiel] = useState("geo");
   useEffect(() => { if (wert.article_id) artikelHolen(wert.article_id).then(setArtikel); }, []);
   const f = (feld) => (e) => setP(Object.assign({}, p, { [feld]: e.target.value }));
+  // Feld mit Formatierung markierter Stellen (seit 1.406.0)
+  const rich = (feld) => (t, h) => setP((q) => {
+    const fm = Object.assign({}, q.fmt || {});
+    if (h) fm[feld] = h; else delete fm[feld];
+    return Object.assign({}, q, { [feld]: t, fmt: Object.keys(fm).length ? fm : null });
+  });
+  const istRich = PLATZ_RICH.includes(ziel);
   const merkKey = bildSchluesselVon(p);
   const bild = platzBild(p, Object.assign({}, artikelBilder, merkKey && bildGewaehlt ? { [merkKey]: p.bild } : {}));
 
@@ -632,8 +700,10 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
           <small>{!bild ? "" : bild.art === "gemerkt" ? "gemerkt" : "gewählt"}</small>
         </button>}
         <div className="eba-pf-felder">
-          <label className="feld"><span>Tätigkeit</span><input data-pf="taetigkeit" value={p.taetigkeit || ""} onChange={f("taetigkeit")} onFocus={() => setZiel("taetigkeit")} style={stilCss(platzStil(p, "taetigkeit"), false)} /></label>
-          <label className="feld"><span>Mass</span><input data-pf="mass" value={p.mass || ""} onChange={f("mass")} onFocus={() => setZiel("mass")} style={stilCss(platzStil(p, "mass"), false)} /></label>
+          <label className="feld"><span>Tätigkeit</span><RichFeld className="eba-pf-rich" data-pf="taetigkeit" einzeilig text={p.taetigkeit || ""} html={(p.fmt || {}).taetigkeit}
+            aendern={rich("taetigkeit")} onFocus={() => setZiel("taetigkeit")} style={stilCss(platzStil(p, "taetigkeit"), false)} /></label>
+          <label className="feld"><span>Mass</span><RichFeld className="eba-pf-rich" data-pf="mass" einzeilig text={p.mass || ""} html={(p.fmt || {}).mass}
+            aendern={rich("mass")} onFocus={() => setZiel("mass")} style={stilCss(platzStil(p, "mass"), false)} /></label>
           <label className="feld"><span>Andere T-Nr. (anderer Halter drauf)</span><input data-pf="tnr" value={p.tnr || ""}
             placeholder={platzName(nr) ? "leer = " + platzName(nr) : "leer = ohne T-Nr."} onChange={f("tnr")} onFocus={() => setZiel("tnr")} onBlur={() => setP(Object.assign({}, p, { tnr: tnrSchreiben(p.tnr) }))} /></label>
         </div>
@@ -660,7 +730,8 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
         </div>
       </div>
       <label className="feld"><span>Notiz Mitte</span>
-        <textarea data-pf="geo" rows={2} value={p.geo || ""} onChange={f("geo")} onFocus={() => setZiel("geo")} placeholder="z. B. X 0.12  Z -0.05"
+        <RichFeld className="eba-pf-rich eba-pf-rich--mehr" data-pf="geo" text={p.geo || ""} html={(p.fmt || {}).geo} aendern={rich("geo")}
+          onFocus={() => setZiel("geo")} platzhalter="z. B. X 0.12  Z -0.05"
           style={{ color: p.geoFarbe || undefined, WebkitTextFillColor: p.geoFarbe || undefined, fontWeight: p.geoFett ? 700 : undefined }} /></label>
       {/* Schrift jeder Zeile des Platzes: zuerst wählen, welche, dann
           Farbe, dünn/fett und Grösse wie bei der Skizze im Pad (Notiz seit
@@ -668,9 +739,14 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
       <div className="eba-pf-schrift" data-pf-schrift="">
         <div className="eba-pf-schrift-ziele"><span>Schrift für</span>
           {PLATZ_ZEILEN.map(([k, name]) => <button key={k} type="button" data-pf-ziel={k} className={ziel === k ? "aktiv" : ""}
-            onClick={() => setZiel(k)}>{name}</button>)}</div>
-        <SchriftLeiste stil={platzStil(p, ziel)} standardFett={zeileFett(ziel)} auto={ziel === "geo" ? "Auto" : "Normal"}
-          start={ziel === "geo" ? GEO_GROESSE_START : 12} setzen={(st) => setP(mitPlatzStil(p, ziel, st))} />
+            onClick={() => { setZiel(k); if (PLATZ_RICH.includes(k)) { const el = document.querySelector('[data-platzfenster] [data-pf="' + k + '"]'); if (el) el.focus(); } }}>{name}</button>)}</div>
+        {/* Felder, in die man schreibt: nur der markierte Text (seit
+            1.406.0, Wunsch Patrick 5. November 2026); Lieferant,
+            Artikel-Nr., Beschreibung und T-Nr. kommen aus dem Werkzeug
+            bzw. sind kurz und gelten als ganze Zeile */}
+        {istRich
+          ? <><div className="eba-pf-schrift-tipp" data-pf-markier-tipp="">Text im Feld markieren, dann Farbe, Dünn/Fett oder Grösse wählen. Es ändert nur das Markierte.</div><MarkierLeiste /></>
+          : <SchriftLeiste stil={platzStil(p, ziel)} standardFett={zeileFett(ziel)} setzen={(st) => setP(mitPlatzStil(p, ziel, st))} />}
       </div>
       {BILDER_AN && <label className="eba-pf-check"><input type="checkbox" data-pf="ohneBild" checked={!!p.ohneBild}
         onChange={(e) => setP(Object.assign({}, p, { ohneBild: e.target.checked }))} /> Kein Bild auf dem Blatt</label>}
@@ -799,6 +875,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   // Feld im Kopf (oder die Bemerkung), dessen Schrift die Leiste oben
   // ändert: das zuletzt angetippte (seit 1.402.0)
   const [kopfZiel, setKopfZiel] = useState(null);
+  // Textfeld (Schrift nur für Markiertes) oder Zahl/Auswahl (ganzes Feld)
+  const [kopfRich, setKopfRich] = useState(false);
   // Pad Mode: hinterlegte PDFs je Artikel und der angetippte Platz, der
   // „Ansehen“ zeigt (Externe nicht)
   const imPad = typeof document !== "undefined" && document.body.classList.contains("pad-offen") && !alt.istExtern();
@@ -831,11 +909,20 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
     const fokus = (e) => {
       const t = e.target;
       const id = t && t.dataset && t.dataset.ebaFeld;
-      if (id && t.closest && t.closest("[data-eba-kopf]")) setKopfZiel(id);
+      if (id && t.closest && t.closest("[data-eba-kopf]")) { setKopfZiel(id); setKopfRich(t.hasAttribute("data-rich")); }
     };
     document.addEventListener("focusin", fokus);
     return () => document.removeEventListener("focusin", fokus);
   }, [bearbeiten]);
+  // Formatierung markierter Stellen im Kopf und in der Bemerkung (seit 1.406.0)
+  const kopfFmtSetzen = (id, html) => setEntwurf((b) => {
+    const k = Object.assign({}, b.kopf || {});
+    const fm = Object.assign({}, k.fmt || {});
+    if ((fm[id] || null) === (html || null)) return b;
+    if (html) fm[id] = html; else delete fm[id];
+    if (Object.keys(fm).length) k.fmt = fm; else delete k.fmt;
+    return Object.assign({}, b, { kopf: k });
+  });
   const kopfStilSetzen = (id, st) => setEntwurf((b) => {
     const k = Object.assign({}, b.kopf || {});
     const sch = Object.assign({}, k.schrift || {});
@@ -1184,8 +1271,9 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
       {bearbeiten && !zseite && <div className="eba-schriftzeile" data-eba-schriftzeile={kopfZiel || ""} onMouseDown={(e) => { if (e.target.tagName !== "INPUT") e.preventDefault(); }}>
         {kopfZiel
           ? <><span>Schrift <b>{kopfZielName}</b>:</span>
-              <SchriftLeiste stil={((entwurf.kopf || {}).schrift || {})[kopfZiel]} setzen={(st) => kopfStilSetzen(kopfZiel, st)} /></>
-          : <span className="eba-schriftzeile-tipp">Schrift ändern: ein Feld im Kopf oder die Bemerkung antippen, für Werkzeugfelder den Platz antippen.</span>}
+              {kopfRich ? <><MarkierLeiste /><span className="eba-schriftzeile-tipp">gilt für den markierten Text</span></>
+                : <SchriftLeiste stil={((entwurf.kopf || {}).schrift || {})[kopfZiel]} setzen={(st) => kopfStilSetzen(kopfZiel, st)} />}</>
+          : <span className="eba-schriftzeile-tipp">Schrift ändern: im Kopf oder in der Bemerkung Text markieren, für Werkzeugfelder den Platz antippen.</span>}
       </div>}
       {bearbeiten && wechsel && !zseite && <div className="eba-vorgelesen eba-wechsel" data-eba-wechsel={wechsel}>
         <span><b>{platzName(wechsel) || "Feld ohne T-Nr."} wechseln:</b> jetzt den neuen Platz antippen. Steht dort schon ein Werkzeug, tauschen die beiden.</span>
@@ -1206,7 +1294,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         {zseite
           ? <ZusatzSeite seite={zseite} bearbeiten={bearbeiten} inhaltBearbeiten={() => inhaltBearbeiten(seiteNr - 1)} />
           : <div className="eba-zoom" style={{ zoom }}><BlattSeite typ={typ} paths={paths} teil={bearbeiten ? teilE : teil} typDaten={bearbeiten ? typE : typDaten} blatt={blatt} auftrag={auftrag}
-              bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} pruefen={darf}
+              bearbeiten={bearbeiten} aktiv={platz} artikelBilder={artikelBilder} aendern={aendern} fmtSetzen={kopfFmtSetzen} pruefen={darf}
               platzWahl={platzWahl} tauschen={tauschen} wechsel={wechsel} bestellen={darf ? bestellen : null}
               pdfs={imPad ? pdfs : null} markiert={markiert} markieren={imPad ? setMarkiert : null}
               bilderAendern={darf ? bilderAendern : null} prgRot={prgPflicht} /></div>}

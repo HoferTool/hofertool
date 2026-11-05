@@ -60,7 +60,7 @@ with sync_playwright() as p:
     pruefe("Ziehen tauscht", taet(leer) == "Vordrehen" and taet("T100") == "Abstechen")
     pg.screenshot(path="/tmp/claude-0/x/eb_platz_wechsel.png")
     # Seit 1.348.0 kommt die Programm-Nr. nicht mit und ist Pflicht zum Speichern
-    pg.locator("[data-eba-prg-rot] input").first.fill("1234"); pg.wait_for_timeout(300)
+    pg.locator("[data-eba-prg-rot] [data-rich], [data-eba-prg-rot] input").first.fill("1234"); pg.wait_for_timeout(300)
     pg.click("[data-eba-speichern]"); pg.wait_for_timeout(1000)
     neu = pg.evaluate("TEST.daten.einrichtblatt_app.find(b => b.hoco_nr === '10000-0301')")
     pruefe("Gespeichert", bool(neu) and neu["plaetze"]["T100"]["taetigkeit"] == "Abstechen" and neu["plaetze"][leer]["taetigkeit"] == "Vordrehen" and "T200" not in neu["plaetze"])

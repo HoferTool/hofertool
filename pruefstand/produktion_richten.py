@@ -85,7 +85,7 @@ with sync_playwright() as p:
 
     # Die FA-Zeile fällt beim Bearbeiten aus der Bemerkung (1.183.1)
     pg.locator("[data-richten-letzt='10000-0999'] [data-richten-bearbeiten]").first.click(); pg.wait_for_selector("[data-eba-seite]")
-    v = pg.input_value("[data-eba-feld='blatt:bemerkung']")
+    v = pg.inner_text("[data-eba-feld='blatt:bemerkung']").strip()
     pruefe("Bemerkung ohne FA: " + repr(v), v == "Abgreifen mit Zange")
     pg.click("[data-eba-abbrechen]"); pg.wait_for_timeout(300)
     if pg.locator(".eba-fenster [data-zu]").count(): pg.click(".eba-fenster [data-zu]")

@@ -61,7 +61,7 @@ with sync_playwright() as p:
     # Zurück auf das Blatt vom eigenen Typ für die Prüfungen unten
     pg.click("[data-eba-von-anderem]"); pg.wait_for_selector(".dialog:has-text('Von anderem Blatt')")
     pg.locator(".dialog:has-text('Von anderem Blatt') input").fill("10000-0399"); pg.locator(".dialog:has-text('Von anderem Blatt') [data-ja]").click(); pg.wait_for_timeout(800)
-    pg.locator("[data-eba-prg-rot] input").first.fill("1234"); pg.wait_for_timeout(300)
+    pg.locator("[data-eba-prg-rot] [data-rich], [data-eba-prg-rot] input").first.fill("1234"); pg.wait_for_timeout(300)
     pruefe("Nach Eintragen nicht mehr rot", pg.locator("[data-eba-prg-rot]").count() == 0)
     pg.screenshot(path="/tmp/claude-0/x/eb_von_anderem.png")
     pg.click("[data-eba-speichern]"); pg.wait_for_timeout(1000)
