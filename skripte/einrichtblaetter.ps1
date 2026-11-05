@@ -96,7 +96,7 @@ $KEY = $E.anon_key
 # Anmeldung und welche Datei je HOCO Nr. und Typ zuletzt hochgeladen wurde
 # (dateien: Kennung, adressen: die eigene Adresse in der App, abgelehnt:
 # in der App weggenommene Dateien, volle Pfade)
-$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; adressen = @{}; abgelehnt = @{}; erledigt = $null; letzter = $null; einrichtFrei = $false }
+$stand = @{ token = $null; ablauf = 0; auffrischen = $null; dateien = @{}; adressen = @{}; abgelehnt = @{}; erledigt = $null; letzter = $null; einrichtFrei = $false; fremd = @() }
 $adressenNeu = $true
 if (Test-Path $standDatei) {
   try {
@@ -107,8 +107,16 @@ if (Test-Path $standDatei) {
     if ($g.PSObject.Properties.Name -contains "adressen") { $adressenNeu = $false }
     if ($g.adressen) { $g.adressen.PSObject.Properties | ForEach-Object { $stand.adressen[$_.Name] = [string]$_.Value } }
     if ($g.abgelehnt) { $g.abgelehnt.PSObject.Properties | ForEach-Object { $stand.abgelehnt[$_.Name] = @($_.Value | ForEach-Object { [string]$_ }) } }
+    if ($g.fremd) { $stand.fremd = @($g.fremd | ForEach-Object { [string]$_ }) }
   } catch { }
 }
+# Toleranzen und andere fremde Blätter, die schon einmal in der App
+# nachgesehen wurden (Kennung + Typ). Früher fragte jeder Durchlauf für
+# jede dieser rund 1'100 Dateien die Datenbank, rund 300'000 Anfragen am
+# Tag (5. November 2026). Jetzt nur noch neue oder geänderte Dateien.
+$fremdVorher = @{}
+foreach ($k in $stand.fremd) { $fremdVorher[$k] = $true }
+$fremdJetzt = New-Object System.Collections.Generic.List[string]
 function StandSichern {
   $stand | ConvertTo-Json -Depth 5 | Set-Content -Path $standDatei -Encoding UTF8
 }
@@ -315,7 +323,9 @@ try {
       if ($r.rang -eq 0) {
         $status.fremd++
         $was = "kein Einrichtblatt (" + $r.fremd + "), bleibt weg"
-        if ($scharf) {
+        $fk = (Kennung $d) + "|" + [string]$typ.id
+        $schonGeprueft = $fremdVorher.ContainsKey($fk)
+        if ($scharf -and -not $schonGeprueft) {
           try {
             if (FalschesEntfernen $d $h $typ) {
               # Das Programm hat es selbst weggenommen, nicht jemand in
@@ -327,8 +337,10 @@ try {
               $was = "kein Einrichtblatt (" + $r.fremd + "), aus der App entfernt"
               Schreibe ("aus der App entfernt: " + $d.FullName)
             }
+            $schonGeprueft = $true
           } catch { Schreibe ("Entfernen ging nicht: " + $d.Name + ": " + $_.Exception.Message) }
         }
+        if ($scharf -and $schonGeprueft) { $fremdJetzt.Add($fk) }
         $weggelassen += @{ d = $d.Name; h = $h; w = $was }
         continue
       }
@@ -435,6 +447,9 @@ try {
     wert = ($status | ConvertTo-Json -Compress -Depth 4) } "resolution=merge-duplicates"
 } catch { Schreibe ("Stand nicht an die App gemeldet (sql/einrichtblatt-ordner.sql ausgeführt?): " + $_.Exception.Message) }
 $stand.letzter = ($status | ConvertTo-Json -Compress -Depth 4)
+# Nur was es noch gibt; bricht ein Durchlauf ab, bleiben die alten Einträge
+if ($status.fehler) { foreach ($k in $stand.fremd) { if (-not $fremdJetzt.Contains($k)) { $fremdJetzt.Add($k) } } }
+$stand.fremd = @($fremdJetzt)
 StandSichern
 
 if ($Probe -or -not $status.scharf) {
