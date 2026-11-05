@@ -738,3 +738,8 @@ Planwand mit Ziehen, Verlängern, Nachrücken und Lücke schliessen · Produktio
 
 - Wunsch Patrick: „Offene Meldungen nur bei QS Check, bei den Maschinen soll normal ein Feld aufpoppen wie immer.“
 - Der Knopf „Offene Meldungen“ steht nur noch in der Kopfleiste des QS Check (`meldungen` an `PadKopf`), nicht mehr auf Startseite, Parks und Dashboard der Maschine. An der Maschine bleibt die Meldung das Feld statt des Wetters.
+
+## 1.428.0 — NC-PRO leuchtet in der Themenfarbe (5. November 2026)
+
+- Wunsch Patrick: „das NC PRO soll je nach dem welche Themenfarbe so leuchten“.
+- Verlauf und Schein des Schriftzugs NC-PRO (Kopf der Seite und Markenleiste im eigenen Fenster) kommen aus `--ncpro-a`, `--ncpro-b`, `--ncpro-schein` je Themenfarbe, hell und dunkel; Blau bleibt wie vorher. Prüfstand `nc_pro_leuchten.py`.
