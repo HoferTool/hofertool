@@ -260,16 +260,18 @@ export const QUER_PLAETZE = ["3421", "3422", "3423"];
 // Seit 1.418.0: quer angetriebene T3100–T3400, nur Hauptspindel, nach
 // Patricks T3100 aus O0458 (5. November 2026)
 export const SEITE_PLAETZE = ["3100", "3200", "3300", "3400"];
-// Seit 1.420.0: Drehwerkzeuge Kanal 2, zuerst T2100 nach Patricks
-// Beispiel (5. November 2026); T2200–T2400 folgen nach seinen Vorgaben
-export const K2_PLAETZE = ["2100"];
+// Seit 1.420.0: Drehwerkzeuge Kanal 2 nach Patricks T2100-Beispiel
+// (5. November 2026); seit 1.423.0 T2100–T2400 gleich gebaut (Patrick:
+// „kannst du identisch bauen“)
+export const K2_PLAETZE = ["2100", "2200", "2300", "2400"];
 
 const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 export function neuerBlock(bloecke = [], art = "dreh") {
   const belegt = new Set(bloecke.map((b) => b.platz));
   if (art === "k2") {
-    return { id: neueId(), art: "k2", platz: "2100", bez: "", dreh: "4", S: "2500",
+    const platz = K2_PLAETZE.find((p) => !belegt.has(p)) || "2100";
+    return { id: neueId(), art: "k2", platz, bez: "", dreh: "4", S: "2500",
       vorX: "-45.4", vorZ: "61.40", nX: "-10", nZ: "-0.5", code: "" };
   }
   if (art === "seite") {

@@ -228,6 +228,10 @@ with sync_playwright() as p:
     pruefe("T2100 Kanal 1 nur Marken", t[i1:i1+3] == ["M350", "G0U1.", "M360"] and "/G23" not in t
         and "Kanal 1 zwischen" in pg.text_content("[data-block='2'] [data-camk1='M350-M360']")
         and pg.locator(".cam-zeile--fehler").count() == 0)
+    pg.select_option("[data-block='2'] [data-camblock='platz']", "2300")
+    t2 = [x for x in k(2) if x]
+    pruefe("T2300 gleich gebaut", "/T2300(PLANEN + D7.9)" in t2 and "/M4S2500T23" in t2 and "/G0X-45.4" in t2)
+    pg.select_option("[data-block='2'] [data-camblock='platz']", "2100")
     pg.uncheck("[data-block='2'] [data-camblock='m5']")
     pg.fill("[data-block='2'] [data-camblock='nX']", "-12")
     t2 = [x for x in k(2) if x]

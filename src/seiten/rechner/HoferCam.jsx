@@ -276,7 +276,7 @@ export default function HoferCam() {
             onClick={() => { const nb = neuerBlock(bloecke, "quer"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontangetrieben T3421–T3423</button>
           {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
           <button className="knopf knopf--klein" id="cam-neu-k2"
-            onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Kanal 2 Drehwerkzeug T2100</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Kanal 2 Drehwerkzeug T2100–T2400</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
@@ -372,7 +372,7 @@ export default function HoferCam() {
                   : feld("S", "Drehzahl S", "Drehzahl")}
                 {k2 ? <>
                     {/* Seit 1.420.0 nach Patricks T2100 (5. November 2026) */}
-                    {feld("vorX", "Vorpos. X", "G0X… vor der Nullpunktverschiebung (spezieller Drehhalter auf T2100); am Ende G50Z…X… zurück", 58)}
+                    {feld("vorX", "Vorpos. X", "G0X… vor der Nullpunktverschiebung; am Ende G50Z…X… zurück", 58)}
                     {feld("vorZ", "Vorpos. Z", "G0Z… vor der Nullpunktverschiebung; am Ende G50Z…X… zurück", 58)}
                     {feld("nX", "G50 X", "Nullpunktverschiebung G50X…; am Ende G1X… auf denselben Wert", 58)}
                     {feld("nZ", "G50 Z", "Nullpunktverschiebung G50…Z…; am Ende G1Z…F0.5 auf denselben Wert", 58)}
