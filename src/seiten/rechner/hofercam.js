@@ -390,16 +390,21 @@ export function blockZeilen2(b, marke, w = {}) {
   const S = drehzahl(b, w) ?? String(b.S).trim();
   const g96 = b.sArt === "vc" && !!b.g96;
   const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+  // Seit 1.410.0 (Patrick 5. November 2026, nach O1458): zuerst immer M75,
+  // dann jede Zeile der Bearbeitung mit „/“ davor; Marken und das Ende
+  // (G28W0., T0, M1) ohne, damit beide Kanäle immer synchron bleiben
+  const s = (z) => (markeVon(z) || z.startsWith("/") ? z : "/" + z);
   return [
-    "T2000" + (bez ? "(" + bez + ")" : ""),
+    "M75",
+    s("T2000" + (bez ? "(" + bez + ")" : "")),
     marke.m1,
-    (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S,
-    "G0Z" + (zahl(b.anZ) ?? b.anZ),
-    ...code,
-    "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
+    s((g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S),
+    s("G0Z" + (zahl(b.anZ) ?? b.anZ)),
+    ...code.map(s),
+    s("G0Z" + (zahl(b.wegZ) ?? b.wegZ)),
+    ...(g96 ? [s("G97")] : []),
     "G28W0.",
     marke.m2,
-    ...(g96 ? ["G97"] : []),
     "T0",
     "M1",
   ];
