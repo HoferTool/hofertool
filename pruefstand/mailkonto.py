@@ -70,7 +70,7 @@ with sync_playwright() as p:
         pruefe("Ferienbalken nach Neuladen sichtbar", False)
 
     # Einstellungen
-    pg.locator("#kopf-einstellungen").click(); pg.wait_for_selector("#es-mailkonto"); pg.wait_for_timeout(500)
+    pg.locator("#kopf-einstellungen").click(); pg.click("[data-einst='outlook']"); pg.wait_for_selector("#es-mailkonto"); pg.wait_for_timeout(500)
     pruefe("Mailkonto zeigt Absender", pg.input_value("#mk-absender") == "programmierung@hoferco.ch")
     pruefe("Schlüssel nicht angezeigt", pg.input_value("#mk-geheim") == "")
     pg.fill("#mk-mandant", "m-2"); pg.click("#mk-speichern"); pg.wait_for_timeout(600)

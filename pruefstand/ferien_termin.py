@@ -24,7 +24,7 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
 
     # Empfänger in den Einstellungen
-    pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(700)
+    pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(700); pg.click("[data-einst='outlook']"); pg.wait_for_timeout(400)
     pg.fill("#ferien-verteiler", "anna@hoferco.ch, ben@hoferco.ch\nkeine-adresse")
     pg.locator("#ferien-verteiler-speichern").click(); pg.wait_for_timeout(600)
     wert = pg.evaluate("(TEST.daten.app_config.find(c => c.schluessel === 'ferien_verteiler') || {}).wert")

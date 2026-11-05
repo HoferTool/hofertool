@@ -43,6 +43,10 @@ import { Mailkonto } from "./Mailkonto.jsx";
 // ausser Externen und Dienst (Temp-Ordner, seit 1.310.0 hier statt im Menü).
 const REITER = [["allgemein", "Allgemein"], ["temp", "Temp", "temp"], ["dokumente", "Dokumente", "dok"], ["backup", "Backup", "dok"],
                 ["wartung", "Wartung", "wartung"],
+                // Eigene Reiter seit 1.430.0 (Wunsch Patrick 5. November 2026:
+                // „mach Radio und Outlook je separat Reiter bei Einstellungen“),
+                // vorher beides unter Allgemein; nur Admins wie vorher
+                ["outlook", "Outlook", true], ["radio", "Radio", true],
                 ["fehler", "Fehlerprotokoll", true], ["farben", "Farben und Material", "mat"],
                 ["symbole", "Symbole", true],
                 ["nutzer", "Nutzer", true]];
@@ -87,6 +91,8 @@ function Einstellungen({ zu }) {
   else if (offen === "farben") inhalt = <Farben />;
   else if (offen === "temp") inhalt = <Temp />;
   else if (offen === "wartung") inhalt = <Wartung />;
+  else if (offen === "outlook") inhalt = <><Mailkonto /><FerienVerteiler /></>;
+  else if (offen === "radio") inhalt = <RadioSender />;
   else if (offen === "symbole") inhalt = <><Symbole /><MahnBilder /></>;
   else inhalt = <Nutzer />;
 
@@ -124,10 +130,7 @@ function Allgemein({ bin }) {
       <Darstellung />
       {bin && <AnmeldeMeldungen />}
       {(bin || alt.darfDokumenteUndSicherung()) && <Bestellmail />}
-      {bin && <Mailkonto />}
-      {bin && <FerienVerteiler />}
       {bin && <Betriebsferien />}
-      {bin && <RadioSender />}
       <UeberDieApp />
     </>
   );

@@ -59,6 +59,8 @@ const PFADE = {
   symbole: <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 16V8l4 5 4-5v8" /></>,
   temp: <><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M12 16v-5M9.5 13.5 12 11l2.5 2.5" /></>,
   wartung: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3.5 17.2a1.8 1.8 0 0 0 2.5 2.5l5.8-5.8a4 4 0 0 0 5.1-5.4l-2.5 2.5-2.3-.6-.6-2.3z" />,
+  outlook: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3.5 6.5 8.5 7 8.5-7" /></>,
+  radio: <><rect x="3" y="9" width="18" height="11" rx="2" /><circle cx="15.5" cy="14.5" r="2.5" /><path d="M6.5 13h3M6.5 16h3M7 9l10-5" /></>,
   nutzer: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" /><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 13.8c2 .9 3.5 3 3.5 6.2" /></>,
 };
 

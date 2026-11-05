@@ -20,7 +20,7 @@ with sync_playwright() as p:
     pg.wait_for_selector(".pw-tafel"); pg.wait_for_timeout(800)
     pg.evaluate("TEST.daten.app_config = TEST.daten.app_config || []")
     pg.locator("[title='Einstellungen'], #einstellungen-knopf, button:has-text('Einstellungen')").first.click()
-    pg.wait_for_selector("#radio-sender")
+    pg.click("[data-einst='radio']"); pg.wait_for_selector("#radio-sender")
     zeilen = pg.locator("#radio-sender .es-radio__zeile")
     pruefe("Vorgabe 14 Sender: %d" % zeilen.count(), zeilen.count() == 14)
     namen = pg.eval_on_selector_all("#radio-sender .es-radio__name", "e => e.map(x => x.value)")
