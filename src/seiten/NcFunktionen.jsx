@@ -13,7 +13,7 @@
 //  Prüfstand der Reiter unverändert gelten.
 // =================================================================
 import { useState } from "react";
-import { useGemerkt } from "../bruecke.jsx";
+import { alt, useGemerkt } from "../bruecke.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import { Reiter, Uebergang } from "../teile/Reiter.jsx";
@@ -30,6 +30,12 @@ export const REITER = [
   ["kontur", "NC-PRO"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["cam", "Hofer Cam"], ["rechner", "Rechner"],
 ];
 
+// Hofer Cam sieht vorerst nur, wer den Vermerk camSehen am Konto hat
+// (Wunsch Patrick 5. November 2026: „zuerst nur für Patrick Ruch“)
+export function ncReiter() {
+  return REITER.filter(([w]) => w !== "cam" || (alt.camSehen && alt.camSehen()));
+}
+
 const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, cam: HoferCam, rechner: Rechner };
 
 const gemerkt = { ansicht: "kontur" };
@@ -38,7 +44,7 @@ teilMerken("nc", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
 // Für die Seitenleiste: ohne Wert lesen, mit Wert für das nächste Öffnen setzen
 export function ncAnsicht(wert) {
   if (wert !== undefined) gemerkt.ansicht = wert;
-  return INHALT[gemerkt.ansicht] ? gemerkt.ansicht : "kontur";
+  return INHALT[gemerkt.ansicht] && ncReiter().some(([w]) => w === gemerkt.ansicht) ? gemerkt.ansicht : "kontur";
 }
 
 export default function NcFunktionen() {
@@ -48,13 +54,13 @@ export default function NcFunktionen() {
   useSeitenSuche({
     name: "NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, Hofer Cam, Drehzahl …",
     eintraege: [
-      ...REITER.map(([w, t]) => ({ gruppe: "NC-PRO", zeichen: "⌨", titel: t, wert: w })),
+      ...ncReiter().map(([w, t]) => ({ gruppe: "NC-PRO", zeichen: "⌨", titel: t, wert: w })),
       ...RECHNER_REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: "rechner", unter: w })),
     ],
     // Drehzahl und Winkel liegen im Reiter Rechner; key wechselt, damit er die Wahl neu liest
     springen: (x) => { if (x.unter) rechnerAnsicht(x.unter); setAnsicht(x.wert); setNeu((n) => n + 1); },
   });
-  const Inhalt = INHALT[ansicht] || Kontur;
+  const Inhalt = (ncReiter().some(([w]) => w === ansicht) && INHALT[ansicht]) || Kontur;
   return (
     <>
       {/* Kopf mit grossem Logo in der Mitte und dem Namen in 3D-Schrift
@@ -73,7 +79,7 @@ export default function NcFunktionen() {
         </div>
         <div className="ncpro-kopf__rechts" id="ncpro-kopf-rechts" />
       </header>
-      <Reiter reiter={REITER} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" seite="nc" />
+      <Reiter reiter={ncReiter()} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" seite="nc" />
       <Uebergang key={ansicht + (ansicht === "rechner" ? neu : "")}>
         <div id="rech-inhalt"><Inhalt /></div>
       </Uebergang>

@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.395.0";
+const APP_VERSION = "1.395.1";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3081,6 +3081,12 @@ function empfangSehen(u) {
 // sql/kalkulation.sql); die Datenbank prüft dasselbe.
 function kalkulationSehen(u) {
   return !!(u && u.einstellungen && u.einstellungen.kalkulationSehen);
+}
+// Hofer Cam in NC-PRO sieht vorerst nur, wer den Vermerk camSehen am
+// Konto hat (Wunsch Patrick 5. November 2026: „zuerst nur für Patrick Ruch“)
+function camSehen(u) {
+  const k = u || profil;
+  return !!(k && k.einstellungen && k.einstellungen.camSehen) && !istExtern();
 }
 function istAndererNutzer(u) {
   const k = u || profil;
@@ -10532,6 +10538,7 @@ const SEITEN = [
 
 // Was die neu gebauten React-Seiten vom alten Programm brauchen
 Object.assign(alt, {
+  camSehen,
   meineProfilId, parkIstExtern, leerlaufAktiv,
   zeitlimit, meldung, nachfragen, fehlertext, fehlerMerken, dialogFelder, auswahlDialog,
   merkeSchritt, rueckWeg, rueckRein, rueckSetz, rueckStand, rueckSichern, rueckLeeren, personName, zielPersonFinden, darfSchreiben,

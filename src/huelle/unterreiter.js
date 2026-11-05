@@ -13,7 +13,7 @@
 import { alt } from "../bruecke.jsx";
 import { sichtbareReiter as prodReiter } from "../seiten/Produktion.jsx";
 import { REITER as BEST_REITER } from "../seiten/Bestellungen.jsx";
-import { REITER as NC_REITER, ncAnsicht } from "../seiten/NcFunktionen.jsx";
+import { ncReiter, ncAnsicht } from "../seiten/NcFunktionen.jsx";
 
 // liste(): Reiter, die die Person sieht. merken(wert): Reiter für das
 // nächste Öffnen der Seite setzen. gemerkt(): der zuletzt gewählte.
@@ -29,7 +29,7 @@ export const UNTERREITER = {
     gemerkt: () => alt.best.ansicht,
   },
   nc: {
-    liste: () => NC_REITER,
+    liste: () => ncReiter(),
     merken: (w) => ncAnsicht(w),
     gemerkt: () => ncAnsicht(),
   },

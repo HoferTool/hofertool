@@ -9,15 +9,23 @@ def pruefe(name, ok):
     print(("ok   " if ok else "FALSCH ") + name)
     if not ok: fehler.append(name)
 with sync_playwright() as p:
+  for OHNE in (True, False):
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
     pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
-    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
+    MIT = FAKE + ";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { camSehen: true };\n"
+    if OHNE: MIT = FAKE
+    pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=MIT))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**",
               "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
+    pg.wait_for_selector("[data-unter='nc/kontur']")
+    if OHNE:
+        pruefe("Ohne Vermerk kein Hofer Cam", pg.locator("[data-unter='nc/cam']").count() == 0
+               and pg.locator("[data-rech='cam'], #rech-inhalt .cam").count() == 0)
+        br.close(); continue
     pg.wait_for_selector("[data-unter='nc/cam']"); pg.click("[data-unter='nc/cam']")
     pg.wait_for_selector("#cam-kanaele")
     k = lambda n: pg.eval_on_selector_all(f"[data-kanal='{n}'] .cam-text", "e => e.map(x => x.textContent)")
