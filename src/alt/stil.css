@@ -11791,3 +11791,15 @@ body.dunkel .cam-fehler, body.dunkel .cam-stand--fehler { color: #ff8a80 !import
   font-size: 13px; line-height: 1.4; resize: vertical; min-height: 60px; }
 body.dunkel .cam-block { border-color: #3a434c; }
 .cam-kopf .nc-ablage { margin-left: auto; }
+/* Hofer Cam: NC-Programm im eigenen Fenster (seit 1.398.0) */
+.cam-fensterleiste { display: flex; justify-content: flex-end; margin: 4px 0 -4px; }
+.cam-imfenster { margin: 10px 0; padding: 10px 14px; border: 1px dashed var(--linie, #c9d3df); border-radius: 8px; }
+.cam-eigen { width: 100%; max-width: none; box-sizing: border-box; }
+.cam-eigen__kopf { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; }
+.dialog-huelle--eigen .cam-eigen { height: auto; max-height: none; }
+/* Hofer Cam: angewählte Bearbeitung und ihre Zeilen in Kanal 1 (seit 1.398.0) */
+.cam-block--aktiv { border-color: #f08a24 !important; box-shadow: 0 0 0 2px rgba(240, 138, 36, .25); }
+.cam-zeile--aktiv { background: #ffe6c7; box-shadow: inset 3px 0 0 #f08a24; }
+.cam-zeile--aktiv.cam-zeile--sync { background: #ffd6a3; }
+body.dunkel .cam-zeile--aktiv { background: #5a3a14; }
+.cam-eigen .cam-kanaele { max-height: calc(100vh - 130px); }

@@ -8,9 +8,11 @@
 //  vor, darum hier bewusst nur Kopf, Ende und seit 1.396.0 Blöcke für
 //  Drehwerkzeuge T100–T600 (weitere Plätze kommen nach seinen Vorgaben).
 // =================================================================
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
+import { fensterOeffnen } from "../../teile/Fenster.jsx";
+import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { DREH_PLAETZE, FELDER, HD_STUFEN, blockFehler, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
@@ -20,8 +22,117 @@ const gemerkt = vorgabe();
 // nc_programme mit art "cam", NC = beide Kanäle hintereinander.
 let gespeichertCam = null;
 
+// Seit 1.398.0 (Wunsch Patrick 5. November 2026: „das erzeugte NC-Programm
+// soll in einem separaten Tab geöffnet werden können und auch auf einen
+// anderen Bildschirm verschoben werden“): die beiden Kanäle ziehen wie
+// der NC-PRO-Rechner in ein eigenes Browserfenster und rechnen dort live
+// aus „gemerkt“ mit. Der Reiter zeigt so lange nur „Zurückholen“.
+const hoerer = new Set();
+const melden = () => hoerer.forEach((f) => f());
+let fensterZu = null;
+// Angewählte Bearbeitung (Wunsch Patrick 5. November 2026: „der NC-Code-
+// Bereich soll für die aktuell angewählte Bearbeitung hervorgehoben
+// werden“), auch im eigenen Fenster
+let aktivId = null;
+function useGemerkt() {
+  const [, neu] = useState(0);
+  useEffect(() => { const f = () => neu((n) => n + 1); hoerer.add(f); return () => { hoerer.delete(f); }; }, []);
+}
+function programmFensterAuf() {
+  if (fensterZu) return;
+  const zu = fensterOeffnen((zu) => (
+    <div className="dialog cam-eigen">
+      <div className="cam-eigen__kopf"><b>Hofer Cam · NC-Programm</b>
+        <button className="knopf knopf--klein" id="cam-eigen-zu" onClick={zu}>Zurück ins HoferTool</button></div>
+      <ImFenster />
+    </div>
+  ), () => { fensterZu = null; melden(); }, "cam-eigen-huelle");
+  const huellen = document.querySelectorAll(".cam-eigen-huelle");
+  const huelle = huellen[huellen.length - 1];
+  fensterZu = zu;
+  melden();
+  if (!huelle || !inEigenesFenster(huelle, zu, { titel: "Hofer Cam · O" + programme(gemerkt).nr1,
+    lage: { x: window.screenX + 80, y: window.screenY + 80 } })) zu();
+}
+function ImFenster() {
+  useGemerkt();
+  const w = { ...gemerkt };
+  const prog = programme(w);
+  const bereich = prog.bereiche[aktivId];
+  // Im Fenster rollt die markierte Bearbeitung von selbst ins Bild
+  useEffect(() => {
+    const d = document.querySelector(".cam-eigen-huelle");
+    const el = d && d.querySelector(".cam-zeile--aktiv");
+    if (el) el.scrollIntoView({ block: "nearest" });
+  }, [aktivId, bereich && bereich[0]]);
+  return <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2)} fehler={pruefen(w)} bereich={bereich} />;
+}
+
+const text = (zeilen) => zeilen.join("\r\n") + "\r\n";
+// Kopieren und Herunterladen im Dokument des Knopfs, damit es auch im
+// eigenen Fenster geht (dort hat das Hauptfenster keinen Fokus)
+async function kopieren(e, zeilen, kanal) {
+  const nav = (e.currentTarget.ownerDocument.defaultView || window).navigator;
+  try {
+    await nav.clipboard.writeText(text(zeilen));
+    alt.meldung("Kanal " + kanal + " kopiert.", "gut");
+  } catch (f) { alt.meldung("Kopieren ging nicht. Bitte von Hand markieren.", "warn"); }
+}
+function herunterladen(e, zeilen, nr) {
+  const d = e.currentTarget.ownerDocument;
+  const url = URL.createObjectURL(new Blob([text(zeilen)], { type: "text/plain" }));
+  const a = d.createElement("a");
+  a.href = url; a.download = nr + ".nc";
+  d.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function Kanaele({ prog, sync, fehler, bereich }) {
+  const imBereich = (z, k) => k === 0 && z && bereich && z.nr >= bereich[0] && z.nr <= bereich[1];
+  const zuViel = Object.keys(fehler).length > 0;
+  return (<>
+      <div className="cam-stand" id="cam-stand">
+        {sync.fehler
+          ? <span className="cam-stand--fehler">{sync.fehler === 1 ? "1 Marke hat" : sync.fehler + " Marken haben"} im anderen Kanal kein Gegenstück.</span>
+          : <span>Alle Synchronisationsmarken sind gepaart.</span>}
+        {zuViel && <span className="cam-stand--fehler"> Rot: {Object.entries(fehler).map(([n, t]) => n === "nr" ? "Nr. " + t : n + " " + t).join(", ")}.</span>}
+      </div>
+      <div className="cam-kanaele" id="cam-kanaele">
+        <div className="cam-spalte cam-spalte--kopf">
+          <b>Kanal 1 · O{prog.nr1}</b>
+          <span>
+            <button className="knopf knopf--klein" data-cam-kopieren="1" onClick={(e) => kopieren(e, prog.k1, 1)}>Kopieren</button>
+            <button className="knopf knopf--klein" data-cam-laden="1" onClick={(e) => herunterladen(e, prog.k1, prog.nr1)}>Herunterladen</button>
+          </span>
+        </div>
+        <div className="cam-spalte cam-spalte--kopf">
+          <b>Kanal 2 · O{prog.nr2}</b>
+          <span>
+            <button className="knopf knopf--klein" data-cam-kopieren="2" onClick={(e) => kopieren(e, prog.k2, 2)}>Kopieren</button>
+            <button className="knopf knopf--klein" data-cam-laden="2" onClick={(e) => herunterladen(e, prog.k2, prog.nr2)}>Herunterladen</button>
+          </span>
+        </div>
+        {sync.reihen.map((r, i) => (
+          [r.k1, r.k2].map((z, k) => (
+            <div key={i + "-" + k} data-reihe={i} data-kanal={k + 1}
+              className={"cam-zeile" + (r.sync ? " cam-zeile--sync" : "") + (!z ? " cam-zeile--leer" : "")
+                + (z?.fehler ? " cam-zeile--fehler" : "") + (imBereich(z, k) ? " cam-zeile--aktiv" : "")}>
+              <span className="cam-nr">{z ? z.nr : ""}</span>
+              <span className="cam-text">{z ? z.text : ""}</span>
+            </div>
+          ))
+        ))}
+      </div>
+      <p className="klein">Blau = Synchronisationsmarke, in beiden Kanälen auf derselben Zeile. Graue Zeilen füllt
+        die App nur für die Anzeige ein, sie kommen nicht ins Programm.</p>
+  </>);
+}
+
 export default function HoferCam() {
   const [w, setW] = useState(gemerkt);
+  const [aktiv, setAktivRoh] = useState(aktivId);
+  const setAktiv = (id) => { if (id === aktivId) return; aktivId = id; setAktivRoh(id); melden(); };
+  useGemerkt();
   const [gespeichert, setGespeichertRoh] = useState(gespeichertCam);
   const setGespeichert = (z) => { gespeichertCam = z; setGespeichertRoh(z); };
   const laden = (d) => {
@@ -30,11 +141,13 @@ export default function HoferCam() {
     Object.keys(gemerkt).forEach((k) => delete gemerkt[k]);
     Object.assign(gemerkt, neu);
     setW({ ...neu });
+    melden();
   };
   const setze = (name, wert) => {
     const neu = { ...w, [name]: wert };
     Object.assign(gemerkt, neu);
     setW(neu);
+    melden();
   };
   const bloecke = w.bloecke || [];
   const setzeBloecke = (neu) => setze("bloecke", neu);
@@ -50,21 +163,6 @@ export default function HoferCam() {
   const prog = useMemo(() => programme(w), [w]);
   const sync = useMemo(() => synchronisieren(prog.k1, prog.k2), [prog]);
 
-  const text = (zeilen) => zeilen.join("\r\n") + "\r\n";
-  const kopieren = async (zeilen, kanal) => {
-    try {
-      await navigator.clipboard.writeText(text(zeilen));
-      alt.meldung("Kanal " + kanal + " kopiert.", "gut");
-    } catch (f) { alt.meldung("Kopieren ging nicht. Bitte von Hand markieren.", "warn"); }
-  };
-  const herunterladen = (zeilen, nr) => {
-    const url = URL.createObjectURL(new Blob([text(zeilen)], { type: "text/plain" }));
-    const a = document.createElement("a");
-    a.href = url; a.download = nr + ".nc";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-  };
-  const zuViel = Object.keys(fehler).length > 0;
   const ncBeide = text(prog.k1) + text(prog.k2);
 
   return (
@@ -97,7 +195,7 @@ export default function HoferCam() {
         <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 1</b>
           <button className="knopf knopf--klein" id="cam-neu-dreh"
-            onClick={() => setzeBloecke([...bloecke, neuerBlock(bloecke)])}>+ Drehwerkzeug T100–T600</button>
+            onClick={() => { const nb = neuerBlock(bloecke); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug T100–T600</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {bloecke.map((b, i) => {
@@ -110,7 +208,8 @@ export default function HoferCam() {
             </label>
           );
           return (
-            <div key={b.id} className="cam-block" data-block={i}>
+            <div key={b.id} className={"cam-block" + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i}
+              onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}>
               <div className="cam-block__zeile">
                 <label className="cam-feld" title="Werkzeugplatz (Drehwerkzeug Kanal 1)"><span>Platz</span>
                   <select data-camblock="platz" value={b.platz} onChange={(e) => blockAendern(b.id, "platz", e.target.value)}>
@@ -146,41 +245,15 @@ export default function HoferCam() {
         })}
       </div>
 
-      <div className="cam-stand" id="cam-stand">
-        {sync.fehler
-          ? <span className="cam-stand--fehler">{sync.fehler === 1 ? "1 Marke hat" : sync.fehler + " Marken haben"} im anderen Kanal kein Gegenstück.</span>
-          : <span>Alle Synchronisationsmarken sind gepaart.</span>}
-        {zuViel && <span className="cam-stand--fehler"> Rot: {Object.entries(fehler).map(([n, t]) => n === "nr" ? "Nr. " + t : n + " " + t).join(", ")}.</span>}
-      </div>
-
-      <div className="cam-kanaele" id="cam-kanaele">
-        <div className="cam-spalte cam-spalte--kopf">
-          <b>Kanal 1 · O{prog.nr1}</b>
-          <span>
-            <button className="knopf knopf--klein" data-cam-kopieren="1" onClick={() => kopieren(prog.k1, 1)}>Kopieren</button>
-            <button className="knopf knopf--klein" data-cam-laden="1" onClick={() => herunterladen(prog.k1, prog.nr1)}>Herunterladen</button>
-          </span>
-        </div>
-        <div className="cam-spalte cam-spalte--kopf">
-          <b>Kanal 2 · O{prog.nr2}</b>
-          <span>
-            <button className="knopf knopf--klein" data-cam-kopieren="2" onClick={() => kopieren(prog.k2, 2)}>Kopieren</button>
-            <button className="knopf knopf--klein" data-cam-laden="2" onClick={() => herunterladen(prog.k2, prog.nr2)}>Herunterladen</button>
-          </span>
-        </div>
-        {sync.reihen.map((r, i) => (
-          [r.k1, r.k2].map((z, k) => (
-            <div key={i + "-" + k} data-reihe={i} data-kanal={k + 1}
-              className={"cam-zeile" + (r.sync ? " cam-zeile--sync" : "") + (!z ? " cam-zeile--leer" : "")
-                + (z?.fehler ? " cam-zeile--fehler" : "")}>
-              <span className="cam-nr">{z ? z.nr : ""}</span>
-              <span className="cam-text">{z ? z.text : ""}</span>
-            </div>
-          ))
-        ))}
-      </div>
-      <p className="klein">Blau = Synchronisationsmarke, in beiden Kanälen auf derselben Zeile. Graue Zeilen füllt
-        die App nur für die Anzeige ein, sie kommen nicht ins Programm.</p>
+      {fensterZu
+        ? <div className="cam-imfenster" id="cam-imfenster">Das NC-Programm ist im eigenen Fenster offen.
+            {" "}<button className="knopf knopf--klein" id="cam-zurueck" onClick={() => fensterZu && fensterZu()}>Zurückholen</button></div>
+        : <>
+          <div className="cam-fensterleiste">
+            <button className="knopf knopf--klein" id="cam-fenster" title="Kanäle in einem eigenen Browserfenster, auch auf einem anderen Bildschirm"
+              onClick={programmFensterAuf}>⧉ Eigenes Fenster</button></div>
+          <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} />
+        </>}
     </div>
   );
 }

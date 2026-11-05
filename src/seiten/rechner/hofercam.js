@@ -283,8 +283,18 @@ export function blockZeilen(b) {
 // Ganze Programme je Kanal; die Bearbeitungen stehen zwischen Kopf und Ende
 export function programme(w) {
   const k1 = kanal1(w), k2 = kanal2(w);
-  const bearb1 = (w.bloecke || []).flatMap(blockZeilen);
+  // Seit 1.398.0: je Block die Zeilen in Kanal 1 (von–bis, ab 1), damit
+  // die Anzeige die angewählte Bearbeitung hervorheben kann
+  const bereiche = {};
+  let ab = k1.kopf.length;
+  const bearb1 = (w.bloecke || []).flatMap((b) => {
+    const z = blockZeilen(b);
+    bereiche[b.id] = [ab + 1, ab + z.length];
+    ab += z.length;
+    return z;
+  });
   return {
+    bereiche,
     k1: [...k1.kopf, ...bearb1, ...k1.ende],
     k2: [...k2.kopf, ...k2.ende],
     nr1: nr4(Number(w.nr) || 0), nr2: nr4((Number(w.nr) || 0) + 1000),

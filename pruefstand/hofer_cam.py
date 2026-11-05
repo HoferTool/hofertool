@@ -66,6 +66,11 @@ with sync_playwright() as p:
     pruefe("Marken nach Blöcken weiter gepaart", len(sync) == 7 and pg.locator(".cam-zeile--fehler").count() == 0)
     pg.click("[data-camblock-weg='1']")
     pruefe("Block entfernen", pg.locator(".cam-block").count() == 1)
+    # Seit 1.398.0: angewählte Bearbeitung hervorgehoben
+    pg.click("[data-block='0'] [data-camblock='code']")
+    akt = pg.eval_on_selector_all("[data-kanal='1'].cam-zeile--aktiv .cam-text", "e => e.map(x => x.textContent)")
+    pruefe("Bearbeitung hervorgehoben", akt[:1] == ["T100(AUSSEN PLAN)"] and akt[-1:] == ["M1"] and len(akt) == 11
+           and pg.locator(".cam-block--aktiv[data-block='0']").count() == 1)
     # Seit 1.397.0: Speichern und Öffnen in nc_programme (art "cam")
     pg.evaluate("TEST.daten.nc_programme = TEST.daten.nc_programme || []")
     pg.click("#camab-speichern"); pg.wait_for_selector(".dialog input")
@@ -82,6 +87,20 @@ with sync_playwright() as p:
     pg.fill("[data-cam='S']", "2500")
     pruefe("Geändert seit Speichern", "Geändert seit" in (pg.text_content("#camab-stand") or ""))
     pg.fill("[data-cam='S']", "3000")
+    # Seit 1.398.0: Kanäle im eigenen Browserfenster, live
+    with pg.expect_popup() as auf:
+        pg.click("#cam-fenster")
+    pop = auf.value; pop.wait_for_selector("#cam-kanaele")
+    pk = lambda: pop.eval_on_selector_all("[data-kanal='1'] .cam-text", "e => e.map(x => x.textContent)")
+    pruefe("Eigenes Fenster zeigt Kanal 1", "O0458(10870-0002)" in pk() and pg.locator("#cam-imfenster").count() == 1
+           and pg.locator("#cam-kanaele").count() == 0)
+    pruefe("Im Fenster hervorgehoben", pop.locator("[data-kanal='1'].cam-zeile--aktiv").count() == 11)
+    pg.fill("[data-cam='nr']", "459"); pop.wait_for_timeout(150)
+    pruefe("Eigenes Fenster rechnet live", "O0459(10870-0002)" in pk())
+    pop.screenshot(path="hofer_cam_fenster.png")
+    pg.fill("[data-cam='nr']", "458")
+    pg.click("#cam-zurueck"); pg.wait_for_selector("#cam-kanaele")
+    pruefe("Zurückgeholt", pop.is_closed() or pop.locator("#cam-kanaele").count() == 0)
     pg.screenshot(path="hofer_cam.png", full_page=False)
     pg.evaluate("document.body.classList.add('dunkel')"); pg.screenshot(path="hofer_cam_dunkel.png")
     br.close()
