@@ -345,6 +345,9 @@ export function blockZeilen(b, w = {}, marke) {
       // Verschleisskorrektur erfolgt (Patrick 5. November 2026)
       "T" + t,
       mk.m1,
+      // Seit 1.414.0: Markenpaare aus dem NC-Code von Kanal 2, dazwischen
+      // der eigene NC-Code von Kanal 1
+      ...markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]),
       mk.m2,
       ...(b.hd && !b.hdAn ? ["M1892"] : []),
       "T0",
@@ -417,6 +420,21 @@ export function blockZeilen2(b, marke, w = {}) {
     "M1",
   ];
 }
+// Seit 1.414.0 (Wunsch Patrick 5. November 2026: „innerhalb der
+// Bearbeitung Wartemarken setzen … auf Kanal 2 z.B. M350 und M360 direkt
+// nacheinander, dann soll auf Kanal 1 innerhalb der Wartemarken
+// programmiert werden können“): zwei Marken direkt nacheinander im NC-Code
+// an der Gegenspindel sind ein Paar; Kanal 1 bekommt dieselben Marken und
+// dazwischen den Code aus `k1["M350-M360"]` am Block
+export function markenPaare(b) {
+  if (!anGegenspindel(b)) return [];
+  const m = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean).map(markeVon);
+  const paare = [];
+  for (let i = 0; i + 1 < m.length; i++) if (m[i] && m[i + 1] && m[i] !== m[i + 1]) { paare.push([m[i], m[i + 1]]); i++; }
+  return paare;
+}
+export const k1Zeilen = (b, x, y) =>
+  String((b.k1 || {})[x + "-" + y] || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
 export const anGegenspindel = (b) => b.art === "front" && b.spindel === "gegen";
 
 // Je Block an der Gegenspindel zwei Wartemarken {m1, m2}: von Hand
@@ -427,6 +445,7 @@ export function markenVergeben(bloecke, belegtZeilen = []) {
   bloecke.forEach((b) => {
     String(b.code || "").split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); });
     if (anGegenspindel(b)) [b.m1, b.m2].map(markeNorm).filter(Boolean).forEach((m) => belegt.add(m));
+    Object.values(b.k1 || {}).forEach((c) => String(c).split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); }));
   });
   const marken = {};
   let n = 300;

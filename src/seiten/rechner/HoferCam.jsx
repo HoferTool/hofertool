@@ -14,7 +14,7 @@ import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
-import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, blockFehler, drehzahl, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, blockFehler, drehzahl, markenPaare, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
 const gemerkt = vorgabe();
@@ -289,8 +289,16 @@ export default function HoferCam() {
                 ? <button className="cam-block__zu klein" data-camblock-auf={i} onClick={() => blockAendern(b.id, "zu", false)}>
                     NC-Code: {String(b.code || "").split(/\r?\n/).filter((x) => x.trim()).length} Zeilen (aufklappen)</button>
                 : <textarea className="cam-block__code" data-camblock="code" rows={4} spellCheck={false}
-                    placeholder="NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …)"
+                    placeholder={b.spindel === "gegen" && b.art === "front" ? "NC-Code für Kanal 2 (zwei Marken direkt nacheinander, z.B. M350 und M360, geben Platz für Kanal 1)" : "NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …)"}
                     value={b.code} onChange={(e) => blockAendern(b.id, "code", e.target.value)} />}
+              {!b.zu && markenPaare(b).map(([x, y]) => (
+                <label key={x + "-" + y} className="cam-k1" data-camk1={x + "-" + y}>
+                  <span className="klein">Kanal 1 zwischen {x} und {y}</span>
+                  <textarea className="cam-block__code" rows={3} spellCheck={false}
+                    placeholder={"NC-Code für Kanal 1, während Kanal 2 zwischen " + x + " und " + y + " wartet"}
+                    value={(b.k1 || {})[x + "-" + y] || ""}
+                    onChange={(e) => blockAendern(b.id, "k1", { ...(b.k1 || {}), [x + "-" + y]: e.target.value })} />
+                </label>))}
             </div>
           ) };
         })} />

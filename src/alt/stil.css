@@ -11859,3 +11859,7 @@ body.dunkel .eba-pf-rich:focus { outline: 2px solid #6ba4ff; }
 .eba-seite .eba-bem-ein.eba-rich { overflow: auto; white-space: pre-wrap; }
 .eba-pf-schrift-tipp { font-size: .82rem; color: #556; margin: 8px 0 0; }
 body.dunkel .eba-pf-schrift-tipp { color: #c9d1d9; }
+
+/* Hofer Cam seit 1.414.0: Code für Kanal 1 zwischen zwei Marken aus Kanal 2 */
+.cam-k1 { display: block; margin-top: 6px; }
+.cam-k1 > span { display: block; margin-bottom: 2px; }

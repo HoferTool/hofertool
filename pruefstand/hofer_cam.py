@@ -147,6 +147,18 @@ with sync_playwright() as p:
     pruefe("Falsche Marke rot", pg.locator("[data-block='1'] .cam-feld--fehler [data-camblock='m2']").count() == 1)
     pg.fill("[data-block='1'] [data-camblock='m1']", "")
     pg.fill("[data-block='1'] [data-camblock='m2']", "")
+    # Seit 1.414.0: Markenpaar im Code von Kanal 2, dazwischen Code für Kanal 1
+    pg.fill("[data-block='1'] [data-camblock='code']", "G83W18.5Q5250F0.06\nM350\nM360\nG80")
+    pruefe("Feld Kanal 1 da", pg.locator("[data-block='1'] [data-camk1='M350-M360'] textarea").count() == 1)
+    pg.fill("[data-block='1'] [data-camk1='M350-M360'] textarea", "G0X10.\nG1X5.F0.1")
+    t = [x for x in k(1) if x]
+    a = t.index("T1400(BOHREN D6.8 MIT GEGENSPINDEL)")
+    pruefe("Kanal 1 zwischen Marken", t[a:a+10] == ["T1400(BOHREN D6.8 MIT GEGENSPINDEL)", "M1882D4", "T14", "M300",
+        "M350", "G0X10.", "G1X5.F0.1", "M360", "M310", "M1892"])
+    t2 = [x for x in k(2) if x]
+    pruefe("Kanal 2 Marken ohne Schrägstrich", "M350" in t2 and "M360" in t2 and "/M350" not in t2)
+    pruefe("Paar ohne Fehler", pg.locator(".cam-zeile--fehler").count() == 0)
+    pg.fill("[data-block='1'] [data-camblock='code']", "G83W18.5Q5250F0.06\nG80")
     pg.select_option("[data-block='1'] [data-camblock='spindel']", "haupt")
     # Seit 1.405.0: Bearbeitungen am Griff verschieben
     def ziehen(von, nach):
