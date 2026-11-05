@@ -11879,3 +11879,7 @@ body.dunkel .cam-zeile--hand.cam-zeile--sync { background: #6a5e14; }
 body.dunkel .cam-stand--hand { background: #5a5014; }
 body.dunkel .cam-verloren { background: #5a1d1d; }
 body.dunkel .cam-verloren pre { background: #1b2025; }
+/* Hofer Cam seit 1.425.2: Knöpfe der Bearbeitungen nie umbrechen
+   (Patrick: „T100–T600 soll auf die gleiche Zeile“), lieber die Reihe */
+.cam-bearb__kopf { flex-wrap: wrap; row-gap: 6px; }
+.cam-bearb__kopf .knopf { white-space: nowrap; }

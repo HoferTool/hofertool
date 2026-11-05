@@ -303,6 +303,11 @@ with sync_playwright() as p:
            and "2 Zeilen" in pg.text_content("[data-camblock-auf='0']") and "G0Z0.5" in [x for x in k(1) if x])
     pg.click("[data-camblock-pfeil='0']")
     pruefe("Ausgeklappt", pg.input_value("[data-block='0'] [data-camblock='code']").startswith("G1X-0.8"))
+    # Seit 1.425.2: Knöpfe der Bearbeitungen brechen nicht um, auch schmal
+    pg.set_viewport_size({"width": 1000, "height": 900}); pg.wait_for_timeout(150)
+    hoehen = pg.eval_on_selector_all(".cam-bearb__kopf .knopf", "e => e.map(x => x.getBoundingClientRect().height)")
+    pruefe("Knöpfe einzeilig", len(hoehen) == 6 and max(hoehen) - min(hoehen) < 2)
+    pg.set_viewport_size({"width": 1440, "height": 900}); pg.wait_for_timeout(150)
     # Seit 1.421.0: Zeilen im Programm von Hand ändern, gelb, bleiben beim Neurechnen
     zl = lambda kn, nr: pg.locator("[data-kanal='%d'][data-nr='%d'] .cam-text" % (kn, nr))
     zl(1, 3).click(); pg.keyboard.press("End"); pg.keyboard.type("(HAND)"); pg.keyboard.press("Tab"); pg.wait_for_timeout(150)
