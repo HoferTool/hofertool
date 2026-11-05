@@ -8,6 +8,7 @@
 //  vor, darum hier bewusst nur Kopf, Ende und seit 1.396.0 Blöcke für
 //  Drehwerkzeuge T100–T600 (weitere Plätze kommen nach seinen Vorgaben).
 // =================================================================
+import { ZiehListe } from "../../teile/ZiehListe.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
@@ -65,7 +66,7 @@ function ImFenster() {
     const el = d && d.querySelector(".cam-zeile--aktiv");
     if (el) el.scrollIntoView({ block: "nearest" });
   }, [aktivId, bereich && bereich[0]]);
-  return <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2)} fehler={pruefen(w)} bereich={bereich} />;
+  return <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]} />;
 }
 
 const text = (zeilen) => zeilen.join("\r\n") + "\r\n";
@@ -87,8 +88,11 @@ function herunterladen(e, zeilen, nr) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-function Kanaele({ prog, sync, fehler, bereich }) {
-  const imBereich = (z, k) => k === 0 && z && bereich && z.nr >= bereich[0] && z.nr <= bereich[1];
+function Kanaele({ prog, sync, fehler, bereich, bereich2 }) {
+  const imBereich = (z, k) => {
+    const b = k === 0 ? bereich : bereich2;
+    return z && b && z.nr >= b[0] && z.nr <= b[1];
+  };
   const zuViel = Object.keys(fehler).length > 0;
   return (<>
       <div className="cam-stand" id="cam-stand">
@@ -200,7 +204,11 @@ export default function HoferCam() {
             onClick={() => { const nb = neuerBlock(bloecke, "front"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontwerkzeug T1100–T1400</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
-        {bloecke.map((b, i) => {
+        {/* Seit 1.404.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
+            Griff ⠿ untereinander verschieben, statt Pfeilen */}
+        <ZiehListe nurGriff darf={bloecke.length > 1} className="cam-zieh"
+          ordnen={(ids) => setzeBloecke(ids.map((id) => bloecke.find((x) => x.id === id)).filter(Boolean))}
+          eintraege={bloecke.map((b, i) => {
           const bf = blockFehler(b, w);
           const front = b.art === "front";
           const feld = (name, text, lang, breit) => (
@@ -210,7 +218,7 @@ export default function HoferCam() {
                 inputMode="decimal" onChange={(e) => blockAendern(b.id, name, e.target.value)} />
             </label>
           );
-          return (
+          return { key: b.id, inhalt: (
             <div key={b.id} className={"cam-block" + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i}
               onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}>
               <div className="cam-block__zeile">
@@ -221,7 +229,7 @@ export default function HoferCam() {
                 {front && <label className="cam-feld" title="Hauptspindel oder Gegenspindel"><span>Spindel</span>
                   <select data-camblock="spindel" value={b.spindel || "haupt"} onChange={(e) => blockAendern(b.id, "spindel", e.target.value)}>
                     <option value="haupt">Hauptspindel</option>
-                    <option value="gegen" disabled>Gegenspindel (folgt)</option>
+                    <option value="gegen">Gegenspindel (Kanal 2 mit T2000)</option>
                   </select></label>}
                 <label className="cam-feld" title={front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
                   <select data-camblock="platz" value={b.platz} onChange={(e) => blockAendern(b.id, "platz", e.target.value)}>
@@ -255,8 +263,8 @@ export default function HoferCam() {
                   : feld("S", "Drehzahl S", "Drehzahl")}
                 {front
                   ? <>
-                    {feld("anZ", "Anfahren Z", "G0Z… vor dem Teil")}
-                    {feld("wegZ", "Zurück Z", "Am Ende G0Z… zurück in sichere Richtung", 60)}
+                    {feld("anZ", "Anfahren Z", b.spindel === "gegen" ? "Kanal 2: G0Z… der Gegenspindel vor dem Werkzeug" : "G0Z… vor dem Teil")}
+                    {feld("wegZ", "Zurück Z", b.spindel === "gegen" ? "Kanal 2: am Ende G0Z… zurück, danach G28W0." : "Am Ende G0Z… zurück in sichere Richtung", 60)}
                   </>
                   : <>
                     {feld("anZ", "Anfahren Z", "G0X[#531+1.]Z…")}
@@ -277,8 +285,8 @@ export default function HoferCam() {
                     placeholder="NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …)"
                     value={b.code} onChange={(e) => blockAendern(b.id, "code", e.target.value)} />}
             </div>
-          );
-        })}
+          ) };
+        })} />
       </div>
 
       {fensterZu
@@ -288,7 +296,7 @@ export default function HoferCam() {
           <div className="cam-fensterleiste">
             <button className="knopf knopf--klein" id="cam-fenster" title="Kanäle in einem eigenen Browserfenster, auch auf einem anderen Bildschirm"
               onClick={programmFensterAuf}>⧉ Eigenes Fenster</button></div>
-          <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} />
+          <Kanaele prog={prog} sync={sync} fehler={fehler} bereich={prog.bereiche[aktiv]} bereich2={prog.bereiche2[aktiv]} />
         </>}
     </div>
   );

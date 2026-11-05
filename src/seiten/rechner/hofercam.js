@@ -247,7 +247,8 @@ export const HD_STUFEN = ["", "1", "2", "3", "4", "5", "6"];
 
 // Seit 1.400.0: feste Frontwerkzeuge T1100–T1400 (Patricks Beispiel
 // T1400 Bohren D6.8, 5. November 2026). Wahl Haupt- oder Gegenspindel;
-// die Gegenspindel kommt erst mit Patricks Beispiel dazu.
+// seit 1.404.0 mit Gegenspindel: Kanal 1 nur Kopf und Ende ohne
+// Verfahrwege und eine Wartemarke, Kanal 2 mit T2000 macht die Wege.
 export const FRONT_PLAETZE = ["1100", "1200", "1300", "1400"];
 
 const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -301,13 +302,28 @@ export function blockFehler(b, w = {}) {
   return f;
 }
 
-export function blockZeilen(b, w = {}) {
+export function blockZeilen(b, w = {}, marke) {
   const S = drehzahl(b, w) ?? String(b.S).trim();
   // Seit 1.403.0 (Wunsch Patrick 5. November 2026): G96 im Kopf der
   // Bearbeitung ein, am Ende vor T0 mit G97 wieder aus
   const g96 = b.sArt === "vc" && !!b.g96;
   const t = Number(b.platz) / 100;
   const bez = String(b.bez || "").trim();
+  if (b.art === "front" && b.spindel === "gegen") {
+    // Seit 1.404.0 (Patrick 5. November 2026): an der Gegenspindel hält
+    // Kanal 1 nur das Werkzeug bereit (Kopf und Ende ohne G0Z) und wartet
+    // an der Marke, bis Kanal 2 mit T2000 die Bearbeitung fertig hat
+    return [
+      "T" + b.platz + (bez ? "(" + bez + ")" : ""),
+      ...(b.hd ? ["M1882D" + b.hd] : []),
+      (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
+      marke || "M300",
+      ...(b.hd ? ["M1892"] : []),
+      ...(g96 ? ["G97"] : []),
+      "T0",
+      "M1",
+    ];
+  }
   if (b.art === "front") {
     // Nach Patricks T1400: Hochdruck der Front M1882D… / M1892, kein X,
     // nach der Bearbeitung mit Z zurück in sichere Richtung
@@ -342,23 +358,68 @@ export function blockZeilen(b, w = {}) {
   ];
 }
 
+// Seit 1.404.0: Kanal 2 bei einem Frontwerkzeug an der Gegenspindel,
+// nach Patricks O1458 (T2000, Wege in Z, G28W0.): die Gegenspindel fährt
+// mit dem Teil an das feste Werkzeug, die Marke danach gibt Kanal 1 frei
+export function blockZeilen2(b, marke) {
+  const bez = String(b.bez || "").trim();
+  const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+  return [
+    "T2000" + (bez ? "(" + bez + ")" : ""),
+    "G0Z" + (zahl(b.anZ) ?? b.anZ),
+    ...code,
+    "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
+    "G28W0.",
+    marke,
+    "T0",
+    "M1",
+  ];
+}
+export const anGegenspindel = (b) => b.art === "front" && b.spindel === "gegen";
+
+// Freie Wartemarken ab M300 in Zehnerschritten, die weder in Kopf und
+// Ende noch im eingefügten NC-Code vorkommen
+function markenVergeben(bloecke, belegtZeilen) {
+  const belegt = new Set(belegtZeilen.map(markeVon).filter(Boolean));
+  bloecke.forEach((b) => String(b.code || "").split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); }));
+  const marken = {};
+  let n = 300;
+  for (const b of bloecke) {
+    if (!anGegenspindel(b)) continue;
+    while (belegt.has("M" + n) && n <= 999) n += 10;
+    marken[b.id] = "M" + n;
+    belegt.add("M" + n);
+    n += 10;
+  }
+  return marken;
+}
+
 // Ganze Programme je Kanal; die Bearbeitungen stehen zwischen Kopf und Ende
 export function programme(w) {
   const k1 = kanal1(w), k2 = kanal2(w);
   // Seit 1.398.0: je Block die Zeilen in Kanal 1 (von–bis, ab 1), damit
   // die Anzeige die angewählte Bearbeitung hervorheben kann
-  const bereiche = {};
-  let ab = k1.kopf.length;
-  const bearb1 = (w.bloecke || []).flatMap((b) => {
-    const z = blockZeilen(b, w);
+  const bereiche = {}, bereiche2 = {};
+  const bloecke = w.bloecke || [];
+  const marken = markenVergeben(bloecke, [...k1.kopf, ...k1.ende, ...k2.kopf, ...k2.ende]);
+  let ab = k1.kopf.length, ab2 = k2.kopf.length;
+  const bearb2 = [];
+  const bearb1 = bloecke.flatMap((b) => {
+    const z = blockZeilen(b, w, marken[b.id]);
     bereiche[b.id] = [ab + 1, ab + z.length];
     ab += z.length;
+    if (marken[b.id]) {
+      const z2 = blockZeilen2(b, marken[b.id]);
+      bereiche2[b.id] = [ab2 + 1, ab2 + z2.length];
+      ab2 += z2.length;
+      bearb2.push(...z2);
+    }
     return z;
   });
   return {
-    bereiche,
+    bereiche, bereiche2,
     k1: [...k1.kopf, ...bearb1, ...k1.ende],
-    k2: [...k2.kopf, ...k2.ende],
+    k2: [...k2.kopf, ...bearb2, ...k2.ende],
     nr1: nr4(Number(w.nr) || 0), nr2: nr4((Number(w.nr) || 0) + 1000),
   };
 }

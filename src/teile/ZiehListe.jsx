@@ -17,7 +17,7 @@ import { flushSync } from "react-dom";
 const SCHWELLE = 6;       // Pixel, ab denen eine Mausbewegung als Ziehen gilt
 const GLEITEN = 200;      // ms
 
-export function ZiehListe({ eintraege, darf, ordnen, id, className }) {
+export function ZiehListe({ eintraege, darf, ordnen, id, className, nurGriff }) {
   const schluessel = eintraege.map((e) => e.key).join("|");
   const [reihe, setReihe] = useState(() => eintraege.map((e) => e.key));
   const zug = useRef(null);
@@ -86,6 +86,9 @@ export function ZiehListe({ eintraege, darf, ordnen, id, className }) {
     if (!darf || zug.current || sichtbar.length < 2) return;
     if (e.button !== undefined && e.button !== 0) return;
     if (!amGriff && e.pointerType !== "mouse") return;   // Finger nur am Griff, sonst rollt die Seite
+    // Zeilen mit Eingabefeldern (Hofer Cam): nur am Griff, sonst geht das
+    // Markieren von Text mit der Maus nicht mehr
+    if (!amGriff && nurGriff) return;
     const keys = sichtbar.slice();
     const rects = keys.map((k) => zeilen.current[k].getBoundingClientRect());
     const abstand = rects.length > 1 ? Math.max(0, rects[1].top - rects[0].bottom) : 0;

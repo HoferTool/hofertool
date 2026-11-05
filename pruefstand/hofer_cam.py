@@ -75,8 +75,8 @@ with sync_playwright() as p:
     a, b = t.index("M1", t.index("T100(AUSSEN PLAN)")), t.index("(Start Ende)")
     pruefe("Frontblock wie Beispiel", t[a+1:b] == ["T1400(BOHREN D6.8)", "M1882D4", "M3S2500T14", "G0Z5.0",
         "G83W18.5Q5250F0.06", "G80", "M1892", "G0Z0.", "T0", "M1"])
-    pruefe("Spindel Haupt, Gegen folgt", pg.input_value("[data-block='1'] [data-camblock='spindel']") == "haupt"
-           and pg.locator("[data-block='1'] option[value='gegen'][disabled]").count() == 1)
+    pruefe("Spindel Haupt, Gegen wählbar", pg.input_value("[data-block='1'] [data-camblock='spindel']") == "haupt"
+           and pg.locator("[data-block='1'] option[value='gegen'][disabled]").count() == 0)
     pg.select_option("[data-block='1'] [data-camblock='hd']", "")
     t = [x for x in k(1) if x]
     a, b = t.index("M1", t.index("T100(AUSSEN PLAN)")), t.index("(Start Ende)")
@@ -110,6 +110,39 @@ with sync_playwright() as p:
     pg.uncheck("[data-block='1'] [data-camblock='g96']")
     t = [x for x in k(1) if x]
     pruefe("G96 wieder aus", "G97" not in t[t.index("T100(AUSSEN PLAN)"):t.index("(Start Ende)")])
+    # Seit 1.404.0: Frontwerkzeug an der Gegenspindel, Kanal 2 mit T2000
+    pg.select_option("[data-block='1'] [data-camblock='sArt']", "S")
+    pg.fill("[data-block='1'] [data-camblock='S']", "2500")
+    pg.select_option("[data-block='1'] [data-camblock='hd']", "4")
+    pg.select_option("[data-block='1'] [data-camblock='spindel']", "gegen")
+    t = [x for x in k(1) if x]
+    a = t.index("M1", t.index("T100(AUSSEN PLAN)"))
+    b = t.index("(Start Ende)")
+    pruefe("Gegenspindel Kanal 1", t[a+1:b] == ["T1400(BOHREN D6.8)", "M1882D4", "M3S2500T14", "M300", "M1892", "T0", "M1"])
+    t2 = [x for x in k(2) if x]
+    a2, b2 = t2.index("(Ende Kopf)"), t2.index("(Start Ende)")
+    pruefe("Gegenspindel Kanal 2", t2[a2+1:b2] == ["T2000(BOHREN D6.8)", "G0Z5.0", "G83W18.5Q5250F0.06", "G80",
+        "G0Z0.", "G28W0.", "M300", "T0", "M1"])
+    pruefe("Marke M300 gepaart", pg.locator(".cam-zeile--fehler").count() == 0)
+    pg.select_option("[data-block='1'] [data-camblock='spindel']", "haupt")
+    # Seit 1.404.0: Bearbeitungen am Griff verschieben
+    def ziehen(von, nach):
+        g = pg.locator(".cam-zieh .ziehliste__griff").nth(von).bounding_box()
+        z = pg.locator("[data-block='%d']" % nach).bounding_box()
+        pg.mouse.move(g["x"] + g["width"] / 2, g["y"] + 10)
+        pg.mouse.down()
+        ziel = z["y"] + 5 if nach < von else z["y"] + z["height"] - 5
+        for s in range(1, 11):
+            pg.mouse.move(g["x"] + g["width"] / 2, g["y"] + 10 + (ziel - g["y"] - 10) * s / 10)
+            pg.wait_for_timeout(20)
+        pg.mouse.up()
+        pg.wait_for_timeout(400)
+    ziehen(1, 0)
+    t = [x for x in k(1) if x]
+    pruefe("Gezogen: Front zuerst", t.index("T1400(BOHREN D6.8)") < t.index("T100(AUSSEN PLAN)"))
+    ziehen(0, 1)
+    t = [x for x in k(1) if x]
+    pruefe("Zurückgezogen", t.index("T100(AUSSEN PLAN)") < t.index("T1400(BOHREN D6.8)"))
     pg.select_option("[data-block='0'] [data-camblock='sArt']", "S")
     pruefe("Zurück auf S", "M3S3000T1" in [x for x in k(1) if x])
     pg.click("[data-camblock-weg='1']")

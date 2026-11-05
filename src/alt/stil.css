@@ -11835,3 +11835,8 @@ body.dunkel .eba-pf-schrift-ziele button.aktiv { background: #1f6feb; color: #ff
 /* Hofer Cam: Häkchen G96 neben Vc, Kästchen und Text auf einer Zeile */
 .cam-g96 { flex-direction: row; align-items: center; gap: 4px; }
 .cam-g96 input { width: auto; }
+
+/* Hofer Cam: Bearbeitungen am Griff verschieben (seit 1.404.0) */
+.cam-zieh { list-style: none; padding: 0; margin: 0; }
+.cam-zieh > .ziehliste__zeile > .cam-block { flex: 1; min-width: 0; }
+.cam-zieh > .ziehliste__zeile > .ziehliste__griff { align-self: stretch; margin-bottom: 6px; }
