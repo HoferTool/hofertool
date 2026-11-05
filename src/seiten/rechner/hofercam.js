@@ -271,7 +271,7 @@ export function neuerBlock(bloecke = [], art = "dreh") {
   const belegt = new Set(bloecke.map((b) => b.platz));
   if (art === "k2") {
     const platz = K2_PLAETZE.find((p) => !belegt.has(p)) || "2100";
-    return { id: neueId(), art: "k2", platz, bez: "", dreh: "4", S: "2500",
+    return { id: neueId(), art: "k2", platz, bez: "", hd: "3", dreh: "4", S: "2500",
       vorX: "-45.4", vorZ: "61.40", nX: "-10", nZ: "-0.5", code: "" };
   }
   if (art === "seite") {
@@ -553,6 +553,9 @@ export function blockZeilen2(b, marke, w = {}) {
     const g = (n) => zahl(b[n]) ?? String(b[n] ?? "");
     return [
       "M75",
+      // Seit 1.424.0 (Patrick 5. November 2026: „brauchen auch Hochdruck
+      // M1884“): wie T2200 in O1458 vor dem Werkzeugaufruf, aus nach M76
+      ...(b.hd ? ["/M1884D" + b.hd] : []),
       s("T" + b.platz + (bez ? "(" + bez + ")" : "")),
       "/G23",
       s((g96 ? "G96" : "") + "M" + (b.dreh === "3" ? 3 : 4) + "S" + S + "T" + String(b.platz).slice(0, 2)),
@@ -572,6 +575,7 @@ export function blockZeilen2(b, marke, w = {}) {
       "/G99",
       "G28W0.0",
       "M76",
+      ...(b.hd && !b.hdAn ? ["M1894"] : []),
       "G22",
       "T0",
       "M1",

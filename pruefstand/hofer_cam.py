@@ -220,9 +220,9 @@ with sync_playwright() as p:
     pg.fill("[data-block='2'] [data-camk1='M350-M360'] textarea", "G0U1.")
     t2 = [x for x in k(2) if x]
     a2 = t2.index("/T2100(PLANEN + D7.9)") - 1
-    pruefe("T2100 Kanal 2", t2[a2:t2.index("(Start Ende)")] == ["M75", "/T2100(PLANEN + D7.9)", "/G23", "/M4S2500T21", "/G99",
+    pruefe("T2100 Kanal 2", t2[a2-1:t2.index("(Start Ende)")] == ["M75", "/M1884D3", "/T2100(PLANEN + D7.9)", "/G23", "/M4S2500T21", "/G99",
         "/G0X-45.4", "/G0Z61.40", "/G50X-10.Z-0.5", "/G1Z-1.F0.5", "/G1X-11.", "/G1Z0.", "/G1X-6.3F0.03", "M350", "M360",
-        "/G1Z-0.5F0.5", "/G1X-10.", "/G50Z61.40X-45.4", "/G0Z20.0", "/G0X0.0", "/G99", "G28W0.0", "M76", "G22", "T0", "M1", "M5"])
+        "/G1Z-0.5F0.5", "/G1X-10.", "/G50Z61.40X-45.4", "/G0Z20.0", "/G0X0.0", "/G99", "G28W0.0", "M76", "M1894", "G22", "T0", "M1", "M5"])
     t = [x for x in k(1) if x]
     i1 = t.index("M350")
     pruefe("T2100 Kanal 1 nur Marken", t[i1:i1+3] == ["M350", "G0U1.", "M360"] and "/G23" not in t
