@@ -63,6 +63,28 @@ with sync_playwright() as p:
     pruefe("Ohne Winkel und Hochdruck", "G1X[#531+0.2]F0.05" in t and "M1881D4" not in t and "M1891" not in t)
     pg.fill("[data-block='0'] [data-camblock='wegA']", "45")
     pg.select_option("[data-block='0'] [data-camblock='hd']", "4")
+    # Seit 1.427.0: Vorlagen in den NC-Code einer Bearbeitung
+    cb = "[data-block='0'] [data-camblock='code']"
+    pg.click(cb); pg.keyboard.press("Control+Home"); pg.keyboard.press("End")
+    pg.click("[data-camvorlage-auf='0']")
+    pg.select_option("[data-camvorlage-wahl]", "g83")
+    pruefe("Vorlage meldet fehlende Werte", pg.locator("[data-camvorlage-einfuegen]").is_disabled())
+    pg.fill("[data-camvorlage-feld='W']", "18.5"); pg.fill("[data-camvorlage-feld='Q']", "5.25"); pg.fill("[data-camvorlage-feld='F']", "0.06")
+    pruefe("Vorschau G83", pg.text_content("[data-camvorlage-vorschau]") == "G83W18.5Q5250F0.06\nG80")
+    pg.click("[data-camvorlage-einfuegen]")
+    pruefe("G83 nach der Zeile mit der Schreibmarke", pg.input_value(cb) == "G1X-0.8F0.05\nG83W18.5Q5250F0.06\nG80\n\nG0Z0.5"
+           and pg.locator("[data-camvorlage]").count() == 0 and "G83W18.5Q5250F0.06" in k(1))
+    pg.click("[data-camvorlage-auf='0']"); pg.select_option("[data-camvorlage-wahl]", "g76")
+    pg.fill("[data-camvorlage-feld='D']", "9"); pg.fill("[data-camvorlage-feld='F']", "0.5"); pg.fill("[data-camvorlage-feld='Z']", "4.74")
+    pruefe("Vorschau G76 wie O1458", pg.text_content("[data-camvorlage-vorschau]") == "G76P030060Q40R10\nG76X8.3Z4.74P330Q80F0.5")
+    pg.select_option("[data-camvorlage-wahl]", "g87")
+    pg.fill("[data-camvorlage-feld='XA']", "14.5"); pg.fill("[data-camvorlage-feld='X']", "9.625")
+    pg.fill("[data-camvorlage-feld='Q']", "1"); pg.fill("[data-camvorlage-feld='P']", "200"); pg.fill("[data-camvorlage-feld='F']", "0.01")
+    v = (pg.text_content("[data-camvorlage-vorschau]") or "").split("\n")
+    pruefe("Vorschau G87 wie T3200", v[0] == "#100=6(ANZAHL BOHRUNGEN)" and "G87X9.625Q1000P200F0.01" in v and v[-1] == "END1" and v.count("G1X14.5F0.5") == 2)
+    pg.screenshot(path="hofer_cam_vorlage.png")
+    pg.click("[data-camvorlage] .cam-vorlage__kopf .knopf")
+    pg.fill(cb, "G1X-0.8F0.05\n\nG0Z0.5")
     pg.click("#cam-neu-dreh")
     pruefe("Zweiter Block nimmt freien Platz", pg.get_attribute("[data-block='1'] [data-camblock='platz']", "data-wert") == "200")
     sync = pg.eval_on_selector_all(".cam-zeile--sync[data-kanal='1'] .cam-text", "e => e.map(x => x.textContent)")
@@ -234,7 +256,7 @@ with sync_playwright() as p:
     # Seit 1.426.0: Bild der Maschine beim Darüberfahren
     pg.hover("[data-block='2'] [data-camblock='bez']"); pg.wait_for_timeout(150)
     pruefe("Bild Kanal 2", pg.get_attribute("#cam-bild", "data-bereich") == "Kanal 2" and "T2100" in pg.text_content("#cam-bild"))
-    pg.hover("[data-block='0'] [data-camblock='bez']"); pg.wait_for_timeout(150)
+    pg.evaluate("window.scrollTo(0, 0)"); pg.hover("[data-block='0'] [data-camblock='bez']"); pg.wait_for_timeout(150)
     ueberlapp = pg.evaluate("""() => { const a = document.querySelector('#cam-bild').getBoundingClientRect();
         return [...document.querySelectorAll('.cam-bearb__kopf .knopf')].some(k => { const b = k.getBoundingClientRect();
           return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top; }); }""")

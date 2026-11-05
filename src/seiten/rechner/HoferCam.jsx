@@ -14,7 +14,52 @@ import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
+import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, K2_PLAETZE, QUER_PLAETZE, SEITE_PLAETZE, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+
+// Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
+// Bearbeitungen aus einer Liste einfügen … in eine bestehende
+// Bearbeitung“): Vorlage wählen, Werte tippen, „Einfügen“ setzt die
+// Zeilen nach der Zeile mit der Schreibmarke im NC-Code ein (ohne Marke
+// ans Ende). Rechnen in camVorlagen.js.
+function VorlageFeld({ code, pos, einsetzen, zu }) {
+  const [id, setId] = useState(VORLAGEN[0].id);
+  const [werte, setWerte] = useState(() => ({ [VORLAGEN[0].id]: vorlageStart(VORLAGEN[0].id) }));
+  const v = vorlageVon(id);
+  const w = werte[id] || vorlageStart(id);
+  const setze = (n, x) => setWerte({ ...werte, [id]: { ...w, [n]: x } });
+  const erg = vorlageZeilen(id, w);
+  return (
+    <div className="cam-vorlage" data-camvorlage>
+      <div className="cam-vorlage__kopf">
+        <b>Vorlage</b>
+        <select data-camvorlage-wahl value={id} onChange={(e) => { setId(e.target.value);
+          if (!werte[e.target.value]) setWerte({ ...werte, [e.target.value]: vorlageStart(e.target.value) }); }}>
+          {VORLAGEN.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+        </select>
+        <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
+      </div>
+      <div className="cam-vorlage__felder">
+        {v.felder.map((f) => f.typ === "haken"
+          ? <label key={f.name} className="cam-feld cam-feld--haken" title={f.lang}>
+              <input type="checkbox" data-camvorlage-feld={f.name} checked={feldWert(v, w, f)} onChange={(e) => setze(f.name, e.target.checked)} />
+              <span>{f.text}</span></label>
+          : <label key={f.name} className="cam-feld" title={f.lang}>
+              <span>{f.text}</span>
+              <input data-camvorlage-feld={f.name} value={w[f.name] ?? ""} inputMode="decimal" style={{ width: 64 }}
+                placeholder={f.vorgabe ? f.vorgabe(w) : ""} onChange={(e) => setze(f.name, e.target.value)} />
+            </label>)}
+      </div>
+      <div className="cam-vorlage__fuss">
+        {erg.fehler
+          ? <span className="cam-vorlage__fehler klein">{erg.fehler}</span>
+          : <code className="cam-vorlage__vorschau" data-camvorlage-vorschau>{erg.zeilen.join("\n")}</code>}
+        <button className="knopf knopf--klein knopf--primaer" data-camvorlage-einfuegen disabled={!!erg.fehler}
+          onClick={() => { einsetzen(zeilenEinsetzen(code, erg.zeilen, pos)); zu(); }}>Einfügen</button>
+      </div>
+    </div>
+  );
+}
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
 const gemerkt = vorgabe();
@@ -293,6 +338,9 @@ export default function HoferCam() {
   const [ueber, setUeber] = useState(null);
   // Platz, über dem die Maus in der offenen Auswahl steht: { id, platz }
   const [vorPlatz, setVorPlatz] = useState(null);
+  // Offene Vorlage je Bearbeitung und Schreibmarke im NC-Code (1.427.0)
+  const [vorlageBei, setVorlageBei] = useState(null);
+  const marke = useRef({});
   const setAktiv = (id) => { if (id === aktivId) return; aktivId = id; setAktivRoh(id); melden(); };
   useGemerkt();
   const [gespeichert, setGespeichertRoh] = useState(gespeichertCam);
@@ -533,9 +581,19 @@ export default function HoferCam() {
               {b.zu
                 ? <button className="cam-block__zu klein" data-camblock-auf={i} onClick={() => blockAendern(b.id, "zu", false)}>
                     NC-Code: {String(b.code || "").split(/\r?\n/).filter((x) => x.trim()).length} Zeilen (aufklappen)</button>
-                : <textarea className="cam-block__code" data-camblock="code" rows={4} spellCheck={false}
+                : <>
+                  <div className="cam-block__vorlageknopf">
+                    <button className="knopf knopf--klein" data-camvorlage-auf={i}
+                      title="Gewindestrählen, Tieflochbohren … aus einer Liste in den NC-Code einfügen"
+                      onClick={() => setVorlageBei(vorlageBei === b.id ? null : b.id)}>+ Vorlage</button>
+                  </div>
+                  {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]}
+                    einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
+                  <textarea className="cam-block__code" data-camblock="code" rows={4} spellCheck={false}
+                    onSelect={(e) => { marke.current[b.id] = e.target.selectionStart; }}
                     placeholder={gegen ? "NC-Code für Kanal 2 (zwei Marken direkt nacheinander, z.B. M350 und M360, geben Platz für Kanal 1)" : "NC-Code der Bearbeitung hier einfügen (aus Kontur, Bohren / Fräsen …; zwei Marken direkt nacheinander geben Platz für Kanal 2)"}
-                    value={b.code} onChange={(e) => blockAendern(b.id, "code", e.target.value)} />}
+                    value={b.code} onChange={(e) => { marke.current[b.id] = e.target.selectionStart; blockAendern(b.id, "code", e.target.value); }} />
+                </>}
               {!b.zu && markenPaare(b).map(([x, y]) => {
                 // Seit 1.416.0: an der Gegenspindel ist der NC-Code Kanal 2
                 // und das Feld Kanal 1, sonst umgekehrt

@@ -11916,3 +11916,17 @@ body.dunkel .cam-bild__text { color: #333 !important; }
 .cam-wahl__punkt--an { font-weight: 700; }
 body.dunkel .cam-wahl__knopf, body.dunkel .cam-wahl__liste { background: #1b2025; border-color: #3a4450; }
 body.dunkel .cam-wahl__punkt:hover, body.dunkel .cam-wahl__punkt:focus { background: #5a3a14; }
+/* Hofer Cam: Vorlagen im NC-Code einer Bearbeitung (seit 1.427.0) */
+.cam-block__vorlageknopf { display: flex; justify-content: flex-end; margin: -2px 0 4px; }
+.cam-block__vorlageknopf .knopf { min-height: 0; height: 24px; padding: 0 8px; }
+.cam-vorlage { border: 1px solid #f0a35a; background: #fff8f1; border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; }
+.cam-vorlage__kopf { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.cam-vorlage__kopf select { width: auto !important; height: 28px !important; min-height: 0 !important; font-size: 13px; padding: 0 6px !important; }
+.cam-vorlage__kopf .knopf { margin-left: auto; min-height: 0; height: 24px; padding: 0 8px; }
+.cam-vorlage__felder { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.cam-vorlage__fuss { display: flex; align-items: flex-start; gap: 10px; margin-top: 6px; }
+.cam-vorlage__fuss .knopf { margin-left: auto; min-height: 0; height: auto; padding: 4px 12px; }
+.cam-vorlage__vorschau { white-space: pre; font-family: ui-monospace, Consolas, "Courier New", monospace; font-size: 12px; }
+.cam-vorlage__fehler { color: #b3261e; }
+body.dunkel .cam-vorlage { background: #2a2118; border-color: #8a5a2a; }
+body.dunkel .cam-vorlage__fehler { color: #ff8a80 !important; }
