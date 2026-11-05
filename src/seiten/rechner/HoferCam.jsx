@@ -264,7 +264,7 @@ export default function HoferCam() {
 
       <div className="cam-bearb" id="cam-bearb">
         <div className="cam-bearb__kopf">
-          <b>Bearbeitungen</b>
+          <b>Bearbeitungen Kanal 1</b>
           <button className="knopf knopf--klein" id="cam-neu-dreh"
             onClick={() => { const nb = neuerBlock(bloecke); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug T100–T600</button>
           <button className="knopf knopf--klein" id="cam-neu-front"
@@ -274,11 +274,16 @@ export default function HoferCam() {
             onClick={() => { const nb = neuerBlock(bloecke, "seite"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Querangetrieben T3100–T3400</button>
           <button className="knopf knopf--klein" id="cam-neu-quer"
             onClick={() => { const nb = neuerBlock(bloecke, "quer"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontangetrieben T3421–T3423</button>
+        </div>
+        {/* Seit 1.425.3 (Wunsch Patrick 5. November 2026): Kanal 2 in einer
+            eigenen Zeile darunter */}
+        <div className="cam-bearb__kopf">
+          <b>Bearbeitungen Kanal 2</b>
           {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
           <button className="knopf knopf--klein" id="cam-neu-k2"
-            onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Kanal 2 Drehwerkzeug T2100–T2400</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug T2100–T2400</button>
           <button className="knopf knopf--klein" id="cam-neu-k2a"
-            onClick={() => { const nb = neuerBlock(bloecke, "k2a"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Kanal 2 angetrieben T2100–T2400</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k2a"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben T2100–T2400</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am

@@ -11883,3 +11883,5 @@ body.dunkel .cam-verloren pre { background: #1b2025; }
    (Patrick: „T100–T600 soll auf die gleiche Zeile“), lieber die Reihe */
 .cam-bearb__kopf { flex-wrap: wrap; row-gap: 6px; }
 .cam-bearb__kopf .knopf { white-space: nowrap; }
+/* Seit 1.425.3: Kanal 1 und Kanal 2 je eine Zeile, Knöpfe bündig */
+.cam-bearb__kopf > b { min-width: 12.5em; }
