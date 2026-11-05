@@ -11904,3 +11904,15 @@ body.dunkel .cam-bild__text { color: #333 !important; }
 .cam-bild__schildgrund { fill: #f08a24; stroke: #fff; stroke-width: 3; }
 .cam-bild__schild { font: 800 30px system-ui, sans-serif; fill: #fff; stroke: none; paint-order: normal; }
 .cam-bild__text { font-size: 17px; padding: 4px 0 2px; }
+.cam-bild { transition: opacity .2s; }
+.cam-bild--unter { opacity: .12; }
+/* Hofer Cam seit 1.426.5: eigene Auswahl für den Platz */
+.cam-wahl { position: relative; display: inline-block; }
+.cam-wahl__knopf { font: inherit; padding: 3px 8px; border: 1px solid #b7c0cc; border-radius: 4px; background: #fff; cursor: pointer; min-width: 74px; text-align: left; }
+.cam-wahl__liste { position: absolute; left: 0; top: 100%; z-index: 950; display: flex; flex-direction: column; background: #fff;
+  border: 1px solid #b7c0cc; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.18); padding: 3px; min-width: 100%; }
+.cam-wahl__punkt { font: inherit; border: 0; background: none; text-align: left; padding: 5px 10px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+.cam-wahl__punkt:hover, .cam-wahl__punkt:focus { background: #ffe6c7; outline: none; }
+.cam-wahl__punkt--an { font-weight: 700; }
+body.dunkel .cam-wahl__knopf, body.dunkel .cam-wahl__liste { background: #1b2025; border-color: #3a4450; }
+body.dunkel .cam-wahl__punkt:hover, body.dunkel .cam-wahl__punkt:focus { background: #5a3a14; }

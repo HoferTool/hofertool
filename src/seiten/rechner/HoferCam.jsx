@@ -72,9 +72,50 @@ function ImFenster() {
     w={w} handSetzen={handSetzen} />;
 }
 
+// Seit 1.426.5 (Patrick: „die Markierung soll schon wechseln, wenn ich in
+// der Auswahl über die Werkzeuge fahre“): eigene Auswahl für den Platz,
+// weil die Liste einer normalen Auswahl keine Mausbewegung meldet
+function PlatzWahl({ wert, plaetze, waehlen, vorschau }) {
+  const [auf, setAuf] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!auf) return;
+    const d = ref.current.ownerDocument;
+    const zu = (e) => { if (!ref.current?.contains(e.target)) { setAuf(false); vorschau(null); } };
+    const taste = (e) => { if (e.key === "Escape") { e.preventDefault(); setAuf(false); vorschau(null); } };
+    d.addEventListener("pointerdown", zu); d.addEventListener("keydown", taste, true);
+    return () => { d.removeEventListener("pointerdown", zu); d.removeEventListener("keydown", taste, true); };
+  }, [auf]);
+  return (
+    <span className="cam-wahl" ref={ref} data-camblock="platz" data-wert={wert}>
+      <button type="button" className="cam-wahl__knopf" onClick={() => { setAuf(!auf); if (auf) vorschau(null); }}>T{wert} ▾</button>
+      {auf && <span className="cam-wahl__liste" onPointerLeave={() => vorschau(null)}>
+        {plaetze.map((p) => (
+          <button type="button" key={p} data-platz={p} className={"cam-wahl__punkt" + (p === wert ? " cam-wahl__punkt--an" : "")}
+            onPointerEnter={() => vorschau(p)} onFocus={() => vorschau(p)}
+            onClick={() => { waehlen(p); setAuf(false); vorschau(null); }}>T{p}</button>))}
+      </span>}
+    </span>
+  );
+}
+
 // Seit 1.426.0: Bild der Maschine oben rechts, solange die Maus über
 // einer Bearbeitung steht, mit dem Bereich ihres Werkzeugs markiert
 function MaschinenBild({ block }) {
+  // Fährt die Maus darunter, wird es fast durchsichtig, damit
+  // die Felder dahinter lesbar und bedienbar bleiben (Klicks gehen durch)
+  const ref = useRef(null);
+  useEffect(() => {
+    const d = ref.current?.ownerDocument;
+    if (!d) return;
+    const f = (e) => {
+      const el = ref.current; if (!el) return;
+      const b = el.getBoundingClientRect();
+      el.classList.toggle("cam-bild--unter", e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom);
+    };
+    d.addEventListener("pointermove", f);
+    return () => d.removeEventListener("pointermove", f);
+  }, [!!block]);
   if (!block) return null;
   const r = bildBereich(block);
   // Seit 1.426.3 (Patrick: „soll gut lesbar sein“): grösser, Rest des
@@ -84,7 +125,7 @@ function MaschinenBild({ block }) {
   const sx = Math.max(4, Math.min(512 - sb - 4, r.x + r.w / 2 - sb / 2));
   const sy = r.y - sh - 8 > 4 ? r.y - sh - 8 : r.y + r.h + 8;
   return (
-    <div className="cam-bild" id="cam-bild" data-bereich={r.text}>
+    <div className="cam-bild" id="cam-bild" data-bereich={r.text} ref={ref}>
       <svg viewBox="0 0 512 512">
         <defs><mask id="cam-bild-maske">
           <rect x="0" y="0" width="512" height="512" fill="#fff" />
@@ -227,6 +268,8 @@ export default function HoferCam() {
   const [w, setW] = useState(gemerkt);
   const [aktiv, setAktivRoh] = useState(aktivId);
   const [ueber, setUeber] = useState(null);
+  // Platz, über dem die Maus in der offenen Auswahl steht: { id, platz }
+  const [vorPlatz, setVorPlatz] = useState(null);
   const setAktiv = (id) => { if (id === aktivId) return; aktivId = id; setAktivRoh(id); melden(); };
   useGemerkt();
   const [gespeichert, setGespeichertRoh] = useState(gespeichertCam);
@@ -292,7 +335,12 @@ export default function HoferCam() {
         ))}
       </div>
 
-      <MaschinenBild block={bloecke.find((x) => x.id === ueber)} />
+      {(() => {
+        // Seit 1.426.6 wieder nur, solange die Maus über einer Bearbeitung ist
+        // (Patrick: „doch nicht eingeblendet bleiben“)
+        const bb = bloecke.find((x) => x.id === ueber);
+        return <MaschinenBild block={bb && vorPlatz && vorPlatz.id === bb.id ? { ...bb, platz: vorPlatz.platz } : bb} />;
+      })()}
       <div className="cam-bearb" id="cam-bearb">
         <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 1</b>
@@ -361,9 +409,9 @@ export default function HoferCam() {
                     <option value="gegen">Gegenspindel (Kanal 2 mit T2000)</option>
                   </select></label>}
                 <label className="cam-feld" title={k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
-                  <select data-camblock="platz" value={b.platz} onChange={(e) => { blockAendern(b.id, "platz", e.target.value); setUeber(b.id); }}>
-                    {(k2 ? K2_PLAETZE : seite ? SEITE_PLAETZE : quer ? QUER_PLAETZE : front ? FRONT_PLAETZE : DREH_PLAETZE).map((p) => <option key={p} value={p}>T{p}</option>)}
-                  </select></label>
+                  <PlatzWahl wert={b.platz} plaetze={k2 ? K2_PLAETZE : seite ? SEITE_PLAETZE : quer ? QUER_PLAETZE : front ? FRONT_PLAETZE : DREH_PLAETZE}
+                    waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
+                    vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} /></label>
                 <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>
                   <input data-camblock="bez" value={b.bez} style={{ width: 190 }}
                     onChange={(e) => blockAendern(b.id, "bez", e.target.value.toUpperCase())} /></label>

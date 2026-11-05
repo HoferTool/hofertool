@@ -28,6 +28,9 @@ with sync_playwright() as p:
         br.close(); continue
     pg.wait_for_selector("[data-unter='nc/cam']"); pg.click("[data-unter='nc/cam']")
     pg.wait_for_selector("#cam-kanaele")
+    def platz_waehlen(i, wert):
+        pg.click("[data-block='%d'] .cam-wahl__knopf" % i)
+        pg.click("[data-block='%d'] .cam-wahl__punkt[data-platz='%s']" % (i, wert))
     k = lambda n: pg.eval_on_selector_all(f"[data-kanal='{n}'] .cam-text", "e => e.map(x => x.textContent)")
     pg.fill("[data-cam='nr']", "458"); pg.fill("[data-cam='hoco']", "10870-0002")
     pg.fill("[data-cam='A']", "20"); pg.fill("[data-cam='schlicht']", "-0,2"); pg.fill("[data-cam='annaehern']", "12")
@@ -61,14 +64,14 @@ with sync_playwright() as p:
     pg.fill("[data-block='0'] [data-camblock='wegA']", "45")
     pg.select_option("[data-block='0'] [data-camblock='hd']", "4")
     pg.click("#cam-neu-dreh")
-    pruefe("Zweiter Block nimmt freien Platz", pg.input_value("[data-block='1'] [data-camblock='platz']") == "200")
+    pruefe("Zweiter Block nimmt freien Platz", pg.get_attribute("[data-block='1'] [data-camblock='platz']", "data-wert") == "200")
     sync = pg.eval_on_selector_all(".cam-zeile--sync[data-kanal='1'] .cam-text", "e => e.map(x => x.textContent)")
     pruefe("Marken nach Blöcken weiter gepaart", len(sync) == 7 and pg.locator(".cam-zeile--fehler").count() == 0)
     pg.click("[data-camblock-weg='1']")
     pruefe("Block entfernen", pg.locator(".cam-block").count() == 1)
     # Seit 1.400.0: Frontwerkzeug T1100–T1400 nach Patricks T1400-Beispiel
     pg.click("#cam-neu-front")
-    pg.select_option("[data-block='1'] [data-camblock='platz']", "1400")
+    platz_waehlen(1, "1400")
     pg.fill("[data-block='1'] [data-camblock='bez']", "bohren d6.8")
     pg.fill("[data-block='1'] [data-camblock='code']", "G83W18.5Q5250F0.06\nG80")
     t = [x for x in k(1) if x]
@@ -237,15 +240,18 @@ with sync_playwright() as p:
     pg.screenshot(path="hofer_cam_bild.png")
     # Seit 1.426.2: Platz wählen zeigt gleich das richtige Werkzeug
     pg.hover("[data-block='2'] [data-camblock='bez']")
-    pg.select_option("[data-block='2'] [data-camblock='platz']", "2400"); pg.wait_for_timeout(150)
+    platz_waehlen(2, "2400"); pg.wait_for_timeout(150)
+    pg.click("[data-block='2'] .cam-wahl__knopf"); pg.hover("[data-block='2'] .cam-wahl__punkt[data-platz='2200']"); pg.wait_for_timeout(150)
+    pruefe("Vorschau beim Darüberfahren", "T2200" in pg.text_content("#cam-bild") and pg.get_attribute("[data-block='2'] [data-camblock='platz']", "data-wert") == "2400")
+    pg.keyboard.press("Escape")
     pruefe("Bild folgt dem Platz", "T2400" in pg.text_content("#cam-bild") and pg.get_attribute("#cam-bild .cam-bild__rahmen", "x") == "93")
-    pg.select_option("[data-block='2'] [data-camblock='platz']", "2100")
+    platz_waehlen(2, "2100")
     pg.mouse.move(5, 5); pg.wait_for_timeout(150)
     pruefe("Bild weg", pg.locator("#cam-bild").count() == 0)
-    pg.select_option("[data-block='2'] [data-camblock='platz']", "2300")
+    platz_waehlen(2, "2300")
     t2 = [x for x in k(2) if x]
     pruefe("T2300 gleich gebaut", "/T2300(PLANEN + D7.9)" in t2 and "/M4S2500T23" in t2 and "/G0X-45.4" in t2)
-    pg.select_option("[data-block='2'] [data-camblock='platz']", "2100")
+    platz_waehlen(2, "2100")
     pg.uncheck("[data-block='2'] [data-camblock='m5']")
     pg.fill("[data-block='2'] [data-camblock='nX']", "-12")
     t2 = [x for x in k(2) if x]
@@ -254,7 +260,7 @@ with sync_playwright() as p:
     pg.click("[data-camblock-weg='2']")
     # Seit 1.425.0: angetrieben Kanal 2 nach Patricks T2300
     pg.click("#cam-neu-k2a")
-    pg.select_option("[data-block='2'] [data-camblock='platz']", "2300")
+    platz_waehlen(2, "2300")
     pg.fill("[data-block='2'] [data-camblock='bez']", "PLAN BOHRUNG FRAESEN")
     pg.fill("[data-block='2'] [data-camblock='code']", "G1Z-1.F100")
     t2 = [x for x in k(2) if x]
