@@ -12,7 +12,10 @@ def pruefe(was, ok):
     if not ok: fehler.append(was)
 
 SUCHEN = r"""() => {
-  const farbe = s => { const m = s.match(/[\d.]+/g); if (!m) return null; return m.map(Number); };
+  // color-mix() (durchsichtige Schnellvorschau seit 1.393.0) liefert
+  // „color(srgb 1 1 1 / 0.7)“ mit Werten 0–1 statt rgb() mit 0–255
+  const farbe = s => { const m = s.match(/[\d.]+/g); if (!m) return null; const z = m.map(Number);
+    if (/^color\(srgb/.test(s)) return z.map((v, i) => i < 3 ? v * 255 : v); return z; };
   const lum = c => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; };
     return .2126 * f(c[0]) + .7152 * f(c[1]) + .0722 * f(c[2]); };
   const grund = el => { let ebenen = []; let e = el;
