@@ -10,13 +10,27 @@
 // =================================================================
 import { useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
+import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { DREH_PLAETZE, FELDER, HD_STUFEN, blockFehler, neuerBlock, programme, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
 const gemerkt = vorgabe();
+// Seit 1.397.0 (Wunsch Patrick 5. November 2026: „muss auch abgespeichert
+// und wieder geöffnet werden können“): wie Bohren / Fräsen in
+// nc_programme mit art "cam", NC = beide Kanäle hintereinander.
+let gespeichertCam = null;
 
 export default function HoferCam() {
   const [w, setW] = useState(gemerkt);
+  const [gespeichert, setGespeichertRoh] = useState(gespeichertCam);
+  const setGespeichert = (z) => { gespeichertCam = z; setGespeichertRoh(z); };
+  const laden = (d) => {
+    // Felder, die es beim Speichern noch nicht gab, bekommen die Vorgabe
+    const neu = { ...vorgabe(), ...d, bloecke: Array.isArray(d.bloecke) ? d.bloecke : [] };
+    Object.keys(gemerkt).forEach((k) => delete gemerkt[k]);
+    Object.assign(gemerkt, neu);
+    setW({ ...neu });
+  };
   const setze = (name, wert) => {
     const neu = { ...w, [name]: wert };
     Object.assign(gemerkt, neu);
@@ -43,7 +57,7 @@ export default function HoferCam() {
       alt.meldung("Kanal " + kanal + " kopiert.", "gut");
     } catch (f) { alt.meldung("Kopieren ging nicht. Bitte von Hand markieren.", "warn"); }
   };
-  const laden = (zeilen, nr) => {
+  const herunterladen = (zeilen, nr) => {
     const url = URL.createObjectURL(new Blob([text(zeilen)], { type: "text/plain" }));
     const a = document.createElement("a");
     a.href = url; a.download = nr + ".nc";
@@ -51,13 +65,17 @@ export default function HoferCam() {
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
   const zuViel = Object.keys(fehler).length > 0;
+  const ncBeide = text(prog.k1) + text(prog.k2);
 
   return (
     <div className="karte cam">
       <div className="cam-kopf">
         <h2 className="karte__titel">Hofer Cam</h2>
         <span className="cam-typ">Maschinentyp: <b>Star SB-20RG</b></span>
+        <NcAblage art="cam" kurz="camab" wort="Hofer Cam" daten={w} nc={ncBeide} laden={laden}
+          gespeichert={gespeichert} setGespeichert={setGespeichert} />
       </div>
+      <NcStand kurz="camab" gespeichert={gespeichert} nc={ncBeide} />
 
       <div className="cam-gruppen">
         {FELDER.map((g) => (
@@ -140,14 +158,14 @@ export default function HoferCam() {
           <b>Kanal 1 · O{prog.nr1}</b>
           <span>
             <button className="knopf knopf--klein" data-cam-kopieren="1" onClick={() => kopieren(prog.k1, 1)}>Kopieren</button>
-            <button className="knopf knopf--klein" data-cam-laden="1" onClick={() => laden(prog.k1, prog.nr1)}>Herunterladen</button>
+            <button className="knopf knopf--klein" data-cam-laden="1" onClick={() => herunterladen(prog.k1, prog.nr1)}>Herunterladen</button>
           </span>
         </div>
         <div className="cam-spalte cam-spalte--kopf">
           <b>Kanal 2 · O{prog.nr2}</b>
           <span>
             <button className="knopf knopf--klein" data-cam-kopieren="2" onClick={() => kopieren(prog.k2, 2)}>Kopieren</button>
-            <button className="knopf knopf--klein" data-cam-laden="2" onClick={() => laden(prog.k2, prog.nr2)}>Herunterladen</button>
+            <button className="knopf knopf--klein" data-cam-laden="2" onClick={() => herunterladen(prog.k2, prog.nr2)}>Herunterladen</button>
           </span>
         </div>
         {sync.reihen.map((r, i) => (

@@ -11790,3 +11790,4 @@ body.dunkel .cam-fehler, body.dunkel .cam-stand--fehler { color: #ff8a80 !import
 .cam-block__code { width: 100%; box-sizing: border-box; font-family: ui-monospace, Consolas, "Courier New", monospace;
   font-size: 13px; line-height: 1.4; resize: vertical; min-height: 60px; }
 body.dunkel .cam-block { border-color: #3a434c; }
+.cam-kopf .nc-ablage { margin-left: auto; }
