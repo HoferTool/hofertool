@@ -184,6 +184,18 @@ with sync_playwright() as p:
     pruefe("T3421 M38, M39, Z55, Marke", "/M38S6000" in t2 and "/G0Z55." in t2 and "/G1Z55.F2000" in t2
         and t2[t2.index("G0G28W0.", a2)-1] == "/M39" and t2[t2.index("M1", a2)+1] == "M330")
     pg.click("[data-camblock-weg='2']")
+    # Seit 1.416.0: Markenpaar im Code von Kanal 1 gibt ein Feld für Kanal 2
+    alt0 = pg.input_value("[data-block='0'] [data-camblock='code']")
+    pg.fill("[data-block='0'] [data-camblock='code']", alt0 + "\nM450\nM460")
+    pg.fill("[data-block='0'] [data-camk1='M450-M460'] textarea", "G0Z-10.")
+    t = [x for x in k(1) if x]
+    t2 = [x for x in k(2) if x]
+    a2 = t2.index("M450")
+    pruefe("Kanal 2 zwischen Marken", "Kanal 2 zwischen" in pg.text_content("[data-block='0'] [data-camk1='M450-M460']")
+        and t2[a2:a2+3] == ["M450", "G0Z-10.", "M460"] and "M450" in t and "G0Z-10." not in t
+        and pg.locator(".cam-zeile--fehler").count() == 0)
+    pg.fill("[data-block='0'] [data-camblock='code']", alt0)
+    pruefe("Kanal 2 wieder leer", "M450" not in [x for x in k(2) if x])
     # Seit 1.405.0: Bearbeitungen am Griff verschieben
     def ziehen(von, nach):
         # Liste ganz ins Bild, sonst greift die Maus neben die Felder

@@ -492,15 +492,18 @@ export function blockZeilen2(b, marke, w = {}) {
 // programmiert werden können“): zwei Marken direkt nacheinander im NC-Code
 // an der Gegenspindel sind ein Paar; Kanal 1 bekommt dieselben Marken und
 // dazwischen den Code aus `k1["M350-M360"]` am Block
+// Seit 1.416.0 (Wunsch Patrick 5. November 2026: „generell, wenn ich in
+// einem Kanal Wartemarken innerhalb der freien Programmierung setze, soll
+// für den anderen Kanal das Fenster aufgehen“): auch bei Bearbeitungen
+// in Kanal 1; dann steht der Code des Felds in Kanal 2 (`k2` am Block)
 export function markenPaare(b) {
-  if (!anGegenspindel(b)) return [];
   const m = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean).map(markeVon);
   const paare = [];
   for (let i = 0; i + 1 < m.length; i++) if (m[i] && m[i + 1] && m[i] !== m[i + 1]) { paare.push([m[i], m[i + 1]]); i++; }
   return paare;
 }
-export const k1Zeilen = (b, x, y) =>
-  String((b.k1 || {})[x + "-" + y] || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+export const k1Zeilen = (b, x, y, feld = "k1") =>
+  String((b[feld] || {})[x + "-" + y] || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
 export const anGegenspindel = (b) => (b.art === "front" && b.spindel === "gegen") || b.art === "quer";
 
 // Je Block an der Gegenspindel zwei Wartemarken {m1, m2}: von Hand
@@ -511,7 +514,7 @@ export function markenVergeben(bloecke, belegtZeilen = []) {
   bloecke.forEach((b) => {
     String(b.code || "").split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); });
     if (anGegenspindel(b)) [b.m1, b.m2, b.m3].map(markeNorm).filter(Boolean).forEach((m) => belegt.add(m));
-    Object.values(b.k1 || {}).forEach((c) => String(c).split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); }));
+    [...Object.values(b.k1 || {}), ...Object.values(b.k2 || {})].forEach((c) => String(c).split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); }));
   });
   const marken = {};
   let n = 300;
@@ -545,8 +548,11 @@ export function programme(w) {
     const z = blockZeilen(b, w, marken[b.id]);
     bereiche[b.id] = [ab + 1, ab + z.length];
     ab += z.length;
-    if (marken[b.id]) {
-      const z2 = blockZeilen2(b, marken[b.id], w);
+    // Seit 1.416.0: Markenpaare im Code von Kanal 1 geben Kanal 2 die
+    // Marken mit dem Code aus dem Feld dazwischen
+    const z2 = marken[b.id] ? blockZeilen2(b, marken[b.id], w)
+      : markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y, "k2"), y]);
+    if (z2.length) {
       bereiche2[b.id] = [ab2 + 1, ab2 + z2.length];
       ab2 += z2.length;
       bearb2.push(...z2);
