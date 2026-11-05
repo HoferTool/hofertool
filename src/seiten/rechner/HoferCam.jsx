@@ -204,7 +204,7 @@ export default function HoferCam() {
             onClick={() => { const nb = neuerBlock(bloecke, "front"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontwerkzeug T1100–T1400</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
-        {/* Seit 1.404.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
+        {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
             Griff ⠿ untereinander verschieben, statt Pfeilen */}
         <ZiehListe nurGriff darf={bloecke.length > 1} className="cam-zieh"
           ordnen={(ids) => setzeBloecke(ids.map((id) => bloecke.find((x) => x.id === id)).filter(Boolean))}

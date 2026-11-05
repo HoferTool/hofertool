@@ -110,7 +110,7 @@ with sync_playwright() as p:
     pg.uncheck("[data-block='1'] [data-camblock='g96']")
     t = [x for x in k(1) if x]
     pruefe("G96 wieder aus", "G97" not in t[t.index("T100(AUSSEN PLAN)"):t.index("(Start Ende)")])
-    # Seit 1.404.0: Frontwerkzeug an der Gegenspindel, Kanal 2 mit T2000
+    # Seit 1.405.0: Frontwerkzeug an der Gegenspindel, Kanal 2 mit T2000
     pg.select_option("[data-block='1'] [data-camblock='sArt']", "S")
     pg.fill("[data-block='1'] [data-camblock='S']", "2500")
     pg.select_option("[data-block='1'] [data-camblock='hd']", "4")
@@ -125,7 +125,7 @@ with sync_playwright() as p:
         "G0Z0.", "G28W0.", "M300", "T0", "M1"])
     pruefe("Marke M300 gepaart", pg.locator(".cam-zeile--fehler").count() == 0)
     pg.select_option("[data-block='1'] [data-camblock='spindel']", "haupt")
-    # Seit 1.404.0: Bearbeitungen am Griff verschieben
+    # Seit 1.405.0: Bearbeitungen am Griff verschieben
     def ziehen(von, nach):
         g = pg.locator(".cam-zieh .ziehliste__griff").nth(von).bounding_box()
         z = pg.locator("[data-block='%d']" % nach).bounding_box()

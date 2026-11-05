@@ -247,7 +247,7 @@ export const HD_STUFEN = ["", "1", "2", "3", "4", "5", "6"];
 
 // Seit 1.400.0: feste Frontwerkzeuge T1100–T1400 (Patricks Beispiel
 // T1400 Bohren D6.8, 5. November 2026). Wahl Haupt- oder Gegenspindel;
-// seit 1.404.0 mit Gegenspindel: Kanal 1 nur Kopf und Ende ohne
+// seit 1.405.0 mit Gegenspindel: Kanal 1 nur Kopf und Ende ohne
 // Verfahrwege und eine Wartemarke, Kanal 2 mit T2000 macht die Wege.
 export const FRONT_PLAETZE = ["1100", "1200", "1300", "1400"];
 
@@ -310,7 +310,7 @@ export function blockZeilen(b, w = {}, marke) {
   const t = Number(b.platz) / 100;
   const bez = String(b.bez || "").trim();
   if (b.art === "front" && b.spindel === "gegen") {
-    // Seit 1.404.0 (Patrick 5. November 2026): an der Gegenspindel hält
+    // Seit 1.405.0 (Patrick 5. November 2026): an der Gegenspindel hält
     // Kanal 1 nur das Werkzeug bereit (Kopf und Ende ohne G0Z) und wartet
     // an der Marke, bis Kanal 2 mit T2000 die Bearbeitung fertig hat
     return [
@@ -358,7 +358,7 @@ export function blockZeilen(b, w = {}, marke) {
   ];
 }
 
-// Seit 1.404.0: Kanal 2 bei einem Frontwerkzeug an der Gegenspindel,
+// Seit 1.405.0: Kanal 2 bei einem Frontwerkzeug an der Gegenspindel,
 // nach Patricks O1458 (T2000, Wege in Z, G28W0.): die Gegenspindel fährt
 // mit dem Teil an das feste Werkzeug, die Marke danach gibt Kanal 1 frei
 export function blockZeilen2(b, marke) {
