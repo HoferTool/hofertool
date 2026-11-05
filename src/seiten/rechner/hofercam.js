@@ -269,6 +269,10 @@ const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(
 
 export function neuerBlock(bloecke = [], art = "dreh") {
   const belegt = new Set(bloecke.map((b) => b.platz));
+  if (art === "k2a") {
+    const platz = K2_PLAETZE.find((p) => !belegt.has(p)) || "2100";
+    return { id: neueId(), art: "k2a", platz, bez: "", hd: "", dreh: "37", S: "6000", vor: "98", code: "" };
+  }
   if (art === "k2") {
     const platz = K2_PLAETZE.find((p) => !belegt.has(p)) || "2100";
     return { id: neueId(), art: "k2", platz, bez: "", hd: "3", dreh: "4", S: "2500",
@@ -316,6 +320,10 @@ export function drehzahl(b, w = {}) {
 
 export function blockFehler(b, w = {}) {
   const f = {};
+  if (b.art === "k2a") {
+    if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
+    return f;
+  }
   if (b.art === "k2") {
     if (b.sArt === "vc") {
       if (zahl(b.vc) == null || !(Number(zahl(b.vc)) > 0)) f.vc = "Zahl fehlt";
@@ -386,7 +394,7 @@ const vorZeile = (b) => "G" + vorschubArt(b);
 export function blockZeilen(b, w = {}, marke) {
   // Kanal 2 allein: Kanal 1 bekommt nur die Markenpaare aus dem NC-Code
   // mit dem eigenen Code dazwischen
-  if (b.art === "k2") return markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]);
+  if (b.art === "k2" || b.art === "k2a") return markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]);
   const S = drehzahl(b, w) ?? String(b.S).trim();
   // Seit 1.403.0 (Wunsch Patrick 5. November 2026): G96 im Kopf der
   // Bearbeitung ein, am Ende vor T0 mit G97 wieder aus
@@ -545,6 +553,28 @@ export function blockZeilen2(b, marke, w = {}) {
   // dann jede Zeile der Bearbeitung mit „/“ davor; Marken und das Ende
   // (G0G28W0., T0, M1) ohne, damit beide Kanäle immer synchron bleiben
   const s = (z) => (markeVon(z) || z.startsWith("/") ? z : "/" + z);
+  if (b.art === "k2a") {
+    // Seit 1.425.0: angetriebene Werkzeuge T2100–T2400 nach Patricks
+    // T2300 (5. November 2026), M36 rechts, M37 links, M38 aus wie in
+    // Kanal 1; Hochdruck wie beim Drehwerkzeug Kanal 2 nach M75 / M76
+    return [
+      "M75",
+      ...(b.hd ? ["/M1884D" + b.hd] : []),
+      s("T" + b.platz + (bez ? "(" + bez + ")" : "")),
+      s("M" + (b.dreh === "36" ? 36 : 37) + "S" + String(b.S).trim()),
+      s(vorZeile(b)), "/M8", "/M7", "/G0", "/G28H0.", "/M6",
+      ...code.map(s),
+      "G28W0.",
+      "T0",
+      "/M7",
+      ...(b.spAn ? [] : ["/M38"]),
+      "/M9",
+      "/G99",
+      "M76",
+      ...(b.hd && !b.hdAn ? ["M1894"] : []),
+      "M1",
+    ];
+  }
   if (b.art === "k2") {
     // Seit 1.420.0 nach Patricks T2100 (5. November 2026): G23 schaltet die
     // Hubbegrenzung aus (am Ende G22 wieder ein), Vorpositionieren X und Z
@@ -692,7 +722,7 @@ export function programme(w) {
     ab += z.length;
     // Seit 1.416.0: Markenpaare im Code von Kanal 1 geben Kanal 2 die
     // Marken mit dem Code aus dem Feld dazwischen
-    const z2 = marken[b.id] || b.art === "k2" ? blockZeilen2(b, marken[b.id], w)
+    const z2 = marken[b.id] || b.art === "k2" || b.art === "k2a" ? blockZeilen2(b, marken[b.id], w)
       : markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y, "k2"), y]);
     if (z2.length) {
       bereiche2[b.id] = [ab2 + 1, ab2 + z2.length];

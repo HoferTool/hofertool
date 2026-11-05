@@ -238,6 +238,21 @@ with sync_playwright() as p:
     pruefe("T2100 ohne M5, G50 X", "M5" not in t2[t2.index("G22", a2):t2.index("(Start Ende)")]
         and "/G50X-12.Z-0.5" in t2 and "/G1X-12." in t2)
     pg.click("[data-camblock-weg='2']")
+    # Seit 1.425.0: angetrieben Kanal 2 nach Patricks T2300
+    pg.click("#cam-neu-k2a")
+    pg.select_option("[data-block='2'] [data-camblock='platz']", "2300")
+    pg.fill("[data-block='2'] [data-camblock='bez']", "PLAN BOHRUNG FRAESEN")
+    pg.fill("[data-block='2'] [data-camblock='code']", "G1Z-1.F100")
+    t2 = [x for x in k(2) if x]
+    a2 = t2.index("/T2300(PLAN BOHRUNG FRAESEN)") - 1
+    pruefe("Angetrieben Kanal 2", t2[a2:t2.index("(Start Ende)")] == ["M75", "/T2300(PLAN BOHRUNG FRAESEN)", "/M37S6000", "/G98",
+        "/M8", "/M7", "/G0", "/G28H0.", "/M6", "/G1Z-1.F100", "G28W0.", "T0", "/M7", "/M38", "/M9", "/G99", "M76", "M1"])
+    pg.select_option("[data-block='2'] [data-camblock='hd']", "3")
+    pg.uncheck("[data-block='2'] [data-camblock='m38']")
+    t2 = [x for x in k(2) if x]
+    pruefe("Angetrieben mit HD, ohne M38", t2[a2+1] == "/M1884D3" and "/M38" not in t2[a2:t2.index("(Start Ende)")]
+        and t2[t2.index("M76", a2)+1] == "M1894")
+    pg.click("[data-camblock-weg='2']")
     # Seit 1.416.0: Markenpaar im Code von Kanal 1 gibt ein Feld für Kanal 2
     alt0 = pg.input_value("[data-block='0'] [data-camblock='code']")
     pg.fill("[data-block='0'] [data-camblock='code']", alt0 + "\nM450\nM460")

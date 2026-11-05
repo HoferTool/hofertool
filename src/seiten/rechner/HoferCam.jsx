@@ -277,6 +277,8 @@ export default function HoferCam() {
           {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
           <button className="knopf knopf--klein" id="cam-neu-k2"
             onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Kanal 2 Drehwerkzeug T2100–T2400</button>
+          <button className="knopf knopf--klein" id="cam-neu-k2a"
+            onClick={() => { const nb = neuerBlock(bloecke, "k2a"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Kanal 2 angetrieben T2100–T2400</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
@@ -288,7 +290,8 @@ export default function HoferCam() {
           const front = b.art === "front";
           const seite = b.art === "seite";
           const quer = b.art === "quer" || seite;
-          const k2 = b.art === "k2";
+          const k2a = b.art === "k2a";
+          const k2 = b.art === "k2" || k2a;
           // Kanal-2-Blöcke verhalten sich wie die Gegenspindel: NC-Code in
           // Kanal 2, Markenpaare geben ein Feld für Kanal 1
           const gegen = ((quer || front) && b.spindel === "gegen") || k2;
@@ -330,7 +333,17 @@ export default function HoferCam() {
                 {b.hd && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (k2 ? "M1894" : quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
                   <input type="checkbox" data-camblock="hdAus" checked={!b.hdAn}
                     onChange={(e) => blockAendern(b.id, "hdAn", !e.target.checked)} /><span>HD am Ende aus</span></label>}
-                {quer ? <>
+                {k2a ? <>
+                  {/* Seit 1.425.0: angetrieben in Kanal 2 */}
+                  <label className="cam-feld" title="Angetriebenes Werkzeug: M36 Rechtslauf, M37 Linkslauf"><span>Richtung</span>
+                    <select data-camblock="dreh" value={b.dreh === "36" ? "36" : "37"} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
+                      <option value="36">M36</option><option value="37">M37</option>
+                    </select></label>
+                  {feld("S", "Drehzahl S", "Drehzahl des angetriebenen Werkzeugs (M36/M37 S…)")}
+                  <label className="cam-feld cam-g96" title="Am Ende das angetriebene Werkzeug mit M38 ausschalten">
+                    <input type="checkbox" data-camblock="m38" checked={!b.spAn}
+                      onChange={(e) => blockAendern(b.id, "spAn", !e.target.checked)} /><span>M38 am Ende</span></label>
+                </> : quer ? <>
                   <label className="cam-feld" title="Angetriebenes Werkzeug: M36 Rechtslauf, M37 Linkslauf"><span>Richtung</span>
                     <select data-camblock="dreh" value={b.dreh === "37" ? "37" : "36"} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
                       <option value="36">M36</option><option value="37">M37</option>
