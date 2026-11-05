@@ -264,11 +264,11 @@ export default function HoferCam() {
                 {front
                   ? <>
                     {feld("anZ", "Anfahren Z", b.spindel === "gegen" ? "Kanal 2: G0Z… der Gegenspindel vor dem Werkzeug" : "G0Z… vor dem Teil")}
-                    {feld("wegZ", "Zurück Z", b.spindel === "gegen" ? "Kanal 2: am Ende G0Z… zurück, danach G28W0." : "Am Ende G0Z… zurück in sichere Richtung", 60)}
+                    {feld("wegZ", "Zurück Z", b.spindel === "gegen" ? "Kanal 2: am Ende G0Z… zurück, danach Marke Ende und G0G28W0." : "Am Ende G0Z… zurück in sichere Richtung", 60)}
                     {/* Seit 1.407.0 (Wunsch Patrick 5. November 2026): zwei
                         Wartemarken von Hand, leer = frei ab M300 */}
                     {b.spindel === "gegen" && feld("m1", "Marke Start", "Wartemarke vor der Bearbeitung an der Gegenspindel (Kanal 2 nach T2000), leer = von selbst", 58, prog.marken[b.id]?.m1)}
-                    {b.spindel === "gegen" && feld("m2", "Marke Ende", "Wartemarke nach der Bearbeitung an der Gegenspindel (Kanal 2 nach G28W0.), leer = von selbst", 58, prog.marken[b.id]?.m2)}
+                    {b.spindel === "gegen" && feld("m2", "Marke Ende", "Wartemarke nach der Bearbeitung an der Gegenspindel (Kanal 2 vor G0G28W0.), leer = von selbst", 58, prog.marken[b.id]?.m2)}
                   </>
                   : <>
                     {feld("anZ", "Anfahren Z", "G0X[#531+1.]Z…")}

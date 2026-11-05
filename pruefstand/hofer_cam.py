@@ -122,7 +122,7 @@ with sync_playwright() as p:
     t2 = [x for x in k(2) if x]
     a2, b2 = t2.index("(Ende Kopf)"), t2.index("(Start Ende)")
     pruefe("Gegenspindel Kanal 2", t2[a2+1:b2] == ["M75", "/T2000(BOHREN D6.8)", "M300", "/M3S2500", "/G0Z5.0", "/G83W18.5Q5250F0.06", "/G80",
-        "/G0Z0.", "G28W0.", "M310", "T0", "M1"])
+        "/G0Z0.", "M310", "G0G28W0.", "T0", "M1"])
     pruefe("Marken M300 und M310 gepaart", pg.locator(".cam-zeile--fehler").count() == 0)
     pruefe("Marken als Platzhalter", pg.get_attribute("[data-block='1'] [data-camblock='m1']", "placeholder") == "M300"
         and pg.get_attribute("[data-block='1'] [data-camblock='m2']", "placeholder") == "M310")
@@ -133,7 +133,7 @@ with sync_playwright() as p:
     t2 = [x for x in k(2) if x]
     pruefe("Eigene Marken Kanal 1", "M500" in t and "M510" in t and "M300" not in t[t.index("T1400(BOHREN D6.8)"):])
     a2 = t2.index("/T2000(BOHREN D6.8)")
-    pruefe("Eigene Marken Kanal 2", t2[a2+1] == "M500" and t2[a2+2] == "/M3S2500" and t2[t2.index("G28W0.", a2)+1] == "M510")
+    pruefe("Eigene Marken Kanal 2", t2[a2+1] == "M500" and t2[a2+2] == "/M3S2500" and t2[t2.index("G0G28W0.", a2)-1] == "M510")
     pg.fill("[data-block='1'] [data-camblock='m2']", "500")
     pruefe("Gleiche Marken rot", pg.locator("[data-block='1'] .cam-feld--fehler [data-camblock='m2']").count() == 1)
     pg.fill("[data-block='1'] [data-camblock='m2']", "1881")

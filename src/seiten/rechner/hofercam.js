@@ -392,7 +392,7 @@ export function blockZeilen2(b, marke, w = {}) {
   const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
   // Seit 1.410.0 (Patrick 5. November 2026, nach O1458): zuerst immer M75,
   // dann jede Zeile der Bearbeitung mit „/“ davor; Marken und das Ende
-  // (G28W0., T0, M1) ohne, damit beide Kanäle immer synchron bleiben
+  // (G0G28W0., T0, M1) ohne, damit beide Kanäle immer synchron bleiben
   const s = (z) => (markeVon(z) || z.startsWith("/") ? z : "/" + z);
   return [
     "M75",
@@ -403,8 +403,10 @@ export function blockZeilen2(b, marke, w = {}) {
     ...code.map(s),
     s("G0Z" + (zahl(b.wegZ) ?? b.wegZ)),
     ...(g96 ? [s("G97")] : []),
-    "G28W0.",
+    // Seit 1.411.0 (Patrick 5. November 2026): Marke Ende vor G0G28W0.,
+    // wie in O1458; alles andere (etwa G1Z60.F2000) gehört in den NC-Code
     marke.m2,
+    "G0G28W0.",
     "T0",
     "M1",
   ];
