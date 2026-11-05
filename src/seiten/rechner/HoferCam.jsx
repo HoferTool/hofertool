@@ -281,7 +281,7 @@ export default function HoferCam() {
           <b>Bearbeitungen Kanal 2</b>
           {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
           <button className="knopf knopf--klein" id="cam-neu-k2"
-            onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug T2100–T2400</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Stehende Werkzeuge T2100–T2400</button>
           <button className="knopf knopf--klein" id="cam-neu-k2a"
             onClick={() => { const nb = neuerBlock(bloecke, "k2a"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben T2100–T2400</button>
         </div>
