@@ -870,3 +870,22 @@ export function handNeu(w, kanal, auto, zeilen) {
   else hand["k" + kanal] = { basis: auto, hand: zeilen };
   return hand;
 }
+
+// Seit 1.426.0 (Wunsch Patrick 5. November 2026: „wenn ich über die
+// Bearbeitungen fahre, soll das Bild oben rechts auftauchen und die
+// Werkzeuge markieren“): Bereich im Bild der SB-20RG (public/hilfe/
+// star-sb20rg.png, 512 × 512) je Bearbeitung, Zuordnung von Claude,
+// Patrick: „kannst du es logisch zuordnen?“
+export const BILD_BEREICHE = {
+  platten: { x: 88, y: 140, w: 162, h: 160, text: "Werkzeugplatten" },
+  quer: { x: 250, y: 190, w: 50, h: 50, text: "querangetrieben" },
+  haupt: { x: 298, y: 200, w: 37, h: 75, text: "zur Hauptspindel" },
+  gegen: { x: 362, y: 215, w: 73, h: 97, text: "zur Gegenspindel" },
+  k2: { x: 62, y: 345, w: 130, h: 90, text: "Kanal 2" },
+};
+export function bildBereich(b) {
+  if (b.art === "k2" || b.art === "k2a") return BILD_BEREICHE.k2;
+  if (b.art === "seite") return BILD_BEREICHE.quer;
+  if (b.art === "front" || b.art === "quer") return anGegenspindel(b) ? BILD_BEREICHE.gegen : BILD_BEREICHE.haupt;
+  return BILD_BEREICHE.platten;
+}

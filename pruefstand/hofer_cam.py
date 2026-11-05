@@ -228,6 +228,14 @@ with sync_playwright() as p:
     pruefe("T2100 Kanal 1 nur Marken", t[i1:i1+3] == ["M350", "G0U1.", "M360"] and "/G23" not in t
         and "Kanal 1 zwischen" in pg.text_content("[data-block='2'] [data-camk1='M350-M360']")
         and pg.locator(".cam-zeile--fehler").count() == 0)
+    # Seit 1.426.0: Bild der Maschine beim Darüberfahren
+    pg.hover("[data-block='2'] [data-camblock='bez']"); pg.wait_for_timeout(150)
+    pruefe("Bild Kanal 2", pg.get_attribute("#cam-bild", "data-bereich") == "Kanal 2" and "T2100" in pg.text_content("#cam-bild"))
+    pg.hover("[data-block='0'] [data-camblock='bez']"); pg.wait_for_timeout(150)
+    pruefe("Bild Platten", pg.get_attribute("#cam-bild", "data-bereich") == "Werkzeugplatten")
+    pg.screenshot(path="hofer_cam_bild.png")
+    pg.mouse.move(5, 5); pg.wait_for_timeout(150)
+    pruefe("Bild weg", pg.locator("#cam-bild").count() == 0)
     pg.select_option("[data-block='2'] [data-camblock='platz']", "2300")
     t2 = [x for x in k(2) if x]
     pruefe("T2300 gleich gebaut", "/T2300(PLANEN + D7.9)" in t2 and "/M4S2500T23" in t2 and "/G0X-45.4" in t2)

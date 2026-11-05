@@ -14,7 +14,7 @@ import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
-import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, K2_PLAETZE, QUER_PLAETZE, SEITE_PLAETZE, vorschubArt, blockFehler, drehzahl, handNeu, markenPaare, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, K2_PLAETZE, QUER_PLAETZE, SEITE_PLAETZE, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
 const gemerkt = vorgabe();
@@ -70,6 +70,24 @@ function ImFenster() {
   const handSetzen = (hand) => { gemerkt.hand = hand; melden(); };
   return <Kanaele prog={prog} sync={synchronisieren(prog.k1, prog.k2)} fehler={pruefen(w)} bereich={bereich} bereich2={prog.bereiche2[aktivId]}
     w={w} handSetzen={handSetzen} />;
+}
+
+// Seit 1.426.0: Bild der Maschine oben rechts, solange die Maus über
+// einer Bearbeitung steht, mit dem Bereich ihres Werkzeugs markiert
+function MaschinenBild({ block }) {
+  if (!block) return null;
+  const r = bildBereich(block);
+  const tx = r.x + r.w / 2, ty = r.y > 60 ? r.y - 10 : r.y + r.h + 22;
+  return (
+    <div className="cam-bild" id="cam-bild" data-bereich={r.text}>
+      <svg viewBox="0 0 512 512">
+        <image href={import.meta.env.BASE_URL + "hilfe/star-sb20rg.png"} x="0" y="0" width="512" height="512" />
+        <rect className="cam-bild__rahmen" x={r.x} y={r.y} width={r.w} height={r.h} rx="8" />
+        <text className="cam-bild__schild" x={tx} y={ty} textAnchor="middle">T{block.platz}</text>
+      </svg>
+      <div className="cam-bild__text">T{block.platz} · {r.text}</div>
+    </div>
+  );
 }
 
 const text = (zeilen) => zeilen.join("\r\n") + "\r\n";
@@ -197,6 +215,7 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen }) {
 export default function HoferCam() {
   const [w, setW] = useState(gemerkt);
   const [aktiv, setAktivRoh] = useState(aktivId);
+  const [ueber, setUeber] = useState(null);
   const setAktiv = (id) => { if (id === aktivId) return; aktivId = id; setAktivRoh(id); melden(); };
   useGemerkt();
   const [gespeichert, setGespeichertRoh] = useState(gespeichertCam);
@@ -262,6 +281,7 @@ export default function HoferCam() {
         ))}
       </div>
 
+      <MaschinenBild block={bloecke.find((x) => x.id === ueber)} />
       <div className="cam-bearb" id="cam-bearb">
         <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 1</b>
@@ -309,7 +329,9 @@ export default function HoferCam() {
           );
           return { key: b.id, inhalt: (
             <div key={b.id} className={"cam-block" + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i}
-              onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}>
+              onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}
+              onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
+              onPointerLeave={() => setUeber((x) => (x === b.id ? null : x))}>
               <div className="cam-block__zeile">
                 {/* Seit 1.399.0 (Wunsch Patrick 5. November 2026): NC-Code mit
                     dem Pfeil ein- und ausklappen, gemerkt am Block (zu) */}

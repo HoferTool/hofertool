@@ -11885,3 +11885,13 @@ body.dunkel .cam-verloren pre { background: #1b2025; }
 .cam-bearb__kopf .knopf { white-space: nowrap; }
 /* Seit 1.425.3: Kanal 1 und Kanal 2 je eine Zeile, Knöpfe bündig */
 .cam-bearb__kopf > b { min-width: 12.5em; }
+/* Hofer Cam seit 1.426.0: Bild der Maschine oben rechts beim Darüberfahren */
+.cam-bild { position: fixed; top: 70px; right: 16px; width: 320px; z-index: 900; pointer-events: none;
+  background: #fff; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.25); padding: 6px; }
+.cam-bild svg { display: block; width: 100%; height: auto; }
+.cam-bild__rahmen { fill: rgba(240,138,36,.18); stroke: #f08a24; stroke-width: 5; animation: cam-bild-puls 1s ease-in-out infinite alternate; }
+.cam-bild__schild { font: 700 26px system-ui, sans-serif; fill: #c25e00; paint-order: stroke; stroke: #fff; stroke-width: 6px; }
+.cam-bild__text { text-align: center; font-weight: 600; font-size: 13px; color: #333 !important; padding-top: 2px; }
+@keyframes cam-bild-puls { from { stroke-opacity: 1; } to { stroke-opacity: .35; } }
+body.dunkel .cam-bild { background: #fff; }
+body.dunkel .cam-bild__text { color: #333 !important; }
