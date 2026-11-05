@@ -162,6 +162,20 @@ with sync_playwright() as p:
     pg.select_option("[data-block='1'] [data-camblock='spindel']", "haupt")
     # Seit 1.415.0: angetriebenes T3421 an der Gegenspindel
     pg.click("#cam-neu-quer")
+    # Seit 1.417.0: zuerst an der Hauptspindel wie T1100–T1400
+    pg.fill("[data-block='2'] [data-camblock='bez']", "PLAN BOHRUNG FRAESEN")
+    t = [x for x in k(1) if x]
+    a = t.index("T3421(PLAN BOHRUNG FRAESEN)")
+    pruefe("T3421 Hauptspindel", t[a:t.index("(Start Ende)")] == ["T3421(PLAN BOHRUNG FRAESEN)", "M1883D3", "M36S6000T21",
+        "G0Z5.0", "M1893", "G0Z0.", "M38", "T0", "M1"])
+    pg.uncheck("[data-block='2'] [data-camblock='m38']")
+    pg.select_option("[data-block='2'] [data-camblock='dreh']", "37")
+    t = [x for x in k(1) if x]
+    pruefe("T3421 M37 ohne M38", "M37S6000T21" in t and "M38" not in t[a:])
+    pg.check("[data-block='2'] [data-camblock='m38']")
+    pg.select_option("[data-block='2'] [data-camblock='dreh']", "36")
+    pg.select_option("[data-block='2'] [data-camblock='spindel']", "gegen")
+    pg.fill("[data-block='2'] [data-camblock='anZ']", "60")
     pg.fill("[data-block='2'] [data-camblock='bez']", "PLAN BOHRUNG FRAESEN")
     pg.fill("[data-block='2'] [data-camblock='X']", "10.5")
     pg.fill("[data-block='2'] [data-camblock='code']", "G1W4.925F120\nG4U0.05\nM312\nM314")
@@ -173,16 +187,16 @@ with sync_playwright() as p:
     t2 = [x for x in k(2) if x]
     a2 = t2.index("/T2000(PLAN BOHRUNG FRAESEN MIT GEGENSPINDEL)")
     pruefe("T3421 Kanal 2", t2[a2-1:t2.index("(Start Ende)")] == ["M75", "/T2000(PLAN BOHRUNG FRAESEN MIT GEGENSPINDEL)",
-        "/G98", "/M8", "/M7", "/G0", "/G28H0.", "/M6", "M300", "M310", "/M37S6000", "/G0Z60.", "/G1W4.925F120", "/G4U0.05",
-        "M312", "M314", "/G1Z60.F2000", "/G0Z20.", "G0G28W0.", "T0", "M1", "M320"])
+        "/G98", "/M8", "/M7", "/G0", "/G28H0.", "/M6", "M300", "M310", "/M36S6000", "/G0Z60.", "/G1W4.925F120", "/G4U0.05",
+        "M312", "M314", "/G1Z60.F2000", "/G0Z20.", "/M38", "G0G28W0.", "T0", "M1", "M320"])
     pruefe("T3421 Marken gepaart", pg.locator(".cam-zeile--fehler").count() == 0)
-    pg.select_option("[data-block='2'] [data-camblock='dreh']", "38")
-    pg.check("[data-block='2'] [data-camblock='m39']")
+    pg.select_option("[data-block='2'] [data-camblock='dreh']", "37")
+    pg.uncheck("[data-block='2'] [data-camblock='m38']")
     pg.fill("[data-block='2'] [data-camblock='anZ']", "55")
     pg.fill("[data-block='2'] [data-camblock='m3']", "330")
     t2 = [x for x in k(2) if x]
-    pruefe("T3421 M38, M39, Z55, Marke", "/M38S6000" in t2 and "/G0Z55." in t2 and "/G1Z55.F2000" in t2
-        and t2[t2.index("G0G28W0.", a2)-1] == "/M39" and t2[t2.index("M1", a2)+1] == "M330")
+    pruefe("T3421 M37, ohne M38, Z55, Marke", "/M37S6000" in t2 and "/G0Z55." in t2 and "/G1Z55.F2000" in t2
+        and t2[t2.index("G0G28W0.", a2)-1] == "/G0Z20." and t2[t2.index("M1", a2)+1] == "M330")
     pg.click("[data-camblock-weg='2']")
     # Seit 1.416.0: Markenpaar im Code von Kanal 1 gibt ein Feld für Kanal 2
     alt0 = pg.input_value("[data-block='0'] [data-camblock='code']")

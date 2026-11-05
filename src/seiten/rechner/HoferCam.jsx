@@ -215,7 +215,7 @@ export default function HoferCam() {
           const bf = blockFehler(b, w);
           const front = b.art === "front";
           const quer = b.art === "quer";
-          const gegen = quer || (front && b.spindel === "gegen");
+          const gegen = (quer || front) && b.spindel === "gegen";
           const feld = (name, text, lang, breit, platzhalter) => (
             <label className={"cam-feld" + (bf[name] ? " cam-feld--fehler" : "")} title={lang + (bf[name] ? " – " + bf[name] : "")}>
               <span>{text}</span>
@@ -231,7 +231,7 @@ export default function HoferCam() {
                     dem Pfeil ein- und ausklappen, gemerkt am Block (zu) */}
                 <button className="cam-block__pfeil" data-camblock-pfeil={i} title={b.zu ? "NC-Code zeigen" : "NC-Code einklappen"}
                   aria-expanded={!b.zu} onClick={() => blockAendern(b.id, "zu", !b.zu)}>{b.zu ? "▸" : "▾"}</button>
-                {front && <label className="cam-feld" title="Hauptspindel oder Gegenspindel"><span>Spindel</span>
+                {(front || quer) && <label className="cam-feld" title="Hauptspindel oder Gegenspindel"><span>Spindel</span>
                   <select data-camblock="spindel" value={b.spindel || "haupt"} onChange={(e) => blockAendern(b.id, "spindel", e.target.value)}>
                     <option value="haupt">Hauptspindel</option>
                     <option value="gegen">Gegenspindel (Kanal 2 mit T2000)</option>
@@ -251,19 +251,24 @@ export default function HoferCam() {
                   <input type="checkbox" data-camblock="hdAus" checked={!b.hdAn}
                     onChange={(e) => blockAendern(b.id, "hdAn", !e.target.checked)} /><span>HD am Ende aus</span></label>}
                 {quer ? <>
-                  <label className="cam-feld" title="Angetriebenes Werkzeug in Kanal 2 einschalten"><span>Richtung</span>
-                    <select data-camblock="dreh" value={b.dreh} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
-                      <option value="37">M37</option><option value="38">M38</option>
+                  <label className="cam-feld" title="Angetriebenes Werkzeug: M36 Rechtslauf, M37 Linkslauf"><span>Richtung</span>
+                    <select data-camblock="dreh" value={b.dreh === "37" ? "37" : "36"} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
+                      <option value="36">M36</option><option value="37">M37</option>
                     </select></label>
-                  {feld("S", "Drehzahl S", "Drehzahl des angetriebenen Werkzeugs (Kanal 2: M37/M38 S…)")}
-                  <label className="cam-feld cam-g96" title="Am Ende in Kanal 2 das angetriebene Werkzeug mit M39 ausschalten">
-                    <input type="checkbox" data-camblock="m39" checked={!!b.m39}
-                      onChange={(e) => blockAendern(b.id, "m39", e.target.checked)} /><span>M39 am Ende</span></label>
-                  {feld("X", "Position X", "Kanal 1: G0X…T21 zwischen Marke Start und Marke 2", 58)}
-                  {feld("anZ", "Anfahren Z", "Kanal 2: G0Z… der Gegenspindel, am Schluss G1Z…F2000 zurück, dann G0Z20.", 58)}
-                  {feld("m1", "Marke Start", "Kanal 1 und 2 vor dem Positionieren in X, leer = von selbst", 58, prog.marken[b.id]?.m1)}
-                  {feld("m2", "Marke 2", "X positioniert, danach die Bearbeitung in Kanal 2, leer = von selbst", 58, prog.marken[b.id]?.m2)}
-                  {feld("m3", "Marke Ende", "Kanal 2 nach M1, Kanal 1 danach T0 und M1, leer = von selbst", 58, prog.marken[b.id]?.m3)}
+                  {feld("S", "Drehzahl S", "Drehzahl des angetriebenen Werkzeugs (M36/M37 S…)")}
+                  <label className="cam-feld cam-g96" title={"Am Ende das angetriebene Werkzeug mit M38 ausschalten" + (gegen ? " (Kanal 2)" : "")}>
+                    <input type="checkbox" data-camblock="m38" checked={!b.spAn}
+                      onChange={(e) => blockAendern(b.id, "spAn", !e.target.checked)} /><span>M38 am Ende</span></label>
+                  {gegen ? <>
+                    {feld("X", "Position X", "Kanal 1: G0X…T21 zwischen Marke Start und Marke 2", 58)}
+                    {feld("anZ", "Anfahren Z", "Kanal 2: G0Z… der Gegenspindel, am Schluss G1Z…F2000 zurück, dann G0Z20.", 58)}
+                    {feld("m1", "Marke Start", "Kanal 1 und 2 vor dem Positionieren in X, leer = von selbst", 58, prog.marken[b.id]?.m1)}
+                    {feld("m2", "Marke 2", "X positioniert, danach die Bearbeitung in Kanal 2, leer = von selbst", 58, prog.marken[b.id]?.m2)}
+                    {feld("m3", "Marke Ende", "Kanal 2 nach M1, Kanal 1 danach T0 und M1, leer = von selbst", 58, prog.marken[b.id]?.m3)}
+                  </> : <>
+                    {feld("anZ", "Anfahren Z", "G0Z… vor dem Teil")}
+                    {feld("wegZ", "Zurück Z", "Am Ende G0Z… zurück in sichere Richtung", 60)}
+                  </>}
                 </> : <>
                 <label className="cam-feld" title="Drehrichtung"><span>Richtung</span>
                   <select data-camblock="dreh" value={b.dreh} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>

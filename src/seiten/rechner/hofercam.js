@@ -262,8 +262,9 @@ export function neuerBlock(bloecke = [], art = "dreh") {
   const belegt = new Set(bloecke.map((b) => b.platz));
   if (art === "quer") {
     const platz = QUER_PLAETZE.find((p) => !belegt.has(p)) || "3421";
-    return { id: neueId(), art: "quer", platz, bez: "", hd: "3", dreh: "37", S: "6000",
-      X: "", anZ: "60", code: "" };
+    // Seit 1.417.0 wie T1100–T1400 zuerst an der Hauptspindel
+    return { id: neueId(), art: "quer", spindel: "haupt", platz, bez: "", hd: "3", dreh: "36", S: "6000",
+      X: "", anZ: "5.0", wegZ: "0", code: "" };
   }
   if (art === "front") {
     const platz = FRONT_PLAETZE.find((p) => !belegt.has(p)) || "1100";
@@ -298,6 +299,12 @@ export function drehzahl(b, w = {}) {
 export function blockFehler(b, w = {}) {
   const f = {};
   if (b.art === "quer") {
+    if (!anGegenspindel(b)) {
+      if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
+      if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
+      if (zahl(b.wegZ) == null) f.wegZ = "Zahl fehlt";
+      return f;
+    }
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
     if (zahl(b.X) == null) f.X = "Zahl fehlt";
     if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
@@ -346,6 +353,26 @@ export function blockZeilen(b, w = {}, marke) {
   // Seit 1.413.0 (Wunsch Patrick 5. November 2026: „generell auswählen, ob
   // nach einer Bearbeitung der Hochdruck wieder ausgeschaltet wird,
   // standardmässig ja“): `hdAn` am Block lässt M1891 / M1892 am Ende weg
+  // Seit 1.417.0 (Patrick 5. November 2026): angetriebene Werkzeuge mit
+  // M36 Rechtslauf, M37 Linkslauf, M38 aus, in beiden Kanälen; M38 am
+  // Ende wahlweise (`spAn` am Block lässt es weg, Vorgabe aus)
+  if (b.art === "quer" && !anGegenspindel(b)) {
+    // Seit 1.417.0 (Wunsch Patrick 5. November 2026: „standardmässig für
+    // die Hauptspindel in Kanal 1 … alles wie bei T1100–T1400“)
+    const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+    return [
+      "T" + b.platz + (bez ? "(" + bez + ")" : ""),
+      ...(b.hd ? ["M1883D" + b.hd] : []),
+      "M" + (b.dreh === "37" ? 37 : 36) + "S" + String(b.S).trim() + "T" + String(b.platz).slice(-2),
+      "G0Z" + (zahl(b.anZ) ?? b.anZ),
+      ...code,
+      ...(b.hd && !b.hdAn ? ["M1893"] : []),
+      "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
+      ...(b.spAn ? [] : ["M38"]),
+      "T0",
+      "M1",
+    ];
+  }
   if (b.art === "quer") {
     // Seit 1.415.0 (Patrick 5. November 2026): zwischen Marke Start und
     // Marke 2 positioniert Kanal 1 in X, zwischen Marke 2 und Marke Ende
@@ -449,7 +476,7 @@ export function blockZeilen2(b, marke, w = {}) {
     // machen“), dann das angetriebene Werkzeug mit M37 / M38 S…, Anfahren
     // und Wegfahren auf derselben Z (Patrick: „der Wert 60 soll als
     // Anfahrposition der Gegenspindel definiert werden können“), fest
-    // F2000 und G0Z20., wahlweise M39 aus; Marke Ende nach M1
+    // F2000 und G0Z20., M38 aus (wahlweise nicht); Marke Ende nach M1
     const z = zahl(b.anZ) ?? b.anZ;
     return [
       "M75",
@@ -457,12 +484,12 @@ export function blockZeilen2(b, marke, w = {}) {
       "/G98", "/M8", "/M7", "/G0", "/G28H0.", "/M6",
       marke.m1,
       marke.m2,
-      s("M" + (b.dreh === "38" ? 38 : 37) + "S" + String(b.S).trim()),
+      s("M" + (b.dreh === "37" ? 37 : 36) + "S" + String(b.S).trim()),
       s("G0Z" + z),
       ...code.map(s),
       s("G1Z" + z + "F2000"),
       "/G0Z20.",
-      ...(b.m39 ? ["/M39"] : []),
+      ...(b.spAn ? [] : ["/M38"]),
       "G0G28W0.",
       "T0",
       "M1",
@@ -504,7 +531,7 @@ export function markenPaare(b) {
 }
 export const k1Zeilen = (b, x, y, feld = "k1") =>
   String((b[feld] || {})[x + "-" + y] || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
-export const anGegenspindel = (b) => (b.art === "front" && b.spindel === "gegen") || b.art === "quer";
+export const anGegenspindel = (b) => (b.art === "front" || b.art === "quer") && b.spindel === "gegen";
 
 // Je Block an der Gegenspindel zwei Wartemarken {m1, m2}: von Hand
 // gesetzte gelten, leere bekommen freie ab M300 in Zehnerschritten, die
