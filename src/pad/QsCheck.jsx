@@ -175,7 +175,9 @@ function Fortschritt({ j, m }) {
 }
 
 export default function QsCheck({ zeilen, teile }) {
-  const darf = alt.darfSchreiben();
+  // Externe wechseln den Zustand ihrer Maschinen auch (Wunsch Patrick
+  // 5. November 2026), die Datenbank lässt sie nur dort und nur den Zustand
+  const darf = alt.darfSchreiben() || alt.istExtern();
   const [ref, raster] = useRaster(zeilen.length);
   const klasse = "pad-ak pad--wischen" + (raster && raster.zwei ? " pad-ak--zwei" : "")
     + (raster && raster.rollt ? " pad-ak--rollt" : "");

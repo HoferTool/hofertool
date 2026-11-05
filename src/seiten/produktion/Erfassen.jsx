@@ -549,7 +549,8 @@ function AuftragsBlock({ maschine, aktionen, stand, mitte, letzter }) {
           {/* Beenden steht direkt neben dem Zustand (Wunsch Patrick
               12. Oktober 2026), mit denselben Fragen wie überall:
               letzte Stückzahl, Stückzeit, nächster Auftrag auf Rüsten */}
-          {schreiben &&
+          {/* Auch Externe beenden ihre Aufträge (Wunsch Patrick 5. November 2026) */}
+          {(schreiben || alt.istExtern()) &&
             <button className="aw-knopf aw-knopf--ende" data-auftrag-ende={j.id} data-maschine={maschine.id}
               onClick={() => aktionen.beenden(j)}>Beenden</button>}
         </span>
