@@ -36,6 +36,8 @@ with sync_playwright() as p:
     pruefe("Kanal 2 = +1000", "O1458(10870-0002)" in k2)
     pruefe("Schlichtzugabe", "G0Z-0.2T0(SCHLICHTZUGABE)" in k1)
     pruefe("Annähern", "G0Z-12.(EILGANG 12MM VOR STUCK)" in k2)
+    pg.fill("[data-cam='plan']", "0.3")
+    pruefe("Zugabe Plan hinten", "G0W0.3(ZUGABE PLANDREHEN HINTEN)" in k(1))
     pruefe("Gleich viele Zeilen", len(k1) == len(k2))
     sync = pg.eval_on_selector_all(".cam-zeile--sync[data-kanal='1'] .cam-text", "e => e.map(x => x.textContent)")
     sync2 = pg.eval_on_selector_all(".cam-zeile--sync[data-kanal='2'] .cam-text", "e => e.map(x => x.textContent)")

@@ -25,37 +25,37 @@ export function markeVon(zeile) {
   return null;
 }
 
-// Zahl wie an der Steuerung: ganze Zahlen mit Punkt (17.), sonst wie getippt
+// Zahl wie an der Steuerung: ohne Punkt getippt mit Punkt dahinter (17 → 17.),
+// mit Punkt genau wie getippt (0.20 bleibt 0.20), Komma gilt als Punkt
 export function zahl(text) {
   const t = String(text ?? "").trim().replace(",", ".");
   if (t === "" || !/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
-  const n = Number(t);
-  if (!Number.isFinite(n)) return null;
-  return Number.isInteger(n) ? n + "." : String(n);
+  return t.includes(".") ? t : t + ".";
 }
 
 export const FELDER = [
   { gruppe: "Programm", felder: [
-    { name: "nr", text: "Programm-Nr. Kanal 1 (1–999)", art: "nr" },
+    { name: "nr", text: "Nr. Kanal 1", lang: "Programm-Nr. Kanal 1, 1 bis 999 (Kanal 2 = Nr. + 1000)", art: "nr" },
     { name: "hoco", text: "HOCO Nr.", art: "text" },
-    { name: "datum", text: "Datum (G170)", art: "text" },
-    { name: "kuerzel", text: "Kürzel (G170)", art: "text" },
+    { name: "datum", text: "Datum", lang: "Datum in G170", art: "text" },
+    { name: "kuerzel", text: "Kürzel", lang: "Kürzel in G170", art: "text" },
   ] },
   { gruppe: "Grundvariablen G266", felder: [
-    { name: "A", text: "A = #531 Materialdurchmesser" },
-    { name: "W", text: "W = #530 Teilelänge" },
-    { name: "S", text: "S = #529 Abstechdrehzahl", ganz: true },
-    { name: "X", text: "X = #524 Abstechendposition" },
-    { name: "Z", text: "Z = #525 Z-Startposition (max. 200)" },
-    { name: "F", text: "F = #522 Vorschub Abstechen" },
-    { name: "B", text: "B = #528 Breite Abstechstahl" },
+    { name: "A", text: "A Material-Ø", lang: "A = #531 Materialdurchmesser" },
+    { name: "W", text: "W Teilelänge", lang: "W = #530 Teilelänge" },
+    { name: "S", text: "S Drehzahl", lang: "S = #529 Abstechdrehzahl", ganz: true },
+    { name: "X", text: "X Abstechende", lang: "X = #524 Abstechendposition" },
+    { name: "Z", text: "Z Start", lang: "Z = #525 Z-Achse Startposition, höchstens 200" },
+    { name: "F", text: "F Vorschub", lang: "F = #522 Vorschub Abstechen" },
+    { name: "B", text: "B Stahlbreite", lang: "B = #528 Breite des Abstechstahls" },
   ] },
-  { gruppe: "Kanal 1 Kopf", felder: [
-    { name: "schlicht", text: "Schlichtzugabe Z" },
+  { gruppe: "Kanal 1", felder: [
+    { name: "schlicht", text: "Schlichtzugabe Z", lang: "Kopf: G0Z…T0(SCHLICHTZUGABE)" },
+    { name: "plan", text: "Zugabe Plan hinten W", lang: "Ende: G0W…(ZUGABE PLANDREHEN HINTEN)" },
   ] },
-  { gruppe: "Kanal 2 Ende (Abgreifen)", felder: [
-    { name: "annaehern", text: "Annähern Z" },
-    { name: "ueber", text: "Über das Teil fahren Z" },
+  { gruppe: "Kanal 2 Abgreifen", felder: [
+    { name: "annaehern", text: "Annähern Z", lang: "Ende: G0Z…(EILGANG …MM VOR STUCK)" },
+    { name: "ueber", text: "Über das Teil Z", lang: "Ende: G1G98Z…F5000.(…MM UBER DEM STUCK)" },
   ] },
 ];
 
@@ -69,7 +69,7 @@ function heute() {
 export function vorgabe() {
   return { nr: "1", hoco: "", datum: heute(), kuerzel: "",
     A: "17", W: "15.125", S: "3000", X: "-0.8", Z: "167.85", F: "0.03", B: "1.5",
-    schlicht: "-0.1", annaehern: "-10", ueber: "4" };
+    schlicht: "-0.1", plan: "0.20", annaehern: "-10", ueber: "4" };
 }
 
 // Fehler je Feld (Text) oder leer
@@ -145,7 +145,7 @@ function kanal1(w) {
     "M800",
     "G97M3S#529",
     "G00G99X#510Z[#530+#528]T1",
-    "G0W0.20(ZUGABE PLANDREHEN HINTEN)",
+    "G0W" + v(w, "plan") + "(ZUGABE PLANDREHEN HINTEN)",
     "M82",
     "M40",
     "G96",

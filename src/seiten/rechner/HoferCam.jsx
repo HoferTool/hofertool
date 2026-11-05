@@ -54,12 +54,11 @@ export default function HoferCam() {
           <fieldset key={g.gruppe} className="cam-gruppe">
             <legend>{g.gruppe}</legend>
             {g.felder.map((d) => (
-              <label key={d.name} className={"feld cam-feld" + (fehler[d.name] ? " cam-feld--fehler" : "")}>
+              <label key={d.name} title={(d.lang || d.text) + (fehler[d.name] ? " – " + fehler[d.name] : "")}
+                className={"cam-feld" + (fehler[d.name] ? " cam-feld--fehler" : "") + (d.art === "text" ? " cam-feld--text" : "")}>
                 <span>{d.text}</span>
                 <input data-cam={d.name} value={w[d.name]} inputMode={d.art === "text" ? "text" : "decimal"}
                   onChange={(e) => setze(d.name, e.target.value)} />
-                {fehler[d.name] && <small className="cam-fehler">{fehler[d.name]}</small>}
-                {d.name === "nr" && !fehler.nr && <small className="klein">Kanal 2: O{prog.nr2}</small>}
               </label>
             ))}
           </fieldset>
@@ -70,7 +69,7 @@ export default function HoferCam() {
         {sync.fehler
           ? <span className="cam-stand--fehler">{sync.fehler === 1 ? "1 Marke hat" : sync.fehler + " Marken haben"} im anderen Kanal kein Gegenstück.</span>
           : <span>Alle Synchronisationsmarken sind gepaart.</span>}
-        {zuViel && <span className="cam-stand--fehler"> Bitte die rot markierten Felder prüfen.</span>}
+        {zuViel && <span className="cam-stand--fehler"> Rot: {Object.entries(fehler).map(([n, t]) => n === "nr" ? "Nr. " + t : n + " " + t).join(", ")}.</span>}
       </div>
 
       <div className="cam-kanaele" id="cam-kanaele">
