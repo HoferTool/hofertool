@@ -331,19 +331,26 @@ export default function HoferCam() {
             <div key={b.id} className={"cam-block" + (b.id === aktiv ? " cam-block--aktiv" : "")} data-block={i}
               onFocusCapture={() => setAktiv(b.id)} onPointerDown={() => setAktiv(b.id)}
               onPointerEnter={(e) => { if (e.pointerType === "mouse") setUeber(b.id); }}
-              onPointerLeave={() => setUeber((x) => (x === b.id ? null : x))}>
+              onPointerLeave={(e) => {
+                // Seit 1.426.2: solange die Auswahl Platz / Spindel offen
+                // ist (die Liste liegt ausserhalb), bleibt das Bild stehen
+                const a = e.currentTarget.ownerDocument.activeElement;
+                if (a && a.tagName === "SELECT" && e.currentTarget.contains(a)) return;
+                setUeber((x) => (x === b.id ? null : x));
+              }}
+              onBlurCapture={(e) => { if (e.target.tagName === "SELECT" && !e.currentTarget.matches(":hover")) setUeber((x) => (x === b.id ? null : x)); }}>
               <div className="cam-block__zeile">
                 {/* Seit 1.399.0 (Wunsch Patrick 5. November 2026): NC-Code mit
                     dem Pfeil ein- und ausklappen, gemerkt am Block (zu) */}
                 <button className="cam-block__pfeil" data-camblock-pfeil={i} title={b.zu ? "NC-Code zeigen" : "NC-Code einklappen"}
                   aria-expanded={!b.zu} onClick={() => blockAendern(b.id, "zu", !b.zu)}>{b.zu ? "▸" : "▾"}</button>
                 {(front || (quer && !seite)) && <label className="cam-feld" title="Hauptspindel oder Gegenspindel"><span>Spindel</span>
-                  <select data-camblock="spindel" value={b.spindel || "haupt"} onChange={(e) => blockAendern(b.id, "spindel", e.target.value)}>
+                  <select data-camblock="spindel" value={b.spindel || "haupt"} onChange={(e) => { blockAendern(b.id, "spindel", e.target.value); setUeber(b.id); }}>
                     <option value="haupt">Hauptspindel</option>
                     <option value="gegen">Gegenspindel (Kanal 2 mit T2000)</option>
                   </select></label>}
                 <label className="cam-feld" title={k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
-                  <select data-camblock="platz" value={b.platz} onChange={(e) => blockAendern(b.id, "platz", e.target.value)}>
+                  <select data-camblock="platz" value={b.platz} onChange={(e) => { blockAendern(b.id, "platz", e.target.value); setUeber(b.id); }}>
                     {(k2 ? K2_PLAETZE : seite ? SEITE_PLAETZE : quer ? QUER_PLAETZE : front ? FRONT_PLAETZE : DREH_PLAETZE).map((p) => <option key={p} value={p}>T{p}</option>)}
                   </select></label>
                 <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>

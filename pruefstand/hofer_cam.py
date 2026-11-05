@@ -235,6 +235,11 @@ with sync_playwright() as p:
     pruefe("Bild Platten", pg.get_attribute("#cam-bild", "data-bereich") == "Werkzeugplatten"
         and pg.get_attribute("#cam-bild rect", "x") == "112")
     pg.screenshot(path="hofer_cam_bild.png")
+    # Seit 1.426.2: Platz wählen zeigt gleich das richtige Werkzeug
+    pg.hover("[data-block='2'] [data-camblock='bez']")
+    pg.select_option("[data-block='2'] [data-camblock='platz']", "2400"); pg.wait_for_timeout(150)
+    pruefe("Bild folgt dem Platz", "T2400" in pg.text_content("#cam-bild") and pg.get_attribute("#cam-bild rect", "x") == "93")
+    pg.select_option("[data-block='2'] [data-camblock='platz']", "2100")
     pg.mouse.move(5, 5); pg.wait_for_timeout(150)
     pruefe("Bild weg", pg.locator("#cam-bild").count() == 0)
     pg.select_option("[data-block='2'] [data-camblock='platz']", "2300")
