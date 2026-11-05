@@ -35,6 +35,10 @@ export const VORLAGEN = [
       // T1100–T1400 und T3421–T3423 brauche ich für die Vorpositionierung
       // vom Material einen variablen Z-Wert“): G0Z… direkt vor dem G83
       { name: "Z", text: "Vorposition Z", lang: "Material vor dem Bohren auf Z fahren (G0Z…), leer = ohne" },
+      // Seit 1.427.2 (Patrick: „auch einen variablen X- und Y-Wert, alles
+      // vor G83 mit G0, zuerst Z, dann X, dann Y“): je eine Zeile
+      { name: "X", text: "Vorposition X", lang: "G0X… nach G0Z…, leer = ohne" },
+      { name: "Y", text: "Vorposition Y", lang: "G0Y… nach G0X…, leer = ohne" },
       { name: "W", text: "Tiefe W", lang: "Bohrtiefe schrittweise ab der Lage davor, in mm (G83W…)", pflicht: true },
       { name: "Q", text: "Zustellung Q", lang: "Zustellung je Schritt in mm, im Programm in µm (5.25 → Q5250)", pflicht: true },
       { name: "P", text: "Verweilen P", lang: "Verweilen am Grund in ms (P500), leer = ohne" },
@@ -101,7 +105,7 @@ export function vorlageZeilen(id, w = {}) {
   if (fehlt.length) return { fehler: "Fehlt: " + fehlt.join(", ") };
   if (v.id === "g83") {
     const p = um(g.P) != null && num(g.P) > 0 ? "P" + Math.round(num(g.P)) : "";
-    const z = num(g.Z) != null ? ["G0Z" + zahl(g.Z)] : [];
+    const z = ["Z", "X", "Y"].filter((n) => num(g[n]) != null).map((n) => "G0" + n + zahl(g[n]));
     z.push("G83W" + zahl(g.W) + "Q" + um(g.Q) + p + "F" + zahl(g.F));
     if (g.G80) z.push("G80");
     return { zeilen: z };
