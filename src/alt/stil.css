@@ -11745,39 +11745,3 @@ body.dunkel .eg-fehler { color: #ff8a80 !important; }
 .eg-deckung { display: inline-flex; align-items: center; gap: 6px; }
 .eg-deckung input { width: 110px; }
 .eg-deckung span { min-width: 3.2em; text-align: right; }
-
-/* NC-PRO → Hofer Cam (seit 1.394.0): links Kopf und Bearbeitungen,
-   rechts das ganze Programm, das beim Rollen stehen bleibt */
-.cam-raster { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 14px; align-items: start; }
-.cam-links { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.cam-links > .karte, .cam-vorlagen > .karte { margin: 0; }
-.cam-ausgabe { position: sticky; top: 8px; margin: 0; min-width: 0; }
-.cam-code { max-height: calc(100vh - 160px); overflow: auto; margin: 0; }
-.cam-kopffelder { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; }
-.cam-kopffelder .feld { flex: 1 1 150px; margin: 0; }
-.cam-kopffelder .feld:first-child { flex: 2 1 220px; }
-.cam-bearb { padding: 10px 12px; }
-.cam-bearb__kopf { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin-bottom: 6px; }
-.cam-bearb__nr { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
-  background: var(--akzent, #1f5fae); color: #fff; font-size: 13px; }
-.cam-bearb__titel { flex: 1 1 140px; min-width: 100px; }
-.cam-klein { display: inline-flex; align-items: center; gap: 4px; }
-.cam-klein input { width: 70px; }
-.cam-bearb__knoepfe { display: inline-flex; gap: 4px; margin-left: auto; }
-.cam-bearb__code, .cam-v-feld textarea { width: 100%; box-sizing: border-box; font-family: ui-monospace, Consolas, monospace;
-  font-size: 13px; line-height: 1.35; resize: vertical; }
-.cam-bearb__holen { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 4px; }
-.cam-hinzu { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.cam-vorlagen { display: flex; flex-direction: column; gap: 10px; }
-.cam-v-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.cam-v-zwei { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
-.cam-v-zwei .feld { margin: 0; }
-.cam-v-art { grid-column: 1 / -1; margin: 0; font-size: 15px; }
-.cam-v-titel { margin: 8px 0 0; }
-.cam-ph { display: inline-block; margin: 2px 10px 2px 0; white-space: nowrap; }
-@media (max-width: 900px) {
-  .cam-raster, .cam-v-zwei { grid-template-columns: 1fr; }
-  .cam-ausgabe { position: static; }
-}
-.cam-bearb__kopf select { width: auto; flex: 0 1 190px; }
-.cam-bearb__kopf input { margin: 0; }

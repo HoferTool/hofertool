@@ -8,9 +8,7 @@
 //  (Wunsch Patrick 3. November 2026). Seit 1.378.0 als letzter Reiter
 //  der Rechner (Drehzahl, Winkel und Fase), der vorher eine eigene
 //  Seite im Menü war (Wunsch Patrick 3. November 2026). Seit 1.384.0
-//  der Reiter Bohren / Fräsen für Front- und Querwerkzeuge. Seit 1.394.0
-//  vor dem Rechner der Reiter Hofer Cam: ganzes Programm je Maschine aus
-//  Vorlagen und dem Code der anderen Reiter (Wunsch Patrick 5. November 2026).
+//  der Reiter Bohren / Fräsen für Front- und Querwerkzeuge.
 //  Der Inhalt steht weiter in #rech-inhalt, damit Gestaltung und
 //  Prüfstand der Reiter unverändert gelten.
 // =================================================================
@@ -25,14 +23,13 @@ import Dxf from "./rechner/Dxf.jsx";
 import Kontur from "./rechner/Kontur.jsx";
 import BohrenFraesen from "./rechner/BohrenFraesen.jsx";
 import Entgraten from "./rechner/Entgraten.jsx";
-import HoferCam from "./rechner/HoferCam.jsx";
 import Rechner, { REITER as RECHNER_REITER, rechnerAnsicht } from "./Rechner.jsx";
 
 export const REITER = [
-  ["kontur", "NC-PRO"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["cam", "Hofer Cam"], ["rechner", "Rechner"],
+  ["kontur", "NC-PRO"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
 ];
 
-const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, cam: HoferCam, rechner: Rechner };
+const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, rechner: Rechner };
 
 const gemerkt = { ansicht: "kontur" };
 teilMerken("nc", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
@@ -48,7 +45,7 @@ export default function NcFunktionen() {
   const [neu, setNeu] = useState(0);
   useGemerkt(gemerkt, { ansicht });
   useSeitenSuche({
-    name: "NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, Hofer Cam, Drehzahl …",
+    name: "NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, Drehzahl …",
     eintraege: [
       ...REITER.map(([w, t]) => ({ gruppe: "NC-PRO", zeichen: "⌨", titel: t, wert: w })),
       ...RECHNER_REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: "rechner", unter: w })),

@@ -9,7 +9,6 @@
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
-import { InCamKnopf } from "./camKorb.jsx";
 import { KopfFelder } from "./kopf.jsx";
 import { ARTEN } from "./bohren.js";
 import { Antrieb, antriebLaden, bfAktuell, bfSetzen } from "./BohrenFraesen.jsx";
@@ -223,7 +222,7 @@ export default function Entgraten() {
       <KopfFelder geaendert={() => setStand((n) => n + 1)} />
       <pre className="gcode" id="eg-code">{gcode}</pre>
       <NcStand kurz="eg" gespeichert={gespeichert} nc={gcode} />
-      <button className="knopf knopf--klein" id="eg-kopieren" onClick={kopieren}>NC-Code kopieren</button> <InCamKnopf art="entgraten" nc={gcode} titel={gespeichert ? gespeichert.name : ""} />
+      <button className="knopf knopf--klein" id="eg-kopieren" onClick={kopieren}>NC-Code kopieren</button>
     </div>
   );
 }

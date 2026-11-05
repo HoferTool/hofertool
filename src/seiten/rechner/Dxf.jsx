@@ -6,7 +6,6 @@
 // =================================================================
 import { useEffect, useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
-import { InCamKnopf } from "./camKorb.jsx";
 import { KopfFelder } from "./kopf.jsx";
 import { DXF_VORGABE, dxfLesen, dxfSkalieren, dxfMasse, dxfBahn, dxfGcode } from "./dxf.js";
 
@@ -154,7 +153,7 @@ export default function Dxf() {
         sich auch direkt im Bild antippen. X ist im Durchmesser programmiert, C entspricht Y.</p>
       <KopfFelder geaendert={() => setKopfStand((n) => n + 1)} />
       <pre className="gcode">{gcode}</pre>
-      <button className="knopf knopf--klein" id="dxf-kopieren" onClick={kopieren}>G-Code kopieren</button> <InCamKnopf art="dxf" nc={gcode} titel={d.name} />
+      <button className="knopf knopf--klein" id="dxf-kopieren" onClick={kopieren}>G-Code kopieren</button>
     </div>
   );
 }

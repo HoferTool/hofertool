@@ -8,7 +8,6 @@
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
-import { InCamKnopf } from "./camKorb.jsx";
 import { KopfFelder } from "./kopf.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import {
@@ -166,7 +165,7 @@ export default function BohrenFraesen() {
       <KopfFelder geaendert={() => setStand((n) => n + 1)} />
       <pre className="gcode" id="bf-code">{gcode}</pre>
       <NcStand kurz="bf" gespeichert={gespeichert} nc={gcode} />
-      <button className="knopf knopf--klein" id="bf-kopieren" onClick={kopieren}>NC-Code kopieren</button> <InCamKnopf art="bohren" nc={gcode} titel={gespeichert ? gespeichert.name : ""} />
+      <button className="knopf knopf--klein" id="bf-kopieren" onClick={kopieren}>NC-Code kopieren</button>
     </div>
   );
 }
