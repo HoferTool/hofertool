@@ -203,10 +203,10 @@ export default function HoferCam() {
           <button className="knopf knopf--klein" id="cam-neu-front"
             onClick={() => { const nb = neuerBlock(bloecke, "front"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontwerkzeug T1100–T1400</button>
           {/* Seit 1.415.0: angetriebene T3421–T3423 an der Gegenspindel */}
-          <button className="knopf knopf--klein" id="cam-neu-quer"
-            onClick={() => { const nb = neuerBlock(bloecke, "quer"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben Front T3421–T3423</button>
           <button className="knopf knopf--klein" id="cam-neu-seite"
             onClick={() => { const nb = neuerBlock(bloecke, "seite"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Querangetrieben T3100–T3400</button>
+          <button className="knopf knopf--klein" id="cam-neu-quer"
+            onClick={() => { const nb = neuerBlock(bloecke, "quer"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben Front T3421–T3423</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
