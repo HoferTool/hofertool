@@ -20,11 +20,11 @@ on:
   workflow_run:
     workflows: ["Prüfen"]
     types: [completed]
-    branches: [claude/project-thread-eoqlna, claude/project-thread-au2n7k]
+    branches: [claude/project-thread-8yf89f, claude/project-thread-au2n7k]
   workflow_dispatch:
 
 env:
-  VORSCHAU: claude/project-thread-eoqlna
+  VORSCHAU: claude/project-thread-8yf89f
   TEST: claude/project-thread-au2n7k
 
 permissions:
