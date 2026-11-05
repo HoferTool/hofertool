@@ -17,7 +17,10 @@ on:
 jobs:
   pruefstand:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # Der ganze Prüfstand braucht inzwischen über 40 Minuten; 3 Stunden,
+    # damit die Nacht nicht wegen der Laufzeit rot wird (Wunsch Patrick
+    # 5. November 2026: „einfach auf 3h stellen“).
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
