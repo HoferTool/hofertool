@@ -118,7 +118,7 @@ with sync_playwright() as p:
     t = [x for x in k(1) if x]
     a = t.index("M1", t.index("T100(AUSSEN PLAN)"))
     b = t.index("(Start Ende)")
-    pruefe("Gegenspindel Kanal 1", t[a+1:b] == ["T1400(BOHREN D6.8)", "M1882D4", "M300", "M310", "M1892", "T0", "M1"])
+    pruefe("Gegenspindel Kanal 1", t[a+1:b] == ["T1400(BOHREN D6.8)", "M1882D4", "T14", "M300", "M310", "M1892", "T0", "M1"])
     t2 = [x for x in k(2) if x]
     a2, b2 = t2.index("(Ende Kopf)"), t2.index("(Start Ende)")
     pruefe("Gegenspindel Kanal 2", t2[a2+1:b2] == ["T2000(BOHREN D6.8)", "M300", "M3S2500", "G0Z5.0", "G83W18.5Q5250F0.06", "G80",

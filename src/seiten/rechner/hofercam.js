@@ -338,6 +338,9 @@ export function blockZeilen(b, w = {}, marke) {
     return [
       "T" + b.platz + (bez ? "(" + bez + ")" : ""),
       ...(b.hd ? ["M1882D" + b.hd] : []),
+      // Seit 1.409.0: T14 bleibt in Kanal 1, weil dort die
+      // Verschleisskorrektur erfolgt (Patrick 5. November 2026)
+      "T" + t,
       mk.m1,
       mk.m2,
       ...(b.hd ? ["M1892"] : []),
