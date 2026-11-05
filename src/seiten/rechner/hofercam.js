@@ -54,7 +54,7 @@ export const FELDER = [
     { name: "plan", text: "Zugabe Plan hinten W", lang: "Ende: G0W…(ZUGABE PLANDREHEN HINTEN)" },
   ] },
   { gruppe: "Kanal 2 Abgreifen", felder: [
-    { name: "annaehern", text: "Annähern Z", lang: "Ende: G0Z…(EILGANG …MM VOR STUCK)" },
+    { name: "annaehern", text: "Annähern Z vor das Teil", lang: "Abstand vor dem Teil, positiv eingeben; im Programm mit Minus: G0Z-…(EILGANG …MM VOR STUCK)" },
     { name: "ueber", text: "Über das Teil Z", lang: "Ende: G1G98Z…F5000.(…MM UBER DEM STUCK)" },
   ] },
 ];
@@ -69,7 +69,7 @@ function heute() {
 export function vorgabe() {
   return { nr: "1", hoco: "", datum: heute(), kuerzel: "",
     A: "17", W: "15.125", S: "3000", X: "-0.8", Z: "167.85", F: "0.03", B: "1.5",
-    schlicht: "-0.1", plan: "0.20", annaehern: "-10", ueber: "4", bloecke: [] };
+    schlicht: "-0.1", plan: "0.20", annaehern: "10", ueber: "4", bloecke: [] };
 }
 
 // Fehler je Feld (Text) oder leer
@@ -185,7 +185,9 @@ function kanal2(w) {
     "M5(SPINDEL STOP)",
     "(Ende Kopf)",
   ];
-  const an = v(w, "annaehern"), ue = v(w, "ueber");
+  // Seit 1.419.1 (Wunsch Patrick 5. November 2026): Annähern positiv
+  // eingeben, im Programm immer mit Minus (auch alte Werte mit Minus)
+  const an = "-" + String(v(w, "annaehern")).replace(/^[-+]/, ""), ue = v(w, "ueber");
   const ende = [
     "(Start Ende)",
     "M75",
