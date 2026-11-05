@@ -7,6 +7,7 @@
 // =================================================================
 import { useEffect, useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
+import { InCamKnopf } from "./camKorb.jsx";
 import { KopfFelder } from "./kopf.jsx";
 import { CACHSE_VORGABE, cachseBahn, cachseGcode, cachsePasst, cachsePunkte, cachseTeil } from "./cachse.js";
 
@@ -119,7 +120,7 @@ export default function CAchse() {
       {!pruef.ok && <p className="karte karte--fehler cax-warnung">{pruef.text}</p>}
       <KopfFelder geaendert={() => setKopfStand((n) => n + 1)} />
       <pre className="gcode">{gcode}</pre>
-      <button className="knopf knopf--klein" id="cax-kopieren" onClick={kopieren}>G-Code kopieren</button>
+      <button className="knopf knopf--klein" id="cax-kopieren" onClick={kopieren}>G-Code kopieren</button> <InCamKnopf art="cachse" nc={gcode} />
     </div>
   );
 }

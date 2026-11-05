@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { alt } from "../../bruecke.jsx";
+import { InCamKnopf } from "./camKorb.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import Kontur3D from "./Kontur3D.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
@@ -398,7 +399,8 @@ function KonturRechner({ imFenster }) {
             <div className="karte__kopf"><h2>NC-Programm</h2>
               <span className="kt-dateien">
                 <button className="linkknopf" id="kt-datei" onClick={herunterladen}>Als Datei</button>
-                <button className="linkknopf" id="kt-kopieren" onClick={kopieren}>Kopieren</button></span></div>
+                <button className="linkknopf" id="kt-kopieren" onClick={kopieren}>Kopieren</button>
+                <InCamKnopf art="kontur" nc={code} titel={k.name} klein /></span></div>
             {gespeichert && (gespeichert.nc === code
               ? <p className="klein" id="kt-stand">Gespeichert als „{gespeichert.name}“ am {alt.datumZeitKurz(gespeichert.geaendert_am)}.</p>
               : <p className="kt-fehler" id="kt-stand">Geändert seit dem Speichern als „{gespeichert.name}“. Nochmals „Speichern“, damit das neue Programm gilt.

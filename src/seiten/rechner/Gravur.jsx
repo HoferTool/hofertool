@@ -7,6 +7,7 @@
 // =================================================================
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
+import { InCamKnopf } from "./camKorb.jsx";
 import { KopfFelder } from "./kopf.jsx";
 import { GRAVUR_VORGABE, GRAVUR_SCHRIFTEN, gravurKonturen, gravurBahnen, gravurGcode, gravurDuennste } from "./gravur.js";
 
@@ -167,7 +168,7 @@ export default function Gravur() {
         stehen. Kleineres Werkzeug, grössere Zeichenhöhe oder eine fettere Schrift wählen.</p>}
       <KopfFelder geaendert={() => setKopfStand((n) => n + 1)} />
       <pre className="gcode">{gcode}</pre>
-      <button className="knopf knopf--klein" id="grav-kopieren" onClick={kopieren}>G-Code kopieren</button>
+      <button className="knopf knopf--klein" id="grav-kopieren" onClick={kopieren}>G-Code kopieren</button> <InCamKnopf art="gravur" nc={gcode} />
     </div>
   );
 }
