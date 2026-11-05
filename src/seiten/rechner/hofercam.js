@@ -324,6 +324,9 @@ export function blockZeilen(b, w = {}, marke) {
   const g96 = b.sArt === "vc" && !!b.g96;
   const t = Number(b.platz) / 100;
   const bez = String(b.bez || "").trim();
+  // Seit 1.413.0 (Wunsch Patrick 5. November 2026: „generell auswählen, ob
+  // nach einer Bearbeitung der Hochdruck wieder ausgeschaltet wird,
+  // standardmässig ja“): `hdAn` am Block lässt M1891 / M1892 am Ende weg
   if (b.art === "front" && b.spindel === "gegen") {
     // Seit 1.405.0 (Patrick 5. November 2026): an der Gegenspindel hält
     // Kanal 1 nur das Werkzeug bereit (Kopf und Ende ohne G0Z) und wartet
@@ -343,7 +346,7 @@ export function blockZeilen(b, w = {}, marke) {
       "T" + t,
       mk.m1,
       mk.m2,
-      ...(b.hd ? ["M1892"] : []),
+      ...(b.hd && !b.hdAn ? ["M1892"] : []),
       "T0",
       "M1",
     ];
@@ -358,7 +361,7 @@ export function blockZeilen(b, w = {}, marke) {
       (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
       "G0Z" + (zahl(b.anZ) ?? b.anZ),
       ...code,
-      ...(b.hd ? ["M1892"] : []),
+      ...(b.hd && !b.hdAn ? ["M1892"] : []),
       "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
       ...(g96 ? ["G97"] : []),
       "T0",
@@ -375,7 +378,7 @@ export function blockZeilen(b, w = {}, marke) {
     ...code,
     "G1X[#531+0.2]" + winkel + "F" + (zahl(b.wegF) ?? b.wegF),
     "G0X30.",
-    ...(b.hd ? ["M1891"] : []),
+    ...(b.hd && !b.hdAn ? ["M1891"] : []),
     ...(g96 ? ["G97"] : []),
     "T0",
     "M1",

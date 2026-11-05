@@ -242,6 +242,9 @@ export default function HoferCam() {
                   <select data-camblock="hd" value={b.hd} onChange={(e) => blockAendern(b.id, "hd", e.target.value)}>
                     {HD_STUFEN.map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
                   </select></label>
+                {b.hd && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (front ? "M1892" : "M1891") + " ausschalten"}>
+                  <input type="checkbox" data-camblock="hdAus" checked={!b.hdAn}
+                    onChange={(e) => blockAendern(b.id, "hdAn", !e.target.checked)} /><span>HD am Ende aus</span></label>}
                 <label className="cam-feld" title="Drehrichtung"><span>Richtung</span>
                   <select data-camblock="dreh" value={b.dreh} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
                     <option value="3">M3</option><option value="4">M4</option>

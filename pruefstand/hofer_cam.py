@@ -119,6 +119,13 @@ with sync_playwright() as p:
     a = t.index("M1", t.index("T100(AUSSEN PLAN)"))
     b = t.index("(Start Ende)")
     pruefe("Gegenspindel Kanal 1", t[a+1:b] == ["T1400(BOHREN D6.8 MIT GEGENSPINDEL)", "M1882D4", "T14", "M300", "M310", "M1892", "T0", "M1"])
+    # Seit 1.413.0: Hochdruck am Ende wahlweise nicht ausschalten
+    pruefe("HD am Ende aus gesetzt", pg.is_checked("[data-block='1'] [data-camblock='hdAus']"))
+    pg.uncheck("[data-block='1'] [data-camblock='hdAus']")
+    t = [x for x in k(1) if x]
+    pruefe("HD bleibt an", t[a+1:t.index("(Start Ende)")] == ["T1400(BOHREN D6.8 MIT GEGENSPINDEL)", "M1882D4", "T14", "M300", "M310", "T0", "M1"])
+    pg.check("[data-block='1'] [data-camblock='hdAus']")
+    t = [x for x in k(1) if x]
     t2 = [x for x in k(2) if x]
     a2, b2 = t2.index("(Ende Kopf)"), t2.index("(Start Ende)")
     pruefe("Gegenspindel Kanal 2", t2[a2+1:b2] == ["M75", "/T2000(BOHREN D6.8 MIT GEGENSPINDEL)", "M300", "/M3S2500", "/G0Z5.0", "/G83W18.5Q5250F0.06", "/G80",
