@@ -23,13 +23,14 @@ import Dxf from "./rechner/Dxf.jsx";
 import Kontur from "./rechner/Kontur.jsx";
 import BohrenFraesen from "./rechner/BohrenFraesen.jsx";
 import Entgraten from "./rechner/Entgraten.jsx";
+import HoferCam from "./rechner/HoferCam.jsx";
 import Rechner, { REITER as RECHNER_REITER, rechnerAnsicht } from "./Rechner.jsx";
 
 export const REITER = [
-  ["kontur", "NC-PRO"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
+  ["kontur", "NC-PRO"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["cam", "Hofer Cam"], ["rechner", "Rechner"],
 ];
 
-const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, rechner: Rechner };
+const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, cam: HoferCam, rechner: Rechner };
 
 const gemerkt = { ansicht: "kontur" };
 teilMerken("nc", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
@@ -45,7 +46,7 @@ export default function NcFunktionen() {
   const [neu, setNeu] = useState(0);
   useGemerkt(gemerkt, { ansicht });
   useSeitenSuche({
-    name: "NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, Drehzahl …",
+    name: "NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, Hofer Cam, Drehzahl …",
     eintraege: [
       ...REITER.map(([w, t]) => ({ gruppe: "NC-PRO", zeichen: "⌨", titel: t, wert: w })),
       ...RECHNER_REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: "rechner", unter: w })),
