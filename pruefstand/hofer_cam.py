@@ -198,6 +198,18 @@ with sync_playwright() as p:
     pruefe("T3421 M37, ohne M38, Z55, Marke", "/M37S6000" in t2 and "/G0Z55." in t2 and "/G1Z55.F2000" in t2
         and t2[t2.index("G0G28W0.", a2)-1] == "/G0Z20." and t2[t2.index("M1", a2)+1] == "M330")
     pg.click("[data-camblock-weg='2']")
+    # Seit 1.418.0: quer angetrieben T3100 an der Hauptspindel
+    pg.click("#cam-neu-seite")
+    pg.fill("[data-block='2'] [data-camblock='bez']", "QUERBOHRUNG ZENTRIEREN")
+    pg.fill("[data-block='2'] [data-camblock='anZ']", "12.1")
+    pg.fill("[data-block='2'] [data-camblock='code']", "G87X11.86P200F0.02\nG80")
+    t = [x for x in k(1) if x]
+    a = t.index("T3100(QUERBOHRUNG ZENTRIEREN)")
+    pruefe("T3100 Kanal 1", t[a:t.index("(Start Ende)")] == ["T3100(QUERBOHRUNG ZENTRIEREN)", "M1883D3", "G0T31", "M36S6000",
+        "G0X[#531+1.]Z12.1", "G99", "M8", "M7", "G0", "G28H0.", "G1Y0.C0.F1.", "G87X11.86P200F0.02", "G80",
+        "G0X30.", "G0Y0.", "M1893", "T0", "M38", "M9", "G99", "T0", "M1"])
+    pruefe("T3100 ohne Spindelwahl", pg.locator("[data-block='2'] [data-camblock='spindel']").count() == 0)
+    pg.click("[data-camblock-weg='2']")
     # Seit 1.416.0: Markenpaar im Code von Kanal 1 gibt ein Feld für Kanal 2
     alt0 = pg.input_value("[data-block='0'] [data-camblock='code']")
     pg.fill("[data-block='0'] [data-camblock='code']", alt0 + "\nM450\nM460")

@@ -255,11 +255,18 @@ export const FRONT_PLAETZE = ["1100", "1200", "1300", "1400"];
 // positioniert X, Kanal 2 schaltet das Werkzeug mit M37 / M38 ein und
 // macht mit T2000 den Weg in Z
 export const QUER_PLAETZE = ["3421", "3422", "3423"];
+// Seit 1.418.0: quer angetriebene T3100–T3400, nur Hauptspindel, nach
+// Patricks T3100 aus O0458 (5. November 2026)
+export const SEITE_PLAETZE = ["3100", "3200", "3300", "3400"];
 
 const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 export function neuerBlock(bloecke = [], art = "dreh") {
   const belegt = new Set(bloecke.map((b) => b.platz));
+  if (art === "seite") {
+    const platz = SEITE_PLAETZE.find((p) => !belegt.has(p)) || "3100";
+    return { id: neueId(), art: "seite", platz, bez: "", hd: "3", dreh: "36", S: "6000", anZ: "0", code: "" };
+  }
   if (art === "quer") {
     const platz = QUER_PLAETZE.find((p) => !belegt.has(p)) || "3421";
     // Seit 1.417.0 wie T1100–T1400 zuerst an der Hauptspindel
@@ -298,6 +305,11 @@ export function drehzahl(b, w = {}) {
 
 export function blockFehler(b, w = {}) {
   const f = {};
+  if (b.art === "seite") {
+    if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
+    if (zahl(b.anZ) == null) f.anZ = "Zahl fehlt";
+    return f;
+  }
   if (b.art === "quer") {
     if (!anGegenspindel(b)) {
       if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
@@ -356,6 +368,31 @@ export function blockZeilen(b, w = {}, marke) {
   // Seit 1.417.0 (Patrick 5. November 2026): angetriebene Werkzeuge mit
   // M36 Rechtslauf, M37 Linkslauf, M38 aus, in beiden Kanälen; M38 am
   // Ende wahlweise (`spAn` am Block lässt es weg, Vorgabe aus)
+  if (b.art === "seite") {
+    // Seit 1.418.0 (Patrick 5. November 2026: „das selbe mit T3100–T3400,
+    // dort gibt es keine Bearbeitung auf der Gegenspindel“), Aufbau wie
+    // T3100 in O0458 (Patrick: „ja“), Hochdruck M1883D… / M1893 wie bei
+    // T3421–T3423
+    const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+    return [
+      "T" + b.platz + (bez ? "(" + bez + ")" : ""),
+      ...(b.hd ? ["M1883D" + b.hd] : []),
+      "G0T" + t,
+      "M" + (b.dreh === "37" ? 37 : 36) + "S" + String(b.S).trim(),
+      "G0X[#531+1.]Z" + (zahl(b.anZ) ?? b.anZ),
+      "G99", "M8", "M7", "G0", "G28H0.", "G1Y0.C0.F1.",
+      ...code,
+      "G0X30.",
+      "G0Y0.",
+      ...(b.hd && !b.hdAn ? ["M1893"] : []),
+      "T0",
+      ...(b.spAn ? [] : ["M38"]),
+      "M9",
+      "G99",
+      "T0",
+      "M1",
+    ];
+  }
   if (b.art === "quer" && !anGegenspindel(b)) {
     // Seit 1.417.0 (Wunsch Patrick 5. November 2026: „standardmässig für
     // die Hauptspindel in Kanal 1 … alles wie bei T1100–T1400“)
