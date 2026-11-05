@@ -110,13 +110,14 @@ function istLaufenLassen(w) {
 // Text, der immer auf einer Zeile bleibt: passt er nicht, wird die
 // Schrift kleiner statt umzubrechen (Material mit Mass, Wunsch Patrick
 // 26. Oktober 2026)
-function EineZeile({ text, min = 7 }) {
+function EineZeile({ text, min = 7, stil }) {
   const ref = useRef(null);
+  const gr = stil && stil.groesse ? stil.groesse : null;
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const passen = () => {
-      el.style.fontSize = "";
+      el.style.fontSize = gr ? gr + "px" : "";
       const voll = parseFloat(getComputedStyle(el).fontSize) || 14;
       const breit = el.parentElement ? el.parentElement.clientWidth - 8 : 0;
       if (breit > 0 && el.scrollWidth > breit) el.style.fontSize = Math.max(min, Math.floor(voll * breit / el.scrollWidth * 10) / 10) + "px";
@@ -131,8 +132,8 @@ function EineZeile({ text, min = 7 }) {
     });
     ro.observe(el.parentElement);
     return () => ro.disconnect();
-  }, [text, min]);
-  return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="">{text}</span>;
+  }, [text, min, gr, stil && stil.fett]);
+  return <span ref={ref} className="eba-eine-zeile" data-eba-eine-zeile="" style={stilCss(stil, true)}>{text}</span>;
 }
 
 // Eingetippte T-Nr. ordentlich schreiben: „3121“ oder „t 3121“ → „T3121“
@@ -150,6 +151,90 @@ const GEO_FARBEN = [["Schwarz", GEO_SCHWARZ], ["Rot", "#e03030"], ["Blau", "#1f5
 // Schriftgrösse der Notiz im Platz von Hand (Punkte auf dem Blatt);
 // leer = Auto, so gross wie das Feld es zulässt
 const GEO_GROESSE_MIN = 6, GEO_GROESSE_MAX = 40, GEO_GROESSE_START = 14;
+
+// ---------------- Schrift jedes Textes ----------------
+// Farbe, dünn/fett und Grösse nicht nur für die Notiz in der Mitte,
+// sondern für jeden Text auf dem Blatt: im Platz Tätigkeit, Mass, T-Nr.,
+// Lieferant, Artikel-Nr., Beschreibung, im Kopf jedes Feld samt
+// Stammdaten und die Bemerkung unten links (seit 1.402.0, Wunsch Patrick
+// 5. November 2026). Ein Stil ist { farbe, fett, groesse }: fett true/false
+// nur, wenn anders als üblich; groesse in Punkten auf dem Blatt, leer =
+// wie bisher. Gespeichert im Platz unter stil.<Zeile>, für Kopf und
+// Bemerkung in kopf.schrift["art:feld"].
+// Farbe auch als -webkit-text-fill-color, weil der dunkle Modus im Blatt
+// jede Schriftfarbe mit !important auf Schwarz setzt
+function stilCss(s, mitGroesse) {
+  if (!s) return undefined;
+  const o = {};
+  if (s.farbe) { o.color = s.farbe; o.WebkitTextFillColor = s.farbe; }
+  if (s.fett === true) o.fontWeight = 700;
+  if (s.fett === false) o.fontWeight = 400;
+  if (mitGroesse !== false && s.groesse) { o.fontSize = s.groesse + "px"; o.lineHeight = "1.15"; }
+  return Object.keys(o).length ? o : undefined;
+}
+// Nur behalten, was vom Üblichen abweicht; leer = null
+function stilSauber(s, standardFett) {
+  if (!s) return null;
+  const z = {};
+  if (s.farbe && s.farbe !== GEO_SCHWARZ) z.farbe = s.farbe;
+  if (typeof s.fett === "boolean" && s.fett !== !!standardFett) z.fett = s.fett;
+  if (s.groesse) z.groesse = s.groesse;
+  return Object.keys(z).length ? z : null;
+}
+// Die Leiste: feste Farben und Farbwähler, Dünn / Fett, Grösse.
+// auto: Text für den Knopf ohne Grösse („Auto“ bei der Notiz, die das
+// Feld füllt, sonst „Normal“). Die Knöpfe nehmen den Fokus nicht weg,
+// damit im Kopf das gewählte Feld gewählt bleibt.
+function SchriftLeiste({ stil, setzen, standardFett, auto = "Normal", start = 12 }) {
+  const s = stil || {};
+  const fett = typeof s.fett === "boolean" ? s.fett : !!standardFett;
+  const behalten = (e) => e.preventDefault();
+  const neu = (z) => setzen(stilSauber(Object.assign({}, s, z), standardFett));
+  return (
+    <span className="eba-schriftleiste" data-schriftleiste="">
+      <span className="eba-pf-geostil" data-pf-geostil="">
+        {GEO_FARBEN.map(([name, wert]) => <button key={wert} type="button" title={name} aria-label={name} onMouseDown={behalten}
+          data-pf-geofarbe={wert} className={"eba-pf-geofarbe" + ((s.farbe || GEO_SCHWARZ) === wert ? " aktiv" : "")}
+          style={{ "--f": wert }} onClick={() => neu({ farbe: wert === GEO_SCHWARZ ? null : wert })} />)}
+        <label className={"eba-pf-geofarbe eba-pf-geofarbe--waehler" + (s.farbe && !GEO_FARBEN.some((x) => x[1] === s.farbe) ? " aktiv" : "")}
+          style={{ "--f": s.farbe || GEO_SCHWARZ }} title="Andere Farbe wählen" aria-label="Andere Farbe wählen" onMouseDown={behalten}>
+          <input type="color" data-pf-geowahl="" value={s.farbe || GEO_SCHWARZ}
+            onChange={(e) => neu({ farbe: e.target.value.toLowerCase() })} /></label>
+        <span className="eba-pf-geodicke">
+          <button type="button" data-pf-geodicke="duenn" className={!fett ? "aktiv" : ""} onMouseDown={behalten}
+            onClick={() => neu({ fett: false })}>Dünn</button>
+          <button type="button" data-pf-geodicke="fett" className={fett ? "aktiv" : ""} onMouseDown={behalten}
+            onClick={() => neu({ fett: true })}><b>Fett</b></button>
+        </span>
+      </span>
+      <span className="eba-pf-geogroesse" data-pf-geogroesse="">
+        <span>Grösse</span>
+        <button type="button" data-pf-geogr="auto" className={!s.groesse ? "aktiv" : ""} onMouseDown={behalten}
+          onClick={() => neu({ groesse: null })}>{auto}</button>
+        <button type="button" data-pf-geogr="minus" aria-label="Kleiner" onMouseDown={behalten}
+          onClick={() => neu({ groesse: Math.max(GEO_GROESSE_MIN, (s.groesse || start + 1) - 1) })}>−</button>
+        <b data-pf-geogr-wert="">{s.groesse || ""}</b>
+        <button type="button" data-pf-geogr="plus" aria-label="Grösser" onMouseDown={behalten}
+          onClick={() => neu({ groesse: Math.min(GEO_GROESSE_MAX, s.groesse ? s.groesse + 1 : start + 1) })}>+</button>
+      </span>
+    </span>
+  );
+}
+// Die Zeilen eines Platzes mit eigener Schrift; fett = wie sie üblich sind
+const PLATZ_ZEILEN = [["geo", "Notiz Mitte", false], ["taetigkeit", "Tätigkeit", true], ["mass", "Mass", true],
+  ["tnr", "T-Nr.", true], ["hersteller", "Lieferant", false], ["werkzeug", "Artikel-Nr.", false], ["bezeichnung", "Beschreibung", false]];
+const zeileFett = (k) => { const z = PLATZ_ZEILEN.find((x) => x[0] === k); return !!(z && z[2]); };
+// Stil einer Zeile im Platz; die Notiz hat ihre Felder von früher
+function platzStil(p, k) {
+  if (k === "geo") return stilSauber({ farbe: p.geoFarbe, fett: p.geoFett ? true : undefined, groesse: p.geoGroesse }, false);
+  return (p.stil || {})[k] || null;
+}
+function mitPlatzStil(p, k, st) {
+  if (k === "geo") return Object.assign({}, p, { geoFarbe: (st && st.farbe) || null, geoFett: !!(st && st.fett), geoGroesse: (st && st.groesse) || null });
+  const alle = Object.assign({}, p.stil || {});
+  if (st) alle[k] = st; else delete alle[k];
+  return Object.assign({}, p, { stil: Object.keys(alle).length ? alle : null });
+}
 
 // Notiz (Geo-Offset) im Bildfeld eines Platzes: immer waagrecht mittig;
 // ohne Bild auch senkrecht mittig und so gross, wie das Feld es zulässt
@@ -192,22 +277,23 @@ function GeoText({ text, mitBild, farbe, fett, groesse }) {
 }
 
 // Ein Eingabefeld im Kopf
-function KopfEingabe({ f, wert, aendern, d }) {
+function KopfEingabe({ f, wert, aendern, d, stil }) {
   const id = f.art + ":" + f.feld;
+  const st = stilCss(stil);
   if (f.art === "fest") return <span>{wert}</span>;
   if (f.auswahl === "waschgebinde") {
     const liste = [...new Set(WASCHGEBINDE.concat(wert ? [wert] : []))];
-    return <select className="eba-ein" data-eba-feld={id} value={wert} onChange={(e) => aendern(f, e.target.value)}>
+    return <select className="eba-ein" data-eba-feld={id} value={wert} style={st} onChange={(e) => aendern(f, e.target.value)}>
       <option value="">—</option>{liste.map((x) => <option key={x} value={x}>{x}</option>)}</select>;
   }
-  const feld = <input className="eba-ein" data-eba-feld={id} value={wert} inputMode={f.zahl ? "decimal" : undefined}
+  const feld = <input className="eba-ein" data-eba-feld={id} value={wert} style={st} inputMode={f.zahl ? "decimal" : undefined}
     placeholder={f.platzhalter || ""} onChange={(e) => aendern(f, e.target.value)} />;
   // Material ist ein einziges Feld mit allem, auch dem Mass (Wunsch
   // Patrick 26. Oktober 2026: „nur eine Zeile mit allem, also Mass und
   // so“). Ein bisher getrennt gespeichertes Mass steht vorne mit drin und
   // wandert beim ersten Ändern ins Material.
   if (f.feld === "material") {
-    return <input className="eba-ein" data-eba-feld={id} value={feldText(f, wert, d)}
+    return <input className="eba-ein" data-eba-feld={id} value={feldText(f, wert, d)} style={st}
       onChange={(e) => { aendern(f, e.target.value); if (d.teil.material_groesse) aendern({ art: "stamm", feld: "material_groesse" }, ""); }} />;
   }
   if (f.typVorne) return <span className="eba-ein-zwei"><span>{d.typ.name}</span>{feld}</span>;
@@ -301,25 +387,25 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
         } : undefined}>
         <div className="eba-tk" style={{ background: ohneNr ? GRAU : farbeVon(nr), "--eba-schrift": vorlage.schrift }}>
           {p.standzeit ? <span className="eba-tk-links"><span className="eba-wert">{alt.zahlText(p.standzeit)}</span></span> : null}
-          <b data-eba-tnr={p.tnr ? "" : undefined} data-eba-ohne-nr={ohneNr ? "" : undefined}>{p.tnr || (ohneNr ? "" : platzName(nr))}</b>
+          <b data-eba-tnr={p.tnr ? "" : undefined} data-eba-ohne-nr={ohneNr ? "" : undefined} style={stilCss(platzStil(p, "tnr"))}>{p.tnr || (ohneNr ? "" : platzName(nr))}</b>
           {p.hd && <span className="eba-tk-rechts"><span className="eba-hd" data-hd="">HD</span></span>}</div>
-        <div className="eba-tat">{p.taetigkeit || ""}</div>
-        <div className="eba-mass">{p.mass || ""}</div>
+        <div className="eba-tat" style={stilCss(platzStil(p, "taetigkeit"))}>{p.taetigkeit || ""}</div>
+        <div className="eba-mass" style={stilCss(platzStil(p, "mass"))}>{p.mass || ""}</div>
         {/* Geo-Offset nur, wo nötig: steht über dem Bild, das Bild wird
             kleiner oder fällt ganz weg (Wunsch Patrick, 24. Oktober 2026) */}
         <div className={"eba-bild" + (p.geo ? " eba-bild--geo" + (bild && !p.ohneBild ? "" : " eba-bild--nurgeo") : "")}>
           {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} farbe={p.geoFarbe} fett={!!p.geoFett} groesse={p.geoGroesse || null} /> : null}
           {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
-        <div className="eba-her"><EineZeile text={p.hersteller || ""} min={5} />{p.spezial && p.article_id &&
+        <div className="eba-her"><EineZeile text={p.hersteller || ""} min={5} stil={platzStil(p, "hersteller")} />{p.spezial && p.article_id &&
           <span className="eba-stern" title="Spezialwerkzeug" data-eba-stern="">★</span>}</div>
         {/* Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (Wunsch
             Patrick, 26. Oktober 2026); ein nur selbst zugeordneter Artikel
             zeigt weiter nur den Text aus dem Excel */}
-        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}><EineZeile text={p.werkzeug || ""} min={5} /></div>
+        <div className={"eba-wz" + (bearbeiten && p.werkzeug && !p.article_id ? " eba-wz--frei" : "")}><EineZeile text={p.werkzeug || ""} min={5} stil={platzStil(p, "werkzeug")} /></div>
         <div className="eba-wz-bez" data-wz-bez="">{/* nie abschneiden, zu lang wird die Schrift
           kleiner, damit Zusätze wie „M10/30 D30“ am Schluss sichtbar
           bleiben (Wunsch Patrick, 2. November 2026) */}
-          <EineZeile text={p.werkzeug && p.article_id && !p.ungeprueft && p.bezeichnung ? p.bezeichnung : ""} min={5} /></div>
+          <EineZeile text={p.werkzeug && p.article_id && !p.ungeprueft && p.bezeichnung ? p.bezeichnung : ""} min={5} stil={platzStil(p, "bezeichnung")} /></div>
         {mitAnsehen && markiert === nr && <div className="eba-ansehen" data-eba-ansehen={nr} onClick={(e) => e.stopPropagation()}>
           {zeichnungen.map((z) => <button key={z.id} type="button" className="knopf knopf--klein knopf--haupt" data-eba-ansehen-pdf={z.id}
             onClick={() => betrachter(z.url, z.name + " · " + (p.werkzeug || ""), true)}>
@@ -331,10 +417,13 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
     );
   };
 
+  // Schrift je Kopffeld und Bemerkung (seit 1.402.0)
+  const schrift = (blatt.kopf && blatt.kopf.schrift) || {};
   const zeile = (f) => {
     const w = feldWert(f, d);
-    const inhalt = bearbeiten ? <KopfEingabe f={f} wert={w} aendern={aendern} d={d} />
-      : f.feld === "material" ? <EineZeile text={feldText(f, w, d)} /> : feldText(f, w, d);
+    const fs = schrift[f.art + ":" + f.feld] || null;
+    const inhalt = bearbeiten ? <KopfEingabe f={f} wert={w} aendern={aendern} d={d} stil={fs} />
+      : f.feld === "material" ? <EineZeile text={feldText(f, w, d)} stil={fs} /> : <span style={stilCss(fs)}>{feldText(f, w, d)}</span>;
     // Von einem anderen Blatt übernommen: die Programm-Nr. kommt nicht mit,
     // das leere Feld ist rot, bis man sie selbst einträgt (Wunsch Patrick
     // 2. November 2026: „soll prg nr nicht übernehmen … rot umrahmen“)
@@ -359,9 +448,9 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
             <span key={t} style={{ background: f, "--eba-schrift": vorlage.schrift }}>{t}</span>)}</div>}
           <div className="eba-tab">{felder.filter((f) => !f.farbe).map(zeile)}</div>
           {bearbeiten
-            ? <textarea className="eba-ein eba-bem-ein" data-eba-feld="blatt:bemerkung" placeholder="Bemerkungen, z. B. Abgreifen mit Schnabelzange"
+            ? <textarea className="eba-ein eba-bem-ein" data-eba-feld="blatt:bemerkung" placeholder="Bemerkungen, z. B. Abgreifen mit Schnabelzange" style={stilCss(schrift["blatt:bemerkung"])}
                 value={leer(blatt.bemerkung)} onChange={(e) => aendern({ art: "blatt", feld: "bemerkung" }, e.target.value)} />
-            : <div className="eba-bem" data-eba-bem="">{bemerkung}</div>}
+            : <div className="eba-bem" data-eba-bem="" style={stilCss(schrift["blatt:bemerkung"])}>{bemerkung}</div>}
         </div>
       </div>
       <FreieBilder bilder={(blatt.kopf || {}).bilder} aendern={bilderAendern} />
@@ -465,6 +554,12 @@ function platzDaten(p, nr) {
     if (p.geoFett) z.geoFett = true;
     if (p.geoGroesse) z.geoGroesse = p.geoGroesse;
   }
+  // Schrift der übrigen Zeilen, nur wo dort etwas steht (seit 1.402.0)
+  if (p.stil) {
+    const st = {};
+    Object.keys(p.stil).forEach((k) => { const w = stilSauber(p.stil[k], zeileFett(k)); if (w && (z[k] || k === "tnr")) st[k] = w; });
+    if (Object.keys(st).length) z.stil = st;
+  }
   if (p.ohneBild) z.ohneBild = true;
   if (p.article_id && z.werkzeug) z.article_id = p.article_id;
   else delete z.bezeichnung;
@@ -486,6 +581,8 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
   const [artikel, setArtikel] = useState(null);
   const [bildWahl, setBildWahl] = useState(false);
   const [bildGewaehlt, setBildGewaehlt] = useState(false);
+  // Welche Zeile die Schriftleiste gerade ändert
+  const [ziel, setZiel] = useState("geo");
   useEffect(() => { if (wert.article_id) artikelHolen(wert.article_id).then(setArtikel); }, []);
   const f = (feld) => (e) => setP(Object.assign({}, p, { [feld]: e.target.value }));
   const merkKey = bildSchluesselVon(p);
@@ -535,10 +632,10 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
           <small>{!bild ? "" : bild.art === "gemerkt" ? "gemerkt" : "gewählt"}</small>
         </button>}
         <div className="eba-pf-felder">
-          <label className="feld"><span>Tätigkeit</span><input data-pf="taetigkeit" value={p.taetigkeit || ""} onChange={f("taetigkeit")} /></label>
-          <label className="feld"><span>Mass</span><input data-pf="mass" value={p.mass || ""} onChange={f("mass")} /></label>
+          <label className="feld"><span>Tätigkeit</span><input data-pf="taetigkeit" value={p.taetigkeit || ""} onChange={f("taetigkeit")} onFocus={() => setZiel("taetigkeit")} style={stilCss(platzStil(p, "taetigkeit"), false)} /></label>
+          <label className="feld"><span>Mass</span><input data-pf="mass" value={p.mass || ""} onChange={f("mass")} onFocus={() => setZiel("mass")} style={stilCss(platzStil(p, "mass"), false)} /></label>
           <label className="feld"><span>Andere T-Nr. (anderer Halter drauf)</span><input data-pf="tnr" value={p.tnr || ""}
-            placeholder={platzName(nr) ? "leer = " + platzName(nr) : "leer = ohne T-Nr."} onChange={f("tnr")} onBlur={() => setP(Object.assign({}, p, { tnr: tnrSchreiben(p.tnr) }))} /></label>
+            placeholder={platzName(nr) ? "leer = " + platzName(nr) : "leer = ohne T-Nr."} onChange={f("tnr")} onFocus={() => setZiel("tnr")} onBlur={() => setP(Object.assign({}, p, { tnr: tnrSchreiben(p.tnr) }))} /></label>
         </div>
       </div>
       {BILDER_AN && bildWahl && <Bibliothek aktiv={bild && bild.schluessel}
@@ -562,38 +659,18 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
             onClick={() => setP(Object.assign({}, p, { werkzeug: "", bezeichnung: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false }))}>Entfernen</button>}
         </div>
       </div>
-      <label className="feld"><span>Geo-Offset, nur wenn nötig</span>
-        <textarea data-pf="geo" rows={2} value={p.geo || ""} onChange={f("geo")} placeholder="z. B. X 0.12  Z -0.05"
+      <label className="feld"><span>Notiz Mitte</span>
+        <textarea data-pf="geo" rows={2} value={p.geo || ""} onChange={f("geo")} onFocus={() => setZiel("geo")} placeholder="z. B. X 0.12  Z -0.05"
           style={{ color: p.geoFarbe || undefined, WebkitTextFillColor: p.geoFarbe || undefined, fontWeight: p.geoFett ? 700 : undefined }} /></label>
-      {/* Schriftfarbe und dünn/fett der Notiz, wie die Leiste der Skizze im
-          Pad: ein paar feste Farben und der Farbwähler des Geräts
-          (Wunsch Patrick 30. Oktober 2026) */}
-      <div className="eba-pf-geostil" data-pf-geostil="">
-        {GEO_FARBEN.map(([name, wert]) => <button key={wert} type="button" title={name} aria-label={name}
-          data-pf-geofarbe={wert} className={"eba-pf-geofarbe" + ((p.geoFarbe || GEO_SCHWARZ) === wert ? " aktiv" : "")}
-          style={{ "--f": wert }} onClick={() => setP(Object.assign({}, p, { geoFarbe: wert === GEO_SCHWARZ ? null : wert }))} />)}
-        <label className={"eba-pf-geofarbe eba-pf-geofarbe--waehler" + (p.geoFarbe && !GEO_FARBEN.some((x) => x[1] === p.geoFarbe) ? " aktiv" : "")}
-          style={{ "--f": p.geoFarbe || GEO_SCHWARZ }} title="Andere Farbe wählen" aria-label="Andere Farbe wählen">
-          <input type="color" data-pf-geowahl="" value={p.geoFarbe || GEO_SCHWARZ}
-            onChange={(e) => setP(Object.assign({}, p, { geoFarbe: e.target.value.toLowerCase() }))} /></label>
-        <span className="eba-pf-geodicke">
-          <button type="button" data-pf-geodicke="duenn" className={!p.geoFett ? "aktiv" : ""}
-            onClick={() => setP(Object.assign({}, p, { geoFett: false }))}>Dünn</button>
-          <button type="button" data-pf-geodicke="fett" className={p.geoFett ? "aktiv" : ""}
-            onClick={() => setP(Object.assign({}, p, { geoFett: true }))}><b>Fett</b></button>
-        </span>
-      </div>
-      {/* Schriftgrösse der Notiz: Auto füllt das Feld, sonst von Hand
-          (Wunsch Patrick 30. Oktober 2026) */}
-      <div className="eba-pf-geogroesse" data-pf-geogroesse="">
-        <span>Schriftgrösse</span>
-        <button type="button" data-pf-geogr="auto" className={!p.geoGroesse ? "aktiv" : ""}
-          onClick={() => setP(Object.assign({}, p, { geoGroesse: null }))}>Auto</button>
-        <button type="button" data-pf-geogr="minus" aria-label="Kleiner"
-          onClick={() => setP(Object.assign({}, p, { geoGroesse: Math.max(GEO_GROESSE_MIN, (p.geoGroesse || GEO_GROESSE_START + 1) - 1) }))}>−</button>
-        <b data-pf-geogr-wert="">{p.geoGroesse || ""}</b>
-        <button type="button" data-pf-geogr="plus" aria-label="Grösser"
-          onClick={() => setP(Object.assign({}, p, { geoGroesse: Math.min(GEO_GROESSE_MAX, (p.geoGroesse || GEO_GROESSE_START - 1) + 1) }))}>+</button>
+      {/* Schrift jeder Zeile des Platzes: zuerst wählen, welche, dann
+          Farbe, dünn/fett und Grösse wie bei der Skizze im Pad (Notiz seit
+          1.282.0, alle Zeilen seit 1.402.0, Wunsch Patrick 5. November 2026) */}
+      <div className="eba-pf-schrift" data-pf-schrift="">
+        <div className="eba-pf-schrift-ziele"><span>Schrift für</span>
+          {PLATZ_ZEILEN.map(([k, name]) => <button key={k} type="button" data-pf-ziel={k} className={ziel === k ? "aktiv" : ""}
+            onClick={() => setZiel(k)}>{name}</button>)}</div>
+        <SchriftLeiste stil={platzStil(p, ziel)} standardFett={zeileFett(ziel)} auto={ziel === "geo" ? "Auto" : "Normal"}
+          start={ziel === "geo" ? GEO_GROESSE_START : 12} setzen={(st) => setP(mitPlatzStil(p, ziel, st))} />
       </div>
       {BILDER_AN && <label className="eba-pf-check"><input type="checkbox" data-pf="ohneBild" checked={!!p.ohneBild}
         onChange={(e) => setP(Object.assign({}, p, { ohneBild: e.target.checked }))} /> Kein Bild auf dem Blatt</label>}
@@ -719,6 +796,9 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const [typE, setTypE] = useState(Object.assign({}, start.typDaten));
   const [platz, setPlatz] = useState(null);
   const offenerPlatz = useRef(null);
+  // Feld im Kopf (oder die Bemerkung), dessen Schrift die Leiste oben
+  // ändert: das zuletzt angetippte (seit 1.402.0)
+  const [kopfZiel, setKopfZiel] = useState(null);
   // Pad Mode: hinterlegte PDFs je Artikel und der angetippte Platz, der
   // „Ansehen“ zeigt (Externe nicht)
   const imPad = typeof document !== "undefined" && document.body.classList.contains("pad-offen") && !alt.istExtern();
@@ -746,8 +826,27 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const excel = typDaten.blatt_url || null;
   const blatt = bearbeiten ? entwurf : (daten.blatt || entwurf);
   const seiten = Array.isArray(blatt.seiten) ? blatt.seiten : [];
+  useEffect(() => {
+    if (!bearbeiten) { setKopfZiel(null); return undefined; }
+    const fokus = (e) => {
+      const t = e.target;
+      const id = t && t.dataset && t.dataset.ebaFeld;
+      if (id && t.closest && t.closest("[data-eba-kopf]")) setKopfZiel(id);
+    };
+    document.addEventListener("focusin", fokus);
+    return () => document.removeEventListener("focusin", fokus);
+  }, [bearbeiten]);
+  const kopfStilSetzen = (id, st) => setEntwurf((b) => {
+    const k = Object.assign({}, b.kopf || {});
+    const sch = Object.assign({}, k.schrift || {});
+    if (st) sch[id] = st; else delete sch[id];
+    if (Object.keys(sch).length) k.schrift = sch; else delete k.schrift;
+    return Object.assign({}, b, { kopf: k });
+  });
   const zseite = seiteNr > 0 ? seiten[seiteNr - 1] : null;
   const vorlage = useMemo(() => blattVorlage(typ, paths), [typ, paths]);
+  const kopfZielName = kopfZiel === "blatt:bemerkung" ? "Bemerkung"
+    : ((vorlage.felder.find((f) => f.art + ":" + f.feld === kopfZiel) || {}).label || "").replace(/:\s*$/, "") || "Feld";
   const hatPlaetze = vorlage.reihen.some((r) => r.some(Boolean)) || Object.keys(blatt.plaetze || {}).length > 0;
   useEffect(() => { if (seiteNr > seiten.length) setSeiteNr(seiten.length); }, [seiten.length]);
   // Das Blatt füllt den Platz, so gross es geht (Wunsch Patrick 25. Oktober
@@ -1081,6 +1180,12 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
           : <span><b>Aus dem Excel vorgelesen.</b> Bitte prüfen und anpassen, dann Speichern.
               {vorgelesen.hinweise.length > 0 && <> Achtung: {vorgelesen.hinweise.join(" · ")}</>}</span>}
         {!vorgelesen.liest && <button className="linkknopf" data-eba-vorgelesen-zu="" onClick={() => setVorgelesen(null)}>✕</button>}
+      </div>}
+      {bearbeiten && !zseite && <div className="eba-schriftzeile" data-eba-schriftzeile={kopfZiel || ""} onMouseDown={(e) => { if (e.target.tagName !== "INPUT") e.preventDefault(); }}>
+        {kopfZiel
+          ? <><span>Schrift <b>{kopfZielName}</b>:</span>
+              <SchriftLeiste stil={((entwurf.kopf || {}).schrift || {})[kopfZiel]} setzen={(st) => kopfStilSetzen(kopfZiel, st)} /></>
+          : <span className="eba-schriftzeile-tipp">Schrift ändern: ein Feld im Kopf oder die Bemerkung antippen, für Werkzeugfelder den Platz antippen.</span>}
       </div>}
       {bearbeiten && wechsel && !zseite && <div className="eba-vorgelesen eba-wechsel" data-eba-wechsel={wechsel}>
         <span><b>{platzName(wechsel) || "Feld ohne T-Nr."} wechseln:</b> jetzt den neuen Platz antippen. Steht dort schon ein Werkzeug, tauschen die beiden.</span>

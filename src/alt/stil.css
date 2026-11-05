@@ -11810,3 +11810,23 @@ body.dunkel .cam-zeile--aktiv { background: #5a3a14; }
 /* Hofer Cam: aus Vc gerechnete Drehzahl neben den Feldern (seit 1.401.0) */
 .cam-vc-s { align-self: center; white-space: nowrap; font-family: ui-monospace, Consolas, monospace; color: #1e5aa8; }
 body.dunkel .cam-vc-s { color: #9cc4ff !important; }
+
+/* Schrift für alle Texte im Einrichtblatt (seit 1.402.0, Wunsch Patrick
+   5. November 2026): Leiste über dem Blatt für Kopf und Bemerkung, im
+   Fenster des Platzes Wahl der Zeile. */
+.eba-schriftleiste { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.eba-schriftleiste .eba-pf-geostil, .eba-schriftleiste .eba-pf-geogroesse { margin: 0; }
+.eba-schriftleiste .eba-pf-geodicke { margin-left: 4px; }
+.eba-schriftzeile { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 6px 12px;
+  background: #eef4fb; border-bottom: 1px solid var(--linie, #d0d7de); font-size: .9rem; }
+.eba-schriftzeile-tipp { color: #556; }
+body.dunkel .eba-schriftzeile { background: #1d2733; }
+.eba-pf-schrift { border: 1px solid var(--linie, #d0d7de); border-radius: 8px; padding: 8px 10px; margin: 0 0 12px; }
+.eba-pf-schrift .eba-schriftleiste { margin-top: 8px; }
+.eba-pf-schrift-ziele { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: .85rem; }
+.eba-pf-schrift-ziele > span { margin-right: 4px; color: #556; }
+.eba-pf-schrift-ziele button { height: 28px; padding: 0 10px; border: 2px solid var(--linie-stark); border-radius: 14px;
+  background: #fff; color: #334; cursor: pointer; font: inherit; }
+.eba-pf-schrift-ziele button.aktiv { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+body.dunkel .eba-pf-schrift-ziele button { background: #2b333d; color: #e6edf3; -webkit-text-fill-color: #e6edf3; }
+body.dunkel .eba-pf-schrift-ziele button.aktiv { background: #1f6feb; color: #fff; -webkit-text-fill-color: #fff; }
