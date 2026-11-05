@@ -912,8 +912,8 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
   const { typ, paths, teil, typDaten } = daten;
   const excel = typDaten.blatt_url || null;
   const blatt = bearbeiten ? entwurf : (daten.blatt || entwurf);
-  // PDF-Seiten (seit 1.429.0) vorerst nicht für Externe, Entscheid offen
-  const seiten = (Array.isArray(blatt.seiten) ? blatt.seiten : []).filter((x) => !(alt.istExtern() && istPdfSeite(x)));
+  // PDF-Seiten (seit 1.429.0) sehen auch Externe (Entscheid Patrick 5. November 2026)
+  const seiten = Array.isArray(blatt.seiten) ? blatt.seiten : [];
   useEffect(() => {
     if (!bearbeiten) { setKopfZiel(null); return undefined; }
     const fokus = (e) => {
