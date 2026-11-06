@@ -85,7 +85,7 @@ function fensterAuf() {
   const huelle = huellen[huellen.length - 1];
   fensterZu = zu;
   fensterMelden();
-  if (!huelle || !inEigenesFenster(huelle, zu, { titel: "NC-PRO · Hofer Tool",
+  if (!huelle || !inEigenesFenster(huelle, zu, { titel: "NC-PRO · HOFERCONTUR · Hofer Tool",
     lage: { x: window.screenX + 60, y: window.screenY + 60 } })) zu();
 }
 

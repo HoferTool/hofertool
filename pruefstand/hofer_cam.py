@@ -28,6 +28,7 @@ with sync_playwright() as p:
     pg.wait_for_selector("[data-unter='nc/cam']")
     reihe = pg.eval_on_selector_all("[data-unter^='nc/']", "els => els.map(e => [e.dataset.unter, e.textContent.trim()])")
     pruefe("HOFERCAM gleich nach NC-PRO (seit 1.435.0)", len(reihe) > 1 and reihe[1][0] == "nc/cam" and "HOFERCAM" in reihe[1][1])
+    pruefe("Erster Reiter heisst HOFERCONTUR (seit 1.438.0)", reihe[0][0] == "nc/kontur" and "HOFERCONTUR" in reihe[0][1])
     pg.click("[data-unter='nc/cam']")
     pg.wait_for_selector("#cam-kanaele")
     def platz_waehlen(i, wert):
