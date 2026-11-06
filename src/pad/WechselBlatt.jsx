@@ -21,6 +21,8 @@ const datum = (iso) => new Date(iso).toLocaleDateString("de-CH", { day: "2-digit
 const stkText = (n) => (n === null || n === undefined ? "—" : alt.zahlText(n));
 // Visum: das eingetippte Kürzel, bei älteren Einträgen die Anfangsbuchstaben des Kontos
 const visum = (r) => r.kuerzel || String(r.person || "").split(/[\s.]+/).filter(Boolean).map((w) => w[0].toUpperCase()).join("");
+// So viele Wechsel des Blatts davor stehen blass vorne auf dem nächsten
+const VORHER = 2;
 const neueId = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID() : null);
 
 // modell: { art: "index" | "star", gruppen: [{ name, farbe, werkzeuge }],
@@ -103,9 +105,18 @@ function IndexBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeite
   const s = seite === null ? anzahl - 1 : Math.min(seite, anzahl - 1);
   const aufBlatt = spalten.slice(s * je, (s + 1) * je);
   while (aufBlatt.length < je) aufBlatt.push(null);
+  // Ab Blatt 2 stehen vorne blass die letzten zwei Wechsel des Blatts davor,
+  // damit man sieht, was vorher gemacht wurde, ohne zu blättern (Wunsch
+  // Patrick 6. November 2026); nur zum Ansehen, das PDF druckt sie nicht
+  const vor = s > 0 ? spalten.slice(Math.max(0, s * je - VORHER), s * je) : [];
+  const zeige = vor.concat(aufBlatt);
+  const istVor = (i) => i < vor.length;
   const neuerFa = (c) => { const i = spalten.indexOf(c); return i > 0 && c && (spalten[i - 1].job || "") !== (c.job || ""); };
   const faText = (c) => (c.fa ? "FA " + c.fa : "anderer Auftrag");
-  const kl = (c) => "wzb-sp" + (c && c.neu ? " wzb-sp--neu" : "") + (c && neuerFa(c) ? " wzb-sp--fa" : "");
+  const kl = (c, i) => "wzb-sp" + (c && c.neu ? " wzb-sp--neu" : "") + (c && neuerFa(c) ? " wzb-sp--fa" : "")
+    + (istVor(i) ? " wzb-sp--vor" : "") + (vor.length && i === vor.length ? " wzb-sp--ab" : "");
+  // Vorherige Wechsel lassen sich hier nicht antippen
+  const aktiv = (c, i) => c && !istVor(i);
 
   return (<>
     <div className="wzb-titel">
@@ -120,29 +131,29 @@ function IndexBlatt({ modell, runden, neu, darf, hat, umschalten, rundeBearbeite
     </div>
     <div className="wzb-rollen">
       <table className="wzb-tabelle wzb-index">
-        <colgroup><col className="wzb-nr" /><col className="wzb-wz" />{aufBlatt.map((c, i) => <col key={i} className="wzb-sp" />)}</colgroup>
+        <colgroup><col className="wzb-nr" /><col className="wzb-wz" />{zeige.map((c, i) => <col key={i} className="wzb-sp" />)}</colgroup>
         <thead>
-          <tr className="wzb-falabel"><th colSpan="2"></th>{aufBlatt.map((c, i) => (
-            <th key={i} className={kl(c)}>{c && (neuerFa(c) ? <span className="wzb-neufa" data-wzbneufa="">Neuer {faText(c)}</span>
+          <tr className="wzb-falabel"><th colSpan="2"></th>{zeige.map((c, i) => (
+            <th key={i} className={kl(c, i)}>{c && (neuerFa(c) ? <span className="wzb-neufa" data-wzbneufa="">Neuer {faText(c)}</span>
               : (i === 0 ? <span className="wzb-fa">{faText(c)}</span> : null))}</th>))}</tr>
-          <tr><th>T-Nr</th><th className="wzb-links">Werkzeug</th>{aufBlatt.map((c, i) => (
-            <th key={i} className={kl(c) + (c && !c.neu && darf ? " wzb-tipp" : "")} data-wzbrunde={c && !c.neu ? "" : undefined}
-              onClick={c && !c.neu ? () => rundeBearbeiten(c) : undefined}>
+          <tr><th>T-Nr</th><th className="wzb-links">Werkzeug</th>{zeige.map((c, i) => (
+            <th key={i} className={kl(c, i) + (aktiv(c, i) && !c.neu && darf ? " wzb-tipp" : "")} data-wzbrunde={aktiv(c, i) && !c.neu ? "" : undefined}
+              data-wzbvor={istVor(i) ? "" : undefined} onClick={aktiv(c, i) && !c.neu ? () => rundeBearbeiten(c) : undefined}>
               {!c ? "Dat. / Stückz." : c.neu ? "Neu" : <>{datum(c.wann)}<br /><b>{stkText(c.stk)}</b>
                 {c.kuerzel && <><br /><small data-wzkuerzel="">{c.kuerzel}</small></>}</>}</th>))}</tr>
-          {darf && <tr className="wzb-wegzeile"><th colSpan="2"></th>{aufBlatt.map((c, i) => (
-            <th key={i} className={kl(c)}>{c && !c.neu && <button type="button" className="wz-weg" data-wzbweg=""
+          {darf && <tr className="wzb-wegzeile"><th colSpan="2"></th>{zeige.map((c, i) => (
+            <th key={i} className={kl(c, i)}>{aktiv(c, i) && !c.neu && <button type="button" className="wz-weg" data-wzbweg=""
               title="Wechsel löschen" aria-label={"Wechsel vom " + datum(c.wann) + " löschen"} onClick={() => rundeWeg(c)}><Eimer /></button>}</th>))}</tr>}
         </thead>
         <tbody>{modell.gruppen.map((g) => [
-          <tr key={g.name} className="wzb-gruppe"><th colSpan={2 + je} style={{ background: g.farbe }}>{g.name}</th></tr>,
+          <tr key={g.name} className="wzb-gruppe"><th colSpan={2 + zeige.length} style={{ background: g.farbe }}>{g.name}</th></tr>,
           ...g.werkzeuge.map((w) => (
             <tr key={w.key} data-wzbplatz={w.key}>
               <td className="wzb-nr">{w.anzeige || w.tool_nr}</td>
               <td className="wzb-wz"><strong>{w.text}</strong>{w.unter && <small> {w.unter}</small>}</td>
-              {aufBlatt.map((c, i) => (
-                <td key={i} className={kl(c) + (c && darf ? " wzb-tipp" : "")}
-                  onClick={!c ? undefined : c.neu ? () => neuUmschalten(w) : () => umschalten(c, w)}>
+              {zeige.map((c, i) => (
+                <td key={i} className={kl(c, i) + (aktiv(c, i) && darf ? " wzb-tipp" : "")}
+                  onClick={!aktiv(c, i) ? undefined : c.neu ? () => neuUmschalten(w) : () => umschalten(c, w)}>
                   {c && (c.neu ? (neu.includes(w.key) ? <span className="wzb-haken">✓</span> : "")
                     : hat(c, w) ? <span className="wzb-x" data-wzbx="">X</span> : "")}</td>))}
             </tr>)),

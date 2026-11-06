@@ -12010,3 +12010,8 @@ body.dunkel .schreibleiste--drin { background: none; }
 /* HOFERCAM: Code aus Modul übernehmen (seit 1.436.0) */
 .cam-block__vorlageknopf { gap: 6px; }
 .cam-modul__vorschau { display: block; flex: 1; max-height: 180px; overflow: auto; }
+
+/* Werkzeugwechsel Index: die letzten zwei Wechsel des Blatts davor stehen
+   blass vorne, getrennt mit gestrichelter Linie (seit 1.439.0) */
+.wzb-tabelle .wzb-sp--vor { opacity: .45; background: color-mix(in srgb, var(--gedaempft) 10%, transparent); }
+.wzb-tabelle .wzb-sp--ab:not(.wzb-sp--fa) { border-left: 3px dashed var(--gedaempft) !important; }
