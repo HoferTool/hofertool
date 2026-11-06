@@ -19,6 +19,7 @@ import Fortschritt from "./produktion/Fortschritt.jsx";
 import Richten from "./produktion/Richten.jsx";
 import Statistik, { st } from "./Statistik.jsx";
 import { ms } from "./Maschinen.jsx";
+import { KeyenceBerichte } from "../teile/Messberichte.jsx";
 import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 
 // „Infos zum Richten“ seit 1.170.0: Einrichtblätter in der App ändern
@@ -27,12 +28,15 @@ import { useSeitenSuche, hinzeigen } from "../teile/seitenSuche.js";
 // nicht für Externe (Entscheid offen) und das Dienstkonto
 // „Fortschritt“ ist seit 1.319.0 ein Reiter der Statistik (Wunsch Patrick
 // 30. Oktober 2026)
-export const REITER = [["erfassen", "Erfassen"], ["richten", "Infos zum Richten"], ["statistik", "Statistik"]];
+// „Keyence Berichte“ seit 1.443.0 (Wunsch Patrick 6. November 2026),
+// nicht für Externe (Entscheid Patrick: „Externe nö“)
+export const REITER = [["erfassen", "Erfassen"], ["richten", "Infos zum Richten"], ["statistik", "Statistik"],
+  ["keyence", "Keyence Berichte"]];
 
 // Was die Person davon sieht; auch für die Seitenleiste (unterreiter.js)
 export function sichtbareReiter() {
   return REITER.filter(([w]) => (!alt.istExtern() || w === "erfassen")
-    && (w !== "statistik" || alt.meineRolle() !== "dienst"));
+    && (!["statistik", "keyence"].includes(w) || alt.meineRolle() !== "dienst"));
 }
 
 let ladeNr = 0;
@@ -63,7 +67,7 @@ function vorgabenSetzen(prod) {
   if (["typen", "maschinen", "uebersicht"].includes(prod.ansicht)) prod.ansicht = "erfassen";
   // Alte Verweise auf den Reiter Fortschritt führen in die Statistik
   if (prod.ansicht === "fortschritt") { prod.ansicht = "statistik"; st.reiter = "fortschritt"; }
-  if (prod.ansicht === "statistik" && alt.meineRolle() === "dienst") prod.ansicht = "erfassen";
+  if (["statistik", "keyence"].includes(prod.ansicht) && alt.meineRolle() === "dienst") prod.ansicht = "erfassen";
 }
 
 export default function Produktion({ auffrischen, behaelter }) {
@@ -79,7 +83,7 @@ export default function Produktion({ auffrischen, behaelter }) {
   // ein Treffer wählt Park und Erfassen und zeigt die Maschine
   useSeitenSuche({
     // Die Statistik meldet ihre eigene Suche an
-    aus: prod.ansicht === "statistik",
+    aus: prod.ansicht === "statistik" || prod.ansicht === "keyence",
     name: "Produktion", platzhalter: "Maschine, Nummer, HOCO Nr. oder FA Nr. …",
     eintraege: () => !geladen ? [] : (prod.maschinen || []).map((m) => {
       const j = (prod.auftraege || {})[m.id];
@@ -110,6 +114,9 @@ export default function Produktion({ auffrischen, behaelter }) {
               fortschritt={geladen ? <Fortschritt key={geladen.nr} neuLaden={neu} />
                 : fehler ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>
                 : <div className="laedt">Wird geladen …</div>} /></div>
+          : prod.ansicht === "keyence"
+          // Lädt seine Berichte selbst
+          ? <div id="prod-inhalt"><KeyenceBerichte /></div>
           : fehler && !geladen
           ? <div id="prod-inhalt"><div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div></div>
           : !geladen

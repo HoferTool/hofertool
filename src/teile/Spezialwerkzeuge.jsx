@@ -35,6 +35,15 @@ export function spezialwerkzeugeOeffnen({ hoco, maschine }) {
     { art: "spezialwerkzeuge", daten: { hoco: hocoNormal(hoco), maschine: maschineKurz(maschine) } });
 }
 wiederOeffner("spezialwerkzeuge", (d) => spezialwerkzeugeOeffnen(d));
+// Seit 1.443.0 hat das Auftragsfenster keinen Knopf mehr dafür (Wunsch
+// Patrick 6. November 2026: „wird ja mit Stern gekennzeichnet“); der
+// Prüfstand öffnet das Fenster direkt
+{
+  const t = setInterval(() => {
+    if (window.TEST) { window.TEST.spezialOeffnen = spezialwerkzeugeOeffnen; clearInterval(t); }
+  }, 200);
+  setTimeout(() => clearInterval(t), 20000);
+}
 
 // Nachbestellen wie jede andere Bestellposition, Artikel schon gewählt
 export function nachbestellen(z, maschine, fertig) {

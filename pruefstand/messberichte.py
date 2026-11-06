@@ -1,5 +1,6 @@
-# Messberichte vom Keyence IM (1.443.0, Wunsch Patrick 6. November 2026):
-# Auftragsfenster und HOCO Nr. zeigen die Teilberichte der HOCO Nr.
+# Keyence Berichte (1.443.0, Wunsch Patrick 6. November 2026): Reiter
+# „Keyence Berichte“ der Produktion nach HOCO Nr. und Knopf im QS Check
+# des Pads. Kein Knopf Spezialwerkzeuge/Messberichte im Auftragsfenster.
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -26,22 +27,42 @@ with sync_playwright() as p:
         spalten: ['Nr.','Messelemente','Messwert','Einheit','Sollwert','Obergr.','Untergrz.','Auflsg.'],
         zeilen: [['3','KONZENTR Ø8','','','0,000','0,020','0,000','Fehler'], ['5','LK Ø11.7','11,702','mm','11,700','0,050','-0,050','0,001','OK']] },
       { id: 'm2', datei: 'W:/b.csv', hoco_nr: h, einstellung: h + ' 2. Seite', gemessen_am: '2026-11-05T10:00:00Z',
+        ergebnis: 'OK', kopf: {}, spalten: [], zeilen: [] },
+      { id: 'm3', datei: 'W:/c.csv', hoco_nr: '10841-0009', einstellung: '10841-0009 Front', gemessen_am: '2026-11-04T08:00:00Z',
         ergebnis: 'OK', kopf: {}, spalten: [], zeilen: [] } ] }""", hoco)
 
+    # Auftragsfenster ohne Knöpfe Spezialwerkzeuge und Messberichte
     pg.evaluate("location.hash='#planwand'"); pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(800)
     jid = pg.evaluate(f"TEST.daten.jobs.find(j => j.job_number === '{hoco}' && !j.ended_at).id")
     pg.locator(f".pw-balken[data-auftrag='{jid}']").first.dblclick(); pg.wait_for_selector(".dialog--auftrag")
-    pg.wait_for_timeout(600)
-    pruefe("(2)" in pg.inner_text("#pl-mess"), "Knopf zeigt Anzahl: " + pg.inner_text("#pl-mess"))
-    pg.click("#pl-mess"); pg.wait_for_selector("#messberichte .mess__tabelle"); pg.wait_for_timeout(600)
-    t = pg.inner_text("#messberichte")
-    pruefe("KONZENTR" in t and "11,702" in t and "Fehler" in t, "Neuester Bericht offen mit Messwerten")
-    pruefe(pg.locator("#messberichte .mess-schild--schlecht").count() >= 1 and pg.locator("#messberichte .mess-schild--gut").count() >= 1, "Schilder gut/schlecht")
-    pg.screenshot(path=os.path.join(BILD, "messberichte.png"))
-    pg.click("[data-messbericht='m2']"); pg.wait_for_timeout(200)
-    pruefe("Keine Messwerte" in pg.inner_text("#messberichte"), "Zweiter Bericht klappt auf")
+    pg.wait_for_timeout(500)
+    pruefe(pg.locator("#pl-spezial, #pl-mess").count() == 0, "Kein Knopf Spezialwerkzeuge/Messberichte im Auftragsfenster")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
-    pruefe(pg.locator("#messberichte").count() == 0 and pg.locator(".dialog--auftrag").count() == 1, "Escape schliesst nur das Fenster")
+
+    # Reiter in der Produktion
+    pg.evaluate("location.hash='#produktion'"); pg.wait_for_selector("[data-unter='produktion/keyence']")
+    pg.click("[data-unter='produktion/keyence']"); pg.wait_for_selector("#keyence-berichte .mess__kopf")
+    t = pg.inner_text("#keyence-berichte")
+    pruefe(hoco in t and "10841-0009" in t and "2 Berichte" in t, "Je HOCO Nr. eine Zeile mit Anzahl")
+    pg.click(f"[data-keyence-hoco='{hoco}']"); pg.wait_for_selector("[data-messbericht='m1']")
+    pg.click("[data-messbericht='m1']"); pg.wait_for_selector("#keyence-berichte .mess__tabelle"); pg.wait_for_timeout(400)
+    t = pg.inner_text("#keyence-berichte")
+    pruefe("KONZENTR" in t and "11,702" in t, "Bericht zeigt Messwerte")
+    pg.screenshot(path=os.path.join(BILD, "keyence-prod.png"))
+    pg.fill("#keyence-suche", "10841"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("[data-keyence-hoco]").count() == 1, "Suche nach HOCO Nr.")
+    pg.fill("#keyence-suche", "")
+
+    # Knopf im QS Check des Pads
+    pg.evaluate("location.hash='#planwand'"); pg.wait_for_timeout(500)
+    pg.click("#kopf-pad, [data-pad-oeffnen], button:has-text('Pad Mode')"); pg.wait_for_selector("#pad")
+    pg.wait_for_timeout(500)
+    pg.locator("#pad button:has-text('QS Check')").first.click(); pg.wait_for_selector("[data-padkeyence]")
+    pg.click("[data-padkeyence]"); pg.wait_for_selector("#keyence-fenster [data-keyence-hoco]"); pg.wait_for_timeout(500)
+    pruefe(pg.locator("#keyence-fenster [data-keyence-hoco]").count() == 2, "Fenster aus dem QS Check")
+    pg.screenshot(path=os.path.join(BILD, "keyence-pad.png"))
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("#keyence-fenster").count() == 0 and pg.locator("#pad").count() == 1, "Escape schliesst nur das Fenster")
     pruefe(not pf, "Keine Seitenfehler: %s" % pf)
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

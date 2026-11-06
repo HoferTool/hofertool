@@ -1,25 +1,34 @@
 // =================================================================
-//  MESSBERICHTE · Fenster (seit 1.443.0, Wunsch Patrick 6. November
-//  2026: Messprotokolle vom Keyence IM von selbst im Tool)
+//  KEYENCE BERICHTE (seit 1.443.0, Wunsch Patrick 6. November 2026:
+//  „bei Prod einen weiteren Unterreiter mit Keyence Berichten, nach
+//  HOCO Nr. abgespeichert mit Datum Zeit zum Nachschauen, 30 Tage“,
+//  „bei Padmode QS oben neben Offene Meldungen der Button dafür“)
 //
-//  messberichteOeffnen({ hoco }): alle Teilberichte der HOCO Nr., der
-//  neueste oben; antippen klappt die Messwerte auf. Geöffnet aus dem
-//  Auftragsfenster der Planwand und bei der HOCO Nr. Nicht für Externe.
+//  <KeyenceBerichte />: Suche, darunter je HOCO Nr. eine Zeile mit der
+//  Zahl der Berichte und dem letzten; antippen zeigt die Berichte mit
+//  Datum und Zeit, ein Bericht klappt seine Messwerte auf.
+//  Reiter „Keyence Berichte“ der Produktion und Fenster aus dem
+//  QS Check im Pad (keyenceOeffnen). Nicht für Externe.
 // =================================================================
 import { useEffect, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { fensterOeffnen } from "./Fenster.jsx";
 import { wiederOeffner } from "./wiederherstellen.js";
-import { messberichteLaden, fehltMessTabelle, urteil } from "../daten/messberichte.js";
-import { hocoNormal } from "../daten/spezialwerkzeuge.js";
+import { Suchfeld, passtWoerter } from "./Suchfeld.jsx";
+import { messberichteLaden, fehltMessTabelle, urteil, nachHoco } from "../daten/messberichte.js";
 
-export function messberichteOeffnen({ hoco }) {
-  if (!hoco) return;
-  const h = hocoNormal(hoco);
-  fensterOeffnen((zu) => <MessFenster hoco={h} zu={zu} />, null, "unterlagen-huelle",
-    { art: "messberichte", daten: { hoco: h } });
+export function keyenceOeffnen() {
+  fensterOeffnen((zu) => (
+    <div className="dialog dialog--breit unterlagen messberichte" id="keyence-fenster">
+      <div className="blatt__kopf">
+        <h2>Keyence Berichte</h2>
+        <span className="klein">letzte 30 Tage</span>
+        <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
+      </div>
+      <div className="unterlagen__rolle"><KeyenceBerichte /></div>
+    </div>), null, "unterlagen-huelle", { art: "keyence" });
 }
-wiederOeffner("messberichte", (d) => messberichteOeffnen(d));
+wiederOeffner("keyence", () => keyenceOeffnen());
 
 const zeitText = (iso) => {
   if (!iso) return "";
@@ -33,43 +42,66 @@ function Schild({ text }) {
   return <span className={"mess-schild" + (u ? " mess-schild--" + u : "")}>{text}</span>;
 }
 
-function MessFenster({ hoco, zu }) {
+// Gemerkt, solange die App offen ist: Suche und offene HOCO Nr.
+const merk = { suche: "", hoco: null, bericht: null };
+
+export function KeyenceBerichte() {
   const [liste, setListe] = useState(null);
   const [fehler, setFehler] = useState("");
-  const [offen, setOffen] = useState(null);
-  useEffect(() => {
-    messberichteLaden(hoco)
-      .then((l) => { setListe(l); if (l.length) setOffen(l[0].id); })
-      .catch((f) => { setFehler(fehltMessTabelle(f) ? "Die Datenbank kennt die Messberichte noch nicht." : alt.fehlertext(f)); setListe([]); });
-  }, []);
+  const [suche, setSucheS] = useState(merk.suche);
+  const [hoco, setHocoS] = useState(merk.hoco);
+  const [bericht, setBerichtS] = useState(merk.bericht);
+  const setSuche = (x) => { merk.suche = x; setSucheS(x); };
+  const setHoco = (x) => { merk.hoco = x; setHocoS(x); };
+  const setBericht = (x) => { merk.bericht = x; setBerichtS(x); };
+  const laden = () => messberichteLaden()
+    .then((l) => { setListe(l); setFehler(""); })
+    .catch((f) => { setFehler(fehltMessTabelle(f) ? "Die Datenbank kennt die Keyence Berichte noch nicht." : alt.fehlertext(f)); setListe((x) => x || []); });
+  // Jede Minute frisch, so oft wie der Pool-Rechner nachschaut
+  useEffect(() => { laden(); const t = setInterval(laden, 60000); return () => clearInterval(t); }, []);
+
+  const gruppen = nachHoco(liste || []).filter((g) =>
+    passtWoerter(suche, [g.hoco, ...g.berichte.map((m) => m.einstellung)]));
 
   return (
-    <div className="dialog dialog--breit unterlagen messberichte" id="messberichte">
-      <div className="blatt__kopf">
-        <h2>Messberichte · {hoco}</h2>
-        <span className="klein">Keyence IM</span>
-        <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
+    <div className="keyence" id="keyence-berichte">
+      <div className="keyence__leiste">
+        <Suchfeld id="keyence-suche" wert={suche} setzen={setSuche} platzhalter="HOCO Nr. oder Messeinstellung …" />
+        <span className="klein">{liste ? liste.length + " Berichte · bleiben 30 Tage" : ""}</span>
       </div>
       {fehler && <p className="fehlertext">{fehler}</p>}
-      <div className="unterlagen__rolle">
-        {liste === null
-          ? <p className="klein">Lädt …</p>
-          : !liste.length
-          ? <p className="unterlagen__leer">Für {hoco} sind noch keine Messberichte da. Sie kommen von selbst,
-              wenn am Keyence eine Messeinstellung mit „{hoco}“ im Namen gemessen wird.</p>
-          : <ul className="mess__liste">
-              {liste.map((m) => <li key={m.id} className={"mess__eintrag" + (offen === m.id ? " mess__eintrag--offen" : "")}>
-                <button type="button" className="mess__kopf" data-messbericht={m.id}
-                  onClick={() => setOffen(offen === m.id ? null : m.id)}>
-                  <span className="mess__pfeil">{offen === m.id ? "▾" : "▸"}</span>
-                  <b>{zeitText(m.gemessen_am)}</b>
-                  <span className="mess__name">{m.einstellung || ""}</span>
-                  <Schild text={m.ergebnis} />
+      {liste === null
+        ? <p className="klein">Lädt …</p>
+        : !gruppen.length
+        ? <p className="unterlagen__leer">{suche ? "Nichts gefunden." : "Noch keine Berichte. Sie kommen von selbst, "
+            + "sobald am Keyence gemessen wird (Ordner W:\\KONTROLLE\\Keyence)."}</p>
+        : <ul className="mess__liste">
+            {gruppen.map((g) => {
+              const auf = hoco === g.hoco || (gruppen.length === 1 && hoco === null);
+              const neu = g.berichte[0];
+              return <li key={g.hoco} className={"mess__eintrag" + (auf ? " mess__eintrag--offen" : "")}>
+                <button type="button" className="mess__kopf" data-keyence-hoco={g.hoco}
+                  onClick={() => setHoco(auf ? "" : g.hoco)}>
+                  <span className="mess__pfeil">{auf ? "▾" : "▸"}</span>
+                  <b className="mess__hoco">{g.hoco || "Ohne HOCO Nr."}</b>
+                  <span className="mess__name">{g.berichte.length} {g.berichte.length === 1 ? "Bericht" : "Berichte"} · zuletzt {zeitText(neu.gemessen_am)}</span>
+                  <Schild text={neu.ergebnis} />
                 </button>
-                {offen === m.id && <MessWerte m={m} />}
-              </li>)}
-            </ul>}
-      </div>
+                {auf && <ul className="mess__liste mess__liste--innen">
+                  {g.berichte.map((m) => <li key={m.id} className="mess__eintrag">
+                    <button type="button" className="mess__kopf" data-messbericht={m.id}
+                      onClick={() => setBericht(bericht === m.id ? null : m.id)}>
+                      <span className="mess__pfeil">{bericht === m.id ? "▾" : "▸"}</span>
+                      <b>{zeitText(m.gemessen_am)}</b>
+                      <span className="mess__name">{m.einstellung || ""}</span>
+                      <Schild text={m.ergebnis} />
+                    </button>
+                    {bericht === m.id && <MessWerte m={m} />}
+                  </li>)}
+                </ul>}
+              </li>;
+            })}
+          </ul>}
     </div>
   );
 }

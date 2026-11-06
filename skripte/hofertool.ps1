@@ -11,11 +11,12 @@
 #     zeichnungen.ps1       Zeichnungen hochladen, nur lesen
 #     einrichtblaetter.ps1  Einrichtblätter hochladen, nur lesen
 #     nc-geo.ps1            Geometrie-Programme der SW (4…) ins Einrichtblatt, nur lesen
-#     keyence.ps1           Messberichte (Teilbericht-CSV) vom Keyence IM, nur lesen
 #
 #  Dazu startet es drucken.ps1, wenn es nicht schon läuft: Das bleibt
 #  dauernd im Hintergrund und druckt Aufträge aus der App alle paar
 #  Sekunden, nicht erst beim nächsten Durchlauf (seit 111.126.0).
+#  Ebenso keyence.ps1 (seit 1.443.0): holt jede Minute die Messberichte
+#  vom Keyence IM aus W:\KONTROLLE\Keyence, nur lesen.
 #
 #  Jeder Teil läuft für sich: Bricht einer ab oder hängt er (etwa weil
 #  ein Netzlaufwerk nicht antwortet), kommen die anderen trotzdem dran.
@@ -125,15 +126,30 @@ function DruckenStarten {
   }
 }
 
+# ---------- Keyence-Messberichte im Hintergrund ----------
+# Wie drucken.ps1: läuft dauernd und hält die Sperre "Global\HoferToolKeyence"
+function KeyenceStarten {
+  $pfad = Join-Path $ordnerHier "keyence.ps1"
+  if (-not (Test-Path $pfad) -or -not (Test-Path (Join-Path $ordnerHier "abgleich-einstellungen.json"))) { return }
+  try { $m = [Threading.Mutex]::OpenExisting("Global\HoferToolKeyence"); $m.Dispose(); return } catch { }
+  try {
+    Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -WorkingDirectory $ordnerHier `
+      -ArgumentList @("-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", ('"' + $pfad + '"')) | Out-Null
+    Schreibe "keyence.ps1 gestartet"
+  } catch {
+    Schreibe ("keyence.ps1 liess sich nicht starten: " + $_.Exception.Message)
+  }
+}
+
 try {
   Aktualisieren
   DruckenStarten
+  KeyenceStarten
   Teil "solarlog.ps1"         2  "solar-einstellungen.json"
   Teil "dokumente-pool.ps1"   10 "abgleich-einstellungen.json"
   Teil "zeichnungen.ps1"      10 "abgleich-einstellungen.json"
   Teil "einrichtblaetter.ps1" 10 "abgleich-einstellungen.json"
   Teil "nc-geo.ps1"           5  "abgleich-einstellungen.json"
-  Teil "keyence.ps1"          5  "abgleich-einstellungen.json"
 } finally {
   try { $sperre.ReleaseMutex() } catch { }
 }

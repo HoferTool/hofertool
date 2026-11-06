@@ -8,7 +8,6 @@ import { laengeFehlt, laengeVersuchen } from "../daten/material.js";
 import { alt, useDaten } from "../bruecke.jsx";
 import { teilLaden, pdfHochladen } from "./daten.js";
 import { dokZeigen } from "../teile/DokAbruf.jsx";
-import { messberichteOeffnen } from "../teile/Messberichte.jsx";
 import { einrichtblattAppOeffnen } from "../einrichtblatt/Blatt.jsx";
 import { stueckzeitText, stueckzeitFragen, stueckzeitSetzen, laengeText, laengeSetzen, artInfoFragen }
   from "../daten/stueckzahl.js";
@@ -153,9 +152,6 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
             <input type="file" id="hoco-pdf" accept="application/pdf" hidden onChange={zeichnungWaehlen} /></label>}
           {darf && !t.zeichnung_url && vomAuftrag && <button className="knopf knopf--klein"
             data-zvonauftrag={vomAuftrag} onClick={zeichnungVomAuftrag}>Zeichnung vom Auftrag übernehmen</button>}
-          {/* Messberichte vom Keyence IM (seit 1.443.0); Externe nicht */}
-          {!alt.istExtern() && <button className="knopf knopf--klein" id="hoco-mess"
-            onClick={() => messberichteOeffnen({ hoco: t.hoco_nr })}>Messberichte</button>}
         </div>
         {darf && <span className="feldhinweis" id="hoco-pdfstand">{pdfStand}</span>}
       </section>

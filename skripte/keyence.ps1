@@ -1,8 +1,10 @@
 ﻿# =================================================================
 #  KEYENCE — Messberichte vom Bildmessgerät Keyence IM ins Tool
 #
-#  Läuft alle fünf Minuten in der Aufgabe "HoferTool" (hofertool.ps1),
-#  ohne Knopf in der App (Wunsch Patrick 6. November 2026: „wenn man auf
+#  Läuft dauernd im Hintergrund und schaut jede Minute nach (Wunsch
+#  Patrick 6. November 2026: „jede Minute, sonst zu langsam“). Gestartet
+#  von hofertool.ps1, wenn die Sperre Global\HoferToolKeyence fehlt; bei
+#  neuer Fassung startet es sich selbst neu. Ohne Knopf in der App (Wunsch Patrick 6. November 2026: „wenn man auf
 #  Print drückt, in einem Ordner abspeichern zum Hochladen ins Tool,
 #  automatisch so benennen, dass das Tool weiss, wohin“).
 #
@@ -22,13 +24,15 @@
 #  CSV-Dateien, die mit "Teilbericht" beginnen, und legt Kopf und Mess-
 #  werte in die Tabelle messberichte. Die HOCO Nr. kommt aus dem Namen der
 #  Messeinstellung (sonst aus dem Dateinamen). Nur neue oder geänderte
-#  Dateien werden geschickt (keyence-stand.json).
+#  Dateien werden geschickt (keyence-stand.json). Berichte bleiben 30 Tage
+#  in der Datenbank, danach löscht das Programm sie dort (die Dateien im
+#  Ordner bleiben). Ältere Dateien schickt es gar nicht erst.
 #
 #  DAS PROGRAMM LIEST NUR. Im Ordner wird nie etwas gelöscht,
 #  verschoben, umbenannt oder geändert.
 #
 #  Aufruf:
-#     .\keyence.ps1            normaler Durchlauf
+#     .\keyence.ps1            Dauerlauf, jede Minute
 #     .\keyence.ps1 -Probe     zeigt, was es fände, schickt nichts
 #
 #  Braucht daneben dokumente-teile.ps1 und abgleich-einstellungen.json.
@@ -45,6 +49,8 @@ $protDatei  = Join-Path $ordnerHier "keyence.log"
 $vorgabeOrdner    = "W:\KONTROLLE\Keyence"
 $hoechstensJeLauf = 300
 $hoechstensGross  = 1MB
+$tageBehalten     = 30
+$ichSelbst = $MyInvocation.MyCommand.Path
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -148,77 +154,123 @@ function HocoAus([string]$t) {
   return $null
 }
 
-$jetztIso = (Get-Date).ToUniversalTime().ToString("o")
-$status = @{ zeit = $jetztIso; rechner = $env:COMPUTERNAME; scharf = (-not $Probe); pfad = $null;
-             dateien = 0; berichte = 0; geschickt = 0; ohneHoco = 0; fehler = $null; beispiele = @() }
+function Durchlauf {
+  $script:jetztIso = (Get-Date).ToUniversalTime().ToString("o")
+  $script:status = @{ zeit = $jetztIso; rechner = $env:COMPUTERNAME; scharf = (-not $Probe); pfad = $null;
+               dateien = 0; berichte = 0; geschickt = 0; ohneHoco = 0; fehler = $null; beispiele = @() }
 
-try {
-  Anmelden
-  $ordner = $vorgabeOrdner
   try {
-    Lesen "app_config?select=wert&schluessel=eq.keyence_ordner" | ForEach-Object {
-      $w = [string]$_.wert
-      try { $j = $w | ConvertFrom-Json; if ($j -is [string]) { $w = $j } elseif ($j.ordner) { $w = [string]$j.ordner } } catch { }
-      if ($w.Trim()) { $ordner = $w.Trim() }
-    }
-  } catch { }
-  $pfad = PfadAufloesen $ordner
-  $status.pfad = $pfad
-  if (-not (Test-Path -LiteralPath $pfad)) {
-    $status.fehler = "Ordner nicht erreichbar: " + $pfad
-    Schreibe $status.fehler
-  } else {
-    $dateien = @(Get-ChildItem -LiteralPath $pfad -Filter *.csv -File -Recurse -ErrorAction SilentlyContinue |
-      Where-Object { $_.Length -le $hoechstensGross -and $_.Name -notlike '~$*' } |
-      Sort-Object LastWriteTimeUtc)
-    $status.dateien = $dateien.Count
-    $nochFrei = $hoechstensJeLauf
-    foreach ($d in $dateien) {
-      $kennung = Kennung $d
-      if ($stand.dateien[$d.FullName] -eq $kennung) { continue }
-      if ($nochFrei -le 0) { break }
-      try {
-        $text = TextLesen $d
-        $b = BerichtLesen $text
-        if (-not $b) { $stand.dateien[$d.FullName] = $kennung; continue }   # keine Teilbericht-Datei
-        $status.berichte++
-        $einst = KopfWert $b.kopf '^Name der Messeinstellung'
-        $hoco = HocoAus $einst
-        if (-not $hoco) { $hoco = HocoAus $d.BaseName }
-        if (-not $hoco) { $status.ohneHoco++ }
-        $zeit = ZeitIso (KopfWert $b.kopf '^Datum und Uhrzeit')
-        if (-not $zeit) { $zeit = $d.LastWriteTimeUtc.ToString("o") }
-        if ($status.beispiele.Count -lt 8) { $status.beispiele += ($d.Name + " → " + $(if ($hoco) { $hoco } else { "ohne HOCO Nr." })) }
-        if ($Probe) { Schreibe ("würde schicken: " + $d.FullName + " → " + $hoco); $nochFrei--; continue }
-        Anmelden
-        Aendern "Post" "messberichte?on_conflict=datei" @{ datei = $d.FullName; hoco_nr = $hoco; einstellung = $einst;
-          gemessen_am = $zeit; ergebnis = (KopfWert $b.kopf '^Gesamtergebnis'); kopf = $b.kopf;
-          spalten = @($b.spalten); zeilen = @($b.zeilen.ToArray()); roh = $text; gelesen_am = $jetztIso } "resolution=merge-duplicates"
-        $stand.dateien[$d.FullName] = $kennung
-        $status.geschickt++; $nochFrei--
-      } catch {
-        Schreibe ("Nicht geschickt: " + $d.FullName + " — " + $_.Exception.Message)
-        if (-not $status.fehler) { $status.fehler = $_.Exception.Message }
+    Anmelden
+    $ordner = $vorgabeOrdner
+    try {
+      Lesen "app_config?select=wert&schluessel=eq.keyence_ordner" | ForEach-Object {
+        $w = [string]$_.wert
+        try { $j = $w | ConvertFrom-Json; if ($j -is [string]) { $w = $j } elseif ($j.ordner) { $w = [string]$j.ordner } } catch { }
+        if ($w.Trim()) { $ordner = $w.Trim() }
       }
+    } catch { }
+    $pfad = PfadAufloesen $ordner
+    $status.pfad = $pfad
+    if (-not (Test-Path -LiteralPath $pfad)) {
+      $status.fehler = "Ordner nicht erreichbar: " + $pfad
+      Schreibe $status.fehler
+    } else {
+      $dateien = @(Get-ChildItem -LiteralPath $pfad -Filter *.csv -File -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.Length -le $hoechstensGross -and $_.Name -notlike '~$*' } |
+        Sort-Object LastWriteTimeUtc)
+      $status.dateien = $dateien.Count
+      $nochFrei = $hoechstensJeLauf
+      foreach ($d in $dateien) {
+        $kennung = Kennung $d
+        if ($stand.dateien[$d.FullName] -eq $kennung) { continue }
+        if ($nochFrei -le 0) { break }
+        try {
+          $text = TextLesen $d
+          $b = BerichtLesen $text
+          if (-not $b) { $stand.dateien[$d.FullName] = $kennung; continue }   # keine Teilbericht-Datei
+          $status.berichte++
+          $einst = KopfWert $b.kopf '^Name der Messeinstellung'
+          $hoco = HocoAus $einst
+          if (-not $hoco) { $hoco = HocoAus $d.BaseName }
+          if (-not $hoco) { $status.ohneHoco++ }
+          $zeit = ZeitIso (KopfWert $b.kopf '^Datum und Uhrzeit')
+          if (-not $zeit) { $zeit = $d.LastWriteTimeUtc.ToString("o") }
+          # Älter als die Aufbewahrung: gar nicht erst schicken
+          if ([DateTime]::Parse($zeit).ToUniversalTime() -lt (Get-Date).ToUniversalTime().AddDays(-$tageBehalten)) {
+            $stand.dateien[$d.FullName] = $kennung; continue }
+          if ($status.beispiele.Count -lt 8) { $status.beispiele += ($d.Name + " → " + $(if ($hoco) { $hoco } else { "ohne HOCO Nr." })) }
+          if ($Probe) { Schreibe ("würde schicken: " + $d.FullName + " → " + $hoco); $nochFrei--; continue }
+          Anmelden
+          Aendern "Post" "messberichte?on_conflict=datei" @{ datei = $d.FullName; hoco_nr = $hoco; einstellung = $einst;
+            gemessen_am = $zeit; ergebnis = (KopfWert $b.kopf '^Gesamtergebnis'); kopf = $b.kopf;
+            spalten = @($b.spalten); zeilen = @($b.zeilen.ToArray()); roh = $text; gelesen_am = $jetztIso } "resolution=merge-duplicates"
+          $stand.dateien[$d.FullName] = $kennung
+          $status.geschickt++; $nochFrei--
+        } catch {
+          Schreibe ("Nicht geschickt: " + $d.FullName + " — " + $_.Exception.Message)
+          if (-not $status.fehler) { $status.fehler = $_.Exception.Message }
+        }
+      }
+      StandSichern
     }
-    StandSichern
+  } catch {
+    $status.fehler = $_.Exception.Message
+    Schreibe ("Abbruch: " + $_.Exception.Message)
   }
-} catch {
-  $status.fehler = $_.Exception.Message
-  Schreibe ("Abbruch: " + $_.Exception.Message)
+
+  if ($status.geschickt -gt 0) { Schreibe ([string]$status.geschickt + " Messberichte geschickt") }
+  if (-not $Probe) {
+    try {
+      Aendern "Post" "app_config?on_conflict=schluessel" @{ schluessel = "keyence_status";
+        wert = ($status | ConvertTo-Json -Compress -Depth 4) } "resolution=merge-duplicates"
+    } catch { Schreibe ("Stand nicht an die App gemeldet: " + $_.Exception.Message) }
+  }
+  StandSichern
 }
 
-if ($status.geschickt -gt 0) { Schreibe ([string]$status.geschickt + " Messberichte geschickt") }
-if (-not $Probe) {
-  try {
-    Aendern "Post" "app_config?on_conflict=schluessel" @{ schluessel = "keyence_status";
-      wert = ($status | ConvertTo-Json -Compress -Depth 4) } "resolution=merge-duplicates"
-  } catch { Schreibe ("Stand nicht an die App gemeldet: " + $_.Exception.Message) }
+# Berichte älter als 30 Tage aus der Datenbank (Wunsch Patrick)
+function Aufraeumen {
+  $grenze = (Get-Date).ToUniversalTime().AddDays(-$tageBehalten).ToString("o")
+  Anmelden
+  Aendern "Delete" ("messberichte?gemessen_am=lt." + (W $grenze)) $null ""
 }
-StandSichern
 
 if ($Probe) {
+  Durchlauf
   Write-Host ""
   Write-Host ("  Ordner: " + $status.pfad + " — " + $status.dateien + " CSV-Dateien, " + $status.berichte + " neue Teilberichte, " + $status.ohneHoco + " ohne HOCO Nr.")
   if ($status.fehler) { Write-Host ("  Fehler: " + $status.fehler) }
+  exit 0
+}
+
+# ---------- Dauerlauf ----------
+$sperre = New-Object Threading.Mutex($false, "Global\HoferToolKeyence")
+try { $frei = $sperre.WaitOne(20000) } catch [Threading.AbandonedMutexException] { $frei = $true }
+if (-not $frei) { Schreibe "Läuft schon"; exit 0 }
+$start = Get-Date
+$eigeneFassung = (Get-Item -LiteralPath $ichSelbst).LastWriteTimeUtc
+$naechstesAufraeumen = Get-Date
+Schreibe "Gestartet"
+try {
+  while ($true) {
+    Durchlauf
+    if ((Get-Date) -ge $naechstesAufraeumen) {
+      try { Aufraeumen } catch { Schreibe ("Aufräumen ging nicht: " + $_.Exception.Message) }
+      $naechstesAufraeumen = (Get-Date).AddHours(1)
+    }
+    Start-Sleep -Seconds 60
+    # Neue Fassung von GitHub (hofertool.ps1 legt sie hin) oder nach
+    # zwölf Stunden: sich selbst neu starten
+    $neu = $false
+    try { $neu = (Get-Item -LiteralPath $ichSelbst).LastWriteTimeUtc -ne $eigeneFassung } catch { }
+    if ($neu -or ((Get-Date) - $start).TotalHours -ge 12) {
+      Schreibe $(if ($neu) { "Neue Fassung, starte neu" } else { "Starte nach zwölf Stunden neu" })
+      try { $sperre.ReleaseMutex() } catch { }
+      Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -WorkingDirectory $ordnerHier `
+        -ArgumentList @("-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", ('"' + $ichSelbst + '"'))
+      exit 0
+    }
+  }
+} finally {
+  try { $sperre.ReleaseMutex() } catch { }
 }

@@ -31,10 +31,6 @@ import { useWaschprog } from "../daten/waschprog.js";
 import { matInfo, MAT_INFO_ERKLAERUNG, materialImHaus } from "../daten/material.js";
 import { ImHausEinblendung } from "./MaterialImHaus.jsx";
 import { mahnBilder } from "../daten/mahnbilder.js";
-import { spezialAnzahl } from "../daten/spezialwerkzeuge.js";
-import { spezialwerkzeugeOeffnen } from "../teile/Spezialwerkzeuge.jsx";
-import { messberichteOeffnen } from "../teile/Messberichte.jsx";
-import { messberichteAnzahl } from "../daten/messberichte.js";
 import { inEigenesFenster, eigeneFensterZu } from "../teile/eigenesFenster.js";
 import { vorbereitenOeffnen } from "./Vorbereiten.jsx";
 
@@ -385,18 +381,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   aktuell.current = w;
   const tageVonHand = useRef(false);
   const [hocoInfo, setHocoInfo] = useState("");
-  // Wie viele Spezialwerkzeuge die HOCO Nr. hat (seit 1.131.0)
-  const [spezialZahl, setSpezialZahl] = useState(0);
-  const spezialHoco = auftrag && auftrag.job_number;
-  useEffect(() => {
-    if (extern || !spezialHoco) return;
-    let gueltig = true;
-    spezialAnzahl(spezialHoco).then((n) => { if (gueltig) setSpezialZahl(n); });
-    messberichteAnzahl(spezialHoco).then((n) => { if (gueltig) setMessZahl(n); });
-    return () => { gueltig = false; };
-  }, [spezialHoco]);
-  // Messberichte vom Keyence IM zur HOCO Nr. (seit 1.443.0)
-  const [messZahl, setMessZahl] = useState(0);
+
   const [pdfStand, setPdfStand] = useState("");
   const [wbgStand, setWbgStand] = useState("");
   const [beschaeftigt, setBeschaeftigt] = useState(false);
@@ -948,26 +933,8 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                 {waschprog && <span className="auf-waschprog" id="pl-waschprog">
                   Waschprog-Nr.: <b>{waschprog}</b></span>}</div></div>
 
-            {/* Spezialwerkzeuge der HOCO Nr. mit Nachbestellen (Wunsch
-                Patrick 21. Oktober 2026); Externe nicht */}
-            {!extern && spezialHoco && <div className="auf-dok"><span className="feldlabel">Spezialwerkzeuge</span>
-              <div className="auf-dok__knoepfe">
-                <div className="pdfreihe">
-                  <button type="button" className="knopf knopf--klein pdflink" id="pl-spezial"
-                    onClick={() => spezialwerkzeugeOeffnen({ hoco: spezialHoco,
-                      maschine: maschinen.find((x) => x.id === w.maschine) || null })}>
-                    {spezialZahl ? "Ansehen (" + spezialZahl + ")" : "Ansehen"}</button></div>
-                {!spezialZahl && <span className="feldhinweis">keine hinterlegt</span>}</div></div>}
-
-            {/* Messberichte vom Keyence IM (Wunsch Patrick 6. November 2026);
-                Externe nicht */}
-            {!extern && spezialHoco && <div className="auf-dok"><span className="feldlabel">Messberichte</span>
-              <div className="auf-dok__knoepfe">
-                <div className="pdfreihe">
-                  <button type="button" className="knopf knopf--klein pdflink" id="pl-mess"
-                    onClick={() => messberichteOeffnen({ hoco: spezialHoco })}>
-                    {messZahl ? "Ansehen (" + messZahl + ")" : "Ansehen"}</button></div>
-                {!messZahl && <span className="feldhinweis">noch keine</span>}</div></div>}
+            {/* Den Knopf Spezialwerkzeuge gibt es seit 1.443.0 nicht mehr (Wunsch
+                Patrick 6. November 2026: „wird ja mit Stern gekennzeichnet“) */}
           </div>
         </div>
       </div>

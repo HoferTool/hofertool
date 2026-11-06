@@ -15,6 +15,7 @@
 //  der alte Inhalt weiter da, bis der neue fertig ist: kein Aufblitzen
 //  von „Wird geladen“. Nur eine neue Ansicht kommt mit Bewegung herein.
 // =================================================================
+import { keyenceOeffnen } from "../teile/Messberichte.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { alt, reactAufraeumen } from "../bruecke.jsx";
@@ -86,6 +87,9 @@ export function PadKopf({ titel, zurueck, meldungen }) {
         : <span className="pad__zurueck pad__zurueck--leer" />}
       <span className="pad__titel">{titel}</span>
       <GeraetMarke />
+      {meldungen && !alt.istExtern() && <button className="pad__meldungen pad__keyence" data-padkeyence=""
+        title="Keyence Berichte der letzten 30 Tage" onClick={keyenceOeffnen}>
+        <span className="pad__meldungen-text">Keyence Berichte</span></button>}
       {meldungen && <PadMeldungenKnopf />}
       <PadNeuLadenKnopf />
       <button className="pad__zu" data-padzu="" onClick={() => alt.padSchliessen()}

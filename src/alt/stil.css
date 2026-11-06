@@ -11983,3 +11983,10 @@ body.dunkel .camtyp-vorschau pre { background: #1b2230; }
 body.dunkel .mess-schild { background: #2b3440; }
 body.dunkel .mess-schild--gut { background: #1d4a2a; }
 body.dunkel .mess-schild--schlecht { background: #5a1f1f; }
+.keyence__leiste { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.keyence__leiste > :first-child { flex: 1; min-width: 220px; }
+.mess__liste--innen { padding: 0 10px 10px 28px; }
+.mess__hoco { min-width: 7em; }
+.keyence .suchleiste { margin: 0; }
+.keyence .suchleiste input { padding: 10px 14px; font: inherit; font-size: 1rem; border: 1px solid var(--linie, #c8d1dc);
+  border-radius: 10px; background: var(--flaeche, #fff); color: inherit; }

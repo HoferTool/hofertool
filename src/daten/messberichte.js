@@ -1,29 +1,33 @@
 // =================================================================
 //  MESSBERICHTE vom Keyence IM (seit 1.443.0, Wunsch Patrick
 //  6. November 2026). Das Programm skripte/keyence.ps1 am Pool-Rechner
-//  liest die Teilberichte (CSV) aus W:\KONTROLLE\Keyence und legt sie
-//  in die Tabelle messberichte (sql/messberichte.sql), die HOCO Nr. aus
-//  dem Namen der Messeinstellung. Hier nur lesen. Nicht für Externe.
+//  liest jede Minute die Teilberichte (CSV) aus W:\KONTROLLE\Keyence
+//  und legt sie in die Tabelle messberichte (sql/messberichte.sql), die
+//  HOCO Nr. aus dem Namen der Messeinstellung; nach 30 Tagen löscht es
+//  sie dort. Hier nur lesen. Nicht für Externe (Entscheid Patrick).
 // =================================================================
 import { alt } from "../bruecke.jsx";
-import { hocoNormal } from "./spezialwerkzeuge.js";
 
 export const fehltMessTabelle = (f) => /messberichte/.test(alt.fehlertext(f));
 
-export async function messberichteLaden(hoco) {
+// Alle Berichte, der neueste zuerst (es sind nur die letzten 30 Tage da)
+export async function messberichteLaden() {
   const r = await alt.zeitlimit(alt.db.from("messberichte")
     .select("id,datei,hoco_nr,einstellung,gemessen_am,ergebnis,kopf,spalten,zeilen")
-    .eq("hoco_nr", hocoNormal(hoco)).order("gemessen_am", { ascending: false }).limit(200), 10000, "Messberichte");
+    .order("gemessen_am", { ascending: false }).limit(2000), 15000, "Messberichte");
   if (r.error) throw r.error;
   return r.data || [];
 }
 
-export async function messberichteAnzahl(hoco) {
-  if (!hoco) return 0;
-  try {
-    const r = await alt.db.from("messberichte").select("id").eq("hoco_nr", hocoNormal(hoco));
-    return r.error ? 0 : (r.data || []).length;
-  } catch (f) { return 0; }
+// Nach HOCO Nr. zusammen, die mit dem neusten Bericht zuerst
+export function nachHoco(liste) {
+  const gruppen = new Map();
+  for (const m of liste) {
+    const k = m.hoco_nr || "";
+    if (!gruppen.has(k)) gruppen.set(k, []);
+    gruppen.get(k).push(m);
+  }
+  return [...gruppen.entries()].map(([hoco, berichte]) => ({ hoco, berichte }));
 }
 
 // Gut, schlecht oder unklar, aus dem Text des Geräts (OK, NG, Fehler …)
