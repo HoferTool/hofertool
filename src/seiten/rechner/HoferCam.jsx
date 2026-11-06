@@ -88,7 +88,7 @@ function programmFensterAuf() {
   if (fensterZu) return;
   const zu = fensterOeffnen((zu) => (
     <div className="dialog cam-eigen">
-      <div className="cam-eigen__kopf"><b>Hofer Cam · NC-Programm</b>
+      <div className="cam-eigen__kopf"><b>HOFERCAM · NC-Programm</b>
         <button className="knopf knopf--klein" id="cam-eigen-zu" onClick={zu}>Zurück ins HoferTool</button></div>
       <ImFenster />
     </div>
@@ -97,7 +97,7 @@ function programmFensterAuf() {
   const huelle = huellen[huellen.length - 1];
   fensterZu = zu;
   melden();
-  if (!huelle || !inEigenesFenster(huelle, zu, { titel: "Hofer Cam · O" + programme(gemerkt).nr1,
+  if (!huelle || !inEigenesFenster(huelle, zu, { titel: "HOFERCAM · O" + programme(gemerkt).nr1,
     lage: { x: window.screenX + 80, y: window.screenY + 80 } })) zu();
 }
 function ImFenster() {
@@ -389,9 +389,9 @@ export default function HoferCam() {
   return (
     <div className="karte cam">
       <div className="cam-kopf">
-        <h2 className="karte__titel">Hofer Cam</h2>
+        <h2 className="karte__titel">HOFERCAM</h2>
         <span className="cam-typ">Maschinentyp: <b>Star SB-20RG</b></span>
-        <NcAblage art="cam" kurz="camab" wort="Hofer Cam" daten={w} nc={ncBeide} laden={laden}
+        <NcAblage art="cam" kurz="camab" wort="HOFERCAM" daten={w} nc={ncBeide} laden={laden}
           gespeichert={gespeichert} setGespeichert={setGespeichert} />
       </div>
       <NcStand kurz="camab" gespeichert={gespeichert} nc={ncBeide} />

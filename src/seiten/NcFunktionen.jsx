@@ -27,7 +27,7 @@ import HoferCam from "./rechner/HoferCam.jsx";
 import Rechner, { REITER as RECHNER_REITER, rechnerAnsicht } from "./Rechner.jsx";
 
 export const REITER = [
-  ["kontur", "NC-PRO"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["cam", "Hofer Cam"], ["rechner", "Rechner"],
+  ["kontur", "NC-PRO"], ["cam", "HOFERCAM"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["rechner", "Rechner"],
 ];
 
 // Hofer Cam sehen seit 1.432.0 alle ausser Externen (camSehen in app.js)
@@ -51,7 +51,7 @@ export default function NcFunktionen() {
   const [neu, setNeu] = useState(0);
   useGemerkt(gemerkt, { ansicht });
   useSeitenSuche({
-    name: "NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, Hofer Cam, Drehzahl …",
+    name: "NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, HOFERCAM, Drehzahl …",
     eintraege: [
       ...ncReiter().map(([w, t]) => ({ gruppe: "NC-PRO", zeichen: "⌨", titel: t, wert: w })),
       ...RECHNER_REITER.map(([w, t]) => ({ gruppe: "Rechner", zeichen: "∑", titel: t, wert: "rechner", unter: w })),

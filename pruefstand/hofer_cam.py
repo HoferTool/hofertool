@@ -25,7 +25,10 @@ with sync_playwright() as p:
     if OHNE:
         pruefe("Ohne Vermerk trotzdem Hofer Cam (seit 1.432.0 für alle)", pg.locator("[data-unter='nc/cam']").count() == 1)
         br.close(); continue
-    pg.wait_for_selector("[data-unter='nc/cam']"); pg.click("[data-unter='nc/cam']")
+    pg.wait_for_selector("[data-unter='nc/cam']")
+    reihe = pg.eval_on_selector_all("[data-unter^='nc/']", "els => els.map(e => [e.dataset.unter, e.textContent.trim()])")
+    pruefe("HOFERCAM gleich nach NC-PRO (seit 1.435.0)", len(reihe) > 1 and reihe[1][0] == "nc/cam" and "HOFERCAM" in reihe[1][1])
+    pg.click("[data-unter='nc/cam']")
     pg.wait_for_selector("#cam-kanaele")
     def platz_waehlen(i, wert):
         pg.click("[data-block='%d'] .cam-wahl__knopf" % i)
