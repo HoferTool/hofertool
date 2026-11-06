@@ -33,6 +33,8 @@ import { ImHausEinblendung } from "./MaterialImHaus.jsx";
 import { mahnBilder } from "../daten/mahnbilder.js";
 import { spezialAnzahl } from "../daten/spezialwerkzeuge.js";
 import { spezialwerkzeugeOeffnen } from "../teile/Spezialwerkzeuge.jsx";
+import { messberichteOeffnen } from "../teile/Messberichte.jsx";
+import { messberichteAnzahl } from "../daten/messberichte.js";
 import { inEigenesFenster, eigeneFensterZu } from "../teile/eigenesFenster.js";
 import { vorbereitenOeffnen } from "./Vorbereiten.jsx";
 
@@ -390,8 +392,11 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
     if (extern || !spezialHoco) return;
     let gueltig = true;
     spezialAnzahl(spezialHoco).then((n) => { if (gueltig) setSpezialZahl(n); });
+    messberichteAnzahl(spezialHoco).then((n) => { if (gueltig) setMessZahl(n); });
     return () => { gueltig = false; };
   }, [spezialHoco]);
+  // Messberichte vom Keyence IM zur HOCO Nr. (seit 1.443.0)
+  const [messZahl, setMessZahl] = useState(0);
   const [pdfStand, setPdfStand] = useState("");
   const [wbgStand, setWbgStand] = useState("");
   const [beschaeftigt, setBeschaeftigt] = useState(false);
@@ -953,6 +958,16 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
                       maschine: maschinen.find((x) => x.id === w.maschine) || null })}>
                     {spezialZahl ? "Ansehen (" + spezialZahl + ")" : "Ansehen"}</button></div>
                 {!spezialZahl && <span className="feldhinweis">keine hinterlegt</span>}</div></div>}
+
+            {/* Messberichte vom Keyence IM (Wunsch Patrick 6. November 2026);
+                Externe nicht */}
+            {!extern && spezialHoco && <div className="auf-dok"><span className="feldlabel">Messberichte</span>
+              <div className="auf-dok__knoepfe">
+                <div className="pdfreihe">
+                  <button type="button" className="knopf knopf--klein pdflink" id="pl-mess"
+                    onClick={() => messberichteOeffnen({ hoco: spezialHoco })}>
+                    {messZahl ? "Ansehen (" + messZahl + ")" : "Ansehen"}</button></div>
+                {!messZahl && <span className="feldhinweis">noch keine</span>}</div></div>}
           </div>
         </div>
       </div>

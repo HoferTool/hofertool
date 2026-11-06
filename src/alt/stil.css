@@ -11959,3 +11959,27 @@ body.dunkel .camtyp-vorschau pre { background: #1b2230; }
 .camtyp-breit input { width: 260px; }
 .camtyp-art select { min-width: 280px; }
 @media (max-width: 900px) { .camtyp__inhalt, .camtyp-zwei { grid-template-columns: 1fr; } }
+
+/* Messberichte vom Keyence IM (1.443.0) */
+.mess__liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.mess__eintrag { border: 1px solid var(--linie, #d6dde6); border-radius: 10px; overflow: hidden; }
+.mess__kopf { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; background: none;
+  border: 0; text-align: left; font: inherit; cursor: pointer; color: inherit; }
+.mess__kopf:hover { background: rgba(0, 0, 0, .04); }
+.mess__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .8; }
+.mess__pfeil { width: 1em; }
+.mess-schild { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: .85em; font-weight: 600;
+  background: #e8edf3; color: #33404d; }
+.mess-schild--gut { background: #d8f2df; color: #146c2e !important; }
+.mess-schild--schlecht { background: #fbdcdc; color: #a11b1b !important; }
+.mess__werte { padding: 4px 12px 12px; }
+.mess__angaben { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 16px; margin: 0 0 10px; font-size: .9em; }
+.mess__angaben dt { opacity: .65; }
+.mess__angaben dd { margin: 0 0 4px; font-weight: 600; }
+.mess__tabelle { overflow-x: auto; }
+.mess__tabelle table { border-collapse: collapse; width: 100%; font-size: .9em; }
+.mess__tabelle th, .mess__tabelle td { border-bottom: 1px solid var(--linie, #d6dde6); padding: 4px 8px; text-align: left; white-space: nowrap; }
+.mess__zeile--schlecht td { background: rgba(220, 40, 40, .07); }
+body.dunkel .mess-schild { background: #2b3440; }
+body.dunkel .mess-schild--gut { background: #1d4a2a; }
+body.dunkel .mess-schild--schlecht { background: #5a1f1f; }
