@@ -116,7 +116,26 @@ with sync_playwright() as p:
     b = pg.evaluate("TEST.daten.lieferant_besuche.filter(x => x.supplier_id === 's1')")
     pruefe("Besuch gespeichert mit Kontakt", len(b) == 1 and b[0]["datum"] == "2026-11-03" and b[0]["kontakt_id"] == k[0]["id"])
     pruefe("Besuch im Fenster", "3. November 2026" in pg.inner_text("#lk-besuche") or "03.11" in pg.inner_text("#lk-besuche"))
+    # PDFs und Bilder zum Besuch (seit 1.433.0)
+    bid = b[0]["id"]
+    pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
+    pg.set_input_files("[data-lbdateien='" + bid + "'] input[type=file]", files=[
+        {"name": "Angebot 2026.pdf", "mimeType": "application/pdf", "buffer": pdf},
+        {"name": "Muster.jpg", "mimeType": "image/jpeg", "buffer": profil}])
+    pg.wait_for_selector("[data-lbdatei='Muster.jpg']", timeout=5000)
+    d = pg.evaluate("TEST.daten.lieferant_besuche.find(x => x.id === '" + bid + "').dateien")
+    pruefe("Zwei Dateien am Besuch", len(d) == 2 and d[0]["typ"] == "pdf" and d[1]["typ"] == "bild")
+    pruefe("Abgelegt unter lieferanten/s1/besuche/", all(("lieferanten/s1/besuche/" + bid + "/") in x["pfad"] for x in d))
+    pruefe("PDF mit Zeichen, Bild als Vorschau", pg.locator("[data-lbdatei='Angebot 2026.pdf'] .lk-datei__pdf").count() == 1
+        and pg.locator("[data-lbdatei='Muster.jpg'] img").count() == 1)
     pg.locator("#lk-fenster").screenshot(path=os.path.join(HIER, "lieferant_kontakte.png"))
+    pg.click("[data-lbdatei='Angebot 2026.pdf'] .lk-datei__knopf"); pg.wait_for_timeout(600)
+    pruefe("PDF geht im Betrachter auf", pg.locator(".betrachter, .bt-huelle, [class*=betrachter]").count() > 0)
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pg.click("[data-lbdateiweg='Muster.jpg']"); pg.click(".dialog [data-ja]"); pg.wait_for_timeout(500)
+    d = pg.evaluate("TEST.daten.lieferant_besuche.find(x => x.id === '" + bid + "').dateien")
+    pruefe("Bild gelöscht, PDF bleibt", len(d) == 1 and d[0]["name"] == "Angebot 2026.pdf")
+    pruefe("Fenster noch offen", pg.locator("#lk-fenster").count() == 1)
     # Dunkel
     pg.evaluate("document.body.classList.add('dunkel')")
     pg.locator("#lk-fenster").screenshot(path=os.path.join(HIER, "lieferant_kontakte_dunkel.png"))

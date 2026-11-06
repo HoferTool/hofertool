@@ -18,6 +18,14 @@
 //  quadratisch zugeschnitten, 512 Pixel, Ablage „zeichnungen“ unter
 //  lieferanten/<id>/profil/, Spalten foto_url und foto_pfad aus
 //  sql/lieferant-kontakt-foto.sql (eingespielt).
+//  PDFs und Bilder je Besuch (seit 1.433.0, Wunsch Patrick 6. November
+//  2026: „bei den Vertreterbesuchen auch PDF/Bilder ablegen für
+//  Angebote“): Knopf „PDF / Bild“ am Besuch, mehrere auf einmal, antippen
+//  öffnet im Betrachter, ✕ löscht nach einer Rückfrage, mit Rückgängig.
+//  Liste in lieferant_besuche.dateien [{name, url, pfad, typ}] aus
+//  sql/lieferant-besuch-dateien.sql (eingespielt), Dateien in der Ablage
+//  „zeichnungen“ unter lieferanten/<id>/besuche/<besuch>/; Löschen lässt
+//  die Datei liegen, damit Rückgängig geht.
 // =================================================================
 import { useEffect, useRef, useState } from "react";
 import { alt, useDaten } from "../../bruecke.jsx";
@@ -26,7 +34,7 @@ import { wiederOeffner } from "../../teile/wiederherstellen.js";
 import { Zeichen, Symbolknopf } from "./teile.jsx";
 
 const FEHLT_TEXT = "Kontakte und Besuche brauchen noch die Datei lieferant-kontakte.sql in Supabase.";
-const fehltTabelle = (f) => /lieferant_(kontakte|besuche)/.test(String((f && (f.message || f.details)) || f || ""))
+const fehltTabelle = (f) => /lieferant_(kontakte|besuche)|dateien/.test(String((f && (f.message || f.details)) || f || ""))
   && /(does not exist|schema cache|not find)/i.test(String((f && f.message) || f || ""));
 const fehlerText = (f) => (fehltTabelle(f) ? FEHLT_TEXT : alt.fehlertext(f));
 
@@ -206,8 +214,84 @@ function Besuch({ b, l, kontakte, darf, neu }) {
         </span>}
       </div>
       <div className="lk-notiz">{b.notiz}</div>
+      <BesuchDateien b={b} l={l} darf={darf} neu={neu} />
     </div>
   );
+}
+
+const istPdf = (d) => /pdf/i.test(d.typ || "") || /\.pdf$/i.test(d.name || d.pfad || "");
+
+function BesuchDateien({ b, l, darf, neu }) {
+  const dateien = Array.isArray(b.dateien) ? b.dateien : [];
+  const feld = useRef(null);
+  const [laedt, setLaedt] = useState(0);
+  const hochladen = async (liste) => {
+    const gute = liste.filter((d) => /^image\//.test(d.type) || /pdf/i.test(d.type) || /\.pdf$/i.test(d.name));
+    if (gute.length < liste.length) alt.meldung("Nur PDFs und Bilder gehen.", "warn");
+    if (!gute.length) return;
+    setLaedt(gute.length);
+    const neueDateien = [];
+    try {
+      for (const d of gute) {
+        const pdf = /pdf/i.test(d.type) || /\.pdf$/i.test(d.name);
+        const endung = pdf ? "pdf" : ((d.name.match(/\.([a-z0-9]{2,5})$/i) || [])[1] || "jpg").toLowerCase();
+        const pfad = "lieferanten/" + l.id + "/besuche/" + b.id + "/" + crypto.randomUUID() + "." + endung;
+        const up = await alt.db.storage.from("zeichnungen").upload(pfad, d,
+          { contentType: d.type || (pdf ? "application/pdf" : "image/jpeg"), upsert: false });
+        if (up.error) throw up.error;
+        neueDateien.push({ name: d.name || ("Datei." + endung), url: alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl,
+          pfad, typ: pdf ? "pdf" : "bild" });
+        setLaedt((n) => n - 1);
+      }
+    } catch (f) {
+      alt.meldung("Hochladen ging nicht: " + fehlerText(f), "fehler");
+    }
+    if (neueDateien.length) await dateienSetzen(b, dateien.concat(neueDateien),
+      neueDateien.length === 1 ? "Datei „" + neueDateien[0].name + "“" : neueDateien.length + " Dateien zum Besuch");
+    setLaedt(0); neu();
+  };
+  const weg = async (d) => {
+    const ok = await alt.nachfragen({ titel: "Datei löschen", text: "„" + d.name + "“ wird beim Besuch gelöscht.",
+      bestaetigen: "Löschen", gefahr: true });
+    if (!ok) return;
+    if (await dateienSetzen(b, dateien.filter((x) => x.pfad !== d.pfad), "Löschen von „" + d.name + "“")) {
+      alt.meldung("Gelöscht."); neu();
+    }
+  };
+  if (!dateien.length && !darf) return null;
+  return (
+    <div className="lk-dateien" data-lbdateien={b.id}>
+      {dateien.map((d) => (
+        <div key={d.pfad || d.url} className="lk-datei" data-lbdatei={d.name}>
+          <button className="lk-datei__knopf" title={d.name}
+            onClick={() => alt.betrachter(d.url, d.name, istPdf(d))}>
+            {istPdf(d)
+              ? <span className="lk-datei__pdf"><Zeichen name="pdf" groesse={26} /><small>PDF</small></span>
+              : <img src={d.url} alt={d.name} loading="lazy" />}
+            <span className="lk-datei__name">{d.name}</span>
+          </button>
+          {darf && <button className="lk-datei__weg" title="Löschen" aria-label={"„" + d.name + "“ löschen"}
+            data-lbdateiweg={d.name} onClick={() => weg(d)}>✕</button>}
+        </div>))}
+      {darf && <>
+        <button className="lk-datei lk-datei--neu" data-lbdateineu={b.id} disabled={laedt > 0}
+          onClick={() => feld.current && feld.current.click()}>
+          {laedt > 0 ? <span className="klein">Wird hochgeladen …</span>
+            : <><Zeichen name="plus" groesse={20} /><span className="klein">PDF / Bild</span></>}
+        </button>
+        <input ref={feld} type="file" accept="application/pdf,.pdf,image/*" multiple hidden data-ablegen="direkt"
+          onChange={(e) => { const l0 = Array.from(e.target.files || []); e.target.value = ""; if (l0.length) hochladen(l0); }} />
+      </>}
+    </div>
+  );
+}
+
+async function dateienSetzen(b, dateien, schritt) {
+  const vorher = await alt.rueckSichern("lieferant_besuche", { id: b.id });
+  const { error } = await alt.db.from("lieferant_besuche").update({ dateien }).eq("id", b.id);
+  if (error) { alt.meldung(fehlerText(error), "fehler"); return false; }
+  alt.merkeSchritt(schritt, alt.rueckRein("lieferant_besuche", vorher));
+  return true;
 }
 
 async function besuchDialog(l, b, kontakte, neu) {

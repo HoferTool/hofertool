@@ -11957,3 +11957,20 @@ body.dunkel .cam-vorlage__fehler { color: #ff8a80 !important; }
 
 /* Kontur: Pfeil am Anfang der Bahn zeigt die Fahrrichtung (seit 1.431.0) */
 .kt-richtung { fill: var(--gefahr); stroke: none; pointer-events: none; }
+
+/* PDFs und Bilder je Vertreterbesuch (1.433.0) */
+.lk-dateien { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.lk-datei { position: relative; width: 104px; }
+.lk-datei__knopf { width: 104px; padding: 0; border: 1px solid var(--linie); border-radius: 8px; overflow: hidden;
+  background: var(--flaeche); cursor: zoom-in; display: flex; flex-direction: column; text-align: left; color: inherit; }
+.lk-datei__knopf img { width: 100%; height: 72px; object-fit: cover; display: block; }
+.lk-datei__pdf { height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: #c62828; background: color-mix(in srgb, #c62828 8%, var(--flaeche)); }
+.lk-datei__pdf small { font-size: .7rem; font-weight: 700; }
+.lk-datei__name { display: block; padding: 3px 6px; font-size: .74rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lk-datei__weg { position: absolute; top: -7px; right: -7px; width: 22px; height: 22px; border-radius: 50%; padding: 0;
+  border: 1px solid var(--linie); background: var(--flaeche); color: var(--gefahr); font-size: .72rem; line-height: 1; cursor: pointer; }
+.lk-datei--neu { height: 96px; border: 1px dashed var(--linie-stark); border-radius: 8px; background: transparent; color: var(--marke);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
+.lk-datei--neu:hover { background: var(--marke-hell); }
+.lk-datei--neu:disabled { cursor: wait; }
