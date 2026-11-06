@@ -27,6 +27,17 @@ with sync_playwright() as p:
            and "SCHNEIDENRADIUS 0.200 EINGERECHNET" in c and "G1X" in c)
     pruefe("Stirn mit Radius eingerechnet beginnt bei X-0.400", "G0X-0.400Z-0.500" in c)
     pruefe("Durchmesser 10 genau", "G1Z" in c and "X10.000" in c)
+    # Rückwärts abfahren (seit 1.431.0)
+    vor = [z for z in c.split("\n") if z.startswith("G1") or z.startswith("G2") or z.startswith("G3")]
+    pg.check("#kt-rueck"); pg.wait_for_timeout(150)
+    cr = code()
+    zr = [z for z in cr.split("\n") if z.startswith("G")]
+    pruefe("Rückwärts: Vermerk und Pfeil", "RUECKWAERTS" in cr and pg.locator("[data-ktrichtung='rueck']").count() == 1)
+    pruefe("Rückwärts: endet an der Stirn mit Wegfahren in Z", zr[-1] == "G0Z-0.500" and "X-0.400" in zr[-2])
+    pruefe("Rückwärts: beginnt dort, wo vorwärts endet", zr[0].startswith("G0X") and "Z" in zr[0] and zr[1].startswith("G1X"))
+    pruefe("Rückwärts: gleich viele Bahnzeilen", len([z for z in zr if z[:2] in ("G1", "G2", "G3")]) == len(vor))
+    pg.uncheck("#kt-rueck"); pg.wait_for_timeout(150)
+    pruefe("Vorwärts wieder wie vorher", code() == c and pg.locator("[data-ktrichtung='vor']").count() == 1)
     if BILD: pg.screenshot(path=BILD + "/kontur-pc.png", full_page=True)
 
     # Freistiche in der Ecke Ø10 → Planfläche Ø16 der Vorgabe

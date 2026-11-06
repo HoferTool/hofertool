@@ -17,7 +17,7 @@ import Kontur3D from "./Kontur3D.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { schnittAusStep, konturAusSchnitt, elementeAusZug, modellUndKanten } from "./step.js";
 import Modell3D from "./Modell3D.jsx";
-import { konturRechnen, bahnRechnen, ncProgrammZeilen, bogenWinkel, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
+import { konturRechnen, bahnRechnen, ncProgrammZeilen, bogenWinkel, umkehren, startRichtung, SPITZEN, FREISTICHE, freistichMasse, istFreistich } from "./kontur.js";
 
 const VORGABE = {
   startX: "0", startZ: "0",
@@ -222,7 +222,12 @@ function KonturRechner({ imFenster }) {
   const seite = k.seite === "innen" ? -1 : 1;
   const spitze = SPITZEN.find((s) => s.id === k.spitze) || SPITZEN[8];
   const kontur = useMemo(() => konturRechnen(k), [k]);
-  const bahn = useMemo(() => bahnRechnen(kontur.segmente, rn, seite, spitze), [kontur, rn, seite, spitze]);
+  // Rückwärts: Bahn auf der umgekehrten Kontur, Material auf der anderen
+  // Seite der Fahrrichtung (seit 1.431.0)
+  const rueck = !!k.rueckwaerts;
+  const bahn = useMemo(() => (rueck
+    ? bahnRechnen(umkehren(kontur.segmente), rn, -seite, spitze)
+    : bahnRechnen(kontur.segmente, rn, seite, spitze)), [kontur, rn, seite, spitze, rueck]);
   const nc = useMemo(() => ncProgrammZeilen(k, kontur.fehler.length || bahn.fehler.length ? [] : bahn.bahn), [k, kontur, bahn]);
   const code = nc.zeilen.join("\n");
   // Gewählte Zeilen im Programm sichtbar halten, ohne die Seite zu rollen
@@ -366,6 +371,9 @@ function KonturRechner({ imFenster }) {
             <label className="schalter"><input type="checkbox" id="kt-tausch" checked={!!k.g2g3Tauschen}
               onChange={(e) => aendern({ g2g3Tauschen: e.target.checked })} />
               <span>G2 und G3 tauschen (Bogen im Uhrzeigersinn in der Grafik = {k.g2g3Tauschen ? "G3" : "G2"})</span></label>
+            <label className="schalter"><input type="checkbox" id="kt-rueck" checked={!!k.rueckwaerts}
+              onChange={(e) => aendern({ rueckwaerts: e.target.checked })} />
+              <span>Kontur rückwärts abfahren (vom letzten Element zum Startpunkt)</span></label>
           </section>
         </div>
 
@@ -944,6 +952,14 @@ function Grafik({ kontur, bahn, k, wahl, setWahl, zeichnen, punktSetzen, ende })
         ))}
         {bahn.mitte.length > 0 && Number(k.rn) > 0 && <path d={pfad(bahn.mitte)} className="kt-mitte" />}
         {bahn.bahn.length > 0 && <path d={pfad(bahn.bahn)} className="kt-bahn" />}
+        {bahn.bahn.length > 0 && (() => {
+          // Pfeil am Anfang der Bahn: zeigt, in welche Richtung gefahren wird
+          const g = bahn.bahn[0], d = startRichtung(g);
+          const x = Number(X(g.a)), y = Number(Y(g.a));
+          const w = Math.atan2(-d.r, d.z) * 180 / Math.PI;
+          return <path d="M0 0 L-13 -6 L-13 6 Z" className="kt-richtung" data-ktrichtung={k.rueckwaerts ? "rueck" : "vor"}
+            transform={`translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${w.toFixed(1)}) translate(24 0)`} />;
+        })()}
         {(() => {
           // Nummern nur, wo Platz ist: liegen sie zu dicht, fällt die
           // spätere weg (das gewählte Element steht immer da)

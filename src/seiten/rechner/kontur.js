@@ -35,6 +35,18 @@ function tangente(s, p) {
 }
 const tAnfang = (s) => tangente(s, s.a);
 const tEnde = (s) => tangente(s, s.b);
+export const startRichtung = (s) => tAnfang(s);
+
+// Kontur rückwärts (seit 1.431.0, Wunsch Patrick 6. November 2026: „die
+// Kontur auch rückwärts abfahren können“): dieselben Segmente in
+// umgekehrter Reihenfolge, Anfang und Ende getauscht, Bögen mit
+// umgekehrtem Drehsinn. Die Seite des Materials kehrt sich dabei zur
+// Fahrrichtung um, darum rechnet bahnRechnen dann mit -seite.
+export function umkehren(segmente) {
+  return segmente.slice().reverse().map((s) => (s.t === "A"
+    ? { ...s, a: s.b, b: s.a, ccw: !s.ccw }
+    : { ...s, a: s.b, b: s.a }));
+}
 
 // Überstrichener Winkel eines Bogens in Fahrrichtung (0 … 2π)
 export function bogenWinkel(s) {
@@ -372,9 +384,18 @@ export function ncProgrammZeilen(k, bahn) {
   zeilen.push(rn > 0
     ? `( SCHNEIDENRADIUS ${z3(rn)} EINGERECHNET, OHNE G41/G42 )`
     : `( OHNE SCHNEIDENRADIUS )`);
+  const rueck = !!k.rueckwaerts;
+  if (rueck) { zeilen.push(`( KONTUR RUECKWAERTS ABGEFAHREN )`); nrs.push(0); }
   const erst = bahn[0].a;
-  zeilen.push(`G0X${z3(erst.r * 2)}Z${z3(erst.z - ab)}`);
-  zeilen.push(`G1Z${z3(erst.z)}${f ? "F" + f : ""}`);
+  if (rueck) {
+    // Rückwärts beginnt die Bahn hinten: von aussen in X anfahren, am
+    // Schluss in Z nach vorne weg, also genau gespiegelt zu vorwärts
+    zeilen.push(`G0X${z3(erst.r * 2 + 2 * ab)}Z${z3(erst.z)}`);
+    zeilen.push(`G1X${z3(erst.r * 2)}${f ? "F" + f : ""}`);
+  } else {
+    zeilen.push(`G0X${z3(erst.r * 2)}Z${z3(erst.z - ab)}`);
+    zeilen.push(`G1Z${z3(erst.z)}${f ? "F" + f : ""}`);
+  }
   nrs.push(0, 0, 0, 0);
   // Vorschub je Element (seit 1.359.0, Wunsch Patrick 3. November 2026:
   // „Grundvorschub für alles, dann die einzelnen Elemente ändern“): leer
@@ -407,7 +428,7 @@ export function ncProgrammZeilen(k, bahn) {
     const pause = zahlVon(el(s.nr).pause);
     if (pause > 0 && (!naechste || naechste.nr !== s.nr)) { zeilen.push(`G4U${pause}`); nrs.push(s.nr || 0); }
   });
-  zeilen.push(`G0X${z3(p.r * 2 + 2 * ab)}`);
+  zeilen.push(rueck ? `G0Z${z3(p.z - ab)}` : `G0X${z3(p.r * 2 + 2 * ab)}`);
   nrs.push(0);
   return { zeilen, nrs };
 }
