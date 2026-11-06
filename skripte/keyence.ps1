@@ -187,6 +187,15 @@ function Durchlauf {
         try { $erste = [string](Get-Content -LiteralPath $_.FullName -TotalCount 1 -Encoding Default -ErrorAction Stop) } catch { }
         if ($erste.Length -gt 60) { $erste = $erste.Substring(0, 60) }
         $_.FullName.Substring($pfad.Length).TrimStart('\') + " | " + $_.LastWriteTime.ToString("dd.MM. HH:mm") + " | " + $erste })
+      # Inhalt der jüngsten Datei, die kein Teilbericht ist (Tagesdatei des Geräts),
+      # damit das Format bekannt ist
+      $probeDatei = $dateien | Sort-Object LastWriteTimeUtc -Descending | Where-Object {
+        try { -not ([string](Get-Content -LiteralPath $_.FullName -TotalCount 1 -Encoding Default -ErrorAction Stop)).StartsWith("Teilbericht") } catch { $false } } | Select-Object -First 1
+      if ($probeDatei) {
+        $status.probeDatei = $probeDatei.FullName
+        $status.probe = @(Get-Content -LiteralPath $probeDatei.FullName -TotalCount 12 -Encoding Default -ErrorAction SilentlyContinue | ForEach-Object {
+          $z = [string]$_; if ($z.Length -gt 1500) { $z.Substring(0, 1500) } else { $z } })
+      }
       $status.ordnerListe = @(Get-ChildItem -LiteralPath $pfad -Directory -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 25 | ForEach-Object {
           $_.Name + " | " + $_.LastWriteTime.ToString("dd.MM. HH:mm") + " | " + (@(Get-ChildItem -LiteralPath $_.FullName -File -ErrorAction SilentlyContinue | Group-Object Extension | ForEach-Object { $_.Name + ":" + $_.Count }) -join " ") })
