@@ -12,7 +12,9 @@
 //  Der Inhalt steht weiter in #rech-inhalt, damit Gestaltung und
 //  Prüfstand der Reiter unverändert gelten.
 // =================================================================
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fensterOeffnen } from "../teile/Fenster.jsx";
+import { inEigenesFenster } from "../teile/eigenesFenster.js";
 import { alt, useGemerkt } from "../bruecke.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
@@ -37,6 +39,37 @@ export function ncReiter() {
 
 const INHALT = { bohren: BohrenFraesen, entgraten: Entgraten, cachse: CAchse, gravur: Gravur, dxf: Dxf, kontur: Kontur, cam: HoferCam, rechner: Rechner };
 
+// Eigenes Fenster für jeden Reiter (seit 1.437.0, Wunsch Patrick
+// 6. November 2026: „alle der Module in NC-PRO sollen auch als eigenes
+// Fenster geöffnet werden können“). Wie die Kontur (Kontur.jsx, eigener
+// Knopf) zieht der ganze Reiter in ein eigenes Browserfenster; die Werte
+// liegen in den Reitern ausserhalb der Komponenten und bleiben darum
+// gleich. Im Reiter steht so lange nur „Zurückholen“, damit nicht zwei
+// Ansichten dasselbe ändern.
+const fenster = {};
+const fensterHoerer = new Set();
+const fensterMelden = () => fensterHoerer.forEach((f) => f());
+const mitMaus = () => !!(window.matchMedia && window.matchMedia("(pointer: fine)").matches);
+const reiterName = (art) => (REITER.find(([w]) => w === art) || [, art])[1];
+
+function fensterAuf(art) {
+  if (fenster[art]) return;
+  const Inhalt = INHALT[art];
+  const zu = fensterOeffnen((zu) => (
+    <div className="dialog kt-eigen nc-eigen" data-nceigen={art}>
+      <div className="karte__kopf kt-eigen__kopf"><b>NC-PRO · {reiterName(art)}</b>
+        <button className="knopf knopf--klein" data-nceigen-zu onClick={zu}>Zurück ins HoferTool</button></div>
+      <div id="rech-inhalt"><Inhalt /></div>
+    </div>
+  ), () => { delete fenster[art]; fensterMelden(); }, "kt-eigen-huelle nc-eigen-huelle");
+  const huellen = document.querySelectorAll(".nc-eigen-huelle");
+  const huelle = huellen[huellen.length - 1];
+  fenster[art] = zu;
+  fensterMelden();
+  if (!huelle || !inEigenesFenster(huelle, zu, { titel: "NC-PRO · " + reiterName(art) + " · Hofer Tool",
+    lage: { x: window.screenX + 60, y: window.screenY + 60 } })) zu();
+}
+
 const gemerkt = { ansicht: "kontur" };
 teilMerken("nc", () => ({ ...gemerkt }), (z) => { Object.assign(gemerkt, z); });
 
@@ -49,6 +82,12 @@ export function ncAnsicht(wert) {
 export default function NcFunktionen() {
   const [ansicht, setAnsicht] = useState(ncAnsicht());
   const [neu, setNeu] = useState(0);
+  const [, neuZeichnen] = useState(0);
+  useEffect(() => {
+    const f = () => neuZeichnen((n) => n + 1);
+    fensterHoerer.add(f);
+    return () => fensterHoerer.delete(f);
+  }, []);
   useGemerkt(gemerkt, { ansicht });
   useSeitenSuche({
     name: "NC-PRO", platzhalter: "Kontur, Bohren, Fräsen, Entgraten, C-Achse, Gravur, DXF, HOFERCAM, Drehzahl …",
@@ -76,11 +115,23 @@ export default function NcFunktionen() {
           <img className="ncpro-kopf__logo ncpro-kopf__logo--hell" src={import.meta.env.BASE_URL + "logo-empfang.png"} alt="Hofer + Co." />
           <img className="ncpro-kopf__logo ncpro-kopf__logo--dunkel" src={import.meta.env.BASE_URL + "logo-weiss.svg"} alt="Hofer + Co." />
         </div>
-        <div className="ncpro-kopf__rechts" id="ncpro-kopf-rechts" />
+        {/* Kontur hängt ihre Knöpfe selbst hier ein, die anderen Reiter bekommen den Knopf hier */}
+        {ansicht !== "kontur" && !fenster[ansicht] && mitMaus()
+          ? <div className="ncpro-kopf__rechts"><button className="knopf knopf--klein" id="nc-eigen" data-nceigen-auf={ansicht}
+              onClick={() => fensterAuf(ansicht)}
+              title="Diesen Reiter in einem eigenen Browserfenster öffnen, das man verschieben kann, auch auf einen anderen Bildschirm">
+              ⧉ Eigenes Fenster</button></div>
+          : <div className="ncpro-kopf__rechts" id="ncpro-kopf-rechts" />}
       </header>
       <Reiter reiter={ncReiter()} aktiv={ansicht} waehlen={setAnsicht} merkmal="rech" seite="nc" />
       <Uebergang key={ansicht + (ansicht === "rechner" ? neu : "")}>
-        <div id="rech-inhalt"><Inhalt /></div>
+        <div id="rech-inhalt">{fenster[ansicht]
+          ? <section className="karte kt-woanders" data-ncwoanders={ansicht}>
+              <h2>{reiterName(ansicht)}</h2>
+              <p>Dieser Reiter ist in einem eigenen Fenster offen.</p>
+              <button className="knopf" onClick={() => fenster[ansicht] && fenster[ansicht]()}>Zurückholen</button>
+            </section>
+          : <Inhalt />}</div>
       </Uebergang>
     </>
   );
