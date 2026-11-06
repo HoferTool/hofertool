@@ -42,7 +42,7 @@ with sync_playwright() as p:
            and not any(w in text for w in ["Allgemeine", "Gelaufen auf", "Artikelbezeichnung"]))
     pruefe("FA Nummern zu " + erste, "FA Nummern" in text)
     pg.locator("#hoco-bearb").click(); pg.wait_for_timeout(400)
-    pruefe("Bearbeiten öffnet das Fenster", "HOCO Nr. bearbeiten" in pg.inner_text(".dialog-huelle:last-child"))
+    pruefe("Bearbeiten öffnet das Fenster", "HOCO Nr. bearbeiten" in pg.inner_text(".dialog-huelle:nth-last-child(1 of .dialog-huelle)"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pruefe("Escape schliesst nur das Bearbeiten", pg.locator("#hoco-fensterinhalt").count() == 1)
     pg.locator("#hoco-zurueck").click(); pg.wait_for_timeout(600)
@@ -57,8 +57,8 @@ with sync_playwright() as p:
     # Neu anlegen, dann mit doppelter Rückfrage löschen. Eine Nummer,
     # die auf der Planwand steht, käme beim Neuladen gleich wieder.
     pg.locator("#hoco-neu").click(); pg.wait_for_timeout(400)
-    pg.locator(".dialog-huelle:last-child input").first.fill("10990-0001")
-    pg.locator(".dialog-huelle:last-child [data-ja]").click(); pg.wait_for_timeout(900)
+    pg.locator(".dialog-huelle:nth-last-child(1 of .dialog-huelle) input").first.fill("10990-0001")
+    pg.locator(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]").click(); pg.wait_for_timeout(900)
     pruefe("angelegt", pg.evaluate("TEST.daten.hoco_parts.some(h => h.hoco_nr === '10990-0001')"))
     pg.fill("#hoco-such", "10990"); pg.wait_for_timeout(400)
     pg.locator("[data-hoco-weg='10990-0001']").click(); pg.wait_for_timeout(300)

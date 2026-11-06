@@ -62,7 +62,9 @@ with sync_playwright() as p:
     k = pg.locator("[data-padfeld='notizen']")
     pruefe(k.count() == 1, "Kachel Notizbücher da")
     pruefe(pg.locator(".pad-karte2--verzug").count() == 0, "Vorsprung weg")
-    pruefe("Werkstatt" in k.inner_text() and "Büro" not in k.inner_text(), "Kachel zeigt nur Buch des Parks: " + k.inner_text().replace("\n", " | "))
+    # Seit 1.444.1 wie ein App-Symbol ohne Buchnamen; welche Bücher kommen,
+    # prüft die Liste nach dem Öffnen
+    pruefe("Notizbücher" in k.inner_text() and "pad-karte2--notizleer" not in (k.get_attribute("class") or ""), "Kachel als App-Symbol mit Büchern: " + k.inner_text().replace("\n", " | "))
     pg.screenshot(path=os.path.join(BILD, "pad-notizbuch-kachel.png"))
     k.click(); pg.wait_for_timeout(1200)
     pruefe(pg.locator(".dialog.nb").count() == 1, "Notizbücher öffnen")
@@ -83,7 +85,7 @@ with sync_playwright() as p:
     br, pg, f2 = start(p)
     zumPad(pg, "Kurz")
     k = pg.locator("[data-padfeld='notizen']")
-    pruefe(k.count() == 1 and "Keine Notizen" in k.inner_text(), "ohne Zuweisung: Keine Notizen")
+    pruefe(k.count() == 1 and "pad-karte2--notizleer" in (k.get_attribute("class") or ""), "ohne Zuweisung: Kachel leer")
     k.click(); pg.wait_for_timeout(600)
     pruefe(pg.locator(".dialog.nb").count() == 0, "ohne Zuweisung öffnet nichts")
     pg.screenshot(path=os.path.join(BILD, "pad-notizbuch-leer.png"))

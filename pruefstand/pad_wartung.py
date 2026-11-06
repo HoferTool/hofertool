@@ -51,8 +51,8 @@ with sync_playwright() as p:
     # Ablegen ohne Termin
     pg.locator(".pad-karte2--wartung").click(); pg.wait_for_selector("#wartung")
     pg.set_input_files("#wartung-datei", files=[{"name": "Filter wechseln.png", "mimeType": "image/png", "buffer": PNG}])
-    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(800)
+    pg.wait_for_selector(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(300)
+    pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(800)
     zeilen = pg.evaluate("TEST.daten.wartung_plan || []")
     pruefe("eine Wartung je Typ gespeichert", len(zeilen) == 1 and zeilen[0]["titel"] == "Filter wechseln"
            and zeilen[0]["art"] == "bild" and not zeilen[0].get("termin") and zeilen[0]["type_id"] == "t1")
@@ -64,10 +64,10 @@ with sync_playwright() as p:
     # Terminieren: eine Minute in der Vergangenheit
     pg.locator("[data-wartung-termin]").first.click(); pg.wait_for_timeout(400)
     pg.evaluate("""() => { const d = new Date(Date.now() - 60000), z = (n) => String(n).padStart(2, '0');
-      const el = document.querySelector('.dialog-huelle:last-child input[type=datetime-local]');
+      const el = document.querySelector('.dialog-huelle:nth-last-child(1 of .dialog-huelle) input[type=datetime-local]');
       el.value = d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+'T'+z(d.getHours())+':'+z(d.getMinutes());
-      const s = [...document.querySelectorAll('.dialog-huelle:last-child select')].find(x => [...x.options].some(o => o.value === 'woche')); s.value = 'woche'; s.dispatchEvent(new Event('change', {bubbles: true})); }""")
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(800)
+      const s = [...document.querySelectorAll('.dialog-huelle:nth-last-child(1 of .dialog-huelle) select')].find(x => [...x.options].some(o => o.value === 'woche')); s.value = 'woche'; s.dispatchEvent(new Event('change', {bubbles: true})); }""")
+    pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(800)
     pruefe("Termin mit Wiederholung gesetzt", bool(pg.evaluate("TEST.daten.wartung_plan[0].termin"))
            and pg.evaluate("TEST.daten.wartung_plan[0].wiederholung") == "woche")
     pruefe("nächster Termin in einer Woche angezeigt", "Jede Woche" in pg.locator("#wartung").inner_text()
@@ -161,12 +161,12 @@ with sync_playwright() as p:
     pruefe("Reiter Vorlagen zuerst offen", pg.locator("#wartung-vorlagen").count() == 1
            and pg.locator("#wartung-vorlagen [data-vorlage-gruppe]").count() == 3)
     pg.set_input_files("#vorlage-datei", files=[{"name": "Langdreher Öl.png", "mimeType": "image/png", "buffer": PNG}])
-    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    pg.wait_for_selector(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(300)
+    pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(900)
     pg.click("#wartung-vorlagen [data-vorlage-gruppe='kurzdreher']"); pg.wait_for_timeout(300)
     pg.set_input_files("#vorlage-datei", files=[{"name": "Kurzdreher Filter.png", "mimeType": "image/png", "buffer": PNG}])
-    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    pg.wait_for_selector(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(300)
+    pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(900)
     vl = pg.evaluate("TEST.daten.wartung_vorlagen || []")
     print("Vorlagen:", [(v["titel"], v["gruppe"]) for v in vl])
     pruefe("zwei Vorlagen in ihrer Gruppe", len(vl) == 2 and {v["gruppe"] for v in vl} == {"langdreher", "kurzdreher"})
@@ -179,15 +179,15 @@ with sync_playwright() as p:
     pruefe("Fällig an: andere Maschinen", "Fällig an" in pg.locator(".es-wartung [data-wartung]").inner_text()
            and pg.evaluate("(mid) => { const m = TEST.daten.machines.find(x => x.id === mid); return m.machine_number || m.name; }", mid) not in pg.locator(".es-wartung [data-faellig-an]").inner_text())
     # 1.346.0: Backup-Batterien für den ganzen Typ auf einmal
-    pg.click(".es-wartung [data-batterie-alle]"); pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
-    pg.locator(".dialog-huelle:last-child input[type=date]").first.fill("2028-08-01")
-    pg.evaluate("""() => { const d = document.querySelector('.dialog-huelle:last-child');
+    pg.click(".es-wartung [data-batterie-alle]"); pg.wait_for_selector(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(300)
+    pg.locator(".dialog-huelle:nth-last-child(1 of .dialog-huelle) input[type=date]").first.fill("2028-08-01")
+    pg.evaluate("""() => { const d = document.querySelector('.dialog-huelle:nth-last-child(1 of .dialog-huelle)');
       const s = [...d.querySelectorAll('select')].find(x => [...x.options].some(o => o.value.startsWith('Mono D')));
       s.value = [...s.options].find(o => o.value.startsWith('Mono D')).value; s.dispatchEvent(new Event('change', {bubbles: true}));
       const n = [...d.querySelectorAll('input')].find(x => x.placeholder === 'z. B. 3');
       n.value = '3'; n.dispatchEvent(new Event('input', {bubbles: true})); }""")
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-batt-alle-dialog.png"))
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(1500)
+    pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(1500)
     alle = pg.evaluate("""() => { const ids = TEST.daten.machines.filter(m => m.type_id === 't1').map(m => m.id);
       return ids.map(id => (TEST.daten.maschinen_info || []).find(i => i.machine_id === id) || {}); }""")
     print("Batterien:", [(i.get("batterie_faellig"), i.get("batterie_anzahl")) for i in alle])
@@ -206,9 +206,9 @@ with sync_playwright() as p:
     pruefe("Maschine gewählt, Typ-Wartung steht dort mit Schild", pg.locator(".es-wartung [data-wartung]").count() == 1
            and pg.locator(".es-wartung [data-wartung-ziel='typ']").count() == 1)
     pg.set_input_files("#wartung-datei", files=[{"name": "Nur hier.png", "mimeType": "image/png", "buffer": PNG}])
-    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
-    pruefe("Vorgabe Gilt für: nur diese Maschine", pg.evaluate("(a) => [...document.querySelectorAll('.dialog-huelle:last-child select')].some(s => s.value === 'maschine:' + a)", andere))
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    pg.wait_for_selector(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(300)
+    pruefe("Vorgabe Gilt für: nur diese Maschine", pg.evaluate("(a) => [...document.querySelectorAll('.dialog-huelle:nth-last-child(1 of .dialog-huelle) select')].some(s => s.value === 'maschine:' + a)", andere))
+    pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(900)
     neu = pg.evaluate("TEST.daten.wartung_plan.find(p => p.titel === 'Nur hier')")
     pruefe("Wartung nur für die Maschine", neu and neu.get("machine_id") == andere and not neu.get("type_id"))
     pruefe("steht in der Liste der Maschine", pg.locator(".es-wartung [data-wartung]").count() == 2)
@@ -219,10 +219,10 @@ with sync_playwright() as p:
     pruefe("Auswahl öffnet bei Langdreher", pg.locator("#wartung-wahl [data-vorlage-gruppe='langdreher'][aria-selected=true]").count() == 1)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-vorhanden.png"))
     pg.click("#wartung-wahl [data-vorlage-gruppe='bisher']"); pg.wait_for_timeout(300)
-    pg.locator(".dialog-huelle:last-child button").filter(has_text=typplan["titel"]).first.click(); pg.wait_for_timeout(500)
-    pg.evaluate("() => { const f = document.querySelector('.dialog-huelle:last-child input[name=titel], .dialog-huelle:last-child input'); f.focus(); }")
-    pg.locator(".dialog-huelle:last-child input").first.fill("Typ-Wartung hier")
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    pg.locator(".dialog-huelle:nth-last-child(1 of .dialog-huelle) button").filter(has_text=typplan["titel"]).first.click(); pg.wait_for_timeout(500)
+    pg.evaluate("() => { const f = document.querySelector('.dialog-huelle:nth-last-child(1 of .dialog-huelle) input[name=titel], .dialog-huelle:nth-last-child(1 of .dialog-huelle) input'); f.focus(); }")
+    pg.locator(".dialog-huelle:nth-last-child(1 of .dialog-huelle) input").first.fill("Typ-Wartung hier")
+    pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(900)
     neu = pg.evaluate("TEST.daten.wartung_plan.find(p => p.titel === 'Typ-Wartung hier')")
     pruefe("Vorhandene zugeteilt, gleiche Datei", neu and neu.get("machine_id") == andere and neu.get("url") == typplan["url"]
            and pg.evaluate("TEST.daten.wartung_plan.length") == vorher + 1)
@@ -234,8 +234,8 @@ with sync_playwright() as p:
     park = pg.evaluate("(mid) => TEST.daten.machines.find(m => m.id === mid).park_id", mid)
     pg.click(f"[data-wartung-wahl='{park}']"); pg.wait_for_timeout(800)
     pg.set_input_files("#wartung-datei", files=[{"name": "Halle putzen.png", "mimeType": "image/png", "buffer": PNG}])
-    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    pg.wait_for_selector(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(300)
+    pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(900)
     neu = pg.evaluate("TEST.daten.wartung_plan.find(p => p.titel === 'Halle putzen')")
     pruefe("Wartung für den ganzen Park", neu and neu.get("park_id") == park and not neu.get("type_id"))
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-park.png"))
@@ -257,12 +257,12 @@ with sync_playwright() as p:
     pruefe("Schild Gilt für je Zeile", pg.locator("#wartung [data-wartung-ziel='park']").count() == 1
            and pg.locator("#wartung [data-wartung-ziel='typ']").count() == 1)
     pg.set_input_files("#wartung-datei", files=[{"name": "Spindel.png", "mimeType": "image/png", "buffer": PNG}])
-    pg.wait_for_selector(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(300)
-    pg.evaluate("""(mid) => { const s = [...document.querySelectorAll('.dialog-huelle:last-child select')]
+    pg.wait_for_selector(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(300)
+    pg.evaluate("""(mid) => { const s = [...document.querySelectorAll('.dialog-huelle:nth-last-child(1 of .dialog-huelle) select')]
       .find(x => [...x.options].some(o => o.value === 'maschine:' + mid));
       s.value = 'maschine:' + mid; s.dispatchEvent(new Event('change', {bubbles: true})); }""", mid)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-dialog.png"))
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(900)
     neu = pg.evaluate("TEST.daten.wartung_plan.find(p => p.titel === 'Spindel')")
     pruefe("im Pad: nur diese Maschine gewählt", neu and neu.get("machine_id") == mid and not neu.get("type_id"))
     pruefe("steht im Pad mit Schild", pg.locator("#wartung [data-wartung-ziel='maschine']").count() == 1)
@@ -274,10 +274,10 @@ with sync_playwright() as p:
            and pg.locator("#wartung-wahl [data-vorlage]").count() == 1)
     if len(sys.argv) > 1: pg.screenshot(path=os.path.join(AB, "wartung-vorlage-wahl.png"))
     pg.locator("#wartung-wahl [data-vorlage]").first.click(); pg.wait_for_timeout(500)
-    pg.evaluate("""(pk) => { const s = [...document.querySelectorAll('.dialog-huelle:last-child select')]
+    pg.evaluate("""(pk) => { const s = [...document.querySelectorAll('.dialog-huelle:nth-last-child(1 of .dialog-huelle) select')]
       .find(x => [...x.options].some(o => o.value === 'park:' + pk));
       s.value = 'park:' + pk; s.dispatchEvent(new Event('change', {bubbles: true})); }""", park)
-    pg.click(".dialog-huelle:last-child [data-ja]"); pg.wait_for_timeout(900)
+    pg.click(".dialog-huelle:nth-last-child(1 of .dialog-huelle) [data-ja]"); pg.wait_for_timeout(900)
     v = pg.evaluate("TEST.daten.wartung_vorlagen.find(x => x.gruppe === 'langdreher')")
     neu = pg.evaluate("TEST.daten.wartung_plan.find(p => p.titel === 'Langdreher Öl')")
     pruefe("Vorlage dem Park zugeteilt, gleiche Datei", neu and neu.get("park_id") == park and neu.get("url") == v["url"]
