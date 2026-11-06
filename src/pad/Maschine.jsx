@@ -443,16 +443,14 @@ function Notizen({ m }) {
   }, [m.park_id]);
   const da = !!(buecher && buecher.length);
   return (
-    <div className={"pad-karte2 pad-karte2--notiz" + (da ? "" : " pad-karte2--notizleer")} data-padfeld="notizen"
+    <div className={"pad-karte2 pad-app pad-karte2--notiz" + (da ? "" : " pad-karte2--notizleer")} data-padfeld="notizen"
       onClick={da ? () => notizbuecherFuerPark(m.park_id, undefined,
         { machine_number: m.machine_number, name: m.name }) : undefined}>
-      <span className="pad-name">Notizbücher{da ? " · antippen" : ""}</span>
-      <span className="pad-wert pad-nbuch">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d={BUCH} /></svg>
-        {buecher === null ? <Leer>…</Leer>
-          : (da ? <span className="pad-nbuch__namen">{buecher.map((b) => b.name).join(" · ")}</span>
-            : <Leer>Keine Notizen</Leer>)}
-      </span>
+      {/* Wie ein App-Symbol: Bild gross, Zahl oben links, Name darunter
+          (Wunsch Patrick 6. November 2026, seit 1.444.1) */}
+      {da && <span className="pad-app__zahl">{buecher.length}</span>}
+      <svg className="pad-app__bild" viewBox="0 0 24 24" aria-hidden="true"><path d={BUCH} /></svg>
+      <span className="pad-app__name">Notizbücher</span>
     </div>
   );
 }
@@ -461,6 +459,9 @@ function Notizen({ m }) {
 // (Wunsch Patrick 6. November 2026: „mit Platzteilen von Notizen …
 // wenn da, alle mit der gleichen HOCO Nr. anzeigen, sonst wie Prod
 // Fenster zum Anwählen“). Nicht für Externe.
+// Symbol für die Messberichte: Lupe mit Fadenkreuz wie am Bildmessgerät
+const MESSEN = "M16 10a6 6 0 1 1-12 0a6 6 0 1 1 12 0M14.5 14.5L20.5 20.5M10 7v6M7 10h6";
+
 function Keyence({ j }) {
   const hoco = j ? j.job_number : "";
   const [zahl, setZahl] = useState(null);
@@ -473,14 +474,11 @@ function Keyence({ j }) {
   }, [hoco]);
   const da = !!zahl;
   return (
-    <div className={"pad-karte2 pad-karte2--keyence" + (da ? "" : " pad-karte2--keyenceleer")} data-padfeld="keyence"
+    <div className={"pad-karte2 pad-app pad-karte2--keyence" + (da ? "" : " pad-karte2--keyenceleer")} data-padfeld="keyence"
       onClick={() => (da ? keyenceOeffnen(hoco) : keyenceOeffnen())}>
-      <span className="pad-name">Keyence</span>
-      <span className="pad-wert pad-keyence__wert">
-        {zahl === null ? <Leer>…</Leer>
-          : da ? <>{zahl} <small>{zahl === 1 ? "Bericht" : "Berichte"}</small></>
-          : <Leer>keine zu {hoco || "diesem Auftrag"}</Leer>}
-      </span>
+      {da && <span className="pad-app__zahl">{zahl}</span>}
+      <svg className="pad-app__bild" viewBox="0 0 24 24" aria-hidden="true"><path d={MESSEN} /></svg>
+      <span className="pad-app__name">Keyence</span>
     </div>
   );
 }

@@ -12017,3 +12017,13 @@ body.dunkel .mess-schild--schlecht { background: #5a1f1f; }
 .mess__zeile--gut td { background: rgba(40, 170, 80, .16) !important; }
 body.dunkel .mess__zeile--schlecht td { background: rgba(220, 50, 50, .35) !important; color: #ffd6d6 !important; }
 body.dunkel .mess__zeile--gut td { background: rgba(40, 170, 80, .22) !important; }
+
+/* Notizbücher und Keyence im Pad wie App-Symbole: Bild gross, Zahl oben
+   links als Abzeichen, Name darunter (seit 1.444.1, Wunsch Patrick) */
+.pad-geteilt > .pad-app { position: relative; align-items: center; justify-content: center; gap: 6px; padding: 10px 6px; }
+.pad-app__bild { width: 52%; max-width: 72px; height: auto; aspect-ratio: 1; fill: none; stroke: currentColor;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.pad-app__name { font-size: .78rem; font-weight: 600; letter-spacing: .02em; opacity: .9; text-align: center; }
+.pad-app__zahl { position: absolute; top: 8px; left: 8px; min-width: 1.7em; height: 1.7em; padding: 0 .45em;
+  border-radius: 999px; background: #e5383b; color: #fff !important; font-weight: 700; font-size: .95rem;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
