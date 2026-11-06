@@ -7,6 +7,8 @@
 //  in beiden Kanälen. Die Bearbeitungen dazwischen kommen später.
 // =================================================================
 
+import { typ, vorlageArt, vorlageFuellen } from "./camTyp.js";
+
 // Synchronisationsmarken der SB-20RG (Patrick 5. November 2026): M200
 // bis M999, dazu M20, M40, M41, M82, M83. Vierstellige wie M1881 / M1891
 // (Hochdruck ein / aus) sind keine.
@@ -67,9 +69,8 @@ function heute() {
 
 // Vorgaben aus O0458 / O1458
 export function vorgabe() {
-  return { nr: "1", hoco: "", datum: heute(), kuerzel: "",
-    A: "17", W: "15.125", S: "3000", X: "-0.8", Z: "167.85", F: "0.03", B: "1.5",
-    schlicht: "-0.1", plan: "0.20", annaehern: "10", ueber: "4", bloecke: [] };
+  // Seit 1.441.0 je Maschinentyp änderbar (camTyp.js)
+  return { nr: "1", hoco: "", datum: heute(), kuerzel: "", ...typ().vorgaben, bloecke: [] };
 }
 
 // Fehler je Feld (Text) oder leer
@@ -90,151 +91,28 @@ const nr4 = (n) => String(n).padStart(4, "0");
 const v = (w, n) => zahl(w[n]) ?? String(w[n] ?? "");
 const ohneMinus = (t) => String(t).replace(/^-/, "").replace(/\.$/, "");
 
-// Kanal 1: Kopf bis „(Ende Kopf)“, Ende ab „(Start Ende)“
-function kanal1(w) {
+// Seit 1.441.0 stehen Kopf und Ende als Vorlage in camTyp.js und sind je
+// Maschinentyp änderbar; die Vorgabe gibt genau das alte Programm aus
+function kopfWerte(w) {
   const nr = Number(w.nr) || 0;
-  const kopfName = w.hoco ? "(" + w.hoco + ")" : "";
-  const g170 = "G170(" + [w.datum, w.kuerzel].map((t) => String(t || "").trim()).filter(Boolean).join(" ") + ")";
-  const kopf = [
-    "%",
-    "O" + nr4(nr) + kopfName,
-    "G40G97M9G18",
-    g170,
-    "(GRUNDVARIABLEN DEFINIEREN)",
-    "G266A" + v(w, "A") + "W" + v(w, "W") + "S" + String(w.S).trim() + "X" + v(w, "X") + "Z" + v(w, "Z") + "F" + v(w, "F") + "B" + v(w, "B"),
-    "(A = #531 = MATERIALDURCHMESSER)",
-    "(W = #530 = TEILELAENGE)",
-    "(S = #529 = ABSTECHDREHZAHL)",
-    "(X = #524 = ABSTECHENDPOSITION)",
-    "(Z = #525 = Z-ACHSE STARTPOSITION 200MM.MAX)",
-    "(F = #522 = VORSCHUB ABSTECHEN)",
-    "(B = #528 = BREITE DES ABSTECHSTAHLS)",
-    "#510=[#531+1.](#510 = WEG-/ANFAHRPOSITION)",
-    "G300",
-    "G125",
-    "N1",
-    "G18",
-    "G170",
-    "G40G97M9",
-    "G99M3S500",
-    "M11",
-    "G4U0.1",
-    "G125",
-    "G0Z" + v(w, "schlicht") + "T0(SCHLICHTZUGABE)",
-    "M10",
-    "G4U0.1",
-    "G1W-0.2F0.5",
-    "M5",
-    "N12",
-    "M200",
-    "M20",
-    "M25",
-    "M3S1000",
-    "G0X[#531+4.]Z-12.",
-    "M27",
-    "M1",
-    "(Ende Kopf)",
-  ];
-  const ende = [
-    "(Start Ende)",
-    "T100(ABSTECHEN)",
-    "M25",
-    "M1891(HD AUS)",
-    "M1882D5",
-    "N100",
-    "M800",
-    "G97M3S#529",
-    "G00G99X#510Z[#530+#528]T1",
-    "G0W" + v(w, "plan") + "(ZUGABE PLANDREHEN HINTEN)",
-    "M82",
-    "M40",
-    "G96",
-    "G50S4000",
-    "M3S80",
-    "G1X#524F#522",
-    "M1894",
-    "M1892",
-    "M41",
-    "G4",
-    "M83",
-    "M3S500",
-    "M80(CONTROLLIERT STANGENENDE SIGNAL VOM LADER)",
-    "/M98P7000",
-    "M81(ENDE M80)",
-    "M99P1(GEHEN AUF PROGRAMMANFANG POS N1)",
-    "%",
-  ];
-  return { kopf, ende };
-}
-
-function kanal2(w) {
-  const nr = (Number(w.nr) || 0) + 1000;
-  const kopfName = w.hoco ? "(" + w.hoco + ")" : "";
-  const kopf = [
-    "%",
-    "O" + nr4(nr) + kopfName,
-    "G130",
-    "G97G99G40",
-    "G18",
-    "M5",
-    "G28W0",
-    "T0",
-    "T2000",
-    "M200",
-    "M20",
-    "M5(SPINDEL STOP)",
-    "(Ende Kopf)",
-  ];
-  // Seit 1.419.1 (Wunsch Patrick 5. November 2026): Annähern positiv
-  // eingeben, im Programm immer mit Minus (auch alte Werte mit Minus)
   const an = "-" + String(v(w, "annaehern")).replace(/^[-+]/, ""), ue = v(w, "ueber");
-  const ende = [
-    "(Start Ende)",
-    "M75",
-    "/T2900(AUSWERFEN)",
-    "/M84",
-    "/M4S200",
-    "/G0Z38.",
-    "/G4U1.",
-    "/M11",
-    "/G4U2.",
-    "/G28W0.",
-    "M1884D2",
-    "M76",
-    "T0",
-    "M1",
-    "T2000(ABGREIFEN)",
-    "M11",
-    "M14",
-    "M5",
-    "G900J50",
-    "T2000",
-    "M800",
-    "M1894",
-    "M1883D3(HD EIN)",
-    "M82",
-    "G131B0.",
-    "M15",
-    "G0Z" + an + "(EILGANG " + ohneMinus(an) + "MM VOR STUCK)",
-    "M68",
-    "G1G98Z" + ue + "F5000.(" + ohneMinus(ue) + "MM UBER DEM STUCK)",
-    "M69",
-    "M1893(HD AUS)",
-    "M10",
-    "G4U0.1",
-    "G31",
-    "M40",
-    "M41",
-    "M83",
-    "M68",
-    "M69",
-    "G28W0",
-    "G0T0",
-    "G99",
-    "M99",
-    "%",
-  ];
-  return { kopf, ende };
+  const datum = String(w.datum || "").trim(), kuerzel = String(w.kuerzel || "").trim();
+  return {
+    NR: nr4(nr), NR2: nr4(nr + 1000), NAME: w.hoco ? "(" + w.hoco + ")" : "", HOCO: String(w.hoco || ""),
+    DATUM_KUERZEL: [datum, kuerzel].filter(Boolean).join(" "), DATUM: datum, KUERZEL: kuerzel,
+    A: v(w, "A"), W: v(w, "W"), S: String(w.S ?? "").trim(), X: v(w, "X"), Z: v(w, "Z"), F: v(w, "F"), B: v(w, "B"),
+    SCHLICHT: v(w, "schlicht"), PLAN: v(w, "plan"),
+    // Seit 1.419.1: Annähern positiv eingeben, im Programm immer mit Minus
+    ANNAEHERN: an, ANNAEHERN_MM: ohneMinus(an), UEBER: ue, UEBER_MM: ohneMinus(ue),
+  };
+}
+function kanal1(w) {
+  const t = typ().vorlagen, werte = kopfWerte(w);
+  return { kopf: vorlageFuellen(t.k1kopf, { werte }), ende: vorlageFuellen(t.k1ende, { werte }) };
+}
+function kanal2(w) {
+  const t = typ().vorlagen, werte = kopfWerte(w);
+  return { kopf: vorlageFuellen(t.k2kopf, { werte }), ende: vorlageFuellen(t.k2ende, { werte }) };
 }
 
 // ---------- Bearbeitungen ----------
@@ -244,58 +122,40 @@ function kanal2(w) {
 // der NC-Code aus den Werkzeugen von NC-PRO. Ende: Wegfahren auf
 // Rohmaterial + 0.2 mm (Winkel und Vorschub einstellbar, X30. fest),
 // Hochdruck aus, Korrektur aus, M1.
-export const DREH_PLAETZE = ["100", "200", "300", "400", "500", "600"];
+
+// Seit 1.441.0 je Maschinentyp änderbar (camTyp.js)
+export const plaetzeVon = (gruppe) => typ().plaetze[gruppe] || [];
 export const HD_STUFEN = ["", "1", "2", "3", "4", "5", "6"];
 
 // Seit 1.400.0: feste Frontwerkzeuge T1100–T1400 (Patricks Beispiel
 // T1400 Bohren D6.8, 5. November 2026). Wahl Haupt- oder Gegenspindel;
 // seit 1.405.0 mit Gegenspindel: Kanal 1 nur Kopf und Ende ohne
 // Verfahrwege und eine Wartemarke, Kanal 2 mit T2000 macht die Wege.
-export const FRONT_PLAETZE = ["1100", "1200", "1300", "1400"];
+
 // Seit 1.415.0: angetriebene Querwerkzeuge T3421–T3423 an der
 // Gegenspindel (Patricks O0458 / O1458, 5. November 2026): Kanal 1
 // positioniert X, Kanal 2 schaltet das Werkzeug mit M37 / M38 ein und
 // macht mit T2000 den Weg in Z
-export const QUER_PLAETZE = ["3421", "3422", "3423"];
+
 // Seit 1.418.0: quer angetriebene T3100–T3400, nur Hauptspindel, nach
 // Patricks T3100 aus O0458 (5. November 2026)
-export const SEITE_PLAETZE = ["3100", "3200", "3300", "3400"];
+
 // Seit 1.420.0: Drehwerkzeuge Kanal 2 nach Patricks T2100-Beispiel
 // (5. November 2026); seit 1.423.0 T2100–T2400 gleich gebaut (Patrick:
 // „kannst du identisch bauen“)
-export const K2_PLAETZE = ["2100", "2200", "2300", "2400"];
+
 
 const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 export function neuerBlock(bloecke = [], art = "dreh") {
   const belegt = new Set(bloecke.map((b) => b.platz));
-  if (art === "k2a") {
-    const platz = K2_PLAETZE.find((p) => !belegt.has(p)) || "2100";
-    return { id: neueId(), art: "k2a", platz, bez: "", hd: "", dreh: "37", S: "6000", vor: "98", code: "" };
-  }
-  if (art === "k2") {
-    const platz = K2_PLAETZE.find((p) => !belegt.has(p)) || "2100";
-    return { id: neueId(), art: "k2", platz, bez: "", hd: "3", dreh: "4", S: "2500",
-      vorX: "-45.4", vorZ: "61.40", nX: "-10", nZ: "-0.5", code: "" };
-  }
-  if (art === "seite") {
-    const platz = SEITE_PLAETZE.find((p) => !belegt.has(p)) || "3100";
-    return { id: neueId(), art: "seite", platz, bez: "", hd: "3", dreh: "36", S: "6000", anZ: "0", code: "" };
-  }
-  if (art === "quer") {
-    const platz = QUER_PLAETZE.find((p) => !belegt.has(p)) || "3421";
-    // Seit 1.417.0 wie T1100–T1400 zuerst an der Hauptspindel
-    return { id: neueId(), art: "quer", spindel: "haupt", platz, bez: "", hd: "3", dreh: "36", S: "6000",
-      X: "", anZ: "5.0", wegZ: "0", code: "" };
-  }
-  if (art === "front") {
-    const platz = FRONT_PLAETZE.find((p) => !belegt.has(p)) || "1100";
-    return { id: neueId(), art: "front", spindel: "haupt", platz, bez: "", hd: "4", dreh: "3",
-      S: "2500", anZ: "5.0", wegZ: "0", code: "" };
-  }
-  const platz = DREH_PLAETZE.find((p) => !belegt.has(p)) || "100";
-  return { id: neueId(), art: "dreh",
-    platz, bez: "", hd: "4", dreh: "3", S: "3000", anZ: "0", wegF: "0.05", wegA: "45", code: "" };
+  const gruppe = art === "k2a" ? "k2" : art;
+  const l = plaetzeVon(gruppe);
+  const platz = l.find((p) => !belegt.has(p)) || l[0] || "";
+  const nb = { id: neueId(), art, platz, bez: "", ...(typ().bloecke[art] || {}), code: "" };
+  // Front- und frontangetriebene Werkzeuge zuerst an der Hauptspindel (1.417.0)
+  if (art === "front" || art === "quer") nb.spindel = "haupt";
+  return nb;
 }
 
 // Seit 1.401.0 (Wunsch Patrick 5. November 2026: „generell und optional
@@ -391,151 +251,50 @@ export function markeNorm(t) {
 export const vorschubArt = (b) => (b.vor === "98" || b.vor === "99" ? b.vor : anGegenspindel(b) ? "98" : "99");
 const vorZeile = (b) => "G" + vorschubArt(b);
 
-export function blockZeilen(b, w = {}, marke) {
-  // Kanal 2 allein: Kanal 1 bekommt nur die Markenpaare aus dem NC-Code
-  // mit dem eigenen Code dazwischen
-  if (b.art === "k2" || b.art === "k2a") return markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]);
-  const S = drehzahl(b, w) ?? String(b.S).trim();
-  // Seit 1.403.0 (Wunsch Patrick 5. November 2026): G96 im Kopf der
-  // Bearbeitung ein, am Ende vor T0 mit G97 wieder aus
-  const g96 = b.sArt === "vc" && !!b.g96;
-  const t = Number(b.platz) / 100;
+// Seit 1.441.0: die Zeilen jeder Bearbeitung kommen aus der Vorlage ihrer
+// Art in camTyp.js (je Maschinentyp änderbar); hier werden nur die Werte
+// gerechnet. Die Geschichte der einzelnen Zeilen (Patricks Vorgaben vom
+// 5. November 2026) steht dort bei den Vorlagen.
+const codeZeilen = (b) => String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+// Kanal 2: jede Zeile mit „/“ davor, Marken und Zeilen mit „/“ nicht
+const schraeg = (z) => (markeVon(z) || z.startsWith("/") ? z : "/" + z);
+const STANDARD_MARKEN = { quer: { m1: "M300", m2: "M310", m3: "M320" }, front: { m1: "M300", m2: "M310" } };
+function blockWerte(b, w, marke) {
+  const art = vorlageArt(b);
   const bez = String(b.bez || "").trim();
-  // Seit 1.413.0 (Wunsch Patrick 5. November 2026: „generell auswählen, ob
-  // nach einer Bearbeitung der Hochdruck wieder ausgeschaltet wird,
-  // standardmässig ja“): `hdAn` am Block lässt M1891 / M1892 am Ende weg
-  // Seit 1.417.0 (Patrick 5. November 2026): angetriebene Werkzeuge mit
-  // M36 Rechtslauf, M37 Linkslauf, M38 aus, in beiden Kanälen; M38 am
-  // Ende wahlweise (`spAn` am Block lässt es weg, Vorgabe aus)
-  if (b.art === "seite") {
-    // Seit 1.418.0 (Patrick 5. November 2026: „das selbe mit T3100–T3400,
-    // dort gibt es keine Bearbeitung auf der Gegenspindel“), Aufbau wie
-    // T3100 in O0458 (Patrick: „ja“), Hochdruck M1883D… / M1893 wie bei
-    // T3421–T3423
-    const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
-    return [
-      "T" + b.platz + (bez ? "(" + bez + ")" : ""),
-      ...(b.hd ? ["M1883D" + b.hd] : []),
-      "G0T" + t,
-      "M" + (b.dreh === "37" ? 37 : 36) + "S" + String(b.S).trim(),
-      "G0X[#531+1.]Z" + (zahl(b.anZ) ?? b.anZ),
-      vorZeile(b), "M8", "M7", "G0", "G28H0.", "G1Y0.C0.F1.",
-      ...code,
-      "G0X30.",
-      "G0Y0.",
-      ...(b.hd && !b.hdAn ? ["M1893"] : []),
-      "T0",
-      ...(b.spAn ? [] : ["M38"]),
-      "M9",
-      "G99",
-      "T0",
-      "M1",
-    ];
-  }
-  if (b.art === "quer" && !anGegenspindel(b)) {
-    // Seit 1.417.0 (Wunsch Patrick 5. November 2026: „standardmässig für
-    // die Hauptspindel in Kanal 1 … alles wie bei T1100–T1400“)
-    const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
-    return [
-      "T" + b.platz + (bez ? "(" + bez + ")" : ""),
-      ...(b.hd ? ["M1883D" + b.hd] : []),
-      "M" + (b.dreh === "37" ? 37 : 36) + "S" + String(b.S).trim() + "T" + String(b.platz).slice(-2),
-      vorZeile(b),
-      "G0Z" + (zahl(b.anZ) ?? b.anZ),
-      ...code,
-      ...(b.hd && !b.hdAn ? ["M1893"] : []),
-      "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
-      ...(b.spAn ? [] : ["M38"]),
-      "G99",
-      "T0",
-      "M1",
-    ];
-  }
-  if (b.art === "quer") {
-    // Seit 1.415.0 (Patrick 5. November 2026): zwischen Marke Start und
-    // Marke 2 positioniert Kanal 1 in X, zwischen Marke 2 und Marke Ende
-    // macht Kanal 2 die Bearbeitung; freie Markenpaare im NC-Code von
-    // Kanal 2 (etwa M312 / M314 zum Freifahren in X) wie bei T1400.
-    // Hochdruck M1883D… / M1893 in Kanal 1 (Patrick: „ja M1883“); statt
-    // G0T0 am Ende T0 und M1 wie bei den anderen (Patrick: „vergiss G0T0“)
-    const mk = marke || { m1: "M300", m2: "M310", m3: "M320" };
-    return [
-      "T" + b.platz + "(" + mitGegen(bez) + ")",
-      ...(b.hd ? ["M1883D" + b.hd] : []),
-      mk.m1,
-      // Seit 1.422.0 (Wunsch Patrick 5. November 2026): wahlweise auch Y
-      "G0X" + (zahl(b.X) ?? b.X) + (zahl(b.Y) != null ? "Y" + zahl(b.Y) : "") + "T" + String(b.platz).slice(-2),
-      mk.m2,
-      ...markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]),
-      mk.m3,
-      ...(b.hd && !b.hdAn ? ["M1893"] : []),
-      "T0",
-      "M1",
-    ];
-  }
-  if (b.art === "front" && b.spindel === "gegen") {
-    // Seit 1.405.0 (Patrick 5. November 2026): an der Gegenspindel hält
-    // Kanal 1 nur das Werkzeug bereit (Kopf und Ende ohne G0Z) und wartet
-    // an der Marke, bis Kanal 2 mit T2000 die Bearbeitung fertig hat.
-    // Seit 1.407.0 zwei Marken (Wunsch Patrick 5. November 2026: „2
-    // Wartemarken, damit ich die Bearbeitung auf der Gegenspindel
-    // dazwischen einfügen kann“): Start und Ende direkt nacheinander, in
-    // Kanal 2 steht die Bearbeitung zwischen den beiden. Seit 1.408.0
-    // (Patrick: „Drehzahl, Drehrichtung etc. auf Kanal 2, nicht auf
-    // Kanal 1“): M3/M4 S (und G96/G97) stehen nur noch in Kanal 2
-    const mk = marke || { m1: "M300", m2: "M310" };
-    return [
-      "T" + b.platz + "(" + mitGegen(bez) + ")",
-      ...(b.hd ? ["M1882D" + b.hd] : []),
-      // Seit 1.409.0: T14 bleibt in Kanal 1, weil dort die
-      // Verschleisskorrektur erfolgt (Patrick 5. November 2026)
-      "T" + t,
-      mk.m1,
-      // Seit 1.414.0: Markenpaare aus dem NC-Code von Kanal 2, dazwischen
-      // der eigene NC-Code von Kanal 1
-      ...markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]),
-      mk.m2,
-      ...(b.hd && !b.hdAn ? ["M1892"] : []),
-      "T0",
-      "M1",
-    ];
-  }
-  if (b.art === "front") {
-    // Nach Patricks T1400: Hochdruck der Front M1882D… / M1892, kein X,
-    // nach der Bearbeitung mit Z zurück in sichere Richtung
-    const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
-    return [
-      "T" + b.platz + (bez ? "(" + bez + ")" : ""),
-      ...(b.hd ? ["M1882D" + b.hd] : []),
-      (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
-      vorZeile(b),
-      "G0Z" + (zahl(b.anZ) ?? b.anZ),
-      ...code,
-      ...(b.hd && !b.hdAn ? ["M1892"] : []),
-      "G0Z" + (zahl(b.wegZ) ?? b.wegZ),
-      ...(g96 ? ["G97"] : []),
-      "G99",
-      "T0",
-      "M1",
-    ];
-  }
-  const winkel = String(b.wegA).trim() === "" ? "" : ",A" + (zahl(b.wegA) ?? b.wegA);
-  const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
-  return [
-    "T" + b.platz + (bez ? "(" + bez + ")" : ""),
-    ...(b.hd ? ["M1881D" + b.hd] : []),
-    (g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S + "T" + t,
-    vorZeile(b),
-    "G0X[#531+1.]Z" + (zahl(b.anZ) ?? b.anZ),
-    ...code,
-    "G1X[#531+0.2]" + winkel + "F" + (zahl(b.wegF) ?? b.wegF),
-    "G0X30.",
-    ...(b.hd && !b.hdAn ? ["M1891"] : []),
-    ...(g96 ? ["G97"] : []),
-    "G99",
-    "T0",
-    "M1",
-  ];
+  const g96 = b.sArt === "vc" && !!b.g96;
+  const roh = String(b.S ?? "").trim();
+  const mitVc = art === "dreh" || art === "front" || art === "frontGegen" || art === "k2";
+  const S = mitVc ? drehzahl(b, w) ?? roh : roh;
+  // Drehrichtung je Art: stehend M3 / M4, angetrieben M36 / M37
+  const dreh = art === "k2" ? (b.dreh === "3" ? 3 : 4)
+    : art === "k2a" ? (b.dreh === "36" ? 36 : 37)
+    : art === "seite" || art === "quer" || art === "querGegen" ? (b.dreh === "37" ? 37 : 36)
+    : (b.dreh === "4" ? 4 : 3);
+  const mk = marke || (anGegenspindel(b) ? STANDARD_MARKEN[b.art] : null) || {};
+  const g = (n) => zahl(b[n]) ?? String(b[n] ?? "");
+  const platz = String(b.platz ?? "");
+  const werte = {
+    PLATZ: platz, T: Number(b.platz) / 100, T2: platz.slice(-2), T2V: platz.slice(0, 2),
+    BEZ: bez, BEZ_K: bez ? "(" + bez + ")" : "", BEZ_GEGEN: mitGegen(bez), HD: String(b.hd ?? ""),
+    DREH: "M" + dreh, S, G96: g96 ? "G96" : "", VOR: vorZeile(b),
+    ANZ: g("anZ"), WEGZ: g("wegZ"), WEGF: g("wegF"),
+    WINKEL: String(b.wegA ?? "").trim() === "" ? "" : ",A" + (zahl(b.wegA) ?? b.wegA),
+    X: g("X"), Y: zahl(b.Y) != null ? "Y" + zahl(b.Y) : "",
+    VORX: g("vorX"), VORZ: g("vorZ"), NX: g("nX"), NZ: g("nZ"),
+    M1: mk.m1 || "", M2: mk.m2 || "", M3: mk.m3 || "",
+  };
+  const bed = { hd: !!b.hd, hdaus: !!b.hd && !b.hdAn, g96, m38: !b.spAn, m5: !b.ohneM5, y: zahl(b.Y) != null };
+  const listen = {
+    CODE: codeZeilen(b),
+    PAARE: markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]),
+    PAARE2: markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y, "k2"), y]),
+  };
+  return { art, werte, bed, listen };
+}
+export function blockZeilen(b, w = {}, marke) {
+  const x = blockWerte(b, w, marke);
+  return vorlageFuellen(typ().vorlagen[x.art + ".k1"], { ...x, schraeg });
 }
 
 // Seit 1.405.0: Kanal 2 bei einem Frontwerkzeug an der Gegenspindel,
@@ -545,118 +304,8 @@ export function blockZeilen(b, w = {}, marke) {
 // die Bezeichnung in beiden Kanälen „MIT GEGENSPINDEL“ angehängt
 export const mitGegen = (bez) => (bez ? bez + " " : "") + "MIT GEGENSPINDEL";
 export function blockZeilen2(b, marke, w = {}) {
-  const bez = String(b.bez || "").trim();
-  const S = drehzahl(b, w) ?? String(b.S).trim();
-  const g96 = b.sArt === "vc" && !!b.g96;
-  const code = String(b.code || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
-  // Seit 1.410.0 (Patrick 5. November 2026, nach O1458): zuerst immer M75,
-  // dann jede Zeile der Bearbeitung mit „/“ davor; Marken und das Ende
-  // (G0G28W0., T0, M1) ohne, damit beide Kanäle immer synchron bleiben
-  const s = (z) => (markeVon(z) || z.startsWith("/") ? z : "/" + z);
-  if (b.art === "k2a") {
-    // Seit 1.425.0: angetriebene Werkzeuge T2100–T2400 nach Patricks
-    // T2300 (5. November 2026), M36 rechts, M37 links, M38 aus wie in
-    // Kanal 1; Hochdruck wie beim Drehwerkzeug Kanal 2 nach M75 / M76
-    return [
-      "M75",
-      ...(b.hd ? ["/M1884D" + b.hd] : []),
-      s("T" + b.platz + (bez ? "(" + bez + ")" : "")),
-      s("M" + (b.dreh === "36" ? 36 : 37) + "S" + String(b.S).trim()),
-      s(vorZeile(b)), "/M8", "/M7", "/G0", "/G28H0.", "/M6",
-      ...code.map(s),
-      "G28W0.",
-      "T0",
-      "/M7",
-      ...(b.spAn ? [] : ["/M38"]),
-      "/M9",
-      "/G99",
-      "M76",
-      ...(b.hd && !b.hdAn ? ["M1894"] : []),
-      "M1",
-    ];
-  }
-  if (b.art === "k2") {
-    // Seit 1.420.0 nach Patricks T2100 (5. November 2026): G23 schaltet die
-    // Hubbegrenzung aus (am Ende G22 wieder ein), Vorpositionieren X und Z
-    // (nur T2100, spezieller Drehhalter), Nullpunktverschiebung G50 X/Z,
-    // am Ende zurück auf dieselben Werte; M5 am Ende wahlweise
-    const g = (n) => zahl(b[n]) ?? String(b[n] ?? "");
-    return [
-      "M75",
-      // Seit 1.424.0 (Patrick 5. November 2026: „brauchen auch Hochdruck
-      // M1884“): wie T2200 in O1458 vor dem Werkzeugaufruf, aus nach M76
-      ...(b.hd ? ["/M1884D" + b.hd] : []),
-      s("T" + b.platz + (bez ? "(" + bez + ")" : "")),
-      "/G23",
-      s((g96 ? "G96" : "") + "M" + (b.dreh === "3" ? 3 : 4) + "S" + S + "T" + String(b.platz).slice(0, 2)),
-      s(vorZeile(b)),
-      s("G0X" + g("vorX")),
-      s("G0Z" + g("vorZ")),
-      s("G50X" + g("nX") + "Z" + g("nZ")),
-      "/G1Z-1.F0.5",
-      "/G1X-11.",
-      ...code.map(s),
-      s("G1Z" + g("nZ") + "F0.5"),
-      s("G1X" + g("nX")),
-      s("G50Z" + g("vorZ") + "X" + g("vorX")),
-      "/G0Z20.0",
-      "/G0X0.0",
-      ...(g96 ? ["/G97"] : []),
-      "/G99",
-      "G28W0.0",
-      "M76",
-      ...(b.hd && !b.hdAn ? ["M1894"] : []),
-      "G22",
-      "T0",
-      "M1",
-      ...(b.ohneM5 ? [] : ["M5"]),
-    ];
-  }
-  if (b.art === "quer") {
-    // Seit 1.415.0 nach Patricks O1458: Kopf mit G98, Kühlmittel, C-Achse
-    // auf 0 und M6 bei jeder Bearbeitung (Patrick: „kannst du immer
-    // machen“), dann das angetriebene Werkzeug mit M37 / M38 S…, Anfahren
-    // und Wegfahren auf derselben Z (Patrick: „der Wert 60 soll als
-    // Anfahrposition der Gegenspindel definiert werden können“), fest
-    // F2000 und G0Z20., M38 aus (wahlweise nicht); Marke Ende nach M1
-    const z = zahl(b.anZ) ?? b.anZ;
-    return [
-      "M75",
-      s("T2000(" + mitGegen(bez) + ")"),
-      s(vorZeile(b)), "/M8", "/M7", "/G0", "/G28H0.", "/M6",
-      marke.m1,
-      marke.m2,
-      s("M" + (b.dreh === "37" ? 37 : 36) + "S" + String(b.S).trim()),
-      s("G0Z" + z),
-      ...code.map(s),
-      s("G1Z" + z + "F2000"),
-      "/G0Z20.",
-      ...(b.spAn ? [] : ["/M38"]),
-      "/G99",
-      "G0G28W0.",
-      "T0",
-      "M1",
-      marke.m3,
-    ];
-  }
-  return [
-    "M75",
-    s("T2000(" + mitGegen(bez) + ")"),
-    marke.m1,
-    s((g96 ? "G96" : "") + "M" + (b.dreh === "4" ? 4 : 3) + "S" + S),
-    s(vorZeile(b)),
-    s("G0Z" + (zahl(b.anZ) ?? b.anZ)),
-    ...code.map(s),
-    s("G0Z" + (zahl(b.wegZ) ?? b.wegZ)),
-    ...(g96 ? [s("G97")] : []),
-    "/G99",
-    // Seit 1.411.0 (Patrick 5. November 2026): Marke Ende vor G0G28W0.,
-    // wie in O1458; alles andere (etwa G1Z60.F2000) gehört in den NC-Code
-    marke.m2,
-    "G0G28W0.",
-    "T0",
-    "M1",
-  ];
+  const x = blockWerte(b, w, marke);
+  return vorlageFuellen(typ().vorlagen[x.art + ".k2"], { ...x, schraeg });
 }
 // Seit 1.414.0 (Wunsch Patrick 5. November 2026: „innerhalb der
 // Bearbeitung Wartemarken setzen … auf Kanal 2 z.B. M350 und M360 direkt
@@ -689,12 +338,14 @@ export function markenVergeben(bloecke, belegtZeilen = []) {
     [...Object.values(b.k1 || {}), ...Object.values(b.k2 || {})].forEach((c) => String(c).split(/\r?\n/).forEach((z) => { const m = markeVon(z); if (m) belegt.add(m); }));
   });
   const marken = {};
-  let n = 300;
+  // Beginn und Schritt seit 1.441.0 je Maschinentyp (Vorgabe M300, 10)
+  const { ab: start, schritt } = typ().marken;
+  let n = start;
   const frei = () => {
-    while (belegt.has("M" + n) && n <= 999) n += 10;
+    while (belegt.has("M" + n) && n <= 999) n += schritt;
     const m = "M" + n;
     belegt.add(m);
-    n += 10;
+    n += schritt;
     return m;
   };
   for (const b of bloecke) {
@@ -722,8 +373,8 @@ export function programme(w) {
     ab += z.length;
     // Seit 1.416.0: Markenpaare im Code von Kanal 1 geben Kanal 2 die
     // Marken mit dem Code aus dem Feld dazwischen
-    const z2 = marken[b.id] || b.art === "k2" || b.art === "k2a" ? blockZeilen2(b, marken[b.id], w)
-      : markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y, "k2"), y]);
+    // (seit 1.441.0 auch das über die Vorlage der Art für Kanal 2)
+    const z2 = blockZeilen2(b, marken[b.id], w);
     if (z2.length) {
       bereiche2[b.id] = [ab2 + 1, ab2 + z2.length];
       ab2 += z2.length;

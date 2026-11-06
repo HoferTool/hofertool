@@ -15,8 +15,10 @@ import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
+import { TYP_NAME, typBeobachten } from "./camTyp.js";
+import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
-import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, K2_PLAETZE, QUER_PLAETZE, SEITE_PLAETZE, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
+import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
 // Seit 1.427.0 (Wunsch Patrick 5. November 2026: „vordefinierte
 // Bearbeitungen aus einer Liste einfügen … in eine bestehende
@@ -95,6 +97,12 @@ function ModulFeld({ code, pos, einsetzen, zu }) {
       </div>
     </div>
   );
+}
+
+// Knopf „+ …“ mit der Spanne der Plätze, etwa „T100–T600“
+function spanne(gruppe) {
+  const l = plaetzeVon(gruppe);
+  return l.length ? "T" + l[0] + (l.length > 1 ? "–T" + l[l.length - 1] : "") : "";
 }
 
 // Bleibt beim Wechsel auf einen anderen Reiter stehen
@@ -412,7 +420,11 @@ export default function HoferCam() {
     setzeBloecke(neu);
   };
   const fehler = pruefen(w);
-  const prog = useMemo(() => programmeMitHand(w), [w]);
+  // Seit 1.441.0: Einstellungen des Maschinentyps laden und nach dem
+  // Speichern neu rechnen
+  const [typStand, setTypStand] = useState(0);
+  useEffect(() => { camTypLaden(); return typBeobachten(() => { setTypStand((n) => n + 1); melden(); }); }, []);
+  const prog = useMemo(() => programmeMitHand(w), [w, typStand]);
   // Änderungen aus dem eigenen Fenster kommen über „gemerkt“
   useEffect(() => {
     const f = () => setW((x) => (x.hand === gemerkt.hand ? x : { ...x, hand: gemerkt.hand }));
@@ -426,7 +438,10 @@ export default function HoferCam() {
     <div className="karte cam">
       <div className="cam-kopf">
         <h2 className="karte__titel">HOFERCAM</h2>
-        <span className="cam-typ">Maschinentyp: <b>Star SB-20RG</b></span>
+        <span className="cam-typ">Maschinentyp: <b>{TYP_NAME}</b></span>
+        {/* Seit 1.441.0: Einstellungen des Typs, ändern nur Admins */}
+        {alt.istAdmin && alt.istAdmin() && <button className="knopf knopf--klein" id="cam-typ-einst" title="Kopf, Ende, Bearbeitungen, Plätze und Vorgaben dieses Maschinentyps einstellen"
+          onClick={camTypFensterOeffnen}>⚙ Maschinentyp</button>}
         <NcAblage art="cam" kurz="camab" wort="HOFERCAM" daten={w} nc={ncBeide} laden={laden}
           gespeichert={gespeichert} setGespeichert={setGespeichert} />
       </div>
@@ -458,14 +473,14 @@ export default function HoferCam() {
         <div className="cam-bearb__kopf">
           <b>Bearbeitungen Kanal 1</b>
           <button className="knopf knopf--klein" id="cam-neu-dreh"
-            onClick={() => { const nb = neuerBlock(bloecke); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug T100–T600</button>
+            onClick={() => { const nb = neuerBlock(bloecke); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Drehwerkzeug {spanne("dreh")}</button>
           <button className="knopf knopf--klein" id="cam-neu-front"
-            onClick={() => { const nb = neuerBlock(bloecke, "front"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontwerkzeug T1100–T1400</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "front"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontwerkzeug {spanne("front")}</button>
           {/* Seit 1.415.0: angetriebene T3421–T3423 an der Gegenspindel */}
           <button className="knopf knopf--klein" id="cam-neu-seite"
-            onClick={() => { const nb = neuerBlock(bloecke, "seite"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Querangetrieben T3100–T3400</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "seite"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Querangetrieben {spanne("seite")}</button>
           <button className="knopf knopf--klein" id="cam-neu-quer"
-            onClick={() => { const nb = neuerBlock(bloecke, "quer"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontangetrieben T3421–T3423</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "quer"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Frontangetrieben {spanne("quer")}</button>
         </div>
         {/* Seit 1.425.3 (Wunsch Patrick 5. November 2026): Kanal 2 in einer
             eigenen Zeile darunter */}
@@ -473,9 +488,9 @@ export default function HoferCam() {
           <b>Bearbeitungen Kanal 2</b>
           {/* Seit 1.420.0: Drehwerkzeug nur in Kanal 2 */}
           <button className="knopf knopf--klein" id="cam-neu-k2"
-            onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Stehende Werkzeuge T2100–T2400</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k2"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Stehende Werkzeuge {spanne("k2")}</button>
           <button className="knopf knopf--klein" id="cam-neu-k2a"
-            onClick={() => { const nb = neuerBlock(bloecke, "k2a"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben T2100–T2400</button>
+            onClick={() => { const nb = neuerBlock(bloecke, "k2a"); setzeBloecke([...bloecke, nb]); setAktiv(nb.id); }}>+ Angetrieben {spanne("k2")}</button>
         </div>
         {bloecke.length === 0 && <p className="klein">Noch keine Bearbeitung. Sie kommt zwischen „(Ende Kopf)“ und „(Start Ende)“.</p>}
         {/* Seit 1.405.0 (Wunsch Patrick 5. November 2026): Bearbeitungen am
@@ -522,7 +537,7 @@ export default function HoferCam() {
                     <option value="gegen">Gegenspindel (Kanal 2 mit T2000)</option>
                   </select></label>}
                 <label className="cam-feld" title={k2 ? "Werkzeugplatz Kanal 2" : quer ? "Werkzeugplatz (angetrieben, Weg mit der Gegenspindel)" : front ? "Werkzeugplatz (Frontwerkzeug fest)" : "Werkzeugplatz (Drehwerkzeug Kanal 1)"}><span>Platz</span>
-                  <PlatzWahl wert={b.platz} plaetze={k2 ? K2_PLAETZE : seite ? SEITE_PLAETZE : quer ? QUER_PLAETZE : front ? FRONT_PLAETZE : DREH_PLAETZE}
+                  <PlatzWahl wert={b.platz} plaetze={plaetzeVon(k2 ? "k2" : seite ? "seite" : quer ? "quer" : front ? "front" : "dreh")}
                     waehlen={(p) => { blockAendern(b.id, "platz", p); setUeber(b.id); }}
                     vorschau={(p) => { setVorPlatz(p ? { id: b.id, platz: p } : null); if (p) setUeber(b.id); }} /></label>
                 <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>
