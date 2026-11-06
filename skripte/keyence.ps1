@@ -21,10 +21,12 @@
 #
 #  Das Programm sucht im Ordner (Vorgabe W:\KONTROLLE\Keyence, sonst was
 #  in app_config.keyence_ordner steht), auch in Unterordnern, nach
-#  CSV-Dateien, die mit "Teilbericht" beginnen, und legt Kopf und Mess-
+#  CSV-Dateien, die mit "Teilbericht" beginnen, dazu die Tagesdateien des
+#  Geräts (z. B. 20261107Hofer.csv, je Messung eine Zeile, seit 6. November
+#  2026), und legt Kopf und Mess-
 #  werte in die Tabelle messberichte. Die HOCO Nr. kommt aus dem Namen der
 #  Messeinstellung (sonst aus dem Dateinamen). Nur neue oder geänderte
-#  Dateien werden geschickt (keyence-stand.json). Berichte bleiben 30 Tage
+#  Dateien werden geschickt (keyence-stand-2.json). Berichte bleiben 30 Tage
 #  in der Datenbank, danach löscht das Programm sie dort (die Dateien im
 #  Ordner bleiben). Ältere Dateien schickt es gar nicht erst.
 #
@@ -44,7 +46,9 @@ param([switch]$Probe)
 $ErrorActionPreference = "Stop"
 $ordnerHier = Split-Path -Parent $MyInvocation.MyCommand.Path
 $einstDatei = Join-Path $ordnerHier "abgleich-einstellungen.json"
-$standDatei = Join-Path $ordnerHier "keyence-stand.json"
+# Seit 6. November 2026 „-2“: die Tagesdateien waren schon als „kein Teilbericht“
+# vermerkt und müssen einmal neu gelesen werden
+$standDatei = Join-Path $ordnerHier "keyence-stand-2.json"
 $protDatei  = Join-Path $ordnerHier "keyence.log"
 $vorgabeOrdner    = "W:\KONTROLLE\Keyence"
 $hoechstensJeLauf = 300
@@ -132,6 +136,73 @@ function BerichtLesen([string]$text) {
   return @{ kopf = $kopf; spalten = $spalten; zeilen = $werte }
 }
 
+# Tagesdatei des Geräts (z. B. 20261107Hofer.csv im Ordner der Messeinstellung,
+# seit 6. November 2026: so kam Patricks Messung an der 128 an). Aufbau:
+#   Name der Messeinstellungsdaten;Messzeit;Losnummer;laufenden Zähler;OK/N.i.O.;Verantwortliche/r;Nummer;<Element>;…
+#   Sollwert;;;;;;;<Soll je Element>
+#   Obergrenze;…  (Abweichung nach oben)
+#   Untergrenze;… (Abweichung nach unten, negativ)
+#   je Messung eine Zeile mit den Messwerten
+# Jede Messung wird ein eigener Bericht, im selben Aufbau wie ein Teilbericht.
+function ZahlAus([string]$t) {
+  $z = $t.Trim() -replace ',', '.'
+  $d = 0.0
+  if ([double]::TryParse($z, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return $d }
+  return $null
+}
+function SammelLesen([string]$text) {
+  $zeilen = @($text -split "`n" | Where-Object { $_.Trim() })
+  if ($zeilen.Count -lt 2) { return @() }
+  $kopfZ = Felder $zeilen[0]
+  if (-not $kopfZ.Count -or $kopfZ[0] -notmatch '^Name der Messeinstellung') { return @() }
+  $soll = @(); $ober = @(); $unter = @()
+  $daten = New-Object System.Collections.Generic.List[object]
+  for ($i = 1; $i -lt $zeilen.Count; $i++) {
+    $f = Felder $zeilen[$i]
+    if (-not $f.Count) { continue }
+    switch -regex ($f[0]) {
+      '^Sollwert$'    { $soll = $f; continue }
+      '^Obergrenze$'  { $ober = $f; continue }
+      '^Untergrenze$' { $unter = $f; continue }
+      default         { $daten.Add(@{ f = $f; roh = $zeilen[$i] }) }
+    }
+  }
+  # Feste Spalten bis „Nummer“, danach die Messelemente
+  $erstesElement = 7
+  for ($k = 0; $k -lt $kopfZ.Count; $k++) { if ($kopfZ[$k] -match '^Nummer$') { $erstesElement = $k + 1; break } }
+  $spalten = @("Nr.", "Messelemente", "Messwert", "Einheit", "Sollwert", "Obergr.", "Untergrz.", "Auflsg.")
+  $aus = @()
+  foreach ($d in $daten) {
+    $f = $d.f
+    $kopf = [ordered]@{}
+    for ($k = 0; $k -lt [Math]::Min($erstesElement, $kopfZ.Count); $k++) {
+      $name = $kopfZ[$k]
+      if ($name -match '^Messzeit$') { $name = "Datum und Uhrzeit der Messung" }
+      if ($name -match '^OK/N') { $name = "Gesamtergebnis" }
+      $kopf[$name] = $(if ($k -lt $f.Count) { $f[$k] } else { "" })
+    }
+    $werte = New-Object System.Collections.Generic.List[object]
+    $nr = 0
+    for ($k = $erstesElement; $k -lt $kopfZ.Count; $k++) {
+      $nr++
+      $w = $(if ($k -lt $f.Count) { $f[$k] } else { "" })
+      $s = $(if ($k -lt $soll.Count) { $soll[$k] } else { "" })
+      $o = $(if ($k -lt $ober.Count) { $ober[$k] } else { "" })
+      $u = $(if ($k -lt $unter.Count) { $unter[$k] } else { "" })
+      # Urteil je Element nur, wenn eine Toleranz da ist (0 / 0 = nur messen)
+      $ok = ""
+      $wz = ZahlAus $w; $sz = ZahlAus $s; $oz = ZahlAus $o; $uz = ZahlAus $u
+      if ($wz -ne $null -and $sz -ne $null -and $oz -ne $null -and $uz -ne $null -and -not ($oz -eq 0 -and $uz -eq 0)) {
+        $ok = $(if ($wz -ge $sz + $uz - 0.00005 -and $wz -le $sz + $oz + 0.00005) { "OK" } else { "NG" })
+      } elseif (-not $w) { $ok = "Fehler" }
+      $werte.Add(@([string]$nr, $kopfZ[$k].Trim(), $w, "", $s, $o, $u, $ok))
+    }
+    $rohTeile = @($zeilen[0]) + @($zeilen | Where-Object { $_ -match '^(Sollwert|Obergrenze|Untergrenze);' }) + @($d.roh)
+    $aus += ,@{ kopf = $kopf; spalten = $spalten; zeilen = $werte; roh = ($rohTeile -join "`n") }
+  }
+  return ,$aus
+}
+
 function KopfWert($kopf, [string]$muster) {
   foreach ($k in $kopf.Keys) { if ($k -match $muster) { return [string]$kopf[$k] } }
   return ""
@@ -207,7 +278,31 @@ function Durchlauf {
         try {
           $text = TextLesen $d
           $b = BerichtLesen $text
-          if (-not $b) { $stand.dateien[$d.FullName] = $kennung; continue }   # keine Teilbericht-Datei
+          if (-not $b) {
+            # Tagesdatei des Geräts: je Zeile eine Messung
+            $sammel = SammelLesen $text
+            foreach ($sb in $sammel) {
+              $status.berichte++
+              $einst = KopfWert $sb.kopf '^Name der Messeinstellung'
+              if (-not $einst) { $einst = $d.Directory.Name }
+              $hoco = HocoAus $einst
+              if (-not $hoco) { $hoco = HocoAus $d.Directory.Name }
+              if (-not $hoco) { $status.ohneHoco++ }
+              $zeit = ZeitIso (KopfWert $sb.kopf '^Datum und Uhrzeit')
+              if (-not $zeit) { $zeit = $d.LastWriteTimeUtc.ToString("o") }
+              if ([DateTime]::Parse($zeit).ToUniversalTime() -lt (Get-Date).ToUniversalTime().AddDays(-$tageBehalten)) { continue }
+              # Eindeutig je Messung: Datei, Messzeit und Nummer
+              $schluessel = $d.FullName + "#" + (KopfWert $sb.kopf '^Datum und Uhrzeit') + "#" + (KopfWert $sb.kopf '^Nummer$')
+              if ($status.beispiele.Count -lt 8) { $status.beispiele += ($d.Name + " → " + $(if ($hoco) { $hoco } else { "ohne HOCO Nr." })) }
+              if ($Probe) { Schreibe ("würde schicken: " + $schluessel + " → " + $hoco); continue }
+              Anmelden
+              Aendern "Post" "messberichte?on_conflict=datei" @{ datei = $schluessel; hoco_nr = $hoco; einstellung = $einst;
+                gemessen_am = $zeit; ergebnis = (KopfWert $sb.kopf '^Gesamtergebnis'); kopf = $sb.kopf;
+                spalten = @($sb.spalten); zeilen = @($sb.zeilen.ToArray()); roh = $sb.roh; gelesen_am = $jetztIso } "resolution=merge-duplicates"
+              $status.geschickt++; $nochFrei--
+            }
+            $stand.dateien[$d.FullName] = $kennung; continue
+          }
           $status.berichte++
           $einst = KopfWert $b.kopf '^Name der Messeinstellung'
           $hoco = HocoAus $einst
