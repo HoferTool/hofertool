@@ -446,9 +446,8 @@ function Notizen({ m }) {
     <div className={"pad-karte2 pad-app pad-karte2--notiz" + (da ? "" : " pad-karte2--notizleer")} data-padfeld="notizen"
       onClick={da ? () => notizbuecherFuerPark(m.park_id, undefined,
         { machine_number: m.machine_number, name: m.name }) : undefined}>
-      {/* Wie ein App-Symbol: Bild gross, Zahl oben links, Name darunter
+      {/* Wie ein App-Symbol: Bild gross, Name darunter, seit 1.444.2 ohne Zahl
           (Wunsch Patrick 6. November 2026, seit 1.444.1) */}
-      {da && <span className="pad-app__zahl">{buecher.length}</span>}
       <svg className="pad-app__bild" viewBox="0 0 24 24" aria-hidden="true"><path d={BUCH} /></svg>
       <span className="pad-app__name">Notizbücher</span>
     </div>
@@ -476,7 +475,6 @@ function Keyence({ j }) {
   return (
     <div className={"pad-karte2 pad-app pad-karte2--keyence" + (da ? "" : " pad-karte2--keyenceleer")} data-padfeld="keyence"
       onClick={() => (da ? keyenceOeffnen(hoco) : keyenceOeffnen())}>
-      {da && <span className="pad-app__zahl">{zahl}</span>}
       <svg className="pad-app__bild" viewBox="0 0 24 24" aria-hidden="true"><path d={MESSEN} /></svg>
       <span className="pad-app__name">Keyence</span>
     </div>
