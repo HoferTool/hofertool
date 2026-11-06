@@ -179,6 +179,17 @@ function Durchlauf {
         Where-Object { $_.Length -le $hoechstensGross -and $_.Name -notlike '~$*' } |
         Sort-Object LastWriteTimeUtc)
       $status.dateien = $dateien.Count
+      # Zur Kontrolle alle CSV-Dateien (jüngste zuerst) mit erster Zeile melden,
+      # damit man sieht, was das Gerät wirklich schreibt (Patrick 6. November 2026:
+      # „Messung bei 128 gespeichert, sehe es nicht“)
+      $status.alle = @($dateien | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 25 | ForEach-Object {
+        $erste = ""
+        try { $erste = [string](Get-Content -LiteralPath $_.FullName -TotalCount 1 -Encoding Default -ErrorAction Stop) } catch { }
+        if ($erste.Length -gt 60) { $erste = $erste.Substring(0, 60) }
+        $_.FullName.Substring($pfad.Length).TrimStart('\') + " | " + $_.LastWriteTime.ToString("dd.MM. HH:mm") + " | " + $erste })
+      $status.ordnerListe = @(Get-ChildItem -LiteralPath $pfad -Directory -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 25 | ForEach-Object {
+          $_.Name + " | " + $_.LastWriteTime.ToString("dd.MM. HH:mm") + " | " + (@(Get-ChildItem -LiteralPath $_.FullName -File -ErrorAction SilentlyContinue | Group-Object Extension | ForEach-Object { $_.Name + ":" + $_.Count }) -join " ") })
       $nochFrei = $hoechstensJeLauf
       foreach ($d in $dateien) {
         $kennung = Kennung $d
