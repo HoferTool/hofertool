@@ -13,7 +13,7 @@ def pruefe(ok, text):
 
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
-    pg = br.new_context(viewport={"width": 1280, "height": 900}).new_page()
+    pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:200]))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
@@ -63,6 +63,34 @@ with sync_playwright() as p:
     pg.screenshot(path=os.path.join(BILD, "keyence-pad.png"))
     pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pruefe(pg.locator("#keyence-fenster").count() == 0 and pg.locator("#pad").count() == 1, "Escape schliesst nur das Fenster")
+
+    # Kachel an der Maschine (1.444.0): teilt sich den Platz mit den Notizbüchern
+    pg.evaluate("""() => { for (const j of TEST.daten.jobs) if (j.job_number && !j.ended_at
+      && !TEST.daten.messberichte.some(m => m.hoco_nr === j.job_number))
+      TEST.daten.messberichte.push({ id: 'x' + j.id, datei: 'W:/' + j.id + '.csv', hoco_nr: j.job_number,
+        einstellung: j.job_number + ' Probe', gemessen_am: '2026-11-03T08:00:00Z', ergebnis: 'OK',
+        kopf: {}, spalten: ['Nr.', 'Messwert', ''], zeilen: [['1', '5,000', 'OK'], ['2', '', 'Fehler']] }); }""")
+    pg.locator("#pad [data-padzurueck], #pad button:has-text('Zurück')").first.click(); pg.wait_for_timeout(600)
+    pg.click("[data-padwo='parks']"); pg.wait_for_timeout(900)
+    for el in pg.query_selector_all("#pad [data-park]"):
+        if "Lang" in (el.inner_text() or ""): el.click(); break
+    pg.wait_for_timeout(1200)
+    i = pg.evaluate("""() => [...document.querySelectorAll('#pad .pad-kachel--maschine')]
+      .findIndex(k => !k.innerText.includes('kein Auftrag'))""")
+    pg.locator("#pad .pad-kachel--maschine").nth(max(0, i)).click(); pg.wait_for_timeout(2500)
+    pruefe(pg.locator(".pad-geteilt [data-padfeld='notizen']").count() == 1
+      and pg.locator(".pad-geteilt [data-padfeld='keyence']").count() == 1, "Notizbücher und Keyence teilen sich die Kachel")
+    pg.screenshot(path=os.path.join(BILD, "keyence-maschine.png"))
+    pg.click("[data-padfeld='keyence']"); pg.wait_for_selector("#keyence-fenster [data-keyence-hoco]"); pg.wait_for_timeout(500)
+    pruefe(pg.locator("#keyence-fenster [data-keyence-hoco]").count() == 1 and pg.locator("[data-keyence-alle]").count() == 1,
+      "Nur die HOCO Nr. des Auftrags")
+    b = pg.evaluate("document.querySelector('.dialog.messberichte').getBoundingClientRect().width")
+    pruefe(b > 1200, "Fenster breit (%d)" % b)
+    pg.locator("#keyence-fenster [data-messbericht]").first.click(); pg.wait_for_timeout(400)
+    pg.screenshot(path=os.path.join(BILD, "keyence-maschine-fenster.png"))
+    pg.click("[data-keyence-alle]"); pg.wait_for_timeout(400)
+    pruefe(pg.locator("#keyence-fenster [data-keyence-hoco]").count() > 1, "Alle Berichte zur Wahl")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
     pruefe(not pf, "Keine Seitenfehler: %s" % pf)
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

@@ -17,7 +17,10 @@ import { wiederOeffner } from "./wiederherstellen.js";
 import { Suchfeld, passtWoerter } from "./Suchfeld.jsx";
 import { messberichteLaden, fehltMessTabelle, urteil, nachHoco } from "../daten/messberichte.js";
 
-export function keyenceOeffnen() {
+// Mit hoco (Kachel an der Maschine im Pad, seit 1.444.0) zeigt das
+// Fenster nur die Berichte dieser HOCO Nr., „Alle Berichte“ holt die
+// übrigen zur Wahl dazu.
+export function keyenceOeffnen(hoco) {
   fensterOeffnen((zu) => (
     <div className="dialog dialog--breit unterlagen messberichte" id="keyence-fenster">
       <div className="blatt__kopf">
@@ -25,10 +28,10 @@ export function keyenceOeffnen() {
         <span className="klein">letzte 30 Tage</span>
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
       </div>
-      <div className="unterlagen__rolle"><KeyenceBerichte /></div>
-    </div>), null, "unterlagen-huelle", { art: "keyence" });
+      <div className="unterlagen__rolle"><KeyenceBerichte nur={typeof hoco === "string" ? hoco : ""} /></div>
+    </div>), null, "unterlagen-huelle", { art: "keyence", daten: { hoco: typeof hoco === "string" ? hoco : "" } });
 }
-wiederOeffner("keyence", () => keyenceOeffnen());
+wiederOeffner("keyence", (d) => keyenceOeffnen(d && d.hoco));
 
 const zeitText = (iso) => {
   if (!iso) return "";
@@ -45,8 +48,9 @@ function Schild({ text }) {
 // Gemerkt, solange die App offen ist: Suche und offene HOCO Nr.
 const merk = { suche: "", hoco: null, bericht: null };
 
-export function KeyenceBerichte() {
+export function KeyenceBerichte({ nur = "" }) {
   const [liste, setListe] = useState(null);
+  const [nurHoco, setNurHoco] = useState(nur);
   const [fehler, setFehler] = useState("");
   const [suche, setSucheS] = useState(merk.suche);
   const [hoco, setHocoS] = useState(merk.hoco);
@@ -60,15 +64,21 @@ export function KeyenceBerichte() {
   // Jede Minute frisch, so oft wie der Pool-Rechner nachschaut
   useEffect(() => { laden(); const t = setInterval(laden, 60000); return () => clearInterval(t); }, []);
 
-  const gruppen = nachHoco(liste || []).filter((g) =>
-    passtWoerter(suche, [g.hoco, ...g.berichte.map((m) => m.einstellung)]));
+  const gruppen = nachHoco(liste || []).filter((g) => nurHoco
+    ? g.hoco === nurHoco
+    : passtWoerter(suche, [g.hoco, ...g.berichte.map((m) => m.einstellung)]));
 
   return (
     <div className="keyence" id="keyence-berichte">
-      <div className="keyence__leiste">
-        <Suchfeld id="keyence-suche" wert={suche} setzen={setSuche} platzhalter="HOCO Nr. oder Messeinstellung …" />
-        <span className="klein">{liste ? liste.length + " Berichte · bleiben 30 Tage" : ""}</span>
-      </div>
+      {nurHoco
+        ? <div className="keyence__leiste">
+            <b className="keyence__nur">HOCO Nr. {nurHoco}</b>
+            <button type="button" className="knopf knopf--still" data-keyence-alle="" onClick={() => setNurHoco("")}>Alle Berichte</button>
+          </div>
+        : <div className="keyence__leiste">
+            <Suchfeld id="keyence-suche" wert={suche} setzen={setSuche} platzhalter="HOCO Nr. oder Messeinstellung …" />
+            <span className="klein">{liste ? liste.length + " Berichte · bleiben 30 Tage" : ""}</span>
+          </div>}
       {fehler && <p className="fehlertext">{fehler}</p>}
       {liste === null
         ? <p className="klein">Lädt …</p>
@@ -77,7 +87,7 @@ export function KeyenceBerichte() {
             + "sobald am Keyence gemessen wird (Ordner W:\\KONTROLLE\\Keyence)."}</p>
         : <ul className="mess__liste">
             {gruppen.map((g) => {
-              const auf = hoco === g.hoco || (gruppen.length === 1 && hoco === null);
+              const auf = nurHoco ? true : (hoco === g.hoco || (gruppen.length === 1 && hoco === null));
               const neu = g.berichte[0];
               return <li key={g.hoco} className={"mess__eintrag" + (auf ? " mess__eintrag--offen" : "")}>
                 <button type="button" className="mess__kopf" data-keyence-hoco={g.hoco}

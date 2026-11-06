@@ -19,6 +19,15 @@ export async function messberichteLaden() {
   return r.data || [];
 }
 
+// Wie viele Berichte es zu einer HOCO Nr. gibt (Kachel im Pad, 1.444.0)
+export async function messberichteZahl(hoco) {
+  if (!hoco) return 0;
+  const r = await alt.zeitlimit(alt.db.from("messberichte").select("id").eq("hoco_nr", hoco).limit(500),
+    15000, "Messberichte");
+  if (r.error) throw r.error;
+  return (r.data || []).length;
+}
+
 // Nach HOCO Nr. zusammen, die mit dem neusten Bericht zuerst
 export function nachHoco(liste) {
   const gruppen = new Map();

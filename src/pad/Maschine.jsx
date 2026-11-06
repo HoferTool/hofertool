@@ -23,6 +23,8 @@ import { FettText, infoTeilen, infoZusammen } from "../teile/FettText.jsx";
 import Skizze from "./Skizze.jsx";
 import { notizbuecherFuerPark, buecherFuerPark, BUCH } from "../notizbuch/Notizbuecher.jsx";
 import Bildschirmschoner from "./Bildschirmschoner.jsx";
+import { keyenceOeffnen } from "../teile/Messberichte.jsx";
+import { messberichteZahl } from "../daten/messberichte.js";
 import { WartungKachel } from "./Wartung.jsx";
 import { einrichtblattHinweis } from "../einrichtblatt/PadHinweis.jsx";
 import { useWaschprog } from "../daten/waschprog.js";
@@ -455,6 +457,34 @@ function Notizen({ m }) {
   );
 }
 
+// Keyence Berichte: teilt sich seit 1.444.0 den Platz der Notizbücher
+// (Wunsch Patrick 6. November 2026: „mit Platzteilen von Notizen …
+// wenn da, alle mit der gleichen HOCO Nr. anzeigen, sonst wie Prod
+// Fenster zum Anwählen“). Nicht für Externe.
+function Keyence({ j }) {
+  const hoco = j ? j.job_number : "";
+  const [zahl, setZahl] = useState(null);
+  useEffect(() => {
+    let weg = false;
+    const holen = () => messberichteZahl(hoco).then((n) => { if (!weg) setZahl(n); }).catch(() => { if (!weg) setZahl(0); });
+    holen();
+    const t = setInterval(holen, 60000);
+    return () => { weg = true; clearInterval(t); };
+  }, [hoco]);
+  const da = !!zahl;
+  return (
+    <div className={"pad-karte2 pad-karte2--keyence" + (da ? "" : " pad-karte2--keyenceleer")} data-padfeld="keyence"
+      onClick={() => (da ? keyenceOeffnen(hoco) : keyenceOeffnen())}>
+      <span className="pad-name">Keyence</span>
+      <span className="pad-wert pad-keyence__wert">
+        {zahl === null ? <Leer>…</Leer>
+          : da ? <>{zahl} <small>{zahl === 1 ? "Bericht" : "Berichte"}</small></>
+          : <Leer>keine zu {hoco || "diesem Auftrag"}</Leer>}
+      </span>
+    </div>
+  );
+}
+
 // Material und Werkstoff: eigene Kachel in der Farbe des Balkens auf
 // der Planwand (Wunsch Patrick 16. Oktober 2026, vorher die Farbe der
 // Werkstoffgruppe, die vom Auftrag abweichen konnte)
@@ -720,7 +750,7 @@ export default function Maschine({ d }) {
           <div className="pad-reihe2">
             {alt.istExtern()
               ? <div className="pad-karte2 pad-karte2--verzug"><Fortschritt j={j} /></div>
-              : <Notizen m={m} />}
+              : <div className="pad-geteilt"><Notizen m={m} /><Keyence j={j} /></div>}
             {/* Fehlt die Stückzeit, pulsiert die Kachel absichtlich lästig,
                 bis sie eingetragen ist (Wunsch Patrick, 12. Oktober 2026) */}
             <div className={"pad-karte2 pad-karte2--zeit" + (zeitFehlt ? " pad-karte2--zeitfehlt pad-karte2--nervt" : "")}

@@ -11990,3 +11990,30 @@ body.dunkel .mess-schild--schlecht { background: #5a1f1f; }
 .keyence .suchleiste { margin: 0; }
 .keyence .suchleiste input { padding: 10px 14px; font: inherit; font-size: 1rem; border: 1px solid var(--linie, #c8d1dc);
   border-radius: 10px; background: var(--flaeche, #fff); color: inherit; }
+
+/* Pad Mode: Notizbücher und Keyence Berichte teilen sich die Kachel
+   (seit 1.444.0, Wunsch Patrick 6. November 2026) */
+.pad-geteilt { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-width: 0; min-height: 0; }
+.pad-geteilt > .pad-karte2 { min-width: 0; justify-content: center; }
+.pad-geteilt .pad-wert { font-size: 1.1rem; }
+.pad-karte2--keyence { cursor: pointer; color: #fff; background: linear-gradient(140deg, #1d5a5a, #0d2f33) !important;
+  border-color: rgba(140,230,220,.22) !important; }
+.pad-karte2--keyence .pad-name { color: #bfeee8; }
+.pad-karte2--keyence:active { filter: brightness(1.15); }
+.pad-karte2--keyenceleer { background: linear-gradient(140deg, #24364f, #142236) !important;
+  border-color: rgba(255,255,255,.08) !important; }
+.pad-karte2--keyenceleer .pad-name { color: #c4d5ec; }
+.keyence__nur { font-size: 1.1rem; }
+
+/* Keyence Berichte als Fenster: fest und breit genug für die ganze
+   Tabelle, Zeilen rot (nicht gut) und grün (gut), seit 1.444.0
+   (Patrick 6. November 2026: „kann nicht lesen, breiter“) */
+.dialog.unterlagen.messberichte, body.pad-offen .dialog.unterlagen.messberichte:not(.dialog--auftrag):not(.nb) { width: min(1500px, 97vw) !important; max-width: 97vw !important;
+  height: min(92vh, 1100px); display: flex; flex-direction: column; }
+.dialog.messberichte .unterlagen__rolle { flex: 1; min-height: 0; overflow: auto; }
+.mess__tabelle table { font-size: 1rem; }
+.mess__tabelle td, .mess__tabelle th { padding: 6px 10px; }
+.mess__zeile--schlecht td { background: rgba(220, 40, 40, .22) !important; color: #8a1010 !important; font-weight: 600; }
+.mess__zeile--gut td { background: rgba(40, 170, 80, .16) !important; }
+body.dunkel .mess__zeile--schlecht td { background: rgba(220, 50, 50, .35) !important; color: #ffd6d6 !important; }
+body.dunkel .mess__zeile--gut td { background: rgba(40, 170, 80, .22) !important; }
