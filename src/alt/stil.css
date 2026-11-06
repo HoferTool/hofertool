@@ -11974,3 +11974,36 @@ body.dunkel .cam-vorlage__fehler { color: #ff8a80 !important; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
 .lk-datei--neu:hover { background: var(--marke-hell); }
 .lk-datei--neu:disabled { cursor: wait; }
+
+/* Schreibleiste über jedem Textfeld: Knopf Ø, in Feldern mit Format
+   auch Farben, Fett und Grösse (seit 1.434.0, src/teile/schreibleiste.js) */
+.schreibleiste { position: fixed; left: 0; top: 0; z-index: 2147483000; display: flex; align-items: center;
+  gap: 4px; padding: 3px; border-radius: 10px; background: var(--flaeche, #fff);
+  border: 1px solid rgba(20, 40, 80, .18); box-shadow: 0 4px 14px rgba(10, 25, 50, .18); flex-wrap: wrap;
+  max-width: calc(100vw - 8px); }
+.schreibleiste[hidden] { display: none !important; }
+.schreibleiste__knopf { min-width: 34px; height: 34px; padding: 0 8px; border-radius: 8px; border: 1px solid rgba(20, 40, 80, .2);
+  background: #f3f6fb; color: #102040; font: 600 14px/1 system-ui, sans-serif; cursor: pointer; display: inline-flex;
+  align-items: center; justify-content: center; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.schreibleiste__knopf:hover { background: #e3ebf7; }
+.schreibleiste__zeichen { font-size: 22px; font-weight: 800; min-width: 40px; }
+.schreibleiste__format { display: none; align-items: center; gap: 4px; flex-wrap: wrap; }
+.schreibleiste--format .schreibleiste__format { display: inline-flex; }
+.schreibleiste__farbe { min-width: 26px; width: 26px; height: 26px; padding: 0; border-radius: 50%; background: var(--f);
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(20, 40, 80, .3); position: relative; overflow: hidden; }
+.schreibleiste__farbe:hover { background: var(--f); }
+.schreibleiste__wahl { background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
+.schreibleiste__wahl input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+body.pad-offen .schreibleiste__knopf { height: 44px; min-width: 44px; font-size: 17px; }
+body.pad-offen .schreibleiste__zeichen { font-size: 28px; min-width: 52px; }
+body.pad-offen .schreibleiste__farbe { width: 34px; min-width: 34px; height: 34px; }
+body.dunkel .schreibleiste { background: #1c2533; border-color: rgba(255, 255, 255, .18); }
+body.dunkel .schreibleiste__knopf { background: #2a3546; border-color: rgba(255, 255, 255, .2); }
+body.dunkel .schreibleiste__farbe { background: var(--f); border-color: #1c2533; }
+.stilleiste:has(.schreibleiste--drin) { flex-wrap: wrap; align-items: center; }
+.schreibleiste--drin { position: static; transform: none !important; box-shadow: none; border: 0; padding: 0; background: none; }
+body.dunkel .schreibleiste--drin { background: none; }
+.nb-textleiste .schreibleiste--drin, .nb-textleiste .schreibleiste--drin .schreibleiste__format { flex-wrap: nowrap; flex: none; max-width: none; }
+.nb-textleiste .schreibleiste--drin { margin-left: 2px; padding-left: 4px; border-left: 1px solid #e3e8ef; border-radius: 0; }
+.nb-textleiste .schreibleiste__knopf { height: 30px; min-width: 30px; }
+.nb-textleiste .schreibleiste__farbe { width: 22px; min-width: 22px; height: 22px; }

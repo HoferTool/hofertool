@@ -21,7 +21,19 @@
 import { useEffect, useRef, useState } from "react";
 
 const ALT_FETT = /\*\*([^*\n]+?)\*\*/g;
-const IST_HTML = /<(b|i|u|s|br|strong|em|strike|del)\b[^>]*>/i;
+const IST_HTML = /<(b|i|u|s|br|strong|em|strike|del|span|font)\b[^>]*>/i;
+
+// Farbe und Grösse aus der Schreibleiste (seit 1.434.0, Wunsch Patrick
+// 6. November 2026: „das Zeugs mit Farben und dick soll überall
+// verfügbar sein“, src/teile/schreibleiste.js). Nur sichere Werte gelten.
+const FARBE_OK = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
+const GROESSE_OK = /^\d{1,2}(\.\d+)?px$/;
+function spanStil(farbe, groesse) {
+  const a = [];
+  if (farbe) a.push("color:" + farbe, "-webkit-text-fill-color:" + farbe);
+  if (groesse) a.push("font-size:" + groesse, "line-height:1.2");
+  return a.join(";");
+}
 
 const escHtml = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -54,7 +66,11 @@ function serialisieren(knoten) {
     const unter = tag === "u" || /underline/.test(st.textDecoration || st.textDecorationLine || "");
     const durch = tag === "s" || tag === "strike" || tag === "del"
       || /line-through/.test(st.textDecoration || st.textDecorationLine || "");
+    let farbe = (st.color || (tag === "font" && k.getAttribute("color")) || "").trim();
+    if (!FARBE_OK.test(farbe)) farbe = "";
+    const groesse = GROESSE_OK.test(st.fontSize || "") ? st.fontSize : "";
     if (innen) {
+      if (farbe || groesse) innen = '<span style="' + spanStil(farbe, groesse) + '">' + innen + "</span>";
       if (durch) innen = "<s>" + innen + "</s>";
       if (unter) innen = "<u>" + innen + "</u>";
       if (kursiv) innen = "<i>" + innen + "</i>";
@@ -70,7 +86,7 @@ function serialisieren(knoten) {
 // Fürs Speichern: ohne Auszeichnung reiner Text mit Zeilenumbrüchen
 export function stilWert(el) {
   const html = sauber(el.innerHTML);
-  if (/<(b|i|u|s)>/.test(html)) return html.trim();
+  if (/<(b|i|u|s|span)[ >]/.test(html)) return html.trim();
   const tmp = document.createElement("div");
   tmp.innerHTML = html.replace(/<br>/g, "\n");
   return tmp.textContent.trim();
@@ -89,6 +105,14 @@ function zuReact(knoten, weg) {
       else if (tag === "i") teile.push(<em key={key}>{zuReact(k, key)}</em>);
       else if (tag === "u") teile.push(<u key={key}>{zuReact(k, key)}</u>);
       else if (tag === "s") teile.push(<s key={key}>{zuReact(k, key)}</s>);
+      else if (tag === "span" || tag === "font") {
+        const st = k.style || {};
+        const farbe = (st.color || (tag === "font" && k.getAttribute("color")) || "").trim();
+        const o = {};
+        if (FARBE_OK.test(farbe)) { o.color = farbe; o.WebkitTextFillColor = farbe; }
+        if (GROESSE_OK.test(st.fontSize || "")) { o.fontSize = st.fontSize; o.lineHeight = 1.2; }
+        teile.push(Object.keys(o).length ? <span key={key} style={o}>{zuReact(k, key)}</span> : <span key={key}>{zuReact(k, key)}</span>);
+      }
       else teile.push(...zuReact(k, key));
     }
   });

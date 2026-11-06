@@ -16,6 +16,7 @@
 //  Browserfenster mit zu, und umgekehrt.
 // =================================================================
 import { alt } from "../bruecke.jsx";
+import { schreibleisteAnbinden } from "./schreibleiste.js";
 
 const LAGE = "hofer.eigenesFenster.lage";
 const offen = new Set();
@@ -102,6 +103,8 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
   if (!d.body) d.documentElement.appendChild(d.createElement("body"));
   d.title = titel || document.title;
   stileUebertragen(d);
+  // Knopf Ø und Farben über den Textfeldern auch dort drüben
+  schreibleisteAnbinden(d);
 
   eintrittBeenden(huelle);
   huelle.classList.add("dialog-huelle--eigen");

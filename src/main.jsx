@@ -10,6 +10,8 @@ import "./alt/app.js";
 import "./teile/profilbilder.js";
 // Dateien vom Computer in jedes Dateifeld ziehen
 import "./teile/dateiAblegen.js";
+// Über jedem Textfeld der Knopf Ø, in Feldern mit Format auch Farben
+import "./teile/schreibleiste.js";
 // Mehr Bewegung: gleitende Markierungen, Licht, Welle, Seitenwechsel
 import "./effekte/effekte.css";
 import "./effekte/effekte.js";
