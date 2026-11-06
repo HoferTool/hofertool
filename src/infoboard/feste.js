@@ -99,13 +99,6 @@ export const ZUSATZ = {
       <path d="M61 47 L56 64 L62.5 64 L66.5 49 Z" fill="#a8431a"/>
       <path d="M56.5 61 L63 61" stroke="#f2b233" stroke-width="1.4"/>`,
   },
-  // Halloween am Tag (Umzug im Band oben, 1.211.0): Hexenhut statt der
-  // düsteren Nachthühner, die im hellen Band zu finster wirken
-  hexenhut: {
-    vorne: `<path d="M58 19 L88 16 C82 13 78 11 76 6 C74 1 70 -6 62 -9 C66 -3 67 4 66 15 Z" fill="#2b2233"/>
-      <path d="M55 20 C62 15 82 13 92 16 C84 20 64 22 55 20 Z" fill="#2b2233"/>
-      <path d="M62 17 L84 15" stroke="#f28c28" stroke-width="2.4"/>`,
-  },
   // Winter: Wollmütze und Schal
   wollmuetze: {
     vorne: `<path d="M59 20 C59 6 83 2 87 18 Z" fill="#2a6fdb"/>
@@ -204,13 +197,6 @@ export function festFuer(d = new Date()) {
       regen: "funke",
       himmel: "radial-gradient(120% 40% at 50% 105%, rgba(213,43,30,.2), transparent 70%), #000",
     });
-  if (zwischen(d, [10, 17], [11, 2])) return {
-    name: "halloween", huhn: null, faellt: "feder", farben: ["#4a3d52", "#2c2433"],
-    regen: null,
-    leuchten: "drop-shadow(0 0 6px rgba(150,60,190,.55)) drop-shadow(0 0 18px rgba(255,90,20,.22))",
-    himmel: "radial-gradient(120% 40% at 50% 105%, rgba(255,110,20,.14), transparent 70%), #000",
-  };
-
   // Sonst die Jahreszeit
   if (zwischen(d, [3, 21], [6, 20])) return fest("fruehling", "blume", "bluete",
     ["#f7a8c8", "#ffffff", "#ffc8dd", "#cdb4db"], {

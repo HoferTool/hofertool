@@ -77,7 +77,7 @@ with sync_playwright() as p:
         br.close()
     # Seit 1.180.0: Verkleidung je Fest und Jahreszeit
     ordner = os.environ.get("BILDER", "")
-    for zeit, soll in [("2026-10-25T21:00:00+01:00", "halloween"),
+    for zeit, soll in [("2026-10-25T21:00:00+01:00", "herbst"),
                        ("2026-12-20T21:00:00+01:00", "weihnachten"),
                        ("2026-12-31T23:30:00+01:00", "silvester"),
                        ("2027-02-07T12:00:00+01:00", "fasnacht"),

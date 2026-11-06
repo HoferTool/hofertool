@@ -13,7 +13,7 @@
 //  Zustand, damit die Tafel dafür nie neu zeichnet.
 //
 //  Seit 1.180.0 verkleiden sich die Hühner je nach Fest und Jahreszeit
-//  von selbst (feste.js): Halloween, Weihnachten, Silvester, Fasnacht,
+//  von selbst (feste.js): Weihnachten, Silvester, Fasnacht,
 //  Valentinstag, Ostern, 1. August, sonst Frühling, Sommer, Herbst, Winter.
 // =================================================================
 import { useEffect, useRef } from "react";
@@ -36,48 +36,9 @@ export function istEmpfangDunkel(d = new Date()) {
   return h >= 18 || h < 6;
 }
 
-// Ein Halloween-Huhn von der Seite (feste.js: Fest „halloween“), Blick nach rechts (Wunsch Patrick
-// 25. Oktober 2026: „Halloween-Versionen, etwas düster und furcht-
-// erregend“): schwarz-zerzaust mit Rippen, glühenden Augen, Reisszähnen,
-// tropfendem Kamm, Krallen und Fledermausflügel. Der Flügel ist eine
-// eigene Gruppe, damit er schlagen kann.
-const HUHN = `<svg viewBox="0 0 124 100" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <radialGradient id="ibAuge"><stop offset="0" stop-color="#fff6c0"/><stop offset=".35" stop-color="#ff3b1f"/><stop offset="1" stop-color="#ff3b1f" stop-opacity="0"/></radialGradient>
-    <linearGradient id="ibLeib" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3340"/><stop offset="1" stop-color="#141117"/></linearGradient>
-  </defs>
-  <g fill="url(#ibLeib)" stroke="#5b2a6e" stroke-width="1.2" stroke-linejoin="round">
-    <path d="M24 50 L2 20 L14 30 L6 8 L22 28 L20 4 L30 30 L34 14 L36 40 Z"/>
-    <path d="M18 56 C18 38 34 32 50 33 C62 34 74 40 76 52 C78 66 66 76 50 76 L46 82 L43 75 L36 80 L35 73 L27 76 L28 69 C21 66 18 62 18 56 Z"/>
-    <path d="M58 44 C56 34 60 24 64 18 C70 12 80 14 84 22 C86 30 82 38 78 44 C74 52 62 54 58 44 Z"/>
-  </g>
-  <g stroke="#cfc6b4" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".75">
-    <path d="M36 46 C40 54 40 62 36 70"/><path d="M43 44 C47 53 47 63 43 72"/><path d="M50 44 C54 53 54 63 50 72"/><path d="M57 46 C60 54 60 62 57 69"/>
-  </g>
-  <g fill="#7a0d12">
-    <path d="M66 18 L64 6 L70 13 L72 2 L76 12 L81 4 L80 16 Z"/>
-    <path d="M67 14 L67 22 C67 25 65 25 65 22 Z"/><path d="M76 14 L76 19 C76 21 74.5 21 74.5 19 Z"/>
-    <path d="M80 40 C84 42 84 50 81 54 C79 51 78 46 80 40 Z"/>
-    <path d="M82 52 L82 58 C82 60 80.5 60 80.5 58 Z"/>
-  </g>
-  <path d="M83 24 L100 26 L86 30 L99 34 L83 36 Z" fill="#2b2620" stroke="#8a7a52" stroke-width="1"/>
-  <path d="M86 30 L88 33 L90 30 M92 30 L94 33 L96 30" stroke="#f3eee0" stroke-width="1.2" fill="none" stroke-linejoin="round"/>
-  <circle cx="75" cy="25" r="7" fill="url(#ibAuge)"/>
-  <circle cx="75" cy="25" r="1.6" fill="#fff6c0"/>
-  <path d="M68 18 L82 22" stroke="#141117" stroke-width="3" stroke-linecap="round"/>
-  <g stroke="#3d3a33" stroke-width="2.6" stroke-linecap="round" fill="none">
-    <path d="M40 76 L37 88 M37 88 L29 92 M37 88 L37 95 M37 88 L43 93"/>
-    <path d="M52 76 L51 88 M51 88 L43 92 M51 88 L51 95 M51 88 L57 93"/>
-  </g>
-  <g fill="#e8dfc8">
-    <path d="M29 92 L26 94 L29 94 Z"/><path d="M37 95 L36 98 L38 96 Z"/><path d="M43 93 L45 96 L44 93 Z"/>
-    <path d="M43 92 L40 94 L43 94 Z"/><path d="M51 95 L50 98 L52 96 Z"/><path d="M57 93 L59 96 L58 93 Z"/>
-  </g>
-  <g class="ib-huhn__fluegel">
-    <path d="M62 46 L28 4 L34 22 L20 12 L28 32 L12 28 L26 44 L14 48 L36 54 Z" fill="#1d1622" stroke="#6b2f80" stroke-width="1.4" stroke-linejoin="round"/>
-    <path d="M62 46 L28 4 M62 46 L20 12 M62 46 L12 28 M62 46 L14 48" stroke="#4a3d52" stroke-width="1.6" fill="none"/>
-  </g>
-</svg>`;
+// Das Huhn kommt immer aus feste.js, verkleidet je Fest und Jahreszeit.
+// Das düstere Halloween-Huhn (1.179.1 bis 1.441.x) ist seit 1.442.0 weg
+// (Wunsch Patrick 6. November 2026: „Entferne … das Halloween Thema“).
 
 const zufall = (a, b) => a + Math.random() * (b - a);
 const ganz = (a, b) => Math.floor(zufall(a, b + 1));
@@ -140,7 +101,7 @@ export default function Huehnerhimmel() {
       const huhn = document.createElement("div");
       huhn.className = "ib-huhn";
       const fest = festHolen();
-      huhn.innerHTML = fest.huhn || HUHN;
+      huhn.innerHTML = fest.huhn;
       huhn.style.filter = fest.leuchten;
       huhn.style.width = w + "px";
       huhn.style.height = h + "px";
