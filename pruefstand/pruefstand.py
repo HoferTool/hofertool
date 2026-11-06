@@ -9,11 +9,21 @@ HIER = os.path.dirname(os.path.abspath(__file__))
 WURZEL = os.environ.get("PRUEFSTAND_WURZEL") or os.path.join(os.path.dirname(HIER), "dist")
 PORT = int(os.environ.get("PRUEFSTAND_PORT", "8899"))
 
+# Bricht der Browser eine Anfrage ab (Seite zu, Video oder grosse Datei
+# halb geladen), schrieb der Server „ConnectionResetError“ ins Protokoll,
+# und alle_tests.py zählte das als Fehler, obwohl die Prüfung gut war
+# (Kontur scheiterte so auf GitHub immer wieder, 5. November 2026).
+class StillerServer(http.server.ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (ConnectionError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
+
 def server_starten():
     if not os.path.exists(os.path.join(WURZEL, "index.html")):
         sys.exit("dist/index.html fehlt. Zuerst im Hauptordner „npm run build“ ausführen.")
     h = functools.partial(http.server.SimpleHTTPRequestHandler, directory=WURZEL)
-    srv = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), h)
+    srv = StillerServer(("127.0.0.1", PORT), h)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv
 

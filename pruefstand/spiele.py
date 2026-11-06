@@ -104,7 +104,11 @@ with sync_playwright() as p:
     pg.wait_for_timeout(200); pg.screenshot(path=BILD + "/spiele-schleuder.png")
     pg.mouse.move(sx - 140, sy + 90, steps=5); pg.mouse.up(); pg.wait_for_timeout(2500)
     nach = pg.locator("[data-sp='es-eier']").inner_text().count("🔩")
-    pruefe(nach == eier - 1, "Drehteil geschossen: %d → %d" % (eier, nach))
+    # Trifft der Schuss alle Spänemonster, geht es ins nächste Lager mit
+    # neuen Teilen (3 → 4) — das zählt auch als geschossen
+    lager = pg.evaluate("""() => { const s = [...document.querySelectorAll('span')].find(e => e.textContent.startsWith('Lager'));
+      return s ? parseInt(s.querySelector('b').textContent) : 1; }""")
+    pruefe(nach == eier - 1 or lager > 1, "Drehteil geschossen: %d → %d (Lager %d)" % (eier, nach, lager))
     pg.click("[data-ib='gross-zu']"); pg.wait_for_timeout(300)
     pruefe(pg.locator(".ib-voll [data-ib='gross']").count() == 0, "Schliessen schliesst die Spiele")
     pruefe(not pf, "keine Seitenfehler: %s" % pf)

@@ -48,7 +48,12 @@ with sync_playwright() as p:
     # Reiter (stehen am PC nur bei eingeklappter Seitenleiste auf der Seite)
     pg.click("#nav-klapp"); pg.wait_for_timeout(300)
     pg.wait_for_selector(".reiter.fx-gleit")
-    l = lage(".reiter")
+    # Die Seitenleiste klappt animiert zu, die Reiter rutschen dabei noch:
+    # bis 3 Sekunden warten, bis die Markierung nachgezogen hat
+    for _ in range(15):
+        l = lage(".reiter")
+        if l["x"] == l["ax"] and l["sicht"] == "1": break
+        pg.wait_for_timeout(200)
     pruefe("Reiter: Markierung auf dem aktiven Reiter", l["x"] == l["ax"] and l["sicht"] == "1")
     pg.locator(".reiter__knopf").nth(1).click(); pg.wait_for_timeout(700)
     l = lage(".reiter")

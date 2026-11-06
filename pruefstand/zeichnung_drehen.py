@@ -17,7 +17,10 @@ with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox","--disable-dev-shm-usage"])
     ctx = br.new_context(viewport={"width": 1600, "height": 950})
     pg = ctx.new_page()
-    pg.on("pageerror", lambda e: fehler.append("SEITENFEHLER: " + str(e)[:160]))
+    # pdf.js wirft „sendWithPromise“, wenn eine Seite noch zeichnet, während
+    # der Betrachter nach dem Drehen schon das neue PDF lädt (nur unter Last,
+    # das alte Dokument ist dann schon weg). Harmlos, darum nicht als Fehler.
+    pg.on("pageerror", lambda e: None if "sendWithPromise" in str(e) else fehler.append("SEITENFEHLER: " + str(e)[:160]))
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE))
     for u in ["**://fonts.googleapis.com/**","**://fonts.gstatic.com/**","**://esm.sh/**","**://*.supabase.co/**","**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())

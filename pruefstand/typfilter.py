@@ -65,6 +65,9 @@ with sync_playwright() as p:
     pg.click("[data-mpark='p-lang']"); pg.wait_for_selector("[data-mtyp-einst='t1']")
     pg.click("[data-mtyp-einst='t1']"); pg.wait_for_selector("#typ-fenster #typ-einst")
     pruefe("Fenster zeigt Zahl der Maschinen", "Maschinen mit diesem Typ" in pg.inner_text("#typ-einst"))
+    # Der Aufbau (Paths) lädt nach dem Kopf des Fensters nach: warten statt sofort zählen
+    try: pg.wait_for_selector("#typ-fenster #path-neu", timeout=8000)
+    except Exception: pass
     pruefe("Aufbau im Fenster", pg.locator("#typ-fenster #path-neu").count() == 1)
     fehler += f
     br.close()
