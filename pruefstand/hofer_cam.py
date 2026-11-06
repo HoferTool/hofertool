@@ -23,8 +23,7 @@ with sync_playwright() as p:
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#nc'")
     pg.wait_for_selector("[data-unter='nc/kontur']")
     if OHNE:
-        pruefe("Ohne Vermerk kein Hofer Cam", pg.locator("[data-unter='nc/cam']").count() == 0
-               and pg.locator("[data-rech='cam'], #rech-inhalt .cam").count() == 0)
+        pruefe("Ohne Vermerk trotzdem Hofer Cam (seit 1.432.0 für alle)", pg.locator("[data-unter='nc/cam']").count() == 1)
         br.close(); continue
     pg.wait_for_selector("[data-unter='nc/cam']"); pg.click("[data-unter='nc/cam']")
     pg.wait_for_selector("#cam-kanaele")

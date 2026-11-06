@@ -30,8 +30,7 @@ export const REITER = [
   ["kontur", "NC-PRO"], ["bohren", "Bohren / Fräsen"], ["entgraten", "Entgraten"], ["cachse", "C-Achse G12.1"], ["gravur", "Gravur"], ["dxf", "DXF"], ["cam", "Hofer Cam"], ["rechner", "Rechner"],
 ];
 
-// Hofer Cam sieht vorerst nur, wer den Vermerk camSehen am Konto hat
-// (Wunsch Patrick 5. November 2026: „zuerst nur für Patrick Ruch“)
+// Hofer Cam sehen seit 1.432.0 alle ausser Externen (camSehen in app.js)
 export function ncReiter() {
   return REITER.filter(([w]) => w !== "cam" || (alt.camSehen && alt.camSehen()));
 }

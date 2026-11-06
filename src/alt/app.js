@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.431.0";
+const APP_VERSION = "1.432.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3082,11 +3082,11 @@ function empfangSehen(u) {
 function kalkulationSehen(u) {
   return !!(u && u.einstellungen && u.einstellungen.kalkulationSehen);
 }
-// Hofer Cam in NC-PRO sieht vorerst nur, wer den Vermerk camSehen am
-// Konto hat (Wunsch Patrick 5. November 2026: „zuerst nur für Patrick Ruch“)
-function camSehen(u) {
-  const k = u || profil;
-  return !!(k && k.einstellungen && k.einstellungen.camSehen) && !istExtern();
+// Hofer Cam in NC-PRO: vom 5. November 2026 an nur mit dem Vermerk
+// camSehen (Patrick Ruch), seit 1.432.0 für alle, die NC-PRO sehen, also
+// ohne Externe (Wunsch Patrick 6. November 2026: „gib hofer cam allen frei“)
+function camSehen() {
+  return !istExtern();
 }
 function istAndererNutzer(u) {
   const k = u || profil;
