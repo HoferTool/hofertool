@@ -247,16 +247,58 @@ export function seiteZeile(zeilen) {
 }
 
 // Rechnungsnummer
-export function nummerIn(text) {
+// Nummern, die keine Rechnungsnummer sind: Debitoren-, Kunden-Nr. (Patrick
+// 6. November 2026: „bei Metalix die Debitoren-Nr. und nicht die
+// Rechnungsnummer erfasst“). Steht eine davon dort, wo sonst die
+// Rechnungsnummer gefunden würde, sucht die App weiter.
+const FREMD_RE = /\b(?:debitor(?:en)?|kunden?|kd)\s*-?\s*(?:nr|nummer|no)?\.?\s*:?\s*([A-Z0-9][A-Z0-9\-/.]*\d)/gi;
+const nrNorm = (x) => String(x || "").replace(/[\s.\-/]/g, "").toUpperCase();
+
+// Kopfzeile einer Tabelle („Ihre USt-IdNr.  Debitorennr.  Belegdatum
+// Rechnungsnr.“) mit den Werten in der Zeile darunter, Spalten durch
+// grosse Lücken getrennt (zeilenAusStuecken setzt dort zwei Leerzeichen).
+// Leere Felder fehlen in der Wertezeile, meist vorne (Ihre USt-IdNr.),
+// darum von rechts zuordnen. Gibt Rechnungsnummer und fremde Nummern.
+function nummerAusTabelle(zeilen) {
+  const aus = { nr: null, fremd: [] };
+  for (let i = 0; i + 1 < zeilen.length; i++) {
+    const kopf = zeilen[i].trim().split(/\s{2,}/);
+    if (kopf.length < 2 || /\d/.test(zeilen[i])) continue;
+    const istRe = (k) => /^(rechnung|faktur|invoice|beleg)\w*\s*-?\s*(nr|nummer|no)\b/i.test(k);
+    const istFremd = (k) => /^(debitor|deb\.|kunde|kd)/i.test(k);
+    if (!kopf.some((k) => istRe(k) || istFremd(k))) continue;
+    const werte = zeilen[i + 1].replace(/(\d)\s+([.,/])/g, "$1$2").replace(/([.,/])\s+(\d)/g, "$1$2")
+      .trim().split(/\s{2,}/);
+    if (!werte.length || werte.length > kopf.length) continue;
+    const vers = kopf.length - werte.length;
+    kopf.forEach((k, j) => {
+      const w = werte[j - vers];
+      if (!w || !/\d/.test(w) || !/^[A-Z0-9][A-Z0-9\-/.]*$/i.test(w)) return;
+      if (istFremd(k)) aus.fremd.push(w);
+      else if (istRe(k) && !aus.nr) aus.nr = w.replace(/[.\-/]+$/, "");
+    });
+  }
+  return aus;
+}
+
+export function nummerIn(text, zeilen) {
+  const fremd = new Set([...String(text).matchAll(FREMD_RE)].map((m) => nrNorm(m[1])));
+  if (zeilen) {
+    const t = nummerAusTabelle(zeilen);
+    t.fremd.forEach((x) => fremd.add(nrNorm(x)));
+    if (t.nr && !fremd.has(nrNorm(t.nr))) return t.nr;
+  }
   const muster = [
-    /rechnungs?\s*-?\s*(?:nr|nummer|no)\.?\s*:?\s*([A-Z0-9][A-Z0-9\-/.]*\d[A-Z0-9\-/]*)/i,
-    /rechnung\s*:?\s*(?:RG\s+)?([A-Z]{0,4}-?\d[A-Z0-9\-/]*\d)\b/i,
+    /rechnungs?\s*-?\s*(?:nr|nummer|no)\.?\s*:?\s*([A-Z0-9][A-Z0-9\-/.]*\d[A-Z0-9\-/]*)/gi,
+    /rechnung\s*:?\s*(?:RG\s+)?([A-Z]{0,4}-?\d[A-Z0-9\-/]*\d)\b/gi,
     // Andere Wörter für die Rechnungsnummer (Faktura, Beleg, Invoice …)
-    /(?:faktur(?:a|en)?|beleg|invoice|dokument)\s*-?\s*(?:nr|nummer|no)\.?\s*:?\s*([A-Z0-9][A-Z0-9\-/.]*\d[A-Z0-9\-/]*)/i,
+    /(?:faktur(?:a|en)?|beleg|invoice|dokument)\s*-?\s*(?:nr|nummer|no)\.?\s*:?\s*([A-Z0-9][A-Z0-9\-/.]*\d[A-Z0-9\-/]*)/gi,
   ];
   for (const re of muster) {
-    const m = re.exec(text);
-    if (m) return m[1].replace(/[.\-/]+$/, "");
+    for (const m of String(text).matchAll(re)) {
+      const n = m[1].replace(/[.\-/]+$/, "");
+      if (!fremd.has(nrNorm(n))) return n;
+    }
   }
   return null;
 }
@@ -370,7 +412,7 @@ export function seiteLesen(zeilen, liste) {
     qr: qrName(zeilen) || uidFirma(zeilen) || bankName(zeilen),
     vermutung: kopfFirma(zeilen),
     seite: seiteIn(flach) || seiteZeile(zeilen),
-    nummer: nummerIn(flach),
+    nummer: nummerIn(flach, zeilen),
     datum: datumIn(zeilen),
     uids: uidsIn(text),
     ibans: ibansIn(text.toUpperCase()),
