@@ -94,10 +94,9 @@ function fensterAuf() {
 // mit einer Checkbox soll es nicht mehr kommen“). Das Video ist mit dem
 // Prüfstand und Beispieldaten aufgenommen (pruefstand/tutorial_video.py)
 // und liegt in public/hilfe/, ausserhalb des Offline-Vorrats.
-const TUTORIAL_AUS = "ncpro_tutorial_aus";
+export const TUTORIAL_AUS = "ncpro_tutorial_aus";
 const LOGO_FARBE = import.meta.env.BASE_URL + "logo-empfang.png";
 const LOGO_HELL = import.meta.env.BASE_URL + "logo-weiss.svg";
-let tutorialGezeigt = false;
 export function tutorialOeffnen() {
   fensterOeffnen((zu) => <Tutorial zu={zu} />, null, "kt-tutorial-huelle");
 }
@@ -110,7 +109,10 @@ function Tutorial({ zu }) {
         <img className="kt-marke__logo kt-marke__logo--dunkel" src={LOGO_HELL} alt="Hofer + Co." />
         <h2>So startest du mit NC-PRO</h2>
       </div>
-      <video src="hilfe/hofer-nc-pro.mp4" controls autoPlay muted playsInline className="kt-tutorial__video" />
+      {/* Seit 1.440.0 mit Ton (Sprecher aus ElevenLabs). Lässt der Browser
+          das Abspielen mit Ton nicht zu, läuft es stumm weiter. */}
+      <video src="hilfe/hofer-nc-pro.mp4" controls playsInline className="kt-tutorial__video"
+        ref={(v) => { if (v && !v.dataset.los) { v.dataset.los = "1"; v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }); } }} />
       <div className="kt-tutorial__fuss">
         <label className="schalter schalter--eng"><input type="checkbox" id="kt-tutorial-aus" checked={aus}
           onChange={(e) => { setAus(e.target.checked); alt.einstellungSetzenWert && alt.einstellungSetzenWert(TUTORIAL_AUS, e.target.checked ? "1" : ""); }} />
@@ -123,13 +125,6 @@ function Tutorial({ zu }) {
 
 export default function Kontur() {
   const [, neu] = useState(0);
-  useEffect(() => {
-    // Einmal je Laden der App, solange „Nicht mehr anzeigen“ fehlt
-    if (tutorialGezeigt || fensterZu || (window.TEST && !window.TEST.tutorial)) return;
-    if (alt.einstellungWert && alt.einstellungWert(TUTORIAL_AUS, "") === "1") return;
-    tutorialGezeigt = true;
-    tutorialOeffnen();
-  }, []);
   useEffect(() => {
     const f = () => neu((n) => n + 1);
     fensterHoerer.add(f);

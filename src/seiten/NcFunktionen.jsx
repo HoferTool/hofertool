@@ -22,7 +22,7 @@ import { Reiter, Uebergang } from "../teile/Reiter.jsx";
 import CAchse from "./rechner/CAchse.jsx";
 import Gravur from "./rechner/Gravur.jsx";
 import Dxf from "./rechner/Dxf.jsx";
-import Kontur from "./rechner/Kontur.jsx";
+import Kontur, { tutorialOeffnen, TUTORIAL_AUS } from "./rechner/Kontur.jsx";
 import BohrenFraesen from "./rechner/BohrenFraesen.jsx";
 import Entgraten from "./rechner/Entgraten.jsx";
 import HoferCam from "./rechner/HoferCam.jsx";
@@ -79,10 +79,31 @@ export function ncAnsicht(wert) {
   return INHALT[gemerkt.ansicht] && ncReiter().some(([w]) => w === gemerkt.ansicht) ? gemerkt.ansicht : "kontur";
 }
 
+// Erklärvideo jedes Mal, wenn man NC-PRO anwählt (seit 1.440.0, Wunsch
+// Patrick 6. November 2026: „das Video soll jedesmal kommen, wenn man
+// NC-PRO anwählt, mit Option nicht mehr anzeigen“; vorher einmal je Laden
+// beim Reiter Kontur). Reiterwechsel innerhalb von NC-PRO zählen nicht,
+// darum merkt sich die Seite, ob man seither woanders war. Beim Neuladen
+// (auch dem stündlichen) kommt es nicht, man hat NC-PRO ja nicht angewählt.
+let warAufNc = false;
+let ersterAufruf = true;
+window.addEventListener("hashchange", () => { if (!/^#\/(nc|rechner)\b/.test(location.hash)) warAufNc = false; });
+function tutorialBeimAnwaehlen() {
+  const neuGeladen = ersterAufruf && performance.getEntriesByType?.("navigation")?.[0]?.type === "reload";
+  ersterAufruf = false;
+  if (warAufNc) return;
+  warAufNc = true;
+  if (neuGeladen || (window.TEST && !window.TEST.tutorial)) return;
+  if (alt.einstellungWert && alt.einstellungWert(TUTORIAL_AUS, "") === "1") return;
+  if (document.getElementById("kt-tutorial")) return;
+  tutorialOeffnen();
+}
+
 export default function NcFunktionen() {
   const [ansicht, setAnsicht] = useState(ncAnsicht());
   const [neu, setNeu] = useState(0);
   const [, neuZeichnen] = useState(0);
+  useEffect(tutorialBeimAnwaehlen, []);
   useEffect(() => {
     const f = () => neuZeichnen((n) => n + 1);
     fensterHoerer.add(f);
