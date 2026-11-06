@@ -6,6 +6,7 @@
 //  NC-Code. Gerechnet wird in bohren.js; die Felder melden sich erst
 //  beim Verlassen, wie bei der C-Achse.
 // =================================================================
+import { ncMelden } from "./ncAktuell.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { KopfFelder } from "./kopf.jsx";
@@ -54,6 +55,7 @@ export default function BohrenFraesen() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const gcode = useMemo(() => bfGcode(b), [b, stand]);
+  useEffect(() => { ncMelden("bohren", gcode); }, [gcode]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const warnungen = useMemo(() => bfPruefen(b), [b, stand]);
   const bohren = b.art === "bohrenFront" || b.art === "bohrenQuer";

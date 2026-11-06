@@ -5,6 +5,7 @@
 //  Schieber oder als Ablauf um das Teil fahren. Gerechnet wird in
 //  cachse.js, Felder melden sich beim Verlassen (wie bisher).
 // =================================================================
+import { ncMelden } from "./ncAktuell.js";
 import { useEffect, useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { KopfFelder } from "./kopf.jsx";
@@ -56,6 +57,7 @@ export default function CAchse() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const gcode = useMemo(() => cachseGcode(c), [c, kopfStand]);
+  useEffect(() => { ncMelden("cachse", gcode); }, [gcode]);
   const pruef = cachsePasst(c);
 
   const kopieren = async () => {

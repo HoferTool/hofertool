@@ -4,6 +4,7 @@
 //  oder direkt im Bild), Grösse und Seite festlegen, G-Code abholen.
 //  Gerechnet wird in dxf.js.
 // =================================================================
+import { ncMelden } from "./ncAktuell.js";
 import { useEffect, useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { KopfFelder } from "./kopf.jsx";
@@ -55,6 +56,7 @@ export default function Dxf() {
   const bahn = useMemo(() => dxfBahn(d, kontur), [d, kontur]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const gcode = useMemo(() => dxfGcode(d, d.name, bahn), [d, bahn, kopfStand]);
+  useEffect(() => { ncMelden("dxf", gcode); }, [gcode]);
   const bezug = dxfMasse(konturen, d.gewaehlt >= 0 ? d.gewaehlt : undefined) || { breite: 0 };
 
   const setze = (name, wert) => {

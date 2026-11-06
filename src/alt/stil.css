@@ -12007,3 +12007,6 @@ body.dunkel .schreibleiste--drin { background: none; }
 .nb-textleiste .schreibleiste--drin { margin-left: 2px; padding-left: 4px; border-left: 1px solid #e3e8ef; border-radius: 0; }
 .nb-textleiste .schreibleiste__knopf { height: 30px; min-width: 30px; }
 .nb-textleiste .schreibleiste__farbe { width: 22px; min-width: 22px; height: 22px; }
+/* HOFERCAM: Code aus Modul übernehmen (seit 1.436.0) */
+.cam-block__vorlageknopf { gap: 6px; }
+.cam-modul__vorschau { display: block; flex: 1; max-height: 180px; overflow: auto; }

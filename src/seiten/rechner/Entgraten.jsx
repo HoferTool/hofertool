@@ -7,6 +7,7 @@
 //  oder ohne Y-Achse, Fase in der Breite oder Tiefe. Gerechnet wird in
 //  entgraten.js.
 // =================================================================
+import { ncMelden } from "./ncAktuell.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { KopfFelder } from "./kopf.jsx";
@@ -72,6 +73,7 @@ export default function Entgraten() {
   const { bahnen, kanten } = useMemo(() => egBahnen(bE, g), [bE, g]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const gcode = useMemo(() => egGcode(bE, g), [bE, g, stand]);
+  useEffect(() => { ncMelden("entgraten", gcode); }, [gcode]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const warnungen = useMemo(() => egPruefen(bE, g).liste, [bE, g, stand]);
   const istGewaehlt = (id) => !g.wahl || g.wahl.includes(id);

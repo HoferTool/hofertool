@@ -14,6 +14,7 @@ import { alt } from "../../bruecke.jsx";
 import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
+import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import { DREH_PLAETZE, FELDER, FRONT_PLAETZE, HD_STUFEN, K2_PLAETZE, QUER_PLAETZE, SEITE_PLAETZE, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
 
@@ -56,6 +57,41 @@ function VorlageFeld({ code, pos, einsetzen, zu }) {
           : <code className="cam-vorlage__vorschau" data-camvorlage-vorschau>{erg.zeilen.join("\n")}</code>}
         <button className="knopf knopf--klein knopf--primaer" data-camvorlage-einfuegen disabled={!!erg.fehler}
           onClick={() => { einsetzen(zeilenEinsetzen(code, erg.zeilen, pos)); zu(); }}>Einfügen</button>
+      </div>
+    </div>
+  );
+}
+
+// Seit 1.436.0 (Wunsch Patrick 6. November 2026): den gerade erzeugten
+// NC-Code aus Bohren / Fräsen, Entgraten, C-Achse, Gravur oder DXF in die
+// Bearbeitung übernehmen, eingesetzt wie eine Vorlage nach der Zeile mit
+// der Schreibmarke. Den Code melden die Reiter in ncAktuell.js.
+function ModulFeld({ code, pos, einsetzen, zu }) {
+  const da = NC_QUELLEN.filter(([k]) => ncAktuell(k)?.text);
+  const [id, setId] = useState(da.length ? da.slice().sort((x, y) => ncAktuell(y[0]).zeit - ncAktuell(x[0]).zeit)[0][0] : "");
+  const [ohne, setOhne] = useState(true);
+  const quelle = id ? ncAktuell(id) : null;
+  const zeilen = quelle ? ncZeilen(quelle.text, ohne) : [];
+  return (
+    <div className="cam-vorlage" data-cammodul>
+      <div className="cam-vorlage__kopf">
+        <b>Aus Modul</b>
+        <select data-cammodul-wahl value={id} onChange={(e) => setId(e.target.value)}>
+          {!da.length && <option value="">– kein Modul offen gewesen –</option>}
+          {NC_QUELLEN.map(([k, n]) => <option key={k} value={k} disabled={!ncAktuell(k)?.text}>
+            {n}{ncAktuell(k)?.text ? "" : " (noch nicht geöffnet)"}</option>)}
+        </select>
+        {hatSpann() && <label className="cam-feld cam-feld--haken" title="Vor- und Nachspann für die Maschine aus den Modulen weglassen">
+          <input type="checkbox" data-cammodul-ohne checked={ohne} onChange={(e) => setOhne(e.target.checked)} />
+          <span>ohne Vor- und Nachspann</span></label>}
+        <button className="knopf knopf--klein" title="Schliessen" onClick={zu}>✕</button>
+      </div>
+      <div className="cam-vorlage__fuss">
+        {zeilen.length
+          ? <code className="cam-vorlage__vorschau cam-modul__vorschau" data-cammodul-vorschau>{zeilen.join("\n")}</code>
+          : <span className="cam-vorlage__fehler klein">Zuerst den Reiter des Moduls öffnen und dort den Code erzeugen, dann hier übernehmen.</span>}
+        <button className="knopf knopf--klein knopf--primaer" data-cammodul-einfuegen disabled={!zeilen.length}
+          onClick={() => { einsetzen(zeilenEinsetzen(code, zeilen, pos)); zu(); }}>Übernehmen</button>
       </div>
     </div>
   );
@@ -592,8 +628,13 @@ export default function HoferCam() {
                     <button className="knopf knopf--klein" data-camvorlage-auf={i}
                       title="Gewindestrählen, Tieflochbohren … aus einer Liste in den NC-Code einfügen"
                       onClick={() => setVorlageBei(vorlageBei === b.id ? null : b.id)}>+ Vorlage</button>
+                    <button className="knopf knopf--klein" data-cammodul-auf={i}
+                      title="Den aktuellen NC-Code aus Bohren / Fräsen, Entgraten, C-Achse, Gravur oder DXF übernehmen"
+                      onClick={() => setVorlageBei(vorlageBei === "m" + b.id ? null : "m" + b.id)}>+ Aus Modul</button>
                   </div>
                   {vorlageBei === b.id && <VorlageFeld code={b.code} pos={marke.current[b.id]}
+                    einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
+                  {vorlageBei === "m" + b.id && <ModulFeld code={b.code} pos={marke.current[b.id]}
                     einsetzen={(t) => blockAendern(b.id, "code", t)} zu={() => setVorlageBei(null)} />}
                   <textarea className="cam-block__code" data-camblock="code" rows={4} spellCheck={false}
                     onSelect={(e) => { marke.current[b.id] = e.target.selectionStart; }}

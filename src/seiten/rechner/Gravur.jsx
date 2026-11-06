@@ -5,6 +5,7 @@
 //  Abtasten der Schrift ist aufwendig und läuft darum nur, wenn sich
 //  Text oder Schrift ändern, nicht bei jedem Schritt der Vorschau.
 // =================================================================
+import { ncMelden } from "./ncAktuell.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { KopfFelder } from "./kopf.jsx";
@@ -72,6 +73,7 @@ export default function Gravur() {
   const zuege = useMemo(() => gravurBahnen(g, roh.zuege), [g, roh]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const gcode = useMemo(() => gravurGcode(g, roh), [g, roh, kopfStand]);
+  useEffect(() => { ncMelden("gravur", gcode); }, [gcode]);
 
   const mantel = g.flaeche === "mantel";
   const fraeser = g.art === "fraeser";
