@@ -43,11 +43,12 @@ export function anmeldungAbbauen() {
 // das andere einblenden.
 const REIN = 260;
 // So lange schwebt die gewählte Kachel in die Mitte oder ins Feld
-const FLUG = 520;
-// So lange bleibt sie mit Ladezeichen in der Mitte, auch wenn es schneller
-// ginge. Seit 1.52.0 eine Sekunde länger, dafür lädt die Planwand in der
-// Zeit schon vor (Wunsch Patrick, 14. Oktober 2026)
-const HALT = 1650;
+// Seit 1.449.0 schneller: die Anmeldung dauert nur so lange, wie das Laden
+// braucht, die Animation läuft ganz, aber in kürzerer Zeit (Wunsch Patrick
+// 7. November 2026: „so schnell wie möglich, Animation schneller machen
+// und nicht abkürzen“). Vorher 520 ms Flug, 1650 ms fester Halt und
+// 2200 ms Farbwelle.
+const FLUG = 360;
 // Länger als so wartet die Anmeldung nicht auf das Vorladen
 const VORLADEN_MAX = 2500;
 // Mit Passwort oder PIN gibt es keinen Ladebildschirm, nur den Knopf:
@@ -62,7 +63,7 @@ const wenigBewegung = () => window.matchMedia("(prefers-reduced-motion: reduce)"
 // (Wunsch Patrick, 14. Oktober 2026). Name und Gruss passen darunter.
 const MITTE_TIEFER = 24;
 // Dauer der Farbwelle (wie loginFarbwelle in stil.css)
-const FARBWELLE = 2200;
+const FARBWELLE = 850;
 function mitteRechteck() {
   const g = Math.round(Math.min(132, Math.max(96, window.innerWidth * 0.28)));
   return { left: (window.innerWidth - g) / 2, top: window.innerHeight / 2 - g / 2 + MITTE_TIEFER, width: g, height: g };
@@ -246,11 +247,9 @@ function Anmeldung() {
 
     flushSync(() => { setFlieger({ konto, laedt: true }); setKarteWeg(true); });
     const flug = fliegerRef.current ? fliegen(fliegerRef.current, von, mitteRechteck()) : Promise.resolve();
-    // Der Server antwortet oft schneller, als die Kachel fliegt. Damit man
-    // sie trotzdem in der Mitte ankommen und kurz schweben sieht, geht es
-    // erst nach dem Flug und einem kurzen Halt hinein (Wunsch Patrick,
-    // 6. Oktober 2026: „auch bei Leuten ohne PIN in die Mitte“).
-    const angekommen = flug.then(() => new Promise((ok) => setTimeout(ok, wenigBewegung() ? 0 : HALT)));
+    // Die Kachel kommt immer erst in der Mitte an (Wunsch Patrick,
+    // 6. Oktober 2026: „auch bei Leuten ohne PIN in die Mitte“); einen
+    // festen Halt dort gibt es seit 1.449.0 nicht mehr.
 
     const hinein = async () => {
       alt.geraetKontoMerken(konto.email);
@@ -260,12 +259,17 @@ function Anmeldung() {
       // Erst das Profil (Rechte, Extern), dann die Planwand vorladen,
       // während die Kachel noch schwebt
       await alt.profilLaden(true);
+      // Planwand gleich vorladen, die Welle läuft derweil
+      const vorladen = planwandVorladenHoechstens(VORLADEN_MAX);
+      // Die Welle startet erst, wenn die Kachel in der Mitte steht, sonst
+      // wäre sie bei schnellem Server schon vorbei, bevor die Kachel landet
+      await flug;
       const ziel = farbwechselZiel();
       if (ziel) { setFlieger((f) => (f ? { ...f, farbe: ziel } : f)); obenWechseln(ziel); }
       // Antwortet der Server spät, soll die Farbwelle trotzdem fertig
       // laufen, statt mitten im Verlauf abzubrechen
       const welle = !wenigBewegung() ? new Promise((ok) => setTimeout(ok, FARBWELLE)) : null;
-      await Promise.all([angekommen, welle, planwandVorladenHoechstens(VORLADEN_MAX)]);
+      await Promise.all([welle, vorladen]);
       if (await fassung) { location.reload(); return; }
       alt.zeichneGeruest();
     };
