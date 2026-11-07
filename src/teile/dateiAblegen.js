@@ -91,66 +91,92 @@ function zielBeimZiehen(e) {
 }
 
 // =================================================================
-//  BASKETBALL (seit 1.447.0, Wunsch Patrick 7. November 2026, nach
+//  KORBWURF (seit 1.447.0, Wunsch Patrick 7. November 2026, nach
 //  einem Instagram-Reel: „nur so möglich mit Basketball, wenn man
-//  nicht trifft, geht's nicht“)
-//  Beim Ziehen wird die Datei ein Basketball an der Maus, über der
-//  Stelle zum Ablegen hängt ein Korb. Nur wer den Ball in den Korb
-//  fallen lässt, lädt hoch; daneben prallt er ab und es passiert
-//  nichts. Gilt auch für Stellen mit eigenem Ablegen (Temp, Infoboard,
-//  Notizbuch …): ein Fehlwurf wird schon in der Capture-Phase
-//  abgefangen, bevor sie ihn sehen. Im Prüfstand nur mit TEST.korb.
+//  nicht trifft, geht's nicht“; seit 1.448.0 genau wie im Reel, das
+//  Patrick als Bildschirmaufnahme schickte: „etwa so, einfach
+//  HoferTool-Style“)
+//  Über der Stelle zum Ablegen hängt ein helles Korbbrett mit
+//  „Datei hier hineinwerfen“, Ring und Netz. Die Datei hängt als
+//  Blatt an der Maus, eine gepunktete Kurve zeigt die Flugbahn zum
+//  Ring. Nur Loslassen im Ring lädt hoch: das Blatt fällt durchs
+//  Netz, „+1“, unten ein Kärtchen mit Name, Grösse und Balken.
+//  Daneben prallt es am Ring ab und es passiert nichts. Gilt auch
+//  für Stellen mit eigenem Ablegen (Temp, Infoboard, Notizbuch …):
+//  ein Fehlwurf wird schon in der Capture-Phase abgefangen, bevor sie
+//  ihn sehen. Im Prüfstand nur mit TEST.korb.
 // =================================================================
-const RING = 92;            // Breite der Korböffnung in Punkten
-const KORB_B = 150, KORB_H = 170, RING_Y = 96;  // Lage des Rings im Korb
-let ball = null, korbHinten = null, korbVorne = null;
+const RING = 104;           // Breite der Korböffnung in Punkten
+const KORB_B = 190, KORB_H = 196, RING_Y = 122;  // Lage des Rings im Korb
+let ball = null, korbHinten = null, korbVorne = null, bahn = null;
 let zug = null;             // { stelle, start, eigen, x, y } Korb dieses Zugs
-let letzteMaus = null, verstecken = null, landet = false;
+let letzteMaus = null, verstecken = null, landet = false, neigung = 0;
 
 const korbAn = () => !(window.TEST && !window.TEST.korb);
 const ruhig = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const BALL_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true">
-  <defs><radialGradient id="dz-ball-g" cx="38%" cy="32%" r="70%">
-    <stop offset="0" stop-color="#ffb066"/><stop offset=".55" stop-color="#f07a1a"/><stop offset="1" stop-color="#b44c08"/>
-  </radialGradient></defs>
-  <circle cx="32" cy="32" r="30" fill="url(#dz-ball-g)" stroke="#5a2604" stroke-width="2"/>
-  <g fill="none" stroke="#3a1802" stroke-width="2.2" stroke-linecap="round">
-    <path d="M32 2v60M2 32h60"/><path d="M11 10c9 8 9 36 0 44"/><path d="M53 10c-9 8-9 36 0 44"/>
-  </g></svg>`;
+// Schild auf dem Blatt nach der Art der Datei
+function dateiArt(typ, name) {
+  const t = String(typ || "").toLowerCase(), n = String(name || "").toLowerCase();
+  if (t === "application/pdf" || n.endsWith(".pdf")) return ["PDF", "#e0393e"];
+  if (t.startsWith("image/") || /\.(png|jpe?g|gif|webp|heic)$/.test(n)) return ["BILD", "#1f6fd1"];
+  if (t.startsWith("video/") || /\.(mp4|mov|webm)$/.test(n)) return ["VIDEO", "#7a4fd0"];
+  if (/sheet|excel/.test(t) || /\.(xlsx?|xlsm|csv|ods)$/.test(n)) return ["EXCEL", "#1e8a4c"];
+  if (/word/.test(t) || /\.docx?$/.test(n)) return ["WORD", "#2b5fb8"];
+  return ["DATEI", "#6b7686"];
+}
+
+const BLATT = `<span class="dz-blatt__ecke"></span><i></i><i></i><i></i><b class="dz-blatt__art"></b>`;
 
 function bauen() {
   if (ball) return;
+  bahn = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  bahn.setAttribute("class", "dz-bahn");
+  bahn.innerHTML = `<path d=""/>`;
   ball = document.createElement("div");
   ball.className = "dz-ball";
-  ball.innerHTML = `<div class="dz-ball__dreh">${BALL_SVG}</div><b class="dz-ball__zahl"></b>`;
+  ball.innerHTML = `<div class="dz-blatt">${BLATT}</div><b class="dz-ball__zahl"></b>`;
   korbHinten = document.createElement("div");
   korbHinten.className = "dz-korb dz-korb--hinten";
-  korbHinten.innerHTML = `<div class="dz-brett"><i></i></div><div class="dz-ring-hinten"></div>
-    <div class="dz-schild">Hier rein werfen</div>`;
+  korbHinten.innerHTML = `<div class="dz-brett">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <b>Datei hier hineinwerfen</b><span>nur ein Treffer zählt</span><i></i></div>
+    <div class="dz-ring-hinten"></div>`;
   korbVorne = document.createElement("div");
   korbVorne.className = "dz-korb dz-korb--vorne";
   korbVorne.innerHTML = `<svg class="dz-netz" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">
-    <g fill="none" stroke="rgba(255,255,255,.95)" stroke-width="1.6">
+    <g fill="none" stroke="#9aa3ae" stroke-width="1.3">
       <path d="M2 2 L18 56 M20 2 L30 56 M38 2 L42 56 M50 2 L50 56 M62 2 L58 56 M80 2 L70 56 M98 2 L82 56"/>
       <path d="M18 56 L36 2 M30 56 L50 2 M42 56 L62 2 M58 56 L80 2 M70 56 L98 2"/>
-      <path d="M2 2 L20 2 M82 56 L64 2 M18 56 L2 2"/>
-      <path d="M8 20 Q50 28 92 20 M13 38 Q50 46 87 38"/>
+      <path d="M8 20 Q50 28 92 20 M13 38 Q50 46 87 38 M18 56 Q50 60 82 56"/>
     </g></svg><div class="dz-ring"></div><div class="dz-text"></div>`;
-  document.body.append(korbHinten, ball, korbVorne);
+  document.body.append(bahn, korbHinten, ball, korbVorne);
 }
 
-function ballZeigen(x, y, anzahl) {
+function ballZeigen(x, y, items) {
   bauen();
   const dx = letzteMaus ? x - letzteMaus.x : 0;
   letzteMaus = { x, y };
-  ball.style.transform = `translate(${x - 26}px, ${y - 26}px)`;
-  const dreh = ball.firstElementChild;
-  dreh.style.transform = `rotate(${((parseFloat(dreh.dataset.w || 0) + dx * 4) % 360)}deg)`;
-  dreh.dataset.w = (parseFloat(dreh.dataset.w || 0) + dx * 4) % 360;
-  const z = ball.lastElementChild;
-  z.textContent = anzahl > 1 ? String(anzahl) : "";
-  if (!ball.classList.contains("dz-an")) ball.classList.add("dz-an");
+  // Das Blatt neigt sich in Zugrichtung und richtet sich wieder auf
+  neigung = Math.max(-22, Math.min(22, neigung * 0.7 + dx * 1.6));
+  ball.style.transform = `translate(${x - 24}px, ${y - 30}px) rotate(${neigung}deg)`;
+  const erste = items[0] || {};
+  const [art, farbe] = dateiArt(erste.type, "");
+  const s = ball.querySelector(".dz-blatt__art");
+  s.textContent = art; s.style.background = farbe;
+  ball.lastElementChild.textContent = items.length > 1 ? String(items.length) : "";
+  ball.classList.add("dz-an");
+  bahnZeichnen(x, y);
+}
+
+// Gepunktete Flugbahn von der Maus zum Ring, wie ein Wurf im Bogen
+function bahnZeichnen(x, y) {
+  if (!bahn) return;
+  if (!zug || imKorb(x, y)) { bahn.classList.remove("dz-an"); return; }
+  const zx = zug.x, zy = zug.y - 4;
+  const hx = (x + zx) / 2, hy = Math.min(y, zy) - Math.max(60, Math.abs(zx - x) * 0.35);
+  bahn.firstElementChild.setAttribute("d", `M${x} ${y - 20} Q${hx} ${hy} ${zx} ${zy}`);
+  bahn.classList.add("dz-an");
 }
 
 // Sichtbarer Teil der Stelle, darin mittig der Korb (ganz im Bild)
@@ -173,12 +199,13 @@ function korbLegen(stelle) {
 
 function korbWeg() {
   if (!korbHinten) return;
-  for (const k of [korbHinten, korbVorne]) k.classList.remove("dz-an", "dz-ueber");
+  for (const k of [korbHinten, korbVorne]) k.classList.remove("dz-an", "dz-ueber", "dz-nah");
+  bahn.classList.remove("dz-an");
 }
 
 function allesWeg() {
   if (landet) return;
-  zug = null; letzteMaus = null;
+  zug = null; letzteMaus = null; neigung = 0;
   if (ball) ball.classList.remove("dz-an");
   korbWeg();
   markieren(null);
@@ -198,7 +225,7 @@ function eigeneStelle(start) {
 
 function imKorb(x, y) {
   if (!zug) return false;
-  return Math.abs(x - zug.x) <= RING / 2 + 6 && y >= zug.y - 46 && y <= zug.y + 50;
+  return Math.abs(x - zug.x) <= RING / 2 + 6 && y >= zug.y - 50 && y <= zug.y + 50;
 }
 
 function stelleSetzen(stelle, start, eigen) {
@@ -207,54 +234,82 @@ function stelleSetzen(stelle, start, eigen) {
   zug = { stelle, start, eigen, x, y };
 }
 
+function groesseText(b) {
+  if (!(b >= 0)) return "";
+  if (b < 1024 * 1024) return Math.max(1, Math.round(b / 1024)) + " KB";
+  return (b / 1024 / 1024).toFixed(1).replace(".", ",") + " MB";
+}
+
+// Kärtchen unten wie im Reel: Name, Grösse, Balken läuft voll, Haken
+function kaertchen(dateien) {
+  if (!dateien.length) return;
+  const d = dateien[0];
+  const [art, farbe] = dateiArt(d.type, d.name);
+  const k = document.createElement("div");
+  k.className = "dz-karte";
+  const name = dateien.length > 1 ? `${d.name} und ${dateien.length - 1} weitere` : d.name;
+  const summe = dateien.reduce((s, x) => s + (x.size || 0), 0);
+  k.innerHTML = `<div class="dz-blatt dz-blatt--klein">${BLATT}</div>
+    <div class="dz-karte__mitte"><b></b><span>${groesseText(summe)}</span></div>
+    <div class="dz-karte__stand"><span>Treffer! Wird übernommen …</span><i><u></u></i></div>
+    <div class="dz-karte__haken">✓</div>`;
+  k.querySelector(".dz-karte__mitte b").textContent = name;
+  const s = k.querySelector(".dz-blatt__art"); s.textContent = art; s.style.background = farbe;
+  document.body.appendChild(k);
+  requestAnimationFrame(() => k.classList.add("dz-an"));
+  setTimeout(() => { k.classList.add("dz-fertig"); k.querySelector(".dz-karte__stand span").textContent = "Im Korb"; }, ruhig() ? 50 : 1100);
+  setTimeout(() => k.classList.remove("dz-an"), 3000);
+  setTimeout(() => k.remove(), 3500);
+}
+
 // Wurf: Bogen vom Loslassen zum Ring, dann durchs Netz oder abprallen
 function werfen(x0, y0, treffer, fertig) {
   const z = zug;
   landet = true;
+  if (bahn) bahn.classList.remove("dz-an");
   const ende = () => { landet = false; allesWeg(); fertig && fertig(); };
   if (!ball || !z) { ende(); return; }
+  const text = korbVorne.querySelector(".dz-text");
+  text.textContent = treffer ? "+1" : "Daneben!";
   if (ruhig() || typeof ball.animate !== "function") {
-    korbVorne.querySelector(".dz-text").textContent = treffer ? "Treffer!" : "Daneben!";
-    korbVorne.classList.toggle("dz-treffer", treffer);
-    korbVorne.classList.toggle("dz-daneben", !treffer);
+    korbVorne.classList.add(treffer ? "dz-treffer" : "dz-daneben");
     setTimeout(() => { korbVorne.classList.remove("dz-treffer", "dz-daneben"); ende(); }, 700);
     return;
   }
-  const p = (x, y, s = 1, w = 0) => `translate(${x - 26}px, ${y - 26}px) scale(${s}) rotate(${w}deg)`;
-  const hoch = Math.min(y0, z.y) - 90;
-  let bahn;
+  const p = (x, y, s = 1, w = 0) => `translate(${x - 24}px, ${y - 30}px) rotate(${w}deg) scale(${s})`;
+  const hoch = Math.min(y0, z.y) - 80;
+  let weg;
   if (treffer) {
-    bahn = [
-      { transform: p(x0, y0), offset: 0 },
-      { transform: p((x0 + z.x) / 2, hoch, .95, 120), offset: .45 },
-      { transform: p(z.x, z.y - 8, .8, 220), offset: .72 },
-      { transform: p(z.x, z.y + 40, .74, 260), offset: .9 },
-      { transform: p(z.x, z.y + 90, .7, 290), opacity: 0, offset: 1 },
+    weg = [
+      { transform: p(x0, y0, 1, neigung), offset: 0 },
+      { transform: p((x0 + z.x) / 2, hoch, .9, 160), offset: .42 },
+      { transform: p(z.x, z.y - 14, .62, 330), offset: .7 },
+      { transform: p(z.x, z.y + 30, .5, 350), offset: .86 },
+      { transform: p(z.x, z.y + 80, .45, 360), opacity: 0, offset: 1 },
     ];
   } else {
     // Prallt am Ring ab und fällt seitlich weg
     const seite = x0 < z.x ? -1 : 1;
-    const rx = z.x + seite * (RING / 2), ry = z.y - 10;
-    bahn = [
-      { transform: p(x0, y0), offset: 0 },
-      { transform: p((x0 + rx) / 2, Math.min(y0, ry) - 70, .95, -90), offset: .35 },
-      { transform: p(rx, ry - 6, .9, -160), offset: .55 },
-      { transform: p(rx + seite * 70, ry - 60, .9, -260), offset: .72 },
-      { transform: p(rx + seite * 150, innerHeight + 80, .9, -420), opacity: .9, offset: 1 },
+    const rx = z.x + seite * (RING / 2), ry = z.y - 12;
+    weg = [
+      { transform: p(x0, y0, 1, neigung), offset: 0 },
+      { transform: p((x0 + rx) / 2, Math.min(y0, ry) - 70, .9, -120), offset: .35 },
+      { transform: p(rx, ry - 4, .8, -200), offset: .55 },
+      { transform: p(rx + seite * 70, ry - 60, .8, -300), offset: .72 },
+      { transform: p(rx + seite * 150, innerHeight + 80, .8, -480), opacity: .9, offset: 1 },
     ];
   }
-  const a = ball.animate(bahn, { duration: treffer ? 820 : 1050, easing: "cubic-bezier(.35,.1,.45,1)", fill: "forwards" });
+  const a = ball.animate(weg, { duration: treffer ? 820 : 1050, easing: "cubic-bezier(.35,.1,.45,1)", fill: "forwards" });
   setTimeout(() => {
-    korbVorne.querySelector(".dz-text").textContent = treffer ? "Treffer!" : "Daneben!";
     korbVorne.classList.add(treffer ? "dz-treffer" : "dz-daneben");
     korbHinten.classList.add(treffer ? "dz-treffer" : "dz-daneben");
-  }, treffer ? 560 : 540);
+  }, treffer ? 570 : 540);
   a.onfinish = () => {
     setTimeout(() => {
       a.cancel();
       for (const k of [korbHinten, korbVorne]) k.classList.remove("dz-treffer", "dz-daneben");
       ende();
-    }, treffer ? 250 : 350);
+    }, treffer ? 350 : 350);
   };
 }
 
@@ -263,11 +318,11 @@ window.addEventListener("dragover", (e) => {
   clearTimeout(verstecken);
   // Ohne neues dragover hat die Maus das Fenster verlassen oder abgebrochen
   verstecken = setTimeout(allesWeg, 260);
-  const anzahl = [...(e.dataTransfer.items || [])].filter((i) => i.kind === "file").length;
-  if (korbAn()) ballZeigen(e.clientX, e.clientY, anzahl);
+  const items = [...(e.dataTransfer.items || [])].filter((i) => i.kind === "file");
   // Sonst öffnet der Browser die Datei und die App ist weg
   if (e.defaultPrevented) {
     markieren(null);
+    if (korbAn()) bauen();
     if (korbAn() && !imKorb(e.clientX, e.clientY) && !(zug && zug.eigen && zug.stelle.contains(e.target)))
       stelleSetzen(eigeneStelle(e.target), e.target, true);
   } else {
@@ -275,15 +330,20 @@ window.addEventListener("dragover", (e) => {
     const ziel = zielBeimZiehen(e);
     const gut = ziel && !ziel.passtNicht;
     markieren(gut ? ziel.stelle : null);
+    if (korbAn()) bauen();
     // Ein Korb bleibt für den ganzen Zug hängen: jedes Loslassen ist ein
-    // Wurf, daneben prallt der Ball ab
+    // Wurf, daneben prallt das Blatt ab
     if (korbAn() && gut && !imKorb(e.clientX, e.clientY)) stelleSetzen(ziel.stelle, e.target, false);
     e.dataTransfer.dropEffect = gut || (korbAn() && zug) ? "copy" : "none";
   }
-  if (korbAn() && korbVorne) {
+  if (korbAn()) {
+    ballZeigen(e.clientX, e.clientY, items);
     const ueber = imKorb(e.clientX, e.clientY);
-    korbVorne.classList.toggle("dz-ueber", ueber);
-    korbHinten.classList.toggle("dz-ueber", ueber);
+    const nah = !!zug && Math.hypot(e.clientX - zug.x, e.clientY - zug.y) < 260;
+    for (const k of [korbVorne, korbHinten]) {
+      k.classList.toggle("dz-ueber", ueber);
+      k.classList.toggle("dz-nah", nah);
+    }
   }
 });
 
@@ -307,7 +367,9 @@ window.addEventListener("drop", (e) => {
     return;
   }
   e.zugStart = zug.start;
+  const dateien = [...(e.dataTransfer.files || [])];
   werfen(e.clientX, e.clientY, true);
+  setTimeout(() => kaertchen(dateien), ruhig() ? 0 : 650);
 }, true);
 
 window.addEventListener("drop", (e) => {

@@ -12053,54 +12053,75 @@ body.dunkel .kal-countdown { background: #4a3a12; color: #ffd98a !important; }
 .ib-band--flach .ib-band__zeile--ganz { height: auto; min-height: 40px; flex: 0 1 auto; padding-top: 6px; padding-bottom: 6px; border-radius: 20px; }
 .ib-band--flach .ib-band__zeile--ganz .ib-band__was { flex: 0 1 auto; max-width: none; }
 
-/* ---------- Basketball beim Ablegen (seit 1.447.0) ----------
-   Datei als Ball an der Maus, Korb über der Ablagestelle, nur ein
-   Treffer lädt hoch (src/teile/dateiAblegen.js). Brett und hintere
-   Ringhälfte liegen hinter dem Ball, Ring vorne und Netz davor, so
-   fällt der Ball durchs Netz. */
-.dz-ball, .dz-korb { position: fixed; left: 0; top: 0; pointer-events: none; opacity: 0;
-  transition: opacity .15s ease; will-change: transform; }
-.dz-ball { width: 52px; height: 52px; z-index: 100002; filter: drop-shadow(0 6px 8px rgba(0,0,0,.35)); }
-.dz-ball.dz-an, .dz-korb.dz-an { opacity: 1; }
-.dz-ball__dreh, .dz-ball__dreh svg { width: 100%; height: 100%; display: block; }
-.dz-ball__dreh { transition: transform .12s linear; }
-.dz-ball__zahl { position: absolute; right: -6px; top: -6px; min-width: 20px; height: 20px; padding: 0 5px;
-  border-radius: 10px; background: #1f5fbf; color: #fff !important; font: 700 12px/20px system-ui, sans-serif;
-  text-align: center; box-shadow: 0 0 0 2px #fff; }
+
+/* KORBWURF beim Ablegen von Dateien (seit 1.448.0 wie im Reel von
+   Patrick: helles Korbbrett, Blatt an der Maus, gepunktete Flugbahn,
+   unten ein Kärtchen mit Balken) */
+.dz-bahn { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 100000; opacity: 0; transition: opacity .15s; overflow: visible; }
+.dz-bahn.dz-an { opacity: 1; }
+.dz-bahn path { fill: none; stroke: #e2531b; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 0 12; opacity: .85; }
+.dz-ball { position: fixed; left: 0; top: 0; width: 48px; height: 60px; pointer-events: none; z-index: 100002; opacity: 0; transition: opacity .12s; will-change: transform; }
+.dz-ball.dz-an { opacity: 1; }
+.dz-blatt { position: relative; width: 48px; height: 60px; background: #fff; border-radius: 6px; border: 1px solid #d5dbe3; box-shadow: 0 8px 20px rgba(20, 30, 50, .28); overflow: hidden; box-sizing: border-box; padding: 16px 8px 0; }
+.dz-blatt__ecke { position: absolute; right: 0; top: 0; width: 13px; height: 13px; background: linear-gradient(225deg, #f2f4f7 50%, #d5dbe3 50%); border-bottom-left-radius: 3px; }
+.dz-blatt i { display: block; height: 3px; border-radius: 2px; background: #d7dde5; margin-bottom: 4px; }
+.dz-blatt i:nth-of-type(2) { width: 75%; }
+.dz-blatt i:nth-of-type(3) { width: 55%; }
+.dz-blatt__art { position: absolute; left: 4px; right: 4px; bottom: 5px; border-radius: 3px; color: #fff !important; font: 800 9px/14px system-ui, sans-serif; text-align: center; letter-spacing: .04em; }
+.dz-blatt--klein { width: 34px; height: 42px; padding: 11px 5px 0; flex: none; box-shadow: none; }
+.dz-blatt--klein i { height: 2px; margin-bottom: 3px; }
+.dz-blatt--klein .dz-blatt__art { font-size: 7px; line-height: 11px; bottom: 3px; }
+.dz-ball__zahl { position: absolute; right: -9px; top: -9px; min-width: 20px; height: 20px; border-radius: 10px; background: #e2531b; color: #fff !important; font: 800 12px/20px system-ui, sans-serif; text-align: center; padding: 0 4px; box-sizing: border-box; }
 .dz-ball__zahl:empty { display: none; }
-.dz-korb { width: 150px; height: 170px; }
+
+.dz-korb { position: fixed; left: 0; top: 0; width: 190px; height: 196px; pointer-events: none; opacity: 0; transition: opacity .18s; }
+.dz-korb.dz-an { opacity: 1; }
 .dz-korb--hinten { z-index: 100001; }
 .dz-korb--vorne { z-index: 100003; }
-.dz-korb.dz-an { animation: dz-korb-rein .35s cubic-bezier(.2,1.4,.4,1); }
-@keyframes dz-korb-rein { from { opacity: 0; margin-top: -24px; } to { opacity: 1; margin-top: 0; } }
-.dz-brett { position: absolute; left: 15px; top: 0; width: 120px; height: 86px; border-radius: 6px;
-  background: rgba(255,255,255,.92); border: 3px solid #c9d3df; box-shadow: 0 8px 22px rgba(0,0,0,.25); }
-.dz-brett i { position: absolute; left: 36px; top: 40px; width: 42px; height: 32px; border: 3px solid #e2531b;
-  border-bottom: none; }
-.dz-ring-hinten { position: absolute; left: 29px; top: 90px; width: 92px; height: 14px; border-radius: 50%;
-  border: 4px solid #a8360a; border-bottom-color: transparent; }
-.dz-ring { position: absolute; left: 29px; top: 90px; width: 92px; height: 14px; border-radius: 50%;
-  border: 4px solid #e2531b; border-top-color: transparent; box-shadow: 0 3px 0 rgba(0,0,0,.18);
-  transition: box-shadow .15s, border-color .15s; }
-.dz-netz { position: absolute; left: 31px; top: 98px; width: 88px; height: 58px; transform-origin: 50% 0;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
-.dz-schild { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); white-space: nowrap;
-  padding: 4px 10px; border-radius: 999px; background: #e2531b; font: 700 13px/1.2 system-ui, sans-serif;
-  color: #fff !important; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
-.dz-text { position: absolute; left: -40px; right: -40px; top: 150px; text-align: center; opacity: 0;
-  font: 800 22px/1 system-ui, sans-serif; text-shadow: 0 2px 6px rgba(0,0,0,.45); }
-.dz-ueber .dz-ring { border-color: #ff7a2f; border-top-color: transparent; box-shadow: 0 0 14px 4px rgba(255,140,40,.7); }
-.dz-ueber .dz-brett { border-color: #ff9a55; }
-.dz-treffer .dz-netz { animation: dz-netz .5s ease-out; }
-.dz-treffer .dz-text { color: #2fb35a !important; animation: dz-text .9s ease-out forwards; }
-.dz-daneben .dz-text { color: #e23b2b !important; animation: dz-text 1s ease-out forwards; }
-.dz-daneben.dz-korb { animation: dz-wackeln .45s ease-in-out; }
-.dz-treffer .dz-ring { box-shadow: 0 0 22px 8px rgba(80,220,120,.75); }
-@keyframes dz-netz { 0% { transform: scaleY(1); } 35% { transform: scaleY(1.35) scaleX(.86); }
-  70% { transform: scaleY(.92); } 100% { transform: scaleY(1); } }
-@keyframes dz-text { 0% { opacity: 0; transform: translateY(8px) scale(.7); } 25% { opacity: 1; transform: translateY(0) scale(1.15); }
-  70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translateY(-10px); } }
-@keyframes dz-wackeln { 0%, 100% { margin-left: 0; } 20% { margin-left: -7px; } 40% { margin-left: 6px; }
-  60% { margin-left: -4px; } 80% { margin-left: 2px; } }
-body.dunkel .dz-brett { background: rgba(240,244,250,.92); }
-@media (prefers-reduced-motion: reduce) { .dz-korb.dz-an, .dz-treffer .dz-netz, .dz-daneben.dz-korb { animation: none; } }
+.dz-brett { position: absolute; left: 0; top: 0; width: 190px; height: 112px; box-sizing: border-box; background: #fff; border: 2px dashed #b9c2cd; border-radius: 14px; box-shadow: 0 10px 26px rgba(20, 30, 50, .18); display: flex; flex-direction: column; align-items: center; padding-top: 12px; transition: background .15s, border-color .15s, transform .15s; }
+.dz-brett svg { width: 24px; height: 24px; color: #6b7686; margin-bottom: 4px; }
+.dz-brett b { font: 700 13px/1.2 system-ui, sans-serif; color: #1d2733 !important; }
+.dz-brett span { font: 500 11px/1.4 system-ui, sans-serif; color: #6b7686 !important; }
+/* Viereck über dem Ring wie auf einem echten Korbbrett */
+.dz-brett i { position: absolute; left: 50%; bottom: -2px; width: 52px; height: 26px; margin-left: -26px; border: 2px solid #e2531b; border-bottom: 0; border-radius: 3px 3px 0 0; box-sizing: border-box; opacity: .55; }
+.dz-korb.dz-nah .dz-brett, .dz-korb.dz-ueber .dz-brett { background: #fff3ea; border-color: #e2531b; }
+.dz-korb.dz-nah .dz-brett svg { color: #e2531b; }
+.dz-korb.dz-ueber .dz-brett { transform: scale(1.03); }
+.dz-ring-hinten, .dz-ring { position: absolute; left: 43px; top: 112px; width: 104px; height: 20px; box-sizing: border-box; border-radius: 50%; border: 4px solid #e2531b; }
+.dz-ring-hinten { border-bottom-color: transparent; opacity: .7; }
+.dz-ring { border-top-color: transparent; transition: box-shadow .15s; }
+.dz-korb.dz-ueber .dz-ring, .dz-korb.dz-ueber .dz-ring-hinten { box-shadow: 0 0 14px 3px rgba(226, 83, 27, .55); }
+.dz-netz { position: absolute; left: 45px; top: 122px; width: 100px; height: 64px; transform-origin: 50% 0; }
+.dz-korb.dz-treffer .dz-netz { animation: dz-netz .45s ease-out; }
+@keyframes dz-netz { 0% { transform: scaleY(1); } 35% { transform: scaleY(1.3) scaleX(.9); } 70% { transform: scaleY(.92); } 100% { transform: scaleY(1); } }
+.dz-text { position: absolute; left: 0; right: 0; top: -36px; text-align: center; font: 900 28px/1 system-ui, sans-serif; opacity: 0; pointer-events: none; text-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+.dz-korb.dz-treffer .dz-text { color: #e2531b !important; animation: dz-text .9s ease-out forwards; }
+.dz-korb.dz-daneben .dz-text { color: #d1242f !important; font-size: 22px; animation: dz-text .9s ease-out forwards; }
+@keyframes dz-text { 0% { opacity: 0; transform: translateY(10px) scale(.7); } 25% { opacity: 1; transform: translateY(-6px) scale(1.15); } 75% { opacity: 1; transform: translateY(-14px) scale(1); } 100% { opacity: 0; transform: translateY(-24px); } }
+.dz-korb.dz-daneben .dz-ring, .dz-korb.dz-daneben .dz-ring-hinten { animation: dz-wackeln .35s ease-in-out; }
+@keyframes dz-wackeln { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(4deg); } }
+
+.dz-karte { position: fixed; left: 50%; bottom: 22px; z-index: 100004; width: min(420px, calc(100vw - 32px)); box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #fff; border-radius: 14px; box-shadow: 0 14px 34px rgba(20, 30, 50, .25); transform: translate(-50%, 140%); opacity: 0; transition: transform .35s cubic-bezier(.2, .9, .3, 1.2), opacity .25s; pointer-events: none; }
+.dz-karte.dz-an { transform: translate(-50%, 0); opacity: 1; }
+.dz-karte__mitte { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dz-karte__mitte b { font: 700 13px/1.3 system-ui, sans-serif; color: #1d2733 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dz-karte__mitte span { font: 500 11px/1.3 system-ui, sans-serif; color: #6b7686 !important; }
+.dz-karte__stand { width: 150px; flex: none; display: flex; flex-direction: column; gap: 5px; }
+.dz-karte__stand span { white-space: nowrap; font: 600 11px/1.2 system-ui, sans-serif; color: #e2531b !important; }
+.dz-karte__stand i { display: block; height: 6px; border-radius: 3px; background: #edf0f4; overflow: hidden; }
+.dz-karte__stand u { display: block; height: 100%; width: 0; background: #e2531b; border-radius: 3px; text-decoration: none; }
+.dz-karte.dz-an .dz-karte__stand u { width: 100%; transition: width 1s ease-out .1s; }
+.dz-karte.dz-fertig .dz-karte__stand span { color: #1e8a4c !important; }
+.dz-karte.dz-fertig .dz-karte__stand u { background: #1e8a4c; }
+.dz-karte__haken { width: 26px; height: 26px; flex: none; border-radius: 50%; background: #1e8a4c; color: #fff !important; font: 800 14px/26px system-ui, sans-serif; text-align: center; transform: scale(0); transition: transform .3s cubic-bezier(.2, .9, .3, 1.5); }
+.dz-karte.dz-fertig .dz-karte__haken { transform: scale(1); }
+
+body.dunkel .dz-brett { background: #1f2630; border-color: #4a5563; }
+body.dunkel .dz-brett b, body.dunkel .dz-karte__mitte b { color: #f1f4f8 !important; }
+body.dunkel .dz-korb.dz-nah .dz-brett, body.dunkel .dz-korb.dz-ueber .dz-brett { background: #3a2a20; border-color: #e2531b; }
+body.dunkel .dz-karte { background: #1f2630; }
+body.dunkel .dz-karte__stand i { background: #364150; }
+@media (prefers-reduced-motion: reduce) {
+  .dz-karte, .dz-karte.dz-an .dz-karte__stand u, .dz-brett { transition: none; }
+  .dz-korb.dz-treffer .dz-netz, .dz-korb.dz-daneben .dz-ring, .dz-korb.dz-daneben .dz-ring-hinten { animation: none; }
+}

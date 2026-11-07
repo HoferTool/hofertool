@@ -89,8 +89,12 @@ with sync_playwright() as p:
     pruefe("Über dem Ring leuchtet der Korb", r["ueber"])
     pg.wait_for_timeout(300)
     pruefe("Treffer: Datei kommt an", pg.evaluate("window.probeName") == "foto2.jpg")
-    pg.wait_for_timeout(1200)
-    pruefe("Nach dem Wurf ist alles weg", not pg.evaluate("!!document.querySelector('.dz-an')"))
+    pg.wait_for_timeout(500)
+    pruefe("Treffer: Kärtchen unten mit Name", "foto2.jpg" in (pg.evaluate("document.querySelector('.dz-karte.dz-an')?.textContent") or ""))
+    pg.wait_for_timeout(200)
+    pg.screenshot(path="basketball-karte.png")
+    pg.wait_for_timeout(500)
+    pruefe("Nach dem Wurf ist alles weg", not pg.evaluate("!!document.querySelector('.dz-an:not(.dz-karte)')"))
     # Bild zum Anschauen: Ball über dem Korb
     pg.evaluate("""() => { const el = document.querySelector('#rech-inhalt svg'); const dt = new DataTransfer();
       dt.items.add(new File(['x'], 'a.dxf', { type: '' }));
