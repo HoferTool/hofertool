@@ -377,6 +377,7 @@ export function vorgabeTyp() {
     vorgaben: { ...VORGABEN },
     bloecke: Object.fromEntries(Object.entries(BLOECKE).map(([k, o]) => [k, { ...o }])),
     marken: { ...MARKEN },
+    felder: { aus: {}, eigene: [] },
   };
 }
 
@@ -390,6 +391,12 @@ export function typMischen(ab = {}) {
   const ms = ab.marken || {};
   if (Number(ms.ab) >= 200 && Number(ms.ab) <= 999) t.marken.ab = Number(ms.ab);
   if (Number(ms.schritt) >= 1 && Number(ms.schritt) <= 100) t.marken.schritt = Number(ms.schritt);
+  const fe = ab.felder || {};
+  for (const [o, l] of Object.entries(fe.aus || {})) if (Array.isArray(l) && l.length) t.felder.aus[o] = l.map(String);
+  if (Array.isArray(fe.eigene)) t.felder.eigene = fe.eigene.filter((f) => f && f.id && FELD_ORTE.some(([o]) => o === f.ort))
+    .map((f) => ({ id: String(f.id), ort: f.ort, text: String(f.text || ""), ph: String(f.ph || "").toUpperCase(),
+      art: FELD_ARTEN.some(([a]) => a === f.art) ? f.art : "zahl", vorgabe: String(f.vorgabe ?? ""),
+      liste: Array.isArray(f.liste) ? f.liste.map(String) : [], aus: !!f.aus }));
   return t;
 }
 
@@ -409,6 +416,8 @@ export function typAbweichungen(t) {
   }
   if (Object.keys(bl).length) ab.bloecke = bl;
   if (t.marken.ab !== v.marken.ab || t.marken.schritt !== v.marken.schritt) ab.marken = { ...t.marken };
+  const aus = Object.fromEntries(Object.entries(t.felder.aus).filter(([, l]) => l.length));
+  if (Object.keys(aus).length || t.felder.eigene.length) ab.felder = { aus, eigene: t.felder.eigene };
   return ab;
 }
 
@@ -476,9 +485,9 @@ export const BEDINGUNGEN = [
 ];
 
 // Unbekannte Platzhalter und Bedingungen einer Vorlage, für den Hinweis
-export function vorlageFehler(text, block) {
-  const namen = new Set((block ? PLATZHALTER_BLOCK : PLATZHALTER_KOPF).map(([n]) => n));
-  const bed = new Set(BEDINGUNGEN.map(([n]) => n));
+export function vorlageFehler(text, block, extra = { namen: [], bed: [] }) {
+  const namen = new Set([...(block ? PLATZHALTER_BLOCK : PLATZHALTER_KOPF).map(([n]) => n), ...extra.namen]);
+  const bed = new Set([...BEDINGUNGEN.map(([n]) => n), ...extra.bed]);
   const f = new Set();
   for (const z of String(text || "").split(/\r?\n/)) {
     let r = z, m;
@@ -486,4 +495,98 @@ export function vorlageFehler(text, block) {
     for (const p of r.matchAll(/\{([^}]*)\}/g)) if (!namen.has(p[1])) f.add("{" + p[1] + "}");
   }
   return [...f];
+}
+
+// =================================================================
+//  Eingabefelder je Maschinentyp
+//  Seit 1.450.0 (Wunsch Patrick 7. November 2026: „eigene Eingabefelder
+//  hinzufügen und bestehende deaktivieren oder löschen“, „Auswahlliste als
+//  Feldart ist gut“): `felder.aus[ort]` = Namen eingebauter Felder, die im
+//  Formular fehlen; ihr Platzhalter nimmt dann fest die Vorgabe.
+//  `felder.eigene` = [{ id, ort, text, ph, art, vorgabe, liste, aus }]:
+//  ort "kopf" (oben bei den Programmangaben, der Platzhalter gilt auch in
+//  den Bearbeitungen) oder eine Bearbeitungsart; art zahl / text / haken /
+//  liste. {PH} setzt den Wert ein, [ph] gilt, wenn ausgefüllt bzw. an.
+//  Eingebaute Felder lassen sich nur deaktivieren, weil die App mit
+//  manchen rechnet (A für die Drehzahl aus Vc).
+//  Die Werte stehen im Programm unter w.eigen bzw. b.eigen, je Platzhalter.
+// =================================================================
+// wie zahl() in hofercam.js (dort eingebunden, hier ohne Kreis)
+const zahl = (text) => {
+  const t = String(text ?? "").trim().replace(",", ".");
+  if (t === "" || !/^[-+]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
+  return t.includes(".") ? t : t + ".";
+};
+export const FELD_ORTE = [
+  ["kopf", "Oben (Programm)"], ["dreh", "Drehwerkzeug"], ["front", "Frontwerkzeug"], ["seite", "Querangetrieben"],
+  ["quer", "Frontangetrieben"], ["k2", "Kanal 2 stehende Werkzeuge"], ["k2a", "Kanal 2 angetrieben"],
+];
+export const FELD_ARTEN = [["zahl", "Zahl"], ["text", "Text"], ["haken", "Häkchen"], ["liste", "Auswahlliste"]];
+// Eingebaute Felder, die sich deaktivieren lassen: die mit einer Vorgabe
+export const eingebauteFelder = (t, ort) => (ort === "kopf" ? Object.keys(t.vorgaben) : Object.keys(t.bloecke[ort] || {}));
+export const feldAus = (ort, name, t = aktiv) => (t.felder.aus[ort] || []).includes(name);
+export const eigeneFelder = (ort, t = aktiv) => t.felder.eigene.filter((f) => f.ort === ort && !f.aus);
+const eigeneFuer = (ort, t) => t.felder.eigene.filter((f) => f.ort === ort);
+
+// Wert eines eigenen Felds: eingetippt, sonst die Vorgabe
+export const eigenWert = (f, o) => { const e = (o && o.eigen) || {}; return f.ph in e ? String(e[f.ph] ?? "") : f.vorgabe; };
+function eigeneWerte(liste, o, werte, bed) {
+  for (const f of liste) {
+    const roh = eigenWert(f, o);
+    if (f.art === "haken") { const an = roh === "1"; werte[f.ph] = an ? "1" : ""; bed[f.ph.toLowerCase()] = an; continue; }
+    const t = roh.trim();
+    werte[f.ph] = f.art === "zahl" ? (zahl(t) ?? t) : t;
+    bed[f.ph.toLowerCase()] = t !== "";
+  }
+}
+export function kopfEigene(w, werte, bed = {}) { eigeneWerte(aktiv.felder.eigene.filter((f) => f.ort === "kopf"), w, werte, bed); return bed; }
+export function blockEigene(b, w, werte, bed) {
+  kopfEigene(w, werte, bed);
+  eigeneWerte(aktiv.felder.eigene.filter((f) => f.ort === b.art), b, werte, bed);
+}
+// Vorgaben eigener Felder für ein neues Programm oder eine neue Bearbeitung
+export const eigeneVorgaben = (ort, t = aktiv) => Object.fromEntries(eigeneFuer(ort, t).map((f) => [f.ph, f.vorgabe]));
+
+// Deaktivierte eingebaute Felder bekommen fest die Vorgabe
+export function wirksamW(w) {
+  const aus = aktiv.felder.aus.kopf || [];
+  if (!aus.length) return w;
+  const n = { ...w };
+  for (const k of aus) if (k in aktiv.vorgaben) n[k] = aktiv.vorgaben[k];
+  return n;
+}
+export function wirksamB(b) {
+  const aus = aktiv.felder.aus[b.art] || [], vg = aktiv.bloecke[b.art] || {};
+  if (!aus.length) return b;
+  const n = { ...b };
+  for (const k of aus) if (k in vg) n[k] = vg[k];
+  // Drehzahl fest: dann auch keine Schnittgeschwindigkeit
+  if (aus.includes("S")) { n.sArt = "S"; n.g96 = false; }
+  return n;
+}
+
+// Platzhalter und Bedingungen der eigenen Felder für die Prüfung einer Vorlage
+export function eigeneNamen(t, artId) {
+  const ort = artId ? artId.replace("Gegen", "") : null;
+  const l = t.felder.eigene.filter((f) => f.ort === "kopf" || (ort && f.ort === ort));
+  return { namen: l.map((f) => f.ph), bed: l.map((f) => f.ph.toLowerCase()), liste: l };
+}
+
+// Fehler je eigenem Feld (id → Text): Platzhalter leer, ungültig, doppelt
+// oder schon eingebaut
+export function eigeneFehler(t) {
+  const f = {};
+  const eingebaut = new Set([...PLATZHALTER_KOPF, ...PLATZHALTER_BLOCK].map(([n]) => n));
+  const bed = new Set(BEDINGUNGEN.map(([n]) => n));
+  const gesehen = new Set();
+  for (const e of t.felder.eigene) {
+    if (!e.text.trim()) f[e.id] = "Name fehlt";
+    if (!/^[A-Z][A-Z0-9_]*$/.test(e.ph)) f[e.id] = "Platzhalter: Grossbuchstaben, Ziffern, _ (mit Buchstabe vorne)";
+    else if (eingebaut.has(e.ph) || ["CODE", "PAARE", "PAARE2"].includes(e.ph)) f[e.id] = "{" + e.ph + "} gibt es schon eingebaut";
+    else if (bed.has(e.ph.toLowerCase())) f[e.id] = "[" + e.ph.toLowerCase() + "] gibt es schon als Bedingung";
+    else if (gesehen.has(e.ph)) f[e.id] = "{" + e.ph + "} doppelt";
+    gesehen.add(e.ph);
+    if (e.art === "liste" && !e.liste.length) f[e.id] = f[e.id] || "Auswahlliste ist leer";
+  }
+  return f;
 }

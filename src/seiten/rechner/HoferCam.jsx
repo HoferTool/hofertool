@@ -15,7 +15,7 @@ import { NcAblage, NcStand } from "./NcAblage.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { NC_QUELLEN, hatSpann, ncAktuell, ncZeilen } from "./ncAktuell.js";
-import { TYP_NAME, typBeobachten } from "./camTyp.js";
+import { TYP_NAME, eigeneFelder, eigenWert, feldAus, typBeobachten, wirksamB, wirksamW } from "./camTyp.js";
 import { camTypFensterOeffnen, camTypLaden } from "./CamTypFenster.jsx";
 import { VORLAGEN, feldWert, vorlageStart, vorlageVon, vorlageZeilen, zeilenEinsetzen } from "./camVorlagen.js";
 import { FELDER, HD_STUFEN, plaetzeVon, vorschubArt, bildBereich, blockFehler, drehzahl, handNeu, markenPaare, neuerBlock, programme, programmeMitHand, pruefen, synchronisieren, vorgabe } from "./hofercam.js";
@@ -382,6 +382,29 @@ function Kanaele({ prog, sync, fehler, bereich, bereich2, w, handSetzen }) {
   </>);
 }
 
+// Seit 1.450.0: eigenes Eingabefeld aus den Einstellungen des Maschinentyps
+// (Zahl, Text, Häkchen oder Auswahlliste); der Wert steht unter eigen[PH]
+function EigenFeld({ f, o, setze, merkmal }) {
+  const wert = eigenWert(f, o);
+  const titel = f.text + " → {" + f.ph + "}";
+  const attr = { [merkmal]: f.ph };
+  if (f.art === "haken") return (
+    <label className="cam-feld cam-g96" title={titel}>
+      <input type="checkbox" {...attr} checked={wert === "1"} onChange={(e) => setze(f.ph, e.target.checked ? "1" : "")} /><span>{f.text}</span></label>);
+  if (f.art === "liste") return (
+    <label className="cam-feld" title={titel}><span>{f.text}</span>
+      <select {...attr} value={wert} onChange={(e) => setze(f.ph, e.target.value)}>
+        {!f.liste.includes(wert) && <option value={wert}>{wert || "–"}</option>}
+        {f.liste.map((x) => <option key={x} value={x}>{x}</option>)}
+      </select></label>);
+  const falsch = f.art === "zahl" && wert.trim() !== "" && !/^[-+]?(\d+[.,]?\d*|[.,]\d+)$/.test(wert.trim());
+  return (
+    <label className={"cam-feld" + (falsch ? " cam-feld--fehler" : "") + (f.art === "text" ? " cam-feld--text" : "")} title={titel + (falsch ? " – Zahl" : "")}>
+      <span>{f.text}</span>
+      <input {...attr} value={wert} inputMode={f.art === "zahl" ? "decimal" : "text"} onChange={(e) => setze(f.ph, e.target.value)} />
+    </label>);
+}
+
 export default function HoferCam() {
   const [w, setW] = useState(gemerkt);
   const [aktiv, setAktivRoh] = useState(aktivId);
@@ -448,7 +471,7 @@ export default function HoferCam() {
       <NcStand kurz="camab" gespeichert={gespeichert} nc={ncBeide} />
 
       <div className="cam-gruppen">
-        {FELDER.map((g) => (
+        {FELDER.map((g) => ({ ...g, felder: g.felder.filter((d) => !feldAus("kopf", d.name)) })).filter((g) => g.felder.length).map((g) => (
           <fieldset key={g.gruppe} className="cam-gruppe">
             <legend>{g.gruppe}</legend>
             {g.felder.map((d) => (
@@ -461,6 +484,11 @@ export default function HoferCam() {
             ))}
           </fieldset>
         ))}
+        {eigeneFelder("kopf").length > 0 && <fieldset className="cam-gruppe" id="cam-eigene">
+          <legend>Eigene Felder</legend>
+          {eigeneFelder("kopf").map((f) => <EigenFeld key={f.id} f={f} o={w} merkmal="data-cam-eigen"
+            setze={(ph, x) => setze("eigen", { ...(w.eigen || {}), [ph]: x })} />)}
+        </fieldset>}
       </div>
 
       {(() => {
@@ -507,7 +535,10 @@ export default function HoferCam() {
           // Kanal-2-Blöcke verhalten sich wie die Gegenspindel: NC-Code in
           // Kanal 2, Markenpaare geben ein Feld für Kanal 1
           const gegen = ((quer || front) && b.spindel === "gegen") || k2;
-          const feld = (name, text, lang, breit, platzhalter) => (
+          // Seit 1.450.0: im Maschinentyp deaktivierte Felder fehlen hier
+          const aus = (name) => feldAus(b.art, name);
+          const be = wirksamB(b);
+          const feld = (name, text, lang, breit, platzhalter) => aus(name) ? null : (
             <label className={"cam-feld" + (bf[name] ? " cam-feld--fehler" : "")} title={lang + (bf[name] ? " – " + bf[name] : "")}>
               <span>{text}</span>
               <input data-camblock={name} value={b[name] ?? ""} style={breit ? { width: breit } : undefined}
@@ -543,32 +574,32 @@ export default function HoferCam() {
                 <label className="cam-feld cam-feld--text" title="Steht in Klammern hinter dem Werkzeugaufruf"><span>Bezeichnung</span>
                   <input data-camblock="bez" value={b.bez} style={{ width: 190 }}
                     onChange={(e) => blockAendern(b.id, "bez", e.target.value.toUpperCase())} /></label>
-                {<label className="cam-feld" title={k2 ? "Hochdruck M1884D… vor dem Werkzeugaufruf, am Ende M1894 aus" : quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
+                {!aus("hd") && <label className="cam-feld" title={k2 ? "Hochdruck M1884D… vor dem Werkzeugaufruf, am Ende M1894 aus" : quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
                   <select data-camblock="hd" value={b.hd} onChange={(e) => blockAendern(b.id, "hd", e.target.value)}>
                     {HD_STUFEN.map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
                   </select></label>}
-                <label className="cam-feld" title={"Vorschub je Umdrehung (G99) oder je Minute (G98)" + (gegen ? ", in Kanal 2" : "") + "; am Ende der Bearbeitung immer wieder G99"}><span>Vorschub</span>
+                {!aus("vor") && <label className="cam-feld" title={"Vorschub je Umdrehung (G99) oder je Minute (G98)" + (gegen ? ", in Kanal 2" : "") + "; am Ende der Bearbeitung immer wieder G99"}><span>Vorschub</span>
                   <select data-camblock="vor" value={vorschubArt(b)} onChange={(e) => blockAendern(b.id, "vor", e.target.value)}>
                     <option value="99">G99 mm/U</option><option value="98">G98 mm/min</option>
-                  </select></label>
-                {b.hd && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (k2 ? "M1894" : quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
+                  </select></label>}
+                {be.hd && <label className="cam-feld cam-g96" title={"Am Ende der Bearbeitung den Hochdruck mit " + (k2 ? "M1894" : quer ? "M1893" : front ? "M1892" : "M1891") + " ausschalten"}>
                   <input type="checkbox" data-camblock="hdAus" checked={!b.hdAn}
                     onChange={(e) => blockAendern(b.id, "hdAn", !e.target.checked)} /><span>HD am Ende aus</span></label>}
                 {k2a ? <>
                   {/* Seit 1.425.0: angetrieben in Kanal 2 */}
-                  <label className="cam-feld" title="Angetriebenes Werkzeug: M36 Rechtslauf, M37 Linkslauf"><span>Richtung</span>
+                  {!aus("dreh") && <label className="cam-feld" title="Angetriebenes Werkzeug: M36 Rechtslauf, M37 Linkslauf"><span>Richtung</span>
                     <select data-camblock="dreh" value={b.dreh === "36" ? "36" : "37"} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
                       <option value="36">M36</option><option value="37">M37</option>
-                    </select></label>
+                    </select></label>}
                   {feld("S", "Drehzahl S", "Drehzahl des angetriebenen Werkzeugs (M36/M37 S…)")}
                   <label className="cam-feld cam-g96" title="Am Ende das angetriebene Werkzeug mit M38 ausschalten">
                     <input type="checkbox" data-camblock="m38" checked={!b.spAn}
                       onChange={(e) => blockAendern(b.id, "spAn", !e.target.checked)} /><span>M38 am Ende</span></label>
                 </> : quer ? <>
-                  <label className="cam-feld" title="Angetriebenes Werkzeug: M36 Rechtslauf, M37 Linkslauf"><span>Richtung</span>
+                  {!aus("dreh") && <label className="cam-feld" title="Angetriebenes Werkzeug: M36 Rechtslauf, M37 Linkslauf"><span>Richtung</span>
                     <select data-camblock="dreh" value={b.dreh === "37" ? "37" : "36"} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
                       <option value="36">M36</option><option value="37">M37</option>
-                    </select></label>
+                    </select></label>}
                   {feld("S", "Drehzahl S", "Drehzahl des angetriebenen Werkzeugs (M36/M37 S…)")}
                   <label className="cam-feld cam-g96" title={"Am Ende das angetriebene Werkzeug mit M38 ausschalten" + (gegen ? " (Kanal 2)" : "")}>
                     <input type="checkbox" data-camblock="m38" checked={!b.spAn}
@@ -585,11 +616,11 @@ export default function HoferCam() {
                     {feld("wegZ", "Zurück Z", "Am Ende G0Z… zurück in sichere Richtung", 60)}
                   </>}
                 </> : <>
-                <label className="cam-feld" title="Drehrichtung"><span>Richtung</span>
+                {!aus("dreh") && <label className="cam-feld" title="Drehrichtung"><span>Richtung</span>
                   <select data-camblock="dreh" value={b.dreh} onChange={(e) => blockAendern(b.id, "dreh", e.target.value)}>
                     <option value="3">M3</option><option value="4">M4</option>
-                  </select></label>
-                <label className="cam-feld" title="Drehzahl S direkt oder Schnittgeschwindigkeit Vc (die App rechnet S aus)"><span>Eingabe</span>
+                  </select></label>}
+                {!aus("S") && <><label className="cam-feld" title="Drehzahl S direkt oder Schnittgeschwindigkeit Vc (die App rechnet S aus)"><span>Eingabe</span>
                   <select data-camblock="sArt" value={b.sArt || "S"} onChange={(e) => blockAendern(b.id, "sArt", e.target.value)}>
                     <option value="S">S U/min</option><option value="vc">Vc m/min</option>
                   </select></label>
@@ -601,9 +632,9 @@ export default function HoferCam() {
                         onChange={(e) => blockAendern(b.id, "g96", e.target.checked)} /><span>G96</span></label>
                     {!b.g96 && feld("vcD", "Ø", front ? "Werkzeug-Ø in mm" : "Durchmesser in mm, leer = Material-Ø A aus G266", 54)}
                     <span className="cam-vc-s klein" data-camblock-s={i} title={b.g96 ? "Mit G96 steht Vc als S im Programm" : "Daraus gerechnete Drehzahl"}>
-                      {b.g96 ? (drehzahl(b, w) ? "G96 S" + drehzahl(b, w) : "S –") : (drehzahl(b, w) ? "= S" + drehzahl(b, w) : "S –")}</span>
+                      {b.g96 ? (drehzahl(b, wirksamW(w)) ? "G96 S" + drehzahl(b, wirksamW(w)) : "S –") : (drehzahl(b, wirksamW(w)) ? "= S" + drehzahl(b, wirksamW(w)) : "S –")}</span>
                   </>
-                  : feld("S", "Drehzahl S", "Drehzahl")}
+                  : feld("S", "Drehzahl S", "Drehzahl")}</>}
                 {k2 ? <>
                     {/* Seit 1.420.0 nach Patricks T2100 (5. November 2026) */}
                     {feld("vorX", "Vorpos. X", "G0X… vor der Nullpunktverschiebung; am Ende G50Z…X… zurück", 58)}
@@ -628,6 +659,8 @@ export default function HoferCam() {
                     {feld("wegF", "Weg F", "Wegfahren: Vorschub F", 60)}
                   </>}
                 </>}
+                {eigeneFelder(b.art).map((f) => <EigenFeld key={f.id} f={f} o={b} merkmal="data-camblock-eigen"
+                  setze={(ph, x) => blockAendern(b.id, "eigen", { ...(b.eigen || {}), [ph]: x })} />)}
                 <span className="cam-block__knoepfe">
                   <button className="knopf knopf--klein" title="Nach oben" disabled={i === 0} onClick={() => blockSchieben(i, -1)}>↑</button>
                   <button className="knopf knopf--klein" title="Nach unten" disabled={i === bloecke.length - 1} onClick={() => blockSchieben(i, 1)}>↓</button>

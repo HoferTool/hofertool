@@ -14,8 +14,9 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { Reiter } from "../../teile/Reiter.jsx";
 import {
-  ARTEN, BEDINGUNGEN, BLOCK_FELDER, CONFIG_SCHLUESSEL, PLATZ_GRUPPEN, PLATZHALTER_BLOCK, PLATZHALTER_KOPF,
-  TYP, TYP_NAME, mitTyp, typ, typAbweichungen, typMischen, typSetzen, vorgabeTyp, vorlageFehler,
+  ARTEN, BEDINGUNGEN, BLOCK_FELDER, CONFIG_SCHLUESSEL, FELD_ARTEN, FELD_ORTE, PLATZ_GRUPPEN, PLATZHALTER_BLOCK, PLATZHALTER_KOPF,
+  TYP, TYP_NAME, eigeneFehler, eigeneNamen, eigeneVorgaben, eingebauteFelder, mitTyp, typ, typAbweichungen, typMischen, typSetzen,
+  vorgabeTyp, vorlageFehler,
 } from "./camTyp.js";
 import { FELDER, neuerBlock, programme } from "./hofercam.js";
 
@@ -49,7 +50,7 @@ function beispiel(t, artId) {
     const grund = a.id.replace("Gegen", "");
     const b = { ...neuerBlock([], grund), id: "beispiel", bez: "BEISPIEL", code: "G1X5.F0.1\nG0Z2." };
     if (a.id.endsWith("Gegen")) b.spindel = "gegen";
-    const w = { ...vorgabeWerte(t), nr: "458", hoco: "10841-0009", datum: "06.11.26", kuerzel: "PR", bloecke: [b] };
+    const w = { ...vorgabeWerte(t), eigen: eigeneVorgaben("kopf"), nr: "458", hoco: "10841-0009", datum: "06.11.26", kuerzel: "PR", bloecke: [b] };
     return programme(w);
   });
 }
@@ -64,8 +65,8 @@ function Hilfe({ liste, titel }) {
   );
 }
 
-function Vorlage({ wert, vorgabe, setze, block, darf, name }) {
-  const fehler = vorlageFehler(wert, block);
+function Vorlage({ wert, vorgabe, setze, block, darf, name, extra }) {
+  const fehler = vorlageFehler(wert, block, extra);
   return (
     <div className="camtyp-vorlage">
       <div className="camtyp-vorlage__kopf">
@@ -80,6 +81,91 @@ function Vorlage({ wert, vorgabe, setze, block, darf, name }) {
   );
 }
 
+const eigeneHilfe = (x) => x.liste.map((f) => [f.ph, f.text + " (eigenes Feld" + (f.ort === "kopf" ? ", oben" : "") + ")"]);
+const neueId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+// Beschriftung eines eingebauten Felds
+const feldText = (ort, k) => (ort === "kopf" ? (FELDER.flatMap((g) => g.felder).find((d) => d.name === k) || { text: k }).text : BLOCK_FELDER[k] || k);
+// Platzhalter aus dem Namen vorschlagen: „Kühlmittel“ → KUEHLMITTEL
+const phAus = (text) => String(text).toUpperCase().replace(/Ä/g, "AE").replace(/Ö/g, "OE").replace(/Ü/g, "UE")
+  .replace(/[^A-Z0-9]+/g, "_").replace(/^[_0-9]+|_+$/g, "").slice(0, 20);
+
+// Seit 1.450.0 (Wunsch Patrick 7. November 2026): eigene Eingabefelder
+// anlegen, eingebaute ausblenden
+function Eingabefelder({ t, aendern, darf, ort, setOrt }) {
+  const fehler = eigeneFehler(t);
+  const eigene = t.felder.eigene.filter((f) => f.ort === ort);
+  const eingebaut = eingebauteFelder(t, ort);
+  const aus = t.felder.aus[ort] || [];
+  const feldSetzen = (id, was) => aendern((n) => { const f = n.felder.eigene.find((x) => x.id === id); if (f) Object.assign(f, was); });
+  const loeschen = async (f) => {
+    if (!(await alt.nachfragen({ titel: "Feld löschen", text: "„" + (f.text || f.ph) + "“ löschen? Steht {" + f.ph + "} noch in einer Vorlage, bleibt es dort unverändert stehen.", bestaetigen: "Löschen", gefahr: true }))) return;
+    aendern((n) => { n.felder.eigene = n.felder.eigene.filter((x) => x.id !== f.id); });
+  };
+  const neu = () => aendern((n) => { n.felder.eigene.push({ id: neueId(), ort, text: "", ph: "", art: "zahl", vorgabe: "", liste: [], aus: false }); });
+  const vorgabeFeld = (f) => {
+    const dis = !darf;
+    if (f.art === "haken") return <label className="cam-feld cam-g96"><input type="checkbox" data-camtyp-eigen-vorgabe={f.id} disabled={dis}
+      checked={f.vorgabe === "1"} onChange={(e) => feldSetzen(f.id, { vorgabe: e.target.checked ? "1" : "" })} /><span>Vorgabe an</span></label>;
+    if (f.art === "liste") return <label className="cam-feld"><span>Vorgabe</span><select data-camtyp-eigen-vorgabe={f.id} disabled={dis} value={f.vorgabe}
+      onChange={(e) => feldSetzen(f.id, { vorgabe: e.target.value })}><option value="">–</option>{f.liste.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>;
+    return <label className="cam-feld"><span>Vorgabe</span><input data-camtyp-eigen-vorgabe={f.id} readOnly={dis} value={f.vorgabe} style={{ width: 90 }}
+      onChange={(e) => feldSetzen(f.id, { vorgabe: e.target.value })} /></label>;
+  };
+  return (
+    <div className="camtyp-werte" id="camtyp-felder">
+      <label className="cam-feld camtyp-art"><span>Wo</span>
+        <select data-camtyp-ort value={ort} onChange={(e) => setOrt(e.target.value)}>
+          {FELD_ORTE.map(([o, x]) => <option key={o} value={o}>{x}{(t.felder.aus[o] || []).length || t.felder.eigene.some((f) => f.ort === o) ? " •" : ""}</option>)}
+        </select></label>
+      <fieldset className="cam-gruppe camtyp-felder"><legend>Eingebaute Felder</legend>
+        {eingebaut.map((k) => (
+          <label key={k} className="cam-feld cam-g96" title={aus.includes(k) ? "Ausgeblendet: im Programm steht fest die Vorgabe" : "Wird angezeigt"}>
+            <input type="checkbox" data-camtyp-an={ort + "." + k} disabled={!darf} checked={!aus.includes(k)}
+              onChange={(e) => aendern((n) => {
+                const l = new Set(n.felder.aus[ort] || []);
+                if (e.target.checked) l.delete(k); else l.add(k);
+                n.felder.aus[ort] = [...l];
+              })} />
+            <span>{feldText(ort, k)}{aus.includes(k) ? <span className="klein"> (fest: {(ort === "kopf" ? t.vorgaben[k] : t.bloecke[ort][k]) || "leer"})</span> : null}</span></label>
+        ))}
+      </fieldset>
+      <fieldset className="cam-gruppe camtyp-eigene"><legend>Eigene Felder</legend>
+        {eigene.length === 0 && <p className="klein">Noch keine.</p>}
+        {eigene.map((f) => (
+          <div key={f.id} className={"camtyp-eigen" + (fehler[f.id] ? " camtyp-eigen--fehler" : "")} data-camtyp-eigen={f.id}>
+            <label className="cam-feld cam-g96" title="Im Formular anzeigen; ausgeblendet gilt die Vorgabe">
+              <input type="checkbox" data-camtyp-eigen-an={f.id} disabled={!darf} checked={!f.aus} onChange={(e) => feldSetzen(f.id, { aus: !e.target.checked })} /><span>an</span></label>
+            <label className="cam-feld cam-feld--text"><span>Name</span>
+              <input data-camtyp-eigen-text={f.id} readOnly={!darf} value={f.text} style={{ width: 150 }}
+                onChange={(e) => { const text = e.target.value; feldSetzen(f.id, f.ph === "" || f.ph === phAus(f.text) ? { text, ph: phAus(text) } : { text }); }} /></label>
+            <label className="cam-feld"><span>Platzhalter</span>
+              <input data-camtyp-eigen-ph={f.id} readOnly={!darf} value={f.ph} style={{ width: 120 }}
+                onChange={(e) => feldSetzen(f.id, { ph: e.target.value.toUpperCase().replace(/[{}\s]/g, "") })} /></label>
+            <label className="cam-feld"><span>Art</span>
+              <select data-camtyp-eigen-art={f.id} disabled={!darf} value={f.art}
+                onChange={(e) => feldSetzen(f.id, { art: e.target.value, vorgabe: e.target.value === "haken" ? "" : f.vorgabe })}>
+                {FELD_ARTEN.map(([a, x]) => <option key={a} value={a}>{x}</option>)}
+              </select></label>
+            {f.art === "liste" && <label className="cam-feld cam-feld--text" title="Einträge mit Strichpunkt trennen"><span>Einträge</span>
+              <input data-camtyp-eigen-liste={f.id} readOnly={!darf} defaultValue={f.liste.join("; ")} style={{ width: 200 }} placeholder="M8; M7; M9"
+                onBlur={(e) => { const l = [...new Set(e.target.value.split(";").map((x) => x.trim()).filter(Boolean))];
+                  feldSetzen(f.id, { liste: l, vorgabe: l.includes(f.vorgabe) ? f.vorgabe : "" }); }} /></label>}
+            {vorgabeFeld(f)}
+            {darf && <button className="knopf knopf--klein" title="Feld löschen" data-camtyp-eigen-weg={f.id} onClick={() => loeschen(f)}>✕</button>}
+            {f.ph && !fehler[f.id] && <span className="klein camtyp-eigen__ph">{"{" + f.ph + "}"} · [{f.ph.toLowerCase()}]</span>}
+            {fehler[f.id] && <span className="klein camtyp-fehler">{fehler[f.id]}</span>}
+          </div>
+        ))}
+        {darf && <button className="knopf knopf--klein" id="camtyp-eigen-neu" onClick={neu}>+ Eigenes Feld</button>}
+      </fieldset>
+      <p className="klein">Ein eigenes Feld setzt du in den Vorlagen mit <code>{"{PLATZHALTER}"}</code> ein. <code>[platzhalter] …</code> am Anfang
+        einer Zeile lässt die Zeile nur stehen, wenn das Feld ausgefüllt bzw. das Häkchen an ist, <code>[!platzhalter]</code> nur, wenn nicht.
+        Felder oben gelten auch in allen Bearbeitungen. Zahlen ohne Punkt bekommen einen Punkt dahinter (17 → 17.).
+        Ausgeblendete eingebaute Felder nehmen fest die Vorgabe aus „Plätze, Vorgaben, Marken“.</p>
+    </div>
+  );
+}
+
 function Fenster({ zu }) {
   const darf = !!(alt.istAdmin && alt.istAdmin());
   const [t, setT] = useState(() => kopie(typ()));
@@ -87,11 +173,14 @@ function Fenster({ zu }) {
   const [reiter, setReiter] = useState("kopf");
   const [kopfTeil, setKopfTeil] = useState("k1kopf");
   const [art, setArt] = useState("dreh");
+  const [feldOrt, setFeldOrt] = useState("kopf");
   const [speichert, setSpeichert] = useState(false);
   const aendern = (f) => setT((x) => { const n = kopie(x); f(n); return n; });
   const vorlage = (k, text) => aendern((n) => { n.vorlagen[k] = text; });
 
-  const prog = useMemo(() => beispiel(t, art), [t, art]);
+  const vorschauArt = reiter === "felder" && feldOrt !== "kopf" ? feldOrt : art;
+  const prog = useMemo(() => beispiel(t, vorschauArt), [t, vorschauArt]);
+  const feldFehler = eigeneFehler(t);
   const geaendert = JSON.stringify(typAbweichungen(t)) !== JSON.stringify(typAbweichungen(typ()));
 
   const speichern = async () => {
@@ -115,7 +204,8 @@ function Fenster({ zu }) {
   };
 
   const ausschnitt = (zeilen, ber) => (ber ? zeilen.slice(ber[0] - 1, ber[1]) : []);
-  const vorschau = reiter === "bearb"
+  // Im Reiter Eingabefelder zeigt die Vorschau eine Bearbeitung der gewählten Art
+  const vorschau = reiter === "bearb" || (reiter === "felder" && feldOrt !== "kopf")
     ? [ausschnitt(prog.k1, prog.bereiche.beispiel), ausschnitt(prog.k2, prog.bereiche2.beispiel)]
     : [prog.k1, prog.k2];
 
@@ -127,7 +217,7 @@ function Fenster({ zu }) {
       </div>
       {!darf && <p className="klein camtyp-nur">Nur Admins können hier etwas ändern.</p>}
       <Reiter merkmal="camtyp-reiter" aktiv={reiter} waehlen={setReiter}
-        reiter={[["kopf", "Kopf und Ende"], ["bearb", "Bearbeitungen"], ["werte", "Plätze, Vorgaben, Marken"]]} />
+        reiter={[["kopf", "Kopf und Ende"], ["bearb", "Bearbeitungen"], ["felder", "Eingabefelder"], ["werte", "Plätze, Vorgaben, Marken"]]} />
       <div className="camtyp__inhalt">
         <div className="camtyp__links">
           {reiter === "kopf" && <>
@@ -138,9 +228,9 @@ function Fenster({ zu }) {
               ))}
             </div>
             <Vorlage name={KOPF_TEILE.find(([k]) => k === kopfTeil)[1]} wert={t.vorlagen[kopfTeil]} vorgabe={v.vorlagen[kopfTeil]}
-              setze={(x) => vorlage(kopfTeil, x)} darf={darf} />
+              setze={(x) => vorlage(kopfTeil, x)} darf={darf} extra={eigeneNamen(t)} />
             <p className="klein">„(Ende Kopf)“ und „(Start Ende)“ bitte stehen lassen: dazwischen kommen die Bearbeitungen.</p>
-            <Hilfe titel="Platzhalter für Kopf und Ende" liste={PLATZHALTER_KOPF.map(([n, x]) => ["{" + n + "}", x])} />
+            <Hilfe titel="Platzhalter für Kopf und Ende" liste={[...PLATZHALTER_KOPF, ...eigeneHilfe(eigeneNamen(t))].map(([n, x]) => ["{" + n + "}", x])} />
           </>}
           {reiter === "bearb" && <>
             <label className="cam-feld camtyp-art"><span>Bearbeitung</span>
@@ -151,15 +241,16 @@ function Fenster({ zu }) {
             <div className="camtyp-zwei">
               {["k1", "k2"].map((k) => (
                 <Vorlage key={art + k} name={"Kanal " + k.slice(1)} wert={t.vorlagen[art + "." + k]} vorgabe={v.vorlagen[art + "." + k]}
-                  setze={(x) => vorlage(art + "." + k, x)} block darf={darf} />
+                  setze={(x) => vorlage(art + "." + k, x)} block darf={darf} extra={eigeneNamen(t, art)} />
               ))}
             </div>
             <p className="klein">Eine Programmzeile je Zeile. <code>[hd] …</code> steht nur, wenn die Bedingung gilt,
               <code>[!hd] …</code> nur, wenn nicht. <code>{"{CODE}"}</code> allein auf einer Zeile setzt den NC-Code
               der Bearbeitung ein, <code>{"/{CODE}"}</code> mit „/“ vor jeder Zeile. Leere Zeilen fallen weg.</p>
-            <Hilfe titel="Platzhalter der Bearbeitung" liste={PLATZHALTER_BLOCK.map(([n, x]) => ["{" + n + "}", x])} />
-            <Hilfe titel="Bedingungen" liste={BEDINGUNGEN.map(([n, x]) => ["[" + n + "]", x])} />
+            <Hilfe titel="Platzhalter der Bearbeitung" liste={[...PLATZHALTER_BLOCK, ...eigeneHilfe(eigeneNamen(t, art))].map(([n, x]) => ["{" + n + "}", x])} />
+            <Hilfe titel="Bedingungen" liste={[...BEDINGUNGEN, ...eigeneNamen(t, art).liste.map((f) => [f.ph.toLowerCase(), f.text + (f.art === "haken" ? " ist an" : " ist ausgefüllt") + " (eigenes Feld)"])].map(([n, x]) => ["[" + n + "]", x])} />
           </>}
+          {reiter === "felder" && <Eingabefelder t={t} aendern={aendern} darf={darf} ort={feldOrt} setOrt={setFeldOrt} />}
           {reiter === "werte" && <div className="camtyp-werte">
             <fieldset className="cam-gruppe"><legend>Werkzeugplätze (mit Komma)</legend>
               {PLATZ_GRUPPEN.map((g) => (
@@ -200,7 +291,7 @@ function Fenster({ zu }) {
           </div>}
         </div>
         <div className="camtyp__rechts">
-          <b>Vorschau {reiter === "bearb" ? "dieser Bearbeitung" : "(Beispiel mit einer Bearbeitung)"}</b>
+          <b>Vorschau {vorschau.length && (reiter === "bearb" || (reiter === "felder" && feldOrt !== "kopf")) ? "dieser Bearbeitung" : "(Beispiel mit einer Bearbeitung)"}</b>
           <div className="camtyp-vorschau">
             {vorschau.map((z, i) => (
               <div key={i}><span className="klein">Kanal {i + 1}</span>
@@ -213,7 +304,8 @@ function Fenster({ zu }) {
         {darf && <button className="knopf" data-camtyp-allevorgabe onClick={() => setT(vorgabeTyp())}>Alles wie Vorgabe</button>}
         <span className="camtyp__luecke" />
         <button className="knopf" onClick={zu}>{darf ? "Abbrechen" : "Schliessen"}</button>
-        {darf && <button className="knopf knopf--primaer" id="camtyp-speichern" disabled={speichert || !geaendert} onClick={speichern}>
+        {darf && <button className="knopf knopf--primaer" id="camtyp-speichern" disabled={speichert || !geaendert || Object.keys(feldFehler).length > 0}
+          title={Object.keys(feldFehler).length ? "Zuerst die roten Eingabefelder korrigieren" : undefined} onClick={speichern}>
           {speichert ? "Speichert …" : "Speichern"}</button>}
       </div>
     </div>

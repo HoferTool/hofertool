@@ -12143,3 +12143,9 @@ body.dunkel .dz-karte__stand i { background: #364150; }
 .login__flieger--hell .login__wellen i { transition-duration: .3s; transition-delay: .1s; }
 /* Der Streifen oben wechselt seine Farbe in der kürzeren Welle mit */
 .login__kappe { transition-duration: .2s; }
+/* HOFERCAM Maschinentyp: Eingabefelder (1.450.0) */
+.camtyp-eigene { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.camtyp-eigen { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; padding: 4px 6px; border-radius: 6px; background: var(--flaeche-2, #f4f6f9); }
+body.dunkel .camtyp-eigen { background: #1b2230; }
+.camtyp-eigen--fehler { outline: 2px solid #b3261e; }
+.camtyp-eigen__ph { font-family: ui-monospace, Consolas, monospace; }

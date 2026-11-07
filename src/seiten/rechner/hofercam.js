@@ -7,7 +7,7 @@
 //  in beiden Kanälen. Die Bearbeitungen dazwischen kommen später.
 // =================================================================
 
-import { typ, vorlageArt, vorlageFuellen } from "./camTyp.js";
+import { typ, vorlageArt, vorlageFuellen, blockEigene, eigeneVorgaben, feldAus, kopfEigene, wirksamB, wirksamW } from "./camTyp.js";
 
 // Synchronisationsmarken der SB-20RG (Patrick 5. November 2026): M200
 // bis M999, dazu M20, M40, M41, M82, M83. Vierstellige wie M1881 / M1891
@@ -70,16 +70,17 @@ function heute() {
 // Vorgaben aus O0458 / O1458
 export function vorgabe() {
   // Seit 1.441.0 je Maschinentyp änderbar (camTyp.js)
-  return { nr: "1", hoco: "", datum: heute(), kuerzel: "", ...typ().vorgaben, bloecke: [] };
+  return { nr: "1", hoco: "", datum: heute(), kuerzel: "", ...typ().vorgaben, eigen: eigeneVorgaben("kopf"), bloecke: [] };
 }
 
 // Fehler je Feld (Text) oder leer
 export function pruefen(w) {
   const f = {};
+  w = wirksamW(w);
   const nr = Number(w.nr);
   if (!/^\d{1,3}$/.test(String(w.nr).trim()) || nr < 1 || nr > 999) f.nr = "1 bis 999";
   for (const g of FELDER) for (const d of g.felder) {
-    if (d.art) continue;
+    if (d.art || feldAus("kopf", d.name)) continue;
     if (zahl(w[d.name]) == null) f[d.name] = "Zahl fehlt";
     else if (d.ganz && !Number.isInteger(Number(String(w[d.name]).replace(",", ".")))) f[d.name] = "ganze Zahl";
   }
@@ -106,13 +107,15 @@ function kopfWerte(w) {
     ANNAEHERN: an, ANNAEHERN_MM: ohneMinus(an), UEBER: ue, UEBER_MM: ohneMinus(ue),
   };
 }
+// Seit 1.450.0 mit den eigenen Feldern oben (Werte und Bedingungen)
+function kopfAlles(w) { const werte = kopfWerte(w); const bed = kopfEigene(w, werte); return { werte, bed }; }
 function kanal1(w) {
-  const t = typ().vorlagen, werte = kopfWerte(w);
-  return { kopf: vorlageFuellen(t.k1kopf, { werte }), ende: vorlageFuellen(t.k1ende, { werte }) };
+  const t = typ().vorlagen, x = kopfAlles(w);
+  return { kopf: vorlageFuellen(t.k1kopf, x), ende: vorlageFuellen(t.k1ende, x) };
 }
 function kanal2(w) {
-  const t = typ().vorlagen, werte = kopfWerte(w);
-  return { kopf: vorlageFuellen(t.k2kopf, { werte }), ende: vorlageFuellen(t.k2ende, { werte }) };
+  const t = typ().vorlagen, x = kopfAlles(w);
+  return { kopf: vorlageFuellen(t.k2kopf, x), ende: vorlageFuellen(t.k2ende, x) };
 }
 
 // ---------- Bearbeitungen ----------
@@ -152,7 +155,7 @@ export function neuerBlock(bloecke = [], art = "dreh") {
   const gruppe = art === "k2a" ? "k2" : art;
   const l = plaetzeVon(gruppe);
   const platz = l.find((p) => !belegt.has(p)) || l[0] || "";
-  const nb = { id: neueId(), art, platz, bez: "", ...(typ().bloecke[art] || {}), code: "" };
+  const nb = { id: neueId(), art, platz, bez: "", ...(typ().bloecke[art] || {}), eigen: eigeneVorgaben(art), code: "" };
   // Front- und frontangetriebene Werkzeuge zuerst an der Hauptspindel (1.417.0)
   if (art === "front" || art === "quer") nb.spindel = "haupt";
   return nb;
@@ -180,6 +183,7 @@ export function drehzahl(b, w = {}) {
 
 export function blockFehler(b, w = {}) {
   const f = {};
+  b = wirksamB(b); w = wirksamW(w);
   if (b.art === "k2a") {
     if (!/^\d+$/.test(String(b.S).trim()) || Number(b.S) <= 0) f.S = "ganze Zahl";
     return f;
@@ -260,6 +264,7 @@ const codeZeilen = (b) => String(b.code || "").split(/\r?\n/).map((z) => z.trim(
 const schraeg = (z) => (markeVon(z) || z.startsWith("/") ? z : "/" + z);
 const STANDARD_MARKEN = { quer: { m1: "M300", m2: "M310", m3: "M320" }, front: { m1: "M300", m2: "M310" } };
 function blockWerte(b, w, marke) {
+  b = wirksamB(b); w = wirksamW(w);
   const art = vorlageArt(b);
   const bez = String(b.bez || "").trim();
   const g96 = b.sArt === "vc" && !!b.g96;
@@ -285,6 +290,7 @@ function blockWerte(b, w, marke) {
     M1: mk.m1 || "", M2: mk.m2 || "", M3: mk.m3 || "",
   };
   const bed = { hd: !!b.hd, hdaus: !!b.hd && !b.hdAn, g96, m38: !b.spAn, m5: !b.ohneM5, y: zahl(b.Y) != null };
+  blockEigene(b, w, werte, bed);
   const listen = {
     CODE: codeZeilen(b),
     PAARE: markenPaare(b).flatMap(([x, y]) => [x, ...k1Zeilen(b, x, y), y]),
@@ -359,6 +365,7 @@ export function markenVergeben(bloecke, belegtZeilen = []) {
 
 // Ganze Programme je Kanal; die Bearbeitungen stehen zwischen Kopf und Ende
 export function programme(w) {
+  w = wirksamW(w);
   const k1 = kanal1(w), k2 = kanal2(w);
   // Seit 1.398.0: je Block die Zeilen in Kanal 1 (von–bis, ab 1), damit
   // die Anzeige die angewählte Bearbeitung hervorheben kann
