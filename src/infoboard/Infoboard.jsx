@@ -552,6 +552,19 @@ export function infoboardOeffnen(vonHand, mass = TAFELN.haupt) {
   }
 }
 
+// Neuladen beendet das Vollbild, und von selbst darf die Seite es ohne
+// Tipp nicht wieder holen: dann steht die Browserleiste oben (Patrick
+// 7. November 2026: „beim Display Empfang fällt der Bildschirm ständig aus
+// dem Vollbildmodus“; jede neue Fassung und das stündliche Neuladen taten
+// das). Darum lädt ein Bildschirm im Vollbild nur in seiner Ruhezeit neu:
+// Empfang abends und nachts (schwarz), Infoboard und Pausenraum nachts.
+// Ohne Vollbild (oder im Kiosk-Modus des Browsers) wie bisher sofort.
+export function bildschirmDarfNeuLaden(d = new Date()) {
+  if (!offen || !document.fullscreenElement) return true;
+  const empfang = offen.huelle.classList.contains("ib-voll--empfang");
+  return empfang ? istEmpfangDunkel(d) : istNacht(d);
+}
+
 function vollbild(el) {
   try {
     if (document.fullscreenElement) return;

@@ -16,7 +16,7 @@ with sync_playwright() as p:
     ctx = br.new_context(viewport={"width": 1080, "height": 1920})
     pg = ctx.new_page()
     pf = []; pg.on("pageerror", lambda e: pf.append(str(e)[:200]))
-    pg.clock.install()
+    pg.clock.install(time="2026-11-04T10:00:00")  # Mittwoch am Vormittag
     # Wie das Konto „Infoboard“: ein Gerätekonto, das nie abgemeldet wird
     FAKE_IB = FAKE + ";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).andere_nutzer = true;\n"
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FAKE_IB))
@@ -46,8 +46,15 @@ with sync_playwright() as p:
     # Gleiche Fassung: nichts passiert
     pg.clock.run_for(130000); pg.wait_for_timeout(800)
     pruefe(pg.evaluate("window.__alt === 1"), "gleiche Fassung: kein Neuladen")
-    # Neue Fassung: innert zwei Minuten neu geladen
+    # Im Vollbild tagsüber wartet die neue Fassung, sonst stünde danach die
+    # Browserleiste da (1.444.4)
+    pruefe(pg.evaluate("!!document.fullscreenElement"), "Anzeige im Vollbild")
     neu["an"] = True; frisch.clear()
+    pg.clock.run_for(130000); pg.wait_for_timeout(800)
+    pruefe(pg.evaluate("window.__alt === 1"), "Vollbild am Tag: neue Fassung wartet")
+    # Ohne Vollbild: innert zwei Minuten neu geladen
+    pg.evaluate("document.exitFullscreen()"); pg.wait_for_timeout(300)
+    frisch.clear()
     pg.clock.run_for(130000)
     pg.wait_for_function("window.__alt === undefined", timeout=20000)
     pruefe(True, "neue Fassung: Anzeige lädt neu")
@@ -59,6 +66,7 @@ with sync_playwright() as p:
     pruefe("fassung=" not in pg.url and "bildschirm=infoboard" in pg.url, "Zusatz danach wieder weg: " + pg.url)
     # Kam doch die alte Seite: nicht im Kreis, erst nach zehn Minuten wieder
     pg.evaluate("window.__alt = 2")
+    if pg.evaluate("!!document.fullscreenElement"): pg.evaluate("document.exitFullscreen()"); pg.wait_for_timeout(300)
     pg.clock.run_for(90000); pg.wait_for_timeout(800)
     pruefe(pg.evaluate("window.__alt === 2"), "nicht gleich wieder neu geladen")
     pruefe(pg.locator("#infoboard").count() == 1, "Anzeige bleibt offen, keine Abmeldung")

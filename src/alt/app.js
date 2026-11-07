@@ -19,7 +19,7 @@ import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
 import Bildschirme from "../seiten/Bildschirme.jsx";
-import Infoboard, { Empfang, Pausenraum, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen } from "../infoboard/Infoboard.jsx";
+import Infoboard, { Empfang, Pausenraum, infoboardSichtbar, infoboardOeffnen, infoboardSchliessen, bildschirmDarfNeuLaden } from "../infoboard/Infoboard.jsx";
 import { bildschirmDiesesGeraets, TAFELN } from "../infoboard/daten.js";
 // Gleich beim Start lesen, ob die Adresse ?bildschirm=… trägt (App-Paket
 // für Samsung), damit das Gerät es sich auch vor dem Anmelden merkt
@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.444.3";
+const APP_VERSION = "1.444.4";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1240,7 +1240,8 @@ const NEULADEN_FENSTER_RUHIG = ["betrachter", "dok", "wetter", "hoco"];
 function neuladenRuhig() {
   // Der Bildschirm im Gang (Infoboard, Empfang) wird nie bedient: dort
   // zählen weder Ruhe noch Schreibmarke, nur Netz und kein offenes Fenster
-  if (bildschirmZeigt()) return navigator.onLine !== false;
+  // Im Vollbild nur in der Ruhezeit, sonst stünde danach die Browserleiste da
+  if (bildschirmZeigt()) return navigator.onLine !== false && bildschirmDarfNeuLaden();
   if (document.querySelector(".pw-balken--zieht, .pw-balken--groesse")) return false;
   if (document.querySelector(".temp__liste--laeuft")) return false; // Temp-Ordner lädt hoch
   // Einlagen Gen hält Foto und Kontur nur im Speicher, Neuladen nähme sie weg
@@ -1321,6 +1322,8 @@ async function bildschirmFassung() {
   const eigene = eigeneFassung();
   const server = eigene && await fassungAufServer();
   if (!server || server === eigene || !bildschirmZeigt()) return;
+  // Im Vollbild wartet die neue Fassung bis zur Ruhezeit (bildschirmDarfNeuLaden)
+  if (!bildschirmDarfNeuLaden()) return;
   try {
     const [f, zeit] = String(sessionStorage.getItem(BILDSCHIRM_NEULADEN) || "").split("|");
     if (f === server && Date.now() - +zeit < BILDSCHIRM_NOCHMAL) return;
