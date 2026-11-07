@@ -9,7 +9,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { geburtstageLaden, geburtstageAufbereiten } from "../seiten/start/Karten.jsx";
-import { kalenderLaden, naechsteTermine, wannText, kalenderZeichen } from "../daten/kalender.js";
+import { kalenderLaden, kommendeTermine, wannText, kalenderZeichen, countdownText } from "../daten/kalender.js";
 
 const NEU_MS = 5 * 60 * 1000;
 // Seit 1.243.0 bis zu acht je Seite: das Band wächst mit, die Dokumente
@@ -48,9 +48,7 @@ export default function KopfBand({ top, left, breite, hoehe, hoeheMelden, flach 
   const geb = geburtstageAufbereiten(leute).filter((m) => m.tage <= GEBURTSTAGE_TAGE).slice(0, GEBURTSTAGE);
   // Je Eintrag nur der nächste Tag, sonst füllt die wöchentliche
   // Kehrichtabfuhr allein die Liste
-  const gesehen = new Set();
-  const termine = naechsteTermine(kalender, TERMINE_TAGE, heute)
-    .filter((t) => !gesehen.has(t.eintrag.id) && gesehen.add(t.eintrag.id)).slice(0, TERMINE);
+  const termine = kommendeTermine(kalender, TERMINE_TAGE, heute).slice(0, TERMINE);
 
   // Die Tafel muss wissen, wie hoch das Band gerade wirklich ist, damit
   // sie die Dokumente darunter schieben kann (Wunsch Patrick 28. Oktober
@@ -92,7 +90,8 @@ export default function KopfBand({ top, left, breite, hoehe, hoeheMelden, flach 
             <span className="ib-band__zeichen">{kalenderZeichen(t.eintrag.titel)}</span>
             <span className="ib-band__was">{t.eintrag.titel}
               {t.eintrag.notiz && <span className="ib-band__klein"> · {t.eintrag.notiz}</span>}</span>
-            <span className="ib-band__wann">{wannText(t)}</span>
+            <span className="ib-band__wann">{countdownText(t)
+              ? <><b className="ib-band__countdown">{countdownText(t)}</b> · {wannText(t)}</> : wannText(t)}</span>
           </div>
         ))}
       </div>

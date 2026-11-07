@@ -9,8 +9,8 @@
 //  der Reiter Kalender war. Nicht für Externe und Dienst.
 // =================================================================
 import { alt, useDaten } from "../../bruecke.jsx";
-import { kalenderLaden, naechsteTermine, wannText, kalenderZeichen,
-  wiederholungText } from "../../daten/kalender.js";
+import { kalenderLaden, kommendeTermine, wannText, kalenderZeichen,
+  wiederholungText, countdownText } from "../../daten/kalender.js";
 import { kalenderOeffnen, kalenderDarf } from "../Kalender.jsx";
 
 const TAGE = 14;
@@ -25,11 +25,8 @@ export default function KalenderKarte({ auffrischen }) {
   if (!zeigen || (!daten && fehler)) return null;
   if (!daten) return <div id="db-kalender" />;
 
-  const gesehen = new Set();
-  const termine = naechsteTermine(daten, TAGE).filter((t) => {
-    if (gesehen.has(t.eintrag.id)) return false;
-    gesehen.add(t.eintrag.id); return true;
-  });
+  // Einträge mit Countdown stehen schon lange vorher da (kommendeTermine)
+  const termine = kommendeTermine(daten, TAGE);
 
   return (
     <div id="db-kalender">
@@ -39,7 +36,8 @@ export default function KalenderKarte({ auffrischen }) {
         {termine.length
           ? <div className="kal-liste">
               {termine.map((t) => (
-                <div className={"kal-zeile" + (t.tage === 0 ? " kal-zeile--heute" : "")} key={t.eintrag.id}
+                <div className={"kal-zeile" + (t.tage === 0 ? " kal-zeile--heute" : "")
+                  + (t.eintrag.countdown ? " kal-zeile--countdown" : "")} key={t.eintrag.id}
                   data-kaltermin={t.eintrag.id}>
                   <span className="kal-zeile__wann">{wannText(t)}</span>
                   <span className="kal-zeile__zeichen">{kalenderZeichen(t.eintrag.titel)}</span>
@@ -47,6 +45,7 @@ export default function KalenderKarte({ auffrischen }) {
                     {t.eintrag.wiederholung !== "nie" &&
                       <span className="klein"> · {klein(wiederholungText(t.eintrag.wiederholung))}</span>}
                     {t.eintrag.notiz && <span className="klein"> · {t.eintrag.notiz}</span>}</span>
+                  {countdownText(t) && <span className="kal-countdown">{countdownText(t)}</span>}
                 </div>))}
             </div>
           : <p className="hinweis">Keine Termine in den nächsten zwei Wochen.</p>}

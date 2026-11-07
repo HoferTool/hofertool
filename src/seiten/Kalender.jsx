@@ -73,7 +73,7 @@ function Eintrag({ e, darf, neu }) {
         {e.titel}
         <div className="klein">{wiederholungText(e.wiederholung)}
           {e.wiederholung === "nie" ? " am " : " ab "}{alt.langDatum(e.datum)}
-          {e.notiz ? " · " + e.notiz : ""}</div>
+          {e.notiz ? " · " + e.notiz : ""}{e.countdown ? " · mit Countdown" : ""}</div>
       </span>
       {darf && <>
         <button className="chipweg chipweg--bearb" data-kalbearb={e.id} title="bearbeiten"
@@ -95,6 +95,8 @@ async function eintragDialog(e, neu) {
       { name: "wiederholung", label: "Wie oft", auswahl: WIEDERHOLUNG.map((x) => [x.wert, x.text]),
         wert: e ? e.wiederholung : "nie" },
       { name: "notiz", label: "Notiz", wert: e ? (e.notiz || "") : "", platzhalter: "kann leer bleiben" },
+      // Wunsch Patrick 7. November 2026 (letzter Arbeitstag)
+      { name: "countdown", label: "Schon jetzt zeigen, mit Tagen bis dahin", typ: "haken", wert: !!(e && e.countdown) },
     ],
     bestaetigen: "Speichern",
   });
@@ -103,6 +105,8 @@ async function eintragDialog(e, neu) {
   const wdh = WIEDERHOLUNG.some((x) => x.wert === w.wiederholung) ? w.wiederholung : "nie";
 
   const daten = { titel: w.titel.trim(), datum: w.datum, wiederholung: wdh, notiz: (w.notiz || "").trim() || null };
+  // Nur mitschicken, wenn gesetzt oder geändert: ohne die Spalte (SQL fehlt) geht Speichern weiter
+  if (w.countdown || (e && e.countdown)) daten.countdown = !!w.countdown;
   if (e) daten.geaendert_am = new Date().toISOString();
   const vorher = e ? await alt.rueckSichern("kalender", { id: e.id }) : [];
   const { data, error } = e

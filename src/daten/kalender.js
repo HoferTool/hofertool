@@ -100,6 +100,27 @@ export function naechsteTermine(eintraege, tage = 60, heute = iso(new Date())) {
     : String(a.eintrag.titel).localeCompare(String(b.eintrag.titel))));
 }
 
+// Einträge mit Countdown (Häkchen „Schon jetzt zeigen, mit Tagen bis
+// dahin“, Spalte kalender.countdown) stehen bis ein Jahr vorher da, nicht
+// erst 14 bzw. 30 Tage vorher (Wunsch Patrick 7. November 2026: „letzter
+// Arbeitstag soll jetzt schon dort stehen, mit wie viele Tage noch“).
+// Je Eintrag nur der nächste Tag; die mit Countdown zuerst.
+export const COUNTDOWN_TAGE = 366;
+export function kommendeTermine(eintraege, tage, heute = iso(new Date())) {
+  const alle = eintraege || [];
+  const mit = alle.filter((e) => e.countdown);
+  const gesehen = new Set();
+  const nur = (t) => !gesehen.has(t.eintrag.id) && gesehen.add(t.eintrag.id);
+  const vorn = naechsteTermine(mit, COUNTDOWN_TAGE, heute).filter(nur);
+  return vorn.concat(naechsteTermine(alle.filter((e) => !e.countdown), tage, heute).filter(nur));
+}
+
+// „noch 41 Tage“, „noch 1 Tag“, am Tag selbst nichts (dort steht „Heute“)
+export function countdownText(t) {
+  if (!t.eintrag.countdown || t.tage <= 0) return "";
+  return "noch " + alt.zahlText(t.tage) + (t.tage === 1 ? " Tag" : " Tage");
+}
+
 // „Heute“, „Morgen“, „Do 30.10.“
 export function wannText(t) {
   if (t.tage === 0) return "Heute";

@@ -1,7 +1,7 @@
 # Kalender (1.240.0, Wunsch Patrick 28. Oktober 2026): eigene Seite im Menü
 # für Termine wie Kehrichtabfuhr, auch wiederkehrend, und auf dem Infoboard
 # unter der Solaranlage ein Band mit Geburtstagen und den nächsten Terminen.
-import time
+import os, time
 from datetime import datetime, timedelta
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -13,9 +13,12 @@ def pruefe(ok, text):
 
 heute = datetime.now().date()
 MIT = FAKE + """;
-TEST.daten.kalender = [{ id: 'k1', titel: 'Kehrichtabfuhr', datum: '%s', wiederholung: 'woche', notiz: 'bis 7 Uhr' }];
+TEST.daten.kalender = [{ id: 'k1', titel: 'Kehrichtabfuhr', datum: '%s', wiederholung: 'woche', notiz: 'bis 7 Uhr' },
+  { id: 'k9', titel: 'Letzter Arbeitstag', datum: '%s', wiederholung: 'nie', countdown: true },
+  { id: 'k8', titel: 'Weit weg ohne Countdown', datum: '%s', wiederholung: 'nie' }];
 TEST.daten.profiles.forEach((x, i) => { x.geburtstag = i === 0 ? '1985-%s' : i === 1 ? '1990-%s' : null; });
-""" % ((heute - timedelta(days=14)).isoformat(), heute.strftime("%m-%d"), (heute + timedelta(days=60)).strftime("%m-%d"))
+""" % ((heute - timedelta(days=14)).isoformat(), (heute + timedelta(days=41)).isoformat(),
+   (heute + timedelta(days=41)).isoformat(), heute.strftime("%m-%d"), (heute + timedelta(days=60)).strftime("%m-%d"))
 
 def seite(p, url):
     pg = p.new_page(viewport={"width": 1080, "height": 1920})
@@ -35,6 +38,9 @@ with sync_playwright() as p:
     pg.wait_for_selector("#db-kalender .karte", timeout=15000); pg.wait_for_timeout(800)
     k = pg.inner_text("#db-kalender")
     pruefe(k.count("Kehrichtabfuhr") == 1 and "jede Woche" in k, "wöchentlicher Termin nur einmal auf Start: %r" % k)
+    # Countdown (Wunsch Patrick 7. November 2026): schon 41 Tage vorher, mit Tagen
+    pruefe("Letzter Arbeitstag" in k and "noch 41 Tage" in k, "Countdown-Eintrag schon jetzt mit Tagen: %r" % k)
+    pruefe("Weit weg ohne Countdown" not in k, "andere weite Termine weiterhin nicht")
     reihe = pg.evaluate("""() => [...document.querySelectorAll('#db-probleme, #db-kalender, #db-status')].map(e => e.id)""")
     pruefe(reihe[:2] == ["db-probleme", "db-kalender"], "Kalender direkt nach den Problemen: %s" % reihe)
     pruefe(pg.locator("[data-nav='kalender']").count() == 0, "kein Reiter Kalender im Menü")
@@ -53,7 +59,6 @@ with sync_playwright() as p:
     pg.click("#kal-fenster [data-zu]"); pg.wait_for_timeout(800)
     k = pg.inner_text("#db-kalender")
     pruefe("Papierkörbe leeren" in k, "nach dem Schliessen neu auf Start")
-    import os
     if os.environ.get("BILD0"): pg.locator("#db-kalender").screenshot(path=os.environ["BILD0"])
     pruefe(not pf, "keine Skriptfehler: %s" % pf[:2])
     pg.close()
@@ -65,6 +70,8 @@ with sync_playwright() as p:
     b = pg.inner_text("[data-ib='band']")
     pruefe("Kehrichtabfuhr" in b and "bis 7 Uhr" in b, "Termine auf dem Infoboard")
     pruefe(b.count("Kehrichtabfuhr") == 1, "je Termin nur der nächste Tag")
+    pruefe("Letzter Arbeitstag" in b and "noch 41 Tage" in b, "Countdown auch auf dem Infoboard: %r" % b)
+    if os.environ.get("BILD1"): pg.locator("[data-ib='band']").screenshot(path=os.environ["BILD1"])
     pruefe("Heute" in b and "wird 41" in b, "Geburtstag heute auf dem Infoboard")
     gz = pg.locator("[data-ib='band-geburtstage'] .ib-band__zeile").count()
     pruefe(gz == 1, "nur Geburtstage der nächsten 30 Tage, nicht in 60 Tagen: %d" % gz)
@@ -77,7 +84,6 @@ with sync_playwright() as p:
       const w = g.querySelector('.ib-band__was'), n = g.querySelector('.ib-band__wann');
       return [g.offsetWidth, t.offsetWidth, ab, n.getBoundingClientRect().left - w.getBoundingClientRect().right]; }""")
     pruefe(br2[0] < br2[1] and not br2[2] and br2[3] < 40, "Geburtstage schmal, Termine breit, nichts abgeschnitten: %s" % br2)
-    import os
     if os.environ.get("BILD"): pg.locator("[data-ib='band']").screenshot(path=os.environ["BILD"])
     # Jeder Bereich nur so hoch wie seine Einträge (Wunsch Patrick 28. Oktober 2026)
     hoch = pg.evaluate("""() => [...document.querySelectorAll('.ib-band__teil')].map(t =>
