@@ -125,6 +125,12 @@ async function benutzerLaden(bin) {
     const p = await alt.zeitlimit(alt.db.from("machine_parks").select("id, name").eq("is_active", true).order("name"), 8000, "Parks");
     if (!p.error) parks = p.data || [];
   } catch (f) { /* ohne Parks geht es auch */ }
+  // Maschinentypen für „Arbeitet an“ (seit 1.445.0)
+  let typen = [];
+  try {
+    const t = await alt.zeitlimit(alt.db.from("machine_types").select("id, name, is_active").order("name"), 8000, "Typen");
+    if (!t.error) typen = (t.data || []).filter((x) => x.is_active !== false);
+  } catch (f) { /* ohne Typen geht es auch */ }
   // Wer schon eine PIN hat (nur ja/nein, nie die PIN selbst)
   let mitPin = null;
   if (bin) {
@@ -141,7 +147,7 @@ async function benutzerLaden(bin) {
       if (!st.error && Array.isArray(st.data)) status = new Map(st.data.map((x) => [x.user_id, x]));
     } catch (f) { /* ohne SQL bleibt die Mitte leer */ }
   }
-  return { leute: r.data || [], parks, mitPin, status, nr: ++ladeNr };
+  return { leute: r.data || [], parks, typen, mitPin, status, nr: ++ladeNr };
 }
 
 function Benutzer({ bin }) {
@@ -183,12 +189,12 @@ function Info({ titel, wert, punkt, hinweis }) {
   );
 }
 
-function BenutzerListe({ leute, parks, mitPin, status, bin, neu }) {
+function BenutzerListe({ leute, parks, typen, mitPin, status, bin, neu }) {
   const ich = alt.profil && alt.profil.id;
   const ROLLEN = alt.ROLLEN;
   const oeffnen = (u) => {
     alt.plan.imDialog = true;
-    fensterOeffnen((zu) => <NutzerFenster person={u} parks={parks} mitPin={mitPin} zu={zu} />,
+    fensterOeffnen((zu) => <NutzerFenster person={u} parks={parks} typen={typen} mitPin={mitPin} zu={zu} />,
       () => { alt.plan.imDialog = false; neu(); });
   };
   return (
@@ -263,7 +269,7 @@ function startSeiten(u) {
   });
 }
 
-function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
+function NutzerFenster({ person, parks, typen = [], mitPin: pinAnfang, zu }) {
   const [u, setU] = useState(person);
   const [mitPin, setMitPin] = useState(() => !!(pinAnfang && pinAnfang.has(person.id)));
   const selbst = u.id === (alt.profil && alt.profil.id);
@@ -284,7 +290,9 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
           ? "Dafür fehlt noch sql/materialplatz-recht.sql in der Datenbank."
           : "darf_notiz" in felder && /darf_notiz/.test(error.message || "")
           ? "Dafür fehlt noch sql/notiz-recht.sql in der Datenbank."
-          : "startseite" in felder && /startseite/.test(error.message || "")
+          : "typen" in felder && /typen/.test(error.message || "")
+            ? "Dafür fehlt noch sql/typ-je-person.sql in der Datenbank."
+            : "startseite" in felder && /startseite/.test(error.message || "")
             ? "Dafür fehlt noch sql/startseite.sql in der Datenbank." : alt.fehlertext(error), "fehler");
       setU((x) => ({ ...x, ...zurueck }));
       return false;
@@ -370,6 +378,12 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
     aendern({ parks: liste }, "Zugriff gespeichert.");
   };
 
+  const typUmschalten = (typId, an) => {
+    const liste = (u.typen || []).filter((x) => x !== typId);
+    if (an) liste.push(typId);
+    aendern({ typen: liste }, "Maschinentyp gespeichert.");
+  };
+
   // Ohne Passwort und PIN gibt es seit 1.75.0 nicht mehr (Wunsch Patrick
   // 14. Oktober 2026); vergessen heisst: Admin setzt ein neues Passwort
   const anmeldungText = mitPin ? "Meldet sich mit PIN an." : "Meldet sich mit Passwort an.";
@@ -428,12 +442,28 @@ function NutzerFenster({ person, parks, mitPin: pinAnfang, zu }) {
         </div>
       </div>
 
-      {parks.length > 0 && u.role !== "admin" && u.role !== "planwand" && (
+      {/* Seit 1.445.0 statt der Parks (Wunsch Patrick 7. November 2026):
+          alle sehen alle Parks, der eigene Typ wird vorgewählt */}
+      {typen.length > 0 && u.role !== "extern" && u.role !== "dienst" && (
+        <div className="nutzerfenster__teil">
+          <h3>Arbeitet an Maschinentyp</h3>
+          <p className="es-gruppe__text">Wird in Produktion und Pad Mode vorgewählt. Auf der Startseite
+            stehen die Probleme dieser Typen zuoberst, alle anderen zusammengefasst unter „Andere Probleme“.
+            Sehen kann die Person trotzdem alle Parks.</p>
+          <div className="parkzeile__wahl">{typen.map((t) => (
+            <label className="parkchip" key={t.id}>
+              <input type="checkbox" data-tu={u.id} data-tt={t.id} checked={(u.typen || []).includes(t.id)}
+                onChange={(e) => typUmschalten(t.id, e.target.checked)} />
+              <span>{t.name}</span></label>
+          ))}</div>
+        </div>
+      )}
+
+      {parks.length > 0 && u.role === "extern" && (
         <div className="nutzerfenster__teil">
           <h3>Maschinenparks</h3>
-          <p className="es-gruppe__text">Gilt für die Produktion, die Planwand sehen alle ganz.
-            Ohne Auswahl entscheidet die Rolle: Langdreher sieht Parks mit „lang“
-            im Namen, Kurzdreher solche mit „kurz“.</p>
+          <p className="es-gruppe__text">Was die externe Firma in Produktion und Planwand sieht.
+            Ohne Auswahl die Parks mit „extern“, „Lohn“ oder „fremd“ im Namen.</p>
           <div className="parkzeile__wahl">{parks.map((pk) => (
             <label className="parkchip" key={pk.id}>
               <input type="checkbox" data-pu={u.id} data-pp={pk.id} checked={(u.parks || []).includes(pk.id)}

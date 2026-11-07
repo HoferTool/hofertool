@@ -20,24 +20,54 @@ async function abfrage(anfrage, ms, name) {
 
 // Lädt die Startseite selbst und gibt die Liste an die Karte.
 // Leere Texte zählen nicht als Problem.
-// Jede Person sieht nur Probleme aus ihren Parks, also denselben, die
-// sie in der Produktion sieht (Wunsch Patrick 15. Oktober 2026: „dem
-// Langdreher kann es egal sein, was beim Kurz für Probleme sind“).
-// Admins und Planwand sehen alle. Aufträge ohne Park sehen alle.
+// Seit 1.445.0 sehen alle ausser Externen und Dienst die Probleme aller
+// Parks (Wunsch Patrick 7. November 2026). Wer unter Einstellungen →
+// Nutzer einen Maschinentyp hat, sieht die Probleme dieses Typs oben wie
+// bisher; alle anderen stehen eingeklappt unter „Andere Probleme“, damit
+// sie nicht nerven, aber lesbar bleiben. Ohne eigenen Typ (etwa Admins)
+// stehen alle wie bisher.
 export async function problemeLaden() {
-  const [data, parks] = await Promise.all([
+  const [data, maschinen] = await Promise.all([
     abfrage(alt.db.from("planwand").select("*").not("problem", "is", null)
       .order("problem_at", { ascending: false }), 10000, "Probleme"),
-    alt.ladeParks(true)]);
-  const meine = new Set((parks || []).map((p) => p.id));
-  return data.filter((j) => String(j.problem || "").trim()
-    && (!j.park_id || meine.has(j.park_id)));
+    alt.ladeMaschinen(true, true).catch(() => [])]);
+  const typVon = new Map((maschinen || []).map((m) => [m.id, m.type_id]));
+  return data.filter((j) => String(j.problem || "").trim())
+    .map((j) => ({ ...j, type_id: typVon.get(j.machine_id) || null }));
+}
+
+function ProblemZeile({ j, darf, neu }) {
+  return (
+    <div className="problemzeile">
+      <span className="problemzeile__zeichen">⚠</span>
+      <div className="problemzeile__inhalt">
+        {/* Führt genau zu diesem Balken — über den Auftrag selbst, nicht
+            über die Nummer, die bei mehreren Aufträgen gleich sein kann */}
+        <button className="problemzeile__nr problemzeile__nr--klick" data-zeigen={j.id}
+          onClick={() => alt.balkenZeigen(j.id)}>
+          {j.job_number}
+          {j.fa_nr && <> <span className="klein">FA {j.fa_nr}</span></>}
+          {j.maschine && <> <span className="klein">· {j.maschine}</span></>}
+        </button>
+        <div>{j.problem}</div>
+        <div className="klein">{j.problem_von || ""}
+          {j.problem_at ? " · " + alt.datumZeitKurz(j.problem_at) : ""}</div>
+      </div>
+      {darf &&
+        <button className="knopf knopf--klein problemzeile__erledigt" data-probweg={j.id}
+          onClick={() => alt.problemQuittieren(j, null, neu)}>✓ Erledigt</button>}
+    </div>
+  );
 }
 
 export function Probleme({ liste, fehler, neu }) {
   const darf = alt.darfProblemErledigen();
   if (!liste && !fehler) return <div id="db-probleme" />;
-  const n = liste ? liste.length : 0;
+  const meine = alt.meineTypen();
+  const alle = liste || [];
+  const eigene = meine.length ? alle.filter((j) => meine.includes(j.type_id)) : alle;
+  const andere = meine.length ? alle.filter((j) => !meine.includes(j.type_id)) : [];
+  const n = eigene.length;
 
   return (
     <div id="db-probleme">
@@ -45,28 +75,13 @@ export function Probleme({ liste, fehler, neu }) {
         <h2>{n ? "⚠ " : ""}Gemeldete Probleme{n > 0 && <> <span className="marke">{n}</span></>}</h2>
         {!liste && <p className="hinweis">Probleme konnten nicht geladen werden.</p>}
         {liste && !n && <p className="problemleer"><span className="problemleer__zeichen" aria-hidden="true">✓</span>
-          Keine Probleme gemeldet.</p>}
-        {n > 0 && liste.map((j) => (
-            <div className="problemzeile" key={j.id}>
-              <span className="problemzeile__zeichen">⚠</span>
-              <div className="problemzeile__inhalt">
-                {/* Führt genau zu diesem Balken — über den Auftrag selbst, nicht
-                    über die Nummer, die bei mehreren Aufträgen gleich sein kann */}
-                <button className="problemzeile__nr problemzeile__nr--klick" data-zeigen={j.id}
-                  onClick={() => alt.balkenZeigen(j.id)}>
-                  {j.job_number}
-                  {j.fa_nr && <> <span className="klein">FA {j.fa_nr}</span></>}
-                  {j.maschine && <> <span className="klein">· {j.maschine}</span></>}
-                </button>
-                <div>{j.problem}</div>
-                <div className="klein">{j.problem_von || ""}
-                  {j.problem_at ? " · " + alt.datumZeitKurz(j.problem_at) : ""}</div>
-              </div>
-              {darf &&
-                <button className="knopf knopf--klein problemzeile__erledigt" data-probweg={j.id}
-                  onClick={() => alt.problemQuittieren(j, null, neu)}>✓ Erledigt</button>}
-            </div>
-          ))}
+          {meine.length ? "Keine Probleme bei deinem Maschinentyp." : "Keine Probleme gemeldet."}</p>}
+        {eigene.map((j) => <ProblemZeile key={j.id} j={j} darf={darf} neu={neu} />)}
+        {andere.length > 0 && (
+          <details className="probleme-andere" data-andere-probleme="">
+            <summary>Andere Probleme <span className="probleme-andere__zahl">{andere.length}</span></summary>
+            {andere.map((j) => <ProblemZeile key={j.id} j={j} darf={darf} neu={neu} />)}
+          </details>)}
       </section>
     </div>
   );

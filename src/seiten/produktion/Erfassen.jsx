@@ -41,6 +41,21 @@ export default function Erfassen({ geladen, neuLaden, behaelter, zuMaschinen }) 
       </div>
     );
   }
+  // Eigener Maschinentyp (Einstellungen → Nutzer, seit 1.445.0): einmal je
+  // Laden der App Park und Typ vorwählen (Wunsch Patrick 7. November 2026:
+  // „bei Prod gleich ausgewählt“). Danach bleibt, was man selbst wählt.
+  if (!prod.typVorgewaehlt) {
+    prod.typVorgewaehlt = true;
+    const meine = alt.meineTypen();
+    const m = meine.length && prod.maschinen.find((x) => meine.includes(x.type_id)
+      && prod.parks.some((p) => p.id === x.park_id));
+    if (m) {
+      prod.parkId = m.park_id;
+      // Mehrere eigene Typen im selben Park: dann „Alle“, sonst genau der eine
+      const imPark = meine.filter((t) => prod.maschinen.some((x) => x.park_id === m.park_id && x.type_id === t));
+      prod.typFilter = imPark.length === 1 ? imPark[0] : null;
+    }
+  }
   if (!prod.parkId || !prod.parks.some((p) => p.id === prod.parkId)) prod.parkId = prod.parks[0].id;
 
   const imPark = prod.maschinen.filter((m) => m.park_id === prod.parkId);

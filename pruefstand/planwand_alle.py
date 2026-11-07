@@ -46,9 +46,10 @@ with sync_playwright() as p:
     # Parks aus dem Nachbau: P1 Langdreher, P2 Kurzdreher
     p1, p2 = "p-lang", "p-kurz"
     s = lauf(br, "kurzdreher", "[]", "Kurzdreher")
-    pruefe(f"Kurzdreher: Produktion nur Kurzdreherpark ({s})", s == [p2])
+    # Seit 1.445.0 sehen alle ausser Externen alle Parks
+    pruefe(f"Kurzdreher: Produktion beide Parks ({s})", sorted(s) == sorted([p1, p2]))
     s = lauf(br, "mitarbeiter", f'["{p1}"]', "Zugewiesen Langdreher")
-    pruefe(f"Zugewiesen: Produktion nur Langdreherpark ({s})", s == [p1])
+    pruefe(f"Zugewiesen: Produktion trotzdem beide Parks ({s})", sorted(s) == sorted([p1, p2]))
     s = lauf(br, "admin", "[]", "Admin")
     pruefe(f"Admin: Produktion beide Parks ({s})", sorted(s) == sorted([p1, p2]))
     br.close()

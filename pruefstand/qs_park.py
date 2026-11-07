@@ -45,10 +45,12 @@ def fenster(pg):
 with sync_playwright() as p:
     br = p.chromium.launch(executable_path=CH, args=["--no-sandbox", "--disable-dev-shm-usage"])
     pg = seite(br, "kurzdreher")
-    if pg.inner_text("#pad [data-padmeldungenzahl]") != "1": fehler.append("Kurzdreher: Zahl am Knopf nicht 1")
+    # Seit 1.445.0 sehen alle ausser Externen alle Parks (Wunsch Patrick
+    # 7. November 2026), also auch alle Meldungen
+    if pg.inner_text("#pad [data-padmeldungenzahl]") != "2": fehler.append("Kurzdreher: Zahl am Knopf nicht 2")
     t = fenster(pg)
     if "Kurz-Meldung" not in t: fehler.append("Kurzdreher sieht eigene Meldung nicht")
-    if "Lang-Meldung" in t: fehler.append("Kurzdreher sieht Meldung vom Langdreherpark")
+    if "Lang-Meldung" not in t: fehler.append("Kurzdreher sieht Meldung vom Langdreherpark nicht")
 
     pg = seite(br, "admin")
     if pg.inner_text("#pad [data-padmeldungenzahl]") != "2": fehler.append("Admin: Zahl am Knopf nicht 2")

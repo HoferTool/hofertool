@@ -21,7 +21,7 @@ import OhneWbg from "./start/OhneWbg.jsx";
 import KalenderKarte from "./start/Kalender.jsx";
 import Systemzustand from "./start/Systemzustand.jsx";
 
-// Ohne Adminrecht wird gar nicht erst nach Problemen gefragt
+// Externe und Dienst fragen gar nicht erst nach Problemen
 const keineProbleme = async () => [];
 
 export default function Start({ auffrischen }) {
@@ -35,8 +35,12 @@ export default function Start({ auffrischen }) {
   // 4. Oktober 2026), meistens mit „Keine Probleme gemeldet“. Seit
   // 1.111.0 nur noch für Admins (Wunsch Patrick 20. Oktober 2026), alle
   // anderen sehen die Probleme weiter auf der Planwand am Balken.
+  // Seit 1.445.0 wieder für alle ausser Externen und Dienst, gefiltert nach
+  // dem eigenen Maschinentyp (Wunsch Patrick 7. November 2026)
   const admin = alt.istAdmin();
-  const prob = useDaten(admin ? problemeLaden : keineProbleme, [auffrischen, admin]);
+  const r = alt.meineRolle();
+  const probSehen = r !== "extern" && r !== "dienst";
+  const prob = useDaten(probSehen ? problemeLaden : keineProbleme, [auffrischen, probSehen]);
   return (
     <>
       <section className={"kopfkarte" + (fest ? " kopfkarte--geburtstag" : "")}>
@@ -52,7 +56,7 @@ export default function Start({ auffrischen }) {
       {/* Sicherung, Pool-Rechner, Drucker, Solar: nur wenn etwas nicht
           stimmt, nur Admins (Wunsch Patrick 3. November 2026) */}
       {admin && <Systemzustand auffrischen={auffrischen} />}
-      {admin && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
+      {probSehen && <Probleme liste={prob.daten} fehler={prob.fehler} neu={prob.neu} />}
       {/* Termine der nächsten zwei Wochen, statt des Reiters Kalender
           (Wunsch Patrick 30. Oktober 2026) */}
       <KalenderKarte auffrischen={auffrischen} />

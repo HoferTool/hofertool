@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.444.6";
+const APP_VERSION = "1.445.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1802,12 +1802,12 @@ async function profilLaden(frisch) {
     const spalten = "id, email, full_name, role, is_active, geburtstag, "
       + "bild_url, parks, darf_bearbeiten, ist_planer, initialen, ohne_passwort, einstellungen";
     let { data, error } = await zeitlimit(
-      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz, startseite, darf_notiz")
+      db.from("profiles").select(spalten + ", andere_nutzer, darf_materialplatz, startseite, darf_notiz, typen")
         .eq("id", s.user.id).single(), 10000, "Profil");
     // Ohne sql/andere-nutzer.sql oder sql/materialplatz-recht.sql kennt die
     // Datenbank das Häkchen nicht: dann ohne die Spalten lesen, statt ohne
     // Profil dazustehen
-    if (error && /andere_nutzer|darf_materialplatz|startseite|darf_notiz/.test(String(error.message || ""))) {
+    if (error && /andere_nutzer|darf_materialplatz|startseite|darf_notiz|typen/.test(String(error.message || ""))) {
       ({ data, error } = await zeitlimit(
         db.from("profiles").select(spalten).eq("id", s.user.id).single(), 10000, "Profil"));
     }
@@ -3050,18 +3050,21 @@ function parkErlaubt(parkId) {
     return /extern|lohn|fremd/i.test(String((park && park.name) || ""));
   }
 
-  // Ausdrücklich zugewiesene Parks haben Vorrang
-  const zugewiesen = meineParks();
-  if (zugewiesen.length) return zugewiesen.indexOf(parkId) !== -1;
-
-  // Sonst entscheidet der Name des Parks zur Rolle
-  const park = (prod.parks || []).concat(plan.parksAlle || [])
-    .find((p) => p.id === parkId);
-  const name = ((park && park.name) || "").toLowerCase();
-  const r = meineRolle();
-  if (r === "kurzdreher") return name.includes("kurz");
-  if (r === "langdreher") return name.includes("lang");
+  // Alle ausser Externen sehen seit 1.445.0 wieder alle Parks (Wunsch
+  // Patrick 7. November 2026: „kannst du wieder für alle alles sichtbar
+  // machen“). Statt des eigenen Parks gibt es den eigenen Maschinentyp
+  // (meineTypen), der vorgewählt wird. Die zugewiesenen Parks und die
+  // Rolle lang/kurz zählen nur noch bei Externen.
   return true;
+}
+
+// Maschinentypen, an denen die Person arbeitet (Einstellungen → Nutzer,
+// profiles.typen, seit 1.445.0). Produktion und Pad wählen sie vor, die
+// Startseite zeigt ihre Probleme zuerst. Externe vorerst nie (Entscheid
+// offen, Patrick gefragt).
+function meineTypen() {
+  if (istExtern() || !profil || !Array.isArray(profil.typen)) return [];
+  return profil.typen.filter(Boolean);
 }
 
 function meineRolle() { return (profil && profil.role) || "produktion"; }
@@ -10564,7 +10567,7 @@ Object.assign(alt, {
   arbeitstagePlus, ausIso, ladeTodos, loeschen,
   planArchivDaten, istArchiv, bildVerkleinern,
   prod, plan, ladeParks, ladeMaschinen, ladeLaufendeAuftraege, maschineRuestet, ladePlanAuftraege,
-  istExtern, einstellung, rollenMerken, produktionAlteAnsicht, seiteProduktion,
+  istExtern, meineTypen, einstellung, rollenMerken, produktionAlteAnsicht, seiteProduktion,
   ladeZaehlerstaende, speichereStand, wochenStart, plusTage, wochentagName, WT_KURZ,
   PLANSTATUS, zustandSetzen, einrichtblattPdfOeffnen, blattPdfSuchen, BESTELLSTATUS,
   ladeBestellungen, stammVergessen, statusDaten, statusZeit, statusZeitText,

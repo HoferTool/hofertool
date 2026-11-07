@@ -134,8 +134,11 @@ async function typenLaden(p) {
 
   const name = (k) => k === "__ohne" ? "Ohne Typ"
     : ((typen.find((t) => t.id === k) || {}).name || "Typ");
-  schluessel.sort((a, b) => name(a).localeCompare(name(b), "de"));
-  return { art: "typen", gruppen: schluessel.map((k) => ({ k, name: name(k), anzahl: gruppen[k].length })),
+  // Eigene Typen zuerst (seit 1.445.0)
+  const meine = alt.meineTypen();
+  const eigen = (k) => meine.includes(k) ? 0 : 1;
+  schluessel.sort((a, b) => eigen(a) - eigen(b) || name(a).localeCompare(name(b), "de"));
+  return { art: "typen", gruppen: schluessel.map((k) => ({ k, name: name(k), anzahl: gruppen[k].length, meins: !eigen(k) })),
            alle: eigene.length };
 }
 
@@ -144,6 +147,21 @@ async function sichtLaden(p) {
     // Mit der Zahl der Maschinen je Park, wie beim QS Check
     // (Wunsch Patrick, 10. Oktober 2026)
     const [parks, maschinen] = await Promise.all([alt.ladeParks(false), alt.ladeAlleMaschinen()]);
+    // Eigener Maschinentyp (seit 1.445.0, Wunsch Patrick 7. November 2026):
+    // „Maschinen“ auf dem Startbild führt gleich zu den Maschinen dieses
+    // Typs; „Zurück“ geht über die Typen zu allen Parks.
+    if (p.vorwahl) {
+      p.vorwahl = false;
+      const meine = alt.meineTypen();
+      const treffer = maschinen.filter((m) => meine.includes(m.type_id) && parks.some((k) => k.id === m.park_id));
+      const parkIds = [...new Set(treffer.map((m) => m.park_id))];
+      const typIds = [...new Set(treffer.map((m) => m.type_id))];
+      if (parkIds.length === 1) {
+        p.parkId = parkIds[0];
+        if (typIds.length === 1) { p.typId = typIds[0]; p.typUebersprungen = false; p.wo = "maschinen"; return maschinenLaden(p); }
+        p.typId = null; p.wo = "typen"; return typenLaden(p);
+      }
+    }
     const anzahl = {};
     maschinen.forEach((m) => { anzahl[m.park_id] = (anzahl[m.park_id] || 0) + 1; });
     return { art: "parks", parks, anzahl };
@@ -248,7 +266,7 @@ function Start() {
             QS Check über alle Maschinen (Wunsch Patrick, 10. Oktober 2026) */}
         <div className="pad__kacheln pad__kacheln--einzeln pad__kacheln--start">
           <button className="pad-kachel pad-kachel--gross" data-padwo="parks"
-            onClick={() => gehe((p) => { p.wo = "parks"; })}>
+            onClick={() => gehe((p) => { p.wo = "parks"; p.vorwahl = true; })}>
             <span className="pad-kachel__zeichen">⚙</span><span>Maschinen</span>
           </button>
           <button className="pad-kachel pad-kachel--qs" data-padwo="qs"
@@ -374,7 +392,8 @@ function Typen({ gruppen, alle }) {
         {gruppen.map((g) => (
           <button key={g.k} className="pad-kachel pad-kachel--typ" data-padtyp={g.k} onClick={() => waehlen(g.k)}>
             <span>{g.name}</span>
-            <span className="pad-kachel__nr">{g.anzahl + (g.anzahl === 1 ? " Maschine" : " Maschinen")}</span>
+            <span className="pad-kachel__nr">{g.anzahl + (g.anzahl === 1 ? " Maschine" : " Maschinen")}
+              {g.meins ? " · dein Typ" : ""}</span>
           </button>
         ))}
         <button className="pad-kachel pad-kachel--typ pad-kachel--alle" data-padtyp="__alle"

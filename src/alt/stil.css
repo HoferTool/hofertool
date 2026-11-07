@@ -12027,3 +12027,11 @@ body.dunkel .mess__zeile--gut td { background: rgba(40, 170, 80, .22) !important
 .pad-app__zahl { position: absolute; top: 8px; left: 8px; min-width: 1.7em; height: 1.7em; padding: 0 .45em;
   border-radius: 999px; background: #e5383b; color: #fff !important; font-weight: 700; font-size: .95rem;
   display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+
+/* Startseite: Probleme anderer Maschinentypen eingeklappt (1.445.0) */
+.probleme-andere { margin-top: 10px; border-top: 1px solid var(--linie, #d8dee6); padding-top: 6px; }
+.probleme-andere > summary { cursor: pointer; font-size: 0.9em; opacity: 0.75; padding: 4px 0; list-style-position: inside; }
+.probleme-andere[open] > summary { opacity: 1; }
+.probleme-andere__zahl { display: inline-block; min-width: 1.6em; padding: 0 6px; margin-left: 4px; border-radius: 10px;
+  background: rgba(127, 127, 127, 0.18); text-align: center; font-size: 0.9em; }
+.probleme-andere .problemzeile { opacity: 0.85; }

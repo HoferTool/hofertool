@@ -65,12 +65,13 @@ with sync_playwright() as p:
     pruefe("Geburtstag nach Neuladen noch da", pg.input_value("[data-geb='u3']") == "1990-05-17")
     pruefe("Liste zeigt inaktiv", "inaktiv" in pg.inner_text("[data-nutzer='u3']"))
     fenster("u2")
-    # Parks
-    park = pg.evaluate("TEST.daten.machine_parks.find(p => p.is_active !== false).id")
-    pg.check(f"[data-pu='u2'][data-pp='{park}']"); pg.wait_for_timeout(500)
-    pruefe("Park freigegeben", park in prof("u2", "parks"))
-    pg.uncheck(f"[data-pu='u2'][data-pp='{park}']"); pg.wait_for_timeout(500)
-    pruefe("Park wieder entzogen", park not in prof("u2", "parks"))
+    # Maschinentyp statt Parks (seit 1.445.0); Parks nur noch bei Externen
+    pruefe("Keine Parkwahl bei Internen", pg.locator("[data-pu='u2']").count() == 0)
+    typ = pg.evaluate("TEST.daten.machine_types[0].id")
+    pg.check(f"[data-tu='u2'][data-tt='{typ}']"); pg.wait_for_timeout(500)
+    pruefe("Typ zugeteilt", typ in (prof("u2", "typen") or []))
+    pg.uncheck(f"[data-tu='u2'][data-tt='{typ}']"); pg.wait_for_timeout(500)
+    pruefe("Typ wieder weg", typ not in (prof("u2", "typen") or []))
     # Bild vom Admin: Klick aufs Bild wählt eine Datei, Zuschnitt, dann gespeichert; × nimmt es weg
     pruefe("Bildwahl bei jeder Person", pg.locator("[data-bild='u2']").count() == 1 and pg.locator("[data-bildweg='u2']").count() == 0)
     png = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f00f0004010180b198ca180000000049454e44ae426082")
