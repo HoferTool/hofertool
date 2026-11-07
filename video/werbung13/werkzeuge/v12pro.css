@@ -1,0 +1,114 @@
+      /* ===== Stil «modern und professionell» (Wunsch Patrick 3. November 2026: kein Comic) ===== */
+      :root { --p: #08111f; --t: #0b1f3a; --b: #2f7bf6; --g: #f5c542; --r: #ef4f5f; --gr: #22c58b; --ro: #ec6fa0; --li: #8b6cf6; --or: #f59a3c; --hb: #dfe8f5;
+        --tx: #eef3fa; --tx2: rgba(238,243,250,.62); --linie: rgba(255,255,255,.14); --glas: rgba(255,255,255,.07); --tief: 0 30px 80px rgba(0,0,0,.45), 0 8px 20px rgba(0,0,0,.25); }
+      html, body { background: #08111f; }
+      #root { color: var(--tx); }
+      .szene, .fz, .fz.gelb, .fz.rosa, .fz.gruen, .fz.lila, .fz.orange, #z1, #z2, #z3, #z4, #z5, #z7, #z8, #z9, #z18, #z19 {
+        background: radial-gradient(1200px 700px at 78% 18%, rgba(47,123,246,.22), transparent 60%), radial-gradient(900px 600px at 10% 100%, rgba(34,197,139,.10), transparent 60%), linear-gradient(160deg, #0c1a30, #070e1b) !important; }
+      #z6 { background: radial-gradient(1000px 700px at 50% 0%, rgba(139,108,246,.35), transparent 65%), linear-gradient(#120d2c, #07060f) !important; }
+      .punkte, .punkte.hell, #z4 .kork, #z7 .loecher { background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) !important;
+        background-size: 96px 96px !important; background-color: transparent !important; }
+      #z5 .raster { opacity: .55; }
+      .sticker { background: rgba(14,28,50,.72); color: #fff; border: 1px solid var(--linie); border-left: 6px solid var(--g); border-radius: 14px; box-shadow: var(--tief);
+        font-weight: 750; letter-spacing: -0.015em; backdrop-filter: blur(14px); }
+      .sticker.blau { background: rgba(14,28,50,.72); color: #fff; border-left-color: var(--b); } .sticker.rot { background: rgba(14,28,50,.72); color: #fff; border-left-color: var(--r); }
+      .sticker.gruen { background: rgba(14,28,50,.72); color: #fff; border-left-color: var(--gr); } .sticker.weiss { background: rgba(255,255,255,.96); color: var(--t); border-color: rgba(255,255,255,.4); border-left-color: var(--b); }
+      .sticker.rosa { background: rgba(14,28,50,.72); color: #fff; border-left-color: var(--ro); } .sticker.lila { background: rgba(14,28,50,.72); color: #fff; border-left-color: var(--li); }
+      .sticker.orange { background: rgba(14,28,50,.72); color: #fff; border-left-color: var(--or); }
+      .sticker.klein { border-width: 1px; border-left-width: 5px; box-shadow: var(--tief); border-radius: 12px; }
+      .sticker.gross { border-width: 1px; border-left-width: 8px; box-shadow: var(--tief); border-radius: 16px; font-size: 64px; font-weight: 800; }
+      .sticker.marke { font-weight: 800; letter-spacing: .06em; }
+      .titel { color: #fff; font-weight: 800; letter-spacing: -0.04em; }
+      .titel small { color: var(--tx2); font-weight: 600; }
+      .mark { background: none; color: #fff; box-shadow: inset 0 -0.16em 0 var(--b); padding: 0 .04em; }
+      .nummer b { background: var(--b); color: #fff; font-weight: 800; box-shadow: 0 10px 30px rgba(47,123,246,.45); }
+      .nummer span { color: #fff; font-weight: 800; }
+      .fz .unter { color: var(--tx2); font-weight: 600; }
+      .karte, .fenster, .polaroid, .sk, .zettel, .blase, #gestern, #pw-wand, #lade, #kaffee .gehaeuse { color: var(--t); }
+      .karte { border: 1px solid rgba(255,255,255,.5); border-radius: 22px; box-shadow: var(--tief); }
+      .fenster { border: 1px solid rgba(255,255,255,.18); border-radius: 18px; box-shadow: 0 50px 120px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.4); }
+      .fenster .leiste { height: 44px; border-bottom: 1px solid rgba(255,255,255,.08); background: #14233a; }
+      .fenster .leiste i { width: 14px; height: 14px; border: 0; background: #ff5f57; } .fenster .leiste i + i { background: #febc2e; } .fenster .leiste i + i + i { background: #28c840; }
+      .fenster .leiste em { color: rgba(255,255,255,.5); font-weight: 600; font-size: 19px; }
+      .fenster .bild { top: 44px; }
+      .geraet { background: #0f1a2b; border: 1px solid rgba(255,255,255,.16); box-shadow: 0 50px 120px rgba(0,0,0,.6); }
+      .polaroid { border: 0; padding: 10px 10px 10px; border-radius: 14px; box-shadow: var(--tief); }
+      .polaroid .foto { border-radius: 8px; }
+      .tw .foto { height: calc(100% - 0px) !important; }
+      .nadel { display: none; }
+      .sk { border: 0; border-radius: 22px; box-shadow: 0 40px 90px rgba(0,0,0,.5); background: linear-gradient(#ffffff, #eef3fa); }
+      .sk .foto { border: 0; border-radius: 14px; }
+      .sk em { background: var(--b); color: #fff; font-weight: 700; letter-spacing: .14em; }
+      .sk .sterne { display: none; }
+      .sk .holo { background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.55) 48%, transparent 60%); }
+      .blase { border: 0; box-shadow: var(--tief); font-weight: 700; border-radius: 22px; }
+      .blase::after { border: 0 !important; }
+      .stempel { border-width: 6px; border-radius: 16px; font-weight: 800; background: rgba(8,17,31,.55); }
+      .zettel { border: 0; box-shadow: 0 16px 40px rgba(0,0,0,.4); font-weight: 650; }
+      .ordner { border-width: 2px; box-shadow: var(--tief); } .ordner span { border-width: 1px; }
+      #wisch i:nth-child(1) { background: var(--b); } #wisch i:nth-child(2) { background: #0c1a30; } #wisch i:nth-child(3) { background: #0c1a30; opacity: 0; }
+      .konfetti i { border: 0; width: 12px; height: 22px; border-radius: 3px; }
+      .tipp { border-width: 5px; border-color: var(--b); box-shadow: 0 0 0 10px rgba(47,123,246,.18); }
+      .emo { filter: drop-shadow(0 24px 30px rgba(0,0,0,.45)); }
+      #kaffee .gehaeuse { border: 1px solid rgba(255,255,255,.4); box-shadow: var(--tief); }
+      #lade .balken { border: 1px solid rgba(11,31,58,.2); } #lade .balken i { background: linear-gradient(90deg, #2f7bf6, #5aa2ff); }
+      #gestern { border: 0; box-shadow: var(--tief); }
+      #pw-wand { border: 0; box-shadow: var(--tief); } .mag { border-width: 2px; }
+      #ring { -webkit-text-stroke: 0; }
+      .ausrede .x { border: 0; }
+      #wb { border: 1px solid var(--linie); background: rgba(255,255,255,.05); }
+      #k-svg path[stroke="#0b1f3a"] { stroke-width: 2; }
+      #sonne, #brille { display: none; }
+      #z18 #sol-svg { filter: drop-shadow(0 30px 60px rgba(47,123,246,.25)); }
+      #be-was { font-size: 50px; left: 1110px; }
+      .fp .foto img, .fp .foto video { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .fp b { font-size: 28px; font-weight: 700; bottom: 10px; }
+      .fp { padding-bottom: 54px; }
+      .fp .foto { height: 100% !important; }
+      .fp { width: 340px; height: 380px; }
+      .fp { width: 290px; height: 340px; }
+      .fp b { font-size: 24px; }
+      #fe-c1 { left: 110px !important; top: 800px !important; } #fe-c2 { left: 540px !important; top: 800px !important; }
+      #or-schub { left: 1180px; top: 250px; width: 470px; height: 530px; padding-bottom: 60px; z-index: 5; }
+      #or-schub .foto { height: 100%; } #or-schub video { width: 100%; height: 100%; object-fit: cover; display: block; }
+      #or-schub b { font-size: 28px; bottom: 14px; }
+      .schatten { display: none !important; }  /* sonst stehen die Werkzeuge schon da, bevor sie hereinfliegen */
+      #or-meist { z-index: 6; }
+      #fe-mont { position: absolute; inset: 0; z-index: 2; opacity: 0; }
+      #fe-mont video { width: 100%; height: 100%; object-fit: cover; display: block; }
+      #fe-titel { z-index: 4; }
+      .fe-lab { position: absolute; left: 110px; top: 330px; width: 1150px; z-index: 4; opacity: 0; color: #fff; }
+      .fe-lab i { display: block; font-style: normal; font-size: 34px; font-weight: 700; letter-spacing: 4px; color: #5aa2ff; margin-bottom: 18px; }
+      .fe-lab b { display: block; font-size: 80px; line-height: 1.05; font-weight: 800; white-space: nowrap; padding-left: 28px; border-left: 10px solid #ff3b5c; }
+      .fe-lab span { display: block; font-size: 44px; line-height: 1.3; color: #c9d8f0; margin-top: 28px; max-width: 900px; }
+      #fe-c1, #fe-c2 { z-index: 4; }
+
+      /* Teamwand als Folien */
+      .tm-ab { top: 150px !important; left: 90px !important; font-size: 50px; opacity: 0; }
+      #tm-titel { font-size: 40px; }
+      .tw { opacity: 0; }
+      .tw .foto { position: absolute; inset: 8px; height: auto !important; border-radius: 6px; overflow: hidden; }
+      .tw .foto img { width: 100%; height: 100%; object-fit: cover; }
+
+      /* Solarszene wie die Karte in der App */
+      #sol-titel { left: 90px !important; top: 70px !important; font-size: 56px !important; transform: none !important; }
+      #sol-karte { position: absolute; left: 90px; top: 190px; width: 1200px; height: 800px; border-radius: 28px; padding: 40px 48px; box-sizing: border-box;
+        background: linear-gradient(180deg, #0a3f8f 0%, #0c2550 38%, #0b1626 100%); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 50px 120px rgba(0,0,0,.55); color: #fff; }
+      .sk-kopf { display: flex; justify-content: space-between; font-size: 26px; font-weight: 800; letter-spacing: 5px; }
+      .sk-kopf em { font-style: normal; color: #c8f03c; letter-spacing: 3px; transform-origin: right center; }
+      .sk-kopf i { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #c8f03c; margin-right: 12px; vertical-align: 2px; box-shadow: 0 0 14px #c8f03c; }
+      .sk-werte { display: flex; gap: 40px; margin-top: 34px; }
+      .sk-wert { flex: 1; border-left: 4px solid; padding-left: 20px; }
+      .sk-wert small { display: block; font-size: 22px; letter-spacing: 3px; color: #b9c8e2; }
+      .sk-wert b { display: block; font-size: 58px; font-weight: 800; margin-top: 6px; }
+      .sk-wert.gelb { border-color: #c8f03c; } .sk-wert.gelb b { color: #d9f75e; text-shadow: 0 0 24px rgba(200,240,60,.35); }
+      .sk-wert.blau { border-color: #8fb8ff; } .sk-wert.blau b { color: #b9d2ff; }
+      .sk-wert.cyan { border-color: #4fd6e8; } .sk-wert.cyan b { color: #7ee6f3; }
+      #sol-kurve { display: block; width: 100%; height: 300px; margin-top: 34px; overflow: visible; }
+      #sol-linie { filter: drop-shadow(0 0 10px rgba(200,240,60,.6)); }
+      .sk-kacheln { display: flex; gap: 22px; margin-top: 30px; }
+      .sk-kacheln > div { flex: 1; background: rgba(255,255,255,.06); border-radius: 18px; padding: 18px 24px; }
+      .sk-kacheln small { display: block; font-size: 20px; letter-spacing: 3px; color: #b9c8e2; }
+      .sk-kacheln b { display: block; font-size: 38px; margin-top: 4px; }
+      #sol-handy { left: 1390px !important; top: 250px !important; width: 400px; height: 600px; }
+      #sol-handy video { object-position: 50% 0; }  /* unten stünde der Kontoname */

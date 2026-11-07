@@ -1,0 +1,249 @@
+      @font-face { font-family: "Inter"; src: url("assets/inter.woff2") format("woff2"); font-weight: 100 900; }
+      @font-face { font-family: "Noto Color Emoji"; src: url("assets/emoji.ttf") format("truetype"); }
+      :root { --p: #fbf6ea; --t: #0b1f3a; --b: #1f6fe0; --g: #ffd23f; --r: #ff3b5c; --gr: #16c784; --ro: #ff8fb1; --li: #8b5cf6; --or: #ff8a1f; --hb: #dce9ff; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #fbf6ea; }
+      #root { width: 100%; height: 100%; position: relative; overflow: hidden; font-family: "Inter", "Noto Color Emoji", sans-serif; color: var(--t); font-feature-settings: "tnum"; }
+      .clip { position: absolute; inset: 0; }
+      .szene { overflow: hidden; background: var(--p); }
+      .punkte { position: absolute; inset: -60px; background-image: radial-gradient(rgba(11,31,58,.13) 2.2px, transparent 2.8px); background-size: 46px 46px; }
+      .punkte.hell { background-image: radial-gradient(rgba(255,255,255,.18) 2.2px, transparent 2.8px); }
+      .buehne { position: absolute; inset: 0; }
+      .emo { position: absolute; font-family: "Noto Color Emoji"; line-height: 1; }
+      .karte { position: absolute; background: #fff; border: 6px solid var(--t); border-radius: 26px; box-shadow: 14px 14px 0 var(--t); }
+      .sticker { position: absolute; display: inline-block; padding: 12px 28px 14px; border: 5px solid var(--t); border-radius: 18px; box-shadow: 8px 8px 0 var(--t);
+        font-weight: 900; font-size: 48px; letter-spacing: -0.02em; background: var(--g); color: var(--t); white-space: nowrap; line-height: 1.1; }
+      .sticker.blau { background: var(--b); color: #fff; } .sticker.rot { background: var(--r); color: #fff; } .sticker.gruen { background: var(--gr); color: #fff; }
+      .sticker.weiss { background: #fff; } .sticker.rosa { background: var(--ro); } .sticker.lila { background: var(--li); color: #fff; } .sticker.orange { background: var(--or); color: #fff; }
+      .sticker.klein { font-size: 32px; padding: 8px 20px 10px; border-width: 4px; box-shadow: 6px 6px 0 var(--t); border-radius: 14px; }
+      .sticker.gross { font-size: 72px; padding: 16px 38px 20px; border-width: 6px; box-shadow: 12px 12px 0 var(--t); border-radius: 24px; }
+      .titel { position: absolute; font-weight: 900; font-size: 116px; letter-spacing: -0.045em; line-height: .95; white-space: nowrap; }
+      .titel small { display: block; font-size: 40px; letter-spacing: -0.01em; font-weight: 800; margin-top: 18px; color: rgba(11,31,58,.65); }
+      .mark { background: linear-gradient(transparent 56%, var(--g) 56%, var(--g) 92%, transparent 92%); padding: 0 .06em; }
+      .nummer { position: absolute; left: 70px; top: 56px; display: flex; align-items: center; gap: 22px; }
+      .nummer b { width: 96px; height: 96px; border-radius: 50%; background: var(--t); color: var(--g); font-size: 56px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+      .nummer span { font-size: 84px; font-weight: 900; letter-spacing: -0.045em; }
+      .stempel { position: absolute; border: 12px solid var(--r); color: var(--r); font-weight: 900; font-size: 108px; padding: 6px 40px 12px; border-radius: 26px;
+        letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; background: rgba(255,255,255,.55); }
+      .stempel.gruen { border-color: var(--gr); color: var(--gr); }
+      .blase { position: absolute; background: #fff; border: 5px solid var(--t); border-radius: 30px; padding: 18px 34px 22px; font-size: 46px; font-weight: 850;
+        box-shadow: 8px 8px 0 var(--t); white-space: nowrap; letter-spacing: -0.02em; }
+      .blase::after { content: ""; position: absolute; left: 60px; bottom: -34px; width: 40px; height: 40px; background: #fff; border-right: 5px solid var(--t);
+        border-bottom: 5px solid var(--t); transform: skewY(40deg) rotate(30deg); }
+      .blase.rechts::after { left: auto; right: 60px; transform: skewY(-40deg) rotate(-30deg); border-right: 0; border-left: 5px solid var(--t); }
+      .fenster { position: absolute; background: #fff; border: 6px solid var(--t); border-radius: 26px; box-shadow: 16px 16px 0 var(--t); overflow: hidden; }
+      .fenster .leiste { position: absolute; left: 0; right: 0; top: 0; height: 52px; border-bottom: 6px solid var(--t); background: #fff; display: flex; gap: 12px; align-items: center; padding-left: 22px; }
+      .fenster .leiste i { width: 20px; height: 20px; border-radius: 50%; border: 4px solid var(--t); background: var(--r); }
+      .fenster .leiste i + i { background: var(--g); } .fenster .leiste i + i + i { background: var(--gr); }
+      .fenster .leiste em { font-style: normal; margin-left: 24px; font-size: 22px; font-weight: 800; color: rgba(11,31,58,.55); }
+      .fenster .bild { position: absolute; left: 0; right: 0; top: 52px; bottom: 0; overflow: hidden; background: #eef3fb; }
+      .bild video, .geraet video { width: 100%; height: 100%; object-fit: cover; }
+      .geraet { position: absolute; background: var(--t); border-radius: 46px; padding: 24px; box-shadow: 16px 16px 0 rgba(11,31,58,.35); }
+      .geraet .bild { position: relative; width: 100%; height: 100%; border-radius: 20px; overflow: hidden; background: #000; }
+      .polaroid { position: absolute; background: #fff; padding: 14px 14px 50px; border: 4px solid var(--t); box-shadow: 8px 8px 0 rgba(11,31,58,.8); }
+      .polaroid .foto { width: 100%; height: 100%; overflow: hidden; background: var(--hb); position: relative; }
+      .polaroid .foto img, .polaroid .foto svg { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .polaroid b { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 26px; font-weight: 850; }
+      .nadel { position: absolute; left: 50%; top: -18px; width: 30px; height: 30px; margin-left: -15px; border-radius: 50%; background: var(--r); border: 4px solid var(--t); }
+      #wisch { position: absolute; inset: 0; z-index: 60; pointer-events: none; }
+      #wisch i { position: absolute; top: -200px; height: 1480px; width: 2700px; left: -400px; }
+      #wisch i:nth-child(1) { background: var(--g); } #wisch i:nth-child(2) { background: var(--b); } #wisch i:nth-child(3) { background: var(--t); }
+      .konfetti { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
+      .konfetti i { position: absolute; width: 18px; height: 30px; border-radius: 4px; border: 3px solid var(--t); }
+
+      /* 1 Titel */
+      #z1 { background: var(--p); }
+      #t-logo { left: 50%; top: 300px; width: 1020px; margin-left: -510px; padding: 46px 60px; }
+      #t-logo img { display: block; width: 100%; }
+      #t-band { left: 50%; top: 740px; transform: translateX(-50%) rotate(-3deg); font-size: 64px; }
+      .span-r { position: absolute; }
+
+      /* 2 Karte */
+      #z2 { background: var(--hb); }
+      #k-svg { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+      #k-ort { left: 80px; top: 70px; }
+      #k-seit { right: 120px; top: 120px; transform: rotate(-12deg); }
+      .gen { position: absolute; top: 40px; width: 250px; height: 300px; }
+      .gen .foto { display: flex; align-items: center; justify-content: center; font-size: 130px; font-family: "Noto Color Emoji"; }
+      #k-fam { position: absolute; left: 0; right: 0; top: 560px; height: 520px; }
+
+      /* 3 Geschäftsleitung */
+      #z3 { background: var(--b); }
+      .sk { position: absolute; background: #fff; border: 8px solid var(--t); border-radius: 26px; box-shadow: 14px 14px 0 var(--t); overflow: hidden; }
+      .sk .foto { position: absolute; left: 18px; right: 18px; top: 18px; bottom: 175px; border: 5px solid var(--t); border-radius: 14px; overflow: hidden; background: var(--hb); }
+      .sk .foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .sk .holo { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.75) 42%, rgba(255,210,63,.5) 47%, rgba(255,143,177,.45) 52%, rgba(31,111,224,.35) 57%, transparent 70%);
+        mix-blend-mode: screen; transform: translateX(-120%); }
+      .sk b { position: absolute; left: 22px; right: 22px; bottom: 72px; font-size: 38px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.02; white-space: nowrap; }
+      .sk em { position: absolute; left: 22px; bottom: 26px; font-style: normal; font-size: 22px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
+        background: var(--t); color: var(--g); padding: 6px 14px; border-radius: 10px; }
+      .sk .sterne { position: absolute; right: 22px; bottom: 28px; font-size: 26px; color: var(--or); letter-spacing: 2px; }
+      #gl-patrick { left: 740px; top: 150px; width: 440px; height: 680px; }
+      #gl-patrick .foto { bottom: 205px; } #gl-patrick b { font-size: 50px; bottom: 76px; }
+      #gl-titel { left: 600px; top: 70px; transform: rotate(-2deg); }
+      #gl-legende { left: 1230px; top: 460px; transform: rotate(4deg); }
+      .gl { top: 330px; width: 300px; height: 470px; }
+      .gl b { font-size: 32px; }
+
+      /* 4 Team */
+      #z4 { background: #d9a86a; }
+      #z4 .kork { position: absolute; inset: 0; background-image: radial-gradient(rgba(120,70,20,.35) 2px, transparent 3px), radial-gradient(rgba(255,240,210,.25) 1.5px, transparent 2.5px);
+        background-size: 23px 19px, 31px 27px; background-position: 0 0, 9px 7px; }
+      .tw { width: 230px; height: 286px; }
+      .tw .foto { height: 202px; }
+      #tm-titel { left: 90px; top: 50px; transform: rotate(-2deg); }
+      .tm-ab { top: 930px; }
+      #kaffee { position: absolute; left: 1470px; top: 250px; width: 380px; height: 600px; }
+      #kaffee .gehaeuse { position: absolute; left: 0; top: 0; width: 380px; height: 560px; background: #e9eef6; border: 6px solid var(--t); border-radius: 30px; box-shadow: 14px 14px 0 var(--t); }
+      #kaffee .anzeige { position: absolute; left: 50px; top: 50px; width: 280px; height: 90px; background: var(--t); border-radius: 14px; color: var(--gr); font-size: 40px; font-weight: 900;
+        display: flex; align-items: center; justify-content: center; letter-spacing: .05em; }
+      #kaffee .auslauf { position: absolute; left: 150px; top: 190px; width: 80px; height: 60px; background: var(--t); border-radius: 0 0 16px 16px; }
+      #kaffee .tasse { left: 118px; top: 300px; font-size: 150px; }
+      #kaffee .dampf { position: absolute; left: 150px; top: 230px; width: 80px; height: 90px; }
+      #kf-sys { left: 1200px; top: 890px; transform: rotate(-5deg); }
+
+      /* 5 Präzision */
+      #z5 { background: #1650b8; color: #fff; }
+      #z5 .raster { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.12) 2px, transparent 2px), linear-gradient(90deg, rgba(255,255,255,.12) 2px, transparent 2px),
+        linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 160px 160px, 160px 160px, 32px 32px, 32px 32px; }
+      #pz-svg { position: absolute; left: 260px; top: 120px; width: 1400px; height: 600px; }
+      #pz-titel { left: 80px; top: 60px; color: #fff; font-size: 92px; }
+      #pz-proto { left: 140px; top: 760px; transform: rotate(-4deg); }
+      #pz-serie { left: 760px; top: 760px; transform: rotate(3deg); }
+      #mz { position: absolute; left: 560px; top: 1100px; width: 800px; height: 560px; }
+      .marke { font-size: 64px; }
+
+      /* 6 Feiern */
+      #z6 { background: #1d1446; color: #fff; }
+      .spot { position: absolute; width: 900px; height: 900px; border-radius: 50%; mix-blend-mode: screen; opacity: .55; }
+      #disko { left: 860px; top: -40px; font-size: 200px; }
+      #disko-faden { position: absolute; left: 959px; top: -600px; width: 4px; height: 640px; background: #fff; }
+      #fe-titel { left: 90px; top: 70px; transform: rotate(-3deg); }
+      .fp { width: 330px; height: 380px; top: 330px; }
+      .fp .foto { height: 302px; display: flex; align-items: center; justify-content: center; font-family: "Noto Color Emoji"; font-size: 150px; }
+      .fp b { color: var(--t); }
+      #fe-check { left: 1260px; top: 760px; }
+      #fe-check .sticker { position: relative; display: block; margin-bottom: 18px; }
+
+      /* 7 Ordnung */
+      #z7 { background: #e9d3a6; }
+      #z7 .loecher { position: absolute; inset: 0; background-image: radial-gradient(rgba(70,45,10,.45) 5px, transparent 6px); background-size: 58px 58px; background-position: 20px 20px; }
+      #wb { position: absolute; left: 250px; top: 230px; width: 1420px; height: 620px; background: rgba(255,255,255,.35); border: 6px solid var(--t); border-radius: 26px; }
+      .schatten { filter: brightness(0) opacity(.28); }
+      .wz { font-size: 190px; }
+      #or-titel { left: 90px; top: 60px; transform: rotate(-2deg); }
+      #or-selbst { right: 110px; top: 70px; transform: rotate(3deg); }
+      #or-meist { left: 780px; top: 880px; transform: rotate(-4deg); }
+
+      /* 8 Chaos */
+      #z8 { background: var(--p); }
+      #lade { left: 460px; top: 380px; width: 1000px; height: 300px; padding: 46px 56px; }
+      #lade h3 { font-size: 46px; font-weight: 900; letter-spacing: -0.02em; }
+      #lade .balken { margin-top: 34px; height: 70px; border: 6px solid var(--t); border-radius: 20px; overflow: hidden; background: #fff; }
+      #lade .balken i { display: block; height: 100%; width: 100%; background: repeating-linear-gradient(-45deg, var(--b) 0 30px, #4f8ff0 30px 60px); transform-origin: left; transform: scaleX(0); }
+      #lade .prozent { position: absolute; right: 56px; top: 44px; font-size: 52px; font-weight: 900; }
+      #lade-fehler { left: 560px; top: 300px; transform: rotate(-6deg); }
+      .zettel { position: absolute; width: 230px; height: 230px; border: 4px solid var(--t); box-shadow: 6px 6px 0 rgba(11,31,58,.5); padding: 22px; font-size: 26px; font-weight: 800; line-height: 1.25; }
+      .zettel.weiss { background: #fff; height: 280px; } .zettel.gelb { background: #fff38a; } .zettel.rosa { background: #ffc4d6; } .zettel.blau { background: #c9e0ff; }
+      .ordner { position: absolute; width: 170px; height: 420px; border: 6px solid var(--t); border-radius: 14px; box-shadow: 8px 8px 0 var(--t); }
+      .ordner span { position: absolute; left: 22px; right: 22px; top: 90px; height: 180px; background: #fff; border: 4px solid var(--t); border-radius: 8px; writing-mode: vertical-rl;
+        display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 900; }
+      .ordner u { position: absolute; left: 50%; bottom: 40px; width: 50px; height: 50px; margin-left: -25px; border-radius: 50%; border: 6px solid var(--t); background: #fff; }
+      #telefon { left: 820px; top: 360px; font-size: 280px; }
+      #ring { left: 700px; top: 250px; font-size: 90px; font-weight: 900; color: var(--r); transform: rotate(-8deg); -webkit-text-stroke: 4px var(--t); }
+      #ch-zettel { left: 120px; top: 80px; transform: rotate(-4deg); }
+      #ch-ordner { right: 140px; top: 90px; transform: rotate(3deg); }
+      #bl-was { left: 380px; top: 210px; } #bl-welche { left: 1080px; top: 330px; }
+      #lupe { left: -300px; top: 520px; font-size: 220px; }
+      #gestern { left: 610px; top: 200px; width: 700px; height: 640px; background: #fff38a; padding: 70px 60px; font-size: 76px; font-weight: 900; line-height: 1.05;
+        transform: rotate(-4deg); border: 6px solid var(--t); box-shadow: 16px 16px 0 var(--t); position: absolute; letter-spacing: -0.03em; }
+      #gestern .fleck { position: absolute; right: 50px; bottom: 50px; width: 210px; height: 210px; border-radius: 50%; border: 18px solid rgba(120,70,20,.35); }
+      #gestern small { display: block; margin-top: 40px; font-size: 34px; color: rgba(11,31,58,.55); font-weight: 800; letter-spacing: 0; }
+
+      /* 9 Bis heute */
+      #z9 { background: var(--t); }
+      #bh-text { left: 0; right: 0; top: 380px; text-align: center; color: #fff; font-size: 230px; }
+      #flut { position: absolute; left: 960px; top: 540px; width: 2400px; height: 2400px; margin: -1200px 0 0 -1200px; border-radius: 50%; background: var(--b); transform: scale(0); }
+      #strahlen { position: absolute; left: 960px; top: 540px; width: 3000px; height: 3000px; margin: -1500px 0 0 -1500px;
+        background: repeating-conic-gradient(rgba(255,255,255,.13) 0 10deg, transparent 10deg 20deg); border-radius: 50%; opacity: 0; }
+      #ht-logo { position: absolute; left: 50%; top: 200px; width: 760px; margin-left: -380px; }
+      #ht-name { left: 0; right: 0; top: 560px; text-align: center; color: #fff; font-size: 210px; }
+      #ht-gebaut { left: 50%; top: 830px; transform: translateX(-50%) rotate(-2deg); }
+
+      /* Funktionen */
+      .fz { background: var(--hb); }
+      .fz.gelb { background: #fff3c4; } .fz.rosa { background: #ffe1ea; } .fz.gruen { background: #d8f7e9; } .fz.lila { background: #ece4ff; } .fz.orange { background: #ffe6cf; }
+      .fz .unter { position: absolute; left: 190px; top: 160px; font-size: 38px; font-weight: 800; color: rgba(11,31,58,.62); }
+      #pw-fenster { left: 560px; top: 150px; width: 1290px; height: 777px; }
+      #pw-wand { position: absolute; left: 70px; top: 330px; width: 420px; height: 470px; background: #fff; border: 6px solid var(--t); border-radius: 18px; box-shadow: 10px 10px 0 var(--t); overflow: hidden; }
+      #pw-wand .zeile { position: absolute; left: 24px; right: 24px; height: 4px; background: rgba(11,31,58,.15); }
+      .mag { position: absolute; height: 56px; border: 5px solid var(--t); border-radius: 12px; }
+      .mag::after { content: ""; position: absolute; right: 8px; top: 9px; width: 28px; height: 28px; border-radius: 50%; background: #444; border: 3px solid var(--t); }
+      #pw-wand h4 { position: absolute; left: 24px; top: 18px; font-size: 30px; font-weight: 900; }
+      #pw-ohne { left: 80px; top: 860px; transform: rotate(-3deg); }
+      #hand { font-size: 120px; z-index: 5; }
+      .tipp { position: absolute; width: 120px; height: 120px; border-radius: 50%; border: 8px solid var(--r); margin: -60px 0 0 -60px; }
+
+      #mt-fenster { left: 70px; top: 230px; width: 1180px; height: 716px; }
+      #mt-rechner { left: 1290px; top: 260px; font-size: 44px; }
+      #mt-rechner small { display: block; font-size: 28px; margin-top: 4px; }
+      #mt-rest { left: 1300px; top: 250px; width: 560px; padding: 30px 34px; font-size: 44px; font-weight: 900; line-height: 1.1; }
+      #mt-rest .emo { position: relative; display: block; font-size: 110px; margin-bottom: 14px; }
+      #mt-gespart { left: 1270px; top: 720px; transform: rotate(-10deg); font-size: 96px; }
+      #mt-neu { left: 1360px; top: 600px; font-size: 40px; }
+      .muenze { font-size: 80px; }
+
+      #eb-fenster { left: 70px; top: 230px; width: 1290px; height: 777px; }
+      .eb-tag { left: 1395px; font-size: 40px; }
+      #eb-paket { font-size: 150px; }
+      #eb-bestellt { left: 1420px; top: 780px; }
+
+      #pd-tablet { left: 260px; top: 200px; width: 1160px; height: 830px; }
+      .pd-chip { left: 1490px; }
+      #daumen { left: 1350px; top: 1100px; font-size: 420px; }
+      #pd-gross { left: 1360px; top: 860px; transform: rotate(-4deg); z-index: 4; }
+
+      #qs-fenster { left: 70px; top: 230px; width: 1150px; height: 825px; }
+      #qs-lupe { font-size: 200px; left: 200px; top: 300px; }
+      #qs-aus { left: 1250px; top: 300px; font-size: 40px; }
+      #qs-quitt { left: 1270px; top: 520px; transform: rotate(-9deg); font-size: 92px; }
+      #qs-fertig { left: 1400px; top: 800px; }
+
+      #st-fenster { left: 70px; top: 230px; width: 1290px; height: 777px; }
+      .ausrede { left: 1150px; font-size: 34px; }
+      .ausrede .x { position: absolute; left: -10px; right: -10px; top: 50%; height: 12px; margin-top: -6px; background: var(--r); border: 3px solid var(--t); border-radius: 6px; transform-origin: left; transform: rotate(-4deg) scaleX(0); }
+
+      #be-fenster { left: 70px; top: 230px; width: 1290px; height: 777px; }
+      #be-was { left: 1170px; top: 170px; transform: rotate(3deg); }
+      #be-brief { font-size: 150px; left: 600px; top: 520px; z-index: 6; }
+      #be-weg { left: 1420px; top: 400px; }
+      #fax { left: 1500px; top: 640px; font-size: 230px; }
+      #fax-rente { left: 1390px; top: 920px; transform: rotate(-4deg); }
+      .rauch { font-size: 90px; }
+
+      #vm-ib { left: 150px; top: 190px; width: 480px; height: 820px; padding: 20px; border-radius: 34px; }
+      #vm-pr { left: 720px; top: 250px; width: 1120px; height: 682px; }
+      #vm-ib-n { left: 170px; top: 120px; transform: rotate(-4deg); } #vm-pr-n { left: 760px; top: 170px; transform: rotate(2deg); }
+      .note { font-size: 80px; }
+      .chipregen { font-size: 44px; }
+
+      /* 18 Solar */
+      #z18 { background: linear-gradient(#9fd2ff, #dff0ff 70%, #fbf6ea); }
+      #sonne { left: 180px; top: 90px; font-size: 260px; }
+      #brille { left: 220px; top: 190px; font-size: 180px; }
+      #sol-svg { position: absolute; left: 140px; top: 430px; width: 1140px; height: 600px; }
+      #sol-handy { left: 1400px; top: 120px; width: 400px; height: 820px; padding: 18px; border-radius: 52px; }
+      #sol-live { left: 1290px; top: 860px; font-size: 64px; }
+      #sol-live i { display: inline-block; width: 30px; height: 30px; border-radius: 50%; background: #fff; margin-right: 18px; vertical-align: 4px; }
+      #sol-kw { left: 640px; top: 140px; font-size: 76px; }
+      #sol-titel { left: 600px; top: 300px; font-size: 40px; }
+
+      /* 19 Schluss */
+      #ende-logo { left: 50%; top: 150px; width: 900px; margin-left: -450px; padding: 40px 54px; }
+      #ende-logo img { display: block; width: 100%; }
+      #ende-1 { left: 0; right: 0; top: 600px; text-align: center; font-size: 96px; }
+      #ende-2 { left: 0; right: 0; top: 730px; text-align: center; font-size: 96px; }
+      #ende-ht { left: 50%; top: 900px; transform: translateX(-50%) rotate(-2deg); }
+      #ende-2 .mark { background-repeat: no-repeat; }
+      .konfetti i { opacity: 0; }
+      #qs-blick { left: 520px; top: 150px; }

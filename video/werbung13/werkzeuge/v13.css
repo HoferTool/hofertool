@@ -1,0 +1,69 @@
+      /* ===== Fassung 13: kurzer Anfang mit Fotos, dunkler Teil vor dem Tool ===== */
+      .foto-voll { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; transform-origin: 50% 50%; }
+      .verlauf-links { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6,12,24,.86) 0%, rgba(6,12,24,.55) 38%, rgba(6,12,24,0) 70%), linear-gradient(0deg, rgba(6,12,24,.6), transparent 40%); }
+      #dr-bild { object-position: 50% 50%; }
+      #dr-logo { position: absolute; left: 90px; top: 80px; width: 520px; }
+      #dr-titel { left: 90px; top: 520px; font-size: 128px; }
+      #dr-ort { left: 92px; top: 700px; font-size: 46px; }
+      #dr-seit { left: 92px; top: 820px; font-size: 76px; border-color: var(--g); color: var(--g); transform: none; }
+      #z5 .buehne { overflow: hidden; }
+      #pz-titel { left: 90px !important; top: 90px !important; font-size: 104px !important; }
+      #pz-titel small { color: #dfe8f5; font-size: 52px; margin-top: 26px; }
+      #pz-marken { position: absolute; left: 90px; top: 640px; display: flex; flex-wrap: wrap; gap: 24px; width: 1200px; }
+      #pz-marken .sticker { position: relative; font-size: 54px; transform: none !important; }
+      .dunkel, #zdo, #zmg, #zmc, #zxl, #z8, #ztel { background: radial-gradient(1100px 700px at 70% 10%, rgba(239,79,95,.13), transparent 60%), radial-gradient(900px 700px at 0% 100%, rgba(60,70,90,.25), transparent 60%), linear-gradient(160deg, #11131a, #07080c) !important; }
+      .schwarz, #zsn { background: #000 !important; }
+      .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0,0,0,.85) 100%); }
+      #do-1 { left: 120px; top: 360px; font-size: 104px; }
+      #do-2 { left: 220px; top: 540px; font-size: 104px; color: #ef4f5f; }
+      /* Magnetwand */
+      #mg-t1 { left: 90px; top: 70px; } #mg-t2 { left: 620px; top: 70px; }
+      #mg-wand { position: absolute; left: 260px; top: 200px; width: 1400px; height: 720px; background: #f4f6f9; border-radius: 18px; box-shadow: 0 50px 120px rgba(0,0,0,.6), inset 0 0 0 14px #b9c0ca; color: #0b1f3a; overflow: visible; }
+      .mg-zeile { position: absolute; left: 30px; right: 30px; height: 86px; border-top: 3px solid rgba(11,31,58,.15); }
+      .mg-zeile b { position: absolute; left: 10px; top: 22px; font-size: 34px; font-weight: 800; }
+      .mg-tag { position: absolute; top: 50px; width: 230px; text-align: center; font-size: 30px; font-weight: 800; color: rgba(11,31,58,.55); }
+      .mgm { height: 58px; border: 2px solid rgba(11,31,58,.6); border-radius: 10px; box-shadow: 0 6px 12px rgba(0,0,0,.25); }
+      .mgm span { position: absolute; left: 14px; top: 9px; font-size: 28px; font-weight: 800; color: rgba(11,31,58,.85); }
+      .mg-frage { position: absolute; width: 68px; height: 68px; border-radius: 50%; background: #ef4f5f; color: #fff; font-size: 52px; font-weight: 900; text-align: center; line-height: 66px; box-shadow: 0 10px 24px rgba(0,0,0,.4); opacity: 0; }
+      #mg-wohin { left: 260px; top: 955px; font-size: 52px; z-index: 5; }
+      /* Material */
+      #mc-t1 { left: 90px; top: 70px; z-index: 5; }
+      .beleg { position: absolute; top: 260px; width: 470px; height: 560px; background: #fff; color: #0b1f3a; border-radius: 14px; padding: 46px 44px; box-shadow: 0 40px 100px rgba(0,0,0,.6); }
+      .beleg h5 { font-size: 32px; letter-spacing: 6px; color: #2f7bf6; margin-bottom: 40px; }
+      .beleg p { font-size: 44px; font-weight: 800; margin-bottom: 26px; } .beleg p.klein { font-size: 30px; font-weight: 600; color: rgba(11,31,58,.55); }
+      .beleg.leer p { color: rgba(11,31,58,.3); }
+      #mc-b1 { left: 140px; } #mc-b2 { left: 640px; } #mc-b3 { left: 1250px; }
+      #mc-2x { left: 330px; top: 470px; font-size: 100px; z-index: 4; }
+      #mc-0x { left: 1170px; top: 470px; font-size: 80px; z-index: 4; }
+      #mc-lager { position: absolute; left: 600px; top: 250px; width: 760px; height: 680px; opacity: 0; }
+      .regal { position: absolute; left: 0; right: 0; top: 30px; height: 200px; border-bottom: 14px solid #59606c; border-left: 14px solid #59606c; border-right: 14px solid #59606c; }
+      .stange { position: absolute; height: 22px; border-radius: 11px; box-shadow: inset 0 -6px 0 rgba(0,0,0,.2); }
+      #mc-licht { position: absolute; left: -1700px; top: -1200px; width: 4000px; height: 3000px; background: radial-gradient(circle at 50% 50%, transparent 0 150px, rgba(0,0,0,.9) 220px); pointer-events: none; }
+      #mc-rest { left: 90px; top: 960px; font-size: 52px; }
+      #mc-nicht { left: 1040px; top: 560px; font-size: 84px; z-index: 4; }
+      /* Excel */
+      #xl-t1 { left: 90px; top: 70px; }
+      .xl { position: absolute; width: 520px; height: 330px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.6); color: #0b1f3a; }
+      .xl-kopf { height: 58px; background: #1d6f42; color: #fff; font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 14px; padding: 0 16px; white-space: nowrap; overflow: hidden; }
+      .xl-kopf b { width: 36px; height: 36px; border-radius: 6px; background: #fff; color: #1d6f42; text-align: center; line-height: 36px; font-size: 24px; flex: none; }
+      .xl-raster { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 14px; }
+      .xl-raster i { height: 40px; border: 1px solid #d5dbe3; background: linear-gradient(90deg, #e3e8ef 0 60%, transparent 60%) no-repeat 8px 15px / 70% 10px; }
+      #xl-welche { left: 480px; top: 860px; z-index: 5; }
+      #xl-ahnung { left: 640px; top: 430px; font-size: 110px; z-index: 6; }
+      /* Zettel und Stillstand */
+      #ch-zettel { left: 90px !important; top: 70px !important; z-index: 4; }
+      #stm { position: absolute; left: 1060px; top: 320px; width: 800px; height: 560px; opacity: 0; z-index: 5; }
+      #stm-lampe { position: absolute; left: 600px; top: -70px; width: 90px; height: 90px; border-radius: 50%; background: #ef4f5f; box-shadow: 0 0 60px 20px rgba(239,79,95,.7); opacity: 0; }
+      #ch-wz { left: 1080px; top: 140px; z-index: 6; }
+      #ch-steht { left: 1170px; top: 880px; font-size: 92px; z-index: 6; }
+      /* Telefon */
+      #ztel #telefon { left: 220px; top: 300px; font-size: 300px; }
+      #ztel #ring { left: 160px; top: 200px; }
+      #bl-wann { left: 690px; top: 230px; font-size: 64px; }
+      #ztel #lupe { top: 640px; }
+      #tel-gute { left: 690px; top: 830px; font-size: 84px; }
+      /* So nicht */
+      #sn-text { left: 0; right: 0; top: 460px; text-align: center; font-size: 110px; color: #fff; }
+      #sn-weiter { color: #ef4f5f; }
+      #sn-linie { position: absolute; left: 460px; top: 620px; width: 1000px; height: 8px; background: #ef4f5f; transform-origin: left; transform: scaleX(0); }
+      #bh-text { font-size: 170px !important; }

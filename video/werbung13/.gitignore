@@ -1,0 +1,15 @@
+# Personendaten, private Fotos und Videos und erzeugte Dateien bleiben ausserhalb des öffentlichen Repositorys
+index.html
+assets/
+mont/
+el/
+stimme13/
+werkzeuge/team.json
+werkzeuge/teamwand.json
+werkzeuge/zeit13.json
+musik.wav
+musik.json
+stimme.wav
+snapshots/
+*.mp4
+*.log
