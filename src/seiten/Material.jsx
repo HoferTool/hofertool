@@ -79,6 +79,7 @@ export default function Material({ auffrischen }) {
         {/* Die letzten 100 Änderungen (Wunsch Patrick 16. Oktober 2026) */}
         <button className="knopf" id="mat-historie-knopf" disabled={!daten || daten.fehlt}
           onClick={() => materialHistorieOeffnen(daten && daten.personen)}>Historie</button>
+        {!alt.istExtern() && <button className="knopf" id="mat-orte" onClick={orteAendern}>Orte bearbeiten</button>}
       </div>
       {fehler && !daten
         ? <div className="karte karte--fehler"><p>{alt.fehlertext(fehler)}</p></div>
@@ -183,6 +184,19 @@ function PostenZeile({ p, neu, mitMaterial, erfassen, personen, auftraege }) {
 
 // ---------- An Lager ----------
 
+// Orte bearbeiten: dürfen alle ausser Externen (Wunsch Patrick 16. Oktober
+// 2026, sql/material-orte-alle.sql); der Knopf steht seit 1.444.5 oben im
+// Kopf statt unter der Liste (Wunsch Patrick 7. November 2026)
+async function orteAendern() {
+  const jetzt = await orteLaden();
+  const w = await alt.dialogFelder({ titel: "Orte", text: "Ein Ort pro Zeile. So erscheinen sie als Knöpfe beim Erfassen.",
+    felder: [{ name: "orte", label: "Orte", typ: "textarea", wert: jetzt.join("\n") }] });
+  if (!w) return;
+  const neueListe = w.orte.split(/\n/).map((x) => x.trim()).filter(Boolean);
+  try { await orteSpeichern(neueListe); alt.meldung("Gespeichert.", "gut"); }
+  catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+}
+
 function Lager({ d, suche, neu, erfassen }) {
   const s = suche.trim().toLowerCase();
   const liste = d.posten.filter((p) => p.art !== "bestellt")
@@ -194,16 +208,6 @@ function Lager({ d, suche, neu, erfassen }) {
     if (!jeOrt.has(o)) jeOrt.set(o, []);
     jeOrt.get(o).push(p);
   });
-
-  const orteAendern = async () => {
-    const jetzt = await orteLaden();
-    const w = await alt.dialogFelder({ titel: "Orte", text: "Ein Ort pro Zeile. So erscheinen sie als Knöpfe beim Erfassen.",
-      felder: [{ name: "orte", label: "Orte", typ: "textarea", wert: jetzt.join("\n") }] });
-    if (!w) return;
-    const neueListe = w.orte.split(/\n/).map((x) => x.trim()).filter(Boolean);
-    try { await orteSpeichern(neueListe); alt.meldung("Gespeichert.", "gut"); }
-    catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
-  };
 
   return (
     <>
@@ -219,8 +223,6 @@ function Lager({ d, suche, neu, erfassen }) {
           })}
         </section>))}
       {!liste.length && <div className="karte karte--hinweis"><p>{s ? "Nichts gefunden." : "Noch nichts erfasst. Reste kommen von selbst dazu, wenn Aufträge beendet werden, oder mit „+ Material erfassen“."}</p></div>}
-      {/* Orte dürfen alle ändern (Wunsch Patrick 16. Oktober 2026, sql/material-orte-alle.sql) */}
-      {!alt.istExtern() && <button className="linkknopf" id="mat-orte" onClick={orteAendern}>Orte bearbeiten</button>}
     </>
   );
 }
