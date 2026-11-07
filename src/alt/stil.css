@@ -12052,3 +12052,55 @@ body.dunkel .kal-countdown { background: #4a3a12; color: #ffd98a !important; }
 .ib-band__zeile--ganz .ib-band__was { white-space: normal; overflow: visible; text-overflow: clip; }
 .ib-band--flach .ib-band__zeile--ganz { height: auto; min-height: 40px; flex: 0 1 auto; padding-top: 6px; padding-bottom: 6px; border-radius: 20px; }
 .ib-band--flach .ib-band__zeile--ganz .ib-band__was { flex: 0 1 auto; max-width: none; }
+
+/* ---------- Basketball beim Ablegen (seit 1.447.0) ----------
+   Datei als Ball an der Maus, Korb über der Ablagestelle, nur ein
+   Treffer lädt hoch (src/teile/dateiAblegen.js). Brett und hintere
+   Ringhälfte liegen hinter dem Ball, Ring vorne und Netz davor, so
+   fällt der Ball durchs Netz. */
+.dz-ball, .dz-korb { position: fixed; left: 0; top: 0; pointer-events: none; opacity: 0;
+  transition: opacity .15s ease; will-change: transform; }
+.dz-ball { width: 52px; height: 52px; z-index: 100002; filter: drop-shadow(0 6px 8px rgba(0,0,0,.35)); }
+.dz-ball.dz-an, .dz-korb.dz-an { opacity: 1; }
+.dz-ball__dreh, .dz-ball__dreh svg { width: 100%; height: 100%; display: block; }
+.dz-ball__dreh { transition: transform .12s linear; }
+.dz-ball__zahl { position: absolute; right: -6px; top: -6px; min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 10px; background: #1f5fbf; color: #fff !important; font: 700 12px/20px system-ui, sans-serif;
+  text-align: center; box-shadow: 0 0 0 2px #fff; }
+.dz-ball__zahl:empty { display: none; }
+.dz-korb { width: 150px; height: 170px; }
+.dz-korb--hinten { z-index: 100001; }
+.dz-korb--vorne { z-index: 100003; }
+.dz-korb.dz-an { animation: dz-korb-rein .35s cubic-bezier(.2,1.4,.4,1); }
+@keyframes dz-korb-rein { from { opacity: 0; margin-top: -24px; } to { opacity: 1; margin-top: 0; } }
+.dz-brett { position: absolute; left: 15px; top: 0; width: 120px; height: 86px; border-radius: 6px;
+  background: rgba(255,255,255,.92); border: 3px solid #c9d3df; box-shadow: 0 8px 22px rgba(0,0,0,.25); }
+.dz-brett i { position: absolute; left: 36px; top: 40px; width: 42px; height: 32px; border: 3px solid #e2531b;
+  border-bottom: none; }
+.dz-ring-hinten { position: absolute; left: 29px; top: 90px; width: 92px; height: 14px; border-radius: 50%;
+  border: 4px solid #a8360a; border-bottom-color: transparent; }
+.dz-ring { position: absolute; left: 29px; top: 90px; width: 92px; height: 14px; border-radius: 50%;
+  border: 4px solid #e2531b; border-top-color: transparent; box-shadow: 0 3px 0 rgba(0,0,0,.18);
+  transition: box-shadow .15s, border-color .15s; }
+.dz-netz { position: absolute; left: 31px; top: 98px; width: 88px; height: 58px; transform-origin: 50% 0;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
+.dz-schild { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); white-space: nowrap;
+  padding: 4px 10px; border-radius: 999px; background: #e2531b; font: 700 13px/1.2 system-ui, sans-serif;
+  color: #fff !important; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.dz-text { position: absolute; left: -40px; right: -40px; top: 150px; text-align: center; opacity: 0;
+  font: 800 22px/1 system-ui, sans-serif; text-shadow: 0 2px 6px rgba(0,0,0,.45); }
+.dz-ueber .dz-ring { border-color: #ff7a2f; border-top-color: transparent; box-shadow: 0 0 14px 4px rgba(255,140,40,.7); }
+.dz-ueber .dz-brett { border-color: #ff9a55; }
+.dz-treffer .dz-netz { animation: dz-netz .5s ease-out; }
+.dz-treffer .dz-text { color: #2fb35a !important; animation: dz-text .9s ease-out forwards; }
+.dz-daneben .dz-text { color: #e23b2b !important; animation: dz-text 1s ease-out forwards; }
+.dz-daneben.dz-korb { animation: dz-wackeln .45s ease-in-out; }
+.dz-treffer .dz-ring { box-shadow: 0 0 22px 8px rgba(80,220,120,.75); }
+@keyframes dz-netz { 0% { transform: scaleY(1); } 35% { transform: scaleY(1.35) scaleX(.86); }
+  70% { transform: scaleY(.92); } 100% { transform: scaleY(1); } }
+@keyframes dz-text { 0% { opacity: 0; transform: translateY(8px) scale(.7); } 25% { opacity: 1; transform: translateY(0) scale(1.15); }
+  70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translateY(-10px); } }
+@keyframes dz-wackeln { 0%, 100% { margin-left: 0; } 20% { margin-left: -7px; } 40% { margin-left: 6px; }
+  60% { margin-left: -4px; } 80% { margin-left: 2px; } }
+body.dunkel .dz-brett { background: rgba(240,244,250,.92); }
+@media (prefers-reduced-motion: reduce) { .dz-korb.dz-an, .dz-treffer .dz-netz, .dz-daneben.dz-korb { animation: none; } }
