@@ -11,6 +11,7 @@
 import { useMemo, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
+import { inEigenesFenster } from "../../teile/eigenesFenster.js";
 import { Reiter } from "../../teile/Reiter.jsx";
 import {
   ARTEN, BEDINGUNGEN, BLOCK_FELDER, CONFIG_SCHLUESSEL, PLATZ_GRUPPEN, PLATZHALTER_BLOCK, PLATZHALTER_KOPF,
@@ -219,7 +220,22 @@ function Fenster({ zu }) {
   );
 }
 
+// Seit 1.444.3 (Patrick 7. November 2026: „Maschinentypen sollen auch in
+// eigenem Tab geöffnet werden“): am Computer mit Maus geht das Fenster
+// gleich in einem eigenen Browserfenster auf, wie die Kanäle; lässt der
+// Browser es nicht zu, bleibt es still in der App. Im Prüfstand nur mit
+// TEST.eigenesFenster, die übrigen Tests suchen es in der Seite
+let offenZu = null;
+const eigenMoeglich = () => !(window.TEST && !window.TEST.eigenesFenster)
+  && !alt.isMobil() && !document.body.classList.contains("pad-offen")
+  && window.matchMedia("(pointer: fine)").matches;
 export function camTypFensterOeffnen() {
-  if (document.getElementById("camtyp")) return;
-  fensterOeffnen((zu) => <Fenster zu={zu} />, null, "camtyp-huelle");
+  if (offenZu || document.getElementById("camtyp")) return;
+  const zu = fensterOeffnen((zu) => <Fenster zu={zu} />, () => { offenZu = null; }, "camtyp-huelle");
+  offenZu = zu;
+  if (!eigenMoeglich()) return;
+  const huellen = document.querySelectorAll(".camtyp-huelle");
+  const huelle = huellen[huellen.length - 1];
+  if (huelle) inEigenesFenster(huelle, zu, { titel: "HOFERCAM · Maschinentyp " + TYP_NAME, still: true,
+    lage: { x: window.screenX + 60, y: window.screenY + 60 } });
 }
