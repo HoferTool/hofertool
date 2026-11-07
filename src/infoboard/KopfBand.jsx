@@ -48,7 +48,7 @@ export default function KopfBand({ top, left, breite, hoehe, hoeheMelden, flach 
   const geb = geburtstageAufbereiten(leute).filter((m) => m.tage <= GEBURTSTAGE_TAGE).slice(0, GEBURTSTAGE);
   // Je Eintrag nur der nächste Tag, sonst füllt die wöchentliche
   // Kehrichtabfuhr allein die Liste
-  const termine = kommendeTermine(kalender, TERMINE_TAGE, heute).slice(0, TERMINE);
+  const termine = kommendeTermine(kalender, TERMINE_TAGE, heute, TERMINE);
 
   // Die Tafel muss wissen, wie hoch das Band gerade wirklich ist, damit
   // sie die Dokumente darunter schieben kann (Wunsch Patrick 28. Oktober
@@ -86,7 +86,8 @@ export default function KopfBand({ top, left, breite, hoehe, hoeheMelden, flach 
         <h2 className="ib-band__titel">📅 Kommende Termine</h2>
         {kalender && !termine.length && <p className="ib-band__leer">Keine Termine in den nächsten {TERMINE_TAGE} Tagen.</p>}
         {termine.map((t) => (
-          <div className={"ib-band__zeile" + (t.tage === 0 ? " ib-band__zeile--heute" : "")} key={t.eintrag.id + t.datum}>
+          <div className={"ib-band__zeile" + (t.tage === 0 ? " ib-band__zeile--heute" : "")
+            + (t.eintrag.countdown ? " ib-band__zeile--ganz" : "")} key={t.eintrag.id + t.datum}>
             <span className="ib-band__zeichen">{kalenderZeichen(t.eintrag.titel)}</span>
             <span className="ib-band__was">{t.eintrag.titel}
               {t.eintrag.notiz && <span className="ib-band__klein"> · {t.eintrag.notiz}</span>}</span>

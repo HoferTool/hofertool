@@ -12044,3 +12044,11 @@ body.dunkel .mess__zeile--gut td { background: rgba(40, 170, 80, .22) !important
 body.dunkel .kal-countdown { background: #4a3a12; color: #ffd98a !important; }
 .ib-band__countdown { color: #ffd166; }
 .ib-band--flach .ib-band__countdown { color: #9a6400; }
+
+/* Kalender: Eintrag mit Countdown (etwa der letzte Arbeitstag vor
+   Weihnachten) zeigt im Infoboard und Pausenraum den ganzen Text, er
+   bricht um statt abgeschnitten zu werden (Wunsch Patrick 7. November 2026) */
+.ib-band__zeile--ganz { height: auto; min-height: 29px; padding: 3px 0; align-items: baseline; }
+.ib-band__zeile--ganz .ib-band__was { white-space: normal; overflow: visible; text-overflow: clip; }
+.ib-band--flach .ib-band__zeile--ganz { height: auto; min-height: 40px; flex: 0 1 auto; padding-top: 6px; padding-bottom: 6px; border-radius: 20px; }
+.ib-band--flach .ib-band__zeile--ganz .ib-band__was { flex: 0 1 auto; max-width: none; }

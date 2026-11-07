@@ -104,15 +104,24 @@ export function naechsteTermine(eintraege, tage = 60, heute = iso(new Date())) {
 // dahin“, Spalte kalender.countdown) stehen bis ein Jahr vorher da, nicht
 // erst 14 bzw. 30 Tage vorher (Wunsch Patrick 7. November 2026: „letzter
 // Arbeitstag soll jetzt schon dort stehen, mit wie viele Tage noch“).
-// Je Eintrag nur der nächste Tag; die mit Countdown zuerst.
+// Je Eintrag nur der nächste Tag, alle zusammen streng nach Datum, der
+// nächste oben, auch die mit Countdown (Wunsch Patrick 7. November 2026:
+// „schön nach Datum abgearbeitet, nächste oben“; 1.446.0 stellte die mit
+// Countdown zuoberst). Mit max höchstens so viele, die mit Countdown
+// bleiben aber immer dabei, sonst fiele der letzte Arbeitstag weg.
 export const COUNTDOWN_TAGE = 366;
-export function kommendeTermine(eintraege, tage, heute = iso(new Date())) {
+export function kommendeTermine(eintraege, tage, heute = iso(new Date()), max = Infinity) {
   const alle = eintraege || [];
-  const mit = alle.filter((e) => e.countdown);
   const gesehen = new Set();
   const nur = (t) => !gesehen.has(t.eintrag.id) && gesehen.add(t.eintrag.id);
-  const vorn = naechsteTermine(mit, COUNTDOWN_TAGE, heute).filter(nur);
-  return vorn.concat(naechsteTermine(alle.filter((e) => !e.countdown), tage, heute).filter(nur));
+  const liste = naechsteTermine(alle.filter((e) => e.countdown), COUNTDOWN_TAGE, heute)
+    .concat(naechsteTermine(alle.filter((e) => !e.countdown), tage, heute))
+    .sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1
+      : String(a.eintrag.titel).localeCompare(String(b.eintrag.titel))))
+    .filter(nur);
+  const platz = max - liste.filter((t) => t.eintrag.countdown).length;
+  let ohne = 0;
+  return liste.filter((t) => t.eintrag.countdown || ++ohne <= platz);
 }
 
 // „noch 41 Tage“, „noch 1 Tag“, am Tag selbst nichts (dort steht „Heute“)

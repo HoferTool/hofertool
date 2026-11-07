@@ -14,7 +14,7 @@ def pruefe(ok, text):
 heute = datetime.now().date()
 MIT = FAKE + """;
 TEST.daten.kalender = [{ id: 'k1', titel: 'Kehrichtabfuhr', datum: '%s', wiederholung: 'woche', notiz: 'bis 7 Uhr' },
-  { id: 'k9', titel: 'Letzter Arbeitstag', datum: '%s', wiederholung: 'nie', countdown: true },
+  { id: 'k9', titel: 'Letzter Arbeitstag vor Weihnachten, danach Betriebsferien bis Anfang Januar', datum: '%s', wiederholung: 'nie', countdown: true },
   { id: 'k8', titel: 'Weit weg ohne Countdown', datum: '%s', wiederholung: 'nie' }];
 TEST.daten.profiles.forEach((x, i) => { x.geburtstag = i === 0 ? '1985-%s' : i === 1 ? '1990-%s' : null; });
 """ % ((heute - timedelta(days=14)).isoformat(), (heute + timedelta(days=41)).isoformat(),
@@ -41,6 +41,8 @@ with sync_playwright() as p:
     # Countdown (Wunsch Patrick 7. November 2026): schon 41 Tage vorher, mit Tagen
     pruefe("Letzter Arbeitstag" in k and "noch 41 Tage" in k, "Countdown-Eintrag schon jetzt mit Tagen: %r" % k)
     pruefe("Weit weg ohne Countdown" not in k, "andere weite Termine weiterhin nicht")
+    # Seit 1.446.1 streng nach Datum, der Countdown reiht sich ein
+    pruefe(k.index("Kehrichtabfuhr") < k.index("Letzter Arbeitstag"), "Start nach Datum, nächster oben: %r" % k)
     reihe = pg.evaluate("""() => [...document.querySelectorAll('#db-probleme, #db-kalender, #db-status')].map(e => e.id)""")
     pruefe(reihe[:2] == ["db-probleme", "db-kalender"], "Kalender direkt nach den Problemen: %s" % reihe)
     pruefe(pg.locator("[data-nav='kalender']").count() == 0, "kein Reiter Kalender im Menü")
@@ -71,13 +73,17 @@ with sync_playwright() as p:
     pruefe("Kehrichtabfuhr" in b and "bis 7 Uhr" in b, "Termine auf dem Infoboard")
     pruefe(b.count("Kehrichtabfuhr") == 1, "je Termin nur der nächste Tag")
     pruefe("Letzter Arbeitstag" in b and "noch 41 Tage" in b, "Countdown auch auf dem Infoboard: %r" % b)
+    pruefe(b.index("Kehrichtabfuhr") < b.index("Letzter Arbeitstag"), "Infoboard nach Datum, nächster oben")
+    ganz = pg.evaluate("""() => { const e = [...document.querySelectorAll('[data-ib=band-termine] .ib-band__was')].find(x => x.textContent.includes('Weihnachten'));
+      return e && e.scrollWidth <= e.clientWidth + 1; }""")
+    pruefe(ganz, "Countdown-Text im Infoboard nicht abgeschnitten")
     if os.environ.get("BILD1"): pg.locator("[data-ib='band']").screenshot(path=os.environ["BILD1"])
     pruefe("Heute" in b and "wird 41" in b, "Geburtstag heute auf dem Infoboard")
     gz = pg.locator("[data-ib='band-geburtstage'] .ib-band__zeile").count()
     pruefe(gz == 1, "nur Geburtstage der nächsten 30 Tage, nicht in 60 Tagen: %d" % gz)
     lage = pg.evaluate("""() => { const t = document.querySelector('.ib-blatt'), k = document.querySelector('.ib-kopf'), b = document.querySelector('.ib-band');
       return [k.offsetTop + k.offsetHeight, b.offsetTop, b.offsetTop + b.offsetHeight, b.scrollHeight <= b.clientHeight + 1]; }""")
-    pruefe(lage[0] <= lage[1] and lage[2] <= 622 and lage[3], "Band unter dem Kopf, passt in seinen Platz: %s" % lage)
+    pruefe(lage[0] <= lage[1] and lage[3], "Band unter dem Kopf, nichts abgeschnitten (langer Countdown-Text darf umbrechen): %s" % lage)
     # Geburtstage nur so breit wie nötig, der Rest für die Termine (seit 1.241.1)
     br2 = pg.evaluate("""() => { const g = document.querySelector("[data-ib='band-geburtstage']"), t = document.querySelector("[data-ib='band-termine']");
       const ab = [...g.querySelectorAll('.ib-band__was')].some((e) => e.scrollWidth > e.clientWidth + 1);
