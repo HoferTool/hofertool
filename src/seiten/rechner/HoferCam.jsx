@@ -576,7 +576,7 @@ export default function HoferCam() {
                     onChange={(e) => blockAendern(b.id, "bez", e.target.value.toUpperCase())} /></label>
                 {!aus("hd") && <label className="cam-feld" title={k2 ? "Hochdruck M1884D… vor dem Werkzeugaufruf, am Ende M1894 aus" : quer ? "Hochdruck M1883D… ein, am Ende M1893 aus" : front ? "Hochdruck M1882D… ein, am Ende M1892 aus" : "Hochdruck M1881D… ein, am Ende M1891 aus"}><span>Hochdruck</span>
                   <select data-camblock="hd" value={b.hd} onChange={(e) => blockAendern(b.id, "hd", e.target.value)}>
-                    {HD_STUFEN.map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
+                    {(HD_STUFEN.includes(b.hd || "") ? HD_STUFEN : [...HD_STUFEN, b.hd]).map((h) => <option key={h} value={h}>{h ? "Stufe " + h : "kein"}</option>)}
                   </select></label>}
                 {!aus("vor") && <label className="cam-feld" title={"Vorschub je Umdrehung (G99) oder je Minute (G98)" + (gegen ? ", in Kanal 2" : "") + "; am Ende der Bearbeitung immer wieder G99"}><span>Vorschub</span>
                   <select data-camblock="vor" value={vorschubArt(b)} onChange={(e) => blockAendern(b.id, "vor", e.target.value)}>

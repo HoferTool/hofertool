@@ -128,7 +128,8 @@ function kanal2(w) {
 
 // Seit 1.441.0 je Maschinentyp änderbar (camTyp.js)
 export const plaetzeVon = (gruppe) => typ().plaetze[gruppe] || [];
-export const HD_STUFEN = ["", "1", "2", "3", "4", "5", "6"];
+// Die SB-20RG hat nur vier Hochdruck-Stufen (Patrick 7. November 2026: „es gibt nur 4 nicht 6“).
+export const HD_STUFEN = ["", "1", "2", "3", "4"];
 
 // Seit 1.400.0: feste Frontwerkzeuge T1100–T1400 (Patricks Beispiel
 // T1400 Bohren D6.8, 5. November 2026). Wahl Haupt- oder Gegenspindel;
