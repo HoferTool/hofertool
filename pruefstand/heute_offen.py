@@ -1,7 +1,7 @@
 # Startseite „Heute noch offen“ (1.186.0): Maschinen, deren laufender
 # Auftrag heute noch keine Stückzahl hat, und solche ohne Stückzeit.
 import time
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import server_starten, FAKE, CH, PORT, tagsueber
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 # Zwei Aufträge laufen fest: m-k1 ohne Zählerstand heute, m-l1 mit
@@ -42,6 +42,7 @@ with sync_playwright() as p:
         for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
             pg.route(u, lambda r: r.abort())
         pg.add_init_script("window.OHNE_SITZUNG = false;")
+        tagsueber(pg)
         pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded"); pg.wait_for_timeout(2500)
         werktag = pg.evaluate("[1,2,3,4,5].includes(new Date().getDay())")
         stk = pg.evaluate("[...document.querySelectorAll('[data-heuteoffen=stk]')].map(b => b.dataset.maschine)")

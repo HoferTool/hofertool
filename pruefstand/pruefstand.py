@@ -32,10 +32,14 @@ def server_starten():
 # um 03:52 waren Infoboard und Pausenraum im Nachtmodus, und Aufträge
 # „heute 09:30“ lagen noch in der Zukunft). Gibt das Datum zurück.
 def tagsueber(pg):
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from zoneinfo import ZoneInfo
     zh = ZoneInfo("Europe/Zurich")
     t = datetime.now(zh).replace(hour=14, minute=0, second=0, microsecond=0)
+    # Am Wochenende auf den Freitag davor: Stückzahlen, Mahnungen und
+    # Wochensummen zählen nur Mo–Fr, sonst ist der Prüfstand Sa/So rot.
+    while t.weekday() >= 5:
+        t -= timedelta(days=1)
     pg.clock.install(time=t)
     return t.date()
 

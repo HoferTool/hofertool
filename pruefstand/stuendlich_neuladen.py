@@ -4,7 +4,7 @@
 # im Pad landet sie danach wieder im Pad. Eine offene Zeichnung hält sie
 # nicht auf und ist danach wieder offen (1.7.0).
 import time
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import server_starten, FAKE, CH, PORT, tagsueber
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 K = """daten.login_kacheln = [
@@ -28,7 +28,7 @@ def zeichnung_allein(pg, jz):
 def seite(br, hash=""):
     pg = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
     f = []; pg.on("pageerror", lambda e: f.append(str(e)[:200]))
-    pg.clock.install()
+    tagsueber(pg)
     pg.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=F))
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())

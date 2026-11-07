@@ -4,7 +4,7 @@
 # Solange eine Kachel rot blinkt, kommt er nicht (1.187.1).
 # Die Uhr läuft mit der Uhr von Playwright vor, statt eine Minute zu warten.
 import sys, time, os
-from pruefstand import server_starten, FAKE, CH, PORT
+from pruefstand import server_starten, FAKE, CH, PORT, tagsueber
 from playwright.sync_api import sync_playwright
 server_starten(); time.sleep(0.4)
 HIER = os.path.dirname(os.path.abspath(__file__))
@@ -41,7 +41,7 @@ with sync_playwright() as p:
               "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
     pg.route("**://x.invalid/**", datei_route)
-    pg.clock.install()
+    tagsueber(pg)
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1500)
     pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
@@ -140,7 +140,7 @@ with sync_playwright() as p:
     for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**",
               "**://api.open-meteo.com/**"]:
         pg.route(u, lambda r: r.abort())
-    pg.clock.install()
+    tagsueber(pg)
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt"); pg.wait_for_timeout(1500)
     pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='parks']")
