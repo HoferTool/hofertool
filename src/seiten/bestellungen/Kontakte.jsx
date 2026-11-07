@@ -190,7 +190,7 @@ async function profilZuschneiden(datei) {
 
 function Besuch({ b, l, kontakte, darf, neu }) {
   const k = kontakte.find((x) => x.id === b.kontakt_id);
-  const wer = alt.personVoll(b.erstellt_von);
+  const wer = alt.personOderSystem(b.erstellt_von);
   const loeschen = async () => {
     const ok = await alt.nachfragen({ titel: "Besuch löschen",
       text: "Der Besuch vom " + alt.langDatum(b.datum) + " wird gelöscht.", bestaetigen: "Löschen", gefahr: true });

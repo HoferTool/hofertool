@@ -670,7 +670,7 @@ function AuftragFenster({ auftrag, b, vorgabeMaschine, vorgabeDatum, vorlage: v,
   // in der Planerliste sind: trotzdem als Knopf zeigen
   const planerExtra = w.planer.filter((k) =>
     !planerListe.some((u) => (u.initialen || "").trim() === k));
-  const geaendertVon = auftrag && auftrag.geaendert_von ? alt.personVoll(auftrag.geaendert_von) : "";
+  const geaendertVon = auftrag && auftrag.geaendert_am ? alt.personOderSystem(auftrag.geaendert_von) : "";
 
   const hocoLink = auftrag && auftrag.job_number && !extern && !(alt.istArchiv && alt.istArchiv());
   const kopfM = maschinen.find((m) => m.id === w.maschine);

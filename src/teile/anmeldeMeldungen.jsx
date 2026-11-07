@@ -637,7 +637,7 @@ function Verwalten({ anfang, zu }) {
     try { setDaten(await laden()); } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
   const empfaenger = daten.personen.filter(bekommtMeldungen);
-  const name = (id) => alt.personName(daten.personen.find((x) => x.id === id), "unbekannt");
+  const name = (id) => (id ? alt.personName(daten.personen.find((x) => x.id === id), "unbekannt") : alt.SYSTEM_NAME);
 
   const neu = async () => {
     const e = await bearbeitenDialog(null);

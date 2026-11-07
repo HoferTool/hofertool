@@ -35,7 +35,7 @@ export async function materialHistorieOeffnen(personen) {
     alt.meldung(/material_verlauf/.test(t) ? "Die Historie ist in der Datenbank noch nicht eingerichtet (sql/material-verlauf.sql)." : t, "fehler");
     return;
   }
-  const wer = (id) => (id && personen && personen.get(id)) || "—";
+  const wer = (id) => (id ? (personen && personen.get(id)) || "—" : alt.SYSTEM_NAME);
   fensterOeffnen((zu) => (
     <div className="dialog dialog--breit matausgabe-historie" id="mat-historie">
       <div className="blatt__kopf"><h2>Material · Historie</h2>

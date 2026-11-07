@@ -318,7 +318,7 @@ export default function Einlagen() {
       .select("id, name, daten, scan_id, geaendert_am, geaendert_von").order("geaendert_am", { ascending: false }).limit(300);
     if (error) { setListe({ art: "werkzeuge", fehler: alt.fehlertext(error), zeilen: [] }); return; }
     const leute = await personen(data);
-    setListe({ art: "werkzeuge", zeilen: data.map((x) => ({ ...x, wer: leute[x.geaendert_von] || "" })) });
+    setListe({ art: "werkzeuge", zeilen: data.map((x) => ({ ...x, wer: x.geaendert_von ? leute[x.geaendert_von] || "" : alt.SYSTEM_NAME })) });
   }
 
   async function personen(data) {
@@ -384,7 +384,7 @@ export default function Einlagen() {
       .select("id, name, daten, geaendert_am, geaendert_von").order("geaendert_am", { ascending: false }).limit(200);
     if (error) { setListe({ art: "einlagen", fehler: alt.fehlertext(error), zeilen: [] }); return; }
     const leute = await personen(data);
-    setListe({ art: "einlagen", zeilen: data.map((x) => ({ ...x, wer: leute[x.geaendert_von] || "" })) });
+    setListe({ art: "einlagen", zeilen: data.map((x) => ({ ...x, wer: x.geaendert_von ? leute[x.geaendert_von] || "" : alt.SYSTEM_NAME })) });
   }
 
   async function oeffnen(x) {

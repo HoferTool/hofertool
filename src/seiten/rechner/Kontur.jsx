@@ -560,7 +560,7 @@ function Konturliste({ k, aendern, code, gespeichert, setGespeichert }) {
       && gespeichert.geaendert_am !== da.geaendert_am;
     if (da && (da.name !== k.name || !gespeichert || gespeichert.id !== da.id || vonAnderem)) {
       let wer = "";
-      if (vonAnderem) { const l = await leuteNamen([da.geaendert_von]); wer = l[da.geaendert_von] || "Jemand"; }
+      if (vonAnderem) { const l = await leuteNamen([da.geaendert_von]); wer = da.geaendert_von ? l[da.geaendert_von] || "Jemand" : alt.SYSTEM_NAME; }
       const text = vonAnderem
         ? wer + " hat „" + da.name + "“ am " + alt.datumZeitKurz(da.geaendert_am) + " gespeichert, nachdem du sie geöffnet hast. Mit deiner Fassung überschreiben?"
         : "„" + da.name + "“ gibt es schon. Überschreiben?";
@@ -584,7 +584,7 @@ function Konturliste({ k, aendern, code, gespeichert, setGespeichert }) {
       zeilen = kontoListe().map((x, i) => ({ id: "konto" + i, name: x.name, daten: x, nc: x.nc || "", konto: true }));
     } else {
       const leute = await leuteNamen(data.map((x) => x.geaendert_von));
-      zeilen = data.map((x) => ({ ...x, wer: leute[x.geaendert_von] || "" }));
+      zeilen = data.map((x) => ({ ...x, wer: x.geaendert_von ? leute[x.geaendert_von] || "" : alt.SYSTEM_NAME }));
     }
     if (!zeilen.length) { alt.meldung("Noch keine Kontur gespeichert.", "warn"); return; }
     fensterOeffnen((zu) => (

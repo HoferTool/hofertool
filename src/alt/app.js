@@ -157,7 +157,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.444.5";
+const APP_VERSION = "1.444.6";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3289,8 +3289,13 @@ function stundenText(minuten) {
 // Anzeigename einer Person. Fehlt der hinterlegte Name, wird er aus
 // der Mailadresse gebaut: tristan.ecker@… wird zu Tristan Ecker.
 // Vorher stand dort die rohe Adresse, was unschön aussah.
+// Was ohne angemeldete Person geschrieben wurde (Claude über die
+// Datenbank, Server-Funktionen, Aufgabe am Pool-Rechner), hat keine
+// Person dahinter. Dort steht „System“ statt „unbekannt“ oder gar
+// nichts (Wunsch Patrick 7. November 2026).
+const SYSTEM_NAME = "System";
 function personName(p2, ersatz) {
-  if (!p2) return ersatz || "unbekannt";
+  if (!p2) return ersatz || SYSTEM_NAME;
   const voll = (p2.full_name || "").trim();
   if (voll) return voll;
 
@@ -4091,6 +4096,10 @@ function personVoll(id) {
   const u = PERSONEN[id];
   return u ? (u.full_name || u.email || "") : "";
 }
+
+// Wie personVoll, aber ohne Kennung „System“: dann hat keine Person den
+// Eintrag geschrieben. Eine Kennung, deren Name (noch) fehlt, bleibt leer.
+function personOderSystem(id) { return id ? personVoll(id) : SYSTEM_NAME; }
 
 // Kürzel der angemeldeten Person, falls sie selbst plant
 // Wer ein Kürzel hat, bekommt bei einem neuen Auftrag sein Siegel
@@ -5227,8 +5236,8 @@ function balkenInfoVerhalten() {
 
         + (j.geaendert_am
             ? zeile("Letzte Änderung " + esc(datumZeitKurz(j.geaendert_am))
-              + (j.geaendert_von && personVoll(j.geaendert_von)
-                  ? " · " + esc(personVoll(j.geaendert_von)) : ""), "klein pw-info__zeile--schluss")
+              + (personOderSystem(j.geaendert_von)
+                  ? " · " + esc(personOderSystem(j.geaendert_von)) : ""), "klein pw-info__zeile--schluss")
             : "")
         // „Mat. info.“ ganz unten, unter der letzten Änderung (1.84.0–1.94.1
         // nur im Auftragsfenster; wieder hier seit 1.95.0, nicht für
@@ -10561,7 +10570,7 @@ Object.assign(alt, {
   ladeBestellungen, stammVergessen, statusDaten, statusZeit, statusZeitText,
   bestStatusDialog, bestellungDrucken, artikelBearbeiten,
   ladeAlleMaschinen, maschineZielText, parallelSenden,
-  aendernOhneUnbekannte, zielZeichen, kurzDatum, zahlText, isoDatum,
+  aendernOhneUnbekannte, personOderSystem, SYSTEM_NAME, zielZeichen, kurzDatum, zahlText, isoDatum,
   fortschrittRechnen, planAuftragDialog, ladeTypen,
   pad, padOeffnen, padSchliessen, padNeuLaden, bewegungPad, padZahlZaehlen, padTextEinpassen, seitePlanwand,
   SEITEN, seiteSichtbar, ladeHocoEins, WETTER_TEXT, kalenderwoche, WOCHENTAGE,

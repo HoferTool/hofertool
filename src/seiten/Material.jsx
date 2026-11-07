@@ -148,7 +148,7 @@ async function loeschen(p, neu) {
 // Datenbank trägt beides selbst ein (erstellt_von als Vorgabe,
 // geaendert_von im Auslöser material_posten_geaendert).
 function WerWann({ p, personen }) {
-  const wer = (id) => (id && personen && personen.get(id)) || "";
+  const wer = (id) => (id ? (personen && personen.get(id)) || "" : alt.SYSTEM_NAME);
   const teil = (was, am, von) => was + " " + alt.datumZeitKurz(am) + (wer(von) ? " · " + wer(von) : "");
   if (!p.erstellt_am && !p.geaendert_am) return null;
   return (

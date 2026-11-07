@@ -181,7 +181,7 @@ function InfoFeld({ m, info, darf, neu }) {
 }
 
 function WerWann({ id, am, text }) {
-  const [name, setName] = useState(() => alt.personVoll(id));
+  const [name, setName] = useState(() => alt.personOderSystem(id));
   useEffect(() => { if (!name && id) alt.personenLaden().then(() => setName(alt.personVoll(id))); }, [id]);
   return <p className="klein mseite-werwann">{text} {am ? alt.datumZeitKurz(am) : ""}{name ? " · " + name : ""}</p>;
 }
@@ -320,7 +320,7 @@ function Wartung({ m, darf }) {
           <li key={e.id} className="wartung-eintrag" data-wartung={e.id}>
             <div className="wartung-eintrag__kopf">
               <b>{langDatum(e.datum)}</b>
-              <span className="klein">{alt.personVoll(e.erstellt_von) || "unbekannt"}</span>
+              <span className="klein">{alt.personOderSystem(e.erstellt_von) || "unbekannt"}</span>
               {darf && (e.erstellt_von === ich || alt.istAdmin()) && <span className="wartung-eintrag__knoepfe">
                 <button className="knopf knopf--klein" data-wartung-aendern={e.id}
                   onClick={() => eintragOeffnen(m, e, neu)}>Ändern</button>

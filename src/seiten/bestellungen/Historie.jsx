@@ -77,7 +77,7 @@ function Zeile({ z, schreiben, behaelter }) {
   const d = wann ? new Date(wann) : null;
   const einheit = a.unit && a.unit !== "Stück" ? a.unit : "Stk";
   const lieferant = (z.suppliers && z.suppliers.name) || "Ohne Lieferant";
-  const wer = alt.personName(z.profiles, "–");
+  const wer = alt.personName(z.profiles);
   return (
     <div className="bs-tabelle__zeile bs-hz">
       <div className="bs-hz__wann" title={wann ? alt.langDatum(wann.slice(0, 10)) : ""}>

@@ -79,7 +79,7 @@ export function NcAblage({ art, kurz, wort, daten, nc, laden, gespeichert, setGe
     const vonAnderem = da && gespeichert && gespeichert.id === da.id && gespeichert.geaendert_am !== da.geaendert_am;
     if (da && (!gespeichert || gespeichert.id !== da.id || vonAnderem)) {
       let wer = "";
-      if (vonAnderem) { const l = await leuteNamen([da.geaendert_von]); wer = l[da.geaendert_von] || "Jemand"; }
+      if (vonAnderem) { const l = await leuteNamen([da.geaendert_von]); wer = da.geaendert_von ? l[da.geaendert_von] || "Jemand" : alt.SYSTEM_NAME; }
       const text = vonAnderem
         ? wer + " hat „" + da.name + "“ am " + alt.datumZeitKurz(da.geaendert_am) + " gespeichert, nachdem du es geöffnet hast. Mit deiner Fassung überschreiben?"
         : "„" + da.name + "“ gibt es schon. Überschreiben?";
@@ -102,7 +102,7 @@ export function NcAblage({ art, kurz, wort, daten, nc, laden, gespeichert, setGe
       zeilen = kontoListe().map((x, i) => ({ ...x, id: "konto" + i, konto: true }));
     } else {
       const leute = await leuteNamen(data.map((x) => x.geaendert_von));
-      zeilen = data.map((x) => ({ ...x, wer: leute[x.geaendert_von] || "" }));
+      zeilen = data.map((x) => ({ ...x, wer: x.geaendert_von ? leute[x.geaendert_von] || "" : alt.SYSTEM_NAME }));
     }
     if (!zeilen.length) { alt.meldung("Noch nichts gespeichert.", "warn"); return; }
     fensterOeffnen((zu) => (
