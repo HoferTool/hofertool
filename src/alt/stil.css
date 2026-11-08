@@ -12149,3 +12149,41 @@ body.dunkel .dz-karte__stand i { background: #364150; }
 body.dunkel .camtyp-eigen { background: #1b2230; }
 .camtyp-eigen--fehler { outline: 2px solid #b3261e; }
 .camtyp-eigen__ph { font-family: ui-monospace, Consolas, monospace; }
+
+/* ---------- Fenster ohne Abschneiden und ohne seitliches Rollen (1.452.0) ----------
+   Wunsch Patrick 8. November 2026: „will nicht, dass Fenster so abgeschnitten
+   und mit Scrollen lesbar sind, soll wenn möglich alles auf einmal lesbar sein“.
+   Unterlagen und Spezialwerkzeuge: im Pad nicht auf 600 Punkte gedrückt
+   (die allgemeine Pad-Regel war stärker), Titel zuerst in voller Breite,
+   Knöpfe darunter, lange Namen brechen um statt „…“ und Zeilen werden nie
+   breiter als das Fenster. */
+body.pad-offen .dialog.dialog--breit.unterlagen:not(.dialog--auftrag):not(.nb):not(.wz-hist):not(.dialog--wetter):not(.messberichte) {
+  width: min(900px, calc(100vw - 24px)) !important; max-width: calc(100vw - 24px) !important; }
+.unterlagen .blatt__kopf h2 { flex: 1 1 100% !important; max-width: 100%; min-width: 0;
+  overflow-wrap: anywhere; margin-bottom: 0 !important; }
+.unterlagen .blatt__kopf h2 + .klein { flex: 1 1 100%; margin-top: -6px; }
+.unterlagen .blatt__kopf [data-zu] { margin-left: auto !important; }
+.unterlagen__rolle { overflow-x: hidden; }
+.unterlagen__gruppe ul { grid-template-columns: minmax(0, 1fr); }
+.unterlagen__zeile, .spezial__zeile { flex-wrap: wrap; min-width: 0; }
+.unterlagen__oeffnen { flex: 1 1 260px; }
+.unterlagen__text b { white-space: normal; overflow: visible; text-overflow: clip;
+  overflow-wrap: anywhere; }
+.unterlagen__text .klein { overflow-wrap: anywhere; }
+.unterlagen__knoepfe { flex-wrap: wrap; margin-left: auto; }
+.spezial__liste { grid-template-columns: minmax(0, 1fr); }
+.spezial__text { flex: 1 1 260px; }
+/* Kopfzeilen der Fenster brechen um statt seitlich hinauszuragen: Titel
+   zuerst, die Knöpfe darunter, wenn sie daneben keinen Platz haben */
+.dialog .blatt__kopf, .dialog .wz-kopf { flex-wrap: wrap; row-gap: 8px; }
+.dialog .blatt__kopf > h2, .dialog .wz-kopf > h2 { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.dialog .blatt__kopf > [data-zu] { margin-left: auto; }
+/* Umschalter (Lager/Maschine/Person …) brechen im schmalen Fenster um */
+.dialog .moduswahl { flex-wrap: wrap; max-width: 100%; }
+.dialog .moduswahl__knopf { flex: 1 1 auto; }
+/* Wartung „Als Nächstes“ am Handy: Zeilen umbrechen statt seitlich rollen */
+.wartung__naechstes ol { grid-template-columns: minmax(0, 1fr); }
+.wartung__naechstes li { flex-wrap: wrap; min-width: 0; }
+.wartung__naechstes button[data-naechst] { flex-wrap: wrap; min-width: 0; flex: 1 1 220px; row-gap: 2px; }
+.wartung__naechstes button[data-naechst] b { overflow-wrap: anywhere; }
+@media (max-width: 620px) { .wartung__naechst-wann { min-width: 0; } }

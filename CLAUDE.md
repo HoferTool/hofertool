@@ -7,7 +7,7 @@ Interne Web-App der **Hofer + Co. Präzisionsdrehteile** in Lohn-Ammannsegg. Dar
 - **Test:** https://hofertool.github.io/hofertool/test/ — genauso der Zweig `claude/project-thread-au2n7k` (Thread „Einrichtblatt in der App“) im Ordner `test/`, mit echten Daten, oben das Schild „Test“. `sw.js` lässt auch `/test/` in Ruhe. Das Einrichtblatt in der App ist seit 1.170.0 live in `main`. Die Aufgabe „HoferTool“ lädt kein Excel mehr für HOCO Nr. und Typ, deren Blatt in der App als gut bestätigt ist (`einrichtblatt_app.gut_am`).
 - **Datenbank:** Supabase-Projekt `lzhqwbxfwqamauntehof`. Aufbau siehe **DATENBANK.md**.
 - **Was bisher gebaut wurde:** siehe **VERLAUF.md**.
-- **Stand:** Version 1.451.1 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
+- **Stand:** Version 1.452.0 (Konstante `APP_VERSION` in `src/alt/app.js`). Am 9. Oktober 2026 von 111.127.0 auf 1.0.0 zurückgesetzt (Wunsch Patrick); weiter zählen ab 1.0.x. Nummern wie „seit 111.x“ in Texten meinen die alte Zählung.
 
 ## Mit wem du arbeitest
 
@@ -36,6 +36,7 @@ Der Auftraggeber ist **Saheesan Hudson**. Er ist Admin und arbeitet in der Ferti
     - `src/teile/`: Fenster (`fensterOeffnen`), Dialoge (`nachfragen`, `dialogFelder`, `auswahlDialog`), Betrachter (PDF, Bild und Excel: `ExcelAnsicht.jsx`, `excelLesen.js`), Reiter. `src/daten/`: gemeinsame Daten.
   - `src/bruecke.jsx` verbindet beides: `reactSeite(Komponente)` hängt eine React-Seite in `SEITEN`, `<AltTeil zeichne={…}>` bettet einen noch alten Teil in eine React-Seite, und `alt` ist der Werkzeugkasten, den das alte Programm für React-Seiten füllt (`Object.assign(alt, {...})` nach `SEITEN`).
   - Umbau Bereich für Bereich; die App muss nach jedem Schritt vollständig laufen.
+- **Fenster ohne seitliches Rollen** (seit 1.452.0, Wunsch Patrick 8. November 2026: „soll wenn möglich alles auf einmal lesbar sein“): Fenster dürfen nicht breiter als der Bildschirm sein und nicht seitlich rollen; Kopfzeilen brechen um, lange Namen brechen um statt „…“. Ausnahme nur Blätter wie Papier (Einrichtblatt, Notizbuch, Plattenwechsel-Blatt). Neue Fenster an PC, iPad hoch/quer und Handy prüfen (`fenster_ohne_rollen.py` zeigt, wie).
 - **Dunkler Modus:** `body.dunkel *` macht jede Schrift weiss (`!important`). Neue helle Schilder brauchen darum eine `body.dunkel`-Regel mit dunkler Fläche, oder dunkle Schrift mit `!important`; ganze helle Bereiche bekommen die Klasse `hell-bleibt` (wie Empfang und Pausenraum). Prüfen mit `pruefstand/kontrast.py` (seit 1.350.1; seit 1.352.3 auch Hinweisfenster beim Darüberfahren über Säulen, Balken, Ferien und Symbole). Fenster mit umgekehrten Farben (Grund `--tinte`) brauchen ebenso eine `body.dunkel`-Regel.
 - Das Skript ist ein **ES-Modul**. Funktionen sind **nicht global** und im Browser-Terminal nicht aufrufbar.
 - Supabase kommt über `https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm`. Adresse und **Publishable Key** stehen oben in `SUPABASE_URL` und `SUPABASE_KEY`. Der Key ist öffentlich und darf dort stehen.
