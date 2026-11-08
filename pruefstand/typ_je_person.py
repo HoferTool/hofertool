@@ -29,8 +29,7 @@ with sync_playwright() as p:
     pruefe("Anderes Problem eingeklappt", zu and "Andere Probleme" in andere)
     pg.click("[data-andere-probleme] summary"); pg.wait_for_timeout(300)
     pruefe("Aufgeklappt lesbar", "Material fehlt" in pg.inner_text("[data-andere-probleme]"))
-    pg.screenshot(path="/tmp/claude-0/-home-user-hofertool/a30e2330-ad3e-5d4f-a5a4-2ba1137e5925/scratchpad/start.png")
-
+    
     pg.goto(f"http://127.0.0.1:{PORT}/index.html#/produktion", wait_until="domcontentloaded"); pg.wait_for_timeout(2200)
     parks = pg.evaluate("[...document.querySelectorAll('[data-park]')].map(e => e.dataset.park)")
     aktiv = pg.evaluate("(document.querySelector('.parkwahl__knopf.aktiv') || {}).dataset?.park")
@@ -45,5 +44,17 @@ with sync_playwright() as p:
     pg.click("[data-padzurueck]"); pg.wait_for_timeout(900)
     pruefe("Zurück führt zu allen Parks", pg.locator("#pad [data-park]").count() == 2)
     fehler += f
+
+    # Admin mit eigenem Typ (1.451.0): alle Probleme offen, nichts eingeklappt
+    FA = F.replace("daten.profiles[0].role = 'langdreher';", "daten.profiles[0].role = 'admin';")
+    pa = br.new_context(viewport={"width": 1440, "height": 900}).new_page()
+    pa.route("**/cdn.jsdelivr.net/**", lambda r: r.fulfill(status=200, content_type="application/javascript", body=FA))
+    for u in ["**://fonts.googleapis.com/**", "**://fonts.gstatic.com/**", "**://esm.sh/**", "**://*.supabase.co/**", "**://api.open-meteo.com/**"]:
+        pa.route(u, lambda r: r.abort())
+    pa.goto(f"http://127.0.0.1:{PORT}/index.html#dashboard", wait_until="domcontentloaded")
+    pa.wait_for_selector("#inhalt"); pa.wait_for_timeout(2000)
+    oben = pa.evaluate("[...document.querySelectorAll('#db-probleme section > .problemzeile')].map(e => e.innerText).join('|')")
+    pruefe("Admin sieht alle Probleme offen", "Zange klemmt" in oben and "Material fehlt" in oben)
+    pruefe("Admin ohne „Andere Probleme“", pa.locator("[data-andere-probleme]").count() == 0)
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

@@ -448,7 +448,7 @@ function NutzerFenster({ person, parks, typen = [], mitPin: pinAnfang, zu }) {
         <div className="nutzerfenster__teil">
           <h3>Arbeitet an Maschinentyp</h3>
           <p className="es-gruppe__text">Wird in Produktion und Pad Mode vorgewählt. Auf der Startseite
-            stehen die Probleme dieser Typen zuoberst, alle anderen zusammengefasst unter „Andere Probleme“.
+            stehen die Probleme dieser Typen zuoberst, alle anderen zusammengefasst unter „Andere Probleme“ (Admins sehen immer alle offen).
             Sehen kann die Person trotzdem alle Parks.</p>
           <div className="parkzeile__wahl">{typen.map((t) => (
             <label className="parkchip" key={t.id}>

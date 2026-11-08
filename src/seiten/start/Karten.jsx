@@ -63,7 +63,10 @@ function ProblemZeile({ j, darf, neu }) {
 export function Probleme({ liste, fehler, neu }) {
   const darf = alt.darfProblemErledigen();
   if (!liste && !fehler) return <div id="db-probleme" />;
-  const meine = alt.meineTypen();
+  // Admins sehen seit 1.451.0 immer alle Probleme offen, auch mit eigenem
+  // Maschinentyp (Wunsch Patrick 8. November 2026: „problemmeldungen
+  // sollen admins alle sehen“); nichts eingeklappt unter „Andere Probleme“.
+  const meine = alt.istAdmin() ? [] : alt.meineTypen();
   const alle = liste || [];
   const eigene = meine.length ? alle.filter((j) => meine.includes(j.type_id)) : alle;
   const andere = meine.length ? alle.filter((j) => !meine.includes(j.type_id)) : [];
