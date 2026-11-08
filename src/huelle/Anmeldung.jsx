@@ -259,17 +259,18 @@ function Anmeldung() {
       // Erst das Profil (Rechte, Extern), dann die Planwand vorladen,
       // während die Kachel noch schwebt
       await alt.profilLaden(true);
-      // Planwand gleich vorladen, die Welle läuft derweil
-      const vorladen = planwandVorladenHoechstens(VORLADEN_MAX);
-      // Die Welle startet erst, wenn die Kachel in der Mitte steht, sonst
-      // wäre sie bei schnellem Server schon vorbei, bevor die Kachel landet
-      await flug;
+      // Planwand vorladen. Die Welle startet erst, wenn die Kachel in der
+      // Mitte steht und die Planwand da ist (höchstens VORLADEN_MAX): so
+      // wartet die Kachel mit Lichtbogen, solange wirklich geladen wird,
+      // und nach der Welle steht die App gleich da (Patrick 8. November
+      // 2026: „Animation geht schneller, als es dann wirklich laden geht“)
+      await Promise.all([flug, planwandVorladenHoechstens(VORLADEN_MAX)]);
       const ziel = farbwechselZiel();
       if (ziel) { setFlieger((f) => (f ? { ...f, farbe: ziel } : f)); obenWechseln(ziel); }
       // Antwortet der Server spät, soll die Farbwelle trotzdem fertig
       // laufen, statt mitten im Verlauf abzubrechen
       const welle = !wenigBewegung() ? new Promise((ok) => setTimeout(ok, FARBWELLE)) : null;
-      await Promise.all([welle, vorladen]);
+      await welle;
       if (await fassung) { location.reload(); return; }
       alt.zeichneGeruest();
     };
