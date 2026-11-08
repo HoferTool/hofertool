@@ -79,7 +79,9 @@ with sync_playwright() as p:
     im_feld = pg.evaluate("/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)")
     pg.clock.fast_forward(STUNDE); pg.wait_for_timeout(500)
     pruefe("Schreibmarke im Feld: nicht neu geladen", im_feld and not neu_geladen(pg))
-    pg.evaluate("document.activeElement.blur()")
+    # Feld weg statt nur blur(): das stille Neuzeichnen der Startseite gibt
+    # einem Feld mit derselben id den Fokus zurück (je nach Zeitpunkt)
+    pg.evaluate("(() => { const i = document.getElementById('test-feld'); i.blur(); i.remove(); })()")
     pg.mouse.click(700, 500); pg.wait_for_timeout(200)   # Berührung: ab jetzt 30 Sekunden Ruhe nötig
     pg.clock.fast_forward(90 * 1000); pg.wait_for_timeout(2500)
     pruefe("nach Ruhe neu geladen", neu_geladen(pg))
