@@ -98,16 +98,25 @@ export function firmaVorschlag(zeilen) {
 
 // Banken, Post und Zahlungsdienste stehen auf vielen Rechnungen, sind
 // aber nie der Lieferant
-const NIE_LIEFERANT = /\b(ubs|credit suisse|postfinance|post ch|die post|swiss post|raiffeisen|kantonalbank|valiant|migros bank|bank cler|zkb|bkb|bcv|twint|mastercard|visa)\b/i;
+const NIE_LIEFERANT = /\b(\w*bank|ubs|credit suisse|postfinance|post ch|die post|swiss post|raiffeisen|kantonalbank|valiant|migros bank|bank cler|zkb|bkb|bcv|twint|mastercard|visa)\b/i;
 const FORM = "(?:AG|GmbH(?:\\s*&\\s*Co\\.?\\s*KG)?|SA|S\\.A\\.|Sàrl|S[àa]rl|Sagl|SAGL|KG|Ltd\\.?|Inc\\.?|e\\.K\\.|GmbH\\.)";
-const FIRMA_RE = new RegExp("([A-ZÄÖÜ0-9][\\wÄÖÜäöüéèà&+.,\\-/' ]{1,45}?\\s" + FORM + ")(?![\\wäöü])");
+const FIRMA_RE = new RegExp("([A-ZÄÖÜ0-9][\\wÄÖÜäöüéèà&+.,\\-/'() ]{1,45}?\\s" + FORM + ")(?![\\wäöü])");
 
 // Eine Firma mit Rechtsform in einer Zeile, nicht wir selbst und keine Bank
 export function firmaInZeile(z) {
+  // Jede Spalte für sich (zwei Leerzeichen = Lücke zwischen Spalten),
+  // sonst wird aus der Fusszeile „Gühring (Schweiz) AG  Tel. …  Commerzbank
+  // AG“ eine Firma „AG Tel. … Commerzbank AG“ (Patrick 9. November 2026)
+  const teile = String(z || "").split(/\s{2,}/);
+  if (teile.length > 1) {
+    for (const t of teile) { const f = firmaInZeile(t); if (f) return f; }
+    return null;
+  }
   const m = FIRMA_RE.exec(String(z || ""));
   if (!m) return null;
   let f = m[1].replace(/^.*:\s*/, "").replace(/^(von|an|bei|durch|firma)\s+/i, "").replace(/[,.]+$/, "").trim();
   // Vorne angeklebte Zeilenreste („Rechnung Muster AG“) weg
+  f = f.replace(/^.*\b(?:inhaber|holder)\s*/i, "");
   f = f.replace(/^(rechnung|faktura|lieferschein|gutschrift|offerte|auftragsbest[aä]tigung)\s+/i, "");
   if (EIGENE.test(f) || NIE_LIEFERANT.test(f) || nameKern(f).length < 3) return null;
   return f;
@@ -215,12 +224,15 @@ export function uidFirma(zeilen) {
 // (UBS, Kantonalbank, „8098 Zürich“) zählen nicht.
 export function bankName(zeilen) {
   for (let i = 0; i < zeilen.length; i++) {
-    if (!/bankverbindung|kontoinhaber|zugunsten|zahlbar an/i.test(zeilen[i])) continue;
+    // Nur als Beschriftung, nicht mitten in einem Satz („Bitte beachten Sie,
+    // dass sich unsere Bankverbindung geändert hat“ gab bei Gühring den
+    // Lieferanten „Grundstrasse 11“, Patrick 9. November 2026)
+    if (!/bankverbindung|kontoinhaber|zugunsten|zahlbar an/i.test(zeilen[i]) || zeilen[i].trim().split(/\s+/).length > 6) continue;
     for (let j = i + 1; j < Math.min(zeilen.length, i + 5); j++) {
       if (!ibansIn(zeilen[j].toUpperCase()).length) continue;
       const z = (zeilen[j - 1] || "").replace(/\s{2,}.*$/, "").trim();
       if (j - 1 > i && z && /[a-zäöü]{3}/i.test(z) && !/^\d|bank|ubs|credit|raiffeisen|postfinance|iban|konto|swift|bic/i.test(z)
-        && !EIGENE.test(z)) return z;
+        && !EIGENE.test(z) && !/(strasse|str\.|weg|gasse|platz|allee)\s*\d/i.test(z)) return z;
       break;
     }
   }
@@ -229,7 +241,8 @@ export function bankName(zeilen) {
 
 // „Seite 2 von 3“, „Seite 2/2“, „Seite: 1“, „Seite 2 / 3“
 export function seiteIn(text) {
-  const m = /seite\s*:?\s*(\d{1,2})(?:\s*(?:von|\/|of)\s*(\d{1,2}))?/i.exec(text);
+  // (?!\d): „Seite“ als Spaltenkopf vor „400067086 …“ ist nicht Seite 40
+  const m = /seite\s*:?\s*(\d{1,2})(?!\d)(?:\s*(?:von|\/|of)\s*(\d{1,2})(?!\d))?/i.exec(text);
   if (!m) return null;
   const n = +m[1], von = m[2] ? +m[2] : null;
   if (!n || (von && n > von)) return null;
@@ -239,6 +252,13 @@ export function seiteIn(text) {
 // Ohne das Wort „Seite“: eine Zeile, auf der nur „1/3“ steht (Fusszeile
 // bei Notz Metall, Patrick 29. Oktober 2026: „du hast daraus sieben gemacht“)
 export function seiteZeile(zeilen) {
+  // „Seite“ als letzte Spalte im Kopf, „1 / 3“ am Ende der Zeile darunter
+  // (Gühring, Patrick 9. November 2026: „nur 7 Rechnungen, viele zusammengelegt“)
+  for (let i = 0; i + 1 < zeilen.length; i++) {
+    if (!/\bseite\s*$/i.test(zeilen[i])) continue;
+    const m = /(?:^|\s)(\d{1,2})\s*\/\s*(\d{1,2})\s*$/.exec(zeilen[i + 1]);
+    if (m && +m[1] >= 1 && +m[1] <= +m[2] && +m[2] <= 20) return { n: +m[1], von: +m[2] };
+  }
   for (const z of zeilen) {
     const m = /^\s*(\d{1,2})\s*\/\s*(\d{1,2})\s*$/.exec(z);
     if (m && +m[1] >= 1 && +m[1] <= +m[2] && +m[2] <= 20) return { n: +m[1], von: +m[2] };
