@@ -76,7 +76,7 @@ with sync_playwright() as p:
           const o2 = { ...o, clientX: x, clientY: y };
           const unter = document.elementFromPoint(x, y) || el;
           unter.dispatchEvent(new DragEvent("dragover", o2));
-          const ueber = !!document.querySelector(".dz-korb.dz-ueber");
+          const ueber = !!document.querySelector(".dz-korb.dz-ueber") && document.querySelector(".dz-brett b").textContent.includes("loslassen");
           unter.dispatchEvent(new DragEvent("drop", o2));
           return { korb: !!korb, ueber };
         }""", [sel, name, art, inhalt, treffen, bild])
@@ -86,7 +86,7 @@ with sync_playwright() as p:
     pruefe("Daneben: nichts hochgeladen, Meldung", pg.evaluate("window.probeName") is None
            and "Daneben" in pg.inner_text("body"))
     r = wurf("#probe-knopf", "foto2.jpg", "image/jpeg", "x", True)
-    pruefe("Über dem Ring leuchtet der Korb", r["ueber"])
+    pruefe("Über dem Ring wird der Korb grün", r["ueber"])
     pg.wait_for_timeout(300)
     pruefe("Treffer: Datei kommt an", pg.evaluate("window.probeName") == "foto2.jpg")
     pg.wait_for_timeout(500)

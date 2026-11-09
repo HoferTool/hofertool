@@ -12057,9 +12057,6 @@ body.dunkel .kal-countdown { background: #4a3a12; color: #ffd98a !important; }
 /* KORBWURF beim Ablegen von Dateien (seit 1.448.0 wie im Reel von
    Patrick: helles Korbbrett, Blatt an der Maus, gepunktete Flugbahn,
    unten ein Kärtchen mit Balken) */
-.dz-bahn { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 100000; opacity: 0; transition: opacity .15s; overflow: visible; }
-.dz-bahn.dz-an { opacity: 1; }
-.dz-bahn path { fill: none; stroke: #e2531b; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 0 12; opacity: .85; }
 .dz-ball { position: fixed; left: 0; top: 0; width: 48px; height: 60px; pointer-events: none; z-index: 100002; opacity: 0; transition: opacity .12s; will-change: transform; }
 .dz-ball.dz-an { opacity: 1; }
 .dz-blatt { position: relative; width: 48px; height: 60px; background: #fff; border-radius: 6px; border: 1px solid #d5dbe3; box-shadow: 0 8px 20px rgba(20, 30, 50, .28); overflow: hidden; box-sizing: border-box; padding: 16px 8px 0; }
@@ -12082,15 +12079,18 @@ body.dunkel .kal-countdown { background: #4a3a12; color: #ffd98a !important; }
 .dz-brett svg { width: 24px; height: 24px; color: #6b7686; margin-bottom: 4px; }
 .dz-brett b { font: 700 13px/1.2 system-ui, sans-serif; color: #1d2733 !important; }
 .dz-brett span { font: 500 11px/1.4 system-ui, sans-serif; color: #6b7686 !important; }
-/* Viereck über dem Ring wie auf einem echten Korbbrett */
-.dz-brett i { position: absolute; left: 50%; bottom: -2px; width: 52px; height: 26px; margin-left: -26px; border: 2px solid #e2531b; border-bottom: 0; border-radius: 3px 3px 0 0; box-sizing: border-box; opacity: .55; }
-.dz-korb.dz-nah .dz-brett, .dz-korb.dz-ueber .dz-brett { background: #fff3ea; border-color: #e2531b; }
-.dz-korb.dz-nah .dz-brett svg { color: #e2531b; }
 .dz-korb.dz-ueber .dz-brett { transform: scale(1.03); }
 .dz-ring-hinten, .dz-ring { position: absolute; left: 43px; top: 112px; width: 104px; height: 20px; box-sizing: border-box; border-radius: 50%; border: 4px solid #e2531b; }
 .dz-ring-hinten { border-bottom-color: transparent; opacity: .7; }
 .dz-ring { border-top-color: transparent; transition: box-shadow .15s; }
-.dz-korb.dz-ueber .dz-ring, .dz-korb.dz-ueber .dz-ring-hinten { box-shadow: 0 0 14px 3px rgba(226, 83, 27, .55); }
+.dz-korb.dz-ueber .dz-brett { background: #e8f7ee; border: 2px solid #1e8a4c; }
+.dz-korb.dz-ueber .dz-brett svg, .dz-korb.dz-ueber .dz-brett span { color: #1e8a4c !important; }
+.dz-korb.dz-ueber .dz-brett b { color: #146b39 !important; }
+.dz-korb.dz-ueber .dz-ring, .dz-korb.dz-ueber .dz-ring-hinten { border-color: #1e8a4c; box-shadow: 0 0 14px 3px rgba(30, 138, 76, .5); }
+.dz-korb.dz-ueber .dz-ring { border-top-color: transparent; }
+.dz-korb.dz-ueber .dz-ring-hinten { border-bottom-color: transparent; }
+body.dunkel .dz-korb.dz-ueber .dz-brett { background: #163323; border-color: #2fae66; }
+body.dunkel .dz-korb.dz-ueber .dz-brett b { color: #d8f5e3 !important; }
 .dz-netz { position: absolute; left: 45px; top: 122px; width: 100px; height: 64px; transform-origin: 50% 0; }
 .dz-korb.dz-treffer .dz-netz { animation: dz-netz .45s ease-out; }
 @keyframes dz-netz { 0% { transform: scaleY(1); } 35% { transform: scaleY(1.3) scaleX(.9); } 70% { transform: scaleY(.92); } 100% { transform: scaleY(1); } }
@@ -12118,7 +12118,6 @@ body.dunkel .kal-countdown { background: #4a3a12; color: #ffd98a !important; }
 
 body.dunkel .dz-brett { background: #1f2630; border-color: #4a5563; }
 body.dunkel .dz-brett b, body.dunkel .dz-karte__mitte b { color: #f1f4f8 !important; }
-body.dunkel .dz-korb.dz-nah .dz-brett, body.dunkel .dz-korb.dz-ueber .dz-brett { background: #3a2a20; border-color: #e2531b; }
 body.dunkel .dz-karte { background: #1f2630; }
 body.dunkel .dz-karte__stand i { background: #364150; }
 @media (prefers-reduced-motion: reduce) {

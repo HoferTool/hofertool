@@ -98,8 +98,8 @@ function zielBeimZiehen(e) {
 //  HoferTool-Style“)
 //  Über der Stelle zum Ablegen hängt ein helles Korbbrett mit
 //  „Datei hier hineinwerfen“, Ring und Netz. Die Datei hängt als
-//  Blatt an der Maus, eine gepunktete Kurve zeigt die Flugbahn zum
-//  Ring. Nur Loslassen im Ring lädt hoch: das Blatt fällt durchs
+//  Blatt an der Maus. Trifft ein Loslassen, werden Brett und Ring
+//  grün (seit 1.453.0, ohne Flugbahn). Nur Loslassen im Ring lädt hoch: das Blatt fällt durchs
 //  Netz, „+1“, unten ein Kärtchen mit Name, Grösse und Balken.
 //  Daneben prallt es am Ring ab und es passiert nichts. Gilt auch
 //  für Stellen mit eigenem Ablegen (Temp, Infoboard, Notizbuch …):
@@ -108,7 +108,7 @@ function zielBeimZiehen(e) {
 // =================================================================
 const RING = 104;           // Breite der Korböffnung in Punkten
 const KORB_B = 190, KORB_H = 196, RING_Y = 122;  // Lage des Rings im Korb
-let ball = null, korbHinten = null, korbVorne = null, bahn = null;
+let ball = null, korbHinten = null, korbVorne = null;
 let zug = null;             // { stelle, start, eigen, x, y } Korb dieses Zugs
 let letzteMaus = null, verstecken = null, landet = false, neigung = 0;
 
@@ -130,9 +130,6 @@ const BLATT = `<span class="dz-blatt__ecke"></span><i></i><i></i><i></i><b class
 
 function bauen() {
   if (ball) return;
-  bahn = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  bahn.setAttribute("class", "dz-bahn");
-  bahn.innerHTML = `<path d=""/>`;
   ball = document.createElement("div");
   ball.className = "dz-ball";
   ball.innerHTML = `<div class="dz-blatt">${BLATT}</div><b class="dz-ball__zahl"></b>`;
@@ -140,7 +137,7 @@ function bauen() {
   korbHinten.className = "dz-korb dz-korb--hinten";
   korbHinten.innerHTML = `<div class="dz-brett">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <b>Datei hier hineinwerfen</b><span>nur ein Treffer zählt</span><i></i></div>
+      <b>Datei hier hineinwerfen</b><span>nur ein Treffer zählt</span></div>
     <div class="dz-ring-hinten"></div>`;
   korbVorne = document.createElement("div");
   korbVorne.className = "dz-korb dz-korb--vorne";
@@ -150,7 +147,7 @@ function bauen() {
       <path d="M18 56 L36 2 M30 56 L50 2 M42 56 L62 2 M58 56 L80 2 M70 56 L98 2"/>
       <path d="M8 20 Q50 28 92 20 M13 38 Q50 46 87 38 M18 56 Q50 60 82 56"/>
     </g></svg><div class="dz-ring"></div><div class="dz-text"></div>`;
-  document.body.append(bahn, korbHinten, ball, korbVorne);
+  document.body.append(korbHinten, ball, korbVorne);
 }
 
 function ballZeigen(x, y, items) {
@@ -166,17 +163,15 @@ function ballZeigen(x, y, items) {
   s.textContent = art; s.style.background = farbe;
   ball.lastElementChild.textContent = items.length > 1 ? String(items.length) : "";
   ball.classList.add("dz-an");
-  bahnZeichnen(x, y);
 }
 
-// Gepunktete Flugbahn von der Maus zum Ring, wie ein Wurf im Bogen
-function bahnZeichnen(x, y) {
-  if (!bahn) return;
-  if (!zug || imKorb(x, y)) { bahn.classList.remove("dz-an"); return; }
-  const zx = zug.x, zy = zug.y - 4;
-  const hx = (x + zx) / 2, hy = Math.min(y, zy) - Math.max(60, Math.abs(zx - x) * 0.35);
-  bahn.firstElementChild.setAttribute("d", `M${x} ${y - 20} Q${hx} ${hy} ${zx} ${zy}`);
-  bahn.classList.add("dz-an");
+// Text auf dem Brett: grün „Jetzt loslassen“, sobald es trifft
+let trifftJetzt = null;
+function trifftText(ja) {
+  if (!korbHinten || trifftJetzt === ja) return;
+  trifftJetzt = ja;
+  korbHinten.querySelector(".dz-brett b").textContent = ja ? "Jetzt loslassen!" : "Datei hier hineinwerfen";
+  korbHinten.querySelector(".dz-brett span").textContent = ja ? "trifft" : "nur ein Treffer zählt";
 }
 
 // Sichtbarer Teil der Stelle, darin mittig der Korb (ganz im Bild)
@@ -199,8 +194,8 @@ function korbLegen(stelle) {
 
 function korbWeg() {
   if (!korbHinten) return;
-  for (const k of [korbHinten, korbVorne]) k.classList.remove("dz-an", "dz-ueber", "dz-nah");
-  bahn.classList.remove("dz-an");
+  for (const k of [korbHinten, korbVorne]) k.classList.remove("dz-an", "dz-ueber");
+  trifftText(false);
 }
 
 function allesWeg() {
@@ -266,7 +261,6 @@ function kaertchen(dateien) {
 function werfen(x0, y0, treffer, fertig) {
   const z = zug;
   landet = true;
-  if (bahn) bahn.classList.remove("dz-an");
   const ende = () => { landet = false; allesWeg(); fertig && fertig(); };
   if (!ball || !z) { ende(); return; }
   const text = korbVorne.querySelector(".dz-text");
@@ -338,12 +332,10 @@ window.addEventListener("dragover", (e) => {
   }
   if (korbAn()) {
     ballZeigen(e.clientX, e.clientY, items);
+    // Grün heisst: jetzt loslassen trifft (Wunsch Patrick 9. November 2026)
     const ueber = imKorb(e.clientX, e.clientY);
-    const nah = !!zug && Math.hypot(e.clientX - zug.x, e.clientY - zug.y) < 260;
-    for (const k of [korbVorne, korbHinten]) {
-      k.classList.toggle("dz-ueber", ueber);
-      k.classList.toggle("dz-nah", nah);
-    }
+    for (const k of [korbVorne, korbHinten]) k.classList.toggle("dz-ueber", ueber);
+    trifftText(ueber);
   }
 });
 
