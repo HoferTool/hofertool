@@ -158,7 +158,10 @@ export async function ebSichern(h, { hoechstens = 40, fortschritt } = {}) {
     const typen = await alt.ladeTypen();
     const typName = (id) => ((typen || []).find((t) => t.id === id) || {}).name || "Ohne Typ";
     const stand = await standLesen(h);
-    const offen = blaetter.filter((b) => (stand[b.id] || {}).s !== stempel(b));
+    // Ein Blatt mit Fehler nach einer Stunde nochmals: war der Ordner kurz weg
+    // (NotFoundError), blieb es sonst für immer rot, bis jemand das Blatt änderte
+    const nochmals = (x) => x.fehler && !(Date.now() - (x.am || 0) < 3600000);
+    const offen = blaetter.filter((b) => { const x = stand[b.id] || {}; return x.s !== stempel(b) || nochmals(x); });
     const reihe = hoechstens ? offen.slice(0, hoechstens) : offen;
     const fehler = [];
     let n = 0;
@@ -174,7 +177,7 @@ export async function ebSichern(h, { hoechstens = 40, fortschritt } = {}) {
         letzte = { hoco: b.hoco_nr, typ, datei: sauber(typ) + "/" + datei };
       } catch (f) {
         // Nicht jedes Mal wieder versuchen, erst wenn das Blatt sich ändert
-        stand[b.id] = { s: stempel(b), fehler: alt.fehlertext(f) };
+        stand[b.id] = { s: stempel(b), fehler: alt.fehlertext(f), am: Date.now() };
         fehler.push(b.hoco_nr + " " + typName(b.type_id) + ": " + alt.fehlertext(f));
       }
       n++;
