@@ -14,6 +14,20 @@ import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import { ArtikelAngaben } from "./teile.jsx";
 import { betrachter } from "../../teile/Betrachter.jsx";
 import { spezialPdfsLaden } from "../../daten/spezialwerkzeuge.js";
+import { padGeraet, istPadKonto } from "../../pad/geraet.jsx";
+
+// Bestellt man im Pad Mode, gehört die Lieferung fast immer an die
+// Maschine dieses iPads (Wunsch Patrick 9. November 2026: „automatisch
+// die Vorauswahl mit Maschine und Nr. vom Pad selber“): zuerst die fest
+// gemerkte Maschine des Geräts, sonst die Maschine, deren Dashboard
+// gerade offen ist. Ausserhalb des Pads nichts.
+function padMaschineId() {
+  if (typeof document === "undefined" || !document.body.classList.contains("pad-offen")) return null;
+  const g = istPadKonto() ? padGeraet() : null;
+  if (g && g.maschineId) return g.maschineId;
+  const p = alt.pad || {};
+  return p.maschineId || null;
+}
 
 // fertig: wird nach dem Speichern aufgerufen, damit die Liste neu lädt.
 // vorgabe: { artikel, maschine, notiz } schon eingetragen, etwa beim
@@ -22,6 +36,8 @@ import { spezialPdfsLaden } from "../../daten/spezialwerkzeuge.js";
 // Spezialwerkzeug angehakt. Gesucht wird seit 1.271.0 immer in allen
 // Artikeln (Wunsch Patrick 29. Oktober 2026: „alles zusammen“).
 export function positionOeffnen(fertig, vorgabe) {
+  vorgabe = Object.assign({}, vorgabe || {});
+  if (!vorgabe.maschine && !vorgabe.maschineId) vorgabe.maschineId = padMaschineId();
   fensterOeffnen((zu) => <PositionFenster zu={zu} fertig={fertig} vorgabe={vorgabe || {}} />);
 }
 
@@ -57,8 +73,12 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   // Lager ist der Normalfall und deshalb vorgewählt. Es wird nicht
   // verbucht, sondern steht wie jedes andere Ziel in der Historie.
   // Kommt die Bestellung von einer Maschine, geht sie dorthin
-  const [zielArt, setZielArt] = useState(vorgabe.maschine ? "maschine" : "lager");
-  const [zielWahl, setZielWahl] = useState(vorgabe.maschine ? alt.maschineZielText(vorgabe.maschine) : "");
+  const [zielArt, setZielArt] = useState(vorgabe.maschine || vorgabe.maschineId ? "maschine" : "lager");
+  const [zielWahl, setZielWahl] = useState(() => {
+    if (vorgabe.maschine) return alt.maschineZielText(vorgabe.maschine);
+    const m = vorgabe.maschineId && (alt.best.alleMaschinen || []).find((x) => x.id === vorgabe.maschineId);
+    return m ? alt.maschineZielText(m) : "";
+  });
   const [zielFrei, setZielFrei] = useState("");
   const [maschinen, setMaschinen] = useState(
     (alt.best.alleMaschinen && alt.best.alleMaschinen.length) ? alt.best.alleMaschinen : null);
@@ -82,9 +102,17 @@ function PositionFenster({ zu, fertig, vorgabe }) {
   // Mit Vorgabe (etwa der Text aus dem alten Excel) gleich suchen
   useEffect(() => { if (vorgabe.suche) suchen(vorgabe.suche); }, []);
   // Maschinen für die Auswahl, wenn die Maschine schon vorgegeben ist
+  // Nur die Kennung (Pad Mode): die Maschine aus der Liste holen und eintragen
   useEffect(() => {
-    if (!vorgabe.maschine || maschinen) return;
-    alt.ladeAlleMaschinen().then((liste) => { alt.best.alleMaschinen = liste; setMaschinen(liste); }, () => {});
+    if (!(vorgabe.maschine || vorgabe.maschineId)) return;
+    const setzen = (liste) => {
+      if (!vorgabe.maschineId || vorgabe.maschine) return;
+      const m = liste.find((x) => x.id === vorgabe.maschineId);
+      if (m) setZielWahl((w) => w || alt.maschineZielText(m));
+      else setZielArt((a) => (a === "maschine" ? "lager" : a));
+    };
+    if (maschinen) { setzen(maschinen); return; }
+    alt.ladeAlleMaschinen().then((liste) => { alt.best.alleMaschinen = liste; setMaschinen(liste); setzen(liste); }, () => {});
   }, []);
 
   const suchen = async (text) => {

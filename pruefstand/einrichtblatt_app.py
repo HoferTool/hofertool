@@ -406,6 +406,21 @@ with sync_playwright() as p:
     pg.click("[data-eba-speichern]"); pg.wait_for_timeout(800)
     pruefe("Pad: gespeichert", pg.locator("[data-eba-speichern]").count() == 0 and pg.locator("[data-eba-bearbeiten]").count() == 1)
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(300)
+    # Bestellen aus dem Blatt im Pad: Ziel ist die Maschine des Pads (1.454.0)
+    pg.evaluate("""() => { const b = TEST.daten.einrichtblatt_app.find(x => x.id === 'eb2');
+      b.plaetze = Object.assign({}, b.plaetze, { T300: { taetigkeit: 'Bohren', article_id: 'a1' } }); }""")
+    pg.click("#pad [data-padreiter='blatt']"); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(500)
+    pg.click("[data-platz='T300']"); pg.wait_for_timeout(300)
+    if pg.locator("[data-eba-ansehen-bestellen]").count(): pg.click("[data-eba-ansehen-bestellen]")
+    pg.wait_for_selector("#pd-zielauswahl"); pg.wait_for_timeout(600)
+    zw = pg.evaluate("""() => { const s = document.querySelector('#pd-zielauswahl');
+      return { wert: s.value, aktiv: document.querySelector('#pd-zielwahl .aktiv').dataset.ziel }; }""")
+    mk = pg.evaluate("(() => { const m = TEST.daten.machines.find(x => x.id === 'm-k1'); return m.name + (m.machine_number ? ' ' + m.machine_number : ''); })()")
+    print("Pad Ziel:", zw, mk)
+    pruefe("Pad: Bestellen mit Maschine des Pads vorgewählt", zw["aktiv"] == "maschine" and zw["wert"] == mk)
+    pg.screenshot(path="/tmp/claude-0/eb-pad-ziel.png")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+    pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(300)
 
     # „Laufen lassen“ (im Pad als -1) steht im Blatt als Wort (1.306.1)
     pg.evaluate("TEST.daten.hoco_type_data.find(x => x.hoco_nr === '10000-0302' && x.type_id === 't1').abend_stk = -1")
