@@ -30,7 +30,7 @@ with sync_playwright() as p:
     pg.locator("[data-bereich='10000']").click(); pg.wait_for_timeout(600)
     pg.locator("[data-kunde='10000']").click(); pg.wait_for_timeout(600)
     pg.locator("[data-hoco-auf='10000-0301']").click(); pg.wait_for_timeout(1200)
-    pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(800)
+    pg.locator("[data-blatt-app-auf='t1']").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(800)
     pg.evaluate("TEST.protokoll.length = 0")
     pg.click("[data-eba-drucken]"); pg.wait_for_selector(".dialog [data-w='a4']")
     pruefe("Auswahl: Im Büro drucken und Auf diesem Gerät",

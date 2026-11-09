@@ -29,7 +29,7 @@ with sync_playwright() as p:
     pg.locator("[data-bereich='10000']").click(); pg.wait_for_timeout(600)
     pg.locator("[data-kunde='10000']").click(); pg.wait_for_timeout(600)
     pg.locator("[data-hoco-auf='10000-0301']").click(); pg.wait_for_timeout(1200)
-    pg.locator("[data-blatt-neu='t1']").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(600)
+    pg.locator("[data-blatt-app-auf='t1']").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(600)
     kopf = lambda: pg.evaluate("TEST.daten.einrichtblatt_app[0].kopf")
     pruefe("Knopf Bild einfügen beim Ansehen", pg.locator("[data-eba-bild-neu]").count() == 1)
     pg.set_input_files("[data-eba-bild-datei]", files=[{"name": "foto.png", "mimeType": "image/png", "buffer": PNG}])
