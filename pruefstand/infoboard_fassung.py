@@ -52,8 +52,14 @@ with sync_playwright() as p:
     neu["an"] = True; frisch.clear()
     pg.clock.run_for(130000); pg.wait_for_timeout(800)
     pruefe(pg.evaluate("window.__alt === 1"), "Vollbild am Tag: neue Fassung wartet")
-    # Ohne Vollbild: innert zwei Minuten neu geladen
+    # Vollbild weg, aber Fenster kleiner als der Bildschirm (Leiste sichtbar,
+    # wie am Samsung): der Bildschirm an der Wand wartet trotzdem (1.453.6)
+    pg.evaluate("Object.defineProperty(screen, 'height', { configurable: true, get: () => 3000 })")
     pg.evaluate("document.exitFullscreen()"); pg.wait_for_timeout(300)
+    pg.clock.run_for(130000); pg.wait_for_timeout(800)
+    pruefe(pg.evaluate("window.__alt === 1"), "ohne gemeldetes Vollbild am Tag: wartet auch")
+    # Fenster füllt den ganzen Bildschirm (Kiosk): innert zwei Minuten neu geladen
+    pg.evaluate("delete screen.height")
     frisch.clear()
     pg.clock.run_for(130000)
     pg.wait_for_function("window.__alt === undefined", timeout=20000)

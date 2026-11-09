@@ -535,7 +535,7 @@ export function infoboardOeffnen(vonHand, mass = TAFELN.haupt) {
   document.body.appendChild(huelle);
   document.body.classList.add("ib-offen");
   const wurzel = createRoot(huelle);
-  offen = { huelle, wurzel };
+  offen = { huelle, wurzel, vonSelbst: !vonHand };
   // Nur der echte Bildschirm meldet die Lage der Chrome-Fenster (WebFeld.jsx),
   // nicht wer am eigenen PC mal „Anzeige öffnen“ drückt
   wurzel.render(<Anzeige huelle={huelle} mass={mass} melden={!vonHand || istInfoboardGeraet(mass)} />);
@@ -559,15 +559,33 @@ export function infoboardOeffnen(vonHand, mass = TAFELN.haupt) {
 // das). Darum lädt ein Bildschirm im Vollbild nur in seiner Ruhezeit neu:
 // Empfang abends und nachts (schwarz), Infoboard und Pausenraum nachts.
 // Ohne Vollbild (oder im Kiosk-Modus des Browsers) wie bisher sofort.
+//
+// Seit 1.453.6 (Patrick 9. November 2026: „die Leiste kommt immer wieder“,
+// Samsung-Bildschirm mit Fernbedienung): Dessen Browser meldet das Vollbild
+// nur mit Vorsilbe (webkit…), darum lud er tagsüber trotzdem neu. Jetzt
+// zählen beide Meldungen, und ein Bildschirm, der von selbst aufging (das
+// Gerät an der Wand), wartet auch ohne gemeldetes Vollbild bis zur
+// Ruhezeit. Nur wenn das Browserfenster schon den ganzen Bildschirm
+// füllt (Kiosk-Modus), lädt er sofort neu, dort bleibt ja keine Leiste.
+function imVollbild() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement || document.webkitIsFullScreen);
+}
+
+function kioskFenster() {
+  const s = window.screen || {};
+  return !imVollbild() && s.height > 0 && window.innerHeight >= s.height - 2 && window.innerWidth >= s.width - 2;
+}
+
 export function bildschirmDarfNeuLaden(d = new Date()) {
-  if (!offen || !document.fullscreenElement) return true;
+  if (!offen) return true;
+  if (!imVollbild() && (!offen.vonSelbst || kioskFenster())) return true;
   const empfang = offen.huelle.classList.contains("ib-voll--empfang");
   return empfang ? istEmpfangDunkel(d) : istNacht(d);
 }
 
 function vollbild(el) {
   try {
-    if (document.fullscreenElement) return;
+    if (imVollbild()) return;
     const f = el.requestFullscreen || el.webkitRequestFullscreen;
     const p = f && f.call(el);
     if (p && p.catch) p.catch(() => {});
@@ -579,7 +597,7 @@ export function infoboardSchliessen() {
   const { huelle, wurzel, weg } = offen;
   offen = null;
   if (weg) weg();
-  try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch (f) { /* egal */ }
+  try { if (imVollbild()) (document.exitFullscreen || document.webkitExitFullscreen).call(document)?.catch?.(() => {}); } catch (f) { /* egal */ }
   wurzel.unmount();
   huelle.remove();
   document.body.classList.remove("ib-offen");
