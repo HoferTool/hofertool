@@ -263,9 +263,20 @@ function nummerAusTabelle(zeilen) {
   const aus = { nr: null, fremd: [] };
   for (let i = 0; i + 1 < zeilen.length; i++) {
     const kopf = zeilen[i].trim().split(/\s{2,}/);
-    if (kopf.length < 2 || /\d/.test(zeilen[i])) continue;
+    if (/\d/.test(zeilen[i])) continue;
     const istRe = (k) => /^(rechnung|faktur|invoice|beleg)\w*\s*-?\s*(nr|nummer|no)\b/i.test(k);
     const istFremd = (k) => /^(debitor|deb\.|kunde|kd)/i.test(k);
+    // Kopf mit nur einfachen Leerzeichen zwischen den Spalten (Gühring:
+    // „Belegnummer Datum zahlbar bis  Seite“ über „400067086 01.04.2026 …“):
+    // steht die Rechnungsnummer vorne, gilt der erste Wert darunter
+    // (Patrick 9. November 2026).
+    if (!aus.nr && istRe(zeilen[i].trim())) {
+      const w = zeilen[i + 1].trim().split(/\s+/)[0] || "";
+      if (/\d{3}/.test(w) && /^[A-Z0-9][A-Z0-9\-/.]*$/i.test(w) && !/^\d{1,2}[./]\d{1,2}[./]\d{2,4}$/.test(w)) {
+        aus.nr = w.replace(/[.\-/]+$/, "");
+      }
+    }
+    if (kopf.length < 2) continue;
     if (!kopf.some((k) => istRe(k) || istFremd(k))) continue;
     const werte = zeilen[i + 1].replace(/(\d)\s+([.,/])/g, "$1$2").replace(/([.,/])\s+(\d)/g, "$1$2")
       .trim().split(/\s{2,}/);
