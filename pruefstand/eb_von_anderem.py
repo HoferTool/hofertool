@@ -19,7 +19,8 @@ with sync_playwright() as p:
     pg.wait_for_selector(".pw-tafel"); pg.wait_for_timeout(1200)
     pg.evaluate("""() => {
       const D = TEST.daten;
-      D.einrichtblatt_app = [{ hoco_nr: '10000-0399', type_id: 't1', programme: { p1: 'O1234' }, kopf: {}, seiten: [],
+      D.einrichtblatt_app = [{ hoco_nr: '10000-0399', type_id: 't1', programme: { p1: 'O1234' }, kopf: { bilder: [{ id: 'b1', url: 'x.png', x: 1, y: 1, w: 10 }] },
+        seiten: [{ name: 'GEO-OFFSET', quer: false, html: '<p>FREMDGEO</p>', nc: { nr: '4234' } }, { name: 'Notizen', quer: false, html: '<p>FREMDSEITE</p>' }],
         plaetze: { T100: { taetigkeit: 'Abstechen', werkzeug: 'Utilis 5002' }, T200: { taetigkeit: 'Vordrehen' } },
         bemerkung: 'Abgreifen mit Zange', gut_am: '2026-10-28T08:00:00Z' }];
       D.artikel_bild = []; D.eb_bilder = [];
@@ -40,6 +41,8 @@ with sync_playwright() as p:
     pruefe("Hinweis übernommen", pg.locator("[data-eba-vorgelesen]:has-text('Von 10000-0399 übernommen')").count() == 1)
     t = pg.inner_text("[data-eba-seite]")
     pruefe("Werkzeuge im Blatt", "Abstechen" in t and "Vordrehen" in t)
+    pruefe("Keine Zusatzseiten mitkopiert", pg.locator("[data-eba-seite-nr='1']").count() == 0 and "FREMD" not in pg.inner_text("body"))
+    pruefe("Keine freien Bilder mitkopiert", pg.locator(".eba-frei-bild, [data-frei-bild]").count() == 0)
     pruefe("Eigene HOCO Nr. im Blatt", "10000-0301" in t and "10000-0399" not in t)
     # Programm-Nr. kommt nicht mit, Feld rot, Speichern erst mit Nummer (1.348.0)
     pruefe("Programm-Nr. leer und rot", pg.locator("[data-eba-prg-rot]").count() >= 1)

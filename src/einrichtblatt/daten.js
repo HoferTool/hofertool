@@ -511,6 +511,12 @@ export async function excelVorlesen(hocoNr, typ, excelUrl, { artikel } = {}) {
 // anderen HOCO Nr. auf demselben Typ, sonst ihr Excel, sonst von einem anderen Typ. Übernommen wird nur
 // das Blatt (Werkzeuge, Programme, Kopf, Seiten); HOCO Nr. und Stammdaten
 // bleiben die der neuen Nummer, gespeichert wird erst mit Speichern.
+function kopfOhneBilder(k) {
+  const x = Object.assign({}, k || {});
+  delete x.bilder;
+  return x;
+}
+
 export async function blattVonAnderem(quelle, hocoNr, typ) {
   const nr = String(quelle || "").trim();
   if (!nr) throw new Error("Bitte eine HOCO Nr. eingeben.");
@@ -552,10 +558,12 @@ export async function blattVonAnderem(quelle, hocoNr, typ) {
     // die trägt man selbst ein (Wunsch Patrick 2. November 2026)
     return { quelle: "app", hinweise: fremd, blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: {},
       geometrie: null, maschine_nr: da.maschine_nr || null, bemerkung: da.bemerkung || null,
-      plaetze: kopie(da.plaetze) || {}, kopf: kopie(da.kopf) || {},
-      // Die GEO-OFFSET-Seite aus dem NC-Ordner gehört zur Nummer des anderen
-      // Blatts; die richtige setzt die App nach der Programm-Nr. selbst ein
-      seiten: (kopie(da.seiten) || []).filter((x) => !(x && x.nc)) } };
+      plaetze: kopie(da.plaetze) || {}, kopf: kopfOhneBilder(kopie(da.kopf)),
+      // Nur das Einrichtblatt selbst (Wunsch Patrick 9. November 2026: „vom
+      // Kopieren von einem Blatt nicht solche Sachen mitkopieren, nur EB
+      // selber“): keine weiteren Seiten (GEO-OFFSET, PDFs, Text) und keine
+      // freien Bilder; die GEO-Seite setzt die App nach der Prg.-Nr. selbst ein
+      seiten: [] } };
   }
   const quellTyp = (typen || []).find((t) => t.id === q.typId) || typ;
   const v = await excelVorlesen(nr, quellTyp, q.url);
