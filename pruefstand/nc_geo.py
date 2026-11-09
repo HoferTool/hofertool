@@ -35,7 +35,7 @@ with sync_playwright() as p:
     pg.locator("[data-bereich='10000']").click(); pg.wait_for_timeout(600)
     pg.locator("[data-kunde='10000']").click(); pg.wait_for_timeout(600)
     pg.locator("[data-hoco-auf='10000-0301']").click(); pg.wait_for_timeout(1200)
-    pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_selector("[data-eba-seite-nr='1']", timeout=5000)
+    pg.locator("[data-blatt-app-auf='t1']").click(); pg.wait_for_selector("[data-eba-seite-nr='1']", timeout=5000)
     reiter = pg.locator("[data-eba-seite-nr='1']")
     pruefe("Seite 2 heisst GEO-OFFSET", reiter.inner_text().strip() == "GEO-OFFSET")
     reiter.click(); pg.wait_for_timeout(400)
@@ -56,16 +56,22 @@ with sync_playwright() as p:
     # Neue Fassung der Datei ersetzt die Seite, solange nicht von Hand geändert
     pg.evaluate("TEST.daten.nc_geo[0].inhalt = 'O4234\\nNEU'")
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
-    pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_selector("[data-eba-seite-nr='1']")
+    pg.locator("[data-blatt-app-auf='t1']").click(); pg.wait_for_selector("[data-eba-seite-nr='1']")
     pg.click("[data-eba-seite-nr='1']"); pg.wait_for_timeout(300)
     pruefe("Neue Fassung der Datei", "NEU" in pg.inner_text("[data-eba-zseite]"))
     # Von Hand geänderte Seite bleibt
     pg.evaluate("""() => { const b = TEST.daten.einrichtblatt_app[0]; b.seiten = [{ name: 'GEO-OFFSET', quer: false, html: '<p>von Hand</p>' }]; }""")
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
-    pg.locator("[data-blatt-typ='t1']").click(); pg.wait_for_selector("[data-eba-seite-nr='1']")
+    pg.locator("[data-blatt-app-auf='t1']").click(); pg.wait_for_selector("[data-eba-seite-nr='1']")
     pg.click("[data-eba-seite-nr='1']"); pg.wait_for_timeout(300)
     pruefe("Ohne Datum kein Stempel", pg.locator("[data-eba-geo-stand]").count() == 0)
     pruefe("Von Hand bleibt", "von Hand" in pg.inner_text("[data-eba-zseite]") and pg.locator("[data-eba-seite-nr='2']").count() == 0)
+    pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
+    # Von selbst eingesetzte Seite einer anderen Nummer (aus übernommenem Blatt) fällt weg (1.452.2)
+    pg.evaluate("""() => { const b = TEST.daten.einrichtblatt_app[0]; b.programme = { 1: 'Ø1333' }; b.geometrie = 'Ø4333';
+      b.seiten = [{ name: 'GEO-OFFSET', quer: false, html: '<p>fremd 4262</p>', nc: { nr: '4262' } }]; }""")
+    pg.locator("[data-blatt-app-auf='t1']").click(); pg.wait_for_selector("[data-eba-seite]"); pg.wait_for_timeout(400)
+    pruefe("Fremde GEO-Seite weg", pg.locator("[data-eba-seite-nr='1']").count() == 0 and "fremd 4262" not in pg.inner_text("body"))
     pg.click(".eba-fenster [data-zu]"); pg.wait_for_timeout(400)
 
     # Ordner im Fenster „⚙ Typ“ (nur SW)

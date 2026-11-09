@@ -133,10 +133,20 @@ export async function geoSeiteEinsetzen(blatt, typ) {
   if (!nr) return;
   try {
     const r = await alt.db.from("nc_geo").select("nr, datei, inhalt, geaendert").eq("type_id", typ.id).eq("nr", nr).limit(1);
-    const g = !r.error && (r.data || [])[0];
-    if (!g || !String(g.inhalt || "").trim()) return;
+    if (r.error) return;
+    const g = (r.data || [])[0];
     const seiten = Array.isArray(blatt.seiten) ? blatt.seiten.slice() : [];
     const i = seiten.findIndex((x) => x && String(x.name || "").replace(/[\s-]/g, "").toUpperCase() === "GEOOFFSET");
+    if (!g || !String(g.inhalt || "").trim()) {
+      // Von selbst eingesetzt, aber für eine andere Nummer (etwa von einem
+      // übernommenen Blatt, Patrick 9. November 2026: 10789-0131 zeigte
+      // 4262 statt 4333): weg damit, bis die richtige Datei im Ordner liegt
+      if (i !== -1 && seiten[i].nc && seiten[i].nc.nr && seiten[i].nc.nr !== nr) {
+        seiten.splice(i, 1);
+        blatt.seiten = seiten;
+      }
+      return;
+    }
     const neu = { name: GEO_SEITE, quer: false, html: geoHtml(g.inhalt), nc: { nr, datei: g.datei || null, geaendert: g.geaendert || null } };
     if (i === -1) seiten.unshift(neu);
     else if (seiten[i].nc && seiten[i].html !== neu.html) seiten[i] = Object.assign({}, seiten[i], { html: neu.html, nc: neu.nc });
@@ -542,7 +552,10 @@ export async function blattVonAnderem(quelle, hocoNr, typ) {
     // die trägt man selbst ein (Wunsch Patrick 2. November 2026)
     return { quelle: "app", hinweise: fremd, blatt: { hoco_nr: hocoNr, type_id: typ.id, programme: {},
       geometrie: null, maschine_nr: da.maschine_nr || null, bemerkung: da.bemerkung || null,
-      plaetze: kopie(da.plaetze) || {}, kopf: kopie(da.kopf) || {}, seiten: kopie(da.seiten) || [] } };
+      plaetze: kopie(da.plaetze) || {}, kopf: kopie(da.kopf) || {},
+      // Die GEO-OFFSET-Seite aus dem NC-Ordner gehört zur Nummer des anderen
+      // Blatts; die richtige setzt die App nach der Programm-Nr. selbst ein
+      seiten: (kopie(da.seiten) || []).filter((x) => !(x && x.nc)) } };
   }
   const quellTyp = (typen || []).find((t) => t.id === q.typId) || typ;
   const v = await excelVorlesen(nr, quellTyp, q.url);

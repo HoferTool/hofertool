@@ -171,7 +171,9 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
                     ? <span className="hocoteil__maschinen">{e.maschinen.map((m) =>
                         <span key={m} className="hocoteil__maschine">{m}</span>)}</span>
                     : "—"}</td>
-                  <td>{e.eigenes ? <span className="hocoteil__marke hocoteil__marke--gut">eigenes hinterlegt</span>
+                  <td>{e.app ? <span className="hocoteil__marke hocoteil__marke--gut" data-blatt-app="">
+                      {e.app.gut ? "in der App · EB OK" : "in der App · noch nicht bestätigt"}</span>
+                    : e.eigenes ? <span className="hocoteil__marke hocoteil__marke--gut">eigenes hinterlegt</span>
                     : e.material ? <span className="hocoteil__marke hocoteil__marke--thema" data-blatt-material="">Blatt {e.material}</span>
                     : e.vorlage ? <span className="hocoteil__marke hocoteil__marke--thema">Vorlage vom Typ</span>
                     : <span className="hocoteil__marke hocoteil__marke--leer">noch keines</span>}</td>
@@ -181,11 +183,13 @@ export default function HocoTeil({ t, darf, zurueck, nachAenderung }) {
                         {e.zeit ? stueckzeitText(e.zeit) : "eintragen"}</button>
                     : (e.zeit ? <span className="hocoteil__marke hocoteil__marke--thema">{stueckzeitText(e.zeit)}</span> : leer)}</td>
                   <td className="rechts nowrap">
-                    {(e.eigenes || e.vorlage || e.material) && <><button className="knopf knopf--klein hocoteil__haupt" data-blatt-typ={e.typId}
+                    {e.app && !alt.istExtern() && <><button className="knopf knopf--klein hocoteil__haupt" data-blatt-app-auf={e.typId}
+                      onClick={() => einrichtblattAppOeffnen(t.hoco_nr, e.typId)}>Ansehen</button>{" "}</>}
+                    {(!e.app || alt.istExtern()) && (e.eigenes || e.vorlage || e.material || e.app) && <><button className="knopf knopf--klein hocoteil__haupt" data-blatt-typ={e.typId}
                       onClick={() => blattAnsehen(e.typId)}>Ansehen</button>{" "}</>}
                     {/* Ohne Blatt gleich ein neues in der App, auch von einem anderen
                         übernommen (Wunsch Patrick 29. Oktober 2026) */}
-                    {!e.eigenes && !e.vorlage && !e.material && darf && !alt.istExtern() && <><button className="knopf knopf--klein" data-blatt-neu={e.typId}
+                    {!e.app && !e.eigenes && !e.vorlage && !e.material && darf && !alt.istExtern() && <><button className="knopf knopf--klein" data-blatt-neu={e.typId}
                       onClick={() => einrichtblattAppOeffnen(t.hoco_nr, e.typId)}>Neu in der App</button>{" "}</>}
                     {darf && <button className="knopf knopf--klein" data-blatt-pdf={e.typId} data-ablegen=""
                       onClick={() => blattHinterlegen(e.typId)}>{e.eigenes ? "Ersetzen" : "Datei hinterlegen"}</button>}

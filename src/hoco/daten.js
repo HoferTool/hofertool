@@ -149,10 +149,16 @@ export async function teilLaden(t, darf) {
     });
     (typen || []).forEach((t2) => { const e = sammlung[t2.id]; if (e) e.vorlage = t2.blatt_url || null; });
     ((sheets && sheets.data) || []).forEach((s) => { const e = dazu(s.type_id); if (e) { e.eigenes = s.blatt_url || null; e.zeit = s.stueckzeit_s ? Number(s.stueckzeit_s) : null; } });
+    // Blätter in der App (Patrick 9. November 2026: „hier ist schon ein
+    // digitales drin, aber steht neu anlegen“): vorher zählte nur das Excel
+    try {
+      const ra = await db.from("einrichtblatt_app").select("type_id, gut_am").eq("hoco_nr", t.hoco_nr);
+      if (!ra.error) (ra.data || []).forEach((b) => { const e = dazu(b.type_id); if (e) e.app = { gut: !!b.gut_am }; });
+    } catch (f) { /* ohne Tabelle wie bisher */ }
     typenGenutzt = Object.keys(sammlung).map((k) => sammlung[k])
       .sort((a, c) => String(a.name).localeCompare(String(c.name)));
     // Ohne eigenes Excel: gilt ein Blatt je Materialgrösse? (seit 1.272.0)
-    await Promise.all(typenGenutzt.filter((e) => !e.eigenes).map(async (e) => {
+    await Promise.all(typenGenutzt.filter((e) => !e.eigenes && !e.app).map(async (e) => {
       const k = await materialBlattFuer(t.hoco_nr, e.typId);
       if (k && await blattSuchen(k, e.typId)) e.material = k.slice(VORSILBE.length);
     }));
