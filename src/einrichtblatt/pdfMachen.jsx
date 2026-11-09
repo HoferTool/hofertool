@@ -45,6 +45,46 @@ function bilderFertig(el) {
   ]);
 }
 
+// Stile in der Kopie sicher laden (1.452.1, Patrick 9. November 2026:
+// vom iPad „Im Büro drucken“ kam das Blatt ohne jede Gestaltung aus dem
+// Drucker, Times-Schrift, Farbbalken über die ganze Seite). html2canvas
+// zeichnet eine Kopie der Seite in einem Rahmen; die Stildatei hängt es
+// dort erst nach dem Schliessen des Rahmens ein, Safari meldet ihn aber
+// sofort als fertig und zeichnet, bevor die Stile da sind. Darum hier
+// jede Stildatei durch ihren Text ersetzen (Adressen wie die Schriften
+// auf die Stildatei bezogen), so gilt sie sofort, ohne Laden.
+function stileAlsText() {
+  const map = new Map();
+  for (const s of document.styleSheets) {
+    if (!s.href) continue;
+    try {
+      const text = [...s.cssRules].map((r) => r.cssText).join("\n")
+        .replace(/url\((["']?)([^"')]+)\1\)/g, (ganz, q, adr) => {
+          if (/^(data:|blob:|#)/.test(adr)) return ganz;
+          try { return "url(" + q + new URL(adr, s.href).href + q + ")"; } catch (f) { return ganz; }
+        });
+      map.set(s.href, text);
+    } catch (f) { /* fremde Stildatei: bleibt verlinkt */ }
+  }
+  return map;
+}
+async function stileInKopie(doc, stile) {
+  const warten = [];
+  for (const l of doc.querySelectorAll('link[rel~="stylesheet"]')) {
+    const text = stile.get(l.href);
+    if (text != null) {
+      const st = doc.createElement("style");
+      st.textContent = text;
+      l.replaceWith(st);
+    } else if (!l.sheet) {
+      warten.push(Promise.race([new Promise((ok) => { l.addEventListener("load", ok); l.addEventListener("error", ok); }),
+        new Promise((ok) => setTimeout(ok, 5000))]));
+    }
+  }
+  await Promise.all(warten);
+  try { await doc.fonts.ready; } catch (f) { /* dann mit dem, was da ist */ }
+}
+
 // Zeichnet Seiten eines Blatts unsichtbar und gibt sie je als Canvas an
 // „jede“ weiter. nur: undefined = alle Seiten, 0 = Werkzeugblatt,
 // 1, 2 … = die weiteren Seiten.
@@ -77,9 +117,11 @@ async function seitenZeichnen(daten, { auftrag, nur } = {}, jede) {
     await new Promise((ok) => requestAnimationFrame(() => setTimeout(ok, 50)));
     try { await document.fonts.ready; } catch (f) { /* dann mit dem, was da ist */ }
     await bilderFertig(huelle);
+    const stile = stileAlsText();
     for (const el of huelle.querySelectorAll("[data-pdf-seite]")) {
       if (el.dataset.pdfUrl) { await pdfSeitenZeichnen(el.dataset.pdfUrl, jede); continue; }
-      const bild = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+      const bild = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false,
+        onclone: (doc) => stileInKopie(doc, stile) });
       await jede(bild, !!el.dataset.quer);
     }
   } finally {
