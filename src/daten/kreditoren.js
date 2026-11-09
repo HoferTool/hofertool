@@ -251,14 +251,25 @@ export function seiteIn(text) {
 
 // Ohne das Wort „Seite“: eine Zeile, auf der nur „1/3“ steht (Fusszeile
 // bei Notz Metall, Patrick 29. Oktober 2026: „du hast daraus sieben gemacht“)
+// Der Scanner liest dabei oft Striche als „1“ dazu („Seite 1“ im Kopf,
+// eine Zeile „1  1“ dazwischen): darum bis drei Zeilen darunter suchen und
+// diese Angabe vor „Seite 1“ im Fliesstext nehmen.
+export function seiteKopf(zeilen) {
+  for (let i = 0; i + 1 < zeilen.length; i++) {
+    if (!/\bseite(?:\s+\S{1,2})?\s*$/i.test(zeilen[i])) continue;
+    for (let j = i + 1; j <= i + 3 && j < zeilen.length; j++) {
+      const m = /(?:^|\s)(\d{1,2})\s*\/\s*(\d{1,2})\s*$/.exec(zeilen[j]);
+      if (m && +m[1] >= 1 && +m[1] <= +m[2] && +m[2] <= 20) return { n: +m[1], von: +m[2] };
+    }
+  }
+  return null;
+}
+
 export function seiteZeile(zeilen) {
   // „Seite“ als letzte Spalte im Kopf, „1 / 3“ am Ende der Zeile darunter
   // (Gühring, Patrick 9. November 2026: „nur 7 Rechnungen, viele zusammengelegt“)
-  for (let i = 0; i + 1 < zeilen.length; i++) {
-    if (!/\bseite\s*$/i.test(zeilen[i])) continue;
-    const m = /(?:^|\s)(\d{1,2})\s*\/\s*(\d{1,2})\s*$/.exec(zeilen[i + 1]);
-    if (m && +m[1] >= 1 && +m[1] <= +m[2] && +m[2] <= 20) return { n: +m[1], von: +m[2] };
-  }
+  const k = seiteKopf(zeilen);
+  if (k) return k;
   for (const z of zeilen) {
     const m = /^\s*(\d{1,2})\s*\/\s*(\d{1,2})\s*$/.exec(z);
     if (m && +m[1] >= 1 && +m[1] <= +m[2] && +m[2] <= 20) return { n: +m[1], von: +m[2] };
@@ -283,19 +294,23 @@ function nummerAusTabelle(zeilen) {
   const aus = { nr: null, fremd: [] };
   for (let i = 0; i + 1 < zeilen.length; i++) {
     const kopf = zeilen[i].trim().split(/\s{2,}/);
-    if (/\d/.test(zeilen[i])) continue;
     const istRe = (k) => /^(rechnung|faktur|invoice|beleg)\w*\s*-?\s*(nr|nummer|no)\b/i.test(k);
     const istFremd = (k) => /^(debitor|deb\.|kunde|kd)/i.test(k);
     // Kopf mit nur einfachen Leerzeichen zwischen den Spalten (Gühring:
     // „Belegnummer Datum zahlbar bis  Seite“ über „400067086 01.04.2026 …“):
     // steht die Rechnungsnummer vorne, gilt der erste Wert darunter
     // (Patrick 9. November 2026).
+    // Der Scanner setzt Striche als „1“ davor oder schiebt eine Zeile „1  1“
+    // dazwischen: darum bis drei Zeilen darunter, die ersten zwei Werte,
+    // mindestens fünf Ziffern, kein Datum
     if (!aus.nr && istRe(zeilen[i].trim())) {
-      const w = zeilen[i + 1].trim().split(/\s+/)[0] || "";
-      if (/\d{3}/.test(w) && /^[A-Z0-9][A-Z0-9\-/.]*$/i.test(w) && !/^\d{1,2}[./]\d{1,2}[./]\d{2,4}$/.test(w)) {
-        aus.nr = w.replace(/[.\-/]+$/, "");
+      for (let j = i + 1; j <= i + 3 && j < zeilen.length && !aus.nr; j++) {
+        const w = zeilen[j].trim().split(/\s+/).slice(0, 2)
+          .find((x) => /\d{5}/.test(x.replace(/\D/g, "")) && /^[A-Z0-9][A-Z0-9\-/.]*$/i.test(x) && !/^\d{1,2}[./]\d{1,2}[./]\d{2,4}$/.test(x));
+        if (w) aus.nr = w.replace(/[.\-/]+$/, "");
       }
     }
+    if (/\d/.test(zeilen[i])) continue;
     if (kopf.length < 2) continue;
     if (!kopf.some((k) => istRe(k) || istFremd(k))) continue;
     const werte = zeilen[i + 1].replace(/(\d)\s+([.,/])/g, "$1$2").replace(/([.,/])\s+(\d)/g, "$1$2")
@@ -442,7 +457,7 @@ export function seiteLesen(zeilen, liste) {
     lieferant: l ? l.name : null,
     qr: qrName(zeilen) || uidFirma(zeilen) || bankName(zeilen),
     vermutung: kopfFirma(zeilen),
-    seite: seiteIn(flach) || seiteZeile(zeilen),
+    seite: seiteKopf(zeilen) || seiteIn(flach) || seiteZeile(zeilen),
     nummer: nummerIn(flach, zeilen),
     datum: datumIn(zeilen),
     uids: uidsIn(text),
