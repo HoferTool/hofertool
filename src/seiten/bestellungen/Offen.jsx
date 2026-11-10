@@ -137,19 +137,6 @@ function Block({ block, posten, schreiben, neu, behaelter, heute, einziger, dire
   );
 }
 
-// Shops, deren Suche über die Adresse direkt zum Artikel führt (geprüft
-// 29. Oktober 2026); andere öffnen ihre Website, wenn dort bestellt wird
-const SHOP_SUCHE = [
-  [/utilis/i, "https://shop.utilis.com/en/search?query="],
-  [/sm tools/i, "https://smtools.ch/search?search="],
-];
-export function shopAdresse(lief, nummer) {
-  if (!lief || !nummer) return null;
-  const such = SHOP_SUCHE.find(([muster]) => muster.test(lief.name || ""));
-  if (such) return such[1] + encodeURIComponent(nummer);
-  return lief.bestellweg === "website" && lief.website ? lief.website : null;
-}
-
 const BESTELLWEG = { mail: "Bestellung per Mail", website: "Bestellung über Website" };
 
 function Lieferant({ name, gruppe, block, schreiben, neu, behaelter, heute, direkt }) {
@@ -227,15 +214,12 @@ function Zeile({ z, schreiben, behaelter, heute }) {
   const teil = z.status === "teilweise_geliefert" && !!z.geliefert_menge;
   const anteil = teil ? Math.min(100, Math.round(100 * z.geliefert_menge / Math.max(1, z.quantity))) : 0;
 
-  // Kopiert die Bestell-Nr. und geht gleich zum Artikel im Shop, wo
-  // der Shop eine Suche über die Adresse kennt, sonst auf die Website,
-  // wenn dort bestellt wird (seit 1.271.0, Wunsch Patrick 29. Oktober 2026)
+  // Kopiert nur die Bestell-Nr. in die Zwischenablage, ohne Shop oder
+  // Website zu öffnen (seit 1.455.0, Wunsch Patrick 10. November 2026;
+  // 1.271.0 bis 1.454.x öffnete es dazu den Shop)
   const kopieren = async () => {
     const text = a2.article_number || "";
     if (!text) { alt.meldung("Nichts zu kopieren.", "warn"); return; }
-    // Das Fenster sofort öffnen, sonst sperrt der Browser es als Pop-up
-    const ziel = shopAdresse(lieferantVon(z), text);
-    if (ziel) window.open(ziel, "_blank", "noopener");
     try { await navigator.clipboard.writeText(text); alt.meldung("Kopiert: " + text); }
     catch (f) { alt.meldung("Kopieren nicht möglich: " + text, "warn"); }
   };
@@ -246,7 +230,7 @@ function Zeile({ z, schreiben, behaelter, heute }) {
         <div className="bs-pos__titel">
           <span className="bs-pos__nr">{a2.article_number || "?"}</span>
           <button className="kopiersymbol bs-kopie" data-bkopie={a2.article_number || ""}
-            title={shopAdresse(lieferantVon(z), "x") ? "Artikelnummer kopieren und im Shop öffnen" : "Artikelnummer kopieren"}
+            title="Artikelnummer kopieren"
             aria-label="Artikelnummer kopieren" onClick={kopieren}>
             <Zeichen name="kopie" groesse={14} /></button>
           <span className="bs-pos__name">{a2.name || ""}</span>
