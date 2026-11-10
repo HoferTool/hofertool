@@ -52,19 +52,54 @@ export const istLangdreher = (vorlage) => !!vorlage && (vorlage.art === "star" |
 // Auf dem Blatt nur das eine Bild mit dem markierten Werkzeug (`nurMarke`,
 // Patrick 10. November 2026: „das Bild mit dem markierten Werkzeug“),
 // im Fenster des Platzes beide zur Wahl
-function WerkzeugBilder({ marke, waehlen, className, nurMarke }) {
+// Die Markierung lässt sich verschieben (`wzVersatz` {x, y} in Punkten des
+// Bilds, ziehen oder Pfeile) und hat eine wählbare Farbe (`wzFarbe`, Vorgabe
+// rot), Wunsch Patrick 10. November 2026 (seit 1.457.0)
+export const WZ_ROT = "#e03030";
+const WZ_MAX = 40;
+const wzBegrenzt = (v) => Math.round(Math.max(-WZ_MAX, Math.min(WZ_MAX, Number(v) || 0)) * 10) / 10;
+function WerkzeugBilder({ marke, waehlen, className, nurMarke, versatz, farbe, schieben }) {
   const m = /^(\d)-(\d)$/.exec(marke || "");
   const breit = WZ_B / WZ_ANZ;
   const oben = nurMarke && m ? (Number(m[1]) - 1) * (WZ_H + 2) : 0;
+  const vx = (versatz && Number(versatz.x)) || 0, vy = (versatz && Number(versatz.y)) || 0;
+  const f = farbe || WZ_ROT;
+  const ref = useRef(null);
+  const zug = useRef(null);
+  // Ziehen der Markierung: Bildschirm-Pixel in Punkte des Bilds umrechnen;
+  // ohne Bewegung ist es ein Tipp und nimmt die Markierung weg wie bisher
+  const runter = (e) => {
+    if (!schieben) return;
+    e.preventDefault(); e.stopPropagation();
+    const ctm = ref.current && ref.current.getScreenCTM();
+    zug.current = { x: e.clientX, y: e.clientY, vx, vy, k: ctm ? ctm.a : 1, bewegt: false };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) { /* egal */ }
+  };
+  const bewegen = (e) => {
+    const z = zug.current;
+    if (!z) return;
+    const dx = (e.clientX - z.x) / z.k, dy = (e.clientY - z.y) / z.k;
+    if (Math.abs(dx) + Math.abs(dy) > 1) z.bewegt = true;
+    if (z.bewegt) schieben({ x: wzBegrenzt(z.vx + dx), y: wzBegrenzt(z.vy + dy) });
+  };
+  const hoch = () => {
+    const z = zug.current;
+    zug.current = null;
+    if (z && !z.bewegt && waehlen) waehlen(null);
+  };
   return (
-    <svg className={className || "eba-wzb"} viewBox={"0 " + oben + " " + WZ_B + " " + (nurMarke ? WZ_H : WZ_H * 2 + 2)} preserveAspectRatio="xMidYMid meet" data-eba-wzb={marke || ""}>
+    <svg ref={ref} className={className || "eba-wzb"} viewBox={"0 " + oben + " " + WZ_B + " " + (nurMarke ? WZ_H : WZ_H * 2 + 2)} preserveAspectRatio="xMidYMid meet"
+      data-eba-wzb={marke || ""} data-wzb-farbe={f} data-wzb-versatz={vx + "," + vy}>
       {WZ_BILDER.map((src, b) => nurMarke && m && b !== Number(m[1]) - 1 ? null : <image key={b} href={src} x="0" y={b * (WZ_H + 2)} width={WZ_B} height={WZ_H} preserveAspectRatio="none" />)}
-      {m && <rect x={Number(m[2]) * breit + 1.5} y={(Number(m[1]) - 1) * (WZ_H + 2) + 1.5} width={breit - 3} height={WZ_H - 3}
-        rx="5" fill="rgba(224,48,48,.14)" stroke="#e03030" strokeWidth="3" />}
       {waehlen && WZ_BILDER.map((_, b) => Array.from({ length: WZ_ANZ }, (_, i) =>
         <rect key={b + "-" + i} x={i * breit} y={b * (WZ_H + 2)} width={breit} height={WZ_H} fill="transparent"
           className="eba-wzb-ziel" data-wzb-ziel={(b + 1) + "-" + i}
           onClick={() => waehlen((b + 1) + "-" + i === marke ? null : (b + 1) + "-" + i)} />))}
+      {m && <rect x={Number(m[2]) * breit + 1.5 + vx} y={(Number(m[1]) - 1) * (WZ_H + 2) + 1.5 + vy} width={breit - 3} height={WZ_H - 3}
+        rx="5" fill={f} fillOpacity=".14" stroke={f} strokeWidth="3" data-wzb-marke=""
+        className={schieben ? "eba-wzb-marke--zieh" : undefined}
+        onPointerDown={schieben ? runter : undefined} onPointerMove={schieben ? bewegen : undefined}
+        onPointerUp={schieben ? hoch : undefined} onPointerCancel={schieben ? () => { zug.current = null; } : undefined} />}
     </svg>
   );
 }
@@ -479,7 +514,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
             kleiner oder fällt ganz weg (Wunsch Patrick, 24. Oktober 2026) */}
         <div className={"eba-bild" + (wzb ? " eba-bild--wzb" : "") + (p.geo ? " eba-bild--geo" + ((bild && !p.ohneBild) || wzb ? "" : " eba-bild--nurgeo") : "")}>
           {p.geo ? <GeoText text={p.geo} mitBild={!!((bild && !p.ohneBild) || wzb)} farbe={p.geoFarbe} fett={!!p.geoFett} groesse={p.geoGroesse || null} html={(p.fmt || {}).geo} /> : null}
-          {wzb ? <WerkzeugBilder marke={p.wzMarke} nurMarke /> : bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
+          {wzb ? <WerkzeugBilder marke={p.wzMarke} nurMarke versatz={p.wzVersatz} farbe={p.wzFarbe} /> : bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her"><EineZeile text={p.hersteller || ""} min={5} stil={platzStil(p, "hersteller")} />{p.spezial && p.article_id &&
           <span className="eba-stern" title="Spezialwerkzeug" data-eba-stern="">★</span>}</div>
         {/* Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (Wunsch
@@ -661,7 +696,12 @@ function platzDaten(p, nr) {
   if (p.ohneBild) z.ohneBild = true;
   if (p.wzBilder) {
     z.wzBilder = true;
-    if (/^[12]-[0-6]$/.test(p.wzMarke || "")) z.wzMarke = p.wzMarke;
+    if (/^[12]-[0-6]$/.test(p.wzMarke || "")) {
+      z.wzMarke = p.wzMarke;
+      const v = p.wzVersatz || {};
+      if (wzBegrenzt(v.x) || wzBegrenzt(v.y)) z.wzVersatz = { x: wzBegrenzt(v.x), y: wzBegrenzt(v.y) };
+      if (p.wzFarbe && p.wzFarbe !== WZ_ROT) z.wzFarbe = p.wzFarbe;
+    }
   }
   if (p.article_id && z.werkzeug) z.article_id = p.article_id;
   else delete z.bezeichnung;
@@ -773,9 +813,25 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
       {langdreher && <div className="eba-pf-wzb" data-pf-wzb="">
         <label className="eba-pf-check"><input type="checkbox" data-pf="wzBilder" checked={!!p.wzBilder}
           onChange={(e) => setP(Object.assign({}, p, { wzBilder: e.target.checked }))} /> Werkzeugbilder im Feld zeigen</label>
-        {p.wzBilder && <><WerkzeugBilder className="eba-wzb eba-pf-wzb-bild" marke={p.wzMarke}
-          waehlen={(m) => setP(Object.assign({}, p, { wzMarke: m }))} />
-          <div className="eba-pf-wzb-tipp">{p.wzMarke ? "Markiert. Nochmals antippen nimmt die Markierung weg." : "Das passende Werkzeug antippen."}</div></>}
+        {p.wzBilder && <><WerkzeugBilder className="eba-wzb eba-pf-wzb-bild" marke={p.wzMarke} versatz={p.wzVersatz} farbe={p.wzFarbe}
+          waehlen={(m) => setP((q) => Object.assign({}, q, { wzMarke: m, wzVersatz: null }))}
+          schieben={(v) => setP((q) => Object.assign({}, q, { wzVersatz: v }))} />
+          <div className="eba-pf-wzb-tipp">{p.wzMarke ? "Markierung ziehen oder mit den Pfeilen schieben. Antippen ohne Ziehen nimmt sie weg." : "Das passende Werkzeug antippen."}</div>
+          {p.wzMarke && <div className="eba-pf-wzb-leiste">
+            {[["◀", -1, 0, "links"], ["▲", 0, -1, "oben"], ["▼", 0, 1, "unten"], ["▶", 1, 0, "rechts"]].map(([z, dx, dy, w]) =>
+              <button key={w} type="button" className="knopf knopf--klein" data-wzb-schieben={w} title={"Nach " + w + " schieben"}
+                onClick={() => setP((q) => { const v = q.wzVersatz || {}; return Object.assign({}, q, { wzVersatz: { x: wzBegrenzt((v.x || 0) + dx), y: wzBegrenzt((v.y || 0) + dy) } }); })}>{z}</button>)}
+            <button type="button" className="knopf knopf--klein knopf--still" data-wzb-mitte="" onClick={() => setP((q) => Object.assign({}, q, { wzVersatz: null }))}>Mitte</button>
+            <span className="eba-pf-geostil">
+              {GEO_FARBEN.map(([name, wert]) => <button key={wert} type="button" title={name} aria-label={name}
+                data-wzb-farbe-wahl={wert} className={"eba-pf-geofarbe" + ((p.wzFarbe || WZ_ROT) === wert ? " aktiv" : "")}
+                style={{ "--f": wert }} onClick={() => setP((q) => Object.assign({}, q, { wzFarbe: wert === WZ_ROT ? null : wert }))} />)}
+              <label className={"eba-pf-geofarbe eba-pf-geofarbe--waehler" + (p.wzFarbe && !GEO_FARBEN.some((x) => x[1] === p.wzFarbe) ? " aktiv" : "")}
+                style={{ "--f": p.wzFarbe || WZ_ROT }} title="Andere Farbe wählen" aria-label="Andere Farbe wählen">
+                <input type="color" data-wzb-farbe-waehler="" value={p.wzFarbe || WZ_ROT}
+                  onChange={(e) => setP((q) => Object.assign({}, q, { wzFarbe: e.target.value.toLowerCase() }))} /></label>
+            </span>
+          </div>}</>}
       </div>}
       <label className="feld"><span>Notiz Mitte</span>
         <RichFeld className="eba-pf-rich eba-pf-rich--mehr" data-pf="geo" text={p.geo || ""} html={(p.fmt || {}).geo} aendern={rich("geo")}
