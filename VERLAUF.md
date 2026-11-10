@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.477.0** (10. November 2026): Infoboard-Anzeige: die Tennisbälle der Kanone verschwinden nicht mehr, sie bleiben liegen und stapeln sich, bis die Tafel voll ist; danach rollen neue Bälle oben über den Haufen und fallen seitlich hinaus. Gezeichnet auf zwei Leinwänden, flüssig auch mit rund 1'300 Bällen. Gestaltung und Startseite wie bisher. Wunsch Patrick.
 - **1.476.0** (10. November 2026): QMS: Prozesslandkarte im Stil der Anmeldung (Firmenblau, weisse Ringe, Hofer-Logo im Kern, weisse Kärtchen) mit ruhiger Bewegung (fliessende Bahn, Wellen aus dem Kern). Wunsch Patrick.
 - **1.475.0** (10. November 2026): QMS: Prozesslandkarte neu gestaltet, passend zum HoferTool (helle Blautöne, blaue Mitte, Kärtchen mit blauer Kante, Prozessablauf als Bahn mit Pfeilen, Legende). Wunsch Patrick.
 - **1.474.0** (10. November 2026): Reiter QM aus der App entfernt (Daten bleiben in der Datenbank), QM alternativ heisst jetzt QMS; `#/qm` führt dorthin. Wunsch Patrick.

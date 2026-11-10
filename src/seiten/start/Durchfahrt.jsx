@@ -16,6 +16,17 @@
 //  unterwegs und bei kurzen Halten schiesst sie Tennisbälle ab. Im
 //  Infoboard fliegen die Bälle über die ganze Tafel und springen an den
 //  Rändern ab, auf der Startseite nur im Band.
+//  Seit 1.477.0 (10. November 2026: „lass die Tennisbälle auf dem
+//  Infoboard nicht verschwinden, es soll sich mit Tennisbällen füllen,
+//  wenn es voll ist, soll es überlaufen“) bleiben die Bälle in der Anzeige
+//  des Infoboards liegen: sie rollen auf den Haufen und stapeln sich, bis
+//  er oben ankommt. Danach gibt es oben keine Decke mehr und keine Wände
+//  über dem Rand: neue Bälle kullern über den Haufen und fallen seitlich
+//  aus der Tafel. Gezeichnet auf zwei Leinwänden: liegende Bälle einmal
+//  auf eine feste (sie bewegen sich nie mehr), fliegende jedes Bild neu,
+//  so bleibt es auch mit über tausend Bällen flüssig. In der Gestaltung
+//  und auf der Startseite verschwinden die Bälle weiter, damit man dort
+//  die Dokumente sieht. Neues Laden der Anzeige leert die Tafel.
 //  Alles in einer Schleife mit requestAnimationFrame statt React-Zustand,
 //  damit die Seite dafür nie neu zeichnet.
 // =================================================================
@@ -139,6 +150,9 @@ export default function Durchfahrt() {
     const raum = document.createElement("div");
     raum.className = "gm-baelle" + (tafel ? " gm-baelle--tafel" : "");
     (tafel || band).appendChild(raum);
+    // Nur in der Anzeige des Infoboards bleiben die Bälle liegen
+    const fuellen = !!tafel && !!band.closest(".ib-voll");
+    const haufen = fuellen ? haufenAnlegen(raum) : null;
 
     const mobil = document.createElement("div");
     mobil.className = "gm-mobil";
@@ -172,7 +186,7 @@ export default function Durchfahrt() {
     const baelle = [];
     let winkel = 25;
     const schuss = (tempoMobil, richtung) => {
-      if (baelle.length > 40 || !raum.isConnected) return;
+      if ((haufen ? haufen.fliegt.length > 70 : baelle.length > 40) || !raum.isConnected) return;
       const m = raumMass();
       if (!m.w || !m.h) return;
       const p = muendung.getBoundingClientRect();
@@ -185,14 +199,14 @@ export default function Durchfahrt() {
       const a = winkel * Math.PI / 180;
       const g = tafel ? m.h * zufall(.5, .7) : Math.max(500, m.h * 3);
       const tempo = tafel ? m.w * zufall(.55, 1.05) : m.w * zufall(.3, .6);
-      const el = document.createElement("div");
-      el.className = "gm-ball";
-      raum.appendChild(el);
-      baelle.push({
-        el, x, y, d: klein, ziel: gross, alt: 0, ende: 9, dreh: 0, sprung: 0, g,
-        vx: richtung * Math.cos(a) * tempo + tempoMobil * .5,
-        vy: -Math.sin(a) * tempo,
-      });
+      const vx = richtung * Math.cos(a) * tempo + tempoMobil * .5, vy = -Math.sin(a) * tempo;
+      if (haufen) haufen.neu(x, y, klein, haufen.durchmesser(m.w), vx, vy, g);
+      else {
+        const el = document.createElement("div");
+        el.className = "gm-ball";
+        raum.appendChild(el);
+        baelle.push({ el, x, y, d: klein, ziel: gross, alt: 0, ende: 9, dreh: 0, sprung: 0, g, vx, vy });
+      }
       // Rückstoss und Rauch an der Mündung
       rohr.animate([{ transform: "translateX(0)" }, { transform: "translateX(-7px)" }, { transform: "translateX(0)" }],
         { duration: 260, easing: "ease-out" });
@@ -247,11 +261,11 @@ export default function Durchfahrt() {
         x += dir * v * dt;
         if (halte.length && (dir > 0 ? x >= halte[0] : x <= halte[0])) {
           halte.shift();
-          phase = "halt"; salve = ganz(2, 5); naechsterSchuss = jetzt + 450;
+          phase = "halt"; salve = haufen ? ganz(6, 11) : ganz(2, 5); naechsterSchuss = jetzt + 450;
           raederTempo(0);
         } else if (jetzt > naechsterFahrschuss) {
           zielen(); schuss(dir * v, dir);
-          naechsterFahrschuss = jetzt + zufall(1500, 3200);
+          naechsterFahrschuss = jetzt + (haufen ? zufall(450, 1000) : zufall(1500, 3200));
         }
         if (dir > 0 ? x > breit + 20 : x < -W - 20) {
           phase = "pause"; bis = jetzt + zufall(2500, 6000);
@@ -261,7 +275,7 @@ export default function Durchfahrt() {
       } else if (phase === "halt" && jetzt > naechsterSchuss) {
         if (salve > 0) {
           zielen(); schuss(0, dir); salve--;
-          naechsterSchuss = jetzt + zufall(300, 650);
+          naechsterSchuss = jetzt + (haufen ? zufall(160, 320) : zufall(300, 650));
         } else {
           phase = "fahren"; raederTempo(v);
           naechsterFahrschuss = jetzt + zufall(1500, 3000);
@@ -269,6 +283,7 @@ export default function Durchfahrt() {
       }
       mobil.style.transform = `translateX(${x.toFixed(1)}px)` + (dir < 0 ? " scaleX(-1)" : "");
 
+      if (haufen) haufen.schritt(dt);
       // Bälle: Wurf mit Schwerkraft, springen an allen Rändern ab
       if (baelle.length) {
         const w = raum.offsetWidth, h = raum.offsetHeight;
@@ -312,4 +327,187 @@ export default function Durchfahrt() {
     };
   }, []);
   return <div className="durchfahrt" ref={ref} aria-hidden="true" />;
+}
+
+// Ein Tennisball als Bild (Filz mit Verlauf, zwei weisse Nähte, Schatten),
+// einmal gezeichnet und danach nur noch kopiert. Rand für den Schatten.
+function ballBild(px) {
+  const rand = Math.ceil(px * .25), s = px + 2 * rand;
+  const c = document.createElement("canvas");
+  c.width = c.height = s;
+  const g = c.getContext("2d"), r = px / 2, m = s / 2;
+  g.save();
+  g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = px * .15; g.shadowOffsetY = px * .07;
+  const f = g.createRadialGradient(m - r * .3, m - r * .4, r * .05, m, m, r * 1.05);
+  f.addColorStop(0, "#f6fc86"); f.addColorStop(.6, "#d3e12c"); f.addColorStop(1, "#9aab17");
+  g.fillStyle = f; g.beginPath(); g.arc(m, m, r, 0, Math.PI * 2); g.fill();
+  g.restore();
+  g.save();
+  g.beginPath(); g.arc(m, m, r, 0, Math.PI * 2); g.clip();
+  const k = px / 40, o = m - r;
+  g.strokeStyle = "#fff"; g.lineWidth = 2.6 * k; g.lineCap = "round";
+  g.beginPath(); g.moveTo(o + 6 * k, o + 7 * k); g.bezierCurveTo(o + 16 * k, o + 14 * k, o + 16 * k, o + 26 * k, o + 6 * k, o + 33 * k); g.stroke();
+  g.beginPath(); g.moveTo(o + 34 * k, o + 7 * k); g.bezierCurveTo(o + 24 * k, o + 14 * k, o + 24 * k, o + 26 * k, o + 34 * k, o + 33 * k); g.stroke();
+  g.restore();
+  return { bild: c, faktor: s / px };
+}
+
+// Der Haufen in der Anzeige des Infoboards: fliegende Bälle mit
+// Schwerkraft und Stössen untereinander; wer zur Ruhe kommt, bleibt für
+// immer liegen (wird nur noch angestossen, bewegt sich aber nicht mehr),
+// das hält den Stapel ruhig und die Rechnung klein.
+function haufenAnlegen(raum) {
+  const fest = document.createElement("canvas"), los = document.createElement("canvas");
+  fest.className = los.className = "gm-leinwand";
+  raum.append(fest, los);
+  const gf = fest.getContext("2d"), gl = los.getContext("2d");
+  let w = 0, h = 0, q = 1, sprite = null, D = 0, zelle = 1;
+  const fliegt = [], gitter = new Map();
+  let liegen = 0, raus = 0, voll = false;
+  const schluessel = (x, y) => (Math.floor(x / zelle) + 1000) * 100000 + Math.floor(y / zelle) + 1000;
+
+  const vorbereiten = () => {
+    if (w) return true;
+    w = raum.offsetWidth; h = raum.offsetHeight;
+    if (!w || !h) { w = 0; return false; }
+    const r = raum.getBoundingClientRect();
+    q = Math.min(2, Math.max(1, (r.width / w) * (window.devicePixelRatio || 1)));
+    for (const c of [fest, los]) { c.width = Math.round(w * q); c.height = Math.round(h * q); }
+    gf.setTransform(q, 0, 0, q, 0, 0); gl.setTransform(q, 0, 0, q, 0, 0);
+    return true;
+  };
+  const durchmesser = (breite) => Math.max(18, breite * .036);
+  const zeichne = (g, b) => {
+    const s = b.d * sprite.faktor;
+    g.save(); g.translate(b.x, b.y); g.rotate(b.dreh);
+    g.drawImage(sprite.bild, -s / 2, -s / 2, s, s);
+    g.restore();
+  };
+  const hinlegen = (b) => {
+    const k = schluessel(b.x, b.y);
+    const l = gitter.get(k);
+    if (l) l.push(b); else gitter.set(k, [b]);
+    liegen++;
+    zeichne(gf, b);
+    // Oben angekommen: ab jetzt läuft es über
+    if (b.y - b.d / 2 < D * .35) voll = true;
+  };
+
+  const neu = (x, y, d, ziel, vx, vy, g) => {
+    if (!vorbereiten()) return;
+    if (!D) { D = ziel; zelle = D * 1.05; sprite = ballBild(Math.round(D * q)); }
+    // Steckt die Mündung schon im Haufen, kommt der Ball oben auf ihm
+    // heraus, statt zwischen liegenden Bällen festzuhängen
+    while (y > -D && belegt(x, y)) y -= D * .5;
+    fliegt.push({ x, y, d, ziel: D, vx, vy, g, dreh: Math.random() * 6.28, ruhe: 0, alt: 0 });
+  };
+
+  const belegt = (x, y) => {
+    const cx = Math.floor(x / zelle), cy = Math.floor(y / zelle);
+    for (let ix = cx - 1; ix <= cx + 1; ix++) for (let iy = cy - 1; iy <= cy + 1; iy++) {
+      const l = gitter.get((ix + 1000) * 100000 + iy + 1000);
+      if (l) for (const o of l) if ((o.x - x) ** 2 + (o.y - y) ** 2 < D * D * .8) return true;
+    }
+    return false;
+  };
+  const stoss = (b, x, y, rs) => {
+    const dx = b.x - x, dy = b.y - y, rr = b.d / 2 + rs;
+    const d2 = dx * dx + dy * dy;
+    if (d2 >= rr * rr) return 0;
+    let dist = Math.sqrt(d2), nx, ny;
+    if (dist < .001) { nx = Math.random() - .5; ny = -1; dist = .001; } else { nx = dx / dist; ny = dy / dist; }
+    const tief = rr - dist;
+    b.x += nx * tief; b.y += ny * tief;
+    const vn = b.vx * nx + b.vy * ny;
+    if (vn < 0) { b.vx -= 1.3 * vn * nx; b.vy -= 1.3 * vn * ny; }
+    return ny < -.25 ? 2 : 1; // 2 = liegt auf etwas
+  };
+
+  const schritt = (dt) => {
+    if (!fliegt.length || !D) return;
+    const n = 3, t = dt / n;
+    for (let s = 0; s < n; s++) {
+      for (let i = fliegt.length - 1; i >= 0; i--) {
+        const b = fliegt[i];
+        if (b.d < b.ziel) b.d = Math.min(b.ziel, b.d + (b.ziel - b.d) * t * 6 + t * 4);
+        const r = b.d / 2;
+        b.vy += b.g * t;
+        b.x += b.vx * t; b.y += b.vy * t;
+        b.auf = false;
+        // Wände nur innerhalb der Tafel; ist sie voll, oben offen
+        const wand = !voll || b.y > 0;
+        if (wand && b.x < r) { b.x = r; b.vx = Math.abs(b.vx) * .5; }
+        if (wand && b.x > w - r) { b.x = w - r; b.vx = -Math.abs(b.vx) * .5; }
+        if (!voll && b.y < r) { b.y = r; b.vy = Math.abs(b.vy) * .6; }
+        if (b.y > h - r) {
+          b.y = h - r; b.vy = -Math.abs(b.vy) * .35; b.auf = true;
+          if (Math.abs(b.vy) < 40) b.vy = 0;
+        }
+        // Stösse mit liegenden Bällen ringsum
+        const cx = Math.floor(b.x / zelle), cy = Math.floor(b.y / zelle);
+        for (let ix = cx - 1; ix <= cx + 1; ix++) for (let iy = cy - 1; iy <= cy + 1; iy++) {
+          const l = gitter.get((ix + 1000) * 100000 + iy + 1000);
+          if (l) for (const o of l) if (stoss(b, o.x, o.y, o.d / 2) === 2) b.auf = true;
+        }
+        // Raus aus der Tafel: weg
+        if (b.x < -r * 2 || b.x > w + r * 2 || b.y > h + r * 2) { fliegt.splice(i, 1); raus++; }
+      }
+      // Fliegende untereinander, beide weichen je zur Hälfte
+      for (let i = 0; i < fliegt.length; i++) for (let j = i + 1; j < fliegt.length; j++) {
+        const a = fliegt[i], b = fliegt[j];
+        const dx = b.x - a.x, dy = b.y - a.y, rr = (a.d + b.d) / 2;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= rr * rr || d2 < 1e-6) continue;
+        const dist = Math.sqrt(d2), nx = dx / dist, ny = dy / dist, tief = (rr - dist) / 2;
+        a.x -= nx * tief; a.y -= ny * tief; b.x += nx * tief; b.y += ny * tief;
+        const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+        if (vn < 0) {
+          const j2 = -.65 * vn;
+          a.vx -= j2 * nx; a.vy -= j2 * ny; b.vx += j2 * nx; b.vy += j2 * ny;
+        }
+        if (ny > .25) b.auf = true; else if (ny < -.25) a.auf = true;
+      }
+    }
+    // Rollen bremst, auf einer Kuppe kippt er zur Seite, über dem Rand
+    // rollt er nach aussen; wer ruhig liegt, bleibt liegen
+    for (let i = fliegt.length - 1; i >= 0; i--) {
+      const b = fliegt[i];
+      if (b.auf) {
+        if (voll && b.y < D * .3) b.vx += Math.sign(b.x - w / 2 || 1) * 1500 * dt;
+        else {
+          b.vx *= Math.max(0, 1 - 2.2 * dt);
+          if (Math.abs(b.vx) < 4) b.vx += (Math.random() - .5) * 30;
+        }
+      }
+      b.dreh += b.vx * dt / (b.d / 2);
+      // Sicherung: wer nach 20 Sekunden noch nicht liegt, verschwindet
+      b.alt += dt;
+      if (b.alt > 20) { fliegt.splice(i, 1); continue; }
+      // Zur Ruhe gekommen = liegt auf etwas und ist in 0.4 s kaum vom
+      // Fleck gekommen (zwischen vielen Bällen zittert er sonst ewig)
+      const frei = b.auf && b.d >= b.ziel * .99 && !(voll && b.y < 0);
+      if (!frei) { b.ruhe = 0; b.rx = b.x; b.ry = b.y; }
+      else {
+        if (!b.ruhe) { b.rx = b.x; b.ry = b.y; }
+        b.ruhe += dt;
+        if (b.ruhe > .4) {
+          if (Math.hypot(b.x - b.rx, b.y - b.ry) < D * .15) { fliegt.splice(i, 1); hinlegen(b); continue; }
+          b.ruhe = 0;
+        }
+      }
+    }
+    gl.clearRect(0, 0, w, h);
+    for (const b of fliegt) zeichne(gl, b);
+  };
+
+  const haufen = { fliegt, neu, schritt, durchmesser, voll: () => voll, liegen: () => liegen, raus: () => raus };
+  // Für den Prüfstand: viele Bälle auf einmal oben einwerfen
+  if (window.TEST) window.TEST.tennis = Object.assign(haufen, {
+    regen: (anzahl) => {
+      if (!vorbereiten()) return;
+      for (let i = 0; i < anzahl; i++) neu(w * (.3 + Math.random() * .4), D * (1 + Math.random() * 3), durchmesser(w), durchmesser(w),
+        (Math.random() - .5) * 200, 0, h * .6);
+    },
+  });
+  return haufen;
 }
