@@ -39,7 +39,7 @@ with sync_playwright() as p:
     t = b and b["plaetze"].get("T100", {})
     print(t)
     pruefe("Gespeichert", t.get("wzBilder") is True and t.get("wzMarke") == "2-4")
-    pruefe("Nach Speichern sichtbar", pg.locator("[data-platz='T100'] [data-eba-wzb='2-4'] image").count() == 2)
+    pruefe("Nach Speichern sichtbar", pg.locator("[data-platz='T100'] [data-eba-wzb='2-4'] image").count() == 1)
     pg.locator("[data-platz='T100']").screenshot(path=os.path.join(BILD, "eb_wzb_platz.png"))
     pg.screenshot(path=os.path.join(BILD, "eb_wzb_blatt.png"))
     # Abwählen: nochmals antippen nimmt die Markierung weg

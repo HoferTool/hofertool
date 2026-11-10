@@ -49,12 +49,16 @@ const BILDER_AN = false;
 const WZ_BILDER = [WZ_BILD_1, WZ_BILD_2];
 const WZ_B = 258, WZ_H = 87, WZ_ANZ = 7;
 export const istLangdreher = (vorlage) => !!vorlage && (vorlage.art === "star" || vorlage.art === "sw");
-function WerkzeugBilder({ marke, waehlen, className }) {
+// Auf dem Blatt nur das eine Bild mit dem markierten Werkzeug (`nurMarke`,
+// Patrick 10. November 2026: „das Bild mit dem markierten Werkzeug“),
+// im Fenster des Platzes beide zur Wahl
+function WerkzeugBilder({ marke, waehlen, className, nurMarke }) {
   const m = /^(\d)-(\d)$/.exec(marke || "");
   const breit = WZ_B / WZ_ANZ;
+  const oben = nurMarke && m ? (Number(m[1]) - 1) * (WZ_H + 2) : 0;
   return (
-    <svg className={className || "eba-wzb"} viewBox={"0 0 " + WZ_B + " " + (WZ_H * 2 + 2)} preserveAspectRatio="xMidYMid meet" data-eba-wzb={marke || ""}>
-      {WZ_BILDER.map((src, b) => <image key={b} href={src} x="0" y={b * (WZ_H + 2)} width={WZ_B} height={WZ_H} preserveAspectRatio="none" />)}
+    <svg className={className || "eba-wzb"} viewBox={"0 " + oben + " " + WZ_B + " " + (nurMarke ? WZ_H : WZ_H * 2 + 2)} preserveAspectRatio="xMidYMid meet" data-eba-wzb={marke || ""}>
+      {WZ_BILDER.map((src, b) => nurMarke && m && b !== Number(m[1]) - 1 ? null : <image key={b} href={src} x="0" y={b * (WZ_H + 2)} width={WZ_B} height={WZ_H} preserveAspectRatio="none" />)}
       {m && <rect x={Number(m[2]) * breit + 1.5} y={(Number(m[1]) - 1) * (WZ_H + 2) + 1.5} width={breit - 3} height={WZ_H - 3}
         rx="5" fill="rgba(224,48,48,.14)" stroke="#e03030" strokeWidth="3" />}
       {waehlen && WZ_BILDER.map((_, b) => Array.from({ length: WZ_ANZ }, (_, i) =>
@@ -430,7 +434,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
     // Daten, falls sie doch zurückkommen sollen
     const bild = BILDER_AN ? platzBild(p, artikelBilder) : null;
     // Werkzeugbilder nur bei Langdrehern, wenn am Platz eingeschaltet
-    const wzb = !!(p.wzBilder && istLangdreher(vorlage));
+    const wzb = !!(p.wzBilder && p.wzMarke && istLangdreher(vorlage));
     // Beim Ansehen: antippen bestellt das Werkzeug (seit 1.271.0)
     const bestellbar = !bearbeiten && bestellen && p.article_id && !p.ungeprueft;
     // Im Pad Mode: antippen zeigt beim Namen „Ansehen“ für die PDFs, die
@@ -475,7 +479,7 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
             kleiner oder fällt ganz weg (Wunsch Patrick, 24. Oktober 2026) */}
         <div className={"eba-bild" + (wzb ? " eba-bild--wzb" : "") + (p.geo ? " eba-bild--geo" + ((bild && !p.ohneBild) || wzb ? "" : " eba-bild--nurgeo") : "")}>
           {p.geo ? <GeoText text={p.geo} mitBild={!!((bild && !p.ohneBild) || wzb)} farbe={p.geoFarbe} fett={!!p.geoFett} groesse={p.geoGroesse || null} html={(p.fmt || {}).geo} /> : null}
-          {wzb ? <WerkzeugBilder marke={p.wzMarke} /> : bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
+          {wzb ? <WerkzeugBilder marke={p.wzMarke} nurMarke /> : bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her"><EineZeile text={p.hersteller || ""} min={5} stil={platzStil(p, "hersteller")} />{p.spezial && p.article_id &&
           <span className="eba-stern" title="Spezialwerkzeug" data-eba-stern="">★</span>}</div>
         {/* Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (Wunsch
