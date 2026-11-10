@@ -49,8 +49,17 @@ with sync_playwright() as p:
     def ziel(x, y):  # Finger so, dass die Mitte des Gebindes über Platz x, y liegt
         return feld["x"] + 8 + (x + .5) * k, feld["y"] + 8 + (y + .5) * k + luft
 
-    # Mit der Maus: Gebinde 0 in die linke obere Ecke
-    sx, sy = band(0); tx, ty = ziel(1, 1)
+    # Mit der Maus: Gebinde 0 genau in die linke obere Ecke. Die Gebinde sind
+    # zufällig; ein 5er-Stab mit der Mitte auf Platz 1 ragte links hinaus und
+    # wurde nicht abgelegt (flackerte etwa jedes 16. Mal), darum die Mitte aus
+    # seiner Grösse rechnen.
+    gb = pg.evaluate("""() => {
+      const el = document.querySelector("[data-sp='palette']");
+      const f = Object.keys(el).find(k => k.startsWith('__reactFiber'));
+      let fb = el[f]; while (fb && !(fb.memoizedState && fb.memoizedState.memoizedState && fb.memoizedState.memoizedState.band)) fb = fb.return;
+      const g = fb.memoizedState.memoizedState.band[0]; return [g.b, g.h];
+    }""")
+    sx, sy = band(0); tx, ty = ziel(gb[0] / 2 - .5, gb[1] / 2 - .5)
     pg.mouse.move(sx, sy); pg.mouse.down(); pg.mouse.move(tx, ty, steps=8); pg.wait_for_timeout(150)
     pruefe(pg.locator(".sp-vp__schwebt").count() == 1, "Gebinde schwebt beim Ziehen")
     pg.screenshot(path=BILD + "/palette-ziehen.png")
