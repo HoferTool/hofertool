@@ -29,7 +29,7 @@ with sync_playwright() as p:
     pf.locator("[data-pf='taetigkeit']").fill("Abstechen")
     pruefe("Feld Andere T-Nr.", pf.locator("[data-pf='tnr']").count() == 1)
     pf.locator("[data-pf='tnr']").fill("t 121"); pf.locator("[data-pf='mass']").click(); pg.wait_for_timeout(100)
-    pruefe("T-Nr. ordentlich geschrieben", pf.locator("[data-pf='tnr']").input_value() == "T121")
+    pruefe("T-Nr. ordentlich geschrieben", pf.locator("[data-pf='tnr']").inner_text().strip() == "T121")
     pf.screenshot(path=os.path.join(BILD, "eb_tnr_fenster.png"))
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
     pruefe("Auf dem Blatt T121 statt T100", pg.inner_text("[data-platz='T100'] .eba-tk b") == "T121")

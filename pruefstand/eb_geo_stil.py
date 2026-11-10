@@ -39,14 +39,15 @@ with sync_playwright() as p:
     pf.locator("[data-pf='taetigkeit']").click(); pg.keyboard.type("Abstechen")
     pf.locator("[data-pf='geo']").click(); pg.keyboard.type("X 0.12"); pg.keyboard.press("Enter"); pg.keyboard.type("Z -0.05")
     pf.locator("[data-pf='geo']").click(); pg.wait_for_timeout(100)
-    pruefe("Farben und Dicke im Fenster", pf.locator("[data-pf-geofarbe]").count() == 5 and pf.locator("[data-pf-geowahl]").count() == 1
-           and pf.locator("[data-pf-geodicke]").count() == 2)
+    L = pg.locator("[data-eba-schriftzeile]")
+    pruefe("Farben und Dicke in der Leiste oben", L.locator("[data-pf-geofarbe]").count() == 5 and L.locator("[data-pf-geowahl]").count() == 1
+           and L.locator("[data-pf-geodicke]").count() == 2)
     markieren(pg, G, 0, 6)
-    pf.locator("[data-pf-geofarbe='#e03030']").click(); pf.locator("[data-pf-geodicke='fett']").click()
+    L.locator("[data-pf-geofarbe='#e03030']").click(); L.locator("[data-pf-geodicke='fett']").click()
     markieren(pg, G, 7, 14)
-    pf.locator("[data-pf-geowahl]").evaluate("""(el) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    L.locator("[data-pf-geowahl]").evaluate("""(el) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
       set.call(el, '#7a2bd6'); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }""")
-    pf.locator("[data-pf-geogr='minus']").click(); pf.locator("[data-pf-geogr='minus']").click()
+    L.locator("[data-pf-geogr='minus']").click(); L.locator("[data-pf-geogr='minus']").click()
     pf.screenshot(path=os.path.join(BILD, "eb_geo_stil_fenster.png"))
     pf.locator("[data-pf-ok]").click(); pg.wait_for_timeout(300)
     sp = pg.evaluate("""() => [...document.querySelectorAll('[data-platz="T100"] .eba-geo span[style]')].map(s => { const c = getComputedStyle(s);

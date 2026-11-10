@@ -10,7 +10,7 @@
 // steht daneben als kleines HTML (nur <span> mit Farbe, Dicke, Grösse
 // und <br>) unter fmt. Passt das HTML nicht mehr zum Text (etwa weil die
 // Stammdaten anderswo geändert wurden), gilt nur der Text.
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const gleich = (s) => String(s == null ? "" : s).replace(/ /g, " ").replace(/\r/g, "").trim();
@@ -180,8 +180,22 @@ export function markiertFormatieren(z, feld) {
 
 // Bearbeitbare Fläche statt <input>/<textarea>. aendern(text, html):
 // html nur, wenn etwas formatiert ist, sonst null.
-export function RichFeld({ text, html, aendern, einzeilig, className, style, platzhalter, onFocus, ...rest }) {
+// nurLesen: Text, den man hier nicht ändert (aus dem Werkzeug, fest im
+// Kopf), aber markieren und formatieren kann (seit 1.462.0, Wunsch
+// Patrick 10. November 2026). Tippen, Einfügen, Ausschneiden und Ziehen
+// sperrt das Feld; die Leiste ändert das HTML direkt und meldet es mit
+// einem input-Ereignis, das geht weiter.
+export function RichFeld({ text, html, aendern, einzeilig, nurLesen, className, style, platzhalter, onFocus, ...rest }) {
   const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !nurLesen) return;
+    const sperren = (e) => e.preventDefault();
+    el.addEventListener("beforeinput", sperren);
+    el.addEventListener("drop", sperren);
+    el.addEventListener("cut", sperren);
+    return () => { el.removeEventListener("beforeinput", sperren); el.removeEventListener("drop", sperren); el.removeEventListener("cut", sperren); };
+  }, [nurLesen]);
   const zuletzt = useRef(null);
   const soll = fmtGueltig(html, text) ? htmlSauber(html).html : textHtml(text);
   useLayoutEffect(() => {
@@ -199,15 +213,22 @@ export function RichFeld({ text, html, aendern, einzeilig, className, style, pla
   };
   return <div ref={ref} contentEditable suppressContentEditableWarning data-rich="" role="textbox"
     aria-multiline={einzeilig ? undefined : "true"} data-platzhalter={platzhalter || ""}
-    className={"eba-rich" + (einzeilig ? " eba-rich--zeile" : "") + (className ? " " + className : "")} style={style}
+    className={"eba-rich" + (einzeilig ? " eba-rich--zeile" : "") + (nurLesen ? " eba-rich--lesen" : "") + (className ? " " + className : "")} style={style}
+    data-nur-lesen={nurLesen ? "" : undefined} inputMode={nurLesen ? "none" : undefined}
     onInput={lesen} onFocus={onFocus}
     onKeyDown={(e) => {
+      // Nur lesen: Pfeile, Markieren und Kopieren gehen, alles andere nicht
+      if (nurLesen && !e.ctrlKey && !e.metaKey && (e.key.length === 1 || ["Backspace", "Delete", "Enter", "Tab"].includes(e.key))) {
+        if (e.key !== "Tab") e.preventDefault();
+        return;
+      }
       if (e.key !== "Enter") return;
       e.preventDefault();
       if (!einzeilig) document.execCommand("insertLineBreak");
     }}
     onPaste={(e) => {
       e.preventDefault();
+      if (nurLesen) return;
       const t = (e.clipboardData && e.clipboardData.getData("text/plain")) || "";
       document.execCommand("insertText", false, einzeilig ? t.replace(/\s*\n\s*/g, " ") : t);
     }}

@@ -12263,3 +12263,23 @@ body.dunkel .qm-feld { background: #1b2027; }
 .qm-auto { margin: 10px 0 12px; }
 body.dunkel .qm-eingabe { background: #1b2027; }
 body.dunkel .qm-gesperrt .qm-eingabe { background: transparent; }
+
+/* Einrichtblatt seit 1.462.0 (Wunsch Patrick 10. November 2026): die
+   Schriftleiste steht beim Bearbeiten immer oben links; T-Nr. oben im
+   Fenster des Platzes als Feld; Zeilen aus dem Werkzeug nur zum Markieren */
+.eba-schriftzeile { justify-content: flex-start; position: sticky; top: 0; z-index: 5; }
+.eba-schriftzeile .eba-schriftleiste { order: -1; }
+.eba-pf-tnr-zeile { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.eba-pf-tnr { min-width: 110px; max-width: 180px; padding: 4px 10px; font-size: 1.15rem; font-weight: 700; line-height: 28px;
+  color: var(--tinte); background: var(--flaeche); border: 1px solid var(--linie-stark); border-radius: var(--radius); }
+.eba-pf-tnr:focus { outline: 3px solid var(--aktion); outline-offset: 1px; }
+body.dunkel .eba-pf-tnr { background: #232a32; }
+.eba-pf-nurfmt { margin: 8px 0 10px; }
+.eba-pf-nurfmt .eba-pf-titel { display: block; margin-bottom: 4px; }
+.eba-pf-nurfmt .feld { margin-bottom: 6px; }
+.eba-pf-rich.eba-rich--lesen { min-height: 36px; padding: 5px 12px; background: #f1f4f7; cursor: text; }
+body.dunkel .eba-pf-rich.eba-rich--lesen { background: #1b2027; }
+.eba-seite div.eba-ein.eba-rich--lesen { background: transparent; border-color: transparent; }
+.eba-platzfenster--links { right: auto; left: 16px; }
+.eba-pf-kopf[data-pf-ziehen] { cursor: move; touch-action: none; }
+.eba-schriftzeile--rechts { flex-direction: row-reverse; }
