@@ -51,6 +51,9 @@ def seite(br, b, h, mobil=False):
       D.jobs.push({ ...basis, id: 'qB', job_number: '10444-0002', plan_status: 'geplant',
         started_at: '2026-09-01T04:00:00Z', planned_from: '2026-10-20' });
     }""")
+    # Uhr eine Minute weiter: die App merkt sich Maschinen 30 s (stammGemerkt);
+    # lud sie sie vor den Daten oben, blieb bei stehender Uhr die alte Liste
+    pg.clock.set_fixed_time("2026-10-13T14:01:00+02:00")
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)
     pg.locator("button:has-text('Pad Mode')").first.click(); pg.wait_for_selector("#pad [data-padwo='qs']")
     return pg

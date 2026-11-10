@@ -54,6 +54,9 @@ def seite(br, b, h, mobil=False):
     pg.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="domcontentloaded")
     pg.wait_for_selector("#inhalt")
     pg.evaluate(DATEN)
+    # Uhr eine Minute weiter: die App merkt sich Maschinen 30 s (stammGemerkt);
+    # lud sie sie vor DATEN, blieb bei stehender Uhr die alte Liste (13 statt 28)
+    pg.clock.set_fixed_time("2026-10-15T10:01:00+02:00")
     pg.evaluate("location.hash='#dashboard'"); pg.wait_for_timeout(800)
     pg.evaluate("document.getElementById('pad-knopf').click()")
     pg.wait_for_selector("#pad [data-padwo='qs']")
