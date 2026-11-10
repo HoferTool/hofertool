@@ -159,7 +159,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.471.0";
+const APP_VERSION = "1.472.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3931,6 +3931,12 @@ async function parallelSenden(aufgaben, gleichzeitig) {
 // Rechnet aus, was einem fest gesetzten Auftrag ausweichen muss, und
 // setzt es sofort in der Anzeige — ohne auf den Server zu warten.
 // Gibt die Änderungen zurück; abgeschickt werden sie danach am Stück.
+// Kurzer Name eines Auftrags für Meldungen: HOCO Nr., sonst FA Nr.
+function auftragKurz(x) {
+  const hoco = [x.customer_number, x.part_number].filter(Boolean).join("-");
+  return "Auftrag " + (hoco || x.fa_nr || x.job_number || "");
+}
+
 function planKonflikteRechnen(maschineId, festId) {
   planFliessenAnmelden();   // was ausweicht, gleitet statt zu springen
   const alle = (plan.auftraege || [])
@@ -7773,6 +7779,28 @@ function balkenVerhalten(b) {
       const datum = teile[1];
       if (maschineId === auftrag.machine_id && datum === auftrag.planned_from) return;
 
+      // Laufende Aufträge verschiebt man selten mit Absicht (10.11.2026:
+      // ein laufender Auftrag landete aus Versehen auf der 111). Darum
+      // erst nachfragen, verschieben geht aber trotzdem (Wunsch Patrick).
+      if (auftrag.plan_status === "laeuft" && !auftrag.ended_at) {
+        if (maschineId !== auftrag.machine_id) {
+          // Die Datenbank erlaubt nur einen laufenden Auftrag je Maschine
+          const dort = (plan.auftraege || []).find((x) => x.id !== auftrag.id
+            && x.machine_id === maschineId && x.plan_status === "laeuft" && !x.ended_at);
+          if (dort) {
+            meldung("Auf dieser Maschine läuft schon " + auftragKurz(dort)
+              + ". Zwei laufende Aufträge auf einer Maschine gehen nicht. Nichts geändert.", "warn");
+            return;
+          }
+        }
+        const ja = await nachfragen({
+          titel: "Auftrag läuft schon",
+          text: auftragKurz(auftrag) + " läuft bereits. Trotzdem verschieben?",
+          bestaetigen: "Ja, verschieben",
+          abbrechen: "Nein" });
+        if (!ja) { zeichnePlanwand(b); return; }
+      }
+
       const vorherM = auftrag.machine_id, vorherD = auftrag.planned_from;
 
       // Erst in der Anzeige: der Auftrag liegt sofort am neuen Platz, was
@@ -7790,7 +7818,18 @@ function balkenVerhalten(b) {
           .concat(ausgewichen.map((v) => () =>
             db.from("jobs").update({ planned_from: v.nach }).eq("id", v.id))));
       } catch (f) {
-        meldung(fehlertext(f), "fehler");
+        // Ging ein Teil nicht durch (etwa der gezogene Auftrag selbst),
+        // darf das Ausweichen der anderen nicht stehen bleiben: sonst
+        // stehen sie verschoben da, ohne dass etwas dazwischen liegt.
+        try {
+          await parallelSenden([() => db.from("jobs")
+              .update({ machine_id: vorherM, planned_from: vorherD }).eq("id", auftrag.id)]
+            .concat(ausgewichen.map((v) => () =>
+              db.from("jobs").update({ planned_from: v.von }).eq("id", v.id))));
+        } catch (f2) {
+          fehlerMerken("Verschieben zurücknehmen", fehlertext(f2));
+        }
+        meldung(fehlertext(f) + "  Nichts geändert.", "fehler");
         planAktualisieren(b);   // den echten Stand wieder holen
         return;
       }
