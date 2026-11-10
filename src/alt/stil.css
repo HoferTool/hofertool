@@ -12483,3 +12483,13 @@ body.dunkel .qma-ap-feld:hover { background: #22303f; }
 body.dunkel .qma-ap-karte--vorgesehen { background: #5a1f22; }
 body.dunkel .qma-ap-karte--geplant { background: #4d3d00; }
 body.dunkel .qma-ap-karte--durchgefuehrt { background: #1b4a2d; }
+
+/* Auditplan: Kärtchen mit Bericht öffnet den Bericht, ⓘ die Angaben (seit 1.468.0) */
+.qma-ap-karte--bericht { display: flex; padding: 0; overflow: hidden; }
+.qma-ap-karte--bericht > button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; padding: 2px 3px; }
+.qma-ap-karte__bericht { flex: 1; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: underline; text-underline-offset: 2px; }
+.qma-ap-karte__info { flex: 0 0 auto; border-left: 1px solid currentColor !important; opacity: .8; }
+.qma-ap-karte--bericht > button:hover { background: rgba(0, 0, 0, .08); }
+.qma-ap-zuordnung { display: flex; flex-direction: column; gap: 3px; }
+.qma-ap-zuordnung__zeile { font-size: .9em; overflow-wrap: anywhere; }
+.qma-ap-zuordnung__ohne { margin-top: 8px; font-weight: 600; }

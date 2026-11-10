@@ -130,6 +130,23 @@ with sync_playwright() as p:
     pg.screenshot(path=BILD + "/qma-auditplan.png", full_page=True)
     pg.click("#qma-ap-heute"); pg.wait_for_timeout(300)
 
+    # 1.468.0: Kärtchen mit Bericht öffnet den Bericht, ⓘ die Angaben
+    pg.evaluate("""() => { const a = TEST.daten.qma_eintraege.find(e => e.art === 'audit' && e.daten.quartal);
+      a.daten = { ...a.daten, bericht_url: 'https://x.invalid/bericht.pdf', bericht_name: 'beispiel.pdf' }; }""")
+    pg.click("[data-qmareiter='handbuch']"); pg.wait_for_selector("#qma-abschnitte")
+    pg.click("[data-qmareiter='audit']"); pg.wait_for_selector("#qma-auditplan")
+    pruefe(pg.locator(zelle + " [data-qmaapbericht]").count() == 1, "Kärtchen mit Bericht")
+    pg.locator(zelle).screenshot(path=BILD + "/qma-auditplan-bericht.png")
+    pg.click(zelle + " [data-qmaapbericht]"); pg.wait_for_timeout(800)
+    pruefe(pg.locator(".betrachter").count() == 1, "Tipp aufs Kärtchen öffnet den Bericht")
+    pruefe(pg.locator(".dialog-huelle .dialog").count() == 0, "dabei kein Audit-Fenster")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pruefe(pg.locator(".betrachter").count() == 0, "Escape schliesst den Bericht")
+    pg.click(zelle + " [data-qmaapinfo]"); d = dialog(pg)
+    pruefe(feld(d, "titel").input_value() == "Produktion", "ⓘ öffnet die Angaben zum Audit")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pruefe(pg.locator("#qma-ap-berichte").count() == 1, "Knopf Berichte zuordnen")
+
     # Handbuch: Abschnitt bearbeiten
     pg.click("[data-qmareiter='handbuch']"); pg.wait_for_selector("#qma-abschnitte")
     pruefe(pg.locator("[data-qmaprozess='prozess:fertigung']").count() == 1, "Prozess in der Landkarte")

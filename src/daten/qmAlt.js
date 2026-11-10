@@ -143,6 +143,39 @@ export const auditBereicheVonEintrag = (e) => {
   return [d.bereich, ...String(d.weitere || "").split(/[,;]/)].map((x) => String(x || "").trim()).filter(Boolean);
 };
 // Externe Audits ohne Bereich (Zertifizierung, Kunde) bekommen eine eigene Zeile
+// Berichtsdateien den Audits zuteilen (seit 1.468.0): zuerst gleicher
+// Dateiname wie beim Audit vermerkt (bericht_datei), sonst gleiches Datum im
+// Namen und die meisten gleichen Wörter mit Titel und Bereich. Jedes Audit
+// höchstens einmal. Gibt je Datei das Audit oder null zurück.
+const berichtNorm = (t) => String(t || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/\.(pdf|png|jpe?g)$/, "");
+const berichtWoerter = (t) => berichtNorm(t).split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !/^\d+$/.test(w) &&
+  !["internes", "intenes", "audit", "visiert", "pdf"].includes(w));
+const berichtDatum = (t) => { const m = String(t || "").match(/(20\d\d)[-._ ](\d\d)[-._ ](\d\d)/); return m ? m[1] + "-" + m[2] + "-" + m[3] : ""; };
+export function berichteZuteilen(namen, audits) {
+  const vergeben = new Set();
+  const ergebnis = namen.map(() => null);
+  const gleich = (a, b) => berichtNorm(a).replace(/[^a-z0-9]/g, "") === berichtNorm(b).replace(/[^a-z0-9]/g, "");
+  namen.forEach((n, i) => {
+    const e = audits.find((a) => !vergeben.has(a.id) && a.daten && a.daten.bericht_datei && gleich(a.daten.bericht_datei, n));
+    if (e) { ergebnis[i] = e; vergeben.add(e.id); }
+  });
+  namen.forEach((n, i) => {
+    if (ergebnis[i]) return;
+    const dat = berichtDatum(n);
+    if (!dat) return;
+    const w = berichtWoerter(n);
+    let best = null, punkte = -1;
+    for (const a of audits) {
+      if (vergeben.has(a.id) || (a.daten || {}).datum !== dat) continue;
+      const text = berichtNorm([a.titel, a.daten.bereich, a.daten.bericht_datei, a.daten.weitere].join(" "));
+      const p = w.filter((x) => text.includes(x.slice(0, 5))).length;
+      if (p > punkte) { best = a; punkte = p; }
+    }
+    if (best) { ergebnis[i] = best; vergeben.add(best.id); }
+  });
+  return ergebnis;
+}
+
 export const auditExtern = (e) => ["zert", "kunde"].includes((e.daten || {}).art) && !auditBereicheVonEintrag(e).length;
 
 // ---------- Listen ----------

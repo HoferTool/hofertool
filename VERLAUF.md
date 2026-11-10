@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.468.0** (10. November 2026): Auditplan mit Berichten verknüpft (Patrick: „dass ich direkt auf den Bericht komme, aktuelle Information beibehalten“): Kärtchen mit Bericht öffnet gleich das PDF, ⓘ daneben die Angaben zum Audit; „📎 Berichte zuordnen“ hängt viele Berichte auf einmal an die passenden Audits.
 - **1.467.0** (10. November 2026): QM alternativ mit Auditplan (Patrick: „kannst du den Auditplan interaktiv integrieren?“): Raster Bereich × Quartal wie im Excel FO_03_05_03_01_00 über der Liste Audits, leeres Feld sieht ein Audit vor, Kärtchen öffnet es, Farben vorgesehen / terminiert / durchgeführt, Bericht als PDF anhängen. Die Auditberichte 2020–2026 und der Plan bis 2028 sind eingetragen, die offenen Feststellungen der letzten Audits als Abweichungen im KVP, alles nur in der Datenbank.
 - **1.466.1** (10. November 2026): Normkorrelation feiner: eigene Zeilen 7.1.1, 7.1.2, 7.1.4, 8.5.5, 8.5.6 und 9.1.3 (vorher in gröberen Zeilen oder gar nicht), Patrick fragte, ob die Liste vollständig ist.
 - **1.466.0** (10. November 2026): QM alternativ mit dem Kontext der Organisation: Reiter „Kontext und Risiken“ wie Patricks Blatt 04_01_00 (Anspruchsgruppe, R/C, E × A 1–5, Neubeurteilung, Stand), Parteien der Landkarte führen zu ihren Themen.

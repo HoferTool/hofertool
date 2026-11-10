@@ -13,7 +13,7 @@
 import { useEffect, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import {
-  auditBereiche, auditQuartal, auditBereicheVonEintrag, auditExtern, statusVon, textSpeichern, eintragSpeichern, heute,
+  auditBereiche, auditQuartal, auditBereicheVonEintrag, auditExtern, berichteZuteilen, statusVon, textSpeichern, eintragSpeichern, heute,
 } from "../../daten/qmAlt.js";
 
 const EXTERN = "Extern (SSC, Kunden)";
@@ -70,11 +70,13 @@ export default function AuditPlan({ daten, neu, eintragDialog }) {
           <button className="knopf" id="qma-ap-frueher" disabled={ab <= fruehestes} onClick={() => schieben(-anzahl)}>◀ Früher</button>
           <button className="knopf" id="qma-ap-heute" onClick={() => { gemerktAb = diesesJahr; setAb(diesesJahr); }}>{diesesJahr}</button>
           <button className="knopf" id="qma-ap-spaeter" onClick={() => schieben(anzahl)}>Später ▶</button>
+          <button className="knopf" id="qma-ap-berichte" onClick={() => berichteZuordnen(daten.eintraege, neu)}>📎 Berichte zuordnen</button>
           <button className="knopf" id="qma-ap-bereiche" onClick={() => bereicheDialog(daten.texte, bereiche, neu)}>Bereiche ändern</button>
         </div>
       </div>
       <p className="hinweis">Leeres Feld antippen sieht dort ein Audit vor. Kärtchen antippen öffnet das Audit: Datum setzen = terminiert,
-        Status „Durchgeführt“ und die Feststellungen eintragen, wenn es vorbei ist. 📄 = Bericht hinterlegt.</p>
+        Status „Durchgeführt“ und die Feststellungen eintragen, wenn es vorbei ist. Kärtchen mit 📄 öffnen gleich den Bericht,
+        ⓘ daneben die Angaben zum Audit. „Berichte zuordnen“ hängt mehrere Berichte auf einmal an.</p>
       <div className="qma-ap-huelle">
         <table className="qma-ap" style={{ "--qma-ap-spalten": jahre.length * 4 }}>
           <thead>
@@ -117,21 +119,76 @@ export default function AuditPlan({ daten, neu, eintragDialog }) {
   );
 }
 
+// Seit 1.468.0 (Wunsch Patrick 10. November 2026: „Auditberichte direkt mit
+// dem Auditplan verknüpfen, dass ich direkt auf den Bericht komme, aktuelle
+// Information beibehalten“): mit Bericht öffnet das Kärtchen gleich den
+// Bericht, das ⓘ daneben die Angaben zum Audit wie bisher.
 function Kaertchen({ e, oeffnen }) {
   const d = e.daten || {};
   const s = statusVon("audit", e.status);
   const spaet = e.status !== "durchgefuehrt" && e.faellig && e.faellig < heute();
   const kurz = ART_KURZ[d.art];
+  const titel = (e.titel || "") + " · " + s.text + (d.datum ? " · " + alt.kurzDatum(d.datum) : "") + (spaet ? " · überfällig" : "");
+  const inhalt = <>
+    {e.status === "durchgefuehrt" ? "✓" : e.status === "geplant" ? "◷" : "●"}
+    {d.datum ? <span> {d.datum.slice(8, 10)}.{d.datum.slice(5, 7)}.</span> : null}
+    {kurz ? <b> {kurz}</b> : null}
+  </>;
+  const klasse = "qma-ap-karte qma-ap-karte--" + e.status + (spaet ? " qma-ap-karte--spaet" : "");
+  if (!d.bericht_url) {
+    return <button className={klasse} data-qmaapkarte={e.id} title={titel}
+      onClick={(ev) => { ev.stopPropagation(); oeffnen(); }}>{inhalt}</button>;
+  }
   return (
-    <button className={"qma-ap-karte qma-ap-karte--" + e.status + (spaet ? " qma-ap-karte--spaet" : "")} data-qmaapkarte={e.id}
-      title={(e.titel || "") + " · " + s.text + (d.datum ? " · " + alt.kurzDatum(d.datum) : "") + (spaet ? " · überfällig" : "")}
-      onClick={(ev) => { ev.stopPropagation(); oeffnen(); }}>
-      {e.status === "durchgefuehrt" ? "✓" : e.status === "geplant" ? "◷" : "●"}
-      {d.datum ? <span> {d.datum.slice(8, 10)}.{d.datum.slice(5, 7)}.</span> : null}
-      {kurz ? <b> {kurz}</b> : null}
-      {d.bericht_url ? " 📄" : ""}
-    </button>
+    <span className={klasse + " qma-ap-karte--bericht"} onClick={(ev) => ev.stopPropagation()}>
+      <button className="qma-ap-karte__bericht" data-qmaapkarte={e.id} data-qmaapbericht={e.id} title={"Bericht öffnen: " + titel}
+        onClick={() => berichtZeigen(e)}>{inhalt} 📄</button>
+      <button className="qma-ap-karte__info" data-qmaapinfo={e.id} title={"Angaben zum Audit: " + titel} aria-label="Angaben zum Audit"
+        onClick={() => oeffnen()}>ⓘ</button>
+    </span>
   );
+}
+
+export function berichtZeigen(e) {
+  const url = e.daten.bericht_url;
+  alt.betrachter(url, "Auditbericht " + (e.titel || "") + (e.daten.datum ? " " + alt.kurzDatum(e.daten.datum) : ""), !/\.(png|jpe?g|webp|gif)$/i.test(url));
+}
+
+// Mehrere Berichte auf einmal: die App ordnet jede Datei ihrem Audit zu
+// (gleicher Dateiname wie beim Audit vermerkt, sonst gleiches Datum im
+// Namen und die meisten gleichen Wörter), zeigt die Zuordnung und lädt
+// erst nach „Hochladen“. Vorhandene Angaben am Audit bleiben.
+async function berichteZuordnen(alle, neu) {
+  const dateien = await new Promise((fertig) => {
+    const f = document.createElement("input");
+    f.type = "file"; f.multiple = true; f.accept = "application/pdf,.pdf,image/*";
+    f.onchange = () => fertig(Array.from(f.files || []));
+    f.click();
+  });
+  if (!dateien.length) return;
+  const audits = alle.filter((e) => e.art === "audit");
+  const zu = berichteZuteilen(dateien.map((d) => d.name), audits);
+  const gefunden = dateien.map((d, i) => ({ d, e: zu[i] })).filter((x) => x.e);
+  const ohne = dateien.filter((d, i) => !zu[i]);
+  const zeile = (x) => "• " + x.d.name + " → " + (x.e.titel || "") + (x.e.daten.datum ? " (" + alt.kurzDatum(x.e.daten.datum) + ")" : "") +
+    (x.e.daten.bericht_url ? " · ersetzt den bisherigen Bericht" : "");
+  const ok = await alt.nachfragen({
+    titel: "Berichte zuordnen",
+    text: <span className="qma-ap-zuordnung">
+      {gefunden.length ? gefunden.length + " Bericht(e) gefunden:" : "Keine Datei passt zu einem Audit."}
+      {gefunden.map((x, i) => <span key={"g" + i} className="qma-ap-zuordnung__zeile" data-qmaapzu={x.e.id}>{zeile(x)}</span>)}
+      {ohne.length ? <span className="qma-ap-zuordnung__ohne">Ohne passendes Audit (beim Audit einzeln mit 📎 anhängen):</span> : null}
+      {ohne.map((d, i) => <span key={"o" + i} className="qma-ap-zuordnung__zeile">• {d.name}</span>)}
+    </span>,
+    bestaetigen: gefunden.length ? "Hochladen" : "Schliessen",
+  });
+  if (!ok || !gefunden.length) return;
+  let n = 0;
+  for (const x of gefunden) {
+    try { await berichtAblegen(x.e, x.d, alle); n++; } catch (f) { alt.meldung(x.d.name + ": " + alt.fehlertext(f), "fehler"); }
+  }
+  alt.meldung(n + " Bericht(e) hinterlegt.", n ? "gut" : "fehler");
+  neu();
 }
 
 async function bereicheDialog(texte, bereiche, neu) {
@@ -158,13 +215,17 @@ export async function berichtHochladen(e, alle, neu) {
     f.click();
   });
   if (!datei) return;
-  const name = String(datei.name || "bericht.pdf").normalize("NFKD").replace(/[^\w.-]+/g, "_").slice(-80);
-  const pfad = "qm/audits/" + e.id + "/" + Date.now() + "-" + name;
   try {
-    const up = await alt.db.storage.from("zeichnungen").upload(pfad, datei, { contentType: datei.type || "application/pdf", upsert: false });
-    if (up.error) throw up.error;
-    const url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
-    await eintragSpeichern("audit", e, { ...e.daten, bericht_url: url, bericht_pfad: pfad, bericht_name: datei.name }, e.status, alle);
+    await berichtAblegen(e, datei, alle);
     alt.meldung("Bericht hinterlegt.", "gut"); neu();
   } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
+}
+
+async function berichtAblegen(e, datei, alle) {
+  const name = String(datei.name || "bericht.pdf").normalize("NFKD").replace(/[^\w.-]+/g, "_").slice(-80);
+  const pfad = "qm/audits/" + e.id + "/" + Date.now() + "-" + name;
+  const up = await alt.db.storage.from("zeichnungen").upload(pfad, datei, { contentType: datei.type || "application/pdf", upsert: false });
+  if (up.error) throw up.error;
+  const url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
+  await eintragSpeichern("audit", e, { ...e.daten, bericht_url: url, bericht_pfad: pfad, bericht_name: datei.name }, e.status, alle);
 }
