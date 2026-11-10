@@ -44,7 +44,7 @@ export default function QmAlternativ({ auffrischen }) {
       ...d.daten.eintraege.filter((e) => ARTEN[e.art]).map((e) => ({
         gruppe: ARTEN[e.art].titel, zeichen: "•", titel: e.titel || "ohne Titel",
         zeile: statusVon(e.art, e.status).text, id: e.id, art: e.art })),
-      ...Object.values(d.daten.texte).filter((t) => t.titel).map((t) => ({
+      ...Object.values(d.daten.texte).filter((t) => t.titel && t.gruppe !== "entwurf").map((t) => ({
         gruppe: "Handbuch", zeichen: "§", titel: t.titel, zeile: t.norm ? "ISO " + t.norm : "", id: t.schluessel, art: "handbuch" })),
     ],
     springen: (x) => {
@@ -61,7 +61,7 @@ export default function QmAlternativ({ auffrischen }) {
   } else if (!d.daten) {
     inhalt = <div className="laedt">Wird geladen …</div>;
   } else if (reiter === "cockpit") inhalt = <Cockpit daten={d.daten} neu={d.neu} gehe={setReiter} />;
-  else if (reiter === "handbuch") inhalt = <Handbuch daten={d.daten} neu={d.neu} />;
+  else if (reiter === "handbuch") inhalt = <Handbuch daten={d.daten} neu={d.neu} gehe={setReiter} />;
   else if (reiter === "kompetenz") inhalt = <Kompetenz daten={d.daten} neu={d.neu} liste={<Liste art="schulung" daten={d.daten} neu={d.neu} />} />;
   else if (reiter === "bewertung") inhalt = <Bewertung daten={d.daten} neu={d.neu} eintragDialog={eintragDialog} />;
   else inhalt = <Liste art={reiter} daten={d.daten} neu={d.neu} />;
@@ -134,7 +134,8 @@ function Cockpit({ daten, neu, gehe }) {
             <tr key={n.norm} data-qmanorm={n.norm} data-stand={n.stand}>
               <td className="qm-nowrap">{n.norm}</td>
               <td>{n.titel}</td>
-              <td>{n.wo}</td>
+              <td>{n.wo}{n.prozesse && n.prozesse.length ? <div className="klein qma-norm-prozesse">Prozesse: {n.prozesse
+                .map((p) => (p.felder && p.felder.nr ? p.felder.nr + " " : "") + p.titel).join(", ")}</div> : null}</td>
               <td><Schild ton={STAND[n.stand][0]}>{STAND[n.stand][1]}</Schild>
                 {n.stand !== "ok" && n.stand !== "na" && n.tipp ? <div className="klein">{n.tipp}</div> : null}</td>
             </tr>))}

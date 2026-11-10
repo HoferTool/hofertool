@@ -55,11 +55,25 @@ export const ABSCHNITTE = [
   { k: "kundenzufriedenheit", titel: "Kundenzufriedenheit", norm: "9.1.2", hilfe: "Wie wir wissen, ob Kunden zufrieden sind, ohne Fragebogen-Leerlauf." },
 ];
 
+// Ebenen wie Patricks Landkarte „Hofer + Co Management-System“ (Ellipse):
+// 01 Führung in der Mitte, 02 Prozesse im Ring darum, 03 QM-System,
+// 04 Hofer + Co im Kontext (interessierte Parteien) aussen.
 export const PROZESS_GRUPPEN = [
-  ["fuehrung", "Führungsprozesse"],
-  ["kern", "Kernprozesse (Wertschöpfung)"],
-  ["unterstuetzung", "Unterstützungsprozesse"],
+  ["fuehrung", "Ebene 01 Führung"],
+  ["kern", "Ebene 02 Prozesse"],
 ];
+export const ebeneVon = (p) => ((p && p.gruppe) === "fuehrung" ? "fuehrung" : "kern");
+// Ebene 03: Teile des QM-Systems, die hier eigene Reiter sind.
+export const QM_SYSTEM = [
+  { reiter: "bewertung", text: "Management-Bewertung", norm: "9.3" },
+  { reiter: "risiko", text: "Risiko / Massnahmen", norm: "6.1 · 10.2" },
+  { reiter: "ziel", text: "Ziele", norm: "6.2" },
+  { reiter: "audit", text: "Audits", norm: "9.2" },
+  { reiter: "handbuch", text: "Dokumente - Daten", norm: "7.5", abschnitt: "dokumente" },
+];
+// Ebene 04: Vorgabe, solange in qma_texte „landkarte“ nichts steht.
+export const PARTEIEN_VORGABE = ["Kunden", "Bank", "Gesetze, Richtlinien", "Gesellschaft", "Lieferanten",
+  "Gem. nütz. Org.", "Kapitalgeber, Inhaber", "Mitarbeiter"];
 export const PROZESS_FELDER = [
   { k: "zweck", text: "Zweck" },
   { k: "verantwortlich", text: "Verantwortlich" },
@@ -69,7 +83,25 @@ export const PROZESS_FELDER = [
   { k: "nachweis", text: "Nachweis (wo im HoferTool)", lang: true },
   { k: "kennzahl", text: "Kennzahl" },
   { k: "risiken", text: "Typische Risiken" },
+  { k: "dokumente", text: "Mitgeltende Dokumente", lang: true },
 ];
+
+// ---------- Normkorrelation ----------
+// Kapitel aus einem Text wie "8.5.1 · 8.6, 8.7" oder "8.5.2–8.5.4" (Bereich:
+// Anfang und Ende genügen, weil Prozesse meist das Oberkapitel nennen).
+export function normListe(s) {
+  return String(s || "").split(/[·,;\s–-]+/).map((x) => x.trim()).filter((x) => /^\d+(\.\d+)*$/.test(x));
+}
+// Deckt ein Prozess mit diesen Kapiteln das Kapitel ab? 8.5 deckt 8.5.1, und
+// ein Prozess mit 9.1.2 zählt für die Zeile 9.1.
+const passt = (p, k) => p === k || p.startsWith(k + ".") || k.startsWith(p + ".");
+export function deckt(prozessNorm, kapitel) {
+  const ps = normListe(prozessNorm), ks = normListe(kapitel);
+  return ps.some((p) => ks.some((k) => passt(p, k)));
+}
+export const prozessNr = (p) => (p && p.felder && p.felder.nr) || "";
+export const prozesseSortiert = (texte) => Object.values(texte).filter((t) => String(t.schluessel).startsWith("prozess:"))
+  .sort((a, b) => (a.sort || 0) - (b.sort || 0));
 
 // ---------- Listen ----------
 // Je Art: Felder für das Fenster, Spalten für die Tabelle, Status und wann
@@ -342,8 +374,8 @@ export function normPruefen(texte, eintraege) {
   const von = (art) => eintraege.filter((e) => e.art === art);
   const ueber = (art) => von(art).filter((e) => !istZu(e) && e.faellig && e.faellig < heute()).length;
   const jahr = new Date().getFullYear();
-  const prozesse = Object.values(texte).filter((x) => String(x.schluessel).startsWith("prozess:"));
-  const hatProzess = (wort) => prozesse.some((p) => new RegExp(wort, "i").test(p.titel || ""));
+  const prozesse = prozesseSortiert(texte);
+  const fuer = (norm) => prozesse.filter((p) => deckt(p.norm, norm));
   const vorJahr = plusMonate(heute(), -12);
   const auditJ = von("audit").some((e) => e.daten.art === "intern" && e.status === "durchgefuehrt" && (e.daten.datum || "") >= vorJahr);
   const auditGeplant = von("audit").some((e) => e.daten.art === "intern" && e.status === "geplant");
@@ -351,7 +383,8 @@ export function normPruefen(texte, eintraege) {
   const bewertungEntwurf = von("bewertung").some((e) => e.status !== "freigegeben");
   const matrix = texte.matrix && texte.matrix.felder && (texte.matrix.felder.personen || []).length;
   const besser = von("abweichung").some((e) => (e.daten.quelle === "idee" || e.status === "wirksam") && (e.daten.datum || "") >= vorJahr);
-  const z = (norm, titel, wo, stand, tipp) => ({ norm, titel, wo, stand, tipp });
+  // Jede Zeile nennt die Prozesse, die das Kapitel laut Normbezug abdecken.
+  const z = (norm, titel, wo, stand, tipp) => ({ norm, titel, wo, stand, tipp, prozesse: norm === "8.3" ? [] : fuer(norm) });
   const zu = (b) => (b ? "ok" : "fehlt");
   const ohneUeber = (art, n) => !von(art).length ? "fehlt" : (n ? "warn" : "ok");
   return [
@@ -371,12 +404,12 @@ export function normPruefen(texte, eintraege) {
     z("7.4", "Kommunikation", "Handbuch · HoferTool: Infoboard, Meldungen", zu(t("kommunikation")), "Abschnitt Kommunikation ausfüllen"),
     z("7.5", "Dokumentierte Information", "Handbuch · dieses QM im HoferTool", zu(t("dokumente")), "Abschnitt Dokumente ausfüllen"),
     z("8.1", "Betriebliche Planung", "HoferTool: Planwand, Material", "ok", ""),
-    z("8.2", "Anforderungen an Produkte", "Prozess Anfrage und Offerte · Kalkulation", hatProzess("anfrage|offerte") ? "ok" : "fehlt", "Prozess Anfrage und Offerte beschreiben"),
+    z("8.2", "Anforderungen an Produkte", "Prozess Verkauf · HoferTool: Kalkulation", fuer("8.2").length ? "ok" : "fehlt", "Prozess mit Normbezug 8.2 beschreiben"),
     z("8.3", "Entwicklung", "Nicht anwendbar: reiner Lohnfertiger nach Kundenzeichnung", "na", ""),
     z("8.4", "Externe Anbieter", "Lieferantenbewertung · HoferTool: Bestellungen", ohneUeber("lieferant", ueber("lieferant")), "Lieferanten bewerten"),
     z("8.5.1", "Produktion beherrschen", "HoferTool: Einrichtblatt, Werkzeugwechsel, Stückzahlen, Pad Mode", "ok", ""),
     z("8.5.2–8.5.4", "Kennzeichnung, Kundeneigentum, Erhaltung", "Handbuch · HoferTool: FA Nr., WBG", zu(t("kennzeichnung")), "Abschnitt Kennzeichnung ausfüllen"),
-    z("8.6", "Freigabe", "Prozess Prüfen · HoferTool: QS Check, Keyence Berichte", hatProzess("pr[üu]f") ? "ok" : "fehlt", "Prozess Prüfen und Versand beschreiben"),
+    z("8.6", "Freigabe", "HoferTool: QS Check, Keyence Berichte", fuer("8.6").length ? "ok" : "fehlt", "Prozess mit Normbezug 8.6 beschreiben"),
     z("8.7", "Nichtkonforme Ergebnisse", "Abweichungen · HoferTool: QS-Meldungen", ueber("abweichung") ? "warn" : "ok", "Überfällige Abweichungen erledigen"),
     z("9.1", "Überwachung, Kundenzufriedenheit", "Ziele · Handbuch · HoferTool: Statistik", t("kundenzufriedenheit") ? "ok" : "fehlt", "Abschnitt Kundenzufriedenheit ausfüllen"),
     z("9.2", "Internes Audit", "Audits", auditJ ? "ok" : (auditGeplant ? "warn" : "fehlt"), "Internes Audit planen und durchführen"),

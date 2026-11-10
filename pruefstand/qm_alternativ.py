@@ -15,7 +15,8 @@ VERMERK = """;
 (TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { qmSehen: true };
 TEST.daten.qma_texte = [
   { schluessel: 'politik', gruppe: 'handbuch', titel: 'Qualitätspolitik', norm: '5.2', inhalt: 'Teile nach Zeichnung.', sort: 60 },
-  { schluessel: 'prozess:fertigung', gruppe: 'kern', titel: 'Fertigung', norm: '8.5', felder: { verantwortlich: 'Einrichter' }, sort: 50 },
+  { schluessel: 'prozess:fertigung', gruppe: 'kern', titel: 'Fertigung', norm: '8.5', felder: { verantwortlich: 'Einrichter', nr: '02.04' }, sort: 50 },
+  { schluessel: 'prozess:strategie', gruppe: 'fuehrung', titel: 'Strategie', norm: '6.2 · 9.3', felder: { nr: '01.04' }, sort: 10 },
 ];
 TEST.daten.qma_eintraege = [];
 """
@@ -50,6 +51,7 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-qmanorm='4.3'][data-stand='fehlt']").count() == 1, "Geltungsbereich leer = fehlt")
     pruefe(pg.locator("[data-qmanorm='8.3'][data-stand='na']").count() == 1, "8.3 nicht anwendbar")
     pruefe(pg.locator("#qma-nichts").count() == 1, "Cockpit: nichts fällig")
+    pruefe(pg.locator("[data-qmanorm='8.5.1'] .qma-norm-prozesse").count() == 1, "Cockpit-Zeile nennt den Prozess")
     pg.screenshot(path=BILD + "/qma-cockpit.png", full_page=True)
 
     # Abweichung erfassen, überfällig → Cockpit
@@ -107,11 +109,21 @@ with sync_playwright() as p:
     # Handbuch: Abschnitt bearbeiten
     pg.click("[data-qmareiter='handbuch']"); pg.wait_for_selector("#qma-abschnitte")
     pruefe(pg.locator("[data-qmaprozess='prozess:fertigung']").count() == 1, "Prozess in der Landkarte")
+    pruefe(pg.locator("#qma-landkarte [data-qmapartei]").count() == 8, "Ebene 04 mit acht Parteien")
+    pruefe("02.04" in pg.locator("[data-qmaprozess='prozess:fertigung']").inner_text(), "Prozess mit Nummer")
+    z = pg.locator("[data-qmamatrix='8.5.1'] .qma-zelle-punkt")
+    pruefe(z.count() == 2 and "●" in z.nth(1).inner_text() and "●" not in z.nth(0).inner_text(), "Matrix: 8.5.1 bei Fertigung, nicht bei Strategie")
+    pg.click("[data-qmaprozess='prozess:fertigung']"); d = dialog(pg)
+    pruefe(feld(d, "nr").input_value() == "02.04", "Prozessblatt mit Nr.")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pg.click("[data-qmaabschnitt='geltungsbereich']"); d = dialog(pg)
     feld(d, "inhalt").fill("Ganzer Betrieb. 8.3 nicht anwendbar.")
     speichern(pg, d)
     pruefe("Ganzer Betrieb" in pg.locator("[data-qmaabschnitt='geltungsbereich']").inner_text(), "Abschnitt gespeichert")
     pg.screenshot(path=BILD + "/qma-handbuch.png", full_page=True)
+    pg.click("[data-qmateil='audit']"); pg.wait_for_selector("#qma-audit")
+    pruefe(True, "Ebene 03 führt zum Reiter Audits")
+    pg.click("[data-qmareiter='handbuch']"); pg.wait_for_selector("#qma-abschnitte")
 
     # Kompetenz: Person und Fähigkeit, Zelle antippen
     pg.click("[data-qmareiter='kompetenz']"); pg.wait_for_selector("#qma-matrix")
