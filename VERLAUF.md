@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.466.1** (10. November 2026): Normkorrelation feiner: eigene Zeilen 7.1.1, 7.1.2, 7.1.4, 8.5.5, 8.5.6 und 9.1.3 (vorher in gröberen Zeilen oder gar nicht), Patrick fragte, ob die Liste vollständig ist.
 - **1.466.0** (10. November 2026): QM alternativ mit dem Kontext der Organisation: Reiter „Kontext und Risiken“ wie Patricks Blatt 04_01_00 (Anspruchsgruppe, R/C, E × A 1–5, Neubeurteilung, Stand), Parteien der Landkarte führen zu ihren Themen.
 
 **1.465.0** (10. November 2026): QM alternativ mit Patricks Management-System: Landkarte als Ellipse mit vier Ebenen, 15 Prozessblätter mit Nr. und Normbezug, Normkorrelation Prozess × ISO 9001 im Handbuch, Cockpit und Druck, Leitbild als Qualitätspolitik.
