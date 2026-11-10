@@ -334,30 +334,6 @@ function Schalter({ id, name, titel, text, beiAenderung }) {
   );
 }
 
-// Schnellvorschau der Planwand durchsichtig (seit 1.393.0, Wunsch Patrick
-// 4. November 2026): beim Ziehen sofort wirksam, gespeichert beim Loslassen.
-function VorschauDurchsicht() {
-  const [wert, setWert] = useState(alt.vorschauDurchsicht());
-  const warten = useRef(0);
-  return (
-    <Zeile titel="Vorschau auf der Planwand durchsichtig"
-      text="Das Fenster beim Darüberfahren über Aufträge und Ferien. 0 % = nicht durchsichtig.">
-      <div className="es-eingabe">
-        <input type="range" id="e-pwdurchsicht" min="0" max="90" step="5" value={wert}
-          aria-label="Durchsichtigkeit der Vorschau"
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            setWert(n); alt.vorschauDurchsichtAnwenden(n);
-            // Erst nach dem Ziehen ans Konto, nicht bei jedem Schritt
-            clearTimeout(warten.current);
-            warten.current = setTimeout(() => alt.einstellungSetzenWert("pwinfodurchsicht", n), 400);
-          }} />
-        <span className="klein" id="e-pwdurchsicht-wert">{wert + " %"}</span>
-      </div>
-    </Zeile>
-  );
-}
-
 function Darstellung() {
   const [thema, setThema] = useState(alt.themaJetzt());
   return (
@@ -373,7 +349,6 @@ function Darstellung() {
       </Zeile>
       <Schalter id="e-dunkel" name="dunkel" titel="Dunkler Modus"
         beiAenderung={(an) => { document.body.classList.toggle("dunkel", an); alt.fensterleisteFaerben(); }} />
-      <VorschauDurchsicht />
       <Schalter id="e-wochestart" name="wochestart" titel="Erfassung mit der Woche öffnen"
         text="Sonst öffnet die Erfassung mit dem Tag." />
       {/* Sofort wirksam, nicht erst nach dem nächsten Anmelden. Andere

@@ -1,6 +1,5 @@
-# Schnellvorschau der Planwand durchsichtig, einstellbar unter
-# Einstellungen → Allgemein → Darstellung, je Person gemerkt (1.393.0,
-# Wunsch Patrick 4. November 2026).
+# Schnellvorschau der Planwand ist deckend, hell und dunkel (seit 1.461.0,
+# Wunsch Patrick 10. November 2026; 1.393.0 bis 1.460.x durchsichtig).
 import time, os
 from pruefstand import server_starten, FAKE, CH, PORT
 from playwright.sync_api import sync_playwright
@@ -32,38 +31,25 @@ with sync_playwright() as p:
     pg.wait_for_selector("#inhalt"); pg.evaluate("location.hash='#planwand'")
     pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(900)
     a = deckung(pg)
-    print("  Deckung Vorgabe:", a)
-    pruefe("Vorgabe 30 % durchsichtig", a is not None and abs(a - 0.7) < 0.02)
-    if BILD: pg.screenshot(path=f"{BILD}/durchsicht-30.png")
-
+    print("  Deckung:", a)
+    pruefe("Vorschau deckend", a is not None and a > 0.99)
+    if BILD: pg.screenshot(path=f"{BILD}/vorschau-deckend.png")
+    # Dunkler Modus: ebenso deckend
+    pg.mouse.move(1, 1)
+    pg.evaluate("document.body.classList.add('dunkel')"); pg.wait_for_timeout(300)
+    a = deckung(pg)
+    pruefe("Vorschau dunkel deckend", a is not None and a > 0.99)
+    if BILD: pg.screenshot(path=f"{BILD}/vorschau-deckend-dunkel.png")
+    pg.evaluate("document.body.classList.remove('dunkel')")
+    # Kein Regler mehr in den Einstellungen
     pg.mouse.move(1, 1)
     pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(600)
     pg.locator("[data-einst='allgemein']").click(); pg.wait_for_timeout(500)
-    r = pg.locator("#e-pwdurchsicht")
-    pruefe("Regler in Darstellung", r.count() == 1)
-    r.fill("60"); pg.wait_for_timeout(700)
-    pruefe("Wert 60 % angezeigt", pg.inner_text("#e-pwdurchsicht-wert").strip() == "60 %")
-    gesp = pg.evaluate("() => Object.keys(localStorage).filter(k => k.includes('pwinfodurchsicht')).map(k => localStorage.getItem(k))")
-    pruefe("gemerkt", gesp == ["60"])
-    pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+    pruefe("kein Regler Durchsichtig mehr", pg.locator("#e-pwdurchsicht").count() == 0)
+    # Ein früher gespeicherter Wert wirkt nicht mehr
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pg.evaluate("document.documentElement.style.setProperty('--pw-info-deckung', '40%')")
     a = deckung(pg)
-    print("  Deckung 60:", a)
-    pruefe("60 % durchsichtig", a is not None and abs(a - 0.4) < 0.02)
-    if BILD: pg.screenshot(path=f"{BILD}/durchsicht-60.png")
-
-    # Nach Neuladen bleibt es
-    pg.mouse.move(1, 1)
-    pg.reload(wait_until="domcontentloaded"); pg.wait_for_selector(".pw-balken"); pg.wait_for_timeout(900)
-    a = deckung(pg)
-    pruefe("nach Neuladen 60 %", a is not None and abs(a - 0.4) < 0.02)
-
-    # 0 % = deckend
-    pg.mouse.move(1, 1)
-    pg.locator("#kopf-einstellungen").click(); pg.wait_for_timeout(600)
-    pg.locator("[data-einst='allgemein']").click(); pg.wait_for_timeout(500)
-    pg.locator("#e-pwdurchsicht").fill("0"); pg.wait_for_timeout(700)
-    pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
-    a = deckung(pg)
-    pruefe("0 % deckend", a is not None and a > 0.99)
+    pruefe("alter Wert ohne Wirkung", a is not None and a > 0.99)
     br.close()
 print("Fehler:", ", ".join(fehler) if fehler else "keine")

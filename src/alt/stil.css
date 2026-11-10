@@ -1778,9 +1778,9 @@ body.dunkel .pw-balken--laeuft { border: 2px solid #ffffff; }
 
 /* ---------- Info-Fenster beim Darüberfahren ---------- */
 .pw-info { position: fixed; z-index: 45; width: 250px; max-width: calc(100vw - 16px);
+           /* Immer deckend (seit 1.461.0, Wunsch Patrick 10. November 2026:
+              „soll nicht durchsichtig sein“; 1.393.0 bis 1.460.x einstellbar durchsichtig) */
            background: var(--flaeche); border: 1px solid var(--linie-stark);
-           /* Durchsichtig nach Einstellung (seit 1.393.0, vorschauDurchsichtAnwenden) */
-           background: color-mix(in srgb, var(--flaeche) var(--pw-info-deckung, 70%), transparent);
            border-radius: var(--radius); box-shadow: 0 10px 26px rgba(0,0,0,.28);
            padding: 10px 12px; pointer-events: none; }
 /* Schrift bleibt auch über bunten Balken lesbar */

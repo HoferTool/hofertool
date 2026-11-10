@@ -158,7 +158,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.460.0";
+const APP_VERSION = "1.461.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -1602,20 +1602,6 @@ function homeIconBeobachten() {
   homeIconMalen();
 }
 homeIconBeobachten();
-
-// Durchsichtigkeit der Schnellvorschau beim Darüberfahren über Aufträge
-// und Ferien, je Person 0 bis 90 % (seit 1.393.0, Wunsch Patrick
-// 4. November 2026: „transparent, und die Transparenz soll einstellbar
-// sein“). Vorgabe 30 %, damit man die Planwand dahinter noch sieht.
-const VORSCHAU_DURCHSICHT = 30;
-function vorschauDurchsicht() {
-  const n = Number(einstellungWert("pwinfodurchsicht", VORSCHAU_DURCHSICHT));
-  return Number.isFinite(n) ? Math.max(0, Math.min(90, Math.round(n))) : VORSCHAU_DURCHSICHT;
-}
-function vorschauDurchsichtAnwenden(wert) {
-  const n = wert === undefined ? vorschauDurchsicht() : Math.max(0, Math.min(90, Number(wert) || 0));
-  document.documentElement.style.setProperty("--pw-info-deckung", (100 - n) + "%");
-}
 
 function einstellungSetzenWert(name, wert) {
   einstellungAblegen(name, String(wert));
@@ -10595,7 +10581,6 @@ Object.assign(alt, {
   problemMelden, zwischenablageSetzen, werkstoffText, planAktualisieren,
   planKonflikteLoesen, planAufruecken, zeichnungErsetzen, zeichnungEntfernen, wbgEntfernen, einrichtblattEntfernen, ablageLoeschen,
   sucheVorladen, schrittZurueck, sucheOeffnen, einstellungenOeffnen, einstellungSetzenWert, einstellungWert,
-  vorschauDurchsicht, vorschauDurchsichtAnwenden,
   meineRolle, zeichneSeite,
   masseBerechnen, isMobil, istTippgeraet, zuHeute, hocoFenster, sucheDialog, serverStempel,
   stammdatenAufPlanwand, zeichnungAnheften, ladeFerien, zeichnePlanwand, planSyncStarten, neuZeichnen,
@@ -11061,7 +11046,6 @@ function zeichneGeruest() {
   // Anmelden, stehen sie fest — also hier noch einmal anwenden.
   einstellungenNeuLesen();
   document.body.classList.toggle("dunkel", einstellung("dunkel"));
-  vorschauDurchsichtAnwenden();
   document.body.classList.toggle("nav--schmal", einstellungWert("navschmal", "0") === "1");
   themaAnwenden();
   // Administratoren sehen den Pad-Knopf auf jedem Gerät
