@@ -8,7 +8,7 @@
 //  (src/seiten/qmAlt/Checkliste.jsx), mit Diktat in den Textfeldern.
 // =================================================================
 import { alt } from "../bruecke.jsx";
-import { qmaLaden, checklisteFuer, auditQuartal, statusVon, heute } from "../daten/qmAlt.js";
+import { qmaLaden, checklisteFuer, auditQuartal, statusVon, heute, vorpunkteFuer } from "../daten/qmAlt.js";
 import { checklisteOeffnen } from "../seiten/qmAlt/Checkliste.jsx";
 import { berichtZeigen } from "../seiten/qmAlt/AuditPlan.jsx";
 
@@ -36,6 +36,7 @@ export default function PadAudit({ d, Kopf, neu }) {
           const n = ck.fragen.length;
           const a = (e.daten.checkliste && e.daten.checkliste.antworten) || {};
           const beantwortet = ck.fragen.filter((f) => a[f.id] && a[f.id].b).length;
+          const vor = (e.daten.checkliste && e.daten.checkliste.vorliste) || vorpunkteFuer(e, ck.bereich, d.eintraege);
           const spaet = e.faellig && e.faellig < heute();
           return (
             <button key={e.id} className="pad-audit__karte" data-padaudit={e.id} onClick={() => oeffnen(e)}>
@@ -43,7 +44,7 @@ export default function PadAudit({ d, Kopf, neu }) {
               {e.titel !== ck.bereich && <span className="pad-audit__titel">{e.titel}</span>}
               <span className="pad-audit__info">{wann(e)}{spaet ? " · überfällig" : ""} · {statusVon("audit", e.status).text}</span>
               <span className="pad-audit__balken"><i style={{ width: (n ? (100 * beantwortet) / n : 0) + "%" }} /></span>
-              <span className="pad-audit__info">{beantwortet} von {n} Fragen</span>
+              <span className="pad-audit__info">{beantwortet} von {n} Fragen{vor.length ? " · " + vor.length + " offene Punkte aus früheren Audits" : ""}</span>
               <span className="pad-audit__los">{beantwortet ? "Weiterführen ›" : "Audit starten ›"}</span>
             </button>
           );

@@ -6,7 +6,7 @@
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
 import { alt } from "../../bruecke.jsx";
-import { ckBewertung, checklisteAuswerten, auswahlText } from "../../daten/qmAlt.js";
+import { ckBewertung, checklisteAuswerten, auswahlText, vpBewertung } from "../../daten/qmAlt.js";
 
 const MM = 96 / 25.4;
 const RAND = 14;
@@ -44,6 +44,17 @@ export function berichtHtml(audit, ck, fragen) {
       }).join("") + "</tbody></table>"
       + "<p class='ck-klein'>Die Feststellungen sind als offene Einträge in der Liste Abweichungen erfasst und werden dort bis zur Wirksamkeit verfolgt.</p>"
     : "<p>Keine Abweichungen und keine Verbesserungen.</p>";
+  const vl = ck.vorliste || [];
+  if (vl.length) {
+    h += "<h2>Offene Punkte aus früheren Audits</h2><table><thead><tr><th>Herkunft</th><th>Punkt</th><th>Stand</th><th>Bemerkung</th></tr></thead><tbody>"
+      + vl.map((p) => {
+        const x = (ck.vorpunkte || {})[p.id] || {};
+        const b = vpBewertung(x.b);
+        return "<tr><td class='ck-nw'>" + e(p.audit) + (p.art === "abweichung" ? "<div class='ck-klein'>Abweichung Nr. " + e(p.nr) + "</div>" : "")
+          + "</td><td>" + zeilen(p.text) + "</td><td class='ck-nw ck-" + (b ? b[2] : "grau") + "'>" + e(b ? b[1] : "Nicht geprüft")
+          + "</td><td>" + zeilen(x.text) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  }
   h += "<h2>Checkliste</h2><table><thead><tr><th>Nr.</th><th>Norm</th><th>Frage</th><th>Ergebnis</th><th>Nachweis / Bemerkung</th></tr></thead><tbody>"
     + fragen.map((f, i) => {
       const x = (ck.antworten || {})[f.id] || {};

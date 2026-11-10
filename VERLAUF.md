@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.471.0** (10. November 2026): Offene Punkte aus früheren Audits desselben Bereichs stehen einzeln oben in der Auditcheckliste (Erledigt / Teilweise / Noch offen); beim Abschluss werden erledigte Einträge wirksam, noch offene Feststellungen neue Einträge, alles im Bericht.
 - **1.470.0** (10. November 2026): Audit im Pad Mode (Patrick: „mit dem iPad durch die Firma laufen“): Kachel „Audit“ auf dem Startbild des Pads mit den offenen Audits und ihrem Fortschritt, dieselbe Checkliste gross fürs iPad; in allen Textfeldern der Checkliste der Knopf „Diktat“ (sprechen statt tippen).
 - **1.469.0** (10. November 2026): Auditcheckliste im QM alternativ (Patrick: „Auditcheckliste nach ISO 9001:2026 für die Produktion, Audit damit durchführen, Bericht nach Abschluss automatisch“): über dem Auditplan „Audit mit Checkliste durchführen“, je Frage Erfüllt / Verbesserung / Abweichung / Nicht geprüft mit Bemerkung, Abschluss erstellt den Bericht als PDF am Audit und legt die Feststellungen in die Liste Abweichungen. Fragen nur in der Datenbank.
 - **1.468.0** (10. November 2026): Auditplan mit Berichten verknüpft (Patrick: „dass ich direkt auf den Bericht komme, aktuelle Information beibehalten“): Kärtchen mit Bericht öffnet gleich das PDF, ⓘ daneben die Angaben zum Audit; „📎 Berichte zuordnen“ hängt viele Berichte auf einmal an die passenden Audits.

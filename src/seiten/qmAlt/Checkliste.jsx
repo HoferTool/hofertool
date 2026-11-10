@@ -18,12 +18,13 @@ import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import {
   CK_BEWERTUNG, checklisteFuer, checklisteAuswerten, fragenZuText, fragenAusText, eintragSpeichern, textSpeichern,
-  auditBereiche, heute, plusTageIso,
+  auditBereiche, heute, plusTageIso, vorpunkteFuer, VP_BEWERTUNG,
 } from "../../daten/qmAlt.js";
 import { berichtDateiAblegen, berichtZeigen } from "./AuditPlan.jsx";
 import { DiktatKnopf } from "../../teile/Diktat.jsx";
 
 let jetztSpeichern = null;
+const vpBewertet = (x) => !!(x && VP_BEWERTUNG.some((b) => b[0] === x.b));
 
 export async function checklisteOeffnen(e0, texte, alle, neu) {
   // frisch holen, damit nichts überschrieben wird, was inzwischen gespeichert wurde
@@ -40,7 +41,7 @@ function startwert(e) {
   const d = e.daten || {};
   const ck = d.checkliste || {};
   return {
-    antworten: {}, staerken: "", fazit: "", ...ck,
+    antworten: {}, vorpunkte: {}, staerken: "", fazit: "", ...ck,
     kopf: { datum: d.datum || heute(), auditor: d.auditor || "", auditiert: d.auditiert || "", ...(ck.kopf || {}) },
   };
 }
@@ -74,6 +75,9 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
     jetztSpeichern = speichern;
   };
   const antwort = (id, teil) => aendern((c) => ({ ...c, antworten: { ...c.antworten, [id]: { ...(c.antworten[id] || {}), ...teil } } }));
+  const vp = (id, teil) => aendern((c) => ({ ...c, vorpunkte: { ...(c.vorpunkte || {}), [id]: { ...((c.vorpunkte || {})[id] || {}), ...teil } } }));
+  // offene Punkte aus früheren Audits: nach dem Abschluss eingefroren
+  const vorliste = ck.vorliste || vorpunkteFuer(e, vorlage.bereich, alle);
   const kopf = (k, w) => aendern((c) => ({ ...c, kopf: { ...c.kopf, [k]: w } }));
 
   const { zaehl } = checklisteAuswerten(fragen, ck.antworten);
@@ -108,6 +112,7 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
         <span>{aus.zaehl.ok} erfüllt · {aus.zaehl.v} Verbesserung · {aus.zaehl.a} Abweichung · {aus.zaehl.na + aus.zaehl.offen} nicht geprüft</span>
         {aus.zaehl.offen ? <span className="qma-ap-zuordnung__ohne">{aus.zaehl.offen} Frage(n) ohne Bewertung gelten als nicht geprüft.</span> : null}
         <span>Die App erstellt den Bericht als PDF, hängt ihn ans Audit und setzt es auf „Durchgeführt“.</span>
+        {vorliste.length ? <span>Offene Punkte früherer Audits: {vorliste.filter((p) => vpBewertet((ck.vorpunkte || {})[p.id])).length} von {vorliste.length} geprüft.</span> : null}
         {neueF.length ? <span>{neueF.length} Feststellung(en) kommen als offene Einträge in die Liste Abweichungen.</span> : null}
       </span>,
       bestaetigen: "Abschliessen",
@@ -117,8 +122,10 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
     try {
       if (uhr.current) await speichern();
       const k = ck.kopf || {};
-      const fertig = { ...ck, fragen, bereich: vorlage.bereich, abgeschlossen_am: new Date().toISOString(),
-        uebertragen: [...schon, ...neueF.map((f) => f.id)] };
+      const vpa = ck.vorpunkte || {};
+      const vpNeu = vorliste.filter((p) => p.art === "feststellung" && ["teil", "offen"].includes((vpa[p.id] || {}).b) && !schon.has("vp:" + p.id));
+      const fertig = { ...ck, fragen, bereich: vorlage.bereich, abgeschlossen_am: new Date().toISOString(), vorliste,
+        uebertragen: [...schon, ...neueF.map((f) => f.id), ...vpNeu.map((p) => "vp:" + p.id)] };
       const audit = { ...e, daten: daten.current };
       const { berichtPdf } = await import("./checklistePdf.js");
       const blob = await berichtPdf(audit, fertig, fragen);
@@ -130,6 +137,26 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
           quelle: "audit", datum: k.datum || heute(), titel: f.text, termin: plusTageIso(heute(), 30),
           partner: k.auditor || null, herkunft: e.id }, "offen", liste);
         liste = [...liste, { art: "abweichung", nr: Math.max(0, ...liste.filter((x) => x.art === "abweichung").map((x) => x.nr || 0)) + 1, id }];
+      }
+      // Feststellungen des letzten Audits, die noch nicht erledigt sind, kommen in die Liste
+      for (const p of vpNeu) {
+        const x = vpa[p.id] || {};
+        const id = await eintragSpeichern("abweichung", null, {
+          quelle: "audit", datum: k.datum || heute(), titel: "Offen aus " + p.audit + ": " + p.text, termin: plusTageIso(heute(), 30),
+          partner: k.auditor || null, herkunft: e.id, wirksamkeit: String(x.text || "").trim() || null }, "offen", liste);
+        liste = [...liste, { art: "abweichung", nr: Math.max(0, ...liste.filter((y) => y.art === "abweichung").map((y) => y.nr || 0)) + 1, id }];
+      }
+      // Einträge der Liste Abweichungen: Ergebnis der Prüfung festhalten, erledigt = wirksam
+      for (const p of vorliste.filter((q) => q.art === "abweichung" && vpBewertet(vpa[q.id]))) {
+        const x = vpa[p.id];
+        const { data } = await alt.db.from("qma_eintraege").select("*").eq("id", p.ref);
+        const a = data && data[0];
+        if (!a) continue;
+        const notiz = "Geprüft im Audit " + (k.datum || heute()).split("-").reverse().join(".") + ": " + (x.b === "erledigt" ? "erledigt" : x.b === "teil" ? "teilweise erledigt" : "noch offen")
+          + (String(x.text || "").trim() ? ", " + x.text.trim() : "");
+        const w = [String(a.daten.wirksamkeit || "").trim(), notiz].filter(Boolean).join("\n");
+        await eintragSpeichern("abweichung", a, { ...a.daten, wirksamkeit: w, pruef_am: x.b === "erledigt" ? (k.datum || heute()) : a.daten.pruef_am },
+          x.b === "erledigt" ? "wirksam" : x.b === "teil" && a.status === "offen" ? "laeuft" : a.status, liste);
       }
       const ergebnis = [
         aus.zaehl.ok + " erfüllt, " + aus.zaehl.v + " Verbesserung, " + aus.zaehl.a + " Abweichung (Checkliste " + fragen.length + " Fragen)",
@@ -182,6 +209,37 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
           <label>Auditierte Personen<input value={ck.kopf.auditiert || ""} disabled={gesperrt} data-qmackkopf="auditiert"
             onChange={(ev) => kopf("auditiert", ev.target.value)} /></label>
         </div>
+        {vorliste.length > 0 && <div className="qma-ck__vor" id="qma-ck-vor">
+          <h3>Offene Punkte aus früheren Audits <span className="klein">{vorliste.length} · zuerst prüfen</span></h3>
+          <ul>
+            {vorliste.map((p) => {
+              const x = (ck.vorpunkte || {})[p.id] || {};
+              return (
+                <li key={p.id} className={"qma-ck__frage qma-ck__vorpunkt" + (x.b ? " qma-ck__vorpunkt--" + x.b : "")} data-qmackvor={p.id}>
+                  <div className="qma-ck__text">
+                    <span className="qma-ck__norm">{p.art === "abweichung" ? "Abw. Nr. " + p.nr : "Feststellung"}</span>
+                    <span className="klein">{p.audit}</span>
+                    <div>{p.text}</div>
+                  </div>
+                  <div className="qma-ck__wahl" role="group" aria-label="Stand">
+                    {VP_BEWERTUNG.map(([w, t]) => (
+                      <button key={w} type="button" disabled={gesperrt} data-qmackvorb={w}
+                        className={"qma-ck__b qma-ck__b--vp-" + w + (x.b === w ? " qma-ck__b--an" : "")}
+                        onClick={() => vp(p.id, { b: x.b === w ? null : w })}>{t}</button>
+                    ))}
+                  </div>
+                  <div className="qma-ck__textfeld">
+                    <textarea rows={2} value={x.text || ""} disabled={gesperrt} data-qmackvortext={p.id}
+                      placeholder="Was wurde gemacht, wie geprüft, was fehlt noch …"
+                      onChange={(ev) => vp(p.id, { text: ev.target.value })} />
+                    <DiktatKnopf wert={x.text || ""} gesperrt={gesperrt} setzen={(t) => vp(p.id, { text: t })} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="klein">Beim Abschliessen: Einträge der Liste Abweichungen mit „Erledigt“ werden „Wirksam“, das Ergebnis steht bei der Wirksamkeit. Feststellungen „Teilweise“ oder „Noch offen“ kommen als neuer Eintrag in die Liste.</p>
+        </div>}
         <ol className="qma-ck__liste">
           {fragen.map((f, i) => {
             const x = ck.antworten[f.id] || {};

@@ -587,3 +587,42 @@ export function fragenAusText(text, vorher) {
     return { id: gleich ? gleich.id : "q" + (++n), ...f };
   });
 }
+
+// ---------- Offene Punkte aus früheren Audits (seit 1.471.0) ----------
+// Wunsch Patrick 10. November 2026: „sind die offenen Punkte aus den letzten
+// Audits vom selben Bereich in der Checkliste berücksichtigt?“ Jeder Punkt
+// steht einzeln oben in der Checkliste: (a) alle noch nicht abgeschlossenen
+// Einträge der Liste Abweichungen, die aus einem früheren Audit dieses
+// Bereichs kommen (daten.herkunft), (b) die Feststellungen des letzten
+// früheren Audits dieses Bereichs, die nicht als Eintrag in der Liste stehen
+// (ältere Audits hat das letzte schon geprüft).
+export const VP_BEWERTUNG = [["erledigt", "Erledigt", "gruen"], ["teil", "Teilweise", "gelb"], ["offen", "Noch offen", "rot"]];
+export const vpBewertung = (b) => VP_BEWERTUNG.find((x) => x[0] === b) || null;
+const vergleich = (t) => normiert(String(t || "").replace(/^(abweichung|verbesserung|empfehlung[^:]*)\s*[^:]*:\s*/i, ""));
+
+export function vorpunkteFuer(e, bereich, alle) {
+  const b = normiert(bereich);
+  const datumE = (e.daten || {}).datum || "9999";
+  const frueher = (alle || []).filter((x) => x.art === "audit" && x.id !== e.id && x.status === "durchgefuehrt"
+    && auditBereicheVonEintrag(x).some((y) => normiert(y) === b) && ((x.daten || {}).datum || "") < datumE)
+    .sort((p, q) => String(q.daten.datum || "").localeCompare(p.daten.datum || ""));
+  const wann = (x) => (x.daten.datum ? x.daten.datum.slice(8, 10) + "." + x.daten.datum.slice(5, 7) + "." + x.daten.datum.slice(0, 4) : "");
+  const punkte = [];
+  const ids = new Set(frueher.map((x) => x.id));
+  const abw = (alle || []).filter((x) => x.art === "abweichung" && x.daten && ids.has(x.daten.herkunft));
+  for (const x of abw) {
+    if (istZu(x)) continue;
+    const a = frueher.find((y) => y.id === x.daten.herkunft);
+    punkte.push({ id: x.id, art: "abweichung", ref: x.id, nr: x.nr, audit: "Audit " + wann(a), text: x.daten.titel || x.titel || "" });
+  }
+  const letztes = frueher[0];
+  if (letztes) {
+    const da = abw.filter((x) => x.daten.herkunft === letztes.id).map((x) => vergleich(x.daten.titel));
+    String(letztes.daten.feststellungen || "").split("\n").map((z) => z.trim()).filter(Boolean).forEach((z, i) => {
+      const v = vergleich(z);
+      if (da.some((t) => t && v && (t === v || t.includes(v) || v.includes(t)))) return;
+      punkte.push({ id: letztes.id + "#" + i, art: "feststellung", ref: letztes.id, audit: "Audit " + wann(letztes), text: z });
+    });
+  }
+  return punkte;
+}

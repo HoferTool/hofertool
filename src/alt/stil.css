@@ -12584,3 +12584,18 @@ body.pad-offen .qma-ck__b { min-height: 48px; padding: 8px 14px; font-size: 1rem
 body.pad-offen .qma-ck__frage textarea, body.pad-offen .qma-ck__felder textarea, body.pad-offen .qma-ck__felder input { font-size: 1.05rem; }
 body.pad-offen .diktat { min-width: 70px; font-size: 13px; }
 body.pad-offen .diktat svg { width: 28px; height: 28px; }
+
+/* Offene Punkte aus früheren Audits oben in der Checkliste (seit 1.471.0) */
+.qma-ck__vor { margin: 0 0 14px; padding: 10px 12px; border-radius: 10px; background: #fff8e8; border: 1px solid #ecd9a6; }
+body.dunkel .qma-ck__vor { background: #33291a; border-color: #5a4a2a; }
+.qma-ck__vor h3 { margin: 0 0 8px; font-size: 1.05rem; }
+.qma-ck__vor ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.qma-ck__vor > p { margin: 8px 0 0; }
+.qma-ck__vorpunkt { background: #fff; }
+body.dunkel .qma-ck__vorpunkt { background: #1c232c; }
+.qma-ck__vorpunkt--erledigt { border-left-color: #2e9e4f; }
+.qma-ck__vorpunkt--teil { border-left-color: #e5b300; }
+.qma-ck__vorpunkt--offen { border-left-color: #d33; }
+.qma-ck__b--vp-erledigt.qma-ck__b--an { background: #2e9e4f; border-color: #2e9e4f; color: #fff; }
+.qma-ck__b--vp-teil.qma-ck__b--an { background: #e5b300; border-color: #e5b300; color: #111 !important; }
+.qma-ck__b--vp-offen.qma-ck__b--an { background: #d33; border-color: #d33; color: #fff; }

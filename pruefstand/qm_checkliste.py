@@ -20,7 +20,10 @@ TEST.daten.qma_texte = [
     { id: 'q3', norm: '8.7', thema: 'Fehlerhafte Teile', frage: 'Werden Teile gesperrt?', nachweis: '' } ] } },
 ];
 TEST.daten.qma_eintraege = [
-  { id: 'a-alt', art: 'audit', nr: 1, titel: 'Produktion alt', status: 'durchgefuehrt', daten: { art: 'intern', bereich: 'Produktion', datum: '2024-11-11' } },
+  { id: 'a-alt', art: 'audit', nr: 1, titel: 'Produktion alt', status: 'durchgefuehrt', daten: { art: 'intern', bereich: 'Produktion', datum: '2024-11-11',
+    feststellungen: 'Prozesse überprüfen und anpassen\\nBehälter anschreiben' } },
+  { id: 'w-1', art: 'abweichung', nr: 1, titel: 'Behälter anschreiben', status: 'umgesetzt', daten: { quelle: 'audit', titel: 'Behälter anschreiben', herkunft: 'a-alt' } },
+  { id: 'w-2', art: 'abweichung', nr: 2, titel: 'Schon erledigt', status: 'wirksam', daten: { quelle: 'audit', titel: 'Schon erledigt', herkunft: 'a-alt' } },
   { id: 'a-neu', art: 'audit', nr: 2, titel: 'Produktion', status: 'vorgesehen', faellig: '2026-06-30', daten: { art: 'intern', bereich: 'Produktion', quartal: '2026-Q2', auditor: 'Daniel Müller' } },
 ];
 """
@@ -39,6 +42,12 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-qmackliste='a-neu']").count() == 1, "Checkliste-Knopf in der Liste")
     pg.click("[data-qmackstart='a-neu']"); pg.wait_for_selector("#qma-ck")
     pruefe(pg.locator("[data-qmackfrage]").count() == 3, "drei Fragen")
+    vor = pg.evaluate("[...document.querySelectorAll('[data-qmackvor]')].map(x => x.dataset.qmackvor)")
+    pruefe(vor == ["w-1", "a-alt#0"], "offene Punkte: offene Abweichung und nicht übertragene Feststellung, ohne erledigte: %s" % vor)
+    pg.click("[data-qmackvor='w-1'] [data-qmackvorb='erledigt']")
+    pg.fill("[data-qmackvortext='w-1']", "alle Behälter angeschrieben")
+    pg.click("[data-qmackvor='a-alt#0'] [data-qmackvorb='offen']")
+    pg.wait_for_timeout(300); pg.screenshot(path=BILD + "/qma-checkliste-vor.png")
     pruefe(pg.input_value("[data-qmackkopf='auditor']") == "Daniel Müller", "Auditor vom Audit übernommen")
     pg.fill("[data-qmackkopf='auditiert']", "SH, ET")
     pg.click("[data-qmackfrage='q1'] [data-qmackb='ok']")
@@ -67,7 +76,12 @@ with sync_playwright() as p:
     pruefe(a["daten"]["checkliste"].get("abgeschlossen_am") and len(a["daten"]["checkliste"]["fragen"]) == 3, "Fragen eingefroren")
     pruefe("8.5.2" in (a["daten"].get("norm") or ""), "Normkapitel eingetragen")
     pruefe(a["daten"].get("auditiert") == "SH, ET" and a["daten"].get("uebertragen"), "Kopf und übertragen gesetzt")
-    abw = pg.evaluate("TEST.daten.qma_eintraege.filter(e => e.art === 'abweichung')")
+    w1 = pg.evaluate("TEST.daten.qma_eintraege.find(e => e.id === 'w-1')")
+    pruefe(w1["status"] == "wirksam" and "Geprüft im Audit" in w1["daten"]["wirksamkeit"] and "angeschrieben" in w1["daten"]["wirksamkeit"], "erledigter Punkt wird wirksam: %s" % w1["daten"].get("wirksamkeit"))
+    neu_vor = pg.evaluate("TEST.daten.qma_eintraege.filter(e => e.art === 'abweichung' && (e.titel || '').startsWith('Offen aus Audit 11.11.2024'))")
+    pruefe(len(neu_vor) == 1 and neu_vor[0]["daten"]["herkunft"] == "a-neu", "noch offene Feststellung als neuer Eintrag")
+    pruefe(len(a["daten"]["checkliste"].get("vorliste") or []) == 2, "Punkte eingefroren")
+    abw = pg.evaluate("TEST.daten.qma_eintraege.filter(e => e.art === 'abweichung' && e.daten.herkunft === 'a-neu' && !e.titel.startsWith('Offen aus'))")
     pruefe(len(abw) == 2 and abw[0]["titel"].startswith("Abweichung 8.5.2"), "zwei Abweichungen, Abweichung zuerst: %s" % [x["titel"] for x in abw])
     up = pg.evaluate("TEST.protokoll.filter(x => x.art === 'upload')")
     pruefe(len(up) == 1 and up[0]["typ"] == "application/pdf" and up[0]["groesse"] > 5000, "PDF hochgeladen %s" % up)
