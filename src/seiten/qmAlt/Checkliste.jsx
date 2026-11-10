@@ -21,6 +21,7 @@ import {
   auditBereiche, heute, plusTageIso,
 } from "../../daten/qmAlt.js";
 import { berichtDateiAblegen, berichtZeigen } from "./AuditPlan.jsx";
+import { DiktatKnopf } from "../../teile/Diktat.jsx";
 
 let jetztSpeichern = null;
 
@@ -162,7 +163,7 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
   return (
     <div className="dialog dialog--breit qma-ck" id="qma-ck">
       <div className="blatt__kopf qma-ck__kopf">
-        <h2>Auditcheckliste {vorlage.bereich} <span className="klein">ISO 9001:2026 · {e.titel}</span></h2>
+        <h2>Auditcheckliste {vorlage.bereich} <span className="klein">ISO 9001:2026{e.titel !== vorlage.bereich ? " · " + e.titel : ""}</span></h2>
         <span className="klein qma-ck__stand" id="qma-ck-stand">{beantwortet} / {fragen.length} beantwortet{stand ? " · " + stand : ""}</span>
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
       </div>
@@ -200,19 +201,24 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
                       onClick={() => antwort(f.id, { b: x.b === w ? null : w })}>{t}</button>
                   ))}
                 </div>
-                <textarea rows={x.b === "a" || x.b === "v" ? 3 : 2} value={x.text || ""} disabled={gesperrt} data-qmacktext={f.id}
-                  placeholder={x.b === "a" ? "Was genau entspricht nicht der Vorgabe? Beispiel, Auftrag, Maschine …"
-                    : x.b === "v" ? "Was könnte besser werden?" : "Bemerkung, gesehener Nachweis …"}
-                  onChange={(ev) => antwort(f.id, { text: ev.target.value })} />
+                <div className="qma-ck__textfeld">
+                  <textarea rows={x.b === "a" || x.b === "v" ? 3 : 2} value={x.text || ""} disabled={gesperrt} data-qmacktext={f.id}
+                    placeholder={x.b === "a" ? "Was genau entspricht nicht der Vorgabe? Beispiel, Auftrag, Maschine …"
+                      : x.b === "v" ? "Was könnte besser werden?" : "Bemerkung, gesehener Nachweis …"}
+                    onChange={(ev) => antwort(f.id, { text: ev.target.value })} />
+                  <DiktatKnopf wert={x.text || ""} gesperrt={gesperrt} setzen={(t) => antwort(f.id, { text: t })} />
+                </div>
               </li>
             );
           })}
         </ol>
         <div className="qma-ck__felder qma-ck__felder--gross">
-          <label>Stärken<textarea rows={3} value={ck.staerken || ""} disabled={gesperrt} data-qmackstaerken=""
-            onChange={(ev) => aendern((c) => ({ ...c, staerken: ev.target.value }))} /></label>
-          <label>Gesamteindruck<textarea rows={3} value={ck.fazit || ""} disabled={gesperrt} data-qmackfazit=""
-            onChange={(ev) => aendern((c) => ({ ...c, fazit: ev.target.value }))} /></label>
+          <label>Stärken<span className="qma-ck__textfeld"><textarea rows={3} value={ck.staerken || ""} disabled={gesperrt} data-qmackstaerken=""
+            onChange={(ev) => aendern((c) => ({ ...c, staerken: ev.target.value }))} />
+            <DiktatKnopf wert={ck.staerken || ""} gesperrt={gesperrt} setzen={(t) => aendern((c) => ({ ...c, staerken: t }))} /></span></label>
+          <label>Gesamteindruck<span className="qma-ck__textfeld"><textarea rows={3} value={ck.fazit || ""} disabled={gesperrt} data-qmackfazit=""
+            onChange={(ev) => aendern((c) => ({ ...c, fazit: ev.target.value }))} />
+            <DiktatKnopf wert={ck.fazit || ""} gesperrt={gesperrt} setzen={(t) => aendern((c) => ({ ...c, fazit: t }))} /></span></label>
         </div>
       </div>
       <div className="qma-ck__fuss">

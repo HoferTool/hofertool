@@ -12541,3 +12541,46 @@ body.dunkel .qma-ck__b { background: #222b36; border-color: #3d4a5a; }
   .qma-ck__wahl { justify-content: flex-start; }
   .qma-ck__wahl .qma-ck__b { flex: 1 1 40%; }
 }
+
+/* ---------- Diktat in Textfeldern (seit 1.470.0) ---------- */
+.qma-ck__textfeld { grid-column: 1 / -1; display: flex; gap: 6px; align-items: stretch; min-width: 0; }
+.qma-ck__textfeld textarea { flex: 1 1 auto; }
+.diktat { flex: 0 0 auto; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 56px; padding: 4px 8px; border-radius: 8px; border: 1px solid #c4ccd6; background: #fff; color: #234;
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.diktat svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.diktat--an { background: #d33; border-color: #d33; color: #fff !important; animation: diktat-puls 1.2s ease-in-out infinite; }
+.diktat:disabled { opacity: .4; cursor: default; }
+body.dunkel .diktat:not(.diktat--an) { background: #222b36; border-color: #3d4a5a; }
+@keyframes diktat-puls { 50% { box-shadow: 0 0 0 6px rgba(221, 51, 51, .25); } }
+@media (prefers-reduced-motion: reduce) { .diktat--an { animation: none; } }
+
+/* ---------- Pad Mode: Audit (seit 1.470.0) ---------- */
+#pad .pad-audit { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 16px 28px; display: flex; flex-direction: column; gap: 14px;
+  max-width: 900px; width: 100%; margin: 0 auto; box-sizing: border-box; }
+#pad .pad-audit__leer { color: #cdd6e0; font-size: 1.1rem; text-align: center; margin-top: 30px; }
+#pad .pad-audit__karte { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; width: 100%;
+  padding: 18px 20px; border-radius: 16px; border: 1px solid #2f4d74; background: linear-gradient(180deg, #16324f, #0f2238);
+  color: #fff; font: inherit; cursor: pointer; }
+#pad .pad-audit__bereich { font-size: 1.7rem; font-weight: 700; }
+#pad .pad-audit__titel { font-size: 1.05rem; opacity: .9; }
+#pad .pad-audit__info { font-size: .95rem; color: #b9c8d8; }
+#pad .pad-audit__balken { display: block; width: 100%; height: 10px; border-radius: 5px; background: #24384f; overflow: hidden; }
+#pad .pad-audit__balken i { display: block; height: 100%; background: #3fbf6a; }
+#pad .pad-audit__los { align-self: flex-end; margin-top: 4px; padding: 10px 18px; border-radius: 10px; background: #fff; color: #0f2238;
+  font-weight: 700; font-size: 1.1rem; }
+#pad .pad-audit__zwischen { color: #b9c8d8; margin: 10px 0 0; font-size: 1rem; text-transform: uppercase; letter-spacing: .05em; }
+#pad .pad-audit__fertig { display: flex; flex-direction: column; gap: 8px; }
+#pad .pad-audit__zeile { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; border-radius: 10px;
+  background: #141c26; color: #dfe7ef; }
+#pad .pad-audit__zeile > span { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+#pad .pad-audit__knopf { padding: 8px 14px; border-radius: 8px; border: 1px solid #3d4a5a; background: #222b36; color: #fff; font: inherit; cursor: pointer; }
+/* Im Pad (iPad) die Checkliste fast über den ganzen Bildschirm */
+body.pad-offen .qma-ck-huelle .dialog.qma-ck:not(.dialog--auftrag):not(.nb) { padding: 0; border-radius: 16px; width: calc(100vw - 24px) !important; max-width: 1100px !important;
+  height: calc(100vh - 24px); height: calc(100dvh - 24px); max-height: none !important; }
+body.pad-offen .dialog.qma-ck:not(.dialog--auftrag):not(.nb) textarea { min-height: 70px; font-size: 1.05rem; }
+body.pad-offen .dialog.qma-ck:not(.dialog--auftrag):not(.nb) input { min-height: 48px; font-size: 1.05rem; }
+body.pad-offen .qma-ck__b { min-height: 48px; padding: 8px 14px; font-size: 1rem; }
+body.pad-offen .qma-ck__frage textarea, body.pad-offen .qma-ck__felder textarea, body.pad-offen .qma-ck__felder input { font-size: 1.05rem; }
+body.pad-offen .diktat { min-width: 70px; font-size: 13px; }
+body.pad-offen .diktat svg { width: 28px; height: 28px; }

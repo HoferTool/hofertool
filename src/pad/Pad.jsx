@@ -21,6 +21,7 @@ import { createRoot } from "react-dom/client";
 import { alt, reactAufraeumen } from "../bruecke.jsx";
 import Maschine, { maschineLaden } from "./Maschine.jsx";
 import QsCheck, { qsLaden } from "./QsCheck.jsx";
+import PadAudit, { auditLaden } from "./Audit.jsx";
 import { padGeraet, geraetSetzen, istPadKonto, GeraetMarke } from "./geraet.jsx";
 import { PadMeldungenKnopf } from "./QsMeldung.jsx";
 export { padGeraetZustand } from "./geraet.jsx";
@@ -180,6 +181,7 @@ async function sichtLaden(p) {
   }
   if (p.wo === "qsparks") p.wo = "qs"; // gemerkt von vor 1.62.0
   if (p.wo === "qs") return qsLaden(p);
+  if (p.wo === "audit" && alt.seiteSichtbar("qmalt")) return auditLaden();
   if (p.wo === "planwand") return { art: "planwand" };
   if (String(p.wo).indexOf("seite:") === 0) {
     const pfad = p.wo.slice(6);
@@ -246,6 +248,7 @@ function Pad({ h, auffrischen }) {
   if (d.art === "maschinen") return <Maschinen eigene={d.eigene} laufend={d.laufend} />;
   if (d.art === "maschine") return <Maschine d={d} />;
   if (d.art === "qs") return <QsCheck zeilen={d.zeilen} teile={d.teile} />;
+  if (d.art === "audit") return <PadAudit d={d} Kopf={PadKopf} neu={padZeichnen} />;
   if (d.art === "planwand") {
     return <Rahmen key={stand.nr} titel="Planwand" id="pad-planwand" klasse="pad__rolle"
       zeichne={(ziel) => alt.seitePlanwand(ziel)} />;
@@ -273,6 +276,11 @@ function Start() {
             onClick={() => gehe((p) => { p.wo = "qs"; })}>
             <span className="pad-kachel__zeichen">🔍</span><span>QS Check</span>
           </button>
+          {/* Audit mit Checkliste (seit 1.470.0), nur wer QM alternativ sieht */}
+          {alt.seiteSichtbar("qmalt") && <button className="pad-kachel pad-kachel--qs pad-kachel--audit" data-padwo="audit"
+            onClick={() => gehe((p) => { p.wo = "audit"; })}>
+            <span className="pad-kachel__zeichen">☑</span><span>Audit</span>
+          </button>}
         </div>
         {istPadKonto() && <GeraetZeile />}
       </div>
