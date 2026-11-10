@@ -12347,3 +12347,28 @@ body.dunkel .qma-stufe--1 { background: #4a3d10; } body.dunkel .qma-stufe--2 { b
 .eba-platzfenster .eba-pf-wzb-leiste .knopf { padding: 2px 7px; min-height: 0; }
 .eba-platzfenster .eba-pf-wzb-tipp { margin-top: 0; }
 .eba-platzfenster .eba-pf-wzb-leiste { margin-top: 2px; gap: 3px; }
+
+/* Werkzeugzeilen im Werkzeugfeld zum Markieren, so knapp wie Text (1.463.1) */
+.eba-pf-artikel .eba-pf-rich.eba-pf-wzzeile { border: 1px solid transparent; background: transparent; padding: 0 4px; min-height: 0;
+  line-height: 1.35; border-radius: 4px; box-shadow: none; }
+.eba-pf-artikel .eba-pf-rich.eba-pf-wzzeile:hover, .eba-pf-artikel .eba-pf-rich.eba-pf-wzzeile:focus { border-color: var(--linie-stark); }
+.eba-pf-artikel .eba-pf-wzzeile--werkzeug { font-weight: 700; }
+.eba-pf-artikel--zeilen { display: flex; flex-direction: column; gap: 0; }
+.eba-pf-artikel .eba-pf-wzzeile span { display: inline; font-size: inherit; color: inherit; }
+.eba-pf-artikel .eba-pf-wzzeile { color: var(--tinte); }
+
+/* 1.464.0: Werkzeugbild als eigenes Feld auf der anderen Seite des
+   Bildschirms, gegenüber dem Fenster des Platzes (Wunsch Patrick
+   10. November 2026: „auf der anderen Seite vom Bildschirm, nicht unten dran“) */
+.eba-pf-wzb.eba-pf-wzb-feld { position: fixed; top: var(--wzb-oben, 64px); width: 380px; max-width: calc(100vw - 32px);
+  max-height: calc(100vh - var(--wzb-oben, 64px) - 16px); overflow: auto; z-index: 5; margin: 0; background: var(--flaeche); color: var(--tinte);
+  border: 1px solid var(--linie-stark); border-radius: 10px; padding: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.22); }
+.eba-pf-wzb-feld--links { left: 16px; }
+.eba-pf-wzb-feld--rechts { right: 16px; }
+.eba-pf-wzb-titel { font-weight: 700; margin-bottom: 6px; }
+.eba-pf-wzb-feld .eba-pf-wzb-bild { width: 100%; max-width: none; height: auto; }
+.eba-pf-wzb-feld .eba-pf-wzb-tipp { margin-top: 4px; }
+@media (max-width: 820px) {
+  .eba-pf-wzb.eba-pf-wzb-feld { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; max-height: 40vh; }
+}
+.eba-pf-wzb-titel[data-wzb-ziehen] { cursor: move; touch-action: none; user-select: none; }

@@ -48,9 +48,9 @@ with sync_playwright() as p:
       return [y('[data-pf="wzBilder"]'), y('[data-pf="taetigkeit"]')]; }""")
     pruefe("Häkchen Werkzeugbilder ganz oben", pos[0] is not None and pos[0] < pos[1])
     pf.locator("[data-pf='wzBilder']").check(); pg.wait_for_timeout(200)
-    pos = pg.evaluate("""() => { const f = document.querySelector('[data-platzfenster="T100"]');
-      const y = (s) => f.querySelector(s).getBoundingClientRect().top; return [y('[data-pf-wzb]'), y('[data-pf="geo"]')]; }""")
-    pruefe("Bilder oben beim Häkchen", pos[0] < pos[1])
+    fb, wb = pf.bounding_box(), pg.locator("[data-pf-wzb]").bounding_box()
+    pruefe("Bild gegenüber dem Fenster", pf.locator("[data-pf-wzb]").count() == 0
+      and (wb["x"] + wb["width"] < fb["x"] or wb["x"] > fb["x"] + fb["width"]))
     pf.locator("[data-pf='wzBilder']").uncheck()
     seiteT100 = pf.get_attribute("data-pf-seite")
     # Werkzeug wählen

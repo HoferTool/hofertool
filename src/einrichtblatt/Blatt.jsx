@@ -817,6 +817,20 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
   // gegenüber, damit das Fenster klein bleibt; die Farbe der Markierung
   // kommt aus der Palette oben im Blatt, wenn kein Text markiert ist
   // (Wunsch Patrick 10. November 2026)
+  // Lieferant, Artikel-Nr. und Beschreibung stehen im Werkzeugfeld wie auf
+  // dem Blatt, nicht zum Schreiben, aber zum Markieren und Formatieren mit
+  // der Leiste oben (Wunsch Patrick 10. November 2026: „beim Werkzeugfeld
+  // dazustehen, ohne viel mehr Platz zu brauchen“)
+  const wzZeile = (k) => {
+    const t = platzText(p, nr, k);
+    if (!t) return null;
+    return <RichFeld key={k} className={"eba-pf-rich eba-pf-wzzeile eba-pf-wzzeile--" + k} data-pf-fmt={k} einzeilig nurLesen
+      text={t} html={(p.fmt || {})[k]} style={stilCss(platzStil(p, k), false)} aendern={(tt, h) => setP((q) => {
+        const fm = Object.assign({}, q.fmt || {});
+        if (h) fm[k] = h; else delete fm[k];
+        return Object.assign({}, q, { fmt: Object.keys(fm).length ? fm : null });
+      })} />;
+  };
   const wzbAn = langdreher && p.wzBilder;
   useEffect(() => {
     if (!wzbAn || !p.wzMarke) return undefined;
@@ -824,7 +838,64 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     wzFarbeZiel = ziel;
     return () => { if (wzFarbeZiel === ziel) wzFarbeZiel = null; };
   }, [wzbAn, !!p.wzMarke]);
-  return (
+  // Das Werkzeugbild steht gegenüber dem Fenster: Fenster rechts → Bild
+  // links und umgekehrt; verschoben zählt, wo die Mitte des Fensters liegt
+  const wzbSeite = lage
+    ? (lage.x + ((fensterRef.current && fensterRef.current.offsetWidth) || 380) / 2 > window.innerWidth / 2 ? "links" : "rechts")
+    : (seite === "links" ? "rechts" : "links");
+  // Oben steht auf derselben Seite die Farbpalette; das Bild beginnt
+  // darum erst unter ihr, damit sie bedienbar bleibt
+  const [wzbOben, setWzbOben] = useState(64);
+  useEffect(() => {
+    if (!wzbAn) return undefined;
+    const messen = () => {
+      const z = document.querySelector("[data-eba-schriftzeile]");
+      const u = z ? Math.round(z.getBoundingClientRect().bottom) + 8 : 64;
+      setWzbOben(Math.max(64, u));
+    };
+    messen();
+    window.addEventListener("resize", messen);
+    document.addEventListener("scroll", messen, true);
+    return () => { window.removeEventListener("resize", messen); document.removeEventListener("scroll", messen, true); };
+  }, [wzbAn]);
+  // Das Bildfeld lässt sich am Kopf verschieben wie das Fenster (Wunsch
+  // Patrick 10. November 2026: „soll auch verschiebbar sein“); beim
+  // nächsten Platz steht es wieder gegenüber dem Fenster
+  const [wzbLage, setWzbLage] = useState(null);
+  const wzbRef = useRef(null);
+  const wzbZiehen = (e) => {
+    if (e.button > 0 || (e.target.closest && e.target.closest("button"))) return;
+    const el = wzbRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const dx = e.clientX - r.left, dy = e.clientY - r.top;
+    e.preventDefault();
+    const weiter = (ev) => setWzbLage({
+      x: Math.max(0, Math.min(window.innerWidth - r.width, ev.clientX - dx)),
+      y: Math.max(0, Math.min(window.innerHeight - 60, ev.clientY - dy)) });
+    const ende = () => { window.removeEventListener("pointermove", weiter); window.removeEventListener("pointerup", ende); };
+    window.addEventListener("pointermove", weiter);
+    window.addEventListener("pointerup", ende);
+  };
+  const wzbTnr = (p.tnr != null && String(p.tnr).trim()) || platzName(nr) || "";
+  return (<>
+      {wzbAn && <div className={"eba-pf-wzb eba-pf-wzb-feld eba-pf-wzb-feld--" + wzbSeite} data-pf-wzb="" data-pf-wzb-seite={wzbLage ? "frei" : wzbSeite}
+        ref={wzbRef} style={wzbLage ? { left: wzbLage.x + "px", top: wzbLage.y + "px", right: "auto", bottom: "auto", maxHeight: "calc(100vh - " + (wzbLage.y + 16) + "px)" }
+          : { "--wzb-oben": wzbOben + "px" }} onClick={(e) => e.stopPropagation()} onPointerDown={() => markierungVergessen()}>
+        <div className="eba-pf-wzb-titel" data-wzb-ziehen="" onPointerDown={wzbZiehen} title="Am Kopf ziehen zum Verschieben">Werkzeugbild {wzbTnr}</div>
+        <WerkzeugBilder className="eba-wzb eba-pf-wzb-bild" marke={p.wzMarke} versatz={p.wzVersatz} farbe={p.wzFarbe}
+          waehlen={(m) => setP((q) => Object.assign({}, q, { wzMarke: m, wzVersatz: null }))}
+          schieben={(v) => setP((q) => Object.assign({}, q, { wzVersatz: v }))} />
+        <div className="eba-pf-wzb-rechts">
+        <div className="eba-pf-wzb-tipp">{p.wzMarke ? "Ziehen oder Pfeile schieben, Antippen nimmt weg. Farbe oben." : "Das passende Werkzeug antippen."}</div>
+        {p.wzMarke && <div className="eba-pf-wzb-leiste">
+          {[["◀", -1, 0, "links"], ["▲", 0, -1, "oben"], ["▼", 0, 1, "unten"], ["▶", 1, 0, "rechts"]].map(([z, dx, dy, w]) =>
+            <button key={w} type="button" className="knopf knopf--klein" data-wzb-schieben={w} title={"Nach " + w + " schieben"}
+              onClick={() => setP((q) => { const v = q.wzVersatz || {}; return Object.assign({}, q, { wzVersatz: { x: wzBegrenzt((v.x || 0) + dx), y: wzBegrenzt((v.y || 0) + dy) } }); })}>{z}</button>)}
+          <button type="button" className="knopf knopf--klein knopf--still" data-wzb-mitte="" onClick={() => setP((q) => Object.assign({}, q, { wzVersatz: null }))}>Mitte</button>
+        </div>}
+        </div>
+      </div>}
     <div ref={fensterRef} className={"eba-platzfenster" + (!lage && seite === "links" ? " eba-platzfenster--links" : "")}
       data-platzfenster={nr} data-pf-seite={lage ? "frei" : seite || "rechts"} onClick={(e) => e.stopPropagation()}
       style={lage ? { left: lage.x + "px", top: lage.y + "px", right: "auto" } : undefined}>
@@ -844,27 +915,14 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
           onBlur={() => setP((q) => q.tnr == null ? q : Object.assign({}, q, { tnr: tnrSchreiben(q.tnr) }))} />
         {titel ? <b>{titel}</b> : !platzName(nr) && !p.tnr ? <b className="eba-pf-ohne-nr">Feld ohne T-Nr.</b> : null}</span>
         <button className="knopf knopf--klein knopf--still" data-pf-zu="" onClick={zu}>✕</button></div>
-      {/* Häkchen Werkzeugbilder ganz oben, Bild und Pfeile gleich darunter
-          und klein, die Farbe kommt aus der Palette oben im Blatt (Wunsch
-          Patrick 10. November 2026: „alles oben bei Werkzeug, ohne viel
-          mehr Platz“) */}
+      {/* Häkchen Werkzeugbilder ganz oben im Fenster; Bild und Pfeile
+          stehen als eigenes Feld auf der anderen Seite des Bildschirms,
+          damit das Fenster klein bleibt (Wunsch Patrick 10. November 2026:
+          „auf der anderen Seite vom Bildschirm, nicht unten dran“); die
+          Farbe kommt aus der Palette oben im Blatt */}
       {langdreher && <div className="eba-pf-wzb-haken" data-pf-wzb-haken="">
         <label className="eba-pf-check"><input type="checkbox" data-pf="wzBilder" checked={!!p.wzBilder}
           onChange={(e) => setP(Object.assign({}, p, { wzBilder: e.target.checked }))} /> Werkzeugbilder im Feld zeigen</label></div>}
-      {wzbAn && <div className="eba-pf-wzb" data-pf-wzb="" onPointerDown={() => markierungVergessen()}>
-        <WerkzeugBilder className="eba-wzb eba-pf-wzb-bild" marke={p.wzMarke} versatz={p.wzVersatz} farbe={p.wzFarbe}
-          waehlen={(m) => setP((q) => Object.assign({}, q, { wzMarke: m, wzVersatz: null }))}
-          schieben={(v) => setP((q) => Object.assign({}, q, { wzVersatz: v }))} />
-        <div className="eba-pf-wzb-rechts">
-        <div className="eba-pf-wzb-tipp">{p.wzMarke ? "Ziehen oder Pfeile schieben, Antippen nimmt weg. Farbe oben." : "Das passende Werkzeug antippen."}</div>
-        {p.wzMarke && <div className="eba-pf-wzb-leiste">
-          {[["◀", -1, 0, "links"], ["▲", 0, -1, "oben"], ["▼", 0, 1, "unten"], ["▶", 1, 0, "rechts"]].map(([z, dx, dy, w]) =>
-            <button key={w} type="button" className="knopf knopf--klein" data-wzb-schieben={w} title={"Nach " + w + " schieben"}
-              onClick={() => setP((q) => { const v = q.wzVersatz || {}; return Object.assign({}, q, { wzVersatz: { x: wzBegrenzt((v.x || 0) + dx), y: wzBegrenzt((v.y || 0) + dy) } }); })}>{z}</button>)}
-          <button type="button" className="knopf knopf--klein knopf--still" data-wzb-mitte="" onClick={() => setP((q) => Object.assign({}, q, { wzVersatz: null }))}>Mitte</button>
-        </div>}
-        </div>
-      </div>}
       <div className="eba-pf-oben">
         {BILDER_AN && <button className="eba-pf-bildknopf" data-pf-bild="" onClick={() => setBildWahl(!bildWahl)} title="Bild wählen">
           {bild ? <BildZeichnung schluessel={bild.schluessel} /> : <span className="eba-plus">Bild<br />wählen</span>}
@@ -882,13 +940,13 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
       <div className="eba-pf-werkzeug" data-pf-werkzeug="">
         <span className="eba-pf-titel">Werkzeug</span>
         {p.article_id && p.ungeprueft
-          ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-bestaetigen=""><b>„{p.werkzeug}“</b>
+          ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-bestaetigen="">{wzZeile("werkzeug")}
               <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ""}. Noch nicht hinterlegt: „Auswählen“, die Suche steht schon da. Fehlt es, dort neu anlegen.</span></div>
           : p.article_id
-          ? <div className="eba-pf-artikel"><b>{p.werkzeug}</b>
-              <span>{[artikel && artikel.spezial ? "Spezialwerkzeug" : "", artikel && artikel.name, p.hersteller].filter(Boolean).join(" · ")}</span></div>
+          ? <div className="eba-pf-artikel eba-pf-artikel--zeilen">{wzZeile("hersteller")}{wzZeile("werkzeug")}{wzZeile("bezeichnung")}
+              {artikel && artikel.spezial && <span>Spezialwerkzeug</span>}</div>
           : p.werkzeug
-            ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-frei=""><b>„{p.werkzeug}“</b>
+            ? <div className="eba-pf-artikel eba-pf-artikel--frei" data-pf-frei="">{wzZeile("werkzeug")}
                 <span>Aus dem Excel{p.hersteller ? ", " + p.hersteller : ", ohne Hersteller"}. Noch nicht hinterlegt: „Auswählen“, die Suche steht schon da. Fehlt es, dort neu anlegen.</span></div>
             : <div className="eba-pf-artikel"><span>Noch kein Werkzeug</span></div>}
         <div className="eba-pf-wknoepfe">
@@ -902,21 +960,6 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
         <RichFeld className="eba-pf-rich eba-pf-rich--mehr" data-pf="geo" text={p.geo || ""} html={(p.fmt || {}).geo} aendern={rich("geo")}
           platzhalter="z. B. X 0.12  Z -0.05"
           style={{ color: p.geoFarbe || undefined, WebkitTextFillColor: p.geoFarbe || undefined, fontWeight: p.geoFett ? 700 : undefined }} /></label>
-      {/* Zeilen aus dem Werkzeug: nicht zum Schreiben, aber zum Markieren
-          und Formatieren mit der Leiste oben links (seit 1.462.0) */}
-      {PLATZ_NUR_FMT.some((k) => k !== "tnr" && platzText(p, nr, k)) && <div className="eba-pf-nurfmt" data-pf-nurfmt="">
-        <span className="eba-pf-titel">Auf dem Blatt (markieren zum Formatieren)</span>
-        {[["hersteller", "Lieferant"], ["werkzeug", "Artikel-Nr."], ["bezeichnung", "Beschreibung"]].map(([k, name]) => {
-          const t = platzText(p, nr, k);
-          if (!t) return null;
-          return <label key={k} className="feld"><span>{name}</span><RichFeld className="eba-pf-rich eba-pf-rich--lesen" data-pf-fmt={k} einzeilig nurLesen
-            text={t} html={(p.fmt || {})[k]} style={stilCss(platzStil(p, k), false)} aendern={(tt, h) => setP((q) => {
-              const fm = Object.assign({}, q.fmt || {});
-              if (h) fm[k] = h; else delete fm[k];
-              return Object.assign({}, q, { fmt: Object.keys(fm).length ? fm : null });
-            })} /></label>;
-        })}
-      </div>}
       {BILDER_AN && <label className="eba-pf-check"><input type="checkbox" data-pf="ohneBild" checked={!!p.ohneBild}
         onChange={(e) => setP(Object.assign({}, p, { ohneBild: e.target.checked }))} /> Kein Bild auf dem Blatt</label>}
       <div className="eba-pf-zeile">
@@ -934,7 +977,7 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
         <button className="knopf knopf--klein knopf--haupt" data-pf-ok="" onClick={() => fertig()}>Übernehmen</button>
       </div>
     </div>
-  );
+  </>);
 }
 
 // Auswahl der Bilder: nur hochgeladene Bilder ohne Beschriftung, dazu
