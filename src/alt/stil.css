@@ -12600,3 +12600,73 @@ body.dunkel .qma-ck__vorpunkt { background: #1c232c; }
 .qma-ck__b--vp-teil.qma-ck__b--an { background: #e5b300; border-color: #e5b300; color: #111 !important; }
 .qma-ck__b--vp-offen.qma-ck__b--an { background: #d33; border-color: #d33; color: #fff; }
 .pad-audit__mehr { align-self: center; margin: 4px 0 8px; }
+
+/* ---------- QMS: Prozesslandkarte im Stil des HoferTools (seit 1.475.0) ----------
+   Wunsch Patrick 10. November 2026: „soll zum HoferTool passen und
+   professioneller aussehen“. Helle Ringe in Abstufungen des Firmenblaus mit
+   feinen Rändern, Führung in der Mitte kräftig blau, weisse Kärtchen mit
+   blauer Kante, Ablauf der Prozesse als gestrichelte Bahn mit Pfeilen. */
+.qma-ellipse { aspect-ratio: 1.55; margin-top: 10px; }
+.qma-ring { box-sizing: border-box; }
+.qma-ring--4 { background: #f5f7fa; border: 1px solid var(--linie); }
+.qma-ring--3 { background: #ebf0f7; border: 1px solid #d3dcea; }
+.qma-ring--2 { background: #d6e2f3; border: 1px solid #bccde6; }
+.qma-ring--1 { background: linear-gradient(160deg, #0a4a9e 0%, #003884 55%, #002b66 100%);
+  border: 0; box-shadow: 0 6px 18px rgba(0, 43, 102, .25), inset 0 1px 0 rgba(255,255,255,.15); }
+.qma-bahn { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform: none !important; pointer-events: none; overflow: visible; }
+.qma-bahn ellipse { fill: none; stroke: #7f9cc7; stroke-width: 1.5; stroke-dasharray: 5 5; }
+.qma-pfeil { width: 0; height: 0; border-top: .55cqw solid transparent; border-bottom: .55cqw solid transparent;
+  border-left: .9cqw solid #5a7fb5; pointer-events: none; }
+.qma-ebene { font-size: .82cqw; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: 1;
+  color: #6a7a90 !important; pointer-events: none; }
+.qma-ebene--3 { color: #47648f !important; }
+.qma-partei { background: #fff; color: var(--tinte) !important; border: 1px solid var(--linie); border-radius: 999px;
+  padding: .45cqw 1.2cqw; font-size: 1.02cqw; font-weight: 600; box-shadow: 0 1px 2px rgba(16, 24, 40, .08); cursor: pointer;
+  display: inline-flex; align-items: center; gap: .5cqw; transition: border-color .15s, box-shadow .15s; }
+.qma-partei:hover { border-color: var(--marke); box-shadow: 0 2px 8px rgba(0, 56, 132, .18); }
+.qma-qmteil { background: #fff; border: 1px solid #b7c8e2; border-radius: 999px; color: var(--marke) !important;
+  text-decoration: none; font-size: 1.08cqw; font-weight: 650; padding: .4cqw 1.1cqw; box-shadow: 0 1px 2px rgba(0, 56, 132, .1);
+  transition: background .15s, color .15s; }
+.qma-qmteil:hover { background: var(--marke); color: #fff !important; border-color: var(--marke); }
+.qma-knoten { background: #fff; border: 1px solid #c3d1e6; border-left: 3px solid var(--marke); border-radius: 6px;
+  width: 11.8cqw; max-width: none; min-height: 3.6cqw; justify-content: center; padding: .4cqw .6cqw; font-size: 1cqw; font-weight: 600;
+  color: var(--tinte) !important; box-shadow: 0 1px 3px rgba(16, 24, 40, .12); transition: box-shadow .15s, border-color .15s; }
+.qma-knoten:hover { outline: none; border-color: var(--marke); box-shadow: 0 4px 12px rgba(0, 56, 132, .25); }
+.qma-knoten__nr { font-size: .78cqw; font-weight: 700; color: var(--marke) !important; letter-spacing: .03em; margin-bottom: .1cqw; }
+.qma-knoten--f { width: 10.4cqw; max-width: none; background: rgba(255,255,255,.96); border: 1px solid rgba(255,255,255,.6);
+  border-left: 3px solid #8fb0dc; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); }
+.qma-fuehrung-mitte { background: none; box-shadow: none; padding: 0; color: #fff !important; font-size: .9cqw; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase; opacity: .85; pointer-events: none; }
+.qma-mehr { color: #fff !important; }
+.qma-legende { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .82rem; color: var(--gedaempft); margin: 6px 0 0; }
+.qma-legende__punkt { display: inline-flex; align-items: center; gap: 6px; }
+.qma-legende__punkt b { color: var(--tinte); }
+.qma-legende__farbe { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid #c2d1e8; }
+.qma-legende__farbe--1 { background: var(--marke); border-color: var(--marke); }
+.qma-legende__farbe--2 { background: #dbe5f3; }
+.qma-legende__farbe--3 { background: #ebf0f7; }
+.qma-legende__farbe--4 { background: #f5f7fa; border-color: var(--linie); }
+/* Dunkler Modus: Ringe in dunklen Blautönen, Kärtchen bleiben hell */
+body.dunkel .qma-ring--4 { background: #181e27; border-color: #2a3240; }
+body.dunkel .qma-ring--3 { background: #1c2533; border-color: #2c3a50; }
+body.dunkel .qma-ring--2 { background: #213049; border-color: #33476a; }
+body.dunkel .qma-bahn ellipse { stroke: #6f8fbf; }
+body.dunkel .qma-pfeil { border-left-color: #8fb0dc; }
+body.dunkel .qma-ebene { color: #8d9bb0 !important; -webkit-text-fill-color: #8d9bb0; }
+body.dunkel .qma-fuehrung-mitte { color: #fff !important; -webkit-text-fill-color: #fff; }
+body.dunkel .qma-partei:not(.qma-partei--flach), body.dunkel .qma-qmteil { background: #fff; }
+body.dunkel .qma-qmteil { color: #003884 !important; -webkit-text-fill-color: #003884; }
+body.dunkel .qma-qmteil:hover { background: #8fb0dc; -webkit-text-fill-color: #0b1626; }
+body.dunkel .qma-knoten .qma-knoten__nr { color: #003884 !important; -webkit-text-fill-color: #003884; }
+body.dunkel .qma-legende__punkt b { color: #fff; }
+@media (max-width: 820px) { .qma-legende { display: none; } }
+body.dunkel .qma-knoten:not(.qma-knoten--f) { border-left-color: #003884; }
+/* Handy und iPad hoch: Bänder in denselben Blautönen wie die Ellipse */
+.qma-partei.qma-partei--flach { font-size: .85rem; padding: 5px 12px; gap: 6px; }
+.qma-band--fuehrung { background: #e8eef7; border-color: #c2d1e8; }
+.qma-band--kern { background: #f1f5fb; border-color: #d3dcea; }
+.qma-band--qm { background: #f5f7fa; }
+.qma-band--kontext { background: #fafbfc; }
+.qma-landkarte .qma-prozess { border-left: 3px solid #003884; }
+body.dunkel .qma-band--fuehrung { background: #1d2a3d; }
+body.dunkel .qma-band--kern { background: #1b2433; }

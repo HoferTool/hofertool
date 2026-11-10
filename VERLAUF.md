@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.475.0** (10. November 2026): QMS: Prozesslandkarte neu gestaltet, passend zum HoferTool (helle Blautöne, blaue Mitte, Kärtchen mit blauer Kante, Prozessablauf als Bahn mit Pfeilen, Legende). Wunsch Patrick.
 - **1.474.0** (10. November 2026): Reiter QM aus der App entfernt (Daten bleiben in der Datenbank), QM alternativ heisst jetzt QMS; `#/qm` führt dorthin. Wunsch Patrick.
 - **1.473.0** (10. November 2026): Auditchecklisten für alle 17 Bereiche (Inhalt nur in der Datenbank); jede Frage hat drei Fassungen, die je nach Zahl der früheren Audits des Bereichs reihum wechseln. Über dem Auditplan und im Pad nur die nächsten Audits, der Rest aufklappbar.
 - **1.472.0** (10. November 2026): Planwand: Ziehen eines laufenden Auftrags fragt „Auftrag läuft schon … Trotzdem verschieben?“; auf eine Maschine mit laufendem Auftrag geht es gar nicht (Meldung statt halbem Schaden); lehnt die Datenbank ein Verschieben ab, gehen die ausgewichenen Aufträge zurück. Anlass: auf der 111 rutschten alle Aufträge bis Juni 2027, weil der Zug eines laufenden Auftrags von der 124 abgelehnt wurde, das Ausweichen aber gespeichert blieb.

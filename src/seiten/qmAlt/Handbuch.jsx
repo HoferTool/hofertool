@@ -49,7 +49,10 @@ export default function Handbuch({ daten, neu, gehe }) {
       </div>
       <p className="hinweis">Prozess antippen öffnet sein Prozessblatt. Ebene 03 führt zum passenden Reiter.
         {stand ? " Zuletzt geändert " + alt.datumZeitKurz(stand) + "." : ""}</p>
-      <div className="qma-legende klein">Ebenen von innen nach aussen: <b>01</b> Führung · <b>02</b> Prozesse · <b>03</b> QM-System · <b>04</b> Hofer + Co im Kontext</div>
+      <div className="qma-legende" aria-label="Ebenen von innen nach aussen">
+        {[["1", "01", "Führung"], ["2", "02", "Prozesse"], ["3", "03", "QM-System"], ["4", "04", "Hofer + Co im Kontext"]].map(([k, nr, text]) => (
+          <span key={k} className="qma-legende__punkt"><i className={"qma-legende__farbe qma-legende__farbe--" + k} /><b>{nr}</b> {text}</span>))}
+      </div>
       <Ellipse prozesse={prozesse} parteien={parteien} oeffnen={(p) => prozessDialog(p, prozesse, neu)} qmTeil={qmTeil}
         partei={parteiKnopf} />
       <Baender prozesse={prozesse} parteien={parteien} oeffnen={(p) => prozessDialog(p, prozesse, neu)} qmTeil={qmTeil}
@@ -95,6 +98,19 @@ function Ellipse({ prozesse, parteien, oeffnen, qmTeil, partei }) {
     <div className="qma-ellipse" id="qma-landkarte" aria-label="Landkarte des Management-Systems">
       <div className="qma-ring qma-ring--4" /><div className="qma-ring qma-ring--3" />
       <div className="qma-ring qma-ring--2" /><div className="qma-ring qma-ring--1" />
+      {/* Ablauf der Prozesse im Uhrzeigersinn: gestrichelte Bahn durch die
+          Kärtchen und kleine Pfeile dazwischen (seit 1.475.0) */}
+      <svg className="qma-bahn" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <ellipse cx="50" cy="50" rx="26.5" ry="21" vectorEffect="non-scaling-stroke" />
+      </svg>
+      {kern.length > 1 && kern.map((p, i) => {
+        const grad = 196 + (i + 0.5) * schritt;
+        const t = (grad * Math.PI) / 180;
+        // Richtung der Bahn in Bildpunkten (Fläche 1.55 : 1)
+        const winkel = (Math.atan2((21 / 1.55) * Math.cos(t), -26.5 * Math.sin(t)) * 180) / Math.PI;
+        return <span key={"pf" + i} className="qma-pfeil" aria-hidden="true"
+          style={{ ...aufEllipse(grad, 26.5, 21), transform: `translate(-50%, -50%) rotate(${winkel}deg)` }} />;
+      })}
       {parteien.map((x, i) => partei(x, i, false))}
       {QM_SYSTEM.map((q, i) => (
         <button key={q.text} className="qma-qmteil" data-qmateil={q.reiter} title={"ISO " + q.norm}
@@ -103,7 +119,9 @@ function Ellipse({ prozesse, parteien, oeffnen, qmTeil, partei }) {
         <button key={p.schluessel} className="qma-knoten" data-qmaprozess={p.schluessel}
           title={p.norm ? "ISO " + p.norm : ""} style={aufEllipse(196 + i * schritt, 26.5, 21)} onClick={() => oeffnen(p)}>
           {prozessNr(p) ? <span className="qma-knoten__nr">{prozessNr(p)}</span> : null}{p.titel}</button>))}
-      <div className="qma-fuehrung-mitte" style={{ left: "50%", top: "50%" }}>Führung</div>
+      <div className="qma-fuehrung-mitte" style={{ left: "50%", top: "50%" }}>01 · Führung</div>
+      <div className="qma-ebene qma-ebene--4" style={aufEllipse(249, 41.5, 42.5)}>04 · Kontext</div>
+      <div className="qma-ebene qma-ebene--3" style={{ left: "50%", top: "16.4%" }}>03 · QM-System</div>
       {fuehrung.slice(0, 4).map((p, i) => (
         <button key={p.schluessel} className="qma-knoten qma-knoten--f" data-qmaprozess={p.schluessel}
           title={p.norm ? "ISO " + p.norm : ""} style={{ left: FUEHRUNG_ORT[i][0] + "%", top: FUEHRUNG_ORT[i][1] + "%" }}
