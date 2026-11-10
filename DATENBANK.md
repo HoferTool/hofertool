@@ -77,6 +77,7 @@ Alle Tabellen liegen im Schema `public`, alle haben Zeilenschutz (RLS).
 | `mail_konto` | Mailkonto in Microsoft 365 (1.323.0): eine Zeile (`id` 1) mit `mandant`, `client_id`, `geheimnis`, `absender`, `name`, `geprueft_am`, `fehler`; RLS ohne Regeln, nur die Server-Funktion `mail-senden` liest sie; Funktionen `mail_konto_status`, `mail_konto_lesen` (Admins, ohne Schlüssel), `mail_konto_setzen` (Admins), `sql/mailkonto.sql` |
 | `mail_protokoll` | Was `mail-senden` verschickt hat (`art`, `an`, `betreff`, `ok`, `fehler`), lesen nur Admins. Dazu `vacations.outlook_id` und `order_items.gesendet_am`/`gesendet_von` |
 | `qm_massnahmen`, `qm_messgroessen`, `qm_jahreswerte` | QM Etappe 1 (1.459.0): KVP-Massnahmen, Katalog der Messgrössen (Ziel, Richtung, `gelb` = Grenze rot), Werte je Jahr und Schlüssel (`jahr`, `schluessel`, PK beide; von Hand gemessene unter `mg:<id>`). Nur mit `qm_darf()` (Vermerk qmSehen, nicht extern), `sql/qm-grundlage.sql`. Wirtschaftszahlen vertraulich, nur hier |
+| `qm_bewertungen` | QM Etappe 2 (1.460.0): Managementbewertung je `jahr` und `fassung` (unique), `von`, `bis`, `status` entwurf/freigegeben, `inhalt` jsonb (mit `schnapp` nach der Freigabe), `freigegeben_am/_von/_name`. Auslöser `qm_bewertung_gesperrt` sperrt Ändern und Löschen nach der Freigabe. Dazu an `qm_massnahmen` `abschnitt` und `abgeschlossen_am`, Funktion `qm_solar(von, bis)` (Eigenstrom aus `solar_werte`). Nur mit `qm_darf()`, `sql/qm-bewertung.sql` |
 
 ## Sichten
 

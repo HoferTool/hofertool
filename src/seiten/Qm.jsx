@@ -24,8 +24,11 @@ import {
   qmLaden, fehltQm, jahreRechnen, messwert, ampel, zahlLesen, zahlZeigen,
   jahreswertSetzen, statusText, quelleText, schluesselText, istOffen,
 } from "../daten/qm.js";
+import { ABSCHNITTE } from "../daten/qmBewertung.js";
+import Bewertung from "./qm/Bewertung.jsx";
 
-const REITER = [["kvp", "KVP-Massnahmen"], ["messgroessen", "Messgrössen"], ["zahlen", "Wirtschaftszahlen"]];
+const REITER = [["kvp", "KVP-Massnahmen"], ["messgroessen", "Messgrössen"], ["zahlen", "Wirtschaftszahlen"],
+  ["bewertung", "Managementbewertung"]];
 
 const gemerkt = { reiter: "kvp", filter: "offen" };
 teilMerken("qm", () => ({ ...gemerkt }), (x) => { Object.assign(gemerkt, x); });
@@ -63,6 +66,7 @@ export default function Qm({ auffrischen }) {
   } else {
     const gerechnet = jahreRechnen(d.daten.werte);
     if (reiter === "messgroessen") inhalt = <Messgroessen daten={d.daten} gerechnet={gerechnet} neu={d.neu} zuKvp={() => setReiter("kvp")} />;
+    else if (reiter === "bewertung") inhalt = <Bewertung daten={d.daten} neu={d.neu} massnahmeDialog={massnahmeDialog} />;
     else if (reiter === "zahlen") inhalt = <Wirtschaftszahlen werte={d.daten.werte} gerechnet={gerechnet} neu={d.neu} />;
     else inhalt = <Massnahmen daten={d.daten} neu={d.neu} />;
   }
@@ -142,7 +146,7 @@ function Massnahmen({ daten, neu }) {
 }
 
 // vorgabe: Felder für eine neue Massnahme, etwa aus einer Messgrösse
-async function massnahmeDialog(m, messgroessen, neu, alle, vorgabe) {
+export async function massnahmeDialog(m, messgroessen, neu, alle, vorgabe) {
   const v = m || vorgabe || {};
   const w = await alt.dialogFelder({
     titel: m ? "Massnahme " + (m.nr || "") : "Neue KVP-Massnahme",
@@ -160,6 +164,8 @@ async function massnahmeDialog(m, messgroessen, neu, alle, vorgabe) {
       { name: "wirksamkeit", label: "Wirksamkeit geprüft (wie, wann, Ergebnis)", typ: "textarea", zeilen: 2, wert: v.wirksamkeit || "" },
       { name: "quelle", label: "Quelle", wert: v.quelle || "",
         platzhalter: "Managementbewertung " + DIESES_JAHR + ", Audit, Reklamation …" },
+      { name: "periode", label: "Periode (Jahr)", wert: v.periode != null ? String(v.periode) : String(DIESES_JAHR) },
+      { name: "abschnitt", label: "Teil der Managementbewertung", auswahl: ABSCHNITTE, wert: v.abschnitt || "" },
     ],
     bestaetigen: "Speichern",
   });
@@ -170,8 +176,14 @@ async function massnahmeDialog(m, messgroessen, neu, alle, vorgabe) {
     messgroesse_id: w.messgroesse_id || null, ziel: w.ziel.trim() || null, ist: w.ist.trim() || null,
     status: STATUS.some((s) => s[0] === w.status) ? w.status : "offen",
     wirksamkeit: w.wirksamkeit.trim() || null, quelle: w.quelle.trim() || null,
+    periode: /^\d{4}$/.test(String(w.periode || "").trim()) ? Number(w.periode) : (v.periode ?? DIESES_JAHR),
+    abschnitt: ABSCHNITTE.some((a) => a[0] === w.abschnitt) && w.abschnitt ? w.abschnitt : null,
     geaendert_am: new Date().toISOString(),
   };
+  // Wann abgeschlossen: zählt in der Managementbewertung, ob eine Massnahme
+  // zu Beginn eines Jahres noch offen war (Status vorangegangene Periode)
+  const fertig = ["erledigt", "wirksam", "unwirksam"].includes(daten.status);
+  daten.abgeschlossen_am = !fertig ? null : (m && m.abgeschlossen_am) || alt.isoDatum(new Date());
   if (m) {
     const vorher = await alt.rueckSichern("qm_massnahmen", { id: m.id });
     const { error } = await alt.db.from("qm_massnahmen").update(daten).eq("id", m.id);
@@ -179,7 +191,6 @@ async function massnahmeDialog(m, messgroessen, neu, alle, vorgabe) {
     alt.merkeSchritt("Ändern von Massnahme " + (m.nr || ""), alt.rueckRein("qm_massnahmen", vorher));
   } else {
     daten.nr = Math.max(0, ...(alle || []).map((x) => x.nr || 0)) + 1;
-    daten.periode = DIESES_JAHR;
     const { data, error } = await alt.db.from("qm_massnahmen").insert(daten).select("id");
     if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
     const id = Array.isArray(data) && data[0] && data[0].id;

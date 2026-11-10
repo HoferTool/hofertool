@@ -12238,3 +12238,28 @@ body.dunkel .qm-status--wirksam { background: #1d4a2c; }
 body.dunkel .qm-status--unwirksam { background: #6a1f1f; }
 body.dunkel .qm-zeile:hover { background: #222a33; }
 body.dunkel .qm-feld { background: #1b2027; }
+
+/* ---------- QM: Managementbewertung (seit 1.460.0) ---------- */
+#qm-bewertung .karte { margin-bottom: 14px; }
+#qm-bewertung h3 { margin: 0 0 6px; }
+#qm-bewertung h4 { margin: 4px 0 6px; }
+#qm-bewertung label { display: block; font-size: .85rem; color: var(--gedaempft); margin: 6px 0; }
+.qm-bew-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.qm-bew-kopf h2 { margin: 0; }
+.qm-bew-knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.qm-eingabe { display: block; width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 8px; font: inherit;
+  font-size: .95rem; color: var(--tinte); border: 1px solid var(--linie-stark); border-radius: 6px; background: #fff; resize: vertical; }
+.qm-eingabe--kurz { max-width: 8em; }
+.qm-gesperrt .qm-eingabe { background: transparent; border-color: var(--linie); }
+.qm-raster { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 14px; }
+.qm-spalten { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 16px; }
+.qm-spalte { border: 1px solid var(--linie); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+.qm-drei { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0 8px; }
+.qm-drei .qm-eingabe--kurz { max-width: none; }
+.qm-jn { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
+.qm-thema { border-top: 1px solid var(--linie); padding: 8px 0; }
+.qm-thema__kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.qm-thema__jn { margin-left: auto; font-size: .85rem; color: var(--gedaempft); }
+.qm-auto { margin: 10px 0 12px; }
+body.dunkel .qm-eingabe { background: #1b2027; }
+body.dunkel .qm-gesperrt .qm-eingabe { background: transparent; }
