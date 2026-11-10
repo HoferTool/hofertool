@@ -33,9 +33,37 @@ import { RichFeld, MitFormat, fmtGueltig, markiertFormatieren, markierteGroesse 
 import { betrachter } from "../teile/Betrachter.jsx";
 import { spezialPdfsLaden } from "../daten/spezialwerkzeuge.js";
 import { istMaterialBlatt, MATERIAL_OHNE, materialArtBez } from "./jeMaterial.js";
+// Zwei Bilder mit je sieben Werkzeugen von Patrick, eingebettet als
+// data:-Adresse, damit sie auch im PDF (html2canvas) und offline da sind
+import WZ_BILD_1 from "./werkzeugbild-1.jpg?inline";
+import WZ_BILD_2 from "./werkzeugbild-2.jpg?inline";
 
 // Ein Bild aus der Bibliothek: Sinnbild der Norm oder hochgeladen
 const BILDER_AN = false;
+
+// ---------------- Werkzeugbilder (seit 1.456.0) ----------------
+// Nur bei den Langdrehern (Star, SW): im grossen Feld in der Mitte eines
+// Platzes wahlweise die zwei Bilder mit je sieben Werkzeugen, darin das
+// passende Werkzeug rot markiert (Wunsch Patrick 10. November 2026).
+// Am Platz: `wzBilder` (an) und `wzMarke` „1-3“ = Bild 1, viertes Werkzeug
+const WZ_BILDER = [WZ_BILD_1, WZ_BILD_2];
+const WZ_B = 258, WZ_H = 87, WZ_ANZ = 7;
+export const istLangdreher = (vorlage) => !!vorlage && (vorlage.art === "star" || vorlage.art === "sw");
+function WerkzeugBilder({ marke, waehlen, className }) {
+  const m = /^(\d)-(\d)$/.exec(marke || "");
+  const breit = WZ_B / WZ_ANZ;
+  return (
+    <svg className={className || "eba-wzb"} viewBox={"0 0 " + WZ_B + " " + (WZ_H * 2 + 2)} preserveAspectRatio="xMidYMid meet" data-eba-wzb={marke || ""}>
+      {WZ_BILDER.map((src, b) => <image key={b} href={src} x="0" y={b * (WZ_H + 2)} width={WZ_B} height={WZ_H} preserveAspectRatio="none" />)}
+      {m && <rect x={Number(m[2]) * breit + 1.5} y={(Number(m[1]) - 1) * (WZ_H + 2) + 1.5} width={breit - 3} height={WZ_H - 3}
+        rx="5" fill="rgba(224,48,48,.14)" stroke="#e03030" strokeWidth="3" />}
+      {waehlen && WZ_BILDER.map((_, b) => Array.from({ length: WZ_ANZ }, (_, i) =>
+        <rect key={b + "-" + i} x={i * breit} y={b * (WZ_H + 2)} width={breit} height={WZ_H} fill="transparent"
+          className="eba-wzb-ziel" data-wzb-ziel={(b + 1) + "-" + i}
+          onClick={() => waehlen((b + 1) + "-" + i === marke ? null : (b + 1) + "-" + i)} />))}
+    </svg>
+  );
+}
 
 export function BildZeichnung({ schluessel, className }) {
   const b = bildDaten(schluessel);
@@ -401,6 +429,8 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
     // Wunsch Patrick 30. Oktober 2026); gewählte Bilder bleiben in den
     // Daten, falls sie doch zurückkommen sollen
     const bild = BILDER_AN ? platzBild(p, artikelBilder) : null;
+    // Werkzeugbilder nur bei Langdrehern, wenn am Platz eingeschaltet
+    const wzb = !!(p.wzBilder && istLangdreher(vorlage));
     // Beim Ansehen: antippen bestellt das Werkzeug (seit 1.271.0)
     const bestellbar = !bearbeiten && bestellen && p.article_id && !p.ungeprueft;
     // Im Pad Mode: antippen zeigt beim Namen „Ansehen“ für die PDFs, die
@@ -443,9 +473,9 @@ export function BlattSeite({ typ, paths, teil, typDaten, blatt, auftrag, bearbei
         <div className="eba-mass" style={stilCss(platzStil(p, "mass"))}><MitFormat html={(p.fmt || {}).mass} text={p.mass || ""} /></div>
         {/* Geo-Offset nur, wo nötig: steht über dem Bild, das Bild wird
             kleiner oder fällt ganz weg (Wunsch Patrick, 24. Oktober 2026) */}
-        <div className={"eba-bild" + (p.geo ? " eba-bild--geo" + (bild && !p.ohneBild ? "" : " eba-bild--nurgeo") : "")}>
-          {p.geo ? <GeoText text={p.geo} mitBild={!!(bild && !p.ohneBild)} farbe={p.geoFarbe} fett={!!p.geoFett} groesse={p.geoGroesse || null} html={(p.fmt || {}).geo} /> : null}
-          {bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
+        <div className={"eba-bild" + (wzb ? " eba-bild--wzb" : "") + (p.geo ? " eba-bild--geo" + ((bild && !p.ohneBild) || wzb ? "" : " eba-bild--nurgeo") : "")}>
+          {p.geo ? <GeoText text={p.geo} mitBild={!!((bild && !p.ohneBild) || wzb)} farbe={p.geoFarbe} fett={!!p.geoFett} groesse={p.geoGroesse || null} html={(p.fmt || {}).geo} /> : null}
+          {wzb ? <WerkzeugBilder marke={p.wzMarke} /> : bild && !p.ohneBild ? <BildZeichnung schluessel={bild.schluessel} /> : null}</div>
         <div className="eba-her"><EineZeile text={p.hersteller || ""} min={5} stil={platzStil(p, "hersteller")} />{p.spezial && p.article_id &&
           <span className="eba-stern" title="Spezialwerkzeug" data-eba-stern="">★</span>}</div>
         {/* Drei Zeilen: Lieferant, Artikel-Nr., Beschreibung (Wunsch
@@ -625,6 +655,10 @@ function platzDaten(p, nr) {
     if (Object.keys(fm).length) z.fmt = fm;
   }
   if (p.ohneBild) z.ohneBild = true;
+  if (p.wzBilder) {
+    z.wzBilder = true;
+    if (/^[12]-[0-6]$/.test(p.wzMarke || "")) z.wzMarke = p.wzMarke;
+  }
   if (p.article_id && z.werkzeug) z.article_id = p.article_id;
   else delete z.bezeichnung;
   if (z.article_id && p.ungeprueft) z.ungeprueft = true;
@@ -640,7 +674,7 @@ function platzDaten(p, nr) {
 // Patrick, 23. Oktober 2026). Der Hersteller ist der Lieferant des
 // Artikels. Das Bild merkt sich der Artikel (Wunsch Patrick,
 // 13. Oktober 2026).
-function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildNeu, wechseln, offen }) {
+function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildNeu, wechseln, offen, langdreher }) {
   const [p, setP] = useState(Object.assign({}, wert));
   const [artikel, setArtikel] = useState(null);
   const [bildWahl, setBildWahl] = useState(false);
@@ -732,6 +766,13 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
             onClick={() => setP(Object.assign({}, p, { werkzeug: "", bezeichnung: "", hersteller: "", article_id: null, spezial_id: null, ungeprueft: false }))}>Entfernen</button>}
         </div>
       </div>
+      {langdreher && <div className="eba-pf-wzb" data-pf-wzb="">
+        <label className="eba-pf-check"><input type="checkbox" data-pf="wzBilder" checked={!!p.wzBilder}
+          onChange={(e) => setP(Object.assign({}, p, { wzBilder: e.target.checked }))} /> Werkzeugbilder im Feld zeigen</label>
+        {p.wzBilder && <><WerkzeugBilder className="eba-wzb eba-pf-wzb-bild" marke={p.wzMarke}
+          waehlen={(m) => setP(Object.assign({}, p, { wzMarke: m }))} />
+          <div className="eba-pf-wzb-tipp">{p.wzMarke ? "Markiert. Nochmals antippen nimmt die Markierung weg." : "Das passende Werkzeug antippen."}</div></>}
+      </div>}
       <label className="feld"><span>Notiz Mitte</span>
         <RichFeld className="eba-pf-rich eba-pf-rich--mehr" data-pf="geo" text={p.geo || ""} html={(p.fmt || {}).geo} aendern={rich("geo")}
           onFocus={() => setZiel("geo")} platzhalter="z. B. X 0.12  Z -0.05"
@@ -1340,7 +1381,7 @@ function BlattFenster({ hocoNr, typId, zu, daten: start, nurLesen, gleichBearbei
         {bearbeiten && platz && !zseite && <PlatzFenster key={platz} nr={platz} titel={platzTitel(platz)}
           wert={(entwurf.plaetze || {})[platz] || {}} setzen={(z) => platzSetzen(platz, z)} zu={() => setPlatz(null)}
           artikelBilder={artikelBilder} artikelBildNeu={(id, b) => setArtikelBilder((x) => Object.assign({}, x, { [id]: b }))}
-          wechseln={() => setWechsel(platz)} offen={offenerPlatz} />}
+          wechseln={() => setWechsel(platz)} offen={offenerPlatz} langdreher={istLangdreher(vorlage)} />}
         {!hatPlaetze && !zseite && <div className="abruf-leer"><b>Für {typ.name} sind noch keine Werkzeugplätze angelegt.</b>
           <p>Unter Maschinen → Typen → {typ.name} → Aufbau anlegen.</p></div>}
       </div>
