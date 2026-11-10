@@ -12427,3 +12427,17 @@ body.dunkel .qma-fuehrung-mitte { color: #0e3f86 !important; -webkit-text-fill-c
 #qma-normmatrix .qm-tabelle-huelle { overflow-x: auto; }
 .qma-matrix-norm th, .qma-matrix-norm td { word-break: normal; overflow-wrap: normal; }
 .qma-matrix-norm td:first-child, .qma-matrix-norm th:first-child, .qma-matrix-norm__kopf { white-space: nowrap; }
+
+/* QM alternativ: Kontext je Anspruchsgruppe (seit 1.466.0) */
+.qma-partei { cursor: pointer; border: 0; font-family: inherit; }
+.qma-partei:hover { box-shadow: 0 0 0 2px var(--akzent, #2c4f86); }
+.qma-partei__zahl { display: inline-block; margin-left: .45em; min-width: 1.5em; padding: 0 .35em; border-radius: 999px;
+  background: #dbe5f3; color: #17202b !important; -webkit-text-fill-color: #17202b; font-size: .85em; text-align: center; }
+.qma-partei__zahl--rot { background: #d64545; color: #fff !important; -webkit-text-fill-color: #fff; }
+.qma-parteifilter { flex-wrap: wrap; margin-top: 6px; }
+.qma-gruppenzeile td { background: #eef3fa; font-weight: 700; color: #2c4f86; padding-top: 10px; }
+body.dunkel .qma-gruppenzeile td { background: #232b36; color: #cfe0ff !important; }
+.qma-rc { white-space: nowrap; color: #b33a3a; }
+.qma-rc--c { color: #2c6e3f; }
+body.dunkel .qma-rc { color: #ff9a9a !important; }
+body.dunkel .qma-rc--c { color: #8fd6a4 !important; }

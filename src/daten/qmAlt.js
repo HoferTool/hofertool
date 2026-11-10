@@ -74,6 +74,15 @@ export const QM_SYSTEM = [
 // Ebene 04: Vorgabe, solange in qma_texte „landkarte“ nichts steht.
 export const PARTEIEN_VORGABE = ["Kunden", "Bank", "Gesetze, Richtlinien", "Gesellschaft", "Lieferanten",
   "Gem. nütz. Org.", "Kapitalgeber, Inhaber", "Mitarbeiter"];
+// Stufen E und A wie im Kontext-Blatt (1 gering, 3 mittel, 5 hoch, dazwischen 2 und 4)
+export const EA_STUFEN = [["1", "1 gering"], ["2", "2"], ["3", "3 mittel"], ["4", "4"], ["5", "5 hoch"]];
+// Anspruchsgruppen = Parteien der Landkarte, dazu allgemeine und interne Themen.
+// qmaLaden hält die Liste aktuell, damit das Fenster sie ohne Umweg kennt.
+export const PARTEI_WEITERE = ["Allgemeine Themen", "Intern / Prozesse"];
+let parteienJetzt = PARTEIEN_VORGABE;
+export const parteienVon = (texte) => (texte && texte.landkarte && texte.landkarte.felder && texte.landkarte.felder.parteien) || PARTEIEN_VORGABE;
+export const parteiListe = () => [...parteienJetzt, ...PARTEI_WEITERE];
+export const parteiAuswahl = () => parteiListe().map((x) => [x, x]);
 export const PROZESS_FELDER = [
   { k: "zweck", text: "Zweck" },
   { k: "verantwortlich", text: "Verantwortlich" },
@@ -154,23 +163,31 @@ export const ARTEN = {
     spalten: [["jahr", "Jahr"], ["titel", "Ziel"], ["messung", "Messung"], ["zielwert", "Ziel"], ["ist", "Ist"], ["wer", "Wer"], ["faellig", "Bis"], ["status", "Status"]],
   },
   risiko: {
-    titel: "Risiken und Chancen", einzeln: "Risiko / Chance", norm: "6.1",
-    hinweis: "Nur was uns wirklich treffen oder weiterbringen kann. Bewertung: Wahrscheinlichkeit × Auswirkung, je 1 bis 3. Ab 6 braucht es eine Massnahme. Einmal im Jahr durchsehen.",
+    titel: "Kontext, Risiken und Chancen", einzeln: "Thema", norm: "4.1 · 4.2 · 6.1",
+    hinweis: "Wie das Blatt „Kontext der Organisation“ (04_01_00): je Anspruchsgruppe die Themen, Risiko (R) oder Chance (C). E = Wahrscheinlichkeit der Entwicklung, A = Einfluss auf Hofer + Co, je 1 gering, 3 mittel, 5 hoch; R = E × A. Grün bis 4 kein Handlungsbedarf, gelb 5 bis 9 beobachten, rot ab 10 Handlungsbedarf. Einmal im Jahr neu beurteilen.",
     felder: [
-      { k: "typ", text: "Art", auswahl: [["risiko", "Risiko"], ["chance", "Chance"]], vorgabe: "risiko" },
-      { k: "titel", text: "Was", pflicht: true },
+      { k: "partei", text: "Anspruchsgruppe", auswahl: () => parteiAuswahl(), vorgabe: "Intern / Prozesse" },
+      { k: "titel", text: "Thema", pflicht: true },
+      { k: "anspruch", text: "Anspruch / Einfluss", typ: "textarea", zeilen: 2 },
+      { k: "typ", text: "Risiko / Chance", auswahl: [["risiko", "R Risiko"], ["chance", "C Chance"], ["beides", "R/C beides"]], vorgabe: "risiko" },
       { k: "prozess", text: "Bereich / Prozess" },
-      { k: "folge", text: "Ursache und Folge", typ: "textarea" },
-      { k: "w", text: "Wahrscheinlichkeit 1–3", auswahl: [["1", "1 selten"], ["2", "2 möglich"], ["3", "3 häufig"]], vorgabe: "2" },
-      { k: "a", text: "Auswirkung 1–3", auswahl: [["1", "1 klein"], ["2", "2 spürbar"], ["3", "3 gross"]], vorgabe: "2" },
-      { k: "massnahme", text: "Massnahme / Nutzen", typ: "textarea" },
-      { k: "wer", text: "Wer" },
-      { k: "pruef_am", text: "Wieder ansehen am", typ: "date", vorgabe: () => plusMonate(heute(), 12) },
+      { k: "folge", text: "Ursache und Folge", typ: "textarea", zeilen: 2 },
+      { k: "aufnahme", text: "Aufgenommen am", typ: "date", vorgabe: () => heute() },
+      { k: "w", text: "Erstbeurteilung E (Wahrscheinlichkeit)", auswahl: EA_STUFEN, vorgabe: "3" },
+      { k: "a", text: "Erstbeurteilung A (Einfluss)", auswahl: EA_STUFEN, vorgabe: "3" },
+      { k: "massnahme", text: "Massnahmenansatz", typ: "textarea" },
+      { k: "wer", text: "Verantwortlich" },
+      { k: "termin", text: "Termin (Datum oder „laufend“)" },
+      { k: "fortschritt", text: "Stand der Massnahme", auswahl: [["", "–"], ["0", "0 %"], ["25", "25 %"], ["50", "50 %"], ["75", "75 %"], ["100", "100 %"]], vorgabe: "" },
+      { k: "begruendung", text: "Neubeurteilung: Begründung", typ: "textarea" },
+      { k: "neu_w", text: "Neubeurteilung E", auswahl: [["", "–"], ...EA_STUFEN], vorgabe: "" },
+      { k: "neu_a", text: "Neubeurteilung A", auswahl: [["", "–"], ...EA_STUFEN], vorgabe: "" },
+      { k: "pruef_am", text: "Nächste Neubeurteilung", typ: "date", vorgabe: () => plusMonate(heute(), 12) },
     ],
     status: [S("beobachten", "Beobachten", "blau"), S("massnahme", "Massnahme läuft", "gelb"), S("erledigt", "Im Griff", "gruen")],
     zu: [],
     faellig: (d) => d.pruef_am || null,
-    spalten: [["typ", "Art"], ["titel", "Was"], ["prozess", "Bereich"], ["wert", "W × A"], ["massnahme", "Massnahme"], ["wer", "Wer"], ["faellig", "Ansehen"], ["status", "Status"]],
+    spalten: [["typ", "R/C"], ["titel", "Thema"], ["erst", "Erst"], ["wert", "Neu"], ["massnahme", "Massnahme"], ["wer", "Wer"], ["fortschritt", "Stand"], ["faellig", "Neu beurteilen"], ["status", "Status"]],
   },
   pruefmittel: {
     titel: "Prüfmittel", einzeln: "Prüfmittel", norm: "7.1.5",
@@ -250,14 +267,20 @@ export const ARTEN = {
 export const statusVon = (art, s) => (ARTEN[art] && ARTEN[art].status.find((x) => x.wert === s)) || { wert: s, text: s || "", ton: "grau" };
 export const istZu = (e) => !ARTEN[e.art] ? e.status === "freigegeben"
   : ARTEN[e.art].fertig ? ARTEN[e.art].fertig(e) : ARTEN[e.art].zu.includes(e.status);
+export const auswahlVon = (f) => (typeof f.auswahl === "function" ? f.auswahl() : f.auswahl);
 export const auswahlText = (art, k, w) => {
   const f = ARTEN[art] && ARTEN[art].felder.find((x) => x.k === k);
-  const a = f && f.auswahl && f.auswahl.find((x) => x[0] === String(w ?? ""));
+  const a = f && f.auswahl && auswahlVon(f).find((x) => x[0] === String(w ?? ""));
   return a ? a[1] : (w ?? "");
 };
 
 // Wert Risiko und Note Lieferant
-export const risikoWert = (d) => Number(d.w || 0) * Number(d.a || 0);
+// R = E × A; gilt die Neubeurteilung, sobald beide Werte da sind.
+export const risikoErst = (d) => Number(d.w || 0) * Number(d.a || 0);
+export const hatNeu = (d) => Number(d.neu_w) > 0 && Number(d.neu_a) > 0;
+export const risikoWert = (d) => (hatNeu(d) ? Number(d.neu_w) * Number(d.neu_a) : risikoErst(d));
+// Ampel wie im Kontext-Blatt: grün kein Handlungsbedarf, gelb beobachten, rot Handlungsbedarf
+export const risikoTon = (w) => (w >= 10 ? "rot" : w >= 5 ? "gelb" : "gruen");
 export function lieferantNote(d) {
   const n = [d.q, d.t, d.z].map(Number).filter((x) => x > 0);
   if (!n.length) return "";
@@ -284,6 +307,7 @@ export async function qmaLaden() {
   if (f) throw f;
   const texte = {};
   for (const z of t.data || []) texte[z.schluessel] = z;
+  parteienJetzt = parteienVon(texte);
   return { texte, eintraege: e.data || [] };
 }
 export const fehltQma = (f) => /qma_|does not exist|schema cache|42P01|PGRST20/i.test(String((f && (f.message || f.code)) || f || ""));
@@ -360,7 +384,7 @@ export function jahresBild(eintraege, jahr) {
     feststellungen: audits.reduce((s, e) => s + String(e.daten.feststellungen || "").split("\n").filter((z) => z.trim()).length, 0),
     lieferanten: lief.length, noten,
     lieferantenBewertet: lief.filter((e) => imJahr(e.daten.letzte, jahr)).length,
-    risiken: risiken.length, risikenHoch: risiken.filter((e) => e.daten.typ !== "chance" && risikoWert(e.daten) >= 6).length,
+    risiken: risiken.length, risikenHoch: risiken.filter((e) => e.daten.typ !== "chance" && risikoWert(e.daten) >= 10).length,
     chancen: risiken.filter((e) => e.daten.typ === "chance").length,
     pruefmittel: pm.length, pruefmittelFaellig: pm.filter((e) => e.faellig && e.faellig < h).length,
     schulungen: schul.length,
@@ -388,13 +412,15 @@ export function normPruefen(texte, eintraege) {
   const zu = (b) => (b ? "ok" : "fehlt");
   const ohneUeber = (art, n) => !von(art).length ? "fehlt" : (n ? "warn" : "ok");
   return [
-    z("4.1 · 4.2", "Kontext und interessierte Parteien", "Handbuch", t("kontext") && t("parteien") ? "ok" : "fehlt", "Abschnitte Kontext und Parteien ausfüllen"),
+    z("4.1 · 4.2", "Kontext und interessierte Parteien", "Kontext und Risiken (je Anspruchsgruppe), Handbuch",
+      von("risiko").some((e) => e.daten.partei && e.daten.partei !== "Intern / Prozesse") || (t("kontext") && t("parteien")) ? "ok" : "fehlt",
+      "Themen je Anspruchsgruppe erfassen"),
     z("4.3", "Geltungsbereich", "Handbuch", zu(t("geltungsbereich")), "Abschnitt Geltungsbereich ausfüllen"),
     z("4.4", "Prozesse", "Handbuch → Prozesse", prozesse.length >= 3 ? "ok" : "fehlt", "Prozesse beschreiben"),
     z("5.1", "Führung und Qualitätskultur", "Handbuch", zu(t("kultur")), "Abschnitt Qualitätskultur ausfüllen"),
     z("5.2", "Qualitätspolitik", "Handbuch", zu(t("politik")), "Politik schreiben und aushängen"),
     z("5.3", "Rollen und Verantwortung", "Handbuch", zu(t("organisation")), "Rollen festhalten"),
-    z("6.1", "Risiken und Chancen", "Risiken und Chancen", ohneUeber("risiko", ueber("risiko")), "Risiken erfassen, Fällige durchsehen"),
+    z("6.1", "Risiken und Chancen", "Kontext und Risiken", ohneUeber("risiko", ueber("risiko")), "Risiken erfassen, Fällige durchsehen"),
     z("6.2", "Qualitätsziele", "Ziele", von("ziel").some((e) => String(e.daten.jahr) === String(jahr)) ? "ok" : "fehlt", "Ziele für " + jahr + " setzen"),
     z("6.3", "Planung von Änderungen", "Handbuch", zu(t("aenderungen")), "Abschnitt Änderungen ausfüllen"),
     z("7.1.3", "Infrastruktur, Instandhaltung", "HoferTool: Maschinen, Wartung, Backup-Batterien", "ok", ""),

@@ -83,9 +83,14 @@ with sync_playwright() as p:
     # Risiko: W × A
     pg.click("[data-qmareiter='risiko']"); pg.wait_for_selector("#qma-risiko")
     pg.click("[data-qmaneu='risiko']"); d = dialog(pg)
-    feld(d, "titel").fill("Ausfall Server"); feld(d, "w").select_option("3"); feld(d, "a").select_option("3")
+    pruefe(feld(d, "partei").locator("option[value='Kunden']").count() == 1, "Anspruchsgruppen aus der Landkarte")
+    feld(d, "partei").select_option("Kunden")
+    feld(d, "titel").fill("Lieferbereitschaft"); feld(d, "w").select_option("3"); feld(d, "a").select_option("4")
+    feld(d, "neu_w").select_option("2"); feld(d, "neu_a").select_option("3")
     speichern(pg, d)
-    pruefe("3 × 3 = 9" in pg.locator("#qma-risiko").inner_text(), "Risiko 3 × 3 = 9")
+    txt = pg.locator("#qma-risiko").inner_text()
+    pruefe("3 × 4 = 12" in txt and "2 × 3 = 6" in txt, "Erst- und Neubeurteilung E × A")
+    pruefe(pg.locator(".qma-gruppenzeile", has_text="Kunden").count() == 1, "Gruppenzeile Kunden")
 
     # Lieferant: Note
     pg.click("[data-qmareiter='lieferant']"); pg.wait_for_selector("#qma-lieferant")
@@ -111,6 +116,11 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-qmaprozess='prozess:fertigung']").count() == 1, "Prozess in der Landkarte")
     pruefe(pg.locator("#qma-landkarte [data-qmapartei]").count() == 8, "Ebene 04 mit acht Parteien")
     pruefe("02.04" in pg.locator("[data-qmaprozess='prozess:fertigung']").inner_text(), "Prozess mit Nummer")
+    pruefe("1" in pg.locator("#qma-landkarte [data-qmapartei='Kunden'] .qma-partei__zahl").inner_text(), "Kunden mit Zahl der Themen")
+    pg.click("#qma-landkarte [data-qmapartei='Kunden']"); pg.wait_for_selector("#qma-risiko")
+    pruefe(pg.locator("[data-qmapartei-filter='Kunden'].knopf--haupt").count() == 1, "Partei öffnet ihre Themen")
+    pg.click("[data-qmapartei-filter='alle']")
+    pg.click("[data-qmareiter='handbuch']"); pg.wait_for_selector("#qma-abschnitte")
     z = pg.locator("[data-qmamatrix='8.5.1'] .qma-zelle-punkt")
     pruefe(z.count() == 2 and "●" in z.nth(1).inner_text() and "●" not in z.nth(0).inner_text(), "Matrix: 8.5.1 bei Fertigung, nicht bei Strategie")
     pg.click("[data-qmaprozess='prozess:fertigung']"); d = dialog(pg)

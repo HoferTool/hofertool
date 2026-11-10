@@ -9,7 +9,7 @@
 import { alt } from "../../bruecke.jsx";
 import {
   ABSCHNITTE, PROZESS_GRUPPEN, PROZESS_FELDER, QM_SYSTEM, PARTEIEN_VORGABE, textSpeichern, textLoeschen,
-  ebeneVon, prozessNr, prozesseSortiert, normPruefen, deckt,
+  ebeneVon, prozessNr, prozesseSortiert, normPruefen, deckt, risikoWert, risikoTon,
 } from "../../daten/qmAlt.js";
 import { blattDrucken, absatz } from "./drucken.js";
 
@@ -18,6 +18,19 @@ export default function Handbuch({ daten, neu, gehe }) {
   const prozesse = prozesseSortiert(texte);
   const stand = Object.values(texte).map((t) => t.geaendert_am).filter(Boolean).sort().pop();
   const parteien = (texte.landkarte && texte.landkarte.felder && texte.landkarte.felder.parteien) || PARTEIEN_VORGABE;
+  // Ebene 04: jede Partei führt zu ihren Themen in Kontext und Risiken (Kontext-Blatt 04_01_00).
+  const themen = daten.eintraege.filter((e) => e.art === "risiko");
+  const parteiKnopf = (x, i, flach) => {
+    const meine = themen.filter((e) => e.daten.partei === x);
+    const rot = meine.some((e) => e.daten.typ !== "chance" && risikoTon(risikoWert(e.daten)) === "rot");
+    return (
+      <button key={x + i} className={"qma-partei" + (flach ? " qma-partei--flach" : "")} data-qmapartei={x}
+        title={meine.length + " Themen im Kontext" + (rot ? ", davon mit Handlungsbedarf" : "")}
+        style={flach ? undefined : aufEllipse(270 + (i * 360) / parteien.length, 42, 44)}
+        onClick={() => gehe && gehe("risiko", x)}>
+        {x}{meine.length ? <span className={"qma-partei__zahl" + (rot ? " qma-partei__zahl--rot" : "")}>{meine.length}</span> : null}
+      </button>);
+  };
   const zuAbschnitt = (k) => {
     const el = document.querySelector(`[data-qmaabschnitt='${k}']`);
     if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("qma-blitz"); setTimeout(() => el.classList.remove("qma-blitz"), 1600); }
@@ -37,8 +50,10 @@ export default function Handbuch({ daten, neu, gehe }) {
       <p className="hinweis">Prozess antippen öffnet sein Prozessblatt. Ebene 03 führt zum passenden Reiter.
         {stand ? " Zuletzt geändert " + alt.datumZeitKurz(stand) + "." : ""}</p>
       <div className="qma-legende klein">Ebenen von innen nach aussen: <b>01</b> Führung · <b>02</b> Prozesse · <b>03</b> QM-System · <b>04</b> Hofer + Co im Kontext</div>
-      <Ellipse prozesse={prozesse} parteien={parteien} oeffnen={(p) => prozessDialog(p, prozesse, neu)} qmTeil={qmTeil} />
-      <Baender prozesse={prozesse} parteien={parteien} oeffnen={(p) => prozessDialog(p, prozesse, neu)} qmTeil={qmTeil} />
+      <Ellipse prozesse={prozesse} parteien={parteien} oeffnen={(p) => prozessDialog(p, prozesse, neu)} qmTeil={qmTeil}
+        partei={parteiKnopf} />
+      <Baender prozesse={prozesse} parteien={parteien} oeffnen={(p) => prozessDialog(p, prozesse, neu)} qmTeil={qmTeil}
+        partei={parteiKnopf} />
     </section>
 
     <NormMatrix texte={texte} eintraege={daten.eintraege} prozesse={prozesse} oeffnen={(p) => prozessDialog(p, prozesse, neu)} />
@@ -71,7 +86,7 @@ const aufEllipse = (grad, rx, ry) => {
 const QM_WINKEL = [236, 304, 34, 90, 146];
 const FUEHRUNG_ORT = [[41, 43], [59, 43], [41, 57], [59, 57]];
 
-function Ellipse({ prozesse, parteien, oeffnen, qmTeil }) {
+function Ellipse({ prozesse, parteien, oeffnen, qmTeil, partei }) {
   const kern = prozesse.filter((p) => ebeneVon(p) === "kern");
   const fuehrung = prozesse.filter((p) => ebeneVon(p) === "fuehrung");
   // Prozesse im Uhrzeigersinn, Start links oben wie Verkauf im Bild.
@@ -80,9 +95,7 @@ function Ellipse({ prozesse, parteien, oeffnen, qmTeil }) {
     <div className="qma-ellipse" id="qma-landkarte" aria-label="Landkarte des Management-Systems">
       <div className="qma-ring qma-ring--4" /><div className="qma-ring qma-ring--3" />
       <div className="qma-ring qma-ring--2" /><div className="qma-ring qma-ring--1" />
-      {parteien.map((x, i) => (
-        <span key={x + i} className="qma-partei" data-qmapartei={x}
-          style={aufEllipse(270 + (i * 360) / parteien.length, 42, 44)}>{x}</span>))}
+      {parteien.map((x, i) => partei(x, i, false))}
       {QM_SYSTEM.map((q, i) => (
         <button key={q.text} className="qma-qmteil" data-qmateil={q.reiter} title={"ISO " + q.norm}
           style={aufEllipse(QM_WINKEL[i], 37.5, 33.5)} onClick={() => qmTeil(q)}>{q.text}</button>))}
@@ -101,7 +114,7 @@ function Ellipse({ prozesse, parteien, oeffnen, qmTeil }) {
 }
 
 // ---------- Landkarte als Bänder (Handy, iPad hoch) ----------
-function Baender({ prozesse, parteien, oeffnen, qmTeil }) {
+function Baender({ prozesse, parteien, oeffnen, qmTeil, partei }) {
   const knopf = (p) => (
     <button key={p.schluessel} className="qma-prozess" data-qmaprozessband={p.schluessel} onClick={() => oeffnen(p)}>
       <b>{prozessNr(p) ? prozessNr(p) + " " : ""}{p.titel}</b>
@@ -126,7 +139,7 @@ function Baender({ prozesse, parteien, oeffnen, qmTeil }) {
       </div>
       <div className="qma-band qma-band--kontext">
         <div className="qma-band__titel">Ebene 04 Hofer + Co im Kontext <span className="klein">ISO 4.2</span></div>
-        <div className="qma-band__reihe">{parteien.map((x, i) => <span key={x + i} className="qma-partei qma-partei--flach">{x}</span>)}</div>
+        <div className="qma-band__reihe">{parteien.map((x, i) => partei(x, i, true))}</div>
       </div>
     </div>);
 }

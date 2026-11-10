@@ -12,13 +12,13 @@
 //  Lieferanten, Kompetenzen (Matrix und Schulungen), Audits,
 //  Managementbewertung (Zahlen kommen von selbst aus den Listen).
 // =================================================================
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { alt, useDaten, useGemerkt } from "../bruecke.jsx";
 import { Reiter } from "../teile/Reiter.jsx";
 import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import {
-  ARTEN, qmaLaden, fehltQma, statusVon, istZu, auswahlText, risikoWert, lieferantNote,
+  ARTEN, qmaLaden, fehltQma, statusVon, istZu, auswahlText, auswahlVon, risikoWert, risikoErst, risikoTon, hatNeu, parteiListe, lieferantNote,
   faelligTon, eintragSpeichern, eintragLoeschen, normPruefen, heute, plusTageIso,
 } from "../daten/qmAlt.js";
 import Handbuch from "./qmAlt/Handbuch.jsx";
@@ -27,15 +27,17 @@ import Bewertung from "./qmAlt/Bewertung.jsx";
 import { Schild } from "./qmAlt/Schild.jsx";
 
 const REITER = [["cockpit", "Cockpit"], ["handbuch", "Handbuch"], ["ziel", "Ziele"], ["abweichung", "Abweichungen"],
-  ["risiko", "Risiken"], ["pruefmittel", "Prüfmittel"], ["lieferant", "Lieferanten"], ["kompetenz", "Kompetenzen"],
+  ["risiko", "Kontext und Risiken"], ["pruefmittel", "Prüfmittel"], ["lieferant", "Lieferanten"], ["kompetenz", "Kompetenzen"],
   ["audit", "Audits"], ["bewertung", "Managementbewertung"]];
 
-const gemerkt = { reiter: "cockpit", filter: {} };
+const gemerkt = { reiter: "cockpit", filter: {}, partei: "" };
 teilMerken("qmalt", () => ({ ...gemerkt }), (x) => { Object.assign(gemerkt, x); });
 
 export default function QmAlternativ({ auffrischen }) {
   const [reiter, setReiter] = useState(gemerkt.reiter);
   useGemerkt(gemerkt, { reiter });
+  // Von der Landkarte aus: Reiter wechseln, bei Kontext und Risiken gleich auf die Anspruchsgruppe
+  const gehe = (r, partei) => { if (partei !== undefined) gemerkt.partei = partei; setReiter(r); };
   const d = useDaten(qmaLaden, [auffrischen]);
 
   useSeitenSuche({
@@ -60,11 +62,11 @@ export default function QmAlternativ({ auffrischen }) {
       ? "Es fehlen noch die Tabellen aus sql/qm-alternativ.sql in Supabase." : alt.fehlertext(d.fehler)}</p></div>;
   } else if (!d.daten) {
     inhalt = <div className="laedt">Wird geladen …</div>;
-  } else if (reiter === "cockpit") inhalt = <Cockpit daten={d.daten} neu={d.neu} gehe={setReiter} />;
-  else if (reiter === "handbuch") inhalt = <Handbuch daten={d.daten} neu={d.neu} gehe={setReiter} />;
+  } else if (reiter === "cockpit") inhalt = <Cockpit daten={d.daten} neu={d.neu} gehe={gehe} />;
+  else if (reiter === "handbuch") inhalt = <Handbuch daten={d.daten} neu={d.neu} gehe={gehe} />;
   else if (reiter === "kompetenz") inhalt = <Kompetenz daten={d.daten} neu={d.neu} liste={<Liste art="schulung" daten={d.daten} neu={d.neu} />} />;
   else if (reiter === "bewertung") inhalt = <Bewertung daten={d.daten} neu={d.neu} eintragDialog={eintragDialog} />;
-  else inhalt = <Liste art={reiter} daten={d.daten} neu={d.neu} />;
+  else inhalt = <Liste key={reiter} art={reiter} daten={d.daten} neu={d.neu} />;
 
   return (<>
     <h1 className="seitentitel">QM alternativ</h1>
@@ -151,10 +153,16 @@ const FILTER = [["offen", "Offen"], ["alle", "Alle"]];
 export function Liste({ art, daten, neu }) {
   const cfg = ARTEN[art];
   const [filter, setFilter] = useState(gemerkt.filter[art] || "offen");
+  const [partei, setPartei] = useState(art === "risiko" ? gemerkt.partei || "" : "");
   const alle = daten.eintraege.filter((e) => e.art === art);
-  const zeigen = alle.filter((e) => filter === "alle" || !istZu(e))
-    .sort((a, b) => ((a.faellig || "9") < (b.faellig || "9") ? -1 : (a.faellig || "9") > (b.faellig || "9") ? 1 : (b.nr || 0) - (a.nr || 0)));
+  // Kontext und Risiken: nach Anspruchsgruppe in der Reihenfolge der Landkarte, darin nach Nummer
+  const gruppen = art === "risiko" ? parteiListe() : [];
+  const gruppeNr = (e) => { const i = gruppen.indexOf(e.daten.partei || "Intern / Prozesse"); return i < 0 ? gruppen.length : i; };
+  const zeigen = alle.filter((e) => (filter === "alle" || !istZu(e)) && (!partei || (e.daten.partei || "Intern / Prozesse") === partei))
+    .sort(art === "risiko" ? (a, b) => gruppeNr(a) - gruppeNr(b) || (a.nr || 0) - (b.nr || 0)
+      : (a, b) => ((a.faellig || "9") < (b.faellig || "9") ? -1 : (a.faellig || "9") > (b.faellig || "9") ? 1 : (b.nr || 0) - (a.nr || 0)));
   const waehlen = (f) => { gemerkt.filter = { ...gemerkt.filter, [art]: f }; setFilter(f); };
+  const parteiWaehlen = (x) => { gemerkt.partei = x; setPartei(x); };
 
   return (
     <section className="karte" id={"qma-" + art}>
@@ -169,12 +177,22 @@ export function Liste({ art, daten, neu }) {
           <button key={w} className={"knopf knopf--klein" + (filter === w ? " knopf--haupt" : "")} data-qmafilter={w}
             onClick={() => waehlen(w)}>{t} <span className="klein">({alle.filter((e) => w === "alle" || !istZu(e)).length})</span></button>))}
       </div>
+      {art === "risiko" && <div className="qm-filter qma-parteifilter" role="group">
+        {["", ...gruppen].map((x) => {
+          const n = alle.filter((e) => !x || (e.daten.partei || "Intern / Prozesse") === x).length;
+          if (x && !n) return null;
+          return <button key={x || "_alle"} className={"knopf knopf--klein" + (partei === x ? " knopf--haupt" : "")} data-qmapartei-filter={x || "alle"}
+            onClick={() => parteiWaehlen(x)}>{x || "Alle Gruppen"} <span className="klein">({n})</span></button>;
+        })}
+      </div>}
       {!zeigen.length
         ? <p className="hinweis" data-qmaleer={art}>{alle.length ? "Hier steht gerade nichts offen." : "Noch nichts erfasst."}</p>
         : <div className="qm-tabelle-huelle"><table className="tabelle qm-tabelle qma-tabelle">
             <thead><tr>{cfg.spalten.map(([k, t]) => <th key={k}>{t}</th>)}<th /></tr></thead>
             <tbody>
-              {zeigen.map((e) => (
+              {zeigen.map((e, i) => (<Fragment key={e.id}>
+                {art === "risiko" && !partei && (i === 0 || gruppeNr(zeigen[i - 1]) !== gruppeNr(e)) &&
+                  <tr className="qma-gruppenzeile"><td colSpan={cfg.spalten.length + 1}>{e.daten.partei || "Intern / Prozesse"}</td></tr>}
                 <tr key={e.id} data-qmaeintrag={e.id} className="qm-zeile" onClick={() => eintragDialog(art, e, daten.eintraege, neu)}>
                   {cfg.spalten.map(([k]) => <td key={k}><Zelle art={art} e={e} k={k} /></td>)}
                   <td className="qm-nowrap" onClick={(ev) => ev.stopPropagation()}>
@@ -185,7 +203,7 @@ export function Liste({ art, daten, neu }) {
                         onClick={() => feststellungenUebertragen(e, daten.eintraege, neu)}>→ Abweichungen</button>}
                     <button className="chipweg" title="löschen" data-qmaweg={e.id} onClick={() => loeschen(e, neu)}>×</button>
                   </td>
-                </tr>))}
+                </tr></Fragment>))}
             </tbody>
           </table></div>}
     </section>
@@ -200,10 +218,17 @@ function Zelle({ art, e, k }) {
     const ton = faelligTon(e);
     return e.faellig ? <span className={ton === "rot" ? "qm-spaet" : ton === "gelb" ? "qma-bald" : ""}>{datum(e.faellig)}</span> : null;
   }
-  if (k === "wert") {
-    const w = risikoWert(d);
-    return <Schild ton={d.typ === "chance" ? "blau" : w >= 6 ? "rot" : w >= 4 ? "gelb" : "gruen"}>{d.w} × {d.a} = {w}</Schild>;
+  if (k === "erst") {
+    const w = risikoErst(d);
+    return w ? <Schild ton={hatNeu(d) ? "grau" : d.typ === "chance" ? "blau" : risikoTon(w)}>{d.w} × {d.a} = {w}</Schild> : null;
   }
+  if (k === "wert") {
+    if (!hatNeu(d)) return null;
+    const w = risikoWert(d);
+    return <Schild ton={d.typ === "chance" ? "blau" : risikoTon(w)}>{d.neu_w} × {d.neu_a} = {w}</Schild>;
+  }
+  if (art === "risiko" && k === "typ") return <b className={d.typ === "chance" ? "qma-rc qma-rc--c" : "qma-rc"}>{{ chance: "C", beides: "R/C" }[d.typ] || "R"}</b>;
+  if (k === "fortschritt") return d.fortschritt ? <span className="qm-nowrap">{d.fortschritt} %</span> : null;
   if (k === "note") { const n = lieferantNote(d); return n ? <Schild ton={{ A: "gruen", B: "gelb", C: "rot" }[n]}>{n}</Schild> : null; }
   const f = ARTEN[art].felder.find((x) => x.k === k);
   const w = k === "titel" ? e.titel : d[k];
@@ -223,7 +248,12 @@ export async function eintragDialog(art, e, alle, neu, vorgabe) {
     let wert = v[f.k];
     if (wert == null && !e) wert = typeof f.vorgabe === "function" ? f.vorgabe() : f.vorgabe;
     const feld = { name: f.k, label: f.text, pflicht: f.pflicht, platzhalter: f.platzhalter || "" };
-    if (f.auswahl) return { ...feld, auswahl: f.auswahl, wert: String(wert ?? "") };
+    if (f.auswahl) {
+      // Ein Wert, der nicht mehr in der Liste steht (etwa umbenannte Partei), bleibt wählbar.
+      const liste = auswahlVon(f);
+      const w = String(wert ?? "");
+      return { ...feld, auswahl: w && !liste.some((x) => x[0] === w) ? [...liste, [w, w]] : liste, wert: w };
+    }
     if (f.typ === "textarea") return { ...feld, typ: "textarea", zeilen: f.zeilen || 3, wert: wert || "" };
     if (f.typ === "number") return { ...feld, typ: "number", wert: wert ?? "" };
     if (f.typ === "date") return { ...feld, typ: "date", wert: wert || "" };
