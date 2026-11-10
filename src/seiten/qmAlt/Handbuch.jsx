@@ -87,7 +87,7 @@ const aufEllipse = (grad, rx, ry) => {
 // Ebene 03 wie im Bild: Bewertung oben links, Risiko oben rechts, Ziele
 // rechts unten, Audits unten, Dokumente links unten.
 const QM_WINKEL = [236, 304, 34, 90, 146];
-const FUEHRUNG_ORT = [[41, 43], [59, 43], [41, 57], [59, 57]];
+const FUEHRUNG_ORT = [[39.5, 43], [60.5, 43], [39.5, 57], [60.5, 57]];
 
 function Ellipse({ prozesse, parteien, oeffnen, qmTeil, partei }) {
   const kern = prozesse.filter((p) => ebeneVon(p) === "kern");
@@ -98,6 +98,8 @@ function Ellipse({ prozesse, parteien, oeffnen, qmTeil, partei }) {
     <div className="qma-ellipse" id="qma-landkarte" aria-label="Landkarte des Management-Systems">
       <div className="qma-ring qma-ring--4" /><div className="qma-ring qma-ring--3" />
       <div className="qma-ring qma-ring--2" /><div className="qma-ring qma-ring--1" />
+      {/* Wellen aus dem Kern wie bei der Anmeldung (seit 1.476.0) */}
+      <span className="qma-wellen" aria-hidden="true"><i /><i /><i /></span>
       {/* Ablauf der Prozesse im Uhrzeigersinn: gestrichelte Bahn durch die
           Kärtchen und kleine Pfeile dazwischen (seit 1.475.0) */}
       <svg className="qma-bahn" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -117,14 +119,16 @@ function Ellipse({ prozesse, parteien, oeffnen, qmTeil, partei }) {
           style={aufEllipse(QM_WINKEL[i], 37.5, 33.5)} onClick={() => qmTeil(q)}>{q.text}</button>))}
       {kern.map((p, i) => (
         <button key={p.schluessel} className="qma-knoten" data-qmaprozess={p.schluessel}
-          title={p.norm ? "ISO " + p.norm : ""} style={aufEllipse(196 + i * schritt, 26.5, 21)} onClick={() => oeffnen(p)}>
+          title={p.norm ? "ISO " + p.norm : ""} style={{ ...aufEllipse(196 + i * schritt, 26.5, 21), animationDelay: 200 + i * 45 + "ms" }} onClick={() => oeffnen(p)}>
           {prozessNr(p) ? <span className="qma-knoten__nr">{prozessNr(p)}</span> : null}{p.titel}</button>))}
-      <div className="qma-fuehrung-mitte" style={{ left: "50%", top: "50%" }}>01 · Führung</div>
+      {/* Weisses Logo im Kern wie auf der Anmeldung (seit 1.476.0) */}
+      <img className="qma-logo" src="./logo-weiss.svg" alt="Hofer + Co" />
+      <div className="qma-fuehrung-mitte" style={{ left: "50%", top: "54.5%" }}>01 · Führung</div>
       <div className="qma-ebene qma-ebene--4" style={aufEllipse(249, 41.5, 42.5)}>04 · Kontext</div>
       <div className="qma-ebene qma-ebene--3" style={{ left: "50%", top: "16.4%" }}>03 · QM-System</div>
       {fuehrung.slice(0, 4).map((p, i) => (
         <button key={p.schluessel} className="qma-knoten qma-knoten--f" data-qmaprozess={p.schluessel}
-          title={p.norm ? "ISO " + p.norm : ""} style={{ left: FUEHRUNG_ORT[i][0] + "%", top: FUEHRUNG_ORT[i][1] + "%" }}
+          title={p.norm ? "ISO " + p.norm : ""} style={{ left: FUEHRUNG_ORT[i][0] + "%", top: FUEHRUNG_ORT[i][1] + "%", animationDelay: 60 + i * 45 + "ms" }}
           onClick={() => oeffnen(p)}>
           {prozessNr(p) ? <span className="qma-knoten__nr">{prozessNr(p)}</span> : null}{p.titel}</button>))}
       {fuehrung.length > 4 && <span className="qma-mehr klein">+ {fuehrung.length - 4} weitere unten</span>}
@@ -141,6 +145,7 @@ function Baender({ prozesse, parteien, oeffnen, qmTeil, partei }) {
     </button>);
   return (
     <div className="qma-landkarte">
+      <img className="qma-landkarte__logo" src="./logo-weiss.svg" alt="Hofer + Co" />
       {PROZESS_GRUPPEN.map(([g, text]) => (
         <div key={g} className={"qma-band qma-band--" + g} data-qmagruppe={g}>
           <div className="qma-band__titel">{text}</div>

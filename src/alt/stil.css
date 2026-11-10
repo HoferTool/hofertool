@@ -12670,3 +12670,88 @@ body.dunkel .qma-knoten:not(.qma-knoten--f) { border-left-color: #003884; }
 .qma-landkarte .qma-prozess { border-left: 3px solid #003884; }
 body.dunkel .qma-band--fuehrung { background: #1d2a3d; }
 body.dunkel .qma-band--kern { background: #1b2433; }
+
+/* ---------- QMS: Landkarte im Stil der Anmeldung (seit 1.476.0) ----------
+   Patrick 10. November 2026: „sieht zu stark nach Word oder Visio aus“,
+   „auch das Hofer-Logo und das Design vom Anmeldefenster sollen
+   wiedererkennbar sein“. Fläche im Firmenblau der Anmeldung mit Licht in
+   der Mitte wie hinter der Kachel, Ringe als feine weisse Linien wie die
+   Wellen, das weisse Logo im Kern, Kärtchen weiss mit blauer Schrift wie
+   der Knopf „Anmelden“. Gilt hell und dunkel gleich. */
+.qma-ellipse { background: radial-gradient(ellipse at 50% 48%, #0c4ea6 0%, #003884 48%, #002b66 100%);
+  border-radius: 14px; box-shadow: 0 12px 32px rgba(0, 43, 102, .28); overflow: hidden; margin-top: 12px; }
+.qma-ellipse .qma-ring { background: none; box-shadow: none; }
+.qma-ellipse .qma-ring--4 { left: 3%; top: 2%; width: 94%; height: 96%; border: 1px solid rgba(255, 255, 255, .14); }
+.qma-ellipse .qma-ring--3 { border: 1px solid rgba(255, 255, 255, .2); }
+.qma-ellipse .qma-ring--2 { border: 1.5px solid rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .03); }
+.qma-ellipse .qma-ring--1 { border: 1.5px solid rgba(255, 255, 255, .55);
+  background: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, .22) 0%, rgba(255, 255, 255, .08) 60%, rgba(255, 255, 255, .03) 100%);
+  box-shadow: 0 0 70px rgba(255, 255, 255, .14), inset 0 0 30px rgba(255, 255, 255, .08); }
+.qma-ellipse .qma-bahn ellipse { stroke: rgba(255, 255, 255, .45); stroke-width: 1.2; stroke-dasharray: 2 6; stroke-linecap: round; }
+.qma-ellipse .qma-pfeil { border-left-color: #fff; opacity: .85; }
+.qma-ellipse .qma-ebene { color: rgba(255, 255, 255, .55) !important; -webkit-text-fill-color: rgba(255, 255, 255, .55); font-size: .78cqw; letter-spacing: .18em; }
+.qma-ellipse .qma-logo { width: 7.5cqw; top: 47.5%; left: 50%; pointer-events: none; filter: drop-shadow(0 2px 8px rgba(0, 20, 60, .35)); }
+.qma-ellipse .qma-fuehrung-mitte { top: 54.5% !important; color: rgba(255, 255, 255, .8) !important; -webkit-text-fill-color: rgba(255, 255, 255, .8);
+  font-size: .72cqw; letter-spacing: .22em; }
+.qma-ellipse .qma-knoten { background: #fff; border: 0; border-radius: 8px; color: #10233f !important; -webkit-text-fill-color: #10233f;
+  font-weight: 600; box-shadow: 0 6px 16px rgba(0, 20, 60, .3); }
+.qma-ellipse .qma-knoten:hover { box-shadow: 0 0 0 3px rgba(255, 255, 255, .45), 0 8px 22px rgba(0, 20, 60, .4); }
+.qma-ellipse .qma-knoten .qma-knoten__nr { color: #003884 !important; -webkit-text-fill-color: #003884; font-weight: 700; letter-spacing: .08em; }
+.qma-ellipse .qma-knoten--f { width: 9.4cqw; background: rgba(255, 255, 255, .95); }
+.qma-ellipse .qma-qmteil { background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .55); color: #fff !important;
+  -webkit-text-fill-color: #fff; box-shadow: none; font-weight: 600; }
+.qma-ellipse .qma-qmteil:hover { background: #fff; color: #003884 !important; -webkit-text-fill-color: #003884; }
+.qma-ellipse .qma-partei { background: transparent; border: 1px solid rgba(255, 255, 255, .25); color: rgba(255, 255, 255, .85) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, .85); box-shadow: none; font-weight: 500; }
+.qma-ellipse .qma-partei:hover { border-color: rgba(255, 255, 255, .7); background: rgba(255, 255, 255, .08); }
+.qma-ellipse .qma-partei__zahl { background: rgba(255, 255, 255, .18); color: #fff !important; -webkit-text-fill-color: #fff; }
+.qma-ellipse .qma-partei__zahl--rot { background: #e5484d; }
+.qma-ellipse .qma-mehr { color: rgba(255, 255, 255, .8) !important; }
+.qma-ellipse .qma-logo { width: 9.5cqw; }
+.qma-legende__farbe--1 { background: #003884; border-color: #003884; box-shadow: none; }
+.qma-legende__farbe--2 { background: #3a6cb5; border-color: #3a6cb5; }
+.qma-legende__farbe--3 { background: #7d9fd0; border-color: #7d9fd0; }
+.qma-legende__farbe--4 { background: #c3d2e8; border-color: #c3d2e8; }
+/* Bewegung (Patrick 10. November 2026: „es kann auch etwas animiert sein“):
+   die Bahn fliesst im Uhrzeigersinn, aus dem Kern gehen ruhig Wellen wie bei
+   der Anmeldung, der Kern atmet, Kärtchen erscheinen nacheinander.
+   Wer am Gerät weniger Bewegung eingestellt hat, sieht alles still. */
+.qma-ellipse .qma-wellen { position: absolute; left: 30%; top: 35%; width: 40%; height: 30%; transform: none; pointer-events: none; }
+.qma-wellen i { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, .5); opacity: 0;
+  animation: qmaWelle 6s cubic-bezier(.2, .6, .3, 1) infinite; }
+.qma-wellen i:nth-child(2) { animation-delay: 2s; }
+.qma-wellen i:nth-child(3) { animation-delay: 4s; }
+@keyframes qmaWelle { 0% { transform: scale(1); opacity: .45; } 100% { transform: scale(2.35); opacity: 0; } }
+.qma-ellipse .qma-bahn ellipse { animation: qmaFluss 1.6s linear infinite; }
+@keyframes qmaFluss { to { stroke-dashoffset: -16; } }
+.qma-ellipse .qma-ring--1 { animation: qmaAtem 5s ease-in-out infinite; }
+@keyframes qmaAtem { 0%, 100% { box-shadow: 0 0 50px rgba(255, 255, 255, .1), inset 0 0 30px rgba(255, 255, 255, .06); }
+  50% { box-shadow: 0 0 90px rgba(255, 255, 255, .22), inset 0 0 40px rgba(255, 255, 255, .14); } }
+.qma-ellipse .qma-knoten { animation: qmaRein .5s cubic-bezier(.2, .7, .3, 1) both; }
+@keyframes qmaRein { from { opacity: 0; scale: .85; } to { opacity: 1; scale: 1; } }
+.qma-ellipse .qma-pfeil { animation: qmaPfeil 2.4s ease-in-out infinite; }
+@keyframes qmaPfeil { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .qma-wellen i, .qma-ellipse .qma-bahn ellipse, .qma-ellipse .qma-ring--1, .qma-ellipse .qma-knoten, .qma-ellipse .qma-pfeil { animation: none; }
+  .qma-wellen { display: none; }
+}
+/* Dunkler Modus: dieselbe blaue Grafik wie hell (ältere dunkle Regeln übersteuern) */
+body.dunkel .qma-ellipse .qma-ring--4, body.dunkel .qma-ellipse .qma-ring--3 { background: none; }
+body.dunkel .qma-ellipse .qma-ring--4 { border-color: rgba(255, 255, 255, .14); }
+body.dunkel .qma-ellipse .qma-ring--3 { border-color: rgba(255, 255, 255, .2); }
+body.dunkel .qma-ellipse .qma-ring--2 { background: rgba(255, 255, 255, .03); border-color: rgba(255, 255, 255, .3); }
+body.dunkel .qma-ellipse .qma-qmteil { background: rgba(255, 255, 255, .1); color: #fff !important; -webkit-text-fill-color: #fff; }
+body.dunkel .qma-ellipse .qma-qmteil:hover { background: #fff; color: #003884 !important; -webkit-text-fill-color: #003884; }
+body.dunkel .qma-ellipse .qma-partei { background: transparent; color: rgba(255, 255, 255, .85) !important; -webkit-text-fill-color: rgba(255, 255, 255, .85); }
+body.dunkel .qma-ellipse .qma-bahn ellipse { stroke: rgba(255, 255, 255, .45); }
+body.dunkel .qma-ellipse .qma-pfeil { border-left-color: #fff; }
+body.dunkel .qma-ellipse .qma-ebene { color: rgba(255, 255, 255, .55) !important; -webkit-text-fill-color: rgba(255, 255, 255, .55); }
+/* Handy und iPad hoch: Bänder auf derselben blauen Fläche, Logo oben */
+.qma-landkarte { background: radial-gradient(ellipse at 50% 0%, #0c4ea6 0%, #003884 50%, #002b66 100%); border-radius: 14px; padding: 14px 10px 10px; }
+.qma-landkarte__logo { display: block; width: 120px; margin: 0 auto 6px; }
+.qma-landkarte .qma-band, body.dunkel .qma-landkarte .qma-band { background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .2); }
+.qma-landkarte .qma-band__titel, body.dunkel .qma-landkarte .qma-band__titel { color: rgba(255, 255, 255, .7) !important; -webkit-text-fill-color: rgba(255, 255, 255, .7); }
+.qma-landkarte .qma-prozess { background: #fff; border: 0; border-left: 3px solid #003884; color: #10233f !important; -webkit-text-fill-color: #10233f; }
+.qma-landkarte .qma-prozess * { color: inherit !important; -webkit-text-fill-color: inherit; }
+.qma-landkarte .qma-prozess .klein { color: #5c6675 !important; -webkit-text-fill-color: #5c6675; }
+.qma-landkarte .qma-partei--flach, body.dunkel .qma-landkarte .qma-partei--flach { background: transparent; border: 1px solid rgba(255, 255, 255, .35); color: #fff !important; -webkit-text-fill-color: #fff; }
