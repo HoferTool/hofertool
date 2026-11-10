@@ -664,3 +664,58 @@ export function vorpunkteFuer(e, bereich, alle) {
   }
   return punkte;
 }
+
+// ---------- Prozessgrafik (seit 1.480.0) ----------
+// Die Prozessblätter sind freier Text. Für die Grafik zerlegt die App ihn,
+// ohne dass jemand etwas anders schreiben muss: jede Zeile im Ablauf ist ein
+// Schritt, „Vorbereiten: …“ gibt dem Schritt einen Namen, der Rest wird zu
+// Punkten (mehrere Sätze, sonst „;“, sonst eine Aufzählung mit Kommas).
+// Kommas in Klammern und vor Zahlen („1, 3 und 5 Jahre“) trennen nicht.
+export function aufzaehlung(s, trenner = ",") {
+  const t = String(s || "").trim().replace(/\.$/, "");
+  const teile = []; let tiefe = 0, akt = "";
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (c === "(") tiefe++;
+    if (c === ")") tiefe = Math.max(0, tiefe - 1);
+    if (c === trenner && !tiefe && !/\d/.test(t[i + 2] || "")) { teile.push(akt); akt = ""; continue; }
+    akt += c;
+  }
+  teile.push(akt);
+  return teile.map((x) => x.trim()).filter(Boolean);
+}
+// Satzende: Punkt nach mindestens zwei Buchstaben oder nach „)“, dann ein
+// Grossbuchstabe. So trennen „P. Ruch“, „2. Mahnung“ und „i.O.“ nicht.
+// Ohne Rückblick im Suchmuster, Safari 16 am iPad kennt ihn nicht.
+const saetze = (s) => {
+  const t = String(s || "").trim(), aus = [];
+  let von = 0;
+  const re = /\.\s+(?=[A-ZÄÖÜ])/g;
+  let m;
+  while ((m = re.exec(t))) {
+    const vor = t.slice(Math.max(0, m.index - 2), m.index);
+    if (/^[A-Za-zäöüÄÖÜß]{2}$/.test(vor) || vor.endsWith(")")) { aus.push(t.slice(von, m.index + 1)); von = m.index + m[0].length; }
+  }
+  aus.push(t.slice(von));
+  return aus.map((x) => x.trim()).filter(Boolean);
+};
+const kopfVon = (s) => {
+  const m = /^([^:.]{2,40}):\s+(.+)$/.exec(String(s).trim());
+  return m ? { kopf: m[1].trim(), rest: m[2].trim() } : { kopf: "", rest: String(s).trim() };
+};
+export function ablaufSchritte(text) {
+  let zeilen = String(text || "").split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  // Ein einziger Absatz ohne Namen: jeder Satz ist ein Schritt.
+  if (zeilen.length === 1 && !kopfVon(zeilen[0]).kopf) zeilen = saetze(zeilen[0]);
+  return zeilen.map((z) => {
+    const { kopf, rest } = kopfVon(z);
+    let punkte = saetze(rest), kette = false;
+    if (punkte.length === 1) punkte = aufzaehlung(rest, ";");
+    if (punkte.length === 1 && kopf) {
+      const k = aufzaehlung(rest);
+      if (k.length >= 3 && k.every((x) => x.length <= 70)) { punkte = k; kette = true; }
+    }
+    // „Genehmigt: …“ in einem Punkt bleibt als kleiner Name davor stehen.
+    return { kopf, kette, punkte: punkte.map((p) => { const x = kopfVon(p); return { name: x.kopf, text: x.rest.replace(/\.$/, "") }; }) };
+  });
+}

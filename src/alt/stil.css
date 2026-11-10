@@ -12817,3 +12817,109 @@ body.dunkel .qma-ellipse .qma-ebene { color: rgba(255, 255, 255, .55) !important
   .qma-org-liste .qma-org__stand { position: static; grid-column: 1 / -1; text-align: right; }
 }
 @media (prefers-reduced-motion: reduce) { .qma-org .qma-org__karte, .qma-org .qma-wellen i { animation: none; } }
+
+/* ---------- QMS: Prozessgrafik (seit 1.480.0) ----------
+   Patrick 10. November 2026: „zu jedem Prozessbeschrieb eine graphische
+   Ansicht“, „soll zur Prozesslandkarte und dem HoferTool passen“. Dieselbe
+   blaue Fläche, Wellen und Glas-Kärtchen wie Landkarte und Organigramm:
+   Eingaben → Ablauf → Ergebnis, Schritte mit weisser Nummer wie der Knopf
+   „Anmelden“, die Bahn zwischen den Schritten fliesst wie auf der Landkarte.
+   Hell und dunkel gleich. */
+.qma-pa-huelle .qma-pa { width: min(1240px, 100%); max-height: calc(100vh - 32px); padding: 0; overflow: hidden; border-radius: 16px;
+  background: #002b66; box-shadow: 0 18px 48px rgba(0, 20, 60, .45); }
+.qma-pa__flaeche { position: relative; max-height: calc(100vh - 32px); overflow-y: auto; overflow-x: hidden; box-sizing: border-box;
+  padding: 18px 22px 22px; color: #fff; background: radial-gradient(ellipse at 50% 0%, #0c4ea6 0%, #003884 46%, #002b66 100%); }
+.qma-pa__flaeche, .qma-pa__flaeche *, body.dunkel .qma-pa__flaeche, body.dunkel .qma-pa__flaeche * { color: #fff !important; -webkit-text-fill-color: #fff; }
+.qma-pa__flaeche > .qma-wellen { position: absolute; left: 6px; top: -10px; width: 120px; height: 90px; pointer-events: none; opacity: .7; }
+.qma-pa__kopf { position: relative; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.qma-pa__logo { width: 92px; flex: none; filter: drop-shadow(0 2px 8px rgba(0, 20, 60, .35)); }
+.qma-pa__titel { flex: 1 1 220px; min-width: 0; }
+.qma-pa__titel h2 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: .01em; line-height: 1.15; overflow-wrap: anywhere; }
+.qma-pa__ebene, body.dunkel .qma-pa__ebene { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #9fc3f5 !important; -webkit-text-fill-color: #9fc3f5; font-weight: 600; }
+.qma-pa__knoepfe { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.qma-pa__knopf, body.dunkel .qma-pa__knopf { min-width: 38px; height: 38px; padding: 0 10px; border-radius: 10px; cursor: pointer; font: inherit; font-size: 20px; line-height: 1;
+  background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .3); transition: background .15s, border-color .15s; }
+.qma-pa__knopf--text { font-size: 14px; font-weight: 600; padding: 0 14px; }
+.qma-pa__knopf:hover { background: rgba(255, 255, 255, .2); border-color: rgba(255, 255, 255, .6); }
+.qma-pa__knopf[data-zu], body.dunkel .qma-pa__knopf[data-zu] { background: #fff; border-color: #fff; color: #003884 !important; -webkit-text-fill-color: #003884; }
+.qma-pa__zaehler { font-size: 13px; opacity: .75; min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; }
+.qma-pa__info { margin: 14px 0 4px; }
+.qma-pa__zweck { margin: 0 0 8px; font-size: 16px; line-height: 1.45; opacity: .92; max-width: 900px; }
+.qma-pa__marken { display: flex; flex-wrap: wrap; gap: 6px; }
+.qma-pa__pille { display: inline-flex; gap: 6px; align-items: baseline; padding: 4px 12px; border-radius: 99px; font-size: 13px;
+  background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .28); overflow-wrap: anywhere; }
+.qma-pa__pille b, body.dunkel .qma-pa__pille b { color: #9fc3f5 !important; -webkit-text-fill-color: #9fc3f5; font-weight: 600; }
+.qma-pa__pille--norm { font-weight: 600; letter-spacing: .04em; }
+/* Eingaben → Ablauf → Ergebnis */
+.qma-pa__fluss { display: grid; grid-template-columns: minmax(150px, 1fr) 26px minmax(0, 2.6fr) 26px minmax(150px, 1fr); align-items: start; gap: 0 4px; margin-top: 18px; }
+.qma-pa__spalte { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; position: sticky; top: 0;
+  background: rgba(255, 255, 255, .05); border: 1px dashed rgba(255, 255, 255, .28); }
+.qma-pa__spaltentitel, body.dunkel .qma-pa__spaltentitel { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 600;
+  color: rgba(255, 255, 255, .62) !important; -webkit-text-fill-color: rgba(255, 255, 255, .62); margin-bottom: 2px; }
+.qma-pa__chip, .qma-pa__karte, .qma-pa__kasten {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .07)); border: 1px solid rgba(255, 255, 255, .28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 4px 14px rgba(0, 18, 50, .22); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.qma-pa__chip { padding: 7px 10px; border-radius: 9px; font-size: 13.5px; line-height: 1.3; overflow-wrap: anywhere; animation: qmaRein .45s cubic-bezier(.2, .7, .3, 1) backwards; }
+.qma-pa__spalte--aus .qma-pa__chip { border-left: 3px solid #9fc3f5; }
+.qma-pa__spalte--ein .qma-pa__chip { border-right: 3px solid #9fc3f5; }
+.qma-pa__leer { font-size: 13px; opacity: .6; font-style: italic; list-style: none; }
+.qma-pa__pfeil { align-self: center; height: 2px; position: relative; margin-top: 0;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .7) 0 4px, transparent 4px 9px); background-size: 18px 2px; animation: qmaPaFluss 1.2s linear infinite; }
+.qma-pa__pfeil::after { content: ""; position: absolute; right: -4px; top: -5px; border: 6px solid transparent; border-left: 8px solid #fff; border-right: 0; }
+@keyframes qmaPaFluss { to { background-position: 18px 0; } }
+/* Ablauf: Nummern auf einer fliessenden Bahn, Karte daneben */
+.qma-pa__ablauf { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; position: relative; }
+.qma-pa__ablauf::before { content: ""; position: absolute; left: 17px; top: 18px; bottom: 18px; width: 2px;
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, .55) 0 4px, transparent 4px 9px); background-size: 2px 18px; animation: qmaPaFlussAb 1.2s linear infinite; }
+@keyframes qmaPaFlussAb { to { background-position: 0 18px; } }
+.qma-pa__schritt { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: start; position: relative;
+  animation: qmaRein .5s cubic-bezier(.2, .7, .3, 1) backwards; }
+.qma-pa__nr, body.dunkel .qma-pa__nr { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 15px;
+  background: #fff; color: #003884 !important; -webkit-text-fill-color: #003884; box-shadow: 0 0 0 4px rgba(255, 255, 255, .14), 0 4px 12px rgba(0, 18, 50, .35); position: relative; z-index: 1; }
+.qma-pa__karte { padding: 10px 14px; border-radius: 12px; font-size: 14.5px; line-height: 1.45; overflow-wrap: anywhere;
+  transition: transform .2s cubic-bezier(.2, .7, .3, 1), border-color .2s, box-shadow .2s; }
+.qma-pa__schritt:hover .qma-pa__karte { transform: translateX(3px); border-color: rgba(255, 255, 255, .6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 0 18px rgba(140, 190, 255, .3), 0 6px 18px rgba(0, 18, 50, .3); }
+.qma-pa__kopfzeile { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+.qma-pa__kette { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+.qma-pa__glied { padding: 3px 10px; border-radius: 99px; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .22); font-size: 13.5px; }
+.qma-pa__glied + .qma-pa__glied::before { content: "›"; display: inline-block; margin: 0 8px 0 -4px; opacity: .6; font-weight: 700; }
+.qma-pa__glied { position: relative; margin-left: 4px; }
+.qma-pa__glied + .qma-pa__glied { margin-left: 14px; }
+.qma-pa__glied + .qma-pa__glied::before { position: absolute; left: -13px; margin: 0; }
+.qma-pa__punkte { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.qma-pa__punkte li::marker { color: #9fc3f5; }
+.qma-pa__entscheid { list-style: "◆  "; }
+.qma-pa__wenn, body.dunkel .qma-pa__wenn { display: inline-block; margin-right: 6px; padding: 0 8px; border-radius: 6px; font-size: 12.5px;
+  background: rgba(159, 195, 245, .22); border: 1px solid rgba(159, 195, 245, .5); color: #dcebff !important; -webkit-text-fill-color: #dcebff; }
+/* Unten: Kennzahl, Risiken, Nachweise */
+.qma-pa__unten { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 20px; }
+.qma-pa__kasten { padding: 10px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.45; overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .qma-pa__fluss { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .qma-pa__spalte { position: static; }
+  .qma-pa__pfeil { width: 2px; height: 26px; justify-self: center; margin: 4px 0;
+    background: repeating-linear-gradient(180deg, rgba(255, 255, 255, .7) 0 4px, transparent 4px 9px); background-size: 2px 18px; animation-name: qmaPaFlussAb; }
+  .qma-pa__pfeil::after { right: auto; left: -5px; top: auto; bottom: -6px; border: 6px solid transparent; border-top: 8px solid #fff; border-bottom: 0; }
+  .qma-pa__spalte { flex-direction: row; flex-wrap: wrap; }
+  .qma-pa__spaltentitel { flex-basis: 100%; }
+}
+@media (max-width: 560px) {
+  .qma-pa-huelle .qma-pa { max-height: calc(100vh - 16px); }
+  .qma-pa__flaeche { padding: 14px 12px 16px; max-height: calc(100vh - 16px); }
+  .qma-pa__logo { width: 70px; }
+  .qma-pa__titel h2 { font-size: 21px; }
+  .qma-pa__knoepfe { width: 100%; justify-content: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qma-pa__pfeil, .qma-pa__ablauf::before, .qma-pa__chip, .qma-pa__schritt, .qma-pa .qma-wellen i { animation: none; }
+}
+
+/* QMS Landkarte: Ovale der Ebenen 03 und 04 berührten sich (Patrick 10. November 2026:
+   „in der Prozesslandkarte berühren sich die Ovale in der Ebene 03 und 04, ändere das“).
+   Die Wellen aus dem Kern liefen bis über Ebene 03 und 04 hinaus und schnitten dort die
+   Ringe, weil sie flacher sind als diese; jetzt laufen sie nur noch bis in Ebene 02 aus.
+   Dazu Ebene 03 etwas schmaler, damit zwischen den Ringen überall Luft bleibt. */
+.qma-ellipse .qma-wellen i { animation-name: qmaWelleKern; }
+@keyframes qmaWelleKern { 0% { transform: scale(1); opacity: .45; } 100% { transform: scale(1.6); opacity: 0; } }
+.qma-ellipse .qma-ring--3 { left: 10%; top: 13%; width: 80%; height: 74%; }

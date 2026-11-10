@@ -15,7 +15,7 @@ VERMERK = """;
 (TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { qmSehen: true };
 TEST.daten.qma_texte = [
   { schluessel: 'politik', gruppe: 'handbuch', titel: 'Qualitätspolitik', norm: '5.2', inhalt: 'Teile nach Zeichnung.', sort: 60 },
-  { schluessel: 'prozess:fertigung', gruppe: 'kern', titel: 'Fertigung', norm: '8.5', felder: { verantwortlich: 'Einrichter', nr: '02.04' }, sort: 50 },
+  { schluessel: 'prozess:fertigung', gruppe: 'kern', titel: 'Fertigung', norm: '8.5', felder: { verantwortlich: 'Einrichter', nr: '02.04', zweck: 'Teile in der geforderten Qualität termingerecht fertigen.', eingaben: 'Planwand, Fabrikationsauftrag mit Zeichnung, Produktionsfreigabe der QS (Erststück, Serie)', ergebnisse: 'Fertige Teile, abgeschlossener FA', kennzahl: 'Ausschussquote', ablauf: 'Vorbereiten: Angaben der Planwand prüfen, Rohmaterial bereitlegen, Werkzeuge rüsten, Prüfmittel bereitlegen.\\nStarten: Programm laden (Nr. und Index), einrichten, einfahren, Erststück-Kontrolle durch den Einrichter.\\nAbarbeiten: laufende Stichproben durch Produktion und/oder QS.\\nAbschliessen: Endkontrolle und Freigabe durch die QS. Änderungen und Verzögerungen sofort an AVOR melden.' }, sort: 50 },
   { schluessel: 'prozess:strategie', gruppe: 'fuehrung', titel: 'Strategie', norm: '6.2 · 9.3', felder: { nr: '01.04' }, sort: 10 },
 ];
 TEST.daten.qma_eintraege = [];
@@ -165,7 +165,16 @@ with sync_playwright() as p:
     pg.click("[data-qmareiter='handbuch']"); pg.wait_for_selector("#qma-abschnitte")
     z = pg.locator("[data-qmamatrix='8.5.1'] .qma-zelle-punkt")
     pruefe(z.count() == 2 and "●" in z.nth(1).inner_text() and "●" not in z.nth(0).inner_text(), "Matrix: 8.5.1 bei Fertigung, nicht bei Strategie")
-    pg.click("[data-qmaprozess='prozess:fertigung']"); d = dialog(pg)
+    pg.click("[data-qmaprozess='prozess:fertigung']"); pg.wait_for_selector("#qma-pa")
+    pruefe(pg.locator("#qma-pa .qma-pa__schritt").count() == 4, "Prozess antippen zeigt vier Schritte")
+    pruefe(pg.locator("#qma-pa-ein .qma-pa__chip").count() == 3, "Eingaben als drei Kärtchen")
+    pruefe(pg.locator("#qma-pa .qma-pa__glied").count() == 8, "Aufzählungen als Kette")
+    pg.wait_for_timeout(900); pg.screenshot(path=BILD + "/qma-prozessgrafik.png")
+    pg.click("#qma-pa-weiter"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("#qma-pa[data-qmapa='prozess:strategie']").count() == 1, "Weiter blättert zum nächsten Prozess")
+    pg.keyboard.press("ArrowLeft"); pg.wait_for_timeout(300)
+    pruefe(pg.locator("#qma-pa[data-qmapa='prozess:fertigung']").count() == 1, "Pfeiltaste blättert zurück")
+    pg.click("#qma-pa-bearbeiten"); d = dialog(pg)
     pruefe(feld(d, "nr").input_value() == "02.04", "Prozessblatt mit Nr.")
     pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
     pg.click("[data-qmaabschnitt='geltungsbereich']"); d = dialog(pg)

@@ -12,6 +12,7 @@ import {
   ebeneVon, prozessNr, prozesseSortiert, normPruefen, deckt, risikoWert, risikoTon,
 } from "../../daten/qmAlt.js";
 import { blattDrucken, absatz } from "./drucken.js";
+import { prozessAnsicht } from "./ProzessGrafik.jsx";
 
 export default function Handbuch({ daten, neu, gehe }) {
   const { texte } = daten;
@@ -35,6 +36,8 @@ export default function Handbuch({ daten, neu, gehe }) {
     const el = document.querySelector(`[data-qmaabschnitt='${k}']`);
     if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("qma-blitz"); setTimeout(() => el.classList.remove("qma-blitz"), 1600); }
   };
+  // Antippen zeigt zuerst die Grafik des Prozesses (seit 1.480.0), dort „Bearbeiten“.
+  const zeigen = (p) => prozessAnsicht(p, prozesse, (x) => prozessDialog(x, prozesse, neu));
   const qmTeil = (q) => (q.abschnitt ? zuAbschnitt(q.abschnitt) : gehe && gehe(q.reiter));
 
   return (<>
@@ -47,21 +50,21 @@ export default function Handbuch({ daten, neu, gehe }) {
           <button className="knopf knopf--haupt" id="qma-neu-prozess" onClick={() => prozessDialog(null, prozesse, neu)}>+ Prozess</button>
         </div>
       </div>
-      <p className="hinweis">Prozess antippen öffnet sein Prozessblatt. Ebene 03 führt zum passenden Reiter.
+      <p className="hinweis">Prozess antippen zeigt seinen Ablauf als Grafik, dort „Bearbeiten“ öffnet das Prozessblatt. Ebene 03 führt zum passenden Reiter.
         {stand ? " Zuletzt geändert " + alt.datumZeitKurz(stand) + "." : ""}</p>
       <div className="qma-legende" aria-label="Ebenen von innen nach aussen">
         {[["1", "01", "Führung"], ["2", "02", "Prozesse"], ["3", "03", "QM-System"], ["4", "04", "Hofer + Co im Kontext"]].map(([k, nr, text]) => (
           <span key={k} className="qma-legende__punkt"><i className={"qma-legende__farbe qma-legende__farbe--" + k} /><b>{nr}</b> {text}</span>))}
       </div>
-      <Ellipse prozesse={prozesse} parteien={parteien} oeffnen={(p) => prozessDialog(p, prozesse, neu)} qmTeil={qmTeil}
+      <Ellipse prozesse={prozesse} parteien={parteien} oeffnen={zeigen} qmTeil={qmTeil}
         partei={parteiKnopf} />
-      <Baender prozesse={prozesse} parteien={parteien} oeffnen={(p) => prozessDialog(p, prozesse, neu)} qmTeil={qmTeil}
+      <Baender prozesse={prozesse} parteien={parteien} oeffnen={zeigen} qmTeil={qmTeil}
         partei={parteiKnopf} />
     </section>
 
     <Organigramm texte={texte} neu={neu} />
 
-    <NormMatrix texte={texte} eintraege={daten.eintraege} prozesse={prozesse} oeffnen={(p) => prozessDialog(p, prozesse, neu)} />
+    <NormMatrix texte={texte} eintraege={daten.eintraege} prozesse={prozesse} oeffnen={zeigen} />
 
     <section className="karte" id="qma-abschnitte">
       <div className="karte__kopf"><h2>Handbuch</h2></div>
