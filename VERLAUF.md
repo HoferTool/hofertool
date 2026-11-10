@@ -774,3 +774,4 @@ Planwand mit Ziehen, Verlängern, Nachrücken und Lücke schliessen · Produktio
 - Verlauf und Schein des Schriftzugs NC-PRO (Kopf der Seite und Markenleiste im eigenen Fenster) kommen aus `--ncpro-a`, `--ncpro-b`, `--ncpro-schein` je Themenfarbe, hell und dunkel; Blau bleibt wie vorher. Prüfstand `nc_pro_leuchten.py`.
 
 - **1.478.0** (10. November 2026): QMS-Landkarte: Prozess-Kärtchen als Glas statt weisser Kacheln, auch am Handy (Patrick: „die weissen Kacheln passen optisch nicht, mach etwas Harmonischeres“).
+- **1.478.1** (10. November 2026): QMS-Landkarte: Prozess beim Darüberfahren zoomt an Ort nach vorne statt zur Seite zu springen.
