@@ -28,7 +28,7 @@ with sync_playwright() as p:
     VERMERK = ";\n(TEST.daten.profiles.find(x => x.id === 'u1') || {}).einstellungen = { qmSehen: true };\n"
     laden(pg, VERMERK)
     pruefe(pg.locator("[data-nav='qm']").count() > 0, "QM im Menü mit Vermerk")
-    pg.evaluate("location.hash='#/qm'"); pg.wait_for_selector("#qm-leer", timeout=5000)
+    pg.evaluate("location.hash='#/qm'"); pg.wait_for_selector("#qm-inhalt", timeout=5000)
     pruefe("QM" in pg.locator("h1.seitentitel").inner_text(), "Seite QM geht auf")
     pg.screenshot(path=BILD + "/qm-reiter.png")
     laden(pg, VERMERK + "(TEST.daten.profiles.find(x => x.id === 'u1') || {}).role = 'extern';\n")

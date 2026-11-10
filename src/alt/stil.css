@@ -12202,3 +12202,39 @@ body.dunkel .eba-pf-wzb-tipp { color: #ccc !important; }
 .eba-wzb-marke--zieh { cursor: move; touch-action: none; }
 .eba-pf-wzb-leiste { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; }
 .eba-pf-wzb-leiste .eba-pf-geostil { margin-left: 6px; }
+
+/* ---------- QM, Etappe 1 (seit 1.459.0) ---------- */
+.qm-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+/* Breite Tabellen rollen in sich, nie die ganze Seite */
+.qm-tabelle-huelle { overflow-x: auto; max-width: 100%; }
+.qm-tabelle td { vertical-align: top; }
+.qm-zeile { cursor: pointer; }
+.qm-zeile:hover { background: var(--flaeche-hover, #f3f6fa); }
+.qm-umbruch { white-space: pre-wrap; }
+.qm-zahl { text-align: right; white-space: nowrap; }
+.qm-nowrap { white-space: nowrap; }
+.qm-spaet { color: #c62828; font-weight: 650; }
+.qm-trend { font-weight: 700; color: var(--gedaempft); }
+.qm-zwischen th { padding-top: 18px; }
+.qm-wert { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.qm-feld { width: 9.5em; text-align: right; padding: 5px 7px; border: 1px solid var(--linie-stark); border-radius: 6px;
+  font: inherit; background: var(--flaeche, #fff); color: inherit; }
+.qm-zahlen td { padding-top: 5px; padding-bottom: 5px; }
+.qm-ampel { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.qm-ampel--leer { background: transparent; border: 1px dashed var(--linie-stark); }
+.qm-ampel--gruen { background: #2e9d4f; }
+.qm-ampel--gelb { background: #f2b705; }
+.qm-ampel--rot { background: #d93025; }
+.qm-status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .8rem; font-weight: 650;
+  background: #eef1f5; color: #344; white-space: nowrap; }
+.qm-status--laeuft { background: #e3eefc; color: #1a4f8f; }
+.qm-status--erledigt { background: #fff3cd; color: #7a5a00; }
+.qm-status--wirksam { background: #ddf3e4; color: #1d6b37; }
+.qm-status--unwirksam { background: #fde2e1; color: #9b1c1c; }
+body.dunkel .qm-status { background: #2b3440; }
+body.dunkel .qm-status--laeuft { background: #1d3a5f; }
+body.dunkel .qm-status--erledigt { background: #5a4500; }
+body.dunkel .qm-status--wirksam { background: #1d4a2c; }
+body.dunkel .qm-status--unwirksam { background: #6a1f1f; }
+body.dunkel .qm-zeile:hover { background: #222a33; }
+body.dunkel .qm-feld { background: #1b2027; }
