@@ -30,7 +30,9 @@ function offlineListe() {
         // Erklärvideos sind gross und werden nur bei Bedarf geladen
         && !d.startsWith("./hilfe/")
         // Die Texterkennung (13 MB) holt das Gerät erst beim ersten Foto
-        && !d.startsWith("./tesseract/"));
+        && !d.startsWith("./tesseract/")
+        // Zeichentabellen (1.7 MB) braucht kaum ein PDF, nur asiatische Schriften
+        && !d.startsWith("./pdfjs/cmaps/"));
       const sw = join(ziel, "sw.js");
       const text = readFileSync(sw, "utf8");
       // Die Fassung ergibt sich aus den Dateinamen: Ändert sich etwas,
@@ -76,6 +78,16 @@ function pdfjsWasm() {
     generateBundle() {
       for (const n of ["openjpeg.wasm", "jbig2.wasm", "qcms_bg.wasm"]) {
         this.emitFile({ type: "asset", fileName: "pdfjs/" + n, source: readFileSync(quelle + n) });
+      }
+      // Standardschriften und Zeichentabellen: PDFs mit nicht eingebetteter
+      // Schrift (Arial, Helvetica …) zeigten sonst nur Kästchen statt Text
+      // (Patrick 10. November 2026, Titelblatt Star). Aus der eigenen
+      // Website, damit es auch offline und hinter Blockern geht.
+      for (const ordner of ["standard_fonts", "cmaps"]) {
+        const von = "node_modules/pdfjs-dist/" + ordner + "/";
+        for (const n of readdirSync(von)) {
+          this.emitFile({ type: "asset", fileName: "pdfjs/" + ordner + "/" + n, source: readFileSync(von + n) });
+        }
       }
     },
   };

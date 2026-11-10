@@ -170,9 +170,20 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
       wache.disconnect();
       clearInterval(zuPruefen);
       removeEventListener("pagehide", eintrag.schliessen);
-      if (!w.closed) { lageMerken(w); w.close(); }
-      // Rückfragen, die hier drüben noch offen waren, kommen zurück
-      d.querySelectorAll(".dialog-huelle").forEach((n) => { if (n !== huelle) document.body.appendChild(n); });
+      const schonZu = w.closed;
+      if (!schonZu) lageMerken(w);
+      // Rückfragen, die hier drüben noch offen waren, kommen zurück. Das
+      // geht nur, solange das Browserfenster noch lebt: aus einem schon
+      // zerstörten Fenster zurückgeholt, reagierte ein React-Fenster auf
+      // keinen Klick mehr und deckte die ganze App zu (Patrick 10. November
+      // 2026: „wenn man das Fenster schliesst und nicht auf Schliessen
+      // drückt … geht nix mehr“). Dann lieber sauber schliessen.
+      d.querySelectorAll(".dialog-huelle").forEach((n) => {
+        if (n === huelle) return;
+        if (schonZu && n.__hoferZu) { try { n.__hoferZu(); } catch (f) { n.remove(); } return; }
+        document.body.appendChild(n);
+      });
+      if (!schonZu) w.close();
       zu();
     },
   };
@@ -183,6 +194,9 @@ export function inEigenesFenster(huelle, zu, { titel, lage, still } = {}) {
   // Browserfenster selbst geschlossen: das Fenster der App auch
   const zuPruefen = setInterval(() => { if (w.closed) eintrag.schliessen(); }, 400);
   w.addEventListener("beforeunload", () => lageMerken(w));
+  // Kreuz des Browserfensters: noch während es zugeht alles zurückholen,
+  // genau wie mit „Schliessen“ (dann bleibt auch ein offenes Einrichtblatt bedienbar)
+  w.addEventListener("pagehide", () => eintrag.schliessen());
   // Hauptfenster lädt neu oder geht zu: das eigene Fenster auch
   addEventListener("pagehide", eintrag.schliessen);
   w.focus();

@@ -12441,3 +12441,9 @@ body.dunkel .qma-gruppenzeile td { background: #232b36; color: #cfe0ff !importan
 .qma-rc--c { color: #2c6e3f; }
 body.dunkel .qma-rc { color: #ff9a9a !important; }
 body.dunkel .qma-rc--c { color: #8fd6a4 !important; }
+
+/* Balken einer Maschine nie in halbe Reihen geteilt (1.466.2, Patrick
+   10. November 2026: „halb halb sollte nie möglich sein“). Überlappen
+   sich zwei, liegen sie übereinander, bis die App sie aufgeräumt hat. */
+.pw-zeile[data-mzeile] .pw-balken-schicht { grid-template-rows: 100%; }
+.pw-zeile[data-mzeile] .pw-balken { grid-row: 1; }

@@ -28,10 +28,13 @@ export function pdfjs() {
       // Eingescannte PDFs (JPEG 2000, JBIG2) brauchen die Decoder aus
       // pdfjs/ (vite.config.js), sonst bleiben die Seiten weiss. Gilt so
       // für jeden Aufruf von getDocument in der App.
+      // Dazu Standardschriften und Zeichentabellen, sonst stehen bei PDFs
+      // mit nicht eingebetteter Schrift nur Kästchen da (Patrick 10. November 2026).
       const wasmUrl = new URL("pdfjs/", document.baseURI).href;
+      const zusatz = { wasmUrl, standardFontDataUrl: wasmUrl + "standard_fonts/", cMapUrl: wasmUrl + "cmaps/", cMapPacked: true };
       const laden = lib.getDocument;
       return Object.assign({}, lib, {
-        getDocument: (o) => laden(o && typeof o === "object" && !(o instanceof Uint8Array) && !o.wasmUrl ? { wasmUrl, ...o } : o),
+        getDocument: (o) => laden(o && typeof o === "object" && !(o instanceof Uint8Array) ? { ...zusatz, ...o } : o),
       });
     }).catch((f) => {
       // Nicht den Fehlschlag merken: sonst scheitert jeder weitere Versuch
@@ -196,9 +199,8 @@ export function PdfAnsicht({ daten, beiFehler }) {
       // Zeichentabellen und Standardschriften von pdf.js: ohne sie fehlt
       // bei manchen PDFs (asiatische Schriften, Schriften nicht
       // eingebettet) der Text für die Suche. Geholt nur, wenn ein PDF sie braucht.
-      const quelle = "https://cdn.jsdelivr.net/npm/pdfjs-dist@" + lib.version + "/";
-      aufgabe = lib.getDocument({ data: daten.slice(), isEvalSupported: false,
-        cMapUrl: quelle + "cmaps/", cMapPacked: true, standardFontDataUrl: quelle + "standard_fonts/" });
+      // (kommen seit 1.466.2 für jeden Aufruf aus pdfjs/ der eigenen Website)
+      aufgabe = lib.getDocument({ data: daten.slice(), isEvalSupported: false });
       const d = await aufgabe.promise;
       const m = [];
       for (let i = 1; i <= d.numPages; i++) {

@@ -159,7 +159,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.466.1";
+const APP_VERSION = "1.466.2";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -359,6 +359,8 @@ function oberstesFensterSchliessen() {
 
 function dialogSchliessen(huelle, zu) {
   let startAussen = false;
+  // Damit ein eigenes Browserfenster seine Fenster beim Zugehen schliessen kann
+  huelle.__hoferZu = zu;
 
   huelle.addEventListener("pointerdown", (e) => {
     startAussen = (e.target === huelle);
@@ -3979,6 +3981,105 @@ async function planKonflikteLoesen(maschineId, festId) {
   return vorher;
 }
 
+// Keine Balken übereinander (Patrick 10. November 2026: „dass die Balken
+// so halb halb sind, sollte nie möglich sein … sofort normalisiert oder
+// nach hinten geschoben“). Überlappen sich zwei Aufträge einer Maschine,
+// teilte die Tafel die Zeile in zwei halbe Reihen. Darum nach jedem
+// Zeichnen kurz prüfen und aufräumen:
+//  - ein fertiger Auftrag, der in den nächsten hineinragt, endet am
+//    Arbeitstag davor (er ist ja schon fertig),
+//  - ein geplanter Auftrag rückt hinter alles, was er überdeckt,
+//  - laufende und rüstende bleiben, wo sie sind.
+// Nur wer planen darf (die Datenbank lässt es sonst nicht zu); für alle
+// anderen legt die Tafel überlappende Balken übereinander statt halb.
+let planNormalTakt = null, planNormalLaeuft = false;
+function planNormalisierenSpaeter() {
+  if (istArchiv() || !darfPlanen()) return;
+  clearTimeout(planNormalTakt);
+  planNormalTakt = setTimeout(planNormalisieren, 500);
+}
+
+function planUeberlappungRechnen() {
+  const aenderungen = [];
+  const jeMaschine = new Map();
+  for (const x of plan.auftraege || []) {
+    if (!x.machine_id || !x.planned_from) continue;
+    if (!jeMaschine.has(x.machine_id)) jeMaschine.set(x.machine_id, []);
+    jeMaschine.get(x.machine_id).push(x);
+  }
+  const reihe = (a, c) => a.planned_from < c.planned_from ? -1
+    : (a.planned_from > c.planned_from ? 1 : String(a.id).localeCompare(String(c.id)));
+  const bis = (x) => planEnde(x.planned_from, x.planned_days || 1);
+  for (const liste of jeMaschine.values()) {
+    if (liste.length < 2) continue;
+    liste.sort(reihe);
+    // 1. Fertige kürzen, die in einen späteren Auftrag hineinragen
+    for (let i = 0; i < liste.length; i++) {
+      const f = liste[i];
+      if (f.plan_status !== "fertig") continue;
+      const naechster = liste.slice(i + 1).find((x) => x.id !== f.id && x.planned_from > f.planned_from && x.planned_from <= bis(f));
+      if (!naechster) continue;
+      const ende = arbeitstagePlus(naechster.planned_from, -1);
+      const tage = ende >= f.planned_from ? arbeitstageZwischen(f.planned_from, ende) : 0;
+      if (tage >= 1 && tage < (f.planned_days || 1)) {
+        aenderungen.push({ x: f, feld: "planned_days", von: f.planned_days, nach: tage });
+        f.planned_days = tage;
+      }
+    }
+    // 2. Geplante hinter alles schieben, was sie überdecken
+    const gesetzt = liste.filter((x) => x.plan_status && x.plan_status !== "geplant");
+    for (const x of liste) {
+      if (x.plan_status && x.plan_status !== "geplant") continue;
+      let von = x.planned_from, schutz = 0, nochmal = true;
+      while (nochmal && schutz++ < 400) {
+        nochmal = false;
+        const xBis = planEnde(von, x.planned_days || 1);
+        for (const g of gesetzt) {
+          if (g.id !== x.id && von <= bis(g) && g.planned_from <= xBis) {
+            von = naechsterArbeitstag(plusTage(bis(g), 1));
+            nochmal = true;
+          }
+        }
+      }
+      if (von !== x.planned_from) {
+        aenderungen.push({ x, feld: "planned_from", von: x.planned_from, nach: von });
+        x.planned_from = von;
+      }
+      gesetzt.push(x);
+    }
+  }
+  return aenderungen;
+}
+
+async function planNormalisieren() {
+  if (planNormalLaeuft || istArchiv() || !darfPlanen()) return;
+  // Nicht mitten im Ziehen; dann eben beim nächsten Zeichnen
+  // Nicht, solange ein Fenster offen ist oder jemand tippt: das Neuzeichnen
+  // käme sonst dazwischen. Dann etwas später noch einmal.
+  if (document.querySelector(".pw-balken--zieht, .pw-tafel--zieht, .dialog-huelle")
+      || (document.activeElement && istTextfeld(document.activeElement))) {
+    clearTimeout(planNormalTakt);
+    planNormalTakt = setTimeout(planNormalisieren, 2000);
+    return;
+  }
+  if (!document.querySelector(".pw-tafel")) return;
+  planFliessenAnmelden();
+  const aenderungen = planUeberlappungRechnen();
+  if (!aenderungen.length) return;
+  planNormalLaeuft = true;
+  try {
+    if (plan.b) neuZeichnen(plan.b);
+    await parallelSenden(aenderungen.map((a) => () =>
+      db.from("jobs").update({ [a.feld]: a.nach }).eq("id", a.x.id)));
+    merkeSchritt(aenderungen.length === 1 ? "Überlappung aufgeräumt" : aenderungen.length + " Überlappungen aufgeräumt",
+      aenderungen.map((a) => rueckSetz("jobs", { [a.feld]: a.von }, { id: a.x.id })));
+  } catch (f) {
+    fehlerMerken("Planwand aufräumen", fehlertext(f));
+  } finally {
+    planNormalLaeuft = false;
+  }
+}
+
 // Packt alle offenen Aufträge einer Maschine ab einem Tag lückenlos
 // hintereinander. Gibt die vorherigen Daten zurück, damit sich der
 // Schritt zurücknehmen lässt.
@@ -6581,6 +6682,7 @@ function zeichnePlanwand(b) {
   }
 
   planBalkenGleiten(vorherLagen);
+  planNormalisierenSpaeter();
   balkenVerhalten(b);
   zeilenVerschieben(b);
   griffVerhalten(b);
