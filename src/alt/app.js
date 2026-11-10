@@ -15,6 +15,7 @@ import { abwesenheit } from "../daten/abwesenheit.js";
 import NcFunktionen, { ncAnsicht } from "../seiten/NcFunktionen.jsx";
 import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
+import Qm from "../seiten/Qm.jsx";
 import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
@@ -157,7 +158,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.457.0";
+const APP_VERSION = "1.458.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3088,6 +3089,11 @@ function empfangSehen(u) {
 function kalkulationSehen(u) {
   return !!(u && u.einstellungen && u.einstellungen.kalkulationSehen);
 }
+// Den Reiter QM sieht vorerst nur, wer den Vermerk qmSehen am Konto hat
+// (Wunsch Patrick 10. November 2026: „aktuell nur für Patrick Ruch“).
+function qmSehen(u) {
+  return !!(u && u.einstellungen && u.einstellungen.qmSehen);
+}
 // Hofer Cam in NC-PRO: vom 5. November 2026 an nur mit dem Vermerk
 // camSehen (Patrick Ruch), seit 1.432.0 für alle, die NC-PRO sehen, also
 // ohne Externe (Wunsch Patrick 6. November 2026: „gib hofer cam allen frei“)
@@ -3144,6 +3150,7 @@ function seiteSichtbar(pfad) {
   if (pfad === "infoboard" || pfad === "pausenraum") return infoboardSichtbar();
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
+  if (pfad === "qm") return qmSehen(profil) && !istExtern();
   // Den Bereich Empfang sehen nur Personen mit dem Vermerk empfangSehen am
   // Konto (Wunsch Patrick 26. Oktober 2026, sql/empfang-sehen.sql); der
   // Bildschirm selbst geht trotzdem von selbst auf.
@@ -10527,6 +10534,8 @@ const SEITEN = [
   // 30. Oktober 2026), #/statistik führt dorthin
   // Kalkulation wie im Gewatec, vorerst nur für Patrick (seit 1.214.0)
   { pfad: "kalkulation",  titel: "Kalkulation",  zeichen: SYM.kalkulation, zeige: reactSeite(Kalkulation) },
+  // Qualitätsmanagement, vorerst leer und nur für Patrick (seit 1.458.0)
+  { pfad: "qm",           titel: "QM",           zeichen: SYM.qs, zeige: reactSeite(Qm) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },
