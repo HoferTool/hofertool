@@ -539,19 +539,44 @@ export const checklistenVon = (texte) => Object.values(texte || {})
   .filter((t) => String(t.schluessel).startsWith("checkliste:") && t.felder && Array.isArray(t.felder.fragen));
 
 // Die Checkliste eines Audits: die schon eingefrorene am Audit, sonst die des
-// Bereichs (Hauptbereich, dann die weiteren)
-export function checklisteFuer(texte, e) {
+// Bereichs (Hauptbereich, dann die weiteren). Seit 1.473.0 (Wunsch Patrick
+// 10. November 2026: „sobald Bereiche mehr als einmal auditiert wurden,
+// variiere innerhalb der Fragen“) kann jede Frage `varianten` [{frage,
+// nachweis, thema?}] haben; die Runde = Zahl der früher durchgeführten Audits
+// dieses Bereichs wählt reihum die Fassung (0 = Grundfrage). Die Kennung der
+// Frage bleibt gleich, darum gehen Antworten nie verloren.
+export function checklisteFuer(texte, e, eintraege) {
   const d = (e && e.daten) || {};
   if (d.checkliste && Array.isArray(d.checkliste.fragen)) {
-    return { bereich: d.checkliste.bereich || d.bereich || "", fragen: d.checkliste.fragen };
+    return { bereich: d.checkliste.bereich || d.bereich || "", fragen: d.checkliste.fragen, runde: d.checkliste.runde || 0 };
   }
   const alle = checklistenVon(texte);
   const name = (t) => t.felder.bereich || String(t.schluessel).slice("checkliste:".length);
   for (const b of auditBereicheVonEintrag(e)) {
     const t = alle.find((x) => normiert(name(x)) === normiert(b));
-    if (t) return { bereich: name(t), fragen: t.felder.fragen, schluessel: t.schluessel };
+    if (t) {
+      const runde = eintraege ? auditRunde(e, name(t), eintraege) : 0;
+      return { bereich: name(t), fragen: fragenFuerRunde(t.felder.fragen, runde), roh: t.felder.fragen,
+        runde, fassungen: fassungenVon(t.felder.fragen), schluessel: t.schluessel };
+    }
   }
   return null;
+}
+export const fassungenVon = (fragen) => 1 + Math.max(0, ...(fragen || []).map((f) => (Array.isArray(f.varianten) ? f.varianten.length : 0)));
+// wie oft der Bereich vor diesem Audit schon auditiert wurde
+export function auditRunde(e, bereich, eintraege) {
+  const bis = ((e && e.daten) || {}).datum || "9999";
+  return (eintraege || []).filter((x) => x.art === "audit" && x.id !== (e && e.id) && x.status === "durchgefuehrt"
+    && ((x.daten || {}).datum || "") < bis
+    && auditBereicheVonEintrag(x).some((b) => normiert(b) === normiert(bereich))).length;
+}
+export function fragenFuerRunde(fragen, runde) {
+  return (fragen || []).map((f) => {
+    const v = Array.isArray(f.varianten) ? f.varianten.filter((x) => x && x.frage) : [];
+    const w = v.length ? [f, ...v][(runde || 0) % (v.length + 1)] : f;
+    return { id: f.id, norm: w.norm || f.norm, thema: w.thema || f.thema, frage: w.frage || f.frage,
+      nachweis: w.nachweis != null && w.nachweis !== "" ? w.nachweis : (f.nachweis || "") };
+  });
 }
 const normiert = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9äöü]+/g, "");
 
@@ -576,16 +601,29 @@ export function checklisteAuswerten(fragen, antworten) {
 }
 
 // Fragen als Text zum Ändern: eine Frage je Zeile „Norm | Thema | Frage | Nachweis“
-export const fragenZuText = (fragen) => (fragen || []).map((f) => [f.norm, f.thema, f.frage, f.nachweis].map((x) => x || "").join(" | ")).join("\n");
+// Eine Frage je Zeile „Norm | Thema | Frage | Nachweis“, darunter je Fassung
+// eine Zeile „> Frage | Nachweis“ (seit 1.473.0)
+export const fragenZuText = (fragen) => (fragen || []).map((f) => [[f.norm, f.thema, f.frage, f.nachweis].map((x) => x || "").join(" | "),
+  ...(Array.isArray(f.varianten) ? f.varianten : []).map((v) => "> " + [v.frage, v.nachweis].map((x) => x || "").join(" | "))].join("\n")).join("\n");
 export function fragenAusText(text, vorher) {
   const alte = vorher || [];
   let n = Math.max(0, ...alte.map((f) => Number(String(f.id).replace(/\D/g, "")) || 0));
-  return String(text || "").split("\n").map((z) => z.trim()).filter(Boolean).map((z) => {
+  const aus = [];
+  for (const z0 of String(text || "").split("\n")) {
+    const z = z0.trim();
+    if (!z) continue;
+    if (z.startsWith(">")) {
+      const letzte = aus[aus.length - 1];
+      const [frage = "", nachweis = ""] = z.slice(1).split("|").map((x) => x.trim());
+      if (letzte && frage) (letzte.varianten = letzte.varianten || []).push({ frage, nachweis });
+      continue;
+    }
     const [norm = "", thema = "", frage = "", nachweis = ""] = z.split("|").map((x) => x.trim());
     const f = { norm, thema, frage: frage || thema, nachweis };
     const gleich = alte.find((x) => x.frage === f.frage) || alte.find((x) => x.thema === f.thema && x.norm === f.norm);
-    return { id: gleich ? gleich.id : "q" + (++n), ...f };
-  });
+    aus.push({ id: gleich ? gleich.id : "q" + (++n), ...f });
+  }
+  return aus;
 }
 
 // ---------- Offene Punkte aus früheren Audits (seit 1.471.0) ----------

@@ -7,6 +7,7 @@
 //  abgeschlossenen; Antippen öffnet dieselbe Checkliste wie am PC
 //  (src/seiten/qmAlt/Checkliste.jsx), mit Diktat in den Textfeldern.
 // =================================================================
+import { useState } from "react";
 import { alt } from "../bruecke.jsx";
 import { qmaLaden, checklisteFuer, auditQuartal, statusVon, heute, vorpunkteFuer } from "../daten/qmAlt.js";
 import { checklisteOeffnen } from "../seiten/qmAlt/Checkliste.jsx";
@@ -26,12 +27,15 @@ export default function PadAudit({ d, Kopf, neu }) {
   const fertig = mitCk.filter((e) => e.daten.checkliste && e.daten.checkliste.abgeschlossen_am)
     .sort((a, b) => String(b.daten.checkliste.abgeschlossen_am).localeCompare(a.daten.checkliste.abgeschlossen_am)).slice(0, 6);
   const oeffnen = (e) => checklisteOeffnen(e, d.texte, d.eintraege, neu);
+  // Seit 1.473.0 hat jeder Bereich eine Checkliste: zuerst nur die vier nächsten
+  const [alle, setAlle] = useState(false);
+  const zeigen = alle ? offen : offen.slice(0, 4);
   return (
     <>
       <Kopf titel="Audit" zurueck />
       <div className="pad-audit" id="pad-audit">
         {!offen.length && <p className="pad-audit__leer">Kein offenes Audit mit Checkliste. Audits plant man am PC unter QM alternativ → Audits.</p>}
-        {offen.map((e) => {
+        {zeigen.map((e) => {
           const ck = checklisteFuer(d.texte, e);
           const n = ck.fragen.length;
           const a = (e.daten.checkliste && e.daten.checkliste.antworten) || {};
@@ -49,6 +53,8 @@ export default function PadAudit({ d, Kopf, neu }) {
             </button>
           );
         })}
+        {offen.length > 4 && <button className="pad-audit__knopf pad-audit__mehr" id="pad-audit-mehr" onClick={() => setAlle(!alle)}>
+          {alle ? "Nur die nächsten zeigen" : "Weitere " + (offen.length - 4) + " geplante Audits"}</button>}
         {fertig.length > 0 && <>
           <h3 className="pad-audit__zwischen">Abgeschlossen</h3>
           <div className="pad-audit__fertig">

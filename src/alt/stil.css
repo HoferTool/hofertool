@@ -12599,3 +12599,4 @@ body.dunkel .qma-ck__vorpunkt { background: #1c232c; }
 .qma-ck__b--vp-erledigt.qma-ck__b--an { background: #2e9e4f; border-color: #2e9e4f; color: #fff; }
 .qma-ck__b--vp-teil.qma-ck__b--an { background: #e5b300; border-color: #e5b300; color: #111 !important; }
 .qma-ck__b--vp-offen.qma-ck__b--an { background: #d33; border-color: #d33; color: #fff; }
+.pad-audit__mehr { align-self: center; margin: 4px 0 8px; }

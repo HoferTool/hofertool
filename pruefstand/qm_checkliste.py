@@ -16,7 +16,8 @@ VERMERK = """;
 TEST.daten.qma_texte = [
   { schluessel: 'checkliste:Produktion', gruppe: 'checkliste', titel: 'Auditcheckliste Produktion', norm: '9.2', felder: { bereich: 'Produktion', fragen: [
     { id: 'q1', norm: '7.1.5', thema: 'Prüfmittel', frage: 'Sind die Prüfmittel kalibriert?', nachweis: 'Prüfmittelliste' },
-    { id: 'q2', norm: '8.5.2', thema: 'Rückverfolgbarkeit', frage: 'Sind die Behälter gekennzeichnet?', nachweis: 'Stichprobe' },
+    { id: 'q2', norm: '8.5.2', thema: 'Rückverfolgbarkeit', frage: 'Sind die Behälter gekennzeichnet?', nachweis: 'Stichprobe',
+      varianten: [{ frage: 'Fassung 2: Behälter bis zum Material?', nachweis: 'Probe' }, { frage: 'Fassung 3: Restmaterial?', nachweis: '' }] },
     { id: 'q3', norm: '8.7', thema: 'Fehlerhafte Teile', frage: 'Werden Teile gesperrt?', nachweis: '' } ] } },
 ];
 TEST.daten.qma_eintraege = [
@@ -42,6 +43,10 @@ with sync_playwright() as p:
     pruefe(pg.locator("[data-qmackliste='a-neu']").count() == 1, "Checkliste-Knopf in der Liste")
     pg.click("[data-qmackstart='a-neu']"); pg.wait_for_selector("#qma-ck")
     pruefe(pg.locator("[data-qmackfrage]").count() == 3, "drei Fragen")
+    txt = pg.inner_text("#qma-ck")
+    pruefe("Fassung 2: Behälter bis zum Material?" in txt and "Sind die Behälter gekennzeichnet?" not in txt, "zweites Audit des Bereichs: zweite Fassung der Frage")
+    pruefe("Sind die Prüfmittel kalibriert?" in txt, "Frage ohne Fassungen bleibt")
+    pruefe("Fragen Fassung 2 von 3" in txt, "Kopf nennt die Fassung")
     vor = pg.evaluate("[...document.querySelectorAll('[data-qmackvor]')].map(x => x.dataset.qmackvor)")
     pruefe(vor == ["w-1", "a-alt#0"], "offene Punkte: offene Abweichung und nicht übertragene Feststellung, ohne erledigte: %s" % vor)
     pg.click("[data-qmackvor='w-1'] [data-qmackvorb='erledigt']")
@@ -74,6 +79,8 @@ with sync_playwright() as p:
     pruefe(a["status"] == "durchgefuehrt", "Audit durchgeführt")
     pruefe(bool(a["daten"].get("bericht_url")) and a["daten"]["bericht_name"].endswith("_Internes_Audit_Produktion.pdf"), "Bericht angehängt: %s" % a["daten"].get("bericht_name"))
     pruefe(a["daten"]["checkliste"].get("abgeschlossen_am") and len(a["daten"]["checkliste"]["fragen"]) == 3, "Fragen eingefroren")
+    f2 = a["daten"]["checkliste"]["fragen"][1]
+    pruefe(f2["frage"].startswith("Fassung 2") and "varianten" not in f2 and a["daten"]["checkliste"].get("runde") == 1, "gewählte Fassung eingefroren: %s" % f2)
     pruefe("8.5.2" in (a["daten"].get("norm") or ""), "Normkapitel eingetragen")
     pruefe(a["daten"].get("auditiert") == "SH, ET" and a["daten"].get("uebertragen"), "Kopf und übertragen gesetzt")
     w1 = pg.evaluate("TEST.daten.qma_eintraege.find(e => e.id === 'w-1')")

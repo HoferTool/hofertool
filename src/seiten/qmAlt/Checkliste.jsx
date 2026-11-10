@@ -17,7 +17,7 @@ import { useRef, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import { fensterOeffnen } from "../../teile/Fenster.jsx";
 import {
-  CK_BEWERTUNG, checklisteFuer, checklisteAuswerten, fragenZuText, fragenAusText, eintragSpeichern, textSpeichern,
+  CK_BEWERTUNG, checklisteFuer, fragenFuerRunde, checklisteAuswerten, fragenZuText, fragenAusText, eintragSpeichern, textSpeichern,
   auditBereiche, heute, plusTageIso, vorpunkteFuer, VP_BEWERTUNG,
 } from "../../daten/qmAlt.js";
 import { berichtDateiAblegen, berichtZeigen } from "./AuditPlan.jsx";
@@ -31,7 +31,7 @@ export async function checklisteOeffnen(e0, texte, alle, neu) {
   const { data, error } = await alt.db.from("qma_eintraege").select("*").eq("id", e0.id);
   if (error) { alt.meldung(alt.fehlertext(error), "fehler"); return; }
   const e = (data && data[0]) || e0;
-  const vorlage = checklisteFuer(texte, e);
+  const vorlage = checklisteFuer(texte, e, alle);
   if (!vorlage) { alt.meldung("Für diesen Bereich ist keine Checkliste hinterlegt.", "warn"); return; }
   fensterOeffnen((zu) => <CkFenster e={e} vorlage={vorlage} alle={alle} neu={neu} zu={zu} />,
     () => { if (jetztSpeichern) jetztSpeichern(); jetztSpeichern = null; neu(); }, "qma-ck-huelle");
@@ -87,17 +87,18 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
     if (!vorlage.schluessel) return;
     const w = await alt.dialogFelder({
       titel: "Fragen der Checkliste " + vorlage.bereich,
-      felder: [{ name: "text", label: "Eine Frage je Zeile: Norm | Thema | Frage | Nachweis. Antworten bleiben bei gleicher Frage erhalten.",
-        typ: "textarea", zeilen: 18, wert: fragenZuText(fragen) }],
+      felder: [{ name: "text", label: "Eine Frage je Zeile: Norm | Thema | Frage | Nachweis. Darunter je weitere Fassung (für spätere Audits) eine Zeile: > Frage | Nachweis. Antworten bleiben bei gleicher Frage erhalten.",
+        typ: "textarea", zeilen: 18, wert: fragenZuText(vorlage.roh || fragen) }],
       bestaetigen: "Speichern",
     });
     if (!w) return;
-    const neue = fragenAusText(w.text, fragen);
+    const neue = fragenAusText(w.text, vorlage.roh || fragen);
     if (!neue.length) { alt.meldung("Mindestens eine Frage.", "warn"); return; }
     try {
       await textSpeichern(vorlage.schluessel, { gruppe: "checkliste", titel: "Auditcheckliste " + vorlage.bereich, norm: "9.2",
         felder: { bereich: vorlage.bereich, fragen: neue } }, "Ändern: Checkliste " + vorlage.bereich);
-      setFragen(neue);
+      vorlage.roh = neue;
+      setFragen(fragenFuerRunde(neue, vorlage.runde));
       alt.meldung("Fragen gespeichert.", "gut");
     } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
   };
@@ -124,7 +125,7 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
       const k = ck.kopf || {};
       const vpa = ck.vorpunkte || {};
       const vpNeu = vorliste.filter((p) => p.art === "feststellung" && ["teil", "offen"].includes((vpa[p.id] || {}).b) && !schon.has("vp:" + p.id));
-      const fertig = { ...ck, fragen, bereich: vorlage.bereich, abgeschlossen_am: new Date().toISOString(), vorliste,
+      const fertig = { ...ck, fragen, runde: vorlage.runde || 0, bereich: vorlage.bereich, abgeschlossen_am: new Date().toISOString(), vorliste,
         uebertragen: [...schon, ...neueF.map((f) => f.id), ...vpNeu.map((p) => "vp:" + p.id)] };
       const audit = { ...e, daten: daten.current };
       const { berichtPdf } = await import("./checklistePdf.js");
@@ -190,7 +191,7 @@ function CkFenster({ e, vorlage, alle, neu, zu }) {
   return (
     <div className="dialog dialog--breit qma-ck" id="qma-ck">
       <div className="blatt__kopf qma-ck__kopf">
-        <h2>Auditcheckliste {vorlage.bereich} <span className="klein">ISO 9001:2026{e.titel !== vorlage.bereich ? " · " + e.titel : ""}</span></h2>
+        <h2>Auditcheckliste {vorlage.bereich} <span className="klein">ISO 9001:2026{e.titel !== vorlage.bereich ? " · " + e.titel : ""}{(vorlage.fassungen || 1) > 1 || vorlage.runde ? " · Fragen Fassung " + (((vorlage.runde || 0) % (vorlage.fassungen || 1)) + 1) + " von " + (vorlage.fassungen || 1) : ""}</span></h2>
         <span className="klein qma-ck__stand" id="qma-ck-stand">{beantwortet} / {fragen.length} beantwortet{stand ? " · " + stand : ""}</span>
         <button className="knopf knopf--still" data-zu="" onClick={zu}>Schliessen</button>
       </div>
@@ -302,7 +303,7 @@ export async function checklistenVerwalten(texte, neu) {
   const vorher = (texte[schluessel] && texte[schluessel].felder && texte[schluessel].felder.fragen) || [];
   const w = await alt.dialogFelder({
     titel: "Checkliste " + w1.bereich,
-    felder: [{ name: "text", label: "Eine Frage je Zeile: Norm | Thema | Frage | Nachweis", typ: "textarea", zeilen: 18, wert: fragenZuText(vorher),
+    felder: [{ name: "text", label: "Eine Frage je Zeile: Norm | Thema | Frage | Nachweis. Darunter je weitere Fassung (für spätere Audits) eine Zeile: > Frage | Nachweis", typ: "textarea", zeilen: 18, wert: fragenZuText(vorher),
       platzhalter: "8.5.1 | Erstteil-Freigabe | Wird nach dem Einrichten ein Erstteil gemessen und freigegeben? | Keyence Berichte" }],
     bestaetigen: "Speichern",
   });

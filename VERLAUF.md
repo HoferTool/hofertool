@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.473.0** (10. November 2026): Auditchecklisten für alle 17 Bereiche (Inhalt nur in der Datenbank); jede Frage hat drei Fassungen, die je nach Zahl der früheren Audits des Bereichs reihum wechseln. Über dem Auditplan und im Pad nur die nächsten Audits, der Rest aufklappbar.
 - **1.472.0** (10. November 2026): Planwand: Ziehen eines laufenden Auftrags fragt „Auftrag läuft schon … Trotzdem verschieben?“; auf eine Maschine mit laufendem Auftrag geht es gar nicht (Meldung statt halbem Schaden); lehnt die Datenbank ein Verschieben ab, gehen die ausgewichenen Aufträge zurück. Anlass: auf der 111 rutschten alle Aufträge bis Juni 2027, weil der Zug eines laufenden Auftrags von der 124 abgelehnt wurde, das Ausweichen aber gespeichert blieb.
 - **1.471.0** (10. November 2026): Offene Punkte aus früheren Audits desselben Bereichs stehen einzeln oben in der Auditcheckliste (Erledigt / Teilweise / Noch offen); beim Abschluss werden erledigte Einträge wirksam, noch offene Feststellungen neue Einträge, alles im Bericht.
 - **1.470.0** (10. November 2026): Audit im Pad Mode (Patrick: „mit dem iPad durch die Firma laufen“): Kachel „Audit“ auf dem Startbild des Pads mit den offenen Audits und ihrem Fortschritt, dieselbe Checkliste gross fürs iPad; in allen Textfeldern der Checkliste der Knopf „Diktat“ (sprechen statt tippen).

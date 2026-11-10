@@ -34,6 +34,7 @@ export default function AuditPlan({ daten, neu, eintragDialog }) {
   const diesesJahr = Number(heute().slice(0, 4));
   const [anzahl, setAnzahl] = useState(jahreFuerBreite());
   const [ab, setAb] = useState(gemerktAb || diesesJahr);
+  const [alleNaechsten, setAlleNaechsten] = useState(false);
   useEffect(() => {
     const f = () => setAnzahl(jahreFuerBreite());
     window.addEventListener("resize", f);
@@ -91,7 +92,9 @@ export default function AuditPlan({ daten, neu, eintragDialog }) {
       <p className="hinweis">Leeres Feld antippen sieht dort ein Audit vor. Kärtchen antippen öffnet das Audit: Datum setzen = terminiert,
         Status „Durchgeführt“ und die Feststellungen eintragen, wenn es vorbei ist. Kärtchen mit 📄 öffnen gleich den Bericht,
         ⓘ daneben die Angaben zum Audit. „Berichte zuordnen“ hängt mehrere Berichte auf einmal an.</p>
-      {naechste.map(({ b, e }) => {
+      {/* Seit 1.473.0 hat jeder Bereich eine Checkliste: oben nur die drei
+          nächsten (angefangene zuerst), der Rest aufklappbar */}
+      {naechste.slice(0, alleNaechsten ? naechste.length : 3).map(({ b, e }) => {
         const q = e.daten.datum ? alt.kurzDatum(e.daten.datum) : (auditQuartal(e) || "").replace("-", " ");
         const spaet = e.faellig && e.faellig < heute();
         const angefangen = e.daten.checkliste && !e.daten.checkliste.abgeschlossen_am;
@@ -104,6 +107,8 @@ export default function AuditPlan({ daten, neu, eintragDialog }) {
           </div>
         );
       })}
+      {naechste.length > 3 && <button className="knopf knopf--still knopf--klein" id="qma-ck-naechste-alle"
+        onClick={() => setAlleNaechsten(!alleNaechsten)}>{alleNaechsten ? "Weniger zeigen" : "Alle " + naechste.length + " nächsten Audits mit Checkliste zeigen"}</button>}
       <div className="qma-ap-huelle">
         <table className="qma-ap" style={{ "--qma-ap-spalten": jahre.length * 4 }}>
           <thead>
