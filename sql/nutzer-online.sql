@@ -20,7 +20,11 @@ language sql
 security definer
 set search_path = public
 as $$
-  update public.profiles set zuletzt_online = now() where id = auth.uid();
+  -- Höchstens alle 5 Minuten schreiben: spart Festplatte bei Supabase
+  -- (Disk IO Budget, 10. November 2026), "zuletzt online" bleibt genau genug
+  update public.profiles set zuletzt_online = now()
+   where id = auth.uid()
+     and (zuletzt_online is null or zuletzt_online < now() - interval '5 minutes');
 $$;
 
 revoke all on function public.ich_bin_da() from public, anon;

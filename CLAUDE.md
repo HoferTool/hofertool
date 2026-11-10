@@ -95,6 +95,7 @@ RÜCKGÄNGIG · OFFLINE · EXTERNE GERÄTE · FEHLERPROTOKOLL · STARTSEITE · D
 - Am Ende `notify pgrst, 'reload schema';` und eine **Probe**, die `ok` oder `FEHLT` zeigt.
 - Im Kopf der Datei in einfachen Worten erklären, was sie tut.
 - Über die Supabase-Verbindung (`execute_sql`) hängen Befehle mit `drop` an einer Freigabe, die Patrick nicht sieht (16. Oktober 2026); `create`, `alter … add`, `update` gehen. Darum ohne `drop` einspielen, wo es geht.
+- **Festplatte schonen (Disk IO Budget)** (10. November 2026, Supabase warnte per Mail): Stände der Programme (`app_config` mit Schlüssel `…_status`) schreibt die Datenbank nur, wenn sich ausser `zeit`/`gesehen` etwas geändert hat oder der alte Stand älter als 10 Minuten ist (Auslöser `app_config_status_sparsam`, `sql/status-sparsam.sql`, eingespielt); `ich_bin_da` schreibt höchstens alle 5 Minuten. Neue Statusmeldungen und Lebenszeichen ebenso sparsam bauen, keine grossen Werte im Minutentakt schreiben.
 - **Regeln immer mit `(select …)`**: Funktionen ohne Werte wie `darf_lesen()`, `ist_extern()`, `bin_admin()` in Policies als `(select darf_lesen())` schreiben, sonst ruft die Datenbank sie für jede Zeile auf (die Planwand brauchte so bis 3 s statt 6 ms, `sql/schneller-laden.sql`, 5. November 2026). Neue Spalten an der Ansicht `planwand` direkt in ihre Spaltenliste, nicht `jobs` noch einmal anhängen.
 - Die App so bauen, dass sie auch **ohne** das neue SQL nicht abstürzt: `aendernOhneUnbekannte` verwenden und eine verständliche Meldung zeigen.
 
