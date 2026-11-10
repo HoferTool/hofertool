@@ -12447,3 +12447,39 @@ body.dunkel .qma-rc--c { color: #8fd6a4 !important; }
    sich zwei, liegen sie übereinander, bis die App sie aufgeräumt hat. */
 .pw-zeile[data-mzeile] .pw-balken-schicht { grid-template-rows: 100%; }
 .pw-zeile[data-mzeile] .pw-balken { grid-row: 1; }
+
+/* ---------- QM alternativ: Auditplan (seit 1.467.0) ----------
+   Raster wie Patricks Excel FO_03_05_03_01_00: Bereich × Quartal.
+   Rot vorgesehen, blau terminiert, grün durchgeführt. */
+.qma-ap-huelle { overflow-x: auto; max-width: 100%; }
+.qma-ap { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 13px; }
+.qma-ap th, .qma-ap td { border: 1px solid var(--rand, #d6dde6); padding: 2px; }
+.qma-ap thead th { background: #eef2f7; font-weight: 600; text-align: center; }
+.qma-ap .qma-ap-bereich { width: 170px; text-align: left; padding: 3px 6px; font-weight: 500; background: #f7f9fb; }
+.qma-ap thead .qma-ap-bereich { background: #eef2f7; }
+.qma-ap-jahr--jetzt { background: #dbe8f8 !important; }
+.qma-ap-q { font-size: 11px; color: #5a6b80; }
+.qma-ap-feld { vertical-align: top; height: 30px; cursor: pointer; }
+.qma-ap-feld:hover { background: #f1f6fc; }
+.qma-ap-feld--jahr { border-left: 2px solid #8fa3ba !important; }
+.qma-ap-zeile--extern th, .qma-ap-zeile--extern td { background: #fbf8ef; }
+.qma-ap-karte { display: block; width: 100%; margin: 1px 0; padding: 2px 3px; border-radius: 5px; border: 1px solid transparent;
+  font: inherit; font-size: 11px; line-height: 1.25; text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qma-ap-karte--vorgesehen { background: #fde2e1; border-color: #e5484d; color: #8f1d21; }
+.qma-ap-karte--geplant { background: #fff4c2; border-color: #d9a400; color: #6b5100; }
+.qma-ap-karte--durchgefuehrt { background: #dcf3e2; border-color: #2f9e5b; color: #1d5e37; }
+.qma-ap-karte--spaet { box-shadow: 0 0 0 2px #e5484d; }
+.qma-ap-legende { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; }
+.qma-ap-punkt { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; border: 1px solid; }
+.qma-ap-punkt--vorgesehen { background: #fde2e1; border-color: #e5484d; }
+.qma-ap-punkt--geplant { background: #fff4c2; border-color: #d9a400; }
+.qma-ap-punkt--durchgefuehrt { background: #dcf3e2; border-color: #2f9e5b; }
+.qma-ap-ohne { margin-top: 6px; }
+@media (max-width: 760px) { .qma-ap .qma-ap-bereich { width: 108px; font-size: 12px; } }
+body.dunkel .qma-ap thead th, body.dunkel .qma-ap .qma-ap-bereich { background: #1f2a37; }
+body.dunkel .qma-ap-jahr--jetzt { background: #24405f !important; }
+body.dunkel .qma-ap-zeile--extern th, body.dunkel .qma-ap-zeile--extern td { background: #2a2618; }
+body.dunkel .qma-ap-feld:hover { background: #22303f; }
+body.dunkel .qma-ap-karte--vorgesehen { background: #5a1f22; }
+body.dunkel .qma-ap-karte--geplant { background: #4d3d00; }
+body.dunkel .qma-ap-karte--durchgefuehrt { background: #1b4a2d; }

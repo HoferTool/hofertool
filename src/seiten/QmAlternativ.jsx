@@ -25,6 +25,7 @@ import Handbuch from "./qmAlt/Handbuch.jsx";
 import Kompetenz from "./qmAlt/Kompetenz.jsx";
 import Bewertung from "./qmAlt/Bewertung.jsx";
 import { Schild } from "./qmAlt/Schild.jsx";
+import AuditPlan, { berichtHochladen } from "./qmAlt/AuditPlan.jsx";
 
 const REITER = [["cockpit", "Cockpit"], ["handbuch", "Handbuch"], ["ziel", "Ziele"], ["abweichung", "Abweichungen"],
   ["risiko", "Kontext und Risiken"], ["pruefmittel", "Prüfmittel"], ["lieferant", "Lieferanten"], ["kompetenz", "Kompetenzen"],
@@ -66,6 +67,10 @@ export default function QmAlternativ({ auffrischen }) {
   else if (reiter === "handbuch") inhalt = <Handbuch daten={d.daten} neu={d.neu} gehe={gehe} />;
   else if (reiter === "kompetenz") inhalt = <Kompetenz daten={d.daten} neu={d.neu} liste={<Liste art="schulung" daten={d.daten} neu={d.neu} />} />;
   else if (reiter === "bewertung") inhalt = <Bewertung daten={d.daten} neu={d.neu} eintragDialog={eintragDialog} />;
+  else if (reiter === "audit") inhalt = <>
+    <AuditPlan daten={d.daten} neu={d.neu} eintragDialog={eintragDialog} />
+    <Liste key={reiter} art={reiter} daten={d.daten} neu={d.neu} />
+  </>;
   else inhalt = <Liste key={reiter} art={reiter} daten={d.daten} neu={d.neu} />;
 
   return (<>
@@ -201,6 +206,10 @@ export function Liste({ art, daten, neu }) {
                     {art === "audit" && e.status === "durchgefuehrt" && String(e.daten.feststellungen || "").trim() && !e.daten.uebertragen &&
                       <button className="knopf knopf--klein" data-qmaueber={e.id}
                         onClick={() => feststellungenUebertragen(e, daten.eintraege, neu)}>→ Abweichungen</button>}
+                    {art === "audit" && e.daten.bericht_url && <button className="knopf knopf--klein" data-qmabericht={e.id} title={e.daten.bericht_name || "Bericht"}
+                      onClick={() => alt.betrachter(e.daten.bericht_url, "Auditbericht " + (e.titel || ""), !/\.(png|jpe?g|webp|gif)$/i.test(e.daten.bericht_url))}>📄 Bericht</button>}
+                    {art === "audit" && <button className="knopf knopf--klein" data-qmaberichtneu={e.id} title="Bericht (PDF) hinterlegen"
+                      onClick={() => berichtHochladen(e, daten.eintraege, neu)}>{e.daten.bericht_url ? "📎" : "📎 Bericht"}</button>}
                     <button className="chipweg" title="löschen" data-qmaweg={e.id} onClick={() => loeschen(e, neu)}>×</button>
                   </td>
                 </tr></Fragment>))}

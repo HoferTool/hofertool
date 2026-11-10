@@ -111,6 +111,25 @@ with sync_playwright() as p:
     pruefe(n == 2, "zwei Feststellungen als Abweichungen (%s)" % n)
     pruefe(pg.locator("[data-qmaueber]").count() == 0, "danach kein zweites Übertragen")
 
+    # Auditplan (1.467.0): Raster, leeres Feld sieht ein Audit vor, Kärtchen öffnet es
+    pruefe(pg.locator("#qma-auditplan").count() == 1, "Auditplan über der Liste")
+    j = pg.evaluate("new Date().getFullYear()")
+    zelle = f"[data-qmaap='Produktion|{j}-Q4']"
+    pruefe(pg.locator(zelle).count() == 1, "Feld Produktion Q4 im Plan")
+    pg.click(zelle); d = dialog(pg)
+    pruefe(feld(d, "_status").input_value() == "vorgesehen", "neues Audit aus dem Plan ist vorgesehen")
+    speichern(pg, d)
+    a = pg.evaluate("TEST.daten.qma_eintraege.find(e => e.art === 'audit' && e.daten.quartal)")
+    pruefe(a and a["daten"].get("bereich") == "Produktion" and a["daten"].get("quartal") == f"{j}-Q4", "Bereich und Quartal gespeichert")
+    pruefe(pg.locator(zelle + " [data-qmaapkarte]").count() == 1, "Kärtchen steht im Feld")
+    pg.click(zelle + " [data-qmaapkarte]"); d = dialog(pg)
+    pruefe(feld(d, "titel").input_value() == "Produktion", "Kärtchen öffnet das Audit")
+    pg.keyboard.press("Escape"); pg.wait_for_timeout(400)
+    pg.click("#qma-ap-spaeter"); pg.wait_for_timeout(300)
+    pruefe(pg.locator(f"[data-qmaap='Produktion|{j}-Q4']").count() == 0 or pg.locator(f"[data-qmaap='Produktion|{j+4}-Q1']").count() == 1, "Später blättert weiter")
+    pg.screenshot(path=BILD + "/qma-auditplan.png", full_page=True)
+    pg.click("#qma-ap-heute"); pg.wait_for_timeout(300)
+
     # Handbuch: Abschnitt bearbeiten
     pg.click("[data-qmareiter='handbuch']"); pg.wait_for_selector("#qma-abschnitte")
     pruefe(pg.locator("[data-qmaprozess='prozess:fertigung']").count() == 1, "Prozess in der Landkarte")

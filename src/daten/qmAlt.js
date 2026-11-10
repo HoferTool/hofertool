@@ -112,6 +112,39 @@ export const prozessNr = (p) => (p && p.felder && p.felder.nr) || "";
 export const prozesseSortiert = (texte) => Object.values(texte).filter((t) => String(t.schluessel).startsWith("prozess:"))
   .sort((a, b) => (a.sort || 0) - (b.sort || 0));
 
+// ---------- Auditplan (FO_03_05_03_01_00) ----------
+// Zeilen wie in Patricks Plan; änderbar in qma_texte „auditplan“ (felder.bereiche).
+export const AUDIT_BEREICHE_VORGABE = ["Verkauf", "AVOR", "Beschaffung", "Produktion", "Logistik", "Produktionsmittel", "Prüfmittel",
+  "Produktüberwachung / QS", "Abweichungsbehandlung", "Infrastruktur", "EDV / Daten", "Finanzen", "Organisation", "Personal",
+  "Strategie / Leitbild", "Hofer + Co Kontext / Risiken", "Arbeitssicherheit"];
+let auditBereicheJetzt = AUDIT_BEREICHE_VORGABE;
+export const auditBereicheVon = (texte) => (texte && texte.auditplan && texte.auditplan.felder && texte.auditplan.felder.bereiche) || AUDIT_BEREICHE_VORGABE;
+export const auditBereiche = () => auditBereicheJetzt;
+// „2027-Q2“, „Q2/27“, „2027 Q2“ → „2027-Q2“; sonst null
+export function quartalNorm(x) {
+  const t = String(x || "").trim().toUpperCase();
+  let m = t.match(/^(\d{4})\s*[-/ ]?\s*Q([1-4])$/);
+  if (m) return m[1] + "-Q" + m[2];
+  m = t.match(/^Q([1-4])\s*[-/ ]\s*(\d{2,4})$/);
+  if (m) return (m[2].length === 2 ? "20" + m[2] : m[2]) + "-Q" + m[1];
+  return null;
+}
+export const quartalVonDatum = (iso) => (/^\d{4}-\d{2}/.test(iso || "") ? iso.slice(0, 4) + "-Q" + (Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1) : null);
+export function quartalEnde(q) {
+  const n = quartalNorm(q);
+  if (!n) return null;
+  const j = Number(n.slice(0, 4)), k = Number(n.slice(-1));
+  return [j + "-03-31", j + "-06-30", j + "-09-30", j + "-12-31"][k - 1];
+}
+// Wo ein Audit im Plan steht: Quartal aus dem Datum, sonst aus dem Feld Quartal
+export const auditQuartal = (e) => quartalVonDatum((e.daten || {}).datum) || quartalNorm((e.daten || {}).quartal);
+export const auditBereicheVonEintrag = (e) => {
+  const d = e.daten || {};
+  return [d.bereich, ...String(d.weitere || "").split(/[,;]/)].map((x) => String(x || "").trim()).filter(Boolean);
+};
+// Externe Audits ohne Bereich (Zertifizierung, Kunde) bekommen eine eigene Zeile
+export const auditExtern = (e) => ["zert", "kunde"].includes((e.daten || {}).art) && !auditBereicheVonEintrag(e).length;
+
 // ---------- Listen ----------
 // Je Art: Felder für das Fenster, Spalten für die Tabelle, Status und wann
 // etwas fällig ist. offen(e) = gehört noch auf das Cockpit.
@@ -246,20 +279,26 @@ export const ARTEN = {
   },
   audit: {
     titel: "Audits", einzeln: "Audit", norm: "9.2",
-    hinweis: "Interne Audits einmal im Jahr über alle Prozesse, verteilt wie es passt. Auch Kunden- und Zertifizierungsaudits hier ablegen. Feststellungen gehen mit einem Tipp in die Liste Abweichungen.",
+    hinweis: "Alle Audits nach dem Auditplan: intern, Arbeitssicherheit, Zertifizierung und Kunden. Im Plan oben ein Feld antippen, um ein Audit vorzusehen oder zu öffnen. Feststellungen gehen mit einem Tipp in die Liste Abweichungen.",
     felder: [
-      { k: "art", text: "Art", auswahl: [["intern", "Internes Audit"], ["zert", "Zertifizierung / Überwachung"], ["kunde", "Kundenaudit"], ["lieferant", "Lieferantenaudit (bei uns gemacht)"]], vorgabe: "intern" },
+      { k: "art", text: "Art", auswahl: [["intern", "Internes Audit"], ["as", "Arbeitssicherheit (Betriebsrundgang)"], ["zert", "Zertifizierung / Überwachung (SSC)"],
+        ["kunde", "Kundenaudit"], ["lieferant", "Lieferantenaudit (bei uns gemacht)"]], vorgabe: "intern" },
       { k: "titel", text: "Prozesse / Thema", pflicht: true, platzhalter: "Fertigung und Prüfen" },
+      { k: "bereich", text: "Bereich im Auditplan", auswahl: () => [["", "(keiner, ganze Firma)"], ...auditBereiche().map((x) => [x, x])], vorgabe: "" },
+      { k: "weitere", text: "Weitere Bereiche im Plan (mit Komma)", platzhalter: "AVOR, Beschaffung" },
+      { k: "quartal", text: "Quartal im Plan (ohne Datum)", platzhalter: "2027-Q2" },
       { k: "datum", text: "Datum", typ: "date" },
       { k: "auditor", text: "Auditor" },
+      { k: "auditiert", text: "Auditierte Personen" },
+      { k: "norm", text: "Normkapitel" },
       { k: "ergebnis", text: "Ergebnis, Stärken", typ: "textarea" },
-      { k: "feststellungen", text: "Feststellungen (eine je Zeile)", typ: "textarea", zeilen: 4 },
+      { k: "feststellungen", text: "Feststellungen / Massnahmen (eine je Zeile)", typ: "textarea", zeilen: 4 },
     ],
-    status: [S("geplant", "Geplant", "blau"), S("durchgefuehrt", "Durchgeführt", "gruen")],
+    status: [S("vorgesehen", "Vorgesehen", "rot"), S("geplant", "Terminiert", "blau"), S("durchgefuehrt", "Durchgeführt", "gruen")],
     zu: ["durchgefuehrt"],
     // Durchgeführt ist es erst fertig, wenn die Feststellungen übertragen sind
     fertig: (e) => e.status === "durchgefuehrt" && (!String((e.daten || {}).feststellungen || "").trim() || !!(e.daten || {}).uebertragen),
-    faellig: (d) => d.datum || null,
+    faellig: (d, s) => (s === "vorgesehen" && !d.datum ? quartalEnde(d.quartal) : d.datum || quartalEnde(d.quartal)),
     spalten: [["datum", "Datum"], ["art", "Art"], ["titel", "Thema"], ["auditor", "Auditor"], ["feststellungen", "Feststellungen"], ["status", "Status"]],
   },
 };
@@ -308,6 +347,7 @@ export async function qmaLaden() {
   const texte = {};
   for (const z of t.data || []) texte[z.schluessel] = z;
   parteienJetzt = parteienVon(texte);
+  auditBereicheJetzt = auditBereicheVon(texte);
   return { texte, eintraege: e.data || [] };
 }
 export const fehltQma = (f) => /qma_|does not exist|schema cache|42P01|PGRST20/i.test(String((f && (f.message || f.code)) || f || ""));
@@ -402,7 +442,7 @@ export function normPruefen(texte, eintraege) {
   const fuer = (norm) => prozesse.filter((p) => deckt(p.norm, norm));
   const vorJahr = plusMonate(heute(), -12);
   const auditJ = von("audit").some((e) => e.daten.art === "intern" && e.status === "durchgefuehrt" && (e.daten.datum || "") >= vorJahr);
-  const auditGeplant = von("audit").some((e) => e.daten.art === "intern" && e.status === "geplant");
+  const auditGeplant = von("audit").some((e) => e.daten.art === "intern" && ["geplant", "vorgesehen"].includes(e.status));
   const bewertung = von("bewertung").some((e) => e.status === "freigegeben" && (e.daten.datum || "") >= plusMonate(heute(), -13));
   const bewertungEntwurf = von("bewertung").some((e) => e.status !== "freigegeben");
   const matrix = texte.matrix && texte.matrix.felder && (texte.matrix.felder.personen || []).length;
