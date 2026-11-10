@@ -16,6 +16,7 @@ import NcFunktionen, { ncAnsicht } from "../seiten/NcFunktionen.jsx";
 import { statistikZurueck } from "../seiten/Statistik.jsx";
 import Kalkulation, { kalkulationZurueck } from "../seiten/Kalkulation.jsx";
 import Qm from "../seiten/Qm.jsx";
+import QmAlternativ from "../seiten/QmAlternativ.jsx";
 import "../seiten/Kalender.jsx";
 import Einlagen from "../seiten/Einlagen.jsx";
 import MaschinenSeite, { maschinenZurueck } from "../seiten/Maschinen.jsx";
@@ -158,7 +159,7 @@ const LOGO_WEISS = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoMAAADwCAQAAA
 // Zählweise seit 9. Oktober 2026 (Wunsch Patrick): neu ab 1.0.0. Die
 // früheren 111.x-Nummern bleiben nur in Kommentaren und im Verlauf. Nirgends
 // wird die Nummer verglichen; Neuladen erkennt neue Fassungen am Dateinamen.
-const APP_VERSION = "1.462.0";
+const APP_VERSION = "1.463.0";
 
 // -----------------------------------------------------------------
 //  Kleine Helfer
@@ -3137,6 +3138,8 @@ function seiteSichtbar(pfad) {
   if (pfad === "bildschirme") return SEITEN.some((s) => s.gruppe === "bildschirme" && seiteSichtbar(s.pfad));
   if (pfad === "kalkulation") return kalkulationSehen(profil) && !istExtern();
   if (pfad === "qm") return qmSehen(profil) && !istExtern();
+  // QM alternativ: dieselben Personen wie beim Reiter QM (seit 1.463.0)
+  if (pfad === "qmalt") return qmSehen(profil) && !istExtern();
   // Den Bereich Empfang sehen nur Personen mit dem Vermerk empfangSehen am
   // Konto (Wunsch Patrick 26. Oktober 2026, sql/empfang-sehen.sql); der
   // Bildschirm selbst geht trotzdem von selbst auf.
@@ -10522,6 +10525,8 @@ const SEITEN = [
   { pfad: "kalkulation",  titel: "Kalkulation",  zeichen: SYM.kalkulation, zeige: reactSeite(Kalkulation) },
   // Qualitätsmanagement, vorerst leer und nur für Patrick (seit 1.458.0)
   { pfad: "qm",           titel: "QM",           zeichen: SYM.qs, zeige: reactSeite(Qm) },
+  // Schlankes QM-System nach ISO 9001, unabhängig vom Reiter QM (seit 1.463.0)
+  { pfad: "qmalt",        titel: "QM alternativ", zeichen: SYM.qs, zeige: reactSeite(QmAlternativ) },
   { pfad: "bestellungen", titel: "Bestellungen", zeichen: SYM.bestellungen, zeige: seiteBestellungen },
   // Material: Lager, Bestellungen und Bedarf der Aufträge (seit 1.67.0)
   { pfad: "material",     titel: "Material",     zeichen: SYM.material, zeige: reactSeite(Material) },

@@ -266,7 +266,7 @@ function startSeiten(u) {
     if (x.pfad === "pausenraum") return u.role !== "extern" && u.role !== "dienst";
     if (x.pfad === "empfang") return u.role === "admin" && !!(u.einstellungen && u.einstellungen.empfangSehen);
     if (x.pfad === "kalkulation") return u.role !== "extern" && !!(u.einstellungen && u.einstellungen.kalkulationSehen);
-    if (x.pfad === "qm") return u.role !== "extern" && !!(u.einstellungen && u.einstellungen.qmSehen);
+    if (x.pfad === "qm" || x.pfad === "qmalt") return u.role !== "extern" && !!(u.einstellungen && u.einstellungen.qmSehen);
     return true;
   });
 }

@@ -12283,3 +12283,59 @@ body.dunkel .eba-pf-rich.eba-rich--lesen { background: #1b2027; }
 .eba-platzfenster--links { right: auto; left: 16px; }
 .eba-pf-kopf[data-pf-ziehen] { cursor: move; touch-action: none; }
 .eba-schriftzeile--rechts { flex-direction: row-reverse; }
+/* ---------- QM alternativ (seit 1.462.0) ---------- */
+.qma-schild { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .8rem; font-weight: 650; white-space: nowrap; }
+.qma-ton--rot { background: #fde2e1; color: #9b1c1c; }
+.qma-ton--gelb { background: #fff3cd; color: #7a5a00; }
+.qma-ton--gruen { background: #ddf3e4; color: #1d6b37; }
+.qma-ton--blau { background: #e3eefc; color: #1a4f8f; }
+.qma-ton--grau { background: #eceff3; color: #4a5563; }
+body.dunkel .qma-ton--rot { background: #6a1f1f; }
+body.dunkel .qma-ton--gelb { background: #5a4500; }
+body.dunkel .qma-ton--gruen { background: #1d4a2c; }
+body.dunkel .qma-ton--blau { background: #1d3a5f; }
+body.dunkel .qma-ton--grau { background: #3a4048; }
+.qma-bald { color: #9a6b00; font-weight: 650; }
+.qma-kurz { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; max-width: 34em; }
+.qma-tabelle td { overflow-wrap: anywhere; }
+.qma-todo { list-style: none; margin: 0; padding: 0; }
+.qma-todo__zeile { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 7px 4px; border-top: 1px solid var(--linie); cursor: pointer; }
+.qma-todo__zeile:hover { background: var(--flaeche-hover, #f3f6fa); }
+.qma-todo__art { color: var(--gedaempft); font-size: .85rem; min-width: 7em; }
+.qma-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin: 0 0 16px; }
+.qma-kachel { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px 14px; text-align: left;
+  border: 1px solid var(--linie); border-radius: 10px; background: var(--flaeche, #fff); cursor: pointer; font: inherit; color: inherit; }
+.qma-kachel:hover { border-color: var(--akzent, #1a4f8f); }
+.qma-kachel__titel { font-weight: 650; font-size: .9rem; }
+.qma-kachel__zahl { font-size: 1.8rem; font-weight: 700; line-height: 1.1; }
+body.dunkel .qma-kachel { background: #1f242b; }
+.qma-landkarte { display: flex; flex-direction: column; gap: 8px; }
+.qma-band { border-radius: 10px; padding: 8px 10px; border: 1px solid var(--linie); }
+.qma-band--fuehrung { background: #eef3fb; }
+.qma-band--kern { background: #eef8f1; }
+.qma-band--unterstuetzung { background: #f6f3ec; }
+body.dunkel .qma-band--fuehrung { background: #1d2a3d; }
+body.dunkel .qma-band--kern { background: #1c3326; }
+body.dunkel .qma-band--unterstuetzung { background: #322c20; }
+.qma-band__titel { font-size: .8rem; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--gedaempft); margin-bottom: 6px; }
+.qma-band__reihe { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.qma-band--kern .qma-prozess:not(:last-child)::after { content: "→"; margin-left: 8px; color: var(--gedaempft); }
+.qma-prozess { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--linie-stark); background: var(--flaeche, #fff); cursor: pointer; font: inherit; color: inherit; text-align: left; max-width: 100%; }
+body.dunkel .qma-prozess { background: #1f242b; }
+.qma-abschnitt { border-top: 1px solid var(--linie); padding: 10px 4px; cursor: pointer; }
+.qma-abschnitt:hover { background: var(--flaeche-hover, #f3f6fa); }
+.qma-abschnitt__kopf { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.qma-abschnitt__kopf h3 { margin: 0; font-size: 1rem; }
+.qma-abschnitt--leer h3 { color: #b03a2e; }
+.qma-matrix th, .qma-matrix td { text-align: center; }
+.qma-matrix__faehig { text-align: left !important; cursor: pointer; font-weight: 600; }
+.qma-matrix__person { cursor: pointer; white-space: normal; min-width: 4.5em; }
+.qma-stufe { cursor: pointer; font-size: 1.2rem; user-select: none; }
+.qma-stufe--1 { background: #fff7e0; } .qma-stufe--2 { background: #e6f5ea; } .qma-stufe--3 { background: #cfeedd; }
+body.dunkel .qma-stufe--1 { background: #4a3d10; } body.dunkel .qma-stufe--2 { background: #1f3f2a; } body.dunkel .qma-stufe--3 { background: #1d5233; }
+.qma-zahlen { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin: 6px 0 10px; }
+.qma-zahl { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--linie); border-radius: 8px; padding: 8px 10px; }
+.qma-zahl b { font-size: 1.3rem; }
+.qma-bew-feld { display: block; margin-bottom: 8px; }
+.qma-bew h3 { margin: 16px 0 6px; }
