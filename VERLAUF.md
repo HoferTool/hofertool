@@ -775,3 +775,4 @@ Planwand mit Ziehen, Verlängern, Nachrücken und Lücke schliessen · Produktio
 
 - **1.478.0** (10. November 2026): QMS-Landkarte: Prozess-Kärtchen als Glas statt weisser Kacheln, auch am Handy (Patrick: „die weissen Kacheln passen optisch nicht, mach etwas Harmonischeres“).
 - **1.478.1** (10. November 2026): QMS-Landkarte: Prozess beim Darüberfahren zoomt an Ort nach vorne statt zur Seite zu springen.
+- **1.479.0** (10. November 2026): QMS-Handbuch: Organigramm (ISO 5.3) als Grafik unter der Landkarte, Bereiche im Kreis um das Logo, Glas-Kärtchen, GL hervorgehoben, „Organigramm ändern“; Daten nur in `qma_texte` „organigramm“ (Patrick: „wo ist eigentlich das Organigramm?“).

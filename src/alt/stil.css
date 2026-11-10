@@ -12779,3 +12779,41 @@ body.dunkel .qma-ellipse .qma-ebene { color: rgba(255, 255, 255, .55) !important
   background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .25); border-left: 3px solid #9fc3f5;
   color: #fff !important; -webkit-text-fill-color: #fff; }
 .qma-landkarte .qma-prozess .klein, body.dunkel .qma-landkarte .qma-prozess .klein { color: rgba(255, 255, 255, .7) !important; -webkit-text-fill-color: rgba(255, 255, 255, .7); }
+
+/* ---------- QMS: Organigramm (seit 1.479.0) ----------
+   Nach Patricks „Organisation Hofer + Co 2026“: die Bereiche im Kreis um das
+   Logo, auf derselben blauen Fläche wie die Landkarte, Kärtchen als Glas,
+   Geschäftsleitung mit hellerem Rand. Unter 820 Punkten als Liste. */
+.qma-org { position: relative; width: 100%; max-width: 1150px; margin: 8px auto 0; aspect-ratio: 1.9; container-type: inline-size;
+  background: radial-gradient(ellipse at 50% 50%, #0c4ea6 0%, #003884 48%, #002b66 100%); border-radius: 16px; overflow: hidden; }
+.qma-org .qma-wellen { position: absolute; left: 38%; top: 34%; width: 24%; height: 32%; pointer-events: none; }
+.qma-org__logo { position: absolute; left: 50%; top: 50%; width: 15cqw; transform: translate(-50%, -50%); filter: drop-shadow(0 0 18px rgba(140, 190, 255, .35)); }
+.qma-org .qma-org__karte { position: absolute; transform: translate(-50%, -50%); width: 21cqw; animation: qmaRein .5s cubic-bezier(.2, .7, .3, 1) backwards; }
+.qma-org__karte, body.dunkel .qma-org__karte {
+  box-sizing: border-box; padding: .9cqw 1cqw; border-radius: 12px; text-align: center;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .07));
+  border: 1px solid rgba(255, 255, 255, .28); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 4px 14px rgba(0, 18, 50, .22);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  color: #fff !important; -webkit-text-fill-color: #fff; line-height: 1.3; transition: transform .2s cubic-bezier(.2, .7, .3, 1), box-shadow .2s; }
+.qma-org .qma-org__karte:hover { transform: translate(-50%, -50%) scale(1.06); z-index: 5;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 0 18px rgba(140, 190, 255, .35), 0 6px 18px rgba(0, 18, 50, .3); }
+.qma-org__karte--gl, body.dunkel .qma-org__karte--gl { border-color: rgba(159, 195, 245, .75); }
+.qma-org__karte *, body.dunkel .qma-org__karte * { color: inherit !important; -webkit-text-fill-color: inherit; }
+.qma-org__bereich { font-size: max(10px, .95cqw); color: #9fc3f5 !important; -webkit-text-fill-color: #9fc3f5 !important; font-weight: 600; }
+.qma-org__name { font-size: max(13px, 1.35cqw); font-weight: 700; margin-top: .25em; }
+.qma-org__rolle { display: inline-block; margin-top: .3em; padding: .05em .7em; border-radius: 99px; font-size: max(10px, .85cqw);
+  background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .3); }
+.qma-org__kontakt { display: block; font-size: max(10px, .85cqw); text-decoration: none; opacity: .85; margin-top: .15em; word-break: break-all; }
+.qma-org__kontakt:hover { text-decoration: underline; opacity: 1; }
+.qma-org__stv { font-size: max(10px, .8cqw); opacity: .65; margin-top: .3em; }
+.qma-org__stand { position: absolute; right: 1.4cqw; bottom: 1cqw; font-size: max(10px, .85cqw); color: rgba(255, 255, 255, .55) !important; -webkit-text-fill-color: rgba(255, 255, 255, .55); }
+.qma-org-liste { display: none; }
+@media (max-width: 820px) {
+  .qma-org { display: none; }
+  .qma-org-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-top: 8px; padding: 14px 10px 10px;
+    background: radial-gradient(ellipse at 50% 0%, #0c4ea6 0%, #003884 50%, #002b66 100%); border-radius: 14px; }
+  .qma-org-liste .qma-landkarte__logo { grid-column: 1 / -1; justify-self: center; }
+  .qma-org-liste .qma-org__karte { padding: 10px 12px; }
+  .qma-org-liste .qma-org__stand { position: static; grid-column: 1 / -1; text-align: right; }
+}
+@media (prefers-reduced-motion: reduce) { .qma-org .qma-org__karte, .qma-org .qma-wellen i { animation: none; } }

@@ -59,6 +59,8 @@ export default function Handbuch({ daten, neu, gehe }) {
         partei={parteiKnopf} />
     </section>
 
+    <Organigramm texte={texte} neu={neu} />
+
     <NormMatrix texte={texte} eintraege={daten.eintraege} prozesse={prozesse} oeffnen={(p) => prozessDialog(p, prozesse, neu)} />
 
     <section className="karte" id="qma-abschnitte">
@@ -286,4 +288,78 @@ function handbuchDrucken(texte, prozesse) {
     }
   }
   blattDrucken("Managementhandbuch", h);
+}
+
+// ---------- Organigramm (ISO 5.3, seit 1.479.0) ----------
+// Nach Patricks „Organisation Hofer + Co 2026“: die Bereiche rund um das Logo,
+// im selben Blau wie die Landkarte. Namen und Kontakte stehen nur in der
+// Datenbank (qma_texte „organigramm“, felder.personen), nie im Repository.
+const ORG_SPALTEN = ["bereich", "name", "rolle", "mail", "tel", "stv"];
+const orgZeile = (x) => ORG_SPALTEN.map((k) => x[k] || "").join(" | ");
+const orgAusText = (text) => text.split("\n").map((z) => z.trim()).filter(Boolean).map((z) => {
+  const t = z.split("|").map((x) => x.trim());
+  const o = {}; ORG_SPALTEN.forEach((k, i) => { if (t[i]) o[k] = t[i]; });
+  return o;
+}).filter((o) => o.name || o.bereich);
+
+function Organigramm({ texte, neu }) {
+  const t = texte.organigramm;
+  const personen = (t && t.felder && t.felder.personen) || [];
+  const stand = t && t.felder && t.felder.stand;
+  const n = personen.length;
+  const karte = (x, i, rund) => {
+    const gl = /GL/.test(x.rolle || "");
+    const w = ((-90 + (i * 360) / n) * Math.PI) / 180;
+    const ort = rund ? { left: 50 + 37 * Math.cos(w) + "%", top: 50 + 36 * Math.sin(w) + "%", animationDelay: 80 + i * 60 + "ms" } : undefined;
+    return (
+      <div key={i} className={"qma-org__karte" + (gl ? " qma-org__karte--gl" : "")} style={ort}>
+        <div className="qma-org__bereich">{x.bereich}</div>
+        <div className="qma-org__name">{x.name}</div>
+        {x.rolle ? <div className="qma-org__rolle">{x.rolle}</div> : null}
+        {x.mail ? <a className="qma-org__kontakt" href={"mailto:" + x.mail} onClick={(e) => e.stopPropagation()}>{x.mail}</a> : null}
+        {x.tel ? <a className="qma-org__kontakt" href={"tel:" + x.tel.replace(/\s/g, "")} onClick={(e) => e.stopPropagation()}>{x.tel}</a> : null}
+        {x.stv ? <div className="qma-org__stv">Stv. {x.stv.replace(/^Stv\.?\s*/i, "")}</div> : null}
+      </div>);
+  };
+  return (
+    <section className="karte" id="qma-organigramm">
+      <div className="karte__kopf">
+        <h2>Organigramm <span className="klein">ISO 5.3</span></h2>
+        <div className="qm-bew-knoepfe">
+          <button className="knopf" id="qma-org-aendern" onClick={() => organigrammDialog(texte, personen, stand, neu)}>Organigramm ändern</button>
+        </div>
+      </div>
+      {n ? <>
+        <div className="qma-org" aria-label="Organigramm">
+          <span className="qma-wellen"><i /><i /><i /></span>
+          <img className="qma-org__logo" src="./logo-weiss.svg" alt="Hofer + Co" />
+          {personen.map((x, i) => karte(x, i, true))}
+          {stand ? <div className="qma-org__stand">Stand {stand}</div> : null}
+        </div>
+        <div className="qma-org-liste">
+          <img className="qma-landkarte__logo" src="./logo-weiss.svg" alt="Hofer + Co" />
+          {personen.map((x, i) => karte(x, i, false))}
+          {stand ? <div className="qma-org__stand">Stand {stand}</div> : null}
+        </div>
+      </> : <p className="klein">Noch kein Organigramm erfasst. „Organigramm ändern“ antippen.</p>}
+    </section>);
+}
+
+async function organigrammDialog(texte, personen, stand, neu) {
+  const w = await alt.dialogFelder({
+    titel: "Organigramm",
+    felder: [
+      { name: "stand", label: "Stand", wert: stand || "" },
+      { name: "liste", label: "Eine Person je Zeile: Bereich | Name | Rolle | Mail | Telefon | Stellvertretung. Wer „GL“ in der Rolle hat, ist hervorgehoben.",
+        typ: "textarea", zeilen: 12, wert: personen.map(orgZeile).join("\n") },
+    ],
+    bestaetigen: "Speichern",
+  });
+  if (!w) return;
+  try {
+    const alte = (texte.organigramm && texte.organigramm.felder) || {};
+    await textSpeichern("organigramm", { gruppe: "einstellung", titel: "Organigramm", norm: "5.3",
+      felder: { ...alte, stand: w.stand.trim() || null, personen: orgAusText(w.liste) } }, "Ändern: Organigramm");
+    alt.meldung("Gespeichert.", "gut"); neu();
+  } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
 }
