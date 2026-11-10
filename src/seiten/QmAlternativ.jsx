@@ -43,7 +43,7 @@ export default function QmAlternativ({ auffrischen }) {
   const d = useDaten(qmaLaden, [auffrischen]);
 
   useSeitenSuche({
-    name: "QM alternativ", platzhalter: "Eintrag, Prozess, Abschnitt …",
+    name: "QMS", platzhalter: "Eintrag, Prozess, Abschnitt …",
     eintraege: () => !d.daten ? [] : [
       ...d.daten.eintraege.filter((e) => ARTEN[e.art]).map((e) => ({
         gruppe: ARTEN[e.art].titel, zeichen: "•", titel: e.titel || "ohne Titel",
@@ -75,7 +75,7 @@ export default function QmAlternativ({ auffrischen }) {
   else inhalt = <Liste key={reiter} art={reiter} daten={d.daten} neu={d.neu} />;
 
   return (<>
-    <h1 className="seitentitel">QM alternativ</h1>
+    <h1 className="seitentitel">QMS</h1>
     <Reiter reiter={REITER} aktiv={reiter} waehlen={setReiter} merkmal="qmareiter" />
     <div id="qma-inhalt" data-qma={reiter}>{inhalt}</div>
   </>);

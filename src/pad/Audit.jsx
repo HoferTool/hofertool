@@ -34,7 +34,7 @@ export default function PadAudit({ d, Kopf, neu }) {
     <>
       <Kopf titel="Audit" zurueck />
       <div className="pad-audit" id="pad-audit">
-        {!offen.length && <p className="pad-audit__leer">Kein offenes Audit mit Checkliste. Audits plant man am PC unter QM alternativ → Audits.</p>}
+        {!offen.length && <p className="pad-audit__leer">Kein offenes Audit mit Checkliste. Audits plant man am PC unter QMS → Audits.</p>}
         {zeigen.map((e) => {
           const ck = checklisteFuer(d.texte, e);
           const n = ck.fragen.length;
