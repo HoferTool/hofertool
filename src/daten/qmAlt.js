@@ -523,3 +523,67 @@ export function normPruefen(texte, eintraege) {
     z("10.3", "Fortlaufende Verbesserung", "Abweichungen (Ideen, wirksame Massnahmen)", besser ? "ok" : "warn", "Verbesserungen festhalten"),
   ];
 }
+
+// ---------- Auditcheckliste (seit 1.469.0) ----------
+// Wunsch Patrick 10. November 2026: „einfache Auditcheckliste nach ISO
+// 9001:2026 für den Bereich Produktion … beim nächsten geplanten Audit eine
+// Oberfläche, mit der ich das Audit durchführen kann, und nach Abschluss
+// automatisch den Bericht“. Die Fragen je Bereich stehen nur in der
+// Datenbank (qma_texte „checkliste:<Bereich>“, felder.fragen), die Antworten
+// am Audit unter daten.checkliste.
+export const CK_BEWERTUNG = [
+  ["ok", "Erfüllt", "gruen"], ["v", "Verbesserung", "gelb"], ["a", "Abweichung", "rot"], ["na", "Nicht geprüft", "grau"]];
+export const ckBewertung = (b) => CK_BEWERTUNG.find((x) => x[0] === b) || null;
+
+export const checklistenVon = (texte) => Object.values(texte || {})
+  .filter((t) => String(t.schluessel).startsWith("checkliste:") && t.felder && Array.isArray(t.felder.fragen));
+
+// Die Checkliste eines Audits: die schon eingefrorene am Audit, sonst die des
+// Bereichs (Hauptbereich, dann die weiteren)
+export function checklisteFuer(texte, e) {
+  const d = (e && e.daten) || {};
+  if (d.checkliste && Array.isArray(d.checkliste.fragen)) {
+    return { bereich: d.checkliste.bereich || d.bereich || "", fragen: d.checkliste.fragen };
+  }
+  const alle = checklistenVon(texte);
+  const name = (t) => t.felder.bereich || String(t.schluessel).slice("checkliste:".length);
+  for (const b of auditBereicheVonEintrag(e)) {
+    const t = alle.find((x) => normiert(name(x)) === normiert(b));
+    if (t) return { bereich: name(t), fragen: t.felder.fragen, schluessel: t.schluessel };
+  }
+  return null;
+}
+const normiert = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9äöü]+/g, "");
+
+export function checklisteAuswerten(fragen, antworten) {
+  const a = antworten || {};
+  const zaehl = { ok: 0, v: 0, a: 0, na: 0, offen: 0 };
+  const feststellungen = [];
+  fragen.forEach((f, i) => {
+    const x = a[f.id] || {};
+    if (!ckBewertung(x.b)) { zaehl.offen++; return; }
+    zaehl[x.b]++;
+    if (x.b === "a" || x.b === "v") {
+      feststellungen.push({ id: f.id, nr: i + 1, norm: f.norm, art: x.b,
+        text: (x.b === "a" ? "Abweichung" : "Verbesserung") + " " + (f.norm || "") + " " + (f.thema || "") + ": " + (String(x.text || "").trim() || f.frage) });
+    }
+  });
+  // Abweichungen zuerst
+  feststellungen.sort((p, q) => (p.art === q.art ? p.nr - q.nr : p.art === "a" ? -1 : 1));
+  const normen = [...new Set(fragen.filter((f) => (a[f.id] || {}).b && a[f.id].b !== "na")
+    .flatMap((f) => String(f.norm || "").split(/[·,/]/).map((n) => n.trim()).filter(Boolean)))];
+  return { zaehl, feststellungen, normen };
+}
+
+// Fragen als Text zum Ändern: eine Frage je Zeile „Norm | Thema | Frage | Nachweis“
+export const fragenZuText = (fragen) => (fragen || []).map((f) => [f.norm, f.thema, f.frage, f.nachweis].map((x) => x || "").join(" | ")).join("\n");
+export function fragenAusText(text, vorher) {
+  const alte = vorher || [];
+  let n = Math.max(0, ...alte.map((f) => Number(String(f.id).replace(/\D/g, "")) || 0));
+  return String(text || "").split("\n").map((z) => z.trim()).filter(Boolean).map((z) => {
+    const [norm = "", thema = "", frage = "", nachweis = ""] = z.split("|").map((x) => x.trim());
+    const f = { norm, thema, frage: frage || thema, nachweis };
+    const gleich = alte.find((x) => x.frage === f.frage) || alte.find((x) => x.thema === f.thema && x.norm === f.norm);
+    return { id: gleich ? gleich.id : "q" + (++n), ...f };
+  });
+}

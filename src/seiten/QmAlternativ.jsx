@@ -19,13 +19,14 @@ import { useSeitenSuche } from "../teile/seitenSuche.js";
 import { teilMerken } from "../teile/wiederherstellen.js";
 import {
   ARTEN, qmaLaden, fehltQma, statusVon, istZu, auswahlText, auswahlVon, risikoWert, risikoErst, risikoTon, hatNeu, parteiListe, lieferantNote,
-  faelligTon, eintragSpeichern, eintragLoeschen, normPruefen, heute, plusTageIso,
+  faelligTon, eintragSpeichern, eintragLoeschen, normPruefen, heute, plusTageIso, checklisteFuer,
 } from "../daten/qmAlt.js";
 import Handbuch from "./qmAlt/Handbuch.jsx";
 import Kompetenz from "./qmAlt/Kompetenz.jsx";
 import Bewertung from "./qmAlt/Bewertung.jsx";
 import { Schild } from "./qmAlt/Schild.jsx";
 import AuditPlan, { berichtHochladen } from "./qmAlt/AuditPlan.jsx";
+import { checklisteOeffnen } from "./qmAlt/Checkliste.jsx";
 
 const REITER = [["cockpit", "Cockpit"], ["handbuch", "Handbuch"], ["ziel", "Ziele"], ["abweichung", "Abweichungen"],
   ["risiko", "Kontext und Risiken"], ["pruefmittel", "Prüfmittel"], ["lieferant", "Lieferanten"], ["kompetenz", "Kompetenzen"],
@@ -47,7 +48,7 @@ export default function QmAlternativ({ auffrischen }) {
       ...d.daten.eintraege.filter((e) => ARTEN[e.art]).map((e) => ({
         gruppe: ARTEN[e.art].titel, zeichen: "•", titel: e.titel || "ohne Titel",
         zeile: statusVon(e.art, e.status).text, id: e.id, art: e.art })),
-      ...Object.values(d.daten.texte).filter((t) => t.titel && t.gruppe !== "entwurf").map((t) => ({
+      ...Object.values(d.daten.texte).filter((t) => t.titel && t.gruppe !== "entwurf" && t.gruppe !== "checkliste").map((t) => ({
         gruppe: "Handbuch", zeichen: "§", titel: t.titel, zeile: t.norm ? "ISO " + t.norm : "", id: t.schluessel, art: "handbuch" })),
     ],
     springen: (x) => {
@@ -206,6 +207,8 @@ export function Liste({ art, daten, neu }) {
                     {art === "audit" && e.status === "durchgefuehrt" && String(e.daten.feststellungen || "").trim() && !e.daten.uebertragen &&
                       <button className="knopf knopf--klein" data-qmaueber={e.id}
                         onClick={() => feststellungenUebertragen(e, daten.eintraege, neu)}>→ Abweichungen</button>}
+                    {art === "audit" && checklisteFuer(daten.texte, e) && (e.status !== "durchgefuehrt" || e.daten.checkliste) && <button className="knopf knopf--klein" data-qmackliste={e.id}
+                      title="Audit mit Checkliste durchführen" onClick={() => checklisteOeffnen(e, daten.texte, daten.eintraege, neu)}>☑ Checkliste</button>}
                     {art === "audit" && e.daten.bericht_url && <button className="knopf knopf--klein" data-qmabericht={e.id} title={e.daten.bericht_name || "Bericht"}
                       onClick={() => alt.betrachter(e.daten.bericht_url, "Auditbericht " + (e.titel || ""), !/\.(png|jpe?g|webp|gif)$/i.test(e.daten.bericht_url))}>📄 Bericht</button>}
                     {art === "audit" && <button className="knopf knopf--klein" data-qmaberichtneu={e.id} title="Bericht (PDF) hinterlegen"

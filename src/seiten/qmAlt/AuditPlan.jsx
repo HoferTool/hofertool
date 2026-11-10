@@ -14,7 +14,9 @@ import { useEffect, useState } from "react";
 import { alt } from "../../bruecke.jsx";
 import {
   auditBereiche, auditQuartal, auditBereicheVonEintrag, auditExtern, berichteZuteilen, statusVon, textSpeichern, eintragSpeichern, heute,
+  checklisteFuer,
 } from "../../daten/qmAlt.js";
+import { checklisteOeffnen, checklistenVerwalten } from "./Checkliste.jsx";
 
 const EXTERN = "Extern (SSC, Kunden)";
 const ART_KURZ = { zert: "SSC", kunde: "Kunde", as: "AS", lieferant: "Lief." };
@@ -62,6 +64,17 @@ export default function AuditPlan({ daten, neu, eintragDialog }) {
     return { alle: im.length, durch: im.filter((e) => e.status === "durchgefuehrt").length };
   };
 
+  // Seit 1.469.0: je Bereich mit Checkliste das nächste offene Audit (oder
+  // eines, dessen Checkliste schon angefangen ist) mit Knopf zum Durchführen
+  const mitCk = audits.filter((e) => checklisteFuer(daten.texte, e) &&
+    (e.status !== "durchgefuehrt" || (e.daten.checkliste && !e.daten.checkliste.abgeschlossen_am)));
+  const naechste = [];
+  const ordnung = (e) => (e.daten.checkliste ? "0" : "1") + (e.daten.datum || (auditQuartal(e) || "9999") + "-99");
+  for (const e of [...mitCk].sort((a, b) => ordnung(a).localeCompare(ordnung(b)))) {
+    const b = checklisteFuer(daten.texte, e).bereich;
+    if (!naechste.some((x) => x.b === b)) naechste.push({ b, e });
+  }
+
   return (
     <section className="karte" id="qma-auditplan">
       <div className="karte__kopf">
@@ -71,12 +84,26 @@ export default function AuditPlan({ daten, neu, eintragDialog }) {
           <button className="knopf" id="qma-ap-heute" onClick={() => { gemerktAb = diesesJahr; setAb(diesesJahr); }}>{diesesJahr}</button>
           <button className="knopf" id="qma-ap-spaeter" onClick={() => schieben(anzahl)}>Später ▶</button>
           <button className="knopf" id="qma-ap-berichte" onClick={() => berichteZuordnen(daten.eintraege, neu)}>📎 Berichte zuordnen</button>
+ <button className="knopf" id="qma-ap-checklisten" onClick={() => checklistenVerwalten(daten.texte, neu)}>☑ Checklisten</button>
           <button className="knopf" id="qma-ap-bereiche" onClick={() => bereicheDialog(daten.texte, bereiche, neu)}>Bereiche ändern</button>
         </div>
       </div>
       <p className="hinweis">Leeres Feld antippen sieht dort ein Audit vor. Kärtchen antippen öffnet das Audit: Datum setzen = terminiert,
         Status „Durchgeführt“ und die Feststellungen eintragen, wenn es vorbei ist. Kärtchen mit 📄 öffnen gleich den Bericht,
         ⓘ daneben die Angaben zum Audit. „Berichte zuordnen“ hängt mehrere Berichte auf einmal an.</p>
+      {naechste.map(({ b, e }) => {
+        const q = e.daten.datum ? alt.kurzDatum(e.daten.datum) : (auditQuartal(e) || "").replace("-", " ");
+        const spaet = e.faellig && e.faellig < heute();
+        const angefangen = e.daten.checkliste && !e.daten.checkliste.abgeschlossen_am;
+        return (
+          <div key={b} className="qma-ck-naechste" data-qmacknaechste={e.id}>
+            <span>☑ <b>Nächstes Audit {b}</b> · {e.titel} · {q}{spaet ? <span className="qm-spaet"> · überfällig</span> : null}</span>
+            <button className="knopf knopf--haupt" data-qmackstart={e.id}
+              onClick={() => checklisteOeffnen(e, daten.texte, daten.eintraege, neu)}>
+              {angefangen ? "Audit weiterführen" : "Audit mit Checkliste durchführen"}</button>
+          </div>
+        );
+      })}
       <div className="qma-ap-huelle">
         <table className="qma-ap" style={{ "--qma-ap-spalten": jahre.length * 4 }}>
           <thead>
@@ -221,11 +248,17 @@ export async function berichtHochladen(e, alle, neu) {
   } catch (f) { alt.meldung(alt.fehlertext(f), "fehler"); }
 }
 
-async function berichtAblegen(e, datei, alle) {
+// Datei in die Ablage legen, gibt die Angaben für das Audit zurück
+export async function berichtDateiAblegen(e, datei) {
   const name = String(datei.name || "bericht.pdf").normalize("NFKD").replace(/[^\w.-]+/g, "_").slice(-80);
   const pfad = "qm/audits/" + e.id + "/" + Date.now() + "-" + name;
   const up = await alt.db.storage.from("zeichnungen").upload(pfad, datei, { contentType: datei.type || "application/pdf", upsert: false });
   if (up.error) throw up.error;
   const url = alt.db.storage.from("zeichnungen").getPublicUrl(pfad).data.publicUrl;
-  await eintragSpeichern("audit", e, { ...e.daten, bericht_url: url, bericht_pfad: pfad, bericht_name: datei.name }, e.status, alle);
+  return { bericht_url: url, bericht_pfad: pfad, bericht_name: datei.name };
+}
+
+async function berichtAblegen(e, datei, alle) {
+  const b = await berichtDateiAblegen(e, datei);
+  await eintragSpeichern("audit", e, { ...e.daten, ...b }, e.status, alle);
 }
