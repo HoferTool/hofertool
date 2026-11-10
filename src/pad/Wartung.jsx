@@ -330,11 +330,13 @@ function naechstesAnMaschine(m, { plaene, info, typ }) {
 export const VORLAGEN = "wartung_vorlagen";
 export const GRUPPEN = [["langdreher", "Langdreher"], ["kurzdreher", "Kurzdreher"], ["extern", "Extern"]];
 export const gruppeText = (g) => (GRUPPEN.find((x) => x[0] === g) || GRUPPEN[0])[1];
-// Gruppe nach dem Namen des Parks (Langdreherpark, Kurzdreherpark, Extern)
+// Gruppe nach dem Namen des Parks (Langdreherpark, Kurzdreherpark, Multitasking, Extern)
 export function gruppeVonPark(name) {
   const n = String(name || "").toLowerCase();
   if (/extern/.test(n)) return "extern";
-  if (/kurz/.test(n)) return "kurzdreher";
+  // Multitasking (Macodel) war bis 1.477.1 im Kurzdreherpark und nimmt
+  // weiter die Vorlagen der Kurzdreher
+  if (/kurz|multi/.test(n)) return "kurzdreher";
   if (/lang/.test(n)) return "langdreher";
   return null;
 }
