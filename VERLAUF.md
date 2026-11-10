@@ -772,3 +772,5 @@ Planwand mit Ziehen, Verlängern, Nachrücken und Lücke schliessen · Produktio
 
 - Wunsch Patrick: „das NC PRO soll je nach dem welche Themenfarbe so leuchten“.
 - Verlauf und Schein des Schriftzugs NC-PRO (Kopf der Seite und Markenleiste im eigenen Fenster) kommen aus `--ncpro-a`, `--ncpro-b`, `--ncpro-schein` je Themenfarbe, hell und dunkel; Blau bleibt wie vorher. Prüfstand `nc_pro_leuchten.py`.
+
+- **1.478.0** (10. November 2026): QMS-Landkarte: Prozess-Kärtchen als Glas statt weisser Kacheln, auch am Handy (Patrick: „die weissen Kacheln passen optisch nicht, mach etwas Harmonischeres“).

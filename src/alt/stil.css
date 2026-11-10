@@ -12757,3 +12757,25 @@ body.dunkel .qma-ellipse .qma-ebene { color: rgba(255, 255, 255, .55) !important
 .qma-landkarte .qma-prozess * { color: inherit !important; -webkit-text-fill-color: inherit; }
 .qma-landkarte .qma-prozess .klein { color: #5c6675 !important; -webkit-text-fill-color: #5c6675; }
 .qma-landkarte .qma-partei--flach, body.dunkel .qma-landkarte .qma-partei--flach { background: transparent; border: 1px solid rgba(255, 255, 255, .35); color: #fff !important; -webkit-text-fill-color: #fff; }
+
+/* QMS: Prozess-Kärtchen als Glas auf der blauen Fläche statt weisser Kacheln (seit 1.478.0, Patrick 10. November 2026:
+   „die weissen Kacheln passen optisch nicht, mach etwas Harmonischeres“). Hell und dunkel gleich. */
+.qma-ellipse .qma-knoten, body.dunkel .qma-ellipse .qma-knoten {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .07));
+  border: 1px solid rgba(255, 255, 255, .28); border-radius: 10px;
+  color: #fff !important; -webkit-text-fill-color: #fff; font-weight: 500;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 4px 14px rgba(0, 18, 50, .22);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  transition: background .2s, border-color .2s, box-shadow .2s, transform .2s; }
+.qma-ellipse .qma-knoten:hover, body.dunkel .qma-ellipse .qma-knoten:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .12));
+  border-color: rgba(255, 255, 255, .6); transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 0 18px rgba(140, 190, 255, .35), 0 6px 18px rgba(0, 18, 50, .3); }
+.qma-ellipse .qma-knoten .qma-knoten__nr, body.dunkel .qma-ellipse .qma-knoten .qma-knoten__nr {
+  color: #9fc3f5 !important; -webkit-text-fill-color: #9fc3f5; font-weight: 600; }
+.qma-ellipse .qma-knoten--f, body.dunkel .qma-ellipse .qma-knoten--f {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, .1)); border-color: rgba(255, 255, 255, .38); }
+.qma-landkarte .qma-prozess, body.dunkel .qma-landkarte .qma-prozess {
+  background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .25); border-left: 3px solid #9fc3f5;
+  color: #fff !important; -webkit-text-fill-color: #fff; }
+.qma-landkarte .qma-prozess .klein, body.dunkel .qma-landkarte .qma-prozess .klein { color: rgba(255, 255, 255, .7) !important; -webkit-text-fill-color: rgba(255, 255, 255, .7); }
