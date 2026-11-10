@@ -12339,3 +12339,11 @@ body.dunkel .qma-stufe--1 { background: #4a3d10; } body.dunkel .qma-stufe--2 { b
 .qma-zahl b { font-size: 1.3rem; }
 .qma-bew-feld { display: block; margin-bottom: 8px; }
 .qma-bew h3 { margin: 16px 0 6px; }
+
+/* Werkzeugbild klein gleich unter dem Häkchen (1.463.0) */
+.eba-platzfenster .eba-pf-wzb { margin: 0 0 6px; display: flex; gap: 8px; align-items: flex-start; }
+.eba-platzfenster .eba-pf-wzb-bild { flex: 0 0 auto; height: 110px; width: auto; max-width: 58%; }
+.eba-pf-wzb-rechts { flex: 1 1 0; min-width: 0; }
+.eba-platzfenster .eba-pf-wzb-leiste .knopf { padding: 2px 7px; min-height: 0; }
+.eba-platzfenster .eba-pf-wzb-tipp { margin-top: 0; }
+.eba-platzfenster .eba-pf-wzb-leiste { margin-top: 2px; gap: 3px; }

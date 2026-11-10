@@ -29,7 +29,7 @@ import { pdfSeitenAlsBilder } from "../teile/drucken.js";
 import { vorlageFuer, reihenMitRest, platzName, platzGruppe, freiFeld } from "./vorlagen.js";
 import { TextBlatt, textBearbeiten } from "../infoboard/TextFeld.jsx";
 import { ohneFa } from "./excelEinlesen.js";
-import { RichFeld, MitFormat, fmtGueltig, markiertFormatieren, markierteGroesse } from "./markiert.jsx";
+import { RichFeld, MitFormat, fmtGueltig, markiertFormatieren, markierteGroesse, markierungVergessen } from "./markiert.jsx";
 import { betrachter } from "../teile/Betrachter.jsx";
 import { spezialPdfsLaden } from "../daten/spezialwerkzeuge.js";
 import { istMaterialBlatt, MATERIAL_OHNE, materialArtBez } from "./jeMaterial.js";
@@ -295,9 +295,18 @@ function SchriftLeiste({ stil, setzen, standardFett, auto = "Normal", start = 12
 // 2026: „nur die Sachen, welche markiert wurden“): wirkt nur auf das, was
 // im Feld markiert ist; ohne Markierung ein Hinweis
 const MARKIER_HINWEIS = "Zuerst den Text im Feld markieren, dann Farbe, Dünn/Fett oder Grösse wählen.";
+// Setzt die Farbe der Werkzeugmarkierung im offenen Platzfenster
+let wzFarbeZiel = null;
+
 function MarkierLeiste() {
   const behalten = (e) => e.preventDefault();
-  const tun = (z) => { if (!markiertFormatieren(z)) alt.meldung(MARKIER_HINWEIS, "warn"); };
+  // Ohne markierten Text färbt eine Farbe die Werkzeugmarkierung im
+  // offenen Platzfenster (Wunsch Patrick 10. November 2026)
+  const tun = (z) => {
+    if (markiertFormatieren(z)) return;
+    if (z.farbe && wzFarbeZiel) { wzFarbeZiel(z.farbe); return; }
+    alt.meldung(MARKIER_HINWEIS, "warn");
+  };
   const gr = (d) => {
     const g = markierteGroesse();
     if (!g) { alt.meldung(MARKIER_HINWEIS, "warn"); return; }
@@ -804,6 +813,17 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
     setzen(z); zu();
     if (danach && Object.keys(z).length) danach();
   };
+  // Werkzeugbilder als eigenes Feld neben dem Fenster, auf der Seite
+  // gegenüber, damit das Fenster klein bleibt; die Farbe der Markierung
+  // kommt aus der Palette oben im Blatt, wenn kein Text markiert ist
+  // (Wunsch Patrick 10. November 2026)
+  const wzbAn = langdreher && p.wzBilder;
+  useEffect(() => {
+    if (!wzbAn || !p.wzMarke) return undefined;
+    const ziel = (farbe) => setP((q) => Object.assign({}, q, { wzFarbe: farbe === WZ_ROT ? null : farbe }));
+    wzFarbeZiel = ziel;
+    return () => { if (wzFarbeZiel === ziel) wzFarbeZiel = null; };
+  }, [wzbAn, !!p.wzMarke]);
   return (
     <div ref={fensterRef} className={"eba-platzfenster" + (!lage && seite === "links" ? " eba-platzfenster--links" : "")}
       data-platzfenster={nr} data-pf-seite={lage ? "frei" : seite || "rechts"} onClick={(e) => e.stopPropagation()}
@@ -824,11 +844,27 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
           onBlur={() => setP((q) => q.tnr == null ? q : Object.assign({}, q, { tnr: tnrSchreiben(q.tnr) }))} />
         {titel ? <b>{titel}</b> : !platzName(nr) && !p.tnr ? <b className="eba-pf-ohne-nr">Feld ohne T-Nr.</b> : null}</span>
         <button className="knopf knopf--klein knopf--still" data-pf-zu="" onClick={zu}>✕</button></div>
-      {/* Häkchen Werkzeugbilder ganz oben, die Bilder selbst zuunterst
-          (Wunsch Patrick 10. November 2026) */}
+      {/* Häkchen Werkzeugbilder ganz oben, Bild und Pfeile gleich darunter
+          und klein, die Farbe kommt aus der Palette oben im Blatt (Wunsch
+          Patrick 10. November 2026: „alles oben bei Werkzeug, ohne viel
+          mehr Platz“) */}
       {langdreher && <div className="eba-pf-wzb-haken" data-pf-wzb-haken="">
         <label className="eba-pf-check"><input type="checkbox" data-pf="wzBilder" checked={!!p.wzBilder}
           onChange={(e) => setP(Object.assign({}, p, { wzBilder: e.target.checked }))} /> Werkzeugbilder im Feld zeigen</label></div>}
+      {wzbAn && <div className="eba-pf-wzb" data-pf-wzb="" onPointerDown={() => markierungVergessen()}>
+        <WerkzeugBilder className="eba-wzb eba-pf-wzb-bild" marke={p.wzMarke} versatz={p.wzVersatz} farbe={p.wzFarbe}
+          waehlen={(m) => setP((q) => Object.assign({}, q, { wzMarke: m, wzVersatz: null }))}
+          schieben={(v) => setP((q) => Object.assign({}, q, { wzVersatz: v }))} />
+        <div className="eba-pf-wzb-rechts">
+        <div className="eba-pf-wzb-tipp">{p.wzMarke ? "Ziehen oder Pfeile schieben, Antippen nimmt weg. Farbe oben." : "Das passende Werkzeug antippen."}</div>
+        {p.wzMarke && <div className="eba-pf-wzb-leiste">
+          {[["◀", -1, 0, "links"], ["▲", 0, -1, "oben"], ["▼", 0, 1, "unten"], ["▶", 1, 0, "rechts"]].map(([z, dx, dy, w]) =>
+            <button key={w} type="button" className="knopf knopf--klein" data-wzb-schieben={w} title={"Nach " + w + " schieben"}
+              onClick={() => setP((q) => { const v = q.wzVersatz || {}; return Object.assign({}, q, { wzVersatz: { x: wzBegrenzt((v.x || 0) + dx), y: wzBegrenzt((v.y || 0) + dy) } }); })}>{z}</button>)}
+          <button type="button" className="knopf knopf--klein knopf--still" data-wzb-mitte="" onClick={() => setP((q) => Object.assign({}, q, { wzVersatz: null }))}>Mitte</button>
+        </div>}
+        </div>
+      </div>}
       <div className="eba-pf-oben">
         {BILDER_AN && <button className="eba-pf-bildknopf" data-pf-bild="" onClick={() => setBildWahl(!bildWahl)} title="Bild wählen">
           {bild ? <BildZeichnung schluessel={bild.schluessel} /> : <span className="eba-plus">Bild<br />wählen</span>}
@@ -890,28 +926,6 @@ function PlatzFenster({ nr, titel, wert, setzen, zu, artikelBilder, artikelBildN
           <input data-pf="standzeit" inputMode="numeric" placeholder="leer lassen"
             value={leer(p.standzeit)} onChange={f("standzeit")} /></label>
       </div>
-      {langdreher && p.wzBilder && <div className="eba-pf-wzb" data-pf-wzb="">
-
-        {p.wzBilder && <><WerkzeugBilder className="eba-wzb eba-pf-wzb-bild" marke={p.wzMarke} versatz={p.wzVersatz} farbe={p.wzFarbe}
-          waehlen={(m) => setP((q) => Object.assign({}, q, { wzMarke: m, wzVersatz: null }))}
-          schieben={(v) => setP((q) => Object.assign({}, q, { wzVersatz: v }))} />
-          <div className="eba-pf-wzb-tipp">{p.wzMarke ? "Markierung ziehen oder mit den Pfeilen schieben. Antippen ohne Ziehen nimmt sie weg." : "Das passende Werkzeug antippen."}</div>
-          {p.wzMarke && <div className="eba-pf-wzb-leiste">
-            {[["◀", -1, 0, "links"], ["▲", 0, -1, "oben"], ["▼", 0, 1, "unten"], ["▶", 1, 0, "rechts"]].map(([z, dx, dy, w]) =>
-              <button key={w} type="button" className="knopf knopf--klein" data-wzb-schieben={w} title={"Nach " + w + " schieben"}
-                onClick={() => setP((q) => { const v = q.wzVersatz || {}; return Object.assign({}, q, { wzVersatz: { x: wzBegrenzt((v.x || 0) + dx), y: wzBegrenzt((v.y || 0) + dy) } }); })}>{z}</button>)}
-            <button type="button" className="knopf knopf--klein knopf--still" data-wzb-mitte="" onClick={() => setP((q) => Object.assign({}, q, { wzVersatz: null }))}>Mitte</button>
-            <span className="eba-pf-geostil">
-              {GEO_FARBEN.map(([name, wert]) => <button key={wert} type="button" title={name} aria-label={name}
-                data-wzb-farbe-wahl={wert} className={"eba-pf-geofarbe" + ((p.wzFarbe || WZ_ROT) === wert ? " aktiv" : "")}
-                style={{ "--f": wert }} onClick={() => setP((q) => Object.assign({}, q, { wzFarbe: wert === WZ_ROT ? null : wert }))} />)}
-              <label className={"eba-pf-geofarbe eba-pf-geofarbe--waehler" + (p.wzFarbe && !GEO_FARBEN.some((x) => x[1] === p.wzFarbe) ? " aktiv" : "")}
-                style={{ "--f": p.wzFarbe || WZ_ROT }} title="Andere Farbe wählen" aria-label="Andere Farbe wählen">
-                <input type="color" data-wzb-farbe-waehler="" value={p.wzFarbe || WZ_ROT}
-                  onChange={(e) => setP((q) => Object.assign({}, q, { wzFarbe: e.target.value.toLowerCase() }))} /></label>
-            </span>
-          </div>}</>}
-      </div>}
       <div className="eba-pf-fuss">
         <button className="knopf knopf--klein" data-pf-leeren="" onClick={() => setP({})}>Platz leeren</button>
         {wechseln && platzInGebrauch(p) && <button className="knopf knopf--klein" data-pf-wechseln=""

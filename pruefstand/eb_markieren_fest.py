@@ -42,7 +42,7 @@ with sync_playwright() as p:
     pruefe("Kein „Schrift für“", pf.locator("[data-pf-ziel]").count() == 0 and "Schrift für" not in pf.inner_text())
     pruefe("Kein Feld „Andere T-Nr.“", "Andere T-Nr" not in pf.inner_text())
     pruefe("T-Nr. oben vorgeschrieben", pf.locator(".eba-pf-kopf [data-pf='tnr']").inner_text().strip() == "T100")
-    # Häkchen Werkzeugbilder vor Tätigkeit, Bilder erst nach Notiz Mitte
+    # Häkchen Werkzeugbilder und Bilder vor Tätigkeit (1.463.0)
     pos = pg.evaluate("""() => { const f = document.querySelector('[data-platzfenster="T100"]');
       const y = (s) => { const e = f.querySelector(s); return e ? e.getBoundingClientRect().top : null; };
       return [y('[data-pf="wzBilder"]'), y('[data-pf="taetigkeit"]')]; }""")
@@ -50,7 +50,7 @@ with sync_playwright() as p:
     pf.locator("[data-pf='wzBilder']").check(); pg.wait_for_timeout(200)
     pos = pg.evaluate("""() => { const f = document.querySelector('[data-platzfenster="T100"]');
       const y = (s) => f.querySelector(s).getBoundingClientRect().top; return [y('[data-pf-wzb]'), y('[data-pf="geo"]')]; }""")
-    pruefe("Bilder unten", pos[0] > pos[1])
+    pruefe("Bilder oben beim Häkchen", pos[0] < pos[1])
     pf.locator("[data-pf='wzBilder']").uncheck()
     seiteT100 = pf.get_attribute("data-pf-seite")
     # Werkzeug wählen

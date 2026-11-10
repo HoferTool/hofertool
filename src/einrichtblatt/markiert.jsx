@@ -117,6 +117,10 @@ if (typeof document !== "undefined") {
   });
 }
 
+// Vergisst die gemerkte Markierung, etwa beim Antippen des Werkzeugbilds:
+// dann gilt eine Farbe oben der Werkzeugmarkierung, nicht altem Text
+export function markierungVergessen() { gemerkt = null; }
+
 // Ist in diesem Feld (oder irgendeinem, ohne Angabe) etwas markiert?
 export function markierung(feld) {
   const g = gemerkt;
