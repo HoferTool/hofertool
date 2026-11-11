@@ -438,6 +438,17 @@ header.bar { align-items: center; }
             <button class="btn small danger" id="traceDel" type="button" hidden>Form löschen</button>
           </div>
         </div>
+        <div class="drawtools" id="formTools" hidden>
+          <div class="drawrow">
+            <span class="drawlbl">Gewählte Form</span>
+            <label id="fmWH">Breite <input id="fmW" type="number" min="0.5" max="1000" step="0.5"> × Höhe <input id="fmH" type="number" min="0.5" max="1000" step="0.5"> mm</label>
+            <label id="fmDL">Kreis Ø <input id="fmD" type="number" min="0.5" max="1000" step="0.5"> mm</label>
+            <label class="check" id="fmPropL"><input id="fmProp" type="checkbox" checked> Seitenverhältnis halten</label>
+            <button class="btn small" id="fmKl" type="button">− 10 %</button>
+            <button class="btn small" id="fmGr" type="button">+ 10 %</button>
+            <span class="drawlbl" style="text-transform:none;letter-spacing:0;font-weight:400">Ziehen verschiebt, Griff ↘ an der Ecke ändert die Grösse, Pfeiltasten schieben 1 mm (mit Shift 10 mm)</span>
+          </div>
+        </div>
         <div class="griptools" id="gripTools" hidden>
           <select id="gripShape" aria-label="Form der Griffmulde"><option value="slot">Nut (Langloch)</option><option value="oval">Oval</option></select>
           <label>Länge <input id="gripL" type="number" min="4" max="300" step="1" value="40"> mm</label>
@@ -1230,6 +1241,12 @@ function drawEditOverlay(g, px, accent, contour, hole) {
   if ((e.tool === "area" || e.tool === "trace") && e.ssel != null && e.strokes[e.ssel] && e.strokes[e.ssel].poly) {
     const sp = e.strokes[e.ssel].poly; g.save(); g.beginPath(); sp.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath();
     g.globalAlpha = 0.25; g.fillStyle = "#e5484d"; g.fill(); g.globalAlpha = 1; g.setLineDash([6 * px, 4 * px]); g.lineWidth = 2.5 * px; g.strokeStyle = "#e5484d"; g.stroke(); g.restore();
+    // Rahmen, Griff zum Skalieren unten rechts und die Masse oben
+    const bx = polyBox(sp), h = 6 * px; g.save(); g.setLineDash([3 * px, 3 * px]); g.lineWidth = 1 * px; g.strokeStyle = "rgba(229,72,77,.7)"; g.strokeRect(bx.x0, bx.y0, bx.w, bx.h); g.setLineDash([]);
+    g.fillStyle = "#fff"; g.fillRect(bx.x1 - h, bx.y1 - h, 2 * h, 2 * h); g.lineWidth = 2 * px; g.strokeStyle = "#e5484d"; g.strokeRect(bx.x1 - h, bx.y1 - h, 2 * h, 2 * h);
+    const t = istKreis(sp) ? `Ø ${de((bx.w + bx.h) / 2)} mm` : `${de(bx.w)} × ${de(bx.h)} mm`;
+    g.font = `600 ${11 * px}px system-ui, sans-serif`; const tw = g.measureText(t).width, tx = bx.cx, ty = bx.y0 - 12 * px;
+    g.fillStyle = "rgba(255,255,255,.93)"; g.fillRect(tx - tw / 2 - 3 * px, ty - 8 * px, tw + 6 * px, 14 * px); g.fillStyle = "#17201C"; g.fillText(t, tx - tw / 2, ty + 3 * px); g.restore();
   }
   if (e.poly && e.poly.pts.length) {
     const pp = e.poly.pts, col = e.poly.cut ? "#ffb000" : accent; g.save(); g.lineWidth = 2 * px; g.strokeStyle = col; g.lineJoin = "round";
@@ -1334,8 +1351,8 @@ function renderInfo() {
 
 // ---------- Bearbeiten ----------
 const HINTS = {
-  area: "Zeichnen: Ecken antippen (rastet alle 15° ein) oder unten Länge und Winkel eintippen und „+ Linie“ bzw. Radius und Winkel und „+ Bogen“ (Bogen schliesst tangential an, + = nach links, − = nach rechts; 0° = nach rechts, 90° = nach oben). Ohne Startpunkt beginnt es in der Blattmitte. Den ersten Punkt antippen oder „Form schliessen“ (Enter) macht die Form fertig. Rechteck und Kreis entstehen um einen einzeln getippten Punkt, sonst in der Blattmitte. „Werkzeug“ fügt die Form als Werkzeug dazu (mit Spaltmass), „Ausschneiden“ schneidet sie genau so heraus. Eine fertige Form antippen wählt sie (rot), „Form löschen“ oder Entf entfernt sie.",
-  trace: "Nachzeichnen: Rund um das Werkzeug Punkt für Punkt antippen (Mausrad zoomt, für genaue Punkte nah heranzoomen). Den ersten Punkt wieder antippen, doppelklicken oder Enter schliesst die Form. „Ecke runden“: Radius eintippen, dann die beiden Linien der Ecke nacheinander anklicken; Radius 0 macht eine spitze Ecke. Eine fertige Form antippen wählt sie, Entf löscht sie. Für saubere Ränder links „Werkzeuge automatisch erkennen“ ausschalten.",
+  area: "Zeichnen: Ecken antippen (rastet alle 15° ein) oder unten Länge und Winkel eintippen und „+ Linie“ bzw. Radius und Winkel und „+ Bogen“ (Bogen schliesst tangential an, + = nach links, − = nach rechts; 0° = nach rechts, 90° = nach oben). Ohne Startpunkt beginnt es in der Blattmitte. Den ersten Punkt antippen oder „Form schliessen“ (Enter) macht die Form fertig. Rechteck und Kreis entstehen um einen einzeln getippten Punkt, sonst in der Blattmitte. „Werkzeug“ fügt die Form als Werkzeug dazu (mit Spaltmass), „Ausschneiden“ schneidet sie genau so heraus. Eine fertige Form antippen wählt sie (rot): ziehen verschiebt sie, der Griff unten rechts ändert die Grösse, unten Breite und Höhe (beim Kreis Ø) eintippen, „Form löschen“ oder Entf entfernt sie.",
+  trace: "Nachzeichnen: Rund um das Werkzeug Punkt für Punkt antippen (Mausrad zoomt, für genaue Punkte nah heranzoomen). Den ersten Punkt wieder antippen, doppelklicken oder Enter schliesst die Form. „Ecke runden“: Radius eintippen, dann die beiden Linien der Ecke nacheinander anklicken; Radius 0 macht eine spitze Ecke. Eine fertige Form antippen wählt sie: ziehen verschiebt sie, der Griff unten rechts ändert die Grösse, unten Breite und Höhe (beim Kreis Ø) eintippen, Entf löscht sie. Für saubere Ränder links „Werkzeuge automatisch erkennen“ ausschalten.",
   pan: "Ansehen: Mit dem Mausrad oder + und − zoomen, im vergrößerten Bild wischen zum Verschieben. Zum Korrigieren oben ein Werkzeug wählen.",
   points: "Punkt ziehen verschiebt ihn. Tippen auf eine Linie fügt dort einen Punkt ein. Auf freier Fläche einen Rahmen aufziehen wählt mehrere Punkte aus. Mit „Punkte löschen“ entfernen, die Linie wird dann gerade.",
   line: "Ersten Punkt auf der Kontur antippen, dann den zweiten. Alle Punkte dazwischen werden entfernt und durch eine gerade Linie ersetzt. Tippen zwischen zwei Punkte setzt dort einen neuen.",
@@ -1550,6 +1567,70 @@ function deleteShape() {
   const ed = st.edit; if (ed.ssel == null || !ed.strokes[ed.ssel]) return;
   pushUndo(); ed.strokes.splice(ed.ssel, 1); ed.ssel = null; ed.hover = null; runSegment(true);
   toast("Form gelöscht. Rückgängig mit Strg + Z.");
+}
+// Gewählte Form verschieben und skalieren (Wunsch Patrick 11. November 2026: „gezeichnete Formen sowie Kreise sollen verschoben
+// und auch skaliert werden können“, „auch die Masse sollen angepasst werden können“). Die Form wird immer als neues Objekt
+// eingesetzt, weil Rückgängig nur die Liste der Formen kopiert, nicht jede Form.
+function polyBox(q) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  q.forEach(p => { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
+  return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+}
+// Ein Kreis ist eine Form mit vielen Punkten, die alle gleich weit von der Mitte liegen
+function istKreis(q) {
+  if (!q || q.length < 24) return false;
+  const cx = q.reduce((a, p) => a + p[0], 0) / q.length, cy = q.reduce((a, p) => a + p[1], 0) / q.length;
+  const r = q.map(p => Math.hypot(p[0] - cx, p[1] - cy)), m = r.reduce((a, b) => a + b, 0) / r.length;
+  return m > 0.2 && r.every(x => Math.abs(x - m) < m * 0.015);
+}
+const formSetzen = (i, q) => { const ed = st.edit; ed.strokes[i] = { ...ed.strokes[i], poly: q }; };
+const skaliert = (q, ax, ay, sx, sy) => q.map(p => [ax + (p[0] - ax) * sx, ay + (p[1] - ay) * sy]);
+const gewaehlteForm = () => { const ed = st.edit; return ed.ssel != null && ed.strokes[ed.ssel] && ed.strokes[ed.ssel].poly; };
+function formDown(mm, e) {
+  const ed = st.edit;
+  if (ed.fillet || ed.tform || (ed.poly && ed.poly.pts.length)) return false;
+  const sel = gewaehlteForm();
+  if (sel) {
+    const b = polyBox(sel);
+    if (dist(mm, [b.x1, b.y1]) < hitRad(e, 12)) {
+      pushUndo(); ed.sdrag = { art: "gross", i: ed.ssel, orig: sel, a: [b.x0, b.y0], d0: Math.max(0.5, Math.hypot(b.w, b.h)), smin: 1 / Math.max(0.5, b.w, b.h), start: mm, moved: false };
+      return true;
+    }
+  }
+  const hit = shapeAt(mm, e); if (hit == null) return false;
+  pushUndo(); ed.sdrag = { art: "zug", i: hit, orig: ed.strokes[hit].poly, start: mm, moved: false, war: hit === ed.ssel };
+  ed.ssel = hit; ed.poly = null; render(); updateEditUI(); return true;
+}
+function formMove(mm, e) {
+  const d = st.edit.sdrag;
+  if (!d.moved && dist(mm, d.start) < hitRad(e, 3)) return;
+  d.moved = true;
+  if (d.art === "zug") { const dx = mm[0] - d.start[0], dy = mm[1] - d.start[1]; formSetzen(d.i, d.orig.map(p => [p[0] + dx, p[1] + dy])); }
+  else { const f = Math.max(d.smin, dist(mm, d.a) / d.d0); formSetzen(d.i, skaliert(d.orig, d.a[0], d.a[1], f, f)); }
+  render(); formFelder();
+}
+function formEnd() {
+  const ed = st.edit, d = ed.sdrag; ed.sdrag = null;
+  if (d.moved) { runSegment(true); return; }
+  ed.undo.pop(); if (d.war) ed.ssel = null; render(); updateEditUI();
+}
+// Masse der gewählten Form in die Felder (nicht in das Feld, in dem gerade getippt wird)
+function formFelder() {
+  if ($("formTools").hidden) return;
+  const q = gewaehlteForm(); if (!q) return;
+  const b = polyBox(q), kreis = istKreis(q), r1 = v => String(Math.round(v * 10) / 10);
+  $("fmDL").hidden = !kreis; $("fmWH").hidden = $("fmPropL").hidden = kreis;
+  [["fmW", b.w], ["fmH", b.h], ["fmD", (b.w + b.h) / 2]].forEach(([id, v]) => { if (document.activeElement !== $(id)) $(id).value = r1(v); });
+}
+// Neue Masse um die Mitte der Form; mit „Seitenverhältnis halten“ wächst die andere Seite mit
+function formMass(sx, sy) {
+  const ed = st.edit, q = gewaehlteForm(); if (!q || !(sx > 0) || !(sy > 0)) return;
+  const b = polyBox(q); if (Math.max(b.w * sx, b.h * sy) < 0.5) return;
+  pushUndo(); formSetzen(ed.ssel, skaliert(q, b.cx, b.cy, sx, sy)); runSegment(true);
+}
+function formNach(dx, dy) {
+  const ed = st.edit, q = gewaehlteForm(); if (!q) return;
+  pushUndo(); formSetzen(ed.ssel, q.map(p => [p[0] + dx, p[1] + dy])); runSegment(true);
 }
 // Ecke runden (Wunsch Patrick 11. November 2026: „in den Ecken soll durch das Anklicken beider Längen ein Radius definiert werden können“):
 // zwei Linien einer gezeichneten Form antippen, die Punkte dazwischen fallen weg und ein Bogen mit dem Radius
@@ -1773,6 +1854,7 @@ function updateEditUI() {
   if (e.ssel != null && !(e.strokes[e.ssel] && e.strokes[e.ssel].poly)) e.ssel = null;
   $("areaDel").hidden = e.ssel == null || e.tool !== "area";
   $("traceDel").hidden = e.ssel == null || e.tool !== "trace";
+  $("formTools").hidden = e.ssel == null || !(e.tool === "area" || e.tool === "trace") || !!e.fillet; formFelder();
   $("areaClose").disabled = $("traceClose").disabled = npoly < 3; $("areaBack").disabled = $("traceBack").disabled = !npoly; $("areaCancel").disabled = $("traceCancel").disabled = !npoly;
   $("delGripBtn").disabled = e.gsel == null;
   $("delPtBtn").hidden = $("delRingBtn").hidden = e.tool !== "points";
@@ -1837,7 +1919,7 @@ cvEl.addEventListener("pointerdown", e => {
     ed.multi = new Set(); ed.sel = hit; ed.dragPt = true; st.loupe = toImg(e); render(); updateEditUI(); return;
   }
   if (ed.tool === "line") { lineTap(mm, e); return; }
-  if (ed.tool === "area" || ed.tool === "trace") { areaTap(mm, e); return; }
+  if (ed.tool === "area" || ed.tool === "trace") { if (!formDown(mm, e)) areaTap(mm, e); return; }
   if (ed.tool === "smooth") { pushUndo(); ed.sel = null; ed.smoothed = new Set(); ed.smoothing = true; applySmooth(mm); ed.hover = mm; render(); return; }
   if (ed.tool === "grip") { gripDown(mm, e); return; }
   pushUndo(); ed.cur = { add: ed.tool === "add", r: ed.brushD / 2, pts: [mm] }; ed.hover = mm; render();
@@ -1850,6 +1932,11 @@ cvEl.addEventListener("pointermove", e => {
   }
   if (!st.warp) return;
   const ed = st.edit, mm = toMM(e);
+  if (ed.sdrag) { formMove(mm, e); return; }
+  if ((ed.tool === "area" || ed.tool === "trace") && e.pointerType === "mouse" && !ed.fillet && !ed.tform && !(ed.poly && ed.poly.pts.length)) {
+    const q = gewaehlteForm(), b = q && polyBox(q);
+    cvEl.style.cursor = b && dist(mm, [b.x1, b.y1]) < hitRad(e, 12) ? "nwse-resize" : shapeAt(mm, e) != null ? "move" : "crosshair";
+  }
   if (ed.dragPt) { ringOf(ed.sel)[ed.sel.pi] = mm; ed.moved = true; st.loupe = toImg(e); render(); return; }
   if (ed.rect) { ed.rect.b = mm; render(); return; }
   if (ed.smoothing) { applySmooth(mm); ed.hover = mm; render(); return; }
@@ -1871,6 +1958,7 @@ cvEl.addEventListener("pointermove", e => {
 function endPointer(e) {
   const ed = st.edit;
   if (st.drag >= 0) { st.drag = -1; st.loupe = null; st.detected = true; render(); runWarp(); return; }
+  if (ed.sdrag) { formEnd(); return; }
   if (ed.dragPt) {
     ed.dragPt = false; st.loupe = null;
     if (ed.moved) { ed.pointEdits++; updateTool(st.result.tools[ed.sel.ti]); } else ed.undo.pop();
@@ -3700,6 +3788,15 @@ $("traceCancel").addEventListener("click", areaCancel);
 $("traceDel").addEventListener("click", deleteShape);
 $("traceR").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("traceR").blur(); } });
 $("brush").addEventListener("change", () => { st.edit.brushD = num("brush", 4); });
+{
+  const masz = (id, fn) => { $(id).addEventListener("change", fn); $(id).addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $(id).blur(); } }); };
+  const box = () => { const q = gewaehlteForm(); return q && polyBox(q); };
+  masz("fmW", () => { const b = box(), v = num("fmW", 0); if (!b || b.w < 0.01 || !(v > 0)) return formFelder(); const f = v / b.w; formMass(f, $("fmProp").checked || b.h < 0.01 ? f : 1); });
+  masz("fmH", () => { const b = box(), v = num("fmH", 0); if (!b || b.h < 0.01 || !(v > 0)) return formFelder(); const f = v / b.h; formMass($("fmProp").checked || b.w < 0.01 ? f : 1, f); });
+  masz("fmD", () => { const b = box(), v = num("fmD", 0); if (!b || !(v > 0)) return formFelder(); const f = v / ((b.w + b.h) / 2); formMass(f, f); });
+  $("fmKl").addEventListener("click", () => formMass(0.9, 0.9));
+  $("fmGr").addEventListener("click", () => formMass(1.1, 1.1));
+}
 $("undoBtn").addEventListener("click", undo);
 $("areaClose").addEventListener("click", areaClose);
 $("areaDel").addEventListener("click", deleteShape);
@@ -3737,6 +3834,9 @@ document.addEventListener("keydown", e => {
   else if ((e.key === "Delete" || e.key === "Backspace") && st.edit.tool === "grip" && st.edit.gsel != null) { e.preventDefault(); deleteGrip(); }
   else if ((e.key === "Delete" || e.key === "Backspace") && (st.edit.tool === "area" || st.edit.tool === "trace") && st.edit.ssel != null && !(st.edit.poly && st.edit.poly.pts.length)) { e.preventDefault(); deleteShape(); }
   else if ((e.key === "Delete" || e.key === "Backspace") && (st.edit.sel || st.edit.multi.size)) { e.preventDefault(); deletePoint(); }
+  else if (e.key.startsWith("Arrow") && (st.edit.tool === "area" || st.edit.tool === "trace") && st.edit.ssel != null && !(st.edit.poly && st.edit.poly.pts.length)) {
+    e.preventDefault(); const s = e.shiftKey ? 10 : 1; formNach(e.key === "ArrowLeft" ? -s : e.key === "ArrowRight" ? s : 0, e.key === "ArrowUp" ? -s : e.key === "ArrowDown" ? s : 0);
+  }
   else if (e.key === "Enter" && st.edit.poly) { e.preventDefault(); areaClose(); }
   else if ((e.key === "Delete" || e.key === "Backspace") && st.edit.tool === "trace" && st.edit.poly && st.edit.poly.pts.length) { e.preventDefault(); areaBack(); }
   else if (e.key === "Escape") { st.edit.poly = null; st.edit.lineA = null; st.edit.fA = null; st.edit.tform = null; st.edit.multi = new Set(); st.edit.sel = null; render(); updateEditUI(); }

@@ -5,6 +5,7 @@ Kurzfassung der Entwicklung, damit klar ist, warum etwas so ist, wie es ist. Neu
 
 ## 1.x — neue Zählung (ab 9. Oktober 2026)
 
+- **1.490.0** (11. November 2026): Einlagen Generator: gezeichnete Formen und Kreise antippen, ziehen zum Verschieben, Griff unten rechts zum Skalieren, Breite und Höhe (Kreis Ø) eintippen, ± 10 %, Pfeiltasten schieben (Wunsch Patrick).
 - **1.489.0** (11. November 2026): Einlagen Generator: neues Papierformat 148 × 105 mm (A6 quer) unter Erweitert → Referenzblatt, fürs Foto und fürs leere Blatt (Wunsch Patrick).
 - **1.488.0** (11. November 2026): Im QMS steht bei jedem Datum das Jahr (11.11.2026 statt 11.11.), in Listen, Auditplan, Bewertung, Checkliste, Handbuch und im Pad bei Audit (Wunsch Patrick).
 - **1.487.0** (11. November 2026): Alle PDF aus dem QMS (Auditbericht, Managementbewertung, Lieferantenbewertung, Notfallplan) tragen oben rechts das Hofer-Logo statt des Textes „Hofer + Co Präzisionsdrehteile“ (Wunsch Patrick).
