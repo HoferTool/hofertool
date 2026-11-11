@@ -386,6 +386,7 @@ header.bar { align-items: center; }
           <button class="tool" type="button" data-tool="erase" aria-pressed="false" title="Schatten und Fehler wegmalen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M8 12h8"/></svg>Malen −</button>
         </div>
         <div class="seg" role="group" aria-label="Zeichnen und Griff">
+          <button class="tool" type="button" data-tool="trace" aria-pressed="false" title="Werkzeug selber nachzeichnen: Punkte rund um das Werkzeug antippen, Ecken runden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l5-11 6 4 5 7z"/><circle cx="4" cy="17" r="1.6"/><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="10" r="1.6"/><circle cx="20" cy="17" r="1.6"/></svg>Nachzeichnen</button>
           <button class="tool" type="button" data-tool="area" aria-pressed="false" title="Formen mit Massen zeichnen: Linien, Bögen, Rechteck, Kreis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16z"/><path d="M14 7l3 3"/></svg>Zeichnen</button>
           <button class="tool" type="button" data-tool="grip" aria-pressed="false" title="Griffmulde setzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>Griff</button>
         </div>
@@ -427,6 +428,16 @@ header.bar { align-items: center; }
             <button class="btn small" id="dCirc" type="button">+ Kreis</button>
           </div>
         </div>
+        <div class="drawtools" id="traceTools" hidden>
+          <div class="drawrow">
+            <div class="seg" role="group" aria-label="Nachzeichnen"><button class="tool flat" type="button" id="traceDraw" aria-pressed="true">Punkte setzen</button><button class="tool flat" type="button" id="traceFillet" aria-pressed="false">Ecke runden</button></div>
+            <label>Radius <input id="traceR" type="number" min="0" max="500" step="0.5" value="3"> mm</label>
+            <button class="btn small" id="traceClose" type="button" disabled>Form schliessen</button>
+            <button class="btn small" id="traceBack" type="button" disabled>Letzten Punkt weg</button>
+            <button class="btn small" id="traceCancel" type="button" disabled>Abbrechen</button>
+            <button class="btn small danger" id="traceDel" type="button" hidden>Form löschen</button>
+          </div>
+        </div>
         <div class="griptools" id="gripTools" hidden>
           <select id="gripShape" aria-label="Form der Griffmulde"><option value="slot">Nut (Langloch)</option><option value="oval">Oval</option></select>
           <label>Länge <input id="gripL" type="number" min="4" max="300" step="1" value="40"> mm</label>
@@ -465,6 +476,8 @@ header.bar { align-items: center; }
       <details class="sec" open>
         <summary>Erkennung</summary>
         <div class="secbody">
+          <label class="check"><input id="auto" type="checkbox" checked> Werkzeuge automatisch erkennen</label>
+          <p class="help" id="autoHelp" hidden>Aus: es zählt nur, was du mit „Nachzeichnen“, „Zeichnen“ oder „Malen +“ selber festlegst.</p>
           <div class="row"><label for="thr">Schwelle</label><span class="status" id="thrVal">0</span></div>
           <input id="thr" type="range" min="-60" max="60" step="1" value="0">
           <p class="help">Links: mehr wird erkannt (glänzende Teile). Rechts: weniger (Schatten fallen weg).</p>
@@ -684,11 +697,11 @@ const de = (v, d = 1) => v.toFixed(d).replace(".", ",");
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 // ---------- Einstellungen ----------
-const SETTINGS = ["paper", "res", "margin", "thr", "noise", "minArea", "inner", "minHole", "offset", "blur", "smooth", "toolH", "camD", "canvasMode", "exFill", "exMargin", "projName"];
+const SETTINGS = ["paper", "res", "margin", "auto", "thr", "noise", "minArea", "inner", "minHole", "offset", "blur", "smooth", "toolH", "camD", "canvasMode", "exFill", "exMargin", "projName"];
 function num(id, def) { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : def; }
 function P() {
   return { paper: $("paper").value, res: num("res", 6), margin: Math.max(0, num("margin", 4)), thr: num("thr", 0),
-    noise: Math.max(0, num("noise", 0.3)), minArea: Math.max(0, num("minArea", 40)), inner: $("inner").checked,
+    noise: Math.max(0, num("noise", 0.3)), minArea: Math.max(0, num("minArea", 40)), inner: $("inner").checked, auto: $("auto").checked,
     minHole: Math.max(0, num("minHole", 4)), offset: num("offset", 1), blur: Math.max(0, num("blur", 0.4)), smooth: Math.max(0.01, num("smooth", 0.15)), exFill: $("exFill").value,
     toolH: Math.max(0, num("toolH", 0)), camD: Math.max(50, num("camD", 450)), canvasMode: $("canvasMode").value,
     exMargin: Math.max(0, num("exMargin", 5)) };
@@ -996,9 +1009,10 @@ function doSegment() {
   const hist = new Uint32Array(256); let tot = 0;
   for (let y = mpx; y < H - mpx; y++) for (let x = mpx; x < W - mpx; x++) { hist[score[y * W + x]]++; tot++; }
   const auto = Math.max(22, otsu(hist, tot)), T = Math.max(4, Math.min(250, auto + p.thr));
-  let m = new Uint8Array(n); for (let i = 0; i < n; i++) m[i] = score[i] > T ? 1 : 0;
+  // Erkennung aus (Wunsch Patrick 11. November 2026: „funktioniert nicht immer zufriedenstellend“): leere Maske, nur Gezeichnetes zählt
+  let m = new Uint8Array(n); if (p.auto) for (let i = 0; i < n; i++) m[i] = score[i] > T ? 1 : 0;
   const r = Math.round(p.noise * ppm);
-  if (r > 0) { m = morph(m, W, H, r, false); m = morph(m, W, H, r, true); m = morph(m, W, H, r, true); m = morph(m, W, H, r, false); }
+  if (r > 0 && p.auto) { m = morph(m, W, H, r, false); m = morph(m, W, H, r, true); m = morph(m, W, H, r, true); m = morph(m, W, H, r, false); }
   for (const sk of st.edit.strokes) if (!(sk.poly && !sk.add)) paintStroke(m, W, H, sk, ppm);
   let lb = label(m, W, H, 1); const minA = p.minArea * ppm * ppm;
   for (let i = 0; i < n; i++) if (m[i] && lb.areas[lb.lab[i]] < minA) m[i] = 0;
@@ -1163,7 +1177,14 @@ function drawEditOverlay(g, px, accent, contour, hole) {
       g.lineWidth = 1.2 * px; g.strokeStyle = sel ? "#fff" : (ri ? hole : contour); g.strokeRect(p[0] - h, p[1] - h, 2 * h, 2 * h);
     })));
   }
-  if (e.tool === "area" && e.ssel != null && e.strokes[e.ssel] && e.strokes[e.ssel].poly) {
+  if (e.tool === "trace") {
+    // Gezeichnete Formen beim Nachzeichnen deutlich zeigen, ihre Ecken als Punkte
+    e.strokes.forEach((sk, si) => { if (!sk.poly || !sk.add) return; g.save(); g.beginPath(); sk.poly.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.lineWidth = 1.5 * px; g.strokeStyle = accent; g.setLineDash([5 * px, 3 * px]); g.stroke(); g.restore(); });
+    const seg = (h, col, w) => { const q = h && e.strokes[h.si] && e.strokes[h.si].poly; if (!q || !q[h.k]) return; const a = q[h.k], b = q[(h.k + 1) % q.length]; g.save(); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineWidth = w * px; g.strokeStyle = col; g.lineCap = "round"; g.stroke(); g.restore(); };
+    if (e.fillet && e.hoverSeg) seg(e.hoverSeg, "rgba(255,138,0,.55)", 6);
+    if (e.fillet && e.fA) seg(e.fA, "#ff8a00", 5);
+  }
+  if ((e.tool === "area" || e.tool === "trace") && e.ssel != null && e.strokes[e.ssel] && e.strokes[e.ssel].poly) {
     const sp = e.strokes[e.ssel].poly; g.save(); g.beginPath(); sp.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath();
     g.globalAlpha = 0.25; g.fillStyle = "#e5484d"; g.fill(); g.globalAlpha = 1; g.setLineDash([6 * px, 4 * px]); g.lineWidth = 2.5 * px; g.strokeStyle = "#e5484d"; g.stroke(); g.restore();
   }
@@ -1260,8 +1281,9 @@ function renderInfo() {
   if (np) msg += ` · ${np} Punktänderung${np > 1 ? "en" : ""}`;
   const ng = st.edit.grips.length;
   if (ng) msg += ` · ${ng} Griffmulde${ng > 1 ? "n" : ""}`;
-  if (r && !n && !st.leer) msg += ` · <strong>Keine Kontur gefunden.</strong> Schwelle nach links schieben.`;
-  setStatus(msg, !st.detected || (r && !n && !st.leer));
+  if (!p.auto && !st.leer) msg += ` · <strong>Automatische Erkennung aus</strong>: Werkzeuge mit „Nachzeichnen“ umfahren`;
+  else if (r && !n && !st.leer) msg += ` · <strong>Keine Kontur gefunden.</strong> Schwelle nach links schieben.`;
+  setStatus(msg, !st.detected || (r && !n && !st.leer && p.auto));
   if (!r || !n) { $("results").innerHTML = ""; return; }
   const rows = r.tools.map((t, i) => `<tr><td><span class="swatch"></span>${i + 1}</td><td class="num">${de(t.bb[2] - t.bb[0])} × ${de(t.bb[3] - t.bb[1])}</td><td class="num">${de((t.area - t.holeArea) / 100, 1)}</td><td class="num">${t.holes.length}</td></tr>`).join("");
   $("results").innerHTML = `<table><thead><tr><th>Nr.</th><th>Breite × Höhe (mm)</th><th>Fläche (cm²)</th><th>Innenkonturen</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -1270,7 +1292,8 @@ function renderInfo() {
 // ---------- Bearbeiten ----------
 const HINTS = {
   area: "Zeichnen: Ecken antippen (rastet alle 15° ein) oder unten Länge und Winkel eintippen und „+ Linie“ bzw. Radius und Winkel und „+ Bogen“ (Bogen schliesst tangential an, + = nach links, − = nach rechts; 0° = nach rechts, 90° = nach oben). Ohne Startpunkt beginnt es in der Blattmitte. Den ersten Punkt antippen oder „Form schliessen“ (Enter) macht die Form fertig. Rechteck und Kreis entstehen um einen einzeln getippten Punkt, sonst in der Blattmitte. „Werkzeug“ fügt die Form als Werkzeug dazu (mit Spaltmass), „Ausschneiden“ schneidet sie genau so heraus. Eine fertige Form antippen wählt sie (rot), „Form löschen“ oder Entf entfernt sie.",
-  pan: "Ansehen: Mit + und − zoomen, im vergrößerten Bild wischen zum Verschieben. Zum Korrigieren oben ein Werkzeug wählen.",
+  trace: "Nachzeichnen: Rund um das Werkzeug Punkt für Punkt antippen (Mausrad zoomt, für genaue Punkte nah heranzoomen). Den ersten Punkt wieder antippen, doppelklicken oder Enter schliesst die Form. „Ecke runden“: Radius eintippen, dann die beiden Linien der Ecke nacheinander anklicken; Radius 0 macht eine spitze Ecke. Eine fertige Form antippen wählt sie, Entf löscht sie. Für saubere Ränder links „Werkzeuge automatisch erkennen“ ausschalten.",
+  pan: "Ansehen: Mit dem Mausrad oder + und − zoomen, im vergrößerten Bild wischen zum Verschieben. Zum Korrigieren oben ein Werkzeug wählen.",
   points: "Punkt ziehen verschiebt ihn. Tippen auf eine Linie fügt dort einen Punkt ein. Auf freier Fläche einen Rahmen aufziehen wählt mehrere Punkte aus. Mit „Punkte löschen“ entfernen, die Linie wird dann gerade.",
   line: "Ersten Punkt auf der Kontur antippen, dann den zweiten. Alle Punkte dazwischen werden entfernt und durch eine gerade Linie ersetzt. Tippen zwischen zwei Punkte setzt dort einen neuen.",
   add: "Über Stellen malen, die zum Werkzeug gehören, aber fehlen (z. B. glänzende Teile). Die Kontur wird danach neu berechnet.",
@@ -1457,7 +1480,7 @@ function lineTap(mm, e) {
 // Winkel wie am Zeichenbrett: 0° nach rechts, 90° nach oben.
 const ANG = a => a * Math.PI / 180;
 const mathAng = (a, b) => { let d = -Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI; if (d <= -180) d += 360; return d; };
-function newPoly() { return { pts: [], segs: [], cut: $("areaMode").value === "cut" }; }
+function newPoly() { return { pts: [], segs: [], cut: st.edit.tool === "area" && $("areaMode").value === "cut" }; }
 function polyStart() {
   const ed = st.edit; if (!ed.poly) ed.poly = newPoly();
   if (!ed.poly.pts.length) { ed.poly.pts.push([st.warp.W / 2, st.warp.H / 2]); ed.poly.segs.push({ n: 1, t: "p" }); }
@@ -1485,8 +1508,67 @@ function deleteShape() {
   pushUndo(); ed.strokes.splice(ed.ssel, 1); ed.ssel = null; ed.hover = null; runSegment(true);
   toast("Form gelöscht. Rückgängig mit Strg + Z.");
 }
+// Ecke runden (Wunsch Patrick 11. November 2026: „in den Ecken soll durch das Anklicken beider Längen ein Radius definiert werden können“):
+// zwei Linien einer gezeichneten Form antippen, die Punkte dazwischen fallen weg und ein Bogen mit dem Radius
+// läuft tangential an beide Linien. Radius 0 = spitze Ecke im Schnittpunkt der beiden Linien.
+function shapeSegAt(mm, e, nur) {
+  const ed = st.edit, rad = hitRad(e, 10); let best = null, bd = rad;
+  ed.strokes.forEach((sk, si) => {
+    if (!sk.poly || sk.poly.length < 3 || (nur != null && si !== nur)) return;
+    const q = sk.poly, n = q.length;
+    for (let k = 0; k < n; k++) { const d = distSeg(mm, q[k], q[(k + 1) % n]); if (d < bd) { bd = d; best = { si, k }; } }
+  });
+  return best;
+}
+function distSeg(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy;
+  const t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0;
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
+function filletPoly(q, a, b, R) {
+  if (a === b) return { err: "Zwei verschiedene Linien antippen." };
+  // Die Ecke liegt auf der Seite, auf der sich die beiden Linien vorwärts treffen; gehen beide, die mit weniger Punkten
+  const r1 = filletDir(q, a, b, R), r2 = filletDir(q, b, a, R);
+  if (r1.pts && r2.pts) return r1.weg <= r2.weg ? r1 : r2;
+  return r1.pts ? r1 : r2.pts ? r2 : /zu gross/.test(r2.err) ? r2 : r1;
+}
+function filletDir(q, f, s, R) {
+  const n = q.length, weg = (s - f + n) % n;
+  const A0 = q[f], A1 = q[(f + 1) % n], B0 = q[s], B1 = q[(s + 1) % n];
+  const l1 = dist(A0, A1), l2 = dist(B0, B1); if (l1 < 1e-6 || l2 < 1e-6) return { err: "Linie zu kurz." };
+  const u1 = [(A1[0] - A0[0]) / l1, (A1[1] - A0[1]) / l1], u2 = [(B1[0] - B0[0]) / l2, (B1[1] - B0[1]) / l2];
+  const cr = u1[0] * u2[1] - u1[1] * u2[0]; if (Math.abs(cr) < 0.02) return { err: "Die beiden Linien laufen parallel, dort gibt es keine Ecke." };
+  const t = ((B0[0] - A0[0]) * u2[1] - (B0[1] - A0[1]) * u2[0]) / cr, X = [A0[0] + t * u1[0], A0[1] + t * u1[1]];
+  const th = Math.acos(Math.max(-1, Math.min(1, -(u1[0] * u2[0] + u1[1] * u2[1])))), d = R > 0 ? R / Math.tan(th / 2) : 0;
+  const rest2 = (B1[0] - X[0]) * u2[0] + (B1[1] - X[1]) * u2[1];
+  // Schnittpunkt muss vorne an der ersten und hinten an der zweiten Linie liegen, sonst ist es nicht diese Ecke
+  if (t < l1 * 0.5 || rest2 < l2 * 0.5) return { err: "Die Linien treffen sich nicht in dieser Ecke." };
+  if (t - d < -0.01 || rest2 - d < -0.01) return { err: "Radius zu gross für diese Ecke." };
+  const out = []; for (let i = (s + 1) % n; ; i = (i + 1) % n) { out.push(q[i]); if (i === f) break; }
+  if (d < 1e-6) out.push(X);
+  else {
+    const sg = Math.sign(cr), nr = [-u1[1] * sg, u1[0] * sg], T1 = [X[0] - u1[0] * d, X[1] - u1[1] * d], T2 = [X[0] + u2[0] * d, X[1] + u2[1] * d];
+    const C = [T1[0] + nr[0] * R, T1[1] + nr[1] * R], a0 = Math.atan2(T1[1] - C[1], T1[0] - C[0]), sw = Math.PI - th;
+    const k = Math.max(4, Math.ceil(sw * 180 / Math.PI / 5));
+    for (let i = 0; i <= k; i++) { const w = a0 + sg * sw * i / k; out.push([C[0] + R * Math.cos(w), C[1] + R * Math.sin(w)]); }
+    out[out.length - 1] = T2;
+  }
+  return out.length >= 3 ? { pts: out, weg } : { err: "Form wäre zu klein." };
+}
+function filletTap(mm, e) {
+  const ed = st.edit;
+  if (!ed.fA) { const h = shapeSegAt(mm, e); ed.fA = h; if (!h) toast("Eine Linie einer gezeichneten Form antippen."); render(); updateEditUI(); return; }
+  const h = shapeSegAt(mm, e, ed.fA.si);
+  if (!h || h.k === ed.fA.k) { ed.fA = null; render(); updateEditUI(); return; }
+  const R = Math.max(0, num("traceR", 3)), sk = ed.strokes[h.si], r = filletPoly(sk.poly, ed.fA.k, h.k, R);
+  ed.fA = null;
+  if (r.err) { toast(r.err); render(); updateEditUI(); return; }
+  pushUndo(); ed.strokes[h.si] = { ...sk, poly: r.pts }; runSegment(true);
+  toast(R > 0 ? `Ecke mit R ${de(R)} mm gerundet.` : "Spitze Ecke gesetzt.");
+}
 function areaTap(mm, e) {
   const ed = st.edit;
+  if (ed.tool === "trace" && ed.fillet) { filletTap(mm, e); return; }
   // Noch keine Linie angefangen: Tipp auf eine gezeichnete Form wählt sie, Tipp daneben hebt die Wahl auf
   if (!ed.poly || !ed.poly.pts.length) {
     const hit = shapeAt(mm, e);
@@ -1495,6 +1577,9 @@ function areaTap(mm, e) {
   }
   if (!ed.poly) ed.poly = newPoly();
   const pp = ed.poly.pts;
+  // Doppelklick beim Nachzeichnen schliesst die Form (der zweite Klick setzt keinen Punkt mehr)
+  const jetzt = performance.now(), lt = ed.lastTap; ed.lastTap = { t: jetzt, p: mm };
+  if (ed.tool === "trace" && lt && jetzt - lt.t < 400 && dist(lt.p, mm) < hitRad(e, 6) && pp.length >= 3) { ed.lastTap = null; areaClose(); return; }
   if (pp.length >= 3 && dist(pp[0], mm) < hitRad(e, 12)) { areaClose(); return; }
   const q = snapPt(pp[pp.length - 1], mm);
   pp.push(q); ed.poly.segs.push({ n: 1, t: pp.length > 1 ? "l" : "p" }); ed.hover = mm; render(); updateEditUI();
@@ -1619,11 +1704,14 @@ function updateEditUI() {
   $("brush").hidden = !brush;
   $("gripTools").hidden = e.tool !== "grip";
   $("areaTools").hidden = e.tool !== "area";
-  $("clearBrushBtn").hidden = !(brush || e.tool === "area");
+  $("traceTools").hidden = e.tool !== "trace";
+  $("traceDraw").setAttribute("aria-pressed", String(!e.fillet)); $("traceFillet").setAttribute("aria-pressed", String(!!e.fillet));
+  $("clearBrushBtn").hidden = !(brush || e.tool === "area" || e.tool === "trace");
   const npoly = e.poly ? e.poly.pts.length : 0;
   if (e.ssel != null && !(e.strokes[e.ssel] && e.strokes[e.ssel].poly)) e.ssel = null;
   $("areaDel").hidden = e.ssel == null || e.tool !== "area";
-  $("areaClose").disabled = npoly < 3; $("areaBack").disabled = !npoly; $("areaCancel").disabled = !npoly;
+  $("traceDel").hidden = e.ssel == null || e.tool !== "trace";
+  $("areaClose").disabled = $("traceClose").disabled = npoly < 3; $("areaBack").disabled = $("traceBack").disabled = !npoly; $("areaCancel").disabled = $("traceCancel").disabled = !npoly;
   $("delGripBtn").disabled = e.gsel == null;
   $("delPtBtn").hidden = $("delRingBtn").hidden = e.tool !== "points";
   $("delPtBtn").disabled = !e.sel && !e.multi.size; $("delRingBtn").disabled = !e.sel;
@@ -1635,12 +1723,28 @@ function updateEditUI() {
   $("editHint").textContent = contour ? HINTS[e.tool] : "Kreise auf die Blattecken ziehen. Die dicke Linie markiert die Oberkante des Blatts.";
   $("ctxBar").hidden = !contour || ![...$("ctxBar").children].some(c => !c.hidden);
 }
-function setZoom(z) {
-  const vw = $("viewer"), cv = $("view"), w0 = cv.offsetWidth || 1, h0 = cv.offsetHeight || 1;
-  const fx = (vw.scrollLeft + vw.clientWidth / 2) / w0, fy = (vw.scrollTop + vw.clientHeight / 2) / h0;
-  st.zoom = Math.max(1, Math.min(8, z)); render();
-  vw.scrollLeft = fx * cv.offsetWidth - vw.clientWidth / 2; vw.scrollTop = fy * cv.offsetHeight - vw.clientHeight / 2;
+// Zoom um die Mitte oder (Mausrad) um den Punkt unter dem Zeiger, der dabei stehen bleibt
+function setZoom(z, cx, cy) {
+  const vw = $("viewer"), cv = $("view"), r0 = cv.getBoundingClientRect(), vr = vw.getBoundingClientRect();
+  if (cx == null) { cx = vr.left + vw.clientWidth / 2; cy = vr.top + vw.clientHeight / 2; }
+  const fx = (cx - r0.left) / (r0.width || 1), fy = (cy - r0.top) / (r0.height || 1);
+  st.zoom = Math.max(1, Math.min(12, z)); render();
+  const r1 = cv.getBoundingClientRect();
+  vw.scrollLeft += r1.left + fx * r1.width - cx; vw.scrollTop += r1.top + fy * r1.height - cy;
   $("zoomFit").textContent = Math.round(st.zoom * 100) + " %";
+}
+// Mausrad zoomt die Kontur (Wunsch Patrick 11. November 2026), mittlere oder rechte Maustaste ziehen verschiebt
+$("viewer").addEventListener("wheel", e => {
+  if (st.view !== "contour" || !st.warp) return;
+  e.preventDefault(); const z = st.zoom * Math.exp(-Math.max(-300, Math.min(300, e.deltaY)) * 0.0018);
+  if (Math.abs(z - st.zoom) > 1e-3) setZoom(z, e.clientX, e.clientY);
+}, { passive: false });
+{
+  let pn = null; const vw = $("viewer");
+  vw.addEventListener("pointerdown", e => { if (e.pointerType === "mouse" && (e.button === 1 || e.button === 2) && st.view === "contour") { pn = { x: e.clientX, y: e.clientY, l: vw.scrollLeft, t: vw.scrollTop }; vw.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation(); } }, true);
+  vw.addEventListener("pointermove", e => { if (!pn) return; vw.scrollLeft = pn.l - (e.clientX - pn.x); vw.scrollTop = pn.t - (e.clientY - pn.y); });
+  const aus = () => { pn = null; }; vw.addEventListener("pointerup", aus); vw.addEventListener("pointercancel", aus);
+  vw.addEventListener("contextmenu", e => { if (st.view === "contour") e.preventDefault(); });
 }
 function toImg(e) { const r = $("view").getBoundingClientRect(); return [(e.clientX - r.left) / st.viewScale, (e.clientY - r.top) / st.viewScale]; }
 function toMM(e) { const p = toImg(e); return [p[0] / st.warp.ppm, p[1] / st.warp.ppm]; }
@@ -1668,7 +1772,7 @@ cvEl.addEventListener("pointerdown", e => {
     ed.multi = new Set(); ed.sel = hit; ed.dragPt = true; st.loupe = toImg(e); render(); updateEditUI(); return;
   }
   if (ed.tool === "line") { lineTap(mm, e); return; }
-  if (ed.tool === "area") { areaTap(mm, e); return; }
+  if (ed.tool === "area" || ed.tool === "trace") { areaTap(mm, e); return; }
   if (ed.tool === "smooth") { pushUndo(); ed.sel = null; ed.smoothed = new Set(); ed.smoothing = true; applySmooth(mm); ed.hover = mm; render(); return; }
   if (ed.tool === "grip") { gripDown(mm, e); return; }
   pushUndo(); ed.cur = { add: ed.tool === "add", r: ed.brushD / 2, pts: [mm] }; ed.hover = mm; render();
@@ -1696,7 +1800,8 @@ cvEl.addEventListener("pointermove", e => {
     ed.gmoved = true; if (d.mode !== "move") syncGripInputs(); render(); return;
   }
   if (ed.cur) { const last = ed.cur.pts[ed.cur.pts.length - 1]; if (dist(last, mm) > ed.cur.r * 0.25) ed.cur.pts.push(mm); ed.hover = mm; render(); return; }
-  if ((ed.tool === "add" || ed.tool === "erase" || ed.tool === "smooth" || (ed.tool === "line" && ed.lineA) || (ed.tool === "area" && ed.poly)) && e.pointerType === "mouse") { ed.hover = mm; render(); }
+  if ((ed.tool === "add" || ed.tool === "erase" || ed.tool === "smooth" || (ed.tool === "line" && ed.lineA) || ((ed.tool === "area" || ed.tool === "trace") && ed.poly)) && e.pointerType === "mouse") { ed.hover = mm; render(); }
+  else if (ed.tool === "trace" && ed.fillet && e.pointerType === "mouse") { const h = shapeSegAt(mm, e); if ((h && h.si) !== (ed.hoverSeg && ed.hoverSeg.si) || (h && h.k) !== (ed.hoverSeg && ed.hoverSeg.k)) { ed.hoverSeg = h; render(); } }
 });
 function endPointer(e) {
   const ed = st.edit;
@@ -3495,18 +3600,31 @@ $("redetectBtn").addEventListener("click", () => { if (!st.autoCorners) return; 
 $("rotateBtn").addEventListener("click", () => { if (!st.corners) return; const c = st.corners; st.corners = [c[3], c[0], c[1], c[2]]; render(); runWarp(); });
 let segT = 0;
 ["paper", "res", "margin"].forEach(id => $(id).addEventListener("change", () => { saveSettings(); runWarp(); }));
-["thr", "noise", "minArea", "inner", "minHole", "offset", "blur", "smooth", "toolH", "camD"].forEach(id =>
+["auto", "thr", "noise", "minArea", "inner", "minHole", "offset", "blur", "smooth", "toolH", "camD"].forEach(id =>
   $(id).addEventListener(id === "thr" ? "input" : "change", () => {
     saveSettings(); if (id === "thr") $("thrVal").textContent = (P().thr > 0 ? "+" : "") + P().thr;
+    if (id === "auto") { autoUI(); if (!P().auto && st.edit.tool === "pan") waehleTool("trace"); }
     clearTimeout(segT); segT = setTimeout(runSegment, id === "thr" ? 180 : 0);
   }));
 ["canvasMode", "exFill", "exMargin", "projName"].forEach(id => $(id).addEventListener("change", saveSettings));
 let rsT = 0; window.addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(() => { render(); layRender(); if (lay.view3d) lay3dDraw(); }, 120); });
-document.querySelectorAll(".tool[data-tool]").forEach(b => b.addEventListener("click", () => {
-  st.edit.tool = b.dataset.tool; if (st.edit.tool !== "points") st.edit.sel = null; if (st.edit.tool !== "grip") st.edit.gsel = null; st.edit.hover = null; if (st.edit.tool !== "area") st.edit.poly = null;
-  st.edit.multi = new Set(); st.edit.lineA = null;
+function waehleTool(t) {
+  st.edit.tool = t; if (t !== "points") st.edit.sel = null; if (t !== "grip") st.edit.gsel = null; st.edit.hover = null;
+  if (t !== "area" && t !== "trace") st.edit.poly = null; else if (st.edit.poly) st.edit.poly.cut = t === "area" && $("areaMode").value === "cut";
+  st.edit.multi = new Set(); st.edit.lineA = null; st.edit.fA = null;
   updateEditUI(); render();
-}));
+}
+document.querySelectorAll(".tool[data-tool]").forEach(b => b.addEventListener("click", () => waehleTool(b.dataset.tool)));
+// Schwelle und Lochsuche brauchen nur, wer automatisch erkennt
+function autoUI() { const on = $("auto").checked; $("thr").disabled = !on; $("autoHelp").hidden = on; }
+autoUI();
+$("traceDraw").addEventListener("click", () => { st.edit.fillet = false; st.edit.fA = null; updateEditUI(); render(); });
+$("traceFillet").addEventListener("click", () => { if (st.edit.poly && st.edit.poly.pts.length >= 3) areaClose(); st.edit.fillet = true; st.edit.fA = null; st.edit.ssel = null; updateEditUI(); render(); });
+$("traceClose").addEventListener("click", areaClose);
+$("traceBack").addEventListener("click", areaBack);
+$("traceCancel").addEventListener("click", areaCancel);
+$("traceDel").addEventListener("click", deleteShape);
+$("traceR").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("traceR").blur(); } });
 $("brush").addEventListener("change", () => { st.edit.brushD = num("brush", 4); });
 $("undoBtn").addEventListener("click", undo);
 $("areaClose").addEventListener("click", areaClose);
@@ -3543,10 +3661,11 @@ document.addEventListener("keydown", e => {
   if (!$("layoutMode").hidden) { layKey(e); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
   else if ((e.key === "Delete" || e.key === "Backspace") && st.edit.tool === "grip" && st.edit.gsel != null) { e.preventDefault(); deleteGrip(); }
-  else if ((e.key === "Delete" || e.key === "Backspace") && st.edit.tool === "area" && st.edit.ssel != null && !(st.edit.poly && st.edit.poly.pts.length)) { e.preventDefault(); deleteShape(); }
+  else if ((e.key === "Delete" || e.key === "Backspace") && (st.edit.tool === "area" || st.edit.tool === "trace") && st.edit.ssel != null && !(st.edit.poly && st.edit.poly.pts.length)) { e.preventDefault(); deleteShape(); }
   else if ((e.key === "Delete" || e.key === "Backspace") && (st.edit.sel || st.edit.multi.size)) { e.preventDefault(); deletePoint(); }
   else if (e.key === "Enter" && st.edit.poly) { e.preventDefault(); areaClose(); }
-  else if (e.key === "Escape") { st.edit.poly = null; st.edit.lineA = null; st.edit.multi = new Set(); st.edit.sel = null; render(); updateEditUI(); }
+  else if ((e.key === "Delete" || e.key === "Backspace") && st.edit.tool === "trace" && st.edit.poly && st.edit.poly.pts.length) { e.preventDefault(); areaBack(); }
+  else if (e.key === "Escape") { st.edit.poly = null; st.edit.lineA = null; st.edit.fA = null; st.edit.multi = new Set(); st.edit.sel = null; render(); updateEditUI(); }
 });
 setView("contour", true);
 blankSheet(true);
